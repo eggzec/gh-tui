@@ -139,3 +139,62 @@ func TestConcurrentMutate(t *testing.T) {
 		t.Errorf("Len() = %d, want at most 8", got)
 	}
 }
+
+// incIfEven stands in for "update the pages that list this item".
+func incIfEven(v int) (int, bool) {
+	if v%2 != 0 {
+		return v, false
+	}
+	return v + 1, true
+}
+
+func TestMutateTag(t *testing.T) {
+	c := New[int]()
+	c.Set("a", Entry[int]{Value: 2, Tags: []string{"repo"}})
+	c.Set("b", Entry[int]{Value: 3, Tags: []string{"repo"}})
+	c.Set("c", Entry[int]{Value: 4, Tags: []string{"other"}})
+
+	rollback := c.MutateTag("repo", incIfEven)
+	for key, want := range map[string]int{"a": 3, "b": 3, "c": 4} {
+		if e, _ := c.Get(key); e.Value != want {
+			t.Errorf("after MutateTag, %s = %d, want %d", key, e.Value, want)
+		}
+	}
+
+	rollback()
+	for key, want := range map[string]int{"a": 2, "b": 3, "c": 4} {
+		if e, st := c.Get(key); e.Value != want || st != Fresh {
+			t.Errorf("after rollback, %s = %d, %v; want %d, fresh", key, e.Value, st, want)
+		}
+	}
+}
+
+func TestMutateTagLeavesUnchangedEntries(t *testing.T) {
+	c := New[int]()
+	c.Set("odd", Entry[int]{Value: 3, Tags: []string{"repo"}})
+	rollback := c.MutateTag("repo", incIfEven)
+
+	// A newer write to an entry fn left alone must survive the rollback.
+	c.Set("odd", Entry[int]{Value: 5, Tags: []string{"repo"}})
+	rollback()
+	if e, st := c.Get("odd"); e.Value != 5 || st != Fresh {
+		t.Errorf("odd = %d, %v; want 5, fresh", e.Value, st)
+	}
+}
+
+func TestMutateTagRollbackKeepsNewerWrite(t *testing.T) {
+	c := New[int]()
+	c.Set("a", Entry[int]{Value: 2, Tags: []string{"repo"}})
+	c.Set("b", Entry[int]{Value: 4, Tags: []string{"repo"}})
+	rollback := c.MutateTag("repo", incIfEven)
+
+	c.Set("a", Entry[int]{Value: 10, Tags: []string{"repo"}})
+	rollback()
+	rollback()
+	if e, st := c.Get("a"); e.Value != 10 || st != Stale {
+		t.Errorf("a = %d, %v; want 10, stale", e.Value, st)
+	}
+	if e, st := c.Get("b"); e.Value != 4 || st != Fresh {
+		t.Errorf("b = %d, %v; want 4, fresh", e.Value, st)
+	}
+}
