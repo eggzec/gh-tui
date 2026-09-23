@@ -76,9 +76,10 @@ var wantNotifications = []core.Notification{
 		ID:   "14230157283",
 		Repo: core.RepoRef{Owner: "eggzec", Name: "gh-tui"},
 		Subject: core.Subject{
-			Title: "cache: add MutateTag for optimistic updates",
-			Type:  core.SubjectPullRequest,
-			URL:   "https://api.github.com/repos/eggzec/gh-tui/pulls/42",
+			Title:  "cache: add MutateTag for optimistic updates",
+			Type:   core.SubjectPullRequest,
+			URL:    "https://api.github.com/repos/eggzec/gh-tui/pulls/42",
+			WebURL: "https://github.com/eggzec/gh-tui/pull/42",
 		},
 		Reason:    "review_requested",
 		Unread:    true,
@@ -88,25 +89,34 @@ var wantNotifications = []core.Notification{
 		ID:   "14229874410",
 		Repo: core.RepoRef{Owner: "charmbracelet", Name: "bubbletea"},
 		Subject: core.Subject{
-			Title: "Keys arrive as KeyPressMsg in v2",
-			Type:  core.SubjectIssue,
-			URL:   "https://api.github.com/repos/charmbracelet/bubbletea/issues/1402",
+			Title:  "Keys arrive as KeyPressMsg in v2",
+			Type:   core.SubjectIssue,
+			URL:    "https://api.github.com/repos/charmbracelet/bubbletea/issues/1402",
+			WebURL: "https://github.com/charmbracelet/bubbletea/issues/1402",
 		},
 		Reason:    "mention",
 		UpdatedAt: time.Date(2026, 9, 21, 9, 47, 2, 0, time.UTC),
 	},
 	{
-		ID:        "14229011975",
-		Repo:      core.RepoRef{Owner: "charmbracelet", Name: "huh"},
-		Subject:   core.Subject{Title: "How do you theme huh forms?", Type: core.SubjectDiscussion},
+		ID:   "14229011975",
+		Repo: core.RepoRef{Owner: "charmbracelet", Name: "huh"},
+		Subject: core.Subject{
+			Title:  "How do you theme huh forms?",
+			Type:   core.SubjectDiscussion,
+			WebURL: "https://github.com/charmbracelet/huh/discussions",
+		},
 		Reason:    "subscribed",
 		Unread:    true,
 		UpdatedAt: time.Date(2026, 9, 20, 18, 30, 55, 0, time.UTC),
 	},
 	{
-		ID:        "14228450321",
-		Repo:      core.RepoRef{Owner: "eggzec", Name: "gh-tui"},
-		Subject:   core.Subject{Title: "CI workflow run failed for main branch", Type: "CheckSuite"},
+		ID:   "14228450321",
+		Repo: core.RepoRef{Owner: "eggzec", Name: "gh-tui"},
+		Subject: core.Subject{
+			Title:  "CI workflow run failed for main branch",
+			Type:   "CheckSuite",
+			WebURL: "https://github.com/eggzec/gh-tui",
+		},
 		Reason:    "ci_activity",
 		Unread:    true,
 		UpdatedAt: time.Date(2026, 9, 20, 7, 15, 20, 0, time.UTC),
@@ -258,6 +268,30 @@ func TestMarkNotificationsRead(t *testing.T) {
 			}
 			if !errors.Is(err, tt.wantErr) {
 				t.Errorf("error = %v, want %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestSubjectWebURL(t *testing.T) {
+	const repo = "https://github.com/o/r"
+	tests := []struct {
+		name, apiURL string
+		typ          core.SubjectType
+		want         string
+	}{
+		{"pull", "https://api.github.com/repos/o/r/pulls/42", core.SubjectPullRequest, repo + "/pull/42"},
+		{"issue", "https://api.github.com/repos/o/r/issues/7", core.SubjectIssue, repo + "/issues/7"},
+		{"commit", "https://api.github.com/repos/o/r/commits/abc123", core.SubjectCommit, repo + "/commit/abc123"},
+		{"release", "https://api.github.com/repos/o/r/releases/991", core.SubjectRelease, repo + "/releases"},
+		{"discussion", "", core.SubjectDiscussion, repo + "/discussions"},
+		{"unknown", "", "CheckSuite", repo},
+		{"enterprise", "https://ghe.example.com/api/v3/repos/o/r/pulls/3", core.SubjectPullRequest, repo + "/pull/3"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := subjectWebURL(repo, tt.apiURL, tt.typ); got != tt.want {
+				t.Errorf("subjectWebURL(%q) = %q, want %q", tt.apiURL, got, tt.want)
 			}
 		})
 	}
