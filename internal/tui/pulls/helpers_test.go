@@ -13,6 +13,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
@@ -35,23 +36,30 @@ type fakeService struct {
 	gets     []int
 	getErr   error
 	comments []pulls.CommentsQuery
+	// ops are the changes asked for, such as "merge 142 squash", and
+	// sendErr fails sending them.
+	ops     []string
+	sendErr error
+	// listedAs keeps a changed pull request in the pages of its old state
+	// until the change is sent, as the service's cached pages do.
+	listedAs map[int]core.State
 }
 
 func newFakeService() *fakeService {
-	return &fakeService{pulls: samplePulls(), pageSize: 30, cached: map[int]bool{}}
+	return &fakeService{pulls: samplePulls(), pageSize: 30, cached: map[int]bool{}, listedAs: map[int]core.State{}}
 }
 
-func (f *fakeService) find(number int) (core.PullRequest, bool) {
+func (f *fakeService) find(number int) core.PullRequest {
 	for i := range f.pulls {
 		if f.pulls[i].Number == number {
-			return f.pulls[i], true
+			return f.pulls[i]
 		}
 	}
-	return core.PullRequest{}, false
+	return core.PullRequest{}
 }
 
 func (f *fakeService) detail(number int) core.PullRequestDetail {
-	pr, _ := f.find(number)
+	pr := f.find(number)
 	pr.Body = "## Why\n\nCold starts read **every** page again. This keeps them on disk.\n\n- Pages expire with their TTL\n- `--no-disk` turns it off"
 	return core.PullRequestDetail{PullRequest: pr, CheckRuns: []core.CheckRun{
 		{Name: "test", Status: "completed", Conclusion: "success"},
@@ -109,7 +117,12 @@ func (f *fakeService) List(_ context.Context, q pulls.ListQuery) (core.Page[core
 	f.queries = append(f.queries, q)
 	var match []core.PullRequest
 	for i := range f.pulls {
-		if pr := &f.pulls[i]; pr.Repo == q.Repo && pr.State == q.State {
+		pr := &f.pulls[i]
+		state, ok := f.listedAs[pr.Number]
+		if !ok {
+			state = pr.State
+		}
+		if pr.Repo == q.Repo && state == q.State {
 			match = append(match, *pr)
 		}
 	}
@@ -198,18 +211,19 @@ func manyPulls(n int) []core.PullRequest {
 }
 
 // newTest returns a sized, focused section over svc that has not started.
-func newTest(tb testing.TB, svc Service, width, height int) *Section {
+func newTest(tb testing.TB, svc Service, width, height int, opts ...Option) *Section {
 	tb.Helper()
-	s := New(tb.Context(), svc, config.Default().Keys, WithClock(func() time.Time { return clock }))
+	opts = append([]Option{WithClock(func() time.Time { return clock })}, opts...)
+	s := New(tb.Context(), svc, config.Default().Keys, opts...)
 	s.SetSize(width, height)
 	s.Focus()
 	return s
 }
 
 // started returns a section that has started on repo and loaded its list.
-func started(tb testing.TB, svc Service, width, height int) *Section {
+func started(tb testing.TB, svc Service, width, height int, opts ...Option) *Section {
 	tb.Helper()
-	s := newTest(tb, svc, width, height)
+	s := newTest(tb, svc, width, height, opts...)
 	drain(tb, s, s.Update(ui.RepoMsg{Repo: repo}))
 	drain(tb, s, s.Init())
 	return s
@@ -265,4 +279,64 @@ func keyMsg(k string) tea.KeyPressMsg {
 	}
 	r := []rune(k)
 	return tea.KeyPressMsg{Code: r[0], Text: k}
+}
+
+// change applies edit to pull request number at once, as the service does
+// to its cache, and returns the Op that sends it and rolls it back if
+// sending fails.
+func (f *fakeService) change(what string, number int, edit func(*core.PullRequest)) *optimistic.Op {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.ops = append(f.ops, what+" "+strconv.Itoa(number))
+	i := slices.IndexFunc(f.pulls, func(pr core.PullRequest) bool { return pr.Number == number })
+	if i < 0 {
+		return optimistic.New(func(context.Context) error { return nil })
+	}
+	before := f.pulls[i]
+	f.listedAs[number] = before.State
+	edit(&f.pulls[i])
+	return optimistic.New(func(context.Context) error {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		if f.sendErr == nil {
+			delete(f.listedAs, number)
+		}
+		return f.sendErr
+	}, func() {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		f.pulls[i] = before
+	})
+}
+
+func (f *fakeService) Merge(_ core.RepoRef, number int, method core.MergeMethod) *optimistic.Op {
+	return f.change("merge "+string(method), number, func(pr *core.PullRequest) { pr.State = core.StateMerged })
+}
+
+func (f *fakeService) Close(_ core.RepoRef, number int) *optimistic.Op {
+	return f.change("close", number, func(pr *core.PullRequest) { pr.State = core.StateClosed })
+}
+
+func (f *fakeService) Reopen(_ core.RepoRef, number int) *optimistic.Op {
+	return f.change("reopen", number, func(pr *core.PullRequest) { pr.State = core.StateOpen })
+}
+
+func (f *fakeService) MarkReady(_ core.RepoRef, number int) *optimistic.Op {
+	return f.change("ready", number, func(pr *core.PullRequest) { pr.Draft = false })
+}
+
+func (f *fakeService) ConvertToDraft(_ core.RepoRef, number int) *optimistic.Op {
+	return f.change("draft", number, func(pr *core.PullRequest) { pr.Draft = true })
+}
+
+func (f *fakeService) changes() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.ops)
+}
+
+func (f *fakeService) state(number int) core.PullRequest {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.find(number)
 }

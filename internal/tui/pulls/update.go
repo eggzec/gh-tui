@@ -15,7 +15,14 @@ func (s *Section) Update(msg tea.Msg) tea.Cmd {
 		return s.setRepo(msg.Repo)
 	case detailMsg:
 		return s.receive(msg)
+	case ui.DoneMsg:
+		// The change was confirmed or rolled back; either way the cache
+		// has the outcome.
+		return s.reload()
 	case tea.KeyPressMsg:
+		if cmd, ok := s.mutate(msg); ok {
+			return cmd
+		}
 		if s.thread != nil {
 			return s.pressDetail(msg)
 		}
