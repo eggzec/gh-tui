@@ -16,23 +16,48 @@ import (
 // that lists it.
 const tag = "notifications"
 
-// Query selects a page of notifications. The zero Query is the first page of
-// the default inbox, which Poll watches.
-type Query struct {
+// DefaultPageSize is the page size of a ListQuery that sets none.
+const DefaultPageSize = 30
+
+// maxPageSize is the largest page GitHub returns.
+const maxPageSize = 100
+
+// ListQuery selects a page of notifications. The zero ListQuery is the first
+// page of the default inbox, which Poll watches.
+//
+// The Next of a page is a URL that already carries the filter and the page
+// size, so when Cursor is set, the page has the Filter and PageSize of the
+// first page, whatever the query says. Both still key the cache, so a query
+// should repeat them to find the page again.
+type ListQuery struct {
 	Filter core.NotificationFilter
 	// Cursor is the Next of the previous page, or empty for the first page.
 	Cursor string
+	// PageSize is how many threads a page holds. Zero means DefaultPageSize,
+	// and sizes above GitHub's maximum of 100 are clamped.
+	PageSize int
 }
 
-func (q Query) key() string {
+func (q ListQuery) normalize() ListQuery {
+	if q.PageSize <= 0 {
+		q.PageSize = DefaultPageSize
+	}
+	q.PageSize = min(q.PageSize, maxPageSize)
+	return q
+}
+
+// key is the cache key of q, which the defaults and the clamp don't change.
+func (q ListQuery) key() string {
+	q = q.normalize()
 	return "notifications?all=" + strconv.FormatBool(q.Filter.All) +
 		"&participating=" + strconv.FormatBool(q.Filter.Participating) +
+		"&page_size=" + strconv.Itoa(q.PageSize) +
 		"&cursor=" + q.Cursor
 }
 
-// Cached returns the cached page for q, fresh or stale, without a request.
-// It reports false if the page isn't cached.
-func (s *Service) Cached(q Query) (core.Page[core.Notification], bool) {
+// CachedList returns the cached page for q, fresh or stale, without a
+// request. It reports false if the page isn't cached.
+func (s *Service) CachedList(q ListQuery) (core.Page[core.Notification], bool) {
 	e, st := s.cache.Get(q.key())
 	return e.Value, st != cache.Miss
 }
@@ -40,7 +65,8 @@ func (s *Service) Cached(q Query) (core.Page[core.Notification], bool) {
 // List returns the page for q. A fresh cached page is returned as is; a stale
 // one is revalidated with its validators, which costs no rate limit when
 // nothing changed.
-func (s *Service) List(ctx context.Context, q Query) (core.Page[core.Notification], error) {
+func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.Notification], error) {
+	q = q.normalize()
 	e, err := s.cache.Fetch(ctx, q.key(), s.load(q))
 	if err != nil {
 		return core.Page[core.Notification]{}, fmt.Errorf("list notifications: %w", err)
@@ -50,9 +76,9 @@ func (s *Service) List(ctx context.Context, q Query) (core.Page[core.Notificatio
 
 // Poll revalidates the default inbox, as a watch.PollFunc. Changed is true
 // only when GitHub sent new data, which is then cached, so refetching the
-// zero Query afterwards is a fresh hit. Interval is GitHub's X-Poll-Interval.
+// zero ListQuery afterwards is a fresh hit. Interval is GitHub's X-Poll-Interval.
 func (s *Service) Poll(ctx context.Context) (watch.Result, error) {
-	var q Query
+	q := ListQuery{}.normalize()
 	load := s.load(q)
 	// Fetch returns after fn unless ctx is done, and then changed is not
 	// read, so it needs no lock.
@@ -72,14 +98,15 @@ func (s *Service) Poll(ctx context.Context) (watch.Result, error) {
 	return watch.Result{Changed: changed, Interval: time.Duration(s.interval.Load())}, nil
 }
 
-// load fetches the page for q, conditionally when a previous entry exists.
-func (s *Service) load(q Query) cache.FetchFunc[page] {
+// load fetches the page for a normalized q, conditionally when a previous
+// entry exists.
+func (s *Service) load(q ListQuery) cache.FetchFunc[page] {
 	return func(ctx context.Context, prev cache.Entry[page], ok bool) (cache.Entry[page], error) {
 		var cond github.Conditional
 		if ok {
 			cond = github.Conditional{ETag: prev.ETag, LastModified: prev.LastModified}
 		}
-		p, res, err := s.api.ListNotifications(ctx, q.Filter, q.Cursor, cond)
+		p, res, err := s.api.ListNotifications(ctx, q.Filter, q.PageSize, q.Cursor, cond)
 		if err != nil {
 			return cache.Entry[page]{}, err
 		}

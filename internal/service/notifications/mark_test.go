@@ -20,8 +20,8 @@ var (
 
 	readA = core.Notification{ID: "a", UpdatedAt: a.UpdatedAt}
 
-	inbox    = Query{}
-	allInbox = Query{Filter: core.NotificationFilter{All: true}}
+	inbox    = ListQuery{}
+	allInbox = ListQuery{Filter: core.NotificationFilter{All: true}}
 )
 
 // seeded returns a service whose cache holds the unread inbox [a b] and the
@@ -42,7 +42,7 @@ type markCase struct {
 	fake func(api *fakeAPI, err error)
 	mark func(s *Service) *optimistic.Op
 	// want holds the pages after the change.
-	want map[Query]page
+	want map[ListQuery]page
 }
 
 var markCases = []markCase{
@@ -57,7 +57,7 @@ var markCases = []markCase{
 			}
 		},
 		mark: func(s *Service) *optimistic.Op { return s.MarkRead("a") },
-		want: map[Query]page{
+		want: map[ListQuery]page{
 			inbox:    {Items: []core.Notification{readA, b}},
 			allInbox: {Items: []core.Notification{readA, c}, Next: "next"},
 		},
@@ -73,7 +73,7 @@ var markCases = []markCase{
 			}
 		},
 		mark: func(s *Service) *optimistic.Op { return s.MarkDone("a") },
-		want: map[Query]page{
+		want: map[ListQuery]page{
 			inbox:    {Items: []core.Notification{b}},
 			allInbox: {Items: []core.Notification{c}, Next: "next"},
 		},
@@ -90,26 +90,26 @@ var markCases = []markCase{
 		},
 		mark: (*Service).MarkAllRead,
 		// b arrived after the mark, so it stays unread.
-		want: map[Query]page{
+		want: map[ListQuery]page{
 			inbox:    {Items: []core.Notification{readA, b}},
 			allInbox: {Items: []core.Notification{readA, c}, Next: "next"},
 		},
 	},
 }
 
-func checkPages(t *testing.T, s *Service, want map[Query]page) {
+func checkPages(t *testing.T, s *Service, want map[ListQuery]page) {
 	t.Helper()
 	for q, w := range want {
-		if got, _ := s.Cached(q); !equal(got, w) {
-			t.Errorf("Cached(%+v) = %+v, want %+v", q, got, w)
+		if got, _ := s.CachedList(q); !equal(got, w) {
+			t.Errorf("CachedList(%+v) = %+v, want %+v", q, got, w)
 		}
 	}
 }
 
-func snapshot(s *Service) map[Query]page {
-	pages := make(map[Query]page)
-	for _, q := range []Query{inbox, allInbox} {
-		pages[q], _ = s.Cached(q)
+func snapshot(s *Service) map[ListQuery]page {
+	pages := make(map[ListQuery]page)
+	for _, q := range []ListQuery{inbox, allInbox} {
+		pages[q], _ = s.CachedList(q)
 	}
 	return pages
 }
@@ -206,7 +206,7 @@ func TestMarkUncached(t *testing.T) {
 	}
 }
 
-func state(s *Service, q Query) cache.State {
+func state(s *Service, q ListQuery) cache.State {
 	_, st := s.cache.Get(q.key())
 	return st
 }

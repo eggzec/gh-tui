@@ -14,7 +14,7 @@ import (
 
 // API is the part of the GitHub client the service uses.
 type API interface {
-	ListNotifications(ctx context.Context, filter core.NotificationFilter, cursor string, cond github.Conditional) (core.Page[core.Notification], github.Response, error)
+	ListNotifications(ctx context.Context, filter core.NotificationFilter, perPage int, cursor string, cond github.Conditional) (core.Page[core.Notification], github.Response, error)
 	MarkThreadRead(ctx context.Context, id string) error
 	MarkThreadDone(ctx context.Context, id string) error
 	MarkNotificationsRead(ctx context.Context, lastReadAt time.Time) error

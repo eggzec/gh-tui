@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -27,7 +28,7 @@ var (
 
 // servePage1 answers with page1, or with a 304 when the request carries its
 // Last-Modified already.
-func servePage1(_ core.NotificationFilter, _ string, cond github.Conditional) (page, github.Response, error) {
+func servePage1(_ core.NotificationFilter, _ int, _ string, cond github.Conditional) (page, github.Response, error) {
 	res := github.Response{LastModified: modified1, PollInterval: time.Minute}
 	if cond.LastModified == modified1 {
 		res.NotModified = true
@@ -42,24 +43,24 @@ func equal(a, b page) bool {
 
 func TestListMiss(t *testing.T) {
 	var got github.Conditional
-	api := &fakeAPI{list: func(_ core.NotificationFilter, _ string, cond github.Conditional) (page, github.Response, error) {
+	api := &fakeAPI{list: func(_ core.NotificationFilter, _ int, _ string, cond github.Conditional) (page, github.Response, error) {
 		got = cond
 		return page1, github.Response{LastModified: modified1}, nil
 	}}
 	s := New(api)
-	if _, ok := s.Cached(Query{}); ok {
-		t.Fatal("Cached reported a hit before any List")
+	if _, ok := s.CachedList(ListQuery{}); ok {
+		t.Fatal("CachedList reported a hit before any List")
 	}
 
-	p, err := s.List(t.Context(), Query{})
+	p, err := s.List(t.Context(), ListQuery{})
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
 	if !equal(p, page1) || got != (github.Conditional{}) {
 		t.Errorf("List = %+v with %+v, want page1 fetched unconditionally", p, got)
 	}
-	if c, ok := s.Cached(Query{}); !ok || !equal(c, page1) {
-		t.Errorf("Cached = %+v, %v; want page1", c, ok)
+	if c, ok := s.CachedList(ListQuery{}); !ok || !equal(c, page1) {
+		t.Errorf("CachedList = %+v, %v; want page1", c, ok)
 	}
 }
 
@@ -67,7 +68,7 @@ func TestListFreshHit(t *testing.T) {
 	api := &fakeAPI{list: servePage1}
 	s := New(api)
 	for range 2 {
-		if _, err := s.List(t.Context(), Query{}); err != nil {
+		if _, err := s.List(t.Context(), ListQuery{}); err != nil {
 			t.Fatalf("List: %v", err)
 		}
 	}
@@ -80,20 +81,20 @@ func TestListStaleRevalidates(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		api := &fakeAPI{list: servePage1}
 		s := New(api, WithTTL(time.Minute))
-		if _, err := s.List(t.Context(), Query{}); err != nil {
+		if _, err := s.List(t.Context(), ListQuery{}); err != nil {
 			t.Fatalf("List: %v", err)
 		}
 
 		var got github.Conditional
-		api.list = func(_ core.NotificationFilter, _ string, cond github.Conditional) (page, github.Response, error) {
+		api.list = func(_ core.NotificationFilter, _ int, _ string, cond github.Conditional) (page, github.Response, error) {
 			got = cond
 			return page2, github.Response{LastModified: modified2}, nil
 		}
 		time.Sleep(2 * time.Minute)
-		if c, ok := s.Cached(Query{}); !ok || !equal(c, page1) {
-			t.Errorf("Cached while stale = %+v, %v; want page1", c, ok)
+		if c, ok := s.CachedList(ListQuery{}); !ok || !equal(c, page1) {
+			t.Errorf("CachedList while stale = %+v, %v; want page1", c, ok)
 		}
-		p, err := s.List(t.Context(), Query{})
+		p, err := s.List(t.Context(), ListQuery{})
 		if err != nil {
 			t.Fatalf("List: %v", err)
 		}
@@ -110,19 +111,19 @@ func TestListNotModifiedRenews(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		api := &fakeAPI{list: servePage1}
 		s := New(api, WithTTL(time.Minute))
-		if _, err := s.List(t.Context(), Query{}); err != nil {
+		if _, err := s.List(t.Context(), ListQuery{}); err != nil {
 			t.Fatalf("List: %v", err)
 		}
 		time.Sleep(2 * time.Minute)
 
-		p, err := s.List(t.Context(), Query{})
+		p, err := s.List(t.Context(), ListQuery{})
 		if err != nil {
 			t.Fatalf("List after 304: %v", err)
 		}
 		if !equal(p, page1) {
 			t.Errorf("List after 304 = %+v, want the cached page1", p)
 		}
-		if _, err := s.List(t.Context(), Query{}); err != nil {
+		if _, err := s.List(t.Context(), ListQuery{}); err != nil {
 			t.Fatalf("List: %v", err)
 		}
 		if n := api.lists.Load(); n != 2 {
@@ -133,12 +134,13 @@ func TestListNotModifiedRenews(t *testing.T) {
 
 func TestListQueries(t *testing.T) {
 	type call struct {
-		filter core.NotificationFilter
-		cursor string
+		filter  core.NotificationFilter
+		perPage int
+		cursor  string
 	}
 	var calls []call
-	api := &fakeAPI{list: func(filter core.NotificationFilter, cursor string, _ github.Conditional) (page, github.Response, error) {
-		calls = append(calls, call{filter, cursor})
+	api := &fakeAPI{list: func(filter core.NotificationFilter, perPage int, cursor string, _ github.Conditional) (page, github.Response, error) {
+		calls = append(calls, call{filter, perPage, cursor})
 		if cursor != "" {
 			return page2, github.Response{}, nil
 		}
@@ -146,42 +148,109 @@ func TestListQueries(t *testing.T) {
 	}}
 	s := New(api)
 
-	first, err := s.List(t.Context(), Query{})
+	first, err := s.List(t.Context(), ListQuery{})
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
-	second, err := s.List(t.Context(), Query{Cursor: first.Next})
+	second, err := s.List(t.Context(), ListQuery{Cursor: first.Next})
 	if err != nil {
 		t.Fatalf("List next: %v", err)
 	}
-	all := Query{Filter: core.NotificationFilter{All: true, Participating: true}}
+	all := ListQuery{Filter: core.NotificationFilter{All: true, Participating: true}}
 	if _, err := s.List(t.Context(), all); err != nil {
 		t.Fatalf("List all: %v", err)
 	}
 
-	want := []call{{}, {cursor: page1.Next}, {filter: all.Filter}}
+	want := []call{{perPage: 30}, {perPage: 30, cursor: page1.Next}, {filter: all.Filter, perPage: 30}}
 	if !slices.Equal(calls, want) {
 		t.Errorf("calls = %+v, want %+v", calls, want)
 	}
 	if !equal(second, page2) || !second.Last() {
 		t.Errorf("second page = %+v, want page2 as the last page", second)
 	}
-	if c, _ := s.Cached(Query{}); !equal(c, page1) {
+	if c, _ := s.CachedList(ListQuery{}); !equal(c, page1) {
 		t.Errorf("first page cached as %+v, want page1", c)
 	}
 }
 
+func TestListPageSize(t *testing.T) {
+	tests := []struct {
+		size, want int
+	}{
+		{0, DefaultPageSize},
+		{-1, DefaultPageSize},
+		{1, 1},
+		{100, 100},
+		{101, 100},
+		{1000, 100},
+	}
+	for _, tt := range tests {
+		t.Run(strconv.Itoa(tt.size), func(t *testing.T) {
+			var got []int
+			api := &fakeAPI{list: func(_ core.NotificationFilter, perPage int, _ string, _ github.Conditional) (page, github.Response, error) {
+				got = append(got, perPage)
+				return page1, github.Response{}, nil
+			}}
+			s := New(api)
+
+			if _, err := s.List(t.Context(), ListQuery{PageSize: tt.size}); err != nil {
+				t.Fatalf("List: %v", err)
+			}
+			if !slices.Equal(got, []int{tt.want}) {
+				t.Errorf("sent page sizes %v, want [%d]", got, tt.want)
+			}
+			// The size is keyed as sent, so both spellings share the entry.
+			if _, ok := s.CachedList(ListQuery{PageSize: tt.want}); !ok {
+				t.Errorf("CachedList(PageSize %d) missed after List(PageSize %d)", tt.want, tt.size)
+			}
+		})
+	}
+}
+
+func TestListCacheKey(t *testing.T) {
+	api := &fakeAPI{list: func(core.NotificationFilter, int, string, github.Conditional) (page, github.Response, error) {
+		return page2, github.Response{}, nil
+	}}
+	s := New(api)
+	q := ListQuery{Filter: core.NotificationFilter{All: true}, Cursor: page1.Next, PageSize: 10}
+	if _, err := s.List(t.Context(), q); err != nil {
+		t.Fatalf("List: %v", err)
+	}
+
+	with := func(f func(*ListQuery)) ListQuery {
+		q := q
+		f(&q)
+		return q
+	}
+	for _, tt := range []struct {
+		name string
+		q    ListQuery
+		want bool
+	}{
+		{"same", q, true},
+		{"cursor", with(func(q *ListQuery) { q.Cursor = "" }), false},
+		{"page size", with(func(q *ListQuery) { q.PageSize = 20 }), false},
+		{"default page size", with(func(q *ListQuery) { q.PageSize = 0 }), false},
+		{"all", with(func(q *ListQuery) { q.Filter.All = false }), false},
+		{"participating", with(func(q *ListQuery) { q.Filter.Participating = true }), false},
+	} {
+		if _, ok := s.CachedList(tt.q); ok != tt.want {
+			t.Errorf("%s: CachedList(%+v) hit = %v, want %v", tt.name, tt.q, ok, tt.want)
+		}
+	}
+}
+
 func TestListError(t *testing.T) {
-	api := &fakeAPI{list: func(core.NotificationFilter, string, github.Conditional) (page, github.Response, error) {
+	api := &fakeAPI{list: func(core.NotificationFilter, int, string, github.Conditional) (page, github.Response, error) {
 		return page{}, github.Response{}, fmt.Errorf("GET notifications: %w", core.ErrUnauthorized)
 	}}
 	s := New(api)
 
-	_, err := s.List(t.Context(), Query{})
+	_, err := s.List(t.Context(), ListQuery{})
 	if !errors.Is(err, core.ErrUnauthorized) {
 		t.Errorf("error = %v, want it to match ErrUnauthorized", err)
 	}
-	if _, ok := s.Cached(Query{}); ok {
+	if _, ok := s.CachedList(ListQuery{}); ok {
 		t.Error("a failed List was cached")
 	}
 }
@@ -209,19 +278,19 @@ func TestPoll(t *testing.T) {
 	if n := api.lists.Load(); n != 2 {
 		t.Errorf("API called %d times, want 2", n)
 	}
-	if c, _ := s.Cached(Query{}); !equal(c, page1) {
-		t.Errorf("Cached after 304 = %+v, want page1", c)
+	if c, _ := s.CachedList(ListQuery{}); !equal(c, page1) {
+		t.Errorf("CachedList after 304 = %+v, want page1", c)
 	}
 }
 
 func TestPollChanged(t *testing.T) {
 	var got github.Conditional
-	api := &fakeAPI{list: func(_ core.NotificationFilter, _ string, cond github.Conditional) (page, github.Response, error) {
+	api := &fakeAPI{list: func(_ core.NotificationFilter, _ int, _ string, cond github.Conditional) (page, github.Response, error) {
 		got = cond
 		return page2, github.Response{LastModified: modified2, PollInterval: 90 * time.Second}, nil
 	}}
 	s := New(api)
-	s.cache.Set(Query{}.key(), entry(page1, modified1))
+	s.cache.Set(ListQuery{}.key(), entry(page1, modified1))
 
 	res, err := s.Poll(t.Context())
 	if err != nil {
@@ -234,7 +303,7 @@ func TestPollChanged(t *testing.T) {
 		t.Errorf("polled with %+v, want Last-Modified %q", got, modified1)
 	}
 
-	p, err := s.List(t.Context(), Query{})
+	p, err := s.List(t.Context(), ListQuery{})
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
@@ -244,16 +313,16 @@ func TestPollChanged(t *testing.T) {
 }
 
 func TestPollError(t *testing.T) {
-	api := &fakeAPI{list: func(core.NotificationFilter, string, github.Conditional) (page, github.Response, error) {
+	api := &fakeAPI{list: func(core.NotificationFilter, int, string, github.Conditional) (page, github.Response, error) {
 		return page{}, github.Response{}, core.ErrRateLimited
 	}}
 	s := New(api)
-	s.cache.Set(Query{}.key(), entry(page1, modified1))
+	s.cache.Set(ListQuery{}.key(), entry(page1, modified1))
 
 	if _, err := s.Poll(t.Context()); !errors.Is(err, core.ErrRateLimited) {
 		t.Errorf("error = %v, want it to match ErrRateLimited", err)
 	}
-	if c, ok := s.Cached(Query{}); !ok || !equal(c, page1) {
-		t.Errorf("Cached after a failed Poll = %+v, %v; want page1", c, ok)
+	if c, ok := s.CachedList(ListQuery{}); !ok || !equal(c, page1) {
+		t.Errorf("CachedList after a failed Poll = %+v, %v; want page1", c, ok)
 	}
 }

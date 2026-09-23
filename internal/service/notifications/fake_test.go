@@ -18,7 +18,7 @@ var errUnexpected = errors.New("unexpected call")
 // fakeAPI answers with its func fields and counts list calls. A nil field
 // fails the call. OnMark, if set, runs before every mark.
 type fakeAPI struct {
-	list     func(filter core.NotificationFilter, cursor string, cond github.Conditional) (page, github.Response, error)
+	list     func(filter core.NotificationFilter, perPage int, cursor string, cond github.Conditional) (page, github.Response, error)
 	markRead func(id string) error
 	markDone func(id string) error
 	markAll  func(at time.Time) error
@@ -27,12 +27,12 @@ type fakeAPI struct {
 	lists atomic.Int32
 }
 
-func (f *fakeAPI) ListNotifications(_ context.Context, filter core.NotificationFilter, cursor string, cond github.Conditional) (core.Page[core.Notification], github.Response, error) {
+func (f *fakeAPI) ListNotifications(_ context.Context, filter core.NotificationFilter, perPage int, cursor string, cond github.Conditional) (core.Page[core.Notification], github.Response, error) {
 	f.lists.Add(1)
 	if f.list == nil {
 		return page{}, github.Response{}, errUnexpected
 	}
-	return f.list(filter, cursor, cond)
+	return f.list(filter, perPage, cursor, cond)
 }
 
 func (f *fakeAPI) MarkThreadRead(_ context.Context, id string) error {
