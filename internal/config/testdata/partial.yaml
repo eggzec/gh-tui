@@ -1,0 +1,5 @@
+# Only what differs from the defaults.
+keys:
+  quit: [x]
+cache:
+  ttl: 10m

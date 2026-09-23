@@ -1,0 +1,6 @@
+repos: [eggzec]
+theme: missing
+keys:
+  quit: []
+cache:
+  ttl: 0s
