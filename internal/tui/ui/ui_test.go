@@ -36,9 +36,9 @@ func (f opFunc) Do(ctx context.Context) error { return f(ctx) }
 
 func TestDo(t *testing.T) {
 	errNo := errors.New("no")
-	msg := Do(t.Context(), opFunc(func(context.Context) error { return errNo }), "close #7")()
+	msg := Do(t.Context(), IssuesTitle, opFunc(func(context.Context) error { return errNo }), "close #7")()
 	done, ok := msg.(DoneMsg)
-	if !ok || done.What != "close #7" || !errors.Is(done.Err, errNo) {
+	if !ok || done.From != IssuesTitle || done.What != "close #7" || !errors.Is(done.Err, errNo) {
 		t.Errorf("Do = %#v, want DoneMsg for close #7 with the error", msg)
 	}
 }

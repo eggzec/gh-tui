@@ -107,7 +107,7 @@ func TestSetState(t *testing.T) {
 				t.Errorf("before the answer #%d shows %q, want %q", target.Number, got, tt.wantBefore)
 			}
 			verb, _, _ := strings.Cut(tt.wantChange, " ")
-			want := ui.DoneMsg{What: verb + " #" + strings.TrimPrefix(tt.wantChange, verb+" "), Err: tt.sendErr}
+			want := ui.DoneMsg{From: ui.IssuesTitle, What: verb + " #" + strings.TrimPrefix(tt.wantChange, verb+" "), Err: tt.sendErr}
 			if len(done) != 1 || done[0].What != want.What || !errors.Is(done[0].Err, tt.sendErr) {
 				t.Fatalf("done = %v, want %v", done, want)
 			}
@@ -145,7 +145,7 @@ func TestDoneOfOthersIsIgnored(t *testing.T) {
 	svc := newFakeService(sampleIssues(12))
 	s := started(t, svc, 80, 20)
 	before := len(svc.listCalls())
-	run(t, s, s.Update(ui.DoneMsg{What: "merge #3"}))
+	run(t, s, s.Update(ui.DoneMsg{From: ui.PullsTitle, What: "merge #3"}))
 	if len(svc.listCalls()) != before {
 		t.Error("another section's DoneMsg reloaded the list")
 	}

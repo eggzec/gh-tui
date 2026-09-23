@@ -46,7 +46,7 @@ func TestUpdate(t *testing.T) {
 		{
 			name: "star an unstarred repo",
 			keys: []string{"down", "down", "s"},
-			want: []tea.Msg{ui.DoneMsg{What: "star eggzec/dotfiles"}},
+			want: []tea.Msg{ui.DoneMsg{From: ui.ReposTitle, What: "star eggzec/dotfiles"}},
 			check: func(t *testing.T, f *fakeService, s *Section) {
 				t.Helper()
 				assertStarred(t, f, s, true)
@@ -62,7 +62,7 @@ func TestUpdate(t *testing.T) {
 		{
 			name: "unstar a starred repo",
 			keys: []string{"s"},
-			want: []tea.Msg{ui.DoneMsg{What: "unstar eggzec/gh-tui"}},
+			want: []tea.Msg{ui.DoneMsg{From: ui.ReposTitle, What: "unstar eggzec/gh-tui"}},
 			check: func(t *testing.T, f *fakeService, s *Section) {
 				t.Helper()
 				assertStarred(t, f, s, false)
@@ -72,7 +72,7 @@ func TestUpdate(t *testing.T) {
 			name:  "a refused star is rolled back",
 			setup: func(f *fakeService, _ *Section) { f.sendErr = errDenied },
 			keys:  []string{"down", "down", "s"},
-			want:  []tea.Msg{ui.DoneMsg{What: "star eggzec/dotfiles", Err: errDenied}},
+			want:  []tea.Msg{ui.DoneMsg{From: ui.ReposTitle, What: "star eggzec/dotfiles", Err: errDenied}},
 			check: func(t *testing.T, f *fakeService, s *Section) {
 				t.Helper()
 				assertStarred(t, f, s, false)
@@ -123,7 +123,7 @@ func TestUpdate(t *testing.T) {
 		},
 		{
 			name: "another section's change doesn't reload",
-			send: []tea.Msg{ui.DoneMsg{What: "merge #42"}},
+			send: []tea.Msg{ui.DoneMsg{From: ui.PullsTitle, What: "merge #42"}},
 			check: func(t *testing.T, f *fakeService, _ *Section) {
 				t.Helper()
 				if got := f.listCalls(); got != 1 {

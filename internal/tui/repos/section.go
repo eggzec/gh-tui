@@ -21,12 +21,6 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 )
 
-// Title is the title of the section's tab.
-const Title = "Repositories"
-
-// pullsTitle is the section that choosing a repository shows.
-const pullsTitle = "Pull requests"
-
 // Service is what the section needs from the repositories service.
 type Service interface {
 	List(ctx context.Context, q reposvc.ListQuery) (core.Page[core.Repo], error)
@@ -47,9 +41,6 @@ type Section struct {
 	pinned []core.RepoRef
 	// current is the repository the other sections show.
 	current core.RepoRef
-	// pending counts the changes in flight by their DoneMsg.What, so that
-	// only their results reload the list.
-	pending map[string]int
 
 	styles styles
 	cols   layout
@@ -60,12 +51,11 @@ type Section struct {
 // keys from the configured keys. ctx bounds its requests.
 func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Option) *Section {
 	s := &Section{
-		ctx:     ctx,
-		svc:     svc,
-		keys:    newKeyMap(keys),
-		now:     time.Now,
-		pending: map[string]int{},
-		rows:    map[core.RepoRef]cachedRow{},
+		ctx:  ctx,
+		svc:  svc,
+		keys: newKeyMap(keys),
+		now:  time.Now,
+		rows: map[core.RepoRef]cachedRow{},
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -149,7 +139,7 @@ func (s *Section) isPinned(ref core.RepoRef) bool {
 
 // Title returns the title of the section.
 func (s *Section) Title() string {
-	return Title
+	return ui.ReposTitle
 }
 
 // Init fetches the first page.
@@ -169,12 +159,8 @@ func (s *Section) Update(msg tea.Msg) tea.Cmd {
 		s.current = msg.Repo
 		return nil
 	case ui.DoneMsg:
-		if s.pending[msg.What] == 0 {
+		if msg.From != ui.ReposTitle {
 			return nil
-		}
-		s.pending[msg.What]--
-		if s.pending[msg.What] == 0 {
-			delete(s.pending, msg.What)
 		}
 		// On success the service marked the entries stale, and on failure
 		// it rolled them back; either way the cache has news.
@@ -212,7 +198,7 @@ func (s *Section) choose() tea.Cmd {
 	s.current = r.Ref
 	return tea.Sequence(
 		func() tea.Msg { return ui.RepoMsg{Repo: r.Ref} },
-		func() tea.Msg { return ui.ShowMsg{Title: pullsTitle} },
+		func() tea.Msg { return ui.ShowMsg{Title: ui.PullsTitle} },
 	)
 }
 
@@ -227,8 +213,7 @@ func (s *Section) toggleStar() tea.Cmd {
 	if r.Starred {
 		op, what = s.svc.Unstar(r.Ref), "unstar "+r.Ref.String()
 	}
-	s.pending[what]++
-	return tea.Batch(s.feed.Reload(), ui.Do(s.ctx, op, what))
+	return tea.Batch(s.feed.Reload(), ui.Do(s.ctx, ui.ReposTitle, op, what))
 }
 
 // open opens the selected repository in the browser.

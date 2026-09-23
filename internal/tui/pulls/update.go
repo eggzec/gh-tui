@@ -18,6 +18,9 @@ func (s *Section) Update(msg tea.Msg) tea.Cmd {
 	case ui.DoneMsg:
 		// The change was confirmed or rolled back; either way the cache
 		// has the outcome.
+		if msg.From != ui.PullsTitle {
+			return nil
+		}
 		return s.reload()
 	case tea.KeyPressMsg:
 		if cmd, ok := s.mutate(msg); ok {

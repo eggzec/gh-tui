@@ -91,7 +91,7 @@ func (s *Section) query(cursor string) notifications.ListQuery {
 }
 
 // Title returns the title of the tab.
-func (s *Section) Title() string { return "Notifications" }
+func (s *Section) Title() string { return ui.NotificationsTitle }
 
 // Init fetches the first page.
 func (s *Section) Init() tea.Cmd {

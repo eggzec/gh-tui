@@ -26,6 +26,9 @@ func (s *Section) Update(msg tea.Msg) tea.Cmd {
 	case ui.DoneMsg:
 		// A failed change was rolled back in the cache; a successful one
 		// was applied again.
+		if msg.From != ui.NotificationsTitle {
+			return nil
+		}
 		return s.reload()
 	}
 	var cmd tea.Cmd
@@ -87,7 +90,7 @@ func (s *Section) open(read bool) tea.Cmd {
 
 // do shows the change op already made to the cache and sends it.
 func (s *Section) do(op *optimistic.Op, what string) tea.Cmd {
-	return tea.Batch(s.reload(), ui.Do(s.ctx, op, what))
+	return tea.Batch(s.reload(), ui.Do(s.ctx, ui.NotificationsTitle, op, what))
 }
 
 // reload reads the loaded pages again. Before Init there is nothing to
