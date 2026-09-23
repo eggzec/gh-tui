@@ -3,9 +3,7 @@ package issues
 import (
 	"cmp"
 	"context"
-	"errors"
 	"fmt"
-	"sync"
 
 	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/core"
@@ -78,45 +76,62 @@ func listTags(repo core.RepoRef) func(core.Page[core.Issue]) []string {
 	}
 }
 
-// CachedGet returns the cached detail of an issue, fresh or stale,
-// without a request. It reports false unless both the issue and its
-// comments are cached.
-func (s *Service) CachedGet(repo core.RepoRef, number int) (core.IssueDetail, bool) {
-	it, st := s.issues.Get(issueKey(repo, number))
-	if st == cache.Miss {
-		return core.IssueDetail{}, false
-	}
-	thread, st := s.comments.Get(commentsKey(repo, number))
-	if st == cache.Miss {
-		return core.IssueDetail{}, false
-	}
-	return core.IssueDetail{Issue: it.Value, Thread: thread.Value.Items}, true
+// CachedGet returns the cached issue, fresh or stale, without a request. It
+// reports false if the issue isn't cached.
+func (s *Service) CachedGet(repo core.RepoRef, number int) (core.Issue, bool) {
+	e, st := s.issues.Get(issueKey(repo, number))
+	return e.Value, st != cache.Miss
 }
 
-// Get returns an issue with its comments. The issue and its comments are
-// cached and revalidated separately, and fetched in parallel.
-func (s *Service) Get(ctx context.Context, repo core.RepoRef, number int) (core.IssueDetail, error) {
+// Get returns an issue without its comments, which Comments pages through.
+// A fresh issue comes from the cache; otherwise it is fetched, conditionally
+// if a stale copy is cached.
+func (s *Service) Get(ctx context.Context, repo core.RepoRef, number int) (core.Issue, error) {
 	key := issueKey(repo, number)
-	tags := func(core.Issue) []string { return []string{repoTag(repo), key} }
-	var (
-		wg    sync.WaitGroup
-		it    core.Issue
-		itErr error
-	)
-	wg.Go(func() {
-		it, itErr = fetch(ctx, s.issues, key, tags,
-			func(ctx context.Context, cond github.Conditional) (core.Issue, github.Response, error) {
-				return s.api.GetIssue(ctx, repo, number, cond)
-			})
-	})
-	thread, threadErr := fetch(ctx, s.comments, commentsKey(repo, number),
-		func(core.Page[core.Comment]) []string { return []string{repoTag(repo), key} },
-		func(ctx context.Context, cond github.Conditional) (core.Page[core.Comment], github.Response, error) {
-			return s.api.ListIssueComments(ctx, repo, number, "", cond)
+	it, err := fetch(ctx, s.issues, key,
+		func(core.Issue) []string { return []string{repoTag(repo), key} },
+		func(ctx context.Context, cond github.Conditional) (core.Issue, github.Response, error) {
+			return s.api.GetIssue(ctx, repo, number, cond)
 		})
-	wg.Wait()
-	if err := errors.Join(itErr, threadErr); err != nil {
-		return core.IssueDetail{}, fmt.Errorf("get issue %s#%d: %w", repo, number, err)
+	if err != nil {
+		return core.Issue{}, fmt.Errorf("get issue %s#%d: %w", repo, number, err)
 	}
-	return core.IssueDetail{Issue: it, Thread: thread.Items}, nil
+	return it, nil
+}
+
+// CommentsQuery selects a page of the comments on an issue.
+type CommentsQuery struct {
+	Repo   core.RepoRef
+	Number int
+	// Cursor and PageSize work as in ListQuery.
+	Cursor   string
+	PageSize int
+}
+
+func (q CommentsQuery) normalize() CommentsQuery {
+	q.PageSize = pageSize(q.PageSize)
+	return q
+}
+
+// CachedComments returns the cached page for q, fresh or stale, without a
+// request. It reports false if the page isn't cached.
+func (s *Service) CachedComments(q CommentsQuery) (core.Page[core.Comment], bool) {
+	e, st := s.comments.Get(commentsKey(q.normalize()))
+	return e.Value, st != cache.Miss
+}
+
+// Comments returns a page of the comments on an issue, oldest first. Each
+// page is cached and revalidated on its own, like List's.
+func (s *Service) Comments(ctx context.Context, q CommentsQuery) (core.Page[core.Comment], error) {
+	q = q.normalize()
+	tags := []string{repoTag(q.Repo), issueKey(q.Repo, q.Number)}
+	page, err := fetch(ctx, s.comments, commentsKey(q),
+		func(core.Page[core.Comment]) []string { return tags },
+		func(ctx context.Context, cond github.Conditional) (core.Page[core.Comment], github.Response, error) {
+			return s.api.ListIssueComments(ctx, q.Repo, q.Number, q.Cursor, q.PageSize, cond)
+		})
+	if err != nil {
+		return core.Page[core.Comment]{}, fmt.Errorf("list comments of issue %s#%d: %w", q.Repo, q.Number, err)
+	}
+	return page, nil
 }

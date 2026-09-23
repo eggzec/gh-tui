@@ -20,8 +20,8 @@ func WithTTL(d time.Duration) Option {
 	return func(o *options) { o.cache = append(o.cache, cache.WithTTL(d)) }
 }
 
-// WithCapacity sets how many list pages, issues and comment threads are
-// each kept. The default is cache.DefaultCapacity.
+// WithCapacity sets how many list pages, issues and comment pages are each
+// kept. The default is cache.DefaultCapacity.
 func WithCapacity(n int) Option {
 	return func(o *options) { o.cache = append(o.cache, cache.WithCapacity(n)) }
 }

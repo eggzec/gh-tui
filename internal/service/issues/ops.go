@@ -134,7 +134,9 @@ func IsPending(c core.Comment) bool {
 
 // Comment adds a comment to an issue. Until GitHub answers, the comment has
 // a temporary ID, for which IsPending reports true, and the viewer set with
-// WithViewer as its author.
+// WithViewer as its author. It is shown only on the cached last pages of the
+// issue's comments; otherwise only the issue's comment count changes, and
+// the comment appears when the tui pages to the end.
 func (s *Service) Comment(repo core.RepoRef, number int, body string) *optimistic.Op {
 	now := time.Now()
 	pending := core.Comment{
@@ -144,33 +146,37 @@ func (s *Service) Comment(repo core.RepoRef, number int, body string) *optimisti
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
-	key := commentsKey(repo, number)
+	key := issueKey(repo, number)
 	rollbacks := s.update(repo, number, func(it core.Issue) core.Issue {
 		it.Comments++
 		return it
 	})
-	undo, _ := s.comments.Mutate(key, func(p core.Page[core.Comment]) core.Page[core.Comment] {
+	rollbacks = append(rollbacks, s.comments.MutateTag(key, func(p core.Page[core.Comment]) (core.Page[core.Comment], bool) {
+		if !p.Last() {
+			return p, false
+		}
 		p.Items = append(slices.Clip(p.Items), pending)
-		return p
-	})
-	rollbacks = append(rollbacks, undo)
+		return p, true
+	}))
 
 	return optimistic.New(func(ctx context.Context) error {
 		got, err := s.api.CreateIssueComment(ctx, repo, number, body)
 		if err != nil {
 			return fmt.Errorf("comment on issue %s#%d: %w", repo, number, err)
 		}
-		s.comments.Mutate(key, func(p core.Page[core.Comment]) core.Page[core.Comment] {
-			items := slices.Clone(p.Items)
+		s.comments.MutateTag(key, func(p core.Page[core.Comment]) (core.Page[core.Comment], bool) {
 			// A refetch may have dropped the pending comment, or already
-			// brought the real one.
-			if i := slices.IndexFunc(items, func(c core.Comment) bool { return c.ID == pending.ID }); i >= 0 {
-				items[i] = got
-			} else if !slices.ContainsFunc(items, func(c core.Comment) bool { return c.ID == got.ID }) {
-				items = append(items, got)
+			// brought the real one, or ended the page before it.
+			if i := slices.IndexFunc(p.Items, func(c core.Comment) bool { return c.ID == pending.ID }); i >= 0 {
+				p.Items = slices.Clone(p.Items)
+				p.Items[i] = got
+				return p, true
 			}
-			p.Items = items
-			return p
+			if !p.Last() || slices.ContainsFunc(p.Items, func(c core.Comment) bool { return c.ID == got.ID }) {
+				return p, false
+			}
+			p.Items = append(slices.Clip(p.Items), got)
+			return p, true
 		})
 		s.lists.InvalidateTag(repoTag(repo))
 		return nil
