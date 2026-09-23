@@ -14,6 +14,8 @@ type Styles struct {
 	Cursor lipgloss.Style
 	// BlurredCursor marks the selected row while the feed is blurred.
 	BlurredCursor lipgloss.Style
+	// Placeholder styles rows whose chunk is being fetched again.
+	Placeholder lipgloss.Style
 	// Spinner styles the spinner of the loading row.
 	Spinner lipgloss.Style
 	// Loading styles the text of the loading row.
@@ -37,6 +39,7 @@ func DefaultStyles(isDark bool) Styles {
 	return Styles{
 		Cursor:        lipgloss.NewStyle().Foreground(accent),
 		BlurredCursor: lipgloss.NewStyle().Foreground(subtle),
+		Placeholder:   lipgloss.NewStyle().Foreground(subtle),
 		Spinner:       lipgloss.NewStyle().Foreground(accent),
 		Loading:       lipgloss.NewStyle().Foreground(muted),
 		Empty:         lipgloss.NewStyle().Foreground(muted),

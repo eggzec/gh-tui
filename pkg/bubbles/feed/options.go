@@ -18,6 +18,8 @@ type settings struct {
 	keyMap     KeyMap
 	styles     Styles
 	focused    bool
+	maxChunks  int
+	prefetch   int
 }
 
 func defaultSettings() settings {
@@ -27,6 +29,30 @@ func defaultSettings() settings {
 		emptyText:  "Nothing to show.",
 		keyMap:     DefaultKeyMap(),
 		styles:     DefaultStyles(true),
+		maxChunks:  DefaultMaxChunks,
+	}
+}
+
+// DefaultMaxChunks is the number of chunks a feed keeps loaded by default.
+// At common page sizes of 30 to 100 items that is several screens around
+// the window.
+const DefaultMaxChunks = 8
+
+// WithMaxChunks sets how many chunks the feed keeps loaded. It evicts the
+// items of chunks farther from the window, and fetches them again when the
+// window comes back. The chunks the window needs are always kept.
+func WithMaxChunks(n int) Option {
+	return func(s *settings) {
+		s.maxChunks = max(n, 1)
+	}
+}
+
+// WithPrefetch sets how many rows before the end of the loaded items the
+// feed fetches the next chunk, and how many rows around the window it keeps
+// loaded. The default, 0, uses the height of the window.
+func WithPrefetch(rows int) Option {
+	return func(s *settings) {
+		s.prefetch = max(rows, 0)
 	}
 }
 

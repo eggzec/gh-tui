@@ -35,8 +35,11 @@ type chunk[T any] struct {
 	cursor string
 	next   string
 	items  []T
-	// n is the number of items in the chunk.
-	n        int
+	// n is the number of items in the chunk. It survives eviction, so the
+	// positions of later items stay stable.
+	n int
+	// loaded is false once the chunk's items have been evicted.
+	loaded   bool
 	err      error
 	fetching bool
 }
@@ -60,6 +63,10 @@ type Model[T any] struct {
 
 	sel int
 	top int
+	// resized asks the next Update to fetch what a new size shows.
+	resized bool
+	// err is the first failed fetch, shown in the error row.
+	err error
 
 	spin     spinner.Model
 	spinning bool
@@ -72,6 +79,7 @@ type Model[T any] struct {
 	emptyLine     string
 	errLine       string
 	errHint       string
+	placeholder   string
 }
 
 // New returns a feed that loads items with fetch and draws them with render.
@@ -126,16 +134,18 @@ func (m Model[T]) Done() bool {
 	return m.done
 }
 
-// Err returns the error of the last failed fetch, if it has not been retried.
+// Err returns the error of a failed fetch that has not been retried.
 func (m Model[T]) Err() error {
-	return m.tail.err
+	return m.err
 }
 
 // SetSize sets the width and height of the feed. It only moves the window;
-// it never changes what is fetched.
+// chunks keep their size. Rows the new window shows that were evicted are
+// fetched again on the next Update.
 func (m *Model[T]) SetSize(width, height int) {
 	m.width, m.height = max(width, 0), max(height, 0)
 	m.scroll()
+	m.resized = true
 }
 
 // SetWidth sets the width of the feed.
@@ -193,6 +203,7 @@ func (m *Model[T]) SetStyles(s Styles) {
 	m.gutterNone = "  "
 	m.loadingText = s.Loading.Render("Loading…")
 	m.emptyLine = s.Empty.Render(m.emptyText)
+	m.placeholder = s.Placeholder.Render("…")
 	m.refreshError()
 }
 
@@ -219,11 +230,10 @@ func (m Model[T]) item(i int) (T, bool) {
 		return zero, false
 	}
 	c := m.chunkAt(i)
-	items := m.chunks[c].items
-	if items == nil {
+	if !m.chunks[c].loaded {
 		return zero, false
 	}
-	return items[i-m.starts[c]], true
+	return m.chunks[c].items[i-m.starts[c]], true
 }
 
 // chunkAt returns the index of the chunk that holds item i.
@@ -283,13 +293,19 @@ func (m Model[T]) fetchCmd(i int, cursor string) tea.Cmd {
 // refreshError renders the error row, which depends on the error, the
 // styles and the retry key.
 func (m *Model[T]) refreshError() {
-	failed := m.tail.err != nil
-	m.keyMap.Retry.SetEnabled(failed)
-	if !failed {
+	m.err = m.tail.err
+	for _, c := range m.chunks {
+		if c.err != nil {
+			m.err = c.err
+			break
+		}
+	}
+	m.keyMap.Retry.SetEnabled(m.err != nil)
+	if m.err == nil {
 		m.errLine, m.errHint = "", ""
 		return
 	}
-	msg, _, _ := strings.Cut(m.tail.err.Error(), "\n")
+	msg, _, _ := strings.Cut(m.err.Error(), "\n")
 	m.errLine = m.styles.Error.Render("✗ Couldn't load: " + msg)
 	m.errHint = ""
 	if h := m.keyMap.Retry.Help(); h.Key != "" {
