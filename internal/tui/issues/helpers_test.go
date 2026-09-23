@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"slices"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -55,6 +57,8 @@ type fakeService struct {
 	gate chan struct{}
 	// invalidated are the calls of Invalidate.
 	invalidated []invalidation
+	// nextComment numbers the comments posted.
+	nextComment int
 }
 
 // invalidation is a call of Invalidate, with how many lists and gets were
@@ -122,6 +126,107 @@ func (f *fakeService) setState(_ core.RepoRef, number int, state core.State) *op
 		f.mu.Lock()
 		defer f.mu.Unlock()
 		apply(was)
+	})
+}
+
+// Comment shows body at the end of the issue's comments at once, as
+// pending with no author, as the service would when it doesn't know the
+// viewer. Once sent, the real comment takes its place.
+func (f *fakeService) Comment(_ core.RepoRef, number int, body string) *optimistic.Op {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.changes = append(f.changes, "comment "+strconv.Itoa(number)+": "+body)
+	f.nextComment++
+	seq := strconv.Itoa(f.nextComment)
+	pending := core.Comment{ID: "pending:" + seq, Body: body, CreatedAt: testNow}
+	f.comments[number] = append(f.comments[number], pending)
+	f.mutate(number, func(it *core.Issue) { it.Comments++ })
+	return f.op(func() {
+		cs := f.comments[number]
+		if i := slices.IndexFunc(cs, func(c core.Comment) bool { return c.ID == pending.ID }); i >= 0 {
+			cs[i] = core.Comment{ID: "IC_new" + seq, Author: core.User{Login: "octocat"}, Body: body, CreatedAt: testNow}
+		}
+	}, func() {
+		f.comments[number] = slices.DeleteFunc(f.comments[number], func(c core.Comment) bool { return c.ID == pending.ID })
+		f.mutate(number, func(it *core.Issue) { it.Comments-- })
+	})
+}
+
+// AddLabels adds the labels at once, with their names only.
+func (f *fakeService) AddLabels(_ core.RepoRef, number int, names []string) *optimistic.Op {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.changes = append(f.changes, "label "+strconv.Itoa(number)+" +"+strings.Join(names, ","))
+	var prev []core.Label
+	f.mutate(number, func(it *core.Issue) {
+		prev = it.Labels
+		labels := slices.Clone(it.Labels)
+		for _, n := range names {
+			labels = append(labels, core.Label{Name: n})
+		}
+		it.Labels = labels
+	})
+	return f.op(nil, func() { f.mutate(number, func(it *core.Issue) { it.Labels = prev }) })
+}
+
+// RemoveLabel removes the label at once.
+func (f *fakeService) RemoveLabel(_ core.RepoRef, number int, name string) *optimistic.Op {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.changes = append(f.changes, "unlabel "+strconv.Itoa(number)+" -"+name)
+	var prev []core.Label
+	f.mutate(number, func(it *core.Issue) {
+		prev = it.Labels
+		it.Labels = slices.DeleteFunc(slices.Clone(it.Labels), func(l core.Label) bool { return strings.EqualFold(l.Name, name) })
+	})
+	return f.op(nil, func() { f.mutate(number, func(it *core.Issue) { it.Labels = prev }) })
+}
+
+// mutate applies fn to the issue everywhere the fake keeps it. The caller
+// holds the lock.
+func (f *fakeService) mutate(number int, fn func(*core.Issue)) {
+	for i := range f.issues {
+		if f.issues[i].Number == number {
+			fn(&f.issues[i])
+		}
+	}
+	if it, ok := f.cached[number]; ok {
+		fn(&it)
+		f.cached[number] = it
+	}
+	for q, p := range f.pages {
+		p.Items = slices.Clone(p.Items)
+		for i := range p.Items {
+			if p.Items[i].Number == number {
+				fn(&p.Items[i])
+			}
+		}
+		f.pages[q] = p
+	}
+}
+
+// op returns an op that waits for the gate, then fails with sendErr and
+// runs rollback, or runs confirm, both under the lock.
+func (f *fakeService) op(confirm, rollback func()) *optimistic.Op {
+	gate := f.gate
+	return optimistic.New(func(ctx context.Context) error {
+		if gate != nil {
+			select {
+			case <-gate:
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		if f.sendErr == nil && confirm != nil {
+			confirm()
+		}
+		return f.sendErr
+	}, func() {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		rollback()
 	})
 }
 
@@ -387,7 +492,16 @@ func drive(tb testing.TB, s *Section, cmd tea.Cmd, hold func(tea.Msg) bool) (fed
 		if c == nil {
 			continue
 		}
-		switch msg := c().(type) {
+		msg := c()
+		if seq, ok := sequence(msg); ok {
+			// Run each command of a sequence to the end before the next.
+			for _, sc := range seq {
+				f, h := drive(tb, s, sc, hold)
+				fed, held = append(fed, f...), append(held, h...)
+			}
+			continue
+		}
+		switch msg := msg.(type) {
 		case nil:
 		case tea.BatchMsg:
 			queue = append(queue, msg...)
@@ -407,6 +521,19 @@ func drive(tb testing.TB, s *Section, cmd tea.Cmd, hold func(tea.Msg) bool) (fed
 	return fed, held
 }
 
+// sequence returns the commands of the message tea.Sequence sends, whose
+// type bubbletea doesn't export.
+func sequence(msg tea.Msg) ([]tea.Cmd, bool) {
+	if _, ok := msg.(tea.BatchMsg); ok || msg == nil {
+		return nil, false
+	}
+	v := reflect.ValueOf(msg)
+	if v.Kind() != reflect.Slice || v.Type().Elem() != reflect.TypeFor[tea.Cmd]() {
+		return nil, false
+	}
+	return v.Convert(reflect.TypeFor[[]tea.Cmd]()).Interface().([]tea.Cmd), true
+}
+
 // press presses each key and runs what follows. It returns the messages
 // that were fed.
 func press(tb testing.TB, s *Section, keys ...string) []tea.Msg {
@@ -414,6 +541,16 @@ func press(tb testing.TB, s *Section, keys ...string) []tea.Msg {
 	msgs := make([]tea.Msg, 0, len(keys))
 	for _, k := range keys {
 		msgs = append(msgs, run(tb, s, s.Update(keyMsg(k)))...)
+	}
+	return msgs
+}
+
+// typeText types text into s one key at a time and runs what follows.
+func typeText(tb testing.TB, s *Section, text string) []tea.Msg {
+	tb.Helper()
+	msgs := make([]tea.Msg, 0, len(text))
+	for _, r := range text {
+		msgs = append(msgs, press(tb, s, string(r))...)
 	}
 	return msgs
 }
@@ -428,6 +565,8 @@ func keyMsg(k string) tea.KeyPressMsg {
 		return tea.KeyPressMsg{Code: tea.KeyDown}
 	case "up":
 		return tea.KeyPressMsg{Code: tea.KeyUp}
+	case "ctrl+s":
+		return tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl}
 	}
 	r, _ := utf8.DecodeRuneInString(k)
 	return tea.KeyPressMsg{Code: r, Text: k}

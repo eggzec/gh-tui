@@ -31,3 +31,11 @@ type Section interface {
 type Badger interface {
 	Badge() string
 }
+
+// Capturer is a Section that at times takes every key, such as while the
+// user types into a prompt. Until Capturing reports false, the app sends
+// keys straight to it, including its own keys such as quit and next tab,
+// so that typing a "q" doesn't quit. Only ctrl+c still quits.
+type Capturer interface {
+	Capturing() bool
+}

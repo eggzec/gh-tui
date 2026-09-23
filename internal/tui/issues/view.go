@@ -21,6 +21,12 @@ func (s *Section) View() string {
 	if s.height == 1 {
 		return s.bar
 	}
+	if s.inDetail && s.composing != composeNone {
+		if s.detail.Height() == 0 {
+			return s.bar + "\n" + s.prompt.View()
+		}
+		return s.bar + "\n" + s.detail.View() + "\n" + s.prompt.View()
+	}
 	if s.inDetail {
 		return s.bar + "\n" + s.detail.View()
 	}

@@ -51,6 +51,7 @@ func (s *Section) back() {
 	if !s.inDetail {
 		return
 	}
+	s.closePrompt()
 	s.inDetail = false
 	s.cancelDetail()
 	s.detail.Blur()
@@ -161,7 +162,12 @@ func (s *Section) renderComment(c core.Comment, width int) string {
 	var b strings.Builder
 	b.WriteString("  ")
 	if issuesvc.IsPending(c) {
-		b.WriteString(t.Subtle.Render(login(c.Author) + " · sending…"))
+		// The service may not know who the viewer is.
+		who := c.Author.Login
+		if who == "" {
+			who = "you"
+		}
+		b.WriteString(t.Subtle.Render(who + " · sending…"))
 		body := t.Subtle.Width(max(width-4, 1)).Render(strings.TrimSpace(c.Body))
 		for l := range strings.SplitSeq(body, "\n") {
 			b.WriteString("\n  ")

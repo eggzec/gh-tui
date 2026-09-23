@@ -31,6 +31,7 @@ type fakeSection struct {
 	width, height int
 	themed        bool
 	msgs          []tea.Msg
+	capturing     bool
 }
 
 func (s *fakeSection) Title() string { return s.title }
@@ -46,6 +47,7 @@ func (s *fakeSection) SetTheme(ui.Theme) { s.themed = true }
 func (s *fakeSection) Focus()            { s.focused = true }
 func (s *fakeSection) Blur()             { s.focused = false }
 func (s *fakeSection) Help() help.KeyMap { return sectionKeys{} }
+func (s *fakeSection) Capturing() bool   { return s.capturing }
 func (s *fakeSection) got(match func(tea.Msg) bool) bool {
 	return slices.ContainsFunc(s.msgs, match)
 }
@@ -149,6 +151,42 @@ func TestKeysGoToTheActiveSectionOnly(t *testing.T) {
 	isX := func(msg tea.Msg) bool { k, ok := msg.(tea.KeyPressMsg); return ok && k.String() == "x" }
 	if !fakes[0].got(isX) || fakes[1].got(isX) {
 		t.Error("x should reach only the active section")
+	}
+}
+
+func TestCapturingSectionTakesEveryKey(t *testing.T) {
+	m, fakes := newTestApp(t)
+	fakes[0].capturing = true
+	for _, k := range []string{"q", "?", "]", "2"} {
+		if cmd := m.key(press(k)); cmd != nil {
+			t.Errorf("%s returned a command while the section captures keys", k)
+		}
+	}
+	if m.active != 0 || m.help.ShowAll {
+		t.Errorf("app keys acted while captured: active %d, full help %v", m.active, m.help.ShowAll)
+	}
+	var got []string
+	for _, msg := range fakes[0].msgs {
+		if k, ok := msg.(tea.KeyPressMsg); ok {
+			got = append(got, k.String())
+		}
+	}
+	if !slices.Equal(got, []string{"q", "?", "]", "2"}) {
+		t.Errorf("section got keys %v, want all four", got)
+	}
+
+	if cmd := m.key(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}); cmd == nil {
+		t.Error("ctrl+c didn't quit while the section captures keys")
+	} else if _, ok := cmd().(tea.QuitMsg); !ok {
+		t.Error("ctrl+c while capturing should quit")
+	}
+	if n := len(fakes[0].msgs); n != 4 {
+		t.Errorf("section got %d keys, want ctrl+c kept from it", n)
+	}
+
+	fakes[0].capturing = false
+	if cmd := m.key(press("q")); cmd == nil {
+		t.Error("q didn't quit once the section stopped capturing")
 	}
 }
 

@@ -51,16 +51,24 @@ func TestThemeTakesPaletteColors(t *testing.T) {
 	th := NewTheme(p, true)
 	accent := lipgloss.Color(p.Accent)
 	checks := map[string]any{
-		"tabs active": th.Tabs().Active.GetForeground(),
-		"feed cursor": th.Feed().Cursor.GetForeground(),
-		"thread key":  th.Thread().Key.GetForeground(),
-		"toast info":  th.Toast().Info.Color,
-		"accent text": th.Accent.GetForeground(),
+		"tabs active":  th.Tabs().Active.GetForeground(),
+		"feed cursor":  th.Feed().Cursor.GetForeground(),
+		"thread key":   th.Thread().Key.GetForeground(),
+		"prompt edge":  th.Prompt().Frame.GetBorderLeftForeground(),
+		"prompt caret": th.Prompt().Cursor.GetForeground(),
+		"toast info":   th.Toast().Info.Color,
+		"accent text":  th.Accent.GetForeground(),
 	}
 	for name, got := range checks {
 		if got != accent {
 			t.Errorf("%s = %v, want the palette accent %v", name, got, accent)
 		}
+	}
+	if got := th.Prompt().BlurredFrame.GetBorderLeftForeground(); got != lipgloss.Color(p.Border) {
+		t.Errorf("blurred prompt edge = %v, want the palette border color", got)
+	}
+	if got := th.Prompt().Text.GetForeground(); got != lipgloss.Color(p.Foreground) {
+		t.Errorf("prompt text = %v, want the palette foreground", got)
 	}
 	if got := th.Toast().Error.Color; got != lipgloss.Color(p.Error) {
 		t.Errorf("toast error = %v, want the palette error color", got)

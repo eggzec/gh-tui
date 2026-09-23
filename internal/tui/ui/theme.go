@@ -6,6 +6,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
+	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
 	"github.com/eggzec/gh-tui/pkg/bubbles/tabs"
 	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
@@ -95,6 +96,21 @@ func (t Theme) Thread() thread.Styles {
 	s.Empty = s.Empty.Foreground(lipgloss.Color(t.Palette.Muted))
 	s.Error = s.Error.Foreground(lipgloss.Color(t.Palette.Error))
 	s.Key = s.Key.Foreground(lipgloss.Color(t.Palette.Accent))
+	s.Hint = s.Hint.Foreground(lipgloss.Color(t.Palette.Subtle))
+	return s
+}
+
+// Prompt returns the styles of an input panel, such as the one a comment is
+// written in. Only its edge and cursor take the accent.
+func (t Theme) Prompt() prompt.Styles {
+	s := prompt.DefaultStyles(t.Dark)
+	s.Frame = s.Frame.BorderForeground(lipgloss.Color(t.Palette.Accent))
+	s.BlurredFrame = s.BlurredFrame.BorderForeground(lipgloss.Color(t.Palette.Border))
+	s.Title = s.Title.Foreground(lipgloss.Color(t.Palette.Foreground))
+	s.Text = s.Text.Foreground(lipgloss.Color(t.Palette.Foreground))
+	s.Placeholder = s.Placeholder.Foreground(lipgloss.Color(t.Palette.Subtle))
+	s.Cursor = s.Cursor.Foreground(lipgloss.Color(t.Palette.Accent))
+	s.Key = s.Key.Foreground(lipgloss.Color(t.Palette.Muted))
 	s.Hint = s.Hint.Foreground(lipgloss.Color(t.Palette.Subtle))
 	return s
 }
