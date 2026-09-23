@@ -60,6 +60,15 @@ Rules:
   in another program without changes.
 - **Consumers define interfaces**, and keep them small. They live next to the
   code that uses them. Producers return concrete types.
+- **Services expose reads the same way:** `CachedList(q ListQuery)` and
+  `List(ctx, q)`, `CachedGet(…)` and `Get(ctx, …)`, and for paged sub-lists
+  such as comments `CachedComments(q CommentsQuery)` and `Comments(ctx, q)`.
+  Query structs carry `Cursor` (the previous page's `Next`) and `PageSize`
+  (0 for the default), and both are part of the cache key. `Cached…` reads
+  never do I/O.
+- **Name unexported helpers in `internal/github` after their domain**
+  (`restIssue`, `pullComment`), since several branches add to that package
+  at once. Shared shapes live in `types.go`.
 - **Split packages and files by concept, not by size.** If a file needs a table
   of contents, split it up. Typical bubble files are `model.go`, `update.go`,
   `view.go`, `keys.go`, `styles.go` and `options.go`.
@@ -105,7 +114,10 @@ changes minimal so that pulling in new upstream versions stays easy.
 ## Data
 
 - **Lazy by default.** Fetch only what is on screen and prefetch the next page
-  when the user nears the end.
+  when the user nears the end. Long lists and threads are pagers: the tui
+  asks for one page sized to the visible rows and keeps a stack of cursors to
+  go back, and the LRU evicts pages it no longer shows. A detail never embeds
+  an unbounded list such as comments; those are paged reads of their own.
 - **Choose the right API for each call.** Use GraphQL when you need nested or
   batched data in one round trip, such as a PR with its reviews, checks and
   labels. Use REST where it is simpler or cheaper, for example conditional
@@ -124,7 +136,9 @@ changes minimal so that pulling in new upstream versions stays easy.
 - Use stale-while-revalidate: serve cached data at once, refresh it in the
   background, and emit an update message if the data changed.
 - Store the `ETag`/`Last-Modified` for each entry so that revalidation costs
-  almost nothing.
+  almost nothing. GraphQL has no validators, so GraphQL reads refetch stale
+  entries in full; prefer REST when a free 304 matters more than one round
+  trip.
 - Key entries by the query plus its variables. A mutation invalidates only the
   keys it affects.
 
@@ -157,6 +171,9 @@ reacts to messages. Concretely:
 - The tui calls it in `Update`, re-renders from the cache, and runs `Op.Do`
   in a `tea.Cmd`. `Do` sends the mutation and rolls the cache back if it
   fails; on success the send function stores the server's response.
+- Prefer mutation endpoints that return the updated resource, so there is
+  something to reconcile with. When an endpoint returns nothing, reconcile
+  by applying the change again, or by marking the affected entries stale.
 
 ## Performance
 
