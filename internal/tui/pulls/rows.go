@@ -92,6 +92,11 @@ type styles struct {
 
 	repo, filterOn, filterOff, sep lipgloss.Style
 	empty                          lipgloss.Style
+
+	// The detail header and the comments.
+	badgeOpen, badgeDraft, badgeClosed, badgeMerged string
+	added, deleted, label, rule, commenter          lipgloss.Style
+	bar                                             string
 }
 
 func newStyles(t ui.Theme) styles {
@@ -122,7 +127,22 @@ func newStyles(t ui.Theme) styles {
 		filterOff:      t.Subtle,
 		sep:            t.Subtle,
 		empty:          t.Muted,
+		badgeOpen:      badge(t.Success, "Open"),
+		badgeDraft:     badge(t.Subtle, "Draft"),
+		badgeClosed:    badge(t.Error, "Closed"),
+		badgeMerged:    badge(t.Accent, "Merged"),
+		added:          t.Success,
+		deleted:        t.Error,
+		label:          t.Muted,
+		rule:           t.Subtle,
+		commenter:      t.Title,
+		bar:            t.Subtle.Render("│ "),
 	}
+}
+
+// badge renders text reversed in the color of style, as a label of a state.
+func badge(style lipgloss.Style, text string) string {
+	return style.Bold(true).Reverse(true).Render(" " + text + " ")
 }
 
 // state returns the style of the state of pr: drafts are subtle whatever
@@ -343,4 +363,71 @@ func nextFilter(f core.State) core.State {
 // selection on it.
 func pullKey(pr core.PullRequest) string {
 	return strconv.Itoa(pr.Number)
+}
+
+// badge returns the state badge of pr.
+func (st *styles) badge(pr core.PullRequest) string {
+	switch {
+	case pr.State == core.StateMerged:
+		return st.badgeMerged
+	case pr.State == core.StateClosed:
+		return st.badgeClosed
+	case pr.Draft:
+		return st.badgeDraft
+	}
+	return st.badgeOpen
+}
+
+// reviewText spells out the review decision, or returns "" when reviews
+// aren't required.
+func (st *styles) reviewText(d core.ReviewDecision) string {
+	switch d {
+	case core.ReviewApproved:
+		return st.approved + st.author.Render(" approved")
+	case core.ReviewChangesRequested:
+		return st.changes + st.author.Render(" changes requested")
+	case core.ReviewRequired:
+		return st.reviewRequired + st.author.Render(" review required")
+	default:
+		return ""
+	}
+}
+
+// checksSummary counts the checks of d by outcome, or names the overall
+// state when the check runs aren't known. It returns "" without checks.
+func (st *styles) checksSummary(d *core.PullRequestDetail) string {
+	if len(d.CheckRuns) == 0 {
+		switch d.Checks {
+		case core.ChecksSuccess:
+			return st.checksOK + st.author.Render(" checks passed")
+		case core.ChecksFailure:
+			return st.checksFail + st.author.Render(" checks failed")
+		case core.ChecksPending:
+			return st.checksPending + st.author.Render(" checks running")
+		default:
+			return ""
+		}
+	}
+	var passed, failed, pending int
+	for _, r := range d.CheckRuns {
+		switch {
+		case r.Status != "completed":
+			pending++
+		case r.Conclusion == "success" || r.Conclusion == "neutral" || r.Conclusion == "skipped":
+			passed++
+		default:
+			failed++
+		}
+	}
+	parts := make([]string, 0, 3)
+	if failed > 0 {
+		parts = append(parts, st.checksFail+st.author.Render(" "+strconv.Itoa(failed)+" failed"))
+	}
+	if pending > 0 {
+		parts = append(parts, st.checksPending+st.author.Render(" "+strconv.Itoa(pending)+" running"))
+	}
+	if passed > 0 {
+		parts = append(parts, st.checksOK+st.author.Render(" "+strconv.Itoa(passed)+" passed"))
+	}
+	return st.age.Render("Checks  ") + strings.Join(parts, st.sep.Render(" · "))
 }
