@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"sync"
 	"testing"
 	"testing/synctest"
@@ -121,8 +122,8 @@ func TestListFreshHitMakesNoCall(t *testing.T) {
 	}
 	api.wantCalls(t, "list 30 ")
 
-	if got, ok := s.CachedList(ListQuery{First: DefaultPageSize}); !ok || len(got.Items) != 2 {
-		t.Errorf("CachedList = %+v, %v; want the page, since First 0 means the default", got, ok)
+	if got, ok := s.CachedList(ListQuery{PageSize: DefaultPageSize}); !ok || len(got.Items) != 2 {
+		t.Errorf("CachedList = %+v, %v; want the page, since PageSize 0 means the default", got, ok)
 	}
 }
 
@@ -135,22 +136,77 @@ func TestListPagination(t *testing.T) {
 	}}
 	s := New(api)
 
-	first, err := s.List(t.Context(), ListQuery{First: 1})
+	first, err := s.List(t.Context(), ListQuery{PageSize: 1})
 	if err != nil || first.Next != "c1" {
 		t.Fatalf("first page = %+v, %v; want Next c1", first, err)
 	}
-	second, err := s.List(t.Context(), ListQuery{First: 1, After: first.Next})
+	second, err := s.List(t.Context(), ListQuery{PageSize: 1, Cursor: first.Next})
 	if err != nil || !second.Last() || !slices.Equal(second.Items, []core.Repo{dotfiles}) {
 		t.Fatalf("second page = %+v, %v; want the last page with dotfiles", second, err)
 	}
 	api.wantCalls(t, "list 1 ", "list 1 c1")
 
 	// Each cursor and size is its own entry.
-	if got, ok := s.CachedList(ListQuery{First: 1}); !ok || got.Next != "c1" {
+	if got, ok := s.CachedList(ListQuery{PageSize: 1}); !ok || got.Next != "c1" {
 		t.Errorf("cached first page = %+v, %v", got, ok)
 	}
-	if _, ok := s.CachedList(ListQuery{First: 2}); ok {
+	if _, ok := s.CachedList(ListQuery{PageSize: 2}); ok {
 		t.Error("a different page size hit the cache")
+	}
+}
+
+func TestListPageSize(t *testing.T) {
+	tests := []struct {
+		size, want int
+	}{
+		{0, DefaultPageSize},
+		{-1, DefaultPageSize},
+		{1, 1},
+		{100, 100},
+		{101, 100},
+		{1000, 100},
+	}
+	for _, tt := range tests {
+		t.Run(strconv.Itoa(tt.size), func(t *testing.T) {
+			api := &fakeAPI{t: t, listRepos: func(int, string) (core.Page[core.Repo], error) {
+				return page("", ghTUI), nil
+			}}
+			s := New(api)
+
+			if _, err := s.List(t.Context(), ListQuery{PageSize: tt.size}); err != nil {
+				t.Fatalf("List: %v", err)
+			}
+			api.wantCalls(t, fmt.Sprintf("list %d ", tt.want))
+			// The size is keyed as sent, so both spellings share the entry.
+			if _, ok := s.CachedList(ListQuery{PageSize: tt.want}); !ok {
+				t.Errorf("CachedList(PageSize %d) missed after List(PageSize %d)", tt.want, tt.size)
+			}
+		})
+	}
+}
+
+func TestListCacheKey(t *testing.T) {
+	api := &fakeAPI{t: t, listRepos: func(int, string) (core.Page[core.Repo], error) {
+		return page("c1", ghTUI), nil
+	}}
+	s := New(api)
+	if _, err := s.List(t.Context(), ListQuery{Cursor: "c1", PageSize: 10}); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, tt := range []struct {
+		q    ListQuery
+		want bool
+	}{
+		{ListQuery{Cursor: "c1", PageSize: 10}, true},
+		{ListQuery{Cursor: "c2", PageSize: 10}, false},
+		{ListQuery{PageSize: 10}, false},
+		{ListQuery{Cursor: "c1", PageSize: 20}, false},
+		{ListQuery{Cursor: "c1"}, false},
+	} {
+		if _, ok := s.CachedList(tt.q); ok != tt.want {
+			t.Errorf("CachedList(%+v) hit = %v, want %v", tt.q, ok, tt.want)
+		}
 	}
 }
 

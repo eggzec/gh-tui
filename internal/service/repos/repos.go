@@ -15,6 +15,9 @@ import (
 // DefaultPageSize is the page size of a ListQuery that sets none.
 const DefaultPageSize = 30
 
+// maxPageSize is the largest page GitHub returns.
+const maxPageSize = 100
+
 // API is the part of the GitHub client the service uses.
 type API interface {
 	ListRepos(ctx context.Context, first int, after string) (core.Page[core.Repo], error)
@@ -25,16 +28,18 @@ type API interface {
 
 // ListQuery selects a page of the viewer's repositories.
 type ListQuery struct {
-	// After is the Next cursor of the previous page, or empty for the first.
-	After string
-	// First is the page size. Zero means DefaultPageSize.
-	First int
+	// Cursor is the Next of the previous page, or empty for the first page.
+	Cursor string
+	// PageSize is how many repositories a page holds. Zero means
+	// DefaultPageSize, and sizes above GitHub's maximum of 100 are clamped.
+	PageSize int
 }
 
 func (q ListQuery) normalize() ListQuery {
-	if q.First <= 0 {
-		q.First = DefaultPageSize
+	if q.PageSize <= 0 {
+		q.PageSize = DefaultPageSize
 	}
+	q.PageSize = min(q.PageSize, maxPageSize)
 	return q
 }
 
@@ -71,7 +76,7 @@ func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.Repo], 
 	q = q.normalize()
 	e, err := s.lists.Fetch(ctx, listKey(q), func(ctx context.Context, _ cache.Entry[core.Page[core.Repo]], _ bool) (cache.Entry[core.Page[core.Repo]], error) {
 		// GraphQL has no validators, so a stale page is fetched again in full.
-		p, err := s.api.ListRepos(ctx, q.First, q.After)
+		p, err := s.api.ListRepos(ctx, q.PageSize, q.Cursor)
 		if err != nil {
 			return cache.Entry[core.Page[core.Repo]]{}, err
 		}
@@ -110,7 +115,7 @@ func (s *Service) Get(ctx context.Context, ref core.RepoRef) (core.Repo, error) 
 }
 
 func listKey(q ListQuery) string {
-	return "list?first=" + strconv.Itoa(q.First) + "&after=" + q.After
+	return "list?page_size=" + strconv.Itoa(q.PageSize) + "&cursor=" + q.Cursor
 }
 
 // GitHub matches owners and names without regard to case, so keys and tags
