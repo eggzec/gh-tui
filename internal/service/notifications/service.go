@@ -1,5 +1,5 @@
-// Package notifications serves the user's inbox from a cache and keeps it in
-// sync by polling.
+// Package notifications serves the user's inbox from a cache, keeps it in
+// sync by polling, and marks threads read or done optimistically.
 package notifications
 
 import (
@@ -15,12 +15,16 @@ import (
 // API is the part of the GitHub client the service uses.
 type API interface {
 	ListNotifications(ctx context.Context, filter core.NotificationFilter, cursor string, cond github.Conditional) (core.Page[core.Notification], github.Response, error)
+	MarkThreadRead(ctx context.Context, id string) error
+	MarkThreadDone(ctx context.Context, id string) error
+	MarkNotificationsRead(ctx context.Context, lastReadAt time.Time) error
 }
 
 // Service serves notifications. It is safe for concurrent use.
 type Service struct {
 	api   API
 	cache *cache.Cache[page]
+	now   func() time.Time
 	// interval is the latest X-Poll-Interval, in nanoseconds.
 	interval atomic.Int64
 }
@@ -52,5 +56,5 @@ func New(api API, opts ...Option) *Service {
 	for _, opt := range opts {
 		opt(&o)
 	}
-	return &Service{api: api, cache: cache.New[page](o.cache...)}
+	return &Service{api: api, cache: cache.New[page](o.cache...), now: time.Now}
 }
