@@ -11,7 +11,8 @@ import (
 )
 
 // Error is a failed API response. It unwraps to the core error that matches
-// its status, if any, so callers can test for it with errors.Is.
+// its status, if any, so callers can test for it with errors.Is. A rate limit
+// unwraps to a *core.RateLimitError that says when to retry.
 type Error struct {
 	StatusCode int
 	// Message is GitHub's explanation, including field errors.
@@ -45,6 +46,10 @@ func (c *Client) httpError(resp *http.Response) error {
 		e.err = core.ErrNotFound
 	case http.StatusConflict, http.StatusUnprocessableEntity:
 		e.err = core.ErrConflict
+	case http.StatusForbidden, http.StatusTooManyRequests:
+		if reset, ok := c.rateLimitReset(resp); ok {
+			e.err = &core.RateLimitError{Reset: reset}
+		}
 	}
 	return e
 }

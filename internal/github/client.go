@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/cli/go-gh/v2/pkg/auth"
@@ -29,6 +30,10 @@ type Client struct {
 	token      string
 	restURL    *url.URL
 	graphqlURL string
+	now        func() time.Time
+
+	mu        sync.Mutex
+	rateLimit RateLimit
 }
 
 // Option configures a Client.
@@ -96,6 +101,7 @@ func New(opts ...Option) (*Client, error) {
 		token:      o.token,
 		restURL:    base,
 		graphqlURL: graphqlEndpoint(base),
+		now:        time.Now,
 	}, nil
 }
 
@@ -131,11 +137,17 @@ func (c *Client) resolve(path string) (string, error) {
 	return u.String(), nil
 }
 
-// send adds the headers every request needs and sends it.
+// send adds the headers every request needs, sends it, and records the rate
+// limit of the response.
 func (c *Client) send(req *http.Request) (*http.Response, error) {
 	req.Header.Set("Authorization", "Bearer "+c.token)
 	req.Header.Set("User-Agent", userAgent)
 	req.Header.Set("Accept", "application/vnd.github+json")
 	req.Header.Set("X-GitHub-Api-Version", apiVersion)
-	return c.http.Do(req)
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	c.observe(resp.Header)
+	return resp, nil
 }
