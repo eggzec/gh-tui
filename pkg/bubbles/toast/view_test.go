@@ -1,6 +1,7 @@
 package toast
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 	"testing"
@@ -75,5 +76,75 @@ func TestViewFitsTheWidth(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func overlayBackground(width, height int) string {
+	lines := make([]string, height)
+	for i := range lines {
+		row := fmt.Sprintf("%02d \x1b[32m│\x1b[m row of the layout, with \x1b[1mstyled\x1b[m words ", i)
+		lines[i] = ansi.Truncate(strings.Repeat(row, 3), width, "")
+	}
+	return strings.Join(lines, "\n")
+}
+
+func TestOverlay(t *testing.T) {
+	m := New(WithSize(80, 24))
+	m.Push(Info, "Refreshing")
+	m.Push(Success, "Merged #42")
+	m.Push(Error, "Could not label #7, rolled back")
+	out := m.Overlay(overlayBackground(80, 24), 80, 24)
+	golden.RequireEqual(t, out)
+
+	lines := strings.Split(out, "\n")
+	if len(lines) != 24 {
+		t.Fatalf("overlay has %d lines, want 24", len(lines))
+	}
+	for i, l := range lines {
+		if w := ansi.StringWidth(l); w > 80 {
+			t.Errorf("line %d is %d wide", i, w)
+		}
+	}
+	// The toasts sit on the last rows, flush with the right edge.
+	stack := strings.Split(m.View(), "\n")
+	for i, s := range stack {
+		row := ansi.Strip(lines[len(lines)-len(stack)+i])
+		if !strings.HasSuffix(strings.TrimRight(row, " "), strings.TrimRight(ansi.Strip(s), " ")) {
+			t.Errorf("row %q does not end with toast line %q", row, ansi.Strip(s))
+		}
+	}
+}
+
+func TestOverlayWithoutToasts(t *testing.T) {
+	bg := overlayBackground(80, 5)
+	if got := New(WithSize(80, 5)).Overlay(bg, 80, 5); got != bg {
+		t.Error("Overlay changed the background without toasts")
+	}
+}
+
+// A stack taller or wider than the area is clipped, keeping the newest.
+func TestOverlayClipsToTheArea(t *testing.T) {
+	m := New(WithSize(80, 0))
+	m.Push(Info, "first")
+	m.Push(Info, "second")
+	m.Push(Info, "third")
+	out := m.Overlay("short\nbackground\nwith\nextra\nlines", 10, 2)
+	lines := strings.Split(ansi.Strip(out), "\n")
+	if len(lines) != 2 {
+		t.Fatalf("overlay has %d lines, want 2: %q", len(lines), lines)
+	}
+	for i, want := range []string{"second", "third"} {
+		if w := ansi.StringWidth(lines[i]); w > 10 {
+			t.Errorf("line %d is %d wide", i, w)
+		}
+		if !strings.Contains(lines[i], want[:3]) {
+			t.Errorf("line %d = %q, want part of %q", i, lines[i], want)
+		}
+	}
+	// A short background is padded so that the stack still sits at the bottom.
+	out = m.Overlay("top", 40, 5)
+	lines = strings.Split(ansi.Strip(out), "\n")
+	if len(lines) != 5 || lines[0] != "top" || lines[1] != "" || !strings.Contains(lines[4], "third") {
+		t.Errorf("overlay = %q", lines)
 	}
 }

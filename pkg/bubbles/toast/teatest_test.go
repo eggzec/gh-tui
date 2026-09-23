@@ -10,7 +10,7 @@ import (
 )
 
 // host is a minimal parent that pushes a toast on "p", forwards everything
-// else to the stack, and shows the stack.
+// else to the stack, and overlays the stack on its own layout.
 type host struct {
 	toasts        Model
 	width, height int
@@ -38,7 +38,7 @@ func (h host) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (h host) View() tea.View {
-	return tea.NewView(h.toasts.View())
+	return tea.NewView(h.toasts.Overlay("layout", h.width, h.height))
 }
 
 func TestPushAndDismissInAProgram(t *testing.T) {

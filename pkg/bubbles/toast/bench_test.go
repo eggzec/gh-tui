@@ -22,6 +22,15 @@ func BenchmarkView(b *testing.B) {
 	}
 }
 
+func BenchmarkOverlay(b *testing.B) {
+	m := benchModel()
+	bg := overlayBackground(80, 24)
+	b.ReportAllocs()
+	for b.Loop() {
+		_ = m.Overlay(bg, 80, 24)
+	}
+}
+
 func BenchmarkUpdate(b *testing.B) {
 	b.Run("ignored key", func(b *testing.B) {
 		m := benchModel()
