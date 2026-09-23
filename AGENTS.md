@@ -57,7 +57,9 @@ Rules:
 - **Dependencies point inward.** `tui` depends on interfaces for behavior. It
   may use the plain value types in `core`, which are the shared vocabulary,
   but it never imports `github`, `cache` or `watch` implementations. Only
-  `cmd/` knows about concrete types and wires them together.
+  `cmd/` knows about concrete types and wires them together. A section may
+  import its service package for query types such as `pulls.ListQuery`,
+  while still declaring the small interface it calls.
 - **`pkg/bubbles` imports nothing from `internal/`.** A bubble must be usable
   in another program without changes.
 - **Consumers define interfaces**, and keep them small. They live next to the
