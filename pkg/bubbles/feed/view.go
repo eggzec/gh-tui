@@ -32,24 +32,42 @@ func (m Model[T]) View() string {
 }
 
 func (m Model[T]) writeItem(w *lineWriter, i, width int) {
+	selected := i == m.sel
+	gutter := m.gutter(selected)
 	item, ok := m.item(i)
 	if !ok {
-		w.blank(m.itemHeight)
+		m.writePending(w, i, gutter)
 		return
-	}
-	selected := i == m.sel
-	gutter := m.gutterNone
-	if selected {
-		gutter = m.gutterBlurred
-		if m.focused {
-			gutter = m.gutterFocused
-		}
 	}
 	rest := m.render(item, selected, width)
 	for range m.itemHeight {
 		var line string
 		line, rest, _ = strings.Cut(rest, "\n")
 		w.line(gutter, line)
+	}
+}
+
+// writePending writes a row whose chunk is not loaded: a placeholder while
+// it is fetched again, or the error once, where the failed chunk comes into
+// view.
+func (m Model[T]) writePending(w *lineWriter, i int, gutter string) {
+	c := m.chunkAt(i)
+	if m.chunks[c].err != nil && (i == m.starts[c] || i == m.top) {
+		w.status(gutter, m.errLine, m.errHint)
+	} else {
+		w.line(gutter, m.placeholder)
+	}
+	w.blank(m.itemHeight - 1)
+}
+
+func (m Model[T]) gutter(selected bool) string {
+	switch {
+	case !selected:
+		return m.gutterNone
+	case m.focused:
+		return m.gutterFocused
+	default:
+		return m.gutterBlurred
 	}
 }
 

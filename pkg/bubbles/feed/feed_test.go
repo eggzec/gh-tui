@@ -382,3 +382,166 @@ func TestAccessors(t *testing.T) {
 		t.Fatal("key map has no help")
 	}
 }
+
+func TestPrefetch(t *testing.T) {
+	tests := []struct {
+		name    string
+		opts    []Option
+		downs   int
+		wantLen int
+	}{
+		{"default threshold, outside", nil, 3, 10},
+		{"default threshold, inside", nil, 4, 20},
+		{"custom threshold, outside", []Option{WithPrefetch(2)}, 6, 10},
+		{"custom threshold, inside", []Option{WithPrefetch(2)}, 7, 20},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := load(t, newSource(30, 10), tt.opts...)
+			for range tt.downs {
+				m = keys(t, m, "down")
+			}
+			if m.Len() != tt.wantLen {
+				t.Fatalf("Len() = %d, want %d", m.Len(), tt.wantLen)
+			}
+		})
+	}
+}
+
+// loadedChunks returns the indexes of the chunks whose items are in memory.
+func loadedChunks[T any](m Model[T]) []int {
+	var got []int
+	for i, c := range m.chunks {
+		if c.loaded {
+			got = append(got, i)
+		}
+	}
+	return got
+}
+
+// scrolledToEnd returns a feed over 100 chunks of 10 that walked to the end
+// while keeping at most three chunks.
+func scrolledToEnd(t *testing.T, src *source) Model[item] {
+	t.Helper()
+	m := load(t, src, WithMaxChunks(3))
+	for !m.Done() {
+		m = keys(t, m, "end")
+	}
+	return keys(t, m, "end")
+}
+
+func TestEviction(t *testing.T) {
+	src := newSource(1000, 10)
+	m := scrolledToEnd(t, src)
+	if got := loadedChunks(m); len(got) > 3 || got[len(got)-1] != 99 {
+		t.Fatalf("loaded chunks = %v, want at most 3 ending in 99", got)
+	}
+	if m.Len() != 1000 {
+		t.Fatalf("Len() = %d after eviction, want 1000", m.Len())
+	}
+	if it, ok := m.Selected(); !ok || it.id != "999" {
+		t.Fatalf("Selected() = %v, %v; want item 999", it, ok)
+	}
+
+	// Going home shows placeholders until chunk 0 is fetched again.
+	m, cmd := m.Update(press("home"))
+	if _, ok := m.Selected(); ok {
+		t.Fatal("Selected() returned an evicted item")
+	}
+	if !strings.Contains(m.View(), "…") {
+		t.Fatalf("View() = %q, want placeholders", m.View())
+	}
+	calls := src.callCount()
+	m = run(t, m, cmd)
+	if src.callCount() != calls+1 {
+		t.Fatalf("fetched %d chunks, want 1", src.callCount()-calls)
+	}
+	if it, ok := m.Selected(); !ok || it.id != "0" {
+		t.Fatalf("Selected() = %v, %v; want item 0", it, ok)
+	}
+	if got := loadedChunks(m); len(got) > 3 || got[0] != 0 {
+		t.Fatalf("loaded chunks = %v, want at most 3 starting at 0", got)
+	}
+	if m.Len() != 1000 {
+		t.Fatalf("Len() = %d, want 1000", m.Len())
+	}
+}
+
+func TestWindowChunksAreNeverEvicted(t *testing.T) {
+	// A window of 30 rows over chunks of 5 needs more than one chunk.
+	m := load(t, newSource(200, 5), WithMaxChunks(1), WithSize(40, 30))
+	m = keys(t, m, "pgdown", "pgdown", "pgdown")
+	for i := m.top; i < m.top+m.slots() && i < m.Len(); i++ {
+		if _, ok := m.item(i); !ok {
+			t.Fatalf("row %d in the window is not loaded", i)
+		}
+	}
+}
+
+func TestRefetchError(t *testing.T) {
+	src := newSource(1000, 10)
+	m := scrolledToEnd(t, src)
+	src.setFail("", errors.New("offline"))
+	m = keys(t, m, "home")
+	if m.Err() == nil || !m.KeyMap().Retry.Enabled() {
+		t.Fatal("a failed refetch should set Err and enable retry")
+	}
+	v := m.View()
+	if !strings.Contains(v, "offline") || strings.Count(v, "offline") != 1 {
+		t.Fatalf("View() = %q, want the error once", v)
+	}
+	// Moving within the failed chunk does not retry by itself.
+	calls := src.callCount()
+	m = keys(t, m, "down")
+	if src.callCount() != calls {
+		t.Fatal("a failed chunk was fetched again without retry")
+	}
+
+	src.setFail("", nil)
+	m = keys(t, m, "r")
+	if m.Err() != nil {
+		t.Fatalf("Err() = %v after retry", m.Err())
+	}
+	if it, ok := m.Selected(); !ok || it.id != "1" {
+		t.Fatalf("Selected() = %v, %v; want item 1", it, ok)
+	}
+}
+
+func TestResizeFetchesEvictedRows(t *testing.T) {
+	src := newSource(1000, 10)
+	m := scrolledToEnd(t, src)
+	m.SetSize(40, 60)
+	calls := src.callCount()
+	m, cmd := m.Update(nil)
+	if cmd == nil {
+		t.Fatal("Update after growing should fetch the rows now in view")
+	}
+	m = run(t, m, cmd)
+	if src.callCount() == calls {
+		t.Fatal("nothing was fetched")
+	}
+	for i := m.top; i < m.Len(); i++ {
+		if _, ok := m.item(i); !ok {
+			t.Fatalf("row %d in the window is not loaded", i)
+		}
+	}
+	if m.Len() != 1000 {
+		t.Fatalf("Len() = %d, want 1000", m.Len())
+	}
+}
+
+func TestDropsResultsNobodyWaitsFor(t *testing.T) {
+	m := load(t, newSource(30, 10))
+	before := m.Len()
+	for _, msg := range []chunkMsg[item]{
+		{id: m.id, index: 0, cursor: ""},     // already loaded
+		{id: m.id, index: 5, cursor: "50"},   // no such chunk
+		{id: m.id, index: 1, cursor: "nope"}, // wrong cursor
+	} {
+		var cmd tea.Cmd
+		m, cmd = m.Update(msg)
+		if cmd != nil || m.Len() != before {
+			t.Fatalf("Update(%+v) changed the feed", msg)
+		}
+	}
+}

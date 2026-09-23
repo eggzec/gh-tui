@@ -9,6 +9,15 @@ import (
 // Update handles keys while focused, and the feed's own fetch results and
 // spinner ticks. It ignores messages meant for other feeds.
 func (m Model[T]) Update(msg tea.Msg) (Model[T], tea.Cmd) {
+	if m.resized {
+		// SetSize cannot return a command, so fetch what a larger window
+		// shows now.
+		m.resized = false
+		sizeCmd := m.sync()
+		var cmd tea.Cmd
+		m, cmd = m.Update(msg)
+		return m, tea.Batch(sizeCmd, cmd)
+	}
 	switch msg := msg.(type) {
 	case chunkMsg[T]:
 		if msg.id != m.id {
@@ -62,55 +71,120 @@ func (m *Model[T]) press(msg tea.KeyPressMsg) tea.Cmd {
 
 // retry repeats every failed fetch.
 func (m *Model[T]) retry() tea.Cmd {
-	if m.tail.err == nil {
-		return nil
+	var cmd tea.Cmd
+	for i := range len(m.chunks) + 1 {
+		if m.chunk(i).err != nil {
+			cmd = tea.Batch(cmd, m.startFetch(i))
+		}
 	}
-	return m.startFetch(len(m.chunks))
+	return cmd
 }
 
 // receive stores a fetched chunk. Results that no longer match a chunk, for
 // example because the chunk was already fetched again, are dropped.
 func (m *Model[T]) receive(msg chunkMsg[T]) tea.Cmd {
-	if msg.index != len(m.chunks) || msg.cursor != m.tail.cursor || !m.tail.fetching {
+	if msg.index > len(m.chunks) {
 		return nil
 	}
-	m.tail.fetching = false
+	c := m.chunk(msg.index)
+	if c.cursor != msg.cursor || !c.fetching {
+		return nil
+	}
+	c.fetching = false
 	if msg.err != nil {
-		m.tail.err = msg.err
+		c.err = msg.err
 		m.refreshError()
 		return nil
 	}
-	m.chunks = append(m.chunks, chunk[T]{
-		cursor: msg.cursor,
-		next:   msg.next,
-		items:  msg.items,
-		n:      len(msg.items),
-	})
-	m.tail = chunk[T]{cursor: msg.next}
-	m.done = msg.next == ""
+
+	appended := msg.index == len(m.chunks)
+	if appended {
+		m.chunks = append(m.chunks, chunk[T]{cursor: msg.cursor})
+	}
+	c = &m.chunks[msg.index]
+	c.items, c.n, c.loaded = msg.items, len(msg.items), true
+	if appended || msg.next != c.next {
+		// The chunks after this one no longer follow from it, so fetch
+		// them again from its new next cursor.
+		clear(m.chunks[msg.index+1:])
+		m.chunks = m.chunks[:msg.index+1]
+		c.next = msg.next
+		m.tail = chunk[T]{cursor: msg.next}
+		m.done = msg.next == ""
+		m.refreshError()
+	}
 	m.reindex()
 	return m.sync()
 }
 
-// sync moves the window to the selection and fetches what it needs next.
+// sync moves the window to the selection, fetches what the window is about
+// to show, and evicts what it no longer needs.
 func (m *Model[T]) sync() tea.Cmd {
 	m.scroll()
+	cmd := m.keep()
 	if !m.wantsTail() {
-		return nil
+		return cmd
 	}
-	cmd := m.startFetch(len(m.chunks))
+	cmd = tea.Batch(cmd, m.startFetch(len(m.chunks)))
 	// Bring the loading row into view.
 	m.scroll()
 	return cmd
 }
 
 // wantsTail reports whether the next chunk should be fetched: the window is
-// not full, or the selection reached the last loaded item.
+// not full, or the selection is within the prefetch threshold of the end.
 func (m Model[T]) wantsTail() bool {
 	if m.done || m.tail.fetching || m.tail.err != nil {
 		return false
 	}
-	return m.top+m.slots() >= m.total || m.sel >= m.total-1
+	return m.top+m.slots() >= m.total || m.sel+m.margin() >= m.total-1
+}
+
+// margin returns how many rows beyond the window the feed keeps loaded.
+func (m Model[T]) margin() int {
+	if m.prefetch > 0 {
+		return m.prefetch
+	}
+	return m.slots()
+}
+
+// keep fetches the evicted chunks near the window again, and evicts the
+// chunks farthest from it while more than maxChunks are loaded. Positions
+// stay stable because evicted chunks keep their cursor and length.
+func (m *Model[T]) keep() tea.Cmd {
+	if m.total == 0 {
+		return nil
+	}
+	margin := m.margin()
+	lo := m.chunkAt(max(m.top-margin, 0))
+	hi := m.chunkAt(min(m.top+m.slots()+margin, m.total) - 1)
+
+	var cmd tea.Cmd
+	loaded := 0
+	for i := range m.chunks {
+		c := &m.chunks[i]
+		if c.loaded {
+			loaded++
+			continue
+		}
+		if i >= lo && i <= hi && !c.fetching && c.err == nil {
+			cmd = tea.Batch(cmd, m.startFetch(i))
+		}
+	}
+	for loaded > m.maxChunks {
+		far, dist := -1, 0
+		for i, c := range m.chunks {
+			if d := max(lo-i, i-hi); c.loaded && d > dist {
+				far, dist = i, d
+			}
+		}
+		if far < 0 {
+			break
+		}
+		m.chunks[far].items, m.chunks[far].loaded = nil, false
+		loaded--
+	}
+	return cmd
 }
 
 // scroll keeps the selection in range and in view.

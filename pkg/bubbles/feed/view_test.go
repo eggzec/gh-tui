@@ -48,6 +48,12 @@ func TestView(t *testing.T) {
 			t.Helper()
 			return load(t, failing, WithSize(60, 5))
 		}},
+		{"error after items", func(t *testing.T) Model[item] {
+			t.Helper()
+			src := newSource(30, 10)
+			src.setFail("10", errors.New("API rate limit exceeded"))
+			return keys(t, load(t, src, WithSize(60, 5)), "end")
+		}},
 		{"empty", func(t *testing.T) Model[item] {
 			t.Helper()
 			return load(t, newSource(0, 10), WithEmptyText("No open pull requests. Press / to change the filter."))
@@ -55,6 +61,19 @@ func TestView(t *testing.T) {
 		{"truncated at 80 columns", func(t *testing.T) Model[item] {
 			t.Helper()
 			return load(t, long, WithSize(80, 4))
+		}},
+		{"refetching", func(t *testing.T) Model[item] {
+			t.Helper()
+			m := scrolledToEnd(t, newSource(1000, 10))
+			m, _ = m.Update(press("home"))
+			return m
+		}},
+		{"refetch error", func(t *testing.T) Model[item] {
+			t.Helper()
+			src := newSource(1000, 10)
+			m := scrolledToEnd(t, src)
+			src.setFail("", errors.New("dial tcp: i/o timeout"))
+			return keys(t, m, "home", "down")
 		}},
 		{"tall rows", func(t *testing.T) Model[item] {
 			t.Helper()

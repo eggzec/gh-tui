@@ -16,8 +16,7 @@ func benchFeed(b *testing.B) Model[item] {
 		m = keys(b, m, "end")
 	}
 	m.sel = 5_000
-	m.scroll()
-	return m
+	return run(b, m, m.sync())
 }
 
 func BenchmarkView(b *testing.B) {
@@ -43,6 +42,10 @@ func BenchmarkUpdate(b *testing.B) {
 		i++
 		var cmd tea.Cmd
 		m, cmd = m.Update(msg)
-		_ = cmd
+		if cmd != nil {
+			// Chunks entering the margin are fetched again, which the
+			// service cache makes instant.
+			m = run(b, m, cmd)
+		}
 	}
 }
