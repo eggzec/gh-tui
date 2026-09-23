@@ -22,6 +22,10 @@ type Subject struct {
 	// URL is the API URL of the subject. It is empty for subjects that
 	// have none, such as discussions.
 	URL string
+	// WebURL is the page to open in a browser. When GitHub doesn't say
+	// which page, as for discussions and releases, it is the closest page
+	// of the repository.
+	WebURL string
 }
 
 // Notification is an entry in the user's inbox.

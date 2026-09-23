@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -16,8 +17,9 @@ import (
 type notification struct {
 	ID         string `json:"id"`
 	Repository struct {
-		Name  string `json:"name"`
-		Owner struct {
+		Name    string `json:"name"`
+		HTMLURL string `json:"html_url"`
+		Owner   struct {
 			Login string `json:"login"`
 		} `json:"owner"`
 	} `json:"repository"`
@@ -38,14 +40,42 @@ func (n notification) core() core.Notification {
 		ID:   n.ID,
 		Repo: core.RepoRef{Owner: n.Repository.Owner.Login, Name: n.Repository.Name},
 		Subject: core.Subject{
-			Title: n.Subject.Title,
-			Type:  core.SubjectType(n.Subject.Type),
-			URL:   n.Subject.URL,
+			Title:  n.Subject.Title,
+			Type:   core.SubjectType(n.Subject.Type),
+			URL:    n.Subject.URL,
+			WebURL: subjectWebURL(n.Repository.HTMLURL, n.Subject.URL, core.SubjectType(n.Subject.Type)),
 		},
 		Reason:    n.Reason,
 		Unread:    n.Unread,
 		UpdatedAt: n.UpdatedAt,
 	}
+}
+
+// subjectWebURL turns a subject's API URL, such as
+// https://api.github.com/repos/o/r/pulls/42, into its page under the
+// repository's web URL. Building on the repository's URL keeps the right
+// host on GitHub Enterprise Server.
+func subjectWebURL(repoURL, apiURL string, typ core.SubjectType) string {
+	// After "/repos/": owner, name, kind and ID.
+	if _, rest, ok := strings.Cut(apiURL, "/repos/"); ok {
+		if parts := strings.SplitN(rest, "/", 4); len(parts) == 4 {
+			switch parts[2] {
+			case "pulls":
+				return repoURL + "/pull/" + parts[3]
+			case "issues":
+				return repoURL + "/issues/" + parts[3]
+			case "commits":
+				return repoURL + "/commit/" + parts[3]
+			case "releases":
+				// The API names releases by ID, which the web doesn't use.
+				return repoURL + "/releases"
+			}
+		}
+	}
+	if typ == core.SubjectDiscussion {
+		return repoURL + "/discussions"
+	}
+	return repoURL
 }
 
 // ListNotifications returns a page of the user's notification threads,
