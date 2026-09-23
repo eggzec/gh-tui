@@ -137,8 +137,8 @@ func TestMutationShownBeforeDo(t *testing.T) {
 			if !m.changed(after.detail.PullRequest) {
 				t.Errorf("detail shows %+v, want the change", after.detail.PullRequest)
 			}
-			if after.detail.Body != "The body." || len(after.detail.Reviews) != 1 {
-				t.Errorf("detail = %+v, want its body and reviews kept", after.detail)
+			if after.detail.Body != "The body." || len(after.detail.CheckRuns) != 1 {
+				t.Errorf("detail = %+v, want its body and checks kept", after.detail)
 			}
 			if !reflect.DeepEqual(after.first.Items[1], before.first.Items[1]) || !reflect.DeepEqual(after.second, before.second) {
 				t.Error("the change touched other pull requests")
@@ -208,8 +208,8 @@ func TestMutationSuccessReconciles(t *testing.T) {
 			}
 			want := server
 			want.Body = "The body."
-			if !reflect.DeepEqual(after.detail.PullRequest, want) || len(after.detail.Reviews) != 1 {
-				t.Errorf("detail shows\n%+v\nwant the server's with the body and reviews kept\n%+v", after.detail, want)
+			if !reflect.DeepEqual(after.detail.PullRequest, want) || len(after.detail.CheckRuns) != 1 {
+				t.Errorf("detail shows\n%+v\nwant the server's with the body and checks kept\n%+v", after.detail, want)
 			}
 			if n := api.count("id"); n != 0 {
 				t.Errorf("looked up the node ID %d times, want 0 as it was cached", n)

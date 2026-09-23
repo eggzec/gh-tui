@@ -19,8 +19,9 @@ func WithTTL(d time.Duration) Option {
 	return func(o *options) { o.cache = append(o.cache, cache.WithTTL(d)) }
 }
 
-// WithCapacity sets how many list pages, and separately how many pull
-// request details, the service keeps. The default is cache.DefaultCapacity.
+// WithCapacity sets how many entries each of the service's caches keeps:
+// list pages, pull request details, comment pages and review pages. The
+// default is cache.DefaultCapacity.
 func WithCapacity(n int) Option {
 	return func(o *options) { o.cache = append(o.cache, cache.WithCapacity(n)) }
 }

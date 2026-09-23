@@ -39,14 +39,12 @@ type PullRequest struct {
 	MergedAt       time.Time
 }
 
-// PullRequestDetail is a pull request with what its detail view shows. The
-// embedded PullRequest has Body set, which list results leave empty.
+// PullRequestDetail is a pull request with what the head of its detail view
+// shows. The embedded PullRequest has Body set, which list results leave
+// empty. Reviews and comments are read a page at a time instead, since a
+// thread can be long.
 type PullRequestDetail struct {
 	PullRequest
-	Reviews []Review
-	// RecentComments holds the latest comments, oldest first. Issue.Comments
-	// counts all of them.
-	RecentComments []Comment
 	// CheckRuns are the checks of the head commit.
 	CheckRuns []CheckRun
 }

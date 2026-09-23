@@ -183,6 +183,13 @@ func TestGetPullRequest(t *testing.T) {
 	checkPullQuery(t, reqs(), "pullRequest(number: $number)", map[string]any{
 		"owner": "eggzec", "name": "gh-tui", "number": float64(42),
 	})
+	// Reviews and comments are paged on their own; the detail counts the
+	// comments only.
+	for _, field := range []string{"reviews", "comments(", "recentComments"} {
+		if strings.Contains(reqs()[0].Query, field) {
+			t.Errorf("detail query selects %q:\n%s", field, reqs()[0].Query)
+		}
+	}
 
 	if got.Number != 42 || got.Body != "Lists pull requests with their checks.\r\n\r\nCloses #40." {
 		t.Errorf("number %d, body %q; want 42 and the body", got.Number, got.Body)
@@ -190,20 +197,6 @@ func TestGetPullRequest(t *testing.T) {
 	if got.ReviewDecision != core.ReviewRequired || got.Checks != core.ChecksPending || got.Comments != 2 {
 		t.Errorf("review %q, checks %q, comments %d; want review_required, pending, 2",
 			got.ReviewDecision, got.Checks, got.Comments)
-	}
-	wantReviews := []core.Review{
-		{ID: "PRR_kwDOLnBTf86Aa001", Author: core.User{Login: "hubot", Name: "Hubot"}, State: core.ReviewStateChangesRequested, Body: "Please add tests.", SubmittedAt: pullTime("2026-09-21T10:00:00Z")},
-		{ID: "PRR_kwDOLnBTf86Aa002", Author: core.User{Login: "monalisa", Name: "Mona Lisa"}, State: core.ReviewStateCommented, SubmittedAt: pullTime("2026-09-22T09:12:30Z")},
-	}
-	if !reflect.DeepEqual(got.Reviews, wantReviews) {
-		t.Errorf("reviews =\n%+v\nwant\n%+v", got.Reviews, wantReviews)
-	}
-	wantComments := []core.Comment{
-		{ID: "IC_kwDOLnBTf86Bb001", Author: core.User{Login: "monalisa", Name: "Mona Lisa"}, Body: "Looks good so far.", CreatedAt: pullTime("2026-09-21T08:00:00Z"), UpdatedAt: pullTime("2026-09-21T08:05:00Z")},
-		{ID: "IC_kwDOLnBTf86Bb002", Body: "Ping.", CreatedAt: pullTime("2026-09-22T16:00:00Z"), UpdatedAt: pullTime("2026-09-22T16:00:00Z")},
-	}
-	if !reflect.DeepEqual(got.RecentComments, wantComments) {
-		t.Errorf("comments =\n%+v\nwant\n%+v", got.RecentComments, wantComments)
 	}
 	wantChecks := []core.CheckRun{
 		{Name: "test (ubuntu-latest)", Status: "completed", Conclusion: "success", URL: "https://github.com/eggzec/gh-tui/actions/runs/1001/job/2001"},
@@ -213,6 +206,88 @@ func TestGetPullRequest(t *testing.T) {
 	}
 	if !reflect.DeepEqual(got.CheckRuns, wantChecks) {
 		t.Errorf("check runs =\n%+v\nwant\n%+v", got.CheckRuns, wantChecks)
+	}
+}
+
+func TestListPullRequestComments(t *testing.T) {
+	c, reqs := pullServer(t, "pulls_comments.json")
+
+	page, err := c.ListPullRequestComments(t.Context(), pullsRepo, 42, "", 30)
+	if err != nil {
+		t.Fatalf("ListPullRequestComments: %v", err)
+	}
+	checkPullQuery(t, reqs(), "page: comments(first: $first, after: $after)", map[string]any{
+		"owner": "eggzec", "name": "gh-tui", "number": float64(42), "first": float64(30),
+	})
+	want := core.Page[core.Comment]{
+		Items: []core.Comment{
+			{ID: "IC_kwDOLnBTf86Bb001", Author: core.User{Login: "monalisa", Name: "Mona Lisa"}, Body: "Looks good so far.", CreatedAt: pullTime("2026-09-21T08:00:00Z"), UpdatedAt: pullTime("2026-09-21T08:05:00Z")},
+			{ID: "IC_kwDOLnBTf86Bb002", Body: "Ping.", CreatedAt: pullTime("2026-09-22T16:00:00Z"), UpdatedAt: pullTime("2026-09-22T16:00:00Z")},
+		},
+		Next: "Y3Vyc29yOnYyOpHOBb002",
+	}
+	if !reflect.DeepEqual(page, want) {
+		t.Errorf("page =\n%+v\nwant\n%+v", page, want)
+	}
+}
+
+func TestListPullRequestReviews(t *testing.T) {
+	c, reqs := pullServer(t, "pulls_reviews.json")
+
+	page, err := c.ListPullRequestReviews(t.Context(), pullsRepo, 42, "", 30)
+	if err != nil {
+		t.Fatalf("ListPullRequestReviews: %v", err)
+	}
+	checkPullQuery(t, reqs(), "page: reviews(first: $first, after: $after)", map[string]any{
+		"owner": "eggzec", "name": "gh-tui", "number": float64(42), "first": float64(30),
+	})
+	want := core.Page[core.Review]{
+		Items: []core.Review{
+			{ID: "PRR_kwDOLnBTf86Aa001", Author: core.User{Login: "hubot", Name: "Hubot"}, State: core.ReviewStateChangesRequested, Body: "Please add tests.", SubmittedAt: pullTime("2026-09-21T10:00:00Z")},
+			{ID: "PRR_kwDOLnBTf86Aa002", Author: core.User{Login: "monalisa", Name: "Mona Lisa"}, State: core.ReviewStateCommented, SubmittedAt: pullTime("2026-09-22T09:12:30Z")},
+		},
+	}
+	if !reflect.DeepEqual(page, want) {
+		t.Errorf("page =\n%+v\nwant the last page\n%+v", page, want)
+	}
+}
+
+func TestPullPageVariables(t *testing.T) {
+	reads := map[string]struct {
+		fixture string
+		read    func(c *Client, cursor string, first int) error
+	}{
+		"comments": {"pulls_comments.json", func(c *Client, cursor string, first int) error {
+			_, err := c.ListPullRequestComments(t.Context(), pullsRepo, 42, cursor, first)
+			return err
+		}},
+		"reviews": {"pulls_reviews.json", func(c *Client, cursor string, first int) error {
+			_, err := c.ListPullRequestReviews(t.Context(), pullsRepo, 42, cursor, first)
+			return err
+		}},
+	}
+	pages := []struct {
+		name   string
+		cursor string
+		first  int
+		want   map[string]any
+	}{
+		{"first page", "", 30, map[string]any{"first": float64(30)}},
+		{"after cursor", "abc", 30, map[string]any{"first": float64(30), "after": "abc"}},
+		{"page size", "abc", 7, map[string]any{"first": float64(7), "after": "abc"}},
+	}
+	for name, r := range reads {
+		for _, p := range pages {
+			t.Run(name+"/"+p.name, func(t *testing.T) {
+				c, reqs := pullServer(t, r.fixture)
+				if err := r.read(c, p.cursor, p.first); err != nil {
+					t.Fatalf("read: %v", err)
+				}
+				want := map[string]any{"owner": "eggzec", "name": "gh-tui", "number": float64(42)}
+				maps.Copy(want, p.want)
+				checkPullQuery(t, reqs(), name+"(first: $first, after: $after)", want)
+			})
+		}
 	}
 }
 
@@ -248,6 +323,14 @@ func TestPullReadErrors(t *testing.T) {
 			_, err := c.GetPullRequest(t.Context(), pullsRepo, 42)
 			return err
 		},
+		"comments": func(c *Client) error {
+			_, err := c.ListPullRequestComments(t.Context(), pullsRepo, 42, "", 30)
+			return err
+		},
+		"reviews": func(c *Client) error {
+			_, err := c.ListPullRequestReviews(t.Context(), pullsRepo, 42, "", 30)
+			return err
+		},
 	}
 	responses := []struct {
 		name   string
@@ -278,12 +361,30 @@ func TestPullReadErrors(t *testing.T) {
 	}
 }
 
-func TestGetPullRequestNullPull(t *testing.T) {
-	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`{"data":{"repository":{"pullQuery":null}},"errors":[{"type":"NOT_FOUND","path":["repository","pullQuery"],"message":"Could not resolve to a PullRequest with the number of 999."}]}`))
-	}))
-	if _, err := c.GetPullRequest(t.Context(), pullsRepo, 999); !errors.Is(err, core.ErrNotFound) {
-		t.Errorf("error = %v, want ErrNotFound", err)
+func TestPullReadsNullPull(t *testing.T) {
+	reads := map[string]func(*Client) error{
+		"get": func(c *Client) error {
+			_, err := c.GetPullRequest(t.Context(), pullsRepo, 999)
+			return err
+		},
+		"comments": func(c *Client) error {
+			_, err := c.ListPullRequestComments(t.Context(), pullsRepo, 999, "", 30)
+			return err
+		},
+		"reviews": func(c *Client) error {
+			_, err := c.ListPullRequestReviews(t.Context(), pullsRepo, 999, "", 30)
+			return err
+		},
+	}
+	for name, read := range reads {
+		t.Run(name, func(t *testing.T) {
+			c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				_, _ = w.Write([]byte(`{"data":{"repository":{"pullRequest":null}}}`))
+			}))
+			if err := read(c); !errors.Is(err, core.ErrNotFound) {
+				t.Errorf("error = %v, want ErrNotFound", err)
+			}
+		})
 	}
 }
 
