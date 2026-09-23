@@ -1,0 +1,38 @@
+[
+  {
+    "url": "https://api.github.com/repos/octo-org/hello/issues/comments/3301234001",
+    "html_url": "https://github.com/octo-org/hello/issues/42#issuecomment-3301234001",
+    "issue_url": "https://api.github.com/repos/octo-org/hello/issues/42",
+    "id": 3301234001,
+    "node_id": "IC_kwDOJ5Hs3c7EwZ1R",
+    "user": {
+      "login": "hubot",
+      "id": 1234567,
+      "node_id": "MDQ6VXNlcjEyMzQ1Njc=",
+      "type": "User",
+      "site_admin": false
+    },
+    "created_at": "2026-09-02T09:00:00Z",
+    "updated_at": "2026-09-02T09:00:00Z",
+    "author_association": "MEMBER",
+    "body": "I can reproduce this on v0.3."
+  },
+  {
+    "url": "https://api.github.com/repos/octo-org/hello/issues/comments/3301234002",
+    "html_url": "https://github.com/octo-org/hello/issues/42#issuecomment-3301234002",
+    "issue_url": "https://api.github.com/repos/octo-org/hello/issues/42",
+    "id": 3301234002,
+    "node_id": "IC_kwDOJ5Hs3c7EwZ2S",
+    "user": {
+      "login": "octocat",
+      "id": 583231,
+      "node_id": "MDQ6VXNlcjU4MzIzMQ==",
+      "type": "User",
+      "site_admin": false
+    },
+    "created_at": "2026-09-20T17:42:10Z",
+    "updated_at": "2026-09-20T18:01:00Z",
+    "author_association": "OWNER",
+    "body": "Fixed on main, thanks!"
+  }
+]

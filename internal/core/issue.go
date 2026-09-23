@@ -12,6 +12,16 @@ const (
 	StateMerged State = "merged"
 )
 
+// StateFilter selects issues or pull requests by state when listing them.
+type StateFilter string
+
+// State filters. The zero value lists open ones, as GitHub does.
+const (
+	FilterOpen   StateFilter = "open"
+	FilterClosed StateFilter = "closed"
+	FilterAll    StateFilter = "all"
+)
+
 // User is a GitHub account.
 type User struct {
 	Login string
