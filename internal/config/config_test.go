@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -185,5 +186,22 @@ func assertEqual(t *testing.T, got, want Config) {
 	t.Helper()
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("config mismatch\n got: %+v\nwant: %+v", got, want)
+	}
+}
+
+func TestSectionActionsCanBeRebound(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(path, []byte("keys:\n  merge: [\"ctrl+m\"]\n  star: [\"*\"]\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got := cfg.Keys[ActionMerge]; !slices.Equal(got, []string{"ctrl+m"}) {
+		t.Errorf("merge = %v, want [ctrl+m]", got)
+	}
+	if got := cfg.Keys[ActionClose]; !slices.Equal(got, []string{"x"}) {
+		t.Errorf("close = %v, want the default [x]", got)
 	}
 }

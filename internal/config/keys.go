@@ -16,6 +16,23 @@ const (
 	ActionOpen    = "open_in_browser"
 )
 
+// Actions of the sections. A key may serve different actions in different
+// sections, such as "m" for merge in pull requests and mark read in
+// notifications.
+const (
+	ActionSelect      = "select"
+	ActionBack        = "back"
+	ActionFilter      = "filter"
+	ActionMerge       = "merge"
+	ActionClose       = "close"
+	ActionReopen      = "reopen"
+	ActionToggleDraft = "toggle_draft"
+	ActionMarkRead    = "mark_read"
+	ActionMarkDone    = "mark_done"
+	ActionMarkAllRead = "mark_all_read"
+	ActionStar        = "star"
+)
+
 func defaultKeys() map[string][]string {
 	return map[string][]string{
 		ActionQuit:    {"q", "ctrl+c"},
@@ -25,6 +42,18 @@ func defaultKeys() map[string][]string {
 		ActionNextTab: {"tab", "]"},
 		ActionPrevTab: {"shift+tab", "["},
 		ActionOpen:    {"o"},
+
+		ActionSelect:      {"enter"},
+		ActionBack:        {"esc"},
+		ActionFilter:      {"f"},
+		ActionMerge:       {"m"},
+		ActionClose:       {"x"},
+		ActionReopen:      {"X"},
+		ActionToggleDraft: {"D"},
+		ActionMarkRead:    {"m"},
+		ActionMarkDone:    {"d"},
+		ActionMarkAllRead: {"M"},
+		ActionStar:        {"s"},
 	}
 }
 
