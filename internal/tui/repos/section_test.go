@@ -252,13 +252,13 @@ func TestLayoutDropsColumns(t *testing.T) {
 		{16, false, false, false, false, false},
 	}
 	for _, tt := range tests {
-		l := newLayout(tt.width)
+		l := newLayout(tt.width, leadWidth)
 		got := []bool{l.desc > 0, l.tag, l.lang, l.stars, l.ages}
 		want := []bool{tt.desc, tt.tag, tt.lang, tt.stars, tt.ages}
 		if !slices.Equal(got, want) {
 			t.Errorf("newLayout(%d) desc, tag, lang, stars, age = %v, want %v", tt.width, got, want)
 		}
-		if used := leadWidth + l.name + l.right() + descWidth(l); used > tt.width {
+		if used := l.lead + l.name + l.right() + descWidth(l); used > tt.width {
 			t.Errorf("newLayout(%d) uses %d cells", tt.width, used)
 		}
 	}

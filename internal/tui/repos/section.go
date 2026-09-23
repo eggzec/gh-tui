@@ -5,7 +5,9 @@ package repos
 
 import (
 	"context"
+	"errors"
 	"strings"
+	"sync"
 	"time"
 
 	"charm.land/bubbles/v2/help"
@@ -28,6 +30,7 @@ const pullsTitle = "Pull requests"
 // Service is what the section needs from the repositories service.
 type Service interface {
 	List(ctx context.Context, q reposvc.ListQuery) (core.Page[core.Repo], error)
+	Get(ctx context.Context, ref core.RepoRef) (core.Repo, error)
 	Star(ref core.RepoRef) *optimistic.Op
 	Unstar(ref core.RepoRef) *optimistic.Op
 }
@@ -40,6 +43,8 @@ type Section struct {
 	feed feed.Model[core.Repo]
 	now  func() time.Time
 
+	// pinned are listed first, in order, and left out of the pages after.
+	pinned []core.RepoRef
 	// current is the repository the other sections show.
 	current core.RepoRef
 	// pending counts the changes in flight by their DoneMsg.What, so that
@@ -78,13 +83,68 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 	return s
 }
 
-// fetch adapts the service's pages to the feed.
+// listPrefix marks the cursors of the service's pages when the pinned
+// repositories take the first chunk, whose cursor is empty.
+const listPrefix = "list:"
+
+// fetch adapts the service's pages to the feed. With repositories pinned,
+// they are the first chunk, and the pages follow without them.
 func (s *Section) fetch(ctx context.Context, cursor string) ([]core.Repo, string, error) {
-	p, err := s.svc.List(ctx, reposvc.ListQuery{Cursor: cursor})
+	if len(s.pinned) == 0 {
+		p, err := s.svc.List(ctx, reposvc.ListQuery{Cursor: cursor})
+		return p.Items, p.Next, err
+	}
+	if cursor == "" {
+		items, err := s.fetchPinned(ctx)
+		return items, listPrefix, err
+	}
+	p, err := s.svc.List(ctx, reposvc.ListQuery{Cursor: strings.TrimPrefix(cursor, listPrefix)})
 	if err != nil {
 		return nil, "", err
 	}
-	return p.Items, p.Next, nil
+	// The page belongs to the cache, so filter into a new slice.
+	items := make([]core.Repo, 0, len(p.Items))
+	for i := range p.Items {
+		if !s.isPinned(p.Items[i].Ref) {
+			items = append(items, p.Items[i])
+		}
+	}
+	next := ""
+	if p.Next != "" {
+		next = listPrefix + p.Next
+	}
+	return items, next, nil
+}
+
+// fetchPinned gets the pinned repositories at once. One that no longer
+// exists, say after a rename, is left out rather than hiding the list.
+func (s *Section) fetchPinned(ctx context.Context) ([]core.Repo, error) {
+	repos := make([]core.Repo, len(s.pinned))
+	errs := make([]error, len(s.pinned))
+	var wg sync.WaitGroup
+	for i, ref := range s.pinned {
+		wg.Go(func() { repos[i], errs[i] = s.svc.Get(ctx, ref) })
+	}
+	wg.Wait()
+	items := repos[:0]
+	for i, err := range errs {
+		switch {
+		case err == nil:
+			items = append(items, repos[i])
+		case !errors.Is(err, core.ErrNotFound):
+			return nil, err
+		}
+	}
+	return items, nil
+}
+
+func (s *Section) isPinned(ref core.RepoRef) bool {
+	for _, p := range s.pinned {
+		if sameRef(p, ref) {
+			return true
+		}
+	}
+	return false
 }
 
 // Title returns the title of the section.
@@ -192,7 +252,7 @@ func (s *Section) View() string {
 // SetSize sets the size of the list and lays out its columns.
 func (s *Section) SetSize(width, height int) {
 	s.feed.SetSize(width, height)
-	s.cols = newLayout(rowWidth(width))
+	s.cols = newLayout(rowWidth(width), s.lead())
 }
 
 // SetTheme styles the list and its rows.
