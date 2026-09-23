@@ -93,7 +93,7 @@ func (m *Model[T]) statusText() string {
 	case m.tail.loading:
 		s = m.spin.View() + " " + m.text.loadingComments
 	case m.tail.err != nil:
-		s = m.text.errPrefix + m.text.retry + m.styles.Hint.Render(" ("+m.tail.err.Error()+")")
+		s = m.errorText(m.tail.err)
 	case m.done() && m.empty():
 		s = m.text.empty
 	default:
@@ -120,7 +120,8 @@ func (m *Model[T]) empty() bool {
 // scrolls back to a.
 func (m *Model[T]) layout(a anchor) {
 	if m.width <= 0 {
-		m.lines, m.starts, m.statusIdx, m.status = nil, nil, -1, ""
+		m.lines, m.statusIdx, m.status = nil, -1, ""
+		m.starts = make([]int, len(m.chunks))
 		m.vp.SetContentLines(nil)
 		return
 	}
@@ -133,7 +134,7 @@ func (m *Model[T]) layout(a anchor) {
 	starts := make([]int, len(m.chunks))
 	for i := range m.chunks {
 		starts[i] = len(lines)
-		lines = append(lines, m.chunks[i].lines...)
+		lines = m.appendChunk(lines, &m.chunks[i])
 	}
 	m.status, m.statusIdx = m.statusText(), -1
 	if m.status != "" {
@@ -143,6 +144,31 @@ func (m *Model[T]) layout(a anchor) {
 	m.lines, m.starts = lines, starts
 	m.vp.SetContentLines(lines)
 	m.restore(a)
+}
+
+// appendChunk appends the lines of c, or a placeholder of the same height
+// if c was evicted, so the lines after it stay where they were.
+func (m *Model[T]) appendChunk(lines []string, c *chunk[T]) []string {
+	if c.loaded {
+		return append(lines, c.lines...)
+	}
+	if c.height == 0 {
+		return lines
+	}
+	// An evicted chunk on screen is always being fetched again.
+	first := m.text.loadingComments
+	if c.err != nil {
+		first = m.errorText(c.err)
+	}
+	lines = append(lines, m.fit(statusIndent+first))
+	for range c.height - 1 {
+		lines = append(lines, m.blank)
+	}
+	return lines
+}
+
+func (m *Model[T]) errorText(err error) string {
+	return m.text.errPrefix + m.text.retry + m.styles.Hint.Render(" ("+err.Error()+")")
 }
 
 // anchor is a reading position that survives a new layout: a line within a

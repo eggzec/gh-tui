@@ -8,12 +8,13 @@ import (
 )
 
 // longThread is an issue with a long body and 500 comments in chunks of 50,
-// all loaded, at a common terminal size.
+// all loaded, at a common terminal size. It keeps every chunk, so the numbers
+// measure scrolling rather than fetching, while still checking for eviction.
 func longThread(b *testing.B) (Model[comment], *renders) {
 	b.Helper()
 	src := newSource(10, 50)
 	r := &renders{}
-	m := newTest(src, r, 120, 40)
+	m := newTest(src, r, 120, 40, WithMaxChunks(10))
 	body := strings.Repeat(testBody+"\n\n", 20)
 	m = drain(b, m, m.SetDocument(testHeader, body))
 	for !m.done() {

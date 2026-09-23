@@ -38,6 +38,7 @@ type Model[T any] struct {
 	keys          KeyMap
 	styles        Styles
 	markdown      *ansi.StyleConfig
+	maxChunks     int
 
 	parent context.Context
 	ctx    context.Context
@@ -68,7 +69,9 @@ type Model[T any] struct {
 	text texts
 }
 
-// chunk is one page of comments, rendered once per width.
+// chunk is one page of comments, rendered once per width. An evicted chunk
+// drops its items and lines but keeps its cursor, to fetch it again, and its
+// height, so the lines after it don't move.
 type chunk[T any] struct {
 	cursor string
 	next   string
@@ -77,6 +80,10 @@ type chunk[T any] struct {
 	lines  []string
 	starts []int // line of each item in lines
 	height int
+
+	loading bool
+	seq     int
+	err     error
 }
 
 // tail tracks the request for the chunk after the last one.
@@ -95,9 +102,10 @@ type texts struct {
 // with render.
 func New[T any](fetch Fetch[T], render Render[T], opts ...Option) Model[T] {
 	s := settings{
-		keys:   DefaultKeyMap(),
-		styles: DefaultStyles(true),
-		ctx:    context.Background(),
+		keys:      DefaultKeyMap(),
+		styles:    DefaultStyles(true),
+		ctx:       context.Background(),
+		maxChunks: DefaultMaxChunks,
 	}
 	for _, opt := range opts {
 		opt(&s)
@@ -109,6 +117,7 @@ func New[T any](fetch Fetch[T], render Render[T], opts ...Option) Model[T] {
 		focused:   s.focused,
 		keys:      s.keys,
 		markdown:  s.markdown,
+		maxChunks: s.maxChunks,
 		parent:    s.ctx,
 		vp:        viewport.New(),
 		spin:      spinner.New(spinner.WithSpinner(spinner.Dot)),
@@ -179,6 +188,13 @@ func (m Model[T]) Width() int { return m.width }
 
 // Height returns the height.
 func (m Model[T]) Height() int { return m.height }
+
+// SetMaxChunks sets how many comment chunks stay in memory, as in
+// [WithMaxChunks].
+func (m *Model[T]) SetMaxChunks(n int) { m.maxChunks = n }
+
+// MaxChunks returns how many comment chunks stay in memory.
+func (m Model[T]) MaxChunks() int { return m.maxChunks }
 
 // SetStyles sets the styles and renders what depends on them again.
 func (m *Model[T]) SetStyles(s Styles) {
@@ -255,7 +271,15 @@ func (m *Model[T]) styleRetry() {
 }
 
 func (m Model[T]) failed() bool {
-	return m.tail.err != nil
+	if m.tail.err != nil {
+		return true
+	}
+	for i := range m.chunks {
+		if m.chunks[i].err != nil {
+			return true
+		}
+	}
+	return false
 }
 
 func (m Model[T]) markdownStyle() ansi.StyleConfig {
