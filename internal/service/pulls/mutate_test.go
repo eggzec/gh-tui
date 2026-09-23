@@ -14,7 +14,7 @@ import (
 
 var (
 	openFirst  = ListQuery{Repo: repo, State: core.StateOpen}
-	openSecond = ListQuery{Repo: repo, State: core.StateOpen, After: "c1"}
+	openSecond = ListQuery{Repo: repo, State: core.StateOpen, Cursor: "c1"}
 	clock      = time.Date(2026, 9, 23, 9, 0, 0, 0, time.UTC)
 	serverTime = clock.Add(5 * time.Second)
 )
@@ -75,8 +75,8 @@ var mutations = []mutation{
 // detail of #1, with #1 as seed leaves it.
 func seeded(t *testing.T, api *fakeAPI, seed func(*core.PullRequest)) *Service {
 	t.Helper()
-	api.list = func(ctx context.Context, r core.RepoRef, state core.State, cursor string) (core.Page[core.PullRequest], error) {
-		p, err := listing(ctx, r, state, cursor)
+	api.list = func(ctx context.Context, r core.RepoRef, state core.State, cursor string, first int) (core.Page[core.PullRequest], error) {
+		p, err := listing(ctx, r, state, cursor, first)
 		for i := range p.Items {
 			if p.Items[i].Number == 1 {
 				seed(&p.Items[i])
@@ -111,9 +111,9 @@ type snapshot struct {
 
 func take(t *testing.T, s *Service) snapshot {
 	t.Helper()
-	first, ok1 := s.Cached(openFirst)
-	second, ok2 := s.Cached(openSecond)
-	d, ok3 := s.CachedDetail(repo, 1)
+	first, ok1 := s.CachedList(openFirst)
+	second, ok2 := s.CachedList(openSecond)
+	d, ok3 := s.CachedGet(repo, 1)
 	if !ok1 || !ok2 || !ok3 {
 		t.Fatalf("cached = %v, %v, %v; want every entry", ok1, ok2, ok3)
 	}
@@ -257,7 +257,7 @@ func TestMutationUncachedSends(t *testing.T) {
 			if api.count("id") != 1 || api.count(m.method) != 1 {
 				t.Errorf("%d lookups and %d calls of %s, want one each", api.count("id"), api.count(m.method), m.method)
 			}
-			if _, ok := s.CachedDetail(repo, 7); ok {
+			if _, ok := s.CachedGet(repo, 7); ok {
 				t.Error("the change cached a detail that was never fetched")
 			}
 		})
