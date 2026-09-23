@@ -1,4 +1,5 @@
-// Package repos serves the viewer's repositories from a cache.
+// Package repos serves the viewer's repositories from a cache and stars them
+// optimistically.
 package repos
 
 import (
@@ -18,6 +19,8 @@ const DefaultPageSize = 30
 type API interface {
 	ListRepos(ctx context.Context, first int, after string) (core.Page[core.Repo], error)
 	GetRepo(ctx context.Context, ref core.RepoRef) (core.Repo, error)
+	Star(ctx context.Context, ref core.RepoRef) error
+	Unstar(ctx context.Context, ref core.RepoRef) error
 }
 
 // ListQuery selects a page of the viewer's repositories.
