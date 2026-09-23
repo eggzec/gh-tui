@@ -13,21 +13,23 @@ import (
 
 // A row reads, in fixed-width columns:
 //
-//	● ★ owner/name          description…        archived Go          1.2k   3d
+//	▪● ★ owner/name          description…        archived Go          1.2k   3d
 //
-// The dot marks the current repository. The description gives way first,
-// then the columns on its right.
+// The square marks a pinned repository, and its column is there only when
+// some are pinned. The dot marks the current repository. The description
+// gives way first, then the columns on its right.
 
 const (
 	glyphStarred   = "★"
 	glyphUnstarred = "☆"
 	glyphCurrent   = "●"
+	glyphPinned    = "▪"
 
 	// feedGutter is the width the list keeps left of every row for its
 	// cursor.
 	feedGutter = 2
 	// leadWidth holds the current marker and the star, each followed by a
-	// space.
+	// space. The pin column adds one cell before them.
 	leadWidth = 4
 
 	tagWidth   = 8 // "archived"
@@ -46,7 +48,7 @@ const (
 type styles struct {
 	owner, name, desc, lang, stars, age lipgloss.Style
 
-	starred, unstarred, current string
+	starred, unstarred, current, pinned string
 	// tags are padded to tagWidth.
 	private, fork, archived, noTag string
 }
@@ -65,6 +67,7 @@ func newStyles(t ui.Theme) styles {
 		starred:   t.Accent.Render(glyphStarred),
 		unstarred: t.Subtle.Render(glyphUnstarred),
 		current:   t.Subtle.Render(glyphCurrent),
+		pinned:    t.Subtle.Render(glyphPinned),
 		private:   tag("private"),
 		fork:      tag("fork"),
 		archived:  tag("archived"),
@@ -76,20 +79,22 @@ func newStyles(t ui.Theme) styles {
 // that don't fit are dropped, least important first.
 type layout struct {
 	width int
-	name  int
+	// lead is the width left of the name.
+	lead int
+	name int
 	// desc is 0 when the description is dropped.
 	desc                   int
 	tag, lang, stars, ages bool
 }
 
-func newLayout(width int) layout {
-	l := layout{width: width, tag: true, lang: true, stars: true, ages: true}
+func newLayout(width, lead int) layout {
+	l := layout{width: width, lead: lead, tag: true, lang: true, stars: true, ages: true}
 	l.name = min(max(width*2/7, minName), maxName)
 	// The description is what gives: language goes first, then age, then
 	// the tag.
 	drops := []*bool{&l.lang, &l.ages, &l.tag}
 	for {
-		l.desc = width - leadWidth - l.name - 2 - l.right()
+		l.desc = width - l.lead - l.name - 2 - l.right()
 		if l.desc >= minDesc || len(drops) == 0 {
 			break
 		}
@@ -100,10 +105,10 @@ func newLayout(width int) layout {
 		// Too narrow for a description: the name takes the room left,
 		// and the star count goes too when even the name won't fit.
 		l.desc = 0
-		l.name = width - leadWidth - l.right()
+		l.name = width - l.lead - l.right()
 		if l.name < minName {
 			l.stars = false
-			l.name = width - leadWidth
+			l.name = width - l.lead
 		}
 		l.name = max(l.name, 0)
 	}
@@ -127,6 +132,14 @@ func (l layout) right() int {
 		w += 1 + ageWidth
 	}
 	return w
+}
+
+// lead returns the width left of the names.
+func (s *Section) lead() int {
+	if len(s.pinned) > 0 {
+		return leadWidth + 1
+	}
+	return leadWidth
 }
 
 // rowWidth is the width the list gives a row in a section width wide.
@@ -169,12 +182,18 @@ func (s *Section) render(r core.Repo, _ bool, width int) string {
 func (s *Section) draw(r core.Repo, width int, current bool, age string) string {
 	l := s.cols
 	if l.width != width {
-		l = newLayout(width)
+		l = newLayout(width, s.lead())
 	}
 	st := &s.styles
 
 	var b strings.Builder
 	b.Grow(width + 128)
+	switch {
+	case s.isPinned(r.Ref):
+		b.WriteString(st.pinned)
+	case len(s.pinned) > 0:
+		b.WriteByte(' ')
+	}
 	if current {
 		b.WriteString(st.current)
 	} else {

@@ -2,6 +2,7 @@ package repos
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"strconv"
 	"sync"
@@ -22,6 +23,10 @@ type fakeService struct {
 	pageSize int
 	listErr  error
 	sendErr  error
+	// extra are repos Get finds that List doesn't return, and getErr fails
+	// Get for some.
+	extra  []core.Repo
+	getErr map[core.RepoRef]error
 
 	lists []string
 	sent  []string
@@ -45,6 +50,19 @@ func (f *fakeService) List(_ context.Context, q reposvc.ListQuery) (core.Page[co
 		p.Next = strconv.Itoa(end)
 	}
 	return p, nil
+}
+
+func (f *fakeService) Get(_ context.Context, ref core.RepoRef) (core.Repo, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.getErr[ref]; err != nil {
+		return core.Repo{}, err
+	}
+	all := slices.Concat(f.repos, f.extra)
+	if i := slices.IndexFunc(all, func(r core.Repo) bool { return sameRef(r.Ref, ref) }); i >= 0 {
+		return all[i], nil
+	}
+	return core.Repo{}, fmt.Errorf("get repo %s: %w", ref, core.ErrNotFound)
 }
 
 func (f *fakeService) Star(ref core.RepoRef) *optimistic.Op {

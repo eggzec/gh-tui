@@ -3,9 +3,12 @@ package repos
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
+
+	"github.com/eggzec/gh-tui/internal/core"
 )
 
 func TestView(t *testing.T) {
@@ -30,12 +33,20 @@ func TestView(t *testing.T) {
 	}
 }
 
-// listed shows the sample repos with the second one current and the third
-// selected.
+// listed shows the sample repos after two pinned ones, with one current and
+// another selected.
 func listed(t *testing.T, width, height int) *Section {
 	t.Helper()
-	s := newSection(t, newFake(sampleRepos()...), width, height, WithCurrent(ref("charmbracelet/bubbletea")))
-	keys(s, "down", "down")
+	f := newFake(sampleRepos()...)
+	f.extra = []core.Repo{{
+		Ref: ref("golang/go"), Description: "The Go programming language", Language: "Go",
+		Stars: 131_000, Starred: true, UpdatedAt: testNow.Add(-20 * time.Minute),
+	}}
+	s := newSection(t, f, width, height,
+		WithPinned([]core.RepoRef{ref("golang/go"), ref("eggzec/gh-tui")}),
+		WithCurrent(ref("charmbracelet/bubbletea")),
+	)
+	keys(s, "down", "down", "down")
 	return s
 }
 
