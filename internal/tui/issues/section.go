@@ -48,6 +48,10 @@ type Section struct {
 	md      *glamour.TermRenderer
 	mdWidth int
 
+	// sent counts the changes in flight by what they did, such as
+	// "close #7", to tell their DoneMsg from other sections'.
+	sent map[string]int
+
 	width, height int
 	theme         ui.Theme
 	rows          rowStyles
@@ -72,6 +76,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		now:       time.Now,
 		filter:    core.FilterOpen,
 		chips:     map[string]chip{},
+		sent:      map[string]int{},
 		colsWidth: -1,
 	}
 	for _, opt := range opts {

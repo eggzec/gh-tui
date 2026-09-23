@@ -8,6 +8,7 @@ import (
 	"charm.land/bubbles/v2/key"
 
 	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
@@ -22,6 +23,8 @@ type keyMap struct {
 	Filter  key.Binding
 	Refresh key.Binding
 	Open    key.Binding
+	Close   key.Binding
+	Reopen  key.Binding
 
 	feed   feed.KeyMap
 	thread thread.KeyMap
@@ -34,10 +37,12 @@ func newKeyMap(keys map[string][]string) keyMap {
 		Filter:  ui.Binding(keys, config.ActionFilter, "filter"),
 		Refresh: ui.Binding(keys, config.ActionRefresh, "refresh"),
 		Open:    ui.Binding(keys, config.ActionOpen, "browser"),
+		Close:   ui.Binding(keys, config.ActionClose, "close"),
+		Reopen:  ui.Binding(keys, config.ActionReopen, "reopen"),
 	}
 
 	fk := feed.DefaultKeyMap()
-	listKeys := []key.Binding{k.Select, k.Filter, k.Refresh, k.Open}
+	listKeys := []key.Binding{k.Select, k.Filter, k.Refresh, k.Open, k.Close, k.Reopen}
 	for _, b := range []*key.Binding{&fk.Up, &fk.Down, &fk.PageUp, &fk.PageDown, &fk.Home, &fk.End} {
 		*b = without(*b, listKeys)
 	}
@@ -47,7 +52,7 @@ func newKeyMap(keys map[string][]string) keyMap {
 	k.feed = fk
 
 	tk := thread.DefaultKeyMap()
-	detailKeys := []key.Binding{k.Back, k.Refresh, k.Open}
+	detailKeys := []key.Binding{k.Back, k.Refresh, k.Open, k.Close, k.Reopen}
 	for _, b := range []*key.Binding{&tk.Up, &tk.Down, &tk.PageUp, &tk.PageDown, &tk.HalfPageUp, &tk.HalfPageDown, &tk.Top, &tk.Bottom} {
 		*b = without(*b, detailKeys)
 	}
@@ -93,21 +98,26 @@ func (s *Section) Help() help.KeyMap {
 	if !s.hasRepo {
 		return keyHelp{}
 	}
+	// Offer close or reopen, whichever applies to the issue at hand.
+	it, ok := s.target()
+	k.Close.SetEnabled(k.Close.Enabled() && ok && it.State == core.StateOpen)
+	k.Reopen.SetEnabled(k.Reopen.Enabled() && ok && it.State != core.StateOpen)
 	if s.inDetail {
 		return keyHelp{
-			short: []key.Binding{tk.Down, tk.Up, tk.HalfPageDown, k.Back, k.Open, k.Refresh},
+			short: []key.Binding{tk.Down, tk.Up, tk.HalfPageDown, k.Back, k.Close, k.Reopen, k.Open},
 			full: [][]key.Binding{
 				{tk.Up, tk.Down, tk.PageUp, tk.PageDown},
 				{tk.HalfPageUp, tk.HalfPageDown, tk.Top, tk.Bottom},
-				{k.Back, k.Open, k.Refresh},
+				{k.Back, k.Close, k.Reopen, k.Open, k.Refresh},
 			},
 		}
 	}
 	return keyHelp{
-		short: []key.Binding{fk.Up, fk.Down, k.Select, k.Filter, k.Open, k.Refresh},
+		short: []key.Binding{fk.Up, fk.Down, k.Select, k.Filter, k.Close, k.Reopen, k.Open},
 		full: [][]key.Binding{
 			{fk.Up, fk.Down, fk.PageUp, fk.PageDown, fk.Home, fk.End},
 			{k.Select, k.Filter, k.Open, k.Refresh},
+			{k.Close, k.Reopen},
 		},
 	}
 }

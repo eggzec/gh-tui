@@ -17,6 +17,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
+	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -28,10 +29,13 @@ var (
 )
 
 // fakeService serves issues in pages of pageSize from memory and records
-// what it was asked.
+// what it was asked. Like the service, it keeps the pages it served and
+// changes issues in them at once, until a confirmed change or an edit on
+// the "server" makes it read them again.
 type fakeService struct {
 	mu       sync.Mutex
 	issues   []core.Issue
+	pages    map[issuesvc.ListQuery]core.Page[core.Issue]
 	pageSize int
 	lists    []issuesvc.ListQuery
 	listErr  error
@@ -43,11 +47,85 @@ type fakeService struct {
 	comments map[int][]core.Comment
 	// commentQueries are the comment pages asked for.
 	commentQueries []issuesvc.CommentsQuery
+	// changes are the state changes asked for, such as "close 999", and
+	// sendErr fails sending them.
+	changes []string
+	sendErr error
+	// gate, if set, holds sending until it is closed.
+	gate chan struct{}
+}
+
+func (f *fakeService) Close(repo core.RepoRef, number int) *optimistic.Op {
+	return f.setState(repo, number, core.StateClosed)
+}
+
+func (f *fakeService) Reopen(repo core.RepoRef, number int) *optimistic.Op {
+	return f.setState(repo, number, core.StateOpen)
+}
+
+// setState changes the issue at once, as the service's cache would, and
+// rolls it back if sending fails.
+func (f *fakeService) setState(_ core.RepoRef, number int, state core.State) *optimistic.Op {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	verb := "close "
+	if state == core.StateOpen {
+		verb = "reopen "
+	}
+	f.changes = append(f.changes, verb+strconv.Itoa(number))
+	var prev core.State
+	apply := func(st core.State) {
+		for i := range f.issues {
+			if f.issues[i].Number == number {
+				prev, f.issues[i].State = f.issues[i].State, st
+			}
+		}
+		if it, ok := f.cached[number]; ok {
+			it.State = st
+			f.cached[number] = it
+		}
+		for q, p := range f.pages {
+			for i := range p.Items {
+				if p.Items[i].Number == number {
+					p.Items[i].State = st
+				}
+			}
+			f.pages[q] = p
+		}
+	}
+	apply(state)
+	was, gate := prev, f.gate
+	return optimistic.New(func(ctx context.Context) error {
+		if gate != nil {
+			select {
+			case <-gate:
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		if f.sendErr == nil {
+			clear(f.pages)
+		}
+		return f.sendErr
+	}, func() {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		apply(was)
+	})
+}
+
+func (f *fakeService) changeCalls() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.changes)
 }
 
 func newFakeService(issues []core.Issue) *fakeService {
 	return &fakeService{
 		issues:   issues,
+		pages:    map[issuesvc.ListQuery]core.Page[core.Issue]{},
 		pageSize: 30,
 		cached:   map[int]core.Issue{},
 		comments: map[int][]core.Comment{},
@@ -114,6 +192,9 @@ func (f *fakeService) List(_ context.Context, q issuesvc.ListQuery) (core.Page[c
 	if q.Repo != testRepo {
 		return core.Page[core.Issue]{}, errors.New("unknown repo " + q.Repo.String())
 	}
+	if p, ok := f.pages[q]; ok {
+		return core.Page[core.Issue]{Items: slices.Clone(p.Items), Next: p.Next}, nil
+	}
 	var match []core.Issue
 	for i := range f.issues {
 		it := &f.issues[i]
@@ -130,7 +211,9 @@ func (f *fakeService) List(_ context.Context, q issuesvc.ListQuery) (core.Page[c
 	if end < len(match) {
 		next = strconv.Itoa(end)
 	}
-	return core.Page[core.Issue]{Items: slices.Clone(match[start:end]), Next: next}, nil
+	p := core.Page[core.Issue]{Items: slices.Clone(match[start:end]), Next: next}
+	f.pages[q] = p
+	return core.Page[core.Issue]{Items: slices.Clone(p.Items), Next: next}, nil
 }
 
 func (f *fakeService) listCalls() []issuesvc.ListQuery {
@@ -147,6 +230,7 @@ func (f *fakeService) set(number int, fn func(*core.Issue)) {
 			fn(&f.issues[i])
 		}
 	}
+	clear(f.pages)
 }
 
 var (
@@ -252,7 +336,29 @@ func started(tb testing.TB, svc Service, width, height int) *Section {
 // It returns the messages that were fed.
 func run(tb testing.TB, s *Section, cmd tea.Cmd) []tea.Msg {
 	tb.Helper()
-	var msgs []tea.Msg
+	fed, _ := drive(tb, s, cmd, func(tea.Msg) bool { return false })
+	return fed
+}
+
+// runHolding runs cmd like run, but holds back the DoneMsgs, so a test can
+// look at the optimistic state before GitHub answers.
+func runHolding(tb testing.TB, s *Section, cmd tea.Cmd) []ui.DoneMsg {
+	tb.Helper()
+	_, held := drive(tb, s, cmd, func(msg tea.Msg) bool {
+		_, ok := msg.(ui.DoneMsg)
+		return ok
+	})
+	done := make([]ui.DoneMsg, 0, len(held))
+	for _, m := range held {
+		done = append(done, m.(ui.DoneMsg))
+	}
+	return done
+}
+
+// drive runs cmd and what follows, feeding s every message but those hold
+// reports true for, which it returns apart.
+func drive(tb testing.TB, s *Section, cmd tea.Cmd, hold func(tea.Msg) bool) (fed, held []tea.Msg) {
+	tb.Helper()
 	queue := []tea.Cmd{cmd}
 	for len(queue) > 0 {
 		c := queue[0]
@@ -266,14 +372,18 @@ func run(tb testing.TB, s *Section, cmd tea.Cmd) []tea.Msg {
 			queue = append(queue, msg...)
 		case spinner.TickMsg:
 		default:
-			msgs = append(msgs, msg)
+			if hold(msg) {
+				held = append(held, msg)
+				continue
+			}
+			fed = append(fed, msg)
 			queue = append(queue, s.Update(msg))
 		}
-		if len(msgs) > 10_000 {
+		if len(fed) > 10_000 {
 			tb.Fatal("commands don't settle")
 		}
 	}
-	return msgs
+	return fed, held
 }
 
 // press presses each key and runs what follows. It returns the messages
