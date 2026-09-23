@@ -1,0 +1,24 @@
+[1mA very long issue title that goes on A very long issue title that goes on A ver…[m
+                                                                                
+  ## Summary                                                                    
+                                                                                
+  The cache drops entries **too early** when the TTL is short.                  
+                                                                                
+  • Reproduce with --ttl 1s                                                     
+  • Watch the hit rate fall                                                     
+                                                                                
+    c := cache.New(cache.WithTTL(time.Second))                                  
+                                                                                
+  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  
+  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  
+  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx                              
+                                                                                
+  @a-very-long-login-a-very-long-login-a-very-long-login-a-very-long-login-a-ve…
+    Comment 0 says hello.                                                       
+                                                                                
+  @user1                                                                        
+    Comment 1 says hello. Comment 1 says hello.                                 
+                                                                                
+                                                                                
+                                                                                
+                                                                                
