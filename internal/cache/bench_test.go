@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"context"
 	"strconv"
 	"testing"
 )
@@ -53,6 +54,24 @@ func BenchmarkSet(b *testing.B) {
 	i := 0
 	for b.Loop() {
 		c.Set(keys[i%len(keys)], Entry[int]{Value: i})
+		i++
+	}
+}
+
+func BenchmarkFetchHit(b *testing.B) {
+	keys := benchKeys(1024)
+	c := filled(keys)
+	ctx := b.Context()
+	fn := func(context.Context, Entry[int], bool) (Entry[int], error) {
+		b.Fatal("fn called on a fresh hit")
+		return Entry[int]{}, nil
+	}
+	b.ReportAllocs()
+	i := 0
+	for b.Loop() {
+		if _, err := c.Fetch(ctx, keys[i%len(keys)], fn); err != nil {
+			b.Fatal(err)
+		}
 		i++
 	}
 }

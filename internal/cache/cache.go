@@ -49,6 +49,10 @@ type Cache[V any] struct {
 	mu    sync.Mutex
 	opts  options
 	items map[string]*node[V]
+	// seq numbers writes, so code that read an entry earlier can tell
+	// whether it changed since.
+	seq     uint64
+	flights map[string]*flight[V]
 	// root is the sentinel of a circular list ordered from most recently
 	// used (root.next) to least recently used (root.prev).
 	root node[V]
@@ -58,6 +62,7 @@ type node[V any] struct {
 	key        string
 	entry      Entry[V]
 	stale      bool
+	version    uint64
 	prev, next *node[V]
 }
 
@@ -98,7 +103,7 @@ func (c *Cache[V]) Invalidate(key string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if n, ok := c.items[key]; ok {
-		n.stale = true
+		c.markStale(n)
 	}
 }
 
@@ -110,7 +115,7 @@ func (c *Cache[V]) InvalidateTag(tag string) {
 	defer c.mu.Unlock()
 	for _, n := range c.items {
 		if slices.Contains(n.entry.Tags, tag) {
-			n.stale = true
+			c.markStale(n)
 		}
 	}
 }
@@ -127,8 +132,9 @@ func (c *Cache[V]) set(key string, e Entry[V]) {
 	if e.FetchedAt.IsZero() {
 		e.FetchedAt = time.Now()
 	}
+	c.seq++
 	if n, ok := c.items[key]; ok {
-		n.entry, n.stale = e, false
+		n.entry, n.stale, n.version = e, false, c.seq
 		c.moveToFront(n)
 		return
 	}
@@ -141,9 +147,16 @@ func (c *Cache[V]) set(key string, e Entry[V]) {
 		c.unlink(n)
 		delete(c.items, n.key)
 	}
-	*n = node[V]{key: key, entry: e}
+	*n = node[V]{key: key, entry: e, version: c.seq}
 	c.items[key] = n
 	c.pushFront(n)
+}
+
+// markStale counts as a write, so a Fetch that started earlier doesn't make
+// the entry fresh again with data from before the invalidation.
+func (c *Cache[V]) markStale(n *node[V]) {
+	c.seq++
+	n.stale, n.version = true, c.seq
 }
 
 func (c *Cache[V]) state(n *node[V]) State {
