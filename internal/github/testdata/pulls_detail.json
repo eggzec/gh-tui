@@ -1,0 +1,106 @@
+{
+  "data": {
+    "repository": {
+      "pullRequest": {
+        "id": "PR_kwDOLnBTf85xYz01",
+        "number": 42,
+        "title": "Add pull request list",
+        "state": "OPEN",
+        "isDraft": false,
+        "url": "https://github.com/eggzec/gh-tui/pull/42",
+        "createdAt": "2026-09-20T08:15:00Z",
+        "updatedAt": "2026-09-22T17:40:12Z",
+        "mergedAt": null,
+        "repository": {"name": "gh-tui", "owner": {"login": "eggzec"}},
+        "author": {"login": "octocat", "name": "The Octocat"},
+        "labels": {"nodes": [{"name": "enhancement", "color": "a2eeef", "description": "New feature or request"}]},
+        "assignees": {"nodes": []},
+        "comments": {"totalCount": 2},
+        "headRefName": "feat/pulls",
+        "baseRefName": "main",
+        "reviewDecision": "REVIEW_REQUIRED",
+        "additions": 512,
+        "deletions": 18,
+        "changedFiles": 7,
+        "commits": {"nodes": [{"commit": {"statusCheckRollup": {"state": "PENDING"}}}]},
+        "body": "Lists pull requests with their checks.\r\n\r\nCloses #40.",
+        "reviews": {
+          "nodes": [
+            {
+              "id": "PRR_kwDOLnBTf86Aa001",
+              "author": {"login": "hubot", "name": "Hubot"},
+              "state": "CHANGES_REQUESTED",
+              "body": "Please add tests.",
+              "submittedAt": "2026-09-21T10:00:00Z"
+            },
+            {
+              "id": "PRR_kwDOLnBTf86Aa002",
+              "author": {"login": "monalisa", "name": "Mona Lisa"},
+              "state": "COMMENTED",
+              "body": "",
+              "submittedAt": "2026-09-22T09:12:30Z"
+            }
+          ]
+        },
+        "recentComments": {
+          "nodes": [
+            {
+              "id": "IC_kwDOLnBTf86Bb001",
+              "author": {"login": "monalisa", "name": "Mona Lisa"},
+              "body": "Looks good so far.",
+              "createdAt": "2026-09-21T08:00:00Z",
+              "updatedAt": "2026-09-21T08:05:00Z"
+            },
+            {
+              "id": "IC_kwDOLnBTf86Bb002",
+              "author": null,
+              "body": "Ping.",
+              "createdAt": "2026-09-22T16:00:00Z",
+              "updatedAt": "2026-09-22T16:00:00Z"
+            }
+          ]
+        },
+        "headCommit": {
+          "nodes": [
+            {
+              "commit": {
+                "statusCheckRollup": {
+                  "contexts": {
+                    "nodes": [
+                      {
+                        "__typename": "CheckRun",
+                        "name": "test (ubuntu-latest)",
+                        "status": "COMPLETED",
+                        "conclusion": "SUCCESS",
+                        "detailsUrl": "https://github.com/eggzec/gh-tui/actions/runs/1001/job/2001"
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "lint",
+                        "status": "IN_PROGRESS",
+                        "conclusion": null,
+                        "detailsUrl": "https://github.com/eggzec/gh-tui/actions/runs/1001/job/2002"
+                      },
+                      {
+                        "__typename": "StatusContext",
+                        "context": "ci/coverage",
+                        "state": "PENDING",
+                        "targetUrl": "https://coverage.example.com/eggzec/gh-tui/42"
+                      },
+                      {
+                        "__typename": "StatusContext",
+                        "context": "license/cla",
+                        "state": "SUCCESS",
+                        "targetUrl": "https://cla.example.com/eggzec/gh-tui"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

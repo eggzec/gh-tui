@@ -39,6 +39,18 @@ type PullRequest struct {
 	MergedAt       time.Time
 }
 
+// PullRequestDetail is a pull request with what its detail view shows. The
+// embedded PullRequest has Body set, which list results leave empty.
+type PullRequestDetail struct {
+	PullRequest
+	Reviews []Review
+	// RecentComments holds the latest comments, oldest first. Issue.Comments
+	// counts all of them.
+	RecentComments []Comment
+	// CheckRuns are the checks of the head commit.
+	CheckRuns []CheckRun
+}
+
 // ReviewState is the state of a single review.
 type ReviewState string
 
@@ -60,7 +72,9 @@ type Review struct {
 	SubmittedAt time.Time
 }
 
-// CheckRun is a single CI check on a commit.
+// CheckRun is a single CI check on a commit. Status and Conclusion are
+// GitHub's values in lower case, such as "completed" and "success". Commit
+// statuses are reported the same way, with Status "pending" or "completed".
 type CheckRun struct {
 	Name       string
 	Status     string
