@@ -23,6 +23,7 @@ type fakeAPI struct {
 
 	listRepos func(first int, after string) (core.Page[core.Repo], error)
 	getRepo   func(ref core.RepoRef) (core.Repo, error)
+	star      func(ref core.RepoRef, starred bool) error
 
 	mu    sync.Mutex
 	calls []string
@@ -57,6 +58,27 @@ func (f *fakeAPI) GetRepo(_ context.Context, ref core.RepoRef) (core.Repo, error
 		return core.Repo{}, errors.New("unexpected call")
 	}
 	return f.getRepo(ref)
+}
+
+func (f *fakeAPI) Star(_ context.Context, ref core.RepoRef) error {
+	return f.setStarred(ref, true)
+}
+
+func (f *fakeAPI) Unstar(_ context.Context, ref core.RepoRef) error {
+	return f.setStarred(ref, false)
+}
+
+func (f *fakeAPI) setStarred(ref core.RepoRef, starred bool) error {
+	verb := "star"
+	if !starred {
+		verb = "unstar"
+	}
+	f.record(verb + " " + ref.String())
+	if f.star == nil {
+		f.t.Error("unexpected " + verb)
+		return errors.New("unexpected call")
+	}
+	return f.star(ref, starred)
 }
 
 func (f *fakeAPI) wantCalls(t *testing.T, want ...string) {
