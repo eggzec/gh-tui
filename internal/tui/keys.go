@@ -1,28 +1,27 @@
 package tui
 
-import "charm.land/bubbles/v2/key"
+import (
+	"charm.land/bubbles/v2/key"
 
-// KeyMap holds the global key bindings.
+	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/tabs"
+)
+
+// KeyMap holds the keys the app handles itself. Sections have their own.
 type KeyMap struct {
 	Quit key.Binding
+	Help key.Binding
+	Tabs tabs.KeyMap
 }
 
-// DefaultKeyMap returns the default global key bindings.
-func DefaultKeyMap() KeyMap {
+func newKeyMap(keys map[string][]string) KeyMap {
+	tk := tabs.DefaultKeyMap()
+	tk.Next = ui.Binding(keys, config.ActionNextTab, "next tab")
+	tk.Prev = ui.Binding(keys, config.ActionPrevTab, "previous tab")
 	return KeyMap{
-		Quit: key.NewBinding(
-			key.WithKeys("q", "ctrl+c"),
-			key.WithHelp("q", "quit"),
-		),
+		Quit: ui.Binding(keys, config.ActionQuit, "quit"),
+		Help: ui.Binding(keys, config.ActionHelp, "help"),
+		Tabs: tk,
 	}
-}
-
-// ShortHelp implements help.KeyMap.
-func (k KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Quit}
-}
-
-// FullHelp implements help.KeyMap.
-func (k KeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{k.ShortHelp()}
 }
