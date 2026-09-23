@@ -1,0 +1,108 @@
+[
+  {
+    "url": "https://api.github.com/repos/octo-org/hello/issues/42",
+    "repository_url": "https://api.github.com/repos/octo-org/hello",
+    "html_url": "https://github.com/octo-org/hello/issues/42",
+    "id": 2917364810,
+    "node_id": "I_kwDOJ5Hs3c6t5a1K",
+    "number": 42,
+    "title": "Crash when the config file is empty",
+    "user": {
+      "login": "octocat",
+      "id": 583231,
+      "node_id": "MDQ6VXNlcjU4MzIzMQ==",
+      "type": "User",
+      "site_admin": false
+    },
+    "labels": [
+      {
+        "id": 5916253891,
+        "node_id": "LA_kwDOJ5Hs3c8AAAABYKJ-ww",
+        "url": "https://api.github.com/repos/octo-org/hello/labels/bug",
+        "name": "bug",
+        "color": "d73a4a",
+        "default": true,
+        "description": "Something isn't working"
+      }
+    ],
+    "state": "open",
+    "locked": false,
+    "assignees": [
+      {
+        "login": "hubot",
+        "id": 1234567,
+        "node_id": "MDQ6VXNlcjEyMzQ1Njc=",
+        "type": "User",
+        "site_admin": false
+      }
+    ],
+    "comments": 2,
+    "created_at": "2026-09-01T08:15:00Z",
+    "updated_at": "2026-09-20T17:42:10Z",
+    "closed_at": null,
+    "author_association": "OWNER",
+    "state_reason": null,
+    "body": "Steps to reproduce:\n\n1. Create an empty config.yaml\n2. Run gh-tui"
+  },
+  {
+    "url": "https://api.github.com/repos/octo-org/hello/issues/41",
+    "repository_url": "https://api.github.com/repos/octo-org/hello",
+    "html_url": "https://github.com/octo-org/hello/pull/41",
+    "id": 2917001122,
+    "node_id": "PR_kwDOJ5Hs3c5vV1aB",
+    "number": 41,
+    "title": "Add a dark theme",
+    "user": {
+      "login": "monalisa",
+      "id": 2,
+      "node_id": "MDQ6VXNlcjI=",
+      "type": "User",
+      "site_admin": false
+    },
+    "labels": [],
+    "state": "open",
+    "locked": false,
+    "assignees": [],
+    "comments": 0,
+    "created_at": "2026-08-30T12:00:00Z",
+    "updated_at": "2026-09-19T09:30:00Z",
+    "closed_at": null,
+    "author_association": "CONTRIBUTOR",
+    "draft": false,
+    "pull_request": {
+      "url": "https://api.github.com/repos/octo-org/hello/pulls/41",
+      "html_url": "https://github.com/octo-org/hello/pull/41",
+      "diff_url": "https://github.com/octo-org/hello/pull/41.diff",
+      "patch_url": "https://github.com/octo-org/hello/pull/41.patch",
+      "merged_at": null
+    },
+    "body": "Adds a dark palette."
+  },
+  {
+    "url": "https://api.github.com/repos/octo-org/hello/issues/37",
+    "repository_url": "https://api.github.com/repos/octo-org/hello",
+    "html_url": "https://github.com/octo-org/hello/issues/37",
+    "id": 2901234567,
+    "node_id": "I_kwDOJ5Hs3c6sQ9xZ",
+    "number": 37,
+    "title": "Document the keybindings",
+    "user": {
+      "login": "monalisa",
+      "id": 2,
+      "node_id": "MDQ6VXNlcjI=",
+      "type": "User",
+      "site_admin": false
+    },
+    "labels": [],
+    "state": "open",
+    "locked": false,
+    "assignees": [],
+    "comments": 0,
+    "created_at": "2026-08-20T10:00:00Z",
+    "updated_at": "2026-09-18T11:05:00Z",
+    "closed_at": null,
+    "author_association": "CONTRIBUTOR",
+    "state_reason": null,
+    "body": null
+  }
+]
