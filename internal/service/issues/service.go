@@ -11,9 +11,11 @@ import (
 	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
+	"github.com/eggzec/gh-tui/internal/service/probe"
 )
 
-// API is the part of the GitHub client that the service uses.
+// API is the part of the GitHub client that the service uses. ProbeIssues
+// is a cheap conditional request that Poll watches.
 type API interface {
 	ListIssues(ctx context.Context, repo core.RepoRef, state core.StateFilter, cursor string, perPage int, cond github.Conditional) (core.Page[core.Issue], github.Response, error)
 	GetIssue(ctx context.Context, repo core.RepoRef, number int, cond github.Conditional) (core.Issue, github.Response, error)
@@ -22,6 +24,7 @@ type API interface {
 	AddIssueLabels(ctx context.Context, repo core.RepoRef, number int, names []string) ([]core.Label, error)
 	RemoveIssueLabel(ctx context.Context, repo core.RepoRef, number int, name string) ([]core.Label, error)
 	CreateIssueComment(ctx context.Context, repo core.RepoRef, number int, body string) (core.Comment, error)
+	ProbeIssues(ctx context.Context, repo core.RepoRef, cond github.Conditional) (github.Response, error)
 }
 
 // Service reads and changes issues. It is safe for concurrent use.
@@ -36,6 +39,8 @@ type Service struct {
 	lists    *cache.Cache[core.Page[core.Issue]]
 	issues   *cache.Cache[core.Issue]
 	comments *cache.Cache[core.Page[core.Comment]]
+	// etags holds the latest probe ETag of each polled repository.
+	etags probe.Tracker
 }
 
 // New returns a service that calls api.

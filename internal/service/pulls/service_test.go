@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/github"
 )
 
 var repo = core.RepoRef{Owner: "eggzec", Name: "gh-tui"}
@@ -28,6 +29,8 @@ type fakeAPI struct {
 	// mutate backs every mutation. Method names the mutation; merge also
 	// passes the merge method.
 	mutate func(ctx context.Context, method, id string, how core.MergeMethod) (core.PullRequest, error)
+	// probe backs ProbePullRequests.
+	probe func(ctx context.Context, repo core.RepoRef, cond github.Conditional) (github.Response, error)
 
 	mu    sync.Mutex
 	calls map[string]int
@@ -97,6 +100,11 @@ func (f *fakeAPI) MarkPullRequestReady(ctx context.Context, id string) (core.Pul
 func (f *fakeAPI) ConvertPullRequestToDraft(ctx context.Context, id string) (core.PullRequest, error) {
 	f.called("draft")
 	return f.mutate(ctx, "draft", id, "")
+}
+
+func (f *fakeAPI) ProbePullRequests(ctx context.Context, repo core.RepoRef, cond github.Conditional) (github.Response, error) {
+	f.called("probe")
+	return f.probe(ctx, repo, cond)
 }
 
 func openPull(number int) core.PullRequest {

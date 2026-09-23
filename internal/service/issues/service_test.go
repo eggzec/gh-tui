@@ -28,6 +28,7 @@ type fakeAPI struct {
 	addLabels    func(number int, names []string) ([]core.Label, error)
 	removeLabel  func(number int, name string) ([]core.Label, error)
 	comment      func(number int, body string) (core.Comment, error)
+	probe        func(cond github.Conditional) (github.Response, error)
 
 	mu    sync.Mutex
 	calls []string
@@ -117,6 +118,14 @@ func (f *fakeAPI) CreateIssueComment(_ context.Context, r core.RepoRef, number i
 		return core.Comment{}, errUnexpected
 	}
 	return f.comment(number, body)
+}
+
+func (f *fakeAPI) ProbeIssues(_ context.Context, r core.RepoRef, cond github.Conditional) (github.Response, error) {
+	f.checkRepo(r)
+	if !f.record("ProbeIssues", f.probe != nil) {
+		return github.Response{}, errUnexpected
+	}
+	return f.probe(cond)
 }
 
 func (f *fakeAPI) checkRepo(r core.RepoRef) {
