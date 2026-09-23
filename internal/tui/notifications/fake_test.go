@@ -34,13 +34,17 @@ type fakeService struct {
 	// cached is what CachedList returns for the default inbox.
 	cached   core.Page[core.Notification]
 	isCached bool
-	// fail makes every op fail.
-	fail error
+	// fail makes every op fail, and listErr every List.
+	fail    error
+	listErr error
 
 	lists   []notifications.ListQuery
 	reads   []string
 	dones   []string
 	allRead int
+	// invalidated holds, for each call of Invalidate, how many lists were
+	// made before it.
+	invalidated []int
 }
 
 func newFake(threads ...core.Notification) *fakeService {
@@ -60,6 +64,9 @@ func (f *fakeService) List(_ context.Context, q notifications.ListQuery) (core.P
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.lists = append(f.lists, q)
+	if f.listErr != nil {
+		return core.Page[core.Notification]{}, f.listErr
+	}
 	var shown []core.Notification
 	for i := range f.threads {
 		if q.Filter.All || f.threads[i].Unread {
@@ -122,6 +129,18 @@ func (f *fakeService) change(edit func([]core.Notification) []core.Notification)
 		defer f.mu.Unlock()
 		f.threads = before
 	})
+}
+
+func (f *fakeService) Invalidate() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.invalidated = append(f.invalidated, len(f.lists))
+}
+
+func (f *fakeService) invalidations() []int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.invalidated)
 }
 
 func (f *fakeService) listCount() int {

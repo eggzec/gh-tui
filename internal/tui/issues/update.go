@@ -65,6 +65,7 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 		s.filter = nextFilter(s.filter)
 		return s.resetList()
 	case key.Matches(msg, k.Refresh):
+		s.svc.Invalidate(s.repo)
 		return s.list.Reload()
 	case key.Matches(msg, k.Open):
 		if it, ok := s.list.Selected(); ok && it.URL != "" {
@@ -86,6 +87,7 @@ func (s *Section) pressDetail(msg tea.KeyPressMsg) tea.Cmd {
 	case key.Matches(msg, k.Reopen):
 		return s.setState(core.StateOpen)
 	case key.Matches(msg, k.Refresh):
+		s.svc.Invalidate(s.repo)
 		return tea.Batch(s.detail.Reload(), s.get())
 	case key.Matches(msg, k.Open):
 		if s.issue.URL != "" {

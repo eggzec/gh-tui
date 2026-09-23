@@ -53,6 +53,15 @@ type fakeService struct {
 	sendErr error
 	// gate, if set, holds sending until it is closed.
 	gate chan struct{}
+	// invalidated are the calls of Invalidate.
+	invalidated []invalidation
+}
+
+// invalidation is a call of Invalidate, with how many lists and gets were
+// made before it.
+type invalidation struct {
+	repo        core.RepoRef
+	lists, gets int
 }
 
 func (f *fakeService) Close(repo core.RepoRef, number int) *optimistic.Op {
@@ -214,6 +223,18 @@ func (f *fakeService) List(_ context.Context, q issuesvc.ListQuery) (core.Page[c
 	p := core.Page[core.Issue]{Items: slices.Clone(match[start:end]), Next: next}
 	f.pages[q] = p
 	return core.Page[core.Issue]{Items: slices.Clone(p.Items), Next: next}, nil
+}
+
+func (f *fakeService) Invalidate(repo core.RepoRef) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.invalidated = append(f.invalidated, invalidation{repo, len(f.lists), len(f.gets)})
+}
+
+func (f *fakeService) invalidations() []invalidation {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.invalidated)
 }
 
 func (f *fakeService) listCalls() []issuesvc.ListQuery {

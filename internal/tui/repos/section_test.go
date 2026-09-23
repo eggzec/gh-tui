@@ -112,10 +112,13 @@ func TestUpdate(t *testing.T) {
 			},
 		},
 		{
-			name: "refresh reloads",
+			name: "refresh invalidates, then reloads",
 			keys: []string{"r"},
 			check: func(t *testing.T, f *fakeService, _ *Section) {
 				t.Helper()
+				if got, want := f.invalidations(), []int{1}; !slices.Equal(got, want) {
+					t.Errorf("invalidated after %v lists, want once after 1", got)
+				}
 				if got := f.listCalls(); got != 2 {
 					t.Errorf("List called %d times, want 2", got)
 				}
@@ -198,6 +201,9 @@ func TestListError(t *testing.T) {
 	}
 	f.listErr = nil
 	keys(s, "r")
+	if got := len(f.invalidations()); got != 1 {
+		t.Errorf("retry invalidated %d times, want 1", got)
+	}
 	if v := ansi.Strip(s.View()); !strings.Contains(v, "eggzec/gh-tui") {
 		t.Errorf("after refresh, view = %q, want the repos", v)
 	}
