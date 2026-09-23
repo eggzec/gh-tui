@@ -1,0 +1,119 @@
+package probe
+
+import (
+	"context"
+	"errors"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/eggzec/gh-tui/internal/github"
+	"github.com/eggzec/gh-tui/internal/watch"
+)
+
+// server answers probes like GitHub: 304 when cond has the current ETag,
+// else 200 with it. It records the conds it saw.
+type server struct {
+	mu    sync.Mutex
+	etag  string
+	err   error
+	conds []github.Conditional
+}
+
+func (s *server) probe(_ context.Context, cond github.Conditional) (github.Response, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.conds = append(s.conds, cond)
+	if s.err != nil {
+		return github.Response{}, s.err
+	}
+	res := github.Response{PollInterval: time.Minute}
+	if cond.ETag != "" && cond.ETag == s.etag {
+		res.NotModified = true
+		return res, nil
+	}
+	res.ETag = s.etag
+	return res, nil
+}
+
+func (s *server) set(etag string, err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.etag, s.err = etag, err
+}
+
+func TestPoll(t *testing.T) {
+	srv := &server{etag: `"e1"`}
+	var tr Tracker
+	changes := 0
+	poll := tr.Poll("k", srv.probe, func() { changes++ })
+
+	steps := []struct {
+		name    string
+		etag    string
+		err     error
+		want    watch.Result
+		wantErr bool
+		cond    string
+	}{
+		{name: "first only records", etag: `"e1"`, want: watch.Result{Interval: time.Minute}},
+		{name: "304 is no change", etag: `"e1"`, want: watch.Result{Interval: time.Minute}, cond: `"e1"`},
+		{name: "new ETag is a change", etag: `"e2"`, want: watch.Result{Changed: true, Interval: time.Minute}, cond: `"e1"`},
+		{name: "error keeps the ETag", err: errors.New("boom"), wantErr: true, cond: `"e2"`},
+		{name: "after the error", etag: `"e2"`, want: watch.Result{Interval: time.Minute}, cond: `"e2"`},
+		{name: "missing ETag is no change", etag: "", want: watch.Result{Interval: time.Minute}, cond: `"e2"`},
+	}
+	for i, st := range steps {
+		srv.set(st.etag, st.err)
+		got, err := poll(t.Context())
+		if (err != nil) != st.wantErr {
+			t.Fatalf("%s: error = %v, wantErr %v", st.name, err, st.wantErr)
+		}
+		if got != st.want {
+			t.Errorf("%s: result = %+v, want %+v", st.name, got, st.want)
+		}
+		if c := srv.conds[i].ETag; c != st.cond {
+			t.Errorf("%s: sent ETag %q, want %q", st.name, c, st.cond)
+		}
+	}
+	if changes != 1 {
+		t.Errorf("changed was called %d times, want 1", changes)
+	}
+}
+
+func TestPollKeysApart(t *testing.T) {
+	a, b := &server{etag: `"a"`}, &server{etag: `"b"`}
+	var tr Tracker
+	pa := tr.Poll("a", a.probe, func() { t.Error("a changed") })
+	pb := tr.Poll("b", b.probe, func() { t.Error("b changed") })
+	for _, poll := range []watch.PollFunc{pa, pb, pa, pb} {
+		if _, err := poll(t.Context()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if a.conds[1].ETag != `"a"` || b.conds[1].ETag != `"b"` {
+		t.Errorf("conds = %v, %v; want each key's own ETag", a.conds, b.conds)
+	}
+}
+
+func TestPollConcurrent(t *testing.T) {
+	srv := &server{etag: `"e1"`}
+	var tr Tracker
+	var mu sync.Mutex
+	changes := 0
+	var wg sync.WaitGroup
+	for range 8 {
+		poll := tr.Poll("k", srv.probe, func() { mu.Lock(); changes++; mu.Unlock() })
+		wg.Go(func() {
+			for range 10 {
+				if _, err := poll(t.Context()); err != nil {
+					t.Error(err)
+				}
+			}
+		})
+	}
+	wg.Wait()
+	if changes != 0 {
+		t.Errorf("%d changes without a new ETag, want 0", changes)
+	}
+}

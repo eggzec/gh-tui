@@ -12,10 +12,13 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/github"
+	"github.com/eggzec/gh-tui/internal/service/probe"
 )
 
 // API is the part of the GitHub client the service uses. The mutations take
 // the node ID of the pull request and return it as the server left it.
+// ProbePullRequests is a cheap conditional request that Poll watches.
 type API interface {
 	ListPullRequests(ctx context.Context, repo core.RepoRef, state core.State, cursor string, first int) (core.Page[core.PullRequest], error)
 	GetPullRequest(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error)
@@ -27,6 +30,7 @@ type API interface {
 	ReopenPullRequest(ctx context.Context, id string) (core.PullRequest, error)
 	MarkPullRequestReady(ctx context.Context, id string) (core.PullRequest, error)
 	ConvertPullRequestToDraft(ctx context.Context, id string) (core.PullRequest, error)
+	ProbePullRequests(ctx context.Context, repo core.RepoRef, cond github.Conditional) (github.Response, error)
 }
 
 // Service reads pull requests through a cache and changes them
@@ -40,6 +44,8 @@ type Service struct {
 	comments *cache.Cache[core.Page[core.Comment]]
 	reviews  *cache.Cache[core.Page[core.Review]]
 	now      func() time.Time
+	// etags holds the latest probe ETag of each polled repository.
+	etags probe.Tracker
 }
 
 // New returns a service that reads from api.
