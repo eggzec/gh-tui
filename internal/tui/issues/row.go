@@ -113,6 +113,8 @@ type rowStyles struct {
 	// label is the chip of a label whose color is not valid.
 	label lipgloss.Style
 	dark  bool
+	// The state badges of the detail header.
+	openBadge, closedBadge string
 }
 
 func newRowStyles(t ui.Theme) rowStyles {
@@ -127,6 +129,9 @@ func newRowStyles(t ui.Theme) rowStyles {
 		more:     newPaint(t.Subtle),
 		label:    t.Muted.Padding(0, 1),
 		dark:     t.Dark,
+
+		openBadge:   t.Success.Bold(true).Render(openGlyph + " Open"),
+		closedBadge: t.Subtle.Bold(true).Render(closedGlyph + " Closed"),
 	}
 }
 

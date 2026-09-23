@@ -1,6 +1,7 @@
 package issues
 
 import (
+	"strconv"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -19,6 +20,9 @@ func (s *Section) View() string {
 	}
 	if s.height == 1 {
 		return s.bar
+	}
+	if s.inDetail {
+		return s.bar + "\n" + s.detail.View()
 	}
 	return s.bar + "\n" + s.list.View()
 }
@@ -45,6 +49,12 @@ func (s *Section) renderChrome() {
 
 func (s *Section) renderBar() {
 	t := s.theme
+	left := "  " + t.Muted.Render(s.repo.String())
+	if s.inDetail {
+		left += t.Subtle.Render(" › ") + t.Muted.Render("#"+strconv.Itoa(s.issue.Number))
+		s.bar = fitStyled(left, s.width)
+		return
+	}
 	var right strings.Builder
 	for i, f := range filters {
 		if i > 0 {
@@ -56,7 +66,6 @@ func (s *Section) renderBar() {
 		}
 		right.WriteString(st.Render(string(f)))
 	}
-	left := "  " + t.Muted.Render(s.repo.String())
 	s.bar = spread(left, right.String(), s.width)
 }
 

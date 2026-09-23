@@ -10,6 +10,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
+	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
 )
 
 // keyMap holds the keys of the section and of the bubbles it shows. The
@@ -22,7 +23,8 @@ type keyMap struct {
 	Refresh key.Binding
 	Open    key.Binding
 
-	feed feed.KeyMap
+	feed   feed.KeyMap
+	thread thread.KeyMap
 }
 
 func newKeyMap(keys map[string][]string) keyMap {
@@ -43,6 +45,14 @@ func newKeyMap(keys map[string][]string) keyMap {
 	fk.Retry = retry(k.Refresh)
 	fk.Retry.SetEnabled(false)
 	k.feed = fk
+
+	tk := thread.DefaultKeyMap()
+	detailKeys := []key.Binding{k.Back, k.Refresh, k.Open}
+	for _, b := range []*key.Binding{&tk.Up, &tk.Down, &tk.PageUp, &tk.PageDown, &tk.HalfPageUp, &tk.HalfPageDown, &tk.Top, &tk.Bottom} {
+		*b = without(*b, detailKeys)
+	}
+	tk.Retry = retry(k.Refresh)
+	k.thread = tk
 	return k
 }
 
@@ -79,9 +89,19 @@ func without(b key.Binding, taken []key.Binding) key.Binding {
 
 // Help implements ui.Section. It lists the keys of the current view.
 func (s *Section) Help() help.KeyMap {
-	k, fk := s.keys, s.keys.feed
+	k, fk, tk := s.keys, s.keys.feed, s.keys.thread
 	if !s.hasRepo {
 		return keyHelp{}
+	}
+	if s.inDetail {
+		return keyHelp{
+			short: []key.Binding{tk.Down, tk.Up, tk.HalfPageDown, k.Back, k.Open, k.Refresh},
+			full: [][]key.Binding{
+				{tk.Up, tk.Down, tk.PageUp, tk.PageDown},
+				{tk.HalfPageUp, tk.HalfPageDown, tk.Top, tk.Bottom},
+				{k.Back, k.Open, k.Refresh},
+			},
+		}
 	}
 	return keyHelp{
 		short: []key.Binding{fk.Up, fk.Down, k.Select, k.Filter, k.Open, k.Refresh},

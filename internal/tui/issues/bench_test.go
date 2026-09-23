@@ -43,3 +43,15 @@ func BenchmarkUpdate(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkViewDetail(b *testing.B) {
+	svc := newFakeService(sampleIssues(30))
+	svc.addComments(999, sampleComments(90)...)
+	s := started(b, svc, 120, 40)
+	press(b, s, "down", "enter")
+	press(b, s, "d", "d")
+	b.ReportAllocs()
+	for b.Loop() {
+		_ = s.View()
+	}
+}
