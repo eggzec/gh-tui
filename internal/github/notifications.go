@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -78,14 +79,15 @@ func subjectWebURL(repoURL, apiURL string, typ core.SubjectType) string {
 	return repoURL
 }
 
-// ListNotifications returns a page of the user's notification threads,
-// newest first. Cursor is the Next of the previous page, or empty for the
-// first page; it already carries the filter. If cond is current, the
-// Response has NotModified set and the page is empty.
-func (c *Client) ListNotifications(ctx context.Context, filter core.NotificationFilter, cursor string, cond Conditional) (core.Page[core.Notification], Response, error) {
+// ListNotifications returns a page of up to perPage of the user's
+// notification threads, newest first; zero perPage leaves GitHub's default.
+// Cursor is the Next of the previous page, or empty for the first page; it
+// already carries the filter and the page size, so both are ignored then. If
+// cond is current, the Response has NotModified set and the page is empty.
+func (c *Client) ListNotifications(ctx context.Context, filter core.NotificationFilter, perPage int, cursor string, cond Conditional) (core.Page[core.Notification], Response, error) {
 	path := cursor
 	if path == "" {
-		path = notificationsPath(filter)
+		path = notificationsPath(filter, perPage)
 	}
 	var threads []notification
 	res, err := c.Get(ctx, path, cond, &threads)
@@ -98,8 +100,11 @@ func (c *Client) ListNotifications(ctx context.Context, filter core.Notification
 	return core.Page[core.Notification]{Items: convert(threads, notification.core), Next: res.Next}, res, nil
 }
 
-func notificationsPath(filter core.NotificationFilter) string {
+func notificationsPath(filter core.NotificationFilter, perPage int) string {
 	q := url.Values{}
+	if perPage > 0 {
+		q.Set("per_page", strconv.Itoa(perPage))
+	}
 	if filter.All {
 		q.Set("all", "true")
 	}

@@ -31,12 +31,15 @@ func TestListNotifications(t *testing.T) {
 	tests := []struct {
 		name      string
 		filter    core.NotificationFilter
+		perPage   int
 		wantQuery string
 	}{
-		{"unread", core.NotificationFilter{}, ""},
-		{"all", core.NotificationFilter{All: true}, "all=true"},
-		{"participating", core.NotificationFilter{Participating: true}, "participating=true"},
-		{"all participating", core.NotificationFilter{All: true, Participating: true}, "all=true&participating=true"},
+		{"unread", core.NotificationFilter{}, 0, ""},
+		{"all", core.NotificationFilter{All: true}, 0, "all=true"},
+		{"participating", core.NotificationFilter{Participating: true}, 0, "participating=true"},
+		{"all participating", core.NotificationFilter{All: true, Participating: true}, 0, "all=true&participating=true"},
+		{"page size", core.NotificationFilter{}, 30, "per_page=30"},
+		{"all with page size", core.NotificationFilter{All: true}, 100, "all=true&per_page=100"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -54,7 +57,7 @@ func TestListNotifications(t *testing.T) {
 				_, _ = w.Write(body)
 			}))
 
-			page, res, err := c.ListNotifications(t.Context(), tt.filter, "", Conditional{})
+			page, res, err := c.ListNotifications(t.Context(), tt.filter, tt.perPage, "", Conditional{})
 			if err != nil {
 				t.Fatalf("ListNotifications: %v", err)
 			}
@@ -135,8 +138,8 @@ func TestListNotificationsCursor(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// The filter is ignored: the cursor already carries it.
-	page, _, err := c.ListNotifications(t.Context(), core.NotificationFilter{}, cursor, Conditional{})
+	// The filter and page size are ignored: the cursor already carries them.
+	page, _, err := c.ListNotifications(t.Context(), core.NotificationFilter{}, 50, cursor, Conditional{})
 	if err != nil {
 		t.Fatalf("ListNotifications: %v", err)
 	}
@@ -154,7 +157,7 @@ func TestListNotificationsNotModified(t *testing.T) {
 		w.WriteHeader(http.StatusNotModified)
 	}))
 
-	page, res, err := c.ListNotifications(t.Context(), core.NotificationFilter{}, "", Conditional{LastModified: lastModified})
+	page, res, err := c.ListNotifications(t.Context(), core.NotificationFilter{}, 0, "", Conditional{LastModified: lastModified})
 	if err != nil {
 		t.Fatalf("ListNotifications: %v", err)
 	}
@@ -187,7 +190,7 @@ func TestListNotificationsErrors(t *testing.T) {
 				w.WriteHeader(tt.status)
 				_, _ = io.WriteString(w, `{"message":"no"}`)
 			}))
-			_, _, err := c.ListNotifications(t.Context(), core.NotificationFilter{}, "", Conditional{})
+			_, _, err := c.ListNotifications(t.Context(), core.NotificationFilter{}, 0, "", Conditional{})
 			if !errors.Is(err, tt.want) {
 				t.Errorf("error = %v, want %v", err, tt.want)
 			}
