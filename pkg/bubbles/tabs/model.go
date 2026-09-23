@@ -18,6 +18,7 @@ func nextID() int { return int(lastID.Add(1)) }
 type Model struct {
 	id      int
 	tabs    []string
+	badges  []string
 	active  int
 	width   int
 	focused bool
@@ -55,14 +56,41 @@ func (m Model) ID() int { return m.id }
 // Tabs returns the tab titles.
 func (m Model) Tabs() []string { return m.tabs }
 
-// SetTabs replaces the tab titles. The active tab is kept if it still
-// exists, and otherwise moves to the last tab.
+// SetTabs replaces the tab titles. The active tab and the badges are kept
+// for the tabs that still exist, and the active tab otherwise moves to the
+// last tab.
 func (m *Model) SetTabs(titles ...string) {
 	m.tabs = slices.Clone(titles)
 	m.active = m.clamp(m.active)
 	m.prepare()
 	m.render()
 }
+
+// Badge returns the badge of tab i, or "" if it has none.
+func (m Model) Badge(i int) string {
+	if i < 0 || i >= len(m.badges) {
+		return ""
+	}
+	return m.badges[i]
+}
+
+// SetBadge shows text, typically a count such as unread notifications, next
+// to the title of tab i. An empty text clears the badge.
+func (m *Model) SetBadge(i int, text string) {
+	if i < 0 || i >= len(m.tabs) || m.Badge(i) == text {
+		return
+	}
+	// Copy, since copies of a Model share the slice.
+	badges := make([]string, len(m.tabs))
+	copy(badges, m.badges)
+	badges[i] = text
+	m.badges = badges
+	m.prepare()
+	m.render()
+}
+
+// ClearBadge removes the badge of tab i.
+func (m *Model) ClearBadge(i int) { m.SetBadge(i, "") }
 
 // Active returns the index of the active tab.
 func (m Model) Active() int { return m.active }
