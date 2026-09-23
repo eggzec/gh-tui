@@ -114,10 +114,13 @@ changes minimal so that pulling in new upstream versions stays easy.
 ## Data
 
 - **Lazy by default.** Fetch only what is on screen and prefetch the next page
-  when the user nears the end. Long lists and threads are pagers: the tui
-  asks for one page sized to the visible rows and keeps a stack of cursors to
-  go back, and the LRU evicts pages it no longer shows. A detail never embeds
-  an unbounded list such as comments; those are paged reads of their own.
+  when the user nears the end. A detail never embeds an unbounded list such
+  as comments; those are paged reads of their own.
+- **Fetch in fixed chunks, render a window.** Services fetch pages of a fixed
+  size per resource (their default, or the user's config), never sized to the
+  terminal, so cache keys and cursors survive a resize. A bubble keeps the
+  chunks around its viewport, renders only the visible rows, and prefetches
+  the next chunk near the end. Resizing only moves the window.
 - **Choose the right API for each call.** Use GraphQL when you need nested or
   batched data in one round trip, such as a PR with its reviews, checks and
   labels. Use REST where it is simpler or cheaper, for example conditional
