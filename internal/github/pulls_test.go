@@ -284,3 +284,171 @@ func TestGetPullRequestNullPull(t *testing.T) {
 		t.Errorf("error = %v, want ErrNotFound", err)
 	}
 }
+
+func TestPullRequestID(t *testing.T) {
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req pullQuery
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Errorf("decode request: %v", err)
+		}
+		want := map[string]any{"owner": "eggzec", "name": "gh-tui", "number": float64(42)}
+		if !strings.Contains(req.Query, "pullRequest(number: $number) { id }") || !reflect.DeepEqual(req.Variables, want) {
+			t.Errorf("request = %+v, want the ID of #42", req)
+		}
+		_, _ = w.Write([]byte(`{"data":{"repository":{"pullRequest":{"id":"PR_kwDOLnBTf85xYz01"}}}}`))
+	}))
+	id, err := c.PullRequestID(t.Context(), pullsRepo, 42)
+	if err != nil || id != "PR_kwDOLnBTf85xYz01" {
+		t.Errorf("PullRequestID = %q, %v; want PR_kwDOLnBTf85xYz01", id, err)
+	}
+}
+
+func TestPullRequestIDNotFound(t *testing.T) {
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(pullNotFound))
+	}))
+	if _, err := c.PullRequestID(t.Context(), pullsRepo, 42); !errors.Is(err, core.ErrNotFound) {
+		t.Errorf("error = %v, want ErrNotFound", err)
+	}
+}
+
+func TestPullMutations(t *testing.T) {
+	const id = "PR_kwDOLnBTf85xYz01"
+	tests := []struct {
+		name     string
+		fixture  string
+		call     func(*Client) (core.PullRequest, error)
+		mutation string
+		vars     map[string]any
+		check    func(core.PullRequest) bool
+	}{
+		{
+			name:    "merge",
+			fixture: "pulls_merge.json",
+			call: func(c *Client) (core.PullRequest, error) {
+				return c.MergePullRequest(t.Context(), id, core.MergeSquash)
+			},
+			mutation: "mergePullRequest(input: {pullRequestId: $id, mergeMethod: $method})",
+			vars:     map[string]any{"id": id, "method": "SQUASH"},
+			check: func(pr core.PullRequest) bool {
+				return pr.State == core.StateMerged && pr.MergedAt.Equal(pullTime("2026-09-23T09:00:04Z"))
+			},
+		},
+		{
+			name:     "close",
+			fixture:  "pulls_close.json",
+			call:     func(c *Client) (core.PullRequest, error) { return c.ClosePullRequest(t.Context(), id) },
+			mutation: "closePullRequest(input: {pullRequestId: $id})",
+			vars:     map[string]any{"id": id},
+			check:    func(pr core.PullRequest) bool { return pr.State == core.StateClosed && pr.MergedAt.IsZero() },
+		},
+		{
+			name:     "reopen",
+			fixture:  "pulls_reopen.json",
+			call:     func(c *Client) (core.PullRequest, error) { return c.ReopenPullRequest(t.Context(), id) },
+			mutation: "reopenPullRequest(input: {pullRequestId: $id})",
+			vars:     map[string]any{"id": id},
+			check:    func(pr core.PullRequest) bool { return pr.State == core.StateOpen },
+		},
+		{
+			name:     "mark ready",
+			fixture:  "pulls_ready.json",
+			call:     func(c *Client) (core.PullRequest, error) { return c.MarkPullRequestReady(t.Context(), id) },
+			mutation: "markPullRequestReadyForReview(input: {pullRequestId: $id})",
+			vars:     map[string]any{"id": id},
+			check:    func(pr core.PullRequest) bool { return !pr.Draft },
+		},
+		{
+			name:     "convert to draft",
+			fixture:  "pulls_draft.json",
+			call:     func(c *Client) (core.PullRequest, error) { return c.ConvertPullRequestToDraft(t.Context(), id) },
+			mutation: "convertPullRequestToDraft(input: {pullRequestId: $id})",
+			vars:     map[string]any{"id": id},
+			check:    func(pr core.PullRequest) bool { return pr.Draft },
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, reqs := pullServer(t, tt.fixture)
+			pr, err := tt.call(c)
+			if err != nil {
+				t.Fatalf("mutation: %v", err)
+			}
+			checkPullQuery(t, reqs(), tt.mutation, tt.vars)
+			if !strings.HasPrefix(reqs()[0].Query, "mutation(") {
+				t.Errorf("query is not a mutation:\n%s", reqs()[0].Query)
+			}
+			if pr.ID != id || pr.Repo != pullsRepo || pr.Number != 42 || pr.Checks != core.ChecksSuccess || pr.ReviewDecision != core.ReviewApproved {
+				t.Errorf("pull request = %+v, want #42 of %s decoded in full", pr, pullsRepo)
+			}
+			if !pr.UpdatedAt.Equal(pullTime("2026-09-23T09:00:05Z")) {
+				t.Errorf("updated at = %v, want the server's time", pr.UpdatedAt)
+			}
+			if !tt.check(pr) {
+				t.Errorf("pull request = %+v, want the mutation's result", pr)
+			}
+		})
+	}
+}
+
+func TestMergePullRequestUnknownMethod(t *testing.T) {
+	c, reqs := pullServer(t, "pulls_merge.json")
+	if _, err := c.MergePullRequest(t.Context(), "PR_1", "fast-forward"); err == nil {
+		t.Error("merge with an unknown method succeeded")
+	}
+	if n := len(reqs()); n != 0 {
+		t.Errorf("sent %d requests, want none", n)
+	}
+}
+
+func TestPullMutationErrors(t *testing.T) {
+	tests := []struct {
+		name   string
+		status int
+		body   string
+		check  func(error) bool
+	}{
+		{
+			name:   "not mergeable",
+			status: http.StatusOK,
+			body:   `{"data":{"result":null},"errors":[{"type":"UNPROCESSABLE","path":["result"],"message":"Pull Request is not mergeable"}]}`,
+			check: func(err error) bool {
+				e, ok := errors.AsType[*GraphQLError](err)
+				return ok && strings.Contains(e.Error(), "Pull Request is not mergeable")
+			},
+		},
+		{
+			name:   "unknown node",
+			status: http.StatusOK,
+			body:   `{"data":{"result":null},"errors":[{"type":"NOT_FOUND","path":["result"],"message":"Could not resolve to a node with the global id of 'PR_1'"}]}`,
+			check:  func(err error) bool { return errors.Is(err, core.ErrNotFound) },
+		},
+		{
+			name:   "no pull request",
+			status: http.StatusOK,
+			body:   `{"data":{"result":{"pullRequest":null}}}`,
+			check:  func(err error) bool { return errors.Is(err, errNoPull) },
+		},
+		{
+			name:   "unauthorized",
+			status: http.StatusUnauthorized,
+			body:   `{"message":"Bad credentials"}`,
+			check:  func(err error) bool { return errors.Is(err, core.ErrUnauthorized) },
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(tt.status)
+				_, _ = w.Write([]byte(tt.body))
+			}))
+			_, err := c.MergePullRequest(t.Context(), "PR_1", core.MergeCommit)
+			if err == nil || !tt.check(err) {
+				t.Errorf("error = %v, want %s", err, tt.name)
+			}
+			if err != nil && !strings.Contains(err.Error(), "merge pull request PR_1") {
+				t.Errorf("error %q lacks context", err)
+			}
+		})
+	}
+}
