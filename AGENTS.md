@@ -186,10 +186,13 @@ reacts to messages. Concretely:
 
 ## Configuration
 
-- The config file is `$XDG_CONFIG_HOME/gh-tui/config.yaml`. It is validated on
-  load and every field has a sensible default.
+- The config file is `$GH_TUI_CONFIG`, or `gh-tui/config.yaml` in
+  `os.UserConfigDir()` (`$XDG_CONFIG_HOME` on Linux). It is validated on load
+  and every field has a sensible default.
 - Keybindings map action names to keys and are applied through each bubble's
-  `SetKeyMap`.
+  `SetKeyMap`. Action names are registered in `internal/config/keys.go`;
+  unknown names are rejected so typos don't pass silently.
+- Hex colors must be quoted in YAML, since an unquoted `#` starts a comment.
 - Themes are named palettes that each have a light and a dark variant. They
   are resolved once after `tea.BackgroundColorMsg` and applied through
   `SetStyles`.
@@ -222,13 +225,23 @@ reacts to messages. Concretely:
 ### Tooling
 
 ```sh
-gofmt -l . && go vet ./...
-golangci-lint run ./...      # config in .golangci.yml (v2)
+go vet ./...
+golangci-lint run ./...          # config in .golangci.yml (v2)
+golangci-lint fmt --diff ./...   # gofmt and goimports
 go test -race ./...
-go test -bench=. -benchmem ./pkg/bubbles/...
+make bench                       # every benchmark in the module
 ```
 
-gopls diagnostics and golangci-lint must be clean before you commit.
+gopls diagnostics and golangci-lint must be clean before you commit. To check
+that every commit on a branch passes on its own:
+
+```sh
+for c in $(git rev-list --reverse origin/main..HEAD); do
+  git worktree add -q --detach "$TMPDIR/chk" "$c"
+  (cd "$TMPDIR/chk" && go build ./... && go test -race ./... && golangci-lint run ./...)
+  git worktree remove --force "$TMPDIR/chk"
+done
+```
 
 ## Git workflow
 
@@ -272,6 +285,11 @@ git worktree remove cache-lru && git branch -D feat/cache-lru
 - **Every commit is atomic and passes on its own**, meaning it builds, passes
   lint and passes tests. The history should tell the story of the work. If
   you find something you left out of an earlier commit, fold it into that
-  commit (`git commit --fixup` then `git rebase --autosquash`). Don't add
-  "fix typo" commits.
+  commit. Don't add "fix typo" commits:
+
+  ```sh
+  git commit --fixup=<sha>
+  # merge-base keeps the branch on its current base
+  GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash $(git merge-base HEAD origin/main)
+  ```
 - **No AI attribution** in commit messages, trailers or PR descriptions.
