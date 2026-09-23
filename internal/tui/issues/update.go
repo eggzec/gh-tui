@@ -15,15 +15,20 @@ func (s *Section) Update(msg tea.Msg) tea.Cmd {
 		return s.setRepo(msg.Repo)
 	case tea.KeyPressMsg:
 		return s.press(msg)
+	case issueMsg:
+		return s.gotIssue(msg)
 	}
 	return s.forward(msg)
 }
 
 // forward passes msg to the bubbles, which ignore what isn't theirs.
 func (s *Section) forward(msg tea.Msg) tea.Cmd {
-	var cmd tea.Cmd
+	var cmd, detail tea.Cmd
 	s.list, cmd = s.list.Update(msg)
-	return cmd
+	if s.inDetail {
+		s.detail, detail = s.detail.Update(msg)
+	}
+	return tea.Batch(cmd, detail)
 }
 
 // setRepo shows the issues of repo. It arrives before Init too, so the
@@ -32,6 +37,7 @@ func (s *Section) setRepo(repo core.RepoRef) tea.Cmd {
 	if s.hasRepo && repo == s.repo {
 		return nil
 	}
+	s.back()
 	s.repo, s.hasRepo = repo, true
 	// Other repositories have other labels.
 	clear(s.chips)
@@ -42,8 +48,13 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 	if !s.hasRepo {
 		return nil
 	}
+	if s.inDetail {
+		return s.pressDetail(msg)
+	}
 	k := s.keys
 	switch {
+	case key.Matches(msg, k.Select):
+		return s.open()
 	case key.Matches(msg, k.Filter):
 		s.filter = nextFilter(s.filter)
 		return s.resetList()
@@ -56,4 +67,23 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 		return nil
 	}
 	return s.forward(msg)
+}
+
+func (s *Section) pressDetail(msg tea.KeyPressMsg) tea.Cmd {
+	k := s.keys
+	switch {
+	case key.Matches(msg, k.Back):
+		s.back()
+		return nil
+	case key.Matches(msg, k.Refresh):
+		return tea.Batch(s.detail.Reload(), s.get())
+	case key.Matches(msg, k.Open):
+		if s.issue.URL != "" {
+			return ui.Open(s.issue.URL)
+		}
+		return nil
+	}
+	var cmd tea.Cmd
+	s.detail, cmd = s.detail.Update(msg)
+	return cmd
 }

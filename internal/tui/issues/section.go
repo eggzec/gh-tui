@@ -8,12 +8,14 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/glamour/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
+	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
 )
 
 // Section shows the issues of one repository. Create it with [New].
@@ -33,6 +35,18 @@ type Section struct {
 	// reads the section from another goroutine.
 	list       feed.Model[core.Issue]
 	cancelList context.CancelFunc
+
+	// detail is the open issue's thread, shown while inDetail. It is
+	// rebuilt for every issue, like the list.
+	detail       thread.Model[core.Comment]
+	inDetail     bool
+	issue        core.Issue
+	detailGen    int
+	detailCtx    context.Context
+	cancelDetail context.CancelFunc
+	// md renders comment bodies at mdWidth.
+	md      *glamour.TermRenderer
+	mdWidth int
 
 	width, height int
 	theme         ui.Theme
@@ -92,6 +106,9 @@ func (s *Section) Init() tea.Cmd {
 func (s *Section) SetSize(width, height int) {
 	s.width, s.height = max(width, 0), max(height, 0)
 	s.list.SetSize(s.width, s.bodyHeight())
+	if s.inDetail {
+		s.detail.SetSize(s.width, s.bodyHeight())
+	}
 	s.renderChrome()
 }
 
@@ -100,13 +117,24 @@ func (s *Section) SetTheme(t ui.Theme) {
 	s.theme = t
 	s.rows = newRowStyles(t)
 	clear(s.chips)
+	s.md = nil
 	s.list.SetStyles(t.Feed())
+	if s.inDetail {
+		s.detail.SetStyles(t.Thread())
+		// The header is styled too. The thread loads whatever the new
+		// layout needs on its next message, so the command can go.
+		_ = s.detail.SetDocument(s.header(s.issue), s.issue.Body)
+	}
 	s.renderChrome()
 }
 
 // Focus implements ui.Section.
 func (s *Section) Focus() {
 	s.focused = true
+	if s.inDetail {
+		s.detail.Focus()
+		return
+	}
 	s.list.Focus()
 }
 
@@ -114,6 +142,7 @@ func (s *Section) Focus() {
 func (s *Section) Blur() {
 	s.focused = false
 	s.list.Blur()
+	s.detail.Blur()
 }
 
 // bodyHeight is the height under the bar.

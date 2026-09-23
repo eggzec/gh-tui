@@ -35,10 +35,73 @@ type fakeService struct {
 	pageSize int
 	lists    []issuesvc.ListQuery
 	listErr  error
+
+	// cached holds the issues Get read, as the service's cache would.
+	cached   map[int]core.Issue
+	gets     []int
+	getErr   error
+	comments map[int][]core.Comment
+	// commentQueries are the comment pages asked for.
+	commentQueries []issuesvc.CommentsQuery
 }
 
 func newFakeService(issues []core.Issue) *fakeService {
-	return &fakeService{issues: issues, pageSize: 30}
+	return &fakeService{
+		issues:   issues,
+		pageSize: 30,
+		cached:   map[int]core.Issue{},
+		comments: map[int][]core.Comment{},
+	}
+}
+
+func (f *fakeService) Get(_ context.Context, repo core.RepoRef, number int) (core.Issue, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.gets = append(f.gets, number)
+	if f.getErr != nil {
+		return core.Issue{}, f.getErr
+	}
+	for i := range f.issues {
+		if it := f.issues[i]; it.Repo == repo && it.Number == number {
+			f.cached[number] = it
+			return it, nil
+		}
+	}
+	return core.Issue{}, core.ErrNotFound
+}
+
+func (f *fakeService) CachedGet(_ core.RepoRef, number int) (core.Issue, bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	it, ok := f.cached[number]
+	return it, ok
+}
+
+func (f *fakeService) Comments(_ context.Context, q issuesvc.CommentsQuery) (core.Page[core.Comment], error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.commentQueries = append(f.commentQueries, q)
+	all := f.comments[q.Number]
+	start, _ := strconv.Atoi(q.Cursor)
+	start = min(start, len(all))
+	end := min(start+f.pageSize, len(all))
+	next := ""
+	if end < len(all) {
+		next = strconv.Itoa(end)
+	}
+	return core.Page[core.Comment]{Items: slices.Clone(all[start:end]), Next: next}, nil
+}
+
+func (f *fakeService) getCalls() []int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.gets)
+}
+
+func (f *fakeService) addComments(number int, cs ...core.Comment) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.comments[number] = append(f.comments[number], cs...)
 }
 
 func (f *fakeService) List(_ context.Context, q issuesvc.ListQuery) (core.Page[core.Issue], error) {
@@ -134,6 +197,25 @@ func sampleIssues(n int) []core.Issue {
 			CreatedAt: testNow.Add(-time.Duration(i+3) * 24 * time.Hour),
 			UpdatedAt: testNow.Add(-time.Duration(i*i+1) * 37 * time.Minute),
 			URL:       fmt.Sprintf("https://github.com/eggzec/gh-tui/issues/%d", num),
+		})
+	}
+	return out
+}
+
+// sampleComments returns n comments, oldest first.
+func sampleComments(n int) []core.Comment {
+	bodies := []string{
+		"I can reproduce this on **v0.3** with an empty file.",
+		"Looks like `config.Load` returns early. A fix:\n\n```go\nif len(data) == 0 {\n\treturn Default(), nil\n}\n```",
+		"Thanks! Fixed on main.",
+	}
+	out := make([]core.Comment, 0, n)
+	for i := range n {
+		out = append(out, core.Comment{
+			ID:        "IC_" + strconv.Itoa(i),
+			Author:    core.User{Login: authors[(i+2)%len(authors)]},
+			Body:      bodies[i%len(bodies)],
+			CreatedAt: testNow.Add(-time.Duration(n-i) * 5 * time.Hour),
 		})
 	}
 	return out
