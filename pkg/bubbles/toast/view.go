@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -23,6 +24,44 @@ const (
 // about 40% of the width and never more than the width. It is empty when
 // there are no toasts.
 func (m Model) View() string { return m.view }
+
+// Overlay draws the stack over the bottom-right corner of a background of
+// the given size and returns the result, which has exactly height lines.
+// Styled content in the background keeps its escape sequences intact. The
+// stack is meant for a background of the size set with SetSize.
+func (m Model) Overlay(background string, width, height int) string {
+	if m.view == "" || width <= 0 || height <= 0 {
+		return background
+	}
+	rows := strings.Split(background, "\n")
+	rows = rows[:min(len(rows), height)]
+	for len(rows) < height {
+		rows = append(rows, "")
+	}
+	stack := m.view
+	if n := strings.Count(stack, "\n") + 1; n > height {
+		// Keep the newest, at the bottom.
+		stack = stack[nthNewline(stack, n-height)+1:]
+	}
+	fg := lipgloss.NewLayer(stack)
+	// Only the rows under the stack need a canvas; the rest pass through.
+	band := rows[height-fg.Height():]
+	bg := lipgloss.NewLayer(strings.Join(band, "\n"))
+	fg.X(max(width-fg.Width(), 0)).Z(1)
+	composed := lipgloss.NewCanvas(width, len(band)).
+		Compose(lipgloss.NewCompositor(bg, fg)).
+		Render()
+	return strings.Join(append(rows[:height-len(band)], composed), "\n")
+}
+
+// nthNewline returns the index of the nth newline in s, counting from one.
+func nthNewline(s string, n int) int {
+	i := -1
+	for range n {
+		i += strings.IndexByte(s[i+1:], '\n') + 1
+	}
+	return i
+}
 
 // maxBlockWidth is the widest the stack may be.
 func (m Model) maxBlockWidth() int {

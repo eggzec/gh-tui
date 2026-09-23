@@ -2,8 +2,8 @@
 // error reported when an optimistic update is rolled back.
 //
 // The parent keeps a [Model], calls [Model.Push] to show a toast and runs the
-// command it returns, forwards messages to [Model.Update], and places
-// [Model.View] over its layout.
+// command it returns, forwards messages to [Model.Update], and composites the
+// stack over its layout with [Model.Overlay].
 package toast
 
 import (
