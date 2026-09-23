@@ -1,0 +1,102 @@
+package issues
+
+import (
+	"slices"
+	"strings"
+
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/key"
+
+	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
+)
+
+// keyMap holds the keys of the section and of the bubbles it shows. The
+// section handles its own keys first, so the bubbles' keys leave out any the
+// section takes in the same view.
+type keyMap struct {
+	Select  key.Binding
+	Back    key.Binding
+	Filter  key.Binding
+	Refresh key.Binding
+	Open    key.Binding
+
+	feed feed.KeyMap
+}
+
+func newKeyMap(keys map[string][]string) keyMap {
+	k := keyMap{
+		Select:  ui.Binding(keys, config.ActionSelect, "open"),
+		Back:    ui.Binding(keys, config.ActionBack, "back"),
+		Filter:  ui.Binding(keys, config.ActionFilter, "filter"),
+		Refresh: ui.Binding(keys, config.ActionRefresh, "refresh"),
+		Open:    ui.Binding(keys, config.ActionOpen, "browser"),
+	}
+
+	fk := feed.DefaultKeyMap()
+	listKeys := []key.Binding{k.Select, k.Filter, k.Refresh, k.Open}
+	for _, b := range []*key.Binding{&fk.Up, &fk.Down, &fk.PageUp, &fk.PageDown, &fk.Home, &fk.End} {
+		*b = without(*b, listKeys)
+	}
+	// Refresh reloads failed pages too, so it doubles as retry.
+	fk.Retry = retry(k.Refresh)
+	fk.Retry.SetEnabled(false)
+	k.feed = fk
+	return k
+}
+
+// retry is the refresh binding, described as retry for the bubbles' error
+// hints.
+func retry(refresh key.Binding) key.Binding {
+	if len(refresh.Keys()) == 0 {
+		return key.NewBinding(key.WithDisabled())
+	}
+	return key.NewBinding(key.WithKeys(refresh.Keys()...), key.WithHelp(refresh.Help().Key, "retry"))
+}
+
+var keyLabels = strings.NewReplacer("pgdown", "pgdn", "pgup", "pgup", "down", "↓", "up", "↑")
+
+// without returns b without the keys that taken use.
+func without(b key.Binding, taken []key.Binding) key.Binding {
+	keys := slices.DeleteFunc(slices.Clone(b.Keys()), func(k string) bool {
+		return slices.ContainsFunc(taken, func(t key.Binding) bool {
+			return slices.Contains(t.Keys(), k)
+		})
+	})
+	switch len(keys) {
+	case len(b.Keys()):
+		return b
+	case 0:
+		return key.NewBinding(key.WithDisabled())
+	}
+	labels := make([]string, len(keys))
+	for i, k := range keys {
+		labels[i] = keyLabels.Replace(k)
+	}
+	return key.NewBinding(key.WithKeys(keys...), key.WithHelp(strings.Join(labels, "/"), b.Help().Desc))
+}
+
+// Help implements ui.Section. It lists the keys of the current view.
+func (s *Section) Help() help.KeyMap {
+	k, fk := s.keys, s.keys.feed
+	if !s.hasRepo {
+		return keyHelp{}
+	}
+	return keyHelp{
+		short: []key.Binding{fk.Up, fk.Down, k.Select, k.Filter, k.Open, k.Refresh},
+		full: [][]key.Binding{
+			{fk.Up, fk.Down, fk.PageUp, fk.PageDown, fk.Home, fk.End},
+			{k.Select, k.Filter, k.Open, k.Refresh},
+		},
+	}
+}
+
+// keyHelp is a help.KeyMap of fixed bindings.
+type keyHelp struct {
+	short []key.Binding
+	full  [][]key.Binding
+}
+
+func (h keyHelp) ShortHelp() []key.Binding  { return h.short }
+func (h keyHelp) FullHelp() [][]key.Binding { return h.full }
