@@ -1,0 +1,44 @@
+{
+  "data": {
+    "viewer": {
+      "repositories": {
+        "nodes": [
+          {
+            "id": "R_kgDOMbT0Qw",
+            "name": "gh-tui",
+            "owner": { "login": "eggzec" },
+            "description": "A GitHub client for the terminal",
+            "defaultBranchRef": { "name": "main" },
+            "primaryLanguage": { "name": "Go" },
+            "stargazerCount": 42,
+            "viewerHasStarred": true,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-21T10:00:00Z",
+            "url": "https://github.com/eggzec/gh-tui"
+          },
+          {
+            "id": "R_kgDOLx9a1A",
+            "name": "dotfiles",
+            "owner": { "login": "octo-org" },
+            "description": null,
+            "defaultBranchRef": null,
+            "primaryLanguage": null,
+            "stargazerCount": 0,
+            "viewerHasStarred": false,
+            "isPrivate": true,
+            "isFork": true,
+            "isArchived": true,
+            "updatedAt": "2026-08-02T08:30:00Z",
+            "url": "https://github.com/octo-org/dotfiles"
+          }
+        ],
+        "pageInfo": {
+          "hasNextPage": true,
+          "endCursor": "Y3Vyc29yOnYyOpK5MjAyNi0wOC0wMlQwODozMDowMCswMDowMM4LfWrU"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "data": {
+    "viewer": {
+      "repositories": {
+        "nodes": [],
+        "pageInfo": {
+          "hasNextPage": false,
+          "endCursor": null
+        }
+      }
+    }
+  }
+}
