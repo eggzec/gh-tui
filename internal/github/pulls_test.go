@@ -83,12 +83,12 @@ func pullTime(s string) time.Time {
 func TestListPullRequests(t *testing.T) {
 	c, reqs := pullServer(t, "pulls_list.json")
 
-	page, err := c.ListPullRequests(t.Context(), pullsRepo, core.StateOpen, "")
+	page, err := c.ListPullRequests(t.Context(), pullsRepo, core.StateOpen, "", 30)
 	if err != nil {
 		t.Fatalf("ListPullRequests: %v", err)
 	}
 	checkPullQuery(t, reqs(), "pullRequests(states: $states, first: $first, after: $after, orderBy: {field: UPDATED_AT, direction: DESC})", map[string]any{
-		"owner": "eggzec", "name": "gh-tui", "states": []any{"OPEN"}, "first": float64(pullPageSize),
+		"owner": "eggzec", "name": "gh-tui", "states": []any{"OPEN"}, "first": float64(30),
 	})
 
 	if page.Next != "Y3Vyc29yOnYyOpK5MjAyNi0wOS0yMFQxMjowMDowMFo" {
@@ -142,19 +142,21 @@ func TestListPullRequestsVariables(t *testing.T) {
 		name   string
 		state  core.State
 		cursor string
+		first  int
 		want   map[string]any
 	}{
-		{"all states", "", "", map[string]any{"states": nil}},
-		{"merged", core.StateMerged, "", map[string]any{"states": []any{"MERGED"}}},
-		{"closed after cursor", core.StateClosed, "abc", map[string]any{"states": []any{"CLOSED"}, "after": "abc"}},
+		{"all states", "", "", 30, map[string]any{"states": nil, "first": float64(30)}},
+		{"merged", core.StateMerged, "", 30, map[string]any{"states": []any{"MERGED"}, "first": float64(30)}},
+		{"closed after cursor", core.StateClosed, "abc", 30, map[string]any{"states": []any{"CLOSED"}, "first": float64(30), "after": "abc"}},
+		{"page size", core.StateOpen, "abc", 7, map[string]any{"states": []any{"OPEN"}, "first": float64(7), "after": "abc"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c, reqs := pullServer(t, "pulls_list.json")
-			if _, err := c.ListPullRequests(t.Context(), pullsRepo, tt.state, tt.cursor); err != nil {
+			if _, err := c.ListPullRequests(t.Context(), pullsRepo, tt.state, tt.cursor, tt.first); err != nil {
 				t.Fatalf("ListPullRequests: %v", err)
 			}
-			want := map[string]any{"owner": "eggzec", "name": "gh-tui", "first": float64(pullPageSize)}
+			want := map[string]any{"owner": "eggzec", "name": "gh-tui"}
 			maps.Copy(want, tt.want)
 			checkPullQuery(t, reqs(), "pullRequests(", want)
 		})
@@ -163,7 +165,7 @@ func TestListPullRequestsVariables(t *testing.T) {
 
 func TestListPullRequestsUnknownState(t *testing.T) {
 	c, reqs := pullServer(t, "pulls_list.json")
-	if _, err := c.ListPullRequests(t.Context(), pullsRepo, "draft", ""); err == nil {
+	if _, err := c.ListPullRequests(t.Context(), pullsRepo, "draft", "", 30); err == nil {
 		t.Error("ListPullRequests with an unknown state succeeded")
 	}
 	if n := len(reqs()); n != 0 {
@@ -239,7 +241,7 @@ const pullNotFound = `{
 func TestPullReadErrors(t *testing.T) {
 	reads := map[string]func(*Client) error{
 		"list": func(c *Client) error {
-			_, err := c.ListPullRequests(t.Context(), pullsRepo, core.StateOpen, "")
+			_, err := c.ListPullRequests(t.Context(), pullsRepo, core.StateOpen, "", 30)
 			return err
 		},
 		"get": func(c *Client) error {

@@ -17,7 +17,7 @@ import (
 // API is the part of the GitHub client the service uses. The mutations take
 // the node ID of the pull request and return it as the server left it.
 type API interface {
-	ListPullRequests(ctx context.Context, repo core.RepoRef, state core.State, after string) (core.Page[core.PullRequest], error)
+	ListPullRequests(ctx context.Context, repo core.RepoRef, state core.State, cursor string, first int) (core.Page[core.PullRequest], error)
 	GetPullRequest(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error)
 	PullRequestID(ctx context.Context, repo core.RepoRef, number int) (string, error)
 	MergePullRequest(ctx context.Context, id string, method core.MergeMethod) (core.PullRequest, error)
@@ -55,17 +55,35 @@ func New(api API, opts ...Option) *Service {
 	}
 }
 
+// Page sizes. GitHub returns at most maxPageSize items per page.
+const (
+	defaultPageSize = 30
+	maxPageSize     = 100
+)
+
+// pageSize returns n as a page size GitHub accepts: defaultPageSize if n is
+// not positive, and at most maxPageSize.
+func pageSize(n int) int {
+	if n <= 0 {
+		return defaultPageSize
+	}
+	return min(n, maxPageSize)
+}
+
 // ListQuery selects a page of the pull requests of a repository.
 type ListQuery struct {
 	Repo core.RepoRef
 	// State filters by state. The empty state lists every pull request.
 	State core.State
-	// After is the Next of the previous page, or empty for the first page.
-	After string
+	// Cursor is the Next of the previous page, or empty for the first page.
+	Cursor string
+	// PageSize is how many pull requests the page holds at most. Zero means
+	// 30, and GitHub's maximum of 100 caps it.
+	PageSize int
 }
 
 func (q ListQuery) key() string {
-	v := url.Values{"state": {string(q.State)}, "after": {q.After}}
+	v := url.Values{"state": {string(q.State)}, "cursor": {q.Cursor}, "first": {strconv.Itoa(pageSize(q.PageSize))}}
 	return "pulls:" + repoID(q.Repo) + "?" + v.Encode()
 }
 
@@ -85,9 +103,9 @@ func detailKey(r core.RepoRef, number int) string {
 	return "pull:" + repoID(r) + "#" + strconv.Itoa(number)
 }
 
-// Cached returns the page for q if it is cached, fresh or stale, without
+// CachedList returns the page for q if it is cached, fresh or stale, without
 // fetching it.
-func (s *Service) Cached(q ListQuery) (core.Page[core.PullRequest], bool) {
+func (s *Service) CachedList(q ListQuery) (core.Page[core.PullRequest], bool) {
 	e, state := s.lists.Get(q.key())
 	return e.Value, state != cache.Miss
 }
@@ -98,7 +116,7 @@ func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.PullReq
 	// GraphQL responses carry no validators, so a stale page is fetched
 	// again in full.
 	e, err := s.lists.Fetch(ctx, q.key(), func(ctx context.Context, _ listEntry, _ bool) (listEntry, error) {
-		p, err := s.api.ListPullRequests(ctx, q.Repo, q.State, q.After)
+		p, err := s.api.ListPullRequests(ctx, q.Repo, q.State, q.Cursor, pageSize(q.PageSize))
 		if err != nil {
 			return listEntry{}, err
 		}
@@ -110,9 +128,9 @@ func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.PullReq
 	return e.Value, nil
 }
 
-// CachedDetail returns pull request number of repo if its detail is cached,
+// CachedGet returns pull request number of repo if its detail is cached,
 // fresh or stale, without fetching it.
-func (s *Service) CachedDetail(repo core.RepoRef, number int) (core.PullRequestDetail, bool) {
+func (s *Service) CachedGet(repo core.RepoRef, number int) (core.PullRequestDetail, bool) {
 	e, state := s.details.Get(detailKey(repo, number))
 	return e.Value, state != cache.Miss
 }

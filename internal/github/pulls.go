@@ -16,9 +16,6 @@ import (
 // mutation there returns the updated pull request, where the REST merge
 // returns only a commit SHA and REST has no draft endpoints.
 
-// pullPageSize is how many pull requests a list page holds.
-const pullPageSize = 30
-
 // Limits of the nested connections. Rows show a few labels, and the detail
 // view shows the latest activity.
 const (
@@ -286,18 +283,18 @@ func pullStates(s core.State) ([]string, error) {
 	}
 }
 
-// ListPullRequests returns a page of the pull requests of repo in state,
-// most recently updated first. An empty state lists them all. After is the
-// Next of the previous page, or empty for the first page. The results have no
-// Body.
-func (c *Client) ListPullRequests(ctx context.Context, repo core.RepoRef, state core.State, after string) (core.Page[core.PullRequest], error) {
+// ListPullRequests returns a page of up to first pull requests of repo in
+// state, most recently updated first. An empty state lists them all. Cursor
+// is the Next of the previous page, or empty for the first page. GitHub
+// accepts a first of 1 to 100. The results have no Body.
+func (c *Client) ListPullRequests(ctx context.Context, repo core.RepoRef, state core.State, cursor string, first int) (core.Page[core.PullRequest], error) {
 	states, err := pullStates(state)
 	if err != nil {
 		return core.Page[core.PullRequest]{}, fmt.Errorf("list pull requests of %s: %w", repo, err)
 	}
-	vars := map[string]any{"owner": repo.Owner, "name": repo.Name, "states": states, "first": pullPageSize}
-	if after != "" {
-		vars["after"] = after
+	vars := map[string]any{"owner": repo.Owner, "name": repo.Name, "states": states, "first": first}
+	if cursor != "" {
+		vars["after"] = cursor
 	}
 	var data struct {
 		Repository *struct {

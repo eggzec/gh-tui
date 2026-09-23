@@ -19,7 +19,7 @@ var repo = core.RepoRef{Owner: "eggzec", Name: "gh-tui"}
 // fakeAPI is an API whose methods are set per test. It counts the calls of
 // each method.
 type fakeAPI struct {
-	list func(ctx context.Context, repo core.RepoRef, state core.State, cursor string) (core.Page[core.PullRequest], error)
+	list func(ctx context.Context, repo core.RepoRef, state core.State, cursor string, first int) (core.Page[core.PullRequest], error)
 	get  func(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error)
 	id   func(ctx context.Context, repo core.RepoRef, number int) (string, error)
 	// mutate backs every mutation. Method names the mutation; merge also
@@ -46,9 +46,9 @@ func (f *fakeAPI) count(method string) int {
 	return f.calls[method]
 }
 
-func (f *fakeAPI) ListPullRequests(ctx context.Context, repo core.RepoRef, state core.State, cursor string) (core.Page[core.PullRequest], error) {
+func (f *fakeAPI) ListPullRequests(ctx context.Context, repo core.RepoRef, state core.State, cursor string, first int) (core.Page[core.PullRequest], error) {
 	f.called("list")
-	return f.list(ctx, repo, state, cursor)
+	return f.list(ctx, repo, state, cursor, first)
 }
 
 func (f *fakeAPI) GetPullRequest(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error) {
@@ -92,7 +92,7 @@ func openPull(number int) core.PullRequest {
 
 // listing returns pages of open pull requests: the first page holds 1 and 2
 // and continues at cursor "c1", which holds 3.
-func listing(_ context.Context, _ core.RepoRef, _ core.State, cursor string) (core.Page[core.PullRequest], error) {
+func listing(_ context.Context, _ core.RepoRef, _ core.State, cursor string, _ int) (core.Page[core.PullRequest], error) {
 	if cursor == "c1" {
 		return core.Page[core.PullRequest]{Items: []core.PullRequest{openPull(3)}}, nil
 	}
@@ -111,8 +111,8 @@ func TestListFreshHitMakesNoCall(t *testing.T) {
 	s := New(api)
 	q := ListQuery{Repo: repo, State: core.StateOpen}
 
-	if _, ok := s.Cached(q); ok {
-		t.Error("Cached reported a page before any fetch")
+	if _, ok := s.CachedList(q); ok {
+		t.Error("CachedList reported a page before any fetch")
 	}
 	first, err := s.List(t.Context(), q)
 	if err != nil {
@@ -128,7 +128,7 @@ func TestListFreshHitMakesNoCall(t *testing.T) {
 	if !reflect.DeepEqual(first, second) {
 		t.Errorf("cached page = %+v, want %+v", second, first)
 	}
-	if got, ok := s.Cached(q); !ok || !reflect.DeepEqual(got, first) {
+	if got, ok := s.CachedList(q); !ok || !reflect.DeepEqual(got, first) {
 		t.Errorf("Cached = %+v, %v; want the fetched page", got, ok)
 	}
 }
@@ -136,7 +136,7 @@ func TestListFreshHitMakesNoCall(t *testing.T) {
 func TestListStaleRefetches(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		title := "before"
-		api := &fakeAPI{list: func(context.Context, core.RepoRef, core.State, string) (core.Page[core.PullRequest], error) {
+		api := &fakeAPI{list: func(context.Context, core.RepoRef, core.State, string, int) (core.Page[core.PullRequest], error) {
 			pr := openPull(1)
 			pr.Title = title
 			return core.Page[core.PullRequest]{Items: []core.PullRequest{pr}}, nil
@@ -149,7 +149,7 @@ func TestListStaleRefetches(t *testing.T) {
 
 		time.Sleep(2 * time.Minute)
 		title = "after"
-		if got, ok := s.Cached(q); !ok || got.Items[0].Title != "before" {
+		if got, ok := s.CachedList(q); !ok || got.Items[0].Title != "before" {
 			t.Errorf("Cached = %+v, %v; want the stale page", got, ok)
 		}
 		got, err := s.List(t.Context(), q)
@@ -169,16 +169,17 @@ func TestListKeysByQuery(t *testing.T) {
 	type call struct {
 		state  core.State
 		cursor string
+		first  int
 	}
 	var (
 		mu    sync.Mutex
 		calls []call
 	)
-	api := &fakeAPI{list: func(ctx context.Context, r core.RepoRef, state core.State, cursor string) (core.Page[core.PullRequest], error) {
+	api := &fakeAPI{list: func(ctx context.Context, r core.RepoRef, state core.State, cursor string, first int) (core.Page[core.PullRequest], error) {
 		mu.Lock()
-		calls = append(calls, call{state, cursor})
+		calls = append(calls, call{state, cursor, first})
 		mu.Unlock()
-		return listing(ctx, r, state, cursor)
+		return listing(ctx, r, state, cursor, first)
 	}}
 	s := New(api)
 
@@ -189,7 +190,7 @@ func TestListKeysByQuery(t *testing.T) {
 	if first.Next != "c1" {
 		t.Fatalf("next = %q, want c1", first.Next)
 	}
-	second, err := s.List(t.Context(), ListQuery{Repo: repo, State: core.StateOpen, After: first.Next})
+	second, err := s.List(t.Context(), ListQuery{Repo: repo, State: core.StateOpen, Cursor: first.Next})
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
@@ -204,15 +205,28 @@ func TestListKeysByQuery(t *testing.T) {
 	if _, err := s.List(t.Context(), ListQuery{Repo: upper, State: core.StateOpen}); err != nil {
 		t.Fatalf("List: %v", err)
 	}
+	// Zero and negative sizes mean the default, and sizes above GitHub's
+	// maximum are clamped to it, so each pair shares a page.
+	for _, size := range []int{defaultPageSize, -1, 10, 10, 500, maxPageSize} {
+		if _, err := s.List(t.Context(), ListQuery{Repo: repo, State: core.StateOpen, PageSize: size}); err != nil {
+			t.Fatalf("List: %v", err)
+		}
+	}
 
-	want := []call{{core.StateOpen, ""}, {core.StateOpen, "c1"}, {core.StateClosed, ""}}
+	want := []call{
+		{core.StateOpen, "", defaultPageSize},
+		{core.StateOpen, "c1", defaultPageSize},
+		{core.StateClosed, "", defaultPageSize},
+		{core.StateOpen, "", 10},
+		{core.StateOpen, "", maxPageSize},
+	}
 	if !reflect.DeepEqual(calls, want) {
 		t.Errorf("calls = %+v, want %+v", calls, want)
 	}
 }
 
 func TestListErrorWrappedAndNotCached(t *testing.T) {
-	api := &fakeAPI{list: func(context.Context, core.RepoRef, core.State, string) (core.Page[core.PullRequest], error) {
+	api := &fakeAPI{list: func(context.Context, core.RepoRef, core.State, string, int) (core.Page[core.PullRequest], error) {
 		return core.Page[core.PullRequest]{}, fmt.Errorf("graphql: %w", core.ErrNotFound)
 	}}
 	s := New(api)
@@ -230,8 +244,8 @@ func TestListErrorWrappedAndNotCached(t *testing.T) {
 	if n := api.count("list"); n != 2 {
 		t.Errorf("API called %d times, want 2: errors must not be cached", n)
 	}
-	if _, ok := s.Cached(q); ok {
-		t.Error("Cached reported a page after a failed fetch")
+	if _, ok := s.CachedList(q); ok {
+		t.Error("CachedList reported a page after a failed fetch")
 	}
 }
 
@@ -239,8 +253,8 @@ func TestGetFreshHitMakesNoCall(t *testing.T) {
 	api := &fakeAPI{get: detail}
 	s := New(api)
 
-	if _, ok := s.CachedDetail(repo, 1); ok {
-		t.Error("CachedDetail reported a detail before any fetch")
+	if _, ok := s.CachedGet(repo, 1); ok {
+		t.Error("CachedGet reported a detail before any fetch")
 	}
 	for range 2 {
 		d, err := s.Get(t.Context(), repo, 1)
@@ -254,8 +268,8 @@ func TestGetFreshHitMakesNoCall(t *testing.T) {
 	if n := api.count("get"); n != 1 {
 		t.Errorf("API called %d times, want 1", n)
 	}
-	if d, ok := s.CachedDetail(repo, 1); !ok || d.Number != 1 {
-		t.Errorf("CachedDetail = %+v, %v; want #1", d, ok)
+	if d, ok := s.CachedGet(repo, 1); !ok || d.Number != 1 {
+		t.Errorf("CachedGet = %+v, %v; want #1", d, ok)
 	}
 	if _, err := s.Get(t.Context(), repo, 2); err != nil {
 		t.Fatalf("Get: %v", err)
@@ -273,8 +287,8 @@ func TestGetStaleRefetches(t *testing.T) {
 			t.Fatalf("Get: %v", err)
 		}
 		time.Sleep(2 * time.Minute)
-		if _, ok := s.CachedDetail(repo, 1); !ok {
-			t.Error("CachedDetail lost the stale detail")
+		if _, ok := s.CachedGet(repo, 1); !ok {
+			t.Error("CachedGet lost the stale detail")
 		}
 		if _, err := s.Get(t.Context(), repo, 1); err != nil {
 			t.Fatalf("Get: %v", err)
@@ -311,7 +325,7 @@ func TestWithCapacity(t *testing.T) {
 			t.Fatalf("Get: %v", err)
 		}
 	}
-	if _, ok := s.CachedDetail(repo, 1); ok {
+	if _, ok := s.CachedGet(repo, 1); ok {
 		t.Error("#1 is still cached beyond the capacity of 1")
 	}
 }
