@@ -24,6 +24,10 @@ type fakeAPI struct {
 	listIssues   func(state core.StateFilter, cursor string, cond github.Conditional) (core.Page[core.Issue], github.Response, error)
 	getIssue     func(number int, cond github.Conditional) (core.Issue, github.Response, error)
 	listComments func(number int, cond github.Conditional) (core.Page[core.Comment], github.Response, error)
+	setState     func(number int, state core.State) (core.Issue, error)
+	addLabels    func(number int, names []string) ([]core.Label, error)
+	removeLabel  func(number int, name string) ([]core.Label, error)
+	comment      func(number int, body string) (core.Comment, error)
 
 	mu    sync.Mutex
 	calls []string
@@ -84,6 +88,38 @@ func (f *fakeAPI) ListIssueComments(_ context.Context, r core.RepoRef, number in
 		return core.Page[core.Comment]{}, github.Response{}, errUnexpected
 	}
 	return f.listComments(number, cond)
+}
+
+func (f *fakeAPI) SetIssueState(_ context.Context, r core.RepoRef, number int, state core.State) (core.Issue, error) {
+	f.checkRepo(r)
+	if !f.record("SetIssueState", f.setState != nil) {
+		return core.Issue{}, errUnexpected
+	}
+	return f.setState(number, state)
+}
+
+func (f *fakeAPI) AddIssueLabels(_ context.Context, r core.RepoRef, number int, names []string) ([]core.Label, error) {
+	f.checkRepo(r)
+	if !f.record("AddIssueLabels", f.addLabels != nil) {
+		return nil, errUnexpected
+	}
+	return f.addLabels(number, names)
+}
+
+func (f *fakeAPI) RemoveIssueLabel(_ context.Context, r core.RepoRef, number int, name string) ([]core.Label, error) {
+	f.checkRepo(r)
+	if !f.record("RemoveIssueLabel", f.removeLabel != nil) {
+		return nil, errUnexpected
+	}
+	return f.removeLabel(number, name)
+}
+
+func (f *fakeAPI) CreateIssueComment(_ context.Context, r core.RepoRef, number int, body string) (core.Comment, error) {
+	f.checkRepo(r)
+	if !f.record("CreateIssueComment", f.comment != nil) {
+		return core.Comment{}, errUnexpected
+	}
+	return f.comment(number, body)
 }
 
 func (f *fakeAPI) checkRepo(r core.RepoRef) {

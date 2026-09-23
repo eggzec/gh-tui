@@ -10,7 +10,8 @@ import (
 type Option func(*options)
 
 type options struct {
-	cache []cache.Option
+	cache  []cache.Option
+	viewer string
 }
 
 // WithTTL sets how long fetched issues count as fresh. Until then, reads
@@ -23,4 +24,10 @@ func WithTTL(d time.Duration) Option {
 // each kept. The default is cache.DefaultCapacity.
 func WithCapacity(n int) Option {
 	return func(o *options) { o.cache = append(o.cache, cache.WithCapacity(n)) }
+}
+
+// WithViewer sets the login of the signed-in user, who is shown as the
+// author of a comment until GitHub confirms it.
+func WithViewer(login string) Option {
+	return func(o *options) { o.viewer = login }
 }
