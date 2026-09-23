@@ -27,7 +27,8 @@ func (r RepoRef) String() string {
 	return r.Owner + "/" + r.Name
 }
 
-// Repo is a GitHub repository.
+// Repo is a GitHub repository. ID is the GraphQL node ID. Starred reports
+// whether the viewer has starred it.
 type Repo struct {
 	ID            string
 	Ref           RepoRef
@@ -35,6 +36,7 @@ type Repo struct {
 	DefaultBranch string
 	Language      string
 	Stars         int
+	Starred       bool
 	Private       bool
 	Fork          bool
 	Archived      bool
