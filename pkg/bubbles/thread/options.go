@@ -16,7 +16,12 @@ type settings struct {
 	styles        Styles
 	markdown      *ansi.StyleConfig
 	ctx           context.Context
+	maxChunks     int
 }
+
+// DefaultMaxChunks is how many comment chunks a thread keeps rendered unless
+// [WithMaxChunks] says otherwise.
+const DefaultMaxChunks = 8
 
 // WithSize sets the width and height of the thread.
 func WithSize(width, height int) Option {
@@ -60,5 +65,16 @@ func WithMarkdownStyle(cfg ansi.StyleConfig) Option {
 func WithContext(ctx context.Context) Option {
 	return func(s *settings) {
 		s.ctx = ctx
+	}
+}
+
+// WithMaxChunks sets how many comment chunks stay in memory. Chunks far from
+// the screen beyond that are dropped, keeping only their cursor and height,
+// and are fetched again when the screen nears them. The chunks on or near the
+// screen are always kept, so a small n never makes them flicker. Zero or less
+// keeps every chunk.
+func WithMaxChunks(n int) Option {
+	return func(s *settings) {
+		s.maxChunks = n
 	}
 }

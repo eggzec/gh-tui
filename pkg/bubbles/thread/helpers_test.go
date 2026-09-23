@@ -117,16 +117,17 @@ The cache drops entries **too early** when the TTL is short.
 
 // newTest returns a sized, focused thread over src with a pinned markdown
 // style, so the output is the same on every machine.
-func newTest(src *source, r *renders, width, height int) Model[comment] {
+func newTest(src *source, r *renders, width, height int, opts ...Option) Model[comment] {
 	render := renderComment
 	if r != nil {
 		render = r.render
 	}
-	return New(src.fetch, render,
+	opts = append([]Option{
 		WithSize(width, height),
 		WithFocused(true),
 		WithMarkdownStyle(glamourstyles.ASCIIStyleConfig),
-	)
+	}, opts...)
+	return New(src.fetch, render, opts...)
 }
 
 // drain runs cmd and every command that follows, feeding the messages back
@@ -186,11 +187,35 @@ func keyMsg(k string) tea.KeyPressMsg {
 }
 
 // loaded returns a thread with its document set and the first chunks loaded.
-func loaded(tb testing.TB, src *source, r *renders, width, height int) Model[comment] {
+func loaded(tb testing.TB, src *source, r *renders, width, height int, opts ...Option) Model[comment] {
 	tb.Helper()
-	m := newTest(src, r, width, height)
+	m := newTest(src, r, width, height, opts...)
 	cmd := m.SetDocument(testHeader, testBody)
 	return drain(tb, m, cmd)
 }
 
 const testHeader = "\x1b[1mCache drops entries early\x1b[m #42\nopen · alice opened 3 days ago"
+
+// toEnd presses G until every chunk is loaded.
+func toEnd(tb testing.TB, m Model[comment]) Model[comment] {
+	tb.Helper()
+	for range 100 {
+		if m.done() && m.AtBottom() {
+			return m
+		}
+		m = press(tb, m, "G")
+	}
+	tb.Fatal("never reached the end")
+	return m
+}
+
+// resident returns the indexes of the loaded chunks with comments.
+func resident(m Model[comment]) []int {
+	var out []int
+	for i, c := range m.chunks {
+		if c.loaded && c.height > 0 {
+			out = append(out, i)
+		}
+	}
+	return out
+}

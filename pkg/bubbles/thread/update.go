@@ -75,16 +75,95 @@ func (m *Model[T]) spinning() bool {
 	return !m.hasDoc || m.tail.loading
 }
 
-// manage loads the first chunk once the document is set, and the next one
-// when the screen is within a screen of the end.
+// manage keeps the chunks around the screen in memory. It loads the first
+// chunk once the document is set and the next one within a screen of the
+// end, fetches evicted chunks again as the screen nears them, and evicts
+// chunks far from it beyond maxChunks.
 func (m *Model[T]) manage() tea.Cmd {
-	if !m.hasDoc || m.tail.loading || m.tail.err != nil || !m.more() {
+	if !m.hasDoc {
 		return nil
 	}
-	if m.started && m.vp.YOffset()+2*m.height < len(m.lines) {
-		return nil
+	y := m.vp.YOffset()
+	lo, hi := y-m.height, y+2*m.height
+
+	var cmd tea.Cmd
+	relayout := false
+	for i := range m.chunks {
+		c := &m.chunks[i]
+		near := m.overlaps(i, lo, hi)
+		switch {
+		case c.loaded || c.loading:
+		case c.err != nil && !near:
+			// Out of sight, a failed chunk is fetched again on its own
+			// when the screen comes back to it.
+			c.err, relayout = nil, true
+		case c.err == nil && near:
+			cmd = batch(cmd, m.loadChunk(i))
+		}
 	}
-	return m.loadTail()
+	if m.evict(lo, hi) || relayout {
+		m.layout(m.anchor())
+	}
+	if m.tail.loading || m.tail.err != nil || !m.more() {
+		return cmd
+	}
+	if m.started && hi < len(m.lines) {
+		return cmd
+	}
+	return batch(cmd, m.loadTail())
+}
+
+// batch is tea.Batch for two commands, without allocating when one is nil,
+// which is the common case on a scroll key.
+func batch(a, b tea.Cmd) tea.Cmd {
+	switch {
+	case a == nil:
+		return b
+	case b == nil:
+		return a
+	}
+	return tea.Batch(a, b)
+}
+
+func (m *Model[T]) overlaps(i, lo, hi int) bool {
+	start := m.starts[i]
+	return start < hi && start+m.chunks[i].height > lo
+}
+
+// evict drops the loaded chunks farthest from lines [lo, hi) until at most
+// maxChunks remain, and reports whether it dropped any. Chunks within
+// [lo, hi) always stay.
+func (m *Model[T]) evict(lo, hi int) bool {
+	if m.maxChunks <= 0 {
+		return false
+	}
+	n := 0
+	for i := range m.chunks {
+		if m.chunks[i].loaded && m.chunks[i].height > 0 {
+			n++
+		}
+	}
+	evicted := false
+	for ; n > m.maxChunks; n-- {
+		far, dist := -1, 0
+		for i := range m.chunks {
+			c := &m.chunks[i]
+			if !c.loaded || c.height == 0 || m.overlaps(i, lo, hi) {
+				continue
+			}
+			d := max(lo-(m.starts[i]+c.height), m.starts[i]-hi)
+			if far < 0 || d > dist {
+				far, dist = i, d
+			}
+		}
+		if far < 0 {
+			break
+		}
+		c := &m.chunks[far]
+		c.items, c.lines, c.starts, c.loaded = nil, nil, nil, false
+		evicted = true
+	}
+	return evicted
 }
 
 // more reports whether chunks remain after the last one.
@@ -105,15 +184,60 @@ func (m *Model[T]) loadTail() tea.Cmd {
 	return tea.Batch(m.fetchCmd(len(m.chunks), m.tail.seq, true, cursor), m.spin.Tick)
 }
 
+// loadChunk fetches chunk i again.
+func (m *Model[T]) loadChunk(i int) tea.Cmd {
+	c := &m.chunks[i]
+	c.loading, c.err = true, nil
+	c.seq++
+	return m.fetchCmd(i, c.seq, false, c.cursor)
+}
+
+// retry fetches again whatever failed: the next chunk or evicted ones.
 func (m *Model[T]) retry() tea.Cmd {
-	if m.tail.err != nil {
-		return m.loadTail()
+	var cmd tea.Cmd
+	for i := range m.chunks {
+		if m.chunks[i].err != nil {
+			cmd = batch(cmd, m.loadChunk(i))
+		}
 	}
-	return nil
+	if cmd != nil {
+		m.layout(m.anchor())
+	}
+	if m.tail.err != nil {
+		cmd = batch(cmd, m.loadTail())
+	}
+	return cmd
 }
 
 func (m *Model[T]) apply(msg fetchedMsg[T]) {
-	if !msg.tail || !m.tail.loading || msg.seq != m.tail.seq || msg.index != len(m.chunks) {
+	if msg.tail {
+		m.applyTail(msg)
+		return
+	}
+	if msg.index >= len(m.chunks) {
+		return
+	}
+	c := &m.chunks[msg.index]
+	if !c.loading || msg.seq != c.seq {
+		return
+	}
+	a := m.anchor()
+	c.loading = false
+	if msg.err != nil {
+		c.err = msg.err
+	} else {
+		c.items = msg.items
+		if msg.index == len(m.chunks)-1 {
+			// Only the last chunk's next matters: it may have gained one.
+			c.next = msg.next
+		}
+		m.renderChunk(c)
+	}
+	m.layout(a)
+}
+
+func (m *Model[T]) applyTail(msg fetchedMsg[T]) {
+	if !m.tail.loading || msg.seq != m.tail.seq || msg.index != len(m.chunks) {
 		return
 	}
 	a := m.anchor()
