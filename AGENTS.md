@@ -45,7 +45,9 @@ internal/
   cache/              in-memory LRU, optional disk layer, TTL and ETag metadata
   watch/              sync engine: polling, conditional requests, change events
   service/<domain>/   business logic per domain (pulls, issues, repos, notifications…)
-  tui/                glue: root model, routing, layout, and adapters from services to bubbles
+  tui/                root model: tabs, help, toasts, and routing between sections
+  tui/ui/             what sections share: the Section interface, theme, keys, app messages
+  tui/<section>/      one package per section, adapting a service to bubbles
 pkg/bubbles/<name>/   reusable Elm-style components with no knowledge of gh-tui
 third_party/<name>/   vendored upstream code that needed changes (see Vendoring)
 ```
@@ -94,8 +96,15 @@ Each bubble is a self-contained Elm component: model, `Init`, `Update`, and `Vie
   The tui adapts service calls to these signatures. Bubbles never see services.
 - **Customization follows Charm conventions.** Expose `KeyMap` and
   `DefaultKeyMap()`, `Styles` and `DefaultStyles(isDark bool)`,
-  `SetKeyMap`, `SetStyles`, `SetWidth` and `SetHeight`. Implement
+  `SetKeyMap`, `SetStyles` and `SetSize(width, height)`. Implement
   `help.KeyMap` (`ShortHelp`/`FullHelp`).
+- **Components render strings.** A bubble's `View()` returns a string that
+  fits its size exactly; only the root returns a `tea.View`.
+- **Interactive bubbles start blurred**, and the parent focuses the one in
+  use. A resize that reveals rows not yet loaded fetches them on the next
+  `Update`.
+- **Copy slices you keep or change.** Models are values, so copies share
+  their slices.
 - **Messages are scoped.** Each instance gets an ID, and its messages carry
   that ID, so two instances of the same bubble never react to each other's
   messages.
@@ -256,10 +265,12 @@ gopls diagnostics and golangci-lint must be clean before you commit. To check
 that every commit on a branch passes on its own:
 
 ```sh
+chk="$TMPDIR/chk-$(git branch --show-current | tr / -)"   # unique per branch
 for c in $(git rev-list --reverse origin/main..HEAD); do
-  git worktree add -q --detach "$TMPDIR/chk" "$c"
-  (cd "$TMPDIR/chk" && go build ./... && go test -race ./... && golangci-lint run ./...)
-  git worktree remove --force "$TMPDIR/chk"
+  git worktree add -q --detach "$chk" "$c"
+  (cd "$chk" && go build ./... && go vet ./... && go test -race ./... &&
+    golangci-lint run --allow-parallel-runners ./... && golangci-lint fmt --diff ./...)
+  git worktree remove --force "$chk"
 done
 ```
 
