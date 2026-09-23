@@ -275,6 +275,7 @@ func TestFetchKeepsNewerWrite(t *testing.T) {
 	}{
 		{"set", func(c *Cache[int]) { c.Set("k", Entry[int]{Value: 2}) }, Fresh},
 		{"invalidate", func(c *Cache[int]) { c.Invalidate("k") }, Stale},
+		{"mutate", func(c *Cache[int]) { c.Mutate("k", func(v int) int { return v }) }, Stale},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
