@@ -1,0 +1,20 @@
+[
+  {
+    "id": 5916253891,
+    "node_id": "LA_kwDOJ5Hs3c8AAAABYKJ-ww",
+    "url": "https://api.github.com/repos/octo-org/hello/labels/bug",
+    "name": "bug",
+    "color": "d73a4a",
+    "default": true,
+    "description": "Something isn't working"
+  },
+  {
+    "id": 5916253899,
+    "node_id": "LA_kwDOJ5Hs3c8AAAABYKJ-yz",
+    "url": "https://api.github.com/repos/octo-org/hello/labels/good%20first%20issue",
+    "name": "good first issue",
+    "color": "7057ff",
+    "default": true,
+    "description": "Good for newcomers"
+  }
+]

@@ -3,11 +3,13 @@ package github
 import (
 	"context"
 	"errors"
+	"io"
 	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -262,6 +264,158 @@ func TestIssueReadsErrors(t *testing.T) {
 				}
 				if !empty {
 					t.Error("returned a value along with the error")
+				}
+			})
+		}
+	}
+}
+
+// serveIssueMutation answers every request with status and the named file
+// in testdata, after check has looked at the request and its JSON body.
+func serveIssueMutation(t *testing.T, name string, status int, check func(r *http.Request, body string)) *Client {
+	t.Helper()
+	out, err := os.ReadFile(filepath.Join("testdata", name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		in, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Errorf("read request body: %v", err)
+		}
+		check(r, strings.TrimSpace(string(in)))
+		w.WriteHeader(status)
+		_, _ = w.Write(out)
+	}))
+}
+
+func checkIssueBody(t *testing.T, got, want string) {
+	t.Helper()
+	if got != want {
+		t.Errorf("request body = %s, want %s", got, want)
+	}
+}
+
+func TestSetIssueState(t *testing.T) {
+	c := serveIssueMutation(t, "issues_update.json", http.StatusOK, func(r *http.Request, body string) {
+		checkIssueRequest(t, r, http.MethodPatch, "/repos/octo-org/hello/issues/42", nil)
+		checkIssueBody(t, body, `{"state":"closed"}`)
+	})
+	got, err := c.SetIssueState(t.Context(), issueRepo, 42, core.StateClosed)
+	if err != nil {
+		t.Fatalf("SetIssueState: %v", err)
+	}
+	want := wantIssue42
+	want.State = core.StateClosed
+	want.Assignees = nil
+	want.UpdatedAt = issueTime("2026-09-21T10:00:00Z")
+	if !equalIssue(got, want) {
+		t.Errorf("issue = %+v, want %+v", got, want)
+	}
+}
+
+var wantIssueLabels = []core.Label{
+	{Name: "bug", Color: "d73a4a", Description: "Something isn't working"},
+	{Name: "good first issue", Color: "7057ff", Description: "Good for newcomers"},
+}
+
+func TestAddIssueLabels(t *testing.T) {
+	c := serveIssueMutation(t, "issues_labels.json", http.StatusOK, func(r *http.Request, body string) {
+		checkIssueRequest(t, r, http.MethodPost, "/repos/octo-org/hello/issues/42/labels", nil)
+		checkIssueBody(t, body, `{"labels":["good first issue"]}`)
+	})
+	got, err := c.AddIssueLabels(t.Context(), issueRepo, 42, []string{"good first issue"})
+	if err != nil {
+		t.Fatalf("AddIssueLabels: %v", err)
+	}
+	if !slices.Equal(got, wantIssueLabels) {
+		t.Errorf("labels = %+v, want %+v", got, wantIssueLabels)
+	}
+}
+
+func TestRemoveIssueLabel(t *testing.T) {
+	c := serveIssueMutation(t, "issues_labels.json", http.StatusOK, func(r *http.Request, body string) {
+		if r.Method != http.MethodDelete {
+			t.Errorf("method = %s, want DELETE", r.Method)
+		}
+		// The name is one path segment, so its slash must stay escaped.
+		if got, want := r.URL.EscapedPath(), "/repos/octo-org/hello/issues/42/labels/area%2Fui%20kit"; got != want {
+			t.Errorf("path = %s, want %s", got, want)
+		}
+		checkIssueBody(t, body, "")
+	})
+	got, err := c.RemoveIssueLabel(t.Context(), issueRepo, 42, "area/ui kit")
+	if err != nil {
+		t.Fatalf("RemoveIssueLabel: %v", err)
+	}
+	if !slices.Equal(got, wantIssueLabels) {
+		t.Errorf("labels = %+v, want %+v", got, wantIssueLabels)
+	}
+}
+
+func TestRemoveLastIssueLabel(t *testing.T) {
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	got, err := c.RemoveIssueLabel(t.Context(), issueRepo, 42, "bug")
+	if err != nil || got != nil {
+		t.Errorf("RemoveIssueLabel = %v, %v; want no labels", got, err)
+	}
+}
+
+func TestCreateIssueComment(t *testing.T) {
+	c := serveIssueMutation(t, "issues_comment_created.json", http.StatusCreated, func(r *http.Request, body string) {
+		checkIssueRequest(t, r, http.MethodPost, "/repos/octo-org/hello/issues/42/comments", nil)
+		checkIssueBody(t, body, `{"body":"Closing, fixed in v0.4."}`)
+	})
+	got, err := c.CreateIssueComment(t.Context(), issueRepo, 42, "Closing, fixed in v0.4.")
+	if err != nil {
+		t.Fatalf("CreateIssueComment: %v", err)
+	}
+	want := core.Comment{
+		ID:        "IC_kwDOJ5Hs3c7EwZ3T",
+		Author:    core.User{Login: "octocat"},
+		Body:      "Closing, fixed in v0.4.",
+		CreatedAt: issueTime("2026-09-21T10:05:00Z"),
+		UpdatedAt: issueTime("2026-09-21T10:05:00Z"),
+	}
+	if !equalComment(got, want) {
+		t.Errorf("comment = %+v, want %+v", got, want)
+	}
+}
+
+func TestIssueMutationErrors(t *testing.T) {
+	mutations := map[string]func(c *Client, ctx context.Context) error{
+		"SetIssueState": func(c *Client, ctx context.Context) error {
+			_, err := c.SetIssueState(ctx, issueRepo, 42, core.StateClosed)
+			return err
+		},
+		"AddIssueLabels": func(c *Client, ctx context.Context) error {
+			_, err := c.AddIssueLabels(ctx, issueRepo, 42, []string{"bug"})
+			return err
+		},
+		"RemoveIssueLabel": func(c *Client, ctx context.Context) error {
+			_, err := c.RemoveIssueLabel(ctx, issueRepo, 42, "bug")
+			return err
+		},
+		"CreateIssueComment": func(c *Client, ctx context.Context) error {
+			_, err := c.CreateIssueComment(ctx, issueRepo, 42, "")
+			return err
+		},
+	}
+	statuses := map[int]error{
+		http.StatusNotFound:            core.ErrNotFound,
+		http.StatusUnprocessableEntity: core.ErrConflict,
+	}
+	for name, mutate := range mutations {
+		for status, want := range statuses {
+			t.Run(name+"/"+http.StatusText(status), func(t *testing.T) {
+				c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+					w.WriteHeader(status)
+					_, _ = w.Write([]byte(`{"message":"Validation Failed","errors":[{"resource":"IssueComment","code":"missing_field","field":"body"}]}`))
+				}))
+				if err := mutate(c, t.Context()); !errors.Is(err, want) {
+					t.Errorf("error = %v, want %v", err, want)
 				}
 			})
 		}
