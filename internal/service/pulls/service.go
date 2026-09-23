@@ -165,3 +165,15 @@ func (s *Service) Get(ctx context.Context, repo core.RepoRef, number int) (core.
 	}
 	return d, nil
 }
+
+// Invalidate marks everything cached of repo stale: its list pages, details,
+// comments and reviews. They are still served by the Cached reads, and the
+// next fetch of each goes to GitHub, so a refresh reaches the server even
+// while the entries are fresh.
+func (s *Service) Invalidate(repo core.RepoRef) {
+	tag := repoTag(repo)
+	s.lists.InvalidateTag(tag)
+	s.details.InvalidateTag(tag)
+	s.comments.InvalidateTag(tag)
+	s.reviews.InvalidateTag(tag)
+}

@@ -74,6 +74,14 @@ func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.Notific
 	return e.Value, nil
 }
 
+// Invalidate marks every cached page stale. The pages are still served by
+// CachedList, and the next List of each revalidates it with its validators,
+// so a refresh reaches the server even while the pages are fresh, and costs
+// no rate limit if nothing changed.
+func (s *Service) Invalidate() {
+	s.cache.InvalidateTag(tag)
+}
+
 // Poll revalidates the default inbox, as a watch.PollFunc. Changed is true
 // only when GitHub sent new data, which is then cached, so refetching the
 // zero ListQuery afterwards is a fresh hit. Interval is GitHub's X-Poll-Interval.

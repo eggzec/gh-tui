@@ -326,3 +326,49 @@ func TestPollError(t *testing.T) {
 		t.Errorf("CachedList after a failed Poll = %+v, %v; want page1", c, ok)
 	}
 }
+
+func TestInvalidateRevalidatesEveryPage(t *testing.T) {
+	var conds []github.Conditional
+	api := &fakeAPI{list: func(_ core.NotificationFilter, _ int, cursor string, cond github.Conditional) (page, github.Response, error) {
+		conds = append(conds, cond)
+		if cursor != "" {
+			res := github.Response{ETag: `"p2"`}
+			if cond.ETag == `"p2"` {
+				res.NotModified = true
+				return page{}, res, nil
+			}
+			return page2, res, nil
+		}
+		return servePage1(core.NotificationFilter{}, 0, cursor, cond)
+	}}
+	s := New(api)
+	queries := []ListQuery{{}, {Cursor: page1.Next}}
+	list := func() {
+		t.Helper()
+		for _, q := range queries {
+			if _, err := s.List(t.Context(), q); err != nil {
+				t.Fatalf("List(%+v): %v", q, err)
+			}
+		}
+	}
+	list()
+
+	s.Invalidate()
+	for _, q := range queries {
+		if _, ok := s.CachedList(q); !ok {
+			t.Errorf("page %+v was dropped, want it kept stale", q)
+		}
+	}
+	list() // Both pages are revalidated, and GitHub answers 304.
+	list() // The 304s made them fresh again.
+	if n := api.lists.Load(); n != 4 {
+		t.Errorf("API called %d times, want 4", n)
+	}
+	want := []github.Conditional{{}, {}, {LastModified: modified1}, {ETag: `"p2"`}}
+	if !slices.Equal(conds, want) {
+		t.Errorf("validators sent = %+v, want %+v", conds, want)
+	}
+	if p, _ := s.CachedList(queries[1]); !equal(p, page2) {
+		t.Errorf("CachedList after a 304 = %+v, want page2", p)
+	}
+}

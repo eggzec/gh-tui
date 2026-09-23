@@ -376,3 +376,70 @@ func TestCommentsError(t *testing.T) {
 		t.Error("CachedComments reported a page that failed to load")
 	}
 }
+
+func TestInvalidateRevalidatesRepo(t *testing.T) {
+	// The reads run one at a time, so the fakes need no lock.
+	var conds []github.Conditional
+	cond := func(c github.Conditional) { conds = append(conds, c) }
+	api := &fakeAPI{
+		t: t,
+		listIssues: func(_ core.StateFilter, _ string, _ int, c github.Conditional) (core.Page[core.Issue], github.Response, error) {
+			cond(c)
+			if c.ETag != "" {
+				return core.Page[core.Issue]{}, notModified, nil
+			}
+			return page("", 7), ok(`"l1"`), nil
+		},
+		getIssue: func(number int, c github.Conditional) (core.Issue, github.Response, error) {
+			cond(c)
+			if c.ETag != "" {
+				return core.Issue{}, notModified, nil
+			}
+			return issue(number), ok(`"i1"`), nil
+		},
+		listComments: func(_ int, cursor string, perPage int, c github.Conditional) (core.Page[core.Comment], github.Response, error) {
+			cond(c)
+			if c.ETag != "" {
+				return core.Page[core.Comment]{}, notModified, nil
+			}
+			return commentPage(t, thread(2), cursor, perPage), ok(`"c1"`), nil
+		},
+	}
+	s := New(api)
+	lq, cq := ListQuery{Repo: repo}, CommentsQuery{Repo: repo, Number: 7}
+	read := func() {
+		t.Helper()
+		if p, err := s.List(t.Context(), lq); err != nil || !slices.Equal(numbers(p), []int{7}) {
+			t.Fatalf("List = %v, %v; want [7]", numbers(p), err)
+		}
+		if it, err := s.Get(t.Context(), repo, 7); err != nil || it.Number != 7 {
+			t.Fatalf("Get = %+v, %v; want issue 7", it, err)
+		}
+		if p, err := s.Comments(t.Context(), cq); err != nil || len(p.Items) != 2 {
+			t.Fatalf("Comments = %v, %v; want 2 comments", ids(p), err)
+		}
+	}
+	read()
+	api.checkCalls(t, "ListIssues", "GetIssue", "ListIssueComments")
+
+	s.Invalidate(repo)
+	if _, cached := s.CachedList(lq); !cached {
+		t.Error("list page was dropped, want it kept stale")
+	}
+	if _, cached := s.CachedGet(repo, 7); !cached {
+		t.Error("issue was dropped, want it kept stale")
+	}
+	if _, cached := s.CachedComments(cq); !cached {
+		t.Error("comments were dropped, want them kept stale")
+	}
+	read() // Each read asks GitHub, which answers 304.
+	api.checkCalls(t, "ListIssues", "GetIssue", "ListIssueComments")
+	read() // The 304s made the entries fresh again.
+	api.checkCalls(t)
+
+	slices.SortFunc(conds, func(a, b github.Conditional) int { return strings.Compare(a.ETag, b.ETag) })
+	want := []github.Conditional{{}, {}, {}, {ETag: `"c1"`}, {ETag: `"i1"`}, {ETag: `"l1"`}}
+	if !slices.Equal(conds, want) {
+		t.Errorf("validators sent = %q, want %q", conds, want)
+	}
+}

@@ -80,9 +80,10 @@ func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.Repo], 
 		if err != nil {
 			return cache.Entry[core.Page[core.Repo]]{}, err
 		}
-		tags := make([]string, len(p.Items))
+		tags := make([]string, 0, len(p.Items)+1)
+		tags = append(tags, allTag)
 		for i := range p.Items {
-			tags[i] = repoTag(p.Items[i].Ref)
+			tags = append(tags, repoTag(p.Items[i].Ref))
 		}
 		return cache.Entry[core.Page[core.Repo]]{Value: p, Tags: tags}, nil
 	})
@@ -106,13 +107,25 @@ func (s *Service) Get(ctx context.Context, ref core.RepoRef) (core.Repo, error) 
 		if err != nil {
 			return cache.Entry[core.Repo]{}, err
 		}
-		return cache.Entry[core.Repo]{Value: r, Tags: []string{repoTag(ref)}}, nil
+		return cache.Entry[core.Repo]{Value: r, Tags: []string{allTag, repoTag(ref)}}, nil
 	})
 	if err != nil {
 		return core.Repo{}, fmt.Errorf("get repo %s: %w", ref, err)
 	}
 	return e.Value, nil
 }
+
+// Invalidate marks every cached list page and repository stale. They are
+// still served by the Cached reads, and the next fetch of each goes to
+// GitHub, so a refresh reaches the server even while the entries are fresh.
+func (s *Service) Invalidate() {
+	s.lists.InvalidateTag(allTag)
+	s.repos.InvalidateTag(allTag)
+}
+
+// allTag marks every entry, so Invalidate finds pages that list no
+// repository too.
+const allTag = "all"
 
 func listKey(q ListQuery) string {
 	return "list?page_size=" + strconv.Itoa(q.PageSize) + "&cursor=" + q.Cursor
