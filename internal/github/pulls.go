@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -11,7 +12,9 @@ import (
 
 // Pull requests are read with GraphQL: REST has neither the review decision
 // nor the checks rollup, and one query fetches the labels, author and checks
-// that a list row shows.
+// that a list row shows. They are changed with GraphQL too, because every
+// mutation there returns the updated pull request, where the REST merge
+// returns only a commit SHA and REST has no draft endpoints.
 
 // pullPageSize is how many pull requests a list page holds.
 const pullPageSize = 30
@@ -334,4 +337,106 @@ func (c *Client) GetPullRequest(ctx context.Context, repo core.RepoRef, number i
 		return core.PullRequestDetail{}, fmt.Errorf("get pull request %s#%d: %w", repo, number, err)
 	}
 	return data.Repository.PullRequest.core(), nil
+}
+
+var pullIDQuery = `query($owner: String!, $name: String!, $number: Int!) {
+  repository(owner: $owner, name: $name) { pullRequest(number: $number) { id } }
+}`
+
+// PullRequestID returns the node ID of pull request number of repo, which
+// the mutations take.
+func (c *Client) PullRequestID(ctx context.Context, repo core.RepoRef, number int) (string, error) {
+	vars := map[string]any{"owner": repo.Owner, "name": repo.Name, "number": number}
+	var data struct {
+		Repository *struct {
+			PullRequest *struct {
+				ID string `json:"id"`
+			} `json:"pullRequest"`
+		} `json:"repository"`
+	}
+	err := c.Query(ctx, pullIDQuery, vars, &data)
+	if err == nil && (data.Repository == nil || data.Repository.PullRequest == nil) {
+		err = core.ErrNotFound
+	}
+	if err != nil {
+		return "", fmt.Errorf("look up pull request %s#%d: %w", repo, number, err)
+	}
+	return data.Repository.PullRequest.ID, nil
+}
+
+// pullMutation is a mutation on the pull request with node ID $id. Its
+// payload is aliased to result, so that one shape decodes them all.
+func pullMutation(field string) string {
+	return fmt.Sprintf(`mutation($id: ID!) {
+  result: %s(input: {pullRequestId: $id}) { pullRequest { ...pullFields } }
+}
+`, field) + pullFields
+}
+
+var (
+	mergePullMutation = `mutation($id: ID!, $method: PullRequestMergeMethod!) {
+  result: mergePullRequest(input: {pullRequestId: $id, mergeMethod: $method}) { pullRequest { ...pullFields } }
+}
+` + pullFields
+	closePullMutation   = pullMutation("closePullRequest")
+	reopenPullMutation  = pullMutation("reopenPullRequest")
+	readyPullMutation   = pullMutation("markPullRequestReadyForReview")
+	toDraftPullMutation = pullMutation("convertPullRequestToDraft")
+)
+
+// errNoPull is returned when a mutation succeeds without returning the pull
+// request, which GitHub should not do.
+var errNoPull = errors.New("response has no pull request")
+
+// mutatePull runs a pull request mutation and returns the updated pull
+// request. What names the mutation in errors.
+func (c *Client) mutatePull(ctx context.Context, what, query string, vars map[string]any) (core.PullRequest, error) {
+	var data struct {
+		Result *struct {
+			PullRequest *pull `json:"pullRequest"`
+		} `json:"result"`
+	}
+	err := c.Query(ctx, query, vars, &data)
+	if err == nil && (data.Result == nil || data.Result.PullRequest == nil) {
+		err = errNoPull
+	}
+	if err != nil {
+		return core.PullRequest{}, fmt.Errorf("%s pull request %s: %w", what, vars["id"], err)
+	}
+	return data.Result.PullRequest.core(), nil
+}
+
+// MergePullRequest merges the pull request with node ID id using method and
+// returns it as merged.
+func (c *Client) MergePullRequest(ctx context.Context, id string, method core.MergeMethod) (core.PullRequest, error) {
+	switch method {
+	case core.MergeCommit, core.MergeSquash, core.MergeRebase:
+	default:
+		return core.PullRequest{}, fmt.Errorf("merge pull request %s: unknown merge method %q", id, method)
+	}
+	vars := map[string]any{"id": id, "method": strings.ToUpper(string(method))}
+	return c.mutatePull(ctx, "merge", mergePullMutation, vars)
+}
+
+// ClosePullRequest closes the pull request with node ID id without merging
+// it.
+func (c *Client) ClosePullRequest(ctx context.Context, id string) (core.PullRequest, error) {
+	return c.mutatePull(ctx, "close", closePullMutation, map[string]any{"id": id})
+}
+
+// ReopenPullRequest reopens the closed pull request with node ID id.
+func (c *Client) ReopenPullRequest(ctx context.Context, id string) (core.PullRequest, error) {
+	return c.mutatePull(ctx, "reopen", reopenPullMutation, map[string]any{"id": id})
+}
+
+// MarkPullRequestReady marks the draft pull request with node ID id as ready
+// for review.
+func (c *Client) MarkPullRequestReady(ctx context.Context, id string) (core.PullRequest, error) {
+	return c.mutatePull(ctx, "mark ready", readyPullMutation, map[string]any{"id": id})
+}
+
+// ConvertPullRequestToDraft turns the pull request with node ID id back into
+// a draft.
+func (c *Client) ConvertPullRequestToDraft(ctx context.Context, id string) (core.PullRequest, error) {
+	return c.mutatePull(ctx, "convert to draft", toDraftPullMutation, map[string]any{"id": id})
 }

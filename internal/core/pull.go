@@ -51,6 +51,16 @@ type PullRequestDetail struct {
 	CheckRuns []CheckRun
 }
 
+// MergeMethod is how a pull request is merged into its base branch.
+type MergeMethod string
+
+// Merge methods.
+const (
+	MergeCommit MergeMethod = "merge"
+	MergeSquash MergeMethod = "squash"
+	MergeRebase MergeMethod = "rebase"
+)
+
 // ReviewState is the state of a single review.
 type ReviewState string
 

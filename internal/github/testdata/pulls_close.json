@@ -1,0 +1,59 @@
+{
+  "data": {
+    "result": {
+      "pullRequest": {
+        "id": "PR_kwDOLnBTf85xYz01",
+        "number": 42,
+        "title": "Add pull request list",
+        "state": "CLOSED",
+        "isDraft": false,
+        "url": "https://github.com/eggzec/gh-tui/pull/42",
+        "createdAt": "2026-09-20T08:15:00Z",
+        "updatedAt": "2026-09-23T09:00:05Z",
+        "mergedAt": null,
+        "repository": {
+          "name": "gh-tui",
+          "owner": {
+            "login": "eggzec"
+          }
+        },
+        "author": {
+          "login": "octocat",
+          "name": "The Octocat"
+        },
+        "labels": {
+          "nodes": [
+            {
+              "name": "enhancement",
+              "color": "a2eeef",
+              "description": "New feature or request"
+            }
+          ]
+        },
+        "assignees": {
+          "nodes": []
+        },
+        "comments": {
+          "totalCount": 3
+        },
+        "headRefName": "feat/pulls",
+        "baseRefName": "main",
+        "reviewDecision": "APPROVED",
+        "additions": 512,
+        "deletions": 18,
+        "changedFiles": 7,
+        "commits": {
+          "nodes": [
+            {
+              "commit": {
+                "statusCheckRollup": {
+                  "state": "SUCCESS"
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}
