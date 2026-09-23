@@ -1,0 +1,114 @@
+[
+  {
+    "id": "14230157283",
+    "unread": true,
+    "reason": "review_requested",
+    "updated_at": "2026-09-22T14:03:11Z",
+    "last_read_at": null,
+    "subject": {
+      "title": "cache: add MutateTag for optimistic updates",
+      "url": "https://api.github.com/repos/eggzec/gh-tui/pulls/42",
+      "latest_comment_url": "https://api.github.com/repos/eggzec/gh-tui/pulls/42",
+      "type": "PullRequest"
+    },
+    "repository": {
+      "id": 812345678,
+      "node_id": "R_kgDOMG1dTg",
+      "name": "gh-tui",
+      "full_name": "eggzec/gh-tui",
+      "private": false,
+      "owner": {
+        "login": "eggzec",
+        "id": 1234567,
+        "type": "Organization"
+      },
+      "html_url": "https://github.com/eggzec/gh-tui"
+    },
+    "url": "https://api.github.com/notifications/threads/14230157283",
+    "subscription_url": "https://api.github.com/notifications/threads/14230157283/subscription"
+  },
+  {
+    "id": "14229874410",
+    "unread": false,
+    "reason": "mention",
+    "updated_at": "2026-09-21T09:47:02Z",
+    "last_read_at": "2026-09-21T10:12:40Z",
+    "subject": {
+      "title": "Keys arrive as KeyPressMsg in v2",
+      "url": "https://api.github.com/repos/charmbracelet/bubbletea/issues/1402",
+      "latest_comment_url": "https://api.github.com/repos/charmbracelet/bubbletea/issues/comments/3301234567",
+      "type": "Issue"
+    },
+    "repository": {
+      "id": 300373290,
+      "node_id": "MDEwOlJlcG9zaXRvcnkzMDAzNzMyOTA=",
+      "name": "bubbletea",
+      "full_name": "charmbracelet/bubbletea",
+      "private": false,
+      "owner": {
+        "login": "charmbracelet",
+        "id": 57376114,
+        "type": "Organization"
+      },
+      "html_url": "https://github.com/charmbracelet/bubbletea"
+    },
+    "url": "https://api.github.com/notifications/threads/14229874410",
+    "subscription_url": "https://api.github.com/notifications/threads/14229874410/subscription"
+  },
+  {
+    "id": "14229011975",
+    "unread": true,
+    "reason": "subscribed",
+    "updated_at": "2026-09-20T18:30:55Z",
+    "last_read_at": null,
+    "subject": {
+      "title": "How do you theme huh forms?",
+      "url": null,
+      "latest_comment_url": null,
+      "type": "Discussion"
+    },
+    "repository": {
+      "id": 578417766,
+      "node_id": "R_kgDOIneYZg",
+      "name": "huh",
+      "full_name": "charmbracelet/huh",
+      "private": false,
+      "owner": {
+        "login": "charmbracelet",
+        "id": 57376114,
+        "type": "Organization"
+      },
+      "html_url": "https://github.com/charmbracelet/huh"
+    },
+    "url": "https://api.github.com/notifications/threads/14229011975",
+    "subscription_url": "https://api.github.com/notifications/threads/14229011975/subscription"
+  },
+  {
+    "id": "14228450321",
+    "unread": true,
+    "reason": "ci_activity",
+    "updated_at": "2026-09-20T07:15:20Z",
+    "last_read_at": null,
+    "subject": {
+      "title": "CI workflow run failed for main branch",
+      "url": null,
+      "latest_comment_url": null,
+      "type": "CheckSuite"
+    },
+    "repository": {
+      "id": 812345678,
+      "node_id": "R_kgDOMG1dTg",
+      "name": "gh-tui",
+      "full_name": "eggzec/gh-tui",
+      "private": false,
+      "owner": {
+        "login": "eggzec",
+        "id": 1234567,
+        "type": "Organization"
+      },
+      "html_url": "https://github.com/eggzec/gh-tui"
+    },
+    "url": "https://api.github.com/notifications/threads/14228450321",
+    "subscription_url": "https://api.github.com/notifications/threads/14228450321/subscription"
+  }
+]
