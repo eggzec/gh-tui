@@ -1,0 +1,36 @@
+repos:
+  - eggzec/gh-tui
+  - cli/cli
+
+theme: dusk
+themes:
+  dusk:
+    light:
+      accent: "#8a4fbf"
+      foreground: "#222222"
+      muted: "#555555"
+      subtle: "#888888"
+      border: "#dddddd"
+      success: "#2f7d4f"
+      warning: "#9a6700"
+      error: "#c0392b"
+    dark:
+      accent: "#c39bf0"
+      foreground: "#e0e0e0"
+      muted: "#aaaaaa"
+      subtle: "#777777"
+      border: "#444"
+      success: "#7fc99a"
+      warning: "#e5c07b"
+      error: "#ef7d7d"
+
+keys:
+  quit: [x]
+  search: ["/", "ctrl+f"]
+
+cache:
+  ttl: 30s
+
+sync:
+  enabled: false
+  interval: 2m
