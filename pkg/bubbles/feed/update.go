@@ -20,7 +20,7 @@ func (m Model[T]) Update(msg tea.Msg) (Model[T], tea.Cmd) {
 	}
 	switch msg := msg.(type) {
 	case chunkMsg[T]:
-		if msg.id != m.id {
+		if msg.id != m.id || msg.gen != m.gen {
 			return m, nil
 		}
 		cmd := m.receive(msg)
@@ -66,6 +66,8 @@ func (m *Model[T]) press(msg tea.KeyPressMsg) tea.Cmd {
 	default:
 		return nil
 	}
+	// The user moved, so a Reload no longer needs to follow the item.
+	m.anchored = false
 	return m.sync()
 }
 
@@ -114,6 +116,11 @@ func (m *Model[T]) receive(msg chunkMsg[T]) tea.Cmd {
 		m.refreshError()
 	}
 	m.reindex()
+	if m.anchored {
+		if i, ok := m.find(m.anchor); ok {
+			m.sel, m.top = i, i-m.anchorRow
+		}
+	}
 	return m.sync()
 }
 
