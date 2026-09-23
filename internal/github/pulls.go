@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -302,6 +303,14 @@ func (c *Client) ListPullRequests(ctx context.Context, repo core.RepoRef, state 
 		Items: convert(conn.Nodes, pull.core),
 		Next:  conn.PageInfo.next(),
 	}, nil
+}
+
+// ProbePullRequests reports whether any pull request of repo changed since
+// the response cond came from, as a 304 when none did, which costs no rate
+// limit. It is a REST request, as GraphQL has no conditional requests. Only
+// the Response is returned: pass its ETag as cond next time.
+func (c *Client) ProbePullRequests(ctx context.Context, repo core.RepoRef, cond Conditional) (Response, error) {
+	return c.probeList(ctx, "repos/"+url.PathEscape(repo.Owner)+"/"+url.PathEscape(repo.Name)+"/pulls", cond)
 }
 
 // GetPullRequest returns pull request number of repo with its body and the

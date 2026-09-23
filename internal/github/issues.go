@@ -132,6 +132,14 @@ func (c *Client) ListIssueComments(ctx context.Context, repo core.RepoRef, numbe
 	return core.Page[core.Comment]{Items: convert(items, issueComment.core), Next: res.Next}, res, nil
 }
 
+// ProbeIssues reports whether any issue or pull request of repo changed
+// since the response cond came from, as a 304 when none did, which costs no
+// rate limit. Only the Response is returned: pass its ETag as cond next time.
+// GitHub counts pull requests as issues, so their changes show here too.
+func (c *Client) ProbeIssues(ctx context.Context, repo core.RepoRef, cond Conditional) (Response, error) {
+	return c.probeList(ctx, issuesPath(repo), cond)
+}
+
 func issuesPath(repo core.RepoRef) string {
 	return "repos/" + url.PathEscape(repo.Owner) + "/" + url.PathEscape(repo.Name) + "/issues"
 }

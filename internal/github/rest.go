@@ -45,6 +45,15 @@ func (c *Client) Get(ctx context.Context, path string, cond Conditional, v any) 
 	return c.rest(ctx, http.MethodGet, path, cond, nil, v)
 }
 
+// probeList asks whether the REST list at path changed since the response
+// cond came from. It reads only the most recently updated item, whose
+// update time changes whenever any item changes, so the ETag moves too.
+// The body is read so the connection can be reused, and then dropped.
+func (c *Client) probeList(ctx context.Context, path string, cond Conditional) (Response, error) {
+	var latest []json.RawMessage
+	return c.Get(ctx, path+"?state=all&sort=updated&direction=desc&per_page=1", cond, &latest)
+}
+
 // Do sends body as JSON, unless it is nil, and decodes the response into v,
 // unless it is nil. Use it for mutations.
 func (c *Client) Do(ctx context.Context, method, path string, body, v any) (Response, error) {
