@@ -44,7 +44,8 @@ func (c *Client) httpError(resp *http.Response) error {
 		e.err = core.ErrUnauthorized
 	case http.StatusNotFound:
 		e.err = core.ErrNotFound
-	case http.StatusConflict, http.StatusUnprocessableEntity:
+	// 405 is how REST refuses to merge a pull request that isn't mergeable.
+	case http.StatusMethodNotAllowed, http.StatusConflict, http.StatusUnprocessableEntity:
 		e.err = core.ErrConflict
 	case http.StatusForbidden, http.StatusTooManyRequests:
 		if reset, ok := c.rateLimitReset(resp); ok {

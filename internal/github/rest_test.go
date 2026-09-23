@@ -127,6 +127,7 @@ func TestErrorMapping(t *testing.T) {
 		{"unauthorized", 401, `{"message":"Bad credentials"}`, core.ErrUnauthorized, "Bad credentials"},
 		{"not found", 404, `{"message":"Not Found"}`, core.ErrNotFound, "Not Found"},
 		{"conflict", 409, `{"message":"Merge conflict"}`, core.ErrConflict, "Merge conflict"},
+		{"not mergeable", 405, `{"message":"Pull Request is not mergeable"}`, core.ErrConflict, "Pull Request is not mergeable"},
 		{
 			"validation failed", 422,
 			`{"message":"Validation Failed","errors":[{"resource":"Issue","field":"title","code":"missing_field"},"plain"]}`,

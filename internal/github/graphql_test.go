@@ -103,6 +103,22 @@ func TestQueryNotFound(t *testing.T) {
 	}
 }
 
+func TestQueryUnprocessable(t *testing.T) {
+	c := newTestClient(t, graphqlHandler(t, nil, `{
+		"data": {"mergePullRequest": null},
+		"errors": [{"type": "UNPROCESSABLE", "path": ["mergePullRequest"], "message": "Pull Request is not mergeable"}]
+	}`))
+
+	err := c.Query(t.Context(), repoQuery, repoVars, nil)
+
+	if !errors.Is(err, core.ErrConflict) {
+		t.Errorf("error %v is not ErrConflict", err)
+	}
+	if errors.Is(err, core.ErrNotFound) {
+		t.Errorf("error %v matches ErrNotFound", err)
+	}
+}
+
 func TestQueryRateLimited(t *testing.T) {
 	header := http.Header{
 		"X-Ratelimit-Limit":     {"5000"},
