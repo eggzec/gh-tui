@@ -69,8 +69,17 @@ func build(ctx context.Context, cfg config.Config, arg string) (*tui.Model, erro
 	if cfg.Sync.Enabled {
 		engine := watch.New(watch.WithInterval(cfg.Sync.Interval))
 		engine.Subscribe(notifications.SyncKey, notifSvc.Poll)
+		repoPolls := &repoWatch{subscribe: engine.Subscribe, polls: []repoPoll{
+			{key: pullsvc.SyncKey, poll: pullSvc.Poll},
+			{key: issuesvc.SyncKey, poll: issueSvc.Poll},
+		}}
+		repoPolls.set(repo)
 		go func() { _ = engine.Run(ctx) }()
-		opts = append(opts, tui.WithSync(syncEvents(engine)), tui.WithActivity(engine.SetActive))
+		opts = append(opts,
+			tui.WithSync(syncEvents(engine)),
+			tui.WithActivity(engine.SetActive),
+			tui.WithRepoWatcher(repoPolls.set),
+		)
 	}
 	return tui.New(ctx, cfg, sections, opts...), nil
 }
