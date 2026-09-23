@@ -205,3 +205,33 @@ func TestSectionActionsCanBeRebound(t *testing.T) {
 		t.Errorf("close = %v, want the default [x]", got)
 	}
 }
+
+func TestComposeActions(t *testing.T) {
+	defaults := Default().Keys
+	for action, want := range map[string]string{ActionComment: "c", ActionLabel: "l"} {
+		if got := defaults[action]; !slices.Equal(got, []string{want}) {
+			t.Errorf("default %s = %v, want [%s]", action, got, want)
+		}
+	}
+
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(path, []byte("keys:\n  comment: [\"C\", \"ctrl+o\"]\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got := cfg.Keys[ActionComment]; !slices.Equal(got, []string{"C", "ctrl+o"}) {
+		t.Errorf("comment = %v, want [C ctrl+o]", got)
+	}
+	if got := cfg.Keys[ActionLabel]; !slices.Equal(got, []string{"l"}) {
+		t.Errorf("label = %v, want the default [l]", got)
+	}
+
+	cfg = Default()
+	cfg.Keys[ActionLabel] = nil
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "keys.label: needs at least one key") {
+		t.Errorf("Validate() = %v, want label to need a key", err)
+	}
+}

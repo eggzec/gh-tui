@@ -31,6 +31,8 @@ const (
 	ActionMarkDone    = "mark_done"
 	ActionMarkAllRead = "mark_all_read"
 	ActionStar        = "star"
+	ActionComment     = "comment"
+	ActionLabel       = "label"
 )
 
 func defaultKeys() map[string][]string {
@@ -54,6 +56,8 @@ func defaultKeys() map[string][]string {
 		ActionMarkDone:    {"d"},
 		ActionMarkAllRead: {"M"},
 		ActionStar:        {"s"},
+		ActionComment:     {"c"},
+		ActionLabel:       {"l"},
 	}
 }
 
