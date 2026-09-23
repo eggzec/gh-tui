@@ -94,12 +94,25 @@ func (m *Model[T]) statusText() string {
 		s = m.spin.View() + " " + m.text.loadingComments
 	case m.tail.err != nil:
 		s = m.errorText(m.tail.err)
+	case m.reloadErr() != nil:
+		s = m.errorText(m.reloadErr())
 	case m.done() && m.empty():
 		s = m.text.empty
 	default:
 		return ""
 	}
 	return m.fit(statusIndent + s)
+}
+
+// reloadErr returns why reloading a chunk failed. The chunk keeps showing
+// what it had, so the error goes in the status.
+func (m *Model[T]) reloadErr() error {
+	for i := range m.chunks {
+		if c := &m.chunks[i]; c.loaded && c.err != nil {
+			return c.err
+		}
+	}
+	return nil
 }
 
 // done reports whether every chunk is known.

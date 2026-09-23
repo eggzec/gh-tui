@@ -158,6 +158,47 @@ func (m *Model[T]) SetDocument(header, markdown string) tea.Cmd {
 	return m.manage()
 }
 
+// Reload fetches the loaded chunks again, for example after a sync event or
+// when a comment was posted, and keeps the reading position. Evicted chunks
+// are fetched fresh anyway when the screen nears them. If the last chunk
+// gained a next cursor, the chunks after it load as usual.
+func (m *Model[T]) Reload() tea.Cmd {
+	if !m.hasDoc {
+		return nil
+	}
+	var cmd tea.Cmd
+	relayout := false
+	for i := range m.chunks {
+		c := &m.chunks[i]
+		if c.loaded || c.err != nil {
+			relayout = relayout || c.err != nil
+			cmd = batch(cmd, m.loadChunk(i))
+		}
+	}
+	if relayout {
+		m.layout(m.anchor())
+	}
+	if m.tail.err != nil {
+		cmd = batch(cmd, m.loadTail())
+	}
+	return batch(cmd, m.manage())
+}
+
+// Reset clears the document and the comments and cancels the fetches in
+// flight, to show a new document. It returns the command that starts the
+// loading spinner, which shows until [Model.SetDocument].
+func (m *Model[T]) Reset() tea.Cmd {
+	m.cancel()
+	m.ctx, m.cancel = context.WithCancel(m.parent)
+	m.gen++
+	m.hasDoc, m.header, m.body = false, "", ""
+	m.doc, m.docWidth = nil, -1
+	m.chunks, m.started, m.tail = nil, false, tail{}
+	m.vp.SetYOffset(0)
+	m.layout(top)
+	return m.spin.Tick
+}
+
 // SetSize sets the width and height. A new width renders the document and
 // the loaded comments again and keeps the comment at the top of the screen
 // in place.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -26,6 +27,7 @@ type source struct {
 	chunks  [][]comment
 	fail    map[string]int // cursor -> failures left
 	cursors []string
+	ctxs    []context.Context
 }
 
 func newSource(chunks, perChunk int) *source {
@@ -43,10 +45,11 @@ func newSource(chunks, perChunk int) *source {
 	return s
 }
 
-func (s *source) fetch(_ context.Context, cursor string) ([]comment, string, error) {
+func (s *source) fetch(ctx context.Context, cursor string) ([]comment, string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.cursors = append(s.cursors, cursor)
+	s.ctxs = append(s.ctxs, ctx)
 	if s.fail[cursor] > 0 {
 		s.fail[cursor]--
 		return nil, "", errors.New("connection reset")
@@ -62,7 +65,14 @@ func (s *source) fetch(_ context.Context, cursor string) ([]comment, string, err
 	if i+1 < len(s.chunks) {
 		next = strconv.Itoa(i + 1)
 	}
-	return s.chunks[i], next, nil
+	return slices.Clone(s.chunks[i]), next, nil
+}
+
+// update changes the comments served, as the server's would.
+func (s *source) update(f func(chunks [][]comment) [][]comment) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.chunks = f(s.chunks)
 }
 
 func (s *source) calls() []string {
