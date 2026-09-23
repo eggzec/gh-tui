@@ -37,13 +37,11 @@ func TestQuitKeys(t *testing.T) {
 	}
 }
 
+// A plain Update call, since teatest sends its initial size concurrently and
+// could overwrite ours.
 func TestTracksWindowSize(t *testing.T) {
-	tm := newTestModel(t)
-	tm.Send(tea.WindowSizeMsg{Width: 120, Height: 40})
-	if err := tm.Quit(); err != nil {
-		t.Fatal(err)
-	}
-	m := tm.FinalModel(t, teatest.WithFinalTimeout(time.Second)).(*Model)
+	m := New()
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	if m.width != 120 || m.height != 40 {
 		t.Errorf("size = %dx%d, want 120x40", m.width, m.height)
 	}
