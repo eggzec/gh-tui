@@ -1,0 +1,268 @@
+# AGENTS.md
+
+Guidance for anyone, human or agent, working on **gh-tui**, a GitHub client
+for the terminal built on the Charm stack. Read this before you change code.
+
+## Goals
+
+In priority order:
+
+1. **Readable and maintainable.** Code is read far more often than it is written.
+2. **Reliable.** Services are tested and failures degrade gracefully.
+3. **Snappy.** Data loads lazily, the app caches smartly, updates are
+   optimistic, and View/Update are benchmarked.
+4. **Configurable.** Users can change keybindings, colors and behavior.
+5. **Pleasant.** The widgets are well styled and fun to use.
+
+## Stack
+
+Use the v2 Charm libraries and their `charm.land` import paths:
+
+| Purpose    | Module                                                       |
+| ---------- | ------------------------------------------------------------ |
+| Runtime    | `charm.land/bubbletea/v2`                                    |
+| Components | `charm.land/bubbles/v2`                                      |
+| Styling    | `charm.land/lipgloss/v2`                                     |
+| Forms      | `charm.land/huh/v2` (when needed)                            |
+| TUI tests  | `github.com/charmbracelet/x/exp/teatest/v2`                  |
+| GitHub     | `github.com/cli/go-gh/v2` (auth, REST, GraphQL transport)    |
+
+Before you use a library API, check the current docs (Context7, pkg.go.dev,
+or the upstream UPGRADE guides). Several APIs changed in v2: `View()` returns
+`tea.View`, keys arrive as `tea.KeyPressMsg`, `AdaptiveColor` was replaced by
+`lipgloss.LightDark` together with `tea.BackgroundColorMsg`, and `DefaultKeyMap()`
+and `DefaultStyles(isDark)` are now functions.
+
+## Layout
+
+```
+cmd/gh-tui/           main: parse flags, load config, wire services into the tui
+internal/
+  core/               domain value types (Repo, PullRequest, Issue, …) and errors; no I/O
+  config/             loading, defaults, validation, and the keymap and theme schema
+  github/             API clients: graphql/ and rest/ subpackages, pagination, rate limits
+  cache/              in-memory LRU, optional disk layer, TTL and ETag metadata
+  sync/               sync engine: polling, conditional requests, change events
+  service/<domain>/   business logic per domain (pulls, issues, repos, notifications…)
+  tui/                glue: root model, routing, layout, and adapters from services to bubbles
+pkg/bubbles/<name>/   reusable Elm-style components with no knowledge of gh-tui
+third_party/<name>/   vendored upstream code that needed changes (see Vendoring)
+```
+
+Rules:
+
+- **Dependencies point inward.** `tui` depends on interfaces for behavior. It
+  may use the plain value types in `core`, which are the shared vocabulary,
+  but it never imports `github`, `cache` or `sync` implementations. Only
+  `cmd/` knows about concrete types and wires them together.
+- **`pkg/bubbles` imports nothing from `internal/`.** A bubble must be usable
+  in another program without changes.
+- **Consumers define interfaces**, and keep them small. They live next to the
+  code that uses them. Producers return concrete types.
+- **Split packages and files by concept, not by size.** If a file needs a table
+  of contents, split it up. Typical bubble files are `model.go`, `update.go`,
+  `view.go`, `keys.go`, `styles.go` and `options.go`.
+
+## Bubbles (`pkg/bubbles`)
+
+Each bubble is a self-contained Elm component: model, `Init`, `Update`, and `View`.
+
+- **Build with options.** Construct with `New(opts ...Option)` using `WithX`
+  options, the same way `bubbles/table` does. After construction, use
+  `SetX`/`X()` accessors. Don't export mutable fields.
+- **Producers are injected.** Any data a bubble needs arrives as a function
+  type that the bubble itself declares. The bubble calls the function inside a
+  `tea.Cmd`, so its Update never blocks:
+
+  ```go
+  // Fetch returns the page after cursor. An empty next cursor means the end.
+  type Fetch func(ctx context.Context, cursor string) (items []Item, next string, err error)
+
+  func New(fetch Fetch, opts ...Option) Model
+  ```
+
+  The tui adapts service calls to these signatures. Bubbles never see services.
+- **Customization follows Charm conventions.** Expose `KeyMap` and
+  `DefaultKeyMap()`, `Styles` and `DefaultStyles(isDark bool)`,
+  `SetKeyMap`, `SetStyles`, `SetWidth` and `SetHeight`. Implement
+  `help.KeyMap` (`ShortHelp`/`FullHelp`).
+- **Messages are scoped.** Each instance gets an ID, and its messages carry
+  that ID, so two instances of the same bubble never react to each other's
+  messages.
+- **Reuse before you build.** Start from `bubbles` (list, table, viewport,
+  textinput, textarea, spinner, help, paginator), then from other Charm
+  projects such as `glamour` for markdown and `huh`. Wrapping or composing
+  an existing bubble is better than writing a new one.
+
+### Vendoring
+
+If an upstream component can't be customized through its public API, vendor
+it into `third_party/<name>/`. Keep its LICENSE and add a `README.md` with the
+upstream module, the commit, and a short list of local changes. Keep the
+changes minimal so that pulling in new upstream versions stays easy.
+
+## Data
+
+- **Lazy by default.** Fetch only what is on screen and prefetch the next page
+  when the user nears the end.
+- **Choose the right API for each call.** Use GraphQL when you need nested or
+  batched data in one round trip, such as a PR with its reviews, checks and
+  labels. Use REST where it is simpler or cheaper, for example conditional
+  requests with `ETag`/`If-None-Match` (a 304 doesn't count against the rate
+  limit), notifications (`Last-Modified`, `X-Poll-Interval`), and endpoints
+  that have no GraphQL equivalent.
+- **Respect rate limits.** Read the rate-limit headers or the GraphQL
+  `rateLimit` field, then back off and surface the limit to the user.
+- **Cancel with context.** Every call takes a `context.Context`. Navigating
+  away cancels the work in flight.
+
+### Cache
+
+- The in-memory LRU sits in front of every read. The disk layer is optional
+  and makes cold starts faster.
+- Use stale-while-revalidate: serve cached data at once, refresh it in the
+  background, and emit an update message if the data changed.
+- Store the `ETag`/`Last-Modified` for each entry so that revalidation costs
+  almost nothing.
+- Key entries by the query plus its variables. A mutation invalidates only the
+  keys it affects.
+
+### Sync engine
+
+- Owns polling for the views that are currently subscribed. Honor
+  `X-Poll-Interval` and slow down when the app is idle or unfocused.
+- Publishes typed change events. The tui turns these into `tea.Msg` through
+  one long-lived `tea.Cmd` subscription.
+- Deduplicates and coalesces events so a burst of changes produces one
+  re-render.
+
+### Optimistic updates
+
+User actions such as merging, closing, labeling, starring or marking as read
+follow the same four steps:
+
+1. Apply the change to local state and the cache right away.
+2. Send the mutation.
+3. When it succeeds, reconcile with the server's response.
+4. When it fails, roll back to the previous snapshot and show a non-blocking
+   error toast.
+
+Keep the snapshot and rollback logic in the service layer so the tui only
+reacts to messages.
+
+## Performance
+
+- `View` is pure and cheap. Build lipgloss styles once, when the styles
+  change, not on every render. Cache rendered fragments that are expensive to
+  produce, such as markdown or long lists, and invalidate them by width or
+  content.
+- `Update` never blocks. All I/O runs in a `tea.Cmd`.
+- Render only the visible rows.
+- Every bubble and the root model have `BenchmarkView` and `BenchmarkUpdate`,
+  written with `b.Loop()` and `b.ReportAllocs()`. Record the before and after
+  numbers (`benchstat`) in a PR when you optimize.
+
+## Testing
+
+- **Bubbles** are tested with plain function producers, so they need no
+  services and no mocks. Use table-driven tests for Update, golden files for
+  View, and include benchmarks.
+- **Tests that drive the program** (keys in, output and final model out) use
+  `teatest`. Refresh golden files with `go test ./... -update`.
+- **Services** are tested with small hand-written fakes of the interfaces they
+  consume. For the API clients, use `httptest.Server` with recorded fixtures.
+  Cover error paths, pagination, cache hits and misses, and rollback.
+- **The sync engine** is tested with an injectable clock and no real sleeps.
+- Run `go test -race ./...` before every commit.
+
+## Configuration
+
+- The config file is `$XDG_CONFIG_HOME/gh-tui/config.yaml`. It is validated on
+  load and every field has a sensible default.
+- Keybindings map action names to keys and are applied through each bubble's
+  `SetKeyMap`.
+- Themes are named palettes that each have a light and a dark variant. They
+  are resolved once after `tea.BackgroundColorMsg` and applied through
+  `SetStyles`.
+
+## Styling
+
+- Aim for a consistent, calm palette with one accent color. Use borders
+  sparingly. Keep spacing and alignment consistent across views.
+- Loading uses spinners or skeletons, empty states tell the user what to do,
+  and errors are inline and recoverable.
+- Everything must stay legible in both light and dark terminals and at 80
+  columns.
+
+## Code style
+
+- Follow [Effective Go](https://go.dev/doc/effective_go), the
+  [Go Code Review Comments](https://go.dev/wiki/CodeReviewComments), and the
+  [Google Go Style Guide](https://google.github.io/styleguide/go/).
+- Keep names short and clear, with no stutter (`pulls.Service`, not
+  `pulls.PullsService`). Return early and keep the happy path unindented.
+- Use modern Go: generics where they reduce duplication, `iter`, `slices`,
+  `maps`, `min`/`max`, and `for range n`. Run the gopls modernize analyzers
+  (`go fix ./...`) and apply what they suggest.
+- Comments explain *why*, in plain language, and only when the code can't say
+  it. Every exported identifier has a doc comment that starts with its name.
+  Don't narrate what the code does.
+- Wrap errors with context (`fmt.Errorf("list pulls: %w", err)`). Don't panic
+  in library code.
+
+### Tooling
+
+```sh
+gofmt -l . && go vet ./...
+golangci-lint run ./...      # config in .golangci.yml (v2)
+go test -race ./...
+go test -bench=. -benchmem ./pkg/bubbles/...
+```
+
+gopls diagnostics and golangci-lint must be clean before you commit.
+
+## Git workflow
+
+### Worktrees
+
+The repository is a bare clone, and every branch is checked out in its own
+worktree next to it:
+
+```
+gh-tui/
+  .bare/            bare repository
+  .git              "gitdir: ./.bare"
+  main/             worktree for main (read-only by convention)
+  <branch-name>/    one worktree per feature branch
+```
+
+```sh
+git fetch origin
+git worktree add -b feat/cache-lru cache-lru origin/main
+# after merge
+git worktree remove cache-lru && git branch -D feat/cache-lru
+```
+
+### Branches and PRs
+
+- **Never commit to `main` directly.** All changes land through PRs.
+- **One branch per feature or component**, for example `feat/prlist-bubble`
+  or `feat/cache-lru`. Keep PRs small enough to review in one sitting.
+- **PR bodies are short and meant for people.** Say what changed and anything
+  a reviewer must know, in a few lines. Skip file-by-file summaries,
+  boilerplate sections and long rationale.
+- **Verify before you open a PR.** Run the checks under Tooling, then wait for
+  CI to pass before you merge.
+- **Merge with rebase and merge only.**
+- **Use `gh` with care.** Run explicit, single-purpose commands, check the
+  result of each one, and don't take destructive or bulk actions without
+  asking first.
+- **Use [Conventional Commits](https://www.conventionalcommits.org/)**:
+  `type(scope): summary`. Add a body only when the reason for the change
+  isn't obvious. Keep it short and never force one.
+- **Every commit is atomic and passes on its own**, meaning it builds, passes
+  lint and passes tests. The history should tell the story of the work. If
+  you find something you left out of an earlier commit, fold it into that
+  commit (`git commit --fixup` then `git rebase --autosquash`). Don't add
+  "fix typo" commits.
+- **No AI attribution** in commit messages, trailers or PR descriptions.
