@@ -27,6 +27,9 @@ type Service interface {
 	Get(ctx context.Context, ref core.RepoRef) (core.Repo, error)
 	Star(ref core.RepoRef) *optimistic.Op
 	Unstar(ref core.RepoRef) *optimistic.Op
+	// Invalidate marks every cached page and repository stale, so that the
+	// reads after it ask GitHub.
+	Invalidate()
 }
 
 // Section lists the viewer's repositories. Create one with [New].
@@ -178,6 +181,7 @@ func (s *Section) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	}
 	switch {
 	case key.Matches(msg, s.keys.Refresh):
+		s.svc.Invalidate()
 		return s.feed.Reload(), true
 	case key.Matches(msg, s.keys.Select):
 		return s.choose(), true

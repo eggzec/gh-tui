@@ -23,6 +23,9 @@ type Service interface {
 	CachedGet(repo core.RepoRef, number int) (core.PullRequestDetail, bool)
 	Get(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error)
 	Comments(ctx context.Context, q pulls.CommentsQuery) (core.Page[core.Comment], error)
+	// Invalidate marks what is cached of repo stale, so that the reads
+	// after it ask GitHub.
+	Invalidate(repo core.RepoRef)
 
 	// The changes are shown in the cache at once. The returned Op sends
 	// them.

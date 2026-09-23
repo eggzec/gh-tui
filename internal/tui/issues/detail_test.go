@@ -73,8 +73,11 @@ func TestDetailKeys(t *testing.T) {
 		// check inspects the section and the messages that followed.
 		check func(t *testing.T, s *Section, svc *fakeService, msgs []ui.OpenMsg)
 	}{
-		{"refresh reloads the thread and the issue", "r", func(t *testing.T, _ *Section, svc *fakeService, _ []ui.OpenMsg) {
+		{"refresh invalidates the repository, then reloads the thread and the issue", "r", func(t *testing.T, _ *Section, svc *fakeService, _ []ui.OpenMsg) {
 			t.Helper()
+			if got := svc.invalidations(); len(got) != 1 || got[0].repo != testRepo || got[0].gets != 1 {
+				t.Errorf("invalidations = %+v, want one of %v after the first Get", got, testRepo)
+			}
 			if got := svc.getCalls(); len(got) != 2 {
 				t.Errorf("Get calls = %v, want two", got)
 			}

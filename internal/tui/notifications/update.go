@@ -44,6 +44,7 @@ func (s *Section) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	k := &s.keys
 	switch {
 	case key.Matches(msg, k.Refresh):
+		s.svc.Invalidate()
 		return s.reload(), true
 	case key.Matches(msg, k.Filter):
 		s.all.Store(!s.all.Load())

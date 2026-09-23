@@ -177,6 +177,9 @@ func TestRefreshReloads(t *testing.T) {
 	s := newSection(t, svc, 80, 12)
 	before := svc.listCount()
 	press(t, s, "r")
+	if got, want := svc.invalidations(), []int{before}; !slices.Equal(got, want) {
+		t.Errorf("invalidated after %v lists, want once after %d", got, before)
+	}
 	if got := svc.listCount() - before; got != 1 {
 		t.Errorf("refresh listed %d pages, want 1", got)
 	}
@@ -306,5 +309,24 @@ func TestLayoutDropsColumns(t *testing.T) {
 		if (l.repo > 0) != tt.repo || (l.tag > 0) != tt.tag || (l.reason > 0) != tt.withReason {
 			t.Errorf("newLayout(%d) = %+v, want repo %v, tag %v, reason %v", tt.width, l, tt.repo, tt.tag, tt.withReason)
 		}
+	}
+}
+
+func TestRefreshRetriesAFailedPage(t *testing.T) {
+	svc := newFake(inbox()...)
+	svc.listErr = errors.New("502 Bad Gateway")
+	s := newSection(t, svc, 80, 12)
+	if v := ansi.Strip(s.View()); !strings.Contains(v, "r to retry") {
+		t.Errorf("error row doesn't offer refresh as retry:\n%s", v)
+	}
+	svc.mu.Lock()
+	svc.listErr = nil
+	svc.mu.Unlock()
+	press(t, s, "r")
+	if got := len(svc.invalidations()); got != 1 {
+		t.Errorf("retry invalidated %d times, want 1", got)
+	}
+	if got, want := rows(s), []string{"1", "2", "3", "6"}; !slices.Equal(got, want) {
+		t.Errorf("rows after retry = %q, want %q", got, want)
 	}
 }

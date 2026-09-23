@@ -150,6 +150,9 @@ func TestRefresh(t *testing.T) {
 	svc.set(998, func(it *core.Issue) { it.Title = "Renamed on the server" })
 	before := len(svc.listCalls())
 	press(t, s, "r")
+	if got, want := svc.invalidations(), []invalidation{{repo: testRepo, lists: before}}; !slices.Equal(got, want) {
+		t.Errorf("invalidations = %+v, want %+v", got, want)
+	}
 	if got := len(svc.listCalls()) - before; got != 1 {
 		t.Fatalf("refresh listed %d pages, want 1", got)
 	}
@@ -168,6 +171,9 @@ func TestRefreshRetriesAFailedPage(t *testing.T) {
 	}
 	svc.listErr = nil
 	press(t, s, "r")
+	if got := len(svc.invalidations()); got != 1 {
+		t.Errorf("retry invalidated %d times, want 1", got)
+	}
 	if got := s.list.Len(); got != 10 {
 		t.Errorf("rows after retry = %d, want 10", got)
 	}

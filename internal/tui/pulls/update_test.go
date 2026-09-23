@@ -1,6 +1,7 @@
 package pulls
 
 import (
+	"errors"
 	"slices"
 	"strings"
 	"testing"
@@ -62,10 +63,13 @@ func TestUpdateList(t *testing.T) {
 			},
 		},
 		{
-			name: "refresh lists the loaded pages again",
+			name: "refresh invalidates the repository, then lists the loaded pages again",
 			keys: []string{"r"},
 			check: func(t *testing.T, _ *Section, svc *fakeService, _ []any) {
 				t.Helper()
+				if got, want := svc.invalidations(), []invalidation{{repo: repo, lists: 1}}; !slices.Equal(got, want) {
+					t.Errorf("invalidations = %+v, want %+v", got, want)
+				}
 				if n := len(svc.listed()); n != 2 {
 					t.Errorf("listed %d times, want 2", n)
 				}
@@ -242,5 +246,24 @@ func TestTruncate(t *testing.T) {
 		if got != tt.want || w != ansi.StringWidth(got) {
 			t.Errorf("truncate(%q, %d) = %q, %d; want %q", tt.in, tt.width, got, w, tt.want)
 		}
+	}
+}
+
+func TestRefreshRetriesAFailedPage(t *testing.T) {
+	svc := newFakeService()
+	svc.listErr = errors.New("502 Bad Gateway")
+	s := started(t, svc, 80, 12)
+	if !strings.Contains(screen(s), "r to retry") {
+		t.Errorf("error row doesn't offer refresh as retry:\n%s", screen(s))
+	}
+	svc.mu.Lock()
+	svc.listErr = nil
+	svc.mu.Unlock()
+	press(t, s, "r")
+	if got := len(svc.invalidations()); got != 1 {
+		t.Errorf("retry invalidated %d times, want 1", got)
+	}
+	if got := s.feed.Len(); got == 0 {
+		t.Errorf("no rows after retry:\n%s", screen(s))
 	}
 }

@@ -30,6 +30,9 @@ type fakeService struct {
 
 	lists []string
 	sent  []string
+	// invalidated holds, for each call of Invalidate, how many lists were
+	// made before it.
+	invalidated []int
 }
 
 func newFake(repos ...core.Repo) *fakeService {
@@ -98,6 +101,18 @@ func (f *fakeService) setStarred(ref core.RepoRef, starred bool) *optimistic.Op 
 		f.repos[i] = prev
 	}
 	return optimistic.New(send, rollback)
+}
+
+func (f *fakeService) Invalidate() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.invalidated = append(f.invalidated, len(f.lists))
+}
+
+func (f *fakeService) invalidations() []int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.invalidated)
 }
 
 func (f *fakeService) starred(ref core.RepoRef) bool {

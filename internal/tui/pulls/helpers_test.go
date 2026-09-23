@@ -30,6 +30,7 @@ type fakeService struct {
 	pulls    []core.PullRequest
 	pageSize int
 	queries  []pulls.ListQuery
+	listErr  error
 	// cached are the numbers whose detail Get has fetched, which CachedGet
 	// then serves.
 	cached   map[int]bool
@@ -43,6 +44,15 @@ type fakeService struct {
 	// listedAs keeps a changed pull request in the pages of its old state
 	// until the change is sent, as the service's cached pages do.
 	listedAs map[int]core.State
+	// invalidated are the calls of Invalidate.
+	invalidated []invalidation
+}
+
+// invalidation is a call of Invalidate, with how many lists and gets were
+// made before it.
+type invalidation struct {
+	repo        core.RepoRef
+	lists, gets int
 }
 
 func newFakeService() *fakeService {
@@ -115,6 +125,9 @@ func (f *fakeService) List(_ context.Context, q pulls.ListQuery) (core.Page[core
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.queries = append(f.queries, q)
+	if f.listErr != nil {
+		return core.Page[core.PullRequest]{}, f.listErr
+	}
 	var match []core.PullRequest
 	for i := range f.pulls {
 		pr := &f.pulls[i]
@@ -136,6 +149,18 @@ func (f *fakeService) List(_ context.Context, q pulls.ListQuery) (core.Page[core
 		p.Next = strconv.Itoa(end)
 	}
 	return p, nil
+}
+
+func (f *fakeService) Invalidate(repo core.RepoRef) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.invalidated = append(f.invalidated, invalidation{repo, len(f.queries), len(f.gets)})
+}
+
+func (f *fakeService) invalidations() []invalidation {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.invalidated)
 }
 
 func (f *fakeService) listed() []pulls.ListQuery {

@@ -86,10 +86,13 @@ func TestUpdateDetail(t *testing.T) {
 			},
 		},
 		{
-			name: "refresh fetches the detail and the comments again",
+			name: "refresh invalidates the repository, then fetches the detail and the comments again",
 			keys: []string{"enter", "r"},
 			check: func(t *testing.T, _ *Section, svc *fakeService, _ []any) {
 				t.Helper()
+				if got, want := svc.invalidations(), []invalidation{{repo: repo, lists: 1, gets: 1}}; !slices.Equal(got, want) {
+					t.Errorf("invalidations = %+v, want %+v", got, want)
+				}
 				if got := svc.got(); len(got) != 2 {
 					t.Errorf("got details %v, want two", got)
 				}

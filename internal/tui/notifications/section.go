@@ -28,6 +28,9 @@ type Service interface {
 	MarkRead(id string) *optimistic.Op
 	MarkDone(id string) *optimistic.Op
 	MarkAllRead() *optimistic.Op
+	// Invalidate marks every cached page stale, so that the reads after it
+	// ask GitHub.
+	Invalidate()
 }
 
 // Option configures a Section.
