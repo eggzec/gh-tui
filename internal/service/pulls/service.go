@@ -8,15 +8,23 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/core"
 )
 
-// API is the part of the GitHub client the service uses.
+// API is the part of the GitHub client the service uses. The mutations take
+// the node ID of the pull request and return it as the server left it.
 type API interface {
 	ListPullRequests(ctx context.Context, repo core.RepoRef, state core.State, after string) (core.Page[core.PullRequest], error)
 	GetPullRequest(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error)
+	PullRequestID(ctx context.Context, repo core.RepoRef, number int) (string, error)
+	MergePullRequest(ctx context.Context, id string, method core.MergeMethod) (core.PullRequest, error)
+	ClosePullRequest(ctx context.Context, id string) (core.PullRequest, error)
+	ReopenPullRequest(ctx context.Context, id string) (core.PullRequest, error)
+	MarkPullRequestReady(ctx context.Context, id string) (core.PullRequest, error)
+	ConvertPullRequestToDraft(ctx context.Context, id string) (core.PullRequest, error)
 }
 
 type (
@@ -24,12 +32,13 @@ type (
 	detailEntry = cache.Entry[core.PullRequestDetail]
 )
 
-// Service reads pull requests through a cache. It is safe for concurrent
-// use.
+// Service reads pull requests through a cache and changes them
+// optimistically. It is safe for concurrent use.
 type Service struct {
 	api     API
 	lists   *cache.Cache[core.Page[core.PullRequest]]
 	details *cache.Cache[core.PullRequestDetail]
+	now     func() time.Time
 }
 
 // New returns a service that reads from api.
@@ -42,6 +51,7 @@ func New(api API, opts ...Option) *Service {
 		api:     api,
 		lists:   cache.New[core.Page[core.PullRequest]](o.cache...),
 		details: cache.New[core.PullRequestDetail](o.cache...),
+		now:     time.Now,
 	}
 }
 

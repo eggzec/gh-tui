@@ -21,6 +21,10 @@ var repo = core.RepoRef{Owner: "eggzec", Name: "gh-tui"}
 type fakeAPI struct {
 	list func(ctx context.Context, repo core.RepoRef, state core.State, cursor string) (core.Page[core.PullRequest], error)
 	get  func(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error)
+	id   func(ctx context.Context, repo core.RepoRef, number int) (string, error)
+	// mutate backs every mutation. Method names the mutation; merge also
+	// passes the merge method.
+	mutate func(ctx context.Context, method, id string, how core.MergeMethod) (core.PullRequest, error)
 
 	mu    sync.Mutex
 	calls map[string]int
@@ -50,6 +54,36 @@ func (f *fakeAPI) ListPullRequests(ctx context.Context, repo core.RepoRef, state
 func (f *fakeAPI) GetPullRequest(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error) {
 	f.called("get")
 	return f.get(ctx, repo, number)
+}
+
+func (f *fakeAPI) PullRequestID(ctx context.Context, repo core.RepoRef, number int) (string, error) {
+	f.called("id")
+	return f.id(ctx, repo, number)
+}
+
+func (f *fakeAPI) MergePullRequest(ctx context.Context, id string, method core.MergeMethod) (core.PullRequest, error) {
+	f.called("merge")
+	return f.mutate(ctx, "merge", id, method)
+}
+
+func (f *fakeAPI) ClosePullRequest(ctx context.Context, id string) (core.PullRequest, error) {
+	f.called("close")
+	return f.mutate(ctx, "close", id, "")
+}
+
+func (f *fakeAPI) ReopenPullRequest(ctx context.Context, id string) (core.PullRequest, error) {
+	f.called("reopen")
+	return f.mutate(ctx, "reopen", id, "")
+}
+
+func (f *fakeAPI) MarkPullRequestReady(ctx context.Context, id string) (core.PullRequest, error) {
+	f.called("ready")
+	return f.mutate(ctx, "ready", id, "")
+}
+
+func (f *fakeAPI) ConvertPullRequestToDraft(ctx context.Context, id string) (core.PullRequest, error) {
+	f.called("draft")
+	return f.mutate(ctx, "draft", id, "")
 }
 
 func openPull(number int) core.PullRequest {
