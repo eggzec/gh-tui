@@ -1,0 +1,30 @@
+[1mCache drops entries early[m #42                               
+open · alice opened 3 days ago                              
+                                                            
+  ## Summary                                                
+                                                            
+  The cache drops entries **too early** when the TTL is     
+  short.                                                    
+                                                            
+  • Reproduce with --ttl 1s                                 
+  • Watch the hit rate fall                                 
+                                                            
+    c := cache.New(cache.WithTTL(time.Second))              
+                                                            
+  @user0                                                    
+    Comment 0 says hello.                                   
+                                                            
+  @user1                                                    
+    Comment 1 says hello. Comment 1 says hello.             
+                                                            
+  @user2                                                    
+    Comment 2 says hello. Comment 2 says hello. Comment 2   
+    says hello.                                             
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
