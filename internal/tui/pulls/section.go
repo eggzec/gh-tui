@@ -13,11 +13,15 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
+	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
 )
 
 // Service is what the section needs of the pull requests service.
 type Service interface {
 	List(ctx context.Context, q pulls.ListQuery) (core.Page[core.PullRequest], error)
+	CachedGet(repo core.RepoRef, number int) (core.PullRequestDetail, bool)
+	Get(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error)
+	Comments(ctx context.Context, q pulls.CommentsQuery) (core.Page[core.Comment], error)
 }
 
 // Section shows the pull requests of the selected repository. Create it with
@@ -38,6 +42,13 @@ type Section struct {
 	// section has started with a repository.
 	feed       *feed.Model[core.PullRequest]
 	cancelFeed context.CancelFunc
+
+	// thread shows detail with its comments while a pull request is open,
+	// and is nil otherwise. detailCtx is cancelled when it closes.
+	thread       *thread.Model[core.Comment]
+	detail       core.PullRequestDetail
+	detailCtx    context.Context
+	cancelDetail context.CancelFunc
 
 	width, height int
 	theme         ui.Theme
@@ -92,6 +103,7 @@ func (s *Section) Init() tea.Cmd {
 // newFeed replaces the feed with one for the current repository and filter,
 // and returns the command that loads it.
 func (s *Section) newFeed() tea.Cmd {
+	s.closeDetail()
 	if s.cancelFeed != nil {
 		s.cancelFeed()
 	}
@@ -124,6 +136,11 @@ func (s *Section) SetSize(width, height int) {
 	s.layout()
 	s.renderHeader()
 	s.blank = s.st.noRepo(s.width, s.height)
+	if s.thread != nil {
+		s.thread.SetSize(s.width, s.height)
+		// The next Update loads what the new size shows.
+		_ = s.showDetail()
+	}
 }
 
 func (s *Section) layout() {
@@ -141,12 +158,19 @@ func (s *Section) SetTheme(t ui.Theme) {
 	}
 	s.renderHeader()
 	s.blank = s.st.noRepo(s.width, s.height)
+	if s.thread != nil {
+		s.thread.SetStyles(t.Thread())
+		_ = s.showDetail()
+	}
 }
 
 // Focus implements ui.Section.
 func (s *Section) Focus() {
 	s.focused = true
-	if s.feed != nil {
+	switch {
+	case s.thread != nil:
+		s.thread.Focus()
+	case s.feed != nil:
 		s.feed.Focus()
 	}
 }
@@ -154,6 +178,9 @@ func (s *Section) Focus() {
 // Blur implements ui.Section.
 func (s *Section) Blur() {
 	s.focused = false
+	if s.thread != nil {
+		s.thread.Blur()
+	}
 	if s.feed != nil {
 		s.feed.Blur()
 	}
@@ -166,6 +193,9 @@ func (s *Section) View() string {
 	}
 	if !s.hasRepo || s.feed == nil {
 		return s.blank
+	}
+	if s.thread != nil {
+		return s.thread.View()
 	}
 	if s.height <= headerHeight {
 		return s.header

@@ -29,10 +29,78 @@ type fakeService struct {
 	pulls    []core.PullRequest
 	pageSize int
 	queries  []pulls.ListQuery
+	// cached are the numbers whose detail Get has fetched, which CachedGet
+	// then serves.
+	cached   map[int]bool
+	gets     []int
+	getErr   error
+	comments []pulls.CommentsQuery
 }
 
 func newFakeService() *fakeService {
-	return &fakeService{pulls: samplePulls(), pageSize: 30}
+	return &fakeService{pulls: samplePulls(), pageSize: 30, cached: map[int]bool{}}
+}
+
+func (f *fakeService) find(number int) (core.PullRequest, bool) {
+	for i := range f.pulls {
+		if f.pulls[i].Number == number {
+			return f.pulls[i], true
+		}
+	}
+	return core.PullRequest{}, false
+}
+
+func (f *fakeService) detail(number int) core.PullRequestDetail {
+	pr, _ := f.find(number)
+	pr.Body = "## Why\n\nCold starts read **every** page again. This keeps them on disk.\n\n- Pages expire with their TTL\n- `--no-disk` turns it off"
+	return core.PullRequestDetail{PullRequest: pr, CheckRuns: []core.CheckRun{
+		{Name: "test", Status: "completed", Conclusion: "success"},
+		{Name: "lint", Status: "completed", Conclusion: "success"},
+		{Name: "race", Status: "completed", Conclusion: "failure"},
+		{Name: "bench", Status: "in_progress"},
+	}}
+}
+
+func (f *fakeService) CachedGet(_ core.RepoRef, number int) (core.PullRequestDetail, bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if !f.cached[number] {
+		return core.PullRequestDetail{}, false
+	}
+	return f.detail(number), true
+}
+
+func (f *fakeService) Get(_ context.Context, _ core.RepoRef, number int) (core.PullRequestDetail, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.gets = append(f.gets, number)
+	if f.getErr != nil {
+		return core.PullRequestDetail{}, f.getErr
+	}
+	f.cached[number] = true
+	return f.detail(number), nil
+}
+
+// Comments serves three comments on every pull request, two a page.
+func (f *fakeService) Comments(_ context.Context, q pulls.CommentsQuery) (core.Page[core.Comment], error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.comments = append(f.comments, q)
+	all := []core.Comment{
+		{ID: "c1", Author: core.User{Login: "hubot"}, Body: "Does this survive a crash halfway through a write?", CreatedAt: clock.Add(-20 * time.Hour)},
+		{ID: "c2", Author: core.User{Login: "octocat"}, Body: "It writes to a temporary file and renames it, so a crash leaves the old page in place.\r\n\r\nI added a test for it.", CreatedAt: clock.Add(-2 * time.Hour)},
+		{ID: "c3", Author: core.User{Login: "monalisa"}, Body: "LGTM", CreatedAt: clock.Add(-10 * time.Minute)},
+	}
+	if q.Cursor == "" {
+		return core.Page[core.Comment]{Items: all[:2], Next: "2"}, nil
+	}
+	return core.Page[core.Comment]{Items: all[2:]}, nil
+}
+
+func (f *fakeService) got() []int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.gets)
 }
 
 func (f *fakeService) List(_ context.Context, q pulls.ListQuery) (core.Page[core.PullRequest], error) {

@@ -10,26 +10,31 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
+	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
 )
 
 // keyMap holds the keys of the section, and those of its bubbles without
 // the keys the section takes for itself.
 type keyMap struct {
+	Select  key.Binding
+	Back    key.Binding
 	Filter  key.Binding
 	Refresh key.Binding
 	Open    key.Binding
 
-	feed feed.KeyMap
+	feed   feed.KeyMap
+	thread thread.KeyMap
 }
 
 func newKeyMap(keys map[string][]string) keyMap {
 	k := keyMap{
+		Select:  ui.Binding(keys, config.ActionSelect, "open"),
+		Back:    ui.Binding(keys, config.ActionBack, "back"),
 		Filter:  ui.Binding(keys, config.ActionFilter, "filter"),
 		Refresh: ui.Binding(keys, config.ActionRefresh, "refresh"),
 		Open:    ui.Binding(keys, config.ActionOpen, "open in browser"),
 	}
-	own := k.own()
-
+	own := k.list()
 	f := feed.DefaultKeyMap()
 	f.Up, f.Down = without(f.Up, own), without(f.Down, own)
 	f.PageUp, f.PageDown = without(f.PageUp, own), without(f.PageDown, own)
@@ -38,12 +43,28 @@ func newKeyMap(keys map[string][]string) keyMap {
 	// its keys.
 	f.Retry = retry(k.Refresh)
 	k.feed = f
+
+	own = k.detail()
+	t := thread.DefaultKeyMap()
+	t.Up, t.Down = without(t.Up, own), without(t.Down, own)
+	t.PageUp, t.PageDown = without(t.PageUp, own), without(t.PageDown, own)
+	t.HalfPageUp, t.HalfPageDown = without(t.HalfPageUp, own), without(t.HalfPageDown, own)
+	t.Top, t.Bottom = without(t.Top, own), without(t.Bottom, own)
+	// The thread offers retry itself once something failed.
+	t.Retry = retry(k.Refresh)
+	t.Retry.SetEnabled(k.Refresh.Enabled())
+	k.thread = t
 	return k
 }
 
-// own returns the bindings the section handles before its bubbles.
-func (k keyMap) own() []key.Binding {
-	return []key.Binding{k.Filter, k.Refresh, k.Open}
+// list returns the bindings the section handles before the feed.
+func (k keyMap) list() []key.Binding {
+	return []key.Binding{k.Select, k.Filter, k.Refresh, k.Open}
+}
+
+// detail returns the bindings the section handles before the thread.
+func (k keyMap) detail() []key.Binding {
+	return []key.Binding{k.Back, k.Refresh, k.Open}
 }
 
 // retry returns the refresh keys as a retry binding that starts disabled, so
@@ -103,16 +124,26 @@ func (h keyHelp) FullHelp() [][]key.Binding { return h.full }
 
 // Help implements ui.Section. It lists the keys of the current view.
 func (s *Section) Help() help.KeyMap {
-	k, f := s.keys, s.keys.feed
-	if !s.hasRepo {
+	k, f, t := s.keys, s.keys.feed, s.keys.thread
+	switch {
+	case !s.hasRepo:
 		return keyHelp{}
+	case s.thread != nil:
+		return keyHelp{
+			short: []key.Binding{t.Up, t.Down, k.Back, k.Open},
+			full: [][]key.Binding{
+				{t.Up, t.Down, t.PageUp, t.PageDown},
+				{t.HalfPageUp, t.HalfPageDown, t.Top, t.Bottom},
+				{k.Back, k.Refresh, k.Open},
+			},
+		}
 	}
 	return keyHelp{
-		short: []key.Binding{f.Up, f.Down, k.Filter, k.Open},
+		short: []key.Binding{f.Up, f.Down, k.Select, k.Filter, k.Open},
 		full: [][]key.Binding{
 			{f.Up, f.Down, f.PageUp, f.PageDown},
 			{f.Home, f.End},
-			{k.Filter, k.Refresh, k.Open},
+			{k.Select, k.Filter, k.Refresh, k.Open},
 		},
 	}
 }
