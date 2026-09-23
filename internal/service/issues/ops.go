@@ -111,18 +111,15 @@ func (s *Service) knownLabels(repo core.RepoRef) map[string]core.Label {
 			known[strings.ToLower(l.Name)] = l
 		}
 	}
-	// MutateTag is the cache's only way to visit the entries of a tag.
-	// Reporting no change leaves them untouched.
-	s.lists.MutateTag(repoTag(repo), func(p core.Page[core.Issue]) (core.Page[core.Issue], bool) {
+	for _, p := range s.lists.Tagged(repoTag(repo)) {
 		for i := range p.Items {
 			add(p.Items[i].Labels)
 		}
-		return p, false
-	})
-	s.issues.MutateTag(repoTag(repo), func(it core.Issue) (core.Issue, bool) {
-		add(it.Labels)
-		return it, false
-	})
+	}
+	issues := s.issues.Tagged(repoTag(repo))
+	for i := range issues {
+		add(issues[i].Labels)
+	}
 	return known
 }
 
