@@ -102,6 +102,8 @@ func (c *Client) graphqlError(h http.Header, items []GraphQLErrorItem) *GraphQLE
 		switch item.Type {
 		case "NOT_FOUND":
 			e.causes = append(e.causes, core.ErrNotFound)
+		case "UNPROCESSABLE":
+			e.causes = append(e.causes, core.ErrConflict)
 		case "RATE_LIMITED":
 			e.causes = append(e.causes, &core.RateLimitError{Reset: c.graphqlReset(h)})
 		}
