@@ -21,7 +21,10 @@ var repo = core.RepoRef{Owner: "eggzec", Name: "gh-tui"}
 type fakeAPI struct {
 	list func(ctx context.Context, repo core.RepoRef, state core.State, cursor string, first int) (core.Page[core.PullRequest], error)
 	get  func(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error)
-	id   func(ctx context.Context, repo core.RepoRef, number int) (string, error)
+	// comments and reviews back the timeline reads.
+	comments func(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.Page[core.Comment], error)
+	reviews  func(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.Page[core.Review], error)
+	id       func(ctx context.Context, repo core.RepoRef, number int) (string, error)
 	// mutate backs every mutation. Method names the mutation; merge also
 	// passes the merge method.
 	mutate func(ctx context.Context, method, id string, how core.MergeMethod) (core.PullRequest, error)
@@ -54,6 +57,16 @@ func (f *fakeAPI) ListPullRequests(ctx context.Context, repo core.RepoRef, state
 func (f *fakeAPI) GetPullRequest(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error) {
 	f.called("get")
 	return f.get(ctx, repo, number)
+}
+
+func (f *fakeAPI) ListPullRequestComments(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.Page[core.Comment], error) {
+	f.called("comments")
+	return f.comments(ctx, repo, number, cursor, first)
+}
+
+func (f *fakeAPI) ListPullRequestReviews(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.Page[core.Review], error) {
+	f.called("reviews")
+	return f.reviews(ctx, repo, number, cursor, first)
 }
 
 func (f *fakeAPI) PullRequestID(ctx context.Context, repo core.RepoRef, number int) (string, error) {
@@ -102,7 +115,7 @@ func listing(_ context.Context, _ core.RepoRef, _ core.State, cursor string, _ i
 func detail(_ context.Context, _ core.RepoRef, number int) (core.PullRequestDetail, error) {
 	return core.PullRequestDetail{
 		PullRequest: openPull(number),
-		Reviews:     []core.Review{{ID: "PRR_1", State: core.ReviewStateApproved}},
+		CheckRuns:   []core.CheckRun{{Name: "test", Status: "completed", Conclusion: "success"}},
 	}, nil
 }
 
@@ -261,8 +274,8 @@ func TestGetFreshHitMakesNoCall(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Get: %v", err)
 		}
-		if d.Number != 1 || len(d.Reviews) != 1 {
-			t.Errorf("detail = %+v, want #1 with one review", d)
+		if d.Number != 1 || len(d.CheckRuns) != 1 {
+			t.Errorf("detail = %+v, want #1 with one check", d)
 		}
 	}
 	if n := api.count("get"); n != 1 {

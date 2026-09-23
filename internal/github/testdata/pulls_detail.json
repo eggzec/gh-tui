@@ -24,42 +24,6 @@
         "changedFiles": 7,
         "commits": {"nodes": [{"commit": {"statusCheckRollup": {"state": "PENDING"}}}]},
         "body": "Lists pull requests with their checks.\r\n\r\nCloses #40.",
-        "reviews": {
-          "nodes": [
-            {
-              "id": "PRR_kwDOLnBTf86Aa001",
-              "author": {"login": "hubot", "name": "Hubot"},
-              "state": "CHANGES_REQUESTED",
-              "body": "Please add tests.",
-              "submittedAt": "2026-09-21T10:00:00Z"
-            },
-            {
-              "id": "PRR_kwDOLnBTf86Aa002",
-              "author": {"login": "monalisa", "name": "Mona Lisa"},
-              "state": "COMMENTED",
-              "body": "",
-              "submittedAt": "2026-09-22T09:12:30Z"
-            }
-          ]
-        },
-        "recentComments": {
-          "nodes": [
-            {
-              "id": "IC_kwDOLnBTf86Bb001",
-              "author": {"login": "monalisa", "name": "Mona Lisa"},
-              "body": "Looks good so far.",
-              "createdAt": "2026-09-21T08:00:00Z",
-              "updatedAt": "2026-09-21T08:05:00Z"
-            },
-            {
-              "id": "IC_kwDOLnBTf86Bb002",
-              "author": null,
-              "body": "Ping.",
-              "createdAt": "2026-09-22T16:00:00Z",
-              "updatedAt": "2026-09-22T16:00:00Z"
-            }
-          ]
-        },
         "headCommit": {
           "nodes": [
             {

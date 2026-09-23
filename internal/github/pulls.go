@@ -16,13 +16,12 @@ import (
 // mutation there returns the updated pull request, where the REST merge
 // returns only a commit SHA and REST has no draft endpoints.
 
-// Limits of the nested connections. Rows show a few labels, and the detail
-// view shows the latest activity.
+// Limits of the nested connections. Rows show a few labels, and the checks
+// summarize the pull request in its detail view. Reviews and comments are
+// paged on their own, as a thread can be long.
 const (
 	pullLabels    = 20
 	pullAssignees = 10
-	pullReviews   = 50
-	pullComments  = 50
 	pullChecks    = 100
 )
 
@@ -66,12 +65,6 @@ var getPullQuery = fmt.Sprintf(`query($owner: String!, $name: String!, $number: 
     pullRequest(number: $number) {
       ...pullFields
       body
-      reviews(last: %d) {
-        nodes { id author { login ... on User { name } } state body submittedAt }
-      }
-      recentComments: comments(last: %d) {
-        nodes { id author { login ... on User { name } } body createdAt updatedAt }
-      }
       headCommit: commits(last: 1) {
         nodes { commit { statusCheckRollup { contexts(first: %d) { nodes {
           __typename
@@ -82,7 +75,7 @@ var getPullQuery = fmt.Sprintf(`query($owner: String!, $name: String!, $number: 
     }
   }
 }
-`, pullReviews, pullComments, pullChecks) + pullFields
+`, pullChecks) + pullFields
 
 // pull is the JSON shape of pullFields.
 type pull struct {
@@ -174,10 +167,8 @@ func checksState(s string) core.ChecksState {
 // pullDetail is the JSON shape of the pull request in getPullQuery.
 type pullDetail struct {
 	pull
-	Body           string             `json:"body"`
-	Reviews        nodes[review]      `json:"reviews"`
-	RecentComments nodes[pullComment] `json:"recentComments"`
-	HeadCommit     nodes[struct {
+	Body       string `json:"body"`
+	HeadCommit nodes[struct {
 		Commit struct {
 			StatusCheckRollup *struct {
 				Contexts nodes[checkContext] `json:"contexts"`
@@ -189,11 +180,7 @@ type pullDetail struct {
 func (d pullDetail) core() core.PullRequestDetail {
 	pr := d.pull.core()
 	pr.Body = d.Body
-	out := core.PullRequestDetail{
-		PullRequest:    pr,
-		Reviews:        convert(d.Reviews.Nodes, review.core),
-		RecentComments: convert(d.RecentComments.Nodes, pullComment.core),
-	}
+	out := core.PullRequestDetail{PullRequest: pr}
 	if len(d.HeadCommit.Nodes) > 0 {
 		if r := d.HeadCommit.Nodes[0].Commit.StatusCheckRollup; r != nil {
 			out.CheckRuns = convert(r.Contexts.Nodes, checkContext.core)
@@ -317,8 +304,9 @@ func (c *Client) ListPullRequests(ctx context.Context, repo core.RepoRef, state 
 	}, nil
 }
 
-// GetPullRequest returns pull request number of repo with its body, latest
-// reviews and comments, and the checks of its head commit.
+// GetPullRequest returns pull request number of repo with its body and the
+// checks of its head commit. Its reviews and comments are read a page at a
+// time with ListPullRequestReviews and ListPullRequestComments.
 func (c *Client) GetPullRequest(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error) {
 	vars := map[string]any{"owner": repo.Owner, "name": repo.Name, "number": number}
 	var data struct {
@@ -334,6 +322,73 @@ func (c *Client) GetPullRequest(ctx context.Context, repo core.RepoRef, number i
 		return core.PullRequestDetail{}, fmt.Errorf("get pull request %s#%d: %w", repo, number, err)
 	}
 	return data.Repository.PullRequest.core(), nil
+}
+
+// pullPage selects a page of the connection field of a pull request, such
+// as its comments, oldest first. The page is aliased to page, so that one
+// shape decodes them all.
+func pullPage(field, nodeFields string) string {
+	return fmt.Sprintf(`query($owner: String!, $name: String!, $number: Int!, $first: Int!, $after: String) {
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $number) {
+      page: %s(first: $first, after: $after) {
+        nodes { %s }
+        pageInfo { hasNextPage endCursor }
+      }
+    }
+  }
+}`, field, nodeFields)
+}
+
+var (
+	pullCommentsQuery = pullPage("comments", "id author { login ... on User { name } } body createdAt updatedAt")
+	pullReviewsQuery  = pullPage("reviews", "id author { login ... on User { name } } state body submittedAt")
+)
+
+// listPullPage runs a pullPage query and converts its nodes with f. What
+// names the page in errors.
+func listPullPage[T, U any](
+	ctx context.Context, c *Client, what, query string,
+	repo core.RepoRef, number int, cursor string, first int,
+	f func(T) U,
+) (core.Page[U], error) {
+	vars := map[string]any{"owner": repo.Owner, "name": repo.Name, "number": number, "first": first}
+	if cursor != "" {
+		vars["after"] = cursor
+	}
+	var data struct {
+		Repository *struct {
+			PullRequest *struct {
+				Page struct {
+					Nodes    []T      `json:"nodes"`
+					PageInfo pageInfo `json:"pageInfo"`
+				} `json:"page"`
+			} `json:"pullRequest"`
+		} `json:"repository"`
+	}
+	err := c.Query(ctx, query, vars, &data)
+	if err == nil && (data.Repository == nil || data.Repository.PullRequest == nil) {
+		err = core.ErrNotFound
+	}
+	if err != nil {
+		return core.Page[U]{}, fmt.Errorf("list %s of pull request %s#%d: %w", what, repo, number, err)
+	}
+	page := data.Repository.PullRequest.Page
+	return core.Page[U]{Items: convert(page.Nodes, f), Next: page.PageInfo.next()}, nil
+}
+
+// ListPullRequestComments returns a page of up to first comments on pull
+// request number of repo, oldest first. Cursor and first work as in
+// ListPullRequests.
+func (c *Client) ListPullRequestComments(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.Page[core.Comment], error) {
+	return listPullPage(ctx, c, "comments", pullCommentsQuery, repo, number, cursor, first, pullComment.core)
+}
+
+// ListPullRequestReviews returns a page of up to first reviews of pull
+// request number of repo, oldest first. Cursor and first work as in
+// ListPullRequests.
+func (c *Client) ListPullRequestReviews(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.Page[core.Review], error) {
+	return listPullPage(ctx, c, "reviews", pullReviewsQuery, repo, number, cursor, first, review.core)
 }
 
 var pullIDQuery = `query($owner: String!, $name: String!, $number: Int!) {
