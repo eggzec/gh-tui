@@ -107,6 +107,21 @@ func (c *Cache[V]) Invalidate(key string) {
 	}
 }
 
+// Tagged returns the values of every entry tagged with tag, fresh or stale,
+// in no particular order. It is a snapshot, so the caller may use the cache
+// while going through it.
+func (c *Cache[V]) Tagged(tag string) []V {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	var out []V
+	for _, n := range c.items {
+		if slices.Contains(n.entry.Tags, tag) {
+			out = append(out, n.entry.Value)
+		}
+	}
+	return out
+}
+
 // InvalidateTag marks every entry tagged with tag as stale. Entries are kept
 // rather than removed so views can keep showing them, and revalidate them
 // cheaply with their validators.

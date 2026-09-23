@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"slices"
 	"strconv"
 	"sync"
 	"testing"
@@ -155,5 +156,22 @@ func TestConcurrentAccess(t *testing.T) {
 	wg.Wait()
 	if got := c.Len(); got > capacity {
 		t.Errorf("Len() = %d, want at most %d", got, capacity)
+	}
+}
+
+func TestTagged(t *testing.T) {
+	c := New[int]()
+	c.Set("a", Entry[int]{Value: 1, Tags: []string{"repo"}})
+	c.Set("b", Entry[int]{Value: 2, Tags: []string{"repo", "other"}})
+	c.Set("c", Entry[int]{Value: 3, Tags: []string{"other"}})
+	c.Invalidate("b")
+
+	got := c.Tagged("repo")
+	slices.Sort(got)
+	if !slices.Equal(got, []int{1, 2}) {
+		t.Errorf("Tagged(repo) = %v, want [1 2], stale entries included", got)
+	}
+	if got := c.Tagged("none"); len(got) != 0 {
+		t.Errorf("Tagged(none) = %v, want empty", got)
 	}
 }
