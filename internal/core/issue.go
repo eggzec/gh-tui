@@ -60,3 +60,11 @@ type Comment struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
+
+// IssueDetail is an issue together with its conversation.
+type IssueDetail struct {
+	Issue
+	// Thread holds the comments, oldest first. It may hold only the first
+	// ones of a long conversation, so use Issue.Comments for the count.
+	Thread []Comment
+}
