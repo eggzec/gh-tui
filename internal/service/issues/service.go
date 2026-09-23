@@ -17,7 +17,7 @@ import (
 type API interface {
 	ListIssues(ctx context.Context, repo core.RepoRef, state core.StateFilter, cursor string, perPage int, cond github.Conditional) (core.Page[core.Issue], github.Response, error)
 	GetIssue(ctx context.Context, repo core.RepoRef, number int, cond github.Conditional) (core.Issue, github.Response, error)
-	ListIssueComments(ctx context.Context, repo core.RepoRef, number int, cursor string, cond github.Conditional) (core.Page[core.Comment], github.Response, error)
+	ListIssueComments(ctx context.Context, repo core.RepoRef, number int, cursor string, perPage int, cond github.Conditional) (core.Page[core.Comment], github.Response, error)
 	SetIssueState(ctx context.Context, repo core.RepoRef, number int, state core.State) (core.Issue, error)
 	AddIssueLabels(ctx context.Context, repo core.RepoRef, number int, names []string) ([]core.Label, error)
 	RemoveIssueLabel(ctx context.Context, repo core.RepoRef, number int, name string) ([]core.Label, error)
@@ -30,8 +30,9 @@ type Service struct {
 	viewer string
 	// pending numbers the comments shown before GitHub confirms them.
 	pending atomic.Uint64
-	// An issue's detail is split in two entries because GitHub serves the
-	// issue and its comments separately, each with its own ETag.
+	// An issue and each page of its comments are separate entries, each with
+	// its own ETag, so the tui can page through a long thread and keep only
+	// the pages it shows.
 	lists    *cache.Cache[core.Page[core.Issue]]
 	issues   *cache.Cache[core.Issue]
 	comments *cache.Cache[core.Page[core.Comment]]
@@ -74,8 +75,8 @@ func fetch[V any](ctx context.Context, c *cache.Cache[V], key string, tags func(
 	return e.Value, err
 }
 
-// Cache keys and tags. Every entry that holds an issue is tagged with the
-// issue's key, so a change to the issue finds all of them.
+// Cache keys and tags. Every entry that holds an issue, or comments on it,
+// is tagged with the issue's key, so a change to the issue finds all of them.
 
 func listKey(q ListQuery) string {
 	return fmt.Sprintf("list:%s:%s:%d:%s", q.Repo, q.State, q.PageSize, q.Cursor)
@@ -85,8 +86,8 @@ func issueKey(repo core.RepoRef, number int) string {
 	return fmt.Sprintf("issue:%s#%d", repo, number)
 }
 
-func commentsKey(repo core.RepoRef, number int) string {
-	return fmt.Sprintf("comments:%s#%d", repo, number)
+func commentsKey(q CommentsQuery) string {
+	return fmt.Sprintf("comments:%s#%d:%d:%s", q.Repo, q.Number, q.PageSize, q.Cursor)
 }
 
 func repoTag(repo core.RepoRef) string {

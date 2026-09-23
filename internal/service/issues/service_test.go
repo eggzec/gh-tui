@@ -23,7 +23,7 @@ type fakeAPI struct {
 
 	listIssues   func(state core.StateFilter, cursor string, perPage int, cond github.Conditional) (core.Page[core.Issue], github.Response, error)
 	getIssue     func(number int, cond github.Conditional) (core.Issue, github.Response, error)
-	listComments func(number int, cond github.Conditional) (core.Page[core.Comment], github.Response, error)
+	listComments func(number int, cursor string, perPage int, cond github.Conditional) (core.Page[core.Comment], github.Response, error)
 	setState     func(number int, state core.State) (core.Issue, error)
 	addLabels    func(number int, names []string) ([]core.Label, error)
 	removeLabel  func(number int, name string) ([]core.Label, error)
@@ -79,15 +79,12 @@ func (f *fakeAPI) GetIssue(_ context.Context, r core.RepoRef, number int, cond g
 	return f.getIssue(number, cond)
 }
 
-func (f *fakeAPI) ListIssueComments(_ context.Context, r core.RepoRef, number int, cursor string, cond github.Conditional) (core.Page[core.Comment], github.Response, error) {
+func (f *fakeAPI) ListIssueComments(_ context.Context, r core.RepoRef, number int, cursor string, perPage int, cond github.Conditional) (core.Page[core.Comment], github.Response, error) {
 	f.checkRepo(r)
-	if cursor != "" {
-		f.t.Errorf("comments cursor = %q, want the first page", cursor)
-	}
 	if !f.record("ListIssueComments", f.listComments != nil) {
 		return core.Page[core.Comment]{}, github.Response{}, errUnexpected
 	}
-	return f.listComments(number, cond)
+	return f.listComments(number, cursor, perPage, cond)
 }
 
 func (f *fakeAPI) SetIssueState(_ context.Context, r core.RepoRef, number int, state core.State) (core.Issue, error) {
@@ -162,10 +159,52 @@ func page(next string, numbers ...int) core.Page[core.Issue] {
 	return p
 }
 
-func thread() core.Page[core.Comment] {
-	return core.Page[core.Comment]{Items: []core.Comment{
-		{ID: "IC_1", Author: core.User{Login: "hubot"}, Body: "Same here", CreatedAt: epoch, UpdatedAt: epoch},
-	}}
+func comment(n int) core.Comment {
+	return core.Comment{
+		ID:        fmt.Sprintf("IC_%d", n),
+		Author:    core.User{Login: "hubot"},
+		Body:      fmt.Sprintf("Comment %d", n),
+		CreatedAt: epoch,
+		UpdatedAt: epoch,
+	}
+}
+
+// thread returns comments 1 to n, oldest first.
+func thread(n int) []core.Comment {
+	out := make([]core.Comment, n)
+	for i := range n {
+		out[i] = comment(i + 1)
+	}
+	return out
+}
+
+// commentPage pages through all as GitHub does, with cursors of the form
+// "offset=N". It may run outside the test's goroutine, so it doesn't stop
+// the test.
+func commentPage(t *testing.T, all []core.Comment, cursor string, perPage int) core.Page[core.Comment] {
+	t.Helper()
+	off := 0
+	if cursor != "" {
+		if _, err := fmt.Sscanf(cursor, "offset=%d", &off); err != nil {
+			t.Errorf("cursor %q: %v", cursor, err)
+			return core.Page[core.Comment]{}
+		}
+	}
+	end := min(off+perPage, len(all))
+	p := core.Page[core.Comment]{Items: slices.Clone(all[off:end])}
+	if end < len(all) {
+		p.Next = fmt.Sprintf("offset=%d", end)
+	}
+	return p
+}
+
+// ids returns the comment IDs of p.
+func ids(p core.Page[core.Comment]) []string {
+	out := make([]string, len(p.Items))
+	for i := range p.Items {
+		out[i] = p.Items[i].ID
+	}
+	return out
 }
 
 func ok(etag string) github.Response {

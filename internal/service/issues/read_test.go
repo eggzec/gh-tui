@@ -3,6 +3,7 @@ package issues
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -171,13 +172,11 @@ func TestListError(t *testing.T) {
 
 func detailAPI(t *testing.T) *fakeAPI {
 	t.Helper()
+	// No listComments, so a detail read that asks for comments fails.
 	return &fakeAPI{
 		t: t,
 		getIssue: func(number int, _ github.Conditional) (core.Issue, github.Response, error) {
 			return issue(number), ok(`"i1"`), nil
-		},
-		listComments: func(int, github.Conditional) (core.Page[core.Comment], github.Response, error) {
-			return thread(), ok(`"c1"`), nil
 		},
 	}
 }
@@ -193,13 +192,13 @@ func TestGetFreshHitMakesNoCall(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Get: %v", err)
 		}
-		if got.Number != 7 || len(got.Thread) != 1 || got.Thread[0].ID != "IC_1" {
-			t.Errorf("Get = %+v, want issue 7 with its comment", got)
+		if got.Number != 7 {
+			t.Errorf("Get = %+v, want issue 7", got)
 		}
 	}
-	api.checkCalls(t, "GetIssue", "ListIssueComments")
-	if got, cached := s.CachedGet(repo, 7); !cached || got.Number != 7 || len(got.Thread) != 1 {
-		t.Errorf("CachedGet = %+v, %v; want issue 7 with its comment", got, cached)
+	api.checkCalls(t, "GetIssue")
+	if got, cached := s.CachedGet(repo, 7); !cached || got.Number != 7 {
+		t.Errorf("CachedGet = %+v, %v; want issue 7", got, cached)
 	}
 }
 
@@ -213,36 +212,32 @@ func TestGetRevalidatesStale(t *testing.T) {
 		api.called()
 
 		time.Sleep(pastTTL)
-		var issueCond, commentsCond github.Conditional
-		api.getIssue = func(_ int, cond github.Conditional) (core.Issue, github.Response, error) {
-			issueCond = cond
+		var cond github.Conditional
+		api.getIssue = func(_ int, c github.Conditional) (core.Issue, github.Response, error) {
+			cond = c
 			return core.Issue{}, notModified, nil
-		}
-		api.listComments = func(_ int, cond github.Conditional) (core.Page[core.Comment], github.Response, error) {
-			commentsCond = cond
-			return core.Page[core.Comment]{}, notModified, nil
 		}
 		got, err := s.Get(t.Context(), repo, 7)
 		if err != nil {
 			t.Fatalf("Get: %v", err)
 		}
-		if got.Number != 7 || len(got.Thread) != 1 {
-			t.Errorf("Get after a 304 = %+v, want the cached detail", got)
+		if got.Number != 7 {
+			t.Errorf("Get after a 304 = %+v, want the cached issue", got)
 		}
-		if issueCond.ETag != `"i1"` || commentsCond.ETag != `"c1"` {
-			t.Errorf("validators = %q and %q, want each entry's own ETag", issueCond.ETag, commentsCond.ETag)
+		if cond.ETag != `"i1"` {
+			t.Errorf("validator = %q, want the stored ETag", cond.ETag)
 		}
 		if _, err := s.Get(t.Context(), repo, 7); err != nil {
 			t.Fatalf("Get: %v", err)
 		}
-		api.checkCalls(t, "GetIssue", "ListIssueComments")
+		api.checkCalls(t, "GetIssue")
 	})
 }
 
 func TestGetError(t *testing.T) {
 	api := detailAPI(t)
-	api.listComments = func(int, github.Conditional) (core.Page[core.Comment], github.Response, error) {
-		return core.Page[core.Comment]{}, github.Response{}, &core.RateLimitError{Reset: epoch}
+	api.getIssue = func(int, github.Conditional) (core.Issue, github.Response, error) {
+		return core.Issue{}, github.Response{}, &core.RateLimitError{Reset: epoch}
 	}
 	s := New(api)
 	_, err := s.Get(t.Context(), repo, 7)
@@ -250,6 +245,134 @@ func TestGetError(t *testing.T) {
 		t.Errorf("error = %v, want a wrapped ErrRateLimited", err)
 	}
 	if _, cached := s.CachedGet(repo, 7); cached {
-		t.Error("CachedGet reported a detail whose comments failed to load")
+		t.Error("CachedGet reported an issue that failed to load")
+	}
+}
+
+func TestCommentsKeys(t *testing.T) {
+	type call struct {
+		number  int
+		cursor  string
+		perPage int
+	}
+	var calls []call
+	api := &fakeAPI{t: t, listComments: func(number int, cursor string, perPage int, _ github.Conditional) (core.Page[core.Comment], github.Response, error) {
+		calls = append(calls, call{number, cursor, perPage})
+		return commentPage(t, thread(3), cursor, perPage), ok(`"c1"`), nil
+	}}
+	s := New(api)
+	q := CommentsQuery{Repo: repo, Number: 7, PageSize: 2}
+	if _, cached := s.CachedComments(q); cached {
+		t.Fatal("CachedComments reported a page before any fetch")
+	}
+
+	first, err := s.Comments(t.Context(), q)
+	if err != nil {
+		t.Fatalf("Comments: %v", err)
+	}
+	if !slices.Equal(ids(first), []string{"IC_1", "IC_2"}) || first.Next != "offset=2" {
+		t.Fatalf("first page = %+v, want IC_1 and IC_2 with the API's cursor", first)
+	}
+	queries := []CommentsQuery{
+		{Repo: repo, Number: 7, PageSize: 2, Cursor: first.Next},
+		{Repo: repo, Number: 7, PageSize: 2}, // Cached above.
+		{Repo: repo, Number: 7},
+		{Repo: repo, Number: 7, PageSize: DefaultPageSize}, // Same as the zero PageSize.
+		{Repo: repo, Number: 7, PageSize: 1, Cursor: first.Next},
+		{Repo: repo, Number: 7, PageSize: 2, Cursor: first.Next}, // Cached above.
+		{Repo: repo, Number: 8, PageSize: 2},
+		{Repo: repo, Number: 7, PageSize: 500},
+	}
+	for _, q := range queries {
+		if _, err := s.Comments(t.Context(), q); err != nil {
+			t.Fatalf("Comments(%+v): %v", q, err)
+		}
+	}
+
+	want := []call{
+		{7, "", 2},
+		{7, first.Next, 2},
+		{7, "", DefaultPageSize},
+		{7, first.Next, 1},
+		{8, "", 2},
+		{7, "", maxPageSize},
+	}
+	if !slices.Equal(calls, want) {
+		t.Errorf("calls = %+v, want %+v", calls, want)
+	}
+	last, cached := s.CachedComments(CommentsQuery{Repo: repo, Number: 7, PageSize: 2, Cursor: first.Next})
+	if !cached || !slices.Equal(ids(last), []string{"IC_3"}) || !last.Last() {
+		t.Errorf("second page = %+v, %v; want IC_3 as the last page", last, cached)
+	}
+}
+
+func TestCommentsRevalidatesStale(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		// Each page has its own ETag, and a later version of the thread
+		// changes the ETags of the pages that changed.
+		version := 1
+		conds := map[string][]github.Conditional{}
+		api := &fakeAPI{t: t, listComments: func(_ int, cursor string, perPage int, cond github.Conditional) (core.Page[core.Comment], github.Response, error) {
+			conds[cursor] = append(conds[cursor], cond)
+			etag := fmt.Sprintf(`"%s@%d"`, cursor, version)
+			if cursor == "" {
+				etag = `"first"` // The first page never changes.
+			}
+			if cond.ETag == etag {
+				return core.Page[core.Comment]{}, notModified, nil
+			}
+			return commentPage(t, thread(2+version), cursor, perPage), ok(etag), nil
+		}}
+		s := New(api)
+		first := CommentsQuery{Repo: repo, Number: 7, PageSize: 2}
+		second := CommentsQuery{Repo: repo, Number: 7, PageSize: 2, Cursor: "offset=2"}
+		get := func(q CommentsQuery, want ...string) {
+			t.Helper()
+			got, err := s.Comments(t.Context(), q)
+			if err != nil {
+				t.Fatalf("Comments: %v", err)
+			}
+			if !slices.Equal(ids(got), want) {
+				t.Errorf("Comments(%q) = %q, want %q", q.Cursor, ids(got), want)
+			}
+		}
+
+		get(first, "IC_1", "IC_2")
+		get(second, "IC_3")
+		time.Sleep(pastTTL)
+		if got, cached := s.CachedComments(second); !cached || !slices.Equal(ids(got), []string{"IC_3"}) {
+			t.Errorf("CachedComments of a stale page = %q, %v; want IC_3, true", ids(got), cached)
+		}
+		get(first, "IC_1", "IC_2") // 304 keeps each page and makes it fresh again.
+		get(second, "IC_3")
+		get(first, "IC_1", "IC_2") // Fresh, so no call.
+		get(second, "IC_3")
+		time.Sleep(pastTTL)
+		version = 2
+		get(first, "IC_1", "IC_2")
+		get(second, "IC_3", "IC_4") // Changed, so the new page is stored.
+
+		want := map[string][]github.Conditional{
+			"":         {{}, {ETag: `"first"`}, {ETag: `"first"`}},
+			"offset=2": {{}, {ETag: `"offset=2@1"`}, {ETag: `"offset=2@1"`}},
+		}
+		if !reflect.DeepEqual(conds, want) {
+			t.Errorf("validators sent = %q, want %q", conds, want)
+		}
+	})
+}
+
+func TestCommentsError(t *testing.T) {
+	api := &fakeAPI{t: t, listComments: func(int, string, int, github.Conditional) (core.Page[core.Comment], github.Response, error) {
+		return core.Page[core.Comment]{}, github.Response{}, &core.RateLimitError{Reset: epoch}
+	}}
+	s := New(api)
+	q := CommentsQuery{Repo: repo, Number: 7}
+	_, err := s.Comments(t.Context(), q)
+	if !errors.Is(err, core.ErrRateLimited) || !strings.Contains(err.Error(), "list comments of issue octo-org/hello#7") {
+		t.Errorf("error = %v, want a wrapped ErrRateLimited", err)
+	}
+	if _, cached := s.CachedComments(q); cached {
+		t.Error("CachedComments reported a page that failed to load")
 	}
 }

@@ -179,9 +179,9 @@ func TestGetIssue(t *testing.T) {
 
 func TestListIssueComments(t *testing.T) {
 	c := serveIssueFixture(t, "issues_comments.json", func(r *http.Request) {
-		checkIssueRequest(t, r, http.MethodGet, "/repos/octo-org/hello/issues/42/comments", map[string]string{"per_page": "100"})
+		checkIssueRequest(t, r, http.MethodGet, "/repos/octo-org/hello/issues/42/comments", map[string]string{"per_page": "12"})
 	})
-	page, _, err := c.ListIssueComments(t.Context(), issueRepo, 42, "", Conditional{})
+	page, _, err := c.ListIssueComments(t.Context(), issueRepo, 42, "", 12, Conditional{})
 	if err != nil {
 		t.Fatalf("ListIssueComments: %v", err)
 	}
@@ -204,6 +204,47 @@ func TestListIssueComments(t *testing.T) {
 	if !slices.EqualFunc(page.Items, want, equalComment) {
 		t.Errorf("comments = %+v, want %+v", page.Items, want)
 	}
+	if !page.Last() {
+		t.Errorf("Next = %q, want the last page without a Link header", page.Next)
+	}
+}
+
+func TestListIssueCommentsPages(t *testing.T) {
+	var queries []string
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		queries = append(queries, r.URL.RawQuery)
+		if r.URL.Query().Get("page") == "" {
+			w.Header().Set("Link", `<http://`+r.Host+`/repositories/1/issues/42/comments?page=2&per_page=2>; rel="next"`)
+		}
+		_, _ = w.Write([]byte(`[]`))
+	}))
+
+	first, _, err := c.ListIssueComments(t.Context(), issueRepo, 42, "", 2, Conditional{})
+	if err != nil {
+		t.Fatalf("first page: %v", err)
+	}
+	if first.Last() {
+		t.Fatalf("first page = %+v, want a next cursor", first)
+	}
+	second, _, err := c.ListIssueComments(t.Context(), issueRepo, 42, first.Next, 5, Conditional{})
+	if err != nil {
+		t.Fatalf("second page: %v", err)
+	}
+	if !second.Last() {
+		t.Errorf("second page Next = %q, want empty", second.Next)
+	}
+	if !slices.Equal(queries, []string{"per_page=2", "page=2&per_page=2"}) {
+		t.Errorf("queries = %q, want the second to follow the Link header", queries)
+	}
+}
+
+func TestListIssueCommentsDefaultSize(t *testing.T) {
+	c := serveIssueFixture(t, "issues_comments.json", func(r *http.Request) {
+		checkIssueRequest(t, r, http.MethodGet, "/repos/octo-org/hello/issues/42/comments", nil)
+	})
+	if _, _, err := c.ListIssueComments(t.Context(), issueRepo, 42, "", 0, Conditional{}); err != nil {
+		t.Fatalf("ListIssueComments: %v", err)
+	}
 }
 
 func equalComment(a, b core.Comment) bool {
@@ -223,7 +264,7 @@ var issueReads = map[string]func(c *Client, ctx context.Context, cond Conditiona
 		return res, it.Number == 0, err
 	},
 	"ListIssueComments": func(c *Client, ctx context.Context, cond Conditional) (Response, bool, error) {
-		p, res, err := c.ListIssueComments(ctx, issueRepo, 42, "", cond)
+		p, res, err := c.ListIssueComments(ctx, issueRepo, 42, "", 30, cond)
 		return res, p.Items == nil && p.Next == "", err
 	},
 }

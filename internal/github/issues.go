@@ -12,7 +12,6 @@ import (
 
 // The issue endpoints are REST rather than GraphQL because REST answers a
 // repeated read with a free 304 when nothing changed.
-const commentsPerPage = 100
 
 // restIssue is the REST shape of an issue. The issue endpoints also return pull
 // requests, which are the entries with a pull_request key.
@@ -116,11 +115,14 @@ func (c *Client) GetIssue(ctx context.Context, repo core.RepoRef, number int, co
 }
 
 // ListIssueComments returns a page of the comments on an issue, oldest
-// first. Cursor works as in ListIssues.
-func (c *Client) ListIssueComments(ctx context.Context, repo core.RepoRef, number int, cursor string, cond Conditional) (core.Page[core.Comment], Response, error) {
+// first. Cursor and perPage work as in ListIssues.
+func (c *Client) ListIssueComments(ctx context.Context, repo core.RepoRef, number int, cursor string, perPage int, cond Conditional) (core.Page[core.Comment], Response, error) {
 	path := cursor
 	if path == "" {
-		path = issuePath(repo, number) + "/comments?per_page=" + strconv.Itoa(commentsPerPage)
+		path = issuePath(repo, number) + "/comments"
+		if perPage > 0 {
+			path += "?per_page=" + strconv.Itoa(perPage)
+		}
 	}
 	var items []issueComment
 	res, err := c.Get(ctx, path, cond, &items)
