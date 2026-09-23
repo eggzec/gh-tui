@@ -10,6 +10,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
@@ -22,6 +23,14 @@ type Service interface {
 	CachedGet(repo core.RepoRef, number int) (core.PullRequestDetail, bool)
 	Get(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error)
 	Comments(ctx context.Context, q pulls.CommentsQuery) (core.Page[core.Comment], error)
+
+	// The changes are shown in the cache at once. The returned Op sends
+	// them.
+	Merge(repo core.RepoRef, number int, method core.MergeMethod) *optimistic.Op
+	Close(repo core.RepoRef, number int) *optimistic.Op
+	Reopen(repo core.RepoRef, number int) *optimistic.Op
+	MarkReady(repo core.RepoRef, number int) *optimistic.Op
+	ConvertToDraft(repo core.RepoRef, number int) *optimistic.Op
 }
 
 // Section shows the pull requests of the selected repository. Create it with
@@ -31,6 +40,8 @@ type Section struct {
 	svc  Service
 	keys keyMap
 	now  func() time.Time
+	// mergeMethod is how merge merges.
+	mergeMethod core.MergeMethod
 
 	repo    core.RepoRef
 	hasRepo bool
@@ -68,15 +79,22 @@ func WithClock(now func() time.Time) Option {
 	return func(s *Section) { s.now = now }
 }
 
+// WithMergeMethod sets how pull requests are merged. The default is
+// core.MergeSquash.
+func WithMergeMethod(m core.MergeMethod) Option {
+	return func(s *Section) { s.mergeMethod = m }
+}
+
 // New returns the section, reading from svc with the configured keys. ctx
 // bounds every request it makes.
 func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Option) *Section {
 	s := &Section{
-		ctx:    ctx,
-		svc:    svc,
-		keys:   newKeyMap(keys),
-		now:    time.Now,
-		filter: core.StateOpen,
+		ctx:         ctx,
+		svc:         svc,
+		keys:        newKeyMap(keys),
+		now:         time.Now,
+		mergeMethod: core.MergeSquash,
+		filter:      core.StateOpen,
 	}
 	for _, opt := range opts {
 		opt(s)

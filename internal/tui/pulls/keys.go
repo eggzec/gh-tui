@@ -22,6 +22,11 @@ type keyMap struct {
 	Refresh key.Binding
 	Open    key.Binding
 
+	Merge       key.Binding
+	Close       key.Binding
+	Reopen      key.Binding
+	ToggleDraft key.Binding
+
 	feed   feed.KeyMap
 	thread thread.KeyMap
 }
@@ -33,6 +38,11 @@ func newKeyMap(keys map[string][]string) keyMap {
 		Filter:  ui.Binding(keys, config.ActionFilter, "filter"),
 		Refresh: ui.Binding(keys, config.ActionRefresh, "refresh"),
 		Open:    ui.Binding(keys, config.ActionOpen, "open in browser"),
+
+		Merge:       ui.Binding(keys, config.ActionMerge, "merge"),
+		Close:       ui.Binding(keys, config.ActionClose, "close"),
+		Reopen:      ui.Binding(keys, config.ActionReopen, "reopen"),
+		ToggleDraft: ui.Binding(keys, config.ActionToggleDraft, "convert to draft"),
 	}
 	own := k.list()
 	f := feed.DefaultKeyMap()
@@ -59,12 +69,12 @@ func newKeyMap(keys map[string][]string) keyMap {
 
 // list returns the bindings the section handles before the feed.
 func (k keyMap) list() []key.Binding {
-	return []key.Binding{k.Select, k.Filter, k.Refresh, k.Open}
+	return []key.Binding{k.Select, k.Filter, k.Refresh, k.Open, k.Merge, k.Close, k.Reopen, k.ToggleDraft}
 }
 
 // detail returns the bindings the section handles before the thread.
 func (k keyMap) detail() []key.Binding {
-	return []key.Binding{k.Back, k.Refresh, k.Open}
+	return []key.Binding{k.Back, k.Refresh, k.Open, k.Merge, k.Close, k.Reopen, k.ToggleDraft}
 }
 
 // retry returns the refresh keys as a retry binding that starts disabled, so
@@ -125,25 +135,29 @@ func (h keyHelp) FullHelp() [][]key.Binding { return h.full }
 // Help implements ui.Section. It lists the keys of the current view.
 func (s *Section) Help() help.KeyMap {
 	k, f, t := s.keys, s.keys.feed, s.keys.thread
+	changes := s.mutationHelp()
+	merge, closing, reopen := changes[0], changes[1], changes[2]
 	switch {
 	case !s.hasRepo:
 		return keyHelp{}
 	case s.thread != nil:
 		return keyHelp{
-			short: []key.Binding{t.Up, t.Down, k.Back, k.Open},
+			short: []key.Binding{t.Up, t.Down, k.Back, merge, closing, reopen, k.Open},
 			full: [][]key.Binding{
 				{t.Up, t.Down, t.PageUp, t.PageDown},
 				{t.HalfPageUp, t.HalfPageDown, t.Top, t.Bottom},
 				{k.Back, k.Refresh, k.Open},
+				changes,
 			},
 		}
 	}
 	return keyHelp{
-		short: []key.Binding{f.Up, f.Down, k.Select, k.Filter, k.Open},
+		short: []key.Binding{f.Up, f.Down, k.Select, k.Filter, merge, closing, reopen, k.Open},
 		full: [][]key.Binding{
 			{f.Up, f.Down, f.PageUp, f.PageDown},
 			{f.Home, f.End},
 			{k.Select, k.Filter, k.Refresh, k.Open},
+			changes,
 		},
 	}
 }
