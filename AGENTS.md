@@ -42,7 +42,7 @@ internal/
   config/             loading, defaults, validation, and the keymap and theme schema
   github/             API clients: graphql/ and rest/ subpackages, pagination, rate limits
   cache/              in-memory LRU, optional disk layer, TTL and ETag metadata
-  sync/               sync engine: polling, conditional requests, change events
+  watch/              sync engine: polling, conditional requests, change events
   service/<domain>/   business logic per domain (pulls, issues, repos, notifications…)
   tui/                glue: root model, routing, layout, and adapters from services to bubbles
 pkg/bubbles/<name>/   reusable Elm-style components with no knowledge of gh-tui
@@ -53,7 +53,7 @@ Rules:
 
 - **Dependencies point inward.** `tui` depends on interfaces for behavior. It
   may use the plain value types in `core`, which are the shared vocabulary,
-  but it never imports `github`, `cache` or `sync` implementations. Only
+  but it never imports `github`, `cache` or `watch` implementations. Only
   `cmd/` knows about concrete types and wires them together.
 - **`pkg/bubbles` imports nothing from `internal/`.** A bubble must be usable
   in another program without changes.
@@ -172,7 +172,8 @@ reacts to messages.
 - **Services** are tested with small hand-written fakes of the interfaces they
   consume. For the API clients, use `httptest.Server` with recorded fixtures.
   Cover error paths, pagination, cache hits and misses, and rollback.
-- **The sync engine** is tested with an injectable clock and no real sleeps.
+- **Time-dependent code**, such as the sync engine, is tested with
+  `testing/synctest`, so it uses a fake clock and no real sleeps.
 - Run `go test -race ./...` before every commit.
 
 ## Configuration
