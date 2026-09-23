@@ -24,7 +24,7 @@ func seeded(t *testing.T, api *fakeAPI) (s *Service, items []core.Repo) {
 	}
 	api.getRepo = func(core.RepoRef) (core.Repo, error) { return ghTUI, nil }
 	s = New(api)
-	for _, q := range []ListQuery{{}, {After: "c1"}} {
+	for _, q := range []ListQuery{{}, {Cursor: "c1"}} {
 		if _, err := s.List(t.Context(), q); err != nil {
 			t.Fatal(err)
 		}
@@ -50,7 +50,7 @@ func wantCached(t *testing.T, s *Service, first []core.Repo, detail core.Repo) {
 	if got, _ := s.CachedList(ListQuery{}); !slices.Equal(got.Items, first) || got.Next != "c1" {
 		t.Errorf("first page = %+v, want %+v", got, first)
 	}
-	if got, _ := s.CachedList(ListQuery{After: "c1"}); !equalPage(got, page("", other)) {
+	if got, _ := s.CachedList(ListQuery{Cursor: "c1"}); !equalPage(got, page("", other)) {
 		t.Errorf("second page = %+v, want it untouched", got)
 	}
 	if got, _ := s.CachedGet(ghTUI.Ref); got != detail {
@@ -117,7 +117,7 @@ func TestStarReconcilesOnSuccess(t *testing.T) {
 		t.Errorf("Get = %+v, %v; want the server's count", got, err)
 	}
 	// Only the entries holding the repo are revalidated.
-	if _, err := s.List(t.Context(), ListQuery{After: "c1"}); err != nil {
+	if _, err := s.List(t.Context(), ListQuery{Cursor: "c1"}); err != nil {
 		t.Fatal(err)
 	}
 	api.wantCalls(t, "star eggzec/gh-tui", "list 30 ", "get eggzec/gh-tui")
