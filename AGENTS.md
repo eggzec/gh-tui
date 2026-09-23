@@ -25,7 +25,7 @@ Use the v2 Charm libraries and their `charm.land` import paths:
 | Styling    | `charm.land/lipgloss/v2`                                     |
 | Forms      | `charm.land/huh/v2` (when needed)                            |
 | TUI tests  | `github.com/charmbracelet/x/exp/teatest/v2`                  |
-| GitHub     | `github.com/cli/go-gh/v2` (auth, REST, GraphQL transport)    |
+| GitHub     | `github.com/cli/go-gh/v2` (host and token discovery only)    |
 
 Before you use a library API, check the current docs (Context7, pkg.go.dev,
 or the upstream UPGRADE guides). Several APIs changed in v2: `View()` returns
@@ -40,7 +40,8 @@ cmd/gh-tui/           main: parse flags, load config, wire services into the tui
 internal/
   core/               domain value types (Repo, PullRequest, Issue, …) and errors; no I/O
   config/             loading, defaults, validation, and the keymap and theme schema
-  github/             API clients: graphql/ and rest/ subpackages, pagination, rate limits
+  github/             one transport client (REST, GraphQL, pagination, rate limits,
+                      errors) plus domain methods in files by concept (pulls.go, …)
   cache/              in-memory LRU, optional disk layer, TTL and ETag metadata
   watch/              sync engine: polling, conditional requests, change events
   service/<domain>/   business logic per domain (pulls, issues, repos, notifications…)
