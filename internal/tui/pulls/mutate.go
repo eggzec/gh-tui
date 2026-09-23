@@ -63,7 +63,7 @@ func (s *Section) mutate(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	default:
 		return nil, true
 	}
-	return tea.Batch(s.reload(), ui.Do(s.ctx, op, what)), true
+	return tea.Batch(s.reload(), ui.Do(s.ctx, ui.PullsTitle, op, what)), true
 }
 
 // reload shows the cache again, which a change has just updated or rolled

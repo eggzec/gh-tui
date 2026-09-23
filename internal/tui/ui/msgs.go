@@ -28,17 +28,20 @@ type Op interface {
 
 // DoneMsg reports that an Op finished. Err is set when the server refused
 // the change and it was rolled back. The app shows the error, then passes
-// the message on so sections can re-render from the cache.
+// the message on so the section that sent it can re-render from the cache.
 type DoneMsg struct {
+	// From is the title of the section that sent the change.
+	From string
 	// What names the change for the error toast, such as "merge #42".
 	What string
 	Err  error
 }
 
-// Do returns a command that sends op and reports a DoneMsg.
-func Do(ctx context.Context, op Op, what string) tea.Cmd {
+// Do returns a command that sends op for the section titled from and
+// reports a DoneMsg.
+func Do(ctx context.Context, from string, op Op, what string) tea.Cmd {
 	return func() tea.Msg {
-		return DoneMsg{What: what, Err: op.Do(ctx)}
+		return DoneMsg{From: from, What: what, Err: op.Do(ctx)}
 	}
 }
 

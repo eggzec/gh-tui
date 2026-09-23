@@ -191,7 +191,8 @@ func TestSync(t *testing.T) {
 		{"own key reloads", ui.SyncMsg{Key: SyncKey}, 1},
 		{"other key is ignored", ui.SyncMsg{Key: "pulls"}, 0},
 		{"failed poll is ignored", ui.SyncMsg{Key: SyncKey, Err: errors.New("offline")}, 0},
-		{"a finished change reloads", ui.DoneMsg{What: "merge #42"}, 1},
+		{"a finished change reloads", ui.DoneMsg{From: ui.NotificationsTitle, What: "mark read"}, 1},
+		{"another section's change doesn't", ui.DoneMsg{From: ui.PullsTitle, What: "merge #42"}, 0},
 		{"a repository is ignored", ui.RepoMsg{Repo: core.RepoRef{Owner: "o", Name: "r"}}, 0},
 	}
 	for _, tt := range tests {

@@ -87,7 +87,7 @@ func TestMutations(t *testing.T) {
 			if tt.want == "" {
 				return
 			}
-			if !slices.Contains(msgs, tea.Msg(ui.DoneMsg{What: tt.what})) {
+			if !slices.Contains(msgs, tea.Msg(ui.DoneMsg{From: ui.PullsTitle, What: tt.what})) {
 				t.Errorf("messages %v, want a DoneMsg for %q", msgs, tt.what)
 			}
 			if !tt.after(svc.state(before.Number)) {
@@ -169,7 +169,7 @@ func TestDoneMsgReloads(t *testing.T) {
 	svc := newFakeService()
 	s := started(t, svc, 80, 20)
 	n := len(svc.listed())
-	drain(t, s, s.Update(ui.DoneMsg{What: "merge #1"}))
+	drain(t, s, s.Update(ui.DoneMsg{From: ui.PullsTitle, What: "merge #1"}))
 	if len(svc.listed()) != n+1 {
 		t.Errorf("listed %d times after DoneMsg, want %d", len(svc.listed()), n+1)
 	}

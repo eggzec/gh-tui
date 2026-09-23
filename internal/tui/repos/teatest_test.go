@@ -76,7 +76,7 @@ func TestProgram(t *testing.T) {
 	}
 	// The star is sent in the background, so it may finish before or
 	// after the choice.
-	done := tea.Msg(ui.DoneMsg{What: "star eggzec/dotfiles"})
+	done := tea.Msg(ui.DoneMsg{From: ui.ReposTitle, What: "star eggzec/dotfiles"})
 	if !slices.Contains(final.got, done) {
 		t.Errorf("messages = %#v, want %#v among them", final.got, done)
 	}

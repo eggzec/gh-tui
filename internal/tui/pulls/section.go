@@ -107,7 +107,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 }
 
 // Title implements ui.Section.
-func (s *Section) Title() string { return "Pull requests" }
+func (s *Section) Title() string { return ui.PullsTitle }
 
 // Init lists the pull requests of the repository, if one is selected.
 func (s *Section) Init() tea.Cmd {

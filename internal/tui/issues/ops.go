@@ -40,19 +40,14 @@ func (s *Section) setState(state core.State) tea.Cmd {
 		op = s.svc.Reopen(s.repo, it.Number)
 	}
 	what := verb + " #" + strconv.Itoa(it.Number)
-	s.sent[what]++
-	return tea.Batch(s.reload(), ui.Do(s.ctx, op, what))
+	return tea.Batch(s.reload(), ui.Do(s.ctx, ui.IssuesTitle, op, what))
 }
 
 // done reloads after a change this section sent, to show GitHub's answer or
 // the rollback.
 func (s *Section) done(msg ui.DoneMsg) tea.Cmd {
-	if s.sent[msg.What] == 0 {
+	if msg.From != ui.IssuesTitle {
 		return nil
-	}
-	s.sent[msg.What]--
-	if s.sent[msg.What] == 0 {
-		delete(s.sent, msg.What)
 	}
 	return s.reload()
 }
