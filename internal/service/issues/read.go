@@ -19,11 +19,30 @@ type ListQuery struct {
 	State core.StateFilter
 	// Cursor is the Next of the previous page, or empty for the first.
 	Cursor string
+	// PageSize defaults to DefaultPageSize and is at most 100. A
+	// cursor keeps the size of the page it came from, so it sizes only the
+	// first page, but every size is cached apart.
+	PageSize int
 }
 
 func (q ListQuery) normalize() ListQuery {
 	q.State = cmp.Or(q.State, core.FilterOpen)
+	q.PageSize = pageSize(q.PageSize)
 	return q
+}
+
+// Page sizes of the queries.
+const (
+	DefaultPageSize = 30
+	// maxPageSize is the most GitHub returns in one page.
+	maxPageSize = 100
+)
+
+func pageSize(n int) int {
+	if n <= 0 {
+		return DefaultPageSize
+	}
+	return min(n, maxPageSize)
 }
 
 // CachedList returns the cached page for q, fresh or stale, without a
@@ -40,7 +59,7 @@ func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.Issue],
 	q = q.normalize()
 	page, err := fetch(ctx, s.lists, listKey(q), listTags(q.Repo),
 		func(ctx context.Context, cond github.Conditional) (core.Page[core.Issue], github.Response, error) {
-			return s.api.ListIssues(ctx, q.Repo, q.State, q.Cursor, cond)
+			return s.api.ListIssues(ctx, q.Repo, q.State, q.Cursor, q.PageSize, cond)
 		})
 	if err != nil {
 		return core.Page[core.Issue]{}, fmt.Errorf("list issues of %s: %w", q.Repo, err)
@@ -59,10 +78,10 @@ func listTags(repo core.RepoRef) func(core.Page[core.Issue]) []string {
 	}
 }
 
-// CachedIssue returns the cached detail of an issue, fresh or stale,
+// CachedGet returns the cached detail of an issue, fresh or stale,
 // without a request. It reports false unless both the issue and its
 // comments are cached.
-func (s *Service) CachedIssue(repo core.RepoRef, number int) (core.IssueDetail, bool) {
+func (s *Service) CachedGet(repo core.RepoRef, number int) (core.IssueDetail, bool) {
 	it, st := s.issues.Get(issueKey(repo, number))
 	if st == cache.Miss {
 		return core.IssueDetail{}, false

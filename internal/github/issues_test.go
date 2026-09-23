@@ -85,23 +85,24 @@ func equalIssue(a, b core.Issue) bool {
 
 func TestListIssues(t *testing.T) {
 	tests := []struct {
-		name  string
-		state core.StateFilter
-		query map[string]string
+		name    string
+		state   core.StateFilter
+		perPage int
+		query   map[string]string
 	}{
-		{"closed", core.FilterClosed, map[string]string{"state": "closed"}},
-		{"all", core.FilterAll, map[string]string{"state": "all"}},
-		{"default", "", map[string]string{}},
+		{"closed", core.FilterClosed, 30, map[string]string{"state": "closed", "per_page": "30"}},
+		{"all", core.FilterAll, 7, map[string]string{"state": "all", "per_page": "7"}},
+		{"default", "", 0, map[string]string{}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			query := map[string]string{"sort": "updated", "direction": "desc", "per_page": "50"}
+			query := map[string]string{"sort": "updated", "direction": "desc"}
 			maps.Copy(query, tt.query)
 			c := serveIssueFixture(t, "issues_list.json", func(r *http.Request) {
 				checkIssueRequest(t, r, http.MethodGet, "/repos/octo-org/hello/issues", query)
 			})
 
-			page, res, err := c.ListIssues(t.Context(), issueRepo, tt.state, "", Conditional{})
+			page, res, err := c.ListIssues(t.Context(), issueRepo, tt.state, "", tt.perPage, Conditional{})
 			if err != nil {
 				t.Fatalf("ListIssues: %v", err)
 			}
@@ -138,14 +139,15 @@ func TestListIssuesPages(t *testing.T) {
 		_, _ = w.Write([]byte(`[]`))
 	}))
 
-	first, _, err := c.ListIssues(t.Context(), issueRepo, core.FilterOpen, "", Conditional{})
+	first, _, err := c.ListIssues(t.Context(), issueRepo, core.FilterOpen, "", 50, Conditional{})
 	if err != nil {
 		t.Fatalf("first page: %v", err)
 	}
 	if first.Last() || len(first.Items) != 0 {
 		t.Fatalf("first page = %+v, want an empty page with a next cursor", first)
 	}
-	second, _, err := c.ListIssues(t.Context(), issueRepo, core.FilterOpen, first.Next, Conditional{})
+	// The cursor carries its page size, so the one given is not sent.
+	second, _, err := c.ListIssues(t.Context(), issueRepo, core.FilterOpen, first.Next, 10, Conditional{})
 	if err != nil {
 		t.Fatalf("second page: %v", err)
 	}
@@ -213,7 +215,7 @@ func equalComment(a, b core.Comment) bool {
 // result was empty.
 var issueReads = map[string]func(c *Client, ctx context.Context, cond Conditional) (Response, bool, error){
 	"ListIssues": func(c *Client, ctx context.Context, cond Conditional) (Response, bool, error) {
-		p, res, err := c.ListIssues(ctx, issueRepo, core.FilterOpen, "", cond)
+		p, res, err := c.ListIssues(ctx, issueRepo, core.FilterOpen, "", 30, cond)
 		return res, p.Items == nil && p.Next == "", err
 	},
 	"GetIssue": func(c *Client, ctx context.Context, cond Conditional) (Response, bool, error) {

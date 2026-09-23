@@ -15,7 +15,7 @@ import (
 
 // API is the part of the GitHub client that the service uses.
 type API interface {
-	ListIssues(ctx context.Context, repo core.RepoRef, state core.StateFilter, cursor string, cond github.Conditional) (core.Page[core.Issue], github.Response, error)
+	ListIssues(ctx context.Context, repo core.RepoRef, state core.StateFilter, cursor string, perPage int, cond github.Conditional) (core.Page[core.Issue], github.Response, error)
 	GetIssue(ctx context.Context, repo core.RepoRef, number int, cond github.Conditional) (core.Issue, github.Response, error)
 	ListIssueComments(ctx context.Context, repo core.RepoRef, number int, cursor string, cond github.Conditional) (core.Page[core.Comment], github.Response, error)
 	SetIssueState(ctx context.Context, repo core.RepoRef, number int, state core.State) (core.Issue, error)
@@ -78,7 +78,7 @@ func fetch[V any](ctx context.Context, c *cache.Cache[V], key string, tags func(
 // issue's key, so a change to the issue finds all of them.
 
 func listKey(q ListQuery) string {
-	return fmt.Sprintf("list:%s:%s:%s", q.Repo, q.State, q.Cursor)
+	return fmt.Sprintf("list:%s:%s:%d:%s", q.Repo, q.State, q.PageSize, q.Cursor)
 }
 
 func issueKey(repo core.RepoRef, number int) string {

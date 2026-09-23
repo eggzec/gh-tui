@@ -17,7 +17,7 @@ import (
 const pastTTL = 2 * time.Minute
 
 func TestListFreshHitMakesNoCall(t *testing.T) {
-	api := &fakeAPI{t: t, listIssues: func(core.StateFilter, string, github.Conditional) (core.Page[core.Issue], github.Response, error) {
+	api := &fakeAPI{t: t, listIssues: func(core.StateFilter, string, int, github.Conditional) (core.Page[core.Issue], github.Response, error) {
 		return page("", 1, 2), ok(`"v1"`), nil
 	}}
 	s := New(api)
@@ -54,7 +54,7 @@ func TestListRevalidatesStale(t *testing.T) {
 			{page("", 3, 1), ok(`"v2"`)},
 			{res: notModified},
 		}
-		api := &fakeAPI{t: t, listIssues: func(_ core.StateFilter, _ string, cond github.Conditional) (core.Page[core.Issue], github.Response, error) {
+		api := &fakeAPI{t: t, listIssues: func(_ core.StateFilter, _ string, _ int, cond github.Conditional) (core.Page[core.Issue], github.Response, error) {
 			conds = append(conds, cond)
 			r := responses[0]
 			responses = responses[1:]
@@ -94,12 +94,13 @@ func TestListRevalidatesStale(t *testing.T) {
 
 func TestListKeys(t *testing.T) {
 	type call struct {
-		state  core.StateFilter
-		cursor string
+		state   core.StateFilter
+		cursor  string
+		perPage int
 	}
 	var calls []call
-	api := &fakeAPI{t: t, listIssues: func(state core.StateFilter, cursor string, _ github.Conditional) (core.Page[core.Issue], github.Response, error) {
-		calls = append(calls, call{state, cursor})
+	api := &fakeAPI{t: t, listIssues: func(state core.StateFilter, cursor string, perPage int, _ github.Conditional) (core.Page[core.Issue], github.Response, error) {
+		calls = append(calls, call{state, cursor, perPage})
 		if cursor == "" {
 			return page("https://api.github.com/repositories/1/issues?page=2", 1), ok(`"p1"`), nil
 		}
@@ -115,10 +116,16 @@ func TestListKeys(t *testing.T) {
 		t.Fatalf("Next = %q, want the API's cursor", first.Next)
 	}
 	queries := []ListQuery{
-		{Repo: repo, State: core.FilterOpen}, // Same entry as the zero State.
+		// Same entry as the zero State and PageSize.
+		{Repo: repo, State: core.FilterOpen, PageSize: DefaultPageSize},
 		{Repo: repo, Cursor: first.Next},
 		{Repo: repo, State: core.FilterOpen, Cursor: first.Next},
 		{Repo: repo, State: core.FilterClosed},
+		{Repo: repo, PageSize: 10},
+		{Repo: repo, PageSize: 10, Cursor: first.Next},
+		// Clamped to the most GitHub returns, so the second is a hit.
+		{Repo: repo, PageSize: 500},
+		{Repo: repo, PageSize: maxPageSize},
 	}
 	for _, q := range queries {
 		if _, err := s.List(t.Context(), q); err != nil {
@@ -126,7 +133,14 @@ func TestListKeys(t *testing.T) {
 		}
 	}
 
-	want := []call{{core.FilterOpen, ""}, {core.FilterOpen, first.Next}, {core.FilterClosed, ""}}
+	want := []call{
+		{core.FilterOpen, "", DefaultPageSize},
+		{core.FilterOpen, first.Next, DefaultPageSize},
+		{core.FilterClosed, "", DefaultPageSize},
+		{core.FilterOpen, "", 10},
+		{core.FilterOpen, first.Next, 10},
+		{core.FilterOpen, "", maxPageSize},
+	}
 	if !slices.Equal(calls, want) {
 		t.Errorf("calls = %+v, want %+v", calls, want)
 	}
@@ -138,7 +152,7 @@ func TestListKeys(t *testing.T) {
 
 func TestListError(t *testing.T) {
 	notFound := fmt.Errorf("GET repos/octo-org/hello/issues: %w", core.ErrNotFound)
-	api := &fakeAPI{t: t, listIssues: func(core.StateFilter, string, github.Conditional) (core.Page[core.Issue], github.Response, error) {
+	api := &fakeAPI{t: t, listIssues: func(core.StateFilter, string, int, github.Conditional) (core.Page[core.Issue], github.Response, error) {
 		return core.Page[core.Issue]{}, github.Response{}, notFound
 	}}
 	s := New(api)
@@ -171,8 +185,8 @@ func detailAPI(t *testing.T) *fakeAPI {
 func TestGetFreshHitMakesNoCall(t *testing.T) {
 	api := detailAPI(t)
 	s := New(api)
-	if _, cached := s.CachedIssue(repo, 7); cached {
-		t.Fatal("CachedIssue reported an issue before any fetch")
+	if _, cached := s.CachedGet(repo, 7); cached {
+		t.Fatal("CachedGet reported an issue before any fetch")
 	}
 	for range 2 {
 		got, err := s.Get(t.Context(), repo, 7)
@@ -184,8 +198,8 @@ func TestGetFreshHitMakesNoCall(t *testing.T) {
 		}
 	}
 	api.checkCalls(t, "GetIssue", "ListIssueComments")
-	if got, cached := s.CachedIssue(repo, 7); !cached || got.Number != 7 || len(got.Thread) != 1 {
-		t.Errorf("CachedIssue = %+v, %v; want issue 7 with its comment", got, cached)
+	if got, cached := s.CachedGet(repo, 7); !cached || got.Number != 7 || len(got.Thread) != 1 {
+		t.Errorf("CachedGet = %+v, %v; want issue 7 with its comment", got, cached)
 	}
 }
 
@@ -235,7 +249,7 @@ func TestGetError(t *testing.T) {
 	if !errors.Is(err, core.ErrRateLimited) || !strings.Contains(err.Error(), "get issue octo-org/hello#7") {
 		t.Errorf("error = %v, want a wrapped ErrRateLimited", err)
 	}
-	if _, cached := s.CachedIssue(repo, 7); cached {
-		t.Error("CachedIssue reported a detail whose comments failed to load")
+	if _, cached := s.CachedGet(repo, 7); cached {
+		t.Error("CachedGet reported a detail whose comments failed to load")
 	}
 }

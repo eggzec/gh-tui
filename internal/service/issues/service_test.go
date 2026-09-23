@@ -21,7 +21,7 @@ var repo = core.RepoRef{Owner: "octo-org", Name: "hello"}
 type fakeAPI struct {
 	t *testing.T
 
-	listIssues   func(state core.StateFilter, cursor string, cond github.Conditional) (core.Page[core.Issue], github.Response, error)
+	listIssues   func(state core.StateFilter, cursor string, perPage int, cond github.Conditional) (core.Page[core.Issue], github.Response, error)
 	getIssue     func(number int, cond github.Conditional) (core.Issue, github.Response, error)
 	listComments func(number int, cond github.Conditional) (core.Page[core.Comment], github.Response, error)
 	setState     func(number int, state core.State) (core.Issue, error)
@@ -63,12 +63,12 @@ func (f *fakeAPI) checkCalls(t *testing.T, want ...string) {
 	}
 }
 
-func (f *fakeAPI) ListIssues(_ context.Context, r core.RepoRef, state core.StateFilter, cursor string, cond github.Conditional) (core.Page[core.Issue], github.Response, error) {
+func (f *fakeAPI) ListIssues(_ context.Context, r core.RepoRef, state core.StateFilter, cursor string, perPage int, cond github.Conditional) (core.Page[core.Issue], github.Response, error) {
 	f.checkRepo(r)
 	if !f.record("ListIssues", f.listIssues != nil) {
 		return core.Page[core.Issue]{}, github.Response{}, errUnexpected
 	}
-	return f.listIssues(state, cursor, cond)
+	return f.listIssues(state, cursor, perPage, cond)
 }
 
 func (f *fakeAPI) GetIssue(_ context.Context, r core.RepoRef, number int, cond github.Conditional) (core.Issue, github.Response, error) {

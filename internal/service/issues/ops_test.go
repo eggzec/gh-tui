@@ -22,7 +22,7 @@ var enhancement = core.Label{Name: "enhancement", Color: "a2eeef"}
 // the enhancement label.
 func prime(t *testing.T, api *fakeAPI) *Service {
 	t.Helper()
-	api.listIssues = func(state core.StateFilter, _ string, _ github.Conditional) (core.Page[core.Issue], github.Response, error) {
+	api.listIssues = func(state core.StateFilter, _ string, _ int, _ github.Conditional) (core.Page[core.Issue], github.Response, error) {
 		p := page("", 7, 8)
 		if state == core.FilterAll {
 			p = page("", 9, 7, 8)
@@ -61,7 +61,7 @@ func look(t *testing.T, s *Service) view {
 	var okOpen, okAll, okDetail bool
 	v.open, okOpen = s.CachedList(ListQuery{Repo: repo})
 	v.all, okAll = s.CachedList(ListQuery{Repo: repo, State: core.FilterAll})
-	v.detail, okDetail = s.CachedIssue(repo, 7)
+	v.detail, okDetail = s.CachedGet(repo, 7)
 	if !okOpen || !okAll || !okDetail {
 		t.Fatalf("cached = %v, %v, %v; want the lists and the detail", okOpen, okAll, okDetail)
 	}
@@ -295,7 +295,7 @@ func TestOpOnUncachedIssueSends(t *testing.T) {
 				t.Fatalf("Do: %v", err)
 			}
 			api.checkCalls(t, tc.call)
-			if _, cached := s.CachedIssue(repo, 7); cached {
+			if _, cached := s.CachedGet(repo, 7); cached {
 				t.Error("the server's answer was cached without a fetch")
 			}
 		})

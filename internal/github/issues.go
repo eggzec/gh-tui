@@ -12,12 +12,7 @@ import (
 
 // The issue endpoints are REST rather than GraphQL because REST answers a
 // repeated read with a free 304 when nothing changed.
-const (
-	// issuesPerPage is above GitHub's default of 30 so that one request
-	// fills a screen even after pull requests are filtered out.
-	issuesPerPage   = 50
-	commentsPerPage = 100
-)
+const commentsPerPage = 100
 
 // restIssue is the REST shape of an issue. The issue endpoints also return pull
 // requests, which are the entries with a pull_request key.
@@ -76,15 +71,19 @@ func (c issueComment) core() core.Comment {
 
 // ListIssues returns a page of the repository's issues, most recently
 // updated first. Cursor is the Next of the previous page, or empty for the
-// first. GitHub counts pull requests towards the page size but they are left
-// out, so a page may be short, or even empty, and still not be the last.
-func (c *Client) ListIssues(ctx context.Context, repo core.RepoRef, state core.StateFilter, cursor string, cond Conditional) (core.Page[core.Issue], Response, error) {
+// first. PerPage sizes the first page, and 0 leaves the size to GitHub; later
+// pages keep the size of the page their cursor came from. GitHub counts pull
+// requests towards the page size but they are left out, so a page may be
+// short, or even empty, and still not be the last.
+func (c *Client) ListIssues(ctx context.Context, repo core.RepoRef, state core.StateFilter, cursor string, perPage int, cond Conditional) (core.Page[core.Issue], Response, error) {
 	path := cursor
 	if path == "" {
 		q := url.Values{
 			"sort":      {"updated"},
 			"direction": {"desc"},
-			"per_page":  {strconv.Itoa(issuesPerPage)},
+		}
+		if perPage > 0 {
+			q.Set("per_page", strconv.Itoa(perPage))
 		}
 		if state != "" {
 			q.Set("state", string(state))
