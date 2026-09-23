@@ -17,6 +17,7 @@ import (
 	"github.com/charmbracelet/x/exp/teatest/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/tabs"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
@@ -196,6 +197,30 @@ func TestAppMessagesReachEverySection(t *testing.T) {
 	for _, f := range fakes {
 		if !f.got(func(msg tea.Msg) bool { _, ok := msg.(ui.RepoMsg); return ok }) {
 			t.Errorf("%s missed RepoMsg, although it hasn't started", f.title)
+		}
+	}
+}
+
+func TestRepoWatcherSeesRepoBeforeSections(t *testing.T) {
+	want := core.RepoRef{Owner: "eggzec", Name: "gh-tui"}
+	var got []core.RepoRef
+	var fakes []*fakeSection
+	isRepo := func(msg tea.Msg) bool { _, ok := msg.(ui.RepoMsg); return ok }
+	m, fakes := newTestApp(t, WithRepoWatcher(func(repo core.RepoRef) {
+		got = append(got, repo)
+		for _, f := range fakes {
+			if f.got(isRepo) {
+				t.Errorf("%s saw the repository before the watcher", f.title)
+			}
+		}
+	}))
+	run(m, func() tea.Msg { return ui.RepoMsg{Repo: want} })
+	if len(got) != 1 || got[0] != want {
+		t.Errorf("watcher got %v, want [%v]", got, want)
+	}
+	for _, f := range fakes {
+		if !f.got(isRepo) {
+			t.Errorf("%s missed RepoMsg", f.title)
 		}
 	}
 }

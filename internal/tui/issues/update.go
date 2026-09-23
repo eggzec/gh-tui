@@ -5,6 +5,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
 )
@@ -18,6 +19,8 @@ func (s *Section) Update(msg tea.Msg) tea.Cmd {
 		return s.press(msg)
 	case issueMsg:
 		return s.gotIssue(msg)
+	case ui.SyncMsg:
+		return s.sync(msg)
 	case ui.DoneMsg:
 		return tea.Batch(s.done(msg), s.forward(msg))
 	case prompt.SubmitMsg, prompt.CancelMsg:
@@ -40,6 +43,20 @@ func (s *Section) forward(msg tea.Msg) tea.Cmd {
 		s.detail, detail = s.detail.Update(msg)
 	}
 	return tea.Batch(cmd, detail)
+}
+
+// sync reloads what is shown when the issues of the repository changed.
+// Poll invalidated them, so the reads revalidate with GitHub. A failed poll
+// changed nothing.
+func (s *Section) sync(msg ui.SyncMsg) tea.Cmd {
+	if msg.Err != nil || !s.started || !s.hasRepo || msg.Key != issuesvc.SyncKey(s.repo) {
+		return nil
+	}
+	cmd := s.list.Reload()
+	if !s.inDetail {
+		return cmd
+	}
+	return tea.Batch(cmd, s.detail.Reload(), s.get())
 }
 
 // setRepo shows the issues of repo. It arrives before Init too, so the

@@ -10,6 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/tabs"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
@@ -35,6 +36,7 @@ type Model struct {
 	sync      func(ctx context.Context) (ui.SyncMsg, bool)
 	setActive func(active bool)
 	open      func(url string) error
+	watchRepo func(repo core.RepoRef)
 }
 
 // Option configures a Model.
@@ -50,6 +52,13 @@ func WithSync(next func(ctx context.Context) (ui.SyncMsg, bool)) Option {
 // background polling can slow down while the user looks elsewhere.
 func WithActivity(setActive func(active bool)) Option {
 	return func(m *Model) { m.setActive = setActive }
+}
+
+// WithRepoWatcher sets the function told which repository is selected, so
+// that the app can poll it for changes. It is called with every ui.RepoMsg,
+// before the sections see it, and must not block.
+func WithRepoWatcher(watch func(repo core.RepoRef)) Option {
+	return func(m *Model) { m.watchRepo = watch }
 }
 
 // WithBrowser sets the function that opens a URL in the browser.

@@ -5,6 +5,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -13,6 +14,8 @@ func (s *Section) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case ui.RepoMsg:
 		return s.setRepo(msg.Repo)
+	case ui.SyncMsg:
+		return s.sync(msg)
 	case detailMsg:
 		return s.receive(msg)
 	case ui.DoneMsg:
@@ -45,6 +48,23 @@ func (s *Section) setRepo(repo core.RepoRef) tea.Cmd {
 		return nil
 	}
 	return s.newFeed()
+}
+
+// sync reloads what is shown when the pull requests of the repository
+// changed. Poll invalidated them, so the reads reach GitHub. A failed poll
+// changed nothing.
+func (s *Section) sync(msg ui.SyncMsg) tea.Cmd {
+	if msg.Err != nil || !s.started || !s.hasRepo || msg.Key != pulls.SyncKey(s.repo) {
+		return nil
+	}
+	var cmds []tea.Cmd
+	if s.feed != nil {
+		cmds = append(cmds, s.feed.Reload())
+	}
+	if s.thread != nil {
+		cmds = append(cmds, s.get(), s.thread.Reload())
+	}
+	return tea.Batch(cmds...)
 }
 
 func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
