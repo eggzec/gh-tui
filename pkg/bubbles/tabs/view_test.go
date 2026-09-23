@@ -13,12 +13,50 @@ func TestViewDefault(t *testing.T) {
 	golden.RequireEqual(t, New(WithTabs(sections...)).View())
 }
 
+// withBadges returns a bar with a count on Pull requests and on the active
+// Notifications tab.
+func withBadges(width int) Model {
+	m := New(WithTabs(sections...), WithActive(2), WithWidth(width))
+	m.SetBadge(0, "3")
+	m.SetBadge(2, "12")
+	return m
+}
+
+func TestViewBadges(t *testing.T) {
+	golden.RequireEqual(t, withBadges(0).View())
+}
+
 func TestViewWidths(t *testing.T) {
 	for _, w := range []int{80, 60, 40} {
 		t.Run(strconv.Itoa(w), func(t *testing.T) {
-			m := New(WithTabs(sections...), WithActive(2), WithWidth(w))
-			golden.RequireEqual(t, m.View())
+			golden.RequireEqual(t, withBadges(w).View())
 		})
+	}
+}
+
+func TestViewNarrowingWithBadges(t *testing.T) {
+	tests := []struct {
+		width int
+		want  string
+	}{
+		{width: 80, want: " Pull requests 3    Issues    Notifications 12    Repositories"},
+		{width: 60, want: "Pull requests 3  Issues  Notifications 12  Repositories"},
+		{width: 40, want: "Pull… 3  Issu…  Notifications 12  Repo…"},
+	}
+	for _, tt := range tests {
+		t.Run(strconv.Itoa(tt.width), func(t *testing.T) {
+			line, _, _ := strings.Cut(ansi.Strip(withBadges(tt.width).View()), "\n")
+			if got := strings.TrimRight(line, " "); got != tt.want {
+				t.Errorf("got  %q\nwant %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestViewIndicatorCoversBadge(t *testing.T) {
+	_, rule, _ := strings.Cut(ansi.Strip(withBadges(80).View()), "\n")
+	if n := strings.Count(rule, "━"); n != len("Notifications 12") {
+		t.Errorf("indicator is %d wide, want %d", n, len("Notifications 12"))
 	}
 }
 

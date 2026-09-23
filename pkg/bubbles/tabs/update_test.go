@@ -1,6 +1,7 @@
 package tabs
 
 import (
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -105,6 +106,52 @@ func TestSetTabsClampsActive(t *testing.T) {
 	m.SetTabs("Pull requests", "Issues")
 	if m.Active() != 1 {
 		t.Errorf("Active() = %d, want 1", m.Active())
+	}
+}
+
+func TestBadges(t *testing.T) {
+	tests := []struct {
+		name string
+		set  func(*Model)
+		want []string
+	}{
+		{name: "set", set: func(m *Model) { m.SetBadge(2, "5") }, want: []string{"", "", "5", ""}},
+		{name: "replace", set: func(m *Model) { m.SetBadge(2, "5"); m.SetBadge(2, "6") }, want: []string{"", "", "6", ""}},
+		{name: "clear", set: func(m *Model) { m.SetBadge(1, "5"); m.ClearBadge(1) }, want: []string{"", "", "", ""}},
+		{name: "out of range", set: func(m *Model) { m.SetBadge(4, "5"); m.SetBadge(-1, "5") }, want: []string{"", "", "", ""}},
+		{
+			name: "dropped with its tab",
+			set:  func(m *Model) { m.SetBadge(3, "5"); m.SetTabs(sections[:3]...); m.SetTabs(sections...) },
+			want: []string{"", "", "", ""},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := New(WithTabs(sections...))
+			tt.set(&m)
+			for i, want := range tt.want {
+				if got := m.Badge(i); got != want {
+					t.Errorf("Badge(%d) = %q, want %q", i, got, want)
+				}
+			}
+		})
+	}
+}
+
+// Models are values, so changing a copy leaves the original alone.
+func TestCopiesAreIndependent(t *testing.T) {
+	m := New(WithTabs(sections...))
+	m.SetBadge(0, "1")
+	view := m.View()
+	c := m
+	c.SetBadge(0, "2")
+	c.SetStyles(DefaultStyles(false))
+	if m.Badge(0) != "1" || m.View() != view {
+		t.Errorf("changing a copy changed the original")
+	}
+	m.SetActive(1)
+	if !strings.Contains(m.View(), "1") {
+		t.Errorf("original lost its badge after a re-render")
 	}
 }
 

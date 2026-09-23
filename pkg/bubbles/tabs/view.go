@@ -24,24 +24,38 @@ func (m Model) View() string { return m.view }
 // Height returns the number of lines View renders.
 func (Model) Height() int { return 2 }
 
-// label is a whole title rendered as an inactive and as the active tab.
+// label is a whole title and its badge, rendered as an inactive and as the
+// active tab.
 type label struct {
 	width  int
 	tab    string
 	active string
+	// title is the width of the title alone, and badge the rendered
+	// inactive badge with its leading space, for shortening the title.
+	title int
+	badge string
 }
 
-// prepare renders the whole titles. It runs whenever the tabs or the styles
-// change.
+// prepare renders the whole titles and their badges. It runs whenever the
+// tabs, the badges or the styles change.
 func (m *Model) prepare() {
+	m.badges = m.badges[:min(len(m.badges), len(m.tabs))]
 	// A new slice, since copies of a Model share the old one.
 	m.labels = make([]label, 0, len(m.tabs))
-	for _, t := range m.tabs {
-		m.labels = append(m.labels, label{
-			width:  ansi.StringWidth(t),
+	for i, t := range m.tabs {
+		l := label{
+			title:  ansi.StringWidth(t),
 			tab:    m.styles.Tab.Render(t),
 			active: m.styles.Active.Render(t),
-		})
+		}
+		l.width = l.title
+		if b := m.Badge(i); b != "" {
+			l.badge = " " + m.styles.Badge.Render(b)
+			l.width += 1 + ansi.StringWidth(b)
+			l.tab += l.badge
+			l.active += " " + m.styles.ActiveBadge.Render(b)
+		}
+		m.labels = append(m.labels, l)
 	}
 }
 
@@ -117,18 +131,20 @@ func (m *Model) naturalWidth(lead, sep int) int {
 	return w
 }
 
-// shorten fits the titles into avail columns. The active title stays whole,
-// short titles stay whole, and the longer ones share what is left evenly.
+// shorten fits the labels into avail columns. The active title and every
+// badge stay whole, short titles stay whole, and the longer ones share what
+// is left evenly.
 func (m *Model) shorten(avail int) []label {
 	out := slices.Clone(m.labels)
 	rest := avail - m.labels[m.active].width
 	idx := make([]int, 0, len(m.tabs)-1)
-	for i := range m.tabs {
+	for i, l := range m.labels {
 		if i != m.active {
 			idx = append(idx, i)
+			rest -= l.width - l.title
 		}
 	}
-	width := func(i int) int { return m.labels[i].width }
+	width := func(i int) int { return m.labels[i].title }
 	slices.SortStableFunc(idx, func(a, b int) int { return cmp.Compare(width(a), width(b)) })
 	for j, i := range idx {
 		if width(i) <= rest/(len(idx)-j) {
@@ -143,8 +159,10 @@ func (m *Model) shorten(avail int) []label {
 			if k < extra {
 				n++
 			}
+			l := m.labels[i]
 			t := m.ellipsize(m.tabs[i], n)
-			out[i] = label{width: ansi.StringWidth(t), tab: m.styles.Tab.Render(t)}
+			tw := ansi.StringWidth(t)
+			out[i] = label{width: l.width - l.title + tw, title: tw, tab: m.styles.Tab.Render(t) + l.badge}
 		}
 		break
 	}
