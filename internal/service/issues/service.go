@@ -6,6 +6,7 @@ package issues
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 
 	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/core"
@@ -17,11 +18,18 @@ type API interface {
 	ListIssues(ctx context.Context, repo core.RepoRef, state core.StateFilter, cursor string, cond github.Conditional) (core.Page[core.Issue], github.Response, error)
 	GetIssue(ctx context.Context, repo core.RepoRef, number int, cond github.Conditional) (core.Issue, github.Response, error)
 	ListIssueComments(ctx context.Context, repo core.RepoRef, number int, cursor string, cond github.Conditional) (core.Page[core.Comment], github.Response, error)
+	SetIssueState(ctx context.Context, repo core.RepoRef, number int, state core.State) (core.Issue, error)
+	AddIssueLabels(ctx context.Context, repo core.RepoRef, number int, names []string) ([]core.Label, error)
+	RemoveIssueLabel(ctx context.Context, repo core.RepoRef, number int, name string) ([]core.Label, error)
+	CreateIssueComment(ctx context.Context, repo core.RepoRef, number int, body string) (core.Comment, error)
 }
 
 // Service reads and changes issues. It is safe for concurrent use.
 type Service struct {
-	api API
+	api    API
+	viewer string
+	// pending numbers the comments shown before GitHub confirms them.
+	pending atomic.Uint64
 	// An issue's detail is split in two entries because GitHub serves the
 	// issue and its comments separately, each with its own ETag.
 	lists    *cache.Cache[core.Page[core.Issue]]
@@ -37,6 +45,7 @@ func New(api API, opts ...Option) *Service {
 	}
 	return &Service{
 		api:      api,
+		viewer:   o.viewer,
 		lists:    cache.New[core.Page[core.Issue]](o.cache...),
 		issues:   cache.New[core.Issue](o.cache...),
 		comments: cache.New[core.Page[core.Comment]](o.cache...),
