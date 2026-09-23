@@ -1,0 +1,44 @@
+{
+  "url": "https://api.github.com/repos/octo-org/hello/issues/42",
+  "repository_url": "https://api.github.com/repos/octo-org/hello",
+  "html_url": "https://github.com/octo-org/hello/issues/42",
+  "id": 2917364810,
+  "node_id": "I_kwDOJ5Hs3c6t5a1K",
+  "number": 42,
+  "title": "Crash when the config file is empty",
+  "user": {
+    "login": "octocat",
+    "id": 583231,
+    "node_id": "MDQ6VXNlcjU4MzIzMQ==",
+    "type": "User",
+    "site_admin": false
+  },
+  "labels": [
+    {
+      "id": 5916253891,
+      "node_id": "LA_kwDOJ5Hs3c8AAAABYKJ-ww",
+      "url": "https://api.github.com/repos/octo-org/hello/labels/bug",
+      "name": "bug",
+      "color": "d73a4a",
+      "default": true,
+      "description": "Something isn't working"
+    }
+  ],
+  "state": "closed",
+  "locked": false,
+  "assignees": [],
+  "comments": 2,
+  "created_at": "2026-09-01T08:15:00Z",
+  "updated_at": "2026-09-21T10:00:00Z",
+  "closed_at": "2026-09-21T10:00:00Z",
+  "author_association": "OWNER",
+  "state_reason": "completed",
+  "body": "Steps to reproduce:\n\n1. Create an empty config.yaml\n2. Run gh-tui",
+  "closed_by": {
+    "login": "octocat",
+    "id": 583231,
+    "node_id": "MDQ6VXNlcjU4MzIzMQ==",
+    "type": "User",
+    "site_admin": false
+  }
+}

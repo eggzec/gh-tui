@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	"net/http"
 	"net/url"
 	"strconv"
 	"time"
@@ -136,4 +137,53 @@ func issuesPath(repo core.RepoRef) string {
 
 func issuePath(repo core.RepoRef, number int) string {
 	return issuesPath(repo) + "/" + strconv.Itoa(number)
+}
+
+// SetIssueState closes or reopens an issue and returns the issue as GitHub
+// stored it.
+func (c *Client) SetIssueState(ctx context.Context, repo core.RepoRef, number int, state core.State) (core.Issue, error) {
+	body := struct {
+		State core.State `json:"state"`
+	}{state}
+	var it restIssue
+	if _, err := c.Do(ctx, http.MethodPatch, issuePath(repo, number), body, &it); err != nil {
+		return core.Issue{}, err
+	}
+	return it.core(repo), nil
+}
+
+// AddIssueLabels adds labels to an issue by name and returns all of the
+// issue's labels. GitHub creates names the repository doesn't have yet.
+func (c *Client) AddIssueLabels(ctx context.Context, repo core.RepoRef, number int, names []string) ([]core.Label, error) {
+	body := struct {
+		Labels []string `json:"labels"`
+	}{names}
+	var labels []label
+	if _, err := c.Do(ctx, http.MethodPost, issuePath(repo, number)+"/labels", body, &labels); err != nil {
+		return nil, err
+	}
+	return convert(labels, label.core), nil
+}
+
+// RemoveIssueLabel removes a label from an issue and returns the labels
+// left. It fails with core.ErrNotFound if the issue doesn't have the label.
+func (c *Client) RemoveIssueLabel(ctx context.Context, repo core.RepoRef, number int, name string) ([]core.Label, error) {
+	var labels []label
+	path := issuePath(repo, number) + "/labels/" + url.PathEscape(name)
+	if _, err := c.Do(ctx, http.MethodDelete, path, nil, &labels); err != nil {
+		return nil, err
+	}
+	return convert(labels, label.core), nil
+}
+
+// CreateIssueComment comments on an issue and returns the new comment.
+func (c *Client) CreateIssueComment(ctx context.Context, repo core.RepoRef, number int, body string) (core.Comment, error) {
+	in := struct {
+		Body string `json:"body"`
+	}{body}
+	var out issueComment
+	if _, err := c.Do(ctx, http.MethodPost, issuePath(repo, number)+"/comments", in, &out); err != nil {
+		return core.Comment{}, err
+	}
+	return out.core(), nil
 }
