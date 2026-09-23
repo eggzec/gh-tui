@@ -1,0 +1,141 @@
+package cache
+
+import (
+	"strconv"
+	"sync"
+	"testing"
+)
+
+func inc(v int) int { return v + 1 }
+
+func TestMutate(t *testing.T) {
+	c := New[int]()
+	c.Set("k", Entry[int]{Value: 1, ETag: `"v1"`})
+	if _, ok := c.Mutate("k", inc); !ok {
+		t.Fatal("Mutate reported the key as missing")
+	}
+	e, st := c.Get("k")
+	if e.Value != 2 || e.ETag != `"v1"` || st != Fresh {
+		t.Errorf("Get = %+v, %v; want value 2 with the old metadata, fresh", e, st)
+	}
+}
+
+func TestMutateMissing(t *testing.T) {
+	c := New[int]()
+	rollback, ok := c.Mutate("k", inc)
+	if ok {
+		t.Error("Mutate on a missing key reported ok")
+	}
+	rollback()
+	if c.Len() != 0 {
+		t.Errorf("Len() = %d, want 0", c.Len())
+	}
+}
+
+func TestRollbackRestores(t *testing.T) {
+	c := New[int]()
+	c.Set("fresh", Entry[int]{Value: 1})
+	c.Set("stale", Entry[int]{Value: 1})
+	c.Invalidate("stale")
+
+	for k, want := range map[string]State{"fresh": Fresh, "stale": Stale} {
+		rollback, _ := c.Mutate(k, inc)
+		rollback()
+		if e, st := c.Get(k); e.Value != 1 || st != want {
+			t.Errorf("Get(%q) after rollback = %d, %v; want 1, %v", k, e.Value, st, want)
+		}
+	}
+}
+
+func TestRollbackKeepsNewerWrite(t *testing.T) {
+	tests := []struct {
+		name  string
+		write func(c *Cache[int])
+		want  int
+	}{
+		{"set", func(c *Cache[int]) { c.Set("k", Entry[int]{Value: 10}) }, 10},
+		{"invalidate", func(c *Cache[int]) { c.Invalidate("k") }, 2},
+		{"invalidate tag", func(c *Cache[int]) { c.InvalidateTag("t") }, 2},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := New[int]()
+			c.Set("k", Entry[int]{Value: 1, Tags: []string{"t"}})
+			rollback, _ := c.Mutate("k", inc)
+			tt.write(c)
+			rollback()
+			if e, st := c.Get("k"); e.Value != tt.want || st != Stale {
+				t.Errorf("Get = %d, %v; want %d, stale", e.Value, st, tt.want)
+			}
+		})
+	}
+}
+
+func TestRollbackIdempotent(t *testing.T) {
+	c := New[int]()
+	c.Set("k", Entry[int]{Value: 1})
+	rollback, _ := c.Mutate("k", inc)
+	rollback()
+	c.Set("k", Entry[int]{Value: 10})
+	rollback()
+	if e, st := c.Get("k"); e.Value != 10 || st != Fresh {
+		t.Errorf("Get = %d, %v; want 10, fresh after a second rollback", e.Value, st)
+	}
+}
+
+func TestRollbackNested(t *testing.T) {
+	c := New[int]()
+	c.Set("k", Entry[int]{Value: 1})
+	undo1, _ := c.Mutate("k", inc)
+	undo2, _ := c.Mutate("k", inc)
+	undo2()
+	if e, _ := c.Get("k"); e.Value != 2 {
+		t.Errorf("after inner rollback, value = %d, want 2", e.Value)
+	}
+	undo1()
+	if e, st := c.Get("k"); e.Value != 1 || st != Fresh {
+		t.Errorf("after both rollbacks, Get = %d, %v; want 1, fresh", e.Value, st)
+	}
+}
+
+func TestRollbackAfterEviction(t *testing.T) {
+	c := New[int](WithCapacity(1))
+	c.Set("k", Entry[int]{Value: 1})
+	rollback, _ := c.Mutate("k", inc)
+	c.Set("other", Entry[int]{})
+	rollback()
+	if _, st := c.Get("k"); st != Miss {
+		t.Errorf("Get(k) state = %v, want miss; rollback must not re-add evicted keys", st)
+	}
+	if _, st := c.Get("other"); st != Fresh {
+		t.Errorf("Get(other) state = %v, want fresh", st)
+	}
+}
+
+func TestConcurrentMutate(t *testing.T) {
+	c := New[int](WithCapacity(8))
+	var wg sync.WaitGroup
+	for g := range 8 {
+		wg.Go(func() {
+			for i := range 1000 {
+				k := strconv.Itoa((g + i) % 12)
+				switch i % 4 {
+				case 0:
+					c.Set(k, Entry[int]{Value: i})
+				case 1:
+					c.InvalidateTag("t")
+				default:
+					rollback, _ := c.Mutate(k, inc)
+					if i%3 == 0 {
+						rollback()
+						rollback()
+					}
+				}
+			}
+		})
+	}
+	wg.Wait()
+	if got := c.Len(); got > 8 {
+		t.Errorf("Len() = %d, want at most 8", got)
+	}
+}
