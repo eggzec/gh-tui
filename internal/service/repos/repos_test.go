@@ -305,3 +305,41 @@ func TestReadErrors(t *testing.T) {
 		t.Error("a failed Get was cached")
 	}
 }
+
+func TestInvalidateRefetchesEverything(t *testing.T) {
+	api := &fakeAPI{
+		t: t,
+		listRepos: func(_ int, after string) (core.Page[core.Repo], error) {
+			if after == "" {
+				return page("c1", ghTUI), nil
+			}
+			return page(""), nil
+		},
+		getRepo: func(core.RepoRef) (core.Repo, error) { return dotfiles, nil },
+	}
+	s := New(api)
+	read := func() {
+		t.Helper()
+		for _, q := range []ListQuery{{}, {Cursor: "c1"}} {
+			if _, err := s.List(t.Context(), q); err != nil {
+				t.Fatalf("List(%+v): %v", q, err)
+			}
+		}
+		if _, err := s.Get(t.Context(), dotfiles.Ref); err != nil {
+			t.Fatalf("Get: %v", err)
+		}
+	}
+	read()
+
+	s.Invalidate()
+	if _, ok := s.CachedList(ListQuery{Cursor: "c1"}); !ok {
+		t.Error("empty page was dropped, want it kept stale")
+	}
+	if _, ok := s.CachedGet(dotfiles.Ref); !ok {
+		t.Error("repository was dropped, want it kept stale")
+	}
+	read() // Everything is fetched again, the empty page too.
+	read() // And fresh after.
+	calls := []string{"list 30 ", "list 30 c1", "get " + dotfiles.Ref.String()}
+	api.wantCalls(t, slices.Concat(calls, calls)...)
+}

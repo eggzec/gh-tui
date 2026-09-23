@@ -135,3 +135,15 @@ func (s *Service) Comments(ctx context.Context, q CommentsQuery) (core.Page[core
 	}
 	return page, nil
 }
+
+// Invalidate marks everything cached of repo stale: its list pages, issues
+// and comments. They are still served by the Cached reads, and the next
+// fetch of each asks GitHub, conditionally, so a refresh reaches the server
+// even while the entries are fresh, and costs no rate limit if nothing
+// changed.
+func (s *Service) Invalidate(repo core.RepoRef) {
+	tag := repoTag(repo)
+	s.lists.InvalidateTag(tag)
+	s.issues.InvalidateTag(tag)
+	s.comments.InvalidateTag(tag)
+}

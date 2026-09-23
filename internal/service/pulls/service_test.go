@@ -342,3 +342,50 @@ func TestWithCapacity(t *testing.T) {
 		t.Error("#1 is still cached beyond the capacity of 1")
 	}
 }
+
+func TestInvalidateRefetchesRepo(t *testing.T) {
+	api := &fakeAPI{list: listing, get: detail}
+	api.comments = func(context.Context, core.RepoRef, int, string, int) (core.Page[core.Comment], error) {
+		return core.Page[core.Comment]{Items: []core.Comment{{ID: "c"}}}, nil
+	}
+	api.reviews = func(context.Context, core.RepoRef, int, string, int) (core.Page[core.Review], error) {
+		return core.Page[core.Review]{Items: []core.Review{{ID: "r"}}}, nil
+	}
+	s := New(api)
+	other := core.RepoRef{Owner: "charmbracelet", Name: "bubbletea"}
+	read := func(repo core.RepoRef) {
+		t.Helper()
+		ctx := t.Context()
+		if _, err := s.List(ctx, ListQuery{Repo: repo, State: core.StateOpen}); err != nil {
+			t.Fatalf("List: %v", err)
+		}
+		if _, err := s.Get(ctx, repo, 1); err != nil {
+			t.Fatalf("Get: %v", err)
+		}
+		if _, err := s.Comments(ctx, CommentsQuery{Repo: repo, Number: 1}); err != nil {
+			t.Fatalf("Comments: %v", err)
+		}
+		if _, err := s.Reviews(ctx, ReviewsQuery{Repo: repo, Number: 1}); err != nil {
+			t.Fatalf("Reviews: %v", err)
+		}
+	}
+	read(repo)
+	read(other)
+
+	s.Invalidate(core.RepoRef{Owner: "EggZec", Name: "GH-TUI"})
+	if _, ok := s.CachedList(ListQuery{Repo: repo, State: core.StateOpen}); !ok {
+		t.Error("list page was dropped, want it kept stale")
+	}
+	if _, ok := s.CachedGet(repo, 1); !ok {
+		t.Error("detail was dropped, want it kept stale")
+	}
+	read(repo)
+	read(other)
+	for _, m := range []string{"list", "get", "comments", "reviews"} {
+		// One call per repository before, and one more for the
+		// invalidated one; the other repository stays fresh.
+		if n := api.count(m); n != 3 {
+			t.Errorf("%s called %d times, want 3", m, n)
+		}
+	}
+}
