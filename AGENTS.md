@@ -149,7 +149,14 @@ follow the same four steps:
    error toast.
 
 Keep the snapshot and rollback logic in the service layer so the tui only
-reacts to messages.
+reacts to messages. Concretely:
+
+- A service mutation method changes the cache at once (`cache.Mutate` or
+  `cache.MutateTag`, which returns rollbacks) and returns an
+  `*optimistic.Op`. It does no I/O.
+- The tui calls it in `Update`, re-renders from the cache, and runs `Op.Do`
+  in a `tea.Cmd`. `Do` sends the mutation and rolls the cache back if it
+  fails; on success the send function stores the server's response.
 
 ## Performance
 
