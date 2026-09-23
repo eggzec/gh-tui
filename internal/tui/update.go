@@ -47,6 +47,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(cmd, m.broadcast(msg))
 	case ui.SyncMsg:
 		return m, tea.Batch(m.broadcast(msg), m.listen())
+	case ui.RepoMsg:
+		if m.watchRepo != nil {
+			m.watchRepo(msg.Repo)
+		}
+		cmd := m.broadcast(msg)
+		return m, cmd
 	case ui.ShowMsg:
 		cmd := m.show(msg.Title)
 		return m, cmd
