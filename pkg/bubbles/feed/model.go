@@ -51,6 +51,12 @@ type Model[T any] struct {
 	id     int
 	fetch  Fetch[T]
 	render Render[T]
+	key    func(T) string
+
+	// gen counts Resets and Reloads; ctx is cancelled when it changes.
+	gen    int
+	ctx    context.Context
+	cancel context.CancelFunc
 
 	chunks []chunk[T]
 	// starts[i] is the index of the first item of chunks[i].
@@ -67,6 +73,12 @@ type Model[T any] struct {
 	resized bool
 	// err is the first failed fetch, shown in the error row.
 	err error
+
+	// anchor is the key of the item selected when Reload was called, and
+	// anchorRow its row in the window. It holds until the user moves.
+	anchor    string
+	anchorRow int
+	anchored  bool
 
 	spin     spinner.Model
 	spinning bool
@@ -95,6 +107,8 @@ func New[T any](fetch Fetch[T], render Render[T], opts ...Option) Model[T] {
 	for _, opt := range opts {
 		opt(&m.settings)
 	}
+	m.key, _ = m.settings.key.(func(T) string)
+	m.ctx, m.cancel = context.WithCancel(m.parent)
 	// Init fetches the first chunk, and it cannot record that itself.
 	m.tail.fetching = true
 	m.spinning = true
@@ -106,6 +120,60 @@ func New[T any](fetch Fetch[T], render Render[T], opts ...Option) Model[T] {
 // Init fetches the first chunk and starts the spinner.
 func (m Model[T]) Init() tea.Cmd {
 	return tea.Batch(m.fetchCmd(0, m.tail.cursor), m.spin.Tick)
+}
+
+// Reset forgets every item and fetches the first chunk again, for example
+// for a new query. Results of earlier fetches are dropped.
+func (m *Model[T]) Reset() tea.Cmd {
+	m.newGeneration()
+	clear(m.chunks)
+	m.chunks = m.chunks[:0]
+	m.reindex()
+	m.tail = chunk[T]{}
+	m.done = false
+	m.sel, m.top = 0, 0
+	m.anchored = false
+	return m.startFetch(0)
+}
+
+// Reload fetches the loaded chunks again, for example after a sync event or
+// an optimistic update, and shows the old items until the new ones arrive.
+// With a key set, the selection follows the selected item; otherwise it
+// keeps its index. Results of earlier fetches are dropped.
+func (m *Model[T]) Reload() tea.Cmd {
+	m.anchored = false
+	if it, ok := m.Selected(); ok && m.key != nil {
+		m.anchor, m.anchorRow, m.anchored = m.key(it), m.sel-m.top, true
+	}
+	m.newGeneration()
+
+	var cmd tea.Cmd
+	for i := range m.chunks {
+		c := &m.chunks[i]
+		c.fetching = false
+		if c.loaded || c.err != nil {
+			cmd = tea.Batch(cmd, m.startFetch(i))
+		}
+	}
+	m.tail.fetching = false
+	if len(m.chunks) == 0 || m.tail.err != nil {
+		cmd = tea.Batch(cmd, m.startFetch(len(m.chunks)))
+	}
+	return cmd
+}
+
+// newGeneration cancels the fetches in flight and makes their results stale.
+func (m *Model[T]) newGeneration() {
+	if m.cancel != nil {
+		m.cancel()
+	}
+	m.ctx, m.cancel = context.WithCancel(m.parent)
+	m.gen++
+}
+
+// SetKey sets how to identify an item. See [WithKey].
+func (m *Model[T]) SetKey(key func(T) string) {
+	m.key = key
 }
 
 // ID returns the unique ID of the feed.
@@ -283,11 +351,26 @@ func (m *Model[T]) startFetch(i int) tea.Cmd {
 }
 
 func (m Model[T]) fetchCmd(i int, cursor string) tea.Cmd {
-	fetch, ctx, id := m.fetch, m.ctx, m.id
+	fetch, ctx, id, gen := m.fetch, m.ctx, m.id, m.gen
 	return func() tea.Msg {
 		items, next, err := fetch(ctx, cursor)
-		return chunkMsg[T]{id: id, index: i, cursor: cursor, items: items, next: next, err: err}
+		return chunkMsg[T]{id: id, gen: gen, index: i, cursor: cursor, items: items, next: next, err: err}
 	}
+}
+
+// find returns the index of the loaded item with the given key.
+func (m Model[T]) find(key string) (int, bool) {
+	for i, c := range m.chunks {
+		if !c.loaded {
+			continue
+		}
+		for j, it := range c.items {
+			if m.key(it) == key {
+				return m.starts[i] + j, true
+			}
+		}
+	}
+	return 0, false
 }
 
 // refreshError renders the error row, which depends on the error, the

@@ -545,3 +545,160 @@ func TestDropsResultsNobodyWaitsFor(t *testing.T) {
 		}
 	}
 }
+
+func itemKey(it item) string { return it.id }
+
+// insert adds n new items at the front of the source.
+func (s *source) insert(n int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	front := make([]item, 0, n+len(s.items))
+	for i := range n {
+		front = append(front, item{id: fmt.Sprintf("new%d", i), title: "new"})
+	}
+	s.items = append(front, s.items...)
+}
+
+func TestReload(t *testing.T) {
+	tests := []struct {
+		name    string
+		opts    []Option
+		wantSel int
+		wantID  string
+	}{
+		{"by key", []Option{WithKey(itemKey)}, 7, "5"},
+		{"by index", nil, 5, "3"},
+		{"key of another type is ignored", []Option{WithKey(func(s string) string { return s })}, 5, "3"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			src := newSource(30, 10)
+			m := load(t, src, tt.opts...)
+			m = keys(t, m, "down", "down", "down", "down", "down")
+			src.insert(2)
+			m = run(t, m, m.Reload())
+			if m.Index() != tt.wantSel {
+				t.Fatalf("Index() = %d, want %d", m.Index(), tt.wantSel)
+			}
+			if it, ok := m.Selected(); !ok || it.id != tt.wantID {
+				t.Fatalf("Selected() = %v, %v; want item %s", it, ok, tt.wantID)
+			}
+			assertVisible(t, m)
+		})
+	}
+}
+
+func TestReloadKeepsRowOnScreen(t *testing.T) {
+	src := newSource(30, 10)
+	m := load(t, src, WithKey(itemKey))
+	m = keys(t, m, "pgdown", "up")
+	row := m.Index() - m.top
+	src.insert(1)
+	m = run(t, m, m.Reload())
+	if got := m.Index() - m.top; got != row {
+		t.Fatalf("selected row moved from %d to %d on screen", row, got)
+	}
+}
+
+func TestReloadShowsOldItemsUntilNewOnesArrive(t *testing.T) {
+	src := newSource(30, 10)
+	m := load(t, src)
+	before := m.View()
+	cmd := m.Reload()
+	if m.View() != before {
+		t.Fatal("Reload changed the view before new items arrived")
+	}
+	if cmd == nil {
+		t.Fatal("Reload returned no command")
+	}
+}
+
+func TestReloadFollowsChangedChunks(t *testing.T) {
+	src := newSource(25, 10)
+	m := load(t, src, WithKey(itemKey))
+	m = keys(t, m, "end", "end", "end")
+	if !m.Done() || m.Len() != 25 {
+		t.Fatalf("Done() = %v, Len() = %d", m.Done(), m.Len())
+	}
+	// The last chunk grows past its old end, so the feed is no longer done.
+	src.insert(10)
+	m = run(t, m, m.Reload())
+	if m.Len() < 30 || m.Done() && m.Len() != 35 {
+		t.Fatalf("Len() = %d, Done() = %v after the source grew", m.Len(), m.Done())
+	}
+	if it, ok := m.Selected(); !ok || it.id != "24" {
+		t.Fatalf("Selected() = %v, %v; want item 24", it, ok)
+	}
+	m = keys(t, m, "end", "end")
+	if !m.Done() || m.Len() != 35 {
+		t.Fatalf("Done() = %v, Len() = %d; want true, 35", m.Done(), m.Len())
+	}
+}
+
+func TestReloadRetriesFailures(t *testing.T) {
+	src := newSource(10, 10)
+	src.setFail("", errors.New("offline"))
+	m := load(t, src)
+	src.setFail("", nil)
+	m = run(t, m, m.Reload())
+	if m.Err() != nil || m.Len() != 10 {
+		t.Fatalf("Err() = %v, Len() = %d after Reload", m.Err(), m.Len())
+	}
+}
+
+func TestReset(t *testing.T) {
+	query := "a"
+	var ctxs []context.Context
+	fetch := func(ctx context.Context, cursor string) ([]item, string, error) {
+		ctxs = append(ctxs, ctx)
+		next := ""
+		if cursor == "" {
+			next = "1"
+		}
+		return []item{{id: query + cursor, title: query}}, next, nil
+	}
+	m := New(fetch, renderItem, WithSize(40, 1), WithFocused(true))
+	// The first fetch is still in flight when the query changes.
+	stale := m.Init()
+
+	query = "b"
+	cmd := m.Reset()
+	if m.Len() != 0 || m.Index() != 0 || !m.tail.fetching {
+		t.Fatalf("after Reset: Len() = %d, Index() = %d, loading = %v", m.Len(), m.Index(), m.tail.fetching)
+	}
+	m = run(t, m, stale)
+	if m.Len() != 0 {
+		t.Fatal("a result from before Reset was kept")
+	}
+	if ctxs[0].Err() == nil {
+		t.Fatal("Reset should cancel the fetches in flight")
+	}
+	m = run(t, m, cmd)
+	if it, ok := m.Selected(); !ok || it.id != "b" {
+		t.Fatalf("Selected() = %v, %v; want the new query's first item", it, ok)
+	}
+}
+
+func TestReloadDropsStaleResults(t *testing.T) {
+	src := newSource(30, 10)
+	m := load(t, src)
+	m, stale := m.Update(press("end"))
+	m = run(t, m, m.Reload())
+	before := m.Len()
+	m = run(t, m, stale)
+	if m.Len() != before {
+		t.Fatal("a result from before Reload was kept")
+	}
+}
+
+func TestSetKey(t *testing.T) {
+	src := newSource(30, 10)
+	m := load(t, src)
+	m.SetKey(itemKey)
+	m = keys(t, m, "down")
+	src.insert(3)
+	m = run(t, m, m.Reload())
+	if it, _ := m.Selected(); it.id != "1" {
+		t.Fatalf("Selected() = %v, want item 1", it)
+	}
+}

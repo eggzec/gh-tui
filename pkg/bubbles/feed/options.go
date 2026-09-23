@@ -10,7 +10,7 @@ type Option func(*settings)
 
 // settings holds the configuration that does not depend on the item type.
 type settings struct {
-	ctx        context.Context
+	parent     context.Context
 	width      int
 	height     int
 	itemHeight int
@@ -20,11 +20,13 @@ type settings struct {
 	focused    bool
 	maxChunks  int
 	prefetch   int
+	// key is a func(T) string, checked against the item type in New.
+	key any
 }
 
 func defaultSettings() settings {
 	return settings{
-		ctx:        context.Background(),
+		parent:     context.Background(),
 		itemHeight: 1,
 		emptyText:  "Nothing to show.",
 		keyMap:     DefaultKeyMap(),
@@ -99,12 +101,25 @@ func WithFocused(focused bool) Option {
 	}
 }
 
+// WithKey sets how to identify an item, so that Reload keeps the selection
+// on the same item even when it moved. Without a key, Reload keeps the index.
+//
+// WithKey is the one option that depends on the item type. It infers T from
+// key, so call sites stay free of type arguments, and New ignores a key whose
+// type does not match the feed's items. Use [Model.SetKey] to have the
+// compiler check the type.
+func WithKey[T any](key func(T) string) Option {
+	return func(s *settings) {
+		s.key = key
+	}
+}
+
 // WithContext sets the parent context of every fetch. Cancel it to stop the
 // feed's work in flight, for example when the user navigates away.
 func WithContext(ctx context.Context) Option {
 	return func(s *settings) {
 		if ctx != nil {
-			s.ctx = ctx
+			s.parent = ctx
 		}
 	}
 }
