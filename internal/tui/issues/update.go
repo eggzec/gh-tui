@@ -17,6 +17,8 @@ func (s *Section) Update(msg tea.Msg) tea.Cmd {
 		return s.press(msg)
 	case issueMsg:
 		return s.gotIssue(msg)
+	case ui.DoneMsg:
+		return tea.Batch(s.done(msg), s.forward(msg))
 	}
 	return s.forward(msg)
 }
@@ -55,6 +57,10 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 	switch {
 	case key.Matches(msg, k.Select):
 		return s.open()
+	case key.Matches(msg, k.Close):
+		return s.setState(core.StateClosed)
+	case key.Matches(msg, k.Reopen):
+		return s.setState(core.StateOpen)
 	case key.Matches(msg, k.Filter):
 		s.filter = nextFilter(s.filter)
 		return s.resetList()
@@ -75,6 +81,10 @@ func (s *Section) pressDetail(msg tea.KeyPressMsg) tea.Cmd {
 	case key.Matches(msg, k.Back):
 		s.back()
 		return nil
+	case key.Matches(msg, k.Close):
+		return s.setState(core.StateClosed)
+	case key.Matches(msg, k.Reopen):
+		return s.setState(core.StateOpen)
 	case key.Matches(msg, k.Refresh):
 		return tea.Batch(s.detail.Reload(), s.get())
 	case key.Matches(msg, k.Open):

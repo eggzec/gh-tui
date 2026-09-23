@@ -28,8 +28,12 @@ func opened(t *testing.T, svc *fakeService, height int) *Section {
 
 func TestOpenAndBack(t *testing.T) {
 	svc := newFakeService(sampleIssues(12))
+	svc.addComments(1000, core.Comment{ID: "IC_x", Body: "A comment on another issue."})
 	s := opened(t, svc, 30)
 	v := ansi.Strip(s.View())
+	if strings.Contains(v, "another issue") {
+		t.Errorf("detail of #999 shows a comment on #1000:\n%s", v)
+	}
 	for _, want := range []string{"Support GitHub Enterprise hosts", "● Open", "hubot opened", "I can reproduce this", "Thanks! Fixed on main."} {
 		if !strings.Contains(v, want) {
 			t.Errorf("detail lacks %q:\n%s", want, v)
