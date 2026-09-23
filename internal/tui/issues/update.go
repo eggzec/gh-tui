@@ -6,6 +6,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
 )
 
 // Update implements ui.Section.
@@ -19,6 +20,14 @@ func (s *Section) Update(msg tea.Msg) tea.Cmd {
 		return s.gotIssue(msg)
 	case ui.DoneMsg:
 		return tea.Batch(s.done(msg), s.forward(msg))
+	case prompt.SubmitMsg, prompt.CancelMsg:
+		return s.promptDone(msg)
+	case tea.PasteMsg:
+		if s.composing != composeNone {
+			var cmd tea.Cmd
+			s.prompt, cmd = s.prompt.Update(msg)
+			return cmd
+		}
 	}
 	return s.forward(msg)
 }
@@ -77,8 +86,18 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 }
 
 func (s *Section) pressDetail(msg tea.KeyPressMsg) tea.Cmd {
+	if s.composing != composeNone {
+		// Every key is typing, even the section's own.
+		var cmd tea.Cmd
+		s.prompt, cmd = s.prompt.Update(msg)
+		return cmd
+	}
 	k := s.keys
 	switch {
+	case key.Matches(msg, k.Comment):
+		return s.compose(composeComment)
+	case key.Matches(msg, k.Label):
+		return s.compose(composeLabels)
 	case key.Matches(msg, k.Back):
 		s.back()
 		return nil

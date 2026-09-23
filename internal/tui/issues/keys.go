@@ -25,6 +25,8 @@ type keyMap struct {
 	Open    key.Binding
 	Close   key.Binding
 	Reopen  key.Binding
+	Comment key.Binding
+	Label   key.Binding
 
 	feed   feed.KeyMap
 	thread thread.KeyMap
@@ -39,6 +41,8 @@ func newKeyMap(keys map[string][]string) keyMap {
 		Open:    ui.Binding(keys, config.ActionOpen, "browser"),
 		Close:   ui.Binding(keys, config.ActionClose, "close"),
 		Reopen:  ui.Binding(keys, config.ActionReopen, "reopen"),
+		Comment: ui.Binding(keys, config.ActionComment, "comment"),
+		Label:   ui.Binding(keys, config.ActionLabel, "labels"),
 	}
 
 	fk := feed.DefaultKeyMap()
@@ -52,7 +56,7 @@ func newKeyMap(keys map[string][]string) keyMap {
 	k.feed = fk
 
 	tk := thread.DefaultKeyMap()
-	detailKeys := []key.Binding{k.Back, k.Refresh, k.Open, k.Close, k.Reopen}
+	detailKeys := []key.Binding{k.Back, k.Refresh, k.Open, k.Close, k.Reopen, k.Comment, k.Label}
 	for _, b := range []*key.Binding{&tk.Up, &tk.Down, &tk.PageUp, &tk.PageDown, &tk.HalfPageUp, &tk.HalfPageDown, &tk.Top, &tk.Bottom} {
 		*b = without(*b, detailKeys)
 	}
@@ -98,17 +102,21 @@ func (s *Section) Help() help.KeyMap {
 	if !s.hasRepo {
 		return keyHelp{}
 	}
+	if s.inDetail && s.composing != composeNone {
+		return keyHelp{short: s.prompt.ShortHelp(), full: s.prompt.FullHelp()}
+	}
 	// Offer close or reopen, whichever applies to the issue at hand.
 	it, ok := s.target()
 	k.Close.SetEnabled(k.Close.Enabled() && ok && it.State == core.StateOpen)
 	k.Reopen.SetEnabled(k.Reopen.Enabled() && ok && it.State != core.StateOpen)
 	if s.inDetail {
 		return keyHelp{
-			short: []key.Binding{tk.Down, tk.Up, tk.HalfPageDown, k.Back, k.Close, k.Reopen, k.Open},
+			short: []key.Binding{tk.Down, tk.Up, k.Back, k.Comment, k.Label, k.Close, k.Reopen, k.Open},
 			full: [][]key.Binding{
 				{tk.Up, tk.Down, tk.PageUp, tk.PageDown},
 				{tk.HalfPageUp, tk.HalfPageDown, tk.Top, tk.Bottom},
-				{k.Back, k.Close, k.Reopen, k.Open, k.Refresh},
+				{k.Back, k.Comment, k.Label, k.Open, k.Refresh},
+				{k.Close, k.Reopen},
 			},
 		}
 	}

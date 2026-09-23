@@ -44,10 +44,13 @@ func (s *Section) setState(state core.State) tea.Cmd {
 }
 
 // done reloads after a change this section sent, to show GitHub's answer or
-// the rollback.
+// the rollback. The thread reloads too, since the change may be a comment.
 func (s *Section) done(msg ui.DoneMsg) tea.Cmd {
 	if msg.From != ui.IssuesTitle {
 		return nil
+	}
+	if s.inDetail {
+		return tea.Batch(s.reload(), s.detail.Reload())
 	}
 	return s.reload()
 }

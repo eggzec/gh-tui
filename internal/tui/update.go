@@ -61,6 +61,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
+	// ctrl+c always reaches the quit key, so a capturing section can't
+	// trap the user.
+	if c, ok := m.activeSection().(ui.Capturer); ok && c.Capturing() && msg.String() != "ctrl+c" {
+		cmd := m.sections[m.active].Update(msg)
+		m.updateBadges()
+		return cmd
+	}
 	tk := m.tabs.KeyMap()
 	switch {
 	case key.Matches(msg, m.keys.Quit):
@@ -82,6 +89,14 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 	cmd := m.sections[m.active].Update(msg)
 	m.updateBadges()
 	return cmd
+}
+
+// activeSection returns the section on screen, or nil if there are none.
+func (m *Model) activeSection() ui.Section {
+	if len(m.sections) == 0 {
+		return nil
+	}
+	return m.sections[m.active]
 }
 
 // broadcast sends msg to every section, started or not, so that a section

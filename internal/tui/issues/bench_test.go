@@ -55,3 +55,31 @@ func BenchmarkViewDetail(b *testing.B) {
 		_ = s.View()
 	}
 }
+
+// BenchmarkUpdateCompose types into the comment prompt, with the thread
+// above it.
+func BenchmarkUpdateCompose(b *testing.B) {
+	svc := newFakeService(sampleIssues(30))
+	svc.addComments(999, sampleComments(90)...)
+	s := started(b, svc, 120, 40)
+	press(b, s, "down", "enter", "c")
+	typeText(b, s, "I can reproduce this on main with an empty config file.")
+	a, bksp := tea.Msg(keyMsg("a")), tea.Msg(tea.KeyPressMsg{Code: tea.KeyBackspace})
+	b.ReportAllocs()
+	for b.Loop() {
+		s.Update(a)
+		s.Update(bksp)
+	}
+}
+
+func BenchmarkViewCompose(b *testing.B) {
+	svc := newFakeService(sampleIssues(30))
+	svc.addComments(999, sampleComments(90)...)
+	s := started(b, svc, 120, 40)
+	press(b, s, "down", "enter", "c")
+	typeText(b, s, "I can reproduce this on main with an empty config file.")
+	b.ReportAllocs()
+	for b.Loop() {
+		_ = s.View()
+	}
+}

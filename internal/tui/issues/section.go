@@ -15,6 +15,7 @@ import (
 	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
+	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
 	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
 )
 
@@ -44,6 +45,10 @@ type Section struct {
 	detailGen    int
 	detailCtx    context.Context
 	cancelDetail context.CancelFunc
+	// prompt is where a comment or the labels are written, under the
+	// thread, while composing says what for.
+	prompt    prompt.Model
+	composing composing
 	// md renders comment bodies at mdWidth.
 	md      *glamour.TermRenderer
 	mdWidth int
@@ -107,7 +112,7 @@ func (s *Section) SetSize(width, height int) {
 	s.width, s.height = max(width, 0), max(height, 0)
 	s.list.SetSize(s.width, s.bodyHeight())
 	if s.inDetail {
-		s.detail.SetSize(s.width, s.bodyHeight())
+		s.layoutDetail()
 	}
 	s.renderChrome()
 }
@@ -125,12 +130,20 @@ func (s *Section) SetTheme(t ui.Theme) {
 		// layout needs on its next message, so the command can go.
 		_ = s.detail.SetDocument(s.header(s.issue), s.issue.Body)
 	}
+	if s.composing != composeNone {
+		s.prompt.SetStyles(t.Prompt())
+	}
 	s.renderChrome()
 }
 
 // Focus implements ui.Section.
 func (s *Section) Focus() {
 	s.focused = true
+	if s.inDetail && s.composing != composeNone {
+		// The cursor doesn't blink, so focusing starts nothing.
+		_ = s.prompt.Focus()
+		return
+	}
 	if s.inDetail {
 		s.detail.Focus()
 		return
@@ -143,6 +156,9 @@ func (s *Section) Blur() {
 	s.focused = false
 	s.list.Blur()
 	s.detail.Blur()
+	if s.composing != composeNone {
+		s.prompt.Blur()
+	}
 }
 
 // bodyHeight is the height under the bar.

@@ -153,11 +153,16 @@ func TestRepoMsgInDetail(t *testing.T) {
 
 func TestPendingComment(t *testing.T) {
 	svc := newFakeService(sampleIssues(12))
-	svc.addComments(999, core.Comment{ID: "pending:1", Author: core.User{Login: "me"}, Body: "On it."})
+	svc.addComments(999,
+		core.Comment{ID: "pending:1", Author: core.User{Login: "me"}, Body: "On it."},
+		core.Comment{ID: "pending:2", Body: "Sent without knowing who I am."},
+	)
 	s := opened(t, svc, 30)
 	v := ansi.Strip(s.View())
-	if !strings.Contains(v, "me · sending…") || !strings.Contains(v, "On it.") {
-		t.Errorf("pending comment not shown as sending:\n%s", v)
+	for _, want := range []string{"me · sending…", "On it.", "you · sending…", "Sent without knowing"} {
+		if !strings.Contains(v, want) {
+			t.Errorf("pending comments lack %q:\n%s", want, v)
+		}
 	}
 }
 
@@ -203,6 +208,21 @@ func TestViewDetail(t *testing.T) {
 		golden.RequireEqual(t, s.header(s.issue))
 	})
 	t.Run("thread", func(t *testing.T) {
+		v := s.View()
+		assertFits(t, v, 80, 24)
+		golden.RequireEqual(t, v)
+	})
+	t.Run("comment prompt", func(t *testing.T) {
+		press(t, s, "c")
+		typeText(t, s, "Thanks, I can reproduce it.")
+		defer press(t, s, "esc")
+		v := s.View()
+		assertFits(t, v, 80, 24)
+		golden.RequireEqual(t, v)
+	})
+	t.Run("labels prompt", func(t *testing.T) {
+		press(t, s, "l")
+		defer press(t, s, "esc")
 		v := s.View()
 		assertFits(t, v, 80, 24)
 		golden.RequireEqual(t, v)

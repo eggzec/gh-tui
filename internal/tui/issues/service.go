@@ -21,4 +21,9 @@ type Service interface {
 	// the op that sends it.
 	Close(repo core.RepoRef, number int) *optimistic.Op
 	Reopen(repo core.RepoRef, number int) *optimistic.Op
+	// Comment, AddLabels and RemoveLabel do the same for a new comment
+	// and for labels.
+	Comment(repo core.RepoRef, number int, body string) *optimistic.Op
+	AddLabels(repo core.RepoRef, number int, names []string) *optimistic.Op
+	RemoveLabel(repo core.RepoRef, number int, name string) *optimistic.Op
 }
