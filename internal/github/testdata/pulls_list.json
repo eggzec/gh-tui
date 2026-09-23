@@ -1,0 +1,80 @@
+{
+  "data": {
+    "repository": {
+      "pullRequests": {
+        "nodes": [
+          {
+            "id": "PR_kwDOLnBTf85xYz01",
+            "number": 42,
+            "title": "Add pull request list",
+            "state": "OPEN",
+            "isDraft": false,
+            "url": "https://github.com/eggzec/gh-tui/pull/42",
+            "createdAt": "2026-09-20T08:15:00Z",
+            "updatedAt": "2026-09-22T17:40:12Z",
+            "mergedAt": null,
+            "repository": {"name": "gh-tui", "owner": {"login": "eggzec"}},
+            "author": {"login": "octocat", "name": "The Octocat"},
+            "labels": {"nodes": [{"name": "enhancement", "color": "a2eeef", "description": "New feature or request"}]},
+            "assignees": {"nodes": [{"login": "hubot", "name": "Hubot"}]},
+            "comments": {"totalCount": 3},
+            "headRefName": "feat/pulls",
+            "baseRefName": "main",
+            "reviewDecision": "APPROVED",
+            "additions": 512,
+            "deletions": 18,
+            "changedFiles": 7,
+            "commits": {"nodes": [{"commit": {"statusCheckRollup": {"state": "SUCCESS"}}}]}
+          },
+          {
+            "id": "PR_kwDOLnBTf85xYz02",
+            "number": 41,
+            "title": "WIP: cache warm start",
+            "state": "OPEN",
+            "isDraft": true,
+            "url": "https://github.com/eggzec/gh-tui/pull/41",
+            "createdAt": "2026-09-19T11:02:44Z",
+            "updatedAt": "2026-09-21T09:30:00Z",
+            "mergedAt": null,
+            "repository": {"name": "gh-tui", "owner": {"login": "eggzec"}},
+            "author": {"login": "dependabot"},
+            "labels": {"nodes": []},
+            "assignees": {"nodes": []},
+            "comments": {"totalCount": 0},
+            "headRefName": "feat/warm-start",
+            "baseRefName": "main",
+            "reviewDecision": "CHANGES_REQUESTED",
+            "additions": 40,
+            "deletions": 2,
+            "changedFiles": 1,
+            "commits": {"nodes": [{"commit": {"statusCheckRollup": {"state": "FAILURE"}}}]}
+          },
+          {
+            "id": "PR_kwDOLnBTf85xYz03",
+            "number": 39,
+            "title": "Bump go-gh",
+            "state": "OPEN",
+            "isDraft": false,
+            "url": "https://github.com/eggzec/gh-tui/pull/39",
+            "createdAt": "2026-09-18T07:00:00Z",
+            "updatedAt": "2026-09-20T12:00:00Z",
+            "mergedAt": null,
+            "repository": {"name": "gh-tui", "owner": {"login": "eggzec"}},
+            "author": null,
+            "labels": {"nodes": []},
+            "assignees": {"nodes": []},
+            "comments": {"totalCount": 1},
+            "headRefName": "deps/go-gh",
+            "baseRefName": "main",
+            "reviewDecision": null,
+            "additions": 3,
+            "deletions": 3,
+            "changedFiles": 2,
+            "commits": {"nodes": [{"commit": {"statusCheckRollup": null}}]}
+          }
+        ],
+        "pageInfo": {"hasNextPage": true, "endCursor": "Y3Vyc29yOnYyOpK5MjAyNi0wOS0yMFQxMjowMDowMFo"}
+      }
+    }
+  }
+}
