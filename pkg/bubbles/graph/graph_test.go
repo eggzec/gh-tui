@@ -309,6 +309,21 @@ func TestSelectAndChoose(t *testing.T) {
 	}
 }
 
+func TestAt(t *testing.T) {
+	commits := sample()
+	m := load(t, newSource(commits, 10))
+	for i, want := range commits {
+		if got, ok := m.At(i); !ok || got.ID != want.ID {
+			t.Errorf("At(%d) = %q, %v; want %q", i, got.ID, ok, want.ID)
+		}
+	}
+	for _, i := range []int{-1, len(commits)} {
+		if _, ok := m.At(i); ok {
+			t.Errorf("At(%d) found a commit out of range", i)
+		}
+	}
+}
+
 func TestLayoutAcrossChunks(t *testing.T) {
 	commits := history(37)
 	whole := load(t, newSource(commits, len(commits)), WithSize(60, 40))
