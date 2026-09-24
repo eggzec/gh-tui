@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/obs"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
@@ -41,10 +42,12 @@ func (o *Offline) Notify() tea.Cmd {
 
 // FeedPages adapts a read of pages to a feed. A page kept from an earlier
 // session is shown while it is read again, and a page served offline marks
-// off.
-func FeedPages[T any](off *Offline, read func(ctx context.Context, cursor string) (core.Page[T], error)) feed.Fetch[T] {
+// off. Each read is a trace named name, such as list.pulls.
+func FeedPages[T any](name string, off *Offline, read func(ctx context.Context, cursor string) (core.Page[T], error)) feed.Fetch[T] {
 	return func(ctx context.Context, cursor string) ([]T, string, error) {
+		ctx, end := obs.Begin(ctx, name)
 		p, err := read(ctx, cursor)
+		end(err, "span", "tui", "first", cursor == "", "items", len(p.Items), "stale", p.Stale, "offline", p.Offline)
 		switch {
 		case err != nil:
 			return nil, "", err

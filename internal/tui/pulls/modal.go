@@ -2,6 +2,7 @@ package pulls
 
 import (
 	"context"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/obs"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
@@ -62,7 +64,11 @@ type detailModal struct {
 // openDetail opens a modal on pull request number of repo. pr is the list
 // item, shown until the detail arrives, or nil when there is none.
 func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest) tea.Cmd {
-	ctx, cancel := context.WithCancel(s.ctx)
+	// The reads of the modal are one trace, however many pages it reads.
+	ctx, cancel := context.WithCancel(obs.WithTrace(s.ctx, "open.pull"))
+	s.ahead.Opened(commentsQuery(repo, number))
+	_, cached := s.svc.CachedGet(repo, number)
+	slog.InfoContext(ctx, "open", "span", "tui", "kind", "pull", "repo", repo.String(), "number", number, "cached", cached)
 	m := &detailModal{
 		svc:         s.svc,
 		keys:        s.keys,
@@ -220,7 +226,9 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 func (m *detailModal) get() tea.Cmd {
 	svc, ctx, repo, number, id := m.svc, m.ctx, m.repo, m.number, m.thread.ID()
 	return func() tea.Msg {
+		start := time.Now()
 		d, err := svc.Get(ctx, repo, number)
+		obs.End(ctx, start, err, "span", "tui", "repo", repo.String(), "number", number)
 		return detailMsg{thread: id, detail: d, err: err}
 	}
 }

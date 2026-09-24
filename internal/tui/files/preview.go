@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/obs"
 	filesvc "github.com/eggzec/gh-tui/internal/service/files"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
@@ -52,7 +53,9 @@ func (p *preview) load() tea.Cmd {
 	}
 	svc, ctx, id := p.svc, p.ctx, p.pager.ID()
 	fetch := func() tea.Msg {
+		ctx, end := obs.Begin(ctx, "open.file")
 		b, err := svc.Blob(ctx, q)
+		end(err, "span", "tui", "repo", q.Repo.String(), "size", q.Size)
 		return blobMsg{id: id, blob: b, err: err}
 	}
 	return tea.Batch(p.pager.SetLoading(p.entry.Path), fetch)

@@ -75,7 +75,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		opt(s)
 	}
 	if p := s.prefetch; p != nil {
-		s.ahead = ui.NewAhead(readIssue(svc), svc.Current, p.rows, p.delay)
+		s.ahead = ui.NewAhead("issue", readIssue(svc), svc.Current, p.rows, p.delay)
 		s.rowAt = func(i int) (issuesvc.CommentsQuery, bool) {
 			it, ok := s.list.Item(i)
 			return commentsQuery(s.repo, it.Number), ok
@@ -154,7 +154,7 @@ func (s *Section) newList() feed.Model[core.Issue] {
 	ctx, s.cancelList = context.WithCancel(s.ctx)
 	s.ahead.Reset(ctx)
 	svc, q := s.svc, issuesvc.ListQuery{Repo: s.repo, State: s.filter}
-	fetch := ui.FeedPages(s.offline, func(ctx context.Context, cursor string) (core.Page[core.Issue], error) {
+	fetch := ui.FeedPages("list.issues", s.offline, func(ctx context.Context, cursor string) (core.Page[core.Issue], error) {
 		q := q
 		q.Cursor = cursor
 		return svc.List(ctx, q)

@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/obs"
 	filesvc "github.com/eggzec/gh-tui/internal/service/files"
 )
 
@@ -62,6 +63,7 @@ func (s *Section) moved() tea.Cmd {
 		return nil
 	}
 	if _, ok := s.svc.CachedBlob(s.blobQuery(e)); ok {
+		s.seen.Count(obs.PrefetchCached)
 		return nil
 	}
 	h.entry = e
@@ -76,13 +78,12 @@ func (s *Section) rested(msg hoverMsg) tea.Cmd {
 		return nil
 	}
 	h.stop()
-	ctx, cancel := context.WithCancel(s.treeCtx)
+	ctx, cancel := context.WithCancel(obs.WithTrace(s.treeCtx, "prefetch.hover"))
 	h.cancel = cancel
-	svc, q := s.svc, s.blobQuery(h.entry)
+	svc, q, seen := s.svc, s.blobQuery(h.entry), s.seen
 	return func() tea.Msg {
 		defer cancel()
-		// A failure shows in the preview, if the file is opened.
-		_, _ = svc.Blob(ctx, q)
+		readBlob(ctx, svc, seen, q)
 		return nil
 	}
 }

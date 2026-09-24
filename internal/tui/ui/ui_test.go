@@ -89,7 +89,7 @@ func TestFeedPages(t *testing.T) {
 		"stale": {Items: []int{2}, Next: "off", Offline: true},
 		"off":   {Items: []int{3}},
 	}
-	fetch := FeedPages(&off, func(_ context.Context, cursor string) (core.Page[int], error) {
+	fetch := FeedPages("list.test", &off, func(_ context.Context, cursor string) (core.Page[int], error) {
 		if cursor == "fail" {
 			return core.Page[int]{}, errors.New("boom")
 		}

@@ -2,13 +2,17 @@ package files
 
 import (
 	"context"
+	"errors"
+	"log/slog"
 	"path"
 	"strings"
 	"sync"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/obs"
 	filesvc "github.com/eggzec/gh-tui/internal/service/files"
 )
 
@@ -28,6 +32,7 @@ func (s *Section) prefetchTop(ctx context.Context, x *index) tea.Cmd {
 		return nil
 	}
 	var todo []filesvc.BlobQuery
+	cached := 0
 	for _, e := range x.dirs[""] {
 		if len(todo) == prefetchFiles {
 			break
@@ -37,6 +42,8 @@ func (s *Section) prefetchTop(ctx context.Context, x *index) tea.Cmd {
 			continue
 		}
 		if _, ok := s.svc.CachedBlob(q); ok {
+			cached++
+			s.seen.Count(obs.PrefetchCached)
 			continue
 		}
 		todo = append(todo, q)
@@ -44,23 +51,29 @@ func (s *Section) prefetchTop(ctx context.Context, x *index) tea.Cmd {
 	if len(todo) == 0 {
 		return nil
 	}
-	svc := s.svc
+	svc, seen, repo := s.svc, s.seen, s.repo
 	return func() tea.Msg {
-		readAll(ctx, svc, todo, prefetchWorkers)
+		ctx := obs.WithTrace(ctx, "prefetch.files")
+		slog.InfoContext(ctx, "prefetch", "span", "prefetch", "kind", seen.Kind(), "trigger", "top",
+			"repo", repo.String(), "sent", len(todo), "skipped_cached", cached)
+		readAll(ctx, svc, seen, todo, prefetchWorkers)
 		return nil
 	}
 }
 
 // readAll reads the blobs of qs with at most workers reads in flight, and
 // ignores failures: the preview reports them if the file is opened.
-func readAll(ctx context.Context, svc Service, qs []filesvc.BlobQuery, workers int) {
+func readAll(ctx context.Context, svc Service, seen *obs.Prefetched[filesvc.BlobQuery], qs []filesvc.BlobQuery, workers int) {
 	sem := make(chan struct{}, workers)
 	var wg sync.WaitGroup
 	defer wg.Wait()
-	for _, q := range qs {
+	for i, q := range qs {
 		select {
 		case sem <- struct{}{}:
 		case <-ctx.Done():
+			for range len(qs) - i {
+				seen.Count(obs.PrefetchCanceled)
+			}
 			return
 		}
 		// select picks at random when a slot frees as ctx ends, so check
@@ -71,8 +84,34 @@ func readAll(ctx context.Context, svc Service, qs []filesvc.BlobQuery, workers i
 		}
 		wg.Go(func() {
 			defer func() { <-sem }()
-			_, _ = svc.Blob(ctx, q)
+			readBlob(ctx, svc, seen, q)
 		})
+	}
+}
+
+// readBlob reads the blob of q ahead, and records what came of it. A
+// failure is for the preview to report, if the file is opened.
+func readBlob(ctx context.Context, svc Service, seen *obs.Prefetched[filesvc.BlobQuery], q filesvc.BlobQuery) {
+	seen.Count(obs.PrefetchSent)
+	start := time.Now()
+	_, err := svc.Blob(ctx, q)
+	outcome := "read"
+	switch {
+	case err == nil:
+		seen.Read(q)
+	case errors.Is(err, core.ErrRateLimited):
+		outcome = "rate_limited"
+		seen.Count(obs.PrefetchRateLimited)
+	case ctx.Err() != nil:
+		outcome = "canceled"
+		seen.Count(obs.PrefetchCanceled)
+	default:
+		outcome = "failed"
+		seen.Count(obs.PrefetchFailed)
+	}
+	if obs.Enabled(ctx, slog.LevelDebug) {
+		slog.DebugContext(ctx, "prefetch read", "span", "prefetch", "kind", seen.Kind(), "sha", q.SHA,
+			"size", q.Size, "outcome", outcome, "duration_ms", obs.Millis(time.Since(start)))
 	}
 }
 

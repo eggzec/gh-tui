@@ -95,7 +95,7 @@ func run(cmd tea.Cmd) {
 func TestAheadFirstRows(t *testing.T) {
 	r := newReader()
 	r.cached[2] = true
-	a := NewAhead(r.readRow, r.current, 5, time.Millisecond)
+	a := NewAhead("row", r.readRow, r.current, 5, time.Millisecond)
 	a.Reset(t.Context())
 
 	if cmd := a.First(rowsOf(0)); cmd != nil {
@@ -119,7 +119,7 @@ func TestAheadBoundsReads(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		r := newReader()
 		r.hold = make(chan struct{})
-		a := NewAhead(r.readRow, r.current, 10, time.Millisecond)
+		a := NewAhead("row", r.readRow, r.current, 10, time.Millisecond)
 		a.Reset(t.Context())
 		done := make(chan struct{})
 		go func() {
@@ -147,7 +147,7 @@ func TestAheadResetCancels(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		r := newReader()
 		r.hold = make(chan struct{})
-		a := NewAhead(r.readRow, r.current, 5, time.Millisecond)
+		a := NewAhead("row", r.readRow, r.current, 5, time.Millisecond)
 		a.Reset(t.Context())
 		done := make(chan struct{})
 		go func() {
@@ -170,7 +170,7 @@ func TestAheadResetCancels(t *testing.T) {
 func TestAheadStopsAtRateLimit(t *testing.T) {
 	r := newReader()
 	r.err = &core.RateLimitError{Reset: time.Now()}
-	a := NewAhead(r.readRow, r.current, 30, time.Millisecond)
+	a := NewAhead("row", r.readRow, r.current, 30, time.Millisecond)
 	a.Reset(t.Context())
 	run(a.First(rowsOf(30)))
 	if n := len(r.reads()); n > aheadWorkers {
@@ -212,7 +212,7 @@ func rest(t *testing.T, a *Ahead[int], cmd tea.Cmd) tea.Cmd {
 func TestAheadHover(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		r := newReader()
-		a := NewAhead(r.readRow, r.current, 0, 150*time.Millisecond)
+		a := NewAhead("row", r.readRow, r.current, 0, 150*time.Millisecond)
 		a.Reset(t.Context())
 
 		// The cursor passes row 1 for row 2 before the delay.
@@ -246,7 +246,7 @@ func TestAheadHoverCancelsOlder(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		r := newReader()
 		r.hold = make(chan struct{})
-		a := NewAhead(r.readRow, r.current, 0, time.Millisecond)
+		a := NewAhead("row", r.readRow, r.current, 0, time.Millisecond)
 		a.Reset(t.Context())
 
 		first := rest(t, a, a.Moved(1, true))

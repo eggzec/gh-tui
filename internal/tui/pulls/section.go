@@ -138,7 +138,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		opt(s)
 	}
 	if p := s.prefetch; p != nil {
-		s.ahead = ui.NewAhead(readDetail(svc), svc.Current, p.rows, p.delay)
+		s.ahead = ui.NewAhead("pull", readDetail(svc), svc.Current, p.rows, p.delay)
 		s.rowAt = func(i int) (pulls.CommentsQuery, bool) {
 			pr, ok := s.feed.Item(i)
 			return commentsQuery(s.repo, pr.Number), ok
@@ -177,7 +177,7 @@ func (s *Section) newFeed() tea.Cmd {
 	s.ahead.Reset(ctx)
 	q := pulls.ListQuery{Repo: s.repo, State: s.filter}
 	svc := s.svc
-	fetch := ui.FeedPages(s.offline, func(ctx context.Context, cursor string) (core.Page[core.PullRequest], error) {
+	fetch := ui.FeedPages("list.pulls", s.offline, func(ctx context.Context, cursor string) (core.Page[core.PullRequest], error) {
 		q := q
 		q.Cursor = cursor
 		return svc.List(ctx, q)

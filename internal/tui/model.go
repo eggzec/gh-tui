@@ -14,6 +14,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/obs"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
@@ -248,7 +249,9 @@ func (m *Model) loadRepoInfo() tea.Cmd {
 	}
 	get, ctx, ref := m.repoInfo, m.ctx, m.repo
 	return func() tea.Msg {
+		ctx, end := obs.Begin(ctx, "repo.info")
 		r, err := get(ctx, ref)
+		end(err, "span", "tui", "repo", ref.String())
 		if err == nil {
 			// Callers may leave out what they were asked for.
 			r.Ref = ref

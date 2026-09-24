@@ -127,7 +127,7 @@ func TestReadAllIsBounded(t *testing.T) {
 			qs[i] = filesvc.BlobQuery{Repo: ghTUI, SHA: strconv.Itoa(i)}
 		}
 		start := time.Now()
-		readAll(t.Context(), f, qs, 4)
+		readAll(t.Context(), f, nil, qs, 4)
 		if most != 4 || len(f.blobReads) != 12 {
 			t.Errorf("%d reads, at most %d at once; want 12, at most 4", len(f.blobReads), most)
 		}
@@ -149,7 +149,7 @@ func TestReadAllStopsWhenCancelled(t *testing.T) {
 		for i := range qs {
 			qs[i] = filesvc.BlobQuery{Repo: ghTUI, SHA: strconv.Itoa(i)}
 		}
-		readAll(ctx, f, qs, 4)
+		readAll(ctx, f, nil, qs, 4)
 		// The reads already started finish; no new one starts.
 		if n := len(f.blobReads); n > 4 {
 			t.Errorf("%d reads after the first was cancelled, want at most 4", n)

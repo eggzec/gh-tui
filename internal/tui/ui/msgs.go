@@ -2,10 +2,13 @@ package ui
 
 import (
 	"context"
+	"log/slog"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/obs"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
@@ -38,10 +41,21 @@ type DoneMsg struct {
 }
 
 // Do returns a command that sends op for the section titled from and
-// reports a DoneMsg.
+// reports a DoneMsg. Each op is a trace of its own, which logs that it was
+// sent, and whether the server confirmed it or it was rolled back.
 func Do(ctx context.Context, from string, op Op, what string) tea.Cmd {
 	return func() tea.Msg {
-		return DoneMsg{From: from, What: what, Err: op.Do(ctx)}
+		ctx := obs.WithTrace(ctx, "op")
+		start := time.Now()
+		slog.InfoContext(ctx, "op sent", "span", "op", "section", from, "what", what)
+		err := op.Do(ctx)
+		took := slog.Float64("duration_ms", obs.Millis(time.Since(start)))
+		if err != nil {
+			slog.WarnContext(ctx, "op rolled back", "span", "op", "section", from, "what", what, took, "err", err.Error())
+		} else {
+			slog.InfoContext(ctx, "op confirmed", "span", "op", "section", from, "what", what, took)
+		}
+		return DoneMsg{From: from, What: what, Err: err}
 	}
 }
 

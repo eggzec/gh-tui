@@ -81,7 +81,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 	for _, opt := range opts {
 		opt(s)
 	}
-	s.feed = feed.New(ui.FeedPages(s.offline, s.list), s.render,
+	s.feed = feed.New(ui.FeedPages("list.notifications", s.offline, s.list), s.render,
 		feed.WithContext(ctx),
 		feed.WithKey(func(n core.Notification) string { return n.ID }),
 		feed.WithKeyMap(s.keys.feed),
