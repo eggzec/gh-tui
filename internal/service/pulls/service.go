@@ -64,7 +64,7 @@ func New(api API, opts ...Option) *Service {
 	for _, opt := range opts {
 		opt(&o)
 	}
-	return &Service{
+	s := &Service{
 		api:          api,
 		lists:        cache.New[core.Page[core.PullRequest]](o.cache...),
 		details:      cache.New[core.PullRequestDetail](o.cache...),
@@ -75,6 +75,8 @@ func New(api API, opts ...Option) *Service {
 		keptComments: cache.NewShelf[seen.Stamped[core.Page[core.Comment]]](o.store, kindComments, schema),
 		now:          time.Now,
 	}
+	s.etags.Keep(o.store)
+	return s
 }
 
 // The kinds of entries the service keeps in its store, and the version of
