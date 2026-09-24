@@ -175,3 +175,47 @@ func TestTagged(t *testing.T) {
 		t.Errorf("Tagged(none) = %v, want empty", got)
 	}
 }
+
+func TestMaxSize(t *testing.T) {
+	c := New[string](WithCapacity(10), WithMaxSize(10, func(v string) int64 { return int64(len(v)) }))
+	c.Set("a", Entry[string]{Value: "aaaa"})
+	c.Set("b", Entry[string]{Value: "bbbb"})
+	c.Get("a")                                 // most recent first: a, b
+	c.Set("c", Entry[string]{Value: "cccc"})   // 12 bytes: evicts b
+	c.Set("a", Entry[string]{Value: "a"})      // shrinks a: c, a = 5 bytes
+	c.Set("d", Entry[string]{Value: "dddddd"}) // 11 bytes: evicts c
+	if got, want := c.Size(), int64(7); got != want {
+		t.Errorf("Size() = %d, want %d", got, want)
+	}
+	for k, want := range map[string]State{"a": Fresh, "b": Miss, "c": Miss, "d": Fresh} {
+		if _, st := c.Get(k); st != want {
+			t.Errorf("Get(%q) state = %v, want %v", k, st, want)
+		}
+	}
+
+	// An entry larger than the limit is kept on its own.
+	c.Set("big", Entry[string]{Value: "0123456789ab"})
+	if _, st := c.Get("big"); st != Fresh || c.Len() != 1 || c.Size() != 12 {
+		t.Errorf("after a large Set: state %v, Len %d, Size %d; want only the large entry", st, c.Len(), c.Size())
+	}
+}
+
+func TestMaxSizeWithCapacity(t *testing.T) {
+	c := New[string](WithCapacity(2), WithMaxSize(100, func(v string) int64 { return int64(len(v)) }))
+	for _, k := range []string{"a", "b", "c"} {
+		c.Set(k, Entry[string]{Value: k + k})
+	}
+	if c.Len() != 2 || c.Size() != 4 {
+		t.Errorf("Len %d, Size %d; want 2 entries of 4 bytes", c.Len(), c.Size())
+	}
+}
+
+func TestMaxSizeOtherType(t *testing.T) {
+	// A size function of another type is ignored rather than panicking.
+	c := New[int](WithMaxSize(1, func(v string) int64 { return int64(len(v)) }))
+	c.Set("a", Entry[int]{Value: 1})
+	c.Set("b", Entry[int]{Value: 2})
+	if c.Len() != 2 || c.Size() != 0 {
+		t.Errorf("Len %d, Size %d; want 2 unmeasured entries", c.Len(), c.Size())
+	}
+}

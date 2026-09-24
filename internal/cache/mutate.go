@@ -55,6 +55,7 @@ func (c *Cache[V]) mutate(key string, n *node[V], v V) (rollback func()) {
 	prev, prevStale, prevVersion := n.entry, n.stale, n.version
 	c.seq++
 	n.entry.Value, n.version = v, c.seq
+	c.resize(n)
 	version := n.version
 
 	done := false
@@ -73,6 +74,7 @@ func (c *Cache[V]) mutate(key string, n *node[V], v V) (rollback func()) {
 			// was, so nested rollbacks unwind in order and a Fetch that
 			// started before Mutate may still store its result.
 			cur.entry, cur.stale, cur.version = prev, prevStale, prevVersion
+			c.resize(cur)
 		default:
 			c.markStale(cur)
 		}
