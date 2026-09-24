@@ -22,6 +22,7 @@ type Service interface {
 	List(ctx context.Context, q pulls.ListQuery) (core.Page[core.PullRequest], error)
 	CachedGet(repo core.RepoRef, number int) (core.PullRequestDetail, bool)
 	Get(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error)
+	CachedComments(q pulls.CommentsQuery) (core.Page[core.Comment], bool)
 	Comments(ctx context.Context, q pulls.CommentsQuery) (core.Page[core.Comment], error)
 	// Invalidate marks what is cached of repo stale, so that the reads
 	// after it ask GitHub.
