@@ -30,6 +30,12 @@ keys:
 
 cache:
   ttl: 30s
+  disk:
+    enabled: false
+    dir: /var/cache/gh-tui
+    max_size: 1GiB
+    compression: none
+    compression_level: best
 
 sync:
   enabled: false

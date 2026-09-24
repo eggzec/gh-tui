@@ -73,7 +73,10 @@ func TestLoadMergesOverDefaults(t *testing.T) {
 				}
 				c.Keys[ActionQuit] = []string{"x"}
 				c.Keys[ActionSearch] = []string{"/", "ctrl+f"}
-				c.Cache.TTL = 30 * time.Second
+				c.Cache = Cache{TTL: 30 * time.Second, Disk: Disk{
+					Enabled: false, Dir: "/var/cache/gh-tui", MaxSize: GiB,
+					Compression: CompressionNone, CompressionLevel: LevelBest,
+				}}
 				c.Sync = Sync{Enabled: false, Interval: 2 * time.Minute}
 				c.Files = Files{
 					Prefetch: Prefetch{Enabled: false, MaxSize: 16 * KiB, HoverDelay: 300 * time.Millisecond},
@@ -102,7 +105,7 @@ func TestLoadErrors(t *testing.T) {
 	}{
 		{"unknown_field.yaml", []string{"line 3", "field size not found"}},
 		{"malformed.yaml", []string{"malformed.yaml", "line 3"}},
-		{"invalid.yaml", []string{"repos[0]", "theme:", "keys.quit", "cache.ttl"}},
+		{"invalid.yaml", []string{"repos[0]", "theme:", "keys.quit", "cache.ttl", "cache.disk.compression"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.file, func(t *testing.T) {
@@ -128,6 +131,7 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 	cfg.Keys[ActionSearch] = []string{""}
 	cfg.Keys["jump"] = []string{"j"}
 	cfg.Cache.TTL = 0
+	cfg.Cache.Disk = Disk{Dir: "cache", MaxSize: MiB, Compression: "zip", CompressionLevel: "9"}
 	cfg.Sync.Interval = -time.Second
 	cfg.Files.Preview.MaxSize = 32 * KiB
 	cfg.Files.Prefetch.HoverDelay = -time.Millisecond
@@ -149,6 +153,10 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 		`keys.jump: unknown action`,
 		`keys.search: empty key`,
 		`cache.ttl: must be positive, got 0s`,
+		`cache.disk.max_size: must be at least 8MiB, got 1MiB`,
+		`cache.disk.dir: must be an absolute path, got "cache"`,
+		`cache.disk.compression: must be gzip or none, got "zip"`,
+		`cache.disk.compression_level: must be fastest, default or best, got "9"`,
 		`sync.interval: must be positive, got -1s`,
 		`files.prefetch.max_size: must not exceed files.preview.max_size (32KiB), got 64KiB`,
 		`files.prefetch.hover_delay: must not be negative, got -1ms`,
@@ -267,5 +275,18 @@ func TestScreenActions(t *testing.T) {
 	}
 	if got := cfg.Keys[ActionPane1]; !slices.Equal(got, []string{"F"}) {
 		t.Errorf("pane_1 = %v, want [F]", got)
+	}
+}
+
+func TestDiskPath(t *testing.T) {
+	t.Setenv("XDG_CACHE_HOME", "/tmp/xdg")
+	if runtime.GOOS == "linux" {
+		if got, err := Default().Cache.Disk.Path(); err != nil || got != "/tmp/xdg/gh-tui" {
+			t.Errorf("default Path() = %q, %v; want /tmp/xdg/gh-tui", got, err)
+		}
+	}
+	d := Disk{Dir: "/var/cache/gh"}
+	if got, err := d.Path(); err != nil || got != "/var/cache/gh" {
+		t.Errorf("Path() = %q, %v; want the configured dir", got, err)
 	}
 }

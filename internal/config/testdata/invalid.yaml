@@ -4,3 +4,5 @@ keys:
   quit: []
 cache:
   ttl: 0s
+  disk:
+    compression: zstd
