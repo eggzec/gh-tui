@@ -24,6 +24,11 @@ const (
 	// ActionNotifications switches between the repository screen and the
 	// notifications.
 	ActionNotifications = "notifications"
+	// ActionHistory opens the History modal of the repository screen.
+	ActionHistory = "history"
+	// ActionResetBase shows the files at the head of the default branch
+	// again, after ActionUseAsBase chose another base.
+	ActionResetBase = "reset_base"
 )
 
 // Actions of the sections. A key may serve different actions in different
@@ -48,6 +53,9 @@ const (
 	ActionCollapse    = "collapse"
 	ActionExpandAll   = "expand_all"
 	ActionCollapseAll = "collapse_all"
+	// ActionUseAsBase shows the files at the branch or commit under the
+	// cursor of the History modal.
+	ActionUseAsBase = "use_as_base"
 )
 
 func defaultKeys() map[string][]string {
@@ -64,6 +72,8 @@ func defaultKeys() map[string][]string {
 		ActionPane2:         {"2"},
 		ActionPane3:         {"3"},
 		ActionNotifications: {"n"},
+		ActionHistory:       {"B"},
+		ActionResetBase:     {"H"},
 
 		ActionSelect:      {"enter"},
 		ActionBack:        {"esc"},
@@ -82,6 +92,7 @@ func defaultKeys() map[string][]string {
 		ActionCollapse:    {"-"},
 		ActionExpandAll:   {"*"},
 		ActionCollapseAll: {"="},
+		ActionUseAsBase:   {"space"},
 	}
 }
 

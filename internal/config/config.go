@@ -42,6 +42,8 @@ type Config struct {
 	Files Files               `yaml:"files"`
 	// Details configures the pull request and issue modals.
 	Details Details `yaml:"details"`
+	// History configures the History modal of the repository screen.
+	History History `yaml:"history"`
 	Log     Log     `yaml:"log"`
 }
 
@@ -66,6 +68,7 @@ func Default() Config {
 		Files:  defaultFiles(),
 
 		Details: defaultDetails(),
+		History: defaultHistory(),
 		Log:     defaultLog(),
 	}
 }
@@ -135,6 +138,6 @@ func (c Config) Validate() error {
 	if c.Sync.Interval <= 0 {
 		errs = append(errs, fmt.Errorf("sync.interval: must be positive, got %v", c.Sync.Interval))
 	}
-	errs = append(errs, c.Files.validate(), c.Details.validate(), c.Log.validate())
+	errs = append(errs, c.Files.validate(), c.Details.validate(), c.History.validate(), c.Log.validate())
 	return errors.Join(errs...)
 }

@@ -86,6 +86,13 @@ func TestLoadMergesOverDefaults(t *testing.T) {
 				c.Details = Details{
 					Prefetch: DetailsPrefetch{Enabled: false, Rows: 10, HoverDelay: time.Second},
 				}
+				c.History = History{
+					Row:        []string{FieldShortSHA, FieldSubject, FieldVerified, FieldAge},
+					Detail:     []string{FieldSHA, FieldAuthor, FieldDate, FieldTrailers},
+					DateFormat: "2006-01-02 15:04",
+					ShowEmail:  true,
+					Prefetch:   HistoryPrefetch{Around: 5, HoverDelay: 250 * time.Millisecond},
+				}
 				c.Log = Log{Level: LevelDebug, File: "/var/log/gh-tui.log", MaxSize: MiB, Keep: 5, Summary: time.Minute}
 			},
 		},
@@ -144,6 +151,12 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 	cfg.Files.Prefetch.HoverDelay = -time.Millisecond
 	cfg.Details.Prefetch.Rows = 31
 	cfg.Details.Prefetch.HoverDelay = -time.Second
+	cfg.History = History{
+		Row:        []string{FieldSubject, "sha", FieldSubject},
+		Detail:     []string{FieldBody, "age"},
+		DateFormat: "yesterday",
+		Prefetch:   HistoryPrefetch{Around: 11, HoverDelay: -time.Millisecond},
+	}
 	cfg.Log = Log{Level: "trace", File: "gh-tui.log", MaxSize: KiB, Keep: -1, Summary: time.Second}
 
 	err := cfg.Validate()
@@ -175,6 +188,12 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 		`files.prefetch.hover_delay: must not be negative, got -1ms`,
 		`details.prefetch.rows: must be between 0 and 30, got 31`,
 		`details.prefetch.hover_delay: must not be negative, got -1s`,
+		`history.row[1]: unknown field "sha", want one of short_sha, subject, author, committer, age, date, verified, trailers`,
+		`history.row[2]: "subject" is listed twice`,
+		`history.detail[1]: unknown field "age", want one of sha, author, committer, date, verification, parents, trailers, body, stats`,
+		`history.date_format: must be relative, absolute or a Go time layout such as "2006-01-02 15:04", got "yesterday"`,
+		`history.prefetch.around: must be between 0 and 10, got 11`,
+		`history.prefetch.hover_delay: must not be negative, got -1ms`,
 		`log.level: must be debug, info, warn or error, got "trace"`,
 		`log.file: must be an absolute path, got "gh-tui.log"`,
 		`log.max_size: must be at least 64KiB, got 1KiB`,
