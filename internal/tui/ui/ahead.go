@@ -3,6 +3,8 @@ package ui
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log/slog"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -10,6 +12,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/obs"
 )
 
 // aheadWorkers is the most rows whose details are read ahead at once, on
@@ -25,7 +28,10 @@ const aheadWorkers = 3
 // Each read costs requests, so few run at once, and the reads stop once
 // GitHub reports the rate limit, until [Ahead.Resume].
 type Ahead[K comparable] struct {
-	id    int64
+	id int64
+	// seen remembers what was read, so that opening it counts as a use,
+	// under the kind of detail, such as pull.
+	seen  *obs.Prefetched[K]
 	rows  int
 	delay time.Duration
 	read  func(ctx context.Context, k K) error
@@ -61,9 +67,11 @@ var lastAhead atomic.Int64
 // NewAhead returns an Ahead that reads the detail of a row with read and
 // asks current whether it is cached already. It reads the first rows of a
 // list, and the row under the cursor once it has rested there for delay.
-func NewAhead[K comparable](read func(ctx context.Context, k K) error, current func(k K) bool, rows int, delay time.Duration) *Ahead[K] {
+// Kind names the detail in the log, such as pull.
+func NewAhead[K comparable](kind string, read func(ctx context.Context, k K) error, current func(k K) bool, rows int, delay time.Duration) *Ahead[K] {
 	return &Ahead[K]{
 		id:      lastAhead.Add(1),
+		seen:    obs.NewPrefetched[K](kind),
 		rows:    max(rows, 0),
 		delay:   max(delay, 0),
 		read:    read,
@@ -87,6 +95,14 @@ func (a *Ahead[K]) Reset(parent context.Context) {
 	a.hovered, a.hasHovered = zero, false
 	a.seq++
 	a.stopHover = nil
+}
+
+// Opened records that the detail of k was opened, so that the summary
+// counts it as a use if it was read ahead.
+func (a *Ahead[K]) Opened(k K) {
+	if a != nil {
+		a.seen.Opened(k)
+	}
 }
 
 // Resume reads ahead again after GitHub reported the rate limit, such as
@@ -116,14 +132,20 @@ func (a *Ahead[K]) First(at func(i int) (K, bool)) tea.Cmd {
 	for _, k := range a.first {
 		if !a.current(k) {
 			todo = append(todo, k)
+		} else {
+			a.seen.Count(obs.PrefetchCached)
 		}
 	}
+	cached := len(a.first) - len(todo)
 	if len(todo) == 0 {
 		return nil
 	}
-	ctx, read, limited := a.ctx, a.read, a.limited
+	ctx, read, limited, seen := a.ctx, a.read, a.limited, a.seen
 	return func() tea.Msg {
-		readAll(ctx, read, limited, todo)
+		ctx := obs.WithTrace(ctx, "prefetch.rows")
+		slog.InfoContext(ctx, "prefetch", "span", "prefetch", "kind", seen.Kind(), "trigger", "rows",
+			"sent", len(todo), "skipped_cached", cached)
+		readAll(ctx, read, limited, seen, todo)
 		return nil
 	}
 }
@@ -147,29 +169,59 @@ func (a *Ahead[K]) same(at func(i int) (K, bool)) bool {
 // readAll reads the details of ks, a few at a time, until ctx is done or
 // GitHub reports the rate limit. Other failures are for the detail to
 // report, if it is opened.
-func readAll[K any](ctx context.Context, read func(context.Context, K) error, limited *atomic.Bool, ks []K) {
+func readAll[K comparable](ctx context.Context, read func(context.Context, K) error, limited *atomic.Bool, seen *obs.Prefetched[K], ks []K) {
 	sem := make(chan struct{}, aheadWorkers)
 	var wg sync.WaitGroup
 	defer wg.Wait()
-	for _, k := range ks {
+	for i, k := range ks {
 		select {
 		case sem <- struct{}{}:
 		case <-ctx.Done():
+			skip(seen, obs.PrefetchCanceled, len(ks)-i)
 			return
 		}
 		if limited.Load() {
+			<-sem
+			skip(seen, obs.PrefetchLimited, len(ks)-i)
 			return
 		}
 		wg.Go(func() {
 			defer func() { <-sem }()
-			readOne(ctx, read, limited, k)
+			readOne(ctx, read, limited, seen, k)
 		})
 	}
 }
 
-func readOne[K any](ctx context.Context, read func(context.Context, K) error, limited *atomic.Bool, k K) {
-	if err := read(ctx, k); errors.Is(err, core.ErrRateLimited) {
+// skip counts n reads that weren't sent, for why.
+func skip[K comparable](seen *obs.Prefetched[K], why obs.PrefetchEvent, n int) {
+	for range n {
+		seen.Count(why)
+	}
+}
+
+// readOne reads the detail of k, and records what came of it.
+func readOne[K comparable](ctx context.Context, read func(context.Context, K) error, limited *atomic.Bool, seen *obs.Prefetched[K], k K) {
+	seen.Count(obs.PrefetchSent)
+	start := time.Now()
+	err := read(ctx, k)
+	outcome := "read"
+	switch {
+	case err == nil:
+		seen.Read(k)
+	case errors.Is(err, core.ErrRateLimited):
 		limited.Store(true)
+		outcome = "rate_limited"
+		seen.Count(obs.PrefetchRateLimited)
+	case ctx.Err() != nil:
+		outcome = "canceled"
+		seen.Count(obs.PrefetchCanceled)
+	default:
+		outcome = "failed"
+		seen.Count(obs.PrefetchFailed)
+	}
+	if obs.Enabled(ctx, slog.LevelDebug) {
+		slog.DebugContext(ctx, "prefetch read", "span", "prefetch", "kind", seen.Kind(), "key", fmt.Sprint(k),
+			"outcome", outcome, "duration_ms", obs.Millis(time.Since(start)))
 	}
 }
 
@@ -181,7 +233,14 @@ func (a *Ahead[K]) Moved(k K, ok bool) tea.Cmd {
 	}
 	a.hovered, a.hasHovered = k, ok
 	a.seq++
-	if !ok || a.limited.Load() || a.current(k) {
+	switch {
+	case !ok:
+		return nil
+	case a.limited.Load():
+		a.seen.Count(obs.PrefetchLimited)
+		return nil
+	case a.current(k):
+		a.seen.Count(obs.PrefetchCached)
 		return nil
 	}
 	msg := AheadMsg{id: a.id, seq: a.seq}
@@ -200,15 +259,20 @@ func (a *Ahead[K]) Rested(msg AheadMsg) tea.Cmd {
 		a.stopHover = nil
 	}
 	k := a.hovered
-	if a.limited.Load() || a.current(k) {
+	switch {
+	case a.limited.Load():
+		a.seen.Count(obs.PrefetchLimited)
+		return nil
+	case a.current(k):
+		a.seen.Count(obs.PrefetchCached)
 		return nil
 	}
-	ctx, cancel := context.WithCancel(a.ctx)
+	ctx, cancel := context.WithCancel(obs.WithTrace(a.ctx, "prefetch.hover"))
 	a.stopHover = cancel
-	read, limited := a.read, a.limited
+	read, limited, seen := a.read, a.limited, a.seen
 	return func() tea.Msg {
 		defer cancel()
-		readOne(ctx, read, limited, k)
+		readOne(ctx, read, limited, seen, k)
 		return nil
 	}
 }

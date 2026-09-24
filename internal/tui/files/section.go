@@ -15,6 +15,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/obs"
 	filesvc "github.com/eggzec/gh-tui/internal/service/files"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
@@ -49,6 +50,9 @@ type Section struct {
 	// prefetchMax is the largest top-level file read ahead, or 0.
 	prefetchMax int64
 	hover       hover
+	// seen remembers the files read ahead, so that opening one counts as
+	// a use.
+	seen *obs.Prefetched[filesvc.BlobQuery]
 
 	width, height int
 	focused       bool
@@ -69,6 +73,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		keys:    newKeyMap(keys),
 		styles:  tree.DefaultStyles(true),
 		offline: new(ui.Offline),
+		seen:    obs.NewPrefetched[filesvc.BlobQuery]("file"),
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -219,8 +224,10 @@ func (s *Section) refresh() tea.Cmd {
 func (s *Section) reload() tea.Cmd {
 	src, ctx := s.src, s.treeCtx
 	return func() tea.Msg {
+		ctx, end := obs.Begin(ctx, "files.listing")
 		// A failed read shows in the tree, whose root reads it again.
-		_, _ = src.load(ctx)
+		_, err := src.load(ctx)
+		end(err, "span", "tui", "repo", src.repo.String())
 		return listingMsg{src: src}
 	}
 }
@@ -267,6 +274,7 @@ func (s *Section) preview(n tree.Node) tea.Cmd {
 		}
 		return ui.Notify(toast.Info, text)
 	}
+	s.seen.Opened(s.blobQuery(e))
 	p := newPreview(s.ctx, s.svc, s.repo, e, s.keys.Open)
 	// The app passes messages to a modal only once it is open, so the load
 	// starts after the modal opens.

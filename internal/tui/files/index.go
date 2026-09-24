@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/obs"
 	filesvc "github.com/eggzec/gh-tui/internal/service/files"
 	"github.com/eggzec/gh-tui/pkg/bubbles/tree"
 )
@@ -123,7 +124,9 @@ func (s *source) indexOf(t core.Tree) *index {
 // children lists a directory for the tree. The root revalidates the
 // listing, so a refresh sees new commits; directories below take the
 // cached listing, so expanding never waits on GitHub.
-func (s *source) children(ctx context.Context, parent tree.Node) ([]tree.Node, error) {
+func (s *source) children(ctx context.Context, parent tree.Node) (_ []tree.Node, err error) {
+	ctx, end := obs.Begin(ctx, "files.dir")
+	defer func() { end(err, "span", "tui", "repo", s.repo.String(), "root", parent.ID == "") }()
 	dir, _ := entryOf(parent)
 	read := s.cached
 	if parent.ID == "" {

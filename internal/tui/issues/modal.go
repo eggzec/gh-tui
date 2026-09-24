@@ -3,6 +3,7 @@ package issues
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/obs"
 	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
@@ -72,7 +74,11 @@ type detailModal struct {
 // openDetail opens a modal on issue number of repo. it is the list item,
 // shown until the issue arrives, or nil when there is none.
 func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue) tea.Cmd {
-	ctx, cancel := context.WithCancel(s.ctx)
+	// The reads of the modal are one trace, however many pages it reads.
+	ctx, cancel := context.WithCancel(obs.WithTrace(s.ctx, "open.issue"))
+	s.ahead.Opened(commentsQuery(repo, number))
+	_, cached := s.svc.CachedGet(repo, number)
+	slog.InfoContext(ctx, "open", "span", "tui", "kind", "issue", "repo", repo.String(), "number", number, "cached", cached)
 	m := &detailModal{
 		svc:     s.svc,
 		keys:    s.keys,
@@ -252,7 +258,9 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 func (m *detailModal) get() tea.Cmd {
 	svc, repo, number, id, ctx := m.svc, m.repo, m.number, m.thread.ID(), m.ctx
 	return func() tea.Msg {
+		start := time.Now()
 		it, err := svc.Get(ctx, repo, number)
+		obs.End(ctx, start, err, "span", "tui", "repo", repo.String(), "number", number)
 		return issueMsg{thread: id, issue: it, err: err}
 	}
 }
