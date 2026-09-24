@@ -18,7 +18,7 @@ import (
 
 // searcher finds repositories, issues and pull requests on GitHub.
 type searcher interface {
-	Search(ctx context.Context, q searchsvc.Query) (core.Page[core.SearchHit], error)
+	Search(ctx context.Context, q searchsvc.Query) (searchsvc.Result, error)
 }
 
 // repoLister lists the viewer's repositories.
@@ -114,8 +114,7 @@ func issueItem(kind string, hit *core.SearchHit) picker.Item {
 	}
 }
 
-// friendly rewords a rate-limit error, which the search hits soonest: GitHub
-// allows 30 searches a minute.
+// friendly rewords a rate-limit error.
 func friendly(err error) error {
 	if !errors.Is(err, core.ErrRateLimited) {
 		return err

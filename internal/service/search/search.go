@@ -1,11 +1,18 @@
-// Package search finds repositories, issues and pull requests on GitHub and
-// keeps the results briefly, so typing a query again, or going back to it,
-// costs no request.
+// Package search finds repositories, issues, pull requests and code on
+// GitHub and keeps the results briefly, so typing a query again, or going
+// back to it, costs no request.
+//
+// Repositories, issues and pull requests are searched together, in one
+// GraphQL query that costs a single point and counts every kind, so a
+// search page can show each kind's count as the user types. Code search
+// has a REST limit of 10 requests a minute, so it runs only when asked for.
+// Results may include private data, so they stay in memory.
 package search
 
 import (
 	"context"
 	"fmt"
+	"maps"
 	"net/url"
 	"strconv"
 	"strings"
@@ -14,16 +21,19 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/github"
 )
 
 // Defaults of a Service and a Query.
 const (
-	// DefaultPageSize is the page size of a Query that sets none. A search
-	// of every kind fetches a page of this size of each.
+	// DefaultPageSize is the page size of a Query that sets none.
 	DefaultPageSize = 20
 	// DefaultTTL is short: results change, and a query typed again soon
 	// after is the case the cache is for.
 	DefaultTTL = 30 * time.Second
+	// DefaultCodeTTL is longer, since code search allows only 10 requests
+	// a minute and GitHub indexes code with a delay anyway.
+	DefaultCodeTTL = time.Minute
 	// DefaultCapacity is how many pages of results a Service keeps.
 	DefaultCapacity = 256
 )
@@ -31,192 +41,237 @@ const (
 // maxPageSize is the largest page GitHub returns.
 const maxPageSize = 100
 
+// kinds are the kinds Search looks for, in the order a search page lists
+// them.
+var kinds = []core.SearchKind{core.SearchRepos, core.SearchIssues, core.SearchPulls}
+
 // API is the part of the GitHub client the service uses.
 type API interface {
-	SearchRepos(ctx context.Context, query, cursor string, perPage int) (core.Page[core.Repo], error)
-	SearchIssues(ctx context.Context, query, cursor string, perPage int) (core.Page[core.SearchHit], error)
+	Search(ctx context.Context, q github.SearchQuery) (map[core.SearchKind]core.SearchPage[core.SearchHit], error)
+	SearchCode(ctx context.Context, query, cursor string, perPage int) (core.SearchPage[core.CodeHit], error)
 }
 
 // Query selects a page of search results.
 type Query struct {
 	// Text is the query in GitHub's search syntax, qualifiers included.
 	Text string
-	// Kind limits the results to repositories, issues or pull requests.
-	// The zero value, core.SearchAll, lists repositories first, then
-	// issues and pull requests.
+	// Kind is core.SearchRepos, core.SearchIssues or core.SearchPulls. The
+	// zero value, core.SearchAll, lists the first page of each, one after
+	// another, and has no next page.
 	Kind core.SearchKind
 	// Cursor is the Next of the previous page, or empty for the first page.
 	Cursor string
-	// PageSize is how many results of each kind a page holds. Zero means
+	// PageSize is how many results a page holds. Zero means
 	// DefaultPageSize, and sizes above GitHub's maximum of 100 are clamped.
 	PageSize int
 }
 
 func (q Query) normalize() Query {
-	q.Text = strings.Join(strings.Fields(q.Text), " ")
-	if q.PageSize <= 0 {
-		q.PageSize = DefaultPageSize
-	}
-	q.PageSize = min(q.PageSize, maxPageSize)
+	q.Text = normalizeText(q.Text)
+	q.PageSize = pageSize(q.PageSize)
 	return q
+}
+
+func normalizeText(s string) string {
+	return strings.Join(strings.Fields(s), " ")
+}
+
+func pageSize(n int) int {
+	if n <= 0 {
+		return DefaultPageSize
+	}
+	return min(n, maxPageSize)
+}
+
+// Result is a page of results of one kind, with the number of results of
+// every kind that is known.
+type Result struct {
+	core.SearchPage[core.SearchHit]
+	// Counts holds the total of each kind by kind. A search counts
+	// repositories, issues and pull requests at once, and a code search of
+	// the same text adds core.SearchCode. A kind whose count isn't known is
+	// missing.
+	Counts map[core.SearchKind]int
 }
 
 // Service searches GitHub through a cache. It is safe for concurrent use.
 type Service struct {
-	api   API
-	pages *cache.Cache[core.Page[core.SearchHit]]
+	api    API
+	pages  *cache.Cache[core.SearchPage[core.SearchHit]]
+	code   *cache.Cache[core.SearchPage[core.CodeHit]]
+	counts *cache.Cache[map[core.SearchKind]int]
+
+	// mu guards the read, change and write of an entry of counts, and
+	// codeReset.
+	mu sync.Mutex
+	// codeReset is when code search may run again after GitHub said it
+	// ran out, or the zero time.
+	codeReset time.Time
 }
 
 // New returns a Service that searches with api.
 func New(api API, opts ...Option) *Service {
-	o := options{ttl: DefaultTTL, capacity: DefaultCapacity}
+	o := options{ttl: DefaultTTL, codeTTL: DefaultCodeTTL, capacity: DefaultCapacity}
 	for _, opt := range opts {
 		opt(&o)
 	}
 	return &Service{
-		api:   api,
-		pages: cache.New[core.Page[core.SearchHit]](cache.WithTTL(o.ttl), cache.WithCapacity(o.capacity)),
+		api:    api,
+		pages:  cache.New[core.SearchPage[core.SearchHit]](cache.WithTTL(o.ttl), cache.WithCapacity(o.capacity)),
+		code:   cache.New[core.SearchPage[core.CodeHit]](cache.WithTTL(o.codeTTL), cache.WithCapacity(o.capacity)),
+		counts: cache.New[map[core.SearchKind]int](cache.WithTTL(o.ttl), cache.WithCapacity(o.capacity)),
 	}
 }
 
 // CachedSearch returns the cached page for q, fresh or stale, without I/O.
 // A query without text has no results, which are always known.
-func (s *Service) CachedSearch(q Query) (core.Page[core.SearchHit], bool) {
+func (s *Service) CachedSearch(q Query) (Result, bool) {
 	q = q.normalize()
 	if q.Text == "" {
-		return core.Page[core.SearchHit]{}, true
+		return Result{}, true
 	}
-	e, state := s.pages.Get(key(q))
-	return e.Value, state != cache.Miss
+	if q.Kind == core.SearchAll {
+		return s.cachedAll(q)
+	}
+	e, state := s.pages.Get(pageKey(q))
+	if state == cache.Miss {
+		return Result{}, false
+	}
+	return Result{SearchPage: e.Value, Counts: s.cachedCounts(q.Text)}, true
 }
 
 // Search returns the page for q. A fresh cached page is returned without a
 // request, and a query without text returns an empty page without one.
-// GitHub allows 30 searches a minute; beyond that Search fails with an
-// error matching core.ErrRateLimited.
-func (s *Service) Search(ctx context.Context, q Query) (core.Page[core.SearchHit], error) {
+// The first page of any kind comes with the first page of the other kinds,
+// which are cached for when the user switches to them; a later page asks
+// for its kind alone.
+func (s *Service) Search(ctx context.Context, q Query) (Result, error) {
 	q = q.normalize()
 	if q.Text == "" {
-		return core.Page[core.SearchHit]{}, nil
+		return Result{}, nil
 	}
-	e, err := s.pages.Fetch(ctx, key(q), func(ctx context.Context, _ cache.Entry[core.Page[core.SearchHit]], _ bool) (cache.Entry[core.Page[core.SearchHit]], error) {
-		// Search responses carry no validators worth keeping, so a stale
-		// page is fetched again in full.
+	if q.Kind == core.SearchAll {
+		return s.all(ctx, q)
+	}
+	if !isKind(q.Kind) {
+		return Result{}, fmt.Errorf("search %q: cannot search for %q", q.Text, q.Kind)
+	}
+	e, err := s.pages.Fetch(ctx, pageKey(q), func(ctx context.Context, _ cache.Entry[core.SearchPage[core.SearchHit]], _ bool) (cache.Entry[core.SearchPage[core.SearchHit]], error) {
+		// GraphQL responses carry no validators, so a stale page is fetched
+		// again in full.
 		p, err := s.fetch(ctx, q)
 		if err != nil {
-			return cache.Entry[core.Page[core.SearchHit]]{}, err
+			return cache.Entry[core.SearchPage[core.SearchHit]]{}, err
 		}
-		return cache.Entry[core.Page[core.SearchHit]]{Value: p, Tags: []string{allTag}}, nil
+		return cache.Entry[core.SearchPage[core.SearchHit]]{Value: p, Tags: []string{allTag}}, nil
 	})
 	if err != nil {
-		return core.Page[core.SearchHit]{}, fmt.Errorf("search %q: %w", q.Text, err)
+		return Result{}, fmt.Errorf("search %q: %w", q.Text, err)
 	}
-	return e.Value, nil
+	return Result{SearchPage: e.Value, Counts: s.cachedCounts(q.Text)}, nil
+}
+
+// fetch asks GitHub for the page q selects and keeps what else the answer
+// brought: the counts, and on a first page, the first page of every kind.
+func (s *Service) fetch(ctx context.Context, q Query) (core.SearchPage[core.SearchHit], error) {
+	var after map[core.SearchKind]string
+	if q.Cursor != "" {
+		after = map[core.SearchKind]string{q.Kind: q.Cursor}
+	}
+	pages, err := s.api.Search(ctx, github.SearchQuery{Text: q.Text, First: q.PageSize, After: after})
+	if err != nil {
+		return core.SearchPage[core.SearchHit]{}, err
+	}
+	p, ok := pages[q.Kind]
+	if !ok {
+		return core.SearchPage[core.SearchHit]{}, fmt.Errorf("github sent no %s", q.Kind)
+	}
+	totals := make(map[core.SearchKind]int, len(pages))
+	for kind, page := range pages {
+		totals[kind] = page.Total
+		if kind != q.Kind && q.Cursor == "" {
+			other := q
+			other.Kind = kind
+			s.pages.Set(pageKey(other), cache.Entry[core.SearchPage[core.SearchHit]]{Value: page, Tags: []string{allTag}})
+		}
+	}
+	s.addCounts(q.Text, totals)
+	return p, nil
+}
+
+// all lists the first page of every kind, which the first search brings
+// at once.
+func (s *Service) all(ctx context.Context, q Query) (Result, error) {
+	if q.Cursor != "" {
+		return Result{}, fmt.Errorf("search %q: a search of every kind has one page", q.Text)
+	}
+	var res Result
+	for _, kind := range kinds {
+		k := q
+		k.Kind = kind
+		r, err := s.Search(ctx, k)
+		if err != nil {
+			return Result{}, err
+		}
+		res.Items = append(res.Items, r.Items...)
+		res.Total += r.Total
+		res.Counts = r.Counts
+	}
+	return res, nil
+}
+
+func (s *Service) cachedAll(q Query) (Result, bool) {
+	var res Result
+	for _, kind := range kinds {
+		k := q
+		k.Kind = kind
+		e, state := s.pages.Get(pageKey(k))
+		if state == cache.Miss {
+			return Result{}, false
+		}
+		res.Items = append(res.Items, e.Value.Items...)
+		res.Total += e.Value.Total
+	}
+	res.Counts = s.cachedCounts(q.Text)
+	return res, true
+}
+
+// addCounts merges totals into the counts kept for text.
+func (s *Service) addCounts(text string, totals map[core.SearchKind]int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	key := countsKey(text)
+	e, _ := s.counts.Get(key)
+	merged := maps.Clone(e.Value)
+	if merged == nil {
+		merged = make(map[core.SearchKind]int, len(totals))
+	}
+	maps.Copy(merged, totals)
+	s.counts.Set(key, cache.Entry[map[core.SearchKind]int]{Value: merged, Tags: []string{allTag}})
+}
+
+// cachedCounts returns a copy of the counts kept for text, as the cached map
+// is shared.
+func (s *Service) cachedCounts(text string) map[core.SearchKind]int {
+	e, _ := s.counts.Get(countsKey(text))
+	return maps.Clone(e.Value)
 }
 
 // Invalidate marks every cached page stale, so the next search of each goes
 // to GitHub.
 func (s *Service) Invalidate() {
 	s.pages.InvalidateTag(allTag)
+	s.code.InvalidateTag(allTag)
+	s.counts.InvalidateTag(allTag)
 }
 
-func (s *Service) fetch(ctx context.Context, q Query) (core.Page[core.SearchHit], error) {
-	switch q.Kind {
-	case core.SearchRepos:
-		return s.repos(ctx, q.Text, q.Cursor, q.PageSize)
-	case core.SearchIssues:
-		return s.api.SearchIssues(ctx, q.Text+" is:issue", q.Cursor, q.PageSize)
-	case core.SearchPulls:
-		return s.api.SearchIssues(ctx, q.Text+" is:pr", q.Cursor, q.PageSize)
+func isKind(k core.SearchKind) bool {
+	switch k {
+	case core.SearchRepos, core.SearchIssues, core.SearchPulls:
+		return true
 	default:
-		return s.all(ctx, q)
+		return false
 	}
-}
-
-func (s *Service) repos(ctx context.Context, text, cursor string, perPage int) (core.Page[core.SearchHit], error) {
-	p, err := s.api.SearchRepos(ctx, text, cursor, perPage)
-	if err != nil {
-		return core.Page[core.SearchHit]{}, err
-	}
-	hits := make([]core.SearchHit, len(p.Items))
-	for i := range p.Items {
-		hits[i] = core.SearchHit{Kind: core.SearchRepos, Repo: p.Items[i]}
-	}
-	return core.Page[core.SearchHit]{Items: hits, Next: p.Next}, nil
-}
-
-// all searches repositories and issues at once, one page of each. Its
-// cursor holds the next cursor of both searches, and a search that has no
-// more pages drops out of it.
-func (s *Service) all(ctx context.Context, q Query) (core.Page[core.SearchHit], error) {
-	cur := allCursor{repos: true, issues: true}
-	if q.Cursor != "" {
-		var err error
-		if cur, err = parseAllCursor(q.Cursor); err != nil {
-			return core.Page[core.SearchHit]{}, err
-		}
-	}
-
-	var (
-		wg            sync.WaitGroup
-		repos, issues core.Page[core.SearchHit]
-		rErr, iErr    error
-	)
-	if cur.repos {
-		wg.Go(func() { repos, rErr = s.repos(ctx, q.Text, cur.reposCursor, q.PageSize) })
-	}
-	if cur.issues {
-		wg.Go(func() { issues, iErr = s.api.SearchIssues(ctx, q.Text, cur.issuesCursor, q.PageSize) })
-	}
-	wg.Wait()
-	if rErr != nil {
-		return core.Page[core.SearchHit]{}, rErr
-	}
-	if iErr != nil {
-		return core.Page[core.SearchHit]{}, iErr
-	}
-
-	items := make([]core.SearchHit, 0, len(repos.Items)+len(issues.Items))
-	items = append(items, repos.Items...)
-	items = append(items, issues.Items...)
-	next := allCursor{
-		repos: repos.Next != "", reposCursor: repos.Next,
-		issues: issues.Next != "", issuesCursor: issues.Next,
-	}
-	return core.Page[core.SearchHit]{Items: items, Next: next.String()}, nil
-}
-
-// allCursor is the cursor of a search of every kind: whether each search
-// has more pages, and the cursor of its next one. An empty cursor on a
-// search that has more asks for its first page.
-type allCursor struct {
-	repos, issues             bool
-	reposCursor, issuesCursor string
-}
-
-// String encodes the cursor, or returns "" when neither search has more.
-func (c allCursor) String() string {
-	v := url.Values{}
-	if c.repos {
-		v.Set("repos", c.reposCursor)
-	}
-	if c.issues {
-		v.Set("issues", c.issuesCursor)
-	}
-	return v.Encode()
-}
-
-func parseAllCursor(s string) (allCursor, error) {
-	v, err := url.ParseQuery(s)
-	if err != nil {
-		return allCursor{}, fmt.Errorf("parse cursor: %w", err)
-	}
-	return allCursor{
-		repos:        v.Has("repos"),
-		reposCursor:  v.Get("repos"),
-		issues:       v.Has("issues"),
-		issuesCursor: v.Get("issues"),
-	}, nil
 }
 
 // allTag marks every entry, so Invalidate finds them all.
@@ -224,7 +279,11 @@ const allTag = "all"
 
 // GitHub matches search terms and qualifiers without regard to case, so
 // keys do too.
-func key(q Query) string {
+func pageKey(q Query) string {
 	return "search?kind=" + string(q.Kind) + "&page_size=" + strconv.Itoa(q.PageSize) +
 		"&cursor=" + url.QueryEscape(q.Cursor) + "&q=" + url.QueryEscape(strings.ToLower(q.Text))
+}
+
+func countsKey(text string) string {
+	return "search/counts?q=" + url.QueryEscape(strings.ToLower(text))
 }
