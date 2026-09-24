@@ -32,7 +32,10 @@ type OpenModalMsg struct {
 }
 
 // OpenModal returns a command that opens m. The opener starts whatever m
-// needs to load itself, such as with tea.Batch(ui.OpenModal(m), m.load()).
+// needs to load itself once it is open, with
+// tea.Sequence(ui.OpenModal(m), m.load()): the app passes messages to a
+// modal only while it is open, so a load batched with the opening could
+// finish first and be lost.
 func OpenModal(m Modal) tea.Cmd {
 	return func() tea.Msg { return OpenModalMsg{Modal: m} }
 }
