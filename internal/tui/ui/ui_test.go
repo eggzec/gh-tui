@@ -10,6 +10,8 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 )
 
 func TestBinding(t *testing.T) {
@@ -77,5 +79,42 @@ func TestThemeTakesPaletteColors(t *testing.T) {
 	}
 	if got := th.Toast().Error.Color; got != lipgloss.Color(p.Error) {
 		t.Errorf("toast error = %v, want the palette error color", got)
+	}
+}
+
+func TestFeedPages(t *testing.T) {
+	var off Offline
+	pages := map[string]core.Page[int]{
+		"":      {Items: []int{1}, Next: "stale", Stale: true},
+		"stale": {Items: []int{2}, Next: "off", Offline: true},
+		"off":   {Items: []int{3}},
+	}
+	fetch := FeedPages(&off, func(_ context.Context, cursor string) (core.Page[int], error) {
+		if cursor == "fail" {
+			return core.Page[int]{}, errors.New("boom")
+		}
+		return pages[cursor], nil
+	})
+	if items, next, err := fetch(t.Context(), ""); !errors.Is(err, feed.ErrStale) || len(items) != 1 || next != "stale" {
+		t.Errorf("stale page = %v, %q, %v; want its items with feed.ErrStale", items, next, err)
+	}
+	if off.Notify() != nil {
+		t.Error("Notify before any offline page returned a toast")
+	}
+	if items, _, err := fetch(t.Context(), "stale"); err != nil || len(items) != 1 {
+		t.Errorf("offline page = %v, %v; want its items", items, err)
+	}
+	cmd := off.Notify()
+	if cmd == nil {
+		t.Fatal("Notify after an offline page = nil, want a toast")
+	}
+	if msg, ok := cmd().(NotifyMsg); !ok || msg.Text != OfflineText {
+		t.Errorf("toast = %v, want the offline text", cmd())
+	}
+	if off.Notify() != nil {
+		t.Error("second Notify returned a toast, want one only")
+	}
+	if _, _, err := fetch(t.Context(), "fail"); err == nil || errors.Is(err, feed.ErrStale) {
+		t.Errorf("failed read error = %v, want it passed on", err)
 	}
 }
