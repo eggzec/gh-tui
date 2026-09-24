@@ -37,6 +37,11 @@ cache:
     max_size: 1GiB
     compression: none
     compression_level: best
+  revalidate:
+    enabled: false
+    interval: 5m
+    budget: 30
+    scope: all
 
 sync:
   enabled: false
