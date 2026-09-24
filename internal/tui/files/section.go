@@ -41,6 +41,9 @@ type Section struct {
 	// whether it said that the listing of repo is truncated.
 	idx    *index
 	warned bool
+	// offline reports whether the section said that it shows files kept
+	// on disk because GitHub can't be reached. It says so once a session.
+	offline bool
 
 	// prefetchMax is the largest top-level file read ahead, or 0.
 	prefetchMax int64
@@ -218,6 +221,10 @@ func (s *Section) observe() tea.Cmd {
 	}
 	s.idx = x
 	prefetch := s.prefetchTop(s.treeCtx, x)
+	if x.offline && !s.offline {
+		s.offline = true
+		prefetch = tea.Batch(prefetch, ui.Notify(toast.Info, "Can't reach GitHub, so these are the files from the last visit."))
+	}
 	if !x.truncated {
 		s.tree.SetExpandAllLimits(expandAllNodes, expandAllDepth)
 		return prefetch

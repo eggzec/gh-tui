@@ -119,6 +119,33 @@ func TestTruncatedListing(t *testing.T) {
 		t.Errorf("refresh sent %#v, want the notice only once", msgs)
 	}
 }
+func TestOfflineListing(t *testing.T) {
+	f := sampleFake()
+	f.offline["eggzec/gh-tui"] = true
+	s := New(t.Context(), f, config.Default().Keys, WithRepo(ghTUI))
+	s.SetSize(40, 12)
+	s.Focus()
+	msgs := run(s, s.Init())
+	if len(msgs) != 1 {
+		t.Fatalf("Init sent %#v, want one notice", msgs)
+	}
+	if n, ok := msgs[0].(ui.NotifyMsg); !ok || !strings.Contains(n.Text, "Can't reach GitHub") {
+		t.Errorf("Init sent %#v, want a notice that the files are from the disk", msgs[0])
+	}
+	if got := screen(s); !strings.Contains(got, "cmd") {
+		t.Errorf("screen = %q, want the files", got)
+	}
+	// Back online, and offline again: the notice came once already.
+	for _, off := range []bool{false, true} {
+		f.mu.Lock()
+		f.offline["eggzec/gh-tui"] = off
+		f.mu.Unlock()
+		if msgs := keys(s, "r"); len(msgs) != 0 {
+			t.Errorf("refresh sent %#v, want the notice only once", msgs)
+		}
+	}
+}
+
 func TestConfiguredKeys(t *testing.T) {
 	cfg := maps.Clone(config.Default().Keys)
 	cfg[config.ActionExpand] = []string{"e"}
