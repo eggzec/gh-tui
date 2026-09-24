@@ -45,7 +45,8 @@ internal/
   cache/              in-memory LRU, optional disk layer, TTL and ETag metadata
   watch/              sync engine: polling, conditional requests, change events
   service/<domain>/   business logic per domain (pulls, issues, repos, notifications…)
-  tui/                root model: tabs, help, toasts, and routing between sections
+  tui/                root model: the repo and notifications screens and their panes,
+                      the header, help, toasts, modals (search), and routing between them
   tui/ui/             what sections share: the Section interface, theme, keys, app messages
   tui/<section>/      one package per section, adapting a service to bubbles
 pkg/bubbles/<name>/   reusable Elm-style components with no knowledge of gh-tui
