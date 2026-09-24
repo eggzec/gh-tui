@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/obs"
 )
 
 // ErrRan is returned by Run when the revalidator has already been run.
@@ -214,7 +215,8 @@ func (r *Revalidator) Run(ctx context.Context) error {
 			}
 			timer.Stop()
 		}
-		p := r.pass(ctx)
+		pctx := obs.WithTrace(ctx, "revalidate.pass")
+		p := r.pass(pctx)
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
@@ -225,7 +227,10 @@ func (r *Revalidator) Run(ctx context.Context) error {
 			offline = 0
 		}
 		retryAt = p.RetryAt
-		timer.Reset(max(r.delay(offline), time.Until(retryAt)))
+		next := max(r.delay(offline), time.Until(retryAt))
+		obs.CountRevalidate(p.Sent, p.Budget)
+		p.log(pctx, next)
+		timer.Reset(next)
 	}
 }
 
