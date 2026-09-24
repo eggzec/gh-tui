@@ -63,6 +63,9 @@ func (s *Service) change(
 	edit func(*core.PullRequest),
 	send func(ctx context.Context, id string) (core.PullRequest, error),
 ) *optimistic.Op {
+	// The change moves the pull request past the version the list showed,
+	// so what is cached of it is only as good as its TTL.
+	s.seen.Delete(detailKey(repo, number))
 	// The mutations need the node ID, which any cached copy has.
 	var id string
 	undoLists := s.lists.MutateTag(repoTag(repo), func(p core.Page[core.PullRequest]) (core.Page[core.PullRequest], bool) {

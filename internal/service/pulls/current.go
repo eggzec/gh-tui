@@ -1,0 +1,84 @@
+package pulls
+
+import (
+	"time"
+
+	"github.com/eggzec/gh-tui/internal/cache"
+	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/service/seen"
+)
+
+// A list page shows when each pull request last changed. While that stands,
+// what is cached of a pull request is current, so it is served past its TTL
+// without asking GitHub, and a newer update time marks it stale at once.
+//
+// GitHub doesn't count check runs as updates, so the checks are compared as
+// well, and a detail whose checks are still running is only as good as its
+// TTL: the count of runs may move while the rollup state stands.
+
+// mark is what a list page last showed of a pull request.
+type mark struct {
+	updated time.Time
+	checks  core.ChecksState
+}
+
+// vouch records what a list page of repo showed of each of prs, and marks
+// stale what is cached of those that changed since.
+func (s *Service) vouch(repo core.RepoRef, prs []core.PullRequest) {
+	for i := range prs {
+		pr := &prs[i]
+		key := detailKey(repo, pr.Number)
+		prev, had := s.seen.Set(key, mark{updated: pr.UpdatedAt, checks: pr.Checks})
+		e, st := s.details.Get(key)
+		cached := st != cache.Miss
+		older := cached && e.Value.UpdatedAt.Before(pr.UpdatedAt)
+		if older || cached && e.Value.Checks != pr.Checks {
+			s.details.Invalidate(key)
+		}
+		if older || had && prev.updated.Before(pr.UpdatedAt) {
+			// Its comments and reviews may have changed too.
+			s.comments.InvalidateTag(key)
+			s.reviews.InvalidateTag(key)
+		}
+	}
+}
+
+// currentDetail returns the cached detail under key if it is current.
+func (s *Service) currentDetail(key string) (core.PullRequestDetail, bool) {
+	m, ok := s.seen.Get(key)
+	if !ok || m.checks == core.ChecksPending {
+		return core.PullRequestDetail{}, false
+	}
+	e, st := s.details.Get(key)
+	d := e.Value
+	return d, st != cache.Miss && seen.Current(d.UpdatedAt, m.updated) && d.Checks == m.checks
+}
+
+// currentComments returns the cached page for q if it is current.
+func (s *Service) currentComments(q CommentsQuery) (core.Page[core.Comment], bool) {
+	m, ok := s.seen.Get(detailKey(q.Repo, q.Number))
+	if !ok {
+		return core.Page[core.Comment]{}, false
+	}
+	e, st := s.comments.Get(q.key())
+	return e.Value.Value, st != cache.Miss && seen.Current(e.Value.Version, m.updated)
+}
+
+// Current reports whether the detail of the pull request of q and the page
+// of comments q selects can both be read without a request, since they are
+// cached and fresh or current.
+func (s *Service) Current(q CommentsQuery) bool {
+	key := detailKey(q.Repo, q.Number)
+	if _, ok := s.currentDetail(key); !ok && !fresh(s.details, key) {
+		return false
+	}
+	if _, ok := s.currentComments(q); !ok && !fresh(s.comments, q.key()) {
+		return false
+	}
+	return true
+}
+
+func fresh[V any](c *cache.Cache[V], key string) bool {
+	_, st := c.Get(key)
+	return st == cache.Fresh
+}

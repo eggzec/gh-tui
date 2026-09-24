@@ -14,6 +14,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
 	"github.com/eggzec/gh-tui/internal/service/probe"
+	"github.com/eggzec/gh-tui/internal/service/seen"
 )
 
 // API is the part of the GitHub client the service uses. The mutations take
@@ -40,12 +41,16 @@ type Service struct {
 	lists   *cache.Cache[core.Page[core.PullRequest]]
 	details *cache.Cache[core.PullRequestDetail]
 	// Comments and reviews are cached a page at a time, so that the pages
-	// the tui no longer shows are evicted.
-	comments *cache.Cache[core.Page[core.Comment]]
+	// the tui no longer shows are evicted. Comment pages carry the version
+	// of the pull request they were read at.
+	comments *cache.Cache[seen.Stamped[core.Page[core.Comment]]]
 	reviews  *cache.Cache[core.Page[core.Review]]
 	now      func() time.Time
 	// etags holds the latest probe ETag of each polled repository.
 	etags probe.Tracker
+	// seen holds what the list pages last showed of each pull request, by
+	// detail key.
+	seen seen.Marks[mark]
 }
 
 // New returns a service that reads from api.
@@ -58,7 +63,7 @@ func New(api API, opts ...Option) *Service {
 		api:      api,
 		lists:    cache.New[core.Page[core.PullRequest]](o.cache...),
 		details:  cache.New[core.PullRequestDetail](o.cache...),
-		comments: cache.New[core.Page[core.Comment]](o.cache...),
+		comments: cache.New[seen.Stamped[core.Page[core.Comment]]](o.cache...),
 		reviews:  cache.New[core.Page[core.Review]](o.cache...),
 		now:      time.Now,
 	}
@@ -109,8 +114,20 @@ func repoTag(r core.RepoRef) string {
 	return "repo:" + repoID(r)
 }
 
+// detailKey is the key of the detail of a pull request. It also tags every
+// entry of the pull request, so that a change finds its comments.
 func detailKey(r core.RepoRef, number int) string {
-	return "pull:" + repoID(r) + "#" + strconv.Itoa(number)
+	return pullPrefix(r) + strconv.Itoa(number)
+}
+
+// pullPrefix starts the detail key of every pull request of r.
+func pullPrefix(r core.RepoRef) string {
+	return "pull:" + repoID(r) + "#"
+}
+
+// tags are the tags of an entry of pull request number of repo.
+func tags(repo core.RepoRef, number int) []string {
+	return []string{repoTag(repo), detailKey(repo, number)}
 }
 
 // cached returns the value under key in c, fresh or stale, without
@@ -121,8 +138,8 @@ func cached[V any](c *cache.Cache[V], key string) (V, bool) {
 }
 
 // fetch returns the value under key in c. A fresh value is returned without
-// a request; otherwise get fetches it, and it is stored tagged with repo.
-func fetch[V any](ctx context.Context, c *cache.Cache[V], key string, repo core.RepoRef, get func(context.Context) (V, error)) (V, error) {
+// a request; otherwise get fetches it, and it is stored with tags.
+func fetch[V any](ctx context.Context, c *cache.Cache[V], key string, tags []string, get func(context.Context) (V, error)) (V, error) {
 	// GraphQL responses carry no validators, so a stale value is fetched
 	// again in full.
 	e, err := c.Fetch(ctx, key, func(ctx context.Context, _ cache.Entry[V], _ bool) (cache.Entry[V], error) {
@@ -130,7 +147,7 @@ func fetch[V any](ctx context.Context, c *cache.Cache[V], key string, repo core.
 		if err != nil {
 			return cache.Entry[V]{}, err
 		}
-		return cache.Entry[V]{Value: v, Tags: []string{repoTag(repo)}}, nil
+		return cache.Entry[V]{Value: v, Tags: tags}, nil
 	})
 	return e.Value, err
 }
@@ -142,14 +159,16 @@ func (s *Service) CachedList(q ListQuery) (core.Page[core.PullRequest], bool) {
 }
 
 // List returns the page for q, most recently updated first. A fresh cached
-// page is returned without a request.
+// page is returned without a request. The page vouches for what is cached
+// of the pull requests it lists: see [Service.Get].
 func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.PullRequest], error) {
-	p, err := fetch(ctx, s.lists, q.key(), q.Repo, func(ctx context.Context) (core.Page[core.PullRequest], error) {
+	p, err := fetch(ctx, s.lists, q.key(), []string{repoTag(q.Repo)}, func(ctx context.Context) (core.Page[core.PullRequest], error) {
 		return s.api.ListPullRequests(ctx, q.Repo, q.State, q.Cursor, pageSize(q.PageSize))
 	})
 	if err != nil {
 		return core.Page[core.PullRequest]{}, fmt.Errorf("list pulls of %s: %w", q.Repo, err)
 	}
+	s.vouch(q.Repo, p.Items)
 	return p, nil
 }
 
@@ -160,10 +179,16 @@ func (s *Service) CachedGet(repo core.RepoRef, number int) (core.PullRequestDeta
 }
 
 // Get returns pull request number of repo with its body and checks. Its
-// comments and reviews are read with Comments and Reviews. A fresh cached
-// detail is returned without a request.
+// comments and reviews are read with Comments and Reviews. A cached detail
+// is returned without a request while it is fresh, or while it is current:
+// as recent as the pull request the list last showed, with the same
+// settled checks.
 func (s *Service) Get(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error) {
-	d, err := fetch(ctx, s.details, detailKey(repo, number), repo, func(ctx context.Context) (core.PullRequestDetail, error) {
+	key := detailKey(repo, number)
+	if d, ok := s.currentDetail(key); ok {
+		return d, nil
+	}
+	d, err := fetch(ctx, s.details, key, tags(repo, number), func(ctx context.Context) (core.PullRequestDetail, error) {
 		return s.api.GetPullRequest(ctx, repo, number)
 	})
 	if err != nil {
@@ -175,8 +200,9 @@ func (s *Service) Get(ctx context.Context, repo core.RepoRef, number int) (core.
 // Invalidate marks everything cached of repo stale: its list pages, details,
 // comments and reviews. They are still served by the Cached reads, and the
 // next fetch of each goes to GitHub, so a refresh reaches the server even
-// while the entries are fresh.
+// while the entries are fresh or current.
 func (s *Service) Invalidate(repo core.RepoRef) {
+	s.seen.DeletePrefix(pullPrefix(repo))
 	tag := repoTag(repo)
 	s.lists.InvalidateTag(tag)
 	s.details.InvalidateTag(tag)
