@@ -104,18 +104,35 @@ func build(ctx context.Context, cfg config.Config, arg string) (*tui.Model, erro
 	if warning != "" {
 		opts = append(opts, tui.WithWarning(warning))
 	}
+	// The sync engine delivers the changes that its polls find, and those
+	// that the revalidator finds, through one subscription.
+	engine := watch.New(watch.WithInterval(cfg.Sync.Interval))
+	var (
+		activity []func(bool)
+		watchers []func(core.RepoRef)
+	)
 	if cfg.Sync.Enabled {
-		engine := watch.New(watch.WithInterval(cfg.Sync.Interval))
 		engine.Subscribe(notifications.SyncKey, notifSvc.Poll)
 		repoPolls := &repoWatch{subscribe: engine.Subscribe, polls: []repoPoll{
 			{key: pullsvc.SyncKey, poll: pullSvc.Poll},
 			{key: issuesvc.SyncKey, poll: issueSvc.Poll},
 		}}
+		activity = append(activity, engine.SetActive)
+		watchers = append(watchers, repoPolls.set)
+	}
+	if store != nil {
+		if r := newRevalidator(cfg.Cache, engine.Publish, issueSvc.Kept, notifSvc.Kept, fileSvc.Kept); r != nil {
+			go func() { _ = r.Run(ctx) }()
+			activity = append(activity, r.SetActive)
+			watchers = append(watchers, r.SetRepo)
+		}
+	}
+	if len(watchers) > 0 {
 		go func() { _ = engine.Run(ctx) }()
 		opts = append(opts,
 			tui.WithSync(syncEvents(engine)),
-			tui.WithActivity(engine.SetActive),
-			tui.WithRepoWatcher(repoPolls.set),
+			tui.WithActivity(fanOut(activity...)),
+			tui.WithRepoWatcher(fanOut(watchers...)),
 		)
 	}
 	return tui.New(ctx, cfg, layout, opts...), nil
