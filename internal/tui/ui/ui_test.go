@@ -57,6 +57,8 @@ func TestThemeTakesPaletteColors(t *testing.T) {
 		"prompt edge":  th.Prompt().Frame.GetBorderLeftForeground(),
 		"prompt caret": th.Prompt().Cursor.GetForeground(),
 		"toast info":   th.Toast().Info.Color,
+		"tree cursor":  th.Tree().Cursor.GetForeground(),
+		"pager prompt": th.Pager().Prompt.GetForeground(),
 		"accent text":  th.Accent.GetForeground(),
 	}
 	for name, got := range checks {
@@ -69,6 +71,9 @@ func TestThemeTakesPaletteColors(t *testing.T) {
 	}
 	if got := th.Prompt().Text.GetForeground(); got != lipgloss.Color(p.Foreground) {
 		t.Errorf("prompt text = %v, want the palette foreground", got)
+	}
+	if th.Pager().Syntax == nil {
+		t.Error("pager has no syntax colors")
 	}
 	if got := th.Toast().Error.Color; got != lipgloss.Color(p.Error) {
 		t.Errorf("toast error = %v, want the palette error color", got)
