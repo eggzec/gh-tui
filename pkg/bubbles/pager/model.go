@@ -29,6 +29,9 @@ const (
 	stateLoading
 	stateFailed
 	stateBinary
+	// stateMessage shows a message of the parent, such as why a file isn't
+	// shown.
+	stateMessage
 	stateReady
 )
 
@@ -43,7 +46,9 @@ type Model struct {
 	name  string
 	state state
 	err   error
-	spin  spinner.Model
+	// note is the message of stateMessage.
+	note string
+	spin spinner.Model
 	// lines are the lines of the content, cleaned and with tabs expanded,
 	// and spans their tokens once the highlighter is done, or nil.
 	lines []string

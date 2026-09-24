@@ -49,6 +49,8 @@ func (m Model) message() string {
 		return s.Error.Render("✗ Couldn't load: " + msg)
 	case stateBinary:
 		return s.Message.Render("Binary file, not shown.")
+	case stateMessage:
+		return s.Message.Render(m.note)
 	case stateReady:
 		return s.Message.Render("Empty file.")
 	default:

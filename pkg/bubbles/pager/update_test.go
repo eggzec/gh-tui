@@ -325,6 +325,7 @@ func TestStates(t *testing.T) {
 		{name: "loading", set: func(m *Model) { _ = m.SetLoading("a.go") }, want: stateLoading},
 		{name: "failed", set: func(m *Model) { m.SetError("a.go", errors.New("boom")) }, want: stateFailed},
 		{name: "binary", set: func(m *Model) { m.SetContent("a.png", "\x89PNG\x00\x01") }, want: stateBinary},
+		{name: "message", set: func(m *Model) { m.SetMessage("a.bin", "Too large.") }, want: stateMessage},
 		{name: "ready", set: func(m *Model) { m.SetContent("a.go", "") }, want: stateReady},
 	}
 	for _, tt := range tests {

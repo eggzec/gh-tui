@@ -63,6 +63,15 @@ func (m *Model) SetError(name string, err error) {
 	m.reset(name, stateFailed, err)
 }
 
+// SetMessage shows text in place of the content named name, for example
+// why the parent doesn't show a file: that it is too large, or where a link
+// points.
+func (m *Model) SetMessage(name, text string) {
+	m.reset(name, stateMessage, nil)
+	// One line without escape sequences, so it can't break the layout.
+	m.note = strings.Join(strings.Fields(ansi.Strip(text)), " ")
+}
+
 // reset forgets the content and stops its highlighter.
 func (m *Model) reset(name string, s state, err error) {
 	if m.cancel != nil {
@@ -70,7 +79,7 @@ func (m *Model) reset(name string, s state, err error) {
 		m.cancel = nil
 	}
 	m.gen++
-	m.name, m.state, m.err = name, s, err
+	m.name, m.state, m.err, m.note = name, s, err, ""
 	m.renderName()
 	m.lines, m.spans = nil, nil
 	m.top, m.row, m.left = 0, 0, 0
