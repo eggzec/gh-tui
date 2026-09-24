@@ -49,8 +49,12 @@ func build(ctx context.Context, cfg config.Config, arg string) (*tui.Model, erro
 	issueSvc := issuesvc.New(client, issuesvc.WithTTL(ttl))
 	notifSvc := notifsvc.New(client, notifsvc.WithTTL(ttl))
 	repoSvc := reposvc.New(client, reposvc.WithTTL(ttl))
-	fileSvc := filesvc.New(client, filesvc.WithTTL(ttl),
-		filesvc.WithMaxBlobSize(int64(cfg.Files.Preview.MaxSize)))
+	fileSvcOpts := []filesvc.Option{filesvc.WithTTL(ttl), filesvc.WithMaxBlobSize(int64(cfg.Files.Preview.MaxSize))}
+	store, warning := openDisk(ctx, cfg.Cache.Disk, client.Host())
+	if store != nil {
+		fileSvcOpts = append(fileSvcOpts, filesvc.WithStore(store))
+	}
+	fileSvc := filesvc.New(client, fileSvcOpts...)
 	// Search results keep the search service's own short TTL.
 	searchSvc := searchsvc.New(client)
 
@@ -78,6 +82,9 @@ func build(ctx context.Context, cfg config.Config, arg string) (*tui.Model, erro
 	}
 	if repo != (core.RepoRef{}) {
 		opts = append(opts, tui.WithRepo(repo))
+	}
+	if warning != "" {
+		opts = append(opts, tui.WithWarning(warning))
 	}
 	if cfg.Sync.Enabled {
 		engine := watch.New(watch.WithInterval(cfg.Sync.Interval))

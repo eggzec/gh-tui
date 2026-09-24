@@ -41,12 +41,6 @@ type Config struct {
 	Files Files               `yaml:"files"`
 }
 
-// Cache configures the response cache.
-type Cache struct {
-	// TTL is how long a cached response is served before it is revalidated.
-	TTL time.Duration `yaml:"ttl"`
-}
-
 // Sync configures background polling.
 type Sync struct {
 	Enabled bool `yaml:"enabled"`
@@ -63,7 +57,7 @@ func Default() Config {
 		Theme:  DefaultTheme,
 		Themes: map[string]Theme{},
 		Keys:   defaultKeys(),
-		Cache:  Cache{TTL: 5 * time.Minute},
+		Cache:  defaultCache(),
 		Sync:   Sync{Enabled: true, Interval: time.Minute},
 		Files:  defaultFiles(),
 	}
@@ -127,9 +121,7 @@ func (c Config) Validate() error {
 		errs = append(errs, validateKeys(action, c.Keys[action]))
 	}
 
-	if c.Cache.TTL <= 0 {
-		errs = append(errs, fmt.Errorf("cache.ttl: must be positive, got %v", c.Cache.TTL))
-	}
+	errs = append(errs, c.Cache.validate())
 	if c.Sync.Interval <= 0 {
 		errs = append(errs, fmt.Errorf("sync.interval: must be positive, got %v", c.Sync.Interval))
 	}
