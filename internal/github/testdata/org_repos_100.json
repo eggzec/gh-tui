@@ -1,0 +1,2089 @@
+{
+  "data": {
+    "rateLimit": {
+      "cost": 1,
+      "limit": 5000,
+      "remaining": 4990,
+      "used": 10,
+      "resetAt": "2026-09-24T12:29:23Z"
+    },
+    "organization": {
+      "repositories": {
+        "nodes": [
+          {
+            "id": "R_kgDOPiFCnQ",
+            "name": "spec-kit",
+            "owner": {
+              "login": "github"
+            },
+            "description": "💫 Toolkit to help you get started with Spec-Driven Development",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "Python"
+            },
+            "stargazerCount": 138688,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T12:28:37Z",
+            "url": "https://github.com/github/spec-kit"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnkxMDYyODk3",
+            "name": "gitignore",
+            "owner": {
+              "login": "github"
+            },
+            "description": "A collection of useful .gitignore templates",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": null,
+            "stargazerCount": 175890,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T12:26:01Z",
+            "url": "https://github.com/github/gitignore"
+          },
+          {
+            "id": "R_kgDOIuuGOA",
+            "name": "copilot-cli",
+            "owner": {
+              "login": "github"
+            },
+            "description": "GitHub Copilot CLI brings the power of Copilot coding agent directly to your terminal. ",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "Shell"
+            },
+            "stargazerCount": 11198,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T12:25:45Z",
+            "url": "https://github.com/github/copilot-cli"
+          },
+          {
+            "id": "R_kgDOSExHoQ",
+            "name": "app",
+            "owner": {
+              "login": "github"
+            },
+            "description": "The GitHub Copilot app is an agent-native desktop experience for finding, running, steering, and landing software work across your GitHub repositories.",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": null,
+            "stargazerCount": 2139,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T12:25:41Z",
+            "url": "https://github.com/github/app"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnkxODk2MjE2MDc=",
+            "name": "docs",
+            "owner": {
+              "login": "github"
+            },
+            "description": "The open-source repo for docs.github.com",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "TypeScript"
+            },
+            "stargazerCount": 20883,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T12:23:54Z",
+            "url": "https://github.com/github/docs"
+          },
+          {
+            "id": "R_kgDOO6BQUQ",
+            "name": "awesome-copilot",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Community-contributed instructions, agents, skills, and configurations to help you make the most of GitHub Copilot.",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "JavaScript"
+            },
+            "stargazerCount": 39352,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T12:22:45Z",
+            "url": "https://github.com/github/awesome-copilot"
+          },
+          {
+            "id": "R_kgDOMxav2w",
+            "name": "GreenSoftwareDirectory",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Welcome to GitHub's Green Software Directory!",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": null,
+            "stargazerCount": 927,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T12:14:53Z",
+            "url": "https://github.com/github/GreenSoftwareDirectory"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnkyOTgxNDU1",
+            "name": "gemoji",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Emoji images and names.",
+            "defaultBranchRef": {
+              "name": "master"
+            },
+            "primaryLanguage": {
+              "name": "Ruby"
+            },
+            "stargazerCount": 4534,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T12:12:39Z",
+            "url": "https://github.com/github/gemoji"
+          },
+          {
+            "id": "R_kgDOODGMVA",
+            "name": "github-mcp-server",
+            "owner": {
+              "login": "github"
+            },
+            "description": "GitHub's official MCP Server",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "Go"
+            },
+            "stargazerCount": 33171,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T12:12:12Z",
+            "url": "https://github.com/github/github-mcp-server"
+          },
+          {
+            "id": "R_kgDOPc1QRw",
+            "name": "gh-aw",
+            "owner": {
+              "login": "github"
+            },
+            "description": "GitHub Agentic Workflows",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "Go"
+            },
+            "stargazerCount": 5178,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T12:06:32Z",
+            "url": "https://github.com/github/gh-aw"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnkxMzU5Nzg1Mw==",
+            "name": "government.github.com",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Gather, curate, and feature stories of public servants and civic hackers using GitHub as part of their open government innovations",
+            "defaultBranchRef": {
+              "name": "gh-pages"
+            },
+            "primaryLanguage": {
+              "name": "HTML"
+            },
+            "stargazerCount": 2002,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T12:00:08Z",
+            "url": "https://github.com/github/government.github.com"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnkyNTk0NDU4Nzg=",
+            "name": "codeql-action",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Actions for running CodeQL analysis",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "TypeScript"
+            },
+            "stargazerCount": 1647,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T11:30:19Z",
+            "url": "https://github.com/github/codeql-action"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnk3NjA5NDI1Nw==",
+            "name": "rubocop-github",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Code style checking for GitHub's Ruby projects",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "Ruby"
+            },
+            "stargazerCount": 667,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T11:24:39Z",
+            "url": "https://github.com/github/rubocop-github"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnkxMzA0NzM4",
+            "name": "dmca",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Repository with text of DMCA takedown notices as received. GitHub does not endorse or adopt any assertion contained in the following notices. Users identified in the notices are presumed innocent until proven guilty. Additional information about our DMCA policy can be found at ",
+            "defaultBranchRef": {
+              "name": "master"
+            },
+            "primaryLanguage": {
+              "name": "DIGITAL Command Language"
+            },
+            "stargazerCount": 6382,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T11:17:39Z",
+            "url": "https://github.com/github/dmca"
+          },
+          {
+            "id": "R_kgDORKR9iA",
+            "name": "gh-stack",
+            "owner": {
+              "login": "github"
+            },
+            "description": "GitHub Stacked PRs",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "Go"
+            },
+            "stargazerCount": 1556,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T10:55:07Z",
+            "url": "https://github.com/github/gh-stack"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnkxNDMwNDA0Mjg=",
+            "name": "codeql",
+            "owner": {
+              "login": "github"
+            },
+            "description": "CodeQL: the libraries and queries that power security researchers around the world, as well as code scanning in GitHub Advanced Security",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "CodeQL"
+            },
+            "stargazerCount": 10118,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T10:46:28Z",
+            "url": "https://github.com/github/codeql"
+          },
+          {
+            "id": "R_kgDOQGwGxw",
+            "name": "octocanvas",
+            "owner": {
+              "login": "github"
+            },
+            "description": "A web app that creates GitHub-themed collectibles from GitHub profiles",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "TypeScript"
+            },
+            "stargazerCount": 53,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T10:06:49Z",
+            "url": "https://github.com/github/octocanvas"
+          },
+          {
+            "id": "R_kgDOM0MYaQ",
+            "name": "CopilotForXcode",
+            "owner": {
+              "login": "github"
+            },
+            "description": "AI coding assistant for Xcode",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "Swift"
+            },
+            "stargazerCount": 6306,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T09:48:56Z",
+            "url": "https://github.com/github/CopilotForXcode"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnk1NDM3ODYzOA==",
+            "name": "gh-ost",
+            "owner": {
+              "login": "github"
+            },
+            "description": "GitHub's Online Schema-migration Tool for MySQL",
+            "defaultBranchRef": {
+              "name": "master"
+            },
+            "primaryLanguage": {
+              "name": "Go"
+            },
+            "stargazerCount": 13585,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T09:47:36Z",
+            "url": "https://github.com/github/gh-ost"
+          },
+          {
+            "id": "R_kgDOG1IWlQ",
+            "name": "advisory-database",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Security vulnerability database inclusive of CVEs and GitHub originated security advisories from the world of open source software.",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": null,
+            "stargazerCount": 2473,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T09:37:29Z",
+            "url": "https://github.com/github/advisory-database"
+          },
+          {
+            "id": "R_kgDOGQ-0MQ",
+            "name": "copilot-docs",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Documentation for GitHub Copilot",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": null,
+            "stargazerCount": 23196,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": true,
+            "updatedAt": "2026-09-24T09:19:32Z",
+            "url": "https://github.com/github/copilot-docs"
+          },
+          {
+            "id": "R_kgDOKTvXgQ",
+            "name": "innovationgraph",
+            "owner": {
+              "login": "github"
+            },
+            "description": "GitHub Innovation Graph",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "Python"
+            },
+            "stargazerCount": 572,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T08:56:30Z",
+            "url": "https://github.com/github/innovationgraph"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnk2NjcxNjM=",
+            "name": "github-services",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Legacy GitHub Services Integration",
+            "defaultBranchRef": {
+              "name": "master"
+            },
+            "primaryLanguage": {
+              "name": "Ruby"
+            },
+            "stargazerCount": 1890,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": true,
+            "updatedAt": "2026-09-24T08:20:05Z",
+            "url": "https://github.com/github/github-services"
+          },
+          {
+            "id": "R_kgDOH0yDZA",
+            "name": "mona-sans",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Mona Sans, a variable font from GitHub",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "Shell"
+            },
+            "stargazerCount": 4162,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T06:27:42Z",
+            "url": "https://github.com/github/mona-sans"
+          },
+          {
+            "id": "R_kgDOH3LKLA",
+            "name": "hubot-sans",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Hubot Sans, a variable font from GitHub",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "Shell"
+            },
+            "stargazerCount": 1964,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T06:27:37Z",
+            "url": "https://github.com/github/hubot-sans"
+          },
+          {
+            "id": "R_kgDOTI06_g",
+            "name": "spec-kit-copilot",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Copilot-native integrations for Spec Kit across GitHub Copilot CLI, the Copilot App, and VS Code.",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "JavaScript"
+            },
+            "stargazerCount": 16,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T06:23:29Z",
+            "url": "https://github.com/github/spec-kit-copilot"
+          },
+          {
+            "id": "R_kgDOJDwwMQ",
+            "name": "github-ospo",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Helping open source program offices get started",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": null,
+            "stargazerCount": 750,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T06:19:44Z",
+            "url": "https://github.com/github/github-ospo"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnk4NDQ1ODc3",
+            "name": "platform-samples",
+            "owner": {
+              "login": "github"
+            },
+            "description": "A public place for all platform sample projects.",
+            "defaultBranchRef": {
+              "name": "master"
+            },
+            "primaryLanguage": {
+              "name": "Shell"
+            },
+            "stargazerCount": 2171,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T06:18:37Z",
+            "url": "https://github.com/github/platform-samples"
+          },
+          {
+            "id": "R_kgDOKSXv_Q",
+            "name": "forgoodfirstissue",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Find your first issue for good to contribute to",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "TypeScript"
+            },
+            "stargazerCount": 247,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T06:17:25Z",
+            "url": "https://github.com/github/forgoodfirstissue"
+          },
+          {
+            "id": "R_kgDOQ-hNNQ",
+            "name": "copilot-plugins",
+            "owner": {
+              "login": "github"
+            },
+            "description": "The official GitHub Copilot plugins collection — MCP servers, skills, hooks, and other extensibility tools for GitHub Copilot.",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "PowerShell"
+            },
+            "stargazerCount": 368,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T06:13:48Z",
+            "url": "https://github.com/github/copilot-plugins"
+          },
+          {
+            "id": "R_kgDOKlZ9tA",
+            "name": "gh-copilot",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Ask for assistance right in your terminal.",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": null,
+            "stargazerCount": 1152,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": true,
+            "updatedAt": "2026-09-24T06:13:21Z",
+            "url": "https://github.com/github/gh-copilot"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnk2MTIwNDgxOA==",
+            "name": "opensource.guide",
+            "owner": {
+              "login": "github"
+            },
+            "description": "📚 Community guides for open source creators",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "HTML"
+            },
+            "stargazerCount": 15702,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T05:35:12Z",
+            "url": "https://github.com/github/opensource.guide"
+          },
+          {
+            "id": "R_kgDOQD9K4A",
+            "name": "gh-aw-firewall",
+            "owner": {
+              "login": "github"
+            },
+            "description": "GitHub Agentic Workflows Firewall",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "TypeScript"
+            },
+            "stargazerCount": 147,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T05:22:39Z",
+            "url": "https://github.com/github/gh-aw-firewall"
+          },
+          {
+            "id": "R_kgDOIWO1fA",
+            "name": "gh-actions-importer",
+            "owner": {
+              "login": "github"
+            },
+            "description": "GitHub Actions Importer helps you plan and automate the migration of Azure DevOps, Bamboo, Bitbucket, CircleCI, GitLab, Jenkins, and Travis CI pipelines to GitHub Actions.",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "C#"
+            },
+            "stargazerCount": 1231,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T05:10:56Z",
+            "url": "https://github.com/github/gh-actions-importer"
+          },
+          {
+            "id": "R_kgDOJazngw",
+            "name": "accessibility-alt-text-bot",
+            "owner": {
+              "login": "github"
+            },
+            "description": "An action to remind users to add alt text on Issues, Pull Requests, and Discussions",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "JavaScript"
+            },
+            "stargazerCount": 101,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T04:40:00Z",
+            "url": "https://github.com/github/accessibility-alt-text-bot"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnkyNTE3NDc5NDg=",
+            "name": "roadmap",
+            "owner": {
+              "login": "github"
+            },
+            "description": "GitHub public roadmap",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": null,
+            "stargazerCount": 8889,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T04:10:00Z",
+            "url": "https://github.com/github/roadmap"
+          },
+          {
+            "id": "R_kgDOKYmK2A",
+            "name": "dotnet-codespaces",
+            "owner": {
+              "login": "github"
+            },
+            "description": null,
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "HTML"
+            },
+            "stargazerCount": 247,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T03:52:52Z",
+            "url": "https://github.com/github/dotnet-codespaces"
+          },
+          {
+            "id": "R_kgDOGPnFew",
+            "name": "erblint-github",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Template style checking for GitHub's Ruby projects",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "Ruby"
+            },
+            "stargazerCount": 66,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T03:23:09Z",
+            "url": "https://github.com/github/erblint-github"
+          },
+          {
+            "id": "R_kgDOTQvKdg",
+            "name": "dev-days",
+            "owner": {
+              "login": "github"
+            },
+            "description": null,
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "HTML"
+            },
+            "stargazerCount": 88,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T02:40:56Z",
+            "url": "https://github.com/github/dev-days"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnkxMTQyNjQ3NA==",
+            "name": "choosealicense.com",
+            "owner": {
+              "login": "github"
+            },
+            "description": "A site to provide non-judgmental guidance on choosing a license for your open source project",
+            "defaultBranchRef": {
+              "name": "gh-pages"
+            },
+            "primaryLanguage": {
+              "name": "HTML"
+            },
+            "stargazerCount": 4203,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T02:15:29Z",
+            "url": "https://github.com/github/choosealicense.com"
+          },
+          {
+            "id": "R_kgDOGQA-OQ",
+            "name": "copilot.vim",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Neovim plugin for GitHub Copilot",
+            "defaultBranchRef": {
+              "name": "release"
+            },
+            "primaryLanguage": {
+              "name": "Vim Script"
+            },
+            "stargazerCount": 11683,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T02:13:23Z",
+            "url": "https://github.com/github/copilot.vim"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnkxMDM3NjYxNTI=",
+            "name": "explore",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Community-curated topic and collection pages on GitHub",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "Ruby"
+            },
+            "stargazerCount": 4895,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T01:30:38Z",
+            "url": "https://github.com/github/explore"
+          },
+          {
+            "id": "R_kgDOQmd7aw",
+            "name": "gh-aw-mcpg",
+            "owner": {
+              "login": "github"
+            },
+            "description": "GitHub Agentic Workflows MCP Gateway",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "Go"
+            },
+            "stargazerCount": 180,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T01:25:55Z",
+            "url": "https://github.com/github/gh-aw-mcpg"
+          },
+          {
+            "id": "R_kgDONwC2Zg",
+            "name": "copilot-language-server-release",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Feedback for the GitHub Copilot Language Server",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": null,
+            "stargazerCount": 289,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T00:49:07Z",
+            "url": "https://github.com/github/copilot-language-server-release"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnkxMTk4MDU1OA==",
+            "name": "pages-gem",
+            "owner": {
+              "login": "github"
+            },
+            "description": "A simple Ruby Gem to bootstrap dependencies for setting up and maintaining a local Jekyll environment in sync with GitHub Pages",
+            "defaultBranchRef": {
+              "name": "master"
+            },
+            "primaryLanguage": {
+              "name": "Ruby"
+            },
+            "stargazerCount": 1872,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T00:21:45Z",
+            "url": "https://github.com/github/pages-gem"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnkxNjU0OTUwMw==",
+            "name": "scientist",
+            "owner": {
+              "login": "github"
+            },
+            "description": ":microscope: A Ruby library for carefully refactoring critical paths.",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "Ruby"
+            },
+            "stargazerCount": 7757,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-23T23:30:47Z",
+            "url": "https://github.com/github/scientist"
+          },
+          {
+            "id": "R_kgDOH1NJmA",
+            "name": "codespaces-blank",
+            "owner": {
+              "login": "github"
+            },
+            "description": null,
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": null,
+            "stargazerCount": 537,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-23T23:27:16Z",
+            "url": "https://github.com/github/codespaces-blank"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnkzNTE4MTQ4",
+            "name": "twui",
+            "owner": {
+              "login": "github"
+            },
+            "description": "A framework for developing interfaces on the Mac.",
+            "defaultBranchRef": {
+              "name": "a-safe-place"
+            },
+            "primaryLanguage": {
+              "name": "Objective-C"
+            },
+            "stargazerCount": 400,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": true,
+            "isArchived": true,
+            "updatedAt": "2026-09-23T23:04:47Z",
+            "url": "https://github.com/github/twui"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnk3MTIyNjYz",
+            "name": "secure_headers",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Manages application of security headers with many safe defaults",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "Ruby"
+            },
+            "stargazerCount": 3228,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-23T23:04:02Z",
+            "url": "https://github.com/github/secure_headers"
+          },
+          {
+            "id": "R_kgDORO0Qmg",
+            "name": "gh-aw-actions",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Shared Actions used with GitHub Agentic Workflows",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "JavaScript"
+            },
+            "stargazerCount": 48,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-23T22:46:38Z",
+            "url": "https://github.com/github/gh-aw-actions"
+          },
+          {
+            "id": "R_kgDOSpq7vA",
+            "name": "accessibility-scanner-alt-text-plugin",
+            "owner": {
+              "login": "github"
+            },
+            "description": "A plugin for the GitHub Accessibility Scanner that flags low-quality alt text on images.",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "TypeScript"
+            },
+            "stargazerCount": 12,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-23T22:01:58Z",
+            "url": "https://github.com/github/accessibility-scanner-alt-text-plugin"
+          },
+          {
+            "id": "R_kgDOT6YIxw",
+            "name": "simpleforce",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Simple Golang client for Salesforce",
+            "defaultBranchRef": {
+              "name": "master"
+            },
+            "primaryLanguage": {
+              "name": "Go"
+            },
+            "stargazerCount": 0,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": true,
+            "isArchived": false,
+            "updatedAt": "2026-09-23T21:49:32Z",
+            "url": "https://github.com/github/simpleforce"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnkxNTM0MjA3Mw==",
+            "name": "training-kit",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Open source courseware for Git and GitHub",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "HTML"
+            },
+            "stargazerCount": 5089,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-23T21:10:31Z",
+            "url": "https://github.com/github/training-kit"
+          },
+          {
+            "id": "R_kgDOGKsKcg",
+            "name": "dependabot-action",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Runs Dependabot Updates via GitHub Actions.",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "TypeScript"
+            },
+            "stargazerCount": 143,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-23T20:51:15Z",
+            "url": "https://github.com/github/dependabot-action"
+          },
+          {
+            "id": "R_kgDOJcpVPQ",
+            "name": "brasil",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Recursos e informações do GitHub para a comunidade tech do Brasil.",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "Ruby"
+            },
+            "stargazerCount": 773,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": true,
+            "updatedAt": "2026-09-23T20:42:42Z",
+            "url": "https://github.com/github/brasil"
+          },
+          {
+            "id": "R_kgDOQ5Wxyg",
+            "name": "copilot-sdk",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Multi-platform SDK for integrating GitHub Copilot Agent into apps and services",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "TypeScript"
+            },
+            "stargazerCount": 10510,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-23T19:57:25Z",
+            "url": "https://github.com/github/copilot-sdk"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnkzNjUwNjk4MDk=",
+            "name": "haikus-for-codespaces",
+            "owner": {
+              "login": "github"
+            },
+            "description": null,
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "EJS"
+            },
+            "stargazerCount": 2901,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-23T19:38:48Z",
+            "url": "https://github.com/github/haikus-for-codespaces"
+          },
+          {
+            "id": "R_kgDOH8xZWg",
+            "name": "codespaces-nextjs",
+            "owner": {
+              "login": "github"
+            },
+            "description": null,
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "JavaScript"
+            },
+            "stargazerCount": 153,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-23T19:32:50Z",
+            "url": "https://github.com/github/codespaces-nextjs"
+          },
+          {
+            "id": "R_kgDOQpKatQ",
+            "name": "deployment-tracker",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Provides K8s integration with GitHub's artifact metadata API",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "Go"
+            },
+            "stargazerCount": 18,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-23T19:31:52Z",
+            "url": "https://github.com/github/deployment-tracker"
+          },
+          {
+            "id": "R_kgDORI03MA",
+            "name": "copilot-cli-for-beginners",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Learn how to get started using the GitHub Copilot CLI!",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "Tape"
+            },
+            "stargazerCount": 2835,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-23T19:06:34Z",
+            "url": "https://github.com/github/copilot-cli-for-beginners"
+          },
+          {
+            "id": "R_kgDOHeCu6Q",
+            "name": "codespaces-react",
+            "owner": {
+              "login": "github"
+            },
+            "description": null,
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "JavaScript"
+            },
+            "stargazerCount": 550,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-23T19:06:10Z",
+            "url": "https://github.com/github/codespaces-react"
+          },
+          {
+            "id": "R_kgDOUSsgeg",
+            "name": "copilot-app-for-beginners",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Learn how to get started using the GitHub Copilot app!",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": null,
+            "stargazerCount": 1,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-23T18:42:32Z",
+            "url": "https://github.com/github/copilot-app-for-beginners"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnkxMTkyMjgwMDg=",
+            "name": "git-sizer",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Compute various size metrics for a Git repository, flagging those that might cause problems",
+            "defaultBranchRef": {
+              "name": "master"
+            },
+            "primaryLanguage": {
+              "name": "Go"
+            },
+            "stargazerCount": 4077,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-23T18:29:23Z",
+            "url": "https://github.com/github/git-sizer"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnkxNjcwNDgxNjU=",
+            "name": "ssh_data",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Ruby library for parsing SSH public keys and certificates",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "Ruby"
+            },
+            "stargazerCount": 98,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-23T18:06:22Z",
+            "url": "https://github.com/github/ssh_data"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnk2MDY1NjY0MQ==",
+            "name": "gov-takedowns",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Text of government takedown notices as received. GitHub does not endorse or adopt any assertion contained in the following notices.",
+            "defaultBranchRef": {
+              "name": "master"
+            },
+            "primaryLanguage": null,
+            "stargazerCount": 3182,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-23T18:02:52Z",
+            "url": "https://github.com/github/gov-takedowns"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnkxOTAzOTY5Mw==",
+            "name": "relative-time-element",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Web component extensions to the standard <time> element.",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "JavaScript"
+            },
+            "stargazerCount": 4036,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-23T18:02:49Z",
+            "url": "https://github.com/github/relative-time-element"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnk5MzY4NDExMw==",
+            "name": "site-policy",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Collaborative development on GitHub's site policies, procedures, and guidelines",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": null,
+            "stargazerCount": 2167,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-23T17:18:49Z",
+            "url": "https://github.com/github/site-policy"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnkyMTUyNjMwMTA=",
+            "name": "codeql-cli-binaries",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Binaries for the CodeQL CLI",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": null,
+            "stargazerCount": 1018,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-23T16:58:39Z",
+            "url": "https://github.com/github/codeql-cli-binaries"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnkyNzQxOTAwNzM=",
+            "name": "rest-api-description",
+            "owner": {
+              "login": "github"
+            },
+            "description": "An OpenAPI description for GitHub's REST API",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": null,
+            "stargazerCount": 1639,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-23T16:37:53Z",
+            "url": "https://github.com/github/rest-api-description"
+          },
+          {
+            "id": "R_kgDOPdWq7g",
+            "name": "ai-assessment-comment-labeler",
+            "owner": {
+              "login": "github"
+            },
+            "description": "AI-powered issue intake tool. Action for retrieving AI assessments for supplied text body",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "TypeScript"
+            },
+            "stargazerCount": 75,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-23T15:07:47Z",
+            "url": "https://github.com/github/ai-assessment-comment-labeler"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnkzNTU4OTM=",
+            "name": "markup",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Determines which markup library to use to render a content file (e.g. README) on GitHub",
+            "defaultBranchRef": {
+              "name": "master"
+            },
+            "primaryLanguage": {
+              "name": "Ruby"
+            },
+            "stargazerCount": 6042,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-23T14:18:01Z",
+            "url": "https://github.com/github/markup"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnk3NTI0NDMyMg==",
+            "name": "cmark-gfm",
+            "owner": {
+              "login": "github"
+            },
+            "description": "GitHub's fork of cmark, a CommonMark parsing and rendering library and program in C",
+            "defaultBranchRef": {
+              "name": "master"
+            },
+            "primaryLanguage": {
+              "name": "C"
+            },
+            "stargazerCount": 1132,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": true,
+            "isArchived": false,
+            "updatedAt": "2026-09-23T14:15:24Z",
+            "url": "https://github.com/github/cmark-gfm"
+          },
+          {
+            "id": "R_kgDOJPqHUw",
+            "name": "github-app-js-sample",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Sample of a GitHub App that comments new pull requests",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "JavaScript"
+            },
+            "stargazerCount": 208,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": true,
+            "updatedAt": "2026-09-23T14:09:45Z",
+            "url": "https://github.com/github/github-app-js-sample"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnkyODYxMTMzMjI=",
+            "name": "codeql-action-sync-tool",
+            "owner": {
+              "login": "github"
+            },
+            "description": "A tool for syncing the CodeQL Action from GitHub.com to GitHub Enterprise Server, including copying the CodeQL bundle.",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "Go"
+            },
+            "stargazerCount": 52,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-23T13:48:15Z",
+            "url": "https://github.com/github/codeql-action-sync-tool"
+          },
+          {
+            "id": "R_kgDOUdSrNA",
+            "name": "copilot-sdk-workshop",
+            "owner": {
+              "login": "github"
+            },
+            "description": "GitHub Copilot SDK workshop",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "Python"
+            },
+            "stargazerCount": 0,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-23T13:12:26Z",
+            "url": "https://github.com/github/copilot-sdk-workshop"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnkyMTExNjkwMTY=",
+            "name": "vscode-codeql",
+            "owner": {
+              "login": "github"
+            },
+            "description": "An extension for Visual Studio Code that adds rich language support for CodeQL",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "TypeScript"
+            },
+            "stargazerCount": 540,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-23T13:06:50Z",
+            "url": "https://github.com/github/vscode-codeql"
+          },
+          {
+            "id": "R_kgDONPYNng",
+            "name": "gh-skyline",
+            "owner": {
+              "login": "github"
+            },
+            "description": "A GitHub CLI extension to generate a 3D model of your GitHub contribution history",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "Go"
+            },
+            "stargazerCount": 1343,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-23T12:30:58Z",
+            "url": "https://github.com/github/gh-skyline"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnkzNzE4OTAyMQ==",
+            "name": "brubeck",
+            "owner": {
+              "login": "github"
+            },
+            "description": "A Statsd-compatible metrics aggregator",
+            "defaultBranchRef": {
+              "name": "master"
+            },
+            "primaryLanguage": {
+              "name": "C"
+            },
+            "stargazerCount": 1175,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": true,
+            "updatedAt": "2026-09-23T12:14:17Z",
+            "url": "https://github.com/github/brubeck"
+          },
+          {
+            "id": "R_kgDORv3GOg",
+            "name": "copilot-billing-preview",
+            "owner": {
+              "login": "github"
+            },
+            "description": "An application for previewing and comparing your future GitHub Copilot bills as you transition to the new usage-based billing model.",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "TypeScript"
+            },
+            "stargazerCount": 32,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-23T11:51:21Z",
+            "url": "https://github.com/github/copilot-billing-preview"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnkyMjExMDEyNzQ=",
+            "name": "securitylab",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Resources related to GitHub Security Lab",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "C"
+            },
+            "stargazerCount": 1630,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-23T06:28:47Z",
+            "url": "https://github.com/github/securitylab"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnkyNDY2MzM0NA==",
+            "name": "include-fragment-element",
+            "owner": {
+              "login": "github"
+            },
+            "description": "A client-side includes tag.",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "JavaScript"
+            },
+            "stargazerCount": 569,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-23T05:26:55Z",
+            "url": "https://github.com/github/include-fragment-element"
+          },
+          {
+            "id": "R_kgDOHeCviQ",
+            "name": "codespaces-jupyter",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Explore machine learning and data science with Codespaces",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "Jupyter Notebook"
+            },
+            "stargazerCount": 902,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-23T05:16:15Z",
+            "url": "https://github.com/github/codespaces-jupyter"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnkyNDAwODczNzY=",
+            "name": "catalyst",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Catalyst is a set of patterns and techniques for developing components within a complex application.",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "TypeScript"
+            },
+            "stargazerCount": 1434,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-23T02:46:26Z",
+            "url": "https://github.com/github/catalyst"
+          },
+          {
+            "id": "R_kgDOHHoeOw",
+            "name": "emergency-pull-request-probot-app",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Bypass approval and checks in order to merge an emergency change to the main branch with audit controls.",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "JavaScript"
+            },
+            "stargazerCount": 65,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-23T00:03:36Z",
+            "url": "https://github.com/github/emergency-pull-request-probot-app"
+          },
+          {
+            "id": "R_kgDOSQPLtQ",
+            "name": "gh-aw-threat-detection",
+            "owner": {
+              "login": "github"
+            },
+            "description": "GitHub Agentic Workflows Threat Detection",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "Go"
+            },
+            "stargazerCount": 14,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-22T23:22:20Z",
+            "url": "https://github.com/github/gh-aw-threat-detection"
+          },
+          {
+            "id": "R_kgDOMVlZ8g",
+            "name": "codespaces-models",
+            "owner": {
+              "login": "github"
+            },
+            "description": null,
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "Jupyter Notebook"
+            },
+            "stargazerCount": 77,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": true,
+            "updatedAt": "2026-09-22T20:16:33Z",
+            "url": "https://github.com/github/codespaces-models"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnkyMTY5NjM5OTQ=",
+            "name": "vscode-codeql-starter",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Starter workspace to use with the CodeQL extension for Visual Studio Code.",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "CodeQL"
+            },
+            "stargazerCount": 593,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-22T18:33:04Z",
+            "url": "https://github.com/github/vscode-codeql-starter"
+          },
+          {
+            "id": "R_kgDOHdthxA",
+            "name": "entitlements-app",
+            "owner": {
+              "login": "github"
+            },
+            "description": "The Ruby Gem that Powers Entitlements - GitHub's Identity and Access Management System",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "Ruby"
+            },
+            "stargazerCount": 445,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-22T17:53:11Z",
+            "url": "https://github.com/github/entitlements-app"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnkxNjc0NTk4NTI=",
+            "name": "personal-website",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Code that'll help you kickstart a personal website that showcases your work as a software developer.",
+            "defaultBranchRef": {
+              "name": "master"
+            },
+            "primaryLanguage": {
+              "name": "HTML"
+            },
+            "stargazerCount": 7612,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": true,
+            "updatedAt": "2026-09-22T17:24:37Z",
+            "url": "https://github.com/github/personal-website"
+          },
+          {
+            "id": "R_kgDOHutqTg",
+            "name": "markdownlint-github",
+            "owner": {
+              "login": "github"
+            },
+            "description": "An opinionated collection of markdownlint rules used by GitHub.",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "JavaScript"
+            },
+            "stargazerCount": 102,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-22T17:01:08Z",
+            "url": "https://github.com/github/markdownlint-github"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnk5NDkyMDQ1Mw==",
+            "name": "lightcrawler",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Crawl a website and run it through Google lighthouse",
+            "defaultBranchRef": {
+              "name": "master"
+            },
+            "primaryLanguage": {
+              "name": "JavaScript"
+            },
+            "stargazerCount": 1566,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": true,
+            "updatedAt": "2026-09-22T16:35:03Z",
+            "url": "https://github.com/github/lightcrawler"
+          },
+          {
+            "id": "R_kgDORW6Lqw",
+            "name": "java-codespaces",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Template for new Codespaces-enabled repos for Java projects",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "Java"
+            },
+            "stargazerCount": 10,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-22T14:13:13Z",
+            "url": "https://github.com/github/java-codespaces"
+          },
+          {
+            "id": "R_kgDOUe3-jg",
+            "name": "wry",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Cross-platform WebView library in Rust for Tauri.",
+            "defaultBranchRef": {
+              "name": "dev"
+            },
+            "primaryLanguage": {
+              "name": "Rust"
+            },
+            "stargazerCount": 1,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": true,
+            "isArchived": false,
+            "updatedAt": "2026-09-22T11:25:41Z",
+            "url": "https://github.com/github/wry"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnkzOTIzOTA1NDk=",
+            "name": "codeql-variant-analysis-action",
+            "owner": {
+              "login": "github"
+            },
+            "description": null,
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "TypeScript"
+            },
+            "stargazerCount": 25,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-22T11:24:28Z",
+            "url": "https://github.com/github/codeql-variant-analysis-action"
+          },
+          {
+            "id": "R_kgDOH8xNuA",
+            "name": "codespaces-django",
+            "owner": {
+              "login": "github"
+            },
+            "description": null,
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "Python"
+            },
+            "stargazerCount": 130,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-22T10:39:38Z",
+            "url": "https://github.com/github/codespaces-django"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnkxMjMxOTU5MTU=",
+            "name": "clipboard-copy-element",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Copy element text content or input values to the clipboard.",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "JavaScript"
+            },
+            "stargazerCount": 491,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-22T10:29:39Z",
+            "url": "https://github.com/github/clipboard-copy-element"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnkyMzI0MjY5NjI=",
+            "name": "file-attachment-element",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Attach files via drag and drop or file input.",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "TypeScript"
+            },
+            "stargazerCount": 132,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-22T09:44:17Z",
+            "url": "https://github.com/github/file-attachment-element"
+          },
+          {
+            "id": "R_kgDOHQEkXw",
+            "name": "branch-deploy",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Enabling Branch Deployments through IssueOps with GitHub Actions - If you find this project useful, give it a star! ⭐️ ",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "TypeScript"
+            },
+            "stargazerCount": 579,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-22T08:34:05Z",
+            "url": "https://github.com/github/branch-deploy"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnkxNjYyNTI4OTg=",
+            "name": "hotkey",
+            "owner": {
+              "login": "github"
+            },
+            "description": "Trigger an action on an element with a keyboard shortcut.",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "JavaScript"
+            },
+            "stargazerCount": 3299,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-22T08:16:49Z",
+            "url": "https://github.com/github/hotkey"
+          },
+          {
+            "id": "R_kgDOHAlVag",
+            "name": "gh-net",
+            "owner": {
+              "login": "github"
+            },
+            "description": "A network bridge between a Codespace and a local machine.",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": null,
+            "stargazerCount": 347,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": true,
+            "updatedAt": "2026-09-22T06:50:41Z",
+            "url": "https://github.com/github/gh-net"
+          }
+        ],
+        "pageInfo": {
+          "hasNextPage": true,
+          "endCursor": "Y3Vyc29yOnYyOpK0MjAyNi0wOS0yMlQwNjo1MDo0MVrOHAlVag=="
+        }
+      }
+    }
+  }
+}

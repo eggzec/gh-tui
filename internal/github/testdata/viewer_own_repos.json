@@ -1,0 +1,61 @@
+{
+  "data": {
+    "rateLimit": {
+      "cost": 1,
+      "limit": 5000,
+      "remaining": 4990,
+      "used": 10,
+      "resetAt": "2026-09-24T12:29:23Z"
+    },
+    "viewer": {
+      "repositories": {
+        "nodes": [
+          {
+            "id": "MDEwOlJlcG9zaXRvcnkxMjk2MjY5",
+            "name": "Hello-World",
+            "owner": {
+              "login": "octocat"
+            },
+            "description": "My first repository on GitHub!",
+            "defaultBranchRef": {
+              "name": "master"
+            },
+            "primaryLanguage": null,
+            "stargazerCount": 3824,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T10:49:42Z",
+            "url": "https://github.com/octocat/Hello-World"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnkxMzAwMTky",
+            "name": "Spoon-Knife",
+            "owner": {
+              "login": "octocat"
+            },
+            "description": "This repo is for demonstration purposes only.",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "HTML"
+            },
+            "stargazerCount": 14056,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T08:23:12Z",
+            "url": "https://github.com/octocat/Spoon-Knife"
+          }
+        ],
+        "pageInfo": {
+          "hasNextPage": false,
+          "endCursor": "Y3Vyc29yOnYyOpK0MjAyNC0wNC0wNVQxOToxMDozN1rOAiXNSw=="
+        }
+      }
+    }
+  }
+}
