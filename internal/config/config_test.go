@@ -235,3 +235,29 @@ func TestComposeActions(t *testing.T) {
 		t.Errorf("Validate() = %v, want label to need a key", err)
 	}
 }
+
+func TestScreenActions(t *testing.T) {
+	defaults := Default().Keys
+	for action, want := range map[string]string{
+		ActionPane1: "1", ActionPane2: "2", ActionPane3: "3", ActionNotifications: "n",
+	} {
+		if got := defaults[action]; !slices.Equal(got, []string{want}) {
+			t.Errorf("default %s = %v, want [%s]", action, got, want)
+		}
+	}
+
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(path, []byte("keys:\n  notifications: [\"N\"]\n  pane_1: [\"F\"]\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got := cfg.Keys[ActionNotifications]; !slices.Equal(got, []string{"N"}) {
+		t.Errorf("notifications = %v, want [N]", got)
+	}
+	if got := cfg.Keys[ActionPane1]; !slices.Equal(got, []string{"F"}) {
+		t.Errorf("pane_1 = %v, want [F]", got)
+	}
+}
