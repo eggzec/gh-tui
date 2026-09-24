@@ -54,8 +54,12 @@ func build(ctx context.Context, cfg config.Config, arg string) (*tui.Model, erro
 	// Search results keep the search service's own short TTL.
 	searchSvc := searchsvc.New(client)
 
+	var fileOpts []files.Option
+	if p := cfg.Files.Prefetch; p.Enabled {
+		fileOpts = append(fileOpts, files.WithPrefetch(int64(p.MaxSize)))
+	}
 	layout := tui.Layout{
-		Files:         files.New(ctx, fileSvc, cfg.Keys),
+		Files:         files.New(ctx, fileSvc, cfg.Keys, fileOpts...),
 		Pulls:         pulls.New(ctx, pullSvc, cfg.Keys),
 		Issues:        issues.New(ctx, issueSvc, cfg.Keys),
 		Notifications: notifications.New(ctx, notifSvc, cfg.Keys),

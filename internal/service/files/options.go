@@ -11,9 +11,11 @@ const (
 	// DefaultMaxBlobSize is the largest file the service reads, 1 MiB.
 	// Larger files are better opened in the browser.
 	DefaultMaxBlobSize = 1 << 20
-	// DefaultBlobCapacity is how many file contents are kept. It is lower
-	// than for trees since each one may be as large as the size limit.
-	DefaultBlobCapacity = 64
+	// DefaultBlobCapacity is how many file contents are kept: enough for
+	// the files read ahead of the preview in a few repositories. It is
+	// lower than for trees since each one may be as large as the size
+	// limit, though most files read ahead are small.
+	DefaultBlobCapacity = 256
 )
 
 // Option configures a Service.
