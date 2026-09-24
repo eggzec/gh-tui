@@ -375,3 +375,32 @@ func TestRunStops(t *testing.T) {
 		e.Subscribe("late", newSource(nil).poll)
 	})
 }
+
+func TestPublish(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		e := New(WithInterval(10 * time.Second))
+		src := newSource(changed)
+		e.Subscribe("polled", src.poll)
+		e.Publish("early") // before Run: delivered once it runs
+		stop := run(t, e)
+		synctest.Wait()
+		if got := receiveAll(e); !slices.Equal(got, []Event{{Key: "early"}}) {
+			t.Errorf("events = %v, want the one published before Run", got)
+		}
+
+		// A key without a poller, and one whose poll found a change too,
+		// each get one event.
+		e.Publish("other")
+		e.Publish("other")
+		synctest.Sleep(10 * time.Second)
+		e.Publish("polled")
+		got := receiveAll(e)
+		slices.SortFunc(got, func(x, y Event) int { return strings.Compare(x.Key, y.Key) })
+		if want := []Event{{Key: "other"}, {Key: "polled"}}; !slices.Equal(got, want) {
+			t.Errorf("events = %v, want %v", got, want)
+		}
+
+		_ = stop()
+		e.Publish("late") // must not panic or block
+	})
+}
