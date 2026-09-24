@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -175,5 +176,29 @@ func TestContextCanceled(t *testing.T) {
 	_, err := c.Get(ctx, "slow", Conditional{}, nil)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("Get error = %v, want context.Canceled", err)
+	}
+}
+
+func TestAccount(t *testing.T) {
+	account := func(host, token string) string {
+		t.Helper()
+		c, err := New(WithBaseURL("https://"+host+"/"), WithToken(token))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return c.Account()
+	}
+	a := account("api.github.com", "token-a")
+	if len(a) != 32 || strings.Contains(a, "token") {
+		t.Errorf("Account() = %q, want 32 hex digits", a)
+	}
+	if again := account("api.github.com", "token-a"); again != a {
+		t.Errorf("Account() = %q then %q, want it stable", a, again)
+	}
+	if b := account("api.github.com", "token-b"); b == a {
+		t.Error("two tokens have the same account")
+	}
+	if ghe := account("ghe.example.com", "token-a"); ghe == a {
+		t.Error("two hosts have the same account")
 	}
 }
