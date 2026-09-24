@@ -1,0 +1,214 @@
+package ui
+
+import (
+	"context"
+	"errors"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	tea "charm.land/bubbletea/v2"
+
+	"github.com/eggzec/gh-tui/internal/core"
+)
+
+// aheadWorkers is the most rows whose details are read ahead at once, on
+// top of the row under the cursor. A detail may take a few requests.
+const aheadWorkers = 3
+
+// Ahead reads the details of the rows of a list before they are opened, into
+// the cache the detail reads from, so that they open at once: those of the
+// first rows once the list loads, and that of the row the cursor rests on.
+// K identifies a row, such as the query of its first comments. Create it
+// with [NewAhead]; a nil *Ahead reads nothing.
+//
+// Each read costs requests, so few run at once, and the reads stop once
+// GitHub reports the rate limit, until [Ahead.Resume].
+type Ahead[K comparable] struct {
+	id    int64
+	rows  int
+	delay time.Duration
+	read  func(ctx context.Context, k K) error
+	// current reports whether the detail of k is cached already. It must
+	// not do I/O.
+	current func(k K) bool
+
+	// ctx bounds the reads of the list shown, and cancel ends them.
+	ctx    context.Context
+	cancel context.CancelFunc
+	// limited is shared with the reads in flight, which set it.
+	limited *atomic.Bool
+	// first are the first rows read ahead for the list.
+	first []K
+
+	// hovered is the row the cursor was last seen on, and seq counts the
+	// times it moved, so that only the latest delay fires.
+	hovered    K
+	hasHovered bool
+	seq        int
+	stopHover  context.CancelFunc
+}
+
+// AheadMsg reports that the cursor rested on a row. Sections pass it to
+// [Ahead.Rested].
+type AheadMsg struct {
+	id  int64
+	seq int
+}
+
+var lastAhead atomic.Int64
+
+// NewAhead returns an Ahead that reads the detail of a row with read and
+// asks current whether it is cached already. It reads the first rows of a
+// list, and the row under the cursor once it has rested there for delay.
+func NewAhead[K comparable](read func(ctx context.Context, k K) error, current func(k K) bool, rows int, delay time.Duration) *Ahead[K] {
+	return &Ahead[K]{
+		id:      lastAhead.Add(1),
+		rows:    max(rows, 0),
+		delay:   max(delay, 0),
+		read:    read,
+		current: current,
+		ctx:     context.Background(),
+		cancel:  func() {},
+		limited: new(atomic.Bool),
+	}
+}
+
+// Reset cancels the reads of the list shown, for a new list whose reads
+// parent bounds.
+func (a *Ahead[K]) Reset(parent context.Context) {
+	if a == nil {
+		return
+	}
+	a.cancel()
+	a.ctx, a.cancel = context.WithCancel(parent)
+	a.first = a.first[:0]
+	var zero K
+	a.hovered, a.hasHovered = zero, false
+	a.seq++
+	a.stopHover = nil
+}
+
+// Resume reads ahead again after GitHub reported the rate limit, such as
+// for another repository.
+func (a *Ahead[K]) Resume() {
+	if a != nil {
+		a.limited.Store(false)
+	}
+}
+
+// First reads the details of the first rows of the list, which at returns
+// by index, and false for a row not loaded. It reads them again only when
+// the first rows change, and skips those cached.
+func (a *Ahead[K]) First(at func(i int) (K, bool)) tea.Cmd {
+	if a == nil || a.rows == 0 || a.limited.Load() || a.same(at) {
+		return nil
+	}
+	a.first = a.first[:0]
+	for i := range a.rows {
+		k, ok := at(i)
+		if !ok {
+			break
+		}
+		a.first = append(a.first, k)
+	}
+	var todo []K
+	for _, k := range a.first {
+		if !a.current(k) {
+			todo = append(todo, k)
+		}
+	}
+	if len(todo) == 0 {
+		return nil
+	}
+	ctx, read, limited := a.ctx, a.read, a.limited
+	return func() tea.Msg {
+		readAll(ctx, read, limited, todo)
+		return nil
+	}
+}
+
+// same reports whether the first rows are those read ahead already.
+func (a *Ahead[K]) same(at func(i int) (K, bool)) bool {
+	n := 0
+	for i := range a.rows {
+		k, ok := at(i)
+		if !ok {
+			break
+		}
+		if i >= len(a.first) || a.first[i] != k {
+			return false
+		}
+		n++
+	}
+	return n == len(a.first)
+}
+
+// readAll reads the details of ks, a few at a time, until ctx is done or
+// GitHub reports the rate limit. Other failures are for the detail to
+// report, if it is opened.
+func readAll[K any](ctx context.Context, read func(context.Context, K) error, limited *atomic.Bool, ks []K) {
+	sem := make(chan struct{}, aheadWorkers)
+	var wg sync.WaitGroup
+	defer wg.Wait()
+	for _, k := range ks {
+		select {
+		case sem <- struct{}{}:
+		case <-ctx.Done():
+			return
+		}
+		if limited.Load() {
+			return
+		}
+		wg.Go(func() {
+			defer func() { <-sem }()
+			readOne(ctx, read, limited, k)
+		})
+	}
+}
+
+func readOne[K any](ctx context.Context, read func(context.Context, K) error, limited *atomic.Bool, k K) {
+	if err := read(ctx, k); errors.Is(err, core.ErrRateLimited) {
+		limited.Store(true)
+	}
+}
+
+// Moved starts the delay when the cursor moved to a row, k, whose detail
+// isn't cached. ok is false when the cursor is on no row.
+func (a *Ahead[K]) Moved(k K, ok bool) tea.Cmd {
+	if a == nil || ok == a.hasHovered && k == a.hovered {
+		return nil
+	}
+	a.hovered, a.hasHovered = k, ok
+	a.seq++
+	if !ok || a.limited.Load() || a.current(k) {
+		return nil
+	}
+	msg := AheadMsg{id: a.id, seq: a.seq}
+	return tea.Tick(a.delay, func(time.Time) tea.Msg { return msg })
+}
+
+// Rested reads the detail of the row the cursor rested on, unless it moved
+// since. A newer read cancels an older one still in flight, so at most one
+// runs.
+func (a *Ahead[K]) Rested(msg AheadMsg) tea.Cmd {
+	if a == nil || msg.id != a.id || msg.seq != a.seq || !a.hasHovered {
+		return nil
+	}
+	if a.stopHover != nil {
+		a.stopHover()
+		a.stopHover = nil
+	}
+	k := a.hovered
+	if a.limited.Load() || a.current(k) {
+		return nil
+	}
+	ctx, cancel := context.WithCancel(a.ctx)
+	a.stopHover = cancel
+	read, limited := a.read, a.limited
+	return func() tea.Msg {
+		defer cancel()
+		readOne(ctx, read, limited, k)
+		return nil
+	}
+}

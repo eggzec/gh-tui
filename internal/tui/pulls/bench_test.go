@@ -2,13 +2,14 @@ package pulls
 
 import (
 	"testing"
+	"time"
 )
 
-func benchSection(b *testing.B) *host {
+func benchSection(b *testing.B, opts ...Option) *host {
 	b.Helper()
 	svc := newFakeService()
 	svc.pulls = manyPulls(300)
-	return started(b, svc, 120, 40)
+	return started(b, svc, 120, 40, opts...)
 }
 
 func BenchmarkView(b *testing.B) {
@@ -47,6 +48,21 @@ func BenchmarkUpdate(b *testing.B) {
 		i := 0
 		for b.Loop() {
 			// Stay within the first page, so no fetch runs.
+			k := down
+			if i%40 >= 20 {
+				k = up
+			}
+			i++
+			_ = s.Update(k)
+		}
+	})
+	b.Run("move with prefetch", func(b *testing.B) {
+		// Each move starts the hover delay, which the loop doesn't run.
+		s := benchSection(b, WithPrefetch(5, time.Nanosecond))
+		down, up := keyMsg("down"), keyMsg("up")
+		b.ReportAllocs()
+		i := 0
+		for b.Loop() {
 			k := down
 			if i%40 >= 20 {
 				k = up

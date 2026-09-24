@@ -24,6 +24,9 @@ type Service interface {
 	Get(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error)
 	CachedComments(q pulls.CommentsQuery) (core.Page[core.Comment], bool)
 	Comments(ctx context.Context, q pulls.CommentsQuery) (core.Page[core.Comment], error)
+	// Current reports whether the detail of the pull request of q and the
+	// comments q selects are cached so that reading them costs no request.
+	Current(q pulls.CommentsQuery) bool
 	// Invalidate marks what is cached of repo stale, so that the reads
 	// after it ask GitHub.
 	Invalidate(repo core.RepoRef)
@@ -58,6 +61,13 @@ type Section struct {
 	feed       *feed.Model[core.PullRequest]
 	cancelFeed context.CancelFunc
 
+	// ahead reads the details of the rows of feed before they are opened,
+	// if prefetch is set. rowAt returns the query of the first comments of
+	// row i, which is how ahead knows a row.
+	prefetch *prefetch
+	ahead    *ui.Ahead[pulls.CommentsQuery]
+	rowAt    func(i int) (pulls.CommentsQuery, bool)
+
 	width, height int
 	theme         ui.Theme
 	st            styles
@@ -84,6 +94,21 @@ func WithMergeMethod(m core.MergeMethod) Option {
 	return func(s *Section) { s.mergeMethod = m }
 }
 
+// prefetch is how the details are read ahead.
+type prefetch struct {
+	rows  int
+	delay time.Duration
+}
+
+// WithPrefetch reads the detail and the first comments of the first rows
+// of each list once it loads, and of the row under the cursor once the
+// cursor has rested on it for delay, so that they open at once. Each costs
+// two requests; details already cached are skipped. The default reads
+// nothing ahead.
+func WithPrefetch(rows int, delay time.Duration) Option {
+	return func(s *Section) { s.prefetch = &prefetch{rows: rows, delay: delay} }
+}
+
 // New returns the section, reading from svc with the configured keys. ctx
 // bounds every request it makes.
 func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Option) *Section {
@@ -97,6 +122,13 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 	}
 	for _, opt := range opts {
 		opt(s)
+	}
+	if p := s.prefetch; p != nil {
+		s.ahead = ui.NewAhead(readDetail(svc), svc.Current, p.rows, p.delay)
+		s.rowAt = func(i int) (pulls.CommentsQuery, bool) {
+			pr, ok := s.feed.Item(i)
+			return commentsQuery(s.repo, pr.Number), ok
+		}
 	}
 	s.hint = "Search for a repository to see its pull requests."
 	if k := ui.Binding(keys, config.ActionSearch, "search").Help().Key; k != "" {
@@ -128,6 +160,7 @@ func (s *Section) newFeed() tea.Cmd {
 		s.cancelFeed()
 	}
 	ctx, cancel := context.WithCancel(s.ctx)
+	s.ahead.Reset(ctx)
 	q := pulls.ListQuery{Repo: s.repo, State: s.filter}
 	svc := s.svc
 	fetch := func(ctx context.Context, cursor string) ([]core.PullRequest, string, error) {

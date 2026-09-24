@@ -11,6 +11,17 @@ import (
 
 // Update implements ui.Section.
 func (s *Section) Update(msg tea.Msg) tea.Cmd {
+	if msg, ok := msg.(ui.AheadMsg); ok {
+		return s.ahead.Rested(msg)
+	}
+	cmd := s.update(msg)
+	if ahead := s.readAhead(); ahead != nil {
+		return tea.Batch(cmd, ahead)
+	}
+	return cmd
+}
+
+func (s *Section) update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case ui.RepoMsg:
 		return s.setRepo(msg.Repo)
@@ -45,6 +56,8 @@ func (s *Section) setRepo(repo core.RepoRef) tea.Cmd {
 		return nil
 	}
 	s.repo, s.hasRepo = repo, true
+	// The rate limit may be another's.
+	s.ahead.Resume()
 	s.renderHeader()
 	if !s.started {
 		return nil
