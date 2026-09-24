@@ -4,8 +4,8 @@
 //
 //	gh-tui [--debug] [owner/name]
 //
-// Without a repository it uses the one in the current directory, then the
-// first pinned repository in the config.
+// It opens on the repository given, or else on the dashboard, which shows
+// the repository of the current directory first.
 package main
 
 import (

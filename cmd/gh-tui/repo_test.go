@@ -6,9 +6,8 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 )
 
-func TestStartRepo(t *testing.T) {
+func TestStartRepos(t *testing.T) {
 	cwd := core.RepoRef{Owner: "eggzec", Name: "gh-tui"}
-	pin := core.RepoRef{Owner: "charmbracelet", Name: "bubbletea"}
 	inRepo := func() (core.RepoRef, bool) { return cwd, true }
 	outside := func() (core.RepoRef, bool) { return core.RepoRef{}, false }
 
@@ -16,24 +15,23 @@ func TestStartRepo(t *testing.T) {
 		name    string
 		arg     string
 		current func() (core.RepoRef, bool)
-		pinned  []core.RepoRef
-		want    core.RepoRef
+		open    core.RepoRef
+		here    core.RepoRef
 		wantErr bool
 	}{
-		{name: "argument wins", arg: "cli/cli", current: inRepo, pinned: []core.RepoRef{pin}, want: core.RepoRef{Owner: "cli", Name: "cli"}},
+		{name: "argument", arg: "cli/cli", current: inRepo, open: core.RepoRef{Owner: "cli", Name: "cli"}, here: cwd},
 		{name: "bad argument", arg: "cli", current: inRepo, wantErr: true},
-		{name: "current directory", current: inRepo, pinned: []core.RepoRef{pin}, want: cwd},
-		{name: "first pinned", current: outside, pinned: []core.RepoRef{pin, cwd}, want: pin},
+		{name: "current directory", current: inRepo, here: cwd},
 		{name: "none", current: outside},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := startRepo(tt.arg, tt.current, tt.pinned)
+			open, here, err := startRepos(tt.arg, tt.current)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("error = %v, wantErr %v", err, tt.wantErr)
 			}
-			if got != tt.want {
-				t.Errorf("startRepo = %v, want %v", got, tt.want)
+			if open != tt.open || here != tt.here {
+				t.Errorf("startRepos = %v, %v; want %v, %v", open, here, tt.open, tt.here)
 			}
 		})
 	}

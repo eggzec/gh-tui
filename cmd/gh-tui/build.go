@@ -11,6 +11,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
+	dashsvc "github.com/eggzec/gh-tui/internal/service/dashboard"
 	filesvc "github.com/eggzec/gh-tui/internal/service/files"
 	historysvc "github.com/eggzec/gh-tui/internal/service/history"
 	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
@@ -19,6 +20,7 @@ import (
 	reposvc "github.com/eggzec/gh-tui/internal/service/repos"
 	searchsvc "github.com/eggzec/gh-tui/internal/service/search"
 	"github.com/eggzec/gh-tui/internal/tui"
+	"github.com/eggzec/gh-tui/internal/tui/dashboard"
 	"github.com/eggzec/gh-tui/internal/tui/files"
 	"github.com/eggzec/gh-tui/internal/tui/history"
 	"github.com/eggzec/gh-tui/internal/tui/issues"
@@ -30,7 +32,7 @@ import (
 
 // build wires the client, the services, the sync engine and the sections
 // into the app. arg is the repository named on the command line, if any.
-// The app opens on that repository, or on the notifications when there is
+// The app opens on that repository, or on the dashboard when there is
 // none. The app shows logWarning, if any, once it starts.
 func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui.Model, error) {
 	client, err := github.New()
@@ -42,7 +44,7 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 	if err != nil {
 		return nil, err
 	}
-	repo, err := startRepo(arg, currentRepo, pinned)
+	repo, here, err := startRepos(arg, currentRepo)
 	if err != nil {
 		return nil, err
 	}
@@ -59,6 +61,7 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 	issueSvc := issuesvc.New(client, issuesvc.WithTTL(ttl), issuesvc.WithStore(entries))
 	notifSvc := notifsvc.New(client, notifsvc.WithTTL(ttl), notifsvc.WithStore(entries))
 	repoSvc := reposvc.New(client, reposvc.WithTTL(ttl), reposvc.WithStore(entries))
+	dashSvc := dashsvc.New(client, dashsvc.WithTTL(ttl), dashsvc.WithStore(entries))
 	fileSvcOpts := []filesvc.Option{filesvc.WithTTL(ttl), filesvc.WithMaxBlobSize(int64(cfg.Files.Preview.MaxSize))}
 	if store != nil {
 		fileSvcOpts = append(fileSvcOpts, filesvc.WithStore(store))
@@ -99,6 +102,12 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 		Pulls:         pulls.New(ctx, pullSvc, cfg.Keys, pullOpts...),
 		Issues:        issues.New(ctx, issueSvc, cfg.Keys, issueOpts...),
 		Notifications: notifications.New(ctx, notifSvc, cfg.Keys, notifications.WithOffline(offline)),
+		Dashboard: dashboard.New(ctx, dashSvc, cfg.Keys,
+			dashboard.WithOffline(offline),
+			dashboard.WithInbox(notifSvc),
+			dashboard.WithHere(here, repoSvc.Get),
+			dashboard.WithGlyph(cfg.Dashboard.CalendarGlyph),
+		),
 	}
 
 	b := browser.New("", io.Discard, io.Discard)
