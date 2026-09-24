@@ -121,6 +121,10 @@ type ShowMsg struct {
 	Title string
 }
 
+// BackMsg asks the app to go back to the screen before the one on view,
+// such as when the user leaves the search.
+type BackMsg struct{}
+
 // OpenMsg asks the app to open URL in the browser.
 type OpenMsg struct {
 	URL string
