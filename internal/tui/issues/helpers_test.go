@@ -436,41 +436,84 @@ func testTheme() ui.Theme {
 	return ui.NewTheme(p, true)
 }
 
+// host stands in for the app: it sends keys to the modal opened last, or
+// else to the section, every other message to both, and opens and closes
+// the modals. The modals are as large as the section.
+type host struct {
+	*Section
+	modals []ui.Modal
+}
+
+// Update routes msg as the app does.
+func (h *host) Update(msg tea.Msg) tea.Cmd {
+	switch msg := msg.(type) {
+	case ui.OpenModalMsg:
+		msg.Modal.SetTheme(h.theme)
+		msg.Modal.SetSize(h.width, h.height)
+		h.modals = append(h.modals, msg.Modal)
+		return nil
+	case ui.CloseModalMsg:
+		if i := slices.Index(h.modals, msg.Modal); i >= 0 {
+			h.modals = h.modals[:i]
+		}
+		return nil
+	case tea.KeyPressMsg:
+		if len(h.modals) > 0 {
+			return h.modals[len(h.modals)-1].Update(msg)
+		}
+		return h.Section.Update(msg)
+	}
+	cmds := []tea.Cmd{h.Section.Update(msg)}
+	for _, m := range h.modals {
+		cmds = append(cmds, m.Update(msg))
+	}
+	return tea.Batch(cmds...)
+}
+
+// modal returns the detail open on top, or nil.
+func (h *host) modal() *detailModal {
+	if len(h.modals) == 0 {
+		return nil
+	}
+	m, _ := h.modals[len(h.modals)-1].(*detailModal)
+	return m
+}
+
 // newSection returns a focused section at width×height over svc, with the
 // default keys and a pinned clock. It is not started.
-func newSection(tb testing.TB, svc Service, width, height int) *Section {
+func newSection(tb testing.TB, svc Service, width, height int) *host {
 	tb.Helper()
 	s := New(tb.Context(), svc, config.Default().Keys, WithNow(func() time.Time { return testNow }))
 	s.SetTheme(testTheme())
 	s.SetSize(width, height)
 	s.Focus()
-	return s
+	return &host{Section: s}
 }
 
 // started returns a section that was sent the test repository and started,
 // with its first page loaded.
-func started(tb testing.TB, svc Service, width, height int) *Section {
+func started(tb testing.TB, svc Service, width, height int) *host {
 	tb.Helper()
-	s := newSection(tb, svc, width, height)
-	run(tb, s, s.Update(ui.RepoMsg{Repo: testRepo}))
-	run(tb, s, s.Init())
-	return s
+	h := newSection(tb, svc, width, height)
+	run(tb, h, h.Update(ui.RepoMsg{Repo: testRepo}))
+	run(tb, h, h.Init())
+	return h
 }
 
 // run runs cmd and every command that follows from it, feeding their
-// messages to s, as the program would. Spinner ticks are dropped so it ends.
+// messages to h, as the program would. Spinner ticks are dropped so it ends.
 // It returns the messages that were fed.
-func run(tb testing.TB, s *Section, cmd tea.Cmd) []tea.Msg {
+func run(tb testing.TB, h *host, cmd tea.Cmd) []tea.Msg {
 	tb.Helper()
-	fed, _ := drive(tb, s, cmd, func(tea.Msg) bool { return false })
+	fed, _ := drive(tb, h, cmd, func(tea.Msg) bool { return false })
 	return fed
 }
 
 // runHolding runs cmd like run, but holds back the DoneMsgs, so a test can
 // look at the optimistic state before GitHub answers.
-func runHolding(tb testing.TB, s *Section, cmd tea.Cmd) []ui.DoneMsg {
+func runHolding(tb testing.TB, h *host, cmd tea.Cmd) []ui.DoneMsg {
 	tb.Helper()
-	_, held := drive(tb, s, cmd, func(msg tea.Msg) bool {
+	_, held := drive(tb, h, cmd, func(msg tea.Msg) bool {
 		_, ok := msg.(ui.DoneMsg)
 		return ok
 	})
@@ -481,9 +524,9 @@ func runHolding(tb testing.TB, s *Section, cmd tea.Cmd) []ui.DoneMsg {
 	return done
 }
 
-// drive runs cmd and what follows, feeding s every message but those hold
+// drive runs cmd and what follows, feeding h every message but those hold
 // reports true for, which it returns apart.
-func drive(tb testing.TB, s *Section, cmd tea.Cmd, hold func(tea.Msg) bool) (fed, held []tea.Msg) {
+func drive(tb testing.TB, h *host, cmd tea.Cmd, hold func(tea.Msg) bool) (fed, held []tea.Msg) {
 	tb.Helper()
 	queue := []tea.Cmd{cmd}
 	for len(queue) > 0 {
@@ -496,8 +539,8 @@ func drive(tb testing.TB, s *Section, cmd tea.Cmd, hold func(tea.Msg) bool) (fed
 		if seq, ok := sequence(msg); ok {
 			// Run each command of a sequence to the end before the next.
 			for _, sc := range seq {
-				f, h := drive(tb, s, sc, hold)
-				fed, held = append(fed, f...), append(held, h...)
+				f, hd := drive(tb, h, sc, hold)
+				fed, held = append(fed, f...), append(held, hd...)
 			}
 			continue
 		}
@@ -512,7 +555,7 @@ func drive(tb testing.TB, s *Section, cmd tea.Cmd, hold func(tea.Msg) bool) (fed
 				continue
 			}
 			fed = append(fed, msg)
-			queue = append(queue, s.Update(msg))
+			queue = append(queue, h.Update(msg))
 		}
 		if len(fed) > 10_000 {
 			tb.Fatal("commands don't settle")
@@ -536,21 +579,21 @@ func sequence(msg tea.Msg) ([]tea.Cmd, bool) {
 
 // press presses each key and runs what follows. It returns the messages
 // that were fed.
-func press(tb testing.TB, s *Section, keys ...string) []tea.Msg {
+func press(tb testing.TB, h *host, keys ...string) []tea.Msg {
 	tb.Helper()
 	msgs := make([]tea.Msg, 0, len(keys))
 	for _, k := range keys {
-		msgs = append(msgs, run(tb, s, s.Update(keyMsg(k)))...)
+		msgs = append(msgs, run(tb, h, h.Update(keyMsg(k)))...)
 	}
 	return msgs
 }
 
 // typeText types text into s one key at a time and runs what follows.
-func typeText(tb testing.TB, s *Section, text string) []tea.Msg {
+func typeText(tb testing.TB, h *host, text string) []tea.Msg {
 	tb.Helper()
 	msgs := make([]tea.Msg, 0, len(text))
 	for _, r := range text {
-		msgs = append(msgs, press(tb, s, string(r))...)
+		msgs = append(msgs, press(tb, h, string(r))...)
 	}
 	return msgs
 }

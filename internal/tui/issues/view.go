@@ -1,7 +1,6 @@
 package issues
 
 import (
-	"strconv"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -20,15 +19,6 @@ func (s *Section) View() string {
 	}
 	if s.height == 1 {
 		return s.bar
-	}
-	if s.inDetail && s.composing != composeNone {
-		if s.detail.Height() == 0 {
-			return s.bar + "\n" + s.prompt.View()
-		}
-		return s.bar + "\n" + s.detail.View() + "\n" + s.prompt.View()
-	}
-	if s.inDetail {
-		return s.bar + "\n" + s.detail.View()
 	}
 	return s.bar + "\n" + s.list.View()
 }
@@ -56,11 +46,6 @@ func (s *Section) renderChrome() {
 func (s *Section) renderBar() {
 	t := s.theme
 	left := "  " + t.Muted.Render(s.repo.String())
-	if s.inDetail {
-		left += t.Subtle.Render(" › ") + t.Muted.Render("#"+strconv.Itoa(s.issue.Number))
-		s.bar = fitStyled(left, s.width)
-		return
-	}
 	var right strings.Builder
 	for i, f := range filters {
 		if i > 0 {
@@ -92,19 +77,26 @@ func fitStyled(s string, width int) string {
 	return s + strings.Repeat(" ", max(width-ansi.StringWidth(s), 0))
 }
 
-// renderEmpty renders the state shown before a repository is selected.
+// renderEmpty renders the state shown before a repository is selected,
+// wrapped to fit a narrow pane.
 func (s *Section) renderEmpty() {
 	if s.width <= 0 || s.height <= 0 {
 		s.empty = ""
 		return
 	}
 	t := s.theme
-	text := lipgloss.JoinVertical(lipgloss.Center,
-		ansi.Truncate(t.Title.Render("No repository selected"), s.width, "…"),
+	center := lipgloss.NewStyle().Width(s.width).Align(lipgloss.Center)
+	text := lipgloss.JoinVertical(lipgloss.Left,
+		center.Inherit(t.Title).Render("No repository selected"),
 		"",
-		ansi.Truncate(t.Muted.Render("Pick a repository in Repositories (tab 4)."), s.width, "…"),
+		center.Inherit(t.Muted).Render(s.hint),
 	)
-	s.empty = lipgloss.Place(s.width, s.height, lipgloss.Center, lipgloss.Center, text)
+	lines := strings.Split(lipgloss.Place(s.width, s.height, lipgloss.Center, lipgloss.Center, text), "\n")
+	lines = lines[:min(len(lines), s.height)]
+	for i, l := range lines {
+		lines[i] = ansi.Truncate(l, s.width, "")
+	}
+	s.empty = strings.Join(lines, "\n")
 }
 
 // emptyText is what the list says when no issue matches the filter, with

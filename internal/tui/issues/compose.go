@@ -12,7 +12,7 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
 )
 
-// composing is what the prompt under the thread is for.
+// composing is what the prompt under the thread of a modal is for.
 type composing int
 
 const (
@@ -21,26 +21,29 @@ const (
 	composeLabels
 )
 
-// Heights of the comment prompt, which takes a third of the detail within
+// Heights of the comment prompt, which takes a third of the modal within
 // these bounds.
 const (
 	minCommentHeight = 5
 	maxCommentHeight = 10
 )
 
-// compose opens the prompt for what in the detail, under the thread, and
-// gives it the focus.
-func (s *Section) compose(what composing) tea.Cmd {
-	num := "#" + strconv.Itoa(s.issue.Number)
-	opts := []prompt.Option{prompt.WithStyles(s.theme.Prompt())}
+// compose opens the prompt for what under the thread, and gives it the
+// focus.
+func (m *detailModal) compose(what composing) tea.Cmd {
+	if !m.loaded {
+		return nil
+	}
+	num := "#" + strconv.Itoa(m.number)
+	opts := []prompt.Option{prompt.WithStyles(m.theme.Prompt())}
 	switch what {
 	case composeComment:
 		opts = append(opts,
 			prompt.WithTitle("Comment on "+num),
 			prompt.WithPlaceholder("Write a comment in markdown."))
 	case composeLabels:
-		names := make([]string, len(s.issue.Labels))
-		for i, l := range s.issue.Labels {
+		names := make([]string, len(m.issue.Labels))
+		for i, l := range m.issue.Labels {
 			names[i] = l.Name
 		}
 		opts = append(opts,
@@ -51,41 +54,30 @@ func (s *Section) compose(what composing) tea.Cmd {
 	default:
 		return nil
 	}
-	s.prompt = prompt.New(opts...)
-	s.composing = what
-	s.layoutDetail()
-	s.detail.Blur()
-	if !s.focused {
-		return nil
-	}
-	return s.prompt.Focus()
+	m.prompt = prompt.New(opts...)
+	m.composing = what
+	m.layout()
+	m.thread.Blur()
+	return m.prompt.Focus()
 }
 
 // closePrompt closes the prompt and gives the focus back to the thread.
-func (s *Section) closePrompt() {
-	if s.composing == composeNone {
+func (m *detailModal) closePrompt() {
+	if m.composing == composeNone {
 		return
 	}
-	s.composing = composeNone
-	s.prompt.Blur()
-	s.layoutDetail()
-	if s.focused && s.inDetail {
-		s.detail.Focus()
-	}
+	m.composing = composeNone
+	m.prompt.Blur()
+	m.layout()
+	m.thread.Focus()
 }
 
-// Capturing implements ui.Capturer: while the prompt is open, every key is
-// typing.
-func (s *Section) Capturing() bool {
-	return s.inDetail && s.composing != composeNone && s.focused
-}
-
-// layoutDetail shares the height under the bar between the thread and the
-// prompt, if it is open.
-func (s *Section) layoutDetail() {
-	h := s.bodyHeight()
+// layout shares the height of the modal between the thread and the prompt,
+// if it is open.
+func (m *detailModal) layout() {
+	h := m.height
 	ph := 0
-	switch s.composing {
+	switch m.composing {
 	case composeComment:
 		ph = min(max(h/3, minCommentHeight), maxCommentHeight, h)
 	case composeLabels:
@@ -93,70 +85,70 @@ func (s *Section) layoutDetail() {
 	case composeNone:
 	}
 	if ph > 0 {
-		s.prompt.SetSize(s.width, ph)
+		m.prompt.SetSize(m.width, ph)
 	}
-	s.detail.SetSize(s.width, h-ph)
+	m.thread.SetSize(m.width, h-ph)
 }
 
-// promptDone handles what the prompt reports, if it is this section's.
-func (s *Section) promptDone(msg tea.Msg) tea.Cmd {
-	if s.composing == composeNone {
+// promptDone handles what the prompt reports, if it is this modal's.
+func (m *detailModal) promptDone(msg tea.Msg) tea.Cmd {
+	if m.composing == composeNone {
 		return nil
 	}
 	switch msg := msg.(type) {
 	case prompt.CancelMsg:
-		if msg.ID == s.prompt.ID() {
-			s.closePrompt()
+		if msg.ID == m.prompt.ID() {
+			m.closePrompt()
 		}
 	case prompt.SubmitMsg:
-		if msg.ID != s.prompt.ID() {
+		if msg.ID != m.prompt.ID() {
 			return nil
 		}
-		if s.composing == composeComment {
-			return s.submitComment(msg.Value)
+		if m.composing == composeComment {
+			return m.submitComment(msg.Value)
 		}
-		return s.submitLabels(msg.Value)
+		return m.submitLabels(msg.Value)
 	}
 	return nil
 }
 
-// submitComment sends body as a comment on the open issue. The service
-// shows it in the cache at once, as sending, so the thread reloads to show
-// it. An empty comment is not sent, and the prompt stays open.
-func (s *Section) submitComment(body string) tea.Cmd {
+// submitComment sends body as a comment on the issue. The service shows it
+// in the cache at once, as sending, so the thread reloads to show it. An
+// empty comment is not sent, and the prompt stays open.
+func (m *detailModal) submitComment(body string) tea.Cmd {
 	body = strings.TrimSpace(body)
 	if body == "" {
 		return nil
 	}
-	s.closePrompt()
-	n := s.issue.Number
-	op := s.svc.Comment(s.repo, n, body)
-	return tea.Batch(s.reload(), s.detail.Reload(),
-		ui.Do(s.ctx, ui.IssuesTitle, op, "comment on #"+strconv.Itoa(n)))
+	m.closePrompt()
+	n := m.number
+	op := m.svc.Comment(m.repo, n, body)
+	return tea.Batch(m.reload(), m.thread.Reload(), m.changed(),
+		ui.Do(m.sendCtx, ui.IssuesTitle, op, "comment on #"+strconv.Itoa(n)))
 }
 
-// submitLabels makes the open issue's labels the comma-separated names in
+// submitLabels makes the issue's labels the comma-separated names in
 // typed: it adds the new ones in one change and removes each dropped one.
 // The changes go one after another, so each answer from GitHub, which holds
 // every label, includes the changes before it.
-func (s *Section) submitLabels(typed string) tea.Cmd {
-	s.closePrompt()
-	added, removed := labelDiff(s.issue.Labels, typed)
+func (m *detailModal) submitLabels(typed string) tea.Cmd {
+	m.closePrompt()
+	added, removed := labelDiff(m.issue.Labels, typed)
 	if len(added) == 0 && len(removed) == 0 {
 		return nil
 	}
-	n := s.issue.Number
+	n := m.number
 	num := "#" + strconv.Itoa(n)
 	cmds := make([]tea.Cmd, 0, len(removed)+1)
 	if len(added) > 0 {
-		op := s.svc.AddLabels(s.repo, n, added)
-		cmds = append(cmds, ui.Do(s.ctx, ui.IssuesTitle, op, "add "+strings.Join(added, ", ")+" to "+num))
+		op := m.svc.AddLabels(m.repo, n, added)
+		cmds = append(cmds, ui.Do(m.sendCtx, ui.IssuesTitle, op, "add "+strings.Join(added, ", ")+" to "+num))
 	}
 	for _, name := range removed {
-		op := s.svc.RemoveLabel(s.repo, n, name)
-		cmds = append(cmds, ui.Do(s.ctx, ui.IssuesTitle, op, "remove "+name+" from "+num))
+		op := m.svc.RemoveLabel(m.repo, n, name)
+		cmds = append(cmds, ui.Do(m.sendCtx, ui.IssuesTitle, op, "remove "+name+" from "+num))
 	}
-	return tea.Batch(s.reload(), tea.Sequence(cmds...))
+	return tea.Batch(m.reload(), m.changed(), tea.Sequence(cmds...))
 }
 
 // labelDiff compares the comma-separated label names in typed with the

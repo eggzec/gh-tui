@@ -96,35 +96,44 @@ func without(b key.Binding, taken []key.Binding) key.Binding {
 	return key.NewBinding(key.WithKeys(keys...), key.WithHelp(strings.Join(labels, "/"), b.Help().Desc))
 }
 
-// Help implements ui.Section. It lists the keys of the current view.
+// Help implements ui.Section. It lists the keys of the list; the modal of
+// an open issue lists its own.
 func (s *Section) Help() help.KeyMap {
-	k, fk, tk := s.keys, s.keys.feed, s.keys.thread
+	k, fk := s.keys, s.keys.feed
 	if !s.hasRepo {
 		return keyHelp{}
-	}
-	if s.inDetail && s.composing != composeNone {
-		return keyHelp{short: s.prompt.ShortHelp(), full: s.prompt.FullHelp()}
 	}
 	// Offer close or reopen, whichever applies to the issue at hand.
 	it, ok := s.target()
 	k.Close.SetEnabled(k.Close.Enabled() && ok && it.State == core.StateOpen)
 	k.Reopen.SetEnabled(k.Reopen.Enabled() && ok && it.State != core.StateOpen)
-	if s.inDetail {
-		return keyHelp{
-			short: []key.Binding{tk.Down, tk.Up, k.Back, k.Comment, k.Label, k.Close, k.Reopen, k.Open},
-			full: [][]key.Binding{
-				{tk.Up, tk.Down, tk.PageUp, tk.PageDown},
-				{tk.HalfPageUp, tk.HalfPageDown, tk.Top, tk.Bottom},
-				{k.Back, k.Comment, k.Label, k.Open, k.Refresh},
-				{k.Close, k.Reopen},
-			},
-		}
-	}
 	return keyHelp{
 		short: []key.Binding{fk.Up, fk.Down, k.Select, k.Filter, k.Close, k.Reopen, k.Open},
 		full: [][]key.Binding{
 			{fk.Up, fk.Down, fk.PageUp, fk.PageDown, fk.Home, fk.End},
 			{k.Select, k.Filter, k.Open, k.Refresh},
+			{k.Close, k.Reopen},
+		},
+	}
+}
+
+// Help implements ui.Modal. While the prompt is open, it lists the keys of
+// the prompt.
+func (m *detailModal) Help() help.KeyMap {
+	if m.composing != composeNone {
+		return keyHelp{short: m.prompt.ShortHelp(), full: m.prompt.FullHelp()}
+	}
+	k, tk := m.keys, m.keys.thread
+	k.Close.SetEnabled(k.Close.Enabled() && m.loaded && m.issue.State == core.StateOpen)
+	k.Reopen.SetEnabled(k.Reopen.Enabled() && m.loaded && m.issue.State != core.StateOpen)
+	k.Comment.SetEnabled(k.Comment.Enabled() && m.loaded)
+	k.Label.SetEnabled(k.Label.Enabled() && m.loaded)
+	return keyHelp{
+		short: []key.Binding{tk.Down, tk.Up, k.Back, k.Comment, k.Label, k.Close, k.Reopen, k.Open},
+		full: [][]key.Binding{
+			{tk.Up, tk.Down, tk.PageUp, tk.PageDown},
+			{tk.HalfPageUp, tk.HalfPageDown, tk.Top, tk.Bottom},
+			{k.Back, k.Comment, k.Label, k.Open, k.Refresh},
 			{k.Close, k.Reopen},
 		},
 	}
