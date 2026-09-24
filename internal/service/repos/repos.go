@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/github"
 )
 
 // DefaultPageSize is the page size of a ListQuery that sets none.
@@ -48,7 +50,22 @@ type Service struct {
 	api   API
 	lists *cache.Cache[core.Page[core.Repo]]
 	repos *cache.Cache[core.Repo]
+	// kept holds the list pages an earlier session read, if the service
+	// has a store.
+	kept *cache.Shelf[core.Page[core.Repo]]
 }
+
+// kind is what the service keeps its list pages as, and schema the version
+// of core.Repo they hold. Bump it when the type changes shape.
+const (
+	kind   = "repolist"
+	schema = 1
+)
+
+// offlineAt is when a page served offline was fetched, as far as the cache
+// can tell: long ago, so it is stale at once and the next read asks GitHub
+// again.
+var offlineAt = time.Unix(1, 0)
 
 // New returns a Service that fetches from api.
 func New(api API, opts ...Option) *Service {
@@ -61,6 +78,7 @@ func New(api API, opts ...Option) *Service {
 		api:   api,
 		lists: cache.New[core.Page[core.Repo]](copts...),
 		repos: cache.New[core.Repo](copts...),
+		kept:  cache.NewShelf[core.Page[core.Repo]](o.store, kind, schema),
 	}
 }
 
@@ -72,12 +90,29 @@ func (s *Service) CachedList(q ListQuery) (core.Page[core.Repo], bool) {
 
 // List returns the page for q. A fresh cached page is returned without a
 // request.
+//
+// A page that only an earlier session kept is returned at once, with Stale
+// set, and reading it again fetches it. If GitHub can't be reached, a stale
+// page is served with Offline set.
 func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.Repo], error) {
 	q = q.normalize()
-	e, err := s.lists.Fetch(ctx, listKey(q), func(ctx context.Context, _ cache.Entry[core.Page[core.Repo]], _ bool) (cache.Entry[core.Page[core.Repo]], error) {
+	key := listKey(q)
+	if e, ok := s.kept.Warm(s.lists, key); ok {
+		p := e.Value
+		p.Stale = true
+		return p, nil
+	}
+	e, err := s.lists.Fetch(ctx, key, func(ctx context.Context, prev cache.Entry[core.Page[core.Repo]], ok bool) (cache.Entry[core.Page[core.Repo]], error) {
 		// GraphQL has no validators, so a stale page is fetched again in full.
 		p, err := s.api.ListRepos(ctx, q.PageSize, q.Cursor)
-		if err != nil {
+		switch {
+		case ok && github.Unreachable(ctx, err):
+			prev.Value.Offline, prev.FetchedAt = true, offlineAt
+			return prev, nil
+		case err != nil:
+			if github.Refused(err) {
+				s.kept.Delete(key)
+			}
 			return cache.Entry[core.Page[core.Repo]]{}, err
 		}
 		tags := make([]string, 0, len(p.Items)+1)
@@ -85,7 +120,10 @@ func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.Repo], 
 		for i := range p.Items {
 			tags = append(tags, repoTag(p.Items[i].Ref))
 		}
-		return cache.Entry[core.Page[core.Repo]]{Value: p, Tags: tags}, nil
+		e := cache.Entry[core.Page[core.Repo]]{Value: p, Tags: tags}
+		// The shelf is only a shortcut, so a failure is ignored.
+		_ = s.kept.Save(key, e)
+		return e, nil
 	})
 	if err != nil {
 		return core.Page[core.Repo]{}, fmt.Errorf("list repos: %w", err)
