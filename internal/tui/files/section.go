@@ -1,6 +1,8 @@
 // Package files is the Files section: the tree of the selected repository,
 // listed whole in one request so that directories expand at once, whose
-// files open in a preview over the screen or in the browser.
+// files open in a preview over the screen or in the browser. The tree shows
+// the head of the default branch, or the base a ui.BaseMsg sets, such as a
+// branch or an older commit chosen in the history.
 package files
 
 import (
@@ -30,6 +32,9 @@ type Section struct {
 	keys KeyMap
 
 	repo core.RepoRef
+	// ref is the base the files are shown at, a branch or a commit SHA,
+	// or empty for the head of the default branch.
+	ref string
 	// tree lists the files of repo from src, and is nil until a repository
 	// is selected. treeCtx bounds its loads, and cancelTree cancels them
 	// when another repository is selected. started reports whether its
@@ -83,19 +88,20 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		s.hint = "Press " + k + " to search for one."
 	}
 	if s.repo != (core.RepoRef{}) {
-		s.newTree(s.repo)
+		s.newTree(s.repo, "")
 	}
 	return s
 }
 
-// newTree replaces the tree with one of the files of repo, and cancels the
-// loads of the old one. The new tree loads nothing until it is started.
-func (s *Section) newTree(repo core.RepoRef) {
+// newTree replaces the tree with one of the files of repo at ref, and
+// cancels the loads of the old one. The new tree loads nothing until it is
+// started.
+func (s *Section) newTree(repo core.RepoRef, ref string) {
 	if s.cancelTree != nil {
 		s.cancelTree()
 	}
 	ctx, cancel := context.WithCancel(s.ctx)
-	src := newSource(s.svc, repo)
+	src := newSource(s.svc, repo, ref)
 	t := tree.New(src.children,
 		tree.WithContext(ctx),
 		tree.WithExpandAllLimits(expandAllNodes, expandAllDepth),
@@ -105,7 +111,7 @@ func (s *Section) newTree(repo core.RepoRef) {
 		tree.WithFocused(s.focused),
 		tree.WithEmptyText("This repository is empty."),
 	)
-	s.repo, s.tree, s.src, s.started = repo, &t, src, false
+	s.repo, s.ref, s.tree, s.src, s.started = repo, ref, &t, src, false
 	s.treeCtx, s.cancelTree = ctx, cancel
 	s.idx, s.warned = nil, false
 	s.hover.reset()
@@ -157,10 +163,17 @@ func (s *Section) Update(msg tea.Msg) tea.Cmd {
 func (s *Section) update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case ui.RepoMsg:
-		if s.tree != nil && sameRef(msg.Repo, s.repo) {
+		// Selecting a repository shows the head of its default branch.
+		if s.tree != nil && sameRef(msg.Repo, s.repo) && s.ref == "" {
 			return nil
 		}
-		s.newTree(msg.Repo)
+		s.newTree(msg.Repo, "")
+		return s.start()
+	case ui.BaseMsg:
+		if s.tree == nil || !sameRef(msg.Repo, s.repo) || msg.Ref == s.ref {
+			return nil
+		}
+		s.newTree(s.repo, msg.Ref)
 		return s.start()
 	case hoverMsg:
 		if s.tree == nil {
@@ -206,7 +219,9 @@ func (s *Section) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	case key.Matches(msg, s.keys.Refresh):
 		return s.refresh(), true
 	case key.Matches(msg, s.keys.Open):
-		return ui.Open(webURL(s.repo, s.selected())), true
+		return ui.Open(webURL(s.repo, s.ref, s.selected())), true
+	case s.ref != "" && key.Matches(msg, s.keys.ResetBase):
+		return ui.ResetBase(s.repo), true
 	}
 	return nil, false
 }
@@ -275,7 +290,7 @@ func (s *Section) preview(n tree.Node) tea.Cmd {
 		return ui.Notify(toast.Info, text)
 	}
 	s.seen.Opened(s.blobQuery(e))
-	p := newPreview(s.ctx, s.svc, s.repo, e, s.keys.Open)
+	p := newPreview(s.ctx, s.svc, s.repo, s.ref, e, s.keys.Open)
 	// The app passes messages to a modal only once it is open, so the load
 	// starts after the modal opens.
 	return tea.Sequence(ui.OpenModal(p), p.load())
@@ -332,9 +347,20 @@ func (s *Section) Blur() {
 	}
 }
 
-// Help returns the keys of the section and its tree.
+// Help returns the keys of the section and its tree. The key that resets
+// the base shows only while there is one to reset.
 func (s *Section) Help() help.KeyMap {
-	return s.keys
+	k := s.keys
+	if s.ref == "" {
+		k.ResetBase.SetEnabled(false)
+	}
+	return k
+}
+
+// Ref returns the base the files are shown at, a branch or a commit SHA,
+// or empty for the head of the default branch.
+func (s *Section) Ref() string {
+	return s.ref
 }
 
 // renderBlank renders the state shown before a repository is selected,

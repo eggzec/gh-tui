@@ -115,6 +115,9 @@ func run(s *Section, cmd tea.Cmd) []tea.Msg {
 		case ui.OpenMsg, ui.NotifyMsg, ui.OpenModalMsg, ui.CloseModalMsg:
 			out = append(out, msg)
 			return
+		case ui.BaseMsg:
+			// The app shows the base, then passes it on.
+			out = append(out, msg)
 		}
 		if cmds, ok := sequence(msg); ok {
 			for _, c := range cmds {

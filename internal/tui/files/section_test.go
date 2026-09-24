@@ -261,3 +261,74 @@ func TestBlurred(t *testing.T) {
 		t.Errorf("a blurred section sent %#v and listed %d times", msgs, f.allCount())
 	}
 }
+
+func TestBase(t *testing.T) {
+	const old = "0123456789abcdef0123456789abcdef01234567"
+	f := sampleFake()
+	f.addTree(ghTUI, old, file("old.go", 100))
+	f.addTree(ghTUI, "v2-exp", file("next.go", 100))
+	s := loaded(t, f, 60, 12)
+	if helpHas(s, "back to head") {
+		t.Error("help offers to reset a base that isn't set")
+	}
+	if msgs := keys(s, "H"); len(msgs) != 0 {
+		t.Errorf("H sent %#v without a base, want nothing", msgs)
+	}
+
+	run(s, s.Update(ui.BaseMsg{Repo: ghTUI, Ref: old, Label: "main @ 0123456", Branch: "main"}))
+	if got := screen(s); !strings.Contains(got, "old.go") || strings.Contains(got, "AGENTS.md") {
+		t.Fatalf("screen = %q, want the files of the older commit", got)
+	}
+	if s.Ref() != old || !helpHas(s, "back to head") {
+		t.Errorf("Ref() = %q and help without the reset key, want the base and its key", s.Ref())
+	}
+	if got := keys(s, "o"); !slices.Equal(got, []tea.Msg{ui.OpenMsg{URL: "https://github.com/eggzec/gh-tui/blob/" + old + "/old.go"}}) {
+		t.Errorf("o sent %#v, want the file at the base", got)
+	}
+
+	// The same base again, or a base of another repository, lists nothing.
+	run(s, s.Update(ui.BaseMsg{Repo: ghTUI, Ref: old}))
+	run(s, s.Update(ui.BaseMsg{Repo: other, Ref: "main"}))
+	if got, want := f.allRefs(), []string{"", old}; !slices.Equal(got, want) {
+		t.Fatalf("listed %q, want %q", got, want)
+	}
+
+	run(s, s.Update(ui.BaseMsg{Repo: ghTUI, Ref: "v2-exp", Label: "v2-exp", Branch: "v2-exp"}))
+	if got := screen(s); !strings.Contains(got, "next.go") {
+		t.Fatalf("screen = %q, want the files of the branch", got)
+	}
+
+	// Resetting shows the head again, from the cached listing.
+	if got := keys(s, "H"); !slices.Equal(got, []tea.Msg{ui.BaseMsg{Repo: ghTUI}}) {
+		t.Errorf("H sent %#v, want the base reset", got)
+	}
+	if got := screen(s); !strings.Contains(got, "AGENTS.md") || s.Ref() != "" {
+		t.Errorf("screen = %q at %q, want the head again", got, s.Ref())
+	}
+	if got, want := f.allRefs(), []string{"", old, "v2-exp"}; !slices.Equal(got, want) {
+		t.Errorf("listed %q, want %q", got, want)
+	}
+}
+
+func TestRepoMsgResetsTheBase(t *testing.T) {
+	const old = "0123456789abcdef0123456789abcdef01234567"
+	f := sampleFake()
+	f.addTree(ghTUI, old, file("old.go", 100))
+	s := loaded(t, f, 60, 12)
+	run(s, s.Update(ui.BaseMsg{Repo: ghTUI, Ref: old}))
+	// Selecting the repository again shows the head of its default branch.
+	run(s, s.Update(ui.RepoMsg{Repo: ghTUI}))
+	if got := screen(s); !strings.Contains(got, "AGENTS.md") || s.Ref() != "" {
+		t.Errorf("screen = %q at %q, want the head", got, s.Ref())
+	}
+}
+
+// helpHas reports whether the help of s lists a key described as desc.
+func helpHas(s *Section, desc string) bool {
+	for _, b := range s.Help().ShortHelp() {
+		if b.Enabled() && b.Help().Desc == desc {
+			return true
+		}
+	}
+	return false
+}

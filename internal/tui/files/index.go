@@ -73,14 +73,17 @@ func parentOf(p string) string {
 type source struct {
 	svc  Service
 	repo core.RepoRef
+	// ref is the base to list, or empty for the head of the default
+	// branch.
+	ref string
 
 	mu sync.Mutex
 	// idx is the index of the listing read last.
 	idx *index
 }
 
-func newSource(svc Service, repo core.RepoRef) *source {
-	return &source{svc: svc, repo: repo}
+func newSource(svc Service, repo core.RepoRef, ref string) *source {
+	return &source{svc: svc, repo: repo, ref: ref}
 }
 
 // current returns the index of the listing read last, or nil.
@@ -93,7 +96,7 @@ func (s *source) current() *index {
 // load reads the listing, asking GitHub whether it changed once it is
 // stale, and returns its index.
 func (s *source) load(ctx context.Context) (*index, error) {
-	t, err := s.svc.All(ctx, filesvc.TreeQuery{Repo: s.repo})
+	t, err := s.svc.All(ctx, filesvc.TreeQuery{Repo: s.repo, Ref: s.ref})
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +106,7 @@ func (s *source) load(ctx context.Context) (*index, error) {
 // cached returns the index of the cached listing, fresh or stale, and
 // reads it only when it isn't cached.
 func (s *source) cached(ctx context.Context) (*index, error) {
-	if t, ok := s.svc.CachedAll(filesvc.TreeQuery{Repo: s.repo}); ok {
+	if t, ok := s.svc.CachedAll(filesvc.TreeQuery{Repo: s.repo, Ref: s.ref}); ok {
 		return s.indexOf(t), nil
 	}
 	return s.load(ctx)
@@ -126,7 +129,7 @@ func (s *source) indexOf(t core.Tree) *index {
 // cached listing, so expanding never waits on GitHub.
 func (s *source) children(ctx context.Context, parent tree.Node) (_ []tree.Node, err error) {
 	ctx, end := obs.Begin(ctx, "files.dir")
-	defer func() { end(err, "span", "tui", "repo", s.repo.String(), "root", parent.ID == "") }()
+	defer func() { end(err, "span", "tui", "repo", s.repo.String(), "ref", s.ref, "root", parent.ID == "") }()
 	dir, _ := entryOf(parent)
 	read := s.cached
 	if parent.ID == "" {
