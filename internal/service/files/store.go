@@ -8,9 +8,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"hash"
+	"math"
 	"path"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/eggzec/gh-tui/internal/core"
 )
@@ -42,8 +44,8 @@ const (
 	kindRef     = "ref"
 )
 
-// codecVersion starts every tree and ref the service stores. Change it when
-// their encoding changes, and older objects read as misses.
+// codecVersion starts every tree the service stores. Change it when their
+// encoding changes, and older objects read as misses.
 const codecVersion = 1
 
 var errCodec = errors.New("unreadable object")
@@ -108,27 +110,55 @@ func decodeTree(data []byte) (core.Tree, error) {
 	return t, nil
 }
 
-// refRecord is where a ref pointed when it was last read, and the
-// validators of that response.
+// refRecord is where a ref pointed when it was last read, the validators
+// of that response, and when GitHub last confirmed it. Repo, Ref and Kind
+// say which listing of which ref it is, so that the records can be gone
+// through without knowing their names.
 type refRecord struct {
 	SHA          string
 	ETag         string
 	LastModified string
+	Repo         string
+	Ref          string
+	Kind         string
+	CheckedAt    time.Time
 }
 
+// Versions of the ref encoding. Records of refVersion1 have only the SHA
+// and the validators; they read as checked long ago.
+const (
+	refVersion1 = 1
+	refVersion  = 2
+)
+
 func encodeRef(r refRecord) []byte {
-	b := []byte{codecVersion}
+	b := []byte{refVersion}
 	b = appendString(b, r.SHA)
 	b = appendString(b, r.ETag)
-	return appendString(b, r.LastModified)
+	b = appendString(b, r.LastModified)
+	b = appendString(b, r.Repo)
+	b = appendString(b, r.Ref)
+	b = appendString(b, r.Kind)
+	var at uint64
+	if !r.CheckedAt.IsZero() {
+		at = uint64(max(r.CheckedAt.UnixNano(), 0))
+	}
+	return binary.AppendUvarint(b, at)
 }
 
 func decodeRef(data []byte) (refRecord, error) {
 	d := decoder{s: string(data)}
-	if d.byte() != codecVersion {
+	version := d.byte()
+	if version != refVersion1 && version != refVersion {
 		return refRecord{}, errCodec
 	}
 	r := refRecord{SHA: d.string(), ETag: d.string(), LastModified: d.string()}
+	if version == refVersion {
+		r.Repo, r.Ref, r.Kind = d.string(), d.string(), d.string()
+		if at := d.uvarint(); at > 0 && at <= math.MaxInt64 {
+			r.CheckedAt = time.Unix(0, int64(at))
+		}
+	}
 	if d.err != nil || d.s != "" || !isSHA(r.SHA) {
 		return refRecord{}, errCodec
 	}
