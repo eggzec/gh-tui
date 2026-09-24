@@ -8,6 +8,7 @@ import (
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
+	"github.com/alecthomas/chroma/v2"
 )
 
 func TestScroll(t *testing.T) {
@@ -409,6 +410,28 @@ func TestHighlightGuessesSyntax(t *testing.T) {
 	m := New()
 	if cmd := m.SetContent("run", "#!/bin/sh\necho hi\n"); cmd == nil {
 		t.Error("a script with a shebang wasn't highlighted")
+	}
+}
+
+func TestHighlightSyntax(t *testing.T) {
+	const patch = "@@ -1,2 +1,2 @@\n-old line\n+new line\n context\n"
+	m := New()
+	cmd := m.SetContentSyntax("main.go", "diff", patch)
+	if cmd == nil {
+		t.Fatal("a patch named after a Go file wasn't highlighted as a diff")
+	}
+	if m.Name() != "main.go" {
+		t.Errorf("Name() = %q, want the name given", m.Name())
+	}
+	m, _ = m.Update(cmd())
+	if len(m.spans) != m.Lines() {
+		t.Fatalf("%d lines of tokens for %d lines", len(m.spans), m.Lines())
+	}
+	if got := m.spans[1][0].typ; got != chroma.GenericDeleted {
+		t.Errorf("the removed line is %v, want %v", got, chroma.GenericDeleted)
+	}
+	if cmd := m.SetContentSyntax("main.go", "no-such-syntax", patch); cmd != nil {
+		t.Error("an unknown syntax was highlighted")
 	}
 }
 
