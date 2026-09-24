@@ -6,6 +6,7 @@ import (
 	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/alecthomas/chroma/v2"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -18,6 +19,17 @@ const binarySniff = 8000
 // highlights the text in the background, and the pager shows it plain
 // until then. Text with a NUL byte is taken for binary and not shown.
 func (m *Model) SetContent(name, text string) tea.Cmd {
+	return m.setContent(name, text, func(full string) chroma.Lexer { return lexerFor(name, full) })
+}
+
+// SetContentSyntax shows text as SetContent does, but highlights it as
+// syntax, a lexer's name or alias such as "diff", rather than by the name
+// of the content. An unknown syntax shows the text plain.
+func (m *Model) SetContentSyntax(name, syntax, text string) tea.Cmd {
+	return m.setContent(name, text, func(string) chroma.Lexer { return lexerNamed(syntax) })
+}
+
+func (m *Model) setContent(name, text string, lexerOf func(full string) chroma.Lexer) tea.Cmd {
 	m.reset(name, stateReady, nil)
 	if strings.IndexByte(text[:min(len(text), binarySniff)], 0) >= 0 {
 		m.state = stateBinary
@@ -31,7 +43,7 @@ func (m *Model) SetContent(name, text string) tea.Cmd {
 	if len(full) > m.highlightLimit {
 		return nil
 	}
-	lexer := lexerFor(name, full)
+	lexer := lexerOf(full)
 	if lexer == nil {
 		return nil
 	}
@@ -65,7 +77,7 @@ func (m *Model) SetError(name string, err error) {
 
 // SetMessage shows text in place of the content named name, for example
 // why the parent doesn't show a file: that it is too large, or where a link
-// points.
+// points. Text longer than the width wraps.
 func (m *Model) SetMessage(name, text string) {
 	m.reset(name, stateMessage, nil)
 	// One line without escape sequences, so it can't break the layout.

@@ -41,6 +41,15 @@ func lexerFor(name, text string) chroma.Lexer {
 	return chroma.Coalesce(l)
 }
 
+// lexerNamed returns the lexer with the name or alias syntax, or nil.
+func lexerNamed(syntax string) chroma.Lexer {
+	l := lexers.Get(syntax)
+	if l == nil || l == lexers.Fallback || l.Config().Name == "plaintext" {
+		return nil
+	}
+	return chroma.Coalesce(l)
+}
+
 // highlight splits the tokens of text into the spans of its n lines. It
 // stops early when ctx is cancelled.
 func highlight(ctx context.Context, lexer chroma.Lexer, text string, n int) ([][]span, error) {

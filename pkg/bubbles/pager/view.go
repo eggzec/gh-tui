@@ -21,10 +21,17 @@ func (m Model) View() string {
 	rows := 0
 	if m.state == stateReady && len(m.lines) > 0 {
 		rows = m.writeLines(&b)
-	} else if m.bodyHeight() > 0 {
-		b.WriteString(fit(m.message(), m.width))
-		b.WriteByte('\n')
-		rows = 1
+	} else {
+		// A message longer than the width wraps, as far as the height
+		// lets it.
+		for l := range strings.SplitSeq(ansi.Wrap(m.message(), m.width, ""), "\n") {
+			if rows >= m.bodyHeight() {
+				break
+			}
+			b.WriteString(fit(l, m.width))
+			b.WriteByte('\n')
+			rows++
+		}
 	}
 	blank := strings.Repeat(" ", m.width)
 	for ; rows < m.bodyHeight(); rows++ {

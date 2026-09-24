@@ -132,3 +132,19 @@ func TestViewRestyles(t *testing.T) {
 		t.Error("the light styles didn't change only the colors")
 	}
 }
+
+func TestViewWrapsMessages(t *testing.T) {
+	m := New(WithSize(20, 4))
+	m.SetMessage("big.go", "This diff is too large to show here.")
+	v := m.View()
+	assertFits(t, v, 20, 4)
+	lines := strings.Split(ansi.Strip(v), "\n")
+	if got := strings.TrimSpace(lines[0]) + " " + strings.TrimSpace(lines[1]); got != "This diff is too large to show here." {
+		t.Errorf("message reads %q over two lines, want it whole", got)
+	}
+	// What doesn't fit the height is cut, and the status line stays.
+	m.SetSize(8, 2)
+	if v := m.View(); !strings.Contains(ansi.Strip(v), "big.go") {
+		t.Errorf("status line lost: %q", ansi.Strip(v))
+	}
+}
