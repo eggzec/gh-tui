@@ -41,7 +41,12 @@ func (f *fakeAPI) Search(_ context.Context, q github.SearchQuery) (map[core.Sear
 	for i, k := range after {
 		parts[i] = string(k) + "=" + q.After[k]
 	}
-	f.record(fmt.Sprintf("search %q %d %v", q.Text, q.First, parts))
+	counted := slices.Sorted(slices.Values(q.Count))
+	call := fmt.Sprintf("search %q %d %v", q.Text, q.First, parts)
+	if len(counted) > 0 {
+		call += fmt.Sprintf(" count %v", counted)
+	}
+	f.record(call)
 	if f.search == nil {
 		f.t.Error("unexpected Search")
 		return nil, errors.New("unexpected call")
@@ -80,20 +85,32 @@ func page(total int, next string, hits ...core.SearchHit) core.SearchPage[core.S
 	return core.SearchPage[core.SearchHit]{Items: hits, Next: next, Total: total}
 }
 
-// answer returns the first page of every kind, or the second page of pull
+// answer returns the first page of each kind asked for, or of every kind,
+// the count alone of each kind counted, or the second page of pull
 // requests.
 func answer(q github.SearchQuery) (map[core.SearchKind]core.SearchPage[core.SearchHit], error) {
-	if len(q.After) == 0 {
-		return map[core.SearchKind]core.SearchPage[core.SearchHit]{
-			core.SearchRepos:  page(1, "", repo),
-			core.SearchIssues: page(5, "i2", crash),
-			core.SearchPulls:  page(12, "p2", fixPR),
-		}, nil
+	first := map[core.SearchKind]core.SearchPage[core.SearchHit]{
+		core.SearchRepos:  page(1, "", repo),
+		core.SearchIssues: page(5, "i2", crash),
+		core.SearchPulls:  page(12, "p2", fixPR),
+	}
+	if len(q.After) == 0 && len(q.Count) == 0 {
+		return first, nil
 	}
 	if q.After[core.SearchPulls] == "p2" {
 		return map[core.SearchKind]core.SearchPage[core.SearchHit]{core.SearchPulls: page(13, "", fixP2)}, nil
 	}
-	return nil, fmt.Errorf("unexpected query %+v", q)
+	out := make(map[core.SearchKind]core.SearchPage[core.SearchHit], 3)
+	for kind, cursor := range q.After {
+		if cursor != "" {
+			return nil, fmt.Errorf("unexpected query %+v", q)
+		}
+		out[kind] = first[kind]
+	}
+	for _, kind := range q.Count {
+		out[kind] = page(first[kind].Total, "")
+	}
+	return out, nil
 }
 
 func ids(p core.Page[core.SearchHit]) []string {
@@ -111,9 +128,9 @@ func ids(p core.Page[core.SearchHit]) []string {
 
 var allCounts = map[core.SearchKind]int{core.SearchRepos: 1, core.SearchIssues: 5, core.SearchPulls: 12}
 
-// The first page of one kind brings every kind's first page and count, so
-// switching kinds costs nothing.
-func TestSearchFirstPageBringsEveryKind(t *testing.T) {
+// The first page of one kind counts every kind, and the first pages of the
+// others are prefetched apart, so switching kinds costs nothing.
+func TestSearchFirstPageCountsEveryKind(t *testing.T) {
 	api := &fakeAPI{t: t, search: answer}
 	s := New(api)
 	got, err := s.Search(t.Context(), Query{Text: "  fix   crash ", Kind: core.SearchIssues})
@@ -126,8 +143,19 @@ func TestSearchFirstPageBringsEveryKind(t *testing.T) {
 	if !maps.Equal(got.Counts, allCounts) {
 		t.Errorf("Counts = %v, want %v", got.Counts, allCounts)
 	}
-	for kind, want := range map[core.SearchKind]string{core.SearchRepos: "R_1", core.SearchPulls: "PR_1"} {
+	for _, tt := range []struct {
+		kind core.SearchKind
+		want string
+	}{{core.SearchRepos, "R_1"}, {core.SearchPulls, "PR_1"}} {
+		kind, want := tt.kind, tt.want
 		q := Query{Text: "fix crash", Kind: kind}
+		// A count isn't a page.
+		if _, ok := s.CachedSearch(q); ok {
+			t.Errorf("CachedSearch(%s) hit before its prefetch", kind)
+		}
+		if err := s.Prefetch(t.Context(), q); err != nil {
+			t.Fatal(err)
+		}
 		c, ok := s.CachedSearch(q)
 		if !ok || !slices.Equal(ids(c.Page), []string{want}) || !maps.Equal(c.Counts, allCounts) {
 			t.Errorf("CachedSearch(%s) = %v %v, %t", kind, ids(c.Page), c.Counts, ok)
@@ -135,8 +163,18 @@ func TestSearchFirstPageBringsEveryKind(t *testing.T) {
 		if _, err := s.Search(t.Context(), q); err != nil {
 			t.Fatal(err)
 		}
+		if err := s.Prefetch(t.Context(), q); err != nil {
+			t.Fatal(err)
+		}
 	}
-	api.wantCalls(t, `search "fix crash" 20 []`)
+	api.wantCalls(t,
+		`search "fix crash" 20 [issues=] count [pulls repos]`,
+		`search "fix crash" 20 [repos=]`,
+		`search "fix crash" 20 [pulls=]`,
+	)
+	if err := s.Prefetch(t.Context(), Query{Text: "x"}); err == nil {
+		t.Error("a prefetch of every kind succeeded")
+	}
 }
 
 func TestSearchNextPageAsksForOneKind(t *testing.T) {
@@ -162,7 +200,7 @@ func TestSearchNextPageAsksForOneKind(t *testing.T) {
 	if c, ok := s.CachedSearch(Query{Text: "fix", Kind: core.SearchPulls}); !ok || !slices.Equal(ids(c.Page), []string{"PR_1"}) {
 		t.Errorf("CachedSearch of the first page = %v, %t", ids(c.Page), ok)
 	}
-	api.wantCalls(t, `search "fix" 20 []`, `search "fix" 20 [pulls=p2]`)
+	api.wantCalls(t, `search "fix" 20 [pulls=] count [issues repos]`, `search "fix" 20 [pulls=p2]`)
 }
 
 func TestSearchAll(t *testing.T) {
@@ -199,7 +237,7 @@ func TestSearchCachesByText(t *testing.T) {
 	if _, ok := s.CachedSearch(Query{Text: "tui", Kind: core.SearchRepos, PageSize: 5}); ok {
 		t.Error("CachedSearch hit a page of another size")
 	}
-	api.wantCalls(t, `search "TUI" 20 []`)
+	api.wantCalls(t, `search "TUI" 20 [repos=] count [issues pulls]`)
 }
 
 func TestSearchEmptyText(t *testing.T) {
@@ -278,9 +316,9 @@ func TestSearchExpires(t *testing.T) {
 func TestOptions(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		api := &fakeAPI{t: t, search: answer}
-		// Every search stores a page of each of three kinds, so a capacity
-		// of three keeps one search.
-		s := New(api, WithTTL(time.Hour), WithCapacity(3))
+		// Every search stores one page, so a capacity of one keeps one
+		// search.
+		s := New(api, WithTTL(time.Hour), WithCapacity(1))
 		for _, text := range []string{"a", "b", "a"} {
 			if _, err := s.Search(t.Context(), Query{Text: text, Kind: core.SearchRepos}); err != nil {
 				t.Fatal(err)
@@ -290,7 +328,8 @@ func TestOptions(t *testing.T) {
 		if _, err := s.Search(t.Context(), Query{Text: "a", Kind: core.SearchRepos}); err != nil {
 			t.Fatal(err)
 		}
-		api.wantCalls(t, `search "a" 20 []`, `search "b" 20 []`, `search "a" 20 []`)
+		c := `search "%s" 20 [repos=] count [issues pulls]`
+		api.wantCalls(t, fmt.Sprintf(c, "a"), fmt.Sprintf(c, "b"), fmt.Sprintf(c, "a"))
 	})
 }
 
@@ -348,7 +387,7 @@ func TestCode(t *testing.T) {
 		if _, err := s.Code(t.Context(), q); err != nil {
 			t.Fatal(err)
 		}
-		api.wantCalls(t, `code "NewStyle" 20 `, `code "NewStyle" 20 next`, `search "NewStyle" 20 []`, `code "NewStyle" 20 `)
+		api.wantCalls(t, `code "NewStyle" 20 `, `code "NewStyle" 20 next`, `search "NewStyle" 20 [repos=] count [issues pulls]`, `code "NewStyle" 20 `)
 	})
 }
 

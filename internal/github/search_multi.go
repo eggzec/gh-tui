@@ -3,6 +3,7 @@ package github
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -24,30 +25,32 @@ const (
 
 // searchVars names the variables of the search field of each kind in
 // multiSearchQuery.
-var searchVars = map[core.SearchKind]struct{ query, after, with string }{
-	core.SearchRepos:  {"reposQuery", "reposAfter", "withRepos"},
-	core.SearchIssues: {"issuesQuery", "issuesAfter", "withIssues"},
-	core.SearchPulls:  {"pullsQuery", "pullsAfter", "withPulls"},
+var searchVars = map[core.SearchKind]struct{ query, first, after, with string }{
+	core.SearchRepos:  {"reposQuery", "reposFirst", "reposAfter", "withRepos"},
+	core.SearchIssues: {"issuesQuery", "issuesFirst", "issuesAfter", "withIssues"},
+	core.SearchPulls:  {"pullsQuery", "pullsFirst", "pullsAfter", "withPulls"},
 }
 
-// multiSearchQuery searches each kind that its with variable includes.
+// multiSearchQuery searches each kind that its with variable includes, for
+// as many results as its first variable says; zero counts them alone.
 // Issues and pull requests share the ISSUE type, so their queries add the
 // qualifier that tells them apart.
-var multiSearchQuery = fmt.Sprintf(`query Search($reposQuery: String!, $issuesQuery: String!, $pullsQuery: String!, $first: Int!,
+var multiSearchQuery = fmt.Sprintf(`query Search($reposQuery: String!, $issuesQuery: String!, $pullsQuery: String!,
+  $reposFirst: Int!, $issuesFirst: Int!, $pullsFirst: Int!,
   $reposAfter: String, $issuesAfter: String, $pullsAfter: String,
   $withRepos: Boolean!, $withIssues: Boolean!, $withPulls: Boolean!) {
   %s
-  repos: search(type: REPOSITORY, query: $reposQuery, first: $first, after: $reposAfter) @include(if: $withRepos) {
+  repos: search(type: REPOSITORY, query: $reposQuery, first: $reposFirst, after: $reposAfter) @include(if: $withRepos) {
     repositoryCount
     pageInfo { hasNextPage endCursor }
     nodes { ...searchRepo }
   }
-  issues: search(type: ISSUE, query: $issuesQuery, first: $first, after: $issuesAfter) @include(if: $withIssues) {
+  issues: search(type: ISSUE, query: $issuesQuery, first: $issuesFirst, after: $issuesAfter) @include(if: $withIssues) {
     issueCount
     pageInfo { hasNextPage endCursor }
     nodes { ...searchIssue }
   }
-  pulls: search(type: ISSUE, query: $pullsQuery, first: $first, after: $pullsAfter) @include(if: $withPulls) {
+  pulls: search(type: ISSUE, query: $pullsQuery, first: $pullsFirst, after: $pullsAfter) @include(if: $withPulls) {
     issueCount
     pageInfo { hasNextPage endCursor }
     nodes { ...searchPull }
@@ -109,8 +112,11 @@ type SearchQuery struct {
 	// After holds the kinds to search, core.SearchRepos, core.SearchIssues
 	// or core.SearchPulls, each with the cursor of the page before the one
 	// wanted: the Next of that kind's previous page, or empty for its first.
-	// An empty After asks for the first page of every kind.
+	// An empty After with no Count asks for the first page of every kind.
 	After map[core.SearchKind]string
+	// Count holds the kinds to count without their results, which GitHub
+	// answers faster than a page. It must not share a kind with After.
+	Count []core.SearchKind
 }
 
 // kindQuery returns the query text that searches for kind.
@@ -134,14 +140,22 @@ func (q SearchQuery) vars() (map[string]any, error) {
 		return nil, fmt.Errorf("page size %d is not between 1 and 100", first)
 	}
 	after := q.After
-	if len(after) == 0 {
+	if len(after) == 0 && len(q.Count) == 0 {
 		after = map[core.SearchKind]string{core.SearchRepos: "", core.SearchIssues: "", core.SearchPulls: ""}
 	}
-	vars := map[string]any{"first": first}
+	vars := make(map[string]any, 4*len(searchVars))
 	for kind, v := range searchVars {
 		cursor, ok := after[kind]
+		counted := slices.Contains(q.Count, kind)
+		if ok && counted {
+			return nil, fmt.Errorf("cannot both list and count %q", kind)
+		}
 		vars[v.query] = kindQuery(q.Text, kind)
-		vars[v.with] = ok
+		vars[v.with] = ok || counted
+		vars[v.first] = first
+		if counted {
+			vars[v.first] = 0
+		}
 		if cursor != "" {
 			vars[v.after] = cursor
 		}
@@ -149,6 +163,11 @@ func (q SearchQuery) vars() (map[string]any, error) {
 	for kind := range after {
 		if _, ok := searchVars[kind]; !ok {
 			return nil, fmt.Errorf("cannot search for %q", kind)
+		}
+	}
+	for _, kind := range q.Count {
+		if _, ok := searchVars[kind]; !ok {
+			return nil, fmt.Errorf("cannot count %q", kind)
 		}
 	}
 	return vars, nil
@@ -299,9 +318,10 @@ func (d *searchData) pages() map[core.SearchKind]core.SearchPage[core.SearchHit]
 
 // Search returns a page of repositories, issues and pull requests that
 // match q.Text, with the number of matches of each kind, best match first.
-// It asks for the kinds in q.After, or for all three, in one GraphQL query:
-// paging through one kind asks for that kind alone. The result holds a page
-// for each kind asked for.
+// It asks for the kinds in q.After and q.Count, or for all three, in one
+// GraphQL query: paging through one kind asks for that kind alone. The
+// result holds a page for each kind asked for; a kind only counted has its
+// Total and no results.
 func (c *Client) Search(ctx context.Context, q SearchQuery) (map[core.SearchKind]core.SearchPage[core.SearchHit], error) {
 	vars, err := q.vars()
 	if err != nil {

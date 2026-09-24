@@ -27,7 +27,7 @@ func TestSearch(t *testing.T) {
 	}
 	wantVars := map[string]any{
 		"reposQuery": "lipgloss", "issuesQuery": "lipgloss is:issue", "pullsQuery": "lipgloss is:pr",
-		"first": 20.0, "withRepos": true, "withIssues": true, "withPulls": true,
+		"reposFirst": 20.0, "issuesFirst": 20.0, "pullsFirst": 20.0, "withRepos": true, "withIssues": true, "withPulls": true,
 	}
 	checkSearchVars(t, req.Variables, wantVars)
 
@@ -80,7 +80,7 @@ func TestSearchStates(t *testing.T) {
 	}
 	// The user's qualifiers go to every kind, and each kind adds its own.
 	checkSearchVars(t, (<-reqs).Variables, map[string]any{
-		"reposQuery": text, "issuesQuery": text + " is:issue", "pullsQuery": text + " is:pr", "first": 5.0,
+		"reposQuery": text, "issuesQuery": text + " is:issue", "pullsQuery": text + " is:pr", "reposFirst": 5.0, "pullsFirst": 5.0,
 	})
 
 	if p := got[core.SearchRepos]; p.Total != 0 || len(p.Items) != 0 || !p.Last() {
@@ -163,13 +163,46 @@ func TestSearchOneKind(t *testing.T) {
 	}
 }
 
+func TestSearchCountsOnly(t *testing.T) {
+	var got map[string]any
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Variables map[string]any `json:"variables"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Error(err)
+		}
+		got = req.Variables
+		_, _ = w.Write([]byte(`{"data": {
+			"repos": {"repositoryCount": 7, "pageInfo": {"hasNextPage": false}, "nodes": []},
+			"issues": {"issueCount": 42, "pageInfo": {"hasNextPage": true, "endCursor": "c"}, "nodes": []},
+			"pulls": {"issueCount": 3, "pageInfo": {"hasNextPage": false}, "nodes": []}}}`))
+	}))
+	pages, err := c.Search(t.Context(), SearchQuery{
+		Text:  "tui",
+		After: map[core.SearchKind]string{core.SearchRepos: ""},
+		Count: []core.SearchKind{core.SearchIssues, core.SearchPulls},
+	})
+	if err != nil {
+		t.Fatalf("Search: %v", err)
+	}
+	checkSearchVars(t, got, map[string]any{
+		"reposFirst": 20.0, "issuesFirst": 0.0, "pullsFirst": 0.0, "withRepos": true, "withIssues": true, "withPulls": true,
+	})
+	if pages[core.SearchIssues].Total != 42 || pages[core.SearchPulls].Total != 3 || pages[core.SearchRepos].Total != 7 {
+		t.Errorf("pages = %+v, want every kind counted", pages)
+	}
+}
+
 func TestSearchRefusesQuery(t *testing.T) {
 	c := newTestClient(t, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		t.Error("unexpected request")
 	}))
 	for name, q := range map[string]SearchQuery{
-		"code":      {Text: "x", After: map[core.SearchKind]string{core.SearchCode: ""}},
-		"page size": {Text: "x", First: 101},
+		"code":           {Text: "x", After: map[core.SearchKind]string{core.SearchCode: ""}},
+		"page size":      {Text: "x", First: 101},
+		"count code":     {Text: "x", Count: []core.SearchKind{core.SearchCode}},
+		"list and count": {Text: "x", After: map[core.SearchKind]string{core.SearchRepos: ""}, Count: []core.SearchKind{core.SearchRepos}},
 	} {
 		if _, err := c.Search(t.Context(), q); err == nil {
 			t.Errorf("%s: Search succeeded, want an error", name)
