@@ -20,6 +20,8 @@ const (
 	repoScreen screen = iota
 	// notifScreen shows the notifications.
 	notifScreen
+	// dashScreen shows the dashboard.
+	dashScreen
 )
 
 // Sizes of the repository screen. Below narrowWidth columns the panes
@@ -32,11 +34,13 @@ const (
 	maxFilesWidth = 60
 )
 
-// pane is a section in a frame whose top edge carries its label.
+// pane is a section in a frame whose top edge carries its label, or a
+// bare one, which fills its place and draws its own frames.
 type pane struct {
 	section ui.Section
 	// label is shown in the top edge, such as "[1] Files".
 	label   string
+	bare    bool
 	started bool
 	focused bool
 	// width and height are the outer size, frame included.
@@ -71,6 +75,10 @@ func (p *pane) setFocus(focused bool) {
 // frame.
 func (p *pane) resize(width, height int) {
 	p.width, p.height = max(width, 0), max(height, 0)
+	if p.bare {
+		p.section.SetSize(p.width, p.height)
+		return
+	}
 	p.section.SetSize(max(p.width-2, 0), max(p.height-2, 0))
 }
 
@@ -79,6 +87,15 @@ func (p *pane) resize(width, height int) {
 // place.
 func (p *pane) appendLines(dst []string) []string {
 	if p.width <= 0 || p.height <= 0 {
+		return dst
+	}
+	if p.bare {
+		body := p.section.View()
+		for range p.height {
+			var line string
+			line, body, _ = strings.Cut(body, "\n")
+			dst = append(dst, fit(line, p.width))
+		}
 		return dst
 	}
 	if p.top == "" {
@@ -138,6 +155,9 @@ func newStyles(t ui.Theme) styles {
 // drawFrame draws the edges of p's frame: the accent while it is focused,
 // the border color otherwise.
 func (m *Model) drawFrame(p *pane) {
+	if p.bare {
+		return
+	}
 	w := p.width
 	if w < 2 || p.height < 2 {
 		p.top, p.bottom, p.side = "", "", ""
@@ -180,8 +200,12 @@ func (m *Model) drawHeader() {
 	if m.repo.Owner != "" {
 		name = m.repo.String()
 	}
+	if m.screen == dashScreen {
+		name = ui.DashboardTitle
+	}
 	left := m.st.repo.Render(name)
 	switch {
+	case m.screen == dashScreen:
 	case m.base.Ref != "":
 		left += " " + rule(1) + " " + m.st.base.Render(cmp.Or(m.base.Label, m.base.Ref))
 	case m.branch != "":
@@ -223,6 +247,12 @@ func (m *Model) arrange(height int) {
 	if m.notif != nil {
 		m.notif.resize(m.width, height)
 	}
+	if m.dash != nil {
+		m.dash.resize(m.width, height)
+	}
+	if len(m.panes) == 0 {
+		return
+	}
 	if m.narrow() {
 		for _, p := range m.panes {
 			p.resize(m.width, height)
@@ -255,8 +285,12 @@ func stack(ps []*pane, width, height int) {
 
 // body returns the lines of the screen on view.
 func (m *Model) body() []string {
-	if m.screen == notifScreen {
+	switch m.screen {
+	case notifScreen:
 		return m.notif.appendLines(nil)
+	case dashScreen:
+		return m.dash.appendLines(nil)
+	case repoScreen:
 	}
 	if len(m.panes) == 0 {
 		return nil
@@ -284,8 +318,12 @@ func (m *Model) body() []string {
 
 // focused returns the focused pane of the screen on view, or nil.
 func (m *Model) focused() *pane {
-	if m.screen == notifScreen {
+	switch m.screen {
+	case notifScreen:
 		return m.notif
+	case dashScreen:
+		return m.dash
+	case repoScreen:
 	}
 	if len(m.panes) == 0 {
 		return nil
@@ -294,12 +332,17 @@ func (m *Model) focused() *pane {
 }
 
 // showScreen shows screen s, with pane i focused on the repository screen,
-// and starts the sections that come into view.
+// and starts the sections that come into view. The screen it leaves is the
+// one to go back to.
 func (m *Model) showScreen(s screen, i int) tea.Cmd {
-	if s == notifScreen && m.notif == nil || s == repoScreen && len(m.panes) == 0 {
+	if s == notifScreen && m.notif == nil || s == repoScreen && len(m.panes) == 0 || s == dashScreen && m.dash == nil {
 		return nil
 	}
 	before := m.focused()
+	if s != m.screen {
+		m.back = m.screen
+		defer m.drawHeader()
+	}
 	m.screen = s
 	if s == repoScreen {
 		m.focus = min(max(i, 0), len(m.panes)-1)
@@ -324,11 +367,24 @@ func (m *Model) cycle(delta int) tea.Cmd {
 	return m.showScreen(repoScreen, ((m.focus+delta)%n+n)%n)
 }
 
-// toggleScreen switches between the repository screen and the
-// notifications.
-func (m *Model) toggleScreen() tea.Cmd {
-	if m.screen == notifScreen {
-		return m.showScreen(repoScreen, m.focus)
+// toggleScreen shows screen s, or goes back to the screen before it if it
+// is on view already.
+func (m *Model) toggleScreen(s screen) tea.Cmd {
+	if m.screen != s {
+		return m.showScreen(s, m.focus)
 	}
-	return m.showScreen(notifScreen, m.focus)
+	back := m.back
+	if back == s {
+		// The app opened here, so there is nothing to go back to but the
+		// screens it has.
+		switch {
+		case s == dashScreen:
+			return nil
+		case m.dash != nil:
+			back = dashScreen
+		default:
+			back = repoScreen
+		}
+	}
+	return m.showScreen(back, m.focus)
 }

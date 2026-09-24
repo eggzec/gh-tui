@@ -18,9 +18,10 @@ type KeyMap struct {
 	// History opens the history of the repository on the repository
 	// screen.
 	History key.Binding
-	// Notifications switches between the repository screen and the
-	// notifications.
+	// Notifications switches between the screen on view and the
+	// notifications, and Dashboard between it and the dashboard.
 	Notifications key.Binding
+	Dashboard     key.Binding
 	// Next and Prev cycle the focus through the panes.
 	Next key.Binding
 	Prev key.Binding
@@ -37,6 +38,7 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		Search:        ui.Binding(keys, config.ActionSearch, "search"),
 		History:       ui.Binding(keys, config.ActionHistory, "history"),
 		Notifications: ui.Binding(keys, config.ActionNotifications, "notifications"),
+		Dashboard:     ui.Binding(keys, config.ActionDashboard, "dashboard"),
 		Next:          ui.Binding(keys, config.ActionNextTab, "next pane"),
 		Prev:          ui.Binding(keys, config.ActionPrevTab, "previous pane"),
 		Panes: []key.Binding{

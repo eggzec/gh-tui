@@ -70,12 +70,22 @@ func (m *Model) helpHeight() int {
 }
 
 func (m *Model) helpKeys() help.KeyMap {
-	hk := helpKeys{app: m.keys, dismiss: m.toast.KeyMap().Dismiss, notifications: m.keys.Notifications, history: m.keys.History}
+	hk := helpKeys{app: m.keys, dismiss: m.toast.KeyMap().Dismiss, notifications: m.keys.Notifications, history: m.keys.History, dashboard: m.keys.Dashboard}
 	if !m.canOpenHistory() {
 		hk.history.SetEnabled(false)
 	}
-	if m.screen == notifScreen {
+	switch m.screen {
+	case notifScreen:
 		hk.notifications.SetHelp(hk.notifications.Help().Key, "back")
+	case dashScreen:
+		hk.dashboard.SetHelp(hk.dashboard.Help().Key, "back")
+		if m.back == dashScreen {
+			hk.dashboard.SetEnabled(false)
+		}
+	case repoScreen:
+	}
+	if m.dash == nil {
+		hk.dashboard.SetEnabled(false)
 	}
 	if mod := m.topModal(); mod != nil {
 		// The app's own keys don't reach a modal.
@@ -96,6 +106,7 @@ type helpKeys struct {
 	dismiss       key.Binding
 	notifications key.Binding
 	history       key.Binding
+	dashboard     key.Binding
 	// modal hides the app's keys while a modal takes them.
 	modal bool
 	// panes shows the keys that move between panes.
@@ -110,7 +121,7 @@ func (h helpKeys) ShortHelp() []key.Binding {
 	if h.modal {
 		return ks
 	}
-	return append(ks, h.app.Search, h.history, h.notifications, h.app.Help, h.app.Quit)
+	return append(ks, h.app.Search, h.history, h.notifications, h.dashboard, h.app.Help, h.app.Quit)
 }
 
 func (h helpKeys) FullHelp() [][]key.Binding {
@@ -125,6 +136,6 @@ func (h helpKeys) FullHelp() [][]key.Binding {
 	if h.panes {
 		app = append(app, h.app.Next, h.app.Prev, h.app.jump)
 	}
-	app = append(app, h.app.Search, h.history, h.notifications, h.dismiss, h.app.Help, h.app.Quit)
+	app = append(app, h.app.Search, h.history, h.notifications, h.dashboard, h.dismiss, h.app.Help, h.app.Quit)
 	return append(groups, app)
 }
