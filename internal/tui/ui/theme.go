@@ -6,10 +6,12 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
+	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
 	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
 	"github.com/eggzec/gh-tui/pkg/bubbles/tabs"
 	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
+	"github.com/eggzec/gh-tui/pkg/bubbles/tree"
 )
 
 // Theme is the user's palette turned into styles, for the bubbles and for
@@ -97,6 +99,41 @@ func (t Theme) Thread() thread.Styles {
 	s.Error = s.Error.Foreground(lipgloss.Color(t.Palette.Error))
 	s.Key = s.Key.Foreground(lipgloss.Color(t.Palette.Accent))
 	s.Hint = s.Hint.Foreground(lipgloss.Color(t.Palette.Subtle))
+	return s
+}
+
+// Tree returns the styles of a tree, such as the files of a repository.
+func (t Theme) Tree() tree.Styles {
+	s := tree.DefaultStyles(t.Dark)
+	s.Cursor = s.Cursor.Foreground(lipgloss.Color(t.Palette.Accent))
+	s.BlurredCursor = s.BlurredCursor.Foreground(lipgloss.Color(t.Palette.Subtle))
+	s.Guide = s.Guide.Foreground(lipgloss.Color(t.Palette.Border))
+	s.Marker = s.Marker.Foreground(lipgloss.Color(t.Palette.Muted))
+	s.Branch = s.Branch.Foreground(lipgloss.Color(t.Palette.Foreground))
+	s.Leaf = s.Leaf.Foreground(lipgloss.Color(t.Palette.Foreground))
+	s.Spinner = s.Spinner.Foreground(lipgloss.Color(t.Palette.Accent))
+	s.Loading = s.Loading.Foreground(lipgloss.Color(t.Palette.Muted))
+	s.Empty = s.Empty.Foreground(lipgloss.Color(t.Palette.Muted))
+	s.Error = s.Error.Foreground(lipgloss.Color(t.Palette.Error))
+	s.Hint = s.Hint.Foreground(lipgloss.Color(t.Palette.Subtle))
+	return s
+}
+
+// Pager returns the styles of a file viewer. The syntax colors and the
+// search highlights, which need backgrounds the palette doesn't have, keep
+// their defaults for a light or dark terminal.
+func (t Theme) Pager() pager.Styles {
+	s := pager.DefaultStyles(t.Dark)
+	s.Text = s.Text.Foreground(lipgloss.Color(t.Palette.Foreground))
+	s.LineNumber = s.LineNumber.Foreground(lipgloss.Color(t.Palette.Subtle))
+	s.Name = s.Name.Foreground(lipgloss.Color(t.Palette.Foreground))
+	s.Status = s.Status.Foreground(lipgloss.Color(t.Palette.Muted))
+	s.Notice = s.Notice.Foreground(lipgloss.Color(t.Palette.Error))
+	s.Message = s.Message.Foreground(lipgloss.Color(t.Palette.Muted))
+	s.Spinner = s.Spinner.Foreground(lipgloss.Color(t.Palette.Accent))
+	s.Error = s.Error.Foreground(lipgloss.Color(t.Palette.Error))
+	s.Prompt = s.Prompt.Foreground(lipgloss.Color(t.Palette.Accent))
+	s.Cursor = s.Cursor.Foreground(lipgloss.Color(t.Palette.Accent))
 	return s
 }
 
