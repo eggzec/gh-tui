@@ -42,6 +42,17 @@ func WithNow(now func() time.Time) Option {
 	return func(s *Section) { s.now = now }
 }
 
+// WithOffline shares off with other sections, so that the user is told once
+// for all of them that GitHub can't be reached. By default the section has
+// its own.
+func WithOffline(off *ui.Offline) Option {
+	return func(s *Section) {
+		if off != nil {
+			s.offline = off
+		}
+	}
+}
+
 // Section lists the user's notifications. Create one with New.
 type Section struct {
 	ctx  context.Context
@@ -53,6 +64,8 @@ type Section struct {
 	// all is read by fetches, which run in commands.
 	all     atomic.Bool
 	started bool
+	// offline is marked by the feed's reads when GitHub can't be reached.
+	offline *ui.Offline
 
 	width, height int
 	styles        styles
@@ -64,11 +77,11 @@ var _ ui.Badger = (*Section)(nil)
 // New returns the section, which reads through svc and binds the actions
 // in keys. ctx bounds every request it makes.
 func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Option) *Section {
-	s := &Section{ctx: ctx, svc: svc, keys: newKeyMap(keys), now: time.Now}
+	s := &Section{ctx: ctx, svc: svc, keys: newKeyMap(keys), now: time.Now, offline: new(ui.Offline)}
 	for _, opt := range opts {
 		opt(s)
 	}
-	s.feed = feed.New(s.fetch, s.render,
+	s.feed = feed.New(ui.FeedPages(s.offline, s.list), s.render,
 		feed.WithContext(ctx),
 		feed.WithKey(func(n core.Notification) string { return n.ID }),
 		feed.WithKeyMap(s.keys.feed),
@@ -77,13 +90,9 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 	return s
 }
 
-// fetch adapts the service's List to the feed.
-func (s *Section) fetch(ctx context.Context, cursor string) ([]core.Notification, string, error) {
-	p, err := s.svc.List(ctx, s.query(cursor))
-	if err != nil {
-		return nil, "", err
-	}
-	return p.Items, p.Next, nil
+// list reads a page for the feed.
+func (s *Section) list(ctx context.Context, cursor string) (core.Page[core.Notification], error) {
+	return s.svc.List(ctx, s.query(cursor))
 }
 
 func (s *Section) query(cursor string) notifications.ListQuery {

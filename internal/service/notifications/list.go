@@ -65,8 +65,17 @@ func (s *Service) CachedList(q ListQuery) (core.Page[core.Notification], bool) {
 // List returns the page for q. A fresh cached page is returned as is; a stale
 // one is revalidated with its validators, which costs no rate limit when
 // nothing changed.
+//
+// A page that only an earlier session kept is returned at once, with Stale
+// set, and reading it again revalidates it. If GitHub can't be reached, a
+// stale page is served with Offline set.
 func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.Notification], error) {
 	q = q.normalize()
+	if e, ok := s.kept.Warm(s.cache, q.key()); ok {
+		p := e.Value
+		p.Stale = true
+		return p, nil
+	}
 	e, err := s.cache.Fetch(ctx, q.key(), s.load(q))
 	if err != nil {
 		return core.Page[core.Notification]{}, fmt.Errorf("list notifications: %w", err)
@@ -96,6 +105,8 @@ func (s *Service) Poll(ctx context.Context) (watch.Result, error) {
 		changed = err == nil
 		return e, err
 	}
+	// What an earlier session kept makes the request conditional.
+	s.kept.Warm(s.cache, q.key())
 	// A fresh entry would be returned without a request, and polling must
 	// ask the server. If a List is already revalidating, Poll joins it and
 	// reports no change: that List hands its caller the new data.
@@ -106,16 +117,30 @@ func (s *Service) Poll(ctx context.Context) (watch.Result, error) {
 	return watch.Result{Changed: changed, Interval: time.Duration(s.interval.Load())}, nil
 }
 
+// offlineAt is when a page served offline was fetched, as far as the cache
+// can tell: long ago, so it is stale at once and the next read asks GitHub
+// again.
+var offlineAt = time.Unix(1, 0)
+
 // load fetches the page for a normalized q, conditionally when a previous
-// entry exists.
+// entry exists, and keeps what GitHub sends. If GitHub can't be reached,
+// the previous entry is served with Offline set.
 func (s *Service) load(q ListQuery) cache.FetchFunc[page] {
+	key := q.key()
 	return func(ctx context.Context, prev cache.Entry[page], ok bool) (cache.Entry[page], error) {
 		var cond github.Conditional
 		if ok {
 			cond = github.Conditional{ETag: prev.ETag, LastModified: prev.LastModified}
 		}
 		p, res, err := s.api.ListNotifications(ctx, q.Filter, q.PageSize, q.Cursor, cond)
-		if err != nil {
+		switch {
+		case ok && github.Unreachable(ctx, err):
+			prev.Value.Offline, prev.FetchedAt = true, offlineAt
+			return prev, nil
+		case err != nil:
+			if github.Refused(err) {
+				s.kept.Delete(key)
+			}
 			return cache.Entry[page]{}, err
 		}
 		if res.PollInterval > 0 {
@@ -124,11 +149,15 @@ func (s *Service) load(q ListQuery) cache.FetchFunc[page] {
 		if res.NotModified {
 			return cache.Entry[page]{}, cache.ErrNotModified
 		}
-		return cache.Entry[page]{
+		e := cache.Entry[page]{
 			Value:        p,
 			ETag:         res.ETag,
 			LastModified: res.LastModified,
+			Source:       res.URL,
 			Tags:         []string{tag},
-		}, nil
+		}
+		// The shelf is only a shortcut, so a failure is ignored.
+		_ = s.kept.Save(key, e)
+		return e, nil
 	}
 }

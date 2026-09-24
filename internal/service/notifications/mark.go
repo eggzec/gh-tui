@@ -6,6 +6,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 )
@@ -64,8 +65,22 @@ func (s *Service) apply(ch change, send func(ctx context.Context) error) *optimi
 			return err
 		}
 		s.cache.MutateTag(tag, ch)
+		s.keep()
 		return nil
 	}, rollback)
+}
+
+// keep saves the pages as they are in memory now that GitHub confirmed a
+// change, so the next session doesn't start from before it. Until then
+// only memory has the change, so a rollback leaves nothing behind. The
+// validators are left out: they describe the pages before the change, and a
+// 304 to them must not bring back what the pages were before.
+func (s *Service) keep() {
+	for key, e := range s.cache.TaggedEntries(tag) {
+		p := e.Value
+		p.Offline = false
+		_ = s.kept.Save(key, cache.Entry[page]{Value: p, FetchedAt: e.FetchedAt, Tags: e.Tags})
+	}
 }
 
 func markRead(id string) change {
