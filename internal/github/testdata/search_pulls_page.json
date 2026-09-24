@@ -1,0 +1,662 @@
+{
+  "data": {
+    "rateLimit": {
+      "cost": 1,
+      "limit": 5000,
+      "remaining": 4997,
+      "used": 3,
+      "resetAt": "2026-09-24T13:29:33Z"
+    },
+    "pulls": {
+      "issueCount": 26860,
+      "pageInfo": {
+        "hasNextPage": true,
+        "endCursor": "Y3Vyc29yOjQw"
+      },
+      "nodes": [
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOQSrj_M8AAAABBrgqnw",
+          "number": 83,
+          "title": "chore(deps): bump charm.land/lipgloss/v2 from 2.0.3 to 2.0.6",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/palemoky/fight-the-landlord/pull/83",
+          "createdAt": "2026-09-01T01:08:55Z",
+          "updatedAt": "2026-09-01T01:08:56Z",
+          "repository": {
+            "name": "fight-the-landlord",
+            "owner": {
+              "login": "palemoky"
+            }
+          },
+          "author": {
+            "login": "dependabot"
+          },
+          "labels": {
+            "nodes": []
+          },
+          "comments": {
+            "totalCount": 1
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOUGISVs8AAAABBfyFmQ",
+          "number": 2,
+          "title": "build(deps): bump github.com/charmbracelet/lipgloss from 1.0.0 to 1.1.0",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/Pastalikek65/logcat-viewer/pull/2",
+          "createdAt": "2026-08-30T10:28:32Z",
+          "updatedAt": "2026-08-30T10:28:33Z",
+          "repository": {
+            "name": "logcat-viewer",
+            "owner": {
+              "login": "Pastalikek65"
+            }
+          },
+          "author": {
+            "login": "dependabot"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "dependencies",
+                "color": "0366d6",
+                "description": "Pull requests that update a dependency file"
+              },
+              {
+                "name": "go",
+                "color": "16e2e2",
+                "description": "Pull requests that update go code"
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOR2UbhM8AAAABByVtSA",
+          "number": 136,
+          "title": "chore(deps): bump charm.land/lipgloss/v2 from 2.0.5 to 2.0.6",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/git-treeline/cli/pull/136",
+          "createdAt": "2026-09-01T17:58:31Z",
+          "updatedAt": "2026-09-01T17:58:32Z",
+          "repository": {
+            "name": "cli",
+            "owner": {
+              "login": "git-treeline"
+            }
+          },
+          "author": {
+            "login": "dependabot"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "dependencies",
+                "color": "0366d6",
+                "description": "Pull requests that update a dependency file"
+              },
+              {
+                "name": "go",
+                "color": "16e2e2",
+                "description": "Pull requests that update go code"
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOPX8Zgc8AAAABDUb0xw",
+          "number": 206,
+          "title": "Update module github.com/charmbracelet/lipgloss to v2",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/nentgroup/viaplay-cli/pull/206",
+          "createdAt": "2026-09-13T07:36:48Z",
+          "updatedAt": "2026-09-24T03:55:03Z",
+          "repository": {
+            "name": "viaplay-cli",
+            "owner": {
+              "login": "nentgroup"
+            }
+          },
+          "author": {
+            "login": "renovate"
+          },
+          "labels": {
+            "nodes": []
+          },
+          "comments": {
+            "totalCount": 1
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOTbYC8M8AAAABBss_ww",
+          "number": 6,
+          "title": "chore(deps): bump charm.land/lipgloss/v2 from 2.0.5 to 2.0.6",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/PyromancerBoom/taskwatch/pull/6",
+          "createdAt": "2026-09-01T05:14:08Z",
+          "updatedAt": "2026-09-01T05:14:09Z",
+          "repository": {
+            "name": "taskwatch",
+            "owner": {
+              "login": "PyromancerBoom"
+            }
+          },
+          "author": {
+            "login": "dependabot"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "dependencies",
+                "color": "0366d6",
+                "description": "Pull requests that update a dependency file"
+              },
+              {
+                "name": "go",
+                "color": "16e2e2",
+                "description": "Pull requests that update go code"
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOTbcnec8AAAABAfSLVQ",
+          "number": 63,
+          "title": "chore(deps): bump charm.land/lipgloss/v2 from 2.0.5 to 2.0.6 in /cli/magpie",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/skua-international/magpie/pull/63",
+          "createdAt": "2026-08-21T01:05:09Z",
+          "updatedAt": "2026-09-06T17:53:41Z",
+          "repository": {
+            "name": "magpie",
+            "owner": {
+              "login": "skua-international"
+            }
+          },
+          "author": {
+            "login": "dependabot"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "dependencies",
+                "color": "0366d6",
+                "description": "Pull requests that update a dependency file"
+              },
+              {
+                "name": "go",
+                "color": "16e2e2",
+                "description": "Pull requests that update go code"
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOTk2Vms8AAAABEV6oKQ",
+          "number": 9,
+          "title": "chore(deps): bump the go-dependencies group across 1 directory with 5 updates",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/BRYANN2K/maestro/pull/9",
+          "createdAt": "2026-09-20T22:26:36Z",
+          "updatedAt": "2026-09-21T05:13:21Z",
+          "repository": {
+            "name": "maestro",
+            "owner": {
+              "login": "BRYANN2K"
+            }
+          },
+          "author": {
+            "login": "dependabot"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "dependencies",
+                "color": "0366d6",
+                "description": "Pull requests that update a dependency file"
+              },
+              {
+                "name": "go",
+                "color": "16e2e2",
+                "description": "Pull requests that update go code"
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOUFzti88AAAABBLn_4A",
+          "number": 2,
+          "title": "build(deps): bump github.com/charmbracelet/lipgloss from 1.0.0 to 1.1.0",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/Pastalikek65/dotman/pull/2",
+          "createdAt": "2026-08-27T08:55:49Z",
+          "updatedAt": "2026-08-27T08:55:50Z",
+          "repository": {
+            "name": "dotman",
+            "owner": {
+              "login": "Pastalikek65"
+            }
+          },
+          "author": {
+            "login": "dependabot"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "dependencies",
+                "color": "0366d6",
+                "description": "Pull requests that update a dependency file"
+              },
+              {
+                "name": "go",
+                "color": "16e2e2",
+                "description": "Pull requests that update go code"
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOS9I-9M8AAAABB0hCxw",
+          "number": 5,
+          "title": "chore(deps): bump charm.land/lipgloss/v2 from 2.0.4 to 2.0.6",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/ducng99/heyai/pull/5",
+          "createdAt": "2026-09-01T23:17:59Z",
+          "updatedAt": "2026-09-01T23:17:59Z",
+          "repository": {
+            "name": "heyai",
+            "owner": {
+              "login": "ducng99"
+            }
+          },
+          "author": {
+            "login": "dependabot"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "dependencies",
+                "color": "0366d6",
+                "description": "Pull requests that update a dependency file"
+              },
+              {
+                "name": "go",
+                "color": "16e2e2",
+                "description": "Pull requests that update go code"
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOT4jea88AAAABCX-eqg",
+          "number": 6,
+          "title": "Update module github.com/charmbracelet/lipgloss to v2",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/saintbyte/gguf_llm_runner/pull/6",
+          "createdAt": "2026-09-06T03:29:46Z",
+          "updatedAt": "2026-09-19T15:48:57Z",
+          "repository": {
+            "name": "gguf_llm_runner",
+            "owner": {
+              "login": "saintbyte"
+            }
+          },
+          "author": {
+            "login": "renovate"
+          },
+          "labels": {
+            "nodes": []
+          },
+          "comments": {
+            "totalCount": 1
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOTcH2688AAAABCVWEwg",
+          "number": 12,
+          "title": "fix(deps): update module github.com/charmbracelet/lipgloss to v2",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/IodeSystems/dun/pull/12",
+          "createdAt": "2026-09-05T16:03:28Z",
+          "updatedAt": "2026-09-19T23:57:41Z",
+          "repository": {
+            "name": "dun",
+            "owner": {
+              "login": "IodeSystems"
+            }
+          },
+          "author": {
+            "login": "renovate"
+          },
+          "labels": {
+            "nodes": []
+          },
+          "comments": {
+            "totalCount": 1
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOTlgCZc8AAAABCYCVAg",
+          "number": 20,
+          "title": "fix(deps): update module github.com/charmbracelet/lipgloss to v2",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/lucasew/go-hogkill/pull/20",
+          "createdAt": "2026-09-06T03:48:46Z",
+          "updatedAt": "2026-09-20T01:05:04Z",
+          "repository": {
+            "name": "go-hogkill",
+            "owner": {
+              "login": "lucasew"
+            }
+          },
+          "author": {
+            "login": "renovate"
+          },
+          "labels": {
+            "nodes": []
+          },
+          "comments": {
+            "totalCount": 1
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOQt9zOs8AAAABBpGzoA",
+          "number": 24,
+          "title": "Update module github.com/charmbracelet/lipgloss to v2",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/tyhal/klar/pull/24",
+          "createdAt": "2026-08-31T18:34:21Z",
+          "updatedAt": "2026-09-24T02:46:27Z",
+          "repository": {
+            "name": "klar",
+            "owner": {
+              "login": "tyhal"
+            }
+          },
+          "author": {
+            "login": "renovate"
+          },
+          "labels": {
+            "nodes": []
+          },
+          "comments": {
+            "totalCount": 1
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDORti9ac8AAAABBdOr2g",
+          "number": 229,
+          "title": "Update module github.com/charmbracelet/lipgloss to v2",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/Planwerk/planwerk-agent/pull/229",
+          "createdAt": "2026-08-29T18:02:16Z",
+          "updatedAt": "2026-09-24T04:27:09Z",
+          "repository": {
+            "name": "planwerk-agent",
+            "owner": {
+              "login": "Planwerk"
+            }
+          },
+          "author": {
+            "login": "renovate"
+          },
+          "labels": {
+            "nodes": []
+          },
+          "comments": {
+            "totalCount": 1
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOS0VYY88AAAABASxjdg",
+          "number": 12,
+          "title": "chore(deps): bump charm.land/lipgloss/v2 from 2.0.5 to 2.0.6",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/rk-senne/moonbase/pull/12",
+          "createdAt": "2026-08-19T14:24:27Z",
+          "updatedAt": "2026-09-04T18:25:12Z",
+          "repository": {
+            "name": "moonbase",
+            "owner": {
+              "login": "rk-senne"
+            }
+          },
+          "author": {
+            "login": "dependabot"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "dependencies",
+                "color": "0366d6",
+                "description": "Pull requests that update a dependency file"
+              },
+              {
+                "name": "go",
+                "color": "16e2e2",
+                "description": "Pull requests that update go code"
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOKGuCLM8AAAABB47iLw",
+          "number": 19,
+          "title": "Update module github.com/charmbracelet/lipgloss to v0.13.1",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/V1RE/glupdate/pull/19",
+          "createdAt": "2026-09-02T11:42:18Z",
+          "updatedAt": "2026-09-03T04:56:35Z",
+          "repository": {
+            "name": "glupdate",
+            "owner": {
+              "login": "V1RE"
+            }
+          },
+          "author": {
+            "login": "renovate"
+          },
+          "labels": {
+            "nodes": []
+          },
+          "comments": {
+            "totalCount": 1
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOTnmGJM77Id4a",
+          "number": 5,
+          "title": "chore(deps): bump the go-deps group across 1 directory with 3 updates",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/try-pulse/pulse-import/pull/5",
+          "createdAt": "2026-08-05T14:54:49Z",
+          "updatedAt": "2026-09-23T14:54:30Z",
+          "repository": {
+            "name": "pulse-import",
+            "owner": {
+              "login": "try-pulse"
+            }
+          },
+          "author": {
+            "login": "dependabot"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "dependencies",
+                "color": "0366d6",
+                "description": "Pull requests that update a dependency file"
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOQR0OiM8AAAABBrgo8Q",
+          "number": 44,
+          "title": "chore(deps): bump charm.land/lipgloss/v2 from 2.0.2 to 2.0.6",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/palemoky/lucky-day/pull/44",
+          "createdAt": "2026-09-01T01:08:50Z",
+          "updatedAt": "2026-09-01T01:08:51Z",
+          "repository": {
+            "name": "lucky-day",
+            "owner": {
+              "login": "palemoky"
+            }
+          },
+          "author": {
+            "login": "dependabot"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "dependencies",
+                "color": "0366d6",
+                "description": "Pull requests that update a dependency file"
+              },
+              {
+                "name": "go",
+                "color": "16e2e2",
+                "description": "Pull requests that update go code"
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOTjut688AAAABBvLr5Q",
+          "number": 16,
+          "title": "build(deps): bump charm.land/lipgloss/v2 from 2.0.5 to 2.0.6 in /J-tui",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/z-chenhao/J/pull/16",
+          "createdAt": "2026-09-01T11:20:36Z",
+          "updatedAt": "2026-09-01T11:20:37Z",
+          "repository": {
+            "name": "J",
+            "owner": {
+              "login": "z-chenhao"
+            }
+          },
+          "author": {
+            "login": "dependabot"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "dependencies",
+                "color": "0366d6",
+                "description": "Pull requests that update a dependency file"
+              },
+              {
+                "name": "go",
+                "color": "16e2e2",
+                "description": "Pull requests that update go code"
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOR_nug88AAAABArax1g",
+          "number": 54,
+          "title": "chore(deps): bump charm.land/lipgloss/v2 from 2.0.5 to 2.0.6",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/meigma/whzbox/pull/54",
+          "createdAt": "2026-08-23T01:46:02Z",
+          "updatedAt": "2026-08-23T02:06:02Z",
+          "repository": {
+            "name": "whzbox",
+            "owner": {
+              "login": "meigma"
+            }
+          },
+          "author": {
+            "login": "dependabot"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "dependencies",
+                "color": "0366d6",
+                "description": "Pull requests that update a dependency file"
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 2
+          }
+        }
+      ]
+    }
+  }
+}

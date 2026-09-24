@@ -1,0 +1,155 @@
+{
+  "data": {
+    "rateLimit": {
+      "cost": 1,
+      "limit": 5000,
+      "remaining": 4995,
+      "used": 5,
+      "resetAt": "2026-09-24T13:29:33Z"
+    },
+    "pulls": {
+      "issueCount": 75,
+      "pageInfo": {
+        "hasNextPage": true,
+        "endCursor": "Y3Vyc29yOjU="
+      },
+      "nodes": [
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOFHnna8759iRK",
+          "number": 723,
+          "title": "test: cover exported border constructors",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/charmbracelet/lipgloss/pull/723",
+          "createdAt": "2026-08-03T10:59:59Z",
+          "updatedAt": "2026-08-03T10:59:59Z",
+          "repository": {
+            "name": "lipgloss",
+            "owner": {
+              "login": "charmbracelet"
+            }
+          },
+          "author": {
+            "login": "vignesh2027",
+            "name": "vigneshwar"
+          },
+          "labels": {
+            "nodes": []
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOFHnna87Cq6E8",
+          "number": 609,
+          "title": "fix: border side getters now account for implicit borders",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/charmbracelet/lipgloss/pull/609",
+          "createdAt": "2026-02-10T08:13:15Z",
+          "updatedAt": "2026-03-12T04:27:06Z",
+          "repository": {
+            "name": "lipgloss",
+            "owner": {
+              "login": "charmbracelet"
+            }
+          },
+          "author": {
+            "login": "veeceey",
+            "name": "Varun Chawla"
+          },
+          "labels": {
+            "nodes": []
+          },
+          "comments": {
+            "totalCount": 1
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOFHnna87hghaA",
+          "number": 695,
+          "title": "feat: allow multi-character corners on borders",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/charmbracelet/lipgloss/pull/695",
+          "createdAt": "2026-06-01T19:55:45Z",
+          "updatedAt": "2026-06-01T19:55:45Z",
+          "repository": {
+            "name": "lipgloss",
+            "owner": {
+              "login": "charmbracelet"
+            }
+          },
+          "author": {
+            "login": "toller892",
+            "name": "Tony"
+          },
+          "labels": {
+            "nodes": []
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOFHnna859cNbU",
+          "number": 384,
+          "title": "feat: Add border text functions for top and bottom borders.",
+          "state": "OPEN",
+          "isDraft": true,
+          "url": "https://github.com/charmbracelet/lipgloss/pull/384",
+          "createdAt": "2024-10-03T00:46:35Z",
+          "updatedAt": "2025-11-23T14:37:26Z",
+          "repository": {
+            "name": "lipgloss",
+            "owner": {
+              "login": "charmbracelet"
+            }
+          },
+          "author": {
+            "login": "pachecot",
+            "name": "Tom Pacheco"
+          },
+          "labels": {
+            "nodes": []
+          },
+          "comments": {
+            "totalCount": 6
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOFHnna88AAAABDm_2rA",
+          "number": 742,
+          "title": "fix: isolate multiline ANSI content from frames",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/charmbracelet/lipgloss/pull/742",
+          "createdAt": "2026-09-15T12:55:58Z",
+          "updatedAt": "2026-09-15T13:01:49Z",
+          "repository": {
+            "name": "lipgloss",
+            "owner": {
+              "login": "charmbracelet"
+            }
+          },
+          "author": {
+            "login": "ryanchou1994",
+            "name": "周耕毅（Ryan Chou）"
+          },
+          "labels": {
+            "nodes": []
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        }
+      ]
+    }
+  }
+}
