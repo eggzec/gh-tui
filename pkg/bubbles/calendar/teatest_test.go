@@ -8,11 +8,11 @@ import (
 	"github.com/charmbracelet/x/exp/teatest/v2"
 )
 
-// app hosts a calendar as the program root, the way the tui would. It keeps
-// the day of the last SelectMsg and quits on q.
+// app hosts a calendar as the program root, the way the tui would, and
+// quits on q. It doesn't check SelectMsg: that comes from a command, which
+// may still be running when q quits; the Update tests cover it.
 type app struct {
-	cal      Model
-	selected time.Time
+	cal Model
 }
 
 func (a app) Init() tea.Cmd {
@@ -23,11 +23,6 @@ func (a app) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		a.cal.SetSize(msg.Width, msg.Height)
-		return a, nil
-	case SelectMsg:
-		if msg.ID == a.cal.ID() {
-			a.selected = msg.Day.Date
-		}
 		return a, nil
 	case tea.KeyPressMsg:
 		if msg.String() == "q" {
@@ -53,9 +48,6 @@ func TestProgram(t *testing.T) {
 	want := date(2026, 9, 9)
 	if got := selected(t, final.cal); !got.Equal(want) {
 		t.Fatalf("cursor on %v, want %v", got, want)
-	}
-	if !final.selected.Equal(want) {
-		t.Fatalf("last SelectMsg for %v, want %v", final.selected, want)
 	}
 	if final.cal.Width() != 80 {
 		t.Fatalf("width %d, want the terminal's", final.cal.Width())
