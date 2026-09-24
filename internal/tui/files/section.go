@@ -15,6 +15,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
+	filesvc "github.com/eggzec/gh-tui/internal/service/files"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 	"github.com/eggzec/gh-tui/pkg/bubbles/tree"
@@ -166,6 +167,13 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		return s.tree.Reload()
+	case ui.SyncMsg:
+		// A ref of the repository moved, such as after a force-push, and
+		// its new listing is cached already.
+		if msg.Err != nil || s.tree == nil || !s.started || msg.Key != filesvc.SyncKey(s.repo) {
+			return nil
+		}
+		return s.reload()
 	case tree.OpenMsg:
 		if s.tree == nil || msg.ID != s.tree.ID() {
 			return nil
@@ -203,6 +211,12 @@ func (s *Section) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 // so that every directory comes from the same one.
 func (s *Section) refresh() tea.Cmd {
 	s.svc.Invalidate(s.repo)
+	return s.reload()
+}
+
+// reload reads the listing and then reloads the tree from it, keeping what
+// is expanded.
+func (s *Section) reload() tea.Cmd {
 	src, ctx := s.src, s.treeCtx
 	return func() tea.Msg {
 		// A failed read shows in the tree, whose root reads it again.
