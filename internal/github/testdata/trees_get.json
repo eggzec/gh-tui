@@ -1,0 +1,59 @@
+{
+  "sha": "0f8e75abebff0877cae681a3d5ff31ac47f54220",
+  "url": "https://api.github.com/repos/git/git/git/trees/0f8e75abebff0877cae681a3d5ff31ac47f54220",
+  "tree": [
+    {
+      "path": ".gitignore",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4da58c6754899e95a8d698f40d12e56ecf5ab728",
+      "size": 3742,
+      "url": "https://api.github.com/repos/git/git/git/blobs/4da58c6754899e95a8d698f40d12e56ecf5ab728"
+    },
+    {
+      "path": "Documentation",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "a6810531ea06dc8d46500967c6a4d2b13167e4ed",
+      "url": "https://api.github.com/repos/git/git/git/trees/a6810531ea06dc8d46500967c6a4d2b13167e4ed"
+    },
+    {
+      "path": "GIT-VERSION-GEN",
+      "mode": "100755",
+      "type": "blob",
+      "sha": "3b5fe08c19cc40988a6fd5fb8e5ce661528a304e",
+      "size": 2455,
+      "url": "https://api.github.com/repos/git/git/git/blobs/3b5fe08c19cc40988a6fd5fb8e5ce661528a304e"
+    },
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "46489b0971d04d02c1ba3eea5cd5c134e60c4f77",
+      "size": 3808,
+      "url": "https://api.github.com/repos/git/git/git/blobs/46489b0971d04d02c1ba3eea5cd5c134e60c4f77"
+    },
+    {
+      "path": "RelNotes",
+      "mode": "120000",
+      "type": "blob",
+      "sha": "752580e69384bae00cee646d3899a0aed36e1a92",
+      "size": 34,
+      "url": "https://api.github.com/repos/git/git/git/blobs/752580e69384bae00cee646d3899a0aed36e1a92"
+    },
+    {
+      "path": "builtin",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "8788aa1198f74ca27ad7009c12afaced311b75b0",
+      "url": "https://api.github.com/repos/git/git/git/trees/8788aa1198f74ca27ad7009c12afaced311b75b0"
+    },
+    {
+      "path": "sha1collisiondetection",
+      "mode": "160000",
+      "type": "commit",
+      "sha": "855827c583bc30645ba427885caa40c5b81764d2"
+    }
+  ],
+  "truncated": false
+}

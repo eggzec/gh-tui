@@ -138,11 +138,14 @@ func (c *Client) resolve(path string) (string, error) {
 }
 
 // send adds the headers every request needs, sends it, and records the rate
-// limit of the response.
+// limit of the response. A request that asks for another media type keeps
+// its Accept header.
 func (c *Client) send(req *http.Request) (*http.Response, error) {
 	req.Header.Set("Authorization", "Bearer "+c.token)
 	req.Header.Set("User-Agent", userAgent)
-	req.Header.Set("Accept", "application/vnd.github+json")
+	if req.Header.Get("Accept") == "" {
+		req.Header.Set("Accept", "application/vnd.github+json")
+	}
 	req.Header.Set("X-GitHub-Api-Version", apiVersion)
 	resp, err := c.http.Do(req)
 	if err != nil {

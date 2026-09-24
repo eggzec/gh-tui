@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/eggzec/gh-tui/internal/core"
 )
 
 // Conditional holds the validators of an earlier response. Pass them to
@@ -52,6 +54,49 @@ func (c *Client) Get(ctx context.Context, path string, cond Conditional, v any) 
 func (c *Client) probeList(ctx context.Context, path string, cond Conditional) (Response, error) {
 	var latest []json.RawMessage
 	return c.Get(ctx, path+"?state=all&sort=updated&direction=desc&per_page=1", cond, &latest)
+}
+
+// getRaw fetches path as the raw media type, which returns the resource's
+// content instead of JSON, and reads at most limit bytes of it. A larger
+// body is not read: it fails with a *core.TooLargeError.
+func (c *Client) getRaw(ctx context.Context, path string, limit int64) ([]byte, error) {
+	b, err := c.rawRoundTrip(ctx, path, limit)
+	if err != nil {
+		return nil, fmt.Errorf("%s %s: %w", http.MethodGet, path, err)
+	}
+	return b, nil
+}
+
+func (c *Client) rawRoundTrip(ctx context.Context, path string, limit int64) ([]byte, error) {
+	u, err := c.resolve(path)
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, http.NoBody)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", "application/vnd.github.raw+json")
+	resp, err := c.send(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= http.StatusMultipleChoices {
+		return nil, c.httpError(resp)
+	}
+	if resp.ContentLength > limit {
+		return nil, &core.TooLargeError{Size: resp.ContentLength, Limit: limit}
+	}
+	b, err := io.ReadAll(io.LimitReader(resp.Body, limit+1))
+	if err != nil {
+		return nil, fmt.Errorf("read response: %w", err)
+	}
+	if int64(len(b)) > limit {
+		return nil, &core.TooLargeError{Limit: limit}
+	}
+	return b, nil
 }
 
 // Do sends body as JSON, unless it is nil, and decodes the response into v,
