@@ -471,6 +471,21 @@ func TestExpandAllLimits(t *testing.T) {
 	}
 }
 
+func TestSetExpandAllLimits(t *testing.T) {
+	m := load(t, generated(4), WithSize(40, 60))
+	m.SetExpandAllLimits(1000, 2)
+	if n, d := m.ExpandAllLimits(); n != 1000 || d != 2 {
+		t.Fatalf("ExpandAllLimits() = %d, %d; want 1000, 2", n, d)
+	}
+	if m = keys(t, m, "*"); m.Len() != 1+3+6 {
+		t.Errorf("Len() = %d, want two levels", m.Len())
+	}
+	m.SetExpandAllLimits(0, -1)
+	if n, d := m.ExpandAllLimits(); n != 1 || d != 1 {
+		t.Errorf("ExpandAllLimits() = %d, %d; want both clamped to 1", n, d)
+	}
+}
+
 // collect runs cmd and returns the messages it produces, without delivering
 // them. Spinner ticks are dropped.
 func collect(cmd tea.Cmd) []tea.Msg {
