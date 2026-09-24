@@ -14,20 +14,23 @@ import (
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // files is a file tree served by children. Node IDs are paths.
 type files struct {
-	mu    sync.Mutex
-	kids  map[string][]Node
-	fail  map[string]error
-	calls []string
+	mu   sync.Mutex
+	kids map[string][]Node
+	fail map[string]error
+	// details holds the detail of nodes by ID.
+	details map[string]string
+	calls   []string
 }
 
 // newFiles builds a tree from file paths. A path ending in "/" is an empty
 // directory.
 func newFiles(paths ...string) *files {
-	f := &files{kids: map[string][]Node{}, fail: map[string]error{}}
+	f := &files{kids: map[string][]Node{}, fail: map[string]error{}, details: map[string]string{}}
 	for _, p := range paths {
 		f.add(p)
 	}
@@ -80,7 +83,17 @@ func (f *files) children(ctx context.Context, parent Node) ([]Node, error) {
 	if err := f.fail[parent.ID]; err != nil {
 		return nil, err
 	}
-	return slices.Clone(f.kids[parent.ID]), nil
+	kids := slices.Clone(f.kids[parent.ID])
+	for i, n := range kids {
+		kids[i].Detail = f.details[n.ID]
+	}
+	return kids, nil
+}
+
+func (f *files) setDetail(id, detail string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.details[id] = detail
 }
 
 func (f *files) setFail(id string, err error) {
@@ -553,6 +566,16 @@ func TestReloadKeepsState(t *testing.T) {
 	m = keys(t, m, "g", "+")
 	if f.callCount("cmd") != 2 {
 		t.Fatal("a collapsed branch did not load again after Reload")
+	}
+}
+
+func TestReloadUpdatesDetail(t *testing.T) {
+	f := sized()
+	m := load(t, f, WithSize(40, 6))
+	f.setDetail("go.mod", "9.9K")
+	m = run(t, m, m.Reload())
+	if v := ansi.Strip(m.View()); !strings.Contains(v, "9.9K") || strings.Contains(v, "1.2K") {
+		t.Errorf("view = %q, want the new detail of go.mod", v)
 	}
 }
 

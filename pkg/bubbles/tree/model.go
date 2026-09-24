@@ -22,6 +22,10 @@ type Node struct {
 	ID string
 	// Name is the text shown for the node.
 	Name string
+	// Detail is optional text shown dimmed at the right edge of the row,
+	// such as the size of a file. It is dropped when the row is too narrow
+	// to show it next to enough of the name.
+	Detail string
 	// Branch reports whether the node can have children. Branches expand;
 	// leaves open.
 	Branch bool
@@ -44,8 +48,9 @@ func nextID() int {
 // entry is a node and what the tree knows about it.
 type entry struct {
 	node Node
-	// label is the name rendered in its style.
+	// label is the name rendered in its style, and detail the detail.
 	label  string
+	detail string
 	parent string
 	// depth is 0 for top-level nodes and -1 for the root.
 	depth int
@@ -271,7 +276,7 @@ func (m *Model) SetStyles(s Styles) {
 	m.guides = nil
 	maxDepth := 0
 	for _, e := range m.nodes {
-		e.label = m.label(e.node)
+		e.label, e.detail = m.label(e.node), m.detail(e.node)
 		maxDepth = max(maxDepth, e.depth)
 	}
 	m.growGuides(maxDepth)
@@ -292,6 +297,13 @@ func (m *Model) SetEmptyText(text string) {
 // SetIcons sets the icons drawn before names. See [WithIcons].
 func (m *Model) SetIcons(icons Icons) {
 	m.icons = icons
+}
+
+func (m Model) detail(n Node) string {
+	if n.Detail == "" {
+		return ""
+	}
+	return m.styles.Detail.Render(n.Detail)
 }
 
 func (m Model) label(n Node) string {
@@ -399,10 +411,10 @@ func (m *Model) setKids(e *entry, nodes []Node) {
 			c = nil
 		}
 		if c == nil {
-			m.nodes[n.ID] = &entry{node: n, label: m.label(n), parent: e.node.ID, depth: e.depth + 1}
+			m.nodes[n.ID] = &entry{node: n, label: m.label(n), detail: m.detail(n), parent: e.node.ID, depth: e.depth + 1}
 			continue
 		}
-		c.node, c.label = n, m.label(n)
+		c.node, c.label, c.detail = n, m.label(n), m.detail(n)
 		if !n.Branch {
 			m.forget(c)
 			c.expanded = false

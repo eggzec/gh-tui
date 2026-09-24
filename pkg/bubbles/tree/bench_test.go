@@ -9,13 +9,15 @@ import (
 
 // benchTree returns a tree with a 40-row window over 10,101 visible rows: one
 // directory holding 100 directories of 100 files each, all expanded, with
-// the cursor in the middle.
+// the cursor in the middle. Every file shows its size as a detail.
 func benchTree(b *testing.B) Model {
 	b.Helper()
 	f := newFiles()
 	for d := range 100 {
 		for i := range 100 {
-			f.add(fmt.Sprintf("repo/dir%03d/file%03d.go", d, i))
+			id := fmt.Sprintf("repo/dir%03d/file%03d.go", d, i)
+			f.add(id)
+			f.setDetail(id, "1.2K")
 		}
 	}
 	m := load(b, f, WithSize(100, 40), WithExpandAllLimits(20_000, 2))

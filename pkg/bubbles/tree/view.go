@@ -50,7 +50,7 @@ func (m Model) writeRow(w *lineWriter, i int) {
 	}
 	prefix := m.gutter(i == m.sel)
 	if e.err == nil {
-		w.line(prefix, m.guides[e.depth], marker, icon, e.label)
+		m.writeName(w, e, prefix, marker, icon)
 		return
 	}
 	// Keep the retry hint whole, and share the rest between the name and
@@ -68,6 +68,36 @@ func (m Model) writeRow(w *lineWriter, i int) {
 		msg = ansi.Truncate(msg, max(room-nw, 0), "…")
 	}
 	w.line(prefix, guide, marker, icon, name, msg, m.errHint)
+}
+
+// minDetailName is the fewest cells of a name that a detail may leave.
+const minDetailName = 10
+
+// writeName writes a row that loaded, with its detail at the right edge
+// when there is room for it. The name is truncated before the detail is
+// dropped, but never below minDetailName cells.
+func (m Model) writeName(w *lineWriter, e *entry, prefix, marker, icon string) {
+	guide := m.guides[e.depth]
+	if e.detail == "" {
+		w.line(prefix, guide, marker, icon, e.label)
+		return
+	}
+	room := w.width - ansi.StringWidth(prefix) - ansi.StringWidth(guide) -
+		ansi.StringWidth(marker) - ansi.StringWidth(icon)
+	dw := ansi.StringWidth(e.detail)
+	nw := ansi.StringWidth(e.label)
+	// One space keeps the name and the detail apart.
+	avail := room - dw - 1
+	if avail < min(nw, minDetailName) {
+		w.line(prefix, guide, marker, icon, e.label)
+		return
+	}
+	name := e.label
+	if nw > avail {
+		name = ansi.Truncate(name, avail, "…")
+		nw = ansi.StringWidth(name)
+	}
+	w.right(e.detail, room-nw-dw, prefix, guide, marker, icon, name)
 }
 
 func (m Model) gutter(selected bool) string {
@@ -138,6 +168,23 @@ func (w *lineWriter) line(parts ...string) {
 		left -= pw
 	}
 	w.pad(left)
+}
+
+// right writes parts, then gap spaces, then detail. The parts and the
+// detail must fit the width with the gap.
+func (w *lineWriter) right(detail string, gap int, parts ...string) {
+	if w.full() {
+		return
+	}
+	if w.lines > 0 {
+		w.b.WriteByte('\n')
+	}
+	w.lines++
+	for _, p := range parts {
+		w.b.WriteString(p)
+	}
+	w.pad(gap)
+	w.b.WriteString(detail)
 }
 
 // status writes prefix, then text truncated to leave room for hint, then
