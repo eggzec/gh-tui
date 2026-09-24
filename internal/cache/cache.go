@@ -1,5 +1,6 @@
 // Package cache provides an in-memory LRU cache with TTL freshness and HTTP
-// validator metadata, for stale-while-revalidate reads.
+// validator metadata, for stale-while-revalidate reads, and a Shelf that
+// keeps entries in a Store across sessions.
 package cache
 
 import (
@@ -14,8 +15,12 @@ type Entry[V any] struct {
 	Value        V
 	ETag         string
 	LastModified string
-	FetchedAt    time.Time
-	Tags         []string
+	// Source is the URL the value was read from, if a plain GET of it with
+	// the validators revalidates the entry. A Shelf keeps it, so that the
+	// entry can be revalidated without knowing what it holds.
+	Source    string
+	FetchedAt time.Time
+	Tags      []string
 }
 
 // State describes the result of a lookup.
@@ -102,6 +107,26 @@ func (c *Cache[V]) Set(key string, e Entry[V]) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.set(key, e)
+}
+
+// Seed stores e under key as a stale entry, unless key holds an entry
+// already or is being fetched, and reports whether it did. It is for
+// entries kept from an earlier session, such as by a Shelf: they are shown
+// at once, and the next Fetch revalidates them with their validators.
+func (c *Cache[V]) Seed(key string, e Entry[V]) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if _, ok := c.items[key]; ok {
+		return false
+	}
+	// The fetch would not store its result over an entry it didn't start
+	// from, and it brings a newer one.
+	if _, ok := c.flights[key]; ok {
+		return false
+	}
+	c.set(key, e)
+	c.markStale(c.items[key])
+	return true
 }
 
 // Invalidate marks the entry for key as stale.
