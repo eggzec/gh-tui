@@ -31,7 +31,8 @@ const repoFields = `fragment repoFields on Repository {
 // ownerAffiliations must list ORGANIZATION_MEMBER too: it defaults to OWNER
 // and COLLABORATOR, which would hide the repositories of the viewer's
 // organizations even though affiliations asks for them.
-const listReposQuery = `query($first: Int!, $after: String) {
+const listReposQuery = `query ListRepos($first: Int!, $after: String) {
+  ` + rateLimitField + `
   viewer {
     repositories(
       first: $first
@@ -47,7 +48,8 @@ const listReposQuery = `query($first: Int!, $after: String) {
 }
 ` + repoFields
 
-const getRepoQuery = `query($owner: String!, $name: String!) {
+const getRepoQuery = `query GetRepo($owner: String!, $name: String!) {
+  ` + rateLimitField + `
   repository(owner: $owner, name: $name) { ...repoFields }
 }
 ` + repoFields

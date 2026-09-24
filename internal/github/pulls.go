@@ -51,7 +51,8 @@ var pullFields = fmt.Sprintf(`fragment pullFields on PullRequest {
   commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
 }`, pullLabels, pullAssignees)
 
-var listPullsQuery = `query($owner: String!, $name: String!, $states: [PullRequestState!], $first: Int!, $after: String) {
+var listPullsQuery = `query ListPulls($owner: String!, $name: String!, $states: [PullRequestState!], $first: Int!, $after: String) {
+  ` + rateLimitField + `
   repository(owner: $owner, name: $name) {
     pullRequests(states: $states, first: $first, after: $after, orderBy: {field: UPDATED_AT, direction: DESC}) {
       nodes { ...pullFields }
@@ -61,7 +62,8 @@ var listPullsQuery = `query($owner: String!, $name: String!, $states: [PullReque
 }
 ` + pullFields
 
-var getPullQuery = fmt.Sprintf(`query($owner: String!, $name: String!, $number: Int!) {
+var getPullQuery = fmt.Sprintf(`query GetPull($owner: String!, $name: String!, $number: Int!) {
+  %s
   repository(owner: $owner, name: $name) {
     pullRequest(number: $number) {
       ...pullFields
@@ -76,7 +78,7 @@ var getPullQuery = fmt.Sprintf(`query($owner: String!, $name: String!, $number: 
     }
   }
 }
-`, pullChecks) + pullFields
+`, rateLimitField, pullChecks) + pullFields
 
 // pull is the JSON shape of pullFields.
 type pull struct {
@@ -333,11 +335,12 @@ func (c *Client) GetPullRequest(ctx context.Context, repo core.RepoRef, number i
 	return data.Repository.PullRequest.core(), nil
 }
 
-// pullPage selects a page of the connection field of a pull request, such
-// as its comments, oldest first. The page is aliased to page, so that one
-// shape decodes them all.
-func pullPage(field, nodeFields string) string {
-	return fmt.Sprintf(`query($owner: String!, $name: String!, $number: Int!, $first: Int!, $after: String) {
+// pullPage is the query op, which selects a page of the connection field
+// of a pull request, such as its comments, oldest first. The page is
+// aliased to page, so that one shape decodes them all.
+func pullPage(op, field, nodeFields string) string {
+	return fmt.Sprintf(`query %s($owner: String!, $name: String!, $number: Int!, $first: Int!, $after: String) {
+  %s
   repository(owner: $owner, name: $name) {
     pullRequest(number: $number) {
       page: %s(first: $first, after: $after) {
@@ -346,12 +349,12 @@ func pullPage(field, nodeFields string) string {
       }
     }
   }
-}`, field, nodeFields)
+}`, op, rateLimitField, field, nodeFields)
 }
 
 var (
-	pullCommentsQuery = pullPage("comments", "id author { login ... on User { name } } body createdAt updatedAt")
-	pullReviewsQuery  = pullPage("reviews", "id author { login ... on User { name } } state body submittedAt")
+	pullCommentsQuery = pullPage("PullComments", "comments", "id author { login ... on User { name } } body createdAt updatedAt")
+	pullReviewsQuery  = pullPage("PullReviews", "reviews", "id author { login ... on User { name } } state body submittedAt")
 )
 
 // listPullPage runs a pullPage query and converts its nodes with f. What
@@ -400,7 +403,8 @@ func (c *Client) ListPullRequestReviews(ctx context.Context, repo core.RepoRef, 
 	return listPullPage(ctx, c, "reviews", pullReviewsQuery, repo, number, cursor, first, review.core)
 }
 
-var pullIDQuery = `query($owner: String!, $name: String!, $number: Int!) {
+var pullIDQuery = `query PullID($owner: String!, $name: String!, $number: Int!) {
+  ` + rateLimitField + `
   repository(owner: $owner, name: $name) { pullRequest(number: $number) { id } }
 }`
 
@@ -428,14 +432,14 @@ func (c *Client) PullRequestID(ctx context.Context, repo core.RepoRef, number in
 // pullMutation is a mutation on the pull request with node ID $id. Its
 // payload is aliased to result, so that one shape decodes them all.
 func pullMutation(field string) string {
-	return fmt.Sprintf(`mutation($id: ID!) {
+	return fmt.Sprintf(`mutation %s($id: ID!) {
   result: %s(input: {pullRequestId: $id}) { pullRequest { ...pullFields } }
 }
-`, field) + pullFields
+`, strings.ToUpper(field[:1])+field[1:], field) + pullFields
 }
 
 var (
-	mergePullMutation = `mutation($id: ID!, $method: PullRequestMergeMethod!) {
+	mergePullMutation = `mutation MergePullRequest($id: ID!, $method: PullRequestMergeMethod!) {
   result: mergePullRequest(input: {pullRequestId: $id, mergeMethod: $method}) { pullRequest { ...pullFields } }
 }
 ` + pullFields
