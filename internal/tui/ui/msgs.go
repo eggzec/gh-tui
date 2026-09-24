@@ -70,6 +70,29 @@ type RepoMsg struct {
 	Repo core.RepoRef
 }
 
+// BaseMsg sets the base of Repo, the branch or commit that its files are
+// shown at. The app shows the base in the header, then passes the message
+// on to the sections. A RepoMsg resets the base to the head of the default
+// branch.
+type BaseMsg struct {
+	Repo core.RepoRef
+	// Ref is a branch, or the full SHA of a commit. Empty means the head of
+	// the default branch.
+	Ref string
+	// Label names the base in the header, such as "main @ a1b2c3d" for a
+	// commit of main.
+	Label string
+	// Branch is the branch the base was chosen from, so that the history
+	// opens on it again. It is empty for the head of the default branch.
+	Branch string
+}
+
+// ResetBase returns a command that resets the base of repo to the head of
+// its default branch.
+func ResetBase(repo core.RepoRef) tea.Cmd {
+	return func() tea.Msg { return BaseMsg{Repo: repo} }
+}
+
 // OpenPullMsg asks for the pull request Number of Repo to be opened, such as
 // when it is picked in the search. Repo need not be the selected repository.
 type OpenPullMsg struct {

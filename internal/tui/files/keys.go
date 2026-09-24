@@ -12,6 +12,9 @@ import (
 type KeyMap struct {
 	Open    key.Binding
 	Refresh key.Binding
+	// ResetBase shows the head of the default branch again, once the
+	// files show another base.
+	ResetBase key.Binding
 	// Tree moves through the files and expands directories.
 	Tree tree.KeyMap
 }
@@ -26,9 +29,10 @@ func newKeyMap(keys map[string][]string) KeyMap {
 	tk.CollapseAll = ui.Binding(keys, config.ActionCollapseAll, "collapse all")
 	tk.Open = ui.Binding(keys, config.ActionSelect, "preview")
 	return KeyMap{
-		Open:    ui.Binding(keys, config.ActionOpen, "open"),
-		Refresh: ui.Binding(keys, config.ActionRefresh, "refresh"),
-		Tree:    tk,
+		Open:      ui.Binding(keys, config.ActionOpen, "open"),
+		Refresh:   ui.Binding(keys, config.ActionRefresh, "refresh"),
+		ResetBase: ui.Binding(keys, config.ActionResetBase, "back to head"),
+		Tree:      tk,
 	}
 }
 
@@ -44,10 +48,10 @@ func withKeys(b key.Binding, desc, label string, keys ...string) key.Binding {
 
 // ShortHelp returns the bindings for the short help view.
 func (k KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Tree.Up, k.Tree.Down, k.Tree.Right, k.Tree.Collapse, k.Tree.Open, k.Open, k.Refresh}
+	return []key.Binding{k.Tree.Up, k.Tree.Down, k.Tree.Right, k.Tree.Collapse, k.Tree.Open, k.Open, k.Refresh, k.ResetBase}
 }
 
 // FullHelp returns the bindings for the full help view.
 func (k KeyMap) FullHelp() [][]key.Binding {
-	return append(k.Tree.FullHelp(), []key.Binding{k.Open, k.Refresh})
+	return append(k.Tree.FullHelp(), []key.Binding{k.Open, k.Refresh, k.ResetBase})
 }

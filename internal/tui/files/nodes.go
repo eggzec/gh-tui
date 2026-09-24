@@ -29,18 +29,25 @@ func entryOf(n tree.Node) (core.TreeEntry, bool) {
 	return e, ok
 }
 
-// webURL returns the page of e on GitHub, or of the repository when e is
-// the zero entry. Files are blobs; directories and submodules are trees.
-func webURL(repo core.RepoRef, e core.TreeEntry) string {
+// webURL returns the page of e at ref on GitHub, or of the repository at
+// ref when e is the zero entry. Files are blobs; directories and submodules
+// are trees. An empty ref is the head of the default branch.
+func webURL(repo core.RepoRef, ref string, e core.TreeEntry) string {
 	u := "https://github.com/" + escapePath(repo.String())
+	if ref == "" {
+		ref = "HEAD"
+	}
 	if e.Path == "" {
-		return u
+		if ref == "HEAD" {
+			return u
+		}
+		return u + "/tree/" + escapePath(ref)
 	}
-	kind := "/blob/HEAD/"
+	kind := "/blob/"
 	if e.Dir() || e.Submodule() {
-		kind = "/tree/HEAD/"
+		kind = "/tree/"
 	}
-	return u + kind + escapePath(e.Path)
+	return u + kind + escapePath(ref) + "/" + escapePath(e.Path)
 }
 
 // escapePath escapes each segment of p, keeping the slashes between them.

@@ -22,9 +22,11 @@ type preview struct {
 	cancel context.CancelFunc
 	svc    Service
 	repo   core.RepoRef
-	entry  core.TreeEntry
-	open   key.Binding
-	pager  pager.Model
+	// ref is the base the file was listed at, for its page on GitHub.
+	ref   string
+	entry core.TreeEntry
+	open  key.Binding
+	pager pager.Model
 }
 
 // blobMsg carries the content of the file of the preview whose pager has
@@ -35,11 +37,11 @@ type blobMsg struct {
 	err  error
 }
 
-// newPreview returns a preview of e, a file of repo. Its load runs under
-// ctx until it closes.
-func newPreview(ctx context.Context, svc Service, repo core.RepoRef, e core.TreeEntry, open key.Binding) *preview {
+// newPreview returns a preview of e, a file of repo at ref. Its load runs
+// under ctx until it closes.
+func newPreview(ctx context.Context, svc Service, repo core.RepoRef, ref string, e core.TreeEntry, open key.Binding) *preview {
 	ctx, cancel := context.WithCancel(ctx)
-	p := &preview{ctx: ctx, cancel: cancel, svc: svc, repo: repo, entry: e, open: open, pager: pager.New()}
+	p := &preview{ctx: ctx, cancel: cancel, svc: svc, repo: repo, ref: ref, entry: e, open: open, pager: pager.New()}
 	p.pager.Focus()
 	return p
 }
@@ -111,7 +113,7 @@ func (p *preview) Update(msg tea.Msg) tea.Cmd {
 		return ui.CloseModal(p)
 	case tea.KeyPressMsg:
 		if !p.pager.Capturing() && key.Matches(msg, p.open) {
-			return ui.Open(webURL(p.repo, p.entry))
+			return ui.Open(webURL(p.repo, p.ref, p.entry))
 		}
 	}
 	var cmd tea.Cmd
