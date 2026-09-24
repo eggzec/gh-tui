@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"time"
 
 	"go.yaml.in/yaml/v3"
@@ -41,6 +42,7 @@ type Config struct {
 	Files Files               `yaml:"files"`
 	// Details configures the pull request and issue modals.
 	Details Details `yaml:"details"`
+	Log     Log     `yaml:"log"`
 }
 
 // Sync configures background polling.
@@ -64,6 +66,7 @@ func Default() Config {
 		Files:  defaultFiles(),
 
 		Details: defaultDetails(),
+		Log:     defaultLog(),
 	}
 }
 
@@ -80,24 +83,27 @@ func Path() (string, error) {
 	return filepath.Join(dir, "gh-tui", "config.yaml"), nil
 }
 
-// Load reads the config file at path over the defaults and validates the
-// result. A missing or empty file yields the defaults.
+// Load reads the config file at path over the defaults, applies $GH_TUI_LOG
+// over the log level, and validates the result. A missing or empty file
+// yields the defaults.
 func Load(path string) (Config, error) {
 	cfg := Default()
 	data, err := os.ReadFile(path)
-	if errors.Is(err, fs.ErrNotExist) {
-		return cfg, nil
-	}
-	if err != nil {
+	switch {
+	case errors.Is(err, fs.ErrNotExist):
+	case err != nil:
 		return Config{}, fmt.Errorf("load config: %w", err)
+	default:
+		dec := yaml.NewDecoder(bytes.NewReader(data))
+		dec.KnownFields(true)
+		// Decoding into the defaults merges maps key by key, so overriding
+		// one action or theme leaves the others in place.
+		if err := dec.Decode(&cfg); err != nil && !errors.Is(err, io.EOF) {
+			return Config{}, fmt.Errorf("load config %s: %w", path, err)
+		}
 	}
-
-	dec := yaml.NewDecoder(bytes.NewReader(data))
-	dec.KnownFields(true)
-	// Decoding into the defaults merges maps key by key, so overriding one
-	// action or theme leaves the others in place.
-	if err := dec.Decode(&cfg); err != nil && !errors.Is(err, io.EOF) {
-		return Config{}, fmt.Errorf("load config %s: %w", path, err)
+	if level := os.Getenv(EnvLog); level != "" {
+		cfg.Log.Level = strings.ToLower(level)
 	}
 	if err := cfg.Validate(); err != nil {
 		return Config{}, fmt.Errorf("invalid config %s:\n%w", path, err)
@@ -129,6 +135,6 @@ func (c Config) Validate() error {
 	if c.Sync.Interval <= 0 {
 		errs = append(errs, fmt.Errorf("sync.interval: must be positive, got %v", c.Sync.Interval))
 	}
-	errs = append(errs, c.Files.validate(), c.Details.validate())
+	errs = append(errs, c.Files.validate(), c.Details.validate(), c.Log.validate())
 	return errors.Join(errs...)
 }
