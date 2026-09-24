@@ -60,6 +60,8 @@ type Section struct {
 	// section has started with a repository.
 	feed       *feed.Model[core.PullRequest]
 	cancelFeed context.CancelFunc
+	// offline is marked by the feed's reads when GitHub can't be reached.
+	offline *ui.Offline
 
 	// ahead reads the details of the rows of feed before they are opened,
 	// if prefetch is set. rowAt returns the query of the first comments of
@@ -94,6 +96,17 @@ func WithMergeMethod(m core.MergeMethod) Option {
 	return func(s *Section) { s.mergeMethod = m }
 }
 
+// WithOffline shares off with other sections, so that the user is told once
+// for all of them that GitHub can't be reached. By default the section has
+// its own.
+func WithOffline(off *ui.Offline) Option {
+	return func(s *Section) {
+		if off != nil {
+			s.offline = off
+		}
+	}
+}
+
 // prefetch is how the details are read ahead.
 type prefetch struct {
 	rows  int
@@ -115,6 +128,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 	s := &Section{
 		ctx:         ctx,
 		svc:         svc,
+		offline:     new(ui.Offline),
 		keys:        newKeyMap(keys),
 		now:         time.Now,
 		mergeMethod: core.MergeSquash,
@@ -163,12 +177,11 @@ func (s *Section) newFeed() tea.Cmd {
 	s.ahead.Reset(ctx)
 	q := pulls.ListQuery{Repo: s.repo, State: s.filter}
 	svc := s.svc
-	fetch := func(ctx context.Context, cursor string) ([]core.PullRequest, string, error) {
+	fetch := ui.FeedPages(s.offline, func(ctx context.Context, cursor string) (core.Page[core.PullRequest], error) {
 		q := q
 		q.Cursor = cursor
-		p, err := svc.List(ctx, q)
-		return p.Items, p.Next, err
-	}
+		return svc.List(ctx, q)
+	})
 	f := feed.New(fetch, s.renderRow,
 		feed.WithContext(ctx),
 		feed.WithKey(pullKey),

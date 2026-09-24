@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 )
@@ -105,13 +106,19 @@ func (s *Service) reconcile(repo core.RepoRef, number int, pr core.PullRequest) 
 	s.lists.MutateTag(tag, func(p core.Page[core.PullRequest]) (core.Page[core.PullRequest], bool) {
 		return replace(p, number, func(core.PullRequest) core.PullRequest { return pr })
 	})
-	s.details.Mutate(detailKey(repo, number), func(d core.PullRequestDetail) core.PullRequestDetail {
+	key := detailKey(repo, number)
+	s.details.Mutate(key, func(d core.PullRequestDetail) core.PullRequestDetail {
 		// Mutations don't return the body, and they don't change it.
 		body := d.Body
 		d.PullRequest = pr
 		d.Body = body
 		return d
 	})
+	// What GitHub confirmed is kept for the next session. Until then only
+	// memory has the change, so a rollback leaves nothing behind.
+	if e, st := s.details.Get(key); st != cache.Miss {
+		_ = s.keptDetails.Save(key, cache.Entry[core.PullRequestDetail]{Value: e.Value, Tags: e.Tags})
+	}
 	s.lists.InvalidateTag(tag)
 }
 

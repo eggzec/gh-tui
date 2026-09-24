@@ -58,15 +58,18 @@ func (s *Service) CachedComments(q CommentsQuery) (core.Page[core.Comment], bool
 
 // Comments returns the page for q, oldest first. A cached page is returned
 // without a request while it is fresh, or while it was read at the version
-// of the pull request that the list last showed.
+// of the pull request that the list last showed. What an earlier session
+// kept counts as cached, as for Get.
 func (s *Service) Comments(ctx context.Context, q CommentsQuery) (core.Page[core.Comment], error) {
+	key := q.key()
+	s.keptComments.Warm(s.comments, key)
 	if p, ok := s.currentComments(q); ok {
 		return p, nil
 	}
 	// The page is at least as recent as what the list showed before the
 	// read.
 	m, _ := s.seen.Get(detailKey(q.Repo, q.Number))
-	p, err := fetch(ctx, s.comments, q.key(), tags(q.Repo, q.Number), func(ctx context.Context) (seen.Stamped[core.Page[core.Comment]], error) {
+	p, err := fetch(ctx, s.comments, s.keptComments, key, tags(q.Repo, q.Number), offlineComments, func(ctx context.Context) (seen.Stamped[core.Page[core.Comment]], error) {
 		p, err := s.api.ListPullRequestComments(ctx, q.Repo, q.Number, q.Cursor, pageSize(q.PageSize))
 		return seen.Stamped[core.Page[core.Comment]]{Value: p, Version: m.updated}, err
 	})
@@ -74,6 +77,12 @@ func (s *Service) Comments(ctx context.Context, q CommentsQuery) (core.Page[core
 		return core.Page[core.Comment]{}, fmt.Errorf("list comments of pull %s#%d: %w", q.Repo, q.Number, err)
 	}
 	return p.Value, nil
+}
+
+// offlineComments marks a page of comments served offline.
+func offlineComments(p seen.Stamped[core.Page[core.Comment]]) seen.Stamped[core.Page[core.Comment]] {
+	p.Value.Offline = true
+	return p
 }
 
 // CachedReviews returns the page for q if it is cached, fresh or stale,
@@ -85,7 +94,7 @@ func (s *Service) CachedReviews(q ReviewsQuery) (core.Page[core.Review], bool) {
 // Reviews returns the page for q, oldest first. A fresh cached page is
 // returned without a request.
 func (s *Service) Reviews(ctx context.Context, q ReviewsQuery) (core.Page[core.Review], error) {
-	p, err := fetch(ctx, s.reviews, q.key(), tags(q.Repo, q.Number), func(ctx context.Context) (core.Page[core.Review], error) {
+	p, err := fetch(ctx, s.reviews, nil, q.key(), tags(q.Repo, q.Number), offlinePage[core.Review], func(ctx context.Context) (core.Page[core.Review], error) {
 		return s.api.ListPullRequestReviews(ctx, q.Repo, q.Number, q.Cursor, pageSize(q.PageSize))
 	})
 	if err != nil {

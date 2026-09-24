@@ -45,7 +45,12 @@ type Service struct {
 	// of the pull request they were read at.
 	comments *cache.Cache[seen.Stamped[core.Page[core.Comment]]]
 	reviews  *cache.Cache[core.Page[core.Review]]
-	now      func() time.Time
+	// The kept ones are what an earlier session read, if the service has
+	// a store. A read that misses memory starts from them.
+	keptLists    *cache.Shelf[core.Page[core.PullRequest]]
+	keptDetails  *cache.Shelf[core.PullRequestDetail]
+	keptComments *cache.Shelf[seen.Stamped[core.Page[core.Comment]]]
+	now          func() time.Time
 	// etags holds the latest probe ETag of each polled repository.
 	etags probe.Tracker
 	// seen holds what the list pages last showed of each pull request, by
@@ -60,14 +65,32 @@ func New(api API, opts ...Option) *Service {
 		opt(&o)
 	}
 	return &Service{
-		api:      api,
-		lists:    cache.New[core.Page[core.PullRequest]](o.cache...),
-		details:  cache.New[core.PullRequestDetail](o.cache...),
-		comments: cache.New[seen.Stamped[core.Page[core.Comment]]](o.cache...),
-		reviews:  cache.New[core.Page[core.Review]](o.cache...),
-		now:      time.Now,
+		api:          api,
+		lists:        cache.New[core.Page[core.PullRequest]](o.cache...),
+		details:      cache.New[core.PullRequestDetail](o.cache...),
+		comments:     cache.New[seen.Stamped[core.Page[core.Comment]]](o.cache...),
+		reviews:      cache.New[core.Page[core.Review]](o.cache...),
+		keptLists:    cache.NewShelf[core.Page[core.PullRequest]](o.store, kindList, schema),
+		keptDetails:  cache.NewShelf[core.PullRequestDetail](o.store, kindDetail, schema),
+		keptComments: cache.NewShelf[seen.Stamped[core.Page[core.Comment]]](o.store, kindComments, schema),
+		now:          time.Now,
 	}
 }
+
+// The kinds of entries the service keeps in its store, and the version of
+// their values. Bump schema when core.PullRequestDetail or core.Comment
+// change shape.
+const (
+	kindList     = "pulllist"
+	kindDetail   = "pull"
+	kindComments = "pullcomments"
+	schema       = 1
+)
+
+// offlineAt is when an entry served offline was fetched, as far as the
+// cache can tell: long ago, so it is stale at once and the next read asks
+// GitHub again.
+var offlineAt = time.Unix(1, 0)
 
 // Page sizes. GitHub returns at most maxPageSize items per page.
 const (
@@ -138,19 +161,40 @@ func cached[V any](c *cache.Cache[V], key string) (V, bool) {
 }
 
 // fetch returns the value under key in c. A fresh value is returned without
-// a request; otherwise get fetches it, and it is stored with tags.
-func fetch[V any](ctx context.Context, c *cache.Cache[V], key string, tags []string, get func(context.Context) (V, error)) (V, error) {
+// a request; otherwise get fetches it, and it is stored with tags, and kept
+// on shelf. What GitHub refuses is dropped from shelf. If GitHub can't be
+// reached, the stale value is served instead, marked by offline.
+func fetch[V any](ctx context.Context, c *cache.Cache[V], shelf *cache.Shelf[V], key string, tags []string, offline func(V) V, get func(context.Context) (V, error)) (V, error) {
 	// GraphQL responses carry no validators, so a stale value is fetched
 	// again in full.
-	e, err := c.Fetch(ctx, key, func(ctx context.Context, _ cache.Entry[V], _ bool) (cache.Entry[V], error) {
+	e, err := c.Fetch(ctx, key, func(ctx context.Context, prev cache.Entry[V], ok bool) (cache.Entry[V], error) {
 		v, err := get(ctx)
-		if err != nil {
+		switch {
+		case ok && github.Unreachable(ctx, err):
+			prev.Value, prev.FetchedAt = offline(prev.Value), offlineAt
+			return prev, nil
+		case err != nil:
+			if github.Refused(err) {
+				shelf.Delete(key)
+			}
 			return cache.Entry[V]{}, err
 		}
-		return cache.Entry[V]{Value: v, Tags: tags}, nil
+		e := cache.Entry[V]{Value: v, Tags: tags}
+		// The shelf is only a shortcut, so a failure is ignored.
+		_ = shelf.Save(key, e)
+		return e, nil
 	})
 	return e.Value, err
 }
+
+// offlinePage marks a page served offline.
+func offlinePage[T any](p core.Page[T]) core.Page[T] {
+	p.Offline = true
+	return p
+}
+
+// asIs serves a value offline unmarked.
+func asIs[V any](v V) V { return v }
 
 // CachedList returns the page for q if it is cached, fresh or stale, without
 // fetching it.
@@ -161,11 +205,29 @@ func (s *Service) CachedList(q ListQuery) (core.Page[core.PullRequest], bool) {
 // List returns the page for q, most recently updated first. A fresh cached
 // page is returned without a request. The page vouches for what is cached
 // of the pull requests it lists: see [Service.Get].
+//
+// A page that only an earlier session kept is returned at once, with Stale
+// set, and reading it again fetches it. If GitHub can't be reached, a stale
+// page is served with Offline set.
 func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.PullRequest], error) {
-	p, err := fetch(ctx, s.lists, q.key(), []string{repoTag(q.Repo)}, func(ctx context.Context) (core.Page[core.PullRequest], error) {
+	key := q.key()
+	if e, ok := s.keptLists.Warm(s.lists, key); ok {
+		// The page vouches for what is cached of its pull requests as of
+		// when it was read, like the other pages shown with it.
+		s.vouch(q.Repo, e.Value.Items)
+		p := e.Value
+		p.Stale = true
+		return p, nil
+	}
+	p, err := fetch(ctx, s.lists, s.keptLists, key, []string{repoTag(q.Repo)}, offlinePage[core.PullRequest], func(ctx context.Context) (core.Page[core.PullRequest], error) {
 		return s.api.ListPullRequests(ctx, q.Repo, q.State, q.Cursor, pageSize(q.PageSize))
 	})
 	if err != nil {
+		if github.Refused(err) {
+			// A kept page may have vouched for what is cached of the
+			// repository's pull requests.
+			s.seen.DeletePrefix(pullPrefix(q.Repo))
+		}
 		return core.Page[core.PullRequest]{}, fmt.Errorf("list pulls of %s: %w", q.Repo, err)
 	}
 	s.vouch(q.Repo, p.Items)
@@ -182,13 +244,15 @@ func (s *Service) CachedGet(repo core.RepoRef, number int) (core.PullRequestDeta
 // comments and reviews are read with Comments and Reviews. A cached detail
 // is returned without a request while it is fresh, or while it is current:
 // as recent as the pull request the list last showed, with the same
-// settled checks.
+// settled checks. What an earlier session kept counts as cached, and is
+// served if GitHub can't be reached.
 func (s *Service) Get(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error) {
 	key := detailKey(repo, number)
+	s.keptDetails.Warm(s.details, key)
 	if d, ok := s.currentDetail(key); ok {
 		return d, nil
 	}
-	d, err := fetch(ctx, s.details, key, tags(repo, number), func(ctx context.Context) (core.PullRequestDetail, error) {
+	d, err := fetch(ctx, s.details, s.keptDetails, key, tags(repo, number), asIs[core.PullRequestDetail], func(ctx context.Context) (core.PullRequestDetail, error) {
 		return s.api.GetPullRequest(ctx, repo, number)
 	})
 	if err != nil {
