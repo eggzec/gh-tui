@@ -8,11 +8,11 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-// Section is a top-level view of the app, shown under a tab. Sections are
-// initialized lazily, the first time they are shown.
+// Section is a top-level view of the app, shown in a framed pane of a
+// screen. Sections are initialized lazily, the first time they are shown.
 //
 // The app sends every message to every section, since the bubbles inside
-// filter messages by their ID, but key presses go to the active one only.
+// filter messages by their ID, but key presses go to the focused one only.
 type Section interface {
 	Title() string
 	Init() tea.Cmd
@@ -26,7 +26,7 @@ type Section interface {
 	Help() help.KeyMap
 }
 
-// Badger is a Section that shows a badge next to its tab title, such as a
+// Badger is a Section that has a badge for the app's header, such as a
 // count of unread notifications. An empty badge shows nothing.
 type Badger interface {
 	Badge() string
@@ -34,7 +34,7 @@ type Badger interface {
 
 // Capturer is a Section that at times takes every key, such as while the
 // user types into a prompt. Until Capturing reports false, the app sends
-// keys straight to it, including its own keys such as quit and next tab,
+// keys straight to it, including its own keys such as quit and next pane,
 // so that typing a "q" doesn't quit. Only ctrl+c still quits.
 type Capturer interface {
 	Capturing() bool

@@ -7,12 +7,11 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/tabs"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
-// Update routes msg: keys to the top modal, or else to the tabs or the
-// active section, app messages to the app, and everything else to every
+// Update routes msg: keys to the top modal, or else to the app or the
+// focused pane, app messages to the app, and everything else to every
 // section and modal.
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -32,12 +31,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		cmd := m.key(msg)
 		return m, cmd
-	case tabs.ChangeMsg:
-		if msg.ID != m.tabs.ID() {
-			return m, nil
-		}
-		cmd := m.switchTo(msg.Index)
-		return m, cmd
 	case ui.NotifyMsg:
 		return m, m.toast.Push(msg.Level, msg.Text)
 	case ui.DoneMsg:
@@ -49,11 +42,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ui.SyncMsg:
 		return m, tea.Batch(m.broadcast(msg), m.listen())
 	case ui.RepoMsg:
-		if m.watchRepo != nil {
-			m.watchRepo(msg.Repo)
-		}
-		cmd := m.broadcast(msg)
+		cmd := m.selectRepo(msg)
 		return m, cmd
+	case repoInfoMsg:
+		if msg.err == nil && msg.repo.Ref == m.repo {
+			m.branch = msg.repo.DefaultBranch
+			m.drawHeader()
+		}
+		return m, nil
 	case ui.ShowMsg:
 		cmd := m.show(msg.Title)
 		return m, cmd
@@ -82,14 +78,16 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 		m.updateBadges()
 		return cmd
 	}
+	p := m.focused()
 	// ctrl+c always reaches the quit key, so a capturing section can't
 	// trap the user.
-	if c, ok := m.activeSection().(ui.Capturer); ok && c.Capturing() && msg.String() != "ctrl+c" {
-		cmd := m.sections[m.active].Update(msg)
-		m.updateBadges()
-		return cmd
+	if p != nil && msg.String() != "ctrl+c" {
+		if c, ok := p.section.(ui.Capturer); ok && c.Capturing() {
+			cmd := p.section.Update(msg)
+			m.updateBadges()
+			return cmd
+		}
 	}
-	tk := m.tabs.KeyMap()
 	switch {
 	case key.Matches(msg, m.keys.Quit):
 		return tea.Quit
@@ -101,34 +99,45 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 		return m.openSearch()
 	case key.Matches(msg, m.toast.KeyMap().Dismiss):
 		return m.toast.Dismiss()
-	case key.Matches(msg, tk.Next, tk.Prev, tk.Jump):
-		var cmd tea.Cmd
-		m.tabs, cmd = m.tabs.Update(msg)
-		return cmd
+	case key.Matches(msg, m.keys.Notifications):
+		return m.toggleScreen()
+	case key.Matches(msg, m.keys.Next):
+		return m.cycle(1)
+	case key.Matches(msg, m.keys.Prev):
+		return m.cycle(-1)
 	}
-	if len(m.sections) == 0 {
+	if i := m.keys.pane(msg); i >= 0 && i < len(m.panes) {
+		return m.showScreen(repoScreen, i)
+	}
+	if p == nil {
 		return nil
 	}
-	cmd := m.sections[m.active].Update(msg)
+	cmd := p.section.Update(msg)
 	m.updateBadges()
 	return cmd
 }
 
-// activeSection returns the section on screen, or nil if there are none.
-func (m *Model) activeSection() ui.Section {
-	if len(m.sections) == 0 {
-		return nil
+// selectRepo shows the repository screen for the repository of msg, with
+// the files focused, after telling the watcher and the sections.
+func (m *Model) selectRepo(msg ui.RepoMsg) tea.Cmd {
+	if m.watchRepo != nil {
+		m.watchRepo(msg.Repo)
 	}
-	return m.sections[m.active]
+	if msg.Repo != m.repo {
+		m.repo, m.branch = msg.Repo, ""
+		m.drawHeader()
+	}
+	return tea.Batch(m.broadcast(msg), m.showScreen(repoScreen, 0), m.loadRepoInfo())
 }
 
 // broadcast sends msg to every section, started or not, so that a section
 // shown later already knows, for example, which repository was selected,
 // and to every open modal.
 func (m *Model) broadcast(msg tea.Msg) tea.Cmd {
-	cmds := make([]tea.Cmd, 0, len(m.sections)+len(m.modals))
-	for _, s := range m.sections {
-		cmds = append(cmds, s.Update(msg))
+	panes := m.all
+	cmds := make([]tea.Cmd, 0, len(panes)+len(m.modals)+1)
+	for _, p := range panes {
+		cmds = append(cmds, p.section.Update(msg))
 	}
 	for _, mod := range m.modals {
 		cmds = append(cmds, mod.Update(msg))
@@ -142,21 +151,15 @@ func (m *Model) broadcast(msg tea.Msg) tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-func (m *Model) switchTo(i int) tea.Cmd {
-	if i < 0 || i >= len(m.sections) || i == m.active {
-		return nil
-	}
-	m.sections[m.active].Blur()
-	m.active = i
-	m.sections[i].Focus()
-	return m.start(i)
-}
-
+// show shows the section titled title, on its screen.
 func (m *Model) show(title string) tea.Cmd {
-	for i, s := range m.sections {
-		if s.Title() == title {
-			return m.tabs.SetActive(i)
+	for i, p := range m.panes {
+		if p.section.Title() == title {
+			return m.showScreen(repoScreen, i)
 		}
+	}
+	if m.notif != nil && m.notif.section.Title() == title {
+		return m.showScreen(notifScreen, m.focus)
 	}
 	return nil
 }

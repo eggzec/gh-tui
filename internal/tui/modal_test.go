@@ -9,7 +9,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -66,8 +65,8 @@ func TestModalTakesEveryKey(t *testing.T) {
 	if fakes[0].got(func(msg tea.Msg) bool { _, ok := msg.(tea.KeyPressMsg); return ok }) {
 		t.Error("a section got a key while a modal was open")
 	}
-	if m.active != 0 || m.help.ShowAll {
-		t.Errorf("app keys acted under a modal: active %d, full help %v", m.active, m.help.ShowAll)
+	if m.focus != 0 || m.help.ShowAll {
+		t.Errorf("app keys acted under a modal: focus %d, full help %v", m.focus, m.help.ShowAll)
 	}
 
 	cmd := m.key(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
@@ -121,7 +120,7 @@ func TestModalIsDrawnInAFrameOverTheScreen(t *testing.T) {
 	if w, h := lipgloss.Width(out), lipgloss.Height(out); w != 80 || h != 24 {
 		t.Errorf("screen is %dx%d, want 80x24", w, h)
 	}
-	s := screen(m)
+	s := onScreen(m)
 	for _, want := range []string{"╭─ go.mod ─", "go.mod body", "Pull requests"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("screen lacks %q:\n%s", want, out)
@@ -142,8 +141,7 @@ func TestModalIsDrawnInAFrameOverTheScreen(t *testing.T) {
 }
 
 func BenchmarkViewWithModal(b *testing.B) {
-	m := New(b.Context(), config.Default(), []ui.Section{&fakeSection{title: "Pull requests"}, &fakeSection{title: "Issues"}})
-	m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	m, _ := benchApp(b)
 	m.Update(ui.OpenModalMsg{Modal: &fakeModal{title: "Preview"}})
 	b.ReportAllocs()
 	for b.Loop() {

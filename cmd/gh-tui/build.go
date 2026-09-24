@@ -19,13 +19,14 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/issues"
 	"github.com/eggzec/gh-tui/internal/tui/notifications"
 	"github.com/eggzec/gh-tui/internal/tui/pulls"
-	"github.com/eggzec/gh-tui/internal/tui/repos"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/watch"
 )
 
 // build wires the client, the services, the sync engine and the sections
 // into the app. arg is the repository named on the command line, if any.
+// The app opens on that repository, or on the notifications when there is
+// none.
 func build(ctx context.Context, cfg config.Config, arg string) (*tui.Model, error) {
 	client, err := github.New()
 	if err != nil {
@@ -49,28 +50,22 @@ func build(ctx context.Context, cfg config.Config, arg string) (*tui.Model, erro
 	// Search results keep the search service's own short TTL.
 	searchSvc := searchsvc.New(client)
 
-	repoOpts := []repos.Option{repos.WithPinned(pinned)}
-	if repo != (core.RepoRef{}) {
-		repoOpts = append(repoOpts, repos.WithCurrent(repo))
-	}
-	sections := []ui.Section{
-		pulls.New(ctx, pullSvc, cfg.Keys),
-		issues.New(ctx, issueSvc, cfg.Keys),
-		notifications.New(ctx, notifSvc, cfg.Keys),
-		repos.New(ctx, repoSvc, cfg.Keys, repoOpts...),
-	}
-	if repo != (core.RepoRef{}) {
-		// Sections take a repository before they start, so none of them
-		// needs to be running yet.
-		for _, s := range sections {
-			s.Update(ui.RepoMsg{Repo: repo})
-		}
+	layout := tui.Layout{
+		// The files pane lands separately; until then its place says so.
+		Files:         &placeholder{title: ui.FilesTitle, text: "Files are coming soon."},
+		Pulls:         pulls.New(ctx, pullSvc, cfg.Keys),
+		Issues:        issues.New(ctx, issueSvc, cfg.Keys),
+		Notifications: notifications.New(ctx, notifSvc, cfg.Keys),
 	}
 
 	b := browser.New("", io.Discard, io.Discard)
 	opts := []tui.Option{
 		tui.WithBrowser(b.Browse),
 		tui.WithSearch(searchItems(searchSvc, repoSvc, pinned)),
+		tui.WithRepoInfo(repoSvc.Get),
+	}
+	if repo != (core.RepoRef{}) {
+		opts = append(opts, tui.WithRepo(repo))
 	}
 	if cfg.Sync.Enabled {
 		engine := watch.New(watch.WithInterval(cfg.Sync.Interval))
@@ -79,7 +74,6 @@ func build(ctx context.Context, cfg config.Config, arg string) (*tui.Model, erro
 			{key: pullsvc.SyncKey, poll: pullSvc.Poll},
 			{key: issuesvc.SyncKey, poll: issueSvc.Poll},
 		}}
-		repoPolls.set(repo)
 		go func() { _ = engine.Run(ctx) }()
 		opts = append(opts,
 			tui.WithSync(syncEvents(engine)),
@@ -87,7 +81,7 @@ func build(ctx context.Context, cfg config.Config, arg string) (*tui.Model, erro
 			tui.WithRepoWatcher(repoPolls.set),
 		)
 	}
-	return tui.New(ctx, cfg, sections, opts...), nil
+	return tui.New(ctx, cfg, layout, opts...), nil
 }
 
 // syncEvents turns the engine's events into the app's sync messages.
