@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"cmp"
 	"strconv"
 	"strings"
 
@@ -114,7 +115,9 @@ type styles struct {
 	edge, focusEdge   lipgloss.Style
 	title, focusTitle lipgloss.Style
 	repo, branch      lipgloss.Style
-	dot, badge        lipgloss.Style
+	// base marks a base other than the head of the default branch.
+	base       lipgloss.Style
+	dot, badge lipgloss.Style
 }
 
 func newStyles(t ui.Theme) styles {
@@ -126,6 +129,7 @@ func newStyles(t ui.Theme) styles {
 		focusTitle: t.Accent.Bold(true),
 		repo:       t.Title,
 		branch:     t.Muted,
+		base:       t.Accent,
 		dot:        t.Accent,
 		badge:      t.Muted,
 	}
@@ -162,8 +166,9 @@ func (m *Model) drawFrames() {
 	}
 }
 
-// drawHeader draws the header: the repository and its default branch on
-// the left, and the unread notifications on the right, on a rule.
+// drawHeader draws the header: the repository and its default branch, or
+// the base its files are shown at, on the left, and the unread
+// notifications on the right, on a rule.
 func (m *Model) drawHeader() {
 	w := m.width
 	if w <= 0 {
@@ -176,7 +181,10 @@ func (m *Model) drawHeader() {
 		name = m.repo.String()
 	}
 	left := m.st.repo.Render(name)
-	if m.branch != "" {
+	switch {
+	case m.base.Ref != "":
+		left += " " + rule(1) + " " + m.st.base.Render(cmp.Or(m.base.Label, m.base.Ref))
+	case m.branch != "":
 		left += " " + rule(1) + " " + m.st.branch.Render(m.branch)
 	}
 	var right string

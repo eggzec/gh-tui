@@ -15,6 +15,9 @@ type KeyMap struct {
 	Quit   key.Binding
 	Help   key.Binding
 	Search key.Binding
+	// History opens the history of the repository on the repository
+	// screen.
+	History key.Binding
 	// Notifications switches between the repository screen and the
 	// notifications.
 	Notifications key.Binding
@@ -32,6 +35,7 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		Quit:          ui.Binding(keys, config.ActionQuit, "quit"),
 		Help:          ui.Binding(keys, config.ActionHelp, "help"),
 		Search:        ui.Binding(keys, config.ActionSearch, "search"),
+		History:       ui.Binding(keys, config.ActionHistory, "history"),
 		Notifications: ui.Binding(keys, config.ActionNotifications, "notifications"),
 		Next:          ui.Binding(keys, config.ActionNextTab, "next pane"),
 		Prev:          ui.Binding(keys, config.ActionPrevTab, "previous pane"),

@@ -1,7 +1,8 @@
 // Package tui is the root of the program. It lays the sections out on two
 // screens, the repository screen with its panes and the notifications
 // screen, draws the header, the help line and toasts, opens modals such as
-// the search over them, and routes messages between them all. The sections
+// the search and the history over them, and routes messages between them
+// all. The sections
 // themselves live in their own packages and share the ui package.
 package tui
 
@@ -55,7 +56,10 @@ type Model struct {
 
 	repo   core.RepoRef
 	branch string
-	badge  string
+	// base is what the files of repo are shown at, set by a ui.BaseMsg;
+	// its Ref is empty for the head of the default branch.
+	base  ui.BaseMsg
+	badge string
 
 	toast toast.Model
 	help  help.Model
@@ -75,6 +79,8 @@ type Model struct {
 	// made the first time it opens.
 	search    picker.Search
 	searchBox *searchModal
+	// history opens the history modal of a repository.
+	history History
 	// warnings are shown as toasts once the app starts.
 	warnings []string
 }
@@ -125,6 +131,20 @@ func WithRepoWatcher(watch func(repo core.RepoRef)) Option {
 // request. Without WithSearch the search key does nothing.
 func WithSearch(search picker.Search) Option {
 	return func(m *Model) { m.search = search }
+}
+
+// History returns the modal that shows the history of repo, and the
+// command that loads it once it is open. defaultBranch is the repository's
+// default branch, or empty until the app has read it, and base is what its
+// files are shown at, with an empty Ref for the head of the default branch.
+// The modal sets another base with a ui.BaseMsg.
+type History func(ctx context.Context, repo core.RepoRef, defaultBranch string, base ui.BaseMsg) (ui.Modal, tea.Cmd)
+
+// WithHistory sets the function that opens the history of the selected
+// repository, with the history key on the repository screen. Without it
+// the key does nothing.
+func WithHistory(open History) Option {
+	return func(m *Model) { m.history = open }
 }
 
 // WithBrowser sets the function that opens a URL in the browser.

@@ -2,10 +2,12 @@ package tui
 
 import (
 	"fmt"
+	"strings"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
@@ -43,6 +45,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(m.broadcast(msg), m.listen())
 	case ui.RepoMsg:
 		cmd := m.selectRepo(msg)
+		return m, cmd
+	case ui.BaseMsg:
+		if !sameRepo(msg.Repo, m.repo) {
+			return m, nil
+		}
+		m.base = msg
+		m.drawHeader()
+		cmd := m.broadcast(msg)
 		return m, cmd
 	case repoInfoMsg:
 		if msg.err == nil && msg.repo.Ref == m.repo {
@@ -97,6 +107,8 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 		return nil
 	case key.Matches(msg, m.keys.Search):
 		return m.openSearch()
+	case m.canOpenHistory() && key.Matches(msg, m.keys.History):
+		return m.openHistory()
 	case key.Matches(msg, m.toast.KeyMap().Dismiss):
 		return m.toast.Dismiss()
 	case key.Matches(msg, m.keys.Notifications):
@@ -125,8 +137,10 @@ func (m *Model) selectRepo(msg ui.RepoMsg) tea.Cmd {
 	}
 	if msg.Repo != m.repo {
 		m.repo, m.branch = msg.Repo, ""
-		m.drawHeader()
 	}
+	// Selecting a repository shows the head of its default branch.
+	m.base = ui.BaseMsg{}
+	m.drawHeader()
 	return tea.Batch(m.broadcast(msg), m.showScreen(repoScreen, 0), m.loadRepoInfo())
 }
 
@@ -175,6 +189,12 @@ func (m *Model) openURL(url string) tea.Cmd {
 		}
 		return nil
 	}
+}
+
+// sameRepo reports whether a and b name the same repository, which GitHub
+// matches regardless of case.
+func sameRepo(a, b core.RepoRef) bool {
+	return strings.EqualFold(a.Owner, b.Owner) && strings.EqualFold(a.Name, b.Name)
 }
 
 func (m *Model) report(active bool) {
