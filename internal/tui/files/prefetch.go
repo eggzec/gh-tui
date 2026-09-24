@@ -63,6 +63,12 @@ func readAll(ctx context.Context, svc Service, qs []filesvc.BlobQuery, workers i
 		case <-ctx.Done():
 			return
 		}
+		// select picks at random when a slot frees as ctx ends, so check
+		// again rather than start a read after the cancel.
+		if ctx.Err() != nil {
+			<-sem
+			return
+		}
 		wg.Go(func() {
 			defer func() { <-sem }()
 			_, _ = svc.Blob(ctx, q)
