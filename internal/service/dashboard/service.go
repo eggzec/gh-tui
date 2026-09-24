@@ -1,0 +1,152 @@
+// Package dashboard serves what the dashboard shows from a cache: the
+// viewer's profile with their pins and organizations, the work waiting on
+// them, their contribution calendar, and the repositories of each owner
+// they can switch to.
+package dashboard
+
+import (
+	"context"
+	"time"
+
+	"github.com/eggzec/gh-tui/internal/cache"
+	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/github"
+)
+
+// API is the part of the GitHub client the service uses.
+type API interface {
+	ViewerHeader(ctx context.Context) (core.Header, error)
+	ViewerWork(ctx context.Context, first int) (core.Work, error)
+	ViewerContributions(ctx context.Context) (core.Contributions, error)
+	ViewerOwnRepos(ctx context.Context, first int, after string) (core.Page[core.Repo], error)
+	OrgRepos(ctx context.Context, login string, first int, after string) (core.Page[core.Repo], error)
+}
+
+// How long the reads that change slowly stay fresh, unless the TTL of the
+// service is longer. A profile, its pins and organizations change seldom,
+// and the calendar only counts whole days.
+const (
+	HeaderTTL        = time.Hour
+	ReposTTL         = 15 * time.Minute
+	ContributionsTTL = 6 * time.Hour
+)
+
+// Service reads the dashboard through a cache. It is safe for concurrent
+// use.
+type Service struct {
+	api           API
+	header        reads[core.Header]
+	work          reads[core.Work]
+	contributions reads[core.Contributions]
+	repos         reads[core.Page[core.Repo]]
+}
+
+// The kinds of entries the service keeps in its store, and the version of
+// their values. Bump schema when a core type they hold changes shape.
+const (
+	kindHeader        = "dashheader"
+	kindWork          = "dashwork"
+	kindContributions = "dashcontrib"
+	kindRepos         = "ownerrepos"
+	schema            = 1
+)
+
+// New returns a Service that fetches from api.
+func New(api API, opts ...Option) *Service {
+	o := options{ttl: cache.DefaultTTL}
+	for _, opt := range opts {
+		opt(&o)
+	}
+	return &Service{
+		api: api,
+		header: newReads(o, kindHeader, max(o.ttl, HeaderTTL), func(h *core.Header) (*bool, *bool) {
+			return &h.Stale, &h.Offline
+		}),
+		work: newReads(o, kindWork, o.ttl, func(w *core.Work) (*bool, *bool) {
+			return &w.Stale, &w.Offline
+		}),
+		contributions: newReads(o, kindContributions, max(o.ttl, ContributionsTTL), func(c *core.Contributions) (*bool, *bool) {
+			return &c.Stale, &c.Offline
+		}),
+		repos: newReads(o, kindRepos, max(o.ttl, ReposTTL), func(p *core.Page[core.Repo]) (*bool, *bool) {
+			return &p.Stale, &p.Offline
+		}),
+	}
+}
+
+// Invalidate marks everything the service cached stale. It is still served
+// by the Cached reads, and the next read of each entry goes to GitHub, so a
+// refresh reaches the server even while the entries are fresh.
+func (s *Service) Invalidate() {
+	s.header.mem.InvalidateTag(allTag)
+	s.work.mem.InvalidateTag(allTag)
+	s.contributions.mem.InvalidateTag(allTag)
+	s.repos.mem.InvalidateTag(allTag)
+}
+
+// allTag marks every entry, so that Invalidate finds them all.
+const allTag = "all"
+
+// reads is one kind of read: its cache in memory, its shelf in the store,
+// and how to mark a value served stale or offline.
+type reads[V any] struct {
+	mem   *cache.Cache[V]
+	kept  *cache.Shelf[V]
+	flags func(*V) (stale, offline *bool)
+}
+
+func newReads[V any](o options, kind string, ttl time.Duration, flags func(*V) (stale, offline *bool)) reads[V] {
+	return reads[V]{
+		mem:   cache.New[V](cache.WithTTL(ttl), cache.WithCapacity(o.capacity)),
+		kept:  cache.NewShelf[V](o.store, kind, schema),
+		flags: flags,
+	}
+}
+
+// offlineAt is when an entry served offline was fetched, as far as the
+// cache can tell: long ago, so it is stale at once and the next read asks
+// GitHub again.
+var offlineAt = time.Unix(1, 0)
+
+// cached returns the value under key in memory, fresh or stale, without
+// I/O.
+func (r *reads[V]) cached(key string) (V, bool) {
+	e, state := r.mem.Get(key)
+	return e.Value, state != cache.Miss
+}
+
+// get returns the value under key. A fresh value in memory is returned
+// without a request, and so is one kept by an earlier session within the
+// TTL. An older kept one is returned at once, marked stale, and the next
+// read fetches it. Otherwise get fetches the value, stores it and keeps
+// it. If GitHub can't be reached, the stale value is served marked
+// offline; if GitHub refuses, the kept one is dropped.
+func (r *reads[V]) get(ctx context.Context, key string, fetch func(context.Context) (V, error)) (V, error) {
+	if e, ok := r.kept.Warm(r.mem, key); ok {
+		v := e.Value
+		stale, _ := r.flags(&v)
+		*stale = true
+		return v, nil
+	}
+	// GraphQL has no validators, so a stale value is fetched again in full.
+	e, err := r.mem.Fetch(ctx, key, func(ctx context.Context, prev cache.Entry[V], ok bool) (cache.Entry[V], error) {
+		v, err := fetch(ctx)
+		switch {
+		case ok && github.Unreachable(ctx, err):
+			_, offline := r.flags(&prev.Value)
+			*offline = true
+			prev.FetchedAt = offlineAt
+			return prev, nil
+		case err != nil:
+			if github.Refused(err) {
+				r.kept.Delete(key)
+			}
+			return cache.Entry[V]{}, err
+		}
+		e := cache.Entry[V]{Value: v, Tags: []string{allTag}}
+		// The shelf is only a shortcut, so a failure is ignored.
+		_ = r.kept.Save(key, e)
+		return e, nil
+	})
+	return e.Value, err
+}
