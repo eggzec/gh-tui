@@ -21,9 +21,11 @@ type fakeSearcher struct {
 	err  error
 }
 
-func (f *fakeSearcher) Search(_ context.Context, q searchsvc.Query) (core.Page[core.SearchHit], error) {
+func (f *fakeSearcher) Search(_ context.Context, q searchsvc.Query) (searchsvc.Result, error) {
 	f.got = append(f.got, q)
-	return core.Page[core.SearchHit]{Items: f.hits}, f.err
+	var r searchsvc.Result
+	r.Items = f.hits
+	return r, f.err
 }
 
 type fakeLister struct {
