@@ -4,6 +4,8 @@
 package github
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -127,6 +129,15 @@ func graphqlEndpoint(base *url.URL) string {
 // api.github.com, or a GitHub Enterprise Server hostname.
 func (c *Client) Host() string {
 	return c.restURL.Hostname()
+}
+
+// Account returns a name for the account the client acts as: a hash of the
+// host and the token, so that it can name what is kept for the account, such
+// as a directory of cached responses, without giving the token away. Another
+// token, even of the same user, has another name.
+func (c *Client) Account() string {
+	h := sha256.Sum256([]byte("gh-tui account\x00" + c.restURL.Host + "\x00" + c.token))
+	return hex.EncodeToString(h[:16])
 }
 
 // resolve turns path into a URL. Path is relative to the REST root, or an
