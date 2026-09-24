@@ -45,6 +45,8 @@ internal/
   cache/              in-memory LRU, optional disk layer, TTL and ETag metadata
   watch/              sync engine: polling, conditional requests, change events
   revalidate/         re-checks cached entries in the background within a budget
+  obs/                log/slog setup, trace and request ids, counters and summaries
+  logfile/            the log file, rotated by size, shared by several processes
   service/<domain>/   business logic per domain (pulls, issues, repos, notifications…)
   tui/                root model: the repo and notifications screens and their panes,
                       the header, help, toasts, modals (search), and routing between them
@@ -229,6 +231,31 @@ reacts to messages. Concretely:
 - Prefer mutation endpoints that return the updated resource, so there is
   something to reconcile with. When an endpoint returns nothing, reconcile
   by applying the change again, or by marking the affected entries stale.
+
+## Logging
+
+- Logs are JSON Lines through `log/slog`, written to `log.file` (default
+  `$XDG_STATE_HOME/gh-tui/gh-tui.log`, else `~/.local/state/gh-tui/gh-tui.log`,
+  on macOS too; `%LocalAppData%` on Windows), mode 0600, rotated at
+  `log.max_size` keeping `log.keep` files. Nothing goes to stdout or stderr
+  while the app runs. `GH_TUI_LOG=debug` or `--debug` raise the level for one
+  run.
+- Every record has a `session_id`. Start a trace where a user action or a
+  background job starts (`obs.WithTrace` or `obs.Begin`, which also logs the
+  end and the error) and pass its context down; records logged with it carry
+  `trace_id` and `trace`. Each HTTP attempt gets a `request_id`, and
+  GitHub's `X-GitHub-Request-Id` as `gh_request_id`. `span` names the layer.
+- Log with the context: `slog.InfoContext(ctx, "msg", "span", "service.x",
+  …)`. Levels: debug for per-item detail (cache lookups, checks, reads
+  ahead), info for requests and decisions, warn for what degrades
+  (rollbacks, rate limits, 4xx), error for failures with `err`.
+- Count what a summary should report in `obs.Stats` (`obs.CountCache`,
+  `obs.CountPrefetch`, …); the summary is logged every `log.summary` and on
+  exit.
+- Never log tokens, headers, request or response bodies, comment text or
+  file contents. Keep logging out of `View` and per-frame `Update`, and
+  guard the arguments of hot debug records with `obs.Enabled`.
+  `pkg/bubbles` doesn't log.
 
 ## Performance
 
