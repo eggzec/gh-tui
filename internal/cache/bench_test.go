@@ -3,7 +3,12 @@ package cache
 import (
 	"context"
 	"strconv"
+	"strings"
 	"testing"
+	"time"
+
+	"github.com/eggzec/gh-tui/internal/cache/disk"
+	"github.com/eggzec/gh-tui/internal/core"
 )
 
 func benchKeys(n int) []string {
@@ -74,4 +79,64 @@ func BenchmarkFetchHit(b *testing.B) {
 		}
 		i++
 	}
+}
+
+// issuePage is a page of 50 issues as a list shows them, with a few labels
+// each and bodies of about a paragraph.
+func issuePage() core.Page[core.Issue] {
+	at := time.Date(2026, 9, 24, 10, 0, 0, 0, time.UTC)
+	p := core.Page[core.Issue]{Next: "https://api.github.com/repositories/1/issues?page=2&per_page=50"}
+	for i := range 50 {
+		p.Items = append(p.Items, core.Issue{
+			ID:        "I_kwDOAbCdEf" + strconv.Itoa(i),
+			Repo:      core.RepoRef{Owner: "charmbracelet", Name: "bubbletea"},
+			Number:    1000 + i,
+			Title:     "Rendering glitches when the terminal is resized quickly " + strconv.Itoa(i),
+			Body:      strings.Repeat("Steps to reproduce: resize the window while a spinner runs. ", 8),
+			State:     core.StateOpen,
+			Author:    core.User{Login: "octocat"},
+			Labels:    []core.Label{{Name: "bug", Color: "d73a4a"}, {Name: "needs-triage", Color: "ededed"}},
+			Comments:  i % 7,
+			CreatedAt: at.Add(-time.Duration(i) * time.Hour),
+			UpdatedAt: at.Add(-time.Duration(i) * time.Minute),
+			URL:       "https://github.com/charmbracelet/bubbletea/issues/" + strconv.Itoa(1000+i),
+		})
+	}
+	return p
+}
+
+func benchShelf(b *testing.B, store Store) {
+	b.Helper()
+	s := NewShelf[core.Page[core.Issue]](store, "issuelist", 1)
+	e := Entry[core.Page[core.Issue]]{Value: issuePage(), ETag: `W/"0123456789abcdef"`, Tags: []string{"repo:charmbracelet/bubbletea"}}
+	b.Run("Save", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			if err := s.Save("list", e); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+	b.Run("Load", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			if _, ok := s.Load("list"); !ok {
+				b.Fatal("miss")
+			}
+		}
+	})
+}
+
+// BenchmarkShelfCodec measures the encoding alone.
+func BenchmarkShelfCodec(b *testing.B) {
+	benchShelf(b, newMemStore())
+}
+
+// BenchmarkShelfDisk measures a disk store with its default compression.
+func BenchmarkShelfDisk(b *testing.B) {
+	store, err := disk.Open(b.TempDir())
+	if err != nil {
+		b.Fatal(err)
+	}
+	benchShelf(b, store)
 }
