@@ -123,6 +123,12 @@ func graphqlEndpoint(base *url.URL) string {
 	return u.String()
 }
 
+// Host returns the host of the API the client talks to, such as
+// api.github.com, or a GitHub Enterprise Server hostname.
+func (c *Client) Host() string {
+	return c.restURL.Hostname()
+}
+
 // resolve turns path into a URL. Path is relative to the REST root, or an
 // absolute URL on the same host, as found in Link headers. Other hosts are
 // refused so that the token never leaves the API host.
