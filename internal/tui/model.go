@@ -1,7 +1,7 @@
 // Package tui is the root of the program. It lays the sections out on
 // four screens, the dashboard, the repository screen with its panes, the
-// notifications screen and the search page, draws the header, the help line and toasts,
-// opens modals such as the search and the history over them, and routes
+// notifications screen and the search page, draws the header, the help
+// line and toasts, opens modals such as the history over them, and routes
 // messages between them all. The sections themselves live in their own
 // packages and share the ui package.
 package tui
@@ -17,7 +17,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
@@ -86,10 +85,6 @@ type Model struct {
 	open      func(url string) error
 	watchRepo func(repo core.RepoRef)
 	repoInfo  func(ctx context.Context, repo core.RepoRef) (core.Repo, error)
-	// search finds what the search modal lists; searchBox is that modal,
-	// made the first time it opens.
-	search    picker.Search
-	searchBox *searchModal
 	// history opens the history modal of a repository.
 	history History
 	// warnings are shown as toasts once the app starts.
@@ -132,17 +127,6 @@ func WithActivity(setActive func(active bool)) Option {
 // not block.
 func WithRepoWatcher(watch func(repo core.RepoRef)) Option {
 	return func(m *Model) { m.watchRepo = watch }
-}
-
-// WithSearch sets the function the search modal lists results with. It is
-// called for an empty query too, to offer something to start from. Items
-// are grouped by their Kind, one of KindPinned, KindRepos, KindIssues and
-// KindPulls, and a scope is one of the last three. Choosing an item whose
-// Value is a core.RepoRef or core.Repo selects that repository; a
-// core.SearchHit selects its repository or opens its issue or pull
-// request. Without WithSearch the search key does nothing.
-func WithSearch(search picker.Search) Option {
-	return func(m *Model) { m.search = search }
 }
 
 // History returns the modal that shows the history of repo, and the
@@ -326,9 +310,6 @@ func (m *Model) applyTheme(dark bool) {
 	}
 	if m.modal != nil {
 		m.modal.SetTheme(m.theme)
-	}
-	if m.searchBox != nil && !m.isOpen(m.searchBox) {
-		m.searchBox.SetTheme(m.theme)
 	}
 	m.drawFrames()
 	m.drawHeader()
