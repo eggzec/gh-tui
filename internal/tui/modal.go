@@ -7,6 +7,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -42,6 +43,25 @@ func (m *Model) openSearch() tea.Cmd {
 	}
 	m.openModal(m.searchBox)
 	return m.searchBox.open(first)
+}
+
+// openHistory opens the history of the selected repository, on the
+// repository screen, if the app has one.
+func (m *Model) openHistory() tea.Cmd {
+	if m.history == nil || m.screen != repoScreen || m.repo == (core.RepoRef{}) {
+		return nil
+	}
+	mod, load := m.history(m.ctx, m.repo, m.branch, m.base)
+	if mod == nil {
+		return nil
+	}
+	m.openModal(mod)
+	return load
+}
+
+// canOpenHistory reports whether the history key does something.
+func (m *Model) canOpenHistory() bool {
+	return m.history != nil && m.screen == repoScreen && m.repo != (core.RepoRef{})
 }
 
 // closeModal closes mod. A modal that isn't open is ignored, so closing
