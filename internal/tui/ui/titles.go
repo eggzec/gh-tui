@@ -9,4 +9,5 @@ const (
 	NotificationsTitle = "Notifications"
 	FilesTitle         = "Files"
 	DashboardTitle     = "Dashboard"
+	SearchTitle        = "Search"
 )
