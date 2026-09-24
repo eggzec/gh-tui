@@ -11,11 +11,12 @@ const (
 	// DefaultMaxBlobSize is the largest file the service reads, 1 MiB.
 	// Larger files are better opened in the browser.
 	DefaultMaxBlobSize = 1 << 20
-	// DefaultBlobCapacity is how many file contents are kept: enough for
-	// the files read ahead of the preview in a few repositories. It is
-	// lower than for trees since each one may be as large as the size
-	// limit, though most files read ahead are small.
-	DefaultBlobCapacity = 256
+	// DefaultBlobCapacity is how many file contents are kept in memory:
+	// enough for the files read ahead of the preview in a few
+	// repositories. DefaultBlobMemory bounds their total size, since each
+	// may be as large as the size limit, though most are small.
+	DefaultBlobCapacity = 1024
+	DefaultBlobMemory   = 32 << 20
 )
 
 // Option configures a Service.
@@ -24,7 +25,20 @@ type Option func(*options)
 type options struct {
 	cache        []cache.Option
 	blobCapacity int
+	blobMemory   int64
 	maxBlob      int64
+	store        Store
+}
+
+// WithStore keeps trees, file contents and where refs point in store as
+// well as in memory, so a later session reads them from there. By default
+// nothing outlives the service.
+func WithStore(store Store) Option {
+	return func(o *options) {
+		if store != nil {
+			o.store = store
+		}
+	}
 }
 
 // WithTTL sets how long trees read by a ref stay fresh before a read asks
@@ -40,12 +54,22 @@ func WithCapacity(n int) Option {
 	return func(o *options) { o.cache = append(o.cache, cache.WithCapacity(n)) }
 }
 
-// WithBlobCapacity sets how many file contents are kept. The default is
-// DefaultBlobCapacity. Values below 1 are ignored.
+// WithBlobCapacity sets how many file contents are kept in memory. The
+// default is DefaultBlobCapacity. Values below 1 are ignored.
 func WithBlobCapacity(n int) Option {
 	return func(o *options) {
 		if n >= 1 {
 			o.blobCapacity = n
+		}
+	}
+}
+
+// WithBlobMemory sets the total size, in bytes, of the file contents kept in
+// memory. The default is DefaultBlobMemory. Values below 1 are ignored.
+func WithBlobMemory(n int64) Option {
+	return func(o *options) {
+		if n >= 1 {
+			o.blobMemory = n
 		}
 	}
 }
