@@ -12,9 +12,43 @@ import (
 // Cache configures the response cache.
 type Cache struct {
 	// TTL is how long a cached response is served before it is revalidated.
-	TTL  time.Duration `yaml:"ttl"`
-	Disk Disk          `yaml:"disk"`
+	TTL        time.Duration `yaml:"ttl"`
+	Disk       Disk          `yaml:"disk"`
+	Revalidate Revalidate    `yaml:"revalidate"`
 }
+
+// Revalidate configures checking cached entries in the background, such as
+// the lists, issues and branches kept on disk, with one conditional request
+// each, so that what a view reads is known to be current and needs no
+// request when it loads. A request that finds nothing changed is free
+// against GitHub's rate limit, but not against its limits on how many
+// requests come at once, hence the budget.
+type Revalidate struct {
+	Enabled bool `yaml:"enabled"`
+	// Interval is how often a pass over the entries starts. A pass
+	// checks at most what the budget allows in an interval.
+	Interval time.Duration `yaml:"interval"`
+	// Budget is how many requests a minute the checks send at most. It
+	// shrinks while the terminal is unfocused.
+	Budget int `yaml:"budget"`
+	// Scope is which entries are checked: ScopeRecent, those of the
+	// selected repository and those used in the last week, or ScopeAll.
+	Scope string `yaml:"scope"`
+}
+
+// Scopes of revalidation.
+const (
+	ScopeRecent = "recent"
+	ScopeAll    = "all"
+)
+
+// The bounds of revalidation: passes closer than minRevalidateInterval
+// would mostly find entries checked by the last one, and a budget above
+// maxRevalidateBudget would come close to GitHub's secondary rate limits.
+const (
+	minRevalidateInterval = 10 * time.Second
+	maxRevalidateBudget   = 300
+)
 
 // Disk configures the disk cache, which keeps what doesn't change, such as
 // the files of a commit, across sessions, and where branches pointed, so
@@ -63,6 +97,7 @@ func defaultCache() Cache {
 			Compression:      CompressionGzip,
 			CompressionLevel: LevelDefault,
 		},
+		Revalidate: Revalidate{Enabled: true, Interval: 2 * time.Minute, Budget: 60, Scope: ScopeRecent},
 	}
 }
 
@@ -83,6 +118,16 @@ func (c Cache) validate() error {
 	}
 	if !slices.Contains([]string{LevelFastest, LevelDefault, LevelBest}, d.CompressionLevel) {
 		errs = append(errs, fmt.Errorf("cache.disk.compression_level: must be %s, %s or %s, got %q", LevelFastest, LevelDefault, LevelBest, d.CompressionLevel))
+	}
+	r := c.Revalidate
+	if r.Interval < minRevalidateInterval {
+		errs = append(errs, fmt.Errorf("cache.revalidate.interval: must be at least %v, got %v", minRevalidateInterval, r.Interval))
+	}
+	if r.Budget < 1 || r.Budget > maxRevalidateBudget {
+		errs = append(errs, fmt.Errorf("cache.revalidate.budget: must be between 1 and %d, got %d", maxRevalidateBudget, r.Budget))
+	}
+	if !slices.Contains([]string{ScopeRecent, ScopeAll}, r.Scope) {
+		errs = append(errs, fmt.Errorf("cache.revalidate.scope: must be %s or %s, got %q", ScopeRecent, ScopeAll, r.Scope))
 	}
 	return errors.Join(errs...)
 }

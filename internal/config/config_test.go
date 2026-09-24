@@ -76,7 +76,7 @@ func TestLoadMergesOverDefaults(t *testing.T) {
 				c.Cache = Cache{TTL: 30 * time.Second, Disk: Disk{
 					Enabled: false, Dir: "/var/cache/gh-tui", MaxSize: GiB,
 					Compression: CompressionNone, CompressionLevel: LevelBest,
-				}}
+				}, Revalidate: Revalidate{Enabled: false, Interval: 5 * time.Minute, Budget: 30, Scope: ScopeAll}}
 				c.Sync = Sync{Enabled: false, Interval: 2 * time.Minute}
 				c.Files = Files{
 					Prefetch: Prefetch{Enabled: false, MaxSize: 16 * KiB, HoverDelay: 300 * time.Millisecond},
@@ -135,6 +135,7 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 	cfg.Keys["jump"] = []string{"j"}
 	cfg.Cache.TTL = 0
 	cfg.Cache.Disk = Disk{Dir: "cache", MaxSize: MiB, Compression: "zip", CompressionLevel: "9"}
+	cfg.Cache.Revalidate = Revalidate{Interval: time.Second, Budget: 0, Scope: "some"}
 	cfg.Sync.Interval = -time.Second
 	cfg.Files.Preview.MaxSize = 32 * KiB
 	cfg.Files.Prefetch.HoverDelay = -time.Millisecond
@@ -162,6 +163,9 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 		`cache.disk.dir: must be an absolute path, got "cache"`,
 		`cache.disk.compression: must be gzip or none, got "zip"`,
 		`cache.disk.compression_level: must be fastest, default or best, got "9"`,
+		`cache.revalidate.interval: must be at least 10s, got 1s`,
+		`cache.revalidate.budget: must be between 1 and 300, got 0`,
+		`cache.revalidate.scope: must be recent or all, got "some"`,
 		`sync.interval: must be positive, got -1s`,
 		`files.prefetch.max_size: must not exceed files.preview.max_size (32KiB), got 64KiB`,
 		`files.prefetch.hover_delay: must not be negative, got -1ms`,
