@@ -36,6 +36,7 @@ type fakeService struct {
 	// then serves.
 	cached   map[int]bool
 	gets     []int
+	getCtxs  []context.Context
 	getErr   error
 	comments []pulls.CommentsQuery
 	// commented are the comment pages Comments has served, which
@@ -95,10 +96,11 @@ func (f *fakeService) CachedGet(_ core.RepoRef, number int) (core.PullRequestDet
 	return f.detail(number), true
 }
 
-func (f *fakeService) Get(_ context.Context, _ core.RepoRef, number int) (core.PullRequestDetail, error) {
+func (f *fakeService) Get(ctx context.Context, _ core.RepoRef, number int) (core.PullRequestDetail, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.gets = append(f.gets, number)
+	f.getCtxs = append(f.getCtxs, ctx)
 	if f.getErr != nil {
 		return core.PullRequestDetail{}, f.getErr
 	}
@@ -122,6 +124,12 @@ func (f *fakeService) CachedComments(q pulls.CommentsQuery) (core.Page[core.Comm
 		return core.Page[core.Comment]{}, false
 	}
 	return commentPage(q), true
+}
+
+func (f *fakeService) Current(q pulls.CommentsQuery) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.cached[q.Number] && f.commented[q]
 }
 
 func commentPage(q pulls.CommentsQuery) core.Page[core.Comment] {
