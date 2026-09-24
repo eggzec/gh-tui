@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 
@@ -39,6 +40,9 @@ type fake struct {
 	blobErrs    map[string]error
 	blobReads   []filesvc.BlobQuery
 	cachedBlobs map[string]bool
+	// onBlob, if set, runs at the start of every Blob, outside the lock,
+	// so it may block.
+	onBlob func(ctx context.Context, q filesvc.BlobQuery)
 }
 
 func newFake() *fake {
@@ -178,6 +182,19 @@ func (f *fake) readRefs() []string {
 	return refs
 }
 
+// blobSHAs returns the SHAs Blob was asked for, sorted, since reads ahead
+// run concurrently.
+func (f *fake) blobSHAs() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	shas := make([]string, len(f.blobReads))
+	for i, q := range f.blobReads {
+		shas[i] = q.SHA
+	}
+	slices.Sort(shas)
+	return shas
+}
+
 // addBlob stores the content of the file e.
 func (f *fake) addBlob(e core.TreeEntry, content string) {
 	b := []byte(content)
@@ -194,6 +211,9 @@ func (f *fake) CachedBlob(q filesvc.BlobQuery) (core.Blob, bool) {
 }
 
 func (f *fake) Blob(ctx context.Context, q filesvc.BlobQuery) (core.Blob, error) {
+	if f.onBlob != nil {
+		f.onBlob(ctx, q)
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.blobReads = append(f.blobReads, q)

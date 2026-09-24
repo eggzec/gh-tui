@@ -42,6 +42,9 @@ type Section struct {
 	idx    *index
 	warned bool
 
+	// prefetchMax is the largest top-level file read ahead, or 0.
+	prefetchMax int64
+
 	width, height int
 	focused       bool
 	theme         ui.Theme
@@ -197,25 +200,28 @@ func (s *Section) refresh() tea.Cmd {
 	}
 }
 
-// observe reacts to a listing the tree read since the last call. A
-// truncated listing is read one directory at a time, with a request each,
-// so an expand-all goes back to the tree's cautious limits.
+// observe reacts to a listing the tree read since the last call: it reads
+// the small top-level files ahead. A truncated listing is read one
+// directory at a time, with a request each, so an expand-all goes back to
+// the tree's cautious limits.
 func (s *Section) observe() tea.Cmd {
 	x := s.src.current()
 	if x == nil || x == s.idx {
 		return nil
 	}
 	s.idx = x
+	prefetch := s.prefetchTop(s.treeCtx, x)
 	if !x.truncated {
 		s.tree.SetExpandAllLimits(expandAllNodes, expandAllDepth)
-		return nil
+		return prefetch
 	}
 	s.tree.SetExpandAllLimits(tree.DefaultExpandAllNodes, tree.DefaultExpandAllDepth)
 	if s.warned {
-		return nil
+		return prefetch
 	}
 	s.warned = true
-	return ui.Notify(toast.Info, s.repo.String()+" is too large to list at once, so folders load as you open them.")
+	return tea.Batch(prefetch,
+		ui.Notify(toast.Info, s.repo.String()+" is too large to list at once, so folders load as you open them."))
 }
 
 // preview opens the file of n in a modal. A submodule has no content in
