@@ -12,6 +12,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
 	filesvc "github.com/eggzec/gh-tui/internal/service/files"
+	historysvc "github.com/eggzec/gh-tui/internal/service/history"
 	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
 	notifsvc "github.com/eggzec/gh-tui/internal/service/notifications"
 	pullsvc "github.com/eggzec/gh-tui/internal/service/pulls"
@@ -19,6 +20,7 @@ import (
 	searchsvc "github.com/eggzec/gh-tui/internal/service/search"
 	"github.com/eggzec/gh-tui/internal/tui"
 	"github.com/eggzec/gh-tui/internal/tui/files"
+	"github.com/eggzec/gh-tui/internal/tui/history"
 	"github.com/eggzec/gh-tui/internal/tui/issues"
 	"github.com/eggzec/gh-tui/internal/tui/notifications"
 	"github.com/eggzec/gh-tui/internal/tui/pulls"
@@ -62,6 +64,13 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 		fileSvcOpts = append(fileSvcOpts, filesvc.WithStore(store))
 	}
 	fileSvc := filesvc.New(client, fileSvcOpts...)
+	// What a commit SHA names never changes, so it is kept with the files'
+	// objects, which accounts on a host share.
+	historySvcOpts := []historysvc.Option{historysvc.WithTTL(ttl), historysvc.WithStore(entries)}
+	if store != nil {
+		historySvcOpts = append(historySvcOpts, historysvc.WithObjects(store))
+	}
+	historySvc := historysvc.New(client, historySvcOpts...)
 	// Search results keep the search service's own short TTL.
 	searchSvc := searchsvc.New(client)
 
@@ -97,6 +106,8 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 		tui.WithBrowser(b.Browse),
 		tui.WithSearch(searchItems(searchSvc, repoSvc, pinned)),
 		tui.WithRepoInfo(repoSvc.Get),
+		tui.WithHistory(history.Opener(historySvc, cfg.Keys,
+			history.WithConfig(cfg.History), history.WithOffline(offline))),
 	}
 	if repo != (core.RepoRef{}) {
 		opts = append(opts, tui.WithRepo(repo))
@@ -123,7 +134,7 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 		watchers = append(watchers, repoPolls.set)
 	}
 	if store != nil {
-		if r := newRevalidator(cfg.Cache, engine.Publish, issueSvc.Kept, notifSvc.Kept, fileSvc.Kept); r != nil {
+		if r := newRevalidator(cfg.Cache, engine.Publish, issueSvc.Kept, notifSvc.Kept, fileSvc.Kept, historySvc.Kept); r != nil {
 			go func() { _ = r.Run(ctx) }()
 			activity = append(activity, r.SetActive)
 			watchers = append(watchers, r.SetRepo)
