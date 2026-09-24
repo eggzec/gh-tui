@@ -1,0 +1,343 @@
+{
+  "total_count": 48,
+  "incomplete_results": false,
+  "items": [
+    {
+      "name": "style.go",
+      "path": "style.go",
+      "sha": "3cd659526767c9390789b387ff4064e838ad79c8",
+      "url": "https://api.github.com/repositories/343533419/contents/style.go?ref=6a419c6543d3475a369ef08f6252a2a6f33be733",
+      "git_url": "https://api.github.com/repositories/343533419/git/blobs/3cd659526767c9390789b387ff4064e838ad79c8",
+      "html_url": "https://github.com/charmbracelet/lipgloss/blob/6a419c6543d3475a369ef08f6252a2a6f33be733/style.go",
+      "repository": {
+        "id": 343533419,
+        "node_id": "MDEwOlJlcG9zaXRvcnkzNDM1MzM0MTk=",
+        "name": "lipgloss",
+        "full_name": "charmbracelet/lipgloss",
+        "owner": {
+          "id": 57376114,
+          "node_id": "MDEyOk9yZ2FuaXphdGlvbjU3Mzc2MTE0",
+          "login": "charmbracelet",
+          "avatar_url": "https://avatars.githubusercontent.com/u/57376114?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/charmbracelet",
+          "html_url": "https://github.com/charmbracelet",
+          "type": "Organization",
+          "site_admin": false,
+          "followers_url": "https://api.github.com/users/charmbracelet/followers",
+          "following_url": "https://api.github.com/users/charmbracelet/following{/other_user}",
+          "gists_url": "https://api.github.com/users/charmbracelet/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/charmbracelet/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/charmbracelet/subscriptions",
+          "organizations_url": "https://api.github.com/users/charmbracelet/orgs",
+          "repos_url": "https://api.github.com/users/charmbracelet/repos",
+          "events_url": "https://api.github.com/users/charmbracelet/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/charmbracelet/received_events"
+        },
+        "private": false,
+        "html_url": "https://github.com/charmbracelet/lipgloss",
+        "description": "Style definitions for nice terminal layouts 👄",
+        "fork": false,
+        "url": "https://api.github.com/repos/charmbracelet/lipgloss",
+        "archive_url": "https://api.github.com/repos/charmbracelet/lipgloss/{archive_format}{/ref}",
+        "assignees_url": "https://api.github.com/repos/charmbracelet/lipgloss/assignees{/user}",
+        "blobs_url": "https://api.github.com/repos/charmbracelet/lipgloss/git/blobs{/sha}",
+        "branches_url": "https://api.github.com/repos/charmbracelet/lipgloss/branches{/branch}",
+        "collaborators_url": "https://api.github.com/repos/charmbracelet/lipgloss/collaborators{/collaborator}",
+        "comments_url": "https://api.github.com/repos/charmbracelet/lipgloss/comments{/number}",
+        "commits_url": "https://api.github.com/repos/charmbracelet/lipgloss/commits{/sha}",
+        "compare_url": "https://api.github.com/repos/charmbracelet/lipgloss/compare/{base}...{head}",
+        "contents_url": "https://api.github.com/repos/charmbracelet/lipgloss/contents/{+path}",
+        "contributors_url": "https://api.github.com/repos/charmbracelet/lipgloss/contributors",
+        "deployments_url": "https://api.github.com/repos/charmbracelet/lipgloss/deployments",
+        "downloads_url": "https://api.github.com/repos/charmbracelet/lipgloss/downloads",
+        "events_url": "https://api.github.com/repos/charmbracelet/lipgloss/events",
+        "forks_url": "https://api.github.com/repos/charmbracelet/lipgloss/forks",
+        "git_commits_url": "https://api.github.com/repos/charmbracelet/lipgloss/git/commits{/sha}",
+        "git_refs_url": "https://api.github.com/repos/charmbracelet/lipgloss/git/refs{/sha}",
+        "git_tags_url": "https://api.github.com/repos/charmbracelet/lipgloss/git/tags{/sha}",
+        "hooks_url": "https://api.github.com/repos/charmbracelet/lipgloss/hooks",
+        "issue_comment_url": "https://api.github.com/repos/charmbracelet/lipgloss/issues/comments{/number}",
+        "issue_events_url": "https://api.github.com/repos/charmbracelet/lipgloss/issues/events{/number}",
+        "issues_url": "https://api.github.com/repos/charmbracelet/lipgloss/issues{/number}",
+        "keys_url": "https://api.github.com/repos/charmbracelet/lipgloss/keys{/key_id}",
+        "labels_url": "https://api.github.com/repos/charmbracelet/lipgloss/labels{/name}",
+        "languages_url": "https://api.github.com/repos/charmbracelet/lipgloss/languages",
+        "merges_url": "https://api.github.com/repos/charmbracelet/lipgloss/merges",
+        "milestones_url": "https://api.github.com/repos/charmbracelet/lipgloss/milestones{/number}",
+        "notifications_url": "https://api.github.com/repos/charmbracelet/lipgloss/notifications{?since,all,participating}",
+        "pulls_url": "https://api.github.com/repos/charmbracelet/lipgloss/pulls{/number}",
+        "releases_url": "https://api.github.com/repos/charmbracelet/lipgloss/releases{/id}",
+        "stargazers_url": "https://api.github.com/repos/charmbracelet/lipgloss/stargazers",
+        "statuses_url": "https://api.github.com/repos/charmbracelet/lipgloss/statuses/{sha}",
+        "subscribers_url": "https://api.github.com/repos/charmbracelet/lipgloss/subscribers",
+        "subscription_url": "https://api.github.com/repos/charmbracelet/lipgloss/subscription",
+        "tags_url": "https://api.github.com/repos/charmbracelet/lipgloss/tags",
+        "teams_url": "https://api.github.com/repos/charmbracelet/lipgloss/teams",
+        "trees_url": "https://api.github.com/repos/charmbracelet/lipgloss/git/trees{/sha}"
+      },
+      "score": 1.0,
+      "text_matches": [
+        {
+          "object_url": "https://api.github.com/repositories/343533419/contents/style.go?ref=6a419c6543d3475a369ef08f6252a2a6f33be733",
+          "object_type": "FileContent",
+          "property": "content",
+          "fragment": "// NewStyle returns a new, empty Style. While it's syntactic sugar for the\n// [Style]{} primitive, it's recommended to use this function for creating styles\n// in case the underlying implementation changes.\nfunc NewStyle() Style {\n\treturn Style{}\n}\n",
+          "matches": [
+            {
+              "text": "NewStyle",
+              "indices": [
+                3,
+                11
+              ]
+            },
+            {
+              "text": "NewStyle",
+              "indices": [
+                212,
+                220
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "UPGRADE_GUIDE_V2.md",
+      "path": "UPGRADE_GUIDE_V2.md",
+      "sha": "8f123f19df940a4d9d2942a992f30541453b7500",
+      "url": "https://api.github.com/repositories/343533419/contents/UPGRADE_GUIDE_V2.md?ref=6a419c6543d3475a369ef08f6252a2a6f33be733",
+      "git_url": "https://api.github.com/repositories/343533419/git/blobs/8f123f19df940a4d9d2942a992f30541453b7500",
+      "html_url": "https://github.com/charmbracelet/lipgloss/blob/6a419c6543d3475a369ef08f6252a2a6f33be733/UPGRADE_GUIDE_V2.md",
+      "repository": {
+        "id": 343533419,
+        "node_id": "MDEwOlJlcG9zaXRvcnkzNDM1MzM0MTk=",
+        "name": "lipgloss",
+        "full_name": "charmbracelet/lipgloss",
+        "owner": {
+          "id": 57376114,
+          "node_id": "MDEyOk9yZ2FuaXphdGlvbjU3Mzc2MTE0",
+          "login": "charmbracelet",
+          "avatar_url": "https://avatars.githubusercontent.com/u/57376114?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/charmbracelet",
+          "html_url": "https://github.com/charmbracelet",
+          "type": "Organization",
+          "site_admin": false,
+          "followers_url": "https://api.github.com/users/charmbracelet/followers",
+          "following_url": "https://api.github.com/users/charmbracelet/following{/other_user}",
+          "gists_url": "https://api.github.com/users/charmbracelet/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/charmbracelet/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/charmbracelet/subscriptions",
+          "organizations_url": "https://api.github.com/users/charmbracelet/orgs",
+          "repos_url": "https://api.github.com/users/charmbracelet/repos",
+          "events_url": "https://api.github.com/users/charmbracelet/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/charmbracelet/received_events"
+        },
+        "private": false,
+        "html_url": "https://github.com/charmbracelet/lipgloss",
+        "description": "Style definitions for nice terminal layouts 👄",
+        "fork": false,
+        "url": "https://api.github.com/repos/charmbracelet/lipgloss",
+        "archive_url": "https://api.github.com/repos/charmbracelet/lipgloss/{archive_format}{/ref}",
+        "assignees_url": "https://api.github.com/repos/charmbracelet/lipgloss/assignees{/user}",
+        "blobs_url": "https://api.github.com/repos/charmbracelet/lipgloss/git/blobs{/sha}",
+        "branches_url": "https://api.github.com/repos/charmbracelet/lipgloss/branches{/branch}",
+        "collaborators_url": "https://api.github.com/repos/charmbracelet/lipgloss/collaborators{/collaborator}",
+        "comments_url": "https://api.github.com/repos/charmbracelet/lipgloss/comments{/number}",
+        "commits_url": "https://api.github.com/repos/charmbracelet/lipgloss/commits{/sha}",
+        "compare_url": "https://api.github.com/repos/charmbracelet/lipgloss/compare/{base}...{head}",
+        "contents_url": "https://api.github.com/repos/charmbracelet/lipgloss/contents/{+path}",
+        "contributors_url": "https://api.github.com/repos/charmbracelet/lipgloss/contributors",
+        "deployments_url": "https://api.github.com/repos/charmbracelet/lipgloss/deployments",
+        "downloads_url": "https://api.github.com/repos/charmbracelet/lipgloss/downloads",
+        "events_url": "https://api.github.com/repos/charmbracelet/lipgloss/events",
+        "forks_url": "https://api.github.com/repos/charmbracelet/lipgloss/forks",
+        "git_commits_url": "https://api.github.com/repos/charmbracelet/lipgloss/git/commits{/sha}",
+        "git_refs_url": "https://api.github.com/repos/charmbracelet/lipgloss/git/refs{/sha}",
+        "git_tags_url": "https://api.github.com/repos/charmbracelet/lipgloss/git/tags{/sha}",
+        "hooks_url": "https://api.github.com/repos/charmbracelet/lipgloss/hooks",
+        "issue_comment_url": "https://api.github.com/repos/charmbracelet/lipgloss/issues/comments{/number}",
+        "issue_events_url": "https://api.github.com/repos/charmbracelet/lipgloss/issues/events{/number}",
+        "issues_url": "https://api.github.com/repos/charmbracelet/lipgloss/issues{/number}",
+        "keys_url": "https://api.github.com/repos/charmbracelet/lipgloss/keys{/key_id}",
+        "labels_url": "https://api.github.com/repos/charmbracelet/lipgloss/labels{/name}",
+        "languages_url": "https://api.github.com/repos/charmbracelet/lipgloss/languages",
+        "merges_url": "https://api.github.com/repos/charmbracelet/lipgloss/merges",
+        "milestones_url": "https://api.github.com/repos/charmbracelet/lipgloss/milestones{/number}",
+        "notifications_url": "https://api.github.com/repos/charmbracelet/lipgloss/notifications{?since,all,participating}",
+        "pulls_url": "https://api.github.com/repos/charmbracelet/lipgloss/pulls{/number}",
+        "releases_url": "https://api.github.com/repos/charmbracelet/lipgloss/releases{/id}",
+        "stargazers_url": "https://api.github.com/repos/charmbracelet/lipgloss/stargazers",
+        "statuses_url": "https://api.github.com/repos/charmbracelet/lipgloss/statuses/{sha}",
+        "subscribers_url": "https://api.github.com/repos/charmbracelet/lipgloss/subscribers",
+        "subscription_url": "https://api.github.com/repos/charmbracelet/lipgloss/subscription",
+        "tags_url": "https://api.github.com/repos/charmbracelet/lipgloss/tags",
+        "teams_url": "https://api.github.com/repos/charmbracelet/lipgloss/teams",
+        "trees_url": "https://api.github.com/repos/charmbracelet/lipgloss/git/trees{/sha}"
+      },
+      "score": 1.0,
+      "text_matches": [
+        {
+          "object_url": "https://api.github.com/repositories/343533419/contents/UPGRADE_GUIDE_V2.md?ref=6a419c6543d3475a369ef08f6252a2a6f33be733",
+          "object_type": "FileContent",
+          "property": "content",
+          "fragment": "\n- Replace `lipgloss.DefaultRenderer().NewStyle()` with `lipgloss.NewStyle()`.\n- Replace `renderer.NewStyle()` with `lipgloss.NewStyle()`.",
+          "matches": [
+            {
+              "text": "NewStyle",
+              "indices": [
+                39,
+                47
+              ]
+            },
+            {
+              "text": "NewStyle",
+              "indices": [
+                66,
+                74
+              ]
+            },
+            {
+              "text": "NewStyle",
+              "indices": [
+                99,
+                107
+              ]
+            },
+            {
+              "text": "NewStyle",
+              "indices": [
+                126,
+                134
+              ]
+            }
+          ]
+        },
+        {
+          "object_url": "https://api.github.com/repositories/343533419/contents/UPGRADE_GUIDE_V2.md?ref=6a419c6543d3475a369ef08f6252a2a6f33be733",
+          "object_type": "FileContent",
+          "property": "content",
+          "fragment": "    return styles{\n        title: lipgloss.NewStyle().Foreground(lightDark(\n            lipgloss.Color(\"#333333\"),",
+          "matches": [
+            {
+              "text": "NewStyle",
+              "indices": [
+                43,
+                51
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "writer.go",
+      "path": "writer.go",
+      "sha": "78b48b8d3e08beb0860c023a672b7511d75cdc4f",
+      "url": "https://api.github.com/repositories/343533419/contents/writer.go?ref=6a419c6543d3475a369ef08f6252a2a6f33be733",
+      "git_url": "https://api.github.com/repositories/343533419/git/blobs/78b48b8d3e08beb0860c023a672b7511d75cdc4f",
+      "html_url": "https://github.com/charmbracelet/lipgloss/blob/6a419c6543d3475a369ef08f6252a2a6f33be733/writer.go",
+      "repository": {
+        "id": 343533419,
+        "node_id": "MDEwOlJlcG9zaXRvcnkzNDM1MzM0MTk=",
+        "name": "lipgloss",
+        "full_name": "charmbracelet/lipgloss",
+        "owner": {
+          "id": 57376114,
+          "node_id": "MDEyOk9yZ2FuaXphdGlvbjU3Mzc2MTE0",
+          "login": "charmbracelet",
+          "avatar_url": "https://avatars.githubusercontent.com/u/57376114?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/charmbracelet",
+          "html_url": "https://github.com/charmbracelet",
+          "type": "Organization",
+          "site_admin": false,
+          "followers_url": "https://api.github.com/users/charmbracelet/followers",
+          "following_url": "https://api.github.com/users/charmbracelet/following{/other_user}",
+          "gists_url": "https://api.github.com/users/charmbracelet/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/charmbracelet/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/charmbracelet/subscriptions",
+          "organizations_url": "https://api.github.com/users/charmbracelet/orgs",
+          "repos_url": "https://api.github.com/users/charmbracelet/repos",
+          "events_url": "https://api.github.com/users/charmbracelet/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/charmbracelet/received_events"
+        },
+        "private": false,
+        "html_url": "https://github.com/charmbracelet/lipgloss",
+        "description": "Style definitions for nice terminal layouts 👄",
+        "fork": false,
+        "url": "https://api.github.com/repos/charmbracelet/lipgloss",
+        "archive_url": "https://api.github.com/repos/charmbracelet/lipgloss/{archive_format}{/ref}",
+        "assignees_url": "https://api.github.com/repos/charmbracelet/lipgloss/assignees{/user}",
+        "blobs_url": "https://api.github.com/repos/charmbracelet/lipgloss/git/blobs{/sha}",
+        "branches_url": "https://api.github.com/repos/charmbracelet/lipgloss/branches{/branch}",
+        "collaborators_url": "https://api.github.com/repos/charmbracelet/lipgloss/collaborators{/collaborator}",
+        "comments_url": "https://api.github.com/repos/charmbracelet/lipgloss/comments{/number}",
+        "commits_url": "https://api.github.com/repos/charmbracelet/lipgloss/commits{/sha}",
+        "compare_url": "https://api.github.com/repos/charmbracelet/lipgloss/compare/{base}...{head}",
+        "contents_url": "https://api.github.com/repos/charmbracelet/lipgloss/contents/{+path}",
+        "contributors_url": "https://api.github.com/repos/charmbracelet/lipgloss/contributors",
+        "deployments_url": "https://api.github.com/repos/charmbracelet/lipgloss/deployments",
+        "downloads_url": "https://api.github.com/repos/charmbracelet/lipgloss/downloads",
+        "events_url": "https://api.github.com/repos/charmbracelet/lipgloss/events",
+        "forks_url": "https://api.github.com/repos/charmbracelet/lipgloss/forks",
+        "git_commits_url": "https://api.github.com/repos/charmbracelet/lipgloss/git/commits{/sha}",
+        "git_refs_url": "https://api.github.com/repos/charmbracelet/lipgloss/git/refs{/sha}",
+        "git_tags_url": "https://api.github.com/repos/charmbracelet/lipgloss/git/tags{/sha}",
+        "hooks_url": "https://api.github.com/repos/charmbracelet/lipgloss/hooks",
+        "issue_comment_url": "https://api.github.com/repos/charmbracelet/lipgloss/issues/comments{/number}",
+        "issue_events_url": "https://api.github.com/repos/charmbracelet/lipgloss/issues/events{/number}",
+        "issues_url": "https://api.github.com/repos/charmbracelet/lipgloss/issues{/number}",
+        "keys_url": "https://api.github.com/repos/charmbracelet/lipgloss/keys{/key_id}",
+        "labels_url": "https://api.github.com/repos/charmbracelet/lipgloss/labels{/name}",
+        "languages_url": "https://api.github.com/repos/charmbracelet/lipgloss/languages",
+        "merges_url": "https://api.github.com/repos/charmbracelet/lipgloss/merges",
+        "milestones_url": "https://api.github.com/repos/charmbracelet/lipgloss/milestones{/number}",
+        "notifications_url": "https://api.github.com/repos/charmbracelet/lipgloss/notifications{?since,all,participating}",
+        "pulls_url": "https://api.github.com/repos/charmbracelet/lipgloss/pulls{/number}",
+        "releases_url": "https://api.github.com/repos/charmbracelet/lipgloss/releases{/id}",
+        "stargazers_url": "https://api.github.com/repos/charmbracelet/lipgloss/stargazers",
+        "statuses_url": "https://api.github.com/repos/charmbracelet/lipgloss/statuses/{sha}",
+        "subscribers_url": "https://api.github.com/repos/charmbracelet/lipgloss/subscribers",
+        "subscription_url": "https://api.github.com/repos/charmbracelet/lipgloss/subscription",
+        "tags_url": "https://api.github.com/repos/charmbracelet/lipgloss/tags",
+        "teams_url": "https://api.github.com/repos/charmbracelet/lipgloss/teams",
+        "trees_url": "https://api.github.com/repos/charmbracelet/lipgloss/git/trees{/sha}"
+      },
+      "score": 1.0,
+      "text_matches": [
+        {
+          "object_url": "https://api.github.com/repositories/343533419/contents/writer.go?ref=6a419c6543d3475a369ef08f6252a2a6f33be733",
+          "object_type": "FileContent",
+          "property": "content",
+          "fragment": "//\n//\tstr := NewStyle().\n//\t    Foreground(lipgloss.Color(\"#6a00ff\")).",
+          "matches": [
+            {
+              "text": "NewStyle",
+              "indices": [
+                13,
+                21
+              ]
+            }
+          ]
+        },
+        {
+          "object_url": "https://api.github.com/repositories/343533419/contents/writer.go?ref=6a419c6543d3475a369ef08f6252a2a6f33be733",
+          "object_type": "FileContent",
+          "property": "content",
+          "fragment": "//\n//\tstr := NewStyle().\n//\t  Foreground(lipgloss.Color(\"#6a00ff\")).",
+          "matches": [
+            {
+              "text": "NewStyle",
+              "indices": [
+                13,
+                21
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
