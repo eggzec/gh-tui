@@ -175,6 +175,16 @@ func (m Model) Selected() (Commit, bool) {
 	return m.rows[m.sel].commit, true
 }
 
+// At returns the loaded commit at index i, newest first, or false if i is
+// out of range. It lets the parent look around the cursor, such as to read
+// ahead what the commits next to it show.
+func (m Model) At(i int) (Commit, bool) {
+	if i < 0 || i >= len(m.rows) {
+		return Commit{}, false
+	}
+	return m.rows[i].commit, true
+}
+
 // Index returns the index of the commit under the cursor.
 func (m Model) Index() int {
 	return m.sel
