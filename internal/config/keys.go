@@ -16,14 +16,20 @@ const (
 	// the screen. They keep the names they had when the app had tabs.
 	ActionNextTab = "next_tab"
 	ActionPrevTab = "prev_tab"
-	// ActionPane1 to ActionPane3 focus the pane with that number on the
-	// repository screen: files, pull requests and issues.
+	// ActionPane1 to ActionPane5 focus the pane with that number on the
+	// screen: files, pull requests and issues on the repository screen,
+	// and pinned, repositories, work, notifications and contributions on
+	// the dashboard.
 	ActionPane1 = "pane_1"
 	ActionPane2 = "pane_2"
 	ActionPane3 = "pane_3"
-	// ActionNotifications switches between the repository screen and the
+	ActionPane4 = "pane_4"
+	ActionPane5 = "pane_5"
+	// ActionNotifications switches between the screen on view and the
 	// notifications.
 	ActionNotifications = "notifications"
+	// ActionDashboard shows the dashboard, from any screen.
+	ActionDashboard = "dashboard"
 	// ActionHistory opens the History modal of the repository screen.
 	ActionHistory = "history"
 	// ActionResetBase shows the files at the head of the default branch
@@ -56,6 +62,13 @@ const (
 	// ActionUseAsBase shows the files at the branch or commit under the
 	// cursor of the History modal.
 	ActionUseAsBase = "use_as_base"
+	// ActionNextOwner and ActionPrevOwner switch the repositories of the
+	// dashboard between the viewer's own and those of each organization.
+	ActionNextOwner = "next_owner"
+	ActionPrevOwner = "prev_owner"
+	// ActionCurrentRepo opens the repository of the current directory from
+	// the dashboard.
+	ActionCurrentRepo = "current_repo"
 )
 
 func defaultKeys() map[string][]string {
@@ -71,9 +84,14 @@ func defaultKeys() map[string][]string {
 		ActionPane1:         {"1"},
 		ActionPane2:         {"2"},
 		ActionPane3:         {"3"},
+		ActionPane4:         {"4"},
+		ActionPane5:         {"5"},
 		ActionNotifications: {"n"},
-		ActionHistory:       {"B"},
-		ActionResetBase:     {"H"},
+		// 0 sits before the pane keys, as the dashboard comes before the
+		// repository, and no section binds it.
+		ActionDashboard: {"0"},
+		ActionHistory:   {"B"},
+		ActionResetBase: {"H"},
 
 		ActionSelect:      {"enter"},
 		ActionBack:        {"esc"},
@@ -93,6 +111,9 @@ func defaultKeys() map[string][]string {
 		ActionExpandAll:   {"*"},
 		ActionCollapseAll: {"="},
 		ActionUseAsBase:   {"space"},
+		ActionNextOwner:   {"]", "right"},
+		ActionPrevOwner:   {"[", "left"},
+		ActionCurrentRepo: {"."},
 	}
 }
 
