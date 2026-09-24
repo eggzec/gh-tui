@@ -16,11 +16,15 @@ import (
 )
 
 // memStore keeps objects in a map, as the disk store keeps them in files.
+// Unless current is set, the records of refs read as confirmed an hour
+// before they were, as in a session long after the one that wrote them, so
+// that each session asks GitHub whether the refs moved.
 type memStore struct {
 	mu      sync.Mutex
 	objects map[string][]byte
 	// fail makes every Put fail.
-	fail bool
+	fail    bool
+	current bool
 }
 
 func newMemStore() *memStore {
@@ -31,6 +35,12 @@ func (m *memStore) Get(kind, key string) ([]byte, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	b, ok := m.objects[kind+"/"+key]
+	if ok && kind == kindRef && !m.current {
+		if r, err := decodeRef(b); err == nil && !r.CheckedAt.IsZero() {
+			r.CheckedAt = r.CheckedAt.Add(-time.Hour)
+			b = encodeRef(r)
+		}
+	}
 	return b, ok
 }
 
@@ -449,7 +459,10 @@ func TestCodecTree(t *testing.T) {
 }
 
 func TestCodecRef(t *testing.T) {
-	r := refRecord{SHA: commitA, ETag: `W/"abc"`, LastModified: "Thu, 17 Sep 2026 08:08:29 GMT"}
+	r := refRecord{
+		SHA: commitA, ETag: `W/"abc"`, LastModified: "Thu, 17 Sep 2026 08:08:29 GMT",
+		Repo: "eggzec/gh-tui", Ref: "main", Kind: kindListing, CheckedAt: time.Unix(1_790_000_000, 5),
+	}
 	data := encodeRef(r)
 	if got, err := decodeRef(data); err != nil || got != r {
 		t.Errorf("decodeRef = %+v, %v; want %+v", got, err, r)
@@ -462,6 +475,33 @@ func TestCodecRef(t *testing.T) {
 	if _, err := decodeRef(encodeRef(refRecord{SHA: "main"})); err == nil {
 		t.Error("decodeRef of a ref that isn't a SHA succeeded")
 	}
+	if got, err := decodeRef(encodeRef(refRecord{SHA: commitA})); err != nil || !got.CheckedAt.IsZero() {
+		t.Errorf("decodeRef of a record never confirmed = %+v, %v", got, err)
+	}
+
+	// A record of the first version has only the SHA and validators.
+	v1 := appendString(appendString(appendString([]byte{refVersion1}, commitA), `"e"`), "")
+	want := refRecord{SHA: commitA, ETag: `"e"`}
+	if got, err := decodeRef(v1); err != nil || got != want {
+		t.Errorf("decodeRef of version 1 = %+v, %v; want %+v", got, err, want)
+	}
+}
+
+// TestStoreRefConfirmedIsFresh has a session start soon after the last:
+// the ref it confirmed needs no request.
+func TestStoreRefConfirmedIsFresh(t *testing.T) {
+	commit := commitA
+	store := newMemStore()
+	store.current = true
+	if _, err := New(&fakeAPI{t: t, treeAll: server(&commit)}, WithStore(store)).All(t.Context(), head); err != nil {
+		t.Fatalf("All: %v", err)
+	}
+	api := &fakeAPI{t: t, treeAll: server(&commit)}
+	s := New(api, WithStore(store))
+	if got, err := s.All(t.Context(), head); err != nil || got.SHA != commitA {
+		t.Fatalf("All = %+v, %v; want the stored listing", got, err)
+	}
+	api.wantCalls(t)
 }
 
 func TestRefKey(t *testing.T) {

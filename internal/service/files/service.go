@@ -6,9 +6,10 @@
 //
 // Reads go to memory first, then to the Store, if there is one, and then to
 // GitHub, and what GitHub returns is kept in both. The store also keeps where
-// each ref pointed and its validators, so a new session asks GitHub whether a
-// ref moved with a conditional request, which costs no rate limit when it
-// didn't, and reads the rest from the store.
+// each ref pointed, its validators and when GitHub last confirmed it, so a
+// new session asks GitHub whether a ref moved with a conditional request,
+// which costs no rate limit when it didn't, unless GitHub confirmed it within
+// the TTL, and reads the rest from the store.
 package files
 
 import (

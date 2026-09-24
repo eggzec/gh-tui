@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"time"
 	"unicode"
 	"unicode/utf8"
@@ -136,14 +137,45 @@ func (s *Service) object(ctx context.Context, repo core.RepoRef, sha string, l l
 var offlineAt = time.Unix(1, 0)
 
 // byRef reads the tree that q.Ref points at, and revalidates it once it is
-// stale. On a miss in memory, the ref's last response in the store makes the
-// request conditional, so a new session pays nothing for a ref that didn't
-// move. If GitHub can't be reached, the tree the ref last pointed at is
-// served with Offline set.
+// stale. On a miss in memory, the ref's last response in the store is read
+// into memory: fresh if GitHub confirmed it within the TTL, and otherwise
+// stale, to make the request conditional, so a new session pays nothing for
+// a ref that didn't move. If GitHub can't be reached, the tree the ref last
+// pointed at is served with Offline set.
 func (s *Service) byRef(ctx context.Context, q TreeQuery, l lister) (core.Tree, error) {
+	key, rkey := l.key(q.Repo, q.Ref), refKey(l.kind, q.Repo, q.Ref)
+	if _, st := s.refs.Get(key); st == cache.Miss {
+		if e, ok := s.storedRef(q.Repo, rkey, l); ok {
+			e.Tags = []string{repoTag(q.Repo)}
+			s.refs.Seed(key, e)
+		}
+	}
+	e, err := s.refs.Fetch(ctx, key, s.refFetch(q, l, true, nil))
+	return e.Value, err
+}
+
+// What a ref's fetch found, for a recheck.
+const (
+	refUnasked int32 = iota
+	refNotModified
+	refChanged
+)
+
+// refFetch returns the FetchFunc of the tree that q.Ref points at, read as
+// l lists it. It asks GitHub with the validators of the previous entry, or
+// of the ref's last response in the store, and keeps what GitHub sends and
+// when it confirmed the ref. If fallback is set and GitHub can't be
+// reached, it serves the previous tree with Offline set. It records what
+// GitHub said in found, if set.
+func (s *Service) refFetch(q TreeQuery, l lister, fallback bool, found *atomic.Int32) cache.FetchFunc[core.Tree] {
 	tags := []string{repoTag(q.Repo)}
 	rkey := refKey(l.kind, q.Repo, q.Ref)
-	e, err := s.refs.Fetch(ctx, l.key(q.Repo, q.Ref), func(ctx context.Context, prev cache.Entry[core.Tree], ok bool) (cache.Entry[core.Tree], error) {
+	note := func(v int32) {
+		if found != nil {
+			found.Store(v)
+		}
+	}
+	return func(ctx context.Context, prev cache.Entry[core.Tree], ok bool) (cache.Entry[core.Tree], error) {
 		if !ok {
 			prev, ok = s.storedRef(q.Repo, rkey, l)
 		}
@@ -153,30 +185,54 @@ func (s *Service) byRef(ctx context.Context, q TreeQuery, l lister) (core.Tree, 
 		}
 		t, res, err := l.get(s.api, ctx, q.Repo, q.Ref, cond)
 		switch {
-		case err != nil && ok && github.Unreachable(ctx, err):
+		case err != nil && fallback && ok && github.Unreachable(ctx, err):
 			prev.Value.Offline = true
 			prev.FetchedAt, prev.Tags = offlineAt, tags
 			return prev, nil
 		case err != nil:
 			return cache.Entry[core.Tree]{}, err
 		case res.NotModified && ok:
+			note(refNotModified)
+			s.confirmRef(q, l, prev)
 			prev.Value.Offline = false
 			prev.FetchedAt, prev.Tags = time.Time{}, tags
 			return prev, nil
 		case res.NotModified:
 			return cache.Entry[core.Tree]{}, cache.ErrNotModified
 		}
+		note(refChanged)
 		slices.SortFunc(t.Entries, l.sort)
 		if isSHA(t.SHA) {
 			sha := strings.ToLower(t.SHA)
 			s.objects.Set(l.key(q.Repo, sha), cache.Entry[core.Tree]{Value: t})
 			if s.keep(l.kind, sha, t) {
-				_ = s.store.Put(kindRef, rkey, encodeRef(refRecord{SHA: sha, ETag: res.ETag, LastModified: res.LastModified}))
+				_ = s.store.Put(kindRef, rkey, encodeRef(refRecord{
+					SHA: sha, ETag: res.ETag, LastModified: res.LastModified,
+					Repo: q.Repo.String(), Ref: q.Ref, Kind: l.kind, CheckedAt: time.Now(),
+				}))
 			}
 		}
 		return cache.Entry[core.Tree]{Value: t, ETag: res.ETag, LastModified: res.LastModified, Tags: tags}, nil
+	}
+}
+
+// confirmRef records that GitHub confirmed, now, that q.Ref still points
+// where prev says. That doesn't count as using the record, if the store can
+// tell. The store is only a shortcut, so a failure is ignored.
+func (s *Service) confirmRef(q TreeQuery, l lister, prev cache.Entry[core.Tree]) {
+	if !isSHA(prev.Value.SHA) {
+		return
+	}
+	data := encodeRef(refRecord{
+		SHA: strings.ToLower(prev.Value.SHA), ETag: prev.ETag, LastModified: prev.LastModified,
+		Repo: q.Repo.String(), Ref: q.Ref, Kind: l.kind, CheckedAt: time.Now(),
 	})
-	return e.Value, err
+	rkey := refKey(l.kind, q.Repo, q.Ref)
+	if cat, ok := s.store.(catalog); ok {
+		_ = cat.Replace(kindRef, rkey, data)
+		return
+	}
+	_ = s.store.Put(kindRef, rkey, data)
 }
 
 // stored returns the tree of kind named sha from the store. One that can't
@@ -195,8 +251,8 @@ func (s *Service) stored(kind, sha string) (core.Tree, bool) {
 }
 
 // storedRef returns the tree that the ref of rkey pointed at when it was last
-// read, with that response's validators, from the store. It also puts the
-// tree in memory under its SHA.
+// read, with that response's validators, from the store, as fetched when
+// GitHub last confirmed it. It also puts the tree in memory under its SHA.
 func (s *Service) storedRef(repo core.RepoRef, rkey string, l lister) (cache.Entry[core.Tree], bool) {
 	data, ok := s.store.Get(kindRef, rkey)
 	if !ok {
@@ -214,7 +270,7 @@ func (s *Service) storedRef(repo core.RepoRef, rkey string, l lister) (cache.Ent
 		return cache.Entry[core.Tree]{}, false
 	}
 	s.objects.Set(l.key(repo, r.SHA), cache.Entry[core.Tree]{Value: t})
-	return cache.Entry[core.Tree]{Value: t, ETag: r.ETag, LastModified: r.LastModified}, true
+	return cache.Entry[core.Tree]{Value: t, ETag: r.ETag, LastModified: r.LastModified, FetchedAt: r.CheckedAt}, true
 }
 
 // keep puts t in the store as the tree of kind named sha, and reports
