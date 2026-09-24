@@ -21,23 +21,35 @@ type chip struct {
 // and clearing it only costs rendering them again.
 const maxChips = 512
 
-// chip returns the chip of l, rendering it the first time it is shown.
-func (s *Section) chip(l core.Label) chip {
+// chipCache holds the rendered label chips by name and color.
+type chipCache struct {
+	chips map[string]chip
+	// label is the chip of a label whose color is not valid.
+	label lipgloss.Style
+	dark  bool
+}
+
+func newChipCache(st rowStyles) chipCache {
+	return chipCache{chips: map[string]chip{}, label: st.label, dark: st.dark}
+}
+
+// get returns the chip of l, rendering it the first time it is shown.
+func (cc *chipCache) get(l core.Label) chip {
 	k := l.Name + "\x00" + l.Color
-	if c, ok := s.chips[k]; ok {
+	if c, ok := cc.chips[k]; ok {
 		return c
 	}
-	if len(s.chips) >= maxChips {
-		clear(s.chips)
+	if len(cc.chips) >= maxChips {
+		clear(cc.chips)
 	}
 	name := ansi.Truncate(clean(l.Name), chipName, "…")
-	st := s.rows.label
-	if fg, bg, ok := chipColors(l.Color, s.rows.dark); ok {
+	st := cc.label
+	if fg, bg, ok := chipColors(l.Color, cc.dark); ok {
 		st = lipgloss.NewStyle().Foreground(fg).Background(bg).Padding(0, 1)
 	}
 	text := st.Render(name)
 	c := chip{text: text, width: ansi.StringWidth(text)}
-	s.chips[k] = c
+	cc.chips[k] = c
 	return c
 }
 

@@ -1,5 +1,6 @@
 // Package issues is the Issues section: the issues of the selected
-// repository, filtered by state, each opening into a thread of comments.
+// repository, filtered by state, each opening into a modal with its thread
+// of comments.
 package issues
 
 import (
@@ -8,15 +9,12 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/glamour/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
-	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
-	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
 )
 
 // Section shows the issues of one repository. Create it with [New].
@@ -37,27 +35,10 @@ type Section struct {
 	list       feed.Model[core.Issue]
 	cancelList context.CancelFunc
 
-	// detail is the open issue's thread, shown while inDetail. It is
-	// rebuilt for every issue, like the list.
-	detail       thread.Model[core.Comment]
-	inDetail     bool
-	issue        core.Issue
-	detailGen    int
-	detailCtx    context.Context
-	cancelDetail context.CancelFunc
-	// prompt is where a comment or the labels are written, under the
-	// thread, while composing says what for.
-	prompt    prompt.Model
-	composing composing
-	// md renders comment bodies at mdWidth.
-	md      *glamour.TermRenderer
-	mdWidth int
-
 	width, height int
 	theme         ui.Theme
 	rows          rowStyles
-	// chips holds the rendered label chips by name and color.
-	chips map[string]chip
+	chips         chipCache
 	// cols is the layout of the rows at colsWidth.
 	cols      columns
 	colsWidth int
@@ -65,6 +46,8 @@ type Section struct {
 	// Rendered when what they show changes, so View only joins them.
 	bar   string
 	empty string
+	// hint is what the empty state tells the user to do.
+	hint string
 }
 
 // New returns the Issues section, which reads issues from svc. keys maps
@@ -76,15 +59,19 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		keys:      newKeyMap(keys),
 		now:       time.Now,
 		filter:    core.FilterOpen,
-		chips:     map[string]chip{},
 		colsWidth: -1,
 	}
 	for _, opt := range opts {
 		opt(s)
 	}
+	s.hint = "Search for a repository to see its issues."
+	if k := ui.Binding(keys, config.ActionSearch, "search").Help().Key; k != "" {
+		s.hint = "Press " + k + " to search for one."
+	}
 	// Assume a dark terminal until the app sets the theme.
 	s.theme = ui.NewTheme(defaultPalette(), true)
 	s.rows = newRowStyles(s.theme)
+	s.chips = newChipCache(s.rows)
 	s.list = s.newList()
 	s.renderChrome()
 	return s
@@ -111,9 +98,6 @@ func (s *Section) Init() tea.Cmd {
 func (s *Section) SetSize(width, height int) {
 	s.width, s.height = max(width, 0), max(height, 0)
 	s.list.SetSize(s.width, s.bodyHeight())
-	if s.inDetail {
-		s.layoutDetail()
-	}
 	s.renderChrome()
 }
 
@@ -121,33 +105,14 @@ func (s *Section) SetSize(width, height int) {
 func (s *Section) SetTheme(t ui.Theme) {
 	s.theme = t
 	s.rows = newRowStyles(t)
-	clear(s.chips)
-	s.md = nil
+	s.chips = newChipCache(s.rows)
 	s.list.SetStyles(t.Feed())
-	if s.inDetail {
-		s.detail.SetStyles(t.Thread())
-		// The header is styled too. The thread loads whatever the new
-		// layout needs on its next message, so the command can go.
-		_ = s.detail.SetDocument(s.header(s.issue), s.issue.Body)
-	}
-	if s.composing != composeNone {
-		s.prompt.SetStyles(t.Prompt())
-	}
 	s.renderChrome()
 }
 
 // Focus implements ui.Section.
 func (s *Section) Focus() {
 	s.focused = true
-	if s.inDetail && s.composing != composeNone {
-		// The cursor doesn't blink, so focusing starts nothing.
-		_ = s.prompt.Focus()
-		return
-	}
-	if s.inDetail {
-		s.detail.Focus()
-		return
-	}
 	s.list.Focus()
 }
 
@@ -155,10 +120,6 @@ func (s *Section) Focus() {
 func (s *Section) Blur() {
 	s.focused = false
 	s.list.Blur()
-	s.detail.Blur()
-	if s.composing != composeNone {
-		s.prompt.Blur()
-	}
 }
 
 // bodyHeight is the height under the bar.

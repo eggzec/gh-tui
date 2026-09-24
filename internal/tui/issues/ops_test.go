@@ -16,7 +16,7 @@ func TestSetState(t *testing.T) {
 	tests := []struct {
 		name string
 		// setup brings the section to the issue to act on.
-		setup   func(t *testing.T, s *Section)
+		setup   func(t *testing.T, s *host)
 		key     string
 		sendErr error
 		// wantChange is the change asked of the service, or "" for none.
@@ -27,7 +27,7 @@ func TestSetState(t *testing.T) {
 	}{
 		{
 			name:       "close in the open list drops the issue once confirmed",
-			setup:      func(t *testing.T, s *Section) { t.Helper(); press(t, s, "down") },
+			setup:      func(t *testing.T, s *host) { t.Helper(); press(t, s, "down") },
 			key:        "x",
 			wantChange: "close 999",
 			wantBefore: core.StateClosed,
@@ -36,7 +36,7 @@ func TestSetState(t *testing.T) {
 		{
 			// All issues, so the closed one stays in the list.
 			name:       "close in the list",
-			setup:      func(t *testing.T, s *Section) { t.Helper(); press(t, s, "f", "f", "down") },
+			setup:      func(t *testing.T, s *host) { t.Helper(); press(t, s, "f", "f", "down") },
 			key:        "x",
 			wantChange: "close 999",
 			wantBefore: core.StateClosed,
@@ -44,7 +44,7 @@ func TestSetState(t *testing.T) {
 		},
 		{
 			name: "reopen in the list",
-			setup: func(t *testing.T, s *Section) {
+			setup: func(t *testing.T, s *host) {
 				t.Helper()
 				press(t, s, "f", "f", "down", "down", "down", "down")
 			},
@@ -54,8 +54,8 @@ func TestSetState(t *testing.T) {
 			wantAfter:  core.StateOpen,
 		},
 		{
-			name:       "close in the detail",
-			setup:      func(t *testing.T, s *Section) { t.Helper(); press(t, s, "down", "enter") },
+			name:       "close in the modal",
+			setup:      func(t *testing.T, s *host) { t.Helper(); press(t, s, "down", "enter") },
 			key:        "x",
 			wantChange: "close 999",
 			wantBefore: core.StateClosed,
@@ -63,7 +63,7 @@ func TestSetState(t *testing.T) {
 		},
 		{
 			name:       "a refused close rolls back",
-			setup:      func(t *testing.T, s *Section) { t.Helper(); press(t, s, "down", "enter") },
+			setup:      func(t *testing.T, s *host) { t.Helper(); press(t, s, "down", "enter") },
 			key:        "x",
 			sendErr:    errors.New("403 Forbidden"),
 			wantChange: "close 999",
@@ -72,12 +72,12 @@ func TestSetState(t *testing.T) {
 		},
 		{
 			name:  "reopen an open issue does nothing",
-			setup: func(t *testing.T, s *Section) { t.Helper(); press(t, s, "down") },
+			setup: func(t *testing.T, s *host) { t.Helper(); press(t, s, "down") },
 			key:   "X",
 		},
 		{
 			name: "close a closed issue does nothing",
-			setup: func(t *testing.T, s *Section) {
+			setup: func(t *testing.T, s *host) {
 				t.Helper()
 				press(t, s, "f", "enter")
 			},
@@ -91,6 +91,9 @@ func TestSetState(t *testing.T) {
 			s := started(t, svc, 80, 20)
 			tt.setup(t, s)
 			target, _ := s.target()
+			if m := s.modal(); m != nil {
+				target = m.issue
+			}
 
 			cmd := s.Update(keyMsg(tt.key))
 			if tt.wantChange == "" {
@@ -124,11 +127,11 @@ func TestSetState(t *testing.T) {
 	}
 }
 
-// shownState returns the state the section shows for issue number: the
-// header's in the detail, or the selected row's, which follows the issue.
-func shownState(s *Section, number int) core.State {
-	if s.inDetail {
-		v := ansi.Strip(s.header(s.issue))
+// shownState returns the state shown for issue number: the header's in the
+// modal, or the selected row's, which follows the issue.
+func shownState(s *host, number int) core.State {
+	if m := s.modal(); m != nil {
+		v := ansi.Strip(m.header(m.issue))
 		if strings.Contains(v, "● Open") {
 			return core.StateOpen
 		}
@@ -139,6 +142,49 @@ func shownState(s *Section, number int) core.State {
 		return ""
 	}
 	return it.State
+}
+
+// A change in the modal shows in the modal and in the list behind it at
+// once, and both show GitHub's answer.
+func TestChangeInModalShowsInBoth(t *testing.T) {
+	for _, sendErr := range []error{nil, errors.New("403 Forbidden")} {
+		name := "confirmed"
+		if sendErr != nil {
+			name = "refused"
+		}
+		t.Run(name, func(t *testing.T) {
+			svc := newFakeService(sampleIssues(12))
+			svc.sendErr = sendErr
+			// All issues, so the closed one stays in the list.
+			h := started(t, svc, 80, 20)
+			press(t, h, "f", "f", "down", "enter")
+			m := h.modal()
+			done := runHolding(t, h, h.Update(keyMsg("x")))
+			row := func() core.State {
+				it, _ := h.list.Selected()
+				return it.State
+			}
+			if got := shownState(h, 999); got != core.StateClosed {
+				t.Fatalf("before the answer the modal shows %q, want closed", got)
+			}
+			// A refused change is rolled back as soon as it is sent, which
+			// the test runs before the list reads the cache again.
+			if sendErr == nil && row() != core.StateClosed {
+				t.Fatalf("before the answer the list shows %q, want closed", row())
+			}
+			if len(done) != 1 {
+				t.Fatalf("done = %v, want one", done)
+			}
+			run(t, h, h.Update(done[0]))
+			want := core.StateClosed
+			if sendErr != nil {
+				want = core.StateOpen
+			}
+			if got := shownState(h, 999); got != want || row() != want || m.issue.State != want {
+				t.Errorf("after the answer the modal shows %q and the list %q, want both %q", got, row(), want)
+			}
+		})
+	}
 }
 
 func TestDoneOfOthersIsIgnored(t *testing.T) {

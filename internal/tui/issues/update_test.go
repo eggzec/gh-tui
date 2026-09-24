@@ -8,6 +8,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
@@ -17,14 +18,14 @@ func TestRepoMsg(t *testing.T) {
 	other := core.RepoRef{Owner: "charmbracelet", Name: "bubbletea"}
 	tests := []struct {
 		name string
-		do   func(t *testing.T, s *Section, svc *fakeService)
+		do   func(t *testing.T, s *host, svc *fakeService)
 		// wantRepos are the repositories listed, in order.
 		wantRepos []core.RepoRef
 		wantRows  int
 	}{
 		{
 			name: "before init waits for init",
-			do: func(t *testing.T, s *Section, _ *fakeService) {
+			do: func(t *testing.T, s *host, _ *fakeService) {
 				t.Helper()
 				if cmd := s.Update(ui.RepoMsg{Repo: testRepo}); cmd != nil {
 					t.Error("RepoMsg before Init returned a command")
@@ -36,7 +37,7 @@ func TestRepoMsg(t *testing.T) {
 		},
 		{
 			name: "after init loads at once",
-			do: func(t *testing.T, s *Section, _ *fakeService) {
+			do: func(t *testing.T, s *host, _ *fakeService) {
 				t.Helper()
 				if cmd := s.Init(); cmd != nil {
 					t.Error("Init without a repository returned a command")
@@ -48,7 +49,7 @@ func TestRepoMsg(t *testing.T) {
 		},
 		{
 			name: "a new repository resets the list",
-			do: func(t *testing.T, s *Section, _ *fakeService) {
+			do: func(t *testing.T, s *host, _ *fakeService) {
 				t.Helper()
 				run(t, s, s.Update(ui.RepoMsg{Repo: testRepo}))
 				run(t, s, s.Init())
@@ -59,7 +60,7 @@ func TestRepoMsg(t *testing.T) {
 		},
 		{
 			name: "the same repository is kept",
-			do: func(t *testing.T, s *Section, _ *fakeService) {
+			do: func(t *testing.T, s *host, _ *fakeService) {
 				t.Helper()
 				run(t, s, s.Update(ui.RepoMsg{Repo: testRepo}))
 				run(t, s, s.Init())
@@ -95,7 +96,7 @@ func TestEmptyStateWithoutRepo(t *testing.T) {
 	s := newSection(t, newFakeService(nil), 80, 10)
 	run(t, s, s.Init())
 	v := ansi.Strip(s.View())
-	if !strings.Contains(v, "Pick a repository in Repositories (tab 4).") {
+	if !strings.Contains(v, "No repository selected") || !strings.Contains(v, "Press / to search for one.") {
 		t.Errorf("view without a repository = %q", v)
 	}
 	if msgs := press(t, s, "f", "r", "enter", "o"); len(msgs) != 0 {
@@ -103,6 +104,18 @@ func TestEmptyStateWithoutRepo(t *testing.T) {
 	}
 	if len(s.Help().ShortHelp()) != 0 {
 		t.Error("help lists keys without a repository")
+	}
+}
+
+func TestEmptyStateWithoutSearchKey(t *testing.T) {
+	keys := config.Default().Keys
+	delete(keys, config.ActionSearch)
+	s := New(t.Context(), newFakeService(nil), keys)
+	s.SetSize(30, 8)
+	v := s.View()
+	assertFits(t, v, 30, 8)
+	if v := ansi.Strip(v); !strings.Contains(v, "Search for a") || strings.Contains(v, "Press") {
+		t.Errorf("view without a search key:\n%s", v)
 	}
 }
 

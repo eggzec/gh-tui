@@ -62,18 +62,18 @@ func TestSyncWaitsForStart(t *testing.T) {
 
 func TestSyncRefreshesDetail(t *testing.T) {
 	svc := newFakeService(sampleIssues(12))
-	s := opened(t, svc, 12)
+	s, m := opened(t, svc, 12)
 	svc.set(999, func(it *core.Issue) { it.Title = "Renamed on the server" })
 	lists, comments := len(svc.listCalls()), len(svc.commentQueries)
 	run(t, s, s.Update(ui.SyncMsg{Key: issuesvc.SyncKey(testRepo)}))
-	if !s.inDetail {
+	if s.modal() != m {
 		t.Fatal("sync closed the issue")
 	}
 	if got := svc.getCalls(); len(got) != 2 {
 		t.Errorf("Get calls = %v, want two", got)
 	}
-	if s.issue.Title != "Renamed on the server" {
-		t.Errorf("open issue = %q, want it renamed", s.issue.Title)
+	if m.issue.Title != "Renamed on the server" {
+		t.Errorf("open issue = %q, want it renamed", m.issue.Title)
 	}
 	if got := len(svc.commentQueries); got <= comments {
 		t.Errorf("comment pages read = %d, want more than %d", got, comments)

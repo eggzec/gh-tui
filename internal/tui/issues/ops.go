@@ -10,61 +10,55 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
-// target returns the issue that actions apply to: the open one in the
-// detail, or the selected one in the list.
+// target returns the issue that the list keys apply to: the selected one.
 func (s *Section) target() (core.Issue, bool) {
-	if s.inDetail {
-		return s.issue, true
-	}
 	return s.list.Selected()
 }
 
-// setState closes or reopens the target issue. The service shows the change
-// in its cache at once, so the section reloads from it, then sends the
-// change. Only an open issue closes and only a closed one reopens.
-func (s *Section) setState(state core.State) tea.Cmd {
-	from := core.StateOpen
+// stateChange starts closing or reopening issue it of repo: the service
+// shows the change in its cache at once and returns the op that sends it,
+// named by what. Only an open issue closes and only a closed one reopens,
+// and ok is false for the others.
+func stateChange(svc Service, repo core.RepoRef, it core.Issue, state core.State) (op *optimistic.Op, what string, ok bool) {
+	from, verb := core.StateOpen, "close"
 	if state == core.StateOpen {
-		from = core.StateClosed
+		from, verb = core.StateClosed, "reopen"
 	}
+	if it.State != from {
+		return nil, "", false
+	}
+	if state == core.StateClosed {
+		op = svc.Close(repo, it.Number)
+	} else {
+		op = svc.Reopen(repo, it.Number)
+	}
+	return op, verb + " #" + strconv.Itoa(it.Number), true
+}
+
+// setState closes or reopens the selected issue. The list shows the change
+// from the cache at once, then it is sent.
+func (s *Section) setState(state core.State) tea.Cmd {
 	it, ok := s.target()
-	if !ok || it.State != from {
+	if !ok {
 		return nil
 	}
-	var op *optimistic.Op
-	verb := "close"
-	if state == core.StateClosed {
-		op = s.svc.Close(s.repo, it.Number)
-	} else {
-		verb = "reopen"
-		op = s.svc.Reopen(s.repo, it.Number)
+	op, what, ok := stateChange(s.svc, s.repo, it, state)
+	if !ok {
+		return nil
 	}
-	what := verb + " #" + strconv.Itoa(it.Number)
 	return tea.Batch(s.reload(), ui.Do(s.ctx, ui.IssuesTitle, op, what))
 }
 
-// done reloads after a change this section sent, to show GitHub's answer or
-// the rollback. The thread reloads too, since the change may be a comment.
+// done reloads the list after a change this section or its modal sent, to
+// show GitHub's answer or the rollback.
 func (s *Section) done(msg ui.DoneMsg) tea.Cmd {
 	if msg.From != ui.IssuesTitle {
 		return nil
 	}
-	if s.inDetail {
-		return tea.Batch(s.reload(), s.detail.Reload())
-	}
 	return s.reload()
 }
 
-// reload shows the list, and the open issue's header, from the cache again.
+// reload shows the list from the cache again.
 func (s *Section) reload() tea.Cmd {
-	cmd := s.list.Reload()
-	if !s.inDetail {
-		return cmd
-	}
-	it, ok := s.svc.CachedGet(s.repo, s.issue.Number)
-	if !ok {
-		return cmd
-	}
-	s.issue = it
-	return tea.Batch(cmd, s.detail.SetDocument(s.header(it), it.Body))
+	return s.list.Reload()
 }

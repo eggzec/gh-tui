@@ -195,7 +195,7 @@ func (s *Section) writeLabels(b *strings.Builder, labels []core.Label, c columns
 	var chips [2]chip
 	shown, w := 0, 0
 	for _, l := range labels[:min(len(labels), c.chips, len(chips))] {
-		ch := s.chip(l)
+		ch := s.chips.get(l)
 		cw := ch.width
 		if shown > 0 {
 			cw++
