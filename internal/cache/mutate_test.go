@@ -198,3 +198,16 @@ func TestMutateTagRollbackKeepsNewerWrite(t *testing.T) {
 		t.Errorf("b = %d, %v; want 4, fresh", e.Value, st)
 	}
 }
+
+func TestMutateResizes(t *testing.T) {
+	c := New[string](WithMaxSize(100, func(v string) int64 { return int64(len(v)) }))
+	c.Set("k", Entry[string]{Value: "ab"})
+	rollback, _ := c.Mutate("k", func(v string) string { return v + "cdef" })
+	if got := c.Size(); got != 6 {
+		t.Errorf("Size after Mutate = %d, want 6", got)
+	}
+	rollback()
+	if got := c.Size(); got != 2 {
+		t.Errorf("Size after rollback = %d, want 2", got)
+	}
+}

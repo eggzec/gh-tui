@@ -49,6 +49,10 @@ type Cache[V any] struct {
 	mu    sync.Mutex
 	opts  options
 	items map[string]*node[V]
+	// size measures an entry for opts.maxSize, or is nil; total is the size
+	// of every entry.
+	size  func(V) int64
+	total int64
 	// seq numbers writes, so code that read an entry earlier can tell
 	// whether it changed since.
 	seq     uint64
@@ -61,6 +65,7 @@ type Cache[V any] struct {
 type node[V any] struct {
 	key        string
 	entry      Entry[V]
+	size       int64
 	stale      bool
 	version    uint64
 	prev, next *node[V]
@@ -73,6 +78,7 @@ func New[V any](opts ...Option) *Cache[V] {
 		opt(&o)
 	}
 	c := &Cache[V]{opts: o, items: make(map[string]*node[V])}
+	c.size, _ = o.size.(func(V) int64)
 	c.root.next, c.root.prev = &c.root, &c.root
 	return c
 }
@@ -135,6 +141,14 @@ func (c *Cache[V]) InvalidateTag(tag string) {
 	}
 }
 
+// Size returns the total size of the entries, as measured by the size
+// function of WithMaxSize, or 0 without one.
+func (c *Cache[V]) Size() int64 {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.total
+}
+
 // Len returns the number of entries.
 func (c *Cache[V]) Len() int {
 	c.mu.Lock()
@@ -150,7 +164,9 @@ func (c *Cache[V]) set(key string, e Entry[V]) {
 	c.seq++
 	if n, ok := c.items[key]; ok {
 		n.entry, n.stale, n.version = e, false, c.seq
+		c.resize(n)
 		c.moveToFront(n)
+		c.shrink()
 		return
 	}
 	var n *node[V]
@@ -159,12 +175,38 @@ func (c *Cache[V]) set(key string, e Entry[V]) {
 	} else {
 		// Reuse the evicted node so a full cache doesn't allocate on Set.
 		n = c.root.prev
-		c.unlink(n)
-		delete(c.items, n.key)
+		c.remove(n)
 	}
 	*n = node[V]{key: key, entry: e, version: c.seq}
 	c.items[key] = n
 	c.pushFront(n)
+	c.resize(n)
+	c.shrink()
+}
+
+// resize measures the value of n again. c.mu must be held.
+func (c *Cache[V]) resize(n *node[V]) {
+	if c.size == nil {
+		return
+	}
+	s := c.size(n.entry.Value)
+	c.total += s - n.size
+	n.size = s
+}
+
+// shrink evicts the least recently used entries while they are larger than
+// the size limit, down to the most recent one. c.mu must be held.
+func (c *Cache[V]) shrink() {
+	for c.size != nil && c.total > c.opts.maxSize && len(c.items) > 1 {
+		c.remove(c.root.prev)
+	}
+}
+
+// remove unlinks n and forgets it. c.mu must be held.
+func (c *Cache[V]) remove(n *node[V]) {
+	c.unlink(n)
+	delete(c.items, n.key)
+	c.total -= n.size
 }
 
 // markStale counts as a write, so a Fetch that started earlier doesn't make
