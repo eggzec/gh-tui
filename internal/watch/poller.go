@@ -2,7 +2,10 @@ package watch
 
 import (
 	"context"
+	"log/slog"
 	"time"
+
+	"github.com/eggzec/gh-tui/internal/obs"
 )
 
 type poller struct {
@@ -36,7 +39,9 @@ func (e *Engine) poll(ctx context.Context, p *poller) {
 		case <-timer.C:
 		case <-p.wake:
 		}
-		res, err := p.fn(ctx)
+		pctx := obs.WithTrace(ctx, "sync.poll")
+		start := time.Now()
+		res, err := p.fn(pctx)
 		if ctx.Err() != nil {
 			return
 		}
@@ -49,7 +54,9 @@ func (e *Engine) poll(ctx context.Context, p *poller) {
 		if err != nil || res.Changed {
 			e.publish(p, Event{Key: p.key, Err: err})
 		}
-		timer.Reset(e.delay(hint, failures))
+		next := e.delay(hint, failures)
+		logPoll(pctx, p.key, start, res, err, failures, next)
+		timer.Reset(next)
 	}
 }
 
@@ -80,4 +87,34 @@ func (e *Engine) delay(hint time.Duration, failures int) time.Duration {
 		d *= time.Duration(e.cfg.idle)
 	}
 	return d
+}
+
+// logPoll logs a poll of key: at debug level if nothing changed, at info
+// level if something did, and at warn level if it failed, with the backoff
+// that failures grew the next delay to.
+func logPoll(ctx context.Context, key string, start time.Time, res Result, err error, failures int, next time.Duration) {
+	level := slog.LevelDebug
+	switch {
+	case err != nil:
+		level = slog.LevelWarn
+	case res.Changed:
+		level = slog.LevelInfo
+	}
+	if !obs.Enabled(ctx, level) {
+		return
+	}
+	attrs := []slog.Attr{
+		slog.String("span", "sync.poll"),
+		slog.String("key", key),
+		slog.Float64("duration_ms", obs.Millis(time.Since(start))),
+		slog.Bool("changed", res.Changed),
+		slog.Float64("next_in_s", next.Round(time.Second).Seconds()),
+	}
+	if res.Interval > 0 {
+		attrs = append(attrs, slog.Float64("poll_interval_s", res.Interval.Seconds()))
+	}
+	if err != nil {
+		attrs = append(attrs, slog.String("err", err.Error()), slog.Int("failures", failures))
+	}
+	slog.LogAttrs(ctx, level, "sync poll", attrs...)
 }

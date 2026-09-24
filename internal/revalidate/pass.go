@@ -3,12 +3,14 @@ package revalidate
 import (
 	"cmp"
 	"context"
+	"log/slog"
 	"maps"
 	"slices"
 	"sync"
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/obs"
 )
 
 // Pass is what one pass did, such as for a log.
@@ -17,6 +19,9 @@ type Pass struct {
 	// Listed counts the entries the sources listed, and Due those in
 	// scope that weren't fresh.
 	Listed, Due int
+	// Budget is how many requests the pass could send: what the budget
+	// allows in an interval.
+	Budget int
 	// Sent counts the requests sent, and the rest what the checks found.
 	Sent, NotModified, Changed, Gone, Failed, Skipped int
 	// Deferred counts the due entries left for a later pass, because the
@@ -49,6 +54,7 @@ func (r *Revalidator) pass(ctx context.Context) Pass {
 	// many entries doesn't hold back the next, which starts over from the
 	// most important ones.
 	quota := max(1, int(int64(r.cfg.budget)*int64(r.cfg.interval)/int64(time.Minute)))
+	p.Budget = quota
 	if n := len(first) + len(rest); n > quota {
 		p.Deferred += n - quota
 		if len(first) >= quota {
@@ -131,6 +137,7 @@ func (r *Revalidator) check(ctx context.Context, entries []Entry, p *Pass) bool 
 				if res.Status == Skipped {
 					r.budget.release(at)
 				}
+				logCheck(ctx, e, res)
 				mu.Lock()
 				// A check that stopped because another paused the pass
 				// found nothing.
@@ -213,4 +220,56 @@ func (r *Revalidator) flush(p *Pass) {
 		r.cfg.publish(k)
 	}
 	p.Published = append(p.Published, keys...)
+}
+
+// logCheck logs what checking e found, at debug level.
+func logCheck(ctx context.Context, e Entry, res Result) {
+	if !obs.Enabled(ctx, slog.LevelDebug) {
+		return
+	}
+	attrs := []slog.Attr{
+		slog.String("span", "revalidate.check"),
+		slog.String("entry", e.ID),
+		slog.String("status", res.Status.String()),
+	}
+	if e.Repo != (core.RepoRef{}) {
+		attrs = append(attrs, slog.String("repo", e.Repo.String()))
+	}
+	if res.Err != nil {
+		attrs = append(attrs, slog.String("err", res.Err.Error()))
+	}
+	slog.LogAttrs(ctx, slog.LevelDebug, "revalidate check", attrs...)
+}
+
+// log logs what p did, and when the next pass starts, at info level, or at
+// warn level if GitHub couldn't be reached or a rate limit stopped it.
+func (p *Pass) log(ctx context.Context, next time.Duration) {
+	level := slog.LevelInfo
+	if p.Offline || !p.RetryAt.IsZero() {
+		level = slog.LevelWarn
+	}
+	if !obs.Enabled(ctx, level) {
+		return
+	}
+	attrs := []slog.Attr{
+		slog.String("span", "revalidate.pass"),
+		slog.Float64("duration_ms", obs.Millis(p.End.Sub(p.Start))),
+		slog.Int("listed", p.Listed),
+		slog.Int("due", p.Due),
+		slog.Int("budget", p.Budget),
+		slog.Int("sent", p.Sent),
+		slog.Int("not_modified", p.NotModified),
+		slog.Int("changed", p.Changed),
+		slog.Int("gone", p.Gone),
+		slog.Int("failed", p.Failed),
+		slog.Int("skipped", p.Skipped),
+		slog.Int("deferred", p.Deferred),
+		slog.Bool("offline", p.Offline),
+		slog.Int("published", len(p.Published)),
+		slog.Float64("next_in_s", next.Round(time.Second).Seconds()),
+	}
+	if !p.RetryAt.IsZero() {
+		attrs = append(attrs, slog.Time("retry_at", p.RetryAt))
+	}
+	slog.LogAttrs(ctx, level, "revalidate pass", attrs...)
 }
