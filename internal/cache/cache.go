@@ -109,10 +109,12 @@ func (c *Cache[V]) Set(key string, e Entry[V]) {
 	c.set(key, e)
 }
 
-// Seed stores e under key as a stale entry, unless key holds an entry
-// already or is being fetched, and reports whether it did. It is for
-// entries kept from an earlier session, such as by a Shelf: they are shown
-// at once, and the next Fetch revalidates them with their validators.
+// Seed stores e under key, unless key holds an entry already or is being
+// fetched, and reports whether it did. It is for entries kept from an
+// earlier session, such as by a Shelf. An entry fetched, or revalidated,
+// within the TTL is fresh, as if this session had fetched it; an older one,
+// or one without a FetchedAt, is stale: it is shown at once, and the next
+// Fetch revalidates it with its validators.
 func (c *Cache[V]) Seed(key string, e Entry[V]) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -124,8 +126,11 @@ func (c *Cache[V]) Seed(key string, e Entry[V]) bool {
 	if _, ok := c.flights[key]; ok {
 		return false
 	}
+	stale := e.FetchedAt.IsZero()
 	c.set(key, e)
-	c.markStale(c.items[key])
+	if stale {
+		c.markStale(c.items[key])
+	}
 	return true
 }
 

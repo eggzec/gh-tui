@@ -206,7 +206,8 @@ func (s *Service) CachedList(q ListQuery) (core.Page[core.PullRequest], bool) {
 // page is returned without a request. The page vouches for what is cached
 // of the pull requests it lists: see [Service.Get].
 //
-// A page that only an earlier session kept is returned at once, with Stale
+// A page that only an earlier session kept is fresh if it was fetched or
+// revalidated within the TTL. An older one is returned at once, with Stale
 // set, and reading it again fetches it. If GitHub can't be reached, a stale
 // page is served with Offline set.
 func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.PullRequest], error) {

@@ -4,7 +4,9 @@ import (
 	"errors"
 	"net/url"
 	"testing"
+	"time"
 
+	"github.com/eggzec/gh-tui/internal/cache/cachetest"
 	"github.com/eggzec/gh-tui/internal/cache/disk"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
@@ -24,7 +26,7 @@ func openStore(t *testing.T) *disk.Store {
 func keptInbox(t *testing.T) *disk.Store {
 	t.Helper()
 	store := openStore(t)
-	if _, err := New(&fakeAPI{list: servePage1}, WithStore(store)).List(t.Context(), inbox); err != nil {
+	if _, err := New(&fakeAPI{list: servePage1}, WithStore(cachetest.Aged(store, time.Hour))).List(t.Context(), inbox); err != nil {
 		t.Fatal(err)
 	}
 	return store
@@ -37,7 +39,7 @@ func TestKeptInboxIsServedStaleThenRevalidated(t *testing.T) {
 		conds = append(conds, cond)
 		return servePage1(f, n, cursor, cond)
 	}}
-	s := New(api, WithStore(store))
+	s := New(api, WithStore(cachetest.Aged(store, time.Hour)))
 	p, err := s.List(t.Context(), inbox)
 	if err != nil || !p.Stale || !equal(p, page1) {
 		t.Fatalf("List in a new session = %+v, %v; want the kept page, stale", p, err)
@@ -57,7 +59,7 @@ func TestKeptInboxIsServedStaleThenRevalidated(t *testing.T) {
 func TestKeptInboxPollIsConditional(t *testing.T) {
 	store := keptInbox(t)
 	api := &fakeAPI{list: servePage1}
-	res, err := New(api, WithStore(store)).Poll(t.Context())
+	res, err := New(api, WithStore(cachetest.Aged(store, time.Hour))).Poll(t.Context())
 	if err != nil || res.Changed {
 		t.Errorf("Poll = %+v, %v; want no change, as the kept page is current", res, err)
 	}
@@ -79,14 +81,14 @@ func TestKeptInboxOffline(t *testing.T) {
 			api := &fakeAPI{list: func(core.NotificationFilter, int, string, github.Conditional) (page, github.Response, error) {
 				return page{}, github.Response{}, tt.err
 			}}
-			s := New(api, WithStore(store))
+			s := New(api, WithStore(cachetest.Aged(store, time.Hour)))
 			_, _ = s.List(t.Context(), inbox)
 			p, err := s.List(t.Context(), inbox)
 			if !tt.fallback {
 				if err == nil {
 					t.Fatalf("List = %+v, want the error", p)
 				}
-				if p, _ := New(api, WithStore(store)).List(t.Context(), inbox); p.Stale {
+				if p, _ := New(api, WithStore(cachetest.Aged(store, time.Hour))).List(t.Context(), inbox); p.Stale {
 					t.Error("List after a refusal = stale, want the kept page gone")
 				}
 				return
@@ -107,12 +109,12 @@ func TestKeptInboxMark(t *testing.T) {
 			}
 			return errFailed
 		}}
-		s := New(api, WithStore(store))
+		s := New(api, WithStore(cachetest.Aged(store, time.Hour)))
 		_, _ = s.List(t.Context(), inbox)
 		_, _ = s.List(t.Context(), inbox)
 		_ = s.MarkRead("1").Do(t.Context())
 
-		e, ok := New(api, WithStore(store)).kept.Load(inbox.key())
+		e, ok := New(api, WithStore(cachetest.Aged(store, time.Hour))).kept.Load(inbox.key())
 		if !ok || e.Value.Items[0].Unread == confirm {
 			t.Errorf("confirmed=%v: kept page = %+v, %v; want unread %v", confirm, e.Value, ok, !confirm)
 		}

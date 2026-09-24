@@ -209,7 +209,7 @@ func TestReadMeta(t *testing.T) {
 
 func TestSeed(t *testing.T) {
 	c := New[string]()
-	at := time.Now().Add(-time.Second)
+	at := time.Now().Add(-DefaultTTL)
 	if !c.Seed("k", Entry[string]{Value: "kept", ETag: `"e"`, FetchedAt: at, Tags: []string{"t"}}) {
 		t.Fatal("Seed into an empty cache = false, want true")
 	}
@@ -225,6 +225,28 @@ func TestSeed(t *testing.T) {
 	}
 	if e, _ := c.Get("k"); e.Value != "kept" {
 		t.Errorf("value = %q after a second Seed, want it kept", e.Value)
+	}
+}
+
+func TestSeedState(t *testing.T) {
+	now := time.Now()
+	tests := []struct {
+		name string
+		at   time.Time
+		want State
+	}{
+		{"within the TTL", now.Add(-time.Second), Fresh},
+		{"past the TTL", now.Add(-DefaultTTL), Stale},
+		{"no fetch time", time.Time{}, Stale},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := New[string]()
+			c.Seed("k", Entry[string]{Value: "kept", FetchedAt: tt.at})
+			if _, st := c.Get("k"); st != tt.want {
+				t.Errorf("state = %v, want %v", st, tt.want)
+			}
+		})
 	}
 }
 
@@ -271,7 +293,7 @@ func TestSeedDuringFetch(t *testing.T) {
 func TestShelfWarm(t *testing.T) {
 	store := newMemStore()
 	s := NewShelf[page](store, "page", 1)
-	_ = s.Save("k", Entry[page]{Value: page{Next: "kept"}, ETag: `"e"`, Tags: []string{"t"}})
+	_ = s.Save("k", Entry[page]{Value: page{Next: "kept"}, ETag: `"e"`, FetchedAt: time.Now().Add(-DefaultTTL), Tags: []string{"t"}})
 	c := New[page]()
 
 	e, ok := s.Warm(c, "k")
@@ -290,5 +312,17 @@ func TestShelfWarm(t *testing.T) {
 	var none *Shelf[page]
 	if _, ok := none.Warm(c, "k"); ok {
 		t.Error("Warm of a nil shelf = true, want false")
+	}
+}
+
+func TestShelfWarmFresh(t *testing.T) {
+	s := NewShelf[page](newMemStore(), "page", 1)
+	_ = s.Save("k", Entry[page]{Value: page{Next: "kept"}, ETag: `"e"`})
+	c := New[page]()
+	if _, ok := s.Warm(c, "k"); ok {
+		t.Error("Warm of an entry kept within the TTL = true, want false: it needs no revalidation")
+	}
+	if e, st := c.Get("k"); st != Fresh || e.Value.Next != "kept" {
+		t.Errorf("Get after Warm = %+v, %v; want the kept entry, fresh", e, st)
 	}
 }
