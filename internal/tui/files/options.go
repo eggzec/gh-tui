@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
 // Option configures a Section in [New].
@@ -30,5 +31,16 @@ func WithPrefetch(maxSize int64) Option {
 func WithHoverPrefetch(delay time.Duration, maxSize int64) Option {
 	return func(s *Section) {
 		s.hover.delay, s.hover.max = max(delay, 0), max(maxSize, 0)
+	}
+}
+
+// WithOffline shares off with other sections, so that the user is told once
+// for all of them that GitHub can't be reached. By default the section has
+// its own.
+func WithOffline(off *ui.Offline) Option {
+	return func(s *Section) {
+		if off != nil {
+			s.offline = off
+		}
 	}
 }
