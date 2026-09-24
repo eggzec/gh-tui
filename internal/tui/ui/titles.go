@@ -7,6 +7,5 @@ const (
 	PullsTitle         = "Pull requests"
 	IssuesTitle        = "Issues"
 	NotificationsTitle = "Notifications"
-	ReposTitle         = "Repositories"
 	FilesTitle         = "Files"
 )
