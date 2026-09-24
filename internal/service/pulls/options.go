@@ -11,6 +11,7 @@ type Option func(*options)
 
 type options struct {
 	cache []cache.Option
+	store cache.Store
 }
 
 // WithTTL sets how long fetched pull requests stay fresh. The default is
@@ -24,4 +25,12 @@ func WithTTL(d time.Duration) Option {
 // default is cache.DefaultCapacity.
 func WithCapacity(n int) Option {
 	return func(o *options) { o.cache = append(o.cache, cache.WithCapacity(n)) }
+}
+
+// WithStore keeps list pages, details and comment pages in store as well as
+// in memory, so that a later session shows them at once and refetches them
+// in the background. The store must be the signed-in account's alone. By
+// default nothing outlives the service.
+func WithStore(store cache.Store) Option {
+	return func(o *options) { o.store = store }
 }
