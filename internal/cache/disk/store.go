@@ -25,6 +25,8 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/eggzec/gh-tui/internal/obs"
 )
 
 // gzExt marks a compressed object.
@@ -72,7 +74,13 @@ func (s *Store) Dir() string {
 // Get returns the object of kind named key, and false if there is none or
 // it can't be read. Reading an object counts as using it, for Collect.
 func (s *Store) Get(kind, key string) ([]byte, bool) {
-	return s.get(kind, key, true)
+	b, ok := s.get(kind, key, true)
+	if ok {
+		obs.CountCache(kind, obs.DiskHit)
+	} else {
+		obs.CountCache(kind, obs.DiskMiss)
+	}
+	return b, ok
 }
 
 // Peek is Get without counting as a use, for reading objects in the
