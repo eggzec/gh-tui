@@ -11,8 +11,9 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
-// Update routes msg: keys to the tabs or the active section, app messages
-// to the app, and everything else to every section.
+// Update routes msg: keys to the top modal, or else to the tabs or the
+// active section, app messages to the app, and everything else to every
+// section and modal.
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -59,6 +60,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ui.OpenMsg:
 		cmd := m.openURL(msg.URL)
 		return m, cmd
+	case ui.OpenModalMsg:
+		m.openModal(msg.Modal)
+		return m, nil
+	case ui.CloseModalMsg:
+		m.closeModal(msg.Modal)
+		return m, nil
 	}
 
 	var cmd tea.Cmd
@@ -67,6 +74,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
+	if mod := m.topModal(); mod != nil {
+		if msg.String() == "ctrl+c" {
+			return tea.Quit
+		}
+		cmd := mod.Update(msg)
+		m.updateBadges()
+		return cmd
+	}
 	// ctrl+c always reaches the quit key, so a capturing section can't
 	// trap the user.
 	if c, ok := m.activeSection().(ui.Capturer); ok && c.Capturing() && msg.String() != "ctrl+c" {
@@ -106,11 +121,15 @@ func (m *Model) activeSection() ui.Section {
 }
 
 // broadcast sends msg to every section, started or not, so that a section
-// shown later already knows, for example, which repository was selected.
+// shown later already knows, for example, which repository was selected,
+// and to every open modal.
 func (m *Model) broadcast(msg tea.Msg) tea.Cmd {
-	cmds := make([]tea.Cmd, 0, len(m.sections))
+	cmds := make([]tea.Cmd, 0, len(m.sections)+len(m.modals))
 	for _, s := range m.sections {
 		cmds = append(cmds, s.Update(msg))
+	}
+	for _, mod := range m.modals {
+		cmds = append(cmds, mod.Update(msg))
 	}
 	m.updateBadges()
 	return tea.Batch(cmds...)

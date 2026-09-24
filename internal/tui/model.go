@@ -25,6 +25,8 @@ type Model struct {
 	// started marks the sections whose Init has run.
 	started []bool
 	active  int
+	// modals are open over the sections, the last one on top.
+	modals []ui.Modal
 
 	tabs  tabs.Model
 	toast toast.Model
@@ -136,6 +138,9 @@ func (m *Model) applyTheme(dark bool) {
 	for _, s := range m.sections {
 		s.SetTheme(m.theme)
 	}
+	for _, mod := range m.modals {
+		mod.SetTheme(m.theme)
+	}
 }
 
 // layout gives each part its share of the screen.
@@ -146,6 +151,9 @@ func (m *Model) layout() {
 	h := m.contentHeight()
 	for _, s := range m.sections {
 		s.SetSize(m.width, h)
+	}
+	for _, mod := range m.modals {
+		mod.SetSize(m.modalSize())
 	}
 }
 

@@ -115,6 +115,15 @@ func (t Theme) Prompt() prompt.Styles {
 	return s
 }
 
+// Frame returns the style of the frame around a modal, without its top
+// edge, which carries the modal's title and is drawn in Accent.
+func (t Theme) Frame() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder(), false, true, true).
+		BorderForeground(lipgloss.Color(t.Palette.Accent)).
+		Padding(0, 1)
+}
+
 // Help returns the styles of the help line.
 func (t Theme) Help() help.Styles {
 	s := help.DefaultStyles(t.Dark)
