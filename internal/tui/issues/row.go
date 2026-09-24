@@ -25,7 +25,10 @@ const (
 	chipName = 11
 	// moreWidth is the room for " +9" after the chips.
 	moreWidth = 3
-	minTitle  = 24
+	// minTitle is the narrowest the title may get before columns drop. On
+	// wide rows the title keeps titleShare of the width instead.
+	minTitle   = 18
+	titleShare = 0.35
 )
 
 // State glyphs. Open and closed differ in shape as well as color.
@@ -59,15 +62,17 @@ var layouts = []columns{
 	{},
 }
 
-// layout returns the columns of a row width cells wide.
+// layout returns the columns of a row width cells wide. The number, the
+// state and the title always show.
 func layout(width int) columns {
+	want := max(minTitle, int(float64(width)*titleShare))
 	var c columns
 	for _, c = range layouts {
 		if c.chips > 0 {
 			c.labels = c.chips*(chipName+2) + c.chips - 1 + moreWidth
 		}
 		c.title = width - prefixWidth - c.right()
-		if c.title >= minTitle {
+		if c.title >= want {
 			return c
 		}
 	}

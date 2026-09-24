@@ -16,7 +16,9 @@ func TestView(t *testing.T) {
 	}{
 		{"list 80", 80, 12, list},
 		{"list 120", 120, 12, list},
+		{"list 100", 100, 12, list},
 		{"list 60", 60, 8, list},
+		{"list 40", 40, 8, list},
 		{"closed", 80, 6, func(t *testing.T, width, height int) *host {
 			t.Helper()
 			s := list(t, width, height)

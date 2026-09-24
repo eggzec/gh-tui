@@ -201,7 +201,7 @@ func TestNoRepoWithoutSearchKey(t *testing.T) {
 }
 
 func TestViewFitsSize(t *testing.T) {
-	for _, w := range []int{40, 60, 80, 100, 120, 200} {
+	for _, w := range []int{36, 40, 60, 80, 100, 120, 200} {
 		s := started(t, newFakeService(), w, 10)
 		lines := strings.Split(s.View(), "\n")
 		if len(lines) != 10 {
@@ -216,22 +216,26 @@ func TestViewFitsSize(t *testing.T) {
 }
 
 func TestColumnsDropLeastImportantFirst(t *testing.T) {
+	all := columns{draft: true, review: true, checks: true, diff: true, labels: true, author: true, age: true}
 	tests := []struct {
 		width int
 		want  columns
 	}{
-		{120, columns{width: 120, draft: true, review: true, checks: true, diff: true, author: true, age: true}},
-		{78, columns{width: 78, draft: true, review: true, checks: true, author: true, age: true}},
-		{58, columns{width: 58, review: true, checks: true, age: true}},
-		{30, columns{width: 30}},
+		{118, all},
+		{98, columns{draft: true, review: true, checks: true, labels: true, author: true, age: true}},
+		{78, columns{draft: true, review: true, checks: true, author: true, age: true}},
+		{58, columns{review: true, checks: true, author: true, age: true}},
+		{38, columns{review: true, checks: true, age: true}},
+		{34, columns{review: true, checks: true}},
+		{20, columns{}},
 	}
 	for _, tt := range tests {
 		got := columnsFor(tt.width)
-		tt.want.title = got.title
+		tt.want.width, tt.want.title = tt.width, got.title
 		if got != tt.want {
 			t.Errorf("columnsFor(%d) = %+v, want %+v", tt.width, got, tt.want)
 		}
-		if got.title < minTitle && got.review {
+		if got.title < minTitle && got.checks {
 			t.Errorf("columnsFor(%d): title %d is below the minimum", tt.width, got.title)
 		}
 	}

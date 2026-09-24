@@ -57,6 +57,12 @@ func (s *Section) renderBar() {
 		}
 		right.WriteString(st.Render(string(f)))
 	}
+	// Narrow panes name only the current filter, and the narrowest only
+	// the repository.
+	if rw := ansi.StringWidth(right.String()); ansi.StringWidth(left)+rw+2 > s.width {
+		right.Reset()
+		right.WriteString(t.Accent.Render(string(s.filter)))
+	}
 	s.bar = spread(left, right.String(), s.width)
 }
 

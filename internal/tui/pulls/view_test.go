@@ -12,7 +12,10 @@ func TestView(t *testing.T) {
 		name string
 		view func(t *testing.T) string
 	}{
+		{"list at 40 columns", list(40)},
+		{"list at 60 columns", list(60)},
 		{"list at 80 columns", list(80)},
+		{"list at 100 columns", list(100)},
 		{"list at 120 columns", list(120)},
 		{"no repository", func(t *testing.T) string {
 			t.Helper()
