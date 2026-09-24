@@ -1,0 +1,1781 @@
+{
+  "data": {
+    "rateLimit": {
+      "cost": 1,
+      "limit": 5000,
+      "remaining": 4998,
+      "used": 2,
+      "resetAt": "2026-09-24T13:29:33Z"
+    },
+    "repos": {
+      "repositoryCount": 499,
+      "pageInfo": {
+        "hasNextPage": true,
+        "endCursor": "Y3Vyc29yOjIw"
+      },
+      "nodes": [
+        {
+          "id": "MDEwOlJlcG9zaXRvcnkzNDM1MzM0MTk=",
+          "name": "lipgloss",
+          "owner": {
+            "login": "charmbracelet"
+          },
+          "description": "Style definitions for nice terminal layouts 👄",
+          "primaryLanguage": {
+            "name": "Go"
+          },
+          "stargazerCount": 11866,
+          "isPrivate": false,
+          "isArchived": false,
+          "isFork": false,
+          "defaultBranchRef": {
+            "name": "main"
+          },
+          "updatedAt": "2026-09-24T09:53:31Z",
+          "url": "https://github.com/charmbracelet/lipgloss"
+        },
+        {
+          "id": "R_kgDOG5JpqQ",
+          "name": "stickers",
+          "owner": {
+            "login": "76creates"
+          },
+          "description": "Building blocks for charmbracelet/lipgloss 👾",
+          "primaryLanguage": {
+            "name": "Go"
+          },
+          "stargazerCount": 401,
+          "isPrivate": false,
+          "isArchived": false,
+          "isFork": false,
+          "defaultBranchRef": {
+            "name": "master"
+          },
+          "updatedAt": "2026-09-13T02:46:02Z",
+          "url": "https://github.com/76creates/stickers"
+        },
+        {
+          "id": "R_kgDONKB0Gg",
+          "name": "charsm",
+          "owner": {
+            "login": "sklyt"
+          },
+          "description": "charm cli lipgloss port to wasm",
+          "primaryLanguage": {
+            "name": "JavaScript"
+          },
+          "stargazerCount": 138,
+          "isPrivate": false,
+          "isArchived": false,
+          "isFork": false,
+          "defaultBranchRef": {
+            "name": "main"
+          },
+          "updatedAt": "2026-07-30T18:10:08Z",
+          "url": "https://github.com/sklyt/charsm"
+        },
+        {
+          "id": "R_kgDOQoDWhQ",
+          "name": "lipgloss-ruby",
+          "owner": {
+            "login": "marcoroth"
+          },
+          "description": "Style Definitions for Nice Terminal Layouts for Ruby, based on Charm's lipgloss.",
+          "primaryLanguage": {
+            "name": "C"
+          },
+          "stargazerCount": 59,
+          "isPrivate": false,
+          "isArchived": false,
+          "isFork": false,
+          "defaultBranchRef": {
+            "name": "main"
+          },
+          "updatedAt": "2026-09-13T18:36:32Z",
+          "url": "https://github.com/marcoroth/lipgloss-ruby"
+        },
+        {
+          "id": "R_kgDOGN5wJQ",
+          "name": "gh-dash",
+          "owner": {
+            "login": "dlvhdr"
+          },
+          "description": "A rich terminal UI for GitHub that doesn't break your flow.",
+          "primaryLanguage": {
+            "name": "Go"
+          },
+          "stargazerCount": 12551,
+          "isPrivate": false,
+          "isArchived": false,
+          "isFork": false,
+          "defaultBranchRef": {
+            "name": "main"
+          },
+          "updatedAt": "2026-09-24T09:37:38Z",
+          "url": "https://github.com/dlvhdr/gh-dash"
+        },
+        {
+          "id": "MDEwOlJlcG9zaXRvcnk4OTg3NjA0OQ==",
+          "name": "Lipgloss",
+          "owner": {
+            "login": "PieterMostert"
+          },
+          "description": "Python app for creating glaze recipes",
+          "primaryLanguage": {
+            "name": "Python"
+          },
+          "stargazerCount": 5,
+          "isPrivate": false,
+          "isArchived": false,
+          "isFork": false,
+          "defaultBranchRef": {
+            "name": "master"
+          },
+          "updatedAt": "2023-03-24T16:46:57Z",
+          "url": "https://github.com/PieterMostert/Lipgloss"
+        },
+        {
+          "id": "R_kgDOHokViw",
+          "name": "bubblezone",
+          "owner": {
+            "login": "lrstanley"
+          },
+          "description": "helper utility for BubbleTea, allowing easy mouse event tracking",
+          "primaryLanguage": {
+            "name": "Go"
+          },
+          "stargazerCount": 917,
+          "isPrivate": false,
+          "isArchived": false,
+          "isFork": false,
+          "defaultBranchRef": {
+            "name": "master"
+          },
+          "updatedAt": "2026-09-24T05:41:14Z",
+          "url": "https://github.com/lrstanley/bubblezone"
+        },
+        {
+          "id": "R_kgDONx9haA",
+          "name": "daylight",
+          "owner": {
+            "login": "jbreckmckye"
+          },
+          "description": "a command-line program for tracking sunrise and sunset times",
+          "primaryLanguage": {
+            "name": "Go"
+          },
+          "stargazerCount": 369,
+          "isPrivate": false,
+          "isArchived": false,
+          "isFork": false,
+          "defaultBranchRef": {
+            "name": "main"
+          },
+          "updatedAt": "2026-09-16T01:29:40Z",
+          "url": "https://github.com/jbreckmckye/daylight"
+        },
+        {
+          "id": "MDEwOlJlcG9zaXRvcnkyMDI5MzEzOTk=",
+          "name": "LIPGLOSS2",
+          "owner": {
+            "login": "PieterMostert"
+          },
+          "description": "Desktop app for creating glaze recipes satisfying constraints on oxides and/or ingredients",
+          "primaryLanguage": {
+            "name": "Python"
+          },
+          "stargazerCount": 3,
+          "isPrivate": false,
+          "isArchived": false,
+          "isFork": false,
+          "defaultBranchRef": {
+            "name": "master"
+          },
+          "updatedAt": "2026-03-18T00:34:00Z",
+          "url": "https://github.com/PieterMostert/LIPGLOSS2"
+        },
+        {
+          "id": "R_kgDOPZFZ7Q",
+          "name": "lipgloss-rs",
+          "owner": {
+            "login": "whit3rabbit"
+          },
+          "description": "A rust port of https://github.com/charmbracelet/lipgloss",
+          "primaryLanguage": {
+            "name": "Rust"
+          },
+          "stargazerCount": 27,
+          "isPrivate": false,
+          "isArchived": false,
+          "isFork": false,
+          "defaultBranchRef": {
+            "name": "main"
+          },
+          "updatedAt": "2026-09-06T22:20:21Z",
+          "url": "https://github.com/whit3rabbit/lipgloss-rs"
+        },
+        {
+          "id": "R_kgDOH7RQ8w",
+          "name": "lipgloss-convert",
+          "owner": {
+            "login": "knz"
+          },
+          "description": "String conversion functions for lipgloss Styles",
+          "primaryLanguage": {
+            "name": "Go"
+          },
+          "stargazerCount": 25,
+          "isPrivate": false,
+          "isArchived": false,
+          "isFork": false,
+          "defaultBranchRef": {
+            "name": "main"
+          },
+          "updatedAt": "2024-11-02T10:29:38Z",
+          "url": "https://github.com/knz/lipgloss-convert"
+        },
+        {
+          "id": "R_kgDOQ60UVg",
+          "name": "stock-tui",
+          "owner": {
+            "login": "ni5arga"
+          },
+          "description": "Real-time stock and cryptocurrency tracker for the terminal",
+          "primaryLanguage": {
+            "name": "Go"
+          },
+          "stargazerCount": 61,
+          "isPrivate": false,
+          "isArchived": false,
+          "isFork": false,
+          "defaultBranchRef": {
+            "name": "main"
+          },
+          "updatedAt": "2026-09-17T13:34:37Z",
+          "url": "https://github.com/ni5arga/stock-tui"
+        },
+        {
+          "id": "R_kgDOLigptQ",
+          "name": "pman",
+          "owner": {
+            "login": "dhotrey"
+          },
+          "description": "A CLI project manager",
+          "primaryLanguage": {
+            "name": "Go"
+          },
+          "stargazerCount": 44,
+          "isPrivate": false,
+          "isArchived": false,
+          "isFork": false,
+          "defaultBranchRef": {
+            "name": "master"
+          },
+          "updatedAt": "2026-07-13T02:09:11Z",
+          "url": "https://github.com/dhotrey/pman"
+        },
+        {
+          "id": "MDEwOlJlcG9zaXRvcnkzNzY2Mzg4MDQ=",
+          "name": "glitter",
+          "owner": {
+            "login": "brittonhayes"
+          },
+          "description": "UI components + themes for lipgloss, glamour, and bubbletea",
+          "primaryLanguage": {
+            "name": "Go"
+          },
+          "stargazerCount": 15,
+          "isPrivate": false,
+          "isArchived": false,
+          "isFork": false,
+          "defaultBranchRef": {
+            "name": "main"
+          },
+          "updatedAt": "2026-03-10T21:12:06Z",
+          "url": "https://github.com/brittonhayes/glitter"
+        },
+        {
+          "id": "R_kgDOPwtqyw",
+          "name": "lazymake",
+          "owner": {
+            "login": "rshelekhov"
+          },
+          "description": "Modern TUI for Makefiles with interactive target selection, dependency    visualization, and command safety analysis",
+          "primaryLanguage": {
+            "name": "Go"
+          },
+          "stargazerCount": 213,
+          "isPrivate": false,
+          "isArchived": false,
+          "isFork": false,
+          "defaultBranchRef": {
+            "name": "main"
+          },
+          "updatedAt": "2026-09-13T10:10:49Z",
+          "url": "https://github.com/rshelekhov/lazymake"
+        },
+        {
+          "id": "R_kgDOQyJuFg",
+          "name": "ttune",
+          "owner": {
+            "login": "SteveMCWin"
+          },
+          "description": "A guitar tuner for your terminal",
+          "primaryLanguage": {
+            "name": "Go"
+          },
+          "stargazerCount": 47,
+          "isPrivate": false,
+          "isArchived": false,
+          "isFork": false,
+          "defaultBranchRef": {
+            "name": "master"
+          },
+          "updatedAt": "2026-09-17T09:45:20Z",
+          "url": "https://github.com/SteveMCWin/ttune"
+        },
+        {
+          "id": "R_kgDOId6_KQ",
+          "name": "world-cup-2022-cli-dashboard",
+          "owner": {
+            "login": "cedricblondeau"
+          },
+          "description": "Watch live World Cup 2022 matches in your terminal. ⚽🏆",
+          "primaryLanguage": {
+            "name": "Go"
+          },
+          "stargazerCount": 448,
+          "isPrivate": false,
+          "isArchived": false,
+          "isFork": false,
+          "defaultBranchRef": {
+            "name": "main"
+          },
+          "updatedAt": "2026-07-28T20:45:11Z",
+          "url": "https://github.com/cedricblondeau/world-cup-2022-cli-dashboard"
+        },
+        {
+          "id": "R_kgDOPvd3_w",
+          "name": "bazzite-ujust-picker",
+          "owner": {
+            "login": "ublue-os"
+          },
+          "description": "bubblegum and lipgloss powered TUI for bazzite ujust recipe runner",
+          "primaryLanguage": {
+            "name": "Go"
+          },
+          "stargazerCount": 3,
+          "isPrivate": false,
+          "isArchived": false,
+          "isFork": false,
+          "defaultBranchRef": {
+            "name": "main"
+          },
+          "updatedAt": "2026-03-01T16:57:48Z",
+          "url": "https://github.com/ublue-os/bazzite-ujust-picker"
+        },
+        {
+          "id": "R_kgDOHtMieA",
+          "name": "blipgloss",
+          "owner": {
+            "login": "wobsoriano"
+          },
+          "description": "Style definitions for nice terminal layouts 👄",
+          "primaryLanguage": {
+            "name": "TypeScript"
+          },
+          "stargazerCount": 212,
+          "isPrivate": false,
+          "isArchived": false,
+          "isFork": false,
+          "defaultBranchRef": {
+            "name": "main"
+          },
+          "updatedAt": "2026-08-30T01:33:49Z",
+          "url": "https://github.com/wobsoriano/blipgloss"
+        },
+        {
+          "id": "R_kgDOIV1k0g",
+          "name": "bubbletint",
+          "owner": {
+            "login": "lrstanley"
+          },
+          "description": "Terminal tints for everyone",
+          "primaryLanguage": {
+            "name": "Go"
+          },
+          "stargazerCount": 148,
+          "isPrivate": false,
+          "isArchived": false,
+          "isFork": false,
+          "defaultBranchRef": {
+            "name": "master"
+          },
+          "updatedAt": "2026-09-17T09:44:35Z",
+          "url": "https://github.com/lrstanley/bubbletint"
+        }
+      ]
+    },
+    "issues": {
+      "issueCount": 4478,
+      "pageInfo": {
+        "hasNextPage": true,
+        "endCursor": "Y3Vyc29yOjIw"
+      },
+      "nodes": [
+        {
+          "__typename": "Issue",
+          "id": "I_kwDOTSrLqs8AAAABQ_yz-w",
+          "number": 29,
+          "title": "External desktop app for Lipgloss",
+          "state": "OPEN",
+          "url": "https://github.com/EasternEdgeRobotics/illusion/issues/29",
+          "createdAt": "2026-09-12T19:45:10Z",
+          "updatedAt": "2026-09-20T22:41:09Z",
+          "repository": {
+            "name": "illusion",
+            "owner": {
+              "login": "EasternEdgeRobotics"
+            }
+          },
+          "author": {
+            "login": "Peyton-C",
+            "name": "Peyton Cashin"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "lipgloss",
+                "color": "C11B21",
+                "description": ""
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 1
+          }
+        },
+        {
+          "__typename": "Issue",
+          "id": "I_kwDOUTDj-s8AAAABSK7MyQ",
+          "number": 5,
+          "title": "feat: expand Lipgloss Table and Tree parity",
+          "state": "OPEN",
+          "url": "https://github.com/suissa/ChappieTUI/issues/5",
+          "createdAt": "2026-09-19T23:31:09Z",
+          "updatedAt": "2026-09-19T23:31:09Z",
+          "repository": {
+            "name": "ChappieTUI",
+            "owner": {
+              "login": "suissa"
+            }
+          },
+          "author": {
+            "login": "suissa",
+            "name": "suissAI"
+          },
+          "labels": {
+            "nodes": []
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "Issue",
+          "id": "I_kwDOG5Jpqc8AAAABR2ca_A",
+          "number": 24,
+          "title": "Upgrading to bubbletea v2 api",
+          "state": "OPEN",
+          "url": "https://github.com/76creates/stickers/issues/24",
+          "createdAt": "2026-09-17T21:29:16Z",
+          "updatedAt": "2026-09-17T21:29:16Z",
+          "repository": {
+            "name": "stickers",
+            "owner": {
+              "login": "76creates"
+            }
+          },
+          "author": {
+            "login": "end2endzone",
+            "name": "Antoine Beauchamp"
+          },
+          "labels": {
+            "nodes": []
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "Issue",
+          "id": "I_kwDOSoGu588AAAABN6mAQw",
+          "number": 832,
+          "title": "perf: the frame-build remainder after a lipgloss bump",
+          "state": "OPEN",
+          "url": "https://github.com/ZviBaratz/atrium/issues/832",
+          "createdAt": "2026-08-23T20:02:18Z",
+          "updatedAt": "2026-08-23T20:02:18Z",
+          "repository": {
+            "name": "atrium",
+            "owner": {
+              "login": "ZviBaratz"
+            }
+          },
+          "author": {
+            "login": "ZviBaratz",
+            "name": "Zvi Baratz"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "performance",
+                "color": "c2e0c6",
+                "description": "Latency, subprocess churn, resource use"
+              },
+              {
+                "name": "ux-v2",
+                "color": "8250df",
+                "description": "UX v2 overhaul program"
+              },
+              {
+                "name": "ux-v2:X",
+                "color": "b60205",
+                "description": "UX v2 production hardening"
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "Issue",
+          "id": "I_kwDOScplW88AAAABSol9Cw",
+          "number": 114,
+          "title": "Render Markdown tables with column alignment and borders",
+          "state": "OPEN",
+          "url": "https://github.com/kenn-io/kit/issues/114",
+          "createdAt": "2026-09-22T21:30:51Z",
+          "updatedAt": "2026-09-23T22:29:26Z",
+          "repository": {
+            "name": "kit",
+            "owner": {
+              "login": "kenn-io"
+            }
+          },
+          "author": {
+            "login": "rodboev",
+            "name": "Rod Boev"
+          },
+          "labels": {
+            "nodes": []
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "Issue",
+          "id": "I_kwDOUPClfc8AAAABQAvXmA",
+          "number": 7,
+          "title": "Output consistency overhaul: lipgloss tables, JSON escaping, error phrasing (upstream #420)",
+          "state": "OPEN",
+          "url": "https://github.com/supriyo-biswas/mc/issues/7",
+          "createdAt": "2026-09-07T02:57:54Z",
+          "updatedAt": "2026-09-07T02:57:54Z",
+          "repository": {
+            "name": "mc",
+            "owner": {
+              "login": "supriyo-biswas"
+            }
+          },
+          "author": {
+            "login": "supriyo-biswas",
+            "name": null
+          },
+          "labels": {
+            "nodes": []
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "Issue",
+          "id": "I_kwDORdIFwM8AAAABSiySSw",
+          "number": 4787,
+          "title": "TUI: interactive pane's double border is gone — interactiveWindowStyle applies NormalBorder despite the documented 'accent DOUBLE border' signal",
+          "state": "OPEN",
+          "url": "https://github.com/sachiniyer/agent-factory/issues/4787",
+          "createdAt": "2026-09-22T12:16:03Z",
+          "updatedAt": "2026-09-22T12:16:03Z",
+          "repository": {
+            "name": "agent-factory",
+            "owner": {
+              "login": "sachiniyer"
+            }
+          },
+          "author": {
+            "login": "sachiniyer",
+            "name": "Sachin Iyer"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "bug",
+                "color": "d73a4a",
+                "description": "Something isn't working"
+              },
+              {
+                "name": "low-priority",
+                "color": "C5DEF5",
+                "description": "Real bug but not urgent; batch with related fixes"
+              },
+              {
+                "name": "play-tested",
+                "color": "0E8A16",
+                "description": "TUI paths driven by hand in an isolated sandbox — required by auto-gate before merge"
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "Issue",
+          "id": "I_kwDOFHnna88AAAABSJXt5g",
+          "number": 745,
+          "title": "Windows: HasDarkBackground blocks forever when stdin is not a console (CONIN$ fallback is not cancellable)",
+          "state": "OPEN",
+          "url": "https://github.com/charmbracelet/lipgloss/issues/745",
+          "createdAt": "2026-09-19T18:46:49Z",
+          "updatedAt": "2026-09-20T21:23:20Z",
+          "repository": {
+            "name": "lipgloss",
+            "owner": {
+              "login": "charmbracelet"
+            }
+          },
+          "author": {
+            "login": "keppy",
+            "name": "keppy"
+          },
+          "labels": {
+            "nodes": []
+          },
+          "comments": {
+            "totalCount": 1
+          }
+        },
+        {
+          "__typename": "Issue",
+          "id": "I_kwDOTIznss8AAAABNIFAOQ",
+          "number": 33,
+          "title": "hoist per-frame lipgloss.NewStyle() calls out of render loops",
+          "state": "OPEN",
+          "url": "https://github.com/vortex3964/GoWork/issues/33",
+          "createdAt": "2026-08-17T22:05:16Z",
+          "updatedAt": "2026-08-17T22:05:16Z",
+          "repository": {
+            "name": "GoWork",
+            "owner": {
+              "login": "vortex3964"
+            }
+          },
+          "author": {
+            "login": "vortex3964",
+            "name": "Θεοδωρος Αδαμοπουλος"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "enhancement",
+                "color": "a2eeef",
+                "description": "New feature or request"
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "Issue",
+          "id": "I_kwDOTpkKGc8AAAABLDDXUg",
+          "number": 16,
+          "title": "Implement the inspect command table output using lipgloss",
+          "state": "OPEN",
+          "url": "https://github.com/sorolens/sorolens-cli/issues/16",
+          "createdAt": "2026-08-01T09:25:11Z",
+          "updatedAt": "2026-08-01T09:25:11Z",
+          "repository": {
+            "name": "sorolens-cli",
+            "owner": {
+              "login": "sorolens"
+            }
+          },
+          "author": {
+            "login": "Emmanuellsensai",
+            "name": "Usang Emmanuel "
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "enhancement",
+                "color": "a2eeef",
+                "description": "New feature or request"
+              },
+              {
+                "name": "help wanted",
+                "color": "008672",
+                "description": "Extra attention is needed"
+              },
+              {
+                "name": "medium",
+                "color": "9A94FA",
+                "description": ""
+              },
+              {
+                "name": "cli",
+                "color": "E11D48",
+                "description": ""
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "Issue",
+          "id": "I_kwDOLxR1Ss8AAAABCzzWhw",
+          "number": 1,
+          "title": "Upgrade lipgloss to v2",
+          "state": "OPEN",
+          "url": "https://github.com/bartosz121/pomodoro/issues/1",
+          "createdAt": "2026-05-20T05:41:04Z",
+          "updatedAt": "2026-05-20T05:41:04Z",
+          "repository": {
+            "name": "pomodoro",
+            "owner": {
+              "login": "bartosz121"
+            }
+          },
+          "author": {
+            "login": "bartosz121",
+            "name": "Bartosz Magiera"
+          },
+          "labels": {
+            "nodes": []
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "Issue",
+          "id": "I_kwDOUImjg88AAAABO1-Y3w",
+          "number": 5,
+          "title": "Style human-readable output with lipgloss, gated on stdout being a TTY",
+          "state": "OPEN",
+          "url": "https://github.com/FlavioAmurrioCS/docker-devtools/issues/5",
+          "createdAt": "2026-08-30T08:16:40Z",
+          "updatedAt": "2026-08-30T08:16:40Z",
+          "repository": {
+            "name": "docker-devtools",
+            "owner": {
+              "login": "FlavioAmurrioCS"
+            }
+          },
+          "author": {
+            "login": "FlavioAmurrioCS",
+            "name": "Flavio"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "enhancement",
+                "color": "a2eeef",
+                "description": "New feature or request"
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "Issue",
+          "id": "I_kwDOD8D5u87uVds0",
+          "number": 2142,
+          "title": "gwcli: upgrade bubbletea and lipgloss to v2",
+          "state": "OPEN",
+          "url": "https://github.com/gravwell/gravwell/issues/2142",
+          "createdAt": "2026-02-27T01:46:52Z",
+          "updatedAt": "2026-09-08T20:29:02Z",
+          "repository": {
+            "name": "gravwell",
+            "owner": {
+              "login": "gravwell"
+            }
+          },
+          "author": {
+            "login": "rory-landau-gravwell",
+            "name": "R Landau"
+          },
+          "labels": {
+            "nodes": []
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "Issue",
+          "id": "I_kwDOQwUF6M8AAAABSPXSng",
+          "number": 42,
+          "title": "[SEC] Remote MESSAGE/SWITCH_VIEW arguments are rendered verbatim on client terminals (control-sequence injection)",
+          "state": "OPEN",
+          "url": "https://github.com/jstephenperry/vt-uos/issues/42",
+          "createdAt": "2026-09-20T16:28:42Z",
+          "updatedAt": "2026-09-20T16:28:42Z",
+          "repository": {
+            "name": "vt-uos",
+            "owner": {
+              "login": "jstephenperry"
+            }
+          },
+          "author": {
+            "login": "jstephenperry",
+            "name": "Stephen Perry"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "severity:medium",
+                "color": "FBCA04",
+                "description": "Incorrect behavior in realistic use"
+              },
+              {
+                "name": "lens:security",
+                "color": "5319E7",
+                "description": "Adversarial review: security lens"
+              },
+              {
+                "name": "adversarial-review",
+                "color": "C5DEF5",
+                "description": "Filed by the 2026-09-20 adversarial review"
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "Issue",
+          "id": "I_kwDOT_lDL88AAAABOTpyeQ",
+          "number": 20,
+          "title": "UX: replace hand-rolled CLI prompt/UI with a library (lipgloss/pterm)",
+          "state": "OPEN",
+          "url": "https://github.com/inoio/agents-sandbox/issues/20",
+          "createdAt": "2026-08-26T08:46:04Z",
+          "updatedAt": "2026-08-26T08:46:04Z",
+          "repository": {
+            "name": "agents-sandbox",
+            "owner": {
+              "login": "inoio"
+            }
+          },
+          "author": {
+            "login": "neurolabs",
+            "name": "Ole Langbehn"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "enhancement",
+                "color": "a2eeef",
+                "description": "New feature or request"
+              },
+              {
+                "name": "priority:low",
+                "color": "fbca04",
+                "description": "Nice to have; no committed timeline"
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "Issue",
+          "id": "I_kwDOTyyqh88AAAABQqseCw",
+          "number": 141,
+          "title": "Migrate to charm.land v2 (Bubble Tea, Lip Gloss, Bubbles)",
+          "state": "OPEN",
+          "url": "https://github.com/seankoji-com/freshen/issues/141",
+          "createdAt": "2026-09-10T14:29:45Z",
+          "updatedAt": "2026-09-11T11:55:23Z",
+          "repository": {
+            "name": "freshen",
+            "owner": {
+              "login": "seankoji-com"
+            }
+          },
+          "author": {
+            "login": "seankoji",
+            "name": "Sean Carey"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "type:chore",
+                "color": "bfdadc",
+                "description": "Maintenance, tooling, refactoring"
+              },
+              {
+                "name": "complexity:medium",
+                "color": "fbca04",
+                "description": "Multi-step but scoped"
+              },
+              {
+                "name": "priority:P2",
+                "color": "fbca04",
+                "description": "Normal priority"
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 1
+          }
+        },
+        {
+          "__typename": "Issue",
+          "id": "I_kwDOUKcGf88AAAABSMgGTg",
+          "number": 97,
+          "title": "Code wrapping counts runes, not terminal cells, so wide characters overflow the frame",
+          "state": "OPEN",
+          "url": "https://github.com/probertson/diff-by-numbers/issues/97",
+          "createdAt": "2026-09-20T05:41:42Z",
+          "updatedAt": "2026-09-20T05:41:42Z",
+          "repository": {
+            "name": "diff-by-numbers",
+            "owner": {
+              "login": "probertson"
+            }
+          },
+          "author": {
+            "login": "probertson",
+            "name": "Paul Robertson"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "needs-triage",
+                "color": "FBCA04",
+                "description": "Maintainer needs to evaluate this issue"
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "Issue",
+          "id": "I_kwDOS2MR-M8AAAABFPpVxA",
+          "number": 7,
+          "title": "Implement bubbles and lipgloss for styling",
+          "state": "OPEN",
+          "url": "https://github.com/MagnusHSundby/tui-serverskjerm/issues/7",
+          "createdAt": "2026-06-12T06:28:10Z",
+          "updatedAt": "2026-06-12T06:28:10Z",
+          "repository": {
+            "name": "tui-serverskjerm",
+            "owner": {
+              "login": "MagnusHSundby"
+            }
+          },
+          "author": {
+            "login": "MagnusHSundby",
+            "name": "Magnus "
+          },
+          "labels": {
+            "nodes": []
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "Issue",
+          "id": "I_kwDOUSQMk88AAAABQxrFPg",
+          "number": 4,
+          "title": "migrate to charmbracelet v2",
+          "state": "OPEN",
+          "url": "https://github.com/izkreny/gh-review/issues/4",
+          "createdAt": "2026-09-11T05:38:09Z",
+          "updatedAt": "2026-09-11T05:38:09Z",
+          "repository": {
+            "name": "gh-review",
+            "owner": {
+              "login": "izkreny"
+            }
+          },
+          "author": {
+            "login": "izkreny",
+            "name": "Iskren"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "tui",
+                "color": "1D76DB",
+                "description": "Terminal UI: views, rendering, keybinds"
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "Issue",
+          "id": "I_kwDOR6J6mc78koEx",
+          "number": 8,
+          "title": "3-panel lipgloss layout",
+          "state": "OPEN",
+          "url": "https://github.com/prolnd/firewatch/issues/8",
+          "createdAt": "2026-04-10T07:40:51Z",
+          "updatedAt": "2026-04-10T07:40:51Z",
+          "repository": {
+            "name": "firewatch",
+            "owner": {
+              "login": "prolnd"
+            }
+          },
+          "author": {
+            "login": "prolnd",
+            "name": "Peter Roland"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "ux",
+                "color": "e25ae6",
+                "description": "Interface & feel"
+              },
+              {
+                "name": "phase:2-tui",
+                "color": "bfd4f2",
+                "description": "Phase 2 — TUI skeleton"
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        }
+      ]
+    },
+    "pulls": {
+      "issueCount": 26860,
+      "pageInfo": {
+        "hasNextPage": true,
+        "endCursor": "Y3Vyc29yOjIw"
+      },
+      "nodes": [
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOSNOZN88AAAABExTh5Q",
+          "number": 20,
+          "title": "chore(deps): bump github.com/charmbracelet/lipgloss from 1.0.0 to 1.1.0",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/TrebuchetDynamics/fecim-lattice-tools/pull/20",
+          "createdAt": "2026-09-23T14:56:34Z",
+          "updatedAt": "2026-09-23T14:56:40Z",
+          "repository": {
+            "name": "fecim-lattice-tools",
+            "owner": {
+              "login": "TrebuchetDynamics"
+            }
+          },
+          "author": {
+            "login": "dependabot"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "dependencies",
+                "color": "0366d6",
+                "description": "Pull requests that update a dependency file"
+              },
+              {
+                "name": "go",
+                "color": "16e2e2",
+                "description": "Pull requests that update go code"
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 1
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOUh2LP88AAAABEQvSeQ",
+          "number": 3,
+          "title": "Bump github.com/charmbracelet/lipgloss from 0.5.0 to 1.1.0",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/clanker25/gitleaks/pull/3",
+          "createdAt": "2026-09-19T22:31:30Z",
+          "updatedAt": "2026-09-19T22:31:31Z",
+          "repository": {
+            "name": "gitleaks",
+            "owner": {
+              "login": "clanker25"
+            }
+          },
+          "author": {
+            "login": "dependabot"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "dependencies",
+                "color": "0366d6",
+                "description": "Pull requests that update a dependency file"
+              },
+              {
+                "name": "go",
+                "color": "16e2e2",
+                "description": "Pull requests that update go code"
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOUT5rBc8AAAABC4NZHg",
+          "number": 7,
+          "title": "build(deps): bump github.com/charmbracelet/lipgloss from 0.9.1 to 1.1.0",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/klam55108-oss/yai/pull/7",
+          "createdAt": "2026-09-09T18:27:19Z",
+          "updatedAt": "2026-09-09T18:27:20Z",
+          "repository": {
+            "name": "yai",
+            "owner": {
+              "login": "klam55108-oss"
+            }
+          },
+          "author": {
+            "login": "dependabot"
+          },
+          "labels": {
+            "nodes": []
+          },
+          "comments": {
+            "totalCount": 1
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDORQS63M8AAAABES-_HQ",
+          "number": 212,
+          "title": "chore(deps): Bump charm.land/lipgloss/v2 from 2.0.1 to 2.0.6",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/kernpilot/lok8s/pull/212",
+          "createdAt": "2026-09-20T09:23:44Z",
+          "updatedAt": "2026-09-20T09:23:45Z",
+          "repository": {
+            "name": "lok8s",
+            "owner": {
+              "login": "kernpilot"
+            }
+          },
+          "author": {
+            "login": "dependabot"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "dependencies",
+                "color": "0366d6",
+                "description": "Pull requests that update a dependency file"
+              },
+              {
+                "name": "go",
+                "color": "16e2e2",
+                "description": "Pull requests that update go code"
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOUa9xf88AAAABDgMupg",
+          "number": 3,
+          "title": "Bump charm.land/lipgloss/v2 from 2.0.5 to 2.0.6",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/chainedtools/climan/pull/3",
+          "createdAt": "2026-09-14T19:31:47Z",
+          "updatedAt": "2026-09-14T19:31:49Z",
+          "repository": {
+            "name": "climan",
+            "owner": {
+              "login": "chainedtools"
+            }
+          },
+          "author": {
+            "login": "dependabot"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "dependencies",
+                "color": "0366d6",
+                "description": "Pull requests that update a dependency file"
+              },
+              {
+                "name": "go",
+                "color": "16e2e2",
+                "description": "Pull requests that update go code"
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOCI_wm88AAAABDrvDBg",
+          "number": 595,
+          "title": "deps: bump charm.land/lipgloss/v2 from 2.0.5 to 2.0.6",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/txn2/kubefwd/pull/595",
+          "createdAt": "2026-09-15T22:32:52Z",
+          "updatedAt": "2026-09-15T22:32:56Z",
+          "repository": {
+            "name": "kubefwd",
+            "owner": {
+              "login": "txn2"
+            }
+          },
+          "author": {
+            "login": "dependabot"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "dependencies",
+                "color": "0366d6",
+                "description": "Pull requests that update a dependency file"
+              },
+              {
+                "name": "go",
+                "color": "16e2e2",
+                "description": "Pull requests that update go code"
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOUQQQ6s8AAAABCaJqEA",
+          "number": 4,
+          "title": "build(deps): bump charm.land/lipgloss/v2 from 2.0.3 to 2.0.6",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/winkyfaceak/DailyDashBoard/pull/4",
+          "createdAt": "2026-09-06T14:29:09Z",
+          "updatedAt": "2026-09-06T14:29:10Z",
+          "repository": {
+            "name": "DailyDashBoard",
+            "owner": {
+              "login": "winkyfaceak"
+            }
+          },
+          "author": {
+            "login": "dependabot"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "dependencies",
+                "color": "0366d6",
+                "description": "Pull requests that update a dependency file"
+              },
+              {
+                "name": "go",
+                "color": "16e2e2",
+                "description": "Pull requests that update go code"
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOMhgsjM8AAAABD9yMuw",
+          "number": 571,
+          "title": "fix(deps): update module github.com/charmbracelet/lipgloss to v2",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/grafana/otel-checker/pull/571",
+          "createdAt": "2026-09-17T17:10:30Z",
+          "updatedAt": "2026-09-18T11:08:08Z",
+          "repository": {
+            "name": "otel-checker",
+            "owner": {
+              "login": "grafana"
+            }
+          },
+          "author": {
+            "login": "renovate-sh-app"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "dependencies",
+                "color": "0366d6",
+                "description": "Pull requests that update a dependency file"
+              },
+              {
+                "name": "update-major",
+                "color": "ededed",
+                "description": null
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 3
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDORREZ8c8AAAABCwExjg",
+          "number": 15,
+          "title": "Bump charm.land/lipgloss/v2 from 2.0.3 to 2.0.6 in /scaffold",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/rigerc/bubbletea-v2-scaffold/pull/15",
+          "createdAt": "2026-09-08T23:48:01Z",
+          "updatedAt": "2026-09-08T23:48:01Z",
+          "repository": {
+            "name": "bubbletea-v2-scaffold",
+            "owner": {
+              "login": "rigerc"
+            }
+          },
+          "author": {
+            "login": "dependabot"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "dependencies",
+                "color": "0366d6",
+                "description": "Pull requests that update a dependency file"
+              },
+              {
+                "name": "go",
+                "color": "16e2e2",
+                "description": "Pull requests that update go code"
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOULyAWM8AAAABB39YGA",
+          "number": 4,
+          "title": "Bump github.com/charmbracelet/lipgloss from 1.0.0 to 1.1.0",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/visualabsai/agentdeck/pull/4",
+          "createdAt": "2026-09-02T09:32:24Z",
+          "updatedAt": "2026-09-02T09:32:25Z",
+          "repository": {
+            "name": "agentdeck",
+            "owner": {
+              "login": "visualabsai"
+            }
+          },
+          "author": {
+            "login": "dependabot"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "dependencies",
+                "color": "0366d6",
+                "description": "Pull requests that update a dependency file"
+              },
+              {
+                "name": "go",
+                "color": "16e2e2",
+                "description": "Pull requests that update go code"
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOTBTCDM8AAAABDn7S-g",
+          "number": 21,
+          "title": "deps: bump the go-deps group across 1 directory with 4 updates",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/lunguini/flatte/pull/21",
+          "createdAt": "2026-09-15T14:34:30Z",
+          "updatedAt": "2026-09-22T14:35:02Z",
+          "repository": {
+            "name": "flatte",
+            "owner": {
+              "login": "lunguini"
+            }
+          },
+          "author": {
+            "login": "dependabot"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "dependencies",
+                "color": "0366d6",
+                "description": "Pull requests that update a dependency file"
+              },
+              {
+                "name": "go",
+                "color": "16e2e2",
+                "description": "Pull requests that update go code"
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOG9-8WM8AAAABAM0n4A",
+          "number": 26,
+          "title": "build(deps): bump charm.land/lipgloss/v2 from 2.0.5 to 2.0.6",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/kevinburke/buildkite/pull/26",
+          "createdAt": "2026-08-18T21:04:44Z",
+          "updatedAt": "2026-09-24T00:40:31Z",
+          "repository": {
+            "name": "buildkite",
+            "owner": {
+              "login": "kevinburke"
+            }
+          },
+          "author": {
+            "login": "dependabot"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "dependencies",
+                "color": "0366d6",
+                "description": "Pull requests that update a dependency file"
+              },
+              {
+                "name": "go",
+                "color": "16e2e2",
+                "description": "Pull requests that update go code"
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 7
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOS3pj_s8AAAABCK5QkA",
+          "number": 7,
+          "title": "Update module github.com/charmbracelet/lipgloss to v2",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/espoon-voltti/tfmux/pull/7",
+          "createdAt": "2026-09-04T08:18:56Z",
+          "updatedAt": "2026-09-23T22:47:01Z",
+          "repository": {
+            "name": "tfmux",
+            "owner": {
+              "login": "espoon-voltti"
+            }
+          },
+          "author": {
+            "login": "renovate"
+          },
+          "labels": {
+            "nodes": []
+          },
+          "comments": {
+            "totalCount": 1
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOTbUkYs8AAAABByxnPg",
+          "number": 7,
+          "title": "Bump charm.land/lipgloss/v2 from 2.0.2 to 2.0.6",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/PointBreaker/kvjson/pull/7",
+          "createdAt": "2026-09-01T18:57:18Z",
+          "updatedAt": "2026-09-01T18:57:20Z",
+          "repository": {
+            "name": "kvjson",
+            "owner": {
+              "login": "PointBreaker"
+            }
+          },
+          "author": {
+            "login": "dependabot"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "dependencies",
+                "color": "0366d6",
+                "description": "Pull requests that update a dependency file"
+              },
+              {
+                "name": "go",
+                "color": "16e2e2",
+                "description": "Pull requests that update go code"
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOTWvK4s8AAAABEX0rCQ",
+          "number": 32,
+          "title": "fix(deps): update module github.com/charmbracelet/lipgloss to v2",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/StellarViewOrg/stellarview-tui/pull/32",
+          "createdAt": "2026-09-21T05:56:12Z",
+          "updatedAt": "2026-09-23T23:02:13Z",
+          "repository": {
+            "name": "stellarview-tui",
+            "owner": {
+              "login": "StellarViewOrg"
+            }
+          },
+          "author": {
+            "login": "renovate"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "dependencies",
+                "color": "ededed",
+                "description": null
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 1
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOR8pUQM8AAAABA5cljQ",
+          "number": 53,
+          "title": "build(deps): bump charm.land/lipgloss/v2 from 2.0.4 to 2.0.6 in the patch-updates group across 1 directory",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/dadarrs/collection-sync/pull/53",
+          "createdAt": "2026-08-25T06:44:27Z",
+          "updatedAt": "2026-09-24T06:43:10Z",
+          "repository": {
+            "name": "collection-sync",
+            "owner": {
+              "login": "dadarrs"
+            }
+          },
+          "author": {
+            "login": "dependabot"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "dependencies",
+                "color": "0366d6",
+                "description": "Pull requests that update a dependency file"
+              },
+              {
+                "name": "go",
+                "color": "16e2e2",
+                "description": "Pull requests that update go code"
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDORPD2tM8AAAABAF4Meg",
+          "number": 5,
+          "title": "build(deps): bump charm.land/lipgloss/v2 from 2.0.3 to 2.0.6",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/ysya/runscaler/pull/5",
+          "createdAt": "2026-08-18T03:14:21Z",
+          "updatedAt": "2026-09-16T12:36:10Z",
+          "repository": {
+            "name": "runscaler",
+            "owner": {
+              "login": "ysya"
+            }
+          },
+          "author": {
+            "login": "dependabot"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "dependencies",
+                "color": "0366d6",
+                "description": "Pull requests that update a dependency file"
+              },
+              {
+                "name": "go",
+                "color": "16e2e2",
+                "description": "Pull requests that update go code"
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOPPP40M8AAAABBgrWxQ",
+          "number": 18,
+          "title": "Update module github.com/charmbracelet/lipgloss to v2",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/denysvitali/wanderlog-cli/pull/18",
+          "createdAt": "2026-08-30T15:12:06Z",
+          "updatedAt": "2026-09-16T16:41:15Z",
+          "repository": {
+            "name": "wanderlog-cli",
+            "owner": {
+              "login": "denysvitali"
+            }
+          },
+          "author": {
+            "login": "renovate"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "dependencies",
+                "color": "ededed",
+                "description": null
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 1
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDORp3JYs8AAAABBwXa-g",
+          "number": 61,
+          "title": "ci: bump charm.land/lipgloss/v2 from 2.0.3 to 2.0.6",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/indaco/herald/pull/61",
+          "createdAt": "2026-09-01T13:48:06Z",
+          "updatedAt": "2026-09-01T13:48:07Z",
+          "repository": {
+            "name": "herald",
+            "owner": {
+              "login": "indaco"
+            }
+          },
+          "author": {
+            "login": "dependabot"
+          },
+          "labels": {
+            "nodes": []
+          },
+          "comments": {
+            "totalCount": 1
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOH282f88AAAABDdB-tA",
+          "number": 182,
+          "title": "Update module github.com/charmbracelet/lipgloss to v2",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/joekleinsorge/freshlab/pull/182",
+          "createdAt": "2026-09-14T13:13:28Z",
+          "updatedAt": "2026-09-24T02:16:36Z",
+          "repository": {
+            "name": "freshlab",
+            "owner": {
+              "login": "joekleinsorge"
+            }
+          },
+          "author": {
+            "login": "renovate"
+          },
+          "labels": {
+            "nodes": []
+          },
+          "comments": {
+            "totalCount": 1
+          }
+        }
+      ]
+    }
+  }
+}

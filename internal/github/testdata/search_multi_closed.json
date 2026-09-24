@@ -1,0 +1,308 @@
+{
+  "data": {
+    "rateLimit": {
+      "cost": 1,
+      "limit": 5000,
+      "remaining": 4996,
+      "used": 4,
+      "resetAt": "2026-09-24T13:29:33Z"
+    },
+    "repos": {
+      "repositoryCount": 0,
+      "pageInfo": {
+        "hasNextPage": false,
+        "endCursor": null
+      },
+      "nodes": []
+    },
+    "issues": {
+      "issueCount": 34,
+      "pageInfo": {
+        "hasNextPage": true,
+        "endCursor": "Y3Vyc29yOjU="
+      },
+      "nodes": [
+        {
+          "__typename": "Issue",
+          "id": "I_kwDOFHnna87qZUw4",
+          "number": 610,
+          "title": "Table height too short when borderHeader is false and there are no headers",
+          "state": "CLOSED",
+          "url": "https://github.com/charmbracelet/lipgloss/issues/610",
+          "createdAt": "2026-02-12T15:36:07Z",
+          "updatedAt": "2026-02-12T21:02:09Z",
+          "repository": {
+            "name": "lipgloss",
+            "owner": {
+              "login": "charmbracelet"
+            }
+          },
+          "author": {
+            "login": "giorgiga",
+            "name": "Giorgio Gallo"
+          },
+          "labels": {
+            "nodes": []
+          },
+          "comments": {
+            "totalCount": 1
+          }
+        },
+        {
+          "__typename": "Issue",
+          "id": "I_kwDOFHnna87JyeIE",
+          "number": 562,
+          "title": "🐛 Emoji/Unicode Width Calculation Causes Layout Misalignmen",
+          "state": "CLOSED",
+          "url": "https://github.com/charmbracelet/lipgloss/issues/562",
+          "createdAt": "2025-09-04T21:00:28Z",
+          "updatedAt": "2025-11-05T23:34:57Z",
+          "repository": {
+            "name": "lipgloss",
+            "owner": {
+              "login": "charmbracelet"
+            }
+          },
+          "author": {
+            "login": "kolkov",
+            "name": "Andrey Kolkov"
+          },
+          "labels": {
+            "nodes": []
+          },
+          "comments": {
+            "totalCount": 10
+          }
+        },
+        {
+          "__typename": "Issue",
+          "id": "I_kwDOFHnna86UBoDJ",
+          "number": 355,
+          "title": "A table with no outside border, but internal borders, does not render correctly",
+          "state": "CLOSED",
+          "url": "https://github.com/charmbracelet/lipgloss/issues/355",
+          "createdAt": "2024-08-23T16:10:58Z",
+          "updatedAt": "2025-09-08T13:42:49Z",
+          "repository": {
+            "name": "lipgloss",
+            "owner": {
+              "login": "charmbracelet"
+            }
+          },
+          "author": {
+            "login": "SVendittelli",
+            "name": "Sam Vendittelli"
+          },
+          "labels": {
+            "nodes": []
+          },
+          "comments": {
+            "totalCount": 3
+          }
+        },
+        {
+          "__typename": "Issue",
+          "id": "I_kwDOFHnna85PGVbx",
+          "number": 98,
+          "title": "Example for simple table with Borders",
+          "state": "CLOSED",
+          "url": "https://github.com/charmbracelet/lipgloss/issues/98",
+          "createdAt": "2022-08-03T11:13:47Z",
+          "updatedAt": "2025-06-21T09:38:42Z",
+          "repository": {
+            "name": "lipgloss",
+            "owner": {
+              "login": "charmbracelet"
+            }
+          },
+          "author": {
+            "login": "miketonks-form3",
+            "name": "Mike Tonks"
+          },
+          "labels": {
+            "nodes": []
+          },
+          "comments": {
+            "totalCount": 7
+          }
+        },
+        {
+          "__typename": "Issue",
+          "id": "I_kwDOFHnna87Lr9Ss",
+          "number": 568,
+          "title": "🏷️ Provide \"badge\" like widget",
+          "state": "CLOSED",
+          "url": "https://github.com/charmbracelet/lipgloss/issues/568",
+          "createdAt": "2025-09-15T10:21:42Z",
+          "updatedAt": "2025-09-15T20:26:26Z",
+          "repository": {
+            "name": "lipgloss",
+            "owner": {
+              "login": "charmbracelet"
+            }
+          },
+          "author": {
+            "login": "adriens",
+            "name": "SALES"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "enhancement",
+                "color": "a2eeef",
+                "description": "New feature or request"
+              }
+            ]
+          },
+          "comments": {
+            "totalCount": 2
+          }
+        }
+      ]
+    },
+    "pulls": {
+      "issueCount": 53,
+      "pageInfo": {
+        "hasNextPage": true,
+        "endCursor": "Y3Vyc29yOjU="
+      },
+      "nodes": [
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOFHnna87j1JCx",
+          "number": 697,
+          "title": "feat: add `FitContent` property to table renderer",
+          "state": "MERGED",
+          "isDraft": false,
+          "url": "https://github.com/charmbracelet/lipgloss/pull/697",
+          "createdAt": "2026-06-08T09:13:15Z",
+          "updatedAt": "2026-09-11T15:31:40Z",
+          "repository": {
+            "name": "lipgloss",
+            "owner": {
+              "login": "charmbracelet"
+            }
+          },
+          "author": {
+            "login": "pete-woods",
+            "name": "Pete Steyert-Woods"
+          },
+          "labels": {
+            "nodes": []
+          },
+          "comments": {
+            "totalCount": 6
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOFHnna87pOyXG",
+          "number": 705,
+          "title": "feat(table): add OverflowRow option to disable overflow row",
+          "state": "CLOSED",
+          "isDraft": false,
+          "url": "https://github.com/charmbracelet/lipgloss/pull/705",
+          "createdAt": "2026-06-22T14:58:53Z",
+          "updatedAt": "2026-06-29T18:16:27Z",
+          "repository": {
+            "name": "lipgloss",
+            "owner": {
+              "login": "charmbracelet"
+            }
+          },
+          "author": {
+            "login": "xbrxr03",
+            "name": "Md Abrar Ibn Habib"
+          },
+          "labels": {
+            "nodes": []
+          },
+          "comments": {
+            "totalCount": 1
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOFHnna87Zqyn2",
+          "number": 671,
+          "title": "fix(table): prevent columns from shrinking to zero width",
+          "state": "MERGED",
+          "isDraft": false,
+          "url": "https://github.com/charmbracelet/lipgloss/pull/671",
+          "createdAt": "2026-05-08T20:03:57Z",
+          "updatedAt": "2026-07-16T21:23:15Z",
+          "repository": {
+            "name": "lipgloss",
+            "owner": {
+              "login": "charmbracelet"
+            }
+          },
+          "author": {
+            "login": "taciturnaxolotl",
+            "name": "Kieran Klukas"
+          },
+          "labels": {
+            "nodes": []
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOFHnna87cXWp1",
+          "number": 682,
+          "title": "fix(table): account for column borders in width budget",
+          "state": "CLOSED",
+          "isDraft": false,
+          "url": "https://github.com/charmbracelet/lipgloss/pull/682",
+          "createdAt": "2026-05-17T11:20:03Z",
+          "updatedAt": "2026-06-23T07:41:39Z",
+          "repository": {
+            "name": "lipgloss",
+            "owner": {
+              "login": "charmbracelet"
+            }
+          },
+          "author": {
+            "login": "wyf027",
+            "name": "Yangfan Wu "
+          },
+          "labels": {
+            "nodes": []
+          },
+          "comments": {
+            "totalCount": 0
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOFHnna87OztxT",
+          "number": 641,
+          "title": "fix: typo in table height comment",
+          "state": "MERGED",
+          "isDraft": false,
+          "url": "https://github.com/charmbracelet/lipgloss/pull/641",
+          "createdAt": "2026-03-31T02:35:44Z",
+          "updatedAt": "2026-05-28T20:36:20Z",
+          "repository": {
+            "name": "lipgloss",
+            "owner": {
+              "login": "charmbracelet"
+            }
+          },
+          "author": {
+            "login": "Rohan5commit",
+            "name": "Rohan Santhosh Kumar"
+          },
+          "labels": {
+            "nodes": []
+          },
+          "comments": {
+            "totalCount": 1
+          }
+        }
+      ]
+    }
+  }
+}

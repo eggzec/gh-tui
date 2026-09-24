@@ -11,8 +11,9 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 )
 
-// Search uses REST, which pages with Link headers like the other lists and
-// returns issues in the shape the issue methods already decode. Search has
+// SearchRepos and SearchIssues use REST, which pages with Link headers like
+// the other lists and returns issues in the shape the issue methods already
+// decode. Search, in search_multi.go, asks for every kind at once instead. Search has
 // its own rate limit of 30 requests a minute; running out of it fails with a
 // *core.RateLimitError like any other limit.
 
