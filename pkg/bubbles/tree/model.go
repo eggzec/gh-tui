@@ -294,6 +294,19 @@ func (m *Model) SetEmptyText(text string) {
 	m.emptyLine = m.styles.Empty.Render(text)
 }
 
+// SetExpandAllLimits changes the caps of an expand-all, for example once
+// the producer is known to answer without requests. See
+// [WithExpandAllLimits].
+func (m *Model) SetExpandAllLimits(nodes, depth int) {
+	m.expandNodes, m.expandDepth = max(nodes, 1), max(depth, 1)
+}
+
+// ExpandAllLimits returns the caps of an expand-all: the nodes it reveals
+// and the levels it opens at most.
+func (m Model) ExpandAllLimits() (nodes, depth int) {
+	return m.expandNodes, m.expandDepth
+}
+
 // SetIcons sets the icons drawn before names. See [WithIcons].
 func (m *Model) SetIcons(icons Icons) {
 	m.icons = icons
