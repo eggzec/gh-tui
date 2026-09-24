@@ -22,6 +22,8 @@ const (
 	notifScreen
 	// dashScreen shows the dashboard.
 	dashScreen
+	// searchScreen shows the search page.
+	searchScreen
 )
 
 // Sizes of the repository screen. Below narrowWidth columns the panes
@@ -200,12 +202,16 @@ func (m *Model) drawHeader() {
 	if m.repo.Owner != "" {
 		name = m.repo.String()
 	}
-	if m.screen == dashScreen {
+	switch m.screen {
+	case dashScreen:
 		name = ui.DashboardTitle
+	case searchScreen:
+		name = ui.SearchTitle
+	case repoScreen, notifScreen:
 	}
 	left := m.st.repo.Render(name)
 	switch {
-	case m.screen == dashScreen:
+	case m.screen == dashScreen || m.screen == searchScreen:
 	case m.base.Ref != "":
 		left += " " + rule(1) + " " + m.st.base.Render(cmp.Or(m.base.Label, m.base.Ref))
 	case m.branch != "":
@@ -247,8 +253,10 @@ func (m *Model) arrange(height int) {
 	if m.notif != nil {
 		m.notif.resize(m.width, height)
 	}
-	if m.dash != nil {
-		m.dash.resize(m.width, height)
+	for _, p := range []*pane{m.dash, m.srch} {
+		if p != nil {
+			p.resize(m.width, height)
+		}
 	}
 	if len(m.panes) == 0 {
 		return
@@ -290,6 +298,8 @@ func (m *Model) body() []string {
 		return m.notif.appendLines(nil)
 	case dashScreen:
 		return m.dash.appendLines(nil)
+	case searchScreen:
+		return m.srch.appendLines(nil)
 	case repoScreen:
 	}
 	if len(m.panes) == 0 {
@@ -323,6 +333,8 @@ func (m *Model) focused() *pane {
 		return m.notif
 	case dashScreen:
 		return m.dash
+	case searchScreen:
+		return m.srch
 	case repoScreen:
 	}
 	if len(m.panes) == 0 {
@@ -335,7 +347,8 @@ func (m *Model) focused() *pane {
 // and starts the sections that come into view. The screen it leaves is the
 // one to go back to.
 func (m *Model) showScreen(s screen, i int) tea.Cmd {
-	if s == notifScreen && m.notif == nil || s == repoScreen && len(m.panes) == 0 || s == dashScreen && m.dash == nil {
+	if s == notifScreen && m.notif == nil || s == repoScreen && len(m.panes) == 0 ||
+		s == dashScreen && m.dash == nil || s == searchScreen && m.srch == nil {
 		return nil
 	}
 	before := m.focused()

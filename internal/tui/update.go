@@ -66,6 +66,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ui.OpenMsg:
 		cmd := m.openURL(msg.URL)
 		return m, cmd
+	case ui.BackMsg:
+		cmd := m.showScreen(m.back, m.focus)
+		return m, cmd
 	case ui.OpenModalMsg:
 		m.openModal(msg.Modal)
 		return m, nil
@@ -108,6 +111,9 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 		m.layout()
 		return nil
 	case key.Matches(msg, m.keys.Search):
+		if m.srch != nil {
+			return m.showSearch()
+		}
 		return m.openSearch()
 	case m.canOpenHistory() && key.Matches(msg, m.keys.History):
 		return m.openHistory()
@@ -136,6 +142,15 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 	cmd := p.section.Update(msg)
 	m.updateBadges()
 	return cmd
+}
+
+// showSearch shows the search page, with the focus in its query.
+func (m *Model) showSearch() tea.Cmd {
+	if m.screen == searchScreen {
+		m.srch.setFocus(true)
+		return nil
+	}
+	return m.showScreen(searchScreen, m.focus)
 }
 
 // selectRepo shows the repository screen for the repository of msg, with
@@ -184,8 +199,10 @@ func (m *Model) show(title string) tea.Cmd {
 	if m.notif != nil && m.notif.section.Title() == title {
 		return m.showScreen(notifScreen, m.focus)
 	}
-	if m.dash != nil && m.dash.section.Title() == title {
-		return m.showScreen(dashScreen, m.focus)
+	for s, p := range map[screen]*pane{dashScreen: m.dash, searchScreen: m.srch} {
+		if p != nil && p.section.Title() == title {
+			return m.showScreen(s, m.focus)
+		}
 	}
 	return nil
 }

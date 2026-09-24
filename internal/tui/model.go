@@ -1,6 +1,6 @@
 // Package tui is the root of the program. It lays the sections out on
-// three screens, the dashboard, the repository screen with its panes and
-// the notifications screen, draws the header, the help line and toasts,
+// four screens, the dashboard, the repository screen with its panes, the
+// notifications screen and the search page, draws the header, the help line and toasts,
 // opens modals such as the search and the history over them, and routes
 // messages between them all. The sections themselves live in their own
 // packages and share the ui package.
@@ -33,6 +33,9 @@ type Layout struct {
 	// given a repository. It draws its own panes, and handles the keys
 	// that move between them.
 	Dashboard ui.Section
+	// Search fills the search page, which the search key shows from any
+	// screen. It draws its own frames too.
+	Search ui.Section
 }
 
 // Model is the root model of the program.
@@ -47,6 +50,7 @@ type Model struct {
 	left  int
 	notif *pane
 	dash  *pane
+	srch  *pane
 	// all holds the panes of every screen.
 	all []*pane
 	// screen is the screen on view, and focus the focused pane of the
@@ -197,6 +201,10 @@ func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) 
 		m.dash = &pane{section: layout.Dashboard, bare: true}
 		m.all = append(m.all, m.dash)
 	}
+	if layout.Search != nil {
+		m.srch = &pane{section: layout.Search, bare: true}
+		m.all = append(m.all, m.srch)
+	}
 	for _, opt := range opts {
 		opt(m)
 	}
@@ -256,6 +264,8 @@ func (m *Model) startScreen() tea.Cmd {
 		return m.notif.start()
 	case dashScreen:
 		return m.dash.start()
+	case searchScreen:
+		return m.srch.start()
 	case repoScreen:
 	}
 	cmds := make([]tea.Cmd, 0, len(m.panes))
