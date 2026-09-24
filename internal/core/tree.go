@@ -50,13 +50,19 @@ func (e TreeEntry) Symlink() bool {
 	return e.Mode == ModeSymlink
 }
 
-// Tree is a listing of a git tree. SHA is the tree's own SHA, even when it
-// was asked for by a ref. Truncated reports that GitHub left entries out
-// because the tree is too large; list its subtrees one at a time instead.
+// Tree is a listing of a git tree. SHA names what was listed: the tree's
+// SHA when it was asked for by one, and otherwise the SHA of the commit
+// whose root it is, also when it was asked for by a ref such as a branch.
+// Either way it names the listing's content for good. Truncated reports
+// that GitHub left entries out because the tree is too large; list its
+// subtrees one at a time instead.
 type Tree struct {
 	SHA       string
 	Entries   []TreeEntry
 	Truncated bool
+	// Offline reports that GitHub couldn't be reached, so the listing is
+	// what the ref pointed at when it was last read, kept on disk.
+	Offline bool
 }
 
 // Blob is the content of a file.
