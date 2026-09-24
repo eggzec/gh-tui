@@ -10,12 +10,14 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
+	filesvc "github.com/eggzec/gh-tui/internal/service/files"
 	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
 	notifsvc "github.com/eggzec/gh-tui/internal/service/notifications"
 	pullsvc "github.com/eggzec/gh-tui/internal/service/pulls"
 	reposvc "github.com/eggzec/gh-tui/internal/service/repos"
 	searchsvc "github.com/eggzec/gh-tui/internal/service/search"
 	"github.com/eggzec/gh-tui/internal/tui"
+	"github.com/eggzec/gh-tui/internal/tui/files"
 	"github.com/eggzec/gh-tui/internal/tui/issues"
 	"github.com/eggzec/gh-tui/internal/tui/notifications"
 	"github.com/eggzec/gh-tui/internal/tui/pulls"
@@ -47,12 +49,12 @@ func build(ctx context.Context, cfg config.Config, arg string) (*tui.Model, erro
 	issueSvc := issuesvc.New(client, issuesvc.WithTTL(ttl))
 	notifSvc := notifsvc.New(client, notifsvc.WithTTL(ttl))
 	repoSvc := reposvc.New(client, reposvc.WithTTL(ttl))
+	fileSvc := filesvc.New(client, filesvc.WithTTL(ttl))
 	// Search results keep the search service's own short TTL.
 	searchSvc := searchsvc.New(client)
 
 	layout := tui.Layout{
-		// The files pane lands separately; until then its place says so.
-		Files:         &placeholder{title: ui.FilesTitle, text: "Files are coming soon."},
+		Files:         files.New(ctx, fileSvc, cfg.Keys),
 		Pulls:         pulls.New(ctx, pullSvc, cfg.Keys),
 		Issues:        issues.New(ctx, issueSvc, cfg.Keys),
 		Notifications: notifications.New(ctx, notifSvc, cfg.Keys),
