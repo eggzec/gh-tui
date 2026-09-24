@@ -60,3 +60,10 @@ details:
     enabled: false
     rows: 10
     hover_delay: 1s
+
+log:
+  level: debug
+  file: /var/log/gh-tui.log
+  max_size: 1MiB
+  keep: 5
+  summary: 1m

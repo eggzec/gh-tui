@@ -33,6 +33,7 @@ func TestLoadDefaults(t *testing.T) {
 		{"missing file", filepath.Join(t.TempDir(), "config.yaml")},
 		{"empty file", "testdata/empty.yaml"},
 	}
+	t.Setenv(EnvLog, "")
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := Load(tt.path)
@@ -85,9 +86,11 @@ func TestLoadMergesOverDefaults(t *testing.T) {
 				c.Details = Details{
 					Prefetch: DetailsPrefetch{Enabled: false, Rows: 10, HoverDelay: time.Second},
 				}
+				c.Log = Log{Level: LevelDebug, File: "/var/log/gh-tui.log", MaxSize: MiB, Keep: 5, Summary: time.Minute}
 			},
 		},
 	}
+	t.Setenv(EnvLog, "")
 	for _, tt := range tests {
 		t.Run(tt.file, func(t *testing.T) {
 			got, err := Load(filepath.Join("testdata", tt.file))
@@ -141,6 +144,7 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 	cfg.Files.Prefetch.HoverDelay = -time.Millisecond
 	cfg.Details.Prefetch.Rows = 31
 	cfg.Details.Prefetch.HoverDelay = -time.Second
+	cfg.Log = Log{Level: "trace", File: "gh-tui.log", MaxSize: KiB, Keep: -1, Summary: time.Second}
 
 	err := cfg.Validate()
 	if err == nil {
@@ -171,6 +175,11 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 		`files.prefetch.hover_delay: must not be negative, got -1ms`,
 		`details.prefetch.rows: must be between 0 and 30, got 31`,
 		`details.prefetch.hover_delay: must not be negative, got -1s`,
+		`log.level: must be debug, info, warn or error, got "trace"`,
+		`log.file: must be an absolute path, got "gh-tui.log"`,
+		`log.max_size: must be at least 64KiB, got 1KiB`,
+		`log.keep: must be between 0 and 100, got -1`,
+		`log.summary: must be 0 or at least 10s, got 1s`,
 	}
 	for _, w := range want {
 		if !slices.Contains(got, w) {
@@ -299,5 +308,65 @@ func TestDiskPath(t *testing.T) {
 	d := Disk{Dir: "/var/cache/gh"}
 	if got, err := d.Path(); err != nil || got != "/var/cache/gh" {
 		t.Errorf("Path() = %q, %v; want the configured dir", got, err)
+	}
+}
+
+func TestLogLevelFromEnv(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(path, []byte("log:\n  level: warn\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		env, want, wantErr string
+	}{
+		{env: "", want: LevelWarn},
+		{env: "debug", want: LevelDebug},
+		{env: "ERROR", want: LevelError},
+		{env: "loud", wantErr: `log.level: must be debug, info, warn or error, got "loud"`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.env, func(t *testing.T) {
+			t.Setenv(EnvLog, tt.env)
+			cfg, err := Load(path)
+			if tt.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+					t.Errorf("Load error = %v, want %q", err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Load: %v", err)
+			}
+			if cfg.Log.Level != tt.want {
+				t.Errorf("level = %q, want %q", cfg.Log.Level, tt.want)
+			}
+		})
+	}
+
+	// The override applies without a config file too.
+	t.Setenv(EnvLog, "debug")
+	cfg, err := Load(filepath.Join(t.TempDir(), "missing.yaml"))
+	if err != nil || cfg.Log.Level != LevelDebug {
+		t.Errorf("Load without a file = %q, %v; want debug", cfg.Log.Level, err)
+	}
+}
+
+func TestLogPath(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the state directory is %LocalAppData% on Windows")
+	}
+	t.Setenv("XDG_STATE_HOME", "/tmp/state")
+	if got, err := Default().Log.Path(); err != nil || got != "/tmp/state/gh-tui/gh-tui.log" {
+		t.Errorf("default Path() = %q, %v; want /tmp/state/gh-tui/gh-tui.log", got, err)
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_STATE_HOME", "relative")
+	if got, err := Default().Log.Path(); err != nil || got != filepath.Join(home, ".local", "state", "gh-tui", "gh-tui.log") {
+		t.Errorf("Path() without XDG_STATE_HOME = %q, %v; want it in ~/.local/state", got, err)
+	}
+	l := Log{File: "/var/log/gh.log"}
+	if got, err := l.Path(); err != nil || got != "/var/log/gh.log" {
+		t.Errorf("Path() = %q, %v; want the configured file", got, err)
 	}
 }
