@@ -132,15 +132,15 @@ func (m *Model) selectRepo(msg ui.RepoMsg) tea.Cmd {
 
 // broadcast sends msg to every section, started or not, so that a section
 // shown later already knows, for example, which repository was selected,
-// and to every open modal.
+// and to the open modal.
 func (m *Model) broadcast(msg tea.Msg) tea.Cmd {
 	panes := m.all
-	cmds := make([]tea.Cmd, 0, len(panes)+len(m.modals)+1)
+	cmds := make([]tea.Cmd, 0, len(panes)+2)
 	for _, p := range panes {
 		cmds = append(cmds, p.section.Update(msg))
 	}
-	for _, mod := range m.modals {
-		cmds = append(cmds, mod.Update(msg))
+	if m.modal != nil {
+		cmds = append(cmds, m.modal.Update(msg))
 	}
 	// The closed search still gets its own messages, such as the spinner
 	// tick, so it is not stuck when it opens again.

@@ -88,22 +88,34 @@ func TestModalGetsOtherMessages(t *testing.T) {
 	}
 }
 
-func TestCloseModalClosesThoseOverIt(t *testing.T) {
+func TestOpeningAModalReplacesTheOpenOne(t *testing.T) {
 	m, fakes := newTestApp(t)
-	under, over := &fakeModal{title: "Search"}, &fakeModal{title: "Preview"}
-	run(m, ui.OpenModal(under))
-	run(m, ui.OpenModal(over))
+	first, second := &fakeModal{title: "Search"}, &fakeModal{title: "Preview"}
+	run(m, ui.OpenModal(first))
+	run(m, ui.OpenModal(second))
+	if m.topModal() != second {
+		t.Fatal("the second modal isn't open")
+	}
+	run(m, func() tea.Msg { return ui.DoneMsg{What: "x"} })
 	run(m, m.key(press("x")))
-	if len(under.keys()) != 0 || len(over.keys()) != 1 {
-		t.Error("only the top modal should get keys")
+	if len(first.msgs) != 0 {
+		t.Errorf("the replaced modal still got %d messages", len(first.msgs))
+	}
+	if len(second.keys()) != 1 {
+		t.Error("the open modal should get keys")
 	}
 
-	run(m, ui.CloseModal(under))
-	if len(m.modals) != 0 {
-		t.Fatalf("%d modals open, want none", len(m.modals))
+	// Closing the replaced modal leaves the open one alone.
+	run(m, ui.CloseModal(first))
+	if m.topModal() != second {
+		t.Fatal("closing a replaced modal closed the open one")
+	}
+	run(m, ui.CloseModal(second))
+	if m.topModal() != nil {
+		t.Fatal("the modal is still open")
 	}
 	// Closing again is harmless.
-	run(m, ui.CloseModal(over))
+	run(m, ui.CloseModal(second))
 
 	run(m, m.key(press("x")))
 	if !fakes[0].got(func(msg tea.Msg) bool { k, ok := msg.(tea.KeyPressMsg); return ok && k.String() == "x" }) {

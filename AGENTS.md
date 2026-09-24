@@ -275,6 +275,9 @@ reacts to messages. Concretely:
   sparingly. Keep spacing and alignment consistent across views.
 - Loading uses spinners or skeletons, empty states tell the user what to do,
   and errors are inline and recoverable.
+- One modal at a time. Opening a modal replaces the open one; a modal that
+  needs several views, such as a list and its detail, shows them as panes or
+  steps inside its own frame, and esc steps back before it closes.
 - Everything must stay legible in both light and dark terminals and at 80
   columns.
 

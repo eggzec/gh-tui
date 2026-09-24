@@ -49,8 +49,8 @@ type Model struct {
 	// pending holds the commands the sections returned for the repository
 	// of WithRepo, for Init to run.
 	pending tea.Cmd
-	// modals are open over the screens, the last one on top.
-	modals []ui.Modal
+	// modal is open over the screens, or nil. Opening another replaces it.
+	modal ui.Modal
 
 	repo   core.RepoRef
 	branch string
@@ -270,8 +270,8 @@ func (m *Model) applyTheme(dark bool) {
 	for _, p := range m.all {
 		p.section.SetTheme(m.theme)
 	}
-	for _, mod := range m.modals {
-		mod.SetTheme(m.theme)
+	if m.modal != nil {
+		m.modal.SetTheme(m.theme)
 	}
 	if m.searchBox != nil && !m.isOpen(m.searchBox) {
 		m.searchBox.SetTheme(m.theme)

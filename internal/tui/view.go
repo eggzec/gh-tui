@@ -53,8 +53,8 @@ func (m *Model) layout() {
 	m.help.SetWidth(m.width)
 	m.toast.SetSize(m.width, m.height)
 	m.arrange(m.contentHeight())
-	for _, mod := range m.modals {
-		mod.SetSize(m.modalSize())
+	if m.modal != nil {
+		m.modal.SetSize(m.modalSize())
 	}
 	m.drawFrames()
 	m.drawHeader()

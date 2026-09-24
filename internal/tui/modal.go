@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -11,26 +10,25 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
-// topModal returns the modal opened last, or nil if none is open.
+// topModal returns the open modal, or nil if none is open.
 func (m *Model) topModal() ui.Modal {
-	if len(m.modals) == 0 {
-		return nil
-	}
-	return m.modals[len(m.modals)-1]
+	return m.modal
 }
 
+// openModal opens mod in place of the open modal, if any: modals never
+// stack, so the screen shows at most one frame over it.
 func (m *Model) openModal(mod ui.Modal) {
 	if mod == nil {
 		return
 	}
 	mod.SetTheme(m.theme)
 	mod.SetSize(m.modalSize())
-	m.modals = append(m.modals, mod)
+	m.modal = mod
 }
 
 // isOpen reports whether mod is open.
 func (m *Model) isOpen(mod ui.Modal) bool {
-	return slices.Contains(m.modals, mod)
+	return mod != nil && m.modal == mod
 }
 
 // openSearch opens the search modal, if the app has a search.
@@ -46,15 +44,11 @@ func (m *Model) openSearch() tea.Cmd {
 	return m.searchBox.open(first)
 }
 
-// closeModal closes mod and the modals opened over it. A modal that isn't
-// open is ignored, so closing twice is harmless.
+// closeModal closes mod. A modal that isn't open is ignored, so closing
+// twice, or closing one that another has replaced, is harmless.
 func (m *Model) closeModal(mod ui.Modal) {
-	for i, open := range m.modals {
-		if open == mod {
-			clear(m.modals[i:])
-			m.modals = m.modals[:i]
-			return
-		}
+	if m.isOpen(mod) {
+		m.modal = nil
 	}
 }
 
