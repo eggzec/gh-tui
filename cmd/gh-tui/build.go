@@ -29,8 +29,8 @@ import (
 // build wires the client, the services, the sync engine and the sections
 // into the app. arg is the repository named on the command line, if any.
 // The app opens on that repository, or on the notifications when there is
-// none.
-func build(ctx context.Context, cfg config.Config, arg string) (*tui.Model, error) {
+// none. The app shows logWarning, if any, once it starts.
+func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui.Model, error) {
 	client, err := github.New()
 	if err != nil {
 		return nil, err
@@ -101,8 +101,10 @@ func build(ctx context.Context, cfg config.Config, arg string) (*tui.Model, erro
 	if repo != (core.RepoRef{}) {
 		opts = append(opts, tui.WithRepo(repo))
 	}
-	if warning != "" {
-		opts = append(opts, tui.WithWarning(warning))
+	for _, w := range []string{logWarning, warning} {
+		if w != "" {
+			opts = append(opts, tui.WithWarning(w))
+		}
 	}
 	// The sync engine delivers the changes that its polls find, and those
 	// that the revalidator finds, through one subscription.

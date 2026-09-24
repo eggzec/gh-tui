@@ -4,11 +4,13 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
+	"log/slog"
 	"path/filepath"
 	"strings"
 
 	"github.com/eggzec/gh-tui/internal/cache/disk"
 	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/internal/obs"
 )
 
 // openDisk opens the disk cache of host as cfg says, and trims it to its
@@ -26,12 +28,20 @@ func openDisk(ctx context.Context, cfg config.Disk, host string) (store *disk.St
 			disk.WithCompression(gzipLevel(cfg)))
 	}
 	if err != nil {
+		slog.Warn("disk cache off", "span", "cache.disk", "err", err.Error())
 		return nil, fmt.Sprintf("The cache is in memory only: %v", err)
 	}
 	// Objects in use are touched on every session, so trimming the ones
 	// used least recently at startup is enough. It is only a cleanup, so a
-	// failure is ignored.
-	go func() { _, _ = store.Collect(ctx) }()
+	// failure is only logged.
+	go func() {
+		ctx, end := obs.Begin(ctx, "cache.collect")
+		u, err := store.Collect(ctx)
+		end(err, "span", "cache.disk")
+		if err == nil {
+			slog.InfoContext(ctx, "cache collected", "span", "cache.disk", "files", u.Files, "bytes", u.Size, "removed", u.Removed, "max_bytes", int64(cfg.MaxSize))
+		}
+	}()
 	return store, ""
 }
 

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/obs"
 	reposvc "github.com/eggzec/gh-tui/internal/service/repos"
 	searchsvc "github.com/eggzec/gh-tui/internal/service/search"
 	"github.com/eggzec/gh-tui/internal/tui"
@@ -30,7 +31,9 @@ type repoLister interface {
 // repositories, then the viewer's own, so there is something to open
 // before typing.
 func searchItems(s searcher, repos repoLister, pinned []core.RepoRef) picker.Search {
-	return func(ctx context.Context, q picker.Query) ([]picker.Item, error) {
+	return func(ctx context.Context, q picker.Query) (_ []picker.Item, err error) {
+		ctx, end := obs.Begin(ctx, "search")
+		defer func() { end(err, "span", "tui", "scope", q.Scope, "empty", strings.TrimSpace(q.Text) == "") }()
 		kind := scopeKind(q.Scope)
 		if strings.TrimSpace(q.Text) == "" {
 			return startItems(ctx, repos, pinned, kind)
