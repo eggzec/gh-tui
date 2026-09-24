@@ -7,6 +7,7 @@ package files
 
 import (
 	"context"
+	"path"
 	"strings"
 
 	"charm.land/bubbles/v2/help"
@@ -197,6 +198,8 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		return s.preview(msg.Node)
+	case ui.OpenFileMsg:
+		return s.previewFile(msg)
 	case tea.KeyPressMsg:
 		if cmd, ok := s.press(msg); ok {
 			return cmd
@@ -293,6 +296,17 @@ func (s *Section) preview(n tree.Node) tea.Cmd {
 	p := newPreview(s.ctx, s.svc, s.repo, s.ref, e, s.keys.Open)
 	// The app passes messages to a modal only once it is open, so the load
 	// starts after the modal opens.
+	return tea.Sequence(ui.OpenModal(p), p.load())
+}
+
+// previewFile previews the file of msg, which may be of any repository, at
+// the head of its default branch.
+func (s *Section) previewFile(msg ui.OpenFileMsg) tea.Cmd {
+	if msg.Path == "" || msg.SHA == "" {
+		return nil
+	}
+	e := core.TreeEntry{Path: msg.Path, Name: path.Base(msg.Path), Type: core.EntryBlob, Mode: "100644", SHA: msg.SHA}
+	p := newPreview(s.ctx, s.svc, msg.Repo, "", e, s.keys.Open)
 	return tea.Sequence(ui.OpenModal(p), p.load())
 }
 
