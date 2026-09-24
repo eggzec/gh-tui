@@ -277,3 +277,80 @@ func TestNilAhead(t *testing.T) {
 		t.Error("a nil Ahead read ahead")
 	}
 }
+
+func TestAheadAround(t *testing.T) {
+	r := newReader()
+	r.cached[6] = true
+	a := NewAhead("row", r.readRow, r.current, 0, 0)
+	a.Reset(t.Context())
+
+	if cmd := a.Around(rowsOf(30), 4, 0); cmd != nil {
+		t.Error("Around read rows with none asked for")
+	}
+	// Row 5 is at index 4. Rows before the first and past the loaded ones
+	// are left out, and so is the cached row.
+	run(a.Around(rowsOf(7), 4, 3))
+	if got, want := r.reads(), []int{2, 3, 4, 7}; !slices.Equal(got, want) {
+		t.Errorf("read %v, want the rows around 5 but the cached one, %v", got, want)
+	}
+	if cmd := a.Around(rowsOf(7), 4, 3); cmd != nil {
+		t.Error("Around read rows that are cached now")
+	}
+	run(a.Around(rowsOf(30), 0, 2))
+	if got, want := r.reads(), []int{2, 3, 4, 7}; !slices.Equal(got, want) {
+		t.Errorf("read %v, want nothing new, %v", got, want)
+	}
+}
+
+func TestAheadAroundOrder(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		r := newReader()
+		r.hold = make(chan struct{})
+		a := NewAhead("row", r.readRow, r.current, 0, 0)
+		a.Reset(t.Context())
+		done := make(chan struct{})
+		go func() {
+			run(a.Around(rowsOf(30), 9, 2))
+			close(done)
+		}()
+		synctest.Wait()
+		// Row 10 is at index 9. The nearest rows start first, the one
+		// after before the one before, and the farthest waits for a
+		// worker.
+		if got, want := r.reads(), []int{9, 11, 12}; !slices.Equal(got, want) {
+			t.Errorf("started %v, want %v", got, want)
+		}
+		close(r.hold)
+		<-done
+		if got, want := r.reads(), []int{8, 9, 11, 12}; !slices.Equal(got, want) {
+			t.Errorf("read %v, want %v", got, want)
+		}
+	})
+}
+
+func TestAheadAroundCancelsTheLastReads(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		r := newReader()
+		r.hold = make(chan struct{})
+		a := NewAhead("row", r.readRow, r.current, 0, 0)
+		a.Reset(t.Context())
+		first := a.Around(rowsOf(30), 10, 1)
+		done := make(chan struct{})
+		go func() {
+			run(first)
+			close(done)
+		}()
+		synctest.Wait()
+		// The cursor rests elsewhere, which cancels the reads around the
+		// last place.
+		_ = a.Around(rowsOf(30), 20, 1)
+		<-done
+		r.mu.Lock()
+		cancelled := slices.Sorted(slices.Values(r.cancelled))
+		r.mu.Unlock()
+		if want := []int{10, 12}; !slices.Equal(cancelled, want) {
+			t.Errorf("cancelled %v, want the reads around row 11, %v", cancelled, want)
+		}
+		close(r.hold)
+	})
+}

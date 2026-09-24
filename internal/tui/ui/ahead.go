@@ -53,6 +53,8 @@ type Ahead[K comparable] struct {
 	hasHovered bool
 	seq        int
 	stopHover  context.CancelFunc
+	// stopAround cancels the reads around the cursor still in flight.
+	stopAround context.CancelFunc
 }
 
 // AheadMsg reports that the cursor rested on a row. Sections pass it to
@@ -94,7 +96,7 @@ func (a *Ahead[K]) Reset(parent context.Context) {
 	var zero K
 	a.hovered, a.hasHovered = zero, false
 	a.seq++
-	a.stopHover = nil
+	a.stopHover, a.stopAround = nil, nil
 }
 
 // Opened records that the detail of k was opened, so that the summary
@@ -273,6 +275,53 @@ func (a *Ahead[K]) Rested(msg AheadMsg) tea.Cmd {
 	return func() tea.Msg {
 		defer cancel()
 		readOne(ctx, read, limited, seen, k)
+		return nil
+	}
+}
+
+// Around reads the details of the n rows on each side of row i, which at
+// returns by index, and false for a row not loaded: nearest first, and the
+// row after before the row before, since lists are mostly read downwards.
+// It cancels the reads of the last call still in flight, so call it once
+// the cursor rests, and skips the rows whose details are cached.
+func (a *Ahead[K]) Around(at func(i int) (K, bool), i, n int) tea.Cmd {
+	if a == nil || n <= 0 {
+		return nil
+	}
+	if a.stopAround != nil {
+		a.stopAround()
+		a.stopAround = nil
+	}
+	if a.limited.Load() {
+		a.seen.Count(obs.PrefetchLimited)
+		return nil
+	}
+	todo := make([]K, 0, 2*n)
+	cached := 0
+	for d := 1; d <= n; d++ {
+		for _, j := range [2]int{i + d, i - d} {
+			k, ok := at(j)
+			switch {
+			case j < 0 || !ok:
+			case a.current(k):
+				cached++
+				a.seen.Count(obs.PrefetchCached)
+			default:
+				todo = append(todo, k)
+			}
+		}
+	}
+	if len(todo) == 0 {
+		return nil
+	}
+	ctx, cancel := context.WithCancel(obs.WithTrace(a.ctx, "prefetch.around"))
+	a.stopAround = cancel
+	read, limited, seen := a.read, a.limited, a.seen
+	return func() tea.Msg {
+		defer cancel()
+		slog.InfoContext(ctx, "prefetch", "span", "prefetch", "kind", seen.Kind(), "trigger", "around",
+			"sent", len(todo), "skipped_cached", cached)
+		readAll(ctx, read, limited, seen, todo)
 		return nil
 	}
 }
