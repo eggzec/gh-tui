@@ -56,7 +56,12 @@ func build(ctx context.Context, cfg config.Config, arg string) (*tui.Model, erro
 
 	var fileOpts []files.Option
 	if p := cfg.Files.Prefetch; p.Enabled {
-		fileOpts = append(fileOpts, files.WithPrefetch(int64(p.MaxSize)))
+		fileOpts = append(fileOpts,
+			files.WithPrefetch(int64(p.MaxSize)),
+			// The file under the cursor is likely opened next, so it is
+			// read up to the size the preview reads.
+			files.WithHoverPrefetch(p.HoverDelay, int64(cfg.Files.Preview.MaxSize)),
+		)
 	}
 	layout := tui.Layout{
 		Files:         files.New(ctx, fileSvc, cfg.Keys, fileOpts...),

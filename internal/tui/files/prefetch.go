@@ -32,7 +32,7 @@ func (s *Section) prefetchTop(ctx context.Context, x *index) tea.Cmd {
 		if len(todo) == prefetchFiles {
 			break
 		}
-		q := filesvc.BlobQuery{Repo: s.repo, SHA: e.SHA, Size: e.Size}
+		q := s.blobQuery(e)
 		if !worthReading(e, s.prefetchMax) {
 			continue
 		}

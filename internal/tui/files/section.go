@@ -44,6 +44,7 @@ type Section struct {
 
 	// prefetchMax is the largest top-level file read ahead, or 0.
 	prefetchMax int64
+	hover       hover
 
 	width, height int
 	focused       bool
@@ -97,6 +98,7 @@ func (s *Section) newTree(repo core.RepoRef) {
 	s.repo, s.tree, s.src, s.started = repo, &t, src, false
 	s.treeCtx, s.cancelTree = ctx, cancel
 	s.idx, s.warned = nil, false
+	s.hover.reset()
 }
 
 // The limits of an expand-all while the tree comes from the listing, where
@@ -133,13 +135,13 @@ func (s *Section) Init() tea.Cmd {
 
 // Update follows the selected repository and handles the section's keys;
 // everything else goes to the tree. It then reacts to a listing the tree
-// has read.
+// has read, and to the cursor moving.
 func (s *Section) Update(msg tea.Msg) tea.Cmd {
 	cmd := s.update(msg)
 	if s.tree == nil {
 		return cmd
 	}
-	return tea.Batch(cmd, s.observe())
+	return tea.Batch(cmd, s.observe(), s.moved())
 }
 
 func (s *Section) update(msg tea.Msg) tea.Cmd {
@@ -150,6 +152,11 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 		}
 		s.newTree(msg.Repo)
 		return s.start()
+	case hoverMsg:
+		if s.tree == nil {
+			return nil
+		}
+		return s.rested(msg)
 	case listingMsg:
 		if s.tree == nil || msg.src != s.src {
 			return nil
