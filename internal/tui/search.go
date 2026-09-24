@@ -62,8 +62,8 @@ func (s *searchModal) Update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		s.picker.Blur()
-		// Closing the search closes the modals over it too, so it closes
-		// before a section opens the chosen item in one.
+		// The search closes before a section opens the chosen item in a
+		// modal of its own, which would otherwise be closed with it.
 		return tea.Sequence(ui.CloseModal(s), choose(msg.Item.Value))
 	case picker.CancelMsg:
 		if msg.ID != s.picker.ID() {

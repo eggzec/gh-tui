@@ -47,7 +47,7 @@ func TestSearchChoosesRepo(t *testing.T) {
 	}
 
 	run(m, m.key(tea.KeyPressMsg{Code: tea.KeyEnter}))
-	if len(m.modals) != 0 {
+	if m.topModal() != nil {
 		t.Error("choosing didn't close the search")
 	}
 	for _, f := range fakes {
@@ -76,7 +76,7 @@ func TestSearchOpensIssuesAndPulls(t *testing.T) {
 		if !fakes[1].got(func(msg tea.Msg) bool { return msg == tt.want }) {
 			t.Errorf("sections missed %#v", tt.want)
 		}
-		if len(m.modals) != 0 {
+		if m.topModal() != nil {
 			t.Error("choosing didn't close the search")
 		}
 	}
@@ -90,7 +90,7 @@ func TestSearchCancels(t *testing.T) {
 	m, fakes := newApp(t, core.RepoRef{}, WithSearch(fixedSearch(&queries)))
 	run(m, m.key(press("/")))
 	run(m, m.key(tea.KeyPressMsg{Code: tea.KeyEscape}))
-	if len(m.modals) != 0 {
+	if m.topModal() != nil {
 		t.Error("esc didn't close the search")
 	}
 	if fakes[0].got(func(msg tea.Msg) bool { _, ok := msg.(ui.RepoMsg); return ok }) {
@@ -101,7 +101,7 @@ func TestSearchCancels(t *testing.T) {
 func TestSearchNeedsProducer(t *testing.T) {
 	m, _ := newTestApp(t)
 	run(m, m.key(press("/")))
-	if len(m.modals) != 0 {
+	if m.topModal() != nil {
 		t.Error("search opened without a producer")
 	}
 }
@@ -125,7 +125,7 @@ func TestSearchLeavesTheChosenItemOpen(t *testing.T) {
 		t.Fatal("the search closes and opens the choice in a batch, not in order")
 	}
 	run(m, func() tea.Msg { return chosen })
-	if len(m.modals) != 1 || m.topModal() != detail {
-		t.Errorf("modals = %v, want only the issue the search opened", m.modals)
+	if m.topModal() != detail {
+		t.Errorf("open modal = %v, want the issue the search opened", m.topModal())
 	}
 }
