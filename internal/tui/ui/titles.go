@@ -8,4 +8,5 @@ const (
 	IssuesTitle        = "Issues"
 	NotificationsTitle = "Notifications"
 	ReposTitle         = "Repositories"
+	FilesTitle         = "Files"
 )

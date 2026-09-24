@@ -56,6 +56,20 @@ type RepoMsg struct {
 	Repo core.RepoRef
 }
 
+// OpenPullMsg asks for the pull request Number of Repo to be opened, such as
+// when it is picked in the search. Repo need not be the selected repository.
+type OpenPullMsg struct {
+	Repo   core.RepoRef
+	Number int
+}
+
+// OpenIssueMsg asks for the issue Number of Repo to be opened, such as when
+// it is picked in the search. Repo need not be the selected repository.
+type OpenIssueMsg struct {
+	Repo   core.RepoRef
+	Number int
+}
+
 // ShowMsg asks the app to switch to the section with Title.
 type ShowMsg struct {
 	Title string
