@@ -160,6 +160,14 @@ func TestInitLoadsFirstChunk(t *testing.T) {
 	if got := src.callCount(); got != 1 {
 		t.Fatalf("fetched %d times, want 1", got)
 	}
+	if it, ok := m.Item(9); !ok || it.id != "9" {
+		t.Fatalf("Item(9) = %v, %v; want item 9", it, ok)
+	}
+	for _, i := range []int{-1, 10} {
+		if it, ok := m.Item(i); ok {
+			t.Fatalf("Item(%d) = %v, want none", i, it)
+		}
+	}
 }
 
 func TestNavigation(t *testing.T) {
@@ -447,6 +455,9 @@ func TestEviction(t *testing.T) {
 	m, cmd := m.Update(press("home"))
 	if _, ok := m.Selected(); ok {
 		t.Fatal("Selected() returned an evicted item")
+	}
+	if _, ok := m.Item(1); ok {
+		t.Fatal("Item(1) returned an evicted item")
 	}
 	if !strings.Contains(m.View(), "…") {
 		t.Fatalf("View() = %q, want placeholders", m.View())

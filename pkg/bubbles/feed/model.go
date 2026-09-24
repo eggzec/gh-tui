@@ -187,6 +187,11 @@ func (m Model[T]) Selected() (T, bool) {
 	return m.item(m.sel)
 }
 
+// Item returns item i, or false if there is none or it is not loaded.
+func (m Model[T]) Item(i int) (T, bool) {
+	return m.item(i)
+}
+
 // Index returns the index of the selected item.
 func (m Model[T]) Index() int {
 	return m.sel
