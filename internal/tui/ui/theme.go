@@ -6,6 +6,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
+	"github.com/eggzec/gh-tui/pkg/bubbles/graph"
 	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
 	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
 	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
@@ -101,6 +102,30 @@ func (t Theme) Tree() tree.Styles {
 	s.Leaf = s.Leaf.Foreground(lipgloss.Color(t.Palette.Foreground))
 	s.Detail = s.Detail.Foreground(lipgloss.Color(t.Palette.Subtle))
 	s.Spinner = s.Spinner.Foreground(lipgloss.Color(t.Palette.Accent))
+	s.Loading = s.Loading.Foreground(lipgloss.Color(t.Palette.Muted))
+	s.Empty = s.Empty.Foreground(lipgloss.Color(t.Palette.Muted))
+	s.Error = s.Error.Foreground(lipgloss.Color(t.Palette.Error))
+	s.Hint = s.Hint.Foreground(lipgloss.Color(t.Palette.Subtle))
+	return s
+}
+
+// Graph returns the styles of a commit graph. The lanes keep their
+// default hues, which tell lanes apart, except the first, which takes the
+// accent.
+func (t Theme) Graph() graph.Styles {
+	s := graph.DefaultStyles(t.Dark)
+	accent := lipgloss.Color(t.Palette.Accent)
+	s.Cursor = s.Cursor.Foreground(accent)
+	s.BlurredCursor = s.BlurredCursor.Foreground(lipgloss.Color(t.Palette.Subtle))
+	if len(s.Lanes) > 0 {
+		s.Lanes[0] = s.Lanes[0].Foreground(accent)
+	}
+	s.Overflow = s.Overflow.Foreground(lipgloss.Color(t.Palette.Subtle))
+	s.Short = s.Short.Foreground(lipgloss.Color(t.Palette.Muted))
+	s.Title = s.Title.Foreground(lipgloss.Color(t.Palette.Foreground))
+	s.Detail = s.Detail.Foreground(lipgloss.Color(t.Palette.Subtle))
+	s.Right = s.Right.Foreground(lipgloss.Color(t.Palette.Subtle))
+	s.Spinner = s.Spinner.Foreground(accent)
 	s.Loading = s.Loading.Foreground(lipgloss.Color(t.Palette.Muted))
 	s.Empty = s.Empty.Foreground(lipgloss.Color(t.Palette.Muted))
 	s.Error = s.Error.Foreground(lipgloss.Color(t.Palette.Error))

@@ -1,0 +1,270 @@
+package history
+
+import (
+	"cmp"
+
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/spinner"
+	tea "charm.land/bubbletea/v2"
+
+	"github.com/eggzec/gh-tui/internal/core"
+	historysvc "github.com/eggzec/gh-tui/internal/service/history"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/graph"
+	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
+	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
+)
+
+// Update handles the modal's keys and its reads, and passes everything else
+// to the graph, the pager and the filter. Messages of other modals, such as
+// the one this replaced, are ignored.
+func (m *Modal) Update(msg tea.Msg) tea.Cmd {
+	cmd := m.update(msg)
+	return tea.Batch(cmd, m.opts.offline.Notify())
+}
+
+func (m *Modal) update(msg tea.Msg) tea.Cmd {
+	switch msg := msg.(type) {
+	case tea.KeyPressMsg:
+		return m.press(msg)
+	case branchesMsg:
+		if msg.id != m.id {
+			return nil
+		}
+		return m.receiveBranches(msg)
+	case branchRestMsg:
+		if msg.id != m.id {
+			return nil
+		}
+		return m.compare(msg)
+	case compareMsg:
+		if msg.id == m.id {
+			m.receiveCompare(msg)
+		}
+		return nil
+	case restMsg:
+		if msg.id != m.id {
+			return nil
+		}
+		return m.rested(msg)
+	case detailMsg:
+		if msg.id != m.id {
+			return nil
+		}
+		return m.receiveDetail(msg)
+	case filesMsg:
+		if msg.id != m.id {
+			return nil
+		}
+		return m.receiveFiles(msg)
+	case headMsg:
+		if msg.id != m.id {
+			return nil
+		}
+		return m.receiveHead(msg)
+	case graph.SelectMsg:
+		if msg.ID != m.graph.model.ID() {
+			return nil
+		}
+		c, ok := msg.Commit.Value.(core.Commit)
+		if !ok {
+			return nil
+		}
+		return m.follow(c)
+	case graph.ChosenMsg:
+		if msg.ID != m.graph.model.ID() {
+			return nil
+		}
+		m.setFocus(commitPane)
+		return m.loadDetail()
+	case picker.ChosenMsg, picker.CancelMsg:
+		return m.updateFilter(msg)
+	case pager.CloseMsg:
+		if msg.ID == m.commit.pager.ID() {
+			m.closePatch()
+		}
+		return nil
+	case ui.SyncMsg:
+		// The revalidator found that a branch moved, and cached it.
+		if msg.Err != nil || msg.Key != historysvc.SyncKey(m.repo) {
+			return nil
+		}
+		return tea.Batch(m.loadBranches(""), m.readHead())
+	case spinner.TickMsg:
+		if msg.ID == m.spin.ID() {
+			return m.tick(msg)
+		}
+	}
+	// Ticks, pages and highlights of the bubbles inside.
+	graphCmd, filterCmd := m.updateGraph(msg), m.updateFilter(msg)
+	var cmd tea.Cmd
+	m.commit.pager, cmd = m.commit.pager.Update(msg)
+	return tea.Batch(graphCmd, filterCmd, cmd)
+}
+
+// tick spins the spinner while something loads.
+func (m *Modal) tick(msg spinner.TickMsg) tea.Cmd {
+	if !m.loading() {
+		m.spinning = false
+		return nil
+	}
+	var cmd tea.Cmd
+	m.spin, cmd = m.spin.Update(msg)
+	return cmd
+}
+
+// press handles a key: an open filter or pager search takes every key, the
+// modal's own keys come next, and then those of the focused pane.
+func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
+	if m.branches.filter != nil && m.focus == branchPane {
+		return m.updateFilter(msg)
+	}
+	patch := m.focus == commitPane && m.commit.patch
+	if patch && m.commit.pager.Capturing() {
+		return m.updatePager(msg)
+	}
+	switch {
+	case key.Matches(msg, m.keys.Next):
+		m.setFocus((m.focus + 1) % numPanes)
+		return m.focused()
+	case key.Matches(msg, m.keys.Prev):
+		m.setFocus((m.focus + numPanes - 1) % numPanes)
+		return m.focused()
+	case key.Matches(msg, m.keys.Open):
+		return m.open()
+	case key.Matches(msg, m.keys.ResetBase):
+		if m.base.Ref == "" {
+			return nil
+		}
+		return m.useBase(ui.BaseMsg{Repo: m.repo})
+	case patch:
+		// The pager closes itself with the back key, or pages with the
+		// space bar.
+		return m.updatePager(msg)
+	case key.Matches(msg, m.keys.UseAsBase):
+		return m.useSelected()
+	case key.Matches(msg, m.keys.Back):
+		return m.back()
+	}
+	switch m.focus {
+	case branchPane:
+		return m.pressBranches(msg)
+	case graphPane:
+		return m.updateGraph(msg)
+	default:
+		return m.pressCommit(msg)
+	}
+}
+
+func (m *Modal) updatePager(msg tea.Msg) tea.Cmd {
+	var cmd tea.Cmd
+	m.commit.pager, cmd = m.commit.pager.Update(msg)
+	return cmd
+}
+
+// setFocus focuses pane p, and blurs the others.
+func (m *Modal) setFocus(p pane) {
+	m.focus = p
+	if p == graphPane {
+		m.graph.model.Focus()
+	} else {
+		m.graph.model.Blur()
+	}
+	if p == commitPane && m.commit.patch {
+		m.commit.pager.Focus()
+	} else {
+		m.commit.pager.Blur()
+	}
+	m.layout()
+}
+
+// focused returns what the pane that got the focus needs: the commit pane
+// reads its commit at once, rather than when the cursor rests.
+func (m *Modal) focused() tea.Cmd {
+	if m.focus == commitPane {
+		return tea.Batch(m.loadDetail(), m.showFile())
+	}
+	return nil
+}
+
+// back steps back one pane, and closes the modal from the branches.
+func (m *Modal) back() tea.Cmd {
+	switch m.focus {
+	case commitPane:
+		m.setFocus(graphPane)
+	case graphPane:
+		m.setFocus(branchPane)
+	default:
+		return m.close()
+	}
+	return nil
+}
+
+// useSelected makes the branch or the commit under the cursor the base.
+func (m *Modal) useSelected() tea.Cmd {
+	switch m.focus {
+	case branchPane:
+		br, ok := m.branches.selected()
+		if !ok {
+			return nil
+		}
+		return m.useBase(m.branchBase(br.Name))
+	case graphPane:
+		c, ok := m.selectedCommit()
+		if !ok {
+			return nil
+		}
+		return m.useBase(m.commitBase(c.SHA))
+	default:
+		if !m.commit.has {
+			return nil
+		}
+		return m.useBase(m.commitBase(m.commit.c.SHA))
+	}
+}
+
+// branchBase is the base at the head of branch name. The default branch's
+// head is the base the app starts with.
+func (m *Modal) branchBase(name string) ui.BaseMsg {
+	if name == m.defaultBranch {
+		return ui.BaseMsg{Repo: m.repo}
+	}
+	return ui.BaseMsg{Repo: m.repo, Ref: name, Label: name, Branch: name}
+}
+
+// commitBase is the base at commit sha of the branch shown.
+func (m *Modal) commitBase(sha string) ui.BaseMsg {
+	branch := m.graph.shown()
+	return ui.BaseMsg{Repo: m.repo, Ref: sha, Label: label(cmp.Or(branch, m.defaultBranch), sha), Branch: branch}
+}
+
+// useBase closes the modal, sets the base, and shows the files at it.
+func (m *Modal) useBase(base ui.BaseMsg) tea.Cmd {
+	return tea.Sequence(m.close(),
+		func() tea.Msg { return base },
+		func() tea.Msg { return ui.ShowMsg{Title: ui.FilesTitle} })
+}
+
+// open opens what the focused pane shows on GitHub.
+func (m *Modal) open() tea.Cmd {
+	switch m.focus {
+	case branchPane:
+		if br, ok := m.branches.selected(); ok {
+			return ui.Open(m.branchURL(br.Name))
+		}
+	case graphPane:
+		if c, ok := m.selectedCommit(); ok {
+			return ui.Open(m.commitURL(c))
+		}
+	default:
+		c := &m.commit
+		switch {
+		case !c.has:
+		case c.loaded && c.cursor < len(c.files):
+			return ui.Open(m.fileURL(c.c, c.files[c.cursor].Path))
+		default:
+			return ui.Open(m.commitURL(c.c))
+		}
+	}
+	return nil
+}
