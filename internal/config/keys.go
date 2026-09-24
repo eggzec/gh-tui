@@ -33,6 +33,11 @@ const (
 	ActionStar        = "star"
 	ActionComment     = "comment"
 	ActionLabel       = "label"
+	// Actions of the file tree.
+	ActionExpand      = "expand"
+	ActionCollapse    = "collapse"
+	ActionExpandAll   = "expand_all"
+	ActionCollapseAll = "collapse_all"
 )
 
 func defaultKeys() map[string][]string {
@@ -58,6 +63,10 @@ func defaultKeys() map[string][]string {
 		ActionStar:        {"s"},
 		ActionComment:     {"c"},
 		ActionLabel:       {"l"},
+		ActionExpand:      {"+"},
+		ActionCollapse:    {"-"},
+		ActionExpandAll:   {"*"},
+		ActionCollapseAll: {"="},
 	}
 }
 
