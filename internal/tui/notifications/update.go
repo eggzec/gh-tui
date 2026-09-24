@@ -11,6 +11,14 @@ import (
 // Update handles the section's keys, sync events and finished changes, and
 // passes everything else to the list.
 func (s *Section) Update(msg tea.Msg) tea.Cmd {
+	cmd := s.update(msg)
+	if off := s.offline.Notify(); off != nil {
+		return tea.Batch(cmd, off)
+	}
+	return cmd
+}
+
+func (s *Section) update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		if cmd, ok := s.press(msg); ok {

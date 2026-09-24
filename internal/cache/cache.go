@@ -153,6 +153,20 @@ func (c *Cache[V]) Tagged(tag string) []V {
 	return out
 }
 
+// TaggedEntries returns the entries tagged with tag by key, fresh or stale.
+// Like Tagged, it is a snapshot.
+func (c *Cache[V]) TaggedEntries(tag string) map[string]Entry[V] {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	out := make(map[string]Entry[V])
+	for key, n := range c.items {
+		if slices.Contains(n.entry.Tags, tag) {
+			out[key] = n.entry
+		}
+	}
+	return out
+}
+
 // InvalidateTag marks every entry tagged with tag as stale. Entries are kept
 // rather than removed so views can keep showing them, and revalidate them
 // cheaply with their validators.

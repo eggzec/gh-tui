@@ -24,7 +24,9 @@ type API interface {
 type Service struct {
 	api   API
 	cache *cache.Cache[page]
-	now   func() time.Time
+	// kept holds what an earlier session read, if the service has a store.
+	kept *cache.Shelf[page]
+	now  func() time.Time
 	// interval is the latest X-Poll-Interval, in nanoseconds.
 	interval atomic.Int64
 }
@@ -36,6 +38,7 @@ type Option func(*options)
 
 type options struct {
 	cache []cache.Option
+	store cache.Store
 }
 
 // WithTTL sets how long a fetched page stays fresh. The default is
@@ -50,11 +53,31 @@ func WithCapacity(n int) Option {
 	return func(o *options) { o.cache = append(o.cache, cache.WithCapacity(n)) }
 }
 
+// WithStore keeps the pages in store as well as in memory, so that a later
+// session shows them at once and revalidates them with their validators.
+// The store must be the signed-in account's alone. By default nothing
+// outlives the service.
+func WithStore(store cache.Store) Option {
+	return func(o *options) { o.store = store }
+}
+
+// kind is what the service keeps its pages as, and schema the version of
+// core.Notification they hold. Bump it when the type changes shape.
+const (
+	kind   = "notifications"
+	schema = 1
+)
+
 // New returns a service that reads and writes notifications through api.
 func New(api API, opts ...Option) *Service {
 	var o options
 	for _, opt := range opts {
 		opt(&o)
 	}
-	return &Service{api: api, cache: cache.New[page](o.cache...), now: time.Now}
+	return &Service{
+		api:   api,
+		cache: cache.New[page](o.cache...),
+		kept:  cache.NewShelf[page](o.store, kind, schema),
+		now:   time.Now,
+	}
 }

@@ -219,3 +219,15 @@ func TestMaxSizeOtherType(t *testing.T) {
 		t.Errorf("Len %d, Size %d; want 2 unmeasured entries", c.Len(), c.Size())
 	}
 }
+
+func TestTaggedEntries(t *testing.T) {
+	c := New[int]()
+	c.Set("a", Entry[int]{Value: 1, ETag: `"a"`, Tags: []string{"t"}})
+	c.Set("b", Entry[int]{Value: 2, Tags: []string{"u"}})
+	c.Set("c", Entry[int]{Value: 3, Tags: []string{"t", "u"}})
+	c.Invalidate("c")
+	got := c.TaggedEntries("t")
+	if len(got) != 2 || got["a"].Value != 1 || got["a"].ETag != `"a"` || got["c"].Value != 3 {
+		t.Errorf("TaggedEntries = %+v, want a and c", got)
+	}
+}
