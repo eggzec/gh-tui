@@ -32,7 +32,7 @@ func TestGetDecodes(t *testing.T) {
 	if got.Name != "r" {
 		t.Errorf("name = %q, want r", got.Name)
 	}
-	want := Response{StatusCode: 200, ETag: `"abc"`, LastModified: "Mon, 21 Sep 2026 10:00:00 GMT"}
+	want := Response{StatusCode: 200, URL: c.restURL.String() + "repos/o/r", ETag: `"abc"`, LastModified: "Mon, 21 Sep 2026 10:00:00 GMT"}
 	if res != want {
 		t.Errorf("response = %+v, want %+v", res, want)
 	}

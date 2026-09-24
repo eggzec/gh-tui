@@ -23,7 +23,10 @@ type Conditional struct {
 
 // Response describes a REST response apart from its body.
 type Response struct {
-	StatusCode   int
+	StatusCode int
+	// URL is the URL the response is for. Getting it again with the
+	// validators revalidates what the response brought.
+	URL          string
 	ETag         string
 	LastModified string
 	// NotModified reports a 304: the cached entry is still current.
@@ -161,8 +164,13 @@ func newResponse(resp *http.Response) Response {
 	links := parseLinks(resp.Header.Get("Link"))
 	poll, _ := strconv.Atoi(resp.Header.Get("X-Poll-Interval"))
 	rl, _ := parseRateLimit(resp.Header)
+	var u string
+	if resp.Request != nil {
+		u = resp.Request.URL.String()
+	}
 	return Response{
 		StatusCode:   resp.StatusCode,
+		URL:          u,
 		ETag:         resp.Header.Get("ETag"),
 		LastModified: resp.Header.Get("Last-Modified"),
 		Next:         links["next"],
