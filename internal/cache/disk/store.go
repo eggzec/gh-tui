@@ -70,8 +70,19 @@ func (s *Store) Dir() string {
 }
 
 // Get returns the object of kind named key, and false if there is none or
-// it can't be read.
+// it can't be read. Reading an object counts as using it, for Collect.
 func (s *Store) Get(kind, key string) ([]byte, bool) {
+	return s.get(kind, key, true)
+}
+
+// Peek is Get without counting as a use, for reading objects in the
+// background, such as to revalidate them, without keeping them from being
+// collected.
+func (s *Store) Peek(kind, key string) ([]byte, bool) {
+	return s.get(kind, key, false)
+}
+
+func (s *Store) get(kind, key string, use bool) ([]byte, bool) {
 	p, ok := s.path(kind, key)
 	if !ok {
 		return nil, false
@@ -83,7 +94,7 @@ func (s *Store) Get(kind, key string) ([]byte, bool) {
 		first, second = second, first
 	}
 	for _, name := range []string{first, second} {
-		b, err := read(name)
+		b, err := read(name, use)
 		if err == nil {
 			return b, true
 		}
@@ -96,8 +107,9 @@ func (s *Store) Get(kind, key string) ([]byte, bool) {
 }
 
 // read returns the content of the object in name, decompressing it if its
-// name says so, and updates its modification time if it is old.
-func read(name string) ([]byte, error) {
+// name says so. If use is set, it updates the modification time of an old
+// object.
+func read(name string, use bool) ([]byte, error) {
 	f, err := os.Open(name)
 	if err != nil {
 		return nil, err
@@ -115,7 +127,7 @@ func read(name string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read %s: %w", name, err)
 	}
-	if now := time.Now(); now.Sub(fi.ModTime()) > touchAfter {
+	if now := time.Now(); use && now.Sub(fi.ModTime()) > touchAfter {
 		// Only eviction depends on it, so a failure doesn't matter.
 		_ = os.Chtimes(name, now, now)
 	}
@@ -165,9 +177,45 @@ func gunzip(z []byte) ([]byte, error) {
 // Put stores data as the object of kind named key, replacing any object of
 // that name. Data that doesn't get smaller compressed is stored as is.
 func (s *Store) Put(kind, key string, data []byte) error {
+	if _, err := s.put(kind, key, data); err != nil {
+		return fmt.Errorf("put %s %s: %w", kind, key, err)
+	}
+	return nil
+}
+
+// Replace is Put without counting as a use: the object keeps the
+// modification time of the one it replaces, if any, so that updating what
+// an object says about itself, such as when it was last revalidated,
+// doesn't keep it from being collected.
+func (s *Store) Replace(kind, key string, data []byte) error {
 	p, ok := s.path(kind, key)
 	if !ok {
-		return fmt.Errorf("put %s %q: invalid name", kind, key)
+		return fmt.Errorf("replace %s %q: invalid name", kind, key)
+	}
+	var used time.Time
+	for _, name := range []string{p + gzExt, p} {
+		if fi, err := os.Stat(name); err == nil {
+			used = fi.ModTime()
+			break
+		}
+	}
+	name, err := s.put(kind, key, data)
+	if err != nil {
+		return fmt.Errorf("replace %s %s: %w", kind, key, err)
+	}
+	if !used.IsZero() {
+		// Only eviction depends on it, so a failure doesn't matter.
+		_ = os.Chtimes(name, used, used)
+	}
+	return nil
+}
+
+// put stores data as the object of kind named key and returns the file it
+// wrote.
+func (s *Store) put(kind, key string, data []byte) (string, error) {
+	p, ok := s.path(kind, key)
+	if !ok {
+		return "", errors.New("invalid name")
 	}
 	body, name, other := data, p, p+gzExt
 	if s.compressed() {
@@ -176,12 +224,12 @@ func (s *Store) Put(kind, key string, data []byte) error {
 		}
 	}
 	if err := writeFile(name, body); err != nil {
-		return fmt.Errorf("put %s %s: %w", kind, key, err)
+		return "", err
 	}
 	// An object of the other format would now be out of date. Most objects
 	// never change, but some, such as what a branch points at, do.
 	_ = os.Remove(other)
-	return nil
+	return name, nil
 }
 
 func (s *Store) gzip(data []byte) ([]byte, error) {
