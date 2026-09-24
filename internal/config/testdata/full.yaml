@@ -61,6 +61,15 @@ details:
     rows: 10
     hover_delay: 1s
 
+history:
+  row: [short_sha, subject, verified, age]
+  detail: [sha, author, date, trailers]
+  date_format: "2006-01-02 15:04"
+  show_email: true
+  prefetch:
+    around: 5
+    hover_delay: 250ms
+
 log:
   level: debug
   file: /var/log/gh-tui.log
