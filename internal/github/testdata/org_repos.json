@@ -1,0 +1,63 @@
+{
+  "data": {
+    "rateLimit": {
+      "cost": 1,
+      "limit": 5000,
+      "remaining": 4990,
+      "used": 10,
+      "resetAt": "2026-09-24T12:29:23Z"
+    },
+    "organization": {
+      "repositories": {
+        "nodes": [
+          {
+            "id": "R_kgDOHru5HQ",
+            "name": "vhs",
+            "owner": {
+              "login": "charmbracelet"
+            },
+            "description": "Your CLI home video recorder 📼",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "Go"
+            },
+            "stargazerCount": 20972,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T12:09:19Z",
+            "url": "https://github.com/charmbracelet/vhs"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnkyMzMxMzAwODk=",
+            "name": "bubbletea",
+            "owner": {
+              "login": "charmbracelet"
+            },
+            "description": "A powerful little TUI framework 🏗",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "Go"
+            },
+            "stargazerCount": 45105,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T11:25:21Z",
+            "url": "https://github.com/charmbracelet/bubbletea"
+          }
+        ],
+        "pageInfo": {
+          "hasNextPage": true,
+          "endCursor": "Y3Vyc29yOnYyOpK0MjAyNi0wOS0yNFQxMToyNToyMVrODeVIaQ=="
+        }
+      }
+    }
+  }
+}
