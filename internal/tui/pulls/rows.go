@@ -25,28 +25,33 @@ const (
 	numberWidth = 5 // "#1234"; longer numbers push the title right
 	draftWidth  = 5 // "draft"
 	diffWidth   = 11
+	labelsWidth = 14 // the first label and how many more, such as "bug +2"
 	authorWidth = 10
 	ageWidth    = 4 // "11mo"
-	// minTitle is the narrowest the title may get before columns drop.
-	minTitle = 32
+	// minTitle is the narrowest the title may get before columns drop. On
+	// wide rows the title keeps titleShare of the width instead.
+	minTitle   = 20
+	titleShare = 0.4
 )
 
 // columns says which of the optional columns fit a width, and how wide the
 // title is.
 type columns struct {
-	width                                    int
-	title                                    int
-	draft, review, checks, diff, author, age bool
+	width                                            int
+	title                                            int
+	draft, review, checks, diff, labels, author, age bool
 }
 
 // columnsFor lays out a row of width cells. Columns drop, least important
-// first, until the title has minTitle cells.
+// first, until the title has its room. The state glyphs go last, since they
+// take little room and say the most.
 func columnsFor(width int) columns {
-	c := columns{width: width, draft: true, review: true, checks: true, diff: true, author: true, age: true}
-	drops := []*bool{&c.diff, &c.draft, &c.author, &c.age, &c.checks, &c.review}
+	c := columns{width: width, draft: true, review: true, checks: true, diff: true, labels: true, author: true, age: true}
+	drops := []*bool{&c.diff, &c.labels, &c.draft, &c.author, &c.age, &c.review, &c.checks}
+	want := max(minTitle, int(float64(width)*titleShare))
 	for {
 		c.title = width - c.fixed()
-		if c.title >= minTitle || len(drops) == 0 {
+		if c.title >= want || len(drops) == 0 {
 			break
 		}
 		*drops[0], drops = false, drops[1:]
@@ -68,6 +73,7 @@ func (c columns) fixed() int {
 	add(c.review, 2, 1)
 	add(c.checks, 1, 1)
 	add(c.diff, 2, diffWidth)
+	add(c.labels, 2, labelsWidth)
 	add(c.author, 2, authorWidth)
 	add(c.age, 2, ageWidth)
 	return n
@@ -85,6 +91,7 @@ type styles struct {
 	open, merged, closed, draft paint
 	rowTitle, rowSelected       paint
 	rowAuthor, rowAge, diff     paint
+	rowLabel                    paint
 
 	draftMark                           string
 	approved, changes, reviewRequired   string
@@ -115,6 +122,7 @@ func newStyles(t ui.Theme) styles {
 		rowAuthor:      newPaint(t.Muted),
 		rowAge:         newPaint(t.Subtle),
 		diff:           newPaint(t.Muted),
+		rowLabel:       newPaint(t.Muted),
 		draftMark:      t.Subtle.Render("draft"),
 		approved:       t.Success.Render("✓"),
 		changes:        t.Warning.Render("±"),
@@ -252,6 +260,10 @@ func (s *Section) renderRow(pr core.PullRequest, selected bool, width int) strin
 		st.diff.write(&b, dels)
 		pad(&b, half-ansi.StringWidth(dels))
 	}
+	if c.labels {
+		pad(&b, 2)
+		st.writeLabels(&b, pr.Labels)
+	}
 	if c.author {
 		pad(&b, 2)
 		login, lw := truncate(pr.Author.Login, authorWidth)
@@ -265,6 +277,27 @@ func (s *Section) renderRow(pr core.PullRequest, selected bool, width int) strin
 		st.rowAge.write(&b, ago)
 	}
 	return b.String()
+}
+
+// writeLabels writes the first of labels and how many more there are, in
+// labelsWidth cells.
+func (st *styles) writeLabels(b *strings.Builder, labels []core.Label) {
+	if len(labels) == 0 {
+		pad(b, labelsWidth)
+		return
+	}
+	more := ""
+	switch n := len(labels) - 1; {
+	case n > 9:
+		more = " +…"
+	case n > 0:
+		more = " +" + strconv.Itoa(n)
+	}
+	mw := utf8.RuneCountInString(more)
+	name, w := truncate(labels[0].Name, labelsWidth-mw)
+	st.rowLabel.write(b, name)
+	st.rowAge.write(b, more)
+	pad(b, labelsWidth-w-mw)
 }
 
 // truncate cuts s to at most width cells with an ellipsis, and returns it
@@ -346,13 +379,20 @@ func (s *Section) renderHeader() {
 		}
 	}
 	left := gutter + st.repo.Render(s.repo.String())
-	gap := s.width - ansi.StringWidth(left) - ansi.StringWidth(right.String())
-	if gap < 2 {
-		s.header = ansi.Truncate(left, s.width, "…")
-		s.header += strings.Repeat(" ", s.width-ansi.StringWidth(s.header))
+	lw := ansi.StringWidth(left)
+	// Narrow panes name only the current filter, and the narrowest only
+	// the repository.
+	if gap := s.width - lw - ansi.StringWidth(right.String()); gap >= 2 {
+		s.header = left + strings.Repeat(" ", gap) + right.String()
 		return
 	}
-	s.header = left + strings.Repeat(" ", gap) + right.String()
+	current := st.filterOn.Render(string(s.filter))
+	if gap := s.width - lw - len(s.filter); gap >= 2 {
+		s.header = left + strings.Repeat(" ", gap) + current
+		return
+	}
+	s.header = ansi.Truncate(left, s.width, "…")
+	s.header += strings.Repeat(" ", s.width-ansi.StringWidth(s.header))
 }
 
 // emptyText is what the feed says when no pull request is in the filter.

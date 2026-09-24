@@ -19,6 +19,15 @@ func BenchmarkView(b *testing.B) {
 			_ = s.View()
 		}
 	})
+	b.Run("list at 40 columns", func(b *testing.B) {
+		s := benchSection(b)
+		s.SetSize(40, 20)
+		drain(b, s, s.Update(nil))
+		b.ReportAllocs()
+		for b.Loop() {
+			_ = s.View()
+		}
+	})
 	b.Run("modal", func(b *testing.B) {
 		s := benchSection(b)
 		press(b, s, "enter")
