@@ -155,6 +155,17 @@ changes minimal so that pulling in new upstream versions stays easy.
   a ref's resolved SHA and validators on disk too, so a new session
   revalidates it with a free 304. Fall back to the disk copy only when
   GitHub can't be reached, never on a 401, 403 or 404.
+- Keep lists, details and comment pages on a `cache.Shelf`, in a directory
+  per account (`<host>/entry/<account>`, a hash of host and token), so no
+  account reads another's. A read that misses memory warms it from the
+  shelf in its `tea.Cmd`. A kept list page comes back at once with `Stale`
+  set, which feeds show and fetch again (`feed.ErrStale`); a kept detail
+  counts as cached, so the list's update time still vouches for it.
+- Keep only what GitHub sent. Optimistic changes stay in memory until
+  GitHub confirms them, and what is kept after a change has no validators.
+  An outage serves the kept entry with `Offline` set; a refusal drops it
+  (`github.Unreachable`, `github.Refused`). Bump a shelf's schema when its
+  value type changes shape.
 - Use stale-while-revalidate: serve cached data at once, refresh it in the
   background, and emit an update message if the data changed.
 - Store the `ETag`/`Last-Modified` for each entry so that revalidation costs
