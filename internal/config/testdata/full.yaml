@@ -70,6 +70,9 @@ history:
     around: 5
     hover_delay: 250ms
 
+dashboard:
+  calendar_glyph: "#"
+
 log:
   level: debug
   file: /var/log/gh-tui.log

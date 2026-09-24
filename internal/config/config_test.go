@@ -93,6 +93,7 @@ func TestLoadMergesOverDefaults(t *testing.T) {
 					ShowEmail:  true,
 					Prefetch:   HistoryPrefetch{Around: 5, HoverDelay: 250 * time.Millisecond},
 				}
+				c.Dashboard = Dashboard{CalendarGlyph: "#"}
 				c.Log = Log{Level: LevelDebug, File: "/var/log/gh-tui.log", MaxSize: MiB, Keep: 5, Summary: time.Minute}
 			},
 		},
@@ -157,6 +158,7 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 		DateFormat: "yesterday",
 		Prefetch:   HistoryPrefetch{Around: 11, HoverDelay: -time.Millisecond},
 	}
+	cfg.Dashboard.CalendarGlyph = "■■"
 	cfg.Log = Log{Level: "trace", File: "gh-tui.log", MaxSize: KiB, Keep: -1, Summary: time.Second}
 
 	err := cfg.Validate()
@@ -194,6 +196,7 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 		`history.date_format: must be relative, absolute or a Go time layout such as "2006-01-02 15:04", got "yesterday"`,
 		`history.prefetch.around: must be between 0 and 10, got 11`,
 		`history.prefetch.hover_delay: must not be negative, got -1ms`,
+		`dashboard.calendar_glyph: must be one character one cell wide, such as "■" or "#", got "■■"`,
 		`log.level: must be debug, info, warn or error, got "trace"`,
 		`log.file: must be an absolute path, got "gh-tui.log"`,
 		`log.max_size: must be at least 64KiB, got 1KiB`,
