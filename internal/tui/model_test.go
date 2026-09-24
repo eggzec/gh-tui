@@ -512,6 +512,17 @@ func TestNotifyShowsToast(t *testing.T) {
 	}
 }
 
+func TestWarningAtStart(t *testing.T) {
+	m, _ := newApp(t, core.RepoRef{}, WithWarning("No disk cache"))
+	if strings.Contains(onScreen(m), "No disk cache") {
+		t.Error("the warning showed before the app started")
+	}
+	run(m, m.Init())
+	if !strings.Contains(onScreen(m), "No disk cache") {
+		t.Error("view has no warning after Init")
+	}
+}
+
 func TestShowFocusesTheSection(t *testing.T) {
 	m, fakes := newTestApp(t)
 	run(m, func() tea.Msg { return ui.ShowMsg{Title: "Notifications"} })
