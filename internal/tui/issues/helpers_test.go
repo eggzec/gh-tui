@@ -45,6 +45,7 @@ type fakeService struct {
 	// cached holds the issues Get read, as the service's cache would.
 	cached   map[int]core.Issue
 	gets     []int
+	getCtxs  []context.Context
 	getErr   error
 	comments map[int][]core.Comment
 	// commentQueries are the comment pages asked for, and commented the
@@ -249,10 +250,11 @@ func newFakeService(issues []core.Issue) *fakeService {
 	}
 }
 
-func (f *fakeService) Get(_ context.Context, repo core.RepoRef, number int) (core.Issue, error) {
+func (f *fakeService) Get(ctx context.Context, repo core.RepoRef, number int) (core.Issue, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.gets = append(f.gets, number)
+	f.getCtxs = append(f.getCtxs, ctx)
 	if f.getErr != nil {
 		return core.Issue{}, f.getErr
 	}
@@ -287,6 +289,13 @@ func (f *fakeService) CachedComments(q issuesvc.CommentsQuery) (core.Page[core.C
 		return core.Page[core.Comment]{}, false
 	}
 	return f.commentPage(q), true
+}
+
+func (f *fakeService) Current(q issuesvc.CommentsQuery) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	_, ok := f.cached[q.Number]
+	return ok && f.commented[q]
 }
 
 // commentPage returns the page q selects. f.mu must be held.
@@ -499,9 +508,10 @@ func (h *host) modal() *detailModal {
 
 // newSection returns a focused section at width×height over svc, with the
 // default keys and a pinned clock. It is not started.
-func newSection(tb testing.TB, svc Service, width, height int) *host {
+func newSection(tb testing.TB, svc Service, width, height int, opts ...Option) *host {
 	tb.Helper()
-	s := New(tb.Context(), svc, config.Default().Keys, WithNow(func() time.Time { return testNow }))
+	opts = append([]Option{WithNow(func() time.Time { return testNow })}, opts...)
+	s := New(tb.Context(), svc, config.Default().Keys, opts...)
 	s.SetTheme(testTheme())
 	s.SetSize(width, height)
 	s.Focus()
@@ -510,9 +520,9 @@ func newSection(tb testing.TB, svc Service, width, height int) *host {
 
 // started returns a section that was sent the test repository and started,
 // with its first page loaded.
-func started(tb testing.TB, svc Service, width, height int) *host {
+func started(tb testing.TB, svc Service, width, height int, opts ...Option) *host {
 	tb.Helper()
-	h := newSection(tb, svc, width, height)
+	h := newSection(tb, svc, width, height, opts...)
 	run(tb, h, h.Update(ui.RepoMsg{Repo: testRepo}))
 	run(tb, h, h.Init())
 	return h
