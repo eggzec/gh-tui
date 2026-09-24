@@ -1,0 +1,264 @@
+{
+  "url": "https://api.github.com/repos/cli/go-gh/compare/v2.0.0...trunk",
+  "html_url": "https://github.com/cli/go-gh/compare/v2.0.0...trunk",
+  "permalink_url": "https://github.com/cli/go-gh/compare/cli:9330cac...cli:859e813",
+  "diff_url": "https://github.com/cli/go-gh/compare/v2.0.0...trunk.diff",
+  "patch_url": "https://github.com/cli/go-gh/compare/v2.0.0...trunk.patch",
+  "base_commit": {
+    "sha": "9330cac2bbd5929e602172bb6f117ba4ec7abaf5",
+    "node_id": "C_kwDOF_MgQdoAKDkzMzBjYWMyYmJkNTkyOWU2MDIxNzJiYjZmMTE3YmE0ZWM3YWJhZjU",
+    "commit": {
+      "author": {
+        "name": "Sam Coe",
+        "email": "samcoe@users.noreply.github.com",
+        "date": "2023-04-16T05:03:21Z"
+      },
+      "committer": {
+        "name": "GitHub",
+        "email": "noreply@github.com",
+        "date": "2023-04-16T05:03:21Z"
+      },
+      "message": "Breaking changes for v2.0.0 (#95)\n\n* Fix up repository package\r\n\r\n* Refactor api package\r\n\r\n* Fix up browser package\r\n\r\n* Fix up config package\r\n\r\n* Fix up template package\r\n\r\n* Wrap shurcool Errors in GQLError (#104)\r\n\r\n* Rename CurrentRepository to Current\r\n\r\n* Fix up tests\r\n\r\n* Change all references of GQL to GraphQL and references of gql to graphQL\r\n\r\n* Update to Go 1.20\r\n\r\n* Update package to V2\r\n\r\n* Update README",
+      "tree": {
+        "sha": "f4c9c2646f8a4e9aa51f0a2eb5ae73c9d7e61921",
+        "url": "https://api.github.com/repos/cli/go-gh/git/trees/f4c9c2646f8a4e9aa51f0a2eb5ae73c9d7e61921"
+      },
+      "url": "https://api.github.com/repos/cli/go-gh/git/commits/9330cac2bbd5929e602172bb6f117ba4ec7abaf5",
+      "comment_count": 0,
+      "verification": {
+        "verified": true,
+        "reason": "valid",
+        "signature": "-----BEGIN PGP SIGNATURE-----\n\nwsBcBAABCAAQBQJkO4GZCRBK7hj4Ov3rIwAAolkIADkTXY2R2nbRcS3waJrOsIJx\nbjAH1M/Jdm2KdNSabU7nqyeGOLwc48mTjmcJ94JNeZF+ZoJdPjhWsPrvOsSf/r5r\n7eiQBpGoO8pkJWzi0s58dRB2wElQtwOECpgmxjEe9g/kcN5OMLSQwKo4q1JYMiSV\naS+N+dN05UFJVT7qcV9LnEkzO8xVz3qIIweePSI79Ir5ZNkT18o8S0TewwSV272W\nRhYNpxLKCInkd4/7MMhcZKwqjxQVSzc/DopbbytbiFjCSTvHQKK6vbX854pxB65z\nu0cJ9c7MlGyHflSN9BbJGdY7Yu8wFQ7Wle+HP7fQ35f38oGI09kQdDeJk1jQzH8=\n=9XSw\n-----END PGP SIGNATURE-----\n",
+        "payload": "tree f4c9c2646f8a4e9aa51f0a2eb5ae73c9d7e61921\nparent 026e976b60f91b35bd97a2d82914c24515dda127\nauthor Sam Coe <samcoe@users.noreply.github.com> 1681621401 +1000\ncommitter GitHub <noreply@github.com> 1681621401 +1000\n\nBreaking changes for v2.0.0 (#95)\n\n* Fix up repository package\r\n\r\n* Refactor api package\r\n\r\n* Fix up browser package\r\n\r\n* Fix up config package\r\n\r\n* Fix up template package\r\n\r\n* Wrap shurcool Errors in GQLError (#104)\r\n\r\n* Rename CurrentRepository to Current\r\n\r\n* Fix up tests\r\n\r\n* Change all references of GQL to GraphQL and references of gql to graphQL\r\n\r\n* Update to Go 1.20\r\n\r\n* Update package to V2\r\n\r\n* Update README",
+        "verified_at": "2024-01-16T19:59:59Z"
+      }
+    },
+    "url": "https://api.github.com/repos/cli/go-gh/commits/9330cac2bbd5929e602172bb6f117ba4ec7abaf5",
+    "html_url": "https://github.com/cli/go-gh/commit/9330cac2bbd5929e602172bb6f117ba4ec7abaf5",
+    "comments_url": "https://api.github.com/repos/cli/go-gh/commits/9330cac2bbd5929e602172bb6f117ba4ec7abaf5/comments",
+    "author": {
+      "login": "samcoe",
+      "id": 7969779,
+      "node_id": "MDQ6VXNlcjc5Njk3Nzk=",
+      "avatar_url": "https://avatars.githubusercontent.com/u/7969779?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/samcoe",
+      "html_url": "https://github.com/samcoe",
+      "followers_url": "https://api.github.com/users/samcoe/followers",
+      "following_url": "https://api.github.com/users/samcoe/following{/other_user}",
+      "gists_url": "https://api.github.com/users/samcoe/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/samcoe/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/samcoe/subscriptions",
+      "organizations_url": "https://api.github.com/users/samcoe/orgs",
+      "repos_url": "https://api.github.com/users/samcoe/repos",
+      "events_url": "https://api.github.com/users/samcoe/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/samcoe/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "committer": {
+      "login": "web-flow",
+      "id": 19864447,
+      "node_id": "MDQ6VXNlcjE5ODY0NDQ3",
+      "avatar_url": "https://avatars.githubusercontent.com/u/19864447?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/web-flow",
+      "html_url": "https://github.com/web-flow",
+      "followers_url": "https://api.github.com/users/web-flow/followers",
+      "following_url": "https://api.github.com/users/web-flow/following{/other_user}",
+      "gists_url": "https://api.github.com/users/web-flow/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/web-flow/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/web-flow/subscriptions",
+      "organizations_url": "https://api.github.com/users/web-flow/orgs",
+      "repos_url": "https://api.github.com/users/web-flow/repos",
+      "events_url": "https://api.github.com/users/web-flow/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/web-flow/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "parents": [
+      {
+        "sha": "026e976b60f91b35bd97a2d82914c24515dda127",
+        "url": "https://api.github.com/repos/cli/go-gh/commits/026e976b60f91b35bd97a2d82914c24515dda127",
+        "html_url": "https://github.com/cli/go-gh/commit/026e976b60f91b35bd97a2d82914c24515dda127"
+      }
+    ]
+  },
+  "merge_base_commit": {
+    "sha": "9330cac2bbd5929e602172bb6f117ba4ec7abaf5",
+    "node_id": "C_kwDOF_MgQdoAKDkzMzBjYWMyYmJkNTkyOWU2MDIxNzJiYjZmMTE3YmE0ZWM3YWJhZjU",
+    "commit": {
+      "author": {
+        "name": "Sam Coe",
+        "email": "samcoe@users.noreply.github.com",
+        "date": "2023-04-16T05:03:21Z"
+      },
+      "committer": {
+        "name": "GitHub",
+        "email": "noreply@github.com",
+        "date": "2023-04-16T05:03:21Z"
+      },
+      "message": "Breaking changes for v2.0.0 (#95)\n\n* Fix up repository package\r\n\r\n* Refactor api package\r\n\r\n* Fix up browser package\r\n\r\n* Fix up config package\r\n\r\n* Fix up template package\r\n\r\n* Wrap shurcool Errors in GQLError (#104)\r\n\r\n* Rename CurrentRepository to Current\r\n\r\n* Fix up tests\r\n\r\n* Change all references of GQL to GraphQL and references of gql to graphQL\r\n\r\n* Update to Go 1.20\r\n\r\n* Update package to V2\r\n\r\n* Update README",
+      "tree": {
+        "sha": "f4c9c2646f8a4e9aa51f0a2eb5ae73c9d7e61921",
+        "url": "https://api.github.com/repos/cli/go-gh/git/trees/f4c9c2646f8a4e9aa51f0a2eb5ae73c9d7e61921"
+      },
+      "url": "https://api.github.com/repos/cli/go-gh/git/commits/9330cac2bbd5929e602172bb6f117ba4ec7abaf5",
+      "comment_count": 0,
+      "verification": {
+        "verified": true,
+        "reason": "valid",
+        "signature": "-----BEGIN PGP SIGNATURE-----\n\nwsBcBAABCAAQBQJkO4GZCRBK7hj4Ov3rIwAAolkIADkTXY2R2nbRcS3waJrOsIJx\nbjAH1M/Jdm2KdNSabU7nqyeGOLwc48mTjmcJ94JNeZF+ZoJdPjhWsPrvOsSf/r5r\n7eiQBpGoO8pkJWzi0s58dRB2wElQtwOECpgmxjEe9g/kcN5OMLSQwKo4q1JYMiSV\naS+N+dN05UFJVT7qcV9LnEkzO8xVz3qIIweePSI79Ir5ZNkT18o8S0TewwSV272W\nRhYNpxLKCInkd4/7MMhcZKwqjxQVSzc/DopbbytbiFjCSTvHQKK6vbX854pxB65z\nu0cJ9c7MlGyHflSN9BbJGdY7Yu8wFQ7Wle+HP7fQ35f38oGI09kQdDeJk1jQzH8=\n=9XSw\n-----END PGP SIGNATURE-----\n",
+        "payload": "tree f4c9c2646f8a4e9aa51f0a2eb5ae73c9d7e61921\nparent 026e976b60f91b35bd97a2d82914c24515dda127\nauthor Sam Coe <samcoe@users.noreply.github.com> 1681621401 +1000\ncommitter GitHub <noreply@github.com> 1681621401 +1000\n\nBreaking changes for v2.0.0 (#95)\n\n* Fix up repository package\r\n\r\n* Refactor api package\r\n\r\n* Fix up browser package\r\n\r\n* Fix up config package\r\n\r\n* Fix up template package\r\n\r\n* Wrap shurcool Errors in GQLError (#104)\r\n\r\n* Rename CurrentRepository to Current\r\n\r\n* Fix up tests\r\n\r\n* Change all references of GQL to GraphQL and references of gql to graphQL\r\n\r\n* Update to Go 1.20\r\n\r\n* Update package to V2\r\n\r\n* Update README",
+        "verified_at": "2024-01-16T19:59:59Z"
+      }
+    },
+    "url": "https://api.github.com/repos/cli/go-gh/commits/9330cac2bbd5929e602172bb6f117ba4ec7abaf5",
+    "html_url": "https://github.com/cli/go-gh/commit/9330cac2bbd5929e602172bb6f117ba4ec7abaf5",
+    "comments_url": "https://api.github.com/repos/cli/go-gh/commits/9330cac2bbd5929e602172bb6f117ba4ec7abaf5/comments",
+    "author": {
+      "login": "samcoe",
+      "id": 7969779,
+      "node_id": "MDQ6VXNlcjc5Njk3Nzk=",
+      "avatar_url": "https://avatars.githubusercontent.com/u/7969779?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/samcoe",
+      "html_url": "https://github.com/samcoe",
+      "followers_url": "https://api.github.com/users/samcoe/followers",
+      "following_url": "https://api.github.com/users/samcoe/following{/other_user}",
+      "gists_url": "https://api.github.com/users/samcoe/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/samcoe/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/samcoe/subscriptions",
+      "organizations_url": "https://api.github.com/users/samcoe/orgs",
+      "repos_url": "https://api.github.com/users/samcoe/repos",
+      "events_url": "https://api.github.com/users/samcoe/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/samcoe/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "committer": {
+      "login": "web-flow",
+      "id": 19864447,
+      "node_id": "MDQ6VXNlcjE5ODY0NDQ3",
+      "avatar_url": "https://avatars.githubusercontent.com/u/19864447?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/web-flow",
+      "html_url": "https://github.com/web-flow",
+      "followers_url": "https://api.github.com/users/web-flow/followers",
+      "following_url": "https://api.github.com/users/web-flow/following{/other_user}",
+      "gists_url": "https://api.github.com/users/web-flow/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/web-flow/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/web-flow/subscriptions",
+      "organizations_url": "https://api.github.com/users/web-flow/orgs",
+      "repos_url": "https://api.github.com/users/web-flow/repos",
+      "events_url": "https://api.github.com/users/web-flow/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/web-flow/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "parents": [
+      {
+        "sha": "026e976b60f91b35bd97a2d82914c24515dda127",
+        "url": "https://api.github.com/repos/cli/go-gh/commits/026e976b60f91b35bd97a2d82914c24515dda127",
+        "html_url": "https://github.com/cli/go-gh/commit/026e976b60f91b35bd97a2d82914c24515dda127"
+      }
+    ]
+  },
+  "status": "ahead",
+  "ahead_by": 242,
+  "behind_by": 0,
+  "total_commits": 242,
+  "commits": [
+    {
+      "sha": "ccb69a6ec9775c1d6efe8f0ab4ca404439e543a7",
+      "node_id": "C_kwDOF_MgQdoAKGNjYjY5YTZlYzk3NzVjMWQ2ZWZlOGYwYWI0Y2E0MDQ0MzllNTQzYTc",
+      "commit": {
+        "author": {
+          "name": "Mislav Marohnić",
+          "email": "mislav@github.com",
+          "date": "2023-04-20T11:45:13Z"
+        },
+        "committer": {
+          "name": "GitHub",
+          "email": "noreply@github.com",
+          "date": "2023-04-20T11:45:13Z"
+        },
+        "message": "Merge pull request #117 from heaths/is-color-forced\n\nExpose IsColorForced",
+        "tree": {
+          "sha": "2a88be7a39469898faa425bb1c1c86c209fc2dc5",
+          "url": "https://api.github.com/repos/cli/go-gh/git/trees/2a88be7a39469898faa425bb1c1c86c209fc2dc5"
+        },
+        "url": "https://api.github.com/repos/cli/go-gh/git/commits/ccb69a6ec9775c1d6efe8f0ab4ca404439e543a7",
+        "comment_count": 0,
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\nwsBcBAABCAAQBQJkQSXJCRBK7hj4Ov3rIwAA3hIIAJ0cynbH+o7+9k5OL/MAN2RD\nU4RA7YNqoie2GnJhPRtmnoAFMRPomjsEh9Hbvvoyhv7IJ3d28YpI8P1YF13P/M8H\nN/C/Ga5HC4oh1H5XeoQGahdDtIX/6/b1F0b8/r75gltJ5esDpoQArhEMJdqwN09p\nSVLoHka7W/BumjNjuCP5v9QNOzqYzwgAsYitjS6XiUibb+3mcaCYf4cuswsHYOBJ\nKsgTARN8mSyUxWEFVNoQs75WRRkL3EW8QziaiDJTMcTp7ICoYamTbK5HDSWS5d2e\n6Fn1Fhpd/FaJAKJ7Oa1zO1ZK9XshbanJABFwULhkadSTBOWQ7AD0WWJUaaoNFss=\n=rab/\n-----END PGP SIGNATURE-----\n",
+          "payload": "tree 2a88be7a39469898faa425bb1c1c86c209fc2dc5\nparent 9330cac2bbd5929e602172bb6f117ba4ec7abaf5\nparent e5de29e1c36cb92402f17d9c7e2ccd02eb92dd39\nauthor Mislav Marohnić <mislav@github.com> 1681991113 +0200\ncommitter GitHub <noreply@github.com> 1681991113 +0200\n\nMerge pull request #117 from heaths/is-color-forced\n\nExpose IsColorForced",
+          "verified_at": "2024-11-06T19:43:04Z"
+        }
+      },
+      "url": "https://api.github.com/repos/cli/go-gh/commits/ccb69a6ec9775c1d6efe8f0ab4ca404439e543a7",
+      "html_url": "https://github.com/cli/go-gh/commit/ccb69a6ec9775c1d6efe8f0ab4ca404439e543a7",
+      "comments_url": "https://api.github.com/repos/cli/go-gh/commits/ccb69a6ec9775c1d6efe8f0ab4ca404439e543a7/comments",
+      "author": {
+        "login": "mislav",
+        "id": 887,
+        "node_id": "MDQ6VXNlcjg4Nw==",
+        "avatar_url": "https://avatars.githubusercontent.com/u/887?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/mislav",
+        "html_url": "https://github.com/mislav",
+        "followers_url": "https://api.github.com/users/mislav/followers",
+        "following_url": "https://api.github.com/users/mislav/following{/other_user}",
+        "gists_url": "https://api.github.com/users/mislav/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/mislav/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/mislav/subscriptions",
+        "organizations_url": "https://api.github.com/users/mislav/orgs",
+        "repos_url": "https://api.github.com/users/mislav/repos",
+        "events_url": "https://api.github.com/users/mislav/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/mislav/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "web-flow",
+        "id": 19864447,
+        "node_id": "MDQ6VXNlcjE5ODY0NDQ3",
+        "avatar_url": "https://avatars.githubusercontent.com/u/19864447?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/web-flow",
+        "html_url": "https://github.com/web-flow",
+        "followers_url": "https://api.github.com/users/web-flow/followers",
+        "following_url": "https://api.github.com/users/web-flow/following{/other_user}",
+        "gists_url": "https://api.github.com/users/web-flow/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/web-flow/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/web-flow/subscriptions",
+        "organizations_url": "https://api.github.com/users/web-flow/orgs",
+        "repos_url": "https://api.github.com/users/web-flow/repos",
+        "events_url": "https://api.github.com/users/web-flow/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/web-flow/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "9330cac2bbd5929e602172bb6f117ba4ec7abaf5",
+          "url": "https://api.github.com/repos/cli/go-gh/commits/9330cac2bbd5929e602172bb6f117ba4ec7abaf5",
+          "html_url": "https://github.com/cli/go-gh/commit/9330cac2bbd5929e602172bb6f117ba4ec7abaf5"
+        },
+        {
+          "sha": "e5de29e1c36cb92402f17d9c7e2ccd02eb92dd39",
+          "url": "https://api.github.com/repos/cli/go-gh/commits/e5de29e1c36cb92402f17d9c7e2ccd02eb92dd39",
+          "html_url": "https://github.com/cli/go-gh/commit/e5de29e1c36cb92402f17d9c7e2ccd02eb92dd39"
+        }
+      ]
+    }
+  ]
+}

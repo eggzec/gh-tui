@@ -1,0 +1,101 @@
+{
+  "sha": "859e813416733b742d6fc21df59a2058e04f0f38",
+  "node_id": "C_kwDOF_MgQdoAKDg1OWU4MTM0MTY3MzNiNzQyZDZmYzIxZGY1OWEyMDU4ZTA0ZjBmMzg",
+  "commit": {
+    "author": {
+      "name": "dependabot[bot]",
+      "email": "49699333+dependabot[bot]@users.noreply.github.com",
+      "date": "2026-09-24T07:55:39Z"
+    },
+    "committer": {
+      "name": "GitHub",
+      "email": "noreply@github.com",
+      "date": "2026-09-24T07:55:39Z"
+    },
+    "message": "chore(deps): Bump the codeql-actions group with 2 updates (#308)\n\nBumps the codeql-actions group with 2 updates: [github/codeql-action/init](https://github.com/github/codeql-action) and [github/codeql-action/analyze](https://github.com/github/codeql-action).\n\n\nUpdates `github/codeql-action/init` from 4.38.0 to 4.38.1\n- [Release notes](https://github.com/github/codeql-action/releases)\n- [Changelog](https://github.com/github/codeql-action/blob/main/CHANGELOG.md)\n- [Commits](https://github.com/github/codeql-action/compare/b96794f015dfd88f77b49b1c93e0fa7110f94c63...1c5b675653bb5c22dbe9b12b556ec555138e09fd)\n\nUpdates `github/codeql-action/analyze` from 4.38.0 to 4.38.1\n- [Release notes](https://github.com/github/codeql-action/releases)\n- [Changelog](https://github.com/github/codeql-action/blob/main/CHANGELOG.md)\n- [Commits](https://github.com/github/codeql-action/compare/b96794f015dfd88f77b49b1c93e0fa7110f94c63...1c5b675653bb5c22dbe9b12b556ec555138e09fd)\n\n---\nupdated-dependencies:\n- dependency-name: github/codeql-action/init\n  dependency-version: 4.38.1\n  dependency-type: direct:production\n  update-type: version-update:semver-patch\n  dependency-group: codeql-actions\n- dependency-name: github/codeql-action/analyze\n  dependency-version: 4.38.1\n  dependency-type: direct:production\n  update-type: version-update:semver-patch\n  dependency-group: codeql-actions\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+    "tree": {
+      "sha": "57ad014f45b76b43945e7af56a7315aa58a7647c",
+      "url": "https://api.github.com/repos/cli/go-gh/git/trees/57ad014f45b76b43945e7af56a7315aa58a7647c"
+    },
+    "url": "https://api.github.com/repos/cli/go-gh/git/commits/859e813416733b742d6fc21df59a2058e04f0f38",
+    "comment_count": 0,
+    "verification": {
+      "verified": true,
+      "reason": "valid",
+      "signature": "-----BEGIN PGP SIGNATURE-----\n\nwsFcBAABCAAQBQJqtNd7CRC1aQ7uu5UhlAAAzbkQAAsd5R9tcBaW/ca3BJjz3NJO\nNxizfEej1nJUZJ2E2cPGVfi0CQrlgiydoKsFdvP0hOIzN2oDBxwF7BKa73ZXIipU\nScIBMw+iMmrBd8pYb9pHIrOHIlg44FY2WOtxFTn62LFXoISI/MZgCw9kLrxd6FBY\ndevXhK66t6Ej2MUl7rVYu7D2uiCf9jKFHttxrH+qbnZs3NSuH6u24GZoJKBW1fiP\nh1sWD7JaAckJRSP1Zgjma2qsba0DxhPFLX96TDtiUTKxTtEGOniu4pTzPlTHi2Hf\nmwFhu09ASsCY8i4Ta5V41t96X2bHbLwd4cJamoHVTw5XRxp/S59uZ4CWEMZqdAub\n/xNvuk5NoJKz5rtg4dwExbbI/PIMBiYGT2i3mXy6qXEpfeQdBs9krBzP9mde7pFD\nMNYlusWPbR0Uv1sqGPs8BYkn/zOsgGycPF/2iM4TRT0+7dydWX+sbzjmUpWcypVN\n52kNrGfXBgyUpLxD1VwoDzOKzC5sVv2jLXnQRGTVoV/cK7COhh2pzvJpMTA48PAr\nvN5XqMO09TOI81jiTK9o1/5sn2RJSbx4O0O6qRiqB9nbSUpvzZQwxIwHNbY98WtS\nuyh8cTuuUIZYAObr0vRvgP+q4N1z94LOfERODWbX1f+hml/z/YTWwOMujkN8nH64\nL6Hpjc4E3HGzT0LpiuE+\n=DPmm\n-----END PGP SIGNATURE-----\n",
+      "payload": "tree 57ad014f45b76b43945e7af56a7315aa58a7647c\nparent 460f28c4ab0b28de1479b5c1195cf03dc0b31d57\nauthor dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com> 1790236539 +0200\ncommitter GitHub <noreply@github.com> 1790236539 +0200\n\nchore(deps): Bump the codeql-actions group with 2 updates (#308)\n\nBumps the codeql-actions group with 2 updates: [github/codeql-action/init](https://github.com/github/codeql-action) and [github/codeql-action/analyze](https://github.com/github/codeql-action).\n\n\nUpdates `github/codeql-action/init` from 4.38.0 to 4.38.1\n- [Release notes](https://github.com/github/codeql-action/releases)\n- [Changelog](https://github.com/github/codeql-action/blob/main/CHANGELOG.md)\n- [Commits](https://github.com/github/codeql-action/compare/b96794f015dfd88f77b49b1c93e0fa7110f94c63...1c5b675653bb5c22dbe9b12b556ec555138e09fd)\n\nUpdates `github/codeql-action/analyze` from 4.38.0 to 4.38.1\n- [Release notes](https://github.com/github/codeql-action/releases)\n- [Changelog](https://github.com/github/codeql-action/blob/main/CHANGELOG.md)\n- [Commits](https://github.com/github/codeql-action/compare/b96794f015dfd88f77b49b1c93e0fa7110f94c63...1c5b675653bb5c22dbe9b12b556ec555138e09fd)\n\n---\nupdated-dependencies:\n- dependency-name: github/codeql-action/init\n  dependency-version: 4.38.1\n  dependency-type: direct:production\n  update-type: version-update:semver-patch\n  dependency-group: codeql-actions\n- dependency-name: github/codeql-action/analyze\n  dependency-version: 4.38.1\n  dependency-type: direct:production\n  update-type: version-update:semver-patch\n  dependency-group: codeql-actions\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+      "verified_at": "2026-09-24T07:55:39Z"
+    }
+  },
+  "url": "https://api.github.com/repos/cli/go-gh/commits/859e813416733b742d6fc21df59a2058e04f0f38",
+  "html_url": "https://github.com/cli/go-gh/commit/859e813416733b742d6fc21df59a2058e04f0f38",
+  "comments_url": "https://api.github.com/repos/cli/go-gh/commits/859e813416733b742d6fc21df59a2058e04f0f38/comments",
+  "author": {
+    "login": "dependabot[bot]",
+    "id": 49699333,
+    "node_id": "MDM6Qm90NDk2OTkzMzM=",
+    "avatar_url": "https://avatars.githubusercontent.com/in/29110?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/dependabot%5Bbot%5D",
+    "html_url": "https://github.com/apps/dependabot",
+    "followers_url": "https://api.github.com/users/dependabot%5Bbot%5D/followers",
+    "following_url": "https://api.github.com/users/dependabot%5Bbot%5D/following{/other_user}",
+    "gists_url": "https://api.github.com/users/dependabot%5Bbot%5D/gists{/gist_id}",
+    "starred_url": "https://api.github.com/users/dependabot%5Bbot%5D/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/dependabot%5Bbot%5D/subscriptions",
+    "organizations_url": "https://api.github.com/users/dependabot%5Bbot%5D/orgs",
+    "repos_url": "https://api.github.com/users/dependabot%5Bbot%5D/repos",
+    "events_url": "https://api.github.com/users/dependabot%5Bbot%5D/events{/privacy}",
+    "received_events_url": "https://api.github.com/users/dependabot%5Bbot%5D/received_events",
+    "type": "Bot",
+    "user_view_type": "public",
+    "site_admin": false
+  },
+  "committer": {
+    "login": "web-flow",
+    "id": 19864447,
+    "node_id": "MDQ6VXNlcjE5ODY0NDQ3",
+    "avatar_url": "https://avatars.githubusercontent.com/u/19864447?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/web-flow",
+    "html_url": "https://github.com/web-flow",
+    "followers_url": "https://api.github.com/users/web-flow/followers",
+    "following_url": "https://api.github.com/users/web-flow/following{/other_user}",
+    "gists_url": "https://api.github.com/users/web-flow/gists{/gist_id}",
+    "starred_url": "https://api.github.com/users/web-flow/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/web-flow/subscriptions",
+    "organizations_url": "https://api.github.com/users/web-flow/orgs",
+    "repos_url": "https://api.github.com/users/web-flow/repos",
+    "events_url": "https://api.github.com/users/web-flow/events{/privacy}",
+    "received_events_url": "https://api.github.com/users/web-flow/received_events",
+    "type": "User",
+    "user_view_type": "public",
+    "site_admin": false
+  },
+  "parents": [
+    {
+      "sha": "460f28c4ab0b28de1479b5c1195cf03dc0b31d57",
+      "url": "https://api.github.com/repos/cli/go-gh/commits/460f28c4ab0b28de1479b5c1195cf03dc0b31d57",
+      "html_url": "https://github.com/cli/go-gh/commit/460f28c4ab0b28de1479b5c1195cf03dc0b31d57"
+    }
+  ],
+  "stats": {
+    "total": 4,
+    "additions": 2,
+    "deletions": 2
+  },
+  "files": [
+    {
+      "sha": "39a18ab9f78c694b5f518a2eec4f23e0e94eaa48",
+      "filename": ".github/workflows/codeql-analysis.yml",
+      "status": "modified",
+      "additions": 2,
+      "deletions": 2,
+      "changes": 4,
+      "blob_url": "https://github.com/cli/go-gh/blob/859e813416733b742d6fc21df59a2058e04f0f38/.github%2Fworkflows%2Fcodeql-analysis.yml",
+      "raw_url": "https://github.com/cli/go-gh/raw/859e813416733b742d6fc21df59a2058e04f0f38/.github%2Fworkflows%2Fcodeql-analysis.yml",
+      "contents_url": "https://api.github.com/repos/cli/go-gh/contents/.github%2Fworkflows%2Fcodeql-analysis.yml?ref=859e813416733b742d6fc21df59a2058e04f0f38",
+      "patch": "@@ -36,12 +36,12 @@ jobs:\n           go-version-file: \"go.mod\"\n \n       - name: Initialize CodeQL\n-        uses: github/codeql-action/init@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0\n+        uses: github/codeql-action/init@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1\n         with:\n           languages: ${{ matrix.language }}\n           queries: security-and-quality\n \n       - name: Perform CodeQL Analysis\n-        uses: github/codeql-action/analyze@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0\n+        uses: github/codeql-action/analyze@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1\n         with:\n           category: \"/language:${{ matrix.language }}\""
+    }
+  ]
+}

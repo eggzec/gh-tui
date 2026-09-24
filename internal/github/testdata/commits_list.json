@@ -1,0 +1,248 @@
+[
+  {
+    "sha": "859e813416733b742d6fc21df59a2058e04f0f38",
+    "node_id": "C_kwDOF_MgQdoAKDg1OWU4MTM0MTY3MzNiNzQyZDZmYzIxZGY1OWEyMDU4ZTA0ZjBmMzg",
+    "commit": {
+      "author": {
+        "name": "dependabot[bot]",
+        "email": "49699333+dependabot[bot]@users.noreply.github.com",
+        "date": "2026-09-24T07:55:39Z"
+      },
+      "committer": {
+        "name": "GitHub",
+        "email": "noreply@github.com",
+        "date": "2026-09-24T07:55:39Z"
+      },
+      "message": "chore(deps): Bump the codeql-actions group with 2 updates (#308)\n\nBumps the codeql-actions group with 2 updates: [github/codeql-action/init](https://github.com/github/codeql-action) and [github/codeql-action/analyze](https://github.com/github/codeql-action).\n\n\nUpdates `github/codeql-action/init` from 4.38.0 to 4.38.1\n- [Release notes](https://github.com/github/codeql-action/releases)\n- [Changelog](https://github.com/github/codeql-action/blob/main/CHANGELOG.md)\n- [Commits](https://github.com/github/codeql-action/compare/b96794f015dfd88f77b49b1c93e0fa7110f94c63...1c5b675653bb5c22dbe9b12b556ec555138e09fd)\n\nUpdates `github/codeql-action/analyze` from 4.38.0 to 4.38.1\n- [Release notes](https://github.com/github/codeql-action/releases)\n- [Changelog](https://github.com/github/codeql-action/blob/main/CHANGELOG.md)\n- [Commits](https://github.com/github/codeql-action/compare/b96794f015dfd88f77b49b1c93e0fa7110f94c63...1c5b675653bb5c22dbe9b12b556ec555138e09fd)\n\n---\nupdated-dependencies:\n- dependency-name: github/codeql-action/init\n  dependency-version: 4.38.1\n  dependency-type: direct:production\n  update-type: version-update:semver-patch\n  dependency-group: codeql-actions\n- dependency-name: github/codeql-action/analyze\n  dependency-version: 4.38.1\n  dependency-type: direct:production\n  update-type: version-update:semver-patch\n  dependency-group: codeql-actions\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+      "tree": {
+        "sha": "57ad014f45b76b43945e7af56a7315aa58a7647c",
+        "url": "https://api.github.com/repos/cli/go-gh/git/trees/57ad014f45b76b43945e7af56a7315aa58a7647c"
+      },
+      "url": "https://api.github.com/repos/cli/go-gh/git/commits/859e813416733b742d6fc21df59a2058e04f0f38",
+      "comment_count": 0,
+      "verification": {
+        "verified": true,
+        "reason": "valid",
+        "signature": "-----BEGIN PGP SIGNATURE-----\n\nwsFcBAABCAAQBQJqtNd7CRC1aQ7uu5UhlAAAzbkQAAsd5R9tcBaW/ca3BJjz3NJO\nNxizfEej1nJUZJ2E2cPGVfi0CQrlgiydoKsFdvP0hOIzN2oDBxwF7BKa73ZXIipU\nScIBMw+iMmrBd8pYb9pHIrOHIlg44FY2WOtxFTn62LFXoISI/MZgCw9kLrxd6FBY\ndevXhK66t6Ej2MUl7rVYu7D2uiCf9jKFHttxrH+qbnZs3NSuH6u24GZoJKBW1fiP\nh1sWD7JaAckJRSP1Zgjma2qsba0DxhPFLX96TDtiUTKxTtEGOniu4pTzPlTHi2Hf\nmwFhu09ASsCY8i4Ta5V41t96X2bHbLwd4cJamoHVTw5XRxp/S59uZ4CWEMZqdAub\n/xNvuk5NoJKz5rtg4dwExbbI/PIMBiYGT2i3mXy6qXEpfeQdBs9krBzP9mde7pFD\nMNYlusWPbR0Uv1sqGPs8BYkn/zOsgGycPF/2iM4TRT0+7dydWX+sbzjmUpWcypVN\n52kNrGfXBgyUpLxD1VwoDzOKzC5sVv2jLXnQRGTVoV/cK7COhh2pzvJpMTA48PAr\nvN5XqMO09TOI81jiTK9o1/5sn2RJSbx4O0O6qRiqB9nbSUpvzZQwxIwHNbY98WtS\nuyh8cTuuUIZYAObr0vRvgP+q4N1z94LOfERODWbX1f+hml/z/YTWwOMujkN8nH64\nL6Hpjc4E3HGzT0LpiuE+\n=DPmm\n-----END PGP SIGNATURE-----\n",
+        "payload": "tree 57ad014f45b76b43945e7af56a7315aa58a7647c\nparent 460f28c4ab0b28de1479b5c1195cf03dc0b31d57\nauthor dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com> 1790236539 +0200\ncommitter GitHub <noreply@github.com> 1790236539 +0200\n\nchore(deps): Bump the codeql-actions group with 2 updates (#308)\n\nBumps the codeql-actions group with 2 updates: [github/codeql-action/init](https://github.com/github/codeql-action) and [github/codeql-action/analyze](https://github.com/github/codeql-action).\n\n\nUpdates `github/codeql-action/init` from 4.38.0 to 4.38.1\n- [Release notes](https://github.com/github/codeql-action/releases)\n- [Changelog](https://github.com/github/codeql-action/blob/main/CHANGELOG.md)\n- [Commits](https://github.com/github/codeql-action/compare/b96794f015dfd88f77b49b1c93e0fa7110f94c63...1c5b675653bb5c22dbe9b12b556ec555138e09fd)\n\nUpdates `github/codeql-action/analyze` from 4.38.0 to 4.38.1\n- [Release notes](https://github.com/github/codeql-action/releases)\n- [Changelog](https://github.com/github/codeql-action/blob/main/CHANGELOG.md)\n- [Commits](https://github.com/github/codeql-action/compare/b96794f015dfd88f77b49b1c93e0fa7110f94c63...1c5b675653bb5c22dbe9b12b556ec555138e09fd)\n\n---\nupdated-dependencies:\n- dependency-name: github/codeql-action/init\n  dependency-version: 4.38.1\n  dependency-type: direct:production\n  update-type: version-update:semver-patch\n  dependency-group: codeql-actions\n- dependency-name: github/codeql-action/analyze\n  dependency-version: 4.38.1\n  dependency-type: direct:production\n  update-type: version-update:semver-patch\n  dependency-group: codeql-actions\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+        "verified_at": "2026-09-24T07:55:39Z"
+      }
+    },
+    "url": "https://api.github.com/repos/cli/go-gh/commits/859e813416733b742d6fc21df59a2058e04f0f38",
+    "html_url": "https://github.com/cli/go-gh/commit/859e813416733b742d6fc21df59a2058e04f0f38",
+    "comments_url": "https://api.github.com/repos/cli/go-gh/commits/859e813416733b742d6fc21df59a2058e04f0f38/comments",
+    "author": {
+      "login": "dependabot[bot]",
+      "id": 49699333,
+      "node_id": "MDM6Qm90NDk2OTkzMzM=",
+      "avatar_url": "https://avatars.githubusercontent.com/in/29110?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/dependabot%5Bbot%5D",
+      "html_url": "https://github.com/apps/dependabot",
+      "followers_url": "https://api.github.com/users/dependabot%5Bbot%5D/followers",
+      "following_url": "https://api.github.com/users/dependabot%5Bbot%5D/following{/other_user}",
+      "gists_url": "https://api.github.com/users/dependabot%5Bbot%5D/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/dependabot%5Bbot%5D/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/dependabot%5Bbot%5D/subscriptions",
+      "organizations_url": "https://api.github.com/users/dependabot%5Bbot%5D/orgs",
+      "repos_url": "https://api.github.com/users/dependabot%5Bbot%5D/repos",
+      "events_url": "https://api.github.com/users/dependabot%5Bbot%5D/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/dependabot%5Bbot%5D/received_events",
+      "type": "Bot",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "committer": {
+      "login": "web-flow",
+      "id": 19864447,
+      "node_id": "MDQ6VXNlcjE5ODY0NDQ3",
+      "avatar_url": "https://avatars.githubusercontent.com/u/19864447?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/web-flow",
+      "html_url": "https://github.com/web-flow",
+      "followers_url": "https://api.github.com/users/web-flow/followers",
+      "following_url": "https://api.github.com/users/web-flow/following{/other_user}",
+      "gists_url": "https://api.github.com/users/web-flow/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/web-flow/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/web-flow/subscriptions",
+      "organizations_url": "https://api.github.com/users/web-flow/orgs",
+      "repos_url": "https://api.github.com/users/web-flow/repos",
+      "events_url": "https://api.github.com/users/web-flow/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/web-flow/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "parents": [
+      {
+        "sha": "460f28c4ab0b28de1479b5c1195cf03dc0b31d57",
+        "url": "https://api.github.com/repos/cli/go-gh/commits/460f28c4ab0b28de1479b5c1195cf03dc0b31d57",
+        "html_url": "https://github.com/cli/go-gh/commit/460f28c4ab0b28de1479b5c1195cf03dc0b31d57"
+      }
+    ]
+  },
+  {
+    "sha": "460f28c4ab0b28de1479b5c1195cf03dc0b31d57",
+    "node_id": "C_kwDOF_MgQdoAKDQ2MGYyOGM0YWIwYjI4ZGUxNDc5YjVjMTE5NWNmMDNkYzBiMzFkNTc",
+    "commit": {
+      "author": {
+        "name": "dependabot[bot]",
+        "email": "49699333+dependabot[bot]@users.noreply.github.com",
+        "date": "2026-09-23T07:47:57Z"
+      },
+      "committer": {
+        "name": "GitHub",
+        "email": "noreply@github.com",
+        "date": "2026-09-23T07:47:57Z"
+      },
+      "message": "chore(deps): Bump the codeql-actions group with 2 updates (#299)\n\nBumps the codeql-actions group with 2 updates: [github/codeql-action/init](https://github.com/github/codeql-action) and [github/codeql-action/analyze](https://github.com/github/codeql-action).\n\n\nUpdates `github/codeql-action/init` from 4.37.9 to 4.38.0\n- [Release notes](https://github.com/github/codeql-action/releases)\n- [Changelog](https://github.com/github/codeql-action/blob/main/CHANGELOG.md)\n- [Commits](https://github.com/github/codeql-action/compare/cdf488f595d80d6e07e03d4674febd5ab45fa938...b96794f015dfd88f77b49b1c93e0fa7110f94c63)\n\nUpdates `github/codeql-action/analyze` from 4.37.9 to 4.38.0\n- [Release notes](https://github.com/github/codeql-action/releases)\n- [Changelog](https://github.com/github/codeql-action/blob/main/CHANGELOG.md)\n- [Commits](https://github.com/github/codeql-action/compare/cdf488f595d80d6e07e03d4674febd5ab45fa938...b96794f015dfd88f77b49b1c93e0fa7110f94c63)\n\n---\nupdated-dependencies:\n- dependency-name: github/codeql-action/init\n  dependency-version: 4.38.0\n  dependency-type: direct:production\n  update-type: version-update:semver-minor\n  dependency-group: codeql-actions\n- dependency-name: github/codeql-action/analyze\n  dependency-version: 4.38.0\n  dependency-type: direct:production\n  update-type: version-update:semver-minor\n  dependency-group: codeql-actions\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+      "tree": {
+        "sha": "70c4eebb84d0732367fa0f2c997b10a64a5ed397",
+        "url": "https://api.github.com/repos/cli/go-gh/git/trees/70c4eebb84d0732367fa0f2c997b10a64a5ed397"
+      },
+      "url": "https://api.github.com/repos/cli/go-gh/git/commits/460f28c4ab0b28de1479b5c1195cf03dc0b31d57",
+      "comment_count": 0,
+      "verification": {
+        "verified": true,
+        "reason": "valid",
+        "signature": "-----BEGIN PGP SIGNATURE-----\n\nwsFcBAABCAAQBQJqs4QtCRC1aQ7uu5UhlAAARMUQAIdE1Vb+NLmwVbWH4SJVWAao\ncHDsSIwb7hF+JrGQIRltZGCSmsROLu3XdcAzegMFbA896w/daysJi5v0Hw3wcd2o\n/B2e3GY83U+CWd1PAt3xJMBilYkQXkJKurLHSR6/OBIrdCcU98JJlGW8Arr/Zi0H\n+RRQnOOczM7gGYkWam/Tis1CDpUvqHH5WSuQufrC4Cc2YP5Epw0+QWO42vyzLWVU\na6RS3LKvNOJIK68o6djvwKkLHnulhXiBB0lhOBSNL8WPJ+2uDwZGWnsf4GWQNend\nmMUNhlsUmlANtVOv9ppJddwDiG1qepV9GWCx15OMioacN/QrxKu3u+T7/i474Gl9\nz7OzgcRymXKQKQPNpgC6LUbXiTvTJDu0j5J8NlAUs2DY8IrDQ2v/hVULQH3OS+Rb\nGctC18yDOdMKpd1isRNXZRAoGulxWKDeQe1+yYiP4UgcGTsR7Edw1xop59U5kAgc\nm8lH5lFinLo5qk8hN9SJy19uBZaaNwUYLQ+6DUmcVTnjgy+LUwkX+a2DRXq2cgZN\nqZNsK+aA1YjLw4sL5wIoFOy7v0b7a/gXijJ/rEWtuO4eaQcvMcuo8yS5lOW3idoQ\nqRmIK9qUIZUhI3ujJpniNRtCAC49jNXoYjn1UrAvdCmrj/qP+txDA2HOh01644+g\nZZCU+LnxJT6/WTlJZ7tc\n=4kdZ\n-----END PGP SIGNATURE-----\n",
+        "payload": "tree 70c4eebb84d0732367fa0f2c997b10a64a5ed397\nparent 37aa5bbaf1a591aa134913efeb3775f0235dc5ab\nauthor dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com> 1790149677 +0200\ncommitter GitHub <noreply@github.com> 1790149677 +0200\n\nchore(deps): Bump the codeql-actions group with 2 updates (#299)\n\nBumps the codeql-actions group with 2 updates: [github/codeql-action/init](https://github.com/github/codeql-action) and [github/codeql-action/analyze](https://github.com/github/codeql-action).\n\n\nUpdates `github/codeql-action/init` from 4.37.9 to 4.38.0\n- [Release notes](https://github.com/github/codeql-action/releases)\n- [Changelog](https://github.com/github/codeql-action/blob/main/CHANGELOG.md)\n- [Commits](https://github.com/github/codeql-action/compare/cdf488f595d80d6e07e03d4674febd5ab45fa938...b96794f015dfd88f77b49b1c93e0fa7110f94c63)\n\nUpdates `github/codeql-action/analyze` from 4.37.9 to 4.38.0\n- [Release notes](https://github.com/github/codeql-action/releases)\n- [Changelog](https://github.com/github/codeql-action/blob/main/CHANGELOG.md)\n- [Commits](https://github.com/github/codeql-action/compare/cdf488f595d80d6e07e03d4674febd5ab45fa938...b96794f015dfd88f77b49b1c93e0fa7110f94c63)\n\n---\nupdated-dependencies:\n- dependency-name: github/codeql-action/init\n  dependency-version: 4.38.0\n  dependency-type: direct:production\n  update-type: version-update:semver-minor\n  dependency-group: codeql-actions\n- dependency-name: github/codeql-action/analyze\n  dependency-version: 4.38.0\n  dependency-type: direct:production\n  update-type: version-update:semver-minor\n  dependency-group: codeql-actions\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+        "verified_at": "2026-09-23T07:47:57Z"
+      }
+    },
+    "url": "https://api.github.com/repos/cli/go-gh/commits/460f28c4ab0b28de1479b5c1195cf03dc0b31d57",
+    "html_url": "https://github.com/cli/go-gh/commit/460f28c4ab0b28de1479b5c1195cf03dc0b31d57",
+    "comments_url": "https://api.github.com/repos/cli/go-gh/commits/460f28c4ab0b28de1479b5c1195cf03dc0b31d57/comments",
+    "author": {
+      "login": "dependabot[bot]",
+      "id": 49699333,
+      "node_id": "MDM6Qm90NDk2OTkzMzM=",
+      "avatar_url": "https://avatars.githubusercontent.com/in/29110?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/dependabot%5Bbot%5D",
+      "html_url": "https://github.com/apps/dependabot",
+      "followers_url": "https://api.github.com/users/dependabot%5Bbot%5D/followers",
+      "following_url": "https://api.github.com/users/dependabot%5Bbot%5D/following{/other_user}",
+      "gists_url": "https://api.github.com/users/dependabot%5Bbot%5D/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/dependabot%5Bbot%5D/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/dependabot%5Bbot%5D/subscriptions",
+      "organizations_url": "https://api.github.com/users/dependabot%5Bbot%5D/orgs",
+      "repos_url": "https://api.github.com/users/dependabot%5Bbot%5D/repos",
+      "events_url": "https://api.github.com/users/dependabot%5Bbot%5D/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/dependabot%5Bbot%5D/received_events",
+      "type": "Bot",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "committer": {
+      "login": "web-flow",
+      "id": 19864447,
+      "node_id": "MDQ6VXNlcjE5ODY0NDQ3",
+      "avatar_url": "https://avatars.githubusercontent.com/u/19864447?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/web-flow",
+      "html_url": "https://github.com/web-flow",
+      "followers_url": "https://api.github.com/users/web-flow/followers",
+      "following_url": "https://api.github.com/users/web-flow/following{/other_user}",
+      "gists_url": "https://api.github.com/users/web-flow/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/web-flow/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/web-flow/subscriptions",
+      "organizations_url": "https://api.github.com/users/web-flow/orgs",
+      "repos_url": "https://api.github.com/users/web-flow/repos",
+      "events_url": "https://api.github.com/users/web-flow/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/web-flow/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "parents": [
+      {
+        "sha": "37aa5bbaf1a591aa134913efeb3775f0235dc5ab",
+        "url": "https://api.github.com/repos/cli/go-gh/commits/37aa5bbaf1a591aa134913efeb3775f0235dc5ab",
+        "html_url": "https://github.com/cli/go-gh/commit/37aa5bbaf1a591aa134913efeb3775f0235dc5ab"
+      }
+    ]
+  },
+  {
+    "sha": "37aa5bbaf1a591aa134913efeb3775f0235dc5ab",
+    "node_id": "C_kwDOF_MgQdoAKDM3YWE1YmJhZjFhNTkxYWExMzQ5MTNlZmViMzc3NWYwMjM1ZGM1YWI",
+    "commit": {
+      "author": {
+        "name": "Ryu",
+        "email": "177669517+ryux1@users.noreply.github.com",
+        "date": "2026-09-14T15:51:25Z"
+      },
+      "committer": {
+        "name": "GitHub",
+        "email": "noreply@github.com",
+        "date": "2026-09-14T15:51:25Z"
+      },
+      "message": "fix(repository): honor resolved remote (#290)\n\n* fix(repository): honor resolved remote\n\n* Match gh repository resolution behavior\n\nCo-authored-by: Copilot App <223556219+Copilot@users.noreply.github.com>\n\n* Match resolved repository host behavior\n\nCo-authored-by: Copilot App <223556219+Copilot@users.noreply.github.com>\n\n---------\n\nCo-authored-by: William Martin <williammartin@github.com>\nCo-authored-by: Copilot App <223556219+Copilot@users.noreply.github.com>",
+      "tree": {
+        "sha": "a102144d7b073c53a279c3614c440cbb01ab1c42",
+        "url": "https://api.github.com/repos/cli/go-gh/git/trees/a102144d7b073c53a279c3614c440cbb01ab1c42"
+      },
+      "url": "https://api.github.com/repos/cli/go-gh/git/commits/37aa5bbaf1a591aa134913efeb3775f0235dc5ab",
+      "comment_count": 0,
+      "verification": {
+        "verified": true,
+        "reason": "valid",
+        "signature": "-----BEGIN PGP SIGNATURE-----\n\nwsFcBAABCAAQBQJqqBf9CRC1aQ7uu5UhlAAAYZsQAAxr+O62YPB756a2rXcWF4oI\nLma150x2Lio2InjX2RBD2hvlpmKEwgj1VtbPwy9JFuj5wwWPhI2HrHvGzzJfRlkT\npY+cUiQglmVx4RXFN5buQfHjoL7N+Je0u+G/abSkjsv3eokrVUeTimWKvWNqD84p\n99PdAMMUpRJhWkg6CdADxucn0DF7EBwZgv3AlWYgMR3cvrkrhKrJ5eQg9854ASLR\nW9ahQjE0nWNDYkiFaKOQUvtvx50JzTB0Rk6yGFtK7IwFnljmzDc3meRV+mpsmHI5\n6FC3CIp0WeJ5LQL0hC3nUAenjh9guqYm7y14oL+mVWUFFh0+H8NwmMv/99NGeBiy\nkecpP26AkCpAZ7D1iDxnFquDiQK3t+m3UTVJg5ocD7aal9bfr3GvNSTT9/JwiVYX\n7cddmpAPoukj1Pio+bFx4zuax5TMaIRmzVjxaNIwK+WAmGc8HC8xw5t46jnV29KU\n61aizXXWmAEm0+VXKyOdjCDBIsoA++e4gG1QOz1hUGDFs5heNShnPbDLzMCHYYmp\nTeJOnnMpcDRbDEJAgrmzzSeLq4gqAiBcgstvA53Xl4olRU4ceepMozl4IDWzHFW0\nNILfP5jPZsZfAWOthhROnFi/EqY175gaaDDAB+ugq5AGguD0alCj9wh3l6ZqbBCM\nzOxNLtkCboaQaNZXMuUO\n=LGFc\n-----END PGP SIGNATURE-----\n",
+        "payload": "tree a102144d7b073c53a279c3614c440cbb01ab1c42\nparent 01be1165a773fb4e0642980692f8c521d6145884\nauthor Ryu <177669517+ryux1@users.noreply.github.com> 1789401085 +0200\ncommitter GitHub <noreply@github.com> 1789401085 +0200\n\nfix(repository): honor resolved remote (#290)\n\n* fix(repository): honor resolved remote\n\n* Match gh repository resolution behavior\n\nCo-authored-by: Copilot App <223556219+Copilot@users.noreply.github.com>\n\n* Match resolved repository host behavior\n\nCo-authored-by: Copilot App <223556219+Copilot@users.noreply.github.com>\n\n---------\n\nCo-authored-by: William Martin <williammartin@github.com>\nCo-authored-by: Copilot App <223556219+Copilot@users.noreply.github.com>",
+        "verified_at": "2026-09-14T15:51:26Z"
+      }
+    },
+    "url": "https://api.github.com/repos/cli/go-gh/commits/37aa5bbaf1a591aa134913efeb3775f0235dc5ab",
+    "html_url": "https://github.com/cli/go-gh/commit/37aa5bbaf1a591aa134913efeb3775f0235dc5ab",
+    "comments_url": "https://api.github.com/repos/cli/go-gh/commits/37aa5bbaf1a591aa134913efeb3775f0235dc5ab/comments",
+    "author": {
+      "login": "ryux1",
+      "id": 177669517,
+      "node_id": "U_kgDOCpcFjQ",
+      "avatar_url": "https://avatars.githubusercontent.com/u/177669517?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/ryux1",
+      "html_url": "https://github.com/ryux1",
+      "followers_url": "https://api.github.com/users/ryux1/followers",
+      "following_url": "https://api.github.com/users/ryux1/following{/other_user}",
+      "gists_url": "https://api.github.com/users/ryux1/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/ryux1/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/ryux1/subscriptions",
+      "organizations_url": "https://api.github.com/users/ryux1/orgs",
+      "repos_url": "https://api.github.com/users/ryux1/repos",
+      "events_url": "https://api.github.com/users/ryux1/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/ryux1/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "committer": {
+      "login": "web-flow",
+      "id": 19864447,
+      "node_id": "MDQ6VXNlcjE5ODY0NDQ3",
+      "avatar_url": "https://avatars.githubusercontent.com/u/19864447?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/web-flow",
+      "html_url": "https://github.com/web-flow",
+      "followers_url": "https://api.github.com/users/web-flow/followers",
+      "following_url": "https://api.github.com/users/web-flow/following{/other_user}",
+      "gists_url": "https://api.github.com/users/web-flow/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/web-flow/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/web-flow/subscriptions",
+      "organizations_url": "https://api.github.com/users/web-flow/orgs",
+      "repos_url": "https://api.github.com/users/web-flow/repos",
+      "events_url": "https://api.github.com/users/web-flow/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/web-flow/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "parents": [
+      {
+        "sha": "01be1165a773fb4e0642980692f8c521d6145884",
+        "url": "https://api.github.com/repos/cli/go-gh/commits/01be1165a773fb4e0642980692f8c521d6145884",
+        "html_url": "https://github.com/cli/go-gh/commit/01be1165a773fb4e0642980692f8c521d6145884"
+      }
+    ]
+  }
+]
