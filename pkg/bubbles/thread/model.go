@@ -5,6 +5,7 @@ package thread
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"sync/atomic"
 
@@ -182,6 +183,21 @@ func (m *Model[T]) Reload() tea.Cmd {
 		cmd = batch(cmd, m.loadTail())
 	}
 	return batch(cmd, m.manage())
+}
+
+// SetFirst shows items as the first chunk of comments, with next the cursor
+// of the chunk after them, so that comments the caller already has, such as
+// from a cache, show without waiting for a fetch. It does nothing once the
+// first chunk was requested. [Model.Reload] fetches the chunk again.
+func (m *Model[T]) SetFirst(items []T, next string) {
+	if m.started {
+		return
+	}
+	a := m.anchor()
+	c := chunk[T]{next: next, items: slices.Clone(items)}
+	m.renderChunk(&c)
+	m.chunks, m.started = append(m.chunks, c), true
+	m.layout(a)
 }
 
 // Reset clears the document and the comments and cancels the fetches in
