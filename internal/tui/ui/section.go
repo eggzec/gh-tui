@@ -39,3 +39,11 @@ type Badger interface {
 type Capturer interface {
 	Capturing() bool
 }
+
+// Claimer is a Section that at times takes some of the app's own keys, such
+// as the search key while it shows a list that the key filters. The app
+// sends a key that Claims reports true for to the section instead of acting
+// on it.
+type Claimer interface {
+	Claims(msg tea.KeyPressMsg) bool
+}

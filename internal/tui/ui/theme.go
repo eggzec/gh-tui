@@ -5,6 +5,7 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/pkg/bubbles/calendar"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/graph"
 	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
@@ -190,6 +191,20 @@ func (t Theme) Picker() picker.Styles {
 	s.Detail = s.Detail.Foreground(subtle)
 	s.Empty = s.Empty.Foreground(muted)
 	s.Error = s.Error.Foreground(lipgloss.Color(t.Palette.Error))
+	return s
+}
+
+// Calendar returns the styles of a contribution calendar. The levels keep
+// their green scale, which reads as contributions whatever the palette, and
+// the words take the palette's colors.
+func (t Theme) Calendar() calendar.Styles {
+	s := calendar.DefaultStyles(t.Dark)
+	s.Total = s.Total.Foreground(lipgloss.Color(t.Palette.Foreground))
+	s.Month = s.Month.Foreground(lipgloss.Color(t.Palette.Muted))
+	s.Weekday = s.Weekday.Foreground(lipgloss.Color(t.Palette.Subtle))
+	s.Legend = s.Legend.Foreground(lipgloss.Color(t.Palette.Subtle))
+	s.Status = s.Status.Foreground(lipgloss.Color(t.Palette.Muted))
+	s.Empty = s.Empty.Foreground(lipgloss.Color(t.Palette.Muted))
 	return s
 }
 
