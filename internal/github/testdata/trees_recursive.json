@@ -1,0 +1,69 @@
+{
+  "sha": "59d5ff7a8e9c807adb147d06fdf6241cc6688825",
+  "url": "https://api.github.com/repos/git/git/git/trees/59d5ff7a8e9c807adb147d06fdf6241cc6688825",
+  "tree": [
+    {
+      "path": "libsecret",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "7f6f8cd2f68fa049124c499a9e5ad29b6bc4f8a5",
+      "url": "https://api.github.com/repos/git/git/git/trees/7f6f8cd2f68fa049124c499a9e5ad29b6bc4f8a5"
+    },
+    {
+      "path": "libsecret/.gitignore",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4fa22359e2d61606bad1ed01cc7d4445a5c8c8a3",
+      "size": 25,
+      "url": "https://api.github.com/repos/git/git/git/blobs/4fa22359e2d61606bad1ed01cc7d4445a5c8c8a3"
+    },
+    {
+      "path": "libsecret/Makefile",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9309cfb78c7f6c7336772620739d29f45fc72569",
+      "size": 791,
+      "url": "https://api.github.com/repos/git/git/git/blobs/9309cfb78c7f6c7336772620739d29f45fc72569"
+    },
+    {
+      "path": "libsecret/git-credential-libsecret.c",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "941b2afd5eed5d7db431ead4d55905ab154852f6",
+      "size": 11639,
+      "url": "https://api.github.com/repos/git/git/git/blobs/941b2afd5eed5d7db431ead4d55905ab154852f6"
+    },
+    {
+      "path": "libsecret/meson.build",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0137660fe02cb94a78b9fec3c640d05cedb9e7ff",
+      "size": 235,
+      "url": "https://api.github.com/repos/git/git/git/blobs/0137660fe02cb94a78b9fec3c640d05cedb9e7ff"
+    },
+    {
+      "path": "meson.build",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4216296ae05a9e37523a19337ca180734a9389f7",
+      "size": 78,
+      "url": "https://api.github.com/repos/git/git/git/blobs/4216296ae05a9e37523a19337ca180734a9389f7"
+    },
+    {
+      "path": "netrc",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "f4e81d472c8b44c08a4cf3030cf933215fce8fed",
+      "url": "https://api.github.com/repos/git/git/git/trees/f4e81d472c8b44c08a4cf3030cf933215fce8fed"
+    },
+    {
+      "path": "netrc/Makefile",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c284fb8ac49012981d3fcde4e75f46a3e2784e32",
+      "size": 694,
+      "url": "https://api.github.com/repos/git/git/git/blobs/c284fb8ac49012981d3fcde4e75f46a3e2784e32"
+    }
+  ],
+  "truncated": false
+}
