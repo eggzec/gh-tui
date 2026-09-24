@@ -1,6 +1,6 @@
 // Package files is the Files section: the tree of the selected repository,
-// whose directories expand as they are browsed and whose files open in the
-// browser.
+// whose directories expand as they are browsed and whose files open in a
+// preview over the screen or in the browser.
 package files
 
 import (
@@ -16,6 +16,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 	"github.com/eggzec/gh-tui/pkg/bubbles/tree"
 )
 
@@ -113,6 +114,11 @@ func (s *Section) Update(msg tea.Msg) tea.Cmd {
 		}
 		s.newTree(msg.Repo)
 		return s.start()
+	case tree.OpenMsg:
+		if s.tree == nil || msg.ID != s.tree.ID() {
+			return nil
+		}
+		return s.preview(msg.Node)
 	case tea.KeyPressMsg:
 		if cmd, ok := s.press(msg); ok {
 			return cmd
@@ -139,6 +145,26 @@ func (s *Section) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		return ui.Open(webURL(s.repo, s.selected())), true
 	}
 	return nil, false
+}
+
+// preview opens the file of n in a modal. A submodule has no content in
+// this repository, so it is only named.
+func (s *Section) preview(n tree.Node) tea.Cmd {
+	e, ok := entryOf(n)
+	if !ok {
+		return nil
+	}
+	if e.Submodule() {
+		text := e.Path + " is a submodule, with its files in another repository."
+		if k := s.keys.Open.Help().Key; k != "" {
+			text += " Press " + k + " to open it in the browser."
+		}
+		return ui.Notify(toast.Info, text)
+	}
+	p := newPreview(s.ctx, s.svc, s.repo, e, s.keys.Open)
+	// The app passes messages to a modal only once it is open, so the load
+	// starts after the modal opens.
+	return tea.Sequence(ui.OpenModal(p), p.load())
 }
 
 // selected returns the entry under the cursor, or the zero entry, which
