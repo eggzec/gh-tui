@@ -51,6 +51,8 @@ func TestView(t *testing.T) {
 		{name: "loading", width: 40, height: 4, set: func(m *Model) { _ = m.SetLoading("main.go") }},
 		{name: "failed", width: 40, height: 4,
 			set: func(m *Model) { m.SetError("main.go", errors.New("404 Not Found\nmore")) }},
+		{name: "message", width: 40, height: 4,
+			set: func(m *Model) { m.SetMessage("big.bin", "Too large to preview.") }},
 		{name: "binary", file: "logo.png", text: "\x89PNG\r\n\x00\x00", width: 40, height: 4},
 		{name: "empty file", file: "empty.go", text: "", width: 40, height: 4},
 		{name: "nothing", width: 40, height: 4, set: func(*Model) {}},
