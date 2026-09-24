@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func benchSection(b *testing.B) *Section {
+func benchSection(b *testing.B) *host {
 	b.Helper()
 	svc := newFakeService()
 	svc.pulls = manyPulls(300)
@@ -19,12 +19,13 @@ func BenchmarkView(b *testing.B) {
 			_ = s.View()
 		}
 	})
-	b.Run("detail", func(b *testing.B) {
+	b.Run("modal", func(b *testing.B) {
 		s := benchSection(b)
 		press(b, s, "enter")
+		m := s.modal()
 		b.ReportAllocs()
 		for b.Loop() {
-			_ = s.View()
+			_ = m.View()
 		}
 	})
 }
@@ -45,7 +46,7 @@ func BenchmarkUpdate(b *testing.B) {
 			_ = s.Update(k)
 		}
 	})
-	b.Run("scroll detail", func(b *testing.B) {
+	b.Run("scroll modal", func(b *testing.B) {
 		s := benchSection(b)
 		press(b, s, "enter")
 		down, up := keyMsg("down"), keyMsg("up")

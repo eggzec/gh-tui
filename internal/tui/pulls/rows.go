@@ -185,10 +185,24 @@ func (st *styles) checks(c core.ChecksState) string {
 	}
 }
 
-// noRepo is the empty state shown until a repository is picked.
-func (st *styles) noRepo(width, height int) string {
-	return lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center,
-		st.empty.Render("Pick a repository in Repositories (tab 4)."))
+// noRepo is the empty state shown until a repository is picked, with hint
+// saying how to pick one, wrapped to fit a narrow pane.
+func (st *styles) noRepo(width, height int, hint string) string {
+	if width <= 0 || height <= 0 {
+		return ""
+	}
+	center := lipgloss.NewStyle().Width(width).Align(lipgloss.Center)
+	text := lipgloss.JoinVertical(lipgloss.Left,
+		center.Inherit(st.selected).Render("No repository selected"),
+		"",
+		center.Inherit(st.empty).Render(hint),
+	)
+	lines := strings.Split(lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, text), "\n")
+	lines = lines[:min(len(lines), height)]
+	for i, l := range lines {
+		lines[i] = ansi.Truncate(l, width, "")
+	}
+	return strings.Join(lines, "\n")
 }
 
 // renderRow renders pr in one line of width cells.

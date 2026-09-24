@@ -72,7 +72,7 @@ func (k keyMap) list() []key.Binding {
 	return []key.Binding{k.Select, k.Filter, k.Refresh, k.Open, k.Merge, k.Close, k.Reopen, k.ToggleDraft}
 }
 
-// detail returns the bindings the section handles before the thread.
+// detail returns the bindings the modal handles before the thread.
 func (k keyMap) detail() []key.Binding {
 	return []key.Binding{k.Back, k.Refresh, k.Open, k.Merge, k.Close, k.Reopen, k.ToggleDraft}
 }
@@ -132,25 +132,16 @@ type keyHelp struct {
 func (h keyHelp) ShortHelp() []key.Binding  { return h.short }
 func (h keyHelp) FullHelp() [][]key.Binding { return h.full }
 
-// Help implements ui.Section. It lists the keys of the current view.
+// Help implements ui.Section. It lists the keys of the list; the modal of
+// an open pull request lists its own.
 func (s *Section) Help() help.KeyMap {
-	k, f, t := s.keys, s.keys.feed, s.keys.thread
-	changes := s.mutationHelp()
-	merge, closing, reopen := changes[0], changes[1], changes[2]
-	switch {
-	case !s.hasRepo:
+	if !s.hasRepo {
 		return keyHelp{}
-	case s.thread != nil:
-		return keyHelp{
-			short: []key.Binding{t.Up, t.Down, k.Back, merge, closing, reopen, k.Open},
-			full: [][]key.Binding{
-				{t.Up, t.Down, t.PageUp, t.PageDown},
-				{t.HalfPageUp, t.HalfPageDown, t.Top, t.Bottom},
-				{k.Back, k.Refresh, k.Open},
-				changes,
-			},
-		}
 	}
+	k, f := s.keys, s.keys.feed
+	pr, ok := s.target()
+	changes := k.changeHelp(pr, ok)
+	merge, closing, reopen := changes[0], changes[1], changes[2]
 	return keyHelp{
 		short: []key.Binding{f.Up, f.Down, k.Select, k.Filter, merge, closing, reopen, k.Open},
 		full: [][]key.Binding{
