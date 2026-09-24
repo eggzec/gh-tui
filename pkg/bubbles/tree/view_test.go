@@ -1,0 +1,122 @@
+package tree
+
+import (
+	"errors"
+	"fmt"
+	"strings"
+	"testing"
+
+	"github.com/charmbracelet/x/ansi"
+	"github.com/charmbracelet/x/exp/golden"
+)
+
+func TestView(t *testing.T) {
+	long := strings.Repeat("a-very-long-directory-name-", 4)
+	tests := []struct {
+		name  string
+		model func(t *testing.T) Model
+	}{
+		{"loading", func(*testing.T) Model {
+			return New(repo().children, WithSize(40, 5), WithFocused(true))
+		}},
+		{"loaded", func(t *testing.T) Model {
+			t.Helper()
+			return load(t, repo())
+		}},
+		{"nested", func(t *testing.T) Model {
+			t.Helper()
+			return keys(t, load(t, repo(), WithSize(40, 12)), "*", "j", "j", "j", "j", "*", "j", "l")
+		}},
+		{"blurred", func(t *testing.T) Model {
+			t.Helper()
+			m := keys(t, load(t, repo()), "l", "l")
+			m.Blur()
+			return m
+		}},
+		{"branch loading", func(t *testing.T) Model {
+			t.Helper()
+			m := keys(t, load(t, repo()), "j", "j")
+			m, _ = m.Update(press("+"))
+			return m
+		}},
+		{"branch error", func(t *testing.T) Model {
+			t.Helper()
+			f := repo()
+			f.setFail("internal", errors.New("GET /repos/o/r/contents/internal: 502 Bad Gateway"))
+			return keys(t, load(t, f, WithSize(60, 6)), "j", "j", "+")
+		}},
+		{"root error", func(t *testing.T) Model {
+			t.Helper()
+			f := repo()
+			f.setFail("", errors.New("API rate limit exceeded"))
+			return load(t, f, WithSize(60, 3))
+		}},
+		{"empty", func(t *testing.T) Model {
+			t.Helper()
+			return load(t, newFiles(), WithSize(40, 3), WithEmptyText("This repository is empty."))
+		}},
+		{"truncated at 80 columns", func(t *testing.T) Model {
+			t.Helper()
+			f := newFiles(long+"/"+long+"/"+long+".go", "short.go")
+			f.setFail(long+"/"+long, errors.New("dial tcp: i/o timeout"))
+			return keys(t, load(t, f, WithSize(80, 4)), "l", "l", "+")
+		}},
+		{"icons", func(t *testing.T) Model {
+			t.Helper()
+			icons := func(n Node, expanded bool) string {
+				switch {
+				case !n.Branch:
+					return "·"
+				case expanded:
+					return "□"
+				default:
+					return "■"
+				}
+			}
+			return keys(t, load(t, repo(), WithIcons(icons)), "l")
+		}},
+		{"scrolled", func(t *testing.T) Model {
+			t.Helper()
+			m := keys(t, load(t, generated(4), WithSize(40, 8)), "*")
+			return keys(t, m, "pgdown", "pgdown", "k")
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := tt.model(t)
+			v := m.View()
+			assertFits(t, v, m.Width(), m.Height())
+			golden.RequireEqual(t, v)
+		})
+	}
+}
+
+// assertFits checks that v is exactly height lines of exactly width cells.
+func assertFits(tb testing.TB, v string, width, height int) {
+	tb.Helper()
+	lines := strings.Split(v, "\n")
+	if len(lines) != height {
+		tb.Fatalf("view has %d lines, want %d", len(lines), height)
+	}
+	for i, l := range lines {
+		if w := ansi.StringWidth(l); w != width {
+			tb.Fatalf("line %d is %d cells wide, want %d: %q", i, w, width, l)
+		}
+	}
+}
+
+func TestViewFitsAnySize(t *testing.T) {
+	f := repo()
+	f.setFail("internal", errors.New("boom"))
+	m := keys(t, load(t, f), "*", "j", "j", "+")
+	for _, size := range [][2]int{{1, 1}, {2, 3}, {3, 1}, {7, 4}, {80, 40}, {200, 2}} {
+		t.Run(fmt.Sprintf("%dx%d", size[0], size[1]), func(t *testing.T) {
+			m.SetSize(size[0], size[1])
+			assertFits(t, m.View(), size[0], size[1])
+		})
+	}
+	m.SetSize(0, 10)
+	if m.View() != "" {
+		t.Fatal("zero width should render nothing")
+	}
+}
