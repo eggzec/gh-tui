@@ -1,0 +1,81 @@
+{
+  "total_count": 3,
+  "incomplete_results": false,
+  "items": [
+    {
+      "url": "https://api.github.com/repos/octo-org/hello/issues/42",
+      "repository_url": "https://api.github.com/repos/octo-org/hello",
+      "html_url": "https://github.com/octo-org/hello/issues/42",
+      "id": 2917364810,
+      "node_id": "I_kwDOJ5Hs3c6t5a1K",
+      "number": 42,
+      "title": "Crash when the config file is empty",
+      "user": {"login": "octocat", "id": 583231, "type": "User", "site_admin": false},
+      "labels": [
+        {"id": 5916253891, "name": "bug", "color": "d73a4a", "default": true, "description": "Something isn't working"}
+      ],
+      "state": "open",
+      "locked": false,
+      "assignees": [],
+      "comments": 2,
+      "created_at": "2026-09-01T08:15:00Z",
+      "updated_at": "2026-09-20T17:42:10Z",
+      "closed_at": null,
+      "author_association": "OWNER",
+      "body": "Steps to reproduce:\n\n1. Create an empty config.yaml\n2. Run gh-tui",
+      "score": 1.0
+    },
+    {
+      "url": "https://api.github.com/repos/eggzec/gh-tui/issues/7",
+      "repository_url": "https://api.github.com/repos/eggzec/gh-tui",
+      "html_url": "https://github.com/eggzec/gh-tui/pull/7",
+      "id": 2917001122,
+      "node_id": "PR_kwDOJ5Hs3c5vV1aB",
+      "number": 7,
+      "title": "Fix the crash on an empty config",
+      "user": {"login": "monalisa", "id": 2, "type": "User", "site_admin": false},
+      "labels": [],
+      "state": "closed",
+      "locked": false,
+      "assignees": [],
+      "comments": 0,
+      "created_at": "2026-09-02T08:00:00Z",
+      "updated_at": "2026-09-03T09:00:00Z",
+      "closed_at": "2026-09-03T09:00:00Z",
+      "draft": false,
+      "pull_request": {
+        "url": "https://api.github.com/repos/eggzec/gh-tui/pulls/7",
+        "html_url": "https://github.com/eggzec/gh-tui/pull/7",
+        "merged_at": "2026-09-03T09:00:00Z"
+      },
+      "body": null,
+      "score": 0.9
+    },
+    {
+      "url": "https://api.github.com/repos/eggzec/gh-tui/issues/8",
+      "repository_url": "https://api.github.com/repos/eggzec/gh-tui",
+      "html_url": "https://github.com/eggzec/gh-tui/pull/8",
+      "id": 2917001123,
+      "node_id": "PR_kwDOJ5Hs3c5vV1aC",
+      "number": 8,
+      "title": "Try another crash fix",
+      "user": {"login": "hubot", "id": 3, "type": "User", "site_admin": false},
+      "labels": [],
+      "state": "closed",
+      "locked": false,
+      "assignees": [],
+      "comments": 1,
+      "created_at": "2026-09-02T10:00:00Z",
+      "updated_at": "2026-09-02T11:00:00Z",
+      "closed_at": "2026-09-02T11:00:00Z",
+      "draft": false,
+      "pull_request": {
+        "url": "https://api.github.com/repos/eggzec/gh-tui/pulls/8",
+        "html_url": "https://github.com/eggzec/gh-tui/pull/8",
+        "merged_at": null
+      },
+      "body": "Superseded by #7.",
+      "score": 0.4
+    }
+  ]
+}
