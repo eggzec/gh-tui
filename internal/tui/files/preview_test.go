@@ -177,3 +177,20 @@ func TestPreviewHelp(t *testing.T) {
 		t.Error("help lists o while the search input takes it")
 	}
 }
+
+func TestPreviewFileOfAnotherSection(t *testing.T) {
+	// The file is found by a search, before any repository is selected.
+	h := newHost(newSection(t, sampleFake(), 40, 12))
+	h.run(func() tea.Msg { return ui.OpenFileMsg{Repo: ghTUI, Path: "AGENTS.md", SHA: file("AGENTS.md", 0).SHA} })
+	m := h.top()
+	if m == nil || m.Title() != "AGENTS.md" {
+		t.Fatalf("OpenFileMsg opened %v, want the preview of AGENTS.md", m)
+	}
+	if got := h.modal(); !strings.Contains(got, "Guidance for anyone.") {
+		t.Errorf("preview = %q, want the file", got)
+	}
+	h.press(press("o"))
+	if !slices.Contains(h.got, tea.Msg(ui.OpenMsg{URL: "https://github.com/eggzec/gh-tui/blob/HEAD/AGENTS.md"})) {
+		t.Errorf("o sent %v, want the file on GitHub", h.got)
+	}
+}
