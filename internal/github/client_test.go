@@ -42,30 +42,35 @@ func TestNewEndpoints(t *testing.T) {
 		opts        []Option
 		wantREST    string
 		wantGraphQL string
+		wantHost    string
 	}{
 		{
 			name:        "github.com",
 			opts:        []Option{WithHost("github.com")},
 			wantREST:    "https://api.github.com/",
 			wantGraphQL: "https://api.github.com/graphql",
+			wantHost:    "api.github.com",
 		},
 		{
 			name:        "enterprise server",
 			opts:        []Option{WithHost("ghe.example.com")},
 			wantREST:    "https://ghe.example.com/api/v3/",
 			wantGraphQL: "https://ghe.example.com/api/graphql",
+			wantHost:    "ghe.example.com",
 		},
 		{
 			name:        "base URL",
 			opts:        []Option{WithBaseURL("http://127.0.0.1:8080")},
 			wantREST:    "http://127.0.0.1:8080/",
 			wantGraphQL: "http://127.0.0.1:8080/graphql",
+			wantHost:    "127.0.0.1",
 		},
 		{
 			name:        "enterprise base URL",
 			opts:        []Option{WithBaseURL("https://ghe.example.com/api/v3/")},
 			wantREST:    "https://ghe.example.com/api/v3/",
 			wantGraphQL: "https://ghe.example.com/api/graphql",
+			wantHost:    "ghe.example.com",
 		},
 	}
 	for _, tt := range tests {
@@ -79,6 +84,9 @@ func TestNewEndpoints(t *testing.T) {
 			}
 			if c.graphqlURL != tt.wantGraphQL {
 				t.Errorf("GraphQL endpoint = %q, want %q", c.graphqlURL, tt.wantGraphQL)
+			}
+			if got := c.Host(); got != tt.wantHost {
+				t.Errorf("Host() = %q, want %q", got, tt.wantHost)
 			}
 		})
 	}
