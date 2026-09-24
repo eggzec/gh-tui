@@ -29,6 +29,45 @@ func opened(t *testing.T, svc *fakeService, height int) (*host, *detailModal) {
 	return h, m
 }
 
+func TestCachedModalOpensAtOnce(t *testing.T) {
+	svc := newFakeService(sampleIssues(12))
+	svc.addComments(1000, sampleComments(3)...)
+	h := started(t, svc, 80, 40)
+	// Read ahead, as the section does.
+	if _, err := svc.Get(t.Context(), testRepo, 1000); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Comments(t.Context(), commentsQuery(testRepo, 1000)); err != nil {
+		t.Fatal(err)
+	}
+	gets, reads := len(svc.getCalls()), len(svc.commentQueries)
+
+	// Open without running the loads: what the modal shows comes from the
+	// cache alone.
+	seq, ok := sequence(h.Update(keyMsg("enter"))())
+	if !ok || len(seq) != 2 {
+		t.Fatal("enter should open the modal, then start its loads")
+	}
+	run(t, h, seq[0])
+	view := ansi.Strip(h.modal().View())
+	for _, want := range []string{"Look at issue 1000", "I can reproduce this", "Thanks! Fixed on main."} {
+		if !strings.Contains(view, want) {
+			t.Errorf("modal lacks %q before any load:\n%s", want, view)
+		}
+	}
+	if strings.Contains(view, "Loading") {
+		t.Errorf("modal shows a spinner though everything is cached:\n%s", view)
+	}
+	// Behind it, the issue and the comments are read again.
+	run(t, h, seq[1])
+	if n := len(svc.getCalls()); n != gets+1 {
+		t.Errorf("%d more Gets, want 1 to revalidate", n-gets)
+	}
+	if n := len(svc.commentQueries); n != reads+1 {
+		t.Errorf("%d more comment reads, want 1 to revalidate", n-reads)
+	}
+}
+
 func TestOpenAndClose(t *testing.T) {
 	svc := newFakeService(sampleIssues(12))
 	svc.addComments(1000, core.Comment{ID: "IC_x", Body: "A comment on another issue."})

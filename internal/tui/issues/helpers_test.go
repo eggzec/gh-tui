@@ -47,8 +47,10 @@ type fakeService struct {
 	gets     []int
 	getErr   error
 	comments map[int][]core.Comment
-	// commentQueries are the comment pages asked for.
+	// commentQueries are the comment pages asked for, and commented the
+	// ones served, which CachedComments then serves.
 	commentQueries []issuesvc.CommentsQuery
+	commented      map[issuesvc.CommentsQuery]bool
 	// changes are the state changes asked for, such as "close 999", and
 	// sendErr fails sending them.
 	changes []string
@@ -238,11 +240,12 @@ func (f *fakeService) changeCalls() []string {
 
 func newFakeService(issues []core.Issue) *fakeService {
 	return &fakeService{
-		issues:   issues,
-		pages:    map[issuesvc.ListQuery]core.Page[core.Issue]{},
-		pageSize: 30,
-		cached:   map[int]core.Issue{},
-		comments: map[int][]core.Comment{},
+		issues:    issues,
+		pages:     map[issuesvc.ListQuery]core.Page[core.Issue]{},
+		pageSize:  30,
+		cached:    map[int]core.Issue{},
+		comments:  map[int][]core.Comment{},
+		commented: map[issuesvc.CommentsQuery]bool{},
 	}
 }
 
@@ -273,6 +276,21 @@ func (f *fakeService) Comments(_ context.Context, q issuesvc.CommentsQuery) (cor
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.commentQueries = append(f.commentQueries, q)
+	f.commented[q] = true
+	return f.commentPage(q), nil
+}
+
+func (f *fakeService) CachedComments(q issuesvc.CommentsQuery) (core.Page[core.Comment], bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if !f.commented[q] {
+		return core.Page[core.Comment]{}, false
+	}
+	return f.commentPage(q), true
+}
+
+// commentPage returns the page q selects. f.mu must be held.
+func (f *fakeService) commentPage(q issuesvc.CommentsQuery) core.Page[core.Comment] {
 	all := f.comments[q.Number]
 	start, _ := strconv.Atoi(q.Cursor)
 	start = min(start, len(all))
@@ -281,7 +299,7 @@ func (f *fakeService) Comments(_ context.Context, q issuesvc.CommentsQuery) (cor
 	if end < len(all) {
 		next = strconv.Itoa(end)
 	}
-	return core.Page[core.Comment]{Items: slices.Clone(all[start:end]), Next: next}, nil
+	return core.Page[core.Comment]{Items: slices.Clone(all[start:end]), Next: next}
 }
 
 func (f *fakeService) getCalls() []int {
