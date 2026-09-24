@@ -319,11 +319,46 @@ func TestLogTransportError(t *testing.T) {
 	if r := recs[0]; r["level"] != "ERROR" || !strings.Contains(r["err"].(string), "connection refused") || r["canceled"] != false {
 		t.Errorf("failed record = %v", r)
 	}
-	if r := recs[1]; r["level"] != "DEBUG" || r["canceled"] != true {
+	if r := recs[1]; r["level"] != "INFO" || r["canceled"] != true || r["status"] != 0.0 || r["duration_ms"] == nil {
 		t.Errorf("canceled record = %v", r)
 	}
 	if q := stats.Summary().Quotas; len(q) != 1 || q[0].Failed != 2 || q[0].Resource != "none" {
 		t.Errorf("quotas = %+v", q)
+	}
+}
+
+// A request canceled while its body is read, as when the user navigates
+// away from a slow search, is logged with the error.
+func TestLogTransportCanceledBody(t *testing.T) {
+	buf, _ := captureLog(t, slog.LevelInfo)
+	release, flushed := make(chan struct{}), make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data": {`))
+		w.(http.Flusher).Flush()
+		close(flushed)
+		<-release
+	}))
+	t.Cleanup(srv.Close)
+	t.Cleanup(func() { close(release) })
+	c, err := New(WithBaseURL(srv.URL+"/"), WithToken("t"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	go func() {
+		<-flushed
+		cancel()
+	}()
+	if err := c.Query(ctx, "query Slow { viewer { login } }", nil, nil); err == nil {
+		t.Fatal("Query succeeded, want it canceled")
+	}
+	recs := httpRecords(t, buf)
+	if len(recs) != 1 {
+		t.Fatalf("got %d records, want 1:\n%s", len(recs), buf)
+	}
+	if r := recs[0]; r["level"] != "INFO" || r["canceled"] != true || r["err"] == nil || r["duration_ms"] == nil {
+		t.Errorf("record = %v, want the canceled read", r)
 	}
 }
 
