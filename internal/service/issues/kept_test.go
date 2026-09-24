@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/eggzec/gh-tui/internal/cache/cachetest"
 	"github.com/eggzec/gh-tui/internal/cache/disk"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
@@ -96,7 +97,7 @@ var openSeven = ListQuery{Repo: repo}
 // store, the way a session that opened the issue does.
 func firstSession(t *testing.T, srv *keptServer, store *disk.Store) {
 	t.Helper()
-	s := New(srv.api(t), WithStore(store))
+	s := New(srv.api(t), WithStore(cachetest.Aged(store, time.Hour)))
 	listIssues(t, s, openSeven)
 	readIssue(t, s)
 }
@@ -107,7 +108,7 @@ func TestKeptListIsServedStaleThenRevalidated(t *testing.T) {
 	firstSession(t, srv, store)
 
 	api := srv.api(t)
-	s := New(api, WithStore(store))
+	s := New(api, WithStore(cachetest.Aged(store, time.Hour)))
 	p, err := s.List(t.Context(), openSeven)
 	if err != nil || !p.Stale || p.Offline || !equalNumbers(numbers(p), 7) {
 		t.Fatalf("List in a new session = %+v, %v; want the kept page, stale", p, err)
@@ -127,6 +128,21 @@ func TestKeptListIsServedStaleThenRevalidated(t *testing.T) {
 	api.checkCalls(t)
 }
 
+func TestKeptListWithinTTLIsFresh(t *testing.T) {
+	srv := &keptServer{updated: epoch, comments: thread(2)}
+	store := openStore(t)
+	firstSession(t, srv, store)
+
+	api := srv.api(t)
+	s := New(api, WithStore(store))
+	p, err := s.List(t.Context(), openSeven)
+	if err != nil || p.Stale || !equalNumbers(numbers(p), 7) {
+		t.Fatalf("List in a new session = %+v, %v; want the kept page, fresh", p, err)
+	}
+	readIssue(t, s)
+	api.checkCalls(t)
+}
+
 func TestKeptListChanged(t *testing.T) {
 	srv := &keptServer{updated: epoch, comments: thread(2)}
 	store := openStore(t)
@@ -134,14 +150,14 @@ func TestKeptListChanged(t *testing.T) {
 	later := epoch.Add(time.Hour)
 	srv.set(later, thread(3))
 
-	s := New(srv.api(t), WithStore(store))
+	s := New(srv.api(t), WithStore(cachetest.Aged(store, time.Hour)))
 	listIssues(t, s, openSeven)
 	p, err := s.List(t.Context(), openSeven)
 	if err != nil || p.Stale || !p.Items[0].UpdatedAt.Equal(later) {
 		t.Fatalf("List after revalidating = %+v, %v; want GitHub's newer page", p, err)
 	}
 	// The newer page is kept for the session after.
-	next := New(srv.api(t), WithStore(store))
+	next := New(srv.api(t), WithStore(cachetest.Aged(store, time.Hour)))
 	if p, _ := next.List(t.Context(), openSeven); !p.Stale || !p.Items[0].UpdatedAt.Equal(later) {
 		t.Errorf("List in the next session = %+v, want the newer page kept", p)
 	}
@@ -153,7 +169,7 @@ func TestKeptIssueIsCurrentAfterRestart(t *testing.T) {
 	firstSession(t, srv, store)
 
 	api := srv.api(t)
-	s := New(api, WithStore(store))
+	s := New(api, WithStore(cachetest.Aged(store, time.Hour)))
 	listIssues(t, s, openSeven)
 	listIssues(t, s, openSeven)
 	api.checkCalls(t, "ListIssues")
@@ -187,7 +203,7 @@ func TestKeptIssueRevalidatesWhenNewer(t *testing.T) {
 		conds = append(conds, cond.ETag)
 		return get(n, cond)
 	}
-	s := New(api, WithStore(store))
+	s := New(api, WithStore(cachetest.Aged(store, time.Hour)))
 	listIssues(t, s, openSeven)
 	listIssues(t, s, openSeven)
 	readIssue(t, s)
@@ -208,7 +224,7 @@ func TestKeptIssueWithoutList(t *testing.T) {
 	// Without a list to vouch for it, the kept issue is revalidated, for
 	// free.
 	api := srv.api(t)
-	s := New(api, WithStore(store))
+	s := New(api, WithStore(cachetest.Aged(store, time.Hour)))
 	readIssue(t, s)
 	api.checkCalls(t, "GetIssue", "ListIssueComments")
 }
@@ -235,12 +251,12 @@ func TestKeptOffline(t *testing.T) {
 			firstSession(t, srv, store)
 			srv.fail(tt.err)
 
-			s := New(srv.api(t), WithStore(store))
+			s := New(srv.api(t), WithStore(cachetest.Aged(store, time.Hour)))
 			listIssues(t, s, openSeven)
 			p, err := s.List(t.Context(), openSeven)
 			// Without a list to vouch for them, the issue and its
 			// comments are asked for.
-			other := New(srv.api(t), WithStore(store))
+			other := New(srv.api(t), WithStore(cachetest.Aged(store, time.Hour)))
 			it, getErr := other.Get(t.Context(), repo, 7)
 			c, commentsErr := other.Comments(t.Context(), sevenComments)
 			if !tt.fallback {
@@ -256,7 +272,7 @@ func TestKeptOffline(t *testing.T) {
 				// A refusal drops what was kept.
 				srv.fail(nil)
 				api := srv.api(t)
-				third := New(api, WithStore(store))
+				third := New(api, WithStore(cachetest.Aged(store, time.Hour)))
 				if p, _ := third.List(t.Context(), openSeven); p.Stale {
 					t.Error("List after a refusal = stale, want the kept page gone")
 				}
@@ -291,7 +307,7 @@ func TestKeptCommentIsNotKeptUntilConfirmed(t *testing.T) {
 			srv := &keptServer{updated: epoch, comments: thread(2)}
 			store := openStore(t)
 			api := srv.api(t)
-			s := New(api, WithStore(store), WithViewer("octocat"))
+			s := New(api, WithStore(cachetest.Aged(store, time.Hour)), WithViewer("octocat"))
 			listIssues(t, s, openSeven)
 			readIssue(t, s)
 
@@ -313,7 +329,7 @@ func TestKeptCommentIsNotKeptUntilConfirmed(t *testing.T) {
 			}
 			_ = op.Do(t.Context())
 
-			next := New(srv.api(t), WithStore(store))
+			next := New(srv.api(t), WithStore(cachetest.Aged(store, time.Hour)))
 			if confirm {
 				// The next read after the change brings GitHub's page.
 				listIssues(t, next, openSeven)
@@ -339,7 +355,7 @@ func TestKeptStateChangeAfterConfirm(t *testing.T) {
 	srv := &keptServer{updated: epoch, comments: thread(2)}
 	store := openStore(t)
 	api := srv.api(t)
-	s := New(api, WithStore(store))
+	s := New(api, WithStore(cachetest.Aged(store, time.Hour)))
 	readIssue(t, s)
 	closed := issue(7)
 	closed.State, closed.UpdatedAt = core.StateClosed, epoch.Add(time.Minute)
@@ -347,7 +363,7 @@ func TestKeptStateChangeAfterConfirm(t *testing.T) {
 	if err := s.Close(repo, 7).Do(t.Context()); err != nil {
 		t.Fatal(err)
 	}
-	e, ok := New(api, WithStore(store)).keptIssues.Load(issueKey(repo, 7))
+	e, ok := New(api, WithStore(cachetest.Aged(store, time.Hour))).keptIssues.Load(issueKey(repo, 7))
 	if !ok || e.Value.State != core.StateClosed || e.ETag != "" {
 		t.Errorf("kept issue = %+v, %v; want GitHub's closed issue without validators", e, ok)
 	}
@@ -357,14 +373,14 @@ func TestKeptRollbackLeavesStoreAlone(t *testing.T) {
 	srv := &keptServer{updated: epoch, comments: thread(2)}
 	store := openStore(t)
 	api := srv.api(t)
-	s := New(api, WithStore(store))
+	s := New(api, WithStore(cachetest.Aged(store, time.Hour)))
 	listIssues(t, s, openSeven)
 	readIssue(t, s)
 	api.setState = func(int, core.State) (core.Issue, error) { return core.Issue{}, core.ErrConflict }
 	if err := s.Close(repo, 7).Do(t.Context()); err == nil {
 		t.Fatal("Do succeeded, want the conflict")
 	}
-	next := New(srv.api(t), WithStore(store))
+	next := New(srv.api(t), WithStore(cachetest.Aged(store, time.Hour)))
 	p, _ := next.List(t.Context(), openSeven)
 	e, _ := next.keptIssues.Load(issueKey(repo, 7))
 	if p.Items[0].State != core.StateOpen || e.Value.State != core.StateOpen {
@@ -387,7 +403,7 @@ func TestKeptCorruptEntryIsAMiss(t *testing.T) {
 	}
 
 	api := srv.api(t)
-	s := New(api, WithStore(store))
+	s := New(api, WithStore(cachetest.Aged(store, time.Hour)))
 	p, err := s.List(t.Context(), openSeven)
 	if err != nil || p.Stale || len(p.Items) != 1 {
 		t.Errorf("List = %+v, %v; want a page read from GitHub", p, err)

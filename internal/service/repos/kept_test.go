@@ -4,7 +4,9 @@ import (
 	"errors"
 	"net/url"
 	"testing"
+	"time"
 
+	"github.com/eggzec/gh-tui/internal/cache/cachetest"
 	"github.com/eggzec/gh-tui/internal/cache/disk"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
@@ -19,7 +21,7 @@ func keptRepos(t *testing.T) *disk.Store {
 		t.Fatal(err)
 	}
 	api := &fakeAPI{t: t, listRepos: func(int, string) (core.Page[core.Repo], error) { return mine, nil }}
-	if _, err := New(api, WithStore(store)).List(t.Context(), ListQuery{}); err != nil {
+	if _, err := New(api, WithStore(cachetest.Aged(store, time.Hour))).List(t.Context(), ListQuery{}); err != nil {
 		t.Fatal(err)
 	}
 	return store
@@ -28,7 +30,7 @@ func keptRepos(t *testing.T) *disk.Store {
 func TestKeptListIsServedStaleThenFetched(t *testing.T) {
 	store := keptRepos(t)
 	api := &fakeAPI{t: t, listRepos: func(int, string) (core.Page[core.Repo], error) { return mine, nil }}
-	s := New(api, WithStore(store))
+	s := New(api, WithStore(cachetest.Aged(store, time.Hour)))
 	p, err := s.List(t.Context(), ListQuery{})
 	if err != nil || !p.Stale || len(p.Items) != 1 {
 		t.Fatalf("List in a new session = %+v, %v; want the kept page, stale", p, err)
@@ -58,14 +60,14 @@ func TestKeptListOffline(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			store := keptRepos(t)
 			api := &fakeAPI{t: t, listRepos: func(int, string) (core.Page[core.Repo], error) { return core.Page[core.Repo]{}, tt.err }}
-			s := New(api, WithStore(store))
+			s := New(api, WithStore(cachetest.Aged(store, time.Hour)))
 			_, _ = s.List(t.Context(), ListQuery{})
 			p, err := s.List(t.Context(), ListQuery{})
 			if tt.fallback != (err == nil && p.Offline && len(p.Items) == 1) {
 				t.Errorf("List = %+v, %v; want fallback %v", p, err, tt.fallback)
 			}
 			if !tt.fallback {
-				if p, _ := New(api, WithStore(store)).List(t.Context(), ListQuery{}); p.Stale {
+				if p, _ := New(api, WithStore(cachetest.Aged(store, time.Hour))).List(t.Context(), ListQuery{}); p.Stale {
 					t.Error("List after a refusal = stale, want the kept page gone")
 				}
 			}

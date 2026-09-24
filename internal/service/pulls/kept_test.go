@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/eggzec/gh-tui/internal/cache/cachetest"
 	"github.com/eggzec/gh-tui/internal/cache/disk"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
@@ -57,7 +58,7 @@ func openStore(t *testing.T) *disk.Store {
 // firstSession lists the pull requests of v and reads #1 into store.
 func firstSession(t *testing.T, v *versioned, store *disk.Store) {
 	t.Helper()
-	s := New(v.api(), WithStore(store))
+	s := New(v.api(), WithStore(cachetest.Aged(store, time.Hour)))
 	list(t, s, openList)
 	readDetail(t, s)
 }
@@ -68,7 +69,7 @@ func TestKeptListIsServedStaleThenRefetched(t *testing.T) {
 	firstSession(t, v, store)
 
 	api := v.api()
-	s := New(api, WithStore(store))
+	s := New(api, WithStore(cachetest.Aged(store, time.Hour)))
 	p, err := s.List(t.Context(), openList)
 	if err != nil || !p.Stale || len(p.Items) != 1 {
 		t.Fatalf("List in a new session = %+v, %v; want the kept page, stale", p, err)
@@ -92,7 +93,7 @@ func TestKeptDetailIsCurrentAfterRestart(t *testing.T) {
 	firstSession(t, v, store)
 
 	api := v.api()
-	s := New(api, WithStore(store))
+	s := New(api, WithStore(cachetest.Aged(store, time.Hour)))
 	list(t, s, openList)
 	list(t, s, openList)
 	readDetail(t, s)
@@ -111,7 +112,7 @@ func TestKeptDetailRefetchedWhenNewer(t *testing.T) {
 	v.set(epoch.Add(time.Hour), core.ChecksSuccess)
 
 	api := v.api()
-	s := New(api, WithStore(store))
+	s := New(api, WithStore(cachetest.Aged(store, time.Hour)))
 	list(t, s, openList)
 	list(t, s, openList)
 	readDetail(t, s)
@@ -146,10 +147,10 @@ func TestKeptOffline(t *testing.T) {
 				return fail
 			}
 
-			s := New(failing(v.api(), failure), WithStore(store))
+			s := New(failing(v.api(), failure), WithStore(cachetest.Aged(store, time.Hour)))
 			list(t, s, openList)
 			p, err := s.List(t.Context(), openList)
-			other := New(failing(v.api(), failure), WithStore(store))
+			other := New(failing(v.api(), failure), WithStore(cachetest.Aged(store, time.Hour)))
 			d, getErr := other.Get(t.Context(), repo, 1)
 			c, commentsErr := other.Comments(t.Context(), firstComments)
 			if !tt.fallback {
@@ -177,7 +178,7 @@ func TestKeptRefusalDropsKept(t *testing.T) {
 	firstSession(t, v, store)
 	refused := func() error { return &github.Error{StatusCode: 404} }
 
-	s := New(failing(v.api(), refused), WithStore(store))
+	s := New(failing(v.api(), refused), WithStore(cachetest.Aged(store, time.Hour)))
 	list(t, s, openList)
 	if _, err := s.List(t.Context(), openList); err == nil {
 		t.Fatal("List succeeded, want the refusal")
@@ -190,7 +191,7 @@ func TestKeptRefusalDropsKept(t *testing.T) {
 	}
 
 	api := v.api()
-	next := New(api, WithStore(store))
+	next := New(api, WithStore(cachetest.Aged(store, time.Hour)))
 	if p, _ := next.List(t.Context(), openList); p.Stale {
 		t.Error("List after a refusal = stale, want the kept page gone")
 	}
@@ -216,17 +217,17 @@ func TestKeptMutation(t *testing.T) {
 				pr.State, pr.UpdatedAt = core.StateClosed, epoch.Add(time.Minute)
 				return pr, nil
 			}
-			s := New(api, WithStore(store))
+			s := New(api, WithStore(cachetest.Aged(store, time.Hour)))
 			list(t, s, openList)
 			readDetail(t, s)
 			_ = s.Close(repo, 1).Do(t.Context())
 
-			e, ok := New(v.api(), WithStore(store)).keptDetails.Load(detailKey(repo, 1))
+			e, ok := New(v.api(), WithStore(cachetest.Aged(store, time.Hour))).keptDetails.Load(detailKey(repo, 1))
 			want := map[bool]core.State{false: core.StateOpen, true: core.StateClosed}[confirm]
 			if !ok || e.Value.State != want {
 				t.Errorf("kept detail = %+v, %v; want state %s", e.Value, ok, want)
 			}
-			p, _ := New(v.api(), WithStore(store)).List(t.Context(), openList)
+			p, _ := New(v.api(), WithStore(cachetest.Aged(store, time.Hour))).List(t.Context(), openList)
 			if p.Items[0].State != core.StateOpen {
 				t.Errorf("kept list shows %s, want open until the list is read again", p.Items[0].State)
 			}

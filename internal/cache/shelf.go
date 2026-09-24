@@ -98,11 +98,13 @@ func (s *Shelf[V]) Load(key string) (Entry[V], bool) {
 	}, true
 }
 
-// Warm puts the entry kept under key into c as a stale entry, unless c has
-// an entry for key already, and returns it. It reports false if it put
-// nothing, so a caller may serve what it put at once, while the next Fetch
-// revalidates it. It reads the store only when c misses, so call it where
-// I/O is fine, such as in a tea.Cmd, rather than in a Cached read.
+// Warm puts the entry kept under key into c, unless c has an entry for key
+// already, as Seed does: fresh if it was fetched or revalidated within the
+// TTL of c, and stale otherwise. It returns a stale entry it put, so that a
+// caller may serve it at once while the next Fetch revalidates it, and
+// reports false otherwise; a fresh one is in c, where Fetch finds it. It
+// reads the store only when c misses, so call it where I/O is fine, such as
+// in a tea.Cmd, rather than in a Cached read.
 func (s *Shelf[V]) Warm(c *Cache[V], key string) (Entry[V], bool) {
 	if s == nil {
 		return Entry[V]{}, false
@@ -112,6 +114,9 @@ func (s *Shelf[V]) Warm(c *Cache[V], key string) (Entry[V], bool) {
 	}
 	e, ok := s.Load(key)
 	if !ok || !c.Seed(key, e) {
+		return Entry[V]{}, false
+	}
+	if _, st := c.Get(key); st != Stale {
 		return Entry[V]{}, false
 	}
 	return e, true
