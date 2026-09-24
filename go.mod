@@ -12,6 +12,7 @@ require (
 	github.com/charmbracelet/x/exp/golden v0.0.0-20260920004010-53e2afe73ae5
 	github.com/charmbracelet/x/exp/teatest/v2 v2.0.0-20260920004010-53e2afe73ae5
 	github.com/cli/go-gh/v2 v2.16.1
+	github.com/sahilm/fuzzy v0.1.3
 	go.yaml.in/yaml/v3 v3.0.5
 )
 
