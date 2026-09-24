@@ -153,7 +153,7 @@ func (s *Service) byRef(ctx context.Context, q TreeQuery, l lister) (core.Tree, 
 		}
 		t, res, err := l.get(s.api, ctx, q.Repo, q.Ref, cond)
 		switch {
-		case err != nil && ok && unreachable(ctx, err):
+		case err != nil && ok && github.Unreachable(ctx, err):
 			prev.Value.Offline = true
 			prev.FetchedAt, prev.Tags = offlineAt, tags
 			return prev, nil

@@ -13,10 +13,8 @@ package files
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math"
-	"net/url"
 	"slices"
 	"time"
 
@@ -85,21 +83,6 @@ func blobSize(b core.Blob) int64 {
 // didn't. Trees and blobs read by SHA can't change and are kept.
 func (s *Service) Invalidate(repo core.RepoRef) {
 	s.refs.InvalidateTag(repoTag(repo))
-}
-
-// unreachable reports whether err means that GitHub couldn't be reached or
-// failed, rather than refused: only then may a ref fall back to where it
-// last pointed. An account that lost access to a repository gets a 401, 403
-// or 404 and never sees what an earlier session cached.
-func unreachable(ctx context.Context, err error) bool {
-	if ctx.Err() != nil {
-		return false
-	}
-	if e, ok := errors.AsType[*github.Error](err); ok {
-		return e.StatusCode >= 500
-	}
-	_, ok := errors.AsType[*url.Error](err)
-	return ok
 }
 
 // Cache keys and tags.
