@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"context"
 	"slices"
 	"strings"
 	"testing"
@@ -13,27 +12,18 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
 )
-
-// claimingSection is a fake that claims the keys claims reports.
-type claimingSection struct {
-	*fakeSection
-	claims func(tea.KeyPressMsg) bool
-}
-
-func (s claimingSection) Claims(msg tea.KeyPressMsg) bool { return s.claims(msg) }
 
 // newDashApp returns an app of fake sections with a dashboard, on an 80x24
 // terminal, opened on repo if it isn't zero. The dashboard is the last
-// fake, and claims "/".
-func newDashApp(t *testing.T, repo core.RepoRef, opts ...Option) (*Model, []*fakeSection) {
+// fake.
+func newDashApp(t *testing.T, repo core.RepoRef) (*Model, []*fakeSection) {
 	t.Helper()
 	fakes := []*fakeSection{{title: "Files"}, {title: "Pull requests"}, {title: "Issues"}, {title: "Notifications"}, {title: ui.DashboardTitle}}
-	dash := claimingSection{fakes[4], func(msg tea.KeyPressMsg) bool { return msg.String() == "/" }}
-	layout := Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3], Dashboard: dash}
+	layout := Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3], Dashboard: fakes[4]}
+	var opts []Option
 	if repo != (core.RepoRef{}) {
-		opts = append([]Option{WithRepo(repo)}, opts...)
+		opts = append(opts, WithRepo(repo))
 	}
 	m := New(t.Context(), config.Default(), layout, opts...)
 	m.toast.SetDuration(0)
@@ -111,21 +101,6 @@ func TestDashboardTakesPaneKeys(t *testing.T) {
 		if !fakes[4].got(isKey(k)) {
 			t.Errorf("the dashboard didn't get %s", k)
 		}
-	}
-}
-
-func TestDashboardClaimsSearchKey(t *testing.T) {
-	search := func(context.Context, picker.Query) ([]picker.Item, error) { return nil, nil }
-	m, fakes := newDashApp(t, core.RepoRef{}, WithSearch(search))
-	run(m, m.key(press("/")))
-	if m.topModal() != nil || !fakes[4].got(isKey("/")) {
-		t.Error("a key the dashboard claims should reach it, not the app")
-	}
-	// Elsewhere the key opens the search.
-	run(m, m.key(press("n")))
-	run(m, m.key(press("/")))
-	if m.topModal() == nil {
-		t.Error("the search key should open the search on the notifications")
 	}
 }
 

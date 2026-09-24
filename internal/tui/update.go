@@ -95,9 +95,7 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 	// ctrl+c always reaches the quit key, so a capturing section can't
 	// trap the user.
 	if p != nil && msg.String() != "ctrl+c" {
-		c, capturer := p.section.(ui.Capturer)
-		cl, claimer := p.section.(ui.Claimer)
-		if capturer && c.Capturing() || claimer && cl.Claims(msg) {
+		if c, ok := p.section.(ui.Capturer); ok && c.Capturing() {
 			cmd := p.section.Update(msg)
 			m.updateBadges()
 			return cmd

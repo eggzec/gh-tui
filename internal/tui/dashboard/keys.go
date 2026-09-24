@@ -53,7 +53,7 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		Select:    ui.Binding(keys, config.ActionSelect, "open"),
 		Open:      ui.Binding(keys, config.ActionOpen, "browser"),
 		Refresh:   ui.Binding(keys, config.ActionRefresh, "refresh"),
-		Filter:    merge(ui.Binding(keys, config.ActionSearch, "filter"), ui.Binding(keys, config.ActionFilter, "filter")),
+		Filter:    ui.Binding(keys, config.ActionFilter, "filter"),
 		NextOwner: ui.Binding(keys, config.ActionNextOwner, "next owner"),
 		PrevOwner: ui.Binding(keys, config.ActionPrevOwner, "previous owner"),
 		Here:      ui.Binding(keys, config.ActionCurrentRepo, "this repo"),
@@ -88,19 +88,6 @@ func newKeyMap(keys map[string][]string) KeyMap {
 	return k
 }
 
-// merge returns a binding of the keys of a and b, labelled as a, or as b
-// when a has no keys.
-func merge(a, b key.Binding) key.Binding {
-	keys := slices.Concat(a.Keys(), b.Keys())
-	if !a.Enabled() {
-		a = b
-	}
-	if len(keys) == 0 {
-		return key.NewBinding(key.WithDisabled())
-	}
-	return key.NewBinding(key.WithKeys(slices.Compact(keys)...), key.WithHelp(a.Help().Key, a.Help().Desc))
-}
-
 // free drops the keys of b that the dashboard binds itself, such as "f",
 // which the list uses for page down and the dashboard for the filter.
 func free(b key.Binding, taken []key.Binding) key.Binding {
@@ -116,10 +103,6 @@ func free(b key.Binding, taken []key.Binding) key.Binding {
 		return key.NewBinding(key.WithDisabled())
 	}
 	return key.NewBinding(key.WithKeys(keys...), key.WithHelp(strings.Join(keys, "/"), b.Help().Desc))
-}
-
-func keyMatches(msg tea.KeyPressMsg, b key.Binding) bool {
-	return key.Matches(msg, b)
 }
 
 // pane returns the pane that msg focuses, or -1.
