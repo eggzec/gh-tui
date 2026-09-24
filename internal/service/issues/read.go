@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/core"
@@ -62,6 +63,7 @@ func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.Issue],
 	if err != nil {
 		return core.Page[core.Issue]{}, fmt.Errorf("list issues of %s: %w", q.Repo, err)
 	}
+	s.vouch(q.Repo, page.Items)
 	return page, nil
 }
 
@@ -84,10 +86,14 @@ func (s *Service) CachedGet(repo core.RepoRef, number int) (core.Issue, bool) {
 }
 
 // Get returns an issue without its comments, which Comments pages through.
-// A fresh issue comes from the cache; otherwise it is fetched, conditionally
-// if a stale copy is cached.
+// A fresh or current issue comes from the cache, current meaning as recent
+// as the list last showed it; otherwise it is fetched, conditionally if a
+// stale copy is cached.
 func (s *Service) Get(ctx context.Context, repo core.RepoRef, number int) (core.Issue, error) {
 	key := issueKey(repo, number)
+	if it, ok := s.currentIssue(key); ok {
+		return it, nil
+	}
 	it, err := fetch(ctx, s.issues, key,
 		func(core.Issue) []string { return []string{repoTag(repo), key} },
 		func(ctx context.Context, cond github.Conditional) (core.Issue, github.Response, error) {
@@ -117,23 +123,46 @@ func (q CommentsQuery) normalize() CommentsQuery {
 // request. It reports false if the page isn't cached.
 func (s *Service) CachedComments(q CommentsQuery) (core.Page[core.Comment], bool) {
 	e, st := s.comments.Get(commentsKey(q.normalize()))
-	return e.Value, st != cache.Miss
+	return e.Value.Value, st != cache.Miss
 }
 
 // Comments returns a page of the comments on an issue, oldest first. Each
-// page is cached and revalidated on its own, like List's.
+// page is cached and revalidated on its own, like List's, and is current
+// while it was read at the version of the issue that the list last showed.
 func (s *Service) Comments(ctx context.Context, q CommentsQuery) (core.Page[core.Comment], error) {
 	q = q.normalize()
-	tags := []string{repoTag(q.Repo), issueKey(q.Repo, q.Number)}
-	page, err := fetch(ctx, s.comments, commentsKey(q),
-		func(core.Page[core.Comment]) []string { return tags },
-		func(ctx context.Context, cond github.Conditional) (core.Page[core.Comment], github.Response, error) {
-			return s.api.ListIssueComments(ctx, q.Repo, q.Number, q.Cursor, q.PageSize, cond)
-		})
+	if p, ok := s.currentComments(q); ok {
+		return p, nil
+	}
+	key := issueKey(q.Repo, q.Number)
+	// The page is at least as recent as what the list showed before the
+	// read.
+	version, _ := s.seen.Get(key)
+	tags := []string{repoTag(q.Repo), key}
+	e, err := s.comments.Fetch(ctx, commentsKey(q), func(ctx context.Context, prev cache.Entry[stampedComments], ok bool) (cache.Entry[stampedComments], error) {
+		var cond github.Conditional
+		if ok {
+			cond = github.Conditional{ETag: prev.ETag, LastModified: prev.LastModified}
+		}
+		p, res, err := s.api.ListIssueComments(ctx, q.Repo, q.Number, q.Cursor, q.PageSize, cond)
+		switch {
+		case err != nil:
+			return prev, err
+		case res.NotModified:
+			// The cached page is current as of now, so it takes the newer
+			// version.
+			prev.Value.Version, prev.FetchedAt = version, time.Time{}
+			return prev, nil
+		}
+		return cache.Entry[stampedComments]{
+			Value: stampedComments{Value: p, Version: version},
+			ETag:  res.ETag, LastModified: res.LastModified, Tags: tags,
+		}, nil
+	})
 	if err != nil {
 		return core.Page[core.Comment]{}, fmt.Errorf("list comments of issue %s#%d: %w", q.Repo, q.Number, err)
 	}
-	return page, nil
+	return e.Value.Value, nil
 }
 
 // Invalidate marks everything cached of repo stale: its list pages, issues
@@ -142,6 +171,7 @@ func (s *Service) Comments(ctx context.Context, q CommentsQuery) (core.Page[core
 // even while the entries are fresh, and costs no rate limit if nothing
 // changed.
 func (s *Service) Invalidate(repo core.RepoRef) {
+	s.seen.DeletePrefix(issuePrefix(repo))
 	tag := repoTag(repo)
 	s.lists.InvalidateTag(tag)
 	s.issues.InvalidateTag(tag)

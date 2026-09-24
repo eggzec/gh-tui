@@ -6,12 +6,15 @@ package issues
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"sync/atomic"
+	"time"
 
 	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
 	"github.com/eggzec/gh-tui/internal/service/probe"
+	"github.com/eggzec/gh-tui/internal/service/seen"
 )
 
 // API is the part of the GitHub client that the service uses. ProbeIssues
@@ -35,13 +38,20 @@ type Service struct {
 	pending atomic.Uint64
 	// An issue and each page of its comments are separate entries, each with
 	// its own ETag, so the tui can page through a long thread and keep only
-	// the pages it shows.
+	// the pages it shows. Comment pages carry the version of the issue they
+	// were read at.
 	lists    *cache.Cache[core.Page[core.Issue]]
 	issues   *cache.Cache[core.Issue]
-	comments *cache.Cache[core.Page[core.Comment]]
+	comments *cache.Cache[stampedComments]
 	// etags holds the latest probe ETag of each polled repository.
 	etags probe.Tracker
+	// seen holds when each issue last changed, as the list pages last
+	// showed, by issue key.
+	seen seen.Marks[time.Time]
 }
+
+// stampedComments is a cached page of comments with the version of its issue.
+type stampedComments = seen.Stamped[core.Page[core.Comment]]
 
 // New returns a service that calls api.
 func New(api API, opts ...Option) *Service {
@@ -54,7 +64,7 @@ func New(api API, opts ...Option) *Service {
 		viewer:   o.viewer,
 		lists:    cache.New[core.Page[core.Issue]](o.cache...),
 		issues:   cache.New[core.Issue](o.cache...),
-		comments: cache.New[core.Page[core.Comment]](o.cache...),
+		comments: cache.New[stampedComments](o.cache...),
 	}
 }
 
@@ -88,7 +98,12 @@ func listKey(q ListQuery) string {
 }
 
 func issueKey(repo core.RepoRef, number int) string {
-	return fmt.Sprintf("issue:%s#%d", repo, number)
+	return issuePrefix(repo) + strconv.Itoa(number)
+}
+
+// issuePrefix starts the key of every issue of repo.
+func issuePrefix(repo core.RepoRef) string {
+	return "issue:" + repo.String() + "#"
 }
 
 func commentsKey(q CommentsQuery) string {

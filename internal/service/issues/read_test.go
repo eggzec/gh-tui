@@ -407,16 +407,18 @@ func TestInvalidateRevalidatesRepo(t *testing.T) {
 	}
 	s := New(api)
 	lq, cq := ListQuery{Repo: repo}, CommentsQuery{Repo: repo, Number: 7}
+	// The list goes last: a list page that GitHub confirmed vouches for the
+	// issue, which would spare the reads after it the request.
 	read := func() {
 		t.Helper()
-		if p, err := s.List(t.Context(), lq); err != nil || !slices.Equal(numbers(p), []int{7}) {
-			t.Fatalf("List = %v, %v; want [7]", numbers(p), err)
-		}
 		if it, err := s.Get(t.Context(), repo, 7); err != nil || it.Number != 7 {
 			t.Fatalf("Get = %+v, %v; want issue 7", it, err)
 		}
 		if p, err := s.Comments(t.Context(), cq); err != nil || len(p.Items) != 2 {
 			t.Fatalf("Comments = %v, %v; want 2 comments", ids(p), err)
+		}
+		if p, err := s.List(t.Context(), lq); err != nil || !slices.Equal(numbers(p), []int{7}) {
+			t.Fatalf("List = %v, %v; want [7]", numbers(p), err)
 		}
 	}
 	read()
