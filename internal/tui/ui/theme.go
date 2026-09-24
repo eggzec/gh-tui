@@ -99,6 +99,7 @@ func (t Theme) Tree() tree.Styles {
 	s.Marker = s.Marker.Foreground(lipgloss.Color(t.Palette.Muted))
 	s.Branch = s.Branch.Foreground(lipgloss.Color(t.Palette.Foreground))
 	s.Leaf = s.Leaf.Foreground(lipgloss.Color(t.Palette.Foreground))
+	s.Detail = s.Detail.Foreground(lipgloss.Color(t.Palette.Subtle))
 	s.Spinner = s.Spinner.Foreground(lipgloss.Color(t.Palette.Accent))
 	s.Loading = s.Loading.Foreground(lipgloss.Color(t.Palette.Muted))
 	s.Empty = s.Empty.Foreground(lipgloss.Color(t.Palette.Muted))

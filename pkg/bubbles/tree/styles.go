@@ -22,6 +22,8 @@ type Styles struct {
 	Branch lipgloss.Style
 	// Leaf styles the names of leaves.
 	Leaf lipgloss.Style
+	// Detail styles the detail at the right of a row.
+	Detail lipgloss.Style
 	// Spinner styles the spinner of a branch that is loading.
 	Spinner lipgloss.Style
 	// Loading styles the text shown while the top-level nodes load.
@@ -49,6 +51,7 @@ func DefaultStyles(isDark bool) Styles {
 		Marker:        lipgloss.NewStyle().Foreground(muted),
 		Branch:        lipgloss.NewStyle().Bold(true),
 		Leaf:          lipgloss.NewStyle(),
+		Detail:        lipgloss.NewStyle().Foreground(subtle),
 		Spinner:       lipgloss.NewStyle().Foreground(accent),
 		Loading:       lipgloss.NewStyle().Foreground(muted),
 		Empty:         lipgloss.NewStyle().Foreground(muted),

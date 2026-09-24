@@ -75,6 +75,18 @@ func TestView(t *testing.T) {
 			}
 			return keys(t, load(t, repo(), WithIcons(icons)), "l")
 		}},
+		{"details", func(t *testing.T) Model {
+			t.Helper()
+			return keys(t, load(t, sized(), WithSize(40, 6)), "l")
+		}},
+		{"details truncate the name", func(t *testing.T) Model {
+			t.Helper()
+			return keys(t, load(t, sized(), WithSize(24, 6)), "l")
+		}},
+		{"details dropped when narrow", func(t *testing.T) Model {
+			t.Helper()
+			return keys(t, load(t, sized(), WithSize(16, 6)), "l")
+		}},
 		{"scrolled", func(t *testing.T) Model {
 			t.Helper()
 			m := keys(t, load(t, generated(4), WithSize(40, 8)), "*")
@@ -89,6 +101,16 @@ func TestView(t *testing.T) {
 			golden.RequireEqual(t, v)
 		})
 	}
+}
+
+// sized is a small tree whose files carry their sizes as details.
+func sized() *files {
+	f := newFiles("docs/a-rather-long-file-name.md", "docs/b.md", "go.mod", "README.md")
+	f.setDetail("docs/a-rather-long-file-name.md", "12K")
+	f.setDetail("docs/b.md", "512B")
+	f.setDetail("go.mod", "1.2K")
+	f.setDetail("README.md", "2.1M")
+	return f
 }
 
 // assertFits checks that v is exactly height lines of exactly width cells.
