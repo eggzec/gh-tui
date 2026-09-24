@@ -14,6 +14,7 @@ import (
 	notifsvc "github.com/eggzec/gh-tui/internal/service/notifications"
 	pullsvc "github.com/eggzec/gh-tui/internal/service/pulls"
 	reposvc "github.com/eggzec/gh-tui/internal/service/repos"
+	searchsvc "github.com/eggzec/gh-tui/internal/service/search"
 	"github.com/eggzec/gh-tui/internal/tui"
 	"github.com/eggzec/gh-tui/internal/tui/issues"
 	"github.com/eggzec/gh-tui/internal/tui/notifications"
@@ -45,6 +46,8 @@ func build(ctx context.Context, cfg config.Config, arg string) (*tui.Model, erro
 	issueSvc := issuesvc.New(client, issuesvc.WithTTL(ttl))
 	notifSvc := notifsvc.New(client, notifsvc.WithTTL(ttl))
 	repoSvc := reposvc.New(client, reposvc.WithTTL(ttl))
+	// Search results keep the search service's own short TTL.
+	searchSvc := searchsvc.New(client)
 
 	repoOpts := []repos.Option{repos.WithPinned(pinned)}
 	if repo != (core.RepoRef{}) {
@@ -65,7 +68,10 @@ func build(ctx context.Context, cfg config.Config, arg string) (*tui.Model, erro
 	}
 
 	b := browser.New("", io.Discard, io.Discard)
-	opts := []tui.Option{tui.WithBrowser(b.Browse)}
+	opts := []tui.Option{
+		tui.WithBrowser(b.Browse),
+		tui.WithSearch(searchItems(searchSvc, repoSvc, pinned)),
+	}
 	if cfg.Sync.Enabled {
 		engine := watch.New(watch.WithInterval(cfg.Sync.Interval))
 		engine.Subscribe(notifications.SyncKey, notifSvc.Poll)

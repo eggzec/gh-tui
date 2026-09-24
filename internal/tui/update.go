@@ -97,6 +97,8 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 		m.help.ShowAll = !m.help.ShowAll
 		m.layout()
 		return nil
+	case key.Matches(msg, m.keys.Search):
+		return m.openSearch()
 	case key.Matches(msg, m.toast.KeyMap().Dismiss):
 		return m.toast.Dismiss()
 	case key.Matches(msg, tk.Next, tk.Prev, tk.Jump):
@@ -130,6 +132,11 @@ func (m *Model) broadcast(msg tea.Msg) tea.Cmd {
 	}
 	for _, mod := range m.modals {
 		cmds = append(cmds, mod.Update(msg))
+	}
+	// The closed search still gets its own messages, such as the spinner
+	// tick, so it is not stuck when it opens again.
+	if m.searchBox != nil && !m.isOpen(m.searchBox) {
+		cmds = append(cmds, m.searchBox.Update(msg))
 	}
 	m.updateBadges()
 	return tea.Batch(cmds...)

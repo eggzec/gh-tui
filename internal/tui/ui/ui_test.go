@@ -60,6 +60,7 @@ func TestThemeTakesPaletteColors(t *testing.T) {
 		"tree cursor":  th.Tree().Cursor.GetForeground(),
 		"pager prompt": th.Pager().Prompt.GetForeground(),
 		"accent text":  th.Accent.GetForeground(),
+		"picker match": th.Picker().Match.GetForeground(),
 	}
 	for name, got := range checks {
 		if got != accent {

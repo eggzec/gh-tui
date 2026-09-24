@@ -71,7 +71,7 @@ func (h helpKeys) ShortHelp() []key.Binding {
 	if h.modal {
 		return ks
 	}
-	return append(ks, h.app.Help, h.app.Quit)
+	return append(ks, h.app.Search, h.app.Help, h.app.Quit)
 }
 
 func (h helpKeys) FullHelp() [][]key.Binding {
@@ -82,5 +82,5 @@ func (h helpKeys) FullHelp() [][]key.Binding {
 	if h.modal {
 		return groups
 	}
-	return append(groups, []key.Binding{h.app.Tabs.Next, h.app.Tabs.Prev, h.dismiss, h.app.Help, h.app.Quit})
+	return append(groups, []key.Binding{h.app.Search, h.app.Tabs.Next, h.app.Tabs.Prev, h.dismiss, h.app.Help, h.app.Quit})
 }

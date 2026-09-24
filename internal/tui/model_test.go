@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -33,6 +34,8 @@ type fakeSection struct {
 	themed        bool
 	msgs          []tea.Msg
 	capturing     bool
+	// reply, if set, answers each message.
+	reply func(tea.Msg) tea.Cmd
 }
 
 func (s *fakeSection) Title() string { return s.title }
@@ -40,6 +43,9 @@ func (s *fakeSection) Badge() string { return s.badge }
 func (s *fakeSection) Init() tea.Cmd { s.inits++; return nil }
 func (s *fakeSection) Update(msg tea.Msg) tea.Cmd {
 	s.msgs = append(s.msgs, msg)
+	if s.reply != nil {
+		return s.reply(msg)
+	}
 	return nil
 }
 func (s *fakeSection) View() string      { return s.title + " content" }
@@ -81,21 +87,32 @@ func screen(m *Model) string {
 	return strings.Join(strings.Fields(ansi.Strip(m.View().Content)), " ")
 }
 
-// run applies the command's message, and those of batched commands, to m.
+// run applies the command's message, and those of batched and sequenced
+// commands, to m, in order.
 func run(m *Model, cmd tea.Cmd) {
 	if cmd == nil {
 		return
 	}
-	switch msg := cmd().(type) {
-	case tea.BatchMsg:
-		for _, c := range msg {
+	msg := cmd()
+	if cmds, ok := msg.(tea.BatchMsg); ok {
+		for _, c := range cmds {
 			run(m, c)
 		}
-	case nil:
-	default:
-		_, next := m.Update(msg)
-		run(m, next)
+		return
 	}
+	// tea.Sequence's message type is unexported, but it is a list of
+	// commands too.
+	if v := reflect.ValueOf(msg); v.Kind() == reflect.Slice && v.Type().Elem() == reflect.TypeFor[tea.Cmd]() {
+		for i := range v.Len() {
+			run(m, v.Index(i).Interface().(tea.Cmd))
+		}
+		return
+	}
+	if msg == nil {
+		return
+	}
+	_, next := m.Update(msg)
+	run(m, next)
 }
 
 func press(k string) tea.KeyPressMsg {
