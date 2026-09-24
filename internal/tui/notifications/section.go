@@ -19,7 +19,7 @@ import (
 )
 
 // SyncKey is the sync key under which the app subscribes the service's Poll.
-const SyncKey = "notifications"
+const SyncKey = notifications.SyncKey
 
 // Service is what the section needs of the notifications service.
 type Service interface {
