@@ -2,9 +2,11 @@
 // GitHub and keeps the results briefly, so typing a query again, or going
 // back to it, costs no request.
 //
-// Repositories, issues and pull requests are searched together, in one
-// GraphQL query that costs a single point and counts every kind, so a
-// search page can show each kind's count as the user types. Code search
+// A first page of repositories, issues or pull requests comes with the
+// count of the other two kinds, in one GraphQL query of a single point, so
+// a search page can show each kind's count as the user types. GitHub runs
+// the searches of one query one after another, so the first pages of the
+// other kinds are separate queries, which Prefetch sends side by side. Code search
 // has a REST limit of 10 requests a minute, so it runs only when asked for.
 // Results may include private data, so they stay in memory.
 package search
@@ -142,10 +144,26 @@ func (s *Service) CachedSearch(q Query) (Result, bool) {
 
 // Search returns the page for q. A fresh cached page is returned without a
 // request, and a query without text returns an empty page without one.
-// The first page of any kind comes with the first page of the other kinds,
-// which are cached for when the user switches to them; a later page asks
-// for its kind alone.
+// The first page of any kind comes with the count of the other kinds; a
+// later page asks for its kind alone.
 func (s *Service) Search(ctx context.Context, q Query) (Result, error) {
+	return s.search(ctx, q, true)
+}
+
+// Prefetch reads the first page of q.Kind for q.Text into the cache, if it
+// isn't there, without counting the other kinds, so that switching to the
+// kind is instant. Send one for each kind not on view, alongside the Search
+// of the kind on view.
+func (s *Service) Prefetch(ctx context.Context, q Query) error {
+	q.Cursor = ""
+	if q.Kind == core.SearchAll {
+		return fmt.Errorf("prefetch %q: name one kind", q.Text)
+	}
+	_, err := s.search(ctx, q, false)
+	return err
+}
+
+func (s *Service) search(ctx context.Context, q Query, count bool) (Result, error) {
 	q = q.normalize()
 	if q.Text == "" {
 		return Result{}, nil
@@ -159,7 +177,7 @@ func (s *Service) Search(ctx context.Context, q Query) (Result, error) {
 	e, err := s.pages.Fetch(ctx, pageKey(q), func(ctx context.Context, _ cache.Entry[core.SearchPage[core.SearchHit]], _ bool) (cache.Entry[core.SearchPage[core.SearchHit]], error) {
 		// GraphQL responses carry no validators, so a stale page is fetched
 		// again in full.
-		p, err := s.fetch(ctx, q)
+		p, err := s.fetch(ctx, q, count)
 		if err != nil {
 			return cache.Entry[core.SearchPage[core.SearchHit]]{}, err
 		}
@@ -171,14 +189,18 @@ func (s *Service) Search(ctx context.Context, q Query) (Result, error) {
 	return Result{SearchPage: e.Value, Counts: s.cachedCounts(q.Text)}, nil
 }
 
-// fetch asks GitHub for the page q selects and keeps what else the answer
-// brought: the counts, and on a first page, the first page of every kind.
-func (s *Service) fetch(ctx context.Context, q Query) (core.SearchPage[core.SearchHit], error) {
-	var after map[core.SearchKind]string
-	if q.Cursor != "" {
-		after = map[core.SearchKind]string{q.Kind: q.Cursor}
+// fetch asks GitHub for the page q selects, with the count of the other
+// kinds if count is set and it is a first page, and keeps the counts.
+func (s *Service) fetch(ctx context.Context, q Query, count bool) (core.SearchPage[core.SearchHit], error) {
+	sq := github.SearchQuery{Text: q.Text, First: q.PageSize, After: map[core.SearchKind]string{q.Kind: q.Cursor}}
+	if count && q.Cursor == "" {
+		for _, k := range kinds {
+			if k != q.Kind {
+				sq.Count = append(sq.Count, k)
+			}
+		}
 	}
-	pages, err := s.api.Search(ctx, github.SearchQuery{Text: q.Text, First: q.PageSize, After: after})
+	pages, err := s.api.Search(ctx, sq)
 	if err != nil {
 		return core.SearchPage[core.SearchHit]{}, err
 	}
@@ -189,35 +211,46 @@ func (s *Service) fetch(ctx context.Context, q Query) (core.SearchPage[core.Sear
 	totals := make(map[core.SearchKind]int, len(pages))
 	for kind, page := range pages {
 		totals[kind] = page.Total
-		if kind != q.Kind && q.Cursor == "" {
-			other := q
-			other.Kind = kind
-			s.pages.Set(pageKey(other), cache.Entry[core.SearchPage[core.SearchHit]]{Value: page, Tags: []string{allTag}})
-		}
 	}
 	s.addCounts(q.Text, totals)
 	return p, nil
 }
 
-// all lists the first page of every kind, which the first search brings
-// at once.
+// all lists the first page of every kind, which one query brings.
 func (s *Service) all(ctx context.Context, q Query) (Result, error) {
 	if q.Cursor != "" {
 		return Result{}, fmt.Errorf("search %q: a search of every kind has one page", q.Text)
 	}
-	var res Result
+	if r, ok := s.cachedAll(q); ok && s.fresh(q) {
+		return r, nil
+	}
+	pages, err := s.api.Search(ctx, github.SearchQuery{Text: q.Text, First: q.PageSize})
+	if err != nil {
+		return Result{}, fmt.Errorf("search %q: %w", q.Text, err)
+	}
+	totals := make(map[core.SearchKind]int, len(pages))
+	for kind, page := range pages {
+		totals[kind] = page.Total
+		k := q
+		k.Kind = kind
+		s.pages.Set(pageKey(k), cache.Entry[core.SearchPage[core.SearchHit]]{Value: page, Tags: []string{allTag}})
+	}
+	s.addCounts(q.Text, totals)
+	r, _ := s.cachedAll(q)
+	return r, nil
+}
+
+// fresh reports whether the first page of every kind of q is cached and
+// fresh.
+func (s *Service) fresh(q Query) bool {
 	for _, kind := range kinds {
 		k := q
 		k.Kind = kind
-		r, err := s.Search(ctx, k)
-		if err != nil {
-			return Result{}, err
+		if _, state := s.pages.Get(pageKey(k)); state != cache.Fresh {
+			return false
 		}
-		res.Items = append(res.Items, r.Items...)
-		res.Total += r.Total
-		res.Counts = r.Counts
 	}
-	return res, nil
+	return true
 }
 
 func (s *Service) cachedAll(q Query) (Result, bool) {
