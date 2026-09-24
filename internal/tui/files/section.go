@@ -1,6 +1,6 @@
 // Package files is the Files section: the tree of the selected repository,
-// whose directories expand as they are browsed and whose files open in a
-// preview over the screen or in the browser.
+// listed whole in one request so that directories expand at once, whose
+// files open in a preview over the screen or in the browser.
 package files
 
 import (
@@ -28,12 +28,19 @@ type Section struct {
 	keys KeyMap
 
 	repo core.RepoRef
-	// tree lists the files of repo, and is nil until a repository is
-	// selected. cancelTree cancels its loads when another repository is
-	// selected. started reports whether its first load was sent.
+	// tree lists the files of repo from src, and is nil until a repository
+	// is selected. treeCtx bounds its loads, and cancelTree cancels them
+	// when another repository is selected. started reports whether its
+	// first load was sent.
 	tree       *tree.Model
+	src        *source
 	started    bool
+	treeCtx    context.Context
 	cancelTree context.CancelFunc
+	// idx is the listing the section last reacted to, and warned reports
+	// whether it said that the listing of repo is truncated.
+	idx    *index
+	warned bool
 
 	width, height int
 	focused       bool
@@ -74,15 +81,32 @@ func (s *Section) newTree(repo core.RepoRef) {
 		s.cancelTree()
 	}
 	ctx, cancel := context.WithCancel(s.ctx)
-	t := tree.New(children(s.svc, repo),
+	src := newSource(s.svc, repo)
+	t := tree.New(src.children,
 		tree.WithContext(ctx),
+		tree.WithExpandAllLimits(expandAllNodes, expandAllDepth),
 		tree.WithKeyMap(s.keys.Tree),
 		tree.WithStyles(s.styles),
 		tree.WithSize(s.width, s.height),
 		tree.WithFocused(s.focused),
 		tree.WithEmptyText("This repository is empty."),
 	)
-	s.repo, s.tree, s.started, s.cancelTree = repo, &t, false, cancel
+	s.repo, s.tree, s.src, s.started = repo, &t, src, false
+	s.treeCtx, s.cancelTree = ctx, cancel
+	s.idx, s.warned = nil, false
+}
+
+// The limits of an expand-all while the tree comes from the listing, where
+// it costs no requests. They keep the view usable in a huge repository.
+const (
+	expandAllNodes = 5000
+	expandAllDepth = 64
+)
+
+// listingMsg reports that the listing of src was read again for a
+// refresh.
+type listingMsg struct {
+	src *source
 }
 
 // start sends the first load of the tree, once.
@@ -105,8 +129,17 @@ func (s *Section) Init() tea.Cmd {
 }
 
 // Update follows the selected repository and handles the section's keys;
-// everything else goes to the tree.
+// everything else goes to the tree. It then reacts to a listing the tree
+// has read.
 func (s *Section) Update(msg tea.Msg) tea.Cmd {
+	cmd := s.update(msg)
+	if s.tree == nil {
+		return cmd
+	}
+	return tea.Batch(cmd, s.observe())
+}
+
+func (s *Section) update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case ui.RepoMsg:
 		if s.tree != nil && sameRef(msg.Repo, s.repo) {
@@ -114,6 +147,11 @@ func (s *Section) Update(msg tea.Msg) tea.Cmd {
 		}
 		s.newTree(msg.Repo)
 		return s.start()
+	case listingMsg:
+		if s.tree == nil || msg.src != s.src {
+			return nil
+		}
+		return s.tree.Reload()
 	case tree.OpenMsg:
 		if s.tree == nil || msg.ID != s.tree.ID() {
 			return nil
@@ -139,12 +177,45 @@ func (s *Section) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	}
 	switch {
 	case key.Matches(msg, s.keys.Refresh):
-		s.svc.Invalidate(s.repo)
-		return s.tree.Reload(), true
+		return s.refresh(), true
 	case key.Matches(msg, s.keys.Open):
 		return ui.Open(webURL(s.repo, s.selected())), true
 	}
 	return nil, false
+}
+
+// refresh asks GitHub whether the listing changed, and then reloads the
+// tree from it, keeping what is expanded. Reloading waits for the listing
+// so that every directory comes from the same one.
+func (s *Section) refresh() tea.Cmd {
+	s.svc.Invalidate(s.repo)
+	src, ctx := s.src, s.treeCtx
+	return func() tea.Msg {
+		// A failed read shows in the tree, whose root reads it again.
+		_, _ = src.load(ctx)
+		return listingMsg{src: src}
+	}
+}
+
+// observe reacts to a listing the tree read since the last call. A
+// truncated listing is read one directory at a time, with a request each,
+// so an expand-all goes back to the tree's cautious limits.
+func (s *Section) observe() tea.Cmd {
+	x := s.src.current()
+	if x == nil || x == s.idx {
+		return nil
+	}
+	s.idx = x
+	if !x.truncated {
+		s.tree.SetExpandAllLimits(expandAllNodes, expandAllDepth)
+		return nil
+	}
+	s.tree.SetExpandAllLimits(tree.DefaultExpandAllNodes, tree.DefaultExpandAllDepth)
+	if s.warned {
+		return nil
+	}
+	s.warned = true
+	return ui.Notify(toast.Info, s.repo.String()+" is too large to list at once, so folders load as you open them.")
 }
 
 // preview opens the file of n in a modal. A submodule has no content in

@@ -11,6 +11,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/tree"
 )
 
 func TestNoRepo(t *testing.T) {
@@ -31,8 +32,8 @@ func TestRepoSwitch(t *testing.T) {
 	f := sampleFake()
 	s := newSection(t, f, 40, 12)
 	run(s, s.Update(ui.RepoMsg{Repo: ghTUI}))
-	if got := f.readRefs(); !slices.Equal(got, []string{""}) {
-		t.Fatalf("reads = %q, want the HEAD tree", got)
+	if n := f.allCount(); n != 1 || len(f.reads) != 0 {
+		t.Fatalf("%d listings and reads %q, want one listing", n, f.readRefs())
 	}
 	keys(s, "+")
 	if got := screen(s); !strings.Contains(got, "gh-tui") || !strings.Contains(got, "go.mod") {
@@ -41,31 +42,69 @@ func TestRepoSwitch(t *testing.T) {
 
 	// The same repository, spelled differently, keeps the tree.
 	run(s, s.Update(ui.RepoMsg{Repo: core.RepoRef{Owner: "EggZec", Name: "GH-TUI"}}))
-	if n := len(f.reads); n != 2 {
-		t.Errorf("%d reads after selecting the same repository, want 2", n)
+	if n := f.allCount(); n != 1 {
+		t.Errorf("%d listings after selecting the same repository, want 1", n)
 	}
 
-	// A load still on its way when another repository is selected is
+	// A listing still on its way when another repository is selected is
 	// cancelled, and its result ignored.
-	run(s, s.Update(ui.RepoMsg{Repo: other}))
-	late := s.Update(ui.RepoMsg{Repo: ghTUI})
-	run(s, s.Update(ui.RepoMsg{Repo: other}))
+	late := s.Update(ui.RepoMsg{Repo: other})
+	run(s, s.Update(ui.RepoMsg{Repo: ghTUI}))
 	run(s, late)
 	if f.cancelled != 1 {
 		t.Errorf("%d loads ran cancelled, want the late one", f.cancelled)
 	}
 	got := screen(s)
-	if !strings.Contains(got, "tea.go") || strings.Contains(got, "cmd") {
-		t.Errorf("screen = %q, want only the files of bubbletea", got)
-	}
-	if last := f.reads[len(f.reads)-2]; last.Repo != other || last.Ref != "" {
-		t.Errorf("last read = %+v, want the HEAD tree of bubbletea", last)
+	if strings.Contains(got, "tea.go") || !strings.Contains(got, "cmd") {
+		t.Errorf("screen = %q, want only the files of gh-tui", got)
 	}
 }
 
-func TestExpand(t *testing.T) {
+func TestExpandMakesNoRequests(t *testing.T) {
 	f := sampleFake()
 	s := loaded(t, f, 40, 12)
+	keys(s, "+", "down", "+")
+	if n := f.allCount(); n != 1 || len(f.reads) != 0 {
+		t.Errorf("%d listings and reads %q, want the one listing", n, f.readRefs())
+	}
+	if got := screen(s); !strings.Contains(got, "main.go") || !strings.Contains(got, "2.0K") {
+		t.Errorf("screen = %q, want cmd/gh-tui/main.go with its size", got)
+	}
+	n, _ := s.tree.Selected()
+	if e, _ := entryOf(n); e.Path != "cmd/gh-tui" || e.SHA != ghTUISHA {
+		t.Errorf("selected %+v, want cmd/gh-tui with its path from the root", e)
+	}
+
+	keys(s, "g", "down", "down", "down", "*")
+	if got := screen(s); !strings.Contains(got, "core") || !strings.Contains(got, "main.go") {
+		t.Errorf("screen = %q, want everything expanded", got)
+	}
+
+	// Another tree over the same service takes the listing from the cache.
+	s2 := loaded(t, f, 40, 12)
+	keys(s2, "+")
+	if n := f.allCount(); n != 1 || len(f.reads) != 0 {
+		t.Errorf("%d listings and reads %q, want the cached listing", n, f.readRefs())
+	}
+	if got := screen(s2); !strings.Contains(got, "gh-tui") {
+		t.Errorf("screen = %q, want cmd expanded from the cache", got)
+	}
+}
+
+func TestTruncatedListing(t *testing.T) {
+	f := sampleFake()
+	f.truncated["eggzec/gh-tui"] = true
+	s := New(t.Context(), f, config.Default().Keys, WithRepo(ghTUI))
+	s.SetSize(40, 12)
+	s.Focus()
+	msgs := run(s, s.Init())
+	if len(msgs) != 1 {
+		t.Fatalf("Init sent %#v, want one notice", msgs)
+	}
+	if n, ok := msgs[0].(ui.NotifyMsg); !ok || !strings.Contains(n.Text, "too large to list at once") {
+		t.Errorf("Init sent %#v, want a notice that the listing is truncated", msgs[0])
+	}
+	// Directories are read one by one, as the listing may miss them.
 	keys(s, "+", "down", "+")
 	if got, want := f.readRefs(), []string{"", cmdSHA, ghTUISHA}; !slices.Equal(got, want) {
 		t.Errorf("reads = %q, want %q", got, want)
@@ -73,23 +112,13 @@ func TestExpand(t *testing.T) {
 	if got := screen(s); !strings.Contains(got, "main.go") {
 		t.Errorf("screen = %q, want cmd/gh-tui/main.go", got)
 	}
-	n, _ := s.tree.Selected()
-	if e, _ := entryOf(n); e.Path != "cmd/gh-tui" || e.SHA != ghTUISHA {
-		t.Errorf("selected %+v, want cmd/gh-tui with its path from the root", e)
+	if nodes, depth := s.tree.ExpandAllLimits(); nodes != tree.DefaultExpandAllNodes || depth != tree.DefaultExpandAllDepth {
+		t.Errorf("expand-all limits = %d, %d; want the tree's defaults", nodes, depth)
 	}
-
-	// Directories are read by SHA, so another tree over the same service
-	// takes them from the cache.
-	s2 := loaded(t, f, 40, 12)
-	keys(s2, "+")
-	if got := f.readRefs(); len(got) != 4 || got[3] != "" {
-		t.Errorf("reads = %q, want only the HEAD tree read again", got)
-	}
-	if got := screen(s2); !strings.Contains(got, "gh-tui") {
-		t.Errorf("screen = %q, want cmd expanded from the cache", got)
+	if msgs := keys(s, "r"); len(msgs) != 0 {
+		t.Errorf("refresh sent %#v, want the notice only once", msgs)
 	}
 }
-
 func TestConfiguredKeys(t *testing.T) {
 	cfg := maps.Clone(config.Default().Keys)
 	cfg[config.ActionExpand] = []string{"e"}
@@ -120,16 +149,18 @@ func TestConfiguredKeys(t *testing.T) {
 func TestRefresh(t *testing.T) {
 	f := sampleFake()
 	s := loaded(t, f, 40, 12)
-	keys(s, "+", "r")
+	keys(s, "+", "down", "+")
+	f.addTree(ghTUI, ghTUISHA, file("main.go", 2_000), file("root.go", 700))
+	keys(s, "r")
 	if !slices.Equal(f.invalidated, []core.RepoRef{ghTUI}) {
 		t.Errorf("invalidated %v, want gh-tui", f.invalidated)
 	}
-	// The expanded directory comes from the cache, the root is read again.
-	if got, want := f.readRefs(), []string{"", cmdSHA, ""}; !slices.Equal(got, want) {
-		t.Errorf("reads = %q, want %q", got, want)
+	// The listing is read again, once, and the tree reloads from it.
+	if n := f.allCount(); n != 2 || len(f.reads) != 0 {
+		t.Errorf("%d listings and reads %q, want the listing read again", n, f.readRefs())
 	}
-	if got := screen(s); !strings.Contains(got, "gh-tui") {
-		t.Errorf("screen = %q, want cmd still expanded", got)
+	if got := screen(s); !strings.Contains(got, "root.go") {
+		t.Errorf("screen = %q, want cmd/gh-tui still expanded with the new file", got)
 	}
 }
 
@@ -174,7 +205,7 @@ func TestBlurred(t *testing.T) {
 	f := sampleFake()
 	s := loaded(t, f, 40, 12)
 	s.Blur()
-	if msgs := keys(s, "o", "+", "r"); len(msgs) != 0 || len(f.reads) != 1 {
-		t.Errorf("a blurred section sent %#v and read %v", msgs, f.reads)
+	if msgs := keys(s, "o", "+", "r"); len(msgs) != 0 || f.allCount() != 1 {
+		t.Errorf("a blurred section sent %#v and listed %d times", msgs, f.allCount())
 	}
 }

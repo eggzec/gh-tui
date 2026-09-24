@@ -59,7 +59,7 @@ func (s *Service) Tree(ctx context.Context, q TreeQuery) (core.Tree, error) {
 			if err != nil || res.NotModified {
 				return t, res, err
 			}
-			slices.SortFunc(t.Entries, compareEntries)
+			slices.SortFunc(t.Entries, CompareEntries)
 			if byRef && t.SHA != "" {
 				s.objects.Set(treeKey(q.Repo, t.SHA), cache.Entry[core.Tree]{Value: t})
 			}
@@ -102,9 +102,9 @@ func (s *Service) All(ctx context.Context, q TreeQuery) (core.Tree, error) {
 	return t, nil
 }
 
-// compareEntries orders directories and submodules before files, then by
-// name ignoring case.
-func compareEntries(a, b core.TreeEntry) int {
+// CompareEntries orders directories and submodules before files, then by
+// name ignoring case, the order in which Tree lists a directory.
+func CompareEntries(a, b core.TreeEntry) int {
 	return cmp.Or(
 		cmp.Compare(fileRank(a), fileRank(b)),
 		compareFold(a.Name, b.Name),

@@ -24,6 +24,15 @@ type fake struct {
 	cancelled   int
 	invalidated []core.RepoRef
 
+	// allReads lists the queries All was called with. The listing of a
+	// repository is its trees walked from the root, cut short for the
+	// repositories in truncated. cachedAll holds those whose listing is fresh, until
+	// invalidated.
+	allReads  []filesvc.TreeQuery
+	truncated map[string]bool
+	cachedAll map[string]bool
+	version   int
+
 	// blobs and blobErrs are keyed by SHA. blobReads lists the queries
 	// Blob was called with, and cachedBlobs the SHAs it returned.
 	blobs       map[string]core.Blob
@@ -35,6 +44,7 @@ type fake struct {
 func newFake() *fake {
 	return &fake{
 		trees: map[string]core.Tree{}, errs: map[string]error{}, cached: map[string]bool{},
+		truncated: map[string]bool{}, cachedAll: map[string]bool{},
 		blobs: map[string]core.Blob{}, blobErrs: map[string]error{}, cachedBlobs: map[string]bool{},
 	}
 }
@@ -49,6 +59,8 @@ func treeKey(repo core.RepoRef, ref string) string {
 // addTree lists entries under ref of repo.
 func (f *fake) addTree(repo core.RepoRef, ref string, entries ...core.TreeEntry) {
 	f.trees[treeKey(repo, ref)] = core.Tree{SHA: ref, Entries: entries}
+	// Any change gives the root, and so the listing, a new SHA.
+	f.version++
 }
 
 func (f *fake) CachedTree(q filesvc.TreeQuery) (core.Tree, bool) {
@@ -83,10 +95,76 @@ func (f *fake) Tree(ctx context.Context, q filesvc.TreeQuery) (core.Tree, error)
 	return t, nil
 }
 
+// listing walks the trees of repo from the root. A truncated listing keeps
+// the top level and drops the rest. f.mu must be held.
+func (f *fake) listing(repo core.RepoRef) (core.Tree, error) {
+	root := treeKey(repo, "")
+	if err := f.errs[root]; err != nil {
+		return core.Tree{}, err
+	}
+	t, ok := f.trees[root]
+	if !ok {
+		return core.Tree{}, errNoTree
+	}
+	cut := f.truncated[strings.ToLower(repo.String())]
+	out := core.Tree{SHA: fmt.Sprintf("all-%s-%d", repo, f.version), Truncated: cut}
+	var walk func(dir string, t core.Tree)
+	walk = func(dir string, t core.Tree) {
+		for _, e := range t.Entries {
+			e.Path = joinPath(dir, e.Name)
+			out.Entries = append(out.Entries, e)
+			if sub, ok := f.trees[treeKey(repo, e.SHA)]; ok && e.Dir() && !cut {
+				walk(e.Path, sub)
+			}
+		}
+	}
+	walk("", t)
+	return out, nil
+}
+
+func (f *fake) CachedAll(q filesvc.TreeQuery) (core.Tree, bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if !f.cachedAll[strings.ToLower(q.Repo.String())] {
+		return core.Tree{}, false
+	}
+	t, err := f.listing(q.Repo)
+	return t, err == nil
+}
+
+func (f *fake) All(ctx context.Context, q filesvc.TreeQuery) (core.Tree, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	k := strings.ToLower(q.Repo.String())
+	if f.cachedAll[k] {
+		// A fresh listing is served from the cache.
+		return f.listing(q.Repo)
+	}
+	f.allReads = append(f.allReads, q)
+	if err := ctx.Err(); err != nil {
+		f.cancelled++
+		return core.Tree{}, err
+	}
+	t, err := f.listing(q.Repo)
+	if err != nil {
+		return core.Tree{}, err
+	}
+	f.cachedAll[k] = true
+	return t, nil
+}
+
+// allCount returns how many times All asked GitHub.
+func (f *fake) allCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return len(f.allReads)
+}
+
 func (f *fake) Invalidate(repo core.RepoRef) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.invalidated = append(f.invalidated, repo)
+	delete(f.cachedAll, strings.ToLower(repo.String()))
 }
 
 // readRefs returns the refs Tree was asked for, in order.
