@@ -82,7 +82,7 @@ func (m *Model) helpKeys() help.KeyMap {
 		if m.back == dashScreen {
 			hk.dashboard.SetEnabled(false)
 		}
-	case repoScreen:
+	case repoScreen, searchScreen:
 	}
 	if m.dash == nil {
 		hk.dashboard.SetEnabled(false)
