@@ -39,6 +39,8 @@ type Config struct {
 	Cache Cache               `yaml:"cache"`
 	Sync  Sync                `yaml:"sync"`
 	Files Files               `yaml:"files"`
+	// Details configures the pull request and issue modals.
+	Details Details `yaml:"details"`
 }
 
 // Sync configures background polling.
@@ -60,6 +62,8 @@ func Default() Config {
 		Cache:  defaultCache(),
 		Sync:   Sync{Enabled: true, Interval: time.Minute},
 		Files:  defaultFiles(),
+
+		Details: defaultDetails(),
 	}
 }
 
@@ -125,6 +129,6 @@ func (c Config) Validate() error {
 	if c.Sync.Interval <= 0 {
 		errs = append(errs, fmt.Errorf("sync.interval: must be positive, got %v", c.Sync.Interval))
 	}
-	errs = append(errs, c.Files.validate())
+	errs = append(errs, c.Files.validate(), c.Details.validate())
 	return errors.Join(errs...)
 }
