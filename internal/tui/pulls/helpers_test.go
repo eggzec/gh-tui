@@ -2,6 +2,7 @@ package pulls
 
 import (
 	"context"
+	"reflect"
 	"slices"
 	"strconv"
 	"sync"
@@ -235,29 +236,72 @@ func manyPulls(n int) []core.PullRequest {
 	return prs
 }
 
+// host stands in for the app: it sends keys to the modal opened last, or
+// else to the section, every other message to both, and opens and closes
+// the modals. The modals are as large as the section.
+type host struct {
+	*Section
+	modals []ui.Modal
+}
+
+// Update routes msg as the app does.
+func (h *host) Update(msg tea.Msg) tea.Cmd {
+	switch msg := msg.(type) {
+	case ui.OpenModalMsg:
+		msg.Modal.SetTheme(h.theme)
+		msg.Modal.SetSize(h.width, h.height)
+		h.modals = append(h.modals, msg.Modal)
+		return nil
+	case ui.CloseModalMsg:
+		if i := slices.Index(h.modals, msg.Modal); i >= 0 {
+			h.modals = h.modals[:i]
+		}
+		return nil
+	case tea.KeyPressMsg:
+		if len(h.modals) > 0 {
+			return h.modals[len(h.modals)-1].Update(msg)
+		}
+		return h.Section.Update(msg)
+	}
+	cmds := []tea.Cmd{h.Section.Update(msg)}
+	for _, m := range h.modals {
+		cmds = append(cmds, m.Update(msg))
+	}
+	return tea.Batch(cmds...)
+}
+
+// modal returns the detail open on top, or nil.
+func (h *host) modal() *detailModal {
+	if len(h.modals) == 0 {
+		return nil
+	}
+	m, _ := h.modals[len(h.modals)-1].(*detailModal)
+	return m
+}
+
 // newTest returns a sized, focused section over svc that has not started.
-func newTest(tb testing.TB, svc Service, width, height int, opts ...Option) *Section {
+func newTest(tb testing.TB, svc Service, width, height int, opts ...Option) *host {
 	tb.Helper()
 	opts = append([]Option{WithClock(func() time.Time { return clock })}, opts...)
 	s := New(tb.Context(), svc, config.Default().Keys, opts...)
 	s.SetSize(width, height)
 	s.Focus()
-	return s
+	return &host{Section: s}
 }
 
 // started returns a section that has started on repo and loaded its list.
-func started(tb testing.TB, svc Service, width, height int, opts ...Option) *Section {
+func started(tb testing.TB, svc Service, width, height int, opts ...Option) *host {
 	tb.Helper()
-	s := newTest(tb, svc, width, height, opts...)
-	drain(tb, s, s.Update(ui.RepoMsg{Repo: repo}))
-	drain(tb, s, s.Init())
-	return s
+	h := newTest(tb, svc, width, height, opts...)
+	drain(tb, h, h.Update(ui.RepoMsg{Repo: repo}))
+	drain(tb, h, h.Init())
+	return h
 }
 
 // drain runs cmd and the commands that follow, and feeds their messages to
-// s. It skips spinner ticks, which never end, and returns the messages that
-// s doesn't produce for itself, such as the app messages.
-func drain(tb testing.TB, s *Section, cmd tea.Cmd) []tea.Msg {
+// h. It skips spinner ticks, which never end, and keeps the messages for
+// the app that h doesn't handle, such as OpenMsg. It returns every message.
+func drain(tb testing.TB, h *host, cmd tea.Cmd) []tea.Msg {
 	tb.Helper()
 	var out []tea.Msg
 	queue := []tea.Cmd{cmd}
@@ -270,7 +314,15 @@ func drain(tb testing.TB, s *Section, cmd tea.Cmd) []tea.Msg {
 		if c == nil {
 			continue
 		}
-		switch msg := c().(type) {
+		msg := c()
+		if seq, ok := sequence(msg); ok {
+			// Run each command of a sequence to the end before the next.
+			for _, sc := range seq {
+				out = append(out, drain(tb, h, sc)...)
+			}
+			continue
+		}
+		switch msg := msg.(type) {
 		case nil:
 		case tea.BatchMsg:
 			queue = append(queue, msg...)
@@ -279,16 +331,29 @@ func drain(tb testing.TB, s *Section, cmd tea.Cmd) []tea.Msg {
 			out = append(out, msg)
 		default:
 			out = append(out, msg)
-			queue = append(queue, s.Update(msg))
+			queue = append(queue, h.Update(msg))
 		}
 	}
 	return out
 }
 
-// press sends the key k to s and runs what it starts.
-func press(tb testing.TB, s *Section, k string) []tea.Msg {
+// sequence returns the commands of the message tea.Sequence sends, whose
+// type bubbletea doesn't export.
+func sequence(msg tea.Msg) ([]tea.Cmd, bool) {
+	if _, ok := msg.(tea.BatchMsg); ok || msg == nil {
+		return nil, false
+	}
+	v := reflect.ValueOf(msg)
+	if v.Kind() != reflect.Slice || v.Type().Elem() != reflect.TypeFor[tea.Cmd]() {
+		return nil, false
+	}
+	return v.Convert(reflect.TypeFor[[]tea.Cmd]()).Interface().([]tea.Cmd), true
+}
+
+// press sends the key k to h and runs what it starts.
+func press(tb testing.TB, h *host, k string) []tea.Msg {
 	tb.Helper()
-	return drain(tb, s, s.Update(keyMsg(k)))
+	return drain(tb, h, h.Update(keyMsg(k)))
 }
 
 func keyMsg(k string) tea.KeyPressMsg {

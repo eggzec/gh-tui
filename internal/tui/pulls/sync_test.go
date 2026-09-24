@@ -64,8 +64,8 @@ func TestSyncRefreshesDetail(t *testing.T) {
 	}
 	lists, gets, comments := len(svc.listed()), len(svc.got()), commentReads()
 	drain(t, s, s.Update(ui.SyncMsg{Key: pulls.SyncKey(repo)}))
-	if s.thread == nil {
-		t.Fatal("sync closed the detail")
+	if s.modal() == nil {
+		t.Fatal("sync closed the modal")
 	}
 	if got := len(svc.got()); got != gets+1 {
 		t.Errorf("got the detail %d times, want %d", got, gets+1)

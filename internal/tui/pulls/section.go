@@ -1,5 +1,6 @@
 // Package pulls is the Pull requests section: a list of the pull requests of
-// the selected repository, filtered by state.
+// the selected repository, filtered by state, each opening into a modal with
+// its detail and comments.
 package pulls
 
 import (
@@ -14,7 +15,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
-	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
 )
 
 // Service is what the section needs of the pull requests service.
@@ -57,20 +57,15 @@ type Section struct {
 	feed       *feed.Model[core.PullRequest]
 	cancelFeed context.CancelFunc
 
-	// thread shows detail with its comments while a pull request is open,
-	// and is nil otherwise. detailCtx is cancelled when it closes.
-	thread       *thread.Model[core.Comment]
-	detail       core.PullRequestDetail
-	detailCtx    context.Context
-	cancelDetail context.CancelFunc
-
 	width, height int
 	theme         ui.Theme
 	st            styles
 	cols          columns
 	header        string
-	// blank is the empty state shown until a repository is picked.
+	// blank is the empty state shown until a repository is picked, and
+	// hint what it tells the user to do.
 	blank string
+	hint  string
 }
 
 // Option configures a Section.
@@ -102,6 +97,10 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 	for _, opt := range opts {
 		opt(s)
 	}
+	s.hint = "Search for a repository to see its pull requests."
+	if k := ui.Binding(keys, config.ActionSearch, "search").Help().Key; k != "" {
+		s.hint = "Press " + k + " to search for one."
+	}
 	// The app sets the theme of the terminal soon after; until then assume
 	// a dark one.
 	p, _ := config.Default().Palette(true)
@@ -124,7 +123,6 @@ func (s *Section) Init() tea.Cmd {
 // newFeed replaces the feed with one for the current repository and filter,
 // and returns the command that loads it.
 func (s *Section) newFeed() tea.Cmd {
-	s.closeDetail()
 	if s.cancelFeed != nil {
 		s.cancelFeed()
 	}
@@ -156,12 +154,7 @@ func (s *Section) SetSize(width, height int) {
 	s.width, s.height = max(width, 0), max(height, 0)
 	s.layout()
 	s.renderHeader()
-	s.blank = s.st.noRepo(s.width, s.height)
-	if s.thread != nil {
-		s.thread.SetSize(s.width, s.height)
-		// The next Update loads what the new size shows.
-		_ = s.showDetail()
-	}
+	s.blank = s.st.noRepo(s.width, s.height, s.hint)
 }
 
 func (s *Section) layout() {
@@ -178,20 +171,13 @@ func (s *Section) SetTheme(t ui.Theme) {
 		s.feed.SetStyles(t.Feed())
 	}
 	s.renderHeader()
-	s.blank = s.st.noRepo(s.width, s.height)
-	if s.thread != nil {
-		s.thread.SetStyles(t.Thread())
-		_ = s.showDetail()
-	}
+	s.blank = s.st.noRepo(s.width, s.height, s.hint)
 }
 
 // Focus implements ui.Section.
 func (s *Section) Focus() {
 	s.focused = true
-	switch {
-	case s.thread != nil:
-		s.thread.Focus()
-	case s.feed != nil:
+	if s.feed != nil {
 		s.feed.Focus()
 	}
 }
@@ -199,9 +185,6 @@ func (s *Section) Focus() {
 // Blur implements ui.Section.
 func (s *Section) Blur() {
 	s.focused = false
-	if s.thread != nil {
-		s.thread.Blur()
-	}
 	if s.feed != nil {
 		s.feed.Blur()
 	}
@@ -214,9 +197,6 @@ func (s *Section) View() string {
 	}
 	if !s.hasRepo || s.feed == nil {
 		return s.blank
-	}
-	if s.thread != nil {
-		return s.thread.View()
 	}
 	if s.height <= headerHeight {
 		return s.header

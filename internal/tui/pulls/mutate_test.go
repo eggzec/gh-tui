@@ -37,7 +37,7 @@ func TestMutations(t *testing.T) {
 			after: func(pr core.PullRequest) bool { return pr.State == core.StateMerged },
 		},
 		{
-			name: "merge in the detail merges the open pull request",
+			name: "merge in the modal merges the open pull request",
 			keys: []string{"down", "enter", "m"}, want: "merge squash 135", what: "merge #135",
 			after: func(pr core.PullRequest) bool { return pr.State == core.StateMerged },
 		},
@@ -75,6 +75,9 @@ func TestMutations(t *testing.T) {
 				press(t, s, k)
 			}
 			before, _ := s.target()
+			if m := s.modal(); m != nil {
+				before = m.detail.PullRequest
+			}
 			msgs := press(t, s, tt.keys[last])
 
 			var want []string
@@ -101,13 +104,56 @@ func TestMutationShowsAtOnce(t *testing.T) {
 	svc := newFakeService()
 	s := started(t, svc, 80, 20)
 	press(t, s, "enter")
+	m := s.modal()
 	cmd := s.Update(keyMsg("m"))
 	if cmd == nil {
 		t.Fatal("merge returned no command")
 	}
-	// The detail reads the change from the cache before it is sent.
-	if s.detail.State != core.StateMerged || !strings.Contains(screen(s), " Merged ") {
-		t.Errorf("detail before sending:\n%s", screen(s))
+	// The modal reads the change from the cache before it is sent.
+	if m.detail.State != core.StateMerged || !strings.Contains(modalScreen(t, s), " Merged ") {
+		t.Errorf("modal before sending:\n%s", modalScreen(t, s))
+	}
+	// So does the list behind it, once the modal told the section, still
+	// before GitHub answers.
+	var changed tea.Msg
+	for _, c := range cmd().(tea.BatchMsg) {
+		if c == nil {
+			continue
+		}
+		if msg, ok := c().(changedMsg); ok {
+			changed = msg
+		}
+	}
+	if changed == nil {
+		t.Fatal("the modal didn't tell the section about the change")
+	}
+	drain(t, s, s.Update(changed))
+	if svc.state(142).State != core.StateMerged {
+		t.Fatal("the fake lost the merge")
+	}
+	if strings.Contains(screen(s), "#142") {
+		t.Errorf("the open list still shows #142 as open:\n%s", screen(s))
+	}
+}
+
+func TestMutationFromModalReloadsBoth(t *testing.T) {
+	svc := newFakeService()
+	s := started(t, svc, 80, 20)
+	press(t, s, "enter")
+	lists := len(svc.listed())
+	msgs := press(t, s, "D")
+	if !slices.Contains(msgs, tea.Msg(ui.DoneMsg{From: ui.PullsTitle, What: "convert #142 to draft"})) {
+		t.Fatalf("messages %v, want a DoneMsg", msgs)
+	}
+	// Once after the change and once after the DoneMsg.
+	if got := len(svc.listed()); got < lists+2 {
+		t.Errorf("listed %d times, want at least %d", got, lists+2)
+	}
+	if !strings.Contains(modalScreen(t, s), " Draft ") {
+		t.Errorf("modal after the change:\n%s", modalScreen(t, s))
+	}
+	if pr, _ := s.feed.Selected(); pr.Number != 142 || !pr.Draft {
+		t.Errorf("list shows #%d draft %v, want #142 as a draft", pr.Number, pr.Draft)
 	}
 }
 
@@ -121,8 +167,8 @@ func TestFailedMutationRollsBack(t *testing.T) {
 	if done < 0 {
 		t.Fatalf("messages %v, want a failed DoneMsg", msgs)
 	}
-	if s.detail.State != core.StateOpen || !strings.Contains(screen(s), " Open ") {
-		t.Errorf("after the rollback:\n%s", screen(s))
+	if m := s.modal(); m.detail.State != core.StateOpen || !strings.Contains(modalScreen(t, s), " Open ") {
+		t.Errorf("after the rollback:\n%s", modalScreen(t, s))
 	}
 	press(t, s, "esc")
 	if pr, _ := s.feed.Selected(); pr.Number != 142 || pr.State != core.StateOpen {
@@ -176,7 +222,7 @@ func TestDoneMsgReloads(t *testing.T) {
 }
 
 func TestHelpOffersWhatApplies(t *testing.T) {
-	enabled := func(s *Section) []string {
+	enabled := func(s *host) []string {
 		var d []string
 		for _, b := range s.Help().ShortHelp() {
 			if b.Enabled() {

@@ -8,6 +8,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
@@ -17,8 +18,8 @@ import (
 var _ Service = (*pulls.Service)(nil)
 
 // screen is the section's view with styles removed.
-func screen(s *Section) string {
-	return ansi.Strip(s.View())
+func screen(h *host) string {
+	return ansi.Strip(h.View())
 }
 
 func TestUpdateList(t *testing.T) {
@@ -27,12 +28,12 @@ func TestUpdateList(t *testing.T) {
 		keys []string
 		// check inspects the section after keys, the service and the
 		// messages the keys sent to the app.
-		check func(t *testing.T, s *Section, svc *fakeService, msgs []any)
+		check func(t *testing.T, s *host, svc *fakeService, msgs []any)
 	}{
 		{
 			name: "filter cycles open, closed, merged and back",
 			keys: []string{"f", "f", "f"},
-			check: func(t *testing.T, s *Section, svc *fakeService, _ []any) {
+			check: func(t *testing.T, s *host, svc *fakeService, _ []any) {
 				t.Helper()
 				var states []core.State
 				for _, q := range svc.listed() {
@@ -52,7 +53,7 @@ func TestUpdateList(t *testing.T) {
 		{
 			name: "filter shows the current state in the header",
 			keys: []string{"f"},
-			check: func(t *testing.T, s *Section, _ *fakeService, _ []any) {
+			check: func(t *testing.T, s *host, _ *fakeService, _ []any) {
 				t.Helper()
 				if !strings.Contains(screen(s), "#86") || strings.Contains(screen(s), "#142") {
 					t.Errorf("closed filter shows\n%s", screen(s))
@@ -65,7 +66,7 @@ func TestUpdateList(t *testing.T) {
 		{
 			name: "refresh invalidates the repository, then lists the loaded pages again",
 			keys: []string{"r"},
-			check: func(t *testing.T, _ *Section, svc *fakeService, _ []any) {
+			check: func(t *testing.T, _ *host, svc *fakeService, _ []any) {
 				t.Helper()
 				if got, want := svc.invalidations(), []invalidation{{repo: repo, lists: 1}}; !slices.Equal(got, want) {
 					t.Errorf("invalidations = %+v, want %+v", got, want)
@@ -78,7 +79,7 @@ func TestUpdateList(t *testing.T) {
 		{
 			name: "refresh keeps the selection",
 			keys: []string{"down", "down", "r"},
-			check: func(t *testing.T, s *Section, _ *fakeService, _ []any) {
+			check: func(t *testing.T, s *host, _ *fakeService, _ []any) {
 				t.Helper()
 				if pr, _ := s.feed.Selected(); pr.Number != 128 {
 					t.Errorf("selected #%d, want #128", pr.Number)
@@ -88,7 +89,7 @@ func TestUpdateList(t *testing.T) {
 		{
 			name: "open in browser opens the selected pull request",
 			keys: []string{"down", "o"},
-			check: func(t *testing.T, _ *Section, _ *fakeService, msgs []any) {
+			check: func(t *testing.T, _ *host, _ *fakeService, msgs []any) {
 				t.Helper()
 				want := ui.OpenMsg{URL: "https://github.com/eggzec/gh-tui/pull/135"}
 				if !slices.Contains(msgs, any(want)) {
@@ -116,13 +117,13 @@ func TestRepoMsg(t *testing.T) {
 	other := core.RepoRef{Owner: "charmbracelet", Name: "bubbletea"}
 	tests := []struct {
 		name  string
-		setup func(t *testing.T, s *Section)
+		setup func(t *testing.T, s *host)
 		// want are the repositories listed, in order.
 		want []core.RepoRef
 	}{
 		{
 			name: "before Init only stores the repository",
-			setup: func(t *testing.T, s *Section) {
+			setup: func(t *testing.T, s *host) {
 				t.Helper()
 				if cmd := s.Update(ui.RepoMsg{Repo: repo}); cmd != nil {
 					t.Error("RepoMsg before Init returned a command")
@@ -133,7 +134,7 @@ func TestRepoMsg(t *testing.T) {
 		},
 		{
 			name: "after Init lists the new repository",
-			setup: func(t *testing.T, s *Section) {
+			setup: func(t *testing.T, s *host) {
 				t.Helper()
 				drain(t, s, s.Init())
 				drain(t, s, s.Update(ui.RepoMsg{Repo: repo}))
@@ -143,7 +144,7 @@ func TestRepoMsg(t *testing.T) {
 		},
 		{
 			name: "the same repository again changes nothing",
-			setup: func(t *testing.T, s *Section) {
+			setup: func(t *testing.T, s *host) {
 				t.Helper()
 				drain(t, s, s.Init())
 				drain(t, s, s.Update(ui.RepoMsg{Repo: repo}))
@@ -172,14 +173,30 @@ func TestRepoMsg(t *testing.T) {
 func TestNoRepoShowsWhatToDo(t *testing.T) {
 	s := newTest(t, newFakeService(), 80, 12)
 	drain(t, s, s.Init())
-	if !strings.Contains(screen(s), "Pick a repository in Repositories (tab 4).") {
-		t.Errorf("screen:\n%s", screen(s))
+	if v := screen(s); !strings.Contains(v, "No repository selected") || !strings.Contains(v, "Press / to search for one.") {
+		t.Errorf("screen:\n%s", v)
 	}
 	if msgs := press(t, s, "f"); len(msgs) != 0 {
 		t.Errorf("keys without a repository sent %v", msgs)
 	}
 	if len(s.Help().ShortHelp()) != 0 {
 		t.Error("help offers keys without a repository")
+	}
+}
+
+func TestNoRepoWithoutSearchKey(t *testing.T) {
+	keys := config.Default().Keys
+	delete(keys, config.ActionSearch)
+	s := New(t.Context(), newFakeService(), keys)
+	s.SetSize(30, 8)
+	v := ansi.Strip(s.View())
+	if !strings.Contains(v, "Search for a") || strings.Contains(v, "Press") {
+		t.Errorf("screen without a search key:\n%s", v)
+	}
+	for i, l := range strings.Split(s.View(), "\n") {
+		if w := ansi.StringWidth(l); w != 30 {
+			t.Errorf("line %d is %d wide: %q", i, w, ansi.Strip(l))
+		}
 	}
 }
 
