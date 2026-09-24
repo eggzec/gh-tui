@@ -21,6 +21,21 @@ type pending struct {
 	seq uint64
 }
 
+// Publish reports that the data behind key changed, as a poll that found a
+// change would, for changes found elsewhere, such as by revalidating cached
+// entries. The event is coalesced with those of the key's polls. It never
+// blocks, and does nothing once Run has returned.
+func (e *Engine) Publish(key string) {
+	e.mu.Lock()
+	if e.stopped {
+		e.mu.Unlock()
+		return
+	}
+	e.enqueue(Event{Key: key})
+	e.mu.Unlock()
+	e.wake()
+}
+
 // publish queues ev for its key, or merges it into the event already waiting
 // there. It never blocks on the consumer.
 func (e *Engine) publish(p *poller, ev Event) {
@@ -30,15 +45,25 @@ func (e *Engine) publish(p *poller, ev Event) {
 		e.mu.Unlock()
 		return
 	}
+	e.enqueue(ev)
+	e.mu.Unlock()
+	e.wake()
+}
+
+// enqueue queues ev for its key, or merges it into the event already
+// waiting there. The caller holds e.mu.
+func (e *Engine) enqueue(ev Event) {
 	e.seq++
 	if q, ok := e.pending[ev.Key]; ok {
 		q.ev, q.seq = ev, e.seq
-	} else {
-		e.pending[ev.Key] = &pending{ev: ev, seq: e.seq}
-		e.queue = append(e.queue, ev.Key)
+		return
 	}
-	e.mu.Unlock()
+	e.pending[ev.Key] = &pending{ev: ev, seq: e.seq}
+	e.queue = append(e.queue, ev.Key)
+}
 
+// wake tells the dispatcher that something was queued.
+func (e *Engine) wake() {
 	select {
 	case e.notify <- struct{}{}:
 	default:
