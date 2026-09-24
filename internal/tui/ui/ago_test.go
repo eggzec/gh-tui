@@ -25,3 +25,13 @@ func TestAgo(t *testing.T) {
 		}
 	}
 }
+
+func TestAgoProse(t *testing.T) {
+	now := time.Date(2026, 9, 23, 12, 0, 0, 0, time.UTC)
+	if got := AgoProse(now.Add(-10*time.Second), now); got != "just now" {
+		t.Errorf("AgoProse(-10s) = %q, want %q", got, "just now")
+	}
+	if got := AgoProse(now.Add(-3*time.Hour), now); got != "3h ago" {
+		t.Errorf("AgoProse(-3h) = %q, want %q", got, "3h ago")
+	}
+}
