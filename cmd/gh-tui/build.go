@@ -26,6 +26,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/issues"
 	"github.com/eggzec/gh-tui/internal/tui/notifications"
 	"github.com/eggzec/gh-tui/internal/tui/pulls"
+	searchpage "github.com/eggzec/gh-tui/internal/tui/search"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/watch"
 )
@@ -102,6 +103,7 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 		Pulls:         pulls.New(ctx, pullSvc, cfg.Keys, pullOpts...),
 		Issues:        issues.New(ctx, issueSvc, cfg.Keys, issueOpts...),
 		Notifications: notifications.New(ctx, notifSvc, cfg.Keys, notifications.WithOffline(offline)),
+		Search:        searchpage.New(ctx, searchSvc, cfg.Keys, searchpage.WithStart(searchStart(repoSvc, pinned))),
 		Dashboard: dashboard.New(ctx, dashSvc, cfg.Keys,
 			dashboard.WithOffline(offline),
 			dashboard.WithInbox(notifSvc),
