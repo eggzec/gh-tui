@@ -1,6 +1,8 @@
 package feed
 
 import (
+	"errors"
+
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
@@ -93,7 +95,8 @@ func (m *Model[T]) receive(msg chunkMsg[T]) tea.Cmd {
 		return nil
 	}
 	c.fetching = false
-	if msg.err != nil {
+	stale := errors.Is(msg.err, ErrStale)
+	if msg.err != nil && !stale {
 		c.err = msg.err
 		m.refreshError()
 		return nil
@@ -121,7 +124,12 @@ func (m *Model[T]) receive(msg chunkMsg[T]) tea.Cmd {
 			m.sel, m.top = i, i-m.anchorRow
 		}
 	}
-	return m.sync()
+	cmd := m.sync()
+	if !stale {
+		return cmd
+	}
+	m.anchorSelection()
+	return tea.Batch(cmd, m.startFetch(msg.index))
 }
 
 // sync moves the window to the selection, fetches what the window is about

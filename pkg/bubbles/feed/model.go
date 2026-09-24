@@ -7,6 +7,7 @@ package feed
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -17,7 +18,18 @@ import (
 
 // Fetch returns the chunk of items after cursor. An empty cursor asks for the
 // first chunk, and an empty next cursor means there are no more chunks.
+//
+// A Fetch that has only items that may be out of date, such as items kept
+// from an earlier session, returns them with [ErrStale], so that they are
+// shown at once while the chunk is fetched again.
 type Fetch[T any] func(ctx context.Context, cursor string) (items []T, next string, err error)
+
+// ErrStale is returned by a Fetch together with items that may be out of
+// date. The feed shows them as if the fetch had succeeded, and fetches the
+// chunk again at once, keeping them on screen until the new ones arrive, the
+// way Reload does. The Fetch must not return ErrStale for the same chunk
+// every time.
+var ErrStale = errors.New("feed: stale items")
 
 // Render renders one item in at most width cells. With an item height above
 // one, lines are separated by "\n"; extra lines are dropped.
@@ -141,10 +153,7 @@ func (m *Model[T]) Reset() tea.Cmd {
 // With a key set, the selection follows the selected item; otherwise it
 // keeps its index. Results of earlier fetches are dropped.
 func (m *Model[T]) Reload() tea.Cmd {
-	m.anchored = false
-	if it, ok := m.Selected(); ok && m.key != nil {
-		m.anchor, m.anchorRow, m.anchored = m.key(it), m.sel-m.top, true
-	}
+	m.anchorSelection()
 	m.newGeneration()
 
 	var cmd tea.Cmd
@@ -160,6 +169,15 @@ func (m *Model[T]) Reload() tea.Cmd {
 		cmd = tea.Batch(cmd, m.startFetch(len(m.chunks)))
 	}
 	return cmd
+}
+
+// anchorSelection makes the selection follow the selected item, if the feed
+// has a key, until the user moves.
+func (m *Model[T]) anchorSelection() {
+	m.anchored = false
+	if it, ok := m.Selected(); ok && m.key != nil {
+		m.anchor, m.anchorRow, m.anchored = m.key(it), m.sel-m.top, true
+	}
 }
 
 // newGeneration cancels the fetches in flight and makes their results stale.

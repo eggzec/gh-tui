@@ -713,3 +713,67 @@ func TestSetKey(t *testing.T) {
 		t.Fatalf("Selected() = %v, want item 1", it)
 	}
 }
+
+// staleSource serves old items with ErrStale the first time each chunk is
+// fetched, and src's items after that.
+type staleSource struct {
+	*source
+	old    []item
+	served map[string]bool
+}
+
+func (s *staleSource) fetch(ctx context.Context, cursor string) ([]item, string, error) {
+	items, next, err := s.source.fetch(ctx, cursor)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err != nil || s.served[cursor] {
+		return items, next, err
+	}
+	s.served[cursor] = true
+	return s.old, next, ErrStale
+}
+
+func TestStaleChunkIsShownThenFetchedAgain(t *testing.T) {
+	src := &staleSource{
+		source: newSource(3, 10),
+		old:    []item{{id: "0", title: "old"}},
+		served: map[string]bool{},
+	}
+	m := New(src.fetch, renderItem, WithSize(40, 5), WithFocused(true), WithKey(itemKey))
+	msg := m.Init()().(tea.BatchMsg)[0]()
+	m, cmd := m.Update(msg)
+	if it, ok := m.Selected(); !ok || it.title != "old" {
+		t.Fatalf("Selected() = %v, %v after the stale chunk; want the old item", it, ok)
+	}
+	if m.Err() != nil {
+		t.Fatalf("Err() = %v, want no error for a stale chunk", m.Err())
+	}
+	if !strings.Contains(m.View(), "old") {
+		t.Fatalf("View() = %q, want the old item shown", m.View())
+	}
+	m = run(t, m, cmd)
+	if m.Len() != 3 || m.Err() != nil {
+		t.Fatalf("Len() = %d, Err() = %v after the refetch; want 3, nil", m.Len(), m.Err())
+	}
+	if it, _ := m.Selected(); it.title != "item 0" {
+		t.Errorf("Selected() = %v, want the fresh item", it)
+	}
+	if got := src.callCount(); got != 2 {
+		t.Errorf("fetches = %d, want 2: the stale one and the refetch", got)
+	}
+}
+
+func TestStaleChunkKeepsItemsWhenRefetchFails(t *testing.T) {
+	src := &staleSource{source: newSource(3, 10), old: []item{{id: "0", title: "old"}}, served: map[string]bool{}}
+	m := New(src.fetch, renderItem, WithSize(40, 5), WithFocused(true))
+	msg := m.Init()().(tea.BatchMsg)[0]()
+	m, cmd := m.Update(msg)
+	src.setFail("", errors.New("offline"))
+	m = run(t, m, cmd)
+	if it, ok := m.Selected(); !ok || it.title != "old" {
+		t.Errorf("Selected() = %v, %v; want the old item kept", it, ok)
+	}
+	if m.Err() == nil {
+		t.Error("Err() = nil, want the failed refetch")
+	}
+}
