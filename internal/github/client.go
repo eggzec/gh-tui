@@ -4,6 +4,7 @@
 package github
 
 import (
+	"cmp"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -98,11 +99,19 @@ func New(opts ...Option) (*Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parse base URL: %w", err)
 	}
+	gql := graphqlEndpoint(base)
+	// The client is copied so that logging leaves the caller's alone.
+	hc := *o.http
+	hc.Transport = &logTransport{
+		base:        cmp.Or[http.RoundTripper](hc.Transport, http.DefaultTransport),
+		restRoot:    base.EscapedPath(),
+		graphqlPath: gql.Path,
+	}
 	return &Client{
-		http:       o.http,
+		http:       &hc,
 		token:      o.token,
 		restURL:    base,
-		graphqlURL: graphqlEndpoint(base),
+		graphqlURL: gql.String(),
 		now:        time.Now,
 	}, nil
 }
@@ -115,14 +124,15 @@ func restRoot(host string) string {
 	return "https://api." + host + "/"
 }
 
-func graphqlEndpoint(base *url.URL) string {
+func graphqlEndpoint(base *url.URL) *url.URL {
 	u := *base
 	if prefix, ok := strings.CutSuffix(u.Path, "/api/v3/"); ok {
 		u.Path = prefix + "/api/graphql"
 	} else {
 		u.Path += "graphql"
 	}
-	return u.String()
+	u.RawPath = ""
+	return &u
 }
 
 // Host returns the host of the API the client talks to, such as

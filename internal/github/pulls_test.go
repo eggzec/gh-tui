@@ -478,7 +478,7 @@ func TestPullMutations(t *testing.T) {
 				t.Fatalf("mutation: %v", err)
 			}
 			checkPullQuery(t, reqs(), tt.mutation, tt.vars)
-			if !strings.HasPrefix(reqs()[0].Query, "mutation(") {
+			if !strings.HasPrefix(reqs()[0].Query, "mutation ") {
 				t.Errorf("query is not a mutation:\n%s", reqs()[0].Query)
 			}
 			if pr.ID != id || pr.Repo != pullsRepo || pr.Number != 42 || pr.Checks != core.ChecksSuccess || pr.ReviewDecision != core.ReviewApproved {
