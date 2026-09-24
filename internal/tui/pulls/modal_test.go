@@ -165,6 +165,39 @@ func TestModal(t *testing.T) {
 	}
 }
 
+func TestCachedModalOpensAtOnce(t *testing.T) {
+	svc := newFakeService()
+	svc.cached[142] = true
+	svc.commented[commentsQuery(repo, 142)] = true
+	h := started(t, svc, 80, 40)
+	// Open without running the loads: what the modal shows comes from the
+	// cache alone.
+	seq, ok := sequence(h.Update(keyMsg("enter"))())
+	if !ok || len(seq) != 2 {
+		t.Fatal("enter should open the modal, then start its loads")
+	}
+	drain(t, h, seq[0])
+	view := modalScreen(t, h)
+	for _, want := range []string{"Cold starts read every page", "Does this survive a crash", "It writes to a temporary file"} {
+		if !strings.Contains(view, want) {
+			t.Errorf("modal lacks %q before any load:\n%s", want, view)
+		}
+	}
+	// Only the second page of comments, which isn't cached, may load.
+	spinner := strings.Index(view, "Loading comments")
+	if strings.Contains(view, "Loading…") || spinner >= 0 && spinner < strings.Index(view, "It writes to a temporary file") {
+		t.Errorf("modal waits for what is cached:\n%s", view)
+	}
+	// Behind it, the detail and the comments are read again.
+	drain(t, h, seq[1])
+	if got := svc.got(); !slices.Equal(got, []int{142}) {
+		t.Errorf("got details %v, want #142 revalidated", got)
+	}
+	if !slices.Contains(svc.comments, commentsQuery(repo, 142)) {
+		t.Errorf("comment reads %v, want the first page revalidated", svc.comments)
+	}
+}
+
 func TestCloseCancelsAndIgnoresLateResults(t *testing.T) {
 	svc := newFakeService()
 	h := started(t, svc, 80, 30)

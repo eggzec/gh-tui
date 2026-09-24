@@ -38,6 +38,9 @@ type fakeService struct {
 	gets     []int
 	getErr   error
 	comments []pulls.CommentsQuery
+	// commented are the comment pages Comments has served, which
+	// CachedComments then serves.
+	commented map[pulls.CommentsQuery]bool
 	// ops are the changes asked for, such as "merge 142 squash", and
 	// sendErr fails sending them.
 	ops     []string
@@ -57,7 +60,10 @@ type invalidation struct {
 }
 
 func newFakeService() *fakeService {
-	return &fakeService{pulls: samplePulls(), pageSize: 30, cached: map[int]bool{}, listedAs: map[int]core.State{}}
+	return &fakeService{
+		pulls: samplePulls(), pageSize: 30,
+		cached: map[int]bool{}, commented: map[pulls.CommentsQuery]bool{}, listedAs: map[int]core.State{},
+	}
 }
 
 func (f *fakeService) find(number int) core.PullRequest {
@@ -105,15 +111,29 @@ func (f *fakeService) Comments(_ context.Context, q pulls.CommentsQuery) (core.P
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.comments = append(f.comments, q)
+	f.commented[q] = true
+	return commentPage(q), nil
+}
+
+func (f *fakeService) CachedComments(q pulls.CommentsQuery) (core.Page[core.Comment], bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if !f.commented[q] {
+		return core.Page[core.Comment]{}, false
+	}
+	return commentPage(q), true
+}
+
+func commentPage(q pulls.CommentsQuery) core.Page[core.Comment] {
 	all := []core.Comment{
 		{ID: "c1", Author: core.User{Login: "hubot"}, Body: "Does this survive a crash halfway through a write?", CreatedAt: clock.Add(-20 * time.Hour)},
 		{ID: "c2", Author: core.User{Login: "octocat"}, Body: "It writes to a temporary file and renames it, so a crash leaves the old page in place.\r\n\r\nI added a test for it.", CreatedAt: clock.Add(-2 * time.Hour)},
 		{ID: "c3", Author: core.User{Login: "monalisa"}, Body: "LGTM", CreatedAt: clock.Add(-10 * time.Minute)},
 	}
 	if q.Cursor == "" {
-		return core.Page[core.Comment]{Items: all[:2], Next: "2"}, nil
+		return core.Page[core.Comment]{Items: all[:2], Next: "2"}
 	}
-	return core.Page[core.Comment]{Items: all[2:]}, nil
+	return core.Page[core.Comment]{Items: all[2:]}
 }
 
 func (f *fakeService) got() []int {

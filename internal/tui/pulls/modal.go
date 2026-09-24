@@ -75,9 +75,11 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 		cancel:      cancel,
 		st:          s.st,
 	}
-	svc := s.svc
+	svc, q := s.svc, commentsQuery(repo, number)
 	fetch := func(ctx context.Context, cursor string) ([]core.Comment, string, error) {
-		p, err := svc.Comments(ctx, pulls.CommentsQuery{Repo: repo, Number: number, Cursor: cursor})
+		q := q
+		q.Cursor = cursor
+		p, err := svc.Comments(ctx, q)
 		return p.Items, p.Next, err
 	}
 	m.thread = thread.New(fetch, m.renderComment,
@@ -92,13 +94,28 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 	case pr != nil:
 		m.detail, m.loaded = core.PullRequestDetail{PullRequest: *pr}, true
 	}
-	show := m.thread.Init()
-	if m.loaded {
-		show = m.show()
+	if !m.loaded {
+		// The loads start once the modal is open, so that the app has it
+		// to pass their results to.
+		return tea.Sequence(ui.OpenModal(m), tea.Batch(m.thread.Init(), m.get()))
 	}
-	// The loads start once the modal is open, so that the app has it to
-	// pass their results to.
-	return tea.Sequence(ui.OpenModal(m), tea.Batch(show, m.get()))
+	// What is cached shows at once, and is read again behind it.
+	cp, primed := svc.CachedComments(q)
+	if primed {
+		m.thread.SetFirst(cp.Items, cp.Next)
+	}
+	loads := []tea.Cmd{m.show(), m.get()}
+	if primed {
+		loads = append(loads, m.thread.Reload())
+	}
+	return tea.Sequence(ui.OpenModal(m), tea.Batch(loads...))
+}
+
+// commentsQuery selects the first page of the comments on pull request
+// number of repo, as the modal reads it, so that what is read ahead is what
+// the modal finds in the cache.
+func commentsQuery(repo core.RepoRef, number int) pulls.CommentsQuery {
+	return pulls.CommentsQuery{Repo: repo, Number: number}
 }
 
 // Title implements ui.Modal.
