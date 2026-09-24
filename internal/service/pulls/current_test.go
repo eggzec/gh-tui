@@ -1,0 +1,191 @@
+package pulls
+
+import (
+	"context"
+	"sync"
+	"testing"
+	"testing/synctest"
+	"time"
+
+	"github.com/eggzec/gh-tui/internal/core"
+)
+
+// versioned is a fake GitHub whose pull request #1 was last updated at
+// updated with checks in state checks. The list and the detail agree.
+type versioned struct {
+	mu      sync.Mutex
+	updated time.Time
+	checks  core.ChecksState
+}
+
+func (v *versioned) set(updated time.Time, checks core.ChecksState) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	v.updated, v.checks = updated, checks
+}
+
+func (v *versioned) pull() core.PullRequest {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	pr := openPull(1)
+	pr.UpdatedAt, pr.Checks = v.updated, v.checks
+	return pr
+}
+
+func (v *versioned) api() *fakeAPI {
+	return &fakeAPI{
+		list: func(context.Context, core.RepoRef, core.State, string, int) (core.Page[core.PullRequest], error) {
+			return core.Page[core.PullRequest]{Items: []core.PullRequest{v.pull()}}, nil
+		},
+		get: func(context.Context, core.RepoRef, int) (core.PullRequestDetail, error) {
+			return core.PullRequestDetail{PullRequest: v.pull()}, nil
+		},
+		comments: func(context.Context, core.RepoRef, int, string, int) (core.Page[core.Comment], error) {
+			return core.Page[core.Comment]{Items: []core.Comment{{ID: "c"}}}, nil
+		},
+	}
+}
+
+var firstComments = CommentsQuery{Repo: repo, Number: 1}
+
+// readDetail reads the detail and the first comments of #1.
+func readDetail(t *testing.T, s *Service) {
+	t.Helper()
+	if _, err := s.Get(t.Context(), repo, 1); err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if _, err := s.Comments(t.Context(), firstComments); err != nil {
+		t.Fatalf("Comments: %v", err)
+	}
+}
+
+func list(t *testing.T, s *Service, q ListQuery) {
+	t.Helper()
+	if _, err := s.List(t.Context(), q); err != nil {
+		t.Fatalf("List: %v", err)
+	}
+}
+
+func wantCalls(t *testing.T, api *fakeAPI, get, comments int) {
+	t.Helper()
+	if n := api.count("get"); n != get {
+		t.Errorf("get called %d times, want %d", n, get)
+	}
+	if n := api.count("comments"); n != comments {
+		t.Errorf("comments called %d times, want %d", n, comments)
+	}
+}
+
+func TestCurrentDetailOutlivesTTL(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		v := &versioned{updated: clock, checks: core.ChecksSuccess}
+		api := v.api()
+		s := New(api, WithTTL(time.Minute))
+		list(t, s, openFirst)
+		readDetail(t, s)
+
+		time.Sleep(time.Hour)
+		if !s.Current(firstComments) {
+			t.Error("Current = false past the TTL, want true: the list vouches for #1")
+		}
+		readDetail(t, s)
+		wantCalls(t, api, 1, 1)
+	})
+}
+
+func TestNewerVersionRefetches(t *testing.T) {
+	v := &versioned{updated: clock, checks: core.ChecksSuccess}
+	api := v.api()
+	s := New(api)
+	list(t, s, openFirst)
+	readDetail(t, s)
+
+	// Another list page, well within the TTL, shows that #1 changed.
+	v.set(clock.Add(time.Minute), core.ChecksSuccess)
+	list(t, s, ListQuery{Repo: repo, State: core.StateOpen, PageSize: 10})
+	if s.Current(firstComments) {
+		t.Error("Current = true after #1 changed, want false")
+	}
+	readDetail(t, s)
+	wantCalls(t, api, 2, 2)
+	if d, _ := s.CachedGet(repo, 1); !d.UpdatedAt.Equal(clock.Add(time.Minute)) {
+		t.Errorf("cached detail updated at %v, want the new version", d.UpdatedAt)
+	}
+	// The new version is current in turn.
+	readDetail(t, s)
+	wantCalls(t, api, 2, 2)
+}
+
+func TestUnlistedDetailFollowsTTL(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		// Opened from the search, no list vouches for #1.
+		api := (&versioned{updated: clock, checks: core.ChecksSuccess}).api()
+		s := New(api, WithTTL(time.Minute))
+		readDetail(t, s)
+		readDetail(t, s)
+		wantCalls(t, api, 1, 1)
+
+		time.Sleep(2 * time.Minute)
+		if s.Current(firstComments) {
+			t.Error("Current = true past the TTL without a list")
+		}
+		readDetail(t, s)
+		wantCalls(t, api, 2, 2)
+	})
+}
+
+func TestChecksKeepTheirTTL(t *testing.T) {
+	t.Run("changed checks", func(t *testing.T) {
+		v := &versioned{updated: clock, checks: core.ChecksPending}
+		api := v.api()
+		s := New(api)
+		list(t, s, openFirst)
+		readDetail(t, s)
+
+		// Checks finishing don't move the update time.
+		v.set(clock, core.ChecksFailure)
+		list(t, s, ListQuery{Repo: repo, State: core.StateOpen, PageSize: 10})
+		readDetail(t, s)
+		// Only the detail holds the checks.
+		wantCalls(t, api, 2, 1)
+		if d, _ := s.CachedGet(repo, 1); d.Checks != core.ChecksFailure {
+			t.Errorf("cached checks = %q, want failure", d.Checks)
+		}
+	})
+	t.Run("running checks", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			api := (&versioned{updated: clock, checks: core.ChecksPending}).api()
+			s := New(api, WithTTL(time.Minute))
+			list(t, s, openFirst)
+			readDetail(t, s)
+
+			time.Sleep(2 * time.Minute)
+			readDetail(t, s)
+			// Running checks may change without the rollup state, so the
+			// detail is read again. The comments are still current.
+			wantCalls(t, api, 2, 1)
+		})
+	})
+}
+
+func TestChangeForgetsVersion(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		v := &versioned{updated: clock, checks: core.ChecksSuccess}
+		api := v.api()
+		api.mutate = func(context.Context, string, string, core.MergeMethod) (core.PullRequest, error) {
+			pr := v.pull()
+			pr.State = core.StateClosed
+			return pr, nil
+		}
+		s := New(api, WithTTL(time.Minute))
+		list(t, s, openFirst)
+		readDetail(t, s)
+		if err := s.Close(repo, 1).Do(t.Context()); err != nil {
+			t.Fatalf("Close: %v", err)
+		}
+
+		time.Sleep(2 * time.Minute)
+		readDetail(t, s)
+		wantCalls(t, api, 2, 2)
+	})
+}
