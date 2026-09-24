@@ -291,8 +291,8 @@ func (m *detailModal) detailHeader(width int) string {
 	dot := st.sep.Render(" · ")
 	line(st.badge(d.PullRequest), "  ",
 		st.age.Render("#"+strconv.Itoa(d.Number)), dot,
-		st.title.Render(d.Author.Login), st.author.Render(" opened "+ui.Ago(d.CreatedAt, now)+" ago"), dot,
-		st.author.Render("updated "+ui.Ago(d.UpdatedAt, now)+" ago"))
+		st.title.Render(d.Author.Login), st.author.Render(" opened "+ui.AgoProse(d.CreatedAt, now)), dot,
+		st.author.Render("updated "+ui.AgoProse(d.UpdatedAt, now)))
 
 	stats := []string{
 		st.title.Render(d.HeadRef) + st.sep.Render(" → ") + st.title.Render(d.BaseRef),

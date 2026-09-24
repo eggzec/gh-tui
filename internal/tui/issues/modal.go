@@ -327,10 +327,10 @@ func (m *detailModal) header(it core.Issue) string {
 	}
 	b.WriteString("  ")
 	b.WriteString(t.Muted.Render(login(it.Author)))
-	b.WriteString(t.Subtle.Render(" opened " + ago(it.CreatedAt, now)))
+	b.WriteString(t.Subtle.Render(" opened " + ui.AgoProse(it.CreatedAt, now)))
 	if it.UpdatedAt.After(it.CreatedAt) {
 		b.WriteString(dot)
-		b.WriteString(t.Subtle.Render("updated " + ago(it.UpdatedAt, now)))
+		b.WriteString(t.Subtle.Render("updated " + ui.AgoProse(it.UpdatedAt, now)))
 	}
 	b.WriteString(dot)
 	b.WriteString(t.Muted.Render(commentMark + plural(it.Comments, "comment")))
@@ -377,7 +377,7 @@ func (m *detailModal) renderComment(c core.Comment, width int) string {
 		return b.String()
 	}
 	b.WriteString(t.Title.Render(login(c.Author)))
-	b.WriteString(t.Subtle.Render(" · " + ago(c.CreatedAt, m.now())))
+	b.WriteString(t.Subtle.Render(" · " + ui.AgoProse(c.CreatedAt, m.now())))
 	b.WriteByte('\n')
 	b.WriteString(m.markdown(c.Body, width))
 	return b.String()
@@ -424,15 +424,6 @@ func login(u core.User) string {
 		return "ghost"
 	}
 	return u.Login
-}
-
-// ago is ui.Ago as prose, such as "3d ago" or "just now".
-func ago(t, now time.Time) string {
-	a := ui.Ago(t, now)
-	if a == "now" {
-		return "just now"
-	}
-	return a + " ago"
 }
 
 func plural(n int, noun string) string {

@@ -23,3 +23,13 @@ func Ago(t, now time.Time) string {
 	}
 	return strconv.Itoa(int(d/(365*24*time.Hour))) + "y"
 }
+
+// AgoProse is Ago as prose, such as "3d ago" or "just now", for sentences
+// like "updated 3d ago".
+func AgoProse(t, now time.Time) string {
+	a := Ago(t, now)
+	if a == "now" {
+		return "just now"
+	}
+	return a + " ago"
+}
