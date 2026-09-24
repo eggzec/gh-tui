@@ -1,6 +1,10 @@
 package files
 
-import "github.com/eggzec/gh-tui/internal/core"
+import (
+	"time"
+
+	"github.com/eggzec/gh-tui/internal/core"
+)
 
 // Option configures a Section in [New].
 type Option func(*Section)
@@ -17,4 +21,14 @@ func WithRepo(repo core.RepoRef) Option {
 // 0, reads nothing ahead.
 func WithPrefetch(maxSize int64) Option {
 	return func(s *Section) { s.prefetchMax = max(maxSize, 0) }
+}
+
+// WithHoverPrefetch reads the file under the cursor once the cursor has
+// rested on it for delay, if it has at most maxSize bytes, so that its
+// preview opens at once. Each costs a request. The default, a maxSize of 0,
+// reads nothing ahead.
+func WithHoverPrefetch(delay time.Duration, maxSize int64) Option {
+	return func(s *Section) {
+		s.hover.delay, s.hover.max = max(delay, 0), max(maxSize, 0)
+	}
 }
