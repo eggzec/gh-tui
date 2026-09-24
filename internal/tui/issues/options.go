@@ -1,6 +1,10 @@
 package issues
 
-import "time"
+import (
+	"time"
+
+	"github.com/eggzec/gh-tui/internal/tui/ui"
+)
 
 // Option configures a Section.
 type Option func(*Section)
@@ -27,4 +31,15 @@ func WithPrefetch(rows int, delay time.Duration) Option {
 type prefetch struct {
 	rows  int
 	delay time.Duration
+}
+
+// WithOffline shares off with other sections, so that the user is told once
+// for all of them that GitHub can't be reached. By default the section has
+// its own.
+func WithOffline(off *ui.Offline) Option {
+	return func(s *Section) {
+		if off != nil {
+			s.offline = off
+		}
+	}
 }

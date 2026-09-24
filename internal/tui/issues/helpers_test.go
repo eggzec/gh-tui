@@ -41,6 +41,11 @@ type fakeService struct {
 	pageSize int
 	lists    []issuesvc.ListQuery
 	listErr  error
+	// stale serves the first read of each page as an earlier session kept
+	// it, with "Kept " before each title; offline serves every page as if
+	// GitHub couldn't be reached.
+	stale, offline bool
+	servedStale    map[issuesvc.ListQuery]bool
 
 	// cached holds the issues Get read, as the service's cache would.
 	cached   map[int]core.Issue
@@ -334,7 +339,7 @@ func (f *fakeService) List(_ context.Context, q issuesvc.ListQuery) (core.Page[c
 		return core.Page[core.Issue]{}, errors.New("unknown repo " + q.Repo.String())
 	}
 	if p, ok := f.pages[q]; ok {
-		return core.Page[core.Issue]{Items: slices.Clone(p.Items), Next: p.Next}, nil
+		return f.serve(q, p), nil
 	}
 	var match []core.Issue
 	for i := range f.issues {
@@ -354,7 +359,23 @@ func (f *fakeService) List(_ context.Context, q issuesvc.ListQuery) (core.Page[c
 	}
 	p := core.Page[core.Issue]{Items: slices.Clone(match[start:end]), Next: next}
 	f.pages[q] = p
-	return core.Page[core.Issue]{Items: slices.Clone(p.Items), Next: next}, nil
+	return f.serve(q, p), nil
+}
+
+// serve returns a copy of p as the fake serves it for q. The caller holds
+// the lock.
+func (f *fakeService) serve(q issuesvc.ListQuery, p core.Page[core.Issue]) core.Page[core.Issue] {
+	out := core.Page[core.Issue]{Items: slices.Clone(p.Items), Next: p.Next, Offline: f.offline}
+	if f.stale && !f.servedStale[q] {
+		if f.servedStale == nil {
+			f.servedStale = make(map[issuesvc.ListQuery]bool)
+		}
+		f.servedStale[q], out.Stale = true, true
+		for i := range out.Items {
+			out.Items[i].Title = "Kept " + out.Items[i].Title
+		}
+	}
+	return out
 }
 
 func (f *fakeService) Invalidate(repo core.RepoRef) {

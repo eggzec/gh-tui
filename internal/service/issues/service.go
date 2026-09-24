@@ -43,6 +43,11 @@ type Service struct {
 	lists    *cache.Cache[core.Page[core.Issue]]
 	issues   *cache.Cache[core.Issue]
 	comments *cache.Cache[stampedComments]
+	// The kept ones are what an earlier session read of each, if the
+	// service has a store. A read that misses memory starts from them.
+	keptLists    *cache.Shelf[core.Page[core.Issue]]
+	keptIssues   *cache.Shelf[core.Issue]
+	keptComments *cache.Shelf[stampedComments]
 	// etags holds the latest probe ETag of each polled repository.
 	etags probe.Tracker
 	// seen holds when each issue last changed, as the list pages last
@@ -60,17 +65,37 @@ func New(api API, opts ...Option) *Service {
 		opt(&o)
 	}
 	return &Service{
-		api:      api,
-		viewer:   o.viewer,
-		lists:    cache.New[core.Page[core.Issue]](o.cache...),
-		issues:   cache.New[core.Issue](o.cache...),
-		comments: cache.New[stampedComments](o.cache...),
+		api:          api,
+		viewer:       o.viewer,
+		lists:        cache.New[core.Page[core.Issue]](o.cache...),
+		issues:       cache.New[core.Issue](o.cache...),
+		comments:     cache.New[stampedComments](o.cache...),
+		keptLists:    cache.NewShelf[core.Page[core.Issue]](o.store, kindList, schema),
+		keptIssues:   cache.NewShelf[core.Issue](o.store, kindIssue, schema),
+		keptComments: cache.NewShelf[stampedComments](o.store, kindComments, schema),
 	}
 }
 
+// The kinds of entries the service keeps in its store, and the version of
+// their values. Bump schema when core.Issue or core.Comment change shape.
+const (
+	kindList     = "issuelist"
+	kindIssue    = "issue"
+	kindComments = "issuecomments"
+	schema       = 1
+)
+
+// offlineAt is when an entry served offline was fetched, as far as the
+// cache can tell: long ago, so it is stale at once and the next read asks
+// GitHub again.
+var offlineAt = time.Unix(1, 0)
+
 // fetch reads key from c, or loads it with load when it is missing or
-// stale. A stale entry's validators make the request conditional.
-func fetch[V any](ctx context.Context, c *cache.Cache[V], key string, tags func(V) []string,
+// stale. A stale entry's validators make the request conditional. What
+// GitHub sends is kept on shelf too, and what GitHub refuses is dropped from
+// it. If GitHub can't be reached, the stale entry is served instead, marked
+// by offline.
+func fetch[V any](ctx context.Context, c *cache.Cache[V], shelf *cache.Shelf[V], key string, tags func(V) []string, offline func(V) V,
 	load func(ctx context.Context, cond github.Conditional) (V, github.Response, error),
 ) (V, error) {
 	e, err := c.Fetch(ctx, key, func(ctx context.Context, prev cache.Entry[V], ok bool) (cache.Entry[V], error) {
@@ -79,16 +104,37 @@ func fetch[V any](ctx context.Context, c *cache.Cache[V], key string, tags func(
 			cond = github.Conditional{ETag: prev.ETag, LastModified: prev.LastModified}
 		}
 		v, res, err := load(ctx, cond)
-		if err != nil {
+		switch {
+		case ok && github.Unreachable(ctx, err):
+			prev.Value, prev.FetchedAt = offline(prev.Value), offlineAt
+			return prev, nil
+		case err != nil:
+			if github.Refused(err) {
+				shelf.Delete(key)
+			}
 			return cache.Entry[V]{}, err
-		}
-		if res.NotModified {
+		case res.NotModified:
+			// The kept entry, if any, is the one revalidated, and prev
+			// may hold changes GitHub hasn't confirmed, so it isn't
+			// kept again.
 			return cache.Entry[V]{}, cache.ErrNotModified
 		}
-		return cache.Entry[V]{Value: v, ETag: res.ETag, LastModified: res.LastModified, Tags: tags(v)}, nil
+		e := cache.Entry[V]{Value: v, ETag: res.ETag, LastModified: res.LastModified, Source: res.URL, Tags: tags(v)}
+		// The shelf is only a shortcut, so a failure is ignored.
+		_ = shelf.Save(key, e)
+		return e, nil
 	})
 	return e.Value, err
 }
+
+// offlinePage marks a page served offline.
+func offlinePage[T any](p core.Page[T]) core.Page[T] {
+	p.Offline = true
+	return p
+}
+
+// asIs serves a value offline unmarked.
+func asIs[V any](v V) V { return v }
 
 // Cache keys and tags. Every entry that holds an issue, or comments on it,
 // is tagged with the issue's key, so a change to the issue finds all of them.

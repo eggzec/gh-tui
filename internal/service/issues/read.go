@@ -54,13 +54,31 @@ func (s *Service) CachedList(q ListQuery) (core.Page[core.Issue], bool) {
 // List returns a page of issues, most recently updated first. A fresh page
 // comes from the cache; otherwise it is fetched, conditionally if a stale
 // copy is cached. A page may be short, or empty, and still have a Next.
+//
+// A page that only an earlier session kept is returned at once, with Stale
+// set, and reading it again revalidates it. If GitHub can't be reached, a
+// stale page is served with Offline set.
 func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.Issue], error) {
 	q = q.normalize()
-	page, err := fetch(ctx, s.lists, listKey(q), listTags(q.Repo),
+	key := listKey(q)
+	if e, ok := s.keptLists.Warm(s.lists, key); ok {
+		// The page vouches for what is cached of its issues as of when it
+		// was read, like the other pages shown with it.
+		s.vouch(q.Repo, e.Value.Items)
+		p := e.Value
+		p.Stale = true
+		return p, nil
+	}
+	page, err := fetch(ctx, s.lists, s.keptLists, key, listTags(q.Repo), offlinePage[core.Issue],
 		func(ctx context.Context, cond github.Conditional) (core.Page[core.Issue], github.Response, error) {
 			return s.api.ListIssues(ctx, q.Repo, q.State, q.Cursor, q.PageSize, cond)
 		})
 	if err != nil {
+		if github.Refused(err) {
+			// A kept page may have vouched for what is cached of the
+			// repository's issues.
+			s.seen.DeletePrefix(issuePrefix(q.Repo))
+		}
 		return core.Page[core.Issue]{}, fmt.Errorf("list issues of %s: %w", q.Repo, err)
 	}
 	s.vouch(q.Repo, page.Items)
@@ -88,14 +106,16 @@ func (s *Service) CachedGet(repo core.RepoRef, number int) (core.Issue, bool) {
 // Get returns an issue without its comments, which Comments pages through.
 // A fresh or current issue comes from the cache, current meaning as recent
 // as the list last showed it; otherwise it is fetched, conditionally if a
-// stale copy is cached.
+// stale copy is cached. What an earlier session kept counts as cached, and
+// is served if GitHub can't be reached.
 func (s *Service) Get(ctx context.Context, repo core.RepoRef, number int) (core.Issue, error) {
 	key := issueKey(repo, number)
+	s.keptIssues.Warm(s.issues, key)
 	if it, ok := s.currentIssue(key); ok {
 		return it, nil
 	}
-	it, err := fetch(ctx, s.issues, key,
-		func(core.Issue) []string { return []string{repoTag(repo), key} },
+	it, err := fetch(ctx, s.issues, s.keptIssues, key,
+		func(core.Issue) []string { return []string{repoTag(repo), key} }, asIs[core.Issue],
 		func(ctx context.Context, cond github.Conditional) (core.Issue, github.Response, error) {
 			return s.api.GetIssue(ctx, repo, number, cond)
 		})
@@ -129,8 +149,11 @@ func (s *Service) CachedComments(q CommentsQuery) (core.Page[core.Comment], bool
 // Comments returns a page of the comments on an issue, oldest first. Each
 // page is cached and revalidated on its own, like List's, and is current
 // while it was read at the version of the issue that the list last showed.
+// What an earlier session kept counts as cached, as for Get.
 func (s *Service) Comments(ctx context.Context, q CommentsQuery) (core.Page[core.Comment], error) {
 	q = q.normalize()
+	ckey := commentsKey(q)
+	s.keptComments.Warm(s.comments, ckey)
 	if p, ok := s.currentComments(q); ok {
 		return p, nil
 	}
@@ -139,25 +162,34 @@ func (s *Service) Comments(ctx context.Context, q CommentsQuery) (core.Page[core
 	// read.
 	version, _ := s.seen.Get(key)
 	tags := []string{repoTag(q.Repo), key}
-	e, err := s.comments.Fetch(ctx, commentsKey(q), func(ctx context.Context, prev cache.Entry[stampedComments], ok bool) (cache.Entry[stampedComments], error) {
+	e, err := s.comments.Fetch(ctx, ckey, func(ctx context.Context, prev cache.Entry[stampedComments], ok bool) (cache.Entry[stampedComments], error) {
 		var cond github.Conditional
 		if ok {
 			cond = github.Conditional{ETag: prev.ETag, LastModified: prev.LastModified}
 		}
 		p, res, err := s.api.ListIssueComments(ctx, q.Repo, q.Number, q.Cursor, q.PageSize, cond)
 		switch {
+		case ok && github.Unreachable(ctx, err):
+			prev.Value.Value.Offline, prev.FetchedAt = true, offlineAt
+			return prev, nil
 		case err != nil:
+			if github.Refused(err) {
+				s.keptComments.Delete(ckey)
+			}
 			return prev, err
 		case res.NotModified:
 			// The cached page is current as of now, so it takes the newer
-			// version.
+			// version. It may hold a comment GitHub hasn't confirmed, so
+			// it isn't kept again; the kept page stays as GitHub sent it.
 			prev.Value.Version, prev.FetchedAt = version, time.Time{}
 			return prev, nil
 		}
-		return cache.Entry[stampedComments]{
+		e := cache.Entry[stampedComments]{
 			Value: stampedComments{Value: p, Version: version},
-			ETag:  res.ETag, LastModified: res.LastModified, Tags: tags,
-		}, nil
+			ETag:  res.ETag, LastModified: res.LastModified, Source: res.URL, Tags: tags,
+		}
+		_ = s.keptComments.Save(ckey, e)
+		return e, nil
 	})
 	if err != nil {
 		return core.Page[core.Comment]{}, fmt.Errorf("list comments of issue %s#%d: %w", q.Repo, q.Number, err)
