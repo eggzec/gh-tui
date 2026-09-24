@@ -21,6 +21,10 @@ type Cache struct {
 // that a new session asks GitHub only whether they moved.
 type Disk struct {
 	Enabled bool `yaml:"enabled"`
+	// Entries keeps lists and details too, such as pull requests, issues
+	// and notifications, apart for each account, so that a new session
+	// shows them at once while it asks GitHub whether they changed.
+	Entries bool `yaml:"entries"`
 	// Dir is the cache directory. Empty means gh-tui in
 	// [os.UserCacheDir].
 	Dir string `yaml:"dir"`
@@ -54,6 +58,7 @@ func defaultCache() Cache {
 		TTL: 5 * time.Minute,
 		Disk: Disk{
 			Enabled:          true,
+			Entries:          true,
 			MaxSize:          512 * MiB,
 			Compression:      CompressionGzip,
 			CompressionLevel: LevelDefault,

@@ -32,6 +32,7 @@ cache:
   ttl: 30s
   disk:
     enabled: false
+    entries: false
     dir: /var/cache/gh-tui
     max_size: 1GiB
     compression: none

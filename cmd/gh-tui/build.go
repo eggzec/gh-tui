@@ -7,6 +7,7 @@ import (
 
 	"github.com/cli/go-gh/v2/pkg/browser"
 
+	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
@@ -45,12 +46,18 @@ func build(ctx context.Context, cfg config.Config, arg string) (*tui.Model, erro
 	}
 
 	ttl := cfg.Cache.TTL
-	pullSvc := pullsvc.New(client, pullsvc.WithTTL(ttl))
-	issueSvc := issuesvc.New(client, issuesvc.WithTTL(ttl))
-	notifSvc := notifsvc.New(client, notifsvc.WithTTL(ttl))
-	repoSvc := reposvc.New(client, reposvc.WithTTL(ttl))
-	fileSvcOpts := []filesvc.Option{filesvc.WithTTL(ttl), filesvc.WithMaxBlobSize(int64(cfg.Files.Preview.MaxSize))}
 	store, warning := openDisk(ctx, cfg.Cache.Disk, client.Host())
+	// A nil store must stay a nil interface, which the services take for
+	// none.
+	var entries cache.Store
+	if e := openEntries(cfg.Cache.Disk, store, client.Account()); e != nil {
+		entries = e
+	}
+	pullSvc := pullsvc.New(client, pullsvc.WithTTL(ttl), pullsvc.WithStore(entries))
+	issueSvc := issuesvc.New(client, issuesvc.WithTTL(ttl), issuesvc.WithStore(entries))
+	notifSvc := notifsvc.New(client, notifsvc.WithTTL(ttl), notifsvc.WithStore(entries))
+	repoSvc := reposvc.New(client, reposvc.WithTTL(ttl), reposvc.WithStore(entries))
+	fileSvcOpts := []filesvc.Option{filesvc.WithTTL(ttl), filesvc.WithMaxBlobSize(int64(cfg.Files.Preview.MaxSize))}
 	if store != nil {
 		fileSvcOpts = append(fileSvcOpts, filesvc.WithStore(store))
 	}
@@ -58,7 +65,10 @@ func build(ctx context.Context, cfg config.Config, arg string) (*tui.Model, erro
 	// Search results keep the search service's own short TTL.
 	searchSvc := searchsvc.New(client)
 
-	var fileOpts []files.Option
+	// The sections share whether GitHub can't be reached, so the user is
+	// told once.
+	offline := new(ui.Offline)
+	fileOpts := []files.Option{files.WithOffline(offline)}
 	if p := cfg.Files.Prefetch; p.Enabled {
 		fileOpts = append(fileOpts,
 			files.WithPrefetch(int64(p.MaxSize)),
@@ -68,8 +78,8 @@ func build(ctx context.Context, cfg config.Config, arg string) (*tui.Model, erro
 		)
 	}
 	var (
-		pullOpts  []pulls.Option
-		issueOpts []issues.Option
+		pullOpts  = []pulls.Option{pulls.WithOffline(offline)}
+		issueOpts = []issues.Option{issues.WithOffline(offline)}
 	)
 	if p := cfg.Details.Prefetch; p.Enabled {
 		pullOpts = append(pullOpts, pulls.WithPrefetch(p.Rows, p.HoverDelay))
@@ -79,7 +89,7 @@ func build(ctx context.Context, cfg config.Config, arg string) (*tui.Model, erro
 		Files:         files.New(ctx, fileSvc, cfg.Keys, fileOpts...),
 		Pulls:         pulls.New(ctx, pullSvc, cfg.Keys, pullOpts...),
 		Issues:        issues.New(ctx, issueSvc, cfg.Keys, issueOpts...),
-		Notifications: notifications.New(ctx, notifSvc, cfg.Keys),
+		Notifications: notifications.New(ctx, notifSvc, cfg.Keys, notifications.WithOffline(offline)),
 	}
 
 	b := browser.New("", io.Discard, io.Discard)
