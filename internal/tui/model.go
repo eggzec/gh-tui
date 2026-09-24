@@ -1,9 +1,9 @@
-// Package tui is the root of the program. It lays the sections out on two
-// screens, the repository screen with its panes and the notifications
-// screen, draws the header, the help line and toasts, opens modals such as
-// the search and the history over them, and routes messages between them
-// all. The sections
-// themselves live in their own packages and share the ui package.
+// Package tui is the root of the program. It lays the sections out on
+// three screens, the dashboard, the repository screen with its panes and
+// the notifications screen, draws the header, the help line and toasts,
+// opens modals such as the search and the history over them, and routes
+// messages between them all. The sections themselves live in their own
+// packages and share the ui package.
 package tui
 
 import (
@@ -29,6 +29,10 @@ type Layout struct {
 	Files, Pulls, Issues ui.Section
 	// Notifications fills the notifications screen.
 	Notifications ui.Section
+	// Dashboard fills the dashboard, which the app opens on unless it is
+	// given a repository. It draws its own panes, and handles the keys
+	// that move between them.
+	Dashboard ui.Section
 }
 
 // Model is the root model of the program.
@@ -42,11 +46,14 @@ type Model struct {
 	panes []*pane
 	left  int
 	notif *pane
+	dash  *pane
 	// all holds the panes of every screen.
 	all []*pane
 	// screen is the screen on view, and focus the focused pane of the
-	// repository screen.
+	// repository screen. back is the screen before it, which the keys that
+	// show the notifications and the dashboard go back to.
 	screen screen
+	back   screen
 	focus  int
 	// pending holds the commands the sections returned for the repository
 	// of WithRepo, for Init to run.
@@ -89,8 +96,9 @@ type Model struct {
 type Option func(*Model)
 
 // WithRepo sets the repository the app opens with, on the repository
-// screen. Without it the app opens on the notifications screen, until the
-// user picks a repository in the search.
+// screen. Without it the app opens on the dashboard, or on the
+// notifications screen when it has none, until the user picks a
+// repository.
 func WithRepo(repo core.RepoRef) Option {
 	return func(m *Model) { m.repo = repo }
 }
@@ -180,21 +188,30 @@ func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) 
 	for i, p := range m.panes {
 		p.label = paneLabel(i, p.section.Title())
 	}
+	m.all = slices.Clip(m.panes)
 	if layout.Notifications != nil {
 		m.notif = &pane{section: layout.Notifications, label: layout.Notifications.Title()}
-		m.all = append(slices.Clip(m.panes), m.notif)
-	} else {
-		m.all = m.panes
+		m.all = append(m.all, m.notif)
+	}
+	if layout.Dashboard != nil {
+		m.dash = &pane{section: layout.Dashboard, bare: true}
+		m.all = append(m.all, m.dash)
 	}
 	for _, opt := range opts {
 		opt(m)
 	}
 
-	if m.repo != (core.RepoRef{}) || m.notif == nil {
+	switch {
+	case m.repo != (core.RepoRef{}):
 		m.screen = repoScreen
-	} else {
+	case m.dash != nil:
+		m.screen = dashScreen
+	case m.notif != nil:
 		m.screen = notifScreen
+	default:
+		m.screen = repoScreen
 	}
+	m.back = m.screen
 	if m.repo != (core.RepoRef{}) {
 		if m.watchRepo != nil {
 			m.watchRepo(m.repo)
@@ -234,8 +251,12 @@ func (m *Model) Init() tea.Cmd {
 // startScreen starts the sections of the screen on view that haven't
 // started yet.
 func (m *Model) startScreen() tea.Cmd {
-	if m.screen == notifScreen {
+	switch m.screen {
+	case notifScreen:
 		return m.notif.start()
+	case dashScreen:
+		return m.dash.start()
+	case repoScreen:
 	}
 	cmds := make([]tea.Cmd, 0, len(m.panes))
 	for _, p := range m.panes {

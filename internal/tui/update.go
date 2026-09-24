@@ -92,7 +92,9 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 	// ctrl+c always reaches the quit key, so a capturing section can't
 	// trap the user.
 	if p != nil && msg.String() != "ctrl+c" {
-		if c, ok := p.section.(ui.Capturer); ok && c.Capturing() {
+		c, capturer := p.section.(ui.Capturer)
+		cl, claimer := p.section.(ui.Claimer)
+		if capturer && c.Capturing() || claimer && cl.Claims(msg) {
 			cmd := p.section.Update(msg)
 			m.updateBadges()
 			return cmd
@@ -112,14 +114,21 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 	case key.Matches(msg, m.toast.KeyMap().Dismiss):
 		return m.toast.Dismiss()
 	case key.Matches(msg, m.keys.Notifications):
-		return m.toggleScreen()
-	case key.Matches(msg, m.keys.Next):
-		return m.cycle(1)
-	case key.Matches(msg, m.keys.Prev):
-		return m.cycle(-1)
+		return m.toggleScreen(notifScreen)
+	case m.dash != nil && key.Matches(msg, m.keys.Dashboard):
+		return m.toggleScreen(dashScreen)
 	}
-	if i := m.keys.pane(msg); i >= 0 && i < len(m.panes) {
-		return m.showScreen(repoScreen, i)
+	// The dashboard moves between its own panes.
+	if m.screen != dashScreen {
+		switch {
+		case key.Matches(msg, m.keys.Next):
+			return m.cycle(1)
+		case key.Matches(msg, m.keys.Prev):
+			return m.cycle(-1)
+		}
+		if i := m.keys.pane(msg); i >= 0 && i < len(m.panes) {
+			return m.showScreen(repoScreen, i)
+		}
 	}
 	if p == nil {
 		return nil
@@ -174,6 +183,9 @@ func (m *Model) show(title string) tea.Cmd {
 	}
 	if m.notif != nil && m.notif.section.Title() == title {
 		return m.showScreen(notifScreen, m.focus)
+	}
+	if m.dash != nil && m.dash.section.Title() == title {
+		return m.showScreen(dashScreen, m.focus)
 	}
 	return nil
 }
