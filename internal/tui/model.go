@@ -12,6 +12,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
 	"github.com/eggzec/gh-tui/pkg/bubbles/tabs"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
@@ -39,6 +40,10 @@ type Model struct {
 	setActive func(active bool)
 	open      func(url string) error
 	watchRepo func(repo core.RepoRef)
+	// search finds what the search modal lists; searchBox is that modal,
+	// made the first time it opens.
+	search    picker.Search
+	searchBox *searchModal
 }
 
 // Option configures a Model.
@@ -61,6 +66,17 @@ func WithActivity(setActive func(active bool)) Option {
 // before the sections see it, and must not block.
 func WithRepoWatcher(watch func(repo core.RepoRef)) Option {
 	return func(m *Model) { m.watchRepo = watch }
+}
+
+// WithSearch sets the function the search modal lists results with. It is
+// called for an empty query too, to offer something to start from. Items
+// are grouped by their Kind, one of KindPinned, KindRepos, KindIssues and
+// KindPulls, and a scope is one of the last three. Choosing an item whose
+// Value is a core.RepoRef or core.Repo selects that repository; a
+// core.SearchHit selects its repository or opens its issue or pull
+// request. Without WithSearch the search key does nothing.
+func WithSearch(search picker.Search) Option {
+	return func(m *Model) { m.search = search }
 }
 
 // WithBrowser sets the function that opens a URL in the browser.
@@ -140,6 +156,9 @@ func (m *Model) applyTheme(dark bool) {
 	}
 	for _, mod := range m.modals {
 		mod.SetTheme(m.theme)
+	}
+	if m.searchBox != nil && !m.isOpen(m.searchBox) {
+		m.searchBox.SetTheme(m.theme)
 	}
 }
 

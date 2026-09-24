@@ -7,6 +7,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
+	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
 	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
 	"github.com/eggzec/gh-tui/pkg/bubbles/tabs"
 	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
@@ -149,6 +150,33 @@ func (t Theme) Prompt() prompt.Styles {
 	s.Cursor = s.Cursor.Foreground(lipgloss.Color(t.Palette.Accent))
 	s.Key = s.Key.Foreground(lipgloss.Color(t.Palette.Muted))
 	s.Hint = s.Hint.Foreground(lipgloss.Color(t.Palette.Subtle))
+	return s
+}
+
+// Picker returns the styles of a search popup. Its frame takes the Border
+// color, and the accent marks the prompt, the scope, the selection and the
+// matches.
+func (t Theme) Picker() picker.Styles {
+	s := picker.DefaultStyles(t.Dark)
+	fg, accent := lipgloss.Color(t.Palette.Foreground), lipgloss.Color(t.Palette.Accent)
+	muted, subtle := lipgloss.Color(t.Palette.Muted), lipgloss.Color(t.Palette.Subtle)
+	s.Frame = s.Frame.BorderForeground(lipgloss.Color(t.Palette.Border))
+	s.Prompt = s.Prompt.Foreground(accent)
+	s.Text = s.Text.Foreground(fg)
+	s.Placeholder = s.Placeholder.Foreground(subtle)
+	s.Cursor = s.Cursor.Foreground(accent)
+	s.Scope = s.Scope.Foreground(subtle)
+	s.ActiveScope = s.ActiveScope.Foreground(accent)
+	s.Status = s.Status.Foreground(subtle)
+	s.Spinner = s.Spinner.Foreground(accent)
+	s.Header = s.Header.Foreground(muted)
+	s.Gutter = s.Gutter.Foreground(accent)
+	s.Title = s.Title.Foreground(fg)
+	s.SelectedTitle = s.SelectedTitle.Foreground(fg)
+	s.Match = s.Match.Foreground(accent)
+	s.Detail = s.Detail.Foreground(subtle)
+	s.Empty = s.Empty.Foreground(muted)
+	s.Error = s.Error.Foreground(lipgloss.Color(t.Palette.Error))
 	return s
 }
 

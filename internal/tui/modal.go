@@ -1,8 +1,10 @@
 package tui
 
 import (
+	"slices"
 	"strings"
 
+	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
@@ -24,6 +26,24 @@ func (m *Model) openModal(mod ui.Modal) {
 	mod.SetTheme(m.theme)
 	mod.SetSize(m.modalSize())
 	m.modals = append(m.modals, mod)
+}
+
+// isOpen reports whether mod is open.
+func (m *Model) isOpen(mod ui.Modal) bool {
+	return slices.Contains(m.modals, mod)
+}
+
+// openSearch opens the search modal, if the app has a search.
+func (m *Model) openSearch() tea.Cmd {
+	if m.search == nil {
+		return nil
+	}
+	first := m.searchBox == nil
+	if first {
+		m.searchBox = newSearchModal(m.ctx, m.search)
+	}
+	m.openModal(m.searchBox)
+	return m.searchBox.open(first)
 }
 
 // closeModal closes mod and the modals opened over it. A modal that isn't
