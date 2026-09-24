@@ -11,9 +11,19 @@ const (
 	ActionHelp    = "help"
 	ActionRefresh = "refresh"
 	ActionSearch  = "search"
+	ActionOpen    = "open_in_browser"
+	// ActionNextTab and ActionPrevTab cycle the focus through the panes of
+	// the screen. They keep the names they had when the app had tabs.
 	ActionNextTab = "next_tab"
 	ActionPrevTab = "prev_tab"
-	ActionOpen    = "open_in_browser"
+	// ActionPane1 to ActionPane3 focus the pane with that number on the
+	// repository screen: files, pull requests and issues.
+	ActionPane1 = "pane_1"
+	ActionPane2 = "pane_2"
+	ActionPane3 = "pane_3"
+	// ActionNotifications switches between the repository screen and the
+	// notifications.
+	ActionNotifications = "notifications"
 )
 
 // Actions of the sections. A key may serve different actions in different
@@ -49,6 +59,11 @@ func defaultKeys() map[string][]string {
 		ActionNextTab: {"tab", "]"},
 		ActionPrevTab: {"shift+tab", "["},
 		ActionOpen:    {"o"},
+
+		ActionPane1:         {"1"},
+		ActionPane2:         {"2"},
+		ActionPane3:         {"3"},
+		ActionNotifications: {"n"},
 
 		ActionSelect:      {"enter"},
 		ActionBack:        {"esc"},
