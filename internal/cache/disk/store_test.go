@@ -16,6 +16,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/eggzec/gh-tui/internal/obs"
 )
 
 const key = "0f8e75abebff0877cae681a3d5ff31ac47f54220"
@@ -419,5 +421,26 @@ func TestCollectCanceled(t *testing.T) {
 	cancel()
 	if _, err := s.Collect(ctx); !errors.Is(err, context.Canceled) {
 		t.Errorf("Collect error = %v, want context.Canceled", err)
+	}
+}
+
+func TestGetCounts(t *testing.T) {
+	stats := obs.NewStats()
+	prev := obs.SetDefault(stats)
+	t.Cleanup(func() { obs.SetDefault(prev) })
+	s, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Put("blob", "ab12", []byte("x")); err != nil {
+		t.Fatal(err)
+	}
+	s.Get("blob", "ab12")
+	s.Get("blob", "cd34")
+	// Peeks are the revalidator's, not reads.
+	s.Peek("blob", "ab12")
+	got := stats.Summary().Disk
+	if len(got) != 1 || got[0] != (obs.DiskSummary{Kind: "blob", Hit: 1, Miss: 1, HitRatio: 0.5}) {
+		t.Errorf("disk = %+v, want a hit and a miss", got)
 	}
 }

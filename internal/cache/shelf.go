@@ -2,13 +2,17 @@ package cache
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"slices"
 	"time"
+
+	"github.com/eggzec/gh-tui/internal/obs"
 )
 
 // Store keeps objects across sessions, such as the disk layer in package
@@ -126,6 +130,10 @@ func (s *Shelf[V]) Warm(c *Cache[V], key string) (Entry[V], bool) {
 	}
 	if _, st := c.Get(key); st != Stale {
 		return Entry[V]{}, false
+	}
+	obs.CountCache(kindOf(key), obs.StaleServed)
+	if obs.Enabled(context.Background(), slog.LevelDebug) {
+		slog.Debug("cache", "span", "cache.disk", "kind", kindOf(key), "key", key, "found", "stale", "fetched_at", e.FetchedAt)
 	}
 	return e, true
 }

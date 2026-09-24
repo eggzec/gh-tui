@@ -7,6 +7,8 @@ import (
 	"slices"
 	"sync"
 	"time"
+
+	"github.com/eggzec/gh-tui/internal/obs"
 )
 
 // Entry is a cached value together with the metadata needed to revalidate it.
@@ -62,6 +64,7 @@ type Cache[V any] struct {
 	// whether it changed since.
 	seq     uint64
 	flights map[string]*flight[V]
+	meter   meter
 	// root is the sentinel of a circular list ordered from most recently
 	// used (root.next) to least recently used (root.prev).
 	root node[V]
@@ -143,6 +146,7 @@ func (c *Cache[V]) Seed(key string, e Entry[V]) bool {
 	if stale {
 		c.markStale(c.items[key])
 	}
+	c.count(key, obs.Seeded)
 	return true
 }
 
@@ -231,7 +235,7 @@ func (c *Cache[V]) set(key string, e Entry[V]) {
 	} else {
 		// Reuse the evicted node so a full cache doesn't allocate on Set.
 		n = c.root.prev
-		c.remove(n)
+		c.evict(n)
 	}
 	*n = node[V]{key: key, entry: e, version: c.seq}
 	c.items[key] = n
@@ -254,8 +258,20 @@ func (c *Cache[V]) resize(n *node[V]) {
 // the size limit, down to the most recent one. c.mu must be held.
 func (c *Cache[V]) shrink() {
 	for c.size != nil && c.total > c.opts.maxSize && len(c.items) > 1 {
-		c.remove(c.root.prev)
+		c.evict(c.root.prev)
 	}
+}
+
+// evict removes n to make room for others. c.mu must be held.
+func (c *Cache[V]) evict(n *node[V]) {
+	c.count(n.key, obs.Evicted)
+	c.remove(n)
+}
+
+// count counts e for the kind of key in the stats of package obs. c.mu
+// must be held.
+func (c *Cache[V]) count(key string, e obs.CacheEvent) {
+	c.meter.count(kindOf(key), e)
 }
 
 // remove unlinks n and forgets it. c.mu must be held.
@@ -295,4 +311,19 @@ func (c *Cache[V]) pushFront(n *node[V]) {
 func (c *Cache[V]) unlink(n *node[V]) {
 	n.prev.next, n.next.prev = n.next, n.prev
 	n.prev, n.next = nil, nil
+}
+
+// meter keeps the counters of the kind a cache counted last, since a
+// cache mostly holds entries of one kind.
+type meter struct {
+	stats *obs.Stats
+	kind  string
+	ctr   obs.CacheCounters
+}
+
+func (m *meter) count(kind string, e obs.CacheEvent) {
+	if s := obs.Default(); s != m.stats || kind != m.kind {
+		m.stats, m.kind, m.ctr = s, kind, s.CacheCounters(kind)
+	}
+	m.ctr.Add(e)
 }

@@ -4,7 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"strings"
 	"time"
+
+	"github.com/eggzec/gh-tui/internal/obs"
 )
 
 // ErrNotModified is returned by a FetchFunc when the server reports that the
@@ -48,7 +52,9 @@ func (c *Cache[V]) Fetch(ctx context.Context, key string, fn FetchFunc[V]) (Entr
 	if ok && c.state(n) == Fresh {
 		c.moveToFront(n)
 		e := n.entry
+		c.count(key, obs.MemoryHit)
 		c.mu.Unlock()
+		logFetch(ctx, key, "hit")
 		return e, nil
 	}
 	f, running := c.flights[key]
@@ -60,7 +66,19 @@ func (c *Cache[V]) Fetch(ctx context.Context, key string, fn FetchFunc[V]) (Entr
 		f = c.start(ctx, key, n, fn)
 	}
 	f.waiters++
+	found := "miss"
+	switch {
+	case running:
+		found = "shared"
+		c.count(key, obs.Shared)
+	case ok:
+		found = "stale"
+		c.count(key, obs.MemoryMiss)
+	default:
+		c.count(key, obs.MemoryMiss)
+	}
 	c.mu.Unlock()
+	logFetch(ctx, key, found)
 
 	select {
 	case <-f.done:
@@ -103,6 +121,7 @@ func (c *Cache[V]) finish(key string, f *flight[V], e Entry[V], err error) {
 	}
 
 	if errors.Is(err, ErrNotModified) {
+		c.count(key, obs.Revalidated)
 		if !f.hadPrev {
 			f.err = fmt.Errorf("fetch %q: %w, but nothing was cached", key, err)
 			return
@@ -140,4 +159,22 @@ func (c *Cache[V]) leave(key string, f *flight[V]) {
 	if c.flights[key] == f {
 		delete(c.flights, key)
 	}
+}
+
+// logFetch logs at debug level what a Fetch of key found, such as hit or
+// stale.
+func logFetch(ctx context.Context, key, found string) {
+	if obs.Enabled(ctx, slog.LevelDebug) {
+		slog.DebugContext(ctx, "cache", "span", "cache.memory", "kind", kindOf(key), "key", key, "found", found)
+	}
+}
+
+// kindOf returns the kind of what key names, for counting: what comes
+// before its first colon, slash or question mark, such as pulls in
+// pulls:cli/cli?state=open.
+func kindOf(key string) string {
+	if i := strings.IndexAny(key, ":/?"); i > 0 {
+		return key[:i]
+	}
+	return "other"
 }
