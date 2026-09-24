@@ -1,0 +1,177 @@
+// Package pager is a less-like viewer for text such as a file: it
+// highlights the syntax, scrolls in both directions or soft-wraps, numbers
+// the lines and searches them.
+//
+// The content arrives already fetched with [Model.SetContent]; while it is
+// on its way, [Model.SetLoading] and [Model.SetError] show a placeholder.
+// The pager renders only the lines in its window, so large files stay cheap
+// to scroll.
+package pager
+
+import (
+	"context"
+	"sync/atomic"
+
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/spinner"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
+)
+
+var lastID atomic.Int64
+
+// state is what the pager shows in place of lines.
+type state int
+
+const (
+	// stateEmpty is a pager that was never given content.
+	stateEmpty state = iota
+	stateLoading
+	stateFailed
+	stateBinary
+	stateReady
+)
+
+// Model is a pager. Create it with [New]. It starts blurred, and the parent
+// focuses it when it is shown.
+type Model struct {
+	settings
+
+	id      int64
+	focused bool
+
+	name  string
+	state state
+	err   error
+	spin  spinner.Model
+	// lines are the lines of the content, cleaned and with tabs expanded,
+	// and spans their tokens once the highlighter is done, or nil.
+	lines []string
+	spans [][]span
+
+	// gen counts contents; highlights of an older one are dropped. cancel
+	// stops the highlighter of the current one.
+	gen    int
+	cancel context.CancelFunc
+
+	// top and row are the first line in the window and, when wrapping,
+	// the first of its rows shown. left is the first column shown when not
+	// wrapping.
+	top, row, left int
+
+	searching bool
+	input     textinput.Model
+	search    search
+
+	// Rendered once in SetStyles, so View only copies them.
+	esc      esc
+	nameView string
+}
+
+// New returns a blurred, empty pager.
+func New(opts ...Option) Model {
+	s := defaultSettings()
+	for _, opt := range opts {
+		opt(&s)
+	}
+	input := textinput.New()
+	input.Prompt = "/"
+	m := Model{
+		settings: s,
+		id:       lastID.Add(1),
+		input:    input,
+		spin:     spinner.New(spinner.WithSpinner(spinner.Dot)),
+	}
+	m.SetKeyMap(s.keys)
+	m.SetStyles(s.styles)
+	m.SetSize(s.width, s.height)
+	return m
+}
+
+// ID returns the instance ID that scopes the pager's messages.
+func (m Model) ID() int64 { return m.id }
+
+// Init implements the Elm architecture. A pager has nothing to start until
+// it gets content.
+func (m Model) Init() tea.Cmd { return nil }
+
+// Name returns the name of the content, as given to SetContent.
+func (m Model) Name() string { return m.name }
+
+// Lines returns the number of lines of the content.
+func (m Model) Lines() int { return len(m.lines) }
+
+// SetSize sets the width and height, including the status line.
+func (m *Model) SetSize(width, height int) {
+	m.width, m.height = max(width, 0), max(height, 0)
+	m.input.SetWidth(max(m.width-2, 1))
+	m.clamp()
+}
+
+// Width returns the width.
+func (m Model) Width() int { return m.width }
+
+// Height returns the height.
+func (m Model) Height() int { return m.height }
+
+// Focus makes the pager react to keys.
+func (m *Model) Focus() { m.focused = true }
+
+// Blur makes the pager ignore keys. It closes the search input.
+func (m *Model) Blur() {
+	m.focused = false
+	m.closeSearch()
+}
+
+// Focused reports whether the pager reacts to keys.
+func (m Model) Focused() bool { return m.focused }
+
+// Capturing reports whether the search input is open. It then takes every
+// key, so the parent should not act on keys of its own.
+func (m Model) Capturing() bool { return m.searching }
+
+// Wrap reports whether long lines are soft-wrapped.
+func (m Model) Wrap() bool { return m.wrap }
+
+// SetWrap sets whether long lines are soft-wrapped instead of scrolled
+// sideways.
+func (m *Model) SetWrap(wrap bool) {
+	m.wrap = wrap
+	m.row, m.left = 0, 0
+	m.clamp()
+}
+
+// LineNumbers reports whether the line numbers are shown.
+func (m Model) LineNumbers() bool { return m.lineNumbers }
+
+// SetLineNumbers sets whether the line numbers are shown.
+func (m *Model) SetLineNumbers(show bool) {
+	m.lineNumbers = show
+	m.clamp()
+}
+
+// KeyMap returns the key bindings.
+func (m Model) KeyMap() KeyMap { return m.keys }
+
+// SetKeyMap sets the key bindings.
+func (m *Model) SetKeyMap(k KeyMap) {
+	m.keys = k
+	m.enableSearchKeys()
+}
+
+// ShortHelp implements help.KeyMap. While the search input is open, it
+// lists the keys that close it.
+func (m Model) ShortHelp() []key.Binding {
+	if m.searching {
+		return []key.Binding{m.keys.Confirm, m.keys.Cancel}
+	}
+	return m.keys.ShortHelp()
+}
+
+// FullHelp implements help.KeyMap.
+func (m Model) FullHelp() [][]key.Binding {
+	if m.searching {
+		return [][]key.Binding{m.ShortHelp()}
+	}
+	return m.keys.FullHelp()
+}
