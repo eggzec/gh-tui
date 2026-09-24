@@ -45,7 +45,9 @@ func withCall(ctx context.Context, c *call) context.Context {
 }
 
 // RoundTrip sends req with the base transport, and logs it once the
-// response's body is closed, or at once if there is no response.
+// response's body is closed, or at once if there is no response. A request
+// that ends early, such as one canceled when the user navigates away, is
+// logged too, with the error.
 func (t *logTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	a := &attempt{t: t, req: req, id: obs.NewID(obs.RequestPrefix), start: time.Now()}
 	resp, err := t.base.RoundTrip(req)
@@ -65,6 +67,8 @@ type attempt struct {
 	id             string
 	start, headers time.Time
 	bytes          int64
+	// readErr is why reading the body stopped before its end, if it did.
+	readErr error
 }
 
 // loggedBody counts what is read of a response and logs the attempt when
@@ -79,6 +83,9 @@ type loggedBody struct {
 func (b *loggedBody) Read(p []byte) (int, error) {
 	n, err := b.ReadCloser.Read(p)
 	b.a.bytes += int64(n)
+	if err != nil && !errors.Is(err, io.EOF) && b.a.readErr == nil {
+		b.a.readErr = err
+	}
 	return n, err
 }
 
@@ -88,9 +95,13 @@ func (b *loggedBody) Close() error {
 	return err
 }
 
-// done logs the attempt and counts it. resp is nil when err is set.
+// done logs the attempt and counts it. resp is nil when err is set, and a
+// body that failed while it was read logs its error.
 func (a *attempt) done(resp *http.Response, err error) {
 	ctx := a.req.Context()
+	if err == nil {
+		err = a.readErr
+	}
 	elapsed := time.Since(a.start)
 	c, _ := ctx.Value(callKey{}).(*call)
 	api, route, repo := a.t.route(a.req, c)
@@ -116,10 +127,12 @@ func (a *attempt) done(resp *http.Response, err error) {
 			h.Rate = c.rate.obs()
 		}
 	}
+	// A canceled request is a decision, not a failure, but it cost a
+	// request, so it is logged as one.
 	canceled := err != nil && (errors.Is(err, context.Canceled) || ctx.Err() != nil)
 	switch {
 	case canceled:
-		level = slog.LevelDebug
+		level = slog.LevelInfo
 	case err != nil:
 		level = slog.LevelError
 	}
@@ -144,6 +157,9 @@ func (a *attempt) done(resp *http.Response, err error) {
 			attrs = append(attrs, slog.String("gh_request_id", id))
 		}
 		attrs = append(attrs, slog.Int("status", resp.StatusCode), slog.Bool("not_modified", h.NotModified))
+	} else {
+		// No response came: the status is 0.
+		attrs = append(attrs, slog.Int("status", 0))
 	}
 	attrs = append(attrs, slog.Float64("duration_ms", obs.Millis(elapsed)), slog.Int64("bytes", a.bytes))
 	if r := h.Rate; r.Resource != "" || h.Cost > 0 {
