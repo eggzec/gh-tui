@@ -34,6 +34,8 @@ type Section struct {
 	// reads the section from another goroutine.
 	list       feed.Model[core.Issue]
 	cancelList context.CancelFunc
+	// offline is marked by the list's reads when GitHub can't be reached.
+	offline *ui.Offline
 
 	// ahead reads the issues of list before they are opened, if prefetch
 	// is set. rowAt returns the query of the first comments of row i,
@@ -63,6 +65,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 	s := &Section{
 		ctx:       ctx,
 		svc:       svc,
+		offline:   new(ui.Offline),
 		keys:      newKeyMap(keys),
 		now:       time.Now,
 		filter:    core.FilterOpen,
@@ -151,12 +154,11 @@ func (s *Section) newList() feed.Model[core.Issue] {
 	ctx, s.cancelList = context.WithCancel(s.ctx)
 	s.ahead.Reset(ctx)
 	svc, q := s.svc, issuesvc.ListQuery{Repo: s.repo, State: s.filter}
-	fetch := func(ctx context.Context, cursor string) ([]core.Issue, string, error) {
+	fetch := ui.FeedPages(s.offline, func(ctx context.Context, cursor string) (core.Page[core.Issue], error) {
 		q := q
 		q.Cursor = cursor
-		p, err := svc.List(ctx, q)
-		return p.Items, p.Next, err
-	}
+		return svc.List(ctx, q)
+	})
 	return feed.New(fetch, s.renderRow,
 		feed.WithContext(ctx),
 		feed.WithKey(func(it core.Issue) string { return strconv.Itoa(it.Number) }),

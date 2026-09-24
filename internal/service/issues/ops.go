@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 )
@@ -16,6 +17,10 @@ import (
 // issue as soon as it is made. When GitHub confirms it, the cache takes
 // GitHub's version, and the repository's lists are marked stale because the
 // change may move the issue within them or out of them.
+//
+// Changes are never kept in the store before GitHub confirms them, so a
+// rollback leaves nothing behind there. The store gets what GitHub sends
+// back, or the pages read again after the change.
 
 // Close closes an issue.
 func (s *Service) Close(repo core.RepoRef, number int) *optimistic.Op {
@@ -38,6 +43,10 @@ func (s *Service) setState(repo core.RepoRef, number int, state core.State, verb
 			return fmt.Errorf("%s issue %s#%d: %w", verb, repo, number, err)
 		}
 		s.update(repo, number, func(core.Issue) core.Issue { return got })
+		// GitHub sent the whole issue, so it is kept for the next session.
+		// It has no validators, which belong to what was read before.
+		key := issueKey(repo, number)
+		_ = s.keptIssues.Save(key, cache.Entry[core.Issue]{Value: got, Tags: []string{repoTag(repo), key}})
 		s.lists.InvalidateTag(repoTag(repo))
 		return nil
 	}, rollbacks...)

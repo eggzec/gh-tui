@@ -12,6 +12,7 @@ type Option func(*options)
 type options struct {
 	cache  []cache.Option
 	viewer string
+	store  cache.Store
 }
 
 // WithTTL sets how long fetched issues count as fresh. Until then, reads
@@ -30,4 +31,12 @@ func WithCapacity(n int) Option {
 // author of a comment until GitHub confirms it.
 func WithViewer(login string) Option {
 	return func(o *options) { o.viewer = login }
+}
+
+// WithStore keeps list pages, issues and comment pages in store as well as
+// in memory, so that a later session shows them at once and revalidates
+// them with their validators. The store must be the signed-in account's
+// alone. By default nothing outlives the service.
+func WithStore(store cache.Store) Option {
+	return func(o *options) { o.store = store }
 }
