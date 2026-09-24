@@ -1,0 +1,156 @@
+{
+  "data": {
+    "rateLimit": {
+      "cost": 1,
+      "limit": 5000,
+      "remaining": 4990,
+      "used": 10,
+      "resetAt": "2026-09-24T12:29:23Z"
+    },
+    "reviewRequested": {
+      "issueCount": 117,
+      "nodes": [
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDODeVIac8AAAABETYCbg",
+          "number": 1813,
+          "title": "fix: stop Sequence after Quit, Interrupt, or shutdown",
+          "state": "OPEN",
+          "author": {
+            "login": "kevin9327"
+          },
+          "comments": {
+            "totalCount": 0
+          },
+          "createdAt": "2026-09-20T11:20:19Z",
+          "updatedAt": "2026-09-23T08:50:20Z",
+          "url": "https://github.com/charmbracelet/bubbletea/pull/1813",
+          "repository": {
+            "name": "bubbletea",
+            "owner": {
+              "login": "charmbracelet"
+            }
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDODeVIac8AAAABEq_vYA",
+          "number": 1817,
+          "title": "docs(examples): add autocomplete, canvas and capability examples to README",
+          "state": "OPEN",
+          "author": {
+            "login": "jsquiroz"
+          },
+          "comments": {
+            "totalCount": 0
+          },
+          "createdAt": "2026-09-23T00:56:12Z",
+          "updatedAt": "2026-09-23T00:56:12Z",
+          "url": "https://github.com/charmbracelet/bubbletea/pull/1817",
+          "repository": {
+            "name": "bubbletea",
+            "owner": {
+              "login": "charmbracelet"
+            }
+          }
+        }
+      ]
+    },
+    "authored": {
+      "issueCount": 23,
+      "nodes": [
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOOt6mSM8AAAABErRX6g",
+          "number": 3926,
+          "title": "ui: add mouse support to top-level command palette",
+          "state": "OPEN",
+          "author": {
+            "login": "meowgorithm"
+          },
+          "comments": {
+            "totalCount": 0
+          },
+          "createdAt": "2026-09-23T01:49:27Z",
+          "updatedAt": "2026-09-24T07:10:46Z",
+          "url": "https://github.com/charmbracelet/crush/pull/3926",
+          "repository": {
+            "name": "crush",
+            "owner": {
+              "login": "charmbracelet"
+            }
+          }
+        },
+        {
+          "__typename": "PullRequest",
+          "id": "PR_kwDOOt6mSM8AAAABEq5-eg",
+          "number": 3925,
+          "title": "ui: add sections to top level command palette",
+          "state": "OPEN",
+          "author": {
+            "login": "meowgorithm"
+          },
+          "comments": {
+            "totalCount": 0
+          },
+          "createdAt": "2026-09-23T00:38:53Z",
+          "updatedAt": "2026-09-24T07:07:00Z",
+          "url": "https://github.com/charmbracelet/crush/pull/3925",
+          "repository": {
+            "name": "crush",
+            "owner": {
+              "login": "charmbracelet"
+            }
+          }
+        }
+      ]
+    },
+    "assigned": {
+      "issueCount": 133,
+      "nodes": [
+        {
+          "__typename": "Issue",
+          "id": "I_kwDODf4bps8AAAABSh_LFw",
+          "number": 1056,
+          "title": "textinput: alt+d panics on the last rune of the value and deletes an extra word on the last rune of a word",
+          "state": "OPEN",
+          "author": {
+            "login": "DRMacIver"
+          },
+          "comments": {
+            "totalCount": 0
+          },
+          "createdAt": "2026-09-22T10:57:52Z",
+          "updatedAt": "2026-09-22T10:57:52Z",
+          "url": "https://github.com/charmbracelet/bubbles/issues/1056",
+          "repository": {
+            "name": "bubbles",
+            "owner": {
+              "login": "charmbracelet"
+            }
+          }
+        },
+        {
+          "__typename": "Issue",
+          "id": "I_kwDODf4bps8AAAABSOS8sQ",
+          "number": 1053,
+          "title": "table (v2): moving up from the last row scrolls the whole window instead of the cursor",
+          "state": "OPEN",
+          "author": null,
+          "comments": {
+            "totalCount": 0
+          },
+          "createdAt": "2026-09-20T12:51:50Z",
+          "updatedAt": "2026-09-20T12:51:50Z",
+          "url": "https://github.com/charmbracelet/bubbles/issues/1053",
+          "repository": {
+            "name": "bubbles",
+            "owner": {
+              "login": "charmbracelet"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

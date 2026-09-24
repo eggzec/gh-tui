@@ -1,0 +1,94 @@
+{
+  "data": {
+    "rateLimit": {
+      "cost": 1,
+      "limit": 5000,
+      "remaining": 4990,
+      "used": 10,
+      "resetAt": "2026-09-24T12:29:23Z"
+    },
+    "viewer": {
+      "login": "octocat",
+      "name": "The Octocat",
+      "bio": "",
+      "company": "@github",
+      "location": "San Francisco",
+      "websiteUrl": "https://github.blog",
+      "url": "https://github.com/octocat",
+      "avatarUrl": "https://avatars.githubusercontent.com/u/583231?u=a59fef2a493e2b67dd13754231daf220c82ba84d&v=4",
+      "createdAt": "2011-01-25T18:44:36Z",
+      "followers": {
+        "totalCount": 24214
+      },
+      "following": {
+        "totalCount": 9
+      },
+      "repositories": {
+        "totalCount": 8
+      },
+      "status": {
+        "emoji": ":octocat:",
+        "message": "Shipping the dashboard",
+        "indicatesLimitedAvailability": true
+      },
+      "pinnedItems": {
+        "nodes": [
+          {
+            "id": "MDEwOlJlcG9zaXRvcnkxMzAwMTky",
+            "name": "Spoon-Knife",
+            "owner": {
+              "login": "octocat"
+            },
+            "description": "This repo is for demonstration purposes only.",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "HTML"
+            },
+            "stargazerCount": 14056,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T08:23:12Z",
+            "url": "https://github.com/octocat/Spoon-Knife"
+          },
+          {
+            "id": "MDEwOlJlcG9zaXRvcnkxMjk2MjY5",
+            "name": "Hello-World",
+            "owner": {
+              "login": "octocat"
+            },
+            "description": "My first repository on GitHub!",
+            "defaultBranchRef": {
+              "name": "master"
+            },
+            "primaryLanguage": null,
+            "stargazerCount": 3824,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "updatedAt": "2026-09-24T10:49:42Z",
+            "url": "https://github.com/octocat/Hello-World"
+          }
+        ]
+      },
+      "organizations": {
+        "nodes": [
+          {
+            "login": "github",
+            "name": "GitHub",
+            "url": "https://github.com/github"
+          },
+          {
+            "login": "octo-org",
+            "name": null,
+            "url": "https://github.com/octo-org"
+          }
+        ]
+      }
+    }
+  }
+}
