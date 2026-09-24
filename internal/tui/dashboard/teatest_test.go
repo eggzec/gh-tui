@@ -56,7 +56,7 @@ func TestProgram(t *testing.T) {
 	tm := teatest.NewTestModel(t, a, teatest.WithInitialTermSize(140, 38))
 	// Open a review request, find a repository of github by name and open
 	// it, then open the repository here.
-	for _, k := range []string{"3", "enter", "2", "]", "/", "4", "enter", "."} {
+	for _, k := range []string{"3", "enter", "2", "]", "f", "4", "enter", "."} {
 		tm.Send(keyPress(k))
 	}
 	// The messages come from commands, so quit once the last has arrived.

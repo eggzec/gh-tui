@@ -46,7 +46,7 @@ func BenchmarkFilter(b *testing.B) {
 	svc := newFake()
 	svc.repos["@me"] = repos("octocat", 1000)
 	s := newSection(b, svc, nil, 140, 38)
-	press(b, s, "/")
+	press(b, s, "f")
 	keys := []tea.Msg{keyPress("r"), keyPress("7"), tea.KeyPressMsg{Code: tea.KeyBackspace}, tea.KeyPressMsg{Code: tea.KeyBackspace}}
 	b.ReportAllocs()
 	i := 0

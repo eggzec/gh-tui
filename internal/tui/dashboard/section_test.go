@@ -195,10 +195,7 @@ func TestOpenRepository(t *testing.T) {
 func TestFilter(t *testing.T) {
 	svc := newFake()
 	s := newSection(t, svc, nil, 140, 38)
-	if !s.Claims(keyPress("/")) {
-		t.Fatal("the repositories should claim / from the app")
-	}
-	press(t, s, "/")
+	press(t, s, "f")
 	if !s.Capturing() {
 		t.Fatal("the filter should take every key")
 	}
@@ -229,7 +226,7 @@ func TestFilter(t *testing.T) {
 
 	// Opening it again reads nothing more, and esc goes back to the list.
 	calls := len(svc.calls)
-	press(t, s, "/")
+	press(t, s, "f")
 	if len(svc.calls) != calls {
 		t.Errorf("the filter read %v again", svc.calls[calls:])
 	}
@@ -243,7 +240,7 @@ func TestFilterIsCappedAndStops(t *testing.T) {
 	svc := newFake()
 	svc.repos["@me"] = repos("octocat", 1500)
 	s := newSection(t, svc, nil, 140, 38)
-	press(t, s, "/")
+	press(t, s, "f")
 	if got := len(s.repos.current().all); got != 1000 {
 		t.Errorf("the filter read %d repositories, want the cap of 1000", got)
 	}
@@ -256,25 +253,12 @@ func TestFilterFailure(t *testing.T) {
 	svc := newFake()
 	svc.fail["repos @me@100"] = errors.New("github: 502 Bad Gateway")
 	s := newSection(t, svc, nil, 140, 38)
-	app := press(t, s, "/")
+	app := press(t, s, "f")
 	if len(app) != 1 || !strings.Contains(app[0].(ui.NotifyMsg).Text, "Couldn't read every repository of yours") {
 		t.Errorf("a failed page should say so in a toast, got %v", app)
 	}
 	if got := s.repos.picker.Len(); got != 100 {
 		t.Errorf("the filter lists %d repositories, want the first page of 100", got)
-	}
-}
-
-func TestClaims(t *testing.T) {
-	s := newSection(t, newFake(), nil, 140, 38)
-	press(t, s, "3")
-	if s.Claims(keyPress("/")) {
-		t.Error("only the repositories claim the search key")
-	}
-	s.Blur()
-	press(t, s, "2")
-	if s.Claims(keyPress("/")) {
-		t.Error("a blurred dashboard claims no key")
 	}
 }
 
@@ -387,7 +371,7 @@ func TestInbox(t *testing.T) {
 func TestRefresh(t *testing.T) {
 	svc := newFake()
 	s := newSection(t, svc, nil, 140, 38)
-	press(t, s, "/")
+	press(t, s, "f")
 	press(t, s, "esc", "r")
 	if svc.invalidated != 1 {
 		t.Errorf("refresh invalidated %d times, want once", svc.invalidated)

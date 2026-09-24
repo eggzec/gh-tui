@@ -164,7 +164,6 @@ type read[V any] struct {
 var (
 	_ ui.Section  = (*Section)(nil)
 	_ ui.Capturer = (*Section)(nil)
-	_ ui.Claimer  = (*Section)(nil)
 )
 
 // New returns the dashboard, which reads through svc and binds the actions
@@ -238,13 +237,6 @@ func (s *Section) Init() tea.Cmd {
 // Capturing reports whether the section takes every key, which it does
 // while the repositories are filtered.
 func (s *Section) Capturing() bool { return s.repos.filtering }
-
-// Claims reports whether the section takes msg from the app: the filter
-// key, which is also the app's search key, while the repositories are
-// focused.
-func (s *Section) Claims(msg tea.KeyPressMsg) bool {
-	return s.focused && s.focus == reposPane && keyMatches(msg, s.keys.Filter)
-}
 
 // SetSize sets the size of the dashboard and lays its panes out.
 func (s *Section) SetSize(width, height int) {
