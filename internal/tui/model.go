@@ -74,6 +74,8 @@ type Model struct {
 	// made the first time it opens.
 	search    picker.Search
 	searchBox *searchModal
+	// warnings are shown as toasts once the app starts.
+	warnings []string
 }
 
 // Option configures a Model.
@@ -127,6 +129,13 @@ func WithSearch(search picker.Search) Option {
 // WithBrowser sets the function that opens a URL in the browser.
 func WithBrowser(open func(url string) error) Option {
 	return func(m *Model) { m.open = open }
+}
+
+// WithWarning shows text in a warning toast once the app starts, for a
+// problem at startup that the app works around, such as a cache it
+// couldn't open.
+func WithWarning(text string) Option {
+	return func(m *Model) { m.warnings = append(m.warnings, text) }
 }
 
 // New returns the root model with the sections of layout. ctx bounds every
@@ -191,6 +200,10 @@ func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) 
 func (m *Model) Init() tea.Cmd {
 	cmds := []tea.Cmd{tea.RequestBackgroundColor, m.pending, m.startScreen(), m.listen(), m.loadRepoInfo()}
 	m.pending = nil
+	for _, w := range m.warnings {
+		cmds = append(cmds, ui.Notify(toast.Warning, w))
+	}
+	m.warnings = nil
 	if m.notif != nil {
 		cmds = append(cmds, m.notif.start())
 	}
