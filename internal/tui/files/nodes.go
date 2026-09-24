@@ -3,32 +3,12 @@ package files
 import (
 	"context"
 	"net/url"
-	"path"
 	"strings"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	filesvc "github.com/eggzec/gh-tui/internal/service/files"
 	"github.com/eggzec/gh-tui/pkg/bubbles/tree"
 )
-
-// children lists the directories of repo for the tree. Every node carries
-// its core.TreeEntry, with Path relative to the root of the repository.
-func children(svc Service, repo core.RepoRef) tree.Children {
-	return func(ctx context.Context, parent tree.Node) ([]tree.Node, error) {
-		dir, _ := parent.Value.(core.TreeEntry)
-		t, err := readTree(ctx, svc, filesvc.TreeQuery{Repo: repo, Ref: dir.SHA})
-		if err != nil {
-			return nil, err
-		}
-		nodes := make([]tree.Node, len(t.Entries))
-		for i, e := range t.Entries {
-			// A listing of one level holds names only.
-			e.Path = path.Join(dir.Path, e.Name)
-			nodes[i] = tree.Node{ID: e.Path, Name: e.Name, Branch: e.Dir(), Value: e}
-		}
-		return nodes, nil
-	}
-}
 
 // readTree reads a directory. Directories below the root are read by SHA,
 // which names content that never changes, so a cached one is good at any
