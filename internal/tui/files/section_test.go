@@ -10,6 +10,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
+	filesvc "github.com/eggzec/gh-tui/internal/service/files"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/tree"
 )
@@ -188,6 +189,30 @@ func TestRefresh(t *testing.T) {
 	}
 	if got := screen(s); !strings.Contains(got, "root.go") {
 		t.Errorf("screen = %q, want cmd/gh-tui still expanded with the new file", got)
+	}
+}
+
+func TestSyncReloadsMovedRef(t *testing.T) {
+	f := sampleFake()
+	s := loaded(t, f, 40, 12)
+	keys(s, "+", "down", "+")
+	// A revalidation found HEAD moved and cached the new listing.
+	f.addTree(ghTUI, ghTUISHA, file("main.go", 2_000), file("root.go", 700))
+	for _, msg := range []ui.SyncMsg{
+		{Key: filesvc.SyncKey(core.RepoRef{Owner: "charmbracelet", Name: "bubbletea"})},
+		{Key: filesvc.SyncKey(ghTUI), Err: errNoTree},
+	} {
+		run(s, s.Update(msg))
+		if strings.Contains(screen(s), "root.go") {
+			t.Fatalf("%+v reloaded the tree, want it ignored", msg)
+		}
+	}
+	run(s, s.Update(ui.SyncMsg{Key: filesvc.SyncKey(core.RepoRef{Owner: "EggZec", Name: "GH-TUI"})}))
+	if got := screen(s); !strings.Contains(got, "root.go") {
+		t.Errorf("screen = %q, want cmd/gh-tui still expanded with the new file", got)
+	}
+	if n := f.allCount(); n != 1 || len(f.invalidated) != 0 {
+		t.Errorf("%d listings, invalidated %v; want the cached listing read again", n, f.invalidated)
 	}
 }
 
