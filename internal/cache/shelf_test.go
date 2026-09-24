@@ -205,6 +205,14 @@ func TestReadMeta(t *testing.T) {
 	if _, err := ReadMeta([]byte("nope")); err == nil {
 		t.Error("ReadMeta of garbage succeeded, want an error")
 	}
+	// The value is skipped, however it looks.
+	m, err = ReadMeta([]byte(`{"format":1, "schema":2, "key":"k", "value":{"value":[1,"}"]}, "etag":"late"}`))
+	if err != nil || m.Key != "k" || m.Schema != 2 {
+		t.Errorf("ReadMeta of a nested value = %+v, %v", m, err)
+	}
+	if _, err := ReadMeta([]byte(`{"format":1,"value":`)); err != nil {
+		t.Errorf("ReadMeta of a truncated value = %v, want the meta before it", err)
+	}
 }
 
 func TestSeed(t *testing.T) {
