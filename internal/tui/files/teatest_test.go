@@ -14,10 +14,13 @@ import (
 )
 
 // app hosts the section as the program root, standing in for the tui: it
-// records the app messages and ends the program once one opens a page in
-// the browser.
+// shows the modal the section opens in place of the section, and ends the
+// program once a page opens in the browser.
 type app struct {
 	section *Section
+	modal   ui.Modal
+	width   int
+	height  int
 	got     []tea.Msg
 }
 
@@ -28,16 +31,39 @@ func (a *app) Init() tea.Cmd {
 func (a *app) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
+		a.width, a.height = msg.Width, msg.Height
 		a.section.SetSize(msg.Width, msg.Height)
 		return a, nil
 	case ui.OpenMsg:
 		a.got = append(a.got, msg)
 		return a, tea.Quit
+	case ui.OpenModalMsg:
+		a.modal = msg.Modal
+		a.modal.SetTheme(testTheme())
+		a.modal.SetSize(a.width, a.height)
+		return a, nil
+	case ui.CloseModalMsg:
+		if msg.Modal == a.modal {
+			a.modal = nil
+		}
+		return a, nil
+	case tea.KeyPressMsg:
+		if a.modal != nil {
+			return a, a.modal.Update(msg)
+		}
+		return a, a.section.Update(msg)
 	}
-	return a, a.section.Update(msg)
+	cmd := a.section.Update(msg)
+	if a.modal != nil {
+		cmd = tea.Batch(cmd, a.modal.Update(msg))
+	}
+	return a, cmd
 }
 
 func (a *app) View() tea.View {
+	if a.modal != nil {
+		return tea.NewView(a.modal.View())
+	}
 	return tea.NewView(a.section.View())
 }
 
@@ -58,16 +84,22 @@ func TestProgram(t *testing.T) {
 	tm.Send(ui.RepoMsg{Repo: ghTUI})
 	waitFor("AGENTS.md")
 
-	// Expand cmd and cmd/gh-tui, then open main.go in the browser.
+	// Expand cmd and cmd/gh-tui, preview main.go, then open it in the
+	// browser.
 	tm.Send(press("+"))
 	waitFor("gh-tui")
 	tm.Send(press("down"))
 	tm.Send(press("l"))
 	waitFor("main.go")
 	tm.Send(press("down"))
+	tm.Send(press("enter"))
+	waitFor("hello")
 	tm.Send(press("o"))
 
 	final, _ := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(*app)
+	if final.modal == nil || final.modal.Title() != "cmd/gh-tui/main.go" {
+		t.Errorf("modal = %v, want the preview of main.go", final.modal)
+	}
 	want := []tea.Msg{ui.OpenMsg{URL: "https://github.com/eggzec/gh-tui/blob/HEAD/cmd/gh-tui/main.go"}}
 	if !slices.Equal(final.got, want) {
 		t.Errorf("messages = %#v, want %#v", final.got, want)

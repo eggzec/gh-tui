@@ -1,7 +1,9 @@
 package files
 
 import (
+	"errors"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -36,7 +38,8 @@ func file(name string, size int64) core.TreeEntry {
 }
 
 // sampleFake holds the trees of gh-tui, with a submodule and a symlink, and
-// of bubbletea.
+// of bubbletea. Of the files of gh-tui, .gitignore fails to load, go.mod is
+// binary and README with spaces.md is too large.
 func sampleFake() *fake {
 	f := newFake()
 	link := file("CLAUDE.md", 12)
@@ -53,10 +56,18 @@ func sampleFake() *fake {
 	)
 	f.addTree(ghTUI, cmdSHA, dir("gh-tui", ghTUISHA))
 	f.addTree(ghTUI, ghTUISHA, file("main.go", 2_000))
+	f.addBlob(file("main.go", 0), mainGo)
+	f.addBlob(file("AGENTS.md", 0), "# AGENTS.md\n\nGuidance for anyone.\n")
+	f.addBlob(link, "AGENTS.md")
+	f.addBlob(file("go.mod", 0), "\x00\x01binary")
+	f.blobErrs[file("README with spaces.md", 0).SHA] = &core.TooLargeError{Size: 3_000, Limit: 1_000}
+	f.blobErrs[file(".gitignore", 0).SHA] = errors.New("boom")
 	f.addTree(ghTUI, internalSHA, dir("core", "d1"), dir("tui", "d2"))
 	f.addTree(other, "", file("tea.go", 10_000), file("go.mod", 300))
 	return f
 }
+
+const mainGo = "package main\n\nimport \"fmt\"\n\nfunc main() {\n\tfmt.Println(\"hello\")\n}\n"
 
 func testTheme() ui.Theme {
 	p, err := config.Default().Palette(true)
@@ -173,4 +184,92 @@ func assertFits(tb testing.TB, v string, width, height int) {
 			tb.Errorf("line %d is %d cells wide, want %d: %q", i, w, width, ansi.Strip(l))
 		}
 	}
+}
+
+// host stands in for the app around the section: it opens and closes the
+// modals the section asks for, sends keys to the top modal, and every
+// other message to the section and the open modals.
+type host struct {
+	s             *Section
+	width, height int
+	modals        []ui.Modal
+	// got holds the messages for the app, in order.
+	got []tea.Msg
+}
+
+func newHost(s *Section) *host {
+	return &host{s: s, width: 60, height: 10}
+}
+
+// top returns the modal opened last, or nil.
+func (h *host) top() ui.Modal {
+	if len(h.modals) == 0 {
+		return nil
+	}
+	return h.modals[len(h.modals)-1]
+}
+
+func (h *host) run(cmd tea.Cmd) {
+	if cmd == nil {
+		return
+	}
+	msg := cmd()
+	switch msg := msg.(type) {
+	case nil, spinner.TickMsg:
+		return
+	case tea.BatchMsg:
+		for _, c := range msg {
+			h.run(c)
+		}
+		return
+	case ui.OpenModalMsg:
+		h.got = append(h.got, msg)
+		msg.Modal.SetTheme(testTheme())
+		msg.Modal.SetSize(h.width, h.height)
+		h.modals = append(h.modals, msg.Modal)
+		return
+	case ui.CloseModalMsg:
+		h.got = append(h.got, msg)
+		h.modals = slices.DeleteFunc(h.modals, func(m ui.Modal) bool { return m == msg.Modal })
+		return
+	case ui.OpenMsg, ui.NotifyMsg:
+		h.got = append(h.got, msg)
+		return
+	case tea.KeyPressMsg:
+		h.press(msg)
+		return
+	}
+	if cmds, ok := sequence(msg); ok {
+		for _, c := range cmds {
+			h.run(c)
+		}
+		return
+	}
+	h.run(h.s.Update(msg))
+	for _, m := range slices.Clone(h.modals) {
+		h.run(m.Update(msg))
+	}
+}
+
+func (h *host) press(k tea.KeyPressMsg) {
+	if m := h.top(); m != nil {
+		h.run(m.Update(k))
+		return
+	}
+	h.run(h.s.Update(k))
+}
+
+// keys presses each key and runs what it returns.
+func (h *host) keys(ks ...string) {
+	for _, k := range ks {
+		h.press(press(k))
+	}
+}
+
+// modal returns the text of the top modal, or "" when none is open.
+func (h *host) modal() string {
+	if m := h.top(); m != nil {
+		return ansi.Strip(m.View())
+	}
+	return ""
 }

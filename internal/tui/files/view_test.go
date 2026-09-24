@@ -56,3 +56,23 @@ func TestView(t *testing.T) {
 		})
 	}
 }
+
+func TestViewPreview(t *testing.T) {
+	tests := []struct {
+		name string
+		row  int
+	}{
+		{"text", rowAgents},
+		{"too large", rowReadme},
+		{"symlink", rowLink},
+		{"error", rowGitignore},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := openRow(t, sampleFake(), tt.row)
+			v := h.top().View()
+			assertFits(t, v, h.width, h.height)
+			golden.RequireEqual(t, v)
+		})
+	}
+}

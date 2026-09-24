@@ -2,6 +2,8 @@ package files
 
 import (
 	"fmt"
+	"slices"
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -58,5 +60,43 @@ func BenchmarkUpdate(b *testing.B) {
 		}
 		i++
 		run(s, s.Update(msg))
+	}
+}
+
+// benchPreview returns a preview at 100 by 40 of a Go file of 2,000
+// lines, highlighted and scrolled into the middle.
+func benchPreview(b *testing.B) *host {
+	b.Helper()
+	f := sampleFake()
+	f.addBlob(file("main.go", 0), strings.Repeat(mainGo, 250))
+	h := newHost(loaded(b, f, 40, 40))
+	h.width, h.height = 100, 40
+	h.keys("+", "down", "+", "down", "enter")
+	h.keys(slices.Repeat([]string{"f"}, 20)...)
+	return h
+}
+
+func BenchmarkPreviewView(b *testing.B) {
+	h := benchPreview(b)
+	m := h.top()
+	b.ReportAllocs()
+	for b.Loop() {
+		_ = m.View()
+	}
+}
+
+func BenchmarkPreviewUpdate(b *testing.B) {
+	h := benchPreview(b)
+	m := h.top()
+	down, up := tea.Msg(press("j")), tea.Msg(press("k"))
+	b.ReportAllocs()
+	i := 0
+	for b.Loop() {
+		msg := down
+		if i/40%2 == 1 {
+			msg = up
+		}
+		i++
+		_ = m.Update(msg)
 	}
 }
