@@ -5,7 +5,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-// Modal is a popup over the screen, such as a file preview or a search box.
+// Modal is a popup over the screen, such as a file preview or the history.
 // The app draws it in a frame over the middle of the screen. Modals never
 // stack: opening one replaces the one that is open, so a modal that needs
 // more views, such as a list and a detail, shows them inside its own frame. While it is open it takes every key, except ctrl+c, which still

@@ -115,7 +115,6 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 	b := browser.New("", io.Discard, io.Discard)
 	opts := []tui.Option{
 		tui.WithBrowser(b.Browse),
-		tui.WithSearch(searchItems(searchSvc, repoSvc, pinned)),
 		tui.WithRepoInfo(repoSvc.Get),
 		tui.WithHistory(history.Opener(historySvc, cfg.Keys,
 			history.WithConfig(cfg.History), history.WithOffline(offline))),

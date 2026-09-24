@@ -48,9 +48,9 @@ internal/
   obs/                log/slog setup, trace and request ids, counters and summaries
   logfile/            the log file, rotated by size, shared by several processes
   service/<domain>/   business logic per domain (pulls, issues, repos, notifications…)
-  tui/                root model: the dashboard, repo and notifications screens and
-                      their panes, the header, help, toasts, modals (search), and
-                      routing between them
+  tui/                root model: the dashboard, repo, notifications and search
+                      screens and their panes, the header, help, toasts, modals,
+                      and routing between them
   tui/ui/             what sections share: the Section interface, theme, keys, app messages
   tui/<section>/      one package per section, adapting a service to bubbles
 pkg/bubbles/<name>/   reusable Elm-style components with no knowledge of gh-tui

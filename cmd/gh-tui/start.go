@@ -2,12 +2,19 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"time"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	reposvc "github.com/eggzec/gh-tui/internal/service/repos"
 	searchpage "github.com/eggzec/gh-tui/internal/tui/search"
 )
+
+// repoLister lists the viewer's repositories.
+type repoLister interface {
+	List(ctx context.Context, q reposvc.ListQuery) (core.Page[core.Repo], error)
+}
 
 // searchStart lists the repositories the search page offers before the
 // user types: those pinned in the config, then the viewer's own.
@@ -30,4 +37,15 @@ func searchStart(repos repoLister, pinned []core.RepoRef) searchpage.Start {
 		}
 		return out, nil
 	}
+}
+
+// friendly rewords a rate-limit error.
+func friendly(err error) error {
+	if !errors.Is(err, core.ErrRateLimited) {
+		return err
+	}
+	if rl, ok := errors.AsType[*core.RateLimitError](err); ok && !rl.Reset.IsZero() {
+		return fmt.Errorf("GitHub asks to slow down; try again at %s", rl.Reset.Local().Format(time.Kitchen))
+	}
+	return errors.New("GitHub asks to slow down; try again in a minute")
 }

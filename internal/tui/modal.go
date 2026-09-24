@@ -32,19 +32,6 @@ func (m *Model) isOpen(mod ui.Modal) bool {
 	return mod != nil && m.modal == mod
 }
 
-// openSearch opens the search modal, if the app has a search.
-func (m *Model) openSearch() tea.Cmd {
-	if m.search == nil {
-		return nil
-	}
-	first := m.searchBox == nil
-	if first {
-		m.searchBox = newSearchModal(m.ctx, m.search)
-	}
-	m.openModal(m.searchBox)
-	return m.searchBox.open(first)
-}
-
 // openHistory opens the history of the selected repository, on the
 // repository screen, if the app has one.
 func (m *Model) openHistory() tea.Cmd {

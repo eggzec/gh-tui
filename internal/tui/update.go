@@ -109,10 +109,7 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 		m.layout()
 		return nil
 	case key.Matches(msg, m.keys.Search):
-		if m.srch != nil {
-			return m.showSearch()
-		}
-		return m.openSearch()
+		return m.showSearch()
 	case m.canOpenHistory() && key.Matches(msg, m.keys.History):
 		return m.openHistory()
 	case key.Matches(msg, m.toast.KeyMap().Dismiss):
@@ -142,8 +139,12 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 	return cmd
 }
 
-// showSearch shows the search page, with the focus in its query.
+// showSearch shows the search page, with the focus in its query, if the
+// app has one.
 func (m *Model) showSearch() tea.Cmd {
+	if m.srch == nil {
+		return nil
+	}
 	if m.screen == searchScreen {
 		m.srch.setFocus(true)
 		return nil
@@ -177,11 +178,6 @@ func (m *Model) broadcast(msg tea.Msg) tea.Cmd {
 	}
 	if m.modal != nil {
 		cmds = append(cmds, m.modal.Update(msg))
-	}
-	// The closed search still gets its own messages, such as the spinner
-	// tick, so it is not stuck when it opens again.
-	if m.searchBox != nil && !m.isOpen(m.searchBox) {
-		cmds = append(cmds, m.searchBox.Update(msg))
 	}
 	m.updateBadges()
 	return tea.Batch(cmds...)
