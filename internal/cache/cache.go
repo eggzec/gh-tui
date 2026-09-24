@@ -101,6 +101,18 @@ func (c *Cache[V]) Get(key string) (Entry[V], State) {
 	return n.entry, c.state(n)
 }
 
+// peek is Get without marking the entry as recently used, for looking at
+// entries in the background.
+func (c *Cache[V]) peek(key string) (Entry[V], State) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	n, ok := c.items[key]
+	if !ok {
+		return Entry[V]{}, Miss
+	}
+	return n.entry, c.state(n)
+}
+
 // Set stores e under key, replacing any previous entry. A zero FetchedAt is
 // set to the current time.
 func (c *Cache[V]) Set(key string, e Entry[V]) {

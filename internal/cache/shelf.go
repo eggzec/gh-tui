@@ -1,11 +1,13 @@
 package cache
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 )
 
@@ -60,6 +62,7 @@ type Shelf[V any] struct {
 	store  Store
 	kind   string
 	schema int
+	index  index
 }
 
 // NewShelf returns a shelf that keeps entries of kind in store, or nil if
@@ -78,8 +81,13 @@ func (s *Shelf[V]) Load(key string) (Entry[V], bool) {
 	if s == nil {
 		return Entry[V]{}, false
 	}
+	return s.load(key, s.store.Get)
+}
+
+// load is Load with get reading the store.
+func (s *Shelf[V]) load(key string, get func(kind, key string) ([]byte, bool)) (Entry[V], bool) {
 	name := objectName(key)
-	data, ok := s.store.Get(s.kind, name)
+	data, ok := get(s.kind, name)
 	if !ok {
 		return Entry[V]{}, false
 	}
@@ -128,6 +136,11 @@ func (s *Shelf[V]) Save(key string, e Entry[V]) error {
 	if s == nil {
 		return nil
 	}
+	return s.save(key, e, s.store.Put)
+}
+
+// save is Save with put writing the store.
+func (s *Shelf[V]) save(key string, e Entry[V], put func(kind, key string, data []byte) error) error {
 	if e.FetchedAt.IsZero() {
 		e.FetchedAt = time.Now()
 	}
@@ -145,7 +158,7 @@ func (s *Shelf[V]) Save(key string, e Entry[V]) error {
 	if err != nil {
 		return fmt.Errorf("keep %s %q: %w", s.kind, key, err)
 	}
-	if err := s.store.Put(s.kind, objectName(key), data); err != nil {
+	if err := put(s.kind, objectName(key), data); err != nil {
 		return fmt.Errorf("keep %s %q: %w", s.kind, key, err)
 	}
 	return nil
@@ -163,7 +176,7 @@ func (s *Shelf[V]) Delete(key string) {
 // revalidate those with validators.
 func ReadMeta(data []byte) (Meta, error) {
 	var m Meta
-	if err := json.Unmarshal(data, &m); err != nil {
+	if err := json.Unmarshal(withoutValue(data), &m); err != nil {
 		return Meta{}, fmt.Errorf("read kept entry: %w", err)
 	}
 	if m.Format != format {
@@ -176,4 +189,29 @@ func ReadMeta(data []byte) (Meta, error) {
 func objectName(key string) string {
 	h := sha256.Sum256([]byte(key))
 	return hex.EncodeToString(h[:])
+}
+
+// withoutValue returns the object in data without its value, which Save
+// writes last, so that reading what an entry says about itself doesn't
+// decode what may be a long list. It returns data if it can't tell.
+func withoutValue(data []byte) []byte {
+	dec := json.NewDecoder(bytes.NewReader(data))
+	if t, err := dec.Token(); err != nil || t != json.Delim('{') {
+		return data
+	}
+	for dec.More() {
+		off := dec.InputOffset()
+		t, err := dec.Token()
+		if err != nil {
+			return data
+		}
+		if t == "value" {
+			return slices.Concat(bytes.TrimRight(data[:off], " \t\r\n,"), []byte("}"))
+		}
+		var skip json.RawMessage
+		if err := dec.Decode(&skip); err != nil {
+			return data
+		}
+	}
+	return data
 }

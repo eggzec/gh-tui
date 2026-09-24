@@ -140,3 +140,44 @@ func BenchmarkShelfDisk(b *testing.B) {
 	}
 	benchShelf(b, store)
 }
+
+// BenchmarkShelfKept lists the entries of a disk store of a few thousand
+// issue pages, as a revalidation pass does: first when every entry is
+// read, and then when none changed since.
+func BenchmarkShelfKept(b *testing.B) {
+	store, err := disk.Open(b.TempDir())
+	if err != nil {
+		b.Fatal(err)
+	}
+	const n = 3000
+	e := Entry[core.Page[core.Issue]]{Value: issuePage(), ETag: `W/"0123456789abcdef"`, Tags: []string{"repo:charmbracelet/bubbletea"}}
+	save := NewShelf[core.Page[core.Issue]](store, "issuelist", 1)
+	for i := range n {
+		if err := save.Save("list:charmbracelet/bubbletea:open:30:"+strconv.Itoa(i), e); err != nil {
+			b.Fatal(err)
+		}
+	}
+	count := func(s *Shelf[core.Page[core.Issue]]) {
+		got := 0
+		for range s.Kept() {
+			got++
+		}
+		if got != n {
+			b.Fatalf("listed %d entries, want %d", got, n)
+		}
+	}
+	b.Run("cold", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			count(NewShelf[core.Page[core.Issue]](store, "issuelist", 1))
+		}
+	})
+	b.Run("warm", func(b *testing.B) {
+		s := NewShelf[core.Page[core.Issue]](store, "issuelist", 1)
+		count(s)
+		b.ReportAllocs()
+		for b.Loop() {
+			count(s)
+		}
+	})
+}
