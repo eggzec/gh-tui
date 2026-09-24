@@ -9,7 +9,6 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
 	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
 	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
-	"github.com/eggzec/gh-tui/pkg/bubbles/tabs"
 	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 	"github.com/eggzec/gh-tui/pkg/bubbles/tree"
@@ -52,18 +51,6 @@ func NewTheme(p config.Palette, dark bool) Theme {
 
 // Each bubble keeps the shape of its default styles, such as glyphs and
 // borders, and takes its colors from the palette.
-
-// Tabs returns the styles of the tab bar.
-func (t Theme) Tabs() tabs.Styles {
-	s := tabs.DefaultStyles(t.Dark)
-	s.Tab = s.Tab.Foreground(lipgloss.Color(t.Palette.Muted))
-	s.Active = s.Active.Foreground(lipgloss.Color(t.Palette.Accent))
-	s.Badge = s.Badge.Foreground(lipgloss.Color(t.Palette.Subtle))
-	s.ActiveBadge = s.ActiveBadge.Foreground(lipgloss.Color(t.Palette.Accent))
-	s.Rule = s.Rule.Foreground(lipgloss.Color(t.Palette.Border))
-	s.Indicator = s.Indicator.Foreground(lipgloss.Color(t.Palette.Accent))
-	return s
-}
 
 // Toast returns the styles of the toasts.
 func (t Theme) Toast() toast.Styles {

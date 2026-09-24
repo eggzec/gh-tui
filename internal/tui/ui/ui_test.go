@@ -51,7 +51,6 @@ func TestThemeTakesPaletteColors(t *testing.T) {
 	th := NewTheme(p, true)
 	accent := lipgloss.Color(p.Accent)
 	checks := map[string]any{
-		"tabs active":  th.Tabs().Active.GetForeground(),
 		"feed cursor":  th.Feed().Cursor.GetForeground(),
 		"thread key":   th.Thread().Key.GetForeground(),
 		"prompt edge":  th.Prompt().Frame.GetBorderLeftForeground(),
