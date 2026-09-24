@@ -42,7 +42,7 @@ func TestSearchChoosesRepo(t *testing.T) {
 	if len(queries) != 1 || queries[0] != (picker.Query{}) {
 		t.Errorf("queries = %+v, want one empty query", queries)
 	}
-	if s := screen(m); !strings.Contains(s, "Search") || !strings.Contains(s, "tabs overflow") {
+	if s := onScreen(m); !strings.Contains(s, "Search") || !strings.Contains(s, "tabs overflow") {
 		t.Errorf("screen lacks the search and its results:\n%s", s)
 	}
 
@@ -87,7 +87,7 @@ func TestSearchOpensIssuesAndPulls(t *testing.T) {
 
 func TestSearchCancels(t *testing.T) {
 	var queries []picker.Query
-	m, fakes := newTestApp(t, WithSearch(fixedSearch(&queries)))
+	m, fakes := newApp(t, core.RepoRef{}, WithSearch(fixedSearch(&queries)))
 	run(m, m.key(press("/")))
 	run(m, m.key(tea.KeyPressMsg{Code: tea.KeyEscape}))
 	if len(m.modals) != 0 {

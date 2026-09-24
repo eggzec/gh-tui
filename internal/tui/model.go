@@ -1,10 +1,13 @@
-// Package tui is the root of the program. It lays out a tab per section, the
-// help line and toasts, and routes messages between them. The sections
+// Package tui is the root of the program. It lays the sections out on two
+// screens, the repository screen with its panes and the notifications
+// screen, draws the header, the help line and toasts, opens modals such as
+// the search over them, and routes messages between them all. The sections
 // themselves live in their own packages and share the ui package.
 package tui
 
 import (
 	"context"
+	"slices"
 
 	"charm.land/bubbles/v2/help"
 	tea "charm.land/bubbletea/v2"
@@ -13,26 +16,52 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
-	"github.com/eggzec/gh-tui/pkg/bubbles/tabs"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
+// Layout places the sections on the screens. A nil section leaves its place
+// out.
+type Layout struct {
+	// Files fills the left of the repository screen, and Pulls and Issues
+	// share its right, one above the other. They are panes 1, 2 and 3.
+	Files, Pulls, Issues ui.Section
+	// Notifications fills the notifications screen.
+	Notifications ui.Section
+}
+
 // Model is the root model of the program.
 type Model struct {
-	ctx      context.Context
-	cfg      config.Config
-	keys     KeyMap
-	sections []ui.Section
-	// started marks the sections whose Init has run.
-	started []bool
-	active  int
-	// modals are open over the sections, the last one on top.
+	ctx  context.Context
+	cfg  config.Config
+	keys KeyMap
+
+	// panes are those of the repository screen, in the order focus cycles
+	// through them. The first left of them are on the left.
+	panes []*pane
+	left  int
+	notif *pane
+	// all holds the panes of every screen.
+	all []*pane
+	// screen is the screen on view, and focus the focused pane of the
+	// repository screen.
+	screen screen
+	focus  int
+	// pending holds the commands the sections returned for the repository
+	// of WithRepo, for Init to run.
+	pending tea.Cmd
+	// modals are open over the screens, the last one on top.
 	modals []ui.Modal
 
-	tabs  tabs.Model
+	repo   core.RepoRef
+	branch string
+	badge  string
+
 	toast toast.Model
 	help  help.Model
 	theme ui.Theme
+	st    styles
+	// header is rendered whenever what it shows changes.
+	header string
 
 	width, height int
 
@@ -40,6 +69,7 @@ type Model struct {
 	setActive func(active bool)
 	open      func(url string) error
 	watchRepo func(repo core.RepoRef)
+	repoInfo  func(ctx context.Context, repo core.RepoRef) (core.Repo, error)
 	// search finds what the search modal lists; searchBox is that modal,
 	// made the first time it opens.
 	search    picker.Search
@@ -48,6 +78,20 @@ type Model struct {
 
 // Option configures a Model.
 type Option func(*Model)
+
+// WithRepo sets the repository the app opens with, on the repository
+// screen. Without it the app opens on the notifications screen, until the
+// user picks a repository in the search.
+func WithRepo(repo core.RepoRef) Option {
+	return func(m *Model) { m.repo = repo }
+}
+
+// WithRepoInfo sets the function that reads a repository, so that the
+// header can show its default branch. It is called in a command whenever
+// a repository is selected.
+func WithRepoInfo(get func(ctx context.Context, repo core.RepoRef) (core.Repo, error)) Option {
+	return func(m *Model) { m.repoInfo = get }
+}
 
 // WithSync sets the source of sync events. next blocks until the data behind
 // a key may have changed, and reports false once there are no more events.
@@ -62,8 +106,9 @@ func WithActivity(setActive func(active bool)) Option {
 }
 
 // WithRepoWatcher sets the function told which repository is selected, so
-// that the app can poll it for changes. It is called with every ui.RepoMsg,
-// before the sections see it, and must not block.
+// that the app can poll it for changes. It is called with the repository of
+// WithRepo and with every ui.RepoMsg, before the sections see it, and must
+// not block.
 func WithRepoWatcher(watch func(repo core.RepoRef)) Option {
 	return func(m *Model) { m.watchRepo = watch }
 }
@@ -84,48 +129,85 @@ func WithBrowser(open func(url string) error) Option {
 	return func(m *Model) { m.open = open }
 }
 
-// New returns the root model with a tab per section, in order. ctx bounds
-// every request the app makes.
-func New(ctx context.Context, cfg config.Config, sections []ui.Section, opts ...Option) *Model {
-	titles := make([]string, len(sections))
-	for i, s := range sections {
-		titles[i] = s.Title()
-	}
-	keys := newKeyMap(cfg.Keys)
+// New returns the root model with the sections of layout. ctx bounds every
+// request the app makes.
+func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) *Model {
 	m := &Model{
-		ctx:      ctx,
-		cfg:      cfg,
-		keys:     keys,
-		sections: sections,
-		started:  make([]bool, len(sections)),
-		tabs:     tabs.New(tabs.WithTabs(titles...), tabs.WithFocused(true), tabs.WithKeyMap(keys.Tabs)),
-		toast:    toast.New(),
-		help:     help.New(),
+		ctx:   ctx,
+		cfg:   cfg,
+		keys:  newKeyMap(cfg.Keys),
+		toast: toast.New(),
+		help:  help.New(),
+	}
+	if layout.Files != nil {
+		m.panes, m.left = append(m.panes, &pane{section: layout.Files}), 1
+	}
+	for _, s := range []ui.Section{layout.Pulls, layout.Issues} {
+		if s != nil {
+			m.panes = append(m.panes, &pane{section: s})
+		}
+	}
+	for i, p := range m.panes {
+		p.label = paneLabel(i, p.section.Title())
+	}
+	if layout.Notifications != nil {
+		m.notif = &pane{section: layout.Notifications, label: layout.Notifications.Title()}
+		m.all = append(slices.Clip(m.panes), m.notif)
+	} else {
+		m.all = m.panes
 	}
 	for _, opt := range opts {
 		opt(m)
 	}
+
+	if m.repo != (core.RepoRef{}) || m.notif == nil {
+		m.screen = repoScreen
+	} else {
+		m.screen = notifScreen
+	}
+	if m.repo != (core.RepoRef{}) {
+		if m.watchRepo != nil {
+			m.watchRepo(m.repo)
+		}
+		// Sections take the repository before they start. What they ask
+		// for in return runs from Init.
+		cmds := make([]tea.Cmd, 0, len(m.all))
+		for _, p := range m.all {
+			cmds = append(cmds, p.section.Update(ui.RepoMsg{Repo: m.repo}))
+		}
+		m.pending = tea.Batch(cmds...)
+	}
+	if p := m.focused(); p != nil {
+		p.setFocus(true)
+	}
 	// Assume a dark terminal until it tells us otherwise.
 	m.applyTheme(true)
-	if len(sections) > 0 {
-		sections[0].Focus()
-	}
 	return m
 }
 
-// Init asks for the terminal background, starts the first section and
-// listens for sync events.
+// Init asks for the terminal background, starts the sections on screen and
+// the notifications, whose badge is on every screen, and listens for sync
+// events.
 func (m *Model) Init() tea.Cmd {
-	return tea.Batch(tea.RequestBackgroundColor, m.start(m.active), m.listen())
+	cmds := []tea.Cmd{tea.RequestBackgroundColor, m.pending, m.startScreen(), m.listen(), m.loadRepoInfo()}
+	m.pending = nil
+	if m.notif != nil {
+		cmds = append(cmds, m.notif.start())
+	}
+	return tea.Batch(cmds...)
 }
 
-// start initializes section i the first time it is shown.
-func (m *Model) start(i int) tea.Cmd {
-	if i >= len(m.sections) || m.started[i] {
-		return nil
+// startScreen starts the sections of the screen on view that haven't
+// started yet.
+func (m *Model) startScreen() tea.Cmd {
+	if m.screen == notifScreen {
+		return m.notif.start()
 	}
-	m.started[i] = true
-	return m.sections[i].Init()
+	cmds := make([]tea.Cmd, 0, len(m.panes))
+	for _, p := range m.panes {
+		cmds = append(cmds, p.start())
+	}
+	return tea.Batch(cmds...)
 }
 
 func (m *Model) listen() tea.Cmd {
@@ -141,6 +223,27 @@ func (m *Model) listen() tea.Cmd {
 	}
 }
 
+// repoInfoMsg carries what WithRepoInfo read about the repository.
+type repoInfoMsg struct {
+	repo core.Repo
+	err  error
+}
+
+func (m *Model) loadRepoInfo() tea.Cmd {
+	if m.repoInfo == nil || m.repo == (core.RepoRef{}) {
+		return nil
+	}
+	get, ctx, ref := m.repoInfo, m.ctx, m.repo
+	return func() tea.Msg {
+		r, err := get(ctx, ref)
+		if err == nil {
+			// Callers may leave out what they were asked for.
+			r.Ref = ref
+		}
+		return repoInfoMsg{repo: r, err: err}
+	}
+}
+
 func (m *Model) applyTheme(dark bool) {
 	p, err := m.cfg.Palette(dark)
 	if err != nil {
@@ -148,11 +251,11 @@ func (m *Model) applyTheme(dark bool) {
 		p, _ = config.Default().Palette(dark)
 	}
 	m.theme = ui.NewTheme(p, dark)
-	m.tabs.SetStyles(m.theme.Tabs())
+	m.st = newStyles(m.theme)
 	m.toast.SetStyles(m.theme.Toast())
 	m.help.Styles = m.theme.Help()
-	for _, s := range m.sections {
-		s.SetTheme(m.theme)
+	for _, p := range m.all {
+		p.section.SetTheme(m.theme)
 	}
 	for _, mod := range m.modals {
 		mod.SetTheme(m.theme)
@@ -160,35 +263,21 @@ func (m *Model) applyTheme(dark bool) {
 	if m.searchBox != nil && !m.isOpen(m.searchBox) {
 		m.searchBox.SetTheme(m.theme)
 	}
+	m.drawFrames()
+	m.drawHeader()
 }
 
-// layout gives each part its share of the screen.
-func (m *Model) layout() {
-	m.tabs.SetWidth(m.width)
-	m.help.SetWidth(m.width)
-	m.toast.SetSize(m.width, m.height)
-	h := m.contentHeight()
-	for _, s := range m.sections {
-		s.SetSize(m.width, h)
-	}
-	for _, mod := range m.modals {
-		mod.SetSize(m.modalSize())
-	}
-}
-
-func (m *Model) contentHeight() int {
-	return max(m.height-m.tabs.Height()-m.helpHeight(), 0)
-}
-
-// updateBadges copies the badges of the sections onto their tabs.
+// updateBadges takes the badge of the notifications, for the header.
 func (m *Model) updateBadges() {
-	for i, s := range m.sections {
-		b, ok := s.(ui.Badger)
-		if !ok {
-			continue
-		}
-		if badge := b.Badge(); badge != m.tabs.Badge(i) {
-			m.tabs.SetBadge(i, badge)
-		}
+	if m.notif == nil {
+		return
+	}
+	b, ok := m.notif.section.(ui.Badger)
+	if !ok {
+		return
+	}
+	if badge := b.Badge(); badge != m.badge {
+		m.badge = badge
+		m.drawHeader()
 	}
 }
