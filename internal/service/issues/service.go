@@ -64,7 +64,7 @@ func New(api API, opts ...Option) *Service {
 	for _, opt := range opts {
 		opt(&o)
 	}
-	return &Service{
+	s := &Service{
 		api:          api,
 		viewer:       o.viewer,
 		lists:        cache.New[core.Page[core.Issue]](o.cache...),
@@ -74,6 +74,8 @@ func New(api API, opts ...Option) *Service {
 		keptIssues:   cache.NewShelf[core.Issue](o.store, kindIssue, schema),
 		keptComments: cache.NewShelf[stampedComments](o.store, kindComments, schema),
 	}
+	s.etags.Keep(o.store)
+	return s
 }
 
 // The kinds of entries the service keeps in its store, and the version of

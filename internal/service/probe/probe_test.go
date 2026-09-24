@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/eggzec/gh-tui/internal/cache/disk"
 	"github.com/eggzec/gh-tui/internal/github"
 	"github.com/eggzec/gh-tui/internal/watch"
 )
@@ -116,4 +117,53 @@ func TestPollConcurrent(t *testing.T) {
 	if changes != 0 {
 		t.Errorf("%d changes without a new ETag, want 0", changes)
 	}
+}
+
+func TestPollKeepsETags(t *testing.T) {
+	store, err := disk.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := &server{etag: `"e1"`}
+	var first Tracker
+	first.Keep(store)
+	if _, err := first.Poll("k", srv.probe, func() {})(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+
+	// The next session asks with the kept ETag, so nothing changed is a
+	// free 304, and a change made in between is reported at once.
+	for _, tt := range []struct {
+		etag    string
+		changed bool
+		cond    string
+	}{
+		{`"e1"`, false, `"e1"`},
+		{`"e2"`, true, `"e1"`},
+		{`"e2"`, false, `"e2"`},
+	} {
+		srv.set(tt.etag, nil)
+		var next Tracker
+		next.Keep(store)
+		changes := 0
+		res, err := next.Poll("k", srv.probe, func() { changes++ })(t.Context())
+		if err != nil || res.Changed != tt.changed || changes != btoi(tt.changed) {
+			t.Errorf("first poll with %s = %+v, %v, %d changes; want changed %v", tt.etag, res, err, changes, tt.changed)
+		}
+		if got := srv.conds[len(srv.conds)-1].ETag; got != tt.cond {
+			t.Errorf("asked with %s, want %s", got, tt.cond)
+		}
+	}
+	var other Tracker
+	other.Keep(store)
+	if _, err := other.Poll("other", srv.probe, func() { t.Error("changed on the first poll of a key never kept") })(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func btoi(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }
