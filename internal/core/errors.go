@@ -11,6 +11,8 @@ var (
 	ErrUnauthorized = errors.New("unauthorized")
 	ErrRateLimited  = errors.New("rate limited")
 	ErrConflict     = errors.New("conflict")
+	// ErrTooLarge is matched by a *TooLargeError.
+	ErrTooLarge = errors.New("too large")
 )
 
 // RateLimitError reports when the rate limit resets. It matches
