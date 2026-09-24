@@ -151,20 +151,20 @@ func (s *Service) Comment(repo core.RepoRef, number int, body string) *optimisti
 		it.Comments++
 		return it
 	})
-	rollbacks = append(rollbacks, s.comments.MutateTag(key, func(p core.Page[core.Comment]) (core.Page[core.Comment], bool) {
+	rollbacks = append(rollbacks, s.comments.MutateTag(key, pages(func(p core.Page[core.Comment]) (core.Page[core.Comment], bool) {
 		if !p.Last() {
 			return p, false
 		}
 		p.Items = append(slices.Clip(p.Items), pending)
 		return p, true
-	}))
+	})))
 
 	return optimistic.New(func(ctx context.Context) error {
 		got, err := s.api.CreateIssueComment(ctx, repo, number, body)
 		if err != nil {
 			return fmt.Errorf("comment on issue %s#%d: %w", repo, number, err)
 		}
-		s.comments.MutateTag(key, func(p core.Page[core.Comment]) (core.Page[core.Comment], bool) {
+		s.comments.MutateTag(key, pages(func(p core.Page[core.Comment]) (core.Page[core.Comment], bool) {
 			// A refetch may have dropped the pending comment, or already
 			// brought the real one, or ended the page before it.
 			if i := slices.IndexFunc(p.Items, func(c core.Comment) bool { return c.ID == pending.ID }); i >= 0 {
@@ -177,7 +177,7 @@ func (s *Service) Comment(repo core.RepoRef, number int, body string) *optimisti
 			}
 			p.Items = append(slices.Clip(p.Items), got)
 			return p, true
-		})
+		}))
 		s.lists.InvalidateTag(repoTag(repo))
 		return nil
 	}, rollbacks...)
@@ -188,6 +188,9 @@ func (s *Service) Comment(repo core.RepoRef, number int, body string) *optimisti
 // its argument.
 func (s *Service) update(repo core.RepoRef, number int, fn func(core.Issue) core.Issue) []func() {
 	key := issueKey(repo, number)
+	// The change moves the issue past the version the list showed, so
+	// what is cached of it is only as good as its TTL.
+	s.seen.Delete(key)
 	inList := s.lists.MutateTag(key, func(p core.Page[core.Issue]) (core.Page[core.Issue], bool) {
 		i := slices.IndexFunc(p.Items, func(it core.Issue) bool { return it.Number == number })
 		if i < 0 {
@@ -199,4 +202,13 @@ func (s *Service) update(repo core.RepoRef, number int, fn func(core.Issue) core
 	})
 	inDetail, _ := s.issues.Mutate(key, fn)
 	return []func(){inList, inDetail}
+}
+
+// pages applies fn to the page of a stamped comment page, for MutateTag.
+func pages(fn func(core.Page[core.Comment]) (core.Page[core.Comment], bool)) func(stampedComments) (stampedComments, bool) {
+	return func(p stampedComments) (stampedComments, bool) {
+		var changed bool
+		p.Value, changed = fn(p.Value)
+		return p, changed
+	}
 }
