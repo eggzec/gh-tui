@@ -44,6 +44,7 @@ internal/
                       errors) plus domain methods in files by concept (pulls.go, …)
   cache/              in-memory LRU, optional disk layer, TTL and ETag metadata
   watch/              sync engine: polling, conditional requests, change events
+  revalidate/         re-checks cached entries in the background within a budget
   service/<domain>/   business logic per domain (pulls, issues, repos, notifications…)
   tui/                root model: the repo and notifications screens and their panes,
                       the header, help, toasts, modals (search), and routing between them
@@ -160,7 +161,9 @@ changes minimal so that pulling in new upstream versions stays easy.
   account reads another's. A read that misses memory warms it from the
   shelf in its `tea.Cmd`. A kept list page comes back at once with `Stale`
   set, which feeds show and fetch again (`feed.ErrStale`); a kept detail
-  counts as cached, so the list's update time still vouches for it.
+  counts as cached, so the list's update time still vouches for it. A kept
+  entry fetched or revalidated within the TTL is fresh, like one this
+  session fetched.
 - Keep only what GitHub sent. Optimistic changes stay in memory until
   GitHub confirms them, and what is kept after a change has no validators.
   An outage serves the kept entry with `Offline` set; a refusal drops it
@@ -183,6 +186,25 @@ changes minimal so that pulling in new upstream versions stays easy.
   one long-lived `tea.Cmd` subscription.
 - Deduplicates and coalesces events so a burst of changes produces one
   re-render.
+
+### Revalidation
+
+- `internal/revalidate` re-checks kept entries in the background, one
+  conditional request each, so a load finds them fresh. It knows nothing of
+  GitHub: each service lists what it can check (`Kept()`, built with
+  `service/recheck` over `cache.Shelf.Kept` and `Recheck`) and says what a
+  check found. Only entries with validators are listed; content named by a
+  SHA never changes, and GraphQL entries are left to the probes (`Poll`,
+  whose ETags are kept too) and the update times (`service/seen`).
+- A 304 marks the entry fetched now, in memory and on disk, without a
+  re-render. A 200 stores the new value and returns a sync key, which the
+  revalidator publishes through the sync engine (`watch.Engine.Publish`),
+  once per key per batch, so the views read the cache again.
+- It keeps to a budget of requests per minute (a 304 is free against the
+  primary rate limit, not the secondary ones), checks the selected
+  repository first and then what was used most recently, pauses while
+  offline or rate limited, and slows down while unfocused. Its `Pass`
+  reports carry the counts to log.
 
 ### Optimistic updates
 
