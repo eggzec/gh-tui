@@ -1,0 +1,12 @@
+ 1 package main                                             
+ 2                                                          
+ 3 import "fmt"                                             
+ 4                                                          
+ 5 // main greets the world, and then some: this comment is 
+ 6 func main() {                                            
+ 7     for i := range 3 {                                   
+ 8         fmt.Println("hello", i) // 你好，世界            
+ 9     }                                                    
+10 }                                                        
+                                                            
+main.go                                      line 1/10  100%
