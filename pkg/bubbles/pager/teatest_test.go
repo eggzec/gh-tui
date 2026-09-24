@@ -16,6 +16,9 @@ type host struct {
 	closed bool
 	// highlight is the command SetContent returned.
 	highlight tea.Cmd
+	// second records that n reached the second match of "fmt". The
+	// output can't tell: the renderer redraws only the changed digit.
+	second bool
 }
 
 func (h host) Init() tea.Cmd { return h.highlight }
@@ -33,6 +36,9 @@ func (h host) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	var cmd tea.Cmd
 	h.pager, cmd = h.pager.Update(msg)
+	if h.pager.Query() == "fmt" && h.pager.search.cur == 1 {
+		h.second = true
+	}
 	return h, cmd
 }
 
@@ -51,9 +57,6 @@ func TestProgram(t *testing.T) {
 	tm.Type("fmt")
 	tm.Send(press("enter"))
 	tm.Send(press("n"))
-	teatest.WaitFor(t, tm.Output(), func(b []byte) bool {
-		return bytes.Contains(b, []byte("match 2/2"))
-	}, teatest.WithDuration(5*time.Second))
 	// The first esc clears the search, the second closes.
 	tm.Send(press("esc"))
 	tm.Send(press("esc"))
@@ -61,6 +64,9 @@ func TestProgram(t *testing.T) {
 	final, ok := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(host)
 	if !ok {
 		t.Fatal("final model is not a host")
+	}
+	if !final.second {
+		t.Error("n didn't go to the second match")
 	}
 	if !final.closed || final.pager.Query() != "" {
 		t.Errorf("closed %v with query %q; want closed with the search cleared",
