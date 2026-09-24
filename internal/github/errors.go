@@ -1,10 +1,13 @@
 package github
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -31,6 +34,42 @@ func (e *Error) Error() string {
 // Unwrap returns the matching core error, or nil.
 func (e *Error) Unwrap() error {
 	return e.err
+}
+
+// Unreachable reports whether err means that GitHub couldn't be reached or
+// failed on its side, with a 5xx, rather than refused the request. Only then
+// may a caller fall back to what it read earlier: an account that lost
+// access gets a 401, 403 or 404 and must not see what it cached before. An
+// error after ctx is done is a cancellation, not an outage.
+func Unreachable(ctx context.Context, err error) bool {
+	if err == nil || ctx.Err() != nil {
+		return false
+	}
+	if e, ok := errors.AsType[*Error](err); ok {
+		return e.StatusCode >= http.StatusInternalServerError
+	}
+	_, ok := errors.AsType[*url.Error](err)
+	return ok
+}
+
+// Refused reports whether GitHub refused access to what was asked, with a
+// 401, a 404, or a 403 that isn't a rate limit. What was cached of it
+// should then go, since the account may have lost access.
+func Refused(err error) bool {
+	if errors.Is(err, core.ErrNotFound) || errors.Is(err, core.ErrUnauthorized) {
+		return true
+	}
+	e, ok := errors.AsType[*Error](err)
+	if !ok {
+		return false
+	}
+	switch e.StatusCode {
+	case http.StatusUnauthorized, http.StatusNotFound:
+		return true
+	case http.StatusForbidden:
+		return !errors.Is(err, core.ErrRateLimited)
+	}
+	return false
 }
 
 // httpError builds an *Error from a response with an error status.
