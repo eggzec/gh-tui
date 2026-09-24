@@ -146,8 +146,15 @@ changes minimal so that pulling in new upstream versions stays easy.
 
 ### Cache
 
-- The in-memory LRU sits in front of every read. The disk layer is optional
-  and makes cold starts faster.
+- The in-memory LRU sits in front of every read. The disk layer
+  (`cache/disk`) is optional and makes cold starts faster; a service reads
+  memory, then disk, then the network, and writes what it fetches through.
+  `Cached…` reads stay in memory.
+- Put on disk what a hash names, since it never needs revalidating: git
+  blobs by their SHA, and listings by the commit their ref resolved to. Keep
+  a ref's resolved SHA and validators on disk too, so a new session
+  revalidates it with a free 304. Fall back to the disk copy only when
+  GitHub can't be reached, never on a 401, 403 or 404.
 - Use stale-while-revalidate: serve cached data at once, refresh it in the
   background, and emit an update message if the data changed.
 - Store the `ETag`/`Last-Modified` for each entry so that revalidation costs
