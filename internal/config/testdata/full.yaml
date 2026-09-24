@@ -48,3 +48,9 @@ files:
     hover_delay: 300ms
   preview:
     max_size: 2000000
+
+details:
+  prefetch:
+    enabled: false
+    rows: 10
+    hover_delay: 1s

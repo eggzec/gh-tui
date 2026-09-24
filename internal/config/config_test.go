@@ -82,6 +82,9 @@ func TestLoadMergesOverDefaults(t *testing.T) {
 					Prefetch: Prefetch{Enabled: false, MaxSize: 16 * KiB, HoverDelay: 300 * time.Millisecond},
 					Preview:  Preview{MaxSize: 2_000_000},
 				}
+				c.Details = Details{
+					Prefetch: DetailsPrefetch{Enabled: false, Rows: 10, HoverDelay: time.Second},
+				}
 			},
 		},
 	}
@@ -135,6 +138,8 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 	cfg.Sync.Interval = -time.Second
 	cfg.Files.Preview.MaxSize = 32 * KiB
 	cfg.Files.Prefetch.HoverDelay = -time.Millisecond
+	cfg.Details.Prefetch.Rows = 31
+	cfg.Details.Prefetch.HoverDelay = -time.Second
 
 	err := cfg.Validate()
 	if err == nil {
@@ -160,6 +165,8 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 		`sync.interval: must be positive, got -1s`,
 		`files.prefetch.max_size: must not exceed files.preview.max_size (32KiB), got 64KiB`,
 		`files.prefetch.hover_delay: must not be negative, got -1ms`,
+		`details.prefetch.rows: must be between 0 and 30, got 31`,
+		`details.prefetch.hover_delay: must not be negative, got -1s`,
 	}
 	for _, w := range want {
 		if !slices.Contains(got, w) {
