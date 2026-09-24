@@ -1,0 +1,113 @@
+{
+  "sha": "d4b26382342c98a95b85140b2863bc30c48edd68",
+  "node_id": "MDY6Q29tbWl0MjMwOTY5NTk6ZDRiMjYzODIzNDJjOThhOTViODUxNDBiMjg2M2JjMzBjNDhlZGQ2OA==",
+  "commit": {
+    "author": {
+      "name": "Russ Cox",
+      "email": "rsc@golang.org",
+      "date": "2021-02-19T23:35:10Z"
+    },
+    "committer": {
+      "name": "Russ Cox",
+      "email": "rsc@golang.org",
+      "date": "2021-02-20T03:54:50Z"
+    },
+    "message": "all: go fmt std cmd (but revert vendor)\n\nMake all our package sources use Go 1.17 gofmt format\n(adding //go:build lines).\n\nPart of //go:build change (#41184).\nSee https://golang.org/design/draft-gobuild\n\nChange-Id: Ia0534360e4957e58cd9a18429c39d0e32a6addb4\nReviewed-on: https://go-review.googlesource.com/c/go/+/294430\nTrust: Russ Cox <rsc@golang.org>\nRun-TryBot: Russ Cox <rsc@golang.org>\nTryBot-Result: Go Bot <gobot@golang.org>\nReviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>\nReviewed-by: Ian Lance Taylor <iant@golang.org>",
+    "tree": {
+      "sha": "6ef0d77cc69a5a99a90fb528d083f6aca7448667",
+      "url": "https://api.github.com/repos/golang/go/git/trees/6ef0d77cc69a5a99a90fb528d083f6aca7448667"
+    },
+    "url": "https://api.github.com/repos/golang/go/git/commits/d4b26382342c98a95b85140b2863bc30c48edd68",
+    "comment_count": 0,
+    "verification": {
+      "verified": false,
+      "reason": "unsigned",
+      "signature": null,
+      "payload": null,
+      "verified_at": null
+    }
+  },
+  "url": "https://api.github.com/repos/golang/go/commits/d4b26382342c98a95b85140b2863bc30c48edd68",
+  "html_url": "https://github.com/golang/go/commit/d4b26382342c98a95b85140b2863bc30c48edd68",
+  "comments_url": "https://api.github.com/repos/golang/go/commits/d4b26382342c98a95b85140b2863bc30c48edd68/comments",
+  "author": {
+    "login": "rsc",
+    "id": 104030,
+    "node_id": "MDQ6VXNlcjEwNDAzMA==",
+    "avatar_url": "https://avatars.githubusercontent.com/u/104030?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/rsc",
+    "html_url": "https://github.com/rsc",
+    "followers_url": "https://api.github.com/users/rsc/followers",
+    "following_url": "https://api.github.com/users/rsc/following{/other_user}",
+    "gists_url": "https://api.github.com/users/rsc/gists{/gist_id}",
+    "starred_url": "https://api.github.com/users/rsc/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/rsc/subscriptions",
+    "organizations_url": "https://api.github.com/users/rsc/orgs",
+    "repos_url": "https://api.github.com/users/rsc/repos",
+    "events_url": "https://api.github.com/users/rsc/events{/privacy}",
+    "received_events_url": "https://api.github.com/users/rsc/received_events",
+    "type": "User",
+    "user_view_type": "public",
+    "site_admin": false
+  },
+  "committer": {
+    "login": "rsc",
+    "id": 104030,
+    "node_id": "MDQ6VXNlcjEwNDAzMA==",
+    "avatar_url": "https://avatars.githubusercontent.com/u/104030?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/rsc",
+    "html_url": "https://github.com/rsc",
+    "followers_url": "https://api.github.com/users/rsc/followers",
+    "following_url": "https://api.github.com/users/rsc/following{/other_user}",
+    "gists_url": "https://api.github.com/users/rsc/gists{/gist_id}",
+    "starred_url": "https://api.github.com/users/rsc/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/rsc/subscriptions",
+    "organizations_url": "https://api.github.com/users/rsc/orgs",
+    "repos_url": "https://api.github.com/users/rsc/repos",
+    "events_url": "https://api.github.com/users/rsc/events{/privacy}",
+    "received_events_url": "https://api.github.com/users/rsc/received_events",
+    "type": "User",
+    "user_view_type": "public",
+    "site_admin": false
+  },
+  "parents": [
+    {
+      "sha": "0625460f79eed41039939f957baceaff5e269672",
+      "url": "https://api.github.com/repos/golang/go/commits/0625460f79eed41039939f957baceaff5e269672",
+      "html_url": "https://github.com/golang/go/commit/0625460f79eed41039939f957baceaff5e269672"
+    }
+  ],
+  "stats": {
+    "total": 989,
+    "additions": 883,
+    "deletions": 106
+  },
+  "files": [
+    {
+      "sha": "3957349d6ef0aa4461062c3203c7bd852d6328ed",
+      "filename": "src/archive/tar/stat_unix.go",
+      "status": "modified",
+      "additions": 1,
+      "deletions": 0,
+      "changes": 1,
+      "blob_url": "https://github.com/golang/go/blob/d4b26382342c98a95b85140b2863bc30c48edd68/src%2Farchive%2Ftar%2Fstat_unix.go",
+      "raw_url": "https://github.com/golang/go/raw/d4b26382342c98a95b85140b2863bc30c48edd68/src%2Farchive%2Ftar%2Fstat_unix.go",
+      "contents_url": "https://api.github.com/repos/golang/go/contents/src%2Farchive%2Ftar%2Fstat_unix.go?ref=d4b26382342c98a95b85140b2863bc30c48edd68",
+      "patch": "@@ -2,6 +2,7 @@\n // Use of this source code is governed by a BSD-style\n // license that can be found in the LICENSE file.\n \n+//go:build aix || linux || darwin || dragonfly || freebsd || openbsd || netbsd || solaris\n // +build aix linux darwin dragonfly freebsd openbsd netbsd solaris\n \n package tar"
+    },
+    {
+      "sha": "5a47526593b093678b85e0c45c2dfbd5a42d16ed",
+      "filename": "src/bytes/boundary_test.go",
+      "status": "modified",
+      "additions": 1,
+      "deletions": 0,
+      "changes": 1,
+      "blob_url": "https://github.com/golang/go/blob/d4b26382342c98a95b85140b2863bc30c48edd68/src%2Fbytes%2Fboundary_test.go",
+      "raw_url": "https://github.com/golang/go/raw/d4b26382342c98a95b85140b2863bc30c48edd68/src%2Fbytes%2Fboundary_test.go",
+      "contents_url": "https://api.github.com/repos/golang/go/contents/src%2Fbytes%2Fboundary_test.go?ref=d4b26382342c98a95b85140b2863bc30c48edd68",
+      "patch": "@@ -2,6 +2,7 @@\n // Use of this source code is governed by a BSD-style\n // license that can be found in the LICENSE file.\n //\n+//go:build linux\n // +build linux\n \n package bytes_test"
+    }
+  ]
+}
