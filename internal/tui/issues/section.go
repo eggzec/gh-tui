@@ -35,6 +35,13 @@ type Section struct {
 	list       feed.Model[core.Issue]
 	cancelList context.CancelFunc
 
+	// ahead reads the issues of list before they are opened, if prefetch
+	// is set. rowAt returns the query of the first comments of row i,
+	// which is how ahead knows a row.
+	prefetch *prefetch
+	ahead    *ui.Ahead[issuesvc.CommentsQuery]
+	rowAt    func(i int) (issuesvc.CommentsQuery, bool)
+
 	width, height int
 	theme         ui.Theme
 	rows          rowStyles
@@ -63,6 +70,13 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 	}
 	for _, opt := range opts {
 		opt(s)
+	}
+	if p := s.prefetch; p != nil {
+		s.ahead = ui.NewAhead(readIssue(svc), svc.Current, p.rows, p.delay)
+		s.rowAt = func(i int) (issuesvc.CommentsQuery, bool) {
+			it, ok := s.list.Item(i)
+			return commentsQuery(s.repo, it.Number), ok
+		}
 	}
 	s.hint = "Search for a repository to see its issues."
 	if k := ui.Binding(keys, config.ActionSearch, "search").Help().Key; k != "" {
@@ -135,6 +149,7 @@ func (s *Section) newList() feed.Model[core.Issue] {
 	}
 	var ctx context.Context
 	ctx, s.cancelList = context.WithCancel(s.ctx)
+	s.ahead.Reset(ctx)
 	svc, q := s.svc, issuesvc.ListQuery{Repo: s.repo, State: s.filter}
 	fetch := func(ctx context.Context, cursor string) ([]core.Issue, string, error) {
 		q := q

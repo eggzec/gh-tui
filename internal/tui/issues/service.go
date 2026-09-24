@@ -15,6 +15,9 @@ type Service interface {
 	CachedGet(repo core.RepoRef, number int) (core.Issue, bool)
 	CachedComments(q issuesvc.CommentsQuery) (core.Page[core.Comment], bool)
 	Comments(ctx context.Context, q issuesvc.CommentsQuery) (core.Page[core.Comment], error)
+	// Current reports whether the issue of q and the comments q selects are
+	// cached so that reading them costs no request.
+	Current(q issuesvc.CommentsQuery) bool
 	// Invalidate marks what is cached of repo stale, so that the reads
 	// after it ask GitHub.
 	Invalidate(repo core.RepoRef)

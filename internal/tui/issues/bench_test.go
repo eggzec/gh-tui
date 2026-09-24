@@ -2,6 +2,7 @@ package issues
 
 import (
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -85,5 +86,23 @@ func BenchmarkViewCompose(b *testing.B) {
 	b.ReportAllocs()
 	for b.Loop() {
 		_ = m.View()
+	}
+}
+
+// BenchmarkUpdatePrefetch moves with reading ahead on. Each move starts the
+// hover delay, which the loop doesn't run.
+func BenchmarkUpdatePrefetch(b *testing.B) {
+	s := started(b, newFakeService(sampleIssues(300)), 120, 40, WithPrefetch(5, time.Nanosecond))
+	down, up := tea.Msg(keyMsg("down")), tea.Msg(keyMsg("up"))
+	b.ReportAllocs()
+	i := 0
+	for b.Loop() {
+		// Stay within the first page, so no fetch runs.
+		msg := down
+		if i%40 >= 20 {
+			msg = up
+		}
+		i++
+		_ = s.Update(msg)
 	}
 }

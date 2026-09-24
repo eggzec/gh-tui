@@ -67,14 +67,18 @@ func build(ctx context.Context, cfg config.Config, arg string) (*tui.Model, erro
 			files.WithHoverPrefetch(p.HoverDelay, int64(cfg.Files.Preview.MaxSize)),
 		)
 	}
-	var pullOpts []pulls.Option
+	var (
+		pullOpts  []pulls.Option
+		issueOpts []issues.Option
+	)
 	if p := cfg.Details.Prefetch; p.Enabled {
 		pullOpts = append(pullOpts, pulls.WithPrefetch(p.Rows, p.HoverDelay))
+		issueOpts = append(issueOpts, issues.WithPrefetch(p.Rows, p.HoverDelay))
 	}
 	layout := tui.Layout{
 		Files:         files.New(ctx, fileSvc, cfg.Keys, fileOpts...),
 		Pulls:         pulls.New(ctx, pullSvc, cfg.Keys, pullOpts...),
-		Issues:        issues.New(ctx, issueSvc, cfg.Keys),
+		Issues:        issues.New(ctx, issueSvc, cfg.Keys, issueOpts...),
 		Notifications: notifications.New(ctx, notifSvc, cfg.Keys),
 	}
 
