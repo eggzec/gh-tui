@@ -75,6 +75,10 @@ func TestLoadMergesOverDefaults(t *testing.T) {
 				c.Keys[ActionSearch] = []string{"/", "ctrl+f"}
 				c.Cache.TTL = 30 * time.Second
 				c.Sync = Sync{Enabled: false, Interval: 2 * time.Minute}
+				c.Files = Files{
+					Prefetch: Prefetch{Enabled: false, MaxSize: 16 * KiB, HoverDelay: 300 * time.Millisecond},
+					Preview:  Preview{MaxSize: 2_000_000},
+				}
 			},
 		},
 	}
@@ -125,6 +129,8 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 	cfg.Keys["jump"] = []string{"j"}
 	cfg.Cache.TTL = 0
 	cfg.Sync.Interval = -time.Second
+	cfg.Files.Preview.MaxSize = 32 * KiB
+	cfg.Files.Prefetch.HoverDelay = -time.Millisecond
 
 	err := cfg.Validate()
 	if err == nil {
@@ -144,6 +150,8 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 		`keys.search: empty key`,
 		`cache.ttl: must be positive, got 0s`,
 		`sync.interval: must be positive, got -1s`,
+		`files.prefetch.max_size: must not exceed files.preview.max_size (32KiB), got 64KiB`,
+		`files.prefetch.hover_delay: must not be negative, got -1ms`,
 	}
 	for _, w := range want {
 		if !slices.Contains(got, w) {

@@ -49,7 +49,8 @@ func build(ctx context.Context, cfg config.Config, arg string) (*tui.Model, erro
 	issueSvc := issuesvc.New(client, issuesvc.WithTTL(ttl))
 	notifSvc := notifsvc.New(client, notifsvc.WithTTL(ttl))
 	repoSvc := reposvc.New(client, reposvc.WithTTL(ttl))
-	fileSvc := filesvc.New(client, filesvc.WithTTL(ttl))
+	fileSvc := filesvc.New(client, filesvc.WithTTL(ttl),
+		filesvc.WithMaxBlobSize(int64(cfg.Files.Preview.MaxSize)))
 	// Search results keep the search service's own short TTL.
 	searchSvc := searchsvc.New(client)
 

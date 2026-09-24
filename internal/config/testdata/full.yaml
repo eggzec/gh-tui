@@ -34,3 +34,11 @@ cache:
 sync:
   enabled: false
   interval: 2m
+
+files:
+  prefetch:
+    enabled: false
+    max_size: 16KiB
+    hover_delay: 300ms
+  preview:
+    max_size: 2000000

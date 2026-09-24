@@ -38,6 +38,7 @@ type Config struct {
 	Keys  map[string][]string `yaml:"keys"`
 	Cache Cache               `yaml:"cache"`
 	Sync  Sync                `yaml:"sync"`
+	Files Files               `yaml:"files"`
 }
 
 // Cache configures the response cache.
@@ -64,6 +65,7 @@ func Default() Config {
 		Keys:   defaultKeys(),
 		Cache:  Cache{TTL: 5 * time.Minute},
 		Sync:   Sync{Enabled: true, Interval: time.Minute},
+		Files:  defaultFiles(),
 	}
 }
 
@@ -131,5 +133,6 @@ func (c Config) Validate() error {
 	if c.Sync.Interval <= 0 {
 		errs = append(errs, fmt.Errorf("sync.interval: must be positive, got %v", c.Sync.Interval))
 	}
+	errs = append(errs, c.Files.validate())
 	return errors.Join(errs...)
 }
