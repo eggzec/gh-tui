@@ -94,12 +94,10 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 	p := m.focused()
 	// ctrl+c always reaches the quit key, so a capturing section can't
 	// trap the user.
-	if p != nil && msg.String() != "ctrl+c" {
-		if c, ok := p.section.(ui.Capturer); ok && c.Capturing() {
-			cmd := p.section.Update(msg)
-			m.updateBadges()
-			return cmd
-		}
+	if p != nil && msg.String() != "ctrl+c" && m.takes(p.section, msg) {
+		cmd := p.section.Update(msg)
+		m.updateBadges()
+		return cmd
 	}
 	switch {
 	case key.Matches(msg, m.keys.Quit):
@@ -114,6 +112,8 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 		return m.openHistory()
 	case m.canOpenActions() && key.Matches(msg, m.keys.Actions):
 		return m.openActions()
+	case p != nil && key.Matches(msg, m.keys.Filter) && m.openFilter(p.section):
+		return nil
 	case key.Matches(msg, m.toast.KeyMap().Dismiss):
 		return m.toast.Dismiss()
 	case key.Matches(msg, m.keys.Notifications):
@@ -139,6 +139,32 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 	cmd := p.section.Update(msg)
 	m.updateBadges()
 	return cmd
+}
+
+// takes reports whether s takes msg before the app: while it captures
+// every key, or when it claims msg.
+func (m *Model) takes(s ui.Section, msg tea.KeyPressMsg) bool {
+	if c, ok := s.(ui.Capturer); ok && c.Capturing() {
+		return true
+	}
+	c, ok := s.(ui.Claimer)
+	return ok && c.Claims(msg)
+}
+
+// openFilter opens the filter modal of s, and reports whether s has one to
+// open. The filter key goes on to a section that doesn't, which may use it
+// otherwise.
+func (m *Model) openFilter(s ui.Section) bool {
+	fl, ok := s.(ui.Filterable)
+	if !ok {
+		return false
+	}
+	f, ok := fl.Filter()
+	if !ok {
+		return false
+	}
+	m.openModal(ui.NewFilterModal(m.ctx, s.Title(), fl, f))
+	return true
 }
 
 // showSearch shows the search page, with the focus in its query, if the
