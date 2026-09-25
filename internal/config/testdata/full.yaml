@@ -62,6 +62,9 @@ details:
     hover_delay: 1s
     filters: false
 
+notifications:
+  mark_read_on_open: false
+
 history:
   row: [short_sha, subject, verified, age]
   detail: [sha, author, date, trailers]

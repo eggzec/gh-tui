@@ -1,5 +1,6 @@
-// Package notifications is the section of the user's inbox. Threads open in
-// the browser; the section lists them and marks them read or done.
+// Package notifications is the section of the user's inbox. It lists the
+// threads, opens what each is about in the app through a threads.Opener,
+// which reads them ahead too, and marks them read or done.
 package notifications
 
 import (
@@ -14,6 +15,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/notifications"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
+	"github.com/eggzec/gh-tui/internal/tui/threads"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 )
@@ -53,6 +55,17 @@ func WithOffline(off *ui.Offline) Option {
 	}
 }
 
+// WithOpener opens the threads, and reads them ahead, with o. By default
+// the section has one that reads nothing ahead and marks a thread read as
+// it opens it.
+func WithOpener(o *threads.Opener) Option {
+	return func(s *Section) {
+		if o != nil {
+			s.opener = o
+		}
+	}
+}
+
 // Section lists the user's notifications. Create one with New.
 type Section struct {
 	ctx  context.Context
@@ -67,6 +80,8 @@ type Section struct {
 	started bool
 	// offline is marked by the feed's reads when GitHub can't be reached.
 	offline *ui.Offline
+	// opener opens the threads and reads them ahead.
+	opener *threads.Opener
 
 	width, height int
 	styles        styles
@@ -84,6 +99,12 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 	s := &Section{ctx: ctx, svc: svc, keys: newKeyMap(keys), now: time.Now, offline: new(ui.Offline)}
 	for _, opt := range opts {
 		opt(s)
+	}
+	if s.opener == nil {
+		s.opener = threads.New(ctx)
+	}
+	if !s.opener.MarksRead() {
+		s.keys.Select.SetHelp(s.keys.Select.Help().Key, "open")
 	}
 	s.feed = feed.New(ui.FeedPages("list.notifications", s.offline, s.list), s.render,
 		feed.WithContext(ctx),

@@ -8,8 +8,12 @@ import (
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/threads"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
+
+// Changed does nothing: the fake's details don't age.
+func (*fakeService) Changed(core.RepoRef, int, time.Time) {}
 
 // firstComments returns the numbers whose first comments were read.
 func (f *fakeService) firstComments() []int {
@@ -143,5 +147,35 @@ func TestNoPrefetchByDefault(t *testing.T) {
 	press(t, h, "down")
 	if got := svc.got(); len(got) != 0 {
 		t.Errorf("read details %v without WithPrefetch", got)
+	}
+}
+
+// TestNotificationReadAheadOpensAtOnce reads a pull request ahead from a
+// notification, of another repository than the one shown, and opens it
+// from the notification: it shows at once, from what was read ahead.
+func TestNotificationReadAheadOpensAtOnce(t *testing.T) {
+	svc := newFakeService()
+	h := started(t, svc, 80, 40)
+	other := core.RepoRef{Owner: "charmbracelet", Name: "glow"}
+	n := core.Notification{Repo: other, Subject: core.Subject{Type: core.SubjectPullRequest, Number: 142}, UpdatedAt: clock}
+	o := threads.New(t.Context(), threads.WithPulls(svc), threads.WithPrefetch(1, time.Millisecond))
+	drain(t, h, o.ReadAhead(func(i int) (core.Notification, bool) { return n, i == 0 }, n, false))
+	if got := svc.got(); !slices.Equal(got, []int{142}) {
+		t.Fatalf("read %v ahead, want #142", got)
+	}
+
+	seq, ok := sequence(h.Update(o.Open(n)())())
+	if !ok || len(seq) != 2 {
+		t.Fatal("the notification should open the modal, then start its loads")
+	}
+	drain(t, h, seq[0])
+	view := modalScreen(t, h)
+	for _, want := range []string{"Cold starts read every page", "Does this survive a crash", "It writes to a temporary file"} {
+		if !strings.Contains(view, want) {
+			t.Errorf("modal lacks %q before any load:\n%s", want, view)
+		}
+	}
+	if strings.Contains(view, "Loading…") {
+		t.Errorf("modal waits for what was read ahead:\n%s", view)
 	}
 }

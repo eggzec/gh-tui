@@ -168,17 +168,49 @@ func (f *fakeService) lastList() notifications.ListQuery {
 }
 
 // thread returns a notification about subject type typ, updated ago before
-// now.
+// now. Its subject is numbered by id: the issue or pull request, the
+// release, or the commit.
 func thread(id, repo string, typ core.SubjectType, title, reason string, unread bool, ago time.Duration) core.Notification {
 	r, _ := core.ParseRepoRef(repo)
+	sub := core.Subject{Title: title, Type: typ, WebURL: "https://github.com/" + repo + "/" + id}
+	n, _ := strconv.Atoi(id)
+	switch typ {
+	case core.SubjectIssue, core.SubjectPullRequest:
+		sub.Number = n
+	case core.SubjectRelease:
+		sub.ReleaseID = int64(n)
+	case core.SubjectCommit:
+		sub.SHA = "c0ffee" + id
+	default:
+	}
 	return core.Notification{
 		ID:        id,
 		Repo:      r,
-		Subject:   core.Subject{Title: title, Type: typ, WebURL: "https://github.com/" + repo + "/" + id},
+		Subject:   sub,
 		Reason:    reason,
 		Unread:    unread,
 		UpdatedAt: now.Add(-ago),
 	}
+}
+
+// opened describes what msg opens, such as "pull o/r#1" or a URL, and
+// reports whether it opens anything.
+func opened(msg tea.Msg) (string, bool) {
+	switch msg := msg.(type) {
+	case ui.OpenMsg:
+		return msg.URL, true
+	case ui.OpenPullMsg:
+		return "pull " + msg.Repo.String() + "#" + strconv.Itoa(msg.Number), true
+	case ui.OpenIssueMsg:
+		return "issue " + msg.Repo.String() + "#" + strconv.Itoa(msg.Number), true
+	case ui.OpenReleaseMsg:
+		return "release " + msg.Repo.String() + " " + strconv.FormatInt(msg.ID, 10), true
+	case ui.OpenCommitMsg:
+		return "commit " + msg.Repo.String() + "@" + msg.SHA, true
+	case ui.OpenActionsMsg:
+		return "runs " + msg.Repo.String() + " " + msg.Filter.Branch, true
+	}
+	return "", false
 }
 
 // inbox is a varied inbox, read and unread.
@@ -226,7 +258,7 @@ func run(tb testing.TB, s *Section, cmd tea.Cmd) []tea.Msg {
 		case nil, spinner.TickMsg:
 		case tea.BatchMsg:
 			queue = append(queue, msg...)
-		case ui.OpenMsg, ui.NotifyMsg, ui.OpenActionsMsg:
+		case ui.OpenMsg, ui.NotifyMsg, ui.OpenActionsMsg, ui.OpenPullMsg, ui.OpenIssueMsg, ui.OpenReleaseMsg, ui.OpenCommitMsg:
 			app = append(app, msg)
 		case ui.DoneMsg:
 			app = append(app, msg)

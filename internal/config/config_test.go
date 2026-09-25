@@ -87,6 +87,7 @@ func TestLoadMergesOverDefaults(t *testing.T) {
 				c.Details = Details{
 					Prefetch: DetailsPrefetch{Enabled: false, Rows: 10, HoverDelay: time.Second},
 				}
+				c.Notifications = Notifications{MarkReadOnOpen: false}
 				c.History = History{
 					Row:        []string{FieldShortSHA, FieldSubject, FieldVerified, FieldAge},
 					Detail:     []string{FieldSHA, FieldAuthor, FieldDate, FieldTrailers},
@@ -433,5 +434,18 @@ func TestActionsModalActions(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), want) {
 			t.Errorf("Validate() = %v, want %q", err, want)
 		}
+	}
+}
+
+func TestNotifications(t *testing.T) {
+	if !Default().Notifications.MarkReadOnOpen {
+		t.Error("opening a thread doesn't mark it read by default")
+	}
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(path, []byte("notifications:\n  mark_read_on_open: sometimes\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Load(path); err == nil || !strings.Contains(err.Error(), "sometimes") {
+		t.Errorf("Load of a word for a bool = %v, want an error naming it", err)
 	}
 }

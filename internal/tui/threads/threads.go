@@ -1,0 +1,346 @@
+// Package threads opens what a notification thread is about in the app,
+// in the modal of its issue, pull request, runs, commit or release, and
+// reads it ahead, so that it opens at once. What the app has no view of,
+// such as a discussion, opens in the browser. The notifications screen and
+// the dashboard's inbox share it, so that a thread opens the same way from
+// both.
+package threads
+
+import (
+	"context"
+	"errors"
+	"regexp"
+	"sync"
+	"time"
+
+	tea "charm.land/bubbletea/v2"
+
+	"github.com/eggzec/gh-tui/internal/core"
+	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
+	"github.com/eggzec/gh-tui/internal/service/pulls"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
+)
+
+// Pulls is what the opener needs of the pull requests service to read a
+// pull request ahead, as its modal reads it.
+type Pulls interface {
+	Get(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error)
+	Comments(ctx context.Context, q pulls.CommentsQuery) (core.Page[core.Comment], error)
+	Current(q pulls.CommentsQuery) bool
+	Changed(repo core.RepoRef, number int, updated time.Time)
+}
+
+// Issues is what the opener needs of the issues service to read an issue
+// ahead, as its modal reads it.
+type Issues interface {
+	Get(ctx context.Context, repo core.RepoRef, number int) (core.Issue, error)
+	Comments(ctx context.Context, q issuesvc.CommentsQuery) (core.Page[core.Comment], error)
+	Current(q issuesvc.CommentsQuery) bool
+	Changed(repo core.RepoRef, number int, updated time.Time)
+}
+
+// Releases is what the opener needs of the releases service to read a
+// release ahead.
+type Releases interface {
+	Get(ctx context.Context, repo core.RepoRef, id int64) (core.Release, error)
+	Current(repo core.RepoRef, id int64) bool
+}
+
+// Option configures an Opener.
+type Option func(*Opener)
+
+// WithPulls reads the pull requests of notifications ahead through svc.
+func WithPulls(svc Pulls) Option {
+	return func(o *Opener) { o.pulls = svc }
+}
+
+// WithIssues reads the issues of notifications ahead through svc.
+func WithIssues(svc Issues) Option {
+	return func(o *Opener) { o.issues = svc }
+}
+
+// WithReleases reads the releases of notifications ahead through svc.
+func WithReleases(svc Releases) Option {
+	return func(o *Opener) { o.releases = svc }
+}
+
+// WithPrefetch reads ahead what the first rows of threads are about once
+// they load, and what the row under the cursor is about once the cursor
+// has rested on it for delay. An issue or a pull request costs two
+// requests, its detail and its first comments, and a release one; what is
+// cached and as recent as the notification is skipped. The default reads
+// nothing ahead.
+func WithPrefetch(rows int, delay time.Duration) Option {
+	return func(o *Opener) { o.rows, o.delay, o.prefetch = max(rows, 0), delay, true }
+}
+
+// WithMarkRead sets whether opening a thread marks it read, which
+// [Opener.MarksRead] tells the sections. The default is true.
+func WithMarkRead(on bool) Option {
+	return func(o *Opener) { o.markRead = on }
+}
+
+// Opener opens threads and reads them ahead. Create it with [New]; a nil
+// *Opener opens everything in the browser and reads nothing ahead.
+type Opener struct {
+	pulls    Pulls
+	issues   Issues
+	releases Releases
+	markRead bool
+
+	prefetch bool
+	rows     int
+	delay    time.Duration
+	ahead    *ui.Ahead[target]
+	// first holds the first rows that have something to read, reused by
+	// each ReadAhead.
+	first []target
+}
+
+// New returns an Opener whose reads ahead ctx bounds.
+func New(ctx context.Context, opts ...Option) *Opener {
+	o := &Opener{markRead: true}
+	for _, opt := range opts {
+		opt(o)
+	}
+	if o.prefetch {
+		o.ahead = ui.NewAhead("thread", o.read, o.current, o.rows, o.delay)
+		o.ahead.Reset(ctx)
+	}
+	return o
+}
+
+// MarksRead reports whether opening a thread marks it read.
+func (o *Opener) MarksRead() bool {
+	return o == nil || o.markRead
+}
+
+// target is what a thread is about that can be read ahead, and when the
+// notification says it last changed.
+type target struct {
+	kind    core.SubjectType
+	repo    core.RepoRef
+	number  int
+	release int64
+	updated time.Time
+}
+
+// targetOf returns what n is about, if it can be read ahead.
+func targetOf(n core.Notification) (target, bool) {
+	t := target{kind: n.Subject.Type, repo: n.Repo, updated: n.UpdatedAt}
+	switch n.Subject.Type {
+	case core.SubjectIssue, core.SubjectPullRequest:
+		t.number = n.Subject.Number
+		return t, t.number > 0
+	case core.SubjectRelease:
+		t.release = n.Subject.ReleaseID
+		return t, t.release > 0
+	default:
+		return target{}, false
+	}
+}
+
+// Open returns the command that opens what n is about: its issue, pull
+// request, runs, commit or release in its modal, or else its page in the
+// browser, with a toast that says why. It doesn't mark n read.
+func (o *Opener) Open(n core.Notification) tea.Cmd {
+	sub := n.Subject
+	var msg tea.Msg
+	switch sub.Type {
+	case core.SubjectIssue:
+		if sub.Number > 0 {
+			msg = ui.OpenIssueMsg{Repo: n.Repo, Number: sub.Number}
+		}
+	case core.SubjectPullRequest:
+		if sub.Number > 0 {
+			msg = ui.OpenPullMsg{Repo: n.Repo, Number: sub.Number}
+		}
+	case core.SubjectCheckSuite:
+		if f, ok := runFilter(sub); ok {
+			msg = ui.OpenActionsMsg{Repo: n.Repo, Filter: f}
+		}
+	case core.SubjectCommit:
+		if sub.SHA != "" {
+			msg = ui.OpenCommitMsg{Repo: n.Repo, SHA: sub.SHA}
+		}
+	case core.SubjectRelease:
+		if sub.ReleaseID > 0 {
+			msg = ui.OpenReleaseMsg{Repo: n.Repo, ID: sub.ReleaseID, URL: sub.WebURL}
+		}
+	default:
+	}
+	if msg == nil {
+		return tea.Batch(ui.Open(sub.WebURL), ui.Notify(toast.Info, browserText(sub.Type)))
+	}
+	if t, ok := targetOf(n); ok && o != nil {
+		// What the notification says changed is read again behind the
+		// modal, which shows what is cached at once.
+		o.changed(t)
+		o.ahead.Opened(t)
+	}
+	return func() tea.Msg { return msg }
+}
+
+// browserText tells the user why a thread opened in the browser.
+func browserText(typ core.SubjectType) string {
+	if typ == core.SubjectDiscussion {
+		return "Opened in the browser — gh-tui has no discussion view yet"
+	}
+	return "Opened in the browser — gh-tui has no view of it yet"
+}
+
+// runTitle is the title GitHub gives a notification of a workflow run,
+// such as "CI workflow run failed for main branch".
+var runTitle = regexp.MustCompile(`^(.+) workflow run (\w+) for (.+) branch$`)
+
+// runFilter selects the runs a notification of a check suite is about: its
+// subject has no URL, but its title names the branch and how the run
+// ended, which the runs list filters by without another request.
+func runFilter(sub core.Subject) (core.RunFilter, bool) {
+	m := runTitle.FindStringSubmatch(sub.Title)
+	if m == nil {
+		return core.RunFilter{}, false
+	}
+	f := core.RunFilter{Branch: m[3]}
+	switch m[2] {
+	case "failed":
+		f.Status = string(core.ConclusionFailure)
+	case "succeeded":
+		f.Status = string(core.ConclusionSuccess)
+	case "cancelled":
+		f.Status = string(core.ConclusionCancelled)
+	}
+	return f, true
+}
+
+// Reset cancels the reads ahead in flight, for a new list whose reads
+// parent bounds.
+func (o *Opener) Reset(parent context.Context) {
+	if o != nil {
+		o.ahead.Reset(parent)
+	}
+}
+
+// Resume reads ahead again after GitHub reported the rate limit, such as
+// after a refresh.
+func (o *Opener) Resume() {
+	if o != nil {
+		o.ahead.Resume()
+	}
+}
+
+// ReadAhead reads ahead what the first rows of a list are about, which
+// item returns by index, and false for a row not loaded, and what the
+// thread under the cursor, sel, is about; ok is false when the cursor is
+// on no row. Call it after every update of the list: it reads again only
+// what changed.
+func (o *Opener) ReadAhead(item func(i int) (core.Notification, bool), sel core.Notification, ok bool) tea.Cmd {
+	if o == nil || o.ahead == nil {
+		return nil
+	}
+	// The rows that have nothing to read are left out.
+	o.first = o.first[:0]
+	for i := range o.rows {
+		n, ok := item(i)
+		if !ok {
+			break
+		}
+		if t, ok := targetOf(n); ok {
+			o.first = append(o.first, t)
+		}
+	}
+	cmd := o.ahead.First(o.firstAt)
+	t, readable := targetOf(sel)
+	return batch(cmd, o.ahead.Moved(t, ok && readable))
+}
+
+// firstAt returns the ith of the first rows that have something to read.
+func (o *Opener) firstAt(i int) (target, bool) {
+	if i < len(o.first) {
+		return o.first[i], true
+	}
+	return target{}, false
+}
+
+// Rested reads what the thread the cursor rested on is about, unless it
+// moved since.
+func (o *Opener) Rested(msg ui.AheadMsg) tea.Cmd {
+	if o == nil {
+		return nil
+	}
+	return o.ahead.Rested(msg)
+}
+
+// changed tells the service of t that it changed when the notification
+// says, which marks stale what is cached from before. It does no I/O.
+func (o *Opener) changed(t target) {
+	switch {
+	case t.kind == core.SubjectPullRequest && o.pulls != nil:
+		o.pulls.Changed(t.repo, t.number, t.updated)
+	case t.kind == core.SubjectIssue && o.issues != nil:
+		o.issues.Changed(t.repo, t.number, t.updated)
+	}
+}
+
+// current reports whether what t is about is cached and as recent as the
+// notification, so that its modal opens without a request. Without a
+// service to read it, there is nothing to read. It does no I/O.
+func (o *Opener) current(t target) bool {
+	o.changed(t)
+	switch t.kind {
+	case core.SubjectPullRequest:
+		return o.pulls == nil || o.pulls.Current(pulls.CommentsQuery{Repo: t.repo, Number: t.number})
+	case core.SubjectIssue:
+		return o.issues == nil || o.issues.Current(issuesvc.CommentsQuery{Repo: t.repo, Number: t.number})
+	case core.SubjectRelease:
+		return o.releases == nil || o.releases.Current(t.repo, t.release)
+	default:
+		return true
+	}
+}
+
+// read reads what t is about into the cache its modal reads from: the
+// detail and the first comments, as the modal asks for them, or the
+// release.
+func (o *Opener) read(ctx context.Context, t target) error {
+	switch t.kind {
+	case core.SubjectPullRequest:
+		q := pulls.CommentsQuery{Repo: t.repo, Number: t.number}
+		return both(
+			func() error { _, err := o.pulls.Get(ctx, t.repo, t.number); return err },
+			func() error { _, err := o.pulls.Comments(ctx, q); return err })
+	case core.SubjectIssue:
+		q := issuesvc.CommentsQuery{Repo: t.repo, Number: t.number}
+		return both(
+			func() error { _, err := o.issues.Get(ctx, t.repo, t.number); return err },
+			func() error { _, err := o.issues.Comments(ctx, q); return err })
+	case core.SubjectRelease:
+		_, err := o.releases.Get(ctx, t.repo, t.release)
+		return err
+	default:
+		return nil
+	}
+}
+
+// both runs a and b at once, since the modal waits for both.
+func both(a, b func() error) error {
+	var (
+		wg   sync.WaitGroup
+		aErr error
+	)
+	wg.Go(func() { aErr = a() })
+	bErr := b()
+	wg.Wait()
+	return errors.Join(aErr, bErr)
+}
+
+func batch(a, b tea.Cmd) tea.Cmd {
+	switch {
+	case a == nil:
+		return b
+	case b == nil:
+		return a
+	}
+	return tea.Batch(a, b)
+}

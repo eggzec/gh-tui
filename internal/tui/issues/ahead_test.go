@@ -10,8 +10,12 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/threads"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
+
+// Changed does nothing: the fake's issues don't age.
+func (*fakeService) Changed(core.RepoRef, int, time.Time) {}
 
 // firstComments returns the numbers whose first comments were read.
 func (f *fakeService) firstComments() []int {
@@ -139,4 +143,34 @@ func TestNoPrefetchByDefault(t *testing.T) {
 func issue(svc *fakeService, number int) core.Issue {
 	i := slices.IndexFunc(svc.issues, func(it core.Issue) bool { return it.Number == number })
 	return svc.issues[i]
+}
+
+// TestNotificationReadAheadOpensAtOnce reads an issue ahead from a
+// notification, and opens it from the notification: it shows at once, from
+// what was read ahead.
+func TestNotificationReadAheadOpensAtOnce(t *testing.T) {
+	svc := newFakeService(sampleIssues(12))
+	svc.addComments(997, sampleComments(3)...)
+	h := started(t, svc, 80, 40)
+	n := core.Notification{Repo: testRepo, Subject: core.Subject{Type: core.SubjectIssue, Number: 997}, UpdatedAt: time.Now()}
+	o := threads.New(t.Context(), threads.WithIssues(svc), threads.WithPrefetch(1, time.Millisecond))
+	run(t, h, o.ReadAhead(func(i int) (core.Notification, bool) { return n, i == 0 }, n, false))
+	if got := svc.getCalls(); !slices.Contains(got, 997) {
+		t.Fatalf("read %v ahead, want #997", got)
+	}
+
+	seq, ok := sequence(h.Update(o.Open(n)())())
+	if !ok || len(seq) != 2 {
+		t.Fatal("the notification should open the modal, then start its loads")
+	}
+	run(t, h, seq[0])
+	view := ansi.Strip(h.modal().View())
+	for _, want := range []string{"Look at issue 997", "I can reproduce this", "Thanks! Fixed on main."} {
+		if !strings.Contains(view, want) {
+			t.Errorf("modal lacks %q before any load:\n%s", want, view)
+		}
+	}
+	if strings.Contains(view, "Loading") {
+		t.Errorf("modal waits for what was read ahead:\n%s", view)
+	}
 }

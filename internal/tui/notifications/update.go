@@ -1,12 +1,9 @@
 package notifications
 
 import (
-	"regexp"
-
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
@@ -14,9 +11,15 @@ import (
 // Update handles the section's keys, sync events and finished changes, and
 // passes everything else to the list.
 func (s *Section) Update(msg tea.Msg) tea.Cmd {
+	if msg, ok := msg.(ui.AheadMsg); ok {
+		return s.opener.Rested(msg)
+	}
 	cmd := s.update(msg)
 	if off := s.offline.Notify(); off != nil {
-		return tea.Batch(cmd, off)
+		cmd = tea.Batch(cmd, off)
+	}
+	if ahead := s.readAhead(); ahead != nil {
+		cmd = tea.Batch(cmd, ahead)
 	}
 	return cmd
 }
@@ -56,13 +59,17 @@ func (s *Section) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	switch {
 	case key.Matches(msg, k.Refresh):
 		s.svc.Invalidate()
+		s.opener.Resume()
 		return s.reload(), true
 	case key.Matches(msg, k.ClearFilter) && s.filtered():
 		return s.setFilter(defaultQuery), true
 	case key.Matches(msg, k.Select):
-		return s.open(true), true
+		return s.open(), true
 	case key.Matches(msg, k.Open):
-		return s.open(false), true
+		if n, ok := s.feed.Selected(); ok {
+			return ui.Open(n.Subject.WebURL), true
+		}
+		return nil, true
 	case key.Matches(msg, k.MarkRead):
 		n, ok := s.feed.Selected()
 		if !ok || !n.Unread {
@@ -84,50 +91,28 @@ func (s *Section) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	return nil, false
 }
 
-// open opens the selected thread in the browser, and marks it read if read
-// is set. With read set, a thread about a workflow run opens the Actions
-// modal on the runs of its branch that ended the same way instead.
-func (s *Section) open(read bool) tea.Cmd {
+// open opens what the selected thread is about in the app, and marks it
+// read if opening marks threads read.
+func (s *Section) open() tea.Cmd {
 	n, ok := s.feed.Selected()
 	if !ok {
 		return nil
 	}
-	cmd := ui.Open(n.Subject.WebURL)
-	if f, ok := runFilter(n.Subject); ok && read {
-		msg := ui.OpenActionsMsg{Repo: n.Repo, Filter: f}
-		cmd = func() tea.Msg { return msg }
-	}
-	if read && n.Unread {
+	cmd := s.opener.Open(n)
+	if s.opener.MarksRead() && n.Unread {
 		cmd = tea.Batch(cmd, s.do(s.svc.MarkRead(n.ID), "mark read"))
 	}
 	return cmd
 }
 
-// runTitle is the title GitHub gives a notification of a workflow run,
-// such as "CI workflow run failed for main branch".
-var runTitle = regexp.MustCompile(`^(.+) workflow run (\w+) for (.+) branch$`)
-
-// runFilter selects the runs a notification of a check suite is about: its
-// subject has no URL, but its title names the branch and how the run
-// ended, which the runs list filters by without another request.
-func runFilter(sub core.Subject) (core.RunFilter, bool) {
-	if sub.Type != core.SubjectCheckSuite {
-		return core.RunFilter{}, false
+// readAhead reads ahead what the first threads and the one under the
+// cursor are about, once the list has started.
+func (s *Section) readAhead() tea.Cmd {
+	if !s.started {
+		return nil
 	}
-	m := runTitle.FindStringSubmatch(sub.Title)
-	if m == nil {
-		return core.RunFilter{}, false
-	}
-	f := core.RunFilter{Branch: m[3]}
-	switch m[2] {
-	case "failed":
-		f.Status = string(core.ConclusionFailure)
-	case "succeeded":
-		f.Status = string(core.ConclusionSuccess)
-	case "cancelled":
-		f.Status = string(core.ConclusionCancelled)
-	}
-	return f, true
+	n, ok := s.feed.Selected()
+	return s.opener.ReadAhead(s.feed.Item, n, ok)
 }
 
 // do shows the change op already made to the cache and sends it.
