@@ -1,7 +1,6 @@
 package history
 
 import (
-	"cmp"
 	"path"
 	"slices"
 	"strconv"
@@ -113,7 +112,7 @@ func (m *Modal) paneTitle(p pane, w int) string {
 			}
 		}
 	case graphPane:
-		text = cmp.Or(m.graph.shown(), "Default branch")
+		text = m.graphName()
 	case commitPane:
 		text = "Commit"
 		if c := &m.commit; c.has {
@@ -133,7 +132,7 @@ func (m *Modal) paneTitle(p pane, w int) string {
 func (m *Modal) breadcrumb(w int) string {
 	crumbs := []string{"Branches"}
 	if m.focus >= graphPane {
-		crumbs = append(crumbs, cmp.Or(m.graph.shown(), "Default branch"))
+		crumbs = append(crumbs, m.graphName())
 	}
 	if c := &m.commit; m.focus == commitPane && c.has {
 		crumbs = append(crumbs, short(c.c.SHA))

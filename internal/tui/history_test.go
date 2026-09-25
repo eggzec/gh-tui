@@ -109,3 +109,34 @@ func TestBaseIsInTheHeader(t *testing.T) {
 		t.Errorf("header shows a base after the repository was selected again:\n%s", s)
 	}
 }
+
+func TestOpenCommitMsgOpensTheHistoryOnTheCommit(t *testing.T) {
+	type opened struct {
+		repo        core.RepoRef
+		sha, branch string
+	}
+	var got []opened
+	mod := &fakeModal{title: "History · charmbracelet/glow"}
+	open := func(_ context.Context, repo core.RepoRef, sha, branch string) (ui.Modal, tea.Cmd) {
+		got = append(got, opened{repo, sha, branch})
+		return mod, nil
+	}
+	glow := core.RepoRef{Owner: "charmbracelet", Name: "glow"}
+
+	m, _ := newTestApp(t)
+	m.Update(ui.OpenCommitMsg{Repo: glow, SHA: "7f75d0e"})
+	if m.topModal() != nil {
+		t.Error("a commit opened without a history")
+	}
+
+	m, _ = newTestApp(t, WithCommit(open))
+	run(m, m.key(press("n")))
+	m.Update(ui.OpenCommitMsg{Repo: glow, SHA: "7f75d0e"})
+	if m.topModal() != mod || len(got) != 1 || got[0] != (opened{glow, "7f75d0e", ""}) {
+		t.Errorf("opened %v, want the history of glow on the commit", got)
+	}
+	m.Update(ui.OpenCommitMsg{Repo: glow})
+	if len(got) != 1 {
+		t.Error("a message without a commit opened the history")
+	}
+}

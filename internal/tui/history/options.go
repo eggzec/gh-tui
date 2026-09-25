@@ -17,6 +17,9 @@ type options struct {
 	// in; tests fix them.
 	now func() time.Time
 	loc *time.Location
+	// commit, if set, is the commit the modal opens on, in place of a
+	// branch.
+	commit string
 }
 
 func defaultOptions() options {
@@ -39,4 +42,10 @@ func WithOffline(off *ui.Offline) Option {
 			o.offline = off
 		}
 	}
+}
+
+// onCommit opens the modal on the history of commit sha, with the commit
+// pane focused on it, for [CommitOpener].
+func onCommit(sha string) Option {
+	return func(o *options) { o.commit = sha }
 }

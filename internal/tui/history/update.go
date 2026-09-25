@@ -235,6 +235,10 @@ func (m *Modal) branchBase(name string) ui.BaseMsg {
 // commitBase is the base at commit sha of the branch shown.
 func (m *Modal) commitBase(sha string) ui.BaseMsg {
 	branch := m.graph.shown()
+	if branch == m.opts.commit {
+		// The history of a commit is no branch to open again.
+		branch = ""
+	}
 	return ui.BaseMsg{Repo: m.repo, Ref: sha, Label: label(cmp.Or(branch, m.defaultBranch), sha), Branch: branch}
 }
 
