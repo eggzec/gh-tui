@@ -58,8 +58,7 @@ func (s *Section) layout() {
 	in := func(p paneID) (int, int) { return max(b[p].w-2, 0), max(b[p].h-2, 0) }
 	s.pinned.resize(in(pinnedPane))
 	s.repos.resize(in(reposPane))
-	_, wh := in(workPane)
-	s.tasks.resize(wh)
+	s.tasks.resize(in(workPane))
 	cw, ch := in(calendarPane)
 	s.cal.SetSize(min(cw-2, calendarWidth), min(ch, calendarLines))
 }
@@ -566,49 +565,71 @@ func (s *Section) workBody(w, h int) []string {
 	}
 	lines := make([]string, 0, h)
 	focused := s.focused && s.focus == workPane
-	for i := l.top; i < len(l.rows) && len(lines) < h; i++ {
-		r := l.rows[i]
+	for i := l.top; i < len(l.rows); i++ {
+		// Rows show whole, but for one taller than the pane.
+		if n := l.lines(i, l.top); len(lines)+n > h && i > l.top {
+			break
+		}
+		r := &l.rows[i]
 		switch {
 		case r.header != "":
+			if i > l.top {
+				lines = append(lines, "")
+			}
 			lines = append(lines, " "+st.muted.render(r.header)+" "+st.text.render(strconv.Itoa(r.count)))
 		case r.note != "":
 			lines = append(lines, "   "+st.subtle.render(r.note))
 		default:
 			sel := l.sel < len(l.items) && l.items[l.sel] == i
-			lines = append(lines, s.workRow(*r.hit, sel, focused, w))
+			lines = s.workItem(lines, r, sel, focused, w)
 		}
 	}
 	return lines
 }
 
-// workRow renders a pull request or issue waiting on the viewer: its state,
-// where it is, its title and its age.
-func (s *Section) workRow(hit core.SearchHit, selected, focused bool, w int) string {
+// workItem appends the lines of a pull request or issue waiting on the
+// viewer: its state, where it is and its title, wrapped under the text
+// with the age at the end. The cursor marks every line of the selected
+// one.
+func (s *Section) workItem(lines []string, r *workRow, selected, focused bool, w int) []string {
 	st := &s.st
 	gutter := "  "
+	titleStyle := st.text
 	if selected {
 		gutter = st.blurred
 		if focused {
 			gutter = st.cursor
 		}
-	}
-	is := hit.Issue
-	glyph := st.success.render("●")
-	if hit.Draft {
-		glyph = st.subtle.render("○")
-	}
-	ref := is.Repo.Name + "#" + strconv.Itoa(is.Number)
-	age := ui.Ago(is.UpdatedAt, s.now())
-	room := max(w-2-2-ageWidth-1, 0)
-	ref = truncate(ref, min(ansi.StringWidth(ref), room/2))
-	title := truncate(cleanLine(is.Title), max(room-ansi.StringWidth(ref)-1, 0))
-	titleStyle := st.text
-	if selected {
 		titleStyle = st.selected
 	}
-	used := 2 + 2 + ansi.StringWidth(ref) + 1 + ansi.StringWidth(title)
-	return gutter + glyph + " " + st.muted.render(ref) + " " + titleStyle.render(title) +
-		strings.Repeat(" ", max(w-used-len(age), 1)) + st.subtle.render(age)
+	hit := r.hit
+	age := ui.Ago(hit.Issue.UpdatedAt, s.now())
+	for i, text := range r.lines {
+		var b strings.Builder
+		b.WriteString(gutter)
+		used := workIndent
+		if i == 0 {
+			state := ui.HitState(*hit)
+			st.states[state].write(&b, s.icons.State(state))
+			b.WriteByte(' ')
+			st.muted.write(&b, r.ref)
+			used += ansi.StringWidth(r.ref)
+			if text != "" {
+				b.WriteByte(' ')
+				used++
+			}
+		} else {
+			b.WriteString("  ")
+		}
+		titleStyle.write(&b, text)
+		used += ansi.StringWidth(text)
+		if i == len(r.lines)-1 {
+			b.WriteString(strings.Repeat(" ", max(w-used-len(age), 1)))
+			st.subtle.write(&b, age)
+		}
+		lines = append(lines, b.String())
+	}
+	return lines
 }
 
 func (s *Section) inboxBody(w, h int) []string {

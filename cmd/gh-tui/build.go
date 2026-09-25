@@ -81,6 +81,7 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 	// The sections share whether GitHub can't be reached, so the user is
 	// told once.
 	offline := new(ui.Offline)
+	icons := ui.NewIcons(cfg.UI.Icons)
 	fileOpts := []files.Option{files.WithOffline(offline)}
 	if p := cfg.Files.Prefetch; p.Enabled {
 		fileOpts = append(fileOpts,
@@ -109,6 +110,7 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 			dashboard.WithInbox(notifSvc),
 			dashboard.WithHere(here, repoSvc.Get),
 			dashboard.WithGlyph(cfg.Dashboard.CalendarGlyph),
+			dashboard.WithIcons(icons),
 		),
 	}
 

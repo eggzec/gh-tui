@@ -25,7 +25,7 @@ func TestInitLoadsEverything(t *testing.T) {
 	for _, want := range []string{
 		"Mona Lisa Octocat @octocat", "1.2k followers", "3 unread",
 		"⌂ here", "spoon-knife", "Yours", "github", "charmbracelet",
-		"repo-000", "Review requests 3", "bubbletea#1402", "Assigned issues 1",
+		"repo-000", "Review requests 3", "bubbletea#1402", "Your pull requests 2",
 		"Render only the cells that changed", "contributions in the last year",
 	} {
 		if !strings.Contains(view, want) {
@@ -334,7 +334,7 @@ func TestWorkMore(t *testing.T) {
 	svc := newFake()
 	svc.work.ReviewRequested.Count = 14
 	svc.work.Assigned = core.WorkList{}
-	s := newSection(t, svc, nil, 140, 38)
+	s := newSection(t, svc, nil, 140, 50)
 	view := screen(s)
 	for _, want := range []string{"and 12 more on GitHub", "No open issue is assigned to you.", "Waiting on you · 16"} {
 		if !strings.Contains(view, want) {
