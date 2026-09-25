@@ -94,7 +94,7 @@ func TestLoadMergesOverDefaults(t *testing.T) {
 					ShowEmail:  true,
 					Prefetch:   HistoryPrefetch{Around: 5, HoverDelay: 250 * time.Millisecond},
 				}
-				c.Dashboard = Dashboard{CalendarGlyph: "#"}
+				c.Dashboard = Dashboard{CalendarGlyph: "#", Contributions: ContributionsYear}
 				c.UI = UI{Icons: IconsUnicode}
 				c.Log = Log{Level: LevelDebug, File: "/var/log/gh-tui.log", MaxSize: MiB, Keep: 5, Summary: time.Minute}
 			},
@@ -161,6 +161,7 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 		Prefetch:   HistoryPrefetch{Around: 11, HoverDelay: -time.Millisecond},
 	}
 	cfg.Dashboard.CalendarGlyph = "■■"
+	cfg.Dashboard.Contributions = "week"
 	cfg.UI.Icons = "emoji"
 	cfg.Log = Log{Level: "trace", File: "gh-tui.log", MaxSize: KiB, Keep: -1, Summary: time.Second}
 
@@ -200,6 +201,7 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 		`history.prefetch.around: must be between 0 and 10, got 11`,
 		`history.prefetch.hover_delay: must not be negative, got -1ms`,
 		`dashboard.calendar_glyph: must be one character one cell wide, such as "■" or "#", got "■■"`,
+		`dashboard.contributions: must be 30d, 90d or year, got "week"`,
 		`ui.icons: must be nerd, unicode or ascii, got "emoji"`,
 		`log.level: must be debug, info, warn or error, got "trace"`,
 		`log.file: must be an absolute path, got "gh-tui.log"`,

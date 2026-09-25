@@ -34,9 +34,41 @@ func TestDashboardCalendarGlyph(t *testing.T) {
 	}
 }
 
+func TestDashboardContributions(t *testing.T) {
+	if got := Default().Dashboard.Contributions; got != Contributions90d {
+		t.Errorf("contributions defaults to %q, want %q", got, Contributions90d)
+	}
+	tests := []struct {
+		value string
+		days  int
+		ok    bool
+	}{
+		{Contributions30d, 30, true},
+		{Contributions90d, 90, true},
+		{ContributionsYear, 0, true},
+		{"", 0, false},
+		{"7d", 0, false},
+		{"Year", 0, false},
+	}
+	for _, tt := range tests {
+		cfg := Default()
+		cfg.Dashboard.Contributions = tt.value
+		err := cfg.Validate()
+		if (err == nil) != tt.ok {
+			t.Errorf("contributions %q: Validate() = %v, want ok = %v", tt.value, err, tt.ok)
+		}
+		if err != nil && !strings.Contains(err.Error(), "dashboard.contributions") {
+			t.Errorf("contributions %q: Validate() = %v, want it to name the field", tt.value, err)
+		}
+		if tt.ok && cfg.Dashboard.ContributionDays() != tt.days {
+			t.Errorf("contributions %q: %d days, want %d", tt.value, cfg.Dashboard.ContributionDays(), tt.days)
+		}
+	}
+}
+
 func TestDashboardFromFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.yaml")
-	if err := os.WriteFile(path, []byte("dashboard:\n  calendar_glyph: \"▪\"\nkeys:\n  dashboard: [\"~\"]\n"), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte("dashboard:\n  calendar_glyph: \"▪\"\n  contributions: 30d\nkeys:\n  dashboard: [\"~\"]\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv(EnvLog, "")
@@ -46,6 +78,9 @@ func TestDashboardFromFile(t *testing.T) {
 	}
 	if cfg.Dashboard.CalendarGlyph != "▪" {
 		t.Errorf("calendar_glyph = %q, want ▪", cfg.Dashboard.CalendarGlyph)
+	}
+	if cfg.Dashboard.Contributions != Contributions30d {
+		t.Errorf("contributions = %q, want 30d", cfg.Dashboard.Contributions)
 	}
 	if got := cfg.Keys[ActionDashboard]; !slices.Equal(got, []string{"~"}) {
 		t.Errorf("dashboard = %v, want [~]", got)

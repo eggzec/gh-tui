@@ -114,6 +114,7 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 			dashboard.WithInbox(notifSvc),
 			dashboard.WithHere(here, repoSvc.Get),
 			dashboard.WithGlyph(cfg.Dashboard.CalendarGlyph),
+			dashboard.WithContributions(cfg.Dashboard.ContributionDays()),
 			dashboard.WithIcons(icons),
 		),
 	}

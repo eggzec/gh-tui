@@ -2,6 +2,7 @@ package dashboard
 
 import (
 	"context"
+	"strconv"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -191,9 +192,17 @@ func (s *Section) setContributions() {
 			weeks[i][j] = calendar.Day{Date: d.Date, Count: d.Count, Level: d.Level}
 		}
 	}
-	s.cal.SetEmptyText("No contributions in the last year.")
+	period := "the last year"
+	if s.calDays > 0 {
+		period = "the last " + strconv.Itoa(s.calDays) + " days"
+	}
+	s.cal.SetEmptyText("No contributions in " + period + ".")
 	s.cal.SetWeeks(weeks)
+	// The total GitHub reports is for the year, and a range counts its
+	// own days instead.
 	s.cal.SetTotal(c.Total)
+	// The calendar is as wide as its range and total need.
+	s.layout()
 }
 
 // updating reports whether something shown is being read again, such as

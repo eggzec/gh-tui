@@ -26,10 +26,8 @@ const (
 	// seven days and the legend.
 	calendarLines  = 10
 	calendarHeight = calendarLines + 2
-	// calendarWidth fits a year of weeks and the weekday labels.
-	calendarWidth = 4 + 53*2 - 1
-	minInboxH     = 4
-	maxInboxH     = 9
+	minInboxH      = 4
+	maxInboxH      = 9
 )
 
 // box is the outer size of a pane, frame included.
@@ -60,7 +58,7 @@ func (s *Section) layout() {
 	s.repos.resize(in(reposPane))
 	s.tasks.resize(in(workPane))
 	cw, ch := in(calendarPane)
-	s.cal.SetSize(min(cw-2, calendarWidth), min(ch, calendarLines))
+	s.cal.SetSize(min(cw-2, s.cal.FitWidth()), min(ch, calendarLines))
 }
 
 // render renders the profile and every pane, and the dashboard from them.

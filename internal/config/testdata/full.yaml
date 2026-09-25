@@ -73,6 +73,7 @@ history:
 
 dashboard:
   calendar_glyph: "#"
+  contributions: year
 
 ui:
   icons: unicode
