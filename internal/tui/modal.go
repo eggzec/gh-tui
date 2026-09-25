@@ -57,7 +57,16 @@ func (m *Model) openActions() tea.Cmd {
 	if !m.canOpenActions() {
 		return nil
 	}
-	mod, load := m.actions(m.ctx, m.repo)
+	return m.openActionsOn(m.repo, core.RunFilter{})
+}
+
+// openActionsOn opens the runs of repo that f selects, if the app has
+// them, on any screen.
+func (m *Model) openActionsOn(repo core.RepoRef, f core.RunFilter) tea.Cmd {
+	if m.actions == nil || repo == (core.RepoRef{}) {
+		return nil
+	}
+	mod, load := m.actions(m.ctx, repo, f)
 	if mod == nil {
 		return nil
 	}

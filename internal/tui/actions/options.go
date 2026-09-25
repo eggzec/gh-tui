@@ -25,6 +25,7 @@ type options struct {
 	icons   ui.Icons
 	follow  Follow
 	viewer  Viewer
+	filter  core.RunFilter
 	// rest is how long the cursor rests on a run or a job before its jobs
 	// or its log are read; tests set 0.
 	rest time.Duration
@@ -63,6 +64,12 @@ func WithIcons(ic ui.Icons) Option {
 // run in progress changes only when it is read again.
 func WithFollow(f Follow) Option {
 	return func(o *options) { o.follow = f }
+}
+
+// WithFilter opens the modal on the runs that f selects, such as those of
+// a branch that failed. The default shows every run.
+func WithFilter(f core.RunFilter) Option {
+	return func(o *options) { o.filter = f }
 }
 
 // WithViewer sets how the modal learns who the user is, for the Mine tab

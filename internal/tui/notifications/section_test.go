@@ -330,3 +330,31 @@ func TestRefreshRetriesAFailedPage(t *testing.T) {
 		t.Errorf("rows after retry = %q, want %q", got, want)
 	}
 }
+
+func TestRunNotificationOpensTheActions(t *testing.T) {
+	n := thread("9", "charmbracelet/bubbletea", "CheckSuite", "ci workflow run failed for feat/x branch", "ci_activity", true, time.Minute)
+	s := newSection(t, newFake(n), 120, 20)
+	want := ui.OpenActionsMsg{Repo: n.Repo, Filter: core.RunFilter{Branch: "feat/x", Status: "failure"}}
+	if app := press(t, s, "o"); !slices.Contains(app, tea.Msg(ui.OpenMsg{URL: n.Subject.WebURL})) {
+		t.Errorf("o sent %v, want the browser", app)
+	}
+	if app := press(t, s, "enter"); !slices.Contains(app, tea.Msg(want)) {
+		t.Errorf("enter sent %v, want %v", app, want)
+	}
+	for _, tt := range []struct {
+		title string
+		f     core.RunFilter
+		ok    bool
+	}{
+		{"CI workflow run succeeded for main branch", core.RunFilter{Branch: "main", Status: "success"}, true},
+		{"Build workflow run cancelled for release/v2 branch", core.RunFilter{Branch: "release/v2", Status: "cancelled"}, true},
+		{"CI run failed on main", core.RunFilter{}, false},
+	} {
+		if f, ok := runFilter(core.Subject{Type: "CheckSuite", Title: tt.title}); f != tt.f || ok != tt.ok {
+			t.Errorf("runFilter(%q) = %+v, %v", tt.title, f, ok)
+		}
+	}
+	if _, ok := runFilter(core.Subject{Type: core.SubjectIssue, Title: "CI workflow run failed for main branch"}); ok {
+		t.Error("an issue is taken for a run")
+	}
+}

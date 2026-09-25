@@ -1,9 +1,12 @@
 package notifications
 
 import (
+	"regexp"
+
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
@@ -82,17 +85,49 @@ func (s *Section) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 }
 
 // open opens the selected thread in the browser, and marks it read if read
-// is set.
+// is set. With read set, a thread about a workflow run opens the Actions
+// modal on the runs of its branch that ended the same way instead.
 func (s *Section) open(read bool) tea.Cmd {
 	n, ok := s.feed.Selected()
 	if !ok {
 		return nil
 	}
 	cmd := ui.Open(n.Subject.WebURL)
+	if f, ok := runFilter(n.Subject); ok && read {
+		msg := ui.OpenActionsMsg{Repo: n.Repo, Filter: f}
+		cmd = func() tea.Msg { return msg }
+	}
 	if read && n.Unread {
 		cmd = tea.Batch(cmd, s.do(s.svc.MarkRead(n.ID), "mark read"))
 	}
 	return cmd
+}
+
+// runTitle is the title GitHub gives a notification of a workflow run,
+// such as "CI workflow run failed for main branch".
+var runTitle = regexp.MustCompile(`^(.+) workflow run (\w+) for (.+) branch$`)
+
+// runFilter selects the runs a notification of a check suite is about: its
+// subject has no URL, but its title names the branch and how the run
+// ended, which the runs list filters by without another request.
+func runFilter(sub core.Subject) (core.RunFilter, bool) {
+	if sub.Type != "CheckSuite" {
+		return core.RunFilter{}, false
+	}
+	m := runTitle.FindStringSubmatch(sub.Title)
+	if m == nil {
+		return core.RunFilter{}, false
+	}
+	f := core.RunFilter{Branch: m[3]}
+	switch m[2] {
+	case "failed":
+		f.Status = string(core.ConclusionFailure)
+	case "succeeded":
+		f.Status = string(core.ConclusionSuccess)
+	case "cancelled":
+		f.Status = string(core.ConclusionCancelled)
+	}
+	return f, true
 }
 
 // do shows the change op already made to the cache and sends it.

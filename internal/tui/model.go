@@ -145,9 +145,9 @@ func WithHistory(open History) Option {
 	return func(m *Model) { m.history = open }
 }
 
-// Actions returns the modal that shows the workflow runs of repo, and the
-// command that loads it once it is open.
-type Actions func(ctx context.Context, repo core.RepoRef) (ui.Modal, tea.Cmd)
+// Actions returns the modal that shows the workflow runs of repo that f
+// selects, and the command that loads it once it is open.
+type Actions func(ctx context.Context, repo core.RepoRef, f core.RunFilter) (ui.Modal, tea.Cmd)
 
 // WithActions sets the function that opens the workflow runs of the
 // selected repository, with the actions key on the repository screen.

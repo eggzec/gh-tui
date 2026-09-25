@@ -69,6 +69,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ui.BackMsg:
 		cmd := m.showScreen(m.back, m.focus)
 		return m, cmd
+	case ui.OpenActionsMsg:
+		cmd := m.openActionsOn(msg.Repo, msg.Filter)
+		return m, cmd
 	case ui.OpenModalMsg:
 		m.openModal(msg.Modal)
 		return m, nil
