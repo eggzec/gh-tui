@@ -751,9 +751,15 @@ func TestStaleChunkIsShownThenFetchedAgain(t *testing.T) {
 	if !strings.Contains(m.View(), "old") {
 		t.Fatalf("View() = %q, want the old item shown", m.View())
 	}
+	if m.Settled() {
+		t.Error("Settled() = true while the stale chunk is fetched again")
+	}
 	m = run(t, m, cmd)
 	if m.Len() != 3 || m.Err() != nil {
 		t.Fatalf("Len() = %d, Err() = %v after the refetch; want 3, nil", m.Len(), m.Err())
+	}
+	if !m.Settled() {
+		t.Error("Settled() = false after the refetch")
 	}
 	if it, _ := m.Selected(); it.title != "item 0" {
 		t.Errorf("Selected() = %v, want the fresh item", it)
@@ -775,5 +781,37 @@ func TestStaleChunkKeepsItemsWhenRefetchFails(t *testing.T) {
 	}
 	if m.Err() == nil {
 		t.Error("Err() = nil, want the failed refetch")
+	}
+}
+
+func TestSettled(t *testing.T) {
+	src := newSource(3, 10)
+	m := New(src.fetch, renderItem, WithSize(40, 5))
+	if m.Settled() {
+		t.Fatal("Settled() = true before the first chunk")
+	}
+	m = run(t, m, m.Init())
+	if !m.Settled() {
+		t.Fatal("Settled() = false once the first chunk is loaded")
+	}
+	cmd := m.Reload()
+	if m.Settled() {
+		t.Error("Settled() = true while the first chunk is fetched again")
+	}
+	if m = run(t, m, cmd); !m.Settled() {
+		t.Error("Settled() = false after the reload")
+	}
+
+	empty := newSource(0, 10)
+	m = New(empty.fetch, renderItem, WithSize(40, 5))
+	if m = run(t, m, m.Init()); !m.Settled() {
+		t.Error("Settled() = false for an empty feed that loaded")
+	}
+
+	failing := newSource(3, 10)
+	failing.setFail("", errors.New("boom"))
+	m = New(failing.fetch, renderItem, WithSize(40, 5))
+	if m = run(t, m, m.Init()); m.Settled() {
+		t.Error("Settled() = true after the first chunk failed")
 	}
 }
