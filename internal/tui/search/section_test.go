@@ -195,6 +195,8 @@ func TestOpen(t *testing.T) {
 		{"repository in the browser", []string{"down", "o"}, []tea.Msg{ui.OpenMsg{URL: "https://github.com/charmbracelet/bubbletea"}}},
 		{"issue", []string{"tab", "down", "enter", "enter"}, []tea.Msg{ui.OpenIssueMsg{Repo: bubbletea, Number: 1203}}},
 		{"pull request", []string{"tab", "down", "down", "enter", "down", "enter"}, []tea.Msg{ui.OpenPullMsg{Repo: bubbletea, Number: 1388}}},
+		{"pull request on its checks", []string{"tab", "down", "down", "enter", "down", "C"}, []tea.Msg{ui.OpenPullMsg{Repo: bubbletea, Number: 1388, Checks: true}}},
+		{"no checks for an issue", []string{"tab", "down", "enter", "C"}, nil},
 		{"issue's repository", []string{"tab", "down", "enter", "ctrl+o"}, []tea.Msg{ui.RepoMsg{Repo: bubbletea}}},
 		{"pull request's repository", []string{"tab", "down", "down", "enter", "down", "ctrl+o"}, []tea.Msg{ui.RepoMsg{Repo: bubbletea}}},
 		{"repository by the repository key", []string{"down", "ctrl+o"}, []tea.Msg{ui.RepoMsg{Repo: bubbletea}}},

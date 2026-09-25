@@ -156,6 +156,8 @@ func (s *Section) pressResults(msg tea.KeyPressMsg) tea.Cmd {
 		return s.open(true)
 	case key.Matches(msg, k.Repo):
 		return s.goToRepo()
+	case key.Matches(msg, k.Checks):
+		return s.openChecks()
 	case key.Matches(msg, k.Refresh):
 		return s.refresh()
 	}
@@ -313,6 +315,21 @@ func (s *Section) focusArea(a area) {
 
 func selectRepo(repo core.RepoRef) tea.Cmd {
 	return func() tea.Msg { return ui.RepoMsg{Repo: repo} }
+}
+
+// openChecks opens the pull request under the cursor on its checks.
+func (s *Section) openChecks() tea.Cmd {
+	l, ok := s.visibleHits()
+	if !ok || s.text == "" {
+		return nil
+	}
+	hit, ok := l.feed.Selected()
+	if !ok || hit.Kind != core.SearchPulls {
+		return nil
+	}
+	s.remember(s.text)
+	msg := ui.OpenPullMsg{Repo: hit.Issue.Repo, Number: hit.Issue.Number, Checks: true}
+	return func() tea.Msg { return msg }
 }
 
 func openHit(hit core.SearchHit) tea.Cmd {

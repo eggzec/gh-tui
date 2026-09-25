@@ -366,3 +366,14 @@ func TestStaleReplyIsDropped(t *testing.T) {
 		t.Error("a reply to a read before the refresh should be dropped")
 	}
 }
+
+func TestWorkChecks(t *testing.T) {
+	s := newSection(t, newFake(), nil, 140, 38)
+	app := press(t, s, "3", "C")
+	if !slices.Contains(app, tea.Msg(ui.OpenPullMsg{Repo: core.RepoRef{Owner: "charmbracelet", Name: "bubbletea"}, Number: 1402, Checks: true})) {
+		t.Errorf("C on the first review request sent %v", app)
+	}
+	if app := press(t, s, "]", "]", "C"); len(app) != 0 {
+		t.Errorf("C on an issue sent %v", app)
+	}
+}

@@ -36,6 +36,9 @@ type KeyMap struct {
 	PrevOwner key.Binding
 	// Here opens the repository of the current directory.
 	Here key.Binding
+	// Checks opens the pull request of the work under the cursor on its
+	// checks.
+	Checks key.Binding
 	// Up, Down, Left and Right move through the cards and the work.
 	Up    key.Binding
 	Down  key.Binding
@@ -60,6 +63,7 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		NextOwner:   ui.Binding(keys, config.ActionNextOwner, "next owner"),
 		PrevOwner:   ui.Binding(keys, config.ActionPrevOwner, "previous owner"),
 		Here:        ui.Binding(keys, config.ActionCurrentRepo, "this repo"),
+		Checks:      ui.Binding(keys, config.ActionChecks, "checks"),
 		Up:          key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("↑/k", "up")),
 		Down:        key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓/j", "down")),
 		Left:        key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←/h", "left")),
@@ -140,7 +144,7 @@ func (h helpKeys) paneKeys() []key.Binding {
 	case workPane:
 		next := k.NextOwner
 		next.SetHelp(next.Help().Key, "next list")
-		return []key.Binding{k.Up, k.Down, k.Select, k.Open, next}
+		return []key.Binding{k.Up, k.Down, k.Select, k.Checks, k.Open, next}
 	case inboxPane:
 		sel := k.Select
 		sel.SetHelp(sel.Help().Key, "notifications")
