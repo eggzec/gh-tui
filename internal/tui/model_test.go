@@ -433,7 +433,7 @@ func TestRepoMsgShowsTheRepo(t *testing.T) {
 	var asked []core.RepoRef
 	info := func(_ context.Context, ref core.RepoRef) (core.Repo, error) {
 		asked = append(asked, ref)
-		return core.Repo{DefaultBranch: "main"}, nil
+		return core.Repo{DefaultBranch: "main", Caps: core.RepoCaps{Known: true, Permission: core.PermissionRead}}, nil
 	}
 	m, fakes := newApp(t, core.RepoRef{}, WithRepoInfo(info))
 	run(m, func() tea.Msg { return ui.RepoMsg{Repo: other} })
@@ -448,16 +448,27 @@ func TestRepoMsgShowsTheRepo(t *testing.T) {
 	if !slices.Equal(asked, []core.RepoRef{other}) {
 		t.Errorf("read %v, want the new repository", asked)
 	}
+	caps := ui.CapsMsg{Repo: other, Caps: core.RepoCaps{Known: true, Permission: core.PermissionRead}}
+	for _, f := range fakes {
+		if !f.got(func(msg tea.Msg) bool { return msg == tea.Msg(caps) }) {
+			t.Errorf("%s missed the caps of the repository", f.title)
+		}
+	}
 	if s := onScreen(m); !strings.Contains(s, "charmbracelet/bubbletea ─ main") {
 		t.Errorf("header lacks the repository and its branch:\n%s", s)
 	}
 }
 
 func TestRepoInfoForAnotherRepoIsIgnored(t *testing.T) {
-	m, _ := newTestApp(t)
+	m, fakes := newTestApp(t)
 	m.Update(repoInfoMsg{repo: core.Repo{Ref: core.RepoRef{Owner: "a", Name: "b"}, DefaultBranch: "trunk"}})
 	if m.branch != "" {
 		t.Error("the branch of another repository reached the header")
+	}
+	for _, f := range fakes {
+		if f.got(func(msg tea.Msg) bool { _, ok := msg.(ui.CapsMsg); return ok }) {
+			t.Errorf("%s got the caps of another repository", f.title)
+		}
 	}
 }
 

@@ -55,11 +55,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd := m.broadcast(msg)
 		return m, cmd
 	case repoInfoMsg:
-		if msg.err == nil && msg.repo.Ref == m.repo {
-			m.branch = msg.repo.DefaultBranch
-			m.drawHeader()
+		if msg.err != nil || msg.repo.Ref != m.repo {
+			return m, nil
 		}
-		return m, nil
+		m.branch = msg.repo.DefaultBranch
+		m.drawHeader()
+		// The sections and the modal gate their changes on the caps.
+		cmd := m.broadcast(ui.CapsMsg{Repo: m.repo, Caps: msg.repo.Caps})
+		return m, cmd
 	case ui.ShowMsg:
 		cmd := m.show(msg.Title)
 		return m, cmd
