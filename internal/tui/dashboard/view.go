@@ -608,21 +608,31 @@ func (s *Section) inboxBody(w, h int) []string {
 		return []string{" " + st.muted.render("All caught up. Nothing unread.")}
 	}
 	lines := make([]string, 0, h)
-	lines = append(lines, " "+st.text.render(n)+st.muted.render(" unread")+st.subtle.render(" · "+s.keys.Select.Help().Key+" shows them all"))
-	for i := range s.notes.value.Items {
-		if len(lines) >= h {
-			break
-		}
-		nt := &s.notes.value.Items[i]
-		if !nt.Unread {
-			continue
+	head := " " + st.text.render(n) + st.muted.render(" unread")
+	if k := s.keys.Notifications.Help().Key; k != "" {
+		head += st.subtle.render(" · " + k + " shows them all")
+	}
+	lines = append(lines, head)
+	l := &s.threads
+	l.scroll(h - 1)
+	focused := s.focused && s.focus == inboxPane
+	for i := l.top; i < len(l.rows) && len(lines) < h; i++ {
+		nt := &l.rows[i]
+		gutter := "  "
+		titleStyle := st.text
+		if i == l.sel {
+			gutter = st.blurred
+			if focused {
+				gutter = st.cursor
+			}
+			titleStyle = st.selected
 		}
 		age := ui.Ago(nt.UpdatedAt, s.now())
 		room := max(w-4-ageWidth-1, 0)
 		repo := truncate(nt.Repo.Name, min(ansi.StringWidth(nt.Repo.Name), room/3))
 		title := truncate(cleanLine(nt.Subject.Title), max(room-ansi.StringWidth(repo)-2, 0))
 		used := 4 + ansi.StringWidth(repo) + 2 + ansi.StringWidth(title)
-		lines = append(lines, "  "+st.accent.render("●")+" "+st.muted.render(repo)+"  "+st.text.render(title)+
+		lines = append(lines, gutter+st.accent.render("●")+" "+st.muted.render(repo)+"  "+titleStyle.render(title)+
 			strings.Repeat(" ", max(w-used-len(age), 1))+st.subtle.render(age))
 	}
 	return lines

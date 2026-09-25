@@ -141,6 +141,7 @@ func (s *Section) loaded(msg loadedMsg) tea.Cmd {
 		if !take(&s.notes, msg) {
 			return nil
 		}
+		s.setInbox()
 		if s.notes.value.Stale {
 			return s.readInbox()
 		}
@@ -172,6 +173,7 @@ func take[V any](r *read[V], msg loadedMsg) bool {
 // refresh reads everything again from GitHub.
 func (s *Section) refresh() tea.Cmd {
 	s.svc.Invalidate()
+	s.opener.Resume()
 	s.gen++
 	s.hereRepo.ok = false
 	return tea.Batch(s.load(), s.repos.reload())

@@ -17,6 +17,8 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/dashboard"
 	"github.com/eggzec/gh-tui/internal/service/notifications"
+	"github.com/eggzec/gh-tui/internal/service/optimistic"
+	"github.com/eggzec/gh-tui/internal/tui/threads"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/calendar"
 )
@@ -67,10 +69,31 @@ func WithOffline(off *ui.Offline) Option {
 	}
 }
 
-// WithInbox shows the unread notifications of in. Without it the
-// notifications pane says there are none to show.
+// Marker marks a thread read, as the notifications service does, for the
+// notifications pane to mark a thread it opens.
+type Marker interface {
+	MarkRead(id string) *optimistic.Op
+}
+
+// WithInbox shows the unread notifications of in. If in is a Marker too,
+// opening a thread marks it read, as the notifications screen does. Without
+// it the notifications pane says there are none to show.
 func WithInbox(in Inbox) Option {
-	return func(s *Section) { s.inbox = in }
+	return func(s *Section) {
+		s.inbox = in
+		s.marker, _ = in.(Marker)
+	}
+}
+
+// WithOpener opens the threads of the notifications pane, and reads them
+// ahead, with o, as the notifications screen does with its own. By default
+// the pane has one that reads nothing ahead.
+func WithOpener(o *threads.Opener) Option {
+	return func(s *Section) {
+		if o != nil {
+			s.opener = o
+		}
+	}
 }
 
 // WithHere shows repo, the repository of the current directory, as the
@@ -128,6 +151,8 @@ type Section struct {
 	ctx     context.Context
 	svc     Service
 	inbox   Inbox
+	marker  Marker
+	opener  *threads.Opener
 	keys    KeyMap
 	now     func() time.Time
 	offline *ui.Offline
@@ -155,7 +180,9 @@ type Section struct {
 	pinned cards
 	repos  repoTabs
 	tasks  workList
-	cal    calendar.Model
+	// threads are the unread notifications in their pane.
+	threads inboxList
+	cal     calendar.Model
 
 	width, height int
 	wide          bool
@@ -204,6 +231,9 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 	for _, opt := range opts {
 		opt(s)
 	}
+	if s.opener == nil {
+		s.opener = threads.New(ctx)
+	}
 	s.cal = calendar.New(
 		calendar.WithGlyph(s.glyph),
 		calendar.WithRange(s.calDays),
@@ -243,6 +273,7 @@ func (s *Section) readInboxCache() {
 	}
 	if p, ok := s.inbox.CachedList(notifications.ListQuery{}); ok {
 		s.notes.value, s.notes.ok, s.notes.err = p, true, nil
+		s.setInbox()
 	}
 }
 
@@ -295,7 +326,7 @@ func (s *Section) View() string { return s.view }
 
 // Help returns the keys of the focused pane, then those of the dashboard.
 func (s *Section) Help() help.KeyMap {
-	return helpKeys{k: s.keys, pane: s.focus, repos: &s.repos, cal: s.cal.KeyMap(), here: s.here != (core.RepoRef{})}
+	return helpKeys{k: s.keys, pane: s.focus, repos: &s.repos, cal: s.cal.KeyMap(), here: s.here != (core.RepoRef{}), markRead: s.opener.MarksRead()}
 }
 
 // Focused returns the number of the focused pane, from 0.

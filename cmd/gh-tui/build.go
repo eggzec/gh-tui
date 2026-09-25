@@ -134,8 +134,9 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 			issueOpts = append(issueOpts, issues.WithFilterPrefetch())
 		}
 	}
-	// The notifications open what each thread is about in its modal, and
-	// read it ahead as the lists of the repository screen do.
+	// The notifications screen and the dashboard's inbox open what each
+	// thread is about in its modal, and read it ahead as the lists of the
+	// repository screen do, each with an opener of its own.
 	threadOpts := []threads.Option{
 		threads.WithPulls(pullSvc), threads.WithIssues(issueSvc), threads.WithReleases(releaseSvc),
 		threads.WithMarkRead(cfg.Notifications.MarkReadOnOpen),
@@ -153,6 +154,7 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 		Dashboard: dashboard.New(ctx, dashSvc, cfg.Keys,
 			dashboard.WithOffline(offline),
 			dashboard.WithInbox(notifSvc),
+			dashboard.WithOpener(threads.New(ctx, threadOpts...)),
 			dashboard.WithHere(here, repoSvc.Get),
 			dashboard.WithGlyph(cfg.Dashboard.CalendarGlyph),
 			dashboard.WithContributions(cfg.Dashboard.ContributionDays()),

@@ -21,7 +21,7 @@ type KeyMap struct {
 	Prev  key.Binding
 	Panes [numPanes]key.Binding
 	// Select opens what is under the cursor: a repository, a pull request
-	// or issue, or the notifications screen.
+	// or issue, or what a notification is about.
 	Select key.Binding
 	// Open opens what is under the cursor in the browser.
 	Open    key.Binding
@@ -39,7 +39,11 @@ type KeyMap struct {
 	// Checks opens the pull request of the work under the cursor on its
 	// checks.
 	Checks key.Binding
-	// Up, Down, Left and Right move through the cards and the work.
+	// Notifications names the key that shows every notification, which
+	// the app handles.
+	Notifications key.Binding
+	// Up, Down, Left and Right move through the cards, the work and the
+	// notifications.
 	Up    key.Binding
 	Down  key.Binding
 	Left  key.Binding
@@ -53,21 +57,22 @@ type KeyMap struct {
 
 func newKeyMap(keys map[string][]string) KeyMap {
 	k := KeyMap{
-		Next:        ui.Binding(keys, config.ActionNextTab, "next pane"),
-		Prev:        ui.Binding(keys, config.ActionPrevTab, "previous pane"),
-		Select:      ui.Binding(keys, config.ActionSelect, "open"),
-		Open:        ui.Binding(keys, config.ActionOpen, "browser"),
-		Refresh:     ui.Binding(keys, config.ActionRefresh, "refresh"),
-		Filter:      ui.Binding(keys, config.ActionFilter, "filter"),
-		ClearFilter: ui.Binding(keys, config.ActionClearFilter, "clear filters"),
-		NextOwner:   ui.Binding(keys, config.ActionNextOwner, "next owner"),
-		PrevOwner:   ui.Binding(keys, config.ActionPrevOwner, "previous owner"),
-		Here:        ui.Binding(keys, config.ActionCurrentRepo, "this repo"),
-		Checks:      ui.Binding(keys, config.ActionChecks, "checks"),
-		Up:          key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("↑/k", "up")),
-		Down:        key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓/j", "down")),
-		Left:        key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←/h", "left")),
-		Right:       key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "right")),
+		Next:          ui.Binding(keys, config.ActionNextTab, "next pane"),
+		Prev:          ui.Binding(keys, config.ActionPrevTab, "previous pane"),
+		Select:        ui.Binding(keys, config.ActionSelect, "open"),
+		Open:          ui.Binding(keys, config.ActionOpen, "browser"),
+		Refresh:       ui.Binding(keys, config.ActionRefresh, "refresh"),
+		Filter:        ui.Binding(keys, config.ActionFilter, "filter"),
+		ClearFilter:   ui.Binding(keys, config.ActionClearFilter, "clear filters"),
+		NextOwner:     ui.Binding(keys, config.ActionNextOwner, "next owner"),
+		PrevOwner:     ui.Binding(keys, config.ActionPrevOwner, "previous owner"),
+		Here:          ui.Binding(keys, config.ActionCurrentRepo, "this repo"),
+		Checks:        ui.Binding(keys, config.ActionChecks, "checks"),
+		Notifications: ui.Binding(keys, config.ActionNotifications, "all notifications"),
+		Up:            key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("↑/k", "up")),
+		Down:          key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓/j", "down")),
+		Left:          key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←/h", "left")),
+		Right:         key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "right")),
 	}
 	actions := [numPanes]string{config.ActionPane1, config.ActionPane2, config.ActionPane3, config.ActionPane4, config.ActionPane5}
 	labels := make([]string, 0, numPanes)
@@ -130,6 +135,8 @@ type helpKeys struct {
 	repos *repoTabs
 	cal   calendar.KeyMap
 	here  bool
+	// markRead is set when opening a notification marks it read.
+	markRead bool
 }
 
 func (h helpKeys) paneKeys() []key.Binding {
@@ -146,9 +153,12 @@ func (h helpKeys) paneKeys() []key.Binding {
 		next.SetHelp(next.Help().Key, "next list")
 		return []key.Binding{k.Up, k.Down, k.Select, k.Checks, k.Open, next}
 	case inboxPane:
-		sel := k.Select
-		sel.SetHelp(sel.Help().Key, "notifications")
-		return []key.Binding{sel}
+		sel, open := k.Select, k.Open
+		sel.SetHelp(sel.Help().Key, "open")
+		if h.markRead {
+			sel.SetHelp(sel.Help().Key, "open & read")
+		}
+		return []key.Binding{k.Up, k.Down, sel, open}
 	default:
 		return h.cal.ShortHelp()
 	}
