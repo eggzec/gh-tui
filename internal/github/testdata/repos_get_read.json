@@ -1,0 +1,40 @@
+{
+  "data": {
+    "repository": {
+      "id": "MDEwOlJlcG9zaXRvcnkyMzMxMzAwODk=",
+      "name": "bubbletea",
+      "owner": {
+        "login": "charmbracelet"
+      },
+      "description": "A powerful little TUI framework 🏗",
+      "defaultBranchRef": {
+        "name": "main"
+      },
+      "primaryLanguage": {
+        "name": "Go",
+        "color": "#00ADD8"
+      },
+      "stargazerCount": 45120,
+      "viewerHasStarred": false,
+      "isPrivate": false,
+      "isFork": false,
+      "isArchived": false,
+      "isTemplate": false,
+      "isMirror": false,
+      "updatedAt": "2026-09-25T12:42:07Z",
+      "url": "https://github.com/charmbracelet/bubbletea",
+      "viewerPermission": "READ",
+      "isLocked": false,
+      "hasIssuesEnabled": true,
+      "hasPullRequestsEnabled": true,
+      "hasDiscussionsEnabled": true,
+      "hasProjectsEnabled": true,
+      "hasWikiEnabled": true,
+      "mergeCommitAllowed": true,
+      "squashMergeAllowed": true,
+      "rebaseMergeAllowed": true,
+      "autoMergeAllowed": false,
+      "viewerDefaultMergeMethod": "MERGE"
+    }
+  }
+}

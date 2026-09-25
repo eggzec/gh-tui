@@ -74,3 +74,44 @@ func TestKeptListOffline(t *testing.T) {
 		})
 	}
 }
+
+func TestKeptRepo(t *testing.T) {
+	store, err := disk.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	caps := ghTUI
+	caps.Caps = core.RepoCaps{Known: true, Permission: core.PermissionRead, Issues: true}
+	api := &fakeAPI{t: t, getRepo: func(core.RepoRef) (core.Repo, error) { return caps, nil }}
+	if _, err := New(api, WithStore(store)).Get(t.Context(), ghTUI.Ref); err != nil {
+		t.Fatal(err)
+	}
+
+	// A new session within DetailTTL reads the kept repository without a
+	// request.
+	api = &fakeAPI{t: t}
+	if got, err := New(api, WithStore(store)).Get(t.Context(), ghTUI.Ref); err != nil || got != caps {
+		t.Errorf("Get in a new session = %+v, %v; want the kept repository", got, err)
+	}
+	api.wantCalls(t)
+
+	// Once it is older, it is fetched, and served if GitHub can't be
+	// reached.
+	offline := &url.Error{Op: "Post", URL: "https://api.github.com/graphql", Err: errors.New("refused")}
+	api = &fakeAPI{t: t, getRepo: func(core.RepoRef) (core.Repo, error) { return core.Repo{}, offline }}
+	if got, err := New(api, WithStore(cachetest.Aged(store, 2*DetailTTL))).Get(t.Context(), ghTUI.Ref); err != nil || got != caps {
+		t.Errorf("Get offline = %+v, %v; want the kept repository", got, err)
+	}
+	api.wantCalls(t, "get eggzec/gh-tui")
+
+	// A refusal drops it.
+	api = &fakeAPI{t: t, getRepo: func(core.RepoRef) (core.Repo, error) { return core.Repo{}, &github.Error{StatusCode: 404} }}
+	if _, err := New(api, WithStore(cachetest.Aged(store, 2*DetailTTL))).Get(t.Context(), ghTUI.Ref); err == nil {
+		t.Error("Get after a refusal succeeded")
+	}
+	api = &fakeAPI{t: t, getRepo: func(core.RepoRef) (core.Repo, error) { return ghTUI, nil }}
+	if got, err := New(api, WithStore(store)).Get(t.Context(), ghTUI.Ref); err != nil || got != ghTUI {
+		t.Errorf("Get after the refusal = %+v, %v; want it fetched", got, err)
+	}
+	api.wantCalls(t, "get eggzec/gh-tui")
+}

@@ -127,8 +127,62 @@ func TestGetRepo(t *testing.T) {
 	if v := req.Variables; len(v) != 2 || v["owner"] != "eggzec" || v["name"] != "gh-tui" {
 		t.Errorf("variables = %v, want owner eggzec and name gh-tui", v)
 	}
-	if got != ghTUI {
-		t.Errorf("repo = %+v\nwant %+v", got, ghTUI)
+	// The fixture leaves the caps out, and GitHub says nothing of what
+	// they would be.
+	want := ghTUI
+	want.Caps = core.RepoCaps{Known: true}
+	if got != want {
+		t.Errorf("repo = %+v\nwant %+v", got, want)
+	}
+}
+
+// TestGetRepoCaps decodes what GitHub said of repositories the viewer can
+// only read, can administer, and has turned issues off in.
+func TestGetRepoCaps(t *testing.T) {
+	all := core.RepoCaps{
+		Known: true, Issues: true, PullRequests: true, Discussions: true, Projects: true, Wiki: true,
+		MergeCommit: true, Squash: true, Rebase: true,
+	}
+	read := all
+	read.Permission, read.DefaultMerge = core.PermissionRead, core.MergeCommit
+	admin := core.RepoCaps{
+		Known: true, Permission: core.PermissionAdmin, Issues: true, PullRequests: true, Projects: true,
+		Rebase: true, DefaultMerge: core.MergeRebase,
+	}
+	fork := all
+	fork.Permission, fork.DefaultMerge = core.PermissionAdmin, core.MergeCommit
+	fork.Issues, fork.Discussions = false, false
+	tests := []struct {
+		fixture string
+		ref     core.RepoRef
+		want    core.RepoCaps
+	}{
+		{"repos_get_read.json", core.RepoRef{Owner: "charmbracelet", Name: "bubbletea"}, read},
+		{"repos_get_admin.json", core.RepoRef{Owner: "eggzec", Name: "gh-tui"}, admin},
+		{"repos_get_fork.json", core.RepoRef{Owner: "laraibg786", Name: "slk"}, fork},
+	}
+	for _, tt := range tests {
+		t.Run(tt.fixture, func(t *testing.T) {
+			c, _ := serveFixture(t, tt.fixture)
+			got, err := c.GetRepo(t.Context(), tt.ref)
+			if err != nil {
+				t.Fatalf("GetRepo: %v", err)
+			}
+			if got.Ref != tt.ref || got.Caps != tt.want {
+				t.Errorf("GetRepo = %v with caps %+v\nwant %v with %+v", got.Ref, got.Caps, tt.ref, tt.want)
+			}
+		})
+	}
+}
+
+func TestPermission(t *testing.T) {
+	for in, want := range map[string]core.Permission{
+		"ADMIN": core.PermissionAdmin, "MAINTAIN": core.PermissionMaintain, "WRITE": core.PermissionWrite,
+		"TRIAGE_PLUS": core.PermissionTriage, "TRIAGE": core.PermissionTriage, "READ": core.PermissionRead, "": "",
+	} {
+		if got := permission(in); got != want {
+			t.Errorf("permission(%q) = %q, want %q", in, got, want)
+		}
 	}
 }
 
