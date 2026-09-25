@@ -79,3 +79,71 @@ func TestPollFails(t *testing.T) {
 		t.Errorf("RunSyncKey = %q", RunSyncKey(repo, 2))
 	}
 }
+
+func TestPollChecks(t *testing.T) {
+	f := newFake()
+	pending := core.Checks{SHA: "abc", State: core.ChecksPending, Runs: []core.Check{
+		{ID: 12, Name: "test", Status: core.RunInProgress},
+		{ID: 13, Name: "lint", Status: completed, Conclusion: core.ConclusionSuccess},
+	}}
+	f.change(func(f *fakeGitHub) { f.checks["#5"] = pending })
+	s := New(f)
+	q := ChecksQuery{Repo: repo, Number: 5}
+	if _, err := s.Checks(t.Context(), q); err != nil {
+		t.Fatal(err)
+	}
+	f.take()
+	poll := s.PollChecks(q)
+
+	if res, err := poll(t.Context()); err != nil || res.Changed {
+		t.Errorf("poll = %+v, %v; want no change", res, err)
+	}
+	checkCalls(t, f, "PullChecks octo-org/hello #5")
+
+	// The test fails: a change, cached, and the last poll that asks.
+	f.change(func(f *fakeGitHub) {
+		c := pending
+		c.State = core.ChecksFailure
+		c.Runs = []core.Check{{ID: 12, Name: "test", Status: completed, Conclusion: core.ConclusionFailure}, pending.Runs[1]}
+		f.checks["#5"] = c
+	})
+	if res, err := poll(t.Context()); err != nil || !res.Changed {
+		t.Errorf("poll = %+v, %v; want a change", res, err)
+	}
+	if c, ok := s.CachedChecks(q); !ok || c.Runs[0].Conclusion != core.ConclusionFailure {
+		t.Errorf("cached checks = %+v, want the test failed", c)
+	}
+	f.take()
+	if res, err := poll(t.Context()); err != nil || res.Changed {
+		t.Errorf("poll once all are done = %+v, %v; want nothing", res, err)
+	}
+	checkCalls(t, f)
+	if ChecksSyncKey(q) == ChecksSyncKey(ChecksQuery{Repo: repo, Number: 6}) || ChecksSyncKey(q) == SyncKey(repo) {
+		t.Error("the sync keys of checks aren't their own")
+	}
+}
+
+func TestPollChecksIsBounded(t *testing.T) {
+	f := newFake()
+	f.change(func(f *fakeGitHub) {
+		f.checks["@abc"] = core.Checks{SHA: "abc", Statuses: []core.StatusContext{{Context: "ci/ext", State: "pending"}}}
+	})
+	s := New(f)
+	poll := s.PollChecks(ChecksQuery{Repo: repo, SHA: "abc"})
+	for range MaxChecksPolls + 5 {
+		if _, err := poll(t.Context()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n := len(f.take()); n != MaxChecksPolls {
+		t.Errorf("polled %d times, want at most %d", n, MaxChecksPolls)
+	}
+}
+
+func TestPollChecksError(t *testing.T) {
+	f := newFake()
+	f.failCall("PullChecks", errors.New("boom"))
+	if _, err := New(f).PollChecks(ChecksQuery{Repo: repo, Number: 5})(t.Context()); err == nil {
+		t.Error("a failed read isn't an error")
+	}
+}

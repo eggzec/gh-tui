@@ -5,12 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
+	"github.com/eggzec/gh-tui/internal/watch"
 )
 
 // ChecksQuery selects the checks of a commit: of the head of pull request
@@ -121,4 +124,57 @@ func (s *Service) Annotations(ctx context.Context, q AnnotationsQuery) (core.Pag
 		return core.Page[core.Annotation]{}, fmt.Errorf("annotations of check run %d of %s: %w", q.CheckRunID, q.Repo, err)
 	}
 	return e.Value, nil
+}
+
+// ChecksSyncKey is the sync key under which the app subscribes PollChecks
+// of q.
+func ChecksSyncKey(q ChecksQuery) string {
+	return SyncKey(q.Repo) + "/" + checksKey(q.normalize())
+}
+
+// MaxChecksPolls bounds how many times PollChecks reads the checks of a
+// commit, so that a check that never ends isn't polled for good.
+const MaxChecksPolls = 120
+
+// PollChecks returns a watch.PollFunc that follows the checks of q while
+// any of them is pending. Each poll reads them again, one GraphQL query
+// that costs a point of the rate limit, stores them in the cache, where
+// the next reads find them, and reports a change when a check moved. Once
+// none is pending, or after MaxChecksPolls polls, it asks nothing more.
+func (s *Service) PollChecks(q ChecksQuery) watch.PollFunc {
+	var (
+		mu    sync.Mutex
+		polls int
+		done  bool
+	)
+	q = q.normalize()
+	key := checksKey(q)
+	return func(ctx context.Context) (watch.Result, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		if done {
+			return watch.Result{}, nil
+		}
+		polls++
+		before, had := s.checks.Get(key)
+		s.checks.Invalidate(key)
+		c, err := s.Checks(ctx, q)
+		if err != nil {
+			return watch.Result{}, fmt.Errorf("poll checks: %w", err)
+		}
+		done = !c.Pending() || polls >= MaxChecksPolls
+		return watch.Result{Changed: had == cache.Miss || !sameChecks(before.Value, c)}, nil
+	}
+}
+
+// sameChecks reports whether a and b stand the same: the same commit, and
+// each check run and status where it was.
+func sameChecks(a, b core.Checks) bool {
+	return a.SHA == b.SHA && a.State == b.State &&
+		slices.EqualFunc(a.Runs, b.Runs, func(x, y core.Check) bool {
+			return x.ID == y.ID && x.Status == y.Status && x.Conclusion == y.Conclusion && x.CompletedAt.Equal(y.CompletedAt)
+		}) &&
+		slices.EqualFunc(a.Statuses, b.Statuses, func(x, y core.StatusContext) bool {
+			return x.Context == y.Context && x.State == y.State
+		})
 }
