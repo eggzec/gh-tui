@@ -216,16 +216,16 @@ func TestViewFitsSize(t *testing.T) {
 }
 
 func TestColumnsDropLeastImportantFirst(t *testing.T) {
-	all := columns{draft: true, review: true, checks: true, diff: true, labels: true, author: true, age: true}
+	all := columns{review: true, checks: true, diff: true, labels: true, author: true, age: true}
 	tests := []struct {
 		width int
 		want  columns
 	}{
 		{118, all},
-		{98, columns{draft: true, review: true, checks: true, labels: true, author: true, age: true}},
-		{78, columns{draft: true, review: true, checks: true, author: true, age: true}},
+		{98, columns{review: true, checks: true, labels: true, author: true, age: true}},
+		{74, columns{review: true, checks: true, author: true, age: true}},
 		{58, columns{review: true, checks: true, author: true, age: true}},
-		{38, columns{review: true, checks: true, age: true}},
+		{40, columns{review: true, checks: true, age: true}},
 		{34, columns{review: true, checks: true}},
 		{20, columns{}},
 	}

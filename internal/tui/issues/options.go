@@ -27,6 +27,12 @@ func WithPrefetch(rows int, delay time.Duration) Option {
 	return func(s *Section) { s.prefetch = &prefetch{rows: rows, delay: delay} }
 }
 
+// WithIcons sets the glyphs of the states of issues. The default is the
+// Nerd Font set.
+func WithIcons(icons ui.Icons) Option {
+	return func(s *Section) { s.icons = icons }
+}
+
 // prefetch is how the issues are read ahead.
 type prefetch struct {
 	rows  int

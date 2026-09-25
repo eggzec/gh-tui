@@ -23,7 +23,7 @@ const gutter = "  "
 // Widths of the fixed columns of a row, in cells.
 const (
 	numberWidth = 5 // "#1234"; longer numbers push the title right
-	draftWidth  = 5 // "draft"
+	stateWidth  = 2 // the state's glyph and a space
 	diffWidth   = 11
 	labelsWidth = 14 // the first label and how many more, such as "bug +2"
 	authorWidth = 10
@@ -37,17 +37,17 @@ const (
 // columns says which of the optional columns fit a width, and how wide the
 // title is.
 type columns struct {
-	width                                            int
-	title                                            int
-	draft, review, checks, diff, labels, author, age bool
+	width                                     int
+	title                                     int
+	review, checks, diff, labels, author, age bool
 }
 
 // columnsFor lays out a row of width cells. Columns drop, least important
 // first, until the title has its room. The state glyphs go last, since they
 // take little room and say the most.
 func columnsFor(width int) columns {
-	c := columns{width: width, draft: true, review: true, checks: true, diff: true, labels: true, author: true, age: true}
-	drops := []*bool{&c.diff, &c.labels, &c.draft, &c.author, &c.age, &c.review, &c.checks}
+	c := columns{width: width, review: true, checks: true, diff: true, labels: true, author: true, age: true}
+	drops := []*bool{&c.diff, &c.labels, &c.author, &c.age, &c.review, &c.checks}
 	want := max(minTitle, int(float64(width)*titleShare))
 	for {
 		c.title = width - c.fixed()
@@ -63,13 +63,12 @@ func columnsFor(width int) columns {
 // fixed returns the cells of the columns other than the title, with the
 // gaps before them.
 func (c columns) fixed() int {
-	n := numberWidth + 1
+	n := stateWidth + numberWidth + 1
 	add := func(on bool, gap, w int) {
 		if on {
 			n += gap + w
 		}
 	}
-	add(c.draft, 2, draftWidth)
 	add(c.review, 2, 1)
 	add(c.checks, 1, 1)
 	add(c.diff, 2, diffWidth)
@@ -88,12 +87,14 @@ type styles struct {
 
 	// Rows wrap text in the escape codes of these directly, which is much
 	// cheaper than rendering a style for every cell of every frame.
-	open, merged, closed, draft paint
-	rowTitle, rowSelected       paint
-	rowAuthor, rowAge, diff     paint
-	rowLabel                    paint
+	number, rowTitle, rowSelected paint
+	rowAuthor, rowAge, diff       paint
+	rowLabel                      paint
 
-	draftMark                           string
+	// states are the glyphs of the states, in their colors, and badges
+	// the labels of the states in the detail header.
+	states, badges [ui.NumStates]string
+
 	approved, changes, reviewRequired   string
 	checksOK, checksFail, checksPending string
 
@@ -101,29 +102,36 @@ type styles struct {
 	empty                          lipgloss.Style
 
 	// The detail header and the comments.
-	badgeOpen, badgeDraft, badgeClosed, badgeMerged string
-	added, deleted, label, rule, commenter          lipgloss.Style
-	bar                                             string
+	added, deleted, label, rule, commenter lipgloss.Style
+	bar                                    string
 }
 
-func newStyles(t ui.Theme) styles {
+// stateNames name the states of pull requests in the detail header.
+var stateNames = map[ui.State]string{
+	ui.PullOpen: "Open", ui.PullDraft: "Draft", ui.PullMerged: "Merged", ui.PullClosed: "Closed",
+}
+
+func newStyles(t ui.Theme, icons ui.Icons) styles {
+	var states, badges [ui.NumStates]string
+	for s, name := range stateNames {
+		states[s] = t.State(s).Render(icons.State(s))
+		badges[s] = t.State(s).Bold(true).Reverse(true).Render(" " + icons.State(s) + " " + name + " ")
+	}
 	return styles{
+		states:         states,
+		badges:         badges,
+		number:         newPaint(t.Muted),
 		theme:          t,
 		title:          t.Text,
 		selected:       t.Title,
 		author:         t.Muted,
 		age:            t.Subtle,
-		open:           newPaint(t.Success),
-		merged:         newPaint(t.Accent),
-		closed:         newPaint(t.Error),
-		draft:          newPaint(t.Subtle),
 		rowTitle:       newPaint(t.Text),
 		rowSelected:    newPaint(t.Title),
 		rowAuthor:      newPaint(t.Muted),
 		rowAge:         newPaint(t.Subtle),
 		diff:           newPaint(t.Muted),
 		rowLabel:       newPaint(t.Muted),
-		draftMark:      t.Subtle.Render("draft"),
 		approved:       t.Success.Render("✓"),
 		changes:        t.Warning.Render("±"),
 		reviewRequired: t.Muted.Render("•"),
@@ -135,10 +143,6 @@ func newStyles(t ui.Theme) styles {
 		filterOff:      t.Subtle,
 		sep:            t.Subtle,
 		empty:          t.Muted,
-		badgeOpen:      badge(t.Success, "Open"),
-		badgeDraft:     badge(t.Subtle, "Draft"),
-		badgeClosed:    badge(t.Error, "Closed"),
-		badgeMerged:    badge(t.Accent, "Merged"),
 		added:          t.Success,
 		deleted:        t.Error,
 		label:          t.Muted,
@@ -148,23 +152,9 @@ func newStyles(t ui.Theme) styles {
 	}
 }
 
-// badge renders text reversed in the color of style, as a label of a state.
-func badge(style lipgloss.Style, text string) string {
-	return style.Bold(true).Reverse(true).Render(" " + text + " ")
-}
-
-// state returns the style of the state of pr: drafts are subtle whatever
-// their state.
-func (st *styles) state(pr core.PullRequest) paint {
-	switch {
-	case pr.State == core.StateMerged:
-		return st.merged
-	case pr.State == core.StateClosed:
-		return st.closed
-	case pr.Draft:
-		return st.draft
-	}
-	return st.open
+// state returns the glyph of the state of pr, in its color.
+func (st *styles) state(pr core.PullRequest) string {
+	return st.states[ui.PullState(pr.State, pr.Draft)]
 }
 
 func (st *styles) review(d core.ReviewDecision) string {
@@ -222,8 +212,10 @@ func (s *Section) renderRow(pr core.PullRequest, selected bool, width int) strin
 
 	var b strings.Builder
 	b.Grow(width + 160)
+	b.WriteString(st.state(pr))
+	b.WriteByte(' ')
 	num := "#" + strconv.Itoa(pr.Number)
-	st.state(pr).write(&b, num)
+	st.number.write(&b, num)
 	pad(&b, numberWidth-len(num)+1)
 
 	title, tw := truncate(pr.Title, c.title)
@@ -234,14 +226,6 @@ func (s *Section) renderRow(pr core.PullRequest, selected bool, width int) strin
 	ts.write(&b, title)
 	pad(&b, c.title-tw)
 
-	if c.draft {
-		pad(&b, 2)
-		if pr.Draft {
-			b.WriteString(st.draftMark)
-		} else {
-			pad(&b, draftWidth)
-		}
-	}
 	if c.review {
 		pad(&b, 2)
 		b.WriteString(st.review(pr.ReviewDecision))
@@ -421,15 +405,7 @@ func pullKey(pr core.PullRequest) string {
 
 // badge returns the state badge of pr.
 func (st *styles) badge(pr core.PullRequest) string {
-	switch {
-	case pr.State == core.StateMerged:
-		return st.badgeMerged
-	case pr.State == core.StateClosed:
-		return st.badgeClosed
-	case pr.Draft:
-		return st.badgeDraft
-	}
-	return st.badgeOpen
+	return st.badges[ui.PullState(pr.State, pr.Draft)]
 }
 
 // reviewText spells out the review decision, or returns "" when reviews

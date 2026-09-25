@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
@@ -76,7 +77,7 @@ func TestOpenAndClose(t *testing.T) {
 	if strings.Contains(v, "another issue") {
 		t.Errorf("modal of #999 shows a comment on #1000:\n%s", v)
 	}
-	for _, want := range []string{"Support GitHub Enterprise hosts", "● Open", "hubot opened", "I can reproduce this", "Thanks! Fixed on main."} {
+	for _, want := range []string{"Support GitHub Enterprise hosts", ui.NewIcons(config.IconsNerd).State(ui.IssueOpen) + " Open", "hubot opened", "I can reproduce this", "Thanks! Fixed on main."} {
 		if !strings.Contains(v, want) {
 			t.Errorf("modal lacks %q:\n%s", want, v)
 		}
