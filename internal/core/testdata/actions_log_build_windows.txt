@@ -1,0 +1,552 @@
+﻿2026-09-22T10:03:33.5837409Z Current runner version: '2.337.0'
+2026-09-22T10:03:33.5862650Z ##[group]Runner Image Provisioner
+2026-09-22T10:03:33.5863508Z Hosted Compute Agent
+2026-09-22T10:03:33.5864059Z Version: 20260828.587
+2026-09-22T10:03:33.5864667Z Commit: abac92662cab4cc7352de4f9f9d2e2419aad9c29
+2026-09-22T10:03:33.5865375Z Build Date: 2026-08-28T16:44:25Z
+2026-09-22T10:03:33.5866016Z Worker ID: {2fdcc174-3cfd-4a82-8177-24b758837fc6}
+2026-09-22T10:03:33.5866698Z Azure Region: northcentralus
+2026-09-22T10:03:33.5867251Z ##[endgroup]
+2026-09-22T10:03:33.5868965Z ##[group]Operating System
+2026-09-22T10:03:33.5869640Z Microsoft Windows Server 2025
+2026-09-22T10:03:33.5870192Z 10.0.26100
+2026-09-22T10:03:33.5870729Z Datacenter
+2026-09-22T10:03:33.5871218Z ##[endgroup]
+2026-09-22T10:03:33.5871978Z ##[group]Runner Image
+2026-09-22T10:03:33.5872530Z Image: windows-2025-vs2026
+2026-09-22T10:03:33.5873072Z Version: 20260907.229.1
+2026-09-22T10:03:33.5874503Z Included Software: https://github.com/actions/runner-images/blob/win25-vs2026/20260907.229/images/windows/Windows2025-VS2026-Readme.md
+2026-09-22T10:03:33.5876115Z Image Release: https://github.com/actions/runner-images/releases/tag/win25-vs2026%2F20260907.229
+2026-09-22T10:03:33.5878160Z ##[endgroup]
+2026-09-22T10:03:33.5883925Z ##[group]GITHUB_TOKEN Permissions
+2026-09-22T10:03:33.5886776Z Actions: write
+2026-09-22T10:03:33.5888174Z ArtifactMetadata: write
+2026-09-22T10:03:33.5889195Z Attestations: write
+2026-09-22T10:03:33.5890000Z Checks: write
+2026-09-22T10:03:33.5890879Z CodeQuality: write
+2026-09-22T10:03:33.5891708Z Contents: write
+2026-09-22T10:03:33.5892609Z CopilotRequests: write
+2026-09-22T10:03:33.5893534Z Deployments: write
+2026-09-22T10:03:33.5894345Z Discussions: write
+2026-09-22T10:03:33.5895131Z Drives: write
+2026-09-22T10:03:33.5896079Z Issues: write
+2026-09-22T10:03:33.5896991Z Metadata: read
+2026-09-22T10:03:33.5898021Z Models: read
+2026-09-22T10:03:33.5898684Z Packages: write
+2026-09-22T10:03:33.5899227Z Pages: write
+2026-09-22T10:03:33.5899730Z PullRequests: write
+2026-09-22T10:03:33.5900258Z RepositoryProjects: write
+2026-09-22T10:03:33.5900819Z SecurityEvents: write
+2026-09-22T10:03:33.5901354Z Statuses: write
+2026-09-22T10:03:33.5901914Z VulnerabilityAlerts: read
+2026-09-22T10:03:33.5902480Z ##[endgroup]
+2026-09-22T10:03:33.5904575Z Secret source: Actions
+2026-09-22T10:03:33.5905458Z Cache mode: write
+2026-09-22T10:03:33.5906140Z Prepare workflow directory
+2026-09-22T10:03:33.6540585Z Prepare all required actions
+2026-09-22T10:03:33.6592079Z Getting action download info
+2026-09-22T10:03:33.8640154Z Download action repository 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1' (SHA:3d3c42e5aac5ba805825da76410c181273ba90b1)
+2026-09-22T10:03:33.9964463Z Download action repository 'actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e' (SHA:b7ad1dad31e06c5925ef5d2fc7ad053ef454303e)
+2026-09-22T10:03:34.4761218Z Uses: charmbracelet/meta/.github/workflows/build.yml@refs/heads/main (74d6431aa8ede4afe0c2ecf0549554d001fb2d95)
+2026-09-22T10:03:34.4765884Z ##[group] Inputs
+2026-09-22T10:03:34.4766385Z   go_version: 
+2026-09-22T10:03:34.4766797Z   go-version: stable
+2026-09-22T10:03:34.4767235Z   go-version-file: 
+2026-09-22T10:03:34.4767659Z   working-directory: 
+2026-09-22T10:03:34.4768088Z ##[endgroup]
+2026-09-22T10:03:34.4768544Z Complete job name: build / build (windows-latest)
+2026-09-22T10:03:34.6495959Z ##[group]Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+2026-09-22T10:03:34.6497160Z with:
+2026-09-22T10:03:34.6497595Z   repository: charmbracelet/bubbletea
+2026-09-22T10:03:34.6502578Z   token: ***
+2026-09-22T10:03:34.6503099Z   ssh-strict: true
+2026-09-22T10:03:34.6503587Z   ssh-user: git
+2026-09-22T10:03:34.6504083Z   persist-credentials: true
+2026-09-22T10:03:34.6504648Z   clean: true
+2026-09-22T10:03:34.6505160Z   sparse-checkout-cone-mode: true
+2026-09-22T10:03:34.6505783Z   fetch-depth: 1
+2026-09-22T10:03:34.6506281Z   fetch-tags: false
+2026-09-22T10:03:34.6506789Z   show-progress: true
+2026-09-22T10:03:34.6509189Z   lfs: false
+2026-09-22T10:03:34.6509573Z   submodules: false
+2026-09-22T10:03:34.6509985Z   set-safe-directory: true
+2026-09-22T10:03:34.6510469Z   allow-unsafe-pr-checkout: false
+2026-09-22T10:03:34.6511286Z env:
+2026-09-22T10:03:34.6511649Z   GO111MODULE: on
+2026-09-22T10:03:34.6512045Z   GH_PAT: 
+2026-09-22T10:03:34.6512441Z ##[endgroup]
+2026-09-22T10:03:34.7960894Z Syncing repository: charmbracelet/bubbletea
+2026-09-22T10:03:34.7962764Z ##[group]Getting Git version info
+2026-09-22T10:03:34.7964371Z Working directory is 'D:\a\bubbletea\bubbletea'
+2026-09-22T10:03:34.8882297Z [command]"C:\Program Files\Git\bin\git.exe" version
+2026-09-22T10:03:35.2785190Z git version 2.55.0.windows.5
+2026-09-22T10:03:35.2834930Z ##[endgroup]
+2026-09-22T10:03:35.2851730Z Temporarily overriding HOME='D:\a\_temp\e335fdf7-9ac0-48a8-af29-0020750696e6' before making global git config changes
+2026-09-22T10:03:35.2853744Z Adding repository directory to the temporary git global config as a safe directory
+2026-09-22T10:03:35.2862333Z [command]"C:\Program Files\Git\bin\git.exe" config --global --add safe.directory D:\a\bubbletea\bubbletea
+2026-09-22T10:03:35.3542359Z Deleting the contents of 'D:\a\bubbletea\bubbletea'
+2026-09-22T10:03:35.3547674Z ##[group]Determining repository object format
+2026-09-22T10:03:35.3550404Z ##[endgroup]
+2026-09-22T10:03:35.3552540Z ##[group]Initializing the repository
+2026-09-22T10:03:35.3559519Z [command]"C:\Program Files\Git\bin\git.exe" init D:\a\bubbletea\bubbletea
+2026-09-22T10:03:35.4415638Z Initialized empty Git repository in D:/a/bubbletea/bubbletea/.git/
+2026-09-22T10:03:35.4462330Z [command]"C:\Program Files\Git\bin\git.exe" remote add origin https://github.com/charmbracelet/bubbletea
+2026-09-22T10:03:35.5146193Z ##[endgroup]
+2026-09-22T10:03:35.5148035Z ##[group]Disabling automatic garbage collection
+2026-09-22T10:03:35.5154435Z [command]"C:\Program Files\Git\bin\git.exe" config --local gc.auto 0
+2026-09-22T10:03:35.5447447Z ##[endgroup]
+2026-09-22T10:03:35.5449319Z ##[group]Setting up auth
+2026-09-22T10:03:35.5450619Z Removing SSH command configuration
+2026-09-22T10:03:35.5458455Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp core\.sshCommand
+2026-09-22T10:03:35.5761396Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+2026-09-22T10:03:37.1335724Z Removing HTTP extra header
+2026-09-22T10:03:37.1346031Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-09-22T10:03:37.1646313Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\""
+2026-09-22T10:03:37.6977982Z Removing includeIf entries pointing to credentials config files
+2026-09-22T10:03:37.6991504Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-09-22T10:03:37.7297558Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "git config --local --show-origin --name-only --get-regexp remote.origin.url"
+2026-09-22T10:03:38.2558336Z [command]"C:\Program Files\Git\bin\git.exe" config --file D:\a\_temp\git-credentials-b8547a62-dfdb-4367-9481-068ca66b70ad.config http.https://github.com/.extraheader "AUTHORIZATION: basic ***"
+2026-09-22T10:03:38.2854854Z [command]"C:\Program Files\Git\bin\git.exe" config --local includeIf.gitdir:D:/a/bubbletea/bubbletea/.git.path D:\a\_temp\git-credentials-b8547a62-dfdb-4367-9481-068ca66b70ad.config
+2026-09-22T10:03:38.3140297Z [command]"C:\Program Files\Git\bin\git.exe" config --local includeIf.gitdir:D:/a/bubbletea/bubbletea/.git/worktrees/*.path D:\a\_temp\git-credentials-b8547a62-dfdb-4367-9481-068ca66b70ad.config
+2026-09-22T10:03:38.3478926Z [command]"C:\Program Files\Git\bin\git.exe" config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-b8547a62-dfdb-4367-9481-068ca66b70ad.config
+2026-09-22T10:03:38.3769644Z [command]"C:\Program Files\Git\bin\git.exe" config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-b8547a62-dfdb-4367-9481-068ca66b70ad.config
+2026-09-22T10:03:38.4084025Z ##[endgroup]
+2026-09-22T10:03:38.4084922Z ##[group]Fetching the repository
+2026-09-22T10:03:38.4086743Z [command]"C:\Program Files\Git\bin\git.exe" -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +83cf9b0d023c0a4d661003c94966be4593516c89:refs/remotes/pull/1816/merge
+2026-09-22T10:03:39.5352670Z From https://github.com/charmbracelet/bubbletea
+2026-09-22T10:03:39.5354249Z  * [new ref]         83cf9b0d023c0a4d661003c94966be4593516c89 -> pull/1816/merge
+2026-09-22T10:03:39.5396803Z ##[endgroup]
+2026-09-22T10:03:39.5397777Z ##[group]Determining the checkout info
+2026-09-22T10:03:39.5399190Z ##[endgroup]
+2026-09-22T10:03:39.5412170Z [command]"C:\Program Files\Git\bin\git.exe" sparse-checkout disable
+2026-09-22T10:03:39.5932289Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset-all extensions.worktreeConfig
+2026-09-22T10:03:39.6229822Z ##[group]Checking out the ref
+2026-09-22T10:03:39.6237471Z [command]"C:\Program Files\Git\bin\git.exe" checkout --progress --force refs/remotes/pull/1816/merge
+2026-09-22T10:03:39.7612952Z Note: switching to 'refs/remotes/pull/1816/merge'.
+2026-09-22T10:03:39.7613335Z 
+2026-09-22T10:03:39.7613600Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-09-22T10:03:39.7614210Z changes and commit them, and you can discard any commits you make in this
+2026-09-22T10:03:39.7615084Z state without impacting any branches by switching back to a branch.
+2026-09-22T10:03:39.7615738Z 
+2026-09-22T10:03:39.7616576Z If you want to create a new branch to retain commits you create, you may
+2026-09-22T10:03:39.7617744Z do so (now or later) by using -c with the switch command. Example:
+2026-09-22T10:03:39.7618090Z 
+2026-09-22T10:03:39.7618292Z   git switch -c <new-branch-name>
+2026-09-22T10:03:39.7618553Z 
+2026-09-22T10:03:39.7618668Z Or undo this operation with:
+2026-09-22T10:03:39.7618941Z 
+2026-09-22T10:03:39.7619069Z   git switch -
+2026-09-22T10:03:39.7619260Z 
+2026-09-22T10:03:39.7619516Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-09-22T10:03:39.7619908Z 
+2026-09-22T10:03:39.7620423Z HEAD is now at 83cf9b0 Merge ce8b5107c44921f6276821c2f3fca04592a00305 into 657aaae216e3f87df09b60959a9fe5de7b2ca419
+2026-09-22T10:03:39.7752989Z ##[endgroup]
+2026-09-22T10:03:39.8120753Z [command]"C:\Program Files\Git\bin\git.exe" log -1 --format=%H
+2026-09-22T10:03:39.8400042Z 83cf9b0d023c0a4d661003c94966be4593516c89
+2026-09-22T10:03:39.9009193Z ##[group]Run actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+2026-09-22T10:03:39.9009676Z with:
+2026-09-22T10:03:39.9009864Z   go-version: stable
+2026-09-22T10:03:39.9010070Z   cache: true
+2026-09-22T10:03:39.9010279Z   check-latest: false
+2026-09-22T10:03:39.9012658Z   token: ***
+2026-09-22T10:03:39.9012834Z env:
+2026-09-22T10:03:39.9012995Z   GO111MODULE: on
+2026-09-22T10:03:39.9013175Z   GH_PAT: 
+2026-09-22T10:03:39.9013335Z ##[endgroup]
+2026-09-22T10:03:40.0487012Z Setup go version spec stable
+2026-09-22T10:03:40.6865185Z stable version resolved as 1.27.1
+2026-09-22T10:03:40.6866762Z Attempting to download 1.27.1...
+2026-09-22T10:03:40.6867152Z matching 1.27.1...
+2026-09-22T10:03:40.6890550Z Acquiring 1.27.1 from https://github.com/actions/go-versions/releases/download/1.27.1-33583469715/go-1.27.1-win32-x64.zip
+2026-09-22T10:03:41.3032581Z Extracting Go...
+2026-09-22T10:03:41.4163600Z [command]"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Unrestricted -Command "$ErrorActionPreference = 'Stop' ; try { Add-Type -AssemblyName System.IO.Compression.ZipFile } catch { } ; try { [System.IO.Compression.ZipFile]::ExtractToDirectory('D:\a\_temp\go-1.27.1-win32-x64.zip', 'D:\a\_temp\7c9140c1-8e3e-4519-8a2e-b2767f7a7ef5', $true) } catch { if (($_.Exception.GetType().FullName -eq 'System.Management.Automation.MethodException') -or ($_.Exception.GetType().FullName -eq 'System.Management.Automation.RuntimeException') ){ Expand-Archive -LiteralPath 'D:\a\_temp\go-1.27.1-win32-x64.zip' -DestinationPath 'D:\a\_temp\7c9140c1-8e3e-4519-8a2e-b2767f7a7ef5' -Force } else { throw $_ } } ;"
+2026-09-22T10:03:46.6341902Z Successfully extracted go to D:\a\_temp\7c9140c1-8e3e-4519-8a2e-b2767f7a7ef5
+2026-09-22T10:03:46.6342808Z Adding to the cache ...
+2026-09-22T10:03:58.3248972Z Created link C:\hostedtoolcache\windows\go\1.27.1\x64 => D:\hostedtoolcache\windows\go\1.27.1\x64
+2026-09-22T10:03:58.3253968Z Created link C:\hostedtoolcache\windows\go\1.27.1\x64.complete => D:\hostedtoolcache\windows\go\1.27.1\x64.complete
+2026-09-22T10:03:58.3255442Z Successfully cached go to C:\hostedtoolcache\windows\go\1.27.1\x64
+2026-09-22T10:03:58.3260649Z Added go to the path
+2026-09-22T10:03:58.3263267Z Successfully set up Go version stable
+2026-09-22T10:03:58.7786550Z [command]C:\hostedtoolcache\windows\go\1.27.1\x64\bin\go.exe env GOMODCACHE
+2026-09-22T10:03:58.7837917Z [command]C:\hostedtoolcache\windows\go\1.27.1\x64\bin\go.exe env GOCACHE
+2026-09-22T10:03:58.8165680Z C:\Users\runneradmin\go\pkg\mod
+2026-09-22T10:03:58.8209106Z C:\Users\runneradmin\AppData\Local\go-build
+2026-09-22T10:03:59.1161285Z Cache hit for: setup-go-Windows-x64-go-1.27.1-93511c38b1ac5f543c7db38abb28b2c93c7dad57c839fc429be729c0e69ae887
+2026-09-22T10:03:59.7189976Z Received 30996528 of 30996528 (100.0%), 60.8 MBs/sec
+2026-09-22T10:03:59.7191840Z Cache Size: ~30 MB (30996528 B)
+2026-09-22T10:03:59.7219697Z [command]"C:\Program Files\Git\usr\bin\tar.exe" -xf D:/a/_temp/28988262-f4c1-44ab-a5f4-3cf9f1fb2396/cache.tzst -P -C D:/a/bubbletea/bubbletea --force-local --use-compress-program "zstd -d"
+2026-09-22T10:04:08.9830174Z Cache restored successfully
+2026-09-22T10:04:08.9863766Z Cache restored from key: setup-go-Windows-x64-go-1.27.1-93511c38b1ac5f543c7db38abb28b2c93c7dad57c839fc429be729c0e69ae887
+2026-09-22T10:04:08.9883505Z go version go1.27.1 windows/amd64
+2026-09-22T10:04:08.9883704Z 
+2026-09-22T10:04:08.9883966Z ##[group]go env
+2026-09-22T10:04:10.4232503Z set AR=ar
+2026-09-22T10:04:10.4232921Z set CC=gcc
+2026-09-22T10:04:10.4233253Z set CGO_CFLAGS=-O2 -g
+2026-09-22T10:04:10.4233631Z set CGO_CPPFLAGS=
+2026-09-22T10:04:10.4233993Z set CGO_CXXFLAGS=-O2 -g
+2026-09-22T10:04:10.4234339Z set CGO_ENABLED=1
+2026-09-22T10:04:10.4234683Z set CGO_FFLAGS=-O2 -g
+2026-09-22T10:04:10.4234919Z set CGO_LDFLAGS=-O2 -g
+2026-09-22T10:04:10.4235128Z set CXX=g++
+2026-09-22T10:04:10.4235297Z set GCCGO=gccgo
+2026-09-22T10:04:10.4235490Z set GO111MODULE=on
+2026-09-22T10:04:10.4237978Z set GOAMD64=v1
+2026-09-22T10:04:10.4238267Z set GOARCH=amd64
+2026-09-22T10:04:10.4238506Z set GOAUTH=netrc
+2026-09-22T10:04:10.4238731Z set GOBIN=C:\Users\runneradmin\go\bin
+2026-09-22T10:04:10.4239062Z set GOCACHE=C:\Users\runneradmin\AppData\Local\go-build
+2026-09-22T10:04:10.4239368Z set GOCACHEPROG=
+2026-09-22T10:04:10.4239553Z set GODEBUG=
+2026-09-22T10:04:10.4239794Z set GOENV=C:\Users\runneradmin\AppData\Roaming\go\env
+2026-09-22T10:04:10.4240078Z set GOEXE=.exe
+2026-09-22T10:04:10.4240263Z set GOEXPERIMENT=
+2026-09-22T10:04:10.4240449Z set GOFIPS140=off
+2026-09-22T10:04:10.4240624Z set GOFLAGS=
+2026-09-22T10:04:10.4241372Z set GOGCCFLAGS=-m64 -pthread -Wl,--no-gc-sections -fmessage-length=0 -ffile-prefix-map=C:\Users\RUNNER~1\AppData\Local\Temp\go-build2528587795=/tmp/go-build -gno-record-gcc-switches
+2026-09-22T10:04:10.4242135Z set GOHOSTARCH=amd64
+2026-09-22T10:04:10.4242333Z set GOHOSTOS=windows
+2026-09-22T10:04:10.4242520Z set GOINSECURE=
+2026-09-22T10:04:10.4242776Z set GOMOD=D:\a\bubbletea\bubbletea\go.mod
+2026-09-22T10:04:10.4243081Z set GOMODCACHE=C:\Users\runneradmin\go\pkg\mod
+2026-09-22T10:04:10.4243577Z set GONOPROXY=
+2026-09-22T10:04:10.4243755Z set GONOSUMDB=
+2026-09-22T10:04:10.4243927Z set GOOS=windows
+2026-09-22T10:04:10.4244116Z set GOPACKAGESDRIVER=
+2026-09-22T10:04:10.4244346Z set GOPATH=C:\Users\runneradmin\go
+2026-09-22T10:04:10.4244582Z set GOPRIVATE=
+2026-09-22T10:04:10.4244826Z set GOPROXY=https://proxy.golang.org,direct
+2026-09-22T10:04:10.4245162Z set GOROOT=C:\hostedtoolcache\windows\go\1.27.1\x64
+2026-09-22T10:04:10.4245472Z set GOSUMDB=sum.golang.org
+2026-09-22T10:04:10.4245696Z set GOTELEMETRY=local
+2026-09-22T10:04:10.4246015Z set GOTELEMETRYDIR=C:\Users\runneradmin\AppData\Roaming\go\telemetry
+2026-09-22T10:04:10.4246364Z set GOTMPDIR=
+2026-09-22T10:04:10.4246551Z set GOTOOLCHAIN=local
+2026-09-22T10:04:10.4246887Z set GOTOOLDIR=C:\hostedtoolcache\windows\go\1.27.1\x64\pkg\tool\windows_amd64
+2026-09-22T10:04:10.4247255Z set GOVCS=
+2026-09-22T10:04:10.4247432Z set GOVERSION=go1.27.1
+2026-09-22T10:04:10.4247624Z set GOWORK=
+2026-09-22T10:04:10.4247825Z set PKG_CONFIG=pkg-config
+2026-09-22T10:04:10.4247971Z 
+2026-09-22T10:04:10.4248284Z ##[endgroup]
+2026-09-22T10:04:10.4572391Z ##[group]Run go mod tidy
+2026-09-22T10:04:10.4572718Z [36;1mgo mod tidy[0m
+2026-09-22T10:04:10.5027308Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-09-22T10:04:10.5027681Z env:
+2026-09-22T10:04:10.5027864Z   GO111MODULE: on
+2026-09-22T10:04:10.5028062Z   GH_PAT: 
+2026-09-22T10:04:10.5028258Z   GOTOOLCHAIN: local
+2026-09-22T10:04:10.5028471Z ##[endgroup]
+2026-09-22T10:04:11.0567559Z ##[group]Run git diff --exit-code
+2026-09-22T10:04:11.0567917Z [36;1mgit diff --exit-code[0m
+2026-09-22T10:04:11.0639168Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-09-22T10:04:11.0639511Z env:
+2026-09-22T10:04:11.0639684Z   GO111MODULE: on
+2026-09-22T10:04:11.0639861Z   GH_PAT: 
+2026-09-22T10:04:11.0640037Z   GOTOOLCHAIN: local
+2026-09-22T10:04:11.0640229Z ##[endgroup]
+2026-09-22T10:04:11.3981995Z warning: in the working copy of 'go.mod', LF will be replaced by CRLF the next time Git touches it
+2026-09-22T10:04:11.5541141Z ##[group]Run go build ./...
+2026-09-22T10:04:11.5541450Z [36;1mgo build ./...[0m
+2026-09-22T10:04:11.5608497Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-09-22T10:04:11.5608844Z env:
+2026-09-22T10:04:11.5609013Z   GO111MODULE: on
+2026-09-22T10:04:11.5609196Z   GH_PAT: 
+2026-09-22T10:04:11.5609371Z   GOTOOLCHAIN: local
+2026-09-22T10:04:11.5609563Z ##[endgroup]
+2026-09-22T10:04:12.4764365Z ##[group]Run go test ./...
+2026-09-22T10:04:12.4764695Z [36;1mgo test ./...[0m
+2026-09-22T10:04:12.4834299Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-09-22T10:04:12.4834649Z env:
+2026-09-22T10:04:12.4834823Z   GO111MODULE: on
+2026-09-22T10:04:12.4835009Z   GH_PAT: 
+2026-09-22T10:04:12.4835180Z   GOTOOLCHAIN: local
+2026-09-22T10:04:12.4835386Z ##[endgroup]
+2026-09-22T10:04:14.3988828Z Caught panic:
+2026-09-22T10:04:14.3989156Z 
+2026-09-22T10:04:14.3989335Z testing goroutine panic behavior
+2026-09-22T10:04:14.3989660Z 
+2026-09-22T10:04:14.3989812Z Restoring terminal...
+2026-09-22T10:04:14.3990023Z 
+2026-09-22T10:04:14.3990175Z goroutine 486 [running]:
+2026-09-22T10:04:14.3990539Z runtime/debug.Stack()
+2026-09-22T10:04:14.3991437Z 	C:/hostedtoolcache/windows/go/1.27.1/x64/src/runtime/debug/stack.go:26 +0x5e
+2026-09-22T10:04:14.3992618Z charm.land/bubbletea/v2.(*Program).recoverFromGoPanic(0xc43f0024a00, {0x7ff603b06760, 0x7ff603910670})
+2026-09-22T10:04:14.3993609Z 	D:/a/bubbletea/bubbletea/tea.go:1332 +0x151
+2026-09-22T10:04:14.3994256Z charm.land/bubbletea/v2.(*Program).execBatchMsg.func2.1()
+2026-09-22T10:04:14.3994955Z 	D:/a/bubbletea/bubbletea/tea.go:967 +0x35
+2026-09-22T10:04:14.3995471Z panic({0x7ff603b06760?, 0x7ff603910670?})
+2026-09-22T10:04:14.3996219Z 	C:/hostedtoolcache/windows/go/1.27.1/x64/src/runtime/panic.go:859 +0x125
+2026-09-22T10:04:14.3996940Z charm.land/bubbletea/v2.panicCmd()
+2026-09-22T10:04:14.3998726Z 	D:/a/bubbletea/bubbletea/tea_test.go:25 +0x25
+2026-09-22T10:04:14.3999384Z charm.land/bubbletea/v2.(*Program).execBatchMsg.func2()
+2026-09-22T10:04:14.4000038Z 	D:/a/bubbletea/bubbletea/tea.go:972 +0xac
+2026-09-22T10:04:14.4000779Z created by charm.land/bubbletea/v2.(*Program).execBatchMsg in goroutine 476
+2026-09-22T10:04:14.4001578Z 	D:/a/bubbletea/bubbletea/tea.go:961 +0x119
+2026-09-22T10:04:14.4001928Z 
+2026-09-22T10:04:14.4002083Z Caught panic:
+2026-09-22T10:04:14.4002282Z 
+2026-09-22T10:04:14.4002478Z testing goroutine panic behavior
+2026-09-22T10:04:14.4002787Z 
+2026-09-22T10:04:14.4002934Z Restoring terminal...
+2026-09-22T10:04:14.4003170Z 
+2026-09-22T10:04:14.4003330Z goroutine 477 [running]:
+2026-09-22T10:04:14.4003726Z runtime/debug.Stack()
+2026-09-22T10:04:14.4004766Z 	C:/hostedtoolcache/windows/go/1.27.1/x64/src/runtime/debug/stack.go:26 +0x5e
+2026-09-22T10:04:14.4010810Z charm.land/bubbletea/v2.(*Program).recoverFromGoPanic(0xc43f0024a00, {0x7ff603b06760, 0x7ff603910670})
+2026-09-22T10:04:14.4011487Z 	D:/a/bubbletea/bubbletea/tea.go:1332 +0x151
+2026-09-22T10:04:14.4011845Z charm.land/bubbletea/v2.(*Program).execBatchMsg.func2.1()
+2026-09-22T10:04:14.4012205Z 	D:/a/bubbletea/bubbletea/tea.go:967 +0x35
+2026-09-22T10:04:14.4012493Z panic({0x7ff603b06760?, 0x7ff603910670?})
+2026-09-22T10:04:14.4013069Z 	C:/hostedtoolcache/windows/go/1.27.1/x64/src/runtime/panic.go:859 +0x125
+2026-09-22T10:04:14.4013492Z charm.land/bubbletea/v2.panicCmd()
+2026-09-22T10:04:14.4013812Z 	D:/a/bubbletea/bubbletea/tea_test.go:25 +0x25
+2026-09-22T10:04:14.4014162Z charm.land/bubbletea/v2.(*Program).execBatchMsg.func2()
+2026-09-22T10:04:14.4014512Z 	D:/a/bubbletea/bubbletea/tea.go:972 +0xac
+2026-09-22T10:04:14.4015074Z created by charm.land/bubbletea/v2.(*Program).execBatchMsg in goroutine 476
+2026-09-22T10:04:14.4015511Z 	D:/a/bubbletea/bubbletea/tea.go:961 +0x119
+2026-09-22T10:04:14.4015794Z 
+2026-09-22T10:04:14.4015937Z Caught panic:
+2026-09-22T10:04:14.4016102Z 
+2026-09-22T10:04:14.4016217Z testing goroutine panic behavior
+2026-09-22T10:04:14.4016376Z 
+2026-09-22T10:04:14.4016465Z Restoring terminal...
+2026-09-22T10:04:14.4016596Z 
+2026-09-22T10:04:14.4016679Z goroutine 478 [running]:
+2026-09-22T10:04:14.4016900Z runtime/debug.Stack()
+2026-09-22T10:04:14.4017455Z 	C:/hostedtoolcache/windows/go/1.27.1/x64/src/runtime/debug/stack.go:26 +0x5e
+2026-09-22T10:04:14.4018074Z charm.land/bubbletea/v2.(*Program).recoverFromGoPanic(0xc43f0024a00, {0x7ff603b06760, 0x7ff603910670})
+2026-09-22T10:04:14.4020973Z 	D:/a/bubbletea/bubbletea/tea.go:1332 +0x151
+2026-09-22T10:04:14.4021613Z charm.land/bubbletea/v2.(*Program).execBatchMsg.func2.1()
+2026-09-22T10:04:14.4022099Z 	D:/a/bubbletea/bubbletea/tea.go:967 +0x35
+2026-09-22T10:04:14.4022401Z panic({0x7ff603b06760?, 0x7ff603910670?})
+2026-09-22T10:04:14.4022810Z 	C:/hostedtoolcache/windows/go/1.27.1/x64/src/runtime/panic.go:859 +0x125
+2026-09-22T10:04:14.4023205Z charm.land/bubbletea/v2.panicCmd()
+2026-09-22T10:04:14.4023500Z 	D:/a/bubbletea/bubbletea/tea_test.go:25 +0x25
+2026-09-22T10:04:14.4023851Z charm.land/bubbletea/v2.(*Program).execBatchMsg.func2()
+2026-09-22T10:04:14.4024543Z 	D:/a/bubbletea/bubbletea/tea.go:972 +0xac
+2026-09-22T10:04:14.4024951Z created by charm.land/bubbletea/v2.(*Program).execBatchMsg in goroutine 476
+2026-09-22T10:04:14.4025364Z 	D:/a/bubbletea/bubbletea/tea.go:961 +0x119
+2026-09-22T10:04:14.4025553Z 
+2026-09-22T10:04:14.4025629Z Caught panic:
+2026-09-22T10:04:14.4025740Z 
+2026-09-22T10:04:14.4025890Z testing goroutine panic behavior
+2026-09-22T10:04:14.4026054Z 
+2026-09-22T10:04:14.4026133Z Restoring terminal...
+2026-09-22T10:04:14.4026261Z 
+2026-09-22T10:04:14.4026342Z goroutine 479 [running]:
+2026-09-22T10:04:14.4026553Z runtime/debug.Stack()
+2026-09-22T10:04:14.4026906Z 	C:/hostedtoolcache/windows/go/1.27.1/x64/src/runtime/debug/stack.go:26 +0x5e
+2026-09-22T10:04:14.4027766Z charm.land/bubbletea/v2.(*Program).recoverFromGoPanic(0xc43f0024a00, {0x7ff603b06760, 0x7ff603910670})
+2026-09-22T10:04:14.4028477Z 	D:/a/bubbletea/bubbletea/tea.go:1332 +0x151
+2026-09-22T10:04:14.4028816Z charm.land/bubbletea/v2.(*Program).execBatchMsg.func2.1()
+2026-09-22T10:04:14.4029162Z 	D:/a/bubbletea/bubbletea/tea.go:967 +0x35
+2026-09-22T10:04:14.4029476Z panic({0x7ff603b06760?, 0x7ff603910670?})
+2026-09-22T10:04:14.4029920Z 	C:/hostedtoolcache/windows/go/1.27.1/x64/src/runtime/panic.go:859 +0x125
+2026-09-22T10:04:14.4030343Z charm.land/bubbletea/v2.panicCmd()
+2026-09-22T10:04:14.4030647Z 	D:/a/bubbletea/bubbletea/tea_test.go:25 +0x25
+2026-09-22T10:04:14.4031038Z charm.land/bubbletea/v2.(*Program).execBatchMsg.func2()
+2026-09-22T10:04:14.4031383Z 	D:/a/bubbletea/bubbletea/tea.go:972 +0xac
+2026-09-22T10:04:14.4031764Z created by charm.land/bubbletea/v2.(*Program).execBatchMsg in goroutine 476
+2026-09-22T10:04:14.4032172Z 	D:/a/bubbletea/bubbletea/tea.go:961 +0x119
+2026-09-22T10:04:14.4032355Z 
+2026-09-22T10:04:14.4032435Z Caught panic:
+2026-09-22T10:04:14.4032541Z 
+2026-09-22T10:04:14.4032699Z testing goroutine panic behavior
+2026-09-22T10:04:14.4033016Z 
+2026-09-22T10:04:14.4033103Z Restoring terminal...
+2026-09-22T10:04:14.4033235Z 
+2026-09-22T10:04:14.4033316Z goroutine 480 [running]:
+2026-09-22T10:04:14.4033531Z runtime/debug.Stack()
+2026-09-22T10:04:14.4033887Z 	C:/hostedtoolcache/windows/go/1.27.1/x64/src/runtime/debug/stack.go:26 +0x5e
+2026-09-22T10:04:14.4034490Z charm.land/bubbletea/v2.(*Program).recoverFromGoPanic(0xc43f0024a00, {0x7ff603b06760, 0x7ff603910670})
+2026-09-22T10:04:14.4034996Z 	D:/a/bubbletea/bubbletea/tea.go:1332 +0x151
+2026-09-22T10:04:14.4035354Z charm.land/bubbletea/v2.(*Program).execBatchMsg.func2.1()
+2026-09-22T10:04:14.4035698Z 	D:/a/bubbletea/bubbletea/tea.go:967 +0x35
+2026-09-22T10:04:14.4035966Z panic({0x7ff603b06760?, 0x7ff603910670?})
+2026-09-22T10:04:14.4036349Z 	C:/hostedtoolcache/windows/go/1.27.1/x64/src/runtime/panic.go:859 +0x125
+2026-09-22T10:04:14.4036748Z charm.land/bubbletea/v2.panicCmd()
+2026-09-22T10:04:14.4037038Z 	D:/a/bubbletea/bubbletea/tea_test.go:25 +0x25
+2026-09-22T10:04:14.4037378Z charm.land/bubbletea/v2.(*Program).execBatchMsg.func2()
+2026-09-22T10:04:14.4037718Z 	D:/a/bubbletea/bubbletea/tea.go:972 +0xac
+2026-09-22T10:04:14.4038110Z created by charm.land/bubbletea/v2.(*Program).execBatchMsg in goroutine 476
+2026-09-22T10:04:14.4038736Z 	D:/a/bubbletea/bubbletea/tea.go:961 +0x119
+2026-09-22T10:04:14.4038940Z 
+2026-09-22T10:04:14.4039014Z Caught panic:
+2026-09-22T10:04:14.4039128Z 
+2026-09-22T10:04:14.4039233Z testing goroutine panic behavior
+2026-09-22T10:04:14.4039952Z 
+2026-09-22T10:04:14.4040060Z Restoring terminal...
+2026-09-22T10:04:14.4040196Z 
+2026-09-22T10:04:14.4040286Z goroutine 484 [running]:
+2026-09-22T10:04:14.4040497Z runtime/debug.Stack()
+2026-09-22T10:04:14.4040864Z 	C:/hostedtoolcache/windows/go/1.27.1/x64/src/runtime/debug/stack.go:26 +0x5e
+2026-09-22T10:04:14.4041470Z charm.land/bubbletea/v2.(*Program).recoverFromGoPanic(0xc43f0024a00, {0x7ff603b06760, 0x7ff603910670})
+2026-09-22T10:04:14.4041976Z 	D:/a/bubbletea/bubbletea/tea.go:1332 +0x151
+2026-09-22T10:04:14.4042324Z charm.land/bubbletea/v2.(*Program).execBatchMsg.func2.1()
+2026-09-22T10:04:14.4042676Z 	D:/a/bubbletea/bubbletea/tea.go:967 +0x35
+2026-09-22T10:04:14.4042947Z panic({0x7ff603b06760?, 0x7ff603910670?})
+2026-09-22T10:04:14.4043325Z 	C:/hostedtoolcache/windows/go/1.27.1/x64/src/runtime/panic.go:859 +0x125
+2026-09-22T10:04:14.4043708Z charm.land/bubbletea/v2.panicCmd()
+2026-09-22T10:04:14.4044246Z 	D:/a/bubbletea/bubbletea/tea_test.go:25 +0x25
+2026-09-22T10:04:14.4044932Z charm.land/bubbletea/v2.(*Program).execBatchMsg.func2()
+2026-09-22T10:04:14.4045297Z 	D:/a/bubbletea/bubbletea/tea.go:972 +0xac
+2026-09-22T10:04:14.4045689Z created by charm.land/bubbletea/v2.(*Program).execBatchMsg in goroutine 476
+2026-09-22T10:04:14.4046108Z 	D:/a/bubbletea/bubbletea/tea.go:961 +0x119
+2026-09-22T10:04:14.4046284Z 
+2026-09-22T10:04:14.4046363Z Caught panic:
+2026-09-22T10:04:14.4046471Z 
+2026-09-22T10:04:14.4046565Z testing goroutine panic behavior
+2026-09-22T10:04:14.4046875Z 
+2026-09-22T10:04:14.4046957Z Restoring terminal...
+2026-09-22T10:04:14.4047084Z 
+2026-09-22T10:04:14.4047170Z goroutine 482 [running]:
+2026-09-22T10:04:14.4047380Z runtime/debug.Stack()
+2026-09-22T10:04:14.4047738Z 	C:/hostedtoolcache/windows/go/1.27.1/x64/src/runtime/debug/stack.go:26 +0x5e
+2026-09-22T10:04:14.4048343Z charm.land/bubbletea/v2.(*Program).recoverFromGoPanic(0xc43f0024a00, {0x7ff603b06760, 0x7ff603910670})
+2026-09-22T10:04:14.4048858Z 	D:/a/bubbletea/bubbletea/tea.go:1332 +0x151
+2026-09-22T10:04:14.4049193Z charm.land/bubbletea/v2.(*Program).execBatchMsg.func2.1()
+2026-09-22T10:04:14.4049761Z 	D:/a/bubbletea/bubbletea/tea.go:967 +0x35
+2026-09-22T10:04:14.4050042Z panic({0x7ff603b06760?, 0x7ff603910670?})
+2026-09-22T10:04:14.4050431Z 	C:/hostedtoolcache/windows/go/1.27.1/x64/src/runtime/panic.go:859 +0x125
+2026-09-22T10:04:14.4050810Z charm.land/bubbletea/v2.panicCmd()
+2026-09-22T10:04:14.4051107Z 	D:/a/bubbletea/bubbletea/tea_test.go:25 +0x25
+2026-09-22T10:04:14.4051442Z charm.land/bubbletea/v2.(*Program).execBatchMsg.func2()
+2026-09-22T10:04:14.4051774Z 	D:/a/bubbletea/bubbletea/tea.go:972 +0xac
+2026-09-22T10:04:14.4052149Z created by charm.land/bubbletea/v2.(*Program).execBatchMsg in goroutine 476
+2026-09-22T10:04:14.4052554Z 	D:/a/bubbletea/bubbletea/tea.go:961 +0x119
+2026-09-22T10:04:14.4052729Z 
+2026-09-22T10:04:14.4052809Z Caught panic:
+2026-09-22T10:04:14.4052919Z 
+2026-09-22T10:04:14.4053011Z testing goroutine panic behavior
+2026-09-22T10:04:14.4053173Z 
+2026-09-22T10:04:14.4053260Z Restoring terminal...
+2026-09-22T10:04:14.4053387Z 
+2026-09-22T10:04:14.4053471Z goroutine 485 [running]:
+2026-09-22T10:04:14.4053675Z runtime/debug.Stack()
+2026-09-22T10:04:14.4054023Z 	C:/hostedtoolcache/windows/go/1.27.1/x64/src/runtime/debug/stack.go:26 +0x5e
+2026-09-22T10:04:14.4054626Z charm.land/bubbletea/v2.(*Program).recoverFromGoPanic(0xc43f0024a00, {0x7ff603b06760, 0x7ff603910670})
+2026-09-22T10:04:14.4055324Z 	D:/a/bubbletea/bubbletea/tea.go:1332 +0x151
+2026-09-22T10:04:14.4055676Z charm.land/bubbletea/v2.(*Program).execBatchMsg.func2.1()
+2026-09-22T10:04:14.4056022Z 	D:/a/bubbletea/bubbletea/tea.go:967 +0x35
+2026-09-22T10:04:14.4056299Z panic({0x7ff603b06760?, 0x7ff603910670?})
+2026-09-22T10:04:14.4056683Z 	C:/hostedtoolcache/windows/go/1.27.1/x64/src/runtime/panic.go:859 +0x125
+2026-09-22T10:04:14.4057065Z charm.land/bubbletea/v2.panicCmd()
+2026-09-22T10:04:14.4057348Z 	D:/a/bubbletea/bubbletea/tea_test.go:25 +0x25
+2026-09-22T10:04:14.4057815Z charm.land/bubbletea/v2.(*Program).execBatchMsg.func2()
+2026-09-22T10:04:14.4058162Z 	D:/a/bubbletea/bubbletea/tea.go:972 +0xac
+2026-09-22T10:04:14.4058550Z created by charm.land/bubbletea/v2.(*Program).execBatchMsg in goroutine 476
+2026-09-22T10:04:14.4058953Z 	D:/a/bubbletea/bubbletea/tea.go:961 +0x119
+2026-09-22T10:04:14.4059135Z 
+2026-09-22T10:04:14.4059216Z Caught panic:
+2026-09-22T10:04:14.4059324Z 
+2026-09-22T10:04:14.4059412Z testing panic behavior
+2026-09-22T10:04:14.4059546Z 
+2026-09-22T10:04:14.4059631Z Restoring terminal...
+2026-09-22T10:04:14.4059758Z 
+2026-09-22T10:04:14.4059841Z goroutine 371 [running]:
+2026-09-22T10:04:14.4060056Z runtime/debug.Stack()
+2026-09-22T10:04:14.4060407Z 	C:/hostedtoolcache/windows/go/1.27.1/x64/src/runtime/debug/stack.go:26 +0x5e
+2026-09-22T10:04:14.4061227Z charm.land/bubbletea/v2.(*Program).recoverFromPanic(0xc43f0024c00, {0x7ff603b06760, 0x7ff603910680})
+2026-09-22T10:04:14.4061742Z 	D:/a/bubbletea/bubbletea/tea.go:1307 +0x151
+2026-09-22T10:04:14.4062051Z charm.land/bubbletea/v2.(*Program).Run.func2()
+2026-09-22T10:04:14.4062364Z 	D:/a/bubbletea/bubbletea/tea.go:1057 +0x11a
+2026-09-22T10:04:14.4062645Z panic({0x7ff603b06760?, 0x7ff603910680?})
+2026-09-22T10:04:14.4063033Z 	C:/hostedtoolcache/windows/go/1.27.1/x64/src/runtime/panic.go:859 +0x125
+2026-09-22T10:04:14.4063587Z charm.land/bubbletea/v2.(*testModel).Update(0xc43f0132f20, {0x7ff603b0b9a0?, 0x7ff603c1e7a0?})
+2026-09-22T10:04:14.4064066Z 	D:/a/bubbletea/bubbletea/tea_test.go:58 +0x24c
+2026-09-22T10:04:14.4065031Z charm.land/bubbletea/v2.(*Program).eventLoop(0xc43f0024c00, {0x7ff603b3aed0?, 0xc43f0132f20?}, 0xc43f00a8310)
+2026-09-22T10:04:14.4065566Z 	D:/a/bubbletea/bubbletea/tea.go:899 +0xc8c
+2026-09-22T10:04:14.4065891Z charm.land/bubbletea/v2.(*Program).Run(0xc43f0024c00)
+2026-09-22T10:04:14.4066435Z 	D:/a/bubbletea/bubbletea/tea.go:1172 +0xb15
+2026-09-22T10:04:14.4066752Z charm.land/bubbletea/v2.TestTeaPanic(0xc43f0809800)
+2026-09-22T10:04:14.4067102Z 	D:/a/bubbletea/bubbletea/tea_test.go:568 +0x171
+2026-09-22T10:04:14.4067415Z testing.tRunner(0xc43f0809800, 0x7ff603b3bfb8)
+2026-09-22T10:04:14.4067828Z 	C:/hostedtoolcache/windows/go/1.27.1/x64/src/testing/testing.go:2193 +0xc3
+2026-09-22T10:04:14.4068219Z created by testing.(*T).Run in goroutine 1
+2026-09-22T10:04:14.4068624Z 	C:/hostedtoolcache/windows/go/1.27.1/x64/src/testing/testing.go:2258 +0x4b4
+2026-09-22T10:04:14.4068914Z 
+2026-09-22T10:04:14.4068993Z Caught panic:
+2026-09-22T10:04:14.4069103Z 
+2026-09-22T10:04:14.4069201Z testing goroutine panic behavior
+2026-09-22T10:04:14.4069363Z 
+2026-09-22T10:04:14.4069440Z Restoring terminal...
+2026-09-22T10:04:14.4069572Z 
+2026-09-22T10:04:14.4069658Z goroutine 481 [running]:
+2026-09-22T10:04:14.4069866Z runtime/debug.Stack()
+2026-09-22T10:04:14.4070213Z 	C:/hostedtoolcache/windows/go/1.27.1/x64/src/runtime/debug/stack.go:26 +0x5e
+2026-09-22T10:04:14.4070809Z charm.land/bubbletea/v2.(*Program).recoverFromGoPanic(0xc43f0024a00, {0x7ff603b06760, 0x7ff603910670})
+2026-09-22T10:04:14.4071325Z 	D:/a/bubbletea/bubbletea/tea.go:1332 +0x151
+2026-09-22T10:04:14.4071748Z charm.land/bubbletea/v2.(*Program).execBatchMsg.func2.1()
+2026-09-22T10:04:14.4072218Z 	D:/a/bubbletea/bubbletea/tea.go:967 +0x35
+2026-09-22T10:04:14.4072495Z panic({0x7ff603b06760?, 0x7ff603910670?})
+2026-09-22T10:04:14.4072885Z 	C:/hostedtoolcache/windows/go/1.27.1/x64/src/runtime/panic.go:859 +0x125
+2026-09-22T10:04:14.4073265Z charm.land/bubbletea/v2.panicCmd()
+2026-09-22T10:04:14.4073555Z 	D:/a/bubbletea/bubbletea/tea_test.go:25 +0x25
+2026-09-22T10:04:14.4073895Z charm.land/bubbletea/v2.(*Program).execBatchMsg.func2()
+2026-09-22T10:04:14.4074239Z 	D:/a/bubbletea/bubbletea/tea.go:972 +0xac
+2026-09-22T10:04:14.4074623Z created by charm.land/bubbletea/v2.(*Program).execBatchMsg in goroutine 476
+2026-09-22T10:04:14.4075023Z 	D:/a/bubbletea/bubbletea/tea.go:961 +0x119
+2026-09-22T10:04:14.4075205Z 
+2026-09-22T10:04:14.4075284Z Caught panic:
+2026-09-22T10:04:14.4075388Z 
+2026-09-22T10:04:14.4075619Z testing goroutine panic behavior
+2026-09-22T10:04:14.4075785Z 
+2026-09-22T10:04:14.4075875Z Restoring terminal...
+2026-09-22T10:04:14.4076008Z 
+2026-09-22T10:04:14.4076086Z goroutine 483 [running]:
+2026-09-22T10:04:14.4076297Z runtime/debug.Stack()
+2026-09-22T10:04:14.4076645Z 	C:/hostedtoolcache/windows/go/1.27.1/x64/src/runtime/debug/stack.go:26 +0x5e
+2026-09-22T10:04:14.4077290Z charm.land/bubbletea/v2.(*Program).recoverFromGoPanic(0xc43f0024a00, {0x7ff603b06760, 0x7ff603910670})
+2026-09-22T10:04:14.4077994Z 	D:/a/bubbletea/bubbletea/tea.go:1332 +0x151
+2026-09-22T10:04:14.4078332Z charm.land/bubbletea/v2.(*Program).execBatchMsg.func2.1()
+2026-09-22T10:04:14.4078675Z 	D:/a/bubbletea/bubbletea/tea.go:967 +0x35
+2026-09-22T10:04:14.4078947Z panic({0x7ff603b06760?, 0x7ff603910670?})
+2026-09-22T10:04:14.4079323Z 	C:/hostedtoolcache/windows/go/1.27.1/x64/src/runtime/panic.go:859 +0x125
+2026-09-22T10:04:14.4079697Z charm.land/bubbletea/v2.panicCmd()
+2026-09-22T10:04:14.4079993Z 	D:/a/bubbletea/bubbletea/tea_test.go:25 +0x25
+2026-09-22T10:04:14.4080334Z charm.land/bubbletea/v2.(*Program).execBatchMsg.func2()
+2026-09-22T10:04:14.4080675Z 	D:/a/bubbletea/bubbletea/tea.go:972 +0xac
+2026-09-22T10:04:14.4081064Z created by charm.land/bubbletea/v2.(*Program).execBatchMsg in goroutine 476
+2026-09-22T10:04:14.4081472Z 	D:/a/bubbletea/bubbletea/tea.go:961 +0x119
+2026-09-22T10:04:14.4081659Z 
+2026-09-22T10:04:14.4081796Z --- FAIL: TestClipboardFallbackDetection (0.00s)
+2026-09-22T10:04:14.4082385Z     --- FAIL: TestClipboardFallbackDetection/apple_terminal_selects_a_backend_on_darwin (0.01s)
+2026-09-22T10:04:14.4084065Z         clipboard_test.go:207: expected no clipboard backend without a terminal clipboard tool
+2026-09-22T10:04:14.4084490Z FAIL
+2026-09-22T10:04:14.4085010Z FAIL	charm.land/bubbletea/v2	0.585s
+2026-09-22T10:04:14.4085268Z FAIL
+2026-09-22T10:04:14.5739505Z ##[error]Process completed with exit code 1.
+2026-09-22T10:04:14.6002670Z Post job cleanup.
+2026-09-22T10:04:14.7951060Z [command]"C:\Program Files\Git\bin\git.exe" version
+2026-09-22T10:04:14.8213844Z git version 2.55.0.windows.5
+2026-09-22T10:04:14.8276213Z Temporarily overriding HOME='D:\a\_temp\92609ed9-ac26-486a-9169-8e6d5e42b167' before making global git config changes
+2026-09-22T10:04:14.8278211Z Adding repository directory to the temporary git global config as a safe directory
+2026-09-22T10:04:14.8287592Z [command]"C:\Program Files\Git\bin\git.exe" config --global --add safe.directory D:\a\bubbletea\bubbletea
+2026-09-22T10:04:14.8582196Z Removing SSH command configuration
+2026-09-22T10:04:14.8592404Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp core\.sshCommand
+2026-09-22T10:04:14.8899502Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+2026-09-22T10:04:15.4287655Z Removing HTTP extra header
+2026-09-22T10:04:15.4297410Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-09-22T10:04:15.4594080Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\""
+2026-09-22T10:04:15.9957321Z Removing includeIf entries pointing to credentials config files
+2026-09-22T10:04:15.9968155Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-09-22T10:04:16.0230193Z includeif.gitdir:D:/a/bubbletea/bubbletea/.git.path
+2026-09-22T10:04:16.0230940Z includeif.gitdir:D:/a/bubbletea/bubbletea/.git/worktrees/*.path
+2026-09-22T10:04:16.0231628Z includeif.gitdir:/github/workspace/.git.path
+2026-09-22T10:04:16.0232270Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-09-22T10:04:16.0273502Z [command]"C:\Program Files\Git\bin\git.exe" config --local --get-all includeif.gitdir:D:/a/bubbletea/bubbletea/.git.path
+2026-09-22T10:04:16.0534781Z D:\a\_temp\git-credentials-b8547a62-dfdb-4367-9481-068ca66b70ad.config
+2026-09-22T10:04:16.0586087Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset includeif.gitdir:D:/a/bubbletea/bubbletea/.git.path D\:\\a\\_temp\\git\-credentials\-b8547a62\-dfdb\-4367\-9481\-068ca66b70ad\.config
+2026-09-22T10:04:16.0899558Z [command]"C:\Program Files\Git\bin\git.exe" config --local --get-all includeif.gitdir:D:/a/bubbletea/bubbletea/.git/worktrees/*.path
+2026-09-22T10:04:16.1154560Z D:\a\_temp\git-credentials-b8547a62-dfdb-4367-9481-068ca66b70ad.config
+2026-09-22T10:04:16.1194227Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset includeif.gitdir:D:/a/bubbletea/bubbletea/.git/worktrees/*.path D\:\\a\\_temp\\git\-credentials\-b8547a62\-dfdb\-4367\-9481\-068ca66b70ad\.config
+2026-09-22T10:04:16.1484071Z [command]"C:\Program Files\Git\bin\git.exe" config --local --get-all includeif.gitdir:/github/workspace/.git.path
+2026-09-22T10:04:16.1728329Z /github/runner_temp/git-credentials-b8547a62-dfdb-4367-9481-068ca66b70ad.config
+2026-09-22T10:04:16.1765984Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset includeif.gitdir:/github/workspace/.git.path \/github\/runner_temp\/git\-credentials\-b8547a62\-dfdb\-4367\-9481\-068ca66b70ad\.config
+2026-09-22T10:04:16.2052612Z [command]"C:\Program Files\Git\bin\git.exe" config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-09-22T10:04:16.2296006Z /github/runner_temp/git-credentials-b8547a62-dfdb-4367-9481-068ca66b70ad.config
+2026-09-22T10:04:16.2368598Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path \/github\/runner_temp\/git\-credentials\-b8547a62\-dfdb\-4367\-9481\-068ca66b70ad\.config
+2026-09-22T10:04:16.2667100Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "git config --local --show-origin --name-only --get-regexp remote.origin.url"
+2026-09-22T10:04:16.8038923Z Removing credentials config 'D:\a\_temp\git-credentials-b8547a62-dfdb-4367-9481-068ca66b70ad.config'
+2026-09-22T10:04:16.8229086Z Cleaning up orphan processes

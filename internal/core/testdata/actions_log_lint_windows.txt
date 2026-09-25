@@ -1,0 +1,413 @@
+﻿2026-09-22T09:49:37.4680928Z Current runner version: '2.337.0'
+2026-09-22T09:49:37.4708468Z ##[group]Runner Image Provisioner
+2026-09-22T09:49:37.4709402Z Hosted Compute Agent
+2026-09-22T09:49:37.4709986Z Version: 20260828.587
+2026-09-22T09:49:37.4710604Z Commit: abac92662cab4cc7352de4f9f9d2e2419aad9c29
+2026-09-22T09:49:37.4711328Z Build Date: 2026-08-28T16:44:25Z
+2026-09-22T09:49:37.4711984Z Worker ID: {fd02973e-2b44-4537-8aad-d5613f7c7708}
+2026-09-22T09:49:37.4712793Z Azure Region: westus
+2026-09-22T09:49:37.4713355Z ##[endgroup]
+2026-09-22T09:49:37.4714988Z ##[group]Operating System
+2026-09-22T09:49:37.4715958Z Microsoft Windows Server 2025
+2026-09-22T09:49:37.4716549Z 10.0.26100
+2026-09-22T09:49:37.4717075Z Datacenter
+2026-09-22T09:49:37.4717568Z ##[endgroup]
+2026-09-22T09:49:37.4718101Z ##[group]Runner Image
+2026-09-22T09:49:37.4718695Z Image: windows-2025-vs2026
+2026-09-22T09:49:37.4719291Z Version: 20260907.229.1
+2026-09-22T09:49:37.4721071Z Included Software: https://github.com/actions/runner-images/blob/win25-vs2026/20260907.229/images/windows/Windows2025-VS2026-Readme.md
+2026-09-22T09:49:37.4722742Z Image Release: https://github.com/actions/runner-images/releases/tag/win25-vs2026%2F20260907.229
+2026-09-22T09:49:37.4723794Z ##[endgroup]
+2026-09-22T09:49:37.4725039Z ##[group]GITHUB_TOKEN Permissions
+2026-09-22T09:49:37.4727331Z Checks: write
+2026-09-22T09:49:37.4727935Z Contents: read
+2026-09-22T09:49:37.4728545Z Metadata: read
+2026-09-22T09:49:37.4729108Z PullRequests: read
+2026-09-22T09:49:37.4730176Z ##[endgroup]
+2026-09-22T09:49:37.4732720Z Secret source: Actions
+2026-09-22T09:49:37.4733717Z Cache mode: write
+2026-09-22T09:49:37.4734493Z Prepare workflow directory
+2026-09-22T09:49:37.5101128Z Prepare all required actions
+2026-09-22T09:49:37.5173748Z Getting action download info
+2026-09-22T09:49:37.9089022Z Download action repository 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1' (SHA:3d3c42e5aac5ba805825da76410c181273ba90b1)
+2026-09-22T09:49:38.0435606Z Download action repository 'actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e' (SHA:b7ad1dad31e06c5925ef5d2fc7ad053ef454303e)
+2026-09-22T09:49:38.4472533Z Download action repository 'golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a' (SHA:ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a)
+2026-09-22T09:49:38.9787041Z Uses: charmbracelet/meta/.github/workflows/lint.yml@refs/heads/main (74d6431aa8ede4afe0c2ecf0549554d001fb2d95)
+2026-09-22T09:49:38.9792317Z ##[group] Inputs
+2026-09-22T09:49:38.9793208Z   directory: 
+2026-09-22T09:49:38.9793794Z   golangci_path: .golangci.yml
+2026-09-22T09:49:38.9794387Z   golangci_version: v2.9
+2026-09-22T09:49:38.9794917Z   timeout: 10m
+2026-09-22T09:49:38.9795420Z   pre-run: 
+2026-09-22T09:49:38.9795985Z   os: ["ubuntu-latest", "macos-latest", "windows-latest"]
+2026-09-22T09:49:38.9796700Z ##[endgroup]
+2026-09-22T09:49:38.9797279Z Complete job name: lint / lint (windows-latest)
+2026-09-22T09:49:39.1048950Z ##[group]Run git config --global core.autocrlf input
+2026-09-22T09:49:39.1049920Z [36;1mgit config --global core.autocrlf input[0m
+2026-09-22T09:49:39.2085627Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-09-22T09:49:39.2086689Z ##[endgroup]
+2026-09-22T09:49:40.1502192Z ##[group]Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+2026-09-22T09:49:40.1503818Z with:
+2026-09-22T09:49:40.1504637Z   path: charmbracelet/bubbletea
+2026-09-22T09:49:40.1505667Z   repository: charmbracelet/bubbletea
+2026-09-22T09:49:40.1515934Z   token: ***
+2026-09-22T09:49:40.1516782Z   ssh-strict: true
+2026-09-22T09:49:40.1517644Z   ssh-user: git
+2026-09-22T09:49:40.1518715Z   persist-credentials: true
+2026-09-22T09:49:40.1519697Z   clean: true
+2026-09-22T09:49:40.1520604Z   sparse-checkout-cone-mode: true
+2026-09-22T09:49:40.1521620Z   fetch-depth: 1
+2026-09-22T09:49:40.1522434Z   fetch-tags: false
+2026-09-22T09:49:40.1523281Z   show-progress: true
+2026-09-22T09:49:40.1524122Z   lfs: false
+2026-09-22T09:49:40.1591512Z   submodules: false
+2026-09-22T09:49:40.1595240Z   set-safe-directory: true
+2026-09-22T09:49:40.1596171Z   allow-unsafe-pr-checkout: false
+2026-09-22T09:49:40.1597109Z ##[endgroup]
+2026-09-22T09:49:40.3073917Z Syncing repository: charmbracelet/bubbletea
+2026-09-22T09:49:40.3076657Z ##[group]Getting Git version info
+2026-09-22T09:49:40.3078099Z Working directory is 'D:\a\bubbletea\bubbletea\charmbracelet\bubbletea'
+2026-09-22T09:49:40.3989794Z [command]"C:\Program Files\Git\bin\git.exe" version
+2026-09-22T09:49:40.4270734Z git version 2.55.0.windows.5
+2026-09-22T09:49:40.4316090Z ##[endgroup]
+2026-09-22T09:49:40.4325206Z Copying 'C:\Users\runneradmin\.gitconfig' to 'D:\a\_temp\c260ae7c-c90e-4e1e-8aab-d263ef347b68\.gitconfig'
+2026-09-22T09:49:40.4346831Z Temporarily overriding HOME='D:\a\_temp\c260ae7c-c90e-4e1e-8aab-d263ef347b68' before making global git config changes
+2026-09-22T09:49:40.4349335Z Adding repository directory to the temporary git global config as a safe directory
+2026-09-22T09:49:40.4358491Z [command]"C:\Program Files\Git\bin\git.exe" config --global --add safe.directory D:\a\bubbletea\bubbletea\charmbracelet\bubbletea
+2026-09-22T09:49:40.4777778Z ##[group]Determining repository object format
+2026-09-22T09:49:40.4779832Z ##[endgroup]
+2026-09-22T09:49:40.4781114Z ##[group]Initializing the repository
+2026-09-22T09:49:40.4789485Z [command]"C:\Program Files\Git\bin\git.exe" init D:\a\bubbletea\bubbletea\charmbracelet\bubbletea
+2026-09-22T09:49:40.5551891Z Initialized empty Git repository in D:/a/bubbletea/bubbletea/charmbracelet/bubbletea/.git/
+2026-09-22T09:49:40.5600300Z [command]"C:\Program Files\Git\bin\git.exe" remote add origin https://github.com/charmbracelet/bubbletea
+2026-09-22T09:49:40.6232586Z ##[endgroup]
+2026-09-22T09:49:40.6234590Z ##[group]Disabling automatic garbage collection
+2026-09-22T09:49:40.6241567Z [command]"C:\Program Files\Git\bin\git.exe" config --local gc.auto 0
+2026-09-22T09:49:40.6565224Z ##[endgroup]
+2026-09-22T09:49:40.6567179Z ##[group]Setting up auth
+2026-09-22T09:49:40.6568690Z Removing SSH command configuration
+2026-09-22T09:49:40.6577601Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp core\.sshCommand
+2026-09-22T09:49:40.6904370Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+2026-09-22T09:49:42.1054339Z Removing HTTP extra header
+2026-09-22T09:49:42.1064956Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-09-22T09:49:42.1381865Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\""
+2026-09-22T09:49:42.6980204Z Removing includeIf entries pointing to credentials config files
+2026-09-22T09:49:42.6994991Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-09-22T09:49:42.7314587Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "git config --local --show-origin --name-only --get-regexp remote.origin.url"
+2026-09-22T09:49:43.2949771Z [command]"C:\Program Files\Git\bin\git.exe" config --file D:\a\_temp\git-credentials-5690d75e-c9ad-4785-84b4-8f90a067c7be.config http.https://github.com/.extraheader "AUTHORIZATION: basic ***"
+2026-09-22T09:49:43.3284586Z [command]"C:\Program Files\Git\bin\git.exe" config --local includeIf.gitdir:D:/a/bubbletea/bubbletea/charmbracelet/bubbletea/.git.path D:\a\_temp\git-credentials-5690d75e-c9ad-4785-84b4-8f90a067c7be.config
+2026-09-22T09:49:43.3615535Z [command]"C:\Program Files\Git\bin\git.exe" config --local includeIf.gitdir:D:/a/bubbletea/bubbletea/charmbracelet/bubbletea/.git/worktrees/*.path D:\a\_temp\git-credentials-5690d75e-c9ad-4785-84b4-8f90a067c7be.config
+2026-09-22T09:49:43.3998116Z [command]"C:\Program Files\Git\bin\git.exe" config --local includeIf.gitdir:/github/workspace/charmbracelet/bubbletea/.git.path /github/runner_temp/git-credentials-5690d75e-c9ad-4785-84b4-8f90a067c7be.config
+2026-09-22T09:49:43.4331566Z [command]"C:\Program Files\Git\bin\git.exe" config --local includeIf.gitdir:/github/workspace/charmbracelet/bubbletea/.git/worktrees/*.path /github/runner_temp/git-credentials-5690d75e-c9ad-4785-84b4-8f90a067c7be.config
+2026-09-22T09:49:43.4660349Z ##[endgroup]
+2026-09-22T09:49:43.4660780Z ##[group]Fetching the repository
+2026-09-22T09:49:43.4680183Z [command]"C:\Program Files\Git\bin\git.exe" -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +65f10cc48b19476cc16d2e26e2f4a380b8497c93:refs/remotes/pull/1816/merge
+2026-09-22T09:49:44.6659098Z From https://github.com/charmbracelet/bubbletea
+2026-09-22T09:49:44.6662509Z  * [new ref]         65f10cc48b19476cc16d2e26e2f4a380b8497c93 -> pull/1816/merge
+2026-09-22T09:49:44.6707903Z ##[endgroup]
+2026-09-22T09:49:44.6708655Z ##[group]Determining the checkout info
+2026-09-22T09:49:44.6710658Z ##[endgroup]
+2026-09-22T09:49:44.6721392Z [command]"C:\Program Files\Git\bin\git.exe" sparse-checkout disable
+2026-09-22T09:49:44.7273075Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset-all extensions.worktreeConfig
+2026-09-22T09:49:44.7605215Z ##[group]Checking out the ref
+2026-09-22T09:49:44.7619256Z [command]"C:\Program Files\Git\bin\git.exe" checkout --progress --force refs/remotes/pull/1816/merge
+2026-09-22T09:49:44.9055619Z Note: switching to 'refs/remotes/pull/1816/merge'.
+2026-09-22T09:49:44.9056452Z 
+2026-09-22T09:49:44.9057040Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-09-22T09:49:44.9057924Z changes and commit them, and you can discard any commits you make in this
+2026-09-22T09:49:44.9058734Z state without impacting any branches by switching back to a branch.
+2026-09-22T09:49:44.9059247Z 
+2026-09-22T09:49:44.9059580Z If you want to create a new branch to retain commits you create, you may
+2026-09-22T09:49:44.9060201Z do so (now or later) by using -c with the switch command. Example:
+2026-09-22T09:49:44.9060482Z 
+2026-09-22T09:49:44.9060613Z   git switch -c <new-branch-name>
+2026-09-22T09:49:44.9060832Z 
+2026-09-22T09:49:44.9060933Z Or undo this operation with:
+2026-09-22T09:49:44.9061087Z 
+2026-09-22T09:49:44.9061168Z   git switch -
+2026-09-22T09:49:44.9061557Z 
+2026-09-22T09:49:44.9061793Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-09-22T09:49:44.9062107Z 
+2026-09-22T09:49:44.9062449Z HEAD is now at 65f10cc Merge 5187ca8e8bedaf0d8546a7b155e61df1757a0275 into 657aaae216e3f87df09b60959a9fe5de7b2ca419
+2026-09-22T09:49:44.9181209Z ##[endgroup]
+2026-09-22T09:49:44.9575141Z [command]"C:\Program Files\Git\bin\git.exe" log -1 --format=%H
+2026-09-22T09:49:44.9857853Z 65f10cc48b19476cc16d2e26e2f4a380b8497c93
+2026-09-22T09:49:45.0303477Z ##[group]Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+2026-09-22T09:49:45.0303935Z with:
+2026-09-22T09:49:45.0304148Z   repository: charmbracelet/meta
+2026-09-22T09:49:45.0304385Z   path: charmbracelet/meta
+2026-09-22T09:49:45.0307151Z   token: ***
+2026-09-22T09:49:45.0307338Z   ssh-strict: true
+2026-09-22T09:49:45.0307514Z   ssh-user: git
+2026-09-22T09:49:45.0307698Z   persist-credentials: true
+2026-09-22T09:49:45.0307907Z   clean: true
+2026-09-22T09:49:45.0308103Z   sparse-checkout-cone-mode: true
+2026-09-22T09:49:45.0308335Z   fetch-depth: 1
+2026-09-22T09:49:45.0308512Z   fetch-tags: false
+2026-09-22T09:49:45.0308693Z   show-progress: true
+2026-09-22T09:49:45.0308871Z   lfs: false
+2026-09-22T09:49:45.0309031Z   submodules: false
+2026-09-22T09:49:45.0309209Z   set-safe-directory: true
+2026-09-22T09:49:45.0309430Z   allow-unsafe-pr-checkout: false
+2026-09-22T09:49:45.0309660Z ##[endgroup]
+2026-09-22T09:49:45.1500837Z Syncing repository: charmbracelet/meta
+2026-09-22T09:49:45.1508681Z ##[group]Getting Git version info
+2026-09-22T09:49:45.1509405Z Working directory is 'D:\a\bubbletea\bubbletea\charmbracelet\meta'
+2026-09-22T09:49:45.2351491Z [command]"C:\Program Files\Git\bin\git.exe" version
+2026-09-22T09:49:45.2629904Z git version 2.55.0.windows.5
+2026-09-22T09:49:45.2678434Z ##[endgroup]
+2026-09-22T09:49:45.2688311Z Copying 'C:\Users\runneradmin\.gitconfig' to 'D:\a\_temp\48e53f65-267c-458d-a8b3-b946c93b090c\.gitconfig'
+2026-09-22T09:49:45.2710963Z Temporarily overriding HOME='D:\a\_temp\48e53f65-267c-458d-a8b3-b946c93b090c' before making global git config changes
+2026-09-22T09:49:45.2711966Z Adding repository directory to the temporary git global config as a safe directory
+2026-09-22T09:49:45.2721212Z [command]"C:\Program Files\Git\bin\git.exe" config --global --add safe.directory D:\a\bubbletea\bubbletea\charmbracelet\meta
+2026-09-22T09:49:45.3043227Z ##[group]Determining repository object format
+2026-09-22T09:49:45.5640439Z ##[endgroup]
+2026-09-22T09:49:45.5641305Z ##[group]Initializing the repository
+2026-09-22T09:49:45.5663892Z [command]"C:\Program Files\Git\bin\git.exe" init D:\a\bubbletea\bubbletea\charmbracelet\meta
+2026-09-22T09:49:45.6114500Z Initialized empty Git repository in D:/a/bubbletea/bubbletea/charmbracelet/meta/.git/
+2026-09-22T09:49:45.6163383Z [command]"C:\Program Files\Git\bin\git.exe" remote add origin https://github.com/charmbracelet/meta
+2026-09-22T09:49:45.6489220Z ##[endgroup]
+2026-09-22T09:49:45.6489615Z ##[group]Disabling automatic garbage collection
+2026-09-22T09:49:45.6505055Z [command]"C:\Program Files\Git\bin\git.exe" config --local gc.auto 0
+2026-09-22T09:49:45.6843264Z ##[endgroup]
+2026-09-22T09:49:45.6843615Z ##[group]Setting up auth
+2026-09-22T09:49:45.6844824Z Removing SSH command configuration
+2026-09-22T09:49:45.6856564Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp core\.sshCommand
+2026-09-22T09:49:45.7164362Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+2026-09-22T09:49:46.3269181Z Removing HTTP extra header
+2026-09-22T09:49:46.3279364Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-09-22T09:49:46.3590432Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\""
+2026-09-22T09:49:46.9077447Z Removing includeIf entries pointing to credentials config files
+2026-09-22T09:49:46.9087517Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-09-22T09:49:46.9404908Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "git config --local --show-origin --name-only --get-regexp remote.origin.url"
+2026-09-22T09:49:47.4790989Z [command]"C:\Program Files\Git\bin\git.exe" config --file D:\a\_temp\git-credentials-1c720f87-17c8-4bfd-b1ee-71244e055002.config http.https://github.com/.extraheader "AUTHORIZATION: basic ***"
+2026-09-22T09:49:47.5098510Z [command]"C:\Program Files\Git\bin\git.exe" config --local includeIf.gitdir:D:/a/bubbletea/bubbletea/charmbracelet/meta/.git.path D:\a\_temp\git-credentials-1c720f87-17c8-4bfd-b1ee-71244e055002.config
+2026-09-22T09:49:47.5390590Z [command]"C:\Program Files\Git\bin\git.exe" config --local includeIf.gitdir:D:/a/bubbletea/bubbletea/charmbracelet/meta/.git/worktrees/*.path D:\a\_temp\git-credentials-1c720f87-17c8-4bfd-b1ee-71244e055002.config
+2026-09-22T09:49:47.5692694Z [command]"C:\Program Files\Git\bin\git.exe" config --local includeIf.gitdir:/github/workspace/charmbracelet/meta/.git.path /github/runner_temp/git-credentials-1c720f87-17c8-4bfd-b1ee-71244e055002.config
+2026-09-22T09:49:47.5998784Z [command]"C:\Program Files\Git\bin\git.exe" config --local includeIf.gitdir:/github/workspace/charmbracelet/meta/.git/worktrees/*.path /github/runner_temp/git-credentials-1c720f87-17c8-4bfd-b1ee-71244e055002.config
+2026-09-22T09:49:47.6288190Z ##[endgroup]
+2026-09-22T09:49:47.6288568Z ##[group]Determining the default branch
+2026-09-22T09:49:47.6290676Z Retrieving the default branch name
+2026-09-22T09:49:47.8916594Z Default branch 'main'
+2026-09-22T09:49:47.8917133Z ##[endgroup]
+2026-09-22T09:49:47.8917506Z ##[group]Fetching the repository
+2026-09-22T09:49:47.8932141Z [command]"C:\Program Files\Git\bin\git.exe" -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +refs/heads/main:refs/remotes/origin/main
+2026-09-22T09:49:48.5947750Z From https://github.com/charmbracelet/meta
+2026-09-22T09:49:48.5948700Z  * [new branch]      main       -> origin/main
+2026-09-22T09:49:48.5994848Z ##[endgroup]
+2026-09-22T09:49:48.5995663Z ##[group]Determining the checkout info
+2026-09-22T09:49:48.5996335Z ##[endgroup]
+2026-09-22T09:49:48.6006770Z [command]"C:\Program Files\Git\bin\git.exe" sparse-checkout disable
+2026-09-22T09:49:48.6381139Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset-all extensions.worktreeConfig
+2026-09-22T09:49:48.6695964Z ##[group]Checking out the ref
+2026-09-22T09:49:48.6704484Z [command]"C:\Program Files\Git\bin\git.exe" checkout --progress --force -B main refs/remotes/origin/main
+2026-09-22T09:49:48.7334374Z Switched to a new branch 'main'
+2026-09-22T09:49:48.7351157Z branch 'main' set up to track 'origin/main'.
+2026-09-22T09:49:48.7400361Z ##[endgroup]
+2026-09-22T09:49:48.7744888Z [command]"C:\Program Files\Git\bin\git.exe" log -1 --format=%H
+2026-09-22T09:49:48.8029531Z 74d6431aa8ede4afe0c2ecf0549554d001fb2d95
+2026-09-22T09:49:48.8447697Z ##[group]Run actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+2026-09-22T09:49:48.8448120Z with:
+2026-09-22T09:49:48.8448345Z   go-version-file: charmbracelet/bubbletea//go.mod
+2026-09-22T09:49:48.8448635Z   check-latest: false
+2026-09-22T09:49:48.8451651Z   token: ***
+2026-09-22T09:49:48.8451851Z   cache: true
+2026-09-22T09:49:48.8452014Z ##[endgroup]
+2026-09-22T09:49:49.0009281Z Setup go version spec 1.26.0
+2026-09-22T09:49:49.0022726Z Attempting to download 1.26.0...
+2026-09-22T09:49:49.6975588Z matching 1.26.0...
+2026-09-22T09:49:49.6994423Z Acquiring 1.26.0 from https://github.com/actions/go-versions/releases/download/1.26.0-21889650668/go-1.26.0-win32-x64.zip
+2026-09-22T09:49:50.3660273Z Extracting Go...
+2026-09-22T09:49:50.4570795Z [command]"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Unrestricted -Command "$ErrorActionPreference = 'Stop' ; try { Add-Type -AssemblyName System.IO.Compression.ZipFile } catch { } ; try { [System.IO.Compression.ZipFile]::ExtractToDirectory('D:\a\_temp\go-1.26.0-win32-x64.zip', 'D:\a\_temp\0db2fd56-74e7-4f9d-9317-a6acf218bff4', $true) } catch { if (($_.Exception.GetType().FullName -eq 'System.Management.Automation.MethodException') -or ($_.Exception.GetType().FullName -eq 'System.Management.Automation.RuntimeException') ){ Expand-Archive -LiteralPath 'D:\a\_temp\go-1.26.0-win32-x64.zip' -DestinationPath 'D:\a\_temp\0db2fd56-74e7-4f9d-9317-a6acf218bff4' -Force } else { throw $_ } } ;"
+2026-09-22T09:49:55.5637218Z Successfully extracted go to D:\a\_temp\0db2fd56-74e7-4f9d-9317-a6acf218bff4
+2026-09-22T09:49:55.5637680Z Adding to the cache ...
+2026-09-22T09:50:07.1347501Z Created link C:\hostedtoolcache\windows\go\1.26.0\x64 => D:\hostedtoolcache\windows\go\1.26.0\x64
+2026-09-22T09:50:07.1351147Z Created link C:\hostedtoolcache\windows\go\1.26.0\x64.complete => D:\hostedtoolcache\windows\go\1.26.0\x64.complete
+2026-09-22T09:50:07.1352633Z Successfully cached go to C:\hostedtoolcache\windows\go\1.26.0\x64
+2026-09-22T09:50:07.1358113Z Added go to the path
+2026-09-22T09:50:07.1359678Z Successfully set up Go version 1.26.0
+2026-09-22T09:50:07.4885123Z [command]C:\hostedtoolcache\windows\go\1.26.0\x64\bin\go.exe env GOMODCACHE
+2026-09-22T09:50:07.4942039Z [command]C:\hostedtoolcache\windows\go\1.26.0\x64\bin\go.exe env GOCACHE
+2026-09-22T09:50:07.5202950Z C:\Users\runneradmin\go\pkg\mod
+2026-09-22T09:50:07.5233022Z C:\Users\runneradmin\AppData\Local\go-build
+2026-09-22T09:50:07.5273319Z ##[warning]Restore cache failed: Dependencies file is not found in D:\a\bubbletea\bubbletea. Supported file pattern: go.mod
+2026-09-22T09:50:07.5297829Z go version go1.26.0 windows/amd64
+2026-09-22T09:50:07.5298148Z 
+2026-09-22T09:50:07.5298593Z ##[group]go env
+2026-09-22T09:50:10.2550935Z set AR=ar
+2026-09-22T09:50:10.2551342Z set CC=gcc
+2026-09-22T09:50:10.2551773Z set CGO_CFLAGS=-O2 -g
+2026-09-22T09:50:10.2552228Z set CGO_CPPFLAGS=
+2026-09-22T09:50:10.2552623Z set CGO_CXXFLAGS=-O2 -g
+2026-09-22T09:50:10.2553072Z set CGO_ENABLED=1
+2026-09-22T09:50:10.2553459Z set CGO_FFLAGS=-O2 -g
+2026-09-22T09:50:10.2553863Z set CGO_LDFLAGS=-O2 -g
+2026-09-22T09:50:10.2554250Z set CXX=g++
+2026-09-22T09:50:10.2554600Z set GCCGO=gccgo
+2026-09-22T09:50:10.2554957Z set GO111MODULE=
+2026-09-22T09:50:10.2555328Z set GOAMD64=v1
+2026-09-22T09:50:10.2555701Z set GOARCH=amd64
+2026-09-22T09:50:10.2556066Z set GOAUTH=netrc
+2026-09-22T09:50:10.2556422Z set GOBIN=
+2026-09-22T09:50:10.2556897Z set GOCACHE=C:\Users\runneradmin\AppData\Local\go-build
+2026-09-22T09:50:10.2557482Z set GOCACHEPROG=
+2026-09-22T09:50:10.2557848Z set GODEBUG=
+2026-09-22T09:50:10.2558309Z set GOENV=C:\Users\runneradmin\AppData\Roaming\go\env
+2026-09-22T09:50:10.2558865Z set GOEXE=.exe
+2026-09-22T09:50:10.2559246Z set GOEXPERIMENT=
+2026-09-22T09:50:10.2559645Z set GOFIPS140=off
+2026-09-22T09:50:10.2560009Z set GOFLAGS=
+2026-09-22T09:50:10.2563963Z set GOGCCFLAGS=-m64 -mthreads -Wl,--no-gc-sections -fmessage-length=0 -ffile-prefix-map=C:\Users\RUNNER~1\AppData\Local\Temp\go-build622482791=/tmp/go-build -gno-record-gcc-switches
+2026-09-22T09:50:10.2565451Z set GOHOSTARCH=amd64
+2026-09-22T09:50:10.2565874Z set GOHOSTOS=windows
+2026-09-22T09:50:10.2566274Z set GOINSECURE=
+2026-09-22T09:50:10.2566638Z set GOMOD=NUL
+2026-09-22T09:50:10.2567073Z set GOMODCACHE=C:\Users\runneradmin\go\pkg\mod
+2026-09-22T09:50:10.2567624Z set GONOPROXY=
+2026-09-22T09:50:10.2567984Z set GONOSUMDB=
+2026-09-22T09:50:10.2568345Z set GOOS=windows
+2026-09-22T09:50:10.2568757Z set GOPATH=C:\Users\runneradmin\go
+2026-09-22T09:50:10.2569283Z set GOPRIVATE=
+2026-09-22T09:50:10.2569764Z set GOPROXY=https://proxy.golang.org,direct
+2026-09-22T09:50:10.2570388Z set GOROOT=C:\hostedtoolcache\windows\go\1.26.0\x64
+2026-09-22T09:50:10.2570968Z set GOSUMDB=sum.golang.org
+2026-09-22T09:50:10.2571417Z set GOTELEMETRY=local
+2026-09-22T09:50:10.2572023Z set GOTELEMETRYDIR=C:\Users\runneradmin\AppData\Roaming\go\telemetry
+2026-09-22T09:50:10.2572695Z set GOTMPDIR=
+2026-09-22T09:50:10.2573085Z set GOTOOLCHAIN=local
+2026-09-22T09:50:10.2573721Z set GOTOOLDIR=C:\hostedtoolcache\windows\go\1.26.0\x64\pkg\tool\windows_amd64
+2026-09-22T09:50:10.2574432Z set GOVCS=
+2026-09-22T09:50:10.2574792Z set GOVERSION=go1.26.0
+2026-09-22T09:50:10.2575179Z set GOWORK=
+2026-09-22T09:50:10.2575563Z set PKG_CONFIG=pkg-config
+2026-09-22T09:50:10.2575842Z 
+2026-09-22T09:50:10.2576324Z ##[endgroup]
+2026-09-22T09:50:10.2924705Z ##[group]Run golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a
+2026-09-22T09:50:10.2925211Z with:
+2026-09-22T09:50:10.2925419Z   working-directory: charmbracelet/bubbletea/
+2026-09-22T09:50:10.2925747Z   args: --config=".golangci.yml" --timeout=10m ./...
+
+2026-09-22T09:50:10.2926034Z   version: v2.9
+2026-09-22T09:50:10.2926212Z   install-mode: binary
+2026-09-22T09:50:10.2926399Z   install-only: false
+2026-09-22T09:50:10.2929421Z   github-token: ***
+2026-09-22T09:50:10.2929977Z   verify: true
+2026-09-22T09:50:10.2930162Z   only-new-issues: false
+2026-09-22T09:50:10.2930366Z   skip-cache: false
+2026-09-22T09:50:10.2930699Z   skip-save-cache: false
+2026-09-22T09:50:10.2930970Z   cache-invalidation-interval: 7
+2026-09-22T09:50:10.2931209Z   problem-matchers: false
+2026-09-22T09:50:10.2931405Z env:
+2026-09-22T09:50:10.2931565Z   GOTOOLCHAIN: local
+2026-09-22T09:50:10.2931993Z ##[endgroup]
+2026-09-22T09:50:10.4787445Z ##[group]Restore cache
+2026-09-22T09:50:10.4792278Z Checking for go.mod: charmbracelet\bubbletea\go.mod
+2026-09-22T09:50:10.9228963Z Cache hit for restore-key: golangci-lint.cache-Windows-charmbracelet/bubbletea/-2959-49c35aea0eca0d0953e42da4c97dca7f59f51050
+2026-09-22T09:50:11.7691527Z Received 408934 of 408934 (100.0%), 0.7 MBs/sec
+2026-09-22T09:50:11.7692898Z Cache Size: ~0 MB (408934 B)
+2026-09-22T09:50:11.7729236Z [command]"C:\Program Files\Git\usr\bin\tar.exe" -xf D:/a/_temp/1ae0ee67-fd26-4984-ab12-1a5cc34882fa/cache.tzst -P -C D:/a/bubbletea/bubbletea --force-local --use-compress-program "zstd -d"
+2026-09-22T09:50:14.8388749Z Cache restored successfully
+2026-09-22T09:50:14.8397088Z Restored cache for golangci-lint from key 'golangci-lint.cache-Windows-charmbracelet/bubbletea/-2959-a676cddbb06838dbe073967e26895623f4acf175' in 4360ms
+2026-09-22T09:50:14.8398741Z ##[endgroup]
+2026-09-22T09:50:14.8399303Z ##[group]Install
+2026-09-22T09:50:14.8401860Z Finding needed golangci-lint version...
+2026-09-22T09:50:14.8524307Z Requested golangci-lint 'v2.9', using 'v2.9.0', calculation took 12ms
+2026-09-22T09:50:14.8524817Z Installation mode: binary
+2026-09-22T09:50:14.8526261Z Installing golangci-lint binary v2.9.0...
+2026-09-22T09:50:14.8527534Z Downloading binary https://github.com/golangci/golangci-lint/releases/download/v2.9.0/golangci-lint-2.9.0-windows-amd64.zip ...
+2026-09-22T09:50:15.6625346Z [command]"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Unrestricted -Command "$ErrorActionPreference = 'Stop' ; try { Add-Type -AssemblyName System.IO.Compression.ZipFile } catch { } ; try { [System.IO.Compression.ZipFile]::ExtractToDirectory('D:\a\_temp\e2968838-3f1f-4d77-8676-29bae161d038', 'D:\a\_temp\48551658-aac3-4ea1-b666-ddd224bc0dd6', $true) } catch { if (($_.Exception.GetType().FullName -eq 'System.Management.Automation.MethodException') -or ($_.Exception.GetType().FullName -eq 'System.Management.Automation.RuntimeException') ){ Expand-Archive -LiteralPath 'D:\a\_temp\e2968838-3f1f-4d77-8676-29bae161d038' -DestinationPath 'D:\a\_temp\48551658-aac3-4ea1-b666-ddd224bc0dd6' -Force } else { throw $_ } } ;"
+2026-09-22T09:50:16.1441424Z Installed golangci-lint into D:\a\_temp\48551658-aac3-4ea1-b666-ddd224bc0dd6\golangci-lint-2.9.0-windows-amd64\golangci-lint in 1292ms
+2026-09-22T09:50:16.1446844Z ##[endgroup]
+2026-09-22T09:50:16.1454062Z ##[group]run golangci-lint
+2026-09-22T09:50:16.1460347Z Running [D:\a\_temp\48551658-aac3-4ea1-b666-ddd224bc0dd6\golangci-lint-2.9.0-windows-amd64\golangci-lint config path --config=".golangci.yml"] in [D:\a\bubbletea\bubbletea\charmbracelet\bubbletea] ...
+2026-09-22T09:50:16.3976937Z Running [D:\a\_temp\48551658-aac3-4ea1-b666-ddd224bc0dd6\golangci-lint-2.9.0-windows-amd64\golangci-lint config verify --config=".golangci.yml"] in [D:\a\bubbletea\bubbletea\charmbracelet\bubbletea] ...
+2026-09-22T09:50:16.7190132Z Running [D:\a\_temp\48551658-aac3-4ea1-b666-ddd224bc0dd6\golangci-lint-2.9.0-windows-amd64\golangci-lint run --path-mode=abs --config=".golangci.yml" --timeout=10m ./...] in [D:\a\bubbletea\bubbletea\charmbracelet\bubbletea] ...
+2026-09-22T09:50:42.3860170Z ##[error]D:\a\bubbletea\bubbletea\charmbracelet\bubbletea\clipboard_backend.go:95:6: type clipboardCommand is unused (unused)
+2026-09-22T09:50:42.3861972Z type clipboardCommand func(selection ClipboardSelection) (name string, args []string)
+2026-09-22T09:50:42.3862407Z      ^
+2026-09-22T09:50:42.3863461Z ##[error]D:\a\bubbletea\bubbletea\charmbracelet\bubbletea\clipboard_backend.go:99:6: type commandClipboardBackend is unused (unused)
+2026-09-22T09:50:42.3864508Z type commandClipboardBackend struct {
+2026-09-22T09:50:42.3864775Z      ^
+2026-09-22T09:50:42.3865662Z ##[error]D:\a\bubbletea\bubbletea\charmbracelet\bubbletea\clipboard_backend.go:105:34: func commandClipboardBackend.Set is unused (unused)
+2026-09-22T09:50:42.3867376Z func (b commandClipboardBackend) Set(selection ClipboardSelection, content string) error {
+2026-09-22T09:50:42.3868222Z                                  ^
+2026-09-22T09:50:42.3869225Z ##[error]D:\a\bubbletea\bubbletea\charmbracelet\bubbletea\clipboard_backend.go:120:34: func commandClipboardBackend.Get is unused (unused)
+2026-09-22T09:50:42.3870451Z func (b commandClipboardBackend) Get(selection ClipboardSelection) (string, error) {
+2026-09-22T09:50:42.3872625Z                                  ^
+2026-09-22T09:50:42.3873536Z 4 issues:
+2026-09-22T09:50:42.3873888Z * unused: 4
+2026-09-22T09:50:42.3874097Z 
+2026-09-22T09:50:42.3875163Z ##[error]issues found
+2026-09-22T09:50:42.3875912Z Ran golangci-lint in 25665ms
+2026-09-22T09:50:42.3876308Z ##[endgroup]
+2026-09-22T09:50:42.4169597Z Post job cleanup.
+2026-09-22T09:50:42.7412472Z [command]"C:\Program Files\Git\usr\bin\tar.exe" --posix -cf cache.tzst --exclude cache.tzst -P -C D:/a/bubbletea/bubbletea --files-from manifest.txt --force-local --use-compress-program "zstd -T0"
+2026-09-22T09:50:43.9661397Z Sent 408267 of 408267 (100.0%), 0.7 MBs/sec
+2026-09-22T09:50:44.2422579Z Saved cache for golangci-lint from paths 'C:\Users\runneradmin\.cache\golangci-lint' in 1652ms
+2026-09-22T09:50:44.2768936Z Post job cleanup.
+2026-09-22T09:50:44.4942505Z [command]"C:\Program Files\Git\bin\git.exe" version
+2026-09-22T09:50:44.5228677Z git version 2.55.0.windows.5
+2026-09-22T09:50:44.5287961Z Copying 'C:\Users\runneradmin\.gitconfig' to 'D:\a\_temp\c789250b-8115-4391-a391-1e73f26c7b59\.gitconfig'
+2026-09-22T09:50:44.5309974Z Temporarily overriding HOME='D:\a\_temp\c789250b-8115-4391-a391-1e73f26c7b59' before making global git config changes
+2026-09-22T09:50:44.5311403Z Adding repository directory to the temporary git global config as a safe directory
+2026-09-22T09:50:44.5322124Z [command]"C:\Program Files\Git\bin\git.exe" config --global --add safe.directory D:\a\bubbletea\bubbletea\charmbracelet\meta
+2026-09-22T09:50:44.5627886Z Removing SSH command configuration
+2026-09-22T09:50:44.5637926Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp core\.sshCommand
+2026-09-22T09:50:44.5954790Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+2026-09-22T09:50:45.1192171Z Removing HTTP extra header
+2026-09-22T09:50:45.1202413Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-09-22T09:50:45.1511787Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\""
+2026-09-22T09:50:45.6713750Z Removing includeIf entries pointing to credentials config files
+2026-09-22T09:50:45.6730943Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-09-22T09:50:45.7010324Z includeif.gitdir:D:/a/bubbletea/bubbletea/charmbracelet/meta/.git.path
+2026-09-22T09:50:45.7011549Z includeif.gitdir:D:/a/bubbletea/bubbletea/charmbracelet/meta/.git/worktrees/*.path
+2026-09-22T09:50:45.7012215Z includeif.gitdir:/github/workspace/charmbracelet/meta/.git.path
+2026-09-22T09:50:45.7012838Z includeif.gitdir:/github/workspace/charmbracelet/meta/.git/worktrees/*.path
+2026-09-22T09:50:45.7057378Z [command]"C:\Program Files\Git\bin\git.exe" config --local --get-all includeif.gitdir:D:/a/bubbletea/bubbletea/charmbracelet/meta/.git.path
+2026-09-22T09:50:45.7334938Z D:\a\_temp\git-credentials-1c720f87-17c8-4bfd-b1ee-71244e055002.config
+2026-09-22T09:50:45.7381835Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset includeif.gitdir:D:/a/bubbletea/bubbletea/charmbracelet/meta/.git.path D\:\\a\\_temp\\git\-credentials\-1c720f87\-17c8\-4bfd\-b1ee\-71244e055002\.config
+2026-09-22T09:50:45.7703412Z [command]"C:\Program Files\Git\bin\git.exe" config --local --get-all includeif.gitdir:D:/a/bubbletea/bubbletea/charmbracelet/meta/.git/worktrees/*.path
+2026-09-22T09:50:45.7970338Z D:\a\_temp\git-credentials-1c720f87-17c8-4bfd-b1ee-71244e055002.config
+2026-09-22T09:50:45.8012739Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset includeif.gitdir:D:/a/bubbletea/bubbletea/charmbracelet/meta/.git/worktrees/*.path D\:\\a\\_temp\\git\-credentials\-1c720f87\-17c8\-4bfd\-b1ee\-71244e055002\.config
+2026-09-22T09:50:45.8307394Z [command]"C:\Program Files\Git\bin\git.exe" config --local --get-all includeif.gitdir:/github/workspace/charmbracelet/meta/.git.path
+2026-09-22T09:50:45.8557473Z /github/runner_temp/git-credentials-1c720f87-17c8-4bfd-b1ee-71244e055002.config
+2026-09-22T09:50:45.8597449Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset includeif.gitdir:/github/workspace/charmbracelet/meta/.git.path \/github\/runner_temp\/git\-credentials\-1c720f87\-17c8\-4bfd\-b1ee\-71244e055002\.config
+2026-09-22T09:50:45.8890984Z [command]"C:\Program Files\Git\bin\git.exe" config --local --get-all includeif.gitdir:/github/workspace/charmbracelet/meta/.git/worktrees/*.path
+2026-09-22T09:50:45.9146239Z /github/runner_temp/git-credentials-1c720f87-17c8-4bfd-b1ee-71244e055002.config
+2026-09-22T09:50:45.9220311Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset includeif.gitdir:/github/workspace/charmbracelet/meta/.git/worktrees/*.path \/github\/runner_temp\/git\-credentials\-1c720f87\-17c8\-4bfd\-b1ee\-71244e055002\.config
+2026-09-22T09:50:45.9523842Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "git config --local --show-origin --name-only --get-regexp remote.origin.url"
+2026-09-22T09:50:46.5007826Z Removing credentials config 'D:\a\_temp\git-credentials-1c720f87-17c8-4bfd-b1ee-71244e055002.config'
+2026-09-22T09:50:46.5361730Z Post job cleanup.
+2026-09-22T09:50:46.7494276Z [command]"C:\Program Files\Git\bin\git.exe" version
+2026-09-22T09:50:46.7791552Z git version 2.55.0.windows.5
+2026-09-22T09:50:46.7852987Z Copying 'C:\Users\runneradmin\.gitconfig' to 'D:\a\_temp\2befd780-8461-4b62-8b88-7cf55b12a067\.gitconfig'
+2026-09-22T09:50:46.7874826Z Temporarily overriding HOME='D:\a\_temp\2befd780-8461-4b62-8b88-7cf55b12a067' before making global git config changes
+2026-09-22T09:50:46.7876187Z Adding repository directory to the temporary git global config as a safe directory
+2026-09-22T09:50:46.7886294Z [command]"C:\Program Files\Git\bin\git.exe" config --global --add safe.directory D:\a\bubbletea\bubbletea\charmbracelet\bubbletea
+2026-09-22T09:50:46.8211548Z Removing SSH command configuration
+2026-09-22T09:50:46.8222457Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp core\.sshCommand
+2026-09-22T09:50:46.8551743Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+2026-09-22T09:50:47.4020455Z Removing HTTP extra header
+2026-09-22T09:50:47.4030913Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-09-22T09:50:47.4343714Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\""
+2026-09-22T09:50:47.9818695Z Removing includeIf entries pointing to credentials config files
+2026-09-22T09:50:47.9835113Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-09-22T09:50:48.0100522Z includeif.gitdir:D:/a/bubbletea/bubbletea/charmbracelet/bubbletea/.git.path
+2026-09-22T09:50:48.0101640Z includeif.gitdir:D:/a/bubbletea/bubbletea/charmbracelet/bubbletea/.git/worktrees/*.path
+2026-09-22T09:50:48.0102623Z includeif.gitdir:/github/workspace/charmbracelet/bubbletea/.git.path
+2026-09-22T09:50:48.0104923Z includeif.gitdir:/github/workspace/charmbracelet/bubbletea/.git/worktrees/*.path
+2026-09-22T09:50:48.0144157Z [command]"C:\Program Files\Git\bin\git.exe" config --local --get-all includeif.gitdir:D:/a/bubbletea/bubbletea/charmbracelet/bubbletea/.git.path
+2026-09-22T09:50:48.0403968Z D:\a\_temp\git-credentials-5690d75e-c9ad-4785-84b4-8f90a067c7be.config
+2026-09-22T09:50:48.0450109Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset includeif.gitdir:D:/a/bubbletea/bubbletea/charmbracelet/bubbletea/.git.path D\:\\a\\_temp\\git\-credentials\-5690d75e\-c9ad\-4785\-84b4\-8f90a067c7be\.config
+2026-09-22T09:50:48.0787141Z [command]"C:\Program Files\Git\bin\git.exe" config --local --get-all includeif.gitdir:D:/a/bubbletea/bubbletea/charmbracelet/bubbletea/.git/worktrees/*.path
+2026-09-22T09:50:48.1061840Z D:\a\_temp\git-credentials-5690d75e-c9ad-4785-84b4-8f90a067c7be.config
+2026-09-22T09:50:48.1106883Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset includeif.gitdir:D:/a/bubbletea/bubbletea/charmbracelet/bubbletea/.git/worktrees/*.path D\:\\a\\_temp\\git\-credentials\-5690d75e\-c9ad\-4785\-84b4\-8f90a067c7be\.config
+2026-09-22T09:50:48.1408146Z [command]"C:\Program Files\Git\bin\git.exe" config --local --get-all includeif.gitdir:/github/workspace/charmbracelet/bubbletea/.git.path
+2026-09-22T09:50:48.1667389Z /github/runner_temp/git-credentials-5690d75e-c9ad-4785-84b4-8f90a067c7be.config
+2026-09-22T09:50:48.1709215Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset includeif.gitdir:/github/workspace/charmbracelet/bubbletea/.git.path \/github\/runner_temp\/git\-credentials\-5690d75e\-c9ad\-4785\-84b4\-8f90a067c7be\.config
+2026-09-22T09:50:48.2011690Z [command]"C:\Program Files\Git\bin\git.exe" config --local --get-all includeif.gitdir:/github/workspace/charmbracelet/bubbletea/.git/worktrees/*.path
+2026-09-22T09:50:48.2260327Z /github/runner_temp/git-credentials-5690d75e-c9ad-4785-84b4-8f90a067c7be.config
+2026-09-22T09:50:48.2302292Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset includeif.gitdir:/github/workspace/charmbracelet/bubbletea/.git/worktrees/*.path \/github\/runner_temp\/git\-credentials\-5690d75e\-c9ad\-4785\-84b4\-8f90a067c7be\.config
+2026-09-22T09:50:48.2605779Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "git config --local --show-origin --name-only --get-regexp remote.origin.url"
+2026-09-22T09:50:48.8100621Z Removing credentials config 'D:\a\_temp\git-credentials-5690d75e-c9ad-4785-84b4-8f90a067c7be.config'
+2026-09-22T09:50:48.8306731Z Cleaning up orphan processes
