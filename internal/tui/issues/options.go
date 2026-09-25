@@ -27,6 +27,14 @@ func WithPrefetch(rows int, delay time.Duration) Option {
 	return func(s *Section) { s.prefetch = &prefetch{rows: rows, delay: delay} }
 }
 
+// WithFilterPrefetch reads the first page of each filter not shown once the
+// list of a repository loads, so that switching filters shows it at once.
+// Each costs a request; pages cached fresh are skipped. The default reads
+// nothing ahead.
+func WithFilterPrefetch() Option {
+	return func(s *Section) { s.prefetchFilters = true }
+}
+
 // WithIcons sets the glyphs of the states of issues. The default is the
 // Nerd Font set.
 func WithIcons(icons ui.Icons) Option {

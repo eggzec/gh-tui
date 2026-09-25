@@ -1,6 +1,7 @@
 package pulls
 
 import (
+	"cmp"
 	"context"
 	"reflect"
 	"slices"
@@ -32,6 +33,14 @@ type fakeService struct {
 	pageSize int
 	queries  []pulls.ListQuery
 	listErr  error
+	// fresh are the pages List has served, which it serves again without
+	// a request, as the service's cache does, until Invalidate. requests
+	// are the lists that weren't fresh.
+	fresh    map[pulls.ListQuery]bool
+	requests []pulls.ListQuery
+	listCtxs []context.Context
+	// stateErrs fail the lists of a state.
+	stateErrs map[core.State]error
 	// cached are the numbers whose detail Get has fetched, which CachedGet
 	// then serves.
 	cached   map[int]bool
@@ -63,7 +72,7 @@ type invalidation struct {
 func newFakeService() *fakeService {
 	return &fakeService{
 		pulls: samplePulls(), pageSize: 30,
-		cached: map[int]bool{}, commented: map[pulls.CommentsQuery]bool{}, listedAs: map[int]core.State{},
+		cached: map[int]bool{}, fresh: map[pulls.ListQuery]bool{}, commented: map[pulls.CommentsQuery]bool{}, listedAs: map[int]core.State{},
 	}
 }
 
@@ -150,13 +159,18 @@ func (f *fakeService) got() []int {
 	return slices.Clone(f.gets)
 }
 
-func (f *fakeService) List(_ context.Context, q pulls.ListQuery) (core.Page[core.PullRequest], error) {
+func (f *fakeService) List(ctx context.Context, q pulls.ListQuery) (core.Page[core.PullRequest], error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.queries = append(f.queries, q)
-	if f.listErr != nil {
-		return core.Page[core.PullRequest]{}, f.listErr
+	if !f.fresh[q] {
+		f.requests = append(f.requests, q)
+		f.listCtxs = append(f.listCtxs, ctx)
 	}
+	if err := cmp.Or(f.listErr, f.stateErrs[q.State]); err != nil {
+		return core.Page[core.PullRequest]{}, err
+	}
+	f.fresh[q] = true
 	var match []core.PullRequest
 	for i := range f.pulls {
 		pr := &f.pulls[i]
@@ -184,6 +198,20 @@ func (f *fakeService) Invalidate(repo core.RepoRef) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.invalidated = append(f.invalidated, invalidation{repo, len(f.queries), len(f.gets)})
+	clear(f.fresh)
+}
+
+func (f *fakeService) FreshList(q pulls.ListQuery) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.fresh[q]
+}
+
+// requested returns the lists that weren't fresh.
+func (f *fakeService) requested() []pulls.ListQuery {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.requests)
 }
 
 func (f *fakeService) invalidations() []invalidation {

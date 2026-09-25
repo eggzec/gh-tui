@@ -20,6 +20,9 @@ import (
 // Service is what the section needs of the pull requests service.
 type Service interface {
 	List(ctx context.Context, q pulls.ListQuery) (core.Page[core.PullRequest], error)
+	// FreshList reports whether List returns the page of q without a
+	// request. It may do I/O.
+	FreshList(q pulls.ListQuery) bool
 	CachedGet(repo core.RepoRef, number int) (core.PullRequestDetail, bool)
 	Get(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error)
 	CachedComments(q pulls.CommentsQuery) (core.Page[core.Comment], bool)
@@ -69,6 +72,10 @@ type Section struct {
 	prefetch *prefetch
 	ahead    *ui.Ahead[pulls.CommentsQuery]
 	rowAt    func(i int) (pulls.CommentsQuery, bool)
+	// others reads the first pages of the filters not shown, if
+	// prefetchFilters is set.
+	prefetchFilters bool
+	others          *ui.Filters[pulls.ListQuery]
 
 	width, height int
 	theme         ui.Theme
@@ -129,6 +136,14 @@ func WithPrefetch(rows int, delay time.Duration) Option {
 	return func(s *Section) { s.prefetch = &prefetch{rows: rows, delay: delay} }
 }
 
+// WithFilterPrefetch reads the first page of each filter not shown once the
+// list of a repository loads, so that switching filters shows it at once.
+// Each costs a request; pages cached fresh are skipped. The default reads
+// nothing ahead.
+func WithFilterPrefetch() Option {
+	return func(s *Section) { s.prefetchFilters = true }
+}
+
 // New returns the section, reading from svc with the configured keys. ctx
 // bounds every request it makes.
 func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Option) *Section {
@@ -151,6 +166,10 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 			pr, ok := s.feed.Item(i)
 			return commentsQuery(s.repo, pr.Number), ok
 		}
+	}
+	if s.prefetchFilters {
+		s.others = ui.NewFilters("pull_filter", readList(svc), svc.FreshList,
+			func(q pulls.ListQuery) string { return string(q.State) })
 	}
 	s.hint = "Search for a repository to see its pull requests."
 	if k := ui.Binding(keys, config.ActionSearch, "search").Help().Key; k != "" {
@@ -183,7 +202,7 @@ func (s *Section) newFeed() tea.Cmd {
 	}
 	ctx, cancel := context.WithCancel(s.ctx)
 	s.ahead.Reset(ctx)
-	q := pulls.ListQuery{Repo: s.repo, State: s.filter}
+	q := s.listQuery(s.filter)
 	svc := s.svc
 	fetch := ui.FeedPages("list.pulls", s.offline, func(ctx context.Context, cursor string) (core.Page[core.PullRequest], error) {
 		q := q
@@ -202,6 +221,12 @@ func (s *Section) newFeed() tea.Cmd {
 	s.layout()
 	s.renderHeader()
 	return f.Init()
+}
+
+// listQuery is the query of the first page of the pull requests of the
+// repository in filter.
+func (s *Section) listQuery(filter core.State) pulls.ListQuery {
+	return pulls.ListQuery{Repo: s.repo, State: filter}
 }
 
 // SetSize implements ui.Section.

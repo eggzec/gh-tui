@@ -58,7 +58,7 @@ func BenchmarkUpdate(b *testing.B) {
 	})
 	b.Run("move with prefetch", func(b *testing.B) {
 		// Each move starts the hover delay, which the loop doesn't run.
-		s := benchSection(b, WithPrefetch(5, time.Nanosecond))
+		s := benchSection(b, WithPrefetch(5, time.Nanosecond), WithFilterPrefetch())
 		down, up := keyMsg("down"), keyMsg("up")
 		b.ReportAllocs()
 		i := 0

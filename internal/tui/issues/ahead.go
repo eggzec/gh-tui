@@ -28,6 +28,31 @@ func (s *Section) readAhead() tea.Cmd {
 	return tea.Batch(first, hover)
 }
 
+// readOthers reads the first pages of the filters not shown, once the list
+// shown has loaded.
+func (s *Section) readOthers() tea.Cmd {
+	if s.others == nil || !s.started || !s.hasRepo || !s.list.Settled() {
+		return nil
+	}
+	return s.others.Read(func() []issuesvc.ListQuery {
+		qs := make([]issuesvc.ListQuery, 0, len(filters)-1)
+		for _, f := range filters {
+			if f != s.filter {
+				qs = append(qs, s.listQuery(f))
+			}
+		}
+		return qs
+	})
+}
+
+// readList returns a read of a first page into the cache of svc.
+func readList(svc Service) func(ctx context.Context, q issuesvc.ListQuery) error {
+	return func(ctx context.Context, q issuesvc.ListQuery) error {
+		_, err := svc.List(ctx, q)
+		return err
+	}
+}
+
 // readIssue returns a read of the issue and the first comments that the
 // modal opens with into the cache of svc.
 func readIssue(svc Service) func(ctx context.Context, q issuesvc.CommentsQuery) error {

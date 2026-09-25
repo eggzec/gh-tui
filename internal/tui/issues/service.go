@@ -11,6 +11,9 @@ import (
 // Service is what the section needs from the issues service.
 type Service interface {
 	List(ctx context.Context, q issuesvc.ListQuery) (core.Page[core.Issue], error)
+	// FreshList reports whether List returns the page of q without a
+	// request. It may do I/O.
+	FreshList(q issuesvc.ListQuery) bool
 	Get(ctx context.Context, repo core.RepoRef, number int) (core.Issue, error)
 	CachedGet(repo core.RepoRef, number int) (core.Issue, bool)
 	CachedComments(q issuesvc.CommentsQuery) (core.Page[core.Comment], bool)

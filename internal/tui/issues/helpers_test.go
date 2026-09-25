@@ -1,6 +1,7 @@
 package issues
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -41,6 +42,11 @@ type fakeService struct {
 	pageSize int
 	lists    []issuesvc.ListQuery
 	listErr  error
+	// requests are the lists of pages not served yet, and listCtxs their
+	// contexts. stateErrs fail the lists of a state.
+	requests  []issuesvc.ListQuery
+	listCtxs  []context.Context
+	stateErrs map[core.StateFilter]error
 	// stale serves the first read of each page as an earlier session kept
 	// it, with "Kept " before each title; offline serves every page as if
 	// GitHub couldn't be reached.
@@ -328,12 +334,16 @@ func (f *fakeService) addComments(number int, cs ...core.Comment) {
 	f.comments[number] = append(f.comments[number], cs...)
 }
 
-func (f *fakeService) List(_ context.Context, q issuesvc.ListQuery) (core.Page[core.Issue], error) {
+func (f *fakeService) List(ctx context.Context, q issuesvc.ListQuery) (core.Page[core.Issue], error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.lists = append(f.lists, q)
-	if f.listErr != nil {
-		return core.Page[core.Issue]{}, f.listErr
+	if _, ok := f.pages[q]; !ok {
+		f.requests = append(f.requests, q)
+		f.listCtxs = append(f.listCtxs, ctx)
+	}
+	if err := cmp.Or(f.listErr, f.stateErrs[q.State]); err != nil {
+		return core.Page[core.Issue]{}, err
 	}
 	if q.Repo != testRepo {
 		return core.Page[core.Issue]{}, errors.New("unknown repo " + q.Repo.String())
@@ -376,6 +386,20 @@ func (f *fakeService) serve(q issuesvc.ListQuery, p core.Page[core.Issue]) core.
 		}
 	}
 	return out
+}
+
+func (f *fakeService) FreshList(q issuesvc.ListQuery) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	_, ok := f.pages[q]
+	return ok
+}
+
+// requested returns the lists of pages not served yet.
+func (f *fakeService) requested() []issuesvc.ListQuery {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.requests)
 }
 
 func (f *fakeService) Invalidate(repo core.RepoRef) {

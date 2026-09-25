@@ -43,6 +43,10 @@ type Section struct {
 	prefetch *prefetch
 	ahead    *ui.Ahead[issuesvc.CommentsQuery]
 	rowAt    func(i int) (issuesvc.CommentsQuery, bool)
+	// others reads the first pages of the filters not shown, if
+	// prefetchFilters is set.
+	prefetchFilters bool
+	others          *ui.Filters[issuesvc.ListQuery]
 
 	width, height int
 	theme         ui.Theme
@@ -82,6 +86,10 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 			it, ok := s.list.Item(i)
 			return commentsQuery(s.repo, it.Number), ok
 		}
+	}
+	if s.prefetchFilters {
+		s.others = ui.NewFilters("issue_filter", readList(svc), svc.FreshList,
+			func(q issuesvc.ListQuery) string { return string(q.State) })
 	}
 	s.hint = "Search for a repository to see its issues."
 	if k := ui.Binding(keys, config.ActionSearch, "search").Help().Key; k != "" {
@@ -155,7 +163,7 @@ func (s *Section) newList() feed.Model[core.Issue] {
 	var ctx context.Context
 	ctx, s.cancelList = context.WithCancel(s.ctx)
 	s.ahead.Reset(ctx)
-	svc, q := s.svc, issuesvc.ListQuery{Repo: s.repo, State: s.filter}
+	svc, q := s.svc, s.listQuery(s.filter)
 	fetch := ui.FeedPages("list.issues", s.offline, func(ctx context.Context, cursor string) (core.Page[core.Issue], error) {
 		q := q
 		q.Cursor = cursor
@@ -170,6 +178,12 @@ func (s *Section) newList() feed.Model[core.Issue] {
 		feed.WithFocused(s.focused),
 		feed.WithEmptyText(s.emptyText()),
 	)
+}
+
+// listQuery is the query of the first page of the issues of the repository
+// in filter.
+func (s *Section) listQuery(filter core.StateFilter) issuesvc.ListQuery {
+	return issuesvc.ListQuery{Repo: s.repo, State: filter}
 }
 
 // resetList shows the list of the current repository and filter from the
