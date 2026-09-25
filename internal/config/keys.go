@@ -35,6 +35,8 @@ const (
 	// ActionResetBase shows the files at the head of the default branch
 	// again, after ActionUseAsBase chose another base.
 	ActionResetBase = "reset_base"
+	// ActionActions opens the Actions modal of the repository screen.
+	ActionActions = "actions"
 )
 
 // Actions of the sections. A key may serve different actions in different
@@ -72,6 +74,23 @@ const (
 	// ActionGoToRepo shows the repository of the search result under the
 	// cursor, where enter previews the result over the search.
 	ActionGoToRepo = "go_to_repo"
+	// ActionNextFilter and ActionPrevFilter switch between the tabs of a
+	// list, such as All, Failing, Running and Mine of the Actions modal.
+	ActionNextFilter = "next_filter"
+	ActionPrevFilter = "prev_filter"
+	// ActionPaneLeft and ActionPaneRight move the focus to the pane on the
+	// left or right, in a modal with panes such as Actions.
+	ActionPaneLeft  = "pane_left"
+	ActionPaneRight = "pane_right"
+	// ActionZoom shows the focused pane of a modal alone, or all of them
+	// again.
+	ActionZoom = "zoom"
+	// Actions of the Actions modal: re-run the failed jobs of a run, all
+	// of them, or the job under the cursor, and cancel a run.
+	ActionRerunFailed = "rerun_failed"
+	ActionRerun       = "rerun"
+	ActionRerunJob    = "rerun_job"
+	ActionCancelRun   = "cancel_run"
 )
 
 func defaultKeys() map[string][]string {
@@ -95,6 +114,7 @@ func defaultKeys() map[string][]string {
 		ActionDashboard: {"0"},
 		ActionHistory:   {"B"},
 		ActionResetBase: {"H"},
+		ActionActions:   {"a"},
 
 		ActionSelect:      {"enter"},
 		ActionBack:        {"esc"},
@@ -118,6 +138,15 @@ func defaultKeys() map[string][]string {
 		ActionPrevOwner:   {"[", "left"},
 		ActionCurrentRepo: {"."},
 		ActionGoToRepo:    {"ctrl+o"},
+		ActionNextFilter:  {"]"},
+		ActionPrevFilter:  {"["},
+		ActionPaneLeft:    {"h"},
+		ActionPaneRight:   {"l"},
+		ActionZoom:        {"z"},
+		ActionRerunFailed: {"ctrl+r"},
+		ActionRerun:       {"R"},
+		ActionRerunJob:    {"J"},
+		ActionCancelRun:   {"x"},
 	}
 }
 
