@@ -225,6 +225,13 @@ func (m Model[T]) Done() bool {
 	return m.done
 }
 
+// Settled reports whether the first chunk is loaded and not being fetched
+// again, such as after it came back stale, so that work the user isn't
+// waiting for can start without slowing down what the feed shows first.
+func (m Model[T]) Settled() bool {
+	return len(m.chunks) > 0 && m.chunks[0].loaded && !m.chunks[0].fetching
+}
+
 // Err returns the error of a failed fetch that has not been retried.
 func (m Model[T]) Err() error {
 	return m.err
