@@ -7,7 +7,9 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/pkg/bubbles/calendar"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
+	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/graph"
+	"github.com/eggzec/gh-tui/pkg/bubbles/logview"
 	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
 	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
 	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
@@ -149,6 +151,71 @@ func (t Theme) Pager() pager.Styles {
 	s.Error = s.Error.Foreground(lipgloss.Color(t.Palette.Error))
 	s.Prompt = s.Prompt.Foreground(lipgloss.Color(t.Palette.Accent))
 	s.Cursor = s.Cursor.Foreground(lipgloss.Color(t.Palette.Accent))
+	return s
+}
+
+// LogView returns the styles of a job log. The search highlights, which
+// need backgrounds the palette doesn't have, keep their defaults for a
+// light or dark terminal.
+func (t Theme) LogView() logview.Styles {
+	s := logview.DefaultStyles(t.Dark)
+	c := lipgloss.Color
+	p := t.Palette
+	s.Text = s.Text.Foreground(c(p.Foreground))
+	s.Command = s.Command.Foreground(c(p.Accent))
+	s.ErrorLine = s.ErrorLine.Foreground(c(p.Error))
+	s.WarningLine = s.WarningLine.Foreground(c(p.Warning))
+	s.NoticeLine = s.NoticeLine.Foreground(c(p.Foreground))
+	s.Group = s.Group.Foreground(c(p.Foreground))
+	s.Section = s.Section.Foreground(c(p.Foreground))
+	s.FailedSection = s.FailedSection.Foreground(c(p.Error))
+	s.Duration = s.Duration.Foreground(c(p.Subtle))
+	s.Marker = s.Marker.Foreground(c(p.Muted))
+	s.ErrorMark = s.ErrorMark.Foreground(c(p.Error))
+	s.WarningMark = s.WarningMark.Foreground(c(p.Warning))
+	s.NoticeMark = s.NoticeMark.Foreground(c(p.Accent))
+	s.Cursor = s.Cursor.Foreground(c(p.Accent))
+	s.BlurredCursor = s.BlurredCursor.Foreground(c(p.Subtle))
+	s.LineNumber = s.LineNumber.Foreground(c(p.Subtle))
+	s.Time = s.Time.Foreground(c(p.Subtle))
+	s.Title = s.Title.Foreground(c(p.Foreground))
+	s.Status = s.Status.Foreground(c(p.Muted))
+	s.NoMatches = s.NoMatches.Foreground(c(p.Error))
+	s.Message = s.Message.Foreground(c(p.Muted))
+	s.Spinner = s.Spinner.Foreground(c(p.Accent))
+	s.LoadError = s.LoadError.Foreground(c(p.Error))
+	s.Prompt = s.Prompt.Foreground(c(p.Accent))
+	s.InputCursor = s.InputCursor.Foreground(c(p.Accent))
+	return s
+}
+
+// FilterForm returns the styles of a filter form. The accent marks only
+// what is in focus, and its pickers take the styles of the search popups.
+func (t Theme) FilterForm() filterform.Styles {
+	s := filterform.DefaultStyles(t.Dark)
+	c := lipgloss.Color
+	p := t.Palette
+	s.Gutter = s.Gutter.Foreground(c(p.Accent))
+	s.Label = s.Label.Foreground(c(p.Muted))
+	s.FocusedLabel = s.FocusedLabel.Foreground(c(p.Foreground))
+	s.Option = s.Option.Foreground(c(p.Subtle))
+	s.Selected = s.Selected.Foreground(c(p.Foreground))
+	s.Active = s.Active.Foreground(c(p.Accent))
+	s.Chip = s.Chip.Foreground(c(p.Foreground))
+	s.ActiveChip = s.ActiveChip.Foreground(c(p.Accent))
+	s.Remove = s.Remove.Foreground(c(p.Subtle))
+	s.Add = s.Add.Foreground(c(p.Subtle))
+	s.Value = s.Value.Foreground(c(p.Foreground))
+	s.Hint = s.Hint.Foreground(c(p.Subtle))
+	s.Rule = s.Rule.Foreground(c(p.Border))
+	s.Query = s.Query.Foreground(c(p.Foreground))
+	s.Cursor = s.Cursor.Foreground(c(p.Accent))
+	s.Spinner = s.Spinner.Foreground(c(p.Accent))
+	s.Error = s.Error.Foreground(c(p.Error))
+	s.Help = t.Help()
+	frame := s.Picker.Frame
+	s.Picker = t.Picker()
+	s.Picker.Frame = frame.BorderForeground(c(p.Border))
 	return s
 }
 
