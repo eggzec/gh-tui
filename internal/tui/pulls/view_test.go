@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/x/exp/golden"
+
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
 func TestView(t *testing.T) {
@@ -14,6 +16,11 @@ func TestView(t *testing.T) {
 	}{
 		{"list at 40 columns", list(40)},
 		{"list at 60 columns", list(60)},
+		{"filtered at 40 columns", filtered(40)},
+		{"filtered at 60 columns", filtered(60)},
+		{"filtered at 100 columns", filtered(100)},
+		{"filter modal at 80 columns", filterModal(60, 18)},
+		{"filter modal at 140 columns", filterModal(108, 30)},
 		{"list at 80 columns", list(80)},
 		{"list at 100 columns", list(100)},
 		{"list at 120 columns", list(120)},
@@ -50,6 +57,33 @@ func TestDetailHeader(t *testing.T) {
 			press(t, s, "enter")
 			golden.RequireEqual(t, s.modal().detailHeader(width))
 		})
+	}
+}
+
+// filtered returns the view of the list at width on the merged tab,
+// filtered by author.
+func filtered(width int) func(t *testing.T) string {
+	return func(t *testing.T) string {
+		t.Helper()
+		s := started(t, newFakeService(), width, 6)
+		apply(t, s, "is:merged author:hubot")
+		return s.View()
+	}
+}
+
+// filterModal returns the view of the filter modal of the list filtered by
+// author and label, in the room the app gives it inside a frame of at most
+// width by height.
+func filterModal(width, height int) func(t *testing.T) string {
+	return func(t *testing.T) string {
+		t.Helper()
+		s := started(t, newFakeService(), 80, 20, WithFacets(fakeFacets{}))
+		apply(t, s, "is:open author:@me label:cache -is:draft sort:created-desc crash")
+		f, _ := s.Filter()
+		m := ui.NewFilterModal(t.Context(), s.Title(), s.Section, f)
+		m.SetTheme(s.theme)
+		m.SetSize(m.Fit(width, height))
+		return m.View()
 	}
 }
 

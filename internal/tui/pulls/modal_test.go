@@ -135,8 +135,8 @@ func TestModal(t *testing.T) {
 			keys: []string{"enter", "f", "down"},
 			check: func(t *testing.T, h *host, _ *fakeService, _ []any) {
 				t.Helper()
-				if h.filter != core.StateOpen || h.modal() == nil {
-					t.Errorf("filter = %s with modal open %v, want open with the modal", h.filter, h.modal() != nil)
+				if h.tab != core.StateOpen || h.modal() == nil {
+					t.Errorf("tab = %s with modal open %v, want open with the modal", h.tab, h.modal() != nil)
 				}
 				if pr, _ := h.feed.Selected(); pr.Number != 142 {
 					t.Errorf("the list moved to #%d under the modal", pr.Number)

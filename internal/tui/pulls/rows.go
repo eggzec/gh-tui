@@ -13,7 +13,7 @@ import (
 )
 
 // headerHeight is the height of the line above the list that names the
-// repository and the filter.
+// repository and holds the tabs.
 const headerHeight = 1
 
 // gutter lines text up with the rows of the feed, which keep two cells for
@@ -340,11 +340,8 @@ func (p paint) write(b *strings.Builder, text string) {
 	b.WriteString(p.suf)
 }
 
-// filters are the states the filter cycles through, in order.
-var filters = []core.State{core.StateOpen, core.StateClosed, core.StateMerged}
-
 // renderHeader renders the line above the list: the repository on the left
-// and the filters on the right, the current one highlighted.
+// and the tabs of the states on the right, the one shown highlighted.
 func (s *Section) renderHeader() {
 	if s.width <= 0 {
 		s.header = ""
@@ -352,49 +349,57 @@ func (s *Section) renderHeader() {
 	}
 	st := &s.st
 	var right strings.Builder
-	for i, f := range filters {
+	for i, t := range tabs {
 		if i > 0 {
 			right.WriteString(st.sep.Render(" · "))
 		}
-		if f == s.filter {
-			right.WriteString(st.filterOn.Render(string(f)))
+		if t.state == s.tab {
+			right.WriteString(st.filterOn.Render(t.label))
 		} else {
-			right.WriteString(st.filterOff.Render(string(f)))
+			right.WriteString(st.filterOff.Render(t.label))
 		}
 	}
 	left := gutter + st.repo.Render(s.repo.String())
 	lw := ansi.StringWidth(left)
-	// Narrow panes name only the current filter, and the narrowest only
-	// the repository.
+	// Narrow panes name only the tab shown, and the narrowest only the
+	// repository.
 	if gap := s.width - lw - ansi.StringWidth(right.String()); gap >= 2 {
 		s.header = left + strings.Repeat(" ", gap) + right.String()
 		return
 	}
-	current := st.filterOn.Render(string(s.filter))
-	if gap := s.width - lw - len(s.filter); gap >= 2 {
-		s.header = left + strings.Repeat(" ", gap) + current
+	label := tabLabel(s.tab)
+	if gap := s.width - lw - len(label); gap >= 2 {
+		s.header = left + strings.Repeat(" ", gap) + st.filterOn.Render(label)
 		return
 	}
 	s.header = ansi.Truncate(left, s.width, "…")
 	s.header += strings.Repeat(" ", s.width-ansi.StringWidth(s.header))
 }
 
-// emptyText is what the feed says when no pull request is in the filter.
+// emptyText is what the feed says when no pull request is in the tab, with
+// the key that shows more.
 func (s *Section) emptyText() string {
-	text := "No " + string(s.filter) + " pull requests in " + s.repo.String() + "."
-	if h := s.keys.Filter.Help(); s.keys.Filter.Enabled() {
-		text += " Press " + h.Key + " to show " + string(nextFilter(s.filter)) + " ones."
+	kind := strings.ToLower(tabLabel(s.tab))
+	if s.tab == "" {
+		kind = ""
+	}
+	if s.query != "" {
+		text := "No " + strings.TrimSpace(kind+" pull requests") + " match the filters."
+		if k := s.keys.ClearFilter; k.Enabled() {
+			text += " Press " + k.Help().Key + " to clear them."
+		}
+		return text
+	}
+	text := "No " + strings.TrimSpace(kind+" pull requests") + " in " + s.repo.String() + "."
+	k := s.keys.NextTab
+	switch next := nextTab(s.tab, 1); {
+	case !k.Enabled() || s.tab == "":
+	case next == "":
+		text += " Press " + k.Help().Key + " to show all of them."
+	default:
+		text += " Press " + k.Help().Key + " to show " + strings.ToLower(tabLabel(next)) + " ones."
 	}
 	return text
-}
-
-func nextFilter(f core.State) core.State {
-	for i, g := range filters {
-		if g == f {
-			return filters[(i+1)%len(filters)]
-		}
-	}
-	return filters[0]
 }
 
 // pullKey identifies a pull request in the feed, so a reload keeps the

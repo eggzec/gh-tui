@@ -48,7 +48,7 @@ func TestMutations(t *testing.T) {
 		},
 		{
 			name: "reopen reopens a closed pull request",
-			keys: []string{"f", "X"}, want: "reopen 93", what: "reopen #93",
+			keys: []string{"]", "X"}, want: "reopen 93", what: "reopen #93",
 			after: func(pr core.PullRequest) bool { return pr.State == core.StateOpen },
 		},
 		{
@@ -61,10 +61,10 @@ func TestMutations(t *testing.T) {
 			keys: []string{"down", "down", "D"}, want: "ready 128", what: "mark #128 ready",
 			after: func(pr core.PullRequest) bool { return !pr.Draft },
 		},
-		{name: "close doesn't apply to a closed pull request", keys: []string{"f", "x"}},
+		{name: "close doesn't apply to a closed pull request", keys: []string{"]", "x"}},
 		{name: "reopen doesn't apply to an open pull request", keys: []string{"X"}},
-		{name: "merge doesn't apply to a merged pull request", keys: []string{"f", "f", "m"}},
-		{name: "toggle draft doesn't apply to a merged pull request", keys: []string{"f", "f", "D"}},
+		{name: "merge doesn't apply to a merged pull request", keys: []string{"]", "]", "m"}},
+		{name: "toggle draft doesn't apply to a merged pull request", keys: []string{"]", "]", "D"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -236,7 +236,7 @@ func TestHelpOffersWhatApplies(t *testing.T) {
 	if got := enabled(s); !slices.Contains(got, "merge") || !slices.Contains(got, "close") || slices.Contains(got, "reopen") {
 		t.Errorf("open help = %v, want merge and close", got)
 	}
-	press(t, s, "f")
+	press(t, s, "]")
 	if got := enabled(s); slices.Contains(got, "merge") || !slices.Contains(got, "reopen") {
 		t.Errorf("closed help = %v, want reopen only", got)
 	}

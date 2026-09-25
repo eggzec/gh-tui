@@ -41,3 +41,24 @@ func TestFilterModalIgnoresOtherForms(t *testing.T) {
 		t.Errorf("Fit in a small screen = %dx%d, want all of it", w, h)
 	}
 }
+
+func TestChips(t *testing.T) {
+	tests := []struct{ query, want string }{
+		{"", ""},
+		{"author:@me label:bug", "@me · bug"},
+		{`author:octocat label:"good first issue",ui -is:draft crash`, `@octocat · good first issue,ui · -is:draft · crash`},
+		{"review:approved sort:created-asc", "review:approved · sort:created-asc"},
+	}
+	for _, tt := range tests {
+		if got := Chips(tt.query); got != tt.want {
+			t.Errorf("Chips(%q) = %q, want %q", tt.query, got, tt.want)
+		}
+	}
+}
+
+func TestWithout(t *testing.T) {
+	drop := func(tok filterform.Token) bool { return tok.Qualifier == "is" && tok.Value == "open" }
+	if got := Without(`is:open label:"good first issue" is:draft`, drop); got != `label:"good first issue" is:draft` {
+		t.Errorf("Without = %q, want the rest as written", got)
+	}
+}

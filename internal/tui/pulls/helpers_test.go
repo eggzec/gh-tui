@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"slices"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -178,7 +179,7 @@ func (f *fakeService) List(ctx context.Context, q pulls.ListQuery) (core.Page[co
 		if !ok {
 			state = pr.State
 		}
-		if pr.Repo == q.Repo && state == q.State {
+		if pr.Repo == q.Repo && (q.State == "" || state == q.State) && matches(pr, q.Filter) {
 			match = append(match, *pr)
 		}
 	}
@@ -192,6 +193,25 @@ func (f *fakeService) List(ctx context.Context, q pulls.ListQuery) (core.Page[co
 		p.Next = strconv.Itoa(end)
 	}
 	return p, nil
+}
+
+// matches reports whether pr has what the author: and label: qualifiers
+// of filter ask for, the only ones the fake knows.
+func matches(pr *core.PullRequest, filter string) bool {
+	for word := range strings.FieldsSeq(filter) {
+		k, v, _ := strings.Cut(word, ":")
+		switch k {
+		case "author":
+			if pr.Author.Login != v {
+				return false
+			}
+		case "label":
+			if !slices.ContainsFunc(pr.Labels, func(l core.Label) bool { return l.Name == v }) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func (f *fakeService) Invalidate(repo core.RepoRef) {

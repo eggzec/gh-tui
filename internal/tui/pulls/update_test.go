@@ -31,8 +31,8 @@ func TestUpdateList(t *testing.T) {
 		check func(t *testing.T, s *host, svc *fakeService, msgs []any)
 	}{
 		{
-			name: "filter cycles open, closed, merged and back",
-			keys: []string{"f", "f", "f"},
+			name: "] and [ switch the tabs, round to all and back",
+			keys: []string{"]", "]", "]", "[", "]", "["},
 			check: func(t *testing.T, s *host, svc *fakeService, _ []any) {
 				t.Helper()
 				var states []core.State
@@ -41,25 +41,35 @@ func TestUpdateList(t *testing.T) {
 						states = append(states, q.State)
 					}
 				}
-				want := []core.State{core.StateOpen, core.StateClosed, core.StateMerged, core.StateOpen}
+				want := []core.State{core.StateOpen, core.StateClosed, core.StateMerged, "", core.StateMerged, "", core.StateMerged}
 				if !slices.Equal(states, want) {
 					t.Errorf("listed %v, want %v", states, want)
 				}
-				if s.filter != core.StateOpen {
-					t.Errorf("filter = %s, want open", s.filter)
+				if s.tab != core.StateMerged {
+					t.Errorf("tab = %q, want merged", s.tab)
 				}
 			},
 		},
 		{
-			name: "filter shows the current state in the header",
-			keys: []string{"f"},
+			name: "the header highlights the tab shown",
+			keys: []string{"]"},
 			check: func(t *testing.T, s *host, _ *fakeService, _ []any) {
 				t.Helper()
 				if !strings.Contains(screen(s), "#86") || strings.Contains(screen(s), "#142") {
-					t.Errorf("closed filter shows\n%s", screen(s))
+					t.Errorf("closed tab shows\n%s", screen(s))
 				}
-				if !strings.Contains(s.header, s.st.filterOn.Render("closed")) {
-					t.Errorf("header %q doesn't highlight closed", s.header)
+				if !strings.Contains(s.header, s.st.filterOn.Render("Closed")) {
+					t.Errorf("header %q doesn't highlight Closed", s.header)
+				}
+			},
+		},
+		{
+			name: "the filter key is the app's",
+			keys: []string{"f"},
+			check: func(t *testing.T, s *host, svc *fakeService, _ []any) {
+				t.Helper()
+				if n := len(svc.listed()); n != 1 || s.tab != core.StateOpen {
+					t.Errorf("listed %d times on tab %q, want the key to do nothing here", n, s.tab)
 				}
 			},
 		},

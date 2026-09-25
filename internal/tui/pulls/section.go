@@ -1,9 +1,10 @@
 // Package pulls is the Pull requests section: a list of the pull requests of
-// the selected repository, filtered by state, each opening into a modal with
-// its detail and comments.
+// the selected repository, in tabs by state and filtered in the filter
+// modal, each opening into a modal with its detail and comments.
 package pulls
 
 import (
+	"cmp"
 	"context"
 	"time"
 
@@ -55,11 +56,17 @@ type Section struct {
 
 	repo    core.RepoRef
 	hasRepo bool
-	filter  core.State
+	// tab is the state shown, or empty for all of them, and query the
+	// other filters, in GitHub's search syntax; chips are those for the
+	// pane's title.
+	tab     core.State
+	query   string
+	chips   string
+	facets  Facets
 	started bool
 	focused bool
 
-	// feed lists the pull requests of repo in filter. It is nil until the
+	// feed lists the pull requests of repo in tab that query selects. It is nil until the
 	// section has started with a repository.
 	feed       *feed.Model[core.PullRequest]
 	cancelFeed context.CancelFunc
@@ -72,7 +79,7 @@ type Section struct {
 	prefetch *prefetch
 	ahead    *ui.Ahead[pulls.CommentsQuery]
 	rowAt    func(i int) (pulls.CommentsQuery, bool)
-	// others reads the first pages of the filters not shown, if
+	// others reads the first pages of the tabs not shown, if
 	// prefetchFilters is set.
 	prefetchFilters bool
 	others          *ui.Filters[pulls.ListQuery]
@@ -136,10 +143,10 @@ func WithPrefetch(rows int, delay time.Duration) Option {
 	return func(s *Section) { s.prefetch = &prefetch{rows: rows, delay: delay} }
 }
 
-// WithFilterPrefetch reads the first page of each filter not shown once the
-// list of a repository loads, so that switching filters shows it at once.
-// Each costs a request; pages cached fresh are skipped. The default reads
-// nothing ahead.
+// WithFilterPrefetch reads the first page of each state not shown once the
+// list of a repository loads, so that switching tabs shows it at once. Each
+// costs a request; pages cached fresh are skipped, and so is a list the
+// user filtered. The default reads nothing ahead.
 func WithFilterPrefetch() Option {
 	return func(s *Section) { s.prefetchFilters = true }
 }
@@ -154,7 +161,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		keys:        newKeyMap(keys),
 		now:         time.Now,
 		mergeMethod: core.MergeSquash,
-		filter:      core.StateOpen,
+		tab:         core.StateOpen,
 		icons:       ui.NewIcons(config.IconsNerd),
 	}
 	for _, opt := range opts {
@@ -169,7 +176,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 	}
 	if s.prefetchFilters {
 		s.others = ui.NewFilters("pull_filter", readList(svc), svc.FreshList,
-			func(q pulls.ListQuery) string { return string(q.State) })
+			func(q pulls.ListQuery) string { return cmp.Or(string(q.State), "all") })
 	}
 	s.hint = "Search for a repository to see its pull requests."
 	if k := ui.Binding(keys, config.ActionSearch, "search").Help().Key; k != "" {
@@ -194,15 +201,15 @@ func (s *Section) Init() tea.Cmd {
 	return s.newFeed()
 }
 
-// newFeed replaces the feed with one for the current repository and filter,
-// and returns the command that loads it.
+// newFeed replaces the feed with one for the current repository, tab and
+// filter, and returns the command that loads it.
 func (s *Section) newFeed() tea.Cmd {
 	if s.cancelFeed != nil {
 		s.cancelFeed()
 	}
 	ctx, cancel := context.WithCancel(s.ctx)
 	s.ahead.Reset(ctx)
-	q := s.listQuery(s.filter)
+	q := s.listQuery(s.tab)
 	svc := s.svc
 	fetch := ui.FeedPages("list.pulls", s.offline, func(ctx context.Context, cursor string) (core.Page[core.PullRequest], error) {
 		q := q
@@ -224,9 +231,9 @@ func (s *Section) newFeed() tea.Cmd {
 }
 
 // listQuery is the query of the first page of the pull requests of the
-// repository in filter.
-func (s *Section) listQuery(filter core.State) pulls.ListQuery {
-	return pulls.ListQuery{Repo: s.repo, State: filter}
+// repository in state that the filter selects.
+func (s *Section) listQuery(state core.State) pulls.ListQuery {
+	return pulls.ListQuery{Repo: s.repo, State: state, Filter: s.query}
 }
 
 // SetSize implements ui.Section.
