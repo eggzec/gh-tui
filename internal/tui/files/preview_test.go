@@ -194,3 +194,51 @@ func TestPreviewFileOfAnotherSection(t *testing.T) {
 		t.Errorf("o sent %v, want the file on GitHub", h.got)
 	}
 }
+
+func TestPreviewFileFinds(t *testing.T) {
+	for _, cached := range []bool{true, false} {
+		fake := sampleFake()
+		s := newSection(t, fake, 40, 12)
+		h := newHost(s)
+		sha := file("AGENTS.md", 0).SHA
+		fake.cachedBlobs[sha] = cached
+		h.run(func() tea.Msg { return ui.OpenFileMsg{Repo: ghTUI, Path: "AGENTS.md", SHA: sha, Find: "anyone"} })
+		p, ok := h.top().(*preview)
+		if !ok {
+			t.Fatalf("cached %v: OpenFileMsg opened %v, want a preview", cached, h.top())
+		}
+		if p.pager.Query() != "anyone" || p.pager.Matches() != 1 {
+			t.Errorf("cached %v: search %q with %d matches, want 1 of %q", cached, p.pager.Query(), p.pager.Matches(), "anyone")
+		}
+		if s.tree != nil {
+			t.Errorf("cached %v: the preview of a found file changed the tree to %v", cached, s.repo)
+		}
+	}
+}
+
+func TestPreviewFileClosesOverItsSearch(t *testing.T) {
+	sha := file("AGENTS.md", 0).SHA
+	open := func() *host {
+		h := newHost(newSection(t, sampleFake(), 40, 12))
+		h.run(func() tea.Msg { return ui.OpenFileMsg{Repo: ghTUI, Path: "AGENTS.md", SHA: sha, Find: "anyone"} })
+		return h
+	}
+	h := open()
+	h.keys("esc")
+	if h.top() != nil {
+		t.Error("esc should close a preview over the search it opened with")
+	}
+	// A search of the user's own is cleared first, as in any pager.
+	h = open()
+	h.keys("/", "G", "u", "i", "d", "enter", "esc")
+	if h.top() == nil {
+		t.Fatal("esc closed the preview over the user's search, want it cleared")
+	}
+	if p := h.top().(*preview); p.pager.Query() != "" {
+		t.Errorf("search %q after esc, want it cleared", p.pager.Query())
+	}
+	h.keys("esc")
+	if h.top() != nil {
+		t.Error("esc should close the preview once the search is cleared")
+	}
+}

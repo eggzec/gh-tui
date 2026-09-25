@@ -27,6 +27,10 @@ type preview struct {
 	entry core.TreeEntry
 	open  key.Binding
 	pager pager.Model
+	// find is searched for once the content is shown, and preset holds
+	// while that search is the one shown, until the user starts another.
+	find   string
+	preset bool
 }
 
 // blobMsg carries the content of the file of the preview whose pager has
@@ -77,7 +81,10 @@ func (p *preview) show(b core.Blob, err error) tea.Cmd {
 		// The blob of a link holds its target.
 		p.pager.SetMessage(name, "Symbolic link → "+string(b.Content))
 	default:
-		return p.pager.SetContent(name, string(b.Content))
+		cmd := p.pager.SetContent(name, string(b.Content))
+		p.pager.SetSearch(p.find)
+		p.preset = p.find != ""
+		return cmd
 	}
 	return nil
 }
@@ -97,7 +104,8 @@ func (p *preview) Title() string {
 
 // Update takes the preview's content and passes the rest to the pager. The
 // open key opens the file in the browser unless the pager's search input
-// takes it.
+// takes it. The close key closes the preview at once while the search
+// shown is the one it opened with, which the user didn't ask for.
 func (p *preview) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case blobMsg:
@@ -115,9 +123,16 @@ func (p *preview) Update(msg tea.Msg) tea.Cmd {
 		if !p.pager.Capturing() && key.Matches(msg, p.open) {
 			return ui.Open(webURL(p.repo, p.ref, p.entry))
 		}
+		if p.preset && key.Matches(msg, p.pager.KeyMap().Close) {
+			p.cancel()
+			return ui.CloseModal(p)
+		}
 	}
 	var cmd tea.Cmd
 	p.pager, cmd = p.pager.Update(msg)
+	if p.pager.Capturing() {
+		p.preset = false
+	}
 	return cmd
 }
 
