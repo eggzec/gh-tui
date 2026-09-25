@@ -51,10 +51,11 @@ var pullFields = fmt.Sprintf(`fragment pullFields on PullRequest {
   commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
 }`, pullLabels, pullAssignees)
 
-var listPullsQuery = `query ListPulls($owner: String!, $name: String!, $states: [PullRequestState!], $first: Int!, $after: String) {
+var listPullsQuery = `query ListPulls($owner: String!, $name: String!, $states: [PullRequestState!], $labels: [String!],
+  $base: String, $head: String, $order: IssueOrder!, $first: Int!, $after: String) {
   ` + rateLimitField + `
   repository(owner: $owner, name: $name) {
-    pullRequests(states: $states, first: $first, after: $after, orderBy: {field: UPDATED_AT, direction: DESC}) {
+    pullRequests(states: $states, labels: $labels, baseRefName: $base, headRefName: $head, orderBy: $order, first: $first, after: $after) {
       nodes { ...pullFields }
       pageInfo { hasNextPage endCursor }
     }
@@ -278,13 +279,69 @@ func pullStates(s core.State) ([]string, error) {
 // is the Next of the previous page, or empty for the first page. GitHub
 // accepts a first of 1 to 100. The results have no Body.
 func (c *Client) ListPullRequests(ctx context.Context, repo core.RepoRef, state core.State, cursor string, first int) (core.Page[core.PullRequest], error) {
-	states, err := pullStates(state)
+	return c.FilterPullRequests(ctx, repo, PullFilter{State: state}, cursor, first)
+}
+
+// PullFilter selects the pull requests of a repository that its list can
+// select on the server. The zero value lists them all, most recently
+// updated first. Anything else takes a search: see SearchPullRequests.
+type PullFilter struct {
+	// State is open, closed (and not merged) or merged, or empty for all.
+	State core.State
+	// Labels selects the pull requests with any of them.
+	Labels []string
+	// Base and Head select by the name of the branch merged into, and of
+	// the branch merged.
+	Base, Head string
+	// Sort is updated, created or comments; empty means updated. Asc
+	// sorts the oldest or least commented first.
+	Sort string
+	Asc  bool
+}
+
+// pullOrder maps the sort of f to a GraphQL IssueOrder.
+func pullOrder(f PullFilter) (map[string]string, error) {
+	field := ""
+	switch f.Sort {
+	case "", "updated":
+		field = "UPDATED_AT"
+	case "created":
+		field = "CREATED_AT"
+	case "comments":
+		field = "COMMENTS"
+	default:
+		return nil, fmt.Errorf("unknown pull request sort %q", f.Sort)
+	}
+	dir := "DESC"
+	if f.Asc {
+		dir = "ASC"
+	}
+	return map[string]string{"field": field, "direction": dir}, nil
+}
+
+// FilterPullRequests returns a page of up to first pull requests of repo
+// that f selects, as ListPullRequests does.
+func (c *Client) FilterPullRequests(ctx context.Context, repo core.RepoRef, f PullFilter, cursor string, first int) (core.Page[core.PullRequest], error) {
+	states, err := pullStates(f.State)
 	if err != nil {
 		return core.Page[core.PullRequest]{}, fmt.Errorf("list pull requests of %s: %w", repo, err)
 	}
-	vars := map[string]any{"owner": repo.Owner, "name": repo.Name, "states": states, "first": first}
+	order, err := pullOrder(f)
+	if err != nil {
+		return core.Page[core.PullRequest]{}, fmt.Errorf("list pull requests of %s: %w", repo, err)
+	}
+	vars := map[string]any{"owner": repo.Owner, "name": repo.Name, "states": states, "order": order, "first": first}
 	if cursor != "" {
 		vars["after"] = cursor
+	}
+	if len(f.Labels) > 0 {
+		vars["labels"] = f.Labels
+	}
+	if f.Base != "" {
+		vars["base"] = f.Base
+	}
+	if f.Head != "" {
+		vars["head"] = f.Head
 	}
 	var data struct {
 		Repository *struct {

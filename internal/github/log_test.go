@@ -60,6 +60,7 @@ func TestRestRoute(t *testing.T) {
 		{"repos/cli/cli/issues/comments/99", "/repos/{owner}/{repo}/issues/comments/{id}", "cli/cli"},
 		{"repos/cli/cli/issues/42/labels/bug%20fix", "/repos/{owner}/{repo}/issues/{number}/labels/{name}", "cli/cli"},
 		{"repos/cli/cli/issues/42/labels/issues", "/repos/{owner}/{repo}/issues/{number}/labels/{name}", "cli/cli"},
+		{"repos/cli/cli/milestones", "/repos/{owner}/{repo}/milestones", "cli/cli"},
 		{"repos/cli/cli/pulls", "/repos/{owner}/{repo}/pulls", "cli/cli"},
 		{"repos/cli/cli/git/trees/main", "/repos/{owner}/{repo}/git/trees/{sha}", "cli/cli"},
 		{"repos/cli/cli/git/trees/feat%2Fx", "/repos/{owner}/{repo}/git/trees/{sha}", "cli/cli"},

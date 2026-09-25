@@ -1,0 +1,42 @@
+{
+  "data": {
+    "rateLimit": {
+      "cost": 1,
+      "limit": 5000,
+      "remaining": 4860,
+      "used": 140,
+      "resetAt": "2026-09-25T09:12:50Z"
+    },
+    "repository": {
+      "assignableUsers": {
+        "nodes": [
+          {
+            "login": "meowgorithm",
+            "name": "Christian Rocha"
+          }
+        ]
+      }
+    },
+    "search": {
+      "nodes": [
+        {
+          "login": "Meow",
+          "name": "Nighty"
+        },
+        {
+          "login": "meowgorithm",
+          "name": "Christian Rocha"
+        },
+        {
+          "login": "meowtech0x",
+          "name": "A"
+        },
+        {
+          "login": "meowtec",
+          "name": "Bo"
+        },
+        {}
+      ]
+    }
+  }
+}

@@ -75,3 +75,13 @@ type Comment struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
+
+// Milestone is a milestone of a repository, which issues and pull requests
+// can be filed under.
+type Milestone struct {
+	Number int
+	Title  string
+	State  State
+	// DueOn is zero for a milestone without a due date.
+	DueOn time.Time
+}

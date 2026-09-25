@@ -318,7 +318,7 @@ var restWords = map[string]bool{
 	"contents": true, "readme": true, "branches": true, "tags": true, "releases": true,
 	"notifications": true, "threads": true, "subscription": true,
 	"search": true, "repositories": true, "code": true, "rate_limit": true,
-	"compare": true, "files": true,
+	"compare": true, "files": true, "milestones": true,
 	"actions": true, "runs": true, "attempts": true, "jobs": true, "workflows": true, "logs": true,
 	"rerun": true, "rerun-failed-jobs": true, "cancel": true, "check-runs": true, "annotations": true,
 }
