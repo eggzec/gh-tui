@@ -46,9 +46,9 @@ const (
 	ActionSelect = "select"
 	ActionBack   = "back"
 	// ActionFilter opens the filter modal of the focused list where it
-	// has one, such as the repositories of the dashboard; the
-	// notifications filter with it. ActionClearFilter puts the filters of
-	// a list back to its defaults.
+	// has one, such as the notifications or the repositories of the
+	// dashboard. ActionClearFilter puts the filters of a list back to its
+	// defaults.
 	ActionFilter      = "filter"
 	ActionClearFilter = "clear_filter"
 	ActionMerge       = "merge"

@@ -47,7 +47,7 @@ func TestUpdate(t *testing.T) {
 		},
 		{
 			name:     "select on a read thread only opens",
-			keys:     []string{"f", "down", "down", "down", "enter"},
+			keys:     []string{showAll, "down", "down", "down", "enter"},
 			wantOpen: []string{url("4")},
 			wantAll:  true,
 			wantRows: []string{"1", "2", "3", "4", "5", "6", "7"},
@@ -67,13 +67,13 @@ func TestUpdate(t *testing.T) {
 		},
 		{
 			name:     "mark read skips a read thread",
-			keys:     []string{"f", "down", "down", "down", "m"},
+			keys:     []string{showAll, "down", "down", "down", "m"},
 			wantAll:  true,
 			wantRows: []string{"1", "2", "3", "4", "5", "6", "7"},
 		},
 		{
 			name:      "mark done removes the thread",
-			keys:      []string{"f", "end", "d"},
+			keys:      []string{showAll, "end", "d"},
 			wantDone:  []string{"mark done"},
 			wantDones: []string{"7"},
 			wantAll:   true,
@@ -87,8 +87,8 @@ func TestUpdate(t *testing.T) {
 			wantRows:    nil,
 		},
 		{
-			name:     "filter toggles back to unread",
-			keys:     []string{"f", "f"},
+			name:     "F goes back to unread",
+			keys:     []string{showAll, "F"},
 			wantRows: []string{"1", "2", "3", "6"},
 		},
 		{
@@ -282,7 +282,7 @@ func TestKeysFromConfig(t *testing.T) {
 func TestViewFits(t *testing.T) {
 	for _, w := range []int{30, 50, 64, 80, 100, 120, 200} {
 		s := newSection(t, newFake(inbox()...), w, 10)
-		press(t, s, "f")
+		press(t, s, showAll)
 		for i, line := range strings.Split(s.View(), "\n") {
 			if got := ansi.StringWidth(line); got != w {
 				t.Errorf("width %d: line %d is %d cells: %q", w, i, got, ansi.Strip(line))

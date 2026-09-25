@@ -25,7 +25,7 @@ func benchSection(b *testing.B) *Section {
 	svc := newFake(threads...)
 	svc.size = 50
 	s := newSection(b, svc, 120, 40)
-	press(b, s, "f")
+	press(b, s, showAll)
 	return s
 }
 

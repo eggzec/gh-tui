@@ -54,10 +54,8 @@ func (s *Section) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	case key.Matches(msg, k.Refresh):
 		s.svc.Invalidate()
 		return s.reload(), true
-	case key.Matches(msg, k.Filter):
-		s.all.Store(!s.all.Load())
-		s.renderHeader()
-		return s.feed.Reset(), true
+	case key.Matches(msg, k.ClearFilter) && s.filtered():
+		return s.setFilter(defaultQuery), true
 	case key.Matches(msg, k.Select):
 		return s.open(true), true
 	case key.Matches(msg, k.Open):

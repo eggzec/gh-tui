@@ -4,6 +4,7 @@ import (
 	"context"
 	"slices"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/notifications"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 )
 
 var _ Service = (*notifications.Service)(nil)
@@ -38,7 +40,10 @@ type fakeService struct {
 	fail    error
 	listErr error
 
-	lists   []notifications.ListQuery
+	lists []notifications.ListQuery
+	// served holds the pages listed of other inboxes than the default,
+	// which CachedList returns.
+	served  map[notifications.ListQuery]core.Page[core.Notification]
 	reads   []string
 	dones   []string
 	allRead int
@@ -55,7 +60,8 @@ func (f *fakeService) CachedList(q notifications.ListQuery) (core.Page[core.Noti
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if q != (notifications.ListQuery{}) {
-		return core.Page[core.Notification]{}, false
+		p, ok := f.served[q]
+		return p, ok
 	}
 	return f.cached, f.isCached
 }
@@ -79,6 +85,12 @@ func (f *fakeService) List(_ context.Context, q notifications.ListQuery) (core.P
 	p := core.Page[core.Notification]{Items: slices.Clone(shown[start:end])}
 	if end < len(shown) {
 		p.Next = strconv.Itoa(end)
+	}
+	if q != (notifications.ListQuery{}) {
+		if f.served == nil {
+			f.served = map[notifications.ListQuery]core.Page[core.Notification]{}
+		}
+		f.served[q] = p
 	}
 	return p, nil
 }
@@ -226,11 +238,20 @@ func run(tb testing.TB, s *Section, cmd tea.Cmd) []tea.Msg {
 	return app
 }
 
-// press presses each key and runs the resulting commands.
+// showAll stands for applying the filter of every thread, read or not,
+// among the keys of press, as the filter modal of the app would.
+const showAll = "filter:"
+
+// press presses each key and runs the resulting commands. A key that
+// starts with showAll applies the filter of the query after it.
 func press(tb testing.TB, s *Section, keys ...string) []tea.Msg {
 	tb.Helper()
-	var app []tea.Msg //nolint:prealloc // Most keys send nothing to the app.
+	var app []tea.Msg
 	for _, k := range keys {
+		if q, ok := strings.CutPrefix(k, showAll); ok {
+			app = append(app, run(tb, s, s.ApplyFilter(filterform.AppliedMsg{Query: q}))...)
+			continue
+		}
 		app = append(app, run(tb, s, s.Update(keyPress(k)))...)
 	}
 	return app
