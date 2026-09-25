@@ -55,6 +55,7 @@ func TestLoadMergesOverDefaults(t *testing.T) {
 			want: func(c *Config) {
 				c.Keys[ActionQuit] = []string{"x"}
 				c.Cache.TTL = 10 * time.Minute
+				c.Details.Prefetch.Rows = 3
 			},
 		},
 		{

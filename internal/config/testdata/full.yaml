@@ -60,6 +60,7 @@ details:
     enabled: false
     rows: 10
     hover_delay: 1s
+    filters: false
 
 history:
   row: [short_sha, subject, verified, age]

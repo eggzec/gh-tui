@@ -98,6 +98,10 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 	if p := cfg.Details.Prefetch; p.Enabled {
 		pullOpts = append(pullOpts, pulls.WithPrefetch(p.Rows, p.HoverDelay))
 		issueOpts = append(issueOpts, issues.WithPrefetch(p.Rows, p.HoverDelay))
+		if p.Filters {
+			pullOpts = append(pullOpts, pulls.WithFilterPrefetch())
+			issueOpts = append(issueOpts, issues.WithFilterPrefetch())
+		}
 	}
 	layout := tui.Layout{
 		Files:         files.New(ctx, fileSvc, cfg.Keys, fileOpts...),
