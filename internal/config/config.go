@@ -40,8 +40,12 @@ type Config struct {
 	Cache Cache               `yaml:"cache"`
 	Sync  Sync                `yaml:"sync"`
 	Files Files               `yaml:"files"`
-	// Details configures the pull request and issue modals.
+	// Details configures the pull request and issue modals, and reading
+	// them ahead, which the notifications follow too.
 	Details Details `yaml:"details"`
+	// Notifications configures the notifications screen and the
+	// dashboard's inbox.
+	Notifications Notifications `yaml:"notifications"`
 	// History configures the History modal of the repository screen.
 	History History `yaml:"history"`
 	// Dashboard configures the screen the app opens on.
@@ -70,11 +74,12 @@ func Default() Config {
 		Sync:   Sync{Enabled: true, Interval: time.Minute},
 		Files:  defaultFiles(),
 
-		Details:   defaultDetails(),
-		History:   defaultHistory(),
-		Dashboard: defaultDashboard(),
-		UI:        defaultUI(),
-		Log:       defaultLog(),
+		Details:       defaultDetails(),
+		Notifications: defaultNotifications(),
+		History:       defaultHistory(),
+		Dashboard:     defaultDashboard(),
+		UI:            defaultUI(),
+		Log:           defaultLog(),
 	}
 }
 

@@ -31,8 +31,9 @@ func (a *app) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.String() == "q" {
 			return a, tea.Quit
 		}
-	case ui.OpenMsg:
-		a.opened = append(a.opened, msg.URL)
+	case ui.OpenMsg, ui.OpenPullMsg:
+		o, _ := opened(msg)
+		a.opened = append(a.opened, o)
 		return a, nil
 	case filterform.AppliedMsg:
 		// The app applies what its filter modal sends.
@@ -69,7 +70,7 @@ func TestProgram(t *testing.T) {
 	tm.Send(keyPress("q"))
 
 	final := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(*app)
-	if want := []string{inbox()[0].Subject.WebURL}; !slices.Equal(final.opened, want) {
+	if want := []string{"pull charmbracelet/bubbletea#1"}; !slices.Equal(final.opened, want) {
 		t.Errorf("opened %q, want %q", final.opened, want)
 	}
 	svc.mu.Lock()

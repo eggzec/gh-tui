@@ -33,6 +33,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/releases"
 	searchpage "github.com/eggzec/gh-tui/internal/tui/search"
+	"github.com/eggzec/gh-tui/internal/tui/threads"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/watch"
 )
@@ -133,12 +134,22 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 			issueOpts = append(issueOpts, issues.WithFilterPrefetch())
 		}
 	}
+	// The notifications open what each thread is about in its modal, and
+	// read it ahead as the lists of the repository screen do.
+	threadOpts := []threads.Option{
+		threads.WithPulls(pullSvc), threads.WithIssues(issueSvc), threads.WithReleases(releaseSvc),
+		threads.WithMarkRead(cfg.Notifications.MarkReadOnOpen),
+	}
+	if p := cfg.Details.Prefetch; p.Enabled {
+		threadOpts = append(threadOpts, threads.WithPrefetch(p.Rows, p.HoverDelay))
+	}
 	layout := tui.Layout{
-		Files:         files.New(ctx, fileSvc, cfg.Keys, fileOpts...),
-		Pulls:         pulls.New(ctx, pullSvc, cfg.Keys, pullOpts...),
-		Issues:        issues.New(ctx, issueSvc, cfg.Keys, issueOpts...),
-		Notifications: notifications.New(ctx, notifSvc, cfg.Keys, notifications.WithOffline(offline)),
-		Search:        searchpage.New(ctx, searchSvc, cfg.Keys, searchpage.WithStart(searchStart(repoSvc, pinned)), searchpage.WithIcons(icons)),
+		Files:  files.New(ctx, fileSvc, cfg.Keys, fileOpts...),
+		Pulls:  pulls.New(ctx, pullSvc, cfg.Keys, pullOpts...),
+		Issues: issues.New(ctx, issueSvc, cfg.Keys, issueOpts...),
+		Notifications: notifications.New(ctx, notifSvc, cfg.Keys,
+			notifications.WithOffline(offline), notifications.WithOpener(threads.New(ctx, threadOpts...))),
+		Search: searchpage.New(ctx, searchSvc, cfg.Keys, searchpage.WithStart(searchStart(repoSvc, pinned)), searchpage.WithIcons(icons)),
 		Dashboard: dashboard.New(ctx, dashSvc, cfg.Keys,
 			dashboard.WithOffline(offline),
 			dashboard.WithInbox(notifSvc),
