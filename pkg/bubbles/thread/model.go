@@ -40,6 +40,7 @@ type Model[T any] struct {
 	styles        Styles
 	markdown      *ansi.StyleConfig
 	maxChunks     int
+	emptyText     string
 
 	parent context.Context
 	ctx    context.Context
@@ -107,6 +108,7 @@ func New[T any](fetch Fetch[T], render Render[T], opts ...Option) Model[T] {
 		styles:    DefaultStyles(true),
 		ctx:       context.Background(),
 		maxChunks: DefaultMaxChunks,
+		emptyText: "No comments yet.",
 	}
 	for _, opt := range opts {
 		opt(&s)
@@ -119,6 +121,7 @@ func New[T any](fetch Fetch[T], render Render[T], opts ...Option) Model[T] {
 		keys:      s.keys,
 		markdown:  s.markdown,
 		maxChunks: s.maxChunks,
+		emptyText: s.emptyText,
 		parent:    s.ctx,
 		vp:        viewport.New(),
 		spin:      spinner.New(spinner.WithSpinner(spinner.Dot)),
@@ -261,7 +264,7 @@ func (m *Model[T]) SetStyles(s Styles) {
 	m.text = texts{
 		loadingDoc:      s.Loading.Render("Loading…"),
 		loadingComments: s.Loading.Render("Loading comments…"),
-		empty:           s.Empty.Render("No comments yet."),
+		empty:           s.Empty.Render(m.emptyText),
 		errPrefix:       s.Error.Render("Couldn't load comments."),
 	}
 	m.styleRetry()

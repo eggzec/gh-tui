@@ -17,6 +17,7 @@ type settings struct {
 	markdown      *ansi.StyleConfig
 	ctx           context.Context
 	maxChunks     int
+	emptyText     string
 }
 
 // DefaultMaxChunks is how many comment chunks a thread keeps rendered unless
@@ -76,5 +77,14 @@ func WithContext(ctx context.Context) Option {
 func WithMaxChunks(n int) Option {
 	return func(s *settings) {
 		s.maxChunks = n
+	}
+}
+
+// WithEmptyText sets what the thread says when it has no comments, such as
+// "No assets." when the items are something else. The default is "No
+// comments yet."
+func WithEmptyText(text string) Option {
+	return func(s *settings) {
+		s.emptyText = text
 	}
 }
