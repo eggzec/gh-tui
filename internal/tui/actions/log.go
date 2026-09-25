@@ -18,7 +18,7 @@ func (m *Modal) showJob(rest bool) tea.Cmd {
 		m.log.Clear()
 		return nil
 	}
-	return m.log.Show(j, rest)
+	return m.log.Show(j, rest, jobview.Hints{SHA: m.run.HeadSHA})
 }
 
 // logBody renders the log pane's body, h lines of w cells.

@@ -7,6 +7,7 @@ import (
 	"charm.land/bubbles/v2/key"
 
 	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/internal/tui/jobview"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/logview"
@@ -39,6 +40,9 @@ type KeyMap struct {
 	RerunFailed, Rerun, RerunJob, Cancel key.Binding
 	// Yes and No answer the confirmation.
 	Yes, No key.Binding
+	// Annotations moves the focus between the annotations of a failed job
+	// and its log.
+	Annotations key.Binding
 
 	// List moves through the runs and the jobs, and Log through the log.
 	List feed.KeyMap
@@ -61,6 +65,7 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		Rerun:       ui.Binding(keys, config.ActionRerun, "rerun all"),
 		RerunJob:    ui.Binding(keys, config.ActionRerunJob, "rerun job"),
 		Cancel:      ui.Binding(keys, config.ActionCancelRun, "cancel run"),
+		Annotations: ui.Binding(keys, config.ActionAnnotations, "annotations"),
 		Yes:         key.NewBinding(key.WithKeys("y", "enter"), key.WithHelp("y", "yes")),
 		No:          key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n", "no")),
 	}
@@ -106,6 +111,15 @@ func newKeyMap(keys map[string][]string) KeyMap {
 	lk.Close = relabel(k.Back, "back")
 	k.Log = lk
 	return k
+}
+
+// job returns the keys of the log pane's job view: the moves of the
+// lists through its annotations, and the select key to open one.
+func (k KeyMap) job() jobview.KeyMap {
+	return jobview.KeyMap{
+		Log: k.Log, Annotations: k.Annotations, Up: k.List.Up, Down: k.List.Down,
+		Select: relabel(k.Select, "open file"), Open: k.Open,
+	}
 }
 
 var keyLabels = strings.NewReplacer("pgdown", "pgdn", "down", "↓", "up", "↑", "left", "←", "right", "→")

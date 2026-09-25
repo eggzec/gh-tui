@@ -143,8 +143,8 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, keys map[string][]
 	}
 	// Assume a dark terminal until the app sets the theme.
 	p, _ := config.Default().Palette(true)
-	m.log = jobview.New(rctx, svc, repo, keyMap.Log, keyMap.Open,
-		jobview.WithIcons(o.icons), jobview.WithRest(o.rest), jobview.WithClock(o.now))
+	m.log = jobview.New(rctx, svc, repo, keyMap.job(),
+		jobview.WithIcons(o.icons), jobview.WithRest(o.rest), jobview.WithClock(o.now), jobview.WithReturn(m))
 	m.SetTheme(ui.NewTheme(p, true))
 	m.runs = m.newRuns()
 	m.setFocus(runsPane)

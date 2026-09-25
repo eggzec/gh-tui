@@ -27,9 +27,8 @@ func (h helpKeys) ShortHelp() []key.Binding {
 		return m.log.ShortHelp()
 	}
 	var short []key.Binding
-	if m.focus == logPane && m.log.State() == jobview.Ready {
-		lk := m.log.KeyMap()
-		short = []key.Binding{lk.Toggle, lk.NextError, lk.Search}
+	if m.focus == logPane && (m.log.State() == jobview.Ready || m.log.OnAnnotations()) {
+		short = m.log.Keys()
 	} else {
 		short = []key.Binding{h.drill()}
 	}
