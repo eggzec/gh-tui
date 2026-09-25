@@ -39,6 +39,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 	page := max(m.height, 1)
+	// The user took over from a Reveal.
+	m.goal = nil
 	var cmd tea.Cmd
 	switch {
 	case key.Matches(msg, m.keyMap.Up):
@@ -173,5 +175,8 @@ func (m *Model) receive(msg childrenMsg) tea.Cmd {
 	}
 	cmd := m.settle(e)
 	m.flatten(anchor)
+	if len(m.goal) > 0 {
+		cmd = tea.Batch(cmd, m.advance())
+	}
 	return cmd
 }

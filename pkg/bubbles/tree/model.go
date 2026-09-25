@@ -86,6 +86,9 @@ type Model struct {
 	seq   int
 	loads int
 	bulk  bulk
+	// goal is the path of a Reveal in progress, from a top-level node
+	// down, or nil.
+	goal []string
 
 	initCmd  tea.Cmd
 	spin     spinner.Model
@@ -147,6 +150,7 @@ func (m *Model) clear() tea.Cmd {
 	m.sel, m.top = 0, 0
 	m.loads = 0
 	m.bulk = bulk{}
+	m.goal = nil
 	return m.startLoad(root)
 }
 
