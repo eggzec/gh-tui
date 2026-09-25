@@ -86,6 +86,12 @@ func WithGlyph(glyph string) Option {
 	return func(s *Section) { s.glyph = glyph }
 }
 
+// WithContributions shows the contributions of the last days days, or of
+// the year GitHub reports for 0. The default is 90.
+func WithContributions(days int) Option {
+	return func(s *Section) { s.calDays = max(days, 0) }
+}
+
 // WithIcons sets the glyphs that mark repositories, languages and the
 // states of issues and pull requests. The default is the Nerd Font set.
 func WithIcons(icons ui.Icons) Option {
@@ -123,6 +129,8 @@ type Section struct {
 	offline *ui.Offline
 	glyph   string
 	icons   ui.Icons
+	// calDays is the range of the calendar, 0 for the year.
+	calDays int
 
 	here    core.RepoRef
 	getHere func(ctx context.Context, repo core.RepoRef) (core.Repo, error)
@@ -185,6 +193,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		offline: new(ui.Offline),
 		glyph:   config.DefaultCalendarGlyph,
 		icons:   ui.NewIcons(config.IconsNerd),
+		calDays: 90,
 		// Finding a repository is what the dashboard is most often for.
 		focus: reposPane,
 	}
@@ -193,6 +202,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 	}
 	s.cal = calendar.New(
 		calendar.WithGlyph(s.glyph),
+		calendar.WithRange(s.calDays),
 		calendar.WithEmptyText("Loading contributions…"),
 	)
 	s.repos = newRepoTabs(s)

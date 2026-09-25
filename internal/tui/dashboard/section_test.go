@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -27,7 +28,7 @@ func TestInitLoadsEverything(t *testing.T) {
 		"Mona Lisa Octocat @octocat", "1.2k followers", "3 unread",
 		ui.NewIcons(config.IconsNerd).Here, "spoon-knife", "Yours", "github", "charmbracelet",
 		"repo-000", "Review requests 3", "bubbletea#1402", "Your pull requests 2",
-		"Render only the cells that changed", "contributions in the last year",
+		"Render only the cells that changed", "contributions in the last 90 days",
 	} {
 		if !strings.Contains(view, want) {
 			t.Errorf("the dashboard doesn't show %q:\n%s", want, view)
@@ -41,6 +42,46 @@ func TestInitLoadsEverything(t *testing.T) {
 	if in.lists != 1 {
 		t.Errorf("the inbox was listed %d times, want once", in.lists)
 	}
+}
+
+func TestContributionsRange(t *testing.T) {
+	c := contributions()
+	tests := []struct {
+		days int
+		want string
+	}{
+		{0, commas(c.Total) + " contributions in the last year"},
+		{90, commas(recent(c, 90)) + " contributions in the last 90 days"},
+		{30, commas(recent(c, 30)) + " contributions in the last 30 days"},
+	}
+	for _, tt := range tests {
+		s := newSection(t, newFake(), nil, 140, 38, WithContributions(tt.days))
+		if view := screen(s); !strings.Contains(view, tt.want) {
+			t.Errorf("range %d: the calendar doesn't say %q:\n%s", tt.days, tt.want, view)
+		}
+	}
+}
+
+// recent sums the counts of the last days days of c.
+func recent(c core.Contributions, days int) int {
+	var all []core.ContributionDay
+	for _, w := range c.Weeks {
+		all = append(all, w...)
+	}
+	n := 0
+	for _, d := range all[max(len(all)-days, 0):] {
+		n += d.Count
+	}
+	return n
+}
+
+// commas formats n as the calendar does, as in 1,208.
+func commas(n int) string {
+	s := strconv.Itoa(n)
+	if len(s) > 3 {
+		s = s[:len(s)-3] + "," + s[len(s)-3:]
+	}
+	return s
 }
 
 func TestCachedPaintsAtOnce(t *testing.T) {
