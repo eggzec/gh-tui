@@ -50,6 +50,19 @@ func OpenModal(m Modal) tea.Cmd {
 	return func() tea.Msg { return OpenModalMsg{Modal: m} }
 }
 
+// ReopenedMsg tells Modal that it is open again, after a modal it opened
+// in its place closed, such as a file preview opened from it. A modal that
+// stopped what it did while hidden, such as polls, starts it again.
+type ReopenedMsg struct {
+	Modal Modal
+}
+
+// Reopen returns a command that opens m again, in place of the modal that
+// is open, and then tells it with a [ReopenedMsg].
+func Reopen(m Modal) tea.Cmd {
+	return tea.Sequence(OpenModal(m), func() tea.Msg { return ReopenedMsg{Modal: m} })
+}
+
 // CloseModalMsg asks the app to close Modal. It does nothing once another
 // modal has replaced it.
 type CloseModalMsg struct {

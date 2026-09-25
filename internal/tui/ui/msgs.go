@@ -115,9 +115,19 @@ type OpenFileMsg struct {
 	Repo core.RepoRef
 	Path string
 	SHA  string
+	// Ref, when SHA is empty, is the commit to find the file at by its
+	// path, such as the head of a pull request: it costs a read of each
+	// directory on the way that isn't cached.
+	Ref string
 	// Find, if set, is searched for in the preview, which opens on its
 	// first match, such as the text a code search matched.
 	Find string
+	// Line, if set, is the line the preview opens on, counted from 1,
+	// such as the one an annotation points at.
+	Line int
+	// Return, if set, is the modal the preview reopens when it closes,
+	// such as the one it was opened from, which it replaced.
+	Return Modal
 }
 
 // ShowMsg asks the app to switch to the section with Title.
