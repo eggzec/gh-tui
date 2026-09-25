@@ -86,6 +86,12 @@ func WithGlyph(glyph string) Option {
 	return func(s *Section) { s.glyph = glyph }
 }
 
+// WithIcons sets the glyphs that mark repositories, languages and the
+// states of issues and pull requests. The default is the Nerd Font set.
+func WithIcons(icons ui.Icons) Option {
+	return func(s *Section) { s.icons = icons }
+}
+
 // paneID names a pane of the dashboard. They are numbered in this order.
 type paneID int
 
@@ -116,6 +122,7 @@ type Section struct {
 	now     func() time.Time
 	offline *ui.Offline
 	glyph   string
+	icons   ui.Icons
 
 	here    core.RepoRef
 	getHere func(ctx context.Context, repo core.RepoRef) (core.Repo, error)
@@ -177,6 +184,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		now:     time.Now,
 		offline: new(ui.Offline),
 		glyph:   config.DefaultCalendarGlyph,
+		icons:   ui.NewIcons(config.IconsNerd),
 		// Finding a repository is what the dashboard is most often for.
 		focus: reposPane,
 	}
@@ -188,6 +196,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		calendar.WithEmptyText("Loading contributions…"),
 	)
 	s.repos = newRepoTabs(s)
+	s.tasks.now = s.now
 	s.pinned.here = s.here
 	s.paintCached()
 	s.SetTheme(ui.NewTheme(defaultPalette(), true))

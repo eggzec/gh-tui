@@ -16,6 +16,8 @@ type styles struct {
 	name, login, text, muted, subtle paint
 	accent, success, warning, fail   paint
 	selected                         paint
+	// states color the glyphs of the states of issues and pull requests.
+	states [ui.NumStates]paint
 
 	// cursor and blurred mark the selected row or card, while the pane is
 	// focused and while it isn't.
@@ -24,7 +26,12 @@ type styles struct {
 
 func newStyles(t ui.Theme) styles {
 	border := lipgloss.NewStyle().Foreground(lipgloss.Color(t.Palette.Border))
+	var states [ui.NumStates]paint
+	for i := range states {
+		states[i] = newPaint(t.State(ui.State(i)))
+	}
 	return styles{
+		states:     states,
 		edge:       newPaint(border),
 		focusEdge:  newPaint(t.Accent),
 		title:      newPaint(t.Muted),

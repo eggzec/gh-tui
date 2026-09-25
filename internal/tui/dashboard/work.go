@@ -1,10 +1,17 @@
 package dashboard
 
 import (
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/charmbracelet/x/ansi"
+
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
-// workRow is a line of the work pane: the header of a list, one of its
+// workRow is a row of the work pane: the header of a list, one of its
 // items, or what stands in for them.
 type workRow struct {
 	// header names a list, with its count.
@@ -13,19 +20,34 @@ type workRow struct {
 	hit    *core.SearchHit
 	// note is shown when a list is empty, or holds more than it lists.
 	note string
+
+	// ref and lines are an item wrapped to the pane: ref, such as
+	// "cli#12", starts the first line, and lines hold its title, the first
+	// after ref. The last line leaves room for the age.
+	ref   string
+	lines []string
 }
 
 // workList is the work pane: the three lists of work waiting on the
-// viewer, one after the other, with a cursor over their items.
+// viewer, one after the other, with a cursor over their items. An item
+// takes as many lines as its title needs, and the window scrolls by whole
+// rows.
 type workList struct {
 	rows []workRow
 	// items holds the index in rows of each item, in order.
 	items []int
 	sel   int
-	top   int
-	// height is how many rows show.
-	height int
+	// top is the first row on view.
+	top int
+	// width and height are the size of the pane, inside its frame.
+	width, height int
+	// now is the clock that ages are measured against.
+	now func() time.Time
 }
+
+// workIndent is the room before the text of a work item: the gutter, and
+// the state and its space.
+const workIndent = 4
 
 // The lists of the work pane, and what each says when it is empty.
 var workLists = []struct {
@@ -68,6 +90,7 @@ func (l *workList) set(w core.Work) {
 			l.sel = i
 		}
 	}
+	l.wrap()
 	l.scroll()
 }
 
@@ -91,29 +114,108 @@ func (l *workList) move(delta int) {
 	l.scroll()
 }
 
-func (l *workList) resize(height int) {
-	l.height = max(height, 0)
+func (l *workList) resize(width, height int) {
+	width, height = max(width, 0), max(height, 0)
+	if width != l.width {
+		l.width = width
+		l.wrap()
+	}
+	l.height = height
 	l.scroll()
 }
 
-// scroll shows the row of the cursor, with the header of its list when
-// there is room, and fills the window from the bottom.
+// wrap breaks the items into lines of the pane's width.
+func (l *workList) wrap() {
+	for i := range l.rows {
+		if r := &l.rows[i]; r.hit != nil {
+			age := ansi.StringWidth(ui.Ago(r.hit.Issue.UpdatedAt, l.now()))
+			r.ref, r.lines = wrapWork(r.hit.Issue, l.width-workIndent, age)
+		}
+	}
+}
+
+// wrapWork breaks the reference and title of is into lines of width
+// cells. The reference starts the first line, cut to half of it at most,
+// and lines holds the title, the first after the reference. The last line
+// leaves room for an age of age cells and a space, on a line of its own if
+// need be.
+func wrapWork(is core.Issue, width, age int) (ref string, lines []string) {
+	if width <= 0 {
+		return "", []string{""}
+	}
+	ref = is.Repo.Name + "#" + strconv.Itoa(is.Number)
+	ref = truncate(ref, min(ansi.StringWidth(ref), max(width/2, 1)))
+	title := cleanLine(is.Title)
+	if title == "" {
+		lines = []string{""}
+	} else {
+		// A stand-in without breakpoints keeps the reference whole, so the
+		// title's first line starts after it.
+		refW := ansi.StringWidth(ref)
+		text := strings.Repeat("x", refW) + " " + title
+		lines = strings.Split(ansi.Wrap(text, width, ""), "\n")
+		lines[0] = lines[0][min(refW, len(lines[0])):]
+		for i := range lines {
+			lines[i] = strings.TrimSpace(lines[i])
+		}
+	}
+	last := ansi.StringWidth(lines[len(lines)-1])
+	if len(lines) == 1 {
+		last += ansi.StringWidth(ref) + 1
+	}
+	if last+1+age > width {
+		lines = append(lines, "")
+	}
+	return ref, lines
+}
+
+// lines is how many lines row i takes when first is the first row on
+// view: a header has a blank line above it, unless it is at the top.
+func (l *workList) lines(i, first int) int {
+	r := &l.rows[i]
+	switch {
+	case r.hit != nil:
+		return len(r.lines)
+	case r.header != "" && i > first:
+		return 2
+	default:
+		return 1
+	}
+}
+
+// span is how many lines rows first to last take with first on top.
+func (l *workList) span(first, last int) int {
+	n := 0
+	for i := first; i <= last; i++ {
+		n += l.lines(i, first)
+	}
+	return n
+}
+
+// scroll shows the whole item under the cursor, with the header of its
+// list when there is room, and fills the window from the bottom.
 func (l *workList) scroll() {
-	if l.height <= 0 {
+	if l.height <= 0 || len(l.rows) == 0 {
 		return
 	}
 	if l.sel < len(l.items) {
 		row := l.items[l.sel]
+		first := row
 		// The header of a list comes into view with its first item.
 		if row > 0 && l.rows[row-1].header != "" {
-			row--
+			first--
 		}
-		if row < l.top {
-			l.top = row
+		if first < l.top {
+			l.top = first
 		}
-		if r := l.items[l.sel]; r >= l.top+l.height {
-			l.top = r - l.height + 1
+		for l.top < row && l.span(l.top, row) > l.height {
+			l.top++
 		}
 	}
-	l.top = min(max(l.top, 0), max(len(l.rows)-l.height, 0))
+	// The last rows fill the window rather than leave it half empty.
+	last := len(l.rows) - 1
+	for l.top > 0 && l.span(l.top-1, last) <= l.height {
+		l.top--
+	}
+	l.top = min(max(l.top, 0), last)
 }
