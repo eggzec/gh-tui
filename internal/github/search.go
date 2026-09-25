@@ -31,6 +31,8 @@ type searchRepo struct {
 	Private       bool      `json:"private"`
 	Fork          bool      `json:"fork"`
 	Archived      bool      `json:"archived"`
+	Template      bool      `json:"is_template"`
+	MirrorURL     string    `json:"mirror_url"`
 	UpdatedAt     time.Time `json:"updated_at"`
 	HTMLURL       string    `json:"html_url"`
 }
@@ -48,6 +50,8 @@ func (r searchRepo) core() core.Repo {
 		Private:       r.Private,
 		Fork:          r.Fork,
 		Archived:      r.Archived,
+		Template:      r.Template,
+		Mirror:        r.MirrorURL != "",
 		UpdatedAt:     r.UpdatedAt,
 		URL:           r.HTMLURL,
 	}

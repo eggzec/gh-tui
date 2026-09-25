@@ -56,6 +56,8 @@
       "language": null,
       "forks_count": 0,
       "archived": true,
+      "is_template": true,
+      "mirror_url": "https://git.example.com/tui-old.git",
       "open_issues_count": 0,
       "default_branch": "master",
       "score": 0.5

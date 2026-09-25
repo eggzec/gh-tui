@@ -35,6 +35,8 @@ func TestSearchRepos(t *testing.T) {
 			Private:       true,
 			Fork:          true,
 			Archived:      true,
+			Template:      true,
+			Mirror:        true,
 			UpdatedAt:     issueTime("2024-01-26T19:14:43Z"),
 			URL:           "https://github.com/octocat/tui-old",
 		},
