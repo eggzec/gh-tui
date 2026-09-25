@@ -105,8 +105,9 @@ func WithRepo(repo core.RepoRef) Option {
 }
 
 // WithRepoInfo sets the function that reads a repository, so that the
-// header can show its default branch. It is called in a command whenever
-// a repository is selected.
+// header can show its default branch and the sections learn what the
+// viewer may do in it, from a ui.CapsMsg. It is called in a command
+// whenever a repository is selected.
 func WithRepoInfo(get func(ctx context.Context, repo core.RepoRef) (core.Repo, error)) Option {
 	return func(m *Model) { m.repoInfo = get }
 }
