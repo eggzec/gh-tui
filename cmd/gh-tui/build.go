@@ -108,12 +108,17 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 			checks.WithWatch(watchChecks(engine.Subscribe, engine.Refresh, actionSvc.PollChecks)),
 			checks.WithFollow(checks.Follow(followRuns(engine.Subscribe, engine.Refresh, actionSvc.Poll))))
 	}
+	// The login of the viewer, from the header the dashboard read.
+	viewer := viewerLogin(dashSvc.CachedHeader, dashSvc.Header)
 	var (
 		pullOpts = []pulls.Option{
 			pulls.WithOffline(offline), pulls.WithIcons(icons), pulls.WithFacets(facetSvc),
 			pulls.WithChecks(actionSvc, checkOpts...), pulls.WithRepos(repoSvc),
 		}
-		issueOpts = []issues.Option{issues.WithOffline(offline), issues.WithIcons(icons), issues.WithFacets(facetSvc)}
+		issueOpts = []issues.Option{
+			issues.WithOffline(offline), issues.WithIcons(icons), issues.WithFacets(facetSvc),
+			issues.WithRepos(repoSvc), issues.WithViewer(issues.Viewer(viewer)),
+		}
 	)
 	if p := cfg.Details.Prefetch; p.Enabled {
 		pullOpts = append(pullOpts, pulls.WithPrefetch(p.Rows, p.HoverDelay))
@@ -156,7 +161,7 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 	}
 	actionOpts := []actions.Option{
 		actions.WithOffline(offline), actions.WithIcons(icons),
-		actions.WithViewer(viewerLogin(dashSvc.CachedHeader, dashSvc.Header)),
+		actions.WithViewer(viewer),
 	}
 	if cfg.Sync.Enabled {
 		actionOpts = append(actionOpts, actions.WithFollow(followRuns(engine.Subscribe, engine.Refresh, actionSvc.Poll)))
@@ -170,7 +175,7 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 		engine.Subscribe(notifications.SyncKey, notifSvc.Poll)
 		repoPolls := &repoWatch{subscribe: engine.Subscribe, polls: []repoPoll{
 			{key: pullsvc.SyncKey, poll: pullSvc.Poll},
-			{key: issuesvc.SyncKey, poll: issueSvc.Poll},
+			{key: issuesvc.SyncKey, poll: unless(issuesOff(repoSvc.CachedGet), issueSvc.Poll)},
 		}}
 		activity = append(activity, engine.SetActive)
 		watchers = append(watchers, repoPolls.set)

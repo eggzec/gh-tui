@@ -46,6 +46,10 @@ type detailModal struct {
 
 	repo   core.RepoRef
 	number int
+	// caps is what the viewer may do in repo, as far as it is known, and
+	// viewer who they are, or empty.
+	caps   core.RepoCaps
+	viewer string
 	// issue is what is known of the issue, and loaded says whether
 	// anything is: a modal opened from the search starts with nothing.
 	issue  core.Issue
@@ -87,6 +91,8 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue) tea.
 		sendCtx: s.ctx,
 		repo:    repo,
 		number:  number,
+		caps:    s.capsOf(repo),
+		viewer:  s.viewer,
 		ctx:     ctx,
 		cancel:  cancel,
 		theme:   s.theme,
@@ -113,21 +119,34 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue) tea.
 	case it != nil:
 		m.issue, m.loaded = *it, true
 	}
+	var caps tea.Cmd
+	if !m.caps.Known {
+		// The app reads those of the selected repository.
+		caps = ui.LoadCaps(ctx, s.repos, repo)
+	}
 	if !m.loaded {
 		// The loads start once the modal is open, so that the app has it
 		// to pass their results to.
-		return tea.Sequence(ui.OpenModal(m), tea.Batch(m.thread.Init(), m.get()))
+		return tea.Sequence(ui.OpenModal(m), tea.Batch(m.thread.Init(), m.get(), caps))
 	}
 	// What is cached shows at once, and is read again behind it.
 	cp, primed := svc.CachedComments(q)
 	if primed {
 		m.thread.SetFirst(cp.Items, cp.Next)
 	}
-	loads := []tea.Cmd{m.show(), m.get()}
+	loads := []tea.Cmd{m.show(), m.get(), caps}
 	if primed {
 		loads = append(loads, m.thread.Reload())
 	}
 	return tea.Sequence(ui.OpenModal(m), tea.Batch(loads...))
+}
+
+// capsOf returns what the viewer may do in repo, as far as it is known.
+func (s *Section) capsOf(repo core.RepoRef) core.RepoCaps {
+	if s.hasRepo && repo == s.repo {
+		return s.caps
+	}
+	return ui.CachedCaps(s.repos, repo)
 }
 
 // commentsQuery selects the first page of the comments on issue number of
@@ -199,6 +218,14 @@ func (m *detailModal) Update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		return tea.Batch(m.thread.Reload(), m.get())
+	case ui.CapsMsg:
+		if msg.Repo == m.repo {
+			m.caps = msg.Caps
+		}
+		return nil
+	case viewerMsg:
+		m.viewer = msg.login
+		return nil
 	case ui.DoneMsg:
 		// The thread reloads too, since the change may be a comment.
 		if msg.From != ui.IssuesTitle {
@@ -234,9 +261,9 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 		m.cancel()
 		return ui.CloseModal(m)
 	case key.Matches(msg, k.Comment):
-		return m.compose(composeComment)
+		return m.compose(composeComment, ui.ActComment)
 	case key.Matches(msg, k.Label):
-		return m.compose(composeLabels)
+		return m.compose(composeLabels, ui.ActLabel)
 	case key.Matches(msg, k.Close):
 		return m.setState(core.StateClosed)
 	case key.Matches(msg, k.Reopen):
@@ -289,11 +316,16 @@ func (m *detailModal) setState(state core.State) tea.Cmd {
 	if !m.loaded {
 		return nil
 	}
-	op, what, ok := stateChange(m.svc, m.repo, m.issue, state)
-	if !ok {
-		return nil
+	op, what, refusal := stateChange(m.svc, m.gate(), m.issue, state)
+	if op == nil {
+		return refusal
 	}
 	return tea.Batch(m.reload(), m.changed(), ui.Do(m.sendCtx, ui.IssuesTitle, op, what))
+}
+
+// gate decides what the viewer may do in the repository.
+func (m *detailModal) gate() ui.Gate {
+	return ui.Gate{Repo: m.repo, Caps: m.caps, Viewer: m.viewer}
 }
 
 // changed tells the section that the issue changed in the cache.

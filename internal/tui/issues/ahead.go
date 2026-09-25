@@ -13,7 +13,7 @@ import (
 // readAhead reads the issues of the first rows and of the row under the
 // cursor ahead, if they changed since the last message.
 func (s *Section) readAhead() tea.Cmd {
-	if s.ahead == nil || !s.started || !s.hasRepo {
+	if s.ahead == nil || !s.live() {
 		return nil
 	}
 	first := s.ahead.First(s.rowAt)
@@ -32,7 +32,7 @@ func (s *Section) readAhead() tea.Cmd {
 // shown has loaded. A filtered list is the user's own search, which may
 // cost more, so its other states wait until they are shown.
 func (s *Section) readOthers() tea.Cmd {
-	if s.others == nil || !s.started || !s.hasRepo || !s.list.Settled() || s.query != "" {
+	if s.others == nil || !s.live() || !s.list.Settled() || s.query != "" {
 		return nil
 	}
 	return s.others.Read(func() []issuesvc.ListQuery {

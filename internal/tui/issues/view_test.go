@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
 
+	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -39,6 +40,18 @@ func TestView(t *testing.T) {
 		{"no issues", 80, 4, func(t *testing.T, width, height int) *host {
 			t.Helper()
 			return started(t, newFakeService(nil), width, height)
+		}},
+		{"issues off", 80, 9, func(t *testing.T, width, height int) *host {
+			t.Helper()
+			s := started(t, newFakeService(sampleIssues(3)), width, height)
+			run(t, s, s.Update(ui.CapsMsg{Repo: testRepo, Caps: core.RepoCaps{Known: true, Permission: core.PermissionRead}}))
+			return s
+		}},
+		{"issues off admin 40", 40, 9, func(t *testing.T, width, height int) *host {
+			t.Helper()
+			s := started(t, newFakeService(sampleIssues(3)), width, height)
+			run(t, s, s.Update(ui.CapsMsg{Repo: testRepo, Caps: core.RepoCaps{Known: true, Permission: core.PermissionAdmin}}))
+			return s
 		}},
 	}
 	for _, tt := range tests {

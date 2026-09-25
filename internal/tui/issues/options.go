@@ -1,6 +1,7 @@
 package issues
 
 import (
+	"context"
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/tui/ui"
@@ -39,6 +40,25 @@ func WithFilterPrefetch() Option {
 // Nerd Font set.
 func WithIcons(icons ui.Icons) Option {
 	return func(s *Section) { s.icons = icons }
+}
+
+// WithRepos reads what the viewer may do in the repository of a modal
+// from r, when it isn't the selected one, whose caps the app sends in a
+// ui.CapsMsg. Until they are known, every change is offered, and GitHub
+// refuses what it doesn't allow.
+func WithRepos(r ui.Repos) Option {
+	return func(s *Section) { s.repos = r }
+}
+
+// Viewer returns the login of the signed-in user. It may do I/O.
+type Viewer func(ctx context.Context) (string, error)
+
+// WithViewer sets how the section learns who the user is, once it starts,
+// so that they may close and reopen their own issues in a repository they
+// can only read. Without it, or until it answers, those changes are
+// offered on every issue.
+func WithViewer(v Viewer) Option {
+	return func(s *Section) { s.readViewer = v }
 }
 
 // prefetch is how the issues are read ahead.

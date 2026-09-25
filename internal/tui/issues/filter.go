@@ -177,7 +177,7 @@ func (s *Section) loadPeople() filterform.Loader {
 // readMilestones reads the milestones of the repository ahead, once its
 // list has loaded, so that the filter lists them as it opens.
 func (s *Section) readMilestones() tea.Cmd {
-	if s.facets == nil || s.milestonesRead || !s.started || !s.hasRepo || !s.list.Settled() {
+	if s.facets == nil || s.milestonesRead || !s.live() || !s.list.Settled() {
 		return nil
 	}
 	s.milestonesRead = true
@@ -192,7 +192,7 @@ func (s *Section) readMilestones() tea.Cmd {
 // Filter implements ui.Filterable: the form opens on the tab shown and the
 // filters in force.
 func (s *Section) Filter() (ui.Filter, bool) {
-	if !s.hasRepo {
+	if !s.hasRepo || s.issuesOff() {
 		return ui.Filter{}, false
 	}
 	q := s.query
@@ -238,5 +238,5 @@ func (s *Section) Chips() string { return s.filterChips }
 // Claims implements ui.Claimer: the section takes the keys that switch
 // tabs once it shows a repository.
 func (s *Section) Claims(msg tea.KeyPressMsg) bool {
-	return s.hasRepo && (key.Matches(msg, s.keys.NextTab) || key.Matches(msg, s.keys.PrevTab))
+	return s.hasRepo && !s.issuesOff() && (key.Matches(msg, s.keys.NextTab) || key.Matches(msg, s.keys.PrevTab))
 }
