@@ -27,6 +27,8 @@ type KeyMap struct {
 	Open key.Binding
 	// Repo shows the repository of the result under the cursor.
 	Repo key.Binding
+	// Checks opens the pull request under the cursor on its checks.
+	Checks key.Binding
 	// Back goes back to the screen before the search.
 	Back key.Binding
 	// Filter names the key that opens the filter of the kind on view,
@@ -49,6 +51,7 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		Select:  ui.Binding(keys, config.ActionSelect, "open"),
 		Open:    ui.Binding(keys, config.ActionOpen, "browser"),
 		Repo:    ui.Binding(keys, config.ActionGoToRepo, "repo"),
+		Checks:  ui.Binding(keys, config.ActionChecks, "checks"),
 		Back:    ui.Binding(keys, config.ActionBack, "back"),
 		Filter:  ui.Binding(keys, config.ActionFilter, "filter"),
 		Refresh: ui.Binding(keys, config.ActionRefresh, "refresh"),
@@ -57,7 +60,7 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		Left:    key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←/h", "kinds")),
 		Right:   key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "results")),
 	}
-	own := []key.Binding{k.Select, k.Open, k.Repo, k.Refresh, k.Back, k.Filter, k.Next, k.Prev, k.Left, k.Right}
+	own := []key.Binding{k.Select, k.Open, k.Repo, k.Checks, k.Refresh, k.Back, k.Filter, k.Next, k.Prev, k.Left, k.Right}
 	f := feed.DefaultKeyMap()
 	f.PageUp = free(f.PageUp, own)
 	f.PageDown = free(f.PageDown, own)
@@ -134,7 +137,9 @@ func (h helpKeys) ShortHelp() []key.Binding {
 		if h.kind != core.SearchRepos {
 			sel.SetHelp(sel.Help().Key, "preview")
 		}
-		return []key.Binding{k.Up, k.Down, sel, k.Repo, k.Open, k.Filter, k.Left, k.Back, h.feed.Retry}
+		checks := k.Checks
+		checks.SetEnabled(checks.Enabled() && h.kind == core.SearchPulls)
+		return []key.Binding{k.Up, k.Down, sel, k.Repo, checks, k.Open, k.Filter, k.Left, k.Back, h.feed.Retry}
 	}
 }
 

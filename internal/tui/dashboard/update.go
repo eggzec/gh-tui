@@ -157,6 +157,11 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 			if hit, ok := w.selected(); ok {
 				return openHit(hit), true
 			}
+		case key.Matches(msg, k.Checks):
+			if hit, ok := w.selected(); ok && hit.Kind == core.SearchPulls {
+				msg := ui.OpenPullMsg{Repo: hit.Issue.Repo, Number: hit.Issue.Number, Checks: true}
+				return func() tea.Msg { return msg }, true
+			}
 		case key.Matches(msg, k.Open):
 			if hit, ok := w.selected(); ok {
 				return ui.Open(hit.Issue.URL), true
