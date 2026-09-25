@@ -428,6 +428,8 @@ func keyPress(k string) tea.KeyPressMsg {
 		return tea.KeyPressMsg{Code: tea.KeyBackspace}
 	case "space":
 		return tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}
+	case "ctrl+o":
+		return tea.KeyPressMsg{Code: 'o', Mod: tea.ModCtrl}
 	}
 	r, _ := utf8.DecodeRuneInString(k)
 	return tea.KeyPressMsg{Code: r, Text: k}

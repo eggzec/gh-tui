@@ -69,6 +69,9 @@ const (
 	// ActionCurrentRepo opens the repository of the current directory from
 	// the dashboard.
 	ActionCurrentRepo = "current_repo"
+	// ActionGoToRepo shows the repository of the search result under the
+	// cursor, where enter previews the result over the search.
+	ActionGoToRepo = "go_to_repo"
 )
 
 func defaultKeys() map[string][]string {
@@ -114,6 +117,7 @@ func defaultKeys() map[string][]string {
 		ActionNextOwner:   {"]", "right"},
 		ActionPrevOwner:   {"[", "left"},
 		ActionCurrentRepo: {"."},
+		ActionGoToRepo:    {"ctrl+o"},
 	}
 }
 

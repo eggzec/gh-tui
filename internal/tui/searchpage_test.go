@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -91,5 +92,57 @@ func TestRepoFromSearch(t *testing.T) {
 	m.Update(ui.ShowMsg{Title: ui.SearchTitle})
 	if m.screen != searchScreen {
 		t.Error("ShowMsg didn't show the search page")
+	}
+}
+
+// TestPreviewFromSearch opens what the search found in the modals of the
+// sections that own them: over the page, which stays on view with the
+// focus, and comes back once the modal closes.
+func TestPreviewFromSearch(t *testing.T) {
+	other := core.RepoRef{Owner: "charmbracelet", Name: "bubbletea"}
+	for _, tt := range []struct {
+		name  string
+		owner int
+		open  tea.Msg
+	}{
+		{"issue", 2, ui.OpenIssueMsg{Repo: other, Number: 1203}},
+		{"pull request", 1, ui.OpenPullMsg{Repo: other, Number: 1388}},
+		{"file", 0, ui.OpenFileMsg{Repo: other, Path: "tea.go", SHA: "b1", Find: "tea"}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			m, fakes := newSearchApp(t, testRepo)
+			mod := &fakeModal{title: tt.name}
+			fakes[tt.owner].reply = func(msg tea.Msg) tea.Cmd {
+				if msg == tt.open {
+					return ui.OpenModal(mod)
+				}
+				return nil
+			}
+			run(m, m.key(press("/")))
+			run(m, func() tea.Msg { return tt.open })
+			if m.topModal() != mod || m.screen != searchScreen || m.repo != testRepo {
+				t.Fatalf("modal %v on screen %d for %v, want the %s over the search, with the repository kept",
+					m.topModal(), m.screen, m.repo, tt.name)
+			}
+			if !fakes[5].focused {
+				t.Error("the search page should keep the focus under the modal")
+			}
+			fakes[5].msgs = nil
+			run(m, m.key(press("j")))
+			if fakes[5].got(isKey("j")) || !slices.Contains(mod.keys(), "j") {
+				t.Error("the modal should take the keys while it is open")
+			}
+			if hk, ok := m.helpKeys().(helpKeys); !ok || !hk.modal || hk.section != mod.Help() {
+				t.Error("the help line should list the modal's keys")
+			}
+			run(m, ui.CloseModal(mod))
+			if m.topModal() != nil || m.screen != searchScreen || !fakes[5].focused {
+				t.Errorf("after the modal closed: modal %v on screen %d, want the search page", m.topModal(), m.screen)
+			}
+			run(m, m.key(press("j")))
+			if !fakes[5].got(isKey("j")) {
+				t.Error("the page should take the keys again once the modal closed")
+			}
+		})
 	}
 }
