@@ -29,10 +29,13 @@ const (
 )
 
 // compose opens the prompt for what under the thread, and gives it the
-// focus.
-func (m *detailModal) compose(what composing) tea.Cmd {
+// focus, if the viewer may take a, what the prompt sends.
+func (m *detailModal) compose(what composing, a ui.Action) tea.Cmd {
 	if !m.loaded {
 		return nil
+	}
+	if cmd, refused := m.gate().Refuse(a, &m.issue); refused {
+		return cmd
 	}
 	num := "#" + strconv.Itoa(m.number)
 	opts := []prompt.Option{prompt.WithStyles(m.theme.Prompt())}

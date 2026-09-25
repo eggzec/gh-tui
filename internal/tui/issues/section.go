@@ -26,6 +26,14 @@ type Section struct {
 
 	repo    core.RepoRef
 	hasRepo bool
+	// repos reads what the viewer may do in the repositories of the
+	// modals, and caps is what they may do in repo, as far as it is known.
+	// viewer is the login of the signed-in user, which readViewer reads,
+	// or empty until it has.
+	repos      ui.Repos
+	caps       core.RepoCaps
+	readViewer Viewer
+	viewer     string
 	// tab is the state shown, and query the other filters, in GitHub's
 	// search syntax; filterChips are those for the pane's title.
 	tab         core.StateFilter
@@ -65,9 +73,11 @@ type Section struct {
 	cols      columns
 	colsWidth int
 
-	// Rendered when what they show changes, so View only joins them.
+	// Rendered when what they show changes, so View only joins them. off
+	// is shown in place of the list when repo has no issues.
 	bar   string
 	empty string
+	off   string
 	// hint is what the empty state tells the user to do.
 	hint string
 }
@@ -120,13 +130,27 @@ func defaultPalette() config.Palette {
 // Title implements ui.Section.
 func (s *Section) Title() string { return ui.IssuesTitle }
 
-// Init loads the first page, once a repository is selected.
+// Init loads the first page, once a repository with issues is selected,
+// and reads who the viewer is.
 func (s *Section) Init() tea.Cmd {
 	s.started = true
-	if !s.hasRepo {
-		return nil
+	cmd := s.loadViewer()
+	if !s.live() {
+		return cmd
 	}
-	return s.list.Init()
+	return tea.Batch(s.list.Init(), cmd)
+}
+
+// live reports whether the section shows the issues of a repository and
+// reads them: it has started on one that hasn't turned its issues off.
+func (s *Section) live() bool {
+	return s.started && s.hasRepo && !s.issuesOff()
+}
+
+// issuesOff reports whether the repository turned its issues off, as far
+// as the section knows.
+func (s *Section) issuesOff() bool {
+	return s.caps.Known && !s.caps.Issues
 }
 
 // SetSize implements ui.Section.
@@ -199,7 +223,7 @@ func (s *Section) listQuery(state core.StateFilter) issuesvc.ListQuery {
 func (s *Section) resetList() tea.Cmd {
 	s.list = s.newList()
 	s.renderChrome()
-	if !s.started || !s.hasRepo {
+	if !s.live() {
 		return nil
 	}
 	return s.list.Init()

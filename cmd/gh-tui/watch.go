@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/watch"
 )
@@ -37,5 +39,29 @@ func (w *repoWatch) set(repo core.RepoRef) {
 	}
 	for _, p := range w.polls {
 		w.unsub = append(w.unsub, w.subscribe(p.key(repo), p.poll(repo)))
+	}
+}
+
+// unless returns poll, which does nothing while skip reports true for the
+// repository, as there is nothing to poll: GitHub still answers for the
+// issues of a repository that turned them off.
+func unless(skip func(repo core.RepoRef) bool, poll func(repo core.RepoRef) watch.PollFunc) func(repo core.RepoRef) watch.PollFunc {
+	return func(repo core.RepoRef) watch.PollFunc {
+		fn := poll(repo)
+		return func(ctx context.Context) (watch.Result, error) {
+			if skip(repo) {
+				return watch.Result{}, nil
+			}
+			return fn(ctx)
+		}
+	}
+}
+
+// issuesOff reports whether a repository turned its issues off, as far as
+// what cached knows of it tells.
+func issuesOff(cached func(ref core.RepoRef) (core.Repo, bool)) func(repo core.RepoRef) bool {
+	return func(repo core.RepoRef) bool {
+		r, _ := cached(repo)
+		return r.Caps.Known && !r.Caps.Issues
 	}
 }

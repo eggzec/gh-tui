@@ -109,13 +109,16 @@ func without(b key.Binding, taken []key.Binding) key.Binding {
 // an open issue lists its own.
 func (s *Section) Help() help.KeyMap {
 	k, fk := s.keys, s.keys.feed
-	if !s.hasRepo {
+	if !s.hasRepo || s.issuesOff() {
 		return keyHelp{}
 	}
-	// Offer close or reopen, whichever applies to the issue at hand.
+	// Offer close or reopen, whichever applies to the issue at hand, if
+	// the viewer may.
 	it, ok := s.target()
+	g := s.gate()
 	k.Close.SetEnabled(k.Close.Enabled() && ok && it.State == core.StateOpen)
 	k.Reopen.SetEnabled(k.Reopen.Enabled() && ok && it.State != core.StateOpen)
+	k.Close, k.Reopen = g.Gated(k.Close, ui.ActClose, &it), g.Gated(k.Reopen, ui.ActReopen, &it)
 	k.ClearFilter.SetEnabled(k.ClearFilter.Enabled() && s.query != "")
 	return keyHelp{
 		short: []key.Binding{fk.Up, fk.Down, k.Select, k.Filter, k.ClearFilter, k.NextTab, k.Close, k.Reopen, k.Open},
@@ -134,10 +137,13 @@ func (m *detailModal) Help() help.KeyMap {
 		return keyHelp{short: m.prompt.ShortHelp(), full: m.prompt.FullHelp()}
 	}
 	k, tk := m.keys, m.keys.thread
+	g, it := m.gate(), &m.issue
 	k.Close.SetEnabled(k.Close.Enabled() && m.loaded && m.issue.State == core.StateOpen)
 	k.Reopen.SetEnabled(k.Reopen.Enabled() && m.loaded && m.issue.State != core.StateOpen)
 	k.Comment.SetEnabled(k.Comment.Enabled() && m.loaded)
 	k.Label.SetEnabled(k.Label.Enabled() && m.loaded)
+	k.Close, k.Reopen = g.Gated(k.Close, ui.ActClose, it), g.Gated(k.Reopen, ui.ActReopen, it)
+	k.Comment, k.Label = g.Gated(k.Comment, ui.ActComment, it), g.Gated(k.Label, ui.ActLabel, it)
 	return keyHelp{
 		short: []key.Binding{tk.Down, tk.Up, k.Back, k.Comment, k.Label, k.Close, k.Reopen, k.Open},
 		full: [][]key.Binding{

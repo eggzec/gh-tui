@@ -73,3 +73,34 @@ func TestRepoWatchSwitchesOver(t *testing.T) {
 		t.Errorf("subscribed polls = %q, want %q", polled, want)
 	}
 }
+
+func TestIssuePollSkipsReposWithoutIssues(t *testing.T) {
+	on := core.RepoRef{Owner: "eggzec", Name: "gh-tui"}
+	off := core.RepoRef{Owner: "laraibg786", Name: "slk"}
+	unknown := core.RepoRef{Owner: "cli", Name: "cli"}
+	cached := func(ref core.RepoRef) (core.Repo, bool) {
+		switch ref {
+		case on:
+			return core.Repo{Caps: core.RepoCaps{Known: true, Issues: true}}, true
+		case off:
+			return core.Repo{Caps: core.RepoCaps{Known: true}}, true
+		}
+		return core.Repo{}, false
+	}
+	var polled []core.RepoRef
+	poll := unless(issuesOff(cached), func(repo core.RepoRef) watch.PollFunc {
+		return func(context.Context) (watch.Result, error) {
+			polled = append(polled, repo)
+			return watch.Result{Changed: true}, nil
+		}
+	})
+	for _, repo := range []core.RepoRef{on, off, unknown} {
+		res, err := poll(repo)(t.Context())
+		if err != nil || res.Changed == (repo == off) {
+			t.Errorf("poll of %v = %+v, %v", repo, res, err)
+		}
+	}
+	if !slices.Equal(polled, []core.RepoRef{on, unknown}) {
+		t.Errorf("polled %v, want all but %v", polled, off)
+	}
+}

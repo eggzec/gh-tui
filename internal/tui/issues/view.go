@@ -17,6 +17,9 @@ func (s *Section) View() string {
 	if !s.hasRepo {
 		return s.empty
 	}
+	if s.issuesOff() {
+		return s.off
+	}
 	if s.height == 1 {
 		return s.bar
 	}
@@ -29,6 +32,7 @@ func (s *Section) renderChrome() {
 	s.cols, s.colsWidth = layout(max(s.width-2, 0)), max(s.width-2, 0)
 	s.renderBar()
 	s.renderEmpty()
+	s.renderOff()
 }
 
 func (s *Section) renderBar() {
@@ -74,23 +78,42 @@ func fitStyled(s string, width int) string {
 // renderEmpty renders the state shown before a repository is selected,
 // wrapped to fit a narrow pane.
 func (s *Section) renderEmpty() {
-	if s.width <= 0 || s.height <= 0 {
-		s.empty = ""
+	s.empty = s.placard("No repository selected", s.hint)
+}
+
+// renderOff renders the state shown in place of the list when the
+// repository turned its issues off, which only an admin can undo.
+func (s *Section) renderOff() {
+	if !s.issuesOff() {
+		s.off = ""
 		return
+	}
+	hint := "The repository doesn't use GitHub's issues."
+	if s.caps.Permission == core.PermissionAdmin {
+		hint = "You can turn them on in its settings on GitHub."
+	}
+	s.off = s.placard("Issues are turned off for "+s.repo.String(), hint)
+}
+
+// placard renders title over hint in the middle of the section, wrapped
+// to fit a narrow pane.
+func (s *Section) placard(title, hint string) string {
+	if s.width <= 0 || s.height <= 0 {
+		return ""
 	}
 	t := s.theme
 	center := lipgloss.NewStyle().Width(s.width).Align(lipgloss.Center)
 	text := lipgloss.JoinVertical(lipgloss.Left,
-		center.Inherit(t.Title).Render("No repository selected"),
+		center.Inherit(t.Title).Render(title),
 		"",
-		center.Inherit(t.Muted).Render(s.hint),
+		center.Inherit(t.Muted).Render(hint),
 	)
 	lines := strings.Split(lipgloss.Place(s.width, s.height, lipgloss.Center, lipgloss.Center, text), "\n")
 	lines = lines[:min(len(lines), s.height)]
 	for i, l := range lines {
 		lines[i] = ansi.Truncate(l, s.width, "")
 	}
-	s.empty = strings.Join(lines, "\n")
+	return strings.Join(lines, "\n")
 }
 
 // emptyText is what the list says when no issue is in the tab, with the
