@@ -16,9 +16,15 @@ import (
 // keyMap holds the keys of the section, and those of its bubbles without
 // the keys the section takes for itself.
 type keyMap struct {
-	Select  key.Binding
-	Back    key.Binding
-	Filter  key.Binding
+	Select key.Binding
+	Back   key.Binding
+	// Filter opens the filter modal, which the app does, so the section
+	// only keeps it from the feed and shows it in help.
+	Filter      key.Binding
+	ClearFilter key.Binding
+	// NextTab and PrevTab switch the state shown.
+	NextTab key.Binding
+	PrevTab key.Binding
 	Refresh key.Binding
 	Open    key.Binding
 
@@ -33,11 +39,14 @@ type keyMap struct {
 
 func newKeyMap(keys map[string][]string) keyMap {
 	k := keyMap{
-		Select:  ui.Binding(keys, config.ActionSelect, "open"),
-		Back:    ui.Binding(keys, config.ActionBack, "back"),
-		Filter:  ui.Binding(keys, config.ActionFilter, "filter"),
-		Refresh: ui.Binding(keys, config.ActionRefresh, "refresh"),
-		Open:    ui.Binding(keys, config.ActionOpen, "open in browser"),
+		Select:      ui.Binding(keys, config.ActionSelect, "open"),
+		Back:        ui.Binding(keys, config.ActionBack, "back"),
+		Filter:      ui.Binding(keys, config.ActionFilter, "filter"),
+		ClearFilter: ui.Binding(keys, config.ActionClearFilter, "clear filters"),
+		NextTab:     ui.Binding(keys, config.ActionNextFilter, "next state"),
+		PrevTab:     ui.Binding(keys, config.ActionPrevFilter, "previous state"),
+		Refresh:     ui.Binding(keys, config.ActionRefresh, "refresh"),
+		Open:        ui.Binding(keys, config.ActionOpen, "open in browser"),
 
 		Merge:       ui.Binding(keys, config.ActionMerge, "merge"),
 		Close:       ui.Binding(keys, config.ActionClose, "close"),
@@ -69,7 +78,7 @@ func newKeyMap(keys map[string][]string) keyMap {
 
 // list returns the bindings the section handles before the feed.
 func (k keyMap) list() []key.Binding {
-	return []key.Binding{k.Select, k.Filter, k.Refresh, k.Open, k.Merge, k.Close, k.Reopen, k.ToggleDraft}
+	return []key.Binding{k.Select, k.Filter, k.ClearFilter, k.NextTab, k.PrevTab, k.Refresh, k.Open, k.Merge, k.Close, k.Reopen, k.ToggleDraft}
 }
 
 // detail returns the bindings the modal handles before the thread.
@@ -142,12 +151,13 @@ func (s *Section) Help() help.KeyMap {
 	pr, ok := s.target()
 	changes := k.changeHelp(pr, ok)
 	merge, closing, reopen := changes[0], changes[1], changes[2]
+	k.ClearFilter.SetEnabled(k.ClearFilter.Enabled() && s.query != "")
 	return keyHelp{
-		short: []key.Binding{f.Up, f.Down, k.Select, k.Filter, merge, closing, reopen, k.Open},
+		short: []key.Binding{f.Up, f.Down, k.Select, k.Filter, k.ClearFilter, k.NextTab, merge, closing, reopen, k.Open},
 		full: [][]key.Binding{
 			{f.Up, f.Down, f.PageUp, f.PageDown},
 			{f.Home, f.End},
-			{k.Select, k.Filter, k.Refresh, k.Open},
+			{k.Select, k.Filter, k.ClearFilter, k.NextTab, k.PrevTab, k.Refresh, k.Open},
 			changes,
 		},
 	}

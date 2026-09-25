@@ -42,15 +42,16 @@ func TestPrefetchedFilterShowsWithoutRequest(t *testing.T) {
 	svc := newFakeService()
 	h := started(t, svc, 80, 30, WithFilterPrefetch())
 	n := len(svc.requested())
-	press(t, h, "f")
+	press(t, h, "]")
 	if got := screen(h); !strings.Contains(got, "Drop the unused REST client") {
-		t.Errorf("closed filter shows\n%s", got)
+		t.Errorf("closed tab shows\n%s", got)
 	}
-	press(t, h, "f")
+	press(t, h, "]")
 	if got := screen(h); !strings.Contains(got, "Rename the watch package") {
-		t.Errorf("merged filter shows\n%s", got)
+		t.Errorf("merged tab shows\n%s", got)
 	}
-	press(t, h, "f")
+	press(t, h, "[")
+	press(t, h, "[")
 	if got := svc.requested(); len(got) != n {
 		t.Errorf("switching filters requested %v, want nothing", got[n:])
 	}
@@ -65,7 +66,7 @@ func TestPrefetchFiltersReadsNoDetailsAhead(t *testing.T) {
 			t.Errorf("read the detail of #%d, %s, ahead of its filter", n, pr.State)
 		}
 	}
-	press(t, h, "f")
+	press(t, h, "]")
 	if got := svc.got(); !slices.Contains(got, 93) {
 		t.Errorf("read details %v, want the closed ones once shown", got)
 	}
@@ -102,10 +103,10 @@ func TestPrefetchFiltersStopsAtRateLimit(t *testing.T) {
 		t.Errorf("requested %v, want nothing after the rate limit: %v", got, want)
 	}
 	// Switching back and forth reads nothing more ahead.
-	press(t, h, "f")
-	press(t, h, "f")
-	press(t, h, "f")
-	want = append(want, firstPages(repo, core.StateClosed, core.StateMerged)...)
+	for range tabs {
+		press(t, h, "]")
+	}
+	want = append(want, firstPages(repo, core.StateClosed, core.StateMerged, "")...)
 	if got := svc.requested(); !slices.Equal(got, want) {
 		t.Errorf("requested %v, want only the lists switched to: %v", got, want)
 	}
@@ -117,7 +118,7 @@ func TestPrefetchFiltersStopsAtRateLimit(t *testing.T) {
 	other := core.RepoRef{Owner: "charmbracelet", Name: "bubbletea"}
 	drain(t, h, h.Update(ui.RepoMsg{Repo: other}))
 	want = firstPages(other, core.StateOpen, core.StateClosed, core.StateMerged)
-	if got := svc.requested()[4:]; !slices.Equal(got, want) {
+	if got := svc.requested()[5:]; !slices.Equal(got, want) {
 		t.Errorf("requested %v for another repository, want %v", got, want)
 	}
 }

@@ -93,10 +93,12 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 			return s.openDetail(s.repo, pr.Number, &pr)
 		}
 		return nil
-	case key.Matches(msg, k.Filter):
-		s.filter = nextFilter(s.filter)
-		s.others.Opened(s.listQuery(s.filter))
-		return s.newFeed()
+	case key.Matches(msg, k.NextTab):
+		return s.show(nextTab(s.tab, 1), s.query)
+	case key.Matches(msg, k.PrevTab):
+		return s.show(nextTab(s.tab, -1), s.query)
+	case key.Matches(msg, k.ClearFilter):
+		return s.show(s.tab, "")
 	case key.Matches(msg, k.Refresh):
 		s.svc.Invalidate(s.repo)
 		return s.feed.Reload()

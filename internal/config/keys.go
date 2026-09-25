@@ -47,8 +47,10 @@ const (
 	ActionBack   = "back"
 	// ActionFilter opens the filter modal of the focused list where it
 	// has one; the notifications filter with it, and the dashboard finds
-	// a repository.
+	// a repository. ActionClearFilter puts the filters of a list back to
+	// its defaults.
 	ActionFilter      = "filter"
+	ActionClearFilter = "clear_filter"
 	ActionMerge       = "merge"
 	ActionClose       = "close"
 	ActionReopen      = "reopen"
@@ -78,7 +80,8 @@ const (
 	// cursor, where enter previews the result over the search.
 	ActionGoToRepo = "go_to_repo"
 	// ActionNextFilter and ActionPrevFilter switch between the tabs of a
-	// list, such as All, Failing, Running and Mine of the Actions modal.
+	// list, such as All, Failing, Running and Mine of the Actions modal,
+	// and the states of the pull requests.
 	ActionNextFilter = "next_filter"
 	ActionPrevFilter = "prev_filter"
 	// ActionPaneLeft and ActionPaneRight move the focus to the pane on the
@@ -122,6 +125,7 @@ func defaultKeys() map[string][]string {
 		ActionSelect:      {"enter"},
 		ActionBack:        {"esc"},
 		ActionFilter:      {"f"},
+		ActionClearFilter: {"F"},
 		ActionMerge:       {"m"},
 		ActionClose:       {"x"},
 		ActionReopen:      {"X"},
