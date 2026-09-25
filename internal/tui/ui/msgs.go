@@ -136,6 +136,14 @@ type OpenActionsMsg struct {
 	Filter core.RunFilter
 }
 
+// OpenCommitMsg asks for the history of Repo to be opened on commit SHA,
+// such as the one a notification is about. Repo need not be the selected
+// repository.
+type OpenCommitMsg struct {
+	Repo core.RepoRef
+	SHA  string
+}
+
 // OpenReleaseMsg asks for release ID of Repo to be shown in a modal, such
 // as the one a notification is about. URL is the page to open on GitHub
 // until the release is read.

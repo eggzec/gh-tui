@@ -16,6 +16,7 @@ package history
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -99,6 +100,18 @@ func Opener(svc Service, keys map[string][]string, opts ...Option) func(ctx cont
 	}
 }
 
+// CommitOpener returns what the app opens the history on a commit with, for
+// tui.WithCommit: a new modal each time, on the history of commit sha of
+// repo, with the commit pane focused on it, such as for a notification of
+// the commit. defaultBranch may be empty.
+func CommitOpener(svc Service, keys map[string][]string, opts ...Option) func(ctx context.Context, repo core.RepoRef, sha, defaultBranch string) (ui.Modal, tea.Cmd) {
+	return func(ctx context.Context, repo core.RepoRef, sha, defaultBranch string) (ui.Modal, tea.Cmd) {
+		m := New(ctx, svc, repo, defaultBranch, ui.BaseMsg{}, keys, append(slices.Clip(opts), onCommit(sha))...)
+		load := m.Init()
+		return m, load
+	}
+}
+
 // New returns the history of repo, which opens on the branch that base was
 // chosen from, or else on defaultBranch, with the graph focused. ctx bounds
 // its reads until it closes. Call Init once it is open.
@@ -128,6 +141,12 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, defaultBranch stri
 	start := base.Branch
 	if base.Ref == "" || start == "" {
 		start = defaultBranch
+	}
+	if o.commit != "" {
+		// GitHub lists the history of a commit as it does a branch's,
+		// with the commit first, where the commit pane follows the
+		// cursor.
+		start, m.focus = o.commit, commitPane
 	}
 	m.graph.show(m, start)
 	// Assume a dark terminal until the app sets the theme.
@@ -198,6 +217,19 @@ func (m *Modal) loading() bool {
 // now reads the clock.
 func (m *Modal) now() time.Time {
 	return m.opts.now()
+}
+
+// graphName names the history the graph shows: its branch, or the commit
+// it was opened on.
+func (m *Modal) graphName() string {
+	switch shown := m.graph.shown(); shown {
+	case "":
+		return "Default branch"
+	case m.opts.commit:
+		return short(shown)
+	default:
+		return shown
+	}
 }
 
 // label names a base in the header: the branch, or the commit on the

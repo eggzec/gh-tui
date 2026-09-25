@@ -82,6 +82,40 @@ func TestOpensOnTheBranchOfTheBase(t *testing.T) {
 	}
 }
 
+func TestOpensOnACommit(t *testing.T) {
+	f := newFake()
+	target := sha("main", 3)
+	f.histories[target] = f.histories["main"][3:]
+	open := CommitOpener(f, testKeys(), WithConfig(testConfig()), withClock(testNow))
+	mod, load := open(t.Context(), repo, target, "main")
+	m, ok := mod.(*Modal)
+	if !ok {
+		t.Fatalf("CommitOpener opened a %T", mod)
+	}
+	m.SetTheme(testTheme())
+	m.SetSize(108, 30)
+	h := &host{m: m}
+	h.run(load)
+	if m.focus != commitPane || m.graph.model.Focused() {
+		t.Errorf("focus = %d, want the commit pane", m.focus)
+	}
+	if !m.commit.loaded || m.commit.c.SHA != target {
+		t.Errorf("commit pane shows %q, loaded %v; want %s", short(m.commit.c.SHA), m.commit.loaded, short(target))
+	}
+	if got := m.graphName(); got != short(target) {
+		t.Errorf("the graph is named %q, want the commit's short SHA", got)
+	}
+	if got := f.took(); len(got) < 2 || got[1] != "commits "+target {
+		t.Errorf("calls = %q, want the history of the commit read", got)
+	}
+	// The commit becomes the base without a branch to open again.
+	h.keys("space")
+	want := []tea.Msg{ui.CloseModalMsg{Modal: m}, ui.BaseMsg{Repo: repo, Ref: target, Label: "main @ " + short(target)}, ui.ShowMsg{Title: ui.FilesTitle}}
+	if got := h.take(); !slices.Equal(got, want) {
+		t.Errorf("space sent %#v, want %#v", got, want)
+	}
+}
+
 func TestFocusMovesBetweenPanes(t *testing.T) {
 	m, h := newModal(t, newFake(), 108, 30)
 	for _, want := range []pane{commitPane, branchPane, graphPane} {

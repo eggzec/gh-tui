@@ -74,6 +74,24 @@ func (m *Model) openActionsOn(repo core.RepoRef, f core.RunFilter) tea.Cmd {
 	return load
 }
 
+// openCommit opens the history of the repository of msg on its commit, if
+// the app has a history, on any screen.
+func (m *Model) openCommit(msg ui.OpenCommitMsg) tea.Cmd {
+	if m.commit == nil || msg.Repo == (core.RepoRef{}) || msg.SHA == "" {
+		return nil
+	}
+	var branch string
+	if sameRepo(msg.Repo, m.repo) {
+		branch = m.branch
+	}
+	mod, load := m.commit(m.ctx, msg.Repo, msg.SHA, branch)
+	if mod == nil {
+		return nil
+	}
+	m.openModal(mod)
+	return load
+}
+
 // openRelease opens the release of msg, if the app has a release modal,
 // on any screen.
 func (m *Model) openRelease(msg ui.OpenReleaseMsg) tea.Cmd {

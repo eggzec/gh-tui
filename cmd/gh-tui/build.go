@@ -155,6 +155,8 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 		tui.WithRepoInfo(repoSvc.Get),
 		tui.WithHistory(history.Opener(historySvc, cfg.Keys,
 			history.WithConfig(cfg.History), history.WithOffline(offline))),
+		tui.WithCommit(history.CommitOpener(historySvc, cfg.Keys,
+			history.WithConfig(cfg.History), history.WithOffline(offline))),
 		tui.WithRelease(releases.Opener(releaseSvc, cfg.Keys)),
 	}
 	if repo != (core.RepoRef{}) {

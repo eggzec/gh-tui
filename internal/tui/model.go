@@ -89,7 +89,9 @@ type Model struct {
 	// Actions modal.
 	history History
 	actions Actions
-	// release opens the modal of a release.
+	// commit opens the history on a commit, and release the modal of a
+	// release.
+	commit  Commit
 	release Release
 	// warnings are shown as toasts once the app starts.
 	warnings []string
@@ -157,6 +159,17 @@ type Actions func(ctx context.Context, repo core.RepoRef, f core.RunFilter) (ui.
 // Without it the key does nothing.
 func WithActions(open Actions) Option {
 	return func(m *Model) { m.actions = open }
+}
+
+// Commit returns the history of repo opened on commit sha, and the command
+// that loads it once it is open. defaultBranch is the repository's default
+// branch, or empty when the app hasn't read it.
+type Commit func(ctx context.Context, repo core.RepoRef, sha, defaultBranch string) (ui.Modal, tea.Cmd)
+
+// WithCommit sets the function that opens the history on a commit, which a
+// ui.OpenCommitMsg asks for. Without it the message does nothing.
+func WithCommit(open Commit) Option {
+	return func(m *Model) { m.commit = open }
 }
 
 // Release returns the modal that shows release id of repo, and the command
