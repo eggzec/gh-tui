@@ -25,6 +25,7 @@ type options struct {
 	icons   ui.Icons
 	follow  Follow
 	viewer  Viewer
+	repos   ui.Repos
 	filter  core.RunFilter
 	// rest is how long the cursor rests on a run or a job before its jobs
 	// or its log are read; tests set 0.
@@ -76,4 +77,12 @@ func WithFilter(f core.RunFilter) Option {
 // and the @me of the filter. Without it they show every run.
 func WithViewer(v Viewer) Option {
 	return func(o *options) { o.viewer = v }
+}
+
+// WithRepos reads what the viewer may do in the repository from r, so
+// that re-runs and cancels are offered only with write access. Until it
+// is known, or without it, they are offered, and GitHub refuses what it
+// doesn't allow.
+func WithRepos(r ui.Repos) Option {
+	return func(o *options) { o.repos = r }
 }

@@ -161,7 +161,7 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 	}
 	actionOpts := []actions.Option{
 		actions.WithOffline(offline), actions.WithIcons(icons),
-		actions.WithViewer(viewer),
+		actions.WithViewer(viewer), actions.WithRepos(repoSvc),
 	}
 	if cfg.Sync.Enabled {
 		actionOpts = append(actionOpts, actions.WithFollow(followRuns(engine.Subscribe, engine.Refresh, actionSvc.Poll)))
