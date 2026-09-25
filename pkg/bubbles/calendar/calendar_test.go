@@ -1,11 +1,14 @@
 package calendar
 
 import (
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // today is the last day of the sample year, a Thursday.
@@ -239,5 +242,113 @@ func TestCopiesAreIndependent(t *testing.T) {
 	}
 	if moved.View() == before {
 		t.Fatal("moving the cursor did not change the view")
+	}
+}
+
+// shown returns the days on view, oldest first.
+func shown(m Model) []Day {
+	var days []Day
+	for i := range m.grid {
+		for _, s := range m.grid[i] {
+			if s.ok {
+				days = append(days, s.day)
+			}
+		}
+	}
+	return days
+}
+
+func TestRange(t *testing.T) {
+	tests := []struct {
+		days  int
+		weeks int
+		first time.Time
+	}{
+		// The last 90 days start on a Saturday, alone in its week.
+		{90, 14, date(2026, 6, 27)},
+		{30, 5, date(2026, 8, 26)},
+		{7, 2, date(2026, 9, 18)},
+		{1, 1, today},
+		{0, 53, date(2025, 9, 24)},
+		// A range longer than the data shows all of it.
+		{1000, 53, date(2025, 9, 24)},
+	}
+	for _, tt := range tests {
+		t.Run(strconv.Itoa(tt.days), func(t *testing.T) {
+			m := New(WithWeeks(year(today)), WithTotal(9999), WithSize(120, 10), WithRange(tt.days))
+			days := shown(m)
+			if len(m.grid) != tt.weeks || !days[0].Date.Equal(tt.first) || !days[len(days)-1].Date.Equal(today) {
+				t.Fatalf("%d weeks from %v to %v, want %d from %v to %v",
+					len(m.grid), days[0].Date, days[len(days)-1].Date, tt.weeks, tt.first, today)
+			}
+			if tt.days == 0 {
+				if m.Total() != 9999 {
+					t.Errorf("total %d, want the one set for the year", m.Total())
+				}
+				return
+			}
+			sum := 0
+			for _, d := range days {
+				sum += d.Count
+			}
+			if m.Total() != sum {
+				t.Errorf("total %d, want the %d of the days shown", m.Total(), sum)
+			}
+			if got := selected(t, m); !got.Equal(today) {
+				t.Errorf("cursor on %v, want the last day", got)
+			}
+			if n := len(m.Weeks()); n != 53 {
+				t.Errorf("Weeks returns %d weeks, want every one set", n)
+			}
+		})
+	}
+}
+
+func TestSetRangeKeepsCursor(t *testing.T) {
+	m := New(WithWeeks(year(today)), WithFocused(true), WithSize(120, 10))
+	m = keys(t, m, "h", "h")
+	want := date(2026, 9, 10)
+	m.SetRange(30)
+	if got := selected(t, m); !got.Equal(want) {
+		t.Fatalf("cursor on %v, want it to stay on %v", got, want)
+	}
+	// The cursor stops at the first day of the range.
+	m = keys(t, m, "h", "h", "h", "h", "h", "h", "k", "k", "k", "k", "k", "k", "k")
+	if got := selected(t, m); !got.Equal(date(2026, 8, 26)) {
+		t.Fatalf("cursor on %v, want the first day of the range", got)
+	}
+	m.SetRange(7)
+	if got := selected(t, m); !got.Equal(today) {
+		t.Fatalf("cursor on %v, want the last day once its date is out of range", got)
+	}
+	m.SetRange(0)
+	if len(m.grid) != 53 || m.Range() != 0 {
+		t.Fatalf("%d weeks after clearing the range, want 53", len(m.grid))
+	}
+}
+
+func TestFitWidth(t *testing.T) {
+	// fits reports whether m shows every week and its whole total.
+	fits := func(m Model) bool {
+		total, _, _ := strings.Cut(ansi.Strip(m.View()), "\n")
+		return m.cols == len(m.grid) && strings.Contains(total, "in the last")
+	}
+	for _, days := range []int{0, 90, 30, 7} {
+		m := New(WithWeeks(year(today)), WithRange(days))
+		w := m.FitWidth()
+		m.SetSize(w, 10)
+		if !fits(m) {
+			t.Errorf("range %d: not everything shows at FitWidth %d:\n%s", days, w, ansi.Strip(m.View()))
+		}
+		m.SetSize(w-1, 10)
+		if fits(m) {
+			t.Errorf("range %d: everything shows in %d cells, less than FitWidth", days, w-1)
+		}
+	}
+	if w := New(WithWeeks(year(today))).FitWidth(); w != 4+53*2-1 {
+		t.Errorf("a year fits in %d cells, want %d", w, 4+53*2-1)
+	}
+	if w := New(WithEmptyText("Nothing yet")).FitWidth(); w != len("Nothing yet") {
+		t.Errorf("without days the calendar fits in %d cells, want the %d of its text", w, len("Nothing yet"))
 	}
 }
