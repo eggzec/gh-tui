@@ -24,6 +24,7 @@ type Icons struct {
 	langs  map[string]string
 	lang   string
 	states [NumStates]string
+	runs   [NumRunStates]string
 }
 
 // State is the state of an issue or pull request as a glyph shows it.
@@ -48,6 +49,12 @@ const (
 // config.IconsUnicode and config.IconsASCII. An unknown name gets the Nerd
 // Font set, the default.
 func NewIcons(set string) Icons {
+	ic := newIcons(set)
+	ic.runs = runGlyphs(set)
+	return ic
+}
+
+func newIcons(set string) Icons {
 	switch set {
 	case config.IconsUnicode:
 		return Icons{
