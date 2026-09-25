@@ -61,6 +61,14 @@ func TestViewEmpty(t *testing.T) {
 	golden.RequireEqual(t, out)
 }
 
+func TestViewEmptyText(t *testing.T) {
+	m := loaded(t, newSource(0, 0), nil, 60, 24, WithEmptyText("No assets."))
+	out := ansi.Strip(m.View())
+	if !strings.Contains(out, "No assets.") || strings.Contains(out, "No comments") {
+		t.Errorf("empty thread says\n%s\nwant the empty text set", out)
+	}
+}
+
 func TestViewTruncates80(t *testing.T) {
 	src := newSource(1, 2)
 	src.chunks[0][0].author = strings.Repeat("a-very-long-login-", 8)
