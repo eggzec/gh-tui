@@ -1,6 +1,8 @@
 package dashboard
 
 import (
+	"cmp"
+	"fmt"
 	"slices"
 	"testing"
 	"time"
@@ -75,10 +77,14 @@ func TestProgram(t *testing.T) {
 		ui.RepoMsg{Repo: core.RepoRef{Owner: "github", Name: "repo-004"}},
 		ui.RepoMsg{Repo: here},
 	}
-	if !slices.Equal(final.sent, want) {
+	// The commands run at once, so the messages may arrive in any order.
+	sent := slices.SortedFunc(slices.Values(final.sent), byString)
+	if !slices.Equal(sent, slices.SortedFunc(slices.Values(want), byString)) {
 		t.Errorf("the dashboard sent %v, want %v", final.sent, want)
 	}
 	if final.s.Capturing() || final.s.repos.current().label != "github" {
 		t.Error("the filter should be closed, on the tab of github")
 	}
 }
+
+func byString(a, b tea.Msg) int { return cmp.Compare(fmt.Sprint(a), fmt.Sprint(b)) }
