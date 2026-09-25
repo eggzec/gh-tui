@@ -71,6 +71,12 @@ func TestRestRoute(t *testing.T) {
 		{"user/starred/cli/cli", "/user/starred/{owner}/{repo}", "cli/cli"},
 		{"search/issues", "/search/issues", ""},
 		{"/repos/cli/cli/", "/repos/{owner}/{repo}", "cli/cli"},
+		{"repos/cli/cli/actions/runs", "/repos/{owner}/{repo}/actions/runs", "cli/cli"},
+		{"repos/cli/cli/actions/runs/42/attempts/2/jobs", "/repos/{owner}/{repo}/actions/runs/{run_id}/attempts/{attempt}/jobs", "cli/cli"},
+		{"repos/cli/cli/actions/runs/42/rerun-failed-jobs", "/repos/{owner}/{repo}/actions/runs/{run_id}/rerun-failed-jobs", "cli/cli"},
+		{"repos/cli/cli/actions/workflows/7/runs", "/repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs", "cli/cli"},
+		{"repos/cli/cli/actions/jobs/9/logs", "/repos/{owner}/{repo}/actions/jobs/{job_id}/logs", "cli/cli"},
+		{"repos/cli/cli/check-runs/9/annotations", "/repos/{owner}/{repo}/check-runs/{check_run_id}/annotations", "cli/cli"},
 		{"somewhere/else", "/{}/{}", ""},
 	}
 	for _, tt := range tests {
