@@ -3,3 +3,6 @@ keys:
   quit: [x]
 cache:
   ttl: 10m
+details:
+  prefetch:
+    rows: 3
