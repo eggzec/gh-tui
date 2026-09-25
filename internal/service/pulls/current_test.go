@@ -189,3 +189,51 @@ func TestChangeForgetsVersion(t *testing.T) {
 		wantCalls(t, api, 2, 2)
 	})
 }
+
+func TestChangedMarksOlderStale(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		v := &versioned{updated: time.Now(), checks: core.ChecksSuccess}
+		api := v.api()
+		s := New(api, WithTTL(time.Hour))
+		list(t, s, openFirst)
+		readDetail(t, s)
+
+		// A notification of a change the cache has seen changes nothing.
+		s.Changed(repo, 1, time.Now().Add(-time.Second))
+		if !s.Current(firstComments) {
+			t.Error("Current = false after an older change, want true")
+		}
+
+		time.Sleep(time.Minute)
+		changed := time.Now()
+		v.set(changed, core.ChecksSuccess)
+		s.Changed(repo, 1, changed)
+		if s.Current(firstComments) {
+			t.Error("Current = true after a newer change, want false")
+		}
+		readDetail(t, s)
+		wantCalls(t, api, 2, 2)
+
+		// What was read since is as recent as the change.
+		s.Changed(repo, 1, changed)
+		if !s.Current(firstComments) {
+			t.Error("Current = false after reading the change, want true")
+		}
+	})
+}
+
+func TestChangedKeepsDetailThatShowsIt(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		changed := time.Now().Add(time.Second)
+		// GitHub had the change before the read, as the detail shows.
+		api := (&versioned{updated: changed, checks: core.ChecksSuccess}).api()
+		s := New(api, WithTTL(time.Hour))
+		readDetail(t, s)
+
+		time.Sleep(time.Minute)
+		s.Changed(repo, 1, changed)
+		readDetail(t, s)
+		// Only the comments, read before the change, are read again.
+		wantCalls(t, api, 1, 2)
+	})
+}

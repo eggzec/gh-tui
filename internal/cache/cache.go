@@ -201,6 +201,19 @@ func (c *Cache[V]) InvalidateTag(tag string) {
 	}
 }
 
+// InvalidateBefore marks stale every entry tagged with tag that was fetched
+// before t, such as those read before a change that the item tag names is
+// known to have had.
+func (c *Cache[V]) InvalidateBefore(tag string, t time.Time) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for _, n := range c.items {
+		if n.entry.FetchedAt.Before(t) && slices.Contains(n.entry.Tags, tag) {
+			c.markStale(n)
+		}
+	}
+}
+
 // Size returns the total size of the entries, as measured by the size
 // function of WithMaxSize, or 0 without one.
 func (c *Cache[V]) Size() int64 {

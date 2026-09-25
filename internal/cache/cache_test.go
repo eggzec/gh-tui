@@ -125,6 +125,22 @@ func TestInvalidateTag(t *testing.T) {
 	}
 }
 
+func TestInvalidateBefore(t *testing.T) {
+	t0 := time.Now()
+	c := New[int]()
+	c.Set("old", Entry[int]{Tags: []string{"pr/1"}, FetchedAt: t0.Add(-time.Second)})
+	c.Set("new", Entry[int]{Tags: []string{"pr/1"}, FetchedAt: t0.Add(time.Second)})
+	c.Set("other", Entry[int]{Tags: []string{"pr/2"}, FetchedAt: t0.Add(-time.Second)})
+
+	c.InvalidateBefore("pr/1", t0)
+
+	for k, want := range map[string]State{"old": Stale, "new": Fresh, "other": Fresh} {
+		if _, st := c.Get(k); st != want {
+			t.Errorf("Get(%q) state = %v, want %v", k, st, want)
+		}
+	}
+}
+
 func TestOptionsIgnoreInvalidValues(t *testing.T) {
 	c := New[int](WithCapacity(0), WithTTL(-time.Second))
 	if c.opts.capacity != DefaultCapacity || c.opts.ttl != DefaultTTL {

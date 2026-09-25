@@ -168,3 +168,34 @@ func TestIssueChangeForgetsVersion(t *testing.T) {
 		api.checkCalls(t, "GetIssue", "ListIssueComments")
 	})
 }
+
+func TestChangedMarksOlderStale(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		api, set := versionedAPI(t)
+		set(time.Now())
+		s := New(api, WithTTL(time.Hour))
+		readIssue(t, s)
+
+		// A notification of a change the cache has seen changes nothing.
+		s.Changed(repo, 7, time.Now().Add(-time.Second))
+		if !s.Current(sevenComments) {
+			t.Error("Current = false after an older change, want true")
+		}
+
+		time.Sleep(time.Minute)
+		changed := time.Now()
+		set(changed)
+		s.Changed(repo, 7, changed)
+		if s.Current(sevenComments) {
+			t.Error("Current = true after a newer change, want false")
+		}
+		readIssue(t, s)
+		if it, _ := s.CachedGet(repo, 7); !it.UpdatedAt.Equal(changed) {
+			t.Errorf("cached issue updated at %v, want %v", it.UpdatedAt, changed)
+		}
+		s.Changed(repo, 7, changed)
+		if !s.Current(sevenComments) {
+			t.Error("Current = false after reading the change, want true")
+		}
+	})
+}
