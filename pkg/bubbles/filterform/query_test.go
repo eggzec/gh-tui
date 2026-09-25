@@ -152,6 +152,21 @@ func TestClearedKeepsRequiredDefaults(t *testing.T) {
 	}
 }
 
+// A sort that can be left out keeps its default direction when the query
+// has none, so choosing an option sorts the default way.
+func TestClearedKeepsTheSortDirection(t *testing.T) {
+	spec := Spec{Sort: &SortField{
+		Options: []Item{{"Best match", "", ""}, {"Stars", "stars", ""}},
+		Default: Sort{Desc: true},
+	}}
+	m := New(spec, WithQuery("tea"))
+	m.Focus()
+	m, _ = m.Update(right)
+	if got := m.Query(); got != "sort:stars-desc tea" {
+		t.Errorf("Query = %q, want the stars descending", got)
+	}
+}
+
 func TestValue(t *testing.T) {
 	m := New(prSpec(nil))
 	v, ok := m.Value("labels")

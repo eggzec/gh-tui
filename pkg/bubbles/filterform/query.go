@@ -246,7 +246,8 @@ func defaults(s *Spec) state {
 
 // cleared returns the state of an empty query: every field empty, except a
 // Choice with no empty option and a sort with none, which keep their
-// defaults since they can't be left out.
+// defaults since they can't be left out. A sort that can be left out keeps
+// its default direction, which the option chosen next takes.
 func cleared(s *Spec) state {
 	st := state{values: make([]Value, len(s.Fields))}
 	for i := range s.Fields {
@@ -255,7 +256,11 @@ func cleared(s *Spec) state {
 			st.values[i] = f.Default.clone()
 		}
 	}
-	if s.Sort != nil && !hasEmpty(s.Sort.Options) {
+	switch {
+	case s.Sort == nil:
+	case hasEmpty(s.Sort.Options):
+		st.sort.Desc = s.Sort.Default.Desc
+	default:
 		st.sort = s.Sort.Default
 	}
 	return st
