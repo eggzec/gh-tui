@@ -34,6 +34,13 @@ func WithHoverPrefetch(delay time.Duration, maxSize int64) Option {
 	}
 }
 
+// WithFinderPreview sets whether the finder shows the content of the
+// selected file beside the paths, where the width leaves room for it. It
+// does by default; the toggle key shows or hides it either way.
+func WithFinderPreview(show bool) Option {
+	return func(s *Section) { s.findPreview = show }
+}
+
 // WithOffline shares off with other sections, so that the user is told once
 // for all of them that GitHub can't be reached. By default the section has
 // its own.

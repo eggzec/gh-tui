@@ -89,9 +89,9 @@ func newSection(tb testing.TB, svc Service, width, height int, opts ...Option) *
 }
 
 // loaded returns a section showing the files of gh-tui.
-func loaded(tb testing.TB, svc Service, width, height int) *Section {
+func loaded(tb testing.TB, svc Service, width, height int, opts ...Option) *Section {
 	tb.Helper()
-	return newSection(tb, svc, width, height, WithRepo(ghTUI))
+	return newSection(tb, svc, width, height, append([]Option{WithRepo(ghTUI)}, opts...)...)
 }
 
 // run executes cmd the way the program would, feeding every message back
@@ -165,6 +165,14 @@ func press(k string) tea.KeyPressMsg {
 		return tea.KeyPressMsg{Code: tea.KeyUp}
 	case "left":
 		return tea.KeyPressMsg{Code: tea.KeyLeft}
+	case "tab":
+		return tea.KeyPressMsg{Code: tea.KeyTab}
+	case "backspace":
+		return tea.KeyPressMsg{Code: tea.KeyBackspace}
+	}
+	if c, ok := strings.CutPrefix(k, "ctrl+"); ok {
+		r, _ := utf8.DecodeRuneInString(c)
+		return tea.KeyPressMsg{Code: r, Mod: tea.ModCtrl}
 	}
 	r, _ := utf8.DecodeRuneInString(k)
 	return tea.KeyPressMsg{Code: r, Text: k}
@@ -235,7 +243,7 @@ func (h *host) run(cmd tea.Cmd) {
 		h.got = append(h.got, msg)
 		h.modals = slices.DeleteFunc(h.modals, func(m ui.Modal) bool { return m == msg.Modal })
 		return
-	case ui.OpenMsg, ui.NotifyMsg:
+	case ui.OpenMsg, ui.NotifyMsg, ui.ShowMsg:
 		h.got = append(h.got, msg)
 		return
 	case tea.KeyPressMsg:

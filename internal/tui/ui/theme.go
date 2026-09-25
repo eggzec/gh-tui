@@ -8,6 +8,7 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/calendar"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
+	"github.com/eggzec/gh-tui/pkg/bubbles/finder"
 	"github.com/eggzec/gh-tui/pkg/bubbles/graph"
 	"github.com/eggzec/gh-tui/pkg/bubbles/logview"
 	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
@@ -256,6 +257,29 @@ func (t Theme) Picker() picker.Styles {
 	s.SelectedTitle = s.SelectedTitle.Foreground(fg)
 	s.Match = s.Match.Foreground(accent)
 	s.Detail = s.Detail.Foreground(subtle)
+	s.Empty = s.Empty.Foreground(muted)
+	s.Error = s.Error.Foreground(lipgloss.Color(t.Palette.Error))
+	return s
+}
+
+// Finder returns the styles of a file finder.
+func (t Theme) Finder() finder.Styles {
+	s := finder.DefaultStyles(t.Dark)
+	fg, accent := lipgloss.Color(t.Palette.Foreground), lipgloss.Color(t.Palette.Accent)
+	muted, subtle := lipgloss.Color(t.Palette.Muted), lipgloss.Color(t.Palette.Subtle)
+	s.Prompt = s.Prompt.Foreground(accent)
+	s.Text = s.Text.Foreground(fg)
+	s.Placeholder = s.Placeholder.Foreground(subtle)
+	s.Cursor = s.Cursor.Foreground(accent)
+	s.Gutter = s.Gutter.Foreground(accent)
+	s.Dir = s.Dir.Foreground(muted)
+	s.Name = s.Name.Foreground(fg)
+	s.SelectedName = s.SelectedName.Foreground(fg)
+	s.Match = s.Match.Foreground(accent)
+	s.Detail = s.Detail.Foreground(subtle)
+	s.Status = s.Status.Foreground(subtle)
+	s.Note = s.Note.Foreground(lipgloss.Color(t.Palette.Warning))
+	s.Spinner = s.Spinner.Foreground(accent)
 	s.Empty = s.Empty.Foreground(muted)
 	s.Error = s.Error.Foreground(lipgloss.Color(t.Palette.Error))
 	return s

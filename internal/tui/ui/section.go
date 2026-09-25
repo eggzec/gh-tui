@@ -32,6 +32,16 @@ type Badger interface {
 	Badge() string
 }
 
+// FileFinder is a Section that finds its files by their path, such as the
+// files of the repository, which the find-file key opens from any pane of
+// the repository screen.
+type FileFinder interface {
+	// FindFile returns the modal that finds a file, and the command that
+	// loads it once it is open, or a nil modal when there is nothing to
+	// find, such as before a repository is selected.
+	FindFile() (Modal, tea.Cmd)
+}
+
 // Capturer is a Section that at times takes every key, such as while the
 // user types into a prompt. Until Capturing reports false, the app sends
 // keys straight to it, including its own keys such as quit and next pane,

@@ -83,7 +83,7 @@ func (s *Section) rested(msg hoverMsg) tea.Cmd {
 	svc, q, seen := s.svc, s.blobQuery(h.entry), s.seen
 	return func() tea.Msg {
 		defer cancel()
-		readBlob(ctx, svc, seen, q)
+		_, _ = readBlob(ctx, svc, seen, q)
 		return nil
 	}
 }
