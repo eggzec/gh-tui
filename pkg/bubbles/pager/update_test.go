@@ -471,3 +471,24 @@ func TestSpinner(t *testing.T) {
 		t.Error("the spinner kept going after the content arrived")
 	}
 }
+
+func TestGoToLine(t *testing.T) {
+	m := open(t, "lines.txt", numbered(100), WithSize(40, 11))
+	m.GoToLine(50)
+	// Ten rows of text, with line 50 a third of the way down.
+	if m.top != 46 || m.mark != 49 {
+		t.Errorf("top %d with mark %d, want 46 and line 50 marked", m.top, m.mark)
+	}
+	m.GoToLine(1000)
+	if m.mark != 99 || m.top != 90 {
+		t.Errorf("past the end: top %d with mark %d, want the last line", m.top, m.mark)
+	}
+	m.GoToLine(0)
+	if m.mark != 99 {
+		t.Error("line 0 moved the mark")
+	}
+	m.SetContent("other.txt", "text")
+	if m.mark != -1 {
+		t.Error("new content kept the mark")
+	}
+}

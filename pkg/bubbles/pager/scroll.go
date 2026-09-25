@@ -169,6 +169,20 @@ func (m Model) bottom() int {
 	return i
 }
 
+// GoToLine scrolls line n, counted from 1, into view a third of the way
+// down, and marks its number, so that a parent can open the pager on a
+// line, such as the one an error points at. A line past the end goes to
+// the last. Set it after SetContent; new content clears the mark.
+func (m *Model) GoToLine(n int) {
+	if len(m.lines) == 0 || n < 1 {
+		return
+	}
+	i := min(n, len(m.lines)) - 1
+	m.mark = i
+	m.top, m.row = max(i-m.bodyHeight()/3, 0), 0
+	m.clamp()
+}
+
 // clamp keeps the window within the content after anything that moved or
 // resized it.
 func (m *Model) clamp() {

@@ -95,6 +95,7 @@ func (m *Model) reset(name string, s state, err error) {
 	m.renderName()
 	m.lines, m.spans = nil, nil
 	m.top, m.row, m.left = 0, 0, 0
+	m.mark = -1
 	m.clearSearch()
 }
 

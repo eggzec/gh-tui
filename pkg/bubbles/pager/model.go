@@ -63,6 +63,9 @@ type Model struct {
 	// the first of its rows shown. left is the first column shown when not
 	// wrapping.
 	top, row, left int
+	// mark is the line that GoToLine went to, whose number stands out, or
+	// -1.
+	mark int
 
 	searching bool
 	input     textinput.Model
@@ -86,6 +89,7 @@ func New(opts ...Option) Model {
 		id:       lastID.Add(1),
 		input:    input,
 		spin:     spinner.New(spinner.WithSpinner(spinner.Dot)),
+		mark:     -1,
 	}
 	m.SetKeyMap(s.keys)
 	m.SetStyles(s.styles)
