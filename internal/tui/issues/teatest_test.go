@@ -74,9 +74,10 @@ func TestProgram(t *testing.T) {
 	// Closing #999 in the open list shows it closed at once. Once GitHub
 	// agrees, the list no longer has it.
 	tm.Send(keyMsg("x"))
-	waitFor("✓")
+	icons := ui.NewIcons(config.IconsNerd)
+	waitFor(icons.State(ui.IssueClosed))
 	close(svc.gate)
-	waitFor("8 ● Notifications tab keeps pol")
+	waitFor("8 " + icons.State(ui.IssueOpen) + " Notifications tab keeps pol")
 	tm.Send(keyMsg("q"))
 
 	final := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(app)

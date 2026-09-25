@@ -68,6 +68,7 @@ type detailModal struct {
 	width, height int
 	theme         ui.Theme
 	rows          rowStyles
+	icons         ui.Icons
 	chips         chipCache
 }
 
@@ -90,6 +91,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue) tea.
 		cancel:  cancel,
 		theme:   s.theme,
 		rows:    s.rows,
+		icons:   s.icons,
 		chips:   newChipCache(s.rows),
 	}
 	svc, q := s.svc, commentsQuery(repo, number)
@@ -153,7 +155,7 @@ func (m *detailModal) SetSize(width, height int) {
 // SetTheme implements ui.Modal. It builds every style the modal uses.
 func (m *detailModal) SetTheme(t ui.Theme) {
 	m.theme = t
-	m.rows = newRowStyles(t)
+	m.rows = newRowStyles(t, m.icons)
 	m.chips = newChipCache(m.rows)
 	m.md = nil
 	m.thread.SetStyles(t.Thread())
@@ -328,11 +330,7 @@ func (m *detailModal) header(it core.Issue) string {
 	b.WriteString(t.Muted.Render("  #" + strconv.Itoa(it.Number)))
 	b.WriteString("\n  ")
 
-	if it.State == core.StateOpen {
-		b.WriteString(m.rows.openBadge)
-	} else {
-		b.WriteString(m.rows.closedBadge)
-	}
+	b.WriteString(m.rows.badges[ui.IssueState(it)])
 	b.WriteString("  ")
 	b.WriteString(t.Muted.Render(login(it.Author)))
 	b.WriteString(t.Subtle.Render(" opened " + ui.AgoProse(it.CreatedAt, now)))

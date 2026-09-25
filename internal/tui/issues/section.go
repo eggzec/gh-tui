@@ -47,6 +47,7 @@ type Section struct {
 	width, height int
 	theme         ui.Theme
 	rows          rowStyles
+	icons         ui.Icons
 	chips         chipCache
 	// cols is the layout of the rows at colsWidth.
 	cols      columns
@@ -70,6 +71,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		now:       time.Now,
 		filter:    core.FilterOpen,
 		colsWidth: -1,
+		icons:     ui.NewIcons(config.IconsNerd),
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -87,7 +89,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 	}
 	// Assume a dark terminal until the app sets the theme.
 	s.theme = ui.NewTheme(defaultPalette(), true)
-	s.rows = newRowStyles(s.theme)
+	s.rows = newRowStyles(s.theme, s.icons)
 	s.chips = newChipCache(s.rows)
 	s.list = s.newList()
 	s.renderChrome()
@@ -121,7 +123,7 @@ func (s *Section) SetSize(width, height int) {
 // SetTheme implements ui.Section. It builds every style the rows use.
 func (s *Section) SetTheme(t ui.Theme) {
 	s.theme = t
-	s.rows = newRowStyles(t)
+	s.rows = newRowStyles(t, s.icons)
 	s.chips = newChipCache(s.rows)
 	s.list.SetStyles(t.Feed())
 	s.renderChrome()

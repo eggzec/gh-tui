@@ -59,6 +59,7 @@ type detailModal struct {
 
 	width, height int
 	st            styles
+	icons         ui.Icons
 }
 
 // openDetail opens a modal on pull request number of repo. pr is the list
@@ -80,6 +81,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 		ctx:         ctx,
 		cancel:      cancel,
 		st:          s.st,
+		icons:       s.icons,
 	}
 	svc, q := s.svc, commentsQuery(repo, number)
 	fetch := func(ctx context.Context, cursor string) ([]core.Comment, string, error) {
@@ -145,7 +147,7 @@ func (m *detailModal) SetSize(width, height int) {
 
 // SetTheme implements ui.Modal.
 func (m *detailModal) SetTheme(t ui.Theme) {
-	m.st = newStyles(t)
+	m.st = newStyles(t, m.icons)
 	m.thread.SetStyles(t.Thread())
 	if m.loaded {
 		_ = m.show()

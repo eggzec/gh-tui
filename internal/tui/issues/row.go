@@ -12,7 +12,7 @@ import (
 )
 
 // A row is "  #123 ● Title…   bug +1   ◦ 3  octocat   3d": the number, the
-// state, the title, then the labels, the comment count, the author and the
+// glyph of the state, the title, then the labels, the comment count, the author and the
 // age in fixed columns on the right.
 const (
 	numWidth      = 6 // "#12345"
@@ -31,10 +31,8 @@ const (
 	titleShare = 0.35
 )
 
-// State glyphs. Open and closed differ in shape as well as color.
+// The mark of the comment count.
 const (
-	openGlyph   = "●"
-	closedGlyph = "✓"
 	commentMark = "◦ "
 	// commentMarkWidth is the width of commentMark in cells.
 	commentMarkWidth = 2
@@ -113,30 +111,37 @@ func (p paint) write(b *strings.Builder, text string) {
 // rowStyles are the styles of the list rows.
 type rowStyles struct {
 	number, title, selected paint
-	open, closed            paint
 	meta, age, more         paint
+	// states are the glyphs of the states of issues in their colors, and
+	// badges the states in the detail header.
+	states, badges [ui.NumStates]string
 	// label is the chip of a label whose color is not valid.
 	label lipgloss.Style
 	dark  bool
-	// The state badges of the detail header.
-	openBadge, closedBadge string
 }
 
-func newRowStyles(t ui.Theme) rowStyles {
+// stateNames name the states of issues in the detail header.
+var stateNames = map[ui.State]string{
+	ui.IssueOpen: "Open", ui.IssueClosed: "Closed", ui.IssueNotPlanned: "Closed as not planned",
+}
+
+func newRowStyles(t ui.Theme, icons ui.Icons) rowStyles {
+	var states, badges [ui.NumStates]string
+	for s, name := range stateNames {
+		states[s] = t.State(s).Render(icons.State(s))
+		badges[s] = t.State(s).Bold(true).Render(icons.State(s) + " " + name)
+	}
 	return rowStyles{
+		states:   states,
+		badges:   badges,
 		number:   newPaint(t.Muted),
 		title:    newPaint(t.Text),
 		selected: newPaint(t.Title),
-		open:     newPaint(t.Success),
-		closed:   newPaint(t.Subtle),
 		meta:     newPaint(t.Muted),
 		age:      newPaint(t.Subtle),
 		more:     newPaint(t.Subtle),
 		label:    t.Muted.Padding(0, 1),
 		dark:     t.Dark,
-
-		openBadge:   t.Success.Bold(true).Render(openGlyph + " Open"),
-		closedBadge: t.Subtle.Bold(true).Render(closedGlyph + " Closed"),
 	}
 }
 
@@ -154,11 +159,7 @@ func (s *Section) renderRow(it core.Issue, selected bool, width int) string {
 	pad(&b, numWidth-len(num))
 	st.number.write(&b, num)
 	b.WriteByte(' ')
-	if it.State == core.StateOpen {
-		st.open.write(&b, openGlyph)
-	} else {
-		st.closed.write(&b, closedGlyph)
-	}
+	b.WriteString(st.states[ui.IssueState(it)])
 	b.WriteByte(' ')
 
 	title := st.title

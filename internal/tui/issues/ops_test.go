@@ -8,6 +8,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
@@ -132,7 +133,7 @@ func TestSetState(t *testing.T) {
 func shownState(s *host, number int) core.State {
 	if m := s.modal(); m != nil {
 		v := ansi.Strip(m.header(m.issue))
-		if strings.Contains(v, "● Open") {
+		if strings.Contains(v, ui.NewIcons(config.IconsNerd).State(ui.IssueOpen)+" Open") {
 			return core.StateOpen
 		}
 		return core.StateClosed

@@ -73,6 +73,7 @@ type Section struct {
 	width, height int
 	theme         ui.Theme
 	st            styles
+	icons         ui.Icons
 	cols          columns
 	header        string
 	// blank is the empty state shown until a repository is picked, and
@@ -107,6 +108,12 @@ func WithOffline(off *ui.Offline) Option {
 	}
 }
 
+// WithIcons sets the glyphs of the states of pull requests. The default is
+// the Nerd Font set.
+func WithIcons(icons ui.Icons) Option {
+	return func(s *Section) { s.icons = icons }
+}
+
 // prefetch is how the details are read ahead.
 type prefetch struct {
 	rows  int
@@ -133,6 +140,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		now:         time.Now,
 		mergeMethod: core.MergeSquash,
 		filter:      core.StateOpen,
+		icons:       ui.NewIcons(config.IconsNerd),
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -213,7 +221,7 @@ func (s *Section) layout() {
 // SetTheme implements ui.Section.
 func (s *Section) SetTheme(t ui.Theme) {
 	s.theme = t
-	s.st = newStyles(t)
+	s.st = newStyles(t, s.icons)
 	if s.feed != nil {
 		s.feed.SetStyles(t.Feed())
 	}

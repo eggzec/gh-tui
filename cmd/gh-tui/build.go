@@ -92,8 +92,8 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 		)
 	}
 	var (
-		pullOpts  = []pulls.Option{pulls.WithOffline(offline)}
-		issueOpts = []issues.Option{issues.WithOffline(offline)}
+		pullOpts  = []pulls.Option{pulls.WithOffline(offline), pulls.WithIcons(icons)}
+		issueOpts = []issues.Option{issues.WithOffline(offline), issues.WithIcons(icons)}
 	)
 	if p := cfg.Details.Prefetch; p.Enabled {
 		pullOpts = append(pullOpts, pulls.WithPrefetch(p.Rows, p.HoverDelay))
