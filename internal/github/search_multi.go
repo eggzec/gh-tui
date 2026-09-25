@@ -78,6 +78,7 @@ fragment searchIssue on Issue {
   number
   title
   state
+  stateReason
   url
   createdAt
   updatedAt
@@ -226,16 +227,18 @@ func (r searchRepoNode) hit() core.SearchHit {
 // searchIssueNode is the JSON shape of the searchIssue and searchPull
 // fragments.
 type searchIssueNode struct {
-	Typename   string    `json:"__typename"`
-	ID         string    `json:"id"`
-	Number     int       `json:"number"`
-	Title      string    `json:"title"`
-	State      string    `json:"state"`
-	IsDraft    bool      `json:"isDraft"`
-	URL        string    `json:"url"`
-	CreatedAt  time.Time `json:"createdAt"`
-	UpdatedAt  time.Time `json:"updatedAt"`
-	Repository struct {
+	Typename string `json:"__typename"`
+	ID       string `json:"id"`
+	Number   int    `json:"number"`
+	Title    string `json:"title"`
+	State    string `json:"state"`
+	// StateReason is read of issues, and IsDraft of pull requests.
+	StateReason string    `json:"stateReason"`
+	IsDraft     bool      `json:"isDraft"`
+	URL         string    `json:"url"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
+	Repository  struct {
 		Name  string `json:"name"`
 		Owner struct {
 			Login string `json:"login"`
@@ -258,6 +261,7 @@ func (n searchIssueNode) hit() core.SearchHit {
 		Number:    n.Number,
 		Title:     n.Title,
 		State:     core.State(strings.ToLower(n.State)),
+		Reason:    core.StateReason(strings.ToLower(n.StateReason)),
 		Labels:    convert(n.Labels.Nodes, label.core),
 		Comments:  n.Comments.TotalCount,
 		CreatedAt: n.CreatedAt,

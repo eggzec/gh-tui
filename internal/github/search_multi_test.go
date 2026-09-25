@@ -101,6 +101,13 @@ func TestSearchStates(t *testing.T) {
 			}
 		}
 	}
+	reasons := make([]core.StateReason, 0, 5)
+	for _, h := range got[core.SearchIssues].Items {
+		reasons = append(reasons, h.Issue.Reason)
+	}
+	if want := []core.StateReason{core.ReasonCompleted, core.ReasonNotPlanned, core.ReasonCompleted, core.ReasonCompleted, core.ReasonCompleted}; !slices.Equal(reasons, want) {
+		t.Errorf("reasons = %v, want %v", reasons, want)
+	}
 	if n := got[core.SearchPulls].Items[0].Issue; n.Number != 697 || n.Author.Login != "pete-woods" || n.Comments != 6 {
 		t.Errorf("pull 0 = %+v", n)
 	}

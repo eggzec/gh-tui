@@ -21,6 +21,7 @@ type restIssue struct {
 	Title       string    `json:"title"`
 	Body        string    `json:"body"`
 	State       string    `json:"state"`
+	StateReason string    `json:"state_reason"`
 	User        user      `json:"user"`
 	Labels      []label   `json:"labels"`
 	Assignees   []user    `json:"assignees"`
@@ -39,6 +40,7 @@ func (i restIssue) core(repo core.RepoRef) core.Issue {
 		Title:     i.Title,
 		Body:      i.Body,
 		State:     core.State(i.State),
+		Reason:    core.StateReason(i.StateReason),
 		Author:    i.User.core(),
 		Labels:    convert(i.Labels, label.core),
 		Assignees: convert(i.Assignees, user.core),

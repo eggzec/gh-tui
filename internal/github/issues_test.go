@@ -77,7 +77,7 @@ var wantIssue42 = core.Issue{
 
 func equalIssue(a, b core.Issue) bool {
 	return a.ID == b.ID && a.Repo == b.Repo && a.Number == b.Number &&
-		a.Title == b.Title && a.Body == b.Body && a.State == b.State &&
+		a.Title == b.Title && a.Body == b.Body && a.State == b.State && a.Reason == b.Reason &&
 		a.Author == b.Author && slices.Equal(a.Labels, b.Labels) &&
 		slices.Equal(a.Assignees, b.Assignees) && a.Comments == b.Comments &&
 		a.CreatedAt.Equal(b.CreatedAt) && a.UpdatedAt.Equal(b.UpdatedAt) && a.URL == b.URL
@@ -350,6 +350,7 @@ func TestSetIssueState(t *testing.T) {
 	}
 	want := wantIssue42
 	want.State = core.StateClosed
+	want.Reason = core.ReasonCompleted
 	want.Assignees = nil
 	want.UpdatedAt = issueTime("2026-09-21T10:00:00Z")
 	if !equalIssue(got, want) {

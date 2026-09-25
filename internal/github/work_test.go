@@ -52,6 +52,9 @@ func TestViewerWork(t *testing.T) {
 		!h.Issue.UpdatedAt.Equal(pr.Issue.UpdatedAt) || h.Issue.URL != pr.Issue.URL {
 		t.Errorf("authored[0] = %+v\nwant %+v", h, pr)
 	}
+	if !got.Authored.Items[0].Draft || got.ReviewRequested.Items[0].Draft {
+		t.Errorf("drafts = %v, %v; want the authored pull request only", got.Authored.Items[0].Draft, got.ReviewRequested.Items[0].Draft)
+	}
 
 	issue := got.Assigned.Items[1]
 	if issue.Kind != core.SearchIssues || issue.Issue.Number != 1053 || issue.Issue.Repo != (core.RepoRef{Owner: "charmbracelet", Name: "bubbles"}) {

@@ -65,6 +65,7 @@
           "number": 3926,
           "title": "ui: add mouse support to top-level command palette",
           "state": "OPEN",
+          "isDraft": true,
           "author": {
             "login": "meowgorithm"
           },

@@ -24,8 +24,8 @@ fragment workHits on SearchResultItemConnection {
   issueCount
   nodes {
     __typename
-    ... on PullRequest { id number title state author { login } comments { totalCount } createdAt updatedAt url repository { name owner { login } } }
-    ... on Issue { id number title state author { login } comments { totalCount } createdAt updatedAt url repository { name owner { login } } }
+    ... on PullRequest { id number title state isDraft author { login } comments { totalCount } createdAt updatedAt url repository { name owner { login } } }
+    ... on Issue { id number title state stateReason author { login } comments { totalCount } createdAt updatedAt url repository { name owner { login } } }
   }
 }`
 
@@ -36,6 +36,9 @@ type workNode struct {
 	Number   int    `json:"number"`
 	Title    string `json:"title"`
 	State    string `json:"state"`
+	// IsDraft is read of pull requests, and StateReason of issues.
+	IsDraft     bool   `json:"isDraft"`
+	StateReason string `json:"stateReason"`
 	// Author is null for a deleted account.
 	Author     *user       `json:"author"`
 	Comments   viewerCount `json:"comments"`
@@ -59,6 +62,7 @@ func (n workNode) core() core.SearchHit {
 			Number:    n.Number,
 			Title:     n.Title,
 			State:     core.State(strings.ToLower(n.State)),
+			Reason:    core.StateReason(strings.ToLower(n.StateReason)),
 			Comments:  n.Comments.TotalCount,
 			CreatedAt: n.CreatedAt,
 			UpdatedAt: n.UpdatedAt,
@@ -67,6 +71,7 @@ func (n workNode) core() core.SearchHit {
 	}
 	if n.Typename == "PullRequest" {
 		hit.Kind = core.SearchPulls
+		hit.Draft = n.IsDraft
 	}
 	if n.Author != nil {
 		hit.Issue.Author = n.Author.core()
