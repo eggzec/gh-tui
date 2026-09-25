@@ -19,6 +19,11 @@ func fit(s string, width int) string {
 	return ansi.Truncate(s, width, "")
 }
 
+// padLeft pads s on the left to width cells.
+func padLeft(s string, width int) string {
+	return strings.Repeat(" ", max(width-ansi.StringWidth(s), 0)) + s
+}
+
 // spread puts left and right at the edges of width cells, and drops right
 // when both don't fit.
 func spread(left, right string, width int) string {

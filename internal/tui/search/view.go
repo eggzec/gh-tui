@@ -323,7 +323,7 @@ func (s *Section) startLines(w, h int) []string {
 
 // Widths of the right of a result row.
 const (
-	starsWidth    = 8
+	starsWidth    = 6
 	commentsWidth = 5
 )
 
@@ -372,15 +372,15 @@ func (s *Section) stateGlyph(hit core.SearchHit) string {
 	return s.st.states[state].render(s.icons.State(state))
 }
 
-// language renders the glyph of r's language in its color, then its name.
-func (s *Section) language(r core.Repo) string {
+// langGlyph renders the glyph of r's language in its color.
+func (s *Section) langGlyph(r core.Repo) string {
 	k := r.Language + "\x00" + r.LanguageColor
 	g, ok := s.langs[k]
 	if !ok {
 		g = s.theme.Language(r.Language, r.LanguageColor).Render(s.icons.Language(r.Language))
 		s.langs[k] = g
 	}
-	return g + " " + s.st.text.render(r.Language)
+	return g
 }
 
 // labels renders the names of labels, each after a dot of its color.
@@ -412,39 +412,98 @@ func isHex(s string) bool {
 	return true
 }
 
-// renderRepo renders a repository in two lines: its name, marks and stars,
-// then its description, language and age.
+// repoCols are the widths of the columns at the right of the first line
+// of a repository, which line up from row to row. A narrow row shows the
+// language by its glyph alone and the age in its short form, and the
+// narrowest only the stars.
+type repoCols struct {
+	lang, age int
+	short     bool
+}
+
+// repoLayouts are the columns of repository rows, widest first:
+// "TypeScript" and "11mo ago", then a glyph and "11mo".
+var repoLayouts = []repoCols{{lang: 12, age: 8}, {lang: 1, age: 4, short: true}, {}}
+
+// minRepoName is the room the name of a repository keeps, before the
+// columns give way.
+const minRepoName = 20
+
+func repoColumns(width int) repoCols {
+	for _, c := range repoLayouts {
+		if width-c.width()-1 >= minRepoName {
+			return c
+		}
+	}
+	return repoCols{}
+}
+
+// width is the width of the columns with the gaps between them.
+func (c repoCols) width() int {
+	w := starsWidth
+	if c.lang > 0 {
+		w += c.lang + 2
+	}
+	if c.age > 0 {
+		w += c.age + 2
+	}
+	return w
+}
+
+// renderRepo renders a repository in two lines: its name and the glyphs
+// of what it is, with its language, stars and age in columns at the
+// right, then its description.
 func (s *Section) renderRepo(r core.Repo, selected bool, width int) string {
 	st := &s.st
+	cols := repoColumns(width)
+	cells := make([]string, 0, 3)
+	if cols.lang > 0 {
+		cells = append(cells, s.langCell(r, cols.lang))
+	}
+	cells = append(cells, padLeft(st.muted.render(s.icons.Star+" "+count(r.Stars)), starsWidth))
+	if cols.age > 0 {
+		age := ""
+		switch {
+		case r.UpdatedAt.IsZero():
+		case cols.short:
+			age = ui.Ago(r.UpdatedAt, s.now())
+		default:
+			age = ui.AgoProse(r.UpdatedAt, s.now())
+		}
+		cells = append(cells, padLeft(st.subtle.render(age), cols.age))
+	}
+	right := strings.Join(cells, "  ")
+
+	flags := s.icons.Flags(r)
+	room := width - ansi.StringWidth(right) - 1 - 2*len(flags)
 	name := st.text
 	if selected {
 		name = st.name
 	}
 	var head strings.Builder
-	head.WriteString(name.render(truncate(r.Ref.String(), max(width-starsWidth-1, 0))))
-	for _, f := range s.icons.Flags(r) {
+	head.WriteString(name.render(truncate(r.Ref.String(), max(room, 0))))
+	for _, f := range flags {
 		head.WriteByte(' ')
-		st.subtle.write(&head, f)
+		st.muted.write(&head, f)
 	}
-	first := spread(head.String(), st.muted.render("★ "+count(r.Stars)), width)
-	parts := make([]string, 0, 3)
+	first := spread(head.String(), right, width)
+	second := ""
 	if d := cleanLine(r.Description); d != "" {
-		parts = append(parts, st.muted.render(d))
+		second = "  " + st.muted.render(truncate(d, width-2))
 	}
-	if r.Language != "" {
-		parts = append(parts, s.language(r))
+	return first + "\n" + fit(second, width)
+}
+
+// langCell renders the language of r in width cells: its glyph and name,
+// or its glyph alone in a cell of one.
+func (s *Section) langCell(r core.Repo, width int) string {
+	if r.Language == "" {
+		return strings.Repeat(" ", width)
 	}
-	if !r.UpdatedAt.IsZero() {
-		parts = append(parts, st.subtle.render("updated "+ui.AgoProse(r.UpdatedAt, s.now())))
+	if width < 3 {
+		return fit(s.langGlyph(r), width)
 	}
-	// The description gives way first, so the language and age show.
-	second := "  " + strings.Join(parts, st.subtle.render(" · "))
-	if ansi.StringWidth(second) > width && len(parts) > 1 && r.Description != "" {
-		tail := strings.Join(parts[1:], st.subtle.render(" · "))
-		room := width - 2 - ansi.StringWidth(tail) - 3
-		second = "  " + st.muted.render(truncate(cleanLine(r.Description), max(room, 0))) + st.subtle.render(" · ") + tail
-	}
-	return first + "\n" + fit(ansi.Truncate(second, width, "…"), width)
+	return fit(s.langGlyph(r)+" "+s.st.text.render(truncate(r.Language, width-2)), width)
 }
 
 // renderCode renders a file that matches: its repository and path, then a
