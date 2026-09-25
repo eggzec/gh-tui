@@ -96,38 +96,101 @@ func TestWorkWraps(t *testing.T) {
 	svc.work = longWork()
 	s := newSection(t, svc, nil, 56, 30, WithIcons(ui.NewIcons(config.IconsASCII)))
 	press(t, s, "3")
-	got := strings.Join(workLines(s), "\n")
-	want := strings.Join([]string{
-		" Review requests 1",
+	want := [][]string{{
+		// The full titles of the tabs don't fit in 54 cells.
+		" Reviews 1  Mine 3  Assigned 1",
 		"▌ O permit#48 Implement license key generation with",
 		"▌   batch metadata and error handling              6mo",
-		"",
-		" Your pull requests 3",
-		"  O slk#239 fix(ui): preserve scroll position in",
-		"    messages.Model on resize; throttle the redraws  1h",
+	}, {
+		" Reviews 1  Mine 3  Assigned 1",
+		"▌ O slk#239 fix(ui): preserve scroll position in",
+		"▌   messages.Model on resize; throttle the redraws  1h",
 		"  O playground#3 Add initial sample README content 9mo",
 		"  O gh-tui#71 feat(dashboard): wrap the work waiting",
 		"    on you under its text, and lay the repositories",
 		"    out in columns                                  2h",
-		"",
-		" Assigned issues 1",
-		"  o gh-tui#70 The dashboard cuts the titles of the",
-		"    work waiting on you                             3d",
-	}, "\n")
-	if got != want {
-		t.Errorf("the work pane shows\n%s\nwant\n%s", got, want)
+	}, {
+		" Reviews 1  Mine 3  Assigned 1",
+		"▌ o gh-tui#70 The dashboard cuts the titles of the",
+		"▌   work waiting on you                             3d",
+	}}
+	for i, want := range want {
+		got := strings.Join(workLines(s), "\n")
+		if got != strings.Join(want, "\n") {
+			t.Errorf("tab %d shows\n%s\nwant\n%s", i, got, strings.Join(want, "\n"))
+		}
+		press(t, s, "]")
+	}
+}
+
+func TestWorkTabs(t *testing.T) {
+	svc := newFake()
+	svc.work = longWork()
+	s := newSection(t, svc, nil, 140, 38)
+	press(t, s, "3")
+	l := &s.tasks
+	if l.cur != 0 {
+		t.Fatalf("on tab %d, want the review requests", l.cur)
+	}
+	// Each tab keeps its cursor.
+	press(t, s, "]", "down", "down")
+	if l.cur != 1 || l.current().sel != 2 {
+		t.Fatalf("on tab %d item %d, want the third of your pull requests", l.cur, l.current().sel)
+	}
+	press(t, s, "right", "[")
+	if l.cur != 1 || l.current().sel != 2 {
+		t.Fatalf("back on tab %d item %d, want the third of your pull requests still", l.cur, l.current().sel)
+	}
+	if hit, _ := l.selected(); hit.Issue.Number != 71 {
+		t.Errorf("the cursor is on #%d, want #71", hit.Issue.Number)
+	}
+	// Tabs wrap around both ways, with the keys of the owners.
+	press(t, s, "left", "left")
+	if l.cur != 2 {
+		t.Errorf("two tabs back from the second is tab %d, want the last", l.cur)
+	}
+	press(t, s, "]")
+	if l.cur != 0 {
+		t.Errorf("the tab after the last is %d, want the first", l.cur)
+	}
+	// New work keeps the tab picked and the cursor of each.
+	press(t, s, "]")
+	s.Update(loadedMsg{id: s.id, gen: s.gen, kind: kindWork, value: longWork()})
+	if l.cur != 1 || l.current().sel != 2 {
+		t.Errorf("after new work on tab %d item %d, want them kept", l.cur, l.current().sel)
+	}
+	// The other panes keep their keys.
+	press(t, s, "2", "]")
+	if l.cur != 1 || s.repos.cur != 1 {
+		t.Errorf("] in the repositories moved the work to tab %d and the owners to %d", l.cur, s.repos.cur)
+	}
+}
+
+func TestWorkOpensOnTheFirstTabWithItems(t *testing.T) {
+	svc := newFake()
+	svc.work = longWork()
+	svc.work.ReviewRequested = core.WorkList{}
+	s := newSection(t, svc, nil, 140, 38)
+	if s.tasks.cur != 1 {
+		t.Errorf("on tab %d, want your pull requests, the first with items", s.tasks.cur)
+	}
+	svc.work = core.Work{}
+	s = newSection(t, svc, nil, 140, 38)
+	if s.tasks.cur != 0 || !strings.Contains(screen(s), "No pull request asks for your review.") {
+		t.Errorf("with no work on tab %d, want the first, which says so:\n%s", s.tasks.cur, screen(s))
 	}
 }
 
 func TestWorkScrollsByWholeItems(t *testing.T) {
 	svc := newFake()
 	svc.work = longWork()
-	s := newSection(t, svc, nil, 56, 12, WithIcons(ui.NewIcons(config.IconsASCII)))
-	press(t, s, "3")
-	_, h := s.boxes[workPane].w-2, s.boxes[workPane].h-2
-	for step := range 2 * len(s.tasks.items) {
+	s := newSection(t, svc, nil, 56, 9, WithIcons(ui.NewIcons(config.IconsASCII)))
+	press(t, s, "3", "]")
+	h := s.boxes[workPane].h - 2
+	tab := s.tasks.current()
+	for step := range 2 * tab.items {
 		key := "down"
-		if step >= len(s.tasks.items) {
+		if step >= tab.items {
 			key = "up"
 		}
 		lines := workLines(s)
@@ -136,7 +199,7 @@ func TestWorkScrollsByWholeItems(t *testing.T) {
 		}
 		// The selected item shows whole: its every line has the cursor,
 		// and the last of them its age.
-		sel := s.tasks.rows[s.tasks.items[s.tasks.sel]]
+		sel := tab.rows[tab.sel]
 		marked := 0
 		for _, l := range lines {
 			if strings.HasPrefix(l, "▌") {
@@ -146,10 +209,9 @@ func TestWorkScrollsByWholeItems(t *testing.T) {
 		if marked != len(sel.lines) {
 			t.Errorf("step %d: %d lines have the cursor, want the %d of %s\n%s", step, marked, len(sel.lines), sel.ref, strings.Join(lines, "\n"))
 		}
-		// No item is cut at the bottom: the last line is a header, a note
-		// or the end of an item, which has its age.
-		if last := strings.TrimSpace(lines[len(lines)-1]); !strings.HasSuffix(last, "1h") && !strings.HasSuffix(last, "2h") &&
-			!strings.HasSuffix(last, "3d") && !strings.HasSuffix(last, "6mo") && !strings.HasSuffix(last, "9mo") && !strings.Contains(last, "Your pull requests") && !strings.Contains(last, "Assigned issues") {
+		// No item is cut at the bottom: the last line is the end of an
+		// item, which has its age.
+		if last := strings.TrimSpace(lines[len(lines)-1]); !strings.HasSuffix(last, "1h") && !strings.HasSuffix(last, "2h") && !strings.HasSuffix(last, "9mo") {
 			t.Errorf("step %d: the pane ends in the middle of an item:\n%s", step, strings.Join(lines, "\n"))
 		}
 		press(t, s, key)
@@ -175,6 +237,8 @@ func TestWorkStates(t *testing.T) {
 	s := newSection(t, svc, nil, 56, 30, WithIcons(ui.NewIcons(config.IconsASCII)))
 	press(t, s, "3")
 	view := strings.Join(workLines(s), "\n")
+	press(t, s, "]", "]")
+	view += strings.Join(workLines(s), "\n")
 	for _, want := range []string{"O a#5 Open", "D a#6 Draft", "M a#3 Merged", "X a#4 Declined", "o a#7 Open", "x a#1 Closed", "- a#2 Closed"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("the work pane doesn't show %q:\n%s", want, view)

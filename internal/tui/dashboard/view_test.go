@@ -23,6 +23,8 @@ func TestView(t *testing.T) {
 		{"140 columns", 140, 38, nil, ""},
 		{"140 columns filter", 140, 38, []string{"f", "r", "e", "p", "o", "-", "1", "2"}, ""},
 		{"140 columns calendar", 140, 38, []string{"4", "left"}, ""},
+		{"140 columns work tab", 140, 38, []string{"3", "]"}, ""},
+		{"100 columns", 100, 30, []string{"3", "[", "down"}, ""},
 		{"80 columns", 80, 22, nil, ""},
 		{"80 columns pinned", 80, 22, []string{"1", "right"}, ""},
 		{"80 columns work", 80, 22, []string{"3", "down"}, ""},

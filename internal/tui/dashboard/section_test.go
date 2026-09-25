@@ -363,7 +363,7 @@ func TestWork(t *testing.T) {
 	if !slices.Contains(app, tea.Msg(ui.OpenPullMsg{Repo: core.RepoRef{Owner: "charmbracelet", Name: "bubbletea"}, Number: 1402})) {
 		t.Errorf("enter on the first review request sent %v", app)
 	}
-	app = press(t, s, "down", "down", "down", "down", "down", "enter")
+	app = press(t, s, "]", "]", "enter")
 	if !slices.Contains(app, tea.Msg(ui.OpenIssueMsg{Repo: here, Number: 40})) {
 		t.Errorf("enter on the assigned issue sent %v", app)
 	}
@@ -379,7 +379,9 @@ func TestWorkMore(t *testing.T) {
 	svc.work.Assigned = core.WorkList{}
 	s := newSection(t, svc, nil, 140, 50)
 	view := screen(s)
-	for _, want := range []string{"and 12 more on GitHub", "No open issue is assigned to you.", "Waiting on you · 16"} {
+	press(t, s, "3", "[")
+	view += screen(s)
+	for _, want := range []string{"and 12 more on GitHub", "No open issue is assigned to you.", "Waiting on you · 16", "Assigned issues 0"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("the work doesn't show %q:\n%s", want, view)
 		}

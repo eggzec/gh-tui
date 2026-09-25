@@ -29,7 +29,7 @@ type KeyMap struct {
 	// Filter finds a repository among those of the owner on view.
 	Filter key.Binding
 	// NextOwner and PrevOwner switch the repositories between the viewer's
-	// own and those of each organization.
+	// own and those of each organization, and the work between its lists.
 	NextOwner key.Binding
 	PrevOwner key.Binding
 	// Here opens the repository of the current directory.
@@ -137,7 +137,9 @@ func (h helpKeys) paneKeys() []key.Binding {
 		}
 		return []key.Binding{h.repos.feedKeys().Up, h.repos.feedKeys().Down, k.Select, k.Filter, k.NextOwner, k.Open, h.repos.feedKeys().Retry}
 	case workPane:
-		return []key.Binding{k.Up, k.Down, k.Select, k.Open}
+		next := k.NextOwner
+		next.SetHelp(next.Help().Key, "next list")
+		return []key.Binding{k.Up, k.Down, k.Select, k.Open, next}
 	case inboxPane:
 		sel := k.Select
 		sel.SetHelp(sel.Help().Key, "notifications")
@@ -170,6 +172,10 @@ func (h helpKeys) FullHelp() [][]key.Binding {
 	case h.pane == reposPane && !h.repos.filtering:
 		f := h.repos.feedKeys()
 		groups = append(groups, []key.Binding{f.PageUp, f.PageDown, f.Home, f.End, h.k.PrevOwner})
+	case h.pane == workPane:
+		prev := h.k.PrevOwner
+		prev.SetHelp(prev.Help().Key, "previous list")
+		groups = append(groups, []key.Binding{prev})
 	case h.pane == calendarPane:
 		groups = h.cal.FullHelp()
 	}
