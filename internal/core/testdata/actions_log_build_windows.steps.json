@@ -1,0 +1,90 @@
+[
+  {
+    "name": "Set up job",
+    "status": "completed",
+    "conclusion": "success",
+    "number": 1,
+    "started_at": "2026-09-22T10:03:33Z",
+    "completed_at": "2026-09-22T10:03:34Z"
+  },
+  {
+    "name": "Checkout code",
+    "status": "completed",
+    "conclusion": "success",
+    "number": 2,
+    "started_at": "2026-09-22T10:03:34Z",
+    "completed_at": "2026-09-22T10:03:39Z"
+  },
+  {
+    "name": "Run git config --global url.\"https://@github.com/charmbracelet\".insteadOf \"https://github.com/charmbracelet\"",
+    "status": "completed",
+    "conclusion": "skipped",
+    "number": 3,
+    "started_at": "2026-09-22T10:03:39Z",
+    "completed_at": "2026-09-22T10:03:39Z"
+  },
+  {
+    "name": "Install Go",
+    "status": "completed",
+    "conclusion": "success",
+    "number": 4,
+    "started_at": "2026-09-22T10:03:39Z",
+    "completed_at": "2026-09-22T10:04:10Z"
+  },
+  {
+    "name": "Tidy Go modules",
+    "status": "completed",
+    "conclusion": "success",
+    "number": 5,
+    "started_at": "2026-09-22T10:04:10Z",
+    "completed_at": "2026-09-22T10:04:11Z"
+  },
+  {
+    "name": "Check for changes",
+    "status": "completed",
+    "conclusion": "success",
+    "number": 6,
+    "started_at": "2026-09-22T10:04:11Z",
+    "completed_at": "2026-09-22T10:04:11Z"
+  },
+  {
+    "name": "Build",
+    "status": "completed",
+    "conclusion": "success",
+    "number": 7,
+    "started_at": "2026-09-22T10:04:11Z",
+    "completed_at": "2026-09-22T10:04:12Z"
+  },
+  {
+    "name": "Test",
+    "status": "completed",
+    "conclusion": "failure",
+    "number": 8,
+    "started_at": "2026-09-22T10:04:12Z",
+    "completed_at": "2026-09-22T10:04:14Z"
+  },
+  {
+    "name": "Post Install Go",
+    "status": "completed",
+    "conclusion": "skipped",
+    "number": 15,
+    "started_at": "2026-09-22T10:04:14Z",
+    "completed_at": "2026-09-22T10:04:14Z"
+  },
+  {
+    "name": "Post Checkout code",
+    "status": "completed",
+    "conclusion": "success",
+    "number": 16,
+    "started_at": "2026-09-22T10:04:14Z",
+    "completed_at": "2026-09-22T10:04:16Z"
+  },
+  {
+    "name": "Complete job",
+    "status": "completed",
+    "conclusion": "success",
+    "number": 17,
+    "started_at": "2026-09-22T10:04:16Z",
+    "completed_at": "2026-09-22T10:04:16Z"
+  }
+]

@@ -1,0 +1,2 @@
+# Recorded job logs keep the CRLF line endings that Windows runners write.
+internal/core/testdata/actions_log_* -text
