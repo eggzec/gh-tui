@@ -19,7 +19,10 @@ func (s *Section) Update(msg tea.Msg) tea.Cmd {
 		cmd = tea.Batch(cmd, off)
 	}
 	if ahead := s.readAhead(); ahead != nil {
-		return tea.Batch(cmd, ahead)
+		cmd = tea.Batch(cmd, ahead)
+	}
+	if others := s.readOthers(); others != nil {
+		cmd = tea.Batch(cmd, others)
 	}
 	return cmd
 }
@@ -71,6 +74,7 @@ func (s *Section) setRepo(repo core.RepoRef) tea.Cmd {
 	s.repo, s.hasRepo = repo, true
 	// The rate limit may be another's.
 	s.ahead.Resume()
+	s.others.Reset(s.ctx)
 	// Other repositories have other labels.
 	s.chips = newChipCache(s.rows)
 	return s.resetList()
@@ -94,6 +98,7 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 		return s.setState(core.StateOpen)
 	case key.Matches(msg, k.Filter):
 		s.filter = nextFilter(s.filter)
+		s.others.Opened(s.listQuery(s.filter))
 		return s.resetList()
 	case key.Matches(msg, k.Refresh):
 		s.svc.Invalidate(s.repo)
