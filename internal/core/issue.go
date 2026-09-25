@@ -12,6 +12,19 @@ const (
 	StateMerged State = "merged"
 )
 
+// StateReason says why an issue was closed, or that it was reopened. It is
+// empty when GitHub doesn't say, as for pull requests.
+type StateReason string
+
+// State reasons. An issue closed as not planned or as a duplicate is shown
+// apart from one that was completed.
+const (
+	ReasonCompleted  StateReason = "completed"
+	ReasonNotPlanned StateReason = "not_planned"
+	ReasonDuplicate  StateReason = "duplicate"
+	ReasonReopened   StateReason = "reopened"
+)
+
 // StateFilter selects issues or pull requests by state when listing them.
 type StateFilter string
 
@@ -37,12 +50,14 @@ type Label struct {
 
 // Issue is a GitHub issue. ID is the GraphQL node ID used by mutations.
 type Issue struct {
-	ID        string
-	Repo      RepoRef
-	Number    int
-	Title     string
-	Body      string
-	State     State
+	ID     string
+	Repo   RepoRef
+	Number int
+	Title  string
+	Body   string
+	State  State
+	// Reason says why a closed issue was closed.
+	Reason    StateReason
 	Author    User
 	Labels    []Label
 	Assignees []User
