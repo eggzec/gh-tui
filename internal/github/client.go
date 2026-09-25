@@ -168,13 +168,19 @@ func (c *Client) resolve(path string) (string, error) {
 // limit of the response. A request that asks for another media type keeps
 // its Accept header.
 func (c *Client) send(req *http.Request) (*http.Response, error) {
+	return c.sendWith(c.http, req)
+}
+
+// sendWith is send with hc, such as a copy of the client's that doesn't
+// follow redirects.
+func (c *Client) sendWith(hc *http.Client, req *http.Request) (*http.Response, error) {
 	req.Header.Set("Authorization", "Bearer "+c.token)
 	req.Header.Set("User-Agent", userAgent)
 	if req.Header.Get("Accept") == "" {
 		req.Header.Set("Accept", "application/vnd.github+json")
 	}
 	req.Header.Set("X-GitHub-Api-Version", apiVersion)
-	resp, err := c.http.Do(req)
+	resp, err := hc.Do(req)
 	if err != nil {
 		return nil, err
 	}

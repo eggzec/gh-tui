@@ -35,7 +35,14 @@ type call struct {
 	op   string
 	repo string
 	rate *graphqlRate
+	// external marks a request to a host outside the API, such as the
+	// storage that a job log redirects to. Its URL holds a signed
+	// credential, so it is logged by op alone, as API download.
+	external bool
 }
+
+// apiDownload is the API of the requests that a call marks external.
+const apiDownload = "download"
 
 type callKey struct{}
 
@@ -181,7 +188,7 @@ func (a *attempt) done(resp *http.Response, err error) {
 	if err != nil {
 		attrs = append(attrs, slog.String("err", err.Error()), slog.Bool("canceled", canceled))
 	}
-	if obs.Enabled(ctx, slog.LevelDebug) {
+	if obs.Enabled(ctx, slog.LevelDebug) && (c == nil || !c.external) {
 		attrs = append(attrs, slog.String("path", a.req.URL.EscapedPath()))
 		if q := a.req.URL.RawQuery; q != "" {
 			attrs = append(attrs, slog.String("query", q))
@@ -212,6 +219,9 @@ func headerRate(h http.Header) obs.Rate {
 // path below the root with its variable parts replaced; for GraphQL, the
 // operation of the query.
 func (t *logTransport) route(req *http.Request, c *call) (api, route, repo string) {
+	if c != nil && c.external {
+		return apiDownload, c.op, c.repo
+	}
 	if req.URL.Path == t.graphqlPath {
 		if c == nil {
 			return obs.GraphQL, "graphql", ""
