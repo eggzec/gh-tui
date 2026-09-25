@@ -136,7 +136,7 @@ func TestFilter(t *testing.T) {
 			s := started(t, svc, 80, 30)
 			press(t, s, "down")
 			for range tt.presses {
-				press(t, s, "f")
+				press(t, s, "]")
 			}
 			calls := svc.listCalls()
 			if got := calls[len(calls)-1].State; got != tt.want {
@@ -149,8 +149,8 @@ func TestFilter(t *testing.T) {
 				t.Errorf("a new filter kept the selection at %d", s.list.Index())
 			}
 			bar := ansi.Strip(strings.SplitN(s.View(), "\n", 2)[0])
-			if !strings.Contains(bar, "open · closed · all") {
-				t.Errorf("bar = %q, want the filters", bar)
+			if !strings.Contains(bar, "Open · Closed · All") {
+				t.Errorf("bar = %q, want the tabs", bar)
 			}
 		})
 	}

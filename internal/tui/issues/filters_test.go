@@ -44,18 +44,18 @@ func TestPrefetchedFilterShowsWithoutRequest(t *testing.T) {
 	svc := newFakeService(sampleIssues(12))
 	h := started(t, svc, 80, 30, WithFilterPrefetch())
 	n := len(svc.requested())
-	press(t, h, "f")
+	press(t, h, "]")
 	if it, ok := h.list.Item(0); !ok || it.Number != 996 {
 		t.Errorf("closed filter starts with %v, %v; want #996", it.Number, ok)
 	}
 	if got := ansi.Strip(h.View()); !strings.Contains(got, "996") {
 		t.Errorf("closed filter shows\n%s", got)
 	}
-	press(t, h, "f")
+	press(t, h, "]")
 	if got := h.list.Len(); got != 12 {
 		t.Errorf("all filter shows %d issues, want 12", got)
 	}
-	press(t, h, "f")
+	press(t, h, "]")
 	if got := svc.requested(); len(got) != n {
 		t.Errorf("switching filters requested %v, want nothing", got[n:])
 	}
@@ -69,7 +69,7 @@ func TestPrefetchFiltersReadsNoDetailsAhead(t *testing.T) {
 			t.Errorf("read closed issue #%d ahead of its filter", n)
 		}
 	}
-	press(t, h, "f")
+	press(t, h, "]")
 	if got := svc.getCalls(); !slices.Contains(got, 996) {
 		t.Errorf("read issues %v, want the closed ones once shown", got)
 	}

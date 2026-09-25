@@ -139,8 +139,8 @@ func TestModalKeys(t *testing.T) {
 		}},
 		{"the filter key scrolls instead", "f", func(t *testing.T, h *host, _ *fakeService, _ []ui.OpenMsg) {
 			t.Helper()
-			if h.filter != core.FilterOpen || h.modal() == nil {
-				t.Errorf("f changed the filter to %q under the modal", h.filter)
+			if h.tab != core.FilterOpen || h.modal() == nil {
+				t.Errorf("f changed the tab to %q under the modal", h.tab)
 			}
 		}},
 		{"select does nothing", "enter", func(t *testing.T, h *host, svc *fakeService, _ []ui.OpenMsg) {

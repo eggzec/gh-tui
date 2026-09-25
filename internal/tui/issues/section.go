@@ -1,6 +1,6 @@
 // Package issues is the Issues section: the issues of the selected
-// repository, filtered by state, each opening into a modal with its thread
-// of comments.
+// repository, in tabs by state and filtered in the filter modal, each
+// opening into a modal with its thread of comments.
 package issues
 
 import (
@@ -26,12 +26,20 @@ type Section struct {
 
 	repo    core.RepoRef
 	hasRepo bool
-	filter  core.StateFilter
-	started bool
-	focused bool
+	// tab is the state shown, and query the other filters, in GitHub's
+	// search syntax; filterChips are those for the pane's title.
+	tab         core.StateFilter
+	query       string
+	filterChips string
+	started     bool
+	focused     bool
+	// facets offer what the filter chooses from, and milestonesRead is
+	// set once the milestones of repo were read ahead.
+	facets         Facets
+	milestonesRead bool
 
-	// list is rebuilt for every repository and filter, so its Fetch never
-	// reads the section from another goroutine.
+	// list is rebuilt for every repository, tab and filter, so its Fetch
+	// never reads the section from another goroutine.
 	list       feed.Model[core.Issue]
 	cancelList context.CancelFunc
 	// offline is marked by the list's reads when GitHub can't be reached.
@@ -43,7 +51,7 @@ type Section struct {
 	prefetch *prefetch
 	ahead    *ui.Ahead[issuesvc.CommentsQuery]
 	rowAt    func(i int) (issuesvc.CommentsQuery, bool)
-	// others reads the first pages of the filters not shown, if
+	// others reads the first pages of the tabs not shown, if
 	// prefetchFilters is set.
 	prefetchFilters bool
 	others          *ui.Filters[issuesvc.ListQuery]
@@ -73,7 +81,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		offline:   new(ui.Offline),
 		keys:      newKeyMap(keys),
 		now:       time.Now,
-		filter:    core.FilterOpen,
+		tab:       core.FilterOpen,
 		colsWidth: -1,
 		icons:     ui.NewIcons(config.IconsNerd),
 	}
@@ -154,7 +162,7 @@ func (s *Section) bodyHeight() int {
 	return max(s.height-1, 0)
 }
 
-// newList returns a feed of the current repository and filter, sized,
+// newList returns a feed of the current repository, tab and filter, sized,
 // styled and focused like the section.
 func (s *Section) newList() feed.Model[core.Issue] {
 	if s.cancelList != nil {
@@ -163,7 +171,7 @@ func (s *Section) newList() feed.Model[core.Issue] {
 	var ctx context.Context
 	ctx, s.cancelList = context.WithCancel(s.ctx)
 	s.ahead.Reset(ctx)
-	svc, q := s.svc, s.listQuery(s.filter)
+	svc, q := s.svc, s.listQuery(s.tab)
 	fetch := ui.FeedPages("list.issues", s.offline, func(ctx context.Context, cursor string) (core.Page[core.Issue], error) {
 		q := q
 		q.Cursor = cursor
@@ -181,12 +189,12 @@ func (s *Section) newList() feed.Model[core.Issue] {
 }
 
 // listQuery is the query of the first page of the issues of the repository
-// in filter.
-func (s *Section) listQuery(filter core.StateFilter) issuesvc.ListQuery {
-	return issuesvc.ListQuery{Repo: s.repo, State: filter}
+// in state that the filter selects.
+func (s *Section) listQuery(state core.StateFilter) issuesvc.ListQuery {
+	return issuesvc.ListQuery{Repo: s.repo, State: state, Filter: s.query}
 }
 
-// resetList shows the list of the current repository and filter from the
+// resetList shows the list of the current repository, tab and filter from the
 // top, loading it if the section has started.
 func (s *Section) resetList() tea.Cmd {
 	s.list = s.newList()

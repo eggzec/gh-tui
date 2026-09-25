@@ -28,17 +28,18 @@ func (s *Section) readAhead() tea.Cmd {
 	return tea.Batch(first, hover)
 }
 
-// readOthers reads the first pages of the filters not shown, once the list
-// shown has loaded.
+// readOthers reads the first pages of the states not shown, once the list
+// shown has loaded. A filtered list is the user's own search, which may
+// cost more, so its other states wait until they are shown.
 func (s *Section) readOthers() tea.Cmd {
-	if s.others == nil || !s.started || !s.hasRepo || !s.list.Settled() {
+	if s.others == nil || !s.started || !s.hasRepo || !s.list.Settled() || s.query != "" {
 		return nil
 	}
 	return s.others.Read(func() []issuesvc.ListQuery {
-		qs := make([]issuesvc.ListQuery, 0, len(filters)-1)
-		for _, f := range filters {
-			if f != s.filter {
-				qs = append(qs, s.listQuery(f))
+		qs := make([]issuesvc.ListQuery, 0, len(tabs)-1)
+		for _, t := range tabs {
+			if t.state != s.tab {
+				qs = append(qs, s.listQuery(t.state))
 			}
 		}
 		return qs
