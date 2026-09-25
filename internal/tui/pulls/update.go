@@ -34,7 +34,7 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 	case ui.SyncMsg:
 		return s.sync(msg)
 	case ui.OpenPullMsg:
-		return s.openDetail(msg.Repo, msg.Number, nil)
+		return s.openDetail(msg.Repo, msg.Number, nil, msg.Checks)
 	case changedMsg:
 		if !s.hasRepo || msg.repo != s.repo {
 			return nil
@@ -90,7 +90,12 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 	switch {
 	case key.Matches(msg, k.Select):
 		if pr, ok := s.feed.Selected(); ok {
-			return s.openDetail(s.repo, pr.Number, &pr)
+			return s.openDetail(s.repo, pr.Number, &pr, false)
+		}
+		return nil
+	case key.Matches(msg, k.Checks):
+		if pr, ok := s.feed.Selected(); ok {
+			return s.openDetail(s.repo, pr.Number, &pr, true)
 		}
 		return nil
 	case key.Matches(msg, k.NextTab):

@@ -4,9 +4,13 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"sync"
 	"testing"
+	"testing/synctest"
+	"time"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/watch"
 )
 
@@ -57,4 +61,58 @@ func TestViewerLogin(t *testing.T) {
 	if _, err := viewerLogin(none, failing)(t.Context()); !errors.Is(err, boom) {
 		t.Errorf("a failed read: %v", err)
 	}
+}
+
+// TestWatchChecksPollsWhilePending runs the checks' poll on the sync
+// engine with a fake clock: at once, then every checksPollInterval, until
+// the checks are done or the step stops it.
+func TestWatchChecksPollsWhilePending(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		e := watch.New(watch.WithInterval(time.Minute))
+		var mu sync.Mutex
+		polls := 0
+		poll := func(actionssvc.ChecksQuery) watch.PollFunc {
+			return func(context.Context) (watch.Result, error) {
+				mu.Lock()
+				defer mu.Unlock()
+				polls++
+				return watch.Result{Changed: true}, nil
+			}
+		}
+		ctx, cancel := context.WithCancel(t.Context())
+		done := make(chan struct{})
+		go func() { _ = e.Run(ctx); close(done) }()
+		var events []string
+		go func() {
+			for ev := range e.Events() {
+				mu.Lock()
+				events = append(events, ev.Key)
+				mu.Unlock()
+			}
+		}()
+		q := actionssvc.ChecksQuery{Repo: core.RepoRef{Owner: "o", Name: "r"}, Number: 5}
+		stop := watchChecks(e.Subscribe, e.Refresh, poll)(q)
+		synctest.Wait()
+		time.Sleep(2*checksPollInterval + time.Second)
+		synctest.Wait()
+		mu.Lock()
+		got, keys := polls, slices.Clone(events)
+		mu.Unlock()
+		if got != 3 {
+			t.Errorf("polled %d times in %v, want at once and every %v", got, 2*checksPollInterval, checksPollInterval)
+		}
+		if len(keys) == 0 || keys[0] != actionssvc.ChecksSyncKey(q) {
+			t.Errorf("events %v, want the checks' sync key", keys)
+		}
+		stop()
+		time.Sleep(5 * checksPollInterval)
+		synctest.Wait()
+		mu.Lock()
+		if polls != got {
+			t.Errorf("polled %d times after stop, want none", polls-got)
+		}
+		mu.Unlock()
+		cancel()
+		<-done
+	})
 }

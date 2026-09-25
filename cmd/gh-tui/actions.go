@@ -8,6 +8,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/tui/actions"
+	"github.com/eggzec/gh-tui/internal/tui/checks"
 	"github.com/eggzec/gh-tui/internal/watch"
 )
 
@@ -29,6 +30,32 @@ func followRuns(subscribe func(key string, fn watch.PollFunc) func(), refresh fu
 			res, err := fn(ctx)
 			if res.Interval == 0 {
 				res.Interval = runPollInterval
+			}
+			return res, err
+		})
+		refresh(key)
+		return stop
+	}
+}
+
+// checksPollInterval is how often the checks of a pull request are
+// polled while its Checks step shows some pending: each poll is a GraphQL
+// query, which costs a point of the rate limit.
+const checksPollInterval = 15 * time.Second
+
+// watchChecks returns how the Checks step polls the checks of a pull
+// request while some are pending: it subscribes their poll, which starts at
+// once, and then asks every checksPollInterval.
+func watchChecks(subscribe func(key string, fn watch.PollFunc) func(), refresh func(key string),
+	poll func(q actionssvc.ChecksQuery) watch.PollFunc,
+) checks.Watch {
+	return func(q actionssvc.ChecksQuery) func() {
+		key := actionssvc.ChecksSyncKey(q)
+		fn := poll(q)
+		stop := subscribe(key, func(ctx context.Context) (watch.Result, error) {
+			res, err := fn(ctx)
+			if res.Interval == 0 {
+				res.Interval = checksPollInterval
 			}
 			return res, err
 		})

@@ -1,8 +1,6 @@
 package actions
 
 import (
-	"context"
-	"errors"
 	"strconv"
 
 	"charm.land/bubbles/v2/key"
@@ -10,6 +8,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
+	"github.com/eggzec/gh-tui/internal/tui/jobview"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -31,9 +30,9 @@ func (m *Modal) askRerunFailed() {
 	}
 	jobs := "the failed jobs"
 	if m.jobs.loaded && m.jobs.runID == r.ID {
-		switch n := failedJobs(m.jobs.items); n {
+		switch n := jobview.FailedJobs(m.jobs.items); n {
 		case 0:
-			m.notice = runName(r) + " has no failed jobs to re-run."
+			m.notice = jobview.RunName(r) + " has no failed jobs to re-run."
 			return
 		case 1:
 			jobs = "1 failed job"
@@ -43,8 +42,8 @@ func (m *Modal) askRerunFailed() {
 	}
 	svc, repo, id := m.svc, m.repo, r.ID
 	m.ask = &confirm{
-		question: "Re-run " + jobs + " of " + runName(r) + "?",
-		what:     "re-run the failed jobs of " + runName(r),
+		question: "Re-run " + jobs + " of " + jobview.RunName(r) + "?",
+		what:     "re-run the failed jobs of " + jobview.RunName(r),
 		start:    func() *optimistic.Op { return svc.RerunFailedJobs(repo, id) },
 	}
 }
@@ -57,8 +56,8 @@ func (m *Modal) askRerun() {
 	}
 	svc, repo, id := m.svc, m.repo, r.ID
 	m.ask = &confirm{
-		question: "Re-run all jobs of " + runName(r) + "?",
-		what:     "re-run " + runName(r),
+		question: "Re-run all jobs of " + jobview.RunName(r) + "?",
+		what:     "re-run " + jobview.RunName(r),
 		start:    func() *optimistic.Op { return svc.RerunRun(repo, id) },
 	}
 }
@@ -76,7 +75,7 @@ func (m *Modal) askRerunJob() {
 	}
 	svc, repo, runID, jobID := m.svc, m.repo, r.ID, j.ID
 	m.ask = &confirm{
-		question: "Re-run " + ui.OneLine(j.Name) + " of " + runName(r) + "?",
+		question: "Re-run " + ui.OneLine(j.Name) + " of " + jobview.RunName(r) + "?",
 		what:     "re-run " + ui.OneLine(j.Name),
 		start:    func() *optimistic.Op { return svc.RerunJob(repo, runID, jobID) },
 	}
@@ -89,13 +88,13 @@ func (m *Modal) askCancel() {
 	}
 	r := m.run
 	if r.Done() || r.Status == core.RunCancelling {
-		m.notice = runName(r) + " isn't running."
+		m.notice = jobview.RunName(r) + " isn't running."
 		return
 	}
 	svc, repo, id := m.svc, m.repo, r.ID
 	m.ask = &confirm{
-		question: "Cancel " + runName(r) + "?",
-		what:     "cancel " + runName(r),
+		question: "Cancel " + jobview.RunName(r) + "?",
+		what:     "cancel " + jobview.RunName(r),
 		start:    func() *optimistic.Op { return svc.CancelRun(repo, id) },
 	}
 }
@@ -106,7 +105,7 @@ func (m *Modal) doneRun() (core.Run, bool) {
 		return core.Run{}, false
 	}
 	if !m.run.Done() {
-		m.notice = runName(m.run) + " is still running."
+		m.notice = jobview.RunName(m.run) + " is still running."
 		if k := m.keys.Cancel.Help().Key; k != "" {
 			m.notice += " " + k + " cancels it."
 		}
@@ -124,21 +123,7 @@ func (m *Modal) answer(msg tea.KeyPressMsg) tea.Cmd {
 		return nil
 	}
 	op := ask.start()
-	return tea.Batch(m.fromCache(), ui.Do(m.parent, Title, refusal{op}, ask.what))
-}
-
-// refusal sends an Op, and reports GitHub's reason alone when it refuses
-// the change, for the toast.
-type refusal struct {
-	op ui.Op
-}
-
-func (r refusal) Do(ctx context.Context) error {
-	err := r.op.Do(ctx)
-	if re, ok := errors.AsType[*core.RefusedError](err); ok {
-		return re
-	}
-	return err
+	return tea.Batch(m.fromCache(), ui.Do(m.parent, Title, ui.Refused(op), ask.what))
 }
 
 // done re-renders from the cache once a change was confirmed or rolled

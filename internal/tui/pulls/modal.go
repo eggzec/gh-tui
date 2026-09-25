@@ -3,6 +3,7 @@ package pulls
 import (
 	"context"
 	"log/slog"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -14,7 +15,9 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
+	"github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
+	"github.com/eggzec/gh-tui/internal/tui/checks"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
@@ -35,7 +38,8 @@ type changedMsg struct {
 }
 
 // detailModal shows a pull request with its comments in a modal, and
-// changes it. It is opened with [Section.openDetail].
+// changes it, or its checks in a step of its own. It is opened with
+// [Section.openDetail].
 type detailModal struct {
 	svc         Service
 	keys        keyMap
@@ -57,14 +61,23 @@ type detailModal struct {
 	cancel context.CancelFunc
 	closed bool
 
+	// checksSvc reads the checks, and newChecks makes the Checks step,
+	// which checks is while it is shown; newChecks is nil without checks.
+	checksSvc checks.Service
+	newChecks func() *checks.Step
+	checks    *checks.Step
+
 	width, height int
+	theme         ui.Theme
 	st            styles
+	runSt         ui.RunStyles
 	icons         ui.Icons
 }
 
-// openDetail opens a modal on pull request number of repo. pr is the list
-// item, shown until the detail arrives, or nil when there is none.
-func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest) tea.Cmd {
+// openDetail opens a modal on pull request number of repo, on its checks
+// if onChecks is set and the section has them. pr is the list item, shown
+// until the detail arrives, or nil when there is none.
+func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest, onChecks bool) tea.Cmd {
 	// The reads of the modal are one trace, however many pages it reads.
 	ctx, cancel := context.WithCancel(obs.WithTrace(s.ctx, "open.pull"))
 	s.ahead.Opened(commentsQuery(repo, number))
@@ -82,6 +95,17 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 		cancel:      cancel,
 		st:          s.st,
 		icons:       s.icons,
+		checksSvc:   s.checks,
+	}
+	m.theme, m.runSt = s.theme, ui.NewRunStyles(s.theme, s.icons)
+	if s.checks != nil {
+		svc, keys := s.checks, s.rawKeys
+		opts := append(slices.Clone(s.checksOpts), checks.WithReturn(m), checks.WithIcons(s.icons), checks.WithClock(s.now))
+		m.newChecks = func() *checks.Step { return checks.New(m.sendCtx, svc, repo, number, keys, opts...) }
+	}
+	var step tea.Cmd
+	if onChecks {
+		step = m.openChecks()
 	}
 	svc, q := s.svc, commentsQuery(repo, number)
 	fetch := func(ctx context.Context, cursor string) ([]core.Comment, string, error) {
@@ -105,14 +129,14 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 	if !m.loaded {
 		// The loads start once the modal is open, so that the app has it
 		// to pass their results to.
-		return tea.Sequence(ui.OpenModal(m), tea.Batch(m.thread.Init(), m.get()))
+		return tea.Sequence(ui.OpenModal(m), tea.Batch(m.thread.Init(), m.get(), step))
 	}
 	// What is cached shows at once, and is read again behind it.
 	cp, primed := svc.CachedComments(q)
 	if primed {
 		m.thread.SetFirst(cp.Items, cp.Next)
 	}
-	loads := []tea.Cmd{m.show(), m.get()}
+	loads := []tea.Cmd{m.show(), m.get(), step}
 	if primed {
 		loads = append(loads, m.thread.Reload())
 	}
@@ -139,6 +163,9 @@ func (m *detailModal) Title() string {
 func (m *detailModal) SetSize(width, height int) {
 	m.width, m.height = max(width, 0), max(height, 0)
 	m.thread.SetSize(m.width, m.height)
+	if m.checks != nil {
+		m.checks.SetSize(m.width, m.height)
+	}
 	if m.loaded {
 		// The next Update loads what the new size shows.
 		_ = m.show()
@@ -147,8 +174,13 @@ func (m *detailModal) SetSize(width, height int) {
 
 // SetTheme implements ui.Modal.
 func (m *detailModal) SetTheme(t ui.Theme) {
+	m.theme = t
 	m.st = newStyles(t, m.icons)
+	m.runSt = ui.NewRunStyles(t, m.icons)
 	m.thread.SetStyles(t.Thread())
+	if m.checks != nil {
+		m.checks.SetTheme(t)
+	}
 	if m.loaded {
 		_ = m.show()
 	}
@@ -159,7 +191,48 @@ func (m *detailModal) View() string {
 	if m.width <= 0 || m.height <= 0 {
 		return ""
 	}
+	if m.checks != nil {
+		return m.checks.View()
+	}
 	return m.thread.View()
+}
+
+// openChecks shows the Checks step in place of the detail, and returns
+// what loads it.
+func (m *detailModal) openChecks() tea.Cmd {
+	if m.newChecks == nil || m.checks != nil {
+		return nil
+	}
+	m.checks = m.newChecks()
+	m.checks.SetTheme(m.theme)
+	m.checks.SetSize(m.width, m.height)
+	return m.checks.Init()
+}
+
+// closeChecks steps back from the Checks step to the detail, whose header
+// counts the checks as the step last read them.
+func (m *detailModal) closeChecks() tea.Cmd {
+	if m.checks == nil {
+		return nil
+	}
+	m.checks.Close()
+	m.checks = nil
+	if !m.loaded {
+		return nil
+	}
+	return m.show()
+}
+
+// updateChecks passes msg to the Checks step, and steps back to the
+// detail when the step asks.
+func (m *detailModal) updateChecks(msg tea.Msg) tea.Cmd {
+	if c, ok := msg.(checks.CloseMsg); ok {
+		if c.ID == m.checks.ID() {
+			return m.closeChecks()
+		}
+		return nil
+	}
+	return m.checks.Update(msg)
 }
 
 // Update implements ui.Modal. After the modal closed, it ignores what
@@ -168,6 +241,22 @@ func (m *detailModal) Update(msg tea.Msg) tea.Cmd {
 	if m.closed {
 		return nil
 	}
+	if m.checks != nil {
+		if k, ok := msg.(tea.KeyPressMsg); ok {
+			return m.updateChecks(k)
+		}
+		// The thread and the detail go on loading behind the step.
+		cmd := m.updateChecks(msg)
+		if m.checks == nil {
+			return cmd
+		}
+		return tea.Batch(cmd, m.updateDetail(msg))
+	}
+	return m.updateDetail(msg)
+}
+
+// updateDetail is Update while the detail shows.
+func (m *detailModal) updateDetail(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		return m.press(msg)
@@ -198,6 +287,8 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 		m.closed = true
 		m.cancel()
 		return ui.CloseModal(m)
+	case key.Matches(msg, k.Checks):
+		return m.openChecks()
 	case key.Matches(msg, k.Refresh):
 		m.svc.Invalidate(m.repo)
 		return tea.Batch(m.get(), m.thread.Reload())
@@ -267,15 +358,18 @@ func (m *detailModal) show() tea.Cmd {
 
 // Help implements ui.Modal.
 func (m *detailModal) Help() help.KeyMap {
+	if m.checks != nil {
+		return m.checks.Help()
+	}
 	k, t := m.keys, m.keys.thread
 	changes := k.changeHelp(m.detail.PullRequest, m.loaded)
 	merge, closing, reopen := changes[0], changes[1], changes[2]
 	return keyHelp{
-		short: []key.Binding{t.Up, t.Down, k.Back, merge, closing, reopen, k.Open},
+		short: []key.Binding{t.Up, t.Down, k.Back, merge, closing, reopen, k.Checks, k.Open},
 		full: [][]key.Binding{
 			{t.Up, t.Down, t.PageUp, t.PageDown},
 			{t.HalfPageUp, t.HalfPageDown, t.Top, t.Bottom},
-			{k.Back, k.Refresh, k.Open},
+			{k.Back, k.Refresh, k.Checks, k.Open},
 			changes,
 		},
 	}
@@ -314,7 +408,7 @@ func (m *detailModal) detailHeader(width int) string {
 	}
 	line(strings.Join(stats, dot))
 
-	if c := st.checksSummary(d); c != "" {
+	if c := m.ciLine(); c != "" {
 		line(c)
 	}
 	if len(d.Labels) > 0 {
@@ -326,6 +420,34 @@ func (m *detailModal) detailHeader(width int) string {
 	}
 	line(st.rule.Render(strings.Repeat("─", inner)))
 	return strings.Join(lines, "\n")
+}
+
+// ciLine counts the checks of the pull request by how they stand, from the
+// checks that the Checks step read if they are in memory, which count the
+// commit statuses too, or else from the detail. It names the key that
+// shows them.
+func (m *detailModal) ciLine() string {
+	var line string
+	if c, ok := m.cachedChecks(); ok && c.Total > 0 {
+		line = m.st.age.Render("CI  ") + checks.Summary(c, m.runSt)
+	} else {
+		line = m.st.checksSummary(&m.detail)
+	}
+	if line == "" {
+		return ""
+	}
+	if k := m.keys.Checks; k.Enabled() && k.Help().Key != "" {
+		line += m.st.sep.Render("  · " + k.Help().Key + " for details")
+	}
+	return line
+}
+
+// cachedChecks returns the checks of the pull request from memory.
+func (m *detailModal) cachedChecks() (core.Checks, bool) {
+	if m.checksSvc == nil {
+		return core.Checks{}, false
+	}
+	return m.checksSvc.CachedChecks(actions.ChecksQuery{Repo: m.repo, Number: m.number})
 }
 
 func plural(n int, noun string) string {

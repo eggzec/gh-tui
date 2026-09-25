@@ -1,9 +1,11 @@
 package ui
 
 import (
+	"slices"
 	"testing"
 	"time"
 
+	"charm.land/bubbles/v2/key"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -48,5 +50,17 @@ func TestLines(t *testing.T) {
 	}
 	if got := FirstLine("a\nb"); got != "a" {
 		t.Errorf("FirstLine = %q", got)
+	}
+}
+
+func TestFreeKeys(t *testing.T) {
+	b := key.NewBinding(key.WithKeys("down", "j", "f"), key.WithHelp("↓/j", "down"))
+	taken := key.NewBinding(key.WithKeys("f"))
+	got := FreeKeys(b, taken, key.NewBinding(key.WithKeys("j"), key.WithDisabled()))
+	if !slices.Equal(got.Keys(), []string{"down", "j"}) || got.Help().Key != "↓/j" || got.Help().Desc != "down" {
+		t.Errorf("FreeKeys = %v %+v", got.Keys(), got.Help())
+	}
+	if FreeKeys(taken, taken).Enabled() {
+		t.Error("a binding without keys is enabled")
 	}
 }

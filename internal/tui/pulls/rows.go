@@ -434,11 +434,11 @@ func (st *styles) checksSummary(d *core.PullRequestDetail) string {
 	if len(d.CheckRuns) == 0 {
 		switch d.Checks {
 		case core.ChecksSuccess:
-			return st.checksOK + st.author.Render(" checks passed")
+			return st.age.Render("CI  ") + st.checksOK + st.author.Render(" passed")
 		case core.ChecksFailure:
-			return st.checksFail + st.author.Render(" checks failed")
+			return st.age.Render("CI  ") + st.checksFail + st.author.Render(" failing")
 		case core.ChecksPending:
-			return st.checksPending + st.author.Render(" checks running")
+			return st.age.Render("CI  ") + st.checksPending + st.author.Render(" pending")
 		default:
 			return ""
 		}
@@ -456,13 +456,13 @@ func (st *styles) checksSummary(d *core.PullRequestDetail) string {
 	}
 	parts := make([]string, 0, 3)
 	if failed > 0 {
-		parts = append(parts, st.checksFail+st.author.Render(" "+strconv.Itoa(failed)+" failed"))
+		parts = append(parts, st.checksFail+st.author.Render(" "+strconv.Itoa(failed)+" failing"))
 	}
 	if pending > 0 {
-		parts = append(parts, st.checksPending+st.author.Render(" "+strconv.Itoa(pending)+" running"))
+		parts = append(parts, st.checksPending+st.author.Render(" "+strconv.Itoa(pending)+" pending"))
 	}
 	if passed > 0 {
 		parts = append(parts, st.checksOK+st.author.Render(" "+strconv.Itoa(passed)+" passed"))
 	}
-	return st.age.Render("Checks  ") + strings.Join(parts, st.sep.Render(" · "))
+	return st.age.Render("CI  ") + strings.Join(parts, st.sep.Render(", "))
 }

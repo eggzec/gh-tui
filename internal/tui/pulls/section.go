@@ -14,6 +14,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
+	"github.com/eggzec/gh-tui/internal/tui/checks"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 )
@@ -50,7 +51,13 @@ type Section struct {
 	ctx  context.Context
 	svc  Service
 	keys keyMap
-	now  func() time.Time
+	// rawKeys are the configured keys, for the steps of the modal.
+	rawKeys map[string][]string
+	now     func() time.Time
+	// checks reads the checks of the modal's Checks step, and checksOpts
+	// configure it. Without checks, the modal has no such step.
+	checks     checks.Service
+	checksOpts []checks.Option
 	// mergeMethod is how merge merges.
 	mergeMethod core.MergeMethod
 
@@ -128,6 +135,13 @@ func WithIcons(icons ui.Icons) Option {
 	return func(s *Section) { s.icons = icons }
 }
 
+// WithChecks shows the checks of a pull request in a step of its modal,
+// which the checks key opens there and on the rows of the list, read from
+// svc and configured by opts. The default has no such step.
+func WithChecks(svc checks.Service, opts ...checks.Option) Option {
+	return func(s *Section) { s.checks, s.checksOpts = svc, opts }
+}
+
 // prefetch is how the details are read ahead.
 type prefetch struct {
 	rows  int
@@ -159,6 +173,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		svc:         svc,
 		offline:     new(ui.Offline),
 		keys:        newKeyMap(keys),
+		rawKeys:     keys,
 		now:         time.Now,
 		mergeMethod: core.MergeSquash,
 		tab:         core.StateOpen,
@@ -167,6 +182,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 	for _, opt := range opts {
 		opt(s)
 	}
+	s.keys.Checks.SetEnabled(s.keys.Checks.Enabled() && s.checks != nil)
 	if p := s.prefetch; p != nil {
 		s.ahead = ui.NewAhead("pull", readDetail(svc), svc.Current, p.rows, p.delay)
 		s.rowAt = func(i int) (pulls.CommentsQuery, bool) {
