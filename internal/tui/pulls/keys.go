@@ -32,6 +32,8 @@ type keyMap struct {
 	Close       key.Binding
 	Reopen      key.Binding
 	ToggleDraft key.Binding
+	// Checks shows the checks of a pull request, in a step of its modal.
+	Checks key.Binding
 
 	feed   feed.KeyMap
 	thread thread.KeyMap
@@ -52,6 +54,7 @@ func newKeyMap(keys map[string][]string) keyMap {
 		Close:       ui.Binding(keys, config.ActionClose, "close"),
 		Reopen:      ui.Binding(keys, config.ActionReopen, "reopen"),
 		ToggleDraft: ui.Binding(keys, config.ActionToggleDraft, "convert to draft"),
+		Checks:      ui.Binding(keys, config.ActionChecks, "checks"),
 	}
 	own := k.list()
 	f := feed.DefaultKeyMap()
@@ -78,12 +81,12 @@ func newKeyMap(keys map[string][]string) keyMap {
 
 // list returns the bindings the section handles before the feed.
 func (k keyMap) list() []key.Binding {
-	return []key.Binding{k.Select, k.Filter, k.ClearFilter, k.NextTab, k.PrevTab, k.Refresh, k.Open, k.Merge, k.Close, k.Reopen, k.ToggleDraft}
+	return []key.Binding{k.Select, k.Filter, k.ClearFilter, k.NextTab, k.PrevTab, k.Refresh, k.Open, k.Merge, k.Close, k.Reopen, k.ToggleDraft, k.Checks}
 }
 
 // detail returns the bindings the modal handles before the thread.
 func (k keyMap) detail() []key.Binding {
-	return []key.Binding{k.Back, k.Refresh, k.Open, k.Merge, k.Close, k.Reopen, k.ToggleDraft}
+	return []key.Binding{k.Back, k.Refresh, k.Open, k.Merge, k.Close, k.Reopen, k.ToggleDraft, k.Checks}
 }
 
 // retry returns the refresh keys as a retry binding that starts disabled, so
@@ -153,11 +156,11 @@ func (s *Section) Help() help.KeyMap {
 	merge, closing, reopen := changes[0], changes[1], changes[2]
 	k.ClearFilter.SetEnabled(k.ClearFilter.Enabled() && s.query != "")
 	return keyHelp{
-		short: []key.Binding{f.Up, f.Down, k.Select, k.Filter, k.ClearFilter, k.NextTab, merge, closing, reopen, k.Open},
+		short: []key.Binding{f.Up, f.Down, k.Select, k.Filter, k.ClearFilter, k.NextTab, merge, closing, reopen, k.Checks, k.Open},
 		full: [][]key.Binding{
 			{f.Up, f.Down, f.PageUp, f.PageDown},
 			{f.Home, f.End},
-			{k.Select, k.Filter, k.ClearFilter, k.NextTab, k.PrevTab, k.Refresh, k.Open},
+			{k.Select, k.Filter, k.ClearFilter, k.NextTab, k.PrevTab, k.Refresh, k.Checks, k.Open},
 			changes,
 		},
 	}

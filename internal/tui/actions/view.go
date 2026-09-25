@@ -5,6 +5,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/eggzec/gh-tui/internal/tui/jobview"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -137,7 +138,7 @@ func (m *Modal) paneTitle(p pane, w int) string {
 func (m *Modal) breadcrumb(w int) string {
 	crumbs := []string{m.runsCrumb()}
 	if m.focus >= jobsPane && m.hasRun {
-		crumbs = append(crumbs, runName(m.run))
+		crumbs = append(crumbs, jobview.RunName(m.run))
 	}
 	if j, ok := m.jobs.selected(); m.focus == logPane && ok {
 		crumbs = append(crumbs, ui.OneLine(j.Name))

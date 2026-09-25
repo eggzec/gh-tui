@@ -100,6 +100,8 @@ const (
 	// ActionAnnotations moves the focus between the annotations of a
 	// failed job and its log.
 	ActionAnnotations = "annotations"
+	// ActionChecks shows the checks of a pull request, in its modal.
+	ActionChecks = "checks"
 )
 
 func defaultKeys() map[string][]string {
@@ -158,6 +160,7 @@ func defaultKeys() map[string][]string {
 		ActionRerunJob:    {"J"},
 		ActionCancelRun:   {"x"},
 		ActionAnnotations: {"A"},
+		ActionChecks:      {"C"},
 	}
 }
 

@@ -23,6 +23,7 @@ import (
 	searchsvc "github.com/eggzec/gh-tui/internal/service/search"
 	"github.com/eggzec/gh-tui/internal/tui"
 	"github.com/eggzec/gh-tui/internal/tui/actions"
+	"github.com/eggzec/gh-tui/internal/tui/checks"
 	"github.com/eggzec/gh-tui/internal/tui/dashboard"
 	"github.com/eggzec/gh-tui/internal/tui/files"
 	"github.com/eggzec/gh-tui/internal/tui/history"
@@ -98,8 +99,20 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 			files.WithHoverPrefetch(p.HoverDelay, int64(cfg.Files.Preview.MaxSize)),
 		)
 	}
+	// The sync engine delivers the changes that its polls find, and those
+	// that the revalidator finds, through one subscription.
+	engine := watch.New(watch.WithInterval(cfg.Sync.Interval))
+	var checkOpts []checks.Option
+	if cfg.Sync.Enabled {
+		checkOpts = append(checkOpts,
+			checks.WithWatch(watchChecks(engine.Subscribe, engine.Refresh, actionSvc.PollChecks)),
+			checks.WithFollow(checks.Follow(followRuns(engine.Subscribe, engine.Refresh, actionSvc.Poll))))
+	}
 	var (
-		pullOpts  = []pulls.Option{pulls.WithOffline(offline), pulls.WithIcons(icons), pulls.WithFacets(facetSvc)}
+		pullOpts = []pulls.Option{
+			pulls.WithOffline(offline), pulls.WithIcons(icons), pulls.WithFacets(facetSvc),
+			pulls.WithChecks(actionSvc, checkOpts...),
+		}
 		issueOpts = []issues.Option{issues.WithOffline(offline), issues.WithIcons(icons), issues.WithFacets(facetSvc)}
 	)
 	if p := cfg.Details.Prefetch; p.Enabled {
@@ -141,9 +154,6 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 			opts = append(opts, tui.WithWarning(w))
 		}
 	}
-	// The sync engine delivers the changes that its polls find, and those
-	// that the revalidator finds, through one subscription.
-	engine := watch.New(watch.WithInterval(cfg.Sync.Interval))
 	actionOpts := []actions.Option{
 		actions.WithOffline(offline), actions.WithIcons(icons),
 		actions.WithViewer(viewerLogin(dashSvc.CachedHeader, dashSvc.Header)),

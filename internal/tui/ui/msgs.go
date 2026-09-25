@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"time"
 
@@ -27,6 +28,24 @@ func Notify(level toast.Level, text string) tea.Cmd {
 // *optimistic.Op.
 type Op interface {
 	Do(ctx context.Context) error
+}
+
+// Refused returns op, whose error is GitHub's reason alone when it refuses
+// the change, such as a re-run of a run that is too old, for the toast.
+func Refused(op Op) Op {
+	return refused{op}
+}
+
+type refused struct {
+	op Op
+}
+
+func (r refused) Do(ctx context.Context) error {
+	err := r.op.Do(ctx)
+	if re, ok := errors.AsType[*core.RefusedError](err); ok {
+		return re
+	}
+	return err
 }
 
 // DoneMsg reports that an Op finished. Err is set when the server refused
@@ -98,6 +117,8 @@ func ResetBase(repo core.RepoRef) tea.Cmd {
 type OpenPullMsg struct {
 	Repo   core.RepoRef
 	Number int
+	// Checks opens it on its checks, such as when its CI glyph is picked.
+	Checks bool
 }
 
 // OpenIssueMsg asks for the issue Number of Repo to be opened, such as when
