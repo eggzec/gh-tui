@@ -29,6 +29,9 @@ type fakeAPI struct {
 	removeLabel  func(number int, name string) ([]core.Label, error)
 	comment      func(number int, body string) (core.Comment, error)
 	probe        func(cond github.Conditional) (github.Response, error)
+	filterIssues func(f github.IssueFilter, cursor string, perPage int, cond github.Conditional) (core.Page[core.Issue], github.Response, error)
+	search       func(query, cursor string, perPage int) (core.Page[core.SearchHit], error)
+	viewerLogin  func() (string, error)
 
 	mu    sync.Mutex
 	calls []string
@@ -70,6 +73,28 @@ func (f *fakeAPI) ListIssues(_ context.Context, r core.RepoRef, state core.State
 		return core.Page[core.Issue]{}, github.Response{}, errUnexpected
 	}
 	return f.listIssues(state, cursor, perPage, cond)
+}
+
+func (f *fakeAPI) FilterIssues(_ context.Context, r core.RepoRef, filter github.IssueFilter, cursor string, perPage int, cond github.Conditional) (core.Page[core.Issue], github.Response, error) {
+	f.checkRepo(r)
+	if !f.record("FilterIssues", f.filterIssues != nil) {
+		return core.Page[core.Issue]{}, github.Response{}, errUnexpected
+	}
+	return f.filterIssues(filter, cursor, perPage, cond)
+}
+
+func (f *fakeAPI) SearchIssues(_ context.Context, query, cursor string, perPage int) (core.Page[core.SearchHit], error) {
+	if !f.record("SearchIssues", f.search != nil) {
+		return core.Page[core.SearchHit]{}, errUnexpected
+	}
+	return f.search(query, cursor, perPage)
+}
+
+func (f *fakeAPI) ViewerLogin(context.Context) (string, error) {
+	if !f.record("ViewerLogin", f.viewerLogin != nil) {
+		return "", errUnexpected
+	}
+	return f.viewerLogin()
 }
 
 func (f *fakeAPI) GetIssue(_ context.Context, r core.RepoRef, number int, cond github.Conditional) (core.Issue, github.Response, error) {

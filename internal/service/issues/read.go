@@ -16,6 +16,11 @@ type ListQuery struct {
 	Repo core.RepoRef
 	// State defaults to core.FilterOpen.
 	State core.StateFilter
+	// Filter narrows the list further, in GitHub's search syntax without
+	// the repository and the state, such as "label:bug assignee:@me
+	// sort:created-asc". Empty lists them all, most recently updated
+	// first. See List for how it is read.
+	Filter string
 	// Cursor is the Next of the previous page, or empty for the first.
 	Cursor string
 	// PageSize defaults to DefaultPageSize and is at most 100. A
@@ -63,9 +68,16 @@ func (s *Service) FreshList(q ListQuery) bool {
 	return fresh(s.lists, key)
 }
 
-// List returns a page of issues, most recently updated first. A fresh page
-// comes from the cache; otherwise it is fetched, conditionally if a stale
-// copy is cached. A page may be short, or empty, and still have a Next.
+// List returns a page of issues, most recently updated first unless the
+// filter sorts otherwise. A fresh page comes from the cache; otherwise it
+// is fetched, conditionally if a stale copy is cached. A page may be short,
+// or empty, and still have a Next.
+//
+// The repository's list answers a filter of label:, assignee:, author:,
+// mentions:, no:assignee, no:milestone and sort: qualifiers, with @me for
+// the signed-in user. Any other filter is a search, which GitHub limits to
+// 30 a minute and can't answer with a free 304. Only pages without a
+// filter are kept for later sessions.
 //
 // A page that only an earlier session kept is fresh if it was fetched or
 // revalidated within the TTL. An older one is returned at once, with Stale
@@ -74,7 +86,13 @@ func (s *Service) FreshList(q ListQuery) bool {
 func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.Issue], error) {
 	q = q.normalize()
 	key := listKey(q)
-	if e, ok := s.keptLists.Warm(s.lists, key); ok {
+	shelf := s.keptLists
+	if q.Filter != "" {
+		// Filters are many and short-lived, so only the lists every
+		// visit starts from are kept.
+		shelf = nil
+	}
+	if e, ok := shelf.Warm(s.lists, key); ok {
 		// The page vouches for what is cached of its issues as of when it
 		// was read, like the other pages shown with it.
 		s.vouch(q.Repo, e.Value.Items)
@@ -82,9 +100,9 @@ func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.Issue],
 		p.Stale = true
 		return p, nil
 	}
-	page, err := fetch(ctx, s.lists, s.keptLists, key, listTags(q.Repo), offlinePage[core.Issue],
+	page, err := fetch(ctx, s.lists, shelf, key, listTags(q.Repo), offlinePage[core.Issue],
 		func(ctx context.Context, cond github.Conditional) (core.Page[core.Issue], github.Response, error) {
-			return s.api.ListIssues(ctx, q.Repo, q.State, q.Cursor, q.PageSize, cond)
+			return s.readList(ctx, q, cond)
 		})
 	if err != nil {
 		if github.Refused(err) {
