@@ -104,7 +104,7 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 		Pulls:         pulls.New(ctx, pullSvc, cfg.Keys, pullOpts...),
 		Issues:        issues.New(ctx, issueSvc, cfg.Keys, issueOpts...),
 		Notifications: notifications.New(ctx, notifSvc, cfg.Keys, notifications.WithOffline(offline)),
-		Search:        searchpage.New(ctx, searchSvc, cfg.Keys, searchpage.WithStart(searchStart(repoSvc, pinned))),
+		Search:        searchpage.New(ctx, searchSvc, cfg.Keys, searchpage.WithStart(searchStart(repoSvc, pinned)), searchpage.WithIcons(icons)),
 		Dashboard: dashboard.New(ctx, dashSvc, cfg.Keys,
 			dashboard.WithOffline(offline),
 			dashboard.WithInbox(notifSvc),

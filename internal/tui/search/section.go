@@ -69,6 +69,12 @@ func WithDebounce(d time.Duration) Option {
 	return func(s *Section) { s.debounce = max(d, 0) }
 }
 
+// WithIcons sets the glyphs that mark repositories, languages and the
+// states of issues and pull requests. The default is the Nerd Font set.
+func WithIcons(icons ui.Icons) Option {
+	return func(s *Section) { s.icons = icons }
+}
+
 // area is the part of the page that has the focus.
 type area int
 
@@ -135,9 +141,12 @@ type Section struct {
 	width, height int
 	theme         ui.Theme
 	st            styles
-	// dots caches the rendered dot of each label color.
-	dots map[string]string
-	view string
+	icons         ui.Icons
+	// dots caches the rendered dot of each label color, and langs the
+	// glyph of each language, by theme.
+	dots  map[string]string
+	langs map[string]string
+	view  string
 }
 
 var (
@@ -159,6 +168,8 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		hits:     make(map[core.SearchKind]*hitList),
 		stale:    make(map[core.SearchKind][]string),
 		dots:     make(map[string]string),
+		langs:    make(map[string]string),
+		icons:    ui.NewIcons(config.IconsNerd),
 		spin:     spinner.New(spinner.WithSpinner(spinner.MiniDot)),
 	}
 	s.textCtx, s.cancelText = context.WithCancel(ctx)
@@ -202,6 +213,7 @@ func (s *Section) SetTheme(t ui.Theme) {
 	s.theme = t
 	s.st = newStyles(t)
 	clear(s.dots)
+	clear(s.langs)
 	s.input.SetStyles(inputStyles(t))
 	s.spin.Style = t.Accent
 	for _, l := range s.hits {

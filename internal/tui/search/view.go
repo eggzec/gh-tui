@@ -368,18 +368,19 @@ func (s *Section) renderHit(hit core.SearchHit, selected bool, width int) string
 // stateGlyph marks an issue or pull request by its state; the shapes
 // differ as well as the colors.
 func (s *Section) stateGlyph(hit core.SearchHit) string {
-	st := &s.st
-	switch {
-	case hit.Kind == core.SearchPulls && hit.Issue.State == core.StateMerged:
-		return st.accent.render("◆")
-	case hit.Issue.State == core.StateClosed && hit.Kind == core.SearchPulls:
-		return st.fail.render("✗")
-	case hit.Issue.State == core.StateClosed:
-		return st.accent.render("✓")
-	case hit.Draft:
-		return st.subtle.render("○")
+	state := ui.HitState(hit)
+	return s.st.states[state].render(s.icons.State(state))
+}
+
+// language renders the glyph of r's language in its color, then its name.
+func (s *Section) language(r core.Repo) string {
+	k := r.Language + "\x00" + r.LanguageColor
+	g, ok := s.langs[k]
+	if !ok {
+		g = s.theme.Language(r.Language, r.LanguageColor).Render(s.icons.Language(r.Language))
+		s.langs[k] = g
 	}
-	return st.success.render("●")
+	return g + " " + s.st.text.render(r.Language)
 }
 
 // labels renders the names of labels, each after a dot of its color.
@@ -421,9 +422,9 @@ func (s *Section) renderRepo(r core.Repo, selected bool, width int) string {
 	}
 	var head strings.Builder
 	head.WriteString(name.render(truncate(r.Ref.String(), max(width-starsWidth-1, 0))))
-	for _, m := range repoMarks(r) {
+	for _, f := range s.icons.Flags(r) {
 		head.WriteByte(' ')
-		st.subtle.write(&head, m)
+		st.subtle.write(&head, f)
 	}
 	first := spread(head.String(), st.muted.render("★ "+count(r.Stars)), width)
 	parts := make([]string, 0, 3)
@@ -431,7 +432,7 @@ func (s *Section) renderRepo(r core.Repo, selected bool, width int) string {
 		parts = append(parts, st.muted.render(d))
 	}
 	if r.Language != "" {
-		parts = append(parts, st.text.render(r.Language))
+		parts = append(parts, s.language(r))
 	}
 	if !r.UpdatedAt.IsZero() {
 		parts = append(parts, st.subtle.render("updated "+ui.AgoProse(r.UpdatedAt, s.now())))
@@ -444,20 +445,6 @@ func (s *Section) renderRepo(r core.Repo, selected bool, width int) string {
 		second = "  " + st.muted.render(truncate(cleanLine(r.Description), max(room, 0))) + st.subtle.render(" · ") + tail
 	}
 	return first + "\n" + fit(ansi.Truncate(second, width, "…"), width)
-}
-
-func repoMarks(r core.Repo) []string {
-	var marks []string
-	if r.Private {
-		marks = append(marks, "private")
-	}
-	if r.Fork {
-		marks = append(marks, "fork")
-	}
-	if r.Archived {
-		marks = append(marks, "archived")
-	}
-	return marks
 }
 
 // renderCode renders a file that matches: its repository and path, then a
