@@ -46,6 +46,7 @@ type Config struct {
 	History History `yaml:"history"`
 	// Dashboard configures the screen the app opens on.
 	Dashboard Dashboard `yaml:"dashboard"`
+	UI        UI        `yaml:"ui"`
 	Log       Log       `yaml:"log"`
 }
 
@@ -72,6 +73,7 @@ func Default() Config {
 		Details:   defaultDetails(),
 		History:   defaultHistory(),
 		Dashboard: defaultDashboard(),
+		UI:        defaultUI(),
 		Log:       defaultLog(),
 	}
 }
@@ -141,6 +143,6 @@ func (c Config) Validate() error {
 	if c.Sync.Interval <= 0 {
 		errs = append(errs, fmt.Errorf("sync.interval: must be positive, got %v", c.Sync.Interval))
 	}
-	errs = append(errs, c.Files.validate(), c.Details.validate(), c.History.validate(), c.Dashboard.validate(), c.Log.validate())
+	errs = append(errs, c.Files.validate(), c.Details.validate(), c.History.validate(), c.Dashboard.validate(), c.UI.validate(), c.Log.validate())
 	return errors.Join(errs...)
 }
