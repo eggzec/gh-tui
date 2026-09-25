@@ -3,15 +3,18 @@
 //
 // A calendar shows a year of daily counts as weeks in columns and weekdays
 // in rows, each day one cell colored by its level, with the months above,
-// the weekdays on the left and a legend below. When the width cannot fit
-// every week, it shows the most recent weeks that fit. The calendar does no
-// I/O: the parent fetches the days and sets them with [Model.SetWeeks].
+// the weekdays on the left and a legend below. A range, set with
+// [WithRange] or [Model.SetRange], shows only the most recent days, such as
+// the last 90. When the width cannot fit every week, it shows the most
+// recent weeks that fit. The calendar does no I/O: the parent fetches the
+// days and sets them with [Model.SetWeeks].
 //
 // While focused, the arrow keys move a cursor over the days, a status line
 // tells the count of the day under it, and a [SelectMsg] names it.
 package calendar
 
 import (
+	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -41,7 +44,9 @@ func nextID() int {
 type Model struct {
 	settings
 
-	id   int
+	id int
+	// full holds every week set, and grid the weeks of the range.
+	full []week
 	grid []week
 	sum  int
 	// cw and cd are the week and weekday of the cursor.
@@ -72,6 +77,7 @@ func New(opts ...Option) Model {
 	weeks := m.weeks
 	// The model keeps its own grid, not the caller's slices.
 	m.weeks = nil
+	m.days = max(m.days, 0)
 	m.prerender()
 	m.SetWeeks(weeks)
 	return m
@@ -94,7 +100,7 @@ func (m Model) ID() int {
 // recent weeks again.
 func (m *Model) SetWeeks(weeks [][]Day) {
 	prev, had := m.Selected()
-	grid := make([]week, 0, len(weeks))
+	full := make([]week, 0, len(weeks))
 	for _, w := range weeks {
 		var wk week
 		for _, d := range w {
@@ -102,31 +108,92 @@ func (m *Model) SetWeeks(weeks [][]Day) {
 			wk[d.Date.Weekday()] = slot{day: d, ok: true}
 		}
 		if len(w) > 0 {
-			grid = append(grid, wk)
+			full = append(full, wk)
 		}
 	}
-	m.grid = grid
+	m.full = full
+	m.reslice(prev, had)
+}
+
+// SetRange shows only the last days of those set, as many as days and up
+// to the latest, or all of them for 0. The total above the grid then counts
+// the days shown, since a total set for the whole year counts more. The
+// cursor stays on the same date if it is still shown.
+func (m *Model) SetRange(days int) {
+	prev, had := m.Selected()
+	m.days = max(days, 0)
+	m.reslice(prev, had)
+}
+
+// Range returns the number of recent days shown, or 0 for every day.
+func (m Model) Range() int {
+	return m.days
+}
+
+// reslice cuts the grid of the range from the full one, and puts the
+// cursor back on prev if had and it is shown, or on the last day.
+func (m *Model) reslice(prev Day, had bool) {
+	m.grid = m.full
+	if m.days > 0 {
+		m.grid = inRange(m.full, m.days)
+	}
 	m.sum = 0
-	for i := range grid {
-		for _, s := range grid[i] {
+	for i := range m.grid {
+		for _, s := range m.grid[i] {
 			m.sum += s.day.Count
 		}
 	}
 	m.cw, m.cd = 0, 0
-	if i, ok := m.step(len(grid)*7, -1); ok {
+	if i, ok := m.step(len(m.grid)*7, -1); ok {
 		m.cw, m.cd = i/7, i%7
 	}
+	m.relayout()
 	if had {
 		m.Select(prev.Date)
 	}
-	m.relayout()
+}
+
+// inRange returns the weeks of full that hold the last days days, with
+// the days before them left out of the first.
+func inRange(full []week, days int) []week {
+	if len(full) == 0 {
+		return nil
+	}
+	last := full[len(full)-1].last().Date
+	y, mo, d := last.Date()
+	from := time.Date(y, mo, d-days+1, 0, 0, 0, 0, time.UTC)
+	first := len(full)
+	for first > 0 && !dayOf(full[first-1].first().Date).Before(from) {
+		first--
+	}
+	grid := slices.Clone(full[first:])
+	if first > 0 {
+		// The week that straddles the start keeps the days from it on.
+		wk := full[first-1]
+		for i, s := range wk {
+			if s.ok && dayOf(s.day.Date).Before(from) {
+				wk[i] = slot{}
+			}
+		}
+		if slices.ContainsFunc(wk[:], func(s slot) bool { return s.ok }) {
+			grid = slices.Insert(grid, 0, wk)
+		}
+	}
+	return grid
+}
+
+// dayOf is the date of t at midnight in UTC, so that days compare by date
+// whatever their time and zone.
+func dayOf(t time.Time) time.Time {
+	y, m, d := t.Date()
+	return time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
 }
 
 // Weeks returns the days, one slice per week.
 func (m Model) Weeks() [][]Day {
-	weeks := make([][]Day, len(m.grid))
-	for i := range m.grid {
-		for _, s := range m.grid[i] {
+	weeks := make([][]Day, len(m.full))
+	for i := range m.full {
+		for _, s := range m.full[i] {
 			if s.ok {
 				weeks[i] = append(weeks[i], s.day)
 			}
@@ -136,7 +203,8 @@ func (m Model) Weeks() [][]Day {
 }
 
 // SetTotal sets the total shown above the grid, such as the one the API
-// reports. A negative total shows the sum of the counts, the default.
+// reports. A negative total shows the sum of the counts, the default, and
+// so does a range.
 func (m *Model) SetTotal(total int) {
 	m.total = max(total, -1)
 	m.render()
@@ -144,7 +212,7 @@ func (m *Model) SetTotal(total int) {
 
 // Total returns the total shown above the grid.
 func (m Model) Total() int {
-	if m.total >= 0 {
+	if m.total >= 0 && m.days == 0 {
 		return m.total
 	}
 	return m.sum
@@ -188,6 +256,16 @@ func (m *Model) SetSize(width, height int) {
 // Width returns the width of the calendar.
 func (m Model) Width() int {
 	return m.width
+}
+
+// FitWidth returns the fewest cells that show every week of the range and
+// the total and legend in full, or the text shown when there are no days.
+func (m Model) FitWidth() int {
+	if len(m.grid) == 0 {
+		return ansi.StringWidth(m.emptyText)
+	}
+	grid := gutterW + cellW*len(m.grid) - 1
+	return max(grid, ansi.StringWidth(totalText(m.Total(), m.days)), m.legendW)
 }
 
 // Height returns the height of the calendar.

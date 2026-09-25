@@ -5,6 +5,7 @@ type Option func(*settings)
 
 type settings struct {
 	weeks     [][]Day
+	days      int
 	total     int
 	width     int
 	height    int
@@ -29,6 +30,13 @@ func defaultSettings() settings {
 func WithWeeks(weeks [][]Day) Option {
 	return func(s *settings) {
 		s.weeks = weeks
+	}
+}
+
+// WithRange shows only the most recent days. See [Model.SetRange].
+func WithRange(days int) Option {
+	return func(s *settings) {
+		s.days = max(days, 0)
 	}
 }
 

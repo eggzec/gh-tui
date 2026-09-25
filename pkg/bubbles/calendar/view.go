@@ -26,7 +26,7 @@ func (m *Model) render() {
 		m.lines[0] = m.fit(m.styles.Empty.Render(m.emptyText))
 		return
 	}
-	total := totalText(m.Total())
+	total := totalText(m.Total(), m.days)
 	if len(total) > m.width {
 		total = contributions(m.Total(), "0 contributions")
 	}

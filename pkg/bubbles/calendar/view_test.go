@@ -40,6 +40,13 @@ func TestView(t *testing.T) {
 		{"light", func(*testing.T) Model {
 			return New(WithWeeks(year(today)), WithSize(40, 10), WithStyles(DefaultStyles(false)))
 		}},
+		{"90 days", func(*testing.T) Model {
+			return New(WithWeeks(year(today)), WithSize(40, 10), WithRange(90))
+		}},
+		{"30 days focused", func(t *testing.T) Model {
+			t.Helper()
+			return keys(t, New(WithWeeks(year(today)), WithSize(40, 10), WithRange(30), WithFocused(true)), "h")
+		}},
 		{"empty", func(*testing.T) Model {
 			return New(WithSize(40, 3))
 		}},

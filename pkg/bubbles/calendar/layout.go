@@ -46,6 +46,16 @@ func (w *week) first() Day {
 	return Day{}
 }
 
+// last returns the last day of w.
+func (w *week) last() Day {
+	for i := len(w) - 1; i >= 0; i-- {
+		if w[i].ok {
+			return w[i].day
+		}
+	}
+	return Day{}
+}
+
 // fitWeeks returns how many week columns fit in width cells.
 func fitWeeks(width int) int {
 	return max((width+1)/cellW, 0)
@@ -124,9 +134,17 @@ func contributions(n int, none string) string {
 	}
 }
 
-// totalText is the line above the grid.
-func totalText(total int) string {
-	return contributions(total, "0 contributions") + " in the last year"
+// totalText is the line above the grid, for a range of days, or a year
+// for 0.
+func totalText(total, days int) string {
+	period := " in the last year"
+	switch {
+	case days == 1:
+		period = " in the last day"
+	case days > 1:
+		period = " in the last " + strconv.Itoa(days) + " days"
+	}
+	return contributions(total, "0 contributions") + period
 }
 
 // statusText is the line about the day under the cursor.
