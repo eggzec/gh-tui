@@ -204,6 +204,18 @@ func (s *Service) CachedList(q ListQuery) (core.Page[core.PullRequest], bool) {
 	return cached(s.lists, q.key())
 }
 
+// FreshList reports whether the page for q is cached and fresh, so that
+// List returns it without a request: read this session, or kept by an
+// earlier one and fetched within the TTL. A page kept longer ago is put in
+// memory stale, so that List fetches it rather than serving it as it is.
+// It may read the store, so call it where I/O is fine, such as in a
+// tea.Cmd.
+func (s *Service) FreshList(q ListQuery) bool {
+	key := q.key()
+	s.keptLists.Warm(s.lists, key)
+	return fresh(s.lists, key)
+}
+
 // List returns the page for q, most recently updated first. A fresh cached
 // page is returned without a request. The page vouches for what is cached
 // of the pull requests it lists: see [Service.Get].

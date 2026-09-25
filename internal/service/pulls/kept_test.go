@@ -87,6 +87,51 @@ func TestKeptListIsServedStaleThenRefetched(t *testing.T) {
 	}
 }
 
+func TestFreshList(t *testing.T) {
+	v := &versioned{updated: epoch, checks: core.ChecksSuccess}
+	store := openStore(t)
+	s := New(v.api(), WithStore(store))
+	if s.FreshList(openList) {
+		t.Fatal("FreshList before any read = true, want false")
+	}
+	list(t, s, openList)
+	if !s.FreshList(openList) {
+		t.Error("FreshList after List = false, want true")
+	}
+	if s.FreshList(ListQuery{Repo: repo, State: core.StateClosed}) {
+		t.Error("FreshList of another state = true, want false")
+	}
+	s.Invalidate(repo)
+	if s.FreshList(openList) {
+		t.Error("FreshList after Invalidate = true, want false")
+	}
+
+	// A page an earlier session kept within the TTL is fresh.
+	if next := New(v.api(), WithStore(store)); !next.FreshList(openList) {
+		t.Error("FreshList of a page kept within the TTL = false, want true")
+	}
+}
+
+func TestFreshListOfPageKeptLongAgo(t *testing.T) {
+	v := &versioned{updated: epoch, checks: core.ChecksSuccess}
+	store := openStore(t)
+	firstSession(t, v, store)
+
+	api := v.api()
+	s := New(api, WithStore(cachetest.Aged(store, time.Hour)))
+	if s.FreshList(openList) {
+		t.Fatal("FreshList of a page kept an hour ago = true, want false")
+	}
+	// List fetches it rather than serving the kept page.
+	p, err := s.List(t.Context(), openList)
+	if err != nil || p.Stale || len(p.Items) != 1 {
+		t.Fatalf("List = %+v, %v; want the page fetched", p, err)
+	}
+	if n := api.count("list"); n != 1 {
+		t.Errorf("list called %d times, want 1", n)
+	}
+}
+
 func TestKeptDetailIsCurrentAfterRestart(t *testing.T) {
 	v := &versioned{updated: epoch, checks: core.ChecksSuccess}
 	store := openStore(t)

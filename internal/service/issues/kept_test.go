@@ -143,6 +143,52 @@ func TestKeptListWithinTTLIsFresh(t *testing.T) {
 	api.checkCalls(t)
 }
 
+func TestFreshList(t *testing.T) {
+	srv := &keptServer{updated: epoch, comments: thread(2)}
+	store := openStore(t)
+	s := New(srv.api(t), WithStore(store))
+	if s.FreshList(openSeven) {
+		t.Fatal("FreshList before any read = true, want false")
+	}
+	listIssues(t, s, openSeven)
+	if !s.FreshList(openSeven) {
+		t.Error("FreshList after List = false, want true")
+	}
+	if !s.FreshList(ListQuery{Repo: repo, State: core.FilterOpen, PageSize: DefaultPageSize}) {
+		t.Error("FreshList of the same query spelled out = false, want true")
+	}
+	if s.FreshList(ListQuery{Repo: repo, State: core.FilterClosed}) {
+		t.Error("FreshList of another state = true, want false")
+	}
+	s.Invalidate(repo)
+	if s.FreshList(openSeven) {
+		t.Error("FreshList after Invalidate = true, want false")
+	}
+
+	// A page an earlier session kept within the TTL is fresh.
+	if next := New(srv.api(t), WithStore(store)); !next.FreshList(openSeven) {
+		t.Error("FreshList of a page kept within the TTL = false, want true")
+	}
+}
+
+func TestFreshListOfPageKeptLongAgo(t *testing.T) {
+	srv := &keptServer{updated: epoch, comments: thread(2)}
+	store := openStore(t)
+	firstSession(t, srv, store)
+
+	api := srv.api(t)
+	s := New(api, WithStore(cachetest.Aged(store, time.Hour)))
+	if s.FreshList(openSeven) {
+		t.Fatal("FreshList of a page kept an hour ago = true, want false")
+	}
+	// List revalidates it rather than serving the kept page.
+	p, err := s.List(t.Context(), openSeven)
+	if err != nil || p.Stale || !equalNumbers(numbers(p), 7) {
+		t.Fatalf("List = %+v, %v; want the page revalidated", p, err)
+	}
+	api.checkCalls(t, "ListIssues")
+}
+
 func TestKeptListChanged(t *testing.T) {
 	srv := &keptServer{updated: epoch, comments: thread(2)}
 	store := openStore(t)
