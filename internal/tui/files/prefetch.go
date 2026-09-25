@@ -84,17 +84,17 @@ func readAll(ctx context.Context, svc Service, seen *obs.Prefetched[filesvc.Blob
 		}
 		wg.Go(func() {
 			defer func() { <-sem }()
-			readBlob(ctx, svc, seen, q)
+			_, _ = readBlob(ctx, svc, seen, q)
 		})
 	}
 }
 
-// readBlob reads the blob of q ahead, and records what came of it. A
-// failure is for the preview to report, if the file is opened.
-func readBlob(ctx context.Context, svc Service, seen *obs.Prefetched[filesvc.BlobQuery], q filesvc.BlobQuery) {
+// readBlob reads the blob of q ahead, records what came of it, and returns
+// it. A failure is for the preview to report, if the file is opened.
+func readBlob(ctx context.Context, svc Service, seen *obs.Prefetched[filesvc.BlobQuery], q filesvc.BlobQuery) (core.Blob, error) {
 	seen.Count(obs.PrefetchSent)
 	start := time.Now()
-	_, err := svc.Blob(ctx, q)
+	b, err := svc.Blob(ctx, q)
 	outcome := "read"
 	switch {
 	case err == nil:
@@ -113,6 +113,7 @@ func readBlob(ctx context.Context, svc Service, seen *obs.Prefetched[filesvc.Blo
 		slog.DebugContext(ctx, "prefetch read", "span", "prefetch", "kind", seen.Kind(), "sha", q.SHA,
 			"size", q.Size, "outcome", outcome, "duration_ms", obs.Millis(time.Since(start)))
 	}
+	return b, err
 }
 
 // worthReading reports whether the file of e is worth reading ahead: a

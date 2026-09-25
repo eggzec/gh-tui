@@ -3,10 +3,12 @@ package files
 import (
 	"bytes"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/teatest/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
@@ -50,6 +52,16 @@ func (a *app) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		if a.modal != nil {
 			return a, a.modal.Update(msg)
+		}
+		if msg.String() == "ctrl+p" {
+			// The find-file key of the app.
+			mod, cmd := a.section.FindFile()
+			if mod != nil {
+				a.modal = mod
+				a.modal.SetTheme(testTheme())
+				a.modal.SetSize(a.width, a.height)
+			}
+			return a, cmd
 		}
 		return a, a.section.Update(msg)
 	}
@@ -99,6 +111,51 @@ func TestProgram(t *testing.T) {
 	final, _ := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(*app)
 	if final.modal == nil || final.modal.Title() != "cmd/gh-tui/main.go" {
 		t.Errorf("modal = %v, want the preview of main.go", final.modal)
+	}
+	want := []tea.Msg{ui.OpenMsg{URL: "https://github.com/eggzec/gh-tui/blob/HEAD/cmd/gh-tui/main.go"}}
+	if !slices.Equal(final.got, want) {
+		t.Errorf("messages = %#v, want %#v", final.got, want)
+	}
+}
+
+// TestProgramFinder finds a file by typing some of its path, opens it in
+// the preview, goes back to the finder with esc, and shows the file in the
+// tree.
+func TestProgramFinder(t *testing.T) {
+	s := New(t.Context(), sampleFake(), config.Default().Keys, WithRepo(ghTUI))
+	s.SetTheme(testTheme())
+	s.Focus()
+	a := &app{section: s}
+	tm := teatest.NewTestModel(t, a, teatest.WithInitialTermSize(60, 12))
+	waitFor := func(text string) {
+		t.Helper()
+		teatest.WaitFor(t, tm.Output(), func(b []byte) bool {
+			return bytes.Contains(b, []byte(text))
+		}, teatest.WithDuration(5*time.Second))
+	}
+	waitFor("AGENTS.md")
+	tm.Send(press("ctrl+p"))
+	waitFor("6 files")
+	tm.Type("ghmain")
+	waitFor("1 match")
+	tm.Send(press("enter"))
+	waitFor("hello")
+	tm.Send(press("esc"))
+	waitFor("ghmain")
+	tm.Send(press("ctrl+t"))
+	// The tree shows the file once cmd and cmd/gh-tui are expanded, and
+	// only then may o open it.
+	teatest.WaitFor(t, tm.Output(), func(b []byte) bool {
+		return strings.Count(ansi.Strip(string(b)), "▾") >= 2
+	}, teatest.WithDuration(5*time.Second))
+	tm.Send(press("o"))
+
+	final, _ := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(*app)
+	if final.modal != nil {
+		t.Errorf("modal %q open, want the tree", final.modal.Title())
+	}
+	if got := final.section.selected().Path; got != "cmd/gh-tui/main.go" {
+		t.Errorf("tree cursor on %q", got)
 	}
 	want := []tea.Msg{ui.OpenMsg{URL: "https://github.com/eggzec/gh-tui/blob/HEAD/cmd/gh-tui/main.go"}}
 	if !slices.Equal(final.got, want) {

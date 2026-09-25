@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
 // benchSection returns a section at 40 by 40 over a repository of 50
@@ -98,5 +99,60 @@ func BenchmarkPreviewUpdate(b *testing.B) {
 		}
 		i++
 		_ = m.Update(msg)
+	}
+}
+
+// benchFinder returns the finder open at 148 by 38, the room
+// inside the frame of a terminal of 190 by 50, over a listing of 50,000
+// files, with a query typed and the cursor a few rows down.
+func benchFinder(b *testing.B) *finderModal {
+	b.Helper()
+	f := newFake()
+	root := make([]core.TreeEntry, 100)
+	for i := range root {
+		sha := fmt.Sprintf("%040x", i+1)
+		root[i] = dir(fmt.Sprintf("pkg-%02d", i), sha)
+		files := make([]core.TreeEntry, 500)
+		for j := range files {
+			files[j] = file(fmt.Sprintf("file_%03d_renderer.go", j), 1000)
+		}
+		f.addTree(ghTUI, sha, files...)
+	}
+	f.addTree(ghTUI, "", root...)
+	h := newHost(loaded(b, f, 40, 40))
+	h.width, h.height = 148, 38
+	mod, cmd := h.s.FindFile()
+	h.run(func() tea.Msg { return ui.OpenModalMsg{Modal: mod} })
+	h.run(cmd)
+	fm, _ := mod.(*finderModal)
+	h.run(fm.Update(tea.PasteMsg{Content: "rend"}))
+	for range 3 {
+		_ = fm.Update(press("down"))
+	}
+	return fm
+}
+
+func BenchmarkFinderView(b *testing.B) {
+	f := benchFinder(b)
+	b.ReportAllocs()
+	for b.Loop() {
+		_ = f.View()
+	}
+}
+
+// BenchmarkFinderUpdate moves the cursor down and back up, which renders
+// the rows again and starts the delay before the preview reads.
+func BenchmarkFinderUpdate(b *testing.B) {
+	f := benchFinder(b)
+	down, up := tea.Msg(press("down")), tea.Msg(press("up"))
+	b.ReportAllocs()
+	i := 0
+	for b.Loop() {
+		msg := down
+		if i/30%2 == 1 {
+			msg = up
+		}
+		i++
+		_ = f.Update(msg)
 	}
 }

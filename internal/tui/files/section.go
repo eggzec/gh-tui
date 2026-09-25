@@ -6,8 +6,10 @@
 package files
 
 import (
+	"cmp"
 	"context"
 	"path"
+	"slices"
 	"strings"
 
 	"charm.land/bubbles/v2/help"
@@ -53,6 +55,16 @@ type Section struct {
 	// shared with other sections.
 	offline *ui.Offline
 
+	// finder finds a file of the listing of src, once opened, and
+	// findPreview is whether it shows the content of the selected file
+	// when there is room. baseLabel names the base, if one is set.
+	finder      *finderModal
+	findPreview bool
+	baseLabel   string
+	// recent holds the paths of the files opened in each repository, the
+	// most recent first, so that the finder offers them first.
+	recent map[string][]string
+
 	// prefetchMax is the largest top-level file read ahead, or 0.
 	prefetchMax int64
 	hover       hover
@@ -80,6 +92,9 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		styles:  tree.DefaultStyles(true),
 		offline: new(ui.Offline),
 		seen:    obs.NewPrefetched[filesvc.BlobQuery]("file"),
+		// The finder shows a preview where it fits, unless told not to.
+		findPreview: true,
+		recent:      map[string][]string{},
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -116,6 +131,11 @@ func (s *Section) newTree(repo core.RepoRef, ref string) {
 	s.treeCtx, s.cancelTree = ctx, cancel
 	s.idx, s.warned = nil, false
 	s.hover.reset()
+	s.baseLabel = ""
+	if s.finder != nil {
+		s.finder.close()
+		s.finder = nil
+	}
 }
 
 // The limits of an expand-all while the tree comes from the listing, where
@@ -175,6 +195,7 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		s.newTree(s.repo, msg.Ref)
+		s.baseLabel = cmp.Or(msg.Label, shortRef(msg.Ref))
 		return s.start()
 	case hoverMsg:
 		if s.tree == nil {
@@ -260,6 +281,16 @@ func (s *Section) observe() tea.Cmd {
 		return nil
 	}
 	s.idx = x
+	if f := s.finder; f != nil {
+		switch {
+		case f.sha == "":
+			f.sha = x.sha
+		case f.sha != x.sha:
+			// The listing changed, so the next finder lists it again. One
+			// that is open keeps what it shows.
+			s.finder = nil
+		}
+	}
 	prefetch := s.prefetchTop(s.treeCtx, x)
 	if x.offline {
 		s.offline.Mark()
@@ -292,11 +323,62 @@ func (s *Section) preview(n tree.Node) tea.Cmd {
 		}
 		return ui.Notify(toast.Info, text)
 	}
+	return s.open(e, nil)
+}
+
+// open previews the file of e in a modal, which reopens ret when it
+// closes, if set.
+func (s *Section) open(e core.TreeEntry, ret ui.Modal) tea.Cmd {
+	s.opened(e.Path)
 	s.seen.Opened(s.blobQuery(e))
 	p := newPreview(s.ctx, s.svc, s.repo, s.ref, e, s.keys.Open)
+	p.ret = ret
 	// The app passes messages to a modal only once it is open, so the load
 	// starts after the modal opens.
 	return tea.Sequence(ui.OpenModal(p), p.load())
+}
+
+// maxRecent is how many opened files the section remembers per repository.
+const maxRecent = 16
+
+// opened remembers that the file at p was opened, as the most recent.
+func (s *Section) opened(p string) {
+	k := strings.ToLower(s.repo.String())
+	r := slices.DeleteFunc(slices.Clone(s.recent[k]), func(q string) bool { return q == p })
+	r = slices.Insert(r, 0, p)
+	s.recent[k] = r[:min(len(r), maxRecent)]
+}
+
+// recentFiles returns the paths of the files opened in the repository, the
+// most recent first.
+func (s *Section) recentFiles() []string {
+	return slices.Clone(s.recent[strings.ToLower(s.repo.String())])
+}
+
+// reveal expands the directories of the file at p in the tree, moves the
+// cursor to it, and focuses the section.
+func (s *Section) reveal(p string) tea.Cmd {
+	if s.tree == nil {
+		return nil
+	}
+	ids := make([]string, 0, strings.Count(p, "/")+1)
+	for i := range len(p) {
+		if p[i] == '/' {
+			ids = append(ids, p[:i])
+		}
+	}
+	ids = append(ids, p)
+	show := func() tea.Msg { return ui.ShowMsg{Title: ui.FilesTitle} }
+	return tea.Batch(s.start(), s.tree.Reveal(ids...), show)
+}
+
+// shortRef shortens a commit SHA for a title, and leaves a branch as it
+// is.
+func shortRef(ref string) string {
+	if len(ref) == 40 || len(ref) == 64 {
+		return ref[:7]
+	}
+	return ref
 }
 
 // previewFile previews the file of msg, which may be of any repository, at

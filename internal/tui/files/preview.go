@@ -134,30 +134,39 @@ func findEntry(ctx context.Context, svc Service, repo core.RepoRef, ref, name st
 
 // show puts the content, or why it isn't shown, in the pager.
 func (p *preview) show(b core.Blob, err error) tea.Cmd {
-	name := p.entry.Path
-	switch {
-	case errors.Is(err, core.ErrTooLarge):
-		p.pager.SetMessage(name, "Too large to preview"+p.browserHint())
-	case err != nil:
-		p.pager.SetError(name, err)
-	case b.Binary:
-		p.pager.SetMessage(name, "Binary file, not shown"+p.browserHint())
-	case p.entry.Symlink():
-		// The blob of a link holds its target.
-		p.pager.SetMessage(name, "Symbolic link → "+string(b.Content))
-	default:
-		cmd := p.pager.SetContent(name, string(b.Content))
+	cmd, ok := fill(&p.pager, p.entry, b, err, p.open)
+	if ok {
 		p.pager.SetSearch(p.find)
 		p.preset = p.find != ""
 		p.pager.GoToLine(p.line)
-		return cmd
 	}
-	return nil
+	return cmd
 }
 
-// browserHint names the key that opens the file in the browser.
-func (p *preview) browserHint() string {
-	if k := p.open.Help().Key; k != "" {
+// fill puts the content of the file of e in pg, or why it isn't shown,
+// naming open as the key that opens it in the browser instead. It reports
+// whether it put the content, and returns the command that highlights it.
+func fill(pg *pager.Model, e core.TreeEntry, b core.Blob, err error, open key.Binding) (tea.Cmd, bool) {
+	name := e.Path
+	switch {
+	case errors.Is(err, core.ErrTooLarge):
+		pg.SetMessage(name, "Too large to preview"+browserHint(open))
+	case err != nil:
+		pg.SetError(name, err)
+	case b.Binary:
+		pg.SetMessage(name, "Binary file, not shown"+browserHint(open))
+	case e.Symlink():
+		// The blob of a link holds its target.
+		pg.SetMessage(name, "Symbolic link → "+string(b.Content))
+	default:
+		return pg.SetContent(name, string(b.Content)), true
+	}
+	return nil, false
+}
+
+// browserHint names open, the key that opens a file in the browser.
+func browserHint(open key.Binding) string {
+	if k := open.Help().Key; k != "" && open.Enabled() {
 		return " · " + k + " opens it in the browser"
 	}
 	return ""
