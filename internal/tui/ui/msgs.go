@@ -107,13 +107,17 @@ type OpenIssueMsg struct {
 	Number int
 }
 
-// OpenFileMsg asks for the file at Path of Repo to be previewed, such as
-// when a code search found it. SHA is its blob. Repo need not be the
-// selected repository.
+// OpenFileMsg asks for the file at Path of Repo to be previewed over the
+// screen on view, such as when a code search found it. SHA is its blob.
+// Repo need not be the selected repository, and the files section keeps
+// showing its own.
 type OpenFileMsg struct {
 	Repo core.RepoRef
 	Path string
 	SHA  string
+	// Find, if set, is searched for in the preview, which opens on its
+	// first match, such as the text a code search matched.
+	Find string
 }
 
 // ShowMsg asks the app to switch to the section with Title.

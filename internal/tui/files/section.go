@@ -300,13 +300,15 @@ func (s *Section) preview(n tree.Node) tea.Cmd {
 }
 
 // previewFile previews the file of msg, which may be of any repository, at
-// the head of its default branch.
+// the head of its default branch, on the first match of msg.Find. The tree
+// keeps its repository.
 func (s *Section) previewFile(msg ui.OpenFileMsg) tea.Cmd {
 	if msg.Path == "" || msg.SHA == "" {
 		return nil
 	}
 	e := core.TreeEntry{Path: msg.Path, Name: path.Base(msg.Path), Type: core.EntryBlob, Mode: "100644", SHA: msg.SHA}
 	p := newPreview(s.ctx, s.svc, msg.Repo, "", e, s.keys.Open)
+	p.find = msg.Find
 	return tea.Sequence(ui.OpenModal(p), p.load())
 }
 
