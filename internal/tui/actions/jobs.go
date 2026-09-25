@@ -186,11 +186,11 @@ func (m *Modal) jobLines(w, h int) []string {
 	case !m.hasRun:
 		return fitLines([]string{st.muted.Render("Pick a run to see its jobs.")}, w, h)
 	case !j.loaded && j.err != nil:
-		return fitLines(wrap(m.errorLine("Couldn't load the jobs: ", j.err), w, ""), w, h)
+		return fitLines(wrap(m.errorLine("Couldn't load the jobs: ", j.err), w), w, h)
 	case !j.loaded:
 		return fitLines([]string{m.spin.View() + st.muted.Render("Loading the jobs…")}, w, h)
 	case len(j.items) == 0:
-		return fitLines([]string{st.muted.Render("This run has no jobs yet.")}, w, h)
+		return fitLines(wrap(st.muted.Render(m.noJobsText()), w), w, h)
 	}
 	lines := make([]string, 0, h)
 	focused := m.focus == jobsPane
@@ -206,6 +206,27 @@ func (m *Modal) jobLines(w, h int) []string {
 		lines = append(lines, fit(st.noGutter+st.subtle.Render(ansi.Truncate(text, w-2, "…")), w))
 	}
 	return padLines(lines, w, h)
+}
+
+// noJobsText tells why the run shown has no jobs, and what to do: a run
+// of a pull request from a fork waits for a maintainer, and one that
+// couldn't start shows why only on GitHub.
+func (m *Modal) noJobsText() string {
+	var text string
+	switch m.run.Conclusion {
+	case core.ConclusionActionRequired:
+		text = "Waiting for a maintainer to approve this run"
+	case core.ConclusionStartupFailure:
+		text = "This run failed to start, often for an error in its workflow file"
+	case core.ConclusionSkipped:
+		return "This run was skipped, so none of its jobs ran."
+	default:
+		return "This run has no jobs yet."
+	}
+	if k := m.keys.Open.Help().Key; k != "" {
+		text += " · " + k + " opens it on GitHub"
+	}
+	return text
 }
 
 // jobRow renders a job: its state and name, and how long it ran.

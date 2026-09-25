@@ -223,7 +223,7 @@ func (m *Modal) logBody(w, h int) []string {
 	}
 	var lines []string
 	if n := m.logNotice(); n != "" {
-		lines = wrap(n, w, "")[:1]
+		lines = wrap(n, w)[:1]
 	}
 	lines = append(lines, strings.Split(m.log.view.View(), "\n")...)
 	return padLines(lines, w, h)
@@ -243,7 +243,7 @@ func (m *Modal) stepLines(w, h int) []string {
 	default:
 		why = st.muted.Render("The job hasn't started yet.")
 	}
-	lines := wrap(why, w, "")
+	lines := wrap(why, w)
 	if len(j.Steps) == 0 {
 		return fitLines(lines, w, h)
 	}

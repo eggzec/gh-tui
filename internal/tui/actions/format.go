@@ -139,12 +139,11 @@ func fitLines(lines []string, w, h int) []string {
 	return out
 }
 
-// wrap wraps s to lines of w cells, each after indent.
-func wrap(s string, w int, indent string) []string {
-	iw := ansi.StringWidth(indent)
-	lines := strings.Split(ansi.Wrap(s, max(w-iw, 1), ""), "\n")
+// wrap wraps s to lines of w cells.
+func wrap(s string, w int) []string {
+	lines := strings.Split(ansi.Wrap(s, max(w, 1), ""), "\n")
 	for i, l := range lines {
-		lines[i] = fit(indent+l, w)
+		lines[i] = fit(l, w)
 	}
 	return lines
 }

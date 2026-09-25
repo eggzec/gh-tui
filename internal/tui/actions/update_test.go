@@ -593,3 +593,29 @@ func TestHelpNamesWhatTheKeysDo(t *testing.T) {
 		}
 	}
 }
+
+func TestRunsWithoutJobsSayWhy(t *testing.T) {
+	tests := []struct {
+		conclusion core.Conclusion
+		want       string
+	}{
+		{core.ConclusionActionRequired, "Waiting for a maintainer to approve this run · o opens it on GitHub"},
+		{core.ConclusionStartupFailure, "This run failed to start, often for an error in its workflow file · o opens it on GitHub"},
+		{core.ConclusionSkipped, "This run was skipped, so none of its jobs ran."},
+		{core.ConclusionNone, "This run has no jobs yet."},
+	}
+	for _, tt := range tests {
+		t.Run(string(tt.conclusion), func(t *testing.T) {
+			f := newFake()
+			f.runs[0].Conclusion = tt.conclusion
+			f.jobs[failedRun] = nil
+			m, _ := newModal(t, f, wideW, wideH)
+			if got := m.noJobsText(); got != tt.want {
+				t.Errorf("the jobs say %q, want %q", got, tt.want)
+			}
+			if s := paneText(m, jobsPane); !strings.Contains(s, strings.Fields(tt.want)[0]) {
+				t.Errorf("the jobs pane doesn't show why:\n%s", s)
+			}
+		})
+	}
+}
