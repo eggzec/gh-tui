@@ -202,6 +202,10 @@ func (s *Section) paneLabel(p paneID) string {
 		if at, of := s.pinned.pages(); of > 1 {
 			text += " · " + strconv.Itoa(at) + "/" + strconv.Itoa(of)
 		}
+	case reposPane:
+		if chips := s.repos.filter().chips(); chips != "" {
+			text += " · " + chips
+		}
 	case workPane:
 		if s.work.ok {
 			text += " · " + strconv.Itoa(s.tasks.count(s.work.value))
@@ -415,51 +419,32 @@ func (s *Section) repoFacts(r core.Repo, w int) string {
 	return ansi.Truncate(strings.Join(parts, "  "), w, "…")
 }
 
-// reposBody renders the tabs of the owners above the list or the filter of
-// the tab on view.
+// reposBody renders the tabs of the owners above the list of the tab on
+// view.
 func (s *Section) reposBody(w, h int) []string {
-	t := &s.repos
 	lines := make([]string, 0, h)
 	lines = append(lines, s.tabsLine(w))
-	var body string
-	if t.filtering {
-		body = t.picker.View()
-	} else {
-		o := t.current()
-		// The headers name the columns once there are rows under them.
-		head := ""
-		if o.feed.Len() > 0 {
-			head = strings.Repeat(" ", gutterWidth) + s.st.subtle.render(o.cols.header(s.icons.Star))
-		}
-		lines = append(lines, head)
-		body = o.feed.View()
+	o := s.repos.current()
+	// The headers name the columns once there are rows under them.
+	head := ""
+	if o.feed.Len() > 0 {
+		head = strings.Repeat(" ", gutterWidth) + s.st.subtle.render(o.cols.header(s.icons.Star))
 	}
-	if body != "" {
+	lines = append(lines, head)
+	if body := o.feed.View(); body != "" {
 		lines = append(lines, strings.Split(body, "\n")...)
 	}
 	return lines
 }
 
 // tabsLine renders the tabs of the owners, scrolled to show the one on
-// view, and on the right the progress of the filter, or the language of
-// the repository under the cursor, which the list shows as a glyph.
+// view, and on the right the language of the repository under the cursor,
+// which the list shows as a glyph.
 func (s *Section) tabsLine(w int) string {
 	st, t := &s.st, &s.repos
 	var right string
-	if r, ok := t.selected(); ok && !t.filtering && r.Language != "" {
+	if r, ok := t.selected(); ok && r.Language != "" {
 		right = s.langPaint(r).render(s.icons.Language(r.Language)) + " " + st.muted.render(r.Language)
-	}
-	if t.filtering {
-		o := t.current()
-		n := strconv.Itoa(len(o.all))
-		switch {
-		case o.fillErr != nil:
-			right = st.fail.render(n + " read · some failed")
-		case o.filling:
-			right = st.subtle.render("reading " + n + "…")
-		default:
-			right = st.subtle.render(n + " repositories")
-		}
 	}
 	room := max(w-ansi.StringWidth(right)-2, 0)
 	// Scroll the tabs so the one on view fits, with the ones before it

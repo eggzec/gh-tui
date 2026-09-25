@@ -235,76 +235,6 @@ func TestOpenRepository(t *testing.T) {
 	}
 }
 
-func TestFilter(t *testing.T) {
-	svc := newFake()
-	s := newSection(t, svc, nil, 140, 38)
-	press(t, s, "f")
-	if !s.Capturing() {
-		t.Fatal("the filter should take every key")
-	}
-	// The filter reads the pages the list hasn't, up to the last.
-	for _, page := range []string{"repos @me@100", "repos @me@200"} {
-		if n := svc.count(page); n != 1 {
-			t.Errorf("%s read %d times, want once", page, n)
-		}
-	}
-	if got := s.repos.picker.Len(); got != 250 {
-		t.Errorf("the filter lists %d repositories, want every one of 250", got)
-	}
-	if !strings.Contains(screen(s), "250 repositories") {
-		t.Errorf("the tabs should count what the filter holds:\n%s", screen(s))
-	}
-	typeText(t, s, "repo-249")
-	it, ok := s.repos.picker.Selected()
-	if !ok || it.Title != "repo-249" {
-		t.Fatalf("the best match is %q, want repo-249", it.Title)
-	}
-	app := press(t, s, "enter")
-	if !slices.Contains(app, tea.Msg(ui.RepoMsg{Repo: core.RepoRef{Owner: "octocat", Name: "repo-249"}})) {
-		t.Errorf("enter sent %v, want repo-249 opened", app)
-	}
-	if s.Capturing() {
-		t.Error("choosing a repository should close the filter")
-	}
-
-	// Opening it again reads nothing more, and esc goes back to the list.
-	calls := len(svc.calls)
-	press(t, s, "f")
-	if len(svc.calls) != calls {
-		t.Errorf("the filter read %v again", svc.calls[calls:])
-	}
-	press(t, s, "esc")
-	if s.Capturing() || !s.repos.current().feed.Focused() {
-		t.Error("esc should close the filter and focus the list")
-	}
-}
-
-func TestFilterIsCappedAndStops(t *testing.T) {
-	svc := newFake()
-	svc.repos["@me"] = repos("octocat", 1500)
-	s := newSection(t, svc, nil, 140, 38)
-	press(t, s, "f")
-	if got := len(s.repos.current().all); got != 1000 {
-		t.Errorf("the filter read %d repositories, want the cap of 1000", got)
-	}
-	if n := svc.count("repos @me@1000"); n != 0 {
-		t.Error("the filter should stop reading at the cap")
-	}
-}
-
-func TestFilterFailure(t *testing.T) {
-	svc := newFake()
-	svc.fail["repos @me@100"] = errors.New("github: 502 Bad Gateway")
-	s := newSection(t, svc, nil, 140, 38)
-	app := press(t, s, "f")
-	if len(app) != 1 || !strings.Contains(app[0].(ui.NotifyMsg).Text, "Couldn't read every repository of yours") {
-		t.Errorf("a failed page should say so in a toast, got %v", app)
-	}
-	if got := s.repos.picker.Len(); got != 100 {
-		t.Errorf("the filter lists %d repositories, want the first page of 100", got)
-	}
-}
-
 func TestPinned(t *testing.T) {
 	s := newSection(t, newFake(), nil, 140, 38)
 	press(t, s, "1")
@@ -416,8 +346,7 @@ func TestInbox(t *testing.T) {
 func TestRefresh(t *testing.T) {
 	svc := newFake()
 	s := newSection(t, svc, nil, 140, 38)
-	press(t, s, "f")
-	press(t, s, "esc", "r")
+	press(t, s, "r")
 	if svc.invalidated != 1 {
 		t.Errorf("refresh invalidated %d times, want once", svc.invalidated)
 	}
@@ -425,9 +354,6 @@ func TestRefresh(t *testing.T) {
 		if n := svc.count(what); n != 2 {
 			t.Errorf("%s read %d times, want twice", what, n)
 		}
-	}
-	if o := s.repos.current(); o.all != nil || o.complete {
-		t.Error("a refresh should forget what the filter read")
 	}
 }
 

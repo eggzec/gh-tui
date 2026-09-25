@@ -188,6 +188,34 @@ func (f *fakeService) CachedAllRepos(q dashboard.ReposQuery, limit int) (core.Pa
 	return all, found
 }
 
+// AllRepos serves the pages read before from the cache, and reads the
+// others, as the service does.
+func (f *fakeService) AllRepos(_ context.Context, q dashboard.ReposQuery, limit int) (core.Page[core.Repo], error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if limit <= 0 || limit > dashboard.MaxOwnerRepos {
+		limit = dashboard.MaxOwnerRepos
+	}
+	var all core.Page[core.Repo]
+	all.Next = q.Cursor
+	for len(all.Items) < limit {
+		q.Cursor = all.Next
+		if !f.read[pageKey(q)] {
+			if err := f.call("repos " + pageKey(q)); err != nil {
+				return core.Page[core.Repo]{}, err
+			}
+			f.read[pageKey(q)] = true
+		}
+		p := f.page(q)
+		all.Items = append(all.Items, p.Items...)
+		all.Next = p.Next
+		if p.Last() {
+			break
+		}
+	}
+	return all, nil
+}
+
 func (f *fakeService) Invalidate() {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -434,12 +462,4 @@ func keyPress(k string) tea.KeyPressMsg {
 	}
 	r, _ := utf8.DecodeRuneInString(k)
 	return tea.KeyPressMsg{Code: r, Text: k}
-}
-
-// typeText presses the keys of text one by one.
-func typeText(tb testing.TB, s *Section, text string) {
-	tb.Helper()
-	for _, r := range text {
-		press(tb, s, string(r))
-	}
 }
