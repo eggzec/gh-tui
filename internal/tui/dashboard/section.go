@@ -98,22 +98,23 @@ func WithIcons(icons ui.Icons) Option {
 	return func(s *Section) { s.icons = icons }
 }
 
-// paneID names a pane of the dashboard. They are numbered in this order.
+// paneID names a pane of the dashboard. They are numbered in this order,
+// the order they are read in.
 type paneID int
 
 const (
 	pinnedPane paneID = iota
 	reposPane
 	workPane
-	inboxPane
 	calendarPane
+	inboxPane
 	numPanes
 )
 
 var (
-	paneTitles = [numPanes]string{"Pinned", "Repositories", "Waiting on you", "Notifications", "Contributions"}
+	paneTitles = [numPanes]string{"Pinned", "Repositories", "Waiting on you", "Contributions", "Notifications"}
 	// shortTitles name the panes that aren't on view in a narrow frame.
-	shortTitles = [numPanes]string{"Pinned", "Repos", "Work", "Inbox", "Calendar"}
+	shortTitles = [numPanes]string{"Pinned", "Repos", "Work", "Calendar", "Inbox"}
 )
 
 var lastID atomic.Int64

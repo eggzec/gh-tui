@@ -167,9 +167,10 @@ func TestPaneFocus(t *testing.T) {
 		want paneID
 	}{
 		{"tab", workPane},
-		{"tab", inboxPane},
+		{"tab", calendarPane},
 		{"shift+tab", workPane},
-		{"5", calendarPane},
+		{"4", calendarPane},
+		{"5", inboxPane},
 		{"tab", pinnedPane},
 		{"1", pinnedPane},
 		{"2", reposPane},
@@ -388,7 +389,7 @@ func TestWorkMore(t *testing.T) {
 func TestInbox(t *testing.T) {
 	in := &fakeInbox{threads: inboxThreads()}
 	s := newSection(t, newFake(), in, 140, 38)
-	app := press(t, s, "4", "enter")
+	app := press(t, s, "5", "enter")
 	if !slices.Contains(app, tea.Msg(ui.ShowMsg{Title: ui.NotificationsTitle})) {
 		t.Errorf("enter on the notifications sent %v", app)
 	}
