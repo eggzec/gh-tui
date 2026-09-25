@@ -116,3 +116,36 @@ func TestOpenActionsMsgOpensTheRunsOfAnyRepo(t *testing.T) {
 		t.Errorf("opened %v with %v, want the failed runs of the branch of %s", a.opened, a.filters, other)
 	}
 }
+
+func TestOpenReleaseMsgOpensTheRelease(t *testing.T) {
+	type opened struct {
+		repo core.RepoRef
+		id   int64
+		url  string
+	}
+	var got []opened
+	mod := &fakeModal{title: "v3.0.0 · charmbracelet/glow"}
+	loads := 0
+	open := func(_ context.Context, repo core.RepoRef, id int64, url string) (ui.Modal, tea.Cmd) {
+		got = append(got, opened{repo, id, url})
+		return mod, func() tea.Msg { loads++; return nil }
+	}
+	msg := ui.OpenReleaseMsg{Repo: core.RepoRef{Owner: "charmbracelet", Name: "glow"}, ID: 368759772, URL: "https://github.com/charmbracelet/glow/releases"}
+
+	m, _ := newTestApp(t)
+	m.Update(msg)
+	if m.topModal() != nil {
+		t.Error("a release opened without a release modal")
+	}
+
+	m, _ = newTestApp(t, WithRelease(open))
+	run(m, m.key(press("n")))
+	_, cmd := m.Update(msg)
+	run(m, cmd)
+	if m.topModal() != mod || loads != 1 || len(got) != 1 || got[0] != (opened{msg.Repo, msg.ID, msg.URL}) {
+		t.Errorf("opened %v and loaded %d times, want the release of the message loaded once", got, loads)
+	}
+	if mod.width == 0 || !mod.themed {
+		t.Error("the modal wasn't sized and themed before it was drawn")
+	}
+}

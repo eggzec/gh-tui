@@ -89,6 +89,8 @@ type Model struct {
 	// Actions modal.
 	history History
 	actions Actions
+	// release opens the modal of a release.
+	release Release
 	// warnings are shown as toasts once the app starts.
 	warnings []string
 }
@@ -155,6 +157,17 @@ type Actions func(ctx context.Context, repo core.RepoRef, f core.RunFilter) (ui.
 // Without it the key does nothing.
 func WithActions(open Actions) Option {
 	return func(m *Model) { m.actions = open }
+}
+
+// Release returns the modal that shows release id of repo, and the command
+// that loads it once it is open. url is the page to open on GitHub until
+// the release is read.
+type Release func(ctx context.Context, repo core.RepoRef, id int64, url string) (ui.Modal, tea.Cmd)
+
+// WithRelease sets the function that opens a release, which a
+// ui.OpenReleaseMsg asks for. Without it the message does nothing.
+func WithRelease(open Release) Option {
+	return func(m *Model) { m.release = open }
 }
 
 // WithBrowser sets the function that opens a URL in the browser.

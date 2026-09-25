@@ -74,6 +74,20 @@ func (m *Model) openActionsOn(repo core.RepoRef, f core.RunFilter) tea.Cmd {
 	return load
 }
 
+// openRelease opens the release of msg, if the app has a release modal,
+// on any screen.
+func (m *Model) openRelease(msg ui.OpenReleaseMsg) tea.Cmd {
+	if m.release == nil || msg.Repo == (core.RepoRef{}) {
+		return nil
+	}
+	mod, load := m.release(m.ctx, msg.Repo, msg.ID, msg.URL)
+	if mod == nil {
+		return nil
+	}
+	m.openModal(mod)
+	return load
+}
+
 // canOpenActions reports whether the actions key does something.
 func (m *Model) canOpenActions() bool {
 	return m.actions != nil && m.screen == repoScreen && m.repo != (core.RepoRef{})

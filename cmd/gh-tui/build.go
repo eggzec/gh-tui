@@ -19,6 +19,7 @@ import (
 	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
 	notifsvc "github.com/eggzec/gh-tui/internal/service/notifications"
 	pullsvc "github.com/eggzec/gh-tui/internal/service/pulls"
+	releasesvc "github.com/eggzec/gh-tui/internal/service/releases"
 	reposvc "github.com/eggzec/gh-tui/internal/service/repos"
 	searchsvc "github.com/eggzec/gh-tui/internal/service/search"
 	"github.com/eggzec/gh-tui/internal/tui"
@@ -30,6 +31,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/issues"
 	"github.com/eggzec/gh-tui/internal/tui/notifications"
 	"github.com/eggzec/gh-tui/internal/tui/pulls"
+	"github.com/eggzec/gh-tui/internal/tui/releases"
 	searchpage "github.com/eggzec/gh-tui/internal/tui/search"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/watch"
@@ -80,6 +82,9 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 	}
 	historySvc := historysvc.New(client, historySvcOpts...)
 	actionSvc := actionssvc.New(client, actionssvc.WithTTL(ttl), actionssvc.WithStore(entries))
+	// A release seldom changes once published, so it keeps the service's
+	// long TTL.
+	releaseSvc := releasesvc.New(client, releasesvc.WithStore(entries))
 	// Search results keep the search service's own short TTL.
 	searchSvc := searchsvc.New(client)
 	// The filters of the pull requests and issues offer the labels,
@@ -150,6 +155,7 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 		tui.WithRepoInfo(repoSvc.Get),
 		tui.WithHistory(history.Opener(historySvc, cfg.Keys,
 			history.WithConfig(cfg.History), history.WithOffline(offline))),
+		tui.WithRelease(releases.Opener(releaseSvc, cfg.Keys)),
 	}
 	if repo != (core.RepoRef{}) {
 		opts = append(opts, tui.WithRepo(repo))
