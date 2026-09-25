@@ -4,6 +4,7 @@ import (
 	"charm.land/bubbles/v2/key"
 
 	"github.com/eggzec/gh-tui/internal/tui/jobview"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
 // helpKeys lists the keys of the focused pane, named for what they do
@@ -79,12 +80,13 @@ func (h helpKeys) changes() []key.Binding {
 	if !m.hasRun {
 		return nil
 	}
+	g := m.gate()
 	if !m.run.Done() {
-		return []key.Binding{k.Cancel, k.Filter, k.Open}
+		return []key.Binding{g.Gated(k.Cancel, ui.ActCancelRun, nil), k.Filter, k.Open}
 	}
-	out := []key.Binding{k.RerunFailed, k.Rerun}
+	out := []key.Binding{g.Gated(k.RerunFailed, ui.ActRerun, nil), g.Gated(k.Rerun, ui.ActRerun, nil)}
 	if m.focus != runsPane {
-		out = append(out, k.RerunJob)
+		out = append(out, g.Gated(k.RerunJob, ui.ActRerun, nil))
 	}
 	return append(out, k.Filter, k.Open)
 }

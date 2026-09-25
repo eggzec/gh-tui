@@ -22,18 +22,22 @@ type confirm struct {
 	start func() *optimistic.Op
 }
 
-// askRerunFailed asks to re-run the failed jobs of the run shown.
-func (m *Modal) askRerunFailed() {
+// askRerunFailed asks to re-run the failed jobs of the run shown, or
+// returns what tells the user they may not.
+func (m *Modal) askRerunFailed() tea.Cmd {
 	r, ok := m.doneRun()
 	if !ok {
-		return
+		return nil
+	}
+	if cmd, refused := m.gate().Refuse(ui.ActRerun, nil); refused {
+		return cmd
 	}
 	jobs := "the failed jobs"
 	if m.jobs.loaded && m.jobs.runID == r.ID {
 		switch n := jobview.FailedJobs(m.jobs.items); n {
 		case 0:
 			m.notice = jobview.RunName(r) + " has no failed jobs to re-run."
-			return
+			return nil
 		case 1:
 			jobs = "1 failed job"
 		default:
@@ -46,13 +50,18 @@ func (m *Modal) askRerunFailed() {
 		what:     "re-run the failed jobs of " + jobview.RunName(r),
 		start:    func() *optimistic.Op { return svc.RerunFailedJobs(repo, id) },
 	}
+	return nil
 }
 
-// askRerun asks to re-run every job of the run shown.
-func (m *Modal) askRerun() {
+// askRerun asks to re-run every job of the run shown, or returns what
+// tells the user they may not.
+func (m *Modal) askRerun() tea.Cmd {
 	r, ok := m.doneRun()
 	if !ok {
-		return
+		return nil
+	}
+	if cmd, refused := m.gate().Refuse(ui.ActRerun, nil); refused {
+		return cmd
 	}
 	svc, repo, id := m.svc, m.repo, r.ID
 	m.ask = &confirm{
@@ -60,18 +69,23 @@ func (m *Modal) askRerun() {
 		what:     "re-run " + jobview.RunName(r),
 		start:    func() *optimistic.Op { return svc.RerunRun(repo, id) },
 	}
+	return nil
 }
 
-// askRerunJob asks to re-run the job under the cursor of the jobs.
-func (m *Modal) askRerunJob() {
+// askRerunJob asks to re-run the job under the cursor of the jobs, or
+// returns what tells the user they may not.
+func (m *Modal) askRerunJob() tea.Cmd {
 	r, ok := m.doneRun()
 	if !ok {
-		return
+		return nil
 	}
 	j, ok := m.jobs.selected()
 	if !ok || m.jobs.runID != r.ID {
 		m.notice = "Pick a job to re-run."
-		return
+		return nil
+	}
+	if cmd, refused := m.gate().Refuse(ui.ActRerun, nil); refused {
+		return cmd
 	}
 	svc, repo, runID, jobID := m.svc, m.repo, r.ID, j.ID
 	m.ask = &confirm{
@@ -79,17 +93,22 @@ func (m *Modal) askRerunJob() {
 		what:     "re-run " + ui.OneLine(j.Name),
 		start:    func() *optimistic.Op { return svc.RerunJob(repo, runID, jobID) },
 	}
+	return nil
 }
 
-// askCancel asks to cancel the run shown.
-func (m *Modal) askCancel() {
+// askCancel asks to cancel the run shown, or returns what tells the user
+// they may not.
+func (m *Modal) askCancel() tea.Cmd {
 	if !m.hasRun {
-		return
+		return nil
 	}
 	r := m.run
 	if r.Done() || r.Status == core.RunCancelling {
 		m.notice = jobview.RunName(r) + " isn't running."
-		return
+		return nil
+	}
+	if cmd, refused := m.gate().Refuse(ui.ActCancelRun, nil); refused {
+		return cmd
 	}
 	svc, repo, id := m.svc, m.repo, r.ID
 	m.ask = &confirm{
@@ -97,6 +116,12 @@ func (m *Modal) askCancel() {
 		what:     "cancel " + jobview.RunName(r),
 		start:    func() *optimistic.Op { return svc.CancelRun(repo, id) },
 	}
+	return nil
+}
+
+// gate decides what the viewer may do in the repository.
+func (m *Modal) gate() ui.Gate {
+	return ui.Gate{Repo: m.repo, Caps: m.caps}
 }
 
 // doneRun returns the run shown, if it completed, as a re-run needs.

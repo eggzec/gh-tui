@@ -48,6 +48,11 @@ func (m *Modal) update(msg tea.Msg) tea.Cmd {
 		return m.ticked()
 	case ui.SyncMsg:
 		return m.synced(msg)
+	case ui.CapsMsg:
+		if msg.Repo == m.repo {
+			m.caps = msg.Caps
+		}
+		return nil
 	case ui.ReopenedMsg:
 		if msg.Modal != m {
 			return nil
@@ -147,17 +152,13 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 	case key.Matches(msg, k.Open):
 		return m.open()
 	case key.Matches(msg, k.RerunFailed):
-		m.askRerunFailed()
-		return nil
+		return m.askRerunFailed()
 	case key.Matches(msg, k.Rerun):
-		m.askRerun()
-		return nil
+		return m.askRerun()
 	case key.Matches(msg, k.RerunJob) && m.focus != runsPane:
-		m.askRerunJob()
-		return nil
+		return m.askRerunJob()
 	case key.Matches(msg, k.Cancel):
-		m.askCancel()
-		return nil
+		return m.askCancel()
 	case key.Matches(msg, k.Refresh):
 		return m.refresh()
 	case key.Matches(msg, k.Back):

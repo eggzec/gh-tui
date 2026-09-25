@@ -65,6 +65,8 @@ type Modal struct {
 	repo   core.RepoRef
 	keys   KeyMap
 	opts   options
+	// caps is what the viewer may do in repo, as far as it is known.
+	caps core.RepoCaps
 
 	focus pane
 	zoom  bool
@@ -148,14 +150,19 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, keys map[string][]
 		jobview.WithIcons(o.icons), jobview.WithRest(o.rest), jobview.WithClock(o.now), jobview.WithReturn(m))
 	m.SetTheme(ui.NewTheme(p, true))
 	m.filter = o.filter
+	m.caps = ui.CachedCaps(o.repos, repo)
 	m.runs = m.newRuns()
 	m.setFocus(runsPane)
 	return m
 }
 
-// Init reads the first runs.
+// Init reads the first runs, and what the viewer may do in the repository
+// unless it is known.
 func (m *Modal) Init() tea.Cmd {
-	return m.runs.Init()
+	if m.caps.Known {
+		return m.runs.Init()
+	}
+	return tea.Batch(m.runs.Init(), ui.LoadCaps(m.ctx, m.opts.repos, m.repo))
 }
 
 // Title names the repository.
