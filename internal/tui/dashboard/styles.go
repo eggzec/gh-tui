@@ -16,8 +16,10 @@ type styles struct {
 	name, login, text, muted, subtle paint
 	accent, success, warning, fail   paint
 	selected                         paint
-	// states color the glyphs of the states of issues and pull requests.
+	// states color the glyphs of the states of issues and pull requests,
+	// and langs those of languages, by name and color, as they are met.
 	states [ui.NumStates]paint
+	langs  map[string]paint
 
 	// cursor and blurred mark the selected row or card, while the pane is
 	// focused and while it isn't.
@@ -32,6 +34,7 @@ func newStyles(t ui.Theme) styles {
 	}
 	return styles{
 		states:     states,
+		langs:      map[string]paint{},
 		edge:       newPaint(border),
 		focusEdge:  newPaint(t.Accent),
 		title:      newPaint(t.Muted),

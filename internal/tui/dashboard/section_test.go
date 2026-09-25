@@ -10,6 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/notifications"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
@@ -24,7 +25,7 @@ func TestInitLoadsEverything(t *testing.T) {
 	view := screen(s)
 	for _, want := range []string{
 		"Mona Lisa Octocat @octocat", "1.2k followers", "3 unread",
-		"⌂ here", "spoon-knife", "Yours", "github", "charmbracelet",
+		ui.NewIcons(config.IconsNerd).Here, "spoon-knife", "Yours", "github", "charmbracelet",
 		"repo-000", "Review requests 3", "bubbletea#1402", "Your pull requests 2",
 		"Render only the cells that changed", "contributions in the last year",
 	} {

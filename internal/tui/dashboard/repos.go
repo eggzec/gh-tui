@@ -29,6 +29,9 @@ type owner struct {
 	feed  feed.Model[core.Repo]
 	// started is set once the feed has fetched its first page.
 	started bool
+	// measure sizes cols, the columns of the list.
+	measure repoMeasure
+	cols    repoCols
 
 	// all holds what the filter searches: the pages read in a row from the
 	// first, up to dashboard.MaxOwnerRepos. next is the cursor after them,
@@ -93,7 +96,8 @@ func (t *repoTabs) newOwner(label string, q dashboard.ReposQuery) *owner {
 		empty = label + " has no repository you can see."
 	}
 	o := &owner{label: label, q: q}
-	o.feed = feed.New(ui.FeedPages("dashboard.repos", s.offline, read), t.renderRepo,
+	render := func(r core.Repo, selected bool, _ int) string { return s.renderRepo(o.cols, r, selected) }
+	o.feed = feed.New(ui.FeedPages("dashboard.repos", s.offline, read), render,
 		feed.WithContext(s.ctx),
 		feed.WithKey(func(r core.Repo) string { return r.Ref.String() }),
 		feed.WithKeyMap(s.keys.feed),
@@ -102,6 +106,38 @@ func (t *repoTabs) newOwner(label string, q dashboard.ReposQuery) *owner {
 	)
 	return o
 }
+
+// listTop is how many lines the tabs and the headers of the columns take
+// above the list.
+const listTop = 2
+
+// remeasure measures the repositories of o read since it last did, and
+// lays the columns out again if they need more room.
+func (t *repoTabs) remeasure(o *owner) {
+	n := o.feed.Len()
+	if n == o.measure.seen {
+		return
+	}
+	m := o.measure
+	for i := range n {
+		if r, ok := o.feed.Item(i); ok {
+			m.add(r, t.s.icons)
+		}
+	}
+	m.seen = n
+	if m != o.measure {
+		o.measure = m
+		t.layout(o)
+	}
+}
+
+// layout fits the columns of o in the list, inside the cursor's gutter.
+func (t *repoTabs) layout(o *owner) {
+	o.cols = layoutCols(max(t.width-gutterWidth, 0), o.measure, t.s.icons.Star)
+}
+
+// gutterWidth is the room the list leaves for its cursor.
+const gutterWidth = 2
 
 // current returns the tab on view.
 func (t *repoTabs) current() *owner { return t.tabs[t.cur] }
@@ -122,7 +158,8 @@ func (t *repoTabs) setOrgs(orgs []core.Org, login string) {
 			continue
 		}
 		o := t.newOwner(org.Login, dashboard.ReposQuery{Owner: org.Login})
-		o.feed.SetSize(t.width, max(t.height-1, 0))
+		o.feed.SetSize(t.width, max(t.height-listTop, 0))
+		t.layout(o)
 		tabs = append(tabs, o)
 	}
 	t.tabs = tabs
@@ -184,7 +221,8 @@ func (t *repoTabs) blur() {
 func (t *repoTabs) resize(width, height int) {
 	t.width, t.height = width, height
 	for _, o := range t.tabs {
-		o.feed.SetSize(width, max(height-1, 0))
+		o.feed.SetSize(width, max(height-listTop, 0))
+		t.layout(o)
 	}
 	if t.filtering {
 		t.picker.SetSize(width, max(height-1, 0))
@@ -229,6 +267,7 @@ func (t *repoTabs) update(msg tea.Msg) tea.Cmd {
 		var cmd tea.Cmd
 		o.feed, cmd = o.feed.Update(msg)
 		cmds = append(cmds, cmd)
+		t.remeasure(o)
 	}
 	if t.filtering {
 		var cmd tea.Cmd
