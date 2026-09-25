@@ -11,6 +11,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
+	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
 	dashsvc "github.com/eggzec/gh-tui/internal/service/dashboard"
 	filesvc "github.com/eggzec/gh-tui/internal/service/files"
 	historysvc "github.com/eggzec/gh-tui/internal/service/history"
@@ -20,6 +21,7 @@ import (
 	reposvc "github.com/eggzec/gh-tui/internal/service/repos"
 	searchsvc "github.com/eggzec/gh-tui/internal/service/search"
 	"github.com/eggzec/gh-tui/internal/tui"
+	"github.com/eggzec/gh-tui/internal/tui/actions"
 	"github.com/eggzec/gh-tui/internal/tui/dashboard"
 	"github.com/eggzec/gh-tui/internal/tui/files"
 	"github.com/eggzec/gh-tui/internal/tui/history"
@@ -75,6 +77,7 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 		historySvcOpts = append(historySvcOpts, historysvc.WithObjects(store))
 	}
 	historySvc := historysvc.New(client, historySvcOpts...)
+	actionSvc := actionssvc.New(client, actionssvc.WithTTL(ttl), actionssvc.WithStore(entries))
 	// Search results keep the search service's own short TTL.
 	searchSvc := searchsvc.New(client)
 
@@ -137,6 +140,14 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 	// The sync engine delivers the changes that its polls find, and those
 	// that the revalidator finds, through one subscription.
 	engine := watch.New(watch.WithInterval(cfg.Sync.Interval))
+	actionOpts := []actions.Option{
+		actions.WithOffline(offline), actions.WithIcons(icons),
+		actions.WithViewer(viewerLogin(dashSvc.CachedHeader, dashSvc.Header)),
+	}
+	if cfg.Sync.Enabled {
+		actionOpts = append(actionOpts, actions.WithFollow(followRuns(engine.Subscribe, engine.Refresh, actionSvc.Poll)))
+	}
+	opts = append(opts, tui.WithActions(actions.Opener(actionSvc, cfg.Keys, actionOpts...)))
 	var (
 		activity []func(bool)
 		watchers []func(core.RepoRef)
@@ -151,7 +162,7 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 		watchers = append(watchers, repoPolls.set)
 	}
 	if store != nil {
-		if r := newRevalidator(cfg.Cache, engine.Publish, issueSvc.Kept, notifSvc.Kept, fileSvc.Kept, historySvc.Kept); r != nil {
+		if r := newRevalidator(cfg.Cache, engine.Publish, issueSvc.Kept, notifSvc.Kept, fileSvc.Kept, historySvc.Kept, actionSvc.Kept); r != nil {
 			go func() { _ = r.Run(ctx) }()
 			activity = append(activity, r.SetActive)
 			watchers = append(watchers, r.SetRepo)
