@@ -118,3 +118,16 @@ func (c RepoCaps) MergeMethod(preferred MergeMethod) (MergeMethod, bool) {
 	}
 	return allowed[0], true
 }
+
+// ItemCaps is what the viewer may do to an issue or pull request, as
+// GitHub said when it was read. Known is unset when the read didn't say,
+// as the REST reads of issues don't; the caps of the repository decide
+// then.
+type ItemCaps struct {
+	Known bool
+	// Update is editing it, which covers converting a pull request to a
+	// draft, Close and Reopen changing its state, and Label its labels.
+	Update, Close, Reopen, Label bool
+	// Authored is set when the viewer opened it.
+	Authored bool
+}

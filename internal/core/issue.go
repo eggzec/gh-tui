@@ -49,6 +49,8 @@ type Label struct {
 }
 
 // Issue is a GitHub issue. ID is the GraphQL node ID used by mutations.
+// A Locked issue takes comments only from collaborators; LockReason says
+// why, such as "too_heated", or is empty.
 type Issue struct {
 	ID     string
 	Repo   RepoRef
@@ -65,6 +67,11 @@ type Issue struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	URL       string
+
+	Locked     bool
+	LockReason string
+	// Caps are what the viewer may do to it, when the read said.
+	Caps ItemCaps
 }
 
 // Comment is a comment on an issue or pull request.

@@ -32,6 +32,10 @@ type restIssue struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 	HTMLURL     string    `json:"html_url"`
 	PullRequest *struct{} `json:"pull_request"`
+	// REST says nothing of what the viewer may do, only whether the
+	// issue is locked.
+	Locked           bool   `json:"locked"`
+	ActiveLockReason string `json:"active_lock_reason"`
 }
 
 func (i restIssue) core(repo core.RepoRef) core.Issue {
@@ -50,6 +54,9 @@ func (i restIssue) core(repo core.RepoRef) core.Issue {
 		CreatedAt: i.CreatedAt,
 		UpdatedAt: i.UpdatedAt,
 		URL:       i.HTMLURL,
+
+		Locked:     i.Locked,
+		LockReason: i.ActiveLockReason,
 	}
 }
 

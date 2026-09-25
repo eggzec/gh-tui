@@ -88,7 +88,7 @@ const (
 	kindList     = "pulllist"
 	kindDetail   = "pull"
 	kindComments = "pullcomments"
-	schema       = 1
+	schema       = 2
 )
 
 // offlineAt is when an entry served offline was fetched, as far as the

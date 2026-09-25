@@ -63,3 +63,27 @@ type repoLanguage struct {
 	Name  string `json:"name"`
 	Color string `json:"color"`
 }
+
+// viewerCaps is what GitHub says the viewer may do to an issue or pull
+// request, and whether it is locked, as GraphQL reads them.
+type viewerCaps struct {
+	Locked bool `json:"locked"`
+	// ActiveLockReason is null for a conversation locked without one.
+	ActiveLockReason string `json:"activeLockReason"`
+	ViewerCanUpdate  bool   `json:"viewerCanUpdate"`
+	ViewerCanClose   bool   `json:"viewerCanClose"`
+	ViewerCanReopen  bool   `json:"viewerCanReopen"`
+	ViewerCanLabel   bool   `json:"viewerCanLabel"`
+	ViewerDidAuthor  bool   `json:"viewerDidAuthor"`
+}
+
+func (v viewerCaps) core() core.ItemCaps {
+	return core.ItemCaps{
+		Known:    true,
+		Update:   v.ViewerCanUpdate,
+		Close:    v.ViewerCanClose,
+		Reopen:   v.ViewerCanReopen,
+		Label:    v.ViewerCanLabel,
+		Authored: v.ViewerDidAuthor,
+	}
+}

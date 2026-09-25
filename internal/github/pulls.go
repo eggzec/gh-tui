@@ -49,6 +49,13 @@ var pullFields = fmt.Sprintf(`fragment pullFields on PullRequest {
   deletions
   changedFiles
   commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
+  locked
+  activeLockReason
+  viewerCanUpdate
+  viewerCanClose
+  viewerCanReopen
+  viewerCanLabel
+  viewerDidAuthor
 }`, pullLabels, pullAssignees)
 
 var listPullsQuery = `query ListPulls($owner: String!, $name: String!, $states: [PullRequestState!], $labels: [String!],
@@ -118,6 +125,7 @@ type pull struct {
 			} `json:"statusCheckRollup"`
 		} `json:"commit"`
 	}] `json:"commits"`
+	viewerCaps
 }
 
 func (p pull) core() core.PullRequest {
@@ -142,6 +150,7 @@ func (p pull) core() core.PullRequest {
 		ChangedFiles:   p.ChangedFiles,
 		MergedAt:       p.MergedAt,
 	}
+	pr.Locked, pr.LockReason, pr.Caps = p.Locked, strings.ToLower(p.ActiveLockReason), p.viewerCaps.core()
 	if p.Author != nil {
 		pr.Author = p.Author.core()
 	}
