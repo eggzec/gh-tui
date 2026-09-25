@@ -31,25 +31,52 @@ func (k keyMap) isChange(msg tea.KeyPressMsg) bool {
 	return key.Matches(msg, k.Merge, k.Close, k.Reopen, k.ToggleDraft)
 }
 
-// change starts the change that msg asks of pr in repo: the service shows
-// it in the cache at once and returns the op that sends it, named by what.
-// When the change doesn't apply, op is nil, and warn may explain why.
-func (k keyMap) change(svc Service, method core.MergeMethod, repo core.RepoRef, pr core.PullRequest, msg tea.KeyPressMsg) (op *optimistic.Op, what string, warn tea.Cmd) {
-	n := "#" + strconv.Itoa(pr.Number)
+// action returns the change that msg asks of pr, if it applies to the
+// state of pr. Close and reopen may share a key, which then toggles.
+func (k keyMap) action(pr core.PullRequest, msg tea.KeyPressMsg) (ui.Action, bool) {
 	switch {
-	case key.Matches(msg, k.Merge) && pr.Draft && pr.State == core.StateOpen:
-		return nil, "", ui.Notify(toast.Warning, "Mark "+n+" ready for review before merging it.")
-	case key.Matches(msg, k.Merge) && canMerge(pr):
-		return svc.Merge(repo, pr.Number, method), "merge " + n, nil
-	// Close and reopen may share a key, which then toggles.
+	case key.Matches(msg, k.Merge) && pr.State == core.StateOpen:
+		return ui.ActMerge, true
 	case key.Matches(msg, k.Close) && canClose(pr):
-		return svc.Close(repo, pr.Number), "close " + n, nil
+		return ui.ActClose, true
 	case key.Matches(msg, k.Reopen) && canReopen(pr):
-		return svc.Reopen(repo, pr.Number), "reopen " + n, nil
-	case key.Matches(msg, k.ToggleDraft) && canDraft(pr) && pr.Draft:
-		return svc.MarkReady(repo, pr.Number), "mark " + n + " ready", nil
+		return ui.ActReopen, true
 	case key.Matches(msg, k.ToggleDraft) && canDraft(pr):
-		return svc.ConvertToDraft(repo, pr.Number), "convert " + n + " to draft", nil
+		return ui.ActDraft, true
+	}
+	return 0, false
+}
+
+// change starts the change that msg asks of pr: the service shows it in
+// the cache at once and returns the op that sends it, named by what. When
+// the change doesn't apply, or g refuses it, op is nil, and warn may
+// explain why. A merge uses method, or else one the repository allows.
+func (k keyMap) change(svc Service, g ui.Gate, method core.MergeMethod, pr core.PullRequest, msg tea.KeyPressMsg) (op *optimistic.Op, what string, warn tea.Cmd) {
+	a, ok := k.action(pr, msg)
+	if !ok {
+		return nil, "", nil
+	}
+	if cmd, refused := g.Refuse(a, &pr.Issue); refused {
+		return nil, "", cmd
+	}
+	n := "#" + strconv.Itoa(pr.Number)
+	switch a {
+	case ui.ActMerge:
+		if pr.Draft {
+			return nil, "", ui.Notify(toast.Warning, "Mark "+n+" ready for review before merging it.")
+		}
+		m, _ := g.Caps.MergeMethod(method)
+		return svc.Merge(g.Repo, pr.Number, m), "merge " + n, nil
+	case ui.ActClose:
+		return svc.Close(g.Repo, pr.Number), "close " + n, nil
+	case ui.ActReopen:
+		return svc.Reopen(g.Repo, pr.Number), "reopen " + n, nil
+	case ui.ActDraft:
+		if pr.Draft {
+			return svc.MarkReady(g.Repo, pr.Number), "mark " + n + " ready", nil
+		}
+		return svc.ConvertToDraft(g.Repo, pr.Number), "convert " + n + " to draft", nil
+	case ui.ActComment, ui.ActLabel, ui.ActRerun, ui.ActCancelRun:
 	}
 	return nil, "", nil
 }
@@ -65,7 +92,7 @@ func (s *Section) mutate(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	if !ok {
 		return nil, true
 	}
-	op, what, warn := s.keys.change(s.svc, s.mergeMethod, s.repo, pr, msg)
+	op, what, warn := s.keys.change(s.svc, s.gate(), s.mergeMethod, pr, msg)
 	if op == nil {
 		return warn, true
 	}
@@ -82,8 +109,9 @@ func (s *Section) reload() tea.Cmd {
 }
 
 // changeHelp returns the change keys, enabled when they apply to pr, which
-// ok says there is.
-func (k keyMap) changeHelp(pr core.PullRequest, ok bool) []key.Binding {
+// ok says there is, and g allows them. The merge key names the method
+// when the repository refuses method, the configured one.
+func (k keyMap) changeHelp(g ui.Gate, method core.MergeMethod, pr core.PullRequest, ok bool) []key.Binding {
 	merge, closing, reopen, draft := k.Merge, k.Close, k.Reopen, k.ToggleDraft
 	merge.SetEnabled(merge.Enabled() && ok && canMerge(pr))
 	closing.SetEnabled(closing.Enabled() && ok && canClose(pr))
@@ -92,5 +120,17 @@ func (k keyMap) changeHelp(pr core.PullRequest, ok bool) []key.Binding {
 	if pr.Draft {
 		draft.SetHelp(draft.Help().Key, "mark ready")
 	}
-	return []key.Binding{merge, closing, reopen, draft}
+	if m, allowed := g.Caps.MergeMethod(method); allowed && m != method {
+		merge.SetHelp(merge.Help().Key, "merge ("+string(m)+")")
+	}
+	it := &pr.Issue
+	return []key.Binding{
+		g.Gated(merge, ui.ActMerge, it), g.Gated(closing, ui.ActClose, it),
+		g.Gated(reopen, ui.ActReopen, it), g.Gated(draft, ui.ActDraft, it),
+	}
+}
+
+// gate decides what the viewer may do in the repository of the list.
+func (s *Section) gate() ui.Gate {
+	return ui.Gate{Repo: s.repo, Caps: s.caps}
 }

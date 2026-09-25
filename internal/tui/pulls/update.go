@@ -33,6 +33,11 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 		return s.setRepo(msg.Repo)
 	case ui.SyncMsg:
 		return s.sync(msg)
+	case ui.CapsMsg:
+		if s.hasRepo && msg.Repo == s.repo {
+			s.caps = msg.Caps
+		}
+		return nil
 	case ui.OpenPullMsg:
 		return s.openDetail(msg.Repo, msg.Number, nil, msg.Checks)
 	case changedMsg:
@@ -62,6 +67,7 @@ func (s *Section) setRepo(repo core.RepoRef) tea.Cmd {
 		return nil
 	}
 	s.repo, s.hasRepo = repo, true
+	s.caps = ui.CachedCaps(s.repos, repo)
 	// The rate limit may be another's.
 	s.ahead.Resume()
 	s.others.Reset(s.ctx)

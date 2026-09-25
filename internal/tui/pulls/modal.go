@@ -50,6 +50,8 @@ type detailModal struct {
 
 	repo   core.RepoRef
 	number int
+	// caps is what the viewer may do in repo, as far as it is known.
+	caps core.RepoCaps
 	// detail is what is known of the pull request, and loaded says whether
 	// anything is: a modal opened from the search starts with nothing.
 	detail core.PullRequestDetail
@@ -91,6 +93,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 		sendCtx:     s.ctx,
 		repo:        repo,
 		number:      number,
+		caps:        s.capsOf(repo),
 		ctx:         ctx,
 		cancel:      cancel,
 		st:          s.st,
@@ -101,11 +104,17 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 	if s.checks != nil {
 		svc, keys := s.checks, s.rawKeys
 		opts := append(slices.Clone(s.checksOpts), checks.WithReturn(m), checks.WithIcons(s.icons), checks.WithClock(s.now))
-		m.newChecks = func() *checks.Step { return checks.New(m.sendCtx, svc, repo, number, keys, opts...) }
+		m.newChecks = func() *checks.Step {
+			return checks.New(m.sendCtx, svc, repo, number, keys, append(opts, checks.WithCaps(m.caps))...)
+		}
 	}
 	var step tea.Cmd
 	if onChecks {
 		step = m.openChecks()
+	}
+	if !m.caps.Known {
+		// The app reads those of the selected repository.
+		step = tea.Batch(step, ui.LoadCaps(ctx, s.repos, repo))
 	}
 	svc, q := s.svc, commentsQuery(repo, number)
 	fetch := func(ctx context.Context, cursor string) ([]core.Comment, string, error) {
@@ -141,6 +150,14 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 		loads = append(loads, m.thread.Reload())
 	}
 	return tea.Sequence(ui.OpenModal(m), tea.Batch(loads...))
+}
+
+// capsOf returns what the viewer may do in repo, as far as it is known.
+func (s *Section) capsOf(repo core.RepoRef) core.RepoCaps {
+	if s.hasRepo && repo == s.repo {
+		return s.caps
+	}
+	return ui.CachedCaps(s.repos, repo)
 }
 
 // commentsQuery selects the first page of the comments on pull request
@@ -274,6 +291,11 @@ func (m *detailModal) updateDetail(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		return tea.Batch(m.get(), m.thread.Reload())
+	case ui.CapsMsg:
+		if msg.Repo == m.repo {
+			m.caps = msg.Caps
+		}
+		return nil
 	}
 	var cmd tea.Cmd
 	m.thread, cmd = m.thread.Update(msg)
@@ -301,7 +323,7 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 		if !m.loaded {
 			return nil
 		}
-		op, what, warn := k.change(m.svc, m.mergeMethod, m.repo, m.detail.PullRequest, msg)
+		op, what, warn := k.change(m.svc, m.gate(), m.mergeMethod, m.detail.PullRequest, msg)
 		if op == nil {
 			return warn
 		}
@@ -362,7 +384,7 @@ func (m *detailModal) Help() help.KeyMap {
 		return m.checks.Help()
 	}
 	k, t := m.keys, m.keys.thread
-	changes := k.changeHelp(m.detail.PullRequest, m.loaded)
+	changes := k.changeHelp(m.gate(), m.mergeMethod, m.detail.PullRequest, m.loaded)
 	merge, closing, reopen := changes[0], changes[1], changes[2]
 	return keyHelp{
 		short: []key.Binding{t.Up, t.Down, k.Back, merge, closing, reopen, k.Checks, k.Open},
@@ -373,6 +395,11 @@ func (m *detailModal) Help() help.KeyMap {
 			changes,
 		},
 	}
+}
+
+// gate decides what the viewer may do in the repository.
+func (m *detailModal) gate() ui.Gate {
+	return ui.Gate{Repo: m.repo, Caps: m.caps}
 }
 
 // detailHeader renders the head of the pull request at width: the title,

@@ -5,10 +5,14 @@ import (
 	"strings"
 	"testing"
 
+	"charm.land/bubbles/v2/help"
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/eggzec/gh-tui/internal/core"
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/tui/jobview"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
 func TestGroupsAndSummary(t *testing.T) {
@@ -246,4 +250,40 @@ func TestMessagesOfOtherStepsAreIgnored(t *testing.T) {
 	if !s.loaded || s.err != nil || s.hidden {
 		t.Error("the messages of another step changed this one")
 	}
+}
+
+func TestRerunNeedsWriteAccess(t *testing.T) {
+	read := core.RepoCaps{Known: true, Permission: core.PermissionRead}
+	f := newFake()
+	s, h := newStep(t, f, wideW, wideH, WithCaps(read))
+	h.keys("enter")
+	if got := keysOf(s.Help()); slices.Contains(got, "rerun failed") {
+		t.Errorf("help offers a re-run with read access: %v", got)
+	}
+	h.keys("ctrl+r")
+	want := ui.NotifyMsg{Level: toast.Info, Text: "Re-running needs write access to " + repo.String() + "."}
+	if s.ask != nil || !slices.Contains(h.got, tea.Msg(want)) {
+		t.Errorf("ctrl+r with read access asked %+v and sent %v, want the toast %q", s.ask, h.got, want.Text)
+	}
+
+	// Once the caps say the viewer may write, the re-run is offered.
+	h.send(ui.CapsMsg{Repo: repo, Caps: core.RepoCaps{Known: true, Permission: core.PermissionWrite}})
+	if got := keysOf(s.Help()); !slices.Contains(got, "rerun failed") {
+		t.Errorf("help lacks the re-run with write access: %v", got)
+	}
+	h.keys("ctrl+r", "y")
+	if !slices.Equal(f.sent, []string{"rerun failed"}) {
+		t.Errorf("sent %v, want the re-run", f.sent)
+	}
+}
+
+// keysOf returns what the enabled keys of km do, as help shows them.
+func keysOf(km help.KeyMap) []string {
+	var out []string
+	for _, b := range km.ShortHelp() {
+		if b.Enabled() {
+			out = append(out, b.Help().Desc)
+		}
+	}
+	return out
 }

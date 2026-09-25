@@ -72,10 +72,18 @@ type options struct {
 	watch  Watch
 	follow Follow
 	ret    ui.Modal
+	caps   core.RepoCaps
 	// tick is how often the timers of what runs move on; tests set 0,
 	// which stops them.
 	tick time.Duration
 	now  func() time.Time
+}
+
+// WithCaps sets what the viewer may do in the repository, as far as it is
+// known, which decides whether a re-run is offered. A ui.CapsMsg updates
+// it. The default is unknown, which offers it.
+func WithCaps(c core.RepoCaps) Option {
+	return func(o *options) { o.caps = c }
 }
 
 // WithIcons sets the glyphs of the states of the checks. The default is
