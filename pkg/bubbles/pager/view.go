@@ -126,10 +126,14 @@ func (m Model) writeGutter(b *strings.Builder, i int, first bool, gw int) {
 		return
 	}
 	n := strconv.Itoa(i + 1)
-	b.WriteString(m.esc.number.on)
+	st := m.esc.number
+	if i == m.mark {
+		st = m.esc.current
+	}
+	b.WriteString(st.on)
 	b.WriteString(strings.Repeat(" ", gw-1-len(n)))
 	b.WriteString(n)
-	b.WriteString(m.esc.number.off)
+	b.WriteString(st.off)
 	b.WriteByte(' ')
 }
 
