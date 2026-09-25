@@ -195,7 +195,12 @@ func TestOpen(t *testing.T) {
 		{"repository in the browser", []string{"down", "o"}, []tea.Msg{ui.OpenMsg{URL: "https://github.com/charmbracelet/bubbletea"}}},
 		{"issue", []string{"tab", "down", "enter", "enter"}, []tea.Msg{ui.OpenIssueMsg{Repo: bubbletea, Number: 1203}}},
 		{"pull request", []string{"tab", "down", "down", "enter", "down", "enter"}, []tea.Msg{ui.OpenPullMsg{Repo: bubbletea, Number: 1388}}},
-		{"file", []string{"tab", "down", "down", "down", "enter", "enter"}, []tea.Msg{ui.RepoMsg{Repo: bubbletea}, ui.OpenFileMsg{Repo: bubbletea, Path: "tea.go", SHA: "b1"}}},
+		{"issue's repository", []string{"tab", "down", "enter", "ctrl+o"}, []tea.Msg{ui.RepoMsg{Repo: bubbletea}}},
+		{"pull request's repository", []string{"tab", "down", "down", "enter", "down", "ctrl+o"}, []tea.Msg{ui.RepoMsg{Repo: bubbletea}}},
+		{"repository by the repository key", []string{"down", "ctrl+o"}, []tea.Msg{ui.RepoMsg{Repo: bubbletea}}},
+		// The file opens over the page, on what matched.
+		{"file", []string{"tab", "down", "down", "down", "enter", "enter"}, []tea.Msg{ui.OpenFileMsg{Repo: bubbletea, Path: "tea.go", SHA: "b1", Find: "tea"}}},
+		{"file's repository", []string{"tab", "down", "down", "down", "enter", "ctrl+o"}, []tea.Msg{ui.RepoMsg{Repo: bubbletea}}},
 		{"file in the browser", []string{"tab", "down", "down", "down", "enter", "o"}, []tea.Msg{ui.OpenMsg{URL: "https://github.com/charmbracelet/bubbletea/blob/main/tea.go"}}},
 	}
 	for _, tt := range tests {
@@ -206,6 +211,26 @@ func TestOpen(t *testing.T) {
 				t.Errorf("sent %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestFirstMatch(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		hit  core.CodeHit
+		want string
+	}{
+		{"none", core.CodeHit{}, ""},
+		{"first", core.CodeHit{Fragments: []core.Fragment{{Text: "a Foo b bar", Matches: [][2]int{{2, 5}, {8, 11}}}}}, "Foo"},
+		{"one line", core.CodeHit{Fragments: []core.Fragment{{Text: "x foo\nbar", Matches: [][2]int{{2, 9}}}}}, "foo"},
+		{"skips blank and out of range", core.CodeHit{Fragments: []core.Fragment{
+			{Text: "  ", Matches: [][2]int{{0, 2}, {1, 9}}},
+			{Text: "then", Matches: [][2]int{{0, 4}}},
+		}}, "then"},
+	} {
+		if got := firstMatch(tt.hit); got != tt.want {
+			t.Errorf("%s: firstMatch = %q, want %q", tt.name, got, tt.want)
+		}
 	}
 }
 

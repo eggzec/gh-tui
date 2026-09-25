@@ -25,6 +25,8 @@ type KeyMap struct {
 	Select key.Binding
 	// Open opens the result under the cursor in the browser.
 	Open key.Binding
+	// Repo shows the repository of the result under the cursor.
+	Repo key.Binding
 	// Back goes back to the screen before the search.
 	Back    key.Binding
 	Refresh key.Binding
@@ -43,6 +45,7 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		Prev:    ui.Binding(keys, config.ActionPrevTab, "previous"),
 		Select:  ui.Binding(keys, config.ActionSelect, "open"),
 		Open:    ui.Binding(keys, config.ActionOpen, "browser"),
+		Repo:    ui.Binding(keys, config.ActionGoToRepo, "repo"),
 		Back:    ui.Binding(keys, config.ActionBack, "back"),
 		Refresh: ui.Binding(keys, config.ActionRefresh, "refresh"),
 		Up:      key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("↑/k", "up")),
@@ -50,7 +53,7 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		Left:    key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←/h", "kinds")),
 		Right:   key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "results")),
 	}
-	own := []key.Binding{k.Select, k.Open, k.Refresh, k.Back, k.Next, k.Prev, k.Left, k.Right}
+	own := []key.Binding{k.Select, k.Open, k.Repo, k.Refresh, k.Back, k.Next, k.Prev, k.Left, k.Right}
 	f := feed.DefaultKeyMap()
 	f.PageUp = free(f.PageUp, own)
 	f.PageDown = free(f.PageDown, own)
@@ -123,7 +126,11 @@ func (h helpKeys) ShortHelp() []key.Binding {
 		}
 		return []key.Binding{k.Up, k.Down, sel, k.Next, k.Back}
 	default:
-		return []key.Binding{k.Up, k.Down, k.Select, k.Open, k.Left, k.Back, h.feed.Retry}
+		sel := k.Select
+		if h.kind != core.SearchRepos {
+			sel.SetHelp(sel.Help().Key, "preview")
+		}
+		return []key.Binding{k.Up, k.Down, sel, k.Repo, k.Open, k.Left, k.Back, h.feed.Retry}
 	}
 }
 

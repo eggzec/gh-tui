@@ -2,6 +2,7 @@ package search
 
 import (
 	"slices"
+	"strings"
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
@@ -153,6 +154,8 @@ func (s *Section) pressResults(msg tea.KeyPressMsg) tea.Cmd {
 		return s.open(false)
 	case key.Matches(msg, k.Open):
 		return s.open(true)
+	case key.Matches(msg, k.Repo):
+		return s.goToRepo()
 	case key.Matches(msg, k.Refresh):
 		return s.refresh()
 	}
@@ -192,9 +195,10 @@ func (s *Section) refresh() tea.Cmd {
 	return s.showKind(kind)
 }
 
-// open opens the result under the cursor: a repository on its screen, an
-// issue or pull request in its modal, a file in the preview of its
-// repository. With browser set, it opens it on GitHub instead.
+// open opens the result under the cursor: a repository on its screen,
+// and an issue, pull request or file in a modal over the page, so that
+// closing it comes back to the results. With browser set, it opens it on
+// GitHub instead.
 func (s *Section) open(browser bool) tea.Cmd {
 	if s.text == "" {
 		it, ok := s.starts.selected()
@@ -228,11 +232,58 @@ func (s *Section) open(browser bool) tea.Cmd {
 		if browser {
 			return ui.Open(hit.URL)
 		}
-		// The repository opens first, so the preview opens over it.
-		file := ui.OpenFileMsg{Repo: hit.Repo, Path: hit.Path, SHA: hit.SHA}
-		return tea.Sequence(selectRepo(hit.Repo), func() tea.Msg { return file })
+		file := ui.OpenFileMsg{Repo: hit.Repo, Path: hit.Path, SHA: hit.SHA, Find: firstMatch(hit)}
+		return func() tea.Msg { return file }
 	}
 	return nil
+}
+
+// goToRepo shows the repository of the result under the cursor on its
+// screen.
+func (s *Section) goToRepo() tea.Cmd {
+	if s.text == "" {
+		if it, ok := s.starts.selected(); ok && it.repo != nil {
+			return selectRepo(it.repo.Ref)
+		}
+		return nil
+	}
+	if l, ok := s.visibleHits(); ok {
+		hit, ok := l.feed.Selected()
+		if !ok {
+			return nil
+		}
+		s.remember(s.text)
+		if hit.Kind == core.SearchRepos {
+			return selectRepo(hit.Repo.Ref)
+		}
+		return selectRepo(hit.Issue.Repo)
+	}
+	if l, ok := s.visibleCode(); ok {
+		hit, ok := l.feed.Selected()
+		if !ok {
+			return nil
+		}
+		s.remember(s.text)
+		return selectRepo(hit.Repo)
+	}
+	return nil
+}
+
+// firstMatch returns the text of the first match of hit, on one line,
+// which the preview of the file opens on.
+func firstMatch(hit core.CodeHit) string {
+	for _, f := range hit.Fragments {
+		for _, m := range f.Matches {
+			if m[0] < 0 || m[1] > len(f.Text) || m[0] >= m[1] {
+				continue
+			}
+			text, _, _ := strings.Cut(f.Text[m[0]:m[1]], "\n")
+			if text = strings.TrimSpace(text); text != "" {
+				return text
+			}
+		}
+	}
+	return ""
 }
 
 // focusArea moves the focus to a, and focuses the bubble in it.
