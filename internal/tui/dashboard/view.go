@@ -378,7 +378,7 @@ func (s *Section) card(c card, selected bool, w int) [cardHeight]string {
 	}
 	facts := s.repoFacts(r, inner)
 	if c.here {
-		facts = st.accent.render("⌂ here") + "  " + facts
+		facts = st.accent.render(s.icons.Here) + "  " + facts
 	}
 	out[3] = gutter + ansi.Truncate(facts, inner, "…")
 	for i := range out {
@@ -387,32 +387,18 @@ func (s *Section) card(c card, selected bool, w int) [cardHeight]string {
 	return out
 }
 
-// repoFacts renders the language, stars and marks of r in at most w cells.
+// repoFacts renders the language, stars and flags of r in at most w cells.
 func (s *Section) repoFacts(r core.Repo, w int) string {
 	st := &s.st
 	parts := make([]string, 0, 4)
 	if r.Language != "" {
-		parts = append(parts, st.accent.render("●")+" "+st.text.render(r.Language))
+		parts = append(parts, s.langPaint(r).render(s.icons.Language(r.Language))+" "+st.text.render(r.Language))
 	}
-	parts = append(parts, st.muted.render("★ "+count(r.Stars)))
-	for _, m := range repoMarks(r) {
-		parts = append(parts, st.subtle.render(m))
+	parts = append(parts, st.muted.render(s.icons.Star+" "+count(r.Stars)))
+	if flags := s.icons.Flags(r); len(flags) > 0 {
+		parts = append(parts, st.subtle.render(strings.Join(flags, " ")))
 	}
 	return ansi.Truncate(strings.Join(parts, "  "), w, "…")
-}
-
-func repoMarks(r core.Repo) []string {
-	var marks []string
-	if r.Private {
-		marks = append(marks, "private")
-	}
-	if r.Fork {
-		marks = append(marks, "fork")
-	}
-	if r.Archived {
-		marks = append(marks, "archived")
-	}
-	return marks
 }
 
 // reposBody renders the tabs of the owners above the list or the filter of
@@ -425,7 +411,14 @@ func (s *Section) reposBody(w, h int) []string {
 	if t.filtering {
 		body = t.picker.View()
 	} else {
-		body = t.current().feed.View()
+		o := t.current()
+		// The headers name the columns once there are rows under them.
+		head := ""
+		if o.feed.Len() > 0 {
+			head = strings.Repeat(" ", gutterWidth) + s.st.subtle.render(o.cols.header(s.icons.Star))
+		}
+		lines = append(lines, head)
+		body = o.feed.View()
 	}
 	if body != "" {
 		lines = append(lines, strings.Split(body, "\n")...)
@@ -434,10 +427,14 @@ func (s *Section) reposBody(w, h int) []string {
 }
 
 // tabsLine renders the tabs of the owners, scrolled to show the one on
-// view, and the progress of the filter on the right.
+// view, and on the right the progress of the filter, or the language of
+// the repository under the cursor, which the list shows as a glyph.
 func (s *Section) tabsLine(w int) string {
 	st, t := &s.st, &s.repos
 	var right string
+	if r, ok := t.selected(); ok && !t.filtering && r.Language != "" {
+		right = s.langPaint(r).render(s.icons.Language(r.Language)) + " " + st.muted.render(r.Language)
+	}
 	if t.filtering {
 		o := t.current()
 		n := strconv.Itoa(len(o.all))
@@ -488,71 +485,6 @@ func tabsWidth(tabs []*owner) int {
 		n += ansi.StringWidth(o.label) + 2
 	}
 	return n
-}
-
-// Widths of the columns at the right of a repository row.
-const (
-	langWidth  = 12
-	starsWidth = 7
-	ageWidth   = 4
-)
-
-// renderRepo renders a repository of the list in width cells: its name
-// and marks, its description, and its language, stars and age.
-func (t *repoTabs) renderRepo(r core.Repo, selected bool, width int) string {
-	s := t.s
-	st := &s.st
-	lang, stars := width >= 60, width >= 44
-	right := ageWidth
-	if lang {
-		right += langWidth + 1
-	}
-	if stars {
-		right += starsWidth + 1
-	}
-	left := max(width-right-1, 0)
-	var b strings.Builder
-	b.Grow(width + 64)
-	name := truncate(r.Ref.Name, left)
-	nameStyle := st.text
-	if selected {
-		nameStyle = st.selected
-	}
-	nameStyle.write(&b, name)
-	used := ansi.StringWidth(name)
-	for _, m := range repoMarks(r) {
-		if used+len(m)+2 > left {
-			break
-		}
-		b.WriteString(" ")
-		st.subtle.write(&b, m)
-		used += len(m) + 1
-	}
-	if d := cleanLine(r.Description); d != "" && used+4 < left {
-		d = truncate(d, left-used-2)
-		b.WriteString("  ")
-		st.muted.write(&b, d)
-		used += 2 + ansi.StringWidth(d)
-	}
-	b.WriteString(strings.Repeat(" ", max(left-used, 0)+1))
-	if lang {
-		l := truncate(r.Language, langWidth)
-		st.muted.write(&b, l)
-		b.WriteString(strings.Repeat(" ", langWidth-ansi.StringWidth(l)+1))
-	}
-	if stars {
-		n := "★ " + count(r.Stars)
-		b.WriteString(strings.Repeat(" ", max(starsWidth-ansi.StringWidth(n), 0)))
-		st.muted.write(&b, n)
-		b.WriteByte(' ')
-	}
-	age := ""
-	if !r.UpdatedAt.IsZero() {
-		age = ui.Ago(r.UpdatedAt, s.now())
-	}
-	b.WriteString(strings.Repeat(" ", max(ageWidth-len(age), 0)))
-	st.subtle.write(&b, age)
-	return b.String()
 }
 
 func (s *Section) workBody(w, h int) []string {
