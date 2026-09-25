@@ -65,7 +65,7 @@ func WithStore(store cache.Store) Option {
 // core.Notification they hold. Bump it when the type changes shape.
 const (
 	kind   = "notifications"
-	schema = 1
+	schema = 2
 )
 
 // New returns a service that reads and writes notifications through api.

@@ -111,7 +111,7 @@ var runTitle = regexp.MustCompile(`^(.+) workflow run (\w+) for (.+) branch$`)
 // subject has no URL, but its title names the branch and how the run
 // ended, which the runs list filters by without another request.
 func runFilter(sub core.Subject) (core.RunFilter, bool) {
-	if sub.Type != "CheckSuite" {
+	if sub.Type != core.SubjectCheckSuite {
 		return core.RunFilter{}, false
 	}
 	m := runTitle.FindStringSubmatch(sub.Title)

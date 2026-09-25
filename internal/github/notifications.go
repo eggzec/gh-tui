@@ -37,46 +37,55 @@ type notification struct {
 }
 
 func (n notification) core() core.Notification {
+	typ := core.SubjectType(n.Subject.Type)
+	sub := parseSubject(n.Repository.HTMLURL, n.Subject.URL, typ, n.Subject.Title)
+	sub.Title, sub.Type, sub.URL = n.Subject.Title, typ, n.Subject.URL
 	return core.Notification{
-		ID:   n.ID,
-		Repo: core.RepoRef{Owner: n.Repository.Owner.Login, Name: n.Repository.Name},
-		Subject: core.Subject{
-			Title:  n.Subject.Title,
-			Type:   core.SubjectType(n.Subject.Type),
-			URL:    n.Subject.URL,
-			WebURL: subjectWebURL(n.Repository.HTMLURL, n.Subject.URL, core.SubjectType(n.Subject.Type)),
-		},
+		ID:        n.ID,
+		Repo:      core.RepoRef{Owner: n.Repository.Owner.Login, Name: n.Repository.Name},
+		Subject:   sub,
 		Reason:    n.Reason,
 		Unread:    n.Unread,
 		UpdatedAt: n.UpdatedAt,
 	}
 }
 
-// subjectWebURL turns a subject's API URL, such as
-// https://api.github.com/repos/o/r/pulls/42, into its page under the
+// parseSubject reads what a subject's API URL, such as
+// https://api.github.com/repos/o/r/pulls/42, names, and its page under the
 // repository's web URL. Building on the repository's URL keeps the right
 // host on GitHub Enterprise Server.
-func subjectWebURL(repoURL, apiURL string, typ core.SubjectType) string {
+func parseSubject(repoURL, apiURL string, typ core.SubjectType, title string) core.Subject {
 	// After "/repos/": owner, name, kind and ID.
 	if _, rest, ok := strings.Cut(apiURL, "/repos/"); ok {
 		if parts := strings.SplitN(rest, "/", 4); len(parts) == 4 {
+			id := parts[3]
+			n, _ := strconv.Atoi(id)
 			switch parts[2] {
 			case "pulls":
-				return repoURL + "/pull/" + parts[3]
+				return core.Subject{Number: n, WebURL: repoURL + "/pull/" + id}
 			case "issues":
-				return repoURL + "/issues/" + parts[3]
+				return core.Subject{Number: n, WebURL: repoURL + "/issues/" + id}
+			case "discussions":
+				return core.Subject{Number: n, WebURL: repoURL + "/discussions/" + id}
 			case "commits":
-				return repoURL + "/commit/" + parts[3]
+				return core.Subject{SHA: id, WebURL: repoURL + "/commit/" + id}
 			case "releases":
-				// The API names releases by ID, which the web doesn't use.
-				return repoURL + "/releases"
+				rid, _ := strconv.ParseInt(id, 10, 64)
+				// The API names releases by ID, which the web doesn't
+				// use.
+				return core.Subject{ReleaseID: rid, WebURL: repoURL + "/releases"}
 			}
 		}
 	}
-	if typ == core.SubjectDiscussion {
-		return repoURL + "/discussions"
+	switch typ {
+	case core.SubjectDiscussion:
+		// GitHub gives a discussion no URL, so its title finds it.
+		return core.Subject{WebURL: repoURL + "/discussions?discussions_q=" + url.QueryEscape(title)}
+	case core.SubjectCheckSuite:
+		return core.Subject{WebURL: repoURL + "/actions"}
+	default:
+		return core.Subject{WebURL: repoURL}
 	}
-	return repoURL
 }
 
 // ListNotifications returns a page of up to perPage of the user's

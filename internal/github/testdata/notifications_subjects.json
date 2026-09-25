@@ -1,0 +1,128 @@
+[
+  {
+    "id": "25789660966",
+    "unread": false,
+    "reason": "author",
+    "updated_at": "2026-09-25T11:18:20Z",
+    "last_read_at": "2026-09-25T11:27:47Z",
+    "subject": {
+      "title": "Bug: Messages jump / scroll position resets on window resize",
+      "url": "https://api.github.com/repos/gammons/slk/issues/238",
+      "latest_comment_url": "https://api.github.com/repos/gammons/slk/issues/238",
+      "type": "Issue"
+    },
+    "repository": {
+      "name": "slk",
+      "full_name": "gammons/slk",
+      "private": false,
+      "owner": {"login": "gammons", "type": "User"},
+      "html_url": "https://github.com/gammons/slk"
+    },
+    "url": "https://api.github.com/notifications/threads/25789660966"
+  },
+  {
+    "id": "25790130605",
+    "unread": false,
+    "reason": "author",
+    "updated_at": "2026-09-25T11:18:19Z",
+    "last_read_at": "2026-09-25T11:26:37Z",
+    "subject": {
+      "title": "fix(ui): preserve scroll position in messages.Model on resize; thread.Model fix partial",
+      "url": "https://api.github.com/repos/gammons/slk/pulls/239",
+      "latest_comment_url": "https://api.github.com/repos/gammons/slk/pulls/239",
+      "type": "PullRequest"
+    },
+    "repository": {
+      "name": "slk",
+      "full_name": "gammons/slk",
+      "private": false,
+      "owner": {"login": "gammons", "type": "User"},
+      "html_url": "https://github.com/gammons/slk"
+    },
+    "url": "https://api.github.com/notifications/threads/25790130605"
+  },
+  {
+    "id": "25867781360",
+    "unread": false,
+    "reason": "ci_activity",
+    "updated_at": "2026-09-24T15:59:26Z",
+    "last_read_at": "2026-09-24T16:51:19Z",
+    "subject": {
+      "title": "ci workflow run failed for feat/search-page branch",
+      "url": null,
+      "latest_comment_url": null,
+      "type": "CheckSuite"
+    },
+    "repository": {
+      "name": "widgets",
+      "full_name": "acme/widgets",
+      "private": true,
+      "owner": {"login": "acme", "type": "Organization"},
+      "html_url": "https://github.com/acme/widgets"
+    },
+    "url": "https://api.github.com/notifications/threads/25867781360"
+  },
+  {
+    "id": "25901234567",
+    "unread": true,
+    "reason": "subscribed",
+    "updated_at": "2026-08-11T18:09:45Z",
+    "last_read_at": null,
+    "subject": {
+      "title": "v3.0.0",
+      "url": "https://api.github.com/repos/charmbracelet/glow/releases/368759772",
+      "latest_comment_url": "https://api.github.com/repos/charmbracelet/glow/releases/368759772",
+      "type": "Release"
+    },
+    "repository": {
+      "name": "glow",
+      "full_name": "charmbracelet/glow",
+      "private": false,
+      "owner": {"login": "charmbracelet", "type": "Organization"},
+      "html_url": "https://github.com/charmbracelet/glow"
+    },
+    "url": "https://api.github.com/notifications/threads/25901234567"
+  },
+  {
+    "id": "25901234568",
+    "unread": true,
+    "reason": "mention",
+    "updated_at": "2026-08-10T09:00:00Z",
+    "last_read_at": null,
+    "subject": {
+      "title": "chore(v3): prepare v3 (#1009)",
+      "url": "https://api.github.com/repos/charmbracelet/glow/commits/7f75d0e5296c2c4baafc5109cf2b1de3491c2cf5",
+      "latest_comment_url": "https://api.github.com/repos/charmbracelet/glow/comments/165432100",
+      "type": "Commit"
+    },
+    "repository": {
+      "name": "glow",
+      "full_name": "charmbracelet/glow",
+      "private": false,
+      "owner": {"login": "charmbracelet", "type": "Organization"},
+      "html_url": "https://github.com/charmbracelet/glow"
+    },
+    "url": "https://api.github.com/notifications/threads/25901234568"
+  },
+  {
+    "id": "25901234569",
+    "unread": true,
+    "reason": "subscribed",
+    "updated_at": "2026-08-09T12:30:00Z",
+    "last_read_at": null,
+    "subject": {
+      "title": "Themes & styles for glow?",
+      "url": null,
+      "latest_comment_url": null,
+      "type": "Discussion"
+    },
+    "repository": {
+      "name": "glow",
+      "full_name": "charmbracelet/glow",
+      "private": false,
+      "owner": {"login": "charmbracelet", "type": "Organization"},
+      "html_url": "https://github.com/charmbracelet/glow"
+    },
+    "url": "https://api.github.com/notifications/threads/25901234569"
+  }
+]

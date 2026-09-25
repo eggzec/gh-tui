@@ -94,7 +94,7 @@ var types = []struct {
 	{"pr", core.SubjectPullRequest, "Pull request"},
 	{"issue", core.SubjectIssue, "Issue"},
 	{"release", core.SubjectRelease, "Release"},
-	{"ci", "CheckSuite", "CI"},
+	{"ci", core.SubjectCheckSuite, "CI"},
 	{"discussion", core.SubjectDiscussion, "Discussion"},
 	{"commit", core.SubjectCommit, "Commit"},
 }

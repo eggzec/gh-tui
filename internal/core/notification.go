@@ -3,7 +3,8 @@ package core
 import "time"
 
 // SubjectType is the kind of thing a notification is about. Types without a
-// constant here, such as CheckSuite, keep the name GitHub gives them.
+// constant here, such as RepositoryVulnerabilityAlert, keep the name GitHub
+// gives them.
 type SubjectType string
 
 // Subject types.
@@ -13,6 +14,8 @@ const (
 	SubjectRelease     SubjectType = "Release"
 	SubjectDiscussion  SubjectType = "Discussion"
 	SubjectCommit      SubjectType = "Commit"
+	// SubjectCheckSuite is a workflow run, whose subject has no URL.
+	SubjectCheckSuite SubjectType = "CheckSuite"
 )
 
 // Subject is what a notification points at.
@@ -26,6 +29,13 @@ type Subject struct {
 	// which page, as for discussions and releases, it is the closest page
 	// of the repository.
 	WebURL string
+	// Number is that of the issue, pull request or discussion, or 0 when
+	// URL doesn't say.
+	Number int
+	// SHA is the commit of a Commit subject.
+	SHA string
+	// ReleaseID is the ID the API names a Release subject by.
+	ReleaseID int64
 }
 
 // Notification is an entry in the user's inbox.
