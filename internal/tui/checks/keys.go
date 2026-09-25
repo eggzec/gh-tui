@@ -144,10 +144,16 @@ func (s *Step) Help() help.KeyMap {
 }
 
 // rerunKey is the re-run key, enabled while the check shown, or the one
-// under the cursor, is of a run of GitHub Actions.
+// under the cursor, is of a run of GitHub Actions, and the viewer may
+// re-run it.
 func (s *Step) rerunKey() key.Binding {
 	b := s.keys.RerunFailed
 	r, ok := s.current()
 	b.SetEnabled(b.Enabled() && ok && r.job())
-	return b
+	return s.gate().Gated(b, ui.ActRerun, nil)
+}
+
+// gate decides what the viewer may do in the repository.
+func (s *Step) gate() ui.Gate {
+	return ui.Gate{Repo: s.q.Repo, Caps: s.opts.caps}
 }

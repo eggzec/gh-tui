@@ -152,7 +152,7 @@ func (s *Section) Help() help.KeyMap {
 	}
 	k, f := s.keys, s.keys.feed
 	pr, ok := s.target()
-	changes := k.changeHelp(pr, ok)
+	changes := k.changeHelp(s.gate(), s.mergeMethod, pr, ok)
 	merge, closing, reopen := changes[0], changes[1], changes[2]
 	k.ClearFilter.SetEnabled(k.ClearFilter.Enabled() && s.query != "")
 	return keyHelp{

@@ -111,7 +111,7 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 	var (
 		pullOpts = []pulls.Option{
 			pulls.WithOffline(offline), pulls.WithIcons(icons), pulls.WithFacets(facetSvc),
-			pulls.WithChecks(actionSvc, checkOpts...),
+			pulls.WithChecks(actionSvc, checkOpts...), pulls.WithRepos(repoSvc),
 		}
 		issueOpts = []issues.Option{issues.WithOffline(offline), issues.WithIcons(icons), issues.WithFacets(facetSvc)}
 	)

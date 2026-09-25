@@ -58,8 +58,12 @@ type Section struct {
 	// configure it. Without checks, the modal has no such step.
 	checks     checks.Service
 	checksOpts []checks.Option
-	// mergeMethod is how merge merges.
+	// mergeMethod is how merge merges, if the repository allows it.
 	mergeMethod core.MergeMethod
+	// repos reads what the viewer may do in the repositories of the
+	// modals, and caps is what they may do in repo, as far as it is known.
+	repos ui.Repos
+	caps  core.RepoCaps
 
 	repo    core.RepoRef
 	hasRepo bool
@@ -112,10 +116,19 @@ func WithClock(now func() time.Time) Option {
 	return func(s *Section) { s.now = now }
 }
 
-// WithMergeMethod sets how pull requests are merged. The default is
-// core.MergeSquash.
+// WithMergeMethod sets how pull requests are merged, in the repositories
+// that allow it; the others merge as the viewer did last, or as they
+// allow. The default is core.MergeSquash.
 func WithMergeMethod(m core.MergeMethod) Option {
 	return func(s *Section) { s.mergeMethod = m }
+}
+
+// WithRepos reads what the viewer may do in the repository of a modal
+// from r, when it isn't the selected one, whose caps the app sends in a
+// ui.CapsMsg. Until they are known, every change is offered, and GitHub
+// refuses what it doesn't allow.
+func WithRepos(r ui.Repos) Option {
+	return func(s *Section) { s.repos = r }
 }
 
 // WithOffline shares off with other sections, so that the user is told once

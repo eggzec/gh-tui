@@ -40,6 +40,11 @@ func (s *Step) Update(msg tea.Msg) tea.Cmd {
 		return s.ticked()
 	case ui.SyncMsg:
 		return s.synced(msg)
+	case ui.CapsMsg:
+		if msg.Repo == s.q.Repo {
+			s.opts.caps = msg.Caps
+		}
+		return nil
 	case ui.DoneMsg:
 		if msg.From != Title {
 			return nil
@@ -131,6 +136,11 @@ func (s *Step) press(msg tea.KeyPressMsg) tea.Cmd {
 	case key.Matches(msg, k.Open):
 		return s.open()
 	case key.Matches(msg, k.RerunFailed):
+		if r, ok := s.current(); ok && r.job() {
+			if cmd, refused := s.gate().Refuse(ui.ActRerun, nil); refused {
+				return cmd
+			}
+		}
 		s.askRerun()
 		return nil
 	}
