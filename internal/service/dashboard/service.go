@@ -48,7 +48,7 @@ const (
 	kindWork          = "dashwork"
 	kindContributions = "dashcontrib"
 	kindRepos         = "ownerrepos"
-	schema            = 2
+	schema            = 3
 )
 
 // New returns a Service that fetches from api.

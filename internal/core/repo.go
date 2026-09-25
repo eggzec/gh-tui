@@ -30,6 +30,8 @@ func (r RepoRef) String() string {
 // Repo is a GitHub repository. ID is the GraphQL node ID. Starred reports
 // whether the viewer has starred it. LanguageColor is the hex color GitHub
 // gives Language, such as "#00ADD8", or empty when the read didn't say.
+// Caps are known only when the repository was read on its own, not in a
+// list.
 type Repo struct {
 	ID            string
 	Ref           RepoRef
@@ -46,4 +48,5 @@ type Repo struct {
 	Mirror        bool
 	UpdatedAt     time.Time
 	URL           string
+	Caps          RepoCaps
 }

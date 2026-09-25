@@ -1,0 +1,40 @@
+{
+  "data": {
+    "repository": {
+      "id": "R_kgDOUVFG4A",
+      "name": "slk",
+      "owner": {
+        "login": "laraibg786"
+      },
+      "description": "A blazingly fast Slack TUI",
+      "defaultBranchRef": {
+        "name": "main"
+      },
+      "primaryLanguage": {
+        "name": "Go",
+        "color": "#00ADD8"
+      },
+      "stargazerCount": 0,
+      "viewerHasStarred": false,
+      "isPrivate": false,
+      "isFork": true,
+      "isArchived": false,
+      "isTemplate": false,
+      "isMirror": false,
+      "updatedAt": "2026-09-23T18:20:49Z",
+      "url": "https://github.com/laraibg786/slk",
+      "viewerPermission": "ADMIN",
+      "isLocked": false,
+      "hasIssuesEnabled": false,
+      "hasPullRequestsEnabled": true,
+      "hasDiscussionsEnabled": false,
+      "hasProjectsEnabled": true,
+      "hasWikiEnabled": true,
+      "mergeCommitAllowed": true,
+      "squashMergeAllowed": true,
+      "rebaseMergeAllowed": true,
+      "autoMergeAllowed": false,
+      "viewerDefaultMergeMethod": "MERGE"
+    }
+  }
+}

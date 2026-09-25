@@ -1,0 +1,40 @@
+{
+  "data": {
+    "repository": {
+      "id": "R_kgDOUm7ulw",
+      "name": "gh-tui",
+      "owner": {
+        "login": "eggzec"
+      },
+      "description": "A GitHub client for the terminal, built with Bubble Tea",
+      "defaultBranchRef": {
+        "name": "main"
+      },
+      "primaryLanguage": {
+        "name": "Go",
+        "color": "#00ADD8"
+      },
+      "stargazerCount": 0,
+      "viewerHasStarred": false,
+      "isPrivate": true,
+      "isFork": false,
+      "isArchived": false,
+      "isTemplate": false,
+      "isMirror": false,
+      "updatedAt": "2026-09-25T13:14:11Z",
+      "url": "https://github.com/eggzec/gh-tui",
+      "viewerPermission": "ADMIN",
+      "isLocked": false,
+      "hasIssuesEnabled": true,
+      "hasPullRequestsEnabled": true,
+      "hasDiscussionsEnabled": false,
+      "hasProjectsEnabled": true,
+      "hasWikiEnabled": false,
+      "mergeCommitAllowed": false,
+      "squashMergeAllowed": false,
+      "rebaseMergeAllowed": true,
+      "autoMergeAllowed": false,
+      "viewerDefaultMergeMethod": "REBASE"
+    }
+  }
+}

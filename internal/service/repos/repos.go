@@ -20,6 +20,11 @@ const DefaultPageSize = 30
 // maxPageSize is the largest page GitHub returns.
 const maxPageSize = 100
 
+// DetailTTL is how long a repository that Get read stays fresh, unless the
+// TTL of the service is longer: what it holds, such as the viewer's
+// permission and the merge methods, seldom changes.
+const DetailTTL = time.Hour
+
 // API is the part of the GitHub client the service uses.
 type API interface {
 	ListRepos(ctx context.Context, first int, after string) (core.Page[core.Repo], error)
@@ -50,16 +55,19 @@ type Service struct {
 	api   API
 	lists *cache.Cache[core.Page[core.Repo]]
 	repos *cache.Cache[core.Repo]
-	// kept holds the list pages an earlier session read, if the service
-	// has a store.
-	kept *cache.Shelf[core.Page[core.Repo]]
+	// kept holds the list pages an earlier session read, and keptRepos
+	// the repositories, if the service has a store.
+	kept      *cache.Shelf[core.Page[core.Repo]]
+	keptRepos *cache.Shelf[core.Repo]
 }
 
-// kind is what the service keeps its list pages as, and schema the version
-// of core.Repo they hold. Bump it when the type changes shape.
+// kind is what the service keeps its list pages as, and kindRepo its
+// repositories; schema is the version of core.Repo they hold. Bump it when
+// the type changes shape.
 const (
-	kind   = "repolist"
-	schema = 2
+	kind     = "repolist"
+	kindRepo = "repo"
+	schema   = 3
 )
 
 // offlineAt is when a page served offline was fetched, as far as the cache
@@ -73,12 +81,12 @@ func New(api API, opts ...Option) *Service {
 	for _, opt := range opts {
 		opt(&o)
 	}
-	copts := []cache.Option{cache.WithTTL(o.ttl), cache.WithCapacity(o.capacity)}
 	return &Service{
-		api:   api,
-		lists: cache.New[core.Page[core.Repo]](copts...),
-		repos: cache.New[core.Repo](copts...),
-		kept:  cache.NewShelf[core.Page[core.Repo]](o.store, kind, schema),
+		api:       api,
+		lists:     cache.New[core.Page[core.Repo]](cache.WithTTL(o.ttl), cache.WithCapacity(o.capacity)),
+		repos:     cache.New[core.Repo](cache.WithTTL(max(o.ttl, DetailTTL)), cache.WithCapacity(o.capacity)),
+		kept:      cache.NewShelf[core.Page[core.Repo]](o.store, kind, schema),
+		keptRepos: cache.NewShelf[core.Repo](o.store, kindRepo, schema),
 	}
 }
 
@@ -138,15 +146,31 @@ func (s *Service) CachedGet(ref core.RepoRef) (core.Repo, bool) {
 	return e.Value, state != cache.Miss
 }
 
-// Get returns one repository. A fresh cached repository is returned without
-// a request.
+// Get returns one repository, with what the viewer may do in it. A fresh
+// cached repository is returned without a request, and so is one that an
+// earlier session kept and fetched within DetailTTL. An older kept one is
+// fetched again, and served if GitHub can't be reached.
 func (s *Service) Get(ctx context.Context, ref core.RepoRef) (core.Repo, error) {
-	e, err := s.repos.Fetch(ctx, repoKey(ref), func(ctx context.Context, _ cache.Entry[core.Repo], _ bool) (cache.Entry[core.Repo], error) {
+	key := repoKey(ref)
+	// A stale kept repository is only what to fall back on, as the header
+	// and the gates read it once and would keep it.
+	s.keptRepos.Warm(s.repos, key)
+	e, err := s.repos.Fetch(ctx, key, func(ctx context.Context, prev cache.Entry[core.Repo], ok bool) (cache.Entry[core.Repo], error) {
 		r, err := s.api.GetRepo(ctx, ref)
-		if err != nil {
+		switch {
+		case ok && github.Unreachable(ctx, err):
+			prev.FetchedAt = offlineAt
+			return prev, nil
+		case err != nil:
+			if github.Refused(err) {
+				s.keptRepos.Delete(key)
+			}
 			return cache.Entry[core.Repo]{}, err
 		}
-		return cache.Entry[core.Repo]{Value: r, Tags: []string{allTag, repoTag(ref)}}, nil
+		e := cache.Entry[core.Repo]{Value: r, Tags: []string{allTag, repoTag(ref)}}
+		// The shelf is only a shortcut, so a failure is ignored.
+		_ = s.keptRepos.Save(key, e)
+		return e, nil
 	})
 	if err != nil {
 		return core.Repo{}, fmt.Errorf("get repo %s: %w", ref, err)

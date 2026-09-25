@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -50,11 +51,29 @@ const listReposQuery = `query ListRepos($first: Int!, $after: String) {
 }
 ` + repoFields
 
+// repoCapsFields selects what core.RepoCaps holds. Only the read of one
+// repository asks for them: they cost nothing, but a list has no use for
+// them.
+const repoCapsFields = `fragment repoCapsFields on Repository {
+  viewerPermission
+  isLocked
+  hasIssuesEnabled
+  hasPullRequestsEnabled
+  hasDiscussionsEnabled
+  hasProjectsEnabled
+  hasWikiEnabled
+  mergeCommitAllowed
+  squashMergeAllowed
+  rebaseMergeAllowed
+  autoMergeAllowed
+  viewerDefaultMergeMethod
+}`
+
 const getRepoQuery = `query GetRepo($owner: String!, $name: String!) {
   ` + rateLimitField + `
-  repository(owner: $owner, name: $name) { ...repoFields }
+  repository(owner: $owner, name: $name) { ...repoFields ...repoCapsFields }
 }
-` + repoFields
+` + repoFields + "\n" + repoCapsFields
 
 type repoNode struct {
 	ID    string `json:"id"`
@@ -103,6 +122,54 @@ func (n repoNode) core() core.Repo {
 	return r
 }
 
+// repoDetail is the JSON shape of the repository in getRepoQuery.
+type repoDetail struct {
+	repoNode
+	// ViewerPermission is null for a GitHub App.
+	ViewerPermission         string `json:"viewerPermission"`
+	IsLocked                 bool   `json:"isLocked"`
+	HasIssuesEnabled         bool   `json:"hasIssuesEnabled"`
+	HasPullRequestsEnabled   bool   `json:"hasPullRequestsEnabled"`
+	HasDiscussionsEnabled    bool   `json:"hasDiscussionsEnabled"`
+	HasProjectsEnabled       bool   `json:"hasProjectsEnabled"`
+	HasWikiEnabled           bool   `json:"hasWikiEnabled"`
+	MergeCommitAllowed       bool   `json:"mergeCommitAllowed"`
+	SquashMergeAllowed       bool   `json:"squashMergeAllowed"`
+	RebaseMergeAllowed       bool   `json:"rebaseMergeAllowed"`
+	AutoMergeAllowed         bool   `json:"autoMergeAllowed"`
+	ViewerDefaultMergeMethod string `json:"viewerDefaultMergeMethod"`
+}
+
+func (d repoDetail) core() core.Repo {
+	r := d.repoNode.core()
+	r.Caps = core.RepoCaps{
+		Known:        true,
+		Permission:   permission(d.ViewerPermission),
+		Archived:     d.IsArchived,
+		Locked:       d.IsLocked,
+		Issues:       d.HasIssuesEnabled,
+		PullRequests: d.HasPullRequestsEnabled,
+		Discussions:  d.HasDiscussionsEnabled,
+		Projects:     d.HasProjectsEnabled,
+		Wiki:         d.HasWikiEnabled,
+		MergeCommit:  d.MergeCommitAllowed,
+		Squash:       d.SquashMergeAllowed,
+		Rebase:       d.RebaseMergeAllowed,
+		AutoMerge:    d.AutoMergeAllowed,
+		DefaultMerge: core.MergeMethod(strings.ToLower(d.ViewerDefaultMergeMethod)),
+	}
+	return r
+}
+
+// permission maps a GraphQL RepositoryPermission. TRIAGE_PLUS is triage
+// with a little more, which counts as triage here.
+func permission(s string) core.Permission {
+	if s == "TRIAGE_PLUS" {
+		return core.PermissionTriage
+	}
+	return core.Permission(strings.ToLower(s))
+}
+
 // ListRepos returns a page of up to first repositories that the viewer owns,
 // collaborates on or can access as an organization member, most recently
 // updated first. After is the Next cursor of the previous page, or empty for
@@ -130,12 +197,12 @@ func (c *Client) ListRepos(ctx context.Context, first int, after string) (core.P
 	}, nil
 }
 
-// GetRepo returns one repository. It returns an error matching
-// core.ErrNotFound if the repository doesn't exist or the viewer can't see
-// it.
+// GetRepo returns one repository with what the viewer may do in it. It
+// returns an error matching core.ErrNotFound if the repository doesn't
+// exist or the viewer can't see it.
 func (c *Client) GetRepo(ctx context.Context, ref core.RepoRef) (core.Repo, error) {
 	var data struct {
-		Repository *repoNode `json:"repository"`
+		Repository *repoDetail `json:"repository"`
 	}
 	vars := map[string]any{"owner": ref.Owner, "name": ref.Name}
 	if err := c.Query(ctx, getRepoQuery, vars, &data); err != nil {
