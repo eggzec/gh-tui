@@ -62,3 +62,27 @@ func TestPageLast(t *testing.T) {
 		t.Error("non-empty Next should not be last")
 	}
 }
+
+func TestChecksCount(t *testing.T) {
+	c := Checks{
+		Runs: []Check{
+			{Status: RunCompleted, Conclusion: ConclusionSuccess},
+			{Status: RunCompleted, Conclusion: ConclusionSkipped},
+			{Status: RunCompleted, Conclusion: ConclusionFailure},
+			{Status: RunCompleted, Conclusion: ConclusionCancelled},
+			{Status: RunCompleted, Conclusion: ConclusionActionRequired},
+			{Status: RunInProgress},
+			{Status: RunQueued},
+		},
+		Statuses: []StatusContext{{State: "success"}, {State: "error"}, {State: "pending"}},
+	}
+	if f, p, ok := c.Count(); f != 4 || p != 3 || ok != 3 {
+		t.Errorf("Count = %d failing, %d pending, %d passing; want 4, 3 and 3", f, p, ok)
+	}
+	if !c.Pending() {
+		t.Error("checks in progress aren't pending")
+	}
+	if (Checks{Runs: c.Runs[:3]}).Pending() {
+		t.Error("completed checks are pending")
+	}
+}

@@ -214,6 +214,73 @@ type Checks struct {
 	Truncated bool
 }
 
+// CheckOutcome is how a check run or a commit status stands, as the
+// summary of the checks of a pull request counts it.
+type CheckOutcome int
+
+// Check outcomes.
+const (
+	CheckPassing CheckOutcome = iota
+	CheckPending
+	CheckFailing
+)
+
+// Outcome is how c stands: pending until it completed, and failing when it
+// ended in a way that blocks a merge, such as a failure, a timeout, a
+// cancel or a wait for approval.
+func (c Check) Outcome() CheckOutcome {
+	if c.Status != RunCompleted {
+		return CheckPending
+	}
+	switch c.Conclusion {
+	case ConclusionSuccess, ConclusionNeutral, ConclusionSkipped, ConclusionNone:
+		return CheckPassing
+	case ConclusionFailure, ConclusionCancelled, ConclusionTimedOut, ConclusionActionRequired,
+		ConclusionStartupFailure, ConclusionStale:
+	}
+	return CheckFailing
+}
+
+// Outcome is how s stands: GitHub's error and failure fail, and pending and
+// expected wait.
+func (s StatusContext) Outcome() CheckOutcome {
+	switch s.State {
+	case "success":
+		return CheckPassing
+	case "pending", "expected":
+		return CheckPending
+	}
+	return CheckFailing
+}
+
+// Count returns how many of the check runs and statuses of c fail, are
+// pending and pass.
+func (c Checks) Count() (failing, pending, passing int) {
+	add := func(o CheckOutcome) {
+		switch o {
+		case CheckFailing:
+			failing++
+		case CheckPending:
+			pending++
+		case CheckPassing:
+			passing++
+		}
+	}
+	for i := range c.Runs {
+		add(c.Runs[i].Outcome())
+	}
+	for i := range c.Statuses {
+		add(c.Statuses[i].Outcome())
+	}
+	return failing, pending, passing
+}
+
+// Pending reports whether any check run or status of c hasn't finished.
+func (c Checks) Pending() bool {
+	_, pending, _ := c.Count()
+	return pending > 0
+}
+
 // ErrLogPending is returned for the log of a job that hasn't completed:
 // GitHub publishes a job's log only when the job ends.
 var ErrLogPending = errors.New("log not available until the job completes")
