@@ -47,6 +47,7 @@ func TestViewerHeader(t *testing.T) {
 			Description:   "This repo is for demonstration purposes only.",
 			DefaultBranch: "main",
 			Language:      "HTML",
+			LanguageColor: "#e34c26",
 			Stars:         14056,
 			UpdatedAt:     time.Date(2026, 9, 24, 8, 23, 12, 0, time.UTC),
 			URL:           "https://github.com/octocat/Spoon-Knife",

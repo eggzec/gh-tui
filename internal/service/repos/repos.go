@@ -59,7 +59,7 @@ type Service struct {
 // of core.Repo they hold. Bump it when the type changes shape.
 const (
 	kind   = "repolist"
-	schema = 1
+	schema = 2
 )
 
 // offlineAt is when a page served offline was fetched, as far as the cache

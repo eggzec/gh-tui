@@ -54,6 +54,7 @@ func TestSearch(t *testing.T) {
 		Description:   "Style definitions for nice terminal layouts 👄",
 		DefaultBranch: "main",
 		Language:      "Go",
+		LanguageColor: "#00ADD8",
 		Stars:         repo.Stars,
 		UpdatedAt:     repo.UpdatedAt,
 		URL:           "https://github.com/charmbracelet/lipgloss",

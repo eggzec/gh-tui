@@ -61,11 +61,13 @@ fragment searchRepo on Repository {
   name
   owner { login }
   description
-  primaryLanguage { name }
+  primaryLanguage { name color }
   stargazerCount
   isPrivate
   isArchived
   isFork
+  isTemplate
+  isMirror
   defaultBranchRef { name }
   updatedAt
   url
@@ -180,14 +182,14 @@ type searchRepoNode struct {
 	Owner struct {
 		Login string `json:"login"`
 	} `json:"owner"`
-	Description     string `json:"description"`
-	PrimaryLanguage *struct {
-		Name string `json:"name"`
-	} `json:"primaryLanguage"`
-	StargazerCount   int  `json:"stargazerCount"`
-	IsPrivate        bool `json:"isPrivate"`
-	IsArchived       bool `json:"isArchived"`
-	IsFork           bool `json:"isFork"`
+	Description      string        `json:"description"`
+	PrimaryLanguage  *repoLanguage `json:"primaryLanguage"`
+	StargazerCount   int           `json:"stargazerCount"`
+	IsPrivate        bool          `json:"isPrivate"`
+	IsArchived       bool          `json:"isArchived"`
+	IsFork           bool          `json:"isFork"`
+	IsTemplate       bool          `json:"isTemplate"`
+	IsMirror         bool          `json:"isMirror"`
 	DefaultBranchRef *struct {
 		Name string `json:"name"`
 	} `json:"defaultBranchRef"`
@@ -206,11 +208,13 @@ func (r searchRepoNode) hit() core.SearchHit {
 		Private:     r.IsPrivate,
 		Fork:        r.IsFork,
 		Archived:    r.IsArchived,
+		Template:    r.IsTemplate,
+		Mirror:      r.IsMirror,
 		UpdatedAt:   r.UpdatedAt,
 		URL:         r.URL,
 	}
 	if r.PrimaryLanguage != nil {
-		repo.Language = r.PrimaryLanguage.Name
+		repo.Language, repo.LanguageColor = r.PrimaryLanguage.Name, r.PrimaryLanguage.Color
 	}
 	// An empty repository has no default branch.
 	if r.DefaultBranchRef != nil {

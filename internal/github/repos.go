@@ -18,12 +18,14 @@ const repoFields = `fragment repoFields on Repository {
   owner { login }
   description
   defaultBranchRef { name }
-  primaryLanguage { name }
+  primaryLanguage { name color }
   stargazerCount
   viewerHasStarred
   isPrivate
   isFork
   isArchived
+  isTemplate
+  isMirror
   updatedAt
   url
 }`
@@ -65,16 +67,16 @@ type repoNode struct {
 	DefaultBranchRef *struct {
 		Name string `json:"name"`
 	} `json:"defaultBranchRef"`
-	PrimaryLanguage *struct {
-		Name string `json:"name"`
-	} `json:"primaryLanguage"`
-	StargazerCount   int       `json:"stargazerCount"`
-	ViewerHasStarred bool      `json:"viewerHasStarred"`
-	IsPrivate        bool      `json:"isPrivate"`
-	IsFork           bool      `json:"isFork"`
-	IsArchived       bool      `json:"isArchived"`
-	UpdatedAt        time.Time `json:"updatedAt"`
-	URL              string    `json:"url"`
+	PrimaryLanguage  *repoLanguage `json:"primaryLanguage"`
+	StargazerCount   int           `json:"stargazerCount"`
+	ViewerHasStarred bool          `json:"viewerHasStarred"`
+	IsPrivate        bool          `json:"isPrivate"`
+	IsFork           bool          `json:"isFork"`
+	IsArchived       bool          `json:"isArchived"`
+	IsTemplate       bool          `json:"isTemplate"`
+	IsMirror         bool          `json:"isMirror"`
+	UpdatedAt        time.Time     `json:"updatedAt"`
+	URL              string        `json:"url"`
 }
 
 func (n repoNode) core() core.Repo {
@@ -87,6 +89,8 @@ func (n repoNode) core() core.Repo {
 		Private:     n.IsPrivate,
 		Fork:        n.IsFork,
 		Archived:    n.IsArchived,
+		Template:    n.IsTemplate,
+		Mirror:      n.IsMirror,
 		UpdatedAt:   n.UpdatedAt,
 		URL:         n.URL,
 	}
@@ -94,7 +98,7 @@ func (n repoNode) core() core.Repo {
 		r.DefaultBranch = n.DefaultBranchRef.Name
 	}
 	if n.PrimaryLanguage != nil {
-		r.Language = n.PrimaryLanguage.Name
+		r.Language, r.LanguageColor = n.PrimaryLanguage.Name, n.PrimaryLanguage.Color
 	}
 	return r
 }

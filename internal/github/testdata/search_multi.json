@@ -22,7 +22,8 @@
           },
           "description": "Style definitions for nice terminal layouts 👄",
           "primaryLanguage": {
-            "name": "Go"
+            "name": "Go",
+            "color": "#00ADD8"
           },
           "stargazerCount": 11866,
           "isPrivate": false,

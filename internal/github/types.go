@@ -56,3 +56,10 @@ func convert[T, U any](in []T, f func(T) U) []U {
 	}
 	return out
 }
+
+// repoLanguage is the primary language of a repository and its color, such
+// as "#00ADD8". Both the repository and the search queries read it.
+type repoLanguage struct {
+	Name  string `json:"name"`
+	Color string `json:"color"`
+}

@@ -28,18 +28,22 @@ func (r RepoRef) String() string {
 }
 
 // Repo is a GitHub repository. ID is the GraphQL node ID. Starred reports
-// whether the viewer has starred it.
+// whether the viewer has starred it. LanguageColor is the hex color GitHub
+// gives Language, such as "#00ADD8", or empty when the read didn't say.
 type Repo struct {
 	ID            string
 	Ref           RepoRef
 	Description   string
 	DefaultBranch string
 	Language      string
+	LanguageColor string
 	Stars         int
 	Starred       bool
 	Private       bool
 	Fork          bool
 	Archived      bool
+	Template      bool
+	Mirror        bool
 	UpdatedAt     time.Time
 	URL           string
 }
