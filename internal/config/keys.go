@@ -18,7 +18,7 @@ const (
 	ActionPrevTab = "prev_tab"
 	// ActionPane1 to ActionPane5 focus the pane with that number on the
 	// screen: files, pull requests and issues on the repository screen,
-	// and pinned, repositories, work, notifications and contributions on
+	// and pinned, repositories, work, contributions and notifications on
 	// the dashboard.
 	ActionPane1 = "pane_1"
 	ActionPane2 = "pane_2"

@@ -14,9 +14,9 @@ import (
 
 // Sizes of the dashboard. From wideWidth by wideHeight cells it shows
 // every pane at once: the profile on top, the pinned cards below it, the
-// repositories beside the work and the notifications, and the calendar at
-// the bottom. Below that it shows the profile and the focused pane, whose
-// frame names the others.
+// repositories beside the work, and the calendar beside the notifications
+// at the bottom. Below that it shows the profile and the focused pane,
+// whose frame names the others.
 const (
 	wideWidth     = 100
 	wideHeight    = 30
@@ -26,8 +26,13 @@ const (
 	// seven days and the legend.
 	calendarLines  = 10
 	calendarHeight = calendarLines + 2
-	minInboxH      = 4
-	maxInboxH      = 9
+	// calendarPad is the frame of the calendar and a space on each side.
+	calendarPad = 4
+	// minCalendarW is the narrowest the calendar gets beside the
+	// notifications, about twenty weeks, and minInboxW the narrowest the
+	// notifications get before the calendar stops giving way.
+	minCalendarW = calendarPad + 4 + 20*2 - 1
+	minInboxW    = 40
 )
 
 // box is the outer size of a pane, frame included.
@@ -41,12 +46,12 @@ func (s *Section) layout() {
 	if s.wide {
 		mid := max(rest-pinnedHeight-calendarHeight, 0)
 		lw := s.width * 11 / 20
-		inbox := min(max(mid*2/5, minInboxH), maxInboxH)
 		b[pinnedPane] = box{s.width, pinnedHeight}
 		b[reposPane] = box{lw, mid}
-		b[workPane] = box{s.width - lw, max(mid-inbox, 0)}
-		b[inboxPane] = box{s.width - lw, min(inbox, mid)}
-		b[calendarPane] = box{s.width, calendarHeight}
+		b[workPane] = box{s.width - lw, mid}
+		cw := s.calendarWidth()
+		b[calendarPane] = box{cw, calendarHeight}
+		b[inboxPane] = box{s.width - cw, calendarHeight}
 	} else {
 		for i := range b {
 			b[i] = box{s.width, rest}
@@ -59,6 +64,13 @@ func (s *Section) layout() {
 	s.tasks.resize(in(workPane))
 	cw, ch := in(calendarPane)
 	s.cal.SetSize(min(cw-2, s.cal.FitWidth()), min(ch, calendarLines))
+}
+
+// calendarWidth is the outer width of the calendar in the bottom row: what
+// its range needs, less recent weeks when the notifications would get
+// narrower than minInboxW, down to minCalendarW.
+func (s *Section) calendarWidth() int {
+	return min(s.cal.FitWidth()+calendarPad, max(s.width-minInboxW, minCalendarW))
 }
 
 // render renders the profile and every pane, and the dashboard from them.
@@ -106,21 +118,25 @@ func (s *Section) compose() {
 		lines = append(lines, s.frames[s.focus]...)
 	} else {
 		lines = append(lines, s.frames[pinnedPane]...)
-		right := make([]string, 0, s.boxes[reposPane].h)
-		right = append(append(right, s.frames[workPane]...), s.frames[inboxPane]...)
-		for i, l := range s.frames[reposPane] {
-			if i < len(right) {
-				l += right[i]
-			}
-			lines = append(lines, l)
-		}
-		lines = append(lines, s.frames[calendarPane]...)
+		lines = beside(lines, s.frames[reposPane], s.frames[workPane])
+		lines = beside(lines, s.frames[calendarPane], s.frames[inboxPane])
 	}
 	blank := strings.Repeat(" ", s.width)
 	for len(lines) < s.height {
 		lines = append(lines, blank)
 	}
 	s.view = strings.Join(lines[:s.height], "\n")
+}
+
+// beside appends the lines of left with those of right after them.
+func beside(lines, left, right []string) []string {
+	for i, l := range left {
+		if i < len(right) {
+			l += right[i]
+		}
+		lines = append(lines, l)
+	}
+	return lines
 }
 
 // label is the text in the top edge of pane p, and its width. In the
