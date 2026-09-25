@@ -119,3 +119,51 @@ func TestLanguageColor(t *testing.T) {
 		}
 	}
 }
+
+func TestRunIcons(t *testing.T) {
+	for _, set := range iconSets {
+		ic := NewIcons(set)
+		seen := map[string]RunState{}
+		for s := range NumRunStates {
+			g := ic.Run(s)
+			if w := ansi.StringWidth(g); w != 1 || len([]rune(g)) != 1 {
+				t.Errorf("%s: run glyph %q is %d cells wide, want 1", set, g, w)
+			}
+			if prev, ok := seen[g]; ok {
+				t.Errorf("%s: run states %d and %d share %q", set, prev, s, g)
+			}
+			seen[g] = s
+		}
+	}
+	if NewIcons("bogus").Run(RunFailure) != NewIcons(config.IconsNerd).Run(RunFailure) {
+		t.Error("an unknown set should get the Nerd Font glyphs")
+	}
+}
+
+func TestRunStateOf(t *testing.T) {
+	tests := []struct {
+		status core.RunStatus
+		c      core.Conclusion
+		want   RunState
+	}{
+		{core.RunQueued, "", RunQueued},
+		{core.RunWaiting, "", RunQueued},
+		{core.RunPending, "", RunQueued},
+		{core.RunInProgress, "", RunInProgress},
+		{core.RunCancelling, "", RunCancelled},
+		{core.RunCompleted, core.ConclusionSuccess, RunSuccess},
+		{core.RunCompleted, core.ConclusionFailure, RunFailure},
+		{core.RunCompleted, core.ConclusionStartupFailure, RunFailure},
+		{core.RunCompleted, core.ConclusionCancelled, RunCancelled},
+		{core.RunCompleted, core.ConclusionSkipped, RunSkipped},
+		{core.RunCompleted, core.ConclusionTimedOut, RunTimedOut},
+		{core.RunCompleted, core.ConclusionActionRequired, RunActionRequired},
+		{core.RunCompleted, core.ConclusionNeutral, RunNeutral},
+		{core.RunCompleted, core.ConclusionStale, RunNeutral},
+	}
+	for _, tt := range tests {
+		if got := RunStateOf(tt.status, tt.c); got != tt.want {
+			t.Errorf("RunStateOf(%s, %s) = %d, want %d", tt.status, tt.c, got, tt.want)
+		}
+	}
+}
