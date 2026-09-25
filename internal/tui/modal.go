@@ -51,6 +51,25 @@ func (m *Model) canOpenHistory() bool {
 	return m.history != nil && m.screen == repoScreen && m.repo != (core.RepoRef{})
 }
 
+// openActions opens the workflow runs of the selected repository, on the
+// repository screen, if the app has them.
+func (m *Model) openActions() tea.Cmd {
+	if !m.canOpenActions() {
+		return nil
+	}
+	mod, load := m.actions(m.ctx, m.repo)
+	if mod == nil {
+		return nil
+	}
+	m.openModal(mod)
+	return load
+}
+
+// canOpenActions reports whether the actions key does something.
+func (m *Model) canOpenActions() bool {
+	return m.actions != nil && m.screen == repoScreen && m.repo != (core.RepoRef{})
+}
+
 // closeModal closes mod. A modal that isn't open is ignored, so closing
 // twice, or closing one that another has replaced, is harmless.
 func (m *Model) closeModal(mod ui.Modal) {
@@ -72,7 +91,8 @@ func (m *Model) modalSize() (width, height int) {
 	return max(w-4, 0), max(h-2, 0)
 }
 
-// frame draws mod in its frame, with its title in the top edge.
+// frame draws mod in its frame, with its title in the top edge, and its
+// tabs, if it has them and they fit, at the right end of it.
 func (m *Model) frame(mod ui.Modal) string {
 	w, _ := m.frameSize()
 	if w < 4 {
@@ -81,8 +101,45 @@ func (m *Model) frame(mod ui.Modal) string {
 	b := lipgloss.RoundedBorder()
 	title := ansi.Truncate(" "+mod.Title()+" ", max(w-4, 0), "… ")
 	rest := max(w-3-lipgloss.Width(title), 0)
+	var tabs string
+	if t, ok := mod.(ui.Tabbed); ok {
+		tabs = m.tabs(t)
+		// The tabs keep a stretch of the edge before them, or give way.
+		if tw := lipgloss.Width(tabs); tw+3 <= rest {
+			rest -= tw + 1
+		} else {
+			tabs = ""
+		}
+	}
 	top := m.theme.Accent.Render(b.TopLeft+b.Top) +
 		m.theme.Title.Render(title) +
-		m.theme.Accent.Render(strings.Repeat(b.Top, rest)+b.TopRight)
+		m.theme.Accent.Render(strings.Repeat(b.Top, rest))
+	if tabs != "" {
+		top += tabs + m.theme.Accent.Render(b.Top)
+	}
+	top += m.theme.Accent.Render(b.TopRight)
 	return top + "\n" + m.theme.Frame().Render(mod.View())
+}
+
+// tabs renders the tabs of t for the top edge of a frame: the one shown in
+// the title's style, the others muted.
+func (m *Model) tabs(t ui.Tabbed) string {
+	names, active := t.Tabs()
+	if len(names) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString(" ")
+	for i, name := range names {
+		if i > 0 {
+			b.WriteString(m.theme.Subtle.Render(" · "))
+		}
+		st := m.theme.Muted
+		if i == active {
+			st = m.theme.Title
+		}
+		b.WriteString(st.Render(name))
+	}
+	b.WriteString(" ")
+	return b.String()
 }

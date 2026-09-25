@@ -85,8 +85,10 @@ type Model struct {
 	open      func(url string) error
 	watchRepo func(repo core.RepoRef)
 	repoInfo  func(ctx context.Context, repo core.RepoRef) (core.Repo, error)
-	// history opens the history modal of a repository.
+	// history opens the history modal of a repository, and actions its
+	// Actions modal.
 	history History
+	actions Actions
 	// warnings are shown as toasts once the app starts.
 	warnings []string
 }
@@ -141,6 +143,17 @@ type History func(ctx context.Context, repo core.RepoRef, defaultBranch string, 
 // the key does nothing.
 func WithHistory(open History) Option {
 	return func(m *Model) { m.history = open }
+}
+
+// Actions returns the modal that shows the workflow runs of repo, and the
+// command that loads it once it is open.
+type Actions func(ctx context.Context, repo core.RepoRef) (ui.Modal, tea.Cmd)
+
+// WithActions sets the function that opens the workflow runs of the
+// selected repository, with the actions key on the repository screen.
+// Without it the key does nothing.
+func WithActions(open Actions) Option {
+	return func(m *Model) { m.actions = open }
 }
 
 // WithBrowser sets the function that opens a URL in the browser.

@@ -27,6 +27,14 @@ type Modal interface {
 	Help() help.KeyMap
 }
 
+// Tabbed is a Modal with tabs, such as the filters of a list, which the
+// app shows at the right end of the top edge of the frame.
+type Tabbed interface {
+	// Tabs returns the names of the tabs, and the index of the one shown,
+	// or -1 for none.
+	Tabs() (names []string, active int)
+}
+
 // OpenModalMsg asks the app to open Modal over the screen, in place of the
 // modal that is open.
 type OpenModalMsg struct {
