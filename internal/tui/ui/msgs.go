@@ -136,6 +136,15 @@ type OpenActionsMsg struct {
 	Filter core.RunFilter
 }
 
+// OpenReleaseMsg asks for release ID of Repo to be shown in a modal, such
+// as the one a notification is about. URL is the page to open on GitHub
+// until the release is read.
+type OpenReleaseMsg struct {
+	Repo core.RepoRef
+	ID   int64
+	URL  string
+}
+
 // OpenFileMsg asks for the file at Path of Repo to be previewed over the
 // screen on view, such as when a code search found it. SHA is its blob.
 // Repo need not be the selected repository, and the files section keeps

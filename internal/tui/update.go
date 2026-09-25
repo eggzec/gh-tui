@@ -75,6 +75,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ui.OpenActionsMsg:
 		cmd := m.openActionsOn(msg.Repo, msg.Filter)
 		return m, cmd
+	case ui.OpenReleaseMsg:
+		cmd := m.openRelease(msg)
+		return m, cmd
 	case ui.OpenModalMsg:
 		m.openModal(msg.Modal)
 		return m, nil
