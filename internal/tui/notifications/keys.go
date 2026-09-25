@@ -18,7 +18,10 @@ type KeyMap struct {
 	MarkRead    key.Binding
 	MarkDone    key.Binding
 	MarkAllRead key.Binding
+	// Filter names the key that opens the filter, which the app handles,
+	// and ClearFilter goes back to the unread threads.
 	Filter      key.Binding
+	ClearFilter key.Binding
 	Refresh     key.Binding
 
 	// feed is the navigation of the list, without the keys above.
@@ -33,6 +36,7 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		MarkDone:    ui.Binding(keys, config.ActionMarkDone, "done"),
 		MarkAllRead: ui.Binding(keys, config.ActionMarkAllRead, "all read"),
 		Filter:      ui.Binding(keys, config.ActionFilter, "filter"),
+		ClearFilter: ui.Binding(keys, config.ActionClearFilter, "clear filters"),
 		Refresh:     ui.Binding(keys, config.ActionRefresh, "refresh"),
 	}
 	own := k.bindings()
@@ -55,7 +59,7 @@ func newKeyMap(keys map[string][]string) KeyMap {
 }
 
 func (k KeyMap) bindings() []key.Binding {
-	return []key.Binding{k.Select, k.Open, k.MarkRead, k.MarkDone, k.MarkAllRead, k.Filter, k.Refresh}
+	return []key.Binding{k.Select, k.Open, k.MarkRead, k.MarkDone, k.MarkAllRead, k.Filter, k.ClearFilter, k.Refresh}
 }
 
 // free drops the keys of b that the section binds itself, such as "f",
@@ -76,21 +80,23 @@ func free(b key.Binding, taken []key.Binding) key.Binding {
 }
 
 // withFeed returns k with the list's current keys, whose retry the list
-// enables only while a fetch has failed.
-func (k KeyMap) withFeed(f feed.KeyMap) KeyMap {
+// enables only while a fetch has failed, and with ClearFilter only while
+// the list is filtered.
+func (k KeyMap) withFeed(f feed.KeyMap, filtered bool) KeyMap {
 	k.feed = f
+	k.ClearFilter.SetEnabled(k.ClearFilter.Enabled() && filtered)
 	return k
 }
 
 // ShortHelp returns the bindings for the short help view.
 func (k KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.feed.Up, k.feed.Down, k.Select, k.MarkRead, k.MarkDone, k.Filter, k.feed.Retry}
+	return []key.Binding{k.feed.Up, k.feed.Down, k.Select, k.MarkRead, k.MarkDone, k.Filter, k.ClearFilter, k.feed.Retry}
 }
 
 // FullHelp returns the bindings for the full help view.
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return append(k.feed.FullHelp(),
-		[]key.Binding{k.Select, k.Open, k.Filter, k.Refresh},
+		[]key.Binding{k.Select, k.Open, k.Filter, k.ClearFilter, k.Refresh},
 		[]key.Binding{k.MarkRead, k.MarkDone, k.MarkAllRead},
 	)
 }

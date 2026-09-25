@@ -155,27 +155,45 @@ func (s *Section) render(n core.Notification, selected bool, width int) string {
 	return b.String()
 }
 
-// renderHeader draws the filter line, such as "Unread · f show all".
+// renderHeader draws the filter line: which threads are listed, what the
+// filter keeps of them, and the keys that change it, such as
+// "Unread · mention · f filter".
 func (s *Section) renderHeader() {
-	name, other := "Unread", "show all"
-	if s.all.Load() {
-		name, other = "All", "unread only"
+	f := s.filter()
+	name := "Unread"
+	if f.all {
+		name = "All"
 	}
 	h := "  " + s.styles.filter.render(name)
+	if chips := f.chips(); chips != "" {
+		h += s.styles.filter.render(" · " + chips)
+	}
+	var hints []string
 	if k := s.keys.Filter.Help().Key; k != "" {
-		h += s.styles.hint.render(" · " + k + " " + other)
+		hints = append(hints, k+" filter")
+	}
+	if k := s.keys.ClearFilter.Help().Key; k != "" && s.filtered() {
+		hints = append(hints, k+" clear")
+	}
+	if len(hints) > 0 {
+		h += s.styles.hint.render("  " + strings.Join(hints, " · "))
 	}
 	s.header = fitANSI(h, s.width)
 	s.feed.SetEmptyText(s.emptyText())
 }
 
 func (s *Section) emptyText() string {
-	k := s.keys.Filter.Help().Key
+	f, k := s.filter(), s.keys.Filter.Help().Key
 	switch {
-	case s.all.Load():
+	case f.local():
+		if c := s.keys.ClearFilter.Help().Key; c != "" {
+			return "No notifications match the filter. Press " + c + " to clear it."
+		}
+		return "No notifications match the filter."
+	case f.all:
 		return "No notifications."
 	case k != "":
-		return "You're all caught up. Press " + k + " to show read notifications."
+		return "You're all caught up. Press " + k + " to show read notifications too."
 	}
 	return "You're all caught up."
 }

@@ -61,8 +61,9 @@ type Section struct {
 	now  func() time.Time
 
 	feed feed.Model[core.Notification]
-	// all is read by fetches, which run in commands.
-	all     atomic.Bool
+	// filt is the filter in force, nil for the default inbox. Fetches,
+	// which run in commands, read it.
+	filt    atomic.Pointer[filter]
 	started bool
 	// offline is marked by the feed's reads when GitHub can't be reached.
 	offline *ui.Offline
@@ -72,7 +73,10 @@ type Section struct {
 	header        string
 }
 
-var _ ui.Badger = (*Section)(nil)
+var (
+	_ ui.Badger     = (*Section)(nil)
+	_ ui.Filterable = (*Section)(nil)
+)
 
 // New returns the section, which reads through svc and binds the actions
 // in keys. ctx bounds every request it makes.
@@ -90,16 +94,18 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 	return s
 }
 
-// list reads a page for the feed.
+// list reads a page for the feed, and keeps the threads the filter does.
+// A page the filter leaves empty still leads to the next, which the feed
+// reads while its window has room.
 func (s *Section) list(ctx context.Context, cursor string) (core.Page[core.Notification], error) {
-	return s.svc.List(ctx, s.query(cursor))
+	f := s.filter()
+	p, err := s.svc.List(ctx, f.listQuery(cursor))
+	p.Items = f.apply(p.Items)
+	return p, err
 }
 
 func (s *Section) query(cursor string) notifications.ListQuery {
-	return notifications.ListQuery{
-		Filter: core.NotificationFilter{All: s.all.Load()},
-		Cursor: cursor,
-	}
+	return s.filter().listQuery(cursor)
 }
 
 // Title returns the title of the tab.
@@ -136,7 +142,7 @@ func (s *Section) Badge() string {
 }
 
 // All reports whether the section shows read threads too.
-func (s *Section) All() bool { return s.all.Load() }
+func (s *Section) All() bool { return s.filter().all }
 
 // SetSize sets the size of the section. The first line shows the filter.
 func (s *Section) SetSize(width, height int) {
@@ -159,4 +165,4 @@ func (s *Section) Focus() { s.feed.Focus() }
 func (s *Section) Blur() { s.feed.Blur() }
 
 // Help returns the keys of the section, the list's navigation included.
-func (s *Section) Help() help.KeyMap { return s.keys.withFeed(s.feed.KeyMap()) }
+func (s *Section) Help() help.KeyMap { return s.keys.withFeed(s.feed.KeyMap(), s.filtered()) }

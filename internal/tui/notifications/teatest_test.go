@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/x/exp/teatest/v2"
 
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 )
 
 // app hosts the section as the program root, the way the tui would: it
@@ -33,6 +34,9 @@ func (a *app) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ui.OpenMsg:
 		a.opened = append(a.opened, msg.URL)
 		return a, nil
+	case filterform.AppliedMsg:
+		// The app applies what its filter modal sends.
+		return a, a.s.ApplyFilter(msg)
 	}
 	return a, a.s.Update(msg)
 }
@@ -58,7 +62,7 @@ func TestProgram(t *testing.T) {
 	// Open the first thread, which marks it read and drops it from the
 	// unread inbox, then show every thread and mark the last one done.
 	tm.Send(keyPress("enter"))
-	tm.Send(keyPress("f"))
+	tm.Send(filterform.AppliedMsg{Query: ""})
 	waitFor("Moderate severity")
 	tm.Send(keyPress("end"))
 	tm.Send(keyPress("d"))
