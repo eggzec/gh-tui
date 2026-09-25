@@ -124,6 +124,8 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 		return m.openHistory()
 	case m.canOpenActions() && key.Matches(msg, m.keys.Actions):
 		return m.openActions()
+	case m.fileFinder() != nil && key.Matches(msg, m.keys.FindFile):
+		return m.findFile()
 	case p != nil && key.Matches(msg, m.keys.Filter) && m.openFilter(p.section):
 		return nil
 	case key.Matches(msg, m.toast.KeyMap().Dismiss):

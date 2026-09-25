@@ -96,7 +96,7 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 	// told once.
 	offline := new(ui.Offline)
 	icons := ui.NewIcons(cfg.UI.Icons)
-	fileOpts := []files.Option{files.WithOffline(offline)}
+	fileOpts := []files.Option{files.WithOffline(offline), files.WithFinderPreview(cfg.Files.Finder.Preview)}
 	if p := cfg.Files.Prefetch; p.Enabled {
 		fileOpts = append(fileOpts,
 			files.WithPrefetch(int64(p.MaxSize)),

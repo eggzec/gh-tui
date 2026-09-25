@@ -21,6 +21,9 @@ type KeyMap struct {
 	// Actions opens the workflow runs of the repository on the repository
 	// screen.
 	Actions key.Binding
+	// FindFile opens the file finder of the section that has one, on the
+	// repository screen.
+	FindFile key.Binding
 	// Filter opens the filter modal of the focused pane, if it has one.
 	Filter key.Binding
 	// Notifications switches between the screen on view and the
@@ -43,6 +46,7 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		Search:        ui.Binding(keys, config.ActionSearch, "search"),
 		History:       ui.Binding(keys, config.ActionHistory, "history"),
 		Actions:       ui.Binding(keys, config.ActionActions, "actions"),
+		FindFile:      ui.Binding(keys, config.ActionFindFile, "find file"),
 		Filter:        ui.Binding(keys, config.ActionFilter, "filter"),
 		Notifications: ui.Binding(keys, config.ActionNotifications, "notifications"),
 		Dashboard:     ui.Binding(keys, config.ActionDashboard, "dashboard"),

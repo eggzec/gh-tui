@@ -54,6 +54,8 @@ files:
     hover_delay: 300ms
   preview:
     max_size: 2000000
+  finder:
+    preview: false
 
 details:
   prefetch:

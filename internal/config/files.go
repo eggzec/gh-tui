@@ -10,6 +10,7 @@ import (
 type Files struct {
 	Prefetch Prefetch `yaml:"prefetch"`
 	Preview  Preview  `yaml:"preview"`
+	Finder   Finder   `yaml:"finder"`
 }
 
 // Prefetch configures reading files before they are opened, so the preview
@@ -33,6 +34,14 @@ type Preview struct {
 	MaxSize Size `yaml:"max_size"`
 }
 
+// Finder configures the file finder.
+type Finder struct {
+	// Preview shows the content of the selected file beside the paths,
+	// where the finder is at least 100 columns wide. Tab shows or hides
+	// it either way.
+	Preview bool `yaml:"preview"`
+}
+
 // maxBlob is the largest file GitHub serves through the API.
 const maxBlob = 100 * MiB
 
@@ -40,6 +49,7 @@ func defaultFiles() Files {
 	return Files{
 		Prefetch: Prefetch{Enabled: true, MaxSize: 64 * KiB, HoverDelay: 150 * time.Millisecond},
 		Preview:  Preview{MaxSize: MiB},
+		Finder:   Finder{Preview: true},
 	}
 }
 
