@@ -26,8 +26,10 @@ type KeyMap struct {
 	// Open opens what is under the cursor in the browser.
 	Open    key.Binding
 	Refresh key.Binding
-	// Filter finds a repository among those of the owner on view.
-	Filter key.Binding
+	// Filter names the key that opens the filter of the repositories,
+	// which the app handles, and ClearFilter clears it.
+	Filter      key.Binding
+	ClearFilter key.Binding
 	// NextOwner and PrevOwner switch the repositories between the viewer's
 	// own and those of each organization, and the work between its lists.
 	NextOwner key.Binding
@@ -48,19 +50,20 @@ type KeyMap struct {
 
 func newKeyMap(keys map[string][]string) KeyMap {
 	k := KeyMap{
-		Next:      ui.Binding(keys, config.ActionNextTab, "next pane"),
-		Prev:      ui.Binding(keys, config.ActionPrevTab, "previous pane"),
-		Select:    ui.Binding(keys, config.ActionSelect, "open"),
-		Open:      ui.Binding(keys, config.ActionOpen, "browser"),
-		Refresh:   ui.Binding(keys, config.ActionRefresh, "refresh"),
-		Filter:    ui.Binding(keys, config.ActionFilter, "filter"),
-		NextOwner: ui.Binding(keys, config.ActionNextOwner, "next owner"),
-		PrevOwner: ui.Binding(keys, config.ActionPrevOwner, "previous owner"),
-		Here:      ui.Binding(keys, config.ActionCurrentRepo, "this repo"),
-		Up:        key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("↑/k", "up")),
-		Down:      key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓/j", "down")),
-		Left:      key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←/h", "left")),
-		Right:     key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "right")),
+		Next:        ui.Binding(keys, config.ActionNextTab, "next pane"),
+		Prev:        ui.Binding(keys, config.ActionPrevTab, "previous pane"),
+		Select:      ui.Binding(keys, config.ActionSelect, "open"),
+		Open:        ui.Binding(keys, config.ActionOpen, "browser"),
+		Refresh:     ui.Binding(keys, config.ActionRefresh, "refresh"),
+		Filter:      ui.Binding(keys, config.ActionFilter, "filter"),
+		ClearFilter: ui.Binding(keys, config.ActionClearFilter, "clear filters"),
+		NextOwner:   ui.Binding(keys, config.ActionNextOwner, "next owner"),
+		PrevOwner:   ui.Binding(keys, config.ActionPrevOwner, "previous owner"),
+		Here:        ui.Binding(keys, config.ActionCurrentRepo, "this repo"),
+		Up:          key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("↑/k", "up")),
+		Down:        key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓/j", "down")),
+		Left:        key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←/h", "left")),
+		Right:       key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "right")),
 	}
 	actions := [numPanes]string{config.ActionPane1, config.ActionPane2, config.ActionPane3, config.ActionPane4, config.ActionPane5}
 	labels := make([]string, 0, numPanes)
@@ -75,7 +78,7 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		k.jump = key.NewBinding(key.WithKeys(labels...), key.WithHelp(labels[0]+"-"+labels[len(labels)-1], "focus pane"))
 	}
 
-	own := []key.Binding{k.Select, k.Open, k.Refresh, k.Filter, k.NextOwner, k.PrevOwner, k.Here, k.Next, k.Prev}
+	own := []key.Binding{k.Select, k.Open, k.Refresh, k.Filter, k.ClearFilter, k.NextOwner, k.PrevOwner, k.Here, k.Next, k.Prev}
 	f := feed.DefaultKeyMap()
 	f.Up = free(f.Up, own)
 	f.Down = free(f.Down, own)
@@ -131,11 +134,9 @@ func (h helpKeys) paneKeys() []key.Binding {
 	case pinnedPane:
 		return []key.Binding{k.Left, k.Right, k.Select, k.Open}
 	case reposPane:
-		if h.repos.filtering {
-			p := h.repos.picker.KeyMap()
-			return []key.Binding{p.Up, p.Down, p.Choose, p.Cancel}
-		}
-		return []key.Binding{h.repos.feedKeys().Up, h.repos.feedKeys().Down, k.Select, k.Filter, k.NextOwner, k.Open, h.repos.feedKeys().Retry}
+		clr := k.ClearFilter
+		clr.SetEnabled(clr.Enabled() && h.repos.filter().active())
+		return []key.Binding{h.repos.feedKeys().Up, h.repos.feedKeys().Down, k.Select, k.Filter, clr, k.NextOwner, k.Open, h.repos.feedKeys().Retry}
 	case workPane:
 		next := k.NextOwner
 		next.SetHelp(next.Help().Key, "next list")
@@ -150,9 +151,6 @@ func (h helpKeys) paneKeys() []key.Binding {
 }
 
 func (h helpKeys) own() []key.Binding {
-	if h.repos.filtering {
-		return nil
-	}
 	here := h.k.Here
 	if !h.here {
 		here.SetEnabled(false)
@@ -168,19 +166,17 @@ func (h helpKeys) ShortHelp() []key.Binding {
 // FullHelp returns the bindings for the full help view.
 func (h helpKeys) FullHelp() [][]key.Binding {
 	groups := [][]key.Binding{h.paneKeys()}
-	switch {
-	case h.pane == reposPane && !h.repos.filtering:
+	switch h.pane {
+	case reposPane:
 		f := h.repos.feedKeys()
 		groups = append(groups, []key.Binding{f.PageUp, f.PageDown, f.Home, f.End, h.k.PrevOwner})
-	case h.pane == workPane:
+	case workPane:
 		prev := h.k.PrevOwner
 		prev.SetHelp(prev.Help().Key, "previous list")
 		groups = append(groups, []key.Binding{prev})
-	case h.pane == calendarPane:
+	case calendarPane:
 		groups = h.cal.FullHelp()
+	default:
 	}
-	if own := h.own(); len(own) > 0 {
-		groups = append(groups, append(own, h.k.Prev))
-	}
-	return groups
+	return append(groups, append(h.own(), h.k.Prev))
 }

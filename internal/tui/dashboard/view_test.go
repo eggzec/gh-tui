@@ -11,6 +11,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 )
 
 func TestView(t *testing.T) {
@@ -19,21 +20,23 @@ func TestView(t *testing.T) {
 		width, height int
 		keys          []string
 		icons         string
+		// filter is applied after the keys, as the filter modal would.
+		filter string
 	}{
-		{"140 columns", 140, 38, nil, ""},
-		{"140 columns filter", 140, 38, []string{"f", "r", "e", "p", "o", "-", "1", "2"}, ""},
-		{"140 columns calendar", 140, 38, []string{"4", "left"}, ""},
-		{"140 columns work tab", 140, 38, []string{"3", "]"}, ""},
-		{"100 columns", 100, 30, []string{"3", "[", "down"}, ""},
-		{"80 columns", 80, 22, nil, ""},
-		{"80 columns pinned", 80, 22, []string{"1", "right"}, ""},
-		{"80 columns work", 80, 22, []string{"3", "down"}, ""},
-		{"80 columns calendar", 80, 22, []string{"4"}, ""},
-		{"80 columns notifications", 80, 22, []string{"5"}, ""},
-		{"80 columns filter", 80, 22, []string{"]", "f", "2"}, ""},
-		{"190 columns unicode", 190, 50, nil, config.IconsUnicode},
-		{"80 columns ascii", 80, 24, nil, config.IconsASCII},
-		{"80 columns work unicode", 80, 24, []string{"3"}, config.IconsUnicode},
+		{"140 columns", 140, 38, nil, "", ""},
+		{"140 columns filter", 140, 38, nil, "", "is:private language:go sort:stars-desc"},
+		{"140 columns calendar", 140, 38, []string{"4", "left"}, "", ""},
+		{"140 columns work tab", 140, 38, []string{"3", "]"}, "", ""},
+		{"100 columns", 100, 30, []string{"3", "[", "down"}, "", ""},
+		{"80 columns", 80, 22, nil, "", ""},
+		{"80 columns pinned", 80, 22, []string{"1", "right"}, "", ""},
+		{"80 columns work", 80, 22, []string{"3", "down"}, "", ""},
+		{"80 columns calendar", 80, 22, []string{"4"}, "", ""},
+		{"80 columns notifications", 80, 22, []string{"5"}, "", ""},
+		{"80 columns filter", 80, 22, []string{"]"}, "", "r2"},
+		{"190 columns unicode", 190, 50, nil, config.IconsUnicode, ""},
+		{"80 columns ascii", 80, 24, nil, config.IconsASCII, ""},
+		{"80 columns work unicode", 80, 24, []string{"3"}, config.IconsUnicode, ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -43,6 +46,9 @@ func TestView(t *testing.T) {
 			}
 			s := newSection(t, newFake(), &fakeInbox{threads: inboxThreads()}, tt.width, tt.height, opts...)
 			press(t, s, tt.keys...)
+			if tt.filter != "" {
+				run(t, s, s.ApplyFilter(filterform.AppliedMsg{Query: tt.filter}))
+			}
 			golden.RequireEqual(t, s.View())
 		})
 	}

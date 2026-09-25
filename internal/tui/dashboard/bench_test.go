@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 )
 
 // benchSection returns the dashboard at 140x38 over 1,000 repositories of
@@ -42,18 +44,17 @@ func BenchmarkUpdate(b *testing.B) {
 	}
 }
 
+// BenchmarkFilter applies filters in turn over 1,000 repositories of the
+// viewer, all read, and lists what they keep.
 func BenchmarkFilter(b *testing.B) {
 	svc := newFake()
 	svc.repos["@me"] = repos("octocat", 1000)
 	s := newSection(b, svc, nil, 140, 38)
-	press(b, s, "f")
-	keys := []tea.Msg{keyPress("r"), keyPress("7"), tea.KeyPressMsg{Code: tea.KeyBackspace}, tea.KeyPressMsg{Code: tea.KeyBackspace}}
+	queries := []string{"is:private language:go sort:stars-desc", "r7", "archived:false sort:name-asc"}
 	b.ReportAllocs()
 	i := 0
 	for b.Loop() {
-		if cmd := s.Update(keys[i%len(keys)]); cmd != nil {
-			run(b, s, cmd)
-		}
+		run(b, s, s.ApplyFilter(filterform.AppliedMsg{Query: queries[i%len(queries)]}))
 		i++
 	}
 }

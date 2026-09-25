@@ -10,8 +10,8 @@ import (
 )
 
 // Update handles the dashboard's keys, its reads and the changes to the
-// inbox, and passes everything else to the repositories, whose lists and
-// filter ignore the messages of others.
+// inbox, and passes everything else to the repositories, whose lists
+// ignore the messages of others.
 func (s *Section) Update(msg tea.Msg) tea.Cmd {
 	cmd, all := s.update(msg)
 	if all {
@@ -53,13 +53,9 @@ func (s *Section) update(msg tea.Msg) (tea.Cmd, bool) {
 	return s.repos.update(msg), false
 }
 
-// press handles a key: the filter takes every key while it is open, then
-// the focused pane takes its own, then the dashboard's, then the pane's
-// navigation.
+// press handles a key: the focused pane takes its own, then the
+// dashboard's, then the pane's navigation.
 func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
-	if s.repos.filtering {
-		return s.repos.update(msg)
-	}
 	if !s.focused {
 		return nil
 	}
@@ -133,8 +129,8 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 			return t.switchTab(1), true
 		case key.Matches(msg, k.PrevOwner):
 			return t.switchTab(-1), true
-		case key.Matches(msg, k.Filter):
-			return t.openFilter(), true
+		case key.Matches(msg, k.ClearFilter) && t.filter().active():
+			return t.setFilter(""), true
 		case key.Matches(msg, k.Select):
 			if r, ok := t.selected(); ok {
 				return selectRepo(r.Ref), true

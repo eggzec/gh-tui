@@ -32,6 +32,9 @@ type Service interface {
 	CachedRepos(q dashboard.ReposQuery) (core.Page[core.Repo], bool)
 	Repos(ctx context.Context, q dashboard.ReposQuery) (core.Page[core.Repo], error)
 	CachedAllRepos(q dashboard.ReposQuery, limit int) (core.Page[core.Repo], bool)
+	// AllRepos reads the pages of q's owner up to limit repositories, the
+	// cached ones without a request, for the filter.
+	AllRepos(ctx context.Context, q dashboard.ReposQuery, limit int) (core.Page[core.Repo], error)
 	// Invalidate marks everything cached stale, so that the reads after
 	// it ask GitHub.
 	Invalidate()
@@ -178,8 +181,8 @@ type read[V any] struct {
 }
 
 var (
-	_ ui.Section  = (*Section)(nil)
-	_ ui.Capturer = (*Section)(nil)
+	_ ui.Section    = (*Section)(nil)
+	_ ui.Filterable = (*Section)(nil)
 )
 
 // New returns the dashboard, which reads through svc and binds the actions
@@ -253,10 +256,6 @@ func (s *Section) Init() tea.Cmd {
 	s.render()
 	return cmd
 }
-
-// Capturing reports whether the section takes every key, which it does
-// while the repositories are filtered.
-func (s *Section) Capturing() bool { return s.repos.filtering }
 
 // SetSize sets the size of the dashboard and lays its panes out.
 func (s *Section) SetSize(width, height int) {
