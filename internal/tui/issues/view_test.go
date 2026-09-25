@@ -6,6 +6,8 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
+
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
 func TestView(t *testing.T) {
@@ -19,10 +21,13 @@ func TestView(t *testing.T) {
 		{"list 100", 100, 12, list},
 		{"list 60", 60, 8, list},
 		{"list 40", 40, 8, list},
+		{"filtered 40", 40, 6, filtered},
+		{"filtered 60", 60, 6, filtered},
+		{"filtered 100", 100, 6, filtered},
 		{"closed", 80, 6, func(t *testing.T, width, height int) *host {
 			t.Helper()
 			s := list(t, width, height)
-			press(t, s, "f")
+			press(t, s, "]")
 			return s
 		}},
 		{"no repo", 80, 9, func(t *testing.T, width, height int) *host {
@@ -41,6 +46,38 @@ func TestView(t *testing.T) {
 			s := tt.section(t, tt.width, tt.height)
 			v := s.View()
 			assertFits(t, v, tt.width, tt.height)
+			golden.RequireEqual(t, v)
+		})
+	}
+}
+
+// filtered returns a section showing the closed issues with a label.
+func filtered(t *testing.T, width, height int) *host {
+	t.Helper()
+	s := started(t, newFakeService(sampleIssues(40)), width, height)
+	apply(t, s, "is:closed label:bug")
+	return s
+}
+
+// TestFilterModalView draws the filter modal, filtered by label, assignee
+// and milestone, in the room the app gives it inside the frame at 80 and
+// 140 columns.
+func TestFilterModalView(t *testing.T) {
+	for _, size := range []struct {
+		name          string
+		width, height int
+	}{{"80", 60, 18}, {"140", 108, 30}} {
+		t.Run(size.name, func(t *testing.T) {
+			s := started(t, newFakeService(sampleIssues(12)), 80, 20, WithFacets(&fakeFacets{}))
+			press(t, s, "down")
+			apply(t, s, `is:open label:bug assignee:@me milestone:"v2 polish" sort:comments-desc`)
+			f, _ := s.Filter()
+			m := ui.NewFilterModal(t.Context(), s.Title(), s.Section, f)
+			m.SetTheme(s.theme)
+			w, h := m.Fit(size.width, size.height)
+			m.SetSize(w, h)
+			v := m.View()
+			assertFits(t, v, w, h)
 			golden.RequireEqual(t, v)
 		})
 	}

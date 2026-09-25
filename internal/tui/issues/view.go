@@ -23,20 +23,8 @@ func (s *Section) View() string {
 	return s.bar + "\n" + s.list.View()
 }
 
-// filters are the states the filter cycles through, in order.
-var filters = []core.StateFilter{core.FilterOpen, core.FilterClosed, core.FilterAll}
-
-func nextFilter(f core.StateFilter) core.StateFilter {
-	for i, g := range filters {
-		if g == f {
-			return filters[(i+1)%len(filters)]
-		}
-	}
-	return filters[0]
-}
-
 // renderChrome renders what surrounds the bubbles: the bar over the list,
-// with the repository and the filter, and the empty state.
+// with the repository and the tabs, and the empty state.
 func (s *Section) renderChrome() {
 	s.cols, s.colsWidth = layout(max(s.width-2, 0)), max(s.width-2, 0)
 	s.renderBar()
@@ -47,21 +35,21 @@ func (s *Section) renderBar() {
 	t := s.theme
 	left := "  " + t.Muted.Render(s.repo.String())
 	var right strings.Builder
-	for i, f := range filters {
+	for i, tb := range tabs {
 		if i > 0 {
 			right.WriteString(t.Subtle.Render(" · "))
 		}
 		st := t.Subtle
-		if f == s.filter {
+		if tb.state == s.tab {
 			st = t.Accent
 		}
-		right.WriteString(st.Render(string(f)))
+		right.WriteString(st.Render(tb.label))
 	}
-	// Narrow panes name only the current filter, and the narrowest only
-	// the repository.
+	// Narrow panes name only the tab shown, and the narrowest only the
+	// repository.
 	if rw := ansi.StringWidth(right.String()); ansi.StringWidth(left)+rw+2 > s.width {
 		right.Reset()
-		right.WriteString(t.Accent.Render(string(s.filter)))
+		right.WriteString(t.Accent.Render(tabLabel(s.tab)))
 	}
 	s.bar = spread(left, right.String(), s.width)
 }
@@ -105,19 +93,26 @@ func (s *Section) renderEmpty() {
 	s.empty = strings.Join(lines, "\n")
 }
 
-// emptyText is what the list says when no issue matches the filter, with
-// the key that changes the filter.
+// emptyText is what the list says when no issue is in the tab, with the
+// key that shows more.
 func (s *Section) emptyText() string {
-	hint := ""
-	if k := s.keys.Filter.Help().Key; k != "" {
-		hint = " Press " + k + " to see " + string(nextFilter(s.filter)) + " issues."
+	kind := "No " + strings.ToLower(tabLabel(s.tab)) + " issues"
+	if s.tab == core.FilterAll {
+		kind = "No issues"
 	}
-	switch s.filter {
-	case core.FilterClosed:
-		return "No closed issues." + hint
-	case core.FilterAll:
+	if s.query != "" {
+		text := kind + " match the filters."
+		if k := s.keys.ClearFilter; k.Enabled() {
+			text += " Press " + k.Help().Key + " to clear them."
+		}
+		return text
+	}
+	if s.tab == core.FilterAll {
 		return "No issues yet."
-	default:
-		return "No open issues." + hint
 	}
+	text := kind + "."
+	if k := s.keys.NextTab; k.Enabled() {
+		text += " Press " + k.Help().Key + " to see " + strings.ToLower(tabLabel(nextTab(s.tab, 1))) + " issues."
+	}
+	return text
 }

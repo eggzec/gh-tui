@@ -354,7 +354,8 @@ func (f *fakeService) List(ctx context.Context, q issuesvc.ListQuery) (core.Page
 	var match []core.Issue
 	for i := range f.issues {
 		it := &f.issues[i]
-		if q.State == core.FilterAll || string(it.State) == string(q.State) || (q.State == "" && it.State == core.StateOpen) {
+		inState := q.State == core.FilterAll || string(it.State) == string(q.State) || (q.State == "" && it.State == core.StateOpen)
+		if inState && matches(it, q.Filter) {
 			match = append(match, *it)
 		}
 	}
@@ -370,6 +371,27 @@ func (f *fakeService) List(ctx context.Context, q issuesvc.ListQuery) (core.Page
 	p := core.Page[core.Issue]{Items: slices.Clone(match[start:end]), Next: next}
 	f.pages[q] = p
 	return f.serve(q, p), nil
+}
+
+// matches reports whether it has what the author:, assignee: and label:
+// qualifiers of filter ask for, the only ones the fake knows.
+func matches(it *core.Issue, filter string) bool {
+	for word := range strings.FieldsSeq(filter) {
+		k, v, _ := strings.Cut(word, ":")
+		ok := true
+		switch k {
+		case "author":
+			ok = it.Author.Login == v
+		case "assignee":
+			ok = slices.ContainsFunc(it.Assignees, func(u core.User) bool { return u.Login == v })
+		case "label":
+			ok = slices.ContainsFunc(it.Labels, func(l core.Label) bool { return l.Name == v })
+		}
+		if !ok {
+			return false
+		}
+	}
+	return true
 }
 
 // serve returns a copy of p as the fake serves it for q. The caller holds

@@ -24,6 +24,9 @@ func (s *Section) Update(msg tea.Msg) tea.Cmd {
 	if others := s.readOthers(); others != nil {
 		cmd = tea.Batch(cmd, others)
 	}
+	if ms := s.readMilestones(); ms != nil {
+		cmd = tea.Batch(cmd, ms)
+	}
 	return cmd
 }
 
@@ -75,6 +78,7 @@ func (s *Section) setRepo(repo core.RepoRef) tea.Cmd {
 	// The rate limit may be another's.
 	s.ahead.Resume()
 	s.others.Reset(s.ctx)
+	s.milestonesRead = false
 	// Other repositories have other labels.
 	s.chips = newChipCache(s.rows)
 	return s.resetList()
@@ -96,10 +100,12 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 		return s.setState(core.StateClosed)
 	case key.Matches(msg, k.Reopen):
 		return s.setState(core.StateOpen)
-	case key.Matches(msg, k.Filter):
-		s.filter = nextFilter(s.filter)
-		s.others.Opened(s.listQuery(s.filter))
-		return s.resetList()
+	case key.Matches(msg, k.NextTab):
+		return s.show(nextTab(s.tab, 1), s.query)
+	case key.Matches(msg, k.PrevTab):
+		return s.show(nextTab(s.tab, -1), s.query)
+	case key.Matches(msg, k.ClearFilter):
+		return s.show(s.tab, "")
 	case key.Matches(msg, k.Refresh):
 		s.svc.Invalidate(s.repo)
 		return s.list.Reload()

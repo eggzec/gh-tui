@@ -37,7 +37,7 @@ func TestSetState(t *testing.T) {
 		{
 			// All issues, so the closed one stays in the list.
 			name:       "close in the list",
-			setup:      func(t *testing.T, s *host) { t.Helper(); press(t, s, "f", "f", "down") },
+			setup:      func(t *testing.T, s *host) { t.Helper(); press(t, s, "]", "]", "down") },
 			key:        "x",
 			wantChange: "close 999",
 			wantBefore: core.StateClosed,
@@ -47,7 +47,7 @@ func TestSetState(t *testing.T) {
 			name: "reopen in the list",
 			setup: func(t *testing.T, s *host) {
 				t.Helper()
-				press(t, s, "f", "f", "down", "down", "down", "down")
+				press(t, s, "]", "]", "down", "down", "down", "down")
 			},
 			key:        "X",
 			wantChange: "reopen 996",
@@ -80,7 +80,7 @@ func TestSetState(t *testing.T) {
 			name: "close a closed issue does nothing",
 			setup: func(t *testing.T, s *host) {
 				t.Helper()
-				press(t, s, "f", "enter")
+				press(t, s, "]", "enter")
 			},
 			key: "x",
 		},
@@ -158,7 +158,7 @@ func TestChangeInModalShowsInBoth(t *testing.T) {
 			svc.sendErr = sendErr
 			// All issues, so the closed one stays in the list.
 			h := started(t, svc, 80, 20)
-			press(t, h, "f", "f", "down", "enter")
+			press(t, h, "]", "]", "down", "enter")
 			m := h.modal()
 			done := runHolding(t, h, h.Update(keyMsg("x")))
 			row := func() core.State {
@@ -214,7 +214,7 @@ func TestHelpOffersTheApplicableChange(t *testing.T) {
 	if c, r := offered(); !c || r {
 		t.Errorf("open issue offers close %v, reopen %v; want only close", c, r)
 	}
-	press(t, s, "f")
+	press(t, s, "]")
 	if c, r := offered(); c || !r {
 		t.Errorf("closed issue offers close %v, reopen %v; want only reopen", c, r)
 	}

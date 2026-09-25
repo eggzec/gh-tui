@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/x/exp/teatest/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -125,5 +126,23 @@ func TestProgramComment(t *testing.T) {
 	}
 	if final.h.modal() != nil {
 		t.Error("the modal should be closed")
+	}
+}
+
+func TestProgramSwitchesTabs(t *testing.T) {
+	svc := newFakeService(sampleIssues(12))
+	s := New(t.Context(), svc, config.Default().Keys, WithNow(func() time.Time { return testNow }))
+	s.SetTheme(testTheme())
+	s.Focus()
+	tm := teatest.NewTestModel(t, app{h: &host{Section: s}}, teatest.WithInitialTermSize(80, 16))
+	teatest.WaitFor(t, tm.Output(), func(b []byte) bool {
+		return bytes.Contains(b, []byte("#1000"))
+	}, teatest.WithDuration(3*time.Second))
+	// Each key is handled before the next, so q quits on the closed tab.
+	tm.Type("]][q")
+	final := tm.FinalModel(t, teatest.WithFinalTimeout(3*time.Second)).(app).h
+	// The list of the tab loads in a command, which q may beat.
+	if final.tab != core.FilterClosed || final.listQuery(final.tab).State != core.FilterClosed {
+		t.Errorf("tab = %q, want closed", final.tab)
 	}
 }
