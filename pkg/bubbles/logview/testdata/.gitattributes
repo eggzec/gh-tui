@@ -1,0 +1,2 @@
+# The fixture is a raw job log, CRLF line endings included.
+lint.txt -text

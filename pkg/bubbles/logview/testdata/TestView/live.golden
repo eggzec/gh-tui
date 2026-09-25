@@ -1,0 +1,8 @@
+ [38;2;107;114;133m211[m     [38;2;200;206;219mCopying 'C:\Users\runneradmin\.gitconfig' to 'D:\a\_temp\2befd780-8461-[m
+ [38;2;107;114;133m212[m     [38;2;200;206;219mTemporarily overriding HOME='D:\a\_temp\2befd780-8461-4b62-8b88-7cf55b1[m
+ [38;2;107;114;133m213[m     [38;2;200;206;219mAdding repository directory to the temporary git global config as a saf[m
+ [38;2;107;114;133m214[m     [38;2;122;162;247m"C:\Program Files\Git\bin\git.exe" config --global --add safe.directory[m
+       [38;2;160;167;184m▾ [m[1;38;2;200;206;219mComplete job[m                                                           
+ [38;2;107;114;133m215[m     [38;2;200;206;219mCleaning up orphan processes[m                                           
+[38;2;122;162;247m▌[m[38;2;107;114;133m216[m     [38;2;200;206;219m[32mstill running[m                                                          
+[1;38;2;200;206;219mlint / lint (windows-latest)[m                [38;2;160;167;184m5 errors[m  [38;2;160;167;184mfollow[m  [38;2;160;167;184mline 216/216  100%[m

@@ -1,0 +1,24 @@
+[38;2;122;162;247m▌[m      [38;2;160;167;184m▾ [m[1;38;2;200;206;219mSet up job[m                                                           [38;2;107;114;133m1s[m
+   [38;2;107;114;133m1[m     [38;2;200;206;219mCurrent runner version: '2.337.0'[m                                      
+   [38;2;107;114;133m2[m     [38;2;160;167;184m▸ [m[38;2;200;206;219mRunner Image Provisioner[m                                             
+  [38;2;107;114;133m10[m     [38;2;160;167;184m▸ [m[38;2;200;206;219mOperating System[m                                                     
+  [38;2;107;114;133m15[m     [38;2;160;167;184m▸ [m[38;2;200;206;219mRunner Image[m                                                         
+  [38;2;107;114;133m21[m     [38;2;160;167;184m▸ [m[38;2;200;206;219mGITHUB_TOKEN Permissions[m                                             
+  [38;2;107;114;133m27[m     [38;2;200;206;219mSecret source: Actions[m                                                 
+  [38;2;107;114;133m28[m     [38;2;200;206;219mCache mode: write[m                                                      
+  [38;2;107;114;133m29[m     [38;2;200;206;219mPrepare workflow directory[m                                             
+  [38;2;107;114;133m30[m     [38;2;200;206;219mPrepare all required actions[m                                           
+  [38;2;107;114;133m31[m     [38;2;200;206;219mGetting action download info[m                                           
+  [38;2;107;114;133m32[m     [38;2;200;206;219mDownload action repository 'actions/checkout@3d3c42e5aac5ba805825da7641[m
+  [38;2;107;114;133m33[m     [38;2;200;206;219mDownload action repository 'actions/setup-go@b7ad1dad31e06c5925ef5d2fc7[m
+  [38;2;107;114;133m34[m     [38;2;200;206;219mDownload action repository 'golangci/golangci-lint-action@ba0d7d2ec06a0[m
+  [38;2;107;114;133m35[m     [38;2;200;206;219mUses: charmbracelet/meta/.github/workflows/lint.yml@refs/heads/main (74[m
+  [38;2;107;114;133m36[m     [38;2;160;167;184m▸ [m[38;2;200;206;219m Inputs[m                                                              
+  [38;2;107;114;133m44[m     [38;2;200;206;219mComplete job name: lint / lint (windows-latest)[m                        
+       [38;2;160;167;184m▾ [m[1;38;2;200;206;219mRun git config --global core.autocrlf input[m                          [38;2;107;114;133m1s[m
+  [38;2;107;114;133m45[m     [38;2;160;167;184m▸ [m[38;2;200;206;219mRun git config --global core.autocrlf input[m                          
+       [38;2;160;167;184m▾ [m[1;38;2;200;206;219mRun actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1[m        [38;2;107;114;133m5s[m
+  [38;2;107;114;133m49[m     [38;2;160;167;184m▸ [m[38;2;200;206;219mRun actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1[m        
+  [38;2;107;114;133m67[m     [38;2;200;206;219mSyncing repository: charmbracelet/bubbletea[m                            
+  [38;2;107;114;133m68[m     [38;2;160;167;184m▸ [m[38;2;200;206;219mGetting Git version info[m                                             
+[1;38;2;200;206;219mlint / lint (windows-latest)[m                           [38;2;160;167;184m5 errors[m  [38;2;160;167;184mline 1/215  26%[m

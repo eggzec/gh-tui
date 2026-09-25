@@ -1,0 +1,12 @@
+ [38;2;107;114;133m177[m   [38;2;107;114;133m09:50:16[m     [38;2;200;206;219mRunning [D:\a\_temp\48551658-aac3-4ea1-b666-ddd224bc0dd6\golangci-lint-2.9.0-win[m
+ [38;2;107;114;133m178[m   [38;2;107;114;133m09:50:16[m     [38;2;200;206;219mRunning [D:\a\_temp\48551658-aac3-4ea1-b666-ddd224bc0dd6\golangci-lint-2.9.0-win[m
+ [38;2;107;114;133m179[m   [38;2;107;114;133m09:50:16[m     [38;2;200;206;219mRunning [D:\a\_temp\48551658-aac3-4ea1-b666-ddd224bc0dd6\golangci-lint-2.9.0-win[m
+[38;2;122;162;247m▌[m[38;2;107;114;133m180[m [38;2;239;125;125m✗[m [38;2;107;114;133m09:50:42[m     [38;2;239;125;125mD:\a\bubbletea\bubbletea\charmbracelet\bubbletea\clipboard_backend.go:95:6: type[m
+ [38;2;107;114;133m181[m   [38;2;107;114;133m09:50:42[m     [38;2;200;206;219mtype clipboardCommand func(selection ClipboardSelection) (name string, args []st[m
+ [38;2;107;114;133m182[m   [38;2;107;114;133m09:50:42[m     [38;2;200;206;219m     ^[m                                                                          
+ [38;2;107;114;133m183[m [38;2;239;125;125m✗[m [38;2;107;114;133m09:50:42[m     [38;2;239;125;125mD:\a\bubbletea\bubbletea\charmbracelet\bubbletea\clipboard_backend.go:99:6: type[m
+ [38;2;107;114;133m184[m   [38;2;107;114;133m09:50:42[m     [38;2;200;206;219mtype commandClipboardBackend struct {[m                                           
+ [38;2;107;114;133m185[m   [38;2;107;114;133m09:50:42[m     [38;2;200;206;219m     ^[m                                                                          
+ [38;2;107;114;133m186[m [38;2;239;125;125m✗[m [38;2;107;114;133m09:50:42[m     [38;2;239;125;125mD:\a\bubbletea\bubbletea\charmbracelet\bubbletea\clipboard_backend.go:105:34: fu[m
+ [38;2;107;114;133m187[m   [38;2;107;114;133m09:50:42[m     [38;2;200;206;219mfunc (b commandClipboardBackend) Set(selection ClipboardSelection, content strin[m
+[1;38;2;200;206;219mlint / lint (windows-latest)[m                                            [38;2;160;167;184merror 1/5[m  [38;2;160;167;184mline 180/215  61%[m
