@@ -175,7 +175,7 @@ func (m *Modal) selectRun() tea.Cmd {
 	first := !m.hasRun
 	m.run, m.hasRun = r, true
 	m.jobs = newJobs(r)
-	m.log.clear()
+	m.log.Clear()
 	var cmd tea.Cmd
 	if p, ok := m.svc.CachedJobs(m.jobsQuery()); ok {
 		cmd = m.setJobs(p, !first)
@@ -190,7 +190,7 @@ func (m *Modal) selectRun() tea.Cmd {
 	if first {
 		read = m.readJobs()
 	} else {
-		read = m.rest(restJobs)
+		read = m.rest()
 	}
 	return tea.Batch(cmd, read, m.startTick())
 }
@@ -199,7 +199,7 @@ func (m *Modal) selectRun() tea.Cmd {
 func (m *Modal) clearRun() {
 	m.run, m.hasRun = core.Run{}, false
 	m.jobs = jobs{}
-	m.log.clear()
+	m.log.Clear()
 	m.unfollow()
 }
 
@@ -211,33 +211,33 @@ func (m *Modal) renderRun(r core.Run, selected bool, w int) string {
 	st := &m.st
 	now := m.now()
 	state := ui.RunStateOf(r.Status, r.Conclusion)
-	name := st.strong.Render(oneLine(r.Name))
+	name := st.Strong.Render(ui.OneLine(r.Name))
 	if !selected {
-		name = st.text.Render(oneLine(r.Name))
+		name = st.Text.Render(ui.OneLine(r.Name))
 	}
-	head := st.glyphs[state] + " " + name + " " + st.muted.Render("#"+strconv.Itoa(r.Number)) + "  " + st.text.Render(oneLine(r.DisplayTitle))
-	first := spread(head, st.subtle.Render(ui.Ago(r.CreatedAt, now)), w)
+	head := st.Glyphs[state] + " " + name + " " + st.Muted.Render("#"+strconv.Itoa(r.Number)) + "  " + st.Text.Render(ui.OneLine(r.DisplayTitle))
+	first := ui.Spread(head, st.Subtle.Render(ui.Ago(r.CreatedAt, now)), w)
 
 	parts := make([]string, 0, 3)
 	for _, p := range []string{r.Branch, r.Event, r.Actor} {
-		if p = oneLine(p); p != "" {
+		if p = ui.OneLine(p); p != "" {
 			parts = append(parts, p)
 		}
 	}
-	detail := "  " + st.muted.Render(strings.Join(parts, " · "))
+	detail := "  " + st.Muted.Render(strings.Join(parts, " · "))
 	var took string
 	switch d, ok := runSpan(r, now); {
 	case r.Status == core.RunCancelling:
-		took = st.warning.Render("cancelling")
+		took = st.Warning.Render("cancelling")
 	case !r.Done() && r.Status != core.RunInProgress:
-		took = st.warning.Render(strings.ReplaceAll(string(r.Status), "_", " "))
+		took = st.Warning.Render(strings.ReplaceAll(string(r.Status), "_", " "))
 	case !ok:
 	case r.Done():
-		took = st.subtle.Render(duration(d))
+		took = st.Subtle.Render(ui.Duration(d))
 	default:
-		took = st.states[ui.RunInProgress].Render(duration(d))
+		took = st.States[ui.RunInProgress].Render(ui.Duration(d))
 	}
-	return first + "\n" + spread(detail, took, w)
+	return first + "\n" + ui.Spread(detail, took, w)
 }
 
 // runsTitle is the detail of the runs pane's title: how many are loaded.

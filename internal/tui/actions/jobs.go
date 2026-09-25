@@ -184,13 +184,13 @@ func (m *Modal) jobLines(w, h int) []string {
 	j, st := &m.jobs, &m.st
 	switch {
 	case !m.hasRun:
-		return fitLines([]string{st.muted.Render("Pick a run to see its jobs.")}, w, h)
+		return ui.FitLines([]string{st.Muted.Render("Pick a run to see its jobs.")}, w, h)
 	case !j.loaded && j.err != nil:
-		return fitLines(wrap(m.errorLine("Couldn't load the jobs: ", j.err), w), w, h)
+		return ui.FitLines(ui.Wrap(m.errorLine("Couldn't load the jobs: ", j.err), w), w, h)
 	case !j.loaded:
-		return fitLines([]string{m.spin.View() + st.muted.Render("Loading the jobs…")}, w, h)
+		return ui.FitLines([]string{m.spin.View() + st.Muted.Render("Loading the jobs…")}, w, h)
 	case len(j.items) == 0:
-		return fitLines(wrap(st.muted.Render(m.noJobsText()), w), w, h)
+		return ui.FitLines(ui.Wrap(st.Muted.Render(m.noJobsText()), w), w, h)
 	}
 	lines := make([]string, 0, h)
 	focused := m.focus == jobsPane
@@ -203,9 +203,9 @@ func (m *Modal) jobLines(w, h int) []string {
 		if k := m.keys.Open.Help().Key; k != "" {
 			text += " " + k + " shows them all."
 		}
-		lines = append(lines, fit(st.noGutter+st.subtle.Render(ansi.Truncate(text, w-2, "…")), w))
+		lines = append(lines, ui.Fit(st.noGutter+st.Subtle.Render(ansi.Truncate(text, w-2, "…")), w))
 	}
-	return padLines(lines, w, h)
+	return ui.PadLines(lines, w, h)
 }
 
 // noJobsText tells why the run shown has no jobs, and what to do: a run
@@ -240,34 +240,11 @@ func (m *Modal) jobRow(j core.Job, cursor, focused bool, w int, now time.Time) s
 		}
 	}
 	state := ui.RunStateOf(j.Status, j.Conclusion)
-	name := st.text.Render(oneLine(j.Name))
+	name := st.Text.Render(ui.OneLine(j.Name))
 	if cursor {
-		name = st.strong.Render(oneLine(j.Name))
+		name = st.Strong.Render(ui.OneLine(j.Name))
 	}
-	return spread(gutter+st.glyphs[state]+" "+name, m.took(j.Status, j.Conclusion, j.StartedAt, j.CompletedAt, now), w)
-}
-
-// took renders how long a job or a step ran, or where it is while it
-// hasn't started.
-func (m *Modal) took(status core.RunStatus, c core.Conclusion, start, end, now time.Time) string {
-	st := &m.st
-	switch {
-	case c == core.ConclusionSkipped:
-		return st.subtle.Render("skipped")
-	case status == core.RunCompleted:
-		if d, ok := span(start, end, now); ok {
-			return st.subtle.Render(duration(d))
-		}
-		return ""
-	case status == core.RunInProgress:
-		if d, ok := span(start, time.Time{}, now); ok {
-			return st.states[ui.RunInProgress].Render(duration(d))
-		}
-		return st.states[ui.RunInProgress].Render("running")
-	case status == core.RunCancelling:
-		return st.warning.Render("cancelling")
-	}
-	return st.muted.Render(string(status))
+	return ui.Spread(gutter+st.Glyphs[state]+" "+name, m.st.Took(j.Status, j.Conclusion, j.StartedAt, j.CompletedAt, now), w)
 }
 
 // jobsTitle is the detail of the jobs pane's title: how many there are,
@@ -295,9 +272,9 @@ func (m *Modal) jobsTitle() string {
 
 // errorLine renders an error that the refresh key reads again.
 func (m *Modal) errorLine(what string, err error) string {
-	text := m.st.error.Render("✗ " + what + firstLine(err.Error()))
+	text := m.st.Error.Render("✗ " + what + ui.FirstLine(err.Error()))
 	if k := m.keys.Refresh.Help().Key; k != "" {
-		text += m.st.subtle.Render(" · " + k + " to retry")
+		text += m.st.Subtle.Render(" · " + k + " to retry")
 	}
 	return text
 }

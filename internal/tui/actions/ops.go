@@ -76,8 +76,8 @@ func (m *Modal) askRerunJob() {
 	}
 	svc, repo, runID, jobID := m.svc, m.repo, r.ID, j.ID
 	m.ask = &confirm{
-		question: "Re-run " + oneLine(j.Name) + " of " + runName(r) + "?",
-		what:     "re-run " + oneLine(j.Name),
+		question: "Re-run " + ui.OneLine(j.Name) + " of " + runName(r) + "?",
+		what:     "re-run " + ui.OneLine(j.Name),
 		start:    func() *optimistic.Op { return svc.RerunJob(repo, runID, jobID) },
 	}
 }

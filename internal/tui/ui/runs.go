@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"time"
+
 	"charm.land/lipgloss/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
@@ -112,4 +114,50 @@ func (t Theme) Run(s RunState) lipgloss.Style {
 		c = runColors[s][1]
 	}
 	return lipgloss.NewStyle().Foreground(lipgloss.Color(c))
+}
+
+// RunStyles style what shows runs, jobs and steps: their text, and the
+// glyphs of their states. Build them once per theme with [NewRunStyles].
+type RunStyles struct {
+	Text, Strong, Muted, Subtle lipgloss.Style
+	Accent, Warning, Error      lipgloss.Style
+	// States style the glyphs of the run states, and Glyphs holds them
+	// rendered.
+	States [NumRunStates]lipgloss.Style
+	Glyphs [NumRunStates]string
+}
+
+// NewRunStyles returns the run styles of t, with the glyphs of ic.
+func NewRunStyles(t Theme, ic Icons) RunStyles {
+	s := RunStyles{
+		Text: t.Text, Strong: t.Title, Muted: t.Muted, Subtle: t.Subtle,
+		Accent: t.Accent, Warning: t.Warning, Error: t.Error,
+	}
+	for st := range NumRunStates {
+		s.States[st] = t.Run(st)
+		s.Glyphs[st] = s.States[st].Render(ic.Run(st))
+	}
+	return s
+}
+
+// Took renders how long a job or a step ran, or where it is while it
+// hasn't started.
+func (s *RunStyles) Took(status core.RunStatus, c core.Conclusion, start, end, now time.Time) string {
+	switch {
+	case c == core.ConclusionSkipped:
+		return s.Subtle.Render("skipped")
+	case status == core.RunCompleted:
+		if d, ok := Span(start, end, now); ok {
+			return s.Subtle.Render(Duration(d))
+		}
+		return ""
+	case status == core.RunInProgress:
+		if d, ok := Span(start, time.Time{}, now); ok {
+			return s.States[RunInProgress].Render(Duration(d))
+		}
+		return s.States[RunInProgress].Render("running")
+	case status == core.RunCancelling:
+		return s.Warning.Render("cancelling")
+	}
+	return s.Muted.Render(string(status))
 }

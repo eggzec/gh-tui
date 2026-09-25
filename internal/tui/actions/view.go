@@ -4,6 +4,8 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
 // View renders the panes side by side, or the focused one alone with a
@@ -18,10 +20,10 @@ func (m *Modal) View() string {
 	var lines []string
 	switch {
 	case m.filterStep != nil:
-		lines = append(lines, fit(m.st.lastCrumb.Render("Filter runs"), w))
+		lines = append(lines, ui.Fit(m.st.lastCrumb.Render("Filter runs"), w))
 		lines = append(lines, m.filterLines(w, h)...)
 	case m.narrow():
-		lines = append(lines, fit(m.breadcrumb(w), w))
+		lines = append(lines, ui.Fit(m.breadcrumb(w), w))
 		lines = append(lines, m.paneLines(m.focus, w, h)...)
 	case m.zoom:
 		lines = append(lines, m.paneTitle(m.focus, w))
@@ -83,11 +85,7 @@ func (m *Modal) paneWidth(p pane) int {
 func (m *Modal) layout() {
 	h := m.bodyHeight()
 	m.runs.SetSize(m.paneWidth(runsPane), h)
-	lh := h
-	if m.logNotice() != "" {
-		lh--
-	}
-	m.log.view.SetSize(m.paneWidth(logPane), max(lh, 0))
+	m.log.SetSize(m.paneWidth(logPane), h)
 	if f := m.filterStep; f != nil && f.form != nil {
 		f.form.SetSize(m.width, h)
 	}
@@ -99,7 +97,7 @@ func (m *Modal) paneLines(p pane, w, h int) []string {
 	switch p {
 	case runsPane:
 		// The feed renders its size exactly.
-		return padLines(strings.Split(m.runs.View(), "\n"), w, h)
+		return ui.PadLines(strings.Split(m.runs.View(), "\n"), w, h)
 	case jobsPane:
 		return m.jobLines(w, h)
 	case logPane:
@@ -128,9 +126,9 @@ func (m *Modal) paneTitle(p pane, w int) string {
 	}
 	line := st.Render(text)
 	if room := w - ansi.StringWidth(text) - 1; detail != "" && room > 1 {
-		line += " " + m.st.subtle.Render(ansi.Truncate(detail, room, "…"))
+		line += " " + m.st.Subtle.Render(ansi.Truncate(detail, room, "…"))
 	}
-	return fit(line, w)
+	return ui.Fit(line, w)
 }
 
 // breadcrumb shows where the narrow modal is: the runs, the run and the
@@ -142,7 +140,7 @@ func (m *Modal) breadcrumb(w int) string {
 		crumbs = append(crumbs, runName(m.run))
 	}
 	if j, ok := m.jobs.selected(); m.focus == logPane && ok {
-		crumbs = append(crumbs, oneLine(j.Name))
+		crumbs = append(crumbs, ui.OneLine(j.Name))
 	}
 	const sep = " › "
 	// Drop the first crumbs until the rest fit.
@@ -155,7 +153,7 @@ func (m *Modal) breadcrumb(w int) string {
 	var b strings.Builder
 	for i, c := range crumbs {
 		if i > 0 {
-			b.WriteString(m.st.subtle.Render(sep))
+			b.WriteString(m.st.Subtle.Render(sep))
 		}
 		st := m.st.crumb
 		if i == len(crumbs)-1 {
@@ -185,9 +183,9 @@ func (m *Modal) prompt(w int) string {
 	switch {
 	case m.ask != nil:
 		yes, no := m.keys.Yes.Help().Key, m.keys.No.Help().Key
-		return spread(m.st.question.Render(m.ask.question), m.st.muted.Render(yes+"/"+no), w)
+		return ui.Spread(m.st.question.Render(m.ask.question), m.st.Muted.Render(yes+"/"+no), w)
 	case m.notice != "":
-		return fit(m.st.warning.Render(ansi.Truncate(m.notice, w, "…")), w)
+		return ui.Fit(m.st.Warning.Render(ansi.Truncate(m.notice, w, "…")), w)
 	}
 	return ""
 }

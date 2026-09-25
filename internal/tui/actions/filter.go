@@ -7,6 +7,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 )
 
@@ -121,7 +122,7 @@ func (m *Modal) workflowItems() []filterform.Item {
 	items := make([]filterform.Item, 0, len(m.workflows.items)+1)
 	items = append(items, filterform.Item{Label: "Any"})
 	for _, w := range m.workflows.items {
-		if name := oneLine(w.Name); name != "" {
+		if name := ui.OneLine(w.Name); name != "" {
 			items = append(items, filterform.Item{Label: name, Value: name})
 		}
 	}
@@ -182,7 +183,7 @@ func (m *Modal) filterOf(v map[string]filterform.Value) core.RunFilter {
 	}
 	if name := v[fieldWorkflow].Text(); name != "" {
 		for _, w := range m.workflows.items {
-			if strings.EqualFold(oneLine(w.Name), name) {
+			if strings.EqualFold(ui.OneLine(w.Name), name) {
 				f.WorkflowID = w.ID
 				break
 			}
@@ -209,7 +210,7 @@ func queryOf(f core.RunFilter, wfs []core.Workflow) string {
 	if f.WorkflowID != 0 {
 		for _, w := range wfs {
 			if w.ID == f.WorkflowID {
-				add("workflow", oneLine(w.Name))
+				add("workflow", ui.OneLine(w.Name))
 			}
 		}
 	}
@@ -224,7 +225,7 @@ func queryOf(f core.RunFilter, wfs []core.Workflow) string {
 func (m *Modal) filterLines(w, h int) []string {
 	f := m.filterStep.form
 	if f == nil {
-		return fitLines([]string{m.spin.View() + m.st.muted.Render("Loading the workflows…")}, w, h)
+		return ui.FitLines([]string{m.spin.View() + m.st.Muted.Render("Loading the workflows…")}, w, h)
 	}
-	return fitLines(strings.Split(f.View(), "\n"), w, h)
+	return ui.FitLines(strings.Split(f.View(), "\n"), w, h)
 }

@@ -1,0 +1,158 @@
+package jobview
+
+import (
+	"context"
+	"errors"
+	"log/slog"
+	"os"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/spinner"
+	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
+
+	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/logview"
+)
+
+func TestMain(m *testing.M) {
+	slog.SetDefault(slog.New(slog.DiscardHandler))
+	os.Exit(m.Run())
+}
+
+var (
+	repo    = core.RepoRef{Owner: "charmbracelet", Name: "bubbletea"}
+	testNow = time.Date(2026, 9, 24, 12, 0, 0, 0, time.UTC)
+)
+
+func at(d time.Duration) time.Time { return testNow.Add(-d) }
+
+const (
+	failedJob  = 101
+	runningJob = 200
+)
+
+func failed() core.Job {
+	return core.Job{
+		ID: failedJob, RunID: 4812, Attempt: 1, Name: "test (ubuntu-latest, 1.26)", Status: core.RunCompleted,
+		Conclusion: core.ConclusionFailure, StartedAt: at(time.Hour), CompletedAt: at(time.Hour - 3*time.Minute),
+		Steps: []core.Step{
+			{Number: 1, Name: "Set up job", Status: core.RunCompleted, Conclusion: core.ConclusionSuccess, StartedAt: at(time.Hour), CompletedAt: at(time.Hour - 2*time.Second)},
+			{Number: 2, Name: "Run go test ./...", Status: core.RunCompleted, Conclusion: core.ConclusionFailure, StartedAt: at(time.Hour - 2*time.Second), CompletedAt: at(time.Hour - 3*time.Minute)},
+		},
+	}
+}
+
+func running() core.Job {
+	return core.Job{
+		ID: runningJob, RunID: 4810, Attempt: 1, Name: "lint", Status: core.RunInProgress, StartedAt: at(80 * time.Second),
+		Steps: []core.Step{
+			{Number: 1, Name: "Set up job", Status: core.RunCompleted, Conclusion: core.ConclusionSuccess, StartedAt: at(80 * time.Second), CompletedAt: at(78 * time.Second)},
+			{Number: 2, Name: "Run golangci-lint", Status: core.RunInProgress, StartedAt: at(78 * time.Second)},
+		},
+	}
+}
+
+func testLog() core.Log {
+	line := func(text string, kind core.LogKind, st int) core.LogLine {
+		return core.LogLine{Time: at(time.Hour), Text: text, Kind: kind, Step: st}
+	}
+	return core.Log{Lines: []core.LogLine{
+		line("Current runner version: '2.337.0'", core.LogPlain, 1),
+		line("go test ./...", core.LogPlain, 2),
+		line("--- FAIL: TestProgram (0.31s)", core.LogPlain, 2),
+		line("Process completed with exit code 1.", core.LogError, 2),
+	}}
+}
+
+// fake serves logs from memory and counts its reads.
+type fake struct {
+	mu     sync.Mutex
+	logs   map[int64]core.Log
+	cached map[int64]bool
+	errs   map[int64]error
+	reads  []int64
+}
+
+func newFake() *fake {
+	return &fake{logs: map[int64]core.Log{failedJob: testLog()}, cached: map[int64]bool{}, errs: map[int64]error{}}
+}
+
+func (f *fake) CachedLog(_ core.RepoRef, jobID int64) (core.Log, bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.logs[jobID], f.cached[jobID]
+}
+
+func (f *fake) Log(_ context.Context, _ core.RepoRef, jobID int64) (core.Log, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.reads = append(f.reads, jobID)
+	if err := f.errs[jobID]; err != nil {
+		return core.Log{}, err
+	}
+	f.cached[jobID] = true
+	return f.logs[jobID], nil
+}
+
+var errBoom = errors.New("boom")
+
+func testTheme() ui.Theme {
+	p, err := config.Default().Palette(true)
+	if err != nil {
+		panic(err)
+	}
+	return ui.NewTheme(p, true)
+}
+
+var openKey = key.NewBinding(key.WithKeys("o"), key.WithHelp("o", "browser"))
+
+func newView(tb testing.TB, f Service, w, h int, opts ...Option) *Model {
+	tb.Helper()
+	opts = append([]Option{WithClock(func() time.Time { return testNow }), WithIcons(ui.NewIcons(config.IconsUnicode))}, opts...)
+	m := New(tb.Context(), f, repo, logview.DefaultKeyMap(), openKey, opts...)
+	m.SetTheme(testTheme())
+	m.SetSize(w, h)
+	return &m
+}
+
+// run runs cmd and feeds what it sends back to m, the way the app would.
+func run(m *Model, cmd tea.Cmd) {
+	if cmd == nil {
+		return
+	}
+	switch msg := cmd().(type) {
+	case nil, spinner.TickMsg:
+	case tea.BatchMsg:
+		for _, c := range msg {
+			run(m, c)
+		}
+	default:
+		var next tea.Cmd
+		*m, next = m.Update(msg)
+		run(m, next)
+	}
+}
+
+func text(m *Model) string {
+	return strings.Join(strings.Fields(ansi.Strip(m.View())), " ")
+}
+
+func assertFits(tb testing.TB, v string, width, height int) {
+	tb.Helper()
+	lines := strings.Split(v, "\n")
+	if len(lines) != height {
+		tb.Errorf("view has %d lines, want %d", len(lines), height)
+	}
+	for i, l := range lines {
+		if w := ansi.StringWidth(l); w != width {
+			tb.Errorf("line %d is %d wide, want %d: %q", i, w, width, ansi.Strip(l))
+		}
+	}
+}

@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/x/exp/teatest/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/internal/tui/jobview"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -34,7 +35,7 @@ func (a *app) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.done = append(a.done, msg)
 	}
 	cmd := a.modal.Update(msg)
-	if a.ready != nil && a.modal.log.state == logReady {
+	if a.ready != nil && a.modal.log.State() == jobview.Ready {
 		close(a.ready)
 		a.ready = nil
 	}
