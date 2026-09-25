@@ -48,6 +48,11 @@ func (m *Modal) update(msg tea.Msg) tea.Cmd {
 		return m.ticked()
 	case ui.SyncMsg:
 		return m.synced(msg)
+	case ui.ReopenedMsg:
+		if msg.Modal != m {
+			return nil
+		}
+		return m.reopened()
 	case ui.DoneMsg:
 		if msg.From != Title {
 			return nil
@@ -69,6 +74,18 @@ func (m *Modal) update(msg tea.Msg) tea.Cmd {
 		cmds = append(cmds, m.updateFilter(msg))
 	}
 	return tea.Batch(cmds...)
+}
+
+// reopened starts again what stopped while a preview opened from the modal
+// hid it, whose messages went to the preview: the timers and the spinner,
+// and the run shown, read from the cache in case a poll moved it.
+func (m *Modal) reopened() tea.Cmd {
+	m.ticking, m.spinning = false, false
+	cmd := m.fromCache()
+	if m.loading() {
+		cmd = tea.Batch(cmd, m.startSpinner())
+	}
+	return tea.Batch(cmd, m.startTick())
 }
 
 // spun spins the spinner while something loads.

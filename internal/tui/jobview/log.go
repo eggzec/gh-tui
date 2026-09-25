@@ -15,24 +15,29 @@ import (
 )
 
 // Show shows job j: its log from memory at once, or read, after the rest
-// of WithRest if rest is set. A job that hasn't finished shows its steps,
-// and its log once it is shown again, finished. Showing the job shown
-// again keeps its log, and only takes its steps.
-func (m *Model) Show(j core.Job, rest bool) tea.Cmd {
+// of WithRest if rest is set, and the annotations of a failed job with it.
+// A job that hasn't finished shows its steps, and its log once it is shown
+// again, finished. Showing the job shown again keeps its log, and only
+// takes its steps.
+func (m *Model) Show(j core.Job, rest bool, h Hints) tea.Cmd {
 	defer m.layout()
 	if j.ID == m.job.ID && m.state != None && (m.state != Pending || !j.Done()) {
-		m.job = j
+		m.job, m.hints = j, h
 		return nil
 	}
 	m.Clear()
-	m.job = j
+	m.job, m.hints = j, h
 	if !j.Done() {
 		m.state = Pending
 		return nil
 	}
+	notes := m.cachedNotes()
 	if lg, ok := m.svc.CachedLog(m.repo, j.ID); ok {
 		m.setLog(lg)
-		return nil
+		if notes {
+			return nil
+		}
+		return m.readNotes()
 	}
 	m.state = Loading
 	spin := m.view.SetLoading()
@@ -48,7 +53,9 @@ func (m *Model) Show(j core.Job, rest bool) tea.Cmd {
 
 // Clear shows no job.
 func (m *Model) Clear() {
-	m.job, m.state, m.truncated, m.resting = core.Job{}, None, false, false
+	m.job, m.hints, m.state, m.truncated, m.resting = core.Job{}, Hints{}, None, false, false
+	m.notes = notes{}
+	m.focusLog(true)
 	m.layout()
 }
 
@@ -63,14 +70,19 @@ func (m *Model) ReadNow() tea.Cmd {
 	return m.read()
 }
 
-// Retry reads the log again once it failed to load, and does nothing
-// otherwise.
+// Retry reads the log or the annotations again once they failed to load,
+// and does nothing otherwise.
 func (m *Model) Retry() tea.Cmd {
+	var notes tea.Cmd
+	if m.notes.err != nil {
+		m.notes.err = nil
+		notes = m.readNotes()
+	}
 	if m.state != Failed {
-		return nil
+		return notes
 	}
 	m.state = Loading
-	return tea.Batch(m.view.SetLoading(), m.read())
+	return tea.Batch(notes, m.view.SetLoading(), m.read())
 }
 
 // restMsg reports that the rest of seq ended.
@@ -87,18 +99,23 @@ type logMsg struct {
 	err   error
 }
 
-// read reads the log of the job shown.
+// read reads the log of the job shown, and its annotations unless they are
+// in memory.
 func (m *Model) read() tea.Cmd {
 	if m.job.ID == 0 {
 		return nil
 	}
+	var notes tea.Cmd
+	if !m.notes.loaded && !m.notes.loading {
+		notes = m.readNotes()
+	}
 	svc, ctx, id, repo, jobID := m.svc, m.ctx, m.id, m.repo, m.job.ID
-	return func() tea.Msg {
+	return tea.Batch(notes, func() tea.Msg {
 		ctx, end := obs.Begin(ctx, "actions.log")
 		l, err := svc.Log(ctx, repo, jobID)
 		end(err, "span", "tui", "job", jobID, "lines", len(l.Lines), "truncated", l.Truncated)
 		return logMsg{id: id, jobID: jobID, log: l, err: err}
-	}
+	})
 }
 
 func (m *Model) receive(msg logMsg) {

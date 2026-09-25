@@ -37,7 +37,7 @@ func testRuns() []core.Run {
 	return []core.Run{
 		{
 			ID: failedRun, Attempt: 1, Name: "CI", DisplayTitle: "fix: skip capability queries when input is disabled",
-			Number: 4812, Event: "push", Branch: "main", Status: core.RunCompleted, Conclusion: core.ConclusionFailure,
+			Number: 4812, Event: "push", Branch: "main", HeadSHA: "f00dcafe", Status: core.RunCompleted, Conclusion: core.ConclusionFailure,
 			Actor: "drew", WorkflowID: 1, CreatedAt: at(2 * time.Hour), RunStartedAt: at(2 * time.Hour),
 			UpdatedAt: at(2*time.Hour - 3*time.Minute - 12*time.Second), URL: "https://github.com/charmbracelet/bubbletea/actions/runs/4812",
 		},
@@ -148,6 +148,9 @@ type fake struct {
 	// cachedJobs and cachedLogs hold what the Cached reads find.
 	cachedJobs map[int64]bool
 	cachedLogs map[int64]bool
+	// notes are the annotations of jobs, and cachedNotes those in memory.
+	notes       map[int64][]core.Annotation
+	cachedNotes map[int64]bool
 
 	runsErr, jobsErr, logErr error
 	// logErrs fails the logs of some jobs.
@@ -155,23 +158,26 @@ type fake struct {
 	// refuse fails the changes, as GitHub refusing them.
 	refuse error
 
-	queries  []actionssvc.RunsQuery
-	jobReads []int64
-	logReads []int64
-	wfReads  int
-	runReads int
-	sent     []string
+	queries   []actionssvc.RunsQuery
+	jobReads  []int64
+	logReads  []int64
+	noteReads []int64
+	wfReads   int
+	runReads  int
+	sent      []string
 }
 
 func newFake() *fake {
 	return &fake{
-		runs:       testRuns(),
-		jobs:       testJobs(),
-		logs:       map[int64]core.Log{ubuntuJob: testLog()},
-		workflows:  []core.Workflow{{ID: 1, Name: "CI"}, {ID: 2, Name: "lint"}, {ID: 3, Name: "Build and test"}},
-		cachedJobs: map[int64]bool{},
-		cachedLogs: map[int64]bool{},
-		logErrs:    map[int64]error{},
+		runs:        testRuns(),
+		jobs:        testJobs(),
+		logs:        map[int64]core.Log{ubuntuJob: testLog()},
+		workflows:   []core.Workflow{{ID: 1, Name: "CI"}, {ID: 2, Name: "lint"}, {ID: 3, Name: "Build and test"}},
+		cachedJobs:  map[int64]bool{},
+		cachedLogs:  map[int64]bool{},
+		logErrs:     map[int64]error{},
+		notes:       map[int64][]core.Annotation{ubuntuJob: testNotes()},
+		cachedNotes: map[int64]bool{},
 	}
 }
 
@@ -371,3 +377,28 @@ func (fl *follows) follow(_ core.RepoRef, runID int64) func() {
 
 // viewer is the user of the tests.
 func viewer(context.Context) (string, error) { return "drew", nil }
+
+// notes are the annotations of the failed job of the fake.
+func testNotes() []core.Annotation {
+	return []core.Annotation{
+		{Path: "tea_test.go", StartLine: 54, EndLine: 54, Level: core.AnnotationFailure, Message: "want a frame, got none"},
+		{Path: ".github", Level: core.AnnotationFailure, Message: "Process completed with exit code 1."},
+	}
+}
+
+func (f *fake) CachedAnnotations(q actionssvc.AnnotationsQuery) (core.Page[core.Annotation], bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if !f.cachedNotes[q.CheckRunID] {
+		return core.Page[core.Annotation]{}, false
+	}
+	return core.Page[core.Annotation]{Items: f.notes[q.CheckRunID]}, true
+}
+
+func (f *fake) Annotations(_ context.Context, q actionssvc.AnnotationsQuery) (core.Page[core.Annotation], error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.noteReads = append(f.noteReads, q.CheckRunID)
+	f.cachedNotes[q.CheckRunID] = true
+	return core.Page[core.Annotation]{Items: f.notes[q.CheckRunID]}, nil
+}

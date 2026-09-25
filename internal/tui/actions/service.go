@@ -22,6 +22,10 @@ type Service interface {
 	// CachedLog returns a job's log from memory, without a request.
 	CachedLog(repo core.RepoRef, jobID int64) (core.Log, bool)
 	Log(ctx context.Context, repo core.RepoRef, jobID int64) (core.Log, error)
+	// CachedAnnotations returns a page of the annotations of a job from
+	// memory, without a request.
+	CachedAnnotations(q actionssvc.AnnotationsQuery) (core.Page[core.Annotation], bool)
+	Annotations(ctx context.Context, q actionssvc.AnnotationsQuery) (core.Page[core.Annotation], error)
 
 	RerunRun(repo core.RepoRef, runID int64) *optimistic.Op
 	RerunFailedJobs(repo core.RepoRef, runID int64) *optimistic.Op

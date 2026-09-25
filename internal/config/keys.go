@@ -97,6 +97,9 @@ const (
 	ActionRerun       = "rerun"
 	ActionRerunJob    = "rerun_job"
 	ActionCancelRun   = "cancel_run"
+	// ActionAnnotations moves the focus between the annotations of a
+	// failed job and its log.
+	ActionAnnotations = "annotations"
 )
 
 func defaultKeys() map[string][]string {
@@ -154,6 +157,7 @@ func defaultKeys() map[string][]string {
 		ActionRerun:       {"R"},
 		ActionRerunJob:    {"J"},
 		ActionCancelRun:   {"x"},
+		ActionAnnotations: {"A"},
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -581,7 +582,9 @@ func TestHelpNamesWhatTheKeysDo(t *testing.T) {
 	}{
 		{nil, "↵ jobs, tab pane, z zoom, ^r rerun failed, R rerun all, f filter, o browser"},
 		{[]string{"tab"}, "↵ log, tab pane, z zoom, ^r rerun failed, R rerun all, J rerun job, f filter, o browser"},
-		{[]string{"tab"}, "space fold, e next error, / search, tab pane, z zoom, ^r rerun failed, R rerun all, J rerun job, f filter, o browser"},
+		{[]string{"tab"}, "space fold, e next error, / search, A annotations, tab pane, z zoom, ^r rerun failed, R rerun all, J rerun job, f filter, o browser"},
+		{[]string{"A"}, "↑/k up, ↓/j down, ↵ open file, A log, tab pane, z zoom, ^r rerun failed, R rerun all, J rerun job, f filter, o browser"},
+		{[]string{"A"}, "space fold, e next error, / search, A annotations, tab pane, z zoom, ^r rerun failed, R rerun all, J rerun job, f filter, o browser"},
 		// The steps of a job in progress don't fold.
 		{[]string{"tab", "j", "tab", "tab"}, "tab pane, z zoom, x cancel run, f filter, o browser"},
 		{[]string{"x"}, "y yes, n no"},
@@ -617,5 +620,58 @@ func TestRunsWithoutJobsSayWhy(t *testing.T) {
 				t.Errorf("the jobs pane doesn't show why:\n%s", s)
 			}
 		})
+	}
+}
+
+func TestAnnotationsOpenTheirFile(t *testing.T) {
+	f := newFake()
+	m, h := newModal(t, f, wideW, wideH)
+	if s := paneText(m, logPane); !strings.Contains(s, "Annotations 2") || !strings.Contains(s, "✗ tea_test.go:54 want a frame, got none") {
+		t.Fatalf("the log pane doesn't show the annotations:\n%s", s)
+	}
+	if !slices.Equal(f.noteReads, []int64{ubuntuJob}) {
+		t.Errorf("read the annotations of %v, want those of the failed job", f.noteReads)
+	}
+	h.keys("tab", "tab", "A")
+	if !m.log.OnAnnotations() {
+		t.Fatal("A in the log didn't focus the annotations")
+	}
+	h.keys("enter")
+	want := ui.OpenFileMsg{Repo: repo, Path: "tea_test.go", Ref: "f00dcafe", Line: 54, Return: m}
+	if got := h.take(); len(got) != 1 || got[0] != want {
+		t.Fatalf("enter sent %v, want the file previewed at the run's commit", got)
+	}
+	// The exit code is about the workflow, not a file.
+	h.keys("j", "enter")
+	if got := h.take(); len(got) != 0 {
+		t.Errorf("enter on an annotation of the workflow sent %v", got)
+	}
+	if m.focus != logPane {
+		t.Errorf("enter in the annotations moved the focus to pane %d", m.focus)
+	}
+	h.keys("A")
+	if m.log.OnAnnotations() {
+		t.Error("A didn't give the keys back to the log")
+	}
+	// A job that passed has none worth reading.
+	h.keys("shift+tab", "j")
+	if len(f.noteReads) != 1 {
+		t.Errorf("read the annotations of %v, want none of a job that passed", f.noteReads)
+	}
+}
+
+func TestReopenedRestartsTheTimers(t *testing.T) {
+	f := newFake()
+	m, h := newModal(t, f, wideW, wideH, WithFollow(new(follows).follow))
+	other, _ := newModal(t, f, wideW, wideH)
+	h.keys("j")
+	// While a preview hid the modal, its ticks went to the preview, so
+	// they stopped.
+	m.opts.tick = time.Second
+	if m.Update(ui.ReopenedMsg{Modal: other}) != nil || m.ticking {
+		t.Error("another modal's reopening changed this one")
+	}
+	if cmd := m.Update(ui.ReopenedMsg{Modal: m}); cmd == nil || !m.ticking {
+		t.Error("reopened didn't start the timers again")
 	}
 }

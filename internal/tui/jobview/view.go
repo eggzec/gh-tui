@@ -16,18 +16,20 @@ func (m Model) View() string {
 
 func (m Model) lines() []string {
 	w, h := m.width, m.height
-	switch m.state {
-	case None:
+	if m.state == None {
 		return ui.FitLines([]string{m.st.Muted.Render("Pick a job to see its log.")}, w, h)
-	case Pending, Expired:
-		return m.stepLines(w, h)
-	case Loading, Ready, Failed:
 	}
 	var lines []string
 	if n := m.notice(); n != "" {
 		lines = ui.Wrap(n, w)[:1]
 	}
-	lines = append(lines, strings.Split(m.view.View(), "\n")...)
+	lines = append(lines, m.noteLines(w)...)
+	switch m.state {
+	case Pending, Expired:
+		lines = append(lines, m.stepLines(w, h-len(lines))...)
+	default:
+		lines = append(lines, strings.Split(m.view.View(), "\n")...)
+	}
 	return ui.PadLines(lines, w, h)
 }
 
@@ -37,7 +39,7 @@ func (m Model) notice() string {
 		return ""
 	}
 	text := "Only the end of this log: it is too large to read whole."
-	if k := m.open.Help().Key; k != "" {
+	if k := m.keys.Open.Help().Key; k != "" {
 		text += " " + k + " opens it on GitHub."
 	}
 	return m.st.Warning.Render(text)

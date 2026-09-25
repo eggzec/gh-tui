@@ -1,7 +1,9 @@
 // Package jobview shows one job of a GitHub Actions run: its log, with the
 // failed step open on its first error, or its steps while GitHub doesn't
-// publish the log yet. The Actions modal shows the job under the cursor of
-// its jobs with it, and the checks of a pull request the job of a check.
+// publish the log yet, and above them the annotations of a failed job,
+// each of which opens its file on its line. The Actions modal shows the
+// job under the cursor of its jobs with it, and the checks of a pull
+// request the job of a check.
 //
 // A job's log is published only when the job ends, so the view of a job in
 // progress shows its steps as they run instead, and the log once the
@@ -17,15 +19,44 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/logview"
 )
 
-// Service is what the view reads a job's log from.
+// Service is what the view reads a job's log and annotations from.
 type Service interface {
 	// CachedLog returns a job's log from memory, without a request.
 	CachedLog(repo core.RepoRef, jobID int64) (core.Log, bool)
 	Log(ctx context.Context, repo core.RepoRef, jobID int64) (core.Log, error)
+	// CachedAnnotations returns a page of annotations from memory, without
+	// a request.
+	CachedAnnotations(q actionssvc.AnnotationsQuery) (core.Page[core.Annotation], bool)
+	Annotations(ctx context.Context, q actionssvc.AnnotationsQuery) (core.Page[core.Annotation], error)
+}
+
+// KeyMap holds the keys of the view. The parent handles its own keys
+// first, so these leave out any it takes.
+type KeyMap struct {
+	// Log moves through the log.
+	Log logview.KeyMap
+	// Annotations moves the focus between the annotations and the log.
+	Annotations key.Binding
+	// Up and Down move through the annotations, and Select opens the file
+	// of the one under the cursor.
+	Up, Down, Select key.Binding
+	// Open opens the job on GitHub, which the notices name.
+	Open key.Binding
+}
+
+// Hints are what the parent knows of a job shown beyond the job itself.
+type Hints struct {
+	// SHA is the commit the job ran on, at which the files of its
+	// annotations open.
+	SHA string
+	// NoAnnotations reports that the job is known to have none, such as
+	// from its check run, so none are read.
+	NoAnnotations bool
 }
 
 // State is what the view shows.
@@ -56,13 +87,16 @@ type Model struct {
 	svc  Service
 	repo core.RepoRef
 	opts options
-	// open is the key that opens the job on GitHub, which the notices
-	// name.
-	open key.Binding
+	keys KeyMap
 
 	view  logview.Model
 	job   core.Job
+	hints Hints
 	state State
+	notes notes
+	// focused is set while the view takes keys, and onNotes while the
+	// annotations take them rather than the log.
+	focused, onNotes bool
 	// truncated reports that only the end of the log was read.
 	truncated bool
 	// resting is set while the log waits for the cursor of the parent to
@@ -81,6 +115,13 @@ type options struct {
 	icons ui.Icons
 	rest  time.Duration
 	now   func() time.Time
+	ret   ui.Modal
+}
+
+// WithReturn sets the modal that a file preview opened from an annotation
+// reopens when it closes: the one the view is shown in.
+func WithReturn(m ui.Modal) Option {
+	return func(o *options) { o.ret = m }
 }
 
 // WithIcons sets the glyphs of the states of the steps. The default is the
@@ -103,9 +144,8 @@ func WithClock(now func() time.Time) Option {
 }
 
 // New returns a view that shows no job, which reads the logs of repo from
-// svc under ctx. keys are the keys of the log, and open the key that opens
-// a job on GitHub, which the notices name.
-func New(ctx context.Context, svc Service, repo core.RepoRef, keys logview.KeyMap, open key.Binding, opts ...Option) Model {
+// svc under ctx.
+func New(ctx context.Context, svc Service, repo core.RepoRef, keys KeyMap, opts ...Option) Model {
 	o := options{icons: ui.NewIcons(""), now: time.Now}
 	for _, opt := range opts {
 		opt(&o)
@@ -116,8 +156,8 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, keys logview.KeyMa
 		svc:  svc,
 		repo: repo,
 		opts: o,
-		open: open,
-		view: logview.New(logview.WithFocusFailed(true), logview.WithKeyMap(keys)),
+		keys: keys,
+		view: logview.New(logview.WithFocusFailed(true), logview.WithKeyMap(keys.Log)),
 	}
 	return m
 }
@@ -134,23 +174,45 @@ func (m *Model) SetSize(width, height int) {
 	m.layout()
 }
 
-// layout sizes the log to the room below the notice.
+// layout sizes the log to the room below the notice and the annotations.
 func (m *Model) layout() {
-	h := m.height
+	h := m.height - m.notesHeight()
 	if m.notice() != "" {
 		h--
 	}
 	m.view.SetSize(m.width, max(h, 0))
+	m.notes.scroll(m.noteRows())
 }
 
-// Focus makes the log take keys.
-func (m *Model) Focus() { m.view.Focus() }
+// Focus makes the view take keys: the log, or the annotations if they had
+// the focus.
+func (m *Model) Focus() {
+	m.focused = true
+	m.focusLog(!m.onNotes || len(m.notes.items) == 0)
+}
 
-// Blur makes the log ignore keys.
-func (m *Model) Blur() { m.view.Blur() }
+// Blur makes the view ignore keys.
+func (m *Model) Blur() {
+	m.focused = false
+	m.view.Blur()
+}
 
-// Focused reports whether the log takes keys.
-func (m Model) Focused() bool { return m.view.Focused() }
+// focusLog gives the keys to the log, or to the annotations.
+func (m *Model) focusLog(log bool) {
+	m.onNotes = !log
+	if log && m.focused {
+		m.view.Focus()
+	} else {
+		m.view.Blur()
+	}
+}
+
+// Focused reports whether the view takes keys.
+func (m Model) Focused() bool { return m.focused }
+
+// OnAnnotations reports whether the annotations take the keys rather than
+// the log.
+func (m Model) OnAnnotations() bool { return m.focused && m.onNotes }
 
 // Capturing reports whether the search of the log takes every key.
 func (m Model) Capturing() bool { return m.view.Capturing() }
@@ -174,8 +236,33 @@ func (m Model) KeyMap() logview.KeyMap { return m.view.KeyMap() }
 // ShortHelp returns the keys of the log for the short help.
 func (m Model) ShortHelp() []key.Binding { return m.view.ShortHelp() }
 
-// FullHelp returns the keys of the log for the full help.
-func (m Model) FullHelp() [][]key.Binding { return m.view.FullHelp() }
+// FullHelp returns the keys of the log for the full help, and those of
+// the annotations when there are some.
+func (m Model) FullHelp() [][]key.Binding {
+	full := m.view.FullHelp()
+	if len(m.notes.items) > 0 {
+		full = append(full, []key.Binding{m.keys.Up, m.keys.Down, m.keys.Select, m.keys.Annotations})
+	}
+	return full
+}
+
+// Keys returns the main keys of what has the focus, for the short help:
+// the moves through the annotations and the one that opens its file, or
+// the folds, errors and search of the log.
+func (m Model) Keys() []key.Binding {
+	k := m.keys
+	if m.OnAnnotations() {
+		ann := k.Annotations
+		ann.SetHelp(ann.Help().Key, "log")
+		return []key.Binding{k.Up, k.Down, k.Select, ann}
+	}
+	lk := m.view.KeyMap()
+	keys := []key.Binding{lk.Toggle, lk.NextError, lk.Search}
+	if len(m.notes.items) > 0 {
+		keys = append(keys, k.Annotations)
+	}
+	return keys
+}
 
 // State is what the view shows.
 func (m Model) State() State { return m.state }
@@ -201,10 +288,19 @@ func (m Model) Title() string {
 	return ui.OneLine(m.job.Name)
 }
 
-// Update takes the view's rests and log, and passes the rest to the log,
-// keys and all.
+// Update takes the view's rests, log and annotations, and passes the rest
+// to the log. Keys go to the annotations while they have the focus.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.KeyPressMsg:
+		if cmd, ok := m.press(msg); ok {
+			return m, cmd
+		}
+	case notesMsg:
+		if msg.id == m.id {
+			m.receiveNotes(msg)
+		}
+		return m, nil
 	case restMsg:
 		if msg.id != m.id || msg.seq != m.seq || !m.resting {
 			return m, nil
