@@ -112,6 +112,8 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 		return m.showSearch()
 	case m.canOpenHistory() && key.Matches(msg, m.keys.History):
 		return m.openHistory()
+	case m.canOpenActions() && key.Matches(msg, m.keys.Actions):
+		return m.openActions()
 	case key.Matches(msg, m.toast.KeyMap().Dismiss):
 		return m.toast.Dismiss()
 	case key.Matches(msg, m.keys.Notifications):

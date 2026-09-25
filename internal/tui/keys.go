@@ -18,6 +18,9 @@ type KeyMap struct {
 	// History opens the history of the repository on the repository
 	// screen.
 	History key.Binding
+	// Actions opens the workflow runs of the repository on the repository
+	// screen.
+	Actions key.Binding
 	// Notifications switches between the screen on view and the
 	// notifications, and Dashboard between it and the dashboard.
 	Notifications key.Binding
@@ -37,6 +40,7 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		Help:          ui.Binding(keys, config.ActionHelp, "help"),
 		Search:        ui.Binding(keys, config.ActionSearch, "search"),
 		History:       ui.Binding(keys, config.ActionHistory, "history"),
+		Actions:       ui.Binding(keys, config.ActionActions, "actions"),
 		Notifications: ui.Binding(keys, config.ActionNotifications, "notifications"),
 		Dashboard:     ui.Binding(keys, config.ActionDashboard, "dashboard"),
 		Next:          ui.Binding(keys, config.ActionNextTab, "next pane"),
