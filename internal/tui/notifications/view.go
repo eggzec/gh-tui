@@ -219,7 +219,7 @@ func subjectTag(t core.SubjectType) string {
 		return "dsc"
 	case core.SubjectCommit:
 		return "cmt"
-	case "CheckSuite":
+	case core.SubjectCheckSuite:
 		return "ci"
 	}
 	return "·"

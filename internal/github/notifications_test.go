@@ -83,6 +83,7 @@ var wantNotifications = []core.Notification{
 			Type:   core.SubjectPullRequest,
 			URL:    "https://api.github.com/repos/eggzec/gh-tui/pulls/42",
 			WebURL: "https://github.com/eggzec/gh-tui/pull/42",
+			Number: 42,
 		},
 		Reason:    "review_requested",
 		Unread:    true,
@@ -96,6 +97,7 @@ var wantNotifications = []core.Notification{
 			Type:   core.SubjectIssue,
 			URL:    "https://api.github.com/repos/charmbracelet/bubbletea/issues/1402",
 			WebURL: "https://github.com/charmbracelet/bubbletea/issues/1402",
+			Number: 1402,
 		},
 		Reason:    "mention",
 		UpdatedAt: time.Date(2026, 9, 21, 9, 47, 2, 0, time.UTC),
@@ -106,7 +108,7 @@ var wantNotifications = []core.Notification{
 		Subject: core.Subject{
 			Title:  "How do you theme huh forms?",
 			Type:   core.SubjectDiscussion,
-			WebURL: "https://github.com/charmbracelet/huh/discussions",
+			WebURL: "https://github.com/charmbracelet/huh/discussions?discussions_q=How+do+you+theme+huh+forms%3F",
 		},
 		Reason:    "subscribed",
 		Unread:    true,
@@ -117,8 +119,8 @@ var wantNotifications = []core.Notification{
 		Repo: core.RepoRef{Owner: "eggzec", Name: "gh-tui"},
 		Subject: core.Subject{
 			Title:  "CI workflow run failed for main branch",
-			Type:   "CheckSuite",
-			WebURL: "https://github.com/eggzec/gh-tui",
+			Type:   core.SubjectCheckSuite,
+			WebURL: "https://github.com/eggzec/gh-tui/actions",
 		},
 		Reason:    "ci_activity",
 		Unread:    true,
@@ -276,26 +278,62 @@ func TestMarkNotificationsRead(t *testing.T) {
 	}
 }
 
-func TestSubjectWebURL(t *testing.T) {
+func TestParseSubject(t *testing.T) {
 	const repo = "https://github.com/o/r"
 	tests := []struct {
 		name, apiURL string
 		typ          core.SubjectType
-		want         string
+		want         core.Subject
 	}{
-		{"pull", "https://api.github.com/repos/o/r/pulls/42", core.SubjectPullRequest, repo + "/pull/42"},
-		{"issue", "https://api.github.com/repos/o/r/issues/7", core.SubjectIssue, repo + "/issues/7"},
-		{"commit", "https://api.github.com/repos/o/r/commits/abc123", core.SubjectCommit, repo + "/commit/abc123"},
-		{"release", "https://api.github.com/repos/o/r/releases/991", core.SubjectRelease, repo + "/releases"},
-		{"discussion", "", core.SubjectDiscussion, repo + "/discussions"},
-		{"unknown", "", "CheckSuite", repo},
-		{"enterprise", "https://ghe.example.com/api/v3/repos/o/r/pulls/3", core.SubjectPullRequest, repo + "/pull/3"},
+		{"pull", "https://api.github.com/repos/o/r/pulls/42", core.SubjectPullRequest, core.Subject{WebURL: repo + "/pull/42", Number: 42}},
+		{"issue", "https://api.github.com/repos/o/r/issues/7", core.SubjectIssue, core.Subject{WebURL: repo + "/issues/7", Number: 7}},
+		{"commit", "https://api.github.com/repos/o/r/commits/abc123", core.SubjectCommit, core.Subject{WebURL: repo + "/commit/abc123", SHA: "abc123"}},
+		{"release", "https://api.github.com/repos/o/r/releases/991", core.SubjectRelease, core.Subject{WebURL: repo + "/releases", ReleaseID: 991}},
+		{"discussion with a URL", "https://api.github.com/repos/o/r/discussions/12", core.SubjectDiscussion, core.Subject{WebURL: repo + "/discussions/12", Number: 12}},
+		{"discussion", "", core.SubjectDiscussion, core.Subject{WebURL: repo + "/discussions?discussions_q=a+%26+b"}},
+		{"check suite", "", core.SubjectCheckSuite, core.Subject{WebURL: repo + "/actions"}},
+		{"unknown", "", "RepositoryVulnerabilityAlert", core.Subject{WebURL: repo}},
+		{"enterprise", "https://ghe.example.com/api/v3/repos/o/r/pulls/3", core.SubjectPullRequest, core.Subject{WebURL: repo + "/pull/3", Number: 3}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := subjectWebURL(repo, tt.apiURL, tt.typ); got != tt.want {
-				t.Errorf("subjectWebURL(%q) = %q, want %q", tt.apiURL, got, tt.want)
+			if got := parseSubject(repo, tt.apiURL, tt.typ, "a & b"); got != tt.want {
+				t.Errorf("parseSubject(%q) = %+v, want %+v", tt.apiURL, got, tt.want)
 			}
 		})
+	}
+}
+
+// TestListNotificationsSubjects reads a subject of each type. The issue,
+// the pull request and the check suite were recorded from an inbox, the
+// check suite's private repository renamed; the others are public examples
+// in the same shape.
+func TestListNotificationsSubjects(t *testing.T) {
+	body := fixture(t, "notifications_subjects.json")
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write(body)
+	}))
+	page, _, err := c.ListNotifications(t.Context(), core.NotificationFilter{All: true}, 0, "", Conditional{})
+	if err != nil {
+		t.Fatalf("ListNotifications: %v", err)
+	}
+	const slk, glow = "https://github.com/gammons/slk", "https://github.com/charmbracelet/glow"
+	want := []core.Subject{
+		{Type: core.SubjectIssue, Number: 238, WebURL: slk + "/issues/238"},
+		{Type: core.SubjectPullRequest, Number: 239, WebURL: slk + "/pull/239"},
+		{Type: core.SubjectCheckSuite, WebURL: "https://github.com/acme/widgets/actions"},
+		{Type: core.SubjectRelease, ReleaseID: 368759772, WebURL: glow + "/releases"},
+		{Type: core.SubjectCommit, SHA: "7f75d0e5296c2c4baafc5109cf2b1de3491c2cf5", WebURL: glow + "/commit/7f75d0e5296c2c4baafc5109cf2b1de3491c2cf5"},
+		{Type: core.SubjectDiscussion, WebURL: glow + "/discussions?discussions_q=Themes+%26+styles+for+glow%3F"},
+	}
+	if len(page.Items) != len(want) {
+		t.Fatalf("got %d notifications, want %d", len(page.Items), len(want))
+	}
+	for i, n := range page.Items {
+		got := n.Subject
+		got.Title, got.URL = "", ""
+		if got != want[i] {
+			t.Errorf("subject %d = %+v, want %+v", i, got, want[i])
+		}
 	}
 }
