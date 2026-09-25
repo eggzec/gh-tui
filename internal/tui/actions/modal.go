@@ -16,6 +16,7 @@ package actions
 
 import (
 	"context"
+	"slices"
 	"sync/atomic"
 	"time"
 
@@ -111,9 +112,9 @@ var _ ui.Modal = (*Modal)(nil)
 // Opener returns what the app opens the Actions modal with, for
 // tui.WithActions: a new modal each time, which reads what it shows from
 // svc and takes its keys from the configured keys.
-func Opener(svc Service, keys map[string][]string, opts ...Option) func(ctx context.Context, repo core.RepoRef) (ui.Modal, tea.Cmd) {
-	return func(ctx context.Context, repo core.RepoRef) (ui.Modal, tea.Cmd) {
-		m := New(ctx, svc, repo, keys, opts...)
+func Opener(svc Service, keys map[string][]string, opts ...Option) func(ctx context.Context, repo core.RepoRef, f core.RunFilter) (ui.Modal, tea.Cmd) {
+	return func(ctx context.Context, repo core.RepoRef, f core.RunFilter) (ui.Modal, tea.Cmd) {
+		m := New(ctx, svc, repo, keys, append(slices.Clip(opts), WithFilter(f))...)
 		load := m.Init()
 		return m, load
 	}
@@ -146,6 +147,7 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, keys map[string][]
 	m.log = jobview.New(rctx, svc, repo, keyMap.job(),
 		jobview.WithIcons(o.icons), jobview.WithRest(o.rest), jobview.WithClock(o.now), jobview.WithReturn(m))
 	m.SetTheme(ui.NewTheme(p, true))
+	m.filter = o.filter
 	m.runs = m.newRuns()
 	m.setFocus(runsPane)
 	return m

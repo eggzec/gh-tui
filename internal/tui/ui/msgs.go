@@ -128,6 +128,14 @@ type OpenIssueMsg struct {
 	Number int
 }
 
+// OpenActionsMsg asks for the Actions modal of Repo to be opened on the
+// runs that Filter selects, such as those of a CI notification. Repo need
+// not be the selected repository.
+type OpenActionsMsg struct {
+	Repo   core.RepoRef
+	Filter core.RunFilter
+}
+
 // OpenFileMsg asks for the file at Path of Repo to be previewed over the
 // screen on view, such as when a code search found it. SHA is its blob.
 // Repo need not be the selected repository, and the files section keeps

@@ -24,13 +24,15 @@ func (t *tabbedModal) Tabs() (names []string, active int) { return t.names, t.ac
 // actionsOpener opens a fake modal and records the repositories it was
 // opened on.
 type actionsOpener struct {
-	modal  *tabbedModal
-	opened []core.RepoRef
-	loads  int
+	modal   *tabbedModal
+	opened  []core.RepoRef
+	filters []core.RunFilter
+	loads   int
 }
 
-func (a *actionsOpener) open(_ context.Context, repo core.RepoRef) (ui.Modal, tea.Cmd) {
+func (a *actionsOpener) open(_ context.Context, repo core.RepoRef, f core.RunFilter) (ui.Modal, tea.Cmd) {
 	a.opened = append(a.opened, repo)
+	a.filters = append(a.filters, f)
 	a.modal = &tabbedModal{title: "Actions · " + repo.String(), names: []string{"All", "Failing", "Running", "Mine"}, active: 1}
 	return a.modal, func() tea.Msg { a.loads++; return nil }
 }
@@ -101,4 +103,16 @@ func topEdge(m *Model) string {
 		}
 	}
 	return ""
+}
+
+func TestOpenActionsMsgOpensTheRunsOfAnyRepo(t *testing.T) {
+	a := &actionsOpener{}
+	m, _ := newTestApp(t, WithActions(a.open))
+	run(m, m.key(press("n")))
+	other := core.RepoRef{Owner: "charmbracelet", Name: "bubbletea"}
+	f := core.RunFilter{Branch: "feat/x", Status: "failure"}
+	m.Update(ui.OpenActionsMsg{Repo: other, Filter: f})
+	if m.topModal() != a.modal || len(a.opened) != 1 || a.opened[0] != other || a.filters[0] != f {
+		t.Errorf("opened %v with %v, want the failed runs of the branch of %s", a.opened, a.filters, other)
+	}
 }
