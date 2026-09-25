@@ -3,6 +3,9 @@ package files
 import (
 	"context"
 	"errors"
+	"fmt"
+	"slices"
+	"strings"
 
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
@@ -29,8 +32,20 @@ type preview struct {
 	pager pager.Model
 	// find is searched for once the content is shown, and preset holds
 	// while that search is the one shown, until the user starts another.
+	// line is the line the preview opens on, if set.
 	find   string
 	preset bool
+	line   int
+	// ret is the modal the preview reopens when it closes, if set.
+	ret ui.Modal
+}
+
+// entryMsg carries the entry of the file of the preview whose pager has
+// the ID, found by its path.
+type entryMsg struct {
+	id    int64
+	entry core.TreeEntry
+	err   error
 }
 
 // blobMsg carries the content of the file of the preview whose pager has
@@ -51,8 +66,11 @@ func newPreview(ctx context.Context, svc Service, repo core.RepoRef, ref string,
 }
 
 // load shows the content at once when it is cached, and fetches it
-// otherwise.
+// otherwise. A file known by its path alone is found first.
 func (p *preview) load() tea.Cmd {
+	if p.entry.SHA == "" {
+		return p.findFile()
+	}
 	q := filesvc.BlobQuery{Repo: p.repo, SHA: p.entry.SHA, Size: p.entry.Size}
 	if b, ok := p.svc.CachedBlob(q); ok {
 		return p.show(b, nil)
@@ -65,6 +83,53 @@ func (p *preview) load() tea.Cmd {
 		return blobMsg{id: id, blob: b, err: err}
 	}
 	return tea.Batch(p.pager.SetLoading(p.entry.Path), fetch)
+}
+
+// findFile finds the entry of the file by its path, from the root of the
+// commit of ref down, one directory at a time. The trees of a commit never
+// change, so the service keeps them, and a second look costs nothing.
+func (p *preview) findFile() tea.Cmd {
+	svc, ctx, id, repo, ref, name := p.svc, p.ctx, p.pager.ID(), p.repo, p.ref, p.entry.Path
+	fetch := func() tea.Msg {
+		ctx, end := obs.Begin(ctx, "open.file.find")
+		e, err := findEntry(ctx, svc, repo, ref, name)
+		end(err, "span", "tui", "repo", repo.String(), "depth", strings.Count(name, "/")+1)
+		return entryMsg{id: id, entry: e, err: err}
+	}
+	return tea.Batch(p.pager.SetLoading(name), fetch)
+}
+
+// errNoFile reports that a path names no file at a commit.
+var errNoFile = errors.New("no such file at this commit")
+
+// findEntry returns the entry of the file at path name of the commit of
+// ref, with its path from the root.
+func findEntry(ctx context.Context, svc Service, repo core.RepoRef, ref, name string) (core.TreeEntry, error) {
+	parts := strings.Split(strings.Trim(name, "/"), "/")
+	at := ref
+	for i, part := range parts {
+		t, err := svc.Tree(ctx, filesvc.TreeQuery{Repo: repo, Ref: at})
+		if err != nil {
+			return core.TreeEntry{}, fmt.Errorf("find %s: %w", name, err)
+		}
+		j := slices.IndexFunc(t.Entries, func(e core.TreeEntry) bool { return e.Name == part })
+		if j < 0 {
+			return core.TreeEntry{}, fmt.Errorf("find %s: %w", name, errNoFile)
+		}
+		e := t.Entries[j]
+		if i == len(parts)-1 {
+			if e.Dir() || e.Submodule() {
+				return core.TreeEntry{}, fmt.Errorf("find %s: %w", name, errNoFile)
+			}
+			e.Path = strings.Join(parts, "/")
+			return e, nil
+		}
+		if !e.Dir() {
+			return core.TreeEntry{}, fmt.Errorf("find %s: %w", name, errNoFile)
+		}
+		at = e.SHA
+	}
+	return core.TreeEntry{}, fmt.Errorf("find %s: %w", name, errNoFile)
 }
 
 // show puts the content, or why it isn't shown, in the pager.
@@ -84,6 +149,7 @@ func (p *preview) show(b core.Blob, err error) tea.Cmd {
 		cmd := p.pager.SetContent(name, string(b.Content))
 		p.pager.SetSearch(p.find)
 		p.preset = p.find != ""
+		p.pager.GoToLine(p.line)
 		return cmd
 	}
 	return nil
@@ -113,19 +179,26 @@ func (p *preview) Update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		return p.show(msg.blob, msg.err)
+	case entryMsg:
+		if msg.id != p.pager.ID() {
+			return nil
+		}
+		if msg.err != nil {
+			return p.show(core.Blob{}, msg.err)
+		}
+		p.entry = msg.entry
+		return p.load()
 	case pager.CloseMsg:
 		if msg.ID != p.pager.ID() {
 			return nil
 		}
-		p.cancel()
-		return ui.CloseModal(p)
+		return p.close()
 	case tea.KeyPressMsg:
 		if !p.pager.Capturing() && key.Matches(msg, p.open) {
 			return ui.Open(webURL(p.repo, p.ref, p.entry))
 		}
 		if p.preset && key.Matches(msg, p.pager.KeyMap().Close) {
-			p.cancel()
-			return ui.CloseModal(p)
+			return p.close()
 		}
 	}
 	var cmd tea.Cmd
@@ -134,6 +207,16 @@ func (p *preview) Update(msg tea.Msg) tea.Cmd {
 		p.preset = false
 	}
 	return cmd
+}
+
+// close ends the preview's reads, and closes it, or reopens the modal it
+// was opened from.
+func (p *preview) close() tea.Cmd {
+	p.cancel()
+	if p.ret != nil {
+		return ui.Reopen(p.ret)
+	}
+	return ui.CloseModal(p)
 }
 
 // View renders the pager.

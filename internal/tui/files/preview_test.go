@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
@@ -240,5 +241,71 @@ func TestPreviewFileClosesOverItsSearch(t *testing.T) {
 	h.keys("esc")
 	if h.top() != nil {
 		t.Error("esc should close the preview once the search is cleared")
+	}
+}
+
+// stub is a modal that a preview returns to, which records that it was
+// reopened.
+type stub struct{ reopened bool }
+
+func (*stub) Title() string     { return "stub" }
+func (*stub) View() string      { return "" }
+func (*stub) SetSize(int, int)  {}
+func (*stub) SetTheme(ui.Theme) {}
+func (*stub) Help() help.KeyMap { return nil }
+func (s *stub) Update(msg tea.Msg) tea.Cmd {
+	if msg == (ui.ReopenedMsg{Modal: s}) {
+		s.reopened = true
+	}
+	return nil
+}
+
+func TestPreviewFileAtACommitOnALine(t *testing.T) {
+	f := sampleFake()
+	root := f.trees[treeKey(ghTUI, "")]
+	f.addTree(ghTUI, "c0ffee", root.Entries...)
+	h := newHost(newSection(t, f, 40, 12))
+	h.height = 4
+	ret := &stub{}
+	h.run(func() tea.Msg {
+		return ui.OpenFileMsg{Repo: ghTUI, Path: "cmd/gh-tui/main.go", Ref: "c0ffee", Line: 6, Return: ret}
+	})
+	p, ok := h.top().(*preview)
+	if !ok {
+		t.Fatalf("OpenFileMsg opened %v, want a preview", h.top())
+	}
+	if got := h.modal(); !strings.Contains(got, `fmt.Println("hello")`) || strings.Contains(got, "package main") {
+		t.Errorf("preview = %q, want it on line 6", got)
+	}
+	refs := make([]string, 0, len(f.reads))
+	for _, q := range f.reads {
+		refs = append(refs, q.Ref)
+	}
+	if !slices.Equal(refs, []string{"c0ffee", cmdSHA, ghTUISHA}) {
+		t.Errorf("read trees %v, want the commit and each directory on the way", refs)
+	}
+	h.press(press("o"))
+	if !slices.Contains(h.got, tea.Msg(ui.OpenMsg{URL: "https://github.com/eggzec/gh-tui/blob/c0ffee/cmd/gh-tui/main.go"})) {
+		t.Errorf("o sent %v, want the file at the commit", h.got)
+	}
+	h.got = nil
+	h.keys("esc")
+	if len(h.got) == 0 || h.got[0] != (ui.OpenModalMsg{Modal: ret}) || p.ctx.Err() == nil {
+		t.Errorf("esc sent %v, want the modal it came from reopened, and the preview's reads ended", h.got)
+	}
+	if !ret.reopened {
+		t.Error("the modal the preview came from wasn't told it is open again")
+	}
+}
+
+func TestPreviewFileAtACommitNotThere(t *testing.T) {
+	f := sampleFake()
+	f.addTree(ghTUI, "c0ffee", f.trees[treeKey(ghTUI, "")].Entries...)
+	for _, name := range []string{"nope.go", "cmd/gh-tui", "go.mod/x"} {
+		h := newHost(newSection(t, f, 40, 12))
+		h.run(func() tea.Msg { return ui.OpenFileMsg{Repo: ghTUI, Path: name, Ref: "c0ffee"} })
+		if got := strings.Join(strings.Fields(h.modal()), " "); !strings.Contains(got, "no such file at this commit") {
+			t.Errorf("%s: preview = %q, want why it isn't shown", name, got)
+		}
 	}
 }
