@@ -29,6 +29,16 @@ func (m Model) Query() string { return m.search.query }
 // Matches returns the number of matches of the search shown.
 func (m Model) Matches() int { return len(m.search.matches) }
 
+// SetSearch searches the content for query as if the user had typed it,
+// and jumps to the first match, so that a parent can open the pager on
+// what it is looking for. The search is of the content shown, so set it
+// after SetContent; new content clears it. An empty query clears it too.
+func (m *Model) SetSearch(query string) {
+	m.closeSearch()
+	m.top, m.row = 0, 0
+	m.runSearch(query)
+}
+
 func (m *Model) openSearch() tea.Cmd {
 	m.searching = true
 	m.input.Reset()
