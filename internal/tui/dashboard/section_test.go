@@ -6,14 +6,20 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
+	"testing/synctest"
+	"time"
 
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/notifications"
+	"github.com/eggzec/gh-tui/internal/service/pulls"
+	"github.com/eggzec/gh-tui/internal/tui/threads"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -321,9 +327,25 @@ func TestWorkMore(t *testing.T) {
 func TestInbox(t *testing.T) {
 	in := &fakeInbox{threads: inboxThreads()}
 	s := newSection(t, newFake(), in, 140, 38)
+	bubbletea := core.RepoRef{Owner: "charmbracelet", Name: "bubbletea"}
 	app := press(t, s, "5", "enter")
-	if !slices.Contains(app, tea.Msg(ui.ShowMsg{Title: ui.NotificationsTitle})) {
-		t.Errorf("enter on the notifications sent %v", app)
+	if !slices.Contains(app, tea.Msg(ui.OpenPullMsg{Repo: bubbletea, Number: 1})) {
+		t.Errorf("enter on the first notification sent %v, want its pull request opened", app)
+	}
+	if !slices.Contains(app, tea.Msg(ui.DoneMsg{From: ui.NotificationsTitle, What: "mark read"})) || !slices.Equal(in.marks(), []string{"1"}) {
+		t.Errorf("enter marked %v read and sent %v, want the thread marked read", in.marks(), app)
+	}
+	// The thread read leaves the unread ones, and the cursor stays on the
+	// first row.
+	if v := screen(s); !strings.Contains(v, "2 unread") || !strings.Contains(v, "▌ ● hello-world") {
+		t.Errorf("after opening the first thread the pane shows:\n%s", v)
+	}
+	app = press(t, s, "down", "o")
+	if !slices.Equal(app, []tea.Msg{ui.OpenMsg{URL: "https://github.com/cli/cli/pull/3"}}) {
+		t.Errorf("o on the second thread sent %v, want it opened in the browser", app)
+	}
+	if len(in.marks()) != 1 {
+		t.Error("o marked a thread read")
 	}
 
 	// A poll that finds a change updates the count from the cache.
@@ -376,4 +398,81 @@ func TestWorkChecks(t *testing.T) {
 	if app := press(t, s, "]", "]", "C"); len(app) != 0 {
 		t.Errorf("C on an issue sent %v", app)
 	}
+}
+
+func TestInboxOpensAsTheNotificationsDo(t *testing.T) {
+	release := thread("9", "charmbracelet/glow", "v3.0.0", true, time.Minute)
+	release.Subject = core.Subject{Title: "v3.0.0", Type: core.SubjectRelease, ReleaseID: 368759772, WebURL: "https://github.com/charmbracelet/glow/releases"}
+	discussion := thread("8", "charmbracelet/glow", "Themes?", true, time.Hour)
+	discussion.Subject = core.Subject{Title: "Themes?", Type: core.SubjectDiscussion, WebURL: "https://github.com/charmbracelet/glow/discussions"}
+	in := &fakeInbox{threads: []core.Notification{release, discussion}}
+	s := newSection(t, newFake(), in, 140, 38, WithOpener(threads.New(t.Context(), threads.WithMarkRead(false))))
+	for i, n := range in.threads {
+		keys := []string{"5", "enter"}
+		if i > 0 {
+			keys = []string{"down", "enter"}
+		}
+		got := press(t, s, keys...)
+		// The same thread opens the same way from the notifications screen.
+		want := run(t, s, threads.New(t.Context()).Open(n))
+		if !slices.Equal(got, want) {
+			t.Errorf("enter on %s sent %v, want %v", n.Subject.Type, got, want)
+		}
+	}
+	if m := in.marks(); len(m) != 0 {
+		t.Errorf("marked %v read with mark_read_on_open off", m)
+	}
+	if h := s.Help().ShortHelp(); !slices.ContainsFunc(h, func(b key.Binding) bool { return b.Help().Desc == "open" }) {
+		t.Error("the help doesn't say enter opens without marking read")
+	}
+}
+
+// aheadPulls records the pull requests read ahead.
+type aheadPulls struct {
+	mu    sync.Mutex
+	reads []int
+}
+
+func (f *aheadPulls) Get(_ context.Context, _ core.RepoRef, number int) (core.PullRequestDetail, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.reads = append(f.reads, number)
+	return core.PullRequestDetail{}, nil
+}
+
+func (f *aheadPulls) Comments(context.Context, pulls.CommentsQuery) (core.Page[core.Comment], error) {
+	return core.Page[core.Comment]{}, nil
+}
+
+func (f *aheadPulls) Current(q pulls.CommentsQuery) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Contains(f.reads, q.Number)
+}
+
+func (*aheadPulls) Changed(core.RepoRef, int, time.Time) {}
+
+func (f *aheadPulls) got() []int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.reads)
+}
+
+func TestInboxReadsAhead(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ps := &aheadPulls{}
+		in := &fakeInbox{threads: inboxThreads()}
+		o := threads.New(t.Context(), threads.WithPulls(ps), threads.WithPrefetch(2, 150*time.Millisecond))
+		s := newSection(t, newFake(), in, 140, 38, WithOpener(o))
+		// The first two unread threads, once the inbox loads.
+		if got := slices.Sorted(slices.Values(ps.got())); !slices.Equal(got, []int{1, 2}) {
+			t.Errorf("read %v ahead, want the first two threads", got)
+		}
+		// The thread under the cursor, once the pane has the focus and
+		// the cursor rests.
+		press(t, s, "5", "down", "down")
+		if got := ps.got(); len(got) != 3 || got[2] != 3 {
+			t.Errorf("read %v, want the third thread last", got)
+		}
+	})
 }

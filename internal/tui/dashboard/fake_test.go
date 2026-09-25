@@ -18,6 +18,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/dashboard"
 	"github.com/eggzec/gh-tui/internal/service/notifications"
+	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -237,11 +238,41 @@ func (f *fakeService) count(what string) int {
 }
 
 // fakeInbox serves the first page of the inbox, and caches it once read.
+// The notifications service marks the threads the pane opens read.
+var _ interface {
+	Inbox
+	Marker
+} = (*notifications.Service)(nil)
+
 type fakeInbox struct {
 	mu      sync.Mutex
 	threads []core.Notification
 	read    bool
 	lists   int
+	// marked are the threads marked read.
+	marked []string
+}
+
+// MarkRead marks thread id read at once, as the service does in its
+// cache, and never fails.
+func (f *fakeInbox) MarkRead(id string) *optimistic.Op {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.marked = append(f.marked, id)
+	ts := slices.Clone(f.threads)
+	for i := range ts {
+		if ts[i].ID == id {
+			ts[i].Unread = false
+		}
+	}
+	f.threads = ts
+	return optimistic.New(func(context.Context) error { return nil }, func() {})
+}
+
+func (f *fakeInbox) marks() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.marked)
 }
 
 func (f *fakeInbox) CachedList(q notifications.ListQuery) (core.Page[core.Notification], bool) {
@@ -362,11 +393,13 @@ func contributions() core.Contributions {
 	return c
 }
 
+// thread returns a notification of pull request id of repo.
 func thread(id, repo, title string, unread bool, ago time.Duration) core.Notification {
 	r, _ := core.ParseRepoRef(repo)
+	n, _ := strconv.Atoi(id)
 	return core.Notification{
 		ID: id, Repo: r, Unread: unread, UpdatedAt: now.Add(-ago),
-		Subject: core.Subject{Title: title, Type: core.SubjectPullRequest, WebURL: "https://github.com/" + repo},
+		Subject: core.Subject{Title: title, Type: core.SubjectPullRequest, Number: n, WebURL: "https://github.com/" + repo + "/pull/" + id},
 	}
 }
 
@@ -420,8 +453,12 @@ func run(tb testing.TB, s *Section, cmd tea.Cmd) []tea.Msg {
 		case nil, spinner.TickMsg:
 		case tea.BatchMsg:
 			queue = append(queue, msg...)
-		case ui.OpenMsg, ui.NotifyMsg, ui.RepoMsg, ui.OpenPullMsg, ui.OpenIssueMsg, ui.ShowMsg:
+		case ui.OpenMsg, ui.NotifyMsg, ui.RepoMsg, ui.OpenPullMsg, ui.OpenIssueMsg, ui.ShowMsg,
+			ui.OpenReleaseMsg, ui.OpenCommitMsg, ui.OpenActionsMsg:
 			app = append(app, msg)
+		case ui.DoneMsg:
+			app = append(app, msg)
+			queue = append(queue, s.Update(msg))
 		default:
 			queue = append(queue, s.Update(msg))
 		}

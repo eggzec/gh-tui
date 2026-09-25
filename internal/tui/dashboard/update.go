@@ -13,6 +13,9 @@ import (
 // inbox, and passes everything else to the repositories, whose lists
 // ignore the messages of others.
 func (s *Section) Update(msg tea.Msg) tea.Cmd {
+	if msg, ok := msg.(ui.AheadMsg); ok {
+		return s.opener.Rested(msg)
+	}
 	cmd, all := s.update(msg)
 	if all {
 		s.render()
@@ -21,7 +24,10 @@ func (s *Section) Update(msg tea.Msg) tea.Cmd {
 		s.compose()
 	}
 	if off := s.offline.Notify(); off != nil {
-		return tea.Batch(cmd, off)
+		cmd = tea.Batch(cmd, off)
+	}
+	if ahead := s.readAhead(); ahead != nil {
+		cmd = tea.Batch(cmd, ahead)
 	}
 	return cmd
 }
@@ -171,9 +177,22 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		}
 		return nil, true
 	case inboxPane:
-		if key.Matches(msg, k.Select) {
-			return func() tea.Msg { return ui.ShowMsg{Title: ui.NotificationsTitle} }, true
+		l := &s.threads
+		switch {
+		case key.Matches(msg, k.Up):
+			l.move(-1)
+		case key.Matches(msg, k.Down):
+			l.move(1)
+		case key.Matches(msg, k.Select):
+			return s.openThread(), true
+		case key.Matches(msg, k.Open):
+			if n, ok := l.selected(); ok {
+				return ui.Open(n.Subject.WebURL), true
+			}
+		default:
+			return nil, false
 		}
+		return nil, true
 	default:
 	}
 	return nil, false
