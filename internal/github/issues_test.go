@@ -129,6 +129,26 @@ func TestListIssues(t *testing.T) {
 	}
 }
 
+func TestFilterIssues(t *testing.T) {
+	f := IssueFilter{
+		State: core.FilterAll, Labels: []string{"bug", "good first issue"}, Assignee: "none",
+		Creator: "octocat", Mentioned: "hubot", Milestone: "3", Sort: "comments", Asc: true,
+	}
+	c := serveIssueFixture(t, "issues_list.json", func(r *http.Request) {
+		checkIssueRequest(t, r, http.MethodGet, "/repos/octo-org/hello/issues", map[string]string{
+			"state": "all", "labels": "bug,good first issue", "assignee": "none", "creator": "octocat",
+			"mentioned": "hubot", "milestone": "3", "sort": "comments", "direction": "asc", "per_page": "30",
+		})
+	})
+	page, _, err := c.FilterIssues(t.Context(), issueRepo, f, "", 30, Conditional{})
+	if err != nil {
+		t.Fatalf("FilterIssues: %v", err)
+	}
+	if len(page.Items) != 2 {
+		t.Errorf("got %d issues, want 2", len(page.Items))
+	}
+}
+
 func TestListIssuesPages(t *testing.T) {
 	var queries []string
 	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -87,8 +87,8 @@ func TestListPullRequests(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListPullRequests: %v", err)
 	}
-	checkPullQuery(t, reqs(), "pullRequests(states: $states, first: $first, after: $after, orderBy: {field: UPDATED_AT, direction: DESC})", map[string]any{
-		"owner": "eggzec", "name": "gh-tui", "states": []any{"OPEN"}, "first": float64(30),
+	checkPullQuery(t, reqs(), "pullRequests(states: $states, labels: $labels, baseRefName: $base, headRefName: $head, orderBy: $order,", map[string]any{
+		"owner": "eggzec", "name": "gh-tui", "states": []any{"OPEN"}, "first": float64(30), "order": updatedDesc,
 	})
 
 	if page.Next != "Y3Vyc29yOnYyOpK5MjAyNi0wOS0yMFQxMjowMDowMFo" {
@@ -137,6 +137,10 @@ func TestListPullRequests(t *testing.T) {
 	}
 }
 
+// updatedDesc is the order of a list without a sort, as the test server
+// receives it.
+var updatedDesc = map[string]any{"field": "UPDATED_AT", "direction": "DESC"}
+
 func TestListPullRequestsVariables(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -156,10 +160,68 @@ func TestListPullRequestsVariables(t *testing.T) {
 			if _, err := c.ListPullRequests(t.Context(), pullsRepo, tt.state, tt.cursor, tt.first); err != nil {
 				t.Fatalf("ListPullRequests: %v", err)
 			}
-			want := map[string]any{"owner": "eggzec", "name": "gh-tui"}
+			want := map[string]any{"owner": "eggzec", "name": "gh-tui", "order": updatedDesc}
 			maps.Copy(want, tt.want)
 			checkPullQuery(t, reqs(), "pullRequests(", want)
 		})
+	}
+}
+
+func TestFilterPullRequestsVariables(t *testing.T) {
+	tests := []struct {
+		name   string
+		filter PullFilter
+		want   map[string]any
+	}{
+		{"label", PullFilter{State: core.StateOpen, Labels: []string{"bug"}},
+			map[string]any{"states": []any{"OPEN"}, "labels": []any{"bug"}, "order": updatedDesc}},
+		{"branches", PullFilter{Base: "main", Head: "feat/x"},
+			map[string]any{"states": nil, "base": "main", "head": "feat/x", "order": updatedDesc}},
+		{"created ascending", PullFilter{State: core.StateMerged, Sort: "created", Asc: true},
+			map[string]any{"states": []any{"MERGED"}, "order": map[string]any{"field": "CREATED_AT", "direction": "ASC"}}},
+		{"most commented", PullFilter{Sort: "comments"},
+			map[string]any{"states": nil, "order": map[string]any{"field": "COMMENTS", "direction": "DESC"}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, reqs := pullServer(t, "pulls_list.json")
+			if _, err := c.FilterPullRequests(t.Context(), pullsRepo, tt.filter, "", 30); err != nil {
+				t.Fatalf("FilterPullRequests: %v", err)
+			}
+			want := map[string]any{"owner": "eggzec", "name": "gh-tui", "first": float64(30)}
+			maps.Copy(want, tt.want)
+			checkPullQuery(t, reqs(), "pullRequests(", want)
+		})
+	}
+}
+
+func TestFilterPullRequestsUnknownSort(t *testing.T) {
+	c, reqs := pullServer(t, "pulls_list.json")
+	if _, err := c.FilterPullRequests(t.Context(), pullsRepo, PullFilter{Sort: "reactions"}, "", 30); err == nil {
+		t.Error("FilterPullRequests with an unknown sort succeeded")
+	}
+	if n := len(reqs()); n != 0 {
+		t.Errorf("sent %d requests, want none", n)
+	}
+}
+
+func TestSearchPullRequests(t *testing.T) {
+	c, reqs := pullServer(t, "pulls_search.json")
+	const q = "repo:charmbracelet/bubbletea is:pr is:open review:approved sort:updated-desc"
+	page, err := c.SearchPullRequests(t.Context(), q, "abc", 2)
+	if err != nil {
+		t.Fatalf("SearchPullRequests: %v", err)
+	}
+	checkPullQuery(t, reqs(), "search(type: ISSUE", map[string]any{"query": q, "first": float64(2), "after": "abc"})
+	if len(page.Items) != 2 {
+		t.Fatalf("got %d pull requests, want 2 without the issue", len(page.Items))
+	}
+	pr := page.Items[0]
+	if pr.Number != 1600 || pr.Repo != (core.RepoRef{Owner: "charmbracelet", Name: "bubbletea"}) || pr.State != core.StateOpen || pr.Author.Login == "" {
+		t.Errorf("first = %+v, want #1600 of charmbracelet/bubbletea, open, with its author", pr)
+	}
+	if page.Next != "Y3Vyc29yOjI=" {
+		t.Errorf("next = %q, want the end cursor", page.Next)
 	}
 }
 

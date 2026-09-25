@@ -1,10 +1,12 @@
 package github
 
 import (
+	"cmp"
 	"context"
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -77,17 +79,57 @@ func (c issueComment) core() core.Comment {
 // requests towards the page size but they are left out, so a page may be
 // short, or even empty, and still not be the last.
 func (c *Client) ListIssues(ctx context.Context, repo core.RepoRef, state core.StateFilter, cursor string, perPage int, cond Conditional) (core.Page[core.Issue], Response, error) {
+	return c.FilterIssues(ctx, repo, IssueFilter{State: state}, cursor, perPage, cond)
+}
+
+// IssueFilter selects the issues of a repository that its list can select
+// on the server, which answers a repeated read with a free 304. The zero
+// value lists the open ones, most recently updated first. Anything else
+// takes a search: see SearchIssues.
+type IssueFilter struct {
+	// State is open, closed or all; empty means open.
+	State core.StateFilter
+	// Labels selects the issues with all of them.
+	Labels []string
+	// Assignee, Creator and Mentioned are logins. Assignee may also be
+	// "none" or "*", for issues assigned to nobody or to anyone.
+	Assignee, Creator, Mentioned string
+	// Milestone is the number of a milestone, or "none" or "*".
+	Milestone string
+	// Sort is updated, created or comments; empty means updated. Asc
+	// sorts the oldest or least commented first.
+	Sort string
+	Asc  bool
+}
+
+// values returns the query parameters of f.
+func (f IssueFilter) values() url.Values {
+	q := url.Values{"sort": {cmp.Or(f.Sort, "updated")}, "direction": {"desc"}}
+	if f.Asc {
+		q.Set("direction", "asc")
+	}
+	set := func(k, v string) {
+		if v != "" {
+			q.Set(k, v)
+		}
+	}
+	set("state", string(f.State))
+	set("labels", strings.Join(f.Labels, ","))
+	set("assignee", f.Assignee)
+	set("creator", f.Creator)
+	set("mentioned", f.Mentioned)
+	set("milestone", f.Milestone)
+	return q
+}
+
+// FilterIssues returns a page of the issues of repo that f selects, as
+// ListIssues does.
+func (c *Client) FilterIssues(ctx context.Context, repo core.RepoRef, f IssueFilter, cursor string, perPage int, cond Conditional) (core.Page[core.Issue], Response, error) {
 	path := cursor
 	if path == "" {
-		q := url.Values{
-			"sort":      {"updated"},
-			"direction": {"desc"},
-		}
+		q := f.values()
 		if perPage > 0 {
 			q.Set("per_page", strconv.Itoa(perPage))
-		}
-		if state != "" {
-			q.Set("state", string(state))
 		}
 		path = issuesPath(repo) + "?" + q.Encode()
 	}

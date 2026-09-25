@@ -1,0 +1,119 @@
+{
+  "data": {
+    "rateLimit": {
+      "cost": 1,
+      "limit": 5000,
+      "remaining": 4862,
+      "used": 138,
+      "resetAt": "2026-09-25T09:12:50Z"
+    },
+    "search": {
+      "nodes": [
+        {
+          "id": "PR_kwDODeVIac7Gz0gR",
+          "number": 1600,
+          "title": "feat(examples): tree",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/charmbracelet/bubbletea/pull/1600",
+          "createdAt": "2026-02-27T12:09:32Z",
+          "updatedAt": "2026-09-19T06:58:50Z",
+          "mergedAt": null,
+          "repository": {
+            "name": "bubbletea",
+            "owner": {
+              "login": "charmbracelet"
+            }
+          },
+          "author": {
+            "login": "dlvhdr",
+            "name": "Dolev Hadar"
+          },
+          "labels": {
+            "nodes": []
+          },
+          "assignees": {
+            "nodes": []
+          },
+          "comments": {
+            "totalCount": 4
+          },
+          "headRefName": "dlvhdr/tree-example",
+          "baseRefName": "main",
+          "reviewDecision": "APPROVED",
+          "additions": 404,
+          "deletions": 13,
+          "changedFiles": 6,
+          "commits": {
+            "nodes": [
+              {
+                "commit": {
+                  "statusCheckRollup": {
+                    "state": "FAILURE"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {},
+        {
+          "id": "PR_kwDODeVIac7tYd50",
+          "number": 1727,
+          "title": "chore(deps): bump golang.org/x/net from 0.39.0 to 0.55.0 in /examples",
+          "state": "OPEN",
+          "isDraft": false,
+          "url": "https://github.com/charmbracelet/bubbletea/pull/1727",
+          "createdAt": "2026-07-03T01:55:09Z",
+          "updatedAt": "2026-09-17T08:09:33Z",
+          "mergedAt": null,
+          "repository": {
+            "name": "bubbletea",
+            "owner": {
+              "login": "charmbracelet"
+            }
+          },
+          "author": {
+            "login": "dependabot"
+          },
+          "labels": {
+            "nodes": [
+              {
+                "name": "dependencies",
+                "color": "5319e7",
+                "description": "Upstream deps"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          },
+          "comments": {
+            "totalCount": 0
+          },
+          "headRefName": "dependabot/go_modules/examples/golang.org/x/net-0.55.0",
+          "baseRefName": "main",
+          "reviewDecision": "APPROVED",
+          "additions": 6,
+          "deletions": 6,
+          "changedFiles": 2,
+          "commits": {
+            "nodes": [
+              {
+                "commit": {
+                  "statusCheckRollup": {
+                    "state": "FAILURE"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "pageInfo": {
+        "hasNextPage": true,
+        "endCursor": "Y3Vyc29yOjI="
+      }
+    }
+  }
+}
