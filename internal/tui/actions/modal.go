@@ -25,6 +25,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/jobview"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 )
@@ -78,10 +79,10 @@ type Modal struct {
 	run    core.Run
 	hasRun bool
 	jobs   jobs
-	log    jobLog
-	// seq counts the moves of the cursors of the runs and of the jobs, so
-	// that only the last rest of each reads.
-	seq [numRests]int
+	log    jobview.Model
+	// seq counts the moves of the cursor of the runs, so that only the
+	// last rest reads jobs.
+	seq int
 
 	// filterStep is open while the filter step is shown.
 	filterStep *filterStep
@@ -139,10 +140,11 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, keys map[string][]
 		opts:   o,
 		live:   map[int64]core.Run{},
 		spin:   spinner.New(spinner.WithSpinner(spinner.Dot)),
-		log:    newJobLog(keyMap.Log),
 	}
 	// Assume a dark terminal until the app sets the theme.
 	p, _ := config.Default().Palette(true)
+	m.log = jobview.New(rctx, svc, repo, keyMap.Log, keyMap.Open,
+		jobview.WithIcons(o.icons), jobview.WithRest(o.rest), jobview.WithClock(o.now))
 	m.SetTheme(ui.NewTheme(p, true))
 	m.runs = m.newRuns()
 	m.setFocus(runsPane)
@@ -182,7 +184,7 @@ func (m *Modal) SetTheme(t ui.Theme) {
 	m.st = newStyles(t, m.opts.icons)
 	m.spin.Style = t.Accent
 	m.runs.SetStyles(t.Feed())
-	m.log.view.SetStyles(t.LogView())
+	m.log.SetTheme(t)
 	if f := m.filterStep; f != nil && f.form != nil {
 		f.form.SetStyles(t.FilterForm())
 	}
@@ -225,29 +227,19 @@ func (m *Modal) now() time.Time {
 	return m.opts.now()
 }
 
-// rest returns the message that a rest of the cursor sends, after the
-// delay the options set.
-func (m *Modal) rest(kind restKind) tea.Cmd {
-	m.seq[kind]++
-	msg := restMsg{id: m.id, seq: m.seq[kind], kind: kind}
+// rest returns the message that a rest of the cursor of the runs sends,
+// after the delay the options set.
+func (m *Modal) rest() tea.Cmd {
+	m.seq++
+	msg := restMsg{id: m.id, seq: m.seq}
 	if m.opts.rest <= 0 {
 		return func() tea.Msg { return msg }
 	}
 	return tea.Tick(m.opts.rest, func(time.Time) tea.Msg { return msg })
 }
 
-// restKind is what a rest reads.
-type restKind int
-
-const (
-	restJobs restKind = iota
-	restLog
-	numRests
-)
-
-// restMsg reports that a cursor rested, for seq.
+// restMsg reports that the cursor of the runs rested, for seq.
 type restMsg struct {
-	id   int64
-	seq  int
-	kind restKind
+	id  int64
+	seq int
 }

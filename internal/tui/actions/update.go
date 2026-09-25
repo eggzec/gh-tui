@@ -22,24 +22,15 @@ func (m *Modal) update(msg tea.Msg) tea.Cmd {
 	case tea.KeyPressMsg:
 		return m.press(msg)
 	case restMsg:
-		if msg.id != m.id || msg.seq != m.seq[msg.kind] {
+		if msg.id != m.id || msg.seq != m.seq {
 			return nil
 		}
-		if msg.kind == restJobs {
-			return m.readJobs()
-		}
-		m.log.resting = false
-		return m.readLog()
+		return m.readJobs()
 	case jobsMsg:
 		if msg.id != m.id {
 			return nil
 		}
 		return tea.Batch(m.receiveJobs(msg), m.startTick())
-	case logMsg:
-		if msg.id == m.id {
-			m.receiveLog(msg)
-		}
-		return nil
 	case runMsg:
 		if msg.id != m.id {
 			return nil
@@ -63,7 +54,7 @@ func (m *Modal) update(msg tea.Msg) tea.Cmd {
 		}
 		return m.done(msg)
 	case logview.CloseMsg:
-		if msg.ID == m.log.view.ID() {
+		if msg.ID == m.log.LogID() {
 			return m.back()
 		}
 		return nil
@@ -93,7 +84,7 @@ func (m *Modal) spun(msg spinner.TickMsg) tea.Cmd {
 
 func (m *Modal) updateLog(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
-	m.log.view, cmd = m.log.view.Update(msg)
+	m.log, cmd = m.log.Update(msg)
 	return cmd
 }
 
@@ -113,7 +104,7 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.updateFilter(msg)
 	}
 	inLog := m.focus == logPane
-	if inLog && m.log.view.Capturing() {
+	if inLog && m.log.Capturing() {
 		return m.updateLog(msg)
 	}
 	k := m.keys
@@ -153,7 +144,7 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 	case key.Matches(msg, k.Refresh):
 		return m.refresh()
 	case key.Matches(msg, k.Back):
-		if inLog && m.log.view.Query() != "" {
+		if inLog && m.log.Query() != "" {
 			// The back key clears the search first.
 			return m.updateLog(msg)
 		}
@@ -187,12 +178,10 @@ func (m *Modal) moveFocus(d int, round bool) tea.Cmd {
 // the cursor rests.
 func (m *Modal) focusPane(p pane) tea.Cmd {
 	m.setFocus(p)
-	if p != logPane || !m.log.resting {
+	if p != logPane {
 		return nil
 	}
-	m.log.resting = false
-	m.seq[restLog]++
-	return m.readLog()
+	return m.log.ReadNow()
 }
 
 // setFocus focuses pane p, and blurs the others.
@@ -204,9 +193,9 @@ func (m *Modal) setFocus(p pane) {
 		m.runs.Blur()
 	}
 	if p == logPane {
-		m.log.view.Focus()
+		m.log.Focus()
 	} else {
-		m.log.view.Blur()
+		m.log.Blur()
 	}
 	m.layout()
 }
@@ -252,14 +241,10 @@ func (m *Modal) refresh() tea.Cmd {
 		if !m.hasRun {
 			return nil
 		}
-		m.seq[restJobs]++
+		m.seq++
 		return tea.Batch(m.readJobs(), m.startSpinner())
 	case logPane:
-		if m.log.state != logFailed {
-			return nil
-		}
-		m.log.state = logLoading
-		return tea.Batch(m.log.view.SetLoading(), m.readLog())
+		return m.log.Retry()
 	case runsPane:
 	}
 	return m.runs.Reload()

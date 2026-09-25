@@ -1,6 +1,10 @@
 package actions
 
-import "charm.land/bubbles/v2/key"
+import (
+	"charm.land/bubbles/v2/key"
+
+	"github.com/eggzec/gh-tui/internal/tui/jobview"
+)
 
 // helpKeys lists the keys of the focused pane, named for what they do
 // there, and those of the filter or the confirmation while one is open.
@@ -19,12 +23,12 @@ func (h helpKeys) ShortHelp() []key.Binding {
 			return f.ShortHelp()
 		}
 		return []key.Binding{relabel(k.Back, "back")}
-	case m.focus == logPane && m.log.view.Capturing():
-		return m.log.view.ShortHelp()
+	case m.focus == logPane && m.log.Capturing():
+		return m.log.ShortHelp()
 	}
 	var short []key.Binding
-	if m.focus == logPane && m.log.state == logReady {
-		lk := m.log.view.KeyMap()
+	if m.focus == logPane && m.log.State() == jobview.Ready {
+		lk := m.log.KeyMap()
 		short = []key.Binding{lk.Toggle, lk.NextError, lk.Search}
 	} else {
 		short = []key.Binding{h.drill()}
@@ -44,8 +48,8 @@ func (h helpKeys) FullHelp() [][]key.Binding {
 			return f.FullHelp()
 		}
 		return [][]key.Binding{{relabel(k.Back, "back")}}
-	case m.focus == logPane && m.log.state == logReady:
-		return append(m.log.view.FullHelp(), h.changes(), h.moves())
+	case m.focus == logPane && m.log.State() == jobview.Ready:
+		return append(m.log.FullHelp(), h.changes(), h.moves())
 	}
 	l := k.List
 	return [][]key.Binding{

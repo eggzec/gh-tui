@@ -11,6 +11,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
+	"github.com/eggzec/gh-tui/internal/tui/jobview"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 )
@@ -24,8 +25,8 @@ func TestOpensOnTheFailedJobAndItsError(t *testing.T) {
 	if j, _ := m.jobs.selected(); j.ID != ubuntuJob {
 		t.Errorf("opens on job %d, want the failed one, %d", j.ID, ubuntuJob)
 	}
-	if m.log.state != logReady || m.log.view.Errors() != 1 {
-		t.Fatalf("log state %d with %d errors, want the log with its error", m.log.state, m.log.view.Errors())
+	if m.log.State() != jobview.Ready || m.log.Errors() != 1 {
+		t.Fatalf("log state %d with %d errors, want the log with its error", m.log.State(), m.log.Errors())
 	}
 	if s := paneText(m, logPane); !strings.Contains(s, "Process completed with exit code 1.") || !strings.Contains(s, "Run go test") {
 		t.Errorf("the log doesn't show the failed step's error:\n%s", s)
@@ -45,27 +46,27 @@ func TestJobsAndLogFollowTheCursors(t *testing.T) {
 	if m.run.ID != runningRun || len(m.jobs.items) != 1 || m.jobs.items[0].ID != runLintJob {
 		t.Fatalf("after j the run is %d with %v, want %d with its job", m.run.ID, m.jobs.items, runningRun)
 	}
-	if m.log.state != logPending {
-		t.Errorf("the log of a job in progress is in state %d, want pending", m.log.state)
+	if m.log.State() != jobview.Pending {
+		t.Errorf("the log of a job in progress is in state %d, want pending", m.log.State())
 	}
 	// Back on the failed run, its jobs and log show from memory at once.
 	// Its jobs are read again, which the service answers from memory once
 	// the run completed; the log isn't.
 	h.hold = func(msg tea.Msg) bool { _, ok := msg.(restMsg); return ok }
 	h.keys("k")
-	if len(m.jobs.items) != 4 || m.log.state != logReady {
-		t.Errorf("the failed run shows %d jobs and log state %d, want them from memory", len(m.jobs.items), m.log.state)
+	if len(m.jobs.items) != 4 || m.log.State() != jobview.Ready {
+		t.Errorf("the failed run shows %d jobs and log state %d, want them from memory", len(m.jobs.items), m.log.State())
 	}
 	h.release()
 	if _, jobs, logs := f.counts(); jobs != 3 || logs != 1 {
 		t.Errorf("reads of jobs %d and logs %d, want 3 and 1", jobs, logs)
 	}
-	if m.log.state != logReady {
-		t.Errorf("log state %d, want the log from memory", m.log.state)
+	if m.log.State() != jobview.Ready {
+		t.Errorf("log state %d, want the log from memory", m.log.State())
 	}
 	h.keys("tab", "j")
-	if j, _ := m.jobs.selected(); j.ID != macosJob || m.log.jobID != macosJob {
-		t.Errorf("after j in the jobs the job is %d and the log's %d, want %d", j.ID, m.log.jobID, macosJob)
+	if j, _ := m.jobs.selected(); j.ID != macosJob || m.log.JobID() != macosJob {
+		t.Errorf("after j in the jobs the job is %d and the log's %d, want %d", j.ID, m.log.JobID(), macosJob)
 	}
 }
 
@@ -85,7 +86,7 @@ func TestPanesAndBack(t *testing.T) {
 			t.Fatalf("after %s the focus is on pane %d, want %d", s.key, m.focus, s.want)
 		}
 	}
-	if !m.log.view.Focused() || m.runs.Focused() {
+	if !m.log.Focused() || m.runs.Focused() {
 		t.Error("the log isn't the one focused bubble")
 	}
 	h.keys("esc", "esc")
@@ -249,20 +250,20 @@ func TestLogStates(t *testing.T) {
 	tests := []struct {
 		name  string
 		err   error
-		state logState
+		state jobview.State
 		text  string
 	}{
-		{"pending", fmt.Errorf("log: %w", core.ErrLogPending), logPending, "The job hasn't started yet."},
-		{"expired", fmt.Errorf("log: %w", core.ErrLogExpired), logExpired, "GitHub no longer keeps this log."},
-		{"failed", errors.New("boom"), logFailed, "Couldn't load the log: boom"},
+		{"pending", fmt.Errorf("log: %w", core.ErrLogPending), jobview.Pending, "The job hasn't started yet."},
+		{"expired", fmt.Errorf("log: %w", core.ErrLogExpired), jobview.Expired, "GitHub no longer keeps this log."},
+		{"failed", errors.New("boom"), jobview.Failed, "Couldn't load the log: boom"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			f := newFake()
 			f.logErrs[ubuntuJob] = tt.err
 			m, _ := newModal(t, f, wideW, wideH)
-			if m.log.state != tt.state {
-				t.Fatalf("log state %d, want %d", m.log.state, tt.state)
+			if m.log.State() != tt.state {
+				t.Fatalf("log state %d, want %d", m.log.State(), tt.state)
 			}
 			if s := paneText(m, logPane); !strings.Contains(s, tt.text) {
 				t.Errorf("the log pane lacks %q:\n%s", tt.text, s)
@@ -277,8 +278,8 @@ func TestLogRetry(t *testing.T) {
 	m, h := newModal(t, f, wideW, wideH)
 	delete(f.logErrs, ubuntuJob)
 	h.keys("tab", "tab", "r")
-	if m.log.state != logReady {
-		t.Errorf("r left the log in state %d, want it read again", m.log.state)
+	if m.log.State() != jobview.Ready {
+		t.Errorf("r left the log in state %d, want it read again", m.log.State())
 	}
 }
 
@@ -291,8 +292,8 @@ func TestLogTruncated(t *testing.T) {
 	if s := paneText(m, logPane); !strings.Contains(s, "Only the end of this log") {
 		t.Errorf("a truncated log doesn't say so:\n%s", s)
 	}
-	if m.log.view.Height() != m.bodyHeight()-1 {
-		t.Errorf("the log is %d high under the notice, want %d", m.log.view.Height(), m.bodyHeight()-1)
+	if n := strings.Count(m.log.View(), "\n") + 1; n != m.bodyHeight() {
+		t.Errorf("the log with its notice is %d high, want %d", n, m.bodyHeight())
 	}
 }
 
@@ -483,8 +484,8 @@ func TestPollUpdatesTheRunAndLoadsTheLogOnceDone(t *testing.T) {
 	jobs[0].Status, jobs[0].Conclusion, jobs[0].CompletedAt = core.RunCompleted, core.ConclusionSuccess, at(1e9)
 	f.setJobs(runningRun, jobs)
 	h.send(ui.SyncMsg{Key: key})
-	if m.log.state != logReady || m.log.view.Lines() != 1 {
-		t.Errorf("the log didn't load once the job was done: state %d", m.log.state)
+	if m.log.State() != jobview.Ready || m.log.Lines() != 1 {
+		t.Errorf("the log didn't load once the job was done: state %d", m.log.State())
 	}
 	if !slices.Equal(fl.stopped, []int64{runningRun}) {
 		t.Errorf("stopped %v, want the completed run stopped", fl.stopped)
@@ -543,9 +544,8 @@ func TestMessagesOfOtherModalsAreIgnored(t *testing.T) {
 	m, h := newModal(t, f, wideW, wideH)
 	other, _ := newModal(t, f, wideW, wideH)
 	h.send(jobsMsg{id: other.id, runID: failedRun, attempt: 1})
-	h.send(logMsg{id: other.id, jobID: ubuntuJob, err: errors.New("x")})
 	h.send(ui.DoneMsg{From: "Issues", Err: errors.New("x")})
-	if m.log.state != logReady || len(m.jobs.items) != 4 {
+	if m.log.State() != jobview.Ready || len(m.jobs.items) != 4 {
 		t.Error("the messages of another modal changed this one")
 	}
 }

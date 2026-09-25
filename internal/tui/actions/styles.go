@@ -23,14 +23,9 @@ type styles struct {
 	// or a blurred pane, and noGutter its blank.
 	gutter, blurGutter, noGutter string
 
-	text, strong, muted, subtle lipgloss.Style
-	accent, warning, error      lipgloss.Style
+	ui.RunStyles
 	// question styles the confirmation.
 	question lipgloss.Style
-	// states style the glyphs of the run states, and glyphs holds them
-	// rendered.
-	states [ui.NumRunStates]lipgloss.Style
-	glyphs [ui.NumRunStates]string
 }
 
 func newStyles(t ui.Theme, ic ui.Icons) styles {
@@ -44,18 +39,8 @@ func newStyles(t ui.Theme, ic ui.Icons) styles {
 		gutter:     t.Accent.Render(cursorGlyph) + " ",
 		blurGutter: t.Subtle.Render(cursorGlyph) + " ",
 		noGutter:   "  ",
-		text:       t.Text,
-		strong:     t.Title,
-		muted:      t.Muted,
-		subtle:     t.Subtle,
-		accent:     t.Accent,
-		warning:    t.Warning,
-		error:      t.Error,
+		RunStyles:  ui.NewRunStyles(t, ic),
 		question:   t.Accent.Bold(true),
-	}
-	for st := range ui.NumRunStates {
-		s.states[st] = t.Run(st)
-		s.glyphs[st] = s.states[st].Render(ic.Run(st))
 	}
 	return s
 }
