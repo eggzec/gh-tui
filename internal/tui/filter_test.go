@@ -1,0 +1,148 @@
+package tui
+
+import (
+	"strconv"
+	"strings"
+	"testing"
+
+	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/exp/golden"
+
+	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
+)
+
+// filterSection is a fake section with a filter, chips and a claimed key.
+type filterSection struct {
+	*fakeSection
+	query   string
+	ready   bool
+	applied []filterform.AppliedMsg
+	chips   string
+	claim   string
+}
+
+func (s *filterSection) Filter() (ui.Filter, bool) {
+	spec := filterform.Spec{Fields: []filterform.Field{{
+		Key: "state", Label: "State", Kind: filterform.Choice, Qualifier: "is",
+		Options: []filterform.Item{{Label: "Open", Value: "open"}, {Label: "Closed", Value: "closed"}},
+		Default: filterform.TextValue("open"),
+	}}}
+	return ui.Filter{Spec: spec, Query: s.query, Subject: testRepo.String()}, s.ready
+}
+
+func (s *filterSection) ApplyFilter(msg filterform.AppliedMsg) tea.Cmd {
+	s.applied = append(s.applied, msg)
+	s.chips = msg.Query
+	return nil
+}
+
+func (s *filterSection) Chips() string { return s.chips }
+
+func (s *filterSection) Claims(msg tea.KeyPressMsg) bool { return msg.String() == s.claim }
+
+// newFilterApp returns an app whose pull requests filter, focused on them.
+func newFilterApp(t *testing.T) (*Model, *filterSection, []*fakeSection) {
+	t.Helper()
+	fakes := []*fakeSection{{title: "Files"}, {title: "Pull requests"}, {title: "Issues"}}
+	pulls := &filterSection{fakeSection: fakes[1], query: "is:closed", ready: true, claim: "]"}
+	m := New(t.Context(), config.Default(), Layout{Files: fakes[0], Pulls: pulls, Issues: fakes[2]}, WithRepo(testRepo))
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	run(m, m.showScreen(repoScreen, 1))
+	return m, pulls, fakes
+}
+
+func filterModal(t *testing.T, m *Model) *ui.FilterModal {
+	t.Helper()
+	mod, ok := m.topModal().(*ui.FilterModal)
+	if !ok {
+		t.Fatalf("modal = %T, want the filter modal", m.topModal())
+	}
+	return mod
+}
+
+func TestFilterKeyOpensTheModal(t *testing.T) {
+	m, pulls, _ := newFilterApp(t)
+	run(m, m.key(press("f")))
+	mod := filterModal(t, m)
+	if got, want := mod.Title(), "Filter · Pull requests · eggzec/gh-tui"; got != want {
+		t.Errorf("title = %q, want %q", got, want)
+	}
+	if got := mod.Query(); got != "is:closed" {
+		t.Errorf("query = %q, want the filters in force", got)
+	}
+	if pulls.got(isKey("f")) {
+		t.Error("the section got the filter key too")
+	}
+	// The form is far shorter than the screen, so the frame fits it.
+	if w, h := m.frameSize(); w > 104 || h >= 32 {
+		t.Errorf("frame = %dx%d, want it fitted to the form", w, h)
+	}
+}
+
+func TestFilterModalApplies(t *testing.T) {
+	m, pulls, _ := newFilterApp(t)
+	run(m, m.key(press("f")))
+	run(m, m.key(tea.KeyPressMsg{Code: tea.KeyRight}))
+	run(m, m.key(tea.KeyPressMsg{Code: tea.KeyEnter}))
+	if m.topModal() != nil {
+		t.Error("the modal stayed open after apply")
+	}
+	if len(pulls.applied) != 1 || pulls.applied[0].Query != "is:open" || pulls.applied[0].Values["state"].Text() != "open" {
+		t.Fatalf("applied = %+v, want the state chosen", pulls.applied)
+	}
+	if got := m.panes[1].label; got != "[2] Pull requests · is:open" {
+		t.Errorf("pane label = %q, want the chips after the title", got)
+	}
+	if !strings.Contains(m.panes[1].top, "Pull requests · is:open") {
+		t.Errorf("frame top = %q, want it redrawn with the chips", m.panes[1].top)
+	}
+}
+
+func TestFilterModalCancels(t *testing.T) {
+	m, pulls, _ := newFilterApp(t)
+	run(m, m.key(press("f")))
+	run(m, m.key(tea.KeyPressMsg{Code: tea.KeyEscape}))
+	if m.topModal() != nil || len(pulls.applied) != 0 {
+		t.Errorf("modal %v, applied %v; want it closed with nothing applied", m.topModal(), pulls.applied)
+	}
+}
+
+func TestFilterKeyWithoutAFilterGoesToTheSection(t *testing.T) {
+	m, pulls, fakes := newFilterApp(t)
+	pulls.ready = false
+	run(m, m.key(press("f")))
+	if m.topModal() != nil || !pulls.got(isKey("f")) {
+		t.Error("the filter key opened a modal with nothing to filter, or didn't reach the section")
+	}
+	run(m, m.showScreen(repoScreen, 0))
+	run(m, m.key(press("f")))
+	if m.topModal() != nil || !fakes[0].got(isKey("f")) {
+		t.Error("the filter key didn't reach a section without a filter")
+	}
+}
+
+func TestClaimedKeysGoToTheSection(t *testing.T) {
+	m, pulls, _ := newFilterApp(t)
+	run(m, m.key(press("]")))
+	if m.focus != 1 || !pulls.got(isKey("]")) {
+		t.Errorf("focus %d; want ] kept in the pane that claims it", m.focus)
+	}
+	run(m, m.key(press("[")))
+	if m.focus != 0 {
+		t.Errorf("focus %d; want [ to move to the previous pane", m.focus)
+	}
+}
+
+func TestPaneTitleChips(t *testing.T) {
+	for _, width := range []int{40, 60, 100} {
+		t.Run(strconv.Itoa(width), func(t *testing.T) {
+			m, pulls, _ := newFilterApp(t)
+			pulls.chips = "@me · bug · -is:draft"
+			m.Update(tea.WindowSizeMsg{Width: width, Height: 12})
+			m.updateBadges()
+			golden.RequireEqual(t, m.View().Content)
+		})
+	}
+}

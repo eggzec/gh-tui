@@ -328,8 +328,10 @@ func (m *Model) applyTheme(dark bool) {
 	m.drawHeader()
 }
 
-// updateBadges takes the badge of the notifications, for the header.
+// updateBadges takes the badge of the notifications, for the header, and
+// the chips of the panes, for their titles.
 func (m *Model) updateBadges() {
+	m.updateChips()
 	if m.notif == nil {
 		return
 	}
@@ -340,5 +342,25 @@ func (m *Model) updateBadges() {
 	if badge := b.Badge(); badge != m.badge {
 		m.badge = badge
 		m.drawHeader()
+	}
+}
+
+// updateChips puts the chips of each pane of the repository screen after
+// its title, such as the filters of its list, and redraws the frames whose
+// titles changed.
+func (m *Model) updateChips() {
+	for i, p := range m.panes {
+		c, ok := p.section.(ui.Chipper)
+		if !ok {
+			continue
+		}
+		label := paneLabel(i, p.section.Title())
+		if chips := c.Chips(); chips != "" {
+			label += " · " + chips
+		}
+		if label != p.label {
+			p.label = label
+			m.drawFrame(p)
+		}
 	}
 }

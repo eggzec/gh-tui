@@ -43,8 +43,11 @@ const (
 // sections, such as "m" for merge in pull requests and mark read in
 // notifications.
 const (
-	ActionSelect      = "select"
-	ActionBack        = "back"
+	ActionSelect = "select"
+	ActionBack   = "back"
+	// ActionFilter opens the filter modal of the focused list where it
+	// has one; the notifications filter with it, and the dashboard finds
+	// a repository.
 	ActionFilter      = "filter"
 	ActionMerge       = "merge"
 	ActionClose       = "close"

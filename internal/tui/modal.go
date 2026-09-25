@@ -22,9 +22,9 @@ func (m *Model) openModal(mod ui.Modal) {
 	if mod == nil {
 		return
 	}
+	m.modal = mod
 	mod.SetTheme(m.theme)
 	mod.SetSize(m.modalSize())
-	m.modal = mod
 }
 
 // isOpen reports whether mod is open.
@@ -78,10 +78,16 @@ func (m *Model) closeModal(mod ui.Modal) {
 	}
 }
 
-// frameSize is the size of a modal with its frame: most of the screen, so
-// that the edges of the screen behind it stay in view.
+// frameSize is the size of the open modal with its frame: most of the
+// screen, so that the edges of the screen behind it stay in view, or less
+// if the modal fits in less.
 func (m *Model) frameSize() (width, height int) {
-	return max(m.width-2*max(m.width/10, 2), 0), max(m.height-2*max(m.height/10, 1), 0)
+	width, height = max(m.width-2*max(m.width/10, 2), 0), max(m.height-2*max(m.height/10, 1), 0)
+	if f, ok := m.modal.(ui.Fitter); ok {
+		w, h := f.Fit(max(width-4, 0), max(height-2, 0))
+		width, height = min(width, w+4), min(height, h+2)
+	}
+	return width, height
 }
 
 // modalSize is the size inside the frame: the frame takes a row at the top
