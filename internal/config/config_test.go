@@ -398,3 +398,40 @@ func TestLogPath(t *testing.T) {
 		t.Errorf("Path() = %q, %v; want the configured file", got, err)
 	}
 }
+
+func TestActionsModalActions(t *testing.T) {
+	defaults := Default().Keys
+	for action, want := range map[string]string{
+		ActionActions: "a", ActionNextFilter: "]", ActionPrevFilter: "[", ActionPaneLeft: "h", ActionPaneRight: "l",
+		ActionZoom: "z", ActionRerunFailed: "ctrl+r", ActionRerun: "R", ActionRerunJob: "J", ActionCancelRun: "x",
+	} {
+		if got := defaults[action]; !slices.Equal(got, []string{want}) {
+			t.Errorf("default %s = %v, want [%s]", action, got, want)
+		}
+	}
+
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(path, []byte("keys:\n  rerun_failed: [\"F\"]\n  cancel_run: [\"C\"]\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got := cfg.Keys[ActionRerunFailed]; !slices.Equal(got, []string{"F"}) {
+		t.Errorf("rerun_failed = %v, want [F]", got)
+	}
+	if got := cfg.Keys[ActionRerun]; !slices.Equal(got, []string{"R"}) {
+		t.Errorf("rerun = %v, want the default [R]", got)
+	}
+
+	cfg = Default()
+	cfg.Keys[ActionZoom] = nil
+	cfg.Keys["rerun_all"] = []string{"A"}
+	err = cfg.Validate()
+	for _, want := range []string{"keys.zoom: needs at least one key", "keys.rerun_all: unknown action"} {
+		if err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("Validate() = %v, want %q", err, want)
+		}
+	}
+}
