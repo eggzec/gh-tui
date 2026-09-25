@@ -82,3 +82,23 @@ func fresh[V any](c *cache.Cache[V], key string) bool {
 	_, st := c.Get(key)
 	return st == cache.Fresh
 }
+
+// Changed tells the service that pull request number of repo last changed
+// at updated, such as a notification of it says. What is cached of it from
+// before then is marked stale, and a list page that showed it older no
+// longer vouches for it, so that the next reads ask GitHub. It does no I/O.
+func (s *Service) Changed(repo core.RepoRef, number int, updated time.Time) {
+	if updated.IsZero() {
+		return
+	}
+	key := detailKey(repo, number)
+	if m, ok := s.seen.Get(key); ok && m.updated.Before(updated) {
+		s.seen.Delete(key)
+	}
+	// A detail read before the change that already shows it is current.
+	if e, st := s.details.Get(key); st != cache.Miss && e.FetchedAt.Before(updated) && e.Value.UpdatedAt.Before(updated) {
+		s.details.Invalidate(key)
+	}
+	s.comments.InvalidateBefore(key, updated)
+	s.reviews.InvalidateBefore(key, updated)
+}

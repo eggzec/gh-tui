@@ -1,6 +1,8 @@
 package issues
 
 import (
+	"time"
+
 	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/seen"
@@ -68,4 +70,23 @@ func (s *Service) Current(q CommentsQuery) bool {
 func fresh[V any](c *cache.Cache[V], key string) bool {
 	_, st := c.Get(key)
 	return st == cache.Fresh
+}
+
+// Changed tells the service that issue number of repo last changed at
+// updated, such as a notification of it says. What is cached of it from
+// before then is marked stale, and a list page that showed it older no
+// longer vouches for it, so that the next reads ask GitHub. It does no I/O.
+func (s *Service) Changed(repo core.RepoRef, number int, updated time.Time) {
+	if updated.IsZero() {
+		return
+	}
+	key := issueKey(repo, number)
+	if v, ok := s.seen.Get(key); ok && v.Before(updated) {
+		s.seen.Delete(key)
+	}
+	// An issue read before the change that already shows it is current.
+	if e, st := s.issues.Get(key); st != cache.Miss && e.FetchedAt.Before(updated) && e.Value.UpdatedAt.Before(updated) {
+		s.issues.Invalidate(key)
+	}
+	s.comments.InvalidateBefore(key, updated)
 }
