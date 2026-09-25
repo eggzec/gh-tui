@@ -158,6 +158,30 @@ func TestSearch(t *testing.T) {
 	}
 }
 
+func TestSetSearch(t *testing.T) {
+	m := open(t, "lines.txt", numbered(100), WithSize(40, 11))
+	m, _ = keys(t, m, "G")
+	m.SetSearch("line x ")
+	if m.Capturing() || m.Query() != "line x " || m.Matches() != 15 {
+		t.Fatalf("query %q with %d matches, capturing %v; want 15 of %q", m.Query(), m.Matches(), m.Capturing(), "line x ")
+	}
+	// The first match, on line 2, not the first after the window.
+	if m.search.cur != 0 || m.top != 0 {
+		t.Errorf("match %d at top %d, want the first at the top", m.search.cur, m.top)
+	}
+	if m, _ = keys(t, m, "n"); m.search.cur != 1 {
+		t.Errorf("n went to match %d, want 1", m.search.cur)
+	}
+	m.SetSearch("")
+	if m.Query() != "" || m.KeyMap().Next.Enabled() {
+		t.Error("an empty query should clear the search")
+	}
+	m.SetContent("other.txt", "text")
+	if m.Query() != "" {
+		t.Error("new content should clear the search")
+	}
+}
+
 func TestSearchSteps(t *testing.T) {
 	m := open(t, "lines.txt", numbered(100), WithSize(40, 11))
 	m, _ = keys(t, m, "/")
