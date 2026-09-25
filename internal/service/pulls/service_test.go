@@ -31,6 +31,9 @@ type fakeAPI struct {
 	mutate func(ctx context.Context, method, id string, how core.MergeMethod) (core.PullRequest, error)
 	// probe backs ProbePullRequests.
 	probe func(ctx context.Context, repo core.RepoRef, cond github.Conditional) (github.Response, error)
+	// filter and search back the filtered lists.
+	filter func(ctx context.Context, repo core.RepoRef, f github.PullFilter, cursor string, first int) (core.Page[core.PullRequest], error)
+	search func(ctx context.Context, query, cursor string, first int) (core.Page[core.PullRequest], error)
 
 	mu    sync.Mutex
 	calls map[string]int
@@ -55,6 +58,16 @@ func (f *fakeAPI) count(method string) int {
 func (f *fakeAPI) ListPullRequests(ctx context.Context, repo core.RepoRef, state core.State, cursor string, first int) (core.Page[core.PullRequest], error) {
 	f.called("list")
 	return f.list(ctx, repo, state, cursor, first)
+}
+
+func (f *fakeAPI) FilterPullRequests(ctx context.Context, repo core.RepoRef, filter github.PullFilter, cursor string, first int) (core.Page[core.PullRequest], error) {
+	f.called("filter")
+	return f.filter(ctx, repo, filter, cursor, first)
+}
+
+func (f *fakeAPI) SearchPullRequests(ctx context.Context, query, cursor string, first int) (core.Page[core.PullRequest], error) {
+	f.called("search")
+	return f.search(ctx, query, cursor, first)
 }
 
 func (f *fakeAPI) GetPullRequest(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error) {

@@ -22,6 +22,8 @@ import (
 // ProbePullRequests is a cheap conditional request that Poll watches.
 type API interface {
 	ListPullRequests(ctx context.Context, repo core.RepoRef, state core.State, cursor string, first int) (core.Page[core.PullRequest], error)
+	FilterPullRequests(ctx context.Context, repo core.RepoRef, f github.PullFilter, cursor string, first int) (core.Page[core.PullRequest], error)
+	SearchPullRequests(ctx context.Context, query, cursor string, first int) (core.Page[core.PullRequest], error)
 	GetPullRequest(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error)
 	ListPullRequestComments(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.Page[core.Comment], error)
 	ListPullRequestReviews(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.Page[core.Review], error)
@@ -114,6 +116,11 @@ type ListQuery struct {
 	Repo core.RepoRef
 	// State filters by state. The empty state lists every pull request.
 	State core.State
+	// Filter narrows the list further, in GitHub's search syntax without
+	// the repository and the state, such as "author:@me label:bug
+	// sort:created-asc". Empty lists them all, most recently updated
+	// first. See List for how it is read.
+	Filter string
 	// Cursor is the Next of the previous page, or empty for the first page.
 	Cursor string
 	// PageSize is how many pull requests the page holds at most. Zero means
@@ -123,6 +130,9 @@ type ListQuery struct {
 
 func (q ListQuery) key() string {
 	v := url.Values{"state": {string(q.State)}, "cursor": {q.Cursor}, "first": {strconv.Itoa(pageSize(q.PageSize))}}
+	if q.Filter != "" {
+		v.Set("filter", q.Filter)
+	}
 	return "pulls:" + repoID(q.Repo) + "?" + v.Encode()
 }
 
@@ -216,9 +226,14 @@ func (s *Service) FreshList(q ListQuery) bool {
 	return fresh(s.lists, key)
 }
 
-// List returns the page for q, most recently updated first. A fresh cached
-// page is returned without a request. The page vouches for what is cached
-// of the pull requests it lists: see [Service.Get].
+// List returns the page for q, most recently updated first unless its
+// filter sorts otherwise. A fresh cached page is returned without a
+// request. The page vouches for what is cached of the pull requests it
+// lists: see [Service.Get].
+//
+// The repository's list answers a filter of one label: qualifier, base:,
+// head: and sort:. Any other filter is a search, which costs the same one
+// point. Only pages without a filter are kept for later sessions.
 //
 // A page that only an earlier session kept is fresh if it was fetched or
 // revalidated within the TTL. An older one is returned at once, with Stale
@@ -226,7 +241,13 @@ func (s *Service) FreshList(q ListQuery) bool {
 // page is served with Offline set.
 func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.PullRequest], error) {
 	key := q.key()
-	if e, ok := s.keptLists.Warm(s.lists, key); ok {
+	shelf := s.keptLists
+	if q.Filter != "" {
+		// Filters are many and short-lived, so only the lists every
+		// visit starts from are kept.
+		shelf = nil
+	}
+	if e, ok := shelf.Warm(s.lists, key); ok {
 		// The page vouches for what is cached of its pull requests as of
 		// when it was read, like the other pages shown with it.
 		s.vouch(q.Repo, e.Value.Items)
@@ -234,8 +255,8 @@ func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.PullReq
 		p.Stale = true
 		return p, nil
 	}
-	p, err := fetch(ctx, s.lists, s.keptLists, key, []string{repoTag(q.Repo)}, offlinePage[core.PullRequest], func(ctx context.Context) (core.Page[core.PullRequest], error) {
-		return s.api.ListPullRequests(ctx, q.Repo, q.State, q.Cursor, pageSize(q.PageSize))
+	p, err := fetch(ctx, s.lists, shelf, key, []string{repoTag(q.Repo)}, offlinePage[core.PullRequest], func(ctx context.Context) (core.Page[core.PullRequest], error) {
+		return s.readList(ctx, q)
 	})
 	if err != nil {
 		if github.Refused(err) {

@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -21,6 +22,9 @@ import (
 // is a cheap conditional request that Poll watches.
 type API interface {
 	ListIssues(ctx context.Context, repo core.RepoRef, state core.StateFilter, cursor string, perPage int, cond github.Conditional) (core.Page[core.Issue], github.Response, error)
+	FilterIssues(ctx context.Context, repo core.RepoRef, f github.IssueFilter, cursor string, perPage int, cond github.Conditional) (core.Page[core.Issue], github.Response, error)
+	SearchIssues(ctx context.Context, query, cursor string, perPage int) (core.Page[core.SearchHit], error)
+	ViewerLogin(ctx context.Context) (string, error)
 	GetIssue(ctx context.Context, repo core.RepoRef, number int, cond github.Conditional) (core.Issue, github.Response, error)
 	ListIssueComments(ctx context.Context, repo core.RepoRef, number int, cursor string, perPage int, cond github.Conditional) (core.Page[core.Comment], github.Response, error)
 	SetIssueState(ctx context.Context, repo core.RepoRef, number int, state core.State) (core.Issue, error)
@@ -53,6 +57,10 @@ type Service struct {
 	// seen holds when each issue last changed, as the list pages last
 	// showed, by issue key.
 	seen seen.Marks[time.Time]
+	// me is the login that @me stands for in a filtered list, read once
+	// when viewer isn't set.
+	meMu sync.Mutex
+	me   string
 }
 
 // stampedComments is a cached page of comments with the version of its issue.
@@ -142,6 +150,10 @@ func asIs[V any](v V) V { return v }
 // is tagged with the issue's key, so a change to the issue finds all of them.
 
 func listKey(q ListQuery) string {
+	if q.Filter != "" {
+		// Filtered lists aren't kept, so their keys needn't parse back.
+		return fmt.Sprintf("filtered:%s:%s:%d:%q:%s", q.Repo, q.State, q.PageSize, q.Filter, q.Cursor)
+	}
 	return fmt.Sprintf("list:%s:%s:%d:%s", q.Repo, q.State, q.PageSize, q.Cursor)
 }
 
