@@ -117,6 +117,7 @@ func TestListPullRequests(t *testing.T) {
 		Additions:      512,
 		Deletions:      18,
 		ChangedFiles:   7,
+		Caps:           core.ItemCaps{Known: true, Update: true, Close: true, Label: true, Authored: true},
 	}
 	if !reflect.DeepEqual(page.Items[0], want) {
 		t.Errorf("first pull request =\n%+v\nwant\n%+v", page.Items[0], want)
@@ -129,6 +130,9 @@ func TestListPullRequests(t *testing.T) {
 	}
 	if draft.Author != (core.User{Login: "dependabot"}) || draft.Labels != nil {
 		t.Errorf("bot author = %+v, labels %v; want login only and no labels", draft.Author, draft.Labels)
+	}
+	if !draft.Locked || draft.LockReason != "too_heated" || draft.Caps != (core.ItemCaps{Known: true}) {
+		t.Errorf("locked %v for %q, caps %+v; want locked for too_heated, and nothing allowed", draft.Locked, draft.LockReason, draft.Caps)
 	}
 
 	ghost := page.Items[2]
@@ -615,5 +619,18 @@ func TestPullMutationErrors(t *testing.T) {
 				t.Errorf("error %q lacks context", err)
 			}
 		})
+	}
+}
+
+// TestGetPullRequestCaps decodes what GitHub said the viewer may do to a
+// pull request of a repository they can only read.
+func TestGetPullRequestCaps(t *testing.T) {
+	c, _ := pullServer(t, "pulls_detail_read.json")
+	got, err := c.GetPullRequest(t.Context(), core.RepoRef{Owner: "charmbracelet", Name: "bubbletea"}, 1816)
+	if err != nil {
+		t.Fatalf("GetPullRequest: %v", err)
+	}
+	if got.Number != 1816 || got.Locked || got.Caps != (core.ItemCaps{Known: true}) {
+		t.Errorf("#%d locked %v, caps %+v; want #1816 unlocked, with nothing allowed", got.Number, got.Locked, got.Caps)
 	}
 }

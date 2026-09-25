@@ -1,0 +1,313 @@
+{
+  "data": {
+    "repository": {
+      "pullRequest": {
+        "id": "PR_kwDODeVIac8AAAABEjh7MQ",
+        "number": 1816,
+        "title": "feat: clipboard without OSC52",
+        "state": "OPEN",
+        "isDraft": false,
+        "url": "https://github.com/charmbracelet/bubbletea/pull/1816",
+        "createdAt": "2026-09-22T09:49:26Z",
+        "updatedAt": "2026-09-22T11:02:18Z",
+        "mergedAt": null,
+        "repository": {
+          "name": "bubbletea",
+          "owner": {
+            "login": "charmbracelet"
+          }
+        },
+        "author": {
+          "login": "andrinoff",
+          "name": "Drew Smirnoff"
+        },
+        "labels": {
+          "nodes": []
+        },
+        "assignees": {
+          "nodes": []
+        },
+        "comments": {
+          "totalCount": 1
+        },
+        "headRefName": "feat/terminal-app-osc52",
+        "baseRefName": "main",
+        "reviewDecision": null,
+        "additions": 1700,
+        "deletions": 49,
+        "changedFiles": 23,
+        "commits": {
+          "nodes": [
+            {
+              "commit": {
+                "statusCheckRollup": {
+                  "state": "SUCCESS"
+                }
+              }
+            }
+          ]
+        },
+        "locked": false,
+        "activeLockReason": null,
+        "viewerCanUpdate": false,
+        "viewerCanClose": false,
+        "viewerCanReopen": false,
+        "viewerCanLabel": false,
+        "viewerDidAuthor": false,
+        "body": "## What?\r\n\r\nAdds support for using OS-level clipboard tools if OSC 52 is undetected\r\n\r\n## Why?\r\n\r\nThough rare, but some terminals (like Terminal.app) do not support it. This is an addition as a fallback.",
+        "headCommit": {
+          "nodes": [
+            {
+              "commit": {
+                "statusCheckRollup": {
+                  "contexts": {
+                    "nodes": [
+                      {
+                        "__typename": "CheckRun",
+                        "name": "build / govulncheck",
+                        "status": "COMPLETED",
+                        "conclusion": "SUCCESS",
+                        "detailsUrl": "https://github.com/charmbracelet/bubbletea/actions/runs/35719097949/job/106717521199"
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "build / govulncheck",
+                        "status": "COMPLETED",
+                        "conclusion": "SUCCESS",
+                        "detailsUrl": "https://github.com/charmbracelet/bubbletea/actions/runs/35719091618/job/106717501359"
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "coverage (^1, ubuntu-latest)",
+                        "status": "COMPLETED",
+                        "conclusion": "SUCCESS",
+                        "detailsUrl": "https://github.com/charmbracelet/bubbletea/actions/runs/35719097323/job/106717518199"
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "coverage (^1, ubuntu-latest)",
+                        "status": "COMPLETED",
+                        "conclusion": "SUCCESS",
+                        "detailsUrl": "https://github.com/charmbracelet/bubbletea/actions/runs/35719091053/job/106717499569"
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "lint / lint (ubuntu-latest)",
+                        "status": "COMPLETED",
+                        "conclusion": "SUCCESS",
+                        "detailsUrl": "https://github.com/charmbracelet/bubbletea/actions/runs/35719097931/job/106717521578"
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "lint / lint (ubuntu-latest)",
+                        "status": "COMPLETED",
+                        "conclusion": "SUCCESS",
+                        "detailsUrl": "https://github.com/charmbracelet/bubbletea/actions/runs/35719091617/job/106717501066"
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "lint / lint (macos-latest)",
+                        "status": "COMPLETED",
+                        "conclusion": "SUCCESS",
+                        "detailsUrl": "https://github.com/charmbracelet/bubbletea/actions/runs/35719097931/job/106717521390"
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "lint / lint (macos-latest)",
+                        "status": "COMPLETED",
+                        "conclusion": "SUCCESS",
+                        "detailsUrl": "https://github.com/charmbracelet/bubbletea/actions/runs/35719091617/job/106717500986"
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "lint / lint (windows-latest)",
+                        "status": "COMPLETED",
+                        "conclusion": "SUCCESS",
+                        "detailsUrl": "https://github.com/charmbracelet/bubbletea/actions/runs/35719097931/job/106717520892"
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "lint / lint (windows-latest)",
+                        "status": "COMPLETED",
+                        "conclusion": "SUCCESS",
+                        "detailsUrl": "https://github.com/charmbracelet/bubbletea/actions/runs/35719091617/job/106717501056"
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "build / build (ubuntu-latest)",
+                        "status": "COMPLETED",
+                        "conclusion": "SUCCESS",
+                        "detailsUrl": "https://github.com/charmbracelet/bubbletea/actions/runs/35719097949/job/106717521188"
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "build / build (ubuntu-latest)",
+                        "status": "COMPLETED",
+                        "conclusion": "SUCCESS",
+                        "detailsUrl": "https://github.com/charmbracelet/bubbletea/actions/runs/35719091618/job/106717501416"
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "build / build (macos-latest)",
+                        "status": "COMPLETED",
+                        "conclusion": "SUCCESS",
+                        "detailsUrl": "https://github.com/charmbracelet/bubbletea/actions/runs/35719097949/job/106717521331"
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "build / build (macos-latest)",
+                        "status": "COMPLETED",
+                        "conclusion": "SUCCESS",
+                        "detailsUrl": "https://github.com/charmbracelet/bubbletea/actions/runs/35719091618/job/106717501310"
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "build / build (windows-latest)",
+                        "status": "COMPLETED",
+                        "conclusion": "SUCCESS",
+                        "detailsUrl": "https://github.com/charmbracelet/bubbletea/actions/runs/35719097949/job/106717521338"
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "build / build (windows-latest)",
+                        "status": "COMPLETED",
+                        "conclusion": "SUCCESS",
+                        "detailsUrl": "https://github.com/charmbracelet/bubbletea/actions/runs/35719091618/job/106717501565"
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "build-go-mod / govulncheck",
+                        "status": "COMPLETED",
+                        "conclusion": "SUCCESS",
+                        "detailsUrl": "https://github.com/charmbracelet/bubbletea/actions/runs/35719097949/job/106717520998"
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "build-go-mod / govulncheck",
+                        "status": "COMPLETED",
+                        "conclusion": "SUCCESS",
+                        "detailsUrl": "https://github.com/charmbracelet/bubbletea/actions/runs/35719091618/job/106717502603"
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "build-go-mod / build (ubuntu-latest)",
+                        "status": "COMPLETED",
+                        "conclusion": "SUCCESS",
+                        "detailsUrl": "https://github.com/charmbracelet/bubbletea/actions/runs/35719097949/job/106717520987"
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "build-go-mod / build (ubuntu-latest)",
+                        "status": "COMPLETED",
+                        "conclusion": "SUCCESS",
+                        "detailsUrl": "https://github.com/charmbracelet/bubbletea/actions/runs/35719091618/job/106717501425"
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "build-go-mod / build (macos-latest)",
+                        "status": "COMPLETED",
+                        "conclusion": "SUCCESS",
+                        "detailsUrl": "https://github.com/charmbracelet/bubbletea/actions/runs/35719097949/job/106717521001"
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "build-go-mod / build (macos-latest)",
+                        "status": "COMPLETED",
+                        "conclusion": "SUCCESS",
+                        "detailsUrl": "https://github.com/charmbracelet/bubbletea/actions/runs/35719091618/job/106717501435"
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "build-go-mod / build (windows-latest)",
+                        "status": "COMPLETED",
+                        "conclusion": "SUCCESS",
+                        "detailsUrl": "https://github.com/charmbracelet/bubbletea/actions/runs/35719097949/job/106717520985"
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "build-go-mod / build (windows-latest)",
+                        "status": "COMPLETED",
+                        "conclusion": "SUCCESS",
+                        "detailsUrl": "https://github.com/charmbracelet/bubbletea/actions/runs/35719091618/job/106717501200"
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "build-examples / govulncheck",
+                        "status": "COMPLETED",
+                        "conclusion": "SUCCESS",
+                        "detailsUrl": "https://github.com/charmbracelet/bubbletea/actions/runs/35719097949/job/106717520769"
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "build-examples / govulncheck",
+                        "status": "COMPLETED",
+                        "conclusion": "SUCCESS",
+                        "detailsUrl": "https://github.com/charmbracelet/bubbletea/actions/runs/35719091618/job/106717501366"
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "build-examples / build (ubuntu-latest)",
+                        "status": "COMPLETED",
+                        "conclusion": "SUCCESS",
+                        "detailsUrl": "https://github.com/charmbracelet/bubbletea/actions/runs/35719097949/job/106717521095"
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "build-examples / build (ubuntu-latest)",
+                        "status": "COMPLETED",
+                        "conclusion": "SUCCESS",
+                        "detailsUrl": "https://github.com/charmbracelet/bubbletea/actions/runs/35719091618/job/106717501485"
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "build-examples / build (macos-latest)",
+                        "status": "COMPLETED",
+                        "conclusion": "SUCCESS",
+                        "detailsUrl": "https://github.com/charmbracelet/bubbletea/actions/runs/35719097949/job/106717521114"
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "build-examples / build (macos-latest)",
+                        "status": "COMPLETED",
+                        "conclusion": "SUCCESS",
+                        "detailsUrl": "https://github.com/charmbracelet/bubbletea/actions/runs/35719091618/job/106717501452"
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "build-examples / build (windows-latest)",
+                        "status": "COMPLETED",
+                        "conclusion": "SUCCESS",
+                        "detailsUrl": "https://github.com/charmbracelet/bubbletea/actions/runs/35719097949/job/106717521029"
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "build-examples / build (windows-latest)",
+                        "status": "COMPLETED",
+                        "conclusion": "SUCCESS",
+                        "detailsUrl": "https://github.com/charmbracelet/bubbletea/actions/runs/35719091618/job/106717501383"
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "codecov/patch",
+                        "status": "COMPLETED",
+                        "conclusion": "SUCCESS",
+                        "detailsUrl": "https://app.codecov.io/gh/charmbracelet/bubbletea/pull/1816"
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "codecov/project",
+                        "status": "COMPLETED",
+                        "conclusion": "SUCCESS",
+                        "detailsUrl": "https://app.codecov.io/gh/charmbracelet/bubbletea/pull/1816"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

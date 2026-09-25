@@ -122,6 +122,11 @@ func TestListIssues(t *testing.T) {
 			if b := page.Items[1]; b.Body != "" || b.Labels != nil || b.Assignees != nil {
 				t.Errorf("issue 37 = %+v, want a null body and no labels or assignees", b)
 			}
+			// REST says whether an issue is locked, but not what the
+			// viewer may do.
+			if b := page.Items[1]; !b.Locked || b.LockReason != "resolved" || b.Caps.Known {
+				t.Errorf("issue 37 locked %v for %q, caps %+v; want locked as resolved, caps unknown", b.Locked, b.LockReason, b.Caps)
+			}
 			if !page.Last() {
 				t.Errorf("Next = %q, want the last page without a Link header", page.Next)
 			}

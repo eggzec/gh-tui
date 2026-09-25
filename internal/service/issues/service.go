@@ -92,7 +92,7 @@ const (
 	kindList     = "issuelist"
 	kindIssue    = "issue"
 	kindComments = "issuecomments"
-	schema       = 2
+	schema       = 3
 )
 
 // offlineAt is when an entry served offline was fetched, as far as the
