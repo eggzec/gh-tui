@@ -13,6 +13,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/github"
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
 	dashsvc "github.com/eggzec/gh-tui/internal/service/dashboard"
+	facetsvc "github.com/eggzec/gh-tui/internal/service/facets"
 	filesvc "github.com/eggzec/gh-tui/internal/service/files"
 	historysvc "github.com/eggzec/gh-tui/internal/service/history"
 	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
@@ -80,6 +81,9 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 	actionSvc := actionssvc.New(client, actionssvc.WithTTL(ttl), actionssvc.WithStore(entries))
 	// Search results keep the search service's own short TTL.
 	searchSvc := searchsvc.New(client)
+	// The filters of the pull requests and issues offer the labels,
+	// milestones and people of the repository.
+	facetSvc := facetsvc.New(client, facetsvc.WithTTL(ttl))
 
 	// The sections share whether GitHub can't be reached, so the user is
 	// told once.
@@ -95,8 +99,8 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 		)
 	}
 	var (
-		pullOpts  = []pulls.Option{pulls.WithOffline(offline), pulls.WithIcons(icons)}
-		issueOpts = []issues.Option{issues.WithOffline(offline), issues.WithIcons(icons)}
+		pullOpts  = []pulls.Option{pulls.WithOffline(offline), pulls.WithIcons(icons), pulls.WithFacets(facetSvc)}
+		issueOpts = []issues.Option{issues.WithOffline(offline), issues.WithIcons(icons), issues.WithFacets(facetSvc)}
 	)
 	if p := cfg.Details.Prefetch; p.Enabled {
 		pullOpts = append(pullOpts, pulls.WithPrefetch(p.Rows, p.HoverDelay))
