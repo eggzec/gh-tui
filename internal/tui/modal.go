@@ -106,6 +106,34 @@ func (m *Model) openRelease(msg ui.OpenReleaseMsg) tea.Cmd {
 	return load
 }
 
+// fileFinder returns the section of the repository screen that finds its
+// files, if the screen is on view with a repository, or nil.
+func (m *Model) fileFinder() ui.FileFinder {
+	if m.screen != repoScreen || m.repo == (core.RepoRef{}) {
+		return nil
+	}
+	for _, p := range m.panes {
+		if f, ok := p.section.(ui.FileFinder); ok {
+			return f
+		}
+	}
+	return nil
+}
+
+// findFile opens the file finder of the repository screen.
+func (m *Model) findFile() tea.Cmd {
+	f := m.fileFinder()
+	if f == nil {
+		return nil
+	}
+	mod, load := f.FindFile()
+	if mod == nil {
+		return nil
+	}
+	m.openModal(mod)
+	return load
+}
+
 // canOpenActions reports whether the actions key does something.
 func (m *Model) canOpenActions() bool {
 	return m.actions != nil && m.screen == repoScreen && m.repo != (core.RepoRef{})

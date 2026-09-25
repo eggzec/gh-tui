@@ -37,6 +37,9 @@ const (
 	ActionResetBase = "reset_base"
 	// ActionActions opens the Actions modal of the repository screen.
 	ActionActions = "actions"
+	// ActionFindFile opens the file finder of the repository screen, which
+	// finds a file by some letters of its path.
+	ActionFindFile = "find_file"
 )
 
 // Actions of the sections. A key may serve different actions in different
@@ -126,6 +129,9 @@ func defaultKeys() map[string][]string {
 		ActionHistory:   {"B"},
 		ActionResetBase: {"H"},
 		ActionActions:   {"a"},
+		// t is the key of github.com's file finder, and ctrl+p that of
+		// editors.
+		ActionFindFile: {"t", "ctrl+p"},
 
 		ActionSelect:      {"enter"},
 		ActionBack:        {"esc"},

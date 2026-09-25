@@ -83,6 +83,7 @@ func TestLoadMergesOverDefaults(t *testing.T) {
 				c.Files = Files{
 					Prefetch: Prefetch{Enabled: false, MaxSize: 16 * KiB, HoverDelay: 300 * time.Millisecond},
 					Preview:  Preview{MaxSize: 2_000_000},
+					Finder:   Finder{Preview: false},
 				}
 				c.Details = Details{
 					Prefetch: DetailsPrefetch{Enabled: false, Rows: 10, HoverDelay: time.Second},
@@ -447,5 +448,15 @@ func TestNotifications(t *testing.T) {
 	}
 	if _, err := Load(path); err == nil || !strings.Contains(err.Error(), "sometimes") {
 		t.Errorf("Load of a word for a bool = %v, want an error naming it", err)
+	}
+}
+
+func TestFinderDefaults(t *testing.T) {
+	cfg := Default()
+	if got := cfg.Keys[ActionFindFile]; !slices.Equal(got, []string{"t", "ctrl+p"}) {
+		t.Errorf("find_file = %v, want [t ctrl+p]", got)
+	}
+	if !cfg.Files.Finder.Preview {
+		t.Error("the finder hides its preview by default")
 	}
 }
