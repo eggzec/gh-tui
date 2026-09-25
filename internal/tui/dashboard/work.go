@@ -11,13 +11,10 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
-// workRow is a row of the work pane: the header of a list, one of its
-// items, or what stands in for them.
+// workRow is a row of a list of the work pane: one of its items, or what
+// stands in for them.
 type workRow struct {
-	// header names a list, with its count.
-	header string
-	count  int
-	hit    *core.SearchHit
+	hit *core.SearchHit
 	// note is shown when a list is empty, or holds more than it lists.
 	note string
 
@@ -28,18 +25,29 @@ type workRow struct {
 	lines []string
 }
 
-// workList is the work pane: the three lists of work waiting on the
-// viewer, one after the other, with a cursor over their items. An item
-// takes as many lines as its title needs, and the window scrolls by whole
-// rows.
-type workList struct {
-	rows []workRow
-	// items holds the index in rows of each item, in order.
-	items []int
+// workTab is a list of the work pane, with its own cursor and scroll. Its
+// items come first in rows, then a note if it has one.
+type workTab struct {
+	count int
+	rows  []workRow
+	items int
 	sel   int
 	// top is the first row on view.
 	top int
-	// width and height are the size of the pane, inside its frame.
+}
+
+// workList is the work pane: a tab for each list of work waiting on the
+// viewer, one on view at a time, with a cursor over its items. An item
+// takes as many lines as its title needs, and the window scrolls by whole
+// rows.
+type workList struct {
+	tabs [len(workLists)]workTab
+	cur  int
+	// chosen is set once the viewer picks a tab, which new work then
+	// doesn't change.
+	chosen bool
+	// width is the width of the pane inside its frame, and height the
+	// lines under the tabs.
 	width, height int
 	// now is the clock that ages are measured against.
 	now func() time.Time
@@ -49,49 +57,58 @@ type workList struct {
 // the state and its space.
 const workIndent = 4
 
-// The lists of the work pane, and what each says when it is empty.
-var workLists = []struct {
-	title, empty string
-	list         func(*core.Work) core.WorkList
+// The lists of the work pane, the titles of their tabs in full and short,
+// and what each says when it is empty.
+var workLists = [...]struct {
+	title, short, empty string
+	list                func(*core.Work) core.WorkList
 }{
-	{"Review requests", "No pull request asks for your review.", func(w *core.Work) core.WorkList { return w.ReviewRequested }},
-	{"Your pull requests", "You have no open pull request.", func(w *core.Work) core.WorkList { return w.Authored }},
-	{"Assigned issues", "No open issue is assigned to you.", func(w *core.Work) core.WorkList { return w.Assigned }},
+	{"Review requests", "Reviews", "No pull request asks for your review.", func(w *core.Work) core.WorkList { return w.ReviewRequested }},
+	{"Your pull requests", "Mine", "You have no open pull request.", func(w *core.Work) core.WorkList { return w.Authored }},
+	{"Assigned issues", "Assigned", "No open issue is assigned to you.", func(w *core.Work) core.WorkList { return w.Assigned }},
 }
 
-// set lists w, and keeps the cursor on the item it was on if it is still
-// listed.
+// set lists w, and keeps the cursor of each tab on the item it was on if
+// it is still listed. Until the viewer picks a tab, the first that has
+// items is on view.
 func (l *workList) set(w core.Work) {
-	var prev string
-	if it, ok := l.selected(); ok {
-		prev = it.Issue.URL
-	}
-	rows := make([]workRow, 0, 16)
-	items := make([]int, 0, 16)
-	for _, wl := range workLists {
+	for i, wl := range workLists {
+		t := &l.tabs[i]
+		var prev string
+		if it, ok := t.selected(); ok {
+			prev = it.Issue.URL
+		}
 		list := wl.list(&w)
-		rows = append(rows, workRow{header: wl.title, count: list.Count})
-		if len(list.Items) == 0 {
+		rows := make([]workRow, 0, len(list.Items)+1)
+		for j := range list.Items {
+			rows = append(rows, workRow{hit: &list.Items[j]})
+		}
+		switch more := list.Count - len(list.Items); {
+		case len(list.Items) == 0:
 			rows = append(rows, workRow{note: wl.empty})
-			continue
-		}
-		for i := range list.Items {
-			items = append(items, len(rows))
-			rows = append(rows, workRow{hit: &list.Items[i]})
-		}
-		if more := list.Count - len(list.Items); more > 0 {
+		case more > 0:
 			rows = append(rows, workRow{note: "and " + itoa(more) + " more on GitHub"})
 		}
+		*t = workTab{count: list.Count, rows: rows, items: len(list.Items), top: t.top}
+		for j := range t.items {
+			if prev != "" && rows[j].hit.Issue.URL == prev {
+				t.sel = j
+			}
+		}
 	}
-	l.rows, l.items = rows, items
-	l.sel = 0
-	for i, r := range items {
-		if prev != "" && rows[r].hit.Issue.URL == prev {
-			l.sel = i
+	if !l.chosen {
+		l.cur = 0
+		for i := range l.tabs {
+			if l.tabs[i].items > 0 {
+				l.cur = i
+				break
+			}
 		}
 	}
 	l.wrap()
-	l.scroll()
+	for i := range l.tabs {
+		l.tabs[i].scroll(l.height)
+	}
 }
 
 // count is how many items wait on the viewer in all.
@@ -99,35 +116,56 @@ func (l *workList) count(w core.Work) int {
 	return w.ReviewRequested.Count + w.Authored.Count + w.Assigned.Count
 }
 
+// current is the tab on view.
+func (l *workList) current() *workTab { return &l.tabs[l.cur] }
+
 func (l *workList) selected() (core.SearchHit, bool) {
-	if l.sel >= len(l.items) {
+	return l.current().selected()
+}
+
+func (t *workTab) selected() (core.SearchHit, bool) {
+	if t.sel >= t.items {
 		return core.SearchHit{}, false
 	}
-	return *l.rows[l.items[l.sel]].hit, true
+	return *t.rows[t.sel].hit, true
 }
 
 func (l *workList) move(delta int) {
-	if len(l.items) == 0 {
+	t := l.current()
+	if t.items == 0 {
 		return
 	}
-	l.sel = min(max(l.sel+delta, 0), len(l.items)-1)
-	l.scroll()
+	t.sel = min(max(t.sel+delta, 0), t.items-1)
+	t.scroll(l.height)
 }
 
+// switchTab shows the next tab, or a previous one for a negative delta,
+// with its cursor where it was left.
+func (l *workList) switchTab(delta int) {
+	n := len(l.tabs)
+	l.cur = ((l.cur+delta)%n + n) % n
+	l.chosen = true
+}
+
+// resize sizes the pane to width by height inside its frame, the tabs
+// included.
 func (l *workList) resize(width, height int) {
-	width, height = max(width, 0), max(height, 0)
+	width, height = max(width, 0), max(height-1, 0)
 	if width != l.width {
 		l.width = width
 		l.wrap()
 	}
 	l.height = height
-	l.scroll()
+	for i := range l.tabs {
+		l.tabs[i].scroll(height)
+	}
 }
 
 // wrap breaks the items into lines of the pane's width.
 func (l *workList) wrap() {
-	for i := range l.rows {
-		if r := &l.rows[i]; r.hit != nil {
+	for i := range l.tabs {
+		for j := range l.tabs[i].items {
+			r := &l.tabs[i].rows[j]
 			age := ansi.StringWidth(ui.Ago(r.hit.Issue.UpdatedAt, l.now()))
 			r.ref, r.lines = wrapWork(r.hit.Issue, l.width-workIndent, age)
 		}
@@ -169,53 +207,39 @@ func wrapWork(is core.Issue, width, age int) (ref string, lines []string) {
 	return ref, lines
 }
 
-// lines is how many lines row i takes when first is the first row on
-// view: a header has a blank line above it, unless it is at the top.
-func (l *workList) lines(i, first int) int {
-	r := &l.rows[i]
-	switch {
-	case r.hit != nil:
+// lines is how many lines row i takes.
+func (t *workTab) lines(i int) int {
+	if r := &t.rows[i]; r.hit != nil {
 		return len(r.lines)
-	case r.header != "" && i > first:
-		return 2
-	default:
-		return 1
 	}
+	return 1
 }
 
-// span is how many lines rows first to last take with first on top.
-func (l *workList) span(first, last int) int {
+// span is how many lines rows first to last take.
+func (t *workTab) span(first, last int) int {
 	n := 0
 	for i := first; i <= last; i++ {
-		n += l.lines(i, first)
+		n += t.lines(i)
 	}
 	return n
 }
 
-// scroll shows the whole item under the cursor, with the header of its
-// list when there is room, and fills the window from the bottom.
-func (l *workList) scroll() {
-	if l.height <= 0 || len(l.rows) == 0 {
+// scroll shows the whole item under the cursor in height lines, and fills
+// the window from the bottom.
+func (t *workTab) scroll(height int) {
+	if height <= 0 || len(t.rows) == 0 {
 		return
 	}
-	if l.sel < len(l.items) {
-		row := l.items[l.sel]
-		first := row
-		// The header of a list comes into view with its first item.
-		if row > 0 && l.rows[row-1].header != "" {
-			first--
-		}
-		if first < l.top {
-			l.top = first
-		}
-		for l.top < row && l.span(l.top, row) > l.height {
-			l.top++
+	if t.sel < t.items {
+		t.top = min(t.top, t.sel)
+		for t.top < t.sel && t.span(t.top, t.sel) > height {
+			t.top++
 		}
 	}
 	// The last rows fill the window rather than leave it half empty.
-	last := len(l.rows) - 1
-	for l.top > 0 && l.span(l.top-1, last) <= l.height {
-		l.top--
+	last := len(t.rows) - 1
+	for t.top > 0 && t.span(t.top-1, last) <= height {
+		t.top--
 	}
-	l.top = min(max(l.top, 0), last)
+	t.top = min(max(t.top, 0), last)
 }

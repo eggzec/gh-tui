@@ -149,6 +149,10 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	case workPane:
 		w := &s.tasks
 		switch {
+		case key.Matches(msg, k.NextOwner):
+			w.switchTab(1)
+		case key.Matches(msg, k.PrevOwner):
+			w.switchTab(-1)
 		case key.Matches(msg, k.Up):
 			w.move(-1)
 		case key.Matches(msg, k.Down):

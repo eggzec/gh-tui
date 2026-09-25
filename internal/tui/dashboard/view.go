@@ -501,6 +501,7 @@ func tabsWidth(tabs []*owner) int {
 	return n
 }
 
+// workBody renders the tabs of the lists of work above the one on view.
 func (s *Section) workBody(w, h int) []string {
 	st, l := &s.st, &s.tasks
 	switch {
@@ -510,27 +511,56 @@ func (s *Section) workBody(w, h int) []string {
 		return []string{" " + st.muted.render("Loading the work waiting on you…")}
 	}
 	lines := make([]string, 0, h)
+	lines = append(lines, s.workTabs(w))
 	focused := s.focused && s.focus == workPane
-	for i := l.top; i < len(l.rows); i++ {
+	t := l.current()
+	for i := t.top; i < len(t.rows); i++ {
 		// Rows show whole, but for one taller than the pane.
-		if n := l.lines(i, l.top); len(lines)+n > h && i > l.top {
+		if n := t.lines(i); len(lines)+n > h && i > t.top {
 			break
 		}
-		r := &l.rows[i]
-		switch {
-		case r.header != "":
-			if i > l.top {
-				lines = append(lines, "")
-			}
-			lines = append(lines, " "+st.muted.render(r.header)+" "+st.text.render(strconv.Itoa(r.count)))
-		case r.note != "":
+		r := &t.rows[i]
+		if r.hit == nil {
 			lines = append(lines, "   "+st.subtle.render(r.note))
-		default:
-			sel := l.sel < len(l.items) && l.items[l.sel] == i
-			lines = s.workItem(lines, r, sel, focused, w)
+			continue
 		}
+		lines = s.workItem(lines, r, i == t.sel, focused, w)
 	}
 	return lines
+}
+
+// workTabs renders the tabs of the lists of work, each with its count, by
+// their short titles when the full ones don't fit in w cells.
+func (s *Section) workTabs(w int) string {
+	st, l := &s.st, &s.tasks
+	labels := make([]string, len(workLists))
+	for _, short := range []bool{false, true} {
+		n := 1
+		for i, wl := range workLists {
+			title := wl.title
+			if short {
+				title = wl.short
+			}
+			labels[i] = title + " " + strconv.Itoa(l.tabs[i].count)
+			n += ansi.StringWidth(labels[i]) + 2
+		}
+		if n-2 <= w {
+			break
+		}
+	}
+	var b strings.Builder
+	b.WriteByte(' ')
+	for i, label := range labels {
+		if i > 0 {
+			b.WriteString("  ")
+		}
+		if i == l.cur {
+			st.focusTitle.write(&b, label)
+		} else {
+			st.muted.write(&b, label)
+		}
+	}
+	return b.String()
 }
 
 // workItem appends the lines of a pull request or issue waiting on the
