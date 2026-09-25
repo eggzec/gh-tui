@@ -73,6 +73,9 @@ history:
 dashboard:
   calendar_glyph: "#"
 
+ui:
+  icons: unicode
+
 log:
   level: debug
   file: /var/log/gh-tui.log
