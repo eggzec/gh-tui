@@ -284,6 +284,12 @@ var restValues = map[string]struct {
 	"threads":  {"{id}", false},
 	"comments": {"{id}", false},
 	"reviews":  {"{id}", false},
+
+	"runs":       {"{run_id}", false},
+	"attempts":   {"{attempt}", false},
+	"jobs":       {"{job_id}", false},
+	"workflows":  {"{workflow_id}", false},
+	"check-runs": {"{check_run_id}", false},
 }
 
 func unescape(s string) string {
@@ -303,4 +309,6 @@ var restWords = map[string]bool{
 	"notifications": true, "threads": true, "subscription": true,
 	"search": true, "repositories": true, "code": true, "rate_limit": true,
 	"compare": true, "files": true,
+	"actions": true, "runs": true, "attempts": true, "jobs": true, "workflows": true, "logs": true,
+	"rerun": true, "rerun-failed-jobs": true, "cancel": true, "check-runs": true, "annotations": true,
 }
