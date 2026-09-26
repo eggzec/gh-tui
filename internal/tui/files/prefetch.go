@@ -53,7 +53,7 @@ func (s *Section) prefetchTop(ctx context.Context, x *index) tea.Cmd {
 	}
 	svc, seen, repo := s.svc, s.seen, s.repo
 	return func() tea.Msg {
-		ctx := obs.WithTrace(ctx, "prefetch.files")
+		ctx := obs.WithTrace(obs.ForPrefetch(ctx), "prefetch.files")
 		slog.InfoContext(ctx, "prefetch", "span", "prefetch", "kind", seen.Kind(), "trigger", "top",
 			"repo", repo.String(), "sent", len(todo), "skipped_cached", cached)
 		readAll(ctx, svc, seen, todo, prefetchWorkers)

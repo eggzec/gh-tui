@@ -78,7 +78,7 @@ func (s *Section) rested(msg hoverMsg) tea.Cmd {
 		return nil
 	}
 	h.stop()
-	ctx, cancel := context.WithCancel(obs.WithTrace(s.treeCtx, "prefetch.hover"))
+	ctx, cancel := context.WithCancel(obs.WithTrace(obs.ForPrefetch(s.treeCtx), "prefetch.hover"))
 	h.cancel = cancel
 	svc, q, seen := s.svc, s.blobQuery(h.entry), s.seen
 	return func() tea.Msg {

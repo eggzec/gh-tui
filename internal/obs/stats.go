@@ -26,6 +26,10 @@ type Stats struct {
 	passes      atomic.Int64
 	revalSent   atomic.Int64
 	revalBudget atomic.Int64
+
+	// waits counts the requests that waited for a slot to be sent, and
+	// waited their total and longest wait in nanoseconds.
+	waits, waited, maxWait atomic.Int64
 }
 
 // NewStats returns empty stats that measure uptime from now.
@@ -249,6 +253,23 @@ func (s *Stats) Revalidate(sent, budget int) {
 	s.revalSent.Add(int64(sent))
 	s.revalBudget.Add(int64(budget))
 }
+
+// HTTPWait counts a request that waited d for a slot among those the
+// client lets be in flight at once.
+func (s *Stats) HTTPWait(d time.Duration) {
+	s.waits.Add(1)
+	s.waited.Add(int64(d))
+	for {
+		m := s.maxWait.Load()
+		if int64(d) <= m || s.maxWait.CompareAndSwap(m, int64(d)) {
+			return
+		}
+	}
+}
+
+// CountHTTPWait counts a request that waited d to be sent in the default
+// stats.
+func CountHTTPWait(d time.Duration) { Default().HTTPWait(d) }
 
 // CountHTTP counts an HTTP attempt in the default stats.
 func CountHTTP(h HTTP) { Default().HTTP(h) }
