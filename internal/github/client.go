@@ -141,6 +141,21 @@ func (c *Client) Host() string {
 	return c.restURL.Hostname()
 }
 
+// WebHost returns the host of the web pages of the GitHub the client talks
+// to, with its port if it has one, as its links name it: an Enterprise
+// Server's own host, whose API is below /api/v3, and otherwise the API
+// host without its api. prefix, such as github.com for api.github.com or
+// a GHE.com tenant for its api. host.
+func (c *Client) WebHost() string {
+	if strings.HasSuffix(strings.TrimSuffix(c.restURL.Path, "/"), "/api/v3") {
+		return c.restURL.Host
+	}
+	if h, ok := strings.CutPrefix(c.restURL.Host, "api."); ok {
+		return h
+	}
+	return c.restURL.Host
+}
+
 // Account returns a name for the account the client acts as: a hash of the
 // host and the token, so that it can name what is kept for the account, such
 // as a directory of cached responses, without giving the token away. Another

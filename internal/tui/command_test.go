@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
@@ -42,7 +43,8 @@ func drive(m *Model, cmd tea.Cmd) []tea.Msg {
 		}
 		return out
 	}
-	if msg == nil {
+	if _, ok := msg.(spinner.TickMsg); ok || msg == nil {
+		// A spinner ticks for as long as a goto waits.
 		return nil
 	}
 	_, next := m.Update(msg)

@@ -24,6 +24,7 @@ type command struct {
 
 // commands are those of the command line.
 var commands = []command{
+	{name: "goto", detail: "open a repository, issue, pull request or link", args: true, run: (*Model).gotoCommand},
 	{name: "q", detail: "quit", run: func(*Model, string) tea.Cmd { return tea.Quit }},
 }
 
@@ -38,7 +39,7 @@ func findCommand(name string) (command, bool) {
 }
 
 // linePlaceholder is shown while the line is empty.
-const linePlaceholder = "q to quit"
+const linePlaceholder = "goto owner/name, #number or a link"
 
 // newLine returns the command line, blurred until the command key opens
 // it.
@@ -84,5 +85,7 @@ func (m *Model) runLine(line string) tea.Cmd {
 	case !c.args && arg != "":
 		return m.toast.Push(toast.Error, "The "+c.name+" command takes no argument.")
 	}
+	// The command replaces a goto still waiting.
+	m.cancelGoto()
 	return c.run(m, arg)
 }
