@@ -15,8 +15,8 @@ import (
 // Sizes of the dashboard. From wideWidth by wideHeight cells it shows
 // every pane at once: the profile on top, the pinned cards below it, the
 // repositories beside the work, and the calendar beside the notifications
-// at the bottom. Below that it shows the profile and the focused pane,
-// whose frame names the others.
+// at the bottom. Below that, or zoomed, it shows the profile and the
+// focused pane, whose frame names the others.
 const (
 	wideWidth     = 100
 	wideHeight    = 30
@@ -43,7 +43,7 @@ func (s *Section) layout() {
 	s.wide = s.width >= wideWidth && s.height >= wideHeight
 	rest := max(s.height-profileHeight, 0)
 	var b [numPanes]box
-	if s.wide {
+	if !s.onePane() {
 		mid := max(rest-pinnedHeight-calendarHeight, 0)
 		lw := s.width * 11 / 20
 		b[pinnedPane] = box{s.width, pinnedHeight}
@@ -66,6 +66,20 @@ func (s *Section) layout() {
 	s.cal.SetSize(min(cw-2, s.cal.FitWidth()), min(ch, calendarLines))
 }
 
+// onePane reports whether the dashboard shows the focused pane alone:
+// when the panes don't fit, or while it is zoomed.
+func (s *Section) onePane() bool { return !s.wide || s.zoom }
+
+// zoomed reports whether the zoom shows. A dashboard too small for every
+// pane shows one anyway, so there the back key keeps its other uses.
+func (s *Section) zoomed() bool { return s.zoom && s.wide }
+
+// setZoom shows the focused pane alone, or every pane again.
+func (s *Section) setZoom(zoom bool) {
+	s.zoom = zoom
+	s.layout()
+}
+
 // calendarWidth is the outer width of the calendar in the bottom row: what
 // its range needs, less recent weeks when the notifications would get
 // narrower than minInboxW, down to minCalendarW.
@@ -84,7 +98,7 @@ func (s *Section) render() {
 
 // renderPane renders pane p in its frame. Compose the dashboard after.
 func (s *Section) renderPane(p paneID) {
-	if s.width <= 0 || s.height <= 0 || !s.wide && p != s.focus {
+	if s.width <= 0 || s.height <= 0 || s.onePane() && p != s.focus {
 		return
 	}
 	b := s.boxes[p]
@@ -114,7 +128,7 @@ func (s *Section) compose() {
 	}
 	lines := make([]string, 0, s.height+profileHeight)
 	lines = append(lines, s.head...)
-	if !s.wide {
+	if s.onePane() {
 		lines = append(lines, s.frames[s.focus]...)
 	} else {
 		lines = append(lines, s.frames[pinnedPane]...)
@@ -147,7 +161,7 @@ func (s *Section) label(p paneID) (label string, width int) {
 	if s.focused && p == s.focus {
 		title = st.focusTitle
 	}
-	if s.wide {
+	if !s.onePane() {
 		text := s.paneLabel(p)
 		return title.render(text), ansi.StringWidth(text)
 	}

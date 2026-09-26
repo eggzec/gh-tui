@@ -25,6 +25,15 @@ func BenchmarkView(b *testing.B) {
 	}
 }
 
+func BenchmarkViewZoomed(b *testing.B) {
+	s := benchSection(b)
+	press(b, s, "z")
+	b.ReportAllocs()
+	for b.Loop() {
+		_ = s.View()
+	}
+}
+
 func BenchmarkUpdate(b *testing.B) {
 	s := benchSection(b)
 	// Box the keys once so the benchmark measures the dashboard.

@@ -186,6 +186,8 @@ type Section struct {
 
 	width, height int
 	wide          bool
+	// zoom shows the focused pane alone, as a narrow dashboard does.
+	zoom bool
 	// head is the profile above the panes, boxes are the sizes of the
 	// panes, and frames the panes rendered in their frames.
 	head   []string
@@ -326,7 +328,7 @@ func (s *Section) View() string { return s.view }
 
 // Help returns the keys of the focused pane, then those of the dashboard.
 func (s *Section) Help() help.KeyMap {
-	return helpKeys{k: s.keys, pane: s.focus, repos: &s.repos, cal: s.cal.KeyMap(), here: s.here != (core.RepoRef{}), markRead: s.opener.MarksRead()}
+	return helpKeys{k: s.keys, pane: s.focus, repos: &s.repos, cal: s.cal.KeyMap(), here: s.here != (core.RepoRef{}), wide: s.wide, zoom: s.zoomed(), markRead: s.opener.MarksRead()}
 }
 
 // Focused returns the number of the focused pane, from 0.
