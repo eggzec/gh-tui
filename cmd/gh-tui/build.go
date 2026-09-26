@@ -168,9 +168,11 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 	opts := []tui.Option{
 		tui.WithBrowser(b.Browse),
 		tui.WithRepoInfo(repoSvc.Get),
-		// goto opens a repository only once it is known to exist, and links
+		// goto opens a repository only once it is known to exist, a number
+		// once it knows whether it is an issue or a pull request, and links
 		// to the user's host.
 		tui.WithRepos(repoSvc),
+		tui.WithKinds(issueSvc),
 		tui.WithHost(client.WebHost()),
 		tui.WithUnreachable(github.Unreachable),
 		tui.WithHistory(history.Opener(historySvc, cfg.Keys,

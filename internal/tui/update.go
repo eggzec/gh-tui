@@ -50,6 +50,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case gotoRepoMsg:
 		cmd := m.gotRepo(msg)
 		return m, cmd
+	case gotoKindMsg:
+		cmd := m.gotKind(msg)
+		return m, cmd
 	case spinner.TickMsg:
 		if msg.ID == m.spin.ID() {
 			if m.going == nil {

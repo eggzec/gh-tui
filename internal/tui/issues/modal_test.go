@@ -247,7 +247,8 @@ func TestOpenFromSearch(t *testing.T) {
 		if m == nil || m.repo != other || m.number != 7 {
 			t.Fatalf("modal = %+v, want cli/cli#7", m)
 		}
-		if got := m.Title(); got != "#7 gh issue view hangs" {
+		// The title names the repository, which isn't the one selected.
+		if got := m.Title(); got != "cli/cli#7 gh issue view hangs" {
 			t.Errorf("title = %q", got)
 		}
 		if v := ansi.Strip(m.View()); !strings.Contains(v, "It never returns.") {
@@ -289,8 +290,9 @@ func TestOpenFromSearch(t *testing.T) {
 		h := newSection(t, svc, 80, 20)
 		run(t, h, h.Update(ui.OpenIssueMsg{Repo: testRepo, Number: 999}))
 		m := h.modal()
-		if m == nil || m.Title() != "#999" {
-			t.Fatalf("modal = %v, want #999 without a title", m)
+		// No repository is selected, so the title names it.
+		if m == nil || m.Title() != "eggzec/gh-tui#999" {
+			t.Fatalf("modal = %v, want eggzec/gh-tui#999 without a title", m)
 		}
 		press(t, h, "x", "c", "l")
 		if len(svc.changeCalls()) != 0 || m.composing != composeNone {

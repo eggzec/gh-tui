@@ -27,6 +27,23 @@ type Repos interface {
 	Get(ctx context.Context, ref core.RepoRef) (core.Repo, error)
 }
 
+// Kinds tells whether a number of a repository is an issue or a pull
+// request, since GitHub numbers both in one sequence.
+type Kinds interface {
+	// CachedKind returns the kind if it is known without I/O.
+	CachedKind(repo core.RepoRef, number int) (core.NumberKind, bool)
+	// Kind returns the kind, asking GitHub if it must. A number that is
+	// neither fails with a *core.NoNumberError.
+	Kind(ctx context.Context, repo core.RepoRef, number int) (core.NumberKind, error)
+}
+
+// WithKinds sets what tells goto whether a number is an issue or a pull
+// request. Without it, goto opens a number as an issue, whose modal shows
+// a pull request too, unless a link says what it is.
+func WithKinds(k Kinds) Option {
+	return func(m *Model) { m.kinds = k }
+}
+
 // WithRepos sets what reads the repositories that goto opens. Without it
 // goto opens any repository named, without checking that it exists.
 func WithRepos(r Repos) Option {
@@ -61,16 +78,86 @@ type gotoRepoMsg struct {
 	err  error
 }
 
-// gotoCommand opens what arg names: a repository on its screen.
+// gotoKindMsg reports what number of goto seq is.
+type gotoKindMsg struct {
+	seq    int
+	target core.Target
+	kind   core.NumberKind
+	err    error
+}
+
+// gotoCommand opens what arg names: a repository on its screen, or an
+// issue or pull request in its modal over the screen on view. A number
+// alone is one of the repository screen on view.
 func (m *Model) gotoCommand(arg string) tea.Cmd {
 	t, err := core.ParseTarget(arg, m.host)
 	if err != nil {
 		return m.toast.Push(toast.Error, sentence(err.Error()))
 	}
+	if !t.HasRepo() {
+		// A number alone is one of the repository on view, never of one
+		// selected before and out of sight.
+		if m.screen != repoScreen || m.repo == (core.RepoRef{}) {
+			return m.toast.Push(toast.Error, "Open a repository first, or use goto owner/name"+t.String()+".")
+		}
+		t.Repo = m.repo
+	}
 	if !t.HasNumber() {
 		return m.gotoRepo(t.Repo)
 	}
-	return m.toast.Push(toast.Error, "goto doesn't open numbers yet.")
+	return m.gotoNumber(t)
+}
+
+// gotoNumber opens the issue or pull request that t names, once it knows
+// which one it is: from a link, from memory, or else from GitHub.
+func (m *Model) gotoNumber(t core.Target) tea.Cmd {
+	kind, found := t.Kind, "link"
+	if !kind.Known() && m.kinds != nil {
+		kind, _ = m.kinds.CachedKind(t.Repo, t.Number)
+		found = "memory"
+	}
+	if !kind.Known() && m.kinds == nil {
+		kind, found = core.KindIssue, "guess"
+	}
+	if kind.Known() {
+		logGoto(m.ctx, t, found)
+		return openNumber(t, kind)
+	}
+	ctx, seq, spin := m.startGoto(t)
+	kinds := m.kinds
+	return tea.Batch(spin, func() tea.Msg {
+		ctx, end := obs.Begin(ctx, "goto.number")
+		logGoto(ctx, t, "github")
+		k, err := kinds.Kind(ctx, t.Repo, t.Number)
+		end(err, "span", "tui", "target", t.String(), "kind", string(k))
+		return gotoKindMsg{seq: seq, target: t, kind: k, err: err}
+	})
+}
+
+// gotKind opens the number that goto asked for, or says why not.
+func (m *Model) gotKind(msg gotoKindMsg) tea.Cmd {
+	g := m.endGoto(msg.seq)
+	if g == nil {
+		return nil
+	}
+	if msg.err != nil {
+		return m.gotoFailed(g.target, msg.err)
+	}
+	return openNumber(msg.target, msg.kind)
+}
+
+// openNumber asks the section that owns number t's kind to open it.
+func openNumber(t core.Target, kind core.NumberKind) tea.Cmd {
+	var msg tea.Msg = ui.OpenIssueMsg{Repo: t.Repo, Number: t.Number}
+	if kind == core.KindPull {
+		msg = ui.OpenPullMsg{Repo: t.Repo, Number: t.Number}
+	}
+	return func() tea.Msg { return msg }
+}
+
+// logGoto logs that goto opens t, and where it learned what t is.
+func logGoto(ctx context.Context, t core.Target, found string) {
+	slog.InfoContext(ctx, "goto", "span", "tui", "target", t.String(), "found", found)
 }
 
 // gotoRepo shows the repository screen of ref, once it is known to exist.
@@ -121,6 +208,8 @@ func (m *Model) gotoFailed(t core.Target, err error) tea.Cmd {
 	switch {
 	case errors.Is(err, context.Canceled):
 		return nil
+	case noNumber(err):
+		text = "No issue or pull request " + t.String() + "."
 	case m.unreachable != nil && m.unreachable(m.ctx, err):
 		text = fmt.Sprintf("Can't reach GitHub to open %s.", t)
 	case errors.Is(err, core.ErrNotFound):
@@ -129,11 +218,6 @@ func (m *Model) gotoFailed(t core.Target, err error) tea.Cmd {
 		text = sentence(fmt.Sprintf("Couldn't open %s: %v", t, err))
 	}
 	return m.toast.Push(toast.Error, text)
-}
-
-// logGoto logs that goto opens t, and where it learned what t is.
-func logGoto(ctx context.Context, t core.Target, found string) {
-	slog.InfoContext(ctx, "goto", "span", "tui", "target", t.String(), "found", found)
 }
 
 // sentence makes s, such as an error, a sentence for a toast: it starts
@@ -145,6 +229,13 @@ func sentence(s string) string {
 		s += "."
 	}
 	return s
+}
+
+// noNumber reports whether err says that a repository has no issue or
+// pull request of the number asked for.
+func noNumber(err error) bool {
+	_, ok := errors.AsType[*core.NoNumberError](err)
+	return ok
 }
 
 // startGoto starts waiting for GitHub on t, in place of any goto waiting
