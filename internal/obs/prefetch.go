@@ -14,13 +14,22 @@ type Prefetched[K comparable] struct {
 	kind string
 
 	mu   sync.Mutex
-	keys map[K]struct{}
+	keys map[K]prefetchState
+}
+
+// prefetchState is what a Prefetched knows of a key.
+type prefetchState struct {
+	// pending counts the reads of the key started and not yet ended.
+	pending int
+	// read is set once a read of the key brought it, and opened once the
+	// key was opened while it was being read.
+	read, opened bool
 }
 
 // NewPrefetched returns a Prefetched that counts under kind, such as
 // "pull" or "file".
 func NewPrefetched[K comparable](kind string) *Prefetched[K] {
-	return &Prefetched[K]{kind: kind, keys: make(map[K]struct{})}
+	return &Prefetched[K]{kind: kind, keys: make(map[K]prefetchState)}
 }
 
 // Kind returns the kind p counts under.
@@ -38,31 +47,89 @@ func (p *Prefetched[K]) Count(e PrefetchEvent) {
 	}
 }
 
-// Read records that k was read ahead and brought what it was after.
+// Started records that a read of k ahead started, so that opening k before
+// it ends counts as a use once the read brings it. End the read with Read
+// or Dropped.
+func (p *Prefetched[K]) Started(k K) {
+	if p == nil {
+		return
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if len(p.keys) >= maxPrefetched {
+		clear(p.keys)
+	}
+	st := p.keys[k]
+	st.pending++
+	p.keys[k] = st
+}
+
+// Read records that k was read ahead and brought what it was after. If k
+// was opened while it was read, that counts as its use now.
 func (p *Prefetched[K]) Read(k K) {
 	if p == nil {
 		return
 	}
 	CountPrefetch(p.kind, PrefetchRead)
 	p.mu.Lock()
-	defer p.mu.Unlock()
 	if len(p.keys) >= maxPrefetched {
 		clear(p.keys)
 	}
-	p.keys[k] = struct{}{}
+	st := p.keys[k]
+	st.pending = max(st.pending-1, 0)
+	opened := st.opened
+	if opened {
+		delete(p.keys, k)
+	} else {
+		st.read = true
+		p.keys[k] = st
+	}
+	p.mu.Unlock()
+	if opened {
+		CountPrefetch(p.kind, PrefetchOpened)
+	}
+}
+
+// Dropped records that a read of k ahead ended without bringing it, such
+// as one canceled or failed.
+func (p *Prefetched[K]) Dropped(k K) {
+	if p == nil {
+		return
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	st, ok := p.keys[k]
+	if !ok {
+		return
+	}
+	st.pending = max(st.pending-1, 0)
+	switch {
+	case st.pending == 0 && !st.read:
+		delete(p.keys, k)
+	default:
+		p.keys[k] = st
+	}
 }
 
 // Opened records that k was opened, which counts once for what was read
-// ahead.
+// ahead: at once if it was read, or once its read brings it if one is in
+// flight.
 func (p *Prefetched[K]) Opened(k K) {
 	if p == nil {
 		return
 	}
 	p.mu.Lock()
-	_, ok := p.keys[k]
-	delete(p.keys, k)
+	st, ok := p.keys[k]
+	switch {
+	case !ok:
+	case st.read:
+		delete(p.keys, k)
+	case st.pending > 0:
+		st.opened = true
+		p.keys[k] = st
+	}
 	p.mu.Unlock()
-	if ok {
+	if ok && st.read {
 		CountPrefetch(p.kind, PrefetchOpened)
 	}
 }

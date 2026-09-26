@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -44,6 +45,9 @@ type Ahead[K comparable] struct {
 	cancel context.CancelFunc
 	// limited is shared with the reads in flight, which set it.
 	limited *atomic.Bool
+	// flying holds the rows being read, so that a row whose read is in
+	// flight isn't read again meanwhile.
+	flying *flights[K]
 	// first are the first rows read ahead for the list.
 	first []K
 
@@ -52,9 +56,9 @@ type Ahead[K comparable] struct {
 	hovered    K
 	hasHovered bool
 	seq        int
-	stopHover  context.CancelFunc
+	stopHover  func()
 	// stopAround cancels the reads around the cursor still in flight.
-	stopAround context.CancelFunc
+	stopAround func()
 }
 
 // AheadMsg reports that the cursor rested on a row. Sections pass it to
@@ -81,6 +85,7 @@ func NewAhead[K comparable](kind string, read func(ctx context.Context, k K) err
 		ctx:     context.Background(),
 		cancel:  func() {},
 		limited: new(atomic.Bool),
+		flying:  newFlights[K](),
 	}
 }
 
@@ -92,6 +97,7 @@ func (a *Ahead[K]) Reset(parent context.Context) {
 	}
 	a.cancel()
 	a.ctx, a.cancel = context.WithCancel(parent)
+	a.flying.clear()
 	a.first = a.first[:0]
 	var zero K
 	a.hovered, a.hasHovered = zero, false
@@ -131,25 +137,37 @@ func (a *Ahead[K]) First(at func(i int) (K, bool)) tea.Cmd {
 		a.first = append(a.first, k)
 	}
 	var todo []K
+	cached := 0
 	for _, k := range a.first {
-		if !a.current(k) {
-			todo = append(todo, k)
-		} else {
+		switch {
+		case a.current(k):
+			cached++
 			a.seen.Count(obs.PrefetchCached)
+		case !a.flying.has(k):
+			todo = append(todo, k)
 		}
 	}
-	cached := len(a.first) - len(todo)
 	if len(todo) == 0 {
 		return nil
 	}
-	ctx, read, limited, seen := a.ctx, a.read, a.limited, a.seen
+	r := a.start(todo)
+	ctx := a.ctx
 	return func() tea.Msg {
 		ctx := obs.WithTrace(ctx, "prefetch.rows")
-		slog.InfoContext(ctx, "prefetch", "span", "prefetch", "kind", seen.Kind(), "trigger", "rows",
+		slog.InfoContext(ctx, "prefetch", "span", "prefetch", "kind", r.seen.Kind(), "trigger", "rows",
 			"sent", len(todo), "skipped_cached", cached)
-		readAll(ctx, read, limited, seen, todo)
+		r.readAll(ctx, todo)
 		return nil
 	}
+}
+
+// start marks ks as being read by a new batch of reads, which it returns.
+func (a *Ahead[K]) start(ks []K) batch[K] {
+	id := a.flying.start(ks)
+	for _, k := range ks {
+		a.seen.Started(k)
+	}
+	return batch[K]{id: id, read: a.read, limited: a.limited, seen: a.seen, flying: a.flying}
 }
 
 // same reports whether the first rows are those read ahead already.
@@ -168,10 +186,21 @@ func (a *Ahead[K]) same(at func(i int) (K, bool)) bool {
 	return n == len(a.first)
 }
 
+// batch is a group of reads started at once, which ends them. It only
+// holds what never changes or is safe for concurrent use, so it runs in a
+// command.
+type batch[K comparable] struct {
+	id      int
+	read    func(context.Context, K) error
+	limited *atomic.Bool
+	seen    *obs.Prefetched[K]
+	flying  *flights[K]
+}
+
 // readAll reads the details of ks, a few at a time, until ctx is done or
 // GitHub reports the rate limit. Other failures are for the detail to
 // report, if it is opened.
-func readAll[K comparable](ctx context.Context, read func(context.Context, K) error, limited *atomic.Bool, seen *obs.Prefetched[K], ks []K) {
+func (b batch[K]) readAll(ctx context.Context, ks []K) {
 	sem := make(chan struct{}, aheadWorkers)
 	var wg sync.WaitGroup
 	defer wg.Wait()
@@ -179,50 +208,61 @@ func readAll[K comparable](ctx context.Context, read func(context.Context, K) er
 		select {
 		case sem <- struct{}{}:
 		case <-ctx.Done():
-			skip(seen, obs.PrefetchCanceled, len(ks)-i)
+			b.skip(obs.PrefetchCanceled, ks[i:])
 			return
 		}
-		if limited.Load() {
+		if b.limited.Load() {
 			<-sem
-			skip(seen, obs.PrefetchLimited, len(ks)-i)
+			b.skip(obs.PrefetchLimited, ks[i:])
 			return
 		}
 		wg.Go(func() {
 			defer func() { <-sem }()
-			readOne(ctx, read, limited, seen, k)
+			b.readOne(ctx, k)
 		})
 	}
 }
 
-// skip counts n reads that weren't sent, for why.
-func skip[K comparable](seen *obs.Prefetched[K], why obs.PrefetchEvent, n int) {
-	for range n {
-		seen.Count(why)
+// skip counts the reads of ks that weren't sent, for why, and ends them.
+func (b batch[K]) skip(why obs.PrefetchEvent, ks []K) {
+	for _, k := range ks {
+		b.seen.Count(why)
+		b.end(k, false)
+	}
+}
+
+// end ends the read of k, which brought it if ok.
+func (b batch[K]) end(k K, ok bool) {
+	b.flying.end(b.id, k)
+	if ok {
+		b.seen.Read(k)
+	} else {
+		b.seen.Dropped(k)
 	}
 }
 
 // readOne reads the detail of k, and records what came of it.
-func readOne[K comparable](ctx context.Context, read func(context.Context, K) error, limited *atomic.Bool, seen *obs.Prefetched[K], k K) {
-	seen.Count(obs.PrefetchSent)
+func (b batch[K]) readOne(ctx context.Context, k K) {
+	b.seen.Count(obs.PrefetchSent)
 	start := time.Now()
-	err := read(ctx, k)
+	err := b.read(ctx, k)
 	outcome := "read"
 	switch {
 	case err == nil:
-		seen.Read(k)
 	case errors.Is(err, core.ErrRateLimited):
-		limited.Store(true)
+		b.limited.Store(true)
 		outcome = "rate_limited"
-		seen.Count(obs.PrefetchRateLimited)
+		b.seen.Count(obs.PrefetchRateLimited)
 	case ctx.Err() != nil:
 		outcome = "canceled"
-		seen.Count(obs.PrefetchCanceled)
+		b.seen.Count(obs.PrefetchCanceled)
 	default:
 		outcome = "failed"
-		seen.Count(obs.PrefetchFailed)
+		b.seen.Count(obs.PrefetchFailed)
 	}
+	b.end(k, err == nil)
 	if obs.Enabled(ctx, slog.LevelDebug) {
-		slog.DebugContext(ctx, "prefetch read", "span", "prefetch", "kind", seen.Kind(), "key", fmt.Sprint(k),
+		slog.DebugContext(ctx, "prefetch read", "span", "prefetch", "kind", b.seen.Kind(), "key", fmt.Sprint(k),
 			"outcome", outcome, "duration_ms", obs.Millis(time.Since(start)))
 	}
 }
@@ -243,6 +283,9 @@ func (a *Ahead[K]) Moved(k K, ok bool) tea.Cmd {
 		return nil
 	case a.current(k):
 		a.seen.Count(obs.PrefetchCached)
+		return nil
+	case a.flying.has(k):
+		// Such as a first row, read since the list loaded.
 		return nil
 	}
 	msg := AheadMsg{id: a.id, seq: a.seq}
@@ -268,13 +311,15 @@ func (a *Ahead[K]) Rested(msg AheadMsg) tea.Cmd {
 	case a.current(k):
 		a.seen.Count(obs.PrefetchCached)
 		return nil
+	case a.flying.has(k):
+		return nil
 	}
 	ctx, cancel := context.WithCancel(obs.WithTrace(a.ctx, "prefetch.hover"))
-	a.stopHover = cancel
-	read, limited, seen := a.read, a.limited, a.seen
+	r := a.start([]K{k})
+	a.stopHover = r.stop(cancel)
 	return func() tea.Msg {
 		defer cancel()
-		readOne(ctx, read, limited, seen, k)
+		r.readOne(ctx, k)
 		return nil
 	}
 }
@@ -306,7 +351,7 @@ func (a *Ahead[K]) Around(at func(i int) (K, bool), i, n int) tea.Cmd {
 			case a.current(k):
 				cached++
 				a.seen.Count(obs.PrefetchCached)
-			default:
+			case !a.flying.has(k):
 				todo = append(todo, k)
 			}
 		}
@@ -315,13 +360,75 @@ func (a *Ahead[K]) Around(at func(i int) (K, bool), i, n int) tea.Cmd {
 		return nil
 	}
 	ctx, cancel := context.WithCancel(obs.WithTrace(a.ctx, "prefetch.around"))
-	a.stopAround = cancel
-	read, limited, seen := a.read, a.limited, a.seen
+	r := a.start(todo)
+	a.stopAround = r.stop(cancel)
 	return func() tea.Msg {
 		defer cancel()
-		slog.InfoContext(ctx, "prefetch", "span", "prefetch", "kind", seen.Kind(), "trigger", "around",
+		slog.InfoContext(ctx, "prefetch", "span", "prefetch", "kind", r.seen.Kind(), "trigger", "around",
 			"sent", len(todo), "skipped_cached", cached)
-		readAll(ctx, read, limited, seen, todo)
+		r.readAll(ctx, todo)
 		return nil
 	}
+}
+
+// stop returns a func that cancels the reads of b with cancel, and forgets
+// them as in flight at once, so that a row they were reading can be read
+// again before they unwind.
+func (b batch[K]) stop(cancel context.CancelFunc) func() {
+	return func() {
+		cancel()
+		b.flying.forget(b.id)
+	}
+}
+
+// flights holds the rows being read, by the batch that reads them. The
+// reads end in commands, so it is safe for concurrent use.
+type flights[K comparable] struct {
+	mu   sync.Mutex
+	rows map[K]int
+	last int
+}
+
+func newFlights[K comparable]() *flights[K] { return &flights[K]{rows: make(map[K]int)} }
+
+// start marks ks as read by a new batch, and returns its id.
+func (f *flights[K]) start(ks []K) int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.last++
+	for _, k := range ks {
+		f.rows[k] = f.last
+	}
+	return f.last
+}
+
+// end forgets the read of k by batch id, unless another batch reads k since.
+func (f *flights[K]) end(id int, k K) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.rows[k] == id {
+		delete(f.rows, k)
+	}
+}
+
+// forget forgets the reads of batch id.
+func (f *flights[K]) forget(id int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	maps.DeleteFunc(f.rows, func(_ K, b int) bool { return b == id })
+}
+
+// has reports whether k is being read.
+func (f *flights[K]) has(k K) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	_, ok := f.rows[k]
+	return ok
+}
+
+// clear forgets every read.
+func (f *flights[K]) clear() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	clear(f.rows)
 }

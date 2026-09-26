@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"sync"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/obs"
 )
 
 // reader is a fake detail read that records the rows read, and can hold
@@ -352,5 +354,122 @@ func TestAheadAroundCancelsTheLastReads(t *testing.T) {
 			t.Errorf("cancelled %v, want the reads around row 11, %v", cancelled, want)
 		}
 		close(r.hold)
+	})
+}
+
+// rowCounts returns the prefetch counters of the rows in stats, which the
+// tests read ahead as kind row.
+func rowCounts(stats *obs.Stats) obs.PrefetchStats {
+	for _, p := range stats.Summary().Prefetch {
+		if p.Kind == "row" {
+			return p
+		}
+	}
+	return obs.PrefetchStats{Kind: "row"}
+}
+
+func TestAheadCountsReadsInFlightOnce(t *testing.T) {
+	tests := []struct {
+		name string
+		// during runs while the reads of the first three rows are held,
+		// and returns the commands it started.
+		during func(a *Ahead[int]) tea.Cmd
+		// after runs once they ended.
+		after func(a *Ahead[int])
+		fail  bool
+		want  obs.PrefetchStats
+	}{{
+		name:   "hover on a first row",
+		during: func(a *Ahead[int]) tea.Cmd { return a.Moved(1, true) },
+		want:   obs.PrefetchStats{Sent: 3, Read: 3},
+	}, {
+		name:   "around a first row",
+		during: func(a *Ahead[int]) tea.Cmd { return a.Around(rowsOf(3), 1, 1) },
+		want:   obs.PrefetchStats{Sent: 3, Read: 3},
+	}, {
+		name:   "the same first rows",
+		during: func(a *Ahead[int]) tea.Cmd { return a.First(rowsOf(3)) },
+		want:   obs.PrefetchStats{Sent: 3, Read: 3},
+	}, {
+		name:   "opened while read",
+		during: func(a *Ahead[int]) tea.Cmd { a.Opened(2); return nil },
+		want:   obs.PrefetchStats{Sent: 3, Read: 3, Opened: 1},
+	}, {
+		name:  "opened once read",
+		after: func(a *Ahead[int]) { a.Opened(2); a.Opened(2) },
+		want:  obs.PrefetchStats{Sent: 3, Read: 3, Opened: 1},
+	}, {
+		name:   "opened while read, which failed",
+		during: func(a *Ahead[int]) tea.Cmd { a.Opened(2); return nil },
+		fail:   true,
+		want:   obs.PrefetchStats{Sent: 3, Failed: 3},
+	}}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				_, stats := captureLog(t)
+				r := newReader()
+				r.hold = make(chan struct{})
+				if tt.fail {
+					r.err = errors.New("boom")
+				}
+				a := NewAhead("row", r.readRow, r.current, 3, time.Millisecond)
+				a.Reset(t.Context())
+				first := a.First(rowsOf(3))
+				done := make(chan struct{})
+				go func() {
+					run(first)
+					close(done)
+				}()
+				synctest.Wait()
+				if tt.during != nil {
+					if cmd := tt.during(a); cmd != nil {
+						t.Error("read ahead a row whose read is in flight")
+					}
+				}
+				close(r.hold)
+				<-done
+				if tt.after != nil {
+					tt.after(a)
+				}
+				got := rowCounts(stats)
+				got.Kind, got.Useful = "", 0
+				if got != tt.want {
+					t.Errorf("counted %+v, want %+v", got, tt.want)
+				}
+				if n := len(r.reads()); n != 3 {
+					t.Errorf("read %d rows, want 3", n)
+				}
+			})
+		})
+	}
+}
+
+func TestAheadRereadsAfterStop(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		r := newReader()
+		r.hold = make(chan struct{})
+		a := NewAhead("row", r.readRow, r.current, 0, 0)
+		a.Reset(t.Context())
+		first := a.Around(rowsOf(30), 10, 1)
+		done := make(chan struct{})
+		go func() {
+			run(first)
+			close(done)
+		}()
+		synctest.Wait()
+		// The cursor rests there again, which cancels the reads and
+		// starts them over, rather than leaving the rows to the cancelled
+		// reads.
+		again := a.Around(rowsOf(30), 10, 1)
+		if again == nil {
+			t.Fatal("Around skipped the rows of the reads it cancelled")
+		}
+		<-done
+		close(r.hold)
+		run(again)
+		if got, want := r.reads(), []int{10, 10, 12, 12}; !slices.Equal(got, want) {
+			t.Errorf("read %v, want %v", got, want)
+		}
 	})
 }
