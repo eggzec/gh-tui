@@ -24,6 +24,11 @@ type app struct {
 	width   int
 	height  int
 	got     []tea.Msg
+	// matched, if set, is closed once the finder shows the one path that
+	// matches its query. The output can't tell: the renderer redraws only
+	// the cells of the count that changed.
+	matched chan struct{}
+	query   string
 }
 
 func (a *app) Init() tea.Cmd {
@@ -31,6 +36,16 @@ func (a *app) Init() tea.Cmd {
 }
 
 func (a *app) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	m, cmd := a.update(msg)
+	if f, ok := a.modal.(*finderModal); ok && a.matched != nil &&
+		f.find.Query() == a.query && !f.find.Matching() && f.find.Matches() == 1 {
+		close(a.matched)
+		a.matched = nil
+	}
+	return m, cmd
+}
+
+func (a *app) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		a.width, a.height = msg.Width, msg.Height
@@ -125,7 +140,8 @@ func TestProgramFinder(t *testing.T) {
 	s := New(t.Context(), sampleFake(), config.Default().Keys, WithRepo(ghTUI))
 	s.SetTheme(testTheme())
 	s.Focus()
-	a := &app{section: s}
+	matched := make(chan struct{})
+	a := &app{section: s, matched: matched, query: "ghmain"}
 	tm := teatest.NewTestModel(t, a, teatest.WithInitialTermSize(60, 12))
 	waitFor := func(text string) {
 		t.Helper()
@@ -137,7 +153,11 @@ func TestProgramFinder(t *testing.T) {
 	tm.Send(press("ctrl+p"))
 	waitFor("6 files")
 	tm.Type("ghmain")
-	waitFor("1 match")
+	select {
+	case <-matched:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the finder never listed the one match")
+	}
 	tm.Send(press("enter"))
 	waitFor("hello")
 	tm.Send(press("esc"))
