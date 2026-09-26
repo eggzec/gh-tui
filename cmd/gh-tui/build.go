@@ -204,7 +204,7 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 		watchers = append(watchers, repoPolls.set)
 	}
 	if store != nil {
-		if r := newRevalidator(cfg.Cache, engine.Publish, issueSvc.Kept, notifSvc.Kept, fileSvc.Kept, historySvc.Kept, actionSvc.Kept); r != nil {
+		if r := newRevalidator(cfg.Cache, engine.Publish, issueSvc.Kept, pullSvc.Kept, notifSvc.Kept, fileSvc.Kept, historySvc.Kept, actionSvc.Kept); r != nil {
 			go func() { _ = r.Run(ctx) }()
 			activity = append(activity, r.SetActive)
 			watchers = append(watchers, r.SetRepo)

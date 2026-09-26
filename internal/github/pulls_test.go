@@ -291,28 +291,6 @@ func TestCheckRunState(t *testing.T) {
 	}
 }
 
-func TestListPullRequestComments(t *testing.T) {
-	c, reqs := pullServer(t, "pulls_comments.json")
-
-	page, err := c.ListPullRequestComments(t.Context(), pullsRepo, 42, "", 30)
-	if err != nil {
-		t.Fatalf("ListPullRequestComments: %v", err)
-	}
-	checkPullQuery(t, reqs(), "page: comments(first: $first, after: $after)", map[string]any{
-		"owner": "eggzec", "name": "gh-tui", "number": float64(42), "first": float64(30),
-	})
-	want := core.Page[core.Comment]{
-		Items: []core.Comment{
-			{ID: "IC_kwDOLnBTf86Bb001", Author: core.User{Login: "monalisa", Name: "Mona Lisa"}, Body: "Looks good so far.", CreatedAt: pullTime("2026-09-21T08:00:00Z"), UpdatedAt: pullTime("2026-09-21T08:05:00Z")},
-			{ID: "IC_kwDOLnBTf86Bb002", Body: "Ping.", CreatedAt: pullTime("2026-09-22T16:00:00Z"), UpdatedAt: pullTime("2026-09-22T16:00:00Z")},
-		},
-		Next: "Y3Vyc29yOnYyOpHOBb002",
-	}
-	if !reflect.DeepEqual(page, want) {
-		t.Errorf("page =\n%+v\nwant\n%+v", page, want)
-	}
-}
-
 func TestListPullRequestReviews(t *testing.T) {
 	c, reqs := pullServer(t, "pulls_reviews.json")
 
@@ -339,10 +317,6 @@ func TestPullPageVariables(t *testing.T) {
 		fixture string
 		read    func(c *Client, cursor string, first int) error
 	}{
-		"comments": {"pulls_comments.json", func(c *Client, cursor string, first int) error {
-			_, err := c.ListPullRequestComments(t.Context(), pullsRepo, 42, cursor, first)
-			return err
-		}},
 		"reviews": {"pulls_reviews.json", func(c *Client, cursor string, first int) error {
 			_, err := c.ListPullRequestReviews(t.Context(), pullsRepo, 42, cursor, first)
 			return err
@@ -405,10 +379,6 @@ func TestPullReadErrors(t *testing.T) {
 			_, err := c.GetPullRequest(t.Context(), pullsRepo, 42)
 			return err
 		},
-		"comments": func(c *Client) error {
-			_, err := c.ListPullRequestComments(t.Context(), pullsRepo, 42, "", 30)
-			return err
-		},
 		"reviews": func(c *Client) error {
 			_, err := c.ListPullRequestReviews(t.Context(), pullsRepo, 42, "", 30)
 			return err
@@ -447,10 +417,6 @@ func TestPullReadsNullPull(t *testing.T) {
 	reads := map[string]func(*Client) error{
 		"get": func(c *Client) error {
 			_, err := c.GetPullRequest(t.Context(), pullsRepo, 999)
-			return err
-		},
-		"comments": func(c *Client) error {
-			_, err := c.ListPullRequestComments(t.Context(), pullsRepo, 999, "", 30)
 			return err
 		},
 		"reviews": func(c *Client) error {

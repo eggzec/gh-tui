@@ -318,11 +318,18 @@ func TestIssueReadsErrors(t *testing.T) {
 	statuses := map[int]error{
 		http.StatusNotFound:     core.ErrNotFound,
 		http.StatusUnauthorized: core.ErrUnauthorized,
+		// With no requests left, as the headers say.
+		http.StatusForbidden: core.ErrRateLimited,
 	}
 	for name, read := range issueReads {
 		for status, want := range statuses {
 			t.Run(name+"/"+http.StatusText(status), func(t *testing.T) {
 				c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+					if status == http.StatusForbidden {
+						w.Header().Set("X-RateLimit-Limit", "5000")
+						w.Header().Set("X-RateLimit-Remaining", "0")
+						w.Header().Set("X-RateLimit-Reset", "1790000000")
+					}
 					w.WriteHeader(status)
 					_, _ = w.Write([]byte(`{"message":"` + http.StatusText(status) + `"}`))
 				}))
@@ -488,5 +495,29 @@ func TestIssueMutationErrors(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+// TestListIssueCommentsOfPull reads the conversation of a pull request,
+// which is that of its issue. REST names a bot by its login with [bot], and
+// has no display names.
+func TestListIssueCommentsOfPull(t *testing.T) {
+	repo := core.RepoRef{Owner: "eggzec", Name: "gh-tui"}
+	c := serveIssueFixture(t, "pulls_issue_comments.json", func(r *http.Request) {
+		checkIssueRequest(t, r, http.MethodGet, "/repos/eggzec/gh-tui/issues/42/comments", map[string]string{"per_page": "30"})
+	})
+	page, res, err := c.ListIssueComments(t.Context(), repo, 42, "", 30, Conditional{})
+	if err != nil {
+		t.Fatalf("ListIssueComments: %v", err)
+	}
+	want := []core.Comment{
+		{ID: "IC_kwDOLnBTf86Bb001", Author: core.User{Login: "monalisa"}, Body: "Looks good so far.", CreatedAt: issueTime("2026-09-21T08:00:00Z"), UpdatedAt: issueTime("2026-09-21T08:05:00Z")},
+		{ID: "IC_kwDOLnBTf86Bb002", Author: core.User{Login: "github-actions[bot]"}, Body: "Coverage: 81%.", CreatedAt: issueTime("2026-09-22T16:00:00Z"), UpdatedAt: issueTime("2026-09-22T16:00:00Z")},
+	}
+	if !slices.EqualFunc(page.Items, want, equalComment) {
+		t.Errorf("comments = %+v, want %+v", page.Items, want)
+	}
+	if res.ETag != `W/"e1"` || !page.Last() {
+		t.Errorf("ETag %q, Next %q; want the response's ETag on the last page", res.ETag, page.Next)
 	}
 }

@@ -2,12 +2,16 @@ package pulls
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"strconv"
+	"time"
 
+	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/core"
-	"github.com/eggzec/gh-tui/internal/service/seen"
+	"github.com/eggzec/gh-tui/internal/github"
+	"github.com/eggzec/gh-tui/internal/service/recheck"
 )
 
 // A pull request's comments and reviews are read like a pager: a page at a
@@ -58,8 +62,10 @@ func (s *Service) CachedComments(q CommentsQuery) (core.Page[core.Comment], bool
 
 // Comments returns the page for q, oldest first. A cached page is returned
 // without a request while it is fresh, or while it was read at the version
-// of the pull request that the list last showed. What an earlier session
-// kept counts as cached, as for Get.
+// of the pull request that the list last showed. Otherwise it is read with
+// REST, conditionally if a stale copy is cached, so that a page that didn't
+// change costs no rate limit. What an earlier session kept counts as
+// cached, as for Get.
 func (s *Service) Comments(ctx context.Context, q CommentsQuery) (core.Page[core.Comment], error) {
 	key := q.key()
 	s.keptComments.Warm(s.comments, key)
@@ -69,18 +75,51 @@ func (s *Service) Comments(ctx context.Context, q CommentsQuery) (core.Page[core
 	// The page is at least as recent as what the list showed before the
 	// read.
 	m, _ := s.seen.Get(detailKey(q.Repo, q.Number))
-	p, err := fetch(ctx, s.comments, s.keptComments, key, tags(q.Repo, q.Number), offlineComments, func(ctx context.Context) (seen.Stamped[core.Page[core.Comment]], error) {
-		p, err := s.api.ListPullRequestComments(ctx, q.Repo, q.Number, q.Cursor, pageSize(q.PageSize))
-		return seen.Stamped[core.Page[core.Comment]]{Value: p, Version: m.updated}, err
+	e, err := s.comments.Fetch(ctx, key, func(ctx context.Context, prev cache.Entry[stampedComments], ok bool) (cache.Entry[stampedComments], error) {
+		e, err := s.loadComments(q, m.updated)(ctx, prev, ok)
+		switch {
+		case ok && github.Unreachable(ctx, err):
+			prev.Value, prev.FetchedAt = offlineComments(prev.Value), offlineAt
+			return prev, nil
+		case errors.Is(err, cache.ErrNotModified):
+			// The cached page is current as of now, so it takes the
+			// newer version. The kept page stays as GitHub sent it, marked
+			// fetched now if it is the one GitHub confirmed.
+			if kept, ok := s.keptComments.Load(key); ok && kept.ETag != "" && kept.ETag == prev.ETag {
+				kept.FetchedAt = time.Now()
+				_ = s.keptComments.Save(key, kept)
+			}
+			prev.Value.Version, prev.FetchedAt = m.updated, time.Time{}
+			return prev, nil
+		case err != nil:
+			if github.Refused(err) {
+				s.keptComments.Delete(key)
+			}
+			return prev, err
+		}
+		// The shelf is only a shortcut, so a failure is ignored.
+		_ = s.keptComments.Save(key, e)
+		return e, nil
 	})
 	if err != nil {
 		return core.Page[core.Comment]{}, fmt.Errorf("list comments of pull %s#%d: %w", q.Repo, q.Number, err)
 	}
-	return p.Value, nil
+	return e.Value.Value, nil
+}
+
+// loadComments reads the page for q with its validators, if it has a
+// cached one, and stamps it with version. It reports cache.ErrNotModified
+// when the cached page is current.
+func (s *Service) loadComments(q CommentsQuery, version time.Time) cache.FetchFunc[stampedComments] {
+	return recheck.Load(func(ctx context.Context, cond github.Conditional) (stampedComments, github.Response, error) {
+		// A pull request's comments are those of its issue.
+		p, res, err := s.api.ListIssueComments(ctx, q.Repo, q.Number, q.Cursor, pageSize(q.PageSize), cond)
+		return stampedComments{Value: p, Version: version}, res, err
+	}, func(stampedComments) []string { return tags(q.Repo, q.Number) })
 }
 
 // offlineComments marks a page of comments served offline.
-func offlineComments(p seen.Stamped[core.Page[core.Comment]]) seen.Stamped[core.Page[core.Comment]] {
+func offlineComments(p stampedComments) stampedComments {
 	p.Value.Offline = true
 	return p
 }
