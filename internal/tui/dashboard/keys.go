@@ -20,6 +20,10 @@ type KeyMap struct {
 	Next  key.Binding
 	Prev  key.Binding
 	Panes [numPanes]key.Binding
+	// Zoom shows the focused pane alone, or every pane again, and Back
+	// shows them again too.
+	Zoom key.Binding
+	Back key.Binding
 	// Select opens what is under the cursor: a repository, a pull request
 	// or issue, or what a notification is about.
 	Select key.Binding
@@ -59,6 +63,8 @@ func newKeyMap(keys map[string][]string) KeyMap {
 	k := KeyMap{
 		Next:          ui.Binding(keys, config.ActionNextTab, "next pane"),
 		Prev:          ui.Binding(keys, config.ActionPrevTab, "previous pane"),
+		Zoom:          ui.Binding(keys, config.ActionZoom, "zoom"),
+		Back:          ui.Binding(keys, config.ActionBack, "unzoom"),
 		Select:        ui.Binding(keys, config.ActionSelect, "open"),
 		Open:          ui.Binding(keys, config.ActionOpen, "browser"),
 		Refresh:       ui.Binding(keys, config.ActionRefresh, "refresh"),
@@ -87,7 +93,7 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		k.jump = key.NewBinding(key.WithKeys(labels...), key.WithHelp(labels[0]+"-"+labels[len(labels)-1], "focus pane"))
 	}
 
-	own := []key.Binding{k.Select, k.Open, k.Refresh, k.Filter, k.ClearFilter, k.NextOwner, k.PrevOwner, k.Here, k.Next, k.Prev}
+	own := []key.Binding{k.Select, k.Open, k.Refresh, k.Filter, k.ClearFilter, k.NextOwner, k.PrevOwner, k.Here, k.Next, k.Prev, k.Zoom, k.Back}
 	f := feed.DefaultKeyMap()
 	f.Up = free(f.Up, own)
 	f.Down = free(f.Down, own)
@@ -135,6 +141,9 @@ type helpKeys struct {
 	repos *repoTabs
 	cal   calendar.KeyMap
 	here  bool
+	// wide is set while the dashboard fits every pane, so zooming shows,
+	// and zoom while the focused pane is zoomed.
+	wide, zoom bool
 	// markRead is set when opening a notification marks it read.
 	markRead bool
 }
@@ -169,7 +178,10 @@ func (h helpKeys) own() []key.Binding {
 	if !h.here {
 		here.SetEnabled(false)
 	}
-	return []key.Binding{h.k.Next, h.k.jump, h.k.Refresh, here}
+	zoom, back := h.k.Zoom, h.k.Back
+	zoom.SetEnabled(zoom.Enabled() && h.wide)
+	back.SetEnabled(back.Enabled() && h.zoom)
+	return []key.Binding{h.k.Next, h.k.jump, zoom, back, h.k.Refresh, here}
 }
 
 // ShortHelp returns the bindings for the short help view.

@@ -204,6 +204,109 @@ func TestNarrowShowsTheFocusedPane(t *testing.T) {
 	}
 }
 
+func TestZoom(t *testing.T) {
+	s := newSection(t, newFake(), nil, 140, 38)
+	tests := []struct {
+		// keys are pressed after the dashboard is resized to width, if
+		// it is set.
+		keys          []string
+		width, height int
+		zoom          bool
+		focus         paneID
+		shows, hides  []string
+	}{
+		{keys: []string{"z"}, zoom: true, focus: reposPane, shows: []string{"[2] Repositories", "3 Waiting on you", "repo-000"}, hides: []string{"Review requests"}},
+		{keys: []string{"3"}, zoom: true, focus: workPane, shows: []string{"[3] Waiting on you", "Review requests 3"}, hides: []string{"repo-000"}},
+		{keys: []string{"tab"}, zoom: true, focus: calendarPane, shows: []string{"contributions in the last 90 days"}, hides: []string{"Review requests"}},
+		{keys: []string{"shift+tab"}, zoom: true, focus: workPane, shows: []string{"Review requests 3"}, hides: []string{"contributions"}},
+		{width: 180, height: 44, zoom: true, focus: workPane, shows: []string{"Review requests 3"}, hides: []string{"repo-000"}},
+		// The full help of the app takes rows, which leaves the dashboard
+		// too short for every pane, and gives them back.
+		{width: 180, height: 26, zoom: true, focus: workPane, shows: []string{"Review requests 3"}, hides: []string{"repo-000"}},
+		{width: 180, height: 44, zoom: true, focus: workPane, shows: []string{"Review requests 3"}, hides: []string{"repo-000"}},
+		// Where the zoom doesn't show, esc leaves it be.
+		{width: 80, height: 22, keys: []string{"esc"}, zoom: true, focus: workPane, shows: []string{"Review requests 3"}, hides: []string{"repo-000"}},
+		{width: 180, height: 44, zoom: true, focus: workPane, shows: []string{"Review requests 3"}, hides: []string{"repo-000"}},
+		{keys: []string{"esc"}, zoom: false, focus: workPane, shows: []string{"Review requests 3", "repo-000", "contributions"}},
+		{keys: []string{"esc"}, zoom: false, focus: workPane, shows: []string{"Review requests 3", "repo-000"}},
+		{keys: []string{"z", "z"}, zoom: false, focus: workPane, shows: []string{"Review requests 3", "repo-000"}},
+	}
+	for i, tt := range tests {
+		if tt.width > 0 {
+			s.SetSize(tt.width, tt.height)
+		}
+		press(t, s, tt.keys...)
+		if s.zoom != tt.zoom || s.focus != tt.focus {
+			t.Errorf("step %d: zoom %v on pane %d, want %v on %d", i, s.zoom, s.focus, tt.zoom, tt.focus)
+		}
+		view := screen(s)
+		if w := s.boxes[s.focus].w; tt.zoom && w != s.width {
+			t.Errorf("step %d: the zoomed pane is %d wide, want the %d of the dashboard", i, w, s.width)
+		}
+		for _, want := range tt.shows {
+			if !strings.Contains(view, want) {
+				t.Errorf("step %d: the dashboard doesn't show %q:\n%s", i, want, view)
+			}
+		}
+		for _, bad := range tt.hides {
+			if strings.Contains(view, bad) {
+				t.Errorf("step %d: the dashboard shows %q:\n%s", i, bad, view)
+			}
+		}
+	}
+}
+
+func TestZoomOnlyWhereItShows(t *testing.T) {
+	tests := []struct {
+		name string
+		// The dashboard is height rows high when z is pressed, then 38.
+		height int
+		zoom   bool
+	}{
+		{"wide", 38, true},
+		// The full help of the app leaves the dashboard too short for
+		// every pane.
+		{"under the full help", 26, false},
+		{"narrow", 22, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := newSection(t, newFake(), nil, 140, tt.height)
+			press(t, s, "z", "esc")
+			s.SetSize(140, 38)
+			if s.zoom || !strings.Contains(screen(s), "Review requests") {
+				t.Errorf("zoom %v after z and esc; want every pane", s.zoom)
+			}
+			s.SetSize(140, tt.height)
+			press(t, s, "z")
+			s.SetSize(140, 38)
+			if s.zoom != tt.zoom || strings.Contains(screen(s), "Review requests") != !tt.zoom {
+				t.Errorf("zoom %v after z; want %v:\n%s", s.zoom, tt.zoom, screen(s))
+			}
+		})
+	}
+}
+
+func TestZoomHelp(t *testing.T) {
+	s := newSection(t, newFake(), nil, 140, 38)
+	has := func(desc string) bool {
+		return slices.ContainsFunc(s.Help().ShortHelp(), func(b key.Binding) bool {
+			return b.Enabled() && b.Help().Desc == desc
+		})
+	}
+	if !has("zoom") || has("unzoom") {
+		t.Error("the help should show the zoom key, and no way back while not zoomed")
+	}
+	press(t, s, "z")
+	if !has("zoom") || !has("unzoom") {
+		t.Error("the zoomed help should show the keys that zoom out")
+	}
+	s.SetSize(80, 22)
+	if has("zoom") || has("unzoom") {
+		t.Error("the help of a dashboard that shows one pane anyway should leave out the zoom")
+	}
+}
+
 func TestOwnerTabs(t *testing.T) {
 	svc := newFake()
 	s := newSection(t, svc, nil, 140, 38)
