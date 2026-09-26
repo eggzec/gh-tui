@@ -23,6 +23,7 @@ type fakeAPI struct {
 
 	listIssues   func(state core.StateFilter, cursor string, perPage int, cond github.Conditional) (core.Page[core.Issue], github.Response, error)
 	getIssue     func(number int, cond github.Conditional) (core.Issue, github.Response, error)
+	getIssueKind func(number int) (core.NumberKind, core.Issue, github.Response, error)
 	listComments func(number int, cursor string, perPage int, cond github.Conditional) (core.Page[core.Comment], github.Response, error)
 	setState     func(number int, state core.State) (core.Issue, error)
 	addLabels    func(number int, names []string) ([]core.Label, error)
@@ -103,6 +104,14 @@ func (f *fakeAPI) GetIssue(_ context.Context, r core.RepoRef, number int, cond g
 		return core.Issue{}, github.Response{}, errUnexpected
 	}
 	return f.getIssue(number, cond)
+}
+
+func (f *fakeAPI) GetIssueKind(_ context.Context, r core.RepoRef, number int, _ github.Conditional) (core.NumberKind, core.Issue, github.Response, error) {
+	f.checkRepo(r)
+	if !f.record("GetIssueKind", f.getIssueKind != nil) {
+		return "", core.Issue{}, github.Response{}, errUnexpected
+	}
+	return f.getIssueKind(number)
 }
 
 func (f *fakeAPI) ListIssueComments(_ context.Context, r core.RepoRef, number int, cursor string, perPage int, cond github.Conditional) (core.Page[core.Comment], github.Response, error) {

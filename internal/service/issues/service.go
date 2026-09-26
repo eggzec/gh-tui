@@ -26,6 +26,7 @@ type API interface {
 	SearchIssues(ctx context.Context, query, cursor string, perPage int) (core.Page[core.SearchHit], error)
 	ViewerLogin(ctx context.Context) (string, error)
 	GetIssue(ctx context.Context, repo core.RepoRef, number int, cond github.Conditional) (core.Issue, github.Response, error)
+	GetIssueKind(ctx context.Context, repo core.RepoRef, number int, cond github.Conditional) (core.NumberKind, core.Issue, github.Response, error)
 	ListIssueComments(ctx context.Context, repo core.RepoRef, number int, cursor string, perPage int, cond github.Conditional) (core.Page[core.Comment], github.Response, error)
 	SetIssueState(ctx context.Context, repo core.RepoRef, number int, state core.State) (core.Issue, error)
 	AddIssueLabels(ctx context.Context, repo core.RepoRef, number int, names []string) ([]core.Label, error)
@@ -52,6 +53,13 @@ type Service struct {
 	keptLists    *cache.Shelf[core.Page[core.Issue]]
 	keptIssues   *cache.Shelf[core.Issue]
 	keptComments *cache.Shelf[stampedComments]
+	// kinds holds whether each number resolved so far is an issue or a pull
+	// request, which never changes, so it is kept for good, and on
+	// keptKinds without validators. pulls tells a pull request from its
+	// cached detail, if set.
+	kinds     kindMemo
+	keptKinds *cache.Shelf[core.NumberKind]
+	pulls     PullCache
 	// etags holds the latest probe ETag of each polled repository.
 	etags probe.Tracker
 	// seen holds when each issue last changed, as the list pages last
@@ -81,6 +89,8 @@ func New(api API, opts ...Option) *Service {
 		keptLists:    cache.NewShelf[core.Page[core.Issue]](o.store, kindList, schema),
 		keptIssues:   cache.NewShelf[core.Issue](o.store, kindIssue, schema),
 		keptComments: cache.NewShelf[stampedComments](o.store, kindComments, schema),
+		keptKinds:    cache.NewShelf[core.NumberKind](o.store, kindNumber, numberSchema),
+		pulls:        o.pulls,
 	}
 	s.etags.Keep(o.store)
 	return s
@@ -93,6 +103,10 @@ const (
 	kindIssue    = "issue"
 	kindComments = "issuecomments"
 	schema       = 3
+	// A number's kind is kept apart, since it outlives any shape of
+	// core.Issue.
+	kindNumber   = "numberkind"
+	numberSchema = 1
 )
 
 // offlineAt is when an entry served offline was fetched, as far as the
