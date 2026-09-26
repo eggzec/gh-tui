@@ -12,12 +12,16 @@ type Option func(*options)
 type options struct {
 	cache []cache.Option
 	store cache.Store
+	ttl   time.Duration
 }
 
 // WithTTL sets how long fetched pull requests stay fresh. The default is
 // cache.DefaultTTL.
 func WithTTL(d time.Duration) Option {
-	return func(o *options) { o.cache = append(o.cache, cache.WithTTL(d)) }
+	return func(o *options) {
+		o.cache = append(o.cache, cache.WithTTL(d))
+		o.ttl = d
+	}
 }
 
 // WithCapacity sets how many entries each of the service's caches keeps:

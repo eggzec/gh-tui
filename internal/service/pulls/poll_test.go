@@ -72,7 +72,11 @@ func TestPoll(t *testing.T) {
 	}
 	check("304 after the change", watch.Result{Interval: time.Minute})
 
-	want := []string{"", `"e1"`, `"e1"`, `"e2"`}
+	// The list read after the change probes first, with Poll's ETag.
+	want := []string{"", `"e1"`, `"e1"`, `"e2"`, `"e2"`}
+	if len(conds) != len(want) {
+		t.Fatalf("probed %d times, want %d", len(conds), len(want))
+	}
 	for i, c := range conds {
 		if c.ETag != want[i] {
 			t.Errorf("probe %d sent ETag %q, want %q", i, c.ETag, want[i])
