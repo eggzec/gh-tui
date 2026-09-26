@@ -100,13 +100,15 @@ func New(opts ...Option) (*Client, error) {
 		return nil, fmt.Errorf("parse base URL: %w", err)
 	}
 	gql := graphqlEndpoint(base)
-	// The client is copied so that logging leaves the caller's alone.
+	// The client is copied so that logging leaves the caller's alone. The
+	// limit comes first, so that a request's time waiting for a slot isn't
+	// logged as its duration.
 	hc := *o.http
-	hc.Transport = &logTransport{
+	hc.Transport = newLimitTransport(&logTransport{
 		base:        cmp.Or[http.RoundTripper](hc.Transport, http.DefaultTransport),
 		restRoot:    base.EscapedPath(),
 		graphqlPath: gql.Path,
-	}
+	}, maxInFlight, foregroundSlots)
 	return &Client{
 		http:       &hc,
 		token:      o.token,

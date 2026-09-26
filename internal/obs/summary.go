@@ -17,6 +17,7 @@ type Summary struct {
 	UptimeS    float64         `json:"uptime_s"`
 	Quotas     []QuotaSummary  `json:"quotas"`
 	Routes     []RouteSummary  `json:"routes"`
+	Waits      WaitSummary     `json:"http_waits"`
 	Cache      []CacheSummary  `json:"cache"`
 	Disk       []DiskSummary   `json:"disk"`
 	Prefetch   []PrefetchStats `json:"prefetch"`
@@ -57,6 +58,14 @@ type RouteSummary struct {
 	P50MS       float64 `json:"p50_ms"`
 	P95MS       float64 `json:"p95_ms"`
 	MaxMS       float64 `json:"max_ms"`
+}
+
+// WaitSummary covers the requests that waited to be sent, since as many
+// as the client lets be in flight at once were.
+type WaitSummary struct {
+	Requests int64   `json:"requests"`
+	TotalMS  float64 `json:"total_ms"`
+	MaxMS    float64 `json:"max_ms"`
 }
 
 // CacheSummary covers the reads of the in-memory cache of one kind of key,
@@ -142,6 +151,12 @@ func (s *Stats) Summary() Summary {
 		return cmp.Or(cmp.Compare(a.API, b.API), cmp.Compare(a.Route, b.Route), cmp.Compare(a.Method, b.Method))
 	})
 
+	out.Waits = WaitSummary{
+		Requests: s.waits.Load(),
+		TotalMS:  Millis(time.Duration(s.waited.Load())),
+		MaxMS:    Millis(time.Duration(s.maxWait.Load())),
+	}
+
 	for kind, c := range each[CacheEvent](&s.cache) {
 		hit, miss, shared := c.get(MemoryHit), c.get(MemoryMiss), c.get(Shared)
 		if hit+miss+shared+c.get(Seeded)+c.get(Evicted) > 0 {
@@ -179,6 +194,7 @@ func (s *Stats) Log(ctx context.Context) {
 		slog.Float64("uptime_s", sum.UptimeS),
 		slog.Any("quotas", sum.Quotas),
 		slog.Any("routes", sum.Routes),
+		slog.Any("http_waits", sum.Waits),
 		slog.Any("cache", sum.Cache),
 		slog.Any("disk", sum.Disk),
 		slog.Any("prefetch", sum.Prefetch),

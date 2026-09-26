@@ -85,7 +85,7 @@ func NewAhead[K comparable](kind string, read func(ctx context.Context, k K) err
 		delay:   max(delay, 0),
 		read:    read,
 		current: current,
-		ctx:     context.Background(),
+		ctx:     obs.ForPrefetch(context.Background()),
 		cancel:  func() {},
 		limited: new(atomic.Bool),
 		flying:  newFlights[K](),
@@ -100,7 +100,7 @@ func (a *Ahead[K]) Reset(parent context.Context) {
 		return
 	}
 	a.cancel()
-	a.ctx, a.cancel = context.WithCancel(parent)
+	a.ctx, a.cancel = context.WithCancel(obs.ForPrefetch(parent))
 	a.flying.clear()
 	a.first = a.first[:0]
 	var zero K

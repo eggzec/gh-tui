@@ -1,6 +1,9 @@
 package obs
 
-import "sync"
+import (
+	"context"
+	"sync"
+)
 
 // maxPrefetched bounds what a Prefetched remembers. Past it, it forgets
 // all and starts over, which only undercounts what gets opened.
@@ -132,4 +135,19 @@ func (p *Prefetched[K]) Opened(k K) {
 	if ok && st.read {
 		CountPrefetch(p.kind, PrefetchOpened)
 	}
+}
+
+type prefetchKey struct{}
+
+// ForPrefetch returns ctx marked as a read ahead of its use, which the
+// client lets use fewer of its requests in flight than what the user waits
+// for.
+func ForPrefetch(ctx context.Context) context.Context {
+	return context.WithValue(ctx, prefetchKey{}, true)
+}
+
+// IsPrefetch reports whether ctx is marked as a read ahead.
+func IsPrefetch(ctx context.Context) bool {
+	v, _ := ctx.Value(prefetchKey{}).(bool)
+	return v
 }

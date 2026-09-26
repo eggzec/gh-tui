@@ -177,6 +177,15 @@ func TestPrefetched(t *testing.T) {
 	}
 }
 
+func TestSummaryWaits(t *testing.T) {
+	s := NewStats()
+	s.HTTPWait(3 * time.Millisecond)
+	s.HTTPWait(time.Millisecond)
+	if got, want := s.Summary().Waits, (WaitSummary{Requests: 2, TotalMS: 4, MaxMS: 3}); got != want {
+		t.Errorf("waits = %+v, want %+v", got, want)
+	}
+}
+
 func TestPrefetchedInFlight(t *testing.T) {
 	tests := []struct {
 		name       string

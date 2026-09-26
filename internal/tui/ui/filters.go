@@ -58,7 +58,7 @@ func NewFilters[Q comparable](kind string, read func(ctx context.Context, q Q) e
 		fresh:  fresh,
 		read:   read,
 		name:   name,
-		ctx:    context.Background(),
+		ctx:    obs.ForPrefetch(context.Background()),
 		cancel: func() {},
 		armed:  make(map[string]bool),
 		done:   make(map[string]bool),
@@ -72,7 +72,7 @@ func (f *Filters[Q]) Reset(parent context.Context, scope string) {
 		return
 	}
 	f.cancel()
-	f.ctx, f.cancel = context.WithCancel(parent)
+	f.ctx, f.cancel = context.WithCancel(obs.ForPrefetch(parent))
 	f.scope, f.reading = scope, false
 }
 
