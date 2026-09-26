@@ -76,6 +76,12 @@ func (r RepoRef) String() string {
 	return r.Owner + "/" + r.Name
 }
 
+// Same reports whether r and o name the same repository, which GitHub
+// matches regardless of case.
+func (r RepoRef) Same(o RepoRef) bool {
+	return strings.EqualFold(r.Owner, o.Owner) && strings.EqualFold(r.Name, o.Name)
+}
+
 // Repo is a GitHub repository. ID is the GraphQL node ID. Starred reports
 // whether the viewer has starred it. LanguageColor is the hex color GitHub
 // gives Language, such as "#00ADD8", or empty when the read didn't say.
