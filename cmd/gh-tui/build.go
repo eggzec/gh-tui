@@ -66,7 +66,9 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 		entries = e
 	}
 	pullSvc := pullsvc.New(client, pullsvc.WithTTL(ttl), pullsvc.WithStore(entries))
-	issueSvc := issuesvc.New(client, issuesvc.WithTTL(ttl), issuesvc.WithStore(entries))
+	// The issues service tells what a number is, an issue or a pull
+	// request, and a pull request whose detail is cached needs no request.
+	issueSvc := issuesvc.New(client, issuesvc.WithTTL(ttl), issuesvc.WithStore(entries), issuesvc.WithPulls(pullSvc))
 	notifSvc := notifsvc.New(client, notifsvc.WithTTL(ttl), notifsvc.WithStore(entries))
 	repoSvc := reposvc.New(client, reposvc.WithTTL(ttl), reposvc.WithStore(entries))
 	dashSvc := dashsvc.New(client, dashsvc.WithTTL(ttl), dashsvc.WithStore(entries))
