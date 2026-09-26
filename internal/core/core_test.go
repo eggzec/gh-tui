@@ -59,6 +59,19 @@ func TestRepoRefRoundTrip(t *testing.T) {
 	}
 }
 
+func TestRepoRefSame(t *testing.T) {
+	a := RepoRef{Owner: "eggzec", Name: "gh-tui"}
+	if !a.Same(RepoRef{Owner: "EggZec", Name: "GH-TUI"}) {
+		t.Error("refs differing only in case are not the same")
+	}
+	if a.Same(RepoRef{Owner: "eggzec", Name: "gh-tui2"}) {
+		t.Error("different names are the same")
+	}
+	if a.Same(RepoRef{Owner: "other", Name: "gh-tui"}) {
+		t.Error("different owners are the same")
+	}
+}
+
 func TestRateLimitErrorIs(t *testing.T) {
 	err := fmt.Errorf("list pulls: %w", &RateLimitError{Reset: time.Now()})
 	if !errors.Is(err, ErrRateLimited) {
