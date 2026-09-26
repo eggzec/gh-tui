@@ -72,9 +72,9 @@ func New(api API, opts ...Option) *Service {
 		details:      cache.New[core.PullRequestDetail](o.cache...),
 		comments:     cache.New[seen.Stamped[core.Page[core.Comment]]](o.cache...),
 		reviews:      cache.New[core.Page[core.Review]](o.cache...),
-		keptLists:    cache.NewShelf[core.Page[core.PullRequest]](o.store, kindList, schema),
-		keptDetails:  cache.NewShelf[core.PullRequestDetail](o.store, kindDetail, schema),
-		keptComments: cache.NewShelf[seen.Stamped[core.Page[core.Comment]]](o.store, kindComments, schema),
+		keptLists:    cache.NewShelf[core.Page[core.PullRequest]](o.store, kindList, listSchema),
+		keptDetails:  cache.NewShelf[core.PullRequestDetail](o.store, kindDetail, detailSchema),
+		keptComments: cache.NewShelf[seen.Stamped[core.Page[core.Comment]]](o.store, kindComments, commentsSchema),
 		now:          time.Now,
 	}
 	s.etags.Keep(o.store)
@@ -82,13 +82,17 @@ func New(api API, opts ...Option) *Service {
 }
 
 // The kinds of entries the service keeps in its store, and the version of
-// their values. Bump schema when core.PullRequestDetail or core.Comment
-// change shape.
+// the values of each. Bump the schema of a kind when its value changes
+// shape, or what it means, so that older entries read as misses.
 const (
 	kindList     = "pulllist"
 	kindDetail   = "pull"
 	kindComments = "pullcomments"
-	schema       = 2
+
+	listSchema = 2
+	// detailSchema 3 counts the checks rather than listing them.
+	detailSchema   = 3
+	commentsSchema = 2
 )
 
 // offlineAt is when an entry served offline was fetched, as far as the

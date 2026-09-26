@@ -137,7 +137,7 @@ func TestMutationShownBeforeDo(t *testing.T) {
 			if !m.changed(after.detail.PullRequest) {
 				t.Errorf("detail shows %+v, want the change", after.detail.PullRequest)
 			}
-			if after.detail.Body != "The body." || len(after.detail.CheckRuns) != 1 {
+			if after.detail.Body != "The body." || after.detail.CheckCounts.Total() != 1 {
 				t.Errorf("detail = %+v, want its body and checks kept", after.detail)
 			}
 			if !reflect.DeepEqual(after.first.Items[1], before.first.Items[1]) || !reflect.DeepEqual(after.second, before.second) {
@@ -208,7 +208,7 @@ func TestMutationSuccessReconciles(t *testing.T) {
 			}
 			want := server
 			want.Body = "The body."
-			if !reflect.DeepEqual(after.detail.PullRequest, want) || len(after.detail.CheckRuns) != 1 {
+			if !reflect.DeepEqual(after.detail.PullRequest, want) || after.detail.CheckCounts.Total() != 1 {
 				t.Errorf("detail shows\n%+v\nwant the server's with the body and checks kept\n%+v", after.detail, want)
 			}
 			if n := api.count("id"); n != 0 {

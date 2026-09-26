@@ -437,9 +437,10 @@ func (st *styles) reviewText(d core.ReviewDecision) string {
 }
 
 // checksSummary counts the checks of d by outcome, or names the overall
-// state when the check runs aren't known. It returns "" without checks.
+// state when the counts aren't known. It returns "" without checks.
 func (st *styles) checksSummary(d *core.PullRequestDetail) string {
-	if len(d.CheckRuns) == 0 {
+	c := d.CheckCounts
+	if c.Total() == 0 {
 		switch d.Checks {
 		case core.ChecksSuccess:
 			return st.age.Render("CI  ") + st.checksOK + st.author.Render(" passed")
@@ -451,26 +452,15 @@ func (st *styles) checksSummary(d *core.PullRequestDetail) string {
 			return ""
 		}
 	}
-	var passed, failed, pending int
-	for _, r := range d.CheckRuns {
-		switch {
-		case r.Status != "completed":
-			pending++
-		case r.Conclusion == "success" || r.Conclusion == "neutral" || r.Conclusion == "skipped":
-			passed++
-		default:
-			failed++
-		}
-	}
 	parts := make([]string, 0, 3)
-	if failed > 0 {
-		parts = append(parts, st.checksFail+st.author.Render(" "+strconv.Itoa(failed)+" failing"))
+	if c.Failed > 0 {
+		parts = append(parts, st.checksFail+st.author.Render(" "+strconv.Itoa(c.Failed)+" failing"))
 	}
-	if pending > 0 {
-		parts = append(parts, st.checksPending+st.author.Render(" "+strconv.Itoa(pending)+" pending"))
+	if c.Pending > 0 {
+		parts = append(parts, st.checksPending+st.author.Render(" "+strconv.Itoa(c.Pending)+" pending"))
 	}
-	if passed > 0 {
-		parts = append(parts, st.checksOK+st.author.Render(" "+strconv.Itoa(passed)+" passed"))
+	if c.Passed > 0 {
+		parts = append(parts, st.checksOK+st.author.Render(" "+strconv.Itoa(c.Passed)+" passed"))
 	}
 	return st.age.Render("CI  ") + strings.Join(parts, st.sep.Render(", "))
 }

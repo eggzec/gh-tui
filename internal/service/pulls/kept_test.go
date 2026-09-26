@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/cache/cachetest"
 	"github.com/eggzec/gh-tui/internal/cache/disk"
 	"github.com/eggzec/gh-tui/internal/core"
@@ -277,5 +278,29 @@ func TestKeptMutation(t *testing.T) {
 				t.Errorf("kept list shows %s, want open until the list is read again", p.Items[0].State)
 			}
 		})
+	}
+}
+
+// TestKeptOlderSchemaIsMiss checks that what an older version kept, with
+// a shape of its own, is read again rather than decoded wrongly.
+func TestKeptOlderSchemaIsMiss(t *testing.T) {
+	v := &versioned{updated: epoch, checks: core.ChecksSuccess}
+	store := openStore(t)
+	key := detailKey(repo, 1)
+	old := cache.NewShelf[core.PullRequestDetail](store, kindDetail, detailSchema-1)
+	if err := old.Save(key, cache.Entry[core.PullRequestDetail]{Value: core.PullRequestDetail{PullRequest: v.pull()}}); err != nil {
+		t.Fatal(err)
+	}
+
+	api := v.api()
+	s := New(api, WithStore(store))
+	if _, err := s.Get(t.Context(), repo, 1); err != nil {
+		t.Fatal(err)
+	}
+	if n := api.count("get"); n != 1 {
+		t.Errorf("get called %d times, want 1: the older detail is a miss", n)
+	}
+	if _, ok := s.keptDetails.Load(key); !ok {
+		t.Error("the detail fetched again isn't kept in its place")
 	}
 }

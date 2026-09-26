@@ -45,8 +45,21 @@ type PullRequest struct {
 // thread can be long.
 type PullRequestDetail struct {
 	PullRequest
-	// CheckRuns are the checks of the head commit.
-	CheckRuns []CheckRun
+	// CheckCounts counts the checks of the head commit by outcome. The
+	// checks themselves are a read of their own.
+	CheckCounts CheckCounts
+}
+
+// CheckCounts counts the checks of a commit, its check runs and commit
+// statuses together, by outcome. Passed includes the neutral and skipped
+// ones, and Failed every other that completed.
+type CheckCounts struct {
+	Passed, Failed, Pending int
+}
+
+// Total returns how many checks there are.
+func (c CheckCounts) Total() int {
+	return c.Passed + c.Failed + c.Pending
 }
 
 // MergeMethod is how a pull request is merged into its base branch.
@@ -78,14 +91,4 @@ type Review struct {
 	State       ReviewState
 	Body        string
 	SubmittedAt time.Time
-}
-
-// CheckRun is a single CI check on a commit. Status and Conclusion are
-// GitHub's values in lower case, such as "completed" and "success". Commit
-// statuses are reported the same way, with Status "pending" or "completed".
-type CheckRun struct {
-	Name       string
-	Status     string
-	Conclusion string
-	URL        string
 }
