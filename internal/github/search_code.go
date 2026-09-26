@@ -47,9 +47,11 @@ type codeTextMatch struct {
 }
 
 func (h codeSearchHit) core() core.CodeHit {
-	repo, _ := core.ParseRepoRef(h.Repository.FullName)
+	// GitHub is the authority on its own names, so they are taken as they
+	// come rather than checked by core.ParseRepoRef.
+	owner, name, _ := strings.Cut(h.Repository.FullName, "/")
 	return core.CodeHit{
-		Repo:      repo,
+		Repo:      core.RepoRef{Owner: owner, Name: name},
 		Path:      h.Path,
 		SHA:       h.SHA,
 		URL:       h.HTMLURL,
