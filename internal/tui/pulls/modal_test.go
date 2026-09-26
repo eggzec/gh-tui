@@ -256,7 +256,8 @@ func TestOpenFromSearch(t *testing.T) {
 		if m == nil || m.repo != other || m.number != 7 {
 			t.Fatalf("modal = %+v, want cli/cli#7", m)
 		}
-		if got := m.Title(); got != "#7 Speed up gh pr list" {
+		// The title names the repository, which isn't the one selected.
+		if got := m.Title(); got != "cli/cli#7 Speed up gh pr list" {
 			t.Errorf("title = %q", got)
 		}
 		if !strings.Contains(modalScreen(t, h), "Speed up gh pr list") {
@@ -302,8 +303,9 @@ func TestModalBeforeItsDetail(t *testing.T) {
 	h := newTest(t, svc, 80, 20)
 	drain(t, h, h.Update(ui.OpenPullMsg{Repo: repo, Number: 135}))
 	m := h.modal()
-	if m == nil || m.Title() != "#135" {
-		t.Fatalf("modal = %v, want #135 without a title", m)
+	// No repository is selected, so the title names it.
+	if m == nil || m.Title() != "eggzec/gh-tui#135" {
+		t.Fatalf("modal = %v, want eggzec/gh-tui#135 without a title", m)
 	}
 	for _, k := range []string{"m", "x", "X", "D", "o"} {
 		if msgs := press(t, h, k); len(msgs) != 0 {

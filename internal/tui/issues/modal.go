@@ -46,6 +46,9 @@ type detailModal struct {
 
 	repo   core.RepoRef
 	number int
+	// other reports whether repo isn't the one selected, which the title
+	// then names.
+	other bool
 	// caps is what the viewer may do in repo, as far as it is known, and
 	// viewer who they are, or empty.
 	caps   core.RepoCaps
@@ -91,6 +94,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue) tea.
 		sendCtx: s.ctx,
 		repo:    repo,
 		number:  number,
+		other:   !s.hasRepo || !repo.Same(s.repo),
 		caps:    s.capsOf(repo),
 		viewer:  s.viewer,
 		ctx:     ctx,
@@ -159,6 +163,9 @@ func commentsQuery(repo core.RepoRef, number int) issuesvc.CommentsQuery {
 // Title implements ui.Modal.
 func (m *detailModal) Title() string {
 	n := "#" + strconv.Itoa(m.number)
+	if m.other {
+		n = m.repo.String() + n
+	}
 	if !m.loaded || m.issue.Title == "" {
 		return n
 	}

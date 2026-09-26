@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/url"
 	"strings"
 	"sync"
@@ -71,13 +72,14 @@ func newGotoRepos() *fakeRepos {
 	}
 }
 
-// newGotoApp returns an app with a dashboard, opened on it, whose goto
-// reads repos.
-func newGotoApp(t *testing.T, repos *fakeRepos) (*Model, []*fakeSection) {
+// newGotoApp returns an app with a dashboard, opened on it unless opts
+// name a repository, whose goto reads repos.
+func newGotoApp(t *testing.T, repos *fakeRepos, opts ...Option) (*Model, []*fakeSection) {
 	t.Helper()
 	fakes := []*fakeSection{{title: "Files"}, {title: "Pull requests"}, {title: "Issues"}, {title: "Notifications"}, {title: ui.DashboardTitle}}
 	layout := Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3], Dashboard: fakes[4]}
-	m := New(t.Context(), config.Default(), layout, WithRepos(repos), WithUnreachable(unreachable))
+	opts = append([]Option{WithRepos(repos), WithUnreachable(unreachable)}, opts...)
+	m := New(t.Context(), config.Default(), layout, opts...)
 	m.toast.SetDuration(0)
 	m.toast.SetErrorDuration(0)
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
@@ -123,7 +125,7 @@ func TestGotoRepo(t *testing.T) {
 			} else if m.screen != dashScreen {
 				t.Errorf("screen = %d, want the dashboard still", m.screen)
 			}
-			if tt.toast != "" && !strings.Contains(toasted(m), tt.toast) {
+			if tt.toast != "" && !hasToast(m, tt.toast) {
 				t.Errorf("toasts lack %q: %s", tt.toast, toasted(m))
 			}
 			if asked := len(repos.gets) > 0; asked != tt.asks {
@@ -238,5 +240,178 @@ func TestProgramGotoRepo(t *testing.T) {
 	final, ok := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(*Model)
 	if !ok || final.screen != repoScreen || final.repo != bubbletea {
 		t.Error("the final model should show the repository screen of charmbracelet/bubbletea")
+	}
+}
+
+// fakeKinds knows the kinds of numbers in cached, in memory, and in
+// remote, on GitHub. Any other number is neither, unless err says
+// otherwise.
+type fakeKinds struct {
+	mu     sync.Mutex
+	cached map[core.Target]core.NumberKind
+	remote map[core.Target]core.NumberKind
+	err    error
+	asked  []core.Target
+}
+
+func (f *fakeKinds) CachedKind(repo core.RepoRef, number int) (core.NumberKind, bool) {
+	k, ok := f.cached[core.Target{Repo: repo, Number: number}]
+	return k, ok
+}
+
+func (f *fakeKinds) Kind(ctx context.Context, repo core.RepoRef, number int) (core.NumberKind, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	t := core.Target{Repo: repo, Number: number}
+	f.asked = append(f.asked, t)
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	if f.err != nil {
+		return "", f.err
+	}
+	if k, ok := f.remote[t]; ok {
+		return k, nil
+	}
+	return "", &core.NoNumberError{Repo: repo, Number: number, Err: core.ErrNotFound}
+}
+
+func newGotoKinds() *fakeKinds {
+	return &fakeKinds{
+		cached: map[core.Target]core.NumberKind{{Repo: testRepo, Number: 7}: core.KindPull},
+		remote: map[core.Target]core.NumberKind{
+			{Repo: bubbletea, Number: 1813}: core.KindPull,
+			{Repo: bubbletea, Number: 1698}: core.KindIssue,
+			{Repo: testRepo, Number: 12}:    core.KindIssue,
+		},
+	}
+}
+
+// opened returns the message the sections got to open an issue or pull
+// request, or nil.
+func opened(fakes []*fakeSection) tea.Msg {
+	for _, msg := range fakes[1].msgs {
+		switch msg.(type) {
+		case ui.OpenPullMsg, ui.OpenIssueMsg:
+			return msg
+		}
+	}
+	return nil
+}
+
+func TestGotoNumber(t *testing.T) {
+	cli := core.RepoRef{Owner: "cli", Name: "cli"}
+	tests := []struct {
+		name string
+		// repo is the repository selected, if any, and notif shows the
+		// notifications over it.
+		repo  core.RepoRef
+		notif bool
+		line  string
+		err   error
+		// want is the message that opens the number, or nil, and toast
+		// the text of the toast.
+		want  tea.Msg
+		toast string
+		// asks reports whether GitHub is asked what the number is.
+		asks bool
+	}{
+		{name: "pull request", line: "goto charmbracelet/bubbletea#1813", want: ui.OpenPullMsg{Repo: bubbletea, Number: 1813}, asks: true},
+		{name: "issue", line: "goto charmbracelet/bubbletea#1698", want: ui.OpenIssueMsg{Repo: bubbletea, Number: 1698}, asks: true},
+		{name: "known", line: "goto eggzec/gh-tui#7", want: ui.OpenPullMsg{Repo: testRepo, Number: 7}},
+		{name: "number of the repository", repo: testRepo, line: "goto #12", want: ui.OpenIssueMsg{Repo: testRepo, Number: 12}, asks: true},
+		{name: "number without a repository", line: "goto #12", toast: "Open a repository first, or use goto owner/name#12."},
+		{name: "number off the repository screen", repo: testRepo, notif: true, line: "goto #12", toast: "Open a repository first, or use goto owner/name#12."},
+		{name: "link to a pull request", line: "goto https://github.com/cli/cli/pull/1", want: ui.OpenPullMsg{Repo: cli, Number: 1}},
+		{name: "link to an issue", line: "goto github.com/cli/cli/issues/5#issuecomment-1", want: ui.OpenIssueMsg{Repo: cli, Number: 5}},
+		{name: "neither", line: "goto charmbracelet/bubbletea#99999999", toast: "No issue or pull request charmbracelet/bubbletea#99999999.", asks: true},
+		{name: "offline", line: "goto charmbracelet/bubbletea#1813", err: errOffline, toast: "Can't reach GitHub to open charmbracelet/bubbletea#1813.", asks: true},
+		{name: "not a number", repo: testRepo, line: "goto #x", toast: "Not an issue number"},
+		{name: "bare", repo: testRepo, line: "#12", toast: "Unknown command: #12."},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			kinds := newGotoKinds()
+			kinds.err = tt.err
+			opts := []Option{WithKinds(kinds)}
+			if tt.repo != (core.RepoRef{}) {
+				opts = append(opts, WithRepo(tt.repo))
+			}
+			m, fakes := newGotoApp(t, newGotoRepos(), opts...)
+			if tt.notif {
+				m.showScreen(notifScreen, 0)
+			}
+			screen := m.screen
+			runCommand(t, m, tt.line)
+			if got := opened(fakes); got != tt.want {
+				t.Errorf("sections got %#v, want %#v", got, tt.want)
+			}
+			if m.screen != screen {
+				t.Errorf("screen = %d, want %d still", m.screen, screen)
+			}
+			if tt.toast != "" && !hasToast(m, tt.toast) {
+				t.Errorf("toasts lack %q: %s", tt.toast, toasted(m))
+			}
+			if asked := len(kinds.asked) > 0; asked != tt.asks {
+				t.Errorf("asked GitHub = %v, want %v", asked, tt.asks)
+			}
+			if m.going != nil {
+				t.Error("the goto still waits")
+			}
+		})
+	}
+}
+
+func TestGotoNumberWithoutKinds(t *testing.T) {
+	m, fakes := newGotoApp(t, newGotoRepos())
+	runCommand(t, m, "goto charmbracelet/bubbletea#1813")
+	if got, want := opened(fakes), (ui.OpenIssueMsg{Repo: bubbletea, Number: 1813}); got != want {
+		t.Errorf("sections got %#v, want %#v, whose modal shows a pull request too", got, want)
+	}
+}
+
+func TestGotoNumberIsCanceled(t *testing.T) {
+	kinds := newGotoKinds()
+	m, fakes := newGotoApp(t, newGotoRepos(), WithKinds(kinds))
+	cmd := submitLine(t, m, "goto charmbracelet/bubbletea#1813")
+	if s := onScreen(m); !strings.Contains(s, "Opening charmbracelet/bubbletea#1813…") {
+		t.Errorf("the footer doesn't say what it opens:\n%s", s)
+	}
+	// Going to the notifications drops it.
+	drive(m, m.key(press("n")))
+	drive(m, cmd)
+	if got := opened(fakes); got != nil {
+		t.Errorf("the canceled goto opened %#v", got)
+	}
+}
+
+func TestProgramGotoNumber(t *testing.T) {
+	_, fakes := newGotoApp(t, newGotoRepos())
+	fakes[1].reply = func(msg tea.Msg) tea.Cmd {
+		if o, ok := msg.(ui.OpenPullMsg); ok {
+			return ui.OpenModal(&fakeModal{title: fmt.Sprintf("Pull request %s#%d", o.Repo, o.Number)})
+		}
+		return nil
+	}
+	layout := Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3], Dashboard: fakes[4]}
+	app := New(t.Context(), config.Default(), layout, WithRepos(newGotoRepos()), WithKinds(newGotoKinds()))
+	tm := teatest.NewTestModel(t, app, teatest.WithInitialTermSize(80, 24))
+	teatest.WaitFor(t, tm.Output(), func(out []byte) bool {
+		return drawn(out, "Dashboard content")
+	}, teatest.WithDuration(5*time.Second))
+	tm.Send(press(":"))
+	for _, r := range "goto charmbracelet/bubbletea#1813" {
+		tm.Send(press(string(r)))
+	}
+	tm.Send(enter)
+	teatest.WaitFor(t, tm.Output(), func(out []byte) bool {
+		// Only the modal draws its body.
+		return drawn(out, "Pull request charmbracelet/bubbletea#1813 body")
+	}, teatest.WithDuration(5*time.Second))
+	tm.Send(press("esc"))
+	tm.Send(ctrlC)
+	final, ok := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(*Model)
+	if !ok || final.screen != dashScreen || final.modal == nil {
+		t.Error("the final model should show the modal over the dashboard")
 	}
 }
