@@ -1,6 +1,7 @@
 package notifications
 
 import (
+	"slices"
 	"testing"
 	"time"
 
@@ -62,5 +63,28 @@ func TestKeptInboxRecheck(t *testing.T) {
 	}
 	if e := s.Kept()[0]; time.Since(e.CheckedAt) > time.Minute {
 		t.Errorf("checked at %v, want now", e.CheckedAt)
+	}
+}
+
+// Only first pages are rechecked: a later page shifts whenever a thread
+// arrives, so a check of it would mostly pay for a change nobody sees.
+func TestKeptListsFirstPagesOnly(t *testing.T) {
+	store := openStore(t)
+	s := New(&fakeAPI{list: servePage1}, WithStore(store))
+	for _, q := range []ListQuery{inbox, {Cursor: page1.Next}, allInbox, {Filter: allInbox.Filter, Cursor: page1.Next}} {
+		if _, err := s.List(t.Context(), q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	entries := s.Kept()
+	got := make([]string, 0, len(entries))
+	for _, e := range entries {
+		got = append(got, e.ID)
+	}
+	slices.Sort(got)
+	want := []string{kind + ":" + allInbox.key(), kind + ":" + inbox.key()}
+	slices.Sort(want)
+	if !slices.Equal(got, want) {
+		t.Errorf("Kept = %q, want the first pages %q", got, want)
 	}
 }
