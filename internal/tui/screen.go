@@ -241,8 +241,26 @@ func (m *Model) drawHeader() {
 	m.header = rule(1) + " " + left + " " + rule(w-lw-rw-6) + " " + right + " " + rule(1)
 }
 
-// narrow reports whether the repository screen shows one pane at a time.
-func (m *Model) narrow() bool { return m.width < narrowWidth }
+// onePane reports whether the repository screen shows the focused pane
+// alone: when the panes don't fit side by side, or while it is zoomed.
+func (m *Model) onePane() bool { return m.width < narrowWidth || m.zoom }
+
+// canZoom reports whether the zoom key does something: on the repository
+// screen, with more than one pane.
+func (m *Model) canZoom() bool {
+	return m.screen == repoScreen && len(m.panes) > 1
+}
+
+// zoomed reports whether the zoom shows. A narrow terminal shows one pane
+// anyway, so there the back key keeps its other uses.
+func (m *Model) zoomed() bool { return m.zoom && m.width >= narrowWidth }
+
+// setZoom shows the focused pane of the repository screen alone, or every
+// pane again.
+func (m *Model) setZoom(zoom bool) {
+	m.zoom = zoom
+	m.layout()
+}
 
 func filesWidth(width int) int {
 	return min(max(width*2/5, minFilesWidth), maxFilesWidth)
@@ -261,7 +279,7 @@ func (m *Model) arrange(height int) {
 	if len(m.panes) == 0 {
 		return
 	}
-	if m.narrow() {
+	if m.onePane() {
 		for _, p := range m.panes {
 			p.resize(m.width, height)
 		}
@@ -305,7 +323,7 @@ func (m *Model) body() []string {
 	if len(m.panes) == 0 {
 		return nil
 	}
-	if m.narrow() {
+	if m.onePane() {
 		return m.panes[m.focus].appendLines(nil)
 	}
 	h := m.contentHeight()

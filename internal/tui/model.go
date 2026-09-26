@@ -58,6 +58,9 @@ type Model struct {
 	screen screen
 	back   screen
 	focus  int
+	// zoom shows the focused pane of the repository screen alone, as a
+	// narrow terminal does. The dashboard keeps its own.
+	zoom bool
 	// pending holds the commands the sections returned for the repository
 	// of WithRepo, for Init to run.
 	pending tea.Cmd

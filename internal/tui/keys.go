@@ -35,6 +35,10 @@ type KeyMap struct {
 	Prev key.Binding
 	// Panes focus pane 1, 2 and 3.
 	Panes []key.Binding
+	// Zoom shows the focused pane of the repository screen alone, or
+	// every pane again, and Back shows them again too.
+	Zoom key.Binding
+	Back key.Binding
 	// jump stands for Panes in the help.
 	jump key.Binding
 }
@@ -52,6 +56,8 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		Dashboard:     ui.Binding(keys, config.ActionDashboard, "dashboard"),
 		Next:          ui.Binding(keys, config.ActionNextTab, "next pane"),
 		Prev:          ui.Binding(keys, config.ActionPrevTab, "previous pane"),
+		Zoom:          ui.Binding(keys, config.ActionZoom, "zoom"),
+		Back:          ui.Binding(keys, config.ActionBack, "unzoom"),
 		Panes: []key.Binding{
 			ui.Binding(keys, config.ActionPane1, "files"),
 			ui.Binding(keys, config.ActionPane2, "pull requests"),

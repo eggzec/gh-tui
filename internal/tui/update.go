@@ -128,6 +128,12 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 		return m.findFile()
 	case p != nil && key.Matches(msg, m.keys.Filter) && m.openFilter(p.section):
 		return nil
+	case m.canZoom() && m.width >= narrowWidth && key.Matches(msg, m.keys.Zoom):
+		m.setZoom(!m.zoom)
+		return nil
+	case m.canZoom() && m.zoomed() && key.Matches(msg, m.keys.Back):
+		m.setZoom(false)
+		return nil
 	case key.Matches(msg, m.toast.KeyMap().Dismiss):
 		return m.toast.Dismiss()
 	case key.Matches(msg, m.keys.Notifications):
