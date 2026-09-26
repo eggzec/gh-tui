@@ -8,6 +8,8 @@ import (
 	"testing/synctest"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/eggzec/gh-tui/internal/core"
 )
 
@@ -88,7 +90,8 @@ func TestFiltersReadsEachOnce(t *testing.T) {
 	p := newPages()
 	p.cached["merged"] = true
 	f := newFilters(p)
-	f.Reset(t.Context())
+	f.Reset(t.Context(), "r")
+	f.Arm()
 
 	run(f.Read(func() []string { return []string{"closed", "merged", "all"} }))
 	if got, want := p.reads(), []string{"closed", "all"}; !slices.Equal(got, want) {
@@ -113,12 +116,104 @@ func TestFiltersReadsEachOnce(t *testing.T) {
 		t.Errorf("summary = %+v, want 2 sent, 1 cached, 2 read, 1 opened", s)
 	}
 
-	// Another repository reads ahead again.
-	f.Reset(t.Context())
+	// Another repository reads ahead again once armed.
+	f.Reset(t.Context(), "other")
+	f.Arm()
 	run(f.Read(func() []string { return []string{"open"} }))
 	if got, want := p.reads(), []string{"closed", "all", "open"}; !slices.Equal(got, want) {
 		t.Errorf("read %v after Reset, want %v", got, want)
 	}
+}
+
+func TestFiltersWaitForArm(t *testing.T) {
+	others := func() []string { return []string{"closed"} }
+	tests := []struct {
+		name string
+		// steps runs on a Filters reset for repository a, and returns
+		// what the last Read read.
+		steps func(ctx context.Context, f *Filters[string]) tea.Cmd
+		want  bool
+	}{{
+		name:  "not armed",
+		steps: func(_ context.Context, f *Filters[string]) tea.Cmd { return f.Read(others) },
+	}, {
+		name: "armed",
+		steps: func(_ context.Context, f *Filters[string]) tea.Cmd {
+			f.Arm()
+			return f.Read(others)
+		},
+		want: true,
+	}, {
+		name: "armed in another repository",
+		steps: func(ctx context.Context, f *Filters[string]) tea.Cmd {
+			f.Reset(ctx, "b")
+			f.Arm()
+			f.Reset(ctx, "a")
+			return f.Read(others)
+		},
+	}, {
+		name: "armed before, back again",
+		steps: func(ctx context.Context, f *Filters[string]) tea.Cmd {
+			f.Arm()
+			f.Reset(ctx, "b")
+			f.Reset(ctx, "a")
+			return f.Read(others)
+		},
+		want: true,
+	}, {
+		name: "read before, back again",
+		steps: func(ctx context.Context, f *Filters[string]) tea.Cmd {
+			f.Arm()
+			run(f.Read(others))
+			f.Reset(ctx, "b")
+			f.Reset(ctx, "a")
+			f.Arm()
+			return f.Read(others)
+		},
+	}}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newFilters(newPages())
+			f.Reset(t.Context(), "a")
+			if got := tt.steps(t.Context(), f) != nil; got != tt.want {
+				t.Errorf("read ahead = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFiltersRetryAfterCancel(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		p := newPages()
+		p.hold = make(chan struct{})
+		f := newFilters(p)
+		f.Reset(t.Context(), "a")
+		f.Arm()
+		others := func() []string { return []string{"closed", "merged"} }
+		done := make(chan struct{})
+		go func() {
+			run(f.Read(others))
+			close(done)
+		}()
+		synctest.Wait()
+		if cmd := f.Read(others); cmd != nil {
+			t.Error("Read read ahead again while the pages were being read")
+		}
+		// Another repository cancels the reads, and coming back reads them
+		// again.
+		f.Reset(t.Context(), "b")
+		<-done
+		close(p.hold)
+		f.Reset(t.Context(), "a")
+		cmd := f.Read(others)
+		if cmd == nil {
+			t.Fatal("Read didn't read again the pages a Reset cancelled")
+		}
+		run(cmd)
+		if cmd := f.Read(others); cmd != nil {
+			t.Error("Read read ahead again once the pages were read")
+		}
+	})
 }
 
 func TestFiltersReadsOneAtATime(t *testing.T) {
@@ -126,7 +221,8 @@ func TestFiltersReadsOneAtATime(t *testing.T) {
 		p := newPages()
 		p.hold = make(chan struct{})
 		f := newFilters(p)
-		f.Reset(t.Context())
+		f.Reset(t.Context(), "r")
+		f.Arm()
 		done := make(chan struct{})
 		go func() {
 			run(f.Read(func() []string { return []string{"closed", "merged"} }))
@@ -150,14 +246,15 @@ func TestFiltersResetCancels(t *testing.T) {
 		p := newPages()
 		p.hold = make(chan struct{})
 		f := newFilters(p)
-		f.Reset(t.Context())
+		f.Reset(t.Context(), "r")
+		f.Arm()
 		done := make(chan struct{})
 		go func() {
 			run(f.Read(func() []string { return []string{"closed", "merged"} }))
 			close(done)
 		}()
 		synctest.Wait()
-		f.Reset(t.Context())
+		f.Reset(t.Context(), "other")
 		<-done
 		if got := p.reads(); !slices.Equal(got, []string{"closed"}) {
 			t.Errorf("read %v, want only the one before the reset", got)
@@ -177,7 +274,8 @@ func TestFiltersStopAtRateLimit(t *testing.T) {
 	p := newPages()
 	p.errs["closed"] = &core.RateLimitError{Reset: time.Now()}
 	f := newFilters(p)
-	f.Reset(t.Context())
+	f.Reset(t.Context(), "r")
+	f.Arm()
 	run(f.Read(func() []string { return []string{"closed", "merged", "all"} }))
 	if got := p.reads(); !slices.Equal(got, []string{"closed"}) {
 		t.Errorf("read %v, want nothing after the rate limit", got)
@@ -196,7 +294,8 @@ func TestFiltersStopAtRateLimit(t *testing.T) {
 
 func TestFiltersNil(t *testing.T) {
 	var f *Filters[string]
-	f.Reset(t.Context())
+	f.Reset(t.Context(), "r")
+	f.Arm()
 	f.Opened("closed")
 	if cmd := f.Read(func() []string { return []string{"closed"} }); cmd != nil {
 		t.Error("a nil Filters read ahead")

@@ -29,8 +29,9 @@ func (s *Section) readAhead() tea.Cmd {
 }
 
 // readOthers reads the first pages of the states not shown, once the list
-// shown has loaded. A filtered list is the user's own search, which may
-// cost more, so its other states wait until they are shown.
+// shown has loaded, if the user switched tabs in the repository before. A
+// filtered list is the user's own search, which may cost more, so its
+// other states wait until they are shown.
 func (s *Section) readOthers() tea.Cmd {
 	if s.others == nil || !s.live() || !s.list.Settled() || s.query != "" {
 		return nil

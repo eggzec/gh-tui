@@ -70,7 +70,7 @@ func (s *Section) setRepo(repo core.RepoRef) tea.Cmd {
 	s.caps = ui.CachedCaps(s.repos, repo)
 	// The rate limit may be another's.
 	s.ahead.Resume()
-	s.others.Reset(s.ctx)
+	s.others.Reset(s.ctx, repo.String())
 	s.renderHeader()
 	if !s.started {
 		return nil
@@ -105,8 +105,10 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 		}
 		return nil
 	case key.Matches(msg, k.NextTab):
+		s.others.Arm()
 		return s.show(nextTab(s.tab, 1), s.query)
 	case key.Matches(msg, k.PrevTab):
+		s.others.Arm()
 		return s.show(nextTab(s.tab, -1), s.query)
 	case key.Matches(msg, k.ClearFilter):
 		return s.show(s.tab, "")

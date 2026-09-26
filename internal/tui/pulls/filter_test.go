@@ -168,12 +168,16 @@ func TestFilteredListsReadNoOtherTabsAhead(t *testing.T) {
 	if got := svc.requested()[n:]; !slices.Equal(got, want) {
 		t.Errorf("requested %v after filtering, want only the list shown: %v", got, want)
 	}
-	// Clearing the filter shows the tab read ahead without a request.
+	// Switching tabs reads the others ahead only once the filter is
+	// cleared.
 	press(t, h, "]")
 	press(t, h, "F")
-	want = append(want, pulls.ListQuery{Repo: repo, State: core.StateClosed, Filter: "author:octocat"})
+	want = append(want,
+		pulls.ListQuery{Repo: repo, State: core.StateClosed, Filter: "author:octocat"},
+		pulls.ListQuery{Repo: repo, State: core.StateClosed},
+		pulls.ListQuery{Repo: repo, State: core.StateMerged})
 	if got := svc.requested()[n:]; !slices.Equal(got, want) {
-		t.Errorf("requested %v, want the closed tab read ahead before: %v", got, want)
+		t.Errorf("requested %v, want the other tabs read ahead once cleared: %v", got, want)
 	}
 }
 
@@ -185,6 +189,7 @@ func TestFilterBeforeTheFirstPageReadsAheadOnceCleared(t *testing.T) {
 	h.started = true
 	apply(t, h, "is:open label:cache")
 	press(t, h, "F")
+	press(t, h, "]")
 	want := []pulls.ListQuery{
 		{Repo: repo, State: core.StateOpen, Filter: "label:cache"},
 		{Repo: repo, State: core.StateOpen},
@@ -192,7 +197,7 @@ func TestFilterBeforeTheFirstPageReadsAheadOnceCleared(t *testing.T) {
 		{Repo: repo, State: core.StateMerged},
 	}
 	if got := svc.requested(); !slices.Equal(got, want) {
-		t.Errorf("requested %v, want the other tabs read once the filter is cleared: %v", got, want)
+		t.Errorf("requested %v, want the other tabs read once the filter is cleared and the tab switched: %v", got, want)
 	}
 }
 

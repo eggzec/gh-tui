@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"sync"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -18,9 +19,10 @@ import (
 // shows it at once. Q is the query of a first page. Create it with
 // [NewFilters]; a nil *Filters reads nothing.
 //
-// Each page costs a request, so the pages are read one at a time, once per
-// [Filters.Reset], and the rest are skipped once GitHub reports the rate
-// limit.
+// Each page costs a request, and many visits never switch filters, so the
+// pages of a repository are read only once the user switched filters there
+// ([Filters.Arm]), and once a session. They are read one at a time, and
+// the rest are skipped once GitHub reports the rate limit.
 type Filters[Q comparable] struct {
 	// seen remembers what was read, so that switching to it counts as a
 	// use, under the kind of list, such as pull_filter.
@@ -35,8 +37,16 @@ type Filters[Q comparable] struct {
 	// ctx bounds the reads of the repository shown, and cancel ends them.
 	ctx    context.Context
 	cancel context.CancelFunc
-	// started is set once the pages have been read ahead since Reset.
-	started bool
+	// scope names the repository shown, and armed holds the scopes where
+	// the user switched filters. reading is set while the pages of scope
+	// are read ahead.
+	scope   string
+	armed   map[string]bool
+	reading bool
+	// done holds the scopes whose pages were all read ahead. The reads set
+	// it, in their command, so mu guards it.
+	mu   sync.Mutex
+	done map[string]bool
 }
 
 // NewFilters returns a Filters that reads a first page with read, unless
@@ -50,37 +60,64 @@ func NewFilters[Q comparable](kind string, read func(ctx context.Context, q Q) e
 		name:   name,
 		ctx:    context.Background(),
 		cancel: func() {},
+		armed:  make(map[string]bool),
+		done:   make(map[string]bool),
 	}
 }
 
-// Reset cancels the reads in flight, for another repository whose reads
-// parent bounds, and lets [Filters.Read] read ahead again.
-func (f *Filters[Q]) Reset(parent context.Context) {
+// Reset cancels the reads in flight, for the repository that scope names,
+// whose reads parent bounds.
+func (f *Filters[Q]) Reset(parent context.Context, scope string) {
 	if f == nil {
 		return
 	}
 	f.cancel()
 	f.ctx, f.cancel = context.WithCancel(parent)
-	f.started = false
+	f.scope, f.reading = scope, false
+}
+
+// Arm records that the user switched filters in the repository shown, which
+// lets [Filters.Read] read its other filters ahead.
+func (f *Filters[Q]) Arm() {
+	if f != nil {
+		f.armed[f.scope] = true
+	}
 }
 
 // Read reads the first pages of the queries others returns ahead, in
-// order, the first time it is called after a Reset; others is only called
-// then. Call it once the list shown has loaded, so that its own reads go
-// first.
+// order, the first time it is called once the repository shown is armed;
+// others is only called then. Reads that a Reset cancelled are tried
+// again the next time. Call it once the list shown has loaded, so that its
+// own reads go first.
 func (f *Filters[Q]) Read(others func() []Q) tea.Cmd {
-	if f == nil || f.started {
+	if f == nil || !f.armed[f.scope] || f.reading || f.isDone(f.scope) {
 		return nil
 	}
-	f.started = true
-	ctx, qs := f.ctx, others()
+	f.reading = true
+	ctx, scope, qs := f.ctx, f.scope, others()
 	if len(qs) == 0 {
+		f.setDone(scope)
 		return nil
 	}
 	return func() tea.Msg {
 		f.readAll(obs.WithTrace(ctx, "prefetch.filters"), qs)
+		if ctx.Err() == nil {
+			f.setDone(scope)
+		}
 		return nil
 	}
+}
+
+func (f *Filters[Q]) isDone(scope string) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.done[scope]
+}
+
+func (f *Filters[Q]) setDone(scope string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.done[scope] = true
 }
 
 // Opened records that the list of q is shown, so that the summary counts it

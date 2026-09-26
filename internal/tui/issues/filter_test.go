@@ -131,10 +131,13 @@ func TestFilteredListsReadNoOtherTabsAhead(t *testing.T) {
 	if got := svc.requested()[n:]; !slices.Equal(got, want) {
 		t.Errorf("requested %v after filtering, want only the list shown: %v", got, want)
 	}
-	// The tabs read ahead before the filter show without a request.
-	press(t, h, "F", "]")
+	// Switching tabs reads the others ahead only once the filter is
+	// cleared.
+	press(t, h, "]", "F")
+	want = append(want, firstPages(core.FilterClosed, core.FilterAll)...)
+	want = slices.Insert(want, 1, issuesvc.ListQuery{Repo: testRepo, State: core.FilterClosed, Filter: "label:bug"})
 	if got := svc.requested()[n:]; !slices.Equal(got, want) {
-		t.Errorf("requested %v, want the closed tab read ahead before: %v", got, want)
+		t.Errorf("requested %v, want the other tabs read ahead once cleared: %v", got, want)
 	}
 }
 

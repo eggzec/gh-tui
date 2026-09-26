@@ -171,9 +171,11 @@ func WithPrefetch(rows int, delay time.Duration) Option {
 }
 
 // WithFilterPrefetch reads the first page of each state not shown once the
-// list of a repository loads, so that switching tabs shows it at once. Each
-// costs a request; pages cached fresh are skipped, and so is a list the
-// user filtered. The default reads nothing ahead.
+// user switched tabs in a repository, with the next or previous tab key,
+// and the list shown loaded, so that switching further shows them at once.
+// It reads them once per repository and session. Each costs a request;
+// pages cached fresh are skipped, and so is a list the user filtered. The
+// default reads nothing ahead.
 func WithFilterPrefetch() Option {
 	return func(s *Section) { s.prefetchFilters = true }
 }

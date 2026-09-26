@@ -27,10 +27,11 @@ type DetailsPrefetch struct {
 	HoverDelay time.Duration `yaml:"hover_delay"`
 	// Filters reads the first page of each filter of the pull requests and
 	// issues not shown, such as the closed and merged pull requests, once
-	// the list shown loads, so that switching filters shows them at once.
-	// It costs a request per filter and repository, and none for pages
-	// still fresh in the cache. Their details are only read ahead once the
-	// filter is shown. It needs Enabled.
+	// the user first switches tabs in a repository and the list shown
+	// loads, so that switching further shows them at once. It costs a
+	// request per filter and repository, once a session, and none for
+	// pages still fresh in the cache. Their details are only read ahead
+	// once the filter is shown. It needs Enabled.
 	Filters bool `yaml:"filters"`
 }
 
