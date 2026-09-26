@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"slices"
 	"strings"
 
 	"charm.land/bubbles/v2/help"
@@ -73,7 +74,7 @@ func (m *Model) helpKeys() help.KeyMap {
 	hk := helpKeys{
 		app: m.keys, dismiss: m.toast.KeyMap().Dismiss, notifications: m.keys.Notifications,
 		history: m.keys.History, actions: m.keys.Actions, dashboard: m.keys.Dashboard,
-		findFile: m.keys.FindFile,
+		findFile: m.keys.FindFile, zoom: m.keys.Zoom, unzoom: m.keys.Back,
 	}
 	if m.fileFinder() == nil {
 		hk.findFile.SetEnabled(false)
@@ -105,7 +106,13 @@ func (m *Model) helpKeys() help.KeyMap {
 	if p := m.focused(); p != nil {
 		hk.section = p.section.Help()
 	}
-	hk.panes = m.screen == repoScreen && len(m.panes) > 1
+	hk.panes = m.canZoom()
+	if m.width < narrowWidth {
+		hk.zoom.SetEnabled(false)
+	}
+	if !hk.panes || !m.zoomed() {
+		hk.unzoom.SetEnabled(false)
+	}
 	return hk
 }
 
@@ -119,9 +126,12 @@ type helpKeys struct {
 	actions       key.Binding
 	findFile      key.Binding
 	dashboard     key.Binding
+	// zoom shows the focused pane alone, where that shows, and unzoom
+	// every pane again while one is zoomed.
+	zoom, unzoom key.Binding
 	// modal hides the app's keys while a modal takes them.
 	modal bool
-	// panes shows the keys that move between panes.
+	// panes shows the keys that move between panes and zoom them.
 	panes bool
 }
 
@@ -133,6 +143,9 @@ func (h helpKeys) ShortHelp() []key.Binding {
 	if h.modal {
 		return ks
 	}
+	// The way out of a zoom comes first, where a narrow help still shows
+	// it.
+	ks = append([]key.Binding{h.unzoom}, h.untaken(ks)...)
 	return append(ks, h.app.Search, h.findFile, h.history, h.actions, h.notifications, h.dashboard, h.app.Help, h.app.Quit)
 }
 
@@ -144,10 +157,26 @@ func (h helpKeys) FullHelp() [][]key.Binding {
 	if h.modal {
 		return groups
 	}
-	app := make([]key.Binding, 0, 8)
+	groups = slices.Clone(groups)
+	for i, g := range groups {
+		groups[i] = h.untaken(g)
+	}
+	app := make([]key.Binding, 0, 16)
 	if h.panes {
-		app = append(app, h.app.Next, h.app.Prev, h.app.jump)
+		app = append(app, h.app.Next, h.app.Prev, h.app.jump, h.zoom, h.unzoom)
 	}
 	app = append(app, h.app.Search, h.findFile, h.history, h.actions, h.notifications, h.dashboard, h.dismiss, h.app.Help, h.app.Quit)
 	return append(groups, app)
+}
+
+// untaken drops the bindings of the section that share a key with those
+// the app takes before it, such as its back key while the app unzooms.
+func (h helpKeys) untaken(bs []key.Binding) []key.Binding {
+	if !h.unzoom.Enabled() {
+		return bs
+	}
+	taken := h.unzoom.Keys()
+	return slices.DeleteFunc(slices.Clone(bs), func(b key.Binding) bool {
+		return b.Enabled() && slices.ContainsFunc(b.Keys(), func(k string) bool { return slices.Contains(taken, k) })
+	})
 }

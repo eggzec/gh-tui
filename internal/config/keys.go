@@ -91,8 +91,8 @@ const (
 	// left or right, in a modal with panes such as Actions.
 	ActionPaneLeft  = "pane_left"
 	ActionPaneRight = "pane_right"
-	// ActionZoom shows the focused pane of the dashboard, or of a modal
-	// such as Actions, alone, or all of them again.
+	// ActionZoom shows the focused pane of the dashboard, the repository
+	// screen, or a modal such as Actions, alone, or all of them again.
 	ActionZoom = "zoom"
 	// Actions of the Actions modal: re-run the failed jobs of a run, all
 	// of them, or the job under the cursor, and cancel a run.

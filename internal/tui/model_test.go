@@ -16,6 +16,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/charmbracelet/x/exp/golden"
 	"github.com/charmbracelet/x/exp/teatest/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
@@ -34,6 +35,8 @@ type fakeSection struct {
 	themed        bool
 	msgs          []tea.Msg
 	capturing     bool
+	// keyMap, if set, is the help of the section.
+	keyMap help.KeyMap
 	// reply, if set, answers each message.
 	reply func(tea.Msg) tea.Cmd
 }
@@ -53,8 +56,13 @@ func (s *fakeSection) SetSize(w, h int)  { s.width, s.height = w, h }
 func (s *fakeSection) SetTheme(ui.Theme) { s.themed = true }
 func (s *fakeSection) Focus()            { s.focused = true }
 func (s *fakeSection) Blur()             { s.focused = false }
-func (s *fakeSection) Help() help.KeyMap { return sectionKeys{} }
-func (s *fakeSection) Capturing() bool   { return s.capturing }
+func (s *fakeSection) Help() help.KeyMap {
+	if s.keyMap != nil {
+		return s.keyMap
+	}
+	return sectionKeys{}
+}
+func (s *fakeSection) Capturing() bool { return s.capturing }
 func (s *fakeSection) got(match func(tea.Msg) bool) bool {
 	return slices.ContainsFunc(s.msgs, match)
 }
@@ -132,6 +140,8 @@ func press(k string) tea.KeyPressMsg {
 		return tea.KeyPressMsg{Code: tea.KeyTab}
 	case "shift+tab":
 		return tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift}
+	case "esc":
+		return tea.KeyPressMsg{Code: tea.KeyEscape}
 	}
 	r, _ := utf8.DecodeRuneInString(k)
 	return tea.KeyPressMsg{Code: r, Text: k}
@@ -271,6 +281,185 @@ func TestNarrowShowsTheFocusedPaneAlone(t *testing.T) {
 	run(m, m.key(press("tab")))
 	if s = onScreen(m); !strings.Contains(s, "Pull requests content") || strings.Contains(s, "Files content") {
 		t.Errorf("tab should show the pull requests alone:\n%s", s)
+	}
+}
+
+func TestZoom(t *testing.T) {
+	m, fakes := newTestApp(t)
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	tests := []struct {
+		name string
+		// key is pressed after the terminal is resized to width, if set.
+		key           string
+		width, height int
+		zoom          bool
+		// shown are the panes on screen, the first of them focused.
+		shown []string
+		// toSection is set when the key reaches the focused section.
+		toSection bool
+	}{
+		{name: "z zooms", key: "z", zoom: true, shown: []string{"Files"}},
+		{name: "tab keeps the zoom", key: "tab", zoom: true, shown: []string{"Pull requests"}},
+		{name: "a pane key keeps the zoom", key: "3", zoom: true, shown: []string{"Issues"}},
+		{name: "shift+tab keeps the zoom", key: "shift+tab", zoom: true, shown: []string{"Pull requests"}},
+		{name: "a resize keeps the zoom", width: 160, height: 40, zoom: true, shown: []string{"Pull requests"}},
+		{name: "narrow and zoomed", width: 60, height: 24, zoom: true, shown: []string{"Pull requests"}},
+		{name: "esc at 60 columns goes to the pane", key: "esc", zoom: true, shown: []string{"Pull requests"}, toSection: true},
+		{name: "wide again", width: 120, height: 36, zoom: true, shown: []string{"Pull requests"}},
+		{name: "esc unzooms first", key: "esc", shown: []string{"Pull requests", "Files", "Issues"}},
+		{name: "esc then goes to the pane", key: "esc", shown: []string{"Pull requests", "Files", "Issues"}, toSection: true},
+		{name: "z twice", key: "z", zoom: true, shown: []string{"Pull requests"}},
+		{name: "z unzooms", key: "z", shown: []string{"Pull requests", "Files", "Issues"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.width > 0 {
+				m.Update(tea.WindowSizeMsg{Width: tt.width, Height: tt.height})
+			}
+			for _, f := range fakes {
+				f.msgs = nil
+			}
+			if tt.key != "" {
+				run(m, m.key(press(tt.key)))
+			}
+			if m.zoom != tt.zoom {
+				t.Errorf("zoom = %v, want %v", m.zoom, tt.zoom)
+			}
+			if got := focusedTitles(fakes); !slices.Equal(got, tt.shown[:1]) {
+				t.Errorf("focused = %v, want %s", got, tt.shown[0])
+			}
+			s := onScreen(m)
+			for _, f := range fakes[:3] {
+				if on := strings.Contains(s, f.title+" content"); on != slices.Contains(tt.shown, f.title) {
+					t.Errorf("%s on screen = %v, want %v:\n%s", f.title, on, !on, s)
+				}
+			}
+			if f := fakes[slices.IndexFunc(fakes, func(f *fakeSection) bool { return f.focused })]; tt.zoom && f.width != m.width-2 {
+				t.Errorf("the zoomed pane is %d wide, want the %d inside the frame", f.width, m.width-2)
+			}
+			if got := slices.ContainsFunc(fakes, func(f *fakeSection) bool { return f.got(isKey(tt.key)) }); tt.key != "" && got != tt.toSection {
+				t.Errorf("%s reached a section = %v, want %v", tt.key, got, tt.toSection)
+			}
+		})
+	}
+}
+
+func TestZoomNeedsTheRepoScreen(t *testing.T) {
+	m, fakes := newTestApp(t)
+	run(m, m.key(press("n")))
+	run(m, m.key(press("z")))
+	if m.zoom || !fakes[3].got(isKey("z")) {
+		t.Error("z on the notifications should go to them, not zoom the repository screen")
+	}
+	pulls := &fakeSection{title: "Pull requests"}
+	lone := New(t.Context(), config.Default(), Layout{Pulls: pulls}, WithRepo(testRepo))
+	lone.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	run(lone, lone.key(press("z")))
+	if lone.zoom || !pulls.got(isKey("z")) {
+		t.Error("z with one pane should go to it")
+	}
+}
+
+func TestZoomOnlyWhereItShows(t *testing.T) {
+	m, fakes := newTestApp(t)
+	m.Update(tea.WindowSizeMsg{Width: 64, Height: 24})
+	run(m, m.key(press("z")))
+	run(m, m.key(press("esc")))
+	if m.zoom || !fakes[0].got(isKey("z")) || !fakes[0].got(isKey("esc")) {
+		t.Errorf("zoom %v; at 64 columns z and esc should go to the pane", m.zoom)
+	}
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	if s := onScreen(m); !strings.Contains(s, "Pull requests content") || !strings.Contains(s, "Files content") {
+		t.Errorf("widening should show every pane:\n%s", s)
+	}
+}
+
+func TestZoomLeavesKeysToCapture(t *testing.T) {
+	m, fakes := newTestApp(t)
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	run(m, m.key(press("z")))
+	fakes[0].capturing = true
+	run(m, m.key(press("z")))
+	run(m, m.key(press("esc")))
+	if !m.zoom || !fakes[0].got(isKey("z")) || !fakes[0].got(isKey("esc")) {
+		t.Error("a capturing section should get z and esc, and the zoom stay")
+	}
+	fakes[0].capturing = false
+	mod := &fakeModal{title: "Preview"}
+	run(m, ui.OpenModal(mod))
+	run(m, m.key(press("esc")))
+	if !m.zoom || !slices.Equal(mod.keys(), []string{"esc"}) {
+		t.Errorf("an open modal should get esc, and the zoom stay: zoom %v, modal got %v", m.zoom, mod.keys())
+	}
+}
+
+// backKeys is the help of a section whose back key is esc.
+type backKeys struct{}
+
+func (backKeys) ShortHelp() []key.Binding {
+	return []key.Binding{
+		key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "close")),
+		key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "back")),
+	}
+}
+func (k backKeys) FullHelp() [][]key.Binding { return [][]key.Binding{k.ShortHelp()} }
+
+func TestZoomHelp(t *testing.T) {
+	m, fakes := newTestApp(t)
+	fakes[0].keyMap = backKeys{}
+	for _, full := range []bool{false, true} {
+		m.help.ShowAll = full
+		m.layout()
+		if s := onScreen(m); strings.Contains(s, "esc unzoom") || !strings.Contains(s, "esc back") || full && !strings.Contains(s, "z zoom") {
+			t.Errorf("full %v: the help should show the zoom key, and esc as the section's:\n%s", full, s)
+		}
+	}
+	run(m, m.key(press("z")))
+	for _, full := range []bool{false, true} {
+		m.help.ShowAll = full
+		m.layout()
+		if s := onScreen(m); !strings.Contains(s, "esc unzoom") || strings.Contains(s, "esc back") || !strings.Contains(s, "x close") {
+			t.Errorf("full %v: the zoomed help should say esc unzooms, and only that:\n%s", full, s)
+		}
+	}
+	m.Update(tea.WindowSizeMsg{Width: 60, Height: 24})
+	for _, full := range []bool{false, true} {
+		m.help.ShowAll = full
+		m.layout()
+		if s := onScreen(m); strings.Contains(s, "unzoom") || strings.Contains(s, "z zoom") || !strings.Contains(s, "esc back") {
+			t.Errorf("full %v: at 60 columns the zoom shows nothing, so the help should leave it out:\n%s", full, s)
+		}
+	}
+}
+
+func TestZoomView(t *testing.T) {
+	m, _ := newTestApp(t)
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 14})
+	run(m, m.key(press("2")))
+	run(m, m.key(press("z")))
+	golden.RequireEqual(t, m.View().Content)
+}
+
+func TestProgramZooms(t *testing.T) {
+	_, fakes := newTestApp(t)
+	layout := Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3]}
+	app := New(t.Context(), config.Default(), layout, WithRepo(testRepo))
+	tm := teatest.NewTestModel(t, app, teatest.WithInitialTermSize(120, 36))
+	teatest.WaitFor(t, tm.Output(), func(out []byte) bool {
+		return strings.Contains(ansi.Strip(string(out)), "Issues content")
+	}, teatest.WithDuration(5*time.Second))
+	// The program takes messages in order, so the final model shows what
+	// the keys and the resize left.
+	tm.Send(press("z"))
+	tm.Send(press("tab"))
+	tm.Send(tea.WindowSizeMsg{Width: 160, Height: 40})
+	tm.Send(press("q"))
+	final, ok := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(*Model)
+	if !ok || !final.zoom || final.focus != 1 || fakes[1].width != 158 {
+		t.Error("the final model should show the pull requests zoomed, over the width it was resized to")
+	}
+	if s := onScreen(final); !strings.Contains(s, "esc unzoom") || strings.Contains(s, "Files content") {
+		t.Errorf("the final screen should show the pull requests alone, and how to unzoom:\n%s", s)
 	}
 }
 
@@ -684,6 +873,15 @@ func benchApp(b *testing.B) (*Model, *fakeSection) {
 
 func BenchmarkView(b *testing.B) {
 	m, _ := benchApp(b)
+	b.ReportAllocs()
+	for b.Loop() {
+		_ = m.View()
+	}
+}
+
+func BenchmarkViewZoomed(b *testing.B) {
+	m, _ := benchApp(b)
+	m.key(press("z"))
 	b.ReportAllocs()
 	for b.Loop() {
 		_ = m.View()
