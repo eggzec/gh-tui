@@ -93,6 +93,24 @@ func TestNewEndpoints(t *testing.T) {
 	}
 }
 
+func TestWebHost(t *testing.T) {
+	for base, want := range map[string]string{
+		"https://api.github.com/":             "github.com",
+		"https://api.acme.ghe.com/":           "acme.ghe.com",
+		"https://ghe.example.com/api/v3/":     "ghe.example.com",
+		"https://ghe.example.com:8443/api/v3": "ghe.example.com:8443",
+		"https://api.corp.example/api/v3/":    "api.corp.example",
+	} {
+		c, err := New(WithBaseURL(base), WithToken("t"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := c.WebHost(); got != want {
+			t.Errorf("WebHost() of %s = %q, want %q", base, got, want)
+		}
+	}
+}
+
 func TestNewTokenFromEnv(t *testing.T) {
 	isolateGH(t)
 	t.Setenv("GH_TOKEN", "env-token")

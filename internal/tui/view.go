@@ -74,18 +74,25 @@ func (m *Model) contentHeight() int {
 }
 
 // footer is what the bottom of the screen shows: the command line while it
-// is open, and the help line otherwise.
+// is open, a spinner while a goto waits for GitHub, and the help line
+// otherwise.
 func (m *Model) footer() string {
-	if m.line.Focused() {
+	switch {
+	case m.line.Focused():
 		return m.line.View()
+	case m.going != nil:
+		return m.goingView()
 	}
 	return m.help.View(m.helpKeys())
 }
 
 // footerHeight is the height of the footer.
 func (m *Model) footerHeight() int {
-	if m.line.Focused() {
+	switch {
+	case m.line.Focused():
 		return m.line.Height()
+	case m.going != nil:
+		return 1
 	}
 	return m.helpHeight()
 }

@@ -22,6 +22,7 @@ func (m *Model) openModal(mod ui.Modal) {
 	if mod == nil {
 		return
 	}
+	m.cancelGoto()
 	m.modal = mod
 	mod.SetTheme(m.theme)
 	mod.SetSize(m.modalSize())

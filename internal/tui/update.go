@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -44,6 +45,18 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.ID == m.line.ID() {
 			m.lineDone()
 			cmd := m.runLine(msg.Line)
+			return m, cmd
+		}
+	case gotoRepoMsg:
+		cmd := m.gotRepo(msg)
+		return m, cmd
+	case spinner.TickMsg:
+		if msg.ID == m.spin.ID() {
+			if m.going == nil {
+				return m, nil
+			}
+			var cmd tea.Cmd
+			m.spin, cmd = m.spin.Update(msg)
 			return m, cmd
 		}
 	case cmdline.CancelMsg:
@@ -228,6 +241,7 @@ func (m *Model) showSearch() tea.Cmd {
 // selectRepo shows the repository screen for the repository of msg, with
 // the files focused, after telling the watcher and the sections.
 func (m *Model) selectRepo(msg ui.RepoMsg) tea.Cmd {
+	m.cancelGoto()
 	if m.watchRepo != nil {
 		m.watchRepo(msg.Repo)
 	}

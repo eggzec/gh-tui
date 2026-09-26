@@ -12,6 +12,7 @@ import (
 	"slices"
 
 	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
@@ -80,9 +81,15 @@ type Model struct {
 	help  help.Model
 	// line is the command line, which takes the place of the help line
 	// while it is open.
-	line  cmdline.Model
-	theme ui.Theme
-	st    styles
+	line cmdline.Model
+	// going is the goto waiting for GitHub, or nil, and gotoSeq numbers
+	// them, so that the answer to one replaced is ignored. spin shows in
+	// the footer while one waits.
+	going   *going
+	gotoSeq int
+	spin    spinner.Model
+	theme   ui.Theme
+	st      styles
 	// header is rendered whenever what it shows changes.
 	header string
 
@@ -93,6 +100,12 @@ type Model struct {
 	open      func(url string) error
 	watchRepo func(repo core.RepoRef)
 	repoInfo  func(ctx context.Context, repo core.RepoRef) (core.Repo, error)
+	// repos checks that a repository exists before goto opens it, host is
+	// the one whose links goto opens, and unreachable tells whether an
+	// error means GitHub couldn't be reached.
+	repos       Repos
+	host        string
+	unreachable func(ctx context.Context, err error) bool
 	// history opens the history modal of a repository, and actions its
 	// Actions modal.
 	history History
@@ -213,6 +226,7 @@ func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) 
 		toast: toast.New(),
 		help:  help.New(),
 		line:  newLine(cfg.Keys),
+		spin:  newSpinner(),
 	}
 	if layout.Files != nil {
 		m.panes, m.left = append(m.panes, &pane{section: layout.Files}), 1
@@ -355,6 +369,7 @@ func (m *Model) applyTheme(dark bool) {
 	m.toast.SetStyles(m.theme.Toast())
 	m.help.Styles = m.theme.Help()
 	m.line.SetStyles(m.theme.Cmdline())
+	m.spin.Style = m.theme.Accent
 	for _, p := range m.all {
 		p.section.SetTheme(m.theme)
 	}

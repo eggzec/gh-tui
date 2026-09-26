@@ -371,6 +371,8 @@ func (m *Model) showScreen(s screen, i int) tea.Cmd {
 	}
 	before := m.focused()
 	if s != m.screen {
+		// Going elsewhere drops a goto still waiting.
+		m.cancelGoto()
 		m.back = m.screen
 		defer m.drawHeader()
 	}
