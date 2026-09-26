@@ -9,12 +9,13 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
-// Update routes msg: keys to the top modal, or else to the app or the
-// focused pane, app messages to the app, and everything else to every
-// section and modal.
+// Update routes msg: keys to the open command line, or else to the top
+// modal, or else to the app or the focused pane, app messages to the
+// app, and everything else to every section and modal.
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -33,6 +34,23 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		cmd := m.key(msg)
 		return m, cmd
+	case tea.PasteMsg:
+		// A link pasted into the open command line goes there.
+		if m.line.Focused() {
+			cmd := m.updateLine(msg)
+			return m, cmd
+		}
+	case cmdline.SubmitMsg:
+		if msg.ID == m.line.ID() {
+			m.lineDone()
+			cmd := m.runLine(msg.Line)
+			return m, cmd
+		}
+	case cmdline.CancelMsg:
+		if msg.ID == m.line.ID() {
+			m.lineDone()
+			return m, nil
+		}
 	case ui.NotifyMsg:
 		return m, m.toast.Push(msg.Level, msg.Text)
 	case ui.DoneMsg:
@@ -95,6 +113,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
+	// The open command line takes every key, ctrl+c too, which cancels
+	// the command rather than quitting.
+	if m.line.Focused() {
+		return m.updateLine(msg)
+	}
 	if mod := m.topModal(); mod != nil {
 		if msg.String() == "ctrl+c" {
 			return tea.Quit
@@ -112,6 +135,8 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 		return cmd
 	}
 	switch {
+	case key.Matches(msg, m.keys.Command):
+		return m.openLine()
 	case key.Matches(msg, m.keys.Quit):
 		return tea.Quit
 	case key.Matches(msg, m.keys.Help):

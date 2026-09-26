@@ -9,19 +9,25 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 	"github.com/eggzec/gh-tui/pkg/bubbles/overlay"
 )
 
-// View lays out the header, the screen on view and the help line, with the
-// top modal and the toasts over them.
+// View lays out the header, the screen on view and the help line, or the
+// command line in its place, with the top modal and the toasts over them.
 func (m *Model) View() tea.View {
+	// The footer is rendered once, and its height is that of what it
+	// shows.
+	footer := m.footer()
 	body := m.body()
-	var b strings.Builder
-	n := len(m.header) + 1 + len(body)
+	pad := max(m.height-1-lipgloss.Height(footer)-len(body), 0)
+	n := len(m.header) + len(body) + pad + 1 + len(footer)
 	for _, l := range body {
 		n += len(l)
 	}
-	b.Grow(n + 256)
+	var b strings.Builder
+	b.Grow(n)
 	b.WriteString(m.header)
 	for _, l := range body {
 		b.WriteByte('\n')
@@ -29,11 +35,11 @@ func (m *Model) View() tea.View {
 	}
 	// The screen fills its height even when it has nothing to show, so the
 	// help line stays at the bottom.
-	for range m.contentHeight() - len(body) {
+	for range pad {
 		b.WriteByte('\n')
 	}
 	b.WriteByte('\n')
-	b.WriteString(m.help.View(m.helpKeys()))
+	b.WriteString(footer)
 
 	screen := b.String()
 	if mod := m.topModal(); mod != nil {
@@ -52,6 +58,7 @@ func (m *Model) View() tea.View {
 // layout gives each part its share of the screen.
 func (m *Model) layout() {
 	m.help.SetWidth(m.width)
+	m.line.SetSize(m.width, cmdline.MaxHeight)
 	m.toast.SetSize(m.width, m.height)
 	m.arrange(m.contentHeight())
 	if m.modal != nil {
@@ -63,7 +70,24 @@ func (m *Model) layout() {
 
 // contentHeight is the height between the header and the help line.
 func (m *Model) contentHeight() int {
-	return max(m.height-1-m.helpHeight(), 0)
+	return max(m.height-1-m.footerHeight(), 0)
+}
+
+// footer is what the bottom of the screen shows: the command line while it
+// is open, and the help line otherwise.
+func (m *Model) footer() string {
+	if m.line.Focused() {
+		return m.line.View()
+	}
+	return m.help.View(m.helpKeys())
+}
+
+// footerHeight is the height of the footer.
+func (m *Model) footerHeight() int {
+	if m.line.Focused() {
+		return m.line.Height()
+	}
+	return m.helpHeight()
 }
 
 func (m *Model) helpHeight() int {
@@ -105,6 +129,10 @@ func (m *Model) helpKeys() help.KeyMap {
 	}
 	if p := m.focused(); p != nil {
 		hk.section = p.section.Help()
+		if c, ok := p.section.(ui.Capturer); ok && c.Capturing() {
+			// The command key types itself there.
+			hk.app.Command.SetEnabled(false)
+		}
 	}
 	hk.panes = m.canZoom()
 	if m.width < narrowWidth {
@@ -146,7 +174,7 @@ func (h helpKeys) ShortHelp() []key.Binding {
 	// The way out of a zoom comes first, where a narrow help still shows
 	// it.
 	ks = append([]key.Binding{h.unzoom}, h.untaken(ks)...)
-	return append(ks, h.app.Search, h.findFile, h.history, h.actions, h.notifications, h.dashboard, h.app.Help, h.app.Quit)
+	return append(ks, h.app.Search, h.app.Command, h.findFile, h.history, h.actions, h.notifications, h.dashboard, h.app.Help, h.app.Quit)
 }
 
 func (h helpKeys) FullHelp() [][]key.Binding {
@@ -165,7 +193,7 @@ func (h helpKeys) FullHelp() [][]key.Binding {
 	if h.panes {
 		app = append(app, h.app.Next, h.app.Prev, h.app.jump, h.zoom, h.unzoom)
 	}
-	app = append(app, h.app.Search, h.findFile, h.history, h.actions, h.notifications, h.dashboard, h.dismiss, h.app.Help, h.app.Quit)
+	app = append(app, h.app.Search, h.app.Command, h.findFile, h.history, h.actions, h.notifications, h.dashboard, h.dismiss, h.app.Help, h.app.Quit)
 	return append(groups, app)
 }
 

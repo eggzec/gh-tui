@@ -1,13 +1,17 @@
 package tui
 
 import (
+	"slices"
 	"strings"
+	"unicode/utf8"
 
 	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 )
 
 // KeyMap holds the keys the app handles itself. Sections have their own.
@@ -24,6 +28,8 @@ type KeyMap struct {
 	// FindFile opens the file finder of the section that has one, on the
 	// repository screen.
 	FindFile key.Binding
+	// Command opens the command line in place of the help line.
+	Command key.Binding
 	// Filter opens the filter modal of the focused pane, if it has one.
 	Filter key.Binding
 	// Notifications switches between the screen on view and the
@@ -51,6 +57,7 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		History:       ui.Binding(keys, config.ActionHistory, "history"),
 		Actions:       ui.Binding(keys, config.ActionActions, "actions"),
 		FindFile:      ui.Binding(keys, config.ActionFindFile, "find file"),
+		Command:       ui.Binding(keys, config.ActionCommand, "command"),
 		Filter:        ui.Binding(keys, config.ActionFilter, "filter"),
 		Notifications: ui.Binding(keys, config.ActionNotifications, "notifications"),
 		Dashboard:     ui.Binding(keys, config.ActionDashboard, "dashboard"),
@@ -76,6 +83,52 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		k.jump = key.NewBinding(key.WithDisabled())
 	}
 	return k
+}
+
+// lineKeys returns the keys of the command line. Enter runs the line and
+// esc and ctrl+c cancel it, whatever the config says, and the keys of the
+// config's select and back actions do too, unless the line needs them
+// otherwise: to type, or to edit, move, complete or recall. So a letter
+// bound to back still types itself, and backspace still deletes.
+func lineKeys(keys map[string][]string) cmdline.KeyMap {
+	k := cmdline.DefaultKeyMap()
+	taken := lineOwnKeys(k)
+	k.Submit = withKeys(k.Submit, keys[config.ActionSelect], taken)
+	k.Cancel = withKeys(k.Cancel, keys[config.ActionBack], taken)
+	return k
+}
+
+// lineOwnKeys returns the keys the command line uses for itself: those of
+// its own key map and those of the text input it edits with.
+func lineOwnKeys(k cmdline.KeyMap) []string {
+	ti := textinput.DefaultKeyMap()
+	var out []string
+	for _, b := range []key.Binding{
+		k.Submit, k.Cancel, k.CancelEmpty, k.Next, k.Prev, k.Older, k.Newer,
+		ti.CharacterForward, ti.CharacterBackward, ti.WordForward, ti.WordBackward,
+		ti.DeleteWordBackward, ti.DeleteWordForward, ti.DeleteAfterCursor, ti.DeleteBeforeCursor,
+		ti.DeleteCharacterBackward, ti.DeleteCharacterForward, ti.LineStart, ti.LineEnd,
+		ti.Paste, ti.AcceptSuggestion, ti.NextSuggestion, ti.PrevSuggestion,
+	} {
+		out = append(out, b.Keys()...)
+	}
+	return out
+}
+
+// withKeys returns b with the keys of more that type nothing and aren't
+// taken.
+func withKeys(b key.Binding, more, taken []string) key.Binding {
+	keys := b.Keys()
+	for _, k := range more {
+		if k == "space" || utf8.RuneCountInString(k) == 1 || slices.Contains(taken, k) || slices.Contains(keys, k) {
+			continue
+		}
+		keys = append(keys, k)
+	}
+	if len(keys) == len(b.Keys()) {
+		return b
+	}
+	return key.NewBinding(key.WithKeys(keys...), key.WithHelp(b.Help().Key, b.Help().Desc))
 }
 
 // pane returns the index of the pane that msg focuses, or -1.
