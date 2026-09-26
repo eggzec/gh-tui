@@ -12,6 +12,8 @@ type settings struct {
 	keys          KeyMap
 	styles        Styles
 	complete      Complete
+	history       []string
+	historyLimit  int
 }
 
 // WithPrompt sets the prompt shown before the line. The default is ":".
@@ -46,6 +48,23 @@ func WithSize(width, height int) Option {
 // the command line shows no candidates.
 func WithComplete(f Complete) Option {
 	return func(s *settings) { s.complete = f }
+}
+
+// WithHistory sets the lines the command line recalls with up and down,
+// oldest first, such as the History saved in an earlier session. It keeps
+// a copy, up to the limit.
+func WithHistory(lines []string) Option {
+	return func(s *settings) { s.history = lines }
+}
+
+// DefaultHistoryLimit is how many lines the history keeps by default.
+const DefaultHistoryLimit = 100
+
+// WithHistoryLimit sets how many lines the history keeps; past it, the
+// oldest go first. Zero or less means no limit. The default is
+// [DefaultHistoryLimit].
+func WithHistoryLimit(n int) Option {
+	return func(s *settings) { s.historyLimit = max(n, 0) }
 }
 
 // WithKeyMap sets the key bindings.

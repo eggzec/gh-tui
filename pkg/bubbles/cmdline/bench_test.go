@@ -1,6 +1,7 @@
 package cmdline
 
 import (
+	"strconv"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -58,6 +59,19 @@ func BenchmarkUpdate(b *testing.B) {
 		b.ReportAllocs()
 		for b.Loop() {
 			m, _ = m.Update(tab)
+		}
+	})
+	// Walk up and back down a long history, filtered by a prefix.
+	b.Run("history", func(b *testing.B) {
+		history := make([]string, 0, 1000)
+		for i := range 1000 {
+			history = append(history, "goto repo-"+strconv.Itoa(i))
+		}
+		m := opened(b, "goto repo-1", WithSize(120, MaxHeight), WithHistory(history))
+		b.ReportAllocs()
+		for b.Loop() {
+			m, _ = m.Update(up)
+			m, _ = m.Update(down)
 		}
 	})
 	b.Run("blurred", func(b *testing.B) {

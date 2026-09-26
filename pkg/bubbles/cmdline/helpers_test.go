@@ -102,3 +102,8 @@ func completeWords(words ...string) Complete {
 		return out
 	}
 }
+
+var (
+	up   = tea.KeyPressMsg{Code: tea.KeyUp}
+	down = tea.KeyPressMsg{Code: tea.KeyDown}
+)

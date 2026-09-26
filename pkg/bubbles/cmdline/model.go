@@ -14,6 +14,13 @@
 // Given a [Complete] function, it shows the candidates that complete the
 // line on a row above it, as vim's wildmenu does, and tab and shift+tab
 // insert each in turn.
+//
+// Up and down recall earlier lines from the history, as in vim: only
+// those that start with what was typed. The command line adds each line
+// submitted to its history, up to a limit ([WithHistoryLimit]), but keeps
+// it only in memory: on SubmitMsg the parent saves [Model.History], rather
+// than a list of its own, and sets it again in the next session with
+// [WithHistory] or [Model.SetHistory].
 package cmdline
 
 import (
@@ -52,6 +59,10 @@ type Model struct {
 	complete Complete
 	comp     completion
 
+	history      []string
+	historyLimit int
+	walk         walk
+
 	// promptView is the rendered prompt, and promptWidth its width.
 	promptView  string
 	promptWidth int
@@ -65,10 +76,11 @@ type Model struct {
 // New returns a blurred command line.
 func New(opts ...Option) Model {
 	s := settings{
-		prompt: ":",
-		height: MaxHeight,
-		keys:   DefaultKeyMap(),
-		styles: DefaultStyles(true),
+		prompt:       ":",
+		height:       MaxHeight,
+		historyLimit: DefaultHistoryLimit,
+		keys:         DefaultKeyMap(),
+		styles:       DefaultStyles(true),
 	}
 	for _, opt := range opts {
 		opt(&s)
@@ -85,18 +97,20 @@ func New(opts ...Option) Model {
 	input.KeyMap.PrevSuggestion = off
 
 	m := Model{
-		id:       lastID.Add(1),
-		input:    input,
-		prompt:   s.prompt,
-		width:    max(s.width, 0),
-		height:   max(s.height, 0),
-		keys:     s.keys,
-		complete: s.complete,
-		comp:     completion{sel: -1, rowWidth: -1},
+		id:           lastID.Add(1),
+		input:        input,
+		prompt:       s.prompt,
+		width:        max(s.width, 0),
+		height:       max(s.height, 0),
+		keys:         s.keys,
+		complete:     s.complete,
+		historyLimit: s.historyLimit,
+		comp:         completion{sel: -1, rowWidth: -1},
 	}
 	// SetStyles lays the line out, so the value goes in after it and
 	// scrolls at the final width.
 	m.SetStyles(s.styles)
+	m.SetHistory(s.history)
 	if s.value != "" {
 		m.SetValue(s.value)
 	}
@@ -113,6 +127,7 @@ func (m Model) Init() tea.Cmd { return nil }
 // Open focuses the command line with initial as its text and the cursor
 // after it, ready for a new command.
 func (m *Model) Open(initial string) tea.Cmd {
+	m.walk = walk{}
 	m.input.SetValue(initial)
 	m.input.CursorEnd()
 	return m.Focus()
@@ -143,6 +158,7 @@ func (m Model) Value() string { return m.input.Value() }
 
 // SetValue replaces the text of the line and moves the cursor after it.
 func (m *Model) SetValue(v string) {
+	m.walk = walk{}
 	m.input.SetValue(v)
 	m.input.CursorEnd()
 	m.refresh()
@@ -218,12 +234,18 @@ func (m Model) ShortHelp() []key.Binding {
 }
 
 // FullHelp implements help.KeyMap. Like ShortHelp, it leaves out tab and
-// shift+tab without a Complete function.
+// shift+tab without a Complete function, and up and down without a
+// history.
 func (m Model) FullHelp() [][]key.Binding {
-	if m.complete == nil {
-		return m.keys.FullHelp()[:1]
+	groups := m.keys.FullHelp()
+	help := groups[:1:1]
+	if m.complete != nil {
+		help = append(help, groups[1])
 	}
-	return m.keys.FullHelp()
+	if len(m.history) > 0 {
+		help = append(help, groups[2])
+	}
+	return help
 }
 
 func (m *Model) renderPrompt() {
