@@ -62,6 +62,15 @@ func (t *Tracker) Poll(key string, probe Func, changed func()) watch.PollFunc {
 	}
 }
 
+// ETag returns the latest ETag that a probe of key brought, this session
+// or an earlier one, or "" if none did. What a read of the resource brings
+// after this call is at least as recent as the ETag, so a 304 to it later
+// vouches for that read. It may read the store, so call it where I/O is
+// fine.
+func (t *Tracker) ETag(key string) string {
+	return t.etag(key)
+}
+
 // etag returns the latest ETag of key: this session's, or else the one an
 // earlier session kept, which it then remembers.
 func (t *Tracker) etag(key string) string {

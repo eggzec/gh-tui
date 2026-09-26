@@ -32,7 +32,8 @@ type fakeAPI struct {
 	// mutate backs every mutation. Method names the mutation; merge also
 	// passes the merge method.
 	mutate func(ctx context.Context, method, id string, how core.MergeMethod) (core.PullRequest, error)
-	// probe backs ProbePullRequests.
+	// probe backs ProbePullRequests. Without it, every probe answers
+	// without an ETag, so it vouches for nothing.
 	probe func(ctx context.Context, repo core.RepoRef, cond github.Conditional) (github.Response, error)
 	// filter and search back the filtered lists.
 	filter func(ctx context.Context, repo core.RepoRef, f github.PullFilter, cursor string, first int) (core.Page[core.PullRequest], error)
@@ -124,6 +125,9 @@ func (f *fakeAPI) ConvertPullRequestToDraft(ctx context.Context, id string) (cor
 
 func (f *fakeAPI) ProbePullRequests(ctx context.Context, repo core.RepoRef, cond github.Conditional) (github.Response, error) {
 	f.called("probe")
+	if f.probe == nil {
+		return github.Response{StatusCode: 200}, nil
+	}
 	return f.probe(ctx, repo, cond)
 }
 

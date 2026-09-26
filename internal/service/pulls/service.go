@@ -3,7 +3,9 @@
 package pulls
 
 import (
+	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"strconv"
@@ -41,7 +43,7 @@ type API interface {
 // optimistically. It is safe for concurrent use.
 type Service struct {
 	api     API
-	lists   *cache.Cache[core.Page[core.PullRequest]]
+	lists   *cache.Cache[listPage]
 	details *cache.Cache[core.PullRequestDetail]
 	// Comments and reviews are cached a page at a time, so that the pages
 	// the tui no longer shows are evicted. Comment pages carry the version
@@ -50,15 +52,20 @@ type Service struct {
 	reviews  *cache.Cache[core.Page[core.Review]]
 	// The kept ones are what an earlier session read, if the service has
 	// a store. A read that misses memory starts from them.
-	keptLists    *cache.Shelf[core.Page[core.PullRequest]]
+	keptLists    *cache.Shelf[listPage]
 	keptDetails  *cache.Shelf[core.PullRequestDetail]
 	keptComments *cache.Shelf[stampedComments]
 	now          func() time.Time
+	// ttl is how long a fetched entry stays fresh.
+	ttl time.Duration
 	// etags holds the latest probe ETag of each polled repository.
 	etags probe.Tracker
 	// seen holds what the list pages last showed of each pull request, by
 	// detail key.
 	seen seen.Marks[mark]
+	// refreshes holds when the user last asked for each repository to be
+	// read again.
+	refreshes refreshes
 }
 
 // stampedComments is a cached page of comments with the version of its pull
@@ -73,14 +80,15 @@ func New(api API, opts ...Option) *Service {
 	}
 	s := &Service{
 		api:          api,
-		lists:        cache.New[core.Page[core.PullRequest]](o.cache...),
+		lists:        cache.New[listPage](o.cache...),
 		details:      cache.New[core.PullRequestDetail](o.cache...),
 		comments:     cache.New[stampedComments](o.cache...),
 		reviews:      cache.New[core.Page[core.Review]](o.cache...),
-		keptLists:    cache.NewShelf[core.Page[core.PullRequest]](o.store, kindList, listSchema),
+		keptLists:    cache.NewShelf[listPage](o.store, kindList, listSchema),
 		keptDetails:  cache.NewShelf[core.PullRequestDetail](o.store, kindDetail, detailSchema),
 		keptComments: cache.NewShelf[stampedComments](o.store, kindComments, commentsSchema),
 		now:          time.Now,
+		ttl:          cmp.Or(o.ttl, cache.DefaultTTL),
 	}
 	s.etags.Keep(o.store)
 	return s
@@ -94,7 +102,8 @@ const (
 	kindDetail   = "pull"
 	kindComments = "pullcomments"
 
-	listSchema = 2
+	// listSchema 3 keeps when the page was last read in full.
+	listSchema = 3
 	// detailSchema 3 counts the checks rather than listing them.
 	detailSchema = 3
 	// commentsSchema 3 reads the pages with REST, whose cursors are URLs.
@@ -183,30 +192,61 @@ func cached[V any](c *cache.Cache[V], key string) (V, bool) {
 }
 
 // fetch returns the value under key in c. A fresh value is returned without
-// a request; otherwise get fetches it, and it is stored with tags, and kept
-// on shelf. What GitHub refuses is dropped from shelf. If GitHub can't be
-// reached, the stale value is served instead, marked by offline.
-func fetch[V any](ctx context.Context, c *cache.Cache[V], shelf *cache.Shelf[V], key string, tags []string, offline func(V) V, get func(context.Context) (V, error)) (V, error) {
-	// GraphQL responses carry no validators, so a stale value is fetched
-	// again in full.
+// a request; otherwise load reads it, and it is stored and kept on shelf.
+// What GitHub refuses is dropped from shelf. If GitHub can't be reached, the
+// stale value is served instead, marked by offline.
+func fetch[V any](ctx context.Context, c *cache.Cache[V], shelf *cache.Shelf[V], key string, offline func(V) V, load cache.FetchFunc[V]) (V, error) {
 	e, err := c.Fetch(ctx, key, func(ctx context.Context, prev cache.Entry[V], ok bool) (cache.Entry[V], error) {
-		v, err := get(ctx)
+		e, err := load(ctx, prev, ok)
 		switch {
 		case ok && github.Unreachable(ctx, err):
 			prev.Value, prev.FetchedAt = offline(prev.Value), offlineAt
 			return prev, nil
+		case errors.Is(err, cache.ErrNotModified):
+			restamp(shelf, key, prev)
+			return e, err
 		case err != nil:
 			if github.Refused(err) {
 				shelf.Delete(key)
 			}
 			return cache.Entry[V]{}, err
 		}
-		e := cache.Entry[V]{Value: v, Tags: tags}
 		// The shelf is only a shortcut, so a failure is ignored.
 		_ = shelf.Save(key, e)
 		return e, nil
 	})
 	return e.Value, err
+}
+
+// whole returns a load for fetch that reads the value in full with get, as
+// GraphQL reads are, and tags it with tags.
+func whole[V any](tags []string, get func(context.Context) (V, error)) cache.FetchFunc[V] {
+	return func(ctx context.Context, _ cache.Entry[V], _ bool) (cache.Entry[V], error) {
+		v, err := get(ctx)
+		if err != nil {
+			return cache.Entry[V]{}, err
+		}
+		return cache.Entry[V]{Value: v, Tags: tags}, nil
+	}
+}
+
+// restamp marks what shelf keeps under key as fetched now, since GitHub
+// confirmed prev, if it keeps the same. Prev may hold changes that GitHub
+// hasn't confirmed, so it isn't kept itself.
+func restamp[V any](shelf *cache.Shelf[V], key string, prev cache.Entry[V]) {
+	kept, ok := shelf.Load(key)
+	if !ok || kept.ETag != prev.ETag || kept.ETag == "" {
+		return
+	}
+	kept.FetchedAt = time.Now()
+	// The shelf is only a shortcut, so a failure is ignored.
+	_ = shelf.Save(key, kept)
+}
+
+// offlineList marks a list page served offline.
+func offlineList(p listPage) listPage {
+	p.Page.Offline = true
+	return p
 }
 
 // offlinePage marks a page served offline.
@@ -221,7 +261,8 @@ func asIs[V any](v V) V { return v }
 // CachedList returns the page for q if it is cached, fresh or stale, without
 // fetching it.
 func (s *Service) CachedList(q ListQuery) (core.Page[core.PullRequest], bool) {
-	return cached(s.lists, q.key())
+	p, ok := cached(s.lists, q.key())
+	return p.Page, ok
 }
 
 // FreshList reports whether the page for q is cached and fresh, so that
@@ -247,8 +288,9 @@ func (s *Service) FreshList(q ListQuery) bool {
 //
 // A page that only an earlier session kept is fresh if it was fetched or
 // revalidated within the TTL. An older one is returned at once, with Stale
-// set, and reading it again fetches it. If GitHub can't be reached, a stale
-// page is served with Offline set.
+// set, and reading it again fetches it, unless a free probe finds that no
+// pull request of the repository changed since it was read: see loadList.
+// If GitHub can't be reached, a stale page is served with Offline set.
 func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.PullRequest], error) {
 	key := q.key()
 	shelf := s.keptLists
@@ -260,14 +302,13 @@ func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.PullReq
 	if e, ok := shelf.Warm(s.lists, key); ok {
 		// The page vouches for what is cached of its pull requests as of
 		// when it was read, like the other pages shown with it.
-		s.vouch(q.Repo, e.Value.Items)
-		p := e.Value
+		s.vouch(q.Repo, e.Value.Page.Items)
+		p := e.Value.Page
 		p.Stale = true
 		return p, nil
 	}
-	p, err := fetch(ctx, s.lists, shelf, key, []string{repoTag(q.Repo)}, offlinePage[core.PullRequest], func(ctx context.Context) (core.Page[core.PullRequest], error) {
-		return s.readList(ctx, q)
-	})
+	lp, err := fetch(ctx, s.lists, shelf, key, offlineList, s.loadList(q))
+	p := lp.Page
 	if err != nil {
 		if github.Refused(err) {
 			// A kept page may have vouched for what is cached of the
@@ -298,20 +339,30 @@ func (s *Service) Get(ctx context.Context, repo core.RepoRef, number int) (core.
 	if d, ok := s.currentDetail(key); ok {
 		return d, nil
 	}
-	d, err := fetch(ctx, s.details, s.keptDetails, key, tags(repo, number), asIs[core.PullRequestDetail], func(ctx context.Context) (core.PullRequestDetail, error) {
+	d, err := fetch(ctx, s.details, s.keptDetails, key, asIs[core.PullRequestDetail], whole(tags(repo, number), func(ctx context.Context) (core.PullRequestDetail, error) {
 		return s.api.GetPullRequest(ctx, repo, number)
-	})
+	}))
 	if err != nil {
 		return core.PullRequestDetail{}, fmt.Errorf("get pull %s#%d: %w", repo, number, err)
 	}
 	return d, nil
 }
 
-// Invalidate marks everything cached of repo stale: its list pages, details,
-// comments and reviews. They are still served by the Cached reads, and the
-// next fetch of each goes to GitHub, so a refresh reaches the server even
-// while the entries are fresh or current.
+// Invalidate marks everything cached of repo stale, for a refresh the user
+// asked for: its list pages, details, comments and reviews. They are still
+// served by the Cached reads, and the next fetch of each goes to GitHub, so
+// a refresh reaches the server even while the entries are fresh or current.
+// The list pages are read again in full, rather than confirmed by a probe,
+// since the user may be after what the probe can't see, such as checks
+// that were run again.
 func (s *Service) Invalidate(repo core.RepoRef) {
+	s.refreshes.set(repo, s.now())
+	s.invalidate(repo)
+}
+
+// invalidate marks everything cached of repo stale, as Invalidate does,
+// for a change a probe found, which a later probe may confirm.
+func (s *Service) invalidate(repo core.RepoRef) {
 	s.seen.DeletePrefix(pullPrefix(repo))
 	tag := repoTag(repo)
 	s.lists.InvalidateTag(tag)

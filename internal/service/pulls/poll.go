@@ -27,5 +27,5 @@ func (s *Service) Poll(repo core.RepoRef) watch.PollFunc {
 		}
 		return res, nil
 	}
-	return s.etags.Poll(SyncKey(repo), probe, func() { s.Invalidate(repo) })
+	return s.etags.Poll(SyncKey(repo), probe, func() { s.invalidate(repo) })
 }

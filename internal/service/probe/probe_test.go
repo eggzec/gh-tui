@@ -167,3 +167,30 @@ func btoi(b bool) int {
 	}
 	return 0
 }
+
+func TestETag(t *testing.T) {
+	store, err := disk.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := &server{etag: `"e1"`}
+	var first Tracker
+	first.Keep(store)
+	if got := first.ETag("k"); got != "" {
+		t.Errorf("ETag before any probe = %q, want none", got)
+	}
+	if _, err := first.Poll("k", srv.probe, func() {})(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if got := first.ETag("k"); got != `"e1"` {
+		t.Errorf("ETag after a probe = %q, want the probe's", got)
+	}
+	var next Tracker
+	next.Keep(store)
+	if got := next.ETag("k"); got != `"e1"` {
+		t.Errorf("ETag in a new session = %q, want the kept one", got)
+	}
+	if got := next.ETag("other"); got != "" {
+		t.Errorf("ETag of a key never probed = %q, want none", got)
+	}
+}

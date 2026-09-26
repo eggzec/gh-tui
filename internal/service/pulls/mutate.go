@@ -69,7 +69,7 @@ func (s *Service) change(
 	s.seen.Delete(detailKey(repo, number))
 	// The mutations need the node ID, which any cached copy has.
 	var id string
-	undoLists := s.lists.MutateTag(repoTag(repo), func(p core.Page[core.PullRequest]) (core.Page[core.PullRequest], bool) {
+	undoLists := s.lists.MutateTag(repoTag(repo), func(p listPage) (listPage, bool) {
 		return replace(p, number, func(pr core.PullRequest) core.PullRequest {
 			id = cmp.Or(id, pr.ID)
 			edit(&pr)
@@ -103,7 +103,7 @@ func (s *Service) change(
 // copy of pull request number of repo.
 func (s *Service) reconcile(repo core.RepoRef, number int, pr core.PullRequest) {
 	tag := repoTag(repo)
-	s.lists.MutateTag(tag, func(p core.Page[core.PullRequest]) (core.Page[core.PullRequest], bool) {
+	s.lists.MutateTag(tag, func(p listPage) (listPage, bool) {
 		return replace(p, number, func(core.PullRequest) core.PullRequest { return pr })
 	})
 	key := detailKey(repo, number)
@@ -125,12 +125,13 @@ func (s *Service) reconcile(repo core.RepoRef, number int, pr core.PullRequest) 
 // replace returns p with pull request number replaced by f of it, and
 // whether p holds it. It copies the items rather than change the cached
 // ones.
-func replace(p core.Page[core.PullRequest], number int, f func(core.PullRequest) core.PullRequest) (core.Page[core.PullRequest], bool) {
-	i := slices.IndexFunc(p.Items, func(pr core.PullRequest) bool { return pr.Number == number })
+func replace(p listPage, number int, f func(core.PullRequest) core.PullRequest) (listPage, bool) {
+	items := p.Page.Items
+	i := slices.IndexFunc(items, func(pr core.PullRequest) bool { return pr.Number == number })
 	if i < 0 {
 		return p, false
 	}
-	p.Items = slices.Clone(p.Items)
-	p.Items[i] = f(p.Items[i])
+	p.Page.Items = slices.Clone(items)
+	p.Page.Items[i] = f(items[i])
 	return p, true
 }

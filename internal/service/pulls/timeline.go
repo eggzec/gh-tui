@@ -85,10 +85,7 @@ func (s *Service) Comments(ctx context.Context, q CommentsQuery) (core.Page[core
 			// The cached page is current as of now, so it takes the
 			// newer version. The kept page stays as GitHub sent it, marked
 			// fetched now if it is the one GitHub confirmed.
-			if kept, ok := s.keptComments.Load(key); ok && kept.ETag != "" && kept.ETag == prev.ETag {
-				kept.FetchedAt = time.Now()
-				_ = s.keptComments.Save(key, kept)
-			}
+			restamp(s.keptComments, key, prev)
 			prev.Value.Version, prev.FetchedAt = m.updated, time.Time{}
 			return prev, nil
 		case err != nil:
@@ -133,9 +130,9 @@ func (s *Service) CachedReviews(q ReviewsQuery) (core.Page[core.Review], bool) {
 // Reviews returns the page for q, oldest first. A fresh cached page is
 // returned without a request.
 func (s *Service) Reviews(ctx context.Context, q ReviewsQuery) (core.Page[core.Review], error) {
-	p, err := fetch(ctx, s.reviews, nil, q.key(), tags(q.Repo, q.Number), offlinePage[core.Review], func(ctx context.Context) (core.Page[core.Review], error) {
+	p, err := fetch(ctx, s.reviews, nil, q.key(), offlinePage[core.Review], whole(tags(q.Repo, q.Number), func(ctx context.Context) (core.Page[core.Review], error) {
 		return s.api.ListPullRequestReviews(ctx, q.Repo, q.Number, q.Cursor, pageSize(q.PageSize))
-	})
+	}))
 	if err != nil {
 		return core.Page[core.Review]{}, fmt.Errorf("list reviews of pull %s#%d: %w", q.Repo, q.Number, err)
 	}
