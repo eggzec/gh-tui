@@ -180,7 +180,7 @@ func TestPriority(t *testing.T) {
 		want  []string
 	}{
 		{ScopeRecent, []string{"a-new", "inbox", "a-old", "b-new", "c-mid", "b-old"}},
-		{ScopeAll, []string{"a-new", "inbox", "a-old", "b-new", "c-mid", "b-old", "c-ancient"}},
+		{ScopeAll, []string{"a-new", "inbox", "inbox-old", "a-old", "b-new", "c-mid", "b-old", "c-ancient"}},
 	} {
 		t.Run(map[Scope]string{ScopeRecent: "recent", ScopeAll: "all"}[tt.scope], func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
@@ -192,6 +192,7 @@ func TestPriority(t *testing.T) {
 					srv.entry("c-ancient", repoC, 30*24*time.Hour),
 					srv.entry("a-old", core.RepoRef{Owner: "OCTO", Name: "A"}, 40*24*time.Hour),
 					srv.entry("inbox", core.RepoRef{}, time.Hour),
+					srv.entry("inbox-old", core.RepoRef{}, 30*24*time.Hour),
 					srv.entry("b-new", repoB, 2*time.Hour),
 					srv.entry("a-new", repoA, time.Minute),
 					srv.entry("c-mid", repoC, 24*time.Hour),

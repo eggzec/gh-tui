@@ -24,7 +24,7 @@ func TestNewRevalidator(t *testing.T) {
 					published []string
 				)
 				source := func() []revalidate.Entry {
-					return []revalidate.Entry{{ID: "issue:1", Check: func(context.Context) revalidate.Result {
+					return []revalidate.Entry{{ID: "issue:1", UsedAt: time.Now(), Check: func(context.Context) revalidate.Result {
 						mu.Lock()
 						defer mu.Unlock()
 						checked++

@@ -17,18 +17,20 @@ import (
 // and those that the checks of Kept do.
 const SyncKey = "notifications"
 
-// Kept lists the pages that the service keeps with validators, for a
-// revalidator to check in the background. Each check is one conditional
+// Kept lists the first pages that the service keeps with validators, for
+// a revalidator to check in the background. Each check is one conditional
 // request, which costs no rate limit when nothing changed. A page that
-// changed is cached and kept, and reports SyncKey. It reads the store, so
-// call it where I/O is fine.
+// changed is cached and kept, and reports SyncKey. The later pages are
+// left out: they shift whenever a thread arrives, so a check would mostly
+// find them changed, and pay for it, and they are read again as the list
+// is scrolled anyway. It reads the store, so call it where I/O is fine.
 func (s *Service) Kept() []revalidate.Entry {
 	return recheck.Entries(s.kept, kind, s.target)
 }
 
 func (s *Service) target(key string) (recheck.Target, bool) {
 	q, ok := parseKey(key)
-	if !ok {
+	if !ok || q.Cursor != "" {
 		return recheck.Target{}, false
 	}
 	return recheck.Target{Check: func(ctx context.Context) revalidate.Result {

@@ -69,7 +69,7 @@ func TestPassLog(t *testing.T) {
 		}
 		entries := []Entry{
 			{ID: "issues:octo/a", Repo: repoA, UsedAt: time.Now(), Check: check(Result{Status: NotModified})},
-			{ID: "notifications", Check: check(Result{Status: Changed, Sync: "notifications"})},
+			{ID: "notifications", UsedAt: time.Now(), Check: check(Result{Status: Changed, Sync: "notifications"})},
 		}
 		start(t, entries, new(recorder), WithBudget(30), WithInterval(time.Minute))
 		synctest.Sleep(time.Second)

@@ -23,8 +23,9 @@ type Scope int
 
 // Scopes.
 const (
-	// ScopeRecent checks the entries of the selected repository, those
-	// of no repository, and the others used within the recent age.
+	// ScopeRecent checks the selected repository's entries, and the
+	// others, including those of no repository, used within the recent
+	// age.
 	ScopeRecent Scope = iota
 	// ScopeAll checks every entry.
 	ScopeAll

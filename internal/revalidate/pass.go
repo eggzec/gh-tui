@@ -75,8 +75,8 @@ func (r *Revalidator) pass(ctx context.Context) Pass {
 }
 
 // due returns the entries to check among all at now: first those of the
-// selected repository and of none, then the rest, each most recently used
-// first. Entries in scope that are fresh aren't due.
+// selected repository and those of none in scope, then the rest in scope,
+// each most recently used first. Entries that are fresh aren't due.
 func (r *Revalidator) due(all []Entry, now time.Time) (first, rest []Entry) {
 	repo := r.selected()
 	r.mu.Lock()
@@ -95,10 +95,15 @@ func (r *Revalidator) due(all []Entry, now time.Time) (first, rest []Entry) {
 		if _, ok := checked[e.ID]; ok {
 			continue
 		}
+		// Entries of no repository, such as the inbox, are on every
+		// screen, but those not used lately, such as a filter tried once,
+		// are left out like any other.
+		inScope := r.cfg.scope == ScopeAll || now.Sub(e.UsedAt) < r.cfg.recent
+		none := e.Repo == (core.RepoRef{})
 		switch {
-		case e.Repo == (core.RepoRef{}) || sameRepo(e.Repo, repo):
+		case none && inScope, !none && sameRepo(e.Repo, repo):
 			first = append(first, e)
-		case r.cfg.scope == ScopeAll || now.Sub(e.UsedAt) < r.cfg.recent:
+		case inScope:
 			rest = append(rest, e)
 		}
 	}
