@@ -99,3 +99,68 @@ func TestPrefetchFirstThreadsAndHover(t *testing.T) {
 		}
 	})
 }
+
+// heldPulls holds every read ahead until it is cancelled, and keeps its
+// context.
+type heldPulls struct {
+	fakePulls
+	ctxs chan context.Context
+}
+
+func (f *heldPulls) Get(ctx context.Context, _ core.RepoRef, _ int) (core.PullRequestDetail, error) {
+	f.ctxs <- ctx
+	<-ctx.Done()
+	return core.PullRequestDetail{}, ctx.Err()
+}
+
+// Leaving the screen cancels the reads ahead in flight.
+func TestBlurCancelsReadsAhead(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ps := &heldPulls{ctxs: make(chan context.Context, 4)}
+		svc := newFake()
+		s := newSectionWith(t, svc, threads.New(t.Context(), threads.WithPulls(ps), threads.WithPrefetch(3, time.Hour)))
+		svc.mu.Lock()
+		svc.threads = []core.Notification{thread("1", "charmbracelet/bubbletea", core.SubjectPullRequest, "a", "mention", true, time.Minute)}
+		svc.mu.Unlock()
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			run(t, s, s.Update(ui.SyncMsg{Key: SyncKey}))
+		}()
+		synctest.Wait()
+		var ctx context.Context
+		select {
+		case ctx = <-ps.ctxs:
+		default:
+			t.Fatal("nothing was read ahead")
+		}
+		s.Blur()
+		<-done
+		if ctx.Err() == nil {
+			t.Error("the read ahead wasn't cancelled when the section left the screen")
+		}
+	})
+}
+
+// A change to the inbox while another screen is on view reads nothing
+// ahead; the reads resume once the section is back.
+func TestNoReadsAheadOffScreen(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ps := &fakePulls{}
+		svc := newFake()
+		s := newSectionWith(t, svc, threads.New(t.Context(), threads.WithPulls(ps), threads.WithPrefetch(3, time.Hour)))
+		s.Blur()
+		svc.mu.Lock()
+		svc.threads = []core.Notification{thread("1", "charmbracelet/bubbletea", core.SubjectPullRequest, "a", "mention", true, time.Minute)}
+		svc.mu.Unlock()
+		run(t, s, s.Update(ui.SyncMsg{Key: SyncKey}))
+		if got := ps.got(); len(got) != 0 {
+			t.Fatalf("read %v ahead off screen, want nothing", got)
+		}
+		s.Focus()
+		run(t, s, s.Update(ui.SyncMsg{Key: "other"}))
+		if got := ps.got(); !slices.Equal(got, []int{1}) {
+			t.Errorf("read %v ahead back on screen, want 1", got)
+		}
+	})
+}

@@ -2,8 +2,8 @@
 // in the modal of its issue, pull request, runs, commit or release, and
 // reads it ahead, so that it opens at once. What the app has no view of,
 // such as a discussion, opens in the browser. The notifications screen and
-// the dashboard's inbox share it, so that a thread opens the same way from
-// both.
+// the dashboard's inbox share one, so that a thread opens the same way from
+// both, and one rate limit stops the reads ahead of both.
 package threads
 
 import (
@@ -83,7 +83,12 @@ func WithMarkRead(on bool) Option {
 
 // Opener opens threads and reads them ahead. Create it with [New]; a nil
 // *Opener opens everything in the browser and reads nothing ahead.
+//
+// The views that share an Opener read ahead only while they are on view,
+// one at a time, and [Opener.Stop] it when they leave the screen.
 type Opener struct {
+	// ctx bounds every read ahead.
+	ctx      context.Context
 	pulls    Pulls
 	issues   Issues
 	releases Releases
@@ -100,7 +105,7 @@ type Opener struct {
 
 // New returns an Opener whose reads ahead ctx bounds.
 func New(ctx context.Context, opts ...Option) *Opener {
-	o := &Opener{markRead: true}
+	o := &Opener{ctx: ctx, markRead: true}
 	for _, opt := range opts {
 		opt(o)
 	}
@@ -219,6 +224,15 @@ func runFilter(sub core.Subject) (core.RunFilter, bool) {
 func (o *Opener) Reset(parent context.Context) {
 	if o != nil {
 		o.ahead.Reset(parent)
+	}
+}
+
+// Stop cancels the reads ahead in flight and forgets the rows and the
+// cursor they were for, such as when the view that asked for them leaves
+// the screen. The next ReadAhead starts over, skipping what is cached.
+func (o *Opener) Stop() {
+	if o != nil {
+		o.ahead.Reset(o.ctx)
 	}
 }
 
