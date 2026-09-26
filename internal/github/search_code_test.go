@@ -162,3 +162,14 @@ func TestSearchCodeRateLimited(t *testing.T) {
 		})
 	}
 }
+
+// TestCodeSearchHitRepo keeps names that the app's own parser would refuse,
+// since GitHub, not the app, decides what a repository may be called.
+func TestCodeSearchHitRepo(t *testing.T) {
+	var h codeSearchHit
+	h.Repository.FullName = "legacy--user-/über.repo"
+	want := core.RepoRef{Owner: "legacy--user-", Name: "über.repo"}
+	if got := h.core().Repo; got != want {
+		t.Errorf("Repo = %v, want %v", got, want)
+	}
+}
