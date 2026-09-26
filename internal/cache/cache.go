@@ -71,12 +71,14 @@ type Cache[V any] struct {
 }
 
 type node[V any] struct {
-	key        string
-	entry      Entry[V]
-	size       int64
-	stale      bool
-	version    uint64
-	prev, next *node[V]
+	key   string
+	entry Entry[V]
+	size  int64
+	stale bool
+	// version numbers the latest write or invalidation, and written the
+	// latest write alone.
+	version, written uint64
+	prev, next       *node[V]
 }
 
 // New returns an empty cache.
@@ -236,7 +238,7 @@ func (c *Cache[V]) set(key string, e Entry[V]) {
 	}
 	c.seq++
 	if n, ok := c.items[key]; ok {
-		n.entry, n.stale, n.version = e, false, c.seq
+		n.entry, n.stale, n.version, n.written = e, false, c.seq, c.seq
 		c.resize(n)
 		c.moveToFront(n)
 		c.shrink()
@@ -250,7 +252,7 @@ func (c *Cache[V]) set(key string, e Entry[V]) {
 		n = c.root.prev
 		c.evict(n)
 	}
-	*n = node[V]{key: key, entry: e, version: c.seq}
+	*n = node[V]{key: key, entry: e, version: c.seq, written: c.seq}
 	c.items[key] = n
 	c.pushFront(n)
 	c.resize(n)

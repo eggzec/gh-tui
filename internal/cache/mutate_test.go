@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"context"
 	"strconv"
 	"sync"
 	"testing"
@@ -10,12 +11,12 @@ func inc(v int) int { return v + 1 }
 
 func TestMutate(t *testing.T) {
 	c := New[int]()
-	c.Set("k", Entry[int]{Value: 1, ETag: `"v1"`})
+	c.Set("k", Entry[int]{Value: 1, ETag: `"v1"`, Tags: []string{"t"}})
 	if _, ok := c.Mutate("k", inc); !ok {
 		t.Fatal("Mutate reported the key as missing")
 	}
 	e, st := c.Get("k")
-	if e.Value != 2 || e.ETag != `"v1"` || st != Fresh {
+	if e.Value != 2 || e.ETag != `"v1"` || len(e.Tags) != 1 || st != Fresh {
 		t.Errorf("Get = %+v, %v; want value 2 with the old metadata, fresh", e, st)
 	}
 }
@@ -209,5 +210,46 @@ func TestMutateResizes(t *testing.T) {
 	rollback()
 	if got := c.Size(); got != 2 {
 		t.Errorf("Size after rollback = %d, want 2", got)
+	}
+}
+
+// TestFailedChangeNotConfirmed checks that a change that a 304 confirmed
+// while it was sent, and that then failed, isn't confirmed again: the
+// rollback can't restore the entry, so it drops the validators.
+func TestFailedChangeNotConfirmed(t *testing.T) {
+	c := New[int]()
+	c.Set("k", Entry[int]{Value: 1, ETag: `"e1"`})
+	c.Invalidate("k")
+	rollback, _ := c.Mutate("k", inc)
+
+	// GitHub still has the value of "e1", and says so to a request that
+	// asks with it.
+	github := func(_ context.Context, prev Entry[int], _ bool) (Entry[int], error) {
+		if prev.ETag == `"e1"` {
+			return Entry[int]{}, ErrNotModified
+		}
+		return Entry[int]{Value: 1, ETag: `"e1"`}, nil
+	}
+	if e, err := c.Fetch(t.Context(), "k", github); err != nil || e.Value != 2 {
+		t.Fatalf("Fetch while the change is sent = %d, %v; want it shown", e.Value, err)
+	}
+	// The change fails.
+	rollback()
+	if e, st := c.Get("k"); e.ETag != "" || st != Stale {
+		t.Fatalf("after the rollback Get = %+v, %v; want it stale, without validators", e, st)
+	}
+	if e, err := c.Fetch(t.Context(), "k", github); err != nil || e.Value != 1 || e.ETag != `"e1"` {
+		t.Errorf("Fetch after the rollback = %+v, %v; want GitHub's 1 in full", e, err)
+	}
+}
+
+func TestRollbackKeepsNewerValidators(t *testing.T) {
+	c := New[int]()
+	c.Set("k", Entry[int]{Value: 1, ETag: `"e1"`})
+	rollback, _ := c.Mutate("k", inc)
+	c.Set("k", Entry[int]{Value: 5, ETag: `"e2"`})
+	rollback()
+	if e, st := c.Get("k"); e.Value != 5 || e.ETag != `"e2"` || st != Stale {
+		t.Errorf("Get = %+v, %v; want GitHub's newer entry, with its ETag, stale", e, st)
 	}
 }

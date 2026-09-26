@@ -271,17 +271,53 @@ func TestFetchKeepsNewerWrite(t *testing.T) {
 	tests := []struct {
 		name  string
 		write func(c *Cache[int])
+		value int
 		want  State
 	}{
-		{"set", func(c *Cache[int]) { c.Set("k", Entry[int]{Value: 2}) }, Fresh},
-		{"invalidate", func(c *Cache[int]) { c.Invalidate("k") }, Stale},
-		{"mutate", func(c *Cache[int]) { c.Mutate("k", func(v int) int { return v }) }, Stale},
+		{"set", func(c *Cache[int]) { c.Set("k", Entry[int]{Value: 2}) }, 2, Fresh},
+		{"mutate", func(c *Cache[int]) { c.Mutate("k", func(v int) int { return v }) }, 2, Stale},
+		// An invalidation isn't a newer value: the fetched one replaces the
+		// old, but stays stale, as it may predate what was invalidated.
+		{"invalidate", func(c *Cache[int]) { c.Invalidate("k") }, 1, Stale},
+		{"invalidate tag", func(c *Cache[int]) { c.InvalidateTag("t") }, 1, Stale},
+		{"invalidate then set", func(c *Cache[int]) {
+			c.Invalidate("k")
+			c.Set("k", Entry[int]{Value: 2})
+		}, 2, Fresh},
+		{"mutate then roll back", func(c *Cache[int]) {
+			rollback, _ := c.Mutate("k", func(v int) int { return v + 5 })
+			rollback()
+		}, 1, Fresh},
+		{"invalidate then mutate", func(c *Cache[int]) {
+			c.Invalidate("k")
+			c.Mutate("k", func(v int) int { return v + 5 })
+		}, 7, Stale},
+		{"mutate then invalidate", func(c *Cache[int]) {
+			c.Mutate("k", func(v int) int { return v + 5 })
+			c.Invalidate("k")
+		}, 7, Stale},
+		// The rollback finds the entry invalidated since, so it can only
+		// mark it stale, and the next Fetch reads it again.
+		{"mutate, invalidate, roll back", func(c *Cache[int]) {
+			rollback, _ := c.Mutate("k", func(v int) int { return v + 5 })
+			c.Invalidate("k")
+			rollback()
+		}, 7, Stale},
+		{"invalidate, mutate, roll back", func(c *Cache[int]) {
+			c.Invalidate("k")
+			rollback, _ := c.Mutate("k", func(v int) int { return v + 5 })
+			rollback()
+		}, 1, Stale},
+		{"mutate tag without a change, then invalidate", func(c *Cache[int]) {
+			c.MutateTag("t", func(v int) (int, bool) { return v, false })
+			c.Invalidate("k")
+		}, 1, Stale},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				c := New[int](WithTTL(time.Minute))
-				c.Set("k", Entry[int]{Value: 2})
+				c.Set("k", Entry[int]{Value: 2, Tags: []string{"t"}})
 				time.Sleep(time.Minute)
 
 				release := make(chan struct{})
@@ -295,8 +331,54 @@ func TestFetchKeepsNewerWrite(t *testing.T) {
 				if got.Value != 1 {
 					t.Errorf("Fetch returned %d, want 1", got.Value)
 				}
-				if e, st := c.Get("k"); e.Value != 2 || st != tt.want {
-					t.Errorf("Get = %d, %v; want 2, %v", e.Value, st, tt.want)
+				if e, st := c.Get("k"); e.Value != tt.value || st != tt.want {
+					t.Errorf("Get = %d, %v; want %d, %v", e.Value, st, tt.value, tt.want)
+				}
+			})
+		})
+	}
+}
+
+// TestFetchNotModifiedKeepsNewerWrite checks what a 304 keeps when the
+// entry changed while it was asked for: the entry it confirmed, stale, after
+// an invalidation, and the newer value after a write.
+func TestFetchNotModifiedKeepsNewerWrite(t *testing.T) {
+	tests := []struct {
+		name  string
+		write func(c *Cache[int])
+		value int
+		want  State
+	}{
+		{"nothing", func(*Cache[int]) {}, 2, Fresh},
+		{"invalidate", func(c *Cache[int]) { c.Invalidate("k") }, 2, Stale},
+		{"mutate", func(c *Cache[int]) { c.Mutate("k", func(v int) int { return v + 5 }) }, 7, Stale},
+		{"set", func(c *Cache[int]) { c.Set("k", Entry[int]{Value: 3}) }, 3, Fresh},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				c := New[int](WithTTL(time.Minute))
+				c.Set("k", Entry[int]{Value: 2, ETag: `"e"`})
+				time.Sleep(time.Minute)
+
+				release := make(chan struct{})
+				var got Entry[int]
+				go func() {
+					got, _ = c.Fetch(t.Context(), "k", func(context.Context, Entry[int], bool) (Entry[int], error) {
+						<-release
+						return Entry[int]{}, ErrNotModified
+					})
+				}()
+				synctest.Wait()
+				tt.write(c)
+				close(release)
+				synctest.Wait()
+
+				if got.Value != 2 {
+					t.Errorf("Fetch returned %d, want the confirmed 2", got.Value)
+				}
+				if e, st := c.Get("k"); e.Value != tt.value || st != tt.want {
+					t.Errorf("Get = %d, %v; want %d, %v", e.Value, st, tt.value, tt.want)
 				}
 			})
 		})

@@ -30,10 +30,11 @@ type flight[V any] struct {
 	// a newer flight may already be running.
 	abandoned bool
 
-	// The entry when the flight started, and its version.
-	prev    Entry[V]
-	hadPrev bool
-	version uint64
+	// The entry when the flight started, and its version and that of its
+	// latest write.
+	prev             Entry[V]
+	hadPrev          bool
+	version, written uint64
 
 	entry Entry[V]
 	err   error
@@ -44,8 +45,10 @@ type flight[V any] struct {
 // fn, which is canceled once every caller's context is done. Errors are
 // returned but not cached.
 //
-// If the entry is written or invalidated while fn runs, the cache keeps that
-// newer state and the result of fn goes only to the callers.
+// If the entry is written while fn runs, the cache keeps that newer write
+// and the result of fn goes only to the callers. If it is only invalidated,
+// the cache keeps the result, stale, so that the Cached reads show it and
+// the next Fetch asks again.
 func (c *Cache[V]) Fetch(ctx context.Context, key string, fn FetchFunc[V]) (Entry[V], error) {
 	c.mu.Lock()
 	n, ok := c.items[key]
@@ -97,7 +100,7 @@ func (c *Cache[V]) start(ctx context.Context, key string, n *node[V], fn FetchFu
 	fctx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	f := &flight[V]{done: make(chan struct{}), cancel: cancel}
 	if n != nil {
-		f.prev, f.hadPrev, f.version = n.entry, true, n.version
+		f.prev, f.hadPrev, f.version, f.written = n.entry, true, n.version, n.written
 	}
 	if c.flights == nil {
 		c.flights = make(map[string]*flight[V])
@@ -140,8 +143,16 @@ func (c *Cache[V]) finish(key string, f *flight[V], e Entry[V], err error) {
 	if f.abandoned {
 		return
 	}
-	if cur, ok := c.items[key]; !ok || cur.version == f.version {
+	switch cur, ok := c.items[key]; {
+	case !ok || cur.version == f.version:
 		c.set(key, e)
+	case cur.written == f.written:
+		// The entry was only invalidated since. The result is newer than
+		// what the cache holds, so it replaces that, but it may predate
+		// what the invalidation was for, so it stays stale and the next
+		// Fetch asks again, with its validators.
+		c.set(key, e)
+		c.markStale(c.items[key])
 	}
 }
 
