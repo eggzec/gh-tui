@@ -136,7 +136,7 @@ func listing(_ context.Context, _ core.RepoRef, _ core.State, cursor string, _ i
 func detail(_ context.Context, _ core.RepoRef, number int) (core.PullRequestDetail, error) {
 	return core.PullRequestDetail{
 		PullRequest: openPull(number),
-		CheckRuns:   []core.CheckRun{{Name: "test", Status: "completed", Conclusion: "success"}},
+		CheckCounts: core.CheckCounts{Passed: 1},
 	}, nil
 }
 
@@ -295,7 +295,7 @@ func TestGetFreshHitMakesNoCall(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Get: %v", err)
 		}
-		if d.Number != 1 || len(d.CheckRuns) != 1 {
+		if d.Number != 1 || d.CheckCounts.Total() != 1 {
 			t.Errorf("detail = %+v, want #1 with one check", d)
 		}
 	}

@@ -17,13 +17,11 @@ import (
 // mutation there returns the updated pull request, where the REST merge
 // returns only a commit SHA and REST has no draft endpoints.
 
-// Limits of the nested connections. Rows show a few labels, and the checks
-// summarize the pull request in its detail view. Reviews and comments are
-// paged on their own, as a thread can be long.
+// Limits of the nested connections. Rows show a few labels. Reviews and
+// comments are paged on their own, as a thread can be long.
 const (
 	pullLabels    = 20
 	pullAssignees = 10
-	pullChecks    = 100
 )
 
 // pullFields selects what core.PullRequest holds, apart from the body.
@@ -70,23 +68,25 @@ var listPullsQuery = `query ListPulls($owner: String!, $name: String!, $states: 
 }
 ` + pullFields
 
-var getPullQuery = fmt.Sprintf(`query GetPull($owner: String!, $name: String!, $number: Int!) {
-  %s
+// getPullQuery reads what the detail view shows on top of pullFields. The
+// checks of the head commit are only counted by outcome: the checks step
+// lists them with PullChecks.
+var getPullQuery = `query GetPull($owner: String!, $name: String!, $number: Int!) {
+  ` + rateLimitField + `
   repository(owner: $owner, name: $name) {
     pullRequest(number: $number) {
       ...pullFields
       body
       headCommit: commits(last: 1) {
-        nodes { commit { statusCheckRollup { contexts(first: %d) { nodes {
-          __typename
-          ... on CheckRun { name status conclusion detailsUrl }
-          ... on StatusContext { context state targetUrl }
-        } } } } }
+        nodes { commit { statusCheckRollup { contexts {
+          checkRunCountsByState { state count }
+          statusContextCountsByState { state count }
+        } } } }
       }
     }
   }
 }
-`, rateLimitField, pullChecks) + pullFields
+` + pullFields
 
 // pull is the JSON shape of pullFields.
 type pull struct {
@@ -184,7 +184,7 @@ type pullDetail struct {
 	HeadCommit nodes[struct {
 		Commit struct {
 			StatusCheckRollup *struct {
-				Contexts nodes[checkContext] `json:"contexts"`
+				Contexts pullCheckCounts `json:"contexts"`
 			} `json:"statusCheckRollup"`
 		} `json:"commit"`
 	}] `json:"headCommit"`
@@ -196,10 +196,58 @@ func (d pullDetail) core() core.PullRequestDetail {
 	out := core.PullRequestDetail{PullRequest: pr}
 	if len(d.HeadCommit.Nodes) > 0 {
 		if r := d.HeadCommit.Nodes[0].Commit.StatusCheckRollup; r != nil {
-			out.CheckRuns = convert(r.Contexts.Nodes, checkContext.core)
+			out.CheckCounts = r.Contexts.core()
 		}
 	}
 	return out
+}
+
+// pullCheckCounts is how many checks of a rollup are in each state: check
+// runs by CheckRunState, which folds their status and conclusion into one,
+// and commit statuses by StatusState.
+type pullCheckCounts struct {
+	CheckRuns []pullStateCount `json:"checkRunCountsByState"`
+	Statuses  []pullStateCount `json:"statusContextCountsByState"`
+}
+
+type pullStateCount struct {
+	State string `json:"state"`
+	Count int    `json:"count"`
+}
+
+func (c pullCheckCounts) core() core.CheckCounts {
+	var out core.CheckCounts
+	add := func(s core.ChecksState, n int) {
+		switch s {
+		case core.ChecksSuccess:
+			out.Passed += n
+		case core.ChecksPending:
+			out.Pending += n
+		default:
+			out.Failed += n
+		}
+	}
+	for _, r := range c.CheckRuns {
+		add(checkRunState(r.State), r.Count)
+	}
+	for _, st := range c.Statuses {
+		add(checksState(st.State), st.Count)
+	}
+	return out
+}
+
+// checkRunState maps a CheckRunState. A run that hasn't completed is
+// pending, one that was neutral or skipped passed, and one that completed
+// any other way, even without a conclusion, failed.
+func checkRunState(s string) core.ChecksState {
+	switch s {
+	case "QUEUED", "IN_PROGRESS", "PENDING", "WAITING":
+		return core.ChecksPending
+	case "SUCCESS", "NEUTRAL", "SKIPPED":
+		return core.ChecksSuccess
+	default:
+		return core.ChecksFailure
+	}
 }
 
 type review struct {
@@ -237,37 +285,6 @@ func (c pullComment) core() core.Comment {
 		out.Author = c.Author.core()
 	}
 	return out
-}
-
-// checkContext is a CheckRun or a StatusContext, the two kinds of checks in a
-// rollup.
-type checkContext struct {
-	Typename string `json:"__typename"`
-	// CheckRun fields.
-	Name       string `json:"name"`
-	Status     string `json:"status"`
-	Conclusion string `json:"conclusion"`
-	DetailsURL string `json:"detailsUrl"`
-	// StatusContext fields.
-	Context   string `json:"context"`
-	State     string `json:"state"`
-	TargetURL string `json:"targetUrl"`
-}
-
-func (c checkContext) core() core.CheckRun {
-	if c.Typename == "StatusContext" {
-		run := core.CheckRun{Name: c.Context, Status: "completed", Conclusion: strings.ToLower(c.State), URL: c.TargetURL}
-		if checksState(c.State) == core.ChecksPending {
-			run.Status, run.Conclusion = "pending", ""
-		}
-		return run
-	}
-	return core.CheckRun{
-		Name:       c.Name,
-		Status:     strings.ToLower(c.Status),
-		Conclusion: strings.ToLower(c.Conclusion),
-		URL:        c.DetailsURL,
-	}
 }
 
 // pullStates maps a state filter to the GraphQL PullRequestState list. The
@@ -382,7 +399,7 @@ func (c *Client) ProbePullRequests(ctx context.Context, repo core.RepoRef, cond 
 }
 
 // GetPullRequest returns pull request number of repo with its body and the
-// checks of its head commit. Its reviews and comments are read a page at a
+// counts of the checks of its head commit. Its reviews and comments are read a page at a
 // time with ListPullRequestReviews and ListPullRequestComments.
 func (c *Client) GetPullRequest(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error) {
 	vars := map[string]any{"owner": repo.Owner, "name": repo.Name, "number": number}

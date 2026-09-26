@@ -264,14 +264,30 @@ func TestGetPullRequest(t *testing.T) {
 		t.Errorf("review %q, checks %q, comments %d; want review_required, pending, 2",
 			got.ReviewDecision, got.Checks, got.Comments)
 	}
-	wantChecks := []core.CheckRun{
-		{Name: "test (ubuntu-latest)", Status: "completed", Conclusion: "success", URL: "https://github.com/eggzec/gh-tui/actions/runs/1001/job/2001"},
-		{Name: "lint", Status: "in_progress", URL: "https://github.com/eggzec/gh-tui/actions/runs/1001/job/2002"},
-		{Name: "ci/coverage", Status: "pending", URL: "https://coverage.example.com/eggzec/gh-tui/42"},
-		{Name: "license/cla", Status: "completed", Conclusion: "success", URL: "https://cla.example.com/eggzec/gh-tui"},
+	// The checks are counted, not listed: the checks step lists them.
+	if q := reqs()[0].Query; strings.Contains(q, "contexts(first") || strings.Contains(q, "CheckRun {") {
+		t.Errorf("detail query lists the checks:\n%s", q)
 	}
-	if !reflect.DeepEqual(got.CheckRuns, wantChecks) {
-		t.Errorf("check runs =\n%+v\nwant\n%+v", got.CheckRuns, wantChecks)
+	// A cancelled run and a failed status fail, a neutral run passes, and
+	// the running run and the pending status are pending.
+	if want := (core.CheckCounts{Passed: 3, Failed: 2, Pending: 2}); got.CheckCounts != want {
+		t.Errorf("check counts = %+v, want %+v", got.CheckCounts, want)
+	}
+}
+
+func TestCheckRunState(t *testing.T) {
+	tests := map[string]core.ChecksState{
+		"QUEUED": core.ChecksPending, "IN_PROGRESS": core.ChecksPending, "PENDING": core.ChecksPending, "WAITING": core.ChecksPending,
+		"SUCCESS": core.ChecksSuccess, "NEUTRAL": core.ChecksSuccess, "SKIPPED": core.ChecksSuccess,
+		"FAILURE": core.ChecksFailure, "CANCELLED": core.ChecksFailure, "TIMED_OUT": core.ChecksFailure,
+		"ACTION_REQUIRED": core.ChecksFailure, "STARTUP_FAILURE": core.ChecksFailure, "STALE": core.ChecksFailure,
+		// Completed without a conclusion.
+		"COMPLETED": core.ChecksFailure,
+	}
+	for state, want := range tests {
+		if got := checkRunState(state); got != want {
+			t.Errorf("checkRunState(%s) = %q, want %q", state, got, want)
+		}
 	}
 }
 
@@ -632,5 +648,8 @@ func TestGetPullRequestCaps(t *testing.T) {
 	}
 	if got.Number != 1816 || got.Locked || got.Caps != (core.ItemCaps{Known: true}) {
 		t.Errorf("#%d locked %v, caps %+v; want #1816 unlocked, with nothing allowed", got.Number, got.Locked, got.Caps)
+	}
+	if want := (core.CheckCounts{Passed: 34}); got.CheckCounts != want {
+		t.Errorf("check counts = %+v, want %+v", got.CheckCounts, want)
 	}
 }

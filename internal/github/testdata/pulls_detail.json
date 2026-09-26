@@ -30,33 +30,28 @@
               "commit": {
                 "statusCheckRollup": {
                   "contexts": {
-                    "nodes": [
-                      {
-                        "__typename": "CheckRun",
-                        "name": "test (ubuntu-latest)",
-                        "status": "COMPLETED",
-                        "conclusion": "SUCCESS",
-                        "detailsUrl": "https://github.com/eggzec/gh-tui/actions/runs/1001/job/2001"
-                      },
-                      {
-                        "__typename": "CheckRun",
-                        "name": "lint",
-                        "status": "IN_PROGRESS",
-                        "conclusion": null,
-                        "detailsUrl": "https://github.com/eggzec/gh-tui/actions/runs/1001/job/2002"
-                      },
-                      {
-                        "__typename": "StatusContext",
-                        "context": "ci/coverage",
-                        "state": "PENDING",
-                        "targetUrl": "https://coverage.example.com/eggzec/gh-tui/42"
-                      },
-                      {
-                        "__typename": "StatusContext",
-                        "context": "license/cla",
-                        "state": "SUCCESS",
-                        "targetUrl": "https://cla.example.com/eggzec/gh-tui"
-                      }
+                    "checkRunCountsByState": [
+                      {"state": "ACTION_REQUIRED", "count": 0},
+                      {"state": "CANCELLED", "count": 1},
+                      {"state": "COMPLETED", "count": 0},
+                      {"state": "FAILURE", "count": 0},
+                      {"state": "IN_PROGRESS", "count": 1},
+                      {"state": "NEUTRAL", "count": 1},
+                      {"state": "PENDING", "count": 0},
+                      {"state": "QUEUED", "count": 0},
+                      {"state": "SKIPPED", "count": 0},
+                      {"state": "STALE", "count": 0},
+                      {"state": "STARTUP_FAILURE", "count": 0},
+                      {"state": "SUCCESS", "count": 1},
+                      {"state": "TIMED_OUT", "count": 0},
+                      {"state": "WAITING", "count": 0}
+                    ],
+                    "statusContextCountsByState": [
+                      {"state": "EXPECTED", "count": 0},
+                      {"state": "ERROR", "count": 0},
+                      {"state": "FAILURE", "count": 1},
+                      {"state": "PENDING", "count": 1},
+                      {"state": "SUCCESS", "count": 1}
                     ]
                   }
                 }
