@@ -1,6 +1,7 @@
 package dashboard
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -130,5 +131,30 @@ func TestLayout(t *testing.T) {
 				t.Errorf("%d weeks show, want %d:\n%s", weeks, tt.weeks, strings.Join(bottom, "\n"))
 			}
 		})
+	}
+}
+
+// TestViewFits checks that every line of the dashboard is exactly as wide
+// as it and holds no tab, whichever icons draw it. It measures with
+// ansi.StringWidth, the renderer's own measure, so it catches padding and
+// truncation that disagree with it; it can't tell whether a terminal draws
+// a glyph of the private use area in one cell or two.
+func TestViewFits(t *testing.T) {
+	sizes := []struct{ width, height int }{{120, 36}, {80, 24}}
+	for _, icons := range []string{config.IconsNerd, config.IconsUnicode, config.IconsASCII} {
+		for _, sz := range sizes {
+			t.Run(fmt.Sprintf("%s/%dx%d", icons, sz.width, sz.height), func(t *testing.T) {
+				s := newSection(t, newFake(), &fakeInbox{threads: inboxThreads()}, sz.width, sz.height, WithIcons(ui.NewIcons(icons)))
+				for _, pane := range []string{"1", "2", "3", "4", "5"} {
+					press(t, s, pane)
+					for i, l := range strings.Split(s.View(), "\n") {
+						if w := ansi.StringWidth(l); w != sz.width || strings.ContainsAny(l, "\t\r") {
+							t.Errorf("pane %s: line %d is %d wide, want %d: %q", pane, i, w, sz.width, ansi.Strip(l))
+							break
+						}
+					}
+				}
+			})
+		}
 	}
 }
