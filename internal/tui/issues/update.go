@@ -87,7 +87,7 @@ func (s *Section) setRepo(repo core.RepoRef) tea.Cmd {
 	s.caps = ui.CachedCaps(s.repos, repo)
 	// The rate limit may be another's.
 	s.ahead.Resume()
-	s.others.Reset(s.ctx)
+	s.others.Reset(s.ctx, repo.String())
 	s.milestonesRead = false
 	// Other repositories have other labels.
 	s.chips = newChipCache(s.rows)
@@ -107,7 +107,7 @@ func (s *Section) setCaps(msg ui.CapsMsg) tea.Cmd {
 	case off && !wasOff:
 		// The reads ahead of the other tabs stop too.
 		s.cancelList()
-		s.others.Reset(s.ctx)
+		s.others.Reset(s.ctx, s.repo.String())
 		s.renderChrome()
 	case wasOff && !off:
 		return s.resetList()
@@ -153,8 +153,10 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 	case key.Matches(msg, k.Reopen):
 		return s.setState(core.StateOpen)
 	case key.Matches(msg, k.NextTab):
+		s.others.Arm()
 		return s.show(nextTab(s.tab, 1), s.query)
 	case key.Matches(msg, k.PrevTab):
+		s.others.Arm()
 		return s.show(nextTab(s.tab, -1), s.query)
 	case key.Matches(msg, k.ClearFilter):
 		return s.show(s.tab, "")
