@@ -349,14 +349,26 @@ func TestHelpNamesTheCommandKey(t *testing.T) {
 }
 
 func TestLineView(t *testing.T) {
+	cases := []struct {
+		name  string
+		typed string
+	}{
+		{name: "empty"},
+		{name: "plain", typed: "goto zz"},
+		{name: "commands", typed: "g"},
+		{name: "repos", typed: "goto "},
+		{name: "numbers", typed: "goto #"},
+	}
 	for _, width := range []int{80, 120} {
-		t.Run(strconv.Itoa(width), func(t *testing.T) {
-			m, _ := newTestApp(t)
-			m.Update(tea.WindowSizeMsg{Width: width, Height: 12})
-			drive(m, m.key(press(":")))
-			typeKeys(m, "q")
-			golden.RequireEqual(t, m.View().Content)
-		})
+		for _, c := range cases {
+			t.Run(strconv.Itoa(width)+"/"+c.name, func(t *testing.T) {
+				m, _ := newTestApp(t, WithRecall(newFakeRecall()))
+				m.Update(tea.WindowSizeMsg{Width: width, Height: 12})
+				drive(m, m.key(press(":")))
+				typeKeys(m, c.typed)
+				golden.RequireEqual(t, m.View().Content)
+			})
+		}
 	}
 }
 
