@@ -8,7 +8,13 @@ import "slices"
 // Call rollback if the change fails on the server. It restores the entry as
 // it was before Mutate. If the entry was written or invalidated since, it
 // invalidates the key instead, so newer data isn't overwritten with an old
-// snapshot. Calling rollback again does nothing.
+// snapshot. If the entry still has the validators it had before Mutate, a
+// 304 to them may have confirmed the change meanwhile, so it loses them too,
+// and the next read brings what GitHub has in full. Calling rollback again
+// does nothing.
+//
+// The entry keeps its validators while the change is sent, so that a 304
+// keeps showing a change GitHub accepted but hasn't applied yet.
 //
 // fn runs with the cache locked, so it must not use the cache. It must return
 // a new value rather than modify its argument, which rollback restores.
@@ -52,9 +58,9 @@ func (c *Cache[V]) MutateTag(tag string, fn func(V) (V, bool)) (rollback func())
 // mutate replaces the value of n, the node of key, with v and returns its
 // rollback. The caller holds c.mu.
 func (c *Cache[V]) mutate(key string, n *node[V], v V) (rollback func()) {
-	prev, prevStale, prevVersion := n.entry, n.stale, n.version
+	prev, prevStale, prevVersion, prevWritten := n.entry, n.stale, n.version, n.written
 	c.seq++
-	n.entry.Value, n.version = v, c.seq
+	n.entry.Value, n.version, n.written = v, c.seq, c.seq
 	c.resize(n)
 	version := n.version
 
@@ -73,9 +79,12 @@ func (c *Cache[V]) mutate(key string, n *node[V], v V) (rollback func()) {
 			// Restoring the old version too makes the entry exactly what it
 			// was, so nested rollbacks unwind in order and a Fetch that
 			// started before Mutate may still store its result.
-			cur.entry, cur.stale, cur.version = prev, prevStale, prevVersion
+			cur.entry, cur.stale, cur.version, cur.written = prev, prevStale, prevVersion, prevWritten
 			c.resize(cur)
 		default:
+			if cur.entry.ETag == prev.ETag && cur.entry.LastModified == prev.LastModified {
+				cur.entry.ETag, cur.entry.LastModified = "", ""
+			}
 			c.markStale(cur)
 		}
 	}
