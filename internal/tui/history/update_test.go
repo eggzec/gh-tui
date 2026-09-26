@@ -411,6 +411,25 @@ func TestFilterBranches(t *testing.T) {
 	}
 }
 
+// A later page of branches is read past what an earlier session kept of
+// it, so that it isn't shown stale for good.
+func TestKeptLaterBranchPageIsReadAgain(t *testing.T) {
+	f := newFake()
+	f.branchPages = map[string]core.Page[core.Branch]{
+		"":  {Items: []core.Branch{{Name: "main"}, {Name: "v2-exp"}}, Next: "2"},
+		"2": {Items: []core.Branch{{Name: "fix/tabs"}}},
+	}
+	f.keptBranches = map[string]bool{"2": true}
+	m, _ := newModal(t, f, 108, 30)
+	got := f.took()
+	if count(got, "branches@2 again") != 1 || count(got, "branches@2") != 0 {
+		t.Errorf("calls = %q, want page 2 read past the kept one", got)
+	}
+	if n := len(m.branches.items); n != 3 {
+		t.Errorf("%d branches listed, want both pages", n)
+	}
+}
+
 func TestStaleFirstPageIsReadAgain(t *testing.T) {
 	f := newFake()
 	f.stale = true

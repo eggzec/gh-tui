@@ -15,10 +15,28 @@ import (
 type fakeLister struct {
 	repos []core.Repo
 	err   error
+	// again records the Again of each list.
+	again []bool
 }
 
-func (f *fakeLister) List(context.Context, reposvc.ListQuery) (core.Page[core.Repo], error) {
+func (f *fakeLister) List(_ context.Context, q reposvc.ListQuery) (core.Page[core.Repo], error) {
+	f.again = append(f.again, q.Again)
 	return core.Page[core.Repo]{Items: f.repos}, f.err
+}
+
+// The first list may show the repositories an earlier session kept, and
+// every later one reads past them.
+func TestSearchStartReadsPastKeptList(t *testing.T) {
+	repos := &fakeLister{}
+	start := searchStart(repos, nil)
+	for range 3 {
+		if _, err := start(t.Context()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if want := []bool{false, true, true}; !slices.Equal(repos.again, want) {
+		t.Errorf("listed with Again %v, want %v", repos.again, want)
+	}
 }
 
 var (

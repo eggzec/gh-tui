@@ -38,7 +38,7 @@ func TestKeptListIsServedStaleThenFetched(t *testing.T) {
 	if calls := api.Calls(); len(calls) != 0 {
 		t.Errorf("calls = %q, want none for the kept page", calls)
 	}
-	if p, err = s.List(t.Context(), ListQuery{}); err != nil || p.Stale {
+	if p, err = s.List(t.Context(), ListQuery{}.again()); err != nil || p.Stale {
 		t.Fatalf("second List = %+v, %v; want the page fetched", p, err)
 	}
 	if calls := api.Calls(); len(calls) != 1 {
@@ -62,7 +62,7 @@ func TestKeptListOffline(t *testing.T) {
 			api := &fakeAPI{t: t, listRepos: func(int, string) (core.Page[core.Repo], error) { return core.Page[core.Repo]{}, tt.err }}
 			s := New(api, WithStore(cachetest.Aged(store, time.Hour)))
 			_, _ = s.List(t.Context(), ListQuery{})
-			p, err := s.List(t.Context(), ListQuery{})
+			p, err := s.List(t.Context(), ListQuery{}.again())
 			if tt.fallback != (err == nil && p.Offline && len(p.Items) == 1) {
 				t.Errorf("List = %+v, %v; want fallback %v", p, err, tt.fallback)
 			}

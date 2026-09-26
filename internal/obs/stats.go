@@ -169,7 +169,8 @@ const (
 	Revalidated
 	// Seeded is an entry put in memory from what an earlier session kept.
 	Seeded
-	// StaleServed is a kept entry served at once while it is revalidated.
+	// StaleServed is a kept entry served at once while it is revalidated,
+	// counted once however many readers it is served to.
 	StaleServed
 	// Evicted is an entry that made room for others.
 	Evicted

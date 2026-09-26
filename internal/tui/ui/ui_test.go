@@ -3,6 +3,7 @@ package ui
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 
 	"charm.land/bubbles/v2/key"
@@ -82,6 +83,42 @@ func TestThemeTakesPaletteColors(t *testing.T) {
 	}
 }
 
+// The read that follows a kept page of the same query asks GitHub, and
+// only that one: the others may be served the kept page.
+func TestFeedPagesRereadsKeptPage(t *testing.T) {
+	var (
+		rereads []bool
+		filter  = "a"
+	)
+	query := func(cursor string) string { return filter + "?" + cursor }
+	fetch := FeedPages("list.test", new(Offline), query, func(_ context.Context, _ string, again bool) (core.Page[int], error) {
+		rereads = append(rereads, again)
+		return core.Page[int]{Items: []int{1}, Stale: !again}, nil
+	})
+	_, _, err := fetch(t.Context(), "")
+	if !errors.Is(err, feed.ErrStale) {
+		t.Fatalf("first read error = %v, want feed.ErrStale", err)
+	}
+	if _, _, err := fetch(t.Context(), "other"); !errors.Is(err, feed.ErrStale) {
+		t.Fatalf("read of another page error = %v, want feed.ErrStale", err)
+	}
+	if _, _, err := fetch(t.Context(), ""); err != nil {
+		t.Fatalf("read again error = %v, want none", err)
+	}
+	if _, _, err := fetch(t.Context(), ""); !errors.Is(err, feed.ErrStale) {
+		t.Fatalf("later read error = %v, want feed.ErrStale", err)
+	}
+	// The first page of another filter isn't read with the flag that the
+	// old filter's kept page left.
+	filter = "b"
+	if _, _, err := fetch(t.Context(), ""); !errors.Is(err, feed.ErrStale) {
+		t.Fatalf("read of another filter error = %v, want feed.ErrStale", err)
+	}
+	if want := []bool{false, false, true, false, false}; !slices.Equal(rereads, want) {
+		t.Errorf("reads marked to read again = %v, want %v", rereads, want)
+	}
+}
+
 func TestFeedPages(t *testing.T) {
 	var off Offline
 	pages := map[string]core.Page[int]{
@@ -89,7 +126,7 @@ func TestFeedPages(t *testing.T) {
 		"stale": {Items: []int{2}, Next: "off", Offline: true},
 		"off":   {Items: []int{3}},
 	}
-	fetch := FeedPages("list.test", &off, func(_ context.Context, cursor string) (core.Page[int], error) {
+	fetch := FeedPages("list.test", &off, func(cursor string) string { return cursor }, func(_ context.Context, cursor string, _ bool) (core.Page[int], error) {
 		if cursor == "fail" {
 			return core.Page[int]{}, errors.New("boom")
 		}

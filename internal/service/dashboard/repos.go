@@ -32,6 +32,9 @@ type ReposQuery struct {
 	// PageSize is how many repositories a page holds. Zero means
 	// DefaultReposSize, and sizes above GitHub's maximum of 100 are clamped.
 	PageSize int
+	// Again reads past a kept page: set it on the read that follows one
+	// that came back Stale. It doesn't key the cache.
+	Again bool
 }
 
 func (q ReposQuery) normalize() ReposQuery {
@@ -66,7 +69,7 @@ func (s *Service) CachedRepos(q ReposQuery) (core.Page[core.Repo], bool) {
 // with an error matching core.ErrNotFound.
 func (s *Service) Repos(ctx context.Context, q ReposQuery) (core.Page[core.Repo], error) {
 	q = q.normalize()
-	p, err := s.repos.get(ctx, q.key(), func(ctx context.Context) (core.Page[core.Repo], error) {
+	p, err := s.repos.get(ctx, q.key(), q.Again, func(ctx context.Context) (core.Page[core.Repo], error) {
 		if q.Viewer {
 			return s.api.ViewerOwnRepos(ctx, q.PageSize, q.Cursor)
 		}

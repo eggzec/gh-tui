@@ -337,6 +337,12 @@ func (f *fakeService) addComments(number int, cs ...core.Comment) {
 func (f *fakeService) List(ctx context.Context, q issuesvc.ListQuery) (core.Page[core.Issue], error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	// Again reads past a kept page, but doesn't select another.
+	again := q.Again
+	q.Again = false
+	if again && f.servedStale != nil {
+		f.servedStale[q] = true
+	}
 	f.lists = append(f.lists, q)
 	if _, ok := f.pages[q]; !ok {
 		f.requests = append(f.requests, q)

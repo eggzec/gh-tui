@@ -89,13 +89,15 @@ func (b *branches) index(name string) int {
 	return slices.IndexFunc(b.items, func(br core.Branch) bool { return br.Name == name })
 }
 
-// loadBranches reads the page of branches after cursor.
-func (m *Modal) loadBranches(cursor string) tea.Cmd {
+// loadBranches reads the page of branches after cursor. With again set,
+// the read asks GitHub rather than serving the page an earlier session kept
+// once more.
+func (m *Modal) loadBranches(cursor string, again bool) tea.Cmd {
 	m.branches.loading = true
 	svc, ctx, repo, id := m.svc, m.ctx, m.repo, m.id
 	return tea.Batch(m.startSpinner(), func() tea.Msg {
 		ctx, end := obs.Begin(ctx, "history.branches")
-		p, err := svc.Branches(ctx, historysvc.BranchesQuery{Repo: repo, Cursor: cursor})
+		p, err := svc.Branches(ctx, historysvc.BranchesQuery{Repo: repo, Cursor: cursor, Again: again})
 		end(err, "span", "tui", "repo", repo.String(), "first", cursor == "", "stale", p.Stale)
 		return branchesMsg{id: id, cursor: cursor, page: p, err: err}
 	})
@@ -149,7 +151,7 @@ func (m *Modal) receiveBranches(msg branchesMsg) tea.Cmd {
 	}
 	cmds := []tea.Cmd{m.opts.offline.Notify(), m.moreBranches()}
 	if msg.page.Stale && msg.cursor == "" {
-		cmds = append(cmds, m.loadBranches(""))
+		cmds = append(cmds, m.loadBranches("", true))
 	}
 	if first {
 		cmds = append(cmds, m.branchMoved())
@@ -171,7 +173,9 @@ func (m *Modal) moreBranches() tea.Cmd {
 	if b.filter == nil && b.cursor+branchAhead < len(b.items) {
 		return nil
 	}
-	return m.loadBranches(b.next)
+	// A later page is appended where it goes rather than shown and read
+	// again, so it reads past what an earlier session kept of it.
+	return m.loadBranches(b.next, true)
 }
 
 // scrollBranches keeps the cursor in the window of the branch pane.
@@ -209,7 +213,7 @@ func (m *Modal) pressBranches(msg tea.KeyPressMsg) tea.Cmd {
 		if b.loaded {
 			cursor = b.next
 		}
-		return m.loadBranches(cursor)
+		return m.loadBranches(cursor, false)
 	case key.Matches(msg, k.Up):
 		b.cursor--
 	case key.Matches(msg, k.Down):

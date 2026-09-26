@@ -121,7 +121,7 @@ func (m *Modal) readHead() tea.Cmd {
 	svc, repo, ctx, id, gen, branch := m.svc, m.repo, g.ctx, m.id, g.gen, g.branch
 	return func() tea.Msg {
 		ctx, end := obs.Begin(ctx, "history.head")
-		p, err := svc.Commits(ctx, historysvc.CommitsQuery{Repo: repo, Ref: branch, PageSize: pageSize})
+		p, err := svc.Commits(ctx, historysvc.CommitsQuery{Repo: repo, Ref: branch, PageSize: pageSize, Again: true})
 		end(err, "span", "tui", "repo", repo.String(), "ref", branch)
 		msg := headMsg{id: id, gen: gen, err: err}
 		if len(p.Items) > 0 {

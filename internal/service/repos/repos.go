@@ -40,6 +40,9 @@ type ListQuery struct {
 	// PageSize is how many repositories a page holds. Zero means
 	// DefaultPageSize, and sizes above GitHub's maximum of 100 are clamped.
 	PageSize int
+	// Again reads past a kept page: set it on the read that follows one
+	// that came back Stale. It doesn't key the cache.
+	Again bool
 }
 
 func (q ListQuery) normalize() ListQuery {
@@ -101,12 +104,12 @@ func (s *Service) CachedList(q ListQuery) (core.Page[core.Repo], bool) {
 //
 // A page that only an earlier session kept is fresh if it was fetched or
 // revalidated within the TTL. An older one is returned at once, with Stale
-// set, and reading it again fetches it. If GitHub can't be reached, a stale
-// page is served with Offline set.
+// set, to every read until one with q.Again set fetches it. If GitHub can't
+// be reached, a stale page is served with Offline set.
 func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.Repo], error) {
 	q = q.normalize()
 	key := listKey(q)
-	if e, ok := s.kept.Warm(s.lists, key); ok {
+	if e, ok := s.kept.Warm(s.lists, key, q.Again); ok {
 		p := e.Value
 		p.Stale = true
 		return p, nil
@@ -154,7 +157,7 @@ func (s *Service) Get(ctx context.Context, ref core.RepoRef) (core.Repo, error) 
 	key := repoKey(ref)
 	// A stale kept repository is only what to fall back on, as the header
 	// and the gates read it once and would keep it.
-	s.keptRepos.Warm(s.repos, key)
+	s.keptRepos.Warm(s.repos, key, true)
 	e, err := s.repos.Fetch(ctx, key, func(ctx context.Context, prev cache.Entry[core.Repo], ok bool) (cache.Entry[core.Repo], error) {
 		r, err := s.api.GetRepo(ctx, ref)
 		switch {

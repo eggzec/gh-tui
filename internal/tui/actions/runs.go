@@ -106,8 +106,11 @@ var errNoViewer = errors.New("who you are is unknown")
 // newRuns returns the feed of the runs that the filter selects.
 func (m *Modal) newRuns() feed.Model[core.Run] {
 	svc, repo, f, viewer := m.svc, m.repo, m.filter, m.opts.viewer
-	read := func(ctx context.Context, cursor string) (core.Page[core.Run], error) {
-		q := actionssvc.RunsQuery{Repo: repo, Filter: f, Cursor: cursor}
+	query := func(cursor string) actionssvc.RunsQuery {
+		return actionssvc.RunsQuery{Repo: repo, Filter: f, Cursor: cursor}
+	}
+	read := func(ctx context.Context, q actionssvc.RunsQuery, again bool) (core.Page[core.Run], error) {
+		q.Again = again
 		if q.Filter.Actor == me {
 			if viewer == nil {
 				return core.Page[core.Run]{}, errNoViewer
@@ -120,7 +123,7 @@ func (m *Modal) newRuns() feed.Model[core.Run] {
 		}
 		return svc.Runs(ctx, q)
 	}
-	return feed.New(ui.FeedPages("list.runs", m.opts.offline, read), m.renderRun,
+	return feed.New(ui.FeedPages("list.runs", m.opts.offline, query, read), m.renderRun,
 		feed.WithContext(m.ctx),
 		feed.WithKey(func(r core.Run) string { return strconv.FormatInt(r.ID, 10) }),
 		feed.WithKeyMap(m.keys.List),

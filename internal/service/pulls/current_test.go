@@ -66,6 +66,15 @@ func list(t *testing.T, s *Service, q ListQuery) {
 	}
 }
 
+// relist reads q again after a read that served it kept, which asks
+// GitHub.
+func relist(t *testing.T, s *Service, q ListQuery) {
+	t.Helper()
+	if _, err := s.List(t.Context(), q.again()); err != nil {
+		t.Fatalf("List: %v", err)
+	}
+}
+
 func wantCalls(t *testing.T, api *fakeAPI, get, comments int) {
 	t.Helper()
 	if n := api.count("get"); n != get {

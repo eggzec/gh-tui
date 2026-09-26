@@ -60,7 +60,7 @@ func revisit(t *testing.T, api *fakeAPI, store *disk.Store) (*Service, core.Page
 	if p, err := s.List(t.Context(), openList); err != nil || !p.Stale {
 		t.Fatalf("first List = %+v, %v; want the kept page, stale", p, err)
 	}
-	p, err := s.List(t.Context(), openList)
+	p, err := s.List(t.Context(), openList.again())
 	return s, p, err
 }
 
@@ -274,7 +274,7 @@ func TestListInvalidatedWhileRead(t *testing.T) {
 	}
 	done := make(chan error)
 	go func() {
-		_, err := s.List(t.Context(), openList)
+		_, err := s.List(t.Context(), openList.again())
 		done <- err
 	}()
 	<-started

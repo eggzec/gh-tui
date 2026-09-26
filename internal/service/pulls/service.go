@@ -145,6 +145,9 @@ type ListQuery struct {
 	// PageSize is how many pull requests the page holds at most. Zero means
 	// 30, and GitHub's maximum of 100 caps it.
 	PageSize int
+	// Again reads past a kept page: set it on the read that follows one
+	// that came back Stale. It doesn't key the cache.
+	Again bool
 }
 
 func (q ListQuery) key() string {
@@ -268,12 +271,12 @@ func (s *Service) CachedList(q ListQuery) (core.Page[core.PullRequest], bool) {
 // FreshList reports whether the page for q is cached and fresh, so that
 // List returns it without a request: read this session, or kept by an
 // earlier one and fetched within the TTL. A page kept longer ago is put in
-// memory stale, so that List fetches it rather than serving it as it is.
-// It may read the store, so call it where I/O is fine, such as in a
-// tea.Cmd.
+// memory stale, so that a List with q.Again set fetches it with its
+// validators. It may read the store, so call it where I/O is fine, such as
+// in a tea.Cmd.
 func (s *Service) FreshList(q ListQuery) bool {
 	key := q.key()
-	s.keptLists.Warm(s.lists, key)
+	s.keptLists.Warm(s.lists, key, true)
 	return fresh(s.lists, key)
 }
 
@@ -288,9 +291,10 @@ func (s *Service) FreshList(q ListQuery) bool {
 //
 // A page that only an earlier session kept is fresh if it was fetched or
 // revalidated within the TTL. An older one is returned at once, with Stale
-// set, and reading it again fetches it, unless a free probe finds that no
-// pull request of the repository changed since it was read: see loadList.
-// If GitHub can't be reached, a stale page is served with Offline set.
+// set, to every read until one with q.Again set fetches it, unless a free
+// probe finds that no pull request of the repository changed since it was
+// read: see loadList. If GitHub can't be reached, a stale page is served
+// with Offline set.
 func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.PullRequest], error) {
 	key := q.key()
 	shelf := s.keptLists
@@ -299,7 +303,7 @@ func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.PullReq
 		// visit starts from are kept.
 		shelf = nil
 	}
-	if e, ok := shelf.Warm(s.lists, key); ok {
+	if e, ok := shelf.Warm(s.lists, key, q.Again); ok {
 		// The page vouches for what is cached of its pull requests as of
 		// when it was read, like the other pages shown with it.
 		s.vouch(q.Repo, e.Value.Page.Items)
@@ -335,7 +339,7 @@ func (s *Service) CachedGet(repo core.RepoRef, number int) (core.PullRequestDeta
 // served if GitHub can't be reached.
 func (s *Service) Get(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error) {
 	key := detailKey(repo, number)
-	s.keptDetails.Warm(s.details, key)
+	s.keptDetails.Warm(s.details, key, true)
 	if d, ok := s.currentDetail(key); ok {
 		return d, nil
 	}

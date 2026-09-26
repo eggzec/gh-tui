@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -17,10 +18,13 @@ type repoLister interface {
 }
 
 // searchStart lists the repositories the search page offers before the
-// user types: those pinned in the config, then the viewer's own.
+// user types: those pinned in the config, then the viewer's own. The first
+// list may be the one an earlier session kept, which the search page shows
+// as it is, so every later one reads past it.
 func searchStart(repos repoLister, pinned []core.RepoRef) searchpage.Start {
+	var listed atomic.Bool
 	return func(ctx context.Context) ([]core.Repo, error) {
-		p, err := repos.List(ctx, reposvc.ListQuery{})
+		p, err := repos.List(ctx, reposvc.ListQuery{Again: listed.Swap(true)})
 		if err != nil {
 			return nil, fmt.Errorf("list your repositories: %w", friendly(err))
 		}

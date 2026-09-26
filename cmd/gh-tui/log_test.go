@@ -107,8 +107,13 @@ func TestTracePropagates(t *testing.T) {
 	}
 	svc := pullsvc.New(client)
 	q := pullsvc.ListQuery{Repo: core.RepoRef{Owner: "cli", Name: "cli"}}
-	fetch := ui.FeedPages("list.pulls", new(ui.Offline), func(ctx context.Context, cursor string) (core.Page[core.PullRequest], error) {
+	query := func(cursor string) pullsvc.ListQuery {
+		q := q
 		q.Cursor = cursor
+		return q
+	}
+	fetch := ui.FeedPages("list.pulls", new(ui.Offline), query, func(ctx context.Context, q pullsvc.ListQuery, again bool) (core.Page[core.PullRequest], error) {
+		q.Again = again
 		return svc.List(ctx, q)
 	})
 	if _, _, err := fetch(context.Background(), ""); err != nil {

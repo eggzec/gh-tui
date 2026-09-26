@@ -117,12 +117,12 @@ func (r *reads[V]) cached(key string) (V, bool) {
 
 // get returns the value under key. A fresh value in memory is returned
 // without a request, and so is one kept by an earlier session within the
-// TTL. An older kept one is returned at once, marked stale, and the next
-// read fetches it. Otherwise get fetches the value, stores it and keeps
-// it. If GitHub can't be reached, the stale value is served marked
-// offline; if GitHub refuses, the kept one is dropped.
-func (r *reads[V]) get(ctx context.Context, key string, fetch func(context.Context) (V, error)) (V, error) {
-	if e, ok := r.kept.Warm(r.mem, key); ok {
+// TTL. An older kept one is returned at once, marked stale, until a read
+// with again set fetches it. Otherwise get fetches the value, stores it
+// and keeps it. If GitHub can't be reached, the stale value is served
+// marked offline; if GitHub refuses, the kept one is dropped.
+func (r *reads[V]) get(ctx context.Context, key string, again bool, fetch func(context.Context) (V, error)) (V, error) {
+	if e, ok := r.kept.Warm(r.mem, key, again); ok {
 		v := e.Value
 		stale, _ := r.flags(&v)
 		*stale = true

@@ -49,7 +49,7 @@ func TestBranches(t *testing.T) {
 		t.Fatalf("kept Branches = %+v, %v; want the kept page, stale", p, err)
 	}
 	f.wantCalls(t)
-	if p, err = later.Branches(t.Context(), q); err != nil || p.Stale {
+	if p, err = later.Branches(t.Context(), q.again()); err != nil || p.Stale {
 		t.Fatalf("Branches = %+v, %v", p, err)
 	}
 	f.wantCalls(t, `branches octo-org/hello 100 "" "0003"`)
@@ -112,7 +112,7 @@ func TestCommitsRefPageRevalidates(t *testing.T) {
 		t.Fatalf("kept page = %+v, %v", p, err)
 	}
 	f.wantCalls(t)
-	if p, err = s.Commits(t.Context(), q); err != nil || p.Stale {
+	if p, err = s.Commits(t.Context(), q.again()); err != nil || p.Stale {
 		t.Fatalf("Commits = %+v, %v", p, err)
 	}
 	f.wantCalls(t, `commits octo-org/hello main 50 "" "0003"`)
@@ -174,7 +174,7 @@ func TestCommitsRefusedDropsKept(t *testing.T) {
 	if _, err := s.Commits(t.Context(), q); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.Commits(t.Context(), q); !errors.Is(err, core.ErrNotFound) {
+	if _, err := s.Commits(t.Context(), q.again()); !errors.Is(err, core.ErrNotFound) {
 		t.Fatalf("err = %v, want core.ErrNotFound", err)
 	}
 	f.fail(nil)

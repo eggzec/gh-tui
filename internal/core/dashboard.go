@@ -47,7 +47,8 @@ type Header struct {
 	Pinned  []Repo
 	Orgs    []Org
 	// Stale reports that the header was kept by an earlier session and is
-	// served before GitHub was asked again. Reading it again asks GitHub.
+	// served before GitHub was asked again. Reading it again with the
+	// query's Again set asks GitHub.
 	Stale bool
 	// Offline reports that GitHub couldn't be reached, so the header is the
 	// one read last.

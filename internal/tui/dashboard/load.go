@@ -37,45 +37,45 @@ type loadedMsg struct {
 // load reads everything the dashboard shows. Each read serves what the
 // cache has at once, so a fresh cache costs no request.
 func (s *Section) load() tea.Cmd {
-	cmds := []tea.Cmd{s.readHeader(), s.readWork(), s.readContributions(), s.readInbox()}
+	cmds := []tea.Cmd{s.readHeader(false), s.readWork(false), s.readContributions(false), s.readInbox(false)}
 	if s.here != (core.RepoRef{}) && s.getHere != nil && !s.hereRepo.ok {
 		cmds = append(cmds, s.readHere())
 	}
 	return tea.Batch(cmds...)
 }
 
-func (s *Section) readHeader() tea.Cmd {
+func (s *Section) readHeader(again bool) tea.Cmd {
 	s.header.loading = true
 	return readCmd(s, kindHeader, "dashboard.header", func(ctx context.Context) (core.Header, bool, bool, error) {
-		h, err := s.svc.Header(ctx)
+		h, err := s.svc.Header(ctx, dashboard.HeaderQuery{Again: again})
 		return h, h.Stale, h.Offline, err
 	})
 }
 
-func (s *Section) readWork() tea.Cmd {
+func (s *Section) readWork(again bool) tea.Cmd {
 	s.work.loading = true
 	return readCmd(s, kindWork, "dashboard.work", func(ctx context.Context) (core.Work, bool, bool, error) {
-		w, err := s.svc.Work(ctx, dashboard.WorkQuery{})
+		w, err := s.svc.Work(ctx, dashboard.WorkQuery{Again: again})
 		return w, w.Stale, w.Offline, err
 	})
 }
 
-func (s *Section) readContributions() tea.Cmd {
+func (s *Section) readContributions(again bool) tea.Cmd {
 	s.contribs.loading = true
 	return readCmd(s, kindContributions, "dashboard.contributions", func(ctx context.Context) (core.Contributions, bool, bool, error) {
-		c, err := s.svc.Contributions(ctx)
+		c, err := s.svc.Contributions(ctx, dashboard.ContributionsQuery{Again: again})
 		return c, c.Stale, c.Offline, err
 	})
 }
 
-func (s *Section) readInbox() tea.Cmd {
+func (s *Section) readInbox(again bool) tea.Cmd {
 	if s.inbox == nil {
 		return nil
 	}
 	s.notes.loading = true
 	in := s.inbox
 	return readCmd(s, kindInbox, "dashboard.inbox", func(ctx context.Context) (core.Page[core.Notification], bool, bool, error) {
-		p, err := in.List(ctx, notifications.ListQuery{})
+		p, err := in.List(ctx, notifications.ListQuery{Again: again})
 		return p, p.Stale, p.Offline, err
 	})
 }
@@ -89,8 +89,7 @@ func (s *Section) readHere() tea.Cmd {
 	})
 }
 
-// readCmd runs read in a command, as a trace of its own named name. A value
-// that an earlier session kept is shown, and read again at once.
+// readCmd runs read in a command, as a trace of its own named name.
 func readCmd[V any](s *Section, k kind, name string, read func(ctx context.Context) (v V, stale, offline bool, err error)) tea.Cmd {
 	ctx, id, gen, off := s.ctx, s.id, s.gen, s.offline
 	return func() tea.Msg {
@@ -117,7 +116,7 @@ func (s *Section) loaded(msg loadedMsg) tea.Cmd {
 		}
 		s.setHeader()
 		if s.header.value.Stale {
-			return s.readHeader()
+			return s.readHeader(true)
 		}
 		// The organizations are known now, so their tabs are too.
 		return s.repos.start()
@@ -127,7 +126,7 @@ func (s *Section) loaded(msg loadedMsg) tea.Cmd {
 		}
 		s.tasks.set(s.work.value)
 		if s.work.value.Stale {
-			return s.readWork()
+			return s.readWork(true)
 		}
 	case kindContributions:
 		if !take(&s.contribs, msg) {
@@ -135,7 +134,7 @@ func (s *Section) loaded(msg loadedMsg) tea.Cmd {
 		}
 		s.setContributions()
 		if s.contribs.value.Stale {
-			return s.readContributions()
+			return s.readContributions(true)
 		}
 	case kindInbox:
 		if !take(&s.notes, msg) {
@@ -143,7 +142,7 @@ func (s *Section) loaded(msg loadedMsg) tea.Cmd {
 		}
 		s.setInbox()
 		if s.notes.value.Stale {
-			return s.readInbox()
+			return s.readInbox(true)
 		}
 	case kindHere:
 		if take(&s.hereRepo, msg) {

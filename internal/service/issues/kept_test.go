@@ -119,7 +119,7 @@ func TestKeptListIsServedStaleThenRevalidated(t *testing.T) {
 	}
 
 	// Reading it again asks GitHub with the kept ETag, which is free.
-	p, err = s.List(t.Context(), openSeven)
+	p, err = s.List(t.Context(), openSeven.again())
 	if err != nil || p.Stale || !equalNumbers(numbers(p), 7) {
 		t.Fatalf("second List = %+v, %v; want the page revalidated", p, err)
 	}
@@ -181,8 +181,8 @@ func TestFreshListOfPageKeptLongAgo(t *testing.T) {
 	if s.FreshList(openSeven) {
 		t.Fatal("FreshList of a page kept an hour ago = true, want false")
 	}
-	// List revalidates it rather than serving the kept page.
-	p, err := s.List(t.Context(), openSeven)
+	// A read ahead revalidates it rather than serving the kept page.
+	p, err := s.List(t.Context(), openSeven.again())
 	if err != nil || p.Stale || !equalNumbers(numbers(p), 7) {
 		t.Fatalf("List = %+v, %v; want the page revalidated", p, err)
 	}
@@ -198,7 +198,7 @@ func TestKeptListChanged(t *testing.T) {
 
 	s := New(srv.api(t), WithStore(cachetest.Aged(store, time.Hour)))
 	listIssues(t, s, openSeven)
-	p, err := s.List(t.Context(), openSeven)
+	p, err := s.List(t.Context(), openSeven.again())
 	if err != nil || p.Stale || !p.Items[0].UpdatedAt.Equal(later) {
 		t.Fatalf("List after revalidating = %+v, %v; want GitHub's newer page", p, err)
 	}
@@ -217,7 +217,7 @@ func TestKeptIssueIsCurrentAfterRestart(t *testing.T) {
 	api := srv.api(t)
 	s := New(api, WithStore(cachetest.Aged(store, time.Hour)))
 	listIssues(t, s, openSeven)
-	listIssues(t, s, openSeven)
+	relistIssues(t, s, openSeven)
 	api.checkCalls(t, "ListIssues")
 	// The list vouches for the kept issue and comments, so they cost
 	// nothing, not even a 304.
@@ -251,7 +251,7 @@ func TestKeptIssueRevalidatesWhenNewer(t *testing.T) {
 	}
 	s := New(api, WithStore(cachetest.Aged(store, time.Hour)))
 	listIssues(t, s, openSeven)
-	listIssues(t, s, openSeven)
+	relistIssues(t, s, openSeven)
 	readIssue(t, s)
 	api.checkCalls(t, "ListIssues", "GetIssue", "ListIssueComments")
 	if want := fmt.Sprintf(`"%d-2"`, epoch.Unix()); len(conds) != 1 || conds[0] != want {
@@ -301,7 +301,7 @@ func TestKeptOffline(t *testing.T) {
 
 			s := New(srv.api(t), WithStore(cachetest.Aged(store, time.Hour)))
 			listIssues(t, s, openSeven)
-			p, err := s.List(t.Context(), openSeven)
+			p, err := s.List(t.Context(), openSeven.again())
 			// Without a list to vouch for them, the issue and its
 			// comments are asked for.
 			other := New(srv.api(t), WithStore(cachetest.Aged(store, time.Hour)))
@@ -381,7 +381,7 @@ func TestKeptCommentIsNotKeptUntilConfirmed(t *testing.T) {
 			if confirm {
 				// The next read after the change brings GitHub's page.
 				listIssues(t, next, openSeven)
-				listIssues(t, next, openSeven)
+				relistIssues(t, next, openSeven)
 			}
 			c, err := next.Comments(t.Context(), sevenComments)
 			if err != nil {

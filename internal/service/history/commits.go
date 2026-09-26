@@ -27,6 +27,9 @@ type CommitsQuery struct {
 	// PageSize defaults to DefaultCommitPageSize and is at most 100. A
 	// cursor keeps the size of the page it came from.
 	PageSize int
+	// Again reads past a kept page: set it on the read that follows one
+	// that came back Stale. It doesn't key the cache.
+	Again bool
 }
 
 func (q CommitsQuery) normalize() CommitsQuery {
@@ -74,7 +77,7 @@ func (s *Service) Commits(ctx context.Context, q CommitsQuery) (core.Page[core.C
 		})
 	} else {
 		key := refPageKey(q)
-		if e, ok := s.keptRefPages.Warm(s.refPages, key); ok {
+		if e, ok := s.keptRefPages.Warm(s.refPages, key, q.Again); ok {
 			p := e.Value
 			p.Stale = true
 			return p, nil

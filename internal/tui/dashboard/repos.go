@@ -83,9 +83,13 @@ func (t *repoTabs) newOwner(label string, q dashboard.ReposQuery) *owner {
 	if len(t.tabs) > 0 {
 		o.filter.Store(t.tabs[0].filter.Load())
 	}
-	read := func(ctx context.Context, cursor string) (core.Page[core.Repo], error) {
+	query := func(cursor string) dashboard.ReposQuery {
 		q := q
 		q.Cursor = cursor
+		return q
+	}
+	read := func(ctx context.Context, q dashboard.ReposQuery, again bool) (core.Page[core.Repo], error) {
+		q.Again = again
 		f := o.filter.Load()
 		if f == nil || !f.active() {
 			return s.svc.Repos(ctx, q)
@@ -101,7 +105,7 @@ func (t *repoTabs) newOwner(label string, q dashboard.ReposQuery) *owner {
 		empty = o.emptyText(f)
 	}
 	render := func(r core.Repo, selected bool, _ int) string { return s.renderRepo(o.cols, r, selected) }
-	o.feed = feed.New(ui.FeedPages("dashboard.repos", s.offline, read), render,
+	o.feed = feed.New(ui.FeedPages("dashboard.repos", s.offline, query, read), render,
 		feed.WithContext(s.ctx),
 		feed.WithKey(func(r core.Repo) string { return r.Ref.String() }),
 		feed.WithKeyMap(s.keys.feed),

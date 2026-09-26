@@ -25,6 +25,9 @@ type RunsQuery struct {
 	Cursor string
 	// PageSize defaults to DefaultRunPageSize and is at most 100.
 	PageSize int
+	// Again reads past a kept page: set it on the read that follows one
+	// that came back Stale. It doesn't key the cache.
+	Again bool
 }
 
 func (q RunsQuery) normalize() RunsQuery {
@@ -88,9 +91,9 @@ func (s *Service) CachedRuns(q RunsQuery) (core.Page[core.Run], bool) {
 
 // Runs returns a page of the runs of q.Repo that match q.Filter, newest
 // first. A page is revalidated with its ETag. A first page kept by an
-// earlier session is served at once with Stale set, and the next read asks
-// GitHub; while GitHub can't be reached, the page read last is served with
-// Offline set.
+// earlier session is served at once with Stale set, until a read with
+// q.Again set asks GitHub; while GitHub can't be reached, the page read
+// last is served with Offline set.
 func (s *Service) Runs(ctx context.Context, q RunsQuery) (core.Page[core.Run], error) {
 	q = q.normalize()
 	key := runsKey(q)
@@ -98,7 +101,7 @@ func (s *Service) Runs(ctx context.Context, q RunsQuery) (core.Page[core.Run], e
 	var shelf *cache.Shelf[core.Page[core.Run]]
 	if q.Cursor == "" {
 		shelf = s.keptRuns
-		if e, ok := shelf.Warm(s.runs, key); ok {
+		if e, ok := shelf.Warm(s.runs, key, q.Again); ok {
 			p := e.Value
 			p.Stale = true
 			return p, nil
@@ -164,11 +167,20 @@ func (s *Service) CachedWorkflows(repo core.RepoRef) (core.Page[core.Workflow], 
 	return e.Value, st != cache.Miss
 }
 
-// Workflows returns the first hundred workflows of repo, to filter runs
+// WorkflowsQuery selects the workflows of a repository.
+type WorkflowsQuery struct {
+	Repo core.RepoRef
+	// Again reads past a kept page: set it on the read that follows one
+	// that came back Stale. It doesn't key the cache.
+	Again bool
+}
+
+// Workflows returns the first hundred workflows of q.Repo, to filter runs
 // by, revalidated and kept like the first page of runs.
-func (s *Service) Workflows(ctx context.Context, repo core.RepoRef) (core.Page[core.Workflow], error) {
+func (s *Service) Workflows(ctx context.Context, q WorkflowsQuery) (core.Page[core.Workflow], error) {
+	repo := q.Repo
 	key := workflowsKey(repo)
-	if e, ok := s.keptWorkflows.Warm(s.workflows, key); ok {
+	if e, ok := s.keptWorkflows.Warm(s.workflows, key, q.Again); ok {
 		p := e.Value
 		p.Stale = true
 		return p, nil

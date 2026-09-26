@@ -112,28 +112,38 @@ func (s *Shelf[V]) load(key string, get func(kind, key string) ([]byte, bool)) (
 
 // Warm puts the entry kept under key into c, unless c has an entry for key
 // already, as Seed does: fresh if it was fetched or revalidated within the
-// TTL of c, and stale otherwise. It returns a stale entry it put, so that a
-// caller may serve it at once while the next Fetch revalidates it, and
-// reports false otherwise; a fresh one is in c, where Fetch finds it. It
-// reads the store only when c misses, so call it where I/O is fine, such as
-// in a tea.Cmd, rather than in a Cached read.
-func (s *Shelf[V]) Warm(c *Cache[V], key string) (Entry[V], bool) {
+// TTL of c, and stale otherwise. It returns the entry, stale, so that the
+// caller may serve it at once, and reports false for a fresh one, which is
+// in c, where Fetch finds it.
+//
+// Until something writes over the stale entry, such as a fetch, Warm
+// returns it to every caller, so that readers that start at once all serve
+// it at once, however they race to read the store. Each then reads again
+// with again set, for which Warm only puts the entry in c and reports
+// false, and those reads share one Fetch that revalidates it; so does a
+// caller that needs the entry in c rather than served. It reads the store
+// only when c misses, so call it where I/O is fine, such as in a tea.Cmd,
+// rather than in a Cached read.
+func (s *Shelf[V]) Warm(c *Cache[V], key string, again bool) (Entry[V], bool) {
 	if s == nil {
 		return Entry[V]{}, false
 	}
-	if _, st := c.Get(key); st != Miss {
+	if _, st := c.Get(key); st == Miss {
+		if e, ok := s.Load(key); ok && c.Seed(key, e) {
+			if _, st := c.Get(key); st == Stale && obs.Enabled(context.Background(), slog.LevelDebug) {
+				slog.Debug("cache", "span", "cache.disk", "kind", kindOf(key), "key", key, "found", "stale", "fetched_at", e.FetchedAt)
+			}
+		}
+	}
+	if again {
 		return Entry[V]{}, false
 	}
-	e, ok := s.Load(key)
-	if !ok || !c.Seed(key, e) {
+	e, first, ok := c.seeded(key)
+	if !ok {
 		return Entry[V]{}, false
 	}
-	if _, st := c.Get(key); st != Stale {
-		return Entry[V]{}, false
-	}
-	obs.CountCache(kindOf(key), obs.StaleServed)
-	if obs.Enabled(context.Background(), slog.LevelDebug) {
-		slog.Debug("cache", "span", "cache.disk", "kind", kindOf(key), "key", key, "found", "stale", "fetched_at", e.FetchedAt)
+	if first {
+		obs.CountCache(kindOf(key), obs.StaleServed)
 	}
 	return e, true
 }

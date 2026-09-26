@@ -26,11 +26,11 @@ import (
 // Service is what the section needs of the dashboard service.
 type Service interface {
 	CachedHeader() (core.Header, bool)
-	Header(ctx context.Context) (core.Header, error)
+	Header(ctx context.Context, q dashboard.HeaderQuery) (core.Header, error)
 	CachedWork(q dashboard.WorkQuery) (core.Work, bool)
 	Work(ctx context.Context, q dashboard.WorkQuery) (core.Work, error)
 	CachedContributions() (core.Contributions, bool)
-	Contributions(ctx context.Context) (core.Contributions, error)
+	Contributions(ctx context.Context, q dashboard.ContributionsQuery) (core.Contributions, error)
 	CachedRepos(q dashboard.ReposQuery) (core.Page[core.Repo], bool)
 	Repos(ctx context.Context, q dashboard.ReposQuery) (core.Page[core.Repo], error)
 	CachedAllRepos(q dashboard.ReposQuery, limit int) (core.Page[core.Repo], bool)
