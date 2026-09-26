@@ -11,6 +11,7 @@ type settings struct {
 	width, height int
 	keys          KeyMap
 	styles        Styles
+	complete      Complete
 }
 
 // WithPrompt sets the prompt shown before the line. The default is ":".
@@ -39,6 +40,12 @@ func WithCharLimit(n int) Option {
 // as [Model.SetSize] does. The height defaults to [MaxHeight].
 func WithSize(width, height int) Option {
 	return func(s *settings) { s.width, s.height = width, height }
+}
+
+// WithComplete sets the function that completes the line. Without one,
+// the command line shows no candidates.
+func WithComplete(f Complete) Option {
+	return func(s *settings) { s.complete = f }
 }
 
 // WithKeyMap sets the key bindings.

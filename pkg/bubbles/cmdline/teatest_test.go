@@ -68,6 +68,13 @@ func TestProgram(t *testing.T) {
 			wantSubmitted: "goto cli/cli",
 		},
 		{
+			name:          "complete",
+			opts:          []Option{WithComplete(repoComplete)},
+			typed:         "goto gam",
+			keys:          []tea.KeyPressMsg{tab, tab, enter},
+			wantSubmitted: "goto gammons/slk-web",
+		},
+		{
 			name:          "cancel",
 			typed:         "goto",
 			keys:          []tea.KeyPressMsg{esc},
