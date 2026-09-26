@@ -7,7 +7,8 @@ import (
 
 // Update handles the command line's keys and passes everything else to the
 // input. A change to the line or a move of the cursor asks Complete for
-// new candidates. A blurred command line ignores every message.
+// new candidates, and a change, or a candidate inserted, ends a walk
+// through the history. A blurred command line ignores every message.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	if !m.focused {
 		return m, nil
@@ -30,11 +31,21 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			cmd := m.cancel()
 			return m, cmd
 		case key.Matches(msg, m.keys.Next):
+			m.walk = walk{}
 			m.cycle(1)
 			m.render()
 			return m, nil
 		case key.Matches(msg, m.keys.Prev):
+			m.walk = walk{}
 			m.cycle(-1)
+			m.render()
+			return m, nil
+		case key.Matches(msg, m.keys.Older):
+			m.older()
+			m.render()
+			return m, nil
+		case key.Matches(msg, m.keys.Newer):
+			m.newer()
 			m.render()
 			return m, nil
 		}
@@ -42,6 +53,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	value, pos := m.input.Value(), m.input.Position()
 	var cmd tea.Cmd
 	m.input, cmd = m.input.Update(msg)
+	if m.input.Value() != value {
+		// Editing ends a walk through the history.
+		m.walk = walk{}
+	}
 	// The cursor doesn't blink, so only a change to the line or a move of
 	// the cursor changes the view.
 	if m.input.Value() != value || m.input.Position() != pos {

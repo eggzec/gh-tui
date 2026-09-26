@@ -75,6 +75,13 @@ func TestProgram(t *testing.T) {
 			wantSubmitted: "goto gammons/slk-web",
 		},
 		{
+			name:          "history",
+			opts:          []Option{WithHistory([]string{"goto cli/cli", "theme dark", "goto gammons/slk"})},
+			typed:         "goto",
+			keys:          []tea.KeyPressMsg{up, up, enter},
+			wantSubmitted: "goto cli/cli",
+		},
+		{
 			name:          "cancel",
 			typed:         "goto",
 			keys:          []tea.KeyPressMsg{esc},

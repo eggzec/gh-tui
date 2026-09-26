@@ -14,6 +14,9 @@ type KeyMap struct {
 	CancelEmpty key.Binding
 	// Next inserts the next candidate, and Prev the one before.
 	Next, Prev key.Binding
+	// Older recalls the line before from the history, and Newer the one
+	// after.
+	Older, Newer key.Binding
 }
 
 // DefaultKeyMap returns the default key bindings.
@@ -39,6 +42,14 @@ func DefaultKeyMap() KeyMap {
 			key.WithKeys("shift+tab"),
 			key.WithHelp("shift+tab", "previous"),
 		),
+		Older: key.NewBinding(
+			key.WithKeys("up", "ctrl+p"),
+			key.WithHelp("↑", "older"),
+		),
+		Newer: key.NewBinding(
+			key.WithKeys("down", "ctrl+n"),
+			key.WithHelp("↓", "newer"),
+		),
 	}
 }
 
@@ -49,5 +60,5 @@ func (k KeyMap) ShortHelp() []key.Binding {
 
 // FullHelp implements help.KeyMap.
 func (k KeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{{k.Submit, k.Cancel, k.CancelEmpty}, {k.Next, k.Prev}}
+	return [][]key.Binding{{k.Submit, k.Cancel, k.CancelEmpty}, {k.Next, k.Prev}, {k.Older, k.Newer}}
 }

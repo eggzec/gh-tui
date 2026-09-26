@@ -27,6 +27,7 @@ func (m *Model) submit() tea.Cmd {
 	if line == "" {
 		return m.cancel()
 	}
+	m.remember(line)
 	m.Blur()
 	return send(SubmitMsg{ID: m.id, Line: line})
 }
