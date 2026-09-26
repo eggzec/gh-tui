@@ -146,6 +146,7 @@ func (s *Service) Get(ctx context.Context, repo core.RepoRef, number int) (core.
 	key := issueKey(repo, number)
 	s.keptIssues.Warm(s.issues, key, true)
 	if it, ok := s.currentIssue(key); ok {
+		s.issues.Hit(key)
 		return it, nil
 	}
 	it, err := fetch(ctx, s.issues, s.keptIssues, key,
@@ -189,6 +190,7 @@ func (s *Service) Comments(ctx context.Context, q CommentsQuery) (core.Page[core
 	ckey := commentsKey(q)
 	s.keptComments.Warm(s.comments, ckey, true)
 	if p, ok := s.currentComments(q); ok {
+		s.comments.Hit(ckey)
 		return p, nil
 	}
 	key := issueKey(q.Repo, q.Number)

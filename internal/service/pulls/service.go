@@ -341,6 +341,7 @@ func (s *Service) Get(ctx context.Context, repo core.RepoRef, number int) (core.
 	key := detailKey(repo, number)
 	s.keptDetails.Warm(s.details, key, true)
 	if d, ok := s.currentDetail(key); ok {
+		s.details.Hit(key)
 		return d, nil
 	}
 	d, err := fetch(ctx, s.details, s.keptDetails, key, asIs[core.PullRequestDetail], whole(tags(repo, number), func(ctx context.Context) (core.PullRequestDetail, error) {

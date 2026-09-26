@@ -70,6 +70,7 @@ func (s *Service) Comments(ctx context.Context, q CommentsQuery) (core.Page[core
 	key := q.key()
 	s.keptComments.Warm(s.comments, key, true)
 	if p, ok := s.currentComments(q); ok {
+		s.comments.Hit(key)
 		return p, nil
 	}
 	// The page is at least as recent as what the list showed before the

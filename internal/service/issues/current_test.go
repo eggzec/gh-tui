@@ -8,6 +8,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
+	"github.com/eggzec/gh-tui/internal/obs"
 )
 
 // versionedAPI is a fake GitHub whose issue 7 was last updated at the
@@ -205,6 +206,32 @@ func TestChangedMarksOlderStale(t *testing.T) {
 		s.Changed(repo, 7, changed)
 		if !s.Current(sevenComments) {
 			t.Error("Current = false after reading the change, want true")
+		}
+	})
+}
+
+func TestCurrentReadsCountAsHits(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		stats := obs.NewStats()
+		prev := obs.SetDefault(stats)
+		defer obs.SetDefault(prev)
+		api, _ := versionedAPI(t)
+		s := New(api, WithTTL(time.Minute))
+		listIssues(t, s, ListQuery{Repo: repo})
+		readIssue(t, s)
+		time.Sleep(time.Hour)
+		// Past the TTL, the list vouches for them: two hits, no misses.
+		readIssue(t, s)
+		if !s.Current(sevenComments) {
+			t.Fatal("Current = false, want true")
+		}
+		var hit, miss int64
+		for _, c := range stats.Summary().Cache {
+			hit, miss = hit+c.Hit, miss+c.Miss
+		}
+		// The misses are the list, the issue and the comments.
+		if hit != 2 || miss != 3 {
+			t.Errorf("counted %d hits and %d misses, want 2 and 3", hit, miss)
 		}
 	})
 }
