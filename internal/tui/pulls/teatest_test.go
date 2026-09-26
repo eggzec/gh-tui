@@ -138,14 +138,21 @@ func TestProgramSwitchesTabsAndFilters(t *testing.T) {
 			t.Fatalf("the filter modal never %s", what)
 		}
 	}
-	teatest.WaitFor(t, tm.Output(), func(b []byte) bool {
-		return bytes.Contains(b, []byte("Retry GraphQL requests"))
-	}, teatest.WithDuration(3*time.Second))
+	wait := func(text string) {
+		t.Helper()
+		teatest.WaitFor(t, tm.Output(), func(b []byte) bool {
+			return bytes.Contains(b, []byte(text))
+		}, teatest.WithDuration(3*time.Second))
+	}
+	wait("Retry GraphQL requests")
 
 	// ] shows the merged tab two tabs on, and the query line, above the
 	// first row, takes an author.
 	tm.Type("]]f")
 	waitModal("opened")
+	// Reading the output up to the form drops the rows of the merged tab
+	// drawn before it, which the filtered list has too.
+	wait("Assignee")
 	tm.Send(tea.KeyPressMsg{Code: tea.KeyUp})
 	tm.Type(" author:hubot")
 	tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
@@ -157,8 +164,10 @@ func TestProgramSwitchesTabsAndFilters(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatal("the filter was never applied")
 	}
-	// q is typed into the form until it closes.
+	// q is typed into the form until it closes, and the filtered list loads
+	// in a command, which q may beat.
 	waitModal("closed")
+	wait("Rename the watch package")
 	tm.Type("q")
 
 	final := tm.FinalModel(t, teatest.WithFinalTimeout(3*time.Second)).(app).h
