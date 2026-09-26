@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/eggzec/gh-tui/internal/cache/disk"
+	"github.com/eggzec/gh-tui/internal/cmdhist"
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/obs"
 )
@@ -25,7 +26,10 @@ func openDisk(ctx context.Context, cfg config.Disk, host string) (store *disk.St
 	if err == nil {
 		store, err = disk.Open(filepath.Join(root, hostDir(host)),
 			disk.WithMaxSize(int64(cfg.MaxSize)),
-			disk.WithCompression(gzipLevel(cfg)))
+			disk.WithCompression(gzipLevel(cfg)),
+			// The command line's history lives beside the entries of each
+			// account, and isn't a cache to trim.
+			disk.WithKeep(cmdhist.FileName))
 	}
 	if err != nil {
 		slog.Warn("disk cache off", "span", "cache.disk", "err", err.Error())
@@ -60,6 +64,21 @@ func openEntries(cfg config.Disk, host *disk.Store, account string) *disk.Store 
 		return nil
 	}
 	return store
+}
+
+// historyPath returns where the lines of the command line that account
+// typed are kept: in its directory of the disk cache of host, beside what
+// it read, so no account recalls another's. It returns "" when the disk
+// cache is off, and the lines then last for the session.
+func historyPath(cfg config.Disk, host, account string) (string, error) {
+	if !cfg.Enabled {
+		return "", nil
+	}
+	root, err := cfg.Path()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, hostDir(host), entryDir, account, cmdhist.FileName), nil
 }
 
 // entryDir holds the directories of the accounts' entries in the directory

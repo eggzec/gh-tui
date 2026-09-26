@@ -19,13 +19,16 @@ type command struct {
 	detail string
 	// args reports whether the command takes an argument.
 	args bool
-	run  func(m *Model, arg string) tea.Cmd
+	// quits reports whether the command ends the program, which then
+	// waits for the history to be saved.
+	quits bool
+	run   func(m *Model, arg string) tea.Cmd
 }
 
 // commands are those of the command line.
 var commands = []command{
 	{name: "goto", detail: "open a repository, issue, pull request or link", args: true, run: (*Model).gotoCommand},
-	{name: "q", detail: "quit", run: func(*Model, string) tea.Cmd { return tea.Quit }},
+	{name: "q", detail: "quit", quits: true, run: func(*Model, string) tea.Cmd { return tea.Quit }},
 }
 
 // findCommand returns the command named name.
@@ -74,18 +77,22 @@ func (m *Model) lineDone() {
 	m.layout()
 }
 
-// runLine runs the command that line names, and reports an unknown one.
-func (m *Model) runLine(line string) tea.Cmd {
+// runLine runs the command that line names, and reports an unknown one,
+// along with save, which saves the history. A command that quits waits
+// for it.
+func (m *Model) runLine(line string, save tea.Cmd) tea.Cmd {
 	name, arg, _ := strings.Cut(line, " ")
 	arg = strings.TrimSpace(arg)
 	c, ok := findCommand(name)
 	switch {
 	case !ok:
-		return m.toast.Push(toast.Error, "Unknown command: "+name+".")
+		return tea.Batch(save, m.toast.Push(toast.Error, "Unknown command: "+name+"."))
 	case !c.args && arg != "":
-		return m.toast.Push(toast.Error, "The "+c.name+" command takes no argument.")
+		return tea.Batch(save, m.toast.Push(toast.Error, "The "+c.name+" command takes no argument."))
+	case c.quits:
+		return m.quit(save)
 	}
 	// The command replaces a goto still waiting.
 	m.cancelGoto()
-	return c.run(m, arg)
+	return tea.Batch(save, c.run(m, arg))
 }

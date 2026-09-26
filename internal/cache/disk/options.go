@@ -9,6 +9,7 @@ const DefaultMaxSize = 512 << 20
 type options struct {
 	maxSize int64
 	level   int
+	keep    []string
 }
 
 // Option configures a Store.
@@ -34,4 +35,11 @@ func WithCompression(level int) Option {
 			o.level = level
 		}
 	}
+}
+
+// WithKeep names files that Collect never removes, wherever they are in
+// the store, such as a file kept beside the objects that isn't a cache.
+// They don't count towards the size either.
+func WithKeep(names ...string) Option {
+	return func(o *options) { o.keep = append(o.keep, names...) }
 }

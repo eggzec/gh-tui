@@ -8,6 +8,7 @@ import (
 	"github.com/cli/go-gh/v2/pkg/browser"
 
 	"github.com/eggzec/gh-tui/internal/cache"
+	"github.com/eggzec/gh-tui/internal/cmdhist"
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
@@ -184,6 +185,9 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 	}
 	if repo != (core.RepoRef{}) {
 		opts = append(opts, tui.WithRepo(repo))
+	}
+	if path, err := historyPath(cfg.Cache.Disk, client.Host(), client.Account()); err == nil && path != "" {
+		opts = append(opts, tui.WithCommandHistory(cmdhist.New(path, cmdhist.DefaultLimit)))
 	}
 	for _, w := range []string{logWarning, warning} {
 		if w != "" {
