@@ -64,6 +64,9 @@ func (c *Client) jobLog(ctx context.Context, repo core.RepoRef, jobID, limit int
 
 	switch {
 	case resp.StatusCode == http.StatusGone:
+		// Refused holds for this 410 too, but the log path doesn't ask it:
+		// the service reads a kept log before GitHub, so there is nothing
+		// to drop, and callers test ErrLogExpired instead.
 		return nil, false, fmt.Errorf("%w: %w", core.ErrLogExpired, c.httpError(resp))
 	case isRedirect(resp.StatusCode):
 		loc, err := c.logLocation(resp)
