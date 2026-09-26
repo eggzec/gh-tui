@@ -7,11 +7,13 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 )
 
-// Sizes of a card of the pinned pane: its lines, the fewest cells it may
-// get, and the gap between two cards.
+// Sizes of a card of the pinned pane: its lines, the fewest and most cells
+// it may get, and the gap between two cards. The most keeps a lone card
+// from stretching its lines across a wide pane.
 const (
 	cardHeight   = 4
 	minCardWidth = 26
+	maxCardWidth = 72
 	cardGap      = 2
 )
 
@@ -75,6 +77,20 @@ func (c *cards) resize(width, height int) {
 	c.cols = max((width+cardGap)/(minCardWidth+cardGap), 1)
 	c.rows = max((height+1)/(cardHeight+1), 1)
 	c.scroll()
+}
+
+// cardWidth is the width of the card in column col of a pane of width
+// cells. A row shares its width among the cards it holds, or among all of
+// them when they are fewer, so that a few pins don't leave most of the
+// pane empty. The last column takes what the division leaves over, so the
+// row ends flush with the pane.
+func (c *cards) cardWidth(width, col int) int {
+	n := max(min(c.cols, len(c.items)), 1)
+	w := min(max((width-cardGap*(n-1))/n, 1), maxCardWidth)
+	if col == n-1 {
+		w = min(max(width-col*(w+cardGap), 1), maxCardWidth)
+	}
+	return w
 }
 
 // move moves the cursor by delta cards, and stays on the first or last.

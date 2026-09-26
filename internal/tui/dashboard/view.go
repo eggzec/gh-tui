@@ -342,7 +342,6 @@ func (s *Section) pinnedBody(w, h int) []string {
 		}
 		return []string{" " + st.muted.render("Nothing pinned. Pin repositories on your GitHub profile to see them here.")}
 	}
-	cw := max((w-cardGap*(c.cols-1))/c.cols, 1)
 	lines := make([]string, 0, h)
 	for row := c.top; row < c.top+c.rows && row*c.cols < len(c.items); row++ {
 		if row > c.top {
@@ -354,7 +353,7 @@ func (s *Section) pinnedBody(w, h int) []string {
 			if i >= len(c.items) {
 				break
 			}
-			card := s.card(c.items[i], i == c.sel, cw)
+			card := s.card(c.items[i], i == c.sel, c.cardWidth(w, col))
 			for l := range cardHeight {
 				if col > 0 {
 					rowLines[l].WriteString(strings.Repeat(" ", cardGap))
