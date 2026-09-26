@@ -86,8 +86,8 @@ func WithInbox(in Inbox) Option {
 }
 
 // WithOpener opens the threads of the notifications pane, and reads them
-// ahead, with o, as the notifications screen does with its own. By default
-// the pane has one that reads nothing ahead.
+// ahead while the dashboard is on view, with o, which the notifications
+// screen may share. By default the pane has one that reads nothing ahead.
 func WithOpener(o *threads.Opener) Option {
 	return func(s *Section) {
 		if o != nil {
@@ -315,9 +315,11 @@ func (s *Section) Focus() {
 	s.render()
 }
 
-// Blur makes every pane ignore keys.
+// Blur makes every pane ignore keys, and stops the reads ahead of the
+// inbox's threads, as the dashboard leaves the screen.
 func (s *Section) Blur() {
 	s.focused = false
+	s.opener.Stop()
 	s.repos.blur()
 	s.cal.Blur()
 	s.render()

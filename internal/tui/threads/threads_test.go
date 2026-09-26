@@ -189,6 +189,66 @@ func TestReadAheadCancelledByReset(t *testing.T) {
 	})
 }
 
+// Leaving the screen stops the reads ahead in flight, and the view shown
+// next reads its own rows through the same opener.
+func TestStopCancelsReadsAhead(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		f := newReads()
+		f.hold = make(chan struct{})
+		o := newOpener(t, f, 3, time.Hour)
+		ns := []core.Notification{note(core.SubjectIssue, 1, 0), note(core.SubjectPullRequest, 2, 0)}
+		cmd := o.ReadAhead(list(ns), core.Notification{}, false)
+		done := make(chan struct{})
+		go func() {
+			run(o, cmd)
+			close(done)
+		}()
+		synctest.Wait()
+		ctxs := f.contexts()
+		if len(ctxs) != 2 {
+			t.Fatalf("%d reads in flight, want 2", len(ctxs))
+		}
+		o.Stop()
+		<-done
+		for _, ctx := range ctxs {
+			if ctx.Err() == nil {
+				t.Error("a read ahead wasn't cancelled")
+			}
+		}
+
+		close(f.hold)
+		f.mu.Lock()
+		f.hold = nil
+		f.mu.Unlock()
+		other := []core.Notification{note(core.SubjectIssue, 1, 0), note(core.SubjectIssue, 3, 0)}
+		run(o, o.ReadAhead(list(other), core.Notification{}, false))
+		if got := slices.Sorted(slices.Values(f.got()[2:])); !slices.Equal(got, []string{"issue charmbracelet/glow#1", "issue charmbracelet/glow#3"}) {
+			t.Errorf("read %q after Stop, want the new rows, the cancelled one again", got)
+		}
+	})
+}
+
+// The views that share an opener share its rate limit: one that hits it
+// stops the reads ahead of the other.
+func TestSharedOpenerRateLimitStopsBoth(t *testing.T) {
+	f := newReads()
+	f.err = &core.RateLimitError{Reset: now}
+	o := newOpener(t, f, 3, 0)
+	screen := []core.Notification{note(core.SubjectIssue, 1, 0), note(core.SubjectIssue, 2, 0)}
+	run(o, o.ReadAhead(list(screen), screen[0], true))
+	n := len(f.got())
+	if n == 0 {
+		t.Fatal("nothing was read ahead")
+	}
+	// The screen leaves, and the dashboard's inbox shows other threads.
+	o.Stop()
+	inbox := []core.Notification{note(core.SubjectPullRequest, 7, 0), note(core.SubjectIssue, 8, 0)}
+	run(o, o.ReadAhead(list(inbox), inbox[0], true))
+	if got := len(f.got()); got != n {
+		t.Errorf("read %d more for the other view under the rate limit", got-n)
+	}
+}
+
 func TestReadAheadStopsAtRateLimit(t *testing.T) {
 	f := newReads()
 	f.err = &core.RateLimitError{Reset: now}

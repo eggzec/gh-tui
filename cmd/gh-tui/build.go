@@ -142,7 +142,9 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 	}
 	// The notifications screen and the dashboard's inbox open what each
 	// thread is about in its modal, and read it ahead as the lists of the
-	// repository screen do, each with an opener of its own.
+	// repository screen do, with one opener: whichever is on view reads
+	// ahead, so one rate limit stops both and leaving the screen stops the
+	// reads.
 	threadOpts := []threads.Option{
 		threads.WithPulls(pullSvc), threads.WithIssues(issueSvc), threads.WithReleases(releaseSvc),
 		threads.WithMarkRead(cfg.Notifications.MarkReadOnOpen),
@@ -150,17 +152,18 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 	if p := cfg.Details.Prefetch; p.Enabled {
 		threadOpts = append(threadOpts, threads.WithPrefetch(p.Rows, p.HoverDelay))
 	}
+	opener := threads.New(ctx, threadOpts...)
 	layout := tui.Layout{
 		Files:  files.New(ctx, fileSvc, cfg.Keys, fileOpts...),
 		Pulls:  pulls.New(ctx, pullSvc, cfg.Keys, pullOpts...),
 		Issues: issues.New(ctx, issueSvc, cfg.Keys, issueOpts...),
 		Notifications: notifications.New(ctx, notifSvc, cfg.Keys,
-			notifications.WithOffline(offline), notifications.WithOpener(threads.New(ctx, threadOpts...))),
+			notifications.WithOffline(offline), notifications.WithOpener(opener)),
 		Search: searchpage.New(ctx, searchSvc, cfg.Keys, searchpage.WithStart(searchStart(repoSvc, pinned)), searchpage.WithIcons(icons)),
 		Dashboard: dashboard.New(ctx, dashSvc, cfg.Keys,
 			dashboard.WithOffline(offline),
 			dashboard.WithInbox(notifSvc),
-			dashboard.WithOpener(threads.New(ctx, threadOpts...)),
+			dashboard.WithOpener(opener),
 			dashboard.WithHere(here, repoSvc.Get),
 			dashboard.WithGlyph(cfg.Dashboard.CalendarGlyph),
 			dashboard.WithContributions(cfg.Dashboard.ContributionDays()),

@@ -214,6 +214,8 @@ func (s *Section) setFilter(query string) tea.Cmd {
 	if !s.started {
 		return nil
 	}
+	// The rows read ahead were the old filter's.
+	s.opener.Stop()
 	return s.feed.Reset()
 }
 

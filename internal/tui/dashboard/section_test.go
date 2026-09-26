@@ -579,3 +579,29 @@ func TestInboxReadsAhead(t *testing.T) {
 		}
 	})
 }
+
+// A change to the inbox while another screen is on view, such as the one
+// a poll reports, reads nothing ahead, and nor does the cursor's delay
+// that fires meanwhile.
+func TestInboxReadsNothingAheadOffScreen(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ps := &aheadPulls{}
+		in := &fakeInbox{threads: inboxThreads()}
+		o := threads.New(t.Context(), threads.WithPulls(ps), threads.WithPrefetch(2, 150*time.Millisecond))
+		s := newSection(t, newFake(), in, 140, 38, WithOpener(o))
+		before := len(ps.got())
+		s.Blur()
+		in.mu.Lock()
+		in.threads = append([]core.Notification{thread("9", "cli/cli", "New", true, time.Minute)}, in.threads...)
+		in.mu.Unlock()
+		run(t, s, s.Update(ui.SyncMsg{Key: notifications.SyncKey}))
+		if got := ps.got(); len(got) != before {
+			t.Errorf("read %v ahead off screen, want nothing more", got[before:])
+		}
+		s.Focus()
+		run(t, s, s.Update(ui.SyncMsg{Key: "other"}))
+		if got := ps.got(); !slices.Contains(got, 9) {
+			t.Errorf("read %v ahead back on screen, want the new thread", got)
+		}
+	})
+}

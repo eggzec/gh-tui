@@ -55,9 +55,9 @@ func WithOffline(off *ui.Offline) Option {
 	}
 }
 
-// WithOpener opens the threads, and reads them ahead, with o. By default
-// the section has one that reads nothing ahead and marks a thread read as
-// it opens it.
+// WithOpener opens the threads, and reads them ahead while the section is
+// on view, with o, which the dashboard may share. By default the section
+// has one that reads nothing ahead and marks a thread read as it opens it.
 func WithOpener(o *threads.Opener) Option {
 	return func(s *Section) {
 		if o != nil {
@@ -183,8 +183,12 @@ func (s *Section) SetTheme(t ui.Theme) {
 // Focus makes the list react to keys.
 func (s *Section) Focus() { s.feed.Focus() }
 
-// Blur makes the list ignore keys.
-func (s *Section) Blur() { s.feed.Blur() }
+// Blur makes the list ignore keys, and stops the reads ahead of the
+// threads, as the section leaves the screen.
+func (s *Section) Blur() {
+	s.feed.Blur()
+	s.opener.Stop()
+}
 
 // Help returns the keys of the section, the list's navigation included.
 func (s *Section) Help() help.KeyMap { return s.keys.withFeed(s.feed.KeyMap(), s.filtered()) }

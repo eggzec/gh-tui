@@ -12,6 +12,11 @@ import (
 // passes everything else to the list.
 func (s *Section) Update(msg tea.Msg) tea.Cmd {
 	if msg, ok := msg.(ui.AheadMsg); ok {
+		// The opener may be the dashboard's too, which reads ahead while
+		// it is on view instead.
+		if !s.feed.Focused() {
+			return nil
+		}
 		return s.opener.Rested(msg)
 	}
 	cmd := s.update(msg)
@@ -106,9 +111,9 @@ func (s *Section) open() tea.Cmd {
 }
 
 // readAhead reads ahead what the first threads and the one under the
-// cursor are about, once the list has started.
+// cursor are about, once the list has started, while it is on view.
 func (s *Section) readAhead() tea.Cmd {
-	if !s.started {
+	if !s.started || !s.feed.Focused() {
 		return nil
 	}
 	n, ok := s.feed.Selected()
