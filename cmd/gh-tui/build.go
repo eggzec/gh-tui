@@ -173,6 +173,7 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 		// to the user's host.
 		tui.WithRepos(repoSvc),
 		tui.WithKinds(issueSvc),
+		tui.WithRecall(recall{pinned: pinned, here: here, dash: dashSvc, repos: repoSvc, pulls: pullSvc, issues: issueSvc}),
 		tui.WithHost(client.WebHost()),
 		tui.WithUnreachable(github.Unreachable),
 		tui.WithHistory(history.Opener(historySvc, cfg.Keys,

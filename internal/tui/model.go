@@ -108,6 +108,10 @@ type Model struct {
 	kinds       Kinds
 	host        string
 	unreachable func(ctx context.Context, err error) bool
+	// recall is what the command line completes from, with recent, the
+	// repositories selected in this session, the latest first.
+	recall Recall
+	recent []core.RepoRef
 	// history opens the history modal of a repository, and actions its
 	// Actions modal.
 	history History
@@ -257,6 +261,7 @@ func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) 
 	for _, opt := range opts {
 		opt(m)
 	}
+	m.line.SetComplete(m.complete)
 
 	switch {
 	case m.repo != (core.RepoRef{}):
@@ -270,6 +275,7 @@ func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) 
 	}
 	m.back = m.screen
 	if m.repo != (core.RepoRef{}) {
+		m.remember(m.repo)
 		if m.watchRepo != nil {
 			m.watchRepo(m.repo)
 		}

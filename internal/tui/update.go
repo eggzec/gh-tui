@@ -245,6 +245,7 @@ func (m *Model) showSearch() tea.Cmd {
 // the files focused, after telling the watcher and the sections.
 func (m *Model) selectRepo(msg ui.RepoMsg) tea.Cmd {
 	m.cancelGoto()
+	m.remember(msg.Repo)
 	if m.watchRepo != nil {
 		m.watchRepo(msg.Repo)
 	}
