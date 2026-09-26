@@ -6,6 +6,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/pkg/bubbles/calendar"
+	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/finder"
@@ -296,6 +297,23 @@ func (t Theme) Calendar() calendar.Styles {
 	s.Legend = s.Legend.Foreground(lipgloss.Color(t.Palette.Subtle))
 	s.Status = s.Status.Foreground(lipgloss.Color(t.Palette.Muted))
 	s.Empty = s.Empty.Foreground(lipgloss.Color(t.Palette.Muted))
+	return s
+}
+
+// Cmdline returns the styles of the command line. The accent marks the
+// prompt, the cursor and the chosen candidate, as it does in the finder.
+func (t Theme) Cmdline() cmdline.Styles {
+	s := cmdline.DefaultStyles(t.Dark)
+	fg, accent := lipgloss.Color(t.Palette.Foreground), lipgloss.Color(t.Palette.Accent)
+	subtle := lipgloss.Color(t.Palette.Subtle)
+	s.Prompt = s.Prompt.Foreground(accent)
+	s.Text = s.Text.Foreground(fg)
+	s.Placeholder = s.Placeholder.Foreground(subtle)
+	s.Cursor = s.Cursor.Foreground(accent)
+	s.Candidate = s.Candidate.Foreground(fg)
+	s.Detail = s.Detail.Foreground(subtle)
+	s.Selected = s.Selected.Background(accent)
+	s.More = s.More.Foreground(accent)
 	return s
 }
 

@@ -40,6 +40,9 @@ const (
 	// ActionFindFile opens the file finder of the repository screen, which
 	// finds a file by some letters of its path.
 	ActionFindFile = "find_file"
+	// ActionCommand opens the command line at the bottom of the screen,
+	// where commands such as goto are typed.
+	ActionCommand = "command"
 )
 
 // Actions of the sections. A key may serve different actions in different
@@ -132,6 +135,8 @@ func defaultKeys() map[string][]string {
 		// t is the key of github.com's file finder, and ctrl+p that of
 		// editors.
 		ActionFindFile: {"t", "ctrl+p"},
+		// As in vim.
+		ActionCommand: {":"},
 
 		ActionSelect:      {"enter"},
 		ActionBack:        {"esc"},

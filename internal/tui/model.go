@@ -1,9 +1,10 @@
 // Package tui is the root of the program. It lays the sections out on
 // four screens, the dashboard, the repository screen with its panes, the
 // notifications screen and the search page, draws the header, the help
-// line and toasts, opens modals such as the history over them, and routes
-// messages between them all. The sections themselves live in their own
-// packages and share the ui package.
+// line and toasts, opens modals such as the history over them, runs the
+// commands of the command line, and routes messages between them all.
+// The sections themselves live in their own packages and share the ui
+// package.
 package tui
 
 import (
@@ -17,6 +18,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
@@ -76,6 +78,9 @@ type Model struct {
 
 	toast toast.Model
 	help  help.Model
+	// line is the command line, which takes the place of the help line
+	// while it is open.
+	line  cmdline.Model
 	theme ui.Theme
 	st    styles
 	// header is rendered whenever what it shows changes.
@@ -207,6 +212,7 @@ func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) 
 		keys:  newKeyMap(cfg.Keys),
 		toast: toast.New(),
 		help:  help.New(),
+		line:  newLine(cfg.Keys),
 	}
 	if layout.Files != nil {
 		m.panes, m.left = append(m.panes, &pane{section: layout.Files}), 1
@@ -348,6 +354,7 @@ func (m *Model) applyTheme(dark bool) {
 	m.st = newStyles(m.theme)
 	m.toast.SetStyles(m.theme.Toast())
 	m.help.Styles = m.theme.Help()
+	m.line.SetStyles(m.theme.Cmdline())
 	for _, p := range m.all {
 		p.section.SetTheme(m.theme)
 	}
