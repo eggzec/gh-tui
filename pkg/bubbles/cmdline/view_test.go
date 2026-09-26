@@ -21,6 +21,8 @@ func TestView(t *testing.T) {
 		initial string
 		keys    []tea.Msg
 		blurred bool
+		// height is the most rows it may take, MaxHeight if 0.
+		height int
 	}{
 		{name: "empty"},
 		{name: "placeholder", opts: []Option{WithPlaceholder("goto owner/repo")}},
@@ -31,11 +33,33 @@ func TestView(t *testing.T) {
 		{name: "prompt", initial: "cli/cli", opts: []Option{WithPrompt("goto ")}},
 		{name: "blurred", initial: "goto cli/cli", blurred: true},
 		{name: "light", initial: "goto cli/cli", opts: []Option{WithStyles(DefaultStyles(false))}},
+		{name: "candidates", initial: "goto gammons/sl", opts: []Option{WithComplete(repoComplete)}},
+		{name: "candidate selected", initial: "goto gammons/sl", keys: []tea.Msg{tab, tab},
+			opts: []Option{WithComplete(repoComplete)}},
+		{name: "candidates light", initial: "goto gammons/sl", keys: []tea.Msg{tab},
+			opts: []Option{WithComplete(repoComplete), WithStyles(DefaultStyles(false))}},
+		{name: "candidates with details", initial: "", opts: []Option{WithComplete(commandComplete)}},
+		{name: "detail selected", initial: "", keys: []tea.Msg{tab, tab},
+			opts: []Option{WithComplete(commandComplete)}},
+		{name: "candidates overflow", initial: "goto repo", opts: []Option{WithComplete(manyComplete)}},
+		{name: "candidates scrolled", initial: "goto repo", keys: []tea.Msg{shiftTab, shiftTab},
+			opts: []Option{WithComplete(manyComplete)}},
+		{name: "candidates scrolled to the end", initial: "goto repo", keys: []tea.Msg{shiftTab},
+			opts: []Option{WithComplete(manyComplete)}},
+		{name: "wide candidate is cut", initial: "open ", opts: []Option{WithComplete(wideComplete)}},
+		{name: "one row drops candidates", initial: "goto gammons/sl", height: 1,
+			opts: []Option{WithComplete(repoComplete)}},
+		{name: "long line with candidates", initial: longLine + " repo:gam",
+			opts: []Option{WithComplete(repoComplete)}},
 	}
 	for _, width := range []int{80, 120} {
 		for _, tt := range tests {
 			t.Run(strconv.Itoa(width)+"/"+tt.name, func(t *testing.T) {
-				m := opened(t, tt.initial, append(tt.opts, WithSize(width, MaxHeight))...)
+				height := MaxHeight
+				if tt.height > 0 {
+					height = tt.height
+				}
+				m := opened(t, tt.initial, append(tt.opts, WithSize(width, height))...)
 				m, _ = press(t, m, tt.keys...)
 				if tt.blurred {
 					m.Blur()
@@ -48,17 +72,78 @@ func TestView(t *testing.T) {
 	}
 }
 
+var repoComplete = completeWords(repos...)
+
+// commandComplete offers the commands, with what they do, while the line
+// is empty.
+func commandComplete(line string, _ int) []Candidate {
+	if line != "" {
+		return nil
+	}
+	cmds := [][2]string{
+		{"goto", "open a repository"}, {"search", "search GitHub"},
+		{"theme", "change the colors"}, {"quit", "leave gh-tui"},
+	}
+	out := make([]Candidate, 0, len(cmds))
+	for _, c := range cmds {
+		out = append(out, Candidate{Text: c[0] + " ", Label: c[0], Detail: c[1]})
+	}
+	return out
+}
+
+// manyComplete offers more repos than a row can show.
+var manyComplete = func() Complete {
+	many := make([]string, 0, 26)
+	for _, r := range "abcdefghijklmnopqrstuvwxyz" {
+		many = append(many, "repo-"+string(r))
+	}
+	return completeWords(many...)
+}()
+
+// wideComplete offers one path wider than any row.
+func wideComplete(_ string, cursor int) []Candidate {
+	return []Candidate{{
+		Text:  strings.Repeat("very/deep/", 16) + "file.go",
+		Label: strings.Repeat("very/deep/", 16) + "file.go",
+		Start: cursor, End: cursor,
+	}}
+}
+
 // Every size renders exactly its width and height.
 func TestViewFits(t *testing.T) {
 	for _, w := range []int{0, 1, 2, 3, 10, 80, 200} {
 		for _, h := range []int{0, 1, 2, 3} {
 			t.Run(strconv.Itoa(w)+"x"+strconv.Itoa(h), func(t *testing.T) {
-				m := opened(t, longLine, WithSize(w, h))
+				m := opened(t, longLine+" repo", WithSize(w, h), WithComplete(manyComplete))
 				assertFits(t, m.View(), w, m.Height())
+				for range 5 {
+					m, _ = m.Update(shiftTab)
+					assertFits(t, m.View(), w, m.Height())
+				}
 				m.SetSize(h*7, w%3)
 				assertFits(t, m.View(), h*7, m.Height())
 			})
 		}
+	}
+}
+
+// The row is rendered again only when the candidates, the width or the
+// selection change.
+func TestViewCachesRow(t *testing.T) {
+	m := opened(t, "goto gammons/", WithSize(80, MaxHeight), WithComplete(repoComplete))
+	items := &m.comp.items[0]
+	m = typeText(t, m, "s")
+	if &m.comp.items[0] != items {
+		t.Error("the same candidates were rendered again")
+	}
+	row := m.comp.row
+	m, _ = m.Update(tab)
+	if m.comp.row == row {
+		t.Error("the row didn't show the selection")
+	}
+	m = typeText(t, m, "-")
+	if &m.comp.items[0] == items {
+		t.Error("new candidates weren't rendered")
 	}
 }
 

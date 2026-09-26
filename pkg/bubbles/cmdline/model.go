@@ -10,9 +10,14 @@
 // line blurs itself, and the parent closes it. A parent that quits on
 // ctrl+c must forward it to the command line first while it is focused,
 // so ctrl+c cancels the command instead of quitting the program.
+//
+// Given a [Complete] function, it shows the candidates that complete the
+// line on a row above it, as vim's wildmenu does, and tab and shift+tab
+// insert each in turn.
 package cmdline
 
 import (
+	"slices"
 	"sync/atomic"
 
 	"charm.land/bubbles/v2/key"
@@ -21,8 +26,9 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-// MaxHeight is the most rows a command line takes.
-const MaxHeight = 1
+// MaxHeight is the most rows a command line takes: the candidate row and
+// the line.
+const MaxHeight = 2
 
 var lastID atomic.Int64
 
@@ -43,9 +49,15 @@ type Model struct {
 	keys          KeyMap
 	styles        Styles
 
+	complete Complete
+	comp     completion
+
 	// promptView is the rendered prompt, and promptWidth its width.
 	promptView  string
 	promptWidth int
+	// moreLeft and moreRight are the rendered marks that the candidate row
+	// scrolls.
+	moreLeft, moreRight string
 	// view is rendered whenever the state changes, so View is free.
 	view string
 }
@@ -73,12 +85,14 @@ func New(opts ...Option) Model {
 	input.KeyMap.PrevSuggestion = off
 
 	m := Model{
-		id:     lastID.Add(1),
-		input:  input,
-		prompt: s.prompt,
-		width:  max(s.width, 0),
-		height: max(s.height, 0),
-		keys:   s.keys,
+		id:       lastID.Add(1),
+		input:    input,
+		prompt:   s.prompt,
+		width:    max(s.width, 0),
+		height:   max(s.height, 0),
+		keys:     s.keys,
+		complete: s.complete,
+		comp:     completion{sel: -1, rowWidth: -1},
 	}
 	// SetStyles lays the line out, so the value goes in after it and
 	// scrolls at the final width.
@@ -108,6 +122,7 @@ func (m *Model) Open(initial string) tea.Cmd {
 func (m *Model) Focus() tea.Cmd {
 	m.focused = true
 	cmd := m.input.Focus()
+	m.refresh()
 	m.render()
 	return cmd
 }
@@ -116,6 +131,7 @@ func (m *Model) Focus() tea.Cmd {
 func (m *Model) Blur() {
 	m.focused = false
 	m.input.Blur()
+	m.refresh()
 	m.render()
 }
 
@@ -129,8 +145,24 @@ func (m Model) Value() string { return m.input.Value() }
 func (m *Model) SetValue(v string) {
 	m.input.SetValue(v)
 	m.input.CursorEnd()
+	m.refresh()
 	m.render()
 }
+
+// SetComplete sets the function that completes the line, or nil for no
+// completion, and asks it for the candidates of the line.
+func (m *Model) SetComplete(f Complete) {
+	m.complete = f
+	m.refresh()
+	m.render()
+}
+
+// Candidates returns a copy of the candidates shown.
+func (m Model) Candidates() []Candidate { return slices.Clone(m.comp.cands) }
+
+// Selected returns the index in Candidates of the candidate inserted in the
+// line, or -1 while the line is as typed.
+func (m Model) Selected() int { return m.comp.sel }
 
 // Prompt returns the prompt shown before the line.
 func (m Model) Prompt() string { return m.prompt }
@@ -157,10 +189,15 @@ func (m *Model) SetSize(width, height int) {
 func (m Model) Width() int { return m.width }
 
 // Height returns the rows the command line takes now, which the parent
-// lays out around: one for the line, or none when it has no room.
+// lays out around: one for the line, two while it shows candidates above
+// it, or none when it has no room. It changes as the user types, so the
+// parent lays out again after each Update.
 func (m Model) Height() int {
-	if m.width == 0 || m.height == 0 {
+	switch {
+	case m.width == 0 || m.height == 0:
 		return 0
+	case m.height >= 2 && len(m.comp.cands) > 0:
+		return 2
 	}
 	return 1
 }
@@ -171,11 +208,23 @@ func (m Model) KeyMap() KeyMap { return m.keys }
 // SetKeyMap sets the key bindings.
 func (m *Model) SetKeyMap(k KeyMap) { m.keys = k }
 
-// ShortHelp implements help.KeyMap.
-func (m Model) ShortHelp() []key.Binding { return m.keys.ShortHelp() }
+// ShortHelp implements help.KeyMap. It leaves out tab without a Complete
+// function.
+func (m Model) ShortHelp() []key.Binding {
+	if m.complete == nil {
+		return []key.Binding{m.keys.Submit, m.keys.Cancel}
+	}
+	return m.keys.ShortHelp()
+}
 
-// FullHelp implements help.KeyMap.
-func (m Model) FullHelp() [][]key.Binding { return m.keys.FullHelp() }
+// FullHelp implements help.KeyMap. Like ShortHelp, it leaves out tab and
+// shift+tab without a Complete function.
+func (m Model) FullHelp() [][]key.Binding {
+	if m.complete == nil {
+		return m.keys.FullHelp()[:1]
+	}
+	return m.keys.FullHelp()
+}
 
 func (m *Model) renderPrompt() {
 	m.promptView = m.styles.Prompt.Render(oneLine(m.prompt))

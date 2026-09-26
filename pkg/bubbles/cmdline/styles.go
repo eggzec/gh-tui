@@ -17,20 +17,33 @@ type Styles struct {
 	// Cursor colors the cursor with its foreground. The cursor doesn't
 	// blink, so a command line never ticks.
 	Cursor lipgloss.Style
+	// Candidate styles a candidate on the row above the line, and Detail
+	// its detail.
+	Candidate, Detail lipgloss.Style
+	// Selected styles the candidate inserted in the line, detail and all.
+	Selected lipgloss.Style
+	// More styles the marks at either end of the row that say it scrolls.
+	More lipgloss.Style
 }
 
 // DefaultStyles returns calm styles for a light or dark terminal: plain
-// text, and the accent color on the prompt and the cursor.
+// text, and the accent color on the prompt, the cursor and the selected
+// candidate.
 func DefaultStyles(isDark bool) Styles {
 	ld := lipgloss.LightDark(isDark)
 	accent := ld(lipgloss.Color("#3b63c4"), lipgloss.Color("#7aa2f7"))
 	text := ld(lipgloss.Color("#1f2330"), lipgloss.Color("#c8cedb"))
 	subtle := ld(lipgloss.Color("#6b7285"), lipgloss.Color("#8a90a0"))
+	onAccent := ld(lipgloss.Color("#ffffff"), lipgloss.Color("#1a1d26"))
 	return Styles{
 		Prompt:      lipgloss.NewStyle().Foreground(accent).Bold(true),
 		Text:        lipgloss.NewStyle().Foreground(text),
 		Placeholder: lipgloss.NewStyle().Foreground(subtle),
 		Cursor:      lipgloss.NewStyle().Foreground(accent),
+		Candidate:   lipgloss.NewStyle().Foreground(text),
+		Detail:      lipgloss.NewStyle().Foreground(subtle),
+		Selected:    lipgloss.NewStyle().Foreground(onAccent).Background(accent).Bold(true),
+		More:        lipgloss.NewStyle().Foreground(accent).Bold(true),
 	}
 }
 
@@ -42,6 +55,8 @@ func (m *Model) SetStyles(s Styles) {
 	m.styles = s
 	m.input.SetStyles(inputStyles(s))
 	m.renderPrompt()
+	m.moreLeft, m.moreRight = s.More.Render("<"), s.More.Render(">")
+	m.renderItems()
 	m.layout()
 }
 

@@ -12,6 +12,8 @@ type KeyMap struct {
 	// CancelEmpty closes the command line when the line is empty, as
 	// backspace does in vim. On a line with text it edits as usual.
 	CancelEmpty key.Binding
+	// Next inserts the next candidate, and Prev the one before.
+	Next, Prev key.Binding
 }
 
 // DefaultKeyMap returns the default key bindings.
@@ -29,15 +31,23 @@ func DefaultKeyMap() KeyMap {
 			key.WithKeys("backspace", "ctrl+h"),
 			key.WithHelp("backspace", "cancel when empty"),
 		),
+		Next: key.NewBinding(
+			key.WithKeys("tab"),
+			key.WithHelp("tab", "complete"),
+		),
+		Prev: key.NewBinding(
+			key.WithKeys("shift+tab"),
+			key.WithHelp("shift+tab", "previous"),
+		),
 	}
 }
 
 // ShortHelp implements help.KeyMap.
 func (k KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Submit, k.Cancel}
+	return []key.Binding{k.Submit, k.Next, k.Cancel}
 }
 
 // FullHelp implements help.KeyMap.
 func (k KeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{{k.Submit, k.Cancel, k.CancelEmpty}}
+	return [][]key.Binding{{k.Submit, k.Cancel, k.CancelEmpty}, {k.Next, k.Prev}}
 }

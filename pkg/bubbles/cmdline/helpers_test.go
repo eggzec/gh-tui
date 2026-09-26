@@ -71,3 +71,34 @@ func assertFits(t *testing.T, v string, width, height int) {
 		}
 	}
 }
+
+var (
+	tab      = tea.KeyPressMsg{Code: tea.KeyTab}
+	shiftTab = tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift}
+)
+
+// repos are the names the test completion offers.
+var repos = []string{
+	"gammons/slk", "gammons/slk-web", "cli/cli", "cli/go-gh",
+	"charmbracelet/bubbletea", "charmbracelet/bubbles", "charmbracelet/lipgloss",
+}
+
+// completeWords completes the word before the cursor, after a space or a
+// colon, with the words that start with it, replacing the word up to the
+// cursor.
+func completeWords(words ...string) Complete {
+	return func(line string, cursor int) []Candidate {
+		start := strings.LastIndexAny(line[:cursor], " :") + 1
+		word := line[start:cursor]
+		if word == "" {
+			return nil
+		}
+		var out []Candidate
+		for _, w := range words {
+			if strings.HasPrefix(w, word) {
+				out = append(out, Candidate{Text: w, Start: start, End: cursor})
+			}
+		}
+		return out
+	}
+}

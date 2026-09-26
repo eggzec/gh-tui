@@ -6,7 +6,8 @@ import (
 )
 
 // Update handles the command line's keys and passes everything else to the
-// input. A blurred command line ignores every message.
+// input. A change to the line or a move of the cursor asks Complete for
+// new candidates. A blurred command line ignores every message.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	if !m.focused {
 		return m, nil
@@ -28,6 +29,14 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.input.Value() == "" && key.Matches(msg, m.keys.CancelEmpty):
 			cmd := m.cancel()
 			return m, cmd
+		case key.Matches(msg, m.keys.Next):
+			m.cycle(1)
+			m.render()
+			return m, nil
+		case key.Matches(msg, m.keys.Prev):
+			m.cycle(-1)
+			m.render()
+			return m, nil
 		}
 	}
 	value, pos := m.input.Value(), m.input.Position()
@@ -36,6 +45,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	// The cursor doesn't blink, so only a change to the line or a move of
 	// the cursor changes the view.
 	if m.input.Value() != value || m.input.Position() != pos {
+		m.refresh()
 		m.render()
 	}
 	return m, cmd
