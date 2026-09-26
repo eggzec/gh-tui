@@ -19,9 +19,9 @@ func (h helpKeys) ShortHelp() []key.Binding {
 			return m.commit.pager.ShortHelp()
 		}
 		pk := m.commit.pager.KeyMap()
-		return []key.Binding{pk.Search, pk.Next, pk.Prev, k.Open, k.Next, named(k.Back, "files")}
+		return []key.Binding{pk.Search, pk.Next, pk.Prev, k.Open, k.Next, h.zoom(), h.back()}
 	}
-	return append(h.actions(), k.Next, h.back())
+	return append(h.actions(), k.Next, h.zoom(), h.back())
 }
 
 // FullHelp returns the bindings for the full help view.
@@ -31,7 +31,7 @@ func (h helpKeys) FullHelp() [][]key.Binding {
 	case m.focus == branchPane && m.branches.filter != nil:
 		return m.branches.filter.FullHelp()
 	case m.focus == commitPane && m.commit.patch:
-		return append(m.commit.pager.FullHelp(), []key.Binding{k.Open, k.ResetBase, k.Next, k.Prev, named(k.Back, "files")})
+		return append(m.commit.pager.FullHelp(), []key.Binding{k.Open, k.ResetBase, k.Next, k.Prev, h.zoom(), h.back()})
 	}
 	moves := k.List
 	if m.focus == graphPane {
@@ -44,7 +44,7 @@ func (h helpKeys) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{moves.Up, moves.Down, moves.PageUp, moves.PageDown, moves.Home, moves.End},
 		append(actions, k.Retry),
-		{k.Next, k.Prev, h.back()},
+		{k.Next, k.Prev, h.zoom(), h.back()},
 	}
 }
 
@@ -61,12 +61,26 @@ func (h helpKeys) actions() []key.Binding {
 	return []key.Binding{named(k.Select, "patch"), k.UseAsBase, k.Open}
 }
 
-// back is the back key, which closes the modal from the branches.
+// zoom is the zoom key, left out where the modal shows one pane anyway.
+func (h helpKeys) zoom() key.Binding {
+	z := h.m.keys.Zoom
+	z.SetEnabled(z.Enabled() && !h.m.narrow())
+	return z
+}
+
+// back is the back key, which shows every pane again while one is
+// zoomed, closes a patch, and closes the modal from the branches.
 func (h helpKeys) back() key.Binding {
-	if h.m.focus == branchPane {
-		return named(h.m.keys.Back, "close")
+	m := h.m
+	switch {
+	case m.zoomed():
+		return named(m.keys.Back, "unzoom")
+	case m.focus == commitPane && m.commit.patch:
+		return named(m.keys.Back, "files")
+	case m.focus == branchPane:
+		return named(m.keys.Back, "close")
 	}
-	return h.m.keys.Back
+	return m.keys.Back
 }
 
 // named returns b described as desc.

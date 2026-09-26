@@ -11,7 +11,8 @@
 // again, even in a later session, makes no request.
 //
 // On a narrow terminal the modal shows one pane at a time, with a
-// breadcrumb of where it is.
+// breadcrumb of where it is, and zoomed it shows the focused pane alone at
+// any width.
 package history
 
 import (
@@ -78,6 +79,8 @@ type Modal struct {
 	// seq counts the moves of the graph's cursor, so that only the last
 	// rest reads.
 	seq int
+	// zoom shows the focused pane alone, as a narrow modal does.
+	zoom bool
 
 	spin     spinner.Model
 	spinning bool
@@ -192,6 +195,12 @@ func (m *Modal) Help() help.KeyMap {
 // narrow reports whether the modal shows one pane at a time.
 func (m *Modal) narrow() bool {
 	return m.width < narrowWidth
+}
+
+// zoomed reports whether the zoom shows. A narrow modal shows one pane
+// anyway, so there the back key keeps its other uses.
+func (m *Modal) zoomed() bool {
+	return m.zoom && !m.narrow()
 }
 
 // close ends the modal's reads and asks the app to close it.

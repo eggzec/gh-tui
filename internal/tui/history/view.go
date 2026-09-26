@@ -16,7 +16,8 @@ import (
 const labelWidth = 10
 
 // View renders the panes side by side, or the focused one alone with a
-// breadcrumb on a narrow terminal, in exactly the size of the last SetSize.
+// breadcrumb on a narrow terminal or with its title zoomed, in exactly the
+// size of the last SetSize.
 func (m *Modal) View() string {
 	if m.width <= 0 || m.height <= 0 {
 		return ""
@@ -25,6 +26,11 @@ func (m *Modal) View() string {
 	if m.narrow() {
 		lines := make([]string, 0, m.height)
 		lines = append(lines, fit(m.breadcrumb(m.width), m.width))
+		return strings.Join(append(lines, m.paneLines(m.focus, m.width, h)...), "\n")
+	}
+	if m.zoom {
+		lines := make([]string, 0, m.height)
+		lines = append(lines, m.paneTitle(m.focus, m.width))
 		return strings.Join(append(lines, m.paneLines(m.focus, m.width, h)...), "\n")
 	}
 	bw, gw, cw := m.widths()
@@ -54,9 +60,9 @@ func (m *Modal) bodyHeight() int {
 }
 
 // widths returns the widths of the branch, graph and commit panes. On a
-// narrow terminal each takes the whole width, one at a time.
+// narrow terminal, or zoomed, each takes the whole width, one at a time.
 func (m *Modal) widths() (branches, graph, commit int) {
-	if m.narrow() {
+	if m.narrow() || m.zoom {
 		return m.width, m.width, m.width
 	}
 	branches = min(max(m.width/5, 16), 26)

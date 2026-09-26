@@ -6,10 +6,15 @@ func BenchmarkView(b *testing.B) {
 	for _, size := range []struct {
 		name string
 		w, h int
-	}{{"140 columns", wideW, wideH}, {"80 columns", narrowW, narrowH}} {
+		keys []string
+	}{
+		{"140 columns", wideW, wideH, nil},
+		{"140 columns zoomed", wideW, wideH, []string{"z"}},
+		{"80 columns", narrowW, narrowH, nil},
+	} {
 		b.Run(size.name, func(b *testing.B) {
 			m, h := newModal(b, newFake(), size.w, size.h)
-			h.keys("j", "j", "enter")
+			h.keys(append([]string{"j", "j", "enter"}, size.keys...)...)
 			b.ReportAllocs()
 			for b.Loop() {
 				_ = m.View()
