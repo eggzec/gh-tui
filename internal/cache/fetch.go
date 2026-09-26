@@ -92,6 +92,13 @@ func (c *Cache[V]) Fetch(ctx context.Context, key string, fn FetchFunc[V]) (Entr
 	}
 }
 
+// Hit counts a read of key that its caller served from what Get returned,
+// without a Fetch, as a memory hit, such as an entry that is stale by its
+// TTL but that the caller knows to be current.
+func (c *Cache[V]) Hit(key string) {
+	c.count(key, obs.MemoryHit)
+}
+
 // start runs fn for key in the background. n is the current node, or nil.
 // c.mu must be held.
 func (c *Cache[V]) start(ctx context.Context, key string, n *node[V], fn FetchFunc[V]) *flight[V] {

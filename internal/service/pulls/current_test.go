@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/obs"
 )
 
 // versioned is a fake GitHub whose pull request #1 was last updated at
@@ -244,5 +245,31 @@ func TestChangedKeepsDetailThatShowsIt(t *testing.T) {
 		readDetail(t, s)
 		// Only the comments, read before the change, are read again.
 		wantCalls(t, api, 1, 2)
+	})
+}
+
+func TestCurrentReadsCountAsHits(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		stats := obs.NewStats()
+		prev := obs.SetDefault(stats)
+		defer obs.SetDefault(prev)
+		v := &versioned{updated: clock, checks: core.ChecksSuccess}
+		s := New(v.api(), WithTTL(time.Minute))
+		list(t, s, openFirst)
+		readDetail(t, s)
+		time.Sleep(time.Hour)
+		// Past the TTL, the list vouches for them: two hits, no misses.
+		readDetail(t, s)
+		if !s.Current(firstComments) {
+			t.Fatal("Current = false, want true")
+		}
+		var hit, miss int64
+		for _, c := range stats.Summary().Cache {
+			hit, miss = hit+c.Hit, miss+c.Miss
+		}
+		// The misses are the list, the detail and the comments.
+		if hit != 2 || miss != 3 {
+			t.Errorf("counted %d hits and %d misses, want 2 and 3", hit, miss)
+		}
 	})
 }
