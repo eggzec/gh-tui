@@ -121,12 +121,17 @@ func (f *Filters[Q]) decided(ctx context.Context, q Q, why string, e obs.Prefetc
 // whether GitHub refused it with the rate limit.
 func (f *Filters[Q]) readOne(ctx context.Context, q Q) (limited bool) {
 	f.seen.Count(obs.PrefetchSent)
+	f.seen.Started(q)
 	start := time.Now()
 	err := f.read(ctx, q)
 	level, outcome := slog.LevelInfo, "read"
+	if err == nil {
+		f.seen.Read(q)
+	} else {
+		f.seen.Dropped(q)
+	}
 	switch {
 	case err == nil:
-		f.seen.Read(q)
 	case errors.Is(err, core.ErrRateLimited):
 		level, outcome, limited = slog.LevelWarn, "rate_limited", true
 		f.seen.Count(obs.PrefetchRateLimited)

@@ -177,6 +177,44 @@ func TestPrefetched(t *testing.T) {
 	}
 }
 
+func TestPrefetchedInFlight(t *testing.T) {
+	tests := []struct {
+		name       string
+		steps      func(p *Prefetched[int])
+		wantOpened int64
+	}{
+		{"opened while read", func(p *Prefetched[int]) { p.Started(1); p.Opened(1); p.Read(1) }, 1},
+		{"opened twice while read", func(p *Prefetched[int]) { p.Started(1); p.Opened(1); p.Opened(1); p.Read(1); p.Opened(1) }, 1},
+		{"opened while read, which failed", func(p *Prefetched[int]) { p.Started(1); p.Opened(1); p.Dropped(1); p.Opened(1) }, 0},
+		{"opened after a failed read", func(p *Prefetched[int]) { p.Started(1); p.Dropped(1); p.Opened(1) }, 0},
+		{"opened once read", func(p *Prefetched[int]) { p.Started(1); p.Read(1); p.Opened(1) }, 1},
+		{"read again after a use", func(p *Prefetched[int]) {
+			p.Started(1)
+			p.Read(1)
+			p.Opened(1)
+			p.Started(1)
+			p.Read(1)
+			p.Opened(1)
+		}, 2},
+		{"never read", func(p *Prefetched[int]) { p.Opened(1) }, 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := NewStats()
+			prev := SetDefault(s)
+			t.Cleanup(func() { SetDefault(prev) })
+			tt.steps(NewPrefetched[int]("pull"))
+			var opened int64
+			for _, p := range s.Summary().Prefetch {
+				opened += p.Opened
+			}
+			if opened != tt.wantOpened {
+				t.Errorf("opened = %d, want %d", opened, tt.wantOpened)
+			}
+		})
+	}
+}
+
 func BenchmarkCountCache(b *testing.B) {
 	s := NewStats()
 	b.ReportAllocs()
