@@ -19,6 +19,9 @@ type host struct {
 	// second records that n reached the second match of "fmt". The
 	// output can't tell: the renderer redraws only the changed digit.
 	second bool
+	// highlighted is closed once the highlighted tokens arrive, which
+	// they do in a command that the keys may beat.
+	highlighted chan struct{}
 }
 
 func (h host) Init() tea.Cmd { return h.highlight }
@@ -39,6 +42,10 @@ func (h host) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if h.pager.Query() == "fmt" && h.pager.search.cur == 1 {
 		h.second = true
 	}
+	if h.highlighted != nil && h.pager.spans != nil {
+		close(h.highlighted)
+		h.highlighted = nil
+	}
 	return h, cmd
 }
 
@@ -48,10 +55,16 @@ func TestProgram(t *testing.T) {
 	p := New()
 	highlight := p.SetContent("main.go", goSource)
 	p.Focus()
-	tm := teatest.NewTestModel(t, host{pager: p, highlight: highlight}, teatest.WithInitialTermSize(60, 12))
+	highlighted := make(chan struct{})
+	tm := teatest.NewTestModel(t, host{pager: p, highlight: highlight, highlighted: highlighted}, teatest.WithInitialTermSize(60, 12))
 	teatest.WaitFor(t, tm.Output(), func(b []byte) bool {
 		return bytes.Contains(b, []byte("line 1/10"))
 	}, teatest.WithDuration(5*time.Second))
+	select {
+	case <-highlighted:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the highlighted tokens never arrived")
+	}
 
 	tm.Send(press("/"))
 	tm.Type("fmt")
@@ -71,8 +84,5 @@ func TestProgram(t *testing.T) {
 	if !final.closed || final.pager.Query() != "" {
 		t.Errorf("closed %v with query %q; want closed with the search cleared",
 			final.closed, final.pager.Query())
-	}
-	if final.pager.spans == nil {
-		t.Error("the highlighted tokens never arrived")
 	}
 }
