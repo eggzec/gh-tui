@@ -1,11 +1,14 @@
 package pulls
 
 import (
+	"errors"
 	"slices"
 	"strings"
 	"testing"
 	"testing/synctest"
 	"time"
+
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/threads"
@@ -177,5 +180,172 @@ func TestNotificationReadAheadOpensAtOnce(t *testing.T) {
 	}
 	if strings.Contains(view, "Loading…") {
 		t.Errorf("modal waits for what was read ahead:\n%s", view)
+	}
+}
+
+// rested runs cmd, which moved the cursor, until the delay reports that it
+// rested, and returns the read that s then starts.
+func rested(t *testing.T, s *Section, cmd tea.Cmd) tea.Cmd {
+	t.Helper()
+	var find func(tea.Cmd) (ui.AheadMsg, bool)
+	find = func(c tea.Cmd) (ui.AheadMsg, bool) {
+		if c == nil {
+			return ui.AheadMsg{}, false
+		}
+		switch msg := c().(type) {
+		case ui.AheadMsg:
+			return msg, true
+		case tea.BatchMsg:
+			for _, c := range msg {
+				if m, ok := find(c); ok {
+					return m, true
+				}
+			}
+		}
+		return ui.AheadMsg{}, false
+	}
+	msg, ok := find(cmd)
+	if !ok {
+		t.Fatal("moving the cursor started no delay")
+	}
+	read := s.Update(msg)
+	if read == nil {
+		t.Fatal("resting on the row read nothing")
+	}
+	return read
+}
+
+func TestModalPausesReadAhead(t *testing.T) {
+	tests := []struct {
+		name string
+		// settle runs the loads of the modal, or closes it.
+		settle func(t *testing.T, h *host, loads tea.Cmd)
+	}{
+		{"until its detail loads", func(t *testing.T, h *host, loads tea.Cmd) {
+			t.Helper()
+			drain(t, h, loads)
+		}},
+		{"until it closes", func(t *testing.T, h *host, _ tea.Cmd) {
+			t.Helper()
+			press(t, h, "esc")
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				svc := newFakeService()
+				h := started(t, svc, 80, 40, WithPrefetch(0, 150*time.Millisecond))
+				seq, ok := sequence(h.Update(keyMsg("enter"))())
+				if !ok || len(seq) != 2 {
+					t.Fatal("enter should open the modal, then start its loads")
+				}
+				drain(t, h, seq[0])
+				// The list reads #135 ahead behind the modal.
+				read := rested(t, h.Section, h.Section.Update(keyMsg("down")))
+				done := make(chan struct{})
+				go func() {
+					read()
+					close(done)
+				}()
+				synctest.Wait()
+				if slices.Contains(svc.got(), 135) {
+					t.Error("read #135 ahead while the modal loads")
+				}
+				tt.settle(t, h, seq[1])
+				<-done
+				if !slices.Contains(svc.got(), 135) {
+					t.Error("didn't read #135 ahead once the modal settled")
+				}
+			})
+		})
+	}
+}
+
+func TestModalResumesReadAheadWhateverTheOrder(t *testing.T) {
+	tests := []struct {
+		name string
+		run  func(t *testing.T, h *host, svc *fakeService)
+		// paused is set when the reads ahead should still wait after run.
+		paused bool
+	}{{
+		name: "opened, not loaded yet",
+		run: func(t *testing.T, h *host, _ *fakeService) {
+			t.Helper()
+			seq, _ := sequence(h.Update(keyMsg("enter"))())
+			drain(t, h, seq[0])
+		},
+		paused: true,
+	}, {
+		name: "its detail fails",
+		run: func(t *testing.T, h *host, svc *fakeService) {
+			t.Helper()
+			svc.getErr = errors.New("boom")
+			seq, _ := sequence(h.Update(keyMsg("enter"))())
+			drain(t, h, seq[0])
+			drain(t, h, seq[1])
+			press(t, h, "esc")
+		},
+	}, {
+		name: "closed before it loads, another opened and closed, then both load",
+		run: func(t *testing.T, h *host, _ *fakeService) {
+			t.Helper()
+			seq, _ := sequence(h.Update(keyMsg("enter"))())
+			drain(t, h, seq[0])
+			press(t, h, "esc")
+			seq2, _ := sequence(h.Update(keyMsg("enter"))())
+			drain(t, h, seq2[0])
+			press(t, h, "esc")
+			drain(t, h, seq[1])
+			drain(t, h, seq2[1])
+		},
+	}, {
+		name: "two opened, both load, neither closed",
+		run: func(t *testing.T, h *host, _ *fakeService) {
+			t.Helper()
+			for _, c := range []tea.Cmd{h.openDetail(repo, 142, nil, false), h.openDetail(repo, 128, nil, false)} {
+				seq, ok := sequence(c())
+				if !ok {
+					t.Fatal("opening a modal isn't a sequence")
+				}
+				for _, s := range seq {
+					drain(t, h, s)
+				}
+			}
+		},
+	}}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				svc := newFakeService()
+				h := started(t, svc, 80, 40, WithPrefetch(0, 150*time.Millisecond))
+				tt.run(t, h, svc)
+				svc.mu.Lock()
+				svc.getErr = nil
+				svc.mu.Unlock()
+				read := rested(t, h.Section, h.Section.Update(keyMsg("down")))
+				done := make(chan struct{})
+				go func() {
+					read()
+					close(done)
+				}()
+				synctest.Wait()
+				select {
+				case <-done:
+					if tt.paused {
+						t.Error("read ahead while the modal loads")
+					}
+					if !slices.Contains(svc.got(), 135) {
+						t.Errorf("read details %v, want #135 read ahead", svc.got())
+					}
+				default:
+					if !tt.paused {
+						t.Error("the reads ahead still wait")
+					}
+					// End the waiting read.
+					h.cancelFeed()
+					<-done
+				}
+			})
+		})
 	}
 }

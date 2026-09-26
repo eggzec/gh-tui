@@ -7,6 +7,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -172,5 +173,83 @@ func TestNotificationReadAheadOpensAtOnce(t *testing.T) {
 	}
 	if strings.Contains(view, "Loading") {
 		t.Errorf("modal waits for what was read ahead:\n%s", view)
+	}
+}
+
+// rested runs cmd, which moved the cursor, until the delay reports that it
+// rested, and returns the read that s then starts.
+func rested(t *testing.T, s *Section, cmd tea.Cmd) tea.Cmd {
+	t.Helper()
+	var find func(tea.Cmd) (ui.AheadMsg, bool)
+	find = func(c tea.Cmd) (ui.AheadMsg, bool) {
+		if c == nil {
+			return ui.AheadMsg{}, false
+		}
+		switch msg := c().(type) {
+		case ui.AheadMsg:
+			return msg, true
+		case tea.BatchMsg:
+			for _, c := range msg {
+				if m, ok := find(c); ok {
+					return m, true
+				}
+			}
+		}
+		return ui.AheadMsg{}, false
+	}
+	msg, ok := find(cmd)
+	if !ok {
+		t.Fatal("moving the cursor started no delay")
+	}
+	read := s.Update(msg)
+	if read == nil {
+		t.Fatal("resting on the row read nothing")
+	}
+	return read
+}
+
+func TestModalPausesReadAhead(t *testing.T) {
+	tests := []struct {
+		name string
+		// settle runs the loads of the modal, or closes it.
+		settle func(t *testing.T, h *host, loads tea.Cmd)
+	}{
+		{"until its detail loads", func(t *testing.T, h *host, loads tea.Cmd) {
+			t.Helper()
+			run(t, h, loads)
+		}},
+		{"until it closes", func(t *testing.T, h *host, _ tea.Cmd) {
+			t.Helper()
+			press(t, h, "esc")
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				svc := newFakeService(sampleIssues(12))
+				h := started(t, svc, 80, 40, WithPrefetch(0, 150*time.Millisecond))
+				seq, ok := sequence(h.Update(keyMsg("enter"))())
+				if !ok || len(seq) != 2 {
+					t.Fatal("enter should open the modal, then start its loads")
+				}
+				run(t, h, seq[0])
+				// The list reads #999 ahead behind the modal.
+				read := rested(t, h.Section, h.Section.Update(keyMsg("down")))
+				done := make(chan struct{})
+				go func() {
+					read()
+					close(done)
+				}()
+				synctest.Wait()
+				if slices.Contains(svc.getCalls(), 999) {
+					t.Error("read #999 ahead while the modal loads")
+				}
+				tt.settle(t, h, seq[1])
+				<-done
+				if !slices.Contains(svc.getCalls(), 999) {
+					t.Error("didn't read #999 ahead once the modal settled")
+				}
+			})
+		})
 	}
 }
