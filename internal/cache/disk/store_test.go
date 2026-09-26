@@ -374,6 +374,35 @@ func TestCollect(t *testing.T) {
 	}
 }
 
+func TestCollectKeeps(t *testing.T) {
+	s := open(t, WithMaxSize(1000), WithCompression(gzip.NoCompression), WithKeep("history.json"))
+	kept := filepath.Join(s.Dir(), "entry", "acct", "history.json")
+	if err := os.MkdirAll(filepath.Dir(kept), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(kept, bytes.Repeat([]byte{'x'}, 5000), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	old := time.Now().Add(-100 * 24 * time.Hour)
+	if err := os.Chtimes(kept, old, old); err != nil {
+		t.Fatal(err)
+	}
+	key := strings.Repeat("a", 40)
+	if err := s.Put("blob", key, bytes.Repeat([]byte{'x'}, 2000)); err != nil {
+		t.Fatal(err)
+	}
+	u, err := s.Collect(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(kept); err != nil {
+		t.Errorf("Collect removed a file it keeps: %v", err)
+	}
+	if u.Removed != 1 || u.Files != 0 {
+		t.Errorf("Collect = %+v, want the object alone removed, and the kept file not counted", u)
+	}
+}
+
 func TestCollectCountsCompressedSize(t *testing.T) {
 	s := open(t, WithMaxSize(int64(len(text))))
 	for _, k := range []string{key, strings.Repeat("1", 40)} {

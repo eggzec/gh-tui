@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/eggzec/gh-tui/internal/cache"
+	"github.com/eggzec/gh-tui/internal/cmdhist"
 	"github.com/eggzec/gh-tui/internal/config"
 )
 
@@ -111,5 +112,47 @@ func TestOpenEntries(t *testing.T) {
 	}
 	if store := openEntries(config.Default().Cache.Disk, nil, alice); store != nil {
 		t.Error("openEntries without a disk cache != nil")
+	}
+}
+
+func TestHistoryPath(t *testing.T) {
+	root := t.TempDir()
+	cfg := config.Default().Cache.Disk
+	cfg.Dir = root
+	a, err := historyPath(cfg, "GitHub.com", "acct1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := filepath.Join(root, "github.com", entryDir, "acct1", "cmdline-history.json"); a != want {
+		t.Errorf("historyPath = %q, want %q, beside what the account keeps", a, want)
+	}
+	b, _ := historyPath(cfg, "github.com", "acct2")
+	c, _ := historyPath(cfg, "ghe.example:8443", "acct1")
+	if a == b || a == c {
+		t.Errorf("accounts share a history: %q, %q, %q", a, b, c)
+	}
+	cfg.Enabled = false
+	if p, err := historyPath(cfg, "github.com", "acct1"); p != "" || err != nil {
+		t.Errorf("historyPath with the disk cache off = %q, %v, want none", p, err)
+	}
+}
+
+func TestDiskCacheKeepsTheHistory(t *testing.T) {
+	cfg := config.Default().Cache.Disk
+	cfg.Dir = t.TempDir()
+	cfg.MaxSize = 1
+	store, _ := openDisk(t.Context(), cfg, "api.github.com")
+	if store == nil {
+		t.Fatal("no store")
+	}
+	path, _ := historyPath(cfg, "api.github.com", "acct1")
+	if err := cmdhist.New(path, 0).Save([]string{"goto cli/cli"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Collect(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(path); err != nil {
+		t.Errorf("collecting the cache removed the history: %v", err)
 	}
 }

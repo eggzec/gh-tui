@@ -60,6 +60,9 @@ func (s *Store) Collect(ctx context.Context) (Usage, error) {
 		if err != nil {
 			return nil
 		}
+		if slices.Contains(s.opts.keep, d.Name()) {
+			return nil
+		}
 		if strings.HasPrefix(d.Name(), tmpPrefix) {
 			if now.Sub(fi.ModTime()) > tmpMaxAge && os.Remove(p) == nil {
 				u.Removed++

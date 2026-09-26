@@ -112,6 +112,9 @@ type Model struct {
 	// repositories selected in this session, the latest first.
 	recall Recall
 	recent []core.RepoRef
+	// hist keeps the lines of the command line between sessions, or is
+	// nil.
+	hist *historyKeeper
 	// history opens the history modal of a repository, and actions its
 	// Actions modal.
 	history History
@@ -299,7 +302,7 @@ func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) 
 // the notifications, whose badge is on every screen, and listens for sync
 // events.
 func (m *Model) Init() tea.Cmd {
-	cmds := []tea.Cmd{tea.RequestBackgroundColor, m.pending, m.startScreen(), m.listen(), m.loadRepoInfo()}
+	cmds := []tea.Cmd{tea.RequestBackgroundColor, m.pending, m.startScreen(), m.listen(), m.loadRepoInfo(), m.loadHistory()}
 	m.pending = nil
 	for _, w := range m.warnings {
 		cmds = append(cmds, ui.Notify(toast.Warning, w))

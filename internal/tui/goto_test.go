@@ -174,7 +174,7 @@ func TestGotoIsCanceled(t *testing.T) {
 		// then is what the user does while the goto waits.
 		then func(m *Model)
 	}{
-		{name: "another command", then: func(m *Model) { m.runLine("goto cli/cli") }},
+		{name: "another command", then: func(m *Model) { m.runLine("goto cli/cli", nil) }},
 		{name: "another screen", then: func(m *Model) { drive(m, m.key(press("n"))) }},
 		{name: "another repository", then: func(m *Model) { drive(m, func() tea.Msg { return ui.RepoMsg{Repo: testRepo} }) }},
 		{name: "a modal", then: func(m *Model) { m.openModal(&fakeModal{title: "Preview"}) }},

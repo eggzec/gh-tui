@@ -44,9 +44,15 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case cmdline.SubmitMsg:
 		if msg.ID == m.line.ID() {
 			m.lineDone()
-			cmd := m.runLine(msg.Line)
+			cmd := m.runLine(msg.Line, m.saveHistory())
 			return m, cmd
 		}
+	case historyMsg:
+		cmd := m.loadedHistory(msg)
+		return m, cmd
+	case quitWaitedMsg:
+		cmd := m.quitWaited()
+		return m, cmd
 	case gotoRepoMsg:
 		cmd := m.gotRepo(msg)
 		return m, cmd
