@@ -473,3 +473,153 @@ func TestAheadRereadsAfterStop(t *testing.T) {
 		}
 	})
 }
+
+func TestAheadPause(t *testing.T) {
+	tests := []struct {
+		name string
+		// pause pauses a before the first rows are read ahead, and
+		// returns what resumes it.
+		pause func(a *Ahead[int]) (resume func())
+		// held is how many reads start while paused.
+		held int
+	}{{
+		name:  "none",
+		pause: func(*Ahead[int]) func() { return func() {} },
+		held:  3,
+	}, {
+		name:  "one",
+		pause: func(a *Ahead[int]) func() { return a.Pause() },
+	}, {
+		name: "two, both resumed",
+		pause: func(a *Ahead[int]) func() {
+			r1, r2 := a.Pause(), a.Pause()
+			return func() { r1(); r2() }
+		},
+	}, {
+		name: "resumed twice, then paused again",
+		pause: func(a *Ahead[int]) func() {
+			r := a.Pause()
+			r()
+			r()
+			return a.Pause()
+		},
+	}}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				r := newReader()
+				a := NewAhead("row", r.readRow, r.current, 3, time.Millisecond)
+				a.Reset(t.Context())
+				resume := tt.pause(a)
+				done := make(chan struct{})
+				go func() {
+					run(a.First(rowsOf(3)))
+					close(done)
+				}()
+				synctest.Wait()
+				if n := len(r.reads()); n != tt.held {
+					t.Errorf("%d reads started while paused, want %d", n, tt.held)
+				}
+				resume()
+				<-done
+				if n := len(r.reads()); n != 3 {
+					t.Errorf("read %d rows once resumed, want 3", n)
+				}
+			})
+		})
+	}
+}
+
+func TestAheadPauseLetsReadsInFlightGoOn(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		r := newReader()
+		r.hold = make(chan struct{})
+		a := NewAhead("row", r.readRow, r.current, 5, time.Millisecond)
+		a.Reset(t.Context())
+		done := make(chan struct{})
+		go func() {
+			run(a.First(rowsOf(5)))
+			close(done)
+		}()
+		synctest.Wait()
+		resume := a.Pause()
+		// A hover read waits too.
+		hover := rest(t, a, a.Moved(9, true))
+		hovered := make(chan struct{})
+		go func() {
+			run(hover)
+			close(hovered)
+		}()
+		close(r.hold)
+		synctest.Wait()
+		if got, want := r.reads(), []int{1, 2, 3}; !slices.Equal(got, want) {
+			t.Errorf("read %v while paused, want only those in flight before, %v", got, want)
+		}
+		resume()
+		<-done
+		<-hovered
+		if got, want := r.reads(), []int{1, 2, 3, 4, 5, 9}; !slices.Equal(got, want) {
+			t.Errorf("read %v once resumed, want %v", got, want)
+		}
+	})
+}
+
+func TestAheadResetCancelsPausedReads(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		_, stats := captureLog(t)
+		r := newReader()
+		a := NewAhead("row", r.readRow, r.current, 3, time.Millisecond)
+		a.Reset(t.Context())
+		resume := a.Pause()
+		defer resume()
+		done := make(chan struct{})
+		go func() {
+			run(a.First(rowsOf(3)))
+			close(done)
+		}()
+		synctest.Wait()
+		a.Reset(t.Context())
+		<-done
+		if n := len(r.reads()); n != 0 {
+			t.Errorf("read %d rows, want none", n)
+		}
+		if p := rowCounts(stats); p.Sent != 0 || p.Canceled != 3 {
+			t.Errorf("counted %+v, want 3 canceled and none sent", p)
+		}
+	})
+}
+
+func TestNilAheadPause(_ *testing.T) {
+	var a *Ahead[int]
+	resume := a.Pause()
+	resume()
+}
+
+func TestAheadPausedReadSkipsWhatGotCached(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		_, stats := captureLog(t)
+		r := newReader()
+		a := NewAhead("row", r.readRow, r.current, 0, time.Millisecond)
+		a.Reset(t.Context())
+		resume := a.Pause()
+		read := rest(t, a, a.Moved(9, true))
+		done := make(chan struct{})
+		go func() {
+			run(read)
+			close(done)
+		}()
+		synctest.Wait()
+		// The detail opened reads the row, and then resumes.
+		r.mu.Lock()
+		r.cached[9] = true
+		r.mu.Unlock()
+		resume()
+		<-done
+		if got := r.reads(); len(got) != 0 {
+			t.Errorf("read %v, want nothing once the row got cached", got)
+		}
+		if p := rowCounts(stats); p.Sent != 0 || p.Cached != 1 {
+			t.Errorf("counted %+v, want 1 skipped as cached", p)
+		}
+	})
+}

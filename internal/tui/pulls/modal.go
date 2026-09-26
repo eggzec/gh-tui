@@ -65,6 +65,9 @@ type detailModal struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	closed bool
+	// resume lets the reads ahead of the list go on, once the detail has
+	// loaded or the modal closed.
+	resume func()
 
 	// checksSvc reads the checks, and newChecks makes the Checks step,
 	// which checks is while it is shown; newChecks is nil without checks.
@@ -86,6 +89,8 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 	// The reads of the modal are one trace, however many pages it reads.
 	ctx, cancel := context.WithCancel(obs.WithTrace(s.ctx, "open.pull"))
 	s.ahead.Opened(commentsQuery(repo, number))
+	// The reads ahead wait, so that the detail's requests go first.
+	resume := s.ahead.Pause()
 	_, cached := s.svc.CachedGet(repo, number)
 	slog.InfoContext(ctx, "open", "span", "tui", "kind", "pull", "repo", repo.String(), "number", number, "cached", cached)
 	m := &detailModal{
@@ -100,6 +105,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 		caps:        s.capsOf(repo),
 		ctx:         ctx,
 		cancel:      cancel,
+		resume:      resume,
 		st:          s.st,
 		icons:       s.icons,
 		checksSvc:   s.checks,
@@ -315,6 +321,7 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	case key.Matches(msg, k.Back):
 		m.closed = true
 		m.cancel()
+		m.resume()
 		return ui.CloseModal(m)
 	case key.Matches(msg, k.Checks):
 		return m.openChecks()
@@ -344,12 +351,14 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	return cmd
 }
 
-// get fetches the detail. A fresh cached detail costs no request.
+// get fetches the detail. A fresh cached detail costs no request. Once it
+// returns, the reads ahead of the list go on.
 func (m *detailModal) get() tea.Cmd {
-	svc, ctx, repo, number, id := m.svc, m.ctx, m.repo, m.number, m.thread.ID()
+	svc, ctx, repo, number, id, resume := m.svc, m.ctx, m.repo, m.number, m.thread.ID(), m.resume
 	return func() tea.Msg {
 		start := time.Now()
 		d, err := svc.Get(ctx, repo, number)
+		resume()
 		obs.End(ctx, start, err, "span", "tui", "repo", repo.String(), "number", number)
 		return detailMsg{thread: id, detail: d, err: err}
 	}

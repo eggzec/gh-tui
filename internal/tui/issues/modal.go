@@ -63,6 +63,9 @@ type detailModal struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	closed bool
+	// resume lets the reads ahead of the list go on, once the issue has
+	// loaded or the modal closed.
+	resume func()
 
 	// prompt is where a comment or the labels are written, under the
 	// thread, while composing says what for.
@@ -85,6 +88,8 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue) tea.
 	// The reads of the modal are one trace, however many pages it reads.
 	ctx, cancel := context.WithCancel(obs.WithTrace(s.ctx, "open.issue"))
 	s.ahead.Opened(commentsQuery(repo, number))
+	// The reads ahead wait, so that the issue's requests go first.
+	resume := s.ahead.Pause()
 	_, cached := s.svc.CachedGet(repo, number)
 	slog.InfoContext(ctx, "open", "span", "tui", "kind", "issue", "repo", repo.String(), "number", number, "cached", cached)
 	m := &detailModal{
@@ -99,6 +104,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue) tea.
 		viewer:  s.viewer,
 		ctx:     ctx,
 		cancel:  cancel,
+		resume:  resume,
 		theme:   s.theme,
 		rows:    s.rows,
 		icons:   s.icons,
@@ -266,6 +272,7 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	case key.Matches(msg, k.Back):
 		m.closed = true
 		m.cancel()
+		m.resume()
 		return ui.CloseModal(m)
 	case key.Matches(msg, k.Comment):
 		return m.compose(composeComment, ui.ActComment)
@@ -292,10 +299,11 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 // get reads the issue, since a list page may carry less than the issue
 // itself, such as no body.
 func (m *detailModal) get() tea.Cmd {
-	svc, repo, number, id, ctx := m.svc, m.repo, m.number, m.thread.ID(), m.ctx
+	svc, repo, number, id, ctx, resume := m.svc, m.repo, m.number, m.thread.ID(), m.ctx, m.resume
 	return func() tea.Msg {
 		start := time.Now()
 		it, err := svc.Get(ctx, repo, number)
+		resume()
 		obs.End(ctx, start, err, "span", "tui", "repo", repo.String(), "number", number)
 		return issueMsg{thread: id, issue: it, err: err}
 	}

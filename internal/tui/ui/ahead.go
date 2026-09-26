@@ -27,7 +27,8 @@ const aheadWorkers = 3
 // with [NewAhead]; a nil *Ahead reads nothing.
 //
 // Each read costs requests, so few run at once, and the reads stop once
-// GitHub reports the rate limit, until [Ahead.Resume].
+// GitHub reports the rate limit, until [Ahead.Resume]. While a detail the
+// user opened loads, reads wait to start ([Ahead.Pause]).
 type Ahead[K comparable] struct {
 	id int64
 	// seen remembers what was read, so that opening it counts as a use,
@@ -48,6 +49,8 @@ type Ahead[K comparable] struct {
 	// flying holds the rows being read, so that a row whose read is in
 	// flight isn't read again meanwhile.
 	flying *flights[K]
+	// pause holds the reads that haven't started while it is closed.
+	pause *gate
 	// first are the first rows read ahead for the list.
 	first []K
 
@@ -86,6 +89,7 @@ func NewAhead[K comparable](kind string, read func(ctx context.Context, k K) err
 		cancel:  func() {},
 		limited: new(atomic.Bool),
 		flying:  newFlights[K](),
+		pause:   newGate(),
 	}
 }
 
@@ -119,6 +123,17 @@ func (a *Ahead[K]) Resume() {
 	if a != nil {
 		a.limited.Store(false)
 	}
+}
+
+// Pause holds the reads that haven't started, such as while a detail the
+// user opened loads, so that they don't compete with its requests, until
+// the returned resume is called; resume may be called more than once.
+// Reads in flight go on. While any of several pauses holds, reads wait.
+func (a *Ahead[K]) Pause() (resume func()) {
+	if a == nil {
+		return func() {}
+	}
+	return a.pause.close()
 }
 
 // First reads the details of the first rows of the list, which at returns
@@ -167,7 +182,7 @@ func (a *Ahead[K]) start(ks []K) batch[K] {
 	for _, k := range ks {
 		a.seen.Started(k)
 	}
-	return batch[K]{id: id, read: a.read, limited: a.limited, seen: a.seen, flying: a.flying}
+	return batch[K]{id: id, read: a.read, current: a.current, limited: a.limited, seen: a.seen, flying: a.flying, pause: a.pause}
 }
 
 // same reports whether the first rows are those read ahead already.
@@ -192,9 +207,11 @@ func (a *Ahead[K]) same(at func(i int) (K, bool)) bool {
 type batch[K comparable] struct {
 	id      int
 	read    func(context.Context, K) error
+	current func(K) bool
 	limited *atomic.Bool
 	seen    *obs.Prefetched[K]
 	flying  *flights[K]
+	pause   *gate
 }
 
 // readAll reads the details of ks, a few at a time, until ctx is done or
@@ -241,11 +258,29 @@ func (b batch[K]) end(k K, ok bool) {
 	}
 }
 
-// readOne reads the detail of k, and records what came of it.
+// readOne reads the detail of k once no pause holds it, and records what
+// came of it.
 func (b batch[K]) readOne(ctx context.Context, k K) {
+	held, waited, err := b.pause.wait(ctx)
+	if err != nil {
+		b.skip(obs.PrefetchCanceled, []K{k})
+		return
+	}
+	if held {
+		if obs.Enabled(ctx, slog.LevelDebug) {
+			slog.DebugContext(ctx, "prefetch paused", "span", "prefetch", "kind", b.seen.Kind(), "key", fmt.Sprint(k),
+				"waited_ms", obs.Millis(waited))
+		}
+		// What paused it, such as the detail the user opened, may have
+		// read it meanwhile.
+		if b.current(k) {
+			b.skip(obs.PrefetchCached, []K{k})
+			return
+		}
+	}
 	b.seen.Count(obs.PrefetchSent)
 	start := time.Now()
-	err := b.read(ctx, k)
+	err = b.read(ctx, k)
 	outcome := "read"
 	switch {
 	case err == nil:
@@ -431,4 +466,60 @@ func (f *flights[K]) clear() {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	clear(f.rows)
+}
+
+// gate holds whoever waits on it while it is closed, by one or more
+// holders at once. It is safe for concurrent use.
+type gate struct {
+	mu      sync.Mutex
+	holders int
+	// open is closed while no holder holds the gate.
+	open chan struct{}
+}
+
+func newGate() *gate {
+	open := make(chan struct{})
+	close(open)
+	return &gate{open: open}
+}
+
+// close closes g until the returned func is called, once or more.
+func (g *gate) close() func() {
+	g.mu.Lock()
+	if g.holders == 0 {
+		g.open = make(chan struct{})
+	}
+	g.holders++
+	g.mu.Unlock()
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			g.mu.Lock()
+			defer g.mu.Unlock()
+			g.holders--
+			if g.holders == 0 {
+				close(g.open)
+			}
+		})
+	}
+}
+
+// wait waits until g is open or ctx is done. It reports whether g held it,
+// and for how long.
+func (g *gate) wait(ctx context.Context) (held bool, waited time.Duration, err error) {
+	g.mu.Lock()
+	open := g.open
+	g.mu.Unlock()
+	select {
+	case <-open:
+		return false, 0, nil
+	default:
+	}
+	start := time.Now()
+	select {
+	case <-open:
+	case <-ctx.Done():
+		err = ctx.Err()
+	}
+	return true, time.Since(start), err
 }
