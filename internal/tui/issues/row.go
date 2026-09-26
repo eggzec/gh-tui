@@ -11,12 +11,13 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
-// A row is "  #123 ● Title…   bug +1   ◦ 3  octocat   3d": the number, the
-// glyph of the state, the title, then the labels, the comment count, the author and the
-// age in fixed columns on the right.
+// A row is "● #123   Title…   bug +1   ◦ 3  octocat   3d": the glyph of
+// the state, the number, the title, then the labels, the comment count, the
+// author and the age in fixed columns on the right. It starts the way a row
+// of pull requests does, so the two lists line up.
 const (
-	numWidth      = 6 // "#12345"
-	prefixWidth   = numWidth + 3
+	// prefixWidth is the glyph and the number, each with a space after it.
+	prefixWidth   = 2 + ui.NumberWidth + 1
 	commentsWidth = 5 // "◦ 999"
 	authorWidth   = 8
 	ageWidth      = 4 // "11mo"
@@ -155,18 +156,18 @@ func (s *Section) renderRow(it core.Issue, selected bool, width int) string {
 	var b strings.Builder
 	b.Grow(width + 160)
 
-	num := "#" + strconv.Itoa(it.Number)
-	pad(&b, numWidth-len(num))
-	st.number.write(&b, num)
-	b.WriteByte(' ')
 	b.WriteString(st.states[ui.IssueState(it)])
 	b.WriteByte(' ')
+	num := "#" + strconv.Itoa(it.Number)
+	over := ui.NumberOver(num)
+	st.number.write(&b, num)
+	pad(&b, ui.NumberWidth+over-len(num)+1)
 
 	title := st.title
 	if selected {
 		title = st.selected
 	}
-	writeFit(&b, title, clean(it.Title), c.title)
+	writeFit(&b, title, clean(it.Title), max(c.title-over, 0))
 
 	if c.chips > 0 {
 		pad(&b, gap)
@@ -191,6 +192,11 @@ func (s *Section) renderRow(it core.Issue, selected bool, width int) string {
 		age := ui.Ago(it.UpdatedAt, s.now())
 		pad(&b, ageWidth-len(age))
 		st.age.write(&b, age)
+	}
+	if over >= c.title {
+		// With no title left to take from, the glyph and the number may
+		// be wider than the row.
+		return ansi.Truncate(b.String(), width, "")
 	}
 	return b.String()
 }

@@ -78,7 +78,7 @@ func TestProgram(t *testing.T) {
 	icons := ui.NewIcons(config.IconsNerd)
 	waitFor(icons.State(ui.IssueClosed))
 	close(svc.gate)
-	waitFor("8 " + icons.State(ui.IssueOpen) + " Notifications tab keeps pol")
+	waitFor(icons.State(ui.IssueOpen) + " #998   Notifications tab keeps pol")
 	tm.Send(keyMsg("q"))
 
 	final := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(app)

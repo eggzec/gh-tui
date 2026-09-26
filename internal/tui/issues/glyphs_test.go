@@ -19,19 +19,46 @@ func TestStateGlyphs(t *testing.T) {
 		row    string
 		badge  string
 	}{
-		{core.StateOpen, "", "#1 o T", "o Open"},
-		{core.StateOpen, core.ReasonReopened, "#1 o T", "o Open"},
-		{core.StateClosed, "", "#1 x T", "x Closed"},
-		{core.StateClosed, core.ReasonCompleted, "#1 x T", "x Closed"},
-		{core.StateClosed, core.ReasonNotPlanned, "#1 - T", "- Closed as not planned"},
-		{core.StateClosed, core.ReasonDuplicate, "#1 - T", "- Closed as not planned"},
+		{core.StateOpen, "", "o #1     T", "o Open"},
+		{core.StateOpen, core.ReasonReopened, "o #1     T", "o Open"},
+		{core.StateClosed, "", "x #1     T", "x Closed"},
+		{core.StateClosed, core.ReasonCompleted, "x #1     T", "x Closed"},
+		{core.StateClosed, core.ReasonNotPlanned, "- #1     T", "- Closed as not planned"},
+		{core.StateClosed, core.ReasonDuplicate, "- #1     T", "- Closed as not planned"},
 	} {
 		it := core.Issue{Number: 1, Title: "T", State: tt.state, Reason: tt.reason}
-		if row := strings.TrimSpace(ansi.Strip(s.renderRow(it, false, 80))); !strings.HasPrefix(row, tt.row) {
+		if row := ansi.Strip(s.renderRow(it, false, 80)); !strings.HasPrefix(row, tt.row) {
 			t.Errorf("%s %s: row = %q, want it to start with %q", tt.state, tt.reason, row, tt.row)
 		}
 		if badge := ansi.Strip(s.rows.badges[ui.IssueState(it)]); badge != tt.badge {
 			t.Errorf("%s %s: badge = %q, want %q", tt.state, tt.reason, badge, tt.badge)
+		}
+	}
+}
+
+// Numbers too long for their column take the extra cells from the title,
+// so the row keeps its width and the space after the number. A row too
+// narrow for the glyph and the number is cut.
+func TestLongNumbers(t *testing.T) {
+	s := New(t.Context(), newFakeService(nil), config.Default().Keys, WithIcons(ui.NewIcons(config.IconsASCII)))
+	for _, tt := range []struct {
+		number int
+		row    string
+	}{
+		{7, "o #7     "},
+		{12345, "o #12345 "},
+		{123456, "o #123456 "},
+		{1234567890, "o #1234567890 "},
+	} {
+		it := core.Issue{Number: tt.number, Title: "Title", State: core.StateOpen}
+		for _, width := range []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 20, 40, 80, 120} {
+			row := ansi.Strip(s.renderRow(it, false, width))
+			if want := tt.row[:min(len(tt.row), width)]; !strings.HasPrefix(row, want) {
+				t.Errorf("#%d at %d: row = %q, want it to start with %q", tt.number, width, row, want)
+			}
+			if w := ansi.StringWidth(row); w != width {
+				t.Errorf("#%d at %d: row is %d cells wide", tt.number, width, w)
+			}
 		}
 	}
 }
