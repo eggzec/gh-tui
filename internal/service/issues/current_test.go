@@ -65,6 +65,15 @@ func listIssues(t *testing.T, s *Service, q ListQuery) {
 	}
 }
 
+// relistIssues reads q again after a read that served it kept, which asks
+// GitHub.
+func relistIssues(t *testing.T, s *Service, q ListQuery) {
+	t.Helper()
+	if _, err := s.List(t.Context(), q.again()); err != nil {
+		t.Fatalf("List: %v", err)
+	}
+}
+
 func TestCurrentIssueOutlivesTTL(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		api, _ := versionedAPI(t)

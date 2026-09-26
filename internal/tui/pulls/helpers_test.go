@@ -158,6 +158,8 @@ func (f *fakeService) got() []int {
 func (f *fakeService) List(ctx context.Context, q pulls.ListQuery) (core.Page[core.PullRequest], error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	// Again doesn't select another page.
+	q.Again = false
 	f.queries = append(f.queries, q)
 	if !f.fresh[q] {
 		f.requests = append(f.requests, q)

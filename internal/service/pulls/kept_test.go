@@ -79,7 +79,7 @@ func TestKeptListIsServedStaleThenRefetched(t *testing.T) {
 		t.Errorf("list called %d times for the kept page, want 0", n)
 	}
 	// GraphQL has no validators, so the page is fetched again in full.
-	p, err = s.List(t.Context(), openList)
+	p, err = s.List(t.Context(), openList.again())
 	if err != nil || p.Stale {
 		t.Fatalf("second List = %+v, %v; want the page fetched", p, err)
 	}
@@ -123,8 +123,8 @@ func TestFreshListOfPageKeptLongAgo(t *testing.T) {
 	if s.FreshList(openList) {
 		t.Fatal("FreshList of a page kept an hour ago = true, want false")
 	}
-	// List fetches it rather than serving the kept page.
-	p, err := s.List(t.Context(), openList)
+	// A read ahead fetches it rather than serving the kept page.
+	p, err := s.List(t.Context(), openList.again())
 	if err != nil || p.Stale || len(p.Items) != 1 {
 		t.Fatalf("List = %+v, %v; want the page fetched", p, err)
 	}
@@ -141,7 +141,7 @@ func TestKeptDetailIsCurrentAfterRestart(t *testing.T) {
 	api := v.api()
 	s := New(api, WithStore(cachetest.Aged(store, time.Hour)))
 	list(t, s, openList)
-	list(t, s, openList)
+	relist(t, s, openList)
 	readDetail(t, s)
 	// The list still shows the version kept, so the detail and comments
 	// cost nothing.
@@ -160,7 +160,7 @@ func TestKeptDetailRefetchedWhenNewer(t *testing.T) {
 	api := v.api()
 	s := New(api, WithStore(cachetest.Aged(store, time.Hour)))
 	list(t, s, openList)
-	list(t, s, openList)
+	relist(t, s, openList)
 	readDetail(t, s)
 	wantCalls(t, api, 1, 1)
 	if d, _ := s.CachedGet(repo, 1); !d.UpdatedAt.Equal(epoch.Add(time.Hour)) {
@@ -195,7 +195,7 @@ func TestKeptOffline(t *testing.T) {
 
 			s := New(failing(v.api(), failure), WithStore(cachetest.Aged(store, time.Hour)))
 			list(t, s, openList)
-			p, err := s.List(t.Context(), openList)
+			p, err := s.List(t.Context(), openList.again())
 			other := New(failing(v.api(), failure), WithStore(cachetest.Aged(store, time.Hour)))
 			d, getErr := other.Get(t.Context(), repo, 1)
 			c, commentsErr := other.Comments(t.Context(), firstComments)
@@ -226,7 +226,7 @@ func TestKeptRefusalDropsKept(t *testing.T) {
 
 	s := New(failing(v.api(), refused), WithStore(cachetest.Aged(store, time.Hour)))
 	list(t, s, openList)
-	if _, err := s.List(t.Context(), openList); err == nil {
+	if _, err := s.List(t.Context(), openList.again()); err == nil {
 		t.Fatal("List succeeded, want the refusal")
 	}
 	if s.Current(firstComments) {

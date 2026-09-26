@@ -145,6 +145,9 @@ type fake struct {
 	jobs      map[int64][]core.Job
 	logs      map[int64]core.Log
 	workflows []core.Workflow
+	// keptWorkflows serves the workflows Stale, as an earlier session kept
+	// them, until a read with Again set.
+	keptWorkflows bool
 	// cachedJobs and cachedLogs hold what the Cached reads find.
 	cachedJobs map[int64]bool
 	cachedLogs map[int64]bool
@@ -163,6 +166,7 @@ type fake struct {
 	logReads  []int64
 	noteReads []int64
 	wfReads   int
+	wfAgain   []bool
 	runReads  int
 	sent      []string
 }
@@ -223,11 +227,15 @@ func (f *fake) Run(_ context.Context, r core.RepoRef, runID int64) (core.Run, er
 	return run, nil
 }
 
-func (f *fake) Workflows(context.Context, core.RepoRef) (core.Page[core.Workflow], error) {
+func (f *fake) Workflows(_ context.Context, q actionssvc.WorkflowsQuery) (core.Page[core.Workflow], error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.wfReads++
-	return core.Page[core.Workflow]{Items: f.workflows}, nil
+	f.wfAgain = append(f.wfAgain, q.Again)
+	if q.Again {
+		f.keptWorkflows = false
+	}
+	return core.Page[core.Workflow]{Items: f.workflows, Stale: f.keptWorkflows}, nil
 }
 
 func (f *fake) CachedJobs(q actionssvc.JobsQuery) (core.Page[core.Job], bool) {

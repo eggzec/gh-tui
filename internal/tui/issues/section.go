@@ -196,9 +196,13 @@ func (s *Section) newList() feed.Model[core.Issue] {
 	ctx, s.cancelList = context.WithCancel(s.ctx)
 	s.ahead.Reset(ctx)
 	svc, q := s.svc, s.listQuery(s.tab)
-	fetch := ui.FeedPages("list.issues", s.offline, func(ctx context.Context, cursor string) (core.Page[core.Issue], error) {
+	query := func(cursor string) issuesvc.ListQuery {
 		q := q
 		q.Cursor = cursor
+		return q
+	}
+	fetch := ui.FeedPages("list.issues", s.offline, query, func(ctx context.Context, q issuesvc.ListQuery, again bool) (core.Page[core.Issue], error) {
+		q.Again = again
 		return svc.List(ctx, q)
 	})
 	return feed.New(fetch, s.renderRow,

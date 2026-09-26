@@ -7,6 +7,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
+	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 )
@@ -61,41 +62,50 @@ func (m *Modal) openFilter() tea.Cmd {
 		return nil
 	}
 	m.workflows.loading = true
-	return tea.Batch(m.readWorkflows(), m.startSpinner())
+	return tea.Batch(m.readWorkflows(false), m.startSpinner())
 }
 
-// workflowsMsg carries the workflows of the repository.
+// workflowsMsg carries the workflows of the repository. Stale reports that
+// they were kept by an earlier session.
 type workflowsMsg struct {
 	id    int64
 	items []core.Workflow
+	stale bool
 	err   error
 }
 
-func (m *Modal) readWorkflows() tea.Cmd {
+// readWorkflows reads the workflows of the repository, past the ones an
+// earlier session kept with again set.
+func (m *Modal) readWorkflows(again bool) tea.Cmd {
 	svc, ctx, id, repo, off := m.svc, m.ctx, m.id, m.repo, m.opts.offline
 	return func() tea.Msg {
 		ctx, end := obs.Begin(ctx, "actions.workflows")
-		p, err := svc.Workflows(ctx, repo)
+		p, err := svc.Workflows(ctx, actionssvc.WorkflowsQuery{Repo: repo, Again: again})
 		end(err, "span", "tui", "workflows", len(p.Items), "stale", p.Stale, "offline", p.Offline)
 		if p.Offline {
 			off.Mark()
 		}
-		return workflowsMsg{id: id, items: p.Items, err: err}
+		return workflowsMsg{id: id, items: p.Items, stale: p.Stale, err: err}
 	}
 }
 
 // receiveWorkflows keeps the workflows, and shows the form that waited for
 // them. Without them, the form has no workflows to choose from, and a read
-// later tries again.
+// later tries again. Workflows an earlier session kept are shown, and read
+// again at once.
 func (m *Modal) receiveWorkflows(msg workflowsMsg) tea.Cmd {
 	m.workflows.loading = false
 	if msg.err == nil {
 		m.workflows.items, m.workflows.loaded = msg.items, true
 	}
-	if m.filterStep == nil || m.filterStep.form != nil {
-		return nil
+	var again tea.Cmd
+	if msg.err == nil && msg.stale {
+		again = m.readWorkflows(true)
 	}
-	return m.showForm()
+	if m.filterStep == nil || m.filterStep.form != nil {
+		return again
+	}
+	return tea.Batch(m.showForm(), again)
 }
 
 // showForm shows the form of the filter, on the filter shown.

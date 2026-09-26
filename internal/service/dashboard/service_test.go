@@ -17,7 +17,7 @@ func TestHeaderCachesUntilInvalidated(t *testing.T) {
 		t.Error("CachedHeader before a read = hit, want a miss")
 	}
 	for range 2 {
-		h, err := s.Header(t.Context())
+		h, err := s.Header(t.Context(), HeaderQuery{})
 		if err != nil || h.Profile.Login != "octocat" || h.Stale || h.Offline {
 			t.Fatalf("Header = %+v, %v; want octocat", h, err)
 		}
@@ -31,7 +31,7 @@ func TestHeaderCachesUntilInvalidated(t *testing.T) {
 	if _, ok := s.CachedHeader(); !ok {
 		t.Error("CachedHeader after Invalidate = miss, want the stale header")
 	}
-	if _, err := s.Header(t.Context()); err != nil {
+	if _, err := s.Header(t.Context(), HeaderQuery{}); err != nil {
 		t.Fatal(err)
 	}
 	api.wantCalls(t, "header", "header")
@@ -46,11 +46,14 @@ func TestTTLs(t *testing.T) {
 		want time.Duration
 		read func(context.Context, *Service) error
 	}{
-		{"header", 0, HeaderTTL, func(ctx context.Context, s *Service) error { _, err := s.Header(ctx); return err }},
-		{"header with a longer ttl", 2 * time.Hour, 2 * time.Hour, func(ctx context.Context, s *Service) error { _, err := s.Header(ctx); return err }},
+		{"header", 0, HeaderTTL, func(ctx context.Context, s *Service) error { _, err := s.Header(ctx, HeaderQuery{}); return err }},
+		{"header with a longer ttl", 2 * time.Hour, 2 * time.Hour, func(ctx context.Context, s *Service) error { _, err := s.Header(ctx, HeaderQuery{}); return err }},
 		{"work", 0, time.Minute, func(ctx context.Context, s *Service) error { _, err := s.Work(ctx, WorkQuery{}); return err }},
 		{"work with a ttl", 5 * time.Minute, 5 * time.Minute, func(ctx context.Context, s *Service) error { _, err := s.Work(ctx, WorkQuery{}); return err }},
-		{"contributions", 0, ContributionsTTL, func(ctx context.Context, s *Service) error { _, err := s.Contributions(ctx); return err }},
+		{"contributions", 0, ContributionsTTL, func(ctx context.Context, s *Service) error {
+			_, err := s.Contributions(ctx, ContributionsQuery{})
+			return err
+		}},
 		{"repos", 0, ReposTTL, func(ctx context.Context, s *Service) error {
 			_, err := s.Repos(ctx, ReposQuery{Viewer: true})
 			return err
@@ -214,13 +217,13 @@ func TestReadErrors(t *testing.T) {
 		orgRepos:      func(string, int, string) (core.Page[core.Repo], error) { return core.Page[core.Repo]{}, missing },
 	}
 	s := New(api)
-	if _, err := s.Header(t.Context()); !errors.Is(err, core.ErrUnauthorized) {
+	if _, err := s.Header(t.Context(), HeaderQuery{}); !errors.Is(err, core.ErrUnauthorized) {
 		t.Errorf("Header error = %v, want ErrUnauthorized", err)
 	}
 	if _, err := s.Work(t.Context(), WorkQuery{}); !errors.Is(err, core.ErrUnauthorized) {
 		t.Errorf("Work error = %v, want ErrUnauthorized", err)
 	}
-	if _, err := s.Contributions(t.Context()); !errors.Is(err, core.ErrUnauthorized) {
+	if _, err := s.Contributions(t.Context(), ContributionsQuery{}); !errors.Is(err, core.ErrUnauthorized) {
 		t.Errorf("Contributions error = %v, want ErrUnauthorized", err)
 	}
 	if _, err := s.Repos(t.Context(), ReposQuery{Owner: "nope"}); !errors.Is(err, core.ErrNotFound) {

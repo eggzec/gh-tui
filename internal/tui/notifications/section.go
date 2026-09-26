@@ -106,7 +106,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 	if !s.opener.MarksRead() {
 		s.keys.Select.SetHelp(s.keys.Select.Help().Key, "open")
 	}
-	s.feed = feed.New(ui.FeedPages("list.notifications", s.offline, s.list), s.render,
+	s.feed = feed.New(ui.FeedPages("list.notifications", s.offline, s.query, s.list), s.render,
 		feed.WithContext(ctx),
 		feed.WithKey(func(n core.Notification) string { return n.ID }),
 		feed.WithKeyMap(s.keys.feed),
@@ -118,9 +118,10 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 // list reads a page for the feed, and keeps the threads the filter does.
 // A page the filter leaves empty still leads to the next, which the feed
 // reads while its window has room.
-func (s *Section) list(ctx context.Context, cursor string) (core.Page[core.Notification], error) {
+func (s *Section) list(ctx context.Context, q notifications.ListQuery, again bool) (core.Page[core.Notification], error) {
 	f := s.filter()
-	p, err := s.svc.List(ctx, f.listQuery(cursor))
+	q.Again = again
+	p, err := s.svc.List(ctx, q)
 	p.Items = f.apply(p.Items)
 	return p, err
 }

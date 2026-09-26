@@ -118,7 +118,10 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 			checks.WithFollow(checks.Follow(followRuns(engine.Subscribe, engine.Refresh, actionSvc.Poll))))
 	}
 	// The login of the viewer, from the header the dashboard read.
-	viewer := viewerLogin(dashSvc.CachedHeader, dashSvc.Header)
+	viewer := viewerLogin(dashSvc.CachedHeader, func(ctx context.Context) (core.Header, error) {
+		// A kept header names the viewer as well as a fresh one.
+		return dashSvc.Header(ctx, dashsvc.HeaderQuery{})
+	})
 	var (
 		pullOpts = []pulls.Option{
 			pulls.WithOffline(offline), pulls.WithIcons(icons), pulls.WithFacets(facetSvc),

@@ -229,6 +229,25 @@ func TestFilterStep(t *testing.T) {
 	}
 }
 
+// Workflows an earlier session kept open the form at once, and are read
+// again past the kept ones.
+func TestKeptWorkflowsAreReadAgain(t *testing.T) {
+	f := newFake()
+	f.keptWorkflows = true
+	m, h := newModal(t, f, wideW, wideH)
+	h.keys("f")
+	if m.filterStep == nil || m.filterStep.form == nil {
+		t.Fatal("f didn't open the filter over the kept workflows")
+	}
+	if !slices.Equal(f.wfAgain, []bool{false, true}) {
+		t.Errorf("workflows read with Again %v, want the kept ones read again", f.wfAgain)
+	}
+	h.keys("esc", "f")
+	if f.wfReads != 2 {
+		t.Errorf("the workflows were read %d times, want twice", f.wfReads)
+	}
+}
+
 func TestFilterWaitsForTheWorkflows(t *testing.T) {
 	m, h := newModal(t, newFake(), wideW, wideH)
 	h.hold = func(msg tea.Msg) bool { _, ok := msg.(workflowsMsg); return ok }

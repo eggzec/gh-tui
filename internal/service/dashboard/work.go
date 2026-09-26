@@ -21,6 +21,9 @@ type WorkQuery struct {
 	// holds; the counts cover them all. Zero means DefaultWorkSize, and
 	// sizes above GitHub's maximum of 100 are clamped.
 	PageSize int
+	// Again reads past a kept value: set it on the read that follows one
+	// that came back Stale. It doesn't key the cache.
+	Again bool
 }
 
 func (q WorkQuery) normalize() WorkQuery {
@@ -45,7 +48,7 @@ func (s *Service) CachedWork(q WorkQuery) (core.Work, bool) {
 // TTL of the service, and is served stale or offline as in Header.
 func (s *Service) Work(ctx context.Context, q WorkQuery) (core.Work, error) {
 	q = q.normalize()
-	w, err := s.work.get(ctx, q.key(), func(ctx context.Context) (core.Work, error) {
+	w, err := s.work.get(ctx, q.key(), q.Again, func(ctx context.Context) (core.Work, error) {
 		return s.api.ViewerWork(ctx, q.PageSize)
 	})
 	if err != nil {

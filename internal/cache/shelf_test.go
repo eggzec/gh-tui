@@ -6,7 +6,9 @@ import (
 	"maps"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 )
 
@@ -304,30 +306,91 @@ func TestShelfWarm(t *testing.T) {
 	_ = s.Save("k", Entry[page]{Value: page{Next: "kept"}, ETag: `"e"`, FetchedAt: time.Now().Add(-DefaultTTL), Tags: []string{"t"}})
 	c := New[page]()
 
-	e, ok := s.Warm(c, "k")
+	e, ok := s.Warm(c, "k", false)
 	if !ok || e.Value.Next != "kept" {
 		t.Fatalf("Warm = %+v, %v; want the kept entry", e, ok)
 	}
 	if got, st := c.Get("k"); st != Stale || got.ETag != `"e"` {
 		t.Errorf("Get after Warm = %+v, %v; want the kept entry, stale", got, st)
 	}
-	if _, ok := s.Warm(c, "k"); ok {
-		t.Error("second Warm = true, want false: memory has the entry")
+	if e, ok := s.Warm(c, "k", false); !ok || e.Value.Next != "kept" {
+		t.Errorf("second Warm = %+v, %v; want the kept entry again, for another reader", e, ok)
 	}
-	if _, ok := s.Warm(c, "missing"); ok {
+	if _, ok := s.Warm(c, "k", true); ok {
+		t.Error("Warm to read again = true, want false: that read revalidates it")
+	}
+	c.Set("k", Entry[page]{Value: page{Next: "read"}})
+	c.Invalidate("k")
+	if _, ok := s.Warm(c, "k", false); ok {
+		t.Error("Warm after a write = true, want false: the kept entry is gone")
+	}
+	if _, ok := s.Warm(c, "missing", false); ok {
 		t.Error("Warm of a key never kept = true, want false")
 	}
 	var none *Shelf[page]
-	if _, ok := none.Warm(c, "k"); ok {
+	if _, ok := none.Warm(c, "k", false); ok {
 		t.Error("Warm of a nil shelf = true, want false")
 	}
+}
+
+// Readers that start at once all serve the kept entry at once, whichever
+// of them reads the store, and their reads again share one fetch.
+func TestShelfWarmConcurrentReaders(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		s := NewShelf[page](newMemStore(), "page", 1)
+		_ = s.Save("k", Entry[page]{Value: page{Next: "kept"}, ETag: `"e"`, FetchedAt: time.Now().Add(-DefaultTTL)})
+		c := New[page]()
+
+		const readers = 4
+		var wg sync.WaitGroup
+		served := make([]Entry[page], readers)
+		for i := range readers {
+			wg.Go(func() {
+				served[i], _ = s.Warm(c, "k", false)
+			})
+		}
+		wg.Wait()
+		for i, e := range served {
+			if e.Value.Next != "kept" {
+				t.Errorf("reader %d served %+v, want the kept entry", i, e)
+			}
+		}
+
+		var calls atomic.Int32
+		release := make(chan struct{})
+		var fetch FetchFunc[page] = func(_ context.Context, prev Entry[page], ok bool) (Entry[page], error) {
+			calls.Add(1)
+			<-release
+			if !ok || prev.ETag != `"e"` {
+				t.Errorf("fetch from %+v, %v; want the kept entry's validators", prev, ok)
+			}
+			return Entry[page]{Value: page{Next: "read"}}, nil
+		}
+		for i := range readers {
+			wg.Go(func() {
+				if _, ok := s.Warm(c, "k", true); ok {
+					t.Errorf("reader %d: Warm to read again = true", i)
+				}
+				e, err := c.Fetch(t.Context(), "k", fetch)
+				if err != nil || e.Value.Next != "read" {
+					t.Errorf("reader %d: Fetch = %+v, %v", i, e, err)
+				}
+			})
+		}
+		synctest.Wait()
+		close(release)
+		wg.Wait()
+		if n := calls.Load(); n != 1 {
+			t.Errorf("%d fetches, want one shared by every reader", n)
+		}
+	})
 }
 
 func TestShelfWarmFresh(t *testing.T) {
 	s := NewShelf[page](newMemStore(), "page", 1)
 	_ = s.Save("k", Entry[page]{Value: page{Next: "kept"}, ETag: `"e"`})
 	c := New[page]()
-	if _, ok := s.Warm(c, "k"); ok {
+	if _, ok := s.Warm(c, "k", false); ok {
 		t.Error("Warm of an entry kept within the TTL = true, want false: it needs no revalidation")
 	}
 	if e, st := c.Get("k"); st != Fresh || e.Value.Next != "kept" {

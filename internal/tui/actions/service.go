@@ -15,7 +15,7 @@ type Service interface {
 	// or a poll left it.
 	CachedRun(repo core.RepoRef, runID int64) (core.Run, bool)
 	Run(ctx context.Context, repo core.RepoRef, runID int64) (core.Run, error)
-	Workflows(ctx context.Context, repo core.RepoRef) (core.Page[core.Workflow], error)
+	Workflows(ctx context.Context, q actionssvc.WorkflowsQuery) (core.Page[core.Workflow], error)
 	// CachedJobs returns a page of jobs from memory, without a request.
 	CachedJobs(q actionssvc.JobsQuery) (core.Page[core.Job], bool)
 	Jobs(ctx context.Context, q actionssvc.JobsQuery) (core.Page[core.Job], error)

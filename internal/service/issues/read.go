@@ -27,6 +27,9 @@ type ListQuery struct {
 	// cursor keeps the size of the page it came from, so it sizes only the
 	// first page, but every size is cached apart.
 	PageSize int
+	// Again reads past a kept page: set it on the read that follows one
+	// that came back Stale. It doesn't key the cache.
+	Again bool
 }
 
 func (q ListQuery) normalize() ListQuery {
@@ -59,12 +62,12 @@ func (s *Service) CachedList(q ListQuery) (core.Page[core.Issue], bool) {
 // FreshList reports whether the page for q is cached and fresh, so that
 // List returns it without a request: read this session, or kept by an
 // earlier one and fetched or revalidated within the TTL. A page kept longer
-// ago is put in memory stale, so that List revalidates it rather than
-// serving it as it is. It may read the store, so call it where I/O is
+// ago is put in memory stale, so that a List with q.Again set revalidates
+// it with its validators. It may read the store, so call it where I/O is
 // fine, such as in a tea.Cmd.
 func (s *Service) FreshList(q ListQuery) bool {
 	key := listKey(q.normalize())
-	s.keptLists.Warm(s.lists, key)
+	s.keptLists.Warm(s.lists, key, true)
 	return fresh(s.lists, key)
 }
 
@@ -81,8 +84,8 @@ func (s *Service) FreshList(q ListQuery) bool {
 //
 // A page that only an earlier session kept is fresh if it was fetched or
 // revalidated within the TTL. An older one is returned at once, with Stale
-// set, and reading it again revalidates it. If GitHub can't be reached, a
-// stale page is served with Offline set.
+// set, to every read until one with q.Again set revalidates it. If GitHub
+// can't be reached, a stale page is served with Offline set.
 func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.Issue], error) {
 	q = q.normalize()
 	key := listKey(q)
@@ -92,7 +95,7 @@ func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.Issue],
 		// visit starts from are kept.
 		shelf = nil
 	}
-	if e, ok := shelf.Warm(s.lists, key); ok {
+	if e, ok := shelf.Warm(s.lists, key, q.Again); ok {
 		// The page vouches for what is cached of its issues as of when it
 		// was read, like the other pages shown with it.
 		s.vouch(q.Repo, e.Value.Items)
@@ -141,7 +144,7 @@ func (s *Service) CachedGet(repo core.RepoRef, number int) (core.Issue, bool) {
 // is served if GitHub can't be reached.
 func (s *Service) Get(ctx context.Context, repo core.RepoRef, number int) (core.Issue, error) {
 	key := issueKey(repo, number)
-	s.keptIssues.Warm(s.issues, key)
+	s.keptIssues.Warm(s.issues, key, true)
 	if it, ok := s.currentIssue(key); ok {
 		return it, nil
 	}
@@ -184,7 +187,7 @@ func (s *Service) CachedComments(q CommentsQuery) (core.Page[core.Comment], bool
 func (s *Service) Comments(ctx context.Context, q CommentsQuery) (core.Page[core.Comment], error) {
 	q = q.normalize()
 	ckey := commentsKey(q)
-	s.keptComments.Warm(s.comments, ckey)
+	s.keptComments.Warm(s.comments, ckey, true)
 	if p, ok := s.currentComments(q); ok {
 		return p, nil
 	}

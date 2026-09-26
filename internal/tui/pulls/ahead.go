@@ -46,9 +46,11 @@ func (s *Section) readOthers() tea.Cmd {
 	})
 }
 
-// readList returns a read of a first page into the cache of svc.
+// readList returns a read of a first page into the cache of svc, which
+// asks GitHub rather than serving a page an earlier session kept.
 func readList(svc Service) func(ctx context.Context, q pulls.ListQuery) error {
 	return func(ctx context.Context, q pulls.ListQuery) error {
+		q.Again = true
 		_, err := svc.List(ctx, q)
 		return err
 	}

@@ -115,8 +115,11 @@ func TestWarmCountsStaleServed(t *testing.T) {
 		t.Fatal(err)
 	}
 	c := New[int]()
-	if _, ok := shelf.Warm(c, "pulls:a"); !ok {
-		t.Fatal("Warm didn't serve the stale entry")
+	// Two readers are served the kept entry, which counts once.
+	for range 2 {
+		if _, ok := shelf.Warm(c, "pulls:a", false); !ok {
+			t.Fatal("Warm didn't serve the stale entry")
+		}
 	}
 	if got := cacheSummary(s, "pulls"); got.Seeded != 1 || got.StaleServed != 1 {
 		t.Errorf("summary = %+v, want one seeded and served stale", got)
@@ -133,6 +136,28 @@ func TestKindOf(t *testing.T) {
 	} {
 		if got := kindOf(key); got != want {
 			t.Errorf("kindOf(%q) = %q, want %q", key, got, want)
+		}
+	}
+}
+
+// Warm logs a stale entry read from disk once, whether it is served or
+// only put in memory, and not again as it is served from memory.
+func TestWarmLogsDiskReadsOnly(t *testing.T) {
+	for _, again := range []bool{false, true} {
+		var buf bytes.Buffer
+		prev := slog.Default()
+		slog.SetDefault(obs.NewLogger(&buf, slog.LevelDebug, "s_test"))
+		shelf := NewShelf[int](newMemStore(), "pulllist", 1)
+		if err := shelf.Save("pulls:a", Entry[int]{Value: 1, FetchedAt: time.Now().Add(-time.Hour)}); err != nil {
+			t.Fatal(err)
+		}
+		c := New[int]()
+		for range 3 {
+			shelf.Warm(c, "pulls:a", again)
+		}
+		slog.SetDefault(prev)
+		if n := strings.Count(buf.String(), `"span":"cache.disk"`); n != 1 {
+			t.Errorf("again=%v: %d disk records, want one:\n%s", again, n, buf.String())
 		}
 	}
 }

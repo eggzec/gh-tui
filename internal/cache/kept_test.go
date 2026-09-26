@@ -287,7 +287,7 @@ func TestRecheckError(t *testing.T) {
 			_ = s.Save("k", Entry[page]{ETag: `"v1"`, FetchedAt: time.Now().Add(-time.Hour)})
 			c := New[page]()
 			if cached {
-				s.Warm(c, "k")
+				s.Warm(c, "k", false)
 			}
 			srv := answer{err: boom}
 			if _, got, err := s.Recheck(t.Context(), c, "k", srv.fetch); !errors.Is(err, boom) || got != RecheckSkipped {
@@ -305,7 +305,7 @@ func TestRecheckJoinsFetch(t *testing.T) {
 	s := NewShelf[page](newMemCatalog(), "page", 1)
 	_ = s.Save("k", Entry[page]{ETag: `"v1"`, FetchedAt: time.Now().Add(-time.Hour)})
 	c := New[page]()
-	s.Warm(c, "k")
+	s.Warm(c, "k", false)
 	started, release := make(chan struct{}), make(chan struct{})
 	done := make(chan struct{})
 	go func() {

@@ -21,6 +21,9 @@ type BranchesQuery struct {
 	Cursor string
 	// PageSize defaults to DefaultBranchPageSize and is at most 100.
 	PageSize int
+	// Again reads past a kept page: set it on the read that follows one
+	// that came back Stale. It doesn't key the cache.
+	Again bool
 }
 
 func (q BranchesQuery) normalize() BranchesQuery {
@@ -41,12 +44,12 @@ func (s *Service) CachedBranches(q BranchesQuery) (core.Page[core.Branch], bool)
 //
 // A page that only an earlier session kept is fresh if it was fetched or
 // revalidated within the TTL. An older one is returned at once, with Stale
-// set, and reading it again revalidates it. If GitHub can't be reached, a
-// stale page is served with Offline set.
+// set, to every read until one with q.Again set revalidates it. If GitHub
+// can't be reached, a stale page is served with Offline set.
 func (s *Service) Branches(ctx context.Context, q BranchesQuery) (core.Page[core.Branch], error) {
 	q = q.normalize()
 	key := branchesKey(q)
-	if e, ok := s.keptBranches.Warm(s.branches, key); ok {
+	if e, ok := s.keptBranches.Warm(s.branches, key, q.Again); ok {
 		p := e.Value
 		p.Stale = true
 		return p, nil

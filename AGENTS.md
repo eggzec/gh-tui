@@ -162,11 +162,16 @@ changes minimal so that pulling in new upstream versions stays easy.
 - Keep lists, details and comment pages on a `cache.Shelf`, in a directory
   per account (`<host>/entry/<account>`, a hash of host and token), so no
   account reads another's. A read that misses memory warms it from the
-  shelf in its `tea.Cmd`. A kept list page comes back at once with `Stale`
-  set, which feeds show and fetch again (`feed.ErrStale`); a kept detail
-  counts as cached, so the list's update time still vouches for it. A kept
-  entry fetched or revalidated within the TTL is fresh, like one this
-  session fetched.
+  shelf in its `tea.Cmd`. A kept list page, dashboard value or page of
+  branches comes back at once with `Stale` set, to every reader until
+  any write replaces it: the revalidator, a poll, a read with `Again` set,
+  or a change's stored response. So views that read it at once all show it
+  at once. A read that follows a value that came back `Stale` must set
+  `Again` on its query, or it is served the kept value again; feeds do
+  (`feed.ErrStale`), and their reads again share one request. A kept
+  detail counts as cached, so the list's update time still vouches for it.
+  A kept entry fetched or revalidated within the TTL is fresh, like one
+  this session fetched.
 - Keep only what GitHub sent. Optimistic changes stay in memory until
   GitHub confirms them, and what is kept after a change has no validators.
   An outage serves the kept entry with `Offline` set; a refusal drops it

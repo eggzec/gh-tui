@@ -129,19 +129,20 @@ func TestRunsKept(t *testing.T) {
 	if _, err := New(f, WithStore(store)).Runs(t.Context(), q); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := New(f, WithStore(store)).Workflows(t.Context(), repo); err != nil {
+	if _, err := New(f, WithStore(store)).Workflows(t.Context(), WorkflowsQuery{Repo: repo}); err != nil {
 		t.Fatal(err)
 	}
 	f.take()
 
-	// A later session shows the kept page at once, and asks GitHub next.
+	// A later session shows the kept page at once, and asks GitHub when
+	// read again.
 	s := New(f, WithStore(cachetest.Aged(store, time.Hour)))
 	p, err := s.Runs(t.Context(), q)
 	if err != nil || !p.Stale || len(p.Items) != 2 {
 		t.Errorf("Runs = %+v, %v; want the kept page, stale", p, err)
 	}
 	checkCalls(t, f)
-	if _, err := s.Runs(t.Context(), q); err != nil {
+	if _, err := s.Runs(t.Context(), q.again()); err != nil {
 		t.Fatal(err)
 	}
 	checkCalls(t, f, "ListRuns octo-org/hello status= cursor= per_page=30 if-none-match")
@@ -217,7 +218,7 @@ func TestRun(t *testing.T) {
 func TestWorkflows(t *testing.T) {
 	f := newFake()
 	s := New(f)
-	p, err := s.Workflows(t.Context(), repo)
+	p, err := s.Workflows(t.Context(), WorkflowsQuery{Repo: repo})
 	if err != nil || len(p.Items) != 1 || p.Items[0].ID != 7 {
 		t.Fatalf("Workflows = %+v, %v", p, err)
 	}

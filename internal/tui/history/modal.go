@@ -160,7 +160,7 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, defaultBranch stri
 
 // Init reads the branches and the first commits of the branch shown.
 func (m *Modal) Init() tea.Cmd {
-	return tea.Batch(m.loadBranches(""), m.graph.model.Init(), m.startSpinner())
+	return tea.Batch(m.loadBranches("", false), m.graph.model.Init(), m.startSpinner())
 }
 
 // Title names the repository.

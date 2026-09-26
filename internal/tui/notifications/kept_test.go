@@ -26,12 +26,18 @@ type keptService struct {
 }
 
 func (k *keptService) List(ctx context.Context, q notifications.ListQuery) (core.Page[core.Notification], error) {
+	// The kept page is served until a read with Again set.
+	again := q.Again
+	q.Again = false
 	p, err := k.fakeService.List(ctx, q)
 	if err != nil {
 		return p, err
 	}
 	k.mu.Lock()
 	defer k.mu.Unlock()
+	if again {
+		k.served[q] = true
+	}
 	if k.offline {
 		p.Offline = true
 		return p, nil

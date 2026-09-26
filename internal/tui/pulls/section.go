@@ -240,9 +240,13 @@ func (s *Section) newFeed() tea.Cmd {
 	s.ahead.Reset(ctx)
 	q := s.listQuery(s.tab)
 	svc := s.svc
-	fetch := ui.FeedPages("list.pulls", s.offline, func(ctx context.Context, cursor string) (core.Page[core.PullRequest], error) {
+	query := func(cursor string) pulls.ListQuery {
 		q := q
 		q.Cursor = cursor
+		return q
+	}
+	fetch := ui.FeedPages("list.pulls", s.offline, query, func(ctx context.Context, q pulls.ListQuery, again bool) (core.Page[core.PullRequest], error) {
+		q.Again = again
 		return svc.List(ctx, q)
 	})
 	f := feed.New(fetch, s.renderRow,

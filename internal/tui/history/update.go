@@ -89,7 +89,7 @@ func (m *Modal) update(msg tea.Msg) tea.Cmd {
 		if msg.Err != nil || msg.Key != historysvc.SyncKey(m.repo) {
 			return nil
 		}
-		return tea.Batch(m.loadBranches(""), m.readHead())
+		return tea.Batch(m.loadBranches("", false), m.readHead())
 	case spinner.TickMsg:
 		if msg.ID == m.spin.ID() {
 			return m.tick(msg)

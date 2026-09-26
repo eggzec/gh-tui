@@ -69,6 +69,8 @@ func (f *fakeService) CachedList(q notifications.ListQuery) (core.Page[core.Noti
 func (f *fakeService) List(_ context.Context, q notifications.ListQuery) (core.Page[core.Notification], error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	// Again doesn't select another page.
+	q.Again = false
 	f.lists = append(f.lists, q)
 	if f.listErr != nil {
 		return core.Page[core.Notification]{}, f.listErr

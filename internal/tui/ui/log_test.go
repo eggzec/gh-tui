@@ -96,7 +96,7 @@ func TestDoTracesOp(t *testing.T) {
 func TestFeedPagesTracesReads(t *testing.T) {
 	buf, _ := captureLog(t)
 	var got string
-	fetch := FeedPages("list.pulls", new(Offline), func(ctx context.Context, _ string) (core.Page[int], error) {
+	fetch := FeedPages("list.pulls", new(Offline), func(cursor string) string { return cursor }, func(ctx context.Context, _ string, _ bool) (core.Page[int], error) {
 		got, _ = obs.TraceID(ctx)
 		return core.Page[int]{Items: []int{1, 2}}, nil
 	})

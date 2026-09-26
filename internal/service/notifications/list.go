@@ -36,6 +36,9 @@ type ListQuery struct {
 	// PageSize is how many threads a page holds. Zero means DefaultPageSize,
 	// and sizes above GitHub's maximum of 100 are clamped.
 	PageSize int
+	// Again reads past a kept page: set it on the read that follows one
+	// that came back Stale. It doesn't key the cache.
+	Again bool
 }
 
 func (q ListQuery) normalize() ListQuery {
@@ -68,11 +71,11 @@ func (s *Service) CachedList(q ListQuery) (core.Page[core.Notification], bool) {
 //
 // A page that only an earlier session kept is fresh if it was fetched or
 // revalidated within the TTL. An older one is returned at once, with Stale
-// set, and reading it again revalidates it. If GitHub can't be reached, a
-// stale page is served with Offline set.
+// set, to every read until one with q.Again set revalidates it. If GitHub
+// can't be reached, a stale page is served with Offline set.
 func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.Notification], error) {
 	q = q.normalize()
-	if e, ok := s.kept.Warm(s.cache, q.key()); ok {
+	if e, ok := s.kept.Warm(s.cache, q.key(), q.Again); ok {
 		p := e.Value
 		p.Stale = true
 		return p, nil
@@ -107,7 +110,7 @@ func (s *Service) Poll(ctx context.Context) (watch.Result, error) {
 		return e, err
 	}
 	// What an earlier session kept makes the request conditional.
-	s.kept.Warm(s.cache, q.key())
+	s.kept.Warm(s.cache, q.key(), true)
 	// A fresh entry would be returned without a request, and polling must
 	// ask the server. If a List is already revalidating, Poll joins it and
 	// reports no change: that List hands its caller the new data.

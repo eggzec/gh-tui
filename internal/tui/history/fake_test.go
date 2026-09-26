@@ -37,8 +37,12 @@ type fake struct {
 	moreFiles map[string][][]core.CommitFile
 	cached    map[string]bool
 	compares  map[string]core.Compare
-	// stale serves the first page of commits Stale once, as a page an
-	// earlier session kept.
+	// branchPages, if set, are the pages of branches by cursor, and
+	// keptBranches those an earlier session kept.
+	branchPages  map[string]core.Page[core.Branch]
+	keptBranches map[string]bool
+	// stale serves the first page of commits Stale, as a page an earlier
+	// session kept, until a read marked to read again.
 	stale bool
 	errs  map[string]error
 	calls []string
@@ -140,12 +144,24 @@ func (f *fake) took() []string {
 func (f *fake) Branches(ctx context.Context, q historysvc.BranchesQuery) (core.Page[core.Branch], error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.record("branches" + at(q.Cursor))
+	call := "branches" + at(q.Cursor)
+	if q.Again {
+		call += " again"
+	}
+	f.record(call)
 	if err := f.errs["branches"]; err != nil {
 		return core.Page[core.Branch]{}, err
 	}
 	if err := ctx.Err(); err != nil {
 		return core.Page[core.Branch]{}, err
+	}
+	if p, ok := f.branchPages[q.Cursor]; ok {
+		p.Items = slices.Clone(p.Items)
+		// A kept page is served stale until a read with Again set.
+		if f.keptBranches[q.Cursor] && !q.Again {
+			p.Stale = true
+		}
+		return p, nil
 	}
 	return core.Page[core.Branch]{Items: slices.Clone(f.branches)}, nil
 }
@@ -179,7 +195,12 @@ func (f *fake) Commits(ctx context.Context, q historysvc.CommitsQuery) (core.Pag
 		p.Next = strconv.Itoa(end)
 	}
 	if f.stale && q.Cursor == "" {
-		f.stale, p.Stale = false, true
+		// The kept page is served stale until a read with Again set.
+		if q.Again {
+			f.stale = false
+		} else {
+			p.Stale = true
+		}
 	}
 	return p, nil
 }

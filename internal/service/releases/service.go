@@ -103,7 +103,7 @@ func (s *Service) Current(repo core.RepoRef, id int64) bool {
 // reached.
 func (s *Service) Get(ctx context.Context, repo core.RepoRef, id int64) (core.Release, error) {
 	k := key(repo, id)
-	s.kept.Warm(s.cache, k)
+	s.kept.Warm(s.cache, k, true)
 	e, err := s.cache.Fetch(ctx, k, func(ctx context.Context, prev cache.Entry[core.Release], ok bool) (cache.Entry[core.Release], error) {
 		var cond github.Conditional
 		if ok {

@@ -75,6 +75,9 @@ type node[V any] struct {
 	entry Entry[V]
 	size  int64
 	stale bool
+	// kept is set on an entry that Seed stored stale, until it is written,
+	// and served once it was served.
+	kept, served bool
 	// version numbers the latest write or invalidation, and written the
 	// latest write alone.
 	version, written uint64
@@ -143,13 +146,30 @@ func (c *Cache[V]) Seed(key string, e Entry[V]) bool {
 	if _, ok := c.flights[key]; ok {
 		return false
 	}
-	stale := e.FetchedAt.IsZero()
 	c.set(key, e)
-	if stale {
-		c.markStale(c.items[key])
+	n := c.items[key]
+	if e.FetchedAt.IsZero() {
+		c.markStale(n)
 	}
+	n.kept = c.state(n) == Stale
 	c.count(key, obs.Seeded)
 	return true
+}
+
+// seeded returns the entry under key if Seed stored it stale and nothing
+// was written over it since, such as a fetch that revalidated it, and
+// whether this is the first time it is returned. A hit marks the entry as
+// recently used.
+func (c *Cache[V]) seeded(key string) (e Entry[V], first, ok bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	n, ok := c.items[key]
+	if !ok || !n.kept || c.state(n) != Stale {
+		return Entry[V]{}, false, false
+	}
+	c.moveToFront(n)
+	first, n.served = !n.served, true
+	return n.entry, first, true
 }
 
 // Invalidate marks the entry for key as stale.
@@ -238,7 +258,7 @@ func (c *Cache[V]) set(key string, e Entry[V]) {
 	}
 	c.seq++
 	if n, ok := c.items[key]; ok {
-		n.entry, n.stale, n.version, n.written = e, false, c.seq, c.seq
+		n.entry, n.stale, n.kept, n.served, n.version, n.written = e, false, false, false, c.seq, c.seq
 		c.resize(n)
 		c.moveToFront(n)
 		c.shrink()

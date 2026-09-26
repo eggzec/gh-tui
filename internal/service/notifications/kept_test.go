@@ -3,7 +3,10 @@ package notifications
 import (
 	"errors"
 	"net/url"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/cache/cachetest"
@@ -47,13 +50,57 @@ func TestKeptInboxIsServedStaleThenRevalidated(t *testing.T) {
 	if got, ok := s.CachedList(inbox); !ok || !equal(got, page1) {
 		t.Errorf("CachedList = %+v, %v; want the kept page for the badge", got, ok)
 	}
-	p, err = s.List(t.Context(), inbox)
+	p, err = s.List(t.Context(), inbox.again())
 	if err != nil || p.Stale || !equal(p, page1) {
 		t.Fatalf("second List = %+v, %v; want the page revalidated", p, err)
 	}
 	if len(conds) != 1 || conds[0].LastModified != modified1 {
 		t.Errorf("requests = %+v, want one with the kept Last-Modified", conds)
 	}
+}
+
+// The dashboard's inbox and the notifications screen read the first page
+// at once when the app starts: both show the kept page at once, and their
+// reads again share one request.
+func TestKeptInboxServedToConcurrentReaders(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		store := keptInbox(t)
+		var calls atomic.Int32
+		release := make(chan struct{})
+		api := &fakeAPI{list: func(f core.NotificationFilter, n int, cursor string, cond github.Conditional) (page, github.Response, error) {
+			calls.Add(1)
+			<-release
+			return servePage1(f, n, cursor, cond)
+		}}
+		s := New(api, WithStore(cachetest.Aged(store, time.Hour)))
+
+		const readers = 2
+		var wg sync.WaitGroup
+		for i := range readers {
+			wg.Go(func() {
+				if p, err := s.List(t.Context(), inbox); err != nil || !p.Stale || !equal(p, page1) {
+					t.Errorf("reader %d: List = %+v, %v; want the kept page, stale", i, p, err)
+				}
+			})
+		}
+		wg.Wait()
+		if n := calls.Load(); n != 0 {
+			t.Fatalf("%d requests before reading again, want none", n)
+		}
+		for i := range readers {
+			wg.Go(func() {
+				if p, err := s.List(t.Context(), inbox.again()); err != nil || p.Stale || !equal(p, page1) {
+					t.Errorf("reader %d: List again = %+v, %v; want the page revalidated", i, p, err)
+				}
+			})
+		}
+		synctest.Wait()
+		close(release)
+		wg.Wait()
+		if n := calls.Load(); n != 1 {
+			t.Errorf("%d requests, want one shared by both readers", n)
+		}
+	})
 }
 
 func TestKeptInboxPollIsConditional(t *testing.T) {
@@ -83,7 +130,7 @@ func TestKeptInboxOffline(t *testing.T) {
 			}}
 			s := New(api, WithStore(cachetest.Aged(store, time.Hour)))
 			_, _ = s.List(t.Context(), inbox)
-			p, err := s.List(t.Context(), inbox)
+			p, err := s.List(t.Context(), inbox.again())
 			if !tt.fallback {
 				if err == nil {
 					t.Fatalf("List = %+v, want the error", p)

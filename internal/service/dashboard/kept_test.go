@@ -25,7 +25,8 @@ type keptRead struct {
 	// fake makes api answer this read with err, or with a value if err is
 	// nil.
 	fake func(api *fakeAPI, err error)
-	read func(context.Context, *Service) (served, error)
+	// read reads it, with again set on the read that follows a stale one.
+	read func(ctx context.Context, s *Service, again bool) (served, error)
 }
 
 var keptReads = []keptRead{
@@ -34,8 +35,8 @@ var keptReads = []keptRead{
 		fake: func(api *fakeAPI, err error) {
 			api.header = func() (core.Header, error) { return octocat, err }
 		},
-		read: func(ctx context.Context, s *Service) (served, error) {
-			h, err := s.Header(ctx)
+		read: func(ctx context.Context, s *Service, again bool) (served, error) {
+			h, err := s.Header(ctx, HeaderQuery{Again: again})
 			return served{h.Profile.Login == "octocat", h.Stale, h.Offline}, err
 		},
 	},
@@ -44,8 +45,8 @@ var keptReads = []keptRead{
 		fake: func(api *fakeAPI, err error) {
 			api.work = func(int) (core.Work, error) { return core.Work{Assigned: core.WorkList{Count: 3}}, err }
 		},
-		read: func(ctx context.Context, s *Service) (served, error) {
-			w, err := s.Work(ctx, WorkQuery{})
+		read: func(ctx context.Context, s *Service, again bool) (served, error) {
+			w, err := s.Work(ctx, WorkQuery{Again: again})
 			return served{w.Assigned.Count == 3, w.Stale, w.Offline}, err
 		},
 	},
@@ -54,8 +55,8 @@ var keptReads = []keptRead{
 		fake: func(api *fakeAPI, err error) {
 			api.contributions = func() (core.Contributions, error) { return core.Contributions{Total: 42}, err }
 		},
-		read: func(ctx context.Context, s *Service) (served, error) {
-			c, err := s.Contributions(ctx)
+		read: func(ctx context.Context, s *Service, again bool) (served, error) {
+			c, err := s.Contributions(ctx, ContributionsQuery{Again: again})
 			return served{c.Total == 42, c.Stale, c.Offline}, err
 		},
 	},
@@ -66,8 +67,8 @@ var keptReads = []keptRead{
 				return core.Page[core.Repo]{Items: repos(login, 0, 2)}, err
 			}
 		},
-		read: func(ctx context.Context, s *Service) (served, error) {
-			p, err := s.Repos(ctx, ReposQuery{Owner: "charm"})
+		read: func(ctx context.Context, s *Service, again bool) (served, error) {
+			p, err := s.Repos(ctx, ReposQuery{Owner: "charm", Again: again})
 			return served{len(p.Items) == 2, p.Stale, p.Offline}, err
 		},
 	},
@@ -78,7 +79,7 @@ func keep(t *testing.T, r keptRead, store cache.Store) {
 	t.Helper()
 	api := &fakeAPI{t: t}
 	r.fake(api, nil)
-	if _, err := r.read(t.Context(), New(api, WithStore(store))); err != nil {
+	if _, err := r.read(t.Context(), New(api, WithStore(store)), false); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -93,7 +94,7 @@ func openStore(t *testing.T) *disk.Store {
 }
 
 // A session long after the one that kept an entry paints it at once,
-// stale, and the next read fetches it.
+// stale, to every read until one with Again set fetches it.
 func TestKeptIsServedStaleThenFetched(t *testing.T) {
 	for _, r := range keptReads {
 		t.Run(r.name, func(t *testing.T) {
@@ -103,12 +104,15 @@ func TestKeptIsServedStaleThenFetched(t *testing.T) {
 			api := &fakeAPI{t: t}
 			r.fake(api, nil)
 			s := New(api, WithStore(cachetest.Aged(store, 7*time.Hour)))
-			got, err := r.read(t.Context(), s)
+			got, err := r.read(t.Context(), s, false)
 			if err != nil || got != (served{ok: true, stale: true}) {
 				t.Fatalf("first read = %+v, %v; want the kept value, stale", got, err)
 			}
+			if got, err = r.read(t.Context(), s, false); err != nil || got != (served{ok: true, stale: true}) {
+				t.Fatalf("another first read = %+v, %v; want the kept value, stale", got, err)
+			}
 			api.wantCalls(t)
-			if got, err = r.read(t.Context(), s); err != nil || got != (served{ok: true}) {
+			if got, err = r.read(t.Context(), s, true); err != nil || got != (served{ok: true}) {
 				t.Fatalf("second read = %+v, %v; want the fetched value", got, err)
 			}
 			if n := len(api.Calls()); n != 1 {
@@ -130,7 +134,7 @@ func TestKeptWithinTTLIsFresh(t *testing.T) {
 			keep(t, r, store)
 
 			api := &fakeAPI{t: t}
-			got, err := r.read(t.Context(), New(api, WithStore(cachetest.Aged(store, 5*time.Minute))))
+			got, err := r.read(t.Context(), New(api, WithStore(cachetest.Aged(store, 5*time.Minute))), false)
 			if err != nil || got != (served{ok: true}) {
 				t.Errorf("read = %+v, %v; want the kept value, fresh", got, err)
 			}
@@ -145,7 +149,7 @@ func TestColdStartFetches(t *testing.T) {
 		t.Run(r.name, func(t *testing.T) {
 			api := &fakeAPI{t: t}
 			r.fake(api, nil)
-			got, err := r.read(t.Context(), New(api))
+			got, err := r.read(t.Context(), New(api), false)
 			if err != nil || got != (served{ok: true}) {
 				t.Errorf("read = %+v, %v; want the fetched value", got, err)
 			}
@@ -177,10 +181,10 @@ func TestKeptOffline(t *testing.T) {
 				api := &fakeAPI{t: t}
 				r.fake(api, tt.err)
 				s := New(api, WithStore(cachetest.Aged(store, 7*time.Hour)))
-				// The first read serves the kept entry stale, and the second
-				// asks GitHub.
-				_, _ = r.read(t.Context(), s)
-				got, err := r.read(t.Context(), s)
+				// The first read serves the kept entry stale, and the one
+				// after it asks GitHub.
+				_, _ = r.read(t.Context(), s, false)
+				got, err := r.read(t.Context(), s, true)
 				if tt.fallback != (err == nil && got == served{ok: true, offline: true}) {
 					t.Errorf("read = %+v, %v; want fallback %v", got, err, tt.fallback)
 				}
@@ -189,7 +193,7 @@ func TestKeptOffline(t *testing.T) {
 				}
 				later := &fakeAPI{t: t}
 				r.fake(later, tt.err)
-				if got, _ := r.read(t.Context(), New(later, WithStore(cachetest.Aged(store, 7*time.Hour)))); got.stale {
+				if got, _ := r.read(t.Context(), New(later, WithStore(cachetest.Aged(store, 7*time.Hour))), false); got.stale {
 					t.Error("read after a refusal = stale, want the kept entry gone")
 				}
 			})

@@ -68,7 +68,7 @@ func (s *Service) CachedComments(q CommentsQuery) (core.Page[core.Comment], bool
 // cached, as for Get.
 func (s *Service) Comments(ctx context.Context, q CommentsQuery) (core.Page[core.Comment], error) {
 	key := q.key()
-	s.keptComments.Warm(s.comments, key)
+	s.keptComments.Warm(s.comments, key, true)
 	if p, ok := s.currentComments(q); ok {
 		return p, nil
 	}

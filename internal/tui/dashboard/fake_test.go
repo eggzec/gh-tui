@@ -83,14 +83,15 @@ func (f *fakeService) CachedHeader() (core.Header, bool) {
 	return f.header, f.cached || f.read["header"]
 }
 
-func (f *fakeService) Header(context.Context) (core.Header, error) {
+func (f *fakeService) Header(_ context.Context, q dashboard.HeaderQuery) (core.Header, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if err := f.call("header"); err != nil {
 		return core.Header{}, err
 	}
 	h := f.header
-	h.Stale = f.stale && !f.read["header"]
+	// A kept header is served stale until a read with Again set.
+	h.Stale = f.stale && !q.Again
 	h.Offline = f.offline
 	f.read["header"] = true
 	return h, nil
@@ -120,7 +121,7 @@ func (f *fakeService) CachedContributions() (core.Contributions, bool) {
 	return f.contrib, f.cached || f.read["contributions"]
 }
 
-func (f *fakeService) Contributions(context.Context) (core.Contributions, error) {
+func (f *fakeService) Contributions(context.Context, dashboard.ContributionsQuery) (core.Contributions, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if err := f.call("contributions"); err != nil {
