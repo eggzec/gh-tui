@@ -74,6 +74,7 @@ func TestFailure(t *testing.T) {
 		{"network", t.Context(), &url.Error{Op: "Get", URL: "https://api.github.com", Err: errors.New("no route to host")}, revalidate.Offline},
 		{"server", t.Context(), &github.Error{StatusCode: 502}, revalidate.Offline},
 		{"not found", t.Context(), fmt.Errorf("get: %w", core.ErrNotFound), revalidate.Gone},
+		{"gone", t.Context(), fmt.Errorf("get: %w", &github.Error{StatusCode: 410}), revalidate.Gone},
 		{"canceled", canceled, &url.Error{Op: "Get", URL: "https://api.github.com", Err: context.Canceled}, revalidate.Failed},
 		{"other", t.Context(), errors.New("decode response"), revalidate.Failed},
 	}

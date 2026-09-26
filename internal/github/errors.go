@@ -53,8 +53,10 @@ func Unreachable(ctx context.Context, err error) bool {
 }
 
 // Refused reports whether GitHub refused access to what was asked, with a
-// 401, a 404, or a 403 that isn't a rate limit. What was cached of it
-// should then go, since the account may have lost access.
+// 401, a 404, or a 403 that isn't a rate limit, or said it is gone for
+// good, with a 410, as for a deleted issue or the issues of a repository
+// that turned them off. What was cached of it should then go, since the
+// account may have lost access, or there is nothing left to show.
 func Refused(err error) bool {
 	if errors.Is(err, core.ErrNotFound) || errors.Is(err, core.ErrUnauthorized) {
 		return true
@@ -64,7 +66,7 @@ func Refused(err error) bool {
 		return false
 	}
 	switch e.StatusCode {
-	case http.StatusUnauthorized, http.StatusNotFound:
+	case http.StatusUnauthorized, http.StatusNotFound, http.StatusGone:
 		return true
 	case http.StatusForbidden:
 		return !errors.Is(err, core.ErrRateLimited)

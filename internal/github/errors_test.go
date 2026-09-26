@@ -24,6 +24,7 @@ func TestUnreachable(t *testing.T) {
 		{"not found", &Error{StatusCode: 404, err: core.ErrNotFound}, false},
 		{"unauthorized", &Error{StatusCode: 401, err: core.ErrUnauthorized}, false},
 		{"forbidden", &Error{StatusCode: 403}, false},
+		{"gone", &Error{StatusCode: 410}, false},
 		{"rate limited", &Error{StatusCode: 429, err: &core.RateLimitError{}}, false},
 		{"other", errors.New("decode response: unexpected EOF"), false},
 	}
@@ -55,6 +56,7 @@ func TestRefused(t *testing.T) {
 		{"unauthorized", &Error{StatusCode: 401, err: core.ErrUnauthorized}, true},
 		{"forbidden", &Error{StatusCode: 403}, true},
 		{"bare not found", &Error{StatusCode: 404}, true},
+		{"gone", &Error{StatusCode: 410}, true},
 		{"rate limited", &Error{StatusCode: 403, err: &core.RateLimitError{}}, false},
 		{"too many requests", &Error{StatusCode: 429, err: &core.RateLimitError{}}, false},
 		{"server error", &Error{StatusCode: 502}, false},

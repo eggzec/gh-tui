@@ -1,0 +1,36 @@
+{
+  "url": "https://api.github.com/repos/octo-org/hello/issues/43",
+  "repository_url": "https://api.github.com/repos/octo-org/hello",
+  "html_url": "https://github.com/octo-org/hello/pull/43",
+  "id": 2917364811,
+  "node_id": "PR_kwDOJ5Hs3c6Aq1Zb",
+  "number": 43,
+  "title": "Handle an empty config file",
+  "user": {
+    "login": "hubot",
+    "id": 12345,
+    "node_id": "MDQ6VXNlcjEyMzQ1",
+    "type": "User",
+    "site_admin": false
+  },
+  "labels": [],
+  "state": "open",
+  "locked": false,
+  "assignees": [],
+  "comments": 1,
+  "created_at": "2026-09-03T10:00:00Z",
+  "updated_at": "2026-09-21T08:30:00Z",
+  "closed_at": null,
+  "author_association": "MEMBER",
+  "active_lock_reason": null,
+  "draft": false,
+  "pull_request": {
+    "url": "https://api.github.com/repos/octo-org/hello/pulls/43",
+    "html_url": "https://github.com/octo-org/hello/pull/43",
+    "diff_url": "https://github.com/octo-org/hello/pull/43.diff",
+    "patch_url": "https://github.com/octo-org/hello/pull/43.patch",
+    "merged_at": null
+  },
+  "body": "Fixes #42.",
+  "state_reason": null
+}

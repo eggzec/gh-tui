@@ -288,6 +288,8 @@ func TestKeptOffline(t *testing.T) {
 		{"not found", &github.Error{StatusCode: 404}, false},
 		{"unauthorized", &github.Error{StatusCode: 401}, false},
 		{"forbidden", &github.Error{StatusCode: 403}, false},
+		// A deleted issue, or a repository that turned its issues off.
+		{"gone", &github.Error{StatusCode: 410}, false},
 		{"rate limited", fmt.Errorf("list: %w", &core.RateLimitError{Reset: epoch}), false},
 	}
 	for _, tt := range tests {
