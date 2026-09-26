@@ -22,7 +22,6 @@ const gutter = "  "
 
 // Widths of the fixed columns of a row, in cells.
 const (
-	numberWidth = 5 // "#1234"; longer numbers push the title right
 	stateWidth  = 2 // the state's glyph and a space
 	diffWidth   = 11
 	labelsWidth = 14 // the first label and how many more, such as "bug +2"
@@ -51,7 +50,9 @@ func columnsFor(width int) columns {
 	want := max(minTitle, int(float64(width)*titleShare))
 	for {
 		c.title = width - c.fixed()
-		if c.title >= want || len(drops) == 0 {
+		// The title's room counts the space after the number, which
+		// numbers of up to four digits leave wider.
+		if c.title+1 >= want || len(drops) == 0 {
 			break
 		}
 		*drops[0], drops = false, drops[1:]
@@ -63,7 +64,7 @@ func columnsFor(width int) columns {
 // fixed returns the cells of the columns other than the title, with the
 // gaps before them.
 func (c columns) fixed() int {
-	n := stateWidth + numberWidth + 1
+	n := stateWidth + ui.NumberWidth + 1
 	add := func(on bool, gap, w int) {
 		if on {
 			n += gap + w
@@ -215,16 +216,18 @@ func (s *Section) renderRow(pr core.PullRequest, selected bool, width int) strin
 	b.WriteString(st.state(pr))
 	b.WriteByte(' ')
 	num := "#" + strconv.Itoa(pr.Number)
+	over := ui.NumberOver(num)
 	st.number.write(&b, num)
-	pad(&b, numberWidth-len(num)+1)
+	pad(&b, ui.NumberWidth+over-len(num)+1)
 
-	title, tw := truncate(pr.Title, c.title)
+	tcells := max(c.title-over, 0)
+	title, tw := truncate(pr.Title, tcells)
 	ts := st.rowTitle
 	if selected {
 		ts = st.rowSelected
 	}
 	ts.write(&b, title)
-	pad(&b, c.title-tw)
+	pad(&b, tcells-tw)
 
 	if c.review {
 		pad(&b, 2)
@@ -259,6 +262,11 @@ func (s *Section) renderRow(pr core.PullRequest, selected bool, width int) strin
 		ago := ui.Ago(pr.UpdatedAt, s.now())
 		pad(&b, ageWidth-len(ago))
 		st.rowAge.write(&b, ago)
+	}
+	if over >= c.title {
+		// With no title left to take from, the glyph and the number may
+		// be wider than the row.
+		return ansi.Truncate(b.String(), width, "")
 	}
 	return b.String()
 }
