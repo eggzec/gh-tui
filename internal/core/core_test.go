@@ -3,6 +3,7 @@ package core
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 )
@@ -12,6 +13,7 @@ func TestParseRepoRef(t *testing.T) {
 		in      string
 		want    RepoRef
 		wantErr bool
+		errText string // a substring of the error, when one is wanted
 	}{
 		{in: "eggzec/gh-tui", want: RepoRef{Owner: "eggzec", Name: "gh-tui"}},
 		{in: "eggzec", wantErr: true},
@@ -19,12 +21,28 @@ func TestParseRepoRef(t *testing.T) {
 		{in: "eggzec/", wantErr: true},
 		{in: "a/b/c", wantErr: true},
 		{in: "", wantErr: true},
+		{in: "Eggzec/GH-TUI", want: RepoRef{Owner: "Eggzec", Name: "GH-TUI"}},
+		{in: "octocat_acme/.github", want: RepoRef{Owner: "octocat_acme", Name: ".github"}},
+		{in: "a-b/c.d_e-f", want: RepoRef{Owner: "a-b", Name: "c.d_e-f"}},
+		{in: "-eggzec/gh-tui", wantErr: true, errText: "may not start with '-'"},
+		{in: "egg.zec/gh-tui", wantErr: true, errText: "may hold only letters, digits, '-' and '_'"},
+		{in: "egg zec/gh-tui", wantErr: true},
+		{in: "eggzec/gh tui", wantErr: true, errText: "may hold only letters, digits, '.', '-' and '_'"},
+		{in: "eggzec/gh-tui#1", wantErr: true},
+		{in: "eggzec/.", wantErr: true},
+		{in: "eggzec/..", wantErr: true, errText: `name may not be ".."`},
+		{in: "eggzec/gh-tüi", wantErr: true},
+		{in: "eggzec/" + strings.Repeat("a", 100), want: RepoRef{Owner: "eggzec", Name: strings.Repeat("a", 100)}},
+		{in: "eggzec/" + strings.Repeat("a", 101), wantErr: true, errText: "longer than 100"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.in, func(t *testing.T) {
 			got, err := ParseRepoRef(tt.in)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("ParseRepoRef(%q) error = %v, wantErr %v", tt.in, err, tt.wantErr)
+			}
+			if err != nil && !strings.Contains(err.Error(), tt.errText) {
+				t.Errorf("ParseRepoRef(%q) error = %q, want it to contain %q", tt.in, err, tt.errText)
 			}
 			if got != tt.want {
 				t.Errorf("ParseRepoRef(%q) = %v, want %v", tt.in, got, tt.want)
