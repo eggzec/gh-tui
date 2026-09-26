@@ -1,0 +1,39 @@
+[
+  {
+    "url": "https://api.github.com/repos/eggzec/gh-tui/issues/comments/3301235001",
+    "html_url": "https://github.com/eggzec/gh-tui/pull/42#issuecomment-3301235001",
+    "issue_url": "https://api.github.com/repos/eggzec/gh-tui/issues/42",
+    "id": 3301235001,
+    "node_id": "IC_kwDOLnBTf86Bb001",
+    "user": {
+      "login": "monalisa",
+      "id": 2,
+      "node_id": "MDQ6VXNlcjI=",
+      "type": "User",
+      "site_admin": false
+    },
+    "created_at": "2026-09-21T08:00:00Z",
+    "updated_at": "2026-09-21T08:05:00Z",
+    "author_association": "MEMBER",
+    "body": "Looks good so far.",
+    "reactions": {"total_count": 1, "+1": 1, "-1": 0, "laugh": 0, "hooray": 0, "confused": 0, "heart": 0, "rocket": 0, "eyes": 0}
+  },
+  {
+    "url": "https://api.github.com/repos/eggzec/gh-tui/issues/comments/3301235002",
+    "html_url": "https://github.com/eggzec/gh-tui/pull/42#issuecomment-3301235002",
+    "issue_url": "https://api.github.com/repos/eggzec/gh-tui/issues/42",
+    "id": 3301235002,
+    "node_id": "IC_kwDOLnBTf86Bb002",
+    "user": {
+      "login": "github-actions[bot]",
+      "id": 41898282,
+      "node_id": "MDM6Qm90NDE4OTgyODI=",
+      "type": "Bot",
+      "site_admin": false
+    },
+    "created_at": "2026-09-22T16:00:00Z",
+    "updated_at": "2026-09-22T16:00:00Z",
+    "author_association": "NONE",
+    "body": "Coverage: 81%."
+  }
+]

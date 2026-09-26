@@ -19,13 +19,14 @@ import (
 
 // API is the part of the GitHub client the service uses. The mutations take
 // the node ID of the pull request and return it as the server left it.
-// ProbePullRequests is a cheap conditional request that Poll watches.
+// ProbePullRequests is a cheap conditional request that Poll watches. The
+// comments of a pull request are those of its issue, which REST reads.
 type API interface {
 	ListPullRequests(ctx context.Context, repo core.RepoRef, state core.State, cursor string, first int) (core.Page[core.PullRequest], error)
 	FilterPullRequests(ctx context.Context, repo core.RepoRef, f github.PullFilter, cursor string, first int) (core.Page[core.PullRequest], error)
 	SearchPullRequests(ctx context.Context, query, cursor string, first int) (core.Page[core.PullRequest], error)
 	GetPullRequest(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error)
-	ListPullRequestComments(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.Page[core.Comment], error)
+	ListIssueComments(ctx context.Context, repo core.RepoRef, number int, cursor string, perPage int, cond github.Conditional) (core.Page[core.Comment], github.Response, error)
 	ListPullRequestReviews(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.Page[core.Review], error)
 	PullRequestID(ctx context.Context, repo core.RepoRef, number int) (string, error)
 	MergePullRequest(ctx context.Context, id string, method core.MergeMethod) (core.PullRequest, error)
@@ -44,14 +45,14 @@ type Service struct {
 	details *cache.Cache[core.PullRequestDetail]
 	// Comments and reviews are cached a page at a time, so that the pages
 	// the tui no longer shows are evicted. Comment pages carry the version
-	// of the pull request they were read at.
-	comments *cache.Cache[seen.Stamped[core.Page[core.Comment]]]
+	// of the pull request they were read at, and REST's validators.
+	comments *cache.Cache[stampedComments]
 	reviews  *cache.Cache[core.Page[core.Review]]
 	// The kept ones are what an earlier session read, if the service has
 	// a store. A read that misses memory starts from them.
 	keptLists    *cache.Shelf[core.Page[core.PullRequest]]
 	keptDetails  *cache.Shelf[core.PullRequestDetail]
-	keptComments *cache.Shelf[seen.Stamped[core.Page[core.Comment]]]
+	keptComments *cache.Shelf[stampedComments]
 	now          func() time.Time
 	// etags holds the latest probe ETag of each polled repository.
 	etags probe.Tracker
@@ -59,6 +60,10 @@ type Service struct {
 	// detail key.
 	seen seen.Marks[mark]
 }
+
+// stampedComments is a cached page of comments with the version of its pull
+// request.
+type stampedComments = seen.Stamped[core.Page[core.Comment]]
 
 // New returns a service that reads from api.
 func New(api API, opts ...Option) *Service {
@@ -70,11 +75,11 @@ func New(api API, opts ...Option) *Service {
 		api:          api,
 		lists:        cache.New[core.Page[core.PullRequest]](o.cache...),
 		details:      cache.New[core.PullRequestDetail](o.cache...),
-		comments:     cache.New[seen.Stamped[core.Page[core.Comment]]](o.cache...),
+		comments:     cache.New[stampedComments](o.cache...),
 		reviews:      cache.New[core.Page[core.Review]](o.cache...),
 		keptLists:    cache.NewShelf[core.Page[core.PullRequest]](o.store, kindList, listSchema),
 		keptDetails:  cache.NewShelf[core.PullRequestDetail](o.store, kindDetail, detailSchema),
-		keptComments: cache.NewShelf[seen.Stamped[core.Page[core.Comment]]](o.store, kindComments, commentsSchema),
+		keptComments: cache.NewShelf[stampedComments](o.store, kindComments, commentsSchema),
 		now:          time.Now,
 	}
 	s.etags.Keep(o.store)
@@ -91,8 +96,9 @@ const (
 
 	listSchema = 2
 	// detailSchema 3 counts the checks rather than listing them.
-	detailSchema   = 3
-	commentsSchema = 2
+	detailSchema = 3
+	// commentsSchema 3 reads the pages with REST, whose cursors are URLs.
+	commentsSchema = 3
 )
 
 // offlineAt is when an entry served offline was fetched, as far as the

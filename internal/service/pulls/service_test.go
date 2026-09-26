@@ -22,10 +22,13 @@ var repo = core.RepoRef{Owner: "eggzec", Name: "gh-tui"}
 type fakeAPI struct {
 	list func(ctx context.Context, repo core.RepoRef, state core.State, cursor string, first int) (core.Page[core.PullRequest], error)
 	get  func(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error)
-	// comments and reviews back the timeline reads.
-	comments func(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.Page[core.Comment], error)
-	reviews  func(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.Page[core.Review], error)
-	id       func(ctx context.Context, repo core.RepoRef, number int) (string, error)
+	// comments and reviews back the timeline reads. The comments answer
+	// without validators, unless restComments is set, which backs
+	// ListIssueComments in full.
+	comments     func(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.Page[core.Comment], error)
+	restComments func(ctx context.Context, repo core.RepoRef, number int, cursor string, perPage int, cond github.Conditional) (core.Page[core.Comment], github.Response, error)
+	reviews      func(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.Page[core.Review], error)
+	id           func(ctx context.Context, repo core.RepoRef, number int) (string, error)
 	// mutate backs every mutation. Method names the mutation; merge also
 	// passes the merge method.
 	mutate func(ctx context.Context, method, id string, how core.MergeMethod) (core.PullRequest, error)
@@ -75,9 +78,13 @@ func (f *fakeAPI) GetPullRequest(ctx context.Context, repo core.RepoRef, number 
 	return f.get(ctx, repo, number)
 }
 
-func (f *fakeAPI) ListPullRequestComments(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.Page[core.Comment], error) {
+func (f *fakeAPI) ListIssueComments(ctx context.Context, repo core.RepoRef, number int, cursor string, perPage int, cond github.Conditional) (core.Page[core.Comment], github.Response, error) {
 	f.called("comments")
-	return f.comments(ctx, repo, number, cursor, first)
+	if f.restComments != nil {
+		return f.restComments(ctx, repo, number, cursor, perPage, cond)
+	}
+	p, err := f.comments(ctx, repo, number, cursor, perPage)
+	return p, github.Response{}, err
 }
 
 func (f *fakeAPI) ListPullRequestReviews(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.Page[core.Review], error) {

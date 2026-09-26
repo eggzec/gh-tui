@@ -15,7 +15,9 @@ import (
 // nor the checks rollup, and one query fetches the labels, author and checks
 // that a list row shows. They are changed with GraphQL too, because every
 // mutation there returns the updated pull request, where the REST merge
-// returns only a commit SHA and REST has no draft endpoints.
+// returns only a commit SHA and REST has no draft endpoints. Their comments
+// are those of their issue, which REST reads with a free 304 when nothing
+// changed: see ListIssueComments.
 
 // Limits of the nested connections. Rows show a few labels. Reviews and
 // comments are paged on their own, as a thread can be long.
@@ -271,22 +273,6 @@ func (r review) core() core.Review {
 	return out
 }
 
-type pullComment struct {
-	ID        string    `json:"id"`
-	Author    *user     `json:"author"`
-	Body      string    `json:"body"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
-}
-
-func (c pullComment) core() core.Comment {
-	out := core.Comment{ID: c.ID, Body: c.Body, CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt}
-	if c.Author != nil {
-		out.Author = c.Author.core()
-	}
-	return out
-}
-
 // pullStates maps a state filter to the GraphQL PullRequestState list. The
 // empty state selects every pull request.
 func pullStates(s core.State) ([]string, error) {
@@ -399,8 +385,9 @@ func (c *Client) ProbePullRequests(ctx context.Context, repo core.RepoRef, cond 
 }
 
 // GetPullRequest returns pull request number of repo with its body and the
-// counts of the checks of its head commit. Its reviews and comments are read a page at a
-// time with ListPullRequestReviews and ListPullRequestComments.
+// counts of the checks of its head commit. Its reviews are read a page at a
+// time with ListPullRequestReviews, and its comments, which are those of
+// its issue, with ListIssueComments.
 func (c *Client) GetPullRequest(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error) {
 	vars := map[string]any{"owner": repo.Owner, "name": repo.Name, "number": number}
 	var data struct {
@@ -419,7 +406,7 @@ func (c *Client) GetPullRequest(ctx context.Context, repo core.RepoRef, number i
 }
 
 // pullPage is the query op, which selects a page of the connection field
-// of a pull request, such as its comments, oldest first. The page is
+// of a pull request, such as its reviews, oldest first. The page is
 // aliased to page, so that one shape decodes them all.
 func pullPage(op, field, nodeFields string) string {
 	return fmt.Sprintf(`query %s($owner: String!, $name: String!, $number: Int!, $first: Int!, $after: String) {
@@ -435,10 +422,7 @@ func pullPage(op, field, nodeFields string) string {
 }`, op, rateLimitField, field, nodeFields)
 }
 
-var (
-	pullCommentsQuery = pullPage("PullComments", "comments", "id author { login ... on User { name } } body createdAt updatedAt")
-	pullReviewsQuery  = pullPage("PullReviews", "reviews", "id author { login ... on User { name } } state body submittedAt")
-)
+var pullReviewsQuery = pullPage("PullReviews", "reviews", "id author { login ... on User { name } } state body submittedAt")
 
 // listPullPage runs a pullPage query and converts its nodes with f. What
 // names the page in errors.
@@ -470,13 +454,6 @@ func listPullPage[T, U any](
 	}
 	page := data.Repository.PullRequest.Page
 	return core.Page[U]{Items: convert(page.Nodes, f), Next: page.PageInfo.next()}, nil
-}
-
-// ListPullRequestComments returns a page of up to first comments on pull
-// request number of repo, oldest first. Cursor and first work as in
-// ListPullRequests.
-func (c *Client) ListPullRequestComments(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.Page[core.Comment], error) {
-	return listPullPage(ctx, c, "comments", pullCommentsQuery, repo, number, cursor, first, pullComment.core)
 }
 
 // ListPullRequestReviews returns a page of up to first reviews of pull
