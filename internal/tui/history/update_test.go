@@ -171,6 +171,78 @@ func TestEnterAndEscStepThroughThePanes(t *testing.T) {
 	}
 }
 
+func TestZoom(t *testing.T) {
+	m, h := newModal(t, newFake(), wideW, wideH)
+	tests := []struct {
+		name string
+		keys []string
+		// width is set before the keys, if it isn't 0.
+		width int
+		zoom  bool
+		focus pane
+		patch bool
+		// shows is on screen, and hides isn't.
+		shows, hides string
+	}{
+		{name: "z zooms the graph", keys: []string{"z"}, zoom: true, focus: graphPane, shows: "main: change 1", hides: "fix/tabs"},
+		{name: "tab keeps the zoom", keys: []string{"tab"}, zoom: true, focus: commitPane, shows: "commands.go", hides: "main: change 1"},
+		{name: "shift+tab keeps the zoom", keys: []string{"shift+tab", "shift+tab"}, zoom: true, focus: branchPane, shows: "fix/tabs", hides: "main: change 1"},
+		{name: "enter keeps the zoom", keys: []string{"enter", "enter", "enter"}, zoom: true, focus: commitPane, patch: true},
+		{name: "a resize keeps the zoom", width: 140, zoom: true, focus: commitPane, patch: true},
+		{name: "esc unzooms before it closes the patch", keys: []string{"esc"}, focus: commitPane, patch: true, shows: "Branches"},
+		{name: "esc then closes the patch", keys: []string{"esc"}, focus: commitPane, shows: "Branches"},
+		{name: "z zooms again", keys: []string{"z"}, zoom: true, focus: commitPane, hides: "fix/tabs"},
+		{name: "at 60 columns esc steps back while zoomed", width: narrowW, keys: []string{"esc"}, zoom: true, focus: graphPane, shows: "main: change 1"},
+		{name: "at 60 columns z keeps the zoom", keys: []string{"z"}, zoom: true, focus: graphPane, shows: "main: change 1"},
+		{name: "wide again esc unzooms", width: wideW, keys: []string{"esc"}, focus: graphPane, shows: "fix/tabs"},
+		{name: "esc steps back", keys: []string{"esc"}, focus: branchPane, shows: "fix/tabs"},
+		{name: "at 60 columns z does nothing", width: narrowW, keys: []string{"z"}, focus: branchPane, shows: "fix/tabs"},
+		{name: "wide again shows every pane", width: wideW, focus: branchPane, shows: "main: change 1"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.width > 0 {
+				m.SetSize(tt.width, wideH)
+			}
+			h.keys(tt.keys...)
+			if m.zoom != tt.zoom || m.focus != tt.focus || m.commit.patch != tt.patch {
+				t.Errorf("zoom %v on pane %d, patch %v; want %v on %d, patch %v", m.zoom, m.focus, m.commit.patch, tt.zoom, tt.focus, tt.patch)
+			}
+			if w := m.paneWidth(m.focus); tt.zoom && w != m.width {
+				t.Errorf("the zoomed pane is %d wide, want the %d of the modal", w, m.width)
+			}
+			s := screen(m)
+			if tt.shows != "" && !strings.Contains(s, tt.shows) || tt.hides != "" && strings.Contains(s, tt.hides) {
+				t.Errorf("want %q on screen and not %q:\n%s", tt.shows, tt.hides, s)
+			}
+			assertFits(t, m.View(), m.width, m.height)
+		})
+	}
+	if got := h.take(); slices.ContainsFunc(got, func(msg tea.Msg) bool { _, ok := msg.(ui.CloseModalMsg); return ok }) {
+		t.Errorf("zooming closed the modal: %#v", got)
+	}
+}
+
+func TestZoomLeavesKeysToInputs(t *testing.T) {
+	m, h := newModal(t, newFake(), wideW, wideH)
+	h.keys("z", "shift+tab", "/", "z")
+	if !m.zoom || m.branches.filter == nil || m.branches.filter.Query().Text != "z" {
+		t.Fatalf("zoom %v; want z typed into the filter of the zoomed branches", m.zoom)
+	}
+	h.keys("esc")
+	if !m.zoom || m.branches.filter != nil {
+		t.Fatalf("zoom %v, filter open %v; want esc to close the filter alone", m.zoom, m.branches.filter != nil)
+	}
+	h.keys("tab", "enter", "enter", "/", "z")
+	if !m.zoom || !m.commit.patch || !m.commit.pager.Capturing() {
+		t.Fatalf("zoom %v, patch %v; want z typed into the search of the zoomed patch", m.zoom, m.commit.patch)
+	}
+	h.keys("esc")
+	if !m.zoom || !m.commit.patch || m.commit.pager.Capturing() {
+		t.Errorf("zoom %v, patch %v; want esc to close the search alone", m.zoom, m.commit.patch)
+	}
+}
+
 func TestPrefetchedCommitShowsAtOnce(t *testing.T) {
 	f := newFake()
 	m, h := newModal(t, f, 108, 30)

@@ -17,9 +17,11 @@ type KeyMap struct {
 	// Select shows the graph of a branch, what a commit changed, or the
 	// patch of a file, in the pane after.
 	Select key.Binding
-	// Back steps back to the pane before, and closes the modal from the
-	// branches.
+	// Back shows every pane again while one is zoomed, or steps back to
+	// the pane before, and closes the modal from the branches.
 	Back key.Binding
+	// Zoom shows the focused pane alone, or every pane again.
+	Zoom key.Binding
 	// Filter narrows the branches as the user types.
 	Filter key.Binding
 	// UseAsBase shows the files at the branch or commit under the cursor,
@@ -48,6 +50,7 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		Prev:      ui.Binding(keys, config.ActionPrevTab, "previous pane"),
 		Select:    ui.Binding(keys, config.ActionSelect, "open"),
 		Back:      ui.Binding(keys, config.ActionBack, "back"),
+		Zoom:      ui.Binding(keys, config.ActionZoom, "zoom"),
 		Filter:    ui.Binding(keys, config.ActionSearch, "filter"),
 		UseAsBase: ui.Binding(keys, config.ActionUseAsBase, "use as base"),
 		ResetBase: ui.Binding(keys, config.ActionResetBase, "back to head"),
