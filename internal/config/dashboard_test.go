@@ -87,6 +87,43 @@ func TestDashboardFromFile(t *testing.T) {
 	}
 }
 
+func TestDashboardPrefetch(t *testing.T) {
+	if !Default().Dashboard.Prefetch {
+		t.Error("dashboard.prefetch is off by default, want on")
+	}
+	t.Setenv(EnvLog, "")
+	tests := []struct {
+		name, yaml string
+		want       bool
+		// fails is what the error names, if loading fails.
+		fails string
+	}{
+		{"unset", "dashboard:\n  contributions: 30d\n", true, ""},
+		{"off", "dashboard:\n  prefetch: false\n", false, ""},
+		{"on", "dashboard:\n  prefetch: true\n", true, ""},
+		{"not a switch", "dashboard:\n  prefetch: often\n", false, "line 2"},
+		{"mistyped", "dashboard:\n  prefetchs: false\n", false, "prefetchs"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "config.yaml")
+			if err := os.WriteFile(path, []byte(tt.yaml), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			cfg, err := Load(path)
+			if (err == nil) != (tt.fails == "") {
+				t.Fatalf("Load = %v, want it to fail = %v", err, tt.fails != "")
+			}
+			if err != nil && !strings.Contains(err.Error(), tt.fails) {
+				t.Errorf("Load = %v, want it to name %s", err, tt.fails)
+			}
+			if err == nil && cfg.Dashboard.Prefetch != tt.want {
+				t.Errorf("dashboard.prefetch = %v, want %v", cfg.Dashboard.Prefetch, tt.want)
+			}
+		})
+	}
+}
+
 func TestDashboardActions(t *testing.T) {
 	defaults := Default().Keys
 	for action, want := range map[string][]string{

@@ -18,6 +18,13 @@ type Dashboard struct {
 	// Contributions30d, Contributions90d or ContributionsYear. Its total
 	// counts the days it shows.
 	Contributions string `yaml:"contributions"`
+	// Prefetch reads the pull requests and issues of Waiting on you ahead
+	// while its pane has the focus: the first three rows of the list on
+	// view, and the row the cursor rests on for details.prefetch.hover_delay,
+	// so that they open at once. Each costs two requests, the detail and
+	// its first comments; what is cached is skipped. It needs
+	// details.prefetch.enabled.
+	Prefetch bool `yaml:"prefetch"`
 }
 
 // DefaultCalendarGlyph is the default Dashboard.CalendarGlyph.
@@ -31,7 +38,7 @@ const (
 )
 
 func defaultDashboard() Dashboard {
-	return Dashboard{CalendarGlyph: DefaultCalendarGlyph, Contributions: Contributions90d}
+	return Dashboard{CalendarGlyph: DefaultCalendarGlyph, Contributions: Contributions90d, Prefetch: true}
 }
 
 // ContributionDays is the number of recent days the calendar shows, or 0
