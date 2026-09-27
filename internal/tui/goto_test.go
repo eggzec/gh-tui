@@ -56,12 +56,8 @@ func (f *fakeRepos) Get(ctx context.Context, ref core.RepoRef) (core.Repo, error
 }
 
 // errOffline stands for an error of a GitHub that can't be reached.
-var errOffline = &url.Error{Op: "Get", URL: "https://api.github.com", Err: errors.New("no route to host")}
-
-func unreachable(_ context.Context, err error) bool {
-	_, ok := errors.AsType[*url.Error](err)
-	return ok
-}
+var errOffline = fmt.Errorf("github: %w: %w", core.ErrOffline,
+	&url.Error{Op: "Get", URL: "https://api.github.com", Err: errors.New("no route to host")})
 
 var bubbletea = core.RepoRef{Owner: "charmbracelet", Name: "bubbletea"}
 
@@ -78,7 +74,7 @@ func newGotoApp(t *testing.T, repos *fakeRepos, opts ...Option) (*Model, []*fake
 	t.Helper()
 	fakes := []*fakeSection{{title: "Files"}, {title: "Pull requests"}, {title: "Issues"}, {title: "Notifications"}, {title: ui.DashboardTitle}}
 	layout := Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3], Dashboard: fakes[4]}
-	opts = append([]Option{WithRepos(repos), WithUnreachable(unreachable)}, opts...)
+	opts = append([]Option{WithRepos(repos)}, opts...)
 	m := New(t.Context(), config.Default(), layout, opts...)
 	m.toast.SetDuration(0)
 	m.toast.SetErrorDuration(0)
@@ -104,9 +100,9 @@ func TestGotoRepo(t *testing.T) {
 		{name: "spelled as GitHub does", line: "goto CharmBracelet/BubbleTea", want: bubbletea, asks: true},
 		{name: "link", line: "goto https://github.com/cli/cli", want: core.RepoRef{Owner: "cli", Name: "cli"}, asks: true},
 		{name: "link to a page of it", line: "goto github.com/cli/cli/actions", want: core.RepoRef{Owner: "cli", Name: "cli"}, asks: true},
-		{name: "not found", line: "goto nosuchowner/nosuchrepo", toast: "Repository not found: nosuchowner/nosuchrepo.", asks: true},
-		{name: "offline", line: "goto charmbracelet/bubbletea", err: errOffline, toast: "Can't reach GitHub to open charmbracelet/bubbletea.", asks: true},
-		{name: "rate limited", line: "goto charmbracelet/bubbletea", err: core.ErrRateLimited, toast: "Couldn't open charmbracelet/bubbletea: rate limited.", asks: true},
+		{name: "not found", line: "goto nosuchowner/nosuchrepo", toast: "nosuchowner/nosuchrepo doesn't exist or is private.", asks: true},
+		{name: "offline", line: "goto charmbracelet/bubbletea", err: errOffline, toast: "Couldn't open charmbracelet/bubbletea: can't reach GitHub.", asks: true},
+		{name: "rate limited", line: "goto charmbracelet/bubbletea", err: core.ErrRateLimited, toast: "Couldn't open charmbracelet/bubbletea: rate limited by GitHub.", asks: true},
 		{name: "nothing", line: "goto", toast: "Nothing to open"},
 		{name: "not a repository", line: "goto bubbletea", toast: "Not a repository"},
 		{name: "another host", line: "goto https://gitlab.com/a/b", toast: "Not a link to github.com"},
@@ -299,6 +295,46 @@ func opened(fakes []*fakeSection) tea.Msg {
 	return nil
 }
 
+// TestGotoFailures checks that goto tells why it couldn't open a
+// repository, in the app's voice, whatever GitHub failed with.
+func TestGotoFailures(t *testing.T) {
+	// Where goto's toast isn't a change's: a refusal names the
+	// repository, which says what the action would, and the longer action
+	// leaves no room for the log's path.
+	toasts := map[string]string{
+		"forbidden": "You don't have access to charmbracelet/bubbletea.",
+		"not found": "charmbracelet/bubbletea doesn't exist or is private.",
+		"sso":       "charmbracelet requires SSO. Run gh auth refresh, then restart gh-tui.",
+		"internal":  "Couldn't open charmbracelet/bubbletea: something went wrong, see the log.",
+	}
+	cases := append(failures(), failure{
+		name: "sso", err: &ghError{is: core.ErrForbidden, reason: "Resource protected by organization SAML enforcement."},
+	})
+	for _, f := range cases {
+		t.Run(f.name, func(t *testing.T) {
+			repos := newGotoRepos()
+			repos.err = f.err
+			m, _ := newGotoApp(t, repos, WithVoice(logVoice(t)))
+			m.Update(tea.WindowSizeMsg{Width: 240, Height: 24})
+			runCommand(t, m, "goto charmbracelet/bubbletea")
+			want := toasts[f.name]
+			if want == "" && f.cause != "" {
+				want = "Couldn't open charmbracelet/bubbletea: " + f.cause
+			}
+			switch got := toasted(m); {
+			case want == "" && got != "":
+				t.Errorf("toast %q, want none", got)
+			case want != "" && !hasToast(m, want):
+				t.Errorf("toast %q, want %q", got, want)
+			}
+			checkClean(t, toasted(m))
+			if m.screen != dashScreen {
+				t.Errorf("screen = %d, want the dashboard still", m.screen)
+			}
+		})
+	}
+}
+
 func TestGotoNumber(t *testing.T) {
 	cli := core.RepoRef{Owner: "cli", Name: "cli"}
 	tests := []struct {
@@ -324,8 +360,8 @@ func TestGotoNumber(t *testing.T) {
 		{name: "number off the repository screen", repo: testRepo, notif: true, line: "goto #12", toast: "Open a repository first, or use goto owner/name#12."},
 		{name: "link to a pull request", line: "goto https://github.com/cli/cli/pull/1", want: ui.OpenPullMsg{Repo: cli, Number: 1}},
 		{name: "link to an issue", line: "goto github.com/cli/cli/issues/5#issuecomment-1", want: ui.OpenIssueMsg{Repo: cli, Number: 5}},
-		{name: "neither", line: "goto charmbracelet/bubbletea#99999999", toast: "No issue or pull request charmbracelet/bubbletea#99999999.", asks: true},
-		{name: "offline", line: "goto charmbracelet/bubbletea#1813", err: errOffline, toast: "Can't reach GitHub to open charmbracelet/bubbletea#1813.", asks: true},
+		{name: "neither", line: "goto charmbracelet/bubbletea#99999999", toast: "charmbracelet/bubbletea#99999999 doesn't exist or is private.", asks: true},
+		{name: "offline", line: "goto charmbracelet/bubbletea#1813", err: errOffline, toast: "Couldn't open charmbracelet/bubbletea#1813: can't reach GitHub.", asks: true},
 		{name: "not a number", repo: testRepo, line: "goto #x", toast: "Not an issue number"},
 		{name: "bare", repo: testRepo, line: "#12", toast: "Unknown command: #12."},
 	}

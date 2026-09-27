@@ -102,12 +102,10 @@ type Model struct {
 	repoInfo  func(ctx context.Context, repo core.RepoRef) (core.Repo, error)
 	// repos checks that a repository exists before goto opens it, and
 	// kinds tells an issue from a pull request. host is the one whose
-	// links goto opens, and unreachable tells whether an error means
-	// GitHub couldn't be reached.
-	repos       Repos
-	kinds       Kinds
-	host        string
-	unreachable func(ctx context.Context, err error) bool
+	// links goto opens.
+	repos Repos
+	kinds Kinds
+	host  string
 	// recall is what the command line completes from, with recent, the
 	// repositories selected in this session, the latest first.
 	recall Recall
