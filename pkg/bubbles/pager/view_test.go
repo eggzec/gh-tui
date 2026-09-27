@@ -8,6 +8,8 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
+
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 const markdown = "# Title\n\nSome *emphasis* and `code`.\n\n- one\n- two\n"
@@ -116,7 +118,7 @@ func TestViewKeepsText(t *testing.T) {
 	m := open(t, "main.go", goSource, WithSize(120, 20), WithLineNumbers(false))
 	m, _ = keys(t, m, "/", "i", "enter")
 	got := strings.Split(plain(m), "\n")
-	for i, want := range strings.Split(strings.TrimSuffix(clean(goSource, 4), "\n"), "\n") {
+	for i, want := range strings.Split(strings.TrimSuffix(termtext.Clean(goSource, 4), "\n"), "\n") {
 		if strings.TrimRight(got[i], " ") != want {
 			t.Errorf("line %d = %q, want %q", i+1, got[i], want)
 		}

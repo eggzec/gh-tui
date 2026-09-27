@@ -3,11 +3,12 @@ package pager
 import (
 	"context"
 	"strings"
-	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/alecthomas/chroma/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // binarySniff is how many leading bytes are checked for a NUL, the way git
@@ -35,7 +36,7 @@ func (m *Model) setContent(name, text string, lexerOf func(full string) chroma.L
 		m.state = stateBinary
 		return nil
 	}
-	full := strings.TrimSuffix(clean(text, m.tabWidth), "\n")
+	full := strings.TrimSuffix(termtext.Clean(text, m.tabWidth), "\n")
 	if full != "" {
 		m.lines = strings.Split(full, "\n")
 	}
@@ -97,39 +98,6 @@ func (m *Model) reset(name string, s state, err error) {
 	m.top, m.row, m.left = 0, 0, 0
 	m.mark = -1
 	m.clearSearch()
-}
-
-// clean expands tabs to spaces and replaces control characters and invalid
-// UTF-8, so that the text can neither break the layout nor send escape
-// sequences to the terminal. It drops the CR of CRLF line endings.
-func clean(src string, tabWidth int) string {
-	var b strings.Builder
-	b.Grow(len(src))
-	// col is the column at byte mark of the output, which is where the
-	// last tab or line ended; the columns after it are measured lazily.
-	mark, col := 0, 0
-	for i := 0; i < len(src); {
-		r, size := utf8.DecodeRuneInString(src[i:])
-		switch {
-		case r == '\n':
-			b.WriteByte('\n')
-			mark, col = b.Len(), 0
-		case r == '\t':
-			col += ansi.StringWidth(b.String()[mark:])
-			n := tabWidth - col%tabWidth
-			for range n {
-				b.WriteByte(' ')
-			}
-			mark, col = b.Len(), col+n
-		case r == '\r' && strings.HasPrefix(src[i+size:], "\n"):
-		case r == utf8.RuneError && size == 1, r < 0x20, r >= 0x7f && r < 0xa0:
-			b.WriteRune(utf8.RuneError)
-		default:
-			b.WriteString(src[i : i+size])
-		}
-		i += size
-	}
-	return b.String()
 }
 
 // renderName renders the name for the status line, on one line and without
