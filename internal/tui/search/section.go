@@ -89,6 +89,13 @@ func WithIcons(icons ui.Icons) Option {
 	return func(s *Section) { s.icons = icons }
 }
 
+// WithVoice sets how the page words what went wrong, with the keys a hint
+// names and the log it points to. By default the hints name the configured
+// keys and no log.
+func WithVoice(v ui.Voice) Option {
+	return func(s *Section) { s.voice = v }
+}
+
 // area is the part of the page that has the focus.
 type area int
 
@@ -121,6 +128,8 @@ type Section struct {
 	debounce time.Duration
 	// host is the web host of the user's GitHub, for the links it opens.
 	host string
+	// voice words the errors of the results.
+	voice ui.Voice
 
 	input   textinput.Model
 	area    area
@@ -193,6 +202,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		ctx:        ctx,
 		svc:        svc,
 		keys:       newKeyMap(keys),
+		voice:      ui.NewVoice(keys, ""),
 		now:        time.Now,
 		debounce:   DefaultDebounce,
 		kind:       core.SearchRepos,

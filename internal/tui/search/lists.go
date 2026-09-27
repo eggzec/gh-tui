@@ -14,6 +14,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
 	"github.com/eggzec/gh-tui/internal/service/search"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 )
 
@@ -89,6 +90,7 @@ func (s *Section) ensureHits(k core.SearchKind) tea.Cmd {
 		feed.WithKeyMap(s.keys.feed),
 		feed.WithStyles(s.theme.Feed()),
 		feed.WithEmptyText(emptyText(k)),
+		feed.WithErrorText(ui.ErrorText("search", "", s.voice)),
 	)
 	s.sizeList(&l.feed)
 	if s.focused && s.area == resultsArea && s.kind == k {
@@ -137,6 +139,7 @@ func (s *Section) searchCode() tea.Cmd {
 		feed.WithKeyMap(s.keys.feed),
 		feed.WithStyles(s.theme.Feed()),
 		feed.WithEmptyText(emptyText(core.SearchCode)),
+		feed.WithErrorText(ui.ErrorText("search the code", "", s.voice)),
 	)
 	s.sizeList(&l.feed)
 	if s.focused && s.area == resultsArea && s.kind == core.SearchCode {
