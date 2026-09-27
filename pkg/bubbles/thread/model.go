@@ -60,6 +60,13 @@ type Model[T any] struct {
 	// md renders the body and, through Markdown, the comments, and keeps
 	// what it rendered. Copies of the model share it.
 	md *markdown.Renderer
+	// folds keeps which diagrams the reader opened. Copies of the model
+	// share it too, since a comment renderer calls Markdown on its own.
+	folds *folds
+	// docHeads are the heads of the diagrams in doc, and heads those in
+	// lines, in order.
+	docHeads []head
+	heads    []head
 
 	chunks  []chunk[T]
 	started bool // the first chunk was requested
@@ -85,7 +92,8 @@ type chunk[T any] struct {
 	items  []T
 	loaded bool
 	lines  []string
-	starts []int // line of each item in lines
+	starts []int  // line of each item in lines
+	heads  []head // the diagrams in lines
 	height int
 
 	loading bool
@@ -103,6 +111,8 @@ type tail struct {
 // texts are the fixed status fragments, styled once in SetStyles.
 type texts struct {
 	loadingDoc, loadingComments, empty, errPrefix, retry string
+	// pointer marks the head of the diagram that the toggle key opens.
+	pointer string
 }
 
 // New returns a thread that loads comments with fetch and draws each one
@@ -133,6 +143,7 @@ func New[T any](fetch Fetch[T], render Render[T], opts ...Option) Model[T] {
 		docWidth:  -1,
 		statusIdx: -1,
 		md:        markdown.New(s.styles.Markdown),
+		folds:     &folds{},
 	}
 	m.ctx, m.cancel = context.WithCancel(m.parent)
 	m.width, m.height = max(s.width, 0), max(s.height, 0)
@@ -217,7 +228,8 @@ func (m *Model[T]) Reset() tea.Cmd {
 	m.ctx, m.cancel = context.WithCancel(m.parent)
 	m.gen++
 	m.hasDoc, m.header, m.body = false, "", ""
-	m.doc, m.docWidth = nil, -1
+	m.doc, m.docWidth, m.docHeads = nil, -1, nil
+	m.folds.open = nil
 	m.chunks, m.started, m.tail = nil, false, tail{}
 	m.vp.SetYOffset(0)
 	m.layout(top)
@@ -275,6 +287,7 @@ func (m *Model[T]) SetStyles(s Styles) {
 		loadingComments: s.Loading.Render("Loading comments…"),
 		empty:           s.Empty.Render(m.emptyText),
 		errPrefix:       s.Error.Render("Couldn't load comments."),
+		pointer:         s.Key.Render("›"),
 	}
 	m.styleRetry()
 	m.rerender(a)
@@ -304,11 +317,17 @@ func (m *Model[T]) rerender(a anchor) {
 // Markdown returns src rendered as markdown in the style of the body, as
 // lines at most width cells wide, not padded, with the collapsible blocks
 // whose index is in open shown in full, as [markdown.Renderer.Render]
-// does. A comment renderer uses it so the comments look like the body.
-// What it renders is kept, so rendering a comment again, as a reload
-// does, costs nothing.
+// does, and those the reader opened too. A comment renderer uses it so
+// the comments look like the body, and so the reader can open their
+// diagrams, if it keeps the lines it returns whole and in order. What it
+// renders is kept, so rendering a comment again, as a reload does, costs
+// nothing.
 func (m Model[T]) Markdown(src string, width int, open ...int) string {
-	return m.md.Render(src, width, open...)
+	out, heads := m.md.RenderHeads(src, width, m.folds.with(src, open)...)
+	if len(heads) > 0 {
+		m.folds.seen = append(m.folds.seen, seen{src: src, text: out, heads: heads})
+	}
+	return out
 }
 
 // MarkdownRenders returns how many times the thread rendered markdown
@@ -329,18 +348,24 @@ func (m *Model[T]) SetKeyMap(k KeyMap) {
 // KeyMap returns the key bindings.
 func (m Model[T]) KeyMap() KeyMap { return m.keys }
 
-// ShortHelp implements help.KeyMap. It offers retry only after an error.
+// ShortHelp implements help.KeyMap. It offers retry only after an error,
+// and to toggle a diagram only while one is on screen.
 func (m Model[T]) ShortHelp() []key.Binding {
-	k := m.keys
-	k.Retry.SetEnabled(k.Retry.Enabled() && m.failed())
-	return k.ShortHelp()
+	return m.activeKeys().ShortHelp()
 }
 
-// FullHelp implements help.KeyMap. It offers retry only after an error.
+// FullHelp implements help.KeyMap, offering what ShortHelp does.
 func (m Model[T]) FullHelp() [][]key.Binding {
+	return m.activeKeys().FullHelp()
+}
+
+// activeKeys returns the key bindings with those that do nothing now
+// disabled.
+func (m Model[T]) activeKeys() KeyMap {
 	k := m.keys
 	k.Retry.SetEnabled(k.Retry.Enabled() && m.failed())
-	return k.FullHelp()
+	k.Toggle.SetEnabled(k.Toggle.Enabled() && m.OnDiagram())
+	return k
 }
 
 // Focus focuses the thread so it reacts to keys.

@@ -13,6 +13,8 @@ type KeyMap struct {
 	Top          key.Binding
 	Bottom       key.Binding
 	Retry        key.Binding
+	// Toggle shows or hides the code of the diagram on screen.
+	Toggle key.Binding
 }
 
 // DefaultKeyMap returns the default key bindings.
@@ -54,12 +56,16 @@ func DefaultKeyMap() KeyMap {
 			key.WithKeys("r"),
 			key.WithHelp("r", "retry"),
 		),
+		Toggle: key.NewBinding(
+			key.WithKeys("enter"),
+			key.WithHelp("↵", "diagram code"),
+		),
 	}
 }
 
 // ShortHelp implements help.KeyMap.
 func (k KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Up, k.Down, k.HalfPageDown, k.Bottom, k.Retry}
+	return []key.Binding{k.Up, k.Down, k.HalfPageDown, k.Bottom, k.Toggle, k.Retry}
 }
 
 // FullHelp implements help.KeyMap.
@@ -67,6 +73,6 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.PageUp, k.PageDown},
 		{k.HalfPageUp, k.HalfPageDown, k.Top, k.Bottom},
-		{k.Retry},
+		{k.Toggle, k.Retry},
 	}
 }

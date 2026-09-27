@@ -17,15 +17,23 @@ func (m Model[T]) View() string {
 	for i := y; i < end; i++ {
 		size += len(m.line(i)) + 1
 	}
+	// The head of the diagram the toggle key opens shows the pointer.
+	pointed, marked := -1, ""
+	if t := m.target(); m.focused && t != nil && t.marked != "" {
+		pointed, marked = t.line, t.marked
+	}
 	var b strings.Builder
 	b.Grow(size)
 	for i := range h {
 		if i > 0 {
 			b.WriteByte('\n')
 		}
-		if y+i < end {
+		switch {
+		case y+i == pointed:
+			b.WriteString(marked)
+		case y+i < end:
 			b.WriteString(m.line(y + i))
-		} else {
+		default:
 			b.WriteString(m.blank)
 		}
 	}
