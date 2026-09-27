@@ -1,13 +1,12 @@
 package checks
 
 import (
+	"net/url"
 	"strconv"
 	"strings"
 
-	"charm.land/glamour/v2"
-	"github.com/charmbracelet/x/ansi"
-
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/markdown"
 )
 
 // openDetail shows what the app of the check r reported, or the commit
@@ -70,37 +69,31 @@ func compact(parts []string) []string {
 	return out
 }
 
-// markdown renders src at width with the thread's markdown style. The
-// renderer is kept until the width or the theme changes.
+// markdown renders src at width with the thread's markdown style, indented
+// by two cells with as much room on the right. The renderer is kept until
+// the theme changes.
 func (s *Step) markdown(src string, width int) string {
-	if s.md == nil || s.mdWidth != width {
-		md, err := glamour.NewTermRenderer(
-			glamour.WithStyles(s.theme.Thread().Markdown),
-			glamour.WithWordWrap(width),
-		)
-		if err != nil {
-			return src
-		}
-		s.md, s.mdWidth = md, width
+	if s.md == nil {
+		s.md = markdown.New(s.theme.Thread().Markdown)
 	}
-	out, err := s.md.Render(src)
-	if err != nil {
-		return src
-	}
-	return trimBlank(out)
+	s.md.SetHint(s.openHint())
+	return markdown.Indent(s.md.Render(src, markdown.Room(width, 4)), "  ")
 }
 
-// trimBlank drops the blank lines around s.
-func trimBlank(s string) string {
-	lines := strings.Split(s, "\n")
-	blank := func(l string) bool { return strings.TrimSpace(ansi.Strip(l)) == "" }
-	for len(lines) > 0 && blank(lines[0]) {
-		lines = lines[1:]
+// openHint is what the note that ends a detail cut short offers: the
+// check's page, if it has one, where the rest shows.
+func (s *Step) openHint() string {
+	u := s.check.url()
+	if u == "" {
+		return ""
 	}
-	for len(lines) > 0 && blank(lines[len(lines)-1]) {
-		lines = lines[:len(lines)-1]
+	if p, err := url.Parse(u); err == nil && p.Host == "github.com" {
+		return ui.OpenHint(s.keys.Open)
 	}
-	return strings.Join(lines, "\n")
+	if k := s.keys.Open.Help().Key; k != "" && s.keys.Open.Enabled() {
+		return k + " to open its page"
+	}
+	return ""
 }
 
 // detailLines renders the detail, h lines of w cells: how the check stands

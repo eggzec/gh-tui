@@ -151,6 +151,22 @@ func TestExternalCheckShowsWhatItReported(t *testing.T) {
 	}
 }
 
+// A detail cut short offers the check's page only if it has one, and says
+// where it is.
+func TestDetailOffersItsPage(t *testing.T) {
+	s, _ := newStep(t, newFake(), wideW, wideH)
+	for _, tt := range []struct{ url, want string }{
+		{"", ""},
+		{"https://github.com/o/r/runs/1", "o to open on GitHub"},
+		{"https://codecov.io/gh/o/r/pull/1", "o to open its page"},
+	} {
+		s.check = row{check: &core.Check{DetailsURL: tt.url}}
+		if got := s.openHint(); got != tt.want {
+			t.Errorf("the hint for %q is %q, want %q", tt.url, got, tt.want)
+		}
+	}
+}
+
 func TestWatchesWhilePending(t *testing.T) {
 	f := newFake()
 	w := &watches{}

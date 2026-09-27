@@ -19,7 +19,6 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
-	"charm.land/glamour/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
@@ -27,6 +26,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/tui/jobview"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/markdown"
 )
 
 // Title names the step, and its changes in the log and the toasts.
@@ -163,10 +163,9 @@ type Step struct {
 	view  jobview.Model
 
 	detail viewport.Model
-	// md renders the detail, kept for mdWidth, and rendered holds what it
-	// rendered for the check shown at that width.
-	md       *glamour.TermRenderer
-	mdWidth  int
+	// md renders the detail, and rendered names the check and the width
+	// it last rendered it for.
+	md       *markdown.Renderer
 	rendered string
 
 	// stopWatch ends the polls of the checks, and stopFollow those of the
