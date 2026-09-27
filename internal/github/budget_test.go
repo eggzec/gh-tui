@@ -598,3 +598,57 @@ func TestBudgetGraphQLRefusedWithQuotaLeft(t *testing.T) {
 		})
 	}
 }
+
+// TestBudgetContact checks when the budget says GitHub last answered and a
+// request last failed: any answer of GitHub's counts, whatever its status,
+// but not a captive portal's page, and a canceled request isn't a failure.
+func TestBudgetContact(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		a := answers{"x": make(chan answer, 1)}
+		c := newAnswered(t, a)
+		github := map[string]string{"X-GitHub-Request-Id": "ABCD:1234"}
+		check := func(step string, answered, failed time.Time) {
+			t.Helper()
+			gotAnswered, gotFailed := c.budget.contact()
+			if !gotAnswered.Equal(answered) || !gotFailed.Equal(failed) {
+				t.Errorf("%s: contact = %v, %v; want %v, %v", step, gotAnswered, gotFailed, answered, failed)
+			}
+		}
+		get := func(path string) {
+			_, _ = c.Get(t.Context(), path, Conditional{}, nil)
+		}
+		check("before any request", time.Time{}, time.Time{})
+
+		a["x"] <- answer{header: github}
+		get("x")
+		start := time.Now()
+		check("after an answer", start, time.Time{})
+
+		time.Sleep(time.Second)
+		a["x"] <- answer{header: map[string]string{"Content-Type": "text/html"}, body: "<html>Log in to the Wi-Fi</html>"}
+		get("x")
+		check("after a captive portal's page", start, time.Time{})
+
+		a["x"] <- answer{status: http.StatusForbidden, header: github}
+		get("x")
+		refused := time.Now()
+		check("after a refusal", refused, time.Time{})
+
+		time.Sleep(time.Second)
+		get("unanswered")
+		failed := time.Now()
+		check("after a failure", refused, failed)
+
+		time.Sleep(time.Second)
+		ctx, cancel := context.WithCancel(t.Context())
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			_, _ = c.Get(ctx, "x", Conditional{}, nil)
+		}()
+		synctest.Wait()
+		cancel()
+		<-done
+		check("after a cancellation", refused, failed)
+	})
+}

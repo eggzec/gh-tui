@@ -63,6 +63,9 @@ type budget struct {
 	seq     uint64
 	// opCost is what the last query of each GraphQL operation cost.
 	opCost map[string]int
+	// answered is when GitHub last answered, and failed when a request
+	// last got no answer, for the status of the connection.
+	answered, failed time.Time
 }
 
 // quota is one resource, as the answers of GitHub report it.
@@ -169,11 +172,24 @@ func (b *budget) learnCost(op string, cost int) {
 	b.mu.Unlock()
 }
 
-// forget settles r, whose request got no answer.
-func (b *budget) forget(r *reservation) {
+// forget settles r, whose request got no answer. failed says that the
+// request failed, rather than was canceled or never sent.
+func (b *budget) forget(r *reservation, failed bool) {
+	now := b.now()
 	b.mu.Lock()
+	defer b.mu.Unlock()
 	delete(b.pending, r.seq)
-	b.mu.Unlock()
+	if failed {
+		b.failed = now
+	}
+}
+
+// contact returns when GitHub last answered a request, and when a request
+// last got no answer, each zero before the first.
+func (b *budget) contact() (answered, failed time.Time) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.answered, b.failed
 }
 
 // observe settles r with the headers h of its answer, and returns the new
@@ -190,6 +206,11 @@ func (b *budget) observe(r *reservation, h http.Header) (guard time.Duration) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	delete(b.pending, r.seq)
+	// Only GitHub's answers count, not a page of a captive portal or a
+	// proxy on the way.
+	if h.Get("X-GitHub-Request-Id") != "" {
+		b.answered = now
+	}
 	if date, err := http.ParseTime(h.Get("Date")); err == nil {
 		b.skew.add(date.Sub(now))
 	}
@@ -345,13 +366,13 @@ func (t *rateTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	settled := false
 	defer func() {
 		if !settled {
-			t.budget.forget(r)
+			t.budget.forget(r, false)
 		}
 	}()
 	resp, err := t.base.RoundTrip(req)
 	settled = true
 	if err != nil {
-		t.budget.forget(r)
+		t.budget.forget(r, req.Context().Err() == nil)
 		return nil, err
 	}
 	if guard := t.budget.observe(r, resp.Header); guard > 0 {
