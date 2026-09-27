@@ -233,7 +233,7 @@ func TestCompleteHelp(t *testing.T) {
 		}
 		for _, g := range m.FullHelp() {
 			for _, b := range g {
-				full = full || b.Help().Key == k
+				full = full || b.Enabled() && b.Help().Key == k
 			}
 		}
 		return short, full

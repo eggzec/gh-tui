@@ -176,7 +176,7 @@ func TestHistoryHelp(t *testing.T) {
 	has := func(m Model) bool {
 		for _, g := range m.FullHelp() {
 			for _, b := range g {
-				if b.Help().Key == "↑" {
+				if b.Enabled() && b.Help().Key == "↑" {
 					return true
 				}
 			}
