@@ -179,6 +179,35 @@ func (s *Section) refresh() tea.Cmd {
 	return tea.Batch(s.load(), s.repos.reload())
 }
 
+// Revisit reads again what went past its TTL while another screen was on
+// view: the profile, the work, the calendar and the lists of repositories
+// read. The dashboard shows what it has until the new values arrive, and
+// what is still fresh isn't read.
+func (s *Section) Revisit() tea.Cmd {
+	if !s.started {
+		return nil
+	}
+	// Each read sets Again: what is shown may be a value an earlier
+	// session kept, served stale, and this read must reach GitHub anyway.
+	var cmds []tea.Cmd
+	if !s.header.loading && !s.svc.FreshHeader() {
+		cmds = append(cmds, s.readHeader(true))
+	}
+	if !s.work.loading && !s.svc.FreshWork(dashboard.WorkQuery{}) {
+		cmds = append(cmds, s.readWork(true))
+	}
+	if !s.contribs.loading && !s.svc.FreshContributions() {
+		cmds = append(cmds, s.readContributions(true))
+	}
+	cmds = append(cmds, s.repos.revisit())
+	cmd := tea.Batch(cmds...)
+	if cmd != nil {
+		// What is being read again shows as updating.
+		s.render()
+	}
+	return cmd
+}
+
 func (s *Section) setHeader() {
 	h := s.header.value
 	s.pinned.set(h.Pinned)
@@ -208,11 +237,13 @@ func (s *Section) setContributions() {
 }
 
 // updating reports whether something shown is being read again, such as
-// what an earlier session kept.
+// what an earlier session kept, or what went stale while another screen
+// was on view.
 func (s *Section) updating() bool {
 	return s.header.ok && s.header.loading ||
 		s.work.ok && s.work.loading ||
-		s.contribs.ok && s.contribs.loading
+		s.contribs.ok && s.contribs.loading ||
+		s.repos.reloading()
 }
 
 // offlineNow reports whether anything shown was served because GitHub

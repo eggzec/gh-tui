@@ -15,6 +15,12 @@ func (s *Service) CachedContributions() (core.Contributions, bool) {
 	return s.contributions.cached(contributionsKey)
 }
 
+// FreshContributions reports whether the contribution calendar is cached
+// and fresh, so that reading it costs no request. It does no I/O.
+func (s *Service) FreshContributions() bool {
+	return s.contributions.fresh(contributionsKey)
+}
+
 // ContributionsQuery selects how the contribution calendar is read.
 type ContributionsQuery struct {
 	// Again reads past a kept calendar: set it on the read that follows

@@ -183,3 +183,44 @@ func BenchmarkViewDashboard(b *testing.B) {
 		_ = m.View()
 	}
 }
+
+// revisitSection is a fake section that counts the times the app brought
+// it back from another screen.
+type revisitSection struct {
+	fakeSection
+	revisits int
+}
+
+// revisitedMsg is what the command of a Revisit sends.
+type revisitedMsg struct{}
+
+func (s *revisitSection) Revisit() tea.Cmd {
+	s.revisits++
+	return func() tea.Msg { return revisitedMsg{} }
+}
+
+// Coming back to the dashboard from another screen revisits it, and runs
+// what that returns; showing it the first time only starts it.
+func TestDashboardRevisitedOnReturn(t *testing.T) {
+	dash := &revisitSection{title: ui.DashboardTitle}
+	fakes := []*fakeSection{{title: "Files"}, {title: "Pull requests"}, {title: "Issues"}, {title: "Notifications"}}
+	m := New(t.Context(), config.Default(), Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3], Dashboard: dash})
+	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	run(m, m.Init())
+	if dash.inits != 1 || dash.revisits != 0 {
+		t.Fatalf("opening on the dashboard: %d inits and %d revisits, want 1 and none", dash.inits, dash.revisits)
+	}
+	run(m, m.key(press("n")))
+	run(m, m.key(press("n")))
+	if m.screen != dashScreen || dash.revisits != 1 {
+		t.Fatalf("back on the dashboard: %d revisits, want 1", dash.revisits)
+	}
+	if !dash.got(func(msg tea.Msg) bool { _, ok := msg.(revisitedMsg); return ok }) {
+		t.Error("the command of the revisit didn't run")
+	}
+	// Keys on the dashboard don't revisit it.
+	run(m, m.key(press("tab")))
+	if dash.revisits != 1 {
+		t.Errorf("%d revisits without leaving, want 1", dash.revisits)
+	}
+}

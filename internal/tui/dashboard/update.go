@@ -21,10 +21,16 @@ func (s *Section) Update(msg tea.Msg) tea.Cmd {
 		}
 		return tea.Batch(s.opener.Rested(msg), s.ahead.Rested(msg))
 	}
+	updating := s.updating()
 	cmd, all := s.update(msg)
-	if all {
+	switch {
+	case all:
 		s.render()
-	} else {
+	default:
+		if s.updating() != updating {
+			// The profile says whether the repositories are read again.
+			s.head = s.profile()
+		}
 		s.renderPane(reposPane)
 		s.compose()
 	}

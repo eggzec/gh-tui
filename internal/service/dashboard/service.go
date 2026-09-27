@@ -115,6 +115,13 @@ func (r *reads[V]) cached(key string) (V, bool) {
 	return e.Value, state != cache.Miss
 }
 
+// fresh reports whether the value under key is in memory and fresh, so
+// that reading it costs no request, without I/O.
+func (r *reads[V]) fresh(key string) bool {
+	_, state := r.mem.Get(key)
+	return state == cache.Fresh
+}
+
 // get returns the value under key. A fresh value in memory is returned
 // without a request, and so is one kept by an earlier session within the
 // TTL. An older kept one is returned at once, marked stale, until a read
