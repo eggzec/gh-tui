@@ -17,6 +17,7 @@ type settings struct {
 	debounce      time.Duration
 	placeholder   string
 	emptyText     string
+	errorText     func(error) (text, hint string)
 	headers       bool
 	width, height int
 	keys          KeyMap
@@ -75,6 +76,17 @@ func WithPlaceholder(text string) Option {
 func WithEmptyText(text string) Option {
 	return func(s *settings) {
 		s.emptyText = text
+	}
+}
+
+// WithErrorText sets how a failed search reads. say returns the words for
+// err and a hint, such as "r to retry", or "" for none; the hint is styled
+// as one and kept whole when the row is cut. An empty text shows no error.
+// By default the row says "Couldn't search:" and the first line of the
+// error.
+func WithErrorText(say func(error) (text, hint string)) Option {
+	return func(s *settings) {
+		s.errorText = say
 	}
 }
 
