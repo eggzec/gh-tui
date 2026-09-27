@@ -373,3 +373,12 @@ func TestNewTextCancelsReads(t *testing.T) {
 		t.Error("the reads for the text on view were canceled")
 	}
 }
+
+// On an Enterprise host, a repository without a URL links to its pages.
+func TestRepoURLOnHost(t *testing.T) {
+	s := &Section{host: "ghe.example.com"}
+	got := s.hitURL(core.SearchHit{Kind: core.SearchRepos, Repo: core.Repo{Ref: core.RepoRef{Owner: "o", Name: "r"}}})
+	if want := "https://ghe.example.com/o/r"; got != want {
+		t.Errorf("hitURL = %q, want %q", got, want)
+	}
+}

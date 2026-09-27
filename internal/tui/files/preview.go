@@ -24,6 +24,7 @@ type preview struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	svc    Service
+	host   string
 	repo   core.RepoRef
 	// ref is the base the file was listed at, for its page on GitHub.
 	ref   string
@@ -56,11 +57,12 @@ type blobMsg struct {
 	err  error
 }
 
-// newPreview returns a preview of e, a file of repo at ref. Its load runs
+// newPreview returns a preview of e, a file of repo at ref, whose page
+// is on host. Its load runs
 // under ctx until it closes.
-func newPreview(ctx context.Context, svc Service, repo core.RepoRef, ref string, e core.TreeEntry, open key.Binding) *preview {
+func newPreview(ctx context.Context, svc Service, host string, repo core.RepoRef, ref string, e core.TreeEntry, open key.Binding) *preview {
 	ctx, cancel := context.WithCancel(ctx)
-	p := &preview{ctx: ctx, cancel: cancel, svc: svc, repo: repo, ref: ref, entry: e, open: open, pager: pager.New()}
+	p := &preview{ctx: ctx, cancel: cancel, svc: svc, host: host, repo: repo, ref: ref, entry: e, open: open, pager: pager.New()}
 	p.pager.Focus()
 	return p
 }
@@ -204,7 +206,7 @@ func (p *preview) Update(msg tea.Msg) tea.Cmd {
 		return p.close()
 	case tea.KeyPressMsg:
 		if !p.pager.Capturing() && key.Matches(msg, p.open) {
-			return ui.Open(webURL(p.repo, p.ref, p.entry))
+			return ui.Open(webURL(p.host, p.repo, p.ref, p.entry))
 		}
 		if p.preset && key.Matches(msg, p.pager.KeyMap().Close) {
 			return p.close()

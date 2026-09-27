@@ -76,6 +76,12 @@ func WithDebounce(d time.Duration) Option {
 	return func(s *Section) { s.debounce = max(d, 0) }
 }
 
+// WithHost sets the web host of the user's GitHub, with its port if it has
+// one, whose pages the search page opens. It defaults to github.com.
+func WithHost(host string) Option {
+	return func(s *Section) { s.host = host }
+}
+
 // WithIcons sets the glyphs that mark repositories, languages and the
 // states of issues and pull requests. The default is the Nerd Font set.
 func WithIcons(icons ui.Icons) Option {
@@ -112,6 +118,8 @@ type Section struct {
 	keys     KeyMap
 	now      func() time.Time
 	debounce time.Duration
+	// host is the web host of the user's GitHub, for the links it opens.
+	host string
 
 	input   textinput.Model
 	area    area

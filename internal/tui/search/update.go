@@ -239,7 +239,7 @@ func (s *Section) open(browser bool) tea.Cmd {
 		case it.query != "":
 			return s.setQuery(it.query)
 		case browser:
-			return ui.Open(repoURL(*it.repo))
+			return ui.Open(s.repoURL(*it.repo))
 		}
 		return selectRepo(it.repo.Ref)
 	}
@@ -250,7 +250,7 @@ func (s *Section) open(browser bool) tea.Cmd {
 		}
 		s.remember(s.text)
 		if browser {
-			return ui.Open(hitURL(hit))
+			return ui.Open(s.hitURL(hit))
 		}
 		return s.openHit(hit, false)
 	}
@@ -360,16 +360,16 @@ func (s *Section) openChecks() tea.Cmd {
 	return s.openHit(hit, true)
 }
 
-func hitURL(hit core.SearchHit) string {
+func (s *Section) hitURL(hit core.SearchHit) string {
 	if hit.Kind == core.SearchRepos {
-		return repoURL(hit.Repo)
+		return s.repoURL(hit.Repo)
 	}
 	return hit.Issue.URL
 }
 
-func repoURL(r core.Repo) string {
+func (s *Section) repoURL(r core.Repo) string {
 	if r.URL != "" {
 		return r.URL
 	}
-	return "https://github.com/" + r.Ref.String()
+	return ui.WebURL(s.host, r.Ref.String())
 }

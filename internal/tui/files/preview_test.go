@@ -152,10 +152,10 @@ func TestPreviewClose(t *testing.T) {
 func TestPreviewIgnoresOtherResults(t *testing.T) {
 	f := sampleFake()
 	e := f.trees[treeKey(ghTUI, "")].Entries[rowAgents]
-	p := newPreview(t.Context(), f, ghTUI, "", e, key.NewBinding(key.WithKeys("o")))
+	p := newPreview(t.Context(), f, "", ghTUI, "", e, key.NewBinding(key.WithKeys("o")))
 	p.SetSize(40, 4)
 	_ = p.load()
-	other := newPreview(t.Context(), f, ghTUI, "", e, key.NewBinding(key.WithKeys("o")))
+	other := newPreview(t.Context(), f, "", ghTUI, "", e, key.NewBinding(key.WithKeys("o")))
 	_ = p.Update(blobMsg{id: other.pager.ID(), err: errNoTree})
 	if cmd := p.Update(pager.CloseMsg{ID: other.pager.ID()}); cmd != nil {
 		t.Error("the close of another pager closed the preview")

@@ -332,3 +332,12 @@ func helpHas(s *Section, desc string) bool {
 	}
 	return false
 }
+
+// On an Enterprise host, links go to its pages.
+func TestWebURLOnHost(t *testing.T) {
+	e := core.TreeEntry{Path: "cmd/main.go", Type: "blob"}
+	got := webURL("ghe.example.com", core.RepoRef{Owner: "o", Name: "r"}, "", e)
+	if want := "https://ghe.example.com/o/r/blob/HEAD/cmd/main.go"; got != want {
+		t.Errorf("webURL = %q, want %q", got, want)
+	}
+}

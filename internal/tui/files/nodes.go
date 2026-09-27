@@ -7,6 +7,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	filesvc "github.com/eggzec/gh-tui/internal/service/files"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/tree"
 )
 
@@ -29,11 +30,11 @@ func entryOf(n tree.Node) (core.TreeEntry, bool) {
 	return e, ok
 }
 
-// webURL returns the page of e at ref on GitHub, or of the repository at
+// webURL returns the page of e at ref on host, or of the repository at
 // ref when e is the zero entry. Files are blobs; directories and submodules
 // are trees. An empty ref is the head of the default branch.
-func webURL(repo core.RepoRef, ref string, e core.TreeEntry) string {
-	u := "https://github.com/" + escapePath(repo.String())
+func webURL(host string, repo core.RepoRef, ref string, e core.TreeEntry) string {
+	u := ui.WebURL(host, escapePath(repo.String()))
 	if ref == "" {
 		ref = "HEAD"
 	}

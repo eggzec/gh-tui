@@ -89,7 +89,7 @@ func New(opts ...Option) (*Client, error) {
 		o.token, _ = auth.TokenForHost(o.host)
 	}
 	if o.token == "" {
-		return nil, fmt.Errorf("no token for %s, run gh auth login: %w", o.host, core.ErrUnauthorized)
+		return nil, fmt.Errorf("no token for %s, run %s: %w", o.host, loginCommand(o.host), core.ErrUnauthorized)
 	}
 	if o.baseURL == "" {
 		o.baseURL = restRoot(o.host)
@@ -125,6 +125,15 @@ func New(opts ...Option) (*Client, error) {
 		graphqlURL: gql.String(),
 		now:        time.Now,
 	}, nil
+}
+
+// loginCommand is the gh command that logs in to host. gh logs in to
+// github.com unless told otherwise.
+func loginCommand(host string) string {
+	if auth.NormalizeHostname(host) == "github.com" {
+		return "gh auth login"
+	}
+	return "gh auth login --hostname " + host
 }
 
 func restRoot(host string) string {

@@ -565,3 +565,18 @@ func TestIgnoresOtherModals(t *testing.T) {
 		t.Error("the messages of another modal reached this one")
 	}
 }
+
+// On an Enterprise host, links go to its pages.
+func TestOpenInBrowserOnHost(t *testing.T) {
+	m, h := newModal(t, newFake(), 108, 30, WithHost("ghe.example.com:8443"))
+	h.keys("esc", "j")
+	h.take()
+	h.keys("o")
+	want := ui.OpenMsg{URL: "https://ghe.example.com:8443/charmbracelet/bubbletea/tree/fix/tabs"}
+	if got := h.take(); !slices.Equal(got, []tea.Msg{want}) {
+		t.Errorf("o sent %#v, want %#v", got, want)
+	}
+	if got, want := m.commitURL(core.Commit{SHA: "abc"}), "https://ghe.example.com:8443/charmbracelet/bubbletea/commit/abc"; got != want {
+		t.Errorf("commitURL of a commit without a URL = %q, want %q", got, want)
+	}
+}

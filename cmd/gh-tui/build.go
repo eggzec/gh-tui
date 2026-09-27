@@ -40,20 +40,19 @@ import (
 )
 
 // build wires the client, the services, the sync engine and the sections
-// into the app. arg is the repository named on the command line, if any.
-// The app opens on that repository, or on the dashboard when there is
-// none. The app shows logWarning, if any, once it starts.
-func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui.Model, error) {
-	client, err := github.New()
-	if err != nil {
-		return nil, err
-	}
-
+// into the app. The app talks to the host startRepos picks from hostname,
+// the value of --hostname, if set, and shows logWarning, if any, once it
+// starts.
+func build(ctx context.Context, cfg config.Config, hostname, logWarning string) (*tui.Model, error) {
 	pinned, err := parseRefs(cfg.Repos)
 	if err != nil {
 		return nil, err
 	}
-	repo, here, err := startRepos(arg, currentRepo)
+	st := startRepos(hostname, currentRepo, defaultHost)
+	here := st.Here
+	// The session talks to one host, so the pinned repositories are on it
+	// too.
+	client, err := github.New(github.WithHost(st.Host))
 	if err != nil {
 		return nil, err
 	}
@@ -98,8 +97,10 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 	// The sections share whether GitHub can't be reached, so the user is
 	// told once.
 	offline := new(ui.Offline)
+	// Links go to the pages of the session's host.
+	webHost := client.WebHost()
 	icons := ui.NewIcons(cfg.UI.Icons)
-	fileOpts := []files.Option{files.WithOffline(offline), files.WithFinderPreview(cfg.Files.Finder.Preview)}
+	fileOpts := []files.Option{files.WithOffline(offline), files.WithFinderPreview(cfg.Files.Finder.Preview), files.WithHost(webHost)}
 	if p := cfg.Files.Prefetch; p.Enabled {
 		fileOpts = append(fileOpts,
 			files.WithPrefetch(int64(p.MaxSize)),
@@ -161,8 +162,9 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 		dashboard.WithGlyph(cfg.Dashboard.CalendarGlyph),
 		dashboard.WithContributions(cfg.Dashboard.ContributionDays()),
 		dashboard.WithIcons(icons),
+		dashboard.WithHost(webHost),
 	}
-	searchOpts := []searchpage.Option{searchpage.WithStart(searchStart(repoSvc, pinned)), searchpage.WithIcons(icons)}
+	searchOpts := []searchpage.Option{searchpage.WithStart(searchStart(repoSvc, pinned)), searchpage.WithIcons(icons), searchpage.WithHost(webHost)}
 	if p := cfg.Details.Prefetch; p.Enabled {
 		// A result is read once the cursor rests on it, as a row of a
 		// list is; the first results are a guess, and not read.
@@ -194,16 +196,13 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 		tui.WithRepos(repoSvc),
 		tui.WithKinds(issueSvc),
 		tui.WithRecall(recall{pinned: pinned, here: here, dash: dashSvc, repos: repoSvc, pulls: pullSvc, issues: issueSvc}),
-		tui.WithHost(client.WebHost()),
+		tui.WithHost(webHost),
 		tui.WithUnreachable(github.Unreachable),
 		tui.WithHistory(history.Opener(historySvc, cfg.Keys,
-			history.WithConfig(cfg.History), history.WithOffline(offline))),
+			history.WithConfig(cfg.History), history.WithOffline(offline), history.WithHost(webHost))),
 		tui.WithCommit(history.CommitOpener(historySvc, cfg.Keys,
-			history.WithConfig(cfg.History), history.WithOffline(offline))),
+			history.WithConfig(cfg.History), history.WithOffline(offline), history.WithHost(webHost))),
 		tui.WithRelease(releases.Opener(releaseSvc, cfg.Keys)),
-	}
-	if repo != (core.RepoRef{}) {
-		opts = append(opts, tui.WithRepo(repo))
 	}
 	if path, err := historyPath(cfg.Cache.Disk, client.Host(), client.Account()); err == nil && path != "" {
 		opts = append(opts, tui.WithCommandHistory(cmdhist.New(path, cmdhist.DefaultLimit)))

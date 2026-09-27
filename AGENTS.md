@@ -297,6 +297,11 @@ reacts to messages. Concretely:
 - Keybindings map action names to keys and are applied through each bubble's
   `SetKeyMap`. Action names are registered in `internal/config/keys.go`;
   unknown names are rejected so typos don't pass silently.
+- The only command-line flags are `--debug` and `--hostname`; gh-tui
+  takes no arguments, and `:goto` opens a repository, pull request or
+  issue. The host is `--hostname`, else the current repository's
+  (`GH_REPO` or the git remotes), else `GH_HOST` or gh's default host, as
+  gh picks it, and one session talks to one host.
 - Hex colors must be quoted in YAML, since an unquoted `#` starts a comment.
 - Themes are named palettes that each have a light and a dark variant. They
   are resolved once after `tea.BackgroundColorMsg` and applied through

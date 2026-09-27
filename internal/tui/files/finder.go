@@ -301,7 +301,7 @@ func (f *finderModal) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 			return nil, true
 		}
 		e, _ := entryOfItem(it)
-		return ui.Open(webURL(f.s.repo, f.s.ref, e)), true
+		return ui.Open(webURL(f.s.host, f.s.repo, f.s.ref, e)), true
 	case key.Matches(msg, f.keys.Preview):
 		show := !f.preview
 		f.toggled = &show
