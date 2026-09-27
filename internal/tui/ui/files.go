@@ -35,13 +35,21 @@ type fileIcons struct {
 	// few.
 	globs      []globIcon
 	globsByExt map[string][]globIcon
+	// paths name the files that tools read at a fixed place, by the globs
+	// of their names, keyed by the lower-cased directory that holds them
+	// from the root of the repository, such as .github/workflows. GitHub
+	// reads workflows only there, not in a directory below it.
+	paths map[string][]globIcon
+	// dirPaths are keyed by the lower-cased path of the directory.
+	dirPaths map[string]FileIcon
 
 	file, dir, dirOpen, submodule, symlink FileIcon
 }
 
-// Entry returns the icon of e, a directory open or not: that of its name,
-// such as go.mod or .github, else that of its extension, else a plain file
-// or folder. Sets without file icons return the zero FileIcon.
+// Entry returns the icon of e, a directory open or not: that of its path,
+// such as .github/workflows, else that of its name, such as go.mod or
+// .github, else that of its extension, else a plain file or folder. Sets
+// without file icons return the zero FileIcon.
 func (ic Icons) Entry(e core.TreeEntry, open bool) FileIcon {
 	f := ic.files
 	switch {
@@ -52,9 +60,9 @@ func (ic Icons) Entry(e core.TreeEntry, open bool) FileIcon {
 	case e.Symlink():
 		return f.symlink
 	case e.Dir():
-		return f.dirIcon(e.Name, open)
+		return f.dirIcon(e.Path, e.Name, open)
 	default:
-		return f.fileIcon(e.Name)
+		return f.fileIcon(e.Path, e.Name)
 	}
 }
 
@@ -112,8 +120,11 @@ func (f *fileIcons) extGlobs(ext string) []globIcon {
 	return f.globsByExt[""]
 }
 
-func (f *fileIcons) fileIcon(name string) FileIcon {
+func (f *fileIcons) fileIcon(p, name string) FileIcon {
 	name = strings.ToLower(name)
+	if fi, ok := match(f.paths[strings.ToLower(path.Dir(p))], name); ok {
+		return fi
+	}
 	if fi, ok := f.names[name]; ok {
 		return fi
 	}
@@ -132,7 +143,10 @@ func (f *fileIcons) fileIcon(name string) FileIcon {
 	return f.file
 }
 
-func (f *fileIcons) dirIcon(name string, open bool) FileIcon {
+func (f *fileIcons) dirIcon(p, name string, open bool) FileIcon {
+	if fi, ok := f.dirPaths[path.Clean(strings.ToLower(p))]; ok {
+		return fi
+	}
 	if fi, ok := f.dirs[strings.ToLower(name)]; ok {
 		return fi
 	}
@@ -163,9 +177,23 @@ func lang(name string) FileIcon {
 
 // Colors of folders, and of tools that have no language.
 const (
-	folderColor = "#519aba"
-	gitColor    = "#f54d27"
-	npmColor    = "#e8274b"
+	folderColor  = "#519aba"
+	gitColor     = "#f54d27"
+	npmColor     = "#e8274b"
+	actionsColor = "#2088ff"
+	githubColor  = "#3fb950"
+)
+
+// Icons of the files and directories GitHub and other tools read at a
+// fixed place.
+var (
+	workflowIcon  = FileIcon{"\ue7e9", actionsColor} // dev-githubactions
+	giteaIcon     = FileIcon{"\uf339", "#609926"}    // linux-gitea
+	issueIcon     = FileIcon{"\uf41b", githubColor}  // oct-issue_opened
+	pullIcon      = FileIcon{"\uf407", githubColor}  // oct-git_pull_request
+	templatesIcon = FileIcon{"\ue5fd", folderColor}  // custom-folder_github
+	codescanIcon  = FileIcon{"\uf4b1", githubColor}  // oct-codescan
+	azureIcon     = FileIcon{"\ue756", "#0078d7"}    // dev-azuredevops
 )
 
 var nerdFiles = indexGlobs(&fileIcons{
@@ -175,17 +203,19 @@ var nerdFiles = indexGlobs(&fileIcons{
 	submodule: FileIcon{"\uf414", gitColor},    // oct-file_submodule
 	symlink:   FileIcon{"\uf481", ""},          // oct-file_symlink_file
 	dirs: map[string]FileIcon{
-		".github":      {"\ue5fd", folderColor}, // custom-folder_github
-		".config":      {"\ue5fc", folderColor}, // custom-folder_config
-		"config":       {"\ue5fc", folderColor},
-		"node_modules": {"\ue5fa", npmColor},    // custom-folder_npm
-		".vscode":      {"\ue70c", "#007acc"},   // dev-visualstudio
-		"docs":         {"\uf02d", folderColor}, // fa-book
-		"doc":          {"\uf02d", folderColor},
-		"test":         {"\uf499", folderColor}, // oct-beaker
-		"tests":        {"\uf499", folderColor},
-		"testdata":     {"\uf499", folderColor},
-		"__tests__":    {"\uf499", folderColor},
+		".github":       {"\ue5fd", folderColor}, // custom-folder_github
+		".config":       {"\ue5fc", folderColor}, // custom-folder_config
+		"config":        {"\ue5fc", folderColor},
+		"node_modules":  {"\ue5fa", npmColor},    // custom-folder_npm
+		".vscode":       {"\ue70c", "#007acc"},   // dev-visualstudio
+		"docs":          {"\uf02d", folderColor}, // fa-book
+		"doc":           {"\uf02d", folderColor},
+		"test":          {"\uf499", folderColor}, // oct-beaker
+		"tests":         {"\uf499", folderColor},
+		"testdata":      {"\uf499", folderColor},
+		"__tests__":     {"\uf499", folderColor},
+		".circleci":     {"\ue78c", folderColor}, // dev-circleci
+		".devcontainer": {"\uf4b7", "#2496ed"},   // oct-container
 	},
 	names: map[string]FileIcon{
 		"dockerfile":        lang("Dockerfile"),
@@ -225,13 +255,13 @@ var nerdFiles = indexGlobs(&fileIcons{
 		".editorconfig":     {"\ue652", "#fff2f2"}, // seti-editorconfig
 		".envrc":            {"\uf462", "#faf743"}, // oct-sliders
 		// GitHub, and the tools that run on a repository.
-		"codeowners":               {"\uf4fd", "#afb42b"}, // oct-people
-		"action.yml":               {"\ueaff", "#2088ff"}, // cod-github_action
-		"action.yaml":              {"\ueaff", "#2088ff"},
+		"codeowners":               {"\uf4fd", "#afb42b"},    // oct-people
+		"action.yml":               {"\ueaff", actionsColor}, // cod-github_action
+		"action.yaml":              {"\ueaff", actionsColor},
 		"dependabot.yml":           {"\uf4be", "#0366d6"}, // oct-dependabot
 		"dependabot.yaml":          {"\uf4be", "#0366d6"},
-		"pull_request_template.md": {"\uf407", "#3fb950"}, // oct-git_pull_request
-		"issue_template.md":        {"\uf41b", "#3fb950"}, // oct-issue_opened
+		"pull_request_template.md": pullIcon,
+		"issue_template.md":        issueIcon,
 		"renovate.json":            {"\uf4f8", "#1a7fa0"}, // oct-package_dependencies
 		"renovate.json5":           {"\uf4f8", "#1a7fa0"},
 		".renovaterc":              {"\uf4f8", "#1a7fa0"},
@@ -313,8 +343,44 @@ var nerdFiles = indexGlobs(&fileIcons{
 		{"swagger*.yml", FileIcon{"\ue8b8", "#85ea2d"}}, // dev-swagger
 		{"swagger*.yaml", FileIcon{"\ue8b8", "#85ea2d"}},
 		{"swagger*.json", FileIcon{"\ue8b8", "#85ea2d"}},
-		{"azure-pipelines*.yml", FileIcon{"\ue756", "#0078d7"}}, // dev-azuredevops
-		{"azure-pipelines*.yaml", FileIcon{"\ue756", "#0078d7"}},
+		{"azure-pipelines*.yml", azureIcon},
+		{"azure-pipelines*.yaml", azureIcon},
+	},
+	paths: map[string][]globIcon{
+		".github/workflows":  {{"*.yml", workflowIcon}, {"*.yaml", workflowIcon}},
+		".gitea/workflows":   {{"*.yml", giteaIcon}, {"*.yaml", giteaIcon}},
+		".forgejo/workflows": {{"*.yml", giteaIcon}, {"*.yaml", giteaIcon}},
+		".github": {
+			{"funding.yml", FileIcon{"\uf4e1", "#db61a2"}}, // oct-heart_fill
+			{"funding.yaml", FileIcon{"\uf4e1", "#db61a2"}},
+			{"release.yml", FileIcon{"\uf412", githubColor}}, // oct-tag
+			{"release.yaml", FileIcon{"\uf412", githubColor}},
+			{"labeler.yml", FileIcon{"\uf412", "#ffb300"}},
+			{"labeler.yaml", FileIcon{"\uf412", "#ffb300"}},
+			{"labels.yml", FileIcon{"\uf412", "#ffb300"}},
+			{"labels.yaml", FileIcon{"\uf412", "#ffb300"}},
+			{"copilot-instructions.md", FileIcon{"\uf4b8", "#8957e5"}}, // oct-copilot
+		},
+		".github/instructions":            {{"*.instructions.md", FileIcon{"\uf4b8", "#8957e5"}}},
+		".github/codeql":                  {{"*.yml", codescanIcon}, {"*.yaml", codescanIcon}},
+		".github/issue_template":          {{"*", issueIcon}},
+		".github/pull_request_template":   {{"*", pullIcon}},
+		".github/discussion_template":     {{"*", FileIcon{"\uf442", githubColor}}}, // oct-comment_discussion
+		".gitlab/issue_templates":         {{"*", issueIcon}},
+		".gitlab/merge_request_templates": {{"*", pullIcon}},
+		".circleci": {
+			{"config.yml", FileIcon{"\ue78c", "#343434"}}, // dev-circleci
+			{"config.yaml", FileIcon{"\ue78c", "#343434"}},
+		},
+		".azure-pipelines": {{"*.yml", azureIcon}, {"*.yaml", azureIcon}},
+	},
+	dirPaths: map[string]FileIcon{
+		".github/workflows":             workflowIcon,
+		".gitea/workflows":              giteaIcon,
+		".forgejo/workflows":            giteaIcon,
+		".github/issue_template":        templatesIcon,
+		".github/pull_request_template": templatesIcon,
+		".github/discussion_template":   templatesIcon,
 	},
 	stems: map[string]FileIcon{
 		"license":         {"\ue60a", "#d0bf41"}, // seti-license
