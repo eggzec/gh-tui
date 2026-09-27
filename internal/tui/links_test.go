@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -32,8 +33,8 @@ func TestModalTitleLinks(t *testing.T) {
 			if links := uitest.Links(t, top); len(links) != 1 || links[0] != mod.link {
 				t.Errorf("%s at %d: title links to %q, want %q once", host, width, links, mod.link)
 			}
-			if links := uitest.Links(t, m.View().Content); len(links) != 1 || links[0] != mod.link {
-				t.Errorf("%s at %d: screen links to %q, want %q once", host, width, links, mod.link)
+			if links := uitest.Links(t, m.View().Content); slices.Index(links, mod.link) < 0 {
+				t.Errorf("%s at %d: screen links to %q, not to %q", host, width, links, mod.link)
 			}
 			// A title can't add a link of its own.
 			mod.title = uitest.HostileTitle
@@ -41,6 +42,25 @@ func TestModalTitleLinks(t *testing.T) {
 			if links := uitest.Links(t, top); len(links) != 1 || links[0] != mod.link || strings.Contains(top, "evil.test") {
 				t.Errorf("%s at %d: a hostile title links to %q: %q", host, width, links, top)
 			}
+		}
+	}
+}
+
+// The header links the repository to its page on the user's host, and
+// the other screens' titles to nothing.
+func TestHeaderLinks(t *testing.T) {
+	for _, host := range uitest.Hosts {
+		m := newHeaderApp(t, WithHost(host))
+		for _, width := range []int{120, 40, 10} {
+			m.Update(tea.WindowSizeMsg{Width: width, Height: 24})
+			want := ui.WebURL(host, testRepo.String())
+			if links := uitest.Links(t, m.header); len(links) != 1 || links[0] != want {
+				t.Errorf("%s at %d: header links to %q, want %q once", host, width, links, want)
+			}
+		}
+		run(m, m.key(press("n")))
+		if links := uitest.Links(t, m.header); len(links) != 0 {
+			t.Errorf("%s: the notifications' header links to %q", host, links)
 		}
 	}
 }
