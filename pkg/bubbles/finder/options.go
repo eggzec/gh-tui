@@ -11,6 +11,12 @@ type Option func(*settings)
 // the icon must depend only on it.
 type Icons func(it Item) string
 
+// Links returns the address the path of it links to, such as its page on
+// the web, or "" for none. A terminal that knows links (OSC 8) opens it on
+// a click; only a plain https address links. Like [Icons], it is asked
+// once per row kept.
+type Links func(it Item) string
+
 type settings struct {
 	parent        context.Context
 	width, height int
@@ -22,6 +28,7 @@ type settings struct {
 	syncLimit     int
 	recentPaths   []string
 	icons         Icons
+	links         Links
 }
 
 // DefaultSyncLimit is how many paths the finder matches in Update by
@@ -99,4 +106,9 @@ func WithSyncLimit(n int) Option {
 // default, since icon fonts are not installed everywhere.
 func WithIcons(icons Icons) Option {
 	return func(s *settings) { s.icons = icons }
+}
+
+// WithLinks links the path of every row to the address links returns.
+func WithLinks(links Links) Option {
+	return func(s *settings) { s.links = links }
 }
