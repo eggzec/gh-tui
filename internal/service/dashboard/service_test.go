@@ -73,6 +73,12 @@ func TestTTLs(t *testing.T) {
 					opts = append(opts, WithTTL(tt.ttl))
 				}
 				s := New(api, opts...)
+				fresh := func(s *Service) bool {
+					return s.FreshHeader() || s.FreshWork(WorkQuery{}) || s.FreshContributions() || s.FreshRepos(ReposQuery{Viewer: true})
+				}
+				if fresh(s) {
+					t.Error("fresh before a read = true")
+				}
 				if err := tt.read(t.Context(), s); err != nil {
 					t.Fatal(err)
 				}
@@ -83,7 +89,13 @@ func TestTTLs(t *testing.T) {
 				if n := len(api.Calls()); n != 1 {
 					t.Errorf("%d calls within the TTL, want 1", n)
 				}
+				if !fresh(s) {
+					t.Error("fresh within the TTL = false")
+				}
 				time.Sleep(time.Second)
+				if fresh(s) {
+					t.Error("fresh once the TTL passed = true")
+				}
 				if err := tt.read(t.Context(), s); err != nil {
 					t.Fatal(err)
 				}

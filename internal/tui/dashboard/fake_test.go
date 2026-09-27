@@ -51,7 +51,10 @@ type fakeService struct {
 	// fail, when set, fails the read of that kind.
 	fail map[string]error
 
-	read        map[string]bool
+	read map[string]bool
+	// expired holds what went past its TTL since it was read: header,
+	// work, contributions, and the pages of repositories by pageKey.
+	expired     map[string]bool
 	calls       []string
 	invalidated int
 }
@@ -66,9 +69,10 @@ func newFake() *fakeService {
 			"github":        repos("github", 5),
 			"charmbracelet": repos("charmbracelet", 3),
 		},
-		size: 100,
-		fail: map[string]error{},
-		read: map[string]bool{},
+		size:    100,
+		fail:    map[string]error{},
+		read:    map[string]bool{},
+		expired: map[string]bool{},
 	}
 }
 
@@ -76,6 +80,24 @@ func (f *fakeService) call(what string) error {
 	f.calls = append(f.calls, what)
 	return f.fail[what]
 }
+
+// fresh reports whether what was read and hasn't expired since.
+func (f *fakeService) fresh(what string) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.read[what] && !f.expired[what]
+}
+
+// took records that what was read, fresh.
+func (f *fakeService) took(what string) {
+	f.read[what] = true
+	delete(f.expired, what)
+}
+
+func (f *fakeService) FreshHeader() bool                      { return f.fresh("header") }
+func (f *fakeService) FreshWork(dashboard.WorkQuery) bool     { return f.fresh("work") }
+func (f *fakeService) FreshContributions() bool               { return f.fresh("contributions") }
+func (f *fakeService) FreshRepos(q dashboard.ReposQuery) bool { return f.fresh(pageKey(q)) }
 
 func (f *fakeService) CachedHeader() (core.Header, bool) {
 	f.mu.Lock()
@@ -93,7 +115,7 @@ func (f *fakeService) Header(_ context.Context, q dashboard.HeaderQuery) (core.H
 	// A kept header is served stale until a read with Again set.
 	h.Stale = f.stale && !q.Again
 	h.Offline = f.offline
-	f.read["header"] = true
+	f.took("header")
 	return h, nil
 }
 
@@ -109,7 +131,7 @@ func (f *fakeService) Work(context.Context, dashboard.WorkQuery) (core.Work, err
 	if err := f.call("work"); err != nil {
 		return core.Work{}, err
 	}
-	f.read["work"] = true
+	f.took("work")
 	w := f.work
 	w.Offline = f.offline
 	return w, nil
@@ -127,7 +149,7 @@ func (f *fakeService) Contributions(context.Context, dashboard.ContributionsQuer
 	if err := f.call("contributions"); err != nil {
 		return core.Contributions{}, err
 	}
-	f.read["contributions"] = true
+	f.took("contributions")
 	return f.contrib, nil
 }
 
@@ -164,7 +186,7 @@ func (f *fakeService) Repos(_ context.Context, q dashboard.ReposQuery) (core.Pag
 	if err := f.call("repos " + pageKey(q)); err != nil {
 		return core.Page[core.Repo]{}, err
 	}
-	f.read[pageKey(q)] = true
+	f.took(pageKey(q))
 	return f.page(q), nil
 }
 
@@ -206,7 +228,7 @@ func (f *fakeService) AllRepos(_ context.Context, q dashboard.ReposQuery, limit 
 			if err := f.call("repos " + pageKey(q)); err != nil {
 				return core.Page[core.Repo]{}, err
 			}
-			f.read[pageKey(q)] = true
+			f.took(pageKey(q))
 		}
 		p := f.page(q)
 		all.Items = append(all.Items, p.Items...)

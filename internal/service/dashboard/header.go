@@ -14,6 +14,12 @@ func (s *Service) CachedHeader() (core.Header, bool) {
 	return s.header.cached(headerKey)
 }
 
+// FreshHeader reports whether the header is cached and fresh, so that
+// reading it costs no request. It does no I/O.
+func (s *Service) FreshHeader() bool {
+	return s.header.fresh(headerKey)
+}
+
 // HeaderQuery selects how the header is read.
 type HeaderQuery struct {
 	// Again reads past a kept header: set it on the read that follows one

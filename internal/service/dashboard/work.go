@@ -43,6 +43,12 @@ func (s *Service) CachedWork(q WorkQuery) (core.Work, bool) {
 	return s.work.cached(q.normalize().key())
 }
 
+// FreshWork reports whether the work for q is cached and fresh, so that
+// reading it costs no request. It does no I/O.
+func (s *Service) FreshWork(q WorkQuery) bool {
+	return s.work.fresh(q.normalize().key())
+}
+
 // Work returns the open pull requests that ask for the viewer's review,
 // those they opened, and the issues assigned to them. It is fresh for the
 // TTL of the service, and is served stale or offline as in Header.

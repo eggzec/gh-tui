@@ -196,6 +196,30 @@ func (t *repoTabs) reload() tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
+// revisit reads again the lists of the tabs started whose first page went
+// past its TTL, showing their rows until the new ones arrive. A list still
+// loading is left to finish.
+func (t *repoTabs) revisit() tea.Cmd {
+	cmds := make([]tea.Cmd, 0, len(t.tabs))
+	for _, o := range t.tabs {
+		if o.started && o.feed.Settled() && !t.s.svc.FreshRepos(o.q) {
+			cmds = append(cmds, o.feed.Reload())
+		}
+	}
+	return tea.Batch(cmds...)
+}
+
+// reloading reports whether a list that shows repositories is reading its
+// first page again.
+func (t *repoTabs) reloading() bool {
+	for _, o := range t.tabs {
+		if o.started && o.feed.Len() > 0 && !o.feed.Settled() {
+			return true
+		}
+	}
+	return false
+}
+
 // switchTab shows the tab delta tabs away, and starts it.
 func (t *repoTabs) switchTab(delta int) tea.Cmd {
 	n := len(t.tabs)

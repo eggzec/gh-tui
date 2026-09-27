@@ -380,6 +380,7 @@ func (m *Model) showScreen(s screen, i int) tea.Cmd {
 	if s == repoScreen {
 		m.focus = min(max(i, 0), len(m.panes)-1)
 	}
+	var revisit tea.Cmd
 	if after := m.focused(); after != before {
 		if before != nil {
 			before.setFocus(false)
@@ -387,8 +388,13 @@ func (m *Model) showScreen(s screen, i int) tea.Cmd {
 		}
 		after.setFocus(true)
 		m.drawFrame(after)
+		// A section shown before may have gone stale meanwhile; one not
+		// started yet reads everything as it starts.
+		if r, ok := after.section.(ui.Revisiter); ok && after.started {
+			revisit = r.Revisit()
+		}
 	}
-	return m.startScreen()
+	return tea.Batch(m.startScreen(), revisit)
 }
 
 // cycle moves the focus by delta panes on the repository screen.

@@ -64,6 +64,12 @@ func (s *Service) CachedRepos(q ReposQuery) (core.Page[core.Repo], bool) {
 	return s.repos.cached(q.normalize().key())
 }
 
+// FreshRepos reports whether the page for q is cached and fresh, so that
+// reading it costs no request. It does no I/O.
+func (s *Service) FreshRepos(q ReposQuery) bool {
+	return s.repos.fresh(q.normalize().key())
+}
+
 // Repos returns the page for q. It is fresh for ReposTTL, and is served
 // stale or offline as in Header. An organization that doesn't exist fails
 // with an error matching core.ErrNotFound.

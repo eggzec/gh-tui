@@ -32,6 +32,14 @@ type Badger interface {
 	Badge() string
 }
 
+// Revisiter is a Section that has something to do when the user comes
+// back to it from another screen, such as reading again what went stale
+// meanwhile. Focus shows it at once; the command Revisit returns updates
+// it.
+type Revisiter interface {
+	Revisit() tea.Cmd
+}
+
 // FileFinder is a Section that finds its files by their path, such as the
 // files of the repository, which the find-file key opens from any pane of
 // the repository screen.

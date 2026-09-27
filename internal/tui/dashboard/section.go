@@ -33,6 +33,12 @@ type Service interface {
 	CachedContributions() (core.Contributions, bool)
 	Contributions(ctx context.Context, q dashboard.ContributionsQuery) (core.Contributions, error)
 	CachedRepos(q dashboard.ReposQuery) (core.Page[core.Repo], bool)
+	// The Fresh reads report whether reading costs no request, without
+	// I/O.
+	FreshHeader() bool
+	FreshWork(q dashboard.WorkQuery) bool
+	FreshContributions() bool
+	FreshRepos(q dashboard.ReposQuery) bool
 	Repos(ctx context.Context, q dashboard.ReposQuery) (core.Page[core.Repo], error)
 	CachedAllRepos(q dashboard.ReposQuery, limit int) (core.Page[core.Repo], bool)
 	// AllRepos reads the pages of q's owner up to limit repositories, the
@@ -216,6 +222,7 @@ type read[V any] struct {
 var (
 	_ ui.Section    = (*Section)(nil)
 	_ ui.Filterable = (*Section)(nil)
+	_ ui.Revisiter  = (*Section)(nil)
 )
 
 // New returns the dashboard, which reads through svc and binds the actions

@@ -27,6 +27,8 @@ type keptRead struct {
 	fake func(api *fakeAPI, err error)
 	// read reads it, with again set on the read that follows a stale one.
 	read func(ctx context.Context, s *Service, again bool) (served, error)
+	// fresh reports whether reading it costs no request.
+	fresh func(s *Service) bool
 }
 
 var keptReads = []keptRead{
@@ -39,6 +41,7 @@ var keptReads = []keptRead{
 			h, err := s.Header(ctx, HeaderQuery{Again: again})
 			return served{h.Profile.Login == "octocat", h.Stale, h.Offline}, err
 		},
+		fresh: func(s *Service) bool { return s.FreshHeader() },
 	},
 	{
 		name: "work",
@@ -49,6 +52,7 @@ var keptReads = []keptRead{
 			w, err := s.Work(ctx, WorkQuery{Again: again})
 			return served{w.Assigned.Count == 3, w.Stale, w.Offline}, err
 		},
+		fresh: func(s *Service) bool { return s.FreshWork(WorkQuery{}) },
 	},
 	{
 		name: "contributions",
@@ -59,6 +63,7 @@ var keptReads = []keptRead{
 			c, err := s.Contributions(ctx, ContributionsQuery{Again: again})
 			return served{c.Total == 42, c.Stale, c.Offline}, err
 		},
+		fresh: func(s *Service) bool { return s.FreshContributions() },
 	},
 	{
 		name: "repos",
@@ -71,6 +76,7 @@ var keptReads = []keptRead{
 			p, err := s.Repos(ctx, ReposQuery{Owner: "charm", Again: again})
 			return served{len(p.Items) == 2, p.Stale, p.Offline}, err
 		},
+		fresh: func(s *Service) bool { return s.FreshRepos(ReposQuery{Owner: "charm"}) },
 	},
 }
 
@@ -112,8 +118,14 @@ func TestKeptIsServedStaleThenFetched(t *testing.T) {
 				t.Fatalf("another first read = %+v, %v; want the kept value, stale", got, err)
 			}
 			api.wantCalls(t)
+			if r.fresh(s) {
+				t.Error("the kept value is fresh, want it read again")
+			}
 			if got, err = r.read(t.Context(), s, true); err != nil || got != (served{ok: true}) {
 				t.Fatalf("second read = %+v, %v; want the fetched value", got, err)
+			}
+			if !r.fresh(s) {
+				t.Error("the fetched value isn't fresh")
 			}
 			if n := len(api.Calls()); n != 1 {
 				t.Errorf("%d calls, want one fetch", n)
@@ -134,9 +146,13 @@ func TestKeptWithinTTLIsFresh(t *testing.T) {
 			keep(t, r, store)
 
 			api := &fakeAPI{t: t}
-			got, err := r.read(t.Context(), New(api, WithStore(cachetest.Aged(store, 5*time.Minute))), false)
+			s := New(api, WithStore(cachetest.Aged(store, 5*time.Minute)))
+			got, err := r.read(t.Context(), s, false)
 			if err != nil || got != (served{ok: true}) {
 				t.Errorf("read = %+v, %v; want the kept value, fresh", got, err)
+			}
+			if !r.fresh(s) {
+				t.Error("the kept value isn't fresh")
 			}
 			api.wantCalls(t)
 		})
