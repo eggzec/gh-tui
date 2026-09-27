@@ -199,8 +199,11 @@ func (m *Model) frame(mod ui.Modal) string {
 	default:
 		tabs = ""
 	}
-	top := m.theme.Accent.Render(b.TopLeft+b.Top) +
-		m.theme.Title.Render(title) +
+	title = m.theme.Title.Render(title)
+	if l, ok := mod.(ui.Linked); ok {
+		title = m.links.Link(l.Link(), title)
+	}
+	top := m.theme.Accent.Render(b.TopLeft+b.Top) + title +
 		m.theme.Accent.Render(strings.Repeat(b.Top, rest))
 	if tabs != "" {
 		top += tabs + m.theme.Accent.Render(b.Top)

@@ -184,6 +184,9 @@ func (m *detailModal) Title() string {
 	return n + " " + clean(m.issue.Title)
 }
 
+// Link implements ui.Linked.
+func (m *detailModal) Link() string { return m.issue.URL }
+
 // SetSize implements ui.Modal.
 func (m *detailModal) SetSize(width, height int) {
 	m.width, m.height = max(width, 0), max(height, 0)
