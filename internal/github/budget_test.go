@@ -184,6 +184,31 @@ func TestBudgetResourcesApart(t *testing.T) {
 	})
 }
 
+// TestBudgetLearnsResources answers a REST route that the path says
+// counts against core as counted against another resource, and checks
+// that the next request of the route is counted against that one.
+func TestBudgetLearnsResources(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		const sbom = "dependency_sbom"
+		reset := time.Now().Add(time.Hour)
+		a := answers{"repos/o/r/dependency-graph/sbom": make(chan answer, 1), "repos/p/q/dependency-graph/sbom": make(chan answer, 1)}
+		c := newAnswered(t, a)
+		a["repos/o/r/dependency-graph/sbom"] <- answer{header: quotaHeader(sbom, 100, 50, reset)}
+		if _, err := c.Get(t.Context(), "repos/o/r/dependency-graph/sbom", Conditional{}, nil); err != nil {
+			t.Fatal(err)
+		}
+
+		done := getAsync(c, "repos/p/q/dependency-graph/sbom")
+		if got := est(t, c, sbom); got != 49 {
+			t.Errorf("%s est with another repository's in flight = %d, want 49", sbom, got)
+		}
+		a["repos/p/q/dependency-graph/sbom"] <- answer{header: quotaHeader(sbom, 100, 49, reset)}
+		if err := <-done; err != nil {
+			t.Fatal(err)
+		}
+	})
+}
+
 // TestBudgetOutOfOrder answers three requests in another order than they
 // were sent, and checks that what an earlier request reported doesn't
 // undo what a later one did, and that the requests not answered yet are

@@ -39,6 +39,9 @@ const (
 	// skewSamples is how many offsets of GitHub's clock the skew is the
 	// median of.
 	skewSamples = 5
+	// maxLearned bounds the routes whose resource the budget learned.
+	// Past it, it forgets them and learns again.
+	maxLearned = 64
 )
 
 // budget keeps track of the rate limits of the account the client acts
@@ -65,6 +68,10 @@ type budget struct {
 	seq     uint64
 	// opCost is what the last query of each shape (call.shape) cost.
 	opCost map[string]int
+	// learned is the resource that answers named for a REST route, by
+	// method and route, where it isn't core, as for a dependency
+	// snapshot, which counts against dependency_snapshots.
+	learned map[string]string
 	// answered is when GitHub last answered, and failed when a request
 	// last got no answer, for the status of the connection.
 	answered, failed time.Time
@@ -94,7 +101,10 @@ type quota struct {
 type reservation struct {
 	seq      uint64
 	resource string
-	cost     int
+	// route is the method and route of a REST request that the path
+	// says counts against core, so that its answer can say otherwise.
+	route string
+	cost  int
 	// at is when the request was reserved, which is before it waited
 	// for a slot, so it may have gone out later.
 	at time.Time
@@ -122,6 +132,7 @@ func newBudget(host, restRoot, graphqlPath string) *budget {
 		quotas:      make(map[string]*quota),
 		pending:     make(map[uint64]*reservation),
 		opCost:      make(map[string]int),
+		learned:     make(map[string]string),
 	}
 }
 
@@ -152,8 +163,9 @@ func (b *budget) classify(req *http.Request) string {
 // the reservation that observe or forget settles. A request costs 1, and
 // a GraphQL query what its operation cost last time, since a query's cost
 // depends on its shape more than on its variables. A mutation costs 1 of
-// the primary limit. A request to a host outside the API counts against
-// nothing and has no reservation.
+// the primary limit. A REST route that answers counted against another
+// resource than core is counted against that one. A request to a host
+// outside the API counts against nothing and has no reservation.
 func (b *budget) reserve(req *http.Request) *reservation {
 	c, _ := req.Context().Value(callKey{}).(*call)
 	if c != nil && c.external || req.URL.Host != b.host {
@@ -161,19 +173,48 @@ func (b *budget) reserve(req *http.Request) *reservation {
 	}
 	defer b.changed()
 	resource := b.classify(req)
+	var route string
 	cost := 0
 	if resource != "" {
 		cost = 1
+	}
+	if resource == resourceCore {
+		route = b.route(req)
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if resource == resourceGraphQL && c != nil && c.query {
 		cost = max(b.opCost[c.shape], cost)
 	}
+	if learned, ok := b.learned[route]; ok {
+		resource = learned
+	}
 	b.seq++
-	r := &reservation{seq: b.seq, resource: resource, cost: cost, at: b.now()}
+	r := &reservation{seq: b.seq, resource: resource, route: route, cost: cost, at: b.now()}
 	b.pending[r.seq] = r
 	return r
+}
+
+// route returns the method and route of req, a REST request, such as
+// POST /repos/{owner}/{repo}/dependency-graph/snapshots.
+func (b *budget) route(req *http.Request) string {
+	route, _ := restRoute(strings.TrimPrefix(req.URL.EscapedPath(), b.restRoot))
+	return req.Method + " " + route
+}
+
+// learnResource records that the answer to a request of route counted
+// against resource. b.mu must be held.
+func (b *budget) learnResource(route, resource string) {
+	switch {
+	case route == "", resource == "":
+	case resource == resourceCore:
+		delete(b.learned, route)
+	case b.learned[route] != resource:
+		if len(b.learned) >= maxLearned {
+			clear(b.learned)
+		}
+		b.learned[route] = resource
+	}
 }
 
 // learnCost records what a GraphQL query of shape cost, as the rateLimit
@@ -233,6 +274,7 @@ func (b *budget) observe(r *reservation, h http.Header) (guard time.Duration) {
 	if !ok || resource == "" {
 		return 0
 	}
+	b.learnResource(r.route, rl.Resource)
 	far := b.far(rl.Reset, now)
 	q := b.quotas[resource]
 	switch {
