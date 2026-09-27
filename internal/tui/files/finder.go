@@ -142,11 +142,19 @@ func (s *Section) newFinder() *finderModal {
 		f.delay = defaultFinderDelay
 	}
 	src := s.src
+	host, repo, ref := s.host, s.repo, s.ref
 	f.find = finder.New(func(ctx context.Context) (finder.Listing, error) { return listFiles(ctx, src) },
 		finder.WithContext(ctx),
 		finder.WithKeyMap(f.keys.find),
 		finder.WithStyles(s.theme.Finder()),
 		finder.WithRecent(s.recentFiles()),
+		// Each file links to its page at the base.
+		finder.WithLinks(func(it finder.Item) string {
+			if e, ok := entryOfItem(it); ok {
+				return webURL(host, repo, ref, e)
+			}
+			return ""
+		}),
 	)
 	f.find.Focus()
 	f.SetTheme(s.theme)
