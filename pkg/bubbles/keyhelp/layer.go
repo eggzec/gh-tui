@@ -2,9 +2,10 @@
 //
 // Keys come in [Layer]s, in the order a key press is offered to them, such
 // as a modal's keys before the app's. [Analyze] finds which binding each
-// key reaches, and the state of every binding: one a key reaches, one that
-// is disabled, one that loses its key to another binding, or one whose key
-// is typed into an input first.
+// key reaches, and the [Model] shows every binding with its state: one a
+// key reaches, one that is disabled, one that loses its key to another
+// binding, or one whose key is typed into an input first. The user can
+// filter the list by a fuzzy query, or by pressing the key itself.
 package keyhelp
 
 import (
