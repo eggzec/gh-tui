@@ -11,6 +11,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
+	"github.com/eggzec/gh-tui/internal/service/fallback"
 	"github.com/eggzec/gh-tui/internal/service/recheck"
 )
 
@@ -76,12 +77,9 @@ func (s *Service) Comments(ctx context.Context, q CommentsQuery) (core.Page[core
 	// The page is at least as recent as what the list showed before the
 	// read.
 	m, _ := s.seen.Get(detailKey(q.Repo, q.Number))
-	e, err := s.comments.Fetch(ctx, key, func(ctx context.Context, prev cache.Entry[stampedComments], ok bool) (cache.Entry[stampedComments], error) {
+	e, err := fallback.Fetch(ctx, s.comments, s.keptComments, key, stampedMarks, func(ctx context.Context, prev cache.Entry[stampedComments], ok bool) (cache.Entry[stampedComments], error) {
 		e, err := s.loadComments(q, m.updated)(ctx, prev, ok)
 		switch {
-		case ok && github.Unreachable(ctx, err):
-			prev.Value, prev.FetchedAt = offlineComments(prev.Value), offlineAt
-			return prev, nil
 		case errors.Is(err, cache.ErrNotModified):
 			// The cached page is current as of now, so it takes the
 			// newer version. The kept page stays as GitHub sent it, marked
@@ -90,10 +88,7 @@ func (s *Service) Comments(ctx context.Context, q CommentsQuery) (core.Page[core
 			prev.Value.Version, prev.FetchedAt = m.updated, time.Time{}
 			return prev, nil
 		case err != nil:
-			if github.Refused(err) {
-				s.keptComments.Delete(key)
-			}
-			return prev, err
+			return cache.Entry[stampedComments]{}, err
 		}
 		// The shelf is only a shortcut, so a failure is ignored.
 		_ = s.keptComments.Save(key, e)
@@ -116,12 +111,6 @@ func (s *Service) loadComments(q CommentsQuery, version time.Time) cache.FetchFu
 	}, func(stampedComments) []string { return tags(q.Repo, q.Number) })
 }
 
-// offlineComments marks a page of comments served offline.
-func offlineComments(p stampedComments) stampedComments {
-	p.Value.Offline = true
-	return p
-}
-
 // CachedReviews returns the page for q if it is cached, fresh or stale,
 // without fetching it.
 func (s *Service) CachedReviews(q ReviewsQuery) (core.Page[core.Review], bool) {
@@ -131,7 +120,7 @@ func (s *Service) CachedReviews(q ReviewsQuery) (core.Page[core.Review], bool) {
 // Reviews returns the page for q, oldest first. A fresh cached page is
 // returned without a request.
 func (s *Service) Reviews(ctx context.Context, q ReviewsQuery) (core.Page[core.Review], error) {
-	p, err := fetch(ctx, s.reviews, nil, q.key(), offlinePage[core.Review], whole(tags(q.Repo, q.Number), func(ctx context.Context) (core.Page[core.Review], error) {
+	p, err := fetch(ctx, s.reviews, nil, q.key(), fallback.Page[core.Review], whole(tags(q.Repo, q.Number), func(ctx context.Context) (core.Page[core.Review], error) {
 		return s.api.ListPullRequestReviews(ctx, q.Repo, q.Number, q.Cursor, pageSize(q.PageSize))
 	}))
 	if err != nil {

@@ -15,6 +15,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
+	"github.com/eggzec/gh-tui/internal/service/fallback"
 	"github.com/eggzec/gh-tui/internal/service/probe"
 	"github.com/eggzec/gh-tui/internal/service/seen"
 )
@@ -110,11 +111,6 @@ const (
 	commentsSchema = 3
 )
 
-// offlineAt is when an entry served offline was fetched, as far as the
-// cache can tell: long ago, so it is stale at once and the next read asks
-// GitHub again.
-var offlineAt = time.Unix(1, 0)
-
 // Page sizes. GitHub returns at most maxPageSize items per page.
 const (
 	defaultPageSize = 30
@@ -196,28 +192,15 @@ func cached[V any](c *cache.Cache[V], key string) (V, bool) {
 
 // fetch returns the value under key in c. A fresh value is returned without
 // a request; otherwise load reads it, and it is stored and kept on shelf.
-// What GitHub refuses is dropped from shelf. If GitHub can't be reached, the
-// stale value is served instead, marked by offline.
-func fetch[V any](ctx context.Context, c *cache.Cache[V], shelf *cache.Shelf[V], key string, offline func(V) V, load cache.FetchFunc[V]) (V, error) {
-	e, err := c.Fetch(ctx, key, func(ctx context.Context, prev cache.Entry[V], ok bool) (cache.Entry[V], error) {
+// It falls back on the stale value as fallback.Fetch does, marked by marks.
+func fetch[V any](ctx context.Context, c *cache.Cache[V], shelf *cache.Shelf[V], key string, marks fallback.Marks[V], load cache.FetchFunc[V]) (V, error) {
+	e, err := fallback.Fetch(ctx, c, shelf, key, marks, fallback.Keep(shelf, key, func(ctx context.Context, prev cache.Entry[V], ok bool) (cache.Entry[V], error) {
 		e, err := load(ctx, prev, ok)
-		switch {
-		case ok && github.Unreachable(ctx, err):
-			prev.Value, prev.FetchedAt = offline(prev.Value), offlineAt
-			return prev, nil
-		case errors.Is(err, cache.ErrNotModified):
+		if errors.Is(err, cache.ErrNotModified) {
 			restamp(shelf, key, prev)
-			return e, err
-		case err != nil:
-			if github.Refused(err) {
-				shelf.Delete(key)
-			}
-			return cache.Entry[V]{}, err
 		}
-		// The shelf is only a shortcut, so a failure is ignored.
-		_ = shelf.Save(key, e)
-		return e, nil
-	})
+		return e, err
+	}))
 	return e.Value, err
 }
 
@@ -246,20 +229,15 @@ func restamp[V any](shelf *cache.Shelf[V], key string, prev cache.Entry[V]) {
 	_ = shelf.Save(key, kept)
 }
 
-// offlineList marks a list page served offline.
-func offlineList(p listPage) listPage {
-	p.Page.Offline = true
-	return p
+// listMarks are the Marks of a list page.
+func listMarks(p *listPage) (offline, limited *bool) {
+	return fallback.Page(&p.Page)
 }
 
-// offlinePage marks a page served offline.
-func offlinePage[T any](p core.Page[T]) core.Page[T] {
-	p.Offline = true
-	return p
+// stampedMarks are the Marks of a stamped page of comments.
+func stampedMarks(p *stampedComments) (offline, limited *bool) {
+	return fallback.Page(&p.Value)
 }
-
-// asIs serves a value offline unmarked.
-func asIs[V any](v V) V { return v }
 
 // CachedList returns the page for q if it is cached, fresh or stale, without
 // fetching it.
@@ -294,7 +272,7 @@ func (s *Service) FreshList(q ListQuery) bool {
 // set, to every read until one with q.Again set fetches it, unless a free
 // probe finds that no pull request of the repository changed since it was
 // read: see loadList. If GitHub can't be reached, a stale page is served
-// with Offline set.
+// with Offline set, and if it rate limits the read, with Limited set.
 func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.PullRequest], error) {
 	key := q.key()
 	shelf := s.keptLists
@@ -311,7 +289,7 @@ func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.PullReq
 		p.Stale = true
 		return p, nil
 	}
-	lp, err := fetch(ctx, s.lists, shelf, key, offlineList, s.loadList(q))
+	lp, err := fetch(ctx, s.lists, shelf, key, listMarks, s.loadList(q))
 	p := lp.Page
 	if err != nil {
 		if github.Refused(err) {
@@ -344,7 +322,7 @@ func (s *Service) Get(ctx context.Context, repo core.RepoRef, number int) (core.
 		s.details.Hit(key)
 		return d, nil
 	}
-	d, err := fetch(ctx, s.details, s.keptDetails, key, asIs[core.PullRequestDetail], whole(tags(repo, number), func(ctx context.Context) (core.PullRequestDetail, error) {
+	d, err := fetch(ctx, s.details, s.keptDetails, key, fallback.None[core.PullRequestDetail], whole(tags(repo, number), func(ctx context.Context) (core.PullRequestDetail, error) {
 		return s.api.GetPullRequest(ctx, repo, number)
 	}))
 	if err != nil {
