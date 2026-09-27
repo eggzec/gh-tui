@@ -109,14 +109,15 @@ func (m *Model) receive(msg chunkMsg) tea.Cmd {
 		_, ok := m.seen[id]
 		return ok
 	}
-	for _, c := range msg.commits {
+	for i := range msg.commits {
+		c := &msg.commits[i]
 		if c.ID == "" || seen(c.ID) {
 			continue
 		}
 		m.seen[c.ID] = struct{}{}
 		start := len(cells)
-		cells = m.layout.add(c, seen, cells)
-		r := row{commit: c, cells: cells[start:len(cells):len(cells)]}
+		cells = m.layout.add(*c, seen, cells)
+		r := row{commit: *c, cells: cells[start:len(cells):len(cells)]}
 		m.render(&r)
 		m.rows = append(m.rows, r)
 	}

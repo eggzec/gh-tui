@@ -62,9 +62,9 @@ func BenchmarkLayout(b *testing.B) {
 			clear(seen)
 		}
 		cells = cells[:0]
-		for _, c := range commits[i : i+100] {
-			seen[c.ID] = struct{}{}
-			cells = l.add(c, isSeen, cells)
+		for j := i; j < i+100; j++ {
+			seen[commits[j].ID] = struct{}{}
+			cells = l.add(commits[j], isSeen, cells)
 		}
 		i += 100
 	}
