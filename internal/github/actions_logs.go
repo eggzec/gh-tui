@@ -81,7 +81,7 @@ func (c *Client) jobLog(ctx context.Context, repo core.RepoRef, jobID, limit int
 		return nil, false, c.httpError(resp)
 	}
 	// A server may serve the log itself, from the API host.
-	b, err := readLimited(resp, limit)
+	b, err := readLimited(ctx, resp, limit)
 	return b, false, err
 }
 
@@ -120,7 +120,7 @@ func (c *Client) download(ctx context.Context, loc *url.URL, limit int64) (text 
 		return nil, false, err
 	}
 	if resp.ContentLength <= limit {
-		b, err := readLimited(resp, limit)
+		b, err := readLimited(ctx, resp, limit)
 		return b, false, err
 	}
 
@@ -137,7 +137,7 @@ func (c *Client) download(ctx context.Context, loc *url.URL, limit int64) (text 
 	if tail.StatusCode != http.StatusPartialContent {
 		return nil, false, &core.TooLargeError{Size: size, Limit: limit}
 	}
-	b, err := readLimited(tail, limit)
+	b, err := readLimited(ctx, tail, limit)
 	if err != nil {
 		return nil, false, err
 	}
@@ -182,14 +182,15 @@ func downloadError(resp *http.Response) error {
 	}
 }
 
-// readLimited reads the body of resp, which must be at most limit bytes.
-func readLimited(resp *http.Response, limit int64) ([]byte, error) {
+// readLimited reads the body of resp, the response to a request with ctx,
+// which must be at most limit bytes.
+func readLimited(ctx context.Context, resp *http.Response, limit int64) ([]byte, error) {
 	if resp.ContentLength > limit {
 		return nil, &core.TooLargeError{Size: resp.ContentLength, Limit: limit}
 	}
 	b, err := io.ReadAll(io.LimitReader(resp.Body, limit+1))
 	if err != nil {
-		return nil, fmt.Errorf("read response: %w", err)
+		return nil, readFailed(ctx, err)
 	}
 	if int64(len(b)) > limit {
 		return nil, &core.TooLargeError{Limit: limit}

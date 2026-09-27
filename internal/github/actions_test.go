@@ -254,7 +254,7 @@ func BenchmarkDecodeRuns(b *testing.B) {
 		var v struct {
 			WorkflowRuns []restRun `json:"workflow_runs"`
 		}
-		if err := decode(bytes.NewReader(body), &v); err != nil {
+		if err := decode(b.Context(), bytes.NewReader(body), &v); err != nil {
 			b.Fatal(err)
 		}
 		convert(v.WorkflowRuns, restRun.core)

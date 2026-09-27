@@ -109,7 +109,7 @@ func (c *Client) query(ctx context.Context, query string, vars map[string]any, v
 		Data   json.RawMessage    `json:"data"`
 		Errors []GraphQLErrorItem `json:"errors"`
 	}
-	if err := decode(resp.Body, &body); err != nil {
+	if err := decode(ctx, resp.Body, &body); err != nil {
 		return err
 	}
 	cl.rate = queryRate(body.Data)

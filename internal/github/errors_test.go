@@ -10,7 +10,9 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strconv"
+	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/cache"
@@ -364,6 +366,109 @@ func TestErrorKindsCanceled(t *testing.T) {
 	checkKind(t, err, core.Canceled, "", time.Time{})
 	if Unreachable(ctx, err) || Refused(err) {
 		t.Errorf("Unreachable, Refused = %v, %v, want false, false", Unreachable(ctx, err), Refused(err))
+	}
+}
+
+// stall answers each request with the start of its body, prefix, and
+// then sends nothing more until the request is done, as a connection that
+// hangs midway does.
+type stall struct{ prefix string }
+
+func (s stall) RoundTrip(req *http.Request) (*http.Response, error) {
+	if req.Body != nil {
+		_ = req.Body.Close()
+	}
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": {"application/json"}},
+		Body:       &stallBody{ctx: req.Context(), r: strings.NewReader(s.prefix)},
+		Request:    req,
+	}, nil
+}
+
+type stallBody struct {
+	ctx context.Context
+	r   io.Reader
+}
+
+func (b *stallBody) Read(p []byte) (int, error) {
+	if n, _ := b.r.Read(p); n > 0 {
+		return n, nil
+	}
+	<-b.ctx.Done()
+	return 0, b.ctx.Err()
+}
+
+func (*stallBody) Close() error { return nil }
+
+// readers read a body each way the client does: decoding REST and GraphQL
+// JSON, and reading raw content.
+var readers = map[string]struct {
+	prefix string
+	read   func(ctx context.Context, c *Client) error
+}{
+	"rest": {`{"a":`, func(ctx context.Context, c *Client) error {
+		var v any
+		_, err := c.Get(ctx, "x", Conditional{}, &v)
+		return err
+	}},
+	"graphql": {`{"data":{`, func(ctx context.Context, c *Client) error {
+		var v any
+		return c.Query(ctx, "query X { x }", nil, &v)
+	}},
+	"raw": {"abc", func(ctx context.Context, c *Client) error {
+		_, err := c.getRaw(ctx, "x", 1<<10)
+		return err
+	}},
+}
+
+// A body that stalls until the client's own timeout strikes is an outage,
+// as a request that got no response is.
+func TestErrorKindsBodyTimeout(t *testing.T) {
+	for name, r := range readers {
+		t.Run(name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				c, err := New(WithBaseURL("https://gh.test/"), WithToken("t"),
+					WithHTTPClient(&http.Client{Timeout: time.Second, Transport: stall{r.prefix}}))
+				if err != nil {
+					t.Fatal(err)
+				}
+				err = r.read(t.Context(), c)
+				if !errors.Is(err, core.ErrOffline) {
+					t.Fatalf("read = %v, want core.ErrOffline", err)
+				}
+				checkKind(t, err, core.Offline, "", time.Time{})
+				if !Unreachable(t.Context(), err) {
+					t.Errorf("Unreachable(%v) = false, want true", err)
+				}
+			})
+		})
+	}
+}
+
+// A body that stalls until the caller's deadline passes is a
+// cancellation: the caller gave up, and GitHub may be fine.
+func TestErrorKindsCallerDeadline(t *testing.T) {
+	for name, r := range readers {
+		t.Run(name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				c, err := New(WithBaseURL("https://gh.test/"), WithToken("t"),
+					WithHTTPClient(&http.Client{Timeout: time.Minute, Transport: stall{r.prefix}}))
+				if err != nil {
+					t.Fatal(err)
+				}
+				ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+				defer cancel()
+				err = r.read(ctx, c)
+				if err == nil || errors.Is(err, core.ErrOffline) {
+					t.Fatalf("read = %v, want an error without core.ErrOffline", err)
+				}
+				checkKind(t, err, core.Canceled, "", time.Time{})
+				if Unreachable(ctx, err) {
+					t.Errorf("Unreachable(%v) = true, want false", err)
+				}
+			})
+		})
 	}
 }
 

@@ -106,7 +106,7 @@ func decodeData(b *testing.B, body []byte, v any) {
 	var resp struct {
 		Data json.RawMessage `json:"data"`
 	}
-	if err := decode(bytes.NewReader(body), &resp); err != nil {
+	if err := decode(b.Context(), bytes.NewReader(body), &resp); err != nil {
 		b.Fatal(err)
 	}
 	if err := json.Unmarshal(resp.Data, v); err != nil {
