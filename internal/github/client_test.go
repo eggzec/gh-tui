@@ -122,8 +122,8 @@ func TestNewTokenFromEnv(t *testing.T) {
 	if c.token != "env-token" {
 		t.Errorf("token = %q, want env-token", c.token)
 	}
-	if c.http.Timeout != defaultTimeout {
-		t.Errorf("timeout = %v, want %v", c.http.Timeout, defaultTimeout)
+	if tt, ok := c.http.Transport.(*timeoutTransport); !ok || tt.timeout != defaultTimeout || c.http.Timeout != 0 {
+		t.Errorf("timeout = %v per call and %+v per attempt, want %v per attempt", c.http.Timeout, c.http.Transport, defaultTimeout)
 	}
 }
 
