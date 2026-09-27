@@ -109,6 +109,13 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 	// Links go to the pages of the session's host.
 	webHost := client.WebHost()
 	icons := ui.NewIcons(cfg.UI.Icons)
+	// What went wrong names the configured keys, and the log file while
+	// the app logs to one.
+	var logPath string
+	if logWarning == "" {
+		logPath, _ = cfg.Log.Path()
+	}
+	voice := ui.NewVoice(cfg.Keys, logPath)
 	fileOpts := []files.Option{
 		files.WithOffline(offline), files.WithIcons(icons), files.WithFinderPreview(cfg.Files.Finder.Preview),
 		files.WithHost(webHost),
@@ -206,6 +213,7 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 		tui.WithKinds(issueSvc),
 		tui.WithRecall(recall{pinned: pinned, here: here, dash: dashSvc, repos: repoSvc, pulls: pullSvc, issues: issueSvc}),
 		tui.WithHost(webHost),
+		tui.WithVoice(voice),
 		tui.WithUnreachable(github.Unreachable),
 		tui.WithHistory(history.Opener(historySvc, cfg.Keys,
 			history.WithConfig(cfg.History), history.WithOffline(offline), history.WithHost(webHost))),
