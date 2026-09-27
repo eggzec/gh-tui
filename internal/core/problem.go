@@ -134,6 +134,14 @@ func Explain(action string, err error) *Problem {
 	return p
 }
 
+// KindOf returns the kind of problem that Explain says err is.
+func KindOf(err error) ProblemKind {
+	if p, ok := errors.AsType[*Problem](err); ok {
+		return p.Kind
+	}
+	return kind(err)
+}
+
 // kind sorts err. The order matters where an error matches several: an
 // outage comes first, a cancellation hides whatever it cut short, a token
 // problem hides what the token was refused, and an action GitHub refused

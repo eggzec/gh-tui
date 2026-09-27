@@ -53,6 +53,9 @@ type Header struct {
 	// Offline reports that GitHub couldn't be reached, so the header is the
 	// one read last.
 	Offline bool
+	// Limited reports that GitHub rate limited the read, so the header is
+	// the one read last.
+	Limited bool
 }
 
 // WorkList is one list of work waiting on the viewer: how many items match
@@ -71,9 +74,10 @@ type Work struct {
 	ReviewRequested WorkList
 	Authored        WorkList
 	Assigned        WorkList
-	// Stale and Offline work as in Header.
+	// Stale, Offline and Limited work as in Header.
 	Stale   bool
 	Offline bool
+	Limited bool
 }
 
 // ContributionDay is one day of a contribution calendar.
@@ -92,7 +96,8 @@ type ContributionDay struct {
 type Contributions struct {
 	Total int
 	Weeks [][]ContributionDay
-	// Stale and Offline work as in Header.
+	// Stale, Offline and Limited work as in Header.
 	Stale   bool
 	Offline bool
+	Limited bool
 }

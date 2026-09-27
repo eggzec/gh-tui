@@ -13,6 +13,9 @@ type Page[T any] struct {
 	// Offline reports that GitHub couldn't be reached, so the page is the
 	// one read last.
 	Offline bool
+	// Limited reports that GitHub rate limited the read, so the page is
+	// the one read last.
+	Limited bool
 }
 
 // Last reports whether this is the final page.

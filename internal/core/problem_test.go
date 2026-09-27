@@ -70,6 +70,9 @@ func TestExplain(t *testing.T) {
 				t.Errorf("Explain(%v) = {%v %q %v %q}, want {%v %q %v %q}", tt.err,
 					p.Kind, p.Reason, p.Reset, p.Subject, tt.kind, tt.reason, tt.reset, tt.subject)
 			}
+			if k := KindOf(tt.err); k != tt.kind {
+				t.Errorf("KindOf(%v) = %v, want %v", tt.err, k, tt.kind)
+			}
 			if p.Action != "load it" || p.Err != tt.err { //nolint:errorlint // Explain keeps the very error it was given.
 				t.Errorf("Explain kept action %q and err %v, want the ones given", p.Action, p.Err)
 			}
@@ -90,6 +93,11 @@ func TestExplainIdempotent(t *testing.T) {
 	}
 	if wrapped := Explain("show the dashboard", fmt.Errorf("dashboard: %w", p)); wrapped != p {
 		t.Errorf("Explain(wrapped *Problem) = %+v, want the one it wraps", wrapped)
+	}
+	// A problem keeps its kind, whatever else the chain matches.
+	p = &Problem{Kind: Forbidden, Err: ErrOffline}
+	if k := KindOf(fmt.Errorf("dashboard: %w", p)); k != Forbidden {
+		t.Errorf("KindOf(wrapped *Problem) = %v, want %v", k, Forbidden)
 	}
 }
 
