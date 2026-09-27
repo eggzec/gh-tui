@@ -48,8 +48,10 @@ const (
 // the local one, and a spent resource is released a guard after its
 // reset in local time. It is safe for concurrent use.
 type budget struct {
+	// host is the host of the API, with its port if it has one, and
 	// restRoot and graphqlPath are the paths of the REST root, such as /
 	// or /api/v3/, and of the GraphQL endpoint.
+	host        string
 	restRoot    string
 	graphqlPath string
 	now         func() time.Time
@@ -111,8 +113,9 @@ type quotaStatus struct {
 	seenAt  time.Time
 }
 
-func newBudget(restRoot, graphqlPath string) *budget {
+func newBudget(host, restRoot, graphqlPath string) *budget {
 	return &budget{
+		host:        host,
 		restRoot:    restRoot,
 		graphqlPath: graphqlPath,
 		now:         time.Now,
@@ -123,8 +126,12 @@ func newBudget(restRoot, graphqlPath string) *budget {
 }
 
 // classify returns the resource that req counts against, or "" if it
-// counts against none, as GET /rate_limit doesn't.
+// counts against none, as GET /rate_limit doesn't, nor a request to
+// another host, such as a redirect to where a download is stored.
 func (b *budget) classify(req *http.Request) string {
+	if req.URL.Host != b.host {
+		return ""
+	}
 	path := req.URL.EscapedPath()
 	if path == b.graphqlPath {
 		return resourceGraphQL
@@ -149,7 +156,7 @@ func (b *budget) classify(req *http.Request) string {
 // nothing and has no reservation.
 func (b *budget) reserve(req *http.Request) *reservation {
 	c, _ := req.Context().Value(callKey{}).(*call)
-	if c != nil && c.external {
+	if c != nil && c.external || req.URL.Host != b.host {
 		return nil
 	}
 	defer b.changed()

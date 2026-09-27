@@ -110,13 +110,15 @@ func TestBudgetClassify(t *testing.T) {
 		{"/api/v3/", "https://ghe.example.com/api/v3/repos/o/r", resourceCore},
 		{"/api/v3/", "https://ghe.example.com/api/graphql", resourceGraphQL},
 		{"/api/v3/", "https://ghe.example.com/other", ""},
+		{"/", "https://storage.example.com/repos/o/r", ""},
+		{"/api/v3/", "https://api.github.com/repos/o/r", ""},
 	}
 	for _, tt := range tests {
-		gql := "/graphql"
+		host, gql := "api.github.com", "/graphql"
 		if tt.root != "/" {
-			gql = "/api/graphql"
+			host, gql = "ghe.example.com", "/api/graphql"
 		}
-		b := newBudget(tt.root, gql)
+		b := newBudget(host, tt.root, gql)
 		if got := b.classify(httptest.NewRequest(http.MethodGet, tt.url, http.NoBody)); got != tt.want {
 			t.Errorf("classify(%s) = %q, want %q", tt.url, got, tt.want)
 		}
@@ -125,13 +127,17 @@ func TestBudgetClassify(t *testing.T) {
 
 // TestBudgetExternalNotCounted checks that a download from a host outside
 // the API, such as the storage a job log redirects to, is counted against
-// nothing.
+// nothing, whether the call says so or a redirect led there.
 func TestBudgetExternalNotCounted(t *testing.T) {
-	b := newBudget("/", "/graphql")
+	b := newBudget("api.github.com", "/", "/graphql")
 	ctx := withCall(t.Context(), &call{external: true})
 	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "https://storage.example.com/logs", http.NoBody)
 	if r := b.reserve(req); r != nil {
 		t.Errorf("reserve = %+v, want nothing for an external download", r)
+	}
+	req = httptest.NewRequest(http.MethodGet, "https://storage.example.com/repos/o/r", http.NoBody)
+	if r := b.reserve(req); r != nil {
+		t.Errorf("reserve = %+v, want nothing for a redirect to another host", r)
 	}
 }
 
@@ -306,7 +312,7 @@ func (panicking) RoundTrip(*http.Request) (*http.Response, error) { panic("base"
 // TestBudgetSettlesOnPanic checks that a request whose base panicked
 // takes nothing.
 func TestBudgetSettlesOnPanic(t *testing.T) {
-	b := newBudget("/", "/graphql")
+	b := newBudget("api.github.com", "/", "/graphql")
 	rt := &rateTransport{base: panicking{}, budget: b}
 	func() {
 		defer func() { _ = recover() }()
@@ -371,7 +377,7 @@ func TestBudgetGraphQLCost(t *testing.T) {
 // TestBudgetMutationCost checks that a mutation costs 1 of the primary
 // limit, whatever a query of the same name cost.
 func TestBudgetMutationCost(t *testing.T) {
-	b := newBudget("/", "/graphql")
+	b := newBudget("api.github.com", "/", "/graphql")
 	b.learnCost("Star", 9)
 	ctx := withCall(t.Context(), &call{op: "Star"})
 	r := b.reserve(httptest.NewRequestWithContext(ctx, http.MethodPost, "https://api.github.com/graphql", http.NoBody))
