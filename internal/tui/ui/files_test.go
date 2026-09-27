@@ -2,6 +2,7 @@ package ui
 
 import (
 	"path"
+	"slices"
 	"strings"
 	"testing"
 
@@ -25,6 +26,24 @@ func glob(pattern string) FileIcon {
 func file(name string) core.TreeEntry { return core.TreeEntry{Name: name, Type: core.EntryBlob} }
 func dir(name string) core.TreeEntry  { return core.TreeEntry{Name: name, Type: core.EntryTree} }
 
+// fileAt and dirAt are entries at p from the root of the repository.
+func fileAt(p string) core.TreeEntry {
+	return core.TreeEntry{Path: p, Name: path.Base(p), Type: core.EntryBlob}
+}
+
+func dirAt(p string) core.TreeEntry {
+	return core.TreeEntry{Path: p, Name: path.Base(p), Type: core.EntryTree}
+}
+
+// at is the icon of the files named name in dir.
+func at(dir, name string) FileIcon {
+	fi, ok := match(nerdFiles.paths[dir], name)
+	if !ok {
+		panic("no icon for " + dir + "/" + name)
+	}
+	return fi
+}
+
 func TestFileIconsAreOneCellWide(t *testing.T) {
 	f := nerdFiles
 	icons := []FileIcon{f.file, f.dir, f.dirOpen, f.submodule, f.symlink}
@@ -35,6 +54,14 @@ func TestFileIconsAreOneCellWide(t *testing.T) {
 	}
 	for _, g := range f.globs {
 		icons = append(icons, g.icon)
+	}
+	for _, gs := range f.paths {
+		for _, g := range gs {
+			icons = append(icons, g.icon)
+		}
+	}
+	for _, fi := range f.dirPaths {
+		icons = append(icons, fi)
 	}
 	for _, fi := range icons {
 		if w := ansi.StringWidth(fi.Glyph); w != 1 || len([]rune(fi.Glyph)) != 1 {
@@ -47,12 +74,90 @@ func TestFileIconsAreOneCellWide(t *testing.T) {
 }
 
 func TestFileIconGlobsAreValid(t *testing.T) {
-	for _, g := range nerdFiles.globs {
+	globs := slices.Clone(nerdFiles.globs)
+	for dir, gs := range nerdFiles.paths {
+		if dir != strings.ToLower(dir) {
+			t.Errorf("path %q should be lower case, since paths are", dir)
+		}
+		globs = append(globs, gs...)
+	}
+	for _, g := range globs {
 		if _, err := path.Match(g.glob, ""); err != nil {
 			t.Errorf("glob %q: %v", g.glob, err)
 		}
 		if g.glob != strings.ToLower(g.glob) {
 			t.Errorf("glob %q should be lower case, since names are", g.glob)
+		}
+	}
+	for p := range nerdFiles.dirPaths {
+		if p != strings.ToLower(p) {
+			t.Errorf("path %q should be lower case, since paths are", p)
+		}
+	}
+}
+
+func TestEntryIconByPath(t *testing.T) {
+	ic := NewIcons(config.IconsNerd)
+	f := nerdFiles
+	actions := at(".github/workflows", "ci.yml")
+	tests := []struct {
+		entry core.TreeEntry
+		open  bool
+		want  FileIcon
+	}{
+		// GitHub reads workflows at the top of .github/workflows only.
+		{entry: fileAt(".github/workflows/ci.yml"), want: actions},
+		{entry: fileAt(".github/workflows/release.yaml"), want: actions},
+		{entry: fileAt(".GitHub/Workflows/CI.YML"), want: actions},
+		{entry: fileAt(".github/workflows/sub/ci.yml"), want: lang("YAML")},
+		{entry: fileAt("docs/.github/workflows/ci.yml"), want: lang("YAML")},
+		{entry: fileAt(".github/workflows/README.md"), want: f.stems["readme"]},
+		{entry: fileAt(".github/workflows/ci.yml.orig"), want: f.file},
+		{entry: fileAt(".gitea/workflows/ci.yml"), want: at(".gitea/workflows", "x.yml")},
+		{entry: fileAt(".forgejo/workflows/ci.yaml"), want: at(".gitea/workflows", "x.yml")},
+		{entry: fileAt(".github/ISSUE_TEMPLATE/bug.yml"), want: at(".github/issue_template", "x")},
+		{entry: fileAt(".github/ISSUE_TEMPLATE/config.yml"), want: at(".github/issue_template", "x")},
+		{entry: fileAt(".github/PULL_REQUEST_TEMPLATE/feature.md"), want: at(".github/pull_request_template", "x")},
+		{entry: fileAt(".github/DISCUSSION_TEMPLATE/ideas.yml"), want: at(".github/discussion_template", "x")},
+		{entry: fileAt(".gitlab/issue_templates/bug.md"), want: at(".github/issue_template", "x")},
+		{entry: fileAt(".gitlab/merge_request_templates/default.md"), want: at(".github/pull_request_template", "x")},
+		{entry: fileAt(".github/FUNDING.yml"), want: at(".github", "funding.yml")},
+		{entry: fileAt(".github/release.yml"), want: at(".github", "release.yml")},
+		{entry: fileAt(".github/labeler.yml"), want: at(".github", "labeler.yml")},
+		{entry: fileAt(".github/copilot-instructions.md"), want: at(".github", "copilot-instructions.md")},
+		{entry: fileAt(".github/instructions/go.instructions.md"), want: at(".github", "copilot-instructions.md")},
+		{entry: fileAt(".github/codeql/codeql-config.yml"), want: at(".github/codeql", "x.yml")},
+		{entry: fileAt(".circleci/config.yml"), want: at(".circleci", "config.yml")},
+		{entry: fileAt(".azure-pipelines/build.yaml"), want: glob("azure-pipelines*.yaml")},
+		// A release.yml elsewhere is plain YAML.
+		{entry: fileAt("release.yml"), want: lang("YAML")},
+		{entry: fileAt("deploy/release.yml"), want: lang("YAML")},
+		// The path beats the name, which beats a glob, which beats the stem,
+		// which beats the extension.
+		{entry: fileAt(".github/ISSUE_TEMPLATE/action.yml"), want: at(".github/issue_template", "x")},
+		{entry: fileAt(".github/workflows/compose.ci.yml"), want: actions},
+		{entry: fileAt("tools/action.yml"), want: f.names["action.yml"]},
+		{entry: fileAt("compose.yml"), want: f.names["compose.yml"]},
+		{entry: fileAt("swagger.json"), want: glob("swagger*.json")},
+		{entry: fileAt(".prettierrc.md"), want: glob(".prettierrc*")},
+		{entry: fileAt("docs/README.md"), want: f.stems["readme"]},
+		// Directories at a known place.
+		{entry: dirAt(".github/workflows"), want: actions},
+		{entry: dirAt(".GitHub/Workflows"), open: true, want: actions},
+		{entry: dirAt(".gitea/workflows"), want: at(".gitea/workflows", "x.yml")},
+		{entry: dirAt(".forgejo/workflows/"), open: true, want: at(".gitea/workflows", "x.yml")},
+		{entry: dirAt("./.github/workflows"), want: actions},
+		{entry: dirAt(".github/ISSUE_TEMPLATE"), want: f.dirs[".github"]},
+		{entry: dirAt("sub/.github/workflows"), want: f.dir},
+		{entry: dirAt("workflows"), want: f.dir},
+		{entry: dirAt(".circleci"), want: f.dirs[".circleci"]},
+		{entry: dirAt(".devcontainer"), want: f.dirs[".devcontainer"]},
+		{entry: fileAt(".devcontainer/go/devcontainer.json"), want: f.names["devcontainer.json"]},
+	}
+	for _, tt := range tests {
+		if got := ic.Entry(tt.entry, tt.open); got != tt.want {
+			t.Errorf("Entry(%s %q, open %v) = %q %s, want %q %s",
+				tt.entry.Type, tt.entry.Path, tt.open, got.Glyph, got.Color, tt.want.Glyph, tt.want.Color)
 		}
 	}
 }
