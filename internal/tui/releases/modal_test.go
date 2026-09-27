@@ -228,3 +228,38 @@ func TestKeys(t *testing.T) {
 		t.Error("a closed modal took a late read")
 	}
 }
+
+// withDiagram serves v3 with a diagram in its notes.
+type withDiagram struct{ fakeService }
+
+func (f *withDiagram) Get(ctx context.Context, r core.RepoRef, id int64) (core.Release, error) {
+	rel, err := f.fakeService.Get(ctx, r, id)
+	rel.Body = "Notes.\n\n```mermaid\ngraph LR\n  tag --> release\n```\n"
+	return rel, err
+}
+
+// A diagram in the notes links to mermaid.live, select shows its code,
+// as the help says, and open still opens the release.
+func TestDiagram(t *testing.T) {
+	m := newModal(&withDiagram{}, 100, 30)
+	run(t, m, m.Init())
+	v := m.View()
+	if !strings.Contains(ansi.Strip(v), "◆ flowchart · 2 lines · View diagram ↗") ||
+		strings.Count(v, "\x1b]8;;https://mermaid.live/view#pako:") != 1 {
+		t.Fatalf("no linked diagram:\n%q", v)
+	}
+	offered := false
+	for _, b := range m.Help().ShortHelp() {
+		offered = offered || b.Enabled() && b.Help().Desc == "diagram code"
+	}
+	if !offered {
+		t.Error("the help doesn't offer the diagram's code")
+	}
+	run(t, m, m.Update(tea.KeyPressMsg{Code: tea.KeyEnter}))
+	if !strings.Contains(ansi.Strip(m.View()), "tag --> release") {
+		t.Errorf("select didn't show the code:\n%s", ansi.Strip(m.View()))
+	}
+	if msgs := run(t, m, press(m, "o")); len(msgs) != 1 || msgs[0] != (ui.OpenMsg{URL: v3.URL}) {
+		t.Errorf("o = %v, want the release opened on GitHub", msgs)
+	}
+}

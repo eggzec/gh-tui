@@ -244,7 +244,7 @@ func (m *Modal) Help() help.KeyMap {
 	k := m.keys
 	retry := k.Refresh
 	retry.SetEnabled(retry.Enabled() && m.failed())
-	return m.keys.help(retry)
+	return m.keys.help(retry, m.thread.OnDiagram())
 }
 
 // failed reports whether the release couldn't be read and nothing shows.

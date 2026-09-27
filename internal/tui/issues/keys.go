@@ -75,6 +75,7 @@ func newKeyMap(keys map[string][]string) keyMap {
 	for _, b := range []*key.Binding{&tk.Up, &tk.Down, &tk.PageUp, &tk.PageDown, &tk.HalfPageUp, &tk.HalfPageDown, &tk.Top, &tk.Bottom} {
 		*b = without(*b, detailKeys)
 	}
+	tk.Toggle = without(ui.Binding(keys, config.ActionSelect, tk.Toggle.Help().Desc), detailKeys)
 	tk.Retry = retry(k.Refresh)
 	k.thread = tk
 	return k
@@ -153,12 +154,13 @@ func (m *detailModal) Help() help.KeyMap {
 	k.Label.SetEnabled(k.Label.Enabled() && m.loaded)
 	k.Close, k.Reopen = g.Gated(k.Close, ui.ActClose, it), g.Gated(k.Reopen, ui.ActReopen, it)
 	k.Comment, k.Label = g.Gated(k.Comment, ui.ActComment, it), g.Gated(k.Label, ui.ActLabel, it)
+	tk.Toggle.SetEnabled(tk.Toggle.Enabled() && m.thread.OnDiagram())
 	return keyHelp{
-		short: []key.Binding{tk.Down, tk.Up, k.Back, k.Comment, k.Label, k.Close, k.Reopen, k.Open},
+		short: []key.Binding{tk.Down, tk.Up, k.Back, k.Comment, k.Label, k.Close, k.Reopen, k.Open, tk.Toggle},
 		full: [][]key.Binding{
 			{tk.Up, tk.Down, tk.PageUp, tk.PageDown},
 			{tk.HalfPageUp, tk.HalfPageDown, tk.Top, tk.Bottom},
-			{k.Back, k.Comment, k.Label, k.Open, k.Refresh},
+			{k.Back, k.Comment, k.Label, k.Open, tk.Toggle, k.Refresh},
 			{k.Close, k.Reopen},
 		},
 	}

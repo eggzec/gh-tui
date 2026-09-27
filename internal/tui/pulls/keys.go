@@ -78,6 +78,7 @@ func newKeyMap(keys map[string][]string) keyMap {
 	t.PageUp, t.PageDown = without(t.PageUp, own), without(t.PageDown, own)
 	t.HalfPageUp, t.HalfPageDown = without(t.HalfPageUp, own), without(t.HalfPageDown, own)
 	t.Top, t.Bottom = without(t.Top, own), without(t.Bottom, own)
+	t.Toggle = without(ui.Binding(keys, config.ActionSelect, t.Toggle.Help().Desc), own)
 	// The thread offers retry itself once something failed.
 	t.Retry = retry(k.Refresh)
 	t.Retry.SetEnabled(k.Refresh.Enabled())

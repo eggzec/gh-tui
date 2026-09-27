@@ -1,6 +1,7 @@
 package issues
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -13,6 +14,7 @@ import (
 	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
+	"github.com/eggzec/gh-tui/pkg/markdown"
 )
 
 func theme(dark bool) ui.Theme {
@@ -167,5 +169,39 @@ func TestNarrowCommentsKeepTheirBody(t *testing.T) {
 	c := core.Comment{Author: core.User{Login: "octocat"}, Body: "ok"}
 	if out := ansi.Strip(m.renderComment(c, 4)); !strings.Contains(out, "o") || !strings.Contains(out, "k") {
 		t.Errorf("a narrow comment lost its body: %q", out)
+	}
+}
+
+// With a diagram on screen, select shows its code, as the help says,
+// its head links to it on mermaid.live, and open still opens the issue.
+func TestDiagramKeys(t *testing.T) {
+	h, m := threadModal(t, uitest.Comments(testNow), true, 80, 100)
+	var want string
+	for _, c := range uitest.Comments(testNow) {
+		if b := markdown.Blocks(c.Body); len(b) > 0 && b[0].Lang == "mermaid" {
+			want = b[0].URL
+		}
+	}
+	if !strings.HasPrefix(want, "https://mermaid.live/view#pako:") {
+		t.Fatalf("the comments have no diagram with a link: %q", want)
+	}
+	if v := m.View(); strings.Count(v, "\x1b]8;;"+want+"\x1b\\") != 1 || strings.Count(v, "\x1b]8;;\x1b\\") != 1 {
+		t.Errorf("the head doesn't link to %q once:\n%q", want, v)
+	}
+	var help []string
+	for _, b := range m.Help().ShortHelp() {
+		if b.Enabled() {
+			help = append(help, b.Help().Key+" "+b.Help().Desc)
+		}
+	}
+	if !slices.Contains(help, "↵ diagram code") || !slices.Contains(help, "o browser") {
+		t.Errorf("the help doesn't offer the diagram's code and the issue: %q", help)
+	}
+	if o, ok := has[ui.OpenMsg](press(t, h, "o")); !ok || o.URL != "https://github.com/eggzec/gh-tui/issues/999" {
+		t.Errorf("open sent %+v, want the issue", o)
+	}
+	press(t, h, "enter")
+	if v := ansi.Strip(m.View()); !strings.Contains(v, "A[issue] --> B[modal]") {
+		t.Errorf("select didn't show the diagram's code:\n%s", v)
 	}
 }
