@@ -18,21 +18,30 @@ const tabWidth = 4
 // which glamour would drop or show as source, into markdown: the comments
 // go, a collapsed section shows its summary and its content, and an image
 // becomes a markdown image. Code in backticks is left as it is, and a
-// fenced block shows as its language has it, collapsed unless its index
-// is in open, and as full has it when it shows in full. A source cut at
-// maxLines ends with a note that offers hint, such as how to see the
+// fenced block shows as show has it, told its index and whether it is
+// open, which a collapsible block is if its index is in open. A source cut
+// at maxLines ends with a note that offers hint, such as how to see the
 // rest, if it isn't empty.
-func prepare(src string, open []int, hint string, full func(Block) string) string {
+func prepare(src string, open []int, hint string, show func(i int, b Block, open bool) string) string {
 	var out []string
 	scan(src, hint, func(line string) { out = append(out, line) }, func(i int, b Block) {
-		if b.Collapsed == "" || slices.Contains(open, i) {
-			out = append(out, full(b))
-			return
-		}
-		// A paragraph of its own.
-		out = append(out, "", b.Collapsed, "")
+		out = append(out, show(i, b, b.Collapsed == "" || slices.Contains(open, i)))
 	})
 	return strings.Join(out, "\n")
+}
+
+// plain shows a block as markdown alone: a collapsible one as its
+// collapsed line, as code, which glamour puts on a line of its own even in
+// a list item, with its code under it while it is open.
+func plain(_ int, b Block, open bool) string {
+	if b.Collapsed == "" {
+		return b.Full
+	}
+	s := b.fence + "\n" + b.indent() + b.Collapsed + "\n" + b.fence
+	if open {
+		s += "\n" + b.Full
+	}
+	return s
 }
 
 // scan makes src safe to draw and passes it on a line at a time, with the

@@ -62,13 +62,13 @@ func TestRenderShows(t *testing.T) {
 		"🖼 logo (https://example.com/logo.png)",
 		"▸ Stack trace",
 		"panic(\"boom\")",
-		"graph TD",
+		"◆ flowchart · 2 lines · View diagram ↗",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the render lacks %q:\n%s", want, out)
 		}
 	}
-	for _, hidden := range []string{"Thanks for the report", "###", "<details>", "<img", "\x1b]8;"} {
+	for _, hidden := range []string{"Thanks for the report", "###", "<details>", "<img", "\x1b]8;", "graph TD"} {
 		if strings.Contains(out, hidden) {
 			t.Errorf("the render shows %q:\n%s", hidden, out)
 		}

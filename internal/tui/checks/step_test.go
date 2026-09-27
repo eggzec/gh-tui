@@ -7,6 +7,7 @@ import (
 
 	"charm.land/bubbles/v2/help"
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
@@ -302,4 +303,16 @@ func keysOf(km help.KeyMap) []string {
 		}
 	}
 	return out
+}
+
+// A diagram in a detail shows as its head, whose offer links to it on
+// mermaid.live, through the viewport and the step's frame.
+func TestDetailLinksDiagram(t *testing.T) {
+	s, _ := newStep(t, newFake(), wideW, wideH)
+	s.openDetail(row{check: &core.Check{Name: "arch", Summary: "```mermaid\ngraph LR\n  a --> b\n```"}})
+	v := s.View()
+	if !strings.Contains(ansi.Strip(v), "◆ flowchart · 2 lines · View diagram ↗") ||
+		strings.Count(v, "\x1b]8;;https://mermaid.live/view#pako:") != 1 || strings.Count(v, "\x1b]8;;\x1b\\") != 1 {
+		t.Errorf("the detail doesn't link the diagram:\n%q", v)
+	}
 }

@@ -2,15 +2,24 @@ package markdown
 
 import (
 	"fmt"
+	"regexp"
 	"testing"
 	"unicode/utf8"
 )
 
+// diagramLink matches the hyperlinks a head of a diagram opens and closes.
+var diagramLink = regexp.MustCompile(`^\x1b\]8;;(?:https://mermaid\.live/view#pako:[A-Za-z0-9_-]+)?\x1b\\`)
+
 // unsafe describes the first thing in out that isn't a style sequence of
-// digits, semicolons and colons or printable text, or returns "".
+// digits, semicolons and colons, a diagram's link or printable text, or
+// returns "".
 func unsafe(out string) string {
 	for i := 0; i < len(out); {
 		c := out[i]
+		if m := diagramLink.FindString(out[i:]); m != "" {
+			i += len(m)
+			continue
+		}
 		if c == 0x1b {
 			// Only CSI [0-9;:]* m allowed.
 			if i+1 >= len(out) || out[i+1] != '[' {
