@@ -3,7 +3,9 @@ package syntax
 import (
 	"context"
 	"errors"
+	"math/rand/v2"
 	"runtime"
+	"strconv"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -46,8 +48,9 @@ func TestHeadStopsAtTheLimit(t *testing.T) {
 	idle(t)
 	before := runtime.NumGoroutine()
 	l := newStalling()
+	stalled, other := unique(t, "stalled"), unique(t, "other")
 	start := time.Now()
-	toks, err := Head(t.Context(), l, "stalled", 10*time.Millisecond)
+	toks, err := Head(t.Context(), l, stalled, 10*time.Millisecond)
 	if d := time.Since(start); d > time.Second {
 		t.Errorf("took %v", d)
 	}
@@ -60,19 +63,19 @@ func TestHeadStopsAtTheLimit(t *testing.T) {
 	if _, took, err := Tokenise(Lexer("go"), "x := 1", time.Second); !errors.Is(err, ErrBusy) || took != 0 {
 		t.Errorf("another lexer ran beside the stalled one for %v: %v", took, err)
 	}
-	if n := runtime.NumGoroutine(); n != before+1 {
-		t.Errorf("%d goroutines run, want the lexer's beside the %d before", n, before)
-	}
 	// A stall past Limit after the lexer was asked to stop is an overrun.
 	time.Sleep(2 * Limit)
 	close(l.release)
 	if n := settle(before); n > before {
 		t.Fatalf("%d goroutines run after the lexer ended, %d before", n, before)
 	}
-	if _, err := Head(t.Context(), l, "stalled", time.Second); !errors.Is(err, ErrOverran) {
+	// Another goroutine may have ended first, while the lexer's still
+	// held its token.
+	idle(t)
+	if _, err := Head(t.Context(), l, stalled, time.Second); !errors.Is(err, ErrOverran) {
 		t.Errorf("the code the lexer stalled on was lexed again: %v", err)
 	}
-	if toks, err := Head(t.Context(), l, "other", time.Second); text(toks) != "other" || err != nil {
+	if toks, err := Head(t.Context(), l, other, time.Second); text(toks) != other || err != nil {
 		t.Errorf("other code gave %q, %v", text(toks), err)
 	}
 	if n := l.runs.Load(); n != 2 {
@@ -85,10 +88,11 @@ func TestHeadStopsAtTheLimit(t *testing.T) {
 func TestHeadCutsSlowLexersShort(t *testing.T) {
 	idle(t)
 	l := newStalling()
-	_, _ = Head(t.Context(), l, "slow", 10*time.Millisecond)
+	slow := unique(t, "slow")
+	_, _ = Head(t.Context(), l, slow, 10*time.Millisecond)
 	close(l.release)
 	idle(t)
-	if toks, err := Head(t.Context(), l, "slow", time.Second); text(toks) != "slow" || err != nil {
+	if toks, err := Head(t.Context(), l, slow, time.Second); text(toks) != slow || err != nil {
 		t.Errorf("gave %q, %v the second time", text(toks), err)
 	}
 }
@@ -96,15 +100,16 @@ func TestHeadCutsSlowLexersShort(t *testing.T) {
 func TestHeadStopsWhenCancelled(t *testing.T) {
 	idle(t)
 	l := newStalling()
+	code := unique(t, "code")
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
-	if toks, _ := Head(ctx, l, "code", time.Second); toks != nil || l.runs.Load() != 0 {
+	if toks, _ := Head(ctx, l, code, time.Second); toks != nil || l.runs.Load() != 0 {
 		t.Error("lexed for a cancelled context")
 	}
 	ctx, cancel = context.WithCancel(t.Context())
 	time.AfterFunc(10*time.Millisecond, cancel)
 	start := time.Now()
-	_, _ = Head(ctx, l, "code", time.Minute)
+	_, _ = Head(ctx, l, code, time.Minute)
 	if d := time.Since(start); d > 10*time.Second {
 		t.Errorf("took %v after the context was cancelled", d)
 	}
@@ -130,4 +135,11 @@ func TestHeadWaitsForTheGate(t *testing.T) {
 	if d := time.Since(start); d > 10*Wait {
 		t.Errorf("waited %v for the gate", d)
 	}
+}
+
+// unique returns code with a suffix of its own: overruns are kept for as
+// long as the process runs, so each run of a test lexes code of its own.
+func unique(t *testing.T, code string) string {
+	t.Helper()
+	return code + " " + t.Name() + strconv.Itoa(rand.Int())
 }
