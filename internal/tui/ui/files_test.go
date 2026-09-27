@@ -47,6 +47,13 @@ func TestEntryIcon(t *testing.T) {
 		{entry: file("GNUmakefile"), want: lang("Makefile")},
 		{entry: file(".gitignore"), want: f.names[".gitignore"]},
 		{entry: file("PACKAGE.JSON"), want: f.names["package.json"]},
+		{entry: file("CODEOWNERS"), want: f.names["codeowners"]},
+		{entry: file("action.yml"), want: f.names["action.yml"]},
+		{entry: file("Jenkinsfile"), want: f.names["jenkinsfile"]},
+		{entry: file("PULL_REQUEST_TEMPLATE.md"), want: f.names["pull_request_template.md"]},
+		{entry: file(".golangci.yml"), want: f.names[".golangci.yml"]},
+		{entry: file("pnpm-lock.yaml"), want: f.names["pnpm-lock.yaml"]},
+		{entry: file("Chart.lock"), want: f.names["chart.lock"]},
 		// Documents are named by their stem, with a text extension or none.
 		{entry: file("LICENSE"), want: f.stems["license"]},
 		{entry: file("License.md"), want: f.stems["license"]},
