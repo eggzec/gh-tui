@@ -172,10 +172,11 @@ func byTurn(a, b *hold) int {
 	return cmp.Or(cmp.Compare(a.class, b.class), cmp.Compare(a.seq, b.seq))
 }
 
-// limit is what stops a request: until when it lasts, whether it is a
-// secondary limit, and whether the answers to the requests in flight may
-// lift it sooner, since only they make the quota short of what GitHub
-// reported left.
+// limit is what stops a request: until when it lasts, or zero if nothing
+// says, whether it is a secondary limit, and whether an answer may lift it
+// sooner: one to the requests in flight, since only they make the quota
+// short of what GitHub reported left, or one that finds out whether a
+// limit lifted, a probe's or a scout's.
 type limit struct {
 	until     time.Time
 	secondary bool
@@ -185,16 +186,12 @@ type limit struct {
 // tooLate returns why h can't wait for l to lift, or "" if it can: it
 // couldn't be sent deadlineMargin before its deadline, it would be held
 // longer than maxWindow, or longer than a request of its class waits for
-// l. A limit that answers may lift is waited for as long as the class
+// l. A limit that an answer may lift is waited for as long as the class
 // waits, and then no longer.
 func (h *hold) tooLate(l limit, now time.Time) string {
 	until := later(l.until, now)
 	if l.inFlight {
 		until = now
-	}
-	wait := foregroundWait
-	if l.secondary {
-		wait = maxSecondaryWait
 	}
 	switch {
 	case !h.deadline.IsZero() && h.deadline.Before(until.Add(deadlineMargin)):
@@ -202,22 +199,37 @@ func (h *hold) tooLate(l limit, now time.Time) string {
 	case until.Sub(h.at) > maxWindow:
 		return "cap"
 	case h.class == classBackground:
-	case l.inFlight && now.Sub(h.at) >= wait, until.Sub(h.at) > wait:
+	case until.Sub(h.at) > l.wait():
 		return h.class.String()
 	}
 	return ""
 }
 
+// wait returns how long a read the user waits for, or a change they
+// asked for, waits for l.
+func (l limit) wait() time.Duration {
+	if l.secondary {
+		return maxSecondaryWait
+	}
+	return foregroundWait
+}
+
 // expiry returns when the first of held, which l stops, can wait no
-// longer for l, if that comes before l lifts.
+// longer for l, if that comes before l lifts: once it was held longer than
+// maxWindow, or than its class waits for an answer. It is zero if held is
+// empty and l doesn't say when it lifts.
 func (l limit) expiry(held []*hold) time.Time {
 	at := l.until
-	if !l.inFlight {
-		return at
-	}
 	for _, h := range held {
-		if h.class != classBackground && h.at.Add(foregroundWait).Before(at) {
-			at = h.at.Add(foregroundWait)
+		end := h.at.Add(maxWindow)
+		if l.inFlight {
+			if h.class != classBackground {
+				end = h.at.Add(l.wait())
+			}
+			end = end.Add(time.Nanosecond)
+		}
+		if at.IsZero() || end.Before(at) {
+			at = end
 		}
 	}
 	return at
@@ -331,7 +343,7 @@ func (b *budget) limitOn(resource string, cost int, now time.Time) (limit, bool)
 	case now.Before(g.secondary):
 		return limit{until: g.secondary, secondary: true}, true
 	case g.lifting:
-		return limit{until: now, secondary: true}, true
+		return limit{secondary: true, inFlight: true}, true
 	}
 	return b.spent(resource, cost, now)
 }
@@ -406,19 +418,13 @@ func (b *budget) enqueue(h *hold, now time.Time) {
 // or until it fails or ctx ends. It returns the reservation to send it
 // with, and how long it was held.
 func (b *budget) wait(ctx context.Context, h *hold) (*reservation, time.Duration, error) {
-	// A bug that forgot h mustn't hold it for good.
-	capped := time.NewTimer(maxWindow)
-	defer capped.Stop()
 	select {
 	case <-h.ready:
 	case <-ctx.Done():
-		if r := b.drop(h, ""); r != nil {
+		if r := b.drop(h); r != nil {
 			b.forget(r, false)
 		}
 		return nil, 0, ctx.Err()
-	case <-capped.C:
-		b.drop(h, "cap")
-		<-h.ready
 	}
 	if h.err != nil {
 		return nil, 0, h.err
@@ -431,9 +437,9 @@ func (b *budget) wait(ctx context.Context, h *hold) (*reservation, time.Duration
 }
 
 // drop takes h out of its queue, if it is still held, and counts it as
-// dropped, since its context ended, or fails it for why. It returns the
-// reservation of h if it was let go already.
-func (b *budget) drop(h *hold, why string) *reservation {
+// dropped, since its context ended. It returns the reservation of h if it
+// was let go already.
+func (b *budget) drop(h *hold) *reservation {
 	defer b.changed()
 	b.mu.Lock()
 	defer b.unlock()
@@ -442,15 +448,10 @@ func (b *budget) drop(h *hold, why string) *reservation {
 	}
 	q := b.gate.queues[h.resource]
 	q.remove(h)
-	if why != "" {
-		now := b.now()
-		b.fail(q, h, why, now, now)
-	} else {
-		h.done = true
-		close(h.ready)
-		q.dropped++
-		obs.CountRate(h.resource, obs.RateDropped)
-	}
+	h.done = true
+	close(h.ready)
+	q.dropped++
+	obs.CountRate(h.resource, obs.RateDropped)
 	b.pump()
 	return nil
 }
@@ -512,24 +513,27 @@ func (b *budget) pump() {
 	if g.lifting && g.scout == 0 && !b.sendScout(now) {
 		g.lifting = false
 	}
-	switch {
-	case !g.secondary.IsZero():
-		for _, q := range g.queues {
-			b.expire(q, limit{until: g.secondary, secondary: true}, now)
-		}
-	case g.lifting:
-		for _, q := range g.queues {
-			b.expire(q, limit{until: now, secondary: true}, now)
-		}
-	default:
+	if g.secondary.IsZero() && !g.lifting {
 		b.letGoInTurn(now)
 		for _, q := range g.queues {
 			b.pumpQueue(q, now)
 		}
+		b.tidy(now)
+		return
+	}
+	// Until the secondary limit lifts, or the scout is answered, what is
+	// held waits as long as its class may, and the timer fails it then.
+	l := limit{until: g.secondary, secondary: true, inFlight: g.secondary.IsZero()}
+	var at time.Time
+	for _, q := range g.queues {
+		b.expire(q, l, now)
+		if end := l.expiry(q.held); !end.IsZero() && (at.IsZero() || end.Before(at)) {
+			at = end
+		}
 	}
 	b.tidy(now)
-	if !g.secondary.IsZero() && len(g.queues) > 0 {
-		g.timer = b.arm(g.timer, g.secondary.Sub(now))
+	if !at.IsZero() {
+		g.timer = b.arm(g.timer, at.Sub(now))
 	}
 }
 
@@ -593,7 +597,11 @@ func (b *budget) pumpQueue(q *queue, now time.Time) {
 		}
 		return
 	}
-	b.expire(q, limit{until: now}, now)
+	// The limit may have lifted, which a probe, or else the first request
+	// held, finds out, and the others wait for its answer as long as
+	// their class may.
+	l = limit{inFlight: true}
+	b.expire(q, l, now)
 	g := &b.gate
 	switch {
 	case len(q.held) == 0, q.scout != 0, g.probing:
@@ -601,11 +609,16 @@ func (b *budget) pumpQueue(q *queue, now time.Time) {
 		g.probing = true
 		go b.runProbe()
 	default:
-		h := q.held[0]
-		b.letGo(q, h, now)
-		if h.r != nil {
-			q.scout = h.r.seq
+		for len(q.held) > 0 && q.scout == 0 {
+			h := q.held[0]
+			b.letGo(q, h, now)
+			if h.r != nil {
+				q.scout = h.r.seq
+			}
 		}
+	}
+	if len(q.held) > 0 {
+		q.timer = b.arm(q.timer, l.expiry(q.held).Sub(now))
 	}
 }
 
