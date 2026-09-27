@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/obs"
 )
 
 var (
@@ -400,6 +401,31 @@ func TestSetRepoStartsPass(t *testing.T) {
 		synctest.Sleep(time.Minute)
 		if got := srv.ids(); !slices.Equal(got, []string{"a", "b"}) {
 			t.Errorf("checked %q after selecting b, want b's old entry at once", got)
+		}
+	})
+}
+
+// A pass runs as background work, so that the client doesn't send its
+// checks again: the next pass comes anyway.
+func TestPassIsBackground(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		checked := make(chan bool, 1)
+		e := Entry{ID: "a", Repo: repoA, UsedAt: time.Now().Add(-time.Hour), Check: func(ctx context.Context) Result {
+			select {
+			case checked <- obs.IsBackground(ctx):
+			default:
+			}
+			return Result{Status: NotModified}
+		}}
+		start(t, []Entry{e}, new(recorder))
+		synctest.Wait()
+		select {
+		case bg := <-checked:
+			if !bg {
+				t.Error("a check ran as foreground work, want background")
+			}
+		default:
+			t.Fatal("no check ran")
 		}
 	})
 }

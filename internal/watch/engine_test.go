@@ -10,6 +10,8 @@ import (
 	"testing"
 	"testing/synctest"
 	"time"
+
+	"github.com/eggzec/gh-tui/internal/obs"
 )
 
 var errPoll = errors.New("poll failed")
@@ -146,6 +148,27 @@ func TestIntervals(t *testing.T) {
 			})
 		})
 	}
+}
+
+// A poll runs as background work, so that the client doesn't send its
+// requests again: the next poll comes anyway.
+func TestPollIsBackground(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		e := New(WithInterval(10 * time.Second))
+		var polls, background atomic.Int32
+		e.Subscribe("k", func(ctx context.Context) (Result, error) {
+			polls.Add(1)
+			if obs.IsBackground(ctx) {
+				background.Add(1)
+			}
+			return Result{}, nil
+		})
+		run(t, e)
+		synctest.Sleep(30 * time.Second)
+		if n, b := polls.Load(), background.Load(); n == 0 || b != n {
+			t.Errorf("%d of %d polls ran as background work, want all", b, n)
+		}
+	})
 }
 
 func TestSubscribeSharesPoller(t *testing.T) {

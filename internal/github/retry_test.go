@@ -164,6 +164,9 @@ var (
 	prefetch = func(ctx context.Context, c *Client) error {
 		return get(obs.ForPrefetch(ctx), c)
 	}
+	background = func(ctx context.Context, c *Client) error {
+		return query(obs.ForBackground(ctx), c)
+	}
 )
 
 func TestRetryPolicy(t *testing.T) {
@@ -226,6 +229,9 @@ func TestRetryPolicy(t *testing.T) {
 		{name: "prefetch dial fails", send: prefetch, steps: []step{dialFails}, wantErr: true},
 		{name: "prefetch 502", send: prefetch, steps: []step{badGateway}, wantErr: true},
 		{name: "prefetch secondary limit", send: prefetch, steps: []step{secondary3}, wantErr: true},
+		{name: "background dial fails", send: background, steps: []step{dialFails, answered}, wantErr: true},
+		{name: "background went wrong", send: background, steps: []step{wentWrong, answered}, wantErr: true},
+		{name: "background secondary limit", send: background, steps: []step{secondary3, answered}, wantErr: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -464,7 +470,7 @@ func TestRetrySlotsComeBack(t *testing.T) {
 		c := scriptedClient(t, &script{random: true, steps: []step{ok, answered, dialFails, resets, hangs,
 			badGateway, unavailable, serverError, wentWrong, missing, secondary3, secondary30, primary}})
 		c.http.Transport.(*retryTransport).jitter = rand.Float64
-		sends := []func(context.Context, *Client) error{get, post, query, mutation, prefetch}
+		sends := []func(context.Context, *Client) error{get, post, query, mutation, prefetch, background}
 		var wg sync.WaitGroup
 		for i := range 300 {
 			wg.Go(func() {

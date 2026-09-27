@@ -151,3 +151,20 @@ func IsPrefetch(ctx context.Context) bool {
 	v, _ := ctx.Value(prefetchKey{}).(bool)
 	return v
 }
+
+type backgroundKey struct{}
+
+// ForBackground returns ctx marked as the work of a loop that runs on its
+// own, such as the revalidator's passes or the sync engine's polls. The
+// client doesn't send its requests again when they fail, since the loop
+// comes back to them anyway, unlike a read the user waits for.
+func ForBackground(ctx context.Context) context.Context {
+	return context.WithValue(ctx, backgroundKey{}, true)
+}
+
+// IsBackground reports whether ctx is marked as the work of a background
+// loop.
+func IsBackground(ctx context.Context) bool {
+	v, _ := ctx.Value(backgroundKey{}).(bool)
+	return v
+}

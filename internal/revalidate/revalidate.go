@@ -215,7 +215,7 @@ func (r *Revalidator) Run(ctx context.Context) error {
 			}
 			timer.Stop()
 		}
-		pctx := obs.WithTrace(ctx, "revalidate.pass")
+		pctx := obs.ForBackground(obs.WithTrace(ctx, "revalidate.pass"))
 		p := r.pass(pctx)
 		if ctx.Err() != nil {
 			return ctx.Err()

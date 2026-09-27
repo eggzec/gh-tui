@@ -39,7 +39,7 @@ func (e *Engine) poll(ctx context.Context, p *poller) {
 		case <-timer.C:
 		case <-p.wake:
 		}
-		pctx := obs.WithTrace(ctx, "sync.poll")
+		pctx := obs.ForBackground(obs.WithTrace(ctx, "sync.poll"))
 		start := time.Now()
 		res, err := p.fn(pctx)
 		if ctx.Err() != nil {
