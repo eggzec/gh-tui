@@ -1,17 +1,23 @@
 package pager
 
 import (
-	"context"
-	"fmt"
+	"slices"
 	"strings"
+	"time"
 
 	"github.com/alecthomas/chroma/v2"
-	"github.com/alecthomas/chroma/v2/lexers"
+
+	"github.com/eggzec/gh-tui/pkg/syntax"
 )
 
-// analyseBytes is how much of a file without a known name is read to guess
-// its syntax, for example from a shebang line.
-const analyseBytes = 4096
+// Lines longer than maxLexedLine bytes show plain, and so does all the
+// lexer hasn't reached within lexLimit. A lexer's time can grow with the
+// square of a line's length or worse, as on a minified file, and with the
+// size of the file.
+const (
+	maxLexedLine = 2 << 10
+	lexLimit     = 2 * time.Second
+)
 
 // span is a run of one token type in a line, up to byte end.
 type span struct {
@@ -27,36 +33,48 @@ type highlightMsg struct {
 	spans [][]span
 }
 
-// lexerFor returns the lexer for a file name, or one guessed from the text,
-// or nil when the text is best shown plain.
+// lexerFor returns the lexer for a file named name that holds text, or nil
+// when the text is best shown plain.
 func lexerFor(name, text string) chroma.Lexer {
-	l := lexers.Match(name)
-	if l == nil {
-		l = lexers.Analyse(text[:min(len(text), analyseBytes)])
-	}
-	// Plain text looks the same without the work.
-	if l == nil || l == lexers.Fallback || l.Config().Name == "plaintext" {
+	return worthIt(syntax.File(name, text))
+}
+
+// lexerNamed returns the lexer with the name or alias lang, or nil.
+func lexerNamed(lang string) chroma.Lexer {
+	return worthIt(syntax.Lexer(lang))
+}
+
+// worthIt returns l ready to highlight with, or nil if it is plain text,
+// which looks the same without the work.
+func worthIt(l chroma.Lexer) chroma.Lexer {
+	if l == nil || l.Config().Name == "plaintext" {
 		return nil
 	}
 	return chroma.Coalesce(l)
 }
 
-// lexerNamed returns the lexer with the name or alias syntax, or nil.
-func lexerNamed(syntax string) chroma.Lexer {
-	l := lexers.Get(syntax)
-	if l == nil || l == lexers.Fallback || l.Config().Name == "plaintext" {
-		return nil
+// lexable returns lines as the text to lex, with the lines too long to
+// lex left empty.
+func lexable(lines []string) string {
+	long := func(l string) bool { return len(l) > maxLexedLine }
+	if !slices.ContainsFunc(lines, long) {
+		return strings.Join(lines, "\n")
 	}
-	return chroma.Coalesce(l)
+	var b strings.Builder
+	for i, l := range lines {
+		if i > 0 {
+			b.WriteByte('\n')
+		}
+		if !long(l) {
+			b.WriteString(l)
+		}
+	}
+	return b.String()
 }
 
-// highlight splits the tokens of text into the spans of its n lines. It
-// stops early when ctx is cancelled.
-func highlight(ctx context.Context, lexer chroma.Lexer, text string, n int) ([][]span, error) {
-	it, err := lexer.Tokenise(nil, text)
-	if err != nil {
-		return nil, fmt.Errorf("highlight: %w", err)
-	}
+// spansOf splits toks, the tokens of up to n lines, into the spans of each
+// line.
+func spansOf(toks []chroma.Token, n int) [][]span {
 	out := make([][]span, 0, n)
 	var line []span
 	pos := 0
@@ -68,12 +86,7 @@ func highlight(ctx context.Context, lexer chroma.Lexer, text string, n int) ([][
 		}
 		line = append(line, span{end: pos, typ: typ})
 	}
-	count := 0
-	for tok := it(); tok != chroma.EOF; tok = it() {
-		count++
-		if count%4096 == 0 && ctx.Err() != nil {
-			return nil, fmt.Errorf("highlight: %w", ctx.Err())
-		}
+	for _, tok := range toks {
 		v := tok.Value
 		for {
 			head, tail, found := strings.Cut(v, "\n")
@@ -89,5 +102,5 @@ func highlight(ctx context.Context, lexer chroma.Lexer, text string, n int) ([][
 	}
 	out = append(out, line)
 	// Lexers may add a final newline, and with it an empty line.
-	return out[:min(len(out), n)], nil
+	return out[:min(len(out), n)]
 }

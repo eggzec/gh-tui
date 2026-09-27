@@ -8,6 +8,7 @@ import (
 	"github.com/alecthomas/chroma/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/eggzec/gh-tui/pkg/syntax"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -16,7 +17,8 @@ import (
 const binarySniff = 8000
 
 // SetContent shows text, named name, from its first line. The name picks
-// the syntax, usually by its file extension. The returned command
+// the syntax, usually by its file extension, or else a script's shebang
+// line does; only common languages are highlighted. The returned command
 // highlights the text in the background, and the pager shows it plain
 // until then. Text with a NUL byte is taken for binary and not shown.
 func (m *Model) SetContent(name, text string) tea.Cmd {
@@ -24,12 +26,15 @@ func (m *Model) SetContent(name, text string) tea.Cmd {
 }
 
 // SetContentSyntax shows text as SetContent does, but highlights it as
-// syntax, a lexer's name or alias such as "diff", rather than by the name
-// of the content. An unknown syntax shows the text plain.
-func (m *Model) SetContentSyntax(name, syntax, text string) tea.Cmd {
-	return m.setContent(name, text, func(string) chroma.Lexer { return lexerNamed(syntax) })
+// lang, a lexer's name or alias such as "diff", rather than by the name of
+// the content. An unknown lang shows the text plain.
+func (m *Model) SetContentSyntax(name, lang, text string) tea.Cmd {
+	return m.setContent(name, text, func(string) chroma.Lexer { return lexerNamed(lang) })
 }
 
+// setContent shows text, and returns the command that highlights it with
+// the lexer lexerOf picks. Chroma can take long even to pick one, so it is
+// called only in the command.
 func (m *Model) setContent(name, text string, lexerOf func(full string) chroma.Lexer) tea.Cmd {
 	m.reset(name, stateReady, nil)
 	if strings.IndexByte(text[:min(len(text), binarySniff)], 0) >= 0 {
@@ -41,25 +46,25 @@ func (m *Model) setContent(name, text string, lexerOf func(full string) chroma.L
 		m.lines = strings.Split(full, "\n")
 	}
 	m.clamp()
-	if len(full) > m.highlightLimit {
-		return nil
-	}
-	lexer := lexerOf(full)
-	if lexer == nil {
+	if full == "" || len(full) > m.highlightLimit {
 		return nil
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	m.cancel = cancel
-	id, gen, n := m.id, m.gen, len(m.lines)
+	id, gen, lines := m.id, m.gen, m.lines
 	return func() tea.Msg {
 		defer cancel()
-		spans, err := highlight(ctx, lexer, full, n)
-		if err != nil {
+		lexer := lexerOf(full)
+		if lexer == nil {
+			return nil
+		}
+		toks, err := syntax.Head(ctx, lexer, lexable(lines), lexLimit)
+		if err != nil || toks == nil || ctx.Err() != nil {
 			// The plain text stays; a failed highlight is not worth a
 			// message.
 			return nil
 		}
-		return highlightMsg{id: id, gen: gen, spans: spans}
+		return highlightMsg{id: id, gen: gen, spans: spansOf(toks, len(lines))}
 	}
 }
 
