@@ -3,6 +3,7 @@ package dashboard
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"strconv"
 	"strings"
@@ -630,5 +631,29 @@ func TestRepoURLOnHost(t *testing.T) {
 	got := s.repoURL(core.Repo{Ref: core.RepoRef{Owner: "o", Name: "r"}})
 	if want := "https://ghe.example.com/o/r"; got != want {
 		t.Errorf("repoURL = %q, want %q", got, want)
+	}
+}
+
+// The list of repositories says what went wrong the way the user should
+// read it, without the error's chain, request or status code.
+func TestReposErrorWords(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want string
+	}{
+		{"offline", fmt.Errorf("list repos: github: GET /user/repos: %w", core.ErrOffline), "✗ Can't reach GitHub · r to retry"},
+		{"forbidden", fmt.Errorf("list repos: github: 403 Forbidden: %w", core.ErrForbidden), "✗ You don't have access to this · o to open on GitHub"},
+		{"internal", errors.New("list repos: github: decode: unexpected EOF"), "✗ Something went wrong · r to retry"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := newFake()
+			svc.fail["repos @me@"] = tt.err
+			s := newSection(t, svc, nil, 140, 38)
+			if v := screen(s); !strings.Contains(v, tt.want) || strings.Contains(v, "github:") || strings.Contains(v, "403") {
+				t.Errorf("screen = %q, want %q", v, tt.want)
+			}
+		})
 	}
 }

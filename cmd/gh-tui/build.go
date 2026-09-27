@@ -172,6 +172,7 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 	opener := threads.New(ctx, threadOpts...)
 	dashOpts := []dashboard.Option{
 		dashboard.WithOffline(offline),
+		dashboard.WithVoice(voice),
 		dashboard.WithInbox(notifSvc),
 		dashboard.WithOpener(opener),
 		dashboard.WithHere(here, repoSvc.Get),

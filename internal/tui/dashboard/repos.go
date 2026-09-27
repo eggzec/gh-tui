@@ -111,6 +111,7 @@ func (t *repoTabs) newOwner(label string, q dashboard.ReposQuery) *owner {
 		feed.WithKeyMap(s.keys.feed),
 		feed.WithEmptyText(empty),
 		feed.WithStyles(s.theme.Feed()),
+		feed.WithErrorText(ui.ErrorText("load your repositories", "", s.voice)),
 	)
 	return o
 }
