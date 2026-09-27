@@ -2,7 +2,7 @@
 //
 // Usage:
 //
-//	gh-tui [--debug] [--hostname HOST]
+//	gh-tui [--debug] [--hostname HOST] [--version]
 //
 // It opens on the dashboard, which shows the repository of the current
 // directory first; :goto opens another repository, pull request or issue.
@@ -32,16 +32,21 @@ func main() {
 }
 
 func run() error {
-	debugLog := flag.Bool("debug", false, "log at debug level for this run")
+	debugLog := flag.Bool("debug", false, "log at debug level for this run, as GH_DEBUG does")
+	showVersion := flag.Bool("version", false, "print the version and exit")
 	hostname := flag.String("hostname", "", "the GitHub `host` to use, in place of the current repository's or gh's default")
 	flag.Usage = func() {
-		fmt.Fprintln(flag.CommandLine.Output(), "usage: gh-tui [--debug] [--hostname HOST]")
+		fmt.Fprintln(flag.CommandLine.Output(), "usage: gh-tui [--debug] [--hostname HOST] [--version]")
 		flag.PrintDefaults()
 	}
 	flag.Parse()
 	if flag.NArg() > 0 {
 		flag.Usage()
 		return fmt.Errorf("unexpected argument %q: gh-tui takes no arguments; use :goto owner/name inside the app", flag.Arg(0))
+	}
+	if *showVersion {
+		fmt.Println("gh-tui", version())
+		return nil
 	}
 
 	path, err := config.Path()
@@ -53,7 +58,7 @@ func run() error {
 		return err
 	}
 
-	if *debugLog {
+	if *debugLog || ghDebug(os.Getenv("GH_DEBUG")) {
 		cfg.Log.Level = config.LevelDebug
 	}
 	closeLog, warning := openLog(cfg.Log)

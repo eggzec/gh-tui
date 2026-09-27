@@ -22,7 +22,6 @@ import (
 
 const (
 	apiVersion = "2022-11-28"
-	userAgent  = "gh-tui"
 
 	// defaultTimeout bounds requests whose context has no deadline.
 	defaultTimeout = 30 * time.Second
@@ -94,6 +93,11 @@ func New(opts ...Option) (*Client, error) {
 	if o.token == "" {
 		return nil, fmt.Errorf("no token for %s, run %s: %w", o.host, loginCommand(o.host), core.ErrUnauthorized)
 	}
+	// A client found the way gh finds one also sends its requests the way
+	// gh does, unless it was given a transport.
+	if source != "" && o.http.Transport == nil {
+		o.http = throughSocket(o.http, o.gh.unixSocket())
+	}
 	if o.baseURL == "" {
 		o.baseURL = restRoot(o.host)
 	}
@@ -142,8 +146,12 @@ func loginCommand(host string) string {
 
 func restRoot(host string) string {
 	host = auth.NormalizeHostname(host)
-	if auth.IsEnterprise(host) {
+	switch {
+	case auth.IsEnterprise(host):
 		return "https://" + host + "/api/v3/"
+	case host == "github.localhost":
+		// A GitHub run locally for development serves plain HTTP.
+		return "http://api." + host + "/"
 	}
 	return "https://api." + host + "/"
 }

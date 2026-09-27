@@ -1,11 +1,12 @@
 package main
 
 import (
+	"cmp"
 	"fmt"
 	"log/slog"
 	"os"
-	"runtime/debug"
 
+	"github.com/eggzec/gh-tui/internal/buildinfo"
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/logfile"
 	"github.com/eggzec/gh-tui/internal/obs"
@@ -36,10 +37,18 @@ func openLog(cfg config.Log) (closeLog func(), warning string) {
 	return func() { _ = f.Close() }, ""
 }
 
+// ghDebug reports whether GH_DEBUG, set to value, asks for debug output.
+// gh reads it so, and prints to stderr; gh-tui's screen is the terminal,
+// so it logs at debug level to its log file instead.
+func ghDebug(value string) bool {
+	switch value {
+	case "", "0", "false", "no":
+		return false
+	}
+	return true
+}
+
 // version returns the version of the module the binary was built from.
 func version() string {
-	if info, ok := debug.ReadBuildInfo(); ok {
-		return info.Main.Version
-	}
-	return "unknown"
+	return cmp.Or(buildinfo.Version(), "unknown")
 }
