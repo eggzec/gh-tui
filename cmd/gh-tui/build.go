@@ -231,7 +231,7 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 		}
 	}
 	actionOpts := []actions.Option{
-		actions.WithOffline(offline), actions.WithIcons(icons),
+		actions.WithOffline(offline), actions.WithVoice(voice), actions.WithIcons(icons),
 		actions.WithViewer(viewer), actions.WithRepos(repoSvc),
 	}
 	if cfg.Sync.Enabled {

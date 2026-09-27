@@ -27,6 +27,9 @@ type options struct {
 	viewer  Viewer
 	repos   ui.Repos
 	filter  core.RunFilter
+	// voice words the errors of the runs and the log; New makes one of
+	// its keys if it is nil.
+	voice *ui.Voice
 	// rest is how long the cursor rests on a run or a job before its jobs
 	// or its log are read; tests set 0.
 	rest time.Duration
@@ -53,6 +56,13 @@ func WithOffline(off *ui.Offline) Option {
 			o.offline = off
 		}
 	}
+}
+
+// WithVoice sets how the modal words what went wrong, with the keys a hint
+// names and the log it points to. By default the hints name the configured
+// keys and no log.
+func WithVoice(v ui.Voice) Option {
+	return func(o *options) { o.voice = &v }
 }
 
 // WithIcons sets the glyphs of the states of runs, jobs and steps. The

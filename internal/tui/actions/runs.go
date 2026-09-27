@@ -132,6 +132,7 @@ func (m *Modal) newRuns() feed.Model[core.Run] {
 		feed.WithSize(m.paneWidth(runsPane), m.bodyHeight()),
 		feed.WithFocused(m.focus == runsPane),
 		feed.WithEmptyText(m.emptyText()),
+		feed.WithErrorText(ui.ErrorText("load the runs", m.repo.String(), *m.opts.voice)),
 	)
 }
 

@@ -135,6 +135,14 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, keys map[string][]
 	}
 	rctx, cancel := context.WithCancel(ctx)
 	keyMap := newKeyMap(keys)
+	// What failed is read again with the modal's refresh key, which leaves
+	// ctrl+r to re-running.
+	v := ui.NewVoice(keys, "")
+	if o.voice != nil {
+		v = *o.voice
+	}
+	v.Retry = keyMap.Refresh
+	o.voice = &v
 	m := &Modal{
 		id:     lastID.Add(1),
 		ctx:    rctx,
@@ -150,7 +158,8 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, keys map[string][]
 	// Assume a dark terminal until the app sets the theme.
 	p, _ := config.Default().Palette(true)
 	m.log = jobview.New(rctx, svc, repo, keyMap.job(),
-		jobview.WithIcons(o.icons), jobview.WithRest(o.rest), jobview.WithClock(o.now), jobview.WithReturn(m))
+		jobview.WithIcons(o.icons), jobview.WithRest(o.rest), jobview.WithClock(o.now), jobview.WithReturn(m),
+		jobview.WithVoice(*o.voice))
 	m.SetTheme(ui.NewTheme(p, true))
 	m.filter = o.filter
 	m.caps = ui.CachedCaps(o.repos, repo)

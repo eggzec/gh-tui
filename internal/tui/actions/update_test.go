@@ -10,6 +10,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/tui/jobview"
@@ -276,7 +277,7 @@ func TestLogStates(t *testing.T) {
 	}{
 		{"pending", fmt.Errorf("log: %w", core.ErrLogPending), jobview.Pending, "The job hasn't started yet."},
 		{"expired", fmt.Errorf("log: %w", core.ErrLogExpired), jobview.Expired, "GitHub no longer keeps this log."},
-		{"failed", errors.New("boom"), jobview.Failed, "Couldn't load the log: boom"},
+		{"failed", errors.New("boom"), jobview.Failed, "✗ Something went wrong · r to retry"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -289,6 +290,46 @@ func TestLogStates(t *testing.T) {
 			if s := paneText(m, logPane); !strings.Contains(s, tt.text) {
 				t.Errorf("the log pane lacks %q:\n%s", tt.text, s)
 			}
+		})
+	}
+}
+
+// The runs and the log say what went wrong the way the user should read
+// it, without the error's chain, request or status code.
+func TestErrorWords(t *testing.T) {
+	// The runs pane is narrow, so it cuts the words and keeps the hint,
+	// and the log puts the hint on a line of its own where it doesn't fit
+	// after the words.
+	tests := []struct {
+		name       string
+		err        error
+		want, runs string
+	}{
+		{"offline", fmt.Errorf("list runs: github: GET /repos/o/r/actions/runs: %w", core.ErrOffline),
+			"✗ Can't reach GitHub · r to retry", "✗ Can't reach GitHub · r to retry"},
+		{"forbidden", fmt.Errorf("list runs: github: 403 Forbidden: %w", core.ErrForbidden),
+			"✗ You don't have access to charmbracelet/bubbletea o to open on GitHub", "✗ You don't have ac… · o to open on GitHub"},
+		{"internal", errors.New("list runs: github: decode: unexpected EOF"),
+			"✗ Something went wrong. Details", "✗ Something went wrong. Deta… · r to retry"},
+	}
+	voice := WithVoice(ui.NewVoice(config.Default().Keys, "/var/log/gh-tui.log"))
+	clean := func(t *testing.T, pane, s, want string) {
+		t.Helper()
+		if s = strings.Join(strings.Fields(s), " "); !strings.Contains(s, want) || strings.Contains(s, "github:") || strings.Contains(s, "403") {
+			t.Errorf("the %s pane = %q, want %q", pane, s, want)
+		}
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newFake()
+			f.logErrs[ubuntuJob] = tt.err
+			m, _ := newModal(t, f, wideW, wideH, voice)
+			clean(t, "log", paneText(m, logPane), tt.want)
+
+			f = newFake()
+			f.runsErr = tt.err
+			m, _ = newModal(t, f, wideW, wideH, voice)
+			clean(t, "runs", paneText(m, runsPane), tt.runs)
 		})
 	}
 }
@@ -660,7 +701,7 @@ func TestErrorsAreInline(t *testing.T) {
 	f = newFake()
 	f.runsErr = errors.New("runs boom")
 	m, _ = newModal(t, f, wideW, wideH)
-	if s := paneText(m, runsPane); !strings.Contains(s, "runs boom") {
+	if s := paneText(m, runsPane); !strings.Contains(s, "Something went wrong") {
 		t.Errorf("the runs pane:\n%s", s)
 	}
 }
