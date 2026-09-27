@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"log/slog"
+	"os"
 	"strings"
 
 	"charm.land/bubbles/v2/key"
@@ -306,14 +308,25 @@ func (m *Model) show(title string) tea.Cmd {
 	return nil
 }
 
+// browserFix says what to change when the browser didn't open. gh
+// takes GH_BROWSER before its config's browser, so while GH_BROWSER is
+// set the config changes nothing.
+func browserFix() string {
+	if os.Getenv("GH_BROWSER") != "" {
+		return "GH_BROWSER names a command that didn't open it."
+	}
+	return "set one with gh config set browser <command>."
+}
+
 func (m *Model) openURL(url string) tea.Cmd {
 	if m.open == nil || url == "" {
 		return nil
 	}
-	open := m.open
+	open, ctx := m.open, m.ctx
 	return func() tea.Msg {
 		if err := open(url); err != nil {
-			return ui.NotifyMsg{Level: toast.Error, Text: "Couldn't open the browser: " + err.Error()}
+			slog.WarnContext(ctx, "browser failed", "span", "tui", "err", err.Error())
+			return ui.NotifyMsg{Level: toast.Error, Text: "Couldn't open the browser: " + browserFix()}
 		}
 		return nil
 	}
