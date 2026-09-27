@@ -31,6 +31,10 @@ type Stats struct {
 	// waited their total and longest wait in nanoseconds.
 	waits, waited, maxWait atomic.Int64
 
+	// retries counts the HTTP attempts sent again, by reason: a
+	// *atomic.Int64 per reason.
+	retries sync.Map
+
 	budgetMu sync.Mutex
 	budget   prefetchBudget
 }
@@ -273,9 +277,22 @@ func (s *Stats) HTTPWait(d time.Duration) {
 	}
 }
 
+// HTTPRetry counts an HTTP request sent again after an attempt that failed
+// for reason, such as timeout.
+func (s *Stats) HTTPRetry(reason string) {
+	v, ok := s.retries.Load(reason)
+	if !ok {
+		v, _ = s.retries.LoadOrStore(reason, new(atomic.Int64))
+	}
+	v.(*atomic.Int64).Add(1)
+}
+
 // CountHTTPWait counts a request that waited d to be sent in the default
 // stats.
 func CountHTTPWait(d time.Duration) { Default().HTTPWait(d) }
+
+// CountHTTPRetry counts an HTTP request sent again in the default stats.
+func CountHTTPRetry(reason string) { Default().HTTPRetry(reason) }
 
 // CountHTTP counts an HTTP attempt in the default stats.
 func CountHTTP(h HTTP) { Default().HTTP(h) }

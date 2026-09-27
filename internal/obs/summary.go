@@ -8,21 +8,24 @@ import (
 	"math"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
 // Summary is what the stats counted since they started. Its fields are
-// logged as they are, so their JSON names are the record's keys.
+// logged as they are, so their JSON names are the record's keys. Retries
+// counts the requests sent again, by why the attempt before failed.
 type Summary struct {
-	UptimeS    float64         `json:"uptime_s"`
-	Quotas     []QuotaSummary  `json:"quotas"`
-	Routes     []RouteSummary  `json:"routes"`
-	Waits      WaitSummary     `json:"http_waits"`
-	Cache      []CacheSummary  `json:"cache"`
-	Disk       []DiskSummary   `json:"disk"`
-	Prefetch   []PrefetchStats `json:"prefetch"`
-	Budget     BudgetSummary   `json:"prefetch_budget"`
-	Revalidate RevalSummary    `json:"revalidate"`
+	UptimeS    float64          `json:"uptime_s"`
+	Quotas     []QuotaSummary   `json:"quotas"`
+	Routes     []RouteSummary   `json:"routes"`
+	Waits      WaitSummary      `json:"http_waits"`
+	Retries    map[string]int64 `json:"http_retries"`
+	Cache      []CacheSummary   `json:"cache"`
+	Disk       []DiskSummary    `json:"disk"`
+	Prefetch   []PrefetchStats  `json:"prefetch"`
+	Budget     BudgetSummary    `json:"prefetch_budget"`
+	Revalidate RevalSummary     `json:"revalidate"`
 }
 
 // QuotaSummary covers the requests of one API against one rate-limit
@@ -169,6 +172,12 @@ func (s *Stats) Summary() Summary {
 		MaxMS:    Millis(time.Duration(s.maxWait.Load())),
 	}
 
+	out.Retries = make(map[string]int64)
+	s.retries.Range(func(k, v any) bool {
+		out.Retries[k.(string)] = v.(*atomic.Int64).Load()
+		return true
+	})
+
 	for kind, c := range each[CacheEvent](&s.cache) {
 		hit, miss, shared := c.get(MemoryHit), c.get(MemoryMiss), c.get(Shared)
 		if hit+miss+shared+c.get(Seeded)+c.get(Evicted) > 0 {
@@ -217,6 +226,7 @@ func (s *Stats) Log(ctx context.Context) {
 		slog.Any("quotas", sum.Quotas),
 		slog.Any("routes", sum.Routes),
 		slog.Any("http_waits", sum.Waits),
+		slog.Any("http_retries", sum.Retries),
 		slog.Any("cache", sum.Cache),
 		slog.Any("disk", sum.Disk),
 		slog.Any("prefetch", sum.Prefetch),
