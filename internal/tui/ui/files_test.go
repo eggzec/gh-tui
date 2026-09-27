@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"path"
+	"strings"
 	"testing"
 
 	"charm.land/lipgloss/v2"
@@ -9,6 +11,16 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 )
+
+// glob is the icon of the files that match pattern.
+func glob(pattern string) FileIcon {
+	for _, g := range nerdFiles.globs {
+		if g.glob == pattern {
+			return g.icon
+		}
+	}
+	panic("no glob " + pattern)
+}
 
 func file(name string) core.TreeEntry { return core.TreeEntry{Name: name, Type: core.EntryBlob} }
 func dir(name string) core.TreeEntry  { return core.TreeEntry{Name: name, Type: core.EntryTree} }
@@ -21,6 +33,9 @@ func TestFileIconsAreOneCellWide(t *testing.T) {
 			icons = append(icons, fi)
 		}
 	}
+	for _, g := range f.globs {
+		icons = append(icons, g.icon)
+	}
 	for _, fi := range icons {
 		if w := ansi.StringWidth(fi.Glyph); w != 1 || len([]rune(fi.Glyph)) != 1 {
 			t.Errorf("glyph %q is %d cells wide, want 1", fi.Glyph, w)
@@ -28,6 +43,37 @@ func TestFileIconsAreOneCellWide(t *testing.T) {
 		if _, ok := luminance(fi.Color); fi.Color != "" && !ok {
 			t.Errorf("glyph %q has color %q, want a hex color", fi.Glyph, fi.Color)
 		}
+	}
+}
+
+func TestFileIconGlobsAreValid(t *testing.T) {
+	for _, g := range nerdFiles.globs {
+		if _, err := path.Match(g.glob, ""); err != nil {
+			t.Errorf("glob %q: %v", g.glob, err)
+		}
+		if g.glob != strings.ToLower(g.glob) {
+			t.Errorf("glob %q should be lower case, since names are", g.glob)
+		}
+	}
+}
+
+func TestFileIconGlobIndex(t *testing.T) {
+	names := make([]string, 0, len(nerdFiles.globs))
+	for _, g := range nerdFiles.globs {
+		names = append(names, strings.ReplaceAll(g.glob, "*", "x"))
+	}
+	names = append(names, "compose.ci.yml", "docker-compose.yaml", "tsconfig.base.json",
+		".eslintrc", ".eslintrc.json", "eslint.config.js", ".prettierrc.yml", "openapi.json",
+		"swagger.yaml", "azure-pipelines.yml", "main.go", "procfile", "x.yml", "x.json")
+	for _, name := range names {
+		want, wantOK := match(nerdFiles.globs, name)
+		got, ok := match(nerdFiles.extGlobs(path.Ext(name)), name)
+		if got != want || ok != wantOK {
+			t.Errorf("%q: indexed globs give %q %v, want %q %v", name, got.Glyph, ok, want.Glyph, wantOK)
+		}
+	}
+	if n := len(nerdFiles.extGlobs(".go")); n > 4 {
+		t.Errorf("a Go file tries %d globs, want at most 4", n)
 	}
 }
 
@@ -54,6 +100,16 @@ func TestEntryIcon(t *testing.T) {
 		{entry: file(".golangci.yml"), want: f.names[".golangci.yml"]},
 		{entry: file("pnpm-lock.yaml"), want: f.names["pnpm-lock.yaml"]},
 		{entry: file("Chart.lock"), want: f.names["chart.lock"]},
+		// Then a glob of the name.
+		{entry: file("compose.prod.yaml"), want: lang("Dockerfile")},
+		{entry: file("docker-compose.override.yml"), want: lang("Dockerfile")},
+		{entry: file("tsconfig.json"), want: glob("tsconfig*.json")},
+		{entry: file("TSConfig.Build.json"), want: glob("tsconfig*.json")},
+		{entry: file(".eslintrc.cjs"), want: glob(".eslintrc*")},
+		{entry: file("prettier.config.mjs"), want: glob("prettier.config.*")},
+		{entry: file("openapi.v2.YAML"), want: glob("openapi*.yaml")},
+		{entry: file("azure-pipelines.yml"), want: glob("azure-pipelines*.yml")},
+		{entry: file("compose.yml.md"), want: lang("Markdown")},
 		// Documents are named by their stem, with a text extension or none.
 		{entry: file("LICENSE"), want: f.stems["license"]},
 		{entry: file("License.md"), want: f.stems["license"]},

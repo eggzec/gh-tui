@@ -29,6 +29,12 @@ type fileIcons struct {
 	// the dot. stems names files such as LICENSE by the name before the
 	// extension, for a text extension or none.
 	names, stems, exts, dirs map[string]FileIcon
+	// globs name files by patterns such as tsconfig*.json, in order, for
+	// the tools that read several names. globsByExt holds them by the
+	// extension a name needs to match them, so that a name tries only a
+	// few.
+	globs      []globIcon
+	globsByExt map[string][]globIcon
 
 	file, dir, dirOpen, submodule, symlink FileIcon
 }
@@ -52,12 +58,69 @@ func (ic Icons) Entry(e core.TreeEntry, open bool) FileIcon {
 	}
 }
 
+// globIcon is the icon of the files whose lower-cased name matches glob,
+// a path.Match pattern.
+type globIcon struct {
+	glob string
+	icon FileIcon
+}
+
+// match returns the icon of the first of gs that name matches.
+func match(gs []globIcon, name string) (FileIcon, bool) {
+	for _, g := range gs {
+		if ok, _ := path.Match(g.glob, name); ok {
+			return g.icon, true
+		}
+	}
+	return FileIcon{}, false
+}
+
+// indexGlobs indexes the globs of f by the extension a name needs to
+// match each, such as .yml for openapi*.yml. A glob that leaves the
+// extension open, such as .eslintrc*, is under every extension, and alone
+// under "". Each list keeps the order of the globs.
+func indexGlobs(f *fileIcons) *fileIcons {
+	f.globsByExt = map[string][]globIcon{"": nil}
+	for _, g := range f.globs {
+		f.globsByExt[globExt(g.glob)] = nil
+	}
+	for ext := range f.globsByExt {
+		for _, g := range f.globs {
+			if e := globExt(g.glob); e == "" || e == ext {
+				f.globsByExt[ext] = append(f.globsByExt[ext], g)
+			}
+		}
+	}
+	return f
+}
+
+// globExt returns the extension of every name glob matches, or "" when
+// glob leaves it open.
+func globExt(glob string) string {
+	ext := path.Ext(glob)
+	if strings.ContainsAny(ext, `*?[]\`) {
+		return ""
+	}
+	return ext
+}
+
+// extGlobs returns the globs that a name with extension ext may match.
+func (f *fileIcons) extGlobs(ext string) []globIcon {
+	if gs, ok := f.globsByExt[ext]; ok {
+		return gs
+	}
+	return f.globsByExt[""]
+}
+
 func (f *fileIcons) fileIcon(name string) FileIcon {
 	name = strings.ToLower(name)
 	if fi, ok := f.names[name]; ok {
 		return fi
 	}
 	ext := path.Ext(name)
+	if fi, ok := match(f.extGlobs(ext), name); ok {
+		return fi
+	}
 	if textExts[ext] {
 		if fi, ok := f.stems[strings.TrimSuffix(name, ext)]; ok {
 			return fi
@@ -105,7 +168,7 @@ const (
 	npmColor    = "#e8274b"
 )
 
-var nerdFiles = &fileIcons{
+var nerdFiles = indexGlobs(&fileIcons{
 	file:      FileIcon{"\uf4a5", ""},          // oct-file
 	dir:       FileIcon{"\ue5ff", folderColor}, // custom-folder
 	dirOpen:   FileIcon{"\ue5fe", folderColor}, // custom-folder_open
@@ -125,46 +188,42 @@ var nerdFiles = &fileIcons{
 		"__tests__":    {"\uf499", folderColor},
 	},
 	names: map[string]FileIcon{
-		"dockerfile":          lang("Dockerfile"),
-		"containerfile":       lang("Dockerfile"),
-		".dockerignore":       lang("Dockerfile"),
-		"compose.yml":         lang("Dockerfile"),
-		"compose.yaml":        lang("Dockerfile"),
-		"docker-compose.yml":  lang("Dockerfile"),
-		"docker-compose.yaml": lang("Dockerfile"),
-		"go.mod":              lang("Go"),
-		"go.sum":              lang("Go"),
-		"go.work":             lang("Go"),
-		"go.work.sum":         lang("Go"),
-		"makefile":            lang("Makefile"),
-		"gnumakefile":         lang("Makefile"),
-		"cmakelists.txt":      lang("CMake"),
-		"justfile":            {"\uf0ad", "#6d8086"}, // fa-wrench
-		".gitignore":          {"\ue702", gitColor},  // dev-git
-		".gitattributes":      {"\ue702", gitColor},
-		".gitmodules":         {"\ue702", gitColor},
-		".gitkeep":            {"\ue702", gitColor},
-		".mailmap":            {"\ue702", gitColor},
-		"package.json":        {"\ue71e", npmColor}, // dev-npm
-		"package-lock.json":   {"\ue71e", npmColor},
-		".npmrc":              {"\ue71e", npmColor},
-		".npmignore":          {"\ue71e", npmColor},
-		"yarn.lock":           {"\ue6a7", "#2c8ebb"}, // seti-yarn
-		"tsconfig.json":       lang("TypeScript"),
-		"cargo.toml":          lang("Rust"),
-		"cargo.lock":          lang("Rust"),
-		"gemfile":             lang("Ruby"),
-		"gemfile.lock":        lang("Ruby"),
-		"rakefile":            lang("Ruby"),
-		"pyproject.toml":      lang("Python"),
-		"requirements.txt":    lang("Python"),
-		"pipfile":             lang("Python"),
-		"pipfile.lock":        lang("Python"),
-		"flake.nix":           lang("Nix"),
-		"flake.lock":          lang("Nix"),
-		".editorconfig":       {"\ue652", "#fff2f2"}, // seti-editorconfig
-		".envrc":              {"\uf462", "#faf743"}, // oct-sliders
-		".eslintrc":           {"\ue655", "#4b32c3"}, // seti-eslint
+		"dockerfile":        lang("Dockerfile"),
+		"containerfile":     lang("Dockerfile"),
+		".dockerignore":     lang("Dockerfile"),
+		"compose.yml":       lang("Dockerfile"),
+		"compose.yaml":      lang("Dockerfile"),
+		"go.mod":            lang("Go"),
+		"go.sum":            lang("Go"),
+		"go.work":           lang("Go"),
+		"go.work.sum":       lang("Go"),
+		"makefile":          lang("Makefile"),
+		"gnumakefile":       lang("Makefile"),
+		"cmakelists.txt":    lang("CMake"),
+		"justfile":          {"\uf0ad", "#6d8086"}, // fa-wrench
+		".gitignore":        {"\ue702", gitColor},  // dev-git
+		".gitattributes":    {"\ue702", gitColor},
+		".gitmodules":       {"\ue702", gitColor},
+		".gitkeep":          {"\ue702", gitColor},
+		".mailmap":          {"\ue702", gitColor},
+		"package.json":      {"\ue71e", npmColor}, // dev-npm
+		"package-lock.json": {"\ue71e", npmColor},
+		".npmrc":            {"\ue71e", npmColor},
+		".npmignore":        {"\ue71e", npmColor},
+		"yarn.lock":         {"\ue6a7", "#2c8ebb"}, // seti-yarn
+		"cargo.toml":        lang("Rust"),
+		"cargo.lock":        lang("Rust"),
+		"gemfile":           lang("Ruby"),
+		"gemfile.lock":      lang("Ruby"),
+		"rakefile":          lang("Ruby"),
+		"pyproject.toml":    lang("Python"),
+		"requirements.txt":  lang("Python"),
+		"pipfile":           lang("Python"),
+		"pipfile.lock":      lang("Python"),
+		"flake.nix":         lang("Nix"),
+		"flake.lock":        lang("Nix"),
+		".editorconfig":     {"\ue652", "#fff2f2"}, // seti-editorconfig
+		".envrc":            {"\uf462", "#faf743"}, // oct-sliders
 		// GitHub, and the tools that run on a repository.
 		"codeowners":               {"\uf4fd", "#afb42b"}, // oct-people
 		"action.yml":               {"\ueaff", "#2088ff"}, // cod-github_action
@@ -236,6 +295,26 @@ var nerdFiles = &fileIcons{
 		"biome.jsonc":         {"\ue8fb", "#60a5fa"},
 		"turbo.json":          {"\ue94d", "#ff1e56"}, // dev-turbo
 		"poetry.lock":         {"\ue867", "#60a5fa"}, // dev-poetry
+	},
+	globs: []globIcon{
+		{"compose.*.yml", lang("Dockerfile")},
+		{"compose.*.yaml", lang("Dockerfile")},
+		{"*docker*compose*.yml", lang("Dockerfile")},
+		{"*docker*compose*.yaml", lang("Dockerfile")},
+		{"tsconfig*.json", FileIcon{"\ue69d", "#3178c6"}}, // seti-tsconfig
+		{"jsconfig*.json", FileIcon{"\ue69d", "#3178c6"}},
+		{".eslintrc*", FileIcon{"\ue655", "#4b32c3"}}, // seti-eslint
+		{"eslint.config.*", FileIcon{"\ue655", "#4b32c3"}},
+		{".prettierrc*", FileIcon{"\ue6b4", "#56b3b4"}}, // custom-prettier
+		{"prettier.config.*", FileIcon{"\ue6b4", "#56b3b4"}},
+		{"openapi*.yml", FileIcon{"\ue852", "#6ba539"}}, // dev-openapi
+		{"openapi*.yaml", FileIcon{"\ue852", "#6ba539"}},
+		{"openapi*.json", FileIcon{"\ue852", "#6ba539"}},
+		{"swagger*.yml", FileIcon{"\ue8b8", "#85ea2d"}}, // dev-swagger
+		{"swagger*.yaml", FileIcon{"\ue8b8", "#85ea2d"}},
+		{"swagger*.json", FileIcon{"\ue8b8", "#85ea2d"}},
+		{"azure-pipelines*.yml", FileIcon{"\ue756", "#0078d7"}}, // dev-azuredevops
+		{"azure-pipelines*.yaml", FileIcon{"\ue756", "#0078d7"}},
 	},
 	stems: map[string]FileIcon{
 		"license":         {"\ue60a", "#d0bf41"}, // seti-license
@@ -414,4 +493,4 @@ var nerdFiles = &fileIcons{
 		"gpg":        {"\uf43d", "#e3c58e"},
 		"sig":        {"\uf43d", "#e3c58e"},
 	},
-}
+})
