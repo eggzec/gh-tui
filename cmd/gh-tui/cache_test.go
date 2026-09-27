@@ -36,15 +36,18 @@ func TestOpenDiskDisabled(t *testing.T) {
 }
 
 func TestOpenDiskFails(t *testing.T) {
-	file := filepath.Join(t.TempDir(), "file")
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	file := filepath.Join(home, "file")
 	if err := os.WriteFile(file, nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	cfg := config.Default().Cache.Disk
 	cfg.Dir = file
 	store, warning := openDisk(t.Context(), cfg, "api.github.com")
-	if store != nil || !strings.Contains(warning, "memory only") {
-		t.Errorf("openDisk = %v, %q; want no store and a warning", store, warning)
+	want := "The cache is in memory only: couldn't open " + filepath.Join("~", "file") + " ("
+	if store != nil || !strings.HasPrefix(warning, want) || strings.Contains(warning, home) {
+		t.Errorf("openDisk = %v, %q; want no store and a warning that starts %q and doesn't name the home directory", store, warning, want)
 	}
 }
 
