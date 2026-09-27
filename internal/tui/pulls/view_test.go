@@ -2,10 +2,12 @@ package pulls
 
 import (
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/charmbracelet/x/exp/golden"
 
+	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -94,5 +96,55 @@ func list(width int) func(t *testing.T) string {
 		s := started(t, newFakeService(), width, 10)
 		press(t, s, "down")
 		return s.View()
+	}
+}
+
+func TestConfirmView(t *testing.T) {
+	// A long base branch wraps the question to two lines at 80 columns,
+	// and the method stays in view.
+	long := func(t *testing.T, width int) *host {
+		t.Helper()
+		svc := newFakeService()
+		svc.pulls[0].BaseRef = "release/v2.0-beta-candidate"
+		s := started(t, svc, width, 30, WithMergeMethod(core.MergeCommit))
+		return s
+	}
+	t.Run("long merge in the modal at 80 columns", func(t *testing.T) {
+		s := long(t, 80)
+		press(t, s, "enter")
+		press(t, s, "m")
+		lines := strings.Split(s.modal().View(), "\n")
+		golden.RequireEqual(t, strings.Join(lines[len(lines)-2:], "\n"))
+	})
+	t.Run("long merge from the list at 80 columns", func(t *testing.T) {
+		s := long(t, 80)
+		press(t, s, "m")
+		m, ok := s.modals[len(s.modals)-1].(*ui.ConfirmModal)
+		if !ok {
+			t.Fatal("merge opened no question")
+		}
+		m.SetSize(m.Fit(80-2*max(80/10, 2)-4, 30))
+		golden.RequireEqual(t, m.View())
+	})
+	for _, width := range []int{80, 120} {
+		w := strconv.Itoa(width)
+		t.Run("merge in the modal at "+w+" columns", func(t *testing.T) {
+			s := started(t, newFakeService(), width, 30)
+			press(t, s, "enter")
+			press(t, s, "m")
+			v := s.modal().View()
+			golden.RequireEqual(t, v[strings.LastIndexByte(v, '\n')+1:])
+		})
+		t.Run("close from the list at "+w+" columns", func(t *testing.T) {
+			s := started(t, newFakeService(), width, 30)
+			press(t, s, "x")
+			m, ok := s.modals[len(s.modals)-1].(*ui.ConfirmModal)
+			if !ok {
+				t.Fatal("close opened no question")
+			}
+			// Sized as the app sizes it, inside the frame over the screen.
+			m.SetSize(m.Fit(width-2*max(width/10, 2)-4, 30))
+			golden.RequireEqual(t, m.View())
+		})
 	}
 }

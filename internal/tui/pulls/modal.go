@@ -16,6 +16,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
 	"github.com/eggzec/gh-tui/internal/service/actions"
+	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/checks"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
@@ -74,6 +75,10 @@ type detailModal struct {
 	checksSvc checks.Service
 	newChecks func() *checks.Step
 	checks    *checks.Step
+	// ask is the change waiting for the user to confirm it, on the last
+	// line, in the styles of confirmSt.
+	ask       *ui.Confirm
+	confirmSt ui.ConfirmStyles
 
 	width, height int
 	theme         ui.Theme
@@ -111,7 +116,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 		icons:       s.icons,
 		checksSvc:   s.checks,
 	}
-	m.theme, m.runSt = s.theme, ui.NewRunStyles(s.theme, s.icons)
+	m.theme, m.runSt, m.confirmSt = s.theme, ui.NewRunStyles(s.theme, s.icons), s.theme.Confirm()
 	if s.checks != nil {
 		svc, keys := s.checks, s.rawKeys
 		opts := append(slices.Clone(s.checksOpts), checks.WithReturn(m), checks.WithIcons(s.icons), checks.WithClock(s.now))
@@ -208,6 +213,7 @@ func (m *detailModal) SetTheme(t ui.Theme) {
 	m.theme = t
 	m.st = newStyles(t, m.icons)
 	m.runSt = ui.NewRunStyles(t, m.icons)
+	m.confirmSt = t.Confirm()
 	m.thread.SetStyles(t.Thread())
 	if m.checks != nil {
 		m.checks.SetTheme(t)
@@ -224,6 +230,14 @@ func (m *detailModal) View() string {
 	}
 	if m.checks != nil {
 		return m.checks.View()
+	}
+	if m.ask != nil {
+		// The question lines up with the detail, behind its gutter.
+		lines := m.ask.Lines(m.confirmSt, m.keys.confirm, max(m.width-len(gutter), 0), min(m.height, ui.ConfirmLines))
+		for i, l := range lines {
+			lines[i] = ansi.Truncate(gutter+l, m.width, "")
+		}
+		return ui.OverLastLines(m.thread.View(), lines)
 	}
 	return m.thread.View()
 }
@@ -317,6 +331,9 @@ func (m *detailModal) updateDetail(msg tea.Msg) tea.Cmd {
 }
 
 func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
+	if m.ask != nil {
+		return m.answer(msg)
+	}
 	k := m.keys
 	switch {
 	case key.Matches(msg, k.Back):
@@ -335,20 +352,48 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 		}
 		return nil
 	case k.isChange(msg):
-		if !m.loaded {
-			return nil
-		}
-		op, what, warn := k.change(m.svc, m.gate(), m.mergeMethod, m.detail.PullRequest, msg)
-		if op == nil {
-			return warn
-		}
-		repo := m.repo
-		return tea.Batch(m.reload(),
-			func() tea.Msg { return changedMsg{repo: repo} },
-			ui.Do(m.sendCtx, ui.PullsTitle, op, what))
+		return m.change(msg)
 	}
 	var cmd tea.Cmd
 	m.thread, cmd = m.thread.Update(msg)
+	return cmd
+}
+
+// change starts the change that msg asks of the pull request, once the
+// user confirms it on the last line of the modal. The change shows at once
+// in the modal and the list behind it, and then it is sent.
+func (m *detailModal) change(msg tea.KeyPressMsg) tea.Cmd {
+	if !m.loaded {
+		return nil
+	}
+	c, ok, warn := m.keys.change(m.svc, m.gate(), m.mergeMethod, m.detail.PullRequest, msg)
+	if !ok {
+		return warn
+	}
+	repo := m.repo
+	run := m.keys.confirmed(m.svc, m.mergeMethod, m.number, c.question, msg,
+		func() (core.PullRequest, ui.Gate, bool) {
+			return m.detail.PullRequest, m.gate(), m.loaded
+		},
+		func(op *optimistic.Op, what string) tea.Cmd {
+			return tea.Batch(m.reload(),
+				func() tea.Msg { return changedMsg{repo: repo} },
+				ui.Do(m.sendCtx, ui.PullsTitle, op, what))
+		})
+	if c.question == "" {
+		return run()
+	}
+	m.ask = &ui.Confirm{Question: c.question, Run: run}
+	return nil
+}
+
+// answer takes the answer to the question on the last line: yes makes the
+// change, and no steps back to the detail. Other keys do nothing.
+func (m *detailModal) answer(msg tea.KeyPressMsg) tea.Cmd {
+	cmd, done := m.keys.confirm.Answer(*m.ask, msg)
+	if done {
+		m.ask = nil
+	}
 	return cmd
 }
 
@@ -399,6 +444,9 @@ func (m *detailModal) show() tea.Cmd {
 func (m *detailModal) Help() help.KeyMap {
 	if m.checks != nil {
 		return m.checks.Help()
+	}
+	if m.ask != nil {
+		return m.keys.confirm
 	}
 	k, t := m.keys, m.keys.thread
 	changes := k.changeHelp(m.gate(), m.mergeMethod, m.detail.PullRequest, m.loaded)

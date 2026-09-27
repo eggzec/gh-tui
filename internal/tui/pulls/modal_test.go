@@ -271,6 +271,7 @@ func TestOpenFromSearch(t *testing.T) {
 		}
 		// The modal's changes go to its repository.
 		press(t, h, "x")
+		press(t, h, "y")
 		if got := svc.changes(); !slices.Equal(got, []string{"close 7"}) {
 			t.Errorf("changes = %v, want close 7", got)
 		}

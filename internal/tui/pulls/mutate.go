@@ -47,43 +47,115 @@ func (k keyMap) action(pr core.PullRequest, msg tea.KeyPressMsg) (ui.Action, boo
 	return 0, false
 }
 
-// change starts the change that msg asks of pr: the service shows it in
-// the cache at once and returns the op that sends it, named by what. When
-// the change doesn't apply, or g refuses it, op is nil, and warn may
-// explain why. A merge uses method, or else one the repository allows.
-func (k keyMap) change(svc Service, g ui.Gate, method core.MergeMethod, pr core.PullRequest, msg tea.KeyPressMsg) (op *optimistic.Op, what string, warn tea.Cmd) {
+// change is a change that a key asks of a pull request: start shows it
+// in the cache at once and returns the op that sends it, named by what.
+// question asks the user to confirm it first, or is empty when it needs
+// no confirmation.
+type change struct {
+	question, what string
+	start          func() *optimistic.Op
+}
+
+// change returns the change that msg asks of pr, and ok when there is one.
+// When the change doesn't apply, or g refuses it, ok is unset, and warn
+// may explain why. A merge uses method, or else one the repository allows.
+func (k keyMap) change(svc Service, g ui.Gate, method core.MergeMethod, pr core.PullRequest, msg tea.KeyPressMsg) (c change, ok bool, warn tea.Cmd) {
 	a, ok := k.action(pr, msg)
 	if !ok {
-		return nil, "", nil
+		return change{}, false, nil
 	}
 	if cmd, refused := g.Refuse(a, &pr.Issue); refused {
-		return nil, "", cmd
+		return change{}, false, cmd
 	}
-	n := "#" + strconv.Itoa(pr.Number)
+	repo, number := g.Repo, pr.Number
+	n := "#" + strconv.Itoa(number)
 	switch a {
 	case ui.ActMerge:
 		if pr.Draft {
-			return nil, "", ui.Notify(toast.Warning, "Mark "+n+" ready for review before merging it.")
+			return change{}, false, ui.Notify(toast.Warning, "Mark "+n+" ready for review before merging it.")
 		}
 		m, _ := g.Caps.MergeMethod(method)
-		return svc.Merge(g.Repo, pr.Number, m), "merge " + n, nil
+		return change{
+			question: mergeQuestion(pr, m),
+			what:     "merge " + n,
+			start:    func() *optimistic.Op { return svc.Merge(repo, number, m) },
+		}, true, nil
 	case ui.ActClose:
-		return svc.Close(g.Repo, pr.Number), "close " + n, nil
+		return change{
+			question: "Close PR " + n + "?",
+			what:     "close " + n,
+			start:    func() *optimistic.Op { return svc.Close(repo, number) },
+		}, true, nil
 	case ui.ActReopen:
-		return svc.Reopen(g.Repo, pr.Number), "reopen " + n, nil
+		return change{
+			question: "Reopen PR " + n + "?",
+			what:     "reopen " + n,
+			start:    func() *optimistic.Op { return svc.Reopen(repo, number) },
+		}, true, nil
 	case ui.ActDraft:
 		if pr.Draft {
-			return svc.MarkReady(g.Repo, pr.Number), "mark " + n + " ready", nil
+			return change{what: "mark " + n + " ready", start: func() *optimistic.Op { return svc.MarkReady(repo, number) }}, true, nil
 		}
-		return svc.ConvertToDraft(g.Repo, pr.Number), "convert " + n + " to draft", nil
+		return change{what: "convert " + n + " to draft", start: func() *optimistic.Op { return svc.ConvertToDraft(repo, number) }}, true, nil
 	case ui.ActComment, ui.ActLabel, ui.ActRerun, ui.ActCancelRun:
 	}
-	return nil, "", nil
+	return change{}, false, nil
+}
+
+// mergeQuestion asks to merge pr with method, such as "Squash-merge #79
+// into main?". The screen shows the repository, so the question leaves
+// it out, and it leads with the method, which a cut would lose.
+func mergeQuestion(pr core.PullRequest, method core.MergeMethod) string {
+	n := "#" + strconv.Itoa(pr.Number)
+	var into string
+	if pr.BaseRef != "" {
+		into = " into " + pr.BaseRef
+	}
+	switch method {
+	case core.MergeSquash:
+		return "Squash-merge " + n + into + "?"
+	case core.MergeRebase:
+		return "Rebase-merge " + n + into + "?"
+	case core.MergeCommit:
+		return "Merge " + n + into + " with a merge commit?"
+	}
+	return "Merge " + n + into + "?"
+}
+
+// confirmed returns what makes the change that msg asked of pull request
+// number, when the user says yes to question, or at once for a change that
+// asks nothing. By then the pull request may have changed, such as merged
+// elsewhere or retargeted, and so may what the viewer may do and how the
+// repository merges, so it asks for the change again of the pull request
+// and the gate that now returns. send sends that one only if it is still
+// the change that question asked, and otherwise nothing.
+func (k keyMap) confirmed(svc Service, method core.MergeMethod, number int, question string, msg tea.KeyPressMsg,
+	now func() (core.PullRequest, ui.Gate, bool), send func(op *optimistic.Op, what string) tea.Cmd,
+) func() tea.Cmd {
+	return func() tea.Cmd {
+		pr, g, found := now()
+		var c change
+		var ok bool
+		var warn tea.Cmd
+		if found {
+			c, ok, warn = k.change(svc, g, method, pr, msg)
+		}
+		// The question names the pull request, so a different one, such as
+		// the one under a cursor that moved, asks another question too.
+		switch {
+		case ok && c.question == question:
+			return send(c.start(), c.what)
+		case warn != nil:
+			return warn
+		}
+		return ui.Notify(toast.Info, "#"+strconv.Itoa(number)+" changed meanwhile, so nothing was sent.")
+	}
 }
 
 // mutate starts the change that msg asks of the selected pull request, if
-// it is one. The change shows at once, and ui.Do sends it; the DoneMsg
-// that follows shows the outcome.
+// it is one, once the user confirms it in a modal of its own. The change
+// shows at once, and ui.Do sends it; the DoneMsg that follows shows the
+// outcome.
 func (s *Section) mutate(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	if !s.keys.isChange(msg) {
 		return nil, false
@@ -92,11 +164,22 @@ func (s *Section) mutate(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	if !ok {
 		return nil, true
 	}
-	op, what, warn := s.keys.change(s.svc, s.gate(), s.mergeMethod, pr, msg)
-	if op == nil {
+	c, ok, warn := s.keys.change(s.svc, s.gate(), s.mergeMethod, pr, msg)
+	if !ok {
 		return warn, true
 	}
-	return tea.Batch(s.reload(), ui.Do(s.ctx, ui.PullsTitle, op, what)), true
+	run := s.keys.confirmed(s.svc, s.mergeMethod, pr.Number, c.question, msg,
+		func() (core.PullRequest, ui.Gate, bool) {
+			pr, ok := s.target()
+			return pr, s.gate(), ok
+		},
+		func(op *optimistic.Op, what string) tea.Cmd {
+			return tea.Batch(s.reload(), ui.Do(s.ctx, ui.PullsTitle, op, what))
+		})
+	if c.question == "" {
+		return run(), true
+	}
+	return ui.OpenModal(ui.NewConfirmModal(ui.Confirm{Question: c.question, Run: run})), true
 }
 
 // reload shows the list again through the cache, which a change has just
