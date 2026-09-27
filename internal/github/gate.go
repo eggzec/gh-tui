@@ -1,8 +1,11 @@
 package github
 
 import (
+	"bytes"
 	"cmp"
 	"context"
+	"encoding/json"
+	"io"
 	"log/slog"
 	"math/rand/v2"
 	"net/http"
@@ -19,6 +22,13 @@ const (
 	// refills later fails at once, so that what was kept of it can be
 	// shown instead, with when the limit lifts.
 	foregroundWait = 2 * time.Second
+	// maxSecondaryWait is the longest that they are held for a secondary
+	// limit, as its Retry-After says.
+	maxSecondaryWait = 10 * time.Second
+	// maxSecondaryBackoff bounds how long a secondary limit that doesn't
+	// say how long it lasts is taken to last, which doubles each time one
+	// comes again before a request succeeds.
+	maxSecondaryBackoff = 15 * time.Minute
 	// deadlineMargin is how long before its deadline a held request must
 	// be sent at the latest. One that can't be fails at once, rather than
 	// wait only to run out of time.
@@ -92,6 +102,19 @@ type gate struct {
 	// reached is the reset of the window of each resource whose limit was
 	// logged as reached.
 	reached map[string]time.Time
+
+	// secondary is when the secondary limit lifts, which holds every
+	// request, or zero. backoff is how long the next one that doesn't say
+	// lasts, or zero for secondaryBackoff. timer moves the queues along
+	// when it lifts.
+	secondary time.Time
+	backoff   time.Duration
+	timer     *time.Timer
+	// lifting is set once the secondary limit lifted with requests held,
+	// until the first of them, the scout, is answered; the others wait
+	// for its answer.
+	lifting bool
+	scout   uint64
 	// closed is set once the client is closed, and then no timer is set.
 	closed bool
 }
@@ -149,23 +172,29 @@ func byTurn(a, b *hold) int {
 	return cmp.Or(cmp.Compare(a.class, b.class), cmp.Compare(a.seq, b.seq))
 }
 
-// limit is what stops a request: until when it lasts, and whether the
-// answers to the requests in flight may lift it sooner, since only they
-// make the quota short of what GitHub reported left.
+// limit is what stops a request: until when it lasts, whether it is a
+// secondary limit, and whether the answers to the requests in flight may
+// lift it sooner, since only they make the quota short of what GitHub
+// reported left.
 type limit struct {
-	until    time.Time
-	inFlight bool
+	until     time.Time
+	secondary bool
+	inFlight  bool
 }
 
 // tooLate returns why h can't wait for l to lift, or "" if it can: it
 // couldn't be sent deadlineMargin before its deadline, it would be held
-// longer than maxWindow, or longer than a request of its class waits. A
-// limit that answers may lift is waited for as long as the class waits,
-// and then no longer.
+// longer than maxWindow, or longer than a request of its class waits for
+// l. A limit that answers may lift is waited for as long as the class
+// waits, and then no longer.
 func (h *hold) tooLate(l limit, now time.Time) string {
 	until := later(l.until, now)
 	if l.inFlight {
 		until = now
+	}
+	wait := foregroundWait
+	if l.secondary {
+		wait = maxSecondaryWait
 	}
 	switch {
 	case !h.deadline.IsZero() && h.deadline.Before(until.Add(deadlineMargin)):
@@ -173,7 +202,7 @@ func (h *hold) tooLate(l limit, now time.Time) string {
 	case until.Sub(h.at) > maxWindow:
 		return "cap"
 	case h.class == classBackground:
-	case l.inFlight && now.Sub(h.at) >= foregroundWait, until.Sub(h.at) > foregroundWait:
+	case l.inFlight && now.Sub(h.at) >= wait, until.Sub(h.at) > wait:
 		return h.class.String()
 	}
 	return ""
@@ -197,14 +226,16 @@ func (l limit) expiry(held []*hold) time.Time {
 // admit counts req against its resource before it is sent, if its rate
 // limit lets it through: a request of a resource whose quota is spent, or
 // that costs more than is left of it once the requests in flight are
-// answered, isn't sent only to be refused. What becomes of it then
-// depends on who waits for it. A read ahead fails at once, and so does
-// one that would take what is kept of the quota for what the user asks
-// for (prefetchReserve). A read the user waits for, or a change they
-// asked for, is held if the limit lifts within foregroundWait, and fails
-// at once otherwise; if only the requests in flight make the quota short
-// of what GitHub reported left, it waits up to foregroundWait for their
-// answers. A request of a background loop is held until the limit lifts. A request that couldn't be sent deadlineMargin before its
+// answered, isn't sent only to be refused, nor any request while a
+// secondary limit is on. What becomes of it then depends on who waits for
+// it. A read ahead fails at once, and so does one that would take what is
+// kept of the quota for what the user asks for (prefetchReserve). A read
+// the user waits for, or a change they asked for, is held if the limit
+// lifts within foregroundWait, or maxSecondaryWait for a secondary limit,
+// and fails at once otherwise; if only the requests in flight make the
+// quota short of what GitHub reported left, it waits up to foregroundWait
+// for their answers. A request of a background loop is held until the
+// limit lifts. A request that couldn't be sent deadlineMargin before its
 // deadline fails at once, and one held longer than maxWindow fails then.
 // Each fails with a *core.RateLimitError that says when the limit lifts,
 // and a request whose context ends while it is held with the context's
@@ -226,7 +257,6 @@ func (b *budget) admit(req *http.Request) (*reservation, time.Duration, error) {
 	}
 	h := &hold{class: classOf(req, c), resource: resource, route: route}
 	h.deadline, _ = ctx.Deadline()
-
 	r, until, err := b.enter(ctx, h, c)
 	if r != nil || err != nil {
 		return r, 0, err
@@ -265,13 +295,15 @@ func (b *budget) enter(ctx context.Context, h *hold, c *call) (*reservation, tim
 		return b.reserve(h.resource, h.route, h.cost, now), until, nil
 	}
 	if why != "" {
-		if on {
+		if on && !l.secondary {
 			b.logReached(ctx, h.resource, until)
 		}
 		return nil, until, b.refuse(h.resource, why, until, now)
 	}
 	b.enqueue(h, now)
-	b.logReached(ctx, h.resource, until)
+	if !l.secondary {
+		b.logReached(ctx, h.resource, until)
+	}
 	b.pump()
 	return nil, until, nil
 }
@@ -291,12 +323,26 @@ func (b *budget) cost(resource string, c *call) int {
 }
 
 // limitOn reports whether a rate limit stops a request of resource that
-// costs cost, and until when: the release of its quota, if it is spent,
-// or else, if what is left of it once the requests in flight are answered
+// costs cost, and until when: a secondary limit, which stops every
+// request, or else the limit of its quota (spent). b.mu must be held.
+func (b *budget) limitOn(resource string, cost int, now time.Time) (limit, bool) {
+	g := &b.gate
+	switch {
+	case now.Before(g.secondary):
+		return limit{until: g.secondary, secondary: true}, true
+	case g.lifting:
+		return limit{until: now, secondary: true}, true
+	}
+	return b.spent(resource, cost, now)
+}
+
+// spent reports whether the quota of resource stops a request that costs
+// cost, and until when: the release of the quota, if it is spent, or
+// else, if what is left of it once the requests in flight are answered
 // doesn't cover cost, the end of its window and a guard. An until that
 // passed is a limit that may have lifted, which no answer showed yet.
 // b.mu must be held.
-func (b *budget) limitOn(resource string, cost int, now time.Time) (limit, bool) {
+func (b *budget) spent(resource string, cost int, now time.Time) (limit, bool) {
 	q := b.quotas[resource]
 	switch {
 	case q == nil:
@@ -453,30 +499,93 @@ func (b *budget) letGo(q *queue, h *hold, now time.Time) {
 // limits, or else the first request held, finds out first. b.mu must be
 // held.
 func (b *budget) pump() {
-	if len(b.gate.queues) == 0 {
+	g := &b.gate
+	if len(g.queues) == 0 && g.secondary.IsZero() && !g.lifting {
 		return
 	}
 	now := b.now()
-	for _, q := range b.gate.queues {
-		b.pumpQueue(q, now)
+	if !g.secondary.IsZero() && !now.Before(g.secondary) {
+		// No probe shows a secondary limit, so the first request held
+		// goes first, and the others wait for its answer.
+		g.secondary, g.lifting = time.Time{}, len(g.queues) > 0
+	}
+	if g.lifting && g.scout == 0 && !b.sendScout(now) {
+		g.lifting = false
+	}
+	switch {
+	case !g.secondary.IsZero():
+		for _, q := range g.queues {
+			b.expire(q, limit{until: g.secondary, secondary: true}, now)
+		}
+	case g.lifting:
+		for _, q := range g.queues {
+			b.expire(q, limit{until: now, secondary: true}, now)
+		}
+	default:
+		b.letGoInTurn(now)
+		for _, q := range g.queues {
+			b.pumpQueue(q, now)
+		}
 	}
 	b.tidy(now)
+	if !g.secondary.IsZero() && len(g.queues) > 0 {
+		g.timer = b.arm(g.timer, g.secondary.Sub(now))
+	}
 }
 
-// pumpQueue is pump for q. b.mu must be held.
-func (b *budget) pumpQueue(q *queue, now time.Time) {
-	for i := 0; i < len(q.held); {
-		if _, on := b.limitOn(q.resource, q.held[i].cost, now); on {
-			i++
-			continue
+// sendScout lets go the first request held whose quota isn't spent, as the
+// first sent once a secondary limit lifted, and reports whether there was
+// one. b.mu must be held.
+func (b *budget) sendScout(now time.Time) bool {
+	for {
+		var first *hold
+		var from *queue
+		for _, q := range b.gate.queues {
+			for _, h := range q.held {
+				if _, on := b.spent(q.resource, h.cost, now); on {
+					continue
+				}
+				if first == nil || byTurn(h, first) < 0 {
+					first, from = h, q
+				}
+				break
+			}
 		}
-		b.letGo(q, q.held[i], now)
+		if first == nil {
+			return false
+		}
+		b.letGo(from, first, now)
+		if first.r != nil {
+			b.gate.scout = first.r.seq
+			return true
+		}
 	}
+}
+
+// letGoInTurn lets go each request held whose quota covers it, of every
+// resource, by class and then as they came. b.mu must be held.
+func (b *budget) letGoInTurn(now time.Time) {
+	var held []*hold
+	for _, q := range b.gate.queues {
+		held = append(held, q.held...)
+	}
+	slices.SortFunc(held, byTurn)
+	for _, h := range held {
+		if _, on := b.spent(h.resource, h.cost, now); !on {
+			b.letGo(b.gate.queues[h.resource], h, now)
+		}
+	}
+}
+
+// pumpQueue fails the requests held in q that can't wait for the limit of
+// its quota, and sets its timer for the rest, or, if the limit may have
+// lifted, has a probe or the first of them find out. b.mu must be held.
+func (b *budget) pumpQueue(q *queue, now time.Time) {
 	if len(q.held) == 0 {
 		q.noProbe = false
 		return
 	}
-	l, _ := b.limitOn(q.resource, q.held[0].cost, now)
+	l, _ := b.spent(q.resource, q.held[0].cost, now)
 	if l.until.After(now) {
 		b.expire(q, l, now)
 		if len(q.held) > 0 {
@@ -524,7 +633,7 @@ func (b *budget) tidy(now time.Time) {
 			q.timer.Stop()
 		}
 		delete(b.gate.queues, resource)
-		if _, on := b.limitOn(resource, 1, now); q.released > 0 && !on {
+		if _, on := b.spent(resource, 1, now); q.released > 0 && !on {
 			released, dropped, failed, waited := q.released, q.dropped, q.failed, now.Sub(q.since)
 			b.log(func() {
 				slog.Info("rate limit lifted", "span", "http", "resource", resource, "released", released,
@@ -553,6 +662,9 @@ func (b *budget) close() {
 	defer b.mu.Unlock()
 	g := &b.gate
 	g.closed = true
+	if g.timer != nil {
+		g.timer.Stop()
+	}
 	for _, q := range g.queues {
 		if q.timer != nil {
 			q.timer.Stop()
@@ -568,14 +680,79 @@ func (b *budget) tick() {
 	b.pump()
 }
 
-// settle lets the requests held for the answer to r, if it was the scout
-// of its resource, go on, now that it was answered or got no answer, and
-// moves what is held along. b.mu must be held.
-func (b *budget) settle(r *reservation) {
-	if q := b.gate.queues[r.resource]; q != nil && q.scout == r.seq {
+// settle lets the requests held for the answer to r go on, if r was a
+// scout, now that it was answered, or has another request find out if it
+// got no answer, and moves what is held along. b.mu must be held.
+func (b *budget) settle(r *reservation, answered bool) {
+	g := &b.gate
+	if g.scout == r.seq {
+		g.scout = 0
+		g.lifting = g.lifting && !answered
+	}
+	if q := g.queues[r.resource]; q != nil && q.scout == r.seq {
 		q.scout = 0
 	}
 	b.pump()
+}
+
+// limitSecondary records a secondary limit, which holds every request
+// until at, or, if the answer didn't say, for secondaryBackoff, doubling
+// each time one comes again before a request succeeds, up to
+// maxSecondaryBackoff, as GitHub advises. It returns when the limit lifts.
+func (b *budget) limitSecondary(ctx context.Context, at time.Time, said bool) time.Time {
+	defer b.changed()
+	b.mu.Lock()
+	defer b.unlock()
+	now := b.now()
+	g := &b.gate
+	if !said {
+		wait := cmp.Or(g.backoff, secondaryBackoff)
+		at = now.Add(wait)
+		g.backoff = min(2*wait, maxSecondaryBackoff)
+	}
+	if !at.After(g.secondary) {
+		return g.secondary
+	}
+	if !now.Before(g.secondary) {
+		held := 0
+		for _, q := range g.queues {
+			held += len(q.held)
+		}
+		b.log(func() {
+			slog.InfoContext(ctx, "rate limit reached", "span", "http", "secondary", true,
+				"release", at, "held", held)
+		})
+	}
+	g.secondary = at
+	b.pump()
+	return at
+}
+
+// succeeded notes that a request succeeded, so that the next secondary
+// limit that doesn't say how long it lasts lasts secondaryBackoff again.
+func (b *budget) succeeded() {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.gate.backoff = 0
+}
+
+// liftsAt returns when a secondary limit that says it lifts at at lifts,
+// as far as the budget knows: at, or later if an answer since said so.
+func (b *budget) liftsAt(at time.Time) time.Time {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return later(at, b.gate.secondary)
+}
+
+// secondaryUntil returns when the secondary limit lifts, which holds every
+// request until then, or zero if none is on.
+func (b *budget) secondaryUntil() time.Time {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if !b.now().Before(b.gate.secondary) {
+		return time.Time{}
+	}
+	return b.gate.secondary
 }
 
 // runProbe asks GitHub for the rate limits, and has the budget learn what
@@ -613,7 +790,7 @@ func (b *budget) runProbe() {
 		if len(q.held) == 0 {
 			continue
 		}
-		if l, on := b.limitOn(q.resource, q.held[0].cost, now); on && !l.until.After(now) {
+		if l, on := b.spent(q.resource, q.held[0].cost, now); on && !l.until.After(now) {
 			quota := b.quotas[q.resource]
 			quota.guard = min(2*quota.guard, maxGuard)
 			quota.release = now.Add(quota.guard)
@@ -692,8 +869,64 @@ func (t *rateTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		t.budget.forget(r, req.Context().Err() == nil)
 		return nil, err
 	}
+	resp = t.noteSecondary(req, resp)
 	if guard := t.budget.observe(r, resp.Header); guard > 0 {
 		outlasted(req.Context(), r.resource, guard)
 	}
 	return resp, nil
+}
+
+// noteSecondary records the secondary limit that resp is, if it is one,
+// before resp settles its request, which may be the scout the others
+// wait for: a 403 or 429 of a quota that isn't spent, which says when to
+// try again, or is a 429, or says so in its message. A success starts the
+// backoff of secondary limits over, and the client tells of a GraphQL
+// query's (budget.succeeded). It returns resp, whose body reads as
+// it came.
+func (t *rateTransport) noteSecondary(req *http.Request, resp *http.Response) *http.Response {
+	switch resp.StatusCode {
+	case http.StatusForbidden, http.StatusTooManyRequests:
+	default:
+		// A GraphQL answer may be a secondary limit in its body, so
+		// the client says whether a query succeeded once it read it.
+		if resp.StatusCode < http.StatusBadRequest && req.URL.Path != t.budget.graphqlPath {
+			t.budget.succeeded()
+		}
+		return resp
+	}
+	if resp.Header.Get("X-RateLimit-Remaining") == "0" {
+		return resp
+	}
+	at, said := t.budget.retryAfter(resp.Header)
+	if !said && resp.StatusCode == http.StatusForbidden {
+		var secondary bool
+		if resp, secondary = peekSecondary(resp); !secondary {
+			return resp
+		}
+	}
+	t.budget.limitSecondary(req.Context(), at, said)
+	return resp
+}
+
+// maxErrorPeek is the most of the body of a 403 read to learn whether it
+// is a secondary limit. GitHub's error bodies are far smaller.
+const maxErrorPeek = 64 << 10
+
+// peekSecondary reads the body of resp, a 403, and reports whether its
+// message is GitHub's for a secondary limit. resp reads the same body as
+// it came.
+func peekSecondary(resp *http.Response) (*http.Response, bool) {
+	if resp.Body == nil {
+		return resp, false
+	}
+	b, err := io.ReadAll(io.LimitReader(resp.Body, maxErrorPeek))
+	resp.Body = struct {
+		io.Reader
+		io.Closer
+	}{io.MultiReader(bytes.NewReader(b), resp.Body), resp.Body}
+	var body apiError
+	if err != nil || json.Unmarshal(b, &body) != nil {
+		return resp, false
+	}
+	return resp, secondaryLimit(body.Message)
 }

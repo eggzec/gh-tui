@@ -409,3 +409,24 @@ func TestRateStatusHeld(t *testing.T) {
 		}
 	})
 }
+
+// TestRateStatusSecondary checks that a secondary limit shows in the
+// status until it lifts, and that both are told of.
+func TestRateStatusSecondary(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		h := &hub{limit: 5000, window: time.Hour}
+		c := newNotified(t, h)
+		h.secondary("30")
+		lifts := time.Now().Add(30 * time.Second)
+		_, _ = c.Get(t.Context(), "user", Conditional{}, nil)
+		time.Sleep(notifyEvery)
+		n, s := c.last()
+		if !s.SecondaryUntil.Equal(lifts) || !c.RateStatus().SecondaryUntil.Equal(lifts) {
+			t.Errorf("SecondaryUntil = %v, want %v", s.SecondaryUntil, lifts)
+		}
+		time.Sleep(time.Until(lifts))
+		if m, s := c.last(); m != n+1 || !s.SecondaryUntil.IsZero() {
+			t.Errorf("once it lifted: told %d times, SecondaryUntil %v; want %d, none", m, s.SecondaryUntil, n+1)
+		}
+	})
+}

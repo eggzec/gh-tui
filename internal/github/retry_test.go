@@ -130,7 +130,7 @@ func (s *script) attempts() (int, []time.Duration) {
 
 // scriptedClient returns a client whose requests s answers, with the
 // whole chain of transports, the default timeout per attempt, and the
-// backoff without its jitter.
+// backoff without its jitter, and the gate's stagger at its least.
 func scriptedClient(t *testing.T, s http.RoundTripper) *Client {
 	t.Helper()
 	c, err := New(WithBaseURL("https://gh.test/"), WithToken("t"),
@@ -139,6 +139,7 @@ func scriptedClient(t *testing.T, s http.RoundTripper) *Client {
 		t.Fatal(err)
 	}
 	c.http.Transport.(*retryTransport).jitter = func() float64 { return 0.5 }
+	c.budget.gate.jitter = func() float64 { return 0 }
 	return c
 }
 
@@ -197,13 +198,13 @@ func TestRetryPolicy(t *testing.T) {
 		{name: "get 500", send: get, steps: []step{serverError}, wantErr: true},
 		{name: "get 404", send: get, steps: []step{notFound}, wantErr: true},
 		{name: "get untrusted certificate", send: get, steps: []step{{err: errCert}}, wantErr: true},
-		{name: "get secondary limit waits once", send: get, steps: []step{secondary3, ok}, gaps: []time.Duration{3 * time.Second}},
-		{name: "get secondary limit twice", send: get, steps: []step{secondary3}, gaps: []time.Duration{3 * time.Second}, wantErr: true},
-		{name: "get 429 waits once", send: get, steps: []step{tooMany3, ok}, gaps: []time.Duration{3 * time.Second}},
-		{name: "get 503 after a secondary limit", send: get, steps: []step{secondary3, unavailable, ok}, gaps: []time.Duration{3 * time.Second, second}},
-		{name: "get slow secondary limit", send: get, steps: []step{slow(secondary3), ok}, gaps: []time.Duration{4*time.Second + 3*time.Second}},
+		{name: "get secondary limit waits once", send: get, steps: []step{secondary3, ok}, gaps: []time.Duration{3*time.Second + minStagger}},
+		{name: "get secondary limit twice", send: get, steps: []step{secondary3}, gaps: []time.Duration{3*time.Second + minStagger}, wantErr: true},
+		{name: "get 429 waits once", send: get, steps: []step{tooMany3, ok}, gaps: []time.Duration{3*time.Second + minStagger}},
+		{name: "get 503 after a secondary limit", send: get, steps: []step{secondary3, unavailable, ok}, gaps: []time.Duration{3*time.Second + minStagger, second}},
+		{name: "get slow secondary limit", send: get, steps: []step{slow(secondary3), ok}, gaps: []time.Duration{4*time.Second + 3*time.Second + minStagger}},
 		{name: "get secondary limit after 6s", send: get, steps: []step{{delay: 6 * time.Second, status: http.StatusForbidden, header: secondary3.header}, ok}, wantErr: true},
-		{name: "get 503 after a long secondary limit", send: get, steps: []step{secondary10, unavailable, ok}, gaps: []time.Duration{10 * time.Second}, wantErr: true},
+		{name: "get 503 after a long secondary limit", send: get, steps: []step{secondary10, unavailable, ok}, gaps: []time.Duration{10*time.Second + minStagger}, wantErr: true},
 		{name: "get long secondary limit", send: get, steps: []step{secondary30}, wantErr: true},
 		{name: "get primary limit", send: get, steps: []step{primary}, wantErr: true},
 		{name: "query went wrong", send: query, steps: []step{wentWrong, answered}, gaps: []time.Duration{first}},
@@ -213,7 +214,7 @@ func TestRetryPolicy(t *testing.T) {
 		{name: "query not found", send: query, steps: []step{missing}, wantErr: true},
 		{name: "query partial data", send: query, steps: []step{partial}, wantErr: true},
 		{name: "query too large to peek", send: query, steps: []step{huge}, wantErr: true},
-		{name: "query secondary limit", send: query, steps: []step{secondary3, answered}, gaps: []time.Duration{3 * time.Second}},
+		{name: "query secondary limit", send: query, steps: []step{secondary3, answered}, gaps: []time.Duration{3*time.Second + minStagger}},
 		{name: "mutation dial fails", send: mutation, steps: []step{dialFails, answered}, gaps: []time.Duration{first}},
 		{name: "mutation dial keeps failing", send: mutation, steps: []step{dialFails}, gaps: []time.Duration{first, second}, wantErr: true},
 		{name: "mutation proxy dial fails", send: mutation, steps: []step{{err: errProxyDial}, answered}, gaps: []time.Duration{first}},
