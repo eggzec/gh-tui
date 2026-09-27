@@ -20,7 +20,10 @@ type FileIcon struct {
 // are modelled on nvim-web-devicons and Seti, whose names and extensions
 // most file browsers share, but keep to Seti, Devicons, Octicons and Font
 // Awesome, which most Nerd Fonts carry, rather than the Material Design
-// range.
+// range. Some Devicons, such as those of Helm and Vercel, came with Nerd
+// Fonts 3.3, which the icons of languages such as Jupyter already need.
+// The files of tools follow the mappings of the VS Code icon themes
+// Material Icon Theme, vscode-icons and Seti (MIT).
 type fileIcons struct {
 	// names, exts and dirs are keyed in lower case, extensions without
 	// the dot. stems names files such as LICENSE by the name before the
@@ -142,7 +145,6 @@ var nerdFiles = &fileIcons{
 		".gitmodules":         {"\ue702", gitColor},
 		".gitkeep":            {"\ue702", gitColor},
 		".mailmap":            {"\ue702", gitColor},
-		"codeowners":          {"\uf408", ""},       // oct-mark_github
 		"package.json":        {"\ue71e", npmColor}, // dev-npm
 		"package-lock.json":   {"\ue71e", npmColor},
 		".npmrc":              {"\ue71e", npmColor},
@@ -163,6 +165,77 @@ var nerdFiles = &fileIcons{
 		".editorconfig":       {"\ue652", "#fff2f2"}, // seti-editorconfig
 		".envrc":              {"\uf462", "#faf743"}, // oct-sliders
 		".eslintrc":           {"\ue655", "#4b32c3"}, // seti-eslint
+		// GitHub, and the tools that run on a repository.
+		"codeowners":               {"\uf4fd", "#afb42b"}, // oct-people
+		"action.yml":               {"\ueaff", "#2088ff"}, // cod-github_action
+		"action.yaml":              {"\ueaff", "#2088ff"},
+		"dependabot.yml":           {"\uf4be", "#0366d6"}, // oct-dependabot
+		"dependabot.yaml":          {"\uf4be", "#0366d6"},
+		"pull_request_template.md": {"\uf407", "#3fb950"}, // oct-git_pull_request
+		"issue_template.md":        {"\uf41b", "#3fb950"}, // oct-issue_opened
+		"renovate.json":            {"\uf4f8", "#1a7fa0"}, // oct-package_dependencies
+		"renovate.json5":           {"\uf4f8", "#1a7fa0"},
+		".renovaterc":              {"\uf4f8", "#1a7fa0"},
+		".renovaterc.json":         {"\uf4f8", "#1a7fa0"},
+		".renovaterc.json5":        {"\uf4f8", "#1a7fa0"},
+		".pre-commit-config.yaml":  {"\uf417", "#f8b424"}, // oct-git_commit
+		".pre-commit-config.yml":   {"\uf417", "#f8b424"},
+		".pre-commit-hooks.yaml":   {"\uf417", "#f8b424"},
+		"devcontainer.json":        {"\uf4b7", "#2496ed"}, // oct-container
+		".devcontainer.json":       {"\uf4b7", "#2496ed"},
+		".golangci.yml":            {"\uf4b1", "#00add8"}, // oct-codescan
+		".golangci.yaml":           {"\uf4b1", "#00add8"},
+		".golangci.toml":           {"\uf4b1", "#00add8"},
+		".golangci.json":           {"\uf4b1", "#00add8"},
+		".goreleaser.yml":          {"\uf427", "#00add8"}, // oct-rocket
+		".goreleaser.yaml":         {"\uf427", "#00add8"},
+		"goreleaser.yml":           {"\uf427", "#00add8"},
+		"goreleaser.yaml":          {"\uf427", "#00add8"},
+		"mkdocs.yml":               {"\uf02d", "#526cfe"}, // fa-book
+		"mkdocs.yaml":              {"\uf02d", "#526cfe"},
+		".readthedocs.yml":         {"\ue889", "#8ca1af"}, // dev-readthedocs
+		".readthedocs.yaml":        {"\ue889", "#8ca1af"},
+		// Continuous integration.
+		".gitlab-ci.yml":           {"\ue65c", "#e24329"}, // seti-gitlab
+		".travis.yml":              {"\ue77e", "#cb3349"}, // dev-travis
+		"bitbucket-pipelines.yml":  {"\ue703", "#2684ff"}, // dev-bitbucket
+		"jenkinsfile":              {"\ue767", "#d24939"}, // dev-jenkins
+		".gitpod.yml":              {"\ue7ec", "#ffae33"}, // dev-gitpod
+		"codecov.yml":              {"\ue797", "#f01f7a"}, // dev-codecov
+		".codecov.yml":             {"\ue797", "#f01f7a"},
+		"sonar-project.properties": {"\ue8a8", "#4e9bcd"}, // dev-sonarqube
+		// Deployment and infrastructure.
+		"chart.yaml":          {"\ue7fb", "#0f1689"}, // dev-helm
+		"chart.lock":          {"\ue7fb", "#0f1689"},
+		".helmignore":         {"\ue7fb", "#0f1689"},
+		"helmfile.yaml":       {"\ue7fb", "#0f1689"},
+		"kustomization.yaml":  {"\ue81d", "#326ce5"}, // dev-kubernetes
+		"kustomization.yml":   {"\ue81d", "#326ce5"},
+		"ansible.cfg":         {"\ue723", "#ee0000"}, // dev-ansible
+		".ansible-lint":       {"\ue723", "#ee0000"},
+		".terraform.lock.hcl": {"\ue8bd", "#844fba"}, // dev-terraform
+		"procfile":            {"\ue77b", "#6567a5"}, // dev-heroku
+		"vagrantfile":         {"\ue8d0", "#1868f2"}, // dev-vagrant
+		"netlify.toml":        {"\ue83c", "#05bdba"}, // dev-netlify
+		"vercel.json":         {"\ue8d3", ""},        // dev-vercel
+		"wrangler.toml":       {"\ue792", "#f38020"}, // dev-cloudflare
+		"wrangler.json":       {"\ue792", "#f38020"},
+		"wrangler.jsonc":      {"\ue792", "#f38020"},
+		"firebase.json":       {"\ue787", "#ffca28"}, // dev-firebase
+		".firebaserc":         {"\ue787", "#ffca28"},
+		// Package managers and JavaScript tools.
+		"pnpm-lock.yaml":      {"\ue865", "#f9ad00"}, // dev-pnpm
+		"pnpm-workspace.yaml": {"\ue865", "#f9ad00"},
+		"bun.lock":            {"\ue76f", "#fbf0df"}, // dev-bun
+		"bun.lockb":           {"\ue76f", "#fbf0df"},
+		"bunfig.toml":         {"\ue76f", "#fbf0df"},
+		"deno.json":           {"\ue7c0", "#70ffaf"}, // dev-denojs
+		"deno.jsonc":          {"\ue7c0", "#70ffaf"},
+		"deno.lock":           {"\ue7c0", "#70ffaf"},
+		"biome.json":          {"\ue8fb", "#60a5fa"}, // dev-biome
+		"biome.jsonc":         {"\ue8fb", "#60a5fa"},
+		"turbo.json":          {"\ue94d", "#ff1e56"}, // dev-turbo
+		"poetry.lock":         {"\ue867", "#60a5fa"}, // dev-poetry
 	},
 	stems: map[string]FileIcon{
 		"license":         {"\ue60a", "#d0bf41"}, // seti-license
