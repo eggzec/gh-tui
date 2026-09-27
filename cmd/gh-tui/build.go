@@ -50,12 +50,18 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 	}
 	st := startRepos(hostname, currentRepo, defaultHost)
 	here := st.Here
+	// The sync engine delivers the changes that its polls find, those
+	// that the revalidator finds, and those of the rate limits, through
+	// one subscription.
+	engine := watch.New(watch.WithInterval(cfg.Sync.Interval))
 	// The session talks to one host, so the pinned repositories are on it
 	// too.
-	client, err := github.New(github.WithHost(st.Host))
+	client, err := github.New(github.WithHost(st.Host),
+		github.WithRateNotify(func() { engine.Publish(core.SyncRateLimit) }))
 	if err != nil {
 		return nil, err
 	}
+	context.AfterFunc(ctx, client.Close)
 
 	ttl := cfg.Cache.TTL
 	// What an account kept under the name of its token, before accounts
@@ -115,9 +121,6 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 			files.WithHoverPrefetch(p.HoverDelay, int64(cfg.Files.Preview.MaxSize)),
 		)
 	}
-	// The sync engine delivers the changes that its polls find, and those
-	// that the revalidator finds, through one subscription.
-	engine := watch.New(watch.WithInterval(cfg.Sync.Interval))
 	var checkOpts []checks.Option
 	if cfg.Sync.Enabled {
 		checkOpts = append(checkOpts,
@@ -209,6 +212,7 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 		tui.WithCommit(history.CommitOpener(historySvc, cfg.Keys,
 			history.WithConfig(cfg.History), history.WithOffline(offline), history.WithHost(webHost))),
 		tui.WithRelease(releases.Opener(releaseSvc, cfg.Keys)),
+		tui.WithRateStatus(client),
 	}
 	if path, err := historyPath(cfg.Cache.Disk, client.Host(), client.Account()); err == nil && path != "" {
 		opts = append(opts, tui.WithCommandHistory(cmdhist.New(path, cmdhist.DefaultLimit)))
@@ -246,10 +250,11 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 			watchers = append(watchers, r.SetRepo)
 		}
 	}
+	// The engine runs with nothing to poll too, for the rate limits.
+	go func() { _ = engine.Run(ctx) }()
+	opts = append(opts, tui.WithSync(syncEvents(engine)))
 	if len(watchers) > 0 {
-		go func() { _ = engine.Run(ctx) }()
 		opts = append(opts,
-			tui.WithSync(syncEvents(engine)),
 			tui.WithActivity(fanOut(activity...)),
 			tui.WithRepoWatcher(fanOut(watchers...)),
 		)
