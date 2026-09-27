@@ -15,6 +15,8 @@ import (
 	"github.com/eggzec/gh-tui/internal/cache/disk"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
+	"github.com/eggzec/gh-tui/internal/revalidate"
+	"github.com/eggzec/gh-tui/internal/service/recheck"
 )
 
 // keptServer is a fake GitHub with issue 7 and its comments, which answers
@@ -285,12 +287,12 @@ func TestKeptOffline(t *testing.T) {
 	}{
 		{"unreachable", errDial, true},
 		{"server error", &github.Error{StatusCode: 502}, true},
+		{"rate limited", fmt.Errorf("list: %w", &core.RateLimitError{Reset: epoch}), true},
 		{"not found", &github.Error{StatusCode: 404}, false},
 		{"unauthorized", &github.Error{StatusCode: 401}, false},
 		{"forbidden", &github.Error{StatusCode: 403}, false},
 		// A deleted issue, or a repository that turned its issues off.
 		{"gone", &github.Error{StatusCode: 410}, false},
-		{"rate limited", fmt.Errorf("list: %w", &core.RateLimitError{Reset: epoch}), false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -314,9 +316,6 @@ func TestKeptOffline(t *testing.T) {
 				if s.Current(sevenComments) {
 					t.Error("Current = true after a refusal, want the kept page's vouching forgotten")
 				}
-				if tt.name == "rate limited" {
-					return
-				}
 				// A refusal drops what was kept.
 				srv.fail(nil)
 				api := srv.api(t)
@@ -328,14 +327,54 @@ func TestKeptOffline(t *testing.T) {
 				api.checkCalls(t, "ListIssues", "GetIssue", "ListIssueComments")
 				return
 			}
-			if err != nil || !p.Offline || len(p.Items) != 1 {
-				t.Errorf("List = %+v, %v; want the kept page, offline", p, err)
+			limited := errors.Is(tt.err, core.ErrRateLimited)
+			if err != nil || p.Offline == limited || p.Limited != limited || len(p.Items) != 1 {
+				t.Errorf("List = %+v, %v; want the kept page, offline or limited", p, err)
 			}
 			if getErr != nil || it.Number != 7 {
 				t.Errorf("Get = %+v, %v; want the kept issue", it, getErr)
 			}
-			if commentsErr != nil || !c.Offline || len(c.Items) != 2 {
-				t.Errorf("Comments = %+v, %v; want the kept page, offline", c, commentsErr)
+			if commentsErr != nil || c.Offline == limited || c.Limited != limited || len(c.Items) != 2 {
+				t.Errorf("Comments = %+v, %v; want the kept page, offline or limited", c, commentsErr)
+			}
+		})
+	}
+}
+
+// TestKeptAnsweredAfterOutage checks that what was served offline is
+// served unmarked once GitHub confirms it with a 304, whether a read or
+// the revalidator asks.
+func TestKeptAnsweredAfterOutage(t *testing.T) {
+	for _, revalidated := range []bool{false, true} {
+		t.Run(fmt.Sprintf("revalidated=%v", revalidated), func(t *testing.T) {
+			srv := &keptServer{updated: epoch, comments: thread(2)}
+			store := openStore(t)
+			firstSession(t, srv, store)
+			srv.fail(errDial)
+			s := New(srv.api(t), WithStore(cachetest.Aged(store, time.Hour)))
+			listIssues(t, s, openSeven)
+			p, err := s.List(t.Context(), openSeven.again())
+			// Without a list to vouch for them, the comments are asked for.
+			other := New(srv.api(t), WithStore(cachetest.Aged(store, time.Hour)))
+			c, commentsErr := other.Comments(t.Context(), sevenComments)
+			if err != nil || !p.Offline || commentsErr != nil || !c.Offline {
+				t.Fatalf("reads while offline = %+v, %v and %+v, %v; want both offline", p, err, c, commentsErr)
+			}
+
+			srv.fail(nil)
+			if revalidated {
+				list, _ := s.listTarget(listKey(openSeven.normalize()))
+				comments, _ := other.commentsTarget(commentsKey(sevenComments.normalize()))
+				for _, target := range []recheck.Target{list, comments} {
+					if res := target.Check(t.Context()); res.Status != revalidate.NotModified {
+						t.Fatalf("check = %+v, want not modified", res)
+					}
+				}
+			}
+			p, err = s.List(t.Context(), openSeven)
+			c, commentsErr = other.Comments(t.Context(), sevenComments)
+			if err != nil || p.Offline || p.Stale || commentsErr != nil || c.Offline {
+				t.Errorf("reads after a 304 = %+v, %v and %+v, %v; want both unmarked", p, err, c, commentsErr)
 			}
 		})
 	}
