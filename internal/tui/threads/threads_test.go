@@ -291,3 +291,45 @@ func TestNothingAheadWithoutPrefetch(t *testing.T) {
 		t.Errorf("read %d without WithPrefetch", n)
 	}
 }
+
+// The modal of an issue or a pull request opened from a thread holds the
+// reads ahead of the threads while it loads, as those of the lists do.
+func TestOpenHoldsReadsAhead(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		f := newReads()
+		o := newOpener(t, f, 3, time.Hour)
+		for _, n := range []core.Notification{note(core.SubjectPullRequest, 1, 0), note(core.SubjectIssue, 2, 0)} {
+			var pause ui.Pauser
+			switch msg := o.Open(n)().(type) {
+			case ui.OpenPullMsg:
+				pause = msg.Pause
+			case ui.OpenIssueMsg:
+				pause = msg.Pause
+			}
+			if pause == nil {
+				t.Fatalf("opening %s holds nothing, want the reads ahead", n.Subject.Type)
+			}
+		}
+		open, _ := o.Open(note(core.SubjectPullRequest, 1, 0))().(ui.OpenPullMsg)
+		resume := ui.PauseAll(open.Pause)
+		ns := []core.Notification{note(core.SubjectIssue, 3, 0)}
+		done := make(chan struct{})
+		go func() {
+			run(o, o.ReadAhead(list(ns), core.Notification{}, false))
+			close(done)
+		}()
+		synctest.Wait()
+		if got := f.got(); len(got) != 0 {
+			t.Errorf("read %q ahead while the modal loads, want nothing", got)
+		}
+		resume()
+		<-done
+		if got := f.got(); len(got) != 1 {
+			t.Errorf("read %q once the modal loaded, want the issue", got)
+		}
+		// Without reads ahead there is nothing to hold.
+		if msg, _ := New(t.Context()).Open(note(core.SubjectPullRequest, 1, 0))().(ui.OpenPullMsg); msg.Pause != nil {
+			t.Error("an opener that reads nothing ahead holds something")
+		}
+	})
+}

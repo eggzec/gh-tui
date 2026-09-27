@@ -173,6 +173,7 @@ func take[V any](r *read[V], msg loadedMsg) bool {
 func (s *Section) refresh() tea.Cmd {
 	s.svc.Invalidate()
 	s.opener.Resume()
+	s.ahead.Resume()
 	s.gen++
 	s.hereRepo.ok = false
 	return tea.Batch(s.load(), s.repos.reload())

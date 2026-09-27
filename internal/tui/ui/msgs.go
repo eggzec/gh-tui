@@ -119,6 +119,9 @@ type OpenPullMsg struct {
 	Number int
 	// Checks opens it on its checks, such as when its CI glyph is picked.
 	Checks bool
+	// Pause, if set, holds the reads ahead of the list it was opened
+	// from, such as the dashboard's, while its detail loads.
+	Pause Pauser
 }
 
 // OpenIssueMsg asks for the issue Number of Repo to be opened, such as when
@@ -126,6 +129,9 @@ type OpenPullMsg struct {
 type OpenIssueMsg struct {
 	Repo   core.RepoRef
 	Number int
+	// Pause, if set, holds the reads ahead of the list it was opened
+	// from, such as the dashboard's, while it loads.
+	Pause Pauser
 }
 
 // OpenActionsMsg asks for the Actions modal of Repo to be opened on the

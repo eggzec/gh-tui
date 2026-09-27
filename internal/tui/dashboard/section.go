@@ -18,6 +18,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/dashboard"
 	"github.com/eggzec/gh-tui/internal/service/notifications"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
+	"github.com/eggzec/gh-tui/internal/tui/details"
 	"github.com/eggzec/gh-tui/internal/tui/threads"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/calendar"
@@ -147,17 +148,20 @@ var lastID atomic.Int64
 
 // Section is the dashboard. Create one with New.
 type Section struct {
-	id      int64
-	ctx     context.Context
-	svc     Service
-	inbox   Inbox
-	marker  Marker
-	opener  *threads.Opener
-	keys    KeyMap
-	now     func() time.Time
-	offline *ui.Offline
-	glyph   string
-	icons   ui.Icons
+	id     int64
+	ctx    context.Context
+	svc    Service
+	inbox  Inbox
+	marker Marker
+	opener *threads.Opener
+	// ahead reads the work ahead, if prefetch is set.
+	prefetch *prefetch
+	ahead    *ui.Ahead[details.Key]
+	keys     KeyMap
+	now      func() time.Time
+	offline  *ui.Offline
+	glyph    string
+	icons    ui.Icons
 	// calDays is the range of the calendar, 0 for the year.
 	calDays int
 
@@ -235,6 +239,10 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 	}
 	if s.opener == nil {
 		s.opener = threads.New(ctx)
+	}
+	if p := s.prefetch; p != nil {
+		s.ahead = details.NewAhead("work", p.pulls, p.issues, aheadRows, p.delay)
+		s.ahead.Reset(ctx)
 	}
 	s.cal = calendar.New(
 		calendar.WithGlyph(s.glyph),
@@ -316,10 +324,11 @@ func (s *Section) Focus() {
 }
 
 // Blur makes every pane ignore keys, and stops the reads ahead of the
-// inbox's threads, as the dashboard leaves the screen.
+// inbox's threads and of the work, as the dashboard leaves the screen.
 func (s *Section) Blur() {
 	s.focused = false
 	s.opener.Stop()
+	s.ahead.Reset(s.ctx)
 	s.repos.blur()
 	s.cal.Blur()
 	s.render()

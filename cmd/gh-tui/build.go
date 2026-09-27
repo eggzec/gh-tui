@@ -153,22 +153,28 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 		threadOpts = append(threadOpts, threads.WithPrefetch(p.Rows, p.HoverDelay))
 	}
 	opener := threads.New(ctx, threadOpts...)
+	dashOpts := []dashboard.Option{
+		dashboard.WithOffline(offline),
+		dashboard.WithInbox(notifSvc),
+		dashboard.WithOpener(opener),
+		dashboard.WithHere(here, repoSvc.Get),
+		dashboard.WithGlyph(cfg.Dashboard.CalendarGlyph),
+		dashboard.WithContributions(cfg.Dashboard.ContributionDays()),
+		dashboard.WithIcons(icons),
+	}
+	if p := cfg.Details.Prefetch; p.Enabled {
+		// The work waiting on the viewer is what they open most from the
+		// dashboard, as quickly as from the lists of a repository.
+		dashOpts = append(dashOpts, dashboard.WithPrefetch(pullSvc, issueSvc, p.HoverDelay))
+	}
 	layout := tui.Layout{
 		Files:  files.New(ctx, fileSvc, cfg.Keys, fileOpts...),
 		Pulls:  pulls.New(ctx, pullSvc, cfg.Keys, pullOpts...),
 		Issues: issues.New(ctx, issueSvc, cfg.Keys, issueOpts...),
 		Notifications: notifications.New(ctx, notifSvc, cfg.Keys,
 			notifications.WithOffline(offline), notifications.WithOpener(opener)),
-		Search: searchpage.New(ctx, searchSvc, cfg.Keys, searchpage.WithStart(searchStart(repoSvc, pinned)), searchpage.WithIcons(icons)),
-		Dashboard: dashboard.New(ctx, dashSvc, cfg.Keys,
-			dashboard.WithOffline(offline),
-			dashboard.WithInbox(notifSvc),
-			dashboard.WithOpener(opener),
-			dashboard.WithHere(here, repoSvc.Get),
-			dashboard.WithGlyph(cfg.Dashboard.CalendarGlyph),
-			dashboard.WithContributions(cfg.Dashboard.ContributionDays()),
-			dashboard.WithIcons(icons),
-		),
+		Search:    searchpage.New(ctx, searchSvc, cfg.Keys, searchpage.WithStart(searchStart(repoSvc, pinned)), searchpage.WithIcons(icons)),
+		Dashboard: dashboard.New(ctx, dashSvc, cfg.Keys, dashOpts...),
 	}
 
 	b := browser.New("", io.Discard, io.Discard)

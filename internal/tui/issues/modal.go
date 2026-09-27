@@ -84,12 +84,13 @@ type detailModal struct {
 
 // openDetail opens a modal on issue number of repo. it is the list item,
 // shown until the issue arrives, or nil when there is none.
-func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue) tea.Cmd {
+func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, from ui.Pauser) tea.Cmd {
 	// The reads of the modal are one trace, however many pages it reads.
 	ctx, cancel := context.WithCancel(obs.WithTrace(s.ctx, "open.issue"))
 	s.ahead.Opened(commentsQuery(repo, number))
-	// The reads ahead wait, so that the issue's requests go first.
-	resume := s.ahead.Pause()
+	// The reads ahead wait, so that the issue's requests go first: the
+	// list's, and those of the list it was opened from.
+	resume := ui.PauseAll(s.ahead, from)
 	_, cached := s.svc.CachedGet(repo, number)
 	slog.InfoContext(ctx, "open", "span", "tui", "kind", "issue", "repo", repo.String(), "number", number, "cached", cached)
 	m := &detailModal{
