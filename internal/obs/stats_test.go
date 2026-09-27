@@ -3,6 +3,7 @@ package obs
 import (
 	"context"
 	"log/slog"
+	"maps"
 	"strings"
 	"sync"
 	"testing"
@@ -183,6 +184,19 @@ func TestSummaryWaits(t *testing.T) {
 	s.HTTPWait(time.Millisecond)
 	if got, want := s.Summary().Waits, (WaitSummary{Requests: 2, TotalMS: 4, MaxMS: 3}); got != want {
 		t.Errorf("waits = %+v, want %+v", got, want)
+	}
+}
+
+func TestSummaryRetries(t *testing.T) {
+	s := NewStats()
+	if got := s.Summary().Retries; len(got) != 0 {
+		t.Errorf("retries = %v, want none", got)
+	}
+	s.HTTPRetry("timeout")
+	s.HTTPRetry("unavailable")
+	s.HTTPRetry("timeout")
+	if got, want := s.Summary().Retries, map[string]int64{"timeout": 2, "unavailable": 1}; !maps.Equal(got, want) {
+		t.Errorf("retries = %v, want %v", got, want)
 	}
 }
 
