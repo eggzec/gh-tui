@@ -93,7 +93,9 @@ func (m *detailModal) layout() {
 	m.thread.SetSize(m.width, h-ph)
 }
 
-// promptDone handles what the prompt reports, if it is this modal's.
+// promptDone handles what the prompt reports, if it is this modal's. A
+// submit asks the user to confirm what it sends, and the prompt stays
+// open with the text behind the question, so that a no goes back to it.
 func (m *detailModal) promptDone(msg tea.Msg) tea.Cmd {
 	if m.composing == composeNone {
 		return nil
@@ -104,7 +106,9 @@ func (m *detailModal) promptDone(msg tea.Msg) tea.Cmd {
 			m.closePrompt()
 		}
 	case prompt.SubmitMsg:
-		if msg.ID != m.prompt.ID() {
+		// A second submit, such as a repeated key, arrives while the first
+		// one asks.
+		if msg.ID != m.prompt.ID() || m.ask != nil {
 			return nil
 		}
 		if m.composing == composeComment {
@@ -115,43 +119,139 @@ func (m *detailModal) promptDone(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-// submitComment sends body as a comment on the issue. The service shows it
-// in the cache at once, as sending, so the thread reloads to show it. An
-// empty comment is not sent, and the prompt stays open.
-func (m *detailModal) submitComment(body string) tea.Cmd {
-	body = strings.TrimSpace(body)
-	if body == "" {
-		return nil
+// submitComment asks to post typed as a comment on the issue. An empty
+// comment asks nothing, and the prompt stays open.
+func (m *detailModal) submitComment(typed string) tea.Cmd {
+	body := strings.TrimSpace(typed)
+	c, ok, refusal := m.comment(body)
+	if !ok {
+		return refusal
 	}
-	m.closePrompt()
-	n := m.number
-	op := m.svc.Comment(m.repo, n, body)
-	return tea.Batch(m.reload(), m.thread.Reload(), m.changed(),
-		ui.Do(m.sendCtx, ui.IssuesTitle, op, "comment on #"+strconv.Itoa(n)))
+	ask := ui.Recheck(c.Question, "#"+strconv.Itoa(m.number), func() (ui.Confirm, bool, tea.Cmd) {
+		if m.composing != composeComment || strings.TrimSpace(m.prompt.Value()) != body {
+			return ui.Confirm{}, false, nil
+		}
+		return m.comment(body)
+	})
+	m.ask = &ask
+	return nil
 }
 
-// submitLabels makes the issue's labels the comma-separated names in
-// typed: it adds the new ones in one change and removes each dropped one.
-// The changes go one after another, so each answer from GitHub, which holds
-// every label, includes the changes before it.
-func (m *detailModal) submitLabels(typed string) tea.Cmd {
-	m.closePrompt()
-	added, removed := labelDiff(m.issue.Labels, typed)
-	if len(added) == 0 && len(removed) == 0 {
-		return nil
+// comment returns posting body as a comment on the issue as a question,
+// or ok unset when there is nothing to post or the viewer may not, which
+// refusal then says. Its run closes the prompt, and the service shows the
+// comment in the cache at once, as sending, so the thread reloads to show
+// it.
+func (m *detailModal) comment(body string) (c ui.Confirm, ok bool, refusal tea.Cmd) {
+	if body == "" || !m.loaded {
+		return ui.Confirm{}, false, nil
+	}
+	if cmd, refused := m.gate().Refuse(ui.ActComment, &m.issue); refused {
+		return ui.Confirm{}, false, cmd
 	}
 	n := m.number
 	num := "#" + strconv.Itoa(n)
-	cmds := make([]tea.Cmd, 0, len(removed)+1)
-	if len(added) > 0 {
-		op := m.svc.AddLabels(m.repo, n, added)
-		cmds = append(cmds, ui.Do(m.sendCtx, ui.IssuesTitle, op, "add "+strings.Join(added, ", ")+" to "+num))
+	return ui.Confirm{
+		Question: "Post this comment on " + num + "?",
+		Run: func() tea.Cmd {
+			m.closePrompt()
+			op := m.svc.Comment(m.repo, n, body)
+			return tea.Batch(m.reload(), m.thread.Reload(), m.changed(),
+				ui.Do(m.sendCtx, ui.IssuesTitle, op, "comment on "+num))
+		},
+	}, true, nil
+}
+
+// submitLabels asks to make the issue's labels the comma-separated names
+// in typed. When they are the labels it has, it closes the prompt and
+// asks nothing.
+func (m *detailModal) submitLabels(typed string) tea.Cmd {
+	c, ok, refusal := m.labels(typed)
+	switch {
+	case refusal != nil:
+		return refusal
+	case !ok:
+		m.closePrompt()
+		return nil
 	}
-	for _, name := range removed {
-		op := m.svc.RemoveLabel(m.repo, n, name)
-		cmds = append(cmds, ui.Do(m.sendCtx, ui.IssuesTitle, op, "remove "+name+" from "+num))
+	// Label names may hold ", ", so two changes can read the same: the
+	// yes compares what they add and remove too.
+	added, removed := labelDiff(m.issue.Labels, typed)
+	ask := ui.Recheck(c.Question, "#"+strconv.Itoa(m.number), func() (ui.Confirm, bool, tea.Cmd) {
+		if m.composing != composeLabels || m.prompt.Value() != typed {
+			return ui.Confirm{}, false, nil
+		}
+		a, r := labelDiff(m.issue.Labels, typed)
+		if !sameNames(a, added) || !sameNames(r, removed) {
+			return ui.Confirm{}, false, nil
+		}
+		return m.labels(typed)
+	})
+	m.ask = &ask
+	return nil
+}
+
+// labels returns making the issue's labels the names in typed as a
+// question, which names what it adds and removes, or ok unset when that
+// changes nothing or the viewer may not, which refusal then says. Its run
+// closes the prompt, adds the new labels in one change and removes each
+// dropped one. The changes go one after another, so each answer from
+// GitHub, which holds every label, includes the changes before it.
+func (m *detailModal) labels(typed string) (c ui.Confirm, ok bool, refusal tea.Cmd) {
+	if !m.loaded {
+		return ui.Confirm{}, false, nil
 	}
-	return tea.Batch(m.reload(), m.changed(), tea.Sequence(cmds...))
+	if cmd, refused := m.gate().Refuse(ui.ActLabel, &m.issue); refused {
+		return ui.Confirm{}, false, cmd
+	}
+	added, removed := labelDiff(m.issue.Labels, typed)
+	if len(added) == 0 && len(removed) == 0 {
+		return ui.Confirm{}, false, nil
+	}
+	n := m.number
+	num := "#" + strconv.Itoa(n)
+	return ui.Confirm{
+		Question: labelQuestion(num, added, removed),
+		Run: func() tea.Cmd {
+			m.closePrompt()
+			cmds := make([]tea.Cmd, 0, len(removed)+1)
+			if len(added) > 0 {
+				op := m.svc.AddLabels(m.repo, n, added)
+				cmds = append(cmds, ui.Do(m.sendCtx, ui.IssuesTitle, op, "add "+strings.Join(added, ", ")+" to "+num))
+			}
+			for _, name := range removed {
+				op := m.svc.RemoveLabel(m.repo, n, name)
+				cmds = append(cmds, ui.Do(m.sendCtx, ui.IssuesTitle, op, "remove "+name+" from "+num))
+			}
+			return tea.Batch(m.reload(), m.changed(), tea.Sequence(cmds...))
+		},
+	}, true, nil
+}
+
+// labelQuestion asks to add and remove the labels of issue num, such as
+// "Add the label bug to #12 and remove wontfix?".
+func labelQuestion(num string, added, removed []string) string {
+	switch {
+	case len(removed) == 0:
+		return "Add " + labelNames(added) + " to " + num + "?"
+	case len(added) == 0:
+		return "Remove " + labelNames(removed) + " from " + num + "?"
+	}
+	return "Add " + labelNames(added) + " to " + num + " and remove " + oneLine(removed) + "?"
+}
+
+// labelNames names labels in a question, such as "the labels bug, ui".
+func labelNames(names []string) string {
+	if len(names) == 1 {
+		return "the label " + oneLine(names)
+	}
+	return "the labels " + oneLine(names)
+}
+
+// oneLine joins names on one line, which a name with a line break of its
+// own would break.
+func oneLine(names []string) string {
+	return ui.OneLine(strings.Join(names, ", "))
 }
 
 // labelDiff compares the comma-separated label names in typed with the
@@ -177,6 +277,15 @@ func labelDiff(have []core.Label, typed string) (added, removed []string) {
 		}
 	}
 	return added, removed
+}
+
+// sameNames reports whether a and b hold the same label names, in any
+// order.
+func sameNames(a, b []string) bool {
+	a, b = slices.Clone(a), slices.Clone(b)
+	slices.Sort(a)
+	slices.Sort(b)
+	return slices.Equal(a, b)
 }
 
 func sameLabel(name string) func(string) bool {

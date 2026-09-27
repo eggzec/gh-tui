@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
 )
@@ -29,7 +30,15 @@ func TestComment(t *testing.T) {
 	assertFits(t, m.View(), 80, 30)
 
 	typeText(t, h, "Same here, fixed by the patch.")
-	done := runHolding(t, h, h.Update(keyMsg("ctrl+s")))
+	press(t, h, "ctrl+s")
+	if got := question(h); got != "Post this comment on #999?" || len(svc.changeCalls()) != 0 {
+		t.Fatalf("submit asked %q and sent %v, want only the question", got, svc.changeCalls())
+	}
+	if v := ansi.Strip(m.View()); !strings.Contains(v, "Post this comment on #999?") || !strings.Contains(v, "Same here, fixed by the patch.") {
+		t.Errorf("the question isn't shown under the comment:\n%s", v)
+	}
+	assertFits(t, m.View(), 80, 30)
+	done := runHolding(t, h, h.Update(keyMsg("y")))
 	if got := svc.changeCalls(); !slices.Equal(got, []string{"comment 999: Same here, fixed by the patch."}) {
 		t.Fatalf("changes = %v, want the comment", got)
 	}
@@ -59,7 +68,7 @@ func TestCommentRolledBack(t *testing.T) {
 	h, m := opened(t, svc, 30)
 	press(t, h, "c")
 	typeText(t, h, "Nope")
-	run(t, h, h.Update(keyMsg("ctrl+s")))
+	press(t, h, "ctrl+s", "y")
 	press(t, h, "G")
 	if v := ansi.Strip(m.View()); strings.Contains(v, "Nope") {
 		t.Errorf("a refused comment is still shown:\n%s", v)
@@ -72,8 +81,8 @@ func TestEmptyCommentIsIgnored(t *testing.T) {
 	press(t, h, "c")
 	typeText(t, h, "  ")
 	press(t, h, "enter", "ctrl+s")
-	if got := svc.changeCalls(); len(got) != 0 {
-		t.Errorf("an empty comment was sent: %v", got)
+	if got := svc.changeCalls(); len(got) != 0 || question(h) != "" {
+		t.Errorf("an empty comment asked %q and sent %v", question(h), got)
 	}
 	if m.composing != composeComment {
 		t.Error("an empty comment closed the prompt")
@@ -128,17 +137,25 @@ func TestLabels(t *testing.T) {
 	tests := []struct {
 		name  string
 		typed string
-		want  []string
+		// question is what the submit asks, "" when it changes nothing.
+		question string
+		want     []string
 		// wantShown are the labels the header shows before GitHub answers.
 		wantShown []string
 	}{
-		{"unchanged", "enhancement, help wanted", nil, []string{"enhancement", "help wanted"}},
-		{"case and space differ", " Enhancement ,HELP WANTED,, ", nil, []string{"enhancement", "help wanted"}},
-		{"added", "enhancement, help wanted, bug, ui", []string{"label 999 +bug,ui"}, []string{"enhancement", "help wanted", "bug", "ui"}},
-		{"removed", "help wanted", []string{"unlabel 999 -enhancement"}, []string{"help wanted"}},
-		{"all removed", "", []string{"unlabel 999 -enhancement", "unlabel 999 -help wanted"}, nil},
+		{"unchanged", "enhancement, help wanted", "", nil, []string{"enhancement", "help wanted"}},
+		{"case and space differ", " Enhancement ,HELP WANTED,, ", "", nil, []string{"enhancement", "help wanted"}},
 		{
-			"added and removed", "bug, Help Wanted, BUG",
+			"added", "enhancement, help wanted, bug, ui", "Add the labels bug, ui to #999?",
+			[]string{"label 999 +bug,ui"}, []string{"enhancement", "help wanted", "bug", "ui"},
+		},
+		{"removed", "help wanted", "Remove the label enhancement from #999?", []string{"unlabel 999 -enhancement"}, []string{"help wanted"}},
+		{
+			"all removed", "", "Remove the labels enhancement, help wanted from #999?",
+			[]string{"unlabel 999 -enhancement", "unlabel 999 -help wanted"}, nil,
+		},
+		{
+			"added and removed", "bug, Help Wanted, BUG", "Add the label bug to #999 and remove enhancement?",
 			[]string{"label 999 +bug", "unlabel 999 -enhancement"}, []string{"help wanted", "bug"},
 		},
 	}
@@ -151,8 +168,14 @@ func TestLabels(t *testing.T) {
 				t.Fatalf("l opened %v with %q, want the labels prompt with the issue's labels", m.composing, m.prompt.Value())
 			}
 			m.prompt.SetValue(tt.typed)
-			cmd := h.Update(keyMsg("enter"))
-			done := runHolding(t, h, cmd)
+			press(t, h, "enter")
+			if got := question(h); got != tt.question || len(svc.changeCalls()) != 0 {
+				t.Fatalf("submit asked %q and sent %v, want the question %q", got, svc.changeCalls(), tt.question)
+			}
+			var done []ui.DoneMsg
+			if tt.question != "" {
+				done = runHolding(t, h, h.Update(keyMsg("y")))
+			}
 			if m.composing != composeNone {
 				t.Error("submit didn't close the prompt")
 			}
@@ -189,7 +212,10 @@ func TestLabelOpsRunInOrder(t *testing.T) {
 	if !ok {
 		t.Fatal("enter didn't submit the labels")
 	}
-	batch, ok := h.Update(submit)().(tea.BatchMsg)
+	if cmd := h.Update(submit); cmd != nil || question(h) == "" {
+		t.Fatal("submitting didn't ask first")
+	}
+	batch, ok := h.Update(keyMsg("y"))().(tea.BatchMsg)
 	if !ok {
 		t.Fatal("submitting didn't return a batch of the reload and the changes")
 	}
@@ -209,6 +235,196 @@ func TestLabelOpsRunInOrder(t *testing.T) {
 	for i, c := range seq {
 		if d, ok := c().(ui.DoneMsg); !ok || d.What != want[i] {
 			t.Errorf("change %d = %#v, want %q", i, d, want[i])
+		}
+	}
+}
+
+// A question about what the prompt sends takes every key: y sends it
+// once, and n or esc go back to the prompt with the text kept.
+func TestComposeAnswers(t *testing.T) {
+	tests := []struct {
+		name string
+		// open opens the prompt, and typed is what the test submits.
+		open, typed, question string
+		want                  []string
+	}{
+		{"comment", "c", "Same here.", "Post this comment on #999?", []string{"comment 999: Same here."}},
+		{"labels", "l", "bug", "Add the label bug to #999 and remove enhancement, help wanted?", []string{
+			"label 999 +bug", "unlabel 999 -enhancement", "unlabel 999 -help wanted",
+		}},
+	}
+	for _, tt := range tests {
+		for _, answer := range [][]string{{"y"}, {"n"}, {"esc"}, {"y", "y"}} {
+			t.Run(tt.name+"/"+strings.Join(answer, " "), func(t *testing.T) {
+				svc := newFakeService(sampleIssues(12))
+				h, m := opened(t, svc, 30)
+				press(t, h, tt.open)
+				m.prompt.SetValue(tt.typed)
+				press(t, h, "ctrl+s")
+				if got := question(h); got != tt.question {
+					t.Fatalf("asks %q, want %q", got, tt.question)
+				}
+				// Other keys, even the submit and the prompt's text, do
+				// nothing while the question is open, and neither does a
+				// paste or a second submit.
+				press(t, h, "enter", "x", "q", "ctrl+s")
+				run(t, h, h.Update(tea.PasteMsg{Content: "pasted"}))
+				run(t, h, h.Update(prompt.SubmitMsg{ID: m.prompt.ID(), Value: tt.typed}))
+				if got := question(h); got != tt.question || len(svc.changeCalls()) != 0 || m.prompt.Value() != tt.typed {
+					t.Fatalf("after other keys asks %q with %q typed and changes %v", got, m.prompt.Value(), svc.changeCalls())
+				}
+				// The answers arrive before what the first starts runs, as
+				// a repeated key does.
+				var cmds []tea.Cmd
+				for _, k := range answer {
+					cmds = append(cmds, h.Update(keyMsg(k)))
+				}
+				for _, c := range cmds {
+					run(t, h, c)
+				}
+				if question(h) != "" {
+					t.Fatalf("%v left the question open", answer)
+				}
+				got := svc.changeCalls()
+				slices.Sort(got)
+				if answer[0] == "y" {
+					if !slices.Equal(got, tt.want) || m.composing != composeNone {
+						t.Errorf("sent %v with the prompt open %v, want %v sent once and the prompt closed", got, m.composing != composeNone, tt.want)
+					}
+					return
+				}
+				if len(got) != 0 {
+					t.Errorf("%v sent %v", answer, got)
+				}
+				if m.composing == composeNone || !m.prompt.Focused() || m.prompt.Value() != tt.typed {
+					t.Fatalf("%v didn't go back to the prompt with %q, has %q", answer, tt.typed, m.prompt.Value())
+				}
+				// Back at the prompt, keys are text again.
+				press(t, h, "!")
+				if m.prompt.Value() != tt.typed+"!" {
+					t.Errorf("typing after %v gave %q", answer, m.prompt.Value())
+				}
+			})
+		}
+	}
+}
+
+func TestComposeAsksAgain(t *testing.T) {
+	archived := writeCaps
+	archived.Archived = true
+	tests := []struct {
+		name  string
+		open  string
+		typed string
+		// setup readies the issue before it opens, and meddle changes what
+		// the question is about before the answer.
+		setup  func(svc *fakeService)
+		meddle func(t *testing.T, h *host, svc *fakeService, m *detailModal)
+		want   tea.Msg
+	}{
+		{
+			name: "comment in an archived repository", open: "c", typed: "Same here.",
+			meddle: func(t *testing.T, h *host, _ *fakeService, _ *detailModal) {
+				t.Helper()
+				run(t, h, h.Update(ui.CapsMsg{Repo: testRepo, Caps: archived}))
+			},
+			want: info("eggzec/gh-tui is archived, so it's read-only."),
+		},
+		{
+			name: "labels changed elsewhere", open: "l", typed: "bug",
+			meddle: func(t *testing.T, h *host, svc *fakeService, _ *detailModal) {
+				t.Helper()
+				svc.set(999, func(it *core.Issue) { it.Labels = append(it.Labels, core.Label{Name: "ui"}) })
+				run(t, h, h.Update(ui.SyncMsg{Key: issuesvc.SyncKey(testRepo)}))
+			},
+			want: info("#999 changed meanwhile, so nothing was sent."),
+		},
+		{
+			name: "labels made what was typed elsewhere", open: "l", typed: "bug",
+			meddle: func(t *testing.T, h *host, svc *fakeService, _ *detailModal) {
+				t.Helper()
+				svc.set(999, func(it *core.Issue) { it.Labels = []core.Label{{Name: "bug"}} })
+				run(t, h, h.Update(ui.SyncMsg{Key: issuesvc.SyncKey(testRepo)}))
+			},
+			want: info("#999 changed meanwhile, so nothing was sent."),
+		},
+		{
+			// Removing "a, b" and "c" reads as removing "a" and "b, c".
+			name: "labels that read the same", open: "l", typed: "",
+			meddle: func(t *testing.T, h *host, svc *fakeService, _ *detailModal) {
+				t.Helper()
+				svc.set(999, func(it *core.Issue) { it.Labels = []core.Label{{Name: "a"}, {Name: "b, c"}} })
+				run(t, h, h.Update(ui.SyncMsg{Key: issuesvc.SyncKey(testRepo)}))
+			},
+			setup: func(svc *fakeService) {
+				svc.set(999, func(it *core.Issue) { it.Labels = []core.Label{{Name: "a, b"}, {Name: "c"}} })
+			},
+			want: info("#999 changed meanwhile, so nothing was sent."),
+		},
+		{
+			name: "labels in an archived repository", open: "l", typed: "bug",
+			meddle: func(t *testing.T, h *host, _ *fakeService, _ *detailModal) {
+				t.Helper()
+				run(t, h, h.Update(ui.CapsMsg{Repo: testRepo, Caps: archived}))
+			},
+			want: info("eggzec/gh-tui is archived, so it's read-only."),
+		},
+		{
+			name: "the comment changed behind the question", open: "c", typed: "Same here.",
+			meddle: func(t *testing.T, _ *host, _ *fakeService, m *detailModal) {
+				t.Helper()
+				m.prompt.SetValue("Something else.")
+			},
+			want: info("#999 changed meanwhile, so nothing was sent."),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := newFakeService(sampleIssues(12))
+			if tt.setup != nil {
+				tt.setup(svc)
+			}
+			h, m := opened(t, svc, 30)
+			press(t, h, tt.open)
+			m.prompt.SetValue(tt.typed)
+			press(t, h, "ctrl+s")
+			if question(h) == "" {
+				t.Fatal("the submit asked nothing")
+			}
+			asked := question(h)
+			tt.meddle(t, h, svc, m)
+			if tt.setup != nil {
+				if again, _, _ := m.labels(tt.typed); again.Question != asked {
+					t.Fatalf("the change now asks %q, want it to read as %q", again.Question, asked)
+				}
+			}
+			msgs := press(t, h, "y")
+			if len(svc.changeCalls()) != 0 || !slices.Contains(msgs, tt.want) {
+				t.Errorf("sent %v and showed %v, want only %v", svc.changeCalls(), msgs, tt.want)
+			}
+			// Nothing typed is lost.
+			if m.composing == composeNone || question(h) != "" {
+				t.Errorf("the prompt closed, or still asks %q", question(h))
+			}
+		})
+	}
+}
+
+func TestLabelQuestion(t *testing.T) {
+	tests := []struct {
+		added, removed []string
+		want           string
+	}{
+		{[]string{"bug"}, nil, "Add the label bug to #12?"},
+		{[]string{"bug", "help wanted"}, nil, "Add the labels bug, help wanted to #12?"},
+		{nil, []string{"wontfix"}, "Remove the label wontfix from #12?"},
+		{nil, []string{"wontfix", "ui"}, "Remove the labels wontfix, ui from #12?"},
+		{[]string{"bug"}, []string{"wontfix", "ui"}, "Add the label bug to #12 and remove wontfix, ui?"},
+		{[]string{"a\x1b[31mb"}, nil, "Add the label a [31mb to #12?"},
+	}
+	for _, tt := range tests {
+		if got := labelQuestion("#12", tt.added, tt.removed); got != tt.want {
+			t.Errorf("labelQuestion(+%v -%v) = %q, want %q", tt.added, tt.removed, got, tt.want)
 		}
 	}
 }

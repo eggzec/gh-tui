@@ -138,6 +138,19 @@ func TestConfirmView(t *testing.T) {
 			assertFits(t, v, width, 24)
 			golden.RequireEqual(t, v[strings.LastIndexByte(v, '\n')+1:])
 		})
+		t.Run("comment in the modal at "+w+" columns", func(t *testing.T) {
+			s := started(t, newFakeService(sampleIssues(12)), width, 24)
+			press(t, s, "enter", "c")
+			m := s.modal()
+			m.prompt.SetValue("Same here.")
+			press(t, s, "ctrl+s")
+			v := m.View()
+			assertFits(t, v, width, 24)
+			// The question takes the place of the prompt's keys, under
+			// the comment.
+			lines := strings.Split(v, "\n")
+			golden.RequireEqual(t, strings.Join(lines[len(lines)-m.prompt.Height():], "\n"))
+		})
 		t.Run("close from the list at "+w+" columns", func(t *testing.T) {
 			s := started(t, newFakeService(sampleIssues(12)), width, 24)
 			press(t, s, "x")
