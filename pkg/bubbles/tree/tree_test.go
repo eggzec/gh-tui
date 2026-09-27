@@ -380,6 +380,71 @@ func TestRootErrorAndRetry(t *testing.T) {
 	}
 }
 
+func TestErrorText(t *testing.T) {
+	offline := func(error) (string, string) { return "Can't reach GitHub", "r to retry" }
+	tests := []struct {
+		name       string
+		opts       []Option
+		root, hint string
+		row        string
+	}{
+		{"default", nil, "✗ Couldn't load: boom", " · + to retry", "internal ✗ boom · + to retry"},
+		{"custom", []Option{WithErrorText(offline)}, "✗ Can't reach GitHub", " · r to retry", "internal ✗ Can't reach GitHub · r to retry"},
+		{"custom without a hint", []Option{WithErrorText(func(error) (string, string) { return "Not there.", "" })}, "✗ Not there.", "", "internal ✗ Not there."},
+		{"empty", []Option{WithErrorText(func(error) (string, string) { return "", "" })}, "", "", "internal"},
+		{"text with a dot", []Option{WithErrorText(func(error) (string, string) { return "GitHub says a · b", "" })}, "✗ GitHub says a · b", "", "internal ✗ GitHub says a · b"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			boom := errors.New("boom\nsecond line")
+			f := repo()
+			f.setFail("", boom)
+			m := load(t, f, append([]Option{WithSize(60, 6)}, tt.opts...)...)
+			text, hint := m.statusLine()
+			if text, hint = ansi.Strip(text), ansi.Strip(hint); text != tt.root || hint != tt.hint {
+				t.Errorf("statusLine() = %q, %q; want %q, %q", text, hint, tt.root, tt.hint)
+			}
+
+			f = repo()
+			f.setFail("internal", boom)
+			m = keys(t, load(t, f, append([]Option{WithSize(60, 6)}, tt.opts...)...), "j", "j", "+")
+			if v := ansi.Strip(m.View()); !strings.Contains(v, tt.row+" ") || tt.row == "internal" && strings.Contains(v, "✗") {
+				t.Errorf("View() = %q, want the row %q", v, tt.row)
+			}
+		})
+	}
+}
+
+// The words of a failed load are asked for once, as it fails, not on
+// every render.
+func TestErrorTextWordedOnce(t *testing.T) {
+	calls := 0
+	say := func(error) (string, string) {
+		calls++
+		return "Can't reach GitHub", "r to retry"
+	}
+	f := repo()
+	f.setFail("internal", errors.New("boom"))
+	m := keys(t, load(t, f, WithSize(60, 6), WithErrorText(say)), "j", "j", "+")
+	before := calls
+	for range 3 {
+		_ = m.View()
+	}
+	if before != 1 || calls != before {
+		t.Errorf("asked for the words %d times as the load failed and %d more on render, want once and none", before, calls-before)
+	}
+}
+
+func TestSetErrorText(t *testing.T) {
+	f := repo()
+	f.setFail("", errors.New("boom"))
+	m := load(t, f)
+	m.SetErrorText(func(error) (string, string) { return "Something went wrong", "r to retry" })
+	if text, hint := m.statusLine(); ansi.Strip(text+hint) != "✗ Something went wrong · r to retry" {
+		t.Errorf("statusLine() = %q, %q; want the new error text", text, hint)
+	}
+}
+
 func TestEmpty(t *testing.T) {
 	m := load(t, newFiles(), WithEmptyText("This repository is empty."))
 	if _, ok := m.Selected(); ok {

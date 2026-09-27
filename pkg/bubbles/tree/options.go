@@ -19,6 +19,7 @@ type settings struct {
 	width       int
 	height      int
 	emptyText   string
+	errorText   func(error) (text, hint string)
 	keyMap      KeyMap
 	styles      Styles
 	focused     bool
@@ -69,6 +70,19 @@ func WithSize(width, height int) Option {
 func WithEmptyText(text string) Option {
 	return func(s *settings) {
 		s.emptyText = text
+	}
+}
+
+// WithErrorText sets how a failed load reads, in the row of the branch
+// whose children failed to load, or in the row that stands in for the
+// top-level nodes. say returns the words for err and a hint, such as
+// "enter to retry", or "" for none; the hint is styled as one and kept
+// whole when the row is cut. An empty text shows no error. By default a
+// row shows the first line of the error, the top-level row says
+// "Couldn't load:" before it, and both name the expand key, which retries.
+func WithErrorText(say func(error) (text, hint string)) Option {
+	return func(s *settings) {
+		s.errorText = say
 	}
 }
 

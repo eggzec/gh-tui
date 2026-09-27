@@ -47,7 +47,8 @@ func (m Model) writeRow(w *lineWriter, i int) {
 		icon = e.iconOpen
 	}
 	prefix := m.gutter(i == m.sel)
-	if e.err == nil {
+	text, hint := e.errText, e.errHint
+	if e.err == nil || text == "" {
 		m.writeName(w, e, prefix, marker, icon)
 		return
 	}
@@ -55,8 +56,8 @@ func (m Model) writeRow(w *lineWriter, i int) {
 	// the error.
 	guide := m.guides[e.depth]
 	room := w.width - ansi.StringWidth(prefix) - ansi.StringWidth(guide) -
-		ansi.StringWidth(marker) - ansi.StringWidth(icon) - ansi.StringWidth(m.errHint)
-	name, msg := e.label, " "+m.errText(e.err)
+		ansi.StringWidth(marker) - ansi.StringWidth(icon) - ansi.StringWidth(hint)
+	name, msg := e.label, " "+text
 	nw, mw := ansi.StringWidth(name), ansi.StringWidth(msg)
 	if nw+mw > room {
 		if nw > room/2 {
@@ -65,7 +66,7 @@ func (m Model) writeRow(w *lineWriter, i int) {
 		}
 		msg = ansi.Truncate(msg, max(room-nw, 0), "…")
 	}
-	w.line(prefix, guide, marker, icon, name, msg, m.errHint)
+	w.line(prefix, guide, marker, icon, name, msg, hint)
 }
 
 // minDetailName is the fewest cells of a name that a detail may leave.
@@ -109,9 +110,25 @@ func (m Model) gutter(selected bool) string {
 	}
 }
 
-func (m Model) errText(err error) string {
-	msg, _, _ := strings.Cut(err.Error(), "\n")
-	return m.styles.Error.Render("✗ " + msg)
+// errorWords renders what a failed load says of err, and the hint after
+// it, or two empty strings when the error text is empty. top is the load
+// of the top-level nodes.
+func (m Model) errorWords(err error, top bool) (text, hint string) {
+	if m.errorText == nil {
+		msg, _, _ := strings.Cut(err.Error(), "\n")
+		if top {
+			msg = "Couldn't load: " + msg
+		}
+		return m.styles.Error.Render("✗ " + msg), m.errHint
+	}
+	words, h := m.errorText(err)
+	if words == "" {
+		return "", ""
+	}
+	if h != "" {
+		hint = m.styles.Hint.Render(" · " + h)
+	}
+	return m.styles.Error.Render("✗ " + words), hint
 }
 
 // statusLine returns the row shown after the rows, or instead of them:
@@ -121,8 +138,7 @@ func (m Model) statusLine() (text, hint string) {
 	root := m.nodes[""]
 	switch {
 	case root.err != nil:
-		msg, _, _ := strings.Cut(root.err.Error(), "\n")
-		return m.styles.Error.Render("✗ Couldn't load: " + msg), m.errHint
+		return root.errText, root.errHint
 	case root.loading:
 		return m.spin.View() + m.loadingText, ""
 	default:

@@ -169,7 +169,7 @@ func (m *Model) receive(msg childrenMsg) tea.Cmd {
 	e.cancel, e.loading = nil, false
 	m.loads--
 	if msg.err != nil {
-		e.err = msg.err
+		m.setErr(e, msg.err)
 	} else {
 		m.setKids(e, msg.kids)
 	}
