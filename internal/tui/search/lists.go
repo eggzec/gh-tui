@@ -3,6 +3,7 @@ package search
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
@@ -56,6 +57,7 @@ func (s *Section) showKind(k core.SearchKind) tea.Cmd {
 	if s.text == "" {
 		return nil
 	}
+	s.seen.Opened(othersKey{text: s.text, kind: k})
 	if k == core.SearchCode {
 		return s.searchCode()
 	}
@@ -153,27 +155,97 @@ type prefetchMsg struct {
 	err  error
 }
 
-// prefetch reads the first page of every kind but code and k, the kind on
-// view, each in a request of its own beside the one of k, so that they
-// arrive as fast as the kind on view and switching kinds is instant.
-func (s *Section) prefetch(k core.SearchKind) tea.Cmd {
-	cmds := make([]tea.Cmd, 0, 2)
-	for _, other := range kinds[:3] {
-		if other == k {
-			continue
+// What started the reads of the other kinds, for the log.
+const (
+	othersRest  = "rest"
+	othersEnter = "enter"
+)
+
+// othersKey names the first page of one kind for one query, read ahead.
+type othersKey struct {
+	text string
+	kind core.SearchKind
+}
+
+// readOthers reads the first page of every kind but code and the one on
+// view, each in a request of its own, so that switching kinds is instant.
+// They are guesses, so they wait until the query rests or is entered, run
+// as reads ahead, which charge the prefetch budget and wait for the
+// requests the user waits for, and stop when the page is left. A query
+// reads them once.
+func (s *Section) readOthers(trigger string) tea.Cmd {
+	if s.text == "" || s.othersFor == s.text {
+		return nil
+	}
+	s.othersFor = s.text
+	if obs.PrefetchSpent() {
+		s.seen.Count(obs.PrefetchOverBudget)
+		return nil
+	}
+	shown := s.kind
+	if shown == core.SearchCode {
+		// Code waits to be asked for, so the repositories are searched in
+		// its place.
+		shown = core.SearchRepos
+	}
+	todo := make([]core.SearchKind, 0, 2)
+	cached := 0
+	for _, k := range kinds[:3] {
+		switch _, ok := s.svc.CachedSearch(search.Query{Text: s.text, Kind: k}); {
+		case k == shown:
+		case ok:
+			cached++
+			s.seen.Count(obs.PrefetchCached)
+		default:
+			todo = append(todo, k)
 		}
-		if _, ok := s.svc.CachedSearch(search.Query{Text: s.text, Kind: other}); ok {
-			continue
-		}
-		svc, ctx, id, text := s.svc, s.textCtx, s.id, s.text
+	}
+	if len(todo) == 0 {
+		return nil
+	}
+	s.stopOthers()
+	ctx, cancel := context.WithCancel(obs.ForPrefetch(s.textCtx))
+	s.stopOthers = cancel
+	svc, id, text, seen := s.svc, s.id, s.text, s.seen
+	cmds := make([]tea.Cmd, 0, len(todo)+1)
+	cmds = append(cmds, func() tea.Msg {
+		slog.InfoContext(ctx, "prefetch", "span", "prefetch", "kind", seen.Kind(), "trigger", trigger,
+			"sent", len(todo), "skipped_cached", cached)
+		return nil
+	})
+	for _, k := range todo {
+		key := othersKey{text: text, kind: k}
+		seen.Started(key)
 		cmds = append(cmds, func() tea.Msg {
 			ctx, end := obs.Begin(ctx, "search.prefetch")
-			err := svc.Prefetch(ctx, search.Query{Text: text, Kind: other})
-			end(err, "span", "tui", "kind", string(other))
-			return prefetchMsg{id: id, text: text, kind: other, err: err}
+			seen.Count(obs.PrefetchSent)
+			err := svc.Prefetch(ctx, search.Query{Text: text, Kind: k})
+			end(err, "span", "tui", "kind", string(k))
+			switch {
+			case err == nil:
+				seen.Read(key)
+			case errors.Is(err, core.ErrRateLimited):
+				seen.Count(obs.PrefetchRateLimited)
+			case ctx.Err() != nil:
+				seen.Count(obs.PrefetchCanceled)
+			default:
+				seen.Count(obs.PrefetchFailed)
+			}
+			if err != nil {
+				seen.Dropped(key)
+			}
+			return prefetchMsg{id: id, text: text, kind: k, err: err}
 		})
 	}
 	return tea.Batch(cmds...)
+}
+
+// leaveOthers stops the reads of the other kinds in flight, as the page
+// leaves the screen, and lets the next rest or enter read them again.
+func (s *Section) leaveOthers() {
+	s.stopOthers()
+	s.stopOthers = func() {}
+	s.othersFor = ""
 }
 
 // keepStale keeps the results of kind k on view, if any, to show dimmed

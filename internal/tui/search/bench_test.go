@@ -43,14 +43,24 @@ func BenchmarkUpdate(b *testing.B) {
 	}
 }
 
+// BenchmarkType types faster than the other kinds wait for: the wait of
+// each key ends after the next key, when a newer edit makes it moot.
 func BenchmarkType(b *testing.B) {
 	s := newSection(b, newFake(), 140, 38)
 	keys := []tea.Msg{keyPress("t"), keyPress("e"), keyPress("a"), keyPress("backspace"), keyPress("backspace"), keyPress("backspace")}
+	others := func(msg tea.Msg) bool { _, ok := msg.(othersMsg); return ok }
+	// The waits of the last key, and those of the key before, which end
+	// now; the two swap each key.
+	waits, ended := make([]tea.Msg, 0, 1), make([]tea.Msg, 0, 1)
 	b.ReportAllocs()
 	i := 0
 	for b.Loop() {
+		waits, ended = ended[:0], waits
 		if cmd := s.Update(keys[i%len(keys)]); cmd != nil {
-			run(b, s, cmd)
+			_, waits = drive(b, s, cmd, others, waits)
+		}
+		for _, w := range ended {
+			run(b, s, s.Update(w))
 		}
 		i++
 	}

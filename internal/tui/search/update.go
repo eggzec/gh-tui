@@ -16,6 +16,10 @@ import (
 // countdown of code search, and passes everything else to the results,
 // whose lists ignore the messages of others.
 func (s *Section) Update(msg tea.Msg) tea.Cmd {
+	if s.moot(msg) {
+		// Nothing changes, so the page needn't render again.
+		return nil
+	}
 	cmd := s.update(msg)
 	cmd = tea.Batch(cmd, s.spinTitle())
 	s.render()
@@ -27,10 +31,17 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 	case tea.KeyPressMsg:
 		return s.press(msg)
 	case debounceMsg:
-		if msg.id != s.id || msg.seq != s.seq {
+		if msg.id != s.id {
 			return nil
 		}
 		return s.settle()
+	case othersMsg:
+		// Off the page, the other kinds wait for the next rest or enter,
+		// which Update checks.
+		if msg.id != s.id {
+			return nil
+		}
+		return tea.Batch(s.settle(), s.readOthers(othersRest))
 	case codeTickMsg:
 		if msg.id != s.id {
 			return nil
@@ -70,6 +81,18 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 	}
 	s.refreshCounts()
 	return tea.Batch(cmds...)
+}
+
+// moot reports whether msg is a wait that a later edit, or leaving the
+// page, made moot: one of every key typed.
+func (s *Section) moot(msg tea.Msg) bool {
+	switch msg := msg.(type) {
+	case debounceMsg:
+		return msg.id == s.id && msg.seq != s.seq
+	case othersMsg:
+		return msg.id == s.id && (msg.edits != s.edits || !s.focused)
+	}
+	return false
 }
 
 // press handles a key in the part of the page that has the focus.
