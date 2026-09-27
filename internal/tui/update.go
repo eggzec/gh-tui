@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"fmt"
 	"strings"
 
 	"charm.land/bubbles/v2/key"
@@ -78,8 +77,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.toast.Push(msg.Level, msg.Text)
 	case ui.DoneMsg:
 		var cmd tea.Cmd
-		if msg.Err != nil {
-			cmd = m.toast.Push(toast.Error, fmt.Sprintf("Couldn't %s: %v", msg.What, msg.Err))
+		if text := ui.SayToast(core.Explain(msg.What, msg.Err), m.voice); text != "" {
+			cmd = m.toast.Push(toast.Error, text)
 		}
 		return m, tea.Batch(cmd, m.broadcast(msg))
 	case ui.SyncMsg:

@@ -4,6 +4,10 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
+	"net/url"
+	"os"
+	"path/filepath"
 	"reflect"
 	"slices"
 	"strings"
@@ -685,14 +689,112 @@ func TestRepoWatcherSeesRepoBeforeSections(t *testing.T) {
 	}
 }
 
-func TestDoneWithErrorShowsToast(t *testing.T) {
-	m, fakes := newTestApp(t)
-	m.Update(ui.DoneMsg{What: "merge #42", Err: errors.New("conflict")})
-	if got := onScreen(m); !strings.Contains(got, "Couldn't merge #42:") || !strings.Contains(got, "conflict") {
-		t.Errorf("view has no error toast:\n%s", got)
+// ghError stands for an error of the github package, whose text names the
+// request and its status, with GitHub's own reason.
+type ghError struct {
+	is     error
+	reason string
+}
+
+func (e *ghError) Error() string {
+	return "github: PUT /repos/eggzec/gh-tui/pulls/42/merge: 405 " + e.reason
+}
+
+func (e *ghError) Unwrap() error  { return e.is }
+func (e *ghError) Reason() string { return e.reason }
+
+// failure is an error of a kind, and the cause a toast gives for it.
+type failure struct {
+	name  string
+	err   error
+	cause string
+}
+
+// testLog is the log file that failures point to, as the toasts show it.
+const testLog = "~/.local/state/gh-tui/gh-tui.log"
+
+// failures are errors of every kind that GitHub or the app may fail
+// with, each with a chain the user must never see. An empty cause means
+// no toast.
+func failures() []failure {
+	reset := time.Now().Add(time.Hour)
+	offline := &url.Error{Op: "Put", URL: "https://api.github.com/repos/eggzec/gh-tui", Err: errors.New("dial tcp: no route to host")}
+	return []failure{
+		{name: "offline", err: fmt.Errorf("github: %w: %w", core.ErrOffline, offline), cause: "can't reach GitHub."},
+		{name: "unavailable", err: &ghError{is: core.ErrUnavailable}, cause: "GitHub isn't responding."},
+		{name: "forbidden", err: &ghError{is: core.ErrForbidden, reason: "Resource not accessible"}, cause: "you don't have access to this."},
+		{name: "not found", err: &ghError{is: core.ErrNotFound, reason: "Not Found"}, cause: "this doesn't exist or is private."},
+		{name: "rejected", err: &ghError{is: core.ErrConflict, reason: "Pull Request is not mergeable"}, cause: "Pull Request is not mergeable."},
+		{name: "rate limited", err: fmt.Errorf("github: 403: %w", &core.RateLimitError{Reset: reset}), cause: "rate limited until " + reset.Format("15:04") + "."},
+		{name: "rate limited with no reset", err: fmt.Errorf("github: 403: %w", &core.RateLimitError{}), cause: "rate limited by GitHub."},
+		{name: "auth", err: &ghError{is: core.ErrUnauthorized, reason: "Bad credentials"}, cause: "run gh auth login, then restart gh-tui."},
+		{name: "internal", err: errors.New("github: decode 200: unexpected EOF"), cause: "something went wrong, see " + testLog + "."},
+		{name: "canceled", err: fmt.Errorf("github: PUT /repos: %w", context.Canceled)},
 	}
-	if !fakes[2].got(func(msg tea.Msg) bool { _, ok := msg.(ui.DoneMsg); return ok }) {
-		t.Error("DoneMsg wasn't passed on to the sections")
+}
+
+// newWideApp returns an app opened on testRepo, wide enough for a toast
+// of ui.ToastWidth to show whole, which at 80 columns the toast stack
+// wraps and may cut.
+func newWideApp(t *testing.T, opts ...Option) (*Model, []*fakeSection) {
+	t.Helper()
+	m, fakes := newTestApp(t, opts...)
+	m.Update(tea.WindowSizeMsg{Width: 240, Height: 24})
+	return m, fakes
+}
+
+// logVoice returns the voice of the default keys, pointing to testLog.
+func logVoice(t *testing.T) ui.Voice {
+	t.Helper()
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Skip("no home directory:", err)
+	}
+	return ui.NewVoice(config.Default().Keys, filepath.Join(home, ".local", "state", "gh-tui", "gh-tui.log"))
+}
+
+// leaks are what a toast must never show of an error: the package,
+// requests, paths, status codes and the home directory.
+var leaks = []string{"github:", "PUT", "GET", "/repos", "405", "403", "200", "api.github.com", "dial tcp", "EOF", "canceled"}
+
+// checkClean fails t if text shows anything of leaks, or the home
+// directory.
+func checkClean(t *testing.T, text string) {
+	t.Helper()
+	for _, l := range leaks {
+		if strings.Contains(text, l) {
+			t.Errorf("toast shows %q: %s", l, text)
+		}
+	}
+	if home, err := os.UserHomeDir(); err == nil && strings.Contains(text, home) {
+		t.Errorf("toast shows the home directory: %s", text)
+	}
+}
+
+func TestDoneWithErrorShowsToast(t *testing.T) {
+	for _, f := range failures() {
+		t.Run(f.name, func(t *testing.T) {
+			m, fakes := newWideApp(t, WithVoice(logVoice(t)))
+			m.Update(ui.DoneMsg{What: "merge #42", Err: f.err})
+			switch got := toasted(m); {
+			case f.cause == "" && got != "":
+				t.Errorf("toast %q, want none", got)
+			case f.cause != "" && !hasToast(m, "Couldn't merge #42: "+f.cause):
+				t.Errorf("toast %q, want %q", got, "Couldn't merge #42: "+f.cause)
+			}
+			checkClean(t, toasted(m))
+			if !fakes[2].got(func(msg tea.Msg) bool { _, ok := msg.(ui.DoneMsg); return ok }) {
+				t.Error("DoneMsg wasn't passed on to the sections")
+			}
+		})
+	}
+}
+
+func TestDoneWithErrorWithoutLog(t *testing.T) {
+	m, _ := newWideApp(t)
+	m.Update(ui.DoneMsg{What: "merge #42", Err: errors.New("github: decode 200: unexpected EOF")})
+	if want := "Couldn't merge #42: something went wrong."; !hasToast(m, want) {
+		t.Errorf("toast %q, want %q", toasted(m), want)
 	}
 }
 

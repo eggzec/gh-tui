@@ -128,6 +128,8 @@ type Model struct {
 	// rates tells the rate limits, and rate is what it told last.
 	rates RateLimits
 	rate  core.RateStatus
+	// voice words what went wrong in the app's toasts.
+	voice ui.Voice
 }
 
 // Option configures a Model.
@@ -221,6 +223,13 @@ func WithBrowser(open func(url string) error) Option {
 	return func(m *Model) { m.open = open }
 }
 
+// WithVoice sets how the app words what went wrong, with the keys a hint
+// names and the log it points to. By default the hints name the configured
+// keys and no log.
+func WithVoice(v ui.Voice) Option {
+	return func(m *Model) { m.voice = v }
+}
+
 // WithWarning shows text in a warning toast once the app starts, for a
 // problem at startup that the app works around, such as a cache it
 // couldn't open.
@@ -239,6 +248,7 @@ func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) 
 		help:  help.New(),
 		line:  newLine(cfg.Keys),
 		spin:  newSpinner(),
+		voice: ui.NewVoice(cfg.Keys, ""),
 	}
 	if layout.Files != nil {
 		m.panes, m.left = append(m.panes, &pane{section: layout.Files}), 1
