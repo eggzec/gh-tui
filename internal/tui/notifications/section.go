@@ -18,6 +18,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/threads"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // SyncKey is the sync key under which the app subscribes the service's Poll.
@@ -85,7 +86,9 @@ type Section struct {
 
 	width, height int
 	styles        styles
-	header        string
+	// links keeps the links of the rows, which are drawn on every frame.
+	links  termtext.Links
+	header string
 }
 
 var (

@@ -144,8 +144,10 @@ func (s *Section) render(n core.Notification, selected bool, width int) string {
 		repo.write(&b, fit(repoLabel(n.Repo, l.repo), l.repo))
 		spaces(&b, gap)
 	}
-	title.write(&b, fit(n.Subject.Title, l.title))
-	spaces(&b, gap)
+	// The title links to the thread's page.
+	t := cut(n.Subject.Title, l.title)
+	b.WriteString(s.links.Link(n.Subject.WebURL, title.render(t)))
+	spaces(&b, l.title-ansi.StringWidth(t)+gap)
 	if l.reason > 0 {
 		st.reason.write(&b, fit(shortReason(n.Reason), l.reason))
 		spaces(&b, gap)
@@ -271,12 +273,16 @@ func repoLabel(r core.RepoRef, width int) string {
 
 // fit truncates plain s to width cells and pads it on the right.
 func fit(s string, width int) string {
-	w := ansi.StringWidth(s)
-	if w > width {
-		s = ansi.Truncate(s, width, "…")
-		w = ansi.StringWidth(s)
+	s = cut(s, width)
+	return s + strings.Repeat(" ", width-ansi.StringWidth(s))
+}
+
+// cut truncates plain s to width cells.
+func cut(s string, width int) string {
+	if ansi.StringWidth(s) > width {
+		return ansi.Truncate(s, width, "…")
 	}
-	return s + strings.Repeat(" ", width-w)
+	return s
 }
 
 // fitRight truncates plain s to width cells and pads it on the left.
