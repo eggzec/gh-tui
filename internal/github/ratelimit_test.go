@@ -58,13 +58,16 @@ func TestRateLimitKeptWithoutHeaders(t *testing.T) {
 }
 
 func TestRateLimitConcurrent(t *testing.T) {
-	const n = 50
+	// The quota covers the requests twice over, since while they are in
+	// flight, the budget counts those GitHub counted already again.
+	const n, limit = 50, 150
 	var remaining atomic.Int32
-	remaining.Store(n)
+	remaining.Store(limit)
+	reset := strconv.FormatInt(time.Now().Add(time.Hour).Unix(), 10)
 	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("X-RateLimit-Limit", strconv.Itoa(n))
+		w.Header().Set("X-RateLimit-Limit", strconv.Itoa(limit))
 		w.Header().Set("X-RateLimit-Remaining", strconv.Itoa(int(remaining.Add(-1))))
-		w.Header().Set("X-RateLimit-Reset", "1790000000")
+		w.Header().Set("X-RateLimit-Reset", reset)
 	}))
 
 	var wg sync.WaitGroup
@@ -78,8 +81,8 @@ func TestRateLimitConcurrent(t *testing.T) {
 	}
 	wg.Wait()
 
-	if got := c.RateLimit(resourceCore); got.Limit != n || got.Remaining < 0 || got.Remaining >= n {
-		t.Errorf("RateLimit = %+v, want limit %d and remaining in [0, %d)", got, n, n)
+	if got := c.RateLimit(resourceCore); got.Limit != limit || got.Remaining != limit-n {
+		t.Errorf("RateLimit = %+v, want limit %d and %d remaining", got, limit, limit-n)
 	}
 }
 

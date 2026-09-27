@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/obs"
 )
 
 // answerQuota answers with the quota of resource, from GitHub.
@@ -233,7 +234,6 @@ func TestRateNotifyChanges(t *testing.T) {
 		a := answers{"x": make(chan answer, 1)}
 		c := newNotified(t, a)
 		reset := time.Now().Add(30 * time.Minute)
-		github := map[string]string{"X-GitHub-Request-Id": "ABCD:1234"}
 		told := 0
 		step := func(name string, change bool, ans *answer, path string) {
 			t.Helper()
@@ -277,10 +277,20 @@ func TestRateNotifyChanges(t *testing.T) {
 			t.Errorf("at the release: told %d times, last of %+v; want %d, not limited", n, s.Quotas, told)
 			told = n
 		}
+		// Until an answer shows the new window, the gate holds each
+		// request for a probe of the limits, which is told of too.
+		reset = reset.Add(time.Hour)
+		step("held for a probe", true, ans(answerQuota(resourceCore, 5000, 5000, reset)), "x")
+		time.Sleep(notifyEvery)
+		told++
+		if n, s := c.last(); n != told || coreQuota(t, s).Held != 0 || coreQuota(t, s).Remaining != 5000 {
+			t.Errorf("let go in the new window: told %d times, last of %+v; want %d, none held", n, s.Quotas, told)
+			told = n
+		}
 		step("offline", true, nil, "unanswered")
 		step("still offline", false, nil, "unanswered")
-		step("online", true, ans(answer{header: github}), "x")
-		step("still online", false, ans(answer{header: github}), "x")
+		step("online", true, ans(answerQuota(resourceCore, 5000, 4999, reset)), "x")
+		step("still online", false, ans(answerQuota(resourceCore, 5000, 4998, reset)), "x")
 	})
 }
 
@@ -366,6 +376,36 @@ func TestRateStatusConcurrent(t *testing.T) {
 		}
 		if want := c.RateStatus(); !slices.Equal(want.Quotas, s.Quotas) {
 			t.Errorf("last told %+v, want the final %+v", s.Quotas, want.Quotas)
+		}
+	})
+}
+
+// TestRateStatusHeld checks that the requests held for a limit show in
+// the status, and that holding one and letting it go are told of.
+func TestRateStatusHeld(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		h := &hub{limit: 5, window: time.Minute}
+		c := newNotified(t, h)
+		c.budget.gate.jitter = func() float64 { return 0 }
+		reset := time.Now().Add(10 * time.Second)
+		spendCore(t, c.Client, h, reset)
+		time.Sleep(2 * time.Second)
+		told, _ := c.last()
+
+		done := goAsync(func() error {
+			_, err := c.Get(obs.ForBackground(t.Context()), "repos/o/r", Conditional{}, nil)
+			return err
+		})
+		n, s := c.last()
+		if n != told+1 || coreQuota(t, s).Held != 1 || coreQuota(t, c.RateStatus()).Held != 1 {
+			t.Errorf("once held: told %d times, last of %+v; want %d, 1 held", n, s.Quotas, told+1)
+		}
+		if err := <-done; err != nil {
+			t.Fatal(err)
+		}
+		time.Sleep(notifyEvery)
+		if n, s := c.last(); n <= told+1 || coreQuota(t, s).Held != 0 {
+			t.Errorf("once let go: told %d times, last of %+v; want more than %d, none held", n, s.Quotas, told+1)
 		}
 	})
 }

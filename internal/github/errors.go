@@ -94,10 +94,11 @@ func Refused(err error) bool {
 }
 
 // offline tags err, the error of a request that got no response, with
-// core.ErrOffline, unless it is because ctx is done: that is a
-// cancellation, not an outage.
+// core.ErrOffline, unless it is because ctx is done, which is a
+// cancellation, or a rate limit that stopped the request before it was
+// sent: neither is an outage.
 func offline(ctx context.Context, err error) error {
-	if ctx.Err() != nil {
+	if ctx.Err() != nil || errors.Is(err, core.ErrRateLimited) {
 		return err
 	}
 	return fmt.Errorf("%w: %w", core.ErrOffline, err)

@@ -57,6 +57,14 @@ func withCall(ctx context.Context, c *call) context.Context {
 	return context.WithValue(ctx, callKey{}, c)
 }
 
+type heldKey struct{}
+
+// withHeld returns ctx carrying d, how long its attempt was held for its
+// rate limit, which the log records.
+func withHeld(ctx context.Context, d time.Duration) context.Context {
+	return context.WithValue(ctx, heldKey{}, d)
+}
+
 // RoundTrip sends req with the base transport, and logs it once the
 // response's body is closed, or at once if there is no response. A request
 // that ends early, such as one canceled when the user navigates away, is
@@ -193,6 +201,9 @@ func (a *attempt) done(resp *http.Response, err error) {
 	}
 	if retryAfter != "" {
 		attrs = append(attrs, slog.String("retry_after", retryAfter))
+	}
+	if held, ok := ctx.Value(heldKey{}).(time.Duration); ok {
+		attrs = append(attrs, slog.Float64("held_ms", obs.Millis(held)))
 	}
 	if err != nil {
 		attrs = append(attrs, slog.String("err", err.Error()), slog.Bool("canceled", canceled))

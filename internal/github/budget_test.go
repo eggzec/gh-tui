@@ -132,12 +132,12 @@ func TestBudgetExternalNotCounted(t *testing.T) {
 	b := newBudget("api.github.com", "/", "/graphql")
 	ctx := withCall(t.Context(), &call{external: true})
 	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "https://storage.example.com/logs", http.NoBody)
-	if r := b.reserve(req); r != nil {
-		t.Errorf("reserve = %+v, want nothing for an external download", r)
+	if r, _, err := b.admit(req); r != nil || err != nil {
+		t.Errorf("admit = %+v, %v; want nothing for an external download", r, err)
 	}
 	req = httptest.NewRequest(http.MethodGet, "https://storage.example.com/repos/o/r", http.NoBody)
-	if r := b.reserve(req); r != nil {
-		t.Errorf("reserve = %+v, want nothing for a redirect to another host", r)
+	if r, _, err := b.admit(req); r != nil || err != nil {
+		t.Errorf("admit = %+v, %v; want nothing for a redirect to another host", r, err)
 	}
 }
 
@@ -430,7 +430,10 @@ func TestBudgetMutationCost(t *testing.T) {
 	b := newBudget("api.github.com", "/", "/graphql")
 	b.learnCost("Star", 9)
 	ctx := withCall(t.Context(), &call{op: "Star"})
-	r := b.reserve(httptest.NewRequestWithContext(ctx, http.MethodPost, "https://api.github.com/graphql", http.NoBody))
+	r, _, err := b.admit(httptest.NewRequestWithContext(ctx, http.MethodPost, "https://api.github.com/graphql", http.NoBody))
+	if err != nil {
+		t.Fatal(err)
+	}
 	if r.resource != resourceGraphQL || r.cost != 1 {
 		t.Errorf("reservation = %+v, want 1 of graphql", r)
 	}
@@ -534,20 +537,28 @@ func TestBudgetSkewMedian(t *testing.T) {
 func TestBudgetGuard(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		reset := time.Now().Add(time.Minute)
-		a := answers{"x": make(chan answer, 1)}
+		a := answers{"x": make(chan answer, 2)}
 		c := newAnswered(t, a)
 		get := func(ans answer) error {
+			// The requests held are sent a stagger after the whole
+			// second, which a Date doesn't show, so the answers leave
+			// the skew alone.
+			delete(ans.header, "Date")
 			a["x"] <- ans
 			_, err := c.Get(t.Context(), "x", Conditional{}, nil)
 			return err
 		}
 
-		release := limitedUntil(t, get(spent(resourceCore, reset, 0)))
+		// Both are sent before the release, so the second refusal
+		// changes nothing.
+		first, second := getAsync(c, "x"), getAsync(c, "x")
+		a["x"] <- spent(resourceCore, reset, 0)
+		a["x"] <- spent(resourceCore, reset, 0)
+		release := limitedUntil(t, <-first)
 		if want := reset.Add(minGuard); !release.Equal(want) {
 			t.Fatalf("first release = %v, want %v", release, want)
 		}
-		// Sent before the release, a refusal changes nothing.
-		if got := limitedUntil(t, get(spent(resourceCore, reset, 0))); !got.Equal(release) {
+		if got := limitedUntil(t, <-second); !got.Equal(release) {
 			t.Errorf("release after a refusal before it = %v, want %v", got, release)
 		}
 		for _, guard := range []time.Duration{2, 4, 8, 8} {
@@ -612,14 +623,21 @@ func TestBudgetGuardByReservation(t *testing.T) {
 		reset := time.Now().Add(time.Minute)
 		a := answers{"x": make(chan answer, 1)}
 		c := newAnswered(t, a)
+		done := []<-chan error{getAsync(c, "x"), getAsync(c, "x")}
 		a["x"] <- spent(resourceCore, reset, 0)
-		_, err := c.Get(t.Context(), "x", Conditional{}, nil)
-		release := limitedUntil(t, err)
+		synctest.Wait()
+		var release time.Time
+		var last <-chan error
+		select {
+		case err := <-done[0]:
+			release, last = limitedUntil(t, err), done[1]
+		case err := <-done[1]:
+			release, last = limitedUntil(t, err), done[0]
+		}
 
-		done := getAsync(c, "x")
 		time.Sleep(time.Until(release) + time.Second)
 		a["x"] <- spent(resourceCore, reset, 0)
-		if got := limitedUntil(t, <-done); !got.Equal(release) {
+		if got := limitedUntil(t, <-last); !got.Equal(release) {
 			t.Errorf("release = %v, want %v, the guard unchanged", got, release)
 		}
 		if g := c.budget.quotas[resourceCore].guard; g != minGuard {

@@ -40,8 +40,7 @@ func (b *budget) snapshot() core.RateStatus {
 			Remaining: b.left(resource, q, now),
 			Reset:     b.local(q.reset),
 			SeenAt:    q.seenAt,
-			// Held stays zero while the budget only counts requests
-			// and never holds one back for a release.
+			Held:      b.held(resource),
 		}
 		if q.release.After(now) {
 			cq.LimitedUntil = q.release
@@ -134,8 +133,7 @@ type quotaView struct {
 	// with a new window only, not when the skew is learned better.
 	window  time.Time
 	limited bool
-	// held stays zero while the budget never holds a request back.
-	held int
+	held    int
 	// step is the whole percent of the limit left, as GitHub reported
 	// it, or all of it once the reset has passed.
 	step int
@@ -224,7 +222,9 @@ func (b *budget) view(now time.Time) (v rateView, next time.Time) {
 		}
 		soonest(b.local(q.reset))
 		soonest(q.release)
-		v.quotas = append(v.quotas, quotaView{resource: resource, window: q.reset, limited: q.release.After(now), step: step})
+		v.quotas = append(v.quotas, quotaView{
+			resource: resource, window: q.reset, limited: q.release.After(now), held: b.held(resource), step: step,
+		})
 	}
 	slices.SortFunc(v.quotas, func(x, y quotaView) int { return cmp.Compare(x.resource, y.resource) })
 	return v, next
