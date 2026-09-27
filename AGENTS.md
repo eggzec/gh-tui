@@ -176,9 +176,10 @@ changes minimal so that pulling in new upstream versions stays easy.
   this session fetched.
 - Keep only what GitHub sent. Optimistic changes stay in memory until
   GitHub confirms them, and what is kept after a change has no validators.
-  An outage serves the kept entry with `Offline` set; a refusal drops it
-  (`github.Unreachable`, `github.Refused`). Bump a shelf's schema when its
-  value type changes shape.
+  An outage serves the kept entry with `Offline` set, and a rate limit
+  with `Limited` set, until any answer, a 304 too; a refusal drops it
+  (`service/fallback`). Bump a shelf's schema when its value type changes
+  shape.
 - Use stale-while-revalidate: serve cached data at once, refresh it in the
   background, and emit an update message if the data changed.
 - Store the `ETag`/`Last-Modified` for each entry so that revalidation costs
