@@ -11,6 +11,13 @@ var (
 	ErrUnauthorized = errors.New("unauthorized")
 	ErrRateLimited  = errors.New("rate limited")
 	ErrConflict     = errors.New("conflict")
+	// ErrForbidden is GitHub refusing access for a reason other than the
+	// token or a rate limit, such as SSO or a missing permission.
+	ErrForbidden = errors.New("forbidden")
+	// ErrOffline is a request that never got an answer from GitHub.
+	ErrOffline = errors.New("offline")
+	// ErrUnavailable is GitHub answering with a server error.
+	ErrUnavailable = errors.New("unavailable")
 	// ErrTooLarge is matched by a *TooLargeError.
 	ErrTooLarge = errors.New("too large")
 )
