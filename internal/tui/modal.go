@@ -167,25 +167,37 @@ func (m *Model) modalSize() (width, height int) {
 	return max(w-4, 0), max(h-2, 0)
 }
 
+// minTitleWidth is the least of a long title that the tabs of a modal
+// leave in the top edge of its frame.
+const minTitleWidth = 16
+
 // frame draws mod in its frame, with its title in the top edge, and its
-// tabs, if it has them and they fit, at the right end of it.
+// tabs, if it has them and they fit, at the right end of it. The tabs
+// shorten a long title, down to minTitleWidth, so they show at 80 columns.
 func (m *Model) frame(mod ui.Modal) string {
 	w, _ := m.frameSize()
 	if w < 4 {
 		return ""
 	}
 	b := lipgloss.RoundedBorder()
-	title := ansi.Truncate(" "+mod.Title()+" ", max(w-4, 0), "… ")
-	rest := max(w-3-lipgloss.Width(title), 0)
 	var tabs string
 	if t, ok := mod.(ui.Tabbed); ok {
 		tabs = m.tabs(t)
-		// The tabs keep a stretch of the edge before them, or give way.
-		if tw := lipgloss.Width(tabs); tw+3 <= rest {
-			rest -= tw + 1
-		} else {
-			tabs = ""
-		}
+	}
+	tw := lipgloss.Width(tabs)
+	titleWidth := max(w-4, 0)
+	// The tabs keep a stretch of the edge before them, or give way.
+	if room := w - 6 - tw; tabs != "" && room >= minTitleWidth {
+		titleWidth = min(titleWidth, room)
+	}
+	title := ansi.Truncate(" "+mod.Title()+" ", titleWidth, "… ")
+	rest := max(w-3-lipgloss.Width(title), 0)
+	switch {
+	case tabs == "":
+	case tw+3 <= rest:
+		rest -= tw + 1
+	default:
+		tabs = ""
 	}
 	top := m.theme.Accent.Render(b.TopLeft+b.Top) +
 		m.theme.Title.Render(title) +

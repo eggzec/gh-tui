@@ -6,6 +6,7 @@ import (
 	"charm.land/bubbles/v2/help"
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 )
 
@@ -75,8 +76,10 @@ type Fitter interface {
 	Fit(maxWidth, maxHeight int) (width, height int)
 }
 
-// FilterModal is the filter form of a Filterable as a modal. Applying the
-// form closes it and applies the filter; esc closes it as it was.
+// FilterModal is the filter form of a Filterable as a modal. A list that
+// can be sorted shows its sort on a tab after the filters, in the top edge
+// of the frame. Applying the form, from either tab, closes it and applies
+// both; esc closes it as it was.
 type FilterModal struct {
 	title  string
 	target Filterable
@@ -91,25 +94,64 @@ const (
 	// filterSpare leaves room for the picker of a field, the rule and two
 	// lines of query. Rows that wrap scroll.
 	filterSpare = filterform.DefaultEditorHeight + 3
+	// sortRows are the rows of the Sort tab: what is sorted by, and the
+	// order.
+	sortRows = 2
 )
+
+// FilterOption configures a FilterModal in [NewFilterModal].
+type FilterOption func(*filterOptions)
+
+type filterOptions struct {
+	tab  filterform.Tab
+	keys filterform.KeyMap
+}
+
+// OnTab opens the modal on tab t. A list without a sort has only the
+// Filters tab.
+func OnTab(t filterform.Tab) FilterOption {
+	return func(o *filterOptions) { o.tab = t }
+}
+
+// WithFormKeys sets the keys of the form.
+func WithFormKeys(k filterform.KeyMap) FilterOption {
+	return func(o *filterOptions) { o.keys = k }
+}
+
+// FilterFormKeys returns the keys of a filter form. Its tabs switch with
+// the keys that switch the tabs of the lists and the other modals.
+func FilterFormKeys(keys map[string][]string) filterform.KeyMap {
+	k := filterform.DefaultKeyMap()
+	k.NextTab = Binding(keys, config.ActionNextFilter, "next tab")
+	k.PrevTab = Binding(keys, config.ActionPrevFilter, "previous tab")
+	return k
+}
 
 // NewFilterModal returns the modal that filters target with f, titled
 // "Filter · section · subject". ctx bounds what the form loads.
-func NewFilterModal(ctx context.Context, section string, target Filterable, f Filter) *FilterModal {
+func NewFilterModal(ctx context.Context, section string, target Filterable, f Filter, opts ...FilterOption) *FilterModal {
+	o := filterOptions{keys: filterform.DefaultKeyMap()}
+	for _, opt := range opts {
+		opt(&o)
+	}
 	title := "Filter · " + section
 	if f.Subject != "" {
 		title += " · " + f.Subject
 	}
 	form := filterform.New(f.Spec,
 		filterform.WithQuery(f.Query),
+		filterform.WithTab(o.tab),
+		filterform.WithTabBar(false),
 		filterform.WithHelpLine(false),
+		filterform.WithKeyMap(o.keys),
 		filterform.WithContext(ctx),
 	)
 	// Focusing the rows, where the form starts, needs no command.
 	_ = form.Focus()
+	// The modal keeps its height on either tab.
 	rows := len(f.Spec.Fields)
 	if f.Spec.Sort != nil {
-		rows++
+		rows = max(rows, sortRows)
 	}
 	return &FilterModal{title: title, target: target, form: form, rows: rows}
 }
@@ -153,6 +195,16 @@ func (m *FilterModal) SetTheme(t Theme) { m.form.SetStyles(t.FilterForm()) }
 
 // Help implements Modal.
 func (m *FilterModal) Help() help.KeyMap { return m.form }
+
+// Tabs implements Tabbed: Filters and Sort, or none for a list that can't
+// be sorted.
+func (m *FilterModal) Tabs() (names []string, active int) {
+	names = m.form.Tabs()
+	if names == nil {
+		return nil, -1
+	}
+	return names, int(m.form.Tab())
+}
 
 // Query returns the GitHub query the form holds.
 func (m *FilterModal) Query() string { return m.form.Query() }

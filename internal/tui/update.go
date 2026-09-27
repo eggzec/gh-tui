@@ -11,6 +11,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
+	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
@@ -173,7 +174,9 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 		return m.openActions()
 	case m.fileFinder() != nil && key.Matches(msg, m.keys.FindFile):
 		return m.findFile()
-	case p != nil && key.Matches(msg, m.keys.Filter) && m.openFilter(p.section):
+	case p != nil && key.Matches(msg, m.keys.Filter) && m.openFilter(p.section, filterform.FiltersTab):
+		return nil
+	case p != nil && key.Matches(msg, m.keys.Sort) && m.openFilter(p.section, filterform.SortTab):
 		return nil
 	case m.canZoom() && m.width >= narrowWidth && key.Matches(msg, m.keys.Zoom):
 		m.setZoom(!m.zoom)
@@ -218,19 +221,19 @@ func (m *Model) takes(s ui.Section, msg tea.KeyPressMsg) bool {
 	return ok && c.Claims(msg)
 }
 
-// openFilter opens the filter modal of s, and reports whether s has one to
-// open. The filter key goes on to a section that doesn't, which may use it
-// otherwise.
-func (m *Model) openFilter(s ui.Section) bool {
+// openFilter opens the filter modal of s on tab, and reports whether s has
+// one to open: the Sort tab needs a list that can be sorted. The key goes
+// on to a section that has none, which may use it otherwise.
+func (m *Model) openFilter(s ui.Section, tab filterform.Tab) bool {
 	fl, ok := s.(ui.Filterable)
 	if !ok {
 		return false
 	}
 	f, ok := fl.Filter()
-	if !ok {
+	if !ok || tab == filterform.SortTab && f.Spec.Sort == nil {
 		return false
 	}
-	m.openModal(ui.NewFilterModal(m.ctx, s.Title(), fl, f))
+	m.openModal(ui.NewFilterModal(m.ctx, s.Title(), fl, f, ui.OnTab(tab), ui.WithFormKeys(m.keys.form)))
 	return true
 }
 

@@ -20,9 +20,11 @@ import (
 type keyMap struct {
 	Select key.Binding
 	Back   key.Binding
-	// Filter opens the filter modal, which the app does, so the section
-	// only keeps it from the feed and shows it in help.
+	// Filter and Sort open the filter modal on its Filters and Sort tabs,
+	// which the app does, so the section only keeps them from the feed and
+	// shows them in help.
 	Filter      key.Binding
+	Sort        key.Binding
 	ClearFilter key.Binding
 	// NextTab and PrevTab switch the state shown.
 	NextTab key.Binding
@@ -43,6 +45,7 @@ func newKeyMap(keys map[string][]string) keyMap {
 		Select:      ui.Binding(keys, config.ActionSelect, "open"),
 		Back:        ui.Binding(keys, config.ActionBack, "back"),
 		Filter:      ui.Binding(keys, config.ActionFilter, "filter"),
+		Sort:        ui.Binding(keys, config.ActionSort, "sort"),
 		ClearFilter: ui.Binding(keys, config.ActionClearFilter, "clear filters"),
 		NextTab:     ui.Binding(keys, config.ActionNextFilter, "next state"),
 		PrevTab:     ui.Binding(keys, config.ActionPrevFilter, "previous state"),
@@ -55,7 +58,7 @@ func newKeyMap(keys map[string][]string) keyMap {
 	}
 
 	fk := feed.DefaultKeyMap()
-	listKeys := []key.Binding{k.Select, k.Filter, k.ClearFilter, k.NextTab, k.PrevTab, k.Refresh, k.Open, k.Close, k.Reopen}
+	listKeys := []key.Binding{k.Select, k.Filter, k.Sort, k.ClearFilter, k.NextTab, k.PrevTab, k.Refresh, k.Open, k.Close, k.Reopen}
 	for _, b := range []*key.Binding{&fk.Up, &fk.Down, &fk.PageUp, &fk.PageDown, &fk.Home, &fk.End} {
 		*b = without(*b, listKeys)
 	}
@@ -124,7 +127,7 @@ func (s *Section) Help() help.KeyMap {
 		short: []key.Binding{fk.Up, fk.Down, k.Select, k.Filter, k.ClearFilter, k.NextTab, k.Close, k.Reopen, k.Open},
 		full: [][]key.Binding{
 			{fk.Up, fk.Down, fk.PageUp, fk.PageDown, fk.Home, fk.End},
-			{k.Select, k.Filter, k.ClearFilter, k.NextTab, k.PrevTab, k.Open, k.Refresh},
+			{k.Select, k.Filter, k.Sort, k.ClearFilter, k.NextTab, k.PrevTab, k.Open, k.Refresh},
 			{k.Close, k.Reopen},
 		},
 	}

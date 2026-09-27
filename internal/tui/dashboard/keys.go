@@ -30,9 +30,11 @@ type KeyMap struct {
 	// Open opens what is under the cursor in the browser.
 	Open    key.Binding
 	Refresh key.Binding
-	// Filter names the key that opens the filter of the repositories,
-	// which the app handles, and ClearFilter clears it.
+	// Filter and Sort name the keys that open the filter of the
+	// repositories on its Filters and Sort tabs, which the app handles,
+	// and ClearFilter clears it.
 	Filter      key.Binding
+	Sort        key.Binding
 	ClearFilter key.Binding
 	// NextOwner and PrevOwner switch the repositories between the viewer's
 	// own and those of each organization, and the work between its lists.
@@ -69,6 +71,7 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		Open:          ui.Binding(keys, config.ActionOpen, "browser"),
 		Refresh:       ui.Binding(keys, config.ActionRefresh, "refresh"),
 		Filter:        ui.Binding(keys, config.ActionFilter, "filter"),
+		Sort:          ui.Binding(keys, config.ActionSort, "sort"),
 		ClearFilter:   ui.Binding(keys, config.ActionClearFilter, "clear filters"),
 		NextOwner:     ui.Binding(keys, config.ActionNextOwner, "next owner"),
 		PrevOwner:     ui.Binding(keys, config.ActionPrevOwner, "previous owner"),
@@ -93,7 +96,7 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		k.jump = key.NewBinding(key.WithKeys(labels...), key.WithHelp(labels[0]+"-"+labels[len(labels)-1], "focus pane"))
 	}
 
-	own := []key.Binding{k.Select, k.Open, k.Refresh, k.Filter, k.ClearFilter, k.NextOwner, k.PrevOwner, k.Here, k.Next, k.Prev, k.Zoom, k.Back}
+	own := []key.Binding{k.Select, k.Open, k.Refresh, k.Filter, k.Sort, k.ClearFilter, k.NextOwner, k.PrevOwner, k.Here, k.Next, k.Prev, k.Zoom, k.Back}
 	f := feed.DefaultKeyMap()
 	f.Up = free(f.Up, own)
 	f.Down = free(f.Down, own)
@@ -156,7 +159,7 @@ func (h helpKeys) paneKeys() []key.Binding {
 	case reposPane:
 		clr := k.ClearFilter
 		clr.SetEnabled(clr.Enabled() && h.repos.filter().active())
-		return []key.Binding{h.repos.feedKeys().Up, h.repos.feedKeys().Down, k.Select, k.Filter, clr, k.NextOwner, k.Open, h.repos.feedKeys().Retry}
+		return []key.Binding{h.repos.feedKeys().Up, h.repos.feedKeys().Down, k.Select, k.Filter, k.Sort, clr, k.NextOwner, k.Open, h.repos.feedKeys().Retry}
 	case workPane:
 		next := k.NextOwner
 		next.SetHelp(next.Help().Key, "next list")

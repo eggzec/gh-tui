@@ -12,6 +12,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
+	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 )
 
 // KeyMap holds the keys the app handles itself. Sections have their own.
@@ -30,8 +31,13 @@ type KeyMap struct {
 	FindFile key.Binding
 	// Command opens the command line in place of the help line.
 	Command key.Binding
-	// Filter opens the filter modal of the focused pane, if it has one.
+	// Filter opens the filter modal of the focused pane on its Filters
+	// tab, if it has one, and Sort opens it on its Sort tab, if the pane
+	// can be sorted.
 	Filter key.Binding
+	Sort   key.Binding
+	// form holds the keys of the filter modal's form.
+	form filterform.KeyMap
 	// Notifications switches between the screen on view and the
 	// notifications, and Dashboard between it and the dashboard.
 	Notifications key.Binding
@@ -59,6 +65,8 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		FindFile:      ui.Binding(keys, config.ActionFindFile, "find file"),
 		Command:       ui.Binding(keys, config.ActionCommand, "command"),
 		Filter:        ui.Binding(keys, config.ActionFilter, "filter"),
+		Sort:          ui.Binding(keys, config.ActionSort, "sort"),
+		form:          ui.FilterFormKeys(keys),
 		Notifications: ui.Binding(keys, config.ActionNotifications, "notifications"),
 		Dashboard:     ui.Binding(keys, config.ActionDashboard, "dashboard"),
 		Next:          ui.Binding(keys, config.ActionNextTab, "next pane"),
