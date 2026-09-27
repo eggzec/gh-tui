@@ -255,6 +255,25 @@ func TestLogGraphQL(t *testing.T) {
 	}
 }
 
+func TestGraphQLChargesPrefetchBudget(t *testing.T) {
+	_, stats := captureLog(t, slog.LevelInfo)
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		rateHeaders(w, "graphql", 4000)
+		_, _ = io.WriteString(w, `{"data":{"rateLimit":{"cost":3,"limit":5000,"remaining":4000,"used":1000,"resetAt":"2030-01-01T00:00:00Z"},"repository":{"pullRequest":{"id":"PR_1"}}}}`)
+	}))
+	r := core.RepoRef{Owner: "cli", Name: "cli"}
+	// Only the read ahead counts.
+	if _, err := c.PullRequestID(context.Background(), r, 1); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.PullRequestID(obs.ForPrefetch(context.Background()), r, 1); err != nil {
+		t.Fatal(err)
+	}
+	if b := stats.Summary().Budget; b.Points != 3 || b.Budget != 500 {
+		t.Errorf("budget = %+v, want 3 points of 500", b)
+	}
+}
+
 func TestLogGraphQLRateWithoutHeaders(t *testing.T) {
 	buf, _ := captureLog(t, slog.LevelInfo)
 	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

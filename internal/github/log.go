@@ -144,6 +144,9 @@ func (a *attempt) done(resp *http.Response, err error) {
 		level = slog.LevelError
 	}
 	obs.CountHTTP(h)
+	if api == obs.GraphQL && resp != nil {
+		obs.ChargeGraphQL(ctx, h.Cost)
+	}
 
 	if !obs.Enabled(ctx, level) {
 		return

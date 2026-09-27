@@ -30,6 +30,9 @@ type Stats struct {
 	// waits counts the requests that waited for a slot to be sent, and
 	// waited their total and longest wait in nanoseconds.
 	waits, waited, maxWait atomic.Int64
+
+	budgetMu sync.Mutex
+	budget   prefetchBudget
 }
 
 // NewStats returns empty stats that measure uptime from now.
@@ -206,6 +209,9 @@ const (
 	PrefetchRead
 	// PrefetchOpened is something read ahead that was then opened.
 	PrefetchOpened
+	// PrefetchOverBudget is a read skipped since the reads ahead of the
+	// session spent their budget of GraphQL points.
+	PrefetchOverBudget
 	numPrefetch
 )
 
