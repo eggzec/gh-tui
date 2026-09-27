@@ -14,10 +14,7 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 	case key.Matches(msg, k.Back):
 		return m.close()
 	case key.Matches(msg, k.Open):
-		url := m.url
-		if m.loaded && m.rel.URL != "" {
-			url = m.rel.URL
-		}
+		url := m.Link()
 		if url == "" {
 			return nil
 		}
