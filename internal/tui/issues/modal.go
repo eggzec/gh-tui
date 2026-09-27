@@ -10,7 +10,6 @@ import (
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
-	"charm.land/glamour/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -21,6 +20,7 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
 	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
+	"github.com/eggzec/gh-tui/pkg/markdown"
 )
 
 // issueMsg carries the issue that Get read for the thread that asked.
@@ -76,9 +76,6 @@ type detailModal struct {
 	// line, in the styles of confirmSt.
 	ask       *ui.Confirm
 	confirmSt ui.ConfirmStyles
-	// md renders comment bodies at mdWidth.
-	md      *glamour.TermRenderer
-	mdWidth int
 
 	width, height int
 	theme         ui.Theme
@@ -130,6 +127,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, from
 		thread.WithStyles(s.theme.Thread()),
 		thread.WithFocused(true),
 	)
+	m.thread.SetCutHint(ui.OpenHint(s.keys.Open))
 	switch cached, ok := svc.CachedGet(repo, number); {
 	case ok:
 		m.issue, m.loaded = cached, true
@@ -197,7 +195,6 @@ func (m *detailModal) SetTheme(t ui.Theme) {
 	m.confirmSt = t.Confirm()
 	m.rows = newRowStyles(t, m.icons)
 	m.chips = newChipCache(m.rows)
-	m.md = nil
 	m.thread.SetStyles(t.Thread())
 	if m.composing != composeNone {
 		m.prompt.SetStyles(t.Prompt())
@@ -444,8 +441,9 @@ func (m *detailModal) header(it core.Issue) string {
 	return b.String()
 }
 
-// renderComment renders a comment as its author and age over its body. A
-// comment GitHub hasn't confirmed yet is subtle and says it is sending.
+// renderComment renders a comment as its author and age over its body,
+// markdown rendered like the issue's. A comment GitHub hasn't confirmed
+// yet says it is sending.
 func (m *detailModal) renderComment(c core.Comment, width int) string {
 	t := m.theme
 	var b strings.Builder
@@ -457,54 +455,16 @@ func (m *detailModal) renderComment(c core.Comment, width int) string {
 			who = "you"
 		}
 		b.WriteString(t.Subtle.Render(who + " · sending…"))
-		body := t.Subtle.Width(max(width-4, 1)).Render(strings.TrimSpace(c.Body))
-		for l := range strings.SplitSeq(body, "\n") {
-			b.WriteString("\n  ")
-			b.WriteString(l)
-		}
-		return b.String()
+	} else {
+		b.WriteString(t.Title.Render(login(c.Author)))
+		b.WriteString(t.Subtle.Render(" · " + ui.AgoProse(c.CreatedAt, m.now())))
 	}
-	b.WriteString(t.Title.Render(login(c.Author)))
-	b.WriteString(t.Subtle.Render(" · " + ui.AgoProse(c.CreatedAt, m.now())))
-	b.WriteByte('\n')
-	b.WriteString(m.markdown(c.Body, width))
+	// The body is indented by two cells, with as much room on the right.
+	if body := m.thread.Markdown(c.Body, markdown.Room(width, 4)); body != "" {
+		b.WriteByte('\n')
+		b.WriteString(markdown.Indent(body, "  "))
+	}
 	return b.String()
-}
-
-// markdown renders a comment body at width with the thread's markdown
-// style. The renderer is kept until the width or the theme changes.
-func (m *detailModal) markdown(body string, width int) string {
-	if strings.TrimSpace(body) == "" {
-		return ""
-	}
-	if m.md == nil || m.mdWidth != width {
-		md, err := glamour.NewTermRenderer(
-			glamour.WithStyles(m.theme.Thread().Markdown),
-			glamour.WithWordWrap(width),
-		)
-		if err != nil {
-			return body
-		}
-		m.md, m.mdWidth = md, width
-	}
-	out, err := m.md.Render(body)
-	if err != nil {
-		return body
-	}
-	return trimBlank(out)
-}
-
-// trimBlank drops the blank lines around s.
-func trimBlank(s string) string {
-	lines := strings.Split(s, "\n")
-	blank := func(l string) bool { return strings.TrimSpace(ansi.Strip(l)) == "" }
-	for len(lines) > 0 && blank(lines[0]) {
-		lines = lines[1:]
-	}
-	for len(lines) > 0 && blank(lines[len(lines)-1]) {
-		lines = lines[:len(lines)-1]
-	}
-	return strings.Join(lines, "\n")
 }
 
 func login(u core.User) string {
