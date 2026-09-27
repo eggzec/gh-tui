@@ -477,3 +477,33 @@ func TestCommandKey(t *testing.T) {
 		t.Errorf("command after rebinding = %v, want [;]", got)
 	}
 }
+
+func TestSortAndStarKeys(t *testing.T) {
+	defaults := Default().Keys
+	for action, want := range map[string]string{ActionFilter: "f", ActionSort: "s", ActionStar: "S"} {
+		if got := defaults[action]; !slices.Equal(got, []string{want}) {
+			t.Errorf("default %s = %v, want [%s]", action, got, want)
+		}
+	}
+
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(path, []byte("keys:\n  sort: [\"o\"]\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got := cfg.Keys[ActionSort]; !slices.Equal(got, []string{"o"}) {
+		t.Errorf("sort = %v, want [o]", got)
+	}
+	if got := cfg.Keys[ActionStar]; !slices.Equal(got, []string{"S"}) {
+		t.Errorf("star = %v, want the default [S]", got)
+	}
+
+	cfg = Default()
+	cfg.Keys["sort_by"] = []string{"s"}
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "keys.sort_by: unknown action") {
+		t.Errorf("Validate() = %v, want sort_by rejected", err)
+	}
+}
