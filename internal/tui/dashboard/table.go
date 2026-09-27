@@ -141,7 +141,7 @@ func (s *Section) renderRepo(c repoCols, r core.Repo, selected bool) string {
 		if selected {
 			nameStyle = st.selected
 		}
-		nameStyle.write(&b, name)
+		b.WriteString(s.links.Link(s.repoURL(r), nameStyle.render(name)))
 		b.WriteString(strings.Repeat(" ", c.name-ansi.StringWidth(name)))
 	}
 	if c.flags > 0 {

@@ -398,7 +398,7 @@ func (s *Section) card(c card, selected bool, w int) [cardHeight]string {
 	inner := max(w-2, 0)
 	r := c.repo
 	var out [cardHeight]string
-	out[0] = gutter + st.name.render(truncate(r.Ref.String(), inner))
+	out[0] = gutter + s.links.Link(s.repoURL(r), st.name.render(truncate(r.Ref.String(), inner)))
 	desc := wrap(cleanLine(r.Description), inner, 2)
 	if len(desc) == 0 && c.here && r.Description == "" {
 		desc = []string{"The repository of this directory."}
@@ -581,23 +581,25 @@ func (s *Section) workItem(lines []string, r *workRow, selected, focused bool, w
 	hit := r.hit
 	age := ui.Ago(hit.Issue.UpdatedAt, s.now())
 	for i, text := range r.lines {
-		var b strings.Builder
+		var b, link strings.Builder
 		b.WriteString(gutter)
 		used := workIndent
 		if i == 0 {
 			state := ui.HitState(*hit)
 			st.states[state].write(&b, s.icons.State(state))
 			b.WriteByte(' ')
-			st.muted.write(&b, r.ref)
+			st.muted.write(&link, r.ref)
 			used += ansi.StringWidth(r.ref)
 			if text != "" {
-				b.WriteByte(' ')
+				link.WriteByte(' ')
 				used++
 			}
 		} else {
 			b.WriteString("  ")
 		}
-		titleStyle.write(&b, text)
+		// Where it is and each line of its title link to its page.
+		titleStyle.write(&link, text)
+		b.WriteString(s.links.Link(hit.Issue.URL, link.String()))
 		used += ansi.StringWidth(text)
 		if i == len(r.lines)-1 {
 			b.WriteString(strings.Repeat(" ", max(w-used-len(age), 1)))
@@ -647,7 +649,9 @@ func (s *Section) inboxBody(w, h int) []string {
 		repo := truncate(nt.Repo.Name, min(ansi.StringWidth(nt.Repo.Name), room/3))
 		title := truncate(cleanLine(nt.Subject.Title), max(room-ansi.StringWidth(repo)-2, 0))
 		used := 4 + ansi.StringWidth(repo) + 2 + ansi.StringWidth(title)
-		lines = append(lines, gutter+st.accent.render("●")+" "+st.muted.render(repo)+"  "+titleStyle.render(title)+
+		// The repository and the title link to the thread's page.
+		link := s.links.Link(nt.Subject.WebURL, st.muted.render(repo)+"  "+titleStyle.render(title))
+		lines = append(lines, gutter+st.accent.render("●")+" "+link+
 			strings.Repeat(" ", max(w-used-len(age), 1))+st.subtle.render(age))
 	}
 	return lines
