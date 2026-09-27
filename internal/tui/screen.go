@@ -188,9 +188,10 @@ func (m *Model) drawFrames() {
 	}
 }
 
-// drawHeader draws the header: the repository and its default branch, or
-// the base its files are shown at, on the left, and the unread
-// notifications on the right, on a rule.
+// drawHeader draws the header: the title of the screen on the left, which
+// on the repository screen is the repository and its default branch, or
+// the base its files are shown at, and the unread notifications on the
+// right, on a rule.
 func (m *Model) drawHeader() {
 	w := m.width
 	if w <= 0 {
@@ -198,20 +199,22 @@ func (m *Model) drawHeader() {
 		return
 	}
 	rule := func(n int) string { return m.st.edge.Render(strings.Repeat("─", max(n, 0))) }
-	name := "No repository · press / to search"
-	if m.repo.Owner != "" {
-		name = m.repo.String()
-	}
-	switch m.screen {
-	case dashScreen:
+	var name string
+	switch {
+	case m.screen == dashScreen:
 		name = ui.DashboardTitle
-	case searchScreen:
+	case m.screen == searchScreen:
 		name = ui.SearchTitle
-	case repoScreen, notifScreen:
+	case m.screen == notifScreen:
+		name = ui.NotificationsTitle
+	case m.repo.Owner != "":
+		name = m.repo.String()
+	default:
+		name = "No repository · press / to search"
 	}
 	left := m.st.repo.Render(name)
 	switch {
-	case m.screen == dashScreen || m.screen == searchScreen:
+	case m.screen != repoScreen:
 	case m.base.Ref != "":
 		left += " " + rule(1) + " " + m.st.base.Render(cmp.Or(m.base.Label, m.base.Ref))
 	case m.branch != "":

@@ -194,8 +194,8 @@ func TestOpensOnNotificationsWithoutRepo(t *testing.T) {
 	if !strings.Contains(s, "Notifications content") || strings.Contains(s, "Files content") {
 		t.Errorf("screen isn't the notifications:\n%s", s)
 	}
-	if !strings.Contains(s, "press / to search") {
-		t.Errorf("header doesn't say how to pick a repository:\n%s", s)
+	if !strings.Contains(s, "─ Notifications ─") || strings.Contains(s, "press / to search") {
+		t.Errorf("header doesn't name the notifications:\n%s", s)
 	}
 }
 
