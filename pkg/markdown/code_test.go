@@ -245,6 +245,9 @@ func TestOverrunLexerRunsAlone(t *testing.T) {
 	if n := settle(before); n > before {
 		t.Fatalf("%d goroutines run after the lexer ended, %d before", n, before)
 	}
+	// Another goroutine may have ended first, while the lexer's still
+	// held its token.
+	idle(t)
 	if _, ok := tokens(l, "overran", newBudget()); ok {
 		t.Error("the code the lexer overran on highlights")
 	}
