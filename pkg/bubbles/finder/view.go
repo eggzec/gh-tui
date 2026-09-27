@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // View renders the finder at exactly its width and height: the input, the
@@ -156,7 +158,14 @@ func (m *Model) row(i int32, selected bool, ts [][]byte, w int) string {
 	b.Grow(w + 64)
 	b.WriteString(gutter)
 	b.WriteString(icon)
-	used := iw + writePath(&b, path, marks, room, m.esc.dir, name, m.esc.match)
+	var used int
+	if m.links == nil {
+		used = iw + writePath(&b, path, marks, room, m.esc.dir, name, m.esc.match)
+	} else {
+		var p strings.Builder
+		used = iw + writePath(&p, path, marks, room, m.esc.dir, name, m.esc.match)
+		b.WriteString(termtext.Link(m.links(*it), p.String()))
+	}
 	if detail != "" {
 		b.WriteString(strings.Repeat(" ", w-2-used-dw))
 		b.WriteString(m.esc.detail.wrap(detail))
