@@ -71,3 +71,20 @@ func TestLinkWidthAndCuts(t *testing.T) {
 		}
 	}
 }
+
+func TestLinks(t *testing.T) {
+	var l Links
+	for i := range maxLinks + 2 {
+		text := strings.Repeat("x", i%3+1)
+		if got, want := l.Link("https://x.test/"+text, text), Link("https://x.test/"+text, text); got != want {
+			t.Fatalf("Link = %q, want %q", got, want)
+		}
+		if got := l.Link("", "#1"); got != "#1" {
+			t.Fatalf("Link with no address = %q", got)
+		}
+		l.Link("https://x.test/", strings.Repeat("y", i))
+	}
+	if n := len(l.made); n > maxLinks {
+		t.Errorf("Links keeps %d links, more than %d", n, maxLinks)
+	}
+}
