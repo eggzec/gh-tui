@@ -170,6 +170,13 @@ func TestErrorKinds(t *testing.T) {
 			reset:  reset,
 		},
 		{
+			name:   "403 secondary rate limit without a reset",
+			h:      reply(403, nil, "You have exceeded a secondary rate limit. Please wait a few minutes before you try again."),
+			kind:   core.RateLimited,
+			reason: "You have exceeded a secondary rate limit. Please wait a few minutes before you try again.",
+			reset:  now.Add(time.Minute),
+		},
+		{
 			name: "429 with Retry-After",
 			h:    reply(429, map[string]string{"Retry-After": "30"}, ""),
 			kind: core.RateLimited,
