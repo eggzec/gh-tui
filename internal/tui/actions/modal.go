@@ -93,7 +93,7 @@ type Modal struct {
 
 	// ask is the confirmation on the last line, and notice a line that
 	// tells why a key did nothing, until the next key.
-	ask    *confirm
+	ask    *ui.Confirm
 	notice string
 
 	// following is the run the sync engine follows, and stop ends it.

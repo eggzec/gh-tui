@@ -18,7 +18,7 @@ func (h helpKeys) ShortHelp() []key.Binding {
 	m, k := h.m, h.m.keys
 	switch {
 	case m.ask != nil:
-		return []key.Binding{k.Yes, k.No}
+		return k.Confirm.ShortHelp()
 	case m.filterStep != nil:
 		if f := m.filterStep.form; f != nil {
 			return f.ShortHelp()
@@ -42,7 +42,7 @@ func (h helpKeys) FullHelp() [][]key.Binding {
 	m, k := h.m, h.m.keys
 	switch {
 	case m.ask != nil:
-		return [][]key.Binding{{k.Yes, k.No}}
+		return k.Confirm.FullHelp()
 	case m.filterStep != nil:
 		if f := m.filterStep.form; f != nil {
 			return f.FullHelp()

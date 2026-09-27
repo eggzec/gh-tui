@@ -38,8 +38,8 @@ type KeyMap struct {
 	// RerunFailed, Rerun, RerunJob and Cancel change the selected run,
 	// once the user confirms.
 	RerunFailed, Rerun, RerunJob, Cancel key.Binding
-	// Yes and No answer the confirmation.
-	Yes, No key.Binding
+	// Confirm answers the confirmation.
+	Confirm ui.ConfirmKeys
 	// Annotations moves the focus between the annotations of a failed job
 	// and its log.
 	Annotations key.Binding
@@ -66,8 +66,7 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		RerunJob:    ui.Binding(keys, config.ActionRerunJob, "rerun job"),
 		Cancel:      ui.Binding(keys, config.ActionCancelRun, "cancel run"),
 		Annotations: ui.Binding(keys, config.ActionAnnotations, "annotations"),
-		Yes:         key.NewBinding(key.WithKeys("y", "enter"), key.WithHelp("y", "yes")),
-		No:          key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n", "no")),
+		Confirm:     ui.DefaultConfirmKeys(),
 	}
 	// The tabs take their keys from the panes' keys, which the app shares
 	// with other screens.
