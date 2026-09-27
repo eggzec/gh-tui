@@ -56,6 +56,13 @@ func WithOffline(off *ui.Offline) Option {
 	}
 }
 
+// WithVoice sets how the section words what went wrong, with the keys a
+// hint names and the log it points to. By default the hints name the
+// configured keys and no log.
+func WithVoice(v ui.Voice) Option {
+	return func(s *Section) { s.voice = v }
+}
+
 // WithOpener opens the threads, and reads them ahead while the section is
 // on view, with o, which the dashboard may share. By default the section
 // has one that reads nothing ahead and marks a thread read as it opens it.
@@ -81,6 +88,8 @@ type Section struct {
 	started bool
 	// offline is marked by the feed's reads when GitHub can't be reached.
 	offline *ui.Offline
+	// voice words the feed's errors.
+	voice ui.Voice
 	// opener opens the threads and reads them ahead.
 	opener *threads.Opener
 
@@ -99,7 +108,7 @@ var (
 // New returns the section, which reads through svc and binds the actions
 // in keys. ctx bounds every request it makes.
 func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Option) *Section {
-	s := &Section{ctx: ctx, svc: svc, keys: newKeyMap(keys), now: time.Now, offline: new(ui.Offline)}
+	s := &Section{ctx: ctx, svc: svc, keys: newKeyMap(keys), now: time.Now, offline: new(ui.Offline), voice: ui.NewVoice(keys, "")}
 	for _, opt := range opts {
 		opt(s)
 	}
@@ -113,6 +122,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		feed.WithContext(ctx),
 		feed.WithKey(func(n core.Notification) string { return n.ID }),
 		feed.WithKeyMap(s.keys.feed),
+		feed.WithErrorText(ui.ErrorText("load the notifications", "", s.voice)),
 	)
 	s.SetTheme(ui.NewTheme(defaultPalette(), true))
 	return s

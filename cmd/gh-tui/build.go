@@ -197,7 +197,7 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 		Pulls:  pulls.New(ctx, pullSvc, cfg.Keys, pullOpts...),
 		Issues: issues.New(ctx, issueSvc, cfg.Keys, issueOpts...),
 		Notifications: notifications.New(ctx, notifSvc, cfg.Keys,
-			notifications.WithOffline(offline), notifications.WithOpener(opener)),
+			notifications.WithOffline(offline), notifications.WithVoice(voice), notifications.WithOpener(opener)),
 		Search:    searchpage.New(ctx, searchSvc, cfg.Keys, searchOpts...),
 		Dashboard: dashboard.New(ctx, dashSvc, cfg.Keys, dashOpts...),
 	}
