@@ -28,7 +28,6 @@ var (
 // full inbox [a c].
 func seeded(api API) *Service {
 	s := New(api)
-	s.now = func() time.Time { return now }
 	s.cache.Set(inbox.key(), entry(page{Items: []core.Notification{a, b}}, modified1))
 	s.cache.Set(allInbox.key(), entry(page{Items: []core.Notification{a, c}, Next: "next"}, modified1))
 	return s
@@ -82,14 +81,14 @@ var markCases = []markCase{
 		name: "all read",
 		fake: func(api *fakeAPI, err error) {
 			api.markAll = func(at time.Time) error {
-				if !at.Equal(now.Truncate(time.Second)) {
+				if !at.Equal(a.UpdatedAt.Truncate(time.Second)) {
 					return errUnexpected
 				}
 				return err
 			}
 		},
-		mark: (*Service).MarkAllRead,
-		// b arrived after the mark, so it stays unread.
+		// a is the newest thread seen: b is newer, so it stays unread.
+		mark: func(s *Service) *optimistic.Op { return s.MarkAllRead(a.UpdatedAt) },
 		want: map[ListQuery]page{
 			inbox:    {Items: []core.Notification{readA, b}},
 			allInbox: {Items: []core.Notification{readA, c}, Next: "next"},
@@ -191,7 +190,6 @@ func TestMarkUncached(t *testing.T) {
 			api := &fakeAPI{onMark: func() { sent = true }}
 			tt.fake(api, nil)
 			s := New(api)
-			s.now = func() time.Time { return now }
 
 			if err := tt.mark(s).Do(t.Context()); err != nil {
 				t.Fatalf("Do: %v", err)

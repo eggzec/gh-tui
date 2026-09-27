@@ -29,7 +29,7 @@ type Service interface {
 	List(ctx context.Context, q notifications.ListQuery) (core.Page[core.Notification], error)
 	MarkRead(id string) *optimistic.Op
 	MarkDone(id string) *optimistic.Op
-	MarkAllRead() *optimistic.Op
+	MarkAllRead(until time.Time) *optimistic.Op
 	// Invalidate marks every cached page stale, so that the reads after it
 	// ask GitHub.
 	Invalidate()

@@ -1,9 +1,14 @@
 package notifications
 
 import (
+	"strconv"
+	"strings"
+	"time"
+
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
@@ -76,24 +81,109 @@ func (s *Section) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		}
 		return nil, true
 	case key.Matches(msg, k.MarkRead):
-		n, ok := s.feed.Selected()
-		if !ok || !n.Unread {
-			return nil, true
-		}
-		return s.do(s.svc.MarkRead(n.ID), "mark read"), true
+		return s.ask(s.markRead), true
 	case key.Matches(msg, k.MarkDone):
-		n, ok := s.feed.Selected()
-		if !ok {
-			return nil, true
-		}
-		return s.do(s.svc.MarkDone(n.ID), "mark done"), true
+		return s.ask(s.markDone), true
 	case key.Matches(msg, k.MarkAllRead):
-		if s.feed.Len() == 0 {
-			return nil, true
-		}
-		return s.do(s.svc.MarkAllRead(), "mark all read"), true
+		return s.ask(s.markAllRead), true
 	}
 	return nil, false
+}
+
+// mark is a change to threads of the inbox, asked as a question: name
+// names them in a note, and ids tells which they are.
+type mark struct {
+	ask       ui.Confirm
+	name, ids string
+}
+
+// ask asks the mark that now returns, if there is one, in a modal of its
+// own. By the time the user says yes, the list may have changed behind
+// the question, so it asks now again, and makes the change only if it is
+// still the one asked of the same threads.
+func (s *Section) ask(now func() (mark, bool)) tea.Cmd {
+	m, ok := now()
+	if !ok {
+		return nil
+	}
+	c := ui.Recheck(m.ask.Question, m.name, func() (ui.Confirm, bool, tea.Cmd) {
+		again, ok := now()
+		return again.ask, ok && again.ids == m.ids, nil
+	})
+	return ui.OpenModal(ui.NewConfirmModal(c))
+}
+
+// markRead marks the unread thread under the cursor read.
+func (s *Section) markRead() (mark, bool) {
+	n, ok := s.feed.Selected()
+	if !ok || !n.Unread {
+		return mark{}, false
+	}
+	return mark{
+		ask: ui.Confirm{
+			Question: "Mark " + threadName(n) + " as read?",
+			Run:      func() tea.Cmd { return s.do(s.svc.MarkRead(n.ID), "mark read") },
+		},
+		name: threadName(n), ids: n.ID,
+	}, true
+}
+
+// markDone marks the thread under the cursor done, which drops it from
+// the inbox.
+func (s *Section) markDone() (mark, bool) {
+	n, ok := s.feed.Selected()
+	if !ok {
+		return mark{}, false
+	}
+	return mark{
+		ask: ui.Confirm{
+			Question: "Mark " + threadName(n) + " as done?",
+			Run:      func() tea.Cmd { return s.do(s.svc.MarkDone(n.ID), "mark done") },
+		},
+		name: threadName(n), ids: n.ID,
+	}, true
+}
+
+// markAllRead marks every thread read, loaded or not, that was updated
+// until the newest in the list, so those the user hasn't seen stay unread.
+// The threads are those unread in the list and the newest, so one that
+// arrives or is read meanwhile changes what the question is about.
+func (s *Section) markAllRead() (mark, bool) {
+	if s.feed.Len() == 0 {
+		return mark{}, false
+	}
+	var newest time.Time
+	var ids strings.Builder
+	for i := range s.feed.Len() {
+		n, ok := s.feed.Item(i)
+		if !ok {
+			continue
+		}
+		if n.UpdatedAt.After(newest) {
+			newest = n.UpdatedAt
+		}
+		if n.Unread {
+			ids.WriteString(n.ID)
+			ids.WriteByte(' ')
+		}
+	}
+	ids.WriteString(newest.Format(time.RFC3339Nano))
+	return mark{
+		ask: ui.Confirm{
+			Question: "Mark all notifications as read?",
+			Run:      func() tea.Cmd { return s.do(s.svc.MarkAllRead(newest), "mark all read") },
+		},
+		name: "The inbox", ids: ids.String(),
+	}, true
+}
+
+// threadName names what thread n is about, such as "eggzec/gh-tui#12", or
+// by its title in its repository when it has no number, such as a release.
+func threadName(n core.Notification) string {
+	if n.Subject.Number > 0 {
+		return n.Repo.String() + "#" + strconv.Itoa(n.Subject.Number)
+	}
+	return "\"" + ui.OneLine(n.Subject.Title) + "\" in " + n.Repo.String()
 }
 
 // open opens what the selected thread is about in the app, and marks it

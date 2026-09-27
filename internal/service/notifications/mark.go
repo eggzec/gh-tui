@@ -38,13 +38,14 @@ func (s *Service) MarkDone(id string) *optimistic.Op {
 	})
 }
 
-// MarkAllRead marks every thread updated until now as read in every cached
-// page and returns the Op that tells GitHub. Threads that arrive later stay
-// unread. GitHub may mark many threads in the background, so a refetch soon
-// after may still show some of them unread.
-func (s *Service) MarkAllRead() *optimistic.Op {
+// MarkAllRead marks every thread updated until until as read in every
+// cached page and returns the Op that tells GitHub. Threads updated after
+// it stay unread, so passing the newest thread the user saw leaves those
+// they didn't see unread. GitHub may mark many threads in the background,
+// so a refetch soon after may still show some of them unread.
+func (s *Service) MarkAllRead(until time.Time) *optimistic.Op {
 	// GitHub's timestamps have second precision.
-	at := s.now().Truncate(time.Second)
+	at := until.Truncate(time.Second)
 	return s.apply(markReadUntil(at), func(ctx context.Context) error {
 		if err := s.api.MarkNotificationsRead(ctx, at); err != nil {
 			return fmt.Errorf("mark all notifications read: %w", err)
@@ -99,7 +100,8 @@ func markReadUntil(at time.Time) change {
 	return func(p page) (page, bool) {
 		changed := false
 		for i := range p.Items {
-			if n := &p.Items[i]; !n.Unread || n.UpdatedAt.After(at) {
+			// GitHub compares at the second, as at is.
+			if n := &p.Items[i]; !n.Unread || n.UpdatedAt.Truncate(time.Second).After(at) {
 				continue
 			}
 			if !changed {

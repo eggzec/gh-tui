@@ -47,6 +47,8 @@ type fakeService struct {
 	reads   []string
 	dones   []string
 	allRead int
+	// until is what the last mark of all read marked until.
+	until time.Time
 	// invalidated holds, for each call of Invalidate, how many lists were
 	// made before it.
 	invalidated []int
@@ -120,13 +122,16 @@ func (f *fakeService) MarkDone(id string) *optimistic.Op {
 	})
 }
 
-func (f *fakeService) MarkAllRead() *optimistic.Op {
+func (f *fakeService) MarkAllRead(until time.Time) *optimistic.Op {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.allRead++
+	f.until = until
 	return f.change(func(ts []core.Notification) []core.Notification {
 		for i := range ts {
-			ts[i].Unread = false
+			if !ts[i].UpdatedAt.After(until) {
+				ts[i].Unread = false
+			}
 		}
 		return ts
 	})
@@ -262,6 +267,17 @@ func run(tb testing.TB, s *Section, cmd tea.Cmd) []tea.Msg {
 			queue = append(queue, msg...)
 		case ui.OpenMsg, ui.NotifyMsg, ui.OpenActionsMsg, ui.OpenPullMsg, ui.OpenIssueMsg, ui.OpenReleaseMsg, ui.OpenCommitMsg:
 			app = append(app, msg)
+		case ui.OpenModalMsg:
+			// The app opens the question over the section, and gives it
+			// the keys until it closes.
+			if m, ok := msg.Modal.(*ui.ConfirmModal); ok {
+				asking[s] = m
+			}
+			app = append(app, msg)
+		case ui.CloseModalMsg:
+			if asking[s] == msg.Modal {
+				delete(asking, s)
+			}
 		case ui.DoneMsg:
 			app = append(app, msg)
 			queue = append(queue, s.Update(msg))
@@ -270,6 +286,17 @@ func run(tb testing.TB, s *Section, cmd tea.Cmd) []tea.Msg {
 		}
 	}
 	return app
+}
+
+// asking holds the question each section opened, until it closes.
+var asking = map[*Section]*ui.ConfirmModal{}
+
+// question returns what the question open over s asks, or "".
+func question(s *Section) string {
+	if m, ok := asking[s]; ok {
+		return m.Question()
+	}
+	return ""
 }
 
 // showAll stands for applying the filter of every thread, read or not,
@@ -284,6 +311,10 @@ func press(tb testing.TB, s *Section, keys ...string) []tea.Msg {
 	for _, k := range keys {
 		if q, ok := strings.CutPrefix(k, showAll); ok {
 			app = append(app, run(tb, s, s.ApplyFilter(filterform.AppliedMsg{Query: q}))...)
+			continue
+		}
+		if m, ok := asking[s]; ok {
+			app = append(app, run(tb, s, m.Update(keyPress(k)))...)
 			continue
 		}
 		app = append(app, run(tb, s, s.Update(keyPress(k)))...)
@@ -301,6 +332,8 @@ func keyPress(k string) tea.KeyPressMsg {
 		return tea.KeyPressMsg{Code: tea.KeyUp}
 	case "end":
 		return tea.KeyPressMsg{Code: tea.KeyEnd}
+	case "esc":
+		return tea.KeyPressMsg{Code: tea.KeyEscape}
 	}
 	r, _ := utf8.DecodeRuneInString(k)
 	return tea.KeyPressMsg{Code: r, Text: k}

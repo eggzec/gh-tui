@@ -14,6 +14,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
 func TestUpdate(t *testing.T) {
@@ -60,7 +61,7 @@ func TestUpdate(t *testing.T) {
 		},
 		{
 			name:      "mark read",
-			keys:      []string{"down", "m"},
+			keys:      []string{"down", "m", "y"},
 			wantDone:  []string{"mark read"},
 			wantReads: []string{"2"},
 			wantRows:  []string{"1", "3", "6"},
@@ -73,7 +74,7 @@ func TestUpdate(t *testing.T) {
 		},
 		{
 			name:      "mark done removes the thread",
-			keys:      []string{showAll, "end", "d"},
+			keys:      []string{showAll, "end", "d", "y"},
 			wantDone:  []string{"mark done"},
 			wantDones: []string{"7"},
 			wantAll:   true,
@@ -81,7 +82,7 @@ func TestUpdate(t *testing.T) {
 		},
 		{
 			name:        "mark all read",
-			keys:        []string{"M"},
+			keys:        []string{"M", "y"},
 			wantDone:    []string{"mark all read"},
 			wantAllRead: 1,
 			wantRows:    nil,
@@ -159,7 +160,8 @@ func TestFailedChangeRollsBack(t *testing.T) {
 	svc.fail = errors.New("403 Forbidden")
 	s := newSection(t, svc, 80, 12)
 
-	app := press(t, s, "d")
+	press(t, s, "d")
+	app := press(t, s, "y")
 	if len(app) != 1 {
 		t.Fatalf("messages = %v, want one DoneMsg", app)
 	}
@@ -340,5 +342,190 @@ func TestRunNotificationOpensTheActions(t *testing.T) {
 	}
 	if app := press(t, s, "enter"); !slices.Contains(app, tea.Msg(want)) {
 		t.Errorf("enter sent %v, want %v", app, want)
+	}
+}
+
+// marks returns the marks sent to svc, such as "read 2".
+func marks(svc *fakeService) []string {
+	svc.mu.Lock()
+	defer svc.mu.Unlock()
+	out := make([]string, 0, len(svc.reads)+len(svc.dones)+svc.allRead)
+	for _, id := range svc.reads {
+		out = append(out, "read "+id)
+	}
+	for _, id := range svc.dones {
+		out = append(out, "done "+id)
+	}
+	for range svc.allRead {
+		out = append(out, "all read")
+	}
+	return out
+}
+
+func TestMarksAsk(t *testing.T) {
+	tests := []struct {
+		name string
+		// keys lead to the thread, and the last one asks the mark.
+		keys     []string
+		question string
+		want     string
+	}{
+		{"mark read", []string{"down", "m"}, "Mark eggzec/gh-tui#2 as read?", "read 2"},
+		{"mark done", []string{"down", "d"}, "Mark eggzec/gh-tui#2 as done?", "done 2"},
+		{"mark done without a number", []string{showAll, "end", "d"},
+			`Mark "Moderate severity vulnerability in golang.org/x/net" in eggzec/gh-tui as done?`, "done 7"},
+		{"mark all read", []string{"M"}, "Mark all notifications as read?", "all read"},
+	}
+	for _, tt := range tests {
+		for _, answer := range [][]string{{"y"}, {"n"}, {"esc"}, {"y", "y"}} {
+			t.Run(tt.name+"/"+strings.Join(answer, " "), func(t *testing.T) {
+				svc := newFake(inbox()...)
+				s := newSection(t, svc, 80, 12)
+				before := rows(s)
+				if tt.keys[0] == showAll {
+					before = nil
+				}
+				msgs := press(t, s, tt.keys...)
+				if got := question(s); got != tt.question {
+					t.Fatalf("asks %q, want %q", got, tt.question)
+				}
+				if got := marks(svc); len(got) != 0 || slices.ContainsFunc(msgs, isDone) {
+					t.Fatalf("sent %v before the answer", got)
+				}
+				if before != nil && !slices.Equal(rows(s), before) {
+					t.Errorf("rows = %q before the answer, want them unchanged %q", rows(s), before)
+				}
+				// Other keys, even the marks, do nothing while it asks.
+				press(t, s, "enter", "m", "d", "M", "q")
+				if got := question(s); got != tt.question || len(marks(svc)) != 0 {
+					t.Fatalf("after other keys asks %q with %v sent", got, marks(svc))
+				}
+				// The answers arrive before what the first starts runs,
+				// as a repeated key does.
+				m := asking[s]
+				var cmds []tea.Cmd
+				for _, k := range answer {
+					cmds = append(cmds, m.Update(keyPress(k)))
+				}
+				for _, c := range cmds {
+					msgs = append(msgs, run(t, s, c)...)
+				}
+				if question(s) != "" {
+					t.Fatalf("%v left the question open", answer)
+				}
+				var want []string
+				if answer[0] == "y" {
+					want = []string{tt.want}
+				}
+				if got := marks(svc); !slices.Equal(got, want) {
+					t.Errorf("sent %v, want %v", got, want)
+				}
+				if done := slices.ContainsFunc(msgs, isDone); done != (want != nil) {
+					t.Errorf("messages %v, want a DoneMsg %v", msgs, want != nil)
+				}
+			})
+		}
+	}
+}
+
+// Mark all read marks the threads until the newest the list shows, so a
+// thread GitHub has that the list doesn't yet stays unread.
+func TestMarkAllReadUntilTheNewestSeen(t *testing.T) {
+	svc := newFake(inbox()...)
+	s := newSection(t, svc, 80, 12)
+	// Thread 8 arrives on GitHub, but no poll has shown it yet.
+	svc.mu.Lock()
+	svc.threads = append(svc.threads, thread("8", "eggzec/gh-tui", core.SubjectIssue, "Unseen", "mention", true, time.Second))
+	svc.mu.Unlock()
+	press(t, s, "M", "y")
+	// The newest the list shows is thread 6, 30 seconds old.
+	svc.mu.Lock()
+	until := svc.until
+	svc.mu.Unlock()
+	if want := now.Add(-30 * time.Second); !until.Equal(want) {
+		t.Errorf("marked until %v, want %v, the newest thread shown", until, want)
+	}
+	press(t, s, "r")
+	if got := rows(s); len(got) != 0 {
+		t.Errorf("rows = %q, want none of the inbox's", got)
+	}
+	if v := ansi.Strip(s.View()); !strings.Contains(v, "Unseen") {
+		t.Errorf("the unseen thread was marked read too:\n%s", v)
+	}
+}
+
+func isDone(m tea.Msg) bool { _, ok := m.(ui.DoneMsg); return ok }
+
+func TestMarksAskAgain(t *testing.T) {
+	// read marks thread id read on GitHub, and the list reads it again.
+	read := func(id string) func(t *testing.T, s *Section, svc *fakeService) {
+		return func(t *testing.T, s *Section, svc *fakeService) {
+			t.Helper()
+			svc.mu.Lock()
+			for i := range svc.threads {
+				if svc.threads[i].ID == id {
+					svc.threads[i].Unread = false
+				}
+			}
+			svc.mu.Unlock()
+			run(t, s, s.Update(ui.SyncMsg{Key: SyncKey}))
+		}
+	}
+	tests := []struct {
+		name   string
+		keys   []string
+		meddle func(t *testing.T, s *Section, svc *fakeService)
+		want   string
+	}{
+		{
+			name: "read elsewhere", keys: []string{"down", "m"},
+			meddle: read("2"), want: "eggzec/gh-tui#2 changed meanwhile, so nothing was sent.",
+		},
+		{
+			// The unread list drops #2, so the cursor is on another thread.
+			name: "the cursor's thread went away", keys: []string{"down", "d"},
+			meddle: read("2"), want: "eggzec/gh-tui#2 changed meanwhile, so nothing was sent.",
+		},
+		{
+			name: "the cursor moved", keys: []string{"down", "d"},
+			meddle: func(t *testing.T, s *Section, _ *fakeService) {
+				t.Helper()
+				// As a reload that reorders the list would, behind the
+				// question.
+				run(t, s, s.Update(keyPress("down")))
+			},
+			want: "eggzec/gh-tui#2 changed meanwhile, so nothing was sent.",
+		},
+		{
+			name: "a thread was read before all", keys: []string{"M"},
+			meddle: read("3"), want: "The inbox changed meanwhile, so nothing was sent.",
+		},
+		{
+			name: "a thread arrived before all", keys: []string{"M"},
+			meddle: func(t *testing.T, s *Section, svc *fakeService) {
+				t.Helper()
+				svc.mu.Lock()
+				svc.threads = append(svc.threads, thread("8", "eggzec/gh-tui", core.SubjectIssue, "New", "mention", true, time.Second))
+				svc.mu.Unlock()
+				run(t, s, s.Update(ui.SyncMsg{Key: SyncKey}))
+			},
+			want: "The inbox changed meanwhile, so nothing was sent.",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := newFake(inbox()...)
+			s := newSection(t, svc, 80, 12)
+			press(t, s, tt.keys...)
+			if question(s) == "" {
+				t.Fatal("asked nothing")
+			}
+			tt.meddle(t, s, svc)
+			msgs := press(t, s, "y")
+			want := ui.NotifyMsg{Level: toast.Info, Text: tt.want}
+			if got := marks(svc); len(got) != 0 || !slices.Contains(msgs, tea.Msg(want)) {
+				t.Errorf("sent %v and showed %v, want only %q", got, msgs, tt.want)
+			}
+		})
 	}
 }
