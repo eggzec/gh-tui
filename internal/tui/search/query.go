@@ -51,6 +51,7 @@ func (s *Section) settle() tea.Cmd {
 	// What is still read for the text before is of no use now.
 	s.cancelText()
 	s.textCtx, s.cancelText = context.WithCancel(s.ctx)
+	s.ahead.Reset(s.textCtx)
 	s.text = text
 	s.refreshCounts()
 	if text == "" {
