@@ -4,7 +4,6 @@ import (
 	"compress/gzip"
 	"context"
 	"errors"
-	"fmt"
 	"io/fs"
 	"log/slog"
 	"os"
@@ -36,7 +35,10 @@ func openDisk(ctx context.Context, cfg config.Disk, host string) (store *disk.St
 	}
 	if err != nil {
 		slog.Warn("disk cache off", "span", "cache.disk", "err", err.Error())
-		return nil, fmt.Sprintf("The cache is in memory only: %v", err)
+		if root == "" {
+			return nil, "The cache is in memory only: set cache.disk.dir in the config to a directory to keep it in."
+		}
+		return nil, "The cache is in memory only: " + couldntOpen(root, err)
 	}
 	// Objects in use are touched on every session, so trimming the ones
 	// used least recently at startup is enough. It is only a cleanup, so a

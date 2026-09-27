@@ -59,9 +59,10 @@ func TestOpenLog(t *testing.T) {
 
 func TestOpenLogFails(t *testing.T) {
 	restoreLogger(t)
-	dir := t.TempDir()
+	home := t.TempDir()
+	t.Setenv("HOME", home)
 	// A file where the directory should be.
-	blocker := filepath.Join(dir, "blocker")
+	blocker := filepath.Join(home, "blocker")
 	if err := os.WriteFile(blocker, nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -69,8 +70,9 @@ func TestOpenLogFails(t *testing.T) {
 	cfg.File = filepath.Join(blocker, "gh-tui.log")
 	closeLog, warning := openLog(cfg)
 	defer closeLog()
-	if !strings.HasPrefix(warning, "Logging is off") {
-		t.Errorf("warning = %q, want logging off", warning)
+	want := "Logging is off: couldn't open " + filepath.Join("~", "blocker", "gh-tui.log") + " ("
+	if !strings.HasPrefix(warning, want) || strings.Contains(warning, home) {
+		t.Errorf("warning = %q, want it to start %q and not name the home directory", warning, want)
 	}
 	slog.Error("dropped") // must not panic or write anywhere
 }

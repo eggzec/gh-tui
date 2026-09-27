@@ -2,7 +2,8 @@ package main
 
 import (
 	"cmp"
-	"fmt"
+	"errors"
+	"io/fs"
 	"log/slog"
 	"os"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/logfile"
 	"github.com/eggzec/gh-tui/internal/obs"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
 // openLog makes the default logger write to the log file that cfg names,
@@ -29,7 +31,10 @@ func openLog(cfg config.Log) (closeLog func(), warning string) {
 	}
 	if err != nil {
 		slog.SetDefault(slog.New(slog.DiscardHandler))
-		return func() {}, fmt.Sprintf("Logging is off: %v", err)
+		if path == "" {
+			return func() {}, "Logging is off: set log.file in the config to a file to log to."
+		}
+		return func() {}, "Logging is off: " + couldntOpen(path, err)
 	}
 	session := obs.NewID(obs.SessionPrefix)
 	slog.SetDefault(obs.NewLogger(f, level, session))
@@ -51,4 +56,15 @@ func ghDebug(value string) bool {
 // version returns the version of the module the binary was built from.
 func version() string {
 	return cmp.Or(buildinfo.Version(), "unknown")
+}
+
+// couldntOpen says, in a warning, that path couldn't be opened and why, if
+// the system said, with the home directory as ~, so that the screen doesn't
+// show where it is.
+func couldntOpen(path string, err error) string {
+	s := "couldn't open " + ui.ShortPath(path)
+	if pe, ok := errors.AsType[*fs.PathError](err); ok {
+		s += " (" + pe.Err.Error() + ")"
+	}
+	return s + "."
 }
