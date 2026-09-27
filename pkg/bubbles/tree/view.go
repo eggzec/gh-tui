@@ -42,11 +42,9 @@ func (m Model) writeRow(w *lineWriter, i int) {
 			marker = m.markerClosed
 		}
 	}
-	icon := ""
-	if m.icons != nil {
-		if ic := m.icons(e.node, e.expanded); ic != "" {
-			icon = ic + " "
-		}
+	icon := e.icon
+	if e.expanded {
+		icon = e.iconOpen
 	}
 	prefix := m.gutter(i == m.sel)
 	if e.err == nil {
