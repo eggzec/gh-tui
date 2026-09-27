@@ -197,17 +197,26 @@ func (m Model) ShortHelp() []key.Binding {
 	return m.keys.ShortHelp()
 }
 
-// FullHelp implements help.KeyMap.
+// FullHelp implements help.KeyMap. While the search input is open, only
+// the keys that close it act, and the input takes the rest.
 func (m Model) FullHelp() [][]key.Binding {
+	k := m.keys
 	if m.searching {
-		return [][]key.Binding{m.ShortHelp()}
+		for _, b := range []*key.Binding{
+			&k.Up, &k.Down, &k.PageUp, &k.PageDown, &k.HalfPageUp, &k.HalfPageDown, &k.Home, &k.End,
+			&k.Left, &k.Right, &k.Toggle, &k.Expand, &k.Collapse, &k.ExpandAll, &k.CollapseAll,
+			&k.NextError, &k.PrevError, &k.NextWarning, &k.PrevWarning,
+			&k.Wrap, &k.Times, &k.LineNumbers, &k.Follow, &k.Search, &k.Next, &k.Prev, &k.Close,
+		} {
+			b.SetEnabled(false)
+		}
 	}
-	return m.keys.FullHelp()
+	return k.FullHelp()
 }
 
 // enableKeys enables the keys that move between errors, warnings and
 // matches only while there are some, so help shows them only when they
-// work.
+// work, and the search keys while there is a search to close or clear.
 func (m *Model) enableKeys() {
 	m.keys.NextError.SetEnabled(len(m.errs) > 0)
 	m.keys.PrevError.SetEnabled(len(m.errs) > 0)
@@ -216,4 +225,6 @@ func (m *Model) enableKeys() {
 	found := len(m.search.matches) > 0
 	m.keys.Next.SetEnabled(found)
 	m.keys.Prev.SetEnabled(found)
+	m.keys.Confirm.SetEnabled(m.searching)
+	m.keys.Cancel.SetEnabled(m.searching || m.search.query != "")
 }

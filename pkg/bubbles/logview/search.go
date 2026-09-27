@@ -33,12 +33,14 @@ func (m Model) Matches() int { return len(m.search.matches) }
 
 func (m *Model) openSearch() tea.Cmd {
 	m.searching = true
+	m.enableKeys()
 	m.input.Reset()
 	return m.input.Focus()
 }
 
 func (m *Model) closeSearch() {
 	m.searching = false
+	m.enableKeys()
 	m.input.Blur()
 }
 
