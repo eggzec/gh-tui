@@ -71,7 +71,7 @@ func (g *commits) show(m *Modal, branch string) tea.Cmd {
 
 // fetchCommits reads the history of branch for the graph, a page at a time.
 func (m *Modal) fetchCommits(branch string, stale *atomic.Bool) graph.Fetch {
-	svc, repo, format, now, off := m.svc, m.repo, m.format, m.opts.now, m.opts.offline
+	svc, repo, format, now, off, host := m.svc, m.repo, m.format, m.opts.now, m.opts.offline, m.opts.host
 	return func(ctx context.Context, cursor string) ([]graph.Commit, string, error) {
 		ctx, end := obs.Begin(ctx, "history.commits")
 		p, err := svc.Commits(ctx, historysvc.CommitsQuery{Repo: repo, Ref: branch, Cursor: cursor, PageSize: pageSize})
@@ -92,6 +92,8 @@ func (m *Modal) fetchCommits(branch string, stale *atomic.Bool) graph.Fetch {
 		out := make([]graph.Commit, len(p.Items))
 		for i := range p.Items {
 			out[i] = format.graphCommit(p.Items[i], t)
+			// The SHA and the subject link to the commit's page.
+			out[i].Link = commitURL(host, repo, p.Items[i])
 		}
 		return out, p.Next, nil
 	}
