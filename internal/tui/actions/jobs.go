@@ -247,7 +247,7 @@ func (m *Modal) jobRow(j core.Job, cursor, focused bool, w int, now time.Time) s
 	if cursor {
 		name = st.Strong.Render(ui.OneLine(j.Name))
 	}
-	return ui.Spread(gutter+st.Glyphs[state]+" "+name, m.st.Took(j.Status, j.Conclusion, j.StartedAt, j.CompletedAt, now), w)
+	return ui.Spread(gutter+st.Glyphs[state]+" "+m.links.Link(j.URL, name), m.st.Took(j.Status, j.Conclusion, j.StartedAt, j.CompletedAt, now), w)
 }
 
 // jobsTitle is the detail of the jobs pane's title: how many there are,

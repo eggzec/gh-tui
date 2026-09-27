@@ -29,6 +29,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/jobview"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // Title names the modal in the frame, and the changes it sends in the log.
@@ -107,6 +108,8 @@ type Modal struct {
 	width, height int
 	theme         ui.Theme
 	st            styles
+	// links keeps the links of the rows, which are drawn on every frame.
+	links termtext.Links
 }
 
 var _ ui.Modal = (*Modal)(nil)
