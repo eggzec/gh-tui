@@ -382,9 +382,6 @@ func (m *detailModal) change(msg tea.KeyPressMsg) tea.Cmd {
 				func() tea.Msg { return changedMsg{repo: repo} },
 				ui.Do(m.sendCtx, ui.PullsTitle, op, what))
 		})
-	if c.question == "" {
-		return run()
-	}
 	m.ask = &ui.Confirm{Question: c.question, Run: run}
 	return nil
 }
