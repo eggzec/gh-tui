@@ -77,6 +77,9 @@ type options struct {
 	follow Follow
 	ret    ui.Modal
 	caps   core.RepoCaps
+	// voice words a log that failed to load, or is nil for one of the
+	// keys New is given.
+	voice *ui.Voice
 	// tick is how often the timers of what runs move on; tests set 0,
 	// which stops them.
 	tick time.Duration
@@ -88,6 +91,13 @@ type options struct {
 // it. The default is unknown, which offers it.
 func WithCaps(c core.RepoCaps) Option {
 	return func(o *options) { o.caps = c }
+}
+
+// WithVoice sets how the step words what went wrong, with the keys a hint
+// names and the log it points to. By default the hints name the configured
+// keys and no log.
+func WithVoice(v ui.Voice) Option {
+	return func(o *options) { o.voice = &v }
 }
 
 // WithIcons sets the glyphs of the states of the checks. The default is
@@ -211,8 +221,15 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, number int, keys m
 		opts:   o,
 		spin:   spinner.New(spinner.WithSpinner(spinner.Dot)),
 	}
+	// What failed is read again with the step's refresh key, which leaves
+	// the key that re-runs.
+	v := ui.NewVoice(keys, "")
+	if o.voice != nil {
+		v = *o.voice
+	}
+	v.Retry = s.keys.Refresh
 	s.view = jobview.New(rctx, svc, repo, s.keys.job(),
-		jobview.WithIcons(o.icons), jobview.WithClock(o.now), jobview.WithReturn(o.ret))
+		jobview.WithIcons(o.icons), jobview.WithClock(o.now), jobview.WithReturn(o.ret), jobview.WithVoice(v))
 	s.detail = viewport.New()
 	s.detail.KeyMap = s.keys.Detail
 	// Assume a dark terminal until the parent sets the theme.
