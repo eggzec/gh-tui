@@ -7,12 +7,14 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/eggzec/gh-tui/internal/core"
 )
 
 // newTestClient returns a client whose REST root and GraphQL endpoint are
-// served by h.
+// served by h. It sends a request again at once, without the backoff, so
+// that tests of what a failure comes to don't wait for the retries first.
 func newTestClient(t *testing.T, h http.Handler) *Client {
 	t.Helper()
 	srv := httptest.NewServer(h)
@@ -21,6 +23,12 @@ func newTestClient(t *testing.T, h http.Handler) *Client {
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
+	return retryAtOnce(c)
+}
+
+// retryAtOnce makes c send a request again without waiting, and returns it.
+func retryAtOnce(c *Client) *Client {
+	c.http.Transport.(*retryTransport).wait = func(ctx context.Context, _ time.Duration) error { return ctx.Err() }
 	return c
 }
 
@@ -122,7 +130,7 @@ func TestNewTokenFromEnv(t *testing.T) {
 	if c.token != "env-token" {
 		t.Errorf("token = %q, want env-token", c.token)
 	}
-	if tt, ok := c.http.Transport.(*timeoutTransport); !ok || tt.timeout != defaultTimeout || c.http.Timeout != 0 {
+	if tt, ok := c.http.Transport.(*retryTransport).base.(*timeoutTransport); !ok || tt.timeout != defaultTimeout || c.http.Timeout != 0 {
 		t.Errorf("timeout = %v per call and %+v per attempt, want %v per attempt", c.http.Timeout, c.http.Transport, defaultTimeout)
 	}
 }

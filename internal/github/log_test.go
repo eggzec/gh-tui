@@ -333,24 +333,28 @@ func TestLogTransportError(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, _ = c.Get(context.Background(), "repos/cli/cli/issues", Conditional{}, nil)
+	_, _ = retryAtOnce(c).Get(context.Background(), "repos/cli/cli/issues", Conditional{}, nil)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	c2, _ := New(WithBaseURL("http://gh.invalid/"), WithToken("t"),
 		WithHTTPClient(&http.Client{Transport: failingTransport{context.Canceled}}))
 	_, _ = c2.Get(ctx, "repos/cli/cli/issues", Conditional{}, nil)
 
+	// The failure is logged for each of its attempts, the cancellation
+	// once.
 	recs := httpRecords(t, buf)
-	if len(recs) != 2 {
-		t.Fatalf("got %d records, want 2:\n%s", len(recs), buf)
+	if len(recs) != 1+maxRetries+1 {
+		t.Fatalf("got %d records, want %d:\n%s", len(recs), 1+maxRetries+1, buf)
 	}
-	if r := recs[0]; r["level"] != "ERROR" || !strings.Contains(r["err"].(string), "connection refused") || r["canceled"] != false {
-		t.Errorf("failed record = %v", r)
+	for _, r := range recs[:1+maxRetries] {
+		if r["level"] != "ERROR" || !strings.Contains(r["err"].(string), "connection refused") || r["canceled"] != false {
+			t.Errorf("failed record = %v", r)
+		}
 	}
-	if r := recs[1]; r["level"] != "INFO" || r["canceled"] != true || r["status"] != 0.0 || r["duration_ms"] == nil {
+	if r := recs[1+maxRetries]; r["level"] != "INFO" || r["canceled"] != true || r["status"] != 0.0 || r["duration_ms"] == nil {
 		t.Errorf("canceled record = %v", r)
 	}
-	if q := stats.Summary().Quotas; len(q) != 1 || q[0].Failed != 2 || q[0].Resource != "none" {
+	if q := stats.Summary().Quotas; len(q) != 1 || q[0].Failed != 1+maxRetries+1 || q[0].Resource != "none" {
 		t.Errorf("quotas = %+v", q)
 	}
 }

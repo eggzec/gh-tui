@@ -35,6 +35,9 @@ type call struct {
 	op   string
 	repo string
 	rate *graphqlRate
+	// query marks a GraphQL query, which only reads, so that it may be
+	// sent again like a GET, unlike a mutation.
+	query bool
 	// external marks a request to a host outside the API, such as the
 	// storage that a job log redirects to. Its URL holds a signed
 	// credential, so it is logged by op alone, as API download.

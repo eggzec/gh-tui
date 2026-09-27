@@ -64,7 +64,7 @@ func TestLimitSlotsComeBack(t *testing.T) {
 	})
 	c := newTestClient(t, mux)
 	srvURL = strings.TrimSuffix(c.restURL.String(), "/")
-	lt := c.http.Transport.(*timeoutTransport).base.(*limitTransport)
+	lt := c.http.Transport.(*retryTransport).base.(*timeoutTransport).base.(*limitTransport)
 
 	var wg sync.WaitGroup
 	for i := range 200 {
