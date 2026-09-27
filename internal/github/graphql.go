@@ -202,12 +202,12 @@ func readOnly(query string) bool {
 }
 
 // graphqlError builds the error of a response with errors to a query of
-// the operation op. partial says
-// that the response has data too, as a search across organizations does
-// when some of them keep the token out of their results. Then a FORBIDDEN
-// or INSUFFICIENT_SCOPES error on a field below the root, such as one
-// node of a search, refuses that node only, not the query, so it isn't
-// tagged as a refusal, which would drop what was kept of the query.
+// the operation op. partial says that the response has data too, as a
+// search across organizations does when some of them keep the token out
+// of their results. Then a FORBIDDEN or INSUFFICIENT_SCOPES error on a
+// field below the root, such as one node of a search, refuses that node
+// only, not the query, so it isn't tagged as a refusal, which would drop
+// what was kept of the query.
 func (c *Client) graphqlError(ctx context.Context, h http.Header, op string, items []GraphQLErrorItem, partial bool) *GraphQLError {
 	e := &GraphQLError{Errors: items}
 	var below []string
