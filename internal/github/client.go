@@ -49,8 +49,9 @@ type options struct {
 	baseURL string
 }
 
-// WithHTTPClient sets the HTTP client that sends requests. The default
-// client times out after 30 seconds.
+// WithHTTPClient sets the HTTP client that sends requests. Its Timeout
+// bounds each attempt at a request, from sending it until its body is
+// closed. The default client times out after 30 seconds.
 func WithHTTPClient(c *http.Client) Option {
 	return func(o *options) { o.http = c }
 }
@@ -100,15 +101,20 @@ func New(opts ...Option) (*Client, error) {
 		return nil, fmt.Errorf("parse base URL: %w", err)
 	}
 	gql := graphqlEndpoint(base)
-	// The client is copied so that logging leaves the caller's alone. The
-	// limit comes first, so that a request's time waiting for a slot isn't
+	// The client is copied so that its transports leave the caller's alone.
+	// Its timeout bounds each attempt instead of the call. The limit comes
+	// before the log, so that a request's time waiting for a slot isn't
 	// logged as its duration.
 	hc := *o.http
-	hc.Transport = newLimitTransport(&logTransport{
-		base:        cmp.Or[http.RoundTripper](hc.Transport, http.DefaultTransport),
-		restRoot:    base.EscapedPath(),
-		graphqlPath: gql.Path,
-	}, maxInFlight, foregroundSlots)
+	hc.Transport = &timeoutTransport{
+		base: newLimitTransport(&logTransport{
+			base:        cmp.Or[http.RoundTripper](hc.Transport, http.DefaultTransport),
+			restRoot:    base.EscapedPath(),
+			graphqlPath: gql.Path,
+		}, maxInFlight, foregroundSlots),
+		timeout: hc.Timeout,
+	}
+	hc.Timeout = 0
 	return &Client{
 		http:       &hc,
 		token:      o.token,
