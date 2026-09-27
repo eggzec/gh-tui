@@ -728,20 +728,10 @@ func failures() []failure {
 		{name: "rejected", err: &ghError{is: core.ErrConflict, reason: "Pull Request is not mergeable"}, cause: "Pull Request is not mergeable."},
 		{name: "rate limited", err: fmt.Errorf("github: 403: %w", &core.RateLimitError{Reset: reset}), cause: "rate limited until " + reset.Format("15:04") + "."},
 		{name: "rate limited with no reset", err: fmt.Errorf("github: 403: %w", &core.RateLimitError{}), cause: "rate limited by GitHub."},
-		{name: "auth", err: &ghError{is: core.ErrUnauthorized, reason: "Bad credentials"}, cause: "run gh auth login, then restart gh-tui."},
+		{name: "auth", err: &ghError{is: core.ErrUnauthorized, reason: "Bad credentials"}, cause: "GitHub rejected the token. Run gh auth login, then restart gh-tui."},
 		{name: "internal", err: errors.New("github: decode 200: unexpected EOF"), cause: "something went wrong, see " + testLog + "."},
 		{name: "canceled", err: fmt.Errorf("github: PUT /repos: %w", context.Canceled)},
 	}
-}
-
-// newWideApp returns an app opened on testRepo, wide enough for a toast
-// of ui.ToastWidth to show whole, which at 80 columns the toast stack
-// wraps and may cut.
-func newWideApp(t *testing.T, opts ...Option) (*Model, []*fakeSection) {
-	t.Helper()
-	m, fakes := newTestApp(t, opts...)
-	m.Update(tea.WindowSizeMsg{Width: 240, Height: 24})
-	return m, fakes
 }
 
 // logVoice returns the voice of the default keys, pointing to testLog.
@@ -775,7 +765,7 @@ func checkClean(t *testing.T, text string) {
 func TestDoneWithErrorShowsToast(t *testing.T) {
 	for _, f := range failures() {
 		t.Run(f.name, func(t *testing.T) {
-			m, fakes := newWideApp(t, WithVoice(logVoice(t)))
+			m, fakes := newTestApp(t, WithVoice(logVoice(t)))
 			m.Update(ui.DoneMsg{What: "merge #42", Err: f.err})
 			switch got := toasted(m); {
 			case f.cause == "" && got != "":
@@ -792,7 +782,7 @@ func TestDoneWithErrorShowsToast(t *testing.T) {
 }
 
 func TestDoneWithErrorWithoutLog(t *testing.T) {
-	m, _ := newWideApp(t)
+	m, _ := newTestApp(t)
 	m.Update(ui.DoneMsg{What: "merge #42", Err: errors.New("github: decode 200: unexpected EOF")})
 	if want := "Couldn't merge #42: something went wrong."; !hasToast(m, want) {
 		t.Errorf("toast %q, want %q", toasted(m), want)
@@ -900,7 +890,7 @@ func TestOpenReportsFailure(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv("GH_BROWSER", tt.ghBrowser)
 			failed := &exec.Error{Name: "/usr/bin/xdg-open", Err: exec.ErrNotFound}
-			m, _ := newWideApp(t, WithBrowser(func(string) error { return failed }))
+			m, _ := newTestApp(t, WithBrowser(func(string) error { return failed }))
 			run(m, m.openURL("https://github.com"))
 			if !hasToast(m, tt.want) {
 				t.Errorf("toast %q, want %q", toasted(m), tt.want)

@@ -17,12 +17,12 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 )
 
-// The most cells that Say's text, SayToast's toast and the action in a
-// toast take.
+// The most cells that Say's text and the action in a toast take, and the
+// fewest of a cause a toast cuts to.
 const (
 	SayWidth    = 300
-	ToastWidth  = 80
 	actionWidth = 60
+	minCause    = 12
 )
 
 // restart ends the sentences that ask the user to fix the token with gh,
@@ -159,11 +159,14 @@ func words(p *core.Problem, v Voice) (text, hint string, named bool) {
 }
 
 // SayToast returns the toast that tells the user p stopped its action,
-// such as "Couldn't merge #5: can't reach GitHub.", in ToastWidth cells or
-// fewer, the action cut first to actionWidth and then the cause to fit. A
-// toast names no key, since what it tells of may no longer be on screen.
-// It is "" when Say has nothing to say.
-func SayToast(p *core.Problem, v Voice) string {
+// such as "Couldn't merge #5: can't reach GitHub.", saying as much as fits
+// reports a toast shows whole. To fit, it first cuts the tail of the
+// action, keeping its first word, then says the cause more briefly,
+// keeping the command a call to action names, and then cuts the action
+// further; only a cause that fits in no way is cut. A toast names no key,
+// since what it tells of may no longer be on screen. It is "" when Say has
+// nothing to say.
+func SayToast(p *core.Problem, v Voice, fits func(string) bool) string {
 	text, _, named := say(p, v)
 	if text == "" {
 		return ""
@@ -172,18 +175,58 @@ func SayToast(p *core.Problem, v Voice) string {
 	if ansi.StringWidth(action) > actionWidth {
 		action = cutWords(action, actionWidth)
 	}
-	head := "Couldn't " + action + ": "
-	room := ToastWidth - ansi.StringWidth(head) - len(".")
 	if !named {
 		text = lowerFirst(text)
 	}
 	causes := toastCauses(p, v, text)
+	actions := actionCuts(action)
+	// A cut that keeps the first word, such as "merge", still says what
+	// failed.
+	first, _, _ := strings.Cut(action, " ")
+	kept := 1
+	for kept < len(actions) && strings.HasPrefix(actions[kept], first) {
+		kept++
+	}
 	for _, c := range causes {
-		if ansi.StringWidth(c) <= room {
-			return head + sentence(c)
+		for _, a := range actions[:kept] {
+			if s := "Couldn't " + a + ": " + sentence(c); fits(s) {
+				return s
+			}
 		}
 	}
-	return head + cutWords(causes[len(causes)-1], room)
+	shortest := causes[len(causes)-1]
+	for _, a := range actions[kept:] {
+		if s := "Couldn't " + a + ": " + sentence(shortest); fits(s) {
+			return s
+		}
+	}
+	// No cause fits whole, so it is cut after the longest action that
+	// leaves room for a few words of it.
+	least := min(ansi.StringWidth(shortest), minCause)
+	for _, a := range actions {
+		head := "Couldn't " + a + ": "
+		if !fits(head + cutWords(shortest, least)) {
+			continue
+		}
+		for w := ansi.StringWidth(shortest); w > least; w-- {
+			if s := head + cutWords(shortest, w); fits(s) {
+				return s
+			}
+		}
+		return head + cutWords(shortest, least)
+	}
+	return "Couldn't " + actions[len(actions)-1] + ": …"
+}
+
+// actionCuts returns action and ever shorter cuts of it, down to "…".
+func actionCuts(action string) []string {
+	cuts := []string{action}
+	for w := ansi.StringWidth(action); w > 0; w-- {
+		if c := cutWords(action, w); c != cuts[len(cuts)-1] {
+			cuts = append(cuts, c)
+		}
+	}
+	return cuts
 }
 
 // toastCauses returns the ways a toast may say the cause of p, whose

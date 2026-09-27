@@ -79,7 +79,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.toast.Push(msg.Level, msg.Text)
 	case ui.DoneMsg:
 		var cmd tea.Cmd
-		if text := ui.SayToast(core.Explain(msg.What, msg.Err), m.voice); text != "" {
+		if text := ui.SayToast(core.Explain(msg.What, msg.Err), m.voice, m.fitsToast); text != "" {
 			cmd = m.toast.Push(toast.Error, text)
 		}
 		return m, tea.Batch(cmd, m.broadcast(msg))
@@ -343,3 +343,6 @@ func (m *Model) report(active bool) {
 		m.setActive(active)
 	}
 }
+
+// fitsToast reports whether an error toast shows text whole.
+func (m *Model) fitsToast(text string) bool { return m.toast.Fits(toast.Error, text) }
