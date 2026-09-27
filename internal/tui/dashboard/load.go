@@ -46,25 +46,25 @@ func (s *Section) load() tea.Cmd {
 
 func (s *Section) readHeader(again bool) tea.Cmd {
 	s.header.loading = true
-	return readCmd(s, kindHeader, "dashboard.header", func(ctx context.Context) (core.Header, bool, bool, error) {
+	return readCmd(s, kindHeader, "dashboard.header", func(ctx context.Context) (core.Header, served, error) {
 		h, err := s.svc.Header(ctx, dashboard.HeaderQuery{Again: again})
-		return h, h.Stale, h.Offline, err
+		return h, served{h.Stale, h.Offline, h.Limited}, err
 	})
 }
 
 func (s *Section) readWork(again bool) tea.Cmd {
 	s.work.loading = true
-	return readCmd(s, kindWork, "dashboard.work", func(ctx context.Context) (core.Work, bool, bool, error) {
+	return readCmd(s, kindWork, "dashboard.work", func(ctx context.Context) (core.Work, served, error) {
 		w, err := s.svc.Work(ctx, dashboard.WorkQuery{Again: again})
-		return w, w.Stale, w.Offline, err
+		return w, served{w.Stale, w.Offline, w.Limited}, err
 	})
 }
 
 func (s *Section) readContributions(again bool) tea.Cmd {
 	s.contribs.loading = true
-	return readCmd(s, kindContributions, "dashboard.contributions", func(ctx context.Context) (core.Contributions, bool, bool, error) {
+	return readCmd(s, kindContributions, "dashboard.contributions", func(ctx context.Context) (core.Contributions, served, error) {
 		c, err := s.svc.Contributions(ctx, dashboard.ContributionsQuery{Again: again})
-		return c, c.Stale, c.Offline, err
+		return c, served{c.Stale, c.Offline, c.Limited}, err
 	})
 }
 
@@ -74,30 +74,39 @@ func (s *Section) readInbox(again bool) tea.Cmd {
 	}
 	s.notes.loading = true
 	in := s.inbox
-	return readCmd(s, kindInbox, "dashboard.inbox", func(ctx context.Context) (core.Page[core.Notification], bool, bool, error) {
+	return readCmd(s, kindInbox, "dashboard.inbox", func(ctx context.Context) (core.Page[core.Notification], served, error) {
 		p, err := in.List(ctx, notifications.ListQuery{Again: again})
-		return p, p.Stale, p.Offline, err
+		return p, served{p.Stale, p.Offline, p.Limited}, err
 	})
 }
 
 func (s *Section) readHere() tea.Cmd {
 	s.hereRepo.loading = true
 	get, ref := s.getHere, s.here
-	return readCmd(s, kindHere, "dashboard.here", func(ctx context.Context) (core.Repo, bool, bool, error) {
+	return readCmd(s, kindHere, "dashboard.here", func(ctx context.Context) (core.Repo, served, error) {
 		r, err := get(ctx, ref)
-		return r, false, false, err
+		return r, served{}, err
 	})
 }
 
+// served says how a read came by its value: kept by an earlier session,
+// or read earlier, because GitHub couldn't be reached or rate limited it.
+type served struct {
+	stale, offline, limited bool
+}
+
 // readCmd runs read in a command, as a trace of its own named name.
-func readCmd[V any](s *Section, k kind, name string, read func(ctx context.Context) (v V, stale, offline bool, err error)) tea.Cmd {
+func readCmd[V any](s *Section, k kind, name string, read func(ctx context.Context) (V, served, error)) tea.Cmd {
 	ctx, id, gen, off := s.ctx, s.id, s.gen, s.offline
 	return func() tea.Msg {
 		ctx, end := obs.Begin(ctx, name)
-		v, stale, offline, err := read(ctx)
-		end(err, "span", "tui", "stale", stale, "offline", offline)
-		if offline {
+		v, how, err := read(ctx)
+		end(err, "span", "tui", "stale", how.stale, "offline", how.offline, "limited", how.limited)
+		switch {
+		case how.offline:
 			off.Mark()
+		case how.limited:
+			off.MarkLimited()
 		}
 		return loadedMsg{id: id, gen: gen, kind: k, value: v, err: err}
 	}
@@ -253,4 +262,13 @@ func (s *Section) offlineNow() bool {
 		s.work.ok && s.work.value.Offline ||
 		s.contribs.ok && s.contribs.value.Offline ||
 		s.notes.ok && s.notes.value.Offline
+}
+
+// limitedNow reports whether anything shown was served because GitHub rate
+// limited the read.
+func (s *Section) limitedNow() bool {
+	return s.header.ok && s.header.value.Limited ||
+		s.work.ok && s.work.value.Limited ||
+		s.contribs.ok && s.contribs.value.Limited ||
+		s.notes.ok && s.notes.value.Limited
 }

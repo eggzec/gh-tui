@@ -116,8 +116,26 @@ func TestStaleIsReadAgain(t *testing.T) {
 }
 
 func TestOffline(t *testing.T) {
+	for _, tt := range []struct {
+		name          string
+		limited       bool
+		toast, status string
+	}{
+		{"offline", false, ui.OfflineText, "offline · showing the last visit"},
+		{"rate limited", true, ui.LimitedText, "rate limited · showing the last visit"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			testServedEarlier(t, tt.limited, tt.toast, tt.status)
+		})
+	}
+}
+
+// testServedEarlier checks what the dashboard says when its reads are
+// served what was read earlier, offline or rate limited.
+func testServedEarlier(t *testing.T, limited bool, toast, status string) {
+	t.Helper()
 	svc := newFake()
-	svc.offline = true
+	svc.offline, svc.limited = !limited, limited
 	s := New(t.Context(), svc, nil)
 	s.SetSize(140, 38)
 	s.Focus()
@@ -133,16 +151,16 @@ func TestOffline(t *testing.T) {
 		case tea.BatchMsg:
 			queue = append(queue, msg...)
 		case ui.NotifyMsg:
-			notified = notified || msg.Text == ui.OfflineText
+			notified = notified || msg.Text == toast
 		case loadedMsg:
 			queue = append(queue, s.Update(msg))
 		}
 	}
 	if !notified {
-		t.Error("an offline read should tell the user once")
+		t.Errorf("a read served earlier should tell the user once: %q", toast)
 	}
-	if !strings.Contains(screen(s), "offline · showing the last visit") {
-		t.Errorf("the profile should say it is offline:\n%s", screen(s))
+	if !strings.Contains(screen(s), status) {
+		t.Errorf("the profile should say %q:\n%s", status, screen(s))
 	}
 }
 

@@ -81,9 +81,12 @@ func (m *Modal) readWorkflows(again bool) tea.Cmd {
 	return func() tea.Msg {
 		ctx, end := obs.Begin(ctx, "actions.workflows")
 		p, err := svc.Workflows(ctx, actionssvc.WorkflowsQuery{Repo: repo, Again: again})
-		end(err, "span", "tui", "workflows", len(p.Items), "stale", p.Stale, "offline", p.Offline)
-		if p.Offline {
+		end(err, "span", "tui", "workflows", len(p.Items), "stale", p.Stale, "offline", p.Offline, "limited", p.Limited)
+		switch {
+		case p.Offline:
 			off.Mark()
+		case p.Limited:
+			off.MarkLimited()
 		}
 		return workflowsMsg{id: id, items: p.Items, stale: p.Stale, err: err}
 	}

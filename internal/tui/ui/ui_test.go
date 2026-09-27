@@ -154,4 +154,20 @@ func TestFeedPages(t *testing.T) {
 	if _, _, err := fetch(t.Context(), "fail"); err == nil || errors.Is(err, feed.ErrStale) {
 		t.Errorf("failed read error = %v, want it passed on", err)
 	}
+
+	// A page served because GitHub rate limited the read marks it too.
+	var limited Offline
+	fetch = FeedPages("list.test", &limited, func(cursor string) string { return cursor }, func(context.Context, string, bool) (core.Page[int], error) {
+		return core.Page[int]{Items: []int{4}, Limited: true}, nil
+	})
+	if items, _, err := fetch(t.Context(), ""); err != nil || len(items) != 1 {
+		t.Errorf("limited page = %v, %v; want its items", items, err)
+	}
+	cmd = limited.Notify()
+	if cmd == nil {
+		t.Fatal("Notify after a limited page = nil, want a toast")
+	}
+	if msg, ok := cmd().(NotifyMsg); !ok || msg.Text != LimitedText {
+		t.Errorf("toast = %v, want the rate-limited text", cmd())
+	}
 }

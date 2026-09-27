@@ -116,8 +116,11 @@ func (m *Modal) receiveBranches(msg branchesMsg) tea.Cmd {
 		return nil
 	}
 	b.err = nil
-	if msg.page.Offline {
+	switch {
+	case msg.page.Offline:
 		m.opts.offline.Mark()
+	case msg.page.Limited:
+		m.opts.offline.MarkLimited()
 	}
 	selected, _ := b.selected()
 	if msg.cursor == "" {
