@@ -240,7 +240,7 @@ func (m *Model) openFilter(s ui.Section, tab filterform.Tab) bool {
 	if !ok || tab == filterform.SortTab && f.Spec.Sort == nil {
 		return false
 	}
-	m.openModal(ui.NewFilterModal(m.ctx, s.Title(), fl, f, ui.OnTab(tab), ui.WithFormKeys(m.keys.form)))
+	m.openModal(ui.NewFilterModal(m.ctx, s.Title(), fl, f, ui.OnTab(tab), ui.WithFormKeys(m.keys.form), ui.WithFormVoice(m.voice)))
 	return true
 }
 

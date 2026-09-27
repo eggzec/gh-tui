@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
@@ -103,8 +104,9 @@ const (
 type FilterOption func(*filterOptions)
 
 type filterOptions struct {
-	tab  filterform.Tab
-	keys filterform.KeyMap
+	tab   filterform.Tab
+	keys  filterform.KeyMap
+	voice *Voice
 }
 
 // OnTab opens the modal on tab t. A list without a sort has only the
@@ -116,6 +118,13 @@ func OnTab(t filterform.Tab) FilterOption {
 // WithFormKeys sets the keys of the form.
 func WithFormKeys(k filterform.KeyMap) FilterOption {
 	return func(o *filterOptions) { o.keys = k }
+}
+
+// WithFormVoice words the options that failed to load with v, whose
+// retry key the form replaces with its own. By default the form says it in
+// words of its own.
+func WithFormVoice(v Voice) FilterOption {
+	return func(o *filterOptions) { o.voice = &v }
 }
 
 // FilterFormKeys returns the keys of a filter form. Its tabs switch with
@@ -138,14 +147,22 @@ func NewFilterModal(ctx context.Context, section string, target Filterable, f Fi
 	if f.Subject != "" {
 		title += " · " + f.Subject
 	}
-	form := filterform.New(f.Spec,
+	formOpts := []filterform.Option{
 		filterform.WithQuery(f.Query),
 		filterform.WithTab(o.tab),
 		filterform.WithTabBar(false),
 		filterform.WithHelpLine(false),
 		filterform.WithKeyMap(o.keys),
 		filterform.WithContext(ctx),
-	)
+	}
+	if o.voice != nil {
+		// The form loads the options again with the key that opens them,
+		// and has no key that opens GitHub.
+		v := *o.voice
+		v.Retry, v.Open = o.keys.Edit, key.Binding{}
+		formOpts = append(formOpts, filterform.WithErrorText(ErrorText("load the options", f.Subject, v)))
+	}
+	form := filterform.New(f.Spec, formOpts...)
 	// Focusing the rows, where the form starts, needs no command.
 	_ = form.Focus()
 	// The modal keeps its height on either tab.
