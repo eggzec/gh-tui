@@ -13,6 +13,8 @@ import (
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // Node is one entry of a tree.
@@ -29,6 +31,10 @@ type Node struct {
 	// Branch reports whether the node can have children. Branches expand;
 	// leaves open.
 	Branch bool
+	// Link is an address the name links to, such as the node's page on
+	// the web, which a terminal that knows links (OSC 8) opens on a click.
+	// It is optional, and only a plain https address links.
+	Link string
 	// Value carries whatever the producer wants back with the node, such as
 	// the object a leaf stands for.
 	Value any
@@ -353,10 +359,11 @@ func (m Model) detail(n Node) string {
 }
 
 func (m Model) label(n Node) string {
+	st := m.styles.Leaf
 	if n.Branch {
-		return m.styles.Branch.Render(n.Name)
+		st = m.styles.Branch
 	}
-	return m.styles.Leaf.Render(n.Name)
+	return termtext.Link(n.Link, st.Render(n.Name))
 }
 
 // growGuides renders the indentation of every depth up to depth.
