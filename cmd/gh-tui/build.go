@@ -162,6 +162,12 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 		dashboard.WithContributions(cfg.Dashboard.ContributionDays()),
 		dashboard.WithIcons(icons),
 	}
+	searchOpts := []searchpage.Option{searchpage.WithStart(searchStart(repoSvc, pinned)), searchpage.WithIcons(icons)}
+	if p := cfg.Details.Prefetch; p.Enabled {
+		// A result is read once the cursor rests on it, as a row of a
+		// list is; the first results are a guess, and not read.
+		searchOpts = append(searchOpts, searchpage.WithPrefetch(pullSvc, issueSvc, p.HoverDelay))
+	}
 	if dashboardPrefetch(cfg) {
 		// The work waiting on the viewer is what they open most from the
 		// dashboard, as quickly as from the lists of a repository, and the
@@ -174,7 +180,7 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 		Issues: issues.New(ctx, issueSvc, cfg.Keys, issueOpts...),
 		Notifications: notifications.New(ctx, notifSvc, cfg.Keys,
 			notifications.WithOffline(offline), notifications.WithOpener(opener)),
-		Search:    searchpage.New(ctx, searchSvc, cfg.Keys, searchpage.WithStart(searchStart(repoSvc, pinned)), searchpage.WithIcons(icons)),
+		Search:    searchpage.New(ctx, searchSvc, cfg.Keys, searchOpts...),
 		Dashboard: dashboard.New(ctx, dashSvc, cfg.Keys, dashOpts...),
 	}
 

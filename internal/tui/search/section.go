@@ -21,6 +21,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
 	"github.com/eggzec/gh-tui/internal/service/search"
+	"github.com/eggzec/gh-tui/internal/tui/details"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -134,6 +135,9 @@ type Section struct {
 	othersFor  string
 	stopOthers context.CancelFunc
 	seen       *obs.Prefetched[othersKey]
+	// ahead reads the result under the cursor ahead, if prefetch is set.
+	prefetch *prefetch
+	ahead    *ui.Ahead[details.Key]
 	// hits holds the results of each kind for text, made when the kind is
 	// first shown, and code those of code search, made when asked for.
 	hits   map[core.SearchKind]*hitList
@@ -195,6 +199,10 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 	for _, opt := range opts {
 		opt(s)
 	}
+	if p := s.prefetch; p != nil {
+		s.ahead = details.NewAhead("search_hit", p.pulls, p.issues, 0, p.delay)
+		s.ahead.Reset(ctx)
+	}
 	s.input = textinput.New()
 	s.input.Prompt = ""
 	s.input.Placeholder = "Search repositories, issues, pull requests and code"
@@ -251,11 +259,12 @@ func (s *Section) Focus() {
 	s.render()
 }
 
-// Blur makes the page ignore keys, and stops the reads of the other kinds
-// ahead, as the page leaves the screen.
+// Blur makes the page ignore keys, and stops the reads ahead of the other
+// kinds and of the result under the cursor, as the page leaves the screen.
 func (s *Section) Blur() {
 	s.focused = false
 	s.leaveOthers()
+	s.ahead.Reset(s.ctx)
 	s.focusArea(s.area)
 	s.render()
 }

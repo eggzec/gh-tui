@@ -21,7 +21,7 @@ func (s *Section) Update(msg tea.Msg) tea.Cmd {
 		return nil
 	}
 	cmd := s.update(msg)
-	cmd = tea.Batch(cmd, s.spinTitle())
+	cmd = tea.Batch(cmd, s.spinTitle(), s.readAhead())
 	s.render()
 	return cmd
 }
@@ -42,6 +42,11 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		return tea.Batch(s.settle(), s.readOthers(othersRest))
+	case ui.AheadMsg:
+		if !s.focused {
+			return nil
+		}
+		return s.ahead.Rested(msg)
 	case codeTickMsg:
 		if msg.id != s.id {
 			return nil
@@ -212,6 +217,7 @@ func (s *Section) refresh() tea.Cmd {
 		return nil
 	}
 	s.svc.Invalidate()
+	s.ahead.Resume()
 	clear(s.hits)
 	kind := s.kind
 	if kind == core.SearchCode {
@@ -246,7 +252,7 @@ func (s *Section) open(browser bool) tea.Cmd {
 		if browser {
 			return ui.Open(hitURL(hit))
 		}
-		return openHit(hit)
+		return s.openHit(hit, false)
 	}
 	if l, ok := s.visibleCode(); ok {
 		hit, ok := l.feed.Selected()
@@ -351,21 +357,7 @@ func (s *Section) openChecks() tea.Cmd {
 		return nil
 	}
 	s.remember(s.text)
-	msg := ui.OpenPullMsg{Repo: hit.Issue.Repo, Number: hit.Issue.Number, Checks: true}
-	return func() tea.Msg { return msg }
-}
-
-func openHit(hit core.SearchHit) tea.Cmd {
-	var msg tea.Msg
-	switch hit.Kind {
-	case core.SearchRepos:
-		msg = ui.RepoMsg{Repo: hit.Repo.Ref}
-	case core.SearchPulls:
-		msg = ui.OpenPullMsg{Repo: hit.Issue.Repo, Number: hit.Issue.Number}
-	default:
-		msg = ui.OpenIssueMsg{Repo: hit.Issue.Repo, Number: hit.Issue.Number}
-	}
-	return func() tea.Msg { return msg }
+	return s.openHit(hit, true)
 }
 
 func hitURL(hit core.SearchHit) string {
