@@ -110,6 +110,31 @@ func TestFetchNotModified(t *testing.T) {
 	})
 }
 
+// TestFetchNotModifiedClearsFallback checks that a 304 confirms an entry
+// that was served in place of an answer, so it no longer says so.
+func TestFetchNotModifiedClearsFallback(t *testing.T) {
+	c := New[int]()
+	errDown := errors.New("down")
+	c.Set("k", Entry[int]{Value: 1, ETag: `"v1"`, Fallback: errDown})
+	c.Invalidate("k")
+
+	e, err := c.Fetch(t.Context(), "k", func(_ context.Context, prev Entry[int], _ bool) (Entry[int], error) {
+		if !errors.Is(prev.Fallback, errDown) {
+			t.Errorf("prev.Fallback = %v, want %v", prev.Fallback, errDown)
+		}
+		return Entry[int]{}, ErrNotModified
+	})
+	if err != nil || e.Value != 1 {
+		t.Fatalf("Fetch = %d, %v; want 1, nil", e.Value, err)
+	}
+	if e.Fallback != nil {
+		t.Errorf("Fetch Fallback = %v, want nil", e.Fallback)
+	}
+	if got, st := c.Get("k"); st != Fresh || got.Fallback != nil {
+		t.Errorf("Get = %+v, %v; want fresh without Fallback", got, st)
+	}
+}
+
 func TestFetchNotModifiedWithoutEntry(t *testing.T) {
 	c := New[int]()
 	_, err := c.Fetch(t.Context(), "k", func(context.Context, Entry[int], bool) (Entry[int], error) {
