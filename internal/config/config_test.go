@@ -96,7 +96,7 @@ func TestLoadMergesOverDefaults(t *testing.T) {
 					ShowEmail:  true,
 					Prefetch:   HistoryPrefetch{Around: 5, HoverDelay: 250 * time.Millisecond},
 				}
-				c.Dashboard = Dashboard{CalendarGlyph: "#", Contributions: ContributionsYear}
+				c.Dashboard = Dashboard{CalendarGlyph: "#", Contributions: ContributionsYear, Prefetch: false}
 				c.UI = UI{Icons: IconsUnicode}
 				c.Log = Log{Level: LevelDebug, File: "/var/log/gh-tui.log", MaxSize: MiB, Keep: 5, Summary: time.Minute}
 			},

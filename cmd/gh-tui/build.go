@@ -162,10 +162,11 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 		dashboard.WithContributions(cfg.Dashboard.ContributionDays()),
 		dashboard.WithIcons(icons),
 	}
-	if p := cfg.Details.Prefetch; p.Enabled {
+	if dashboardPrefetch(cfg) {
 		// The work waiting on the viewer is what they open most from the
-		// dashboard, as quickly as from the lists of a repository.
-		dashOpts = append(dashOpts, dashboard.WithPrefetch(pullSvc, issueSvc, p.HoverDelay))
+		// dashboard, as quickly as from the lists of a repository, and the
+		// cursor rests as it does there.
+		dashOpts = append(dashOpts, dashboard.WithPrefetch(pullSvc, issueSvc, cfg.Details.Prefetch.HoverDelay))
 	}
 	layout := tui.Layout{
 		Files:  files.New(ctx, fileSvc, cfg.Keys, fileOpts...),
@@ -243,6 +244,13 @@ func build(ctx context.Context, cfg config.Config, arg, logWarning string) (*tui
 		)
 	}
 	return tui.New(ctx, cfg, layout, opts...), nil
+}
+
+// dashboardPrefetch reports whether the dashboard reads the work waiting
+// on the viewer ahead: it has its own switch, and reads details ahead as
+// the lists do, so it needs theirs too.
+func dashboardPrefetch(cfg config.Config) bool {
+	return cfg.Dashboard.Prefetch && cfg.Details.Prefetch.Enabled
 }
 
 // syncEvents turns the engine's events into the app's sync messages.
