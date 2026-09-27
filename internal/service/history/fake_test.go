@@ -22,7 +22,7 @@ var _ API = (*github.Client)(nil)
 var repo = core.RepoRef{Owner: "octo-org", Name: "hello"}
 
 // errDial is how a request fails while GitHub can't be reached.
-var errDial = &url.Error{Op: "Get", URL: "https://api.github.com/", Err: errors.New("connection refused")}
+var errDial = fmt.Errorf("%w: %w", core.ErrOffline, &url.Error{Op: "Get", URL: "https://api.github.com/", Err: errors.New("connection refused")})
 
 // errNotFound is how GitHub refuses what the account can't see.
 var errNotFound = fmt.Errorf("github: 404 Not Found: %w", core.ErrNotFound)

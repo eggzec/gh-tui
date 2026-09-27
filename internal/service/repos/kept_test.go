@@ -2,6 +2,7 @@ package repos
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
 	"testing"
 	"time"
@@ -52,7 +53,7 @@ func TestKeptListOffline(t *testing.T) {
 		err      error
 		fallback bool
 	}{
-		{"unreachable", &url.Error{Op: "Post", URL: "https://api.github.com/graphql", Err: errors.New("refused")}, true},
+		{"unreachable", fmt.Errorf("%w: %w", core.ErrOffline, &url.Error{Op: "Post", URL: "https://api.github.com/graphql", Err: errors.New("refused")}), true},
 		{"server error", &github.Error{StatusCode: 502}, true},
 		{"unauthorized", &github.Error{StatusCode: 401}, false},
 	}
@@ -97,7 +98,7 @@ func TestKeptRepo(t *testing.T) {
 
 	// Once it is older, it is fetched, and served if GitHub can't be
 	// reached.
-	offline := &url.Error{Op: "Post", URL: "https://api.github.com/graphql", Err: errors.New("refused")}
+	offline := fmt.Errorf("%w: %w", core.ErrOffline, &url.Error{Op: "Post", URL: "https://api.github.com/graphql", Err: errors.New("refused")})
 	api = &fakeAPI{t: t, getRepo: func(core.RepoRef) (core.Repo, error) { return core.Repo{}, offline }}
 	if got, err := New(api, WithStore(cachetest.Aged(store, 2*DetailTTL))).Get(t.Context(), ghTUI.Ref); err != nil || got != caps {
 		t.Errorf("Get offline = %+v, %v; want the kept repository", got, err)

@@ -199,7 +199,7 @@ func (c *Client) sendWith(hc *http.Client, req *http.Request) (*http.Response, e
 	req.Header.Set("X-GitHub-Api-Version", apiVersion)
 	resp, err := hc.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, offline(req.Context(), err)
 	}
 	c.observe(resp.Header)
 	return resp, nil

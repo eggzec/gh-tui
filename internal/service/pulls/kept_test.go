@@ -19,7 +19,7 @@ import (
 var (
 	epoch    = time.Date(2026, 9, 20, 12, 0, 0, 0, time.UTC)
 	openList = ListQuery{Repo: repo, State: core.StateOpen}
-	errDial  = &url.Error{Op: "Post", URL: "https://api.github.com/graphql", Err: errors.New("connection refused")}
+	errDial  = fmt.Errorf("%w: %w", core.ErrOffline, &url.Error{Op: "Post", URL: "https://api.github.com/graphql", Err: errors.New("connection refused")})
 )
 
 // failing makes every read of api fail with the error that err returns,

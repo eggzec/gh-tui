@@ -252,7 +252,7 @@ func TestKindNotFoundIsNotRemembered(t *testing.T) {
 }
 
 func TestKindErrors(t *testing.T) {
-	offline := &url.Error{Op: "Get", URL: "https://api.github.com", Err: errors.New("no route to host")}
+	offline := fmt.Errorf("%w: %w", core.ErrOffline, &url.Error{Op: "Get", URL: "https://api.github.com", Err: errors.New("no route to host")})
 	limited := fmt.Errorf("GET issues/7: %w", &core.RateLimitError{})
 	for name, tt := range map[string]struct {
 		err         error

@@ -104,8 +104,8 @@ func hello(sha string, _ int64) (core.Blob, error) {
 }
 
 var (
-	offline = &url.Error{Op: "Get", URL: "https://api.github.com/", Err: errors.New("dial tcp: no route to host")}
-	head    = TreeQuery{Repo: repo}
+	errOffline = fmt.Errorf("%w: %w", core.ErrOffline, &url.Error{Op: "Get", URL: "https://api.github.com/", Err: errors.New("dial tcp: no route to host")})
+	head       = TreeQuery{Repo: repo}
 )
 
 func TestStoreColdWritesThrough(t *testing.T) {
@@ -236,7 +236,7 @@ func TestStoreOffline(t *testing.T) {
 		reachable := false
 		api := &fakeAPI{t: t, treeAll: func(ref string, cond github.Conditional) (core.Tree, github.Response, error) {
 			if !reachable {
-				return core.Tree{}, github.Response{}, fmt.Errorf("get tree: %w", offline)
+				return core.Tree{}, github.Response{}, fmt.Errorf("get tree: %w", errOffline)
 			}
 			return server(&commit)(ref, cond)
 		}}
@@ -274,7 +274,7 @@ func TestStoreNoFallback(t *testing.T) {
 		{"forbidden", &github.Error{StatusCode: 403}, false},
 		{"rate limited", &github.Error{StatusCode: 429}, false},
 		{"server error", &github.Error{StatusCode: 502}, true},
-		{"unreachable", offline, true},
+		{"unreachable", errOffline, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -302,9 +302,9 @@ func TestStoreNoFallback(t *testing.T) {
 
 func TestOfflineWithoutStore(t *testing.T) {
 	api := &fakeAPI{t: t, treeAll: func(string, github.Conditional) (core.Tree, github.Response, error) {
-		return core.Tree{}, github.Response{}, offline
+		return core.Tree{}, github.Response{}, errOffline
 	}}
-	if _, err := New(api).All(t.Context(), head); !errors.Is(err, offline) {
+	if _, err := New(api).All(t.Context(), head); !errors.Is(err, errOffline) {
 		t.Errorf("All error = %v, want the network error", err)
 	}
 }
