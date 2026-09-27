@@ -78,6 +78,9 @@ func TestReadAccessHidesChanges(t *testing.T) {
 				}
 			}
 			msgs := press(t, h, tt.keys[last])
+			if got := question(h); got != "" {
+				t.Errorf("asks %q of a change the viewer can't make", got)
+			}
 			if got := svc.changes(); len(got) != 0 {
 				t.Errorf("changes = %v, want none sent", got)
 			}
@@ -111,6 +114,7 @@ func TestCapsArrivingLaterGateTheList(t *testing.T) {
 		t.Errorf("help after write caps = %v, want merge", got)
 	}
 	press(t, h, "m")
+	press(t, h, "y")
 	if got := svc.changes(); !slices.Equal(got, []string{"merge squash 142"}) {
 		t.Errorf("changes = %v, want the merge", got)
 	}
@@ -127,6 +131,7 @@ func TestAuthorChangesTheirOwn(t *testing.T) {
 	}
 	press(t, h, "D")
 	press(t, h, "x")
+	press(t, h, "y")
 	if got := svc.changes(); !slices.Equal(got, []string{"draft 142", "close 142"}) {
 		t.Errorf("changes = %v, want the draft and the close", got)
 	}
@@ -139,9 +144,16 @@ func TestMergeUsesAnAllowedMethod(t *testing.T) {
 		caps  core.RepoCaps
 		want  string
 		label string
+		ask   string
 	}{
-		{name: "the configured method when allowed", caps: writeCaps, want: "merge squash 142", label: "merge"},
-		{name: "the allowed one otherwise", caps: rebaseOnly, want: "merge rebase 142", label: "merge (rebase)"},
+		{
+			name: "the configured method when allowed", caps: writeCaps, want: "merge squash 142", label: "merge",
+			ask: "Squash-merge #142 into main?",
+		},
+		{
+			name: "the allowed one otherwise", caps: rebaseOnly, want: "merge rebase 142", label: "merge (rebase)",
+			ask: "Rebase-merge #142 into main?",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -152,6 +164,10 @@ func TestMergeUsesAnAllowedMethod(t *testing.T) {
 				t.Errorf("help = %v, want %q", got, tt.label)
 			}
 			press(t, h, "m")
+			if got := question(h); got != tt.ask {
+				t.Errorf("asks %q, want %q", got, tt.ask)
+			}
+			press(t, h, "y")
 			if got := svc.changes(); !slices.Equal(got, []string{tt.want}) {
 				t.Errorf("changes = %v, want %q", got, tt.want)
 			}
@@ -208,7 +224,7 @@ func TestModalOfAnotherRepoReadsItsCaps(t *testing.T) {
 		t.Errorf("help = %v, want no merge in %v", got, other)
 	}
 	msgs := press(t, h, "m")
-	if got := svc.changes(); len(got) != 0 || !slices.Contains(msgs, info("You can't merge in charmbracelet/bubbletea (read access).")) {
+	if got := svc.changes(); len(got) != 0 || question(h) != "" || !slices.Contains(msgs, info("You can't merge in charmbracelet/bubbletea (read access).")) {
 		t.Errorf("merge sent %v and showed %v, want a toast only", got, msgs)
 	}
 

@@ -37,8 +37,10 @@ type keyMap struct {
 	// Checks shows the checks of a pull request, in a step of its modal.
 	Checks key.Binding
 
-	feed   feed.KeyMap
-	thread thread.KeyMap
+	// confirm answers the question that merge, close and reopen ask.
+	confirm ui.ConfirmKeys
+	feed    feed.KeyMap
+	thread  thread.KeyMap
 }
 
 func newKeyMap(keys map[string][]string) keyMap {
@@ -58,6 +60,7 @@ func newKeyMap(keys map[string][]string) keyMap {
 		Reopen:      ui.Binding(keys, config.ActionReopen, "reopen"),
 		ToggleDraft: ui.Binding(keys, config.ActionToggleDraft, "convert to draft"),
 		Checks:      ui.Binding(keys, config.ActionChecks, "checks"),
+		confirm:     ui.DefaultConfirmKeys(),
 	}
 	own := k.list()
 	f := feed.DefaultKeyMap()
