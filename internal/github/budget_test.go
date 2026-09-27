@@ -606,10 +606,11 @@ func TestBudgetGuardByReservation(t *testing.T) {
 // TestBudgetGraphQLRefusedWithQuotaLeft checks that a query refused as
 // RATE_LIMITED with quota left spends GraphQL until its reset only when
 // the quota is what refused it: GitHub says so, or the query costs more
-// than is left. Otherwise the limit is a secondary one, which lifts when
-// Retry-After says, or after a minute.
+// than is left and GitHub doesn't say the limit is a secondary one.
+// Otherwise the limit is a secondary one, which lifts when Retry-After
+// says, or after a minute.
 func TestBudgetGraphQLRefusedWithQuotaLeft(t *testing.T) {
-	const spentMsg, secondaryMsg = "API rate limit exceeded", "You have exceeded a secondary rate limit."
+	const spentMsg, secondaryMsg, otherMsg = "API rate limit exceeded", "You have exceeded a secondary rate limit.", "Rate limited."
 	tests := []struct {
 		name       string
 		msg        string
@@ -618,7 +619,8 @@ func TestBudgetGraphQLRefusedWithQuotaLeft(t *testing.T) {
 		primary    bool
 	}{
 		{name: "quota spent", msg: spentMsg, primary: true},
-		{name: "costs more than is left", msg: secondaryMsg, cost: 7, primary: true},
+		{name: "costs more than is left", msg: otherMsg, cost: 7, primary: true},
+		{name: "secondary, costs more than is left", msg: secondaryMsg, cost: 7},
 		{name: "secondary", msg: secondaryMsg},
 		{name: "secondary, costs less than is left", msg: secondaryMsg, cost: 2},
 		{name: "secondary with Retry-After", msg: secondaryMsg, retryAfter: 30 * time.Second},
