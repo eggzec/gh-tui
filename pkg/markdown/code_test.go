@@ -278,3 +278,20 @@ func TestHighlightingIsBounded(t *testing.T) {
 		t.Error("a block past the time a render has is highlighted")
 	}
 }
+
+// Code left plain while a lexer that overran still runs highlights once
+// it ends, at the same width: the render that left it plain isn't kept.
+func TestBusyLexingIsntKept(t *testing.T) {
+	idle(t)
+	r := New(DefaultStyle(true))
+	src := "```go\nx := 1\n```"
+	lexing <- struct{}{}
+	out := r.Render(src, 40)
+	<-lexing
+	if strings.Contains(out, "\x1b[38;2;") {
+		t.Errorf("highlighted while another lexer ran: %q", out)
+	}
+	if out := r.Render(src, 40); !strings.Contains(out, "\x1b[38;2;") {
+		t.Errorf("not highlighted once the lexer ended: %q", out)
+	}
+}
