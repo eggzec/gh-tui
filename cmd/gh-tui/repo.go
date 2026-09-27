@@ -1,34 +1,70 @@
 package main
 
 import (
-	"fmt"
+	"strings"
 
+	"github.com/cli/go-gh/v2/pkg/auth"
 	"github.com/cli/go-gh/v2/pkg/repository"
 
 	"github.com/eggzec/gh-tui/internal/core"
 )
 
-// startRepos picks what the app opens with. open is the repository named
-// on the command line, which the app opens on; without one it opens on the
-// dashboard. here is the repository of the current directory, which the
-// dashboard shows first. Either is the zero RepoRef when there is none.
-func startRepos(arg string, current func() (core.RepoRef, bool)) (open, here core.RepoRef, err error) {
-	if arg != "" {
-		open, err = core.ParseRepoRef(arg)
-		if err != nil {
-			return core.RepoRef{}, core.RepoRef{}, fmt.Errorf("repository argument: %w", err)
-		}
-	}
-	here, _ = current()
-	return open, here, nil
+// start is where the app starts. Host is the GitHub host of the session,
+// which every repository of the session is on. Here is the repository of
+// the current directory, which the dashboard shows first, or the zero
+// RepoRef when there is none on Host.
+type start struct {
+	Host string
+	Here core.RepoRef
 }
 
-// currentRepo reads the repository of the current directory from its git
-// remotes, the way gh does. Outside a repository it reports false.
-func currentRepo() (core.RepoRef, bool) {
+// startRepos picks the host of the session the way gh does: hostname, the
+// value of --hostname, if set; else the host of the current repository;
+// else defaultHost's, which is GH_HOST or the host gh is logged in to. The
+// current repository is kept only when it is on that host.
+func startRepos(hostname string, current func() (repository.Repository, bool), defaultHost func() string) start {
+	cur, ok := current()
+	if !ok {
+		cur = repository.Repository{}
+	}
+	host := normalizeHostname(hostname)
+	if host == "" {
+		host = normalizeHostname(cur.Host)
+	}
+	if host == "" {
+		host = normalizeHostname(defaultHost())
+	}
+	s := start{Host: host}
+	if ok && normalizeHostname(cur.Host) == host {
+		s.Here = core.RepoRef{Owner: cur.Owner, Name: cur.Name}
+	}
+	return s
+}
+
+// normalizeHostname reads a host as gh does: without a scheme or a
+// trailing slash, in lowercase, and with the hosts of github.com's
+// subdomains taken for github.com.
+func normalizeHostname(h string) string {
+	if _, rest, ok := strings.Cut(h, "://"); ok {
+		h = rest
+	}
+	return auth.NormalizeHostname(strings.TrimRight(strings.TrimSpace(h), "/"))
+}
+
+// currentRepo reads the repository of the current directory the way gh
+// does: GH_REPO, else the git remotes. Outside a repository it reports
+// false.
+func currentRepo() (repository.Repository, bool) {
 	r, err := repository.Current()
 	if err != nil {
-		return core.RepoRef{}, false
+		return repository.Repository{}, false
 	}
-	return core.RepoRef{Owner: r.Owner, Name: r.Name}, true
+	return r, true
+}
+
+// defaultHost is the host gh uses when nothing else names one: GH_HOST,
+// else the only host gh is logged in to, else github.com.
+func defaultHost() string {
+	h, _ := auth.DefaultHost()
+	return h
 }

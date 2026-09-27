@@ -142,7 +142,7 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 			}
 		case key.Matches(msg, k.Open):
 			if it, ok := c.selected(); ok {
-				return ui.Open(repoURL(it.repo)), true
+				return ui.Open(s.repoURL(it.repo)), true
 			}
 		default:
 			return nil, false
@@ -164,7 +164,7 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 			return nil, true
 		case key.Matches(msg, k.Open):
 			if r, ok := t.selected(); ok {
-				return ui.Open(repoURL(r)), true
+				return ui.Open(s.repoURL(r)), true
 			}
 			return nil, true
 		}
@@ -235,9 +235,9 @@ func (s *Section) focusPane(p paneID) {
 }
 
 // repoURL is the page of r on GitHub.
-func repoURL(r core.Repo) string {
+func (s *Section) repoURL(r core.Repo) string {
 	if r.URL != "" {
 		return r.URL
 	}
-	return "https://github.com/" + r.Ref.String()
+	return ui.WebURL(s.host, r.Ref.String())
 }

@@ -2,10 +2,13 @@
 //
 // Usage:
 //
-//	gh-tui [--debug] [owner/name]
+//	gh-tui [--debug] [--hostname HOST]
 //
-// It opens on the repository given, or else on the dashboard, which shows
-// the repository of the current directory first.
+// It opens on the dashboard, which shows the repository of the current
+// directory first; :goto opens another repository, pull request or issue.
+// It talks to the host --hostname names, else to that of the current
+// directory's repository (GH_REPO or the git remotes), else to GH_HOST or
+// the host gh is logged in to.
 package main
 
 import (
@@ -30,14 +33,15 @@ func main() {
 
 func run() error {
 	debugLog := flag.Bool("debug", false, "log at debug level for this run")
+	hostname := flag.String("hostname", "", "the GitHub `host` to use, in place of the current repository's or gh's default")
 	flag.Usage = func() {
-		fmt.Fprintln(flag.CommandLine.Output(), "usage: gh-tui [--debug] [owner/name]")
+		fmt.Fprintln(flag.CommandLine.Output(), "usage: gh-tui [--debug] [--hostname HOST]")
 		flag.PrintDefaults()
 	}
 	flag.Parse()
-	if flag.NArg() > 1 {
+	if flag.NArg() > 0 {
 		flag.Usage()
-		return fmt.Errorf("want at most one repository, got %d arguments", flag.NArg())
+		return fmt.Errorf("unexpected argument %q: gh-tui takes no arguments; use :goto owner/name inside the app", flag.Arg(0))
 	}
 
 	path, err := config.Path()
@@ -61,7 +65,7 @@ func run() error {
 	// The last summary covers the whole session.
 	defer obs.Default().Log(context.Background())
 
-	app, err := build(ctx, cfg, flag.Arg(0), warning)
+	app, err := build(ctx, cfg, *hostname, warning)
 	if err != nil {
 		slog.Error("start failed", "err", err.Error())
 		return err

@@ -113,6 +113,12 @@ func WithHere(repo core.RepoRef, get func(ctx context.Context, repo core.RepoRef
 	}
 }
 
+// WithHost sets the web host of the user's GitHub, with its port if it has
+// one, whose pages the dashboard opens. It defaults to github.com.
+func WithHost(host string) Option {
+	return func(s *Section) { s.host = host }
+}
+
 // WithGlyph sets the glyph of a day in the contribution calendar. It must
 // be one cell wide; others keep the calendar's default.
 func WithGlyph(glyph string) Option {
@@ -168,6 +174,8 @@ type Section struct {
 	offline  *ui.Offline
 	glyph    string
 	icons    ui.Icons
+	// host is the web host of the user's GitHub, for the links it opens.
+	host string
 	// calDays is the range of the calendar, 0 for the year.
 	calDays int
 

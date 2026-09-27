@@ -228,3 +228,16 @@ func TestAccount(t *testing.T) {
 		t.Error("two hosts have the same account")
 	}
 }
+
+func TestNewWithoutTokenNamesHost(t *testing.T) {
+	isolateGH(t)
+	for host, want := range map[string]string{
+		"github.com":      "run gh auth login:",
+		"ghe.example.com": "run gh auth login --hostname ghe.example.com:",
+	} {
+		_, err := New(WithHost(host))
+		if err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("New for %s without a token: error = %v, want it to say %q", host, err, want)
+		}
+	}
+}

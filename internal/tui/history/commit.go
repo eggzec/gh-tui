@@ -15,6 +15,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
 	historysvc "github.com/eggzec/gh-tui/internal/service/history"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
 )
 
@@ -325,7 +326,7 @@ func (m *Modal) commitURL(c core.Commit) string {
 	if c.URL != "" {
 		return c.URL
 	}
-	return "https://github.com/" + m.repo.String() + "/commit/" + c.SHA
+	return ui.WebURL(m.opts.host, m.repo.String()+"/commit/"+c.SHA)
 }
 
 // fileURL is the diff of file on the page of commit c: GitHub names the
@@ -341,5 +342,5 @@ func (m *Modal) branchURL(name string) string {
 	for i, s := range segs {
 		segs[i] = url.PathEscape(s)
 	}
-	return "https://github.com/" + m.repo.String() + "/tree/" + strings.Join(segs, "/")
+	return ui.WebURL(m.opts.host, m.repo.String()+"/tree/"+strings.Join(segs, "/"))
 }

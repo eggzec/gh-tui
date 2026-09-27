@@ -16,6 +16,12 @@ func WithRepo(repo core.RepoRef) Option {
 	return func(s *Section) { s.repo = repo }
 }
 
+// WithHost sets the web host of the user's GitHub, with its port if it has
+// one, whose pages the section opens. It defaults to github.com.
+func WithHost(host string) Option {
+	return func(s *Section) { s.host = host }
+}
+
 // WithPrefetch reads the top-level files of at most maxSize bytes as soon
 // as a repository is listed, so that their preview opens at once. Each
 // costs a request. Files that are likely binary are skipped. The default,

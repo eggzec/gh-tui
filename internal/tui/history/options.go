@@ -13,6 +13,8 @@ type Option func(*options)
 type options struct {
 	cfg     config.History
 	offline *ui.Offline
+	// host is the web host of the user's GitHub, for the links it opens.
+	host string
 	// now and loc read the clock and the time zone that dates are shown
 	// in; tests fix them.
 	now func() time.Time
@@ -42,6 +44,12 @@ func WithOffline(off *ui.Offline) Option {
 			o.offline = off
 		}
 	}
+}
+
+// WithHost sets the web host of the user's GitHub, with its port if it has
+// one, whose pages the modal opens. It defaults to github.com.
+func WithHost(host string) Option {
+	return func(o *options) { o.host = host }
 }
 
 // onCommit opens the modal on the history of commit sha, with the commit
