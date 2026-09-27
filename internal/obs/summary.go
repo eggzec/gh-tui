@@ -21,6 +21,7 @@ type Summary struct {
 	Routes     []RouteSummary   `json:"routes"`
 	Waits      WaitSummary      `json:"http_waits"`
 	Retries    map[string]int64 `json:"http_retries"`
+	RateLimit  RateSummary      `json:"ratelimit"`
 	Cache      []CacheSummary   `json:"cache"`
 	Disk       []DiskSummary    `json:"disk"`
 	Prefetch   []PrefetchStats  `json:"prefetch"`
@@ -177,6 +178,7 @@ func (s *Stats) Summary() Summary {
 		out.Retries[k.(string)] = v.(*atomic.Int64).Load()
 		return true
 	})
+	out.RateLimit = s.rateSummary()
 
 	for kind, c := range each[CacheEvent](&s.cache) {
 		hit, miss, shared := c.get(MemoryHit), c.get(MemoryMiss), c.get(Shared)
@@ -227,6 +229,7 @@ func (s *Stats) Log(ctx context.Context) {
 		slog.Any("routes", sum.Routes),
 		slog.Any("http_waits", sum.Waits),
 		slog.Any("http_retries", sum.Retries),
+		slog.Any("ratelimit", sum.RateLimit),
 		slog.Any("cache", sum.Cache),
 		slog.Any("disk", sum.Disk),
 		slog.Any("prefetch", sum.Prefetch),

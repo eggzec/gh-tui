@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"maps"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -252,5 +253,38 @@ func BenchmarkCountHTTP(b *testing.B) {
 	b.ReportAllocs()
 	for b.Loop() {
 		s.HTTP(h)
+	}
+}
+
+func TestSummaryRateLimit(t *testing.T) {
+	s := NewStats()
+	if got := s.Summary().RateLimit; len(got.Resources) != 0 || len(got.FailedFast) != 0 {
+		t.Errorf("rate limit = %+v, want nothing", got)
+	}
+	s.Rate("core", RateHeld)
+	s.Rate("core", RateHeld)
+	s.RateReleased("core", 3*time.Millisecond)
+	s.RateReleased("core", time.Millisecond)
+	s.Rate("core", RateDropped)
+	s.RateFailed("search", "prefetch")
+	s.RateFailed("", "deadline")
+	s.RateEarly()
+	s.RateProbe()
+	s.RateProbe()
+	got := s.Summary().RateLimit
+	want := RateSummary{
+		Resources: []RateResourceSummary{
+			{Resource: "core", Held: 2, Released: 2, Dropped: 1},
+			{Resource: "none", Failed: 1},
+			{Resource: "search", Failed: 1},
+		},
+		FailedFast: map[string]int64{"prefetch": 1, "deadline": 1},
+		Early:      1,
+		Probes:     2,
+		MaxHoldMS:  3,
+	}
+	if !slices.Equal(got.Resources, want.Resources) || !maps.Equal(got.FailedFast, want.FailedFast) ||
+		got.Early != want.Early || got.Probes != want.Probes || got.MaxHoldMS != want.MaxHoldMS {
+		t.Errorf("rate limit = %+v, want %+v", got, want)
 	}
 }
