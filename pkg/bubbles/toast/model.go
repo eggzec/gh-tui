@@ -72,6 +72,8 @@ type Model struct {
 	max           int
 	duration      time.Duration
 	errorDuration time.Duration
+	// rooms are indexed by Level.
+	rooms         [Error + 1]Room
 	width, height int
 	keys          KeyMap
 	styles        Styles
@@ -87,6 +89,7 @@ func New(opts ...Option) Model {
 		max:           defaultMax,
 		duration:      defaultDuration,
 		errorDuration: defaultErrorDuration,
+		rooms:         defaultRooms(),
 		keys:          DefaultKeyMap(),
 	}
 	m.SetStyles(DefaultStyles(true))
@@ -184,8 +187,9 @@ func (m Model) Width() int { return m.width }
 // Height returns the height of the area the stack is placed in.
 func (m Model) Height() int { return m.height }
 
-// SetSize sets the area the stack is placed in. The stack takes about 40% of
-// the width. A height of zero or less doesn't limit it.
+// SetSize sets the area the stack is placed in. The stack takes the share of
+// the width that the room of its toasts allows. A height of zero or less
+// doesn't limit it.
 func (m *Model) SetSize(width, height int) {
 	m.width, m.height = width, height
 	m.changed()

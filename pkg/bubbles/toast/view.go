@@ -10,19 +10,15 @@ import (
 )
 
 const (
-	// widthShare is the share of the width, in percent, the stack may take.
-	widthShare = 40
 	// minWidth keeps short messages readable in narrow layouts.
 	minWidth = 24
-	// maxLines is how many lines a message may wrap to before it is cut.
-	maxLines = 3
 	ellipsis = "…"
 )
 
 // View renders the stack, newest at the bottom, as a block whose toasts
-// share one width and are aligned to its right edge. The block takes at most
-// about 40% of the width and never more than the width. It is empty when
-// there are no toasts.
+// share one width and are aligned to its right edge. The block is as wide as
+// the widest room of its toasts allows at most, and never wider than the
+// width. It is empty when there are no toasts.
 func (m Model) View() string { return m.view }
 
 // Overlay draws the stack over the bottom-right corner of a background of
@@ -63,26 +59,18 @@ func nthNewline(s string, n int) int {
 	return i
 }
 
-// maxBlockWidth is the widest the stack may be.
-func (m Model) maxBlockWidth() int {
-	if m.width <= 0 {
-		return minWidth
-	}
-	return min(max(m.width*widthShare/100, minWidth), m.width)
-}
-
 func (m Model) render() string {
 	if len(m.toasts) == 0 {
 		return ""
 	}
 	d := m.derived
-	// The inner width holds the glyph, a space, the text and the count.
-	maxInner := m.maxBlockWidth() - d.frameWidth
+	// The inner width holds the glyph, a space, the text and the count,
+	// within the room of each toast's level.
 	inner := 0
 	for _, t := range m.toasts {
-		inner = max(inner, d.glyphWidth+1+ansi.StringWidth(t.text)+countWidth(t.count))
+		need := d.glyphWidth + 1 + ansi.StringWidth(t.text) + countWidth(t.count)
+		inner = max(inner, min(need, m.maxInner(t.level)))
 	}
-	inner = min(inner, maxInner)
 	if inner < d.glyphWidth+2 {
 		// Too narrow for any text; show nothing rather than break the layout.
 		return ""
@@ -118,12 +106,7 @@ func (m Model) renderToast(t toast, inner int) string {
 		count = ""
 		textWidth = inner - d.glyphWidth - 1
 	}
-	wrapped := strings.Split(ansi.Wrap(t.text, textWidth, ""), "\n")
-	if len(wrapped) > maxLines {
-		wrapped = wrapped[:maxLines]
-		last := strings.TrimRight(wrapped[maxLines-1], " ")
-		wrapped[maxLines-1] = ansi.Truncate(last+" "+ellipsis, textWidth, ellipsis)
-	}
+	wrapped, _ := wrap(t.text, textWidth, m.rooms[t.level].Lines)
 
 	glyph := d.glyph[t.level].Render(padRight(ls.Glyph, d.glyphWidth))
 	blank := d.text.Render(strings.Repeat(" ", d.glyphWidth))
