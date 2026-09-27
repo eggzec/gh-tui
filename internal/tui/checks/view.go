@@ -118,8 +118,7 @@ func (s *Step) jobLines(w, h int) []string {
 func (s *Step) prompt(w int) string {
 	switch {
 	case s.ask != nil:
-		yes, no := s.keys.Yes.Help().Key, s.keys.No.Help().Key
-		return ui.Spread(s.st.question.Render(s.ask.question), s.st.run.Muted.Render(yes+"/"+no), w)
+		return s.ask.Line(s.st.confirm, s.keys.Confirm, w)
 	case s.notice != "":
 		return ui.Fit(s.st.run.Warning.Render(ansi.Truncate(s.notice, w, "…")), w)
 	}

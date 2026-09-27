@@ -217,7 +217,7 @@ func TestRerunFailedJobs(t *testing.T) {
 	f := newFake()
 	s, h := newStep(t, f, wideW, wideH)
 	h.keys("enter", "ctrl+r")
-	if s.ask == nil || s.ask.question != "Re-run 1 failed job of CI #4812?" {
+	if s.ask == nil || s.ask.Question != "Re-run 1 failed job of CI #4812?" {
 		t.Fatalf("ctrl+r asked %+v", s.ask)
 	}
 	h.keys("y")
@@ -234,6 +234,96 @@ func TestRerunFailedJobs(t *testing.T) {
 	h.keys("esc", "down", "down", "down", "enter", "ctrl+r")
 	if s.ask != nil || !strings.Contains(s.notice, "still running") {
 		t.Errorf("re-run of a run in progress: ask %+v, notice %q", s.ask, s.notice)
+	}
+}
+
+func TestRerunAnswers(t *testing.T) {
+	tests := []struct {
+		answers []string
+		sent    bool
+	}{
+		{[]string{"y"}, true},
+		{[]string{"n"}, false},
+		{[]string{"esc"}, false},
+		// A second yes, such as a repeated key, re-runs nothing more.
+		{[]string{"y", "y"}, true},
+		// Enter isn't a yes, and other keys leave the question open.
+		{[]string{"enter", "r", "ctrl+r", "q", "n"}, false},
+		{[]string{"enter", "y"}, true},
+	}
+	for _, tt := range tests {
+		t.Run(strings.Join(tt.answers, " "), func(t *testing.T) {
+			f := newFake()
+			s, h := newStep(t, f, wideW, wideH)
+			h.keys("enter", "ctrl+r")
+			if s.ask == nil || len(f.sent) != 0 {
+				t.Fatalf("ctrl+r asked %+v and sent %v", s.ask, f.sent)
+			}
+			// The answers arrive before what the first starts runs.
+			var cmds []tea.Cmd
+			for _, k := range tt.answers {
+				cmds = append(cmds, s.Update(press(k)))
+			}
+			for _, c := range cmds {
+				h.run(c)
+			}
+			var want []string
+			if tt.sent {
+				want = []string{"rerun failed"}
+			}
+			if !slices.Equal(f.sent, want) || s.ask != nil {
+				t.Errorf("sent %v with the question %+v open, want %v", f.sent, s.ask, want)
+			}
+		})
+	}
+}
+
+func TestRerunAsksAgain(t *testing.T) {
+	tests := []struct {
+		name   string
+		meddle func(s *Step, h *host, f *fake)
+		want   string
+	}{
+		{
+			name: "re-run elsewhere",
+			meddle: func(s *Step, _ *host, _ *fake) {
+				s.job.run.Status, s.job.run.Conclusion = core.RunQueued, ""
+			},
+			want: "CI #4812 changed meanwhile, so nothing was sent.",
+		},
+		{
+			name: "another job failed",
+			meddle: func(_ *Step, _ *host, f *fake) {
+				f.mu.Lock()
+				defer f.mu.Unlock()
+				f.jobs[ciRun][0].Conclusion = core.ConclusionFailure
+			},
+			want: "CI #4812 changed meanwhile, so nothing was sent.",
+		},
+		{
+			name: "access lost",
+			meddle: func(_ *Step, h *host, _ *fake) {
+				h.send(ui.CapsMsg{Repo: repo, Caps: core.RepoCaps{Known: true, Permission: core.PermissionRead}})
+			},
+			want: "Re-running needs write access to " + repo.String() + ".",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newFake()
+			s, h := newStep(t, f, wideW, wideH)
+			h.keys("enter", "ctrl+r")
+			if s.ask == nil {
+				t.Fatal("ctrl+r asked nothing")
+			}
+			tt.meddle(s, h, f)
+			h.take()
+			h.keys("y")
+			want := ui.NotifyMsg{Level: toast.Info, Text: tt.want}
+			if got := h.take(); len(f.sent) != 0 || !slices.Contains(got, tea.Msg(want)) {
+				t.Errorf("sent %v and showed %v, want only %q", f.sent, got, tt.want)
+			}
+		})
 	}
 }
 
