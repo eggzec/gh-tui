@@ -17,7 +17,7 @@ import (
 
 // served is what a read returned, as far as the kept tests care.
 type served struct {
-	ok, stale, offline bool
+	ok, stale, offline, limited bool
 }
 
 // keptRead is one of the service's reads, run the same way for each.
@@ -40,7 +40,7 @@ var keptReads = []keptRead{
 		},
 		read: func(ctx context.Context, s *Service, again bool) (served, error) {
 			h, err := s.Header(ctx, HeaderQuery{Again: again})
-			return served{h.Profile.Login == "octocat", h.Stale, h.Offline}, err
+			return served{h.Profile.Login == "octocat", h.Stale, h.Offline, h.Limited}, err
 		},
 		fresh: func(s *Service) bool { return s.FreshHeader() },
 	},
@@ -51,7 +51,7 @@ var keptReads = []keptRead{
 		},
 		read: func(ctx context.Context, s *Service, again bool) (served, error) {
 			w, err := s.Work(ctx, WorkQuery{Again: again})
-			return served{w.Assigned.Count == 3, w.Stale, w.Offline}, err
+			return served{w.Assigned.Count == 3, w.Stale, w.Offline, w.Limited}, err
 		},
 		fresh: func(s *Service) bool { return s.FreshWork(WorkQuery{}) },
 	},
@@ -62,7 +62,7 @@ var keptReads = []keptRead{
 		},
 		read: func(ctx context.Context, s *Service, again bool) (served, error) {
 			c, err := s.Contributions(ctx, ContributionsQuery{Again: again})
-			return served{c.Total == 42, c.Stale, c.Offline}, err
+			return served{c.Total == 42, c.Stale, c.Offline, c.Limited}, err
 		},
 		fresh: func(s *Service) bool { return s.FreshContributions() },
 	},
@@ -75,7 +75,7 @@ var keptReads = []keptRead{
 		},
 		read: func(ctx context.Context, s *Service, again bool) (served, error) {
 			p, err := s.Repos(ctx, ReposQuery{Owner: "charm", Again: again})
-			return served{len(p.Items) == 2, p.Stale, p.Offline}, err
+			return served{len(p.Items) == 2, p.Stale, p.Offline, p.Limited}, err
 		},
 		fresh: func(s *Service) bool { return s.FreshRepos(ReposQuery{Owner: "charm"}) },
 	},
@@ -177,17 +177,21 @@ func TestColdStartFetches(t *testing.T) {
 	}
 }
 
-// An outage serves the kept entry marked offline; a refusal drops it.
+// An outage serves the kept entry marked offline, and a rate limit marked
+// limited, until GitHub answers; a refusal drops it.
 func TestKeptOffline(t *testing.T) {
+	offline, limited := served{ok: true, offline: true}, served{ok: true, limited: true}
 	tests := []struct {
-		name     string
-		err      error
-		fallback bool
+		name string
+		err  error
+		// fallback is how the kept entry is served, if it is.
+		fallback *served
 	}{
-		{"unreachable", fmt.Errorf("%w: %w", core.ErrOffline, &url.Error{Op: "Post", URL: "https://api.github.com/graphql", Err: errors.New("refused")}), true},
-		{"server error", &github.Error{StatusCode: 502}, true},
-		{"unauthorized", &github.Error{StatusCode: 401}, false},
-		{"not found", core.ErrNotFound, false},
+		{"unreachable", fmt.Errorf("%w: %w", core.ErrOffline, &url.Error{Op: "Post", URL: "https://api.github.com/graphql", Err: errors.New("refused")}), &offline},
+		{"server error", &github.Error{StatusCode: 502}, &offline},
+		{"rate limited", fmt.Errorf("graphql: %w", &core.RateLimitError{Reset: time.Now().Add(time.Hour)}), &limited},
+		{"unauthorized", &github.Error{StatusCode: 401}, nil},
+		{"not found", core.ErrNotFound, nil},
 	}
 	for _, r := range keptReads {
 		for _, tt := range tests {
@@ -202,11 +206,18 @@ func TestKeptOffline(t *testing.T) {
 				// after it asks GitHub.
 				_, _ = r.read(t.Context(), s, false)
 				got, err := r.read(t.Context(), s, true)
-				if tt.fallback != (err == nil && got == served{ok: true, offline: true}) {
-					t.Errorf("read = %+v, %v; want fallback %v", got, err, tt.fallback)
-				}
-				if tt.fallback {
+				if tt.fallback != nil {
+					if err != nil || got != *tt.fallback {
+						t.Errorf("read = %+v, %v; want %+v", got, err, *tt.fallback)
+					}
+					r.fake(api, nil)
+					if got, err := r.read(t.Context(), s, false); err != nil || got != (served{ok: true}) {
+						t.Errorf("read once GitHub answers = %+v, %v; want it unmarked", got, err)
+					}
 					return
+				}
+				if err == nil {
+					t.Errorf("read = %+v, want the error", got)
 				}
 				later := &fakeAPI{t: t}
 				r.fake(later, tt.err)
