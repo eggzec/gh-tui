@@ -183,8 +183,7 @@ func (m *Modal) runsCrumb() string {
 func (m *Modal) prompt(w int) string {
 	switch {
 	case m.ask != nil:
-		yes, no := m.keys.Yes.Help().Key, m.keys.No.Help().Key
-		return ui.Spread(m.st.question.Render(m.ask.question), m.st.Muted.Render(yes+"/"+no), w)
+		return m.ask.Line(m.st.confirm, m.keys.Confirm, w)
 	case m.notice != "":
 		return ui.Fit(m.st.Warning.Render(ansi.Truncate(m.notice, w, "…")), w)
 	}

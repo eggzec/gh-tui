@@ -3,7 +3,6 @@ package actions
 import (
 	"strconv"
 
-	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -11,16 +10,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/jobview"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
-
-// confirm is a change of the run shown that waits for the user to say
-// yes, on the last line of the modal.
-type confirm struct {
-	// question asks, such as "Re-run 2 failed jobs of CI #4812?", and what
-	// names the change for the error toast.
-	question, what string
-	// start makes the change in the cache and returns the Op that sends it.
-	start func() *optimistic.Op
-}
 
 // askRerunFailed asks to re-run the failed jobs of the run shown, or
 // returns what tells the user they may not.
@@ -45,10 +34,9 @@ func (m *Modal) askRerunFailed() tea.Cmd {
 		}
 	}
 	svc, repo, id := m.svc, m.repo, r.ID
-	m.ask = &confirm{
-		question: "Re-run " + jobs + " of " + jobview.RunName(r) + "?",
-		what:     "re-run the failed jobs of " + jobview.RunName(r),
-		start:    func() *optimistic.Op { return svc.RerunFailedJobs(repo, id) },
+	m.ask = &ui.Confirm{
+		Question: "Re-run " + jobs + " of " + jobview.RunName(r) + "?",
+		Run:      m.send("re-run the failed jobs of "+jobview.RunName(r), func() *optimistic.Op { return svc.RerunFailedJobs(repo, id) }),
 	}
 	return nil
 }
@@ -64,10 +52,9 @@ func (m *Modal) askRerun() tea.Cmd {
 		return cmd
 	}
 	svc, repo, id := m.svc, m.repo, r.ID
-	m.ask = &confirm{
-		question: "Re-run all jobs of " + jobview.RunName(r) + "?",
-		what:     "re-run " + jobview.RunName(r),
-		start:    func() *optimistic.Op { return svc.RerunRun(repo, id) },
+	m.ask = &ui.Confirm{
+		Question: "Re-run all jobs of " + jobview.RunName(r) + "?",
+		Run:      m.send("re-run "+jobview.RunName(r), func() *optimistic.Op { return svc.RerunRun(repo, id) }),
 	}
 	return nil
 }
@@ -88,10 +75,9 @@ func (m *Modal) askRerunJob() tea.Cmd {
 		return cmd
 	}
 	svc, repo, runID, jobID := m.svc, m.repo, r.ID, j.ID
-	m.ask = &confirm{
-		question: "Re-run " + ui.OneLine(j.Name) + " of " + jobview.RunName(r) + "?",
-		what:     "re-run " + ui.OneLine(j.Name),
-		start:    func() *optimistic.Op { return svc.RerunJob(repo, runID, jobID) },
+	m.ask = &ui.Confirm{
+		Question: "Re-run " + ui.OneLine(j.Name) + " of " + jobview.RunName(r) + "?",
+		Run:      m.send("re-run "+ui.OneLine(j.Name), func() *optimistic.Op { return svc.RerunJob(repo, runID, jobID) }),
 	}
 	return nil
 }
@@ -111,10 +97,9 @@ func (m *Modal) askCancel() tea.Cmd {
 		return cmd
 	}
 	svc, repo, id := m.svc, m.repo, r.ID
-	m.ask = &confirm{
-		question: "Cancel " + jobview.RunName(r) + "?",
-		what:     "cancel " + jobview.RunName(r),
-		start:    func() *optimistic.Op { return svc.CancelRun(repo, id) },
+	m.ask = &ui.Confirm{
+		Question: "Cancel " + jobview.RunName(r) + "?",
+		Run:      m.send("cancel "+jobview.RunName(r), func() *optimistic.Op { return svc.CancelRun(repo, id) }),
 	}
 	return nil
 }
@@ -139,16 +124,24 @@ func (m *Modal) doneRun() (core.Run, bool) {
 	return m.run, true
 }
 
-// answer takes the answer to the confirmation: yes makes the change and
-// sends it, and anything else drops it.
-func (m *Modal) answer(msg tea.KeyPressMsg) tea.Cmd {
-	ask := m.ask
-	m.ask = nil
-	if !key.Matches(msg, m.keys.Yes) {
-		return nil
+// send returns what makes the change that start shows in the cache, named
+// by what, once the user confirms it: the modal shows it at once, and it
+// is sent.
+func (m *Modal) send(what string, start func() *optimistic.Op) func() tea.Cmd {
+	return func() tea.Cmd {
+		op := start()
+		return tea.Batch(m.fromCache(), ui.Do(m.parent, Title, ui.Refused(op), what))
 	}
-	op := ask.start()
-	return tea.Batch(m.fromCache(), ui.Do(m.parent, Title, ui.Refused(op), ask.what))
+}
+
+// answer takes the answer to the confirmation: yes makes the change and
+// sends it, and no drops it. Other keys leave the question open.
+func (m *Modal) answer(msg tea.KeyPressMsg) tea.Cmd {
+	cmd, done := m.keys.Confirm.Answer(*m.ask, msg)
+	if done {
+		m.ask = nil
+	}
+	return cmd
 }
 
 // done re-renders from the cache once a change was confirmed or rolled

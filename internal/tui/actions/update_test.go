@@ -371,6 +371,20 @@ func TestRerunFailedJobs(t *testing.T) {
 	}
 }
 
+func TestOtherKeysLeaveTheQuestionOpen(t *testing.T) {
+	f := newFake()
+	m, h := newModal(t, f, wideW, wideH)
+	h.keys("R", "j", "tab", "q", "enter")
+	if got := lastLine(m); !strings.HasPrefix(got, "Re-run all jobs of CI #4812?") || m.focus != runsPane {
+		t.Fatalf("after other keys the modal shows %q with the focus on %d", got, m.focus)
+	}
+	h.take()
+	h.keys("esc")
+	if m.ask != nil || len(f.sent) != 0 || slices.Contains(h.take(), tea.Msg(ui.CloseModalMsg{Modal: m})) {
+		t.Errorf("esc left the question %v and sent %v; want it dropped and the modal open", m.ask, f.sent)
+	}
+}
+
 func TestRerunReadsTheRunWithoutASyncEngine(t *testing.T) {
 	f := newFake()
 	m, h := newModal(t, f, wideW, wideH)
@@ -445,7 +459,12 @@ func TestRerunAJob(t *testing.T) {
 	if got := lastLine(m); !strings.HasPrefix(got, "Re-run test (macos-latest, 1.26) of CI #4812?") {
 		t.Fatalf("J asks %q", got)
 	}
+	// Enter isn't a yes.
 	h.keys("enter")
+	if m.ask == nil || len(f.sent) != 0 {
+		t.Fatalf("enter answered the question and sent %v", f.sent)
+	}
+	h.keys("y")
 	if !slices.Equal(f.sent, []string{fmt.Sprintf("rerun job %d", macosJob)}) {
 		t.Errorf("sent %v", f.sent)
 	}

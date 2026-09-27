@@ -24,8 +24,8 @@ type styles struct {
 	gutter, blurGutter, noGutter string
 
 	ui.RunStyles
-	// question styles the confirmation.
-	question lipgloss.Style
+	// confirm styles the confirmation.
+	confirm ui.ConfirmStyles
 }
 
 func newStyles(t ui.Theme, ic ui.Icons) styles {
@@ -40,7 +40,7 @@ func newStyles(t ui.Theme, ic ui.Icons) styles {
 		blurGutter: t.Subtle.Render(cursorGlyph) + " ",
 		noGutter:   "  ",
 		RunStyles:  ui.NewRunStyles(t, ic),
-		question:   t.Accent.Bold(true),
+		confirm:    t.Confirm(),
 	}
 	return s
 }
