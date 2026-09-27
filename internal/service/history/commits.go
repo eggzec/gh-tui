@@ -9,6 +9,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
+	"github.com/eggzec/gh-tui/internal/service/fallback"
 )
 
 // DefaultCommitPageSize is the page size of a CommitsQuery that sets none.
@@ -62,8 +63,9 @@ func (s *Service) CachedCommits(q CommitsQuery) (core.Page[core.Commit], bool) {
 // repository has an empty history.
 //
 // The first page of a branch or tag is revalidated like Branches, and
-// served Stale or Offline the same way. Pages that a SHA names, the first
-// page of a commit and every page after the first, are cached for good.
+// served Stale, Offline or Limited the same way. Pages that a SHA names,
+// the first page of a commit and every page after the first, are cached
+// for good.
 func (s *Service) Commits(ctx context.Context, q CommitsQuery) (core.Page[core.Commit], error) {
 	q = q.normalize()
 	var (
@@ -82,7 +84,7 @@ func (s *Service) Commits(ctx context.Context, q CommitsQuery) (core.Page[core.C
 			p.Stale = true
 			return p, nil
 		}
-		p, err = fetch(ctx, s.refPages, s.keptRefPages, key, []string{repoTag(q.Repo)}, offlinePage[core.Commit], s.loadRefPage(q))
+		p, err = fetch(ctx, s.refPages, s.keptRefPages, key, []string{repoTag(q.Repo)}, fallback.Page[core.Commit], s.loadRefPage(q))
 	}
 	if err != nil {
 		return core.Page[core.Commit]{}, fmt.Errorf("list commits of %s at %s: %w", q.Repo, refName(q.Ref), err)

@@ -158,6 +158,23 @@ func TestCommitsOffline(t *testing.T) {
 	if err != nil || !p.Offline || p.Items[0].SHA != sha(1) {
 		t.Errorf("offline Commits = %+v, %v; want the last page, offline", p, err)
 	}
+
+	f.fail(&core.RateLimitError{Reset: time.Now().Add(time.Hour)})
+	p, err = s.Commits(t.Context(), q)
+	if err != nil || p.Offline || !p.Limited || p.Items[0].SHA != sha(1) {
+		t.Errorf("rate-limited Commits = %+v, %v; want the last page, limited", p, err)
+	}
+
+	// Once GitHub answers, with a 304, the page is served unmarked.
+	f.fail(nil)
+	f.take()
+	p, err = s.Commits(t.Context(), q)
+	if err != nil || p.Offline || p.Limited || p.Items[0].SHA != sha(1) {
+		t.Errorf("Commits after the outage = %+v, %v; want the last page, unmarked", p, err)
+	}
+	if calls := f.take(); len(calls) != 1 {
+		t.Errorf("calls after the outage = %q, want one 304", calls)
+	}
 }
 
 func TestCommitsRefusedDropsKept(t *testing.T) {
