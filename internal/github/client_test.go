@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cli/go-gh/v2/pkg/config"
+
 	"github.com/eggzec/gh-tui/internal/core"
 )
 
@@ -239,5 +241,76 @@ func TestNewWithoutTokenNamesHost(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), want) {
 			t.Errorf("New for %s without a token: error = %v, want it to say %q", host, err, want)
 		}
+	}
+}
+
+// withGH makes New ask lookup, rather than the user's gh, for what gh
+// knows.
+func withGH(lookup ghLookup) Option {
+	return func(o *options) { o.gh = lookup }
+}
+
+// fakeGH is a gh logged in to github.com, whose token for it comes from
+// source, and whose config is hostsYAML.
+func fakeGH(token, source, hostsYAML string) ghLookup {
+	return ghLookup{
+		defaultHost: func() (string, string) { return "github.com", "default" },
+		token:       func(string) (string, string) { return token, source },
+		config:      func() (*config.Config, error) { return config.ReadFromString(hostsYAML), nil },
+	}
+}
+
+func TestAccountByLogin(t *testing.T) {
+	const (
+		octocat = "hosts:\n  github.com:\n    user: octocat\n"
+		hubot   = "hosts:\n  github.com:\n    user: hubot\n"
+		shouted = "hosts:\n  github.com:\n    user: OctoCat\n"
+		nobody  = "hosts:\n  github.com: {}\n"
+	)
+	client := func(token, source, hosts string) *Client {
+		t.Helper()
+		c, err := New(withGH(fakeGH(token, source, hosts)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return c
+	}
+	for _, source := range []string{sourceKeyring, sourceHostsFile} {
+		a, b := client("token-a", source, octocat), client("token-b", source, octocat)
+		if a.Account() != b.Account() {
+			t.Errorf("%s: a new token of the same login changed the account", source)
+		}
+		if a.Account() == a.TokenAccount() {
+			t.Errorf("%s: the account is named by the token", source)
+		}
+		if a.TokenAccount() == b.TokenAccount() {
+			t.Errorf("%s: two tokens have the same token account", source)
+		}
+		if client("token-a", source, hubot).Account() == a.Account() {
+			t.Errorf("%s: two logins have the same account", source)
+		}
+		if client("token-a", source, shouted).Account() != a.Account() {
+			t.Errorf("%s: the case of the login changed the account", source)
+		}
+		if c := client("token-a", source, nobody); c.Account() != c.TokenAccount() {
+			t.Errorf("%s: without a login, the account isn't named by the token", source)
+		}
+	}
+	for _, source := range []string{"GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN"} {
+		a, b := client("token-a", source, octocat), client("token-b", source, octocat)
+		if a.Account() != a.TokenAccount() {
+			t.Errorf("%s: a token from the environment isn't named by the token", source)
+		}
+		if a.Account() == b.Account() {
+			t.Errorf("%s: two tokens from the environment have the same account", source)
+		}
+	}
+	// A token given to New is named by the token, as before.
+	c, err := New(WithHost("github.com"), WithToken("t"), withGH(fakeGH("", "", octocat)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Account() != c.TokenAccount() {
+		t.Error("a token given to New isn't named by the token")
 	}
 }

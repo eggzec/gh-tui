@@ -2,6 +2,8 @@ package main
 
 import (
 	"compress/gzip"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -155,4 +157,77 @@ func TestDiskCacheKeepsTheHistory(t *testing.T) {
 	if _, err := os.Stat(path); err != nil {
 		t.Errorf("collecting the cache removed the history: %v", err)
 	}
+}
+
+func TestMoveAccount(t *testing.T) {
+	const host = "api.github.com"
+	setup := func(t *testing.T, dirs ...string) (config.Disk, string) {
+		t.Helper()
+		cfg := config.Default().Cache.Disk
+		cfg.Dir = t.TempDir()
+		base := filepath.Join(cfg.Dir, host, entryDir)
+		for _, d := range dirs {
+			if err := os.MkdirAll(filepath.Join(base, d), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(base, d, cmdhist.FileName), []byte(d+"\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+		return cfg, base
+	}
+	history := func(t *testing.T, base, account string) string {
+		t.Helper()
+		b, err := os.ReadFile(filepath.Join(base, account, cmdhist.FileName))
+		if err != nil {
+			return ""
+		}
+		return string(b)
+	}
+
+	t.Run("moves the token's directory", func(t *testing.T) {
+		cfg, base := setup(t, "token", "other")
+		moveAccount(cfg, host, "token", "login")
+		if got := history(t, base, "login"); got != "token\n" {
+			t.Errorf("history under the new name = %q, want the old one's", got)
+		}
+		if _, err := os.Stat(filepath.Join(base, "token")); !errors.Is(err, fs.ErrNotExist) {
+			t.Errorf("the old directory is still there: %v", err)
+		}
+		if got := history(t, base, "other"); got != "other\n" {
+			t.Errorf("another account's history = %q, want it untouched", got)
+		}
+	})
+	t.Run("keeps an existing directory", func(t *testing.T) {
+		cfg, base := setup(t, "token", "login")
+		moveAccount(cfg, host, "token", "login")
+		if got := history(t, base, "login"); got != "login\n" {
+			t.Errorf("history under the new name = %q, want it kept", got)
+		}
+		if got := history(t, base, "token"); got != "token\n" {
+			t.Errorf("history under the old name = %q, want it left alone", got)
+		}
+	})
+	t.Run("nothing to move", func(t *testing.T) {
+		cfg, base := setup(t)
+		moveAccount(cfg, host, "token", "login")
+		if _, err := os.Stat(filepath.Join(base, "login")); !errors.Is(err, fs.ErrNotExist) {
+			t.Errorf("a directory was made: %v", err)
+		}
+	})
+	t.Run("same name", func(t *testing.T) {
+		cfg, base := setup(t, "token")
+		moveAccount(cfg, host, "token", "token")
+		if got := history(t, base, "token"); got != "token\n" {
+			t.Errorf("history = %q, want it kept", got)
+		}
+	})
+	t.Run("disk cache off", func(t *testing.T) {
+		cfg, base := setup(t, "token")
+		cfg.Enabled = false
+		moveAccount(cfg, host, "token", "login")
+		if got := history(t, base, "token"); got != "token\n" {
+			t.Errorf("history = %q, want it left alone", got)
+		}
+	})
 }
