@@ -179,6 +179,12 @@ func (p *preview) Title() string {
 	return p.entry.Path
 }
 
+// Link implements ui.Linked: the page of the file at the ref it was
+// listed at.
+func (p *preview) Link() string {
+	return webURL(p.host, p.repo, p.ref, p.entry)
+}
+
 // Update takes the preview's content and passes the rest to the pager. The
 // open key opens the file in the browser unless the pager's search input
 // takes it. The close key closes the preview at once while the search
