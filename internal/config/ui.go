@@ -9,7 +9,7 @@ import (
 type UI struct {
 	// Icons is the set of glyphs that mark repositories, languages and the
 	// states of issues and pull requests: IconsNerd, which needs a Nerd
-	// Font, IconsUnicode or IconsASCII.
+	// Font and marks the types of files too, IconsUnicode or IconsASCII.
 	Icons string `yaml:"icons"`
 }
 

@@ -9,7 +9,8 @@ import (
 
 // Icons are the glyphs that mark repositories, their languages, and the
 // states of issues and pull requests, from one of the sets that
-// config.UI.Icons names. Every glyph is one cell wide, so rows that use
+// config.UI.Icons names. The Nerd Font set marks files and directories
+// too. Every glyph is one cell wide, so rows that use
 // them stay aligned. Rows should follow a glyph with a space: the glyphs of
 // a Nerd Font often spill over into the next cell.
 type Icons struct {
@@ -25,6 +26,9 @@ type Icons struct {
 	lang   string
 	states [NumStates]string
 	runs   [NumRunStates]string
+	// files holds the glyphs of files and directories, in the sets that
+	// have them.
+	files *fileIcons
 }
 
 // State is the state of an issue or pull request as a glyph shows it.
@@ -85,6 +89,7 @@ func newIcons(set string) Icons {
 			Star:  "\uf41e",
 			langs: nerdLanguages,
 			lang:  "\uf44f",
+			files: nerdFiles,
 			states: [NumStates]string{
 				IssueOpen: "\uf41b", IssueClosed: "\uf41d", IssueNotPlanned: "\uf517",
 				PullOpen: "\uf407", PullDraft: "\uf4dd", PullMerged: "\uf419", PullClosed: "\uf4dc",
