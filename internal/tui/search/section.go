@@ -1,9 +1,9 @@
 // Package search is the search page, laid out like github.com's: the query
 // on top, the kinds of results on the left with their counts, and the
-// results of the chosen kind on the right. Repositories, issues and pull
-// requests are searched as the user types, in one request for all three;
-// code is searched only when its kind is chosen or on enter, since GitHub
-// allows few code searches a minute.
+// results of the chosen kind on the right. The kind on view is searched as
+// the user types, and the other kinds but code once the query rests or on
+// enter; code is searched only when its kind is chosen or on enter, since
+// GitHub allows few code searches a minute.
 package search
 
 import (
@@ -19,6 +19,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/obs"
 	"github.com/eggzec/gh-tui/internal/service/search"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
@@ -45,6 +46,11 @@ type Start func(ctx context.Context) ([]core.Repo, error)
 // DefaultDebounce is how long the page waits after the last key before it
 // searches.
 const DefaultDebounce = 250 * time.Millisecond
+
+// OthersWait is how long the query rests before the page reads the first
+// pages of the kinds not on view: long enough that a pause between words
+// doesn't, since each costs a search.
+const OthersWait = 700 * time.Millisecond
 
 // maxRecent is how many recent searches the page keeps.
 const maxRecent = 8
@@ -118,6 +124,16 @@ type Section struct {
 	textCtx    context.Context
 	cancelText context.CancelFunc
 	kind       core.SearchKind
+
+	// edits counts the edits of the query alone, after the last of which
+	// the other kinds are read once it rests for othersWait. othersFor is
+	// the text they were read for, stopOthers stops them, and seen counts
+	// them as reads ahead.
+	edits      int
+	othersWait time.Duration
+	othersFor  string
+	stopOthers context.CancelFunc
+	seen       *obs.Prefetched[othersKey]
 	// hits holds the results of each kind for text, made when the kind is
 	// first shown, and code those of code search, made when asked for.
 	hits   map[core.SearchKind]*hitList
@@ -158,19 +174,22 @@ var (
 // actions in keys. ctx bounds every request it makes.
 func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Option) *Section {
 	s := &Section{
-		id:       lastID.Add(1),
-		ctx:      ctx,
-		svc:      svc,
-		keys:     newKeyMap(keys),
-		now:      time.Now,
-		debounce: DefaultDebounce,
-		kind:     core.SearchRepos,
-		hits:     make(map[core.SearchKind]*hitList),
-		stale:    make(map[core.SearchKind][]string),
-		dots:     make(map[string]string),
-		langs:    make(map[string]string),
-		icons:    ui.NewIcons(config.IconsNerd),
-		spin:     spinner.New(spinner.WithSpinner(spinner.MiniDot)),
+		id:         lastID.Add(1),
+		ctx:        ctx,
+		svc:        svc,
+		keys:       newKeyMap(keys),
+		now:        time.Now,
+		debounce:   DefaultDebounce,
+		kind:       core.SearchRepos,
+		othersWait: OthersWait,
+		stopOthers: func() {},
+		seen:       obs.NewPrefetched[othersKey]("search"),
+		hits:       make(map[core.SearchKind]*hitList),
+		stale:      make(map[core.SearchKind][]string),
+		dots:       make(map[string]string),
+		langs:      make(map[string]string),
+		icons:      ui.NewIcons(config.IconsNerd),
+		spin:       spinner.New(spinner.WithSpinner(spinner.MiniDot)),
 	}
 	s.textCtx, s.cancelText = context.WithCancel(ctx)
 	for _, opt := range opts {
@@ -232,9 +251,11 @@ func (s *Section) Focus() {
 	s.render()
 }
 
-// Blur makes the page ignore keys.
+// Blur makes the page ignore keys, and stops the reads of the other kinds
+// ahead, as the page leaves the screen.
 func (s *Section) Blur() {
 	s.focused = false
+	s.leaveOthers()
 	s.focusArea(s.area)
 	s.render()
 }

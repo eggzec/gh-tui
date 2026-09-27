@@ -56,6 +56,9 @@ type fakeService struct {
 	invalidated  int
 	// ctxs holds the context of every search and prefetch.
 	ctxs []context.Context
+	// hold, if set, holds every prefetch until it is closed or the
+	// prefetch is canceled.
+	hold chan struct{}
 }
 
 func newFake() *fakeService {
@@ -170,8 +173,18 @@ func (f *fakeService) Search(ctx context.Context, q search.Query) (search.Result
 
 func (f *fakeService) Prefetch(ctx context.Context, q search.Query) error {
 	f.mu.Lock()
-	defer f.mu.Unlock()
 	f.ctxs = append(f.ctxs, ctx)
+	hold := f.hold
+	f.mu.Unlock()
+	if hold != nil {
+		select {
+		case <-hold:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if strings.Contains(q.Text, "is:bogus") {
 		return &core.InvalidQueryError{Reason: "is:bogus is not a valid qualifier"}
 	}
@@ -323,11 +336,18 @@ func startRepos(context.Context) ([]core.Repo, error) {
 	}, nil
 }
 
+// withOthersWait sets how long the query rests before the other kinds are
+// read. The default is OthersWait.
+func withOthersWait(d time.Duration) Option {
+	return func(s *Section) { s.othersWait = d }
+}
+
 // newSection returns a focused page of width by height over svc, whose
-// clock is now and which searches on every key unless opts say otherwise.
+// clock is now and which searches on every key, and reads the other kinds
+// at once, unless opts say otherwise.
 func newSection(tb testing.TB, svc Service, width, height int, opts ...Option) *Section {
 	tb.Helper()
-	opts = append([]Option{WithNow(func() time.Time { return now }), WithStart(startRepos), WithDebounce(0)}, opts...)
+	opts = append([]Option{WithNow(func() time.Time { return now }), WithStart(startRepos), WithDebounce(0), withOthersWait(0)}, opts...)
 	s := New(tb.Context(), svc, config.Default().Keys, opts...)
 	p, err := config.Default().Palette(true)
 	if err != nil {
@@ -347,7 +367,14 @@ func newSection(tb testing.TB, svc Service, width, height int, opts ...Option) *
 // sleep, and send them themselves.
 func run(tb testing.TB, s *Section, cmd tea.Cmd) []tea.Msg {
 	tb.Helper()
-	var app []tea.Msg
+	app, _ := drive(tb, s, cmd, nil, nil)
+	return app
+}
+
+// drive is run, except that the messages hold reports true for are kept
+// from s and appended to held, for the caller to give it later.
+func drive(tb testing.TB, s *Section, cmd tea.Cmd, hold func(tea.Msg) bool, held []tea.Msg) (app, _ []tea.Msg) {
+	tb.Helper()
 	queue := []tea.Cmd{cmd}
 	for len(queue) > 0 {
 		c := queue[0]
@@ -367,10 +394,14 @@ func run(tb testing.TB, s *Section, cmd tea.Cmd) []tea.Msg {
 		case ui.OpenMsg, ui.NotifyMsg, ui.RepoMsg, ui.OpenPullMsg, ui.OpenIssueMsg, ui.OpenFileMsg, ui.BackMsg:
 			app = append(app, msg)
 		default:
+			if hold != nil && hold(msg) {
+				held = append(held, msg)
+				continue
+			}
 			queue = append(queue, s.Update(msg))
 		}
 	}
-	return app
+	return app, held
 }
 
 // sequence unpacks the message of tea.Sequence, whose type is unexported.

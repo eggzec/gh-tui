@@ -55,8 +55,8 @@ func TestCounts(t *testing.T) {
 			t.Errorf("the page doesn't show %q:\n%s", want, screen(s))
 		}
 	}
-	// Each key settles a query: a search of the kind on view with the
-	// counts, and a prefetch of each other kind.
+	// Without a wait, each key settles a query: a search of the kind on
+	// view with the counts, and a prefetch of each other kind.
 	if n, code := svc.stats(); n != 3 || svc.prefetches != 6 || code != 0 {
 		t.Errorf("%d searches, %d prefetches and %d code searches, want 3, 6 and none", n, svc.prefetches, code)
 	}

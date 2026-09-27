@@ -18,19 +18,31 @@ type debounceMsg struct {
 	seq int
 }
 
-// edited starts the wait after an edit of the query, after which the page
-// searches for it.
-func (s *Section) edited() tea.Cmd {
-	s.seq++
-	if s.debounce == 0 {
-		return s.settle()
-	}
-	id, seq := s.id, s.seq
-	return tea.Tick(s.debounce, func(time.Time) tea.Msg { return debounceMsg{id: id, seq: seq} })
+// othersMsg says the query rested long enough after edit edits of it for
+// the first pages of the kinds not on view to be read, on the page with id.
+type othersMsg struct {
+	id    int64
+	edits int
 }
 
-// settle shows the results of the query as it is now. Repositories, issues
-// and pull requests are searched at once; code waits to be asked for.
+// edited starts the wait after an edit of the query, after which the page
+// searches for it, and the longer one after which it reads the other kinds
+// ahead.
+func (s *Section) edited() tea.Cmd {
+	s.seq++
+	s.edits++
+	id, seq, edits := s.id, s.seq, s.edits
+	// The other kinds wait at least as long as the kind on view.
+	others := tea.Tick(max(s.othersWait, s.debounce), func(time.Time) tea.Msg { return othersMsg{id: id, edits: edits} })
+	if s.debounce == 0 {
+		return tea.Batch(s.settle(), others)
+	}
+	return tea.Batch(tea.Tick(s.debounce, func(time.Time) tea.Msg { return debounceMsg{id: id, seq: seq} }), others)
+}
+
+// settle shows the results of the query as it is now, of the kind on view
+// only. Code waits to be asked for; the other kinds wait for the query to
+// rest ([Section.readOthers]).
 func (s *Section) settle() tea.Cmd {
 	text := strings.Join(strings.Fields(s.input.Value()), " ")
 	if text == s.text {
@@ -50,7 +62,7 @@ func (s *Section) settle() tea.Cmd {
 	if k == core.SearchCode {
 		k = core.SearchRepos
 	}
-	return tea.Batch(s.ensureHits(k), s.prefetch(k))
+	return s.ensureHits(k)
 }
 
 // submit searches for the query at once, code too when its kind is on
@@ -61,6 +73,7 @@ func (s *Section) submit() tea.Cmd {
 	if s.text == "" {
 		return cmd
 	}
+	cmd = tea.Batch(cmd, s.readOthers(othersEnter))
 	s.remember(s.text)
 	if s.kind == core.SearchCode {
 		cmd = tea.Batch(cmd, s.searchCode())
