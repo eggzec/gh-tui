@@ -255,6 +255,55 @@ func TestListError(t *testing.T) {
 	}
 }
 
+// TestListAnsweredAfterOutage checks that a page served in place of an
+// answer is served unmarked again once GitHub answers, with a 304 too.
+func TestListAnsweredAfterOutage(t *testing.T) {
+	for _, failed := range []error{
+		fmt.Errorf("%w: dial tcp: connection refused", core.ErrOffline),
+		&core.RateLimitError{Reset: time.Now().Add(time.Hour)},
+	} {
+		down := false
+		api := &fakeAPI{list: func(f core.NotificationFilter, n int, cursor string, cond github.Conditional) (page, github.Response, error) {
+			if down {
+				return page{}, github.Response{}, failed
+			}
+			return servePage1(f, n, cursor, cond)
+		}}
+		s := New(api)
+		if _, err := s.List(t.Context(), inbox); err != nil {
+			t.Fatal(err)
+		}
+		s.Invalidate()
+		down = true
+		if p, err := s.List(t.Context(), inbox); err != nil || !p.Offline && !p.Limited {
+			t.Fatalf("List while GitHub fails with %v = %+v, %v; want page1 marked", failed, p, err)
+		}
+		down = false
+		p, err := s.List(t.Context(), inbox)
+		if err != nil || p.Offline || p.Limited || !equal(p, page1) {
+			t.Errorf("List after a 304 that followed %v = %+v, %v; want page1 unmarked", failed, p, err)
+		}
+		if n := api.lists.Load(); n != 3 {
+			t.Errorf("API called %d times, want 3", n)
+		}
+	}
+}
+
+func TestPollOffline(t *testing.T) {
+	api := &fakeAPI{list: func(core.NotificationFilter, int, string, github.Conditional) (page, github.Response, error) {
+		return page{}, github.Response{}, fmt.Errorf("%w: dial tcp: connection refused", core.ErrOffline)
+	}}
+	s := New(api)
+	s.cache.Set(ListQuery{}.key(), entry(page1, modified1))
+
+	if res, err := s.Poll(t.Context()); !errors.Is(err, core.ErrOffline) || res.Changed {
+		t.Errorf("Poll = %+v, %v; want it to fail offline without a change", res, err)
+	}
+	if p, err := s.List(t.Context(), ListQuery{}); err != nil || !p.Offline || !equal(p, page1) {
+		t.Errorf("List after an offline Poll = %+v, %v; want page1, offline", p, err)
+	}
+}
+
 func TestPoll(t *testing.T) {
 	api := &fakeAPI{list: servePage1}
 	s := New(api)

@@ -121,6 +121,7 @@ func TestKeptInboxOffline(t *testing.T) {
 	}{
 		{"unreachable", fmt.Errorf("%w: %w", core.ErrOffline, &url.Error{Op: "Get", URL: "https://api.github.com/notifications", Err: errors.New("refused")}), true},
 		{"server error", &github.Error{StatusCode: 503}, true},
+		{"rate limited", &core.RateLimitError{Reset: time.Now().Add(time.Hour)}, true},
 		{"unauthorized", &github.Error{StatusCode: 401}, false},
 	}
 	for _, tt := range tests {
@@ -141,8 +142,9 @@ func TestKeptInboxOffline(t *testing.T) {
 				}
 				return
 			}
-			if err != nil || !p.Offline || !equal(p, page1) {
-				t.Errorf("List = %+v, %v; want the kept page, offline", p, err)
+			limited := errors.Is(tt.err, core.ErrRateLimited)
+			if err != nil || p.Offline == limited || p.Limited != limited || !equal(p, page1) {
+				t.Errorf("List = %+v, %v; want the kept page, offline or limited", p, err)
 			}
 		})
 	}
