@@ -84,3 +84,32 @@ func plain(s string) string {
 	}
 	return b.String()
 }
+
+// maxLinks is how many links a [Links] keeps at most. It is far more than
+// the rows of a screen, so rows drawn frame after frame keep theirs.
+const maxLinks = 512
+
+// Links makes links like [Link] and keeps those it made, for rows drawn
+// again on every frame with the same address and text, so each is made
+// once. When it holds maxLinks, it forgets them all and starts again. The
+// zero value is ready to use. It is not safe for concurrent use.
+type Links struct {
+	made map[[2]string]string
+}
+
+// Link returns Link(addr, text), made once for each address and text.
+func (l *Links) Link(addr, text string) string {
+	if addr == "" {
+		return text
+	}
+	k := [2]string{addr, text}
+	if s, ok := l.made[k]; ok {
+		return s
+	}
+	if l.made == nil || len(l.made) >= maxLinks {
+		l.made = make(map[[2]string]string)
+	}
+	s := Link(addr, text)
+	l.made[k] = s
+	return s
+}
