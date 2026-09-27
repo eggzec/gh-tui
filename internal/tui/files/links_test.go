@@ -47,3 +47,22 @@ func TestPreviewLink(t *testing.T) {
 		t.Errorf("the preview links to %v, want %q", h.top(), want)
 	}
 }
+
+// Each row of the finder links to the page of its file at the base, on
+// the user's host.
+func TestFinderLinks(t *testing.T) {
+	for _, host := range uitest.Hosts {
+		h := newHost(loaded(t, sampleFake(), 80, 20, WithHost(host)))
+		f := findIn(t, h)
+		links := uitest.Links(t, f.find.View())
+		want := make([]string, 0, 6)
+		for _, p := range []string{".gitignore", "AGENTS.md", "CLAUDE.md", "cmd/gh-tui/main.go", "go.mod", "README%20with%20spaces.md"} {
+			want = append(want, ui.WebURL(host, "eggzec/gh-tui/blob/HEAD/"+p))
+		}
+		slices.Sort(links)
+		slices.Sort(want)
+		if !slices.Equal(links, want) {
+			t.Errorf("%s: the finder links to %q, want %q", host, links, want)
+		}
+	}
+}
