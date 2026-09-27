@@ -23,6 +23,7 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 	"github.com/eggzec/gh-tui/pkg/markdown"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // detailMsg carries the detail of a pull request to the thread that asked
@@ -479,14 +480,15 @@ func (m *detailModal) detailHeader(width int) string {
 		lines = append(lines, gutter+strings.Join(parts, ""))
 	}
 
+	// The title and the number link to the pull request's page.
 	for l := range strings.SplitSeq(ansi.Wrap(d.Title, inner, ""), "\n") {
-		line(st.selected.Render(l))
+		line(termtext.Link(d.URL, st.selected.Render(l)))
 	}
 	lines = append(lines, "")
 
 	dot := st.sep.Render(" · ")
 	line(st.badge(d.PullRequest), "  ",
-		st.age.Render("#"+strconv.Itoa(d.Number)), dot,
+		termtext.Link(d.URL, st.age.Render("#"+strconv.Itoa(d.Number))), dot,
 		st.title.Render(d.Author.Login), st.author.Render(" opened "+ui.AgoProse(d.CreatedAt, now)), dot,
 		st.author.Render("updated "+ui.AgoProse(d.UpdatedAt, now)))
 

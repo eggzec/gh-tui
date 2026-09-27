@@ -215,10 +215,13 @@ func (s *Section) renderRow(pr core.PullRequest, selected bool, width int) strin
 	b.Grow(width + 160)
 	b.WriteString(st.state(pr))
 	b.WriteByte(' ')
+	// The number and the title link to the pull request's page.
+	var link strings.Builder
+	link.Grow(c.title + 64)
 	num := "#" + strconv.Itoa(pr.Number)
 	over := ui.NumberOver(num)
-	st.number.write(&b, num)
-	pad(&b, ui.NumberWidth+over-len(num)+1)
+	st.number.write(&link, num)
+	pad(&link, ui.NumberWidth+over-len(num)+1)
 
 	tcells := max(c.title-over, 0)
 	title, tw := truncate(pr.Title, tcells)
@@ -226,7 +229,8 @@ func (s *Section) renderRow(pr core.PullRequest, selected bool, width int) strin
 	if selected {
 		ts = st.rowSelected
 	}
-	ts.write(&b, title)
+	ts.write(&link, title)
+	b.WriteString(s.links.Link(pr.URL, link.String()))
 	pad(&b, tcells-tw)
 
 	if c.review {

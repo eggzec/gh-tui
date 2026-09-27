@@ -17,6 +17,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/checks"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // Service is what the section needs of the pull requests service.
@@ -100,7 +101,9 @@ type Section struct {
 	st            styles
 	icons         ui.Icons
 	cols          columns
-	header        string
+	// links keeps the links of the rows, which are drawn on every frame.
+	links  termtext.Links
+	header string
 	// blank is the empty state shown until a repository is picked, and
 	// hint what it tells the user to do.
 	blank string
