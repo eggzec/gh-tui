@@ -67,6 +67,8 @@ func (m *Model[T]) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 		m.vp.SetYOffset(math.MaxInt)
 	case key.Matches(msg, k.Retry):
 		return m.retry()
+	case key.Matches(msg, k.Toggle):
+		m.toggle()
 	}
 	return nil
 }
@@ -160,7 +162,7 @@ func (m *Model[T]) evict(lo, hi int) bool {
 			break
 		}
 		c := &m.chunks[far]
-		c.items, c.lines, c.starts, c.loaded = nil, nil, nil, false
+		c.items, c.lines, c.starts, c.heads, c.loaded = nil, nil, nil, nil, false
 		evicted = true
 	}
 	return evicted

@@ -1,6 +1,7 @@
 package thread
 
 import (
+	"slices"
 	"sort"
 	"strings"
 
@@ -16,7 +17,7 @@ const statusIndent = "  "
 // unless they were already rendered at it.
 func (m *Model[T]) renderDoc() {
 	if !m.hasDoc || m.width <= 0 {
-		m.doc, m.docWidth = nil, -1
+		m.doc, m.docWidth, m.docHeads = nil, -1, nil
 		return
 	}
 	if m.docWidth == m.width {
@@ -29,19 +30,23 @@ func (m *Model[T]) renderDoc() {
 		}
 		lines = append(lines, m.blank)
 	}
-	if body := trimBlank(m.renderMarkdown()); len(body) > 0 {
+	var heads []head
+	out, found := m.md.RenderHeads(m.body, markdown.Room(m.width, 2*len(statusIndent)), m.folds.with(m.body, nil)...)
+	// The body is indented by two cells, with as much room on the right.
+	if body := trimBlank(markdown.Indent(out, statusIndent)); len(body) > 0 {
+		for _, h := range found {
+			heads = append(heads, head{
+				src: m.body, block: h.Block, chunk: -1,
+				line: len(lines) + h.Line, end: len(lines) + h.End,
+			})
+		}
 		for _, l := range body {
 			lines = append(lines, m.fit(l))
 		}
 		lines = append(lines, m.blank)
 	}
-	m.doc, m.docWidth = lines, m.width
-}
-
-// renderMarkdown renders the body indented by two cells, with as much room
-// on the right.
-func (m *Model[T]) renderMarkdown() string {
-	return markdown.Indent(m.md.Render(m.body, markdown.Room(m.width, 2*len(statusIndent))), statusIndent)
+	m.mark(heads, lines)
+	m.doc, m.docWidth, m.docHeads = lines, m.width, heads
 }
 
 // renderChunk renders the items of c at the current width, one blank line
@@ -49,15 +54,19 @@ func (m *Model[T]) renderMarkdown() string {
 func (m *Model[T]) renderChunk(c *chunk[T]) {
 	lines := make([]string, 0, len(c.items)*4)
 	starts := make([]int, 0, len(c.items))
-	for _, it := range c.items {
+	var heads []head //nolint:prealloc // Most comments hold no diagram.
+	for j, it := range c.items {
 		starts = append(starts, len(lines))
-		block := strings.TrimRight(m.render(it, m.width), "\n")
-		for l := range strings.SplitSeq(block, "\n") {
+		m.folds.seen = nil
+		block := strings.Split(strings.TrimRight(m.render(it, m.width), "\n"), "\n")
+		heads = append(heads, m.take(block, j, len(lines))...)
+		for _, l := range block {
 			lines = append(lines, m.fit(l))
 		}
 		lines = append(lines, m.blank)
 	}
-	c.lines, c.starts, c.height, c.loaded = lines, starts, len(lines), true
+	m.mark(heads, lines)
+	c.lines, c.starts, c.heads, c.height, c.loaded = lines, starts, heads, len(lines), true
 }
 
 // fit truncates s to the width and pads it with spaces to exactly the width,
@@ -119,7 +128,7 @@ func (m *Model[T]) empty() bool {
 // scrolls back to a.
 func (m *Model[T]) layout(a anchor) {
 	if m.width <= 0 {
-		m.lines, m.statusIdx, m.status = nil, -1, ""
+		m.lines, m.statusIdx, m.status, m.heads = nil, -1, "", nil
 		m.starts = make([]int, len(m.chunks))
 		m.vp.SetContentLines(nil)
 		return
@@ -130,11 +139,20 @@ func (m *Model[T]) layout(a anchor) {
 	}
 	lines := make([]string, 0, n)
 	lines = append(lines, m.doc...)
+	heads := slices.Clone(m.docHeads)
 	starts := make([]int, len(m.chunks))
 	for i := range m.chunks {
+		c := &m.chunks[i]
 		starts[i] = len(lines)
-		lines = m.appendChunk(lines, &m.chunks[i])
+		if c.loaded {
+			for _, h := range c.heads {
+				h.chunk, h.line, h.end = i, h.line+starts[i], h.end+starts[i]
+				heads = append(heads, h)
+			}
+		}
+		lines = m.appendChunk(lines, c)
 	}
+	m.heads = heads
 	m.status, m.statusIdx = m.statusText(), -1
 	if m.status != "" {
 		m.statusIdx = len(lines)
