@@ -420,8 +420,16 @@ func TestHelp(t *testing.T) {
 	if got := m.ShortHelp(); len(got) != 2 {
 		t.Errorf("help while searching lists %d keys, want confirm and cancel", len(got))
 	}
-	if got := m.FullHelp(); len(got) != 1 {
-		t.Errorf("full help while searching has %d columns, want 1", len(got))
+	var enabled []string
+	for _, g := range m.FullHelp() {
+		for _, b := range g {
+			if b.Enabled() {
+				enabled = append(enabled, b.Help().Key)
+			}
+		}
+	}
+	if !slices.Equal(enabled, []string{"enter", "esc"}) {
+		t.Errorf("full help while searching enables %q, want enter and esc", enabled)
 	}
 }
 
