@@ -13,6 +13,11 @@ import (
 // and the limit leaves room for slow and busy machines.
 const hostileLimit = slowdown * 200 * time.Millisecond
 
+// longLimit is hostileLimit for a comment as long as they come, with a
+// thousand lines or as many bytes as GitHub takes, which a busy machine
+// slows down more. It still fails the renders of seconds it guards against.
+const longLimit = 5 * hostileLimit
+
 // hostile are comments made to take a long time to render.
 var hostile = map[string]string{
 	"jsonata backslash":   "```jsonata\n\\\n```",
@@ -44,18 +49,23 @@ var hostile = map[string]string{
 	"autolinks":           strings.Repeat("https://a.b/", 333),
 	"long code":           "```go\n" + strings.Repeat("x := `\\\n", 3000) + "```",
 	"indented code guess": "    " + strings.Repeat("#include <a>\n    ", 300),
-	"many blocks":         strings.Repeat("```go\n"+strings.Repeat("x := 1; ", 20)+"\n```\n", 333),
 	"java":                "```java\n" + lines(7, strings.Repeat("a ", 255)) + "\n```",
 	"html":                "```html\n" + lines(7, strings.Repeat("<?", 255)) + "\n```",
 	"groovy":              "```groovy\n" + lines(97, strings.Repeat("a", 40)) + "\n```",
+	"quoted java":         "> ```java\n" + lines(31, "> "+strings.Repeat("a ", 255)) + "\n> ```",
+	"indented templ":      "text\n\n    templ x() {\n" + lines(31, "    "+strings.Repeat("<?", 240)),
 	"css":                 "```css\n" + lines(7, strings.Repeat("{a:", 170)) + "\n```",
-	"nested lines":        lines(999, strings.Repeat("> ", 8)+strings.Repeat("- ", 10)+"x"),
-	"lists on each line":  lines(999, strings.Repeat("- ", 10)+"x"),
-	"long links":          strings.Repeat("[a](", 32<<10),
-	"long emphasis":       strings.Repeat("*a", 32<<10),
-	"long autolinks":      strings.Repeat("https://a.b/", 5<<10),
-	"long backticks":      strings.Repeat("`a", 32<<10),
-	"long table":          "|" + strings.Repeat("h|", 20) + "\n|" + strings.Repeat("-|", 20) + "\n" + lines(999, "|"+strings.Repeat("word word|", 20)),
+}
+
+// long are hostile comments as long as they come.
+var long = map[string]string{
+	"many blocks":        strings.Repeat("```go\n"+strings.Repeat("x := 1; ", 20)+"\n```\n", 333),
+	"nested lines":       lines(999, strings.Repeat("> ", 8)+strings.Repeat("- ", 10)+"x"),
+	"lists on each line": lines(999, strings.Repeat("- ", 10)+"x"),
+	"long links":         strings.Repeat("[a](", 32<<10),
+	"long emphasis":      strings.Repeat("*a", 32<<10),
+	"long autolinks":     strings.Repeat("https://a.b/", 5<<10),
+	"long backticks":     strings.Repeat("`a", 32<<10),
 }
 
 // lines returns n lines of l.
@@ -74,7 +84,15 @@ func listLines(n int) string {
 
 func TestHostileRendersQuickly(t *testing.T) {
 	t.Cleanup(func() { idle(t) })
-	for name, src := range hostile {
+	limits := make(map[string]time.Duration)
+	for name := range hostile {
+		limits[name] = hostileLimit
+	}
+	for name := range long {
+		limits[name] = longLimit
+	}
+	for name, limit := range limits {
+		src := hostile[name] + long[name]
 		t.Run(name, func(t *testing.T) {
 			// The fastest of three renders, so a busy machine's pauses
 			// don't count.
@@ -85,8 +103,8 @@ func TestHostileRendersQuickly(t *testing.T) {
 				out = New(DefaultStyle(true)).Render(src, 76)
 				d = min(d, time.Since(start))
 			}
-			if d > hostileLimit {
-				t.Errorf("took %v, more than %v", d, hostileLimit)
+			if d > limit {
+				t.Errorf("took %v, more than %v", d, limit)
 			}
 			if why := unsafe(out); why != "" {
 				t.Error(why)

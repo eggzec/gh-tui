@@ -8,10 +8,13 @@ package markdown
 
 import (
 	"fmt"
+	"math/rand/v2"
+	"strconv"
 	"strings"
 
 	"charm.land/glamour/v2"
 	"charm.land/glamour/v2/ansi"
+	"github.com/alecthomas/chroma/v2"
 	xansi "github.com/charmbracelet/x/ansi"
 )
 
@@ -40,6 +43,13 @@ type Renderer struct {
 	renders       int
 	// hint is what the note that ends a cut source offers.
 	hint string
+	// code is the style of highlighted code, or nil for none, and
+	// highlights keeps highlighted code, which is the same at any width.
+	code       *chroma.Style
+	highlights map[verdictKey][]string
+	// nonce makes the marks that stand for highlighted code in what
+	// glamour renders.
+	nonce string
 }
 
 type key struct {
@@ -51,7 +61,7 @@ type key struct {
 // New returns a renderer of markdown in style. Its document margin is
 // always zero: the caller indents the lines as its layout needs.
 func New(style ansi.StyleConfig) *Renderer {
-	r := &Renderer{}
+	r := &Renderer{nonce: strconv.FormatUint(rand.Uint64(), 36)}
 	r.SetStyle(style)
 	return r
 }
@@ -60,9 +70,15 @@ func New(style ansi.StyleConfig) *Renderer {
 func (r *Renderer) SetStyle(style ansi.StyleConfig) {
 	var zero uint
 	style.Document.Margin = &zero
+	r.code = codeStyle(style.CodeBlock)
+	// Glamour would run chroma on any code, in any container, with any
+	// lexer, or one it guesses, and chroma can't be stopped; the renderer
+	// highlights instead, within its limits.
+	style.CodeBlock.Chroma, style.CodeBlock.Theme = nil, ""
 	r.style = style
 	r.terms = nil
 	r.recent, r.older = nil, nil
+	r.highlights = nil
 }
 
 // SetHint sets what the note that ends a source too long to show in full
@@ -115,17 +131,46 @@ func (r *Renderer) Renders() int { return r.renders }
 
 func (r *Renderer) render(src string, width int, open []int) string {
 	r.renders++
-	text := prepare(src, open, r.hint)
-	out, err := r.glamour(text, width)
+	b := newBudget()
+	var code [][]string
+	text := prepare(src, open, r.hint, func(blk Block) string {
+		lines, ok := r.highlight(blk, b)
+		if !ok {
+			return blk.Full
+		}
+		code = append(code, lines)
+		// The mark is indented as the fence is, so it stays in the block
+		// in a list item.
+		indent := blk.fence[:len(blk.fence)-len(strings.TrimLeft(blk.fence, " "))]
+		return blk.fence + "\n" + indent + r.mark(len(code)-1) + "\n" + blk.fence
+	})
+	plain := func(b Block) string { return b.Full }
+	lines, err := r.lines(text, width)
+	if err == nil && len(code) > 0 {
+		var ok bool
+		if lines, ok = r.splice(lines, code, width); !ok {
+			lines, err = r.lines(prepare(src, open, r.hint, plain), width)
+		}
+	}
 	if err != nil {
 		// Showing the source beats showing nothing.
-		out = xansi.Wrap(text, width, "")
+		text = prepare(src, open, r.hint, plain)
+		lines = strings.Split(xansi.Wrap(text, width, ""), "\n")
 	}
-	lines := trimBlank(strings.Split(out, "\n"))
+	lines = trimBlank(lines)
 	for i, l := range lines {
 		lines[i] = safe(tidy(l))
 	}
 	return strings.Join(lines, "\n")
+}
+
+// lines returns text rendered by glamour at width, a line at a time.
+func (r *Renderer) lines(text string, width int) ([]string, error) {
+	out, err := r.glamour(text, width)
+	if err != nil {
+		return nil, err
+	}
+	return strings.Split(out, "\n"), nil
 }
 
 func (r *Renderer) glamour(text string, width int) (string, error) {
@@ -139,7 +184,6 @@ func (r *Renderer) glamour(text string, width int) (string, error) {
 			// which templates rely on.
 			glamour.WithPreservedNewLines(),
 			glamour.WithEmoji(),
-			glamour.WithChromaFormatter("terminal16m"),
 		)
 		if err != nil {
 			return "", err

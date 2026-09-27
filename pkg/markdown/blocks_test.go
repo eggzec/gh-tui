@@ -26,8 +26,8 @@ func TestBlocks(t *testing.T) {
 // A language that collapses its blocks shows them collapsed until they are
 // opened, and each way is rendered once.
 func TestCollapsedBlocks(t *testing.T) {
-	showBlock = func(lang, src string, left *budget) Block {
-		b := fenced(lang, src, left)
+	showBlock = func(lang, src string) Block {
+		b := fenced(lang, src)
 		if lang == "mermaid" {
 			b.Collapsed, b.URL = "◆ diagram", "https://mermaid.live/view"
 		}
