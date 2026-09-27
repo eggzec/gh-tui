@@ -191,7 +191,7 @@ func TestRenderCaching(t *testing.T) {
 	src := newSource(2, 10)
 	r := &renders{}
 	m := loaded(t, src, r, 60, 10)
-	runs, items := m.mdRuns, r.count()
+	runs, items := m.md.Renders(), r.count()
 	if runs != 1 || items != 10 {
 		t.Fatalf("rendered markdown %d and comments %d times, want 1 and 10", runs, items)
 	}
@@ -200,18 +200,57 @@ func TestRenderCaching(t *testing.T) {
 		_ = m.View()
 	}
 	m = press(t, m, "g")
-	if m.mdRuns != runs || r.count() != items {
-		t.Fatalf("scrolling rendered markdown %d and comments %d times", m.mdRuns-runs, r.count()-items)
+	if m.md.Renders() != runs || r.count() != items {
+		t.Fatalf("scrolling rendered markdown %d and comments %d times", m.md.Renders()-runs, r.count()-items)
 	}
 	// The same width again is free; a new one renders once more.
 	m.SetSize(60, 12)
-	if m.mdRuns != runs {
+	if m.md.Renders() != runs {
 		t.Fatal("a new height rendered the markdown again")
 	}
 	m.SetSize(50, 12)
-	if m.mdRuns != runs+1 || r.count() != 2*items {
+	if m.md.Renders() != runs+1 || r.count() != 2*items {
 		t.Fatalf("a new width rendered markdown %d and comments %d times, want 1 and %d",
-			m.mdRuns-runs, r.count()-items, items)
+			m.md.Renders()-runs, r.count()-items, items)
+	}
+}
+
+func TestNewStylesRenderAgain(t *testing.T) {
+	src := newSource(2, 10)
+	r := &renders{}
+	m := loaded(t, src, r, 60, 10)
+	runs, items := m.md.Renders(), r.count()
+	m.SetStyles(DefaultStyles(false))
+	if r.count() != 2*items {
+		t.Errorf("new styles rendered the comments %d times, want %d", r.count()-items, items)
+	}
+	// The body keeps its pinned markdown style, but its renderer forgot
+	// what it rendered, since it can't tell the style didn't change.
+	if m.md.Renders() != runs+1 {
+		t.Errorf("new styles rendered the body %d times, want once", m.md.Renders()-runs)
+	}
+}
+
+func TestCutHint(t *testing.T) {
+	m := loaded(t, newSource(1, 1), nil, 120, 10)
+	_ = m.SetDocument("", strings.Repeat("line\n\n", 600))
+	m.SetCutHint("o to open on GitHub")
+	last := strings.TrimSpace(ansi.Strip(m.doc[len(m.doc)-2]))
+	// The pinned ASCII style marks emphasis with asterisks.
+	if last != "*⋯ The rest is too long to show here · o to open on GitHub*" {
+		t.Errorf("the cut body ends %q, without the hint", last)
+	}
+}
+
+func TestMarkdownRendersLikeTheBody(t *testing.T) {
+	m := loaded(t, newSource(1, 1), nil, 60, 10)
+	got := m.Markdown("line one\nline two<!-- hidden -->", 40)
+	if want := "line one\nline two"; ansi.Strip(got) != want {
+		t.Errorf("Markdown = %q, want %q", ansi.Strip(got), want)
+	}
+	runs := m.md.Renders()
+	if m.Markdown("line one\nline two<!-- hidden -->", 40) != got || m.md.Renders() != runs {
+		t.Error("the same markdown at the same width rendered again")
 	}
 }
 
@@ -272,18 +311,18 @@ func TestAccessors(t *testing.T) {
 	}
 	s := DefaultStyles(false)
 	m.SetStyles(s)
-	if m.Styles().Markdown.Document.Color == nil {
+	if m.Styles().Markdown.Heading.Color == nil {
 		t.Fatal("SetStyles didn't keep the markdown style")
 	}
 }
 
 func TestDefaultStylesPickMarkdownTheme(t *testing.T) {
 	dark, light := DefaultStyles(true).Markdown, DefaultStyles(false).Markdown
-	if *dark.Document.Color == *light.Document.Color {
+	if *dark.Heading.Color == *light.Heading.Color {
 		t.Fatal("light and dark markdown styles are the same")
 	}
 	m := New(newSource(0, 0).fetch, renderComment, WithSize(40, 5), WithStyles(DefaultStyles(false)))
-	_ = m.SetDocument("", "text")
+	_ = m.SetDocument("", "## Title")
 	light1 := strings.Join(m.doc, "\n")
 	m.SetStyles(DefaultStyles(true))
 	if strings.Join(m.doc, "\n") == light1 {

@@ -25,7 +25,7 @@ func longThread(b *testing.B) (Model[comment], *renders) {
 
 func BenchmarkView(b *testing.B) {
 	m, r := longThread(b)
-	runs, items := m.mdRuns, r.count()
+	runs, items := m.md.Renders(), r.count()
 	lines := m.TotalLines() - m.Height()
 	b.ReportAllocs()
 	i := 0
@@ -35,21 +35,21 @@ func BenchmarkView(b *testing.B) {
 		_ = m.View()
 		i++
 	}
-	if m.mdRuns != runs || r.count() != items {
+	if m.md.Renders() != runs || r.count() != items {
 		b.Fatal("View rendered markdown or comments")
 	}
 }
 
 func BenchmarkUpdate(b *testing.B) {
 	m, r := longThread(b)
-	runs, items := m.mdRuns, r.count()
+	runs, items := m.md.Renders(), r.count()
 	m.vp.SetYOffset(0)
 	s := scroller{m: m, msg: keyMsg("j")}
 	b.ReportAllocs()
 	for b.Loop() {
 		s.step()
 	}
-	if s.m.mdRuns != runs || r.count() != items {
+	if s.m.md.Renders() != runs || r.count() != items {
 		b.Fatal("scrolling rendered markdown or comments")
 	}
 }

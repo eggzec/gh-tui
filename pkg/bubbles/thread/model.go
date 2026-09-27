@@ -1,5 +1,6 @@
 // Package thread is a scrollable document, such as the header and body of an
-// issue, followed by its comments. The body is markdown rendered with glamour.
+// issue, followed by its comments. The body is markdown, rendered with
+// package markdown, which the comments can render with too.
 // Comments load lazily in chunks, oldest first, as the reader nears the end.
 package thread
 
@@ -14,6 +15,8 @@ import (
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/glamour/v2/ansi"
+
+	"github.com/eggzec/gh-tui/pkg/markdown"
 )
 
 // Fetch returns the chunk of comments after cursor, oldest first. The first
@@ -54,7 +57,9 @@ type Model[T any] struct {
 	body     string
 	doc      []string // header and body lines, rendered at docWidth
 	docWidth int
-	mdRuns   int // glamour renders, so tests can prove View doesn't render
+	// md renders the body and, through Markdown, the comments, and keeps
+	// what it rendered. Copies of the model share it.
+	md *markdown.Renderer
 
 	chunks  []chunk[T]
 	started bool // the first chunk was requested
@@ -127,6 +132,7 @@ func New[T any](fetch Fetch[T], render Render[T], opts ...Option) Model[T] {
 		spin:      spinner.New(spinner.WithSpinner(spinner.Dot)),
 		docWidth:  -1,
 		statusIdx: -1,
+		md:        markdown.New(s.styles.Markdown),
 	}
 	m.ctx, m.cancel = context.WithCancel(m.parent)
 	m.width, m.height = max(s.width, 0), max(s.height, 0)
@@ -152,10 +158,10 @@ func (m Model[T]) Init() tea.Cmd {
 // markdown body. It returns the command that loads the first chunk of
 // comments. Setting the document again, for example after the body was
 // edited, keeps the comments and the reading position.
-func (m *Model[T]) SetDocument(header, markdown string) tea.Cmd {
+func (m *Model[T]) SetDocument(header, body string) tea.Cmd {
 	a := m.anchor()
 	m.hasDoc = true
-	m.header, m.body = header, markdown
+	m.header, m.body = header, body
 	m.docWidth = -1
 	m.renderDoc()
 	m.layout(a)
@@ -256,10 +262,13 @@ func (m *Model[T]) SetMaxChunks(n int) { m.maxChunks = n }
 // MaxChunks returns how many comment chunks stay in memory.
 func (m Model[T]) MaxChunks() int { return m.maxChunks }
 
-// SetStyles sets the styles and renders what depends on them again.
+// SetStyles sets the styles and renders what depends on them again: the
+// document and the loaded comments, whose renderer may use the styles of
+// the caller, which change with them.
 func (m *Model[T]) SetStyles(s Styles) {
 	a := m.anchor()
 	m.styles = s
+	m.md.SetStyle(m.markdownStyle())
 	m.spin.Style = s.Spinner
 	m.text = texts{
 		loadingDoc:      s.Loading.Render("Loading…"),
@@ -268,10 +277,44 @@ func (m *Model[T]) SetStyles(s Styles) {
 		errPrefix:       s.Error.Render("Couldn't load comments."),
 	}
 	m.styleRetry()
+	m.rerender(a)
+}
+
+// SetCutHint sets what a body or comment too long to show in full offers
+// in the note that ends it, such as the key that opens it on GitHub, and
+// renders them again.
+func (m *Model[T]) SetCutHint(hint string) {
+	m.md.SetHint(hint)
+	m.rerender(m.anchor())
+}
+
+// rerender renders the document and the loaded comments again and
+// scrolls back to a.
+func (m *Model[T]) rerender(a anchor) {
 	m.docWidth = -1
 	m.renderDoc()
+	for i := range m.chunks {
+		if m.chunks[i].loaded {
+			m.renderChunk(&m.chunks[i])
+		}
+	}
 	m.layout(a)
 }
+
+// Markdown returns src rendered as markdown in the style of the body, as
+// lines at most width cells wide, not padded, with the collapsible blocks
+// whose index is in open shown in full, as [markdown.Renderer.Render]
+// does. A comment renderer uses it so the comments look like the body.
+// What it renders is kept, so rendering a comment again, as a reload
+// does, costs nothing.
+func (m Model[T]) Markdown(src string, width int, open ...int) string {
+	return m.md.Render(src, width, open...)
+}
+
+// MarkdownRenders returns how many times the thread rendered markdown
+// rather than reading what it rendered before, so the tests of a caller
+// can tell that scrolling renders nothing.
+func (m Model[T]) MarkdownRenders() int { return m.md.Renders() }
 
 // Styles returns the styles.
 func (m Model[T]) Styles() Styles { return m.styles }

@@ -2,8 +2,9 @@ package thread
 
 import (
 	"charm.land/glamour/v2/ansi"
-	glamourstyles "charm.land/glamour/v2/styles"
 	"charm.land/lipgloss/v2"
+
+	"github.com/eggzec/gh-tui/pkg/markdown"
 )
 
 // Styles holds the styles of a thread. The header and the comments are
@@ -22,8 +23,8 @@ type Styles struct {
 	Key lipgloss.Style
 	// Hint styles the text around a key in a hint.
 	Hint lipgloss.Style
-	// Markdown is the glamour style of the body. [WithMarkdownStyle]
-	// overrides it.
+	// Markdown is the glamour style of the body and of what
+	// [Model.Markdown] renders. [WithMarkdownStyle] overrides it.
 	Markdown ansi.StyleConfig
 }
 
@@ -35,11 +36,6 @@ func DefaultStyles(isDark bool) Styles {
 	subtle := ld(lipgloss.Color("#8a90a0"), lipgloss.Color("#6b7285"))
 	failure := ld(lipgloss.Color("#c0392b"), lipgloss.Color("#ef7d7d"))
 
-	md := glamourstyles.LightStyleConfig
-	if isDark {
-		md = glamourstyles.DarkStyleConfig
-	}
-
 	return Styles{
 		Spinner:  lipgloss.NewStyle().Foreground(accent),
 		Loading:  lipgloss.NewStyle().Foreground(muted),
@@ -47,6 +43,6 @@ func DefaultStyles(isDark bool) Styles {
 		Error:    lipgloss.NewStyle().Foreground(failure),
 		Key:      lipgloss.NewStyle().Foreground(accent).Bold(true),
 		Hint:     lipgloss.NewStyle().Foreground(subtle),
-		Markdown: md,
+		Markdown: markdown.DefaultStyle(isDark),
 	}
 }
