@@ -3,6 +3,7 @@ package github
 import (
 	"cmp"
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,8 @@ import (
 	"testing"
 	"testing/synctest"
 	"time"
+
+	"github.com/eggzec/gh-tui/internal/core"
 )
 
 // answer is what a fake GitHub answers to one request.
@@ -140,9 +143,12 @@ func TestBudgetResourcesApart(t *testing.T) {
 		a := answers{"search/code": make(chan answer, 1), "user": make(chan answer, 2)}
 		c := newAnswered(t, a)
 
-		a["search/code"] <- answer{status: http.StatusForbidden, header: quotaHeader(resourceCodeSearch, 10, 0, reset)}
+		a["search/code"] <- spent(resourceCodeSearch, reset, 0)
 		if _, err := c.Get(t.Context(), "search/code", Conditional{}, nil); err == nil {
 			t.Fatal("code search succeeded, want a rate limit")
+		}
+		if st, _ := c.budget.status(resourceCodeSearch); !st.release.Equal(reset.Add(minGuard)) {
+			t.Errorf("code search release = %v, want %v", st.release, reset.Add(minGuard))
 		}
 		a["user"] <- answer{header: quotaHeader(resourceCore, 5000, 4999, reset.Add(time.Hour))}
 		if _, err := c.Get(t.Context(), "user", Conditional{}, nil); err != nil {
@@ -160,11 +166,14 @@ func TestBudgetResourcesApart(t *testing.T) {
 		if err := <-done; err != nil {
 			t.Fatalf("Get user: %v", err)
 		}
-		if got := c.RateLimit(resourceCodeSearch); got.Remaining != 0 || got.Limit != 10 {
-			t.Errorf("code search = %+v, want 0 of 10", got)
+		if got := c.RateLimit(resourceCodeSearch); got.Remaining != 0 || got.Resource != resourceCodeSearch {
+			t.Errorf("code search = %+v, want none left", got)
 		}
 		if got := c.RateLimit(resourceCore); got.Remaining != 4998 {
 			t.Errorf("core = %+v, want 4998 left", got)
+		}
+		if st, _ := c.budget.status(resourceCore); !st.release.IsZero() {
+			t.Errorf("core release = %v, want none", st.release)
 		}
 	})
 }
@@ -368,5 +377,224 @@ func TestBudgetMutationCost(t *testing.T) {
 	r := b.reserve(httptest.NewRequestWithContext(ctx, http.MethodPost, "https://api.github.com/graphql", http.NoBody))
 	if r.resource != resourceGraphQL || r.cost != 1 {
 		t.Errorf("reservation = %+v, want 1 of graphql", r)
+	}
+}
+
+// spent is a refusal because resource is spent until reset, dated by
+// GitHub's clock, which is ahead of the local one by skew.
+func spent(resource string, reset time.Time, skew time.Duration) answer {
+	h := quotaHeader(resource, 5000, 0, reset)
+	h["Date"] = time.Now().Add(skew).UTC().Format(http.TimeFormat)
+	return answer{status: http.StatusForbidden, header: h, body: `{"message": "API rate limit exceeded"}`}
+}
+
+// limitedUntil returns when the rate limit that err is lifts.
+func limitedUntil(t *testing.T, err error) time.Time {
+	t.Helper()
+	rl, ok := errors.AsType[*core.RateLimitError](err)
+	if !ok {
+		t.Fatalf("error = %v, want a rate limit", err)
+	}
+	return rl.Reset
+}
+
+// TestBudgetSkew answers with a Date 5s ahead of the local clock, and
+// checks that the reset is placed 5s earlier in local time.
+func TestBudgetSkew(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		const skew = 5 * time.Second
+		reset := time.Now().Add(skew + 10*time.Minute) // in GitHub's clock
+		a := answers{"x": make(chan answer, 1)}
+		c := newAnswered(t, a)
+
+		a["x"] <- spent(resourceCore, reset, skew)
+		_, err := c.Get(t.Context(), "x", Conditional{}, nil)
+
+		want := reset.Add(-skew).Add(minGuard)
+		if got := limitedUntil(t, err); !got.Equal(want) {
+			t.Errorf("Reset = %v, want %v, the local reset and a guard", got, want)
+		}
+		if st, _ := c.budget.status(resourceCore); !st.release.Equal(want) {
+			t.Errorf("release = %v, want %v", st.release, want)
+		}
+	})
+}
+
+// TestBudgetSkewMedian checks that one answer held up on its way doesn't
+// move the skew.
+func TestBudgetSkewMedian(t *testing.T) {
+	var s clockSkew
+	for _, d := range []time.Duration{2, 2, -30, 2, 3} {
+		s.add(d * time.Second)
+	}
+	if got := s.offset(); got != 2*time.Second {
+		t.Errorf("offset = %v, want 2s", got)
+	}
+	for _, tt := range []struct {
+		offsets []time.Duration
+		want    time.Duration
+	}{
+		{[]time.Duration{3, 1}, 1},
+		{[]time.Duration{4, 1, 3, 2}, 2},
+	} {
+		var s clockSkew
+		for _, d := range tt.offsets {
+			s.add(d * time.Second)
+		}
+		if got := s.offset(); got != tt.want*time.Second {
+			t.Errorf("offset of %v = %v, want the lower middle, %vs", tt.offsets, got, int64(tt.want))
+		}
+	}
+	for range skewSamples {
+		s.add(-time.Second)
+	}
+	if got := s.offset(); got != -time.Second {
+		t.Errorf("offset after the old ones went = %v, want -1s", got)
+	}
+}
+
+// TestBudgetGuard answers requests sent after the release with the old
+// window still spent, and checks that the guard doubles each time, up to
+// maxGuard, and that a new window starts with the shortest again.
+func TestBudgetGuard(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		reset := time.Now().Add(time.Minute)
+		a := answers{"x": make(chan answer, 1)}
+		c := newAnswered(t, a)
+		get := func(ans answer) error {
+			a["x"] <- ans
+			_, err := c.Get(t.Context(), "x", Conditional{}, nil)
+			return err
+		}
+
+		release := limitedUntil(t, get(spent(resourceCore, reset, 0)))
+		if want := reset.Add(minGuard); !release.Equal(want) {
+			t.Fatalf("first release = %v, want %v", release, want)
+		}
+		// Sent before the release, a refusal changes nothing.
+		if got := limitedUntil(t, get(spent(resourceCore, reset, 0))); !got.Equal(release) {
+			t.Errorf("release after a refusal before it = %v, want %v", got, release)
+		}
+		for _, guard := range []time.Duration{2, 4, 8, 8} {
+			time.Sleep(time.Until(release))
+			release = limitedUntil(t, get(spent(resourceCore, reset, 0)))
+			if want := time.Now().Add(guard * time.Second); !release.Equal(want) {
+				t.Errorf("release = %v, want %v, a guard of %ds after the refusal", release, want, guard)
+			}
+		}
+
+		time.Sleep(time.Until(release))
+		next := reset.Add(time.Hour)
+		if err := get(answer{header: quotaHeader(resourceCore, 5000, 4999, next)}); err != nil {
+			t.Fatal(err)
+		}
+		if st, _ := c.budget.status(resourceCore); !st.release.IsZero() {
+			t.Errorf("release in a new window = %v, want none", st.release)
+		}
+		if got := limitedUntil(t, get(spent(resourceCore, next, 0))); !got.Equal(next.Add(minGuard)) {
+			t.Errorf("release in a new window = %v, want %v", got, next.Add(minGuard))
+		}
+	})
+}
+
+// TestBudgetFarReset checks that a reset too far away to be real doesn't
+// spend the resource until then.
+func TestBudgetFarReset(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		a := answers{"x": make(chan answer, 1)}
+		c := newAnswered(t, a)
+		a["x"] <- spent(resourceCore, time.Now().Add(48*time.Hour), 0)
+		_, err := c.Get(t.Context(), "x", Conditional{}, nil)
+		if got, want := limitedUntil(t, err), time.Now().Add(secondaryBackoff); !got.Equal(want) {
+			t.Errorf("Reset = %v, want %v, as if it didn't say", got, want)
+		}
+		if st, _ := c.budget.status(resourceCore); !st.release.IsZero() || st.reported.Remaining != 0 {
+			t.Errorf("status = %+v, want none left and no release", st)
+		}
+
+		// A real reset replaces it, and a far one doesn't replace a real one.
+		reset := time.Now().Add(time.Hour)
+		for _, ans := range []answer{
+			{header: quotaHeader(resourceCore, 5000, 4000, reset)},
+			{header: quotaHeader(resourceCore, 5000, 3000, time.Now().Add(72*time.Hour))},
+		} {
+			a["x"] <- ans
+			if _, err := c.Get(t.Context(), "x", Conditional{}, nil); err != nil {
+				t.Fatal(err)
+			}
+			if got := c.RateLimit(resourceCore); got.Remaining != 4000 || !got.Reset.Equal(reset) {
+				t.Errorf("core = %+v, want 4000 left until %v", got, reset)
+			}
+		}
+	})
+}
+
+// TestBudgetGuardByReservation answers a request reserved before the
+// release after it, with the old window still spent, and checks that the
+// guard stays: the request may have gone out before the release.
+func TestBudgetGuardByReservation(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		reset := time.Now().Add(time.Minute)
+		a := answers{"x": make(chan answer, 1)}
+		c := newAnswered(t, a)
+		a["x"] <- spent(resourceCore, reset, 0)
+		_, err := c.Get(t.Context(), "x", Conditional{}, nil)
+		release := limitedUntil(t, err)
+
+		done := getAsync(c, "x")
+		time.Sleep(time.Until(release) + time.Second)
+		a["x"] <- spent(resourceCore, reset, 0)
+		if got := limitedUntil(t, <-done); !got.Equal(release) {
+			t.Errorf("release = %v, want %v, the guard unchanged", got, release)
+		}
+		if g := c.budget.quotas[resourceCore].guard; g != minGuard {
+			t.Errorf("guard = %v, want %v", g, minGuard)
+		}
+	})
+}
+
+// TestBudgetGraphQLRefusedWithQuotaLeft checks that a query refused as
+// RATE_LIMITED with quota left spends GraphQL until its reset only when
+// the quota is what refused it: GitHub says so, or the query costs more
+// than is left. Otherwise the limit is a secondary one.
+func TestBudgetGraphQLRefusedWithQuotaLeft(t *testing.T) {
+	const spentMsg, secondaryMsg = "API rate limit exceeded", "You have exceeded a secondary rate limit."
+	tests := []struct {
+		name    string
+		msg     string
+		cost    int
+		primary bool
+	}{
+		{"quota spent", spentMsg, 0, true},
+		{"costs more than is left", secondaryMsg, 7, true},
+		{"secondary", secondaryMsg, 0, false},
+		{"secondary, costs less than is left", secondaryMsg, 2, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				reset := time.Now().Add(time.Minute)
+				a := answers{"graphql": make(chan answer, 1)}
+				c := newAnswered(t, a)
+				if tt.cost > 0 {
+					c.budget.learnCost("Big", tt.cost)
+				}
+				a["graphql"] <- answer{
+					header: quotaHeader(resourceGraphQL, 5000, 3, reset),
+					body:   `{"data": null, "errors": [{"type": "RATE_LIMITED", "message": "` + tt.msg + `"}]}`,
+				}
+				err := c.Query(t.Context(), "query Big { viewer { login } }", nil, nil)
+				want, release := time.Now().Add(secondaryBackoff), time.Time{}
+				if tt.primary {
+					want, release = reset.Add(minGuard), reset.Add(minGuard)
+				}
+				if got := limitedUntil(t, err); !got.Equal(want) {
+					t.Errorf("Reset = %v, want %v", got, want)
+				}
+				if st, _ := c.budget.status(resourceGraphQL); !st.release.Equal(release) {
+					t.Errorf("release = %v, want %v", st.release, release)
+				}
+			})
+		})
 	}
 }

@@ -118,8 +118,8 @@ func graphqlReply(typ, msg string, h map[string]string) http.HandlerFunc {
 // what core.Explain makes of the errors, and what Unreachable and Refused
 // say of them.
 func TestErrorKinds(t *testing.T) {
-	reset := time.Unix(1790000000, 0)
 	now := time.Date(2026, 9, 27, 14, 0, 0, 0, time.UTC)
+	reset := now.Add(10 * time.Minute)
 	rateHeaders := map[string]string{
 		"X-RateLimit-Limit":     "5000",
 		"X-RateLimit-Remaining": "0",
@@ -169,7 +169,7 @@ func TestErrorKinds(t *testing.T) {
 			h:      reply(403, rateHeaders, "API rate limit exceeded for user ID 1."),
 			kind:   core.RateLimited,
 			reason: "API rate limit exceeded for user ID 1.",
-			reset:  reset,
+			reset:  reset.Add(minGuard),
 		},
 		{
 			name:   "403 secondary rate limit without a reset",
@@ -248,7 +248,7 @@ func TestErrorKinds(t *testing.T) {
 			graphql: true,
 			kind:    core.RateLimited,
 			reason:  "API rate limit exceeded for user ID 1.",
-			reset:   reset,
+			reset:   reset.Add(minGuard),
 		},
 		{
 			name:    "graphql not found",
@@ -268,8 +268,7 @@ func TestErrorKinds(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := newTestClient(t, tt.h)
-			c.budget.now = func() time.Time { return now }
+			c := newTestClientAt(t, now, tt.h)
 			var err error
 			if tt.graphql {
 				err = c.Query(t.Context(), "query { viewer { login } }", nil, nil)

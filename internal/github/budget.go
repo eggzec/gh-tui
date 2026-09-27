@@ -2,10 +2,14 @@ package github
 
 import (
 	"cmp"
+	"log/slog"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/eggzec/gh-tui/internal/obs"
 )
 
 // The rate-limit resources gh-tui sends requests against, as GitHub names
@@ -19,10 +23,30 @@ const (
 	resourceGraphQL    = "graphql"
 )
 
+const (
+	// minGuard is how long after its reset a spent resource is used
+	// again. The reset is in whole seconds, and whether GitHub rounds or
+	// truncates it isn't documented, so up to a second of what looks like
+	// the new window may still be the old one.
+	minGuard = time.Second
+	// maxGuard bounds the guard, which doubles each time a request
+	// reserved after it still finds the old window.
+	maxGuard = 8 * time.Second
+	// maxWindow is how far away a reset may be. The longest window is an
+	// hour, so a reset further away is malformed, and would stop requests
+	// for no reason.
+	maxWindow = 61 * time.Minute
+	// skewSamples is how many offsets of GitHub's clock the skew is the
+	// median of.
+	skewSamples = 5
+)
+
 // budget keeps track of the rate limits of the account the client acts
 // as: for each resource, what GitHub last reported of it, and what the
-// requests sent since and not answered yet will take of it. It is safe for
-// concurrent use.
+// requests sent since and not answered yet will take of it. GitHub reports
+// its resets in its own clock, so the budget learns how far that is from
+// the local one, and a spent resource is released a guard after its
+// reset in local time. It is safe for concurrent use.
 type budget struct {
 	// restRoot and graphqlPath are the paths of the REST root, such as /
 	// or /api/v3/, and of the GraphQL endpoint.
@@ -31,6 +55,7 @@ type budget struct {
 	now         func() time.Time
 
 	mu     sync.Mutex
+	skew   clockSkew
 	quotas map[string]*quota
 	// pending are the requests sent and not answered yet, by the order
 	// they were counted in.
@@ -47,7 +72,12 @@ type quota struct {
 	// a late answer that GitHub counted earlier doesn't undo it.
 	asOf uint64
 	// reset is when the window refills, in GitHub's time, as reported.
-	reset  time.Time
+	reset time.Time
+	// release is when the resource may be used again, in local time, or
+	// zero if it isn't spent.
+	release time.Time
+	// guard is how long after the reset the release is.
+	guard  time.Duration
 	seenAt time.Time
 }
 
@@ -56,6 +86,9 @@ type reservation struct {
 	seq      uint64
 	resource string
 	cost     int
+	// at is when the request was reserved, which is before it waited
+	// for a slot, so it may have gone out later.
+	at time.Time
 }
 
 // quotaStatus is what the budget knows of one resource at a moment.
@@ -64,8 +97,11 @@ type quotaStatus struct {
 	reported RateLimit
 	// est is what is left once the requests in flight are answered, as
 	// far as the budget can tell. It may be below zero.
-	est    int
-	seenAt time.Time
+	est int
+	// release is when a spent resource may be used again, in local
+	// time, or zero if it isn't spent.
+	release time.Time
+	seenAt  time.Time
 }
 
 func newBudget(restRoot, graphqlPath string) *budget {
@@ -120,7 +156,7 @@ func (b *budget) reserve(req *http.Request) *reservation {
 		cost = max(b.opCost[c.op], cost)
 	}
 	b.seq++
-	r := &reservation{seq: b.seq, resource: resource, cost: cost}
+	r := &reservation{seq: b.seq, resource: resource, cost: cost, at: b.now()}
 	b.pending[r.seq] = r
 	return r
 }
@@ -140,34 +176,120 @@ func (b *budget) forget(r *reservation) {
 	b.mu.Unlock()
 }
 
-// observe settles r with the headers h of its answer. The rate limit they
-// report is counted in the resource they name, or in the resource of r if
-// they name none. Answers may arrive in another order than their requests
-// were sent, so within a window the lowest remaining wins, and one of an
-// earlier window is ignored.
-func (b *budget) observe(r *reservation, h http.Header) {
+// observe settles r with the headers h of its answer, and returns the new
+// guard of its resource if the answer shows that the guard was too short.
+// The rate limit they report is counted in the resource they name, or in
+// the resource of r if they name none. Answers may arrive in another order
+// than their requests were sent, so within a window the lowest remaining
+// wins, and one of an earlier window is ignored, as is a reset too far
+// away to be real, unless the window kept is one such. A new window starts
+// with the shortest guard; a request reserved after the release that
+// still finds the old window spent doubles it.
+func (b *budget) observe(r *reservation, h http.Header) (guard time.Duration) {
 	now := b.now()
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	delete(b.pending, r.seq)
+	if date, err := http.ParseTime(h.Get("Date")); err == nil {
+		b.skew.add(date.Sub(now))
+	}
 	rl, ok := parseRateLimit(h)
 	resource := cmp.Or(rl.Resource, r.resource)
 	if !ok || resource == "" {
-		return
+		return 0
 	}
+	far := b.far(rl.Reset, now)
 	q := b.quotas[resource]
 	switch {
-	case q == nil || rl.Reset.After(q.reset):
-		q = &quota{reset: rl.Reset}
+	case q == nil || !far && (rl.Reset.After(q.reset) || b.far(q.reset, now)):
+		q = &quota{reset: rl.Reset, guard: minGuard}
 		b.quotas[resource] = q
-	case rl.Reset.Before(q.reset):
-		return
+	case !rl.Reset.Equal(q.reset):
+		return 0
 	case rl.Remaining > q.remaining || rl.Remaining == q.remaining && r.seq < q.asOf:
 		// An answer that GitHub counted before the one that set remaining.
 		q.seenAt = now
-		return
+		return 0
 	}
 	q.limit, q.remaining, q.asOf, q.seenAt = rl.Limit, rl.Remaining, r.seq, now
+	if q.remaining > 0 {
+		return 0
+	}
+	if !q.release.IsZero() && !r.at.Before(q.release) {
+		q.guard = min(2*q.guard, maxGuard)
+		q.release = time.Time{}
+		guard = q.guard
+	}
+	if q.release.IsZero() {
+		q.release = b.release(q.reset, q.guard, now)
+	}
+	return guard
+}
+
+// refused records that GitHub refused a request because the quota of rl
+// is spent, as a 403 or a GraphQL RATE_LIMITED error says, and returns
+// when to send one again: the release of the resource rl names, or else
+// of resource. A query may be refused with quota left, when it costs more
+// than is left, and then too the resource is spent until its reset. It
+// returns false if the reset is too far away to be real.
+func (b *budget) refused(resource string, rl RateLimit) (time.Time, bool) {
+	resource = cmp.Or(rl.Resource, resource)
+	now := b.now()
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	q := b.quotas[resource]
+	if q == nil || !rl.Reset.Equal(q.reset) {
+		// A window the budget doesn't keep, such as one that passed
+		// before this late answer came.
+		at := b.release(rl.Reset, minGuard, now)
+		return at, !at.IsZero()
+	}
+	if q.release.IsZero() {
+		q.release = b.release(q.reset, q.guard, now)
+	}
+	return q.release, !q.release.IsZero()
+}
+
+// release returns when a resource spent until reset, in GitHub's clock, may
+// be used again: guard after the reset in local time, or after now if
+// that has passed. It is zero if the reset is too far away to be real.
+// b.mu must be held.
+func (b *budget) release(reset time.Time, guard time.Duration, now time.Time) time.Time {
+	if b.far(reset, now) {
+		return time.Time{}
+	}
+	at := b.local(reset)
+	if at.Before(now) {
+		at = now
+	}
+	return at.Add(guard)
+}
+
+// far reports whether reset, in GitHub's clock, is too far away to be
+// real. b.mu must be held.
+func (b *budget) far(reset, now time.Time) bool {
+	return b.local(reset).After(now.Add(maxWindow))
+}
+
+// costsMore reports whether a query of the GraphQL operation op costs
+// more than remaining, as far as what it cost last time says.
+func (b *budget) costsMore(op string, remaining int) bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.opCost[op] > remaining
+}
+
+// local returns t, a time in GitHub's clock, in the local one. b.mu must
+// be held.
+func (b *budget) local(t time.Time) time.Time {
+	return t.Add(-b.skew.offset())
+}
+
+// localTime is local for a caller that doesn't hold b.mu.
+func (b *budget) localTime(t time.Time) time.Time {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.local(t)
 }
 
 // status returns what the budget knows of resource, or false if GitHub
@@ -183,6 +305,7 @@ func (b *budget) status(resource string) (quotaStatus, bool) {
 	return quotaStatus{
 		reported: RateLimit{Limit: q.limit, Remaining: q.remaining, Reset: q.reset, Resource: resource},
 		est:      b.est(resource, q),
+		release:  q.release,
 		seenAt:   q.seenAt,
 	}, true
 }
@@ -231,6 +354,36 @@ func (t *rateTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		t.budget.forget(r)
 		return nil, err
 	}
-	t.budget.observe(r, resp.Header)
+	if guard := t.budget.observe(r, resp.Header); guard > 0 {
+		slog.WarnContext(req.Context(), "rate limit outlasted its reset",
+			"span", "http", "guard_ms", obs.Millis(guard))
+	}
 	return resp, nil
+}
+
+// clockSkew estimates how far GitHub's clock is ahead of the local one,
+// from the Date of its answers less the time they arrived. It is the
+// median of the last few, so that one answer held up on its way doesn't
+// move it. Date is in whole seconds, so an offset may be up to a second
+// short, which only makes a release later.
+type clockSkew struct {
+	offsets [skewSamples]time.Duration
+	n, next int
+}
+
+func (s *clockSkew) add(d time.Duration) {
+	s.offsets[s.next] = d
+	s.next = (s.next + 1) % skewSamples
+	s.n = min(s.n+1, skewSamples)
+}
+
+// offset returns the median offset, the lower one of an even count, or 0
+// before any.
+func (s *clockSkew) offset() time.Duration {
+	if s.n == 0 {
+		return 0
+	}
+	sorted := slices.Clone(s.offsets[:s.n])
+	slices.Sort(sorted)
+	return sorted[(s.n-1)/2]
 }

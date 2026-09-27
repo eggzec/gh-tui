@@ -85,7 +85,7 @@ func TestRateLimitConcurrent(t *testing.T) {
 
 func TestRateLimitErrors(t *testing.T) {
 	now := time.Date(2026, 9, 23, 12, 0, 0, 0, time.UTC)
-	reset := time.Unix(1790000000, 0)
+	reset := now.Add(10 * time.Minute)
 	tests := []struct {
 		name      string
 		status    int
@@ -98,9 +98,9 @@ func TestRateLimitErrors(t *testing.T) {
 			header: http.Header{
 				"X-Ratelimit-Limit":     {"5000"},
 				"X-Ratelimit-Remaining": {"0"},
-				"X-Ratelimit-Reset":     {"1790000000"},
+				"X-Ratelimit-Reset":     {strconv.FormatInt(reset.Unix(), 10)},
 			},
-			wantReset: reset,
+			wantReset: reset.Add(minGuard),
 		},
 		{
 			name:      "secondary limit with retry after",
@@ -127,11 +127,10 @@ func TestRateLimitErrors(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			c := newTestClientAt(t, now, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				maps.Copy(w.Header(), tt.header)
 				w.WriteHeader(tt.status)
 			}))
-			c.budget.now = func() time.Time { return now }
 
 			_, err := c.Get(t.Context(), "x", Conditional{}, nil)
 

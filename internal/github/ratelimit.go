@@ -51,19 +51,42 @@ func parseRateLimit(h http.Header) (RateLimit, bool) {
 // rateLimitReset reports whether resp was refused by a primary or secondary
 // rate limit, and when to try again.
 func (c *Client) rateLimitReset(resp *http.Response) (time.Time, bool) {
-	if s := resp.Header.Get("Retry-After"); s != "" {
-		if secs, err := strconv.Atoi(s); err == nil {
-			return c.budget.now().Add(time.Duration(secs) * time.Second), true
-		}
-		if t, err := http.ParseTime(s); err == nil {
-			return t, true
-		}
+	if at, ok := c.retryAfter(resp.Header); ok {
+		return at, true
 	}
 	if rl, ok := parseRateLimit(resp.Header); ok && rl.Remaining == 0 {
-		return rl.Reset, true
+		var resource string
+		if resp.Request != nil {
+			resource = c.budget.classify(resp.Request)
+		}
+		return c.limitedUntil(resource, rl), true
 	}
 	if resp.StatusCode == http.StatusTooManyRequests {
 		return c.budget.now().Add(secondaryBackoff), true
 	}
 	return time.Time{}, false
+}
+
+// retryAfter returns when the Retry-After of h says to send again, in
+// seconds or as a date of GitHub's clock, if it says.
+func (c *Client) retryAfter(h http.Header) (time.Time, bool) {
+	s := h.Get("Retry-After")
+	if secs, err := strconv.Atoi(s); err == nil {
+		return c.budget.now().Add(time.Duration(secs) * time.Second), true
+	}
+	if t, err := http.ParseTime(s); err == nil {
+		return c.budget.localTime(t), true
+	}
+	return time.Time{}, false
+}
+
+// limitedUntil returns when the quota of rl, which GitHub refused a request
+// for, may be used again: the release of its resource, which is resource
+// if rl doesn't name one. A reset too far away to be real is taken as a
+// minute, as for a secondary limit that doesn't say.
+func (c *Client) limitedUntil(resource string, rl RateLimit) time.Time {
+	if at, ok := c.budget.refused(resource, rl); ok {
+		return at
+	}
+	return c.budget.now().Add(secondaryBackoff)
 }

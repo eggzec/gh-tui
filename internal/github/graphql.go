@@ -125,7 +125,7 @@ func (c *Client) query(ctx context.Context, query string, vars map[string]any, v
 	}
 	if len(body.Errors) > 0 {
 		partial := len(body.Data) > 0 && !bytes.Equal(body.Data, []byte("null"))
-		return c.graphqlError(ctx, resp.Header, body.Errors, partial)
+		return c.graphqlError(ctx, resp.Header, cl.op, body.Errors, partial)
 	}
 	return nil
 }
@@ -201,13 +201,14 @@ func readOnly(query string) bool {
 	return rest == "" || r != '_' && !unicode.IsLetter(r) && !unicode.IsDigit(r)
 }
 
-// graphqlError builds the error of a response with errors. partial says
+// graphqlError builds the error of a response with errors to a query of
+// the operation op. partial says
 // that the response has data too, as a search across organizations does
 // when some of them keep the token out of their results. Then a FORBIDDEN
 // or INSUFFICIENT_SCOPES error on a field below the root, such as one
 // node of a search, refuses that node only, not the query, so it isn't
 // tagged as a refusal, which would drop what was kept of the query.
-func (c *Client) graphqlError(ctx context.Context, h http.Header, items []GraphQLErrorItem, partial bool) *GraphQLError {
+func (c *Client) graphqlError(ctx context.Context, h http.Header, op string, items []GraphQLErrorItem, partial bool) *GraphQLError {
 	e := &GraphQLError{Errors: items}
 	var below []string
 	for _, item := range items {
@@ -227,7 +228,7 @@ func (c *Client) graphqlError(ctx context.Context, h http.Header, items []GraphQ
 		case "UNPROCESSABLE":
 			e.causes = append(e.causes, core.ErrConflict)
 		case "RATE_LIMITED":
-			e.causes = append(e.causes, &core.RateLimitError{Reset: c.graphqlReset(h)})
+			e.causes = append(e.causes, &core.RateLimitError{Reset: c.graphqlReset(h, op, item.Message)})
 		}
 	}
 	if len(below) > 0 {
@@ -246,11 +247,27 @@ func graphqlPath(path []any) string {
 	return strings.Join(parts, ".")
 }
 
-// graphqlReset is when the GraphQL quota refills, from the rate-limit
-// headers GitHub sends with every GraphQL response.
-func (c *Client) graphqlReset(h http.Header) time.Time {
-	if rl, ok := parseRateLimit(h); ok {
-		return rl.Reset
+// graphqlReset is when a query of the operation op that GitHub refused
+// as RATE_LIMITED with msg may be sent again, from the headers h of the
+// response. The GraphQL quota is spent when nothing is left of it, when
+// msg is GitHub's for a spent quota, or when the query costs more than is
+// left, and then the query may be sent at the release of the quota.
+// Otherwise the limit is a secondary one, which lasts as Retry-After says,
+// or a minute.
+func (c *Client) graphqlReset(h http.Header, op, msg string) time.Time {
+	rl, ok := parseRateLimit(h)
+	if ok && (rl.Remaining == 0 || quotaSpent(msg) || c.budget.costsMore(op, rl.Remaining)) {
+		return c.limitedUntil(resourceGraphQL, rl)
+	}
+	if at, ok := c.retryAfter(h); ok {
+		return at
 	}
 	return c.budget.now().Add(secondaryBackoff)
+}
+
+// quotaSpent reports whether msg is GitHub's for a spent quota, such as
+// "API rate limit exceeded for user ID 1.", rather than for a secondary
+// limit.
+func quotaSpent(msg string) bool {
+	return strings.Contains(strings.ToLower(msg), "api rate limit exceeded")
 }
