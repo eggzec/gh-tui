@@ -53,6 +53,8 @@ type Section struct {
 	cancelList context.CancelFunc
 	// offline is marked by the list's reads when GitHub can't be reached.
 	offline *ui.Offline
+	// voice words the list's errors.
+	voice ui.Voice
 
 	// ahead reads the issues of list before they are opened, if prefetch
 	// is set. rowAt returns the query of the first comments of row i,
@@ -92,6 +94,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		ctx:       ctx,
 		svc:       svc,
 		offline:   new(ui.Offline),
+		voice:     ui.NewVoice(keys, ""),
 		keys:      newKeyMap(keys),
 		now:       time.Now,
 		tab:       core.FilterOpen,
@@ -216,6 +219,7 @@ func (s *Section) newList() feed.Model[core.Issue] {
 		feed.WithSize(s.width, s.bodyHeight()),
 		feed.WithFocused(s.focused),
 		feed.WithEmptyText(s.emptyText()),
+		feed.WithErrorText(ui.ErrorText("load the issues", s.repo.String(), s.voice)),
 	)
 }
 

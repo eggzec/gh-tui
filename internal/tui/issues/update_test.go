@@ -2,6 +2,7 @@ package issues
 
 import (
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -213,5 +214,29 @@ func TestListQueryLeavesPageSizeToService(t *testing.T) {
 	calls := svc.listCalls()
 	if !slices.ContainsFunc(calls, func(q issuesvc.ListQuery) bool { return q.Cursor == "30" }) {
 		t.Errorf("list queries %v never asked for the second page", calls)
+	}
+}
+
+// The list says what went wrong the way the user should read it, without
+// the error's chain, request or status code.
+func TestErrorWords(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want string
+	}{
+		{"offline", fmt.Errorf("list issues: github: GET /repos/o/r/issues: %w", core.ErrOffline), "✗ Can't reach GitHub · r to retry"},
+		{"forbidden", fmt.Errorf("list issues: github: 403 Forbidden: %w", core.ErrForbidden), "✗ You don't have access to eggzec/gh-tui · o to open on GitHub"},
+		{"internal", errors.New("list issues: github: decode: unexpected EOF"), "✗ Something went wrong · r to retry"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := newFakeService(sampleIssues(12))
+			svc.listErr = tt.err
+			s := started(t, svc, 100, 10)
+			if v := ansi.Strip(s.View()); !strings.Contains(v, tt.want) || strings.Contains(v, "github") || strings.Contains(v, "403") {
+				t.Errorf("screen = %q, want %q", v, tt.want)
+			}
+		})
 	}
 }
