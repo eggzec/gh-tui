@@ -13,6 +13,9 @@ type Option func(*options)
 type options struct {
 	cfg     config.History
 	offline *ui.Offline
+	// voice words the errors of the graph; New makes one of its keys if
+	// it is nil.
+	voice *ui.Voice
 	// host is the web host of the user's GitHub, for the links it opens.
 	host string
 	// now and loc read the clock and the time zone that dates are shown
@@ -44,6 +47,13 @@ func WithOffline(off *ui.Offline) Option {
 			o.offline = off
 		}
 	}
+}
+
+// WithVoice sets how the modal words what went wrong, with the keys a
+// hint names and the log it points to. By default the hints name the
+// configured keys and no log.
+func WithVoice(v ui.Voice) Option {
+	return func(o *options) { o.voice = &v }
 }
 
 // WithHost sets the web host of the user's GitHub, with its port if it has

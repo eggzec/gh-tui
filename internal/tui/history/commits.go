@@ -9,6 +9,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
 	historysvc "github.com/eggzec/gh-tui/internal/service/history"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/graph"
 )
 
@@ -63,6 +64,7 @@ func (g *commits) show(m *Modal, branch string) tea.Cmd {
 			graph.WithKeyMap(m.keys.Graph),
 			graph.WithFocused(m.focus == graphPane),
 			graph.WithEmptyText("No commits on this branch."),
+			graph.WithErrorText(ui.ErrorText("load the history", m.repo.String(), *m.opts.voice)),
 		)
 		return nil
 	}
