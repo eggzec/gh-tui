@@ -39,5 +39,5 @@ func (k KeyMap) ShortHelp() []key.Binding {
 
 // FullHelp implements help.KeyMap.
 func (k KeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{k.ShortHelp()}
+	return [][]key.Binding{{k.Submit, k.SubmitLine, k.Cancel}}
 }

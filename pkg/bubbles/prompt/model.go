@@ -168,8 +168,15 @@ func (m Model) ShortHelp() []key.Binding {
 	return m.keys.ShortHelp()
 }
 
-// FullHelp implements help.KeyMap.
-func (m Model) FullHelp() [][]key.Binding { return [][]key.Binding{m.ShortHelp()} }
+// FullHelp implements help.KeyMap. A multi-line prompt disables
+// SubmitLine, since enter starts a new line there.
+func (m Model) FullHelp() [][]key.Binding {
+	k := m.keys
+	if m.mode != SingleLine {
+		k.SubmitLine.SetEnabled(false)
+	}
+	return k.FullHelp()
+}
 
 // Focus focuses the prompt so it takes keys.
 func (m *Model) Focus() tea.Cmd {
