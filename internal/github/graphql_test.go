@@ -126,7 +126,8 @@ func TestQueryRateLimited(t *testing.T) {
 		"X-Ratelimit-Reset":     {"1790000000"},
 		"X-Ratelimit-Resource":  {"graphql"},
 	}
-	c := newTestClient(t, graphqlHandler(t, header, `{"errors": [{"type": "RATE_LIMITED", "message": "API rate limit exceeded"}]}`))
+	reset := time.Unix(1790000000, 0)
+	c := newTestClientAt(t, reset.Add(-time.Minute), graphqlHandler(t, header, `{"errors": [{"type": "RATE_LIMITED", "message": "API rate limit exceeded"}]}`))
 
 	err := c.Query(t.Context(), repoQuery, repoVars, nil)
 
@@ -134,7 +135,7 @@ func TestQueryRateLimited(t *testing.T) {
 	if !errors.As(err, &rl) || !errors.Is(err, core.ErrRateLimited) {
 		t.Fatalf("error %v is not a rate limit", err)
 	}
-	if want := time.Unix(1790000000, 0); !rl.Reset.Equal(want) {
+	if want := reset.Add(minGuard); !rl.Reset.Equal(want) {
 		t.Errorf("Reset = %v, want %v", rl.Reset, want)
 	}
 	if got := c.RateLimit(resourceGraphQL); got.Resource != "graphql" || got.Remaining != 0 {

@@ -131,6 +131,8 @@ func TestSearchCodeInvalidQuery(t *testing.T) {
 func TestSearchCodeRateLimited(t *testing.T) {
 	now := time.Unix(1790000000, 0)
 	reset := now.Add(42 * time.Second)
+	// A spent quota is used again a guard after its reset.
+	want := map[string]time.Time{"primary": reset.Add(minGuard), "secondary": reset}
 	tests := map[string]func(w http.ResponseWriter){
 		"primary": func(w http.ResponseWriter) {
 			w.Header().Set("X-RateLimit-Limit", "10")
@@ -146,18 +148,17 @@ func TestSearchCodeRateLimited(t *testing.T) {
 	}
 	for name, respond := range tests {
 		t.Run(name, func(t *testing.T) {
-			c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			c := newTestClientAt(t, now, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				respond(w)
 				_, _ = w.Write([]byte(`{"message": "API rate limit exceeded"}`))
 			}))
-			c.budget.now = func() time.Time { return now }
 			_, err := c.SearchCode(t.Context(), "x", "", 0)
 			rl, ok := errors.AsType[*core.RateLimitError](err)
 			if !ok || !errors.Is(err, core.ErrRateLimited) {
 				t.Fatalf("error = %v, want a rate limit", err)
 			}
-			if !rl.Reset.Equal(reset) {
-				t.Errorf("reset = %v, want %v", rl.Reset, reset)
+			if !rl.Reset.Equal(want[name]) {
+				t.Errorf("reset = %v, want %v", rl.Reset, want[name])
 			}
 		})
 	}

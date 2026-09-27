@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/eggzec/gh-tui/internal/core"
 )
@@ -219,7 +220,8 @@ func TestSearchRefusesQuery(t *testing.T) {
 }
 
 func TestSearchGraphQLRateLimited(t *testing.T) {
-	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	reset := time.Unix(1790000000, 0)
+	c := newTestClientAt(t, reset.Add(-time.Minute), http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("X-RateLimit-Limit", "5000")
 		w.Header().Set("X-RateLimit-Remaining", "0")
 		w.Header().Set("X-RateLimit-Reset", "1790000000")
@@ -228,8 +230,8 @@ func TestSearchGraphQLRateLimited(t *testing.T) {
 	}))
 	_, err := c.Search(t.Context(), SearchQuery{Text: "x"})
 	rl, ok := errors.AsType[*core.RateLimitError](err)
-	if !ok || rl.Reset.Unix() != 1790000000 {
-		t.Fatalf("error = %v, want a rate limit until the header's reset", err)
+	if !ok || !rl.Reset.Equal(reset.Add(minGuard)) {
+		t.Fatalf("error = %v, want a rate limit until a guard after the header's reset", err)
 	}
 }
 

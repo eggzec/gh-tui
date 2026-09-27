@@ -115,7 +115,8 @@ func TestSearchPages(t *testing.T) {
 }
 
 func TestSearchRateLimited(t *testing.T) {
-	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	reset := time.Unix(1790000000, 0)
+	c := newTestClientAt(t, reset.Add(-time.Minute), http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("X-RateLimit-Limit", "30")
 		w.Header().Set("X-RateLimit-Remaining", "0")
 		w.Header().Set("X-RateLimit-Reset", "1790000000")
@@ -138,8 +139,8 @@ func TestSearchRateLimited(t *testing.T) {
 		if !errors.As(err, &rl) || !errors.Is(err, core.ErrRateLimited) {
 			t.Fatalf("%s: error %v is not a rate limit", name, err)
 		}
-		if !rl.Reset.Equal(time.Unix(1790000000, 0)) {
-			t.Errorf("%s: reset = %v, want the header's", name, rl.Reset)
+		if !rl.Reset.Equal(reset.Add(minGuard)) {
+			t.Errorf("%s: reset = %v, want a guard after the header's", name, rl.Reset)
 		}
 	}
 	if got := c.RateLimit(resourceSearch); got.Resource != "search" || got.Limit != 30 {

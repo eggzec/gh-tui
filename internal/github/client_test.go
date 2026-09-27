@@ -31,6 +31,18 @@ func newTestClient(t *testing.T, h http.Handler) *Client {
 	return retryAtOnce(c)
 }
 
+// newTestClientAt is newTestClient with its clock stopped at now, and the
+// server's clock too, as the Date of its answers says.
+func newTestClientAt(t *testing.T, now time.Time, h http.Handler) *Client {
+	t.Helper()
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Date", now.UTC().Format(http.TimeFormat))
+		h.ServeHTTP(w, r)
+	}))
+	c.budget.now = func() time.Time { return now }
+	return c
+}
+
 // retryAtOnce makes c send a request again without waiting, and returns it.
 func retryAtOnce(c *Client) *Client {
 	c.http.Transport.(*retryTransport).wait = func(ctx context.Context, _ time.Duration) error { return ctx.Err() }
