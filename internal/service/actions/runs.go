@@ -11,6 +11,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
+	"github.com/eggzec/gh-tui/internal/service/fallback"
 )
 
 // DefaultRunPageSize is the page size of a RunsQuery that sets none.
@@ -93,7 +94,8 @@ func (s *Service) CachedRuns(q RunsQuery) (core.Page[core.Run], bool) {
 // first. A page is revalidated with its ETag. A first page kept by an
 // earlier session is served at once with Stale set, until a read with
 // q.Again set asks GitHub; while GitHub can't be reached, the page read
-// last is served with Offline set.
+// last is served with Offline set, and while it rate limits the reads,
+// with Limited set.
 func (s *Service) Runs(ctx context.Context, q RunsQuery) (core.Page[core.Run], error) {
 	q = q.normalize()
 	key := runsKey(q)
@@ -107,7 +109,7 @@ func (s *Service) Runs(ctx context.Context, q RunsQuery) (core.Page[core.Run], e
 			return p, nil
 		}
 	}
-	e, err := fetch(ctx, s.runs, shelf, key, []string{repoTag(q.Repo)}, offlinePage[core.Run], s.loadRuns(q))
+	e, err := fetch(ctx, s.runs, shelf, key, []string{repoTag(q.Repo)}, fallback.Page[core.Run], s.loadRuns(q))
 	if err != nil {
 		return core.Page[core.Run]{}, fmt.Errorf("list runs of %s: %w", q.Repo, err)
 	}
@@ -142,7 +144,7 @@ func (s *Service) CachedRun(repo core.RepoRef, runID int64) (core.Run, bool) {
 // Run returns the latest attempt of run runID of repo, revalidated with
 // its ETag, such as to open a run that a check of a pull request names.
 func (s *Service) Run(ctx context.Context, repo core.RepoRef, runID int64) (core.Run, error) {
-	e, err := fetch(ctx, s.run, nil, runKey(repo, runID), []string{repoTag(repo), runTag(repo, runID)}, asIs[core.Run],
+	e, err := fetch(ctx, s.run, nil, runKey(repo, runID), []string{repoTag(repo), runTag(repo, runID)}, fallback.None[core.Run],
 		func(ctx context.Context, cond github.Conditional) (core.Run, github.Response, error) {
 			return s.api.GetRun(ctx, repo, runID, cond)
 		})
@@ -185,7 +187,7 @@ func (s *Service) Workflows(ctx context.Context, q WorkflowsQuery) (core.Page[co
 		p.Stale = true
 		return p, nil
 	}
-	e, err := fetch(ctx, s.workflows, s.keptWorkflows, key, []string{repoTag(repo)}, offlinePage[core.Workflow], s.loadWorkflows(repo))
+	e, err := fetch(ctx, s.workflows, s.keptWorkflows, key, []string{repoTag(repo)}, fallback.Page[core.Workflow], s.loadWorkflows(repo))
 	if err != nil {
 		return core.Page[core.Workflow]{}, fmt.Errorf("list workflows of %s: %w", repo, err)
 	}

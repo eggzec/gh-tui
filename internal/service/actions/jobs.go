@@ -10,6 +10,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
+	"github.com/eggzec/gh-tui/internal/service/fallback"
 )
 
 // DefaultJobPageSize is the page size of a JobsQuery that sets none: all
@@ -73,13 +74,13 @@ func (s *Service) Jobs(ctx context.Context, q JobsQuery) (core.Page[core.Job], e
 		}
 	}
 	tags := []string{repoTag(q.Repo), runTag(q.Repo, q.RunID)}
-	e, err := fetch(ctx, s.liveJobs, nil, key, tags, offlinePage[core.Job], func(ctx context.Context, cond github.Conditional) (core.Page[core.Job], github.Response, error) {
+	e, err := fetch(ctx, s.liveJobs, nil, key, tags, fallback.Page[core.Job], func(ctx context.Context, cond github.Conditional) (core.Page[core.Job], github.Response, error) {
 		return s.api.ListJobs(ctx, q.Repo, q.RunID, q.Attempt, q.Cursor, q.PageSize, cond)
 	})
 	if err != nil {
 		return core.Page[core.Job]{}, fmt.Errorf("list jobs of run %d of %s: %w", q.RunID, q.Repo, err)
 	}
-	if !e.Value.Offline && s.attemptDone(q) && allDone(e.Value.Items) {
+	if e.Fallback == nil && s.attemptDone(q) && allDone(e.Value.Items) {
 		done := cache.Entry[core.Page[core.Job]]{Value: e.Value, Tags: tags}
 		s.doneJobs.Set(key, done)
 		_ = s.keptJobs.Save(key, done)
