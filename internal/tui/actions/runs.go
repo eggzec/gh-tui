@@ -218,7 +218,9 @@ func (m *Modal) renderRun(r core.Run, selected bool, w int) string {
 	if !selected {
 		name = st.Text.Render(ui.OneLine(r.Name))
 	}
-	head := st.Glyphs[state] + " " + name + " " + st.Muted.Render("#"+strconv.Itoa(r.Number)) + "  " + st.Text.Render(ui.OneLine(r.DisplayTitle))
+	// The workflow, the number and the title link to the run's page.
+	head := st.Glyphs[state] + " " + m.links.Link(r.URL,
+		name+" "+st.Muted.Render("#"+strconv.Itoa(r.Number))+"  "+st.Text.Render(ui.OneLine(r.DisplayTitle)))
 	first := ui.Spread(head, st.Subtle.Render(ui.Ago(r.CreatedAt, now)), w)
 
 	parts := make([]string, 0, 3)
