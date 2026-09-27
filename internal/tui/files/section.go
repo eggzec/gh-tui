@@ -56,6 +56,8 @@ type Section struct {
 	// offline tells the user once that GitHub can't be reached, and may be
 	// shared with other sections.
 	offline *ui.Offline
+	// voice words the errors of the tree and the finder.
+	voice ui.Voice
 
 	// finder finds a file of the listing of src, once opened, and
 	// findPreview is whether it shows the content of the selected file
@@ -98,6 +100,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		styles:  tree.DefaultStyles(true),
 		icons:   ui.NewIcons(config.IconsNerd),
 		offline: new(ui.Offline),
+		voice:   ui.NewVoice(keys, ""),
 		seen:    obs.NewPrefetched[filesvc.BlobQuery]("file"),
 		// The finder shows a preview where it fits, unless told not to.
 		findPreview: true,
@@ -126,6 +129,9 @@ func (s *Section) newTree(repo core.RepoRef, ref string) {
 	}
 	ctx, cancel := context.WithCancel(s.ctx)
 	src := newSource(s.svc, s.host, repo, ref)
+	// The tree retries a failed load with the key that expands.
+	v := s.voice
+	v.Retry = s.keys.Tree.Expand
 	t := tree.New(src.children,
 		tree.WithContext(ctx),
 		tree.WithExpandAllLimits(expandAllNodes, expandAllDepth),
@@ -135,6 +141,7 @@ func (s *Section) newTree(repo core.RepoRef, ref string) {
 		tree.WithFocused(s.focused),
 		tree.WithEmptyText("This repository is empty."),
 		tree.WithIcons(s.fileIcons.node),
+		tree.WithErrorText(ui.ErrorText("load the files", repo.String(), v)),
 	)
 	s.repo, s.ref, s.tree, s.src, s.started = repo, ref, &t, src, false
 	s.treeCtx, s.cancelTree = ctx, cancel

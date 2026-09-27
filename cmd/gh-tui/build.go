@@ -118,7 +118,7 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 	voice := ui.NewVoice(cfg.Keys, logPath)
 	fileOpts := []files.Option{
 		files.WithOffline(offline), files.WithIcons(icons), files.WithFinderPreview(cfg.Files.Finder.Preview),
-		files.WithHost(webHost),
+		files.WithHost(webHost), files.WithVoice(voice),
 	}
 	if p := cfg.Files.Prefetch; p.Enabled {
 		fileOpts = append(fileOpts,

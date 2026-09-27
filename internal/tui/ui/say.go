@@ -87,6 +87,26 @@ func SayLine(action string, err error, v Voice) string {
 	return text + " · " + hint
 }
 
+// ErrorText returns what a bubble shows for an error that stopped action
+// on subject, such as the repository "eggzec/x": Say's text and hint, in
+// the form its WithErrorText takes. subject is "" when there is nothing to
+// name, and a subject the error names itself, such as the number of an
+// issue, wins. A bubble that retries with a key of its own needs v with
+// that key as Retry.
+func ErrorText(action, subject string, v Voice) func(error) (text, hint string) {
+	return func(err error) (text, hint string) {
+		p := core.Explain(action, err)
+		if p != nil && p.Subject == "" {
+			// Explain may return a problem the error holds, which stays
+			// as it is.
+			named := *p
+			named.Subject = subject
+			p = &named
+		}
+		return Say(p, v)
+	}
+}
+
 // say is Say, which also reports whether the text starts with a name, such
 // as a repository or GitHub's reason, whose case a toast must keep.
 func say(p *core.Problem, v Voice) (text, hint string, named bool) {
