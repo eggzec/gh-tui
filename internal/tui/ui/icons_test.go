@@ -15,7 +15,7 @@ var iconSets = []string{config.IconsNerd, config.IconsUnicode, config.IconsASCII
 func TestIconsAreOneCellWide(t *testing.T) {
 	for _, set := range iconSets {
 		ic := NewIcons(set)
-		glyphs := []string{ic.Fork, ic.Private, ic.Archived, ic.Template, ic.Mirror, ic.Here, ic.Star, ic.Language("")}
+		glyphs := []string{ic.Fork, ic.Private, ic.Archived, ic.Template, ic.Mirror, ic.Here, ic.Star, ic.Error, ic.Language("")}
 		for s := range NumStates {
 			glyphs = append(glyphs, ic.State(s))
 		}
