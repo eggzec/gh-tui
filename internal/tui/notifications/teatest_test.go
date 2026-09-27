@@ -2,6 +2,7 @@ package notifications
 
 import (
 	"bytes"
+	"fmt"
 	"slices"
 	"testing"
 	"time"
@@ -14,10 +15,15 @@ import (
 )
 
 // app hosts the section as the program root, the way the tui would: it
-// hands DoneMsg back to the section and records what it would open.
+// hands DoneMsg back to the section, gives the keys to a question while
+// one is open, and records what it would open.
 type app struct {
 	s      *Section
+	ask    *ui.ConfirmModal
 	opened []string
+	// width is the terminal's, and sent counts the changes GitHub
+	// answered, which the last line shows.
+	width, sent int
 }
 
 func (a *app) Init() tea.Cmd { return a.s.Init() }
@@ -25,12 +31,26 @@ func (a *app) Init() tea.Cmd { return a.s.Init() }
 func (a *app) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		a.s.SetSize(msg.Width, msg.Height)
+		a.width = msg.Width
+		a.s.SetSize(msg.Width, msg.Height-1)
 		return a, nil
 	case tea.KeyPressMsg:
 		if msg.String() == "q" {
 			return a, tea.Quit
 		}
+		if a.ask != nil {
+			return a, a.ask.Update(msg)
+		}
+	case ui.OpenModalMsg:
+		if a.ask, _ = msg.Modal.(*ui.ConfirmModal); a.ask != nil {
+			a.ask.SetSize(a.width, 1)
+		}
+		return a, nil
+	case ui.DoneMsg:
+		a.sent++
+	case ui.CloseModalMsg:
+		a.ask = nil
+		return a, nil
 	case ui.OpenMsg, ui.OpenPullMsg:
 		o, _ := opened(msg)
 		a.opened = append(a.opened, o)
@@ -42,7 +62,15 @@ func (a *app) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return a, a.s.Update(msg)
 }
 
-func (a *app) View() tea.View { return tea.NewView(a.s.View()) }
+// View shows the section over a line that holds the question, or else
+// how many changes were sent.
+func (a *app) View() tea.View {
+	last := fmt.Sprintf("%d sent", a.sent)
+	if a.ask != nil {
+		last = a.ask.View()
+	}
+	return tea.NewView(a.s.View() + "\n" + last)
+}
 
 func TestProgram(t *testing.T) {
 	svc := newFake(inbox()...)
@@ -67,6 +95,9 @@ func TestProgram(t *testing.T) {
 	waitFor("Moderate severity")
 	tm.Send(keyPress("end"))
 	tm.Send(keyPress("d"))
+	waitFor(`Mark "Moderate severity`)
+	tm.Send(keyPress("y"))
+	waitFor("2 sent")
 	tm.Send(keyPress("q"))
 
 	final := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(*app)

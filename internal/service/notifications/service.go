@@ -26,7 +26,6 @@ type Service struct {
 	cache *cache.Cache[page]
 	// kept holds what an earlier session read, if the service has a store.
 	kept *cache.Shelf[page]
-	now  func() time.Time
 	// interval is the latest X-Poll-Interval, in nanoseconds.
 	interval atomic.Int64
 }
@@ -78,6 +77,5 @@ func New(api API, opts ...Option) *Service {
 		api:   api,
 		cache: cache.New[page](o.cache...),
 		kept:  cache.NewShelf[page](o.store, kind, schema),
-		now:   time.Now,
 	}
 }
