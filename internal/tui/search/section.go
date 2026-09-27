@@ -23,6 +23,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/search"
 	"github.com/eggzec/gh-tui/internal/tui/details"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // Service is what the page needs of the search service.
@@ -174,6 +175,8 @@ type Section struct {
 	// glyph of each language, by theme.
 	dots  map[string]string
 	langs map[string]string
+	// links keeps the links of the rows, which are drawn on every frame.
+	links termtext.Links
 	view  string
 }
 
