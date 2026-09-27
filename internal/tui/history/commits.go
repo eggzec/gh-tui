@@ -79,8 +79,11 @@ func (m *Modal) fetchCommits(branch string, stale *atomic.Bool) graph.Fetch {
 		if err != nil {
 			return nil, "", err
 		}
-		if p.Offline {
+		switch {
+		case p.Offline:
 			off.Mark()
+		case p.Limited:
+			off.MarkLimited()
 		}
 		if p.Stale && cursor == "" {
 			stale.Store(true)

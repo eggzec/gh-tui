@@ -46,8 +46,9 @@ type fakeService struct {
 	cached bool
 	// stale makes the first read of the header return it marked stale.
 	stale bool
-	// offline marks every read served offline.
-	offline bool
+	// offline marks every read served offline, and limited served
+	// because of a rate limit.
+	offline, limited bool
 	// fail, when set, fails the read of that kind.
 	fail map[string]error
 
@@ -114,7 +115,7 @@ func (f *fakeService) Header(_ context.Context, q dashboard.HeaderQuery) (core.H
 	h := f.header
 	// A kept header is served stale until a read with Again set.
 	h.Stale = f.stale && !q.Again
-	h.Offline = f.offline
+	h.Offline, h.Limited = f.offline, f.limited
 	f.took("header")
 	return h, nil
 }
@@ -133,7 +134,7 @@ func (f *fakeService) Work(context.Context, dashboard.WorkQuery) (core.Work, err
 	}
 	f.took("work")
 	w := f.work
-	w.Offline = f.offline
+	w.Offline, w.Limited = f.offline, f.limited
 	return w, nil
 }
 

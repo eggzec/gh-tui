@@ -291,6 +291,8 @@ func (s *Section) profile() []string {
 	switch {
 	case s.offlineNow():
 		right = st.warning.render("offline · showing the last visit")
+	case s.limitedNow():
+		right = st.warning.render("rate limited · showing the last visit")
 	case s.updating():
 		right = st.subtle.render("updating…")
 	}
