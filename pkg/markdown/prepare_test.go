@@ -6,6 +6,9 @@ import (
 	"testing"
 )
 
+// full shows a block as it is.
+func full(b Block) string { return b.Full }
+
 func TestPrepare(t *testing.T) {
 	tests := []struct {
 		name, in, want string
@@ -60,10 +63,10 @@ func TestPrepare(t *testing.T) {
 		{
 			name: "tilde fence and a longer close",
 			in:   "~~~\n<!-- c -->\n~~~~\n<!-- gone -->",
-			want: "~~~text\n<!-- c -->\n~~~\n",
+			want: "~~~\n<!-- c -->\n~~~\n",
 		},
-		{name: "unclosed fence runs to the end", in: "```\n<!-- c -->", want: "```text\n<!-- c -->\n```"},
-		{name: "indented fence in a list", in: "- a\n  ```\n  <img src=x>\n  ```", want: "- a\n  ```text\n  <img src=x>\n  ```"},
+		{name: "unclosed fence runs to the end", in: "```\n<!-- c -->", want: "```\n<!-- c -->\n```"},
+		{name: "indented fence in a list", in: "- a\n  ```\n  <img src=x>\n  ```", want: "- a\n  ```\n  <img src=x>\n  ```"},
 		{name: "fence in a comment is hidden", in: "<!--\n```\n-->\nb", want: "\n\n\nb"},
 		{name: "summary with its body on the line", in: "<details><summary>x</summary>body", want: "**▸ x**\n\nbody"},
 		{name: "linked image", in: "[![build](https://x.test/b.svg)](https://x.test/ci)", want: "[🖼 build](https://x.test/ci)"},
@@ -74,11 +77,11 @@ func TestPrepare(t *testing.T) {
 		{name: "alert", in: "> [!NOTE]\n> text", want: "> **ℹ Note**\n> text"},
 		{name: "alert in any case", in: ">[!warning] ", want: ">**⚠ Warning**"},
 		{name: "unknown alert", in: "> [!FOO]", want: "> [!FOO]"},
-		{name: "alert in code", in: "```\n> [!NOTE]\n```", want: "```text\n> [!NOTE]\n```"},
+		{name: "alert in code", in: "```\n> [!NOTE]\n```", want: "```\n> [!NOTE]\n```"},
 		{name: "bidi overrides", in: "a\u202eb", want: "a�b"},
 		{name: "a known language is kept", in: "~~~~ Go title\nx\n~~~~", want: "~~~~go\nx\n~~~~"},
-		{name: "a language that can hang shows plain", in: "```jsonata\n\\\n```", want: "```text\n\\\n```"},
-		{name: "long code shows plain in blocks", in: "```go\n" + strings.Repeat("x\n", 401) + "```", want: "```text\n" + strings.Repeat("x\n", 400) + "```\n```text\nx\n```"},
+		{name: "a fence in pre stays as it is", in: "<pre>\n```go\nx\n```\n</pre>", want: "<pre>\n```go\nx\n```\n</pre>"},
+		{name: "long code shows in blocks", in: "```go\n" + strings.Repeat("x\n", 401) + "```", want: "```go\n" + strings.Repeat("x\n", 400) + "```\n```go\nx\n```"},
 		{name: "long sources are cut", in: strings.Repeat("x\n", 1500), want: strings.Repeat("x\n", 1000) + "\n*⋯ The rest is too long to show here*"},
 		{name: "wide tables are text", in: strings.Repeat("|a", 65), want: strings.Repeat("\\|a", 65)},
 		{name: "tables up to the limit stay", in: strings.Repeat("|a", 64), want: strings.Repeat("|a", 64)},
@@ -94,12 +97,12 @@ func TestPrepare(t *testing.T) {
 		{name: "link item in indented code", in: "    - [x](u)", want: "    - [x](u)"},
 		{name: "link item in pre", in: "<pre>\n- [x](u)\n</pre>", want: "<pre>\n- [x](u)\n</pre>"},
 		{name: "nested link item in a list", in: "- a\n\n    - [x](u)", want: "- a\n\n    - [\u200bx](u)"},
-		{name: "mermaid shows as plain code", in: "```mermaid\ngraph TD\n  A-->B\n```", want: "```text\ngraph TD\n  A-->B\n```"},
-		{name: "code keeps its escapes neutralised", in: "```\n\x1b[2J\n```", want: "```text\n�[2J\n```"},
+		{name: "mermaid shows as code", in: "```mermaid\ngraph TD\n  A-->B\n```", want: "```mermaid\ngraph TD\n  A-->B\n```"},
+		{name: "code keeps its escapes neutralised", in: "```\n\x1b[2J\n```", want: "```\n�[2J\n```"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := prepare(tt.in, nil, ""); got != tt.want {
+			if got := prepare(tt.in, nil, "", full); got != tt.want {
 				t.Errorf("prepare(%q)\n got %q\nwant %q", tt.in, got, tt.want)
 			}
 		})
@@ -111,7 +114,7 @@ func TestPrepare(t *testing.T) {
 func TestTableCellsAreBounded(t *testing.T) {
 	row := "|" + strings.Repeat("a|", 15)
 	kept := maxTableCells / 16
-	got := strings.Split(prepare(lines(kept+2, row), nil, ""), "\n")
+	got := strings.Split(prepare(lines(kept+2, row), nil, "", full), "\n")
 	text := strings.ReplaceAll(row, "|", `\|`)
 	want := append(strings.Split(lines(kept, row), "\n"), "", text, text)
 	if !slices.Equal(got, want) {

@@ -19,13 +19,14 @@ const tabWidth = 4
 // go, a collapsed section shows its summary and its content, and an image
 // becomes a markdown image. Code in backticks is left as it is, and a
 // fenced block shows as its language has it, collapsed unless its index
-// is in open. A source cut at maxLines ends with a note that offers hint,
-// such as how to see the rest, if it isn't empty.
-func prepare(src string, open []int, hint string) string {
+// is in open, and as full has it when it shows in full. A source cut at
+// maxLines ends with a note that offers hint, such as how to see the
+// rest, if it isn't empty.
+func prepare(src string, open []int, hint string, full func(Block) string) string {
 	var out []string
 	scan(src, hint, func(line string) { out = append(out, line) }, func(i int, b Block) {
 		if b.Collapsed == "" || slices.Contains(open, i) {
-			out = append(out, b.Full)
+			out = append(out, full(b))
 			return
 		}
 		// A paragraph of its own.
@@ -47,11 +48,10 @@ func scan(src, hint string, line func(string), block func(int, Block)) {
 	var p htmlState
 	c := codeState{blank: true}
 	var lim bounds
-	b := newBudget()
 	n := 0
 	for i := 0; i < len(lines); i++ {
 		f, ok := openFence(lines[i])
-		if !ok || p.inComment {
+		if !ok || p.inComment || c.holds(lines[i]) {
 			l, end := lim.table(lim.nest(lines[i]))
 			if end {
 				line("")
@@ -70,7 +70,7 @@ func scan(src, hint string, line func(string), block func(int, Block)) {
 				break
 			}
 		}
-		block(n, showBlock(f.lang, strings.Join(lines[i:end+1], "\n"), b))
+		block(n, showBlock(f.lang, strings.Join(lines[i:end+1], "\n")))
 		n++
 		i = end
 	}
@@ -350,6 +350,13 @@ func refs(line string) string {
 // which the rewrites meant for text leave alone.
 type codeState struct {
 	pre, indented, list, blank bool
+}
+
+// holds reports whether line, which looks like a fence, is in such code
+// instead.
+func (c *codeState) holds(line string) bool {
+	indent := len(line) - len(strings.TrimLeft(line, " "))
+	return c.pre || indent >= 4 && (c.indented || c.blank) && !c.list
 }
 
 // in reports whether line, the next line that isn't fenced code, is in

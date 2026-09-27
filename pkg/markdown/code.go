@@ -36,7 +36,8 @@ var highlighted = map[string]bool{
 
 // The code highlighted is at most maxHighlightedBytes long, in at most
 // maxHighlightedLines lines of at most maxHighlightedLine bytes, and its
-// lexer must finish within lexLimit; other code shows plain. A lexer's
+// lexer must finish within lexLimit; other code shows plain, as does code
+// in a quote or deep in a list, which glamour renders on its own. A lexer's
 // time can grow with the square of a line's length or worse: Java's takes
 // seconds on 16 KiB of "a ".
 const (
@@ -47,17 +48,12 @@ const (
 )
 
 // A render highlights at most maxHighlightedBlocks blocks, lexing for at
-// most renderLexLimit in all, since a comment can hold hundreds of blocks
-// and glamour lexes each highlighted one again. The blocks after show
-// plain.
+// most renderLexLimit in all, since a comment can hold hundreds of blocks.
+// The blocks after show plain.
 const (
 	maxHighlightedBlocks = 32
 	renderLexLimit       = 100 * time.Millisecond
 )
-
-// plain is the language that shows code as it is. Without a language,
-// chroma would guess one from the code.
-const plain = "text"
 
 var (
 	lexersOnce sync.Once
@@ -67,9 +63,17 @@ var (
 	lexersByName map[string]chroma.Lexer
 )
 
-// lexer returns the lexer chroma finds for lang if it is highlighted, or
-// nil.
-func lexer(lang string) chroma.Lexer {
+// lexer returns the lexer for code whose fence's info string starts with
+// lang, if lang is highlighted and the code is short enough to be, or nil.
+func lexer(lang, code string) chroma.Lexer {
+	if len(code) > maxHighlightedBytes || strings.Count(code, "\n") >= maxHighlightedLines {
+		return nil
+	}
+	for l := range strings.SplitSeq(code, "\n") {
+		if len(l) > maxHighlightedLine {
+			return nil
+		}
+	}
 	lexersOnce.Do(func() {
 		lexersByName = make(map[string]chroma.Lexer)
 		for _, l := range lexers.GlobalLexerRegistry.Lexers {
@@ -83,14 +87,7 @@ func lexer(lang string) chroma.Lexer {
 			}
 		}
 	})
-	if lexersByName[strings.ToLower(lang)] == nil {
-		return nil
-	}
-	// The lexer glamour will use, which a name is known to find quickly.
-	if l := lexers.Get(lang); l != nil && highlighted[l.Config().Name] {
-		return l
-	}
-	return nil
+	return lexersByName[strings.ToLower(lang)]
 }
 
 // budget is what a render has left to highlight with.
@@ -103,51 +100,31 @@ func newBudget() *budget {
 	return &budget{time: renderLexLimit, blocks: maxHighlightedBlocks}
 }
 
-// highlightAs returns the language to highlight code in, from the first
-// word of its fence's info string: lang, or plain.
-func highlightAs(lang, code string, b *budget) string {
-	if b.blocks <= 0 || b.time <= 0 {
-		return plain
-	}
-	if len(code) > maxHighlightedBytes || strings.Count(code, "\n") >= maxHighlightedLines {
-		return plain
-	}
-	for l := range strings.SplitSeq(code, "\n") {
-		if len(l) > maxHighlightedLine {
-			return plain
-		}
-	}
-	l := lexer(lang)
-	if l == nil || !check(l, code, b) {
-		return plain
-	}
-	return lang
-}
-
-// check reports whether l tokenises code quickly enough to highlight it,
-// and takes what glamour will spend lexing it again from b.
-func check(l chroma.Lexer, code string, b *budget) bool {
+// tokens returns the tokens of code, if l tokenises it quickly enough and
+// b has room for it, and takes the time it took from b. It is the only
+// way code reaches chroma: glamour's own highlighting is off.
+func tokens(l chroma.Lexer, code string, b *budget) ([]chroma.Token, bool) {
 	k := verdictKey{lexer: l.Config().Name, code: maphash.String(verdictSeed, code)}
-	v, ok := verdictOf(k)
-	if !ok {
-		limit := min(lexLimit, b.time/2)
-		v, ok = finishes(l, code, limit)
-		if !ok {
-			return false
-		}
-		b.time -= v.took
-		// A lexer cut short by what the render had left may finish in
-		// another.
-		if v.done || limit == lexLimit {
-			remember(k, v)
-		}
+	v, known := verdictOf(k)
+	if known && !v.done || b.blocks <= 0 || b.time <= 0 {
+		return nil, false
 	}
-	if !v.done {
-		return false
+	limit := min(lexLimit, b.time)
+	toks, v, ok := lex(l, code, limit)
+	if !ok {
+		return nil, false
 	}
 	b.time -= v.took
+	// A lexer cut short by what the render had left may finish in
+	// another.
+	if v.done || limit == lexLimit {
+		remember(k, v)
+	}
+	if !v.done {
+		return nil, false
+	}
 	b.blocks--
-	return true
+	return toks, true
 }
 
 // verdict is whether a lexer finished on some code within lexLimit, and
@@ -170,7 +147,7 @@ var (
 	verdictsMu  sync.Mutex
 	// verdicts keeps each verdict for as long as the process runs, so
 	// code a lexer overran on shows plain at every width without running
-	// it again, and code it finished on is lexed once by glamour alone.
+	// it again.
 	verdicts map[verdictKey]verdict
 )
 
@@ -195,72 +172,35 @@ func remember(k verdictKey, v verdict) {
 // be never; while it does, code shows plain rather than start another.
 var lexing = make(chan struct{}, 1)
 
-// finishes runs l on code and reports whether it finished within limit,
+// lex runs l on code and returns its tokens if it finished within limit,
 // or false for ok if a lexer that overran earlier still runs.
-func finishes(l chroma.Lexer, code string, limit time.Duration) (v verdict, ok bool) {
+func lex(l chroma.Lexer, code string, limit time.Duration) (toks []chroma.Token, v verdict, ok bool) {
 	select {
 	case lexing <- struct{}{}:
 	default:
-		return verdict{}, false
+		return nil, verdict{}, false
 	}
 	start := time.Now()
-	done := make(chan bool, 1)
+	type result struct {
+		toks []chroma.Token
+		err  error
+	}
+	done := make(chan result, 1)
 	go func() {
-		ok := tokenise(l, code)
+		var r result
+		var it chroma.Iterator
+		if it, r.err = l.Tokenise(nil, code); r.err == nil {
+			r.toks = it.Tokens()
+		}
 		<-lexing
-		done <- ok
+		done <- r
 	}()
 	timer := time.NewTimer(limit)
 	defer timer.Stop()
 	select {
-	case ok := <-done:
-		return verdict{done: ok, took: time.Since(start)}, true
+	case r := <-done:
+		return r.toks, verdict{done: r.err == nil, took: time.Since(start)}, true
 	case <-timer.C:
-		return verdict{took: limit}, true
+		return nil, verdict{took: limit}, true
 	}
-}
-
-// tokenise runs l on code to the end and reports whether it could.
-func tokenise(l chroma.Lexer, code string) bool {
-	it, err := l.Tokenise(nil, code)
-	if err != nil {
-		return false
-	}
-	t := it()
-	for t != chroma.EOF {
-		t = it()
-	}
-	return true
-}
-
-// withLang returns the fenced block src with the info string of its
-// opening fence set to the language that highlights it, and closed. Code
-// longer than maxHighlightedLines shows as blocks of that many lines,
-// since glamour's time grows with the square of a block's length.
-func withLang(lang, src string, b *budget) string {
-	lines := strings.Split(src, "\n")
-	f, ok := openFence(lines[0])
-	if !ok {
-		return src
-	}
-	fence := lines[0][:len(lines[0])-len(strings.TrimLeft(lines[0], " "))] + strings.Repeat(string(f.char), f.n)
-	body := lines[1:]
-	if n := len(body); n > 0 && f.closedBy(body[n-1]) {
-		body = body[:n-1]
-	}
-	lang = highlightAs(lang, strings.Join(body, "\n"), b)
-	var out strings.Builder
-	for out.Len() == 0 || len(body) > 0 {
-		n := min(len(body), maxHighlightedLines)
-		if out.Len() > 0 {
-			out.WriteByte('\n')
-		}
-		out.WriteString(fence + lang + "\n")
-		for _, l := range body[:n] {
-			out.WriteString(l + "\n")
-		}
-		out.WriteString(fence)
-		body = body[n:]
-	}
-	return out.String()
 }
