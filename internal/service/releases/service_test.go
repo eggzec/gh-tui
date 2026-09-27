@@ -111,9 +111,19 @@ func TestGetOffline(t *testing.T) {
 		s := New(api, WithTTL(time.Minute))
 		get(t, s)
 		time.Sleep(time.Minute)
-		api.err = &github.Error{StatusCode: http.StatusBadGateway}
-		if r := get(t, s); r.Tag != "v3.0.0" {
-			t.Errorf("Get while GitHub is down = %+v, want the cached release", r)
+		// A release has no flags to mark; it is served as it is.
+		for _, err := range []error{&github.Error{StatusCode: http.StatusBadGateway}, &core.RateLimitError{Reset: time.Now().Add(time.Hour)}} {
+			api.err = err
+			if r, err := s.Get(t.Context(), repo, v3.ID); err != nil || r.Tag != "v3.0.0" {
+				t.Errorf("Get while GitHub fails = %+v, %v; want the cached release", r, err)
+			}
+		}
+		api.err = nil
+		if r, err := s.Get(t.Context(), repo, v3.ID); err != nil || r.Tag != "v3.0.0" {
+			t.Errorf("Get after the outage = %+v, %v; want the release", r, err)
+		}
+		if conds := api.calls(); conds[len(conds)-1].ETag != `"r1"` {
+			t.Errorf("the read after the outage asked with %+v, want the release's ETag", conds[len(conds)-1])
 		}
 	})
 }
