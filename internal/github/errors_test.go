@@ -332,6 +332,7 @@ func TestErrorKindsOffline(t *testing.T) {
 		t.Fatal(err)
 	}
 	for name, c := range map[string]*Client{"dial": dial, "tls": untrusted, "timeout": impatient} {
+		retryAtOnce(c)
 		t.Run(name, func(t *testing.T) {
 			_, err := c.Get(t.Context(), "user", Conditional{}, nil)
 			if !errors.Is(err, core.ErrOffline) {

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
@@ -67,7 +68,8 @@ func (e *GraphQLError) Unwrap() []error {
 
 // Query runs a GraphQL query or mutation and decodes its data into v. If
 // GitHub returns errors along with data, v holds the partial data and the
-// error is a *GraphQLError.
+// error is a *GraphQLError. A query that fails for a moment is sent again,
+// and a mutation only if it never reached GitHub.
 func (c *Client) Query(ctx context.Context, query string, vars map[string]any, v any) error {
 	if err := c.query(ctx, query, vars, v); err != nil {
 		return fmt.Errorf("graphql: %w", err)
@@ -76,7 +78,7 @@ func (c *Client) Query(ctx context.Context, query string, vars map[string]any, v
 }
 
 func (c *Client) query(ctx context.Context, query string, vars map[string]any, v any) error {
-	cl := &call{op: operation(query)}
+	cl := &call{op: operation(query), query: readOnly(query)}
 	if owner, ok := vars["owner"].(string); ok {
 		if name, ok := vars["name"].(string); ok {
 			cl.repo = owner + "/" + name
@@ -177,6 +179,23 @@ func operation(query string) string {
 	}
 	// A query may leave out its type.
 	return "query"
+}
+
+// readOnly reports whether the GraphQL document query is a query, which
+// only reads: its operation type is query, or it is the shorthand {…}.
+// Whatever else it is, such as a mutation, counts as a write, so that it
+// is never sent twice.
+func readOnly(query string) bool {
+	q := strings.TrimLeft(query, " \t\r\n")
+	if strings.HasPrefix(q, "{") {
+		return true
+	}
+	rest, ok := strings.CutPrefix(q, "query")
+	if !ok {
+		return false
+	}
+	r, _ := utf8.DecodeRuneInString(rest)
+	return rest == "" || r != '_' && !unicode.IsLetter(r) && !unicode.IsDigit(r)
 }
 
 // graphqlError builds the error of a response with errors. partial says
