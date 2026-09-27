@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -45,6 +46,10 @@ func listed(f *finderModal) []string {
 	var out []string
 	for l := range strings.SplitSeq(ansi.Strip(f.find.View()), "\n") {
 		l = strings.TrimSpace(strings.TrimPrefix(l, "▌"))
+		// A Nerd Font glyph marks the type of the file.
+		if r, n := utf8.DecodeRuneInString(l); r >= 0xe000 && r <= 0xf8ff {
+			l = strings.TrimSpace(l[n:])
+		}
 		for _, p := range sampleFiles {
 			if strings.HasPrefix(l, p) {
 				out = append(out, p)
@@ -352,6 +357,16 @@ func TestViewFinder(t *testing.T) {
 			assertFits(t, v, tt.width, tt.height)
 			golden.RequireEqual(t, v)
 		})
+	}
+}
+
+func TestViewFinderFitsNarrowWidths(t *testing.T) {
+	h := newHost(loaded(t, sampleFake(), 40, 12, fast))
+	f := findIn(t, h)
+	h.keys("m", "d")
+	for w := 4; w <= 120; w++ {
+		f.SetSize(w, 8)
+		assertFits(t, f.View(), w, 8)
 	}
 }
 

@@ -78,6 +78,10 @@ type Section struct {
 	focused       bool
 	theme         ui.Theme
 	styles        tree.Styles
+	// icons are the glyphs of files, and fileIcons renders them in the
+	// theme.
+	icons     ui.Icons
+	fileIcons *fileIcons
 	// blank is the rendered state shown before a repository is selected,
 	// and hint what it tells the user to do.
 	blank string
@@ -92,6 +96,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		svc:     svc,
 		keys:    newKeyMap(keys),
 		styles:  tree.DefaultStyles(true),
+		icons:   ui.NewIcons(config.IconsNerd),
 		offline: new(ui.Offline),
 		seen:    obs.NewPrefetched[filesvc.BlobQuery]("file"),
 		// The finder shows a preview where it fits, unless told not to.
@@ -101,6 +106,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 	for _, opt := range opts {
 		opt(s)
 	}
+	s.fileIcons = newFileIcons(s.icons, s.theme)
 	s.hint = "Search for a repository to browse its files."
 	if k := ui.Binding(keys, config.ActionSearch, "search").Help().Key; k != "" {
 		s.hint = "Press " + k + " to search for one."
@@ -128,6 +134,7 @@ func (s *Section) newTree(repo core.RepoRef, ref string) {
 		tree.WithSize(s.width, s.height),
 		tree.WithFocused(s.focused),
 		tree.WithEmptyText("This repository is empty."),
+		tree.WithIcons(s.fileIcons.node),
 	)
 	s.repo, s.ref, s.tree, s.src, s.started = repo, ref, &t, src, false
 	s.treeCtx, s.cancelTree = ctx, cancel
@@ -421,12 +428,14 @@ func (s *Section) SetSize(width, height int) {
 	s.renderBlank()
 }
 
-// SetTheme styles the tree.
+// SetTheme styles the tree and its icons.
 func (s *Section) SetTheme(t ui.Theme) {
 	s.theme = t
 	s.styles = t.Tree()
+	s.fileIcons = newFileIcons(s.icons, t)
 	if s.tree != nil {
 		s.tree.SetStyles(s.styles)
+		s.tree.SetIcons(s.fileIcons.node)
 	}
 	s.renderBlank()
 }

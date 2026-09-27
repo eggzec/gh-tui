@@ -103,7 +103,10 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 	// Links go to the pages of the session's host.
 	webHost := client.WebHost()
 	icons := ui.NewIcons(cfg.UI.Icons)
-	fileOpts := []files.Option{files.WithOffline(offline), files.WithFinderPreview(cfg.Files.Finder.Preview), files.WithHost(webHost)}
+	fileOpts := []files.Option{
+		files.WithOffline(offline), files.WithIcons(icons), files.WithFinderPreview(cfg.Files.Finder.Preview),
+		files.WithHost(webHost),
+	}
 	if p := cfg.Files.Prefetch; p.Enabled {
 		fileOpts = append(fileOpts,
 			files.WithPrefetch(int64(p.MaxSize)),
