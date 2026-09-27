@@ -53,9 +53,11 @@ const (
 	ActionBack   = "back"
 	// ActionFilter opens the filter modal of the focused list where it
 	// has one, such as the notifications or the repositories of the
-	// dashboard. ActionClearFilter puts the filters of a list back to its
-	// defaults.
+	// dashboard, on its Filters tab, and ActionSort opens it on its Sort
+	// tab, in a list that can be sorted. ActionClearFilter puts the
+	// filters of a list back to its defaults.
 	ActionFilter      = "filter"
+	ActionSort        = "sort"
 	ActionClearFilter = "clear_filter"
 	ActionMerge       = "merge"
 	ActionClose       = "close"
@@ -64,9 +66,12 @@ const (
 	ActionMarkRead    = "mark_read"
 	ActionMarkDone    = "mark_done"
 	ActionMarkAllRead = "mark_all_read"
-	ActionStar        = "star"
-	ActionComment     = "comment"
-	ActionLabel       = "label"
+	// ActionStar will star the repository, or unstar it. It is reserved,
+	// with its key, until starring is wired in the tui, and does nothing
+	// yet.
+	ActionStar    = "star"
+	ActionComment = "comment"
+	ActionLabel   = "label"
 	// Actions of the file tree.
 	ActionExpand      = "expand"
 	ActionCollapse    = "collapse"
@@ -141,6 +146,7 @@ func defaultKeys() map[string][]string {
 		ActionSelect:      {"enter"},
 		ActionBack:        {"esc"},
 		ActionFilter:      {"f"},
+		ActionSort:        {"s"},
 		ActionClearFilter: {"F"},
 		ActionMerge:       {"m"},
 		ActionClose:       {"x"},
@@ -149,7 +155,7 @@ func defaultKeys() map[string][]string {
 		ActionMarkRead:    {"m"},
 		ActionMarkDone:    {"d"},
 		ActionMarkAllRead: {"M"},
-		ActionStar:        {"s"},
+		ActionStar:        {"S"},
 		ActionComment:     {"c"},
 		ActionLabel:       {"l"},
 		ActionExpand:      {"+"},
