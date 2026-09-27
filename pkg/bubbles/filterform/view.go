@@ -13,12 +13,23 @@ const gutterWidth = 2
 // labelGap is the space between the label column and the values.
 const labelGap = 2
 
-// View renders the form at exactly its width and height: the rows, with
-// the open editor under its row, then a rule, the query and the help line.
+// View renders the form at exactly its width and height: the tabs, if it
+// has them, the rows of the tab on view, with the open editor under its
+// row, then a rule, the query and the help line.
 func (m Model) View() string { return m.view }
 
+// orderLabel names the row of the order on the Sort tab.
+const orderLabel = "Order"
+
+// Arrows before the names of the orders.
+const (
+	descArrow = "↓ "
+	ascArrow  = "↑ "
+)
+
 // labelWidth returns the width of the label column, which shrinks to a
-// quarter of the width.
+// quarter of the width. Both tabs share it, so the values don't move when
+// the tab changes.
 func (m *Model) labelWidth() int {
 	if m.lw.width == m.width && m.lw.set {
 		return m.lw.label
@@ -28,7 +39,7 @@ func (m *Model) labelWidth() int {
 		w = max(w, ansi.StringWidth(m.spec.Fields[i].Label))
 	}
 	if m.spec.Sort != nil {
-		w = max(w, ansi.StringWidth(m.spec.Sort.Label))
+		w = max(w, ansi.StringWidth(m.spec.Sort.Label), ansi.StringWidth(orderLabel))
 	}
 	m.lw.label, m.lw.width, m.lw.set = min(w, max((m.width-gutterWidth)/4, 4)), m.width, true
 	return m.lw.label
@@ -60,25 +71,34 @@ func (m *Model) render() {
 	m.layoutInputs()
 
 	query := m.queryLines(w)
-	var helpLine string
+	var helpLine, tabLine string
 	if m.helpLine {
 		helpLine = m.helpView(w)
+	}
+	if m.tabBar && m.tabbed() {
+		tabLine = m.tabLine(w)
 	}
 	if m.glyphs.ruleWidth != w {
 		m.glyphs.rule, m.glyphs.ruleWidth = m.styles.Rule.Render(strings.Repeat(ruleGlyph, w)), w
 	}
 	rule := m.glyphs.rule
-	// Give the rows at least a line: drop the help, the query's second
-	// line, then the rule.
+	// Give the rows at least a line: drop the help, the tabs, the query's
+	// second line, then the rule.
 	bottomLen := func() int {
 		n := 1 + len(query)
 		if helpLine != "" {
+			n++
+		}
+		if tabLine != "" {
 			n++
 		}
 		return n
 	}
 	if h-bottomLen() < 1 {
 		helpLine = ""
+	}
+	if h-bottomLen() < 1 {
+		tabLine = ""
 	}
 	if h-bottomLen() < 1 && len(query) > 1 {
 		query = query[:1]
@@ -90,11 +110,17 @@ func (m *Model) render() {
 	if helpLine != "" {
 		n--
 	}
+	if tabLine != "" {
+		n--
+	}
 	if rule != "" {
 		n--
 	}
 
 	lines := make([]string, 0, h)
+	if tabLine != "" {
+		lines = append(lines, tabLine)
+	}
 	lines = m.appendRows(lines, w, max(n, 0))
 	if rule != "" {
 		lines = append(lines, rule)
@@ -104,6 +130,29 @@ func (m *Model) render() {
 		lines = append(lines, helpLine)
 	}
 	m.view = strings.Join(lines[:min(len(lines), h)], "\n")
+}
+
+// tabLine renders the names of the tabs, the one on view in the active
+// style, the others muted.
+func (m *Model) tabLine(w int) string {
+	if c := &m.cache.tabs; c.ok && c.tab == m.tab && c.width == w {
+		return c.line
+	}
+	var b strings.Builder
+	b.WriteString("  ")
+	for i, name := range tabNames {
+		if i > 0 {
+			b.WriteString(m.styles.Tab.Render(" · "))
+		}
+		st := m.styles.Tab
+		if Tab(i) == m.tab {
+			st = m.styles.ActiveTab
+		}
+		b.WriteString(st.Render(name))
+	}
+	line := fit(b.String(), w)
+	m.cache.tabs = tabCache{ok: true, tab: m.tab, width: w, line: line}
+	return line
 }
 
 // layoutInputs sizes the text inputs and the picker to the current width.
@@ -166,10 +215,13 @@ func (m *Model) rowLines(r, w int) []string {
 	focused := m.focused && r == m.row
 	lw := m.labelWidth()
 	var label string
-	if r == m.sortRow() {
-		label = m.spec.Sort.Label
-	} else {
+	switch {
+	case m.tab == FiltersTab:
 		label = m.spec.Fields[r].Label
+	case r == sortByRow:
+		label = m.spec.Sort.Label
+	default:
+		label = orderLabel
 	}
 	var b strings.Builder
 	if focused {
@@ -190,8 +242,8 @@ func (m *Model) rowLines(r, w int) []string {
 		return []string{fit(first, w)}
 	}
 	var segs []string
-	if r == m.sortRow() {
-		segs = m.sortSegments(focused)
+	if m.tab == SortTab {
+		segs = m.sortSegments(r, focused)
 	} else {
 		segs = m.fieldSegments(r, focused, vw)
 	}
@@ -216,15 +268,7 @@ func (m *Model) fieldSegments(i int, focused bool, vw int) []string {
 	case Choice:
 		segs := make([]string, len(f.Options))
 		for j, opt := range f.Options {
-			label := opt.Label
-			switch {
-			case opt.Value == v.text && focused:
-				segs[j] = s.Active.Render(onGlyph + " " + label)
-			case opt.Value == v.text:
-				segs[j] = s.Selected.Render(onGlyph + " " + label)
-			default:
-				segs[j] = s.Option.Render(offGlyph + " " + label)
-			}
+			segs[j] = m.radio(opt.Label, opt.Value == v.text, focused)
 		}
 		return segs
 	case Toggle:
@@ -295,17 +339,43 @@ func (m *Model) loadSegment(i int) []string {
 	}
 }
 
-func (m *Model) sortSegments(focused bool) []string {
-	sf, so, s := m.spec.Sort, m.state.sort, m.styles
-	by := labelOf(sf.Options, so.By)
-	dir := sf.Asc
-	if so.Desc {
-		dir = sf.Desc
+// radio renders an option of a choice: marked when on, and in the active
+// style when on in the row in focus.
+func (m *Model) radio(label string, on, focused bool) string {
+	switch {
+	case on && focused:
+		return m.styles.Active.Render(onGlyph + " " + label)
+	case on:
+		return m.styles.Selected.Render(onGlyph + " " + label)
+	default:
+		return m.styles.Option.Render(offGlyph + " " + label)
 	}
-	if focused {
-		return []string{s.Active.Render(by) + " " + s.Option.Render(dropGlyph), s.Selected.Render(dir)}
+}
+
+// sortSegments renders the parts of row r of the Sort tab: the options
+// sorted by, or the orders of the one chosen.
+func (m *Model) sortSegments(r int, focused bool) []string {
+	sf, so := m.spec.Sort, m.state.sort
+	if r == sortByRow {
+		segs := make([]string, len(sf.Options))
+		for j, opt := range sf.Options {
+			segs[j] = m.radio(opt.Label, opt.Value == so.By, focused)
+		}
+		return segs
 	}
-	return []string{s.Selected.Render(by) + " " + s.Option.Render(dropGlyph), s.Option.Render(dir)}
+	i := sf.index(so.By)
+	if so.By == "" || i < 0 {
+		label := "this sort"
+		if i >= 0 {
+			label = sf.Options[i].Label
+		}
+		return []string{m.styles.Hint.Render("none for " + strings.ToLower(label))}
+	}
+	opt := sf.Options[i]
+	return []string{
+		m.radio(descArrow+opt.Desc, so.Desc, focused),
+		m.radio(ascArrow+opt.Asc, !so.Desc, focused),
+	}
 }
 
 // editorLines renders the open editor of the row in focus: its picker, or
@@ -451,9 +521,11 @@ func fit(s string, width int) string {
 // is safe since an entry is only used when its key matches; SetStyles
 // replaces the whole cache.
 type renderCache struct {
-	rows  []rowCache
+	// rows holds the rows of each tab.
+	rows  [numTabs][]rowCache
 	query queryCache
 	help  helpCache
+	tabs  tabCache
 }
 
 type rowCache struct {
@@ -484,6 +556,13 @@ type queryCache struct {
 	lines []string
 }
 
+type tabCache struct {
+	ok    bool
+	tab   Tab
+	width int
+	line  string
+}
+
 type helpCache struct {
 	ok    bool
 	key   string
@@ -495,7 +574,7 @@ type helpCache struct {
 // changed. A row that shows a text input or a spinner is always rendered.
 func (m *Model) cachedRowLines(r, w int) []string {
 	k := rowKey{ok: true, width: w, focused: m.focused && r == m.row, editing: m.editing && r == m.row}
-	if r == m.sortRow() {
+	if m.tab == SortTab {
 		k.text, k.desc = m.state.sort.By, m.state.sort.Desc
 	} else {
 		v, fs := m.state.values[r], m.fields[r]
@@ -505,13 +584,14 @@ func (m *Model) cachedRowLines(r, w int) []string {
 		k.text, k.list, k.on = v.text, strings.Join(v.list, "\x00"), v.on
 		k.chip, k.items, k.state = fs.chip, len(fs.items), fs.state
 	}
-	if len(m.cache.rows) != m.queryRow() {
-		m.cache.rows = make([]rowCache, m.queryRow())
+	rows := &m.cache.rows[m.tab]
+	if len(*rows) != m.queryRow() {
+		*rows = make([]rowCache, m.queryRow())
 	}
-	if c := m.cache.rows[r]; c.key == k {
+	if c := (*rows)[r]; c.key == k {
 		return c.lines
 	}
 	lines := m.rowLines(r, w)
-	m.cache.rows[r] = rowCache{key: k, lines: lines}
+	(*rows)[r] = rowCache{key: k, lines: lines}
 	return lines
 }

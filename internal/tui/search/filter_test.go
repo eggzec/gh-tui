@@ -52,11 +52,8 @@ func TestFilterSpecs(t *testing.T) {
 // TestFilterSorts checks that choosing a sort of repositories sorts the
 // way GitHub's results are best read: most first.
 func TestFilterSorts(t *testing.T) {
-	form := filterform.New(spec(core.SearchRepos, "tea"), filterform.WithQuery("tea"))
+	form := filterform.New(spec(core.SearchRepos, "tea"), filterform.WithQuery("tea"), filterform.WithTab(filterform.SortTab))
 	form.Focus()
-	for range 6 {
-		form, _ = form.Update(keyPress("down"))
-	}
 	form, _ = form.Update(keyPress("right"))
 	if got := form.Query(); got != "sort:stars-desc tea" {
 		t.Errorf("choosing the stars wrote %q, want them descending", got)

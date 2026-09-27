@@ -20,6 +20,7 @@ func TestUpdate(t *testing.T) {
 		// after is pressed after typed.
 		after     []tea.Msg
 		wantQuery string
+		wantTab   Tab
 		wantRow   int
 	}{
 		{
@@ -45,21 +46,68 @@ func TestUpdate(t *testing.T) {
 			wantRow:   rowDrafts,
 		},
 		{
-			name: "left flips a toggle too", keys: step{shiftTab, shiftTab, shiftTab, shiftTab, left, left},
+			name: "left flips a toggle too", keys: step{shiftTab, shiftTab, shiftTab, left, left},
 			wantQuery: prDefaults, wantRow: rowDrafts,
 		},
 		{
-			name: "x turns a toggle off", query: "-is:draft", keys: step{up, up, up, up, keyX},
+			name: "x turns a toggle off", query: "-is:draft", keys: step{up, up, up, keyX},
 			wantQuery: "sort:updated-desc", wantRow: rowDrafts,
 		},
 		{
-			name: "right sorts by the next option", keys: append(keys(down, rowSort), right),
-			wantQuery: strings.Replace(prDefaults, "sort:updated-desc", "sort:created-desc", 1),
-			wantRow:   rowSort,
+			name: "] shows the sort", keys: step{down, nextTab},
+			wantQuery: prDefaults, wantTab: SortTab, wantRow: sortByRow,
 		},
 		{
-			name: "space flips the sort", keys: append(keys(down, rowSort), space),
-			wantQuery: strings.Replace(prDefaults, "desc", "asc", 1), wantRow: rowSort,
+			name: "] wraps back to the filters", keys: step{nextTab, down, nextTab},
+			wantQuery: prDefaults, wantTab: FiltersTab, wantRow: rowState,
+		},
+		{
+			name: "[ goes back to the filters", keys: step{nextTab, prevTab},
+			wantQuery: prDefaults, wantTab: FiltersTab, wantRow: rowState,
+		},
+		{
+			name: "right sorts by the next option", keys: step{nextTab, right},
+			wantQuery: strings.Replace(prDefaults, "sort:updated-desc", "sort:created-desc", 1),
+			wantTab:   SortTab, wantRow: sortByRow,
+		},
+		{
+			name: "left wraps to the last option", keys: step{nextTab, left},
+			wantQuery: strings.Replace(prDefaults, "sort:updated-desc", "sort:comments-desc", 1),
+			wantTab:   SortTab, wantRow: sortByRow,
+		},
+		{
+			name: "space sorts by the next option", keys: step{nextTab, space, space},
+			wantQuery: strings.Replace(prDefaults, "sort:updated-desc", "sort:comments-desc", 1),
+			wantTab:   SortTab, wantRow: sortByRow,
+		},
+		{
+			name: "right flips the order", keys: step{nextTab, down, right},
+			wantQuery: strings.Replace(prDefaults, "desc", "asc", 1), wantTab: SortTab, wantRow: sortOrderRow,
+		},
+		{
+			name: "space flips the order", keys: step{nextTab, tab, space, space, space},
+			wantQuery: strings.Replace(prDefaults, "desc", "asc", 1), wantTab: SortTab, wantRow: sortOrderRow,
+		},
+		{
+			name: "the next option sorts in its own order", keys: step{nextTab, down, right, up, right},
+			wantQuery: strings.Replace(prDefaults, "sort:updated-desc", "sort:created-desc", 1),
+			wantTab:   SortTab, wantRow: sortByRow,
+		},
+		{
+			name: "x clears nothing on the sort", keys: step{nextTab, keyX, down, keyX},
+			wantQuery: prDefaults, wantTab: SortTab, wantRow: sortOrderRow,
+		},
+		{
+			name: "r on the sort resets only the sort", query: "is:closed sort:comments-asc fix", keys: step{nextTab, keyR},
+			wantQuery: "is:closed sort:updated-desc fix", wantTab: SortTab,
+		},
+		{
+			name: "r on the filters resets only the filters", query: "is:closed sort:comments-asc fix", keys: step{keyR},
+			wantQuery: strings.Replace(prDefaults, "sort:updated-desc", "sort:comments-asc", 1),
+		},
+		{
+			name: "up on the sort wraps to the query line", keys: step{nextTab, up},
+			typed: " ]", wantQuery: prDefaults + " ]", wantTab: SortTab, wantRow: sortRows,
 		},
 		{
 			name: "x removes the last chip", keys: step{down, down, down, keyX},
@@ -135,8 +183,8 @@ func TestUpdate(t *testing.T) {
 			if got := m.Query(); got != tt.wantQuery {
 				t.Errorf("Query = %q, want %q", got, tt.wantQuery)
 			}
-			if m.row != tt.wantRow {
-				t.Errorf("row = %d, want %d", m.row, tt.wantRow)
+			if m.Tab() != tt.wantTab || m.row != tt.wantRow {
+				t.Errorf("tab, row = %v, %d, want %v, %d", m.Tab(), m.row, tt.wantTab, tt.wantRow)
 			}
 			if m.editing {
 				t.Error("an editor is still open")

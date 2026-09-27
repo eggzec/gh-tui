@@ -9,7 +9,8 @@ import (
 // and written to the query, and an optional sort.
 type Spec struct {
 	Fields []Field
-	// Sort adds a sort row after the fields. Nil leaves it out.
+	// Sort adds a Sort tab after the Filters tab. Nil leaves it out, and
+	// the form has no tabs.
 	Sort *SortField
 }
 
@@ -116,20 +117,36 @@ type Sort struct {
 	Desc bool
 }
 
-// SortField declares the sort row. It writes sort:<by>-desc or
-// sort:<by>-asc, or nothing for an option with an empty value, and claims
-// sort: tokens with one of its options.
+// SortField declares the Sort tab: a row for what the list is sorted by,
+// and one for the order. It writes sort:<by>-desc or sort:<by>-asc, or
+// nothing for an option with an empty value, and claims sort: tokens with
+// one of its options.
 type SortField struct {
-	// Label is shown in the left column. The default is "Sort".
+	// Label names the row of what is sorted by. The default is "Sort by".
 	Label string
 	// Options are what can be sorted by, such as updated, created and
 	// comments.
-	Options []Item
-	// Desc and Asc label the directions. The defaults are "↓ descending"
-	// and "↑ ascending".
-	Desc, Asc string
+	Options []SortOption
 	// Default is the sort the form starts with and resets to.
 	Default Sort
+}
+
+// SortOption is one thing a list can be sorted by.
+type SortOption struct {
+	// Label is what the form shows.
+	Label string
+	// Value is what the form writes after sort:, such as updated. The
+	// empty value writes no sort, which suits "Best match", and has no
+	// order.
+	Value string
+	// Desc and Asc name the orders, such as "Newest first" and "Oldest
+	// first", after an arrow the form draws. The defaults are "Descending"
+	// and "Ascending".
+	Desc, Asc string
+	// Ascending is the order the option sorts in once it is chosen, such
+	// as names from A. Without it, it sorts descending, the latest or the
+	// most first.
+	Ascending bool
 }
 
 func (s Spec) clone() Spec {
@@ -143,13 +160,16 @@ func (s Spec) clone() Spec {
 		sf := *s.Sort
 		sf.Options = slices.Clone(sf.Options)
 		if sf.Label == "" {
-			sf.Label = "Sort"
+			sf.Label = "Sort by"
 		}
-		if sf.Desc == "" {
-			sf.Desc = "↓ descending"
-		}
-		if sf.Asc == "" {
-			sf.Asc = "↑ ascending"
+		for i := range sf.Options {
+			o := &sf.Options[i]
+			if o.Desc == "" {
+				o.Desc = "Descending"
+			}
+			if o.Asc == "" {
+				o.Asc = "Ascending"
+			}
 		}
 		out.Sort = &sf
 	}

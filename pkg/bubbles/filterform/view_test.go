@@ -22,6 +22,8 @@ func TestView(t *testing.T) {
 		opts    []Option
 		keys    []tea.Msg
 		typed   string
+		// spec, when set, is the form's spec in place of prSpec.
+		spec func(Loader) Spec
 	}{
 		{name: "defaults 60", width: 60, height: 12},
 		{name: "defaults 100", width: 100, height: 12},
@@ -39,6 +41,19 @@ func TestView(t *testing.T) {
 		{name: "no help", width: 60, height: 10, opts: []Option{WithHelpLine(false)}},
 		{name: "loading", width: 60, height: 12, block: true, keys: []tea.Msg{down, down, down}},
 		{name: "light", width: 60, height: 12, opts: []Option{WithStyles(DefaultStyles(false))}},
+		{name: "filters 80", width: 80, height: 12},
+		{name: "filters 120", width: 120, height: 12},
+		{name: "filters 80 light", width: 80, height: 12, opts: []Option{WithStyles(DefaultStyles(false))}},
+		{name: "filters 120 light", width: 120, height: 12, opts: []Option{WithStyles(DefaultStyles(false))}},
+		{name: "sort 80", width: 80, height: 12, opts: []Option{WithTab(SortTab)}},
+		{name: "sort 120", width: 120, height: 12, opts: []Option{WithTab(SortTab)}},
+		{name: "sort 80 light", width: 80, height: 12, opts: []Option{WithTab(SortTab), WithStyles(DefaultStyles(false))}},
+		{name: "sort 120 light", width: 120, height: 12, opts: []Option{WithTab(SortTab), WithStyles(DefaultStyles(false))}},
+		{name: "sort order", width: 80, height: 12, query: "sort:comments-asc", opts: []Option{WithTab(SortTab)}, keys: []tea.Msg{down}},
+		{name: "sort best match", width: 80, height: 12, spec: searchSpec, opts: []Option{WithTab(SortTab)}, keys: []tea.Msg{down}},
+		{name: "sort after next tab", width: 80, height: 12, keys: []tea.Msg{nextTab}},
+		{name: "single tab 80", width: 80, height: 10, spec: noSortSpec, opts: []Option{WithTab(SortTab)}},
+		{name: "no tab bar", width: 80, height: 10, opts: []Option{WithTabBar(false), WithTab(SortTab)}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -50,7 +65,11 @@ func TestView(t *testing.T) {
 			if tt.query != "" {
 				opts = append(opts, WithQuery(tt.query))
 			}
-			m := New(prSpec(f.load), opts...)
+			spec := prSpec
+			if tt.spec != nil {
+				spec = tt.spec
+			}
+			m := New(spec(f.load), opts...)
 			m.Focus()
 			m, _ = press(t, m, tt.keys...)
 			if tt.block {
@@ -123,4 +142,27 @@ func assertFits(t *testing.T, v string, width, height int) {
 			t.Errorf("line %d is %d wide, want %d: %q", i, w, width, ansi.Strip(l))
 		}
 	}
+}
+
+// searchSpec is a spec whose sort can be left out, as GitHub's search
+// ranks by best match without one.
+func searchSpec(Loader) Spec {
+	return Spec{
+		Fields: []Field{{Key: "lang", Label: "Language", Kind: Choice, Qualifier: "language", Options: []Item{{Label: "Any"}, {Label: "Go", Value: "go"}}}},
+		Sort: &SortField{
+			Options: []SortOption{
+				{Label: "Best match"},
+				{Label: "Stars", Value: "stars", Desc: "Most first", Asc: "Fewest first"},
+				{Label: "Updated", Value: "updated", Desc: "Newest first", Asc: "Oldest first"},
+			},
+			Default: Sort{Desc: true},
+		},
+	}
+}
+
+// noSortSpec is prSpec without a sort, so the form has no tabs.
+func noSortSpec(load Loader) Spec {
+	s := prSpec(load)
+	s.Sort = nil
+	return s
 }

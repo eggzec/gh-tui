@@ -26,6 +26,9 @@ const (
 
 // Styles holds the styles of a form.
 type Styles struct {
+	// Tab styles the names of the tabs, and ActiveTab the one on view.
+	Tab       lipgloss.Style
+	ActiveTab lipgloss.Style
 	// Gutter marks the row in focus.
 	Gutter lipgloss.Style
 	// Label styles the names of the rows, and FocusedLabel the one in
@@ -85,6 +88,8 @@ func DefaultStyles(isDark bool) Styles {
 		PaddingLeft(1)
 
 	return Styles{
+		Tab:          lipgloss.NewStyle().Foreground(muted),
+		ActiveTab:    lipgloss.NewStyle().Foreground(accent).Bold(true),
 		Gutter:       lipgloss.NewStyle().Foreground(accent),
 		Label:        lipgloss.NewStyle().Foreground(muted),
 		FocusedLabel: lipgloss.NewStyle().Foreground(text).Bold(true),

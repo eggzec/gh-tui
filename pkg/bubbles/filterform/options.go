@@ -9,7 +9,9 @@ type settings struct {
 	parent        context.Context
 	query         string
 	hasQuery      bool
+	tab           Tab
 	helpLine      bool
+	tabBar        bool
 	editorHeight  int
 	width, height int
 	keys          KeyMap
@@ -23,6 +25,7 @@ func defaultSettings() settings {
 	return settings{
 		parent:       context.Background(),
 		helpLine:     true,
+		tabBar:       true,
 		editorHeight: DefaultEditorHeight,
 		keys:         DefaultKeyMap(),
 		styles:       DefaultStyles(true),
@@ -43,6 +46,23 @@ func WithQuery(q string) Option {
 func WithHelpLine(show bool) Option {
 	return func(s *settings) {
 		s.helpLine = show
+	}
+}
+
+// WithTab sets the tab the form opens on. The default is FiltersTab; a
+// form without a sort has no other.
+func WithTab(t Tab) Option {
+	return func(s *settings) {
+		s.tab = t
+	}
+}
+
+// WithTabBar sets whether a form with tabs shows them on its first line.
+// The default is true; turn it off when the parent shows the tabs itself,
+// from Tabs and Tab.
+func WithTabBar(show bool) Option {
+	return func(s *settings) {
+		s.tabBar = show
 	}
 }
 

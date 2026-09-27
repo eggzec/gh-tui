@@ -49,10 +49,6 @@ func personField(key, label, qualifier string) filterform.Field {
 	}
 }
 
-// bestMatch is the order GitHub ranks results in without a sort: the
-// sort's option that writes nothing.
-var bestMatch = filterform.Item{Label: "Best match"}
-
 // spec returns the fields the filter of kind edits in query. Each writes a
 // qualifier of GitHub's search, and each sort is one GitHub's search takes
 // as a sort: qualifier.
@@ -83,11 +79,11 @@ func spec(kind core.SearchKind, query string) filterform.Spec {
 				textField("owner", "Owner", "user", "any user or organization"),
 			},
 			Sort: &filterform.SortField{
-				Options: []filterform.Item{
-					bestMatch,
-					{Label: "Stars", Value: "stars"},
-					{Label: "Forks", Value: "forks"},
-					{Label: "Updated", Value: "updated"},
+				Options: []filterform.SortOption{
+					ui.BestMatch,
+					ui.SortByCount("Stars", "stars"),
+					ui.SortByCount("Forks", "forks"),
+					ui.SortByTime("Updated", "updated"),
 				},
 				Default: filterform.Sort{Desc: true},
 			},
@@ -125,11 +121,11 @@ func spec(kind core.SearchKind, query string) filterform.Spec {
 		return filterform.Spec{
 			Fields: fields,
 			Sort: &filterform.SortField{
-				Options: []filterform.Item{
-					bestMatch,
-					{Label: "Updated", Value: "updated"},
-					{Label: "Created", Value: "created"},
-					{Label: "Comments", Value: "comments"},
+				Options: []filterform.SortOption{
+					ui.BestMatch,
+					ui.SortByTime("Updated", "updated"),
+					ui.SortByTime("Created", "created"),
+					ui.SortByCount("Comments", "comments"),
 				},
 				Default: filterform.Sort{Desc: true},
 			},

@@ -197,6 +197,8 @@ func (t Theme) FilterForm() filterform.Styles {
 	s := filterform.DefaultStyles(t.Dark)
 	c := lipgloss.Color
 	p := t.Palette
+	s.Tab = s.Tab.Foreground(c(p.Muted))
+	s.ActiveTab = s.ActiveTab.Foreground(c(p.Accent))
 	s.Gutter = s.Gutter.Foreground(c(p.Accent))
 	s.Label = s.Label.Foreground(c(p.Muted))
 	s.FocusedLabel = s.FocusedLabel.Foreground(c(p.Foreground))

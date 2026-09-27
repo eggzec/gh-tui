@@ -109,12 +109,11 @@ func (s *Section) spec() filterform.Spec {
 			{Key: "base", Label: "Base", Kind: filterform.Text, Qualifier: "base", Hint: "any branch"},
 		},
 		Sort: &filterform.SortField{
-			Options: []filterform.Item{
-				{Label: "Updated", Value: "updated"},
-				{Label: "Created", Value: "created"},
-				{Label: "Comments", Value: "comments"},
+			Options: []filterform.SortOption{
+				ui.SortByTime("Updated", "updated"),
+				ui.SortByTime("Created", "created"),
+				ui.SortByCount("Comments", "comments"),
 			},
-			Desc: "↓ newest first", Asc: "↑ oldest first",
 			Default: filterform.Sort{By: "updated", Desc: true},
 		},
 	}

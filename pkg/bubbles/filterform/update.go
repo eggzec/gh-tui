@@ -79,8 +79,14 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.move(1)
 	case key.Matches(msg, k.Cancel):
 		return send(CancelMsg{ID: m.id})
+	case m.tabbed() && key.Matches(msg, k.NextTab):
+		m.switchTab(1)
+		return nil
+	case m.tabbed() && key.Matches(msg, k.PrevTab):
+		m.switchTab(-1)
+		return nil
 	case key.Matches(msg, k.Reset):
-		m.Reset()
+		m.resetTab()
 		return nil
 	case key.Matches(msg, k.Left):
 		m.choose(-1)
@@ -162,18 +168,11 @@ func (m *Model) move(delta int) tea.Cmd {
 	return nil
 }
 
-// choose moves the choice of a Choice or the sort by delta, flips a Toggle,
-// or moves the chip cursor of a Multi.
+// choose moves the choice of a Choice, of what is sorted by or of the
+// order by delta, flips a Toggle, or moves the chip cursor of a Multi.
 func (m *Model) choose(delta int) {
-	if m.row == m.sortRow() {
-		sf := m.spec.Sort
-		i := slices.IndexFunc(sf.Options, func(it Item) bool { return it.Value == m.state.sort.By })
-		if len(sf.Options) == 0 {
-			return
-		}
-		i = cycle(i, delta, len(sf.Options))
-		m.state.sort = Sort{By: sf.Options[i].Value, Desc: m.state.sort.Desc}
-		m.syncQuery()
+	if m.tab == SortTab {
+		m.chooseSort(delta)
 		return
 	}
 	f, v := &m.spec.Fields[m.row], m.state.values[m.row]
@@ -193,6 +192,33 @@ func (m *Model) choose(delta int) {
 	}
 }
 
+// chooseSort moves the choice of the Sort tab's row in focus by delta.
+// An option that writes no sort has no order to choose.
+func (m *Model) chooseSort(delta int) {
+	sf, so := m.spec.Sort, m.state.sort
+	switch m.row {
+	case sortByRow:
+		if len(sf.Options) == 0 {
+			return
+		}
+		// A new option sorts in its own order, since a direction fit for
+		// one, such as the newest first, may not be for the next, such as
+		// names. One that writes no sort keeps the order for the next.
+		opt := sf.Options[cycle(sf.index(so.By), delta, len(sf.Options))]
+		desc := so.Desc
+		if opt.Value != "" {
+			desc = !opt.Ascending
+		}
+		m.state.sort = Sort{By: opt.Value, Desc: desc}
+	case sortOrderRow:
+		if so.By == "" {
+			return
+		}
+		m.state.sort.Desc = !so.Desc
+	}
+	m.syncQuery()
+}
+
 // cycle returns the index delta away from i in n, wrapping around. An i of
 // -1, for a value that isn't one of the options, starts from the first.
 func cycle(i, delta, n int) int {
@@ -202,12 +228,11 @@ func cycle(i, delta, n int) int {
 	return ((i+delta)%n + n) % n
 }
 
-// toggle handles space: it flips the sort's direction and a Toggle, and
-// picks the next choice.
+// toggle handles space: it flips a Toggle, and picks the next choice, of
+// a Choice or on the Sort tab.
 func (m *Model) toggle() {
-	if m.row == m.sortRow() {
-		m.state.sort.Desc = !m.state.sort.Desc
-		m.syncQuery()
+	if m.tab == SortTab {
+		m.chooseSort(1)
 		return
 	}
 	if k := m.kind(); k == Choice || k == Toggle {
@@ -218,7 +243,7 @@ func (m *Model) toggle() {
 // remove removes the chip under the cursor of a Multi, the last one when
 // the cursor is on "+ add", and clears any other field that can be empty.
 func (m *Model) remove() {
-	if m.row >= len(m.spec.Fields) {
+	if m.kind() < 0 {
 		return
 	}
 	v := m.state.values[m.row]

@@ -12,15 +12,18 @@ import (
 // every key, so only Up, Down, Toggle, Edit, Apply and Cancel act there;
 // the rest are typed.
 type KeyMap struct {
+	// NextTab and PrevTab switch between the Filters and Sort tabs.
+	NextTab key.Binding
+	PrevTab key.Binding
 	// Up and Down move between the rows and the query line.
 	Up   key.Binding
 	Down key.Binding
-	// Left and Right choose in a Choice or the sort, and move between the
-	// chips of a Multi.
+	// Left and Right choose in a Choice, what is sorted by and the order,
+	// and move between the chips of a Multi.
 	Left  key.Binding
 	Right key.Binding
-	// Toggle flips a Toggle, picks the next choice, flips the sort's
-	// direction, and in a Multi's picker chooses the highlighted item.
+	// Toggle flips a Toggle, picks the next choice, and in a Multi's
+	// picker chooses the highlighted item.
 	Toggle key.Binding
 	// Edit opens the editor of a Multi, Person or Text field, and closes
 	// it again keeping what was chosen.
@@ -29,7 +32,7 @@ type KeyMap struct {
 	Apply key.Binding
 	// Remove removes the chip under the cursor, or clears a field.
 	Remove key.Binding
-	// Reset puts every field back to its default.
+	// Reset puts what the tab on view edits back to its defaults.
 	Reset key.Binding
 	// Cancel closes an open editor and undoes what it changed, or sends a
 	// CancelMsg.
@@ -42,17 +45,19 @@ type KeyMap struct {
 // DefaultKeyMap returns the default key bindings.
 func DefaultKeyMap() KeyMap {
 	return KeyMap{
-		Up:     key.NewBinding(key.WithKeys("up", "shift+tab"), key.WithHelp("↑", "previous field")),
-		Down:   key.NewBinding(key.WithKeys("down", "tab"), key.WithHelp("↑↓", "field")),
-		Left:   key.NewBinding(key.WithKeys("left"), key.WithHelp("←", "previous")),
-		Right:  key.NewBinding(key.WithKeys("right"), key.WithHelp("←→", "choose")),
-		Toggle: key.NewBinding(key.WithKeys("space"), key.WithHelp("space", "choose")),
-		Edit:   key.NewBinding(key.WithKeys("enter"), key.WithHelp("↵", "edit")),
-		Apply:  key.NewBinding(key.WithKeys("enter"), key.WithHelp("↵", "apply")),
-		Remove: key.NewBinding(key.WithKeys("x", "backspace"), key.WithHelp("x", "remove")),
-		Reset:  key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "reset")),
-		Cancel: key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel")),
-		Picker: picker.DefaultKeyMap(),
+		NextTab: key.NewBinding(key.WithKeys("]"), key.WithHelp("]", "next tab")),
+		PrevTab: key.NewBinding(key.WithKeys("["), key.WithHelp("[", "previous tab")),
+		Up:      key.NewBinding(key.WithKeys("up", "shift+tab"), key.WithHelp("↑", "previous field")),
+		Down:    key.NewBinding(key.WithKeys("down", "tab"), key.WithHelp("↑↓", "field")),
+		Left:    key.NewBinding(key.WithKeys("left"), key.WithHelp("←", "previous")),
+		Right:   key.NewBinding(key.WithKeys("right"), key.WithHelp("←→", "choose")),
+		Toggle:  key.NewBinding(key.WithKeys("space"), key.WithHelp("space", "choose")),
+		Edit:    key.NewBinding(key.WithKeys("enter"), key.WithHelp("↵", "edit")),
+		Apply:   key.NewBinding(key.WithKeys("enter"), key.WithHelp("↵", "apply")),
+		Remove:  key.NewBinding(key.WithKeys("x", "backspace"), key.WithHelp("x", "remove")),
+		Reset:   key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "reset")),
+		Cancel:  key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel")),
+		Picker:  picker.DefaultKeyMap(),
 	}
 }
 
@@ -66,6 +71,7 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.Left, k.Right, k.Toggle},
 		{k.Edit, k.Remove, k.Apply, k.Reset, k.Cancel},
+		{k.NextTab, k.PrevTab},
 	}
 }
 
