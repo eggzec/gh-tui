@@ -116,6 +116,14 @@ type options struct {
 	rest  time.Duration
 	now   func() time.Time
 	ret   ui.Modal
+	voice ui.Voice
+}
+
+// WithVoice sets how the view words a log that failed to load, with the
+// keys a hint names and the log file it points to. By default it names no
+// keys and no log.
+func WithVoice(v ui.Voice) Option {
+	return func(o *options) { o.voice = v }
 }
 
 // WithReturn sets the modal that a file preview opened from an annotation
@@ -157,7 +165,8 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, keys KeyMap, opts 
 		repo: repo,
 		opts: o,
 		keys: keys,
-		view: logview.New(logview.WithFocusFailed(true), logview.WithKeyMap(keys.Log)),
+		view: logview.New(logview.WithFocusFailed(true), logview.WithKeyMap(keys.Log),
+			logview.WithErrorText(ui.ErrorText("load the log", repo.String(), o.voice))),
 	}
 	return m
 }
