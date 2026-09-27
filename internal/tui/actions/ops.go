@@ -11,22 +11,49 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
-// askRerunFailed asks to re-run the failed jobs of the run shown, or
-// returns what tells the user they may not.
-func (m *Modal) askRerunFailed() tea.Cmd {
-	r, ok := m.doneRun()
-	if !ok {
-		return nil
+// change is a change to a run, asked as a question: target tells which
+// run or job it changes, and name names it in a note.
+type change struct {
+	ask          ui.Confirm
+	target, name string
+}
+
+// asks asks the change that now returns on the last line of the modal, or
+// shows why there is none: the notice, or the refusal it returns. By the
+// time the user says yes, the run may have changed, such as re-run or
+// finished elsewhere, so it asks now again, and makes the change only if
+// it is still the one asked of the same run or job.
+func (m *Modal) asks(now func() (c change, notice string, refusal tea.Cmd)) tea.Cmd {
+	c, notice, refusal := now()
+	if c.ask.Question == "" {
+		if notice != "" {
+			m.notice = notice
+		}
+		return refusal
+	}
+	ask := ui.Recheck(c.ask.Question, c.name, func() (ui.Confirm, bool, tea.Cmd) {
+		again, _, refusal := now()
+		return again.ask, again.ask.Question != "" && again.target == c.target, refusal
+	})
+	m.ask = &ask
+	return nil
+}
+
+// rerunFailed re-runs the failed jobs of the run shown, or says why not.
+func (m *Modal) rerunFailed() (change, string, tea.Cmd) {
+	r, notice := m.doneRun()
+	if notice != "" || !m.hasRun {
+		return change{}, notice, nil
 	}
 	if cmd, refused := m.gate().Refuse(ui.ActRerun, nil); refused {
-		return cmd
+		return change{}, "", cmd
 	}
+	name := jobview.RunName(r)
 	jobs := "the failed jobs"
 	if m.jobs.loaded && m.jobs.runID == r.ID {
 		switch n := jobview.FailedJobs(m.jobs.items); n {
 		case 0:
-			m.notice = jobview.RunName(r) + " has no failed jobs to re-run."
-			return nil
+			return change{}, name + " has no failed jobs to re-run.", nil
 		case 1:
 			jobs = "1 failed job"
 		default:
@@ -34,94 +61,104 @@ func (m *Modal) askRerunFailed() tea.Cmd {
 		}
 	}
 	svc, repo, id := m.svc, m.repo, r.ID
-	m.ask = &ui.Confirm{
-		Question: "Re-run " + jobs + " of " + jobview.RunName(r) + "?",
-		Run:      m.send("re-run the failed jobs of "+jobview.RunName(r), func() *optimistic.Op { return svc.RerunFailedJobs(repo, id) }),
-	}
-	return nil
+	return change{
+		ask: ui.Confirm{
+			Question: "Re-run " + jobs + " of " + name + "?",
+			Run:      m.send("re-run the failed jobs of "+name, func() *optimistic.Op { return svc.RerunFailedJobs(repo, id) }),
+		},
+		target: runTarget(id), name: name,
+	}, "", nil
 }
 
-// askRerun asks to re-run every job of the run shown, or returns what
-// tells the user they may not.
-func (m *Modal) askRerun() tea.Cmd {
-	r, ok := m.doneRun()
-	if !ok {
-		return nil
+// rerunAll re-runs every job of the run shown, or says why not.
+func (m *Modal) rerunAll() (change, string, tea.Cmd) {
+	r, notice := m.doneRun()
+	if notice != "" || !m.hasRun {
+		return change{}, notice, nil
 	}
 	if cmd, refused := m.gate().Refuse(ui.ActRerun, nil); refused {
-		return cmd
+		return change{}, "", cmd
 	}
+	name := jobview.RunName(r)
 	svc, repo, id := m.svc, m.repo, r.ID
-	m.ask = &ui.Confirm{
-		Question: "Re-run all jobs of " + jobview.RunName(r) + "?",
-		Run:      m.send("re-run "+jobview.RunName(r), func() *optimistic.Op { return svc.RerunRun(repo, id) }),
-	}
-	return nil
+	return change{
+		ask: ui.Confirm{
+			Question: "Re-run all jobs of " + name + "?",
+			Run:      m.send("re-run "+name, func() *optimistic.Op { return svc.RerunRun(repo, id) }),
+		},
+		target: runTarget(id), name: name,
+	}, "", nil
 }
 
-// askRerunJob asks to re-run the job under the cursor of the jobs, or
-// returns what tells the user they may not.
-func (m *Modal) askRerunJob() tea.Cmd {
-	r, ok := m.doneRun()
-	if !ok {
-		return nil
+// rerunJob re-runs the job under the cursor of the jobs, or says why not.
+func (m *Modal) rerunJob() (change, string, tea.Cmd) {
+	r, notice := m.doneRun()
+	if notice != "" || !m.hasRun {
+		return change{}, notice, nil
 	}
 	j, ok := m.jobs.selected()
 	if !ok || m.jobs.runID != r.ID {
-		m.notice = "Pick a job to re-run."
-		return nil
+		return change{}, "Pick a job to re-run.", nil
 	}
 	if cmd, refused := m.gate().Refuse(ui.ActRerun, nil); refused {
-		return cmd
+		return change{}, "", cmd
 	}
+	name, job := jobview.RunName(r), ui.OneLine(j.Name)
 	svc, repo, runID, jobID := m.svc, m.repo, r.ID, j.ID
-	m.ask = &ui.Confirm{
-		Question: "Re-run " + ui.OneLine(j.Name) + " of " + jobview.RunName(r) + "?",
-		Run:      m.send("re-run "+ui.OneLine(j.Name), func() *optimistic.Op { return svc.RerunJob(repo, runID, jobID) }),
-	}
-	return nil
+	return change{
+		ask: ui.Confirm{
+			Question: "Re-run " + job + " of " + name + "?",
+			Run:      m.send("re-run "+job, func() *optimistic.Op { return svc.RerunJob(repo, runID, jobID) }),
+		},
+		target: runTarget(runID) + "/" + strconv.FormatInt(jobID, 10), name: job + " of " + name,
+	}, "", nil
 }
 
-// askCancel asks to cancel the run shown, or returns what tells the user
-// they may not.
-func (m *Modal) askCancel() tea.Cmd {
+// cancelRun cancels the run shown, or says why not.
+func (m *Modal) cancelRun() (change, string, tea.Cmd) {
 	if !m.hasRun {
-		return nil
+		return change{}, "", nil
 	}
 	r := m.run
+	name := jobview.RunName(r)
 	if r.Done() || r.Status == core.RunCancelling {
-		m.notice = jobview.RunName(r) + " isn't running."
-		return nil
+		return change{}, name + " isn't running.", nil
 	}
 	if cmd, refused := m.gate().Refuse(ui.ActCancelRun, nil); refused {
-		return cmd
+		return change{}, "", cmd
 	}
 	svc, repo, id := m.svc, m.repo, r.ID
-	m.ask = &ui.Confirm{
-		Question: "Cancel " + jobview.RunName(r) + "?",
-		Run:      m.send("cancel "+jobview.RunName(r), func() *optimistic.Op { return svc.CancelRun(repo, id) }),
-	}
-	return nil
+	return change{
+		ask: ui.Confirm{
+			Question: "Cancel " + name + "?",
+			Run:      m.send("cancel "+name, func() *optimistic.Op { return svc.CancelRun(repo, id) }),
+		},
+		target: runTarget(id), name: name,
+	}, "", nil
 }
+
+// runTarget tells run id apart from the others in a change.
+func runTarget(id int64) string { return strconv.FormatInt(id, 10) }
 
 // gate decides what the viewer may do in the repository.
 func (m *Modal) gate() ui.Gate {
 	return ui.Gate{Repo: m.repo, Caps: m.caps}
 }
 
-// doneRun returns the run shown, if it completed, as a re-run needs.
-func (m *Modal) doneRun() (core.Run, bool) {
+// doneRun returns the run shown, if it completed, as a re-run needs, or
+// the notice that says it is still running.
+func (m *Modal) doneRun() (r core.Run, notice string) {
 	if !m.hasRun {
-		return core.Run{}, false
+		return core.Run{}, ""
 	}
 	if !m.run.Done() {
-		m.notice = jobview.RunName(m.run) + " is still running."
+		notice = jobview.RunName(m.run) + " is still running."
 		if k := m.keys.Cancel.Help().Key; k != "" {
-			m.notice += " " + k + " cancels it."
+			notice += " " + k + " cancels it."
 		}
-		return core.Run{}, false
+		return core.Run{}, notice
 	}
-	return m.run, true
+	return m.run, ""
 }
 
 // send returns what makes the change that start shows in the cache, named
