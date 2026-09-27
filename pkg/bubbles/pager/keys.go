@@ -21,6 +21,9 @@ type KeyMap struct {
 
 	// Search opens the search input, Confirm searches for what it holds,
 	// and Cancel closes it. Outside the input, Cancel clears the search.
+	// The pager enables Confirm only while the input is open, and Cancel
+	// only while it is or a search is shown, so esc closes the pager
+	// otherwise.
 	Search  key.Binding
 	Confirm key.Binding
 	Cancel  key.Binding
@@ -50,8 +53,8 @@ func DefaultKeyMap() KeyMap {
 		Wrap:         key.NewBinding(key.WithKeys("w"), key.WithHelp("w", "wrap")),
 		LineNumbers:  key.NewBinding(key.WithKeys("#"), key.WithHelp("#", "line numbers")),
 		Search:       key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "search")),
-		Confirm:      key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "search")),
-		Cancel:       key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel")),
+		Confirm:      key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "search"), key.WithDisabled()),
+		Cancel:       key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel"), key.WithDisabled()),
 		Next:         key.NewBinding(key.WithKeys("n"), key.WithHelp("n", "next match"), key.WithDisabled()),
 		Prev:         key.NewBinding(key.WithKeys("N"), key.WithHelp("N", "prev match"), key.WithDisabled()),
 		Close:        key.NewBinding(key.WithKeys("q", "esc"), key.WithHelp("q", "close")),
@@ -68,6 +71,6 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.PageUp, k.PageDown, k.HalfPageUp, k.HalfPageDown},
 		{k.Home, k.End, k.Left, k.Right, k.Wrap, k.LineNumbers},
-		{k.Search, k.Next, k.Prev, k.Close},
+		{k.Search, k.Confirm, k.Cancel, k.Next, k.Prev, k.Close},
 	}
 }

@@ -177,10 +177,17 @@ func (m Model) ShortHelp() []key.Binding {
 	return m.keys.ShortHelp()
 }
 
-// FullHelp implements help.KeyMap.
+// FullHelp implements help.KeyMap. While the search input is open, only
+// the keys that close it act, and the input takes the rest.
 func (m Model) FullHelp() [][]key.Binding {
+	k := m.keys
 	if m.searching {
-		return [][]key.Binding{m.ShortHelp()}
+		for _, b := range []*key.Binding{
+			&k.Up, &k.Down, &k.PageUp, &k.PageDown, &k.HalfPageUp, &k.HalfPageDown, &k.Home, &k.End,
+			&k.Left, &k.Right, &k.Wrap, &k.LineNumbers, &k.Search, &k.Next, &k.Prev, &k.Close,
+		} {
+			b.SetEnabled(false)
+		}
 	}
-	return m.keys.FullHelp()
+	return k.FullHelp()
 }

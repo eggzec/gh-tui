@@ -41,12 +41,14 @@ func (m *Model) SetSearch(query string) {
 
 func (m *Model) openSearch() tea.Cmd {
 	m.searching = true
+	m.enableSearchKeys()
 	m.input.Reset()
 	return m.input.Focus()
 }
 
 func (m *Model) closeSearch() {
 	m.searching = false
+	m.enableSearchKeys()
 	m.input.Blur()
 }
 
@@ -59,6 +61,8 @@ func (m *Model) enableSearchKeys() {
 	found := len(m.search.matches) > 0
 	m.keys.Next.SetEnabled(found)
 	m.keys.Prev.SetEnabled(found)
+	m.keys.Confirm.SetEnabled(m.searching)
+	m.keys.Cancel.SetEnabled(m.searching || m.search.query != "")
 }
 
 // runSearch finds every match of query and jumps to the first one at or
