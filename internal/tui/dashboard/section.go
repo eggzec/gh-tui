@@ -22,6 +22,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/threads"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/calendar"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // Service is what the section needs of the dashboard service.
@@ -176,6 +177,9 @@ type Section struct {
 	icons    ui.Icons
 	// host is the web host of the user's GitHub, for the links it opens.
 	host string
+	// links keeps the links of the rows, which are drawn again on every
+	// change.
+	links termtext.Links
 	// calDays is the range of the calendar, 0 for the year.
 	calDays int
 
