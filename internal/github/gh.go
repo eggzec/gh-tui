@@ -1,6 +1,10 @@
 package github
 
 import (
+	"context"
+	"net"
+	"net/http"
+
 	"github.com/cli/go-gh/v2/pkg/auth"
 	"github.com/cli/go-gh/v2/pkg/config"
 )
@@ -42,4 +46,31 @@ func (g ghLookup) login(host, source string) string {
 	}
 	login, _ := cfg.Get([]string{"hosts", auth.NormalizeHostname(host), "user"})
 	return login
+}
+
+// unixSocket returns the socket gh sends its HTTP requests through, from
+// http_unix_socket in its config, or "" when it has none.
+func (g ghLookup) unixSocket() string {
+	cfg, err := g.config()
+	if err != nil || cfg == nil {
+		return ""
+	}
+	path, _ := cfg.Get([]string{"http_unix_socket"})
+	return path
+}
+
+// throughSocket returns a copy of hc that sends every request through the
+// unix socket at path, as gh does: the socket's server makes the
+// connection, so TLS is left to it too. Without a path, it returns hc.
+func throughSocket(hc *http.Client, path string) *http.Client {
+	if path == "" {
+		return hc
+	}
+	dial := func(ctx context.Context, _, _ string) (net.Conn, error) {
+		var d net.Dialer
+		return d.DialContext(ctx, "unix", path)
+	}
+	c := *hc
+	c.Transport = &http.Transport{DialContext: dial, DialTLSContext: dial, DisableKeepAlives: true}
+	return &c
 }

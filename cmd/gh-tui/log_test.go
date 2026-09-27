@@ -143,3 +143,16 @@ func TestTracePropagates(t *testing.T) {
 		t.Errorf("end record = %v, want it in trace %s", end, rt.traces[0])
 	}
 }
+
+// GH_DEBUG turns on debug logging as gh reads it: any value but "", 0,
+// false and no.
+func TestGHDebug(t *testing.T) {
+	for value, want := range map[string]bool{
+		"": false, "0": false, "false": false, "no": false,
+		"1": true, "true": true, "api": true, "yes": true,
+	} {
+		if got := ghDebug(value); got != want {
+			t.Errorf("ghDebug(%q) = %v, want %v", value, got, want)
+		}
+	}
+}

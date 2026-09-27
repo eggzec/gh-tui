@@ -45,6 +45,7 @@ internal/
   cache/              in-memory LRU, optional disk layer, TTL and ETag metadata
   watch/              sync engine: polling, conditional requests, change events
   revalidate/         re-checks cached entries in the background within a budget
+  buildinfo/          what the binary was built from, such as its version
   obs/                log/slog setup, trace and request ids, counters and summaries
   logfile/            the log file, rotated by size, shared by several processes
   service/<domain>/   business logic per domain (pulls, issues, repos, notifications…)
@@ -245,8 +246,8 @@ reacts to messages. Concretely:
   `$XDG_STATE_HOME/gh-tui/gh-tui.log`, else `~/.local/state/gh-tui/gh-tui.log`,
   on macOS too; `%LocalAppData%` on Windows), mode 0600, rotated at
   `log.max_size` keeping `log.keep` files. Nothing goes to stdout or stderr
-  while the app runs. `GH_TUI_LOG=debug` or `--debug` raise the level for one
-  run.
+  while the app runs. `GH_TUI_LOG=debug`, `--debug` or gh's `GH_DEBUG` raise
+  the level for one run.
 - Every record has a `session_id`. Start a trace where a user action or a
   background job starts (`obs.WithTrace` or `obs.Begin`, which also logs the
   end and the error) and pass its context down; records logged with it carry
@@ -298,9 +299,9 @@ reacts to messages. Concretely:
 - Keybindings map action names to keys and are applied through each bubble's
   `SetKeyMap`. Action names are registered in `internal/config/keys.go`;
   unknown names are rejected so typos don't pass silently.
-- The only command-line flags are `--debug` and `--hostname`; gh-tui
-  takes no arguments, and `:goto` opens a repository, pull request or
-  issue. The host is `--hostname`, else the current repository's
+- The only command-line flags are `--debug`, `--hostname` and
+  `--version`; gh-tui takes no arguments, and `:goto` opens a repository,
+  pull request or issue. The host is `--hostname`, else the current repository's
   (`GH_REPO` or the git remotes), else `GH_HOST` or gh's default host, as
   gh picks it, and one session talks to one host.
 - Hex colors must be quoted in YAML, since an unquoted `#` starts a comment.

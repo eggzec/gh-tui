@@ -3,9 +3,12 @@ package github
 import (
 	"context"
 	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -68,6 +71,13 @@ func TestNewEndpoints(t *testing.T) {
 			wantREST:    "https://ghe.example.com/api/v3/",
 			wantGraphQL: "https://ghe.example.com/api/graphql",
 			wantHost:    "ghe.example.com",
+		},
+		{
+			name:        "localhost",
+			opts:        []Option{WithHost("github.localhost")},
+			wantREST:    "http://api.github.localhost/",
+			wantGraphQL: "http://api.github.localhost/graphql",
+			wantHost:    "api.github.localhost",
 		},
 		{
 			name:        "base URL",
@@ -314,3 +324,66 @@ func TestAccountByLogin(t *testing.T) {
 		t.Error("a token given to New isn't named by the token")
 	}
 }
+
+func TestAgent(t *testing.T) {
+	for version, want := range map[string]string{
+		"v1.2.3":                             "gh-tui/v1.2.3",
+		"v0.0.0-20260927120000-abcdef123456": "gh-tui/v0.0.0-20260927120000-abcdef123456",
+		"(devel)":                            "gh-tui",
+		"":                                   "gh-tui",
+	} {
+		if got := agent(version); got != want {
+			t.Errorf("agent(%q) = %q, want %q", version, got, want)
+		}
+	}
+}
+
+// With http_unix_socket in gh's config, requests go through that socket,
+// whatever host they name, over http and https alike: the socket's server
+// makes the connection, TLS and all.
+func TestUnixSocket(t *testing.T) {
+	sock := filepath.Join(t.TempDir(), "gh.sock")
+	l, err := net.Listen("unix", sock)
+	if errors.Is(err, syscall.EPERM) || errors.Is(err, syscall.EACCES) {
+		t.Skipf("unix sockets not allowed here: %v", err)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/user" || r.Host != "api.github.com" {
+			t.Errorf("request for %s%s, want api.github.com/user", r.Host, r.URL.Path)
+		}
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	srv.Listener = l
+	srv.Start()
+	t.Cleanup(srv.Close)
+
+	for _, base := range []string{"http://api.github.com/", "https://api.github.com/"} {
+		c, err := New(WithBaseURL(base), withGH(fakeGH("t", sourceKeyring, "http_unix_socket: "+sock+"\n")))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := c.Get(t.Context(), "user", Conditional{}, nil); err != nil {
+			t.Errorf("Get %suser through the socket: %v", base, err)
+		}
+	}
+}
+
+// A transport given to New is kept, even with http_unix_socket set.
+func TestUnixSocketKeepsTransport(t *testing.T) {
+	rt := roundTripFunc(func(*http.Request) (*http.Response, error) { return nil, errors.New("sent") })
+	c, err := New(WithHTTPClient(&http.Client{Transport: rt}),
+		withGH(fakeGH("t", sourceKeyring, "http_unix_socket: /nonexistent.sock\n")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Get(t.Context(), "user", Conditional{}, nil); err == nil || !strings.Contains(err.Error(), "sent") {
+		t.Errorf("Get = %v, want the given transport's error", err)
+	}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
