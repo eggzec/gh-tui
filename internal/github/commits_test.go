@@ -393,7 +393,7 @@ func BenchmarkGetCommit300Files(b *testing.B) {
 	b.SetBytes(int64(len(body)))
 	for b.Loop() {
 		d = restCommitDetail{}
-		if err := decode(bytes.NewReader(body), &d); err != nil {
+		if err := decode(b.Context(), bytes.NewReader(body), &d); err != nil {
 			b.Fatal(err)
 		}
 		_ = convert(d.Files, commitFile.core)

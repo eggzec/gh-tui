@@ -123,7 +123,7 @@ func (c *Client) codeSearchGet(ctx context.Context, path, accept string, v any) 
 	if resp.StatusCode >= http.StatusMultipleChoices {
 		return res, c.httpError(resp)
 	}
-	return res, decode(resp.Body, v)
+	return res, decode(ctx, resp.Body, v)
 }
 
 // codeSearchError turns the 422 GitHub sends for a query it can't run into a

@@ -94,7 +94,7 @@ func (c *Client) rawRoundTrip(ctx context.Context, path string, limit int64) ([]
 	}
 	b, err := io.ReadAll(io.LimitReader(resp.Body, limit+1))
 	if err != nil {
-		return nil, fmt.Errorf("read response: %w", err)
+		return nil, readFailed(ctx, err)
 	}
 	if int64(len(b)) > limit {
 		return nil, &core.TooLargeError{Limit: limit}
@@ -157,7 +157,7 @@ func (c *Client) roundTrip(ctx context.Context, method, path string, cond Condit
 	case resp.StatusCode >= http.StatusMultipleChoices:
 		return res, c.httpError(resp)
 	}
-	return res, decode(resp.Body, v)
+	return res, decode(ctx, resp.Body, v)
 }
 
 func newResponse(resp *http.Response) Response {
@@ -180,14 +180,42 @@ func newResponse(resp *http.Response) Response {
 	}
 }
 
-// decode reads JSON from r into v. An empty body, as in a 204, is not an
-// error.
-func decode(r io.Reader, v any) error {
+// decode reads JSON from r, the body of a response to a request with ctx,
+// into v. An empty body, as in a 204, is not an error. A body that breaks
+// off is an outage, as readFailed says, and one that isn't JSON is not.
+func decode(ctx context.Context, r io.Reader, v any) error {
 	if v == nil {
 		return nil
 	}
-	if err := json.NewDecoder(r).Decode(v); err != nil && !errors.Is(err, io.EOF) {
+	br := &bodyReader{r: r}
+	if err := json.NewDecoder(br).Decode(v); err != nil && !errors.Is(err, io.EOF) {
+		if br.err != nil {
+			return readFailed(ctx, err)
+		}
 		return fmt.Errorf("decode response: %w", err)
 	}
 	return nil
+}
+
+// bodyReader reads r and keeps why reading it failed before its end, so
+// that decode can tell a body that broke off from one that isn't JSON.
+type bodyReader struct {
+	r   io.Reader
+	err error
+}
+
+func (b *bodyReader) Read(p []byte) (int, error) {
+	n, err := b.r.Read(p)
+	if err != nil && !errors.Is(err, io.EOF) {
+		b.err = err
+	}
+	return n, err
+}
+
+// readFailed is the error of a body of a response to a request with ctx
+// that broke off while it was read, such as when the client's timeout
+// struck or the connection dropped: an outage, tagged as offline tags a
+// request that got no response, unless ctx is done.
+func readFailed(ctx context.Context, err error) error {
+	return offline(ctx, fmt.Errorf("read response: %w", err))
 }

@@ -255,7 +255,7 @@ func BenchmarkDecodeSearch(b *testing.B) {
 		var env struct {
 			Data json.RawMessage `json:"data"`
 		}
-		if err := decode(bytes.NewReader(body), &env); err != nil {
+		if err := decode(b.Context(), bytes.NewReader(body), &env); err != nil {
 			b.Fatal(err)
 		}
 		_ = queryRate(env.Data)
