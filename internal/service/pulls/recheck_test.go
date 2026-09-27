@@ -157,6 +157,23 @@ func TestKeptCommentsRevalidatedInNewSession(t *testing.T) {
 	if p, err := other.Comments(t.Context(), firstComments); err != nil || !p.Offline || len(p.Items) != 1 {
 		t.Errorf("Comments offline = %+v, %v; want the kept page, offline", p, err)
 	}
+
+	// Once GitHub confirms it with a 304, it is served unmarked again,
+	// whether the revalidator or a read asks.
+	thread.fail(nil)
+	for _, revalidated := range []bool{true, false} {
+		if revalidated {
+			target, _ := other.commentsTarget(firstComments.key())
+			if res := target.Check(t.Context()); res.Status != revalidate.NotModified {
+				t.Errorf("check after the outage = %+v, want not modified", res)
+			}
+		} else {
+			other.Invalidate(repo)
+		}
+		if p, err := other.Comments(t.Context(), firstComments); err != nil || p.Offline || len(p.Items) != 1 {
+			t.Errorf("Comments after a 304 = %+v, %v; want the kept page unmarked", p, err)
+		}
+	}
 }
 
 // checkKept runs the check of every kept entry and returns their results by

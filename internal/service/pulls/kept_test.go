@@ -176,9 +176,9 @@ func TestKeptOffline(t *testing.T) {
 	}{
 		{"unreachable", errDial, true},
 		{"server error", &github.Error{StatusCode: 502}, true},
+		{"rate limited", fmt.Errorf("graphql: %w", &core.RateLimitError{Reset: epoch}), true},
 		{"not found", &github.Error{StatusCode: 404}, false},
 		{"unauthorized", &github.Error{StatusCode: 401}, false},
-		{"rate limited", fmt.Errorf("graphql: %w", &core.RateLimitError{Reset: epoch}), false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -205,14 +205,15 @@ func TestKeptOffline(t *testing.T) {
 				}
 				return
 			}
-			if err != nil || !p.Offline || len(p.Items) != 1 {
-				t.Errorf("List = %+v, %v; want the kept page, offline", p, err)
+			limited := errors.Is(tt.err, core.ErrRateLimited)
+			if err != nil || p.Offline == limited || p.Limited != limited || len(p.Items) != 1 {
+				t.Errorf("List = %+v, %v; want the kept page, offline or limited", p, err)
 			}
 			if getErr != nil || d.Number != 1 {
 				t.Errorf("Get = %+v, %v; want the kept detail", d, getErr)
 			}
-			if commentsErr != nil || !c.Offline || len(c.Items) != 1 {
-				t.Errorf("Comments = %+v, %v; want the kept page, offline", c, commentsErr)
+			if commentsErr != nil || c.Offline == limited || c.Limited != limited || len(c.Items) != 1 {
+				t.Errorf("Comments = %+v, %v; want the kept page, offline or limited", c, commentsErr)
 			}
 		})
 	}
