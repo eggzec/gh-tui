@@ -45,9 +45,6 @@ func TestLines(t *testing.T) {
 	if got := Wrap("one two", 4); len(got) != 2 || got[0] != "one " {
 		t.Errorf("Wrap = %q", got)
 	}
-	if got := OneLine("a\nb\tc"); got != "a b c" {
-		t.Errorf("OneLine = %q", got)
-	}
 	if got := FirstLine("a\nb"); got != "a" {
 		t.Errorf("FirstLine = %q", got)
 	}
@@ -62,5 +59,29 @@ func TestFreeKeys(t *testing.T) {
 	}
 	if FreeKeys(taken, taken).Enabled() {
 		t.Error("a binding without keys is enabled")
+	}
+}
+
+func TestOneLine(t *testing.T) {
+	tests := []struct{ in, want string }{
+		{"plain", "plain"},
+		{"a\nb\tc", "a b c"},
+		{"a\r\n\x1b[31mb", "a [31mb"},
+		// Bidi controls would make the text read other than it is.
+		{"CI \u202efdp.exe", "CI fdp.exe"},
+		{"\u202aa\u202bb\u202cc\u202dd\u202ee", "abcde"},
+		{"\u2066a\u2067b\u2068c\u2069", "abc"},
+		{"a\u200eb\u200fc\u061cd", "abcd"},
+		// Other invisible format characters go too.
+		{"a\u200bb\u2060c\ufeffd\u00ade", "abcde"},
+		// The joiners stay, since emoji and scripts need them.
+		{"👩\u200d💻", "👩\u200d💻"},
+		{"می\u200cخواهم", "می\u200cخواهم"},
+		{"both\u202e\nlines", "both lines"},
+	}
+	for _, tt := range tests {
+		if got := OneLine(tt.in); got != tt.want {
+			t.Errorf("OneLine(%q) = %q, want %q", tt.in, got, tt.want)
+		}
 	}
 }

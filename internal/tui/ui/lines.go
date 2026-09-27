@@ -2,6 +2,7 @@ package ui
 
 import (
 	"strings"
+	"unicode"
 
 	"github.com/charmbracelet/x/ansi"
 )
@@ -79,14 +80,32 @@ func FirstLine(s string) string {
 }
 
 // OneLine joins the lines of s, and drops the control characters that
-// would break a row.
+// would break a row. It drops the invisible format characters too, such as
+// the bidi controls, which can make text read other than it is, like a
+// right-to-left override in a name from GitHub; the zero-width joiner and
+// non-joiner stay, since emoji and scripts need them.
 func OneLine(s string) string {
-	if !strings.ContainsFunc(s, isControl) {
+	if !strings.ContainsFunc(s, func(r rune) bool { return isControl(r) || isHidden(r) }) {
 		return s
+	}
+	if strings.ContainsFunc(s, isHidden) {
+		s = strings.Map(func(r rune) rune {
+			if isHidden(r) {
+				return -1
+			}
+			return r
+		}, s)
 	}
 	return strings.Join(strings.FieldsFunc(s, isControl), " ")
 }
 
 func isControl(r rune) bool {
 	return r < 0x20 || r == 0x7f || r >= 0x80 && r < 0xa0
+}
+
+// isHidden reports whether r is an invisible format character that OneLine
+// drops: any of Unicode's category Cf, such as U+202E or U+2066, but the
+// zero-width joiner and non-joiner.
+func isHidden(r rune) bool {
+	return r >= 0xad && r != '\u200c' && r != '\u200d' && unicode.Is(unicode.Cf, r)
 }
