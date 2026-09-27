@@ -897,3 +897,27 @@ func BenchmarkUpdate(b *testing.B) {
 		files.msgs = files.msgs[:0]
 	}
 }
+
+// rateCounter tells rate limits that count how often they were read.
+type rateCounter struct{ reads int }
+
+func (r *rateCounter) RateStatus() core.RateStatus {
+	r.reads++
+	return core.RateStatus{Quotas: []core.Quota{{Resource: "core", Remaining: r.reads}}}
+}
+
+func TestSyncRateLimitRereadsRates(t *testing.T) {
+	rates := &rateCounter{}
+	m, _ := newTestApp(t, WithRateStatus(rates))
+	if rates.reads != 1 || m.rate.Quotas[0].Remaining != 1 {
+		t.Fatalf("at start: read %d times, kept %+v; want read once", rates.reads, m.rate)
+	}
+	m.Update(ui.SyncMsg{Key: "notifications"})
+	if rates.reads != 1 {
+		t.Errorf("another key read the rate limits again")
+	}
+	m.Update(ui.SyncMsg{Key: core.SyncRateLimit})
+	if rates.reads != 2 || m.rate.Quotas[0].Remaining != 2 {
+		t.Errorf("after %s: read %d times, kept %+v; want the second read", core.SyncRateLimit, rates.reads, m.rate)
+	}
+}
