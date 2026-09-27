@@ -1,9 +1,8 @@
 package tui
 
 import (
+	"cmp"
 	"context"
-	"errors"
-	"fmt"
 	"log/slog"
 	"strings"
 	"unicode"
@@ -55,12 +54,6 @@ func WithRepos(r Repos) Option {
 // github.com.
 func WithHost(host string) Option {
 	return func(m *Model) { m.host = host }
-}
-
-// WithUnreachable sets the function that tells whether an error means
-// GitHub couldn't be reached, so that goto can say so.
-func WithUnreachable(f func(ctx context.Context, err error) bool) Option {
-	return func(m *Model) { m.unreachable = f }
 }
 
 // going is a goto waiting for GitHub, shown in the footer until it ends.
@@ -204,18 +197,18 @@ func canonical(r core.Repo, ref core.RepoRef) core.RepoRef {
 
 // gotoFailed tells why goto couldn't open t.
 func (m *Model) gotoFailed(t core.Target, err error) tea.Cmd {
-	var text string
-	switch {
-	case errors.Is(err, context.Canceled):
+	// A copy, since Explain may return a problem that err carries.
+	p := *core.Explain("open "+t.String(), err)
+	p.Subject = cmp.Or(p.Subject, t.String())
+	text := ui.SayToast(&p, m.voice)
+	if p.Kind == core.NotFound || p.Kind == core.Forbidden {
+		// These name what goto was asked to open, which says all the
+		// action would.
+		text, _ = ui.Say(&p, m.voice)
+		text = strings.TrimSuffix(text, ".") + "."
+	}
+	if text == "" {
 		return nil
-	case noNumber(err):
-		text = "No issue or pull request " + t.String() + "."
-	case m.unreachable != nil && m.unreachable(m.ctx, err):
-		text = fmt.Sprintf("Can't reach GitHub to open %s.", t)
-	case errors.Is(err, core.ErrNotFound):
-		text = "Repository not found: " + t.Repo.String() + "."
-	default:
-		text = sentence(fmt.Sprintf("Couldn't open %s: %v", t, err))
 	}
 	return m.toast.Push(toast.Error, text)
 }
@@ -229,13 +222,6 @@ func sentence(s string) string {
 		s += "."
 	}
 	return s
-}
-
-// noNumber reports whether err says that a repository has no issue or
-// pull request of the number asked for.
-func noNumber(err error) bool {
-	_, ok := errors.AsType[*core.NoNumberError](err)
-	return ok
 }
 
 // startGoto starts waiting for GitHub on t, in place of any goto waiting

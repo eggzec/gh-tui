@@ -214,7 +214,6 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 		tui.WithRecall(recall{pinned: pinned, here: here, dash: dashSvc, repos: repoSvc, pulls: pullSvc, issues: issueSvc}),
 		tui.WithHost(webHost),
 		tui.WithVoice(voice),
-		tui.WithUnreachable(github.Unreachable),
 		tui.WithHistory(history.Opener(historySvc, cfg.Keys,
 			history.WithConfig(cfg.History), history.WithOffline(offline), history.WithHost(webHost))),
 		tui.WithCommit(history.CommitOpener(historySvc, cfg.Keys,
