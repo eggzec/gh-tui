@@ -147,10 +147,11 @@ func (r *Renderer) get(src string, width int, open []int) rendered {
 		return out
 	}
 	out, ok := r.older[k]
+	kept := true
 	if !ok {
-		out = r.render(src, width, open)
+		out, kept = r.render(src, width, open)
 	}
-	if len(src) > maxKept {
+	if !kept || len(src) > maxKept {
 		return out
 	}
 	if len(r.recent) >= keep {
@@ -167,7 +168,9 @@ func (r *Renderer) get(src string, width int, open []int) rendered {
 // benchmarks can tell a render from a cache hit.
 func (r *Renderer) Renders() int { return r.renders }
 
-func (r *Renderer) render(src string, width int, open []int) rendered {
+// render renders src, and reports whether the render is worth keeping:
+// it isn't if it left code plain that may highlight in another.
+func (r *Renderer) render(src string, width int, open []int) (rendered, bool) {
 	r.renders++
 	b := newBudget()
 	var parts []part
@@ -222,7 +225,7 @@ func (r *Renderer) render(src string, width int, open []int) rendered {
 		// Only now, once the lines are safe, which drops every link.
 		lines[heads[i].Line] = linked(lines[heads[i].Line], heads[i].URL)
 	}
-	return rendered{text: strings.Join(lines, "\n"), heads: heads}
+	return rendered{text: strings.Join(lines, "\n"), heads: heads}, !b.busy
 }
 
 // lines returns text rendered by glamour at width, a line at a time.
