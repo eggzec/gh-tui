@@ -208,6 +208,10 @@ func (m Model) Warnings() int { return len(m.warns) }
 // reset forgets the log.
 func (m *Model) reset(s state, err error) {
 	m.state, m.err = s, err
+	m.errText, m.errHint = "", ""
+	if s == stateFailed {
+		m.errText, m.errHint = m.errorWords()
+	}
 	m.content = content{inSec: -1}
 	m.cur, m.top, m.row, m.left = 0, 0, 0, 0
 	m.live = false
