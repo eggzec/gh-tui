@@ -556,19 +556,22 @@ func TestBudgetGuardByReservation(t *testing.T) {
 // TestBudgetGraphQLRefusedWithQuotaLeft checks that a query refused as
 // RATE_LIMITED with quota left spends GraphQL until its reset only when
 // the quota is what refused it: GitHub says so, or the query costs more
-// than is left. Otherwise the limit is a secondary one.
+// than is left. Otherwise the limit is a secondary one, which lifts when
+// Retry-After says, or after a minute.
 func TestBudgetGraphQLRefusedWithQuotaLeft(t *testing.T) {
 	const spentMsg, secondaryMsg = "API rate limit exceeded", "You have exceeded a secondary rate limit."
 	tests := []struct {
-		name    string
-		msg     string
-		cost    int
-		primary bool
+		name       string
+		msg        string
+		cost       int
+		retryAfter time.Duration
+		primary    bool
 	}{
-		{"quota spent", spentMsg, 0, true},
-		{"costs more than is left", secondaryMsg, 7, true},
-		{"secondary", secondaryMsg, 0, false},
-		{"secondary, costs less than is left", secondaryMsg, 2, false},
+		{name: "quota spent", msg: spentMsg, primary: true},
+		{name: "costs more than is left", msg: secondaryMsg, cost: 7, primary: true},
+		{name: "secondary", msg: secondaryMsg},
+		{name: "secondary, costs less than is left", msg: secondaryMsg, cost: 2},
+		{name: "secondary with Retry-After", msg: secondaryMsg, retryAfter: 30 * time.Second},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -579,12 +582,17 @@ func TestBudgetGraphQLRefusedWithQuotaLeft(t *testing.T) {
 				if tt.cost > 0 {
 					c.budget.learnCost("Big", tt.cost)
 				}
+				h := quotaHeader(resourceGraphQL, 5000, 3, reset)
+				want, release := time.Now().Add(secondaryBackoff), time.Time{}
+				if tt.retryAfter > 0 {
+					h["Retry-After"] = strconv.Itoa(int(tt.retryAfter.Seconds()))
+					want = time.Now().Add(tt.retryAfter)
+				}
 				a["graphql"] <- answer{
-					header: quotaHeader(resourceGraphQL, 5000, 3, reset),
+					header: h,
 					body:   `{"data": null, "errors": [{"type": "RATE_LIMITED", "message": "` + tt.msg + `"}]}`,
 				}
 				err := c.Query(t.Context(), "query Big { viewer { login } }", nil, nil)
-				want, release := time.Now().Add(secondaryBackoff), time.Time{}
 				if tt.primary {
 					want, release = reset.Add(minGuard), reset.Add(minGuard)
 				}
