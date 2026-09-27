@@ -2,7 +2,6 @@ package dashboard
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -54,11 +53,8 @@ func (s *Service) FreshWork(q WorkQuery) bool {
 // TTL of the service, and is served stale or offline as in Header.
 func (s *Service) Work(ctx context.Context, q WorkQuery) (core.Work, error) {
 	q = q.normalize()
-	w, err := s.work.get(ctx, q.key(), q.Again, func(ctx context.Context) (core.Work, error) {
+	// The client already names the request in its error.
+	return s.work.get(ctx, q.key(), q.Again, func(ctx context.Context) (core.Work, error) {
 		return s.api.ViewerWork(ctx, q.PageSize)
 	})
-	if err != nil {
-		return core.Work{}, fmt.Errorf("dashboard work: %w", err)
-	}
-	return w, nil
 }
