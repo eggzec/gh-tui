@@ -11,6 +11,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
+	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -387,6 +388,48 @@ func TestDoneStopsFetching(t *testing.T) {
 	}
 	if got := src.callCount(); got != 2 {
 		t.Fatalf("fetched %d times, want 2", got)
+	}
+}
+
+func TestErrorText(t *testing.T) {
+	rebound := DefaultKeyMap()
+	rebound.Retry = key.NewBinding(key.WithKeys("R"), key.WithHelp("R", "reload"))
+	offline := func(error) (string, string) { return "Can't reach GitHub", "r to retry" }
+	tests := []struct {
+		name       string
+		opts       []Option
+		text, hint string
+	}{
+		{"default", nil, "✗ Couldn't load: boom", " · r to retry"},
+		{"default names the retry key", []Option{WithKeyMap(rebound)}, "✗ Couldn't load: boom", " · R to retry"},
+		{"custom", []Option{WithErrorText(offline)}, "✗ Can't reach GitHub", " · r to retry"},
+		{"custom without a hint", []Option{WithErrorText(func(error) (string, string) { return "o/r doesn't exist.", "" })}, "✗ o/r doesn't exist.", ""},
+		{"empty", []Option{WithErrorText(func(error) (string, string) { return "", "" })}, "", ""},
+		{"text with a dot", []Option{WithErrorText(func(error) (string, string) { return "GitHub says a · b", "" })}, "✗ GitHub says a · b", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			src := newSource(sample(), 5)
+			src.setFail("", errors.New("boom\nsecond line"))
+			m := load(t, src, tt.opts...)
+			text, hint := m.statusLine()
+			if text, hint = ansi.Strip(text), ansi.Strip(hint); text != tt.text || hint != tt.hint {
+				t.Errorf("statusLine() = %q, %q; want %q, %q", text, hint, tt.text, tt.hint)
+			}
+			if tt.text == "" && strings.Contains(ansi.Strip(m.View()), "✗") {
+				t.Errorf("View() = %q, want no error row", m.View())
+			}
+		})
+	}
+}
+
+func TestSetErrorText(t *testing.T) {
+	src := newSource(sample(), 5)
+	src.setFail("", errors.New("boom"))
+	m := load(t, src)
+	m.SetErrorText(func(error) (string, string) { return "Something went wrong", "r to retry" })
+	if text, hint := m.statusLine(); ansi.Strip(text+hint) != "✗ Something went wrong · r to retry" {
+		t.Errorf("statusLine() = %q, %q; want the new error text", text, hint)
 	}
 }
 
