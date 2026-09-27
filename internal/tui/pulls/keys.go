@@ -18,9 +18,11 @@ import (
 type keyMap struct {
 	Select key.Binding
 	Back   key.Binding
-	// Filter opens the filter modal, which the app does, so the section
-	// only keeps it from the feed and shows it in help.
+	// Filter and Sort open the filter modal on its Filters and Sort tabs,
+	// which the app does, so the section only keeps them from the feed and
+	// shows them in help.
 	Filter      key.Binding
+	Sort        key.Binding
 	ClearFilter key.Binding
 	// NextTab and PrevTab switch the state shown.
 	NextTab key.Binding
@@ -44,6 +46,7 @@ func newKeyMap(keys map[string][]string) keyMap {
 		Select:      ui.Binding(keys, config.ActionSelect, "open"),
 		Back:        ui.Binding(keys, config.ActionBack, "back"),
 		Filter:      ui.Binding(keys, config.ActionFilter, "filter"),
+		Sort:        ui.Binding(keys, config.ActionSort, "sort"),
 		ClearFilter: ui.Binding(keys, config.ActionClearFilter, "clear filters"),
 		NextTab:     ui.Binding(keys, config.ActionNextFilter, "next state"),
 		PrevTab:     ui.Binding(keys, config.ActionPrevFilter, "previous state"),
@@ -81,7 +84,7 @@ func newKeyMap(keys map[string][]string) keyMap {
 
 // list returns the bindings the section handles before the feed.
 func (k keyMap) list() []key.Binding {
-	return []key.Binding{k.Select, k.Filter, k.ClearFilter, k.NextTab, k.PrevTab, k.Refresh, k.Open, k.Merge, k.Close, k.Reopen, k.ToggleDraft, k.Checks}
+	return []key.Binding{k.Select, k.Filter, k.Sort, k.ClearFilter, k.NextTab, k.PrevTab, k.Refresh, k.Open, k.Merge, k.Close, k.Reopen, k.ToggleDraft, k.Checks}
 }
 
 // detail returns the bindings the modal handles before the thread.
@@ -160,7 +163,7 @@ func (s *Section) Help() help.KeyMap {
 		full: [][]key.Binding{
 			{f.Up, f.Down, f.PageUp, f.PageDown},
 			{f.Home, f.End},
-			{k.Select, k.Filter, k.ClearFilter, k.NextTab, k.PrevTab, k.Refresh, k.Checks, k.Open},
+			{k.Select, k.Filter, k.Sort, k.ClearFilter, k.NextTab, k.PrevTab, k.Refresh, k.Checks, k.Open},
 			changes,
 		},
 	}

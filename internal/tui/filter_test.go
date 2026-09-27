@@ -21,6 +21,8 @@ type filterSection struct {
 	applied []filterform.AppliedMsg
 	chips   string
 	claim   string
+	// sorts adds a sort to the filter.
+	sorts bool
 }
 
 func (s *filterSection) Filter() (ui.Filter, bool) {
@@ -29,6 +31,12 @@ func (s *filterSection) Filter() (ui.Filter, bool) {
 		Options: []filterform.Item{{Label: "Open", Value: "open"}, {Label: "Closed", Value: "closed"}},
 		Default: filterform.TextValue("open"),
 	}}}
+	if s.sorts {
+		spec.Sort = &filterform.SortField{
+			Options: []filterform.SortOption{ui.SortByTime("Updated", "updated"), ui.SortByCount("Comments", "comments")},
+			Default: filterform.Sort{By: "updated", Desc: true},
+		}
+	}
 	return ui.Filter{Spec: spec, Query: s.query, Subject: testRepo.String()}, s.ready
 }
 
@@ -45,10 +53,17 @@ func (s *filterSection) Claims(msg tea.KeyPressMsg) bool { return msg.String() =
 // newFilterApp returns an app whose pull requests filter, focused on them.
 func newFilterApp(t *testing.T) (*Model, *filterSection, []*fakeSection) {
 	t.Helper()
+	return newFilterAppWith(t, config.Default(), 120, 40)
+}
+
+// newFilterAppWith returns an app of cfg and size whose pull requests
+// filter, focused on them.
+func newFilterAppWith(t *testing.T, cfg config.Config, width, height int) (*Model, *filterSection, []*fakeSection) {
+	t.Helper()
 	fakes := []*fakeSection{{title: "Files"}, {title: "Pull requests"}, {title: "Issues"}}
 	pulls := &filterSection{fakeSection: fakes[1], query: "is:closed", ready: true, claim: "]"}
-	m := New(t.Context(), config.Default(), Layout{Files: fakes[0], Pulls: pulls, Issues: fakes[2]}, WithRepo(testRepo))
-	m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	m := New(t.Context(), cfg, Layout{Files: fakes[0], Pulls: pulls, Issues: fakes[2]}, WithRepo(testRepo))
+	m.Update(tea.WindowSizeMsg{Width: width, Height: height})
 	run(m, m.showScreen(repoScreen, 1))
 	return m, pulls, fakes
 }
@@ -142,6 +157,92 @@ func TestPaneTitleChips(t *testing.T) {
 			pulls.chips = "@me · bug · -is:draft"
 			m.Update(tea.WindowSizeMsg{Width: width, Height: 12})
 			m.updateBadges()
+			golden.RequireEqual(t, m.View().Content)
+		})
+	}
+}
+
+func TestSortKeyOpensTheSortTab(t *testing.T) {
+	tests := []struct {
+		name       string
+		sorts      bool
+		keys       []string
+		wantTab    int
+		wantNoTabs bool
+	}{
+		{name: "f opens the filters", sorts: true, keys: []string{"f"}, wantTab: 0},
+		{name: "s opens the sort", sorts: true, keys: []string{"s"}, wantTab: 1},
+		{name: "] switches to the sort", sorts: true, keys: []string{"f", "]"}, wantTab: 1},
+		{name: "[ switches back", sorts: true, keys: []string{"s", "["}, wantTab: 0},
+		{name: "f opens a list without a sort, with no tabs", keys: []string{"f"}, wantTab: -1, wantNoTabs: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m, pulls, _ := newFilterApp(t)
+			pulls.sorts = tt.sorts
+			for _, k := range tt.keys {
+				run(m, m.key(press(k)))
+			}
+			names, active := filterModal(t, m).Tabs()
+			if active != tt.wantTab || (names == nil) != tt.wantNoTabs {
+				t.Errorf("Tabs = %q, %d; want tab %d", names, active, tt.wantTab)
+			}
+			if pulls.got(isKey("s")) || pulls.got(isKey("f")) {
+				t.Error("the section got the key too")
+			}
+		})
+	}
+}
+
+// Applying from either tab applies the same query.
+func TestFilterModalAppliesFromEitherTab(t *testing.T) {
+	for _, k := range []string{"f", "s"} {
+		m, pulls, _ := newFilterApp(t)
+		pulls.sorts, pulls.query = true, "is:closed sort:comments-asc"
+		run(m, m.key(press(k)))
+		run(m, m.key(tea.KeyPressMsg{Code: tea.KeyEnter}))
+		if len(pulls.applied) != 1 || pulls.applied[0].Query != "is:closed sort:comments-asc" {
+			t.Errorf("%s then enter applied %+v, want the query as it was", k, pulls.applied)
+		}
+	}
+}
+
+func TestSortKeyWithoutASortGoesToTheSection(t *testing.T) {
+	m, pulls, _ := newFilterApp(t)
+	run(m, m.key(press("s")))
+	if m.topModal() != nil || !pulls.got(isKey("s")) {
+		t.Error("s opened a modal for a list that can't be sorted, or didn't reach the section")
+	}
+}
+
+func TestSortKeyCanBeRebound(t *testing.T) {
+	cfg := config.Default()
+	cfg.Keys[config.ActionSort] = []string{"o"}
+	m, pulls, _ := newFilterAppWith(t, cfg, 120, 40)
+	pulls.sorts = true
+	run(m, m.key(press("s")))
+	if m.topModal() != nil {
+		t.Fatal("s still opens the sort")
+	}
+	run(m, m.key(press("o")))
+	if _, active := filterModal(t, m).Tabs(); active != 1 {
+		t.Errorf("o opened tab %d, want the sort", active)
+	}
+}
+
+// The tabs show in the top edge of the frame, at 80 columns too, where
+// they shorten a long title.
+func TestFilterModalFrame(t *testing.T) {
+	tests := []struct {
+		name  string
+		key   string
+		width int
+	}{{"f", "f", 80}, {"s", "s", 80}, {"s at 70", "s", 70}}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m, pulls, _ := newFilterAppWith(t, config.Default(), tt.width, 24)
+			pulls.sorts = true
+			run(m, m.key(press(tt.key)))
 			golden.RequireEqual(t, m.View().Content)
 		})
 	}

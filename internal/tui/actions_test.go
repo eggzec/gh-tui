@@ -7,6 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/charmbracelet/x/exp/golden"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
@@ -90,6 +91,20 @@ func TestFrameShowsTheTabs(t *testing.T) {
 	if top := topEdge(m); strings.Contains(top, "Mine") || !strings.Contains(top, "Actions") {
 		t.Errorf("at 50 columns the top edge is %q, want the title alone", top)
 	}
+}
+
+// A long title gives way to the tabs at 80 columns, down to a stretch of
+// it, so the tabs still show.
+func TestFrameShortensALongTitle(t *testing.T) {
+	a := &actionsOpener{}
+	m, _ := newTestApp(t, WithActions(a.open))
+	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	m.Update(ui.OpenActionsMsg{Repo: core.RepoRef{Owner: "charmbracelet", Name: "bubbletea-app-template"}})
+	top := topEdge(m)
+	if !strings.Contains(top, "Actions · charmbrace") || !strings.Contains(top, "…") || !strings.HasSuffix(top, "All · Failing · Running · Mine ─╮") {
+		t.Errorf("the top edge is %q, want the title shortened and the tabs", top)
+	}
+	golden.RequireEqual(t, m.View().Content)
 }
 
 // topEdge is the top edge of the modal's frame, without styles.

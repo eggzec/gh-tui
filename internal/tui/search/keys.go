@@ -31,9 +31,10 @@ type KeyMap struct {
 	Checks key.Binding
 	// Back goes back to the screen before the search.
 	Back key.Binding
-	// Filter names the key that opens the filter of the kind on view,
-	// which the app handles.
+	// Filter and Sort name the keys that open the filter of the kind on
+	// view on its Filters and Sort tabs, which the app handles.
 	Filter  key.Binding
+	Sort    key.Binding
 	Refresh key.Binding
 	Up      key.Binding
 	Down    key.Binding
@@ -54,13 +55,14 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		Checks:  ui.Binding(keys, config.ActionChecks, "checks"),
 		Back:    ui.Binding(keys, config.ActionBack, "back"),
 		Filter:  ui.Binding(keys, config.ActionFilter, "filter"),
+		Sort:    ui.Binding(keys, config.ActionSort, "sort"),
 		Refresh: ui.Binding(keys, config.ActionRefresh, "refresh"),
 		Up:      key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("↑/k", "up")),
 		Down:    key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓/j", "down")),
 		Left:    key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←/h", "kinds")),
 		Right:   key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "results")),
 	}
-	own := []key.Binding{k.Select, k.Open, k.Repo, k.Checks, k.Refresh, k.Back, k.Filter, k.Next, k.Prev, k.Left, k.Right}
+	own := []key.Binding{k.Select, k.Open, k.Repo, k.Checks, k.Refresh, k.Back, k.Filter, k.Sort, k.Next, k.Prev, k.Left, k.Right}
 	f := feed.DefaultKeyMap()
 	f.PageUp = free(f.PageUp, own)
 	f.PageDown = free(f.PageDown, own)
@@ -131,7 +133,7 @@ func (h helpKeys) ShortHelp() []key.Binding {
 		} else {
 			sel.SetHelp(sel.Help().Key, "results")
 		}
-		return []key.Binding{k.Up, k.Down, sel, k.Filter, k.Next, k.Back}
+		return []key.Binding{k.Up, k.Down, sel, k.Filter, h.sort(), k.Next, k.Back}
 	default:
 		sel := k.Select
 		if h.kind != core.SearchRepos {
@@ -139,8 +141,16 @@ func (h helpKeys) ShortHelp() []key.Binding {
 		}
 		checks := k.Checks
 		checks.SetEnabled(checks.Enabled() && h.kind == core.SearchPulls)
-		return []key.Binding{k.Up, k.Down, sel, k.Repo, checks, k.Open, k.Filter, k.Left, k.Back, h.feed.Retry}
+		return []key.Binding{k.Up, k.Down, sel, k.Repo, checks, k.Open, k.Filter, h.sort(), k.Left, k.Back, h.feed.Retry}
 	}
+}
+
+// sort returns the sort key, which code search, sorted by best match
+// alone, doesn't take.
+func (h helpKeys) sort() key.Binding {
+	s := h.k.Sort
+	s.SetEnabled(s.Enabled() && h.kind != core.SearchCode)
+	return s
 }
 
 // FullHelp returns the bindings for the full help view.
