@@ -264,13 +264,14 @@ func graphqlPath(path []any) string {
 // graphqlReset is when a query of shape (call.shape) that GitHub refused
 // as RATE_LIMITED with msg may be sent again, from the headers h of the
 // response. The GraphQL quota is spent when nothing is left of it, when
-// msg is GitHub's for a spent quota, or when the query costs more than is
-// left, and then the query may be sent at the release of the quota.
-// Otherwise the limit is a secondary one, which lasts as Retry-After says,
-// or a minute.
+// msg is GitHub's for a spent quota, or, unless msg is GitHub's for a
+// secondary limit, when the query costs more than is left, and then the
+// query may be sent at the release of the quota. Otherwise the limit is a
+// secondary one, which lasts as Retry-After says, or a minute.
 func (c *Client) graphqlReset(h http.Header, shape, msg string) time.Time {
 	rl, ok := parseRateLimit(h)
-	if ok && (rl.Remaining == 0 || quotaSpent(msg) || c.budget.costsMore(shape, rl.Remaining)) {
+	if ok && (rl.Remaining == 0 || quotaSpent(msg) ||
+		!secondaryMessage(msg) && c.budget.costsMore(shape, rl.Remaining)) {
 		return c.limitedUntil(resourceGraphQL, rl)
 	}
 	if at, ok := c.retryAfter(h); ok {
@@ -284,4 +285,11 @@ func (c *Client) graphqlReset(h http.Header, shape, msg string) time.Time {
 // limit.
 func quotaSpent(msg string) bool {
 	return strings.Contains(strings.ToLower(msg), "api rate limit exceeded")
+}
+
+// secondaryMessage reports whether msg is GitHub's for a secondary limit,
+// such as "You have exceeded a secondary rate limit.", which holds even
+// if the query costs more than is left.
+func secondaryMessage(msg string) bool {
+	return strings.Contains(strings.ToLower(msg), "secondary rate limit")
 }
