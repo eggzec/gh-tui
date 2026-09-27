@@ -503,6 +503,12 @@ func TestAheadPause(t *testing.T) {
 			r()
 			return a.Pause()
 		},
+	}, {
+		name: "with others and none, as a modal from another list",
+		pause: func(a *Ahead[int]) func() {
+			var none *Ahead[string]
+			return PauseAll(a, nil, none, NewAhead[string]("other", nil, nil, 0, 0))
+		},
 	}}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

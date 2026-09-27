@@ -85,12 +85,13 @@ type detailModal struct {
 // openDetail opens a modal on pull request number of repo, on its checks
 // if onChecks is set and the section has them. pr is the list item, shown
 // until the detail arrives, or nil when there is none.
-func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest, onChecks bool) tea.Cmd {
+func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest, onChecks bool, from ui.Pauser) tea.Cmd {
 	// The reads of the modal are one trace, however many pages it reads.
 	ctx, cancel := context.WithCancel(obs.WithTrace(s.ctx, "open.pull"))
 	s.ahead.Opened(commentsQuery(repo, number))
-	// The reads ahead wait, so that the detail's requests go first.
-	resume := s.ahead.Pause()
+	// The reads ahead wait, so that the detail's requests go first: the
+	// list's, and those of the list it was opened from.
+	resume := ui.PauseAll(s.ahead, from)
 	_, cached := s.svc.CachedGet(repo, number)
 	slog.InfoContext(ctx, "open", "span", "tui", "kind", "pull", "repo", repo.String(), "number", number, "cached", cached)
 	m := &detailModal{

@@ -19,7 +19,7 @@ func (s *Section) Update(msg tea.Msg) tea.Cmd {
 		if !s.focused {
 			return nil
 		}
-		return s.opener.Rested(msg)
+		return tea.Batch(s.opener.Rested(msg), s.ahead.Rested(msg))
 	}
 	cmd, all := s.update(msg)
 	if all {
@@ -32,6 +32,9 @@ func (s *Section) Update(msg tea.Msg) tea.Cmd {
 		cmd = tea.Batch(cmd, off)
 	}
 	if ahead := s.readAhead(); ahead != nil {
+		cmd = tea.Batch(cmd, ahead)
+	}
+	if ahead := s.readWorkAhead(); ahead != nil {
 		cmd = tea.Batch(cmd, ahead)
 	}
 	return cmd
@@ -172,12 +175,11 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 			w.move(1)
 		case key.Matches(msg, k.Select):
 			if hit, ok := w.selected(); ok {
-				return openHit(hit), true
+				return s.openHit(hit, false), true
 			}
 		case key.Matches(msg, k.Checks):
 			if hit, ok := w.selected(); ok && hit.Kind == core.SearchPulls {
-				msg := ui.OpenPullMsg{Repo: hit.Issue.Repo, Number: hit.Issue.Number, Checks: true}
-				return func() tea.Msg { return msg }, true
+				return s.openHit(hit, true), true
 			}
 		case key.Matches(msg, k.Open):
 			if hit, ok := w.selected(); ok {
@@ -224,17 +226,6 @@ func (s *Section) focusPane(p paneID) {
 		s.cal.Focus()
 	default:
 	}
-}
-
-// openHit returns the command that opens the pull request or issue of hit
-// in its modal.
-func openHit(hit core.SearchHit) tea.Cmd {
-	is := hit.Issue
-	var msg tea.Msg = ui.OpenIssueMsg{Repo: is.Repo, Number: is.Number}
-	if hit.Kind == core.SearchPulls {
-		msg = ui.OpenPullMsg{Repo: is.Repo, Number: is.Number}
-	}
-	return func() tea.Msg { return msg }
 }
 
 // repoURL is the page of r on GitHub.

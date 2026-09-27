@@ -141,6 +141,28 @@ func (a *Ahead[K]) Pause() (resume func()) {
 	return a.pause.close()
 }
 
+// Pauser holds reads ahead while a detail the user opened loads, as
+// [Ahead.Pause] does.
+type Pauser interface {
+	Pause() (resume func())
+}
+
+// PauseAll pauses each of ps that isn't nil, and returns the func that
+// resumes them all, which may be called more than once.
+func PauseAll(ps ...Pauser) (resume func()) {
+	resumes := make([]func(), 0, len(ps))
+	for _, p := range ps {
+		if p != nil {
+			resumes = append(resumes, p.Pause())
+		}
+	}
+	return func() {
+		for _, r := range resumes {
+			r()
+		}
+	}
+}
+
 // First reads the details of the first rows of the list, which at returns
 // by index, and false for a row not loaded. It reads them again only when
 // the first rows change, and skips those cached.

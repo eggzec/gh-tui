@@ -8,9 +8,7 @@ package threads
 
 import (
 	"context"
-	"errors"
 	"regexp"
-	"sync"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -18,6 +16,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
+	"github.com/eggzec/gh-tui/internal/tui/details"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
@@ -94,6 +93,8 @@ type Opener struct {
 	releases Releases
 	markRead bool
 
+	// details reads the pull requests and issues, as the other lists do.
+	details  details.Reader
 	prefetch bool
 	rows     int
 	delay    time.Duration
@@ -109,6 +110,7 @@ func New(ctx context.Context, opts ...Option) *Opener {
 	for _, opt := range opts {
 		opt(o)
 	}
+	o.details = details.Reader{Pulls: o.pulls, Issues: o.issues}
 	if o.prefetch {
 		o.ahead = ui.NewAhead("thread", o.read, o.current, o.rows, o.delay)
 		o.ahead.Reset(ctx)
@@ -131,6 +133,11 @@ type target struct {
 	updated time.Time
 }
 
+// detail returns the key of the pull request or issue t is about.
+func (t target) detail() details.Key {
+	return details.Key{Pull: t.kind == core.SubjectPullRequest, Repo: t.repo, Number: t.number}
+}
+
 // targetOf returns what n is about, if it can be read ahead.
 func targetOf(n core.Notification) (target, bool) {
 	t := target{kind: n.Subject.Type, repo: n.Repo, updated: n.UpdatedAt}
@@ -151,15 +158,21 @@ func targetOf(n core.Notification) (target, bool) {
 // browser, with a toast that says why. It doesn't mark n read.
 func (o *Opener) Open(n core.Notification) tea.Cmd {
 	sub := n.Subject
+	// The modal of an issue or a pull request holds the reads ahead while
+	// it loads, as those of the lists do.
+	var pause ui.Pauser
+	if o != nil && o.ahead != nil {
+		pause = o.ahead
+	}
 	var msg tea.Msg
 	switch sub.Type {
 	case core.SubjectIssue:
 		if sub.Number > 0 {
-			msg = ui.OpenIssueMsg{Repo: n.Repo, Number: sub.Number}
+			msg = ui.OpenIssueMsg{Repo: n.Repo, Number: sub.Number, Pause: pause}
 		}
 	case core.SubjectPullRequest:
 		if sub.Number > 0 {
-			msg = ui.OpenPullMsg{Repo: n.Repo, Number: sub.Number}
+			msg = ui.OpenPullMsg{Repo: n.Repo, Number: sub.Number, Pause: pause}
 		}
 	case core.SubjectCheckSuite:
 		if f, ok := runFilter(sub); ok {
@@ -303,10 +316,8 @@ func (o *Opener) changed(t target) {
 func (o *Opener) current(t target) bool {
 	o.changed(t)
 	switch t.kind {
-	case core.SubjectPullRequest:
-		return o.pulls == nil || o.pulls.Current(pulls.CommentsQuery{Repo: t.repo, Number: t.number})
-	case core.SubjectIssue:
-		return o.issues == nil || o.issues.Current(issuesvc.CommentsQuery{Repo: t.repo, Number: t.number})
+	case core.SubjectPullRequest, core.SubjectIssue:
+		return o.details.Current(t.detail())
 	case core.SubjectRelease:
 		return o.releases == nil || o.releases.Current(t.repo, t.release)
 	default:
@@ -319,34 +330,14 @@ func (o *Opener) current(t target) bool {
 // release.
 func (o *Opener) read(ctx context.Context, t target) error {
 	switch t.kind {
-	case core.SubjectPullRequest:
-		q := pulls.CommentsQuery{Repo: t.repo, Number: t.number}
-		return both(
-			func() error { _, err := o.pulls.Get(ctx, t.repo, t.number); return err },
-			func() error { _, err := o.pulls.Comments(ctx, q); return err })
-	case core.SubjectIssue:
-		q := issuesvc.CommentsQuery{Repo: t.repo, Number: t.number}
-		return both(
-			func() error { _, err := o.issues.Get(ctx, t.repo, t.number); return err },
-			func() error { _, err := o.issues.Comments(ctx, q); return err })
+	case core.SubjectPullRequest, core.SubjectIssue:
+		return o.details.Read(ctx, t.detail())
 	case core.SubjectRelease:
 		_, err := o.releases.Get(ctx, t.repo, t.release)
 		return err
 	default:
 		return nil
 	}
-}
-
-// both runs a and b at once, since the modal waits for both.
-func both(a, b func() error) error {
-	var (
-		wg   sync.WaitGroup
-		aErr error
-	)
-	wg.Go(func() { aErr = a() })
-	bErr := b()
-	wg.Wait()
-	return errors.Join(aErr, bErr)
 }
 
 func batch(a, b tea.Cmd) tea.Cmd {
