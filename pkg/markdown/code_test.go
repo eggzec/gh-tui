@@ -1,7 +1,9 @@
 package markdown
 
 import (
+	"math/rand/v2"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -211,15 +213,18 @@ func TestContainedCodeRendersQuickly(t *testing.T) {
 }
 
 // stuck is a lexer that runs until release is closed, as one that never
-// finishes does, and counts its runs.
+// finishes does, and counts its runs. entered is closed once it first
+// runs.
 type stuck struct {
 	chroma.Lexer
-	release chan struct{}
-	runs    atomic.Int32
+	release, entered chan struct{}
+	runs             atomic.Int32
 }
 
 func (l *stuck) Tokenise(*chroma.TokeniseOptions, string) (chroma.Iterator, error) {
-	l.runs.Add(1)
+	if l.runs.Add(1) == 1 {
+		close(l.entered)
+	}
 	<-l.release
 	return chroma.Literator(), nil
 }
@@ -229,8 +234,12 @@ func (l *stuck) Tokenise(*chroma.TokeniseOptions, string) (chroma.Iterator, erro
 func TestOverrunLexerRunsAlone(t *testing.T) {
 	idle(t)
 	before := runtime.NumGoroutine()
-	l := &stuck{Lexer: lexers.Get("go"), release: make(chan struct{})}
-	for _, code := range []string{"overran", "other", "overran"} {
+	l := &stuck{Lexer: lexers.Get("go"), release: make(chan struct{}), entered: make(chan struct{})}
+	// The overruns are kept for as long as the process runs, so each run
+	// of the test lexes code of its own.
+	id := t.Name() + strconv.Itoa(rand.Int())
+	overran, other := "overran "+id, "other "+id
+	for _, code := range []string{overran, other, overran} {
 		if _, ok := tokens(l, code, newBudget()); ok {
 			t.Errorf("%q highlights while the lexer overruns", code)
 		}
@@ -238,8 +247,12 @@ func TestOverrunLexerRunsAlone(t *testing.T) {
 	if n := l.runs.Load(); n != 1 {
 		t.Errorf("the lexer ran %d times, want once", n)
 	}
-	if n := runtime.NumGoroutine(); n != before+1 {
-		t.Errorf("%d goroutines run, want the lexer's beside the %d before", n, before)
+	// Counting goroutines can't tell the lexer's apart from one of an
+	// earlier test that ends meanwhile.
+	select {
+	case <-l.entered:
+	default:
+		t.Error("the lexer doesn't run")
 	}
 	close(l.release)
 	if n := settle(before); n > before {
@@ -248,10 +261,10 @@ func TestOverrunLexerRunsAlone(t *testing.T) {
 	// Another goroutine may have ended first, while the lexer's still
 	// held its token.
 	idle(t)
-	if _, ok := tokens(l, "overran", newBudget()); ok {
+	if _, ok := tokens(l, overran, newBudget()); ok {
 		t.Error("the code the lexer overran on highlights")
 	}
-	if _, ok := tokens(l, "other", newBudget()); !ok {
+	if _, ok := tokens(l, other, newBudget()); !ok {
 		t.Error("other code doesn't highlight once the lexer ended")
 	}
 	if n := l.runs.Load(); n != 2 {
