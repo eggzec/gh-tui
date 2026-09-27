@@ -24,6 +24,8 @@ var (
 	keyX     = tea.KeyPressMsg{Code: 'x', Text: "x"}
 	keyR     = tea.KeyPressMsg{Code: 'r', Text: "r"}
 	ctrlU    = tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl}
+	nextTab  = tea.KeyPressMsg{Code: ']', Text: "]"}
+	prevTab  = tea.KeyPressMsg{Code: '[', Text: "["}
 )
 
 // Rows of prSpec.
@@ -34,7 +36,6 @@ const (
 	rowLabels
 	rowDrafts
 	rowBase
-	rowSort
 	rowQuery
 )
 
@@ -121,8 +122,11 @@ func prSpec(load Loader) Spec {
 			{Key: "base", Label: "Base", Kind: Text, Qualifier: "base", Default: TextValue("main"), Hint: "any branch"},
 		},
 		Sort: &SortField{
-			Options: []Item{{"Updated", "updated", ""}, {"Created", "created", ""}, {"Comments", "comments", ""}},
-			Desc:    "↓ newest first", Asc: "↑ oldest first",
+			Options: []SortOption{
+				{Label: "Updated", Value: "updated", Desc: "Newest first", Asc: "Oldest first"},
+				{Label: "Created", Value: "created", Desc: "Newest first", Asc: "Oldest first"},
+				{Label: "Comments", Value: "comments", Desc: "Most first", Asc: "Fewest first"},
+			},
 			Default: Sort{By: "updated", Desc: true},
 		},
 	}

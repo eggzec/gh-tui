@@ -217,11 +217,17 @@ func claimSort(sf *SortField, tok Token) (Sort, bool) {
 			by, desc = by[:i], false
 		}
 	}
-	opt, ok := findItem(sf.Options, by)
-	if !ok {
+	i := sf.index(by)
+	if i < 0 || sf.Options[i].Value == "" {
 		return Sort{}, false
 	}
-	return Sort{By: opt.Value, Desc: desc}, true
+	return Sort{By: sf.Options[i].Value, Desc: desc}, true
+}
+
+// index returns the index of the option whose value is by, ignoring case,
+// or -1.
+func (sf *SortField) index(by string) int {
+	return slices.IndexFunc(sf.Options, func(o SortOption) bool { return strings.EqualFold(o.Value, by) })
 }
 
 // state is what a form holds: a value per field, the sort, and the words no
@@ -258,7 +264,7 @@ func cleared(s *Spec) state {
 	}
 	switch {
 	case s.Sort == nil:
-	case hasEmpty(s.Sort.Options):
+	case s.Sort.index("") >= 0:
 		st.sort.Desc = s.Sort.Default.Desc
 	default:
 		st.sort = s.Sort.Default

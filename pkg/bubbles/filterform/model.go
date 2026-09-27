@@ -4,9 +4,10 @@
 // The parent declares the fields in a [Spec]. Each field writes and claims
 // search qualifiers, so the form shows the equivalent query on its last
 // line: editing a field rewrites the query, and editing the query sets the
-// fields. Words no field claims are kept as free text. The user applies
-// the form with enter, which sends an [AppliedMsg], or closes it with esc,
-// which sends a [CancelMsg].
+// fields. Words no field claims are kept as free text. A spec with a sort
+// shows it on a tab of its own, after the filters; ] and [ switch tabs.
+// The user applies the form, both tabs at once, with enter, which sends an
+// [AppliedMsg], or closes it with esc, which sends a [CancelMsg].
 package filterform
 
 import (
@@ -57,7 +58,10 @@ type Model struct {
 	state  state
 	fields []field
 
-	// row is the row in focus: a field, then the sort, then the query line.
+	// tab is the tab on view, and row the row in focus on it: a field, or
+	// on the Sort tab what is sorted by and the order, then the query
+	// line.
+	tab Tab
 	row int
 	// editing is whether the row's editor is open; before is the value it
 	// opened with, which esc puts back, and toggled whether space chose
@@ -113,6 +117,9 @@ func New(spec Spec, opts ...Option) Model {
 	m.query.Placeholder = "Type a query, or choose above"
 	m.help.ShortSeparator = " · "
 	m.fields = make([]field, len(m.spec.Fields))
+	if m.tabbed() && s.tab == SortTab {
+		m.tab = SortTab
+	}
 	m.ctx, m.cancel = context.WithCancel(m.parent)
 	if s.hasQuery {
 		m.state = parse(&m.spec, s.query)
@@ -154,7 +161,7 @@ func (m *Model) SetQuery(q string) {
 }
 
 // Reset puts every field and the sort back to their defaults and drops the
-// free text. It closes an open editor.
+// free text, on both tabs. It closes an open editor.
 func (m *Model) Reset() {
 	m.closeEditor(false)
 	m.state = defaults(&m.spec)
@@ -281,39 +288,59 @@ func (m *Model) shortHelp() []key.Binding {
 	case m.row == m.queryRow():
 		return []key.Binding{k.Down, k.Apply, relabel(k.Cancel, "cancel")}
 	}
+	// The key to the other tab comes last, since the tabs show already.
+	var out []key.Binding
 	switch m.kind() {
 	case Multi, Person, Text:
-		return []key.Binding{k.Down, k.Edit, k.Remove, k.Reset, k.Cancel}
+		out = []key.Binding{k.Down, k.Edit, k.Remove, m.resetHelp(), k.Cancel, m.tabHelp()}
 	default:
 		right := k.Right
 		right.SetHelp(right.Help().Key+"/"+k.Toggle.Help().Key, right.Help().Desc)
-		return []key.Binding{k.Down, right, k.Apply, k.Reset, k.Cancel}
+		out = []key.Binding{k.Down, right, k.Apply, m.resetHelp(), k.Cancel, m.tabHelp()}
 	}
+	if !m.tabbed() {
+		out = out[:len(out)-1]
+	}
+	return out
 }
 
-// FullHelp implements help.KeyMap.
-func (m Model) FullHelp() [][]key.Binding { return m.keys.FullHelp() }
+// resetHelp returns the reset key, named after what it resets in a form
+// with tabs: the tab on view.
+func (m *Model) resetHelp() key.Binding {
+	if !m.tabbed() {
+		return m.keys.Reset
+	}
+	return relabel(m.keys.Reset, resetHelpDescs[m.tab])
+}
 
-// sortRow returns the row of the sort, or -1 without one.
-func (m *Model) sortRow() int {
-	if m.spec.Sort == nil {
-		return -1
+// tabHelp returns the key to the other tab, named after it.
+func (m *Model) tabHelp() key.Binding {
+	return relabel(m.keys.NextTab, tabHelpDescs[(m.tab+1)%numTabs])
+}
+
+// FullHelp implements help.KeyMap. A form without tabs leaves out the keys
+// that switch them.
+func (m Model) FullHelp() [][]key.Binding {
+	k := m.keys
+	if !m.tabbed() {
+		k.NextTab.SetEnabled(false)
+		k.PrevTab.SetEnabled(false)
+	}
+	return k.FullHelp()
+}
+
+// queryRow returns the row of the query line, the last one of the tab.
+func (m *Model) queryRow() int {
+	if m.tab == SortTab {
+		return sortRows
 	}
 	return len(m.spec.Fields)
 }
 
-// queryRow returns the row of the query line, the last one.
-func (m *Model) queryRow() int {
-	if m.spec.Sort == nil {
-		return len(m.spec.Fields)
-	}
-	return len(m.spec.Fields) + 1
-}
-
-// kind returns the kind of the field in focus, or -1 for the sort and the
-// query line.
+// kind returns the kind of the field in focus, or -1 on the Sort tab and
+// the query line.
 func (m *Model) kind() Kind {
-	if m.row < len(m.spec.Fields) {
+	if m.tab == FiltersTab && m.row < len(m.spec.Fields) {
 		return m.spec.Fields[m.row].Kind
 	}
 	return -1

@@ -39,8 +39,10 @@ func Example() {
 			{Key: "base", Label: "Base", Kind: filterform.Text, Qualifier: "base", Hint: "any branch"},
 		},
 		Sort: &filterform.SortField{
-			Options: []filterform.Item{{Label: "Updated", Value: "updated"}, {Label: "Created", Value: "created"}},
-			Desc:    "↓ newest first", Asc: "↑ oldest first",
+			Options: []filterform.SortOption{
+				{Label: "Updated", Value: "updated", Desc: "Newest first", Asc: "Oldest first"},
+				{Label: "Created", Value: "created", Desc: "Newest first", Asc: "Oldest first"},
+			},
 			Default: filterform.Sort{By: "updated", Desc: true},
 		},
 	}

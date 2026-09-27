@@ -144,7 +144,7 @@ func TestFormatAndParse(t *testing.T) {
 func TestClearedKeepsRequiredDefaults(t *testing.T) {
 	spec := Spec{
 		Fields: []Field{{Key: "s", Kind: Choice, Qualifier: "is", Options: []Item{{"Open", "open", ""}, {"Closed", "closed", ""}}, Default: TextValue("open")}},
-		Sort:   &SortField{Options: []Item{{"Best match", "", ""}, {"Updated", "updated", ""}}, Default: Sort{By: "updated", Desc: true}},
+		Sort:   &SortField{Options: []SortOption{{Label: "Best match"}, {Label: "Updated", Value: "updated"}}, Default: Sort{By: "updated", Desc: true}},
 	}
 	m := New(spec, WithQuery(""))
 	if got := m.Query(); got != "is:open" {
@@ -156,10 +156,10 @@ func TestClearedKeepsRequiredDefaults(t *testing.T) {
 // has none, so choosing an option sorts the default way.
 func TestClearedKeepsTheSortDirection(t *testing.T) {
 	spec := Spec{Sort: &SortField{
-		Options: []Item{{"Best match", "", ""}, {"Stars", "stars", ""}},
+		Options: []SortOption{{Label: "Best match"}, {Label: "Stars", Value: "stars"}},
 		Default: Sort{Desc: true},
 	}}
-	m := New(spec, WithQuery("tea"))
+	m := New(spec, WithQuery("tea"), WithTab(SortTab))
 	m.Focus()
 	m, _ = m.Update(right)
 	if got := m.Query(); got != "sort:stars-desc tea" {

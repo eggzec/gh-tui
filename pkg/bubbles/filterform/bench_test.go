@@ -36,6 +36,16 @@ func BenchmarkView(b *testing.B) {
 	}
 }
 
+// BenchmarkViewSort renders the Sort tab.
+func BenchmarkViewSort(b *testing.B) {
+	m := benchForm(b)
+	m.SetTab(SortTab)
+	b.ReportAllocs()
+	for b.Loop() {
+		_ = m.View()
+	}
+}
+
 func BenchmarkUpdate(b *testing.B) {
 	b.Run("choose", func(b *testing.B) {
 		m := benchForm(b)
@@ -60,6 +70,21 @@ func BenchmarkUpdate(b *testing.B) {
 		for b.Loop() {
 			m, _ = m.Update(a)
 			m, _ = m.Update(bksp)
+		}
+	})
+	b.Run("switch tab", func(b *testing.B) {
+		m := benchForm(b)
+		b.ReportAllocs()
+		for b.Loop() {
+			m, _ = m.Update(nextTab)
+		}
+	})
+	b.Run("choose sort", func(b *testing.B) {
+		m := benchForm(b)
+		m.SetTab(SortTab)
+		b.ReportAllocs()
+		for b.Loop() {
+			m, _ = m.Update(right)
 		}
 	})
 	b.Run("toggle in picker", func(b *testing.B) {

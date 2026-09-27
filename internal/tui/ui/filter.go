@@ -32,6 +32,29 @@ type Filter struct {
 	Subject string
 }
 
+// Sort options, whose orders read the same in every list and start where
+// a list is best read: times newest first, counts most first, and names
+// from A.
+
+// SortByTime returns a sort option by a time, such as updated.
+func SortByTime(label, value string) filterform.SortOption {
+	return filterform.SortOption{Label: label, Value: value, Desc: "Newest first", Asc: "Oldest first"}
+}
+
+// SortByCount returns a sort option by a count, such as stars.
+func SortByCount(label, value string) filterform.SortOption {
+	return filterform.SortOption{Label: label, Value: value, Desc: "Most first", Asc: "Fewest first"}
+}
+
+// SortByName returns a sort option by a name.
+func SortByName(label, value string) filterform.SortOption {
+	return filterform.SortOption{Label: label, Value: value, Desc: "Z to A", Asc: "A to Z", Ascending: true}
+}
+
+// BestMatch is the sort option of GitHub's search that writes no sort:
+// it ranks by relevance, which has no order.
+var BestMatch = filterform.SortOption{Label: "Best match"}
+
 // Chipper is a Section whose pane title says more than its title, such as
 // the filters in force. Chips returns what follows the title, or "" for
 // nothing. It is called after every message, so it must be cheap.

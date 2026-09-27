@@ -238,10 +238,10 @@ func (t *repoTabs) spec() filterform.Spec {
 			},
 		},
 		Sort: &filterform.SortField{
-			Options: []filterform.Item{
-				{Label: "Updated", Value: "updated"},
-				{Label: "Stars", Value: "stars"},
-				{Label: "Name", Value: "name"},
+			Options: []filterform.SortOption{
+				ui.SortByTime("Updated", "updated"),
+				ui.SortByCount("Stars", "stars"),
+				ui.SortByName("Name", "name"),
 			},
 			Default: filterform.Sort{By: "updated", Desc: true},
 		},
