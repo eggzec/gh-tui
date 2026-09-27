@@ -19,6 +19,8 @@ type Icons struct {
 	Fork, Private, Archived, Template, Mirror, Here string
 	// Star marks a count of stars.
 	Star string
+	// Error marks what went wrong, as ErrorLine shows it.
+	Error string
 
 	// langs holds the glyphs of languages that have one; the others get
 	// lang.
@@ -63,7 +65,7 @@ func newIcons(set string) Icons {
 	case config.IconsUnicode:
 		return Icons{
 			Fork: "⑂", Private: "⊘", Archived: "⊟", Template: "⧉", Mirror: "⇄", Here: "⌂",
-			Star: "★",
+			Star: "★", Error: "✗",
 			lang: "◉",
 			states: [NumStates]string{
 				IssueOpen: "⦾", IssueClosed: "⦿", IssueNotPlanned: "⊘",
@@ -73,7 +75,7 @@ func newIcons(set string) Icons {
 	case config.IconsASCII:
 		return Icons{
 			Fork: "F", Private: "P", Archived: "A", Template: "T", Mirror: "M", Here: "~",
-			Star: "*",
+			Star: "*", Error: "x",
 			// A colored dot, as the other sets have, since the star takes *.
 			lang: "o",
 			states: [NumStates]string{
@@ -87,6 +89,7 @@ func newIcons(set string) Icons {
 		return Icons{
 			Fork: "\uf402", Private: "\uf456", Archived: "\uf411", Template: "\uf509", Mirror: "\uf41a", Here: "\uf46d",
 			Star:  "\uf41e",
+			Error: "\uf530",
 			langs: nerdLanguages,
 			lang:  "\uf44f",
 			files: nerdFiles,

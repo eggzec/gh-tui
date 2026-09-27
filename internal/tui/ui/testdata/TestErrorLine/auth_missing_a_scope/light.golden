@@ -1,0 +1,2 @@
+[38;2;192;57;43m✗ The token lacks the read:org scope. Run gh auth refresh -s read:org, then[m
+[38;2;192;57;43m  restart gh-tui.[m
