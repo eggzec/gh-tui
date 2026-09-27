@@ -45,6 +45,7 @@ type options struct {
 	token   string
 	baseURL string
 	gh      ghLookup
+	notify  func()
 }
 
 // WithHTTPClient sets the HTTP client that sends requests. Its Timeout
@@ -114,6 +115,9 @@ func New(opts ...Option) (*Client, error) {
 	// limit before it waits for a slot.
 	hc := *o.http
 	b := newBudget(base.EscapedPath(), gql.Path)
+	if o.notify != nil {
+		b.notifier = newRateNotifier(b, o.notify)
+	}
 	hc.Transport = newRetryTransport(&rateTransport{
 		budget: b,
 		base: &timeoutTransport{
@@ -134,6 +138,12 @@ func New(opts ...Option) (*Client, error) {
 		graphqlURL: gql.String(),
 		budget:     b,
 	}, nil
+}
+
+// Close stops telling of changes to the rate limits, the function that
+// WithRateNotify sets, and the timers that would. Requests still work.
+func (c *Client) Close() {
+	c.budget.notifier.stop()
 }
 
 // loginCommand is the gh command that logs in to host. gh logs in to

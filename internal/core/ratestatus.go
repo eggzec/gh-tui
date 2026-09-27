@@ -9,14 +9,18 @@ type Quota struct {
 	Resource string
 	Limit    int
 	// Remaining is what the client expects to be left once the requests
-	// in flight are answered, never below zero.
+	// in flight are answered, never below zero. Once Reset has passed it
+	// is the full Limit less those requests, until GitHub reports the new
+	// window.
 	Remaining int
-	// Reset is when the window refills, in local time.
+	// Reset is when the window refills, in local time. It stays the
+	// passed reset until GitHub reports the new window.
 	Reset time.Time
 	// Held is how many requests wait for the resource to be released.
 	Held int
 	// LimitedUntil is when the spent resource is used again, in local
-	// time, or zero if it isn't spent.
+	// time, or zero if it isn't spent. It is a guard after Reset, so it
+	// may outlast it.
 	LimitedUntil time.Time
 	// SeenAt is when GitHub last reported the quota.
 	SeenAt time.Time

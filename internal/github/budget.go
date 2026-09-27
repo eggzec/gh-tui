@@ -66,6 +66,10 @@ type budget struct {
 	// answered is when GitHub last answered, and failed when a request
 	// last got no answer, for the status of the connection.
 	answered, failed time.Time
+
+	// notifier tells of the changes that a status bar shows, or is nil.
+	// Each method that may make one calls changed once b.mu is released.
+	notifier *rateNotifier
 }
 
 // quota is one resource, as the answers of GitHub report it.
@@ -148,6 +152,7 @@ func (b *budget) reserve(req *http.Request) *reservation {
 	if c != nil && c.external {
 		return nil
 	}
+	defer b.changed()
 	resource := b.classify(req)
 	cost := 0
 	if resource != "" {
@@ -176,6 +181,7 @@ func (b *budget) learnCost(op string, cost int) {
 // request failed, rather than was canceled or never sent.
 func (b *budget) forget(r *reservation, failed bool) {
 	now := b.now()
+	defer b.changed()
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	delete(b.pending, r.seq)
@@ -203,6 +209,7 @@ func (b *budget) contact() (answered, failed time.Time) {
 // still finds the old window spent doubles it.
 func (b *budget) observe(r *reservation, h http.Header) (guard time.Duration) {
 	now := b.now()
+	defer b.changed()
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	delete(b.pending, r.seq)
@@ -256,6 +263,7 @@ func (b *budget) observe(r *reservation, h http.Header) (guard time.Duration) {
 func (b *budget) refused(resource string, rl RateLimit) (time.Time, bool) {
 	resource = cmp.Or(rl.Resource, resource)
 	now := b.now()
+	defer b.changed()
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	q := b.quotas[resource]
