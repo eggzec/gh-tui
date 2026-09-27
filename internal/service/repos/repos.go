@@ -11,7 +11,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/core"
-	"github.com/eggzec/gh-tui/internal/github"
+	"github.com/eggzec/gh-tui/internal/service/fallback"
 )
 
 // DefaultPageSize is the page size of a ListQuery that sets none.
@@ -73,11 +73,6 @@ const (
 	schema   = 3
 )
 
-// offlineAt is when a page served offline was fetched, as far as the cache
-// can tell: long ago, so it is stale at once and the next read asks GitHub
-// again.
-var offlineAt = time.Unix(1, 0)
-
 // New returns a Service that fetches from api.
 func New(api API, opts ...Option) *Service {
 	var o options
@@ -105,7 +100,8 @@ func (s *Service) CachedList(q ListQuery) (core.Page[core.Repo], bool) {
 // A page that only an earlier session kept is fresh if it was fetched or
 // revalidated within the TTL. An older one is returned at once, with Stale
 // set, to every read until one with q.Again set fetches it. If GitHub can't
-// be reached, a stale page is served with Offline set.
+// be reached, a stale page is served with Offline set, and if it rate
+// limits the read, with Limited set.
 func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.Repo], error) {
 	q = q.normalize()
 	key := listKey(q)
@@ -114,17 +110,10 @@ func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.Repo], 
 		p.Stale = true
 		return p, nil
 	}
-	e, err := s.lists.Fetch(ctx, key, func(ctx context.Context, prev cache.Entry[core.Page[core.Repo]], ok bool) (cache.Entry[core.Page[core.Repo]], error) {
-		// GraphQL has no validators, so a stale page is fetched again in full.
+	// GraphQL has no validators, so a stale page is fetched again in full.
+	e, err := fallback.Fetch(ctx, s.lists, s.kept, key, fallback.Page[core.Repo], fallback.Keep(s.kept, key, func(ctx context.Context, _ cache.Entry[core.Page[core.Repo]], _ bool) (cache.Entry[core.Page[core.Repo]], error) {
 		p, err := s.api.ListRepos(ctx, q.PageSize, q.Cursor)
-		switch {
-		case ok && github.Unreachable(ctx, err):
-			prev.Value.Offline, prev.FetchedAt = true, offlineAt
-			return prev, nil
-		case err != nil:
-			if github.Refused(err) {
-				s.kept.Delete(key)
-			}
+		if err != nil {
 			return cache.Entry[core.Page[core.Repo]]{}, err
 		}
 		tags := make([]string, 0, len(p.Items)+1)
@@ -132,11 +121,8 @@ func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.Repo], 
 		for i := range p.Items {
 			tags = append(tags, repoTag(p.Items[i].Ref))
 		}
-		e := cache.Entry[core.Page[core.Repo]]{Value: p, Tags: tags}
-		// The shelf is only a shortcut, so a failure is ignored.
-		_ = s.kept.Save(key, e)
-		return e, nil
-	})
+		return cache.Entry[core.Page[core.Repo]]{Value: p, Tags: tags}, nil
+	}))
 	// The client already names the request in its error.
 	return e.Value, err
 }
@@ -156,23 +142,13 @@ func (s *Service) Get(ctx context.Context, ref core.RepoRef) (core.Repo, error) 
 	// A stale kept repository is only what to fall back on, as the header
 	// and the gates read it once and would keep it.
 	s.keptRepos.Warm(s.repos, key, true)
-	e, err := s.repos.Fetch(ctx, key, func(ctx context.Context, prev cache.Entry[core.Repo], ok bool) (cache.Entry[core.Repo], error) {
+	e, err := fallback.Fetch(ctx, s.repos, s.keptRepos, key, fallback.None[core.Repo], fallback.Keep(s.keptRepos, key, func(ctx context.Context, _ cache.Entry[core.Repo], _ bool) (cache.Entry[core.Repo], error) {
 		r, err := s.api.GetRepo(ctx, ref)
-		switch {
-		case ok && github.Unreachable(ctx, err):
-			prev.FetchedAt = offlineAt
-			return prev, nil
-		case err != nil:
-			if github.Refused(err) {
-				s.keptRepos.Delete(key)
-			}
+		if err != nil {
 			return cache.Entry[core.Repo]{}, err
 		}
-		e := cache.Entry[core.Repo]{Value: r, Tags: []string{allTag, repoTag(ref)}}
-		// The shelf is only a shortcut, so a failure is ignored.
-		_ = s.keptRepos.Save(key, e)
-		return e, nil
-	})
+		return cache.Entry[core.Repo]{Value: r, Tags: []string{allTag, repoTag(ref)}}, nil
+	}))
 	if err != nil {
 		return core.Repo{}, fmt.Errorf("get repo %s: %w", ref, err)
 	}

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"sync"
 	"testing"
 	"time"
 
@@ -55,22 +56,41 @@ func TestKeptListOffline(t *testing.T) {
 	}{
 		{"unreachable", fmt.Errorf("%w: %w", core.ErrOffline, &url.Error{Op: "Post", URL: "https://api.github.com/graphql", Err: errors.New("refused")}), true},
 		{"server error", &github.Error{StatusCode: 502}, true},
+		{"rate limited", fmt.Errorf("graphql: %w", &core.RateLimitError{Reset: time.Now().Add(time.Hour)}), true},
 		{"unauthorized", &github.Error{StatusCode: 401}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			store := keptRepos(t)
-			api := &fakeAPI{t: t, listRepos: func(int, string) (core.Page[core.Repo], error) { return core.Page[core.Repo]{}, tt.err }}
+			var mu sync.Mutex
+			failure := tt.err
+			api := &fakeAPI{t: t, listRepos: func(int, string) (core.Page[core.Repo], error) {
+				mu.Lock()
+				defer mu.Unlock()
+				if failure != nil {
+					return core.Page[core.Repo]{}, failure
+				}
+				return mine, nil
+			}}
 			s := New(api, WithStore(cachetest.Aged(store, time.Hour)))
 			_, _ = s.List(t.Context(), ListQuery{})
 			p, err := s.List(t.Context(), ListQuery{}.again())
-			if tt.fallback != (err == nil && p.Offline && len(p.Items) == 1) {
+			limited := errors.Is(tt.err, core.ErrRateLimited)
+			if tt.fallback != (err == nil && p.Offline != limited && p.Limited == limited && len(p.Items) == 1) {
 				t.Errorf("List = %+v, %v; want fallback %v", p, err, tt.fallback)
 			}
 			if !tt.fallback {
 				if p, _ := New(api, WithStore(cachetest.Aged(store, time.Hour))).List(t.Context(), ListQuery{}); p.Stale {
 					t.Error("List after a refusal = stale, want the kept page gone")
 				}
+				return
+			}
+			// Once GitHub answers, the page is served unmarked.
+			mu.Lock()
+			failure = nil
+			mu.Unlock()
+			if p, err := s.List(t.Context(), ListQuery{}); err != nil || p.Offline || p.Limited || len(p.Items) != 1 {
+				t.Errorf("List after the outage = %+v, %v; want the page unmarked", p, err)
 			}
 		})
 	}
