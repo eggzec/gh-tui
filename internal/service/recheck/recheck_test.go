@@ -71,7 +71,7 @@ func TestFailure(t *testing.T) {
 	}{
 		{"forbidden", t.Context(), fmt.Errorf("get: %w", &github.Error{StatusCode: 403}), revalidate.Gone},
 		{"primary limit", t.Context(), fmt.Errorf("get: %w", &core.RateLimitError{Reset: reset}), revalidate.Limited},
-		{"network", t.Context(), &url.Error{Op: "Get", URL: "https://api.github.com", Err: errors.New("no route to host")}, revalidate.Offline},
+		{"network", t.Context(), fmt.Errorf("%w: %w", core.ErrOffline, &url.Error{Op: "Get", URL: "https://api.github.com", Err: errors.New("no route to host")}), revalidate.Offline},
 		{"server", t.Context(), &github.Error{StatusCode: 502}, revalidate.Offline},
 		{"not found", t.Context(), fmt.Errorf("get: %w", core.ErrNotFound), revalidate.Gone},
 		{"gone", t.Context(), fmt.Errorf("get: %w", &github.Error{StatusCode: 410}), revalidate.Gone},

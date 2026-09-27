@@ -275,7 +275,7 @@ func TestKeptIssueWithoutList(t *testing.T) {
 	api.checkCalls(t, "GetIssue", "ListIssueComments")
 }
 
-var errDial = &url.Error{Op: "Get", URL: "https://api.github.com/", Err: errors.New("connection refused")}
+var errDial = fmt.Errorf("%w: %w", core.ErrOffline, &url.Error{Op: "Get", URL: "https://api.github.com/", Err: errors.New("connection refused")})
 
 func TestKeptOffline(t *testing.T) {
 	tests := []struct {

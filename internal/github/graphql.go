@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -17,7 +18,10 @@ import (
 
 // GraphQLError holds the errors of a GraphQL response. It unwraps to the
 // core errors that match their types, so errors.Is(err, core.ErrNotFound)
-// works for a query that names a missing repository.
+// works for a query that names a missing repository: NOT_FOUND matches
+// core.ErrNotFound, FORBIDDEN core.ErrForbidden, INSUFFICIENT_SCOPES
+// core.ErrUnauthorized, UNPROCESSABLE core.ErrConflict and RATE_LIMITED a
+// *core.RateLimitError.
 type GraphQLError struct {
 	Errors []GraphQLErrorItem
 	causes []error
@@ -41,6 +45,19 @@ func (e *GraphQLError) Error() string {
 		}
 	}
 	return "github: " + strings.Join(msgs, "; ")
+}
+
+// Reason returns GitHub's messages on one line, safe to show in a
+// terminal. It isn't cut to any length; whatever shows it truncates it to
+// fit.
+func (e *GraphQLError) Reason() string {
+	msgs := make([]string, 0, len(e.Errors))
+	for _, item := range e.Errors {
+		if m := oneLine(item.Message); m != "" {
+			msgs = append(msgs, m)
+		}
+	}
+	return strings.Join(msgs, "; ")
 }
 
 // Unwrap returns the core errors that match the error types.
@@ -102,7 +119,8 @@ func (c *Client) query(ctx context.Context, query string, vars map[string]any, v
 		}
 	}
 	if len(body.Errors) > 0 {
-		return c.graphqlError(resp.Header, body.Errors)
+		partial := len(body.Data) > 0 && !bytes.Equal(body.Data, []byte("null"))
+		return c.graphqlError(ctx, resp.Header, body.Errors, partial)
 	}
 	return nil
 }
@@ -161,19 +179,49 @@ func operation(query string) string {
 	return "query"
 }
 
-func (c *Client) graphqlError(h http.Header, items []GraphQLErrorItem) *GraphQLError {
+// graphqlError builds the error of a response with errors. partial says
+// that the response has data too, as a search across organizations does
+// when some of them keep the token out of their results. Then a FORBIDDEN
+// or INSUFFICIENT_SCOPES error on a field below the root, such as one
+// node of a search, refuses that node only, not the query, so it isn't
+// tagged as a refusal, which would drop what was kept of the query.
+func (c *Client) graphqlError(ctx context.Context, h http.Header, items []GraphQLErrorItem, partial bool) *GraphQLError {
 	e := &GraphQLError{Errors: items}
+	var below []string
 	for _, item := range items {
 		switch item.Type {
 		case "NOT_FOUND":
 			e.causes = append(e.causes, core.ErrNotFound)
+		case "FORBIDDEN", "INSUFFICIENT_SCOPES":
+			if partial && len(item.Path) > 1 {
+				below = append(below, item.Type+" "+graphqlPath(item.Path))
+				break
+			}
+			if item.Type == "FORBIDDEN" {
+				e.causes = append(e.causes, core.ErrForbidden)
+			} else {
+				e.causes = append(e.causes, core.ErrUnauthorized)
+			}
 		case "UNPROCESSABLE":
 			e.causes = append(e.causes, core.ErrConflict)
 		case "RATE_LIMITED":
 			e.causes = append(e.causes, &core.RateLimitError{Reset: c.graphqlReset(h)})
 		}
 	}
+	if len(below) > 0 {
+		slog.WarnContext(ctx, "graphql partial refusal", "span", "http", "errors", below)
+	}
 	return e
+}
+
+// graphqlPath writes the path of an error as GitHub gives it, such as
+// search.nodes.3.
+func graphqlPath(path []any) string {
+	parts := make([]string, len(path))
+	for i, p := range path {
+		parts[i] = fmt.Sprint(p)
+	}
+	return strings.Join(parts, ".")
 }
 
 // graphqlReset is when the GraphQL quota refills, from the rate-limit

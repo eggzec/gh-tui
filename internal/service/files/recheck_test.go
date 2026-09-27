@@ -118,7 +118,7 @@ func TestKeptRefFails(t *testing.T) {
 		err  error
 		want revalidate.Status
 	}{
-		{"offline", offline, revalidate.Offline},
+		{"offline", errOffline, revalidate.Offline},
 		{"limited", &core.RateLimitError{Reset: time.Now().Add(time.Hour)}, revalidate.Limited},
 		{"gone", core.ErrNotFound, revalidate.Gone},
 	} {

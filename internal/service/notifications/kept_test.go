@@ -2,6 +2,7 @@ package notifications
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
 	"sync"
 	"sync/atomic"
@@ -118,7 +119,7 @@ func TestKeptInboxOffline(t *testing.T) {
 		err      error
 		fallback bool
 	}{
-		{"unreachable", &url.Error{Op: "Get", URL: "https://api.github.com/notifications", Err: errors.New("refused")}, true},
+		{"unreachable", fmt.Errorf("%w: %w", core.ErrOffline, &url.Error{Op: "Get", URL: "https://api.github.com/notifications", Err: errors.New("refused")}), true},
 		{"server error", &github.Error{StatusCode: 503}, true},
 		{"unauthorized", &github.Error{StatusCode: 401}, false},
 	}

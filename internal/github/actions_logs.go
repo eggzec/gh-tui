@@ -164,7 +164,7 @@ func (c *Client) get(ctx context.Context, loc *url.URL, rng string) (*http.Respo
 		if ue, ok := errors.AsType[*url.Error](err); ok {
 			ue.URL = loc.Scheme + "://" + loc.Host
 		}
-		return nil, err
+		return nil, offline(ctx, err)
 	}
 	return resp, nil
 }

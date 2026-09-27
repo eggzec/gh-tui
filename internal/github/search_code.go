@@ -133,7 +133,7 @@ func codeSearchError(err error) error {
 	if !ok || e.StatusCode != http.StatusUnprocessableEntity {
 		return err
 	}
-	reason := e.Message
+	reason := e.Reason()
 	// "Validation Failed (…)" says nothing its details don't.
 	if _, details, ok := strings.Cut(reason, " ("); ok {
 		reason = strings.TrimSuffix(details, ")")

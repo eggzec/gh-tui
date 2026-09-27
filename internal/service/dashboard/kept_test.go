@@ -3,6 +3,7 @@ package dashboard
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/url"
 	"testing"
 	"time"
@@ -183,7 +184,7 @@ func TestKeptOffline(t *testing.T) {
 		err      error
 		fallback bool
 	}{
-		{"unreachable", &url.Error{Op: "Post", URL: "https://api.github.com/graphql", Err: errors.New("refused")}, true},
+		{"unreachable", fmt.Errorf("%w: %w", core.ErrOffline, &url.Error{Op: "Post", URL: "https://api.github.com/graphql", Err: errors.New("refused")}), true},
 		{"server error", &github.Error{StatusCode: 502}, true},
 		{"unauthorized", &github.Error{StatusCode: 401}, false},
 		{"not found", core.ErrNotFound, false},
