@@ -15,6 +15,7 @@ import (
 	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // Section shows the issues of one repository. Create it with [New].
@@ -72,6 +73,8 @@ type Section struct {
 	// cols is the layout of the rows at colsWidth.
 	cols      columns
 	colsWidth int
+	// links keeps the links of the rows, which are drawn on every frame.
+	links termtext.Links
 
 	// Rendered when what they show changes, so View only joins them. off
 	// is shown in place of the list when repo has no issues.
