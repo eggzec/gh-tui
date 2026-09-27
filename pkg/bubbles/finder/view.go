@@ -86,8 +86,9 @@ func (m *Model) appendList(lines []string, w, n int) []string {
 	st := m.styles
 	switch {
 	case m.err != nil:
-		msg, _, _ := strings.Cut(m.err.Error(), "\n")
-		lines = append(lines, fit(st.Error.Render("✗ Couldn't list the "+m.many+": "+clean(msg)), w))
+		if text, hint := m.errorWords(m.err); text != "" {
+			lines = append(lines, m.errorLine(text, hint, w))
+		}
 	case m.loading:
 	case m.Total() == 0:
 		lines = append(lines, fit(st.Empty.Render("No "+m.many+" here."), w))
@@ -121,6 +122,30 @@ func (m *Model) appendList(lines []string, w, n int) []string {
 		lines = append(lines, blank)
 	}
 	return lines
+}
+
+// errorWords returns what the finder says of err, the failed load, and
+// the hint after it.
+func (m *Model) errorWords(err error) (text, hint string) {
+	if m.errorText != nil {
+		return m.errorText(err)
+	}
+	msg, _, _ := strings.Cut(err.Error(), "\n")
+	return "Couldn't list the " + m.many + ": " + clean(msg), ""
+}
+
+// errorLine renders the error row in w cells, the text cut to keep the
+// hint whole.
+func (m *Model) errorLine(text, hint string, w int) string {
+	text = "✗ " + text
+	if hint == "" {
+		return fit(m.styles.Error.Render(text), w)
+	}
+	hint = " · " + hint
+	if room := max(w-ansi.StringWidth(hint), 0); ansi.StringWidth(text) > room {
+		text = ansi.Truncate(text, room, "…")
+	}
+	return fit(m.styles.Error.Render(text)+m.styles.Status.Render(hint), w)
 }
 
 // minPath is the fewest cells a path keeps before the detail is dropped.
