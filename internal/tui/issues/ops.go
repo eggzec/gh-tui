@@ -63,7 +63,7 @@ func stateChange(svc Service, g ui.Gate, it core.Issue, state core.State,
 			case refused != nil:
 				return refused
 			case !applies:
-				return ui.Notify(toast.Info, n+" changed meanwhile, so nothing was sent.")
+				return ui.Notify(toast.Info, ui.Meanwhile(n))
 			}
 			var op *optimistic.Op
 			if state == core.StateClosed {
