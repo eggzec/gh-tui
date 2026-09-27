@@ -161,6 +161,35 @@ func TestLoadError(t *testing.T) {
 	}
 }
 
+func TestErrorText(t *testing.T) {
+	tests := []struct {
+		name  string
+		opts  []Option
+		width int
+		want  string
+	}{
+		{"default", nil, 40, "✗ Couldn't list the files: boom"},
+		{"custom", []Option{WithErrorText(func(error) (string, string) { return "Can't reach GitHub", "r to retry" })}, 40, "✗ Can't reach GitHub · r to retry"},
+		{"custom keeps the hint whole", []Option{WithErrorText(func(error) (string, string) { return "Can't reach GitHub", "r to retry" })}, 24, "✗ Can't re… · r to retry"},
+		{"empty", []Option{WithErrorText(func(error) (string, string) { return "", "" })}, 40, ""},
+		{"text with a dot", []Option{WithErrorText(func(error) (string, string) { return "GitHub says a · b", "" })}, 40, "✗ GitHub says a · b"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			load := func(context.Context) (Listing, error) { return Listing{}, errors.New("boom\nand more") }
+			m := New(load, append([]Option{WithSize(tt.width, 5)}, tt.opts...)...)
+			m = run(t, m, m.Init())
+			rows := strings.Split(ansi.Strip(m.View()), "\n")
+			if got := strings.TrimRight(rows[1], " "); got != tt.want {
+				t.Errorf("error row = %q, want %q", got, tt.want)
+			}
+			if tt.want == "" && strings.Contains(m.View(), "✗") {
+				t.Errorf("View() = %q, want no error", m.View())
+			}
+		})
+	}
+}
+
 func TestCloseCancelsLoad(t *testing.T) {
 	var ctx context.Context
 	m := New(func(c context.Context) (Listing, error) {

@@ -25,6 +25,7 @@ type settings struct {
 	styles        Styles
 	placeholder   string
 	one, many     string
+	errorText     func(error) (text, hint string)
 	syncLimit     int
 	recentPaths   []string
 	icons         Icons
@@ -82,6 +83,15 @@ func WithPlaceholder(text string) Option {
 // such as "file" and "files", the default.
 func WithNoun(one, many string) Option {
 	return func(s *settings) { s.one, s.many = one, many }
+}
+
+// WithErrorText sets how a failed load reads. say returns the words for
+// err and a hint, such as "r to retry", or "" for none; the hint is styled
+// as one and kept whole when the row is cut. An empty text shows no error.
+// By default the row says "Couldn't list the files:" and the first line of
+// the error.
+func WithErrorText(say func(error) (text, hint string)) Option {
+	return func(s *settings) { s.errorText = say }
 }
 
 // WithRecent ranks the paths opened recently above others that match as
