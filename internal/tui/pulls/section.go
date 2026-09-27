@@ -84,6 +84,8 @@ type Section struct {
 	cancelFeed context.CancelFunc
 	// offline is marked by the feed's reads when GitHub can't be reached.
 	offline *ui.Offline
+	// voice words the feed's errors.
+	voice ui.Voice
 
 	// ahead reads the details of the rows of feed before they are opened,
 	// if prefetch is set. rowAt returns the query of the first comments of
@@ -145,6 +147,13 @@ func WithOffline(off *ui.Offline) Option {
 	}
 }
 
+// WithVoice sets how the section words what went wrong, with the keys a
+// hint names and the log it points to. By default the hints name the
+// configured keys and no log.
+func WithVoice(v ui.Voice) Option {
+	return func(s *Section) { s.voice = v }
+}
+
 // WithIcons sets the glyphs of the states of pull requests. The default is
 // the Nerd Font set.
 func WithIcons(icons ui.Icons) Option {
@@ -190,6 +199,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		ctx:         ctx,
 		svc:         svc,
 		offline:     new(ui.Offline),
+		voice:       ui.NewVoice(keys, ""),
 		keys:        newKeyMap(keys),
 		rawKeys:     keys,
 		now:         time.Now,
@@ -261,6 +271,7 @@ func (s *Section) newFeed() tea.Cmd {
 		feed.WithStyles(s.theme.Feed()),
 		feed.WithFocused(s.focused),
 		feed.WithEmptyText(s.emptyText()),
+		feed.WithErrorText(ui.ErrorText("load the pull requests", s.repo.String(), s.voice)),
 	)
 	s.feed, s.cancelFeed = &f, cancel
 	s.layout()

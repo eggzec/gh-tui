@@ -2,6 +2,7 @@ package pulls
 
 import (
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -296,5 +297,29 @@ func TestRefreshRetriesAFailedPage(t *testing.T) {
 	}
 	if got := s.feed.Len(); got == 0 {
 		t.Errorf("no rows after retry:\n%s", screen(s))
+	}
+}
+
+// The list says what went wrong the way the user should read it, without
+// the error's chain, request or status code.
+func TestErrorWords(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want string
+	}{
+		{"offline", fmt.Errorf("list pulls: github: GET /repos/o/r/pulls: %w", core.ErrOffline), "✗ Can't reach GitHub · r to retry"},
+		{"forbidden", fmt.Errorf("list pulls: github: 403 Forbidden: %w", core.ErrForbidden), "✗ You don't have access to eggzec/gh-tui · o to open on GitHub"},
+		{"internal", errors.New("list pulls: github: decode: unexpected EOF"), "✗ Something went wrong · r to retry"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := newFakeService()
+			svc.listErr = tt.err
+			s := started(t, svc, 100, 12)
+			if v := screen(s); !strings.Contains(v, tt.want) || strings.Contains(v, "github") || strings.Contains(v, "403") {
+				t.Errorf("screen = %q, want %q", v, tt.want)
+			}
+		})
 	}
 }
