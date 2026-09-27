@@ -37,6 +37,7 @@ func newTestClientAt(t *testing.T, now time.Time, h http.Handler) *Client {
 	t.Helper()
 	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Date", now.UTC().Format(http.TimeFormat))
+		w.Header().Set("X-GitHub-Request-Id", "ABCD:1234")
 		h.ServeHTTP(w, r)
 	}))
 	c.budget.now = func() time.Time { return now }

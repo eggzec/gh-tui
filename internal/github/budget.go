@@ -221,12 +221,12 @@ func (b *budget) observe(r *reservation, h http.Header) (guard time.Duration) {
 	defer b.mu.Unlock()
 	delete(b.pending, r.seq)
 	// Only GitHub's answers count, not a page of a captive portal or a
-	// proxy on the way.
+	// proxy on the way, whose clock may be another.
 	if h.Get("X-GitHub-Request-Id") != "" {
 		b.answered = now
-	}
-	if date, err := http.ParseTime(h.Get("Date")); err == nil {
-		b.skew.add(date.Sub(now))
+		if date, err := http.ParseTime(h.Get("Date")); err == nil {
+			b.skew.add(date.Sub(now))
+		}
 	}
 	rl, ok := parseRateLimit(h)
 	resource := cmp.Or(rl.Resource, r.resource)

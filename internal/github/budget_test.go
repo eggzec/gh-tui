@@ -391,6 +391,7 @@ func TestBudgetMutationCost(t *testing.T) {
 func spent(resource string, reset time.Time, skew time.Duration) answer {
 	h := quotaHeader(resource, 5000, 0, reset)
 	h["Date"] = time.Now().Add(skew).UTC().Format(http.TimeFormat)
+	h["X-GitHub-Request-Id"] = "ABCD:1234"
 	return answer{status: http.StatusForbidden, header: h, body: `{"message": "API rate limit exceeded"}`}
 }
 
@@ -422,6 +423,24 @@ func TestBudgetSkew(t *testing.T) {
 		}
 		if st, _ := c.budget.status(resourceCore); !st.release.Equal(want) {
 			t.Errorf("release = %v, want %v", st.release, want)
+		}
+	})
+}
+
+// TestBudgetSkewOnlyGitHub checks that the Date of an answer that isn't
+// GitHub's, such as a proxy's, doesn't move the skew.
+func TestBudgetSkewOnlyGitHub(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		reset := time.Now().Add(10 * time.Minute)
+		a := answers{"x": make(chan answer, 1)}
+		c := newAnswered(t, a)
+
+		ans := spent(resourceCore, reset, time.Hour)
+		delete(ans.header, "X-GitHub-Request-Id")
+		a["x"] <- ans
+		_, err := c.Get(t.Context(), "x", Conditional{}, nil)
+		if got, want := limitedUntil(t, err), reset.Add(minGuard); !got.Equal(want) {
+			t.Errorf("Reset = %v, want %v, as if the clocks agreed", got, want)
 		}
 	})
 }
