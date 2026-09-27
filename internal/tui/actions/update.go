@@ -152,13 +152,13 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 	case key.Matches(msg, k.Open):
 		return m.open()
 	case key.Matches(msg, k.RerunFailed):
-		return m.askRerunFailed()
+		return m.asks(m.rerunFailed)
 	case key.Matches(msg, k.Rerun):
-		return m.askRerun()
+		return m.asks(m.rerunAll)
 	case key.Matches(msg, k.RerunJob) && m.focus != runsPane:
-		return m.askRerunJob()
+		return m.asks(m.rerunJob)
 	case key.Matches(msg, k.Cancel):
-		return m.askCancel()
+		return m.asks(m.cancelRun)
 	case key.Matches(msg, k.Refresh):
 		return m.refresh()
 	case key.Matches(msg, k.Back):

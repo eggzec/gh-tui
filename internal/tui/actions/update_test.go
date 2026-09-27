@@ -15,6 +15,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/jobview"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
+	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
 func TestOpensOnTheFailedJobAndItsError(t *testing.T) {
@@ -470,6 +471,92 @@ func TestRerunAJob(t *testing.T) {
 	}
 	if j, _ := m.jobs.selected(); j.Status != core.RunQueued || m.jobs.items[1].Status != core.RunCompleted {
 		t.Errorf("the job is %s, want it alone queued", j.Status)
+	}
+}
+
+// leads bring up the question of each change, and want is what y sends.
+var leads = []struct {
+	name string
+	keys []string
+	want string
+}{
+	{"re-run failed jobs", []string{"ctrl+r"}, "rerun failed"},
+	{"re-run all jobs", []string{"R"}, "rerun"},
+	{"re-run a job", []string{"tab", "j", "J"}, fmt.Sprintf("rerun job %d", macosJob)},
+	{"cancel", []string{"j", "x"}, "cancel"},
+}
+
+func TestASecondYesChangesOnce(t *testing.T) {
+	for _, tt := range leads {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newFake()
+			m, h := newModal(t, f, wideW, wideH)
+			h.keys(tt.keys...)
+			if m.ask == nil {
+				t.Fatal("asked nothing")
+			}
+			// The answers arrive before what the first starts runs, as a
+			// repeated key does.
+			cmds := []tea.Cmd{m.Update(press("y")), m.Update(press("y"))}
+			for _, c := range cmds {
+				h.run(c)
+			}
+			if !slices.Equal(f.sent, []string{tt.want}) {
+				t.Errorf("sent %v, want %q once", f.sent, tt.want)
+			}
+		})
+	}
+}
+
+func TestChangesAskAgain(t *testing.T) {
+	// finished makes the run shown done, and restarted runs it again, as
+	// a change elsewhere would, which a poll then shows.
+	finished := func(m *Modal) { m.run.Status, m.run.Conclusion = core.RunCompleted, core.ConclusionSuccess }
+	restarted := func(m *Modal) { m.run.Status, m.run.Conclusion = core.RunQueued, "" }
+	tests := []struct {
+		lead   int
+		meddle func(m *Modal)
+		want   string
+	}{
+		{0, restarted, "CI #4812 changed meanwhile, so nothing was sent."},
+		{1, restarted, "CI #4812 changed meanwhile, so nothing was sent."},
+		{2, restarted, "test (macos-latest, 1.26) of CI #4812 changed meanwhile, so nothing was sent."},
+		{3, finished, "lint #4810 changed meanwhile, so nothing was sent."},
+	}
+	for _, tt := range tests {
+		t.Run(leads[tt.lead].name, func(t *testing.T) {
+			f := newFake()
+			m, h := newModal(t, f, wideW, wideH)
+			h.keys(leads[tt.lead].keys...)
+			if m.ask == nil {
+				t.Fatal("asked nothing")
+			}
+			tt.meddle(m)
+			h.take()
+			h.keys("y")
+			want := ui.NotifyMsg{Level: toast.Info, Text: tt.want}
+			if got := h.take(); len(f.sent) != 0 || !slices.Contains(got, tea.Msg(want)) {
+				t.Errorf("sent %v and showed %v, want only %q", f.sent, got, tt.want)
+			}
+		})
+		t.Run(leads[tt.lead].name+" after access was lost", func(t *testing.T) {
+			f := newFake()
+			m, h := newModal(t, f, wideW, wideH)
+			h.keys(leads[tt.lead].keys...)
+			if m.ask == nil {
+				t.Fatal("asked nothing")
+			}
+			h.send(ui.CapsMsg{Repo: repo, Caps: core.RepoCaps{Known: true, Permission: core.PermissionRead}})
+			h.take()
+			h.keys("y")
+			got := h.take()
+			if len(f.sent) != 0 || len(got) != 1 {
+				t.Fatalf("sent %v and showed %v, want only the refusal", f.sent, got)
+			}
+			if n, ok := got[0].(ui.NotifyMsg); !ok || !strings.Contains(n.Text, "needs write access") {
+				t.Errorf("showed %v, want the refusal", got[0])
+			}
+		})
 	}
 }
 
