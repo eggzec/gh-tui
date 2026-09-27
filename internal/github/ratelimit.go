@@ -20,22 +20,11 @@ type RateLimit struct {
 	Resource string
 }
 
-// RateLimit returns the rate limit of the most recent response that
-// reported one, or the zero value before any did.
-func (c *Client) RateLimit() RateLimit {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.rateLimit
-}
-
-func (c *Client) observe(h http.Header) {
-	rl, ok := parseRateLimit(h)
-	if !ok {
-		return
-	}
-	c.mu.Lock()
-	c.rateLimit = rl
-	c.mu.Unlock()
+// RateLimit returns the quota of resource, such as core or graphql, as
+// GitHub last reported it, or the zero value before it did.
+func (c *Client) RateLimit(resource string) RateLimit {
+	st, _ := c.budget.status(resource)
+	return st.reported
 }
 
 func parseRateLimit(h http.Header) (RateLimit, bool) {
@@ -64,7 +53,7 @@ func parseRateLimit(h http.Header) (RateLimit, bool) {
 func (c *Client) rateLimitReset(resp *http.Response) (time.Time, bool) {
 	if s := resp.Header.Get("Retry-After"); s != "" {
 		if secs, err := strconv.Atoi(s); err == nil {
-			return c.now().Add(time.Duration(secs) * time.Second), true
+			return c.budget.now().Add(time.Duration(secs) * time.Second), true
 		}
 		if t, err := http.ParseTime(s); err == nil {
 			return t, true
@@ -74,7 +63,7 @@ func (c *Client) rateLimitReset(resp *http.Response) (time.Time, bool) {
 		return rl.Reset, true
 	}
 	if resp.StatusCode == http.StatusTooManyRequests {
-		return c.now().Add(secondaryBackoff), true
+		return c.budget.now().Add(secondaryBackoff), true
 	}
 	return time.Time{}, false
 }

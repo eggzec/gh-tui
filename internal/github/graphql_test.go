@@ -137,7 +137,7 @@ func TestQueryRateLimited(t *testing.T) {
 	if want := time.Unix(1790000000, 0); !rl.Reset.Equal(want) {
 		t.Errorf("Reset = %v, want %v", rl.Reset, want)
 	}
-	if got := c.RateLimit(); got.Resource != "graphql" || got.Remaining != 0 {
+	if got := c.RateLimit(resourceGraphQL); got.Resource != "graphql" || got.Remaining != 0 {
 		t.Errorf("RateLimit = %+v, want graphql with 0 remaining", got)
 	}
 }

@@ -269,7 +269,7 @@ func TestErrorKinds(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := newTestClient(t, tt.h)
-			c.now = func() time.Time { return now }
+			c.budget.now = func() time.Time { return now }
 			var err error
 			if tt.graphql {
 				err = c.Query(t.Context(), "query { viewer { login } }", nil, nil)
