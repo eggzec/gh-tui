@@ -7,7 +7,7 @@ import (
 )
 
 // full shows a block as it is.
-func full(b Block) string { return b.Full }
+func full(_ int, b Block, _ bool) string { return b.Full }
 
 func TestPrepare(t *testing.T) {
 	tests := []struct {

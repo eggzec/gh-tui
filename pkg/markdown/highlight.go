@@ -53,19 +53,28 @@ func (r *Renderer) highlight(blk Block, b *budget) ([]string, bool) {
 // trailingStyle matches the style sequences that end a string.
 var trailingStyle = regexp.MustCompile(`(?:\x1b\[[0-9;:]*m)+$`)
 
-// mark returns the line that stands for the highlighted code i in what
-// glamour renders.
+// mark returns the line that stands for part i in what glamour renders.
 func (r *Renderer) mark(i int) string {
 	return r.nonce + "." + strconv.Itoa(i) + "."
 }
 
+// part is what a mark stands for: the lines of highlighted code, the head
+// of a collapsible block, or the code of an open one, which follows its
+// head.
+type part struct {
+	lines []string
+	head  *Head
+	body  bool
+}
+
 // splice returns lines with the line of each mark replaced by the lines
-// of its code, wrapped at width as glamour wraps code, each after what
-// glamour put before the mark, such as the block's margin. It reports
-// false if glamour didn't render each mark as a line of code of its own,
-// in order.
-func (r *Renderer) splice(lines []string, code [][]string, width int) ([]string, bool) {
+// of its part, each after what glamour put before the mark, such as the
+// block's margin, and the heads, where they landed. Code is wrapped at
+// width as glamour wraps code, and a head is cut to one line. It reports
+// false if glamour didn't render each mark as a line of its own, in order.
+func (r *Renderer) splice(lines []string, parts []part, width int) ([]string, []Head, bool) {
 	out := make([]string, 0, len(lines))
+	var heads []Head
 	next := 0
 	for _, l := range lines {
 		i := strings.Index(l, r.nonce+".")
@@ -78,23 +87,35 @@ func (r *Renderer) splice(lines []string, code [][]string, width int) ([]string,
 		for k < len(l) && l[k] >= '0' && l[k] <= '9' {
 			k++
 		}
-		if k == j || k == len(l) || l[k] != '.' || l[j:k] != strconv.Itoa(next) {
-			return nil, false
+		if next >= len(parts) || k == j || k == len(l) || l[k] != '.' || l[j:k] != strconv.Itoa(next) {
+			return nil, nil, false
 		}
 		if strings.ContainsAny(xansi.Strip(l[:i]), "`~") || strings.TrimSpace(xansi.Strip(l[k+1:])) != "" {
-			return nil, false
+			return nil, nil, false
 		}
 		// The style glamour opened for the mark would only be overridden.
 		prefix := trailingStyle.ReplaceAllString(l[:i], "")
+		p := parts[next]
+		next++
+		if p.head != nil {
+			h := *p.head
+			h.Line = len(out)
+			out = append(out, xansi.Truncate(prefix+p.lines[0], width, "…")+"\x1b[0m")
+			h.End = len(out)
+			heads = append(heads, h)
+			continue
+		}
 		room := max(width-xansi.StringWidth(prefix), 1)
-		for _, c := range code[next] {
+		for _, c := range p.lines {
 			for w := range strings.SplitSeq(lipgloss.Wrap(c, room, ""), "\n") {
 				out = append(out, xansi.Truncate(prefix+w, width, "")+"\x1b[0m")
 			}
 		}
-		next++
+		if p.body && len(heads) > 0 {
+			heads[len(heads)-1].End = len(out)
+		}
 	}
-	return out, next == len(code)
+	return out, heads, next == len(parts)
 }
 
 // codeStyle returns the chroma style of the code in s, as glamour would

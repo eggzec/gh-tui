@@ -67,7 +67,7 @@ func TestCommentsShowAsMarkdown(t *testing.T) {
 		"  [✓] I searched the issues",
 		"  🖼 screenshot (https://github.com/user-attachments/assets/1234)",
 		"  ▸ Stack trace",
-		"    graph LR",
+		"    ◆ flowchart · 2 lines · View diagram ↗",
 	} {
 		if !strings.Contains(v, want) {
 			t.Errorf("the modal lacks %q:\n%s", want, v)

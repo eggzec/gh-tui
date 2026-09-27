@@ -39,7 +39,7 @@ type Renderer struct {
 	terms map[int]*glamour.TermRenderer
 	// recent and older are the two generations of the cache. A hit in
 	// older moves to recent; when recent is full it becomes older.
-	recent, older map[key]string
+	recent, older map[key]rendered
 	renders       int
 	// hint is what the note that ends a cut source offers.
 	hint string
@@ -47,9 +47,32 @@ type Renderer struct {
 	// highlights keeps highlighted code, which is the same at any width.
 	code       *chroma.Style
 	highlights map[verdictKey][]string
-	// nonce makes the marks that stand for highlighted code in what
-	// glamour renders.
+	// nonce makes the marks that stand for highlighted code and the heads
+	// of collapsible blocks in what glamour renders.
 	nonce string
+	// heads styles the heads of collapsible blocks, and their code while
+	// they are open.
+	heads headStyles
+}
+
+// rendered is a render and the heads of its collapsible blocks.
+type rendered struct {
+	text  string
+	heads []Head
+}
+
+// Head is the line that stands for a collapsible block, such as a
+// diagram, in a render: the block's kind, size and link, which the reader
+// opens to see its code under it.
+type Head struct {
+	// Block is the block's index among the [Blocks] of the source, which
+	// [Renderer.Render] takes to show it open.
+	Block int
+	// Line is the head's line in the render, and End the line after the
+	// block's code while it is open, or after the head.
+	Line, End int
+	// URL is a page that shows the block, or "" if it has none.
+	URL string
 }
 
 type key struct {
@@ -71,6 +94,7 @@ func (r *Renderer) SetStyle(style ansi.StyleConfig) {
 	var zero uint
 	style.Document.Margin = &zero
 	r.code = codeStyle(style.CodeBlock)
+	r.heads = newHeadStyles(style)
 	// Glamour would run chroma on any code, in any container, with any
 	// lexer, or one it guesses, and chroma can't be stopped; the renderer
 	// highlights instead, within its limits.
@@ -98,8 +122,22 @@ func (r *Renderer) SetHint(hint string) {
 // as it is, for the caller to cut. The collapsible blocks of src show
 // collapsed, except those whose index among its [Blocks] is in open.
 func (r *Renderer) Render(src string, width int, open ...int) string {
+	return r.get(src, width, open).text
+}
+
+// RenderHeads is [Renderer.Render], and returns the head of each
+// collapsible block the render shows too, in order, for the caller to
+// open or follow. A block glamour renders on its own, such as one in a
+// quote, shows as code or as its collapsed line, without a head. The heads
+// are shared: don't change them.
+func (r *Renderer) RenderHeads(src string, width int, open ...int) (string, []Head) {
+	out := r.get(src, width, open)
+	return out.text, out.heads
+}
+
+func (r *Renderer) get(src string, width int, open []int) rendered {
 	if width <= 0 || strings.TrimSpace(src) == "" {
-		return ""
+		return rendered{}
 	}
 	k := key{src: src, width: width}
 	if len(open) > 0 {
@@ -119,7 +157,7 @@ func (r *Renderer) Render(src string, width int, open ...int) string {
 		r.older, r.recent = r.recent, nil
 	}
 	if r.recent == nil {
-		r.recent = make(map[key]string)
+		r.recent = make(map[key]rendered)
 	}
 	r.recent[k] = out
 	return out
@@ -129,26 +167,42 @@ func (r *Renderer) Render(src string, width int, open ...int) string {
 // benchmarks can tell a render from a cache hit.
 func (r *Renderer) Renders() int { return r.renders }
 
-func (r *Renderer) render(src string, width int, open []int) string {
+func (r *Renderer) render(src string, width int, open []int) rendered {
 	r.renders++
 	b := newBudget()
-	var code [][]string
-	text := prepare(src, open, r.hint, func(blk Block) string {
+	var parts []part
+	text := prepare(src, open, r.hint, func(i int, blk Block, shown bool) string {
+		// The marks are indented as the fence is, so they stay in the
+		// block's list item.
+		indent := blk.indent()
+		if blk.Collapsed != "" {
+			if len(indent) > 3 {
+				// As deep as indented code, it may not be a block of its
+				// own; glamour shows it.
+				return plain(i, blk, shown)
+			}
+			// The head is a code block, which glamour puts on lines of its
+			// own even in a list item, where it runs paragraphs together.
+			parts = append(parts, part{lines: []string{r.heads.line(blk)}, head: &Head{Block: i, URL: blk.URL}})
+			s := blk.fence + "\n" + indent + r.mark(len(parts)-1)
+			if shown {
+				parts = append(parts, part{lines: r.heads.body(blk.code), body: true})
+				s += "\n" + indent + r.mark(len(parts)-1)
+			}
+			return s + "\n" + blk.fence
+		}
 		lines, ok := r.highlight(blk, b)
 		if !ok {
 			return blk.Full
 		}
-		code = append(code, lines)
-		// The mark is indented as the fence is, so it stays in the block
-		// in a list item.
-		indent := blk.fence[:len(blk.fence)-len(strings.TrimLeft(blk.fence, " "))]
-		return blk.fence + "\n" + indent + r.mark(len(code)-1) + "\n" + blk.fence
+		parts = append(parts, part{lines: lines})
+		return blk.fence + "\n" + indent + r.mark(len(parts)-1) + "\n" + blk.fence
 	})
-	plain := func(b Block) string { return b.Full }
 	lines, err := r.lines(text, width)
-	if err == nil && len(code) > 0 {
+	var heads []Head
+	if err == nil && len(parts) > 0 {
 		var ok bool
-		if lines, ok = r.splice(lines, code, width); !ok {
+		if lines, heads, ok = r.splice(lines, parts, width); !ok {
 			lines, err = r.lines(prepare(src, open, r.hint, plain), width)
 		}
 	}
@@ -156,12 +210,19 @@ func (r *Renderer) render(src string, width int, open []int) string {
 		// Showing the source beats showing nothing.
 		text = prepare(src, open, r.hint, plain)
 		lines = strings.Split(xansi.Wrap(text, width, ""), "\n")
+		heads = nil
 	}
-	lines = trimBlank(lines)
+	lines, front := trimBlank(lines)
 	for i, l := range lines {
 		lines[i] = safe(tidy(l))
 	}
-	return strings.Join(lines, "\n")
+	for i := range heads {
+		heads[i].Line -= front
+		heads[i].End -= front
+		// Only now, once the lines are safe, which drops every link.
+		lines[heads[i].Line] = linked(lines[heads[i].Line], heads[i].URL)
+	}
+	return rendered{text: strings.Join(lines, "\n"), heads: heads}
 }
 
 // lines returns text rendered by glamour at width, a line at a time.
@@ -217,14 +278,16 @@ func Indent(rendered, prefix string) string {
 	return prefix + strings.ReplaceAll(rendered, "\n", "\n"+prefix)
 }
 
-// trimBlank drops the blank lines around lines.
-func trimBlank(lines []string) []string {
+// trimBlank drops the blank lines around lines, and returns how many it
+// dropped before them.
+func trimBlank(lines []string) (trimmed []string, front int) {
 	blank := func(l string) bool { return strings.TrimSpace(xansi.Strip(l)) == "" }
 	for len(lines) > 0 && blank(lines[0]) {
 		lines = lines[1:]
+		front++
 	}
 	for len(lines) > 0 && blank(lines[len(lines)-1]) {
 		lines = lines[:len(lines)-1]
 	}
-	return lines
+	return lines, front
 }

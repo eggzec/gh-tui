@@ -101,7 +101,7 @@ func TestCorpus(t *testing.T) {
 	r := New(DefaultStyle(true))
 	for name, shows := range map[string][]string{
 		"template":   {"Summary\n", "[✓] Tests pass", "Fixes #123"},
-		"coderabbit": {"▸ 📜 Recent review details", "• \u200bX https://twitter.com", "sequenceDiagram"},
+		"coderabbit": {"▸ 📜 Recent review details", "• \u200bX https://twitter.com", "◆ sequence diagram · 5 lines · View diagram ↗"},
 		"dependabot": {"▸ Commits", "🖼 Dependabot compatibility score https://docs.github.com"},
 		"alerts":     {"│ ℹ Note\n│ Useful information.", "│ ⚠ Warning", "│ ✖ Caution"},
 		"lists":      {"🎉 👍 emoji"},
