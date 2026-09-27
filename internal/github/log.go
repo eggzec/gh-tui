@@ -38,6 +38,9 @@ type call struct {
 	// query marks a GraphQL query, which only reads, so that it may be
 	// sent again like a GET, unlike a mutation.
 	query bool
+	// shape names what a query costs alike: its operation, or the text
+	// of a query without a name, since those all share the name query.
+	shape string
 	// external marks a request to a host outside the API, such as the
 	// storage that a job log redirects to. Its URL holds a signed
 	// credential, so it is logged by op alone, as API download.

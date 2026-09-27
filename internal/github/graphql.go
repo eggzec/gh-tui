@@ -6,8 +6,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"hash/fnv"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -79,6 +81,7 @@ func (c *Client) Query(ctx context.Context, query string, vars map[string]any, v
 
 func (c *Client) query(ctx context.Context, query string, vars map[string]any, v any) error {
 	cl := &call{op: operation(query), query: readOnly(query)}
+	cl.shape = queryShape(cl.op, query)
 	if owner, ok := vars["owner"].(string); ok {
 		if name, ok := vars["name"].(string); ok {
 			cl.repo = owner + "/" + name
@@ -116,7 +119,7 @@ func (c *Client) query(ctx context.Context, query string, vars map[string]any, v
 	}
 	cl.rate = queryRate(body.Data)
 	if cl.rate != nil && cl.query {
-		c.budget.learnCost(cl.op, cl.rate.Cost)
+		c.budget.learnCost(cl.shape, cl.rate.Cost)
 	}
 	if v != nil && len(body.Data) > 0 && !bytes.Equal(body.Data, []byte("null")) {
 		if err := json.Unmarshal(body.Data, v); err != nil {
@@ -125,7 +128,7 @@ func (c *Client) query(ctx context.Context, query string, vars map[string]any, v
 	}
 	if len(body.Errors) > 0 {
 		partial := len(body.Data) > 0 && !bytes.Equal(body.Data, []byte("null"))
-		return c.graphqlError(ctx, resp.Header, cl.op, body.Errors, partial)
+		return c.graphqlError(ctx, resp.Header, cl.shape, body.Errors, partial)
 	}
 	return nil
 }
@@ -184,6 +187,17 @@ func operation(query string) string {
 	return "query"
 }
 
+// queryShape returns what names the cost of query, whose operation is op:
+// op, unless the query has no name, and then its text, hashed.
+func queryShape(op, query string) string {
+	if op != "query" {
+		return op
+	}
+	h := fnv.New64a()
+	_, _ = h.Write([]byte(strings.TrimSpace(query)))
+	return "query " + strconv.FormatUint(h.Sum64(), 16)
+}
+
 // readOnly reports whether the GraphQL document query is a query, which
 // only reads: its operation type is query, or it is the shorthand {…}.
 // Whatever else it is, such as a mutation, counts as a write, so that it
@@ -202,13 +216,13 @@ func readOnly(query string) bool {
 }
 
 // graphqlError builds the error of a response with errors to a query of
-// the operation op. partial says that the response has data too, as a
+// shape (call.shape). partial says that the response has data too, as a
 // search across organizations does when some of them keep the token out
 // of their results. Then a FORBIDDEN or INSUFFICIENT_SCOPES error on a
 // field below the root, such as one node of a search, refuses that node
 // only, not the query, so it isn't tagged as a refusal, which would drop
 // what was kept of the query.
-func (c *Client) graphqlError(ctx context.Context, h http.Header, op string, items []GraphQLErrorItem, partial bool) *GraphQLError {
+func (c *Client) graphqlError(ctx context.Context, h http.Header, shape string, items []GraphQLErrorItem, partial bool) *GraphQLError {
 	e := &GraphQLError{Errors: items}
 	var below []string
 	for _, item := range items {
@@ -228,7 +242,7 @@ func (c *Client) graphqlError(ctx context.Context, h http.Header, op string, ite
 		case "UNPROCESSABLE":
 			e.causes = append(e.causes, core.ErrConflict)
 		case "RATE_LIMITED":
-			e.causes = append(e.causes, &core.RateLimitError{Reset: c.graphqlReset(h, op, item.Message)})
+			e.causes = append(e.causes, &core.RateLimitError{Reset: c.graphqlReset(h, shape, item.Message)})
 		}
 	}
 	if len(below) > 0 {
@@ -247,16 +261,16 @@ func graphqlPath(path []any) string {
 	return strings.Join(parts, ".")
 }
 
-// graphqlReset is when a query of the operation op that GitHub refused
+// graphqlReset is when a query of shape (call.shape) that GitHub refused
 // as RATE_LIMITED with msg may be sent again, from the headers h of the
 // response. The GraphQL quota is spent when nothing is left of it, when
 // msg is GitHub's for a spent quota, or when the query costs more than is
 // left, and then the query may be sent at the release of the quota.
 // Otherwise the limit is a secondary one, which lasts as Retry-After says,
 // or a minute.
-func (c *Client) graphqlReset(h http.Header, op, msg string) time.Time {
+func (c *Client) graphqlReset(h http.Header, shape, msg string) time.Time {
 	rl, ok := parseRateLimit(h)
-	if ok && (rl.Remaining == 0 || quotaSpent(msg) || c.budget.costsMore(op, rl.Remaining)) {
+	if ok && (rl.Remaining == 0 || quotaSpent(msg) || c.budget.costsMore(shape, rl.Remaining)) {
 		return c.limitedUntil(resourceGraphQL, rl)
 	}
 	if at, ok := c.retryAfter(h); ok {

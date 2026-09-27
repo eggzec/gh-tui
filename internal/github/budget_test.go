@@ -374,6 +374,31 @@ func TestBudgetGraphQLCost(t *testing.T) {
 	})
 }
 
+// TestBudgetAnonymousQueryCost checks that queries without a name each
+// reserve what they cost themselves, not what another such query did.
+func TestBudgetAnonymousQueryCost(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		reset := time.Now().Add(time.Hour)
+		a := answers{"graphql": make(chan answer, 1)}
+		c := newAnswered(t, a)
+		const costly, cheap = "{ search { rateLimit { cost } } }", "query { viewer { login } }"
+		a["graphql"] <- answer{header: quotaHeader(resourceGraphQL, 5000, 4990, reset), body: `{"data": {"rateLimit": {"cost": 10}}}`}
+		if err := c.Query(t.Context(), costly, nil, nil); err != nil {
+			t.Fatal(err)
+		}
+		done := make(chan error, 1)
+		go func() { done <- c.Query(context.Background(), cheap, nil, nil) }()
+		synctest.Wait()
+		if got := est(t, c, resourceGraphQL); got != 4989 {
+			t.Errorf("est with another anonymous query in flight = %d, want 4990-1", got)
+		}
+		a["graphql"] <- answer{header: quotaHeader(resourceGraphQL, 5000, 4989, reset), body: `{"data": {}}`}
+		if err := <-done; err != nil {
+			t.Fatal(err)
+		}
+	})
+}
+
 // TestBudgetMutationCost checks that a mutation costs 1 of the primary
 // limit, whatever a query of the same name cost.
 func TestBudgetMutationCost(t *testing.T) {
