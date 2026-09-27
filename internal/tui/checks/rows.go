@@ -308,7 +308,8 @@ func (s *Step) renderRow(r row, cursor bool, w int, now time.Time) string {
 		gutter = st.gutter
 		name = st.run.Strong.Render(r.name())
 	}
-	left := gutter + st.run.Glyphs[r.state()] + " " + name
+	// The name links to where the check points, as the open key does.
+	left := gutter + st.run.Glyphs[r.state()] + " " + s.links.Link(r.url(), name)
 	if r.required() {
 		left += " " + st.required.Render("required")
 	}
