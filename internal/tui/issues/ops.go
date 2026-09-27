@@ -2,12 +2,14 @@ package issues
 
 import (
 	"strconv"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
 // target returns the issue that the list keys apply to: the selected one.
@@ -15,42 +17,85 @@ func (s *Section) target() (core.Issue, bool) {
 	return s.list.Selected()
 }
 
-// stateChange starts closing or reopening issue it: the service shows the
-// change in its cache at once and returns the op that sends it, named by
-// what. Only an open issue closes and only a closed one reopens, and op is
-// nil for the others; it is nil too when g refuses the change, and
-// refusal says why.
-func stateChange(svc Service, g ui.Gate, it core.Issue, state core.State) (op *optimistic.Op, what string, refusal tea.Cmd) {
-	from, verb, a := core.StateOpen, "close", ui.ActClose
+// stateVerb returns the verb that moves it to state, if it applies: only
+// an open issue closes and only a closed one reopens. ok is unset for the
+// others, and when g refuses the change, which refusal then says why.
+func stateVerb(g ui.Gate, it core.Issue, state core.State) (verb string, ok bool, refusal tea.Cmd) {
+	from, verb, a := core.StateOpen, "Close", ui.ActClose
 	if state == core.StateOpen {
-		from, verb, a = core.StateClosed, "reopen", ui.ActReopen
+		from, verb, a = core.StateClosed, "Reopen", ui.ActReopen
 	}
 	if it.State != from {
-		return nil, "", nil
+		return "", false, nil
 	}
 	if cmd, refused := g.Refuse(a, &it); refused {
-		return nil, "", cmd
+		return "", false, cmd
 	}
-	if state == core.StateClosed {
-		op = svc.Close(g.Repo, it.Number)
-	} else {
-		op = svc.Reopen(g.Repo, it.Number)
-	}
-	return op, verb + " #" + strconv.Itoa(it.Number), nil
+	return verb, true, nil
 }
 
-// setState closes or reopens the selected issue. The list shows the change
-// from the cache at once, then it is sent.
+// stateChange returns closing or reopening issue it as a question. Its
+// run, once the user says yes, shows the change in the cache at once and
+// returns send, the command that sends it. By then the issue may have
+// changed and so may what the viewer may do, so run checks again the
+// issue and the gate that now returns, and sends nothing when the change
+// no longer applies. ok is unset when the change doesn't apply now, and
+// refusal says why when g refuses it.
+func stateChange(svc Service, g ui.Gate, it core.Issue, state core.State,
+	now func() (core.Issue, ui.Gate, bool), send func(op *optimistic.Op, what string) tea.Cmd,
+) (c ui.Confirm, ok bool, refusal tea.Cmd) {
+	verb, ok, refusal := stateVerb(g, it, state)
+	if !ok {
+		return ui.Confirm{}, false, refusal
+	}
+	number := it.Number
+	n := "#" + strconv.Itoa(number)
+	return ui.Confirm{
+		Question: verb + " issue " + n + "?",
+		Run: func() tea.Cmd {
+			it, g, found := now()
+			var applies bool
+			var refused tea.Cmd
+			if found && it.Number == number {
+				_, applies, refused = stateVerb(g, it, state)
+			}
+			switch {
+			case refused != nil:
+				return refused
+			case !applies:
+				return ui.Notify(toast.Info, n+" changed meanwhile, so nothing was sent.")
+			}
+			var op *optimistic.Op
+			if state == core.StateClosed {
+				op = svc.Close(g.Repo, number)
+			} else {
+				op = svc.Reopen(g.Repo, number)
+			}
+			return send(op, strings.ToLower(verb)+" "+n)
+		},
+	}, true, nil
+}
+
+// setState closes or reopens the selected issue, once the user confirms it
+// in a modal of its own. The list shows the change from the cache at once,
+// then it is sent.
 func (s *Section) setState(state core.State) tea.Cmd {
 	it, ok := s.target()
 	if !ok {
 		return nil
 	}
-	op, what, refusal := stateChange(s.svc, s.gate(), it, state)
-	if op == nil {
+	c, ok, refusal := stateChange(s.svc, s.gate(), it, state,
+		func() (core.Issue, ui.Gate, bool) {
+			it, ok := s.target()
+			return it, s.gate(), ok
+		},
+		func(op *optimistic.Op, what string) tea.Cmd {
+			return tea.Batch(s.reload(), ui.Do(s.ctx, ui.IssuesTitle, op, what))
+		})
+	if !ok {
 		return refusal
 	}
-	return tea.Batch(s.reload(), ui.Do(s.ctx, ui.IssuesTitle, op, what))
+	return ui.OpenModal(ui.NewConfirmModal(c))
 }
 
 // gate decides what the viewer may do in the repository of the list.

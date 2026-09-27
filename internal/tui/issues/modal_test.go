@@ -260,7 +260,7 @@ func TestOpenFromSearch(t *testing.T) {
 		if h.repo != testRepo {
 			t.Errorf("the section moved to %v", h.repo)
 		}
-		press(t, h, "x")
+		press(t, h, "x", "y")
 		if got := svc.changeCalls(); !slices.Equal(got, []string{"close 7"}) {
 			t.Errorf("changes = %v, want close 7", got)
 		}

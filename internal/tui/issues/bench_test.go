@@ -59,6 +59,23 @@ func BenchmarkViewModal(b *testing.B) {
 	}
 }
 
+// BenchmarkViewModalAsking draws the modal of an issue with many comments
+// while it asks to close the issue.
+func BenchmarkViewModalAsking(b *testing.B) {
+	svc := newFakeService(sampleIssues(30))
+	svc.addComments(999, sampleComments(90)...)
+	s := started(b, svc, 120, 40)
+	press(b, s, "down", "enter", "x")
+	m := s.modal()
+	if m.ask == nil {
+		b.Fatal("close asked nothing")
+	}
+	b.ReportAllocs()
+	for b.Loop() {
+		_ = m.View()
+	}
+}
+
 // BenchmarkUpdateCompose types into the comment prompt of the modal, with
 // the thread above it.
 func BenchmarkUpdateCompose(b *testing.B) {

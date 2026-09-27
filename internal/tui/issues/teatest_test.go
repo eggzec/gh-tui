@@ -42,8 +42,8 @@ func (a app) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (a app) View() tea.View {
-	if m := a.h.modal(); m != nil {
-		return tea.NewView(m.View())
+	if n := len(a.h.modals); n > 0 {
+		return tea.NewView(a.h.modals[n-1].View())
 	}
 	return tea.NewView(a.h.View())
 }
@@ -75,6 +75,8 @@ func TestProgram(t *testing.T) {
 	// Closing #999 in the open list shows it closed at once. Once GitHub
 	// agrees, the list no longer has it.
 	tm.Send(keyMsg("x"))
+	waitFor("Close issue #999?")
+	tm.Send(keyMsg("y"))
 	icons := ui.NewIcons(config.IconsNerd)
 	waitFor(icons.State(ui.IssueClosed))
 	close(svc.gate)

@@ -99,6 +99,12 @@ func TestGatedChanges(t *testing.T) {
 				}
 			}
 			msgs := press(t, h, tt.keys[last])
+			if tt.why != "" && question(h) != "" {
+				t.Errorf("asks %q of a change the viewer can't make", question(h))
+			}
+			if tt.want != nil {
+				press(t, h, "y")
+			}
 			if got := svc.changeCalls(); !slices.Equal(got, tt.want) {
 				t.Errorf("changes = %v, want %v", got, tt.want)
 			}

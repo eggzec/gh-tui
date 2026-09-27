@@ -16,6 +16,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
 	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
+	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
 	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
@@ -71,6 +72,10 @@ type detailModal struct {
 	// thread, while composing says what for.
 	prompt    prompt.Model
 	composing composing
+	// ask is the change waiting for the user to confirm it, on the last
+	// line, in the styles of confirmSt.
+	ask       *ui.Confirm
+	confirmSt ui.ConfirmStyles
 	// md renders comment bodies at mdWidth.
 	md      *glamour.TermRenderer
 	mdWidth int
@@ -111,6 +116,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, from
 		icons:   s.icons,
 		chips:   newChipCache(s.rows),
 	}
+	m.confirmSt = s.theme.Confirm()
 	svc, q := s.svc, commentsQuery(repo, number)
 	fetch := func(ctx context.Context, cursor string) ([]core.Comment, string, error) {
 		q := q
@@ -188,6 +194,7 @@ func (m *detailModal) SetSize(width, height int) {
 // SetTheme implements ui.Modal. It builds every style the modal uses.
 func (m *detailModal) SetTheme(t ui.Theme) {
 	m.theme = t
+	m.confirmSt = t.Confirm()
 	m.rows = newRowStyles(t, m.icons)
 	m.chips = newChipCache(m.rows)
 	m.md = nil
@@ -206,6 +213,14 @@ func (m *detailModal) SetTheme(t ui.Theme) {
 func (m *detailModal) View() string {
 	if m.width <= 0 || m.height <= 0 {
 		return ""
+	}
+	if m.ask != nil {
+		// The question lines up with the issue, two cells in.
+		lines := m.ask.Lines(m.confirmSt, m.keys.confirm, max(m.width-2, 0), min(m.height, ui.ConfirmLines))
+		for i, l := range lines {
+			lines[i] = ansi.Truncate("  "+l, m.width, "")
+		}
+		return ui.OverLastLines(m.thread.View(), lines)
 	}
 	if m.composing == composeNone {
 		return m.thread.View()
@@ -261,6 +276,9 @@ func (m *detailModal) Update(msg tea.Msg) tea.Cmd {
 }
 
 func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
+	if m.ask != nil {
+		return m.answer(msg)
+	}
 	if m.composing != composeNone {
 		// Every key is typing, even the modal's own; esc cancels the
 		// prompt, not the modal.
@@ -325,18 +343,34 @@ func (m *detailModal) gotIssue(msg issueMsg) tea.Cmd {
 	return m.show()
 }
 
-// setState closes or reopens the issue. The service shows the change in
-// its cache at once, so the modal and the list behind it show it from
-// there, then the change is sent.
+// setState closes or reopens the issue, once the user confirms it on the
+// last line of the modal. The service shows the change in its cache at
+// once, so the modal and the list behind it show it from there, then the
+// change is sent.
 func (m *detailModal) setState(state core.State) tea.Cmd {
 	if !m.loaded {
 		return nil
 	}
-	op, what, refusal := stateChange(m.svc, m.gate(), m.issue, state)
-	if op == nil {
+	c, ok, refusal := stateChange(m.svc, m.gate(), m.issue, state,
+		func() (core.Issue, ui.Gate, bool) { return m.issue, m.gate(), m.loaded },
+		func(op *optimistic.Op, what string) tea.Cmd {
+			return tea.Batch(m.reload(), m.changed(), ui.Do(m.sendCtx, ui.IssuesTitle, op, what))
+		})
+	if !ok {
 		return refusal
 	}
-	return tea.Batch(m.reload(), m.changed(), ui.Do(m.sendCtx, ui.IssuesTitle, op, what))
+	m.ask = &c
+	return nil
+}
+
+// answer takes the answer to the question on the last line: yes makes the
+// change, and no steps back to the issue. Other keys do nothing.
+func (m *detailModal) answer(msg tea.KeyPressMsg) tea.Cmd {
+	cmd, done := m.keys.confirm.Answer(*m.ask, msg)
+	if done {
+		m.ask = nil
+	}
+	return cmd
 }
 
 // gate decides what the viewer may do in the repository.
