@@ -9,6 +9,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
+	"github.com/eggzec/gh-tui/internal/service/fallback"
 )
 
 // ListQuery selects a page of a repository's issues.
@@ -85,7 +86,8 @@ func (s *Service) FreshList(q ListQuery) bool {
 // A page that only an earlier session kept is fresh if it was fetched or
 // revalidated within the TTL. An older one is returned at once, with Stale
 // set, to every read until one with q.Again set revalidates it. If GitHub
-// can't be reached, a stale page is served with Offline set.
+// can't be reached, a stale page is served with Offline set, and if it
+// rate limits the read, with Limited set.
 func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.Issue], error) {
 	q = q.normalize()
 	key := listKey(q)
@@ -103,7 +105,7 @@ func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.Issue],
 		p.Stale = true
 		return p, nil
 	}
-	page, err := fetch(ctx, s.lists, shelf, key, listTags(q.Repo), offlinePage[core.Issue],
+	page, err := fetch(ctx, s.lists, shelf, key, listTags(q.Repo), fallback.Page[core.Issue],
 		func(ctx context.Context, cond github.Conditional) (core.Page[core.Issue], github.Response, error) {
 			return s.readList(ctx, q, cond)
 		})
@@ -150,7 +152,7 @@ func (s *Service) Get(ctx context.Context, repo core.RepoRef, number int) (core.
 		return it, nil
 	}
 	it, err := fetch(ctx, s.issues, s.keptIssues, key,
-		func(core.Issue) []string { return []string{repoTag(repo), key} }, asIs[core.Issue],
+		func(core.Issue) []string { return []string{repoTag(repo), key} }, fallback.None[core.Issue],
 		func(ctx context.Context, cond github.Conditional) (core.Issue, github.Response, error) {
 			return s.api.GetIssue(ctx, repo, number, cond)
 		})
@@ -198,21 +200,15 @@ func (s *Service) Comments(ctx context.Context, q CommentsQuery) (core.Page[core
 	// read.
 	version, _ := s.seen.Get(key)
 	tags := []string{repoTag(q.Repo), key}
-	e, err := s.comments.Fetch(ctx, ckey, func(ctx context.Context, prev cache.Entry[stampedComments], ok bool) (cache.Entry[stampedComments], error) {
+	e, err := fallback.Fetch(ctx, s.comments, s.keptComments, ckey, stampedMarks, func(ctx context.Context, prev cache.Entry[stampedComments], ok bool) (cache.Entry[stampedComments], error) {
 		var cond github.Conditional
 		if ok {
 			cond = github.Conditional{ETag: prev.ETag, LastModified: prev.LastModified}
 		}
 		p, res, err := s.api.ListIssueComments(ctx, q.Repo, q.Number, q.Cursor, q.PageSize, cond)
 		switch {
-		case ok && github.Unreachable(ctx, err):
-			prev.Value.Value.Offline, prev.FetchedAt = true, offlineAt
-			return prev, nil
 		case err != nil:
-			if github.Refused(err) {
-				s.keptComments.Delete(ckey)
-			}
-			return prev, err
+			return cache.Entry[stampedComments]{}, err
 		case res.NotModified:
 			// The cached page is current as of now, so it takes the newer
 			// version. It may hold a comment GitHub hasn't confirmed, so
