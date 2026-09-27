@@ -238,6 +238,38 @@ func TestSayLine(t *testing.T) {
 	}
 }
 
+func TestErrorText(t *testing.T) {
+	x := core.RepoRef{Owner: "eggzec", Name: "x"}
+	tests := []struct {
+		name, subject string
+		err           error
+		text, hint    string
+	}{
+		{"offline", "eggzec/x", fmt.Errorf("list files: %w", core.ErrOffline), "Can't reach GitHub", "r to retry"},
+		{"forbidden names the subject", "eggzec/x", fmt.Errorf("list files: %w", core.ErrForbidden), "You don't have access to eggzec/x", "o to open on GitHub"},
+		{"forbidden without a subject", "", fmt.Errorf("list files: %w", core.ErrForbidden), "You don't have access to this", "o to open on GitHub"},
+		{"not found names the subject", "eggzec/x", fmt.Errorf("list files: %w", core.ErrNotFound), "eggzec/x doesn't exist or is private.", ""},
+		{"the error's own subject wins", "eggzec/x", &core.NoNumberError{Repo: x, Number: 5, Err: core.ErrNotFound}, "eggzec/x#5 doesn't exist or is private.", ""},
+		{"canceled", "eggzec/x", context.Canceled, "", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			text, hint := ErrorText("load the files", tt.subject, testVoice())(tt.err)
+			if text != tt.text || hint != tt.hint {
+				t.Errorf("ErrorText = %q, %q; want %q, %q", text, hint, tt.text, tt.hint)
+			}
+		})
+	}
+}
+
+// A problem the error holds keeps its own subject, however it is said.
+func TestErrorTextLeavesTheProblemAlone(t *testing.T) {
+	p := &core.Problem{Kind: core.Forbidden, Action: "merge #5", Err: core.ErrForbidden}
+	if text, _ := ErrorText("load", "eggzec/x", testVoice())(p); text != "You don't have access to eggzec/x" || p.Subject != "" {
+		t.Errorf("ErrorText = %q, and the problem's subject became %q", text, p.Subject)
+	}
+}
+
 func TestSayCapsTheText(t *testing.T) {
 	p := &core.Problem{Kind: core.Rejected, Reason: strings.Repeat("GitHub says no. ", 200)}
 	text, _ := Say(p, testVoice())

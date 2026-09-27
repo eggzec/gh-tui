@@ -63,3 +63,10 @@ func WithOffline(off *ui.Offline) Option {
 		}
 	}
 }
+
+// WithVoice sets how the section words what went wrong, with the keys a
+// hint names and the log it points to. By default the hints name the
+// configured keys and no log.
+func WithVoice(v ui.Voice) Option {
+	return func(s *Section) { s.voice = v }
+}

@@ -143,6 +143,10 @@ func (s *Section) newFinder() *finderModal {
 	}
 	src := s.src
 	host, repo, ref := s.host, s.repo, s.ref
+	// The finder lists the files again only when it opens again, and o
+	// types into its query.
+	v := s.voice
+	v.Retry, v.Open = key.Binding{}, key.Binding{}
 	f.find = finder.New(func(ctx context.Context) (finder.Listing, error) { return listFiles(ctx, src) },
 		finder.WithContext(ctx),
 		finder.WithKeyMap(f.keys.find),
@@ -155,6 +159,7 @@ func (s *Section) newFinder() *finderModal {
 			}
 			return ""
 		}),
+		finder.WithErrorText(ui.ErrorText("list the files", s.repo.String(), v)),
 	)
 	f.find.Focus()
 	f.SetTheme(s.theme)

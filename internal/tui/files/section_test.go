@@ -1,12 +1,15 @@
 package files
 
 import (
+	"errors"
+	"fmt"
 	"maps"
 	"slices"
 	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
@@ -220,13 +223,47 @@ func TestRetry(t *testing.T) {
 	f := sampleFake()
 	f.errs[treeKey(ghTUI, "")] = errNoTree
 	s := loaded(t, f, 60, 5)
-	if got := screen(s); !strings.Contains(got, "Couldn't load: 404 Not Found") {
+	if got := screen(s); !strings.Contains(got, "Something went wrong") {
 		t.Fatalf("screen = %q, want the error", got)
 	}
 	delete(f.errs, treeKey(ghTUI, ""))
 	keys(s, "r")
 	if got := screen(s); !strings.Contains(got, "AGENTS.md") {
 		t.Errorf("screen = %q, want the files after a refresh", got)
+	}
+}
+
+// The tree and the finder say what went wrong the way the user should
+// read it, without the error's chain, request or status code.
+func TestErrorWords(t *testing.T) {
+	// The finder names no key that doesn't work there: o types into its
+	// query.
+	tests := []struct {
+		name         string
+		err          error
+		tree, finder string
+	}{
+		{"offline", fmt.Errorf("list files: github: GET /repos/eggzec/gh-tui/git/trees/HEAD: %w", core.ErrOffline),
+			"Can't reach GitHub · + to retry", "Can't reach GitHub"},
+		{"forbidden", fmt.Errorf("list files: github: 403 Forbidden: %w", core.ErrForbidden),
+			"You don't have access to eggzec/gh-tui · o to open on GitHub", "You don't have access to eggzec/gh-tui"},
+		{"internal", errors.New("list files: github: decode: unexpected EOF"),
+			"Something went wrong. Details are in the log", "Something went wrong. Details are in the log"},
+	}
+	voice := WithVoice(ui.NewVoice(config.Default().Keys, "/var/log/gh-tui.log"))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := sampleFake()
+			f.errs[treeKey(ghTUI, "")] = tt.err
+			s := loaded(t, f, 120, 5, voice)
+			if got := screen(s); !strings.Contains(got, "✗ "+tt.tree) || strings.Contains(got, "github") {
+				t.Errorf("tree = %q, want %q", got, tt.tree)
+			}
+			fm := findIn(t, newHost(s))
+			if got := ansi.Strip(fm.find.View()); !strings.Contains(got, "✗ "+tt.finder) || strings.Contains(got, "github") || strings.Contains(got, "to open") {
+				t.Errorf("finder = %q, want %q", got, tt.finder)
+			}
+		})
 	}
 }
 
