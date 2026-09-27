@@ -323,10 +323,15 @@ func (m *Modal) showFile() tea.Cmd {
 
 // commitURL is the page of the commit shown on GitHub.
 func (m *Modal) commitURL(c core.Commit) string {
+	return commitURL(m.opts.host, m.repo, c)
+}
+
+// commitURL is the page of commit c of repo on host.
+func commitURL(host string, repo core.RepoRef, c core.Commit) string {
 	if c.URL != "" {
 		return c.URL
 	}
-	return ui.WebURL(m.opts.host, m.repo.String()+"/commit/"+c.SHA)
+	return ui.WebURL(host, repo.String()+"/commit/"+c.SHA)
 }
 
 // fileURL is the diff of file on the page of commit c: GitHub names the
