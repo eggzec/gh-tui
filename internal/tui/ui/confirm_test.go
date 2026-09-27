@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
 // press returns the key press of k, as a terminal sends it.
@@ -49,6 +51,47 @@ func TestConfirmAnswer(t *testing.T) {
 			cmd, done := DefaultConfirmKeys().Answer(r.confirm("Close issue #12?"), press(tt.key))
 			if done != tt.done || (r.n == 1) != tt.run || (cmd != nil) != tt.run {
 				t.Errorf("%s: done %v, ran %d times, cmd %v; want done %v and run %v", tt.key, done, r.n, cmd != nil, tt.done, tt.run)
+			}
+		})
+	}
+}
+
+func TestRecheck(t *testing.T) {
+	refusal := Notify(toast.Info, "You can't close issues in eggzec/x (read access).")
+	tests := []struct {
+		name string
+		// question is what now asks by the time of the yes, "" for a
+		// change that no longer applies.
+		question string
+		refused  bool
+		// run is whether the change runs, and want what the yes shows
+		// instead.
+		run  bool
+		want tea.Msg
+	}{
+		{name: "the same change runs", question: "Close issue #12?", run: true, want: "sent"},
+		{name: "another change sends nothing", question: "Close issue #13?",
+			want: NotifyMsg{Level: toast.Info, Text: "#12 changed meanwhile, so nothing was sent."}},
+		{name: "a change that no longer applies sends nothing",
+			want: NotifyMsg{Level: toast.Info, Text: "#12 changed meanwhile, so nothing was sent."}},
+		{name: "a refusal says why", refused: true,
+			want: NotifyMsg{Level: toast.Info, Text: "You can't close issues in eggzec/x (read access)."}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var r ran
+			c := Recheck("Close issue #12?", "#12", func() (Confirm, bool, tea.Cmd) {
+				if tt.refused {
+					return Confirm{}, false, refusal
+				}
+				return r.confirm(tt.question), tt.question != "", nil
+			})
+			if c.Question != "Close issue #12?" {
+				t.Fatalf("asks %q", c.Question)
+			}
+			msgs := runAll(c.Run())
+			if (r.n == 1) != tt.run || r.n > 1 || !slices.Equal(msgs, []tea.Msg{tt.want}) {
+				t.Errorf("ran %d times and showed %v, want run %v and %v", r.n, msgs, tt.run, tt.want)
 			}
 		})
 	}

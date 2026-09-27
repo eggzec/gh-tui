@@ -148,7 +148,7 @@ func (k keyMap) confirmed(svc Service, method core.MergeMethod, number int, ques
 		case warn != nil:
 			return warn
 		}
-		return ui.Notify(toast.Info, "#"+strconv.Itoa(number)+" changed meanwhile, so nothing was sent.")
+		return ui.Notify(toast.Info, ui.Meanwhile("#"+strconv.Itoa(number)))
 	}
 }
 

@@ -8,6 +8,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
 // Confirm is a change that waits for the user to say yes. A modal asks it
@@ -19,6 +21,32 @@ type Confirm struct {
 	// Run makes the change once the user says yes, and returns what sends
 	// it.
 	Run func() tea.Cmd
+}
+
+// Recheck returns the Confirm that asks question and, once the user says
+// yes, asks again: by then what the question is about may have changed,
+// such as a list that refreshed behind it. now returns the change as it is
+// by then, or ok unset when it no longer applies, with refusal saying why
+// when the viewer may no longer make it. The change is made only when it
+// still asks question, which names the change and its target; otherwise
+// nothing is sent, and the user is told that name changed meanwhile.
+func Recheck(question, name string, now func() (c Confirm, ok bool, refusal tea.Cmd)) Confirm {
+	return Confirm{Question: question, Run: func() tea.Cmd {
+		c, ok, refusal := now()
+		switch {
+		case ok && c.Question == question:
+			return c.Run()
+		case refusal != nil:
+			return refusal
+		}
+		return Notify(toast.Info, Meanwhile(name))
+	}}
+}
+
+// Meanwhile says that name changed while its change was being confirmed,
+// so it wasn't sent.
+func Meanwhile(name string) string {
+	return name + " changed meanwhile, so nothing was sent."
 }
 
 // ConfirmKeys answer a Confirm. They are fixed, since they only mean
