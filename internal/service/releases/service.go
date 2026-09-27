@@ -14,6 +14,8 @@ import (
 	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
+	"github.com/eggzec/gh-tui/internal/service/fallback"
+	"github.com/eggzec/gh-tui/internal/service/recheck"
 )
 
 // API is the part of the GitHub client the service uses.
@@ -60,10 +62,6 @@ const (
 	schema = 1
 )
 
-// offlineAt is when a release served offline was fetched, as far as the
-// cache can tell: long ago, so that the next read asks GitHub again.
-var offlineAt = time.Unix(1, 0)
-
 // New returns a service that reads releases through api.
 func New(api API, opts ...Option) *Service {
 	o := options{cache: []cache.Option{cache.WithTTL(DefaultTTL)}}
@@ -104,29 +102,10 @@ func (s *Service) Current(repo core.RepoRef, id int64) bool {
 func (s *Service) Get(ctx context.Context, repo core.RepoRef, id int64) (core.Release, error) {
 	k := key(repo, id)
 	s.kept.Warm(s.cache, k, true)
-	e, err := s.cache.Fetch(ctx, k, func(ctx context.Context, prev cache.Entry[core.Release], ok bool) (cache.Entry[core.Release], error) {
-		var cond github.Conditional
-		if ok {
-			cond = github.Conditional{ETag: prev.ETag, LastModified: prev.LastModified}
-		}
-		r, res, err := s.api.GetRelease(ctx, repo, id, cond)
-		switch {
-		case ok && github.Unreachable(ctx, err):
-			prev.FetchedAt = offlineAt
-			return prev, nil
-		case err != nil:
-			if github.Refused(err) {
-				s.kept.Delete(k)
-			}
-			return cache.Entry[core.Release]{}, err
-		case res.NotModified:
-			return cache.Entry[core.Release]{}, cache.ErrNotModified
-		}
-		e := cache.Entry[core.Release]{Value: r, ETag: res.ETag, LastModified: res.LastModified, Source: res.URL}
-		// The shelf is only a shortcut, so a failure is ignored.
-		_ = s.kept.Save(k, e)
-		return e, nil
-	})
+	load := recheck.Load(func(ctx context.Context, cond github.Conditional) (core.Release, github.Response, error) {
+		return s.api.GetRelease(ctx, repo, id, cond)
+	}, func(core.Release) []string { return nil })
+	e, err := fallback.Fetch(ctx, s.cache, s.kept, k, fallback.None[core.Release], fallback.Keep(s.kept, k, load))
 	if err != nil {
 		return core.Release{}, fmt.Errorf("get release %d of %s: %w", id, repo, err)
 	}
