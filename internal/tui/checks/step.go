@@ -27,6 +27,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/jobview"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/markdown"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // Title names the step, and its changes in the log and the toasts.
@@ -187,6 +188,8 @@ type Step struct {
 	width, height int
 	theme         ui.Theme
 	st            styles
+	// links keeps the links of the rows, which are drawn on every frame.
+	links termtext.Links
 }
 
 // New returns the Checks step of pull request number of repo, with the
