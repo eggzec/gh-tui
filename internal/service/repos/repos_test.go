@@ -294,8 +294,9 @@ func TestReadErrors(t *testing.T) {
 	s := New(api)
 
 	_, err := s.List(t.Context(), ListQuery{})
-	if !errors.Is(err, core.ErrRateLimited) || err.Error() == (&core.RateLimitError{}).Error() {
-		t.Errorf("List error = %v, want a wrapped rate limit", err)
+	// The client names the request, so the service passes its error on.
+	if !errors.Is(err, core.ErrRateLimited) {
+		t.Errorf("List error = %v, want the rate limit", err)
 	}
 	if _, ok := s.CachedList(ListQuery{}); ok {
 		t.Error("a failed List was cached")

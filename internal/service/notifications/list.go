@@ -80,11 +80,9 @@ func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.Notific
 		p.Stale = true
 		return p, nil
 	}
+	// The client already names the request in its error.
 	e, err := s.cache.Fetch(ctx, q.key(), s.load(q))
-	if err != nil {
-		return core.Page[core.Notification]{}, fmt.Errorf("list notifications: %w", err)
-	}
-	return e.Value, nil
+	return e.Value, err
 }
 
 // Invalidate marks every cached page stale. The pages are still served by

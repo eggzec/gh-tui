@@ -137,10 +137,8 @@ func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.Repo], 
 		_ = s.kept.Save(key, e)
 		return e, nil
 	})
-	if err != nil {
-		return core.Page[core.Repo]{}, fmt.Errorf("list repos: %w", err)
-	}
-	return e.Value, nil
+	// The client already names the request in its error.
+	return e.Value, err
 }
 
 // CachedGet returns the cached repository, fresh or stale, without I/O.

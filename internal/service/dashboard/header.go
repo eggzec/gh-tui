@@ -2,7 +2,6 @@ package dashboard
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/eggzec/gh-tui/internal/core"
 )
@@ -33,9 +32,6 @@ type HeaderQuery struct {
 // read with q.Again set fetches it; if GitHub can't be reached, the last
 // one is served with Offline set.
 func (s *Service) Header(ctx context.Context, q HeaderQuery) (core.Header, error) {
-	h, err := s.header.get(ctx, headerKey, q.Again, s.api.ViewerHeader)
-	if err != nil {
-		return core.Header{}, fmt.Errorf("dashboard header: %w", err)
-	}
-	return h, nil
+	// The client already names the request in its error.
+	return s.header.get(ctx, headerKey, q.Again, s.api.ViewerHeader)
 }
