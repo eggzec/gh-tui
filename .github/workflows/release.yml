@@ -1,0 +1,27 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # Builds dist/<os>-<arch>[.exe] for each platform, which `gh extension
+      # install` matches by suffix, and attaches them to a release for the tag.
+      # The binary reads its version from the build info, which Go stamps from
+      # the tag.
+      - uses: cli/gh-extension-precompile@v2
+        with:
+          go_version_file: go.mod
+          go_build_options: ./cmd/gh-tui
+          # Attestations need a public repo (or GitHub Enterprise Cloud), and
+          # the step runs after the release is published.
+          generate_attestations: ${{ !github.event.repository.private }}
