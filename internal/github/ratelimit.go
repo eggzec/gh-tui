@@ -68,14 +68,18 @@ func (c *Client) rateLimitReset(resp *http.Response) (time.Time, bool) {
 }
 
 // retryAfter returns when the Retry-After of h says to send again, in
-// seconds or as a date of GitHub's clock, if it says.
+// seconds or as a date of GitHub's clock, if it says. A wait that isn't
+// positive says nothing, since a limit that lifted already doesn't refuse
+// a request; the limit then lasts as if there were no Retry-After.
 func (c *Client) retryAfter(h http.Header) (time.Time, bool) {
 	s := h.Get("Retry-After")
+	now := c.budget.now()
 	if secs, err := strconv.Atoi(s); err == nil {
-		return c.budget.now().Add(time.Duration(secs) * time.Second), true
+		return now.Add(time.Duration(secs) * time.Second), secs > 0
 	}
 	if t, err := http.ParseTime(s); err == nil {
-		return c.budget.localTime(t), true
+		at := c.budget.localTime(t)
+		return at, at.After(now)
 	}
 	return time.Time{}, false
 }
