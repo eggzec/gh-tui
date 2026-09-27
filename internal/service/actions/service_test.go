@@ -2,6 +2,7 @@ package actions
 
 import (
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -119,6 +120,38 @@ func TestRunsOfflineAndRefused(t *testing.T) {
 	}
 	if _, err := New(f, WithStore(store)).Runs(t.Context(), q); !errors.Is(err, core.ErrNotFound) {
 		t.Errorf("a new session read %v, want the kept page dropped after the refusal", err)
+	}
+}
+
+// TestRunsAnsweredAfterOutage checks that the page served in place of an
+// answer, offline or limited, is served unmarked again after a 304.
+func TestRunsAnsweredAfterOutage(t *testing.T) {
+	limited := fmt.Errorf("github: 403: %w", &core.RateLimitError{Reset: at})
+	for _, failed := range []error{errDial, limited} {
+		f := newFake()
+		s := New(f)
+		q := RunsQuery{Repo: repo}
+		if _, err := s.Runs(t.Context(), q); err != nil {
+			t.Fatal(err)
+		}
+
+		f.fail(failed)
+		s.Invalidate(repo)
+		p, err := s.Runs(t.Context(), q)
+		isLimited := errors.Is(failed, core.ErrRateLimited)
+		if err != nil || p.Offline == isLimited || p.Limited != isLimited || len(p.Items) != 2 {
+			t.Errorf("Runs while GitHub fails with %v = %+v, %v; want the page read last, marked", failed, p, err)
+		}
+
+		f.fail(nil)
+		f.take()
+		p, err = s.Runs(t.Context(), q)
+		if err != nil || p.Offline || p.Limited || len(p.Items) != 2 {
+			t.Errorf("Runs after the outage = %+v, %v; want the page unmarked", p, err)
+		}
+		if calls := f.take(); len(calls) != 1 {
+			t.Errorf("calls after the outage = %q, want one 304", calls)
+		}
 	}
 }
 

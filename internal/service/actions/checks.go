@@ -13,6 +13,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
+	"github.com/eggzec/gh-tui/internal/service/fallback"
 	"github.com/eggzec/gh-tui/internal/watch"
 )
 
@@ -116,7 +117,7 @@ func (s *Service) CachedAnnotations(q AnnotationsQuery) (core.Page[core.Annotati
 // such as the errors a compiler reported, revalidated with its ETag.
 func (s *Service) Annotations(ctx context.Context, q AnnotationsQuery) (core.Page[core.Annotation], error) {
 	q = q.normalize()
-	e, err := fetch(ctx, s.annotations, nil, annotationsKey(q), []string{repoTag(q.Repo)}, offlinePage[core.Annotation],
+	e, err := fetch(ctx, s.annotations, nil, annotationsKey(q), []string{repoTag(q.Repo)}, fallback.Page[core.Annotation],
 		func(ctx context.Context, cond github.Conditional) (core.Page[core.Annotation], github.Response, error) {
 			return s.api.ListAnnotations(ctx, q.Repo, q.CheckRunID, q.Cursor, q.PageSize, cond)
 		})
