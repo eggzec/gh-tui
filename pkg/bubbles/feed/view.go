@@ -49,7 +49,7 @@ func (m Model[T]) writeItem(w *lineWriter, i, width int) {
 
 // writePending writes a row whose chunk is not loaded: a placeholder while
 // it is fetched again, or the error once, where the failed chunk comes into
-// view.
+// view, or only the retry key for a failure not worth telling.
 func (m Model[T]) writePending(w *lineWriter, i int, gutter string) {
 	c := m.chunkAt(i)
 	if m.chunks[c].err != nil && (i == m.starts[c] || i == m.top) {
