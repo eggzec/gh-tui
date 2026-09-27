@@ -129,6 +129,7 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, id int64, url stri
 		thread.WithFocused(true),
 		thread.WithEmptyText("No files were uploaded with it."),
 	)
+	m.thread.SetCutHint(ui.OpenHint(m.keys.Open))
 	r, cached := svc.CachedGet(repo, id)
 	slog.InfoContext(ctx, "open", "span", "tui", "kind", "release", "repo", repo.String(), "id", id, "cached", cached)
 	if cached {

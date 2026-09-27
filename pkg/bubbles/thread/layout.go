@@ -4,12 +4,12 @@ import (
 	"sort"
 	"strings"
 
-	"charm.land/glamour/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/eggzec/gh-tui/pkg/markdown"
 )
 
-// statusIndent lines the status up with the body, which glamour indents by
-// two cells.
+// statusIndent is how far the body is indented, and the status with it.
 const statusIndent = "  "
 
 // renderDoc renders the header and the markdown body at the current width,
@@ -38,24 +38,10 @@ func (m *Model[T]) renderDoc() {
 	m.doc, m.docWidth = lines, m.width
 }
 
+// renderMarkdown renders the body indented by two cells, with as much room
+// on the right.
 func (m *Model[T]) renderMarkdown() string {
-	if strings.TrimSpace(m.body) == "" {
-		return ""
-	}
-	m.mdRuns++
-	r, err := glamour.NewTermRenderer(
-		glamour.WithStyles(m.markdownStyle()),
-		glamour.WithWordWrap(m.width),
-	)
-	if err != nil {
-		return m.body
-	}
-	out, err := r.Render(m.body)
-	if err != nil {
-		// Showing the source beats showing nothing.
-		return m.body
-	}
-	return out
+	return markdown.Indent(m.md.Render(m.body, markdown.Room(m.width, 2*len(statusIndent))), statusIndent)
 }
 
 // renderChunk renders the items of c at the current width, one blank line

@@ -33,6 +33,16 @@ func TestBinding(t *testing.T) {
 	}
 }
 
+func TestOpenHint(t *testing.T) {
+	keys := map[string][]string{"open": {"o"}}
+	if got := OpenHint(Binding(keys, "open", "open")); got != "o to open on GitHub" {
+		t.Errorf("OpenHint = %q", got)
+	}
+	if got := OpenHint(Binding(keys, "missing", "open")); got != "" {
+		t.Errorf("OpenHint without a key = %q, want nothing", got)
+	}
+}
+
 type opFunc func(context.Context) error
 
 func (f opFunc) Do(ctx context.Context) error { return f(ctx) }
