@@ -1,0 +1,20 @@
+[1;38;2;31;35;48mHelp · Pull requests[m                                                     [38;2;138;144;160m12 keys[m
+[38;2;59;99;196m› [m[7;38;2;59;99;196mF[m[38;2;138;144;160milter keys, or tab and press one[m[38;2;138;144;160m                                             [m
+  [38;2;59;99;196m?[m             [38;2;31;35;48mhelp[m                                              [38;2;84;91;110mapp[m           
+  [38;2;59;99;196mctrl+c[m        [38;2;31;35;48mquit[m                                              [38;2;84;91;110mapp[m           
+  [38;2;59;99;196m:[m             [38;2;31;35;48mcommand[m                                           [38;2;84;91;110mapp[m           
+  [38;2;59;99;196mctrl+r[m        [38;2;31;35;48mrefresh[m                                           [38;2;84;91;110mapp[m           
+                                                                                
+  [38;2;59;99;196mdown j[m        [38;2;31;35;48mdown[m                                              [38;2;84;91;110mpull requests[m 
+  [38;2;59;99;196mup k[m          [38;2;31;35;48mup[m                                                [38;2;84;91;110mpull requests[m 
+  [38;2;59;99;196menter[m         [38;2;31;35;48mopen[m                                              [38;2;84;91;110mpull requests[m 
+[38;2;154;103;0m⚠[m [38;2;59;99;196mr ctrl+r[m      [38;2;31;35;48mreload[m                                            [38;2;84;91;110mpull requests[m 
+                [38;2;154;103;0m↳ ctrl+r: refresh · app[m                                         
+  [2;38;2;138;144;160mm[m             [2;38;2;138;144;160mmerge[m                                             [2;38;2;138;144;160mpull requests[m 
+  [38;2;59;99;196mc[m             [38;2;31;35;48mcheck out[m                                         [38;2;84;91;110mpull requests[m 
+  [38;2;59;99;196mesc[m           [38;2;31;35;48mcancel[m                                            [38;2;84;91;110mpull requests[m 
+[38;2;192;57;43m⚠[m [38;2;59;99;196mq esc[m         [38;2;31;35;48mclose[m                                             [38;2;84;91;110mpull requests[m 
+                [38;2;192;57;43m↳ esc: cancel · pull requests[m                                   
+                                                                                
+                                                                                
+                                                                                
