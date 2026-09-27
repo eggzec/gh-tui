@@ -1,0 +1,349 @@
+package ui
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+	"unicode"
+
+	"charm.land/bubbles/v2/key"
+	"github.com/charmbracelet/x/ansi"
+
+	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/internal/core"
+)
+
+// testLog is the log file as the tests show it.
+const testLog = "~/.local/state/gh-tui/gh-tui.log"
+
+// testVoice returns a voice with the default keys, the test log, a zone
+// two hours east of UTC, and a clock ten minutes before reset.
+func testVoice() Voice {
+	keys := config.Default().Keys
+	return Voice{
+		Retry: Binding(keys, config.ActionRefresh, "retry"),
+		Open:  Binding(keys, config.ActionOpen, "open"),
+		Log:   testLog,
+		Loc:   time.FixedZone("test", 2*60*60),
+		Now:   func() time.Time { return reset.Add(-10 * time.Minute) },
+	}
+}
+
+// reset is when the rate limit of the tests lifts: 14:05 in the zone of
+// testVoice.
+var reset = time.Date(2026, 9, 27, 12, 5, 0, 0, time.UTC)
+
+// invisible are format characters that could make a reason read other
+// than it is: bidi embeddings, overrides, isolates and marks, zero-width
+// characters, the byte order mark and a tag character.
+const invisible = "\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069\u200e\u200f\u061c\u200b\u200c\u200d\u2060\ufeff\U000E0041"
+
+// sayCase is a problem, with what Say and SayToast make of it under
+// testVoice. An empty toast isn't checked.
+type sayCase struct {
+	name       string
+	p          *core.Problem
+	text, hint string
+	toast      string
+}
+
+// sayCases are problems of every kind.
+var sayCases = []sayCase{
+	{
+		name: "canceled", p: &core.Problem{Kind: core.Canceled, Action: "load your profile"},
+	},
+	{
+		name: "offline", p: &core.Problem{Kind: core.Offline, Action: "load your profile"},
+		text: "Can't reach GitHub", hint: "r to retry",
+		toast: "Couldn't load your profile: can't reach GitHub.",
+	},
+	{
+		name: "unavailable", p: &core.Problem{Kind: core.Unavailable, Action: "load your profile"},
+		text: "GitHub isn't responding", hint: "r to retry",
+		toast: "Couldn't load your profile: GitHub isn't responding.",
+	},
+	{
+		name: "rate limited", p: &core.Problem{Kind: core.RateLimited, Action: "merge #5", Reset: reset},
+		text: "Rate limited until 14:05", hint: "loads again then",
+		toast: "Couldn't merge #5: rate limited until 14:05.",
+	},
+	{
+		name: "rate limited without a reset", p: &core.Problem{Kind: core.RateLimited, Action: "merge #5"},
+		text: "Rate limited by GitHub", hint: "r to retry",
+		toast: "Couldn't merge #5: rate limited by GitHub.",
+	},
+	{
+		name: "rate limited until a time past", p: &core.Problem{Kind: core.RateLimited, Action: "merge #5", Reset: reset.Add(-time.Hour)},
+		text: "Rate limited by GitHub", hint: "r to retry",
+	},
+	{
+		name: "rate limited until another day", p: &core.Problem{Kind: core.RateLimited, Action: "merge #5", Reset: reset.Add(30 * time.Hour)},
+		text: "Rate limited until Sep 28, 20:05", hint: "loads again then",
+		toast: "Couldn't merge #5: rate limited until Sep 28, 20:05.",
+	},
+	{
+		name: "auth", p: &core.Problem{Kind: core.Auth, Action: "load your profile", Reason: "Bad credentials"},
+		text:  "GitHub rejected the token. Run gh auth login, then restart gh-tui.",
+		toast: "Couldn't load your profile: run gh auth login, then restart gh-tui.",
+	},
+	{
+		name: "auth missing a scope",
+		p: &core.Problem{Kind: core.Auth, Action: "load your teams", Reason: "Your token has not been granted the required scopes to execute this query. " +
+			"The 'teams' field requires one of the following scopes: ['read:org'], but your token has only been granted the: ['repo'] scopes."},
+		text:  "The token lacks the read:org scope. Run gh auth refresh -s read:org, then restart gh-tui.",
+		toast: "Couldn't load your teams: run gh auth refresh -s read:org, then restart gh-tui.",
+	},
+	{
+		name: "auth missing a scope REST names",
+		p:    &core.Problem{Kind: core.Auth, Action: "list the members", Reason: `This API operation needs the "admin:org" scope.`},
+		text: "The token lacks the admin:org scope. Run gh auth refresh -s admin:org, then restart gh-tui.",
+	},
+	{
+		name: "forbidden", p: &core.Problem{Kind: core.Forbidden, Action: "load the files", Subject: "eggzec/x", Reason: "Resource not accessible by integration"},
+		text: "You don't have access to eggzec/x", hint: "o to open on GitHub",
+		toast: "Couldn't load the files: you don't have access to eggzec/x.",
+	},
+	{
+		name: "forbidden without a subject", p: &core.Problem{Kind: core.Forbidden, Action: "load the files"},
+		text: "You don't have access to this", hint: "o to open on GitHub",
+	},
+	{
+		name: "forbidden by SSO",
+		p: &core.Problem{Kind: core.Forbidden, Action: "load the files", Subject: "eggzec/x", Reason: "Resource protected by organization SAML enforcement. " +
+			"You must grant your Personal Access token access to this organization."},
+		text:  "eggzec requires SSO. Run gh auth refresh, then restart gh-tui.",
+		toast: "Couldn't load the files: run gh auth refresh, then restart gh-tui.",
+	},
+	{
+		name: "forbidden by SSO keeps the case of the organization", p: &core.Problem{Kind: core.Forbidden, Action: "sync", Subject: "Acme/x", Reason: "SAML enforcement"},
+		text:  "Acme requires SSO. Run gh auth refresh, then restart gh-tui.",
+		toast: "Couldn't sync: Acme requires SSO. Run gh auth refresh, then restart gh-tui.",
+	},
+	{
+		name: "forbidden by SSO without a subject", p: &core.Problem{Kind: core.Forbidden, Action: "load the files", Reason: "SSO required"},
+		text:  "The organization requires SSO. Run gh auth refresh, then restart gh-tui.",
+		toast: "Couldn't load the files: run gh auth refresh, then restart gh-tui.",
+	},
+	{
+		name: "not found", p: &core.Problem{Kind: core.NotFound, Action: "load #5", Subject: "eggzec/x#5"},
+		text:  "eggzec/x#5 doesn't exist or is private.",
+		toast: "Couldn't load #5: eggzec/x#5 doesn't exist or is private.",
+	},
+	{
+		name: "not found keeps the case of the subject", p: &core.Problem{Kind: core.NotFound, Action: "load #5", Subject: "Microsoft/vscode#5"},
+		text:  "Microsoft/vscode#5 doesn't exist or is private.",
+		toast: "Couldn't load #5: Microsoft/vscode#5 doesn't exist or is private.",
+	},
+	{
+		name: "not found without a subject", p: &core.Problem{Kind: core.NotFound, Action: "load #5"},
+		text:  "This doesn't exist or is private.",
+		toast: "Couldn't load #5: this doesn't exist or is private.",
+	},
+	{
+		name: "rejected", p: &core.Problem{Kind: core.Rejected, Action: "merge #5", Reason: "Pull Request is not mergeable"},
+		text: "Pull Request is not mergeable", hint: "o to open on GitHub",
+		toast: "Couldn't merge #5: Pull Request is not mergeable.",
+	},
+	{
+		name: "rejected with a dirty reason", p: &core.Problem{Kind: core.Rejected, Action: "merge #5", Reason: "\x1b[31mBase\u200b branch\x1b[0m was\n\tmod\u202eified\u202c.\r\n  Review\u2066 and\u2069 try\x07 again" + invisible + "."},
+		text: "Base branch was modified. Review and try again.", hint: "o to open on GitHub",
+		toast: "Couldn't merge #5: Base branch was modified. Review and try again.",
+	},
+	{
+		name: "rejected without a reason", p: &core.Problem{Kind: core.Rejected, Action: "merge #5"},
+		text: "GitHub refused this", hint: "o to open on GitHub",
+		toast: "Couldn't merge #5: GitHub refused this.",
+	},
+	{
+		name: "internal", p: &core.Problem{Kind: core.Internal, Action: "merge #5", Err: errors.New("graphql: decode: unexpected EOF")},
+		text: "Something went wrong. Details are in the log (" + testLog + ")", hint: "r to retry",
+		toast: "Couldn't merge #5: something went wrong, see " + testLog + ".",
+	},
+}
+
+func TestSay(t *testing.T) {
+	for _, tt := range sayCases {
+		t.Run(tt.name, func(t *testing.T) {
+			text, hint := Say(tt.p, testVoice())
+			if text != tt.text || hint != tt.hint {
+				t.Errorf("Say = %q, %q; want %q, %q", text, hint, tt.text, tt.hint)
+			}
+			if tt.toast == "" {
+				return
+			}
+			if got := SayToast(tt.p, testVoice()); got != tt.toast {
+				t.Errorf("SayToast = %q, want %q", got, tt.toast)
+			}
+		})
+	}
+}
+
+// TestSayNeverLeaks explains errors as the github package makes them and
+// checks that nothing of the chain but GitHub's reason shows.
+func TestSayNeverLeaks(t *testing.T) {
+	chain := fmt.Errorf("merge pull: graphql: %w", &core.RefusedError{Action: "merge", Reason: "\x1b]8;;https://evil\x07Head\x1b]8;;\x07 is out of date"})
+	for _, err := range []error{
+		fmt.Errorf("list pulls: GET /repos/eggzec/x/pulls: github: 502 Bad Gateway: %w", core.ErrUnavailable),
+		fmt.Errorf("dial tcp 140.82.112.6:443: %w", core.ErrOffline),
+		fmt.Errorf("github: 401 Bad credentials: %w", core.ErrUnauthorized),
+		fmt.Errorf("github: 404 Not Found: %w", core.ErrNotFound),
+		errors.New("json: cannot unmarshal string into Go value of type github.restPull"),
+		chain,
+		&core.RefusedError{Action: "merge", Reason: "Head \u202eelif.exe\u202c is out of date" + invisible},
+		&core.Problem{Kind: core.NotFound, Subject: "egg" + invisible + "zec/x#5", Err: core.ErrNotFound},
+		&core.Problem{Kind: core.Forbidden, Subject: "egg\u202ezec/x", Reason: "SAML", Err: core.ErrForbidden},
+	} {
+		p := core.Explain("merge #5"+invisible, err)
+		text, hint := Say(p, testVoice())
+		all := text + " " + hint + " " + SayToast(p, testVoice())
+		for _, leak := range []string{"github:", "graphql", "GET", "/repos", "401", "404", "502", "json", "tcp", "\x1b", "evil"} {
+			if strings.Contains(all, leak) {
+				t.Errorf("Say(%v) = %q, which shows %q", err, all, leak)
+			}
+		}
+		if strings.ContainsFunc(all, isFormat) {
+			t.Errorf("Say(%v) = %q, which holds invisible format characters", err, all)
+		}
+	}
+}
+
+// isFormat reports whether r is an invisible format character.
+func isFormat(r rune) bool {
+	return unicode.Is(unicode.Cf, r)
+}
+
+func TestSayLine(t *testing.T) {
+	tests := []struct {
+		err  error
+		want string
+	}{
+		{fmt.Errorf("list pulls: %w", core.ErrOffline), "Can't reach GitHub · r to retry"},
+		{&core.NoNumberError{Repo: core.RepoRef{Owner: "eggzec", Name: "x"}, Number: 5, Err: core.ErrNotFound}, "eggzec/x#5 doesn't exist or is private."},
+		{context.Canceled, ""},
+	}
+	for _, tt := range tests {
+		if got := SayLine("load #5", tt.err, testVoice()); got != tt.want {
+			t.Errorf("SayLine(%v) = %q, want %q", tt.err, got, tt.want)
+		}
+	}
+}
+
+func TestSayCapsTheText(t *testing.T) {
+	p := &core.Problem{Kind: core.Rejected, Reason: strings.Repeat("GitHub says no. ", 200)}
+	text, _ := Say(p, testVoice())
+	if w := ansi.StringWidth(text); w > SayWidth || !strings.HasSuffix(text, "…") {
+		t.Errorf("Say of a long reason is %d cells, ending %q; want at most %d, ending in …", w, text[len(text)-10:], SayWidth)
+	}
+}
+
+func TestNewVoice(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	v := NewVoice(config.Default().Keys, filepath.Join(home, "gh-tui.log"))
+	if v.Retry.Help().Key != "r" || v.Open.Help().Key != "o" || v.Log != filepath.Join("~", "gh-tui.log") {
+		t.Errorf("NewVoice = retry %q, open %q, log %q", v.Retry.Help().Key, v.Open.Help().Key, v.Log)
+	}
+	if v := NewVoice(nil, ""); v.Log != "" || v.Retry.Enabled() || v.Open.Enabled() {
+		t.Errorf("NewVoice without keys or a log = %+v", v)
+	}
+}
+
+func TestSayHintsNameTheLiveKeys(t *testing.T) {
+	p := &core.Problem{Kind: core.Offline}
+	keys := map[string][]string{config.ActionRefresh: {"ctrl+r"}}
+	v := Voice{Retry: Binding(keys, config.ActionRefresh, "retry")}
+	if _, hint := Say(p, v); hint != "^r to retry" {
+		t.Errorf("hint = %q, want ^r to retry", hint)
+	}
+	v.Retry.SetEnabled(false)
+	if _, hint := Say(p, v); hint != "" {
+		t.Errorf("hint of a disabled key = %q, want none", hint)
+	}
+	v.Retry = key.NewBinding(key.WithDisabled())
+	if _, hint := Say(p, v); hint != "" {
+		t.Errorf("hint of an unbound key = %q, want none", hint)
+	}
+	if text, _ := Say(&core.Problem{Kind: core.Internal}, Voice{}); text != "Something went wrong" {
+		t.Errorf("Internal without a log = %q", text)
+	}
+	if text, hint := Say(nil, v); text != "" || hint != "" {
+		t.Errorf("Say(nil) = %q, %q; want nothing", text, hint)
+	}
+}
+
+func TestSayToastCutsTheCause(t *testing.T) {
+	long := strings.Repeat("GitHub says no ", 20)
+	tests := []struct {
+		action, want string
+	}{
+		{"merge #5", "Couldn't merge #5: GitHub says no GitHub says no GitHub says no GitHub says no…"},
+		{strings.Repeat("a", 75), "Couldn't " + strings.Repeat("a", 59) + "…: GitHub…"},
+		{strings.Repeat("merge it ", 30), "Couldn't " + strings.Repeat("merge it ", 6) + "merge…: GitHub…"},
+		{"", "Couldn't do that: GitHub says no GitHub says no GitHub says no GitHub says no…"},
+	}
+	for _, tt := range tests {
+		got := SayToast(&core.Problem{Kind: core.Rejected, Action: tt.action, Reason: long}, testVoice())
+		if got != tt.want {
+			t.Errorf("SayToast(%q) = %q, want %q", tt.action, got, tt.want)
+		}
+		if w := ansi.StringWidth(got); w > ToastWidth {
+			t.Errorf("SayToast(%q) is %d cells, want at most %d", tt.action, w, ToastWidth)
+		}
+	}
+}
+
+// TestSayToastKeepsWhatMatters checks that a toast too short for the
+// fuller cause still names the command to run, or the log.
+func TestSayToastKeepsWhatMatters(t *testing.T) {
+	action := "load the members of the core team"
+	tests := []struct {
+		p    *core.Problem
+		want string
+	}{
+		{
+			&core.Problem{Kind: core.Auth, Action: action, Reason: `This API operation needs the "admin:org" scope.`},
+			"Couldn't " + action + ": run gh auth refresh -s admin:org.",
+		},
+		{
+			&core.Problem{Kind: core.Auth, Action: action, Reason: "Bad credentials"},
+			"Couldn't " + action + ": run gh auth login.",
+		},
+		{
+			&core.Problem{Kind: core.Forbidden, Action: action, Subject: "eggzec/x", Reason: "Resource protected by organization SAML enforcement."},
+			"Couldn't " + action + ": run gh auth refresh.",
+		},
+		{
+			&core.Problem{Kind: core.Internal, Action: action},
+			"Couldn't " + action + ": something went wrong, see the log.",
+		},
+	}
+	for _, tt := range tests {
+		if got := SayToast(tt.p, testVoice()); got != tt.want {
+			t.Errorf("SayToast(%s) = %q, want %q", tt.p.Kind, got, tt.want)
+		}
+	}
+}
+
+func TestShortPath(t *testing.T) {
+	home := t.TempDir()
+	log := filepath.Join(home, ".local", "state", "gh-tui", "gh-tui.log")
+	elsewhere := filepath.Join(string(filepath.Separator), "var", "log", "gh-tui.log")
+	tests := []struct{ home, path, want string }{
+		{home, log, filepath.Join("~", ".local", "state", "gh-tui", "gh-tui.log")},
+		{home + string(filepath.Separator), log, filepath.Join("~", ".local", "state", "gh-tui", "gh-tui.log")},
+		{home, home, "~"},
+		{home, home + "x", home + "x"},
+		{home, elsewhere, elsewhere},
+		{string(filepath.Separator), elsewhere, elsewhere},
+	}
+	for _, tt := range tests {
+		t.Setenv("HOME", tt.home)
+		if got := ShortPath(tt.path); got != tt.want {
+			t.Errorf("ShortPath(%q) with home %q = %q, want %q", tt.path, tt.home, got, tt.want)
+		}
+	}
+}
