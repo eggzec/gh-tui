@@ -233,19 +233,19 @@ func (m Model) ShortHelp() []key.Binding {
 	return m.keys.ShortHelp()
 }
 
-// FullHelp implements help.KeyMap. Like ShortHelp, it leaves out tab and
-// shift+tab without a Complete function, and up and down without a
-// history.
+// FullHelp implements help.KeyMap. It disables tab and shift+tab without
+// a Complete function, and up and down without a history.
 func (m Model) FullHelp() [][]key.Binding {
-	groups := m.keys.FullHelp()
-	help := groups[:1:1]
-	if m.complete != nil {
-		help = append(help, groups[1])
+	k := m.keys
+	if m.complete == nil {
+		k.Next.SetEnabled(false)
+		k.Prev.SetEnabled(false)
 	}
-	if len(m.history) > 0 {
-		help = append(help, groups[2])
+	if len(m.history) == 0 {
+		k.Older.SetEnabled(false)
+		k.Newer.SetEnabled(false)
 	}
-	return help
+	return k.FullHelp()
 }
 
 func (m *Model) renderPrompt() {
