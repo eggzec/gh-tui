@@ -1,9 +1,15 @@
 package files
 
 import (
+	"strings"
 	"testing"
 
+	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
+
+	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
 func TestView(t *testing.T) {
@@ -74,5 +80,53 @@ func TestViewPreview(t *testing.T) {
 			assertFits(t, v, h.width, h.height)
 			golden.RequireEqual(t, v)
 		})
+	}
+}
+
+// TestViewWithoutFileIcons draws the rows as before in the icon sets
+// without file icons.
+func TestViewWithoutFileIcons(t *testing.T) {
+	for _, set := range []string{config.IconsUnicode, config.IconsASCII} {
+		s := loaded(t, sampleFake(), 30, 4, WithIcons(ui.NewIcons(set)))
+		lines := strings.Split(ansi.Strip(s.View()), "\n")
+		if lines[0] != "▌ ▸ cmd                       " || lines[2] != "    vendor-lib                " {
+			t.Errorf("%s: rows %q, want no icons", set, lines)
+		}
+	}
+}
+
+func TestViewIcons(t *testing.T) {
+	s := loaded(t, sampleFake(), 30, 10)
+	ic := ui.NewIcons(config.IconsNerd)
+	th := testTheme()
+	v := s.View()
+	for _, e := range sampleFake().trees[treeKey(ghTUI, "")].Entries {
+		want := th.FileIcon(ic.Entry(e, false)).Render(ic.Entry(e, false).Glyph) + " "
+		if !strings.Contains(v, want) {
+			t.Errorf("no icon %q before %s in\n%s", want, e.Name, v)
+		}
+	}
+	// A theme renders the icons again, in its colors.
+	p, err := config.Default().Palette(false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	light := ui.NewTheme(p, false)
+	s.SetTheme(light)
+	link := ic.Entry(core.TreeEntry{Type: core.EntryBlob, Mode: core.ModeSymlink}, false)
+	if want := light.Muted.Render(link.Glyph); !strings.Contains(s.View(), want) {
+		t.Errorf("after a light theme, no link icon %q in\n%s", want, s.View())
+	}
+}
+
+func TestViewIconsFitNarrowWidths(t *testing.T) {
+	s := loaded(t, sampleFake(), 30, 10)
+	keys(s, "+", "down", "+", "down")
+	for w := range 32 {
+		s.SetSize(w, 10)
+		if w == 0 {
+			continue
+		}
+		assertFits(t, s.View(), w, 10)
 	}
 }

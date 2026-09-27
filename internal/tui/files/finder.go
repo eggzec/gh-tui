@@ -419,6 +419,9 @@ func (f *finderModal) layout() {
 func (f *finderModal) SetTheme(t ui.Theme) {
 	f.theme = t
 	f.find.SetStyles(t.Finder())
+	// The finder may be themed before the section is, so it renders its
+	// icons in its own theme.
+	f.find.SetIcons(newFileIcons(f.s.icons, t).item)
 	f.pager.SetStyles(t.Pager())
 	border := lipgloss.NewStyle().Foreground(lipgloss.Color(t.Palette.Border))
 	f.sep = " " + border.Render("│") + " "
