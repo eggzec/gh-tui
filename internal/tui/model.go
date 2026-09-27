@@ -21,6 +21,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // Layout places the sections on the screens. A nil section leaves its place
@@ -94,6 +95,8 @@ type Model struct {
 	header string
 
 	width, height int
+	// links keeps the links drawn on every frame, such as a modal's title.
+	links termtext.Links
 
 	sync      func(ctx context.Context) (ui.SyncMsg, bool)
 	setActive func(active bool)

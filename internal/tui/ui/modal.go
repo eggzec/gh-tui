@@ -35,6 +35,13 @@ type Tabbed interface {
 	Tabs() (names []string, active int)
 }
 
+// Linked is a Modal about something that has a page on the web, such as a
+// pull request, whose title in the top edge of the frame links to it.
+type Linked interface {
+	// Link returns the address of the page, or "" while it isn't known.
+	Link() string
+}
+
 // OpenModalMsg asks the app to open Modal over the screen, in place of the
 // modal that is open.
 type OpenModalMsg struct {
