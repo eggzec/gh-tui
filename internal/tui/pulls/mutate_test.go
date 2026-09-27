@@ -73,12 +73,26 @@ func TestMutations(t *testing.T) {
 		},
 		{
 			name: "toggle draft converts a ready pull request",
-			keys: []string{"D"}, want: "draft 142", what: "convert #142 to draft",
+			keys: []string{"D"}, question: "Convert PR #142 to a draft?",
+			want: "draft 142", what: "convert #142 to draft",
 			after: func(pr core.PullRequest) bool { return pr.Draft },
 		},
 		{
 			name: "toggle draft marks a draft ready",
-			keys: []string{"down", "down", "D"}, want: "ready 128", what: "mark #128 ready",
+			keys: []string{"down", "down", "D"}, question: "Mark PR #128 ready for review?",
+			want: "ready 128", what: "mark #128 ready",
+			after: func(pr core.PullRequest) bool { return !pr.Draft },
+		},
+		{
+			name: "toggle draft in the modal",
+			keys: []string{"enter", "D"}, question: "Convert PR #142 to a draft?",
+			want: "draft 142", what: "convert #142 to draft",
+			after: func(pr core.PullRequest) bool { return pr.Draft },
+		},
+		{
+			name: "mark ready in the modal",
+			keys: []string{"down", "down", "enter", "D"}, question: "Mark PR #128 ready for review?",
+			want: "ready 128", what: "mark #128 ready",
 			after: func(pr core.PullRequest) bool { return !pr.Draft },
 		},
 		{name: "close doesn't apply to a closed pull request", keys: []string{"]", "x"}},
@@ -178,11 +192,14 @@ func TestASecondYesChangesOnce(t *testing.T) {
 	tests := []struct {
 		name string
 		keys []string
+		want string
 	}{
-		{"y y from the list", []string{"m", "y", "y"}},
-		{"y enter from the list", []string{"m", "y", "enter"}},
-		{"y y in the modal", []string{"enter", "m", "y", "y"}},
-		{"y enter in the modal", []string{"enter", "m", "y", "enter"}},
+		{"y y from the list", []string{"m", "y", "y"}, "merge squash 142"},
+		{"y enter from the list", []string{"m", "y", "enter"}, "merge squash 142"},
+		{"y y in the modal", []string{"enter", "m", "y", "y"}, "merge squash 142"},
+		{"y enter in the modal", []string{"enter", "m", "y", "enter"}, "merge squash 142"},
+		{"y y on a draft toggle from the list", []string{"D", "y", "y"}, "draft 142"},
+		{"y y on a draft toggle in the modal", []string{"enter", "D", "y", "y"}, "draft 142"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -192,7 +209,7 @@ func TestASecondYesChangesOnce(t *testing.T) {
 			// repeated key or a paste does.
 			var cmds []tea.Cmd
 			for _, k := range tt.keys {
-				if k == "m" || k == "enter" && len(cmds) == 0 {
+				if k == "m" || k == "D" || k == "enter" && len(cmds) == 0 {
 					press(t, s, k)
 					continue
 				}
@@ -201,8 +218,8 @@ func TestASecondYesChangesOnce(t *testing.T) {
 			for _, c := range cmds {
 				drain(t, s, c)
 			}
-			if got := svc.changes(); !slices.Equal(got, []string{"merge squash 142"}) {
-				t.Errorf("changes = %v, want one merge", got)
+			if got := svc.changes(); !slices.Equal(got, []string{tt.want}) {
+				t.Errorf("changes = %v, want one %s", got, tt.want)
 			}
 		})
 	}
@@ -299,6 +316,24 @@ func TestYesAsksAgain(t *testing.T) {
 			},
 		},
 		{
+			name: "made a draft elsewhere, from the list",
+			lead: []string{"D"},
+			meddle: func(t *testing.T, s *host, svc *fakeService) {
+				t.Helper()
+				edit(svc, func(pr *core.PullRequest) { pr.Draft = true })
+				reread(t, s)
+			},
+		},
+		{
+			name: "made a draft elsewhere, in the modal",
+			lead: []string{"enter", "D"},
+			meddle: func(t *testing.T, s *host, svc *fakeService) {
+				t.Helper()
+				edit(svc, func(pr *core.PullRequest) { pr.Draft = true })
+				reread(t, s)
+			},
+		},
+		{
 			name: "the cursor moved, in the list",
 			lead: []string{"x"},
 			meddle: func(t *testing.T, s *host, _ *fakeService) {
@@ -384,7 +419,8 @@ func TestMutationFromModalReloadsBoth(t *testing.T) {
 	s := started(t, svc, 80, 20)
 	press(t, s, "enter")
 	lists := len(svc.listed())
-	msgs := press(t, s, "D")
+	press(t, s, "D")
+	msgs := press(t, s, "y")
 	if !slices.Contains(msgs, tea.Msg(ui.DoneMsg{From: ui.PullsTitle, What: "convert #142 to draft"})) {
 		t.Fatalf("messages %v, want a DoneMsg", msgs)
 	}

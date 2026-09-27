@@ -49,8 +49,7 @@ func (k keyMap) action(pr core.PullRequest, msg tea.KeyPressMsg) (ui.Action, boo
 
 // change is a change that a key asks of a pull request: start shows it
 // in the cache at once and returns the op that sends it, named by what.
-// question asks the user to confirm it first, or is empty when it needs
-// no confirmation.
+// question asks the user to confirm it first.
 type change struct {
 	question, what string
 	start          func() *optimistic.Op
@@ -94,9 +93,17 @@ func (k keyMap) change(svc Service, g ui.Gate, method core.MergeMethod, pr core.
 		}, true, nil
 	case ui.ActDraft:
 		if pr.Draft {
-			return change{what: "mark " + n + " ready", start: func() *optimistic.Op { return svc.MarkReady(repo, number) }}, true, nil
+			return change{
+				question: "Mark PR " + n + " ready for review?",
+				what:     "mark " + n + " ready",
+				start:    func() *optimistic.Op { return svc.MarkReady(repo, number) },
+			}, true, nil
 		}
-		return change{what: "convert " + n + " to draft", start: func() *optimistic.Op { return svc.ConvertToDraft(repo, number) }}, true, nil
+		return change{
+			question: "Convert PR " + n + " to a draft?",
+			what:     "convert " + n + " to draft",
+			start:    func() *optimistic.Op { return svc.ConvertToDraft(repo, number) },
+		}, true, nil
 	case ui.ActComment, ui.ActLabel, ui.ActRerun, ui.ActCancelRun:
 	}
 	return change{}, false, nil
@@ -123,8 +130,7 @@ func mergeQuestion(pr core.PullRequest, method core.MergeMethod) string {
 }
 
 // confirmed returns what makes the change that msg asked of pull request
-// number, when the user says yes to question, or at once for a change that
-// asks nothing. By then the pull request may have changed, such as merged
+// number, when the user says yes to question. By then the pull request may have changed, such as merged
 // elsewhere or retargeted, and so may what the viewer may do and how the
 // repository merges, so it asks for the change again of the pull request
 // and the gate that now returns. send sends that one only if it is still
@@ -176,9 +182,6 @@ func (s *Section) mutate(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		func(op *optimistic.Op, what string) tea.Cmd {
 			return tea.Batch(s.reload(), ui.Do(s.ctx, ui.PullsTitle, op, what))
 		})
-	if c.question == "" {
-		return run(), true
-	}
 	return ui.OpenModal(ui.NewConfirmModal(ui.Confirm{Question: c.question, Run: run})), true
 }
 

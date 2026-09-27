@@ -129,9 +129,9 @@ func TestAuthorChangesTheirOwn(t *testing.T) {
 	if got := offered(h.Help()); !slices.Contains(got, "close") || slices.Contains(got, "merge") {
 		t.Errorf("help = %v, want close but no merge", got)
 	}
-	press(t, h, "D")
-	press(t, h, "x")
-	press(t, h, "y")
+	for _, k := range []string{"D", "y", "x", "y"} {
+		press(t, h, k)
+	}
 	if got := svc.changes(); !slices.Equal(got, []string{"draft 142", "close 142"}) {
 		t.Errorf("changes = %v, want the draft and the close", got)
 	}
