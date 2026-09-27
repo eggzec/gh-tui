@@ -63,7 +63,7 @@ type budget struct {
 	// they were counted in.
 	pending map[uint64]*reservation
 	seq     uint64
-	// opCost is what the last query of each GraphQL operation cost.
+	// opCost is what the last query of each shape (call.shape) cost.
 	opCost map[string]int
 	// answered is when GitHub last answered, and failed when a request
 	// last got no answer, for the status of the connection.
@@ -168,7 +168,7 @@ func (b *budget) reserve(req *http.Request) *reservation {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if resource == resourceGraphQL && c != nil && c.query {
-		cost = max(b.opCost[c.op], cost)
+		cost = max(b.opCost[c.shape], cost)
 	}
 	b.seq++
 	r := &reservation{seq: b.seq, resource: resource, cost: cost, at: b.now()}
@@ -176,11 +176,11 @@ func (b *budget) reserve(req *http.Request) *reservation {
 	return r
 }
 
-// learnCost records what a query of the GraphQL operation op cost, as the
-// rateLimit field of its data reported.
-func (b *budget) learnCost(op string, cost int) {
+// learnCost records what a GraphQL query of shape cost, as the rateLimit
+// field of its data reported.
+func (b *budget) learnCost(shape string, cost int) {
 	b.mu.Lock()
-	b.opCost[op] = cost
+	b.opCost[shape] = cost
 	b.mu.Unlock()
 }
 
@@ -307,12 +307,12 @@ func (b *budget) far(reset, now time.Time) bool {
 	return b.local(reset).After(now.Add(maxWindow))
 }
 
-// costsMore reports whether a query of the GraphQL operation op costs
-// more than remaining, as far as what it cost last time says.
-func (b *budget) costsMore(op string, remaining int) bool {
+// costsMore reports whether a GraphQL query of shape costs more than
+// remaining, as far as what it cost last time says.
+func (b *budget) costsMore(shape string, remaining int) bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	return b.opCost[op] > remaining
+	return b.opCost[shape] > remaining
 }
 
 // local returns t, a time in GitHub's clock, in the local one. b.mu must
