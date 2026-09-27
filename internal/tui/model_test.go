@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"slices"
@@ -892,10 +893,22 @@ func TestFocusIsReported(t *testing.T) {
 }
 
 func TestOpenReportsFailure(t *testing.T) {
-	m, _ := newTestApp(t, WithBrowser(func(string) error { return errors.New("no browser") }))
-	run(m, m.openURL("https://github.com"))
-	if !strings.Contains(onScreen(m), "Couldn't open the browser") {
-		t.Error("a failed open showed no toast")
+	for _, tt := range []struct{ name, ghBrowser, want string }{
+		{"no GH_BROWSER", "", "Couldn't open the browser: set one with gh config set browser <command>."},
+		{"GH_BROWSER", "nosuchbrowser", "Couldn't open the browser: GH_BROWSER names a command that didn't open it."},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("GH_BROWSER", tt.ghBrowser)
+			failed := &exec.Error{Name: "/usr/bin/xdg-open", Err: exec.ErrNotFound}
+			m, _ := newWideApp(t, WithBrowser(func(string) error { return failed }))
+			run(m, m.openURL("https://github.com"))
+			if !hasToast(m, tt.want) {
+				t.Errorf("toast %q, want %q", toasted(m), tt.want)
+			}
+			if got := toasted(m); strings.Contains(got, "xdg-open") || strings.Contains(got, "/usr") {
+				t.Errorf("toast shows the error: %s", got)
+			}
+		})
 	}
 }
 
