@@ -1,6 +1,7 @@
 package syntax
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"hash/maphash"
@@ -103,6 +104,56 @@ func Tokenise(l chroma.Lexer, code string, limit time.Duration) (toks []chroma.T
 		}
 		return nil, limit, ErrOverran
 	}
+}
+
+// Wait is how long Head waits for a lexer that overran to end, as one
+// asked to stop does once it finishes the token it is on.
+const Wait = 300 * time.Millisecond
+
+// Head returns the tokens l makes of code within limit, or until ctx is
+// done: all of them if it finishes, else those of the start of code, and
+// the lexer stops at the next token. It waits up to Wait for a lexer that
+// overran to end first, and returns ErrBusy if it doesn't. It returns
+// ErrOverran without running l if l overran on a token of code before.
+func Head(ctx context.Context, l chroma.Lexer, code string, limit time.Duration) ([]chroma.Token, error) {
+	k := keyOf(l, code)
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if overran(k) {
+		return nil, ErrOverran
+	}
+	r := lex(l, code, k)
+	if r == nil {
+		wait, cancel := context.WithTimeout(ctx, Wait)
+		defer cancel()
+		select {
+		case lexing <- struct{}{}:
+			// The lexer waited for may have overrun on this code.
+			if overran(k) {
+				<-lexing
+				return nil, ErrOverran
+			}
+			r = start(l, code, k)
+		case <-wait.Done():
+			return nil, ErrBusy
+		}
+	}
+	timer := time.NewTimer(limit)
+	defer timer.Stop()
+	select {
+	case <-r.done:
+		<-lexing
+	case <-timer.C:
+		r.halt()
+	case <-ctx.Done():
+		r.halt()
+	}
+	toks, err := r.result()
+	if err != nil {
+		return nil, fmt.Errorf("tokenise: %w", err)
+	}
+	return toks, nil
 }
 
 // run is a lexer running on some code in a goroutine of its own.
