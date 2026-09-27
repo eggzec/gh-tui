@@ -129,7 +129,8 @@ type Model struct {
 	// rates tells the rate limits, and rate is what it told last.
 	rates RateLimits
 	rate  core.RateStatus
-	// voice words what went wrong in the app's toasts.
+	// voice words what went wrong in the app's toasts and the modals it
+	// opens.
 	voice ui.Voice
 }
 

@@ -1,13 +1,18 @@
 package ui
 
 import (
+	"context"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
 
+	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 )
 
@@ -42,6 +47,57 @@ func TestFilterModalIgnoresOtherForms(t *testing.T) {
 	}
 	if w, h := m.Fit(40, 5); w != 40 || h != 5 {
 		t.Errorf("Fit in a small screen = %dx%d, want all of it", w, h)
+	}
+}
+
+// A field whose options failed to load says what went wrong in the
+// voice, naming the key that loads them again, and no key the form lacks.
+func TestFilterModalErrorWords(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want []string
+	}{
+		{"offline", fmt.Errorf("list labels: github: GET /repos/o/r/labels: %w", core.ErrOffline), []string{"✗ Can't reach GitHub", "↵ to retry · esc to go back"}},
+		{"forbidden", fmt.Errorf("list labels: github: 403 Forbidden: %w", core.ErrForbidden), []string{"✗ You don't have access to eggzec/x", "esc to go back"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			load := func(context.Context, string) ([]filterform.Item, error) { return nil, tt.err }
+			spec := filterform.Spec{Fields: []filterform.Field{{Key: "labels", Label: "Labels", Kind: filterform.Multi, Qualifier: "label", Load: load}}}
+			m := NewFilterModal(t.Context(), "Issues", &fakeFilterable{}, Filter{Spec: spec, Subject: "eggzec/x"}, WithFormVoice(NewVoice(config.Default().Keys, "")))
+			m.SetSize(80, 10)
+			cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+			for _, msg := range drain(cmd) {
+				m.Update(msg)
+			}
+			v := ansi.Strip(m.View())
+			for _, want := range tt.want {
+				if !strings.Contains(v, want) || strings.Contains(v, "github") || strings.Contains(v, "to open") {
+					t.Errorf("View() = %q, want %q", v, want)
+				}
+			}
+		})
+	}
+}
+
+// drain runs cmd and the commands of its batches, and returns what they
+// sent, save the spinner's ticks.
+func drain(cmd tea.Cmd) []tea.Msg {
+	if cmd == nil {
+		return nil
+	}
+	switch msg := cmd().(type) {
+	case tea.BatchMsg:
+		var out []tea.Msg
+		for _, c := range msg {
+			out = append(out, drain(c)...)
+		}
+		return out
+	case spinner.TickMsg:
+		return nil
+	default:
+		return []tea.Msg{msg}
 	}
 }
 
