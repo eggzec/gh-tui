@@ -35,6 +35,7 @@ func newKeyMap(keys map[string][]string) keyMap {
 	t.PageUp, t.PageDown = without(t.PageUp, own), without(t.PageDown, own)
 	t.HalfPageUp, t.HalfPageDown = without(t.HalfPageUp, own), without(t.HalfPageDown, own)
 	t.Top, t.Bottom = without(t.Top, own), without(t.Bottom, own)
+	t.Toggle = without(ui.Binding(keys, config.ActionSelect, t.Toggle.Help().Desc), own)
 	// The files come with the release, so there is nothing for the
 	// thread to retry.
 	t.Retry = key.NewBinding(key.WithDisabled())
@@ -58,15 +59,17 @@ func without(b key.Binding, taken []key.Binding) key.Binding {
 	return key.NewBinding(key.WithKeys(keys...), key.WithHelp(strings.Join(keys, "/"), b.Help().Desc))
 }
 
-// help lists the keys of the modal, with retry while a read failed.
-func (k keyMap) help(retry key.Binding) keyHelp {
+// help lists the keys of the modal, with retry while a read failed, and
+// the toggle while a diagram is on screen.
+func (k keyMap) help(retry key.Binding, onDiagram bool) keyHelp {
 	t := k.thread
+	t.Toggle.SetEnabled(t.Toggle.Enabled() && onDiagram)
 	return keyHelp{
-		short: []key.Binding{t.Up, t.Down, k.Back, k.Open, retry},
+		short: []key.Binding{t.Up, t.Down, k.Back, k.Open, t.Toggle, retry},
 		full: [][]key.Binding{
 			{t.Up, t.Down, t.PageUp, t.PageDown},
 			{t.HalfPageUp, t.HalfPageDown, t.Top, t.Bottom},
-			{k.Back, k.Open, retry},
+			{k.Back, k.Open, t.Toggle, retry},
 		},
 	}
 }

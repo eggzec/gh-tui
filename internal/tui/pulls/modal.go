@@ -453,12 +453,13 @@ func (m *detailModal) Help() help.KeyMap {
 	k, t := m.keys, m.keys.thread
 	changes := k.changeHelp(m.gate(), m.mergeMethod, m.detail.PullRequest, m.loaded)
 	merge, closing, reopen := changes[0], changes[1], changes[2]
+	t.Toggle.SetEnabled(t.Toggle.Enabled() && m.thread.OnDiagram())
 	return keyHelp{
-		short: []key.Binding{t.Up, t.Down, k.Back, merge, closing, reopen, k.Checks, k.Open},
+		short: []key.Binding{t.Up, t.Down, k.Back, merge, closing, reopen, k.Checks, k.Open, t.Toggle},
 		full: [][]key.Binding{
 			{t.Up, t.Down, t.PageUp, t.PageDown},
 			{t.HalfPageUp, t.HalfPageDown, t.Top, t.Bottom},
-			{k.Back, k.Refresh, k.Checks, k.Open},
+			{k.Back, k.Refresh, k.Checks, k.Open, t.Toggle},
 			changes,
 		},
 	}
