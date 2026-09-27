@@ -36,8 +36,10 @@ type keyMap struct {
 	Comment key.Binding
 	Label   key.Binding
 
-	feed   feed.KeyMap
-	thread thread.KeyMap
+	// confirm answers the question that close and reopen ask.
+	confirm ui.ConfirmKeys
+	feed    feed.KeyMap
+	thread  thread.KeyMap
 }
 
 func newKeyMap(keys map[string][]string) keyMap {
@@ -55,6 +57,7 @@ func newKeyMap(keys map[string][]string) keyMap {
 		Reopen:      ui.Binding(keys, config.ActionReopen, "reopen"),
 		Comment:     ui.Binding(keys, config.ActionComment, "comment"),
 		Label:       ui.Binding(keys, config.ActionLabel, "labels"),
+		confirm:     ui.DefaultConfirmKeys(),
 	}
 
 	fk := feed.DefaultKeyMap()
@@ -133,9 +136,12 @@ func (s *Section) Help() help.KeyMap {
 	}
 }
 
-// Help implements ui.Modal. While the prompt is open, it lists the keys of
-// the prompt.
+// Help implements ui.Modal. While a question or the prompt is open, it
+// lists the keys that answer it.
 func (m *detailModal) Help() help.KeyMap {
+	if m.ask != nil {
+		return m.keys.confirm
+	}
 	if m.composing != composeNone {
 		return keyHelp{short: m.prompt.ShortHelp(), full: m.prompt.FullHelp()}
 	}

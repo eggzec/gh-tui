@@ -1,6 +1,7 @@
 package issues
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
@@ -124,5 +125,29 @@ func assertFits(tb testing.TB, v string, width, height int) {
 		if w := ansi.StringWidth(l); w != width {
 			tb.Fatalf("line %d is %d cells wide, want %d: %q", i, w, width, ansi.Strip(l))
 		}
+	}
+}
+
+func TestConfirmView(t *testing.T) {
+	for _, width := range []int{80, 120} {
+		w := strconv.Itoa(width)
+		t.Run("reopen in the modal at "+w+" columns", func(t *testing.T) {
+			s := started(t, newFakeService(sampleIssues(12)), width, 24)
+			press(t, s, "]", "enter", "X")
+			v := s.modal().View()
+			assertFits(t, v, width, 24)
+			golden.RequireEqual(t, v[strings.LastIndexByte(v, '\n')+1:])
+		})
+		t.Run("close from the list at "+w+" columns", func(t *testing.T) {
+			s := started(t, newFakeService(sampleIssues(12)), width, 24)
+			press(t, s, "x")
+			m, ok := s.modals[len(s.modals)-1].(*ui.ConfirmModal)
+			if !ok {
+				t.Fatal("close opened no question")
+			}
+			// Sized as the app sizes it, inside the frame over the screen.
+			m.SetSize(m.Fit(width-2*max(width/10, 2)-4, 24))
+			golden.RequireEqual(t, m.View())
+		})
 	}
 }
