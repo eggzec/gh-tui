@@ -118,11 +118,23 @@ func (c *Client) httpError(resp *http.Response) error {
 		if resp.StatusCode != http.StatusForbidden {
 			break
 		}
-		if missingScope(resp.Header) {
+		switch {
+		case missingScope(resp.Header):
 			e.err = core.ErrUnauthorized
+		case secondaryLimit(body.Message):
+			// GitHub's docs say to wait a minute when a secondary limit
+			// doesn't say how long.
+			e.err = &core.RateLimitError{Reset: c.now().Add(secondaryBackoff)}
 		}
 	}
 	return e
+}
+
+// secondaryLimit reports whether the message of a 403 is GitHub's for a
+// secondary rate limit, which may come without Retry-After or the
+// rate-limit headers, such as "You have exceeded a secondary rate limit".
+func secondaryLimit(msg string) bool {
+	return strings.Contains(strings.ToLower(msg), "rate limit")
 }
 
 // missingScope reports whether a 403 is for a scope the token lacks.
