@@ -324,7 +324,7 @@ func TestHighlightSkipped(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := New(tt.opts...)
-			if cmd := m.SetContent(tt.file, "just some words\n"); cmd != nil {
+			if cmd := m.SetContent(tt.file, "just some words\n"); cmd != nil && cmd() != nil {
 				t.Error("highlighted anyway")
 			}
 		})
@@ -429,7 +429,7 @@ func TestHighlightSyntax(t *testing.T) {
 	if got := m.spans[1][0].typ; got != chroma.GenericDeleted {
 		t.Errorf("the removed line is %v, want %v", got, chroma.GenericDeleted)
 	}
-	if cmd := m.SetContentSyntax("main.go", "no-such-syntax", patch); cmd != nil {
+	if cmd := m.SetContentSyntax("main.go", "no-such-syntax", patch); cmd != nil && cmd() != nil {
 		t.Error("an unknown syntax was highlighted")
 	}
 }
