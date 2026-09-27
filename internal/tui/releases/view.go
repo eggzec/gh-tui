@@ -10,6 +10,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // gutter indents the header and the files, as the other modals do.
@@ -105,12 +106,13 @@ func (m *Modal) header(width int) string {
 	r, st := &m.rel, &m.st
 	inner := max(width-len(gutter), 1)
 	var lines []string
+	// The name and the tag link to the release's page.
 	for l := range strings.SplitSeq(ansi.Wrap(releaseName(*r), inner, ""), "\n") {
-		lines = append(lines, gutter+st.title.Render(l))
+		lines = append(lines, gutter+termtext.Link(r.URL, st.title.Render(l)))
 	}
 	lines = append(lines, "")
 
-	parts := []string{st.text.Render(r.Tag)}
+	parts := []string{termtext.Link(r.URL, st.text.Render(r.Tag))}
 	switch {
 	case r.Draft:
 		parts = append(parts, st.muted.Render("draft"))

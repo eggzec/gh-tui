@@ -199,6 +199,15 @@ func (m *Modal) Title() string {
 	return name + " · " + m.repo.String()
 }
 
+// Link implements ui.Linked: the page of the release, or of the releases
+// until it is read.
+func (m *Modal) Link() string {
+	if m.loaded && m.rel.URL != "" {
+		return m.rel.URL
+	}
+	return m.url
+}
+
 // SetSize implements ui.Modal.
 func (m *Modal) SetSize(width, height int) {
 	m.width, m.height = max(width, 0), max(height, 0)
