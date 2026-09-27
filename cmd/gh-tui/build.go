@@ -145,7 +145,7 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 			pulls.WithChecks(actionSvc, checkOpts...), pulls.WithRepos(repoSvc),
 		}
 		issueOpts = []issues.Option{
-			issues.WithOffline(offline), issues.WithIcons(icons), issues.WithFacets(facetSvc),
+			issues.WithOffline(offline), issues.WithVoice(voice), issues.WithIcons(icons), issues.WithFacets(facetSvc),
 			issues.WithRepos(repoSvc), issues.WithViewer(issues.Viewer(viewer)),
 		}
 	)
