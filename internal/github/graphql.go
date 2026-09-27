@@ -115,6 +115,9 @@ func (c *Client) query(ctx context.Context, query string, vars map[string]any, v
 		return err
 	}
 	cl.rate = queryRate(body.Data)
+	if cl.rate != nil && cl.query {
+		c.budget.learnCost(cl.op, cl.rate.Cost)
+	}
 	if v != nil && len(body.Data) > 0 && !bytes.Equal(body.Data, []byte("null")) {
 		if err := json.Unmarshal(body.Data, v); err != nil {
 			return fmt.Errorf("decode data: %w", err)
