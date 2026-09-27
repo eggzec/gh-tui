@@ -39,6 +39,7 @@ type settings struct {
 	times         TimeMode
 	follow        bool
 	focusFailed   bool
+	errorText     func(error) (text, hint string)
 }
 
 // DefaultTabWidth is the number of columns between tab stops by default,
@@ -121,5 +122,15 @@ func WithFollow(follow bool) Option {
 func WithFocusFailed(focus bool) Option {
 	return func(s *settings) {
 		s.focusFailed = focus
+	}
+}
+
+// WithErrorText sets how a log that failed to load reads. say returns the
+// words for err and a hint, such as "r to retry", or "" for none, styled
+// as one. An empty text shows no error. By default the view says
+// "Couldn't load the log:" and the first line of the error.
+func WithErrorText(say func(error) (text, hint string)) Option {
+	return func(s *settings) {
+		s.errorText = say
 	}
 }

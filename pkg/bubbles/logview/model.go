@@ -42,7 +42,10 @@ type Model struct {
 	title string
 	state state
 	err   error
-	spin  spinner.Model
+	// errText and errHint are what the view says of err, worded once as it
+	// is set.
+	errText, errHint string
+	spin             spinner.Model
 
 	content
 

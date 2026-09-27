@@ -150,3 +150,72 @@ func TestViewErrorStyle(t *testing.T) {
 		t.Errorf("error line without its mark: %q", ansi.Strip(v))
 	}
 }
+
+func TestErrorText(t *testing.T) {
+	offline := func(error) (string, string) { return "Can't reach GitHub", "r to retry" }
+	tests := []struct {
+		name string
+		opts []Option
+		want string
+	}{
+		{"default", nil, "✗ Couldn't load the log: 410 Gone"},
+		{"custom", []Option{WithErrorText(offline)}, "✗ Can't reach GitHub · r to retry"},
+		{"empty", []Option{WithErrorText(func(error) (string, string) { return "", "" })}, ""},
+		{"text with a dot", []Option{WithErrorText(func(error) (string, string) { return "GitHub says a · b", "" })}, "✗ GitHub says a · b"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := New(append([]Option{WithSize(60, 4)}, tt.opts...)...)
+			m.SetError(errors.New("410 Gone\nmore"))
+			first, _, _ := strings.Cut(ansi.Strip(m.View()), "\n")
+			if got := strings.TrimRight(first, " "); got != tt.want {
+				t.Errorf("first row = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// The hint of a failed load stays whole at any size that can hold it,
+// after the text or on a line of its own, and the text gives way to it.
+func TestErrorKeepsTheHintWhole(t *testing.T) {
+	const hint = "r to retry"
+	say := func(error) (string, string) {
+		return "GitHub says the token can't read this organization's repositories until SSO allows it", hint
+	}
+	for height := 2; height <= 6; height++ {
+		for width := 1; width <= 120; width++ {
+			m := New(WithSize(width, height), WithErrorText(say))
+			m.SetError(errors.New("boom"))
+			v := m.View()
+			assertFits(t, v, width, height)
+			if width < len(hint) {
+				continue
+			}
+			lines := strings.Split(ansi.Strip(v), "\n")
+			body := strings.Join(lines[:height-1], "\n")
+			if !strings.Contains(body, hint) {
+				t.Errorf("at %dx%d the hint is cut:\n%s", width, height, body)
+			}
+			if height > 2 && width > 20 && !strings.Contains(body, "✗ GitHub") {
+				t.Errorf("at %dx%d the text is lost:\n%s", width, height, body)
+			}
+		}
+	}
+}
+
+// The words of a failed load are asked for once, as it fails, not on
+// every render.
+func TestErrorTextWordedOnce(t *testing.T) {
+	calls := 0
+	m := New(WithSize(60, 4), WithErrorText(func(error) (string, string) {
+		calls++
+		return "Can't reach GitHub", "r to retry"
+	}))
+	m.SetError(errors.New("boom"))
+	for range 3 {
+		_ = m.View()
+	}
+	if calls != 1 {
+		t.Errorf("asked for the words %d times, want once", calls)
+	}
+}
