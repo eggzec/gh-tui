@@ -124,6 +124,18 @@ func TestRateLimitErrors(t *testing.T) {
 			status:    http.StatusTooManyRequests,
 			wantReset: now.Add(secondaryBackoff),
 		},
+		{
+			name:      "too many requests with no wait",
+			status:    http.StatusTooManyRequests,
+			header:    http.Header{"Retry-After": {"0"}},
+			wantReset: now.Add(secondaryBackoff),
+		},
+		{
+			name:      "too many requests with a wait in the past",
+			status:    http.StatusTooManyRequests,
+			header:    http.Header{"Retry-After": {now.Add(-time.Minute).Format(http.TimeFormat)}},
+			wantReset: now.Add(secondaryBackoff),
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
