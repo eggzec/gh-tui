@@ -158,16 +158,22 @@ func (s *Section) renderRow(it core.Issue, selected bool, width int) string {
 
 	b.WriteString(st.states[ui.IssueState(it)])
 	b.WriteByte(' ')
+	// The number and the title link to the issue's page.
+	var link strings.Builder
+	link.Grow(c.title + 64)
 	num := "#" + strconv.Itoa(it.Number)
 	over := ui.NumberOver(num)
-	st.number.write(&b, num)
-	pad(&b, ui.NumberWidth+over-len(num)+1)
+	st.number.write(&link, num)
+	pad(&link, ui.NumberWidth+over-len(num)+1)
 
 	title := st.title
 	if selected {
 		title = st.selected
 	}
-	writeFit(&b, title, clean(it.Title), max(c.title-over, 0))
+	tcells := max(c.title-over, 0)
+	tw := writeCut(&link, title, clean(it.Title), tcells)
+	b.WriteString(s.links.Link(it.URL, link.String()))
+	pad(&b, tcells-tw)
 
 	if c.chips > 0 {
 		pad(&b, gap)
@@ -256,8 +262,14 @@ func count(n int) string {
 // writeFit writes s in p, truncated with an ellipsis or padded to width
 // cells.
 func writeFit(b *strings.Builder, p paint, s string, width int) {
+	pad(b, width-writeCut(b, p, s, width))
+}
+
+// writeCut writes s in p, truncated with an ellipsis to at most width
+// cells, and returns its width.
+func writeCut(b *strings.Builder, p paint, s string, width int) int {
 	if width <= 0 {
-		return
+		return 0
 	}
 	w, ascii := textWidth(s)
 	switch {
@@ -269,7 +281,7 @@ func writeFit(b *strings.Builder, p paint, s string, width int) {
 		w = ansi.StringWidth(s)
 	}
 	p.write(b, s)
-	pad(b, width-w)
+	return w
 }
 
 // textWidth returns the width of unstyled text, and whether it is printable

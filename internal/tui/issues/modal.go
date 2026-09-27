@@ -21,6 +21,7 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 	"github.com/eggzec/gh-tui/pkg/markdown"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // issueMsg carries the issue that Get read for the thread that asked.
@@ -417,8 +418,9 @@ func (m *detailModal) header(it core.Issue) string {
 	var b strings.Builder
 
 	b.WriteString("  ")
-	b.WriteString(t.Title.Render(clean(it.Title)))
-	b.WriteString(t.Muted.Render("  #" + strconv.Itoa(it.Number)))
+	// The title and the number link to the issue's page.
+	b.WriteString(termtext.Link(it.URL,
+		t.Title.Render(clean(it.Title))+t.Muted.Render("  #"+strconv.Itoa(it.Number))))
 	b.WriteString("\n  ")
 
 	b.WriteString(m.rows.badges[ui.IssueState(it)])
