@@ -652,8 +652,8 @@ func TestGateWaitsForAnswers(t *testing.T) {
 		if got, want := limitedUntil(t, err), reset.Add(2*time.Hour+minGuard); !got.Equal(want) {
 			t.Errorf("Reset = %v, want the end of the window, %v", got, want)
 		}
-		if d := time.Since(start); d != foregroundWait {
-			t.Errorf("failed after %v, want %v", d, foregroundWait)
+		if d := time.Since(start); d != foregroundWait+time.Nanosecond {
+			t.Errorf("failed after %v, want just after %v", d, foregroundWait)
 		}
 		a["x"] <- answer{header: quotaHeader(resourceCore, 5000, 0, reset.Add(2*time.Hour))}
 		<-inFlight
@@ -810,6 +810,86 @@ func TestGateGraphQLSecondaryBackoff(t *testing.T) {
 	})
 }
 
+// TestGateCap pins the sanity cap (design 6, R2): a request held for a
+// limit that then moves past maxWindow from when it was held fails at
+// once, with a rate limit, rather than wait longer.
+func TestGateCap(t *testing.T) {
+	watchdog(t)
+	synctest.Test(t, func(t *testing.T) {
+		stats := gateStats(t)
+		h := &hub{limit: 5, window: time.Minute}
+		c := newHubClient(t, h, 0)
+		spendCore(t, c, h, time.Now().Add(55*time.Minute))
+		start := time.Now()
+		done := goAsync(func() error {
+			_, err := c.Get(obs.ForBackground(t.Context()), "repos/o/r", Conditional{}, nil)
+			return err
+		})
+		time.Sleep(30 * time.Minute)
+		h.secondary(strconv.Itoa(int((45 * time.Minute).Seconds())))
+		_, _ = c.Get(t.Context(), "search/issues?q=x", Conditional{}, nil)
+		err := <-done
+		if !errors.Is(err, core.ErrRateLimited) {
+			t.Errorf("held Get = %v, want a rate limit", err)
+		}
+		if d := time.Since(start); d != 30*time.Minute {
+			t.Errorf("failed after %v, want at once when the limit moved, 30m", d)
+		}
+		if got := stats.Summary().RateLimit.FailedFast["cap"]; got != 1 {
+			t.Errorf("failed for the cap %d times, want 1", got)
+		}
+	})
+}
+
+// TestGateWaitsForScout pins how long what the user waits for waits for
+// the answer that tells whether a limit lifted: a read that comes while a
+// scout is out, since no probe could tell, fails once it waited
+// foregroundWait for a spent quota, or maxSecondaryWait for a secondary
+// limit, however long the scout takes.
+func TestGateWaitsForScout(t *testing.T) {
+	for _, secondary := range []bool{false, true} {
+		t.Run(fmt.Sprint("secondary=", secondary), func(t *testing.T) {
+			watchdog(t)
+			synctest.Test(t, func(t *testing.T) {
+				h := &hub{limit: 5, window: time.Minute, noProbe: true,
+					delays: map[string]time.Duration{"repos/o/r/scout": 20 * time.Second}}
+				c := newHubClient(t, h, 0)
+				background := obs.ForBackground(t.Context())
+				lifts, wait := time.Now().Add(10*time.Second), maxSecondaryWait
+				if secondary {
+					h.secondary("10")
+					if _, err := c.Get(background, "user", Conditional{}, nil); !errors.Is(err, core.ErrRateLimited) {
+						t.Fatalf("Get = %v, want the secondary limit", err)
+					}
+				} else {
+					spendCore(t, c, h, lifts)
+					lifts, wait = lifts.Add(minGuard), foregroundWait
+				}
+				scout := goAsync(func() error {
+					_, err := c.Get(background, "repos/o/r/scout", Conditional{}, nil)
+					return err
+				})
+				time.Sleep(time.Until(lifts.Add(100 * time.Millisecond)))
+				if sent, _ := h.requests(); sent[len(sent)-1].path != "repos/o/r/scout" {
+					t.Fatalf("sent %v, want the scout last", sent)
+				}
+
+				start := time.Now()
+				_, err := c.Get(t.Context(), "repos/o/r", Conditional{}, nil)
+				if !errors.Is(err, core.ErrRateLimited) {
+					t.Errorf("read = %v, want a rate limit", err)
+				}
+				if d := time.Since(start); d != wait+time.Nanosecond {
+					t.Errorf("failed after %v, want just after %v", d, wait)
+				}
+				if err := <-scout; err != nil {
+					t.Errorf("scout = %v", err)
+				}
+			})
+		})
+	}
+}
+
 // TestGateForegroundAheadOfBackground pins that what the user waits for
 // never waits behind the background: a read let go while 400 requests of
 // the background are being staggered goes a stagger after it is let go,
@@ -894,13 +974,44 @@ func TestGateDropAfterLetGo(t *testing.T) {
 	b.enqueue(h, now)
 	b.letGo(b.gate.queues[resourceCore], h, now)
 	b.mu.Unlock()
-	if r := b.drop(h, ""); r == nil || r != h.r {
+	if r := b.drop(h); r == nil || r != h.r {
 		t.Fatalf("drop = %v, want the reservation %v", r, h.r)
 	}
 	b.forget(h.r, false)
 	if len(b.pending) != 0 {
 		t.Errorf("%d pending, want none", len(b.pending))
 	}
+}
+
+// TestGateLiftingHolds pins what comes while the scout of a secondary
+// limit that lifted is out: it is held until the scout is answered, and
+// then goes a stagger later.
+func TestGateLiftingHolds(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		h := &hub{limit: 5000, window: time.Hour, delays: map[string]time.Duration{"repos/o/r/scout": time.Second}}
+		c := newHubClient(t, h, 0)
+		background := obs.ForBackground(t.Context())
+		h.secondary("3")
+		start := time.Now()
+		if _, err := c.Get(background, "user", Conditional{}, nil); !errors.Is(err, core.ErrRateLimited) {
+			t.Fatalf("Get = %v, want the secondary limit", err)
+		}
+		scout := goAsync(func() error {
+			_, err := c.Get(background, "repos/o/r/scout", Conditional{}, nil)
+			return err
+		})
+		lifts := start.Add(3 * time.Second)
+		time.Sleep(time.Until(lifts.Add(100 * time.Millisecond)))
+		if _, err := c.Get(t.Context(), "repos/o/r", Conditional{}, nil); err != nil {
+			t.Fatal(err)
+		}
+		if want := lifts.Add(minStagger + time.Second + minStagger); !time.Now().Equal(want) {
+			t.Errorf("the read was sent at %v, want once the scout was answered, %v", time.Now(), want)
+		}
+		if err := <-scout; err != nil {
+			t.Error(err)
+		}
+	})
 }
 
 // TestGateDeadlineAtItsTurn pins the deadline of a held request at its
@@ -996,36 +1107,5 @@ func TestGateClose(t *testing.T) {
 		}
 		cancel()
 		<-done
-	})
-}
-
-// TestGateLiftingHolds pins what comes while the scout of a secondary
-// limit that lifted is out: it is held until the scout is answered, and
-// then goes a stagger later.
-func TestGateLiftingHolds(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		h := &hub{limit: 5000, window: time.Hour, delays: map[string]time.Duration{"repos/o/r/scout": time.Second}}
-		c := newHubClient(t, h, 0)
-		background := obs.ForBackground(t.Context())
-		h.secondary("3")
-		start := time.Now()
-		if _, err := c.Get(background, "user", Conditional{}, nil); !errors.Is(err, core.ErrRateLimited) {
-			t.Fatalf("Get = %v, want the secondary limit", err)
-		}
-		scout := goAsync(func() error {
-			_, err := c.Get(background, "repos/o/r/scout", Conditional{}, nil)
-			return err
-		})
-		lifts := start.Add(3 * time.Second)
-		time.Sleep(time.Until(lifts.Add(100 * time.Millisecond)))
-		if _, err := c.Get(t.Context(), "repos/o/r", Conditional{}, nil); err != nil {
-			t.Fatal(err)
-		}
-		if want := lifts.Add(minStagger + time.Second + minStagger); !time.Now().Equal(want) {
-			t.Errorf("the read was sent at %v, want once the scout was answered, %v", time.Now(), want)
-		}
-		if err := <-scout; err != nil {
-			t.Error(err)
-		}
 	})
 }
