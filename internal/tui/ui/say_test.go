@@ -15,6 +15,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
 // testLog is the log file as the tests show it.
@@ -42,8 +43,13 @@ var reset = time.Date(2026, 9, 27, 12, 5, 0, 0, time.UTC)
 // characters, the byte order mark and a tag character.
 const invisible = "\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069\u200e\u200f\u061c\u200b\u200c\u200d\u2060\ufeff\U000E0041"
 
+// within returns what fits a toast of width cells on one line.
+func within(width int) func(string) bool {
+	return func(s string) bool { return ansi.StringWidth(s) <= width }
+}
+
 // sayCase is a problem, with what Say and SayToast make of it under
-// testVoice. An empty toast isn't checked.
+// testVoice, in a toast of 80 cells. An empty toast isn't checked.
 type sayCase struct {
 	name       string
 	p          *core.Problem
@@ -116,7 +122,7 @@ var sayCases = []sayCase{
 		p: &core.Problem{Kind: core.Forbidden, Action: "load the files", Subject: "eggzec/x", Reason: "Resource protected by organization SAML enforcement. " +
 			"You must grant your Personal Access token access to this organization."},
 		text:  "eggzec requires SSO. Run gh auth refresh, then restart gh-tui.",
-		toast: "Couldn't load the files: run gh auth refresh, then restart gh-tui.",
+		toast: "Couldn't load…: eggzec requires SSO. Run gh auth refresh, then restart gh-tui.",
 	},
 	{
 		name: "forbidden by SSO keeps the case of the organization", p: &core.Problem{Kind: core.Forbidden, Action: "sync", Subject: "Acme/x", Reason: "SAML enforcement"},
@@ -175,7 +181,7 @@ func TestSay(t *testing.T) {
 			if tt.toast == "" {
 				return
 			}
-			if got := SayToast(tt.p, testVoice()); got != tt.toast {
+			if got := SayToast(tt.p, testVoice(), within(80)); got != tt.toast {
 				t.Errorf("SayToast = %q, want %q", got, tt.toast)
 			}
 		})
@@ -199,7 +205,7 @@ func TestSayNeverLeaks(t *testing.T) {
 	} {
 		p := core.Explain("merge #5"+invisible, err)
 		text, hint := Say(p, testVoice())
-		all := text + " " + hint + " " + SayToast(p, testVoice())
+		all := text + " " + hint + " " + SayToast(p, testVoice(), within(80))
 		for _, leak := range []string{"github:", "graphql", "GET", "/repos", "401", "404", "502", "json", "tcp", "\x1b", "evil"} {
 			if strings.Contains(all, leak) {
 				t.Errorf("Say(%v) = %q, which shows %q", err, all, leak)
@@ -281,49 +287,98 @@ func TestSayToastCutsTheCause(t *testing.T) {
 		action, want string
 	}{
 		{"merge #5", "Couldn't merge #5: GitHub says no GitHub says no GitHub says no GitHub says no…"},
-		{strings.Repeat("a", 75), "Couldn't " + strings.Repeat("a", 59) + "…: GitHub…"},
-		{strings.Repeat("merge it ", 30), "Couldn't " + strings.Repeat("merge it ", 6) + "merge…: GitHub…"},
+		{strings.Repeat("a", 75), "Couldn't " + strings.Repeat("a", 56) + "…: GitHub says…"},
+		{strings.Repeat("merge it ", 30), "Couldn't " + strings.Repeat("merge it ", 5) + "merge it…: GitHub says no…"},
 		{"", "Couldn't do that: GitHub says no GitHub says no GitHub says no GitHub says no…"},
 	}
 	for _, tt := range tests {
-		got := SayToast(&core.Problem{Kind: core.Rejected, Action: tt.action, Reason: long}, testVoice())
+		got := SayToast(&core.Problem{Kind: core.Rejected, Action: tt.action, Reason: long}, testVoice(), within(80))
 		if got != tt.want {
 			t.Errorf("SayToast(%q) = %q, want %q", tt.action, got, tt.want)
 		}
-		if w := ansi.StringWidth(got); w > ToastWidth {
-			t.Errorf("SayToast(%q) is %d cells, want at most %d", tt.action, w, ToastWidth)
+		if w := ansi.StringWidth(got); w > 80 {
+			t.Errorf("SayToast(%q) is %d cells, want at most 80", tt.action, w)
 		}
 	}
 }
 
 // TestSayToastKeepsWhatMatters checks that a toast too short for the
-// fuller cause still names the command to run, or the log.
+// whole of it cuts the action first, and says the cause more briefly only
+// then, still naming the command to run, or the log.
 func TestSayToastKeepsWhatMatters(t *testing.T) {
 	action := "load the members of the core team"
+	scope := &core.Problem{Kind: core.Auth, Action: action, Reason: `This API operation needs the "admin:org" scope.`}
+	login := &core.Problem{Kind: core.Auth, Action: action, Reason: "Bad credentials"}
+	sso := &core.Problem{Kind: core.Forbidden, Action: action, Subject: "eggzec/x", Reason: "Resource protected by organization SAML enforcement."}
+	internal := &core.Problem{Kind: core.Internal, Action: action}
 	tests := []struct {
-		p    *core.Problem
-		want string
+		p     *core.Problem
+		width int
+		want  string
 	}{
-		{
-			&core.Problem{Kind: core.Auth, Action: action, Reason: `This API operation needs the "admin:org" scope.`},
-			"Couldn't " + action + ": run gh auth refresh -s admin:org.",
-		},
-		{
-			&core.Problem{Kind: core.Auth, Action: action, Reason: "Bad credentials"},
-			"Couldn't " + action + ": run gh auth login.",
-		},
-		{
-			&core.Problem{Kind: core.Forbidden, Action: action, Subject: "eggzec/x", Reason: "Resource protected by organization SAML enforcement."},
-			"Couldn't " + action + ": run gh auth refresh.",
-		},
-		{
-			&core.Problem{Kind: core.Internal, Action: action},
-			"Couldn't " + action + ": something went wrong, see the log.",
-		},
+		{scope, 120, "Couldn't load the members…: the token lacks the admin:org scope. Run gh auth refresh -s admin:org, then restart gh-tui."},
+		{scope, 100, "Couldn't " + action + ": run gh auth refresh -s admin:org, then restart gh-tui."},
+		{scope, 80, "Couldn't load the…: run gh auth refresh -s admin:org, then restart gh-tui."},
+		{scope, 50, "Couldn't load…: run gh auth refresh -s admin:org."},
+		{login, 80, "Couldn't load the members of the core…: run gh auth login, then restart gh-tui."},
+		{login, 30, "Couldn't …: run gh auth login."},
+		{sso, 120, "Couldn't " + action + ": eggzec requires SSO. Run gh auth refresh, then restart gh-tui."},
+		{sso, 60, "Couldn't load…: run gh auth refresh, then restart gh-tui."},
+		{internal, 80, "Couldn't load the…: something went wrong, see " + testLog + "."},
+		{internal, 60, "Couldn't load the…: something went wrong, see the log."},
+		// Past what any cause needs, the cause is cut too.
+		{internal, 30, "Couldn't load the…: something…"},
 	}
 	for _, tt := range tests {
-		if got := SayToast(tt.p, testVoice()); got != tt.want {
-			t.Errorf("SayToast(%s) = %q, want %q", tt.p.Kind, got, tt.want)
+		if got := SayToast(tt.p, testVoice(), within(tt.width)); got != tt.want {
+			t.Errorf("SayToast(%s) in %d cells = %q, want %q", tt.p.Kind, tt.width, got, tt.want)
+		}
+	}
+}
+
+// TestSayToastShowsTheWayOut checks that a toast of every kind, at every
+// width from 40 columns, shows whole in the toast stack, so what it tells
+// the user to do is never cut.
+func TestSayToastShowsTheWayOut(t *testing.T) {
+	action := "load the members of the core team"
+	scopes := "Your token has not been granted the required scopes to execute this query. " +
+		"The 'teams' field requires one of the following scopes: ['read:org']."
+	tests := []struct {
+		p    *core.Problem
+		want []string
+	}{
+		{&core.Problem{Kind: core.Offline}, []string{"can't reach GitHub"}},
+		{&core.Problem{Kind: core.Unavailable}, []string{"GitHub isn't responding"}},
+		{&core.Problem{Kind: core.RateLimited, Reset: reset}, []string{"rate limited until 14:05"}},
+		{&core.Problem{Kind: core.Auth, Reason: scopes}, []string{"run gh auth refresh -s read:org", "then restart gh-tui"}},
+		{&core.Problem{Kind: core.Auth, Reason: "Bad credentials"}, []string{"run gh auth login", "then restart gh-tui"}},
+		{&core.Problem{Kind: core.Forbidden, Subject: "eggzec/x"}, []string{"you don't have access to eggzec/x"}},
+		{&core.Problem{Kind: core.Forbidden, Subject: "eggzec/x", Reason: "SAML enforcement"}, []string{"run gh auth refresh", "then restart gh-tui"}},
+		{&core.Problem{Kind: core.NotFound, Subject: "eggzec/x#5"}, []string{"eggzec/x#5 doesn't exist or is private"}},
+		{&core.Problem{Kind: core.Rejected, Reason: "Pull Request is not mergeable"}, []string{"Pull Request is not mergeable"}},
+		{&core.Problem{Kind: core.Internal}, []string{"something went wrong, see"}},
+	}
+	squeeze := func(s string) string {
+		return strings.Join(strings.FieldsFunc(s, func(r rune) bool {
+			return unicode.IsSpace(r) || r == '▌' || r == '✗'
+		}), "")
+	}
+	for _, tt := range tests {
+		tt.p.Action = action
+		for width := 40; width <= 200; width++ {
+			m := toast.New(toast.WithSize(width, 24))
+			text := SayToast(tt.p, testVoice(), func(s string) bool { return m.Fits(toast.Error, s) })
+			m.Push(toast.Error, text)
+			shown := squeeze(ansi.Strip(m.View()))
+			if !strings.Contains(shown, squeeze(text)) {
+				t.Errorf("%s at %d columns: the toast cuts %q", tt.p.Kind, width, text)
+			}
+			for _, w := range tt.want {
+				// The fuller cause says "Run" where the briefer says "run".
+				if !strings.Contains(strings.ToLower(shown), strings.ToLower(squeeze(w))) {
+					t.Errorf("%s at %d columns: %q doesn't say %q", tt.p.Kind, width, text, w)
+				}
+			}
 		}
 	}
 }

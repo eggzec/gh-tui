@@ -200,12 +200,14 @@ func (m *Model) gotoFailed(t core.Target, err error) tea.Cmd {
 	// A copy, since Explain may return a problem that err carries.
 	p := *core.Explain("open "+t.String(), err)
 	p.Subject = cmp.Or(p.Subject, t.String())
-	text := ui.SayToast(&p, m.voice)
+	text := ui.SayToast(&p, m.voice, m.fitsToast)
 	if p.Kind == core.NotFound || p.Kind == core.Forbidden {
 		// These name what goto was asked to open, which says all the
-		// action would.
-		text, _ = ui.Say(&p, m.voice)
-		text = strings.TrimSuffix(text, ".") + "."
+		// action would, if the toast shows them whole.
+		said, _ := ui.Say(&p, m.voice)
+		if said = strings.TrimSuffix(said, ".") + "."; m.fitsToast(said) {
+			text = said
+		}
 	}
 	if text == "" {
 		return nil

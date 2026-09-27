@@ -299,13 +299,11 @@ func opened(fakes []*fakeSection) tea.Msg {
 // repository, in the app's voice, whatever GitHub failed with.
 func TestGotoFailures(t *testing.T) {
 	// Where goto's toast isn't a change's: a refusal names the
-	// repository, which says what the action would, and the longer action
-	// leaves no room for the log's path.
+	// repository, which says what the action would.
 	toasts := map[string]string{
 		"forbidden": "You don't have access to charmbracelet/bubbletea.",
 		"not found": "charmbracelet/bubbletea doesn't exist or is private.",
 		"sso":       "charmbracelet requires SSO. Run gh auth refresh, then restart gh-tui.",
-		"internal":  "Couldn't open charmbracelet/bubbletea: something went wrong, see the log.",
 	}
 	cases := append(failures(), failure{
 		name: "sso", err: &ghError{is: core.ErrForbidden, reason: "Resource protected by organization SAML enforcement."},
@@ -315,7 +313,6 @@ func TestGotoFailures(t *testing.T) {
 			repos := newGotoRepos()
 			repos.err = f.err
 			m, _ := newGotoApp(t, repos, WithVoice(logVoice(t)))
-			m.Update(tea.WindowSizeMsg{Width: 240, Height: 24})
 			runCommand(t, m, "goto charmbracelet/bubbletea")
 			want := toasts[f.name]
 			if want == "" && f.cause != "" {
