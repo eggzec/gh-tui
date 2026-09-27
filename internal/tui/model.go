@@ -125,6 +125,9 @@ type Model struct {
 	release Release
 	// warnings are shown as toasts once the app starts.
 	warnings []string
+	// rates tells the rate limits, and rate is what it told last.
+	rates RateLimits
+	rate  core.RateStatus
 }
 
 // Option configures a Model.
@@ -264,6 +267,7 @@ func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) 
 	for _, opt := range opts {
 		opt(m)
 	}
+	m.readRates()
 	m.line.SetComplete(m.complete)
 
 	switch {
