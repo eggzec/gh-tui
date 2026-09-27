@@ -61,8 +61,9 @@ const (
 // only when its connection couldn't be made, since then GitHub never saw
 // it; after that, GitHub may have done what it asked even if no answer
 // came. No request is sent again once retryWithin has passed since it was
-// first sent. A primary rate limit, and reads ahead (obs.IsPrefetch), are
-// never sent again.
+// first sent. A primary rate limit, reads ahead (obs.IsPrefetch) and the
+// requests of background loops (obs.IsBackground), which come back to
+// them anyway, are never sent again.
 //
 // It sits above the limit, so that each attempt takes and gives back a
 // slot of its own and none is held during a wait, and above the log, so
@@ -82,7 +83,7 @@ func newRetryTransport(base http.RoundTripper) *retryTransport {
 // RoundTrip sends req, and again as long as the policy allows.
 func (t *retryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	ctx := req.Context()
-	if obs.IsPrefetch(ctx) || !replayable(req) {
+	if obs.IsPrefetch(ctx) || obs.IsBackground(ctx) || !replayable(req) {
 		return t.base.RoundTrip(req)
 	}
 	c, _ := ctx.Value(callKey{}).(*call)
