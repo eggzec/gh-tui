@@ -32,6 +32,7 @@ const (
 type Client struct {
 	http       *http.Client
 	token      string
+	login      string
 	restURL    *url.URL
 	graphqlURL string
 	now        func() time.Time
@@ -48,6 +49,7 @@ type options struct {
 	host    string
 	token   string
 	baseURL string
+	gh      ghLookup
 }
 
 // WithHTTPClient sets the HTTP client that sends requests. Its Timeout
@@ -78,15 +80,16 @@ func WithBaseURL(u string) Option {
 // New returns a client. Without options it finds the host and token the
 // same way the gh CLI does.
 func New(opts ...Option) (*Client, error) {
-	o := options{http: &http.Client{Timeout: defaultTimeout}}
+	o := options{http: &http.Client{Timeout: defaultTimeout}, gh: ghDefaults()}
 	for _, opt := range opts {
 		opt(&o)
 	}
 	if o.host == "" && (o.token == "" || o.baseURL == "") {
-		o.host, _ = auth.DefaultHost()
+		o.host, _ = o.gh.defaultHost()
 	}
+	var source string
 	if o.token == "" {
-		o.token, _ = auth.TokenForHost(o.host)
+		o.token, source = o.gh.token(o.host)
 	}
 	if o.token == "" {
 		return nil, fmt.Errorf("no token for %s, run %s: %w", o.host, loginCommand(o.host), core.ErrUnauthorized)
@@ -121,6 +124,7 @@ func New(opts ...Option) (*Client, error) {
 	return &Client{
 		http:       &hc,
 		token:      o.token,
+		login:      o.gh.login(o.host, source),
 		restURL:    base,
 		graphqlURL: gql.String(),
 		now:        time.Now,
@@ -176,11 +180,25 @@ func (c *Client) WebHost() string {
 	return c.restURL.Host
 }
 
-// Account returns a name for the account the client acts as: a hash of the
-// host and the token, so that it can name what is kept for the account, such
-// as a directory of cached responses, without giving the token away. Another
-// token, even of the same user, has another name.
+// Account returns a name for the account the client acts as, so that it can
+// name what is kept for the account, such as a directory of cached
+// responses, without giving the login or the token away. When the token is
+// the one gh stores for its active account, the name is a hash of the host
+// and that account's login, so it outlasts a refreshed token or a new
+// login. A token from the environment may be anyone's, so its name is its
+// TokenAccount.
 func (c *Client) Account() string {
+	if c.login == "" {
+		return c.TokenAccount()
+	}
+	h := sha256.Sum256([]byte("gh-tui login\x00" + c.restURL.Host + "\x00" + strings.ToLower(c.login)))
+	return hex.EncodeToString(h[:16])
+}
+
+// TokenAccount returns a name for the token the client sends: a hash of
+// the host and the token. Another token, even of the same user, has
+// another name. Before Account named logins, it returned this.
+func (c *Client) TokenAccount() string {
 	h := sha256.Sum256([]byte("gh-tui account\x00" + c.restURL.Host + "\x00" + c.token))
 	return hex.EncodeToString(h[:16])
 }

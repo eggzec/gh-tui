@@ -3,8 +3,11 @@ package main
 import (
 	"compress/gzip"
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -51,7 +54,7 @@ func openDisk(ctx context.Context, cfg config.Disk, host string) (store *disk.St
 
 // openEntries opens where the lists and details that account reads are kept,
 // below the disk cache of the host, which trims them along with the rest.
-// Each account has a directory of its own, named by a hash of its token, so
+// Each account has a directory of its own, named by a hash of who it is, so
 // that no account reads what another one kept. It returns nil when cfg
 // keeps no entries, or the directory can't be opened: they are then cached
 // in memory only.
@@ -64,6 +67,39 @@ func openEntries(cfg config.Disk, host *disk.Store, account string) *disk.Store 
 		return nil
 	}
 	return store
+}
+
+// moveAccount renames the directory of an account from its old name to its
+// new one, so that what it read and typed survives a change of its name:
+// from a hash of its token, as gh-tui named accounts before, to a hash of
+// its login. Only the account's own directory is moved, and only when the
+// new one doesn't exist yet, so it never replaces or removes anything.
+func moveAccount(cfg config.Disk, host, from, to string) {
+	if !cfg.Enabled || from == "" || from == to {
+		return
+	}
+	root, err := cfg.Path()
+	if err != nil {
+		return
+	}
+	dir := filepath.Join(root, hostDir(host), entryDir)
+	src, dst := filepath.Join(dir, from), filepath.Join(dir, to)
+	if _, err := os.Lstat(dst); !errors.Is(err, fs.ErrNotExist) {
+		return
+	}
+	if fi, err := os.Lstat(src); err != nil || !fi.IsDir() {
+		return
+	}
+	if err := os.Rename(src, dst); err != nil {
+		// Another gh-tui that started at the same time may have moved it
+		// first.
+		if errors.Is(err, fs.ErrNotExist) {
+			return
+		}
+		slog.Warn("account cache not moved", "span", "cache.disk", "err", err.Error())
+		return
+	}
+	slog.Info("account cache moved", "span", "cache.disk", "from", from, "to", to)
 }
 
 // historyPath returns where the lines of the command line that account

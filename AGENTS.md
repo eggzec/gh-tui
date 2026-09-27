@@ -160,8 +160,9 @@ changes minimal so that pulling in new upstream versions stays easy.
   revalidates it with a free 304. Fall back to the disk copy only when
   GitHub can't be reached, never on a 401, 403 or 404.
 - Keep lists, details and comment pages on a `cache.Shelf`, in a directory
-  per account (`<host>/entry/<account>`, a hash of host and token), so no
-  account reads another's. A read that misses memory warms it from the
+  per account (`<host>/entry/<account>`, a hash of host and the login gh
+  is logged in as, or of host and token when the token comes from the
+  environment), so no account reads another's. A read that misses memory warms it from the
   shelf in its `tea.Cmd`. A kept list page, dashboard value or page of
   branches comes back at once with `Stale` set, to every reader until
   any write replaces it: the revalidator, a poll, a read with `Again` set,

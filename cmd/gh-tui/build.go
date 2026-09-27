@@ -58,6 +58,9 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 	}
 
 	ttl := cfg.Cache.TTL
+	// What an account kept under the name of its token, before accounts
+	// were named by their login, stays its own.
+	moveAccount(cfg.Cache.Disk, client.Host(), client.TokenAccount(), client.Account())
 	store, warning := openDisk(ctx, cfg.Cache.Disk, client.Host())
 	// A nil store must stay a nil interface, which the services take for
 	// none.
