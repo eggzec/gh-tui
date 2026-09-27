@@ -310,3 +310,63 @@ func TestBudgetSettlesOnPanic(t *testing.T) {
 		t.Errorf("%d reservations pending after a panic, want none", n)
 	}
 }
+
+// TestBudgetGraphQLCost checks that a query reserves what its operation
+// cost last time, and 1 before GitHub said.
+func TestBudgetGraphQLCost(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		reset := time.Now().Add(time.Hour)
+		a := answers{"graphql": make(chan answer, 2)}
+		c := newAnswered(t, a)
+		const costly, cheap = "query Costly { rateLimit { cost } }", "query Cheap { viewer { login } }"
+		reply := func(remaining int, data string) answer {
+			return answer{header: quotaHeader(resourceGraphQL, 5000, remaining, reset), body: `{"data": ` + data + `}`}
+		}
+		query := func(q string) <-chan error {
+			done := make(chan error, 1)
+			go func() { done <- c.Query(context.Background(), q, nil, nil) }()
+			synctest.Wait()
+			return done
+		}
+
+		done := query(costly)
+		if st, ok := c.budget.status(resourceGraphQL); ok {
+			t.Fatalf("graphql quota before any answer = %+v, want none", st)
+		}
+		a["graphql"] <- reply(4993, `{"rateLimit": {"cost": 7}}`)
+		if err := <-done; err != nil {
+			t.Fatal(err)
+		}
+
+		costlyDone := query(costly)
+		if got := est(t, c, resourceGraphQL); got != 4986 {
+			t.Errorf("est with Costly in flight = %d, want 4993-7", got)
+		}
+		cheapDone := query(cheap)
+		if got := est(t, c, resourceGraphQL); got != 4985 {
+			t.Errorf("est with Costly and Cheap in flight = %d, want 4993-7-1", got)
+		}
+		a["graphql"] <- reply(4986, `{"rateLimit": {"cost": 7}}`)
+		a["graphql"] <- reply(4985, `{"viewer": {"login": "x"}}`)
+		for _, done := range []<-chan error{costlyDone, cheapDone} {
+			if err := <-done; err != nil {
+				t.Fatal(err)
+			}
+		}
+		if got := est(t, c, resourceGraphQL); got != 4985 {
+			t.Errorf("est after both = %d, want 4985", got)
+		}
+	})
+}
+
+// TestBudgetMutationCost checks that a mutation costs 1 of the primary
+// limit, whatever a query of the same name cost.
+func TestBudgetMutationCost(t *testing.T) {
+	b := newBudget("/", "/graphql")
+	b.learnCost("Star", 9)
+	ctx := withCall(t.Context(), &call{op: "Star"})
+	r := b.reserve(httptest.NewRequestWithContext(ctx, http.MethodPost, "https://api.github.com/graphql", http.NoBody))
+	if r.resource != resourceGraphQL || r.cost != 1 {
+		t.Errorf("reservation = %+v, want 1 of graphql", r)
+	}
+}

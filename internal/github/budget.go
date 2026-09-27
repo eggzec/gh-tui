@@ -36,6 +36,8 @@ type budget struct {
 	// they were counted in.
 	pending map[uint64]*reservation
 	seq     uint64
+	// opCost is what the last query of each GraphQL operation cost.
+	opCost map[string]int
 }
 
 // quota is one resource, as the answers of GitHub report it.
@@ -73,6 +75,7 @@ func newBudget(restRoot, graphqlPath string) *budget {
 		now:         time.Now,
 		quotas:      make(map[string]*quota),
 		pending:     make(map[uint64]*reservation),
+		opCost:      make(map[string]int),
 	}
 }
 
@@ -96,10 +99,14 @@ func (b *budget) classify(req *http.Request) string {
 }
 
 // reserve counts req against its resource, before it is sent, and returns
-// the reservation that observe or forget settles. A request to a host
-// outside the API counts against nothing and has no reservation.
+// the reservation that observe or forget settles. A request costs 1, and
+// a GraphQL query what its operation cost last time, since a query's cost
+// depends on its shape more than on its variables. A mutation costs 1 of
+// the primary limit. A request to a host outside the API counts against
+// nothing and has no reservation.
 func (b *budget) reserve(req *http.Request) *reservation {
-	if c, _ := req.Context().Value(callKey{}).(*call); c != nil && c.external {
+	c, _ := req.Context().Value(callKey{}).(*call)
+	if c != nil && c.external {
 		return nil
 	}
 	resource := b.classify(req)
@@ -109,10 +116,21 @@ func (b *budget) reserve(req *http.Request) *reservation {
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if resource == resourceGraphQL && c != nil && c.query {
+		cost = max(b.opCost[c.op], cost)
+	}
 	b.seq++
 	r := &reservation{seq: b.seq, resource: resource, cost: cost}
 	b.pending[r.seq] = r
 	return r
+}
+
+// learnCost records what a query of the GraphQL operation op cost, as the
+// rateLimit field of its data reported.
+func (b *budget) learnCost(op string, cost int) {
+	b.mu.Lock()
+	b.opCost[op] = cost
+	b.mu.Unlock()
 }
 
 // forget settles r, whose request got no answer.
