@@ -70,7 +70,9 @@ func parentOf(p string) string {
 // when the listing is truncated. It is safe for concurrent use, as the tree
 // loads in commands.
 type source struct {
-	svc  Service
+	svc Service
+	// host is the web host of the user's GitHub, which the nodes link to.
+	host string
 	repo core.RepoRef
 	// ref is the base to list, or empty for the head of the default
 	// branch.
@@ -81,8 +83,8 @@ type source struct {
 	idx *index
 }
 
-func newSource(svc Service, repo core.RepoRef, ref string) *source {
-	return &source{svc: svc, repo: repo, ref: ref}
+func newSource(svc Service, host string, repo core.RepoRef, ref string) *source {
+	return &source{svc: svc, host: host, repo: repo, ref: ref}
 }
 
 // current returns the index of the listing read last, or nil.
@@ -141,7 +143,7 @@ func (s *source) children(ctx context.Context, parent tree.Node) (_ []tree.Node,
 	if x.truncated {
 		return s.lazy(ctx, dir)
 	}
-	return nodes(x.dirs[dir.Path]), nil
+	return s.nodes(x.dirs[dir.Path]), nil
 }
 
 // lazy reads one directory, for listings that are truncated.
@@ -156,7 +158,7 @@ func (s *source) lazy(ctx context.Context, dir core.TreeEntry) ([]tree.Node, err
 		e.Path = joinPath(dir.Path, e.Name)
 		entries[i] = e
 	}
-	return nodes(entries), nil
+	return s.nodes(entries), nil
 }
 
 func joinPath(dir, name string) string {
@@ -168,11 +170,11 @@ func joinPath(dir, name string) string {
 
 // nodes returns the nodes of entries. Every node carries its
 // core.TreeEntry, with Path relative to the root of the repository, and a
-// file its size as the detail.
-func nodes(entries []core.TreeEntry) []tree.Node {
+// file its size as the detail. Each links to its page at the ref listed.
+func (s *source) nodes(entries []core.TreeEntry) []tree.Node {
 	out := make([]tree.Node, len(entries))
 	for i, e := range entries {
-		n := tree.Node{ID: e.Path, Name: e.Name, Branch: e.Dir(), Value: e}
+		n := tree.Node{ID: e.Path, Name: e.Name, Branch: e.Dir(), Value: e, Link: webURL(s.host, s.repo, s.ref, e)}
 		if e.Type == core.EntryBlob && !e.Symlink() {
 			n.Detail = ui.Size(e.Size)
 		}

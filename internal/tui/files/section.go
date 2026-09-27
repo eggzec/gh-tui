@@ -125,7 +125,7 @@ func (s *Section) newTree(repo core.RepoRef, ref string) {
 		s.cancelTree()
 	}
 	ctx, cancel := context.WithCancel(s.ctx)
-	src := newSource(s.svc, repo, ref)
+	src := newSource(s.svc, s.host, repo, ref)
 	t := tree.New(src.children,
 		tree.WithContext(ctx),
 		tree.WithExpandAllLimits(expandAllNodes, expandAllDepth),
