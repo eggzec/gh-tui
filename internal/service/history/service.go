@@ -31,6 +31,8 @@ import (
 	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
+	"github.com/eggzec/gh-tui/internal/service/fallback"
+	"github.com/eggzec/gh-tui/internal/service/recheck"
 )
 
 // API is the part of the GitHub client that the service uses.
@@ -123,42 +125,14 @@ func SyncKey(repo core.RepoRef) string {
 	return "history:" + strings.ToLower(repo.String())
 }
 
-// offlineAt is when an entry served offline was fetched, as far as the
-// cache can tell: long ago, so it is stale at once and the next read asks
-// GitHub again.
-var offlineAt = time.Unix(1, 0)
-
 // fetch reads key from c, or loads it with load when it is missing or
-// stale. A stale entry's validators make the request conditional. What
-// GitHub sends is kept on shelf too, and what GitHub refuses is dropped
-// from it. If GitHub can't be reached, the stale entry is served instead,
-// marked by offline.
-func fetch[V any](ctx context.Context, c *cache.Cache[V], shelf *cache.Shelf[V], key string, tags []string, offline func(V) V,
+// stale, falling back on the stale entry as fallback.Fetch does, marked by
+// marks. A stale entry's validators make the request conditional. What
+// GitHub sends is kept on shelf too.
+func fetch[V any](ctx context.Context, c *cache.Cache[V], shelf *cache.Shelf[V], key string, tags []string, marks fallback.Marks[V],
 	load func(ctx context.Context, cond github.Conditional) (V, github.Response, error),
 ) (V, error) {
-	e, err := c.Fetch(ctx, key, func(ctx context.Context, prev cache.Entry[V], ok bool) (cache.Entry[V], error) {
-		var cond github.Conditional
-		if ok {
-			cond = github.Conditional{ETag: prev.ETag, LastModified: prev.LastModified}
-		}
-		v, res, err := load(ctx, cond)
-		switch {
-		case ok && github.Unreachable(ctx, err):
-			prev.Value, prev.FetchedAt = offline(prev.Value), offlineAt
-			return prev, nil
-		case err != nil:
-			if github.Refused(err) {
-				shelf.Delete(key)
-			}
-			return cache.Entry[V]{}, err
-		case res.NotModified:
-			return cache.Entry[V]{}, cache.ErrNotModified
-		}
-		e := cache.Entry[V]{Value: v, ETag: res.ETag, LastModified: res.LastModified, Source: res.URL, Tags: tags}
-		// The shelf is only a shortcut, so a failure is ignored.
-		_ = shelf.Save(key, e)
-		return e, nil
-	})
+	e, err := fallback.Fetch(ctx, c, shelf, key, marks, fallback.Keep(shelf, key, recheck.Load(load, func(V) []string { return tags })))
 	return e.Value, err
 }
 
@@ -179,15 +153,6 @@ func object[V any](ctx context.Context, c *cache.Cache[V], shelf *cache.Shelf[V]
 	})
 	return e.Value, err
 }
-
-// offlinePage marks a page served offline.
-func offlinePage[T any](p core.Page[T]) core.Page[T] {
-	p.Offline = true
-	return p
-}
-
-// asIs serves a value offline unmarked.
-func asIs[V any](v V) V { return v }
 
 // pageSize returns n, or def for 0, at most the 100 that GitHub lists.
 func pageSize(n, def int) int {

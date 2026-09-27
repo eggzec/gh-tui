@@ -7,6 +7,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
+	"github.com/eggzec/gh-tui/internal/service/fallback"
 )
 
 // CachedCompare returns the cached comparison of head with base, fresh or
@@ -21,7 +22,7 @@ func (s *Service) CachedCompare(repo core.RepoRef, base, head string) (core.Comp
 // its ETag after it. If GitHub can't be reached, the stale comparison is
 // served.
 func (s *Service) Compare(ctx context.Context, repo core.RepoRef, base, head string) (core.Compare, error) {
-	c, err := fetch(ctx, s.compares, nil, compareKey(repo, base, head), []string{repoTag(repo)}, asIs[core.Compare],
+	c, err := fetch(ctx, s.compares, nil, compareKey(repo, base, head), []string{repoTag(repo)}, fallback.None[core.Compare],
 		func(ctx context.Context, cond github.Conditional) (core.Compare, github.Response, error) {
 			return s.api.Compare(ctx, repo, base, head, cond)
 		})

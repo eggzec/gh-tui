@@ -8,6 +8,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
+	"github.com/eggzec/gh-tui/internal/service/fallback"
 )
 
 // DefaultBranchPageSize is the page size of a BranchesQuery that sets
@@ -45,7 +46,8 @@ func (s *Service) CachedBranches(q BranchesQuery) (core.Page[core.Branch], bool)
 // A page that only an earlier session kept is fresh if it was fetched or
 // revalidated within the TTL. An older one is returned at once, with Stale
 // set, to every read until one with q.Again set revalidates it. If GitHub
-// can't be reached, a stale page is served with Offline set.
+// can't be reached, a stale page is served with Offline set, and if it
+// rate limits the read, with Limited set.
 func (s *Service) Branches(ctx context.Context, q BranchesQuery) (core.Page[core.Branch], error) {
 	q = q.normalize()
 	key := branchesKey(q)
@@ -54,7 +56,7 @@ func (s *Service) Branches(ctx context.Context, q BranchesQuery) (core.Page[core
 		p.Stale = true
 		return p, nil
 	}
-	p, err := fetch(ctx, s.branches, s.keptBranches, key, []string{repoTag(q.Repo)}, offlinePage[core.Branch], s.loadBranches(q))
+	p, err := fetch(ctx, s.branches, s.keptBranches, key, []string{repoTag(q.Repo)}, fallback.Page[core.Branch], s.loadBranches(q))
 	if err != nil {
 		return core.Page[core.Branch]{}, fmt.Errorf("list branches of %s: %w", q.Repo, err)
 	}
