@@ -96,6 +96,13 @@ func (m *Model) SetStyles(s Styles) {
 	m.render()
 }
 
+// SetIcons sets the icons drawn before paths. See [WithIcons].
+func (m *Model) SetIcons(icons Icons) {
+	m.icons = icons
+	m.rows = nil
+	m.render()
+}
+
 // pair is the escape sequences that turn a style on and off.
 type pair struct{ on, off string }
 

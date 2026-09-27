@@ -5,6 +5,12 @@ import "context"
 // Option configures a finder in [New].
 type Option func(*settings)
 
+// Icons returns the icon drawn before the path of it, such as the type of
+// a file, styled as it should be drawn. Return "" for no icon. A row asks
+// once and is kept until the matches, the size or the styles change, so
+// the icon must depend only on it.
+type Icons func(it Item) string
+
 type settings struct {
 	parent        context.Context
 	width, height int
@@ -15,6 +21,7 @@ type settings struct {
 	one, many     string
 	syncLimit     int
 	recentPaths   []string
+	icons         Icons
 }
 
 // DefaultSyncLimit is how many paths the finder matches in Update by
@@ -86,4 +93,10 @@ func WithRecent(paths []string) Option {
 // the empty one in a command.
 func WithSyncLimit(n int) Option {
 	return func(s *settings) { s.syncLimit = max(n, 0) }
+}
+
+// WithIcons draws an icon before every path. Finders have no icons by
+// default, since icon fonts are not installed everywhere.
+func WithIcons(icons Icons) Option {
+	return func(s *settings) { s.icons = icons }
 }

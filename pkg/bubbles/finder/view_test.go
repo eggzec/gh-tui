@@ -52,6 +52,9 @@ func TestView(t *testing.T) {
 		{name: "scrolled", width: 40, height: 5, load: sized(), keys: []string{"down", "down", "down", "down"}},
 		{name: "light", width: 60, height: 8, load: sized(), typed: "rend", opts: []Option{WithStyles(DefaultStyles(false))}},
 		{name: "one row", width: 40, height: 1, load: sized(), typed: "rend"},
+		{name: "icons", width: 60, height: 8, load: sized(), typed: "rend", opts: []Option{WithIcons(extIcons)}},
+		{name: "icons narrow", width: 26, height: 8, load: sized(), typed: "rend", opts: []Option{WithIcons(extIcons)}},
+		{name: "icons cut from the left", width: 40, height: 6, load: loader(deep), typed: "swag", opts: []Option{WithIcons(extIcons)}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -82,6 +85,58 @@ func TestViewMarksMatches(t *testing.T) {
 	}
 	if got := marked.String(); got != "crt" {
 		t.Errorf("marked %q in %q, want crt", got, ansi.Strip(row))
+	}
+}
+
+// extIcons marks Go files with a g, and other files with a dot.
+func extIcons(it Item) string {
+	if strings.HasSuffix(it.Path, ".go") {
+		return "g"
+	}
+	return "·"
+}
+
+// TestViewMarksMatchesAfterIcons checks that the icon moves the marks with
+// the path, so they stay on the characters that match.
+func TestViewMarksMatchesAfterIcons(t *testing.T) {
+	for _, width := range []int{60, 27} {
+		m := open(t, width, 6, sample, WithIcons(extIcons),
+			WithStyles(Styles{Match: DefaultStyles(true).Match.Reverse(true)}))
+		m = typed(t, m, "crt")
+		row := strings.Split(m.View(), "\n")[1]
+		plain := ansi.Strip(row)
+		if !strings.HasPrefix(plain, "▌ g ") {
+			t.Fatalf("at %d columns the row %q should start with the gutter and the icon", width, plain)
+		}
+		on := newPair(m.styles.Match).on
+		var marked strings.Builder
+		for _, part := range strings.Split(row, on)[1:] {
+			marked.WriteString(ansi.Strip(part)[:1])
+		}
+		if got := marked.String(); got != "crt" {
+			t.Errorf("at %d columns marked %q in %q, want crt", width, got, plain)
+		}
+	}
+}
+
+func TestViewIconsFitAnySize(t *testing.T) {
+	m := open(t, 40, 6, sample, WithIcons(extIcons))
+	m = typed(t, m, "rend")
+	for _, size := range [][2]int{{2, 3}, {3, 3}, {4, 3}, {5, 4}, {12, 4}, {80, 10}} {
+		m.SetSize(size[0], size[1])
+		assertFits(t, m.View(), size[0], size[1])
+	}
+}
+
+func TestSetIcons(t *testing.T) {
+	m := open(t, 40, 6, sample)
+	m.SetIcons(extIcons)
+	if row := ansi.Strip(strings.Split(m.View(), "\n")[1]); !strings.HasPrefix(row, "▌ g cursed_renderer.go") {
+		t.Fatalf("SetIcons should draw the icons at once, got %q", row)
+	}
+	m.SetIcons(nil)
+	if row := ansi.Strip(strings.Split(m.View(), "\n")[1]); !strings.HasPrefix(row, "▌ cursed_renderer.go") {
+		t.Fatalf("SetIcons(nil) should drop the icons, got %q", row)
 	}
 }
 

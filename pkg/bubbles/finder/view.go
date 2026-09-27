@@ -131,7 +131,9 @@ func (m *Model) row(i int32, selected bool, ts [][]byte, w int) string {
 	if selected {
 		gutter, name = m.esc.gutterOn, m.esc.selName
 	}
-	room := w - 2
+	icon := m.icon(it, w)
+	iw := ansi.StringWidth(icon)
+	room := w - 2 - iw
 	path, detail := clean(it.Path), clean(it.Detail)
 	dw := ansi.StringWidth(detail)
 	pw := ansi.StringWidth(path)
@@ -153,7 +155,8 @@ func (m *Model) row(i int32, selected bool, ts [][]byte, w int) string {
 	var b strings.Builder
 	b.Grow(w + 64)
 	b.WriteString(gutter)
-	used := writePath(&b, path, marks, room, m.esc.dir, name, m.esc.match)
+	b.WriteString(icon)
+	used := iw + writePath(&b, path, marks, room, m.esc.dir, name, m.esc.match)
 	if detail != "" {
 		b.WriteString(strings.Repeat(" ", w-2-used-dw))
 		b.WriteString(m.esc.detail.wrap(detail))
@@ -161,6 +164,23 @@ func (m *Model) row(i int32, selected bool, ts [][]byte, w int) string {
 	}
 	b.WriteString(strings.Repeat(" ", max(w-2-used, 0)))
 	return b.String()
+}
+
+// icon returns the icon of it and the space after it, or "" when there is
+// none or no room for it beside a cell of the path.
+func (m *Model) icon(it *Item, w int) string {
+	if m.icons == nil {
+		return ""
+	}
+	ic := m.icons(*it)
+	if ic == "" {
+		return ""
+	}
+	ic += " "
+	if ansi.StringWidth(ic) > w-3 {
+		return ""
+	}
+	return ic
 }
 
 // marks returns whether each byte of the path of item i matches one of
