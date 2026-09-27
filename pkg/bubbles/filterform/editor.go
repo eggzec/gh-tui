@@ -183,7 +183,7 @@ func (m *Model) openPicker(i int) tea.Cmd {
 		empty = "Nothing to choose from."
 	}
 	w, h := m.editorSize()
-	m.pick = picker.New(search,
+	opts := []picker.Option{
 		picker.WithItems(m.pickerItems(i)),
 		picker.WithContext(m.ctx),
 		picker.WithGroupHeaders(false),
@@ -192,7 +192,14 @@ func (m *Model) openPicker(i int) tea.Cmd {
 		picker.WithKeyMap(m.keys.Picker),
 		picker.WithStyles(m.styles.Picker),
 		picker.WithSize(w, h),
-	)
+	}
+	if say := m.errorText; say != nil {
+		opts = append(opts, picker.WithErrorText(func(err error) (text, hint string) {
+			text, _ = say(err)
+			return text, ""
+		}))
+	}
+	m.pick = picker.New(search, opts...)
 	m.picking = true
 	return tea.Batch(m.pick.Focus(), m.pick.Init())
 }

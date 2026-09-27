@@ -333,6 +333,9 @@ func (m *Model) loadSegment(i int) []string {
 	case loading:
 		return []string{m.spin.View() + m.styles.Hint.Render("loading…")}
 	case failed:
+		if text, _ := m.errorWords(m.fields[i].err, ""); text == "" {
+			return nil
+		}
 		return []string{m.styles.Error.Render("✗ couldn't load")}
 	default:
 		return nil
@@ -396,16 +399,36 @@ func (m *Model) editorLines(w int) []string {
 	}
 	fs, label := m.fields[m.row], strings.ToLower(m.spec.Fields[m.row].Label)
 	if fs.state == failed {
-		msg := "unknown error"
-		if fs.err != nil {
-			msg, _, _ = strings.Cut(fs.err.Error(), "\n")
+		text, hint := m.errorWords(fs.err, label)
+		if text == "" {
+			return nil
+		}
+		back := m.keys.Cancel.Help().Key + " to go back"
+		if hint != "" {
+			back = hint + " · " + back
 		}
 		return []string{
-			fit(indent+m.styles.Error.Render("✗ Couldn't load "+label+": "+msg), w),
-			fit(indent+m.styles.Hint.Render(m.keys.Edit.Help().Key+" retry · "+m.keys.Cancel.Help().Key+" back"), w),
+			fit(indent+m.styles.Error.Render("✗ "+text), w),
+			fit(indent+m.styles.Hint.Render(back), w),
 		}
 	}
 	return []string{fit(indent+m.spin.View()+m.styles.Hint.Render("Loading "+label+"…"), w)}
+}
+
+// errorWords returns what the editor says of err, the failed load of the
+// options of the field called label, and the hint after it.
+func (m *Model) errorWords(err error, label string) (text, hint string) {
+	if m.errorText != nil && err != nil {
+		return m.errorText(err)
+	}
+	msg := "unknown error"
+	if err != nil {
+		msg, _, _ = strings.Cut(err.Error(), "\n")
+	}
+	if k := m.keys.Edit.Help().Key; k != "" {
+		hint = k + " to retry"
+	}
+	return "Couldn't load " + label + ": " + msg, hint
 }
 
 // queryLines renders the query: the input while it has focus, and the
