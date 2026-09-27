@@ -175,7 +175,7 @@ type Step struct {
 	hidden                bool
 	ticking               bool
 
-	ask    *confirm
+	ask    *ui.Confirm
 	notice string
 
 	spin     spinner.Model

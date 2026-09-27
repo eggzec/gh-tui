@@ -13,7 +13,7 @@ type styles struct {
 	// group styles the titles of the groups, and required the marker of
 	// the checks a merge needs.
 	group, required lipgloss.Style
-	question        lipgloss.Style
+	confirm         ui.ConfirmStyles
 	// gutter is the rendered mark of the row under the cursor, and
 	// noGutter its blank.
 	gutter, noGutter string
@@ -26,7 +26,7 @@ func newStyles(t ui.Theme, ic ui.Icons) styles {
 		lastCrumb: t.Accent.Bold(true),
 		group:     t.Muted.Bold(true),
 		required:  t.Warning,
-		question:  t.Accent.Bold(true),
+		confirm:   t.Confirm(),
 		gutter:    t.Accent.Render("▌") + " ",
 		noGutter:  "  ",
 	}

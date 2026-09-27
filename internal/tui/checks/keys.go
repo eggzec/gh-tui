@@ -27,9 +27,10 @@ type KeyMap struct {
 	// Refresh reads the checks again, or what failed to load.
 	Refresh key.Binding
 	// RerunFailed re-runs the failed jobs of the run of the check, once the
-	// user confirms with Yes.
+	// user confirms it.
 	RerunFailed key.Binding
-	Yes, No     key.Binding
+	// Confirm answers the confirmation.
+	Confirm ui.ConfirmKeys
 	// Annotations moves the focus between the annotations of a failed job
 	// and its log.
 	Annotations key.Binding
@@ -50,8 +51,7 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		Refresh:     ui.Binding(keys, config.ActionRefresh, "refresh"),
 		RerunFailed: ui.Binding(keys, config.ActionRerunFailed, "rerun failed"),
 		Annotations: ui.Binding(keys, config.ActionAnnotations, "annotations"),
-		Yes:         key.NewBinding(key.WithKeys("y", "enter"), key.WithHelp("y", "yes")),
-		No:          key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n", "no")),
+		Confirm:     ui.DefaultConfirmKeys(),
 	}
 	// ctrl+r, the second key of refresh, re-runs the failed jobs here.
 	k.Refresh = ui.FreeKeys(k.Refresh, k.RerunFailed)
@@ -112,7 +112,7 @@ func (h keyHelp) FullHelp() [][]key.Binding { return h.full }
 func (s *Step) Help() help.KeyMap {
 	k := s.keys
 	if s.ask != nil {
-		return keyHelp{short: []key.Binding{k.Yes, k.No}, full: [][]key.Binding{{k.Yes, k.No}}}
+		return k.Confirm
 	}
 	back := relabel(k.Back, "checks")
 	rerun := s.rerunKey()
