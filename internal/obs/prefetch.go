@@ -157,7 +157,8 @@ type backgroundKey struct{}
 // ForBackground returns ctx marked as the work of a loop that runs on its
 // own, such as the revalidator's passes or the sync engine's polls. The
 // client doesn't send its requests again when they fail, since the loop
-// comes back to them anyway, unlike a read the user waits for.
+// comes back to them anyway, unlike a read the user waits for, and lets
+// them use fewer of its requests in flight.
 func ForBackground(ctx context.Context) context.Context {
 	return context.WithValue(ctx, backgroundKey{}, true)
 }

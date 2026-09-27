@@ -208,10 +208,23 @@ func TestLimitReleasesWithoutBody(t *testing.T) {
 }
 
 func TestLimitKeepsSlotsForTheForeground(t *testing.T) {
+	for name, mark := range map[string]func(context.Context) context.Context{
+		"reads ahead":      obs.ForPrefetch,
+		"background loops": obs.ForBackground,
+	} {
+		t.Run(name, func(t *testing.T) { testLimitKeepsSlotsForTheForeground(t, mark) })
+	}
+}
+
+// testLimitKeepsSlotsForTheForeground fills the slots of the background
+// with requests whose context mark marks, and checks that what the user
+// waits for still goes at once.
+func testLimitKeepsSlotsForTheForeground(t *testing.T, mark func(context.Context) context.Context) {
+	t.Helper()
 	synctest.Test(t, func(t *testing.T) {
 		lt := newLimitTransport(bodies{}, maxInFlight, foregroundSlots)
-		background := obs.ForPrefetch(t.Context())
-		// Reads ahead take all they may, and more wait.
+		background := mark(t.Context())
+		// The background takes all it may, and more waits.
 		held := make([]io.Closer, 0, maxInFlight-foregroundSlots)
 		for range maxInFlight - foregroundSlots {
 			body, err := send(background, lt)
@@ -230,7 +243,7 @@ func TestLimitKeepsSlotsForTheForeground(t *testing.T) {
 		}
 		synctest.Wait()
 		if n := len(lt.slots); n != maxInFlight-foregroundSlots {
-			t.Fatalf("reads ahead hold %d slots, want %d", n, maxInFlight-foregroundSlots)
+			t.Fatalf("the background holds %d slots, want %d", n, maxInFlight-foregroundSlots)
 		}
 		// What the user waits for goes at once.
 		for range foregroundSlots {
@@ -248,7 +261,7 @@ func TestLimitKeepsSlotsForTheForeground(t *testing.T) {
 			select {
 			case <-done:
 			default:
-				t.Fatal("a foreground request waits while reads ahead fill their share")
+				t.Fatal("a foreground request waits while the background fills its share")
 			}
 		}
 		for _, b := range held {

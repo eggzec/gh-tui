@@ -22,12 +22,15 @@ import (
 const maxInFlight = 8
 
 // foregroundSlots of those are kept for what the user waits for: reads
-// ahead (obs.IsPrefetch) may take the others only, so that they never make
-// a read the user asked for wait.
+// ahead (obs.IsPrefetch) and the requests of background loops
+// (obs.IsBackground) may take the others only, so that they never make a
+// read the user asked for wait, even when many that a rate limit held
+// are let go at once.
 const foregroundSlots = 2
 
 // limitTransport lets at most cap(slots) requests through at once, and of
-// those at most cap(background) reads ahead. A request takes its slots
+// those at most cap(background) reads ahead and requests of background
+// loops. A request takes its slots
 // before it is sent, waiting as long as its context allows, and gives them
 // back when the body of its response is closed, or at once if it failed.
 type limitTransport struct {
@@ -66,11 +69,12 @@ func (t *limitTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 // acquire takes the slots of req, waiting until they are free or the
 // context of req is done, and returns what gives them back. A read ahead
-// takes one of the background slots first, so it never holds a shared slot
-// while it waits. A wait is counted and logged.
+// or a request of a background loop takes one of the background slots
+// first, so it never holds a shared slot while it waits. A wait is counted
+// and logged.
 func (t *limitTransport) acquire(req *http.Request) (release func(), err error) {
 	ctx := req.Context()
-	background := obs.IsPrefetch(ctx)
+	background := obs.IsPrefetch(ctx) || obs.IsBackground(ctx)
 	start := time.Now()
 	var waited bool
 	if background {
