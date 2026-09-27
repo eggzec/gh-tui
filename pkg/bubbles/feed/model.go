@@ -311,6 +311,13 @@ func (m *Model[T]) SetEmptyText(text string) {
 	m.emptyLine = m.styles.Empty.Render(text)
 }
 
+// SetErrorText sets how the error row reads a failed fetch, as
+// [WithErrorText] does.
+func (m *Model[T]) SetErrorText(say func(error) (text, hint string)) {
+	m.errorText = say
+	m.refreshError()
+}
+
 // EmptyText returns the text shown when the feed has no items.
 func (m Model[T]) EmptyText() string {
 	return m.emptyText
@@ -404,7 +411,7 @@ func (m Model[T]) find(key string) (int, bool) {
 }
 
 // refreshError renders the error row, which depends on the error, the
-// styles and the retry key.
+// styles, the retry key and the error text.
 func (m *Model[T]) refreshError() {
 	m.err = m.tail.err
 	for _, c := range m.chunks {
@@ -414,14 +421,33 @@ func (m *Model[T]) refreshError() {
 		}
 	}
 	m.keyMap.Retry.SetEnabled(m.err != nil)
+	m.errLine, m.errHint = "", ""
 	if m.err == nil {
-		m.errLine, m.errHint = "", ""
 		return
 	}
-	msg, _, _ := strings.Cut(m.err.Error(), "\n")
-	m.errLine = m.styles.Error.Render("✗ Couldn't load: " + msg)
-	m.errHint = ""
-	if h := m.keyMap.Retry.Help(); h.Key != "" {
-		m.errHint = m.styles.Hint.Render(" · " + h.Key + " to " + h.Desc)
+	text, hint := m.errorWords(m.err)
+	if text == "" {
+		// A failure not worth telling, such as a canceled fetch, still
+		// leaves rows to read again, which the retry key does.
+		if k := m.keyMap.Retry.Help().Key; k != "" {
+			m.errHint = m.styles.Hint.Render(k + " to retry")
+		}
+		return
 	}
+	m.errLine = m.styles.Error.Render("✗ " + text)
+	if hint != "" {
+		m.errHint = m.styles.Hint.Render(" · " + hint)
+	}
+}
+
+// errorWords returns what the error row says of err, and the hint after it.
+func (m *Model[T]) errorWords(err error) (text, hint string) {
+	if m.errorText != nil {
+		return m.errorText(err)
+	}
+	msg, _, _ := strings.Cut(err.Error(), "\n")
+	if k := m.keyMap.Retry.Help().Key; k != "" {
+		hint = k + " to retry"
+	}
+	return "Couldn't load: " + msg, hint
 }

@@ -10,8 +10,10 @@ import (
 	"testing"
 	"unicode/utf8"
 
+	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 type item struct {
@@ -298,6 +300,54 @@ func TestErrorAndRetry(t *testing.T) {
 	// Retrying with nothing failed does nothing.
 	if _, cmd := m.Update(press("r")); cmd != nil {
 		t.Fatal("retry without an error returned a command")
+	}
+}
+
+func TestErrorText(t *testing.T) {
+	rebound := DefaultKeyMap()
+	rebound.Retry = key.NewBinding(key.WithKeys("R"), key.WithHelp("R", "reload"))
+	offline := func(error) (string, string) { return "Can't reach GitHub", "r to retry" }
+	tests := []struct {
+		name       string
+		opts       []Option
+		text, hint string
+	}{
+		{"default", nil, "✗ Couldn't load: boom", " · r to retry"},
+		{"default names the retry key", []Option{WithKeyMap(rebound)}, "✗ Couldn't load: boom", " · R to retry"},
+		{"custom", []Option{WithErrorText(offline)}, "✗ Can't reach GitHub", " · r to retry"},
+		{"custom without a hint", []Option{WithErrorText(func(error) (string, string) { return "o/r doesn't exist.", "" })}, "✗ o/r doesn't exist.", ""},
+		{"empty names only the retry key", []Option{WithErrorText(func(error) (string, string) { return "", "" })}, "", "r to retry"},
+		{"text with a dot", []Option{WithErrorText(func(error) (string, string) { return "GitHub says a · b", "" })}, "✗ GitHub says a · b", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			src := newSource(10, 10)
+			src.setFail("", errors.New("boom\nsecond line"))
+			m := load(t, src, append([]Option{WithSize(60, 5)}, tt.opts...)...)
+			text, hint := m.statusLine()
+			if text, hint = ansi.Strip(text), ansi.Strip(hint); text != tt.text || hint != tt.hint {
+				t.Errorf("statusLine() = %q, %q; want %q, %q", text, hint, tt.text, tt.hint)
+			}
+			if v := ansi.Strip(m.View()); tt.text == "" && strings.Contains(v, "✗") {
+				t.Errorf("View() = %q, want no error row", v)
+			}
+		})
+	}
+}
+
+func TestSetErrorText(t *testing.T) {
+	src := newSource(30, 10)
+	src.setFail("10", errors.New("boom"))
+	m := keys(t, load(t, src, WithSize(60, 5)), "end")
+	m.SetErrorText(func(error) (string, string) { return "Something went wrong", "r to retry" })
+	if v := ansi.Strip(m.View()); !strings.Contains(v, "✗ Something went wrong · r to retry") {
+		t.Errorf("View() = %q, want the new error text", v)
+	}
+	// A failure not worth telling, such as a canceled fetch, leaves the
+	// rows to read again rather than seeming to load.
+	m.SetErrorText(func(error) (string, string) { return "", "" })
+	if v := ansi.Strip(m.View()); strings.Contains(v, "✗") || !strings.Contains(v, "r to retry") {
+		t.Errorf("View() = %q, want only the retry key", v)
 	}
 }
 
