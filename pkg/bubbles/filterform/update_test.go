@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 func TestUpdate(t *testing.T) {
@@ -330,6 +331,70 @@ func TestBlurCancelsLoad(t *testing.T) {
 	m, _ = run(t, m, cmd)
 	if m.fields[rowLabels].state != notLoaded || m.editing {
 		t.Errorf("state = %v, editing = %v; want the load dropped", m.fields[rowLabels].state, m.editing)
+	}
+}
+
+func TestErrorText(t *testing.T) {
+	offline := func(error) (string, string) { return "Can't reach GitHub", "↵ to retry" }
+	tests := []struct {
+		name       string
+		opts       []Option
+		text, hint string
+		closed     string
+	}{
+		{"default", nil, "✗ Couldn't load labels: github: 502 Bad Gateway", "↵ to retry · esc to go back", "✗ couldn't load"},
+		{"custom", []Option{WithErrorText(offline)}, "✗ Can't reach GitHub", "↵ to retry · esc to go back", "✗ couldn't load"},
+		{"custom without a hint", []Option{WithErrorText(func(error) (string, string) { return "No access to o/r", "" })}, "✗ No access to o/r", "esc to go back", "✗ couldn't load"},
+		{"empty", []Option{WithErrorText(func(error) (string, string) { return "", "" })}, "", "", ""},
+		{"text with a dot", []Option{WithErrorText(func(error) (string, string) { return "GitHub says a · b", "" })}, "✗ GitHub says a · b", "esc to go back", "✗ couldn't load"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := &fakeLoader{fail: errBoom}
+			m := open(t, prSpec(f.load), tt.opts...)
+			m, _ = press(t, m, down, down, down, enter)
+			lines := m.editorLines(m.width)
+			var got []string
+			for _, l := range lines {
+				got = append(got, strings.TrimSpace(ansi.Strip(l)))
+			}
+			var want []string
+			if tt.text != "" {
+				want = []string{tt.text, tt.hint}
+			}
+			if !slices.Equal(got, want) {
+				t.Errorf("editor = %q, want %q", got, want)
+			}
+			m, _ = press(t, m, esc)
+			var closed []string
+			for _, l := range m.loadSegment(rowLabels) {
+				closed = append(closed, ansi.Strip(l))
+			}
+			if strings.Join(closed, "") != tt.closed {
+				t.Errorf("closed row = %q, want %q", closed, tt.closed)
+			}
+		})
+	}
+}
+
+// The picker of a Person says a failed search in the words of the error
+// text, without its hint, since typing searches again.
+func TestPersonSearchErrorText(t *testing.T) {
+	spec := Spec{Fields: []Field{{
+		Key: "assignee", Label: "Assignee", Kind: Person, Qualifier: "assignee",
+		Load: func(_ context.Context, q string) ([]Item, error) {
+			if q == "" {
+				return []Item{{Label: "@me", Value: "@me"}}, nil
+			}
+			return nil, errBoom
+		},
+	}}}
+	m := open(t, spec, WithErrorText(func(error) (string, string) { return "Can't reach GitHub", "↵ to retry" }))
+	m, _ = press(t, m, enter)
+	m = typeText(t, m, "hu")
+	v := ansi.Strip(m.View())
+	if !strings.Contains(v, "✗ Can't reach GitHub") || strings.Contains(v, "to retry") || strings.Contains(v, "502") {
+		t.Errorf("View() = %q, want the error text without its hint", v)
 	}
 }
 

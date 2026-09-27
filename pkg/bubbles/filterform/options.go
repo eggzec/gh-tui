@@ -16,6 +16,7 @@ type settings struct {
 	width, height int
 	keys          KeyMap
 	styles        Styles
+	errorText     func(error) (text, hint string)
 }
 
 // DefaultEditorHeight is the height of a Multi or Person field's picker.
@@ -71,6 +72,19 @@ func WithTabBar(show bool) Option {
 func WithEditorHeight(h int) Option {
 	return func(s *settings) {
 		s.editorHeight = max(h, 3)
+	}
+}
+
+// WithErrorText sets how a field whose options failed to load reads in
+// its open editor, and a failed search of its picker. say returns the
+// words for err and a hint, such as "enter to retry", or "" for none; the
+// editor shows the hint on the line below, and the picker leaves it out,
+// since typing searches again. An empty text shows no error. By default
+// the editor says "Couldn't load" and the field, then the first line of
+// the error, and names the edit key, which retries.
+func WithErrorText(say func(error) (text, hint string)) Option {
+	return func(s *settings) {
+		s.errorText = say
 	}
 }
 
