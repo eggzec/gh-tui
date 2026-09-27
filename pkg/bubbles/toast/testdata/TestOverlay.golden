@@ -18,7 +18,7 @@
 17 [32m│[m row of the layout, with [1mstyled[m words 17 [32m│[m row of the layout, with [1mstyled[m wo[32m[m[1m[m
 18 [32m│[m row of the layout, with [1mstyled[m words 18 [32m│[m row of the layout, with [1mstyled[m wo[32m[m[1m[m
 19 [32m│[m row of the layout, with [1mstyled[m words 19 [32m│[m row of the layout, with [1mstyled[m wo[32m[m[1m[m
-20 [32m│[m row of the layout, with [1mstyled[m words 20 [32m│[m r[38;2;88;166;255;48;2;31;36;44m▌[39m [38;2;88;166;255;1m•[38;2;230;237;243;22m Refreshing                 [39m [m
-21 [32m│[m row of the layout, with [1mstyled[m words 21 [32m│[m r[38;2;63;185;80;48;2;31;36;44m▌[39m [38;2;63;185;80;1m✓[38;2;230;237;243;22m Merged #42                 [39m [m
-22 [32m│[m row of the layout, with [1mstyled[m words 22 [32m│[m r[38;2;248;81;73;48;2;31;36;44m▌[39m [38;2;248;81;73;1m✗[38;2;230;237;243;22m Could not label #7, rolled [39m [m
-23 [32m│[m row of the layout, with [1mstyled[m words 23 [32m│[m r[38;2;248;81;73;48;2;31;36;44m▌[39m [38;2;230;237;243m  back                       [39m [m
+20 [32m│[m row of the layout, with [1mstyled[m words 20 [32m│[m row of the layout, with [1mstyled[m wo[32m[m[1m[m
+21 [32m│[m row of the layout, with [1mstyled[m words 21[38;2;88;166;255;48;2;31;36;44m▌[39m [38;2;88;166;255;1m•[38;2;230;237;243;22m Refreshing                     [39m [m
+22 [32m│[m row of the layout, with [1mstyled[m words 22[38;2;63;185;80;48;2;31;36;44m▌[39m [38;2;63;185;80;1m✓[38;2;230;237;243;22m Merged #42                     [39m [m
+23 [32m│[m row of the layout, with [1mstyled[m words 23[38;2;248;81;73;48;2;31;36;44m▌[39m [38;2;248;81;73;1m✗[38;2;230;237;243;22m Could not label #7, rolled back[39m [m

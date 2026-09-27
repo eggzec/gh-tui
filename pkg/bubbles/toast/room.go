@@ -1,0 +1,101 @@
+package toast
+
+import (
+	"strings"
+
+	"github.com/charmbracelet/x/ansi"
+)
+
+// Room is how much of the area a toast may take.
+type Room struct {
+	// Share is the most of the width, in percent, that the toast may take.
+	Share int
+	// Lines is how many lines its text may wrap to before it is cut.
+	Lines int
+}
+
+// DefaultRoom returns the room of a level: 40% of the width and three
+// lines, and for errors 60% and five lines, since an error often says what
+// to do about it and that must show whole.
+func DefaultRoom(level Level) Room {
+	if level == Error {
+		return Room{Share: 60, Lines: 5}
+	}
+	return Room{Share: 40, Lines: 3}
+}
+
+// valid returns r with a share from 1 to 100 and at least one line.
+func (r Room) valid() Room {
+	return Room{Share: min(max(r.Share, 1), 100), Lines: max(r.Lines, 1)}
+}
+
+func defaultRooms() [Error + 1]Room {
+	var rooms [Error + 1]Room
+	for l := Info; l <= Error; l++ {
+		rooms[l] = DefaultRoom(l)
+	}
+	return rooms
+}
+
+// Room returns the room of a level.
+func (m Model) Room(level Level) Room {
+	if !level.valid() {
+		level = Info
+	}
+	return m.rooms[level]
+}
+
+// SetRoom sets the room of a level. A share is kept from 1 to 100, and
+// lines to at least one.
+func (m *Model) SetRoom(level Level, r Room) {
+	if !level.valid() {
+		return
+	}
+	m.rooms[level] = r.valid()
+	m.changed()
+}
+
+// Fits reports whether text shows whole in a toast of level at the
+// current size, even once it has repeated up to 99 times, so that the
+// parent can shorten what it says until it does.
+func (m Model) Fits(level Level, text string) bool {
+	if !level.valid() {
+		level = Info
+	}
+	d := m.derived
+	width := m.maxInner(level) - d.glyphWidth - 1 - countWidth(99)
+	if width < 1 {
+		return false
+	}
+	lines := m.Room(level).Lines
+	if m.height > 0 {
+		lines = min(lines, m.height)
+	}
+	_, cut := wrap(clean(text), width, lines)
+	return !cut
+}
+
+// maxInner is the widest the content of a toast of level may be: its
+// share of the width, but no narrower than minWidth and never wider than
+// the width, less the frame.
+func (m Model) maxInner(level Level) int {
+	block := minWidth
+	if m.width > 0 {
+		block = min(max(m.width*m.Room(level).Share/100, minWidth), m.width)
+	}
+	return block - m.derived.frameWidth
+}
+
+// wrap wraps text to width cells and at most lines lines, and reports
+// whether it had to cut the text, which then ends in an ellipsis. A word
+// longer than the width is broken.
+func wrap(text string, width, lines int) ([]string, bool) {
+	wrapped := strings.Split(ansi.Wrap(text, width, ""), "\n")
+	if len(wrapped) <= lines {
+		return wrapped, false
+	}
+	wrapped = wrapped[:lines]
+	last := strings.TrimRight(wrapped[lines-1], " ")
+	wrapped[lines-1] = ansi.Truncate(last+" "+ellipsis, width, ellipsis)
+	return wrapped, true
+}

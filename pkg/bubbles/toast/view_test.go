@@ -51,31 +51,62 @@ func TestView(t *testing.T) {
 	}
 }
 
+// An error takes more room than the other levels, so that what it says to
+// do shows whole.
+func TestViewErrorRoom(t *testing.T) {
+	text := "Couldn't load the members of the core team: the token lacks the read:org scope. " +
+		"Run gh auth refresh -s read:org, then restart gh-tui."
+	for _, width := range []int{60, 80, 120} {
+		for _, dark := range []bool{false, true} {
+			name := strconv.Itoa(width) + "/light"
+			if dark {
+				name = strconv.Itoa(width) + "/dark"
+			}
+			t.Run(name, func(t *testing.T) {
+				m := New(WithStyles(DefaultStyles(dark)), WithSize(width, 24))
+				m.Push(Error, text)
+				golden.RequireEqual(t, m.View())
+			})
+		}
+	}
+}
+
 func TestViewEmpty(t *testing.T) {
 	if v := New(WithSize(80, 24)).View(); v != "" {
 		t.Errorf("View() = %q, want empty", v)
 	}
 }
 
-// The stack is one block, never wider than its share of the width or the
-// width itself, with every line the same width.
+// The stack is one block, never wider than the widest room of its toasts or
+// the width itself, with every line the same width.
 func TestViewFitsTheWidth(t *testing.T) {
-	for _, width := range []int{10, 16, 24, 40, 60, 80, 120, 200} {
-		t.Run(strconv.Itoa(width), func(t *testing.T) {
-			m := New(WithSize(width, 0))
-			m.Push(Info, "short")
-			m.Push(Error, strings.Repeat("a very long message ", 10))
-			m.Push(Success, "done")
-			m.Push(Success, "done")
-			limit := min(max(width*2/5, minWidth), width)
-			lines := strings.Split(m.View(), "\n")
-			w0 := ansi.StringWidth(lines[0])
-			for i, l := range lines {
-				if w := ansi.StringWidth(l); w > limit || w != w0 {
-					t.Errorf("line %d is %d wide, want %d and at most %d", i, w, w0, limit)
+	stacks := []struct {
+		name   string
+		share  int
+		pushes []push
+	}{
+		{name: "info", share: 40, pushes: []push{{Info, strings.Repeat("a very long message ", 10)}, {Success, "done"}}},
+		{name: "error", share: 60, pushes: []push{
+			{Info, "short"}, {Error, strings.Repeat("a very long message ", 10)}, {Success, "done"}, {Success, "done"},
+		}},
+	}
+	for _, s := range stacks {
+		for _, width := range []int{10, 16, 24, 40, 60, 80, 120, 200} {
+			t.Run(s.name+"/"+strconv.Itoa(width), func(t *testing.T) {
+				m := New(WithSize(width, 0))
+				for _, p := range s.pushes {
+					m.Push(p.level, p.text)
 				}
-			}
-		})
+				limit := min(max(width*s.share/100, minWidth), width)
+				lines := strings.Split(m.View(), "\n")
+				w0 := ansi.StringWidth(lines[0])
+				for i, l := range lines {
+					if w := ansi.StringWidth(l); w > limit || w != w0 {
+						t.Errorf("line %d is %d wide, want %d and at most %d", i, w, w0, limit)
+					}
+				}
+			})
+		}
 	}
 }
 
