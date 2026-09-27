@@ -181,7 +181,7 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 		dashboard.WithIcons(icons),
 		dashboard.WithHost(webHost),
 	}
-	searchOpts := []searchpage.Option{searchpage.WithStart(searchStart(repoSvc, pinned)), searchpage.WithIcons(icons), searchpage.WithHost(webHost)}
+	searchOpts := []searchpage.Option{searchpage.WithStart(searchStart(repoSvc, pinned)), searchpage.WithIcons(icons), searchpage.WithHost(webHost), searchpage.WithVoice(voice)}
 	if p := cfg.Details.Prefetch; p.Enabled {
 		// A result is read once the cursor rests on it, as a row of a
 		// list is; the first results are a guess, and not read.
