@@ -124,8 +124,8 @@ func (c *Client) httpError(resp *http.Response) error {
 			e.err = core.ErrUnauthorized
 		case secondaryLimit(body.Message):
 			// GitHub's docs say to wait a minute when a secondary limit
-			// doesn't say how long.
-			e.err = &core.RateLimitError{Reset: c.budget.now().Add(secondaryBackoff)}
+			// doesn't say how long, or longer when it comes again.
+			e.err = &core.RateLimitError{Reset: c.budget.liftsAt(c.budget.now().Add(secondaryBackoff))}
 		}
 	}
 	return e

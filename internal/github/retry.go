@@ -37,10 +37,6 @@ const retryWithin = 5 * time.Second
 // query went wrong. A larger one has data, and passes through as it is.
 const maxPeek = 8 << 20
 
-// maxSecondaryWait is the longest Retry-After of a secondary rate limit
-// that a read sits out once, rather than failing at once.
-const maxSecondaryWait = 10 * time.Second
-
 // Why a request was sent again, as the stats count it.
 const (
 	retryDial        = "dial"
@@ -58,7 +54,8 @@ const (
 // of the connection, a 502, 503 or 504, or a GraphQL answer with no data
 // and only errors without a type, which is how GitHub says that something
 // went wrong on its side. A read that meets a secondary rate limit that
-// lifts within maxSecondaryWait waits for it once. A write is sent again
+// lifts within maxSecondaryWait is sent again once, which the gate below
+// holds until the limit lifts. A write is sent again
 // only when its connection couldn't be made, since then GitHub never saw
 // it; after that, GitHub may have done what it asked even if no answer
 // came. No request is sent again once retryWithin has passed since it was
@@ -99,7 +96,6 @@ func (t *retryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 			return resp, err
 		}
 		var why string
-		var wait time.Duration
 		if err == nil && query && resp.StatusCode == http.StatusOK && resp.Body != nil {
 			resp, why, err = peekGraphQL(resp)
 		}
@@ -108,7 +104,7 @@ func (t *retryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		case err != nil:
 			why = transportRetry(ctx, err, read)
 		case read:
-			why, wait = statusRetry(resp, &limited)
+			why = statusRetry(resp, &limited)
 		}
 		if why == "" || time.Since(start) > retryWithin {
 			return resp, err
@@ -116,6 +112,7 @@ func (t *retryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		if resp != nil {
 			discard(resp)
 		}
+		var wait time.Duration
 		if why != retryLimit {
 			wait = t.backoff(n)
 		}
@@ -197,48 +194,40 @@ func dialFailed(err error) bool {
 	return false
 }
 
-// statusRetry returns why a read that got resp may be sent again, and how
-// long to wait first if the response says so, or "" if it may not. limited
-// says whether the read already waited for a secondary rate limit, which
-// it does only once.
-func statusRetry(resp *http.Response, limited *bool) (why string, wait time.Duration) {
+// statusRetry returns why a read that got resp may be sent again, or "" if
+// it may not. limited says whether the read met a secondary rate limit
+// already, which it sits out only once.
+func statusRetry(resp *http.Response, limited *bool) string {
 	switch resp.StatusCode {
 	case http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
-		return retryUnavailable, 0
+		return retryUnavailable
 	case http.StatusForbidden, http.StatusTooManyRequests:
-		if *limited {
-			return "", 0
-		}
-		wait, ok := secondaryWait(resp.Header)
-		if !ok {
-			return "", 0
+		if *limited || !shortSecondary(resp.Header) {
+			return ""
 		}
 		*limited = true
-		return retryLimit, wait
+		return retryLimit
 	}
-	return "", 0
+	return ""
 }
 
-// secondaryWait returns how long a secondary rate limit asks to wait, from
-// Retry-After, if it is short enough to sit out. A response whose quota is
-// spent is a primary limit, which lasts until its reset.
-func secondaryWait(h http.Header) (time.Duration, bool) {
+// shortSecondary reports whether a secondary rate limit says, in
+// Retry-After, that it lifts within maxSecondaryWait. A response whose
+// quota is spent is a primary limit, which lasts until its reset.
+func shortSecondary(h http.Header) bool {
 	if h.Get("X-RateLimit-Remaining") == "0" {
-		return 0, false
+		return false
 	}
 	s := h.Get("Retry-After")
-	if s == "" {
-		return 0, false
-	}
 	var wait time.Duration
 	if secs, err := strconv.Atoi(s); err == nil {
 		wait = time.Duration(secs) * time.Second
 	} else if at, err := http.ParseTime(s); err == nil {
 		wait = time.Until(at)
 	} else {
-		return 0, false
+		return false
 	}
-	return max(wait, 0), wait <= maxSecondaryWait
+	return wait > 0 && wait <= maxSecondaryWait
 }
 
 // peekGraphQL reads the body of resp, the 200 of a GraphQL query, and

@@ -218,7 +218,7 @@ func (b *budget) forget(r *reservation, failed bool) {
 	if failed {
 		b.failed = now
 	}
-	b.settle(r)
+	b.settle(r, false)
 }
 
 // log has f log a record once b.mu is released, so that no handler of
@@ -254,7 +254,7 @@ func (b *budget) observe(r *reservation, h http.Header) (guard time.Duration) {
 	defer b.changed()
 	b.mu.Lock()
 	defer b.unlock()
-	defer b.settle(r)
+	defer b.settle(r, true)
 	delete(b.pending, r.seq)
 	// Only GitHub's answers count, not a page of a captive portal or a
 	// proxy on the way, whose clock may be another.

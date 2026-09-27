@@ -697,6 +697,13 @@ func TestBudgetGraphQLRefusedWithQuotaLeft(t *testing.T) {
 				if st, _ := c.budget.status(resourceGraphQL); !st.release.Equal(release) {
 					t.Errorf("release = %v, want %v", st.release, release)
 				}
+				secondary := want
+				if tt.primary {
+					secondary = time.Time{}
+				}
+				if got := c.budget.secondaryUntil(); !got.Equal(secondary) {
+					t.Errorf("secondary limit until %v, want %v", got, secondary)
+				}
 			})
 		})
 	}

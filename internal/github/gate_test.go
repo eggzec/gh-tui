@@ -35,6 +35,9 @@ type hub struct {
 	mu     sync.Mutex
 	quotas map[string]*hubQuota
 	log    []hubRequest
+	// secondaries are the Retry-After of the secondary limits that the
+	// next requests meet, "" for one that only its message tells.
+	secondaries []string
 	// fail is how many of the next requests, but for the probes, get no
 	// answer.
 	fail int
@@ -158,9 +161,16 @@ func (h *hub) answer(path string, now time.Time) (status int, header http.Header
 	}
 	q := h.quota(resource, now)
 	status, body = http.StatusOK, `{}`
-	if q.remaining == 0 {
+	switch {
+	case len(h.secondaries) > 0:
+		status, body = http.StatusForbidden, `{"message": "You have exceeded a secondary rate limit."}`
+		if h.secondaries[0] != "" {
+			header.Set("Retry-After", h.secondaries[0])
+		}
+		h.secondaries = h.secondaries[1:]
+	case q.remaining == 0:
 		status, body = http.StatusForbidden, `{"message": "API rate limit exceeded"}`
-	} else {
+	default:
 		q.remaining--
 	}
 	for k, v := range quotaHeader(resource, h.limit, q.remaining, q.reset) {
@@ -650,6 +660,156 @@ func TestGateWaitsForAnswers(t *testing.T) {
 	})
 }
 
+// secondary has h refuse the next requests with secondary limits, whose
+// Retry-After each of retryAfter is.
+func (h *hub) secondary(retryAfter ...string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.secondaries = append(h.secondaries, retryAfter...)
+}
+
+// TestGateSecondary pins secondary limits (design 5, test 10): one holds
+// every resource; what the user waits for waits up to 10s for it and
+// fails at once otherwise; once it lifts, the first request held goes
+// alone, and the rest a stagger after its answer.
+func TestGateSecondary(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		h := &hub{limit: 5000, window: time.Hour}
+		c := newHubClient(t, h, 0)
+		h.secondary("30")
+		start := time.Now()
+		_, err := c.Get(t.Context(), "user", Conditional{}, nil)
+		lifts := start.Add(30 * time.Second)
+		if got := limitedUntil(t, err); !got.Equal(lifts) {
+			t.Errorf("Reset = %v, want %v", got, lifts)
+		}
+		if got := c.budget.secondaryUntil(); !got.Equal(lifts) {
+			t.Errorf("secondaryUntil = %v, want %v", got, lifts)
+		}
+
+		// The foreground doesn't wait 30s.
+		_, err = c.Get(t.Context(), "repos/o/r", Conditional{}, nil)
+		if got := limitedUntil(t, err); !got.Equal(lifts) {
+			t.Errorf("Reset of a foreground read = %v, want %v", got, lifts)
+		}
+		// Every resource is held, not only the one refused.
+		background := obs.ForBackground(t.Context())
+		search := goAsync(func() error {
+			_, err := c.Get(background, "search/issues?q=x", Conditional{}, nil)
+			return err
+		})
+		graphql := goAsync(func() error { return c.Query(background, "query Q { x }", nil, nil) })
+		time.Sleep(21 * time.Second)
+		// It waits 9s.
+		read := goAsync(func() error {
+			_, err := c.Get(t.Context(), "repos/o/r/pulls", Conditional{}, nil)
+			return err
+		})
+		for _, done := range []<-chan error{read, search, graphql} {
+			if err := <-done; err != nil {
+				t.Errorf("held request = %v", err)
+			}
+		}
+
+		sent, _ := h.requests()
+		want := []hubRequest{
+			{"user", start},
+			{"repos/o/r/pulls", lifts.Add(minStagger)},
+			{"search/issues", lifts.Add(2 * minStagger)},
+			{"graphql", lifts.Add(3 * minStagger)},
+		}
+		if len(sent) != len(want) {
+			t.Fatalf("sent %v, want %v", sent, want)
+		}
+		for i, r := range sent {
+			if r.path != want[i].path || !r.at.Equal(want[i].at) {
+				t.Errorf("request %d = %v, want %v", i, r, want[i])
+			}
+		}
+	})
+}
+
+// TestGateSecondaryBackoff pins how long a secondary limit that doesn't
+// say lasts (design 4.1): a minute, doubling each time one comes again,
+// up to 15 minutes, until a request succeeds.
+func TestGateSecondaryBackoff(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		h := &hub{limit: 5000, window: time.Hour}
+		c := newHubClient(t, h, 0)
+		refused := func(wait time.Duration) {
+			t.Helper()
+			h.secondary("")
+			start := time.Now()
+			_, err := c.Get(t.Context(), "user", Conditional{}, nil)
+			got := limitedUntil(t, err)
+			if want := start.Add(wait); !got.Equal(want) {
+				t.Errorf("Reset = %v, want %v later", got, wait)
+			}
+			time.Sleep(time.Until(got))
+		}
+		for _, wait := range []time.Duration{1, 2, 4, 8, 15, 15} {
+			refused(wait * time.Minute)
+		}
+		if _, err := c.Get(t.Context(), "user", Conditional{}, nil); err != nil {
+			t.Fatal(err)
+		}
+		refused(time.Minute)
+	})
+}
+
+// TestGateRetriesSecondaryOnce pins how retry and the gate share a short
+// secondary limit (design 5, test 14): a read the user waits for is sent
+// again once, which the gate holds until the limit lifts, so it waits
+// once, 3s and a stagger, not twice.
+func TestGateRetriesSecondaryOnce(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		stats := gateStats(t)
+		h := &hub{limit: 5000, window: time.Hour}
+		c := newHubClient(t, h, 0)
+		h.secondary("3")
+		if _, err := c.Get(t.Context(), "repos/o/r", Conditional{}, nil); err != nil {
+			t.Fatal(err)
+		}
+		sent, _ := h.requests()
+		if len(sent) != 2 || sent[1].at.Sub(sent[0].at) != 3*time.Second+minStagger {
+			t.Errorf("sent %v, want twice, 3s and a stagger apart", sent)
+		}
+		if got := stats.Summary().Retries[retryLimit]; got != 1 {
+			t.Errorf("sent again %d times for the secondary limit, want 1", got)
+		}
+	})
+}
+
+// TestGateGraphQLSecondaryBackoff pins that a query refused as
+// RATE_LIMITED in a 200 isn't a success (coordinator's Q3): a secondary
+// limit of GraphQL that doesn't say lasts a minute, then two, as REST's,
+// until a query succeeds.
+func TestGateGraphQLSecondaryBackoff(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		a := answers{"graphql": make(chan answer, 1)}
+		c := newAnswered(t, a)
+		limited := answer{body: `{"data": null, "errors": [{"type": "RATE_LIMITED", "message": "You have exceeded a secondary rate limit."}]}`}
+		for _, wait := range []time.Duration{1, 2, 4} {
+			a["graphql"] <- limited
+			start := time.Now()
+			got := limitedUntil(t, c.Query(t.Context(), "query Q { x }", nil, nil))
+			if want := start.Add(wait * time.Minute); !got.Equal(want) {
+				t.Errorf("Reset = %v, want %dm later", got, int64(wait))
+			}
+			time.Sleep(time.Until(got))
+		}
+		a["graphql"] <- answer{body: `{"data": {"x": 1}}`}
+		if err := c.Query(t.Context(), "query Q { x }", nil, nil); err != nil {
+			t.Fatal(err)
+		}
+		a["graphql"] <- limited
+		start := time.Now()
+		if got := limitedUntil(t, c.Query(t.Context(), "query Q { x }", nil, nil)); !got.Equal(start.Add(time.Minute)) {
+			t.Errorf("Reset after a success = %v, want a minute later", got)
+		}
+	})
+}
+
 // TestGateForegroundAheadOfBackground pins that what the user waits for
 // never waits behind the background: a read let go while 400 requests of
 // the background are being staggered goes a stagger after it is let go,
@@ -836,5 +996,36 @@ func TestGateClose(t *testing.T) {
 		}
 		cancel()
 		<-done
+	})
+}
+
+// TestGateLiftingHolds pins what comes while the scout of a secondary
+// limit that lifted is out: it is held until the scout is answered, and
+// then goes a stagger later.
+func TestGateLiftingHolds(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		h := &hub{limit: 5000, window: time.Hour, delays: map[string]time.Duration{"repos/o/r/scout": time.Second}}
+		c := newHubClient(t, h, 0)
+		background := obs.ForBackground(t.Context())
+		h.secondary("3")
+		start := time.Now()
+		if _, err := c.Get(background, "user", Conditional{}, nil); !errors.Is(err, core.ErrRateLimited) {
+			t.Fatalf("Get = %v, want the secondary limit", err)
+		}
+		scout := goAsync(func() error {
+			_, err := c.Get(background, "repos/o/r/scout", Conditional{}, nil)
+			return err
+		})
+		lifts := start.Add(3 * time.Second)
+		time.Sleep(time.Until(lifts.Add(100 * time.Millisecond)))
+		if _, err := c.Get(t.Context(), "repos/o/r", Conditional{}, nil); err != nil {
+			t.Fatal(err)
+		}
+		if want := lifts.Add(minStagger + time.Second + minStagger); !time.Now().Equal(want) {
+			t.Errorf("the read was sent at %v, want once the scout was answered, %v", time.Now(), want)
+		}
+		if err := <-scout; err != nil {
+			t.Error(err)
+		}
 	})
 }

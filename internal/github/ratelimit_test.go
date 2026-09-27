@@ -112,15 +112,16 @@ func TestRateLimitErrors(t *testing.T) {
 			wantReset: now.Add(30 * time.Second),
 		},
 		{
+			// Longer than a read sits out, so that it isn't sent again.
 			name:   "too many requests with retry after",
 			status: http.StatusTooManyRequests,
 			header: http.Header{
-				"Retry-After":           {"5"},
+				"Retry-After":           {"15"},
 				"X-Ratelimit-Limit":     {"5000"},
 				"X-Ratelimit-Remaining": {"10"},
 				"X-Ratelimit-Reset":     {"1790000000"},
 			},
-			wantReset: now.Add(5 * time.Second),
+			wantReset: now.Add(15 * time.Second),
 		},
 		{
 			name:      "too many requests without headers",

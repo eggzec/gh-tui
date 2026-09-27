@@ -30,8 +30,9 @@ func (b *budget) snapshot() core.RateStatus {
 		Answered: b.answered,
 		Failed:   b.failed,
 		At:       now,
-		// SecondaryUntil stays zero while no secondary limit holds
-		// requests back.
+	}
+	if now.Before(b.gate.secondary) {
+		s.SecondaryUntil = b.gate.secondary
 	}
 	for resource, q := range b.quotas {
 		cq := core.Quota{
@@ -81,8 +82,8 @@ const notifyEvery = time.Second
 // WithRateNotify sets the function called when the rate limits change
 // enough to show: a resource is spent or released, the count of requests
 // held for a release changes, what is left crosses a step of 1% of the
-// limit, a window starts or its reset passes, or GitHub is answering
-// again or no longer. It
+// limit, a window starts or its reset passes, a secondary limit starts or
+// lifts, or GitHub is answering again or no longer. It
 // is called at most once a second, and a change within that second is
 // told once it passes, so the last one is never missed. It is never
 // called while the client holds a lock, so it may call RateStatus, and it
@@ -125,6 +126,9 @@ type rateView struct {
 	quotas []quotaView
 	// offline is whether the last request that ended got no answer.
 	offline bool
+	// secondary is when a secondary limit that holds every request
+	// lifts, or zero if none does.
+	secondary time.Time
 }
 
 type quotaView struct {
@@ -199,11 +203,16 @@ func (n *rateNotifier) stop() {
 
 // view returns what a status bar shows of the rate limits at now, and
 // the next time after now that it changes with no answer, when a window
-// refills or a spent resource is released, or zero if none is.
+// refills, a spent resource is released or a secondary limit lifts, or
+// zero if none is.
 func (b *budget) view(now time.Time) (v rateView, next time.Time) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	v.offline = b.failed.After(b.answered)
+	if now.Before(b.gate.secondary) {
+		v.secondary = b.gate.secondary
+		next = v.secondary
+	}
 	v.quotas = make([]quotaView, 0, len(b.quotas))
 	soonest := func(t time.Time) {
 		if t.After(now) && (next.IsZero() || t.Before(next)) {
@@ -231,7 +240,7 @@ func (b *budget) view(now time.Time) (v rateView, next time.Time) {
 }
 
 func (v rateView) equal(w rateView) bool {
-	return v.offline == w.offline && slices.EqualFunc(v.quotas, w.quotas, func(x, y quotaView) bool {
+	return v.offline == w.offline && v.secondary.Equal(w.secondary) && slices.EqualFunc(v.quotas, w.quotas, func(x, y quotaView) bool {
 		return x.resource == y.resource && x.window.Equal(y.window) && x.limited == y.limited && x.held == y.held && x.step == y.step
 	})
 }

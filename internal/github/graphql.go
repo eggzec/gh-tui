@@ -9,6 +9,7 @@ import (
 	"hash/fnv"
 	"log/slog"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -126,6 +127,9 @@ func (c *Client) query(ctx context.Context, query string, vars map[string]any, v
 			return fmt.Errorf("decode data: %w", err)
 		}
 	}
+	if !slices.ContainsFunc(body.Errors, func(e GraphQLErrorItem) bool { return e.Type == "RATE_LIMITED" }) {
+		c.budget.succeeded()
+	}
 	if len(body.Errors) > 0 {
 		partial := len(body.Data) > 0 && !bytes.Equal(body.Data, []byte("null"))
 		return c.graphqlError(ctx, resp.Header, cl.shape, body.Errors, partial)
@@ -242,7 +246,7 @@ func (c *Client) graphqlError(ctx context.Context, h http.Header, shape string, 
 		case "UNPROCESSABLE":
 			e.causes = append(e.causes, core.ErrConflict)
 		case "RATE_LIMITED":
-			e.causes = append(e.causes, &core.RateLimitError{Reset: c.graphqlReset(h, shape, item.Message)})
+			e.causes = append(e.causes, &core.RateLimitError{Reset: c.graphqlReset(ctx, h, shape, item.Message)})
 		}
 	}
 	if len(below) > 0 {
@@ -267,17 +271,16 @@ func graphqlPath(path []any) string {
 // msg is GitHub's for a spent quota, or, unless msg is GitHub's for a
 // secondary limit, when the query costs more than is left, and then the
 // query may be sent at the release of the quota. Otherwise the limit is a
-// secondary one, which lasts as Retry-After says, or a minute.
-func (c *Client) graphqlReset(h http.Header, shape, msg string) time.Time {
+// secondary one, which lasts as Retry-After says, or a minute, and holds
+// every request until then.
+func (c *Client) graphqlReset(ctx context.Context, h http.Header, shape, msg string) time.Time {
 	rl, ok := parseRateLimit(h)
 	if ok && (rl.Remaining == 0 || quotaSpent(msg) ||
 		!secondaryMessage(msg) && c.budget.costsMore(shape, rl.Remaining)) {
 		return c.limitedUntil(resourceGraphQL, rl)
 	}
-	if at, ok := c.retryAfter(h); ok {
-		return at
-	}
-	return c.budget.now().Add(secondaryBackoff)
+	at, said := c.budget.retryAfter(h)
+	return c.budget.limitSecondary(ctx, at, said)
 }
 
 // quotaSpent reports whether msg is GitHub's for a spent quota, such as

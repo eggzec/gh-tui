@@ -70,10 +70,11 @@ func parseRateLimit(h http.Header) (RateLimit, bool) {
 }
 
 // rateLimitReset reports whether resp was refused by a primary or secondary
-// rate limit, and when to try again.
+// rate limit, and when to try again. A secondary limit lifts no sooner
+// than the gate, which recorded it, lets requests go again.
 func (c *Client) rateLimitReset(resp *http.Response) (time.Time, bool) {
-	if at, ok := c.retryAfter(resp.Header); ok {
-		return at, true
+	if at, ok := c.budget.retryAfter(resp.Header); ok {
+		return c.budget.liftsAt(at), true
 	}
 	if rl, ok := parseRateLimit(resp.Header); ok && rl.Remaining == 0 {
 		var resource string
@@ -83,7 +84,7 @@ func (c *Client) rateLimitReset(resp *http.Response) (time.Time, bool) {
 		return c.limitedUntil(resource, rl), true
 	}
 	if resp.StatusCode == http.StatusTooManyRequests {
-		return c.budget.now().Add(secondaryBackoff), true
+		return c.budget.liftsAt(c.budget.now().Add(secondaryBackoff)), true
 	}
 	return time.Time{}, false
 }
@@ -92,14 +93,14 @@ func (c *Client) rateLimitReset(resp *http.Response) (time.Time, bool) {
 // seconds or as a date of GitHub's clock, if it says. A wait that isn't
 // positive says nothing, since a limit that lifted already doesn't refuse
 // a request; the limit then lasts as if there were no Retry-After.
-func (c *Client) retryAfter(h http.Header) (time.Time, bool) {
+func (b *budget) retryAfter(h http.Header) (time.Time, bool) {
 	s := h.Get("Retry-After")
-	now := c.budget.now()
+	now := b.now()
 	if secs, err := strconv.Atoi(s); err == nil {
 		return now.Add(time.Duration(secs) * time.Second), secs > 0
 	}
 	if t, err := http.ParseTime(s); err == nil {
-		at := c.budget.localTime(t)
+		at := b.localTime(t)
 		return at, at.After(now)
 	}
 	return time.Time{}, false
