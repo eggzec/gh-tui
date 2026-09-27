@@ -106,6 +106,11 @@ Each bubble is a self-contained Elm component: model, `Init`, `Update`, and `Vie
   `DefaultKeyMap()`, `Styles` and `DefaultStyles(isDark bool)`,
   `SetKeyMap`, `SetStyles` and `SetSize(width, height)`. Implement
   `help.KeyMap` (`ShortHelp`/`FullHelp`).
+- **Full help lists every binding.** `KeyMap.FullHelp()` returns every
+  binding exactly once. State shows through `Enabled()`, never by leaving a
+  binding out, and `Model.FullHelp()` returns the same set with the model's
+  state applied, so the help can tell a disabled key from a missing one.
+  Check each key map with `keytest.Complete` and `keytest.NoConflicts`.
 - **Components render strings.** A bubble's `View()` returns a string that
   fits its size exactly; only the root returns a `tea.View`.
 - **Interactive bubbles start blurred**, and the parent focuses the one in
