@@ -20,6 +20,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // Commit is one row of the graph.
@@ -39,6 +41,11 @@ type Commit struct {
 	// Right is shown dimmed at the right edge of the row, such as the age.
 	// It is dropped first when the row is narrow.
 	Right string
+	// Link is an address that Short and Title link to, such as the
+	// commit's page on the web, which a terminal that knows links (OSC 8)
+	// opens on a click. It is optional, and only a plain https address
+	// links.
+	Link string
 	// Value carries whatever the producer wants back with the commit.
 	Value any
 }
@@ -319,6 +326,11 @@ func (m Model) render(r *row) {
 	}
 	part(c.Short, m.styles.Short)
 	part(c.Title, m.styles.Title)
+	if c.Link != "" {
+		linked := termtext.Link(c.Link, b.String())
+		b.Reset()
+		b.WriteString(linked)
+	}
 	part(c.Detail, m.styles.Detail)
 	r.text, r.textW = b.String(), w
 	r.right, r.rightW = "", 0

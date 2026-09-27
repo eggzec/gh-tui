@@ -34,9 +34,9 @@ func lay(maxLanes int, commits ...Commit) []string {
 	l := newLayout(maxLanes)
 	seen := map[string]bool{}
 	rows := make([]string, 0, len(commits))
-	for _, c := range commits {
-		seen[c.ID] = true
-		rows = append(rows, plain(l.add(c, func(id string) bool { return seen[id] }, nil)))
+	for i := range commits {
+		seen[commits[i].ID] = true
+		rows = append(rows, plain(l.add(commits[i], func(id string) bool { return seen[id] }, nil)))
 	}
 	return rows
 }
