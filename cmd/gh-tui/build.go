@@ -216,9 +216,9 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 		tui.WithHost(webHost),
 		tui.WithVoice(voice),
 		tui.WithHistory(history.Opener(historySvc, cfg.Keys,
-			history.WithConfig(cfg.History), history.WithOffline(offline), history.WithHost(webHost))),
+			history.WithConfig(cfg.History), history.WithOffline(offline), history.WithHost(webHost), history.WithVoice(voice))),
 		tui.WithCommit(history.CommitOpener(historySvc, cfg.Keys,
-			history.WithConfig(cfg.History), history.WithOffline(offline), history.WithHost(webHost))),
+			history.WithConfig(cfg.History), history.WithOffline(offline), history.WithHost(webHost), history.WithVoice(voice))),
 		tui.WithRelease(releases.Opener(releaseSvc, cfg.Keys)),
 		tui.WithRateStatus(client),
 	}

@@ -1,6 +1,8 @@
 package history
 
 import (
+	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -493,6 +495,30 @@ func TestErrorsAndRetry(t *testing.T) {
 	h.keys("tab", "r")
 	if len(m.branches.items) != 3 {
 		t.Error("r didn't read the branches again")
+	}
+}
+
+// The graph says what went wrong the way the user should read it,
+// without the error's chain, request or status code.
+func TestGraphErrorWords(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want string
+	}{
+		{"offline", fmt.Errorf("list commits: github: GET /repos/o/r/commits: %w", core.ErrOffline), "✗ Can't reach GitHub · r to retry"},
+		{"forbidden", fmt.Errorf("list commits: github: 403 Forbidden: %w", core.ErrForbidden), "✗ You don't have access to charmbracelet/bubbl… · o to open on GitHub"},
+		{"internal", errors.New("list commits: github: decode: unexpected EOF"), "✗ Something went wrong · r to retry"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newFake()
+			f.errs["commits main"] = tt.err
+			m, _ := newModal(t, f, 160, 30)
+			if s := paneText(m, graphPane); !strings.Contains(s, tt.want) || strings.Contains(s, "github:") || strings.Contains(s, "403") {
+				t.Errorf("graph pane = %q, want %q", s, tt.want)
+			}
+		})
 	}
 }
 

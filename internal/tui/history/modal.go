@@ -123,6 +123,10 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, defaultBranch stri
 	for _, opt := range opts {
 		opt(&o)
 	}
+	if o.voice == nil {
+		v := ui.NewVoice(keys, "")
+		o.voice = &v
+	}
 	ctx, cancel := context.WithCancel(ctx)
 	m := &Modal{
 		id:            lastID.Add(1),
