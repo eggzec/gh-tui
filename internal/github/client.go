@@ -114,7 +114,7 @@ func New(opts ...Option) (*Client, error) {
 	// logged as its duration. Each attempt is counted against its rate
 	// limit before it waits for a slot.
 	hc := *o.http
-	b := newBudget(base.EscapedPath(), gql.Path)
+	b := newBudget(base.Host, base.EscapedPath(), gql.Path)
 	if o.notify != nil {
 		b.notifier = newRateNotifier(b, o.notify)
 	}
