@@ -17,7 +17,8 @@ var ErrNotModified = errors.New("not modified")
 
 // FetchFunc loads the value for a key. When ok is true, prev is the cached
 // entry, possibly stale, whose ETag and LastModified can make the request
-// conditional. Return ErrNotModified to keep prev.
+// conditional. Return ErrNotModified to keep prev, as confirmed, without
+// its Fallback.
 type FetchFunc[V any] func(ctx context.Context, prev Entry[V], ok bool) (Entry[V], error)
 
 // flight is one in-progress call of a FetchFunc, shared by every Fetch that
@@ -137,7 +138,7 @@ func (c *Cache[V]) finish(key string, f *flight[V], e Entry[V], err error) {
 			return
 		}
 		e, err = f.prev, nil
-		e.FetchedAt = time.Now()
+		e.FetchedAt, e.Fallback = time.Now(), nil
 	}
 	if err != nil {
 		f.err = err

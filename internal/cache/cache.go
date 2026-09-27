@@ -23,6 +23,12 @@ type Entry[V any] struct {
 	Source    string
 	FetchedAt time.Time
 	Tags      []string
+	// Fallback is the error that a FetchFunc served the entry in place of,
+	// such as an outage it served the previous entry for, or nil for an
+	// entry the server sent or confirmed. A FetchFunc that reports
+	// ErrNotModified confirms the entry, which clears it. A Shelf doesn't
+	// keep it.
+	Fallback error
 }
 
 // State describes the result of a lookup.
