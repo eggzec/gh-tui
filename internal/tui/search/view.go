@@ -347,8 +347,9 @@ func (s *Section) renderHit(hit core.SearchHit, selected bool, width int) string
 	room := max(width-2-commentsWidth-1, 0)
 	// The title matters more than where it is.
 	ref = truncate(ref, min(ansi.StringWidth(ref), max(room/3, 12)))
-	head := s.stateGlyph(hit) + " " + st.muted.render(ref) + " " +
-		title.render(truncate(cleanLine(is.Title), max(room-ansi.StringWidth(ref)-1, 0)))
+	// Where it is and its title link to its page.
+	head := s.stateGlyph(hit) + " " + s.links.Link(is.URL, st.muted.render(ref)+" "+
+		title.render(truncate(cleanLine(is.Title), max(room-ansi.StringWidth(ref)-1, 0))))
 	first := spread(head, right, width)
 
 	parts := make([]string, 0, 4)
@@ -481,7 +482,7 @@ func (s *Section) renderRepo(r core.Repo, selected bool, width int) string {
 		name = st.name
 	}
 	var head strings.Builder
-	head.WriteString(name.render(truncate(r.Ref.String(), max(room, 0))))
+	head.WriteString(s.links.Link(s.repoURL(r), name.render(truncate(r.Ref.String(), max(room, 0)))))
 	for _, f := range flags {
 		head.WriteByte(' ')
 		st.muted.write(&head, f)
@@ -515,7 +516,10 @@ func (s *Section) renderCode(hit core.CodeHit, selected bool, width int) string 
 		path = st.name
 	}
 	lines := make([]string, 0, codeHeight)
-	lines = append(lines, fit(ansi.Truncate(st.muted.render(hit.Repo.String())+st.subtle.render(" · ")+path.render(hit.Path), width, "…"), width))
+	// The repository and the file link to their pages.
+	repo := s.links.Link(s.repoURL(core.Repo{Ref: hit.Repo}), st.muted.render(hit.Repo.String()))
+	file := s.links.Link(hit.URL, path.render(hit.Path))
+	lines = append(lines, fit(ansi.Truncate(repo+st.subtle.render(" · ")+file, width, "…"), width))
 	var frag core.Fragment
 	if len(hit.Fragments) > 0 {
 		frag = hit.Fragments[0]
