@@ -70,6 +70,9 @@ type entry struct {
 	expanded bool
 	loading  bool
 	err      error
+	// errText and errHint are err rendered as the row says it, worded
+	// once as it is set and again when the styles or the words change.
+	errText, errHint string
 	// seq identifies the load in flight, so older results are dropped.
 	seq    int
 	cancel context.CancelFunc
@@ -268,6 +271,7 @@ func (m Model) Focused() bool {
 func (m *Model) SetKeyMap(k KeyMap) {
 	m.keyMap = k
 	m.refreshHint()
+	m.rewordErrors()
 }
 
 // KeyMap returns the key bindings.
@@ -295,6 +299,7 @@ func (m *Model) SetStyles(s Styles) {
 	}
 	m.growGuides(maxDepth)
 	m.refreshHint()
+	m.rewordErrors()
 }
 
 // Styles returns the styles.
@@ -306,6 +311,12 @@ func (m Model) Styles() Styles {
 func (m *Model) SetEmptyText(text string) {
 	m.emptyText = text
 	m.emptyLine = m.styles.Empty.Render(text)
+}
+
+// SetErrorText sets how a failed load reads, as [WithErrorText] does.
+func (m *Model) SetErrorText(say func(error) (text, hint string)) {
+	m.errorText = say
+	m.rewordErrors()
 }
 
 // SetExpandAllLimits changes the caps of an expand-all, for example once
@@ -377,6 +388,24 @@ func (m *Model) growGuides(depth int) {
 	}
 }
 
+// setErr records err, or nil, as the failure of e's load, and words it.
+func (m *Model) setErr(e *entry, err error) {
+	e.err, e.errText, e.errHint = err, "", ""
+	if err != nil {
+		e.errText, e.errHint = m.errorWords(err, e.depth < 0)
+	}
+}
+
+// rewordErrors words the failed loads again, after the styles, the keys
+// or the error text changed.
+func (m *Model) rewordErrors() {
+	for _, e := range m.nodes {
+		if e.err != nil {
+			m.setErr(e, e.err)
+		}
+	}
+}
+
 func (m *Model) refreshHint() {
 	m.errHint = ""
 	if h := m.keyMap.Expand.Help(); h.Key != "" {
@@ -400,7 +429,8 @@ func (m *Model) startLoad(e *entry) tea.Cmd {
 	}
 	ctx, cancel := context.WithCancel(m.ctx)
 	m.seq++
-	e.seq, e.cancel, e.err = m.seq, cancel, nil
+	e.seq, e.cancel = m.seq, cancel
+	m.setErr(e, nil)
 	if !e.loading {
 		e.loading = true
 		m.loads++
@@ -436,7 +466,8 @@ func (m *Model) forget(e *entry) {
 			m.drop(c)
 		}
 	}
-	e.kids, e.loaded, e.err = nil, false, nil
+	e.kids, e.loaded = nil, false
+	m.setErr(e, nil)
 }
 
 // drop removes e and everything below it.
