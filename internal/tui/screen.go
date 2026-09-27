@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // screen is what fills the space between the header and the help line.
@@ -213,6 +214,10 @@ func (m *Model) drawHeader() {
 		name = "No repository · press / to search"
 	}
 	left := m.st.repo.Render(name)
+	if name == m.repo.String() {
+		// The repository links to its page.
+		left = termtext.Link(ui.WebURL(m.host, m.repo.String()), left)
+	}
 	switch {
 	case m.screen != repoScreen:
 	case m.base.Ref != "":
