@@ -77,6 +77,13 @@ func WithOffline(off *ui.Offline) Option {
 	}
 }
 
+// WithVoice sets how the section words what went wrong, with the keys a
+// hint names and the log it points to. By default the hints name the
+// configured keys and no log.
+func WithVoice(v ui.Voice) Option {
+	return func(s *Section) { s.voice = v }
+}
+
 // Marker marks a thread read, as the notifications service does, for the
 // notifications pane to mark a thread it opens.
 type Marker interface {
@@ -173,6 +180,7 @@ type Section struct {
 	keys     KeyMap
 	now      func() time.Time
 	offline  *ui.Offline
+	voice    ui.Voice
 	glyph    string
 	icons    ui.Icons
 	// host is the web host of the user's GitHub, for the links it opens.
@@ -247,6 +255,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		keys:    newKeyMap(keys),
 		now:     time.Now,
 		offline: new(ui.Offline),
+		voice:   ui.NewVoice(keys, ""),
 		glyph:   config.DefaultCalendarGlyph,
 		icons:   ui.NewIcons(config.IconsNerd),
 		calDays: 90,
