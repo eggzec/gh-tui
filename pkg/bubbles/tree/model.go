@@ -51,7 +51,11 @@ type entry struct {
 	// label is the name rendered in its style, and detail the detail.
 	label  string
 	detail string
-	parent string
+	// icon is the icon of the node and the space after it, and iconOpen
+	// that of a branch while it is expanded.
+	icon     string
+	iconOpen string
+	parent   string
 	// depth is 0 for top-level nodes and -1 for the root.
 	depth int
 	// kids are the IDs of the children, valid once loaded.
@@ -311,9 +315,34 @@ func (m Model) ExpandAllLimits() (nodes, depth int) {
 	return m.expandNodes, m.expandDepth
 }
 
-// SetIcons sets the icons drawn before names. See [WithIcons].
+// SetIcons sets the icons drawn before names, and asks icons again for
+// those of every node known. See [WithIcons].
 func (m *Model) SetIcons(icons Icons) {
 	m.icons = icons
+	for _, e := range m.nodes {
+		if e.depth >= 0 {
+			m.setIcons(e)
+		}
+	}
+}
+
+// setIcons renders the icons of e, once per state, so that View only
+// copies them.
+func (m Model) setIcons(e *entry) {
+	e.icon, e.iconOpen = m.icon(e.node, false), ""
+	if e.node.Branch {
+		e.iconOpen = m.icon(e.node, true)
+	}
+}
+
+func (m Model) icon(n Node, expanded bool) string {
+	if m.icons == nil {
+		return ""
+	}
+	if ic := m.icons(n, expanded); ic != "" {
+		return ic + " "
+	}
+	return ""
 }
 
 func (m Model) detail(n Node) string {
@@ -428,10 +457,13 @@ func (m *Model) setKids(e *entry, nodes []Node) {
 			c = nil
 		}
 		if c == nil {
-			m.nodes[n.ID] = &entry{node: n, label: m.label(n), detail: m.detail(n), parent: e.node.ID, depth: e.depth + 1}
+			c = &entry{node: n, label: m.label(n), detail: m.detail(n), parent: e.node.ID, depth: e.depth + 1}
+			m.setIcons(c)
+			m.nodes[n.ID] = c
 			continue
 		}
 		c.node, c.label, c.detail = n, m.label(n), m.detail(n)
+		m.setIcons(c)
 		if !n.Branch {
 			m.forget(c)
 			c.expanded = false

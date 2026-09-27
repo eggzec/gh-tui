@@ -6,7 +6,12 @@ import "context"
 type Option func(*settings)
 
 // Icons returns the icon drawn before the name of n, for example a folder
-// or a file type. Return "" for no icon.
+// or a file type, styled as it should be drawn. Return "" for no icon.
+//
+// The tree asks once for each node and state as the node loads, and keeps
+// the icon, so it must depend only on n and expanded. Leaves are asked
+// only with expanded false. Call [Model.SetIcons] to draw other icons,
+// for example after the theme changes.
 type Icons func(n Node, expanded bool) string
 
 type settings struct {

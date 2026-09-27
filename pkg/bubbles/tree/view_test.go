@@ -63,17 +63,21 @@ func TestView(t *testing.T) {
 		}},
 		{"icons", func(t *testing.T) Model {
 			t.Helper()
-			icons := func(n Node, expanded bool) string {
-				switch {
-				case !n.Branch:
-					return "·"
-				case expanded:
-					return "□"
-				default:
-					return "■"
-				}
-			}
-			return keys(t, load(t, repo(), WithIcons(icons)), "l")
+			return keys(t, load(t, repo(), WithIcons(boxIcons)), "l")
+		}},
+		{"icons with details", func(t *testing.T) Model {
+			t.Helper()
+			return keys(t, load(t, sized(), WithSize(26, 6), WithIcons(boxIcons)), "l")
+		}},
+		{"icons with details dropped", func(t *testing.T) Model {
+			t.Helper()
+			return keys(t, load(t, sized(), WithSize(18, 6), WithIcons(boxIcons)), "l")
+		}},
+		{"icons on a branch error", func(t *testing.T) Model {
+			t.Helper()
+			f := repo()
+			f.setFail("internal", errors.New("GET /repos/o/r/contents/internal: 502 Bad Gateway"))
+			return keys(t, load(t, f, WithSize(40, 6), WithIcons(boxIcons)), "j", "j", "+")
 		}},
 		{"details", func(t *testing.T) Model {
 			t.Helper()
@@ -100,6 +104,19 @@ func TestView(t *testing.T) {
 			assertFits(t, v, m.Width(), m.Height())
 			golden.RequireEqual(t, v)
 		})
+	}
+}
+
+// boxIcons draws an open or closed box before branches, and a dot before
+// leaves.
+func boxIcons(n Node, expanded bool) string {
+	switch {
+	case !n.Branch:
+		return "·"
+	case expanded:
+		return "□"
+	default:
+		return "■"
 	}
 }
 
@@ -130,7 +147,7 @@ func assertFits(tb testing.TB, v string, width, height int) {
 func TestViewFitsAnySize(t *testing.T) {
 	f := repo()
 	f.setFail("internal", errors.New("boom"))
-	m := keys(t, load(t, f), "*", "j", "j", "+")
+	m := keys(t, load(t, f, WithIcons(boxIcons)), "*", "j", "j", "+")
 	for _, size := range [][2]int{{1, 1}, {2, 3}, {3, 1}, {7, 4}, {80, 40}, {200, 2}} {
 		t.Run(fmt.Sprintf("%dx%d", size[0], size[1]), func(t *testing.T) {
 			m.SetSize(size[0], size[1])
@@ -140,5 +157,47 @@ func TestViewFitsAnySize(t *testing.T) {
 	m.SetSize(0, 10)
 	if m.View() != "" {
 		t.Fatal("zero width should render nothing")
+	}
+}
+
+func TestIconsAskedOncePerState(t *testing.T) {
+	asked := map[string]int{}
+	icons := func(n Node, expanded bool) string {
+		asked[fmt.Sprintf("%s %v", n.ID, expanded)]++
+		return boxIcons(n, expanded)
+	}
+	m := keys(t, load(t, repo(), WithIcons(icons)), "*")
+	for range 3 {
+		_ = m.View()
+		m = keys(t, m, "enter", "j")
+	}
+	for k, n := range asked {
+		if n != 1 {
+			t.Errorf("asked for %q %d times, want once", k, n)
+		}
+	}
+	for _, k := range []string{"cmd true", "cmd false", "go.mod false"} {
+		if asked[k] != 1 {
+			t.Errorf("never asked for %q", k)
+		}
+	}
+	if n := asked["go.mod true"]; n != 0 {
+		t.Errorf("asked for an expanded leaf %d times, want never", n)
+	}
+}
+
+func TestSetIcons(t *testing.T) {
+	m := load(t, repo())
+	if v := ansi.Strip(m.View()); strings.Contains(v, "■") {
+		t.Fatalf("a tree without icons drew one:\n%s", v)
+	}
+	m.SetIcons(boxIcons)
+	v := ansi.Strip(m.View())
+	if !strings.Contains(v, "■ cmd") || !strings.Contains(v, "· go.mod") {
+		t.Fatalf("SetIcons should draw icons before the nodes known:\n%s", v)
+	}
+	m.SetIcons(nil)
+	if v := ansi.Strip(m.View()); strings.Contains(v, "■") || !strings.Contains(v, "▸ cmd") {
+		t.Fatalf("SetIcons(nil) should drop the icons:\n%s", v)
 	}
 }
