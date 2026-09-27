@@ -1,6 +1,8 @@
 package checks
 
 import (
+	"errors"
+	"fmt"
 	"slices"
 	"strconv"
 	"strings"
@@ -74,6 +76,31 @@ func TestOpensOnTheFirstFailingCheck(t *testing.T) {
 	}
 	if f.checkReads != 1 {
 		t.Errorf("read the checks %d times, want once", f.checkReads)
+	}
+}
+
+// A log that failed to load says what went wrong the way the user should
+// read it, without the error's chain, request or status code.
+func TestLogErrorWords(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want string
+	}{
+		{"offline", fmt.Errorf("job log: github: GET /repos/o/r/actions/jobs/1/logs: %w", core.ErrOffline), "✗ Can't reach GitHub · r to retry"},
+		{"forbidden", fmt.Errorf("job log: github: 403 Forbidden: %w", core.ErrForbidden), "✗ You don't have access to charmbracelet/bubbletea · o to open on GitHub"},
+		{"internal", errors.New("job log: github: decode: unexpected EOF"), "✗ Something went wrong · r to retry"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newFake()
+			f.logErr = tt.err
+			s, h := newStep(t, f, wideW, wideH)
+			h.keys("enter")
+			if v := strings.Join(strings.Fields(text(s)), " "); !strings.Contains(v, tt.want) || strings.Contains(v, "github:") || strings.Contains(v, "403") {
+				t.Errorf("the job = %q, want %q", v, tt.want)
+			}
+		})
 	}
 }
 

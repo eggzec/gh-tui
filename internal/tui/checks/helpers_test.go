@@ -146,6 +146,8 @@ type fake struct {
 	jobs      map[int64][]core.Job
 	logs      map[int64]core.Log
 	notes     map[int64][]core.Annotation
+	// logErr fails every read of a log.
+	logErr error
 
 	checkReads, runReads, jobReads, noteReads int
 	invalidated                               int
@@ -217,6 +219,9 @@ func (f *fake) CachedLog(core.RepoRef, int64) (core.Log, bool) { return core.Log
 func (f *fake) Log(_ context.Context, _ core.RepoRef, jobID int64) (core.Log, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if f.logErr != nil {
+		return core.Log{}, f.logErr
+	}
 	return f.logs[jobID], nil
 }
 

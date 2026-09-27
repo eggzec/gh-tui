@@ -128,7 +128,7 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 			files.WithHoverPrefetch(p.HoverDelay, int64(cfg.Files.Preview.MaxSize)),
 		)
 	}
-	var checkOpts []checks.Option
+	checkOpts := []checks.Option{checks.WithVoice(voice)}
 	if cfg.Sync.Enabled {
 		checkOpts = append(checkOpts,
 			checks.WithWatch(watchChecks(engine.Subscribe, engine.Refresh, actionSvc.PollChecks)),
