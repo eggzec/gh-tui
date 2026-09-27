@@ -14,16 +14,16 @@
   • [38;5;203;48;5;236m --no-disk [m turns it off                                                    
                                                                                 
   [1;38;2;216;220;230mhubot[m[38;2;107;114;133m · 20h[m                                                                   
-  [38;2;107;114;133m│ [m[38;2;216;220;230mDoes this survive a crash halfway through a write?[m                          
+  [38;2;107;114;133m│ [mDoes this survive a crash halfway through a write?                          
                                                                                 
   [1;38;2;216;220;230moctocat[m[38;2;107;114;133m · 2h[m                                                                  
-  [38;2;107;114;133m│ [m[38;2;216;220;230mIt writes to a temporary file and renames it, so a crash leaves the old page[m
-  [38;2;107;114;133m│ [m[38;2;216;220;230min place.[m                                                                   
-  [38;2;107;114;133m│ [m[38;2;216;220;230m[m                                                                            
-  [38;2;107;114;133m│ [m[38;2;216;220;230mI added a test for it.[m                                                      
+  [38;2;107;114;133m│ [mIt writes to a temporary file and renames it, so a crash leaves the old     
+  [38;2;107;114;133m│ [mpage in place.                                                              
+  [38;2;107;114;133m│ [m                                                                            
+  [38;2;107;114;133m│ [mI added a test for it.                                                      
                                                                                 
   [1;38;2;216;220;230mmonalisa[m[38;2;107;114;133m · 10m[m                                                                
-  [38;2;107;114;133m│ [m[38;2;216;220;230mLGTM[m                                                                        
+  [38;2;107;114;133m│ [mLGTM                                                                        
                                                                                 
                                                                                 
                                                                                 
