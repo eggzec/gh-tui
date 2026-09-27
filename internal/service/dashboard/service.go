@@ -10,7 +10,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/core"
-	"github.com/eggzec/gh-tui/internal/github"
+	"github.com/eggzec/gh-tui/internal/service/fallback"
 )
 
 // API is the part of the GitHub client the service uses.
@@ -59,17 +59,17 @@ func New(api API, opts ...Option) *Service {
 	}
 	return &Service{
 		api: api,
-		header: newReads(o, kindHeader, max(o.ttl, HeaderTTL), func(h *core.Header) (*bool, *bool) {
-			return &h.Stale, &h.Offline
+		header: newReads(o, kindHeader, max(o.ttl, HeaderTTL), func(h *core.Header) (*bool, *bool, *bool) {
+			return &h.Stale, &h.Offline, &h.Limited
 		}),
-		work: newReads(o, kindWork, o.ttl, func(w *core.Work) (*bool, *bool) {
-			return &w.Stale, &w.Offline
+		work: newReads(o, kindWork, o.ttl, func(w *core.Work) (*bool, *bool, *bool) {
+			return &w.Stale, &w.Offline, &w.Limited
 		}),
-		contributions: newReads(o, kindContributions, max(o.ttl, ContributionsTTL), func(c *core.Contributions) (*bool, *bool) {
-			return &c.Stale, &c.Offline
+		contributions: newReads(o, kindContributions, max(o.ttl, ContributionsTTL), func(c *core.Contributions) (*bool, *bool, *bool) {
+			return &c.Stale, &c.Offline, &c.Limited
 		}),
-		repos: newReads(o, kindRepos, max(o.ttl, ReposTTL), func(p *core.Page[core.Repo]) (*bool, *bool) {
-			return &p.Stale, &p.Offline
+		repos: newReads(o, kindRepos, max(o.ttl, ReposTTL), func(p *core.Page[core.Repo]) (*bool, *bool, *bool) {
+			return &p.Stale, &p.Offline, &p.Limited
 		}),
 	}
 }
@@ -88,25 +88,20 @@ func (s *Service) Invalidate() {
 const allTag = "all"
 
 // reads is one kind of read: its cache in memory, its shelf in the store,
-// and how to mark a value served stale or offline.
+// and how to mark a value served stale, offline or limited.
 type reads[V any] struct {
 	mem   *cache.Cache[V]
 	kept  *cache.Shelf[V]
-	flags func(*V) (stale, offline *bool)
+	flags func(*V) (stale, offline, limited *bool)
 }
 
-func newReads[V any](o options, kind string, ttl time.Duration, flags func(*V) (stale, offline *bool)) reads[V] {
+func newReads[V any](o options, kind string, ttl time.Duration, flags func(*V) (stale, offline, limited *bool)) reads[V] {
 	return reads[V]{
 		mem:   cache.New[V](cache.WithTTL(ttl), cache.WithCapacity(o.capacity)),
 		kept:  cache.NewShelf[V](o.store, kind, schema),
 		flags: flags,
 	}
 }
-
-// offlineAt is when an entry served offline was fetched, as far as the
-// cache can tell: long ago, so it is stale at once and the next read asks
-// GitHub again.
-var offlineAt = time.Unix(1, 0)
 
 // cached returns the value under key in memory, fresh or stale, without
 // I/O.
@@ -126,34 +121,27 @@ func (r *reads[V]) fresh(key string) bool {
 // without a request, and so is one kept by an earlier session within the
 // TTL. An older kept one is returned at once, marked stale, until a read
 // with again set fetches it. Otherwise get fetches the value, stores it
-// and keeps it. If GitHub can't be reached, the stale value is served
-// marked offline; if GitHub refuses, the kept one is dropped.
+// and keeps it, falling back on the stale value as fallback.Fetch does.
 func (r *reads[V]) get(ctx context.Context, key string, again bool, fetch func(context.Context) (V, error)) (V, error) {
 	if e, ok := r.kept.Warm(r.mem, key, again); ok {
 		v := e.Value
-		stale, _ := r.flags(&v)
+		stale, _, _ := r.flags(&v)
 		*stale = true
 		return v, nil
 	}
 	// GraphQL has no validators, so a stale value is fetched again in full.
-	e, err := r.mem.Fetch(ctx, key, func(ctx context.Context, prev cache.Entry[V], ok bool) (cache.Entry[V], error) {
+	e, err := fallback.Fetch(ctx, r.mem, r.kept, key, r.marks, fallback.Keep(r.kept, key, func(ctx context.Context, _ cache.Entry[V], _ bool) (cache.Entry[V], error) {
 		v, err := fetch(ctx)
-		switch {
-		case ok && github.Unreachable(ctx, err):
-			_, offline := r.flags(&prev.Value)
-			*offline = true
-			prev.FetchedAt = offlineAt
-			return prev, nil
-		case err != nil:
-			if github.Refused(err) {
-				r.kept.Delete(key)
-			}
+		if err != nil {
 			return cache.Entry[V]{}, err
 		}
-		e := cache.Entry[V]{Value: v, Tags: []string{allTag}}
-		// The shelf is only a shortcut, so a failure is ignored.
-		_ = r.kept.Save(key, e)
-		return e, nil
-	})
+		return cache.Entry[V]{Value: v, Tags: []string{allTag}}, nil
+	}))
 	return e.Value, err
+}
+
+// marks are the fallback.Marks of the values.
+func (r *reads[V]) marks(v *V) (offline, limited *bool) {
+	_, offline, limited = r.flags(v)
+	return offline, limited
 }

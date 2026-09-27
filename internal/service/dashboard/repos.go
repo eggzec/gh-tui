@@ -105,8 +105,8 @@ func (s *Service) CachedAllRepos(q ReposQuery, limit int) (core.Page[core.Repo],
 // until it holds limit repositories, so that the dashboard can find one by
 // name. It reads whole pages, so it may hold a page's worth more. A limit
 // that is not positive or above MaxOwnerRepos means MaxOwnerRepos. The
-// page's Next is where reading stopped, or empty at the end; it is Stale
-// or Offline if any page read was.
+// page's Next is where reading stopped, or empty at the end; it is Stale,
+// Offline or Limited if any page read was.
 func (s *Service) AllRepos(ctx context.Context, q ReposQuery, limit int) (core.Page[core.Repo], error) {
 	p, _, err := s.allRepos(q, limit, func(q ReposQuery) (core.Page[core.Repo], bool, error) {
 		p, err := s.Repos(ctx, q)
@@ -139,6 +139,7 @@ func (s *Service) allRepos(q ReposQuery, limit int, read func(ReposQuery) (core.
 		all.Next = p.Next
 		all.Stale = all.Stale || p.Stale
 		all.Offline = all.Offline || p.Offline
+		all.Limited = all.Limited || p.Limited
 		if p.Last() {
 			break
 		}
