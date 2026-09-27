@@ -211,14 +211,21 @@ func (m *detailModal) View() string {
 	if m.width <= 0 || m.height <= 0 {
 		return ""
 	}
-	if m.ask != nil {
-		// The question lines up with the issue, two cells in.
-		lines := m.ask.Lines(m.confirmSt, m.keys.confirm, max(m.width-2, 0), min(m.height, ui.ConfirmLines))
-		for i, l := range lines {
-			lines[i] = ansi.Truncate("  "+l, m.width, "")
-		}
-		return ui.OverLastLines(m.thread.View(), lines)
+	v := m.composed()
+	if m.ask == nil {
+		return v
 	}
+	// The question lines up with the issue, two cells in. Over a prompt,
+	// it takes the place of the prompt's keys, which wait for the answer.
+	lines := m.ask.Lines(m.confirmSt, m.keys.confirm, max(m.width-2, 0), min(m.height, ui.ConfirmLines))
+	for i, l := range lines {
+		lines[i] = ansi.Truncate("  "+l, m.width, "")
+	}
+	return ui.OverLastLines(v, lines)
+}
+
+// composed renders the thread, and the prompt under it while one is open.
+func (m *detailModal) composed() string {
 	if m.composing == composeNone {
 		return m.thread.View()
 	}
@@ -262,6 +269,11 @@ func (m *detailModal) Update(msg tea.Msg) tea.Cmd {
 		return m.promptDone(msg)
 	case tea.PasteMsg:
 		if m.composing != composeNone {
+			// A paste while the prompt's text is being confirmed would
+			// change what the question asks about.
+			if m.ask != nil {
+				return nil
+			}
 			var cmd tea.Cmd
 			m.prompt, cmd = m.prompt.Update(msg)
 			return cmd

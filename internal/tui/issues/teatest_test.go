@@ -115,6 +115,8 @@ func TestProgramComment(t *testing.T) {
 	waitFor("Comment on #999")
 	tm.Type("quite fixed")
 	tm.Send(keyMsg("ctrl+s"))
+	waitFor("Post this comment on #999?")
+	tm.Send(keyMsg("y"))
 	// GitHub's comment replaces the pending one at the end of the thread,
 	// which the terminal is tall enough to show whole.
 	waitFor("octocat")
