@@ -249,5 +249,5 @@ func (c *Client) graphqlReset(h http.Header) time.Time {
 	if rl, ok := parseRateLimit(h); ok {
 		return rl.Reset
 	}
-	return c.now().Add(secondaryBackoff)
+	return c.budget.now().Add(secondaryBackoff)
 }

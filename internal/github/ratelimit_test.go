@@ -20,7 +20,7 @@ func TestRateLimitParsed(t *testing.T) {
 		w.Header().Set("X-RateLimit-Reset", "1790000000")
 		w.Header().Set("X-RateLimit-Resource", "core")
 	}))
-	if got := c.RateLimit(); got != (RateLimit{}) {
+	if got := c.RateLimit(resourceCore); got != (RateLimit{}) {
 		t.Errorf("RateLimit before any request = %+v, want zero", got)
 	}
 
@@ -33,7 +33,7 @@ func TestRateLimitParsed(t *testing.T) {
 	if res.RateLimit != want {
 		t.Errorf("Response.RateLimit = %+v, want %+v", res.RateLimit, want)
 	}
-	if got := c.RateLimit(); got != want {
+	if got := c.RateLimit(resourceCore); got != want {
 		t.Errorf("Client.RateLimit = %+v, want %+v", got, want)
 	}
 }
@@ -52,7 +52,7 @@ func TestRateLimitKeptWithoutHeaders(t *testing.T) {
 			t.Fatalf("Get: %v", err)
 		}
 	}
-	if got := c.RateLimit().Remaining; got != 59 {
+	if got := c.RateLimit(resourceCore).Remaining; got != 59 {
 		t.Errorf("Remaining = %d, want 59 from the first response", got)
 	}
 }
@@ -74,11 +74,11 @@ func TestRateLimitConcurrent(t *testing.T) {
 				t.Errorf("Get: %v", err)
 			}
 		})
-		wg.Go(func() { _ = c.RateLimit() })
+		wg.Go(func() { _ = c.RateLimit(resourceCore) })
 	}
 	wg.Wait()
 
-	if got := c.RateLimit(); got.Limit != n || got.Remaining < 0 || got.Remaining >= n {
+	if got := c.RateLimit(resourceCore); got.Limit != n || got.Remaining < 0 || got.Remaining >= n {
 		t.Errorf("RateLimit = %+v, want limit %d and remaining in [0, %d)", got, n, n)
 	}
 }
@@ -131,7 +131,7 @@ func TestRateLimitErrors(t *testing.T) {
 				maps.Copy(w.Header(), tt.header)
 				w.WriteHeader(tt.status)
 			}))
-			c.now = func() time.Time { return now }
+			c.budget.now = func() time.Time { return now }
 
 			_, err := c.Get(t.Context(), "x", Conditional{}, nil)
 

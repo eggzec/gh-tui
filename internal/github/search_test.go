@@ -142,7 +142,7 @@ func TestSearchRateLimited(t *testing.T) {
 			t.Errorf("%s: reset = %v, want the header's", name, rl.Reset)
 		}
 	}
-	if got := c.RateLimit(); got.Resource != "search" || got.Limit != 30 {
+	if got := c.RateLimit(resourceSearch); got.Resource != "search" || got.Limit != 30 {
 		t.Errorf("RateLimit = %+v, want the search quota", got)
 	}
 }

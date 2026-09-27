@@ -459,7 +459,7 @@ func TestRetryWaitsWithoutASlot(t *testing.T) {
 
 // limiter returns the limit transport of c.
 func limiter(c *Client) *limitTransport {
-	return c.http.Transport.(*retryTransport).base.(*timeoutTransport).base.(*limitTransport)
+	return c.http.Transport.(*retryTransport).base.(*rateTransport).base.(*timeoutTransport).base.(*limitTransport)
 }
 
 // TestRetrySlotsComeBack sends many requests at once, of every kind, that

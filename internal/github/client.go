@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/cli/go-gh/v2/pkg/auth"
@@ -34,10 +33,7 @@ type Client struct {
 	login      string
 	restURL    *url.URL
 	graphqlURL string
-	now        func() time.Time
-
-	mu        sync.Mutex
-	rateLimit RateLimit
+	budget     *budget
 }
 
 // Option configures a Client.
@@ -114,15 +110,20 @@ func New(opts ...Option) (*Client, error) {
 	// bounds each attempt instead of the call. The retries come before the
 	// limit, so that no slot is held between attempts, and the limit
 	// before the log, so that a request's time waiting for a slot isn't
-	// logged as its duration.
+	// logged as its duration. Each attempt is counted against its rate
+	// limit before it waits for a slot.
 	hc := *o.http
-	hc.Transport = newRetryTransport(&timeoutTransport{
-		base: newLimitTransport(&logTransport{
-			base:        cmp.Or[http.RoundTripper](hc.Transport, http.DefaultTransport),
-			restRoot:    base.EscapedPath(),
-			graphqlPath: gql.Path,
-		}, maxInFlight, foregroundSlots),
-		timeout: hc.Timeout,
+	b := newBudget(base.EscapedPath(), gql.Path)
+	hc.Transport = newRetryTransport(&rateTransport{
+		budget: b,
+		base: &timeoutTransport{
+			base: newLimitTransport(&logTransport{
+				base:        cmp.Or[http.RoundTripper](hc.Transport, http.DefaultTransport),
+				restRoot:    b.restRoot,
+				graphqlPath: b.graphqlPath,
+			}, maxInFlight, foregroundSlots),
+			timeout: hc.Timeout,
+		},
 	})
 	hc.Timeout = 0
 	return &Client{
@@ -131,7 +132,7 @@ func New(opts ...Option) (*Client, error) {
 		login:      o.gh.login(o.host, source),
 		restURL:    base,
 		graphqlURL: gql.String(),
-		now:        time.Now,
+		budget:     b,
 	}, nil
 }
 
@@ -225,9 +226,8 @@ func (c *Client) resolve(path string) (string, error) {
 	return u.String(), nil
 }
 
-// send adds the headers every request needs, sends it, and records the rate
-// limit of the response. A request that asks for another media type keeps
-// its Accept header.
+// send adds the headers every request needs and sends it. A request that
+// asks for another media type keeps its Accept header.
 func (c *Client) send(req *http.Request) (*http.Response, error) {
 	return c.sendWith(c.http, req)
 }
@@ -245,6 +245,5 @@ func (c *Client) sendWith(hc *http.Client, req *http.Request) (*http.Response, e
 	if err != nil {
 		return nil, offline(req.Context(), err)
 	}
-	c.observe(resp.Header)
 	return resp, nil
 }

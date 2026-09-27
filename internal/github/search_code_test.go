@@ -77,7 +77,7 @@ func TestSearchCode(t *testing.T) {
 	if got := hit.Fragments[0].Matches; len(got) != 2 || got[0] != [2]int{3, 11} || got[1] != [2]int{212, 220} {
 		t.Errorf("matches = %v, want [[3 11] [212 220]]", got)
 	}
-	if rl := c.RateLimit(); rl.Resource != "code_search" || rl.Limit != 10 || rl.Remaining != 9 {
+	if rl := c.RateLimit(resourceCodeSearch); rl.Resource != "code_search" || rl.Limit != 10 || rl.Remaining != 9 {
 		t.Errorf("RateLimit = %+v, want the code search quota", rl)
 	}
 }
@@ -150,7 +150,7 @@ func TestSearchCodeRateLimited(t *testing.T) {
 				respond(w)
 				_, _ = w.Write([]byte(`{"message": "API rate limit exceeded"}`))
 			}))
-			c.now = func() time.Time { return now }
+			c.budget.now = func() time.Time { return now }
 			_, err := c.SearchCode(t.Context(), "x", "", 0)
 			rl, ok := errors.AsType[*core.RateLimitError](err)
 			if !ok || !errors.Is(err, core.ErrRateLimited) {
