@@ -318,13 +318,41 @@ func (m *Model) tabHelp() key.Binding {
 	return relabel(m.keys.NextTab, tabHelpDescs[(m.tab+1)%numTabs])
 }
 
-// FullHelp implements help.KeyMap. A form without tabs leaves out the keys
-// that switch them.
+// FullHelp implements help.KeyMap. It enables the keys that act on the
+// row in focus: an open picker takes Edit, Toggle, Cancel and its own
+// moves, another editor Edit and Cancel, and the query line the moves,
+// Apply and Cancel; the rest are typed. A row takes enter to open its
+// editor if it has one, and to apply if not. The form's Edit and Cancel
+// stand in for the picker's Choose and Cancel.
 func (m Model) FullHelp() [][]key.Binding {
 	k := m.keys
-	if !m.tabbed() {
-		k.NextTab.SetEnabled(false)
-		k.PrevTab.SetEnabled(false)
+	if m.picking {
+		k.Picker = m.pick.KeyMap()
+	}
+	form := []*key.Binding{&k.NextTab, &k.PrevTab, &k.Up, &k.Down, &k.Left, &k.Right, &k.Toggle, &k.Edit, &k.Apply, &k.Remove, &k.Reset, &k.Cancel}
+	pick := []*key.Binding{&k.Picker.Up, &k.Picker.Down, &k.Picker.PageUp, &k.Picker.PageDown, &k.Picker.NextScope, &k.Picker.PrevScope}
+	var on []*key.Binding
+	switch {
+	case m.picking:
+		on = append([]*key.Binding{&k.Edit, &k.Toggle, &k.Cancel}, pick...)
+	case m.editing && (m.kind() == Text || m.fields[m.row].state == failed):
+		on = []*key.Binding{&k.Edit, &k.Cancel}
+	case m.editing:
+		on = []*key.Binding{&k.Cancel}
+	case m.row == m.queryRow():
+		on = []*key.Binding{&k.Up, &k.Down, &k.Apply, &k.Cancel}
+	default:
+		on = slices.DeleteFunc(slices.Clone(form), func(b *key.Binding) bool {
+			if b == &k.NextTab || b == &k.PrevTab {
+				return !m.tabbed()
+			}
+			return b == &k.Edit && !m.hasEditor() || b == &k.Apply && m.hasEditor()
+		})
+	}
+	for _, b := range slices.Concat(form, pick, []*key.Binding{&k.Picker.Choose, &k.Picker.Cancel}) {
+		if !slices.Contains(on, b) {
+			b.SetEnabled(false)
+		}
 	}
 	return k.FullHelp()
 }

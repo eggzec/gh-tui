@@ -72,6 +72,10 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 		{k.Up, k.Down, k.Left, k.Right, k.Toggle},
 		{k.Edit, k.Remove, k.Apply, k.Reset, k.Cancel},
 		{k.NextTab, k.PrevTab},
+		{
+			k.Picker.Up, k.Picker.Down, k.Picker.PageUp, k.Picker.PageDown,
+			k.Picker.Choose, k.Picker.Cancel, k.Picker.NextScope, k.Picker.PrevScope,
+		},
 	}
 }
 
