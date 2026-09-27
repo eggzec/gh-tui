@@ -164,8 +164,9 @@ func (m *Model) appendList(lines []string, w, n int) []string {
 	end := len(lines) + n
 	switch {
 	case m.err != nil:
-		msg, _, _ := strings.Cut(m.err.Error(), "\n")
-		lines = append(lines, fit(m.styles.Error.Render("✗ Couldn't search: "+msg), w))
+		if text, hint := m.errorWords(m.err); text != "" {
+			lines = append(lines, m.errorLine(text, hint, w))
+		}
 	case len(m.results) == 0 && m.loading:
 		lines = append(lines, fit(m.spin.View()+m.styles.Empty.Render("Searching…"), w))
 	case len(m.results) == 0:
@@ -241,6 +242,30 @@ func runeEnd(s string, i int) int {
 }
 
 // fit truncates or pads styled text to exactly width cells.
+// errorWords returns what the picker says of err, the failed search, and
+// the hint after it.
+func (m *Model) errorWords(err error) (text, hint string) {
+	if m.errorText != nil {
+		return m.errorText(err)
+	}
+	msg, _, _ := strings.Cut(err.Error(), "\n")
+	return "Couldn't search: " + msg, ""
+}
+
+// errorLine renders the error row in w cells, the text cut to keep the
+// hint whole.
+func (m *Model) errorLine(text, hint string, w int) string {
+	text = "✗ " + text
+	if hint == "" {
+		return fit(m.styles.Error.Render(text), w)
+	}
+	hint = " · " + hint
+	if room := max(w-ansi.StringWidth(hint), 0); ansi.StringWidth(text) > room {
+		text = ansi.Truncate(text, room, "…")
+	}
+	return fit(m.styles.Error.Render(text)+m.styles.Status.Render(hint), w)
+}
+
 func fit(s string, width int) string {
 	w := ansi.StringWidth(s)
 	if w > width {

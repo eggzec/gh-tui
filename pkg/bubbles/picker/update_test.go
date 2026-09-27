@@ -225,6 +225,37 @@ func TestStaleAndForeignResultsAreDropped(t *testing.T) {
 	}
 }
 
+func TestErrorText(t *testing.T) {
+	offline := func(error) (string, string) { return "Can't reach GitHub", "r to retry" }
+	tests := []struct {
+		name string
+		opts []Option
+		want string
+	}{
+		{"default", nil, "✗ Couldn't search: github: 502 Bad Gateway"},
+		{"custom", []Option{WithErrorText(offline)}, "✗ Can't reach GitHub · r to retry"},
+		{"custom keeps the hint whole", []Option{WithSize(28, 12), WithErrorText(offline)}, "✗ Can't re… · r to retry"},
+		{"empty", []Option{WithErrorText(func(error) (string, string) { return "", "" })}, ""},
+		{"text with a dot", []Option{WithErrorText(func(error) (string, string) { return "GitHub says a · b", "" })}, "✗ GitHub says a · b"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := &fakeSearch{fail: errBoom}
+			m := typeText(t, open(t, f.search, tt.opts...), "crash")
+			v := ansi.Strip(m.View())
+			if tt.want == "" {
+				if strings.Contains(v, "✗") {
+					t.Errorf("View() = %q, want no error", v)
+				}
+				return
+			}
+			if !strings.Contains(v, tt.want+" ") && !strings.Contains(v, tt.want+"│") {
+				t.Errorf("View() = %q, want the error row %q", v, tt.want)
+			}
+		})
+	}
+}
+
 func TestSearchError(t *testing.T) {
 	f := &fakeSearch{fail: errBoom}
 	m := open(t, f.search)
