@@ -8,8 +8,9 @@ import (
 )
 
 // Stats counts what the summary reports: the requests sent and the quotas
-// they left, how the caches served reads, how much of what was read ahead
-// got used, and how much of its budget the revalidator spent. Counting is
+// they left, what their rate limits held back, how the caches served
+// reads, how much of what was read ahead got used, and how much of its
+// budget the revalidator spent. Counting is
 // cheap: the counters that reads bump are atomic, and only the per-request
 // ones take a lock. Stats is safe for concurrent use.
 type Stats struct {
@@ -34,6 +35,8 @@ type Stats struct {
 	// retries counts the HTTP attempts sent again, by reason: a
 	// *atomic.Int64 per reason.
 	retries sync.Map
+
+	rate rateStats
 
 	budgetMu sync.Mutex
 	budget   prefetchBudget
