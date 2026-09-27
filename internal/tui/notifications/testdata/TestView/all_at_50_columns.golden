@@ -1,9 +1,9 @@
   [38;2;216;220;230mAll[m[38;2;107;114;133m  f filter · F clear[m                         
-[38;2;122;162;247m▌[m [38;2;122;162;247m●[m [38;2;160;167;184mc…/bubbletea[m  [1;38;2;216;220;230mAdd a renderer that only …[m  [38;2;160;167;184m  4m[m
-  [38;2;122;162;247m●[m [38;2;160;167;184meggz…/gh-tui[m  [1;38;2;216;220;230mNotifications badge is of…[m  [38;2;160;167;184m  3h[m
-  [38;2;122;162;247m●[m [38;2;160;167;184mgolang/go   [m  [1;38;2;216;220;230mgo1.27.1                  [m  [38;2;160;167;184m  1d[m
-    [38;2;107;114;133mcli/cli     [m  [38;2;160;167;184mRFC: extensions that rend…[m  [38;2;160;167;184m  5d[m
-    [38;2;107;114;133mch…/lipgloss[m  [38;2;160;167;184mFix width of wide runes i…[m  [38;2;160;167;184m 1mo[m
-  [38;2;122;162;247m●[m [38;2;160;167;184mwith-an-eve…[m  [1;38;2;216;220;230mCI run failed on main     [m  [38;2;160;167;184m now[m
-    [38;2;107;114;133meggz…/gh-tui[m  [38;2;160;167;184mModerate severity vulnera…[m  [38;2;160;167;184m  1y[m
+[38;2;122;162;247m▌[m [38;2;122;162;247m●[m [38;2;160;167;184mc…/bubbletea[m  ]8;;https://github.com/charmbracelet/bubbletea/1\[1;38;2;216;220;230mAdd a renderer that only …[m]8;;\  [38;2;160;167;184m  4m[m
+  [38;2;122;162;247m●[m [38;2;160;167;184meggz…/gh-tui[m  ]8;;https://github.com/eggzec/gh-tui/2\[1;38;2;216;220;230mNotifications badge is of…[m]8;;\  [38;2;160;167;184m  3h[m
+  [38;2;122;162;247m●[m [38;2;160;167;184mgolang/go   [m  ]8;;https://github.com/golang/go/3\[1;38;2;216;220;230mgo1.27.1[m]8;;\                    [38;2;160;167;184m  1d[m
+    [38;2;107;114;133mcli/cli     [m  ]8;;https://github.com/cli/cli/4\[38;2;160;167;184mRFC: extensions that rend…[m]8;;\  [38;2;160;167;184m  5d[m
+    [38;2;107;114;133mch…/lipgloss[m  ]8;;https://github.com/charmbracelet/lipgloss/5\[38;2;160;167;184mFix width of wide runes i…[m]8;;\  [38;2;160;167;184m 1mo[m
+  [38;2;122;162;247m●[m [38;2;160;167;184mwith-an-eve…[m  ]8;;https://github.com/a-very-long-organization-name/with-an-even-longer-repository-name/6\[1;38;2;216;220;230mCI run failed on main[m]8;;\       [38;2;160;167;184m now[m
+    [38;2;107;114;133meggz…/gh-tui[m  ]8;;https://github.com/eggzec/gh-tui/7\[38;2;160;167;184mModerate severity vulnera…[m]8;;\  [38;2;160;167;184m  1y[m
                                                   
