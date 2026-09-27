@@ -61,6 +61,9 @@ type fakeService struct {
 	listedAs map[int]core.State
 	// invalidated are the calls of Invalidate.
 	invalidated []invalidation
+	// thread, when set, are the comments on every pull request, served
+	// in one page.
+	thread []core.Comment
 }
 
 // invalidation is a call of Invalidate, with how many lists and gets were
@@ -113,13 +116,14 @@ func (f *fakeService) Get(ctx context.Context, _ core.RepoRef, number int) (core
 	return f.detail(number), nil
 }
 
-// Comments serves three comments on every pull request, two a page.
+// Comments serves three comments on every pull request, two a page, or
+// the thread if it is set.
 func (f *fakeService) Comments(_ context.Context, q pulls.CommentsQuery) (core.Page[core.Comment], error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.comments = append(f.comments, q)
 	f.commented[q] = true
-	return commentPage(q), nil
+	return f.commentPage(q), nil
 }
 
 func (f *fakeService) CachedComments(q pulls.CommentsQuery) (core.Page[core.Comment], bool) {
@@ -128,7 +132,7 @@ func (f *fakeService) CachedComments(q pulls.CommentsQuery) (core.Page[core.Comm
 	if !f.commented[q] {
 		return core.Page[core.Comment]{}, false
 	}
-	return commentPage(q), true
+	return f.commentPage(q), true
 }
 
 func (f *fakeService) Current(q pulls.CommentsQuery) bool {
@@ -137,7 +141,10 @@ func (f *fakeService) Current(q pulls.CommentsQuery) bool {
 	return f.cached[q.Number] && f.commented[q]
 }
 
-func commentPage(q pulls.CommentsQuery) core.Page[core.Comment] {
+func (f *fakeService) commentPage(q pulls.CommentsQuery) core.Page[core.Comment] {
+	if f.thread != nil {
+		return core.Page[core.Comment]{Items: slices.Clone(f.thread)}
+	}
 	all := []core.Comment{
 		{ID: "c1", Author: core.User{Login: "hubot"}, Body: "Does this survive a crash halfway through a write?", CreatedAt: clock.Add(-20 * time.Hour)},
 		{ID: "c2", Author: core.User{Login: "octocat"}, Body: "It writes to a temporary file and renames it, so a crash leaves the old page in place.\r\n\r\nI added a test for it.", CreatedAt: clock.Add(-2 * time.Hour)},

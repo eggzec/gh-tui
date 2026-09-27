@@ -22,6 +22,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
+	"github.com/eggzec/gh-tui/pkg/markdown"
 )
 
 // detailMsg carries the detail of a pull request to the thread that asked
@@ -145,6 +146,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 		thread.WithKeyMap(s.keys.thread),
 		thread.WithFocused(true),
 	)
+	m.thread.SetCutHint(ui.OpenHint(s.keys.Open))
 	switch d, ok := svc.CachedGet(repo, number); {
 	case ok:
 		m.detail, m.loaded = d, true
@@ -551,15 +553,17 @@ func plural(n int, noun string) string {
 }
 
 // renderComment renders a comment as its author and age over its body,
-// wrapped to width behind a bar.
+// markdown rendered like the pull request's, behind a bar.
 func (m *detailModal) renderComment(c core.Comment, width int) string {
 	st := &m.st
 	var b strings.Builder
 	b.WriteString(gutter + st.commenter.Render(c.Author.Login) + st.age.Render(" · "+ui.Ago(c.CreatedAt, m.now())))
-	body := strings.TrimSpace(strings.ReplaceAll(c.Body, "\r\n", "\n"))
 	bar := gutter + st.bar
-	for l := range strings.SplitSeq(ansi.Wrap(body, max(width-len(gutter)-2, 1), ""), "\n") {
-		b.WriteString("\n" + bar + st.title.Render(strings.TrimRight(l, " ")))
+	// The bar takes two cells, and as many stay free on the right.
+	body := m.thread.Markdown(c.Body, markdown.Room(width, 2*len(gutter)+2))
+	if body != "" {
+		b.WriteByte('\n')
+		b.WriteString(markdown.Indent(body, bar))
 	}
 	return b.String()
 }
