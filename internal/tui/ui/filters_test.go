@@ -11,6 +11,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/obs"
 )
 
 // pages is a fake read of first pages, by filter, that records the pages
@@ -289,6 +290,29 @@ func TestFiltersStopAtRateLimit(t *testing.T) {
 	}
 	if cmd := f.Read(func() []string { return []string{"merged"} }); cmd != nil {
 		t.Error("Read read ahead again before a Reset")
+	}
+}
+
+func TestFiltersStopOnBudget(t *testing.T) {
+	buf, stats := captureLog(t)
+	p := newPages()
+	read := func(ctx context.Context, q string) error {
+		obs.ChargeGraphQL(ctx, 500)
+		return p.readPage(ctx, q)
+	}
+	f := NewFilters("list_filter", read, p.fresh, func(q string) string { return q })
+	f.Reset(t.Context(), "r")
+	f.Arm()
+	run(f.Read(func() []string { return []string{"closed", "merged"} }))
+	if got := p.reads(); !slices.Equal(got, []string{"closed"}) {
+		t.Errorf("read %v, want nothing past the budget", got)
+	}
+	want := []string{"closed:sent:read", "merged:skipped_budget"}
+	if got := decisions(t, buf); !slices.Equal(got, want) {
+		t.Errorf("logged %v, want %v", got, want)
+	}
+	if s := stats.Summary().Prefetch[0]; s.OverBudget != 1 {
+		t.Errorf("summary = %+v, want 1 skipped for the budget", s)
 	}
 }
 

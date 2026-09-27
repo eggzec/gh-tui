@@ -21,6 +21,7 @@ type Summary struct {
 	Cache      []CacheSummary  `json:"cache"`
 	Disk       []DiskSummary   `json:"disk"`
 	Prefetch   []PrefetchStats `json:"prefetch"`
+	Budget     BudgetSummary   `json:"prefetch_budget"`
 	Revalidate RevalSummary    `json:"revalidate"`
 }
 
@@ -102,10 +103,21 @@ type PrefetchStats struct {
 	Canceled    int64  `json:"canceled"`
 	RateLimited int64  `json:"rate_limited"`
 	Failed      int64  `json:"failed"`
+	OverBudget  int64  `json:"skipped_budget"`
 	Read        int64  `json:"read"`
 	Opened      int64  `json:"opened"`
 	// Useful is Opened over Read.
 	Useful float64 `json:"useful_share"`
+}
+
+// BudgetSummary covers the GraphQL points the reads ahead spent out of
+// their budget, since it last started over, and whether they stopped for
+// it, until when.
+type BudgetSummary struct {
+	Points int64      `json:"points"`
+	Budget int64      `json:"budget"`
+	Spent  bool       `json:"spent"`
+	Until  *time.Time `json:"until,omitempty"`
 }
 
 // RevalSummary covers the revalidator's passes and how much of their
@@ -174,12 +186,22 @@ func (s *Stats) Summary() Summary {
 		out.Prefetch = append(out.Prefetch, PrefetchStats{
 			Kind: kind, Sent: c.get(PrefetchSent), Cached: c.get(PrefetchCached), Limited: c.get(PrefetchLimited),
 			Canceled: c.get(PrefetchCanceled), RateLimited: c.get(PrefetchRateLimited), Failed: c.get(PrefetchFailed),
-			Read: read, Opened: opened, Useful: ratio(opened, read),
+			OverBudget: c.get(PrefetchOverBudget), Read: read, Opened: opened, Useful: ratio(opened, read),
 		})
 	}
 	slices.SortFunc(out.Cache, func(a, b CacheSummary) int { return cmp.Compare(a.Kind, b.Kind) })
 	slices.SortFunc(out.Disk, func(a, b DiskSummary) int { return cmp.Compare(a.Kind, b.Kind) })
 	slices.SortFunc(out.Prefetch, func(a, b PrefetchStats) int { return cmp.Compare(a.Kind, b.Kind) })
+
+	limit, _ := s.prefetchLimit()
+	s.budgetMu.Lock()
+	s.renewPrefetch(time.Now())
+	out.Budget = BudgetSummary{Points: s.budget.points, Budget: limit, Spent: s.budget.spent}
+	if s.budget.spent {
+		renew := s.budget.renew
+		out.Budget.Until = &renew
+	}
+	s.budgetMu.Unlock()
 
 	sent, budget := s.revalSent.Load(), s.revalBudget.Load()
 	out.Revalidate = RevalSummary{Passes: s.passes.Load(), Sent: sent, Budget: budget, BudgetUsed: ratio(sent, budget)}
@@ -198,6 +220,7 @@ func (s *Stats) Log(ctx context.Context) {
 		slog.Any("cache", sum.Cache),
 		slog.Any("disk", sum.Disk),
 		slog.Any("prefetch", sum.Prefetch),
+		slog.Any("prefetch_budget", sum.Budget),
 		slog.Any("revalidate", sum.Revalidate),
 	)
 }

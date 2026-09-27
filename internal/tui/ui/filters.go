@@ -22,7 +22,8 @@ import (
 // Each page costs a request, and many visits never switch filters, so the
 // pages of a repository are read only once the user switched filters there
 // ([Filters.Arm]), and once a session. They are read one at a time, and
-// the rest are skipped once GitHub reports the rate limit.
+// the rest are skipped once GitHub reports the rate limit or the reads
+// ahead spent their budget (obs.PrefetchSpent).
 type Filters[Q comparable] struct {
 	// seen remembers what was read, so that switching to it counts as a
 	// use, under the kind of list, such as pull_filter.
@@ -139,6 +140,8 @@ func (f *Filters[Q]) readAll(ctx context.Context, qs []Q) {
 			f.decided(ctx, q, "canceled", obs.PrefetchCanceled)
 		case limited:
 			f.decided(ctx, q, "skipped_rate_limited", obs.PrefetchLimited)
+		case obs.PrefetchSpent():
+			f.decided(ctx, q, "skipped_budget", obs.PrefetchOverBudget)
 		case f.fresh(q):
 			f.decided(ctx, q, "skipped_cached", obs.PrefetchCached)
 		default:

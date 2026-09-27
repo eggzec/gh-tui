@@ -595,6 +595,52 @@ func TestNilAheadPause(_ *testing.T) {
 	resume()
 }
 
+func TestAheadStopsOnBudget(t *testing.T) {
+	_, stats := captureLog(t)
+	r := newReader()
+	// Each read costs a fifth of the budget GitHub leaves reads ahead
+	// before it reported the limit.
+	read := func(ctx context.Context, k int) error {
+		obs.ChargeGraphQL(ctx, 100)
+		return r.readRow(ctx, k)
+	}
+	a := NewAhead("row", read, r.current, 30, time.Millisecond)
+	a.Reset(t.Context())
+	run(a.First(rowsOf(30)))
+	if n := len(r.reads()); n < 5 || n > 5+aheadWorkers-1 {
+		t.Errorf("read %d rows, want 5 and those already in flight", n)
+	}
+	if !stats.Summary().Budget.Spent {
+		t.Error("the budget isn't spent")
+	}
+
+	// Nothing more is read for the session, even for another list.
+	n := len(r.reads())
+	a.Reset(t.Context())
+	if cmd := a.First(func(i int) (int, bool) { return 100 + i, true }); cmd != nil {
+		t.Error("First read ahead over the budget")
+	}
+	if cmd := a.Moved(200, true); cmd != nil {
+		t.Error("Moved read ahead over the budget")
+	}
+	if cmd := a.Around(rowsOf(300), 250, 2); cmd != nil {
+		t.Error("Around read ahead over the budget")
+	}
+	if got := len(r.reads()); got != n {
+		t.Errorf("read %d more rows over the budget", got-n)
+	}
+	// Moving on skips nothing new.
+	for i := range 5 {
+		if cmd := a.Moved(201+i, true); cmd != nil {
+			t.Error("Moved read ahead over the budget")
+		}
+	}
+	// The rows of the first list not read, and the first call after.
+	if p, want := rowCounts(stats), int64(30-n+1); p.OverBudget != want {
+		t.Errorf("counted %d reads skipped for the budget, want %d", p.OverBudget, want)
+	}
+}
+
 func TestAheadPausedReadSkipsWhatGotCached(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		_, stats := captureLog(t)

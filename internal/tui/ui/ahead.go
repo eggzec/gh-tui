@@ -27,8 +27,10 @@ const aheadWorkers = 3
 // with [NewAhead]; a nil *Ahead reads nothing.
 //
 // Each read costs requests, so few run at once, and the reads stop once
-// GitHub reports the rate limit, until [Ahead.Resume]. While a detail the
-// user opened loads, reads wait to start ([Ahead.Pause]).
+// GitHub reports the rate limit, until [Ahead.Resume], and once the reads
+// ahead spent their budget, until the GraphQL quota refills
+// (obs.PrefetchSpent). While a detail the user opened loads, reads wait
+// to start ([Ahead.Pause]).
 type Ahead[K comparable] struct {
 	id int64
 	// seen remembers what was read, so that opening it counts as a use,
@@ -53,6 +55,9 @@ type Ahead[K comparable] struct {
 	pause *gate
 	// first are the first rows read ahead for the list.
 	first []K
+	// overBudget is set once a read was skipped for the budget, which
+	// counts only the first.
+	overBudget bool
 
 	// hovered is the row the cursor was last seen on, and seq counts the
 	// times it moved, so that only the latest delay fires.
@@ -140,7 +145,7 @@ func (a *Ahead[K]) Pause() (resume func()) {
 // by index, and false for a row not loaded. It reads them again only when
 // the first rows change, and skips those cached.
 func (a *Ahead[K]) First(at func(i int) (K, bool)) tea.Cmd {
-	if a == nil || a.rows == 0 || a.limited.Load() || a.same(at) {
+	if a == nil || a.rows == 0 || a.limited.Load() || obs.PrefetchSpent() || a.same(at) {
 		return nil
 	}
 	a.first = a.first[:0]
@@ -201,6 +206,36 @@ func (a *Ahead[K]) same(at func(i int) (K, bool)) bool {
 	return n == len(a.first)
 }
 
+// halted reports why reads ahead stop, if they do: GitHub reported the
+// rate limit, or the reads ahead of the session spent their budget.
+func halted(limited *atomic.Bool) (obs.PrefetchEvent, bool) {
+	switch {
+	case limited.Load():
+		return obs.PrefetchLimited, true
+	case obs.PrefetchSpent():
+		return obs.PrefetchOverBudget, true
+	}
+	return 0, false
+}
+
+// halt reports whether reads ahead stop, and counts a read skipped for
+// why: each one for the rate limit, and only the first for the budget
+// until it comes back, since the cursor moving over the rows of a list
+// that reads nothing ahead any more skips nothing new.
+func (a *Ahead[K]) halt() bool {
+	why, ok := halted(a.limited)
+	switch {
+	case !ok:
+		a.overBudget = false
+		return false
+	case why == obs.PrefetchOverBudget && a.overBudget:
+		return true
+	}
+	a.overBudget = why == obs.PrefetchOverBudget
+	a.seen.Count(why)
+	return true
+}
+
 // batch is a group of reads started at once, which ends them. It only
 // holds what never changes or is safe for concurrent use, so it runs in a
 // command.
@@ -228,9 +263,9 @@ func (b batch[K]) readAll(ctx context.Context, ks []K) {
 			b.skip(obs.PrefetchCanceled, ks[i:])
 			return
 		}
-		if b.limited.Load() {
+		if why, ok := halted(b.limited); ok {
 			<-sem
-			b.skip(obs.PrefetchLimited, ks[i:])
+			b.skip(why, ks[i:])
 			return
 		}
 		wg.Go(func() {
@@ -264,6 +299,12 @@ func (b batch[K]) readOne(ctx context.Context, k K) {
 	held, waited, err := b.pause.wait(ctx)
 	if err != nil {
 		b.skip(obs.PrefetchCanceled, []K{k})
+		return
+	}
+	// Reads that ended meanwhile may have met the rate limit or spent the
+	// budget.
+	if why, ok := halted(b.limited); ok {
+		b.skip(why, []K{k})
 		return
 	}
 	if held {
@@ -310,11 +351,11 @@ func (a *Ahead[K]) Moved(k K, ok bool) tea.Cmd {
 	}
 	a.hovered, a.hasHovered = k, ok
 	a.seq++
+	if ok && a.halt() {
+		return nil
+	}
 	switch {
 	case !ok:
-		return nil
-	case a.limited.Load():
-		a.seen.Count(obs.PrefetchLimited)
 		return nil
 	case a.current(k):
 		a.seen.Count(obs.PrefetchCached)
@@ -339,10 +380,10 @@ func (a *Ahead[K]) Rested(msg AheadMsg) tea.Cmd {
 		a.stopHover = nil
 	}
 	k := a.hovered
-	switch {
-	case a.limited.Load():
-		a.seen.Count(obs.PrefetchLimited)
+	if a.halt() {
 		return nil
+	}
+	switch {
 	case a.current(k):
 		a.seen.Count(obs.PrefetchCached)
 		return nil
@@ -372,8 +413,7 @@ func (a *Ahead[K]) Around(at func(i int) (K, bool), i, n int) tea.Cmd {
 		a.stopAround()
 		a.stopAround = nil
 	}
-	if a.limited.Load() {
-		a.seen.Count(obs.PrefetchLimited)
+	if a.halt() {
 		return nil
 	}
 	todo := make([]K, 0, 2*n)
