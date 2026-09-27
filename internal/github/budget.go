@@ -2,14 +2,11 @@ package github
 
 import (
 	"cmp"
-	"log/slog"
 	"net/http"
 	"slices"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/eggzec/gh-tui/internal/obs"
 )
 
 // The rate-limit resources gh-tui sends requests against, as GitHub names
@@ -49,7 +46,8 @@ const (
 // requests sent since and not answered yet will take of it. GitHub reports
 // its resets in its own clock, so the budget learns how far that is from
 // the local one, and a spent resource is released a guard after its
-// reset in local time. It is safe for concurrent use.
+// reset in local time. Its gate holds back the requests that the limits
+// would refuse (admit). It is safe for concurrent use.
 type budget struct {
 	// host is the host of the API, with its port if it has one, and
 	// restRoot and graphqlPath are the paths of the REST root, such as /
@@ -76,9 +74,15 @@ type budget struct {
 	// last got no answer, for the status of the connection.
 	answered, failed time.Time
 
+	// logs are what was logged while b.mu was held, which unlock logs
+	// once it is released.
+	logs []func()
+
 	// notifier tells of the changes that a status bar shows, or is nil.
 	// Each method that may make one calls changed once b.mu is released.
 	notifier *rateNotifier
+	// gate holds requests back while their limits are on.
+	gate gate
 }
 
 // quota is one resource, as the answers of GitHub report it.
@@ -133,6 +137,7 @@ func newBudget(host, restRoot, graphqlPath string) *budget {
 		pending:     make(map[uint64]*reservation),
 		opCost:      make(map[string]int),
 		learned:     make(map[string]string),
+		gate:        newGate(),
 	}
 }
 
@@ -159,38 +164,13 @@ func (b *budget) classify(req *http.Request) string {
 	return resourceCore
 }
 
-// reserve counts req against its resource, before it is sent, and returns
-// the reservation that observe or forget settles. A request costs 1, and
-// a GraphQL query what its operation cost last time, since a query's cost
-// depends on its shape more than on its variables. A mutation costs 1 of
-// the primary limit. A REST route that answers counted against another
-// resource than core is counted against that one. A request to a host
-// outside the API counts against nothing and has no reservation.
-func (b *budget) reserve(req *http.Request) *reservation {
-	c, _ := req.Context().Value(callKey{}).(*call)
-	if c != nil && c.external || req.URL.Host != b.host {
-		return nil
-	}
-	defer b.changed()
-	resource := b.classify(req)
-	var route string
-	cost := 0
-	if resource != "" {
-		cost = 1
-	}
-	if resource == resourceCore {
-		route = b.route(req)
-	}
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if resource == resourceGraphQL && c != nil && c.query {
-		cost = max(b.opCost[c.shape], cost)
-	}
-	if learned, ok := b.learned[route]; ok {
-		resource = learned
-	}
+// reserve counts a request of resource that costs cost against it before
+// it is sent, and returns the reservation that observe or forget settles.
+// route is the request's method and route if it is a REST request that
+// its path says counts against core. b.mu must be held.
+func (b *budget) reserve(resource, route string, cost int, now time.Time) *reservation {
 	b.seq++
-	r := &reservation{seq: b.seq, resource: resource, route: route, cost: cost, at: b.now()}
+	r := &reservation{seq: b.seq, resource: resource, route: route, cost: cost, at: now}
 	b.pending[r.seq] = r
 	return r
 }
@@ -218,7 +198,9 @@ func (b *budget) learnResource(route, resource string) {
 }
 
 // learnCost records what a GraphQL query of shape cost, as the rateLimit
-// field of its data reported.
+// field of its data reported. A query costs what a query of its shape cost
+// last time, since its cost depends on its shape more than on its
+// variables.
 func (b *budget) learnCost(shape string, cost int) {
 	b.mu.Lock()
 	b.opCost[shape] = cost
@@ -231,10 +213,27 @@ func (b *budget) forget(r *reservation, failed bool) {
 	now := b.now()
 	defer b.changed()
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	delete(b.pending, r.seq)
 	if failed {
 		b.failed = now
+	}
+	b.settle(r)
+}
+
+// log has f log a record once b.mu is released, so that no handler of
+// the log is called with it held. b.mu must be held.
+func (b *budget) log(f func()) {
+	b.logs = append(b.logs, f)
+}
+
+// unlock releases b.mu, and then logs what was logged while it was held.
+func (b *budget) unlock() {
+	logs := b.logs
+	b.logs = nil
+	b.mu.Unlock()
+	for _, f := range logs {
+		f()
 	}
 }
 
@@ -249,17 +248,13 @@ func (b *budget) contact() (answered, failed time.Time) {
 // observe settles r with the headers h of its answer, and returns the new
 // guard of its resource if the answer shows that the guard was too short.
 // The rate limit they report is counted in the resource they name, or in
-// the resource of r if they name none. Answers may arrive in another order
-// than their requests were sent, so within a window the lowest remaining
-// wins, and one of an earlier window is ignored, as is a reset too far
-// away to be real, unless the window kept is one such. A new window starts
-// with the shortest guard; a request reserved after the release that
-// still finds the old window spent doubles it.
+// the resource of r if they name none.
 func (b *budget) observe(r *reservation, h http.Header) (guard time.Duration) {
 	now := b.now()
 	defer b.changed()
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
+	defer b.settle(r)
 	delete(b.pending, r.seq)
 	// Only GitHub's answers count, not a page of a captive portal or a
 	// proxy on the way, whose clock may be another.
@@ -275,6 +270,18 @@ func (b *budget) observe(r *reservation, h http.Header) (guard time.Duration) {
 		return 0
 	}
 	b.learnResource(r.route, rl.Resource)
+	return b.report(resource, rl, r.seq, r.at, now)
+}
+
+// report counts rl in the quota of resource, as the answer to a request
+// reserved as seq at at reported it. Answers may arrive in another order
+// than their requests were sent, so within a window the lowest remaining
+// wins, and one of an earlier window is ignored, as is a reset too far
+// away to be real, unless the window kept is one such. A new window starts
+// with the shortest guard; a request reserved after the release that
+// still finds the old window spent doubles it, which report returns.
+// b.mu must be held.
+func (b *budget) report(resource string, rl RateLimit, seq uint64, at, now time.Time) (guard time.Duration) {
 	far := b.far(rl.Reset, now)
 	q := b.quotas[resource]
 	switch {
@@ -283,16 +290,16 @@ func (b *budget) observe(r *reservation, h http.Header) (guard time.Duration) {
 		b.quotas[resource] = q
 	case !rl.Reset.Equal(q.reset):
 		return 0
-	case rl.Remaining > q.remaining || rl.Remaining == q.remaining && r.seq < q.asOf:
+	case rl.Remaining > q.remaining || rl.Remaining == q.remaining && seq < q.asOf:
 		// An answer that GitHub counted before the one that set remaining.
 		q.seenAt = now
 		return 0
 	}
-	q.limit, q.remaining, q.asOf, q.seenAt = rl.Limit, rl.Remaining, r.seq, now
+	q.limit, q.remaining, q.asOf, q.seenAt = rl.Limit, rl.Remaining, seq, now
 	if q.remaining > 0 {
 		return 0
 	}
-	if !q.release.IsZero() && !r.at.Before(q.release) {
+	if !q.release.IsZero() && !at.Before(q.release) {
 		q.guard = min(2*q.guard, maxGuard)
 		q.release = time.Time{}
 		guard = q.guard
@@ -401,42 +408,6 @@ func (b *budget) est(resource string, q *quota) int {
 		}
 	}
 	return n
-}
-
-// rateTransport counts each attempt at a request in the budget before it
-// is sent, and has the budget learn from its answer. It sits below retry,
-// so that the attempts retry discards are counted too, and above the
-// limit, so that a request waiting for a slot is counted already.
-type rateTransport struct {
-	base   http.RoundTripper
-	budget *budget
-}
-
-// RoundTrip sends req and observes its answer.
-func (t *rateTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	r := t.budget.reserve(req)
-	if r == nil {
-		return t.base.RoundTrip(req)
-	}
-	// A reservation left behind by a panic would take from the
-	// estimate for good.
-	settled := false
-	defer func() {
-		if !settled {
-			t.budget.forget(r, false)
-		}
-	}()
-	resp, err := t.base.RoundTrip(req)
-	settled = true
-	if err != nil {
-		t.budget.forget(r, req.Context().Err() == nil)
-		return nil, err
-	}
-	if guard := t.budget.observe(r, resp.Header); guard > 0 {
-		slog.WarnContext(req.Context(), "rate limit outlasted its reset",
-			"span", "http", "guard_ms", obs.Millis(guard))
-	}
-	return resp, nil
 }
 
 // clockSkew estimates how far GitHub's clock is ahead of the local one,

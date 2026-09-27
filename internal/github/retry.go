@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
 )
 
@@ -158,10 +159,11 @@ func replay(req *http.Request) (*http.Request, error) {
 
 // transportRetry returns why a request whose attempt failed with err,
 // which got no response, may be sent again, or "" if it may not. A
-// cancellation is final, and so is a certificate that isn't trusted,
-// which won't be trusted a moment later either.
+// cancellation is final, and so is a rate limit, which the gate already
+// held the attempt for as long as it may wait, and a certificate that
+// isn't trusted, which won't be trusted a moment later either.
 func transportRetry(ctx context.Context, err error, read bool) string {
-	if ctx.Err() != nil {
+	if ctx.Err() != nil || errors.Is(err, core.ErrRateLimited) {
 		return ""
 	}
 	if dialFailed(err) {

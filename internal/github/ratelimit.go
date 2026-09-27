@@ -1,6 +1,7 @@
 package github
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"time"
@@ -25,6 +26,26 @@ type RateLimit struct {
 func (c *Client) RateLimit(resource string) RateLimit {
 	st, _ := c.budget.status(resource)
 	return st.reported
+}
+
+// rateLimits asks GitHub for the rate limits of every resource, which
+// costs nothing against them.
+func (c *Client) rateLimits(ctx context.Context) (map[string]RateLimit, error) {
+	var body struct {
+		Resources map[string]struct {
+			Limit     int   `json:"limit"`
+			Remaining int   `json:"remaining"`
+			Reset     int64 `json:"reset"`
+		} `json:"resources"`
+	}
+	if _, err := c.Get(ctx, "rate_limit", Conditional{}, &body); err != nil {
+		return nil, err
+	}
+	limits := make(map[string]RateLimit, len(body.Resources))
+	for name, r := range body.Resources {
+		limits[name] = RateLimit{Limit: r.Limit, Remaining: r.Remaining, Reset: time.Unix(r.Reset, 0), Resource: name}
+	}
+	return limits, nil
 }
 
 func parseRateLimit(h http.Header) (RateLimit, bool) {

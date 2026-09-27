@@ -111,8 +111,8 @@ func New(opts ...Option) (*Client, error) {
 	// bounds each attempt instead of the call. The retries come before the
 	// limit, so that no slot is held between attempts, and the limit
 	// before the log, so that a request's time waiting for a slot isn't
-	// logged as its duration. Each attempt is counted against its rate
-	// limit before it waits for a slot.
+	// logged as its duration. Each attempt passes the gate of its rate
+	// limit before it waits for a slot, so that one held takes none.
 	hc := *o.http
 	b := newBudget(base.Host, base.EscapedPath(), gql.Path)
 	if o.notify != nil {
@@ -130,20 +130,25 @@ func New(opts ...Option) (*Client, error) {
 		},
 	})
 	hc.Timeout = 0
-	return &Client{
+	c := &Client{
 		http:       &hc,
 		token:      o.token,
 		login:      o.gh.login(o.host, source),
 		restURL:    base,
 		graphqlURL: gql.String(),
 		budget:     b,
-	}, nil
+	}
+	b.gate.probe = c.rateLimits
+	return c, nil
 }
 
 // Close stops telling of changes to the rate limits, the function that
-// WithRateNotify sets, and the timers that would. Requests still work.
+// WithRateNotify sets, and the timers that would, and the timers of the
+// gate. Requests still work, but one that a rate limit holds goes on
+// only once an answer lifts the limit, or its context ends.
 func (c *Client) Close() {
 	c.budget.notifier.stop()
+	c.budget.close()
 }
 
 // loginCommand is the gh command that logs in to host. gh logs in to
