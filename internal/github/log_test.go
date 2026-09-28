@@ -345,15 +345,20 @@ func TestLogTransportError(t *testing.T) {
 		WithHTTPClient(&http.Client{Transport: failingTransport{context.Canceled}}))
 	_, _ = c2.Get(ctx, "repos/cli/cli/issues", Conditional{}, nil)
 
-	// The failure is logged for each of its attempts, the cancellation
-	// once.
+	// The failure is logged for each of its attempts, at error level for
+	// the last and at debug level for those sent again, and the
+	// cancellation once.
 	recs := httpRecords(t, buf)
 	if len(recs) != 1+maxRetries+1 {
 		t.Fatalf("got %d records, want %d:\n%s", len(recs), 1+maxRetries+1, buf)
 	}
-	for _, r := range recs[:1+maxRetries] {
-		if r["level"] != "ERROR" || !strings.Contains(r["err"].(string), "connection refused") || r["canceled"] != false {
-			t.Errorf("failed record = %v", r)
+	for i, r := range recs[:1+maxRetries] {
+		level := "DEBUG"
+		if i == maxRetries {
+			level = "ERROR"
+		}
+		if r["level"] != level || !strings.Contains(r["err"].(string), "connection refused") || r["canceled"] != false {
+			t.Errorf("failed record = %v, want it at %s", r, level)
 		}
 	}
 	if r := recs[1+maxRetries]; r["level"] != "INFO" || r["canceled"] != true || r["status"] != 0.0 || r["duration_ms"] == nil {
