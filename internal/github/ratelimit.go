@@ -28,16 +28,19 @@ func (c *Client) RateLimit(resource string) RateLimit {
 	return st.reported
 }
 
+// restRateLimits is the answer of GET rate_limit.
+type restRateLimits struct {
+	Resources map[string]struct {
+		Limit     int   `json:"limit"`
+		Remaining int   `json:"remaining"`
+		Reset     int64 `json:"reset"`
+	} `json:"resources"`
+}
+
 // rateLimits asks GitHub for the rate limits of every resource, which
 // costs nothing against them.
 func (c *Client) rateLimits(ctx context.Context) (map[string]RateLimit, error) {
-	var body struct {
-		Resources map[string]struct {
-			Limit     int   `json:"limit"`
-			Remaining int   `json:"remaining"`
-			Reset     int64 `json:"reset"`
-		} `json:"resources"`
-	}
+	var body restRateLimits
 	if _, err := c.Get(ctx, "rate_limit", Conditional{}, &body); err != nil {
 		return nil, err
 	}

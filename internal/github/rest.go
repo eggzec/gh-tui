@@ -59,6 +59,10 @@ func (c *Client) probeList(ctx context.Context, path string, cond Conditional) (
 	return c.Get(ctx, path+"?state=all&sort=updated&direction=desc&per_page=1", cond, &latest)
 }
 
+// rawAccept asks for the raw content of a resource, such as a blob,
+// rather than JSON.
+const rawAccept = "application/vnd.github.raw+json"
+
 // getRaw fetches path as the raw media type, which returns the resource's
 // content instead of JSON, and reads at most limit bytes of it. A larger
 // body is not read: it fails with a *core.TooLargeError.
@@ -79,7 +83,7 @@ func (c *Client) rawRoundTrip(ctx context.Context, path string, limit int64) ([]
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Accept", "application/vnd.github.raw+json")
+	req.Header.Set("Accept", rawAccept)
 	resp, err := c.send(req)
 	if err != nil {
 		return nil, err

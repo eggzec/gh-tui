@@ -232,9 +232,7 @@ func (c *Client) ListCommitFiles(ctx context.Context, repo core.RepoRef, sha, cu
 	if path == "" {
 		path = commitPath(repo, sha)
 	}
-	var d struct {
-		Files []commitFile `json:"files"`
-	}
+	var d restCommitFiles
 	res, err := c.Get(ctx, path, Conditional{}, &d)
 	if err != nil {
 		return core.Page[core.CommitFile]{}, fmt.Errorf("list files of commit %s: %w", sha, err)
@@ -305,4 +303,9 @@ func commitsPath(repo core.RepoRef) string {
 
 func commitPath(repo core.RepoRef, sha string) string {
 	return commitsPath(repo) + "/" + url.PathEscape(sha)
+}
+
+// restCommitFiles is the page of the files of a commit, of its read.
+type restCommitFiles struct {
+	Files []commitFile `json:"files"`
 }
