@@ -299,6 +299,7 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 	}), tui.WithSettings(func(c config.Config) {
 		live.set(c)
 		engine.SetInterval(c.Sync.Interval)
+		setLogLevel(c.Log.Level)
 	}))
 	var (
 		activity []func(bool)

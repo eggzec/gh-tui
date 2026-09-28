@@ -284,6 +284,7 @@ reacts to messages. Concretely:
   before they share one.
 - A background loop's requests that went well log at debug, since the
   loop's own record (`sync poll`, `revalidate pass`) sums them up.
+  `:set log.level` changes the level for the session.
 
 ## Performance
 

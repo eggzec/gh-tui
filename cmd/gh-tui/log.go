@@ -24,10 +24,7 @@ import (
 // logs nothing rather than not starting, and openLog returns a warning to
 // show.
 func openLog(cfg config.Log) (closeLog func(), warning string) {
-	var level slog.Level
-	if err := level.UnmarshalText([]byte(cfg.Level)); err != nil {
-		level = slog.LevelInfo
-	}
+	logLevel.Set(parseLevel(cfg.Level))
 	path, err := cfg.Path()
 	var f *logfile.File
 	if err == nil {
@@ -41,8 +38,37 @@ func openLog(cfg config.Log) (closeLog func(), warning string) {
 		return func() {}, "Logging is off: " + couldntOpen(path, err)
 	}
 	session := obs.NewID(obs.SessionPrefix)
-	slog.SetDefault(obs.NewLogger(f, level, session))
+	slog.SetDefault(obs.NewLogger(f, &logLevel, session))
 	return func() { _ = f.Close() }, ""
+}
+
+// logLevel is the least level logged, which the set command may change
+// while the app runs.
+var logLevel slog.LevelVar
+
+// parseLevel reads level, a config.Log level, and takes one it can't read
+// for info.
+func parseLevel(level string) slog.Level {
+	var l slog.Level
+	if err := l.UnmarshalText([]byte(level)); err != nil {
+		return slog.LevelInfo
+	}
+	return l
+}
+
+// setLogLevel sets the least level logged to level, a config.Log level,
+// and logs the change while the more verbose of the two levels holds, so
+// that the record is kept.
+func setLogLevel(level string) {
+	from, to := logLevel.Level(), parseLevel(level)
+	if from == to {
+		return
+	}
+	if to < from {
+		logLevel.Set(to)
+	}
+	slog.Info("log level set", "span", "app", "from", from.String(), "to", to.String())
+	logLevel.Set(to)
 }
 
 // logStart logs the start of the session: what the binary was built
@@ -53,9 +79,7 @@ func openLog(cfg config.Log) (closeLog func(), warning string) {
 // value that may be secret.
 func logStart(cfg config.Config, configPath, levelFrom string) {
 	b := buildinfo.Read()
-	// Read as openLog reads it, which takes a level it can't read for info.
-	var level slog.Level
-	_ = level.UnmarshalText([]byte(cfg.Log.Level))
+	level := parseLevel(cfg.Log.Level)
 	logPath, _ := cfg.Log.Path()
 	_, statErr := os.Stat(configPath)
 	attrs := []slog.Attr{
