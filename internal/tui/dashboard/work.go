@@ -63,9 +63,9 @@ var workLists = [...]struct {
 	title, short, empty string
 	list                func(*core.Work) core.WorkList
 }{
-	{"Review requests", "Reviews", "No pull request asks for your review.", func(w *core.Work) core.WorkList { return w.ReviewRequested }},
-	{"Your pull requests", "Mine", "You have no open pull request.", func(w *core.Work) core.WorkList { return w.Authored }},
-	{"Assigned issues", "Assigned", "No open issue is assigned to you.", func(w *core.Work) core.WorkList { return w.Assigned }},
+	{"Review requests", "Reviews", ui.None("review requests"), func(w *core.Work) core.WorkList { return w.ReviewRequested }},
+	{"Your pull requests", "Mine", ui.None("open pull requests of yours"), func(w *core.Work) core.WorkList { return w.Authored }},
+	{"Assigned issues", "Assigned", ui.None("open issues assigned to you"), func(w *core.Work) core.WorkList { return w.Assigned }},
 }
 
 // set lists w, and keeps the cursor of each tab on the item it was on if

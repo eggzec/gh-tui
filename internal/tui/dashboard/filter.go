@@ -321,7 +321,7 @@ func (t *repoTabs) setFilter(query string) tea.Cmd {
 	cmds := make([]tea.Cmd, 0, len(t.tabs))
 	for _, o := range t.tabs {
 		o.filter.Store(&f)
-		o.feed.SetEmptyText(o.emptyText(&f))
+		o.feed.SetEmptyText(o.emptyText(&f, ui.KeyOf(t.s.keys.ClearFilter)))
 		if o.started {
 			cmds = append(cmds, o.feed.Reset())
 		}

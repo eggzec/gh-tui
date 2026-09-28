@@ -392,27 +392,22 @@ func (s *Section) renderHeader() {
 // emptyText is what the feed says when no pull request is in the tab, with
 // the key that shows more.
 func (s *Section) emptyText() string {
-	kind := strings.ToLower(tabLabel(s.tab))
+	kind := strings.ToLower(tabLabel(s.tab)) + " pull requests"
 	if s.tab == "" {
-		kind = ""
+		kind = "pull requests"
 	}
 	if s.query != "" {
-		text := "No " + strings.TrimSpace(kind+" pull requests") + " match the filters."
-		if k := s.keys.ClearFilter; k.Enabled() {
-			text += " Press " + k.Help().Key + " to clear them."
-		}
-		return text
+		return ui.NoMatch(kind, ui.KeyOf(s.keys.ClearFilter))
 	}
-	text := "No " + strings.TrimSpace(kind+" pull requests") + " in " + s.repo.String() + "."
-	k := s.keys.NextTab
+	text := ui.None(kind)
 	switch next := nextTab(s.tab, 1); {
-	case !k.Enabled() || s.tab == "":
+	case s.tab == "":
+		return text
 	case next == "":
-		text += " Press " + k.Help().Key + " to show all of them."
+		return ui.Press(text, ui.KeyOf(s.keys.NextTab), "show all of them")
 	default:
-		text += " Press " + k.Help().Key + " to show " + strings.ToLower(tabLabel(next)) + " ones."
+		return ui.Press(text, ui.KeyOf(s.keys.NextTab), "show "+strings.ToLower(tabLabel(next))+" ones")
 	}
-	return text
 }
 
 // pullKey identifies a pull request in the feed, so a reload keeps the

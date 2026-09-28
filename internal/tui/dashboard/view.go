@@ -366,7 +366,7 @@ func (s *Section) pinnedBody(w, h int) []string {
 		case !s.header.ok:
 			return []string{" " + st.muted.render("Loading pinned repositories…")}
 		}
-		return []string{" " + st.muted.render("Nothing pinned. Pin repositories on your GitHub profile to see them here.")}
+		return []string{" " + st.muted.render(ui.None("pinned repositories")+" Pin them on your GitHub profile to see them here.")}
 	}
 	lines := make([]string, 0, h)
 	for row := c.top; row < c.top+c.rows && row*c.cols < len(c.items); row++ {
@@ -641,7 +641,7 @@ func (s *Section) inboxBody(w, h int) []string {
 	}
 	n := s.unread()
 	if n == "" {
-		return []string{" " + st.muted.render("All caught up. Nothing unread.")}
+		return []string{" " + st.muted.render(ui.None("unread notifications"))}
 	}
 	lines := make([]string, 0, h)
 	head := " " + st.text.render(n) + st.muted.render(" unread")

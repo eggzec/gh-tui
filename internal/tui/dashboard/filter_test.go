@@ -203,7 +203,7 @@ func TestFilterLists(t *testing.T) {
 	if n := s.repos.current().feed.Len(); n != 0 {
 		t.Errorf("github lists %d repositories, want none: it has no private Go one", n)
 	}
-	if view := screen(s); !strings.Contains(view, "No repository of github matches the filter.") {
+	if view := screen(s); !strings.Contains(view, "No repositories match the filters.") {
 		t.Errorf("an empty filtered list should say so:\n%s", view)
 	}
 

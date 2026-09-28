@@ -139,13 +139,9 @@ func (m *Modal) newRuns() feed.Model[core.Run] {
 // emptyText tells the user what to do when no runs match.
 func (m *Modal) emptyText() string {
 	if m.filter == (core.RunFilter{}) {
-		return "No workflow runs yet."
+		return ui.None("workflow runs")
 	}
-	hint := "No runs match."
-	if k := m.keys.Filter.Help().Key; k != "" {
-		hint += " " + k + " changes the filter."
-	}
-	return hint
+	return ui.Press("No workflow runs match the filters.", ui.KeyOf(m.keys.Filter), "change them")
 }
 
 // current returns r as the cache last had it after a change or a poll,

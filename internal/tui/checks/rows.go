@@ -281,7 +281,7 @@ func (s *Step) listLines(w, h int) []string {
 	case !s.loaded:
 		return ui.FitLines([]string{s.spin.View() + st.run.Muted.Render("Loading the checks…")}, w, h)
 	case len(s.rows) == 0:
-		return ui.FitLines(ui.Wrap(st.run.Muted.Render("No checks have reported on the head commit of this pull request."), w), w, h)
+		return ui.FitLines(ui.Wrap(st.run.Muted.Render(ui.None("checks on the head commit yet")), w), w, h)
 	}
 	lines := make([]string, 0, h)
 	now := s.now()

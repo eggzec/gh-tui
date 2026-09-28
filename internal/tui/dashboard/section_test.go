@@ -508,7 +508,7 @@ func TestWorkMore(t *testing.T) {
 	view := screen(s)
 	press(t, s, "3", "[")
 	view += screen(s)
-	for _, want := range []string{"and 12 more on GitHub", "No open issue is assigned to you.", "Waiting on you · 16", "Assigned issues 0"} {
+	for _, want := range []string{"and 12 more on GitHub", "No open issues assigned to you.", "Waiting on you · 16", "Assigned issues 0"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("the work doesn't show %q:\n%s", want, view)
 		}
@@ -548,7 +548,7 @@ func TestInbox(t *testing.T) {
 	// So does marking threads read in the notifications.
 	in.set()
 	s.Update(ui.DoneMsg{From: ui.NotificationsTitle, What: "mark all read"})
-	if !strings.Contains(screen(s), "All caught up") {
+	if !strings.Contains(screen(s), "No unread notifications.") {
 		t.Errorf("with nothing unread the dashboard should say so:\n%s", screen(s))
 	}
 	if in.lists != 1 {

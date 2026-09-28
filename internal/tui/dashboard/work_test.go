@@ -176,7 +176,7 @@ func TestWorkOpensOnTheFirstTabWithItems(t *testing.T) {
 	}
 	svc.work = core.Work{}
 	s = newSection(t, svc, nil, 140, 38)
-	if s.tasks.cur != 0 || !strings.Contains(screen(s), "No pull request asks for your review.") {
+	if s.tasks.cur != 0 || !strings.Contains(screen(s), "No review requests.") {
 		t.Errorf("with no work on tab %d, want the first, which says so:\n%s", s.tasks.cur, screen(s))
 	}
 }

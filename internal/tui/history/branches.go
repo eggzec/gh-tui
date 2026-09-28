@@ -311,7 +311,7 @@ func (m *Modal) openFilter() tea.Cmd {
 		picker.WithItems(m.filterItems()),
 		picker.WithGroupHeaders(false),
 		picker.WithPlaceholder("Filter branches"),
-		picker.WithEmptyText("No branch matches. Press esc to see them all."),
+		picker.WithEmptyText("No branches match. Press esc to see them all."),
 		picker.WithStyles(filterStyles(m.theme, m.opts.icons)),
 		picker.WithSize(m.paneWidth(branchPane), m.bodyHeight()),
 	)

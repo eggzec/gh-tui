@@ -182,7 +182,7 @@ func TestNoAssets(t *testing.T) {
 	svc := &noAssets{}
 	m := newModal(svc, 100, 30)
 	run(t, m, m.Init())
-	if v := ansi.Strip(m.View()); !strings.Contains(v, "No files were uploaded with it.") || strings.Contains(v, "comments") {
+	if v := ansi.Strip(m.View()); !strings.Contains(v, "No assets.") || strings.Contains(v, "comments") {
 		t.Errorf("release without files shows as\n%s", v)
 	}
 }

@@ -306,11 +306,13 @@ func (s *Section) spinTitle() tea.Cmd {
 func emptyText(k core.SearchKind) string {
 	switch k {
 	case core.SearchCode:
-		return "No file matches. Try other words, or qualifiers such as language:go or repo:owner/name."
-	case core.SearchIssues, core.SearchPulls:
-		return "Nothing matches. Try other words, or qualifiers such as is:open or author:@me."
+		return "No files match. Try other words, or qualifiers such as language:go or repo:owner/name."
+	case core.SearchIssues:
+		return "No issues match. Try other words, or qualifiers such as is:open or author:@me."
+	case core.SearchPulls:
+		return "No pull requests match. Try other words, or qualifiers such as is:open or author:@me."
 	default:
-		return "No repository matches. Try other words, or qualifiers such as user:name or stars:>100."
+		return "No repositories match. Try other words, or qualifiers such as user:name or stars:>100."
 	}
 }
 

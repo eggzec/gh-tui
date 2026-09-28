@@ -185,19 +185,13 @@ func (s *Section) renderHeader() {
 }
 
 func (s *Section) emptyText() string {
-	f, k := s.filter(), s.keys.Filter.Help().Key
-	switch {
+	switch f := s.filter(); {
 	case f.local():
-		if c := s.keys.ClearFilter.Help().Key; c != "" {
-			return "No notifications match the filter. Press " + c + " to clear it."
-		}
-		return "No notifications match the filter."
+		return ui.NoMatch("notifications", ui.KeyOf(s.keys.ClearFilter))
 	case f.all:
-		return "No notifications."
-	case k != "":
-		return "You're all caught up. Press " + k + " to show read notifications too."
+		return ui.None("notifications")
 	}
-	return "You're all caught up."
+	return ui.Press(ui.None("unread notifications"), ui.KeyOf(s.keys.Filter), "show read ones too")
 }
 
 // View renders the filter line and the list.
