@@ -49,10 +49,14 @@ func (s *Service) CancelRun(repo core.RepoRef, runID int64) *optimistic.Op {
 
 // change shows run runID of repo, and its jobs that match, with status at
 // once, and returns the Op that sends the change with send. What names
-// the change in errors.
+// the change in errors. A change the token may not make changes nothing,
+// and the Op returns why.
 func (s *Service) change(what string, repo core.RepoRef, runID int64, status core.RunStatus,
 	match func(core.Job) bool, send func(ctx context.Context) error,
 ) *optimistic.Op {
+	if err := s.refused(); err != nil {
+		return optimistic.Refused(fmt.Errorf("%s run %d of %s: %w", what, runID, repo, err))
+	}
 	editRun := func(r core.Run) core.Run {
 		r.Status = status
 		if status == core.RunQueued {
@@ -87,6 +91,16 @@ func (s *Service) change(what string, repo core.RepoRef, runID int64, status cor
 		s.liveJobs.InvalidateTag(tag)
 		return nil
 	}, undoRuns, undoRun, undoLive, undoDone)
+}
+
+// refused returns why the token may not re-run or cancel a run, or nil
+// when it may, or when that isn't known. GitHub asks for repo even in a
+// public repository.
+func (s *Service) refused() error {
+	if s.access == nil {
+		return nil
+	}
+	return s.access.Check(core.NeedRuns)
 }
 
 // replaceRun returns p with run id replaced by f of it, and whether p
