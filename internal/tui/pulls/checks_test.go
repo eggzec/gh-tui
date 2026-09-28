@@ -39,10 +39,10 @@ func (f *fakeChecks) CachedRun(core.RepoRef, int64) (core.Run, bool) { return co
 func (f *fakeChecks) Run(context.Context, core.RepoRef, int64) (core.Run, error) {
 	return core.Run{}, nil
 }
-func (f *fakeChecks) CachedJobs(actionssvc.JobsQuery) (core.Page[core.Job], bool) {
+func (f *fakeChecks) CachedAllJobs(actionssvc.JobsQuery) (core.Page[core.Job], bool) {
 	return core.Page[core.Job]{}, false
 }
-func (f *fakeChecks) Jobs(context.Context, actionssvc.JobsQuery) (core.Page[core.Job], error) {
+func (f *fakeChecks) AllJobs(context.Context, actionssvc.JobsQuery) (core.Page[core.Job], error) {
 	return core.Page[core.Job]{}, nil
 }
 func (f *fakeChecks) CachedLog(core.RepoRef, int64) (core.Log, bool) { return core.Log{}, false }

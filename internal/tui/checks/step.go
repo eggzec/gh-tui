@@ -43,9 +43,12 @@ type Service interface {
 	// or a poll left it.
 	CachedRun(repo core.RepoRef, runID int64) (core.Run, bool)
 	Run(ctx context.Context, repo core.RepoRef, runID int64) (core.Run, error)
-	// CachedJobs returns a page of jobs from memory, without a request.
-	CachedJobs(q actionssvc.JobsQuery) (core.Page[core.Job], bool)
-	Jobs(ctx context.Context, q actionssvc.JobsQuery) (core.Page[core.Job], error)
+	// CachedAllJobs returns the jobs of an attempt from memory, without a
+	// request.
+	CachedAllJobs(q actionssvc.JobsQuery) (core.Page[core.Job], bool)
+	// AllJobs returns the jobs of an attempt, every page of them up to
+	// actionssvc.MaxJobPages.
+	AllJobs(ctx context.Context, q actionssvc.JobsQuery) (core.Page[core.Job], error)
 	// Invalidate marks what is cached of repo stale, so that the reads
 	// after it ask GitHub.
 	Invalidate(repo core.RepoRef)

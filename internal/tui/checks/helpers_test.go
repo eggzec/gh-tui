@@ -194,17 +194,22 @@ func (f *fake) Run(_ context.Context, _ core.RepoRef, runID int64) (core.Run, er
 	return f.runs[runID], nil
 }
 
-func (f *fake) CachedJobs(q actionssvc.JobsQuery) (core.Page[core.Job], bool) {
+func (f *fake) CachedAllJobs(q actionssvc.JobsQuery) (core.Page[core.Job], bool) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	return core.Page[core.Job]{Items: f.jobs[q.RunID]}, f.jobReads > 0
+	return f.allJobs(q), f.jobReads > 0
 }
 
-func (f *fake) Jobs(_ context.Context, q actionssvc.JobsQuery) (core.Page[core.Job], error) {
+func (f *fake) AllJobs(_ context.Context, q actionssvc.JobsQuery) (core.Page[core.Job], error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.jobReads++
-	return core.Page[core.Job]{Items: f.jobs[q.RunID]}, nil
+	return f.allJobs(q), nil
+}
+
+// allJobs is every page of the jobs of run q.RunID.
+func (f *fake) allJobs(q actionssvc.JobsQuery) core.Page[core.Job] {
+	return core.Page[core.Job]{Items: f.jobs[q.RunID]}
 }
 
 func (f *fake) CachedLog(core.RepoRef, int64) (core.Log, bool) { return core.Log{}, false }

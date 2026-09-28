@@ -2,6 +2,7 @@ package checks
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -234,6 +235,31 @@ func TestRerunFailedJobs(t *testing.T) {
 	h.keys("esc", "down", "down", "down", "enter", "ctrl+r")
 	if s.ask != nil || !strings.Contains(s.notice, "still running") {
 		t.Errorf("re-run of a run in progress: ask %+v, notice %q", s.ask, s.notice)
+	}
+}
+
+// A run with more jobs than a page lists finds the job of a check, and
+// counts the failed jobs, on every page.
+func TestJobsPastTheFirstPage(t *testing.T) {
+	f := newFake()
+	jobs := make([]core.Job, 0, actionssvc.DefaultJobPageSize+2)
+	for i := range actionssvc.DefaultJobPageSize {
+		c := core.ConclusionSuccess
+		if i == 0 {
+			c = core.ConclusionFailure
+		}
+		jobs = append(jobs, core.Job{ID: int64(1000 + i), RunID: ciRun, Attempt: 1, Name: "shard " + strconv.Itoa(i), Status: core.RunCompleted, Conclusion: c})
+	}
+	// The jobs of the checks come after the first page.
+	f.jobs[ciRun] = append(jobs, f.jobs[ciRun]...)
+	s, h := newStep(t, f, wideW, wideH)
+	h.keys("enter")
+	if j, ok := s.view.Job(); !ok || j.ID != testJob {
+		t.Fatalf("the check shows job %d, want %d from the second page", j.ID, testJob)
+	}
+	h.keys("ctrl+r")
+	if s.ask == nil || s.ask.Question != "Re-run 2 failed jobs of CI #4812?" {
+		t.Errorf("ctrl+r asked %+v, want the failed jobs of both pages", s.ask)
 	}
 }
 
