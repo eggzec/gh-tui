@@ -7,7 +7,7 @@ import (
 )
 
 func benchModel() Model {
-	m := New(WithSize(80, 24), WithDuration(0), WithErrorDuration(0))
+	m := New(0, 0, WithSize(80, 24))
 	m.Push(Info, "Refreshing pull requests")
 	m.Push(Success, "Merged #42")
 	m.Push(Error, "Could not label #7: resource not accessible, rolled back")

@@ -5,10 +5,12 @@
 package dashboard
 
 import (
+	"cmp"
 	"context"
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/cache"
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/fallback"
 )
@@ -39,6 +41,9 @@ type Service struct {
 	work          reads[core.Work]
 	contributions reads[core.Contributions]
 	repos         reads[core.Page[core.Repo]]
+	// workSize is how many items of each list of work a query that sets
+	// none holds.
+	workSize int
 }
 
 // The kinds of entries the service keeps in its store, and the version of
@@ -71,6 +76,7 @@ func New(api API, opts ...Option) *Service {
 		repos: newReads(o, kindRepos, max(o.ttl, ReposTTL), func(p *core.Page[core.Repo]) (*bool, *bool, *bool) {
 			return &p.Stale, &p.Offline, &p.Limited
 		}),
+		workSize: cmp.Or(o.workSize, config.Default().PageSize.WaitingOnYou),
 	}
 }
 

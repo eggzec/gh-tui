@@ -112,7 +112,7 @@ func TestWorkPageSize(t *testing.T) {
 		return core.Work{Authored: core.WorkList{Count: first}}, nil
 	}}
 	s := New(api)
-	for _, q := range []WorkQuery{{}, {PageSize: DefaultWorkSize}, {PageSize: 5}, {PageSize: 500}} {
+	for _, q := range []WorkQuery{{}, {PageSize: 10}, {PageSize: 5}, {PageSize: 500}} {
 		if _, err := s.Work(t.Context(), q); err != nil {
 			t.Fatal(err)
 		}

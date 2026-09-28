@@ -91,6 +91,8 @@ type Model struct {
 	badge string
 
 	toast toast.Model
+	// toastTimes is what the toasts were last given, to give them only a change.
+	toastTimes config.Toast
 	// status is the status bar: hints, of the keys of layers, on the
 	// left, and stats, the rate limits, the connection and the account,
 	// on the right.
@@ -289,17 +291,18 @@ func WithWarning(text string) Option {
 func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) *Model {
 	keys := newKeyMap(cfg.Keys)
 	m := &Model{
-		ctx:     ctx,
-		cfg:     cfg,
-		file:    cfg,
-		keys:    keys,
-		toast:   toast.New(),
-		keyhelp: newHelp(keys),
-		status:  statusbar.New(),
-		line:    newLine(cfg.Keys),
-		spin:    newSpinner(),
-		voice:   ui.NewVoice(cfg.Keys, ""),
-		images:  newImageProbe(cfg.Images.Enabled),
+		ctx:        ctx,
+		cfg:        cfg,
+		file:       cfg,
+		keys:       keys,
+		toast:      toast.New(cfg.UI.Toast.Info, cfg.UI.Toast.Error),
+		toastTimes: cfg.UI.Toast,
+		keyhelp:    newHelp(keys),
+		status:     statusbar.New(),
+		line:       newLine(cfg.Keys, cfg.Commands.History),
+		spin:       newSpinner(),
+		voice:      ui.NewVoice(cfg.Keys, ""),
+		images:     newImageProbe(cfg.Images.Enabled),
 	}
 	if layout.Files != nil {
 		m.panes, m.left = append(m.panes, &pane{section: layout.Files}), 1

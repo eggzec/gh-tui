@@ -16,9 +16,6 @@ import (
 // that lists it.
 const tag = "notifications"
 
-// DefaultPageSize is the page size of a ListQuery that sets none.
-const DefaultPageSize = 30
-
 // maxPageSize is the largest page GitHub returns.
 const maxPageSize = 100
 
@@ -33,25 +30,28 @@ type ListQuery struct {
 	Filter core.NotificationFilter
 	// Cursor is the Next of the previous page, or empty for the first page.
 	Cursor string
-	// PageSize is how many threads a page holds. Zero means DefaultPageSize,
-	// and sizes above GitHub's maximum of 100 are clamped.
+	// PageSize is how many threads a page holds. Zero means the service's
+	// page size, and sizes above GitHub's maximum of 100 are clamped.
 	PageSize int
 	// Again reads past a kept page: set it on the read that follows one
 	// that came back Stale. It doesn't key the cache.
 	Again bool
 }
 
-func (q ListQuery) normalize() ListQuery {
+// normalize returns q with its defaults set: size is the service's page
+// size.
+func (q ListQuery) normalize(size int) ListQuery {
 	if q.PageSize <= 0 {
-		q.PageSize = DefaultPageSize
+		q.PageSize = size
 	}
 	q.PageSize = min(q.PageSize, maxPageSize)
 	return q
 }
 
-// key is the cache key of q, which the defaults and the clamp don't change.
-func (q ListQuery) key() string {
-	q = q.normalize()
+// key is the cache key of q, which the defaults and the clamp don't change;
+// size is the service's page size.
+func (q ListQuery) key(size int) string {
+	q = q.normalize(size)
 	return "notifications?all=" + strconv.FormatBool(q.Filter.All) +
 		"&participating=" + strconv.FormatBool(q.Filter.Participating) +
 		"&page_size=" + strconv.Itoa(q.PageSize) +
@@ -65,7 +65,7 @@ func (s *Service) CachedList(q ListQuery) (core.Page[core.Notification], bool) {
 	if s.refused() != nil {
 		return page{}, false
 	}
-	e, st := s.cache.Get(q.key())
+	e, st := s.cache.Get(q.key(s.pageSize))
 	return e.Value, st != cache.Miss
 }
 
@@ -85,14 +85,14 @@ func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.Notific
 	if err := s.refused(); err != nil {
 		return page{}, fmt.Errorf("list notifications: %w", err)
 	}
-	q = q.normalize()
-	if e, ok := s.kept.Warm(s.cache, q.key(), q.Again); ok {
+	q = q.normalize(s.pageSize)
+	if e, ok := s.kept.Warm(s.cache, q.key(s.pageSize), q.Again); ok {
 		p := e.Value
 		p.Stale = true
 		return p, nil
 	}
 	// The client already names the request in its error.
-	e, err := fallback.Fetch(ctx, s.cache, s.kept, q.key(), fallback.Page[core.Notification], s.load(q))
+	e, err := fallback.Fetch(ctx, s.cache, s.kept, q.key(s.pageSize), fallback.Page[core.Notification], s.load(q))
 	return e.Value, err
 }
 
@@ -117,7 +117,7 @@ func (s *Service) Poll(ctx context.Context) (watch.Result, error) {
 	if s.refused() != nil {
 		return watch.Result{}, nil
 	}
-	q := ListQuery{}.normalize()
+	q := ListQuery{}.normalize(s.pageSize)
 	load := s.load(q)
 	// Fetch returns after fn unless ctx is done, and then changed is not
 	// read, so it needs no lock.
@@ -128,12 +128,12 @@ func (s *Service) Poll(ctx context.Context) (watch.Result, error) {
 		return e, err
 	}
 	// What an earlier session kept makes the request conditional.
-	s.kept.Warm(s.cache, q.key(), true)
+	s.kept.Warm(s.cache, q.key(s.pageSize), true)
 	// A fresh entry would be returned without a request, and polling must
 	// ask the server. If a List is already revalidating, Poll joins it and
 	// reports no change: that List hands its caller the new data.
-	s.cache.Invalidate(q.key())
-	e, err := fallback.Fetch(ctx, s.cache, s.kept, q.key(), fallback.Page[core.Notification], fn)
+	s.cache.Invalidate(q.key(s.pageSize))
+	e, err := fallback.Fetch(ctx, s.cache, s.kept, q.key(s.pageSize), fallback.Page[core.Notification], fn)
 	if err == nil {
 		err = e.Fallback
 	}
@@ -146,5 +146,5 @@ func (s *Service) Poll(ctx context.Context) (watch.Result, error) {
 // load fetches the page for a normalized q, conditionally when a previous
 // entry exists, and keeps what GitHub sends.
 func (s *Service) load(q ListQuery) cache.FetchFunc[page] {
-	return fallback.Keep(s.kept, q.key(), s.fetcher(q))
+	return fallback.Keep(s.kept, q.key(s.pageSize), s.fetcher(q))
 }

@@ -156,7 +156,7 @@ func TestFreshList(t *testing.T) {
 	if !s.FreshList(openSeven) {
 		t.Error("FreshList after List = false, want true")
 	}
-	if !s.FreshList(ListQuery{Repo: repo, State: core.FilterOpen, PageSize: DefaultPageSize}) {
+	if !s.FreshList(ListQuery{Repo: repo, State: core.FilterOpen, PageSize: 30}) {
 		t.Error("FreshList of the same query spelled out = false, want true")
 	}
 	if s.FreshList(ListQuery{Repo: repo, State: core.FilterClosed}) {
@@ -363,8 +363,8 @@ func TestKeptAnsweredAfterOutage(t *testing.T) {
 
 			srv.fail(nil)
 			if revalidated {
-				list, _ := s.listTarget(listKey(openSeven.normalize()))
-				comments, _ := other.commentsTarget(commentsKey(sevenComments.normalize()))
+				list, _ := s.listTarget(listKey(openSeven.normalize(30)))
+				comments, _ := other.commentsTarget(commentsKey(sevenComments.normalize(30)))
 				for _, target := range []recheck.Target{list, comments} {
 					if res := target.Check(t.Context()); res.Status != revalidate.NotModified {
 						t.Fatalf("check = %+v, want not modified", res)

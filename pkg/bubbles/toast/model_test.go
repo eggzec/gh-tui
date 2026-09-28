@@ -41,6 +41,13 @@ type push struct {
 	text  string
 }
 
+// testDuration and testErrorDuration are how long the toasts of the tests
+// stay, as gh-tui's own do.
+const (
+	testDuration      = 4 * time.Second
+	testErrorDuration = 8 * time.Second
+)
+
 func TestPush(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -104,7 +111,7 @@ func TestPush(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := New(tt.opts...)
+			m := New(testDuration, testErrorDuration, tt.opts...)
 			for _, p := range tt.pushes {
 				m.Push(p.level, p.text)
 			}
@@ -117,7 +124,7 @@ func TestPush(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
-	other := New()
+	other := New(testDuration, testErrorDuration)
 	tests := []struct {
 		name   string
 		pushes []push
@@ -183,7 +190,7 @@ func TestUpdate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := New()
+			m := New(testDuration, testErrorDuration)
 			for _, p := range tt.pushes {
 				m.Push(p.level, p.text)
 			}
@@ -200,7 +207,7 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestDismissAndClear(t *testing.T) {
-	m := New()
+	m := New(testDuration, testErrorDuration)
 	if cmd := m.Dismiss(); cmd != nil {
 		t.Error("Dismiss on an empty stack returned a command")
 	}
@@ -216,7 +223,7 @@ func TestDismissAndClear(t *testing.T) {
 }
 
 func TestSetMaxDropsTheOldest(t *testing.T) {
-	m := New()
+	m := New(testDuration, testErrorDuration)
 	m.Push(Info, "a")
 	m.Push(Info, "b")
 	m.Push(Info, "c")
@@ -229,7 +236,7 @@ func TestSetMaxDropsTheOldest(t *testing.T) {
 
 // Copies of a model share nothing that a push or an expiry changes.
 func TestCopiesAreIndependent(t *testing.T) {
-	m := New()
+	m := New(testDuration, testErrorDuration)
 	m.Push(Info, "a")
 	m.Push(Info, "b")
 	before := m
@@ -240,7 +247,7 @@ func TestCopiesAreIndependent(t *testing.T) {
 }
 
 func TestDismissBindingFollowsToasts(t *testing.T) {
-	m := New()
+	m := New(testDuration, testErrorDuration)
 	if m.KeyMap().Dismiss.Enabled() {
 		t.Error("dismiss enabled without toasts")
 	}
@@ -265,10 +272,7 @@ func TestDismissBindingFollowsToasts(t *testing.T) {
 
 func TestOptionsAndAccessors(t *testing.T) {
 	s := DefaultStyles(false)
-	m := New(
-		WithDuration(time.Second),
-		WithErrorDuration(time.Minute),
-		WithSize(100, 20),
+	m := New(time.Second, time.Minute, WithSize(100, 20),
 		WithStyles(s),
 		WithKeyMap(DefaultKeyMap()),
 	)
@@ -297,7 +301,7 @@ func TestOptionsAndAccessors(t *testing.T) {
 }
 
 func TestIDsAreUnique(t *testing.T) {
-	if a, b := New(), New(); a.ID() == b.ID() {
+	if a, b := New(testDuration, testErrorDuration), New(testDuration, testErrorDuration); a.ID() == b.ID() {
 		t.Errorf("two models share ID %d", a.ID())
 	}
 }
@@ -327,7 +331,7 @@ func TestPushExpiresAfterDuration(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.level.String(), func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
-				m := New(WithDuration(2*time.Second), WithErrorDuration(5*time.Second))
+				m := New(2*time.Second, 5*time.Second)
 				start := time.Now()
 				cmd := m.Push(tt.level, "done")
 				msg := cmd()
@@ -347,7 +351,7 @@ func TestPushExpiresAfterDuration(t *testing.T) {
 // the first timer fires in between.
 func TestRefreshOutlivesTheFirstTimer(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		m := New(WithDuration(2 * time.Second))
+		m := New(2*time.Second, testErrorDuration)
 		first := m.Push(Info, "again")
 		time.Sleep(time.Second) // fake clock inside the bubble
 		second := m.Push(Info, "again")
@@ -364,7 +368,7 @@ func TestRefreshOutlivesTheFirstTimer(t *testing.T) {
 }
 
 func TestZeroDurationStays(t *testing.T) {
-	m := New(WithDuration(0), WithErrorDuration(-1))
+	m := New(0, -1)
 	if m.Push(Info, "a") != nil || m.Push(Error, "b") != nil {
 		t.Error("Push returned a timer for a toast that should stay")
 	}

@@ -9,5 +9,5 @@ import (
 func TestKeyMapComplete(t *testing.T) {
 	keytest.Complete(t, DefaultKeyMap())
 	keytest.NoConflicts(t, DefaultKeyMap())
-	keytest.NoConflicts(t, New(WithComplete(repoComplete), WithHistory([]string{"quit"})))
+	keytest.NoConflicts(t, New(testHistoryLimit, WithComplete(repoComplete), WithHistory([]string{"quit"})))
 }

@@ -26,6 +26,19 @@ type options struct {
 	logLimit  int64
 	store     cache.Store
 	access    Access
+	// runPageSize is that of a page of runs whose query sets none.
+	runPageSize int
+}
+
+// WithRunPageSize sets how many runs a page holds whose query sets no
+// size, at most 100. By default, and for n below one, it is
+// the default of the config (config.Default).
+func WithRunPageSize(n int) Option {
+	return func(o *options) {
+		if n > 0 {
+			o.runPageSize = n
+		}
+	}
 }
 
 // WithTTL sets how long runs, workflows, checks and annotations stay fresh

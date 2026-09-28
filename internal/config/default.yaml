@@ -31,6 +31,12 @@ ui:
   # and pull requests: nerd, which needs a Nerd Font and marks the types
   # of files too, unicode, or ascii.
   icons: nerd
+  # How long a toast stays before it goes on its own, at least 1s: info
+  # for info, success and warnings, and error for errors, which take
+  # longer to read.
+  toast:
+    info: 4s
+    error: 8s
 
 # Images drawn inline, such as avatars and the images of comments, with
 # kitty's graphics protocol. Only kitty 0.28 or newer and Ghostty show them
@@ -219,6 +225,43 @@ auth:
   # answer said so soon after the start. Turn it off if the app ever
   # refuses what the token may do.
   check: true
+
+# How the app talks to GitHub.
+github:
+  # How long one attempt at a request may take, from sending it until
+  # its answer is read, before it is sent again or fails. At least 1s; a
+  # server behind a slow VPN may need longer.
+  timeout: 30s
+  # How many requests are in flight at once at most, 3 to 16. Two of them
+  # are kept for what you wait for, so reads ahead never hold those up.
+  # A server with tight limits on requests at once wants fewer.
+  concurrency: 8
+
+# How many items each page read from GitHub holds, 10 to 100. Smaller
+# pages show sooner on a slow connection; larger ones take fewer requests.
+page_size:
+  # Pull requests, and their comments and reviews.
+  pulls: 30
+  # Issues, and their comments.
+  issues: 30
+  notifications: 30
+  # Your repositories.
+  repos: 30
+  # The workflow runs of the Actions modal.
+  runs: 30
+  # The commits of the History modal.
+  commits: 50
+  # Each kind of search result.
+  search: 20
+  # Each list of Waiting on you on the dashboard; its counts cover them
+  # all.
+  waiting_on_you: 10
+
+# The command line.
+commands:
+  # How many of the lines you typed are remembered for each account,
+  # across sessions, 1 to 10000.
+  history: 100
 
 # The log file, which holds one JSON object per line. The app owns the
 # terminal, so nothing is logged anywhere else.

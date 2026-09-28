@@ -43,7 +43,7 @@ func (h host) View() tea.View {
 
 func TestPushAndDismissInAProgram(t *testing.T) {
 	// A long duration, so that only the key removes the toast.
-	tm := teatest.NewTestModel(t, host{toasts: New(WithErrorDuration(time.Hour))},
+	tm := teatest.NewTestModel(t, host{toasts: New(testDuration, time.Hour)},
 		teatest.WithInitialTermSize(80, 24))
 	tm.Type("pp")
 	teatest.WaitFor(t, tm.Output(), func(out []byte) bool {

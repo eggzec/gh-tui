@@ -8,6 +8,18 @@ type Option func(*options)
 type options struct {
 	ttl, codeTTL time.Duration
 	capacity     int
+	pageSize     int
+}
+
+// WithPageSize sets how many results of each kind, or files, a page holds
+// whose query sets no size, at most 100. By default, and for n below one, it
+// is the default of the config (config.Default).
+func WithPageSize(n int) Option {
+	return func(o *options) {
+		if n > 0 {
+			o.pageSize = n
+		}
+	}
 }
 
 // WithTTL sets how long a page of repositories, issues or pull requests,

@@ -122,7 +122,7 @@ func TestListFreshHitMakesNoCall(t *testing.T) {
 	}
 	api.wantCalls(t, "list 30 ")
 
-	if got, ok := s.CachedList(ListQuery{PageSize: DefaultPageSize}); !ok || len(got.Items) != 2 {
+	if got, ok := s.CachedList(ListQuery{PageSize: 30}); !ok || len(got.Items) != 2 {
 		t.Errorf("CachedList = %+v, %v; want the page, since PageSize 0 means the default", got, ok)
 	}
 }
@@ -159,8 +159,8 @@ func TestListPageSize(t *testing.T) {
 	tests := []struct {
 		size, want int
 	}{
-		{0, DefaultPageSize},
-		{-1, DefaultPageSize},
+		{0, 30},
+		{-1, 30},
 		{1, 1},
 		{100, 100},
 		{101, 100},

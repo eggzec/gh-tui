@@ -60,7 +60,7 @@ func (s *Service) currentComments(q CommentsQuery) (core.Page[core.Comment], boo
 	if !ok {
 		return core.Page[core.Comment]{}, false
 	}
-	e, st := s.comments.Get(q.key())
+	e, st := s.comments.Get(q.key(s.pageSize))
 	return e.Value.Value, st != cache.Miss && seen.Current(e.Value.Version, m.updated)
 }
 
@@ -72,7 +72,7 @@ func (s *Service) Current(q CommentsQuery) bool {
 	if _, ok := s.currentDetail(key); !ok && !fresh(s.details, key) {
 		return false
 	}
-	if _, ok := s.currentComments(q); !ok && !fresh(s.comments, q.key()) {
+	if _, ok := s.currentComments(q); !ok && !fresh(s.comments, q.key(s.pageSize)) {
 		return false
 	}
 	return true

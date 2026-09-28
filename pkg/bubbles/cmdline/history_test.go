@@ -149,15 +149,15 @@ func TestHistoryLimit(t *testing.T) {
 		}
 		return out
 	}
-	if h := New(WithHistory(lines(150))).History(); len(h) != DefaultHistoryLimit || h[0] != "goto repo-50" {
-		t.Errorf("by default the history keeps %d lines from %q, want %d from goto repo-50",
-			len(h), h[0], DefaultHistoryLimit)
+	if h := New(100, WithHistory(lines(150))).History(); len(h) != 100 || h[0] != "goto repo-50" {
+		t.Errorf("a limit of 100 keeps %d lines from %q, want 100 from goto repo-50", len(h), h[0])
 	}
-	if h := New(WithHistory(lines(150)), WithHistoryLimit(0)).History(); len(h) != 150 {
+	if h := New(0, WithHistory(lines(150))).History(); len(h) != 150 {
 		t.Errorf("without a limit the history keeps %d lines, want 150", len(h))
 	}
 
-	m := opened(t, "", WithSize(80, MaxHeight), WithHistoryLimit(3))
+	m := New(3, WithSize(80, MaxHeight))
+	m.Open("")
 	m.SetHistory(lines(5))
 	want := []string{"goto repo-2", "goto repo-3", "goto repo-4"}
 	if h := m.History(); !slices.Equal(h, want) {
@@ -183,10 +183,10 @@ func TestHistoryHelp(t *testing.T) {
 		}
 		return false
 	}
-	if has(New()) {
+	if has(New(testHistoryLimit)) {
 		t.Error("without a history, help offers up")
 	}
-	if !has(New(WithHistory([]string{"quit"}))) {
+	if !has(New(testHistoryLimit, WithHistory([]string{"quit"}))) {
 		t.Error("with a history, help leaves out up")
 	}
 }

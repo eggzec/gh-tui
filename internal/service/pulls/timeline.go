@@ -24,13 +24,14 @@ type CommentsQuery struct {
 	Number int
 	// Cursor is the Next of the previous page, or empty for the first page.
 	Cursor string
-	// PageSize is how many comments the page holds at most. Zero means 30,
-	// and GitHub's maximum of 100 caps it.
+	// PageSize is how many comments the page holds at most. Zero means the
+	// service's page size, and GitHub's maximum of 100 caps it.
 	PageSize int
 }
 
-func (q CommentsQuery) key() string {
-	return pageKey(detailKey(q.Repo, q.Number)+"/comments", q.Cursor, q.PageSize)
+// key is the key of the page of q, as ListQuery.key.
+func (q CommentsQuery) key(size int) string {
+	return pageKey(detailKey(q.Repo, q.Number)+"/comments", q.Cursor, pageSize(q.PageSize, size))
 }
 
 // ReviewsQuery selects a page of the reviews of a pull request.
@@ -39,25 +40,26 @@ type ReviewsQuery struct {
 	Number int
 	// Cursor is the Next of the previous page, or empty for the first page.
 	Cursor string
-	// PageSize is how many reviews the page holds at most. Zero means 30,
-	// and GitHub's maximum of 100 caps it.
+	// PageSize is how many reviews the page holds at most. Zero means the
+	// service's page size, and GitHub's maximum of 100 caps it.
 	PageSize int
 }
 
-func (q ReviewsQuery) key() string {
-	return pageKey(detailKey(q.Repo, q.Number)+"/reviews", q.Cursor, q.PageSize)
+// key is the key of the page of q, as ListQuery.key.
+func (q ReviewsQuery) key(size int) string {
+	return pageKey(detailKey(q.Repo, q.Number)+"/reviews", q.Cursor, pageSize(q.PageSize, size))
 }
 
 // pageKey is the key of the page of prefix at cursor with size items.
 func pageKey(prefix, cursor string, size int) string {
-	v := url.Values{"cursor": {cursor}, "first": {strconv.Itoa(pageSize(size))}}
+	v := url.Values{"cursor": {cursor}, "first": {strconv.Itoa(size)}}
 	return prefix + "?" + v.Encode()
 }
 
 // CachedComments returns the page for q if it is cached, fresh or stale,
 // without fetching it.
 func (s *Service) CachedComments(q CommentsQuery) (core.Page[core.Comment], bool) {
-	p, ok := cached(s.comments, q.key())
+	p, ok := cached(s.comments, q.key(s.pageSize))
 	return p.Value, ok
 }
 
@@ -68,7 +70,7 @@ func (s *Service) CachedComments(q CommentsQuery) (core.Page[core.Comment], bool
 // change costs no rate limit. What an earlier session kept counts as
 // cached, as for Get.
 func (s *Service) Comments(ctx context.Context, q CommentsQuery) (core.Page[core.Comment], error) {
-	key := q.key()
+	key := q.key(s.pageSize)
 	s.keptComments.Warm(s.comments, key, true)
 	if p, ok := s.currentComments(q); ok {
 		s.comments.Hit(key)
@@ -106,7 +108,7 @@ func (s *Service) Comments(ctx context.Context, q CommentsQuery) (core.Page[core
 func (s *Service) loadComments(q CommentsQuery, version time.Time) cache.FetchFunc[stampedComments] {
 	return recheck.Load(func(ctx context.Context, cond github.Conditional) (stampedComments, github.Response, error) {
 		// A pull request's comments are those of its issue.
-		p, res, err := s.api.ListIssueComments(ctx, q.Repo, q.Number, q.Cursor, pageSize(q.PageSize), cond)
+		p, res, err := s.api.ListIssueComments(ctx, q.Repo, q.Number, q.Cursor, pageSize(q.PageSize, s.pageSize), cond)
 		return stampedComments{Value: p, Version: version}, res, err
 	}, func(stampedComments) []string { return tags(q.Repo, q.Number) })
 }
@@ -114,14 +116,14 @@ func (s *Service) loadComments(q CommentsQuery, version time.Time) cache.FetchFu
 // CachedReviews returns the page for q if it is cached, fresh or stale,
 // without fetching it.
 func (s *Service) CachedReviews(q ReviewsQuery) (core.Page[core.Review], bool) {
-	return cached(s.reviews, q.key())
+	return cached(s.reviews, q.key(s.pageSize))
 }
 
 // Reviews returns the page for q, oldest first. A fresh cached page is
 // returned without a request.
 func (s *Service) Reviews(ctx context.Context, q ReviewsQuery) (core.Page[core.Review], error) {
-	p, err := fetch(ctx, s.reviews, nil, q.key(), fallback.Page[core.Review], whole(tags(q.Repo, q.Number), func(ctx context.Context) (core.Page[core.Review], error) {
-		return s.api.ListPullRequestReviews(ctx, q.Repo, q.Number, q.Cursor, pageSize(q.PageSize))
+	p, err := fetch(ctx, s.reviews, nil, q.key(s.pageSize), fallback.Page[core.Review], whole(tags(q.Repo, q.Number), func(ctx context.Context) (core.Page[core.Review], error) {
+		return s.api.ListPullRequestReviews(ctx, q.Repo, q.Number, q.Cursor, pageSize(q.PageSize, s.pageSize))
 	}))
 	if err != nil {
 		return core.Page[core.Review]{}, fmt.Errorf("list reviews of pull %s#%d: %w", q.Repo, q.Number, err)

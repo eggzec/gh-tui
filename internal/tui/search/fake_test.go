@@ -62,7 +62,7 @@ type fakeService struct {
 }
 
 func newFake() *fakeService {
-	f := &fakeService{size: search.DefaultPageSize}
+	f := &fakeService{size: 20}
 	f.reset()
 	f.repos, f.issues, f.pulls, f.files = catalog()
 	return f

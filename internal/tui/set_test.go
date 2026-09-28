@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -58,6 +59,9 @@ func TestSetCommand(t *testing.T) {
 		{line: "set cache.ttl=1m", toast: "cache.ttl can't change while gh-tui runs: the cache is opened at startup. Set it in the config file, then restart."},
 		{line: "set log.keep=5", toast: "log.keep can't change while gh-tui runs: the log file is opened at startup."},
 		{line: "set log.level=debug", toast: "log.level is debug for this session.", changes: true},
+		{line: "set github.timeout=1m", toast: "github.timeout can't change while gh-tui runs: the connection to GitHub is set up at startup. Set it in the config file, then restart."},
+		{line: "set page_size.pulls=50", toast: "page_size.pulls can't change while gh-tui runs: the services read pages of this size from the start. Set it in the config file, then restart."},
+		{line: "set commands.history=500", toast: "commands.history can't change while gh-tui runs: the command history is opened at startup. Set it in the config file, then restart."},
 		{line: "set theme=nosuch", toast: `Can't set theme: unknown theme "nosuch".`},
 		{line: "set theme=mine", toast: "theme is mine for this session.", changes: true},
 		{line: "set  theme = mine ", toast: "theme is mine for this session.", changes: true},
@@ -128,6 +132,26 @@ func TestSetWritesNothing(t *testing.T) {
 	}
 	if entries, _ := os.ReadDir(dir); len(entries) != 1 {
 		t.Errorf("files beside the config: %v", entries)
+	}
+}
+
+// TestSetToast checks that the set command changes how long later toasts
+// stay, and refuses a time too short to read them.
+func TestSetToast(t *testing.T) {
+	if n := New(t.Context(), config.Default(), Layout{}); n.toast.Duration() != 4*time.Second || n.toast.ErrorDuration() != 8*time.Second {
+		t.Errorf("toasts stay %v and %v, want ui.toast's 4s and 8s", n.toast.Duration(), n.toast.ErrorDuration())
+	}
+	var told []config.Config
+	m, _ := newSetApp(t, userConfig(), &told)
+	runCommand(t, m, "set ui.toast.error=0s")
+	if !hasToast(m, "Can't set ui.toast.error: must be at least 1s, got 0s.") {
+		t.Errorf("toasts: %s", toasted(m))
+	}
+	if m.setCommand("ui.toast.error=30s") == nil {
+		t.Error("no command to show the change")
+	}
+	if m.toast.ErrorDuration() != 30*time.Second || m.toast.Duration() != m.cfg.UI.Toast.Info {
+		t.Errorf("durations = %v, %v; want %v, 30s", m.toast.Duration(), m.toast.ErrorDuration(), m.cfg.UI.Toast.Info)
 	}
 }
 

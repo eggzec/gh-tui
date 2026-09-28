@@ -46,11 +46,7 @@ func (l Level) String() string {
 
 func (l Level) valid() bool { return l >= Info && l <= Error }
 
-const (
-	defaultDuration      = 4 * time.Second
-	defaultErrorDuration = 8 * time.Second
-	defaultMax           = 3
-)
+const defaultMax = 3
 
 var lastID atomic.Int64
 
@@ -83,13 +79,17 @@ type Model struct {
 	view string
 }
 
-// New returns an empty stack with dark styles and the default key map.
-func New(opts ...Option) Model {
+// New returns an empty stack with dark styles and the default key map,
+// whose info, success and warning toasts stay for duration, and error
+// toasts for errorDuration, which is best longer, since errors matter more
+// and take longer to read. Zero or less keeps a toast until it is
+// dismissed.
+func New(duration, errorDuration time.Duration, opts ...Option) Model {
 	m := Model{
 		id:            nextID(),
 		max:           defaultMax,
-		duration:      defaultDuration,
-		errorDuration: defaultErrorDuration,
+		duration:      duration,
+		errorDuration: errorDuration,
 		rooms:         defaultRooms(),
 		keys:          DefaultKeyMap(),
 	}

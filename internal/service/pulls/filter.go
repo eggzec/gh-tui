@@ -12,7 +12,7 @@ import (
 // readList reads the page of q from the repository's list when it can
 // select what the filter asks for, and with a search otherwise.
 func (s *Service) readList(ctx context.Context, q ListQuery) (core.Page[core.PullRequest], error) {
-	size := pageSize(q.PageSize)
+	size := pageSize(q.PageSize, s.pageSize)
 	if q.Filter == "" {
 		return s.api.ListPullRequests(ctx, q.Repo, q.State, q.Cursor, size)
 	}

@@ -175,16 +175,16 @@ func TestTimelineKeysByPage(t *testing.T) {
 			fetch(pageRequest{repo: core.RepoRef{Owner: "EggZec", Name: "GH-TUI"}, number: 1})
 			// Zero and negative sizes mean the default, and sizes above
 			// GitHub's maximum are clamped to it, so each pair shares a page.
-			for _, size := range []int{defaultPageSize, -1, 10, 10, 500, maxPageSize} {
+			for _, size := range []int{30, -1, 10, 10, 500, maxPageSize} {
 				fetch(pageRequest{repo: repo, number: 1, first: size})
 			}
 			// Each page of a size is its own entry too.
 			fetch(pageRequest{repo: repo, number: 1, cursor: "c1", first: 10})
 
 			want := []pageRequest{
-				{repo, 1, "", defaultPageSize},
-				{repo, 1, "c1", defaultPageSize},
-				{repo, 2, "", defaultPageSize},
+				{repo, 1, "", 30},
+				{repo, 1, "c1", 30},
+				{repo, 2, "", 30},
 				{repo, 1, "", 10},
 				{repo, 1, "", maxPageSize},
 				{repo, 1, "c1", 10},

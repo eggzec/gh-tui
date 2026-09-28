@@ -14,13 +14,12 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/eggzec/gh-tui/internal/config"
 )
 
 // Version is the version of the file that this package reads and writes.
 const Version = 1
-
-// DefaultLimit is how many lines a Store keeps unless told otherwise.
-const DefaultLimit = 100
 
 // FileName is the name of the file in its directory.
 const FileName = "cmdline-history.json"
@@ -49,11 +48,11 @@ type Store struct {
 }
 
 // New returns the store of the file at path, which keeps the last limit
-// lines, or DefaultLimit if limit isn't positive. It touches nothing on
-// disk until Load or Save.
+// lines, or commands.history of the default config (config.Default) if
+// limit isn't positive. It touches nothing on disk until Load or Save.
 func New(path string, limit int) *Store {
 	if limit <= 0 {
-		limit = DefaultLimit
+		limit = config.Default().Commands.History
 	}
 	return &Store{path: path, limit: limit}
 }

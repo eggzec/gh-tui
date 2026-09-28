@@ -75,12 +75,12 @@ func TestParseCommentsKey(t *testing.T) {
 		{Repo: core.RepoRef{Owner: "eggzec", Name: "gh-tui"}, Number: 7, PageSize: 30},
 		{Repo: core.RepoRef{Owner: "eggzec", Name: "gh-tui"}, Number: 12, PageSize: 10, Cursor: cursor},
 	} {
-		if got, ok := parseCommentsKey(q.key()); !ok || got != q {
-			t.Errorf("parseCommentsKey(%q) = %+v, %v; want %+v", q.key(), got, ok, q)
+		if got, ok := parseCommentsKey(q.key(30)); !ok || got != q {
+			t.Errorf("parseCommentsKey(%q) = %+v, %v; want %+v", q.key(30), got, ok, q)
 		}
 	}
 	// Keys come back in lower case, as they are made.
-	if got, ok := parseCommentsKey(CommentsQuery{Repo: core.RepoRef{Owner: "Eggzec", Name: "GH-TUI"}, Number: 1}.key()); !ok || got.Repo.String() != "eggzec/gh-tui" || got.PageSize != defaultPageSize {
+	if got, ok := parseCommentsKey(CommentsQuery{Repo: core.RepoRef{Owner: "Eggzec", Name: "GH-TUI"}, Number: 1}.key(30)); !ok || got.Repo.String() != "eggzec/gh-tui" || got.PageSize != 30 {
 		t.Errorf("parseCommentsKey of a mixed case repository = %+v, %v", got, ok)
 	}
 	for _, key := range []string{
@@ -114,7 +114,7 @@ func TestCommentsRevalidated(t *testing.T) {
 		if got := thread.asked(); len(got) != 2 || got[1] != `W/"v0"` {
 			t.Errorf("asked with %q, want no ETag and then the page's", got)
 		}
-		if _, st := s.comments.Get(firstComments.key()); st != cache.Fresh {
+		if _, st := s.comments.Get(firstComments.key(30)); st != cache.Fresh {
 			t.Errorf("page after a 304 is %v, want fresh", st)
 		}
 
@@ -147,7 +147,7 @@ func TestKeptCommentsRevalidatedInNewSession(t *testing.T) {
 	}
 	// The kept page is marked fetched now, so the next session doesn't
 	// ask again.
-	if e, ok := New(v.api(), WithStore(store)).keptComments.Load(firstComments.key()); !ok || e.FetchedAt.Before(before) {
+	if e, ok := New(v.api(), WithStore(store)).keptComments.Load(firstComments.key(30)); !ok || e.FetchedAt.Before(before) {
 		t.Errorf("kept page fetched at %v, %v; want at least %v", e.FetchedAt, ok, before)
 	}
 
@@ -163,7 +163,7 @@ func TestKeptCommentsRevalidatedInNewSession(t *testing.T) {
 	thread.fail(nil)
 	for _, revalidated := range []bool{true, false} {
 		if revalidated {
-			target, _ := other.commentsTarget(firstComments.key())
+			target, _ := other.commentsTarget(firstComments.key(30))
 			if res := target.Check(t.Context()); res.Status != revalidate.NotModified {
 				t.Errorf("check after the outage = %+v, want not modified", res)
 			}
@@ -191,7 +191,7 @@ func checkKept(t *testing.T, s *Service) map[string]revalidate.Result {
 }
 
 func TestKeptComments(t *testing.T) {
-	id := kindComments + ":" + firstComments.key()
+	id := kindComments + ":" + firstComments.key(30)
 	tests := []struct {
 		name   string
 		change func(*restThread)
@@ -219,7 +219,7 @@ func TestKeptComments(t *testing.T) {
 			if r, ok := results[id]; len(results) != 1 || !ok || r.Status != tt.want || r.Sync != tt.sync {
 				t.Fatalf("results = %+v, want %s of %s with sync %q", results, tt.want, id, tt.sync)
 			}
-			e, ok := s.keptComments.Load(firstComments.key())
+			e, ok := s.keptComments.Load(firstComments.key(30))
 			if n := len(e.Value.Value.Items); tt.kept == 0 && ok || tt.kept > 0 && n != tt.kept {
 				t.Errorf("kept page = %+v, %v; want %d comments", e.Value, ok, tt.kept)
 			}
@@ -243,7 +243,7 @@ func TestKeptListsOnlyValidatedComments(t *testing.T) {
 func TestKeptCommentsOfOlderSchemaIsMiss(t *testing.T) {
 	v := &versioned{updated: epoch, checks: core.ChecksSuccess}
 	store := openStore(t)
-	key := firstComments.key()
+	key := firstComments.key(30)
 	// Before, the pages were GraphQL's, with a cursor REST can't read.
 	old := cache.NewShelf[stampedComments](store, kindComments, commentsSchema-1)
 	stale := stampedComments{Value: core.Page[core.Comment]{Items: []core.Comment{{ID: "old"}}, Next: "Y3Vyc29yOnYyOpHOBb002"}}

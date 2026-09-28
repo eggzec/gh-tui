@@ -10,11 +10,13 @@ import (
 type Option func(*options)
 
 type options struct {
-	cache  []cache.Option
-	store  cache.Store
-	ttl    time.Duration
-	access Access
-	repos  Repos
+	cache []cache.Option
+	store cache.Store
+	ttl   time.Duration
+	// pageSize is that of a page whose query sets none.
+	pageSize int
+	access   Access
+	repos    Repos
 }
 
 // WithTTL sets how long fetched pull requests stay fresh. The default is
@@ -23,6 +25,17 @@ func WithTTL(d time.Duration) Option {
 	return func(o *options) {
 		o.cache = append(o.cache, cache.WithTTL(d))
 		o.ttl = d
+	}
+}
+
+// WithPageSize sets how many pull requests, comments or reviews a page
+// holds whose query sets no size, at most 100. By default, and for n below
+// one, it is the default of the config (config.Default).
+func WithPageSize(n int) Option {
+	return func(o *options) {
+		if n > 0 {
+			o.pageSize = n
+		}
 	}
 }
 

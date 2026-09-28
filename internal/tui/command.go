@@ -106,9 +106,9 @@ func findCommand(name string) (command, bool) {
 const linePlaceholder = "goto owner/name, #number or a link"
 
 // newLine returns the command line, blurred until the command key opens
-// it.
-func newLine(keys map[string][]string) cmdline.Model {
-	return cmdline.New(
+// it, which recalls the last history lines typed.
+func newLine(keys map[string][]string, history int) cmdline.Model {
+	return cmdline.New(history,
 		cmdline.WithKeyMap(lineKeys(keys)),
 		cmdline.WithPlaceholder(linePlaceholder),
 	)

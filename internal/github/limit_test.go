@@ -44,7 +44,7 @@ func TestLimitKeepsRequestsInFlightBounded(t *testing.T) {
 	for err := range errs {
 		t.Errorf("request failed: %v", err)
 	}
-	if m := most.Load(); m > maxInFlight || m < 2 {
+	if m := most.Load(); m > int64(maxInFlight) || m < 2 {
 		t.Errorf("up to %d requests in flight, want 2 to %d", m, maxInFlight)
 	}
 }
@@ -64,7 +64,7 @@ func TestLimitWaitEndsWithContext(t *testing.T) {
 	for range maxInFlight {
 		wg.Go(func() { _, _ = c.Do(context.Background(), http.MethodGet, "held", nil, nil) })
 	}
-	for arrived.Load() < maxInFlight {
+	for arrived.Load() < int64(maxInFlight) {
 		time.Sleep(time.Millisecond)
 	}
 
@@ -78,7 +78,7 @@ func TestLimitWaitEndsWithContext(t *testing.T) {
 	if d := time.Since(start); d > time.Second {
 		t.Errorf("returned after %v, want soon after the context ended", d)
 	}
-	if n := arrived.Load(); n != maxInFlight {
+	if n := arrived.Load(); n != int64(maxInFlight) {
 		t.Errorf("%d requests reached the server, want %d", n, maxInFlight)
 	}
 	if w := stats.Summary().Waits; w.Requests != 1 || w.MaxMS <= 0 {
@@ -280,4 +280,26 @@ func testLimitKeepsSlotsForTheForeground(t *testing.T, mark func(context.Context
 			t.Errorf("%d slots and %d background slots taken at the end, want none", n, m)
 		}
 	})
+}
+
+// WithConcurrency sets how many requests are in flight at once, and a
+// client without it, or given less than one, takes the default config's.
+func TestWithConcurrency(t *testing.T) {
+	for _, tt := range []struct {
+		opts []Option
+		want int
+	}{
+		{nil, maxInFlight},
+		{[]Option{WithConcurrency(3)}, 3},
+		{[]Option{WithConcurrency(0)}, maxInFlight},
+	} {
+		c, err := New(append([]Option{WithBaseURL("https://api.github.com/"), WithToken("t")}, tt.opts...)...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := cap(limiter(c).slots); got != tt.want {
+			t.Errorf("%d options: %d slots, want %d", len(tt.opts), got, tt.want)
+		}
+		c.Close()
+	}
 }

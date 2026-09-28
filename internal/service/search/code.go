@@ -18,21 +18,22 @@ type CodeQuery struct {
 	Text string
 	// Cursor is the Next of the previous page, or empty for the first page.
 	Cursor string
-	// PageSize is how many files a page holds. Zero means DefaultPageSize,
-	// and sizes above GitHub's maximum of 100 are clamped.
+	// PageSize is how many files a page holds. Zero means the service's
+	// page size, and sizes above GitHub's maximum of 100 are clamped.
 	PageSize int
 }
 
-func (q CodeQuery) normalize() CodeQuery {
+// normalize returns q with its defaults set, as Query.normalize.
+func (q CodeQuery) normalize(size int) CodeQuery {
 	q.Text = normalizeText(q.Text)
-	q.PageSize = pageSize(q.PageSize)
+	q.PageSize = pageSize(q.PageSize, size)
 	return q
 }
 
 // CachedCode returns the cached page for q, fresh or stale, without I/O.
 // A query without text has no results, which are always known.
 func (s *Service) CachedCode(q CodeQuery) (core.SearchPage[core.CodeHit], bool) {
-	q = q.normalize()
+	q = q.normalize(s.pageSize)
 	if q.Text == "" {
 		return core.SearchPage[core.CodeHit]{}, true
 	}
@@ -50,7 +51,7 @@ func (s *Service) CachedCode(q CodeQuery) (core.SearchPage[core.CodeHit], bool) 
 // core.ErrRateLimited and says when code search resumes. A query GitHub
 // can't run fails with a *core.InvalidQueryError.
 func (s *Service) Code(ctx context.Context, q CodeQuery) (core.SearchPage[core.CodeHit], error) {
-	q = q.normalize()
+	q = q.normalize(s.pageSize)
 	if q.Text == "" {
 		return core.SearchPage[core.CodeHit]{}, nil
 	}

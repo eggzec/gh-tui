@@ -3,6 +3,7 @@
 package repos
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"strconv"
@@ -10,12 +11,10 @@ import (
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/cache"
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/fallback"
 )
-
-// DefaultPageSize is the page size of a ListQuery that sets none.
-const DefaultPageSize = 30
 
 // maxPageSize is the largest page GitHub returns.
 const maxPageSize = 100
@@ -43,17 +42,20 @@ type Access interface {
 type ListQuery struct {
 	// Cursor is the Next of the previous page, or empty for the first page.
 	Cursor string
-	// PageSize is how many repositories a page holds. Zero means
-	// DefaultPageSize, and sizes above GitHub's maximum of 100 are clamped.
+	// PageSize is how many repositories a page holds. Zero means the
+	// service's page size, and sizes above GitHub's maximum of 100 are
+	// clamped.
 	PageSize int
 	// Again reads past a kept page: set it on the read that follows one
 	// that came back Stale. It doesn't key the cache.
 	Again bool
 }
 
-func (q ListQuery) normalize() ListQuery {
+// normalize returns q with its defaults set: size is the service's page
+// size.
+func (q ListQuery) normalize(size int) ListQuery {
 	if q.PageSize <= 0 {
-		q.PageSize = DefaultPageSize
+		q.PageSize = size
 	}
 	q.PageSize = min(q.PageSize, maxPageSize)
 	return q
@@ -71,6 +73,8 @@ type Service struct {
 	// the repositories, if the service has a store.
 	kept      *cache.Shelf[core.Page[core.Repo]]
 	keptRepos *cache.Shelf[core.Repo]
+	// pageSize is the size of a page whose query sets none.
+	pageSize int
 }
 
 // kind is what the service keeps its list pages as, and kindRepo its
@@ -95,12 +99,13 @@ func New(api API, opts ...Option) *Service {
 		repos:     cache.New[core.Repo](cache.WithTTL(max(o.ttl, DetailTTL)), cache.WithCapacity(o.capacity)),
 		kept:      cache.NewShelf[core.Page[core.Repo]](o.store, kind, schema),
 		keptRepos: cache.NewShelf[core.Repo](o.store, kindRepo, schema),
+		pageSize:  cmp.Or(o.pageSize, config.Default().PageSize.Repos),
 	}
 }
 
 // CachedList returns the cached page for q, fresh or stale, without I/O.
 func (s *Service) CachedList(q ListQuery) (core.Page[core.Repo], bool) {
-	e, state := s.lists.Get(listKey(q.normalize()))
+	e, state := s.lists.Get(listKey(q.normalize(s.pageSize)))
 	return e.Value, state != cache.Miss
 }
 
@@ -113,7 +118,7 @@ func (s *Service) CachedList(q ListQuery) (core.Page[core.Repo], bool) {
 // be reached, a stale page is served with Offline set, and if it rate
 // limits the read, with Limited set.
 func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.Repo], error) {
-	q = q.normalize()
+	q = q.normalize(s.pageSize)
 	key := listKey(q)
 	if e, ok := s.kept.Warm(s.lists, key, q.Again); ok {
 		p := e.Value

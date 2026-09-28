@@ -76,7 +76,7 @@ func (m *Modal) fetchCommits(branch string, stale *atomic.Bool) graph.Fetch {
 	svc, repo, format, now, off, host := m.svc, m.repo, m.format, m.opts.now, m.opts.offline, m.opts.host
 	return func(ctx context.Context, cursor string) ([]graph.Commit, string, error) {
 		ctx, end := obs.Begin(ctx, "history.commits")
-		p, err := svc.Commits(ctx, historysvc.CommitsQuery{Repo: repo, Ref: branch, Cursor: cursor, PageSize: pageSize})
+		p, err := svc.Commits(ctx, historysvc.CommitsQuery{Repo: repo, Ref: branch, Cursor: cursor})
 		end(err, "span", "tui", "repo", repo.String(), "ref", branch, "first", cursor == "", "stale", p.Stale)
 		if err != nil {
 			return nil, "", err
@@ -128,7 +128,7 @@ func (m *Modal) readHead() tea.Cmd {
 	svc, repo, ctx, id, gen, branch := m.svc, m.repo, g.ctx, m.id, g.gen, g.branch
 	return func() tea.Msg {
 		ctx, end := obs.Begin(ctx, "history.head")
-		p, err := svc.Commits(ctx, historysvc.CommitsQuery{Repo: repo, Ref: branch, PageSize: pageSize, Again: true})
+		p, err := svc.Commits(ctx, historysvc.CommitsQuery{Repo: repo, Ref: branch, Again: true})
 		end(err, "span", "tui", "repo", repo.String(), "ref", branch)
 		msg := headMsg{id: id, gen: gen, err: err}
 		if len(p.Items) > 0 {

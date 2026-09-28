@@ -24,9 +24,13 @@ internal/config/size.go:GiB  keep: a unit
 internal/config/cache.go:minDiskSize  keep: a bound the validator enforces
 internal/config/cache.go:minRevalidateInterval  keep: a bound the validator enforces
 internal/config/config.go:minSyncInterval  keep: a bound the validator enforces
+internal/config/github.go:maxPageSize  keep: a bound the validator enforces
+internal/config/github.go:minPageSize  keep: a bound the validator enforces
+internal/config/github.go:minTimeout  keep: a bound the validator enforces
 internal/config/files.go:maxBlob  keep: an API limit, the largest file GitHub serves
 internal/config/log.go:minLogSize  keep: a bound the validator enforces
 internal/config/log.go:minLogSummary  keep: a bound the validator enforces
+internal/config/ui.go:minToast  keep: a bound the validator enforces
 
 # Polling.
 cmd/gh-tui/actions.go:checksPollInterval  move: sync.poll.checks
@@ -55,48 +59,39 @@ internal/revalidate/options.go:DefaultStartDelay  keep: a mechanism, leaves a se
 # Services.
 internal/service/actions/options.go:DefaultLiveTTL  move: cache.ttl.actions_running
 internal/service/actions/options.go:DefaultLogMemory  move: cache.memory.logs
-internal/service/actions/runs.go:DefaultRunPageSize  move: page_size.runs
 internal/service/actions/runs.go:workflowsPageSize  keep: an API limit, the largest page, so one page lists every workflow
 internal/service/actions/jobs.go:DefaultJobPageSize  keep: an API limit, the largest page, so one page holds a run's jobs
 internal/service/actions/checks.go:DefaultAnnotationPageSize  keep: annotations come a page at a time with the job; not a setting
 internal/service/actions/partial.go:partialFresh  keep: a mechanism of live logs
 internal/service/actions/partial.go:partialSlack  keep: a mechanism of live logs
+internal/service/actions/service.go:maxPageSize  keep: an API limit
 internal/service/actions/service.go:logLineSize  keep: a measure of the memory a log line takes
 internal/service/dashboard/service.go:HeaderTTL  move: cache.ttl.profile
 internal/service/dashboard/service.go:ReposTTL  move: cache.ttl.dashboard_repos
 internal/service/dashboard/service.go:ContributionsTTL  move: cache.ttl.contributions
-internal/service/dashboard/work.go:DefaultWorkSize  move: page_size.waiting_on_you
 internal/service/dashboard/work.go:maxPageSize  keep: an API limit
 internal/service/dashboard/repos.go:DefaultReposSize  keep: an API limit, the largest page, so the pane lists them all
 internal/service/files/options.go:DefaultBlobMemory  move: cache.memory.files
 internal/service/files/options.go:DefaultBlobCapacity  move: cache.memory.entries
 internal/service/files/options.go:DefaultMaxBlobSize  move: files.preview.max_size (already a setting; this fallback goes)
-internal/service/history/commits.go:DefaultCommitPageSize  move: page_size.commits
 internal/service/history/branches.go:DefaultBranchPageSize  keep: an API limit, the largest page; branches are small
+internal/service/history/service.go:maxPageSize  keep: an API limit
 internal/service/history/options.go:DefaultCompareTTL  move: cache.ttl.compare
 internal/service/history/options.go:DefaultDiffMemory  move: cache.memory.diffs
-internal/service/issues/read.go:DefaultPageSize  move: page_size.issues
 internal/service/issues/read.go:maxPageSize  keep: an API limit
-internal/service/notifications/list.go:DefaultPageSize  move: page_size.notifications
 internal/service/notifications/list.go:maxPageSize  keep: an API limit
-internal/service/pulls/service.go:defaultPageSize  move: page_size.pulls
 internal/service/pulls/service.go:maxPageSize  keep: an API limit
 internal/service/pulls/confirm.go:confirmFor  keep: a mechanism, how long a change waits for a full read to confirm it
 internal/service/releases/service.go:DefaultTTL  move: cache.ttl.releases
-internal/service/repos/repos.go:DefaultPageSize  move: page_size.repos
 internal/service/repos/repos.go:DetailTTL  move: cache.ttl.repo_info
 internal/service/repos/repos.go:maxPageSize  keep: an API limit
 internal/service/search/search.go:DefaultTTL  move: cache.ttl.search
 internal/service/search/search.go:DefaultCodeTTL  move: cache.ttl.code_search
 internal/service/search/search.go:DefaultCapacity  move: cache.memory.entries
-internal/service/search/search.go:DefaultPageSize  move: page_size.search
 internal/service/search/search.go:maxPageSize  keep: an API limit
 internal/service/access/access.go:quiet  keep: a mechanism, how long startup waits for an answer before asking about the token
-internal/cmdhist/cmdhist.go:DefaultLimit  move: commands.history
 
 # The GitHub client.
-internal/github/client.go:defaultTimeout  move: github.timeout
-internal/github/search_multi.go:searchPageSize  move: page_size.search
 internal/github/actions_logs.go:DefaultLogLimit  keep: a safety bound on how much of a job log is read
 internal/github/actions_logs.go:logURLTTL  keep: an API limit, GitHub's log links expire after a minute
 internal/github/budget.go:maxGuard  keep: a mechanism of the rate-limit budget
@@ -136,7 +131,6 @@ internal/tui/files/finder.go:defaultFinderDelay  move: prefetch.finder.rest
 internal/tui/search/section.go:OthersWait  move: prefetch.search.other_kinds.rest
 internal/tui/search/section.go:DefaultDebounce  keep: the debounce of typing, a feel constant
 internal/tui/search/lists.go:defaultPrefetch  keep: a paging threshold, the rows before the end that load the next page
-internal/tui/history/modal.go:pageSize  move: page_size.commits
 internal/tui/cmdhistory.go:historyWait  keep: a mechanism, how long saving the command history waits for its lock
 internal/tui/online.go:onlineGap  keep: a safety mechanism, how seldom a flapping connection wakes the failed panes
 internal/tui/terminal.go:terminalWait  keep: a probe timeout, how long the terminal may take to say its version
@@ -148,11 +142,8 @@ internal/tui/notifications/filter.go:defaultQuery  keep: what clear_filter puts 
 # Bubbles and packages outside internal, which can't read the config: their
 # defaults are those a bubble has on its own, and the tui passes a setting
 # where there is one.
-pkg/bubbles/toast/model.go:defaultDuration  move: ui.toast.info
-pkg/bubbles/toast/model.go:defaultErrorDuration  move: ui.toast.error
 pkg/bubbles/toast/model.go:defaultMax  keep: a bubble's own default, a layout measure
 pkg/bubbles/calendar/styles.go:DefaultGlyph  keep: a bubble's own default; the tui passes dashboard.calendar_glyph
-pkg/bubbles/cmdline/options.go:DefaultHistoryLimit  keep: a bubble's own default; the tui passes the stored history
 pkg/bubbles/feed/options.go:DefaultMaxChunks  keep: a bubble's own default, a memory bound
 pkg/bubbles/thread/options.go:DefaultMaxChunks  keep: a bubble's own default, a memory bound
 pkg/bubbles/filterform/options.go:DefaultEditorHeight  keep: a bubble's own default, a layout measure

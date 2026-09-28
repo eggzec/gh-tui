@@ -17,7 +17,7 @@
 //
 // Up and down recall earlier lines from the history, as in vim: only
 // those that start with what was typed. The command line adds each line
-// submitted to its history, up to a limit ([WithHistoryLimit]), but keeps
+// submitted to its history, up to the limit [New] takes, but keeps
 // it only in memory: on SubmitMsg the parent saves [Model.History], rather
 // than a list of its own, and sets it again in the next session with
 // [WithHistory] or [Model.SetHistory].
@@ -73,14 +73,15 @@ type Model struct {
 	view string
 }
 
-// New returns a blurred command line.
-func New(opts ...Option) Model {
+// New returns a blurred command line whose history keeps the last
+// historyLimit lines; past it, the oldest go first. Zero or less keeps
+// them all.
+func New(historyLimit int, opts ...Option) Model {
 	s := settings{
-		prompt:       ":",
-		height:       MaxHeight,
-		historyLimit: DefaultHistoryLimit,
-		keys:         DefaultKeyMap(),
-		styles:       DefaultStyles(true),
+		prompt: ":",
+		height: MaxHeight,
+		keys:   DefaultKeyMap(),
+		styles: DefaultStyles(true),
 	}
 	for _, opt := range opts {
 		opt(&s)
@@ -104,7 +105,7 @@ func New(opts ...Option) Model {
 		height:       max(s.height, 0),
 		keys:         s.keys,
 		complete:     s.complete,
-		historyLimit: s.historyLimit,
+		historyLimit: max(historyLimit, 0),
 		comp:         completion{sel: -1, rowWidth: -1},
 	}
 	// SetStyles lays the line out, so the value goes in after it and

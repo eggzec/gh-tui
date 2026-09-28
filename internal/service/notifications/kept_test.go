@@ -164,7 +164,7 @@ func TestKeptInboxMark(t *testing.T) {
 		_, _ = s.List(t.Context(), inbox)
 		_ = s.MarkRead("1").Do(t.Context())
 
-		e, ok := New(api, WithStore(cachetest.Aged(store, time.Hour))).kept.Load(inbox.key())
+		e, ok := New(api, WithStore(cachetest.Aged(store, time.Hour))).kept.Load(inbox.key(30))
 		if !ok || e.Value.Items[0].Unread == confirm {
 			t.Errorf("confirmed=%v: kept page = %+v, %v; want unread %v", confirm, e.Value, ok, !confirm)
 		}

@@ -7,7 +7,7 @@ import (
 )
 
 func TestViewCleansHostileText(t *testing.T) {
-	m := New(WithSize(80, 0))
+	m := New(testDuration, testErrorDuration, WithSize(80, 0))
 	m.Push(Error, termtexttest.Hostile)
 	termtexttest.AssertClean(t, m.View(), 80)
 }

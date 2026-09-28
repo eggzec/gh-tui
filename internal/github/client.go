@@ -17,15 +17,11 @@ import (
 
 	"github.com/cli/go-gh/v2/pkg/auth"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 )
 
-const (
-	apiVersion = "2022-11-28"
-
-	// defaultTimeout bounds requests whose context has no deadline.
-	defaultTimeout = 30 * time.Second
-)
+const apiVersion = "2022-11-28"
 
 // Client talks to the API of one GitHub host. It is safe for concurrent use.
 type Client struct {
@@ -53,28 +49,44 @@ type Client struct {
 	toldServer atomic.Bool
 	// logURLs keeps the signed URLs of the logs of jobs in progress.
 	logURLs logURLs
+	// searchSize is the page size of a SearchQuery that sets none.
+	searchSize int
 }
 
 // Option configures a Client.
 type Option func(*options)
 
 type options struct {
-	http     *http.Client
-	host     string
-	token    string
-	source   string
-	baseURL  string
-	gh       ghLookup
-	notify   func()
-	onAccess func(core.Access)
-	onOld    func(version string)
+	http        *http.Client
+	concurrency int
+	host        string
+	token       string
+	source      string
+	baseURL     string
+	gh          ghLookup
+	notify      func()
+	onAccess    func(core.Access)
+	onOld       func(version string)
 }
 
 // WithHTTPClient sets the HTTP client that sends requests. Its Timeout
 // bounds each attempt at a request, from sending it until its body is
-// closed. The default client times out after 30 seconds.
+// closed. The default client times out after github.timeout of the
+// default config (config.Default).
 func WithHTTPClient(c *http.Client) Option {
 	return func(o *options) { o.http = c }
+}
+
+// WithConcurrency bounds the requests in flight at once to n, from the
+// time each is sent until its body is closed, of which foregroundSlots are
+// kept for what the user waits for. Without it, and for n below one, it
+// is github.concurrency of the default config (config.Default).
+func WithConcurrency(n int) Option {
+	return func(o *options) {
+		if n > 0 {
+			o.concurrency = n
+		}
+	}
 }
 
 // WithHost sets the GitHub host, such as github.com or a GitHub Enterprise
@@ -106,7 +118,8 @@ func WithBaseURL(u string) Option {
 // New returns a client. Without options it finds the host and token the
 // same way the gh CLI does.
 func New(opts ...Option) (*Client, error) {
-	o := options{http: &http.Client{Timeout: defaultTimeout}, gh: ghDefaults()}
+	def := config.Default()
+	o := options{http: &http.Client{Timeout: def.GitHub.Timeout}, concurrency: def.GitHub.Concurrency, gh: ghDefaults()}
 	for _, opt := range opts {
 		opt(&o)
 	}
@@ -157,7 +170,7 @@ func New(opts ...Option) (*Client, error) {
 				base:        cmp.Or[http.RoundTripper](hc.Transport, http.DefaultTransport),
 				restRoot:    b.restRoot,
 				graphqlPath: b.graphqlPath,
-			}, maxInFlight, foregroundSlots),
+			}, o.concurrency, foregroundSlots),
 			timeout: hc.Timeout,
 		},
 	})
@@ -171,6 +184,7 @@ func New(opts ...Option) (*Client, error) {
 		budget:       b,
 		access:       acc,
 		onOld:        o.onOld,
+		searchSize:   def.PageSize.Search,
 	}
 	c.token.Store(&o.token)
 	// An Enterprise Server's API is below /api/v3.

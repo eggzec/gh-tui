@@ -27,6 +27,19 @@ type options struct {
 	diffMemory int64
 	store      cache.Store
 	objects    cache.Store
+	// commitPageSize is that of a page of commits whose query sets none.
+	commitPageSize int
+}
+
+// WithCommitPageSize sets how many commits a page holds whose query sets
+// no size, at most 100. By default, and for n below one, it is
+// the default of the config (config.Default).
+func WithCommitPageSize(n int) Option {
+	return func(o *options) {
+		if n > 0 {
+			o.commitPageSize = n
+		}
+	}
 }
 
 // WithTTL sets how long branches and the first pages of commits of a ref

@@ -42,7 +42,7 @@ func TestView(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := New(WithStyles(DefaultStyles(tt.dark)), WithSize(tt.width, tt.height))
+			m := New(testDuration, testErrorDuration, WithStyles(DefaultStyles(tt.dark)), WithSize(tt.width, tt.height))
 			for _, p := range tt.pushes {
 				m.Push(p.level, p.text)
 			}
@@ -63,7 +63,7 @@ func TestViewErrorRoom(t *testing.T) {
 				name = strconv.Itoa(width) + "/dark"
 			}
 			t.Run(name, func(t *testing.T) {
-				m := New(WithStyles(DefaultStyles(dark)), WithSize(width, 24))
+				m := New(testDuration, testErrorDuration, WithStyles(DefaultStyles(dark)), WithSize(width, 24))
 				m.Push(Error, text)
 				golden.RequireEqual(t, m.View())
 			})
@@ -72,7 +72,7 @@ func TestViewErrorRoom(t *testing.T) {
 }
 
 func TestViewEmpty(t *testing.T) {
-	if v := New(WithSize(80, 24)).View(); v != "" {
+	if v := New(testDuration, testErrorDuration, WithSize(80, 24)).View(); v != "" {
 		t.Errorf("View() = %q, want empty", v)
 	}
 }
@@ -93,7 +93,7 @@ func TestViewFitsTheWidth(t *testing.T) {
 	for _, s := range stacks {
 		for _, width := range []int{10, 16, 24, 40, 60, 80, 120, 200} {
 			t.Run(s.name+"/"+strconv.Itoa(width), func(t *testing.T) {
-				m := New(WithSize(width, 0))
+				m := New(testDuration, testErrorDuration, WithSize(width, 0))
 				for _, p := range s.pushes {
 					m.Push(p.level, p.text)
 				}
@@ -120,7 +120,7 @@ func overlayBackground(width, height int) string {
 }
 
 func TestOverlay(t *testing.T) {
-	m := New(WithSize(80, 24))
+	m := New(testDuration, testErrorDuration, WithSize(80, 24))
 	m.Push(Info, "Refreshing")
 	m.Push(Success, "Merged #42")
 	m.Push(Error, "Could not label #7, rolled back")
@@ -148,14 +148,14 @@ func TestOverlay(t *testing.T) {
 
 func TestOverlayWithoutToasts(t *testing.T) {
 	bg := overlayBackground(80, 5)
-	if got := New(WithSize(80, 5)).Overlay(bg, 80, 5); got != bg {
+	if got := New(testDuration, testErrorDuration, WithSize(80, 5)).Overlay(bg, 80, 5); got != bg {
 		t.Error("Overlay changed the background without toasts")
 	}
 }
 
 // A stack taller or wider than the area is clipped, keeping the newest.
 func TestOverlayClipsToTheArea(t *testing.T) {
-	m := New(WithSize(80, 0))
+	m := New(testDuration, testErrorDuration, WithSize(80, 0))
 	m.Push(Info, "first")
 	m.Push(Info, "second")
 	m.Push(Info, "third")

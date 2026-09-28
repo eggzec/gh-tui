@@ -366,7 +366,7 @@ func TestCode(t *testing.T) {
 		if err != nil || got.Total != 48 || len(got.Items) != 1 || got.Next != "next" {
 			t.Fatalf("Code = %+v, %v", got, err)
 		}
-		if _, err := s.Code(t.Context(), CodeQuery{Text: "newstyle", PageSize: DefaultPageSize}); err != nil {
+		if _, err := s.Code(t.Context(), CodeQuery{Text: "newstyle", PageSize: 20}); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := s.Code(t.Context(), CodeQuery{Text: "NewStyle", Cursor: got.Next}); err != nil {

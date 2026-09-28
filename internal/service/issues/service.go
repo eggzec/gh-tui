@@ -4,6 +4,7 @@
 package issues
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"net/url"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/cache"
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
 	"github.com/eggzec/gh-tui/internal/service/fallback"
@@ -89,6 +91,8 @@ type Service struct {
 	// when viewer isn't set.
 	meMu sync.Mutex
 	me   string
+	// pageSize is the size of a page whose query sets none.
+	pageSize int
 }
 
 // stampedComments is a cached page of comments with the version of its issue.
@@ -113,6 +117,7 @@ func New(api API, opts ...Option) *Service {
 		keptComments: cache.NewShelf[stampedComments](o.store, kindComments, schema),
 		keptKinds:    cache.NewShelf[core.NumberKind](o.store, kindNumber, numberSchema),
 		pulls:        o.pulls,
+		pageSize:     cmp.Or(o.pageSize, config.Default().PageSize.Issues),
 	}
 	s.etags.Keep(o.store)
 	return s

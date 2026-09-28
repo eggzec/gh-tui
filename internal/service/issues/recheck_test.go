@@ -14,7 +14,7 @@ import (
 func TestParseKeys(t *testing.T) {
 	cursor := "https://api.github.com/repositories/1/issues?page=2&per_page=30"
 	for _, q := range []ListQuery{
-		ListQuery{Repo: repo}.normalize(),
+		ListQuery{Repo: repo}.normalize(30),
 		{Repo: repo, State: core.FilterClosed, PageSize: 50, Cursor: cursor},
 	} {
 		if got, ok := parseListKey(listKey(q)); !ok || got != q {
@@ -22,7 +22,7 @@ func TestParseKeys(t *testing.T) {
 		}
 	}
 	for _, q := range []CommentsQuery{
-		CommentsQuery{Repo: repo, Number: 7}.normalize(),
+		CommentsQuery{Repo: repo, Number: 7}.normalize(30),
 		{Repo: repo, Number: 12, PageSize: 10, Cursor: cursor},
 	} {
 		if got, ok := parseCommentsKey(commentsKey(q)); !ok || got != q {
@@ -174,7 +174,7 @@ func TestKeptSkipsFresh(t *testing.T) {
 	listIssues(t, s, openSeven)
 	api.called()
 	results := check(t, s)
-	if r := results[kindList+":"+listKey(openSeven.normalize())]; r.Status != revalidate.Skipped {
+	if r := results[kindList+":"+listKey(openSeven.normalize(30))]; r.Status != revalidate.Skipped {
 		t.Errorf("fresh list = %+v, want skipped", r)
 	}
 	if calls := api.called(); slices.Contains(calls, "ListIssues") {

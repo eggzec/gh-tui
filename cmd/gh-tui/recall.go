@@ -40,7 +40,7 @@ var _ tui.Recall = recall{}
 // then the viewer's own on the dashboard, then those the search page
 // starts with, each most recently updated first. It may repeat one.
 func (r recall) Repos() []core.RepoRef {
-	out := make([]core.RepoRef, 0, 1+len(r.pinned)+2*reposvc.DefaultPageSize)
+	out := make([]core.RepoRef, 0, 1+len(r.pinned))
 	if r.here != (core.RepoRef{}) {
 		out = append(out, r.here)
 	}

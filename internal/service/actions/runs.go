@@ -14,9 +14,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/fallback"
 )
 
-// DefaultRunPageSize is the page size of a RunsQuery that sets none.
-const DefaultRunPageSize = 30
-
 // RunsQuery selects a page of the workflow runs of a repository, newest
 // first.
 type RunsQuery struct {
@@ -24,15 +21,17 @@ type RunsQuery struct {
 	Filter core.RunFilter
 	// Cursor is the Next of the previous page, or empty for the first.
 	Cursor string
-	// PageSize defaults to DefaultRunPageSize and is at most 100.
+	// PageSize defaults to the service's run page size and is at most 100.
 	PageSize int
 	// Again reads past a kept page: set it on the read that follows one
 	// that came back Stale. It doesn't key the cache.
 	Again bool
 }
 
-func (q RunsQuery) normalize() RunsQuery {
-	q.PageSize = pageSize(q.PageSize, DefaultRunPageSize)
+// normalize returns q with its defaults set: size is the service's run
+// page size.
+func (q RunsQuery) normalize(size int) RunsQuery {
+	q.PageSize = pageSize(q.PageSize, size)
 	return q
 }
 
@@ -86,7 +85,7 @@ func parseRunsKey(key string) (RunsQuery, bool) {
 // CachedRuns returns the cached page for q, fresh or stale, without a
 // request. It reports false if the page isn't in memory.
 func (s *Service) CachedRuns(q RunsQuery) (core.Page[core.Run], bool) {
-	e, st := s.runs.Get(runsKey(q.normalize()))
+	e, st := s.runs.Get(runsKey(q.normalize(s.runPageSize)))
 	return e.Value, st != cache.Miss
 }
 
@@ -97,7 +96,7 @@ func (s *Service) CachedRuns(q RunsQuery) (core.Page[core.Run], bool) {
 // last is served with Offline set, and while it rate limits the reads,
 // with Limited set.
 func (s *Service) Runs(ctx context.Context, q RunsQuery) (core.Page[core.Run], error) {
-	q = q.normalize()
+	q = q.normalize(s.runPageSize)
 	key := runsKey(q)
 	// Later pages shift as runs start, so only first pages are kept.
 	var shelf *cache.Shelf[core.Page[core.Run]]

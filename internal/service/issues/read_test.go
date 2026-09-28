@@ -118,7 +118,7 @@ func TestListKeys(t *testing.T) {
 	}
 	queries := []ListQuery{
 		// Same entry as the zero State and PageSize.
-		{Repo: repo, State: core.FilterOpen, PageSize: DefaultPageSize},
+		{Repo: repo, State: core.FilterOpen, PageSize: 30},
 		{Repo: repo, Cursor: first.Next},
 		{Repo: repo, State: core.FilterOpen, Cursor: first.Next},
 		{Repo: repo, State: core.FilterClosed},
@@ -135,9 +135,9 @@ func TestListKeys(t *testing.T) {
 	}
 
 	want := []call{
-		{core.FilterOpen, "", DefaultPageSize},
-		{core.FilterOpen, first.Next, DefaultPageSize},
-		{core.FilterClosed, "", DefaultPageSize},
+		{core.FilterOpen, "", 30},
+		{core.FilterOpen, first.Next, 30},
+		{core.FilterClosed, "", 30},
 		{core.FilterOpen, "", 10},
 		{core.FilterOpen, first.Next, 10},
 		{core.FilterOpen, "", maxPageSize},
@@ -277,7 +277,7 @@ func TestCommentsKeys(t *testing.T) {
 		{Repo: repo, Number: 7, PageSize: 2, Cursor: first.Next},
 		{Repo: repo, Number: 7, PageSize: 2}, // Cached above.
 		{Repo: repo, Number: 7},
-		{Repo: repo, Number: 7, PageSize: DefaultPageSize}, // Same as the zero PageSize.
+		{Repo: repo, Number: 7, PageSize: 30}, // Same as the zero PageSize.
 		{Repo: repo, Number: 7, PageSize: 1, Cursor: first.Next},
 		{Repo: repo, Number: 7, PageSize: 2, Cursor: first.Next}, // Cached above.
 		{Repo: repo, Number: 8, PageSize: 2},
@@ -292,7 +292,7 @@ func TestCommentsKeys(t *testing.T) {
 	want := []call{
 		{7, "", 2},
 		{7, first.Next, 2},
-		{7, "", DefaultPageSize},
+		{7, "", 30},
 		{7, first.Next, 1},
 		{8, "", 2},
 		{7, "", maxPageSize},

@@ -75,7 +75,7 @@ func BenchmarkUpdate(b *testing.B) {
 		}
 	})
 	b.Run("blurred", func(b *testing.B) {
-		m := New(WithValue(longLine), WithSize(120, MaxHeight))
+		m := New(testHistoryLimit, WithValue(longLine), WithSize(120, MaxHeight))
 		a := tea.Msg(runeKey("a"))
 		b.ReportAllocs()
 		for b.Loop() {
