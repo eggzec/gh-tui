@@ -6,9 +6,6 @@ import (
 	"strings"
 )
 
-// sepWidth is the width of the separator on the right.
-const sepWidth = 3
-
 // View returns the bar, exactly as wide as its width, or "" when it has
 // no width.
 func (m Model) View() string { return m.view }
@@ -45,7 +42,7 @@ func (m *Model) need() int {
 	if ln == 0 && rn == 0 {
 		return 0
 	}
-	w := 2*edge + lw + len(leftSep)*max(ln-1, 0) + rw + sepWidth*max(rn-1, 0)
+	w := 2*edge + lw + len(leftSep)*max(ln-1, 0) + rw + m.sepWidth*max(rn-1, 0)
 	if ln > 0 && rn > 0 {
 		w += gap
 	}
