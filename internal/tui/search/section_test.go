@@ -15,6 +15,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/termtext/termtexttest"
 )
 
 func screen(s *Section) string { return ansi.Strip(s.View()) }
@@ -314,12 +315,35 @@ func TestStart(t *testing.T) {
 	}
 }
 
+// The repositories offered before the user types say why they failed to
+// load the way the user should read it, without the error's chain, request
+// or status code. They load once, and the open key opens a recent search,
+// so no hint names a key.
 func TestStartFailure(t *testing.T) {
-	s := newSection(t, newFake(), 120, 30, WithStart(func(context.Context) ([]core.Repo, error) {
-		return nil, errors.New("github: 502 Bad Gateway")
-	}))
-	if view := screen(s); !strings.Contains(view, "Couldn't load your repositories: github: 502 Bad Gateway") {
-		t.Errorf("the page should say the repositories failed:\n%s", view)
+	tests := []struct {
+		name string
+		err  error
+		want string
+	}{
+		{"offline", fmt.Errorf("list repos: github: GET /user/repos: %w", core.ErrOffline), "✗ Can't reach GitHub"},
+		{"forbidden", fmt.Errorf("list repos: github: 403 Forbidden: %w", core.ErrForbidden), "✗ You don't have access to this"},
+		{"not found", fmt.Errorf("list repos: github: 404 Not Found: %w", core.ErrNotFound), "✗ This doesn't exist or is private."},
+		{"internal", fmt.Errorf("list repos: github: decode: %s", termtexttest.Hostile), "✗ Something went wrong"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := newSection(t, newFake(), 120, 30, WithStart(func(context.Context) ([]core.Repo, error) { return nil, tt.err }))
+			termtexttest.AssertClean(t, s.View(), 120)
+			view := screen(s)
+			if !strings.Contains(view, tt.want) || !strings.Contains(view, "Type to search GitHub.") {
+				t.Errorf("the page should say %q:\n%s", tt.want, view)
+			}
+			for _, leak := range []string{"github", "list repos", "GET", "403", "404", "decode", " · "} {
+				if strings.Contains(view, leak) {
+					t.Errorf("the page shows %q:\n%s", leak, view)
+				}
+			}
+		})
 	}
 }
 
