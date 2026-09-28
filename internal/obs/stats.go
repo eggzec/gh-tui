@@ -95,6 +95,33 @@ type Rate struct {
 	Reset     time.Time
 }
 
+// farReset is how far away a reset may be. The longest window is an hour,
+// so a reset further away is malformed.
+const farReset = 61 * time.Minute
+
+// staleBeside reports whether r, a quota a response reported at now, says
+// less than last, the one kept: responses arrive in another order than
+// GitHub counted their requests, so one of an earlier window, of a lower
+// limit in the same window, the limit before a raise, or with more left
+// in the same window and limit, came from a request counted before. Like
+// the client's rate limits, the reset never moves back and, within a
+// window, what is left never goes up. A reset too far away to be real
+// never stops the next sane one, nor replaces a sane one.
+func (r Rate) staleBeside(last Rate, now time.Time) bool {
+	far, lastFar := r.Reset.After(now.Add(farReset)), last.Reset.After(now.Add(farReset))
+	switch {
+	case last.Resource == "":
+		return false
+	case far != lastFar:
+		return far
+	case !r.Reset.Equal(last.Reset):
+		return r.Reset.Before(last.Reset)
+	case r.Limit != last.Limit:
+		return r.Limit < last.Limit
+	}
+	return r.Remaining > last.Remaining
+}
+
 type quotaKey struct{ api, resource string }
 
 type quotaStat struct {
@@ -137,8 +164,8 @@ func (s *Stats) HTTP(h HTTP) {
 	if failed {
 		q.failed++
 	}
-	if h.Rate.Resource != "" {
-		q.last, q.lastAt = h.Rate, time.Now()
+	if now := time.Now(); h.Rate.Resource != "" && !h.Rate.staleBeside(q.last, now) {
+		q.last, q.lastAt = h.Rate, now
 	}
 
 	rk := routeKey{h.API, h.Method, h.Route}
