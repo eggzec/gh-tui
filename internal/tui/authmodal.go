@@ -239,9 +239,11 @@ func kindName(a core.Access) string {
 	}
 }
 
-// commandLine shows argv as the user would type it, on one line: the
-// program by its name when it is gh, the gh on the PATH, and else by its
-// path, such as one GH_PATH names, so that the user sees what runs.
+// commandLine shows argv as the user would type it in a shell, on one
+// line: the program by its name when it is gh, the gh on the PATH, and
+// else by its path, such as one GH_PATH names, so that the user sees what
+// runs, and each word quoted where a shell would need it, such as a path
+// with a space. Only the prompt quotes: argv runs without a shell.
 func commandLine(argv []string, gh string) string {
 	if len(argv) == 0 {
 		return ""
@@ -250,7 +252,21 @@ func commandLine(argv []string, gh string) string {
 	if gh != "" && argv[0] == gh {
 		words[0] = filepath.Base(gh)
 	}
-	return ui.OneLine(strings.Join(words, " "))
+	for i, w := range words {
+		words[i] = shellQuote(ui.OneLine(w))
+	}
+	return strings.Join(words, " ")
+}
+
+// shellQuote returns w as a POSIX shell reads it as one word: as it is
+// when it holds only characters no shell treats specially, and else in
+// single quotes, in which a single quote ends the quotes, is escaped
+// with a backslash, and opens them again.
+func shellQuote(w string) string {
+	if w != "" && strings.Trim(w, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_@%+=:,./-") == "" {
+		return w
+	}
+	return "'" + strings.ReplaceAll(w, "'", `'\''`) + "'"
 }
 
 // lookGH returns the gh on the PATH, or "".
