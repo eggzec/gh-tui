@@ -152,8 +152,8 @@ func TestNewTokenFromEnv(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
-	if c.token != "env-token" {
-		t.Errorf("token = %q, want env-token", c.token)
+	if tok := *c.token.Load(); tok != "env-token" {
+		t.Errorf("token = %q, want env-token", tok)
 	}
 	if tt, ok := c.http.Transport.(*retryTransport).base.(*rateTransport).base.(*timeoutTransport); !ok || tt.timeout != defaultTimeout || c.http.Timeout != 0 {
 		t.Errorf("timeout = %v per call and %+v per attempt, want %v per attempt", c.http.Timeout, c.http.Transport, defaultTimeout)

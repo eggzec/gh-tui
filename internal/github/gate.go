@@ -850,9 +850,12 @@ func later(a, b time.Time) time.Time {
 type rateTransport struct {
 	base   http.RoundTripper
 	budget *budget
+	// access learns what the token may do from every answer, or is nil.
+	access *tokenAccess
 }
 
-// RoundTrip sends req once its limit lets it, and observes its answer.
+// RoundTrip sends req once its limit lets it, and observes its answer, and
+// what it says the token may do.
 func (t *rateTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	r, held, err := t.budget.admit(req)
 	if err != nil {
@@ -863,7 +866,13 @@ func (t *rateTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 	if r == nil {
-		return t.base.RoundTrip(req)
+		// Such as GET /rate_limit, which counts against no limit and is
+		// how the client probes what the token may do.
+		resp, err := t.base.RoundTrip(req)
+		if err == nil {
+			t.access.observe(req, resp.Header)
+		}
+		return resp, err
 	}
 	if held > 0 {
 		req = req.WithContext(withHeld(req.Context(), held))
@@ -883,6 +892,7 @@ func (t *rateTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 	resp = t.noteSecondary(req, resp)
+	t.access.observe(req, resp.Header)
 	if guard := t.budget.observe(r, resp.Header); guard > 0 {
 		outlasted(req.Context(), r.resource, guard)
 	}
