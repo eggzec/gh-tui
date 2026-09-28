@@ -97,6 +97,31 @@ func (p *Problem) Unwrap() error {
 	return p.Err
 }
 
+// SubjectError names what an error is about, such as the pull request
+// "eggzec/gh-tui#5" a change failed on, for Explain to name when the error
+// doesn't name it itself. It says nothing more than the error it wraps.
+type SubjectError struct {
+	Subject string
+	Err     error
+}
+
+func (e *SubjectError) Error() string {
+	return e.Err.Error()
+}
+
+// Unwrap returns the error that is about Subject.
+func (e *SubjectError) Unwrap() error {
+	return e.Err
+}
+
+// About returns err as an error about subject, or nil for a nil err.
+func About(subject string, err error) error {
+	if err == nil {
+		return nil
+	}
+	return &SubjectError{Subject: subject, Err: err}
+}
+
 // reasoner is an error that carries the explanation GitHub gave, already
 // on one clean line, such as the errors of the github package.
 type reasoner interface {
@@ -149,6 +174,9 @@ func Explain(action string, err error) *Problem {
 			p.Reason = e.Reason
 		}
 	default:
+	}
+	if e, ok := errors.AsType[*SubjectError](err); ok && p.Subject == "" {
+		p.Subject = e.Subject
 	}
 	return p
 }

@@ -53,6 +53,19 @@ func TestExplain(t *testing.T) {
 			reason:  "This issue was deleted",
 			subject: "eggzec/gh-tui#5",
 		},
+		{
+			name:    "about a subject",
+			err:     About("eggzec/gh-tui#7", fmt.Errorf("merge #7: %w", &apiError{"Not Found", ErrNotFound})),
+			kind:    NotFound,
+			reason:  "Not Found",
+			subject: "eggzec/gh-tui#7",
+		},
+		{
+			name:    "its own subject wins",
+			err:     About("eggzec/gh-tui#7", &NoNumberError{Repo: RepoRef{Owner: "eggzec", Name: "gh-tui"}, Number: 5, Err: ErrNotFound}),
+			kind:    NotFound,
+			subject: "eggzec/gh-tui#5",
+		},
 		{name: "conflict", err: fmt.Errorf("merge #5: %w", &apiError{"Pull Request is not mergeable", ErrConflict}), kind: Rejected, reason: "Pull Request is not mergeable"},
 		{
 			name:   "refused as forbidden",
@@ -139,6 +152,17 @@ func TestProblemChain(t *testing.T) {
 	}
 	if got := (&Problem{Err: err}).Error(); got != err.Error() {
 		t.Errorf("Error() without an action = %q, want %q", got, err.Error())
+	}
+}
+
+func TestAbout(t *testing.T) {
+	if err := About("eggzec/gh-tui#7", nil); err != nil {
+		t.Errorf("About(nil) = %v, want nil", err)
+	}
+	cause := fmt.Errorf("merge #7: %w", ErrConflict)
+	err := About("eggzec/gh-tui#7", cause)
+	if err.Error() != cause.Error() || !errors.Is(err, ErrConflict) {
+		t.Errorf("About = %q, want %q, which it wraps", err, cause)
 	}
 }
 
