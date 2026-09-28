@@ -296,13 +296,14 @@ func (st *styles) writeLabels(b *strings.Builder, labels []core.Label) {
 	pad(b, labelsWidth-w-mw)
 }
 
-// truncate cuts s to at most width cells with an ellipsis, and returns it
-// with its width. Most titles are ASCII, which it measures without the cost
-// of finding grapheme clusters.
+// truncate cuts s, text from GitHub, to at most width cells with an
+// ellipsis, on one line, and returns it with its width. Most titles are
+// printable ASCII, which it measures without the cost of finding grapheme
+// clusters, and which needs no cleaning.
 func truncate(s string, width int) (cut string, cutWidth int) {
 	for i := range len(s) {
-		if s[i] >= utf8.RuneSelf || s[i] < ' ' {
-			t := ansi.Truncate(s, width, "…")
+		if s[i] >= utf8.RuneSelf || s[i] < ' ' || s[i] == 0x7f {
+			t := ansi.Truncate(ui.OneLine(s), width, "…")
 			return t, ansi.StringWidth(t)
 		}
 	}
