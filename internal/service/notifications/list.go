@@ -59,8 +59,12 @@ func (q ListQuery) key() string {
 }
 
 // CachedList returns the cached page for q, fresh or stale, without a
-// request. It reports false if the page isn't cached.
+// request. It reports false if the page isn't cached, or if the token may
+// not read notifications: what another token read isn't this one's to see.
 func (s *Service) CachedList(q ListQuery) (core.Page[core.Notification], bool) {
+	if s.refused() != nil {
+		return page{}, false
+	}
 	e, st := s.cache.Get(q.key())
 	return e.Value, st != cache.Miss
 }
@@ -74,7 +78,13 @@ func (s *Service) CachedList(q ListQuery) (core.Page[core.Notification], bool) {
 // set, to every read until one with q.Again set revalidates it. If GitHub
 // can't be reached, a stale page is served with Offline set, and if it
 // rate limits the read, with Limited set.
+//
+// When the token may not read notifications, List returns why at once,
+// and serves nothing it holds.
 func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.Notification], error) {
+	if err := s.refused(); err != nil {
+		return page{}, fmt.Errorf("list notifications: %w", err)
+	}
 	q = q.normalize()
 	if e, ok := s.kept.Warm(s.cache, q.key(), q.Again); ok {
 		p := e.Value
@@ -99,7 +109,14 @@ func (s *Service) Invalidate() {
 // zero ListQuery afterwards is a fresh hit. Interval is GitHub's
 // X-Poll-Interval. A poll that GitHub didn't answer fails, even though
 // the page read last is served to the reads meanwhile.
+//
+// While the token may not read notifications, Poll asks nothing and
+// reports no change, so polling pauses without failing, and resumes on
+// the first poll after the token may.
 func (s *Service) Poll(ctx context.Context) (watch.Result, error) {
+	if s.refused() != nil {
+		return watch.Result{}, nil
+	}
 	q := ListQuery{}.normalize()
 	load := s.load(q)
 	// Fetch returns after fn unless ctx is done, and then changed is not
