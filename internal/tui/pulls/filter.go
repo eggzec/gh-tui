@@ -95,8 +95,8 @@ func (s *Section) spec() filterform.Spec {
 				Key: "review", Label: "Review", Kind: filterform.Choice,
 				Options: []filterform.Item{
 					{Label: "Any"},
-					{Label: "Requested from me", Value: "review-requested:@me"},
-					{Label: "Reviewed by me", Value: "reviewed-by:@me"},
+					{Label: "Requested from you", Value: "review-requested:@me"},
+					{Label: "Reviewed by you", Value: "reviewed-by:@me"},
 					{Label: "Approved", Value: "review:approved"},
 					{Label: "Changes requested", Value: "review:changes_requested"},
 				},

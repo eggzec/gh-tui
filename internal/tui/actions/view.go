@@ -21,7 +21,7 @@ func (m *Modal) View() string {
 	var lines []string
 	switch {
 	case m.filterStep != nil:
-		lines = append(lines, ui.Fit(m.st.lastCrumb.Render("Filter runs"), w))
+		lines = append(lines, ui.Fit(m.st.lastCrumb.Render("Filter · Runs"), w))
 		lines = append(lines, m.filterLines(w, h)...)
 	case m.narrow():
 		lines = append(lines, ui.Fit(m.breadcrumb(w), w))
