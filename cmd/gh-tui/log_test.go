@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -266,5 +267,41 @@ func TestGHDebug(t *testing.T) {
 		if got := ghDebug(value); got != want {
 			t.Errorf("ghDebug(%q) = %v, want %v", value, got, want)
 		}
+	}
+}
+
+// The set command changes the level while the app runs, and the change is
+// logged either way.
+func TestSetLogLevel(t *testing.T) {
+	restoreLogger(t)
+	cfg := config.Default().Log
+	cfg.File = filepath.Join(t.TempDir(), "gh-tui.log")
+	closeLog, warning := openLog(cfg)
+	if warning != "" {
+		t.Fatalf("warning = %q", warning)
+	}
+	slog.Debug("hidden")
+	setLogLevel(config.LevelDebug)
+	slog.Debug("shown")
+	setLogLevel(config.LevelWarn)
+	slog.Info("hidden too")
+	closeLog()
+
+	data, err := os.ReadFile(cfg.File)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recs := readRecords(t, data)
+	got := make([]string, 0, len(recs))
+	for _, r := range recs {
+		msg, _ := r["msg"].(string)
+		if msg == "log level set" {
+			msg += " " + r["from"].(string) + ">" + r["to"].(string)
+		}
+		got = append(got, msg)
+	}
+	want := []string{"log level set INFO>DEBUG", "shown", "log level set DEBUG>WARN"}
+	if !slices.Equal(got, want) {
+		t.Errorf("records = %q, want %q", got, want)
 	}
 }
