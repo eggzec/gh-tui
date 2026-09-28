@@ -17,12 +17,18 @@ func (m *Model) topModal() ui.Modal {
 }
 
 // openModal opens mod in place of the open modal, if any: modals never
-// stack, so the screen shows at most one frame over it.
+// stack, so the screen shows at most one frame over it. It closes the
+// command line, which runs no command over a modal, such as when a goto
+// run before ends while the user types another.
 func (m *Model) openModal(mod ui.Modal) {
 	if mod == nil {
 		return
 	}
 	m.cancelGoto()
+	if m.line.Focused() {
+		m.line.Blur()
+		m.lineDone()
+	}
 	m.modal = mod
 	mod.SetTheme(m.theme)
 	mod.SetSize(m.modalSize())
