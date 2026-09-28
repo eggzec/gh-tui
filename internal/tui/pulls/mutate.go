@@ -216,5 +216,5 @@ func (k keyMap) withChanges(g ui.Gate, method core.MergeMethod, pr core.PullRequ
 
 // gate decides what the viewer may do in the repository of the list.
 func (s *Section) gate() ui.Gate {
-	return ui.Gate{Repo: s.repo, Caps: s.caps}
+	return ui.Gate{Repo: s.repo, Caps: s.caps, Token: s.voice.Token}
 }
