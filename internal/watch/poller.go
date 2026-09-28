@@ -74,7 +74,9 @@ func (e *Engine) poll(ctx context.Context, p *poller) {
 // delay returns how long to wait before the next poll, given the last server
 // hint and the number of consecutive failures.
 func (e *Engine) delay(hint time.Duration, failures int) time.Duration {
-	d := e.cfg.interval
+	e.mu.Lock()
+	d, active := e.cfg.interval, e.active
+	e.mu.Unlock()
 	if hint > 0 {
 		d = hint
 	}
@@ -90,10 +92,6 @@ func (e *Engine) delay(hint time.Duration, failures int) time.Duration {
 		d *= 2
 	}
 	d = min(d, limit)
-
-	e.mu.Lock()
-	active := e.active
-	e.mu.Unlock()
 	if !active {
 		d *= time.Duration(e.cfg.idle)
 	}

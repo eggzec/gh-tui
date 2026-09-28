@@ -138,6 +138,19 @@ func (e *Engine) SetActive(active bool) {
 	}
 }
 
+// SetInterval sets the interval used when a poll returns no server hint,
+// as WithInterval does, from the next poll of each key on: a poll already
+// scheduled keeps its time, so that the server's hints hold. Values <= 0
+// are ignored.
+func (e *Engine) SetInterval(d time.Duration) {
+	if d <= 0 {
+		return
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.cfg.interval = d
+}
+
 // Events returns the channel that change events are delivered on. It is
 // closed when Run returns.
 func (e *Engine) Events() <-chan Event {

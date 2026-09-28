@@ -361,6 +361,26 @@ func TestSetActive(t *testing.T) {
 	})
 }
 
+func TestSetInterval(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		e := New(WithInterval(10*time.Second), WithMinInterval(time.Second))
+		src := newSource(nil)
+		e.Subscribe("a", src.poll)
+		run(t, e)
+
+		synctest.Sleep(15 * time.Second)
+		e.SetInterval(30 * time.Second)
+		e.SetInterval(0)
+		synctest.Sleep(60 * time.Second)
+
+		// The poll scheduled for 20s keeps its time, and the new interval
+		// applies after it.
+		if got, want := src.times(), seconds(10, 20, 50); !slices.Equal(got, want) {
+			t.Errorf("poll times = %v, want %v", got, want)
+		}
+	})
+}
+
 func TestRefresh(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		e := New(WithInterval(time.Minute))
