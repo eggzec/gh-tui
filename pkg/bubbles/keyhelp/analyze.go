@@ -99,7 +99,7 @@ func Analyze(layers []Layer) []Row {
 					r.Lost = append(r.Lost, Loss{Key: k, By: c.b, Source: layers[c.layer].Source, Status: st})
 					continue
 				}
-				if typing >= 0 && printable(k) {
+				if typing >= 0 && Printable(k) {
 					r.Lost = append(r.Lost, Loss{Key: k, Source: layers[typing].Source, Status: Typed})
 					continue
 				}
@@ -135,9 +135,9 @@ func status(lost []Loss, won bool) Status {
 	return st
 }
 
-// printable reports whether k, a key as tea.KeyPressMsg.String names it,
-// types a character.
-func printable(k string) bool {
+// Printable reports whether k, a key as tea.KeyPressMsg.String names it,
+// types a character, so that a layer that types takes it.
+func Printable(k string) bool {
 	if k == "space" {
 		return true
 	}

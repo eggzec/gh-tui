@@ -156,8 +156,8 @@ func TestPrintable(t *testing.T) {
 		"a": true, "?": true, "é": true, "space": true, "G": true,
 		"enter": false, "ctrl+r": false, "up": false, "shift+tab": false, "f1": false, "": false,
 	} {
-		if got := printable(k); got != want {
-			t.Errorf("printable(%q) = %v, want %v", k, got, want)
+		if got := Printable(k); got != want {
+			t.Errorf("Printable(%q) = %v, want %v", k, got, want)
 		}
 	}
 }
