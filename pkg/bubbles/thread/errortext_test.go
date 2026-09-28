@@ -115,3 +115,25 @@ func TestSetErrorText(t *testing.T) {
 		t.Errorf("View() = %q, want only the retry key", v)
 	}
 }
+
+// TestRetry checks that Retry fetches again what failed, as the retry key
+// does, that Err tells what failed, and that neither costs anything when
+// nothing did.
+func TestRetry(t *testing.T) {
+	src := newSource(1, 3)
+	src.fail[""] = 1
+	m := loaded(t, src, nil, 80, 24)
+	if m.Err() == nil {
+		t.Fatal("Err() = nil after the fetch failed")
+	}
+	m = drain(t, m, m.Retry())
+	if m.Err() != nil {
+		t.Fatalf("after Retry: Err() = %v", m.Err())
+	}
+	if got := len(src.calls()); got != 2 {
+		t.Errorf("fetched %d times, want 2", got)
+	}
+	if cmd := m.Retry(); cmd != nil {
+		t.Error("Retry with nothing failed returned a command")
+	}
+}

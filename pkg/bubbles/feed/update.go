@@ -64,7 +64,7 @@ func (m *Model[T]) press(msg tea.KeyPressMsg) tea.Cmd {
 	case key.Matches(msg, m.keyMap.End):
 		m.sel = m.total - 1
 	case key.Matches(msg, m.keyMap.Retry):
-		return m.retry()
+		return m.Retry()
 	default:
 		return nil
 	}
@@ -73,8 +73,9 @@ func (m *Model[T]) press(msg tea.KeyPressMsg) tea.Cmd {
 	return m.sync()
 }
 
-// retry repeats every failed fetch.
-func (m *Model[T]) retry() tea.Cmd {
+// Retry repeats every failed fetch, as the retry key does, such as once
+// the network is back. It returns nil if no fetch failed.
+func (m *Model[T]) Retry() tea.Cmd {
 	var cmd tea.Cmd
 	for i := range len(m.chunks) + 1 {
 		if m.chunk(i).err != nil {

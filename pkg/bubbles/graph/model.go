@@ -347,6 +347,15 @@ func (m Model) render(r *row) {
 	}
 }
 
+// Retry fetches again the page that failed, as the retry key does, such as
+// once the network is back. It returns nil if none failed.
+func (m *Model) Retry() tea.Cmd {
+	if m.err == nil {
+		return nil
+	}
+	return m.startFetch()
+}
+
 // startFetch marks the next chunk as in flight and returns the command that
 // fetches it.
 func (m *Model) startFetch() tea.Cmd {

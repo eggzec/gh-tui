@@ -2,6 +2,7 @@ package filterform
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"strings"
 	"testing"
@@ -298,6 +299,31 @@ func TestLoad(t *testing.T) {
 	}
 	if !m.picking {
 		t.Error("opening the field again didn't show the loaded labels")
+	}
+}
+
+// TestRetry checks that Retry loads again the options that failed, and
+// does nothing when none did.
+func TestRetry(t *testing.T) {
+	f := &fakeLoader{fail: errBoom}
+	m := open(t, prSpec(f.load))
+	m, _ = press(t, m, down, down, down, enter)
+	if !errors.Is(m.Err(), errBoom) {
+		t.Fatalf("Err() = %v, want %v", m.Err(), errBoom)
+	}
+	f.setFail(nil)
+	m, _ = run(t, m, m.Retry())
+	if m.Err() != nil || m.fields[rowLabels].state != loaded {
+		t.Fatalf("after Retry: Err() = %v, state = %v", m.Err(), m.fields[rowLabels].state)
+	}
+	if !m.picking {
+		t.Error("the editor waiting for the options didn't open them")
+	}
+	if cmd := m.Retry(); cmd != nil {
+		t.Error("Retry with nothing failed returned a command")
+	}
+	if f.calls() != 2 {
+		t.Errorf("the loader was called %d times, want 2", f.calls())
 	}
 }
 

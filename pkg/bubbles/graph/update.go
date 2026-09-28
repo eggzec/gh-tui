@@ -61,7 +61,7 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 	case key.Matches(msg, m.keyMap.Choose):
 		return m.choose()
 	case key.Matches(msg, m.keyMap.Retry):
-		return m.startFetch()
+		return m.Retry()
 	default:
 		return nil
 	}
