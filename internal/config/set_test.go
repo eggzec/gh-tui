@@ -181,3 +181,30 @@ func TestValuesAreValid(t *testing.T) {
 		}
 	}
 }
+
+// TestReset checks that Reset copies the value as it is, so that a string
+// that Set would read as quoted comes back unchanged, and that a list
+// comes back as a list of its own.
+func TestReset(t *testing.T) {
+	file := Default()
+	file.Editor = `"C:\tools\vim"`
+	session, err := file.Set("editor", "vim")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := session.Reset("editor", file)
+	if err != nil || got.Editor != file.Editor {
+		t.Errorf("Reset(editor) = %q, %v; want %q", got.Editor, err, file.Editor)
+	}
+	got, err = session.Reset("history.row", file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got.History.Row[0] = FieldAge
+	if file.History.Row[0] == FieldAge {
+		t.Error("Reset shares its list with the config it copies from")
+	}
+	if _, err := session.Reset("nope", file); !errors.Is(err, ErrUnknownKey) {
+		t.Errorf("Reset(nope) = %v, want ErrUnknownKey", err)
+	}
+}

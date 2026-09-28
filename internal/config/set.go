@@ -144,6 +144,30 @@ func (c Config) Set(key, value string) (Config, error) {
 	return out, nil
 }
 
+// Reset returns c with the setting key as it is in from, such as the
+// config as the file says, validated as [Load] validates the file. The
+// value is copied, not spelled and read again, so it comes back exactly as
+// it was. c is left as it was.
+func (c Config) Reset(key string, from Config) (Config, error) {
+	out := c
+	v, err := setting(reflect.ValueOf(&out).Elem(), key)
+	if err != nil {
+		return c, err
+	}
+	fv, _ := setting(reflect.ValueOf(from), key)
+	nv := reflect.New(v.Type()).Elem()
+	nv.Set(fv)
+	if nv.Kind() == reflect.Slice && !nv.IsNil() {
+		// A list of its own, which a later Set of out can't share with from.
+		nv.Set(reflect.AppendSlice(reflect.MakeSlice(nv.Type(), 0, nv.Len()), nv))
+	}
+	v.Set(nv)
+	if err := out.Validate(); err != nil {
+		return c, err
+	}
+	return out, nil
+}
+
 // unquote returns s without the quotes around it, if it has them, as
 // YAML would read a quoted string.
 func unquote(s string) string {

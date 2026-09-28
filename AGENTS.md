@@ -326,6 +326,15 @@ reacts to messages. Concretely:
   A constant in Go that looks like a default must either move there or be
   listed as a true constant in `internal/config/testdata/constants.allow`
   (`TestNoDefaultsInGo`).
+- A setting that is read once, at startup, is tagged `when:"startup"` with
+  a `why:` that `:set` shows when it refuses it. Every other setting must
+  be read where the settings are applied when `:set` changes them: the
+  `configure` functions of the sections, the function given to
+  `tui.WithSettings`, and what reads the session's config in `cmd/gh-tui`
+  (`TestLiveSettingsAreRead`). A setting that may only be set at the top
+  level of the file, not per host or profile, is tagged `scope:"global"`.
+  `:set key&` drops what the session set of a key, back to what gh-tui
+  started with.
 - Keybindings map action names to keys and are applied through each bubble's
   `SetKeyMap`. Action names are registered in `internal/config/keys.go`;
   unknown names are rejected so typos don't pass silently.

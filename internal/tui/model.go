@@ -45,8 +45,12 @@ type Layout struct {
 
 // Model is the root model of the program.
 type Model struct {
-	ctx  context.Context
-	cfg  config.Config
+	ctx context.Context
+	cfg config.Config
+	// file is the config gh-tui started with, as the file says and the
+	// flags and environment raised the log level, which the set command
+	// changes cfg from, for the session, and resets settings to.
+	file config.Config
 	keys KeyMap
 	// term is what the terminal said of itself, for the log.
 	term terminal
@@ -283,6 +287,7 @@ func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) 
 	m := &Model{
 		ctx:     ctx,
 		cfg:     cfg,
+		file:    cfg,
 		keys:    keys,
 		toast:   toast.New(),
 		keyhelp: newHelp(keys),

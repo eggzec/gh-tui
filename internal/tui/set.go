@@ -1,7 +1,7 @@
 package tui
 
 import (
-	"slices"
+	"reflect"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -19,52 +19,22 @@ func WithSettings(apply func(config.Config)) Option {
 	return func(m *Model) { m.settings = apply }
 }
 
-// liveSettings are the settings that the set command changes while the
-// app runs. Whatever reads the others reads them once, at startup.
-var liveSettings = []string{
-	"theme", "ui.icons", "sync.interval",
-	"details.prefetch.enabled", "details.prefetch.rows", "details.prefetch.hover_delay", "details.prefetch.filters",
-	"dashboard.prefetch", "files.prefetch.enabled", "files.prefetch.max_size", "files.prefetch.hover_delay",
-	"dashboard.calendar_glyph", "dashboard.contributions", "files.finder.preview", "notifications.mark_read_on_open",
-	"history.row", "history.detail", "history.date_format", "history.show_email",
-	"history.prefetch.around", "history.prefetch.hover_delay", "editor", "log.level",
-}
-
-// startup says why a setting that isn't live needs a restart, by the
-// start of its key; the first that matches says.
-var startup = []struct{ prefix, why string }{
-	{"repos", "the pinned repositories are read at startup"},
-	{"cache.", "the cache is opened at startup"},
-	{"sync.enabled", "the polls are set up at startup"},
-	{"files.preview.", "the files are read with it from the start"},
-	{"auth.", "the token's checks start with the app"},
-	{"log.", "the log file is opened at startup"},
-	{"", "it is read at startup"},
-}
-
-// needsRestart returns why the setting key can't change while the app
-// runs, or false if it can.
-func needsRestart(key string) (string, bool) {
-	if slices.Contains(liveSettings, key) {
-		return "", false
-	}
-	for _, s := range startup {
-		if strings.HasPrefix(key, s.prefix) {
-			return s.why, true
-		}
-	}
-	return "", false
-}
-
 // setCommand changes a setting for this session, as "key=value", with
 // the value read and validated as in the config file, which it never
-// writes. A key alone shows the value of the setting.
+// writes. A key alone shows the value of the setting, and a key with &
+// after it, as in vim, drops what the session set, so the setting is
+// what gh-tui started with again: the config file's, or the log level
+// that --debug, GH_DEBUG or GH_TUI_LOG raised it to.
 func (m *Model) setCommand(arg string) tea.Cmd {
 	key, value, assign := strings.Cut(arg, "=")
 	key, value = strings.TrimSpace(key), strings.TrimSpace(value)
+	key, reset := strings.CutSuffix(key, "&")
+	key = strings.TrimSpace(key)
 	switch {
 	case key == "":
-		return m.toast.Push(toast.Error, "Set what? Use set key=value, or set key to see its value.")
+		return m.toast.Push(toast.Error, "Set what? Use set key=value, set key to see its value, or set key& to reset it.")
+	case reset && assign:
+		return m.toast.Push(toast.Error, "Set "+ui.OneLine(key)+"& resets it, and takes no value.")
 	case strings.HasPrefix(key, "keys.") || strings.HasPrefix(key, "themes."):
 		return m.toast.Push(toast.Error, "Keys and themes can't be set here: change them in the config file, then restart gh-tui.")
 	}
@@ -72,10 +42,13 @@ func (m *Model) setCommand(arg string) tea.Cmd {
 	if err != nil {
 		return m.toast.Push(toast.Error, "Unknown setting: "+ui.OneLine(key)+".")
 	}
+	if reset {
+		return m.resetSetting(key, was)
+	}
 	if !assign {
 		return m.toast.Push(toast.Info, key+" is "+ui.OneLine(was)+".")
 	}
-	if why, ok := needsRestart(key); ok {
+	if why, ok := config.Startup(key); ok {
 		return m.toast.Push(toast.Error, key+" can't change while gh-tui runs: "+why+". Set it in the config file, then restart.")
 	}
 	cfg, err := m.cfg.Set(key, value)
@@ -85,6 +58,23 @@ func (m *Model) setCommand(arg string) tea.Cmd {
 	m.cfg = cfg
 	now, _ := cfg.Get(key)
 	return tea.Batch(m.applySettings(), m.toast.Push(toast.Info, key+" is "+ui.OneLine(now)+" for this session."))
+}
+
+// resetSetting sets key back to what gh-tui started with, from was,
+// what the session has.
+func (m *Model) resetSetting(key, was string) tea.Cmd {
+	cfg, err := m.cfg.Reset(key, m.file)
+	if err == nil && reflect.DeepEqual(cfg, m.cfg) {
+		return m.toast.Push(toast.Info, key+" is "+ui.OneLine(was)+", as gh-tui started with.")
+	}
+	if err != nil {
+		// What the file says was valid with what the session set of the
+		// others, such as a size within a bound another sets.
+		return m.toast.Push(toast.Error, "Can't reset "+key+": "+reason(key, err)+".")
+	}
+	m.cfg = cfg
+	now, _ := cfg.Get(key)
+	return tea.Batch(m.applySettings(), m.toast.Push(toast.Info, key+" is "+ui.OneLine(now)+" again, as gh-tui started with."))
 }
 
 // reason words err, which says what is wrong with the value of key, for a
@@ -156,7 +146,7 @@ func (m *Model) completeSet(arg string, cursor, end int, atEnd bool) []cmdline.C
 		}
 		detail, _ := m.cfg.Get(key)
 		detail = shorten(ui.OneLine(detail), maxValue)
-		if _, ok := needsRestart(key); ok {
+		if _, ok := config.Startup(key); ok {
 			detail += ", at startup"
 		}
 		out = append(out, cmdline.Candidate{Text: text, Label: key, Detail: detail, Start: start, End: end})
