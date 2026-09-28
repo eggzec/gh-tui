@@ -263,7 +263,8 @@ func (m *Modal) fileLines(w, h int) []string {
 	c := &m.commit
 	switch {
 	case c.err != nil:
-		return wrap(m.errorLine("Couldn't load the changes: ", c.err), w, "")
+		// The open key opens the commit, which is what failed.
+		return m.errorLines("load the commit", m.commitName(), c.err, true, "", w)
 	case !c.loaded:
 		return []string{fit(m.spin.View()+m.st.muted.Render("Loading the changes…"), w)}
 	case len(c.files) == 0:
@@ -277,7 +278,7 @@ func (m *Modal) fileLines(w, h int) []string {
 	if len(lines) < h {
 		switch {
 		case c.filesErr != nil:
-			lines = append(lines, wrap(m.errorLine("Couldn't load more files: ", c.filesErr), w, m.st.noGutter)...)
+			lines = append(lines, m.errorLines("load more files", m.commitName(), c.filesErr, false, m.st.noGutter, w)...)
 		case c.filesLoading:
 			lines = append(lines, fit(m.st.noGutter+m.spin.View()+m.st.muted.Render("Loading more files…"), w))
 		case c.next == "" && c.truncated:
@@ -291,13 +292,26 @@ func (m *Modal) fileLines(w, h int) []string {
 	return lines
 }
 
-// errorLine renders an error that the retry key reads again.
-func (m *Modal) errorLine(what string, err error) string {
-	text := m.st.error.Render("✗ " + what + trim(err.Error()))
-	if k := m.keys.Retry.Help().Key; k != "" {
-		text += m.st.subtle.Render(" · " + k + " to retry")
+// errorLines renders err, which stopped action on subject, in lines of w
+// cells after indent. The retry key reads it again, and the open key opens
+// on GitHub only what failed, when open is set; elsewhere it opens the row
+// under the cursor, so no hint names it.
+func (m *Modal) errorLines(action, subject string, err error, open bool, indent string, w int) []string {
+	v := *m.opts.voice
+	v.Retry, v.Open = m.keys.Retry, m.keys.Open
+	v.Open.SetEnabled(open && v.Open.Enabled())
+	text, hint := ui.ErrorText(action, subject, v)(err)
+	lines := ui.ErrorLine(m.errs, text, hint, max(w-ansi.StringWidth(indent), 1))
+	for i, l := range lines {
+		lines[i] = fit(indent+l, w)
 	}
-	return text
+	return lines
+}
+
+// commitName names the commit shown the way GitHub does, such as
+// "eggzec/gh-tui@0cd6e9e".
+func (m *Modal) commitName() string {
+	return m.repo.String() + "@" + short(m.commit.c.SHA)
 }
 
 // wrap wraps s to lines of w cells, each after indent.
