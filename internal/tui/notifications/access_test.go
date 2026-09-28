@@ -135,7 +135,12 @@ func TestAccessStillRefusedReadsNothing(t *testing.T) {
 	svc := newFake(inbox()...)
 	s := tokenSection(t, svc, tok, true, 120, 10)
 	tok.A = uitest.Classic("gist", "read:org")
-	run(t, s, s.Update(ui.AccessMsg{Access: tok.A}))
+	// A reload would send nothing, and only show the list loading.
+	cmd := s.Update(ui.AccessMsg{Access: tok.A})
+	if cmd != nil {
+		t.Error("the section reloads while the token still may not read notifications")
+	}
+	run(t, s, cmd)
 	if got := svc.listCount(); got != 0 {
 		t.Errorf("the section sent %d requests while the token still may not read notifications", got)
 	}
