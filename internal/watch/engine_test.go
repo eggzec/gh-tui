@@ -3,6 +3,7 @@ package watch
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"sync"
@@ -11,6 +12,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
 )
 
@@ -123,6 +125,22 @@ func TestIntervals(t *testing.T) {
 			// Waits: 10, then 20, 40, 60 (capped), 60, 60 after each
 			// failure, then back to 10 after the first success.
 			want: seconds(10, 30, 70, 130, 190, 250, 260, 270),
+		},
+		{
+			name: "a rate limit doesn't back off",
+			opts: []Option{WithInterval(10 * time.Second), WithMaxBackoff(time.Minute)},
+			result: func(n int) (Result, error) {
+				switch n {
+				case 0:
+					return Result{}, fmt.Errorf("poll: %w", &core.RateLimitError{Reset: time.Now().Add(15 * time.Second)})
+				case 1:
+					return Result{}, fmt.Errorf("poll: %w", &core.RateLimitError{Reset: time.Now().Add(5 * time.Second)})
+				}
+				return Result{}, nil
+			},
+			// The next poll waits for the Reset, or the interval if that
+			// is longer, and no failure grows it.
+			want: seconds(10, 25, 35, 45, 55),
 		},
 		{
 			name: "backoff never shortens a long interval",

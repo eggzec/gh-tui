@@ -2,9 +2,11 @@ package watch
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"time"
 
+	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
 )
 
@@ -45,16 +47,25 @@ func (e *Engine) poll(ctx context.Context, p *poller) {
 		if ctx.Err() != nil {
 			return
 		}
-		if err != nil {
-			failures++
-		} else {
+		switch {
+		case err == nil:
 			failures = 0
 			hint = res.Interval
+		case !errors.Is(err, core.ErrRateLimited):
+			// A rate limit backs nothing off: the client holds the next
+			// poll until the limit lifts, and a backoff would only poll
+			// later than that; the poll waits for its Reset below.
+			failures++
 		}
 		if err != nil || res.Changed {
 			e.publish(p, Event{Key: p.key, Err: err})
 		}
 		next := e.delay(hint, failures)
+		if rl, ok := errors.AsType[*core.RateLimitError](err); ok {
+			// One the client didn't see coming, such as another's use of
+			// the quota, lifts at its Reset, and polling sooner is wasted.
+			next = max(next, time.Until(rl.Reset))
+		}
 		logPoll(pctx, p.key, start, res, err, failures, next)
 		timer.Reset(next)
 	}
