@@ -107,6 +107,10 @@ func (m *Model) gotoCommand(arg string) tea.Cmd {
 // gotoNumber opens the issue or pull request that t names, once it knows
 // which one it is: from a link, from memory, or else from GitHub.
 func (m *Model) gotoNumber(t core.Target) tea.Cmd {
+	// The modal, its changes and the caches all go by the repository as
+	// GitHub spells it, whatever case was typed.
+	var spelled bool
+	t.Repo, spelled = m.spelled(t.Repo)
 	kind, found := t.Kind, "link"
 	if !kind.Known() && m.kinds != nil {
 		kind, _ = m.kinds.CachedKind(t.Repo, t.Number)
@@ -115,19 +119,58 @@ func (m *Model) gotoNumber(t core.Target) tea.Cmd {
 	if !kind.Known() && m.kinds == nil {
 		kind, found = core.KindIssue, "guess"
 	}
-	if kind.Known() {
+	if kind.Known() && (spelled || m.repos == nil) {
 		logGoto(m.ctx, t, found)
 		return openNumber(t, kind)
 	}
 	ctx, seq, spin := m.startGoto(t)
-	kinds := m.kinds
+	kinds, repos := m.kinds, m.repos
+	if spelled {
+		repos = nil
+	}
 	return tea.Batch(spin, func() tea.Msg {
 		ctx, end := obs.Begin(ctx, "goto.number")
 		logGoto(ctx, t, "github")
-		k, err := kinds.Kind(ctx, t.Repo, t.Number)
+		spelling := spell(ctx, repos, t.Repo)
+		k, err := kind, error(nil)
+		if !k.Known() {
+			k, err = kinds.Kind(ctx, t.Repo, t.Number)
+		}
+		t.Repo = <-spelling
 		end(err, "span", "tui", "target", t.String(), "kind", string(k))
 		return gotoKindMsg{seq: seq, target: t, kind: k, err: err}
 	})
+}
+
+// spell asks repos, while the caller asks for the kind, how GitHub spells
+// ref, and sends that, or ref if repos is nil or can't say. The kind's
+// error says why GitHub didn't answer.
+func spell(ctx context.Context, repos Repos, ref core.RepoRef) <-chan core.RepoRef {
+	out := make(chan core.RepoRef, 1)
+	go func() {
+		if repos != nil {
+			if r, err := repos.Get(ctx, ref); err == nil {
+				ref = canonical(r, ref)
+			}
+		}
+		out <- ref
+	}()
+	return out
+}
+
+// spelled returns ref as GitHub spells it, and true, when the repository
+// on view or the repositories in memory say how; otherwise ref as typed,
+// and false.
+func (m *Model) spelled(ref core.RepoRef) (core.RepoRef, bool) {
+	if m.repo != (core.RepoRef{}) && ref.Same(m.repo) {
+		return m.repo, true
+	}
+	if m.repos != nil {
+		if r, ok := m.repos.CachedGet(ref); ok && r.Ref.Owner != "" && r.Ref.Name != "" {
+			return r.Ref, true
+		}
+	}
+	return ref, false
 }
 
 // gotKind opens the number that goto asked for, or says why not.

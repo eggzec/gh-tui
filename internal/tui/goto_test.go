@@ -33,8 +33,12 @@ type fakeRepos struct {
 }
 
 func (f *fakeRepos) CachedGet(ref core.RepoRef) (core.Repo, bool) {
-	r, ok := f.cached[ref]
-	return r, ok
+	for k := range f.cached {
+		if k.Same(ref) {
+			return f.cached[k], true
+		}
+	}
+	return core.Repo{}, false
 }
 
 func (f *fakeRepos) Get(ctx context.Context, ref core.RepoRef) (core.Repo, error) {
@@ -332,8 +336,18 @@ type fakeKinds struct {
 }
 
 func (f *fakeKinds) CachedKind(repo core.RepoRef, number int) (core.NumberKind, bool) {
-	k, ok := f.cached[core.Target{Repo: repo, Number: number}]
-	return k, ok
+	return kindOf(f.cached, repo, number)
+}
+
+// kindOf returns the kind of number in kinds, whatever the case of repo,
+// as GitHub ignores it.
+func kindOf(kinds map[core.Target]core.NumberKind, repo core.RepoRef, number int) (core.NumberKind, bool) {
+	for t, k := range kinds {
+		if t.Repo.Same(repo) && t.Number == number {
+			return k, true
+		}
+	}
+	return "", false
 }
 
 func (f *fakeKinds) Kind(ctx context.Context, repo core.RepoRef, number int) (core.NumberKind, error) {
@@ -347,7 +361,7 @@ func (f *fakeKinds) Kind(ctx context.Context, repo core.RepoRef, number int) (co
 	if f.err != nil {
 		return "", f.err
 	}
-	if k, ok := f.remote[t]; ok {
+	if k, ok := kindOf(f.remote, repo, number); ok {
 		return k, nil
 	}
 	return "", &core.NoNumberError{Repo: repo, Number: number, Err: core.ErrNotFound}
@@ -471,6 +485,45 @@ func TestGotoNumber(t *testing.T) {
 			}
 			if m.going != nil {
 				t.Error("the goto still waits")
+			}
+		})
+	}
+}
+
+// Goto opens a number of the repository as GitHub spells it, however it
+// was typed, so that the modal, its changes and the caches agree with the
+// panes.
+func TestGotoNumberSpelledAsGitHubDoes(t *testing.T) {
+	cli := core.RepoRef{Owner: "cli", Name: "cli"}
+	tests := []struct {
+		name string
+		repo core.RepoRef
+		line string
+		want tea.Msg
+		// gets reports whether GitHub is asked how it spells the
+		// repository.
+		gets bool
+	}{
+		{name: "repository on view", repo: testRepo, line: "goto EggZec/GH-TUI#12", want: ui.OpenIssueMsg{Repo: testRepo, Number: 12}},
+		{name: "in memory", line: "goto EGGZEC/gh-tui#7", want: ui.OpenPullMsg{Repo: testRepo, Number: 7, ShowRepo: true}},
+		{name: "asked with the kind", line: "goto CharmBracelet/BubbleTea#1698", want: ui.OpenIssueMsg{Repo: bubbletea, Number: 1698, ShowRepo: true}, gets: true},
+		{name: "link", line: "goto https://github.com/CLI/Cli/pull/1", want: ui.OpenPullMsg{Repo: cli, Number: 1, ShowRepo: true}, gets: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repos := newGotoRepos()
+			opts := []Option{WithKinds(newGotoKinds())}
+			if tt.repo != (core.RepoRef{}) {
+				opts = append(opts, WithRepo(tt.repo))
+			}
+			m, fakes := newGotoApp(t, repos, opts...)
+			before := len(repos.gets)
+			runCommand(t, m, tt.line)
+			if got := opened(fakes); got != tt.want {
+				t.Errorf("sections got %#v, want %#v", got, tt.want)
+			}
+			if gets := len(repos.gets) > before; gets != tt.gets {
+				t.Errorf("asked GitHub for the repository = %v, want %v", gets, tt.gets)
 			}
 		})
 	}
