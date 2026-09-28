@@ -178,6 +178,24 @@ func TestNewWithoutToken(t *testing.T) {
 	}
 }
 
+// A token that FindToken looked for and didn't find isn't looked for again,
+// which would run gh auth token a second time.
+func TestNewLooksForTheTokenOnce(t *testing.T) {
+	lookups := 0
+	gh := fakeGH("", "default", "")
+	gh.token = func(string) (string, string) {
+		lookups++
+		return "", "default"
+	}
+	_, err := New(WithHost("github.com"), WithTokenSource("", "default"), withGH(gh))
+	if !errors.Is(err, core.ErrUnauthorized) {
+		t.Fatalf("New error = %v, want ErrUnauthorized", err)
+	}
+	if lookups != 0 {
+		t.Errorf("looked for the token %d times, want none after FindToken", lookups)
+	}
+}
+
 func TestRequestHeaders(t *testing.T) {
 	want := map[string]string{
 		"Authorization":        "Bearer test-token",

@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -195,6 +196,52 @@ func TestAccessKeptWithoutHeader(t *testing.T) {
 	}
 }
 
+// GitHub's first answer is told of once, even when it says nothing of the
+// token, as for a fine-grained token, so that the app knows it needn't ask
+// what the token may do; later answers that say nothing aren't.
+func TestAccessToldOfTheFirstAnswer(t *testing.T) {
+	c, told := accessClient(t, "github_pat_abc", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("X-GitHub-Request-Id", "ABCD:1234")
+		_, _ = io.WriteString(w, "{}")
+	}))
+	for range 3 {
+		if _, err := c.Get(t.Context(), "user", Conditional{}, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	want := core.Access{Kind: core.TokenFineGrained}
+	if got := told(); len(got) != 1 || !got[0].Equal(want) {
+		t.Errorf("told %+v, want %+v once", got, want)
+	}
+}
+
+// A 304 isn't GitHub's first answer: it may leave out the scopes of a
+// classic token, so the app is told once an answer in full comes.
+func TestAccessFirstAnswerIsNotA304(t *testing.T) {
+	var n atomic.Int32
+	c, told := accessClient(t, "github_pat_abc", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("X-GitHub-Request-Id", "ABCD:1234")
+		if n.Add(1) == 1 {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+		_, _ = io.WriteString(w, "{}")
+	}))
+	if _, err := c.Get(t.Context(), "user", Conditional{ETag: `"a"`}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := told(); len(got) != 0 {
+		t.Fatalf("told %+v of a 304, want nothing", got)
+	}
+	if _, err := c.Get(t.Context(), "user", Conditional{}, nil); err != nil {
+		t.Fatal(err)
+	}
+	want := core.Access{Kind: core.TokenFineGrained}
+	if got := told(); len(got) != 1 || !got[0].Equal(want) {
+		t.Errorf("told %+v, want %+v once", got, want)
+	}
+}
+
 // An answer to a request sent with the token before SetToken says
 // nothing of the new one, however late it comes.
 func TestAccessIgnoresOldToken(t *testing.T) {
@@ -242,7 +289,7 @@ func TestAccessSetTokenWhenTold(t *testing.T) {
 	})
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "https://api.github.com/user", http.NoBody)
 	req.Header.Set("Authorization", "Bearer gho_abc")
-	a.observe(req, http.Header{"X-Oauth-Scopes": {"repo"}})
+	a.observe(req, http.StatusOK, http.Header{"X-Oauth-Scopes": {"repo"}})
 	want := []core.Access{
 		{Kind: core.TokenClassic, Known: true, Scopes: []string{"repo"}},
 		{Kind: core.TokenFineGrained},
@@ -530,7 +577,7 @@ func TestAccessToldInOrder(t *testing.T) {
 	var wg sync.WaitGroup
 	for i := range 8 {
 		wg.Go(func() {
-			a.observe(req, http.Header{"X-Oauth-Scopes": {fmt.Sprint("repo, s", i%2)}})
+			a.observe(req, http.StatusOK, http.Header{"X-Oauth-Scopes": {fmt.Sprint("repo, s", i%2)}})
 		})
 	}
 	wg.Wait()

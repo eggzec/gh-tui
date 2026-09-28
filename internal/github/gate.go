@@ -927,7 +927,7 @@ func (t *rateTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 			// how the client probes what the token may do.
 			resp, err := t.base.RoundTrip(req)
 			if err == nil {
-				t.access.observe(req, resp.Header)
+				t.access.observe(req, resp.StatusCode, resp.Header)
 			}
 			return resp, err
 		}
@@ -992,7 +992,7 @@ func (t *rateTransport) send(req *http.Request, r *reservation, held time.Durati
 		resp.Body = &sentBody{ReadCloser: resp.Body, cancel: cancel}
 	}
 	resp = t.noteSecondary(attempt, resp)
-	t.access.observe(attempt, resp.Header)
+	t.access.observe(attempt, resp.StatusCode, resp.Header)
 	if guard := t.budget.observe(r, resp.StatusCode, resp.Header); guard > 0 {
 		outlasted(ctx, r.resource, guard)
 	}
