@@ -48,6 +48,12 @@ func TestFilter(t *testing.T) {
 		{name: "ampersand opens the prompt", keys: []string{"&"}, wantShown: 100, wantFirst: 1, wantCapturing: true},
 		{name: "enter filters", keys: []string{"&", "line x ", "enter"},
 			wantFilter: "line x ", wantShown: 15, wantFirst: 2, wantStatus: "filtered 15/100"},
+		// The line and the percent count the lines of the content: the
+		// last line in the window is line 65.
+		{name: "the status counts the lines of the content", keys: []string{"&", "line x ", "enter"},
+			wantFilter: "line x ", wantShown: 15, wantFirst: 2, wantStatus: "line 2/100  65%"},
+		{name: "the end of a filter may be short of 100%", keys: []string{"&", "!line x", "enter", "G"},
+			wantFilter: "!line x", wantShown: 15, wantFirst: 36, wantStatus: "line 36/100  99%"},
 		{name: "bang keeps the lines that don't match", keys: []string{"&", "!line x", "enter"},
 			wantFilter: "!line x", wantShown: 15, wantFirst: 1, wantStatus: "filtered 15/100"},
 		{name: "patterns are regexps", keys: []string{"&", "^line x{5} ", "enter"},
