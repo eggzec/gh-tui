@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"log/slog"
@@ -105,5 +106,23 @@ func TestProxyHost(t *testing.T) {
 	none := func(*http.Request) (*url.URL, error) { return nil, nil }
 	if got := proxyHost("https://api.github.com/", none); got != "" {
 		t.Errorf("proxyHost without a proxy = %q, want none", got)
+	}
+}
+
+// The gh record has the first line of gh --version.
+func TestLogGHVersion(t *testing.T) {
+	var buf bytes.Buffer
+	restoreLogger(t)
+	slog.SetDefault(obs.NewLogger(&buf, slog.LevelInfo, "s_test"))
+	gh := filepath.Join(t.TempDir(), "gh")
+	script := "#!/bin/sh\necho 'gh version 2.63.0 (2024-11-27)'\necho https://github.com/cli/cli/releases/tag/v2.63.0\n"
+	if err := os.WriteFile(gh, []byte(script), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	logGHVersion(context.Background(), gh)
+	logGHVersion(context.Background(), "")
+	recs := readRecords(t, buf.Bytes())
+	if len(recs) != 1 || recs[0]["msg"] != "gh" || recs[0]["version"] != "gh version 2.63.0 (2024-11-27)" {
+		t.Errorf("records = %v, want the gh version once", recs)
 	}
 }
