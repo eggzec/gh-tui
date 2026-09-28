@@ -41,7 +41,7 @@ func (s *Step) Update(msg tea.Msg) tea.Cmd {
 	case ui.SyncMsg:
 		return s.synced(msg)
 	case ui.CapsMsg:
-		if msg.Repo == s.q.Repo {
+		if msg.Repo.Same(s.q.Repo) {
 			s.opts.caps = msg.Caps
 		}
 		return nil

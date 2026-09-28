@@ -165,7 +165,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, show
 
 // capsOf returns what the viewer may do in repo, as far as it is known.
 func (s *Section) capsOf(repo core.RepoRef) core.RepoCaps {
-	if s.hasRepo && repo == s.repo {
+	if s.hasRepo && repo.Same(s.repo) {
 		return s.caps
 	}
 	return ui.CachedCaps(s.repos, repo)
@@ -262,7 +262,7 @@ func (m *detailModal) Update(msg tea.Msg) tea.Cmd {
 		}
 		return tea.Batch(m.thread.Reload(), m.get())
 	case ui.CapsMsg:
-		if msg.Repo == m.repo {
+		if msg.Repo.Same(m.repo) {
 			m.caps = msg.Caps
 		}
 		return nil

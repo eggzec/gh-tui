@@ -39,7 +39,7 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 	case ui.OpenIssueMsg:
 		return s.openDetail(msg.Repo, msg.Number, nil, msg.ShowRepo, msg.Pause)
 	case changedMsg:
-		if !s.hasRepo || msg.repo != s.repo {
+		if !s.hasRepo || !msg.repo.Same(s.repo) {
 			return nil
 		}
 		return s.reload()
@@ -83,7 +83,7 @@ func (s *Section) sync(msg ui.SyncMsg) tea.Cmd {
 // setRepo shows the issues of repo. It arrives before Init too, so the
 // section only loads them once started.
 func (s *Section) setRepo(repo core.RepoRef) tea.Cmd {
-	if s.hasRepo && repo == s.repo {
+	if s.hasRepo && repo.Same(s.repo) {
 		return nil
 	}
 	s.repo, s.hasRepo = repo, true
@@ -101,7 +101,7 @@ func (s *Section) setRepo(repo core.RepoRef) tea.Cmd {
 // issues off, the list stops reading them, and it starts if they are on
 // after all.
 func (s *Section) setCaps(msg ui.CapsMsg) tea.Cmd {
-	if !s.hasRepo || msg.Repo != s.repo {
+	if !s.hasRepo || !msg.Repo.Same(s.repo) {
 		return nil
 	}
 	wasOff := s.issuesOff()
