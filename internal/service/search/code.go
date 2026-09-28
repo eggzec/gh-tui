@@ -2,12 +2,10 @@ package search
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/core"
@@ -47,24 +45,18 @@ func (s *Service) CachedCode(q CodeQuery) (core.SearchPage[core.CodeHit], bool) 
 // without one. Its total joins the counts that Search returns for the
 // same text.
 //
-// GitHub allows 10 code searches a minute. Once it refuses one, Code fails
-// at once with a *core.RateLimitError, which matches core.ErrRateLimited
-// and says when code search resumes, until then. A query GitHub can't run
-// fails with a *core.InvalidQueryError.
+// GitHub allows 10 code searches a minute. Once they run out, the client
+// fails a search at once with a *core.RateLimitError, which matches
+// core.ErrRateLimited and says when code search resumes. A query GitHub
+// can't run fails with a *core.InvalidQueryError.
 func (s *Service) Code(ctx context.Context, q CodeQuery) (core.SearchPage[core.CodeHit], error) {
 	q = q.normalize()
 	if q.Text == "" {
 		return core.SearchPage[core.CodeHit]{}, nil
 	}
 	e, err := s.code.Fetch(ctx, codeKey(q), func(ctx context.Context, _ cache.Entry[core.SearchPage[core.CodeHit]], _ bool) (cache.Entry[core.SearchPage[core.CodeHit]], error) {
-		if reset, limited := s.CodeLimited(); limited {
-			return cache.Entry[core.SearchPage[core.CodeHit]]{}, &core.RateLimitError{Reset: reset}
-		}
 		p, err := s.api.SearchCode(ctx, q.Text, q.Cursor, q.PageSize)
 		if err != nil {
-			if rl, ok := errors.AsType[*core.RateLimitError](err); ok {
-				s.limitCode(rl.Reset)
-			}
 			return cache.Entry[core.SearchPage[core.CodeHit]]{}, err
 		}
 		s.addCounts(q.Text, map[core.SearchKind]int{core.SearchCode: p.Total})
@@ -74,23 +66,6 @@ func (s *Service) Code(ctx context.Context, q CodeQuery) (core.SearchPage[core.C
 		return core.SearchPage[core.CodeHit]{}, fmt.Errorf("search code %q: %w", q.Text, err)
 	}
 	return e.Value, nil
-}
-
-// CodeLimited reports whether code search is out of requests, as GitHub
-// said when it last refused one, and when it resumes.
-func (s *Service) CodeLimited() (reset time.Time, limited bool) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if !time.Now().Before(s.codeReset) {
-		return time.Time{}, false
-	}
-	return s.codeReset, true
-}
-
-func (s *Service) limitCode(reset time.Time) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.codeReset = reset
 }
 
 func codeKey(q CodeQuery) string {

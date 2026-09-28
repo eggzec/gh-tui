@@ -391,8 +391,9 @@ func TestCode(t *testing.T) {
 	})
 }
 
-// Once GitHub refuses a code search, the service refuses the next ones
-// without asking until the limit resets, and says when that is.
+// A code search that the client refuses for its rate limit fails with
+// when code search resumes, and isn't cached, so that it runs once the
+// limit lifts.
 func TestCodeRateLimited(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		reset := time.Now().Add(42 * time.Second)
@@ -404,21 +405,10 @@ func TestCodeRateLimited(t *testing.T) {
 			return codePage(1, "", styleGo), nil
 		}}
 		s := New(api)
-		if _, ok := s.CodeLimited(); ok {
-			t.Error("CodeLimited before any search")
-		}
-		for _, text := range []string{"a", "b"} {
-			_, err := s.Code(t.Context(), CodeQuery{Text: text})
-			rl, ok := errors.AsType[*core.RateLimitError](err)
-			if !ok || !errors.Is(err, core.ErrRateLimited) || !rl.Reset.Equal(reset) {
-				t.Fatalf("%s: error = %v, want a rate limit until %v", text, err, reset)
-			}
-			if got := time.Until(rl.Reset); got != 42*time.Second {
-				t.Errorf("%s: resumes in %v, want 42s", text, got)
-			}
-		}
-		if got, ok := s.CodeLimited(); !ok || !got.Equal(reset) {
-			t.Errorf("CodeLimited = %v, %t; want %v", got, ok, reset)
+		_, err := s.Code(t.Context(), CodeQuery{Text: "a"})
+		rl, ok := errors.AsType[*core.RateLimitError](err)
+		if !ok || !errors.Is(err, core.ErrRateLimited) || !rl.Reset.Equal(reset) {
+			t.Fatalf("error = %v, want a rate limit until %v", err, reset)
 		}
 		if _, ok := s.CachedCode(CodeQuery{Text: "a"}); ok {
 			t.Error("a refused search was cached")
@@ -426,9 +416,6 @@ func TestCodeRateLimited(t *testing.T) {
 
 		limited = false
 		time.Sleep(42 * time.Second)
-		if _, ok := s.CodeLimited(); ok {
-			t.Error("CodeLimited after the reset")
-		}
 		if got, err := s.Code(t.Context(), CodeQuery{Text: "a"}); err != nil || len(got.Items) != 1 {
 			t.Errorf("Code after the reset = %+v, %v", got, err)
 		}
@@ -444,8 +431,5 @@ func TestCodeInvalidQuery(t *testing.T) {
 	s := New(api)
 	if _, err := s.Code(t.Context(), CodeQuery{Text: "repo:"}); !errors.Is(err, core.ErrInvalidQuery) {
 		t.Errorf("error = %v, want an invalid query", err)
-	}
-	if _, ok := s.CodeLimited(); ok {
-		t.Error("an invalid query limited code search")
 	}
 }
