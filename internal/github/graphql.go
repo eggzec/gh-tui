@@ -114,7 +114,8 @@ func (c *Client) query(ctx context.Context, query string, vars map[string]any, v
 	if !ok {
 		return err
 	}
-	slog.WarnContext(ctx, "graphql fields unsupported", "span", "http", "op", operation(query), "fields", fields)
+	slog.WarnContext(ctx, "graphql fields unsupported", "span", "http", "op", operation(query), "fields", fields,
+		"ghes_version", c.enterpriseVersion())
 	c.unsupported.remember(query, fewer)
 	return c.queryOnce(ctx, fewer, vars, v)
 }

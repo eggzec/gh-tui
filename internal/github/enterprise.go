@@ -27,6 +27,9 @@ func (c *Client) observeVersion(ctx context.Context, version string) {
 		return
 	}
 	c.enterprise.Store(true)
+	if v := c.version.Load(); v == nil || *v != version {
+		c.version.Store(&version)
+	}
 	if core.EnterpriseSupported(version) || !c.toldOld.CompareAndSwap(false, true) {
 		return
 	}
