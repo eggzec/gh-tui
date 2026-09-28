@@ -131,10 +131,7 @@ func (s *Step) press(msg tea.KeyPressMsg) tea.Cmd {
 		}
 		s.back()
 		return nil
-	case key.Matches(msg, k.Refresh):
-		return s.refresh()
-	case key.Matches(msg, k.Open):
-		return s.open()
+	// ctrl+r re-runs, though refresh holds it too.
 	case key.Matches(msg, k.RerunFailed):
 		if r, ok := s.current(); ok && r.job() {
 			if cmd, refused := s.gate().Refuse(ui.ActRerun, nil); refused {
@@ -143,6 +140,10 @@ func (s *Step) press(msg tea.KeyPressMsg) tea.Cmd {
 		}
 		s.askRerun()
 		return nil
+	case key.Matches(msg, k.Refresh):
+		return s.refresh()
+	case key.Matches(msg, k.Open):
+		return s.open()
 	}
 	switch s.mode {
 	case jobMode:
