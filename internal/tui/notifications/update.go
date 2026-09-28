@@ -57,6 +57,15 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		return s.reload()
+	case ui.AccessMsg:
+		// What the token was refused, or failed to read, it may read
+		// now.
+		blocked := s.unreadable != ""
+		s.renderUnreadable()
+		if !blocked && s.feed.Err() == nil {
+			return nil
+		}
+		return s.reload()
 	}
 	var cmd tea.Cmd
 	s.feed, cmd = s.feed.Update(msg)
@@ -83,14 +92,24 @@ func (s *Section) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 			return ui.Open(n.Subject.WebURL), true
 		}
 		return nil, true
-	case key.Matches(msg, k.MarkRead):
-		return s.ask(s.markRead), true
-	case key.Matches(msg, k.MarkDone):
-		return s.ask(s.markDone), true
-	case key.Matches(msg, k.MarkAllRead):
+	case key.Matches(msg, k.MarkRead, k.MarkDone, k.MarkAllRead):
+		if cmd, refused := s.gate().Refuse(ui.ActMarkRead, nil); refused {
+			return cmd, true
+		}
+		switch {
+		case key.Matches(msg, k.MarkRead):
+			return s.ask(s.markRead), true
+		case key.Matches(msg, k.MarkDone):
+			return s.ask(s.markDone), true
+		}
 		return s.ask(s.markAllRead), true
 	}
 	return nil, false
+}
+
+// gate decides what the token may do with the notifications.
+func (s *Section) gate() ui.Gate {
+	return ui.Gate{Token: s.voice.Token}
 }
 
 // mark is a change to threads of the inbox, asked as a question: name

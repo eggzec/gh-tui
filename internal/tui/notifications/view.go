@@ -202,10 +202,35 @@ func (s *Section) emptyText() string {
 
 // View renders the filter line and the list.
 func (s *Section) View() string {
-	if s.height < headerHeight+1 {
-		return s.feed.View()
+	body := s.unreadable
+	if body == "" {
+		body = s.feed.View()
 	}
-	return s.header + "\n" + s.feed.View()
+	if s.height < headerHeight+1 {
+		return body
+	}
+	return s.header + "\n" + body
+}
+
+// renderUnreadable draws what the section shows in place of the list
+// while the token may not read notifications, which is nothing while it
+// may.
+func (s *Section) renderUnreadable() {
+	s.unreadable = ""
+	text, hint, ok := ui.Unreadable(core.NeedNotifications, "load the notifications", s.voice)
+	if !ok || s.width <= 0 {
+		return
+	}
+	h := s.height
+	if h >= headerHeight+1 {
+		h -= headerHeight
+	}
+	// The text starts where the titles of the rows do.
+	lines := ui.ErrorLine(s.theme.Empty(), text, hint, max(s.width-2, 1))
+	for i := range lines {
+		lines[i] = "  " + lines[i]
+	}
+	s.unreadable = strings.Join(ui.FitLines(lines, s.width, h), "\n")
 }
 
 // subjectTag is the short tag of a subject type.

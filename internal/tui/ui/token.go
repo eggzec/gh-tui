@@ -118,3 +118,16 @@ func kindArticle(k core.TokenKind) string {
 type AccessMsg struct {
 	Access core.Access
 }
+
+// Unreadable returns what a pane shows in place of data that needs n,
+// which action reads, such as "load the notifications", when the token is
+// known not to be allowed it: Say's words for why and what to do, and ok
+// set. It reports ok unset when the token may, or that isn't known.
+func Unreadable(n core.Need, action string, v Voice) (text, hint string, ok bool) {
+	err := v.Token.Check(n)
+	if err == nil {
+		return "", "", false
+	}
+	text, hint = Say(core.Explain(action, err), v)
+	return text, hint, true
+}
