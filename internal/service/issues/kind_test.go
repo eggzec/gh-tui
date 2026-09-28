@@ -25,7 +25,7 @@ var _ PullCache = (*pulls.Service)(nil)
 type fakePulls map[int]bool
 
 func (f fakePulls) CachedGet(r core.RepoRef, number int) (core.PullRequestDetail, bool) {
-	if r != repo || !f[number] {
+	if !r.Same(repo) || !f[number] {
 		return core.PullRequestDetail{}, false
 	}
 	return core.PullRequestDetail{}, true

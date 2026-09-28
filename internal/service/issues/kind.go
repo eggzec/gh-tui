@@ -155,7 +155,7 @@ func logKind(ctx context.Context, key, found string) {
 
 // numberKey is the key of a number's kind, in memory and on the store.
 func numberKey(repo core.RepoRef, number int) string {
-	return "number:" + repo.String() + "#" + strconv.Itoa(number)
+	return "number:" + repoID(repo) + "#" + strconv.Itoa(number)
 }
 
 // kindMemo holds the kinds of numbers by key. Its zero value is empty and
