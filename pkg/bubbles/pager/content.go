@@ -98,6 +98,10 @@ func (m *Model) reset(name string, s state, err error) {
 	}
 	m.gen++
 	m.name, m.state, m.err, m.note = name, s, err, ""
+	m.errText, m.errHint = "", ""
+	if s == stateFailed {
+		m.errText, m.errHint = m.errorWords()
+	}
 	m.renderName()
 	m.lines, m.spans = nil, nil
 	m.top, m.row, m.left = 0, 0, 0
