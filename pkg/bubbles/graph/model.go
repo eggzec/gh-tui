@@ -321,7 +321,8 @@ func (m Model) render(r *row) {
 	var b strings.Builder
 	w := 0
 	part := func(s string, st lipgloss.Style) {
-		if s == "" {
+		// The text comes from elsewhere, such as a commit's subject.
+		if s = termtext.OneLine(s); s == "" {
 			return
 		}
 		if w > 0 {
@@ -341,8 +342,8 @@ func (m Model) render(r *row) {
 	part(c.Detail, m.styles.Detail)
 	r.text, r.textW = b.String(), w
 	r.right, r.rightW = "", 0
-	if c.Right != "" {
-		r.right, r.rightW = m.styles.Right.Render(c.Right), ansi.StringWidth(c.Right)
+	if right := termtext.OneLine(c.Right); right != "" {
+		r.right, r.rightW = m.styles.Right.Render(right), ansi.StringWidth(right)
 	}
 }
 

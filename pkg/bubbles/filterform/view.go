@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // gutterWidth is the width of the mark before the row in focus.
@@ -478,14 +480,16 @@ func (m *Model) helpView(w int) string {
 	return line
 }
 
-// labelOf returns the label of the item with value v, or v itself.
+// labelOf returns the label of the item with value v, or v itself, on one
+// line, since items come from elsewhere, such as the labels of a
+// repository.
 func labelOf(items []Item, v string) string {
 	for _, it := range items {
 		if it.Value == v && it.Label != "" {
-			return it.Label
+			return termtext.OneLine(it.Label)
 		}
 	}
-	return v
+	return termtext.OneLine(v)
 }
 
 func orDefault(s, def string) string {
