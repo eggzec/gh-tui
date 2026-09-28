@@ -257,7 +257,10 @@ reacts to messages. Concretely:
   `log.max_size` keeping `log.keep` files. Nothing goes to stdout or stderr
   while the app runs. `GH_TUI_LOG=debug`, `--debug` or gh's `GH_DEBUG` raise
   the level for one run.
-- Every record has a `session_id`. Start a trace where a user action or a
+- Every record has a `session_id`. The `start` record says what the binary
+  was built from, how it is set up and the terminal, and the `session`
+  record, once the host is picked, who the session is; every record after
+  it carries `host` and `account`. Start a trace where a user action or a
   background job starts (`obs.WithTrace` or `obs.Begin`, which also logs the
   end and the error) and pass its context down; records logged with it carry
   `trace_id` and `trace`. Each HTTP attempt gets a `request_id`, and
