@@ -150,9 +150,11 @@ func (k KeyMap) state(m *Model) KeyMap {
 	case repoScreen, searchScreen:
 	}
 	if m.screen != repoScreen {
-		// Only the repository screen has panes to cycle through.
-		// PR5: elsewhere the app still takes these keys and does nothing;
-		// leave them to the section instead.
+		// Only the repository screen has panes to cycle through, so the
+		// help offers these keys to the section. The app still takes them
+		// on the notifications and search screens, where they do nothing:
+		// passing them on would change what tab, [ and ] do on the search
+		// page.
 		k.Next.SetEnabled(false)
 		k.Prev.SetEnabled(false)
 	}
