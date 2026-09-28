@@ -61,10 +61,11 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 		return s.reload()
 	case ui.AccessMsg:
 		// What the token was refused, or failed to read, it may read
-		// now.
+		// now. While it still may not, a reload would send nothing and
+		// only show the list loading.
 		blocked := s.unreadable != ""
 		s.renderUnreadable()
-		if !blocked && s.feed.Err() == nil {
+		if s.refused() || !blocked && s.feed.Err() == nil {
 			return nil
 		}
 		return s.reload()

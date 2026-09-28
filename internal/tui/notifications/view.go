@@ -206,6 +206,12 @@ func (s *Section) View() string {
 	return s.header + "\n" + body
 }
 
+// refused reports whether the token may not read notifications.
+func (s *Section) refused() bool {
+	_, _, ok := ui.Unreadable(core.NeedNotifications, "load the notifications", s.voice)
+	return ok
+}
+
 // renderUnreadable draws what the section shows in place of the list
 // while the token may not read notifications, which is nothing while it
 // may.
