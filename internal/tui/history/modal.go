@@ -29,6 +29,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 )
 
 // narrowWidth is the width inside the frame below which the panes don't fit
@@ -191,9 +192,75 @@ func (m *Modal) SetTheme(t ui.Theme) {
 	m.commit.header = nil
 }
 
-// Help lists the keys of the focused pane.
-func (m *Modal) Help() help.KeyMap {
-	return helpKeys{m: m}
+// Help lists the keys of the modal for the help line.
+func (m *Modal) Help() help.KeyMap { return ui.Hints{Layers: m.KeyLayers()} }
+
+// KeyLayers implements ui.Keyed. The filter of the branches and a search
+// of the patch each take every key while open; otherwise the modal's own
+// keys come first, named for what they do in the focused pane, and then
+// those of the pane: its list, the graph, or the pager of a patch.
+func (m *Modal) KeyLayers() []keyhelp.Layer {
+	patch := m.focus == commitPane && m.commit.patch
+	switch {
+	case m.focus == branchPane && m.branches.filter != nil:
+		return []keyhelp.Layer{keyhelp.FromHelp("filter", *m.branches.filter, true)}
+	case patch && m.commit.pager.Capturing():
+		return []keyhelp.Layer{keyhelp.FromHelp("pager", m.commit.pager, true)}
+	}
+	k := m.keys.state(m)
+	own := keyhelp.Layer{Source: "history", Bindings: k.own(), Short: k.ShortHelp()}
+	switch {
+	case patch:
+		return []keyhelp.Layer{own, keyhelp.FromHelp("pager", m.commit.pager, false)}
+	case m.focus == graphPane:
+		g := m.graph.model.KeyMap()
+		g.Choose = named(g.Choose, "diff")
+		return []keyhelp.Layer{own, keyhelp.FromHelp("graph", g, false)}
+	}
+	// The pane moves with the list's keys, and the modal's own select and
+	// retry take the place of its choose and retry.
+	list := k.List
+	list.Choose.SetEnabled(false)
+	list.Retry.SetEnabled(false)
+	source := "branches"
+	if m.focus == commitPane {
+		source = "files"
+	}
+	return []keyhelp.Layer{own, keyhelp.FromHelp(source, list, false)}
+}
+
+// state returns k as the modal takes it now, named for what the keys do
+// in the focused pane. Back shows every pane again while one is zoomed,
+// and closes the modal from the branches; in a patch the pager takes it.
+func (k KeyMap) state(m *Modal) KeyMap {
+	patch := m.focus == commitPane && m.commit.patch
+	k.ResetBase.SetEnabled(k.ResetBase.Enabled() && m.base.Ref != "")
+	k.Zoom.SetEnabled(k.Zoom.Enabled() && !m.narrow())
+	switch {
+	case m.zoomed():
+		k.Back = named(k.Back, "unzoom")
+	case patch:
+		k.Back.SetEnabled(false)
+	case m.focus == branchPane:
+		k.Back = named(k.Back, "close")
+	}
+	k.UseAsBase.SetEnabled(k.UseAsBase.Enabled() && !patch)
+	failed := false
+	switch m.focus {
+	case branchPane:
+		k.Select = named(k.Select, "graph")
+		failed = m.branches.err != nil
+	case graphPane:
+		// The graph opens a commit, and retries, with its own keys.
+		k.Select.SetEnabled(false)
+	case commitPane:
+		k.Select = named(k.Select, "patch")
+		k.Select.SetEnabled(k.Select.Enabled() && !patch)
+		failed = !patch && (m.commit.err != nil || m.commit.filesErr != nil)
+	}
+	k.Filter.SetEnabled(k.Filter.Enabled() && m.focus == branchPane)
+	k.Retry.SetEnabled(k.Retry.Enabled() && failed)
+	return k
 }
 
 // narrow reports whether the modal shows one pane at a time.
