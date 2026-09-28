@@ -61,16 +61,16 @@ type Disk struct {
 	Entries bool `yaml:"entries"`
 	// Dir is the cache directory. Empty means gh-tui in
 	// [os.UserCacheDir].
-	Dir string `yaml:"dir"`
+	Dir string `yaml:"dir" scope:"global"`
 	// MaxSize is the space the cache may take on disk. When it takes more
 	// at startup, the objects used least recently go.
-	MaxSize Size `yaml:"max_size"`
+	MaxSize Size `yaml:"max_size" scope:"global"`
 	// Compression is how new objects are stored: CompressionGzip or
 	// CompressionNone. Objects stored either way stay readable.
-	Compression string `yaml:"compression"`
+	Compression string `yaml:"compression" scope:"global"`
 	// CompressionLevel trades the time gzip takes for the space it saves:
 	// LevelFastest, LevelDefault or LevelBest.
-	CompressionLevel string `yaml:"compression_level"`
+	CompressionLevel string `yaml:"compression_level" scope:"global"`
 }
 
 // Compressions and their levels.

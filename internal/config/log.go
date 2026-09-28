@@ -23,15 +23,15 @@ type Log struct {
 	// File is the log file. Empty means gh-tui/gh-tui.log in the user's
 	// state directory: $XDG_STATE_HOME, or ~/.local/state, also on macOS,
 	// and %LocalAppData% on Windows.
-	File string `yaml:"file"`
+	File string `yaml:"file" when:"startup" why:"the log file is opened at startup"`
 	// MaxSize is how large the file grows before it is rotated.
-	MaxSize Size `yaml:"max_size"`
+	MaxSize Size `yaml:"max_size" when:"startup" why:"the log file is opened at startup"`
 	// Keep is how many rotated files are kept.
-	Keep int `yaml:"keep"`
+	Keep int `yaml:"keep" when:"startup" why:"the log file is opened at startup"`
 	// Summary is how often a summary of the requests, the caches and the
 	// reads ahead is logged. Zero turns these off; one is still logged on
 	// exit.
-	Summary time.Duration `yaml:"summary"`
+	Summary time.Duration `yaml:"summary" when:"startup" why:"the summaries are scheduled at startup"`
 }
 
 // Log levels.

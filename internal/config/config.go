@@ -28,15 +28,15 @@ const EnvPath = "GH_TUI_CONFIG"
 // Config is the user configuration.
 type Config struct {
 	// Repos are the user's pinned repositories, as "owner/name".
-	Repos []string `yaml:"repos"`
+	Repos []string `yaml:"repos" when:"startup" why:"the pinned repositories are read at startup"`
 	// Theme is the name of the active theme, one of Themes.
 	Theme string `yaml:"theme"`
 	// Themes are the themes by name: those of default.yaml, and the user's.
-	Themes map[string]Theme `yaml:"themes"`
+	Themes map[string]Theme `yaml:"themes" scope:"global"`
 	// Keys maps action names to keys. An entry replaces the default keys
 	// of that action only.
-	Keys  map[string][]string `yaml:"keys"`
-	Cache Cache               `yaml:"cache"`
+	Keys  map[string][]string `yaml:"keys" scope:"global"`
+	Cache Cache               `yaml:"cache" when:"startup" why:"the cache is opened at startup"`
 	Sync  Sync                `yaml:"sync"`
 	Files Files               `yaml:"files"`
 	// Details configures the pull request and issue modals, and reading
@@ -50,18 +50,18 @@ type Config struct {
 	// Dashboard configures the screen the app opens on.
 	Dashboard Dashboard `yaml:"dashboard"`
 	UI        UI        `yaml:"ui"`
-	Auth      Auth      `yaml:"auth"`
-	Log       Log       `yaml:"log"`
+	Auth      Auth      `yaml:"auth" when:"startup" why:"the token's checks start with the app"`
+	Log       Log       `yaml:"log" scope:"global"`
 	// Editor is the command of the editor that v opens a file in from the
 	// pager, such as "vim" or "code --wait": a program and its arguments,
 	// split at white space and run without a shell. Empty, as by default,
 	// takes $VISUAL, and else $EDITOR.
-	Editor string `yaml:"editor"`
+	Editor string `yaml:"editor" scope:"global"`
 }
 
 // Sync configures background polling.
 type Sync struct {
-	Enabled bool `yaml:"enabled"`
+	Enabled bool `yaml:"enabled" when:"startup" why:"the polls are set up at startup"`
 	// Interval is the polling interval when the server doesn't ask for a
 	// longer one. It is at least minSyncInterval.
 	Interval time.Duration `yaml:"interval"`

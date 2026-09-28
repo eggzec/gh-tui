@@ -9,7 +9,7 @@ import (
 // Files configures the Files pane.
 type Files struct {
 	Prefetch Prefetch `yaml:"prefetch"`
-	Preview  Preview  `yaml:"preview"`
+	Preview  Preview  `yaml:"preview" when:"startup" why:"the files are read with it from the start"`
 	Finder   Finder   `yaml:"finder"`
 }
 

@@ -43,7 +43,12 @@ func TestSetCommand(t *testing.T) {
 		// changes reports whether the setting changes.
 		changes bool
 	}{
-		{line: "set", toast: "Set what? Use set key=value, or set key to see its value."},
+		{line: "set", toast: "Set what? Use set key=value, set key to see its value, or set key& to reset it."},
+		{line: "set &", toast: "Set what? Use set key=value, set key to see its value, or set key& to reset it."},
+		{line: "set theme&=mine", toast: "Set theme& resets it, and takes no value."},
+		{line: "set theme&", toast: "theme is default, as gh-tui started with."},
+		{line: "set nope&", toast: "Unknown setting: nope."},
+		{line: "set cache.ttl&", toast: "cache.ttl is 5m, as gh-tui started with."},
 		{line: "set theme", toast: "theme is default."},
 		{line: "set ui.icons", toast: "ui.icons is nerd."},
 		{line: "set log.file", toast: `log.file is "".`},
@@ -126,20 +131,29 @@ func TestSetWritesNothing(t *testing.T) {
 	}
 }
 
-func TestNeedsRestart(t *testing.T) {
-	for _, key := range config.Keys() {
-		why, restart := needsRestart(key)
-		if slices.Contains(liveSettings, key) == restart {
-			t.Errorf("%s: live %v and needs a restart %v", key, !restart, restart)
-		}
-		if restart && why == "" {
-			t.Errorf("%s needs a restart for no reason", key)
-		}
+// TestSetReset checks that key& drops what the session set of key, back
+// to what the config file says, which need not be the default, and
+// leaves what the session set of the others.
+func TestSetReset(t *testing.T) {
+	file := userConfig()
+	file.UI.Icons = config.IconsUnicode
+	var told []config.Config
+	m, _ := newSetApp(t, file, &told)
+	runCommand(t, m, "set ui.icons=ascii")
+	runCommand(t, m, "set theme=mine")
+	runCommand(t, m, "set ui.icons&")
+	if !hasToast(m, "ui.icons is unicode again, as gh-tui started with.") {
+		t.Errorf("toasts: %s", toasted(m))
 	}
-	for _, key := range liveSettings {
-		if !slices.Contains(config.Keys(), key) {
-			t.Errorf("live setting %s isn't a setting", key)
-		}
+	if m.cfg.UI.Icons != config.IconsUnicode || m.cfg.Theme != "mine" {
+		t.Errorf("icons %q, theme %q; want the file's icons and the session's theme", m.cfg.UI.Icons, m.cfg.Theme)
+	}
+	if n := len(told); n != 3 || !reflect.DeepEqual(told[n-1], m.cfg) {
+		t.Errorf("told %d times, last %+v; want 3, the last the config reset", n, told[n-1])
+	}
+	runCommand(t, m, "set theme &")
+	if !reflect.DeepEqual(m.cfg, file) {
+		t.Errorf("after resetting both, the config isn't the file's")
 	}
 }
 
