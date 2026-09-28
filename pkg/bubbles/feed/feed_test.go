@@ -363,6 +363,26 @@ func TestErrorGlyph(t *testing.T) {
 	}
 }
 
+// The error row joins the hint with the styles' separator, and ends a cut
+// text with their ellipsis, so ASCII ones draw it in ASCII alone.
+func TestErrorASCII(t *testing.T) {
+	src := newSource(10, 10)
+	src.setFail("", errors.New("boom"))
+	say := func(error) (string, string) { return "Something went wrong far too long to fit", "r to retry" }
+	st := DefaultStyles(true)
+	st.ErrorGlyph, st.ErrorSeparator, st.ErrorEllipsis = "x", " - ", "..."
+	m := load(t, src, WithSize(40, 3), WithErrorText(say), WithStyles(st))
+	v := ansi.Strip(m.View())
+	for i := range len(v) {
+		if v[i] >= 0x80 {
+			t.Fatalf("View() = %q, has a byte beyond ASCII", v)
+		}
+	}
+	if !strings.Contains(v, "x Something went wrong... - r to retry") {
+		t.Errorf("View() = %q, want the text cut with ... before the hint", v)
+	}
+}
+
 func TestSetErrorText(t *testing.T) {
 	src := newSource(30, 10)
 	src.setFail("10", errors.New("boom"))

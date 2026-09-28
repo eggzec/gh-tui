@@ -190,6 +190,40 @@ func TestErrorText(t *testing.T) {
 	}
 }
 
+// ASCII styles cut the error row with their own ellipsis, with a hint or
+// without, however narrow the row.
+func TestErrorASCII(t *testing.T) {
+	st := DefaultStyles(true)
+	st.ErrorGlyph, st.ErrorSeparator, st.ErrorEllipsis = "x", " - ", "..."
+	load := func(context.Context) (Listing, error) { return Listing{}, errors.New("boom") }
+	hint := WithErrorText(func(error) (string, string) { return "Can't reach GitHub", "r to retry" })
+	tests := []struct {
+		name  string
+		opts  []Option
+		width int
+		want  string
+	}{
+		{"without a hint", nil, 24, "x Couldn't list the f..."},
+		{"with a hint", []Option{hint}, 24, "x Can't ... - r to retry"},
+		{"with a hint wider than the row", []Option{hint}, 12, " - r to r..."},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := New(load, append([]Option{WithSize(tt.width, 5), WithStyles(st)}, tt.opts...)...)
+			m = run(t, m, m.Init())
+			row := strings.Split(ansi.Strip(m.View()), "\n")[1]
+			if got := strings.TrimRight(row, " "); got != tt.want {
+				t.Errorf("error row = %q, want %q", got, tt.want)
+			}
+			for i := range len(row) {
+				if row[i] >= 0x80 {
+					t.Fatalf("error row %q has a byte beyond ASCII", row)
+				}
+			}
+		})
+	}
+}
+
 func TestCloseCancelsLoad(t *testing.T) {
 	var ctx context.Context
 	m := New(func(c context.Context) (Listing, error) {

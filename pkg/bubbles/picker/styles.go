@@ -49,6 +49,10 @@ type Styles struct {
 	Error lipgloss.Style
 	// ErrorGlyph starts the line of a failed search. The default is "✗".
 	ErrorGlyph string
+	// ErrorSeparator goes between the text of an error and its hint, and
+	// ErrorEllipsis ends the text where it is cut. The defaults are " · "
+	// and "…".
+	ErrorSeparator, ErrorEllipsis string
 }
 
 // DefaultStyles returns calm styles for a light or dark terminal, with the
@@ -67,23 +71,25 @@ func DefaultStyles(isDark bool) Styles {
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(border).
 			Padding(0, 1),
-		Prompt:        lipgloss.NewStyle().Foreground(accent),
-		Text:          lipgloss.NewStyle().Foreground(text),
-		Placeholder:   lipgloss.NewStyle().Foreground(subtle),
-		Cursor:        lipgloss.NewStyle().Foreground(accent),
-		Scope:         lipgloss.NewStyle().Foreground(subtle),
-		ActiveScope:   lipgloss.NewStyle().Foreground(accent).Bold(true),
-		Status:        lipgloss.NewStyle().Foreground(subtle),
-		Spinner:       lipgloss.NewStyle().Foreground(accent),
-		Header:        lipgloss.NewStyle().Foreground(muted).Bold(true),
-		Gutter:        lipgloss.NewStyle().Foreground(accent),
-		Title:         lipgloss.NewStyle().Foreground(text),
-		SelectedTitle: lipgloss.NewStyle().Foreground(text).Bold(true),
-		Match:         lipgloss.NewStyle().Foreground(accent).Bold(true),
-		Detail:        lipgloss.NewStyle().Foreground(subtle),
-		Empty:         lipgloss.NewStyle().Foreground(muted),
-		Error:         lipgloss.NewStyle().Foreground(errColor),
-		ErrorGlyph:    "✗",
+		Prompt:         lipgloss.NewStyle().Foreground(accent),
+		Text:           lipgloss.NewStyle().Foreground(text),
+		Placeholder:    lipgloss.NewStyle().Foreground(subtle),
+		Cursor:         lipgloss.NewStyle().Foreground(accent),
+		Scope:          lipgloss.NewStyle().Foreground(subtle),
+		ActiveScope:    lipgloss.NewStyle().Foreground(accent).Bold(true),
+		Status:         lipgloss.NewStyle().Foreground(subtle),
+		Spinner:        lipgloss.NewStyle().Foreground(accent),
+		Header:         lipgloss.NewStyle().Foreground(muted).Bold(true),
+		Gutter:         lipgloss.NewStyle().Foreground(accent),
+		Title:          lipgloss.NewStyle().Foreground(text),
+		SelectedTitle:  lipgloss.NewStyle().Foreground(text).Bold(true),
+		Match:          lipgloss.NewStyle().Foreground(accent).Bold(true),
+		Detail:         lipgloss.NewStyle().Foreground(subtle),
+		Empty:          lipgloss.NewStyle().Foreground(muted),
+		Error:          lipgloss.NewStyle().Foreground(errColor),
+		ErrorGlyph:     "✗",
+		ErrorSeparator: " · ",
+		ErrorEllipsis:  "…",
 	}
 }
 

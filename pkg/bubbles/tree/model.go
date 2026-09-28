@@ -411,7 +411,7 @@ func (m *Model) rewordErrors() {
 func (m *Model) refreshHint() {
 	m.errHint = ""
 	if h := m.keyMap.Expand.Help(); h.Key != "" {
-		m.errHint = m.styles.Hint.Render(" · " + h.Key + " to retry")
+		m.errHint = m.styles.Hint.Render(m.styles.ErrorSeparator + h.Key + " to retry")
 	}
 }
 

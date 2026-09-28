@@ -407,11 +407,12 @@ func (m *Model) editorLines(w int) []string {
 		}
 		back := m.keys.Cancel.Help().Key + " to go back"
 		if hint != "" {
-			back = hint + " · " + back
+			back = hint + m.styles.ErrorSeparator + back
 		}
+		cut := m.styles.ErrorEllipsis
 		return []string{
-			fit(indent+m.styles.Error.Render(m.styles.ErrorGlyph+" "+text), w),
-			fit(indent+m.styles.Hint.Render(back), w),
+			fitCut(indent+m.styles.Error.Render(m.styles.ErrorGlyph+" "+text), w, cut),
+			fitCut(indent+m.styles.Hint.Render(back), w, cut),
 		}
 	}
 	return []string{fit(indent+m.spin.View()+m.styles.Hint.Render("Loading "+label+"…"), w)}
@@ -531,10 +532,13 @@ func wrap(segs []string, sep string, w, maxLines int) []string {
 }
 
 // fit truncates or pads styled text to exactly width cells.
-func fit(s string, width int) string {
+func fit(s string, width int) string { return fitCut(s, width, "…") }
+
+// fitCut is fit, ending text that is cut with tail.
+func fitCut(s string, width int, tail string) string {
 	w := ansi.StringWidth(s)
 	if w > width {
-		s = ansi.Truncate(s, width, "…")
+		s = ansi.Truncate(s, width, tail)
 		w = ansi.StringWidth(s)
 	}
 	if w < width {

@@ -256,6 +256,38 @@ func TestErrorText(t *testing.T) {
 	}
 }
 
+// ASCII styles cut the error row with their own ellipsis, with a hint or
+// without.
+func TestErrorASCII(t *testing.T) {
+	st := DefaultStyles(true)
+	st.ErrorGlyph, st.ErrorSeparator, st.ErrorEllipsis = "x", " - ", "..."
+	offline := WithErrorText(func(error) (string, string) { return "Can't reach GitHub", "r to retry" })
+	tests := []struct {
+		name string
+		opts []Option
+		want string
+	}{
+		{"without a hint", nil, "x Couldn't search: gi..."},
+		{"with a hint", []Option{offline}, "x Can't ... - r to retry"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := &fakeSearch{fail: errBoom}
+			opts := append([]Option{WithSize(28, 12), WithStyles(st)}, tt.opts...)
+			v := ansi.Strip(typeText(t, open(t, f.search, opts...), "crash").View())
+			var row string
+			for l := range strings.SplitSeq(v, "\n") {
+				if strings.Contains(l, "x ") {
+					row = l
+				}
+			}
+			if !strings.Contains(row, tt.want) || strings.Contains(row, "…") {
+				t.Errorf("error row = %q, want %q cut in ASCII", row, tt.want)
+			}
+		})
+	}
+}
+
 func TestSearchError(t *testing.T) {
 	f := &fakeSearch{fail: errBoom}
 	m := open(t, f.search)

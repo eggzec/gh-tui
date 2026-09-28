@@ -256,20 +256,25 @@ func (m *Model) errorWords(err error) (text, hint string) {
 // hint whole.
 func (m *Model) errorLine(text, hint string, w int) string {
 	text = m.styles.ErrorGlyph + " " + text
+	cut := m.styles.ErrorEllipsis
 	if hint == "" {
-		return fit(m.styles.Error.Render(text), w)
+		return fitCut(m.styles.Error.Render(text), w, cut)
 	}
-	hint = " · " + hint
+	hint = m.styles.ErrorSeparator + hint
 	if room := max(w-ansi.StringWidth(hint), 0); ansi.StringWidth(text) > room {
-		text = ansi.Truncate(text, room, "…")
+		text = ansi.Truncate(text, room, cut)
 	}
-	return fit(m.styles.Error.Render(text)+m.styles.Status.Render(hint), w)
+	// A hint wider than the row is cut too.
+	return fitCut(m.styles.Error.Render(text)+m.styles.Status.Render(hint), w, cut)
 }
 
-func fit(s string, width int) string {
+func fit(s string, width int) string { return fitCut(s, width, "…") }
+
+// fitCut is fit, ending text that is cut with tail.
+func fitCut(s string, width int, tail string) string {
 	w := ansi.StringWidth(s)
 	if w > width {
-		s = ansi.Truncate(s, width, "…")
+		s = ansi.Truncate(s, width, tail)
 		w = ansi.StringWidth(s)
 	}
 	if w < width {

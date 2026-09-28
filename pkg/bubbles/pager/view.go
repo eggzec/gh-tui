@@ -82,9 +82,10 @@ func (m *Model) errorWords() (text, hint string) {
 
 // errorLines renders the failed load in at most height lines of width
 // cells, as the app's error lines are: the mark and the text, wrapped and
-// ending in "…" where it needs more lines than the hint leaves it, then
-// " · " and the hint, after the text where it fits and else on a line of
-// its own. The hint is never cut, unless the width can't hold it at all.
+// ending in the ellipsis where it needs more lines than the hint leaves
+// it, then the separator and the hint, after the text where it fits and
+// else on a line of its own. The hint is never cut, unless the width
+// can't hold it at all.
 func (m *Model) errorLines(width, height int) []string {
 	text, hint := m.errText, m.errHint
 	if text == "" || width <= 0 || height <= 0 {
@@ -99,7 +100,7 @@ func (m *Model) errorLines(width, height int) []string {
 	}
 	tail := ""
 	if hint != "" {
-		tail = " · " + hint
+		tail = s.ErrorSeparator + hint
 	}
 	if height == 1 && tail != "" {
 		// One line holds the hint first, and what is left of the text.
@@ -109,7 +110,7 @@ func (m *Model) errorLines(width, height int) []string {
 		}
 		t := lead + text
 		if ansi.StringWidth(t) > room {
-			t = ansi.Truncate(t, room, ellipsisGlyph)
+			t = ansi.Truncate(t, room, s.ErrorEllipsis)
 		}
 		return []string{s.Error.Render(t) + s.Message.Render(tail)}
 	}
@@ -122,8 +123,8 @@ func (m *Model) errorLines(width, height int) []string {
 		rows = []string{""}
 	}
 	if len(rows) > most {
-		cut := ansi.Truncate(rows[most-1]+" "+rows[most], inner-1, "")
-		rows = append(rows[:most-1], strings.TrimRight(cut, " ")+ellipsisGlyph)
+		cut := ansi.Truncate(rows[most-1]+" "+rows[most], max(inner-ansi.StringWidth(s.ErrorEllipsis), 0), "")
+		rows = append(rows[:most-1], strings.TrimRight(cut, " ")+s.ErrorEllipsis)
 	}
 	lines := make([]string, 0, len(rows)+1)
 	for i, r := range rows {

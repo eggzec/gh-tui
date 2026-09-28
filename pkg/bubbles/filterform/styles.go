@@ -65,6 +65,10 @@ type Styles struct {
 	Error lipgloss.Style
 	// ErrorGlyph starts the line of a load that failed. The default is "✗".
 	ErrorGlyph string
+	// ErrorSeparator goes between the text of an error and its hint, and
+	// ErrorEllipsis ends the text where it is cut. The defaults are " · "
+	// and "…".
+	ErrorSeparator, ErrorEllipsis string
 	// Help styles the help line.
 	Help help.Styles
 	// Picker styles the picker of a Multi or Person field. Its frame is
@@ -90,28 +94,30 @@ func DefaultStyles(isDark bool) Styles {
 		PaddingLeft(1)
 
 	return Styles{
-		Tab:          lipgloss.NewStyle().Foreground(muted),
-		ActiveTab:    lipgloss.NewStyle().Foreground(accent).Bold(true),
-		Gutter:       lipgloss.NewStyle().Foreground(accent),
-		Label:        lipgloss.NewStyle().Foreground(muted),
-		FocusedLabel: lipgloss.NewStyle().Foreground(text).Bold(true),
-		Option:       lipgloss.NewStyle().Foreground(subtle),
-		Selected:     lipgloss.NewStyle().Foreground(text),
-		Active:       lipgloss.NewStyle().Foreground(accent).Bold(true),
-		Chip:         lipgloss.NewStyle().Foreground(text),
-		ActiveChip:   lipgloss.NewStyle().Foreground(accent).Bold(true),
-		Remove:       lipgloss.NewStyle().Foreground(subtle),
-		Add:          lipgloss.NewStyle().Foreground(subtle),
-		Value:        lipgloss.NewStyle().Foreground(text),
-		Hint:         lipgloss.NewStyle().Foreground(subtle),
-		Rule:         lipgloss.NewStyle().Foreground(border),
-		Query:        lipgloss.NewStyle().Foreground(text),
-		Cursor:       lipgloss.NewStyle().Foreground(accent),
-		Spinner:      lipgloss.NewStyle().Foreground(accent),
-		Error:        lipgloss.NewStyle().Foreground(errColor),
-		ErrorGlyph:   "✗",
-		Help:         help.DefaultStyles(isDark),
-		Picker:       pk,
+		Tab:            lipgloss.NewStyle().Foreground(muted),
+		ActiveTab:      lipgloss.NewStyle().Foreground(accent).Bold(true),
+		Gutter:         lipgloss.NewStyle().Foreground(accent),
+		Label:          lipgloss.NewStyle().Foreground(muted),
+		FocusedLabel:   lipgloss.NewStyle().Foreground(text).Bold(true),
+		Option:         lipgloss.NewStyle().Foreground(subtle),
+		Selected:       lipgloss.NewStyle().Foreground(text),
+		Active:         lipgloss.NewStyle().Foreground(accent).Bold(true),
+		Chip:           lipgloss.NewStyle().Foreground(text),
+		ActiveChip:     lipgloss.NewStyle().Foreground(accent).Bold(true),
+		Remove:         lipgloss.NewStyle().Foreground(subtle),
+		Add:            lipgloss.NewStyle().Foreground(subtle),
+		Value:          lipgloss.NewStyle().Foreground(text),
+		Hint:           lipgloss.NewStyle().Foreground(subtle),
+		Rule:           lipgloss.NewStyle().Foreground(border),
+		Query:          lipgloss.NewStyle().Foreground(text),
+		Cursor:         lipgloss.NewStyle().Foreground(accent),
+		Spinner:        lipgloss.NewStyle().Foreground(accent),
+		Error:          lipgloss.NewStyle().Foreground(errColor),
+		ErrorGlyph:     "✗",
+		ErrorSeparator: " · ",
+		ErrorEllipsis:  "…",
+		Help:           help.DefaultStyles(isDark),
+		Picker:         pk,
 	}
 }
 
