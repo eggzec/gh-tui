@@ -233,7 +233,7 @@ func (m *Model) noteRow(a core.Annotation, cursor bool, w int) string {
 	}
 	where := ""
 	if inFile(a) {
-		where = st.Accent.Render(a.Path+":"+strconv.Itoa(a.StartLine)) + " "
+		where = st.Accent.Render(ui.OneLine(a.Path)+":"+strconv.Itoa(a.StartLine)) + " "
 	}
 	text := ui.OneLine(ui.FirstLine(a.Message))
 	if a.Title != "" && a.Title != text {
