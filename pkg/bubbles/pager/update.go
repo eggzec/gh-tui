@@ -54,9 +54,30 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	return m, nil
 }
 
+// maxCount is the largest count, so typing digits can't overflow it.
+const maxCount = 1<<31 - 1
+
 func (m Model) updateKey(k tea.KeyPressMsg) (Model, tea.Cmd) {
+	// A count lasts one key: g and G go to its line, esc drops it, and
+	// any other key acts as it would without it.
+	n, counted := m.num, m.counting
+	if counted {
+		cancel := key.Matches(k, m.keys.Cancel)
+		m.num, m.counting = 0, false
+		m.enableSearchKeys()
+		if cancel {
+			return m, nil
+		}
+	}
 	h := max(m.bodyHeight(), 1)
 	switch {
+	case key.Matches(k, m.keys.Count):
+		if d := int(k.Code - '0'); d >= 0 && d <= 9 {
+			m.num, m.counting = min(n*10+d, maxCount), true
+			m.enableSearchKeys()
+		}
+	case counted && key.Matches(k, m.keys.Home, m.keys.End):
+		m.goTo(n)
 	case key.Matches(k, m.keys.Down):
 		m.down(1)
 	case key.Matches(k, m.keys.Up):
