@@ -108,26 +108,28 @@ func TestLimitReleases(t *testing.T) {
 		name string
 		// free frees one of two slots taken by lt, from the responses
 		// that took them.
-		free func(t *testing.T, lt *limitTransport, held []io.Closer)
+		free func(held []io.Closer)
 		want bool
+		// taken is how many slots are taken once a third request has
+		// gone through or blocked.
+		taken int
 	}{{
-		name: "nothing",
-		free: func(*testing.T, *limitTransport, []io.Closer) {},
+		name:  "nothing",
+		free:  func([]io.Closer) {},
+		taken: 2,
 	}, {
-		name: "body closed",
-		free: func(_ *testing.T, _ *limitTransport, held []io.Closer) { _ = held[0].Close() },
-		want: true,
+		name:  "body closed",
+		free:  func(held []io.Closer) { _ = held[0].Close() },
+		want:  true,
+		taken: 1,
 	}, {
 		name: "body closed twice frees one",
-		free: func(t *testing.T, lt *limitTransport, held []io.Closer) {
-			t.Helper()
+		free: func(held []io.Closer) {
 			_ = held[0].Close()
 			_ = held[0].Close()
-			if n := len(lt.slots); n != 1 {
-				t.Errorf("%d slots taken after closing a body twice, want 1", n)
-			}
 		},
-		want: true,
+		want:  true,
+		taken: 1,
 	}}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -150,7 +152,10 @@ func TestLimitReleases(t *testing.T) {
 						_ = body.Close()
 					}
 				}()
-				tt.free(t, lt, held)
+				tt.free(held)
+				// The third request takes a freed slot as soon as it is
+				// given back, so count the slots only once it is done or
+				// blocked.
 				synctest.Wait()
 				select {
 				case <-done:
@@ -161,6 +166,9 @@ func TestLimitReleases(t *testing.T) {
 					if tt.want {
 						t.Error("the third request still waits for a freed slot")
 					}
+				}
+				if n := len(lt.slots); n != tt.taken {
+					t.Errorf("%d slots taken, want %d", n, tt.taken)
 				}
 				time.Sleep(time.Hour)
 				<-done
