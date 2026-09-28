@@ -17,6 +17,8 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keytest"
 )
 
 var (
@@ -231,6 +233,39 @@ func TestKeys(t *testing.T) {
 	}
 }
 
+func TestKeyMapComplete(t *testing.T) {
+	keytest.Complete(t, newKeyMap(config.Default().Keys))
+}
+
+// The layers take a key in the order the modal does: its own keys before
+// the thread's, and retry only while a read failed, when the thread takes
+// none.
+func TestKeyLayersOrder(t *testing.T) {
+	svc := &fakeService{err: errors.New("boom")}
+	m := newModal(svc, 100, 30)
+	run(t, m, m.Init())
+	winner := func(k string) string {
+		b, src, _ := uitest.Winner(m.KeyLayers(), k)
+		return src + ": " + b.Help().Desc
+	}
+	if got := winner("r"); got != "release: retry" {
+		t.Errorf("r reaches %q after a failed read, want the retry", got)
+	}
+	if _, _, ok := uitest.Winner(m.KeyLayers(), "j"); ok {
+		t.Error("j reaches the thread of a failed read")
+	}
+	svc.mu.Lock()
+	svc.err = nil
+	svc.mu.Unlock()
+	run(t, m, press(m, "r"))
+	if got := winner("j"); got != "thread: down" {
+		t.Errorf("j reaches %q, want the thread", got)
+	}
+	if got := winner("esc"); got != "release: back" {
+		t.Errorf("esc reaches %q, want the modal's back", got)
+	}
+}
+
 // withDiagram serves v3 with a diagram in its notes.
 type withDiagram struct{ fakeService }
 
@@ -251,7 +286,7 @@ func TestDiagram(t *testing.T) {
 		t.Fatalf("no linked diagram:\n%q", v)
 	}
 	offered := false
-	for _, b := range m.Help().ShortHelp() {
+	for _, b := range (ui.Hints{Layers: m.KeyLayers()}).ShortHelp() {
 		offered = offered || b.Enabled() && b.Help().Desc == "diagram code"
 	}
 	if !offered {
