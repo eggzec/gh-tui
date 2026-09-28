@@ -107,6 +107,7 @@ func (m *Model) reset(name string, s state, err error) {
 	m.top, m.row, m.left = 0, 0, 0
 	m.mark = -1
 	m.clearSearch()
+	m.clearProjection()
 }
 
 // renderName renders the name for the status line, on one line and without

@@ -28,7 +28,7 @@ func TestHelpState(t *testing.T) {
 	}
 	m := open(t, "lines.txt", numbered(100), WithSize(40, 11))
 	keytest.NoConflicts(t, m)
-	if got := enabled(m); len(got) != 14 {
+	if got := enabled(m); len(got) != 15 {
 		t.Errorf("idle: %d enabled, want all but the four search keys: %q", len(got), got)
 	}
 	m, _ = keys(t, m, "/")

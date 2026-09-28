@@ -320,14 +320,20 @@ func (m Model) writeSpan(b *strings.Builder, i, a, e int) {
 	}
 }
 
-// statusLine renders the name, or a note on the last search, on the left
-// and where the window is on the right, or the search prompt while it is
-// open.
+// statusLine renders the name, or a note on the last search or filter,
+// on the left, and the filter, the search and where the window is on the
+// right, or the prompt while it is open.
 func (m Model) statusLine() string {
 	if m.prompt.Focused() {
 		return fit(m.prompt.View(), m.width)
 	}
 	var parts []string
+	switch {
+	case m.projecting && m.want.filter.re != nil:
+		parts = append(parts, m.esc.status.wrap("filtering…"))
+	case m.proj.filter.re != nil:
+		parts = append(parts, m.esc.status.wrap(fmt.Sprintf("filtered %d/%d", m.kept, len(m.lines))))
+	}
 	switch s := m.search; {
 	case s.running:
 		parts = append(parts, m.esc.status.wrap("searching…"))

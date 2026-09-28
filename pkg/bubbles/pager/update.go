@@ -21,6 +21,12 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.found(msg.lines, msg.ends)
 		}
 		return m, nil
+	case projectMsg:
+		if msg.id == m.id && msg.pgen == m.pgen && m.projecting {
+			cmd := m.picked(msg.vis, msg.kept)
+			return m, cmd
+		}
+		return m, nil
 	case spinner.TickMsg:
 		if m.state != stateLoading {
 			return m, nil
@@ -79,15 +85,24 @@ func (m Model) updateKey(k tea.KeyPressMsg) (Model, tea.Cmd) {
 	case key.Matches(k, m.keys.LineNumbers):
 		m.SetLineNumbers(!m.lineNumbers)
 	case key.Matches(k, m.keys.Search):
-		cmd := m.openPrompt()
+		cmd := m.openPrompt(promptSearch)
+		return m, cmd
+	case key.Matches(k, m.keys.Filter):
+		cmd := m.openPrompt(promptFilter)
 		return m, cmd
 	case key.Matches(k, m.keys.Next):
 		m.step(1)
 	case key.Matches(k, m.keys.Prev):
 		m.step(-1)
-	case m.search.query != "" && key.Matches(k, m.keys.Cancel):
-		m.clearSearch()
-		m.clamp()
+	case key.Matches(k, m.keys.Cancel):
+		// Esc peels one layer at a time: the search, then the filter.
+		if m.search.query != "" {
+			m.clearSearch()
+			m.clamp()
+			return m, nil
+		}
+		cmd := m.clearFilter()
+		return m, cmd
 	case key.Matches(k, m.keys.Close):
 		return m, m.close()
 	}

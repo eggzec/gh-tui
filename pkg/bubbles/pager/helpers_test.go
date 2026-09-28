@@ -89,8 +89,11 @@ func deliver(m Model, msg tea.Msg) (after Model, sent tea.Msg) {
 
 // isOwn reports whether msg is one the pager sends itself.
 func isOwn(msg tea.Msg) bool {
-	_, ok := msg.(searchMsg)
-	return ok
+	switch msg.(type) {
+	case searchMsg, projectMsg:
+		return true
+	}
+	return false
 }
 
 // typeText types each rune of text as a key press.

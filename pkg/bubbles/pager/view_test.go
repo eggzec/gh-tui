@@ -21,6 +21,7 @@ func TestView(t *testing.T) {
 		opts          []Option
 		width, height int
 		keys          []string
+		filter        string
 		search        string
 		set           func(*Model)
 	}{
@@ -58,6 +59,15 @@ func TestView(t *testing.T) {
 			opts: []Option{WithStyles(DefaultStyles(false))}},
 		{name: "inverted without line numbers", file: "main.go", text: goSource, width: 80, height: 12, search: "!fmt",
 			opts: []Option{WithLineNumbers(false)}},
+		{name: "filtered", file: "main.go", text: goSource, width: 80, height: 8, filter: "fmt|func"},
+		{name: "filtered light", file: "main.go", text: goSource, width: 80, height: 8, filter: "fmt|func",
+			opts: []Option{WithStyles(DefaultStyles(false))}},
+		{name: "filtered inverted", file: "main.go", text: goSource, width: 80, height: 8, filter: "!^\\s"},
+		{name: "filtered search", file: "main.go", text: goSource, width: 80, height: 8, filter: "fmt|func",
+			search: "main", keys: []string{"n"}},
+		{name: "filtered wrapped", file: "main.go", text: goSource, width: 40, height: 8, filter: "fmt|func",
+			opts: []Option{WithWrap(true)}},
+		{name: "filter prompt", file: "main.go", text: goSource, width: 80, height: 8, keys: []string{"&", "f", "m"}},
 		{name: "long name", file: "internal/some/very/deeply/nested/package/main.go", text: goSource,
 			width: 40, height: 4},
 		{name: "loading", width: 40, height: 4, set: func(m *Model) { _ = m.SetLoading("main.go") }},
@@ -80,6 +90,11 @@ func TestView(t *testing.T) {
 				tt.set(&m)
 			} else {
 				m = open(t, tt.file, tt.text, append(tt.opts, WithSize(tt.width, tt.height))...)
+			}
+			if tt.filter != "" {
+				m, _ = keys(t, m, "&")
+				m = typeText(t, m, tt.filter)
+				m, _ = keys(t, m, "enter")
 			}
 			if tt.search != "" {
 				m, _ = keys(t, m, "/")

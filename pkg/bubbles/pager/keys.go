@@ -23,11 +23,17 @@ type KeyMap struct {
 	// typed, a regexp, or for the lines it doesn't match after a "!", and
 	// Cancel closes the prompt. Outside the prompt, Cancel clears the
 	// search. The pager enables Confirm only while the prompt is open, and
-	// Cancel only while it is or a search is shown, so esc closes the
-	// pager otherwise.
+	// Cancel only while it is or a search or filter is shown, so esc
+	// closes the pager otherwise.
 	Search  key.Binding
 	Confirm key.Binding
 	Cancel  key.Binding
+	// Filter opens the filter prompt, where Confirm shows only the lines
+	// the pattern typed matches, or doesn't match after a "!", and an
+	// empty line shows them all again. Outside the prompt, Cancel stops
+	// a filter still running, or clears the one shown, once no search is
+	// shown.
+	Filter key.Binding
 	// Next and Prev move between matches. The pager enables them only
 	// while there are matches, so help shows them only when they work.
 	Next key.Binding
@@ -54,6 +60,7 @@ func DefaultKeyMap() KeyMap {
 		Wrap:         key.NewBinding(key.WithKeys("w"), key.WithHelp("w", "wrap")),
 		LineNumbers:  key.NewBinding(key.WithKeys("#"), key.WithHelp("#", "line numbers")),
 		Search:       key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "search")),
+		Filter:       key.NewBinding(key.WithKeys("&"), key.WithHelp("&", "filter")),
 		Confirm:      key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "search"), key.WithDisabled()),
 		Cancel:       key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel"), key.WithDisabled()),
 		Next:         key.NewBinding(key.WithKeys("n"), key.WithHelp("n", "next match"), key.WithDisabled()),
@@ -72,6 +79,6 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.PageUp, k.PageDown, k.HalfPageUp, k.HalfPageDown},
 		{k.Home, k.End, k.Left, k.Right, k.Wrap, k.LineNumbers},
-		{k.Search, k.Confirm, k.Cancel, k.Next, k.Prev, k.Close},
+		{k.Search, k.Filter, k.Confirm, k.Cancel, k.Next, k.Prev, k.Close},
 	}
 }

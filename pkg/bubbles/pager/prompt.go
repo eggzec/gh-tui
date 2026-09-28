@@ -30,7 +30,15 @@ func promptKeys() cmdline.KeyMap {
 	return p
 }
 
-func (m *Model) openPrompt() tea.Cmd {
+// Prompts, which also say what the line typed after them is for.
+const (
+	promptSearch = "/"
+	promptFilter = "&"
+)
+
+// openPrompt opens the prompt p.
+func (m *Model) openPrompt(p string) tea.Cmd {
+	m.prompt.SetPrompt(p)
 	cmd := m.prompt.Open("")
 	m.enableSearchKeys()
 	return cmd
@@ -48,8 +56,12 @@ func (m Model) updatePrompt(msg tea.Msg) (Model, tea.Cmd) {
 	if k, ok := msg.(tea.KeyPressMsg); ok {
 		switch {
 		case key.Matches(k, m.keys.Confirm):
-			line := m.prompt.Value()
+			line, p := m.prompt.Value(), m.prompt.Prompt()
 			m.closePrompt()
+			if p == promptFilter {
+				cmd := m.filterFor(line)
+				return m, cmd
+			}
 			cmd := m.searchFor(line)
 			return m, cmd
 		case key.Matches(k, m.keys.Cancel):
@@ -81,7 +93,7 @@ func (m *Model) searchFor(line string) tea.Cmd {
 		m.flash = noteInvalid + reason(err)
 		return nil
 	}
-	return m.runSearch(line, re, invert, m.topLine())
+	return m.runSearch(line, re, invert, m.topLine(), false)
 }
 
 // compile compiles pattern to ignore case unless it has a capital.
