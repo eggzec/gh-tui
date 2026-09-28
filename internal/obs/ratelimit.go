@@ -23,6 +23,9 @@ const (
 	// RateFailed is a request failed at once, rather than sent to be
 	// refused, or held longer than it may wait.
 	RateFailed
+	// RateRecalled is a request let through that a limit which came
+	// before it was sent stopped, and that passed the gate again.
+	RateRecalled
 	numRate
 )
 
@@ -60,6 +63,7 @@ type RateResourceSummary struct {
 	Released int64  `json:"released"`
 	Dropped  int64  `json:"dropped"`
 	Failed   int64  `json:"failed"`
+	Recalled int64  `json:"recalled"`
 }
 
 // Rate counts e for a request of resource.
@@ -105,7 +109,7 @@ func (s *Stats) rateSummary() RateSummary {
 	for resource, c := range each[RateEvent](&s.rate.resources) {
 		out.Resources = append(out.Resources, RateResourceSummary{
 			Resource: cmp.Or(resource, "none"), Held: c.get(RateHeld), Released: c.get(RateReleased),
-			Dropped: c.get(RateDropped), Failed: c.get(RateFailed),
+			Dropped: c.get(RateDropped), Failed: c.get(RateFailed), Recalled: c.get(RateRecalled),
 		})
 	}
 	slices.SortFunc(out.Resources, func(a, b RateResourceSummary) int { return cmp.Compare(a.Resource, b.Resource) })
