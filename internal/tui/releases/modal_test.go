@@ -3,11 +3,13 @@ package releases
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
@@ -261,5 +263,61 @@ func TestDiagram(t *testing.T) {
 	}
 	if msgs := run(t, m, press(m, "o")); len(msgs) != 1 || msgs[0] != (ui.OpenMsg{URL: v3.URL}) {
 		t.Errorf("o = %v, want the release opened on GitHub", msgs)
+	}
+}
+
+// changedThenFails serves v3 with fewer files once, as if one was removed,
+// and then fails with err.
+type changedThenFails struct {
+	fakeService
+	fail error
+}
+
+func (f *changedThenFails) Get(context.Context, core.RepoRef, int64) (core.Release, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.gets++
+	if f.gets > 1 {
+		return core.Release{}, f.fail
+	}
+	r := v3
+	r.Assets = v3.Assets[:1]
+	return r, nil
+}
+
+// The files say what went wrong the way the user should read it, without
+// the error's chain, request or status code, and name no key to retry,
+// which the thread of files doesn't have.
+func TestFilesErrorWords(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want string
+	}{
+		{"offline", fmt.Errorf("get release: github: GET /repos/charmbracelet/glow/releases/1: %w", core.ErrOffline), "✗ Can't reach GitHub"},
+		{"forbidden", fmt.Errorf("get release: github: 403 Forbidden: %w", core.ErrForbidden), "✗ You don't have access to charmbracelet/glow · o to open on GitHub"},
+		{"internal", errors.New("get release: github: decode: unexpected EOF"), "✗ Something went wrong. Details are in the log"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := &changedThenFails{cached: true, fail: tt.err}
+			m := New(context.Background(), svc, repo, v3.ID, "", config.Default().Keys,
+				WithNow(func() time.Time { return clock }), WithVoice(ui.NewVoice(config.Default().Keys, "/var/log/gh-tui.log")))
+			m.SetSize(100, 30)
+			// The thread's own messages go back to the modal too.
+			queue := run(t, m, m.Init())
+			for len(queue) > 0 {
+				msg := queue[0]
+				queue = queue[1:]
+				if _, tick := msg.(spinner.TickMsg); tick {
+					continue
+				}
+				queue = append(queue, run(t, m, m.Update(msg))...)
+			}
+			v := ansi.Strip(m.View())
+			if !strings.Contains(v, tt.want) || strings.Contains(v, "github:") || strings.Contains(v, "403") || strings.Contains(v, "/repos") || strings.Contains(v, "to retry") {
+				t.Errorf("modal = %q, want %q", v, tt.want)
+			}
+		})
 	}
 }

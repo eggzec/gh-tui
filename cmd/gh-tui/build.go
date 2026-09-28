@@ -219,7 +219,7 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 			history.WithConfig(cfg.History), history.WithOffline(offline), history.WithHost(webHost), history.WithVoice(voice))),
 		tui.WithCommit(history.CommitOpener(historySvc, cfg.Keys,
 			history.WithConfig(cfg.History), history.WithOffline(offline), history.WithHost(webHost), history.WithVoice(voice))),
-		tui.WithRelease(releases.Opener(releaseSvc, cfg.Keys)),
+		tui.WithRelease(releases.Opener(releaseSvc, cfg.Keys, releases.WithVoice(voice))),
 		tui.WithRateStatus(client),
 	}
 	if path, err := historyPath(cfg.Cache.Disk, client.Host(), client.Account()); err == nil && path != "" {
