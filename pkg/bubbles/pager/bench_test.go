@@ -25,7 +25,8 @@ var bigPager = sync.OnceValue(func() Model {
 	msg := m.SetContent("big.go", bigSource())()
 	m, _ = m.Update(msg)
 	m.top = m.Lines() / 2
-	if cmd := m.runSearch("fmt", smartCase("fmt", "fmt"), m.top); cmd != nil {
+	re, _ := compile("fmt")
+	if cmd := m.runSearch("fmt", re, false, m.top); cmd != nil {
 		m, _ = m.Update(cmd())
 	}
 	return m
@@ -104,7 +105,7 @@ func BenchmarkSearch(b *testing.B) {
 				b.SetBytes(int64(size))
 				b.ReportAllocs()
 				for b.Loop() {
-					_, _, _ = find(context.Background(), re, lines)
+					_, _, _ = find(context.Background(), re, false, lines)
 				}
 			})
 		}

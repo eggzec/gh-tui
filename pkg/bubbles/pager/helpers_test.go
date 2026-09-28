@@ -37,6 +37,8 @@ func press(name string) tea.KeyPressMsg {
 		return enter
 	case "space":
 		return space
+	case "backspace":
+		return tea.KeyPressMsg{Code: tea.KeyBackspace}
 	case "up":
 		return tea.KeyPressMsg{Code: tea.KeyUp}
 	case "down":
@@ -58,18 +60,37 @@ func press(name string) tea.KeyPressMsg {
 	return tea.KeyPressMsg{Code: r, Text: name}
 }
 
-// keys presses each key in order and returns the message of the last
-// command, if any.
+// keys presses each key in order, as a program would: the messages that
+// the pager sends itself, such as what a search found, go back to it. It returns
+// the first other message of the last key's commands, if any.
 func keys(tb testing.TB, m Model, names ...string) (after Model, sent tea.Msg) {
 	tb.Helper()
-	var cmd tea.Cmd
 	for _, name := range names {
-		m, cmd = m.Update(press(name))
+		m, sent = deliver(m, press(name))
 	}
-	if cmd == nil {
-		return m, nil
+	return m, sent
+}
+
+// deliver updates m with msg, and then with each message its commands send
+// the pager itself, and returns the first message for anyone else.
+func deliver(m Model, msg tea.Msg) (after Model, sent tea.Msg) {
+	for msg != nil {
+		var cmd tea.Cmd
+		m, cmd = m.Update(msg)
+		if cmd == nil {
+			return m, nil
+		}
+		if msg = cmd(); !isOwn(msg) {
+			return m, msg
+		}
 	}
-	return m, cmd()
+	return m, nil
+}
+
+// isOwn reports whether msg is one the pager sends itself.
+func isOwn(msg tea.Msg) bool {
+	_, ok := msg.(searchMsg)
+	return ok
 }
 
 // typeText types each rune of text as a key press.

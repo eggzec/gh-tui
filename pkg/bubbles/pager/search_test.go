@@ -21,7 +21,7 @@ func bigText(tb testing.TB) string {
 	return text
 }
 
-// typeSearch opens the input, types query and confirms it, and returns
+// typeSearch opens the prompt, types query and confirms it, and returns
 // the command that runs the search, if any.
 func typeSearch(tb testing.TB, m Model, query string) (Model, tea.Cmd) {
 	tb.Helper()

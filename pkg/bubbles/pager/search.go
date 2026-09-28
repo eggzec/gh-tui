@@ -5,8 +5,6 @@ import (
 	"math"
 	"regexp"
 	"slices"
-	"strings"
-	"unicode"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -32,6 +30,9 @@ const maxLineMatches = 1000
 type search struct {
 	query string
 	re    *regexp.Regexp
+	// invert makes the lines re doesn't match the matches, one per line,
+	// marked in the gutter.
+	invert bool
 	// running reports whether the command that finds the matches is still
 	// going.
 	running bool
@@ -68,7 +69,8 @@ type hits struct {
 }
 
 // lineHits are the byte ranges of the matches in the part of a line the
-// window shows, the first of which is match first of the line.
+// window shows, the first of which is match first of the line, or none
+// for a line an inverted search matches.
 type lineHits struct {
 	line, first int
 	ranges      [][]int
@@ -97,7 +99,7 @@ func (m Model) Matches() int { return m.search.total() }
 // An empty query clears it too. The returned command searches large
 // content in the background.
 func (m *Model) SetSearch(query string) tea.Cmd {
-	m.closeSearch()
+	m.closePrompt()
 	from := m.mark
 	if from < 0 {
 		from = 0
@@ -108,33 +110,11 @@ func (m *Model) SetSearch(query string) tea.Cmd {
 		m.clearSearch()
 		return nil
 	}
-	return m.runSearch(query, smartCase(regexp.QuoteMeta(query), query), from)
-}
-
-// smartCase compiles pattern, which is query as a regexp, to ignore case
-// unless query has a capital.
-func smartCase(pattern, query string) *regexp.Regexp {
-	if !strings.ContainsFunc(query, unicode.IsUpper) {
-		pattern = "(?i)" + pattern
-	}
-	re, err := regexp.Compile(pattern)
+	re, err := compile(regexp.QuoteMeta(query))
 	if err != nil {
 		return nil
 	}
-	return re
-}
-
-func (m *Model) openSearch() tea.Cmd {
-	m.searching = true
-	m.enableSearchKeys()
-	m.input.Reset()
-	return m.input.Focus()
-}
-
-func (m *Model) closeSearch() {
-	m.searching = false
-	m.enableSearchKeys()
-	m.input.Blur()
+	return m.runSearch(query, re, false, from)
 }
 
 // clearSearch forgets the search, and stops it if it is still running.
@@ -153,24 +133,23 @@ func (m *Model) enableSearchKeys() {
 	found := m.search.total() > 0
 	m.keys.Next.SetEnabled(found)
 	m.keys.Prev.SetEnabled(found)
-	m.keys.Confirm.SetEnabled(m.searching)
-	m.keys.Cancel.SetEnabled(m.searching || m.search.query != "")
+	m.keys.Confirm.SetEnabled(m.prompt.Focused())
+	m.keys.Cancel.SetEnabled(m.prompt.Focused() || m.search.query != "")
 }
 
-// runSearch starts a search of the content with re, named query, from
-// line from. Content smaller than syncLimit is searched at once; for
-// larger content, the returned command searches it and the pager says it
-// is searching until the matches arrive. The window shows its matches at
-// once either way.
-func (m *Model) runSearch(query string, re *regexp.Regexp, from int) tea.Cmd {
+// runSearch starts a search of the content for the lines re matches, or
+// doesn't match if invert is set, named query, from line from. Content
+// smaller than syncLimit is searched at once; for larger content, the
+// returned command searches it and the pager says it is searching until
+// the matches arrive. The window shows its matches at once either way.
+func (m *Model) runSearch(query string, re *regexp.Regexp, invert bool, from int) tea.Cmd {
 	m.clearSearch()
-	if re == nil {
-		return nil
-	}
-	m.search = search{query: query, re: re, from: from, top: m.top, row: m.row, cur: -1}
-	m.findHits()
+	m.search = search{query: query, re: re, invert: invert, from: from, cur: -1}
+	// Marks in the gutter may widen it.
+	m.clamp()
+	m.search.top, m.search.row = m.top, m.row
 	if m.size < syncLimit {
-		lines, ends, _ := find(context.Background(), re, m.lines)
+		lines, ends, _ := find(context.Background(), re, invert, m.lines)
 		m.found(lines, ends)
 		return nil
 	}
@@ -181,7 +160,7 @@ func (m *Model) runSearch(query string, re *regexp.Regexp, from int) tea.Cmd {
 	id, qgen, all := m.id, m.qgen, m.lines
 	return func() tea.Msg {
 		defer cancel()
-		lines, ends, err := find(ctx, re, all)
+		lines, ends, err := find(ctx, re, invert, all)
 		if err != nil {
 			return nil
 		}
@@ -190,8 +169,9 @@ func (m *Model) runSearch(query string, re *regexp.Regexp, from int) tea.Cmd {
 }
 
 // find returns the indices of the lines that re matches, and the number of
-// matches in them and every line before, until ctx is done.
-func find(ctx context.Context, re *regexp.Regexp, all []string) (lines, ends []int32, err error) {
+// matches in them and every line before, until ctx is done. With invert,
+// it returns the lines that re doesn't match, each a match of its own.
+func find(ctx context.Context, re *regexp.Regexp, invert bool, all []string) (lines, ends []int32, err error) {
 	var n int32
 	for i, l := range all {
 		if i%checkEvery == 0 {
@@ -199,7 +179,13 @@ func find(ctx context.Context, re *regexp.Regexp, all []string) (lines, ends []i
 				return nil, nil, err
 			}
 		}
-		k := len(lineMatches(re, l))
+		var k int
+		switch {
+		case !invert:
+			k = len(lineMatches(re, l))
+		case !re.MatchString(l):
+			k = 1
+		}
 		if k == 0 {
 			continue
 		}
@@ -220,13 +206,20 @@ func lineMatches(re *regexp.Regexp, s string) [][]int {
 // found takes the lines and counts of the running search and jumps to the
 // first match at or after the line it started at, or the first of all.
 // If the user scrolled while it ran, it leaves the window where they took
-// it, and the next step goes to the first match from there.
+// it, and the next step goes to the first match from there. A search that
+// found nothing is cleared, with a note that says so.
 func (m *Model) found(lines, ends []int32) {
 	s := &m.search
 	s.running, s.lines, s.ends = false, lines, ends
 	m.stopSearch = nil
+	if len(lines) == 0 {
+		m.clearSearch()
+		m.clamp()
+		m.flash = noteNotFound
+		return
+	}
 	m.enableSearchKeys()
-	if len(lines) == 0 || m.top != s.top || m.row != s.row {
+	if m.top != s.top || m.row != s.row {
 		return
 	}
 	m.jump(m.firstFrom(s.from))
@@ -269,17 +262,22 @@ func (m *Model) jump(i int) {
 		nth -= int(s.ends[k-1])
 	}
 	s.cur, s.curLine, s.curNth = i, int(s.lines[k]), nth
+	if s.curLine < m.top || s.curLine > m.bottom() {
+		m.top, m.row = s.curLine, 0
+	}
+	if s.invert {
+		m.clamp()
+		return
+	}
 	line := m.lines[s.curLine]
 	ranges := lineMatches(s.re, line)
 	if len(ranges) <= nth {
 		// The count and the ranges come from the same regexp, so only
 		// content changed behind the search's back gets here.
+		m.clamp()
 		return
 	}
 	start, end := ranges[nth][0], ranges[nth][1]
-	if s.curLine < m.top || s.curLine > m.bottom() {
-		m.top, m.row = s.curLine, 0
-	}
 	tw := m.textWidth()
 	if m.wrap {
 		if s.curLine == m.top {
@@ -310,6 +308,12 @@ func (m *Model) findHits() {
 	}
 	var lines []lineHits
 	for i := top; i <= bottom; i++ {
+		if m.search.invert {
+			if !re.MatchString(m.lines[i]) {
+				lines = append(lines, lineHits{line: i})
+			}
+			continue
+		}
 		all := lineMatches(re, m.lines[i])
 		a, e := m.shown(i)
 		first, _ := slices.BinarySearchFunc(all, a+1, func(r []int, pos int) int { return r[1] - pos })
@@ -346,12 +350,14 @@ func (m Model) shown(i int) (a, e int) {
 }
 
 // lineHits returns the byte ranges of the matches in the part of line i
-// that the window shows, and the index in the line of the first.
-func (m Model) lineHits(i int) (ranges [][]int, first int) {
+// that the window shows, the index in the line of the first, and whether
+// the line is a match at all, which a line of an inverted search is as a
+// whole.
+func (m Model) lineHits(i int) (ranges [][]int, first int, ok bool) {
 	ls := m.hits.lines
 	k, ok := slices.BinarySearchFunc(ls, i, func(h lineHits, line int) int { return h.line - line })
 	if !ok {
-		return nil, 0
+		return nil, 0, false
 	}
-	return ls[k].ranges, ls[k].first
+	return ls[k].ranges, ls[k].first, true
 }

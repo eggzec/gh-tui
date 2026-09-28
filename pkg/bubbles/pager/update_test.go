@@ -130,8 +130,7 @@ func TestSearch(t *testing.T) {
 	}{
 		{name: "lower case ignores case", query: "apple", wantMatches: 3},
 		{name: "capitals match case", query: "Apple", wantMatches: 1},
-		{name: "no match", query: "kiwi", wantMatches: 0, wantCur: -1},
-		{name: "meta characters are literal", query: "a.d", wantMatches: 0, wantCur: -1},
+		{name: "patterns are regexps", query: "a.d", wantMatches: 1, wantTop: 2},
 		// The window of two rows ends at the last line.
 		{name: "jumps down to the match", query: "cherry", wantMatches: 1, wantTop: 2},
 	}
@@ -236,7 +235,7 @@ func TestSearchInputCapturesKeys(t *testing.T) {
 	if m.top != 0 || msg != nil {
 		t.Errorf("keys leaked out of the input: top %d, msg %v", m.top, msg)
 	}
-	if got := m.input.Value(); got != "jqG" {
+	if got := m.prompt.Value(); got != "jqG" {
 		t.Errorf("input = %q, want %q", got, "jqG")
 	}
 	if got := m.ShortHelp(); len(got) != 2 {
