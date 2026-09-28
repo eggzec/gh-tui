@@ -93,6 +93,15 @@ func (s *Section) remember(text string) {
 	s.starts.build(s.recent)
 }
 
+// Search puts query in the search box and searches for it, as typing it
+// and pressing enter would, such as for the search command. The page must
+// have the focus.
+func (s *Section) Search(query string) tea.Cmd {
+	cmd := tea.Batch(s.setQuery(query), s.spinTitle(), s.readAhead())
+	s.render()
+	return cmd
+}
+
 // setQuery puts text in the query and searches for it, as when a recent
 // search is picked.
 func (s *Section) setQuery(text string) tea.Cmd {

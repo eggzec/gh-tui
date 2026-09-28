@@ -85,6 +85,8 @@ func TestComplete(t *testing.T) {
 		{name: "help", line: "he", want: []string{"help"}},
 		{name: "refresh", line: "r", want: []string{"refresh"}},
 		{name: "after refresh", line: "refresh c"},
+		{name: "search", line: "sea", want: []string{"search "}},
+		{name: "after search", line: "search c"},
 		{name: "command before an argument", line: "go| x", want: []string{"goto"}, span: [2]int{0, 2}},
 		{name: "unknown", line: "x"},
 		{name: "after an unknown command", line: "open c"},

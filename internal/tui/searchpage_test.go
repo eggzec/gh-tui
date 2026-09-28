@@ -148,3 +148,48 @@ func TestPreviewFromSearch(t *testing.T) {
 		})
 	}
 }
+
+// fakeSearch is a search page that records what it was asked to search
+// for.
+type fakeSearch struct {
+	fakeSection
+	queries []string
+}
+
+func (f *fakeSearch) Search(query string) tea.Cmd {
+	f.queries = append(f.queries, query)
+	return nil
+}
+
+func TestSearchCommand(t *testing.T) {
+	tests := []struct {
+		line string
+		want []string
+	}{
+		{line: "search", want: nil},
+		{line: "search bubble tea", want: []string{"bubble tea"}},
+		{line: "search   is:open   label:bug ", want: []string{"is:open   label:bug"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.line, func(t *testing.T) {
+			page := &fakeSearch{title: ui.SearchTitle}
+			fakes := []*fakeSection{{title: "Files"}, {title: "Pull requests"}, {title: "Issues"}}
+			m := New(t.Context(), config.Default(), Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Search: page}, WithRepo(testRepo))
+			m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+			runCommand(t, m, tt.line)
+			if m.screen != searchScreen || !page.focused || page.inits != 1 {
+				t.Fatalf("search didn't show the page as / does: screen %d, focused %v", m.screen, page.focused)
+			}
+			if !slices.Equal(page.queries, tt.want) {
+				t.Errorf("searched for %q, want %q", page.queries, tt.want)
+			}
+		})
+	}
+	t.Run("no search page", func(t *testing.T) {
+		m, _ := newTestApp(t)
+		runCommand(t, m, "search tea")
+		if m.screen != repoScreen || !hasToast(m, "There is no search page.") {
+			t.Errorf("screen %d, toasts %q", m.screen, toasted(m))
+		}
+	})
+}
