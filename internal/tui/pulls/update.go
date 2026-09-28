@@ -33,6 +33,11 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 		return s.setRepo(msg.Repo)
 	case ui.SyncMsg:
 		return s.sync(msg)
+	case ui.OnlineMsg:
+		if s.feed == nil {
+			return nil
+		}
+		return ui.RetryUnreached(s.feed)
 	case ui.SettingsMsg:
 		s.configure(msg.Config)
 		return nil

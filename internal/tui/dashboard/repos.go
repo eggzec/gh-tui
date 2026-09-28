@@ -197,6 +197,18 @@ func (t *repoTabs) reload() tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
+// online reads again the lists of the tabs started that failed for want
+// of an answer from GitHub.
+func (t *repoTabs) online() tea.Cmd {
+	cmds := make([]tea.Cmd, 0, len(t.tabs))
+	for _, o := range t.tabs {
+		if o.started {
+			cmds = append(cmds, ui.RetryUnreached(&o.feed))
+		}
+	}
+	return tea.Batch(cmds...)
+}
+
 // revisit reads again the lists of the tabs started whose first page went
 // past its TTL, showing their rows until the new ones arrive. A list still
 // loading is left to finish.
