@@ -27,7 +27,7 @@ var liveSettings = []string{
 	"dashboard.prefetch", "files.prefetch.enabled", "files.prefetch.max_size", "files.prefetch.hover_delay",
 	"dashboard.calendar_glyph", "dashboard.contributions", "files.finder.preview", "notifications.mark_read_on_open",
 	"history.row", "history.detail", "history.date_format", "history.show_email",
-	"history.prefetch.around", "history.prefetch.hover_delay",
+	"history.prefetch.around", "history.prefetch.hover_delay", "editor",
 }
 
 // startup says why a setting that isn't live needs a restart, by the

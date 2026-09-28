@@ -100,6 +100,7 @@ func TestLoadMergesOverDefaults(t *testing.T) {
 				c.UI = UI{Icons: IconsUnicode}
 				c.Auth = Auth{Check: false}
 				c.Log = Log{Level: LevelDebug, File: "/var/log/gh-tui.log", MaxSize: MiB, Keep: 5, Summary: time.Minute}
+				c.Editor = "code --wait"
 			},
 		},
 	}
@@ -167,6 +168,7 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 	cfg.Dashboard.Contributions = "week"
 	cfg.UI.Icons = "emoji"
 	cfg.Log = Log{Level: "trace", File: "gh-tui.log", MaxSize: KiB, Keep: -1, Summary: time.Second}
+	cfg.Editor = "vim\n-c q"
 
 	err := cfg.Validate()
 	if err == nil {
@@ -211,6 +213,7 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 		`log.max_size: must be at least 64KiB, got 1KiB`,
 		`log.keep: must be between 0 and 100, got -1`,
 		`log.summary: must be 0 or at least 10s, got 1s`,
+		`editor: must be a program and its arguments on one line, such as "vim" or "code --wait", got "vim\n-c q"`,
 	}
 	for _, w := range want {
 		if !slices.Contains(got, w) {

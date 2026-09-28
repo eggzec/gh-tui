@@ -45,3 +45,15 @@ func TestSettingsFinderPreview(t *testing.T) {
 		t.Error("the finder still shows a preview")
 	}
 }
+
+func TestSettingsEditor(t *testing.T) {
+	h := loaded(t, sampleFake(), 60, 12)
+	c, err := config.Default().Set("editor", "code --wait")
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.Update(ui.SettingsMsg{Config: c})
+	if h.editor != "code --wait" {
+		t.Errorf("editor %q, want the one set", h.editor)
+	}
+}

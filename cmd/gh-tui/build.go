@@ -141,7 +141,7 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 	voice.Token = ui.NewToken(access, cfg.Keys)
 	fileOpts := []files.Option{
 		files.WithOffline(offline), files.WithIcons(icons), files.WithFinderPreview(cfg.Files.Finder.Preview),
-		files.WithHost(webHost), files.WithVoice(voice),
+		files.WithHost(webHost), files.WithVoice(voice), files.WithEditor(cfg.Editor),
 	}
 	if p := cfg.Files.Prefetch; p.Enabled {
 		fileOpts = append(fileOpts,
@@ -233,8 +233,11 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 
 	// The history reads the settings of the session, which the set
 	// command may have changed since the start, each time it opens.
-	historyOpts := func(h config.History) []history.Option {
-		return []history.Option{history.WithConfig(h), history.WithOffline(offline), history.WithHost(webHost), history.WithVoice(voice)}
+	historyOpts := func(c config.Config) []history.Option {
+		return []history.Option{
+			history.WithConfig(c.History), history.WithOffline(offline), history.WithHost(webHost), history.WithVoice(voice),
+			history.WithEditor(c.Editor),
+		}
 	}
 	b := browser.New("", io.Discard, io.Discard)
 	opts := []tui.Option{
@@ -249,10 +252,10 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 		tui.WithHost(webHost),
 		tui.WithVoice(voice),
 		tui.WithHistory(func(ctx context.Context, repo core.RepoRef, defaultBranch string, base ui.BaseMsg) (ui.Modal, tea.Cmd) {
-			return history.Opener(historySvc, cfg.Keys, historyOpts(live.cfg.History)...)(ctx, repo, defaultBranch, base)
+			return history.Opener(historySvc, cfg.Keys, historyOpts(live.cfg)...)(ctx, repo, defaultBranch, base)
 		}),
 		tui.WithCommit(func(ctx context.Context, repo core.RepoRef, sha, defaultBranch string) (ui.Modal, tea.Cmd) {
-			return history.CommitOpener(historySvc, cfg.Keys, historyOpts(live.cfg.History)...)(ctx, repo, sha, defaultBranch)
+			return history.CommitOpener(historySvc, cfg.Keys, historyOpts(live.cfg)...)(ctx, repo, sha, defaultBranch)
 		}),
 		tui.WithRelease(releases.Opener(releaseSvc, cfg.Keys, releases.WithVoice(voice))),
 		tui.WithRateStatus(client),

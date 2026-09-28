@@ -58,13 +58,13 @@ type blobMsg struct {
 }
 
 // newPreview returns a preview of e, a file of repo at ref, whose page
-// is on host, which words what went wrong with v. Its load runs under ctx
-// until it closes.
-func newPreview(ctx context.Context, svc Service, host string, repo core.RepoRef, ref string, e core.TreeEntry, open key.Binding, v ui.Voice) *preview {
+// is on host, which words what went wrong with v and opens the file in
+// editor, if set. Its load runs under ctx until it closes.
+func newPreview(ctx context.Context, svc Service, host string, repo core.RepoRef, ref string, e core.TreeEntry, open key.Binding, v ui.Voice, editor string) *preview {
 	ctx, cancel := context.WithCancel(ctx)
 	// The preview loads the file once, and opens it on GitHub with open.
 	v.Retry, v.Open = key.Binding{}, open
-	pg := pager.New(pager.WithErrorText(fileErrorText(repo, v)))
+	pg := pager.New(pager.WithErrorText(fileErrorText(repo, v)), pager.WithEditor(editor))
 	p := &preview{ctx: ctx, cancel: cancel, svc: svc, host: host, repo: repo, ref: ref, entry: e, open: open, pager: pg}
 	p.pager.Focus()
 	return p
