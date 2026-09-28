@@ -488,7 +488,7 @@ func (m *detailModal) detailHeader(width int) string {
 	}
 
 	// The title and the number link to the pull request's page.
-	for l := range strings.SplitSeq(ansi.Wrap(d.Title, inner, ""), "\n") {
+	for l := range strings.SplitSeq(ansi.Wrap(ui.OneLine(d.Title), inner, ""), "\n") {
 		line(termtext.Link(d.URL, st.selected.Render(l)))
 	}
 	lines = append(lines, "")
@@ -500,7 +500,7 @@ func (m *detailModal) detailHeader(width int) string {
 		st.author.Render("updated "+ui.AgoProse(d.UpdatedAt, now)))
 
 	stats := []string{
-		st.title.Render(d.HeadRef) + st.sep.Render(" → ") + st.title.Render(d.BaseRef),
+		st.title.Render(ui.OneLine(d.HeadRef)) + st.sep.Render(" → ") + st.title.Render(ui.OneLine(d.BaseRef)),
 		st.added.Render("+"+strconv.Itoa(d.Additions)) + " " + st.deleted.Render("−"+strconv.Itoa(d.Deletions)),
 		st.author.Render(plural(d.ChangedFiles, "file")),
 	}
@@ -515,7 +515,7 @@ func (m *detailModal) detailHeader(width int) string {
 	if len(d.Labels) > 0 {
 		names := make([]string, 0, len(d.Labels))
 		for _, l := range d.Labels {
-			names = append(names, st.label.Render(l.Name))
+			names = append(names, st.label.Render(ui.OneLine(l.Name)))
 		}
 		line(strings.Join(names, "  "))
 	}
