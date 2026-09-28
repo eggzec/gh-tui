@@ -1,0 +1,11 @@
+[38;2;31;35;48moctocat@github.com · classic token[m                                      
+[38;2;84;91;110mScopes: gist, read:org, repo[m                                            
+                                                                        
+[38;2;47;125;79m✓[m [38;2;31;35;48mRead and mark notifications[m[38;2;138;144;160m[m                                           
+[38;2;47;125;79m✓[m [38;2;31;35;48mChange public repositories[m[38;2;138;144;160m[m                                            
+[38;2;47;125;79m✓[m [38;2;31;35;48mChange private repositories[m[38;2;138;144;160m[m                                           
+[38;2;47;125;79m✓[m [38;2;31;35;48mRe-run and cancel workflow runs[m[38;2;138;144;160m[m                                       
+[38;2;192;57;43m✗[m [38;2;31;35;48mMerge changes to workflows[m[38;2;138;144;160m · needs workflow[m                           
+                                                                        
+[38;2;84;91;110mgh opens the browser to grant the token the workflow scope.[m             
+[1;38;2;59;99;196mRun gh auth refresh --hostname=github.com -s workflow?[m               [38;2;84;91;110my/n[m

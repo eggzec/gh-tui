@@ -149,6 +149,15 @@ type Model struct {
 	voice ui.Voice
 	// settings is told the config when the set command changes it.
 	settings func(config.Config)
+	// access is what the app knows of the token, or nil, token checks
+	// with it, and accessChanges tells its changes. noticed is set once
+	// the user was told what the token can't do, and exec runs what
+	// grants it more.
+	access        Access
+	token         *ui.Token
+	accessChanges <-chan core.Access
+	noticed       bool
+	exec          runArgs
 }
 
 // Option configures a Model.
@@ -337,7 +346,7 @@ func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) 
 // the notifications, whose badge is on every screen, and listens for sync
 // events.
 func (m *Model) Init() tea.Cmd {
-	cmds := []tea.Cmd{tea.RequestBackgroundColor, m.pending, m.startScreen(), m.listen(), m.loadRepoInfo(), m.loadHistory()}
+	cmds := []tea.Cmd{tea.RequestBackgroundColor, m.pending, m.startScreen(), m.listen(), m.loadRepoInfo(), m.loadHistory(), m.startAccess()}
 	m.pending = nil
 	for _, w := range m.warnings {
 		cmds = append(cmds, ui.Notify(toast.Warning, w))

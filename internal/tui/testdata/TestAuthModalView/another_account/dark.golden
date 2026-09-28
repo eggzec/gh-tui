@@ -1,0 +1,13 @@
+[38;2;216;220;230moctocat@github.com · classic token[m                                      
+[38;2;160;167;184mScopes: repo, notifications[m                                             
+                                                                        
+[38;2;127;201;154m✓[m [38;2;216;220;230mRead and mark notifications[m[38;2;107;114;133m[m                                           
+[38;2;127;201;154m✓[m [38;2;216;220;230mChange public repositories[m[38;2;107;114;133m[m                                            
+[38;2;127;201;154m✓[m [38;2;216;220;230mChange private repositories[m[38;2;107;114;133m[m                                           
+[38;2;127;201;154m✓[m [38;2;216;220;230mRe-run and cancel workflow runs[m[38;2;107;114;133m[m                                       
+[38;2;239;125;125m✗[m [38;2;216;220;230mMerge changes to workflows[m[38;2;107;114;133m · needs workflow[m                           
+                                                                        
+[38;2;239;125;125m✗ gh is logged in as mona now, not octocat; restart gh-tui to switch[m    
+[38;2;239;125;125m  accounts[m                                                              
+[38;2;160;167;184mgh opens the browser to grant the token the workflow scope.[m             
+[1;38;2;122;162;247mRun gh auth refresh --hostname=github.com -s workflow?[m               [38;2;160;167;184my/n[m
