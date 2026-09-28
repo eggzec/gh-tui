@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	"errors"
 	"math/rand/v2"
 	"net/http"
 	"sync"
@@ -10,6 +11,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
 )
 
@@ -84,12 +86,29 @@ func TestGateStress(t *testing.T) {
 						canceling = time.AfterFunc(time.Duration(rand.IntN(5000))*time.Millisecond, cancel)
 					}
 					start := time.Now()
-					_ = sends[rand.IntN(len(sends))](ctx)
+					err := sends[rand.IntN(len(sends))](ctx)
 					if dl, ok := ctx.Deadline(); ok && time.Now().After(dl) {
 						t.Errorf("a request came back %v after its deadline", time.Since(dl))
 					}
-					if d := time.Since(start); d > maxWindow {
-						t.Errorf("a request came back after %v, past the cap of %v", d, maxWindow)
+					// A hold that lasts longer than the cap fails at the
+					// first instant it does, which the timer of its queue
+					// fires at (limit.expiry), so a request that the gate
+					// failed comes back at most a nanosecond past the cap.
+					// One that it let go before the cap then waits for its
+					// turn after those let go before it (a stagger of up to
+					// maxStagger each), for a slot, and for its answer,
+					// which take well under a second here; a timer that
+					// never fired would hold it minutes longer, until a
+					// scout answered or the limit lifted.
+					_, refused := errors.AsType[*Error](err)
+					_, queried := errors.AsType[*GraphQLError](err)
+					answered := refused || queried
+					d := time.Since(start)
+					if errors.Is(err, core.ErrRateLimited) && !answered && d > maxWindow+time.Nanosecond {
+						t.Errorf("the gate failed a request after %v, past the cap of %v", d, maxWindow)
+					}
+					if d > maxWindow+time.Second {
+						t.Errorf("a request came back after %v, past the cap of %v and its turn", d, maxWindow)
 					}
 					if canceling != nil {
 						canceling.Stop()
