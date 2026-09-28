@@ -240,6 +240,28 @@ func TestStatusBarHintsCached(t *testing.T) {
 	if &m.hints[0] == again || !strings.Contains(ansi.Strip(lastLine(m)), "esc unzoom") {
 		t.Errorf("the hints weren't rendered again for the zoom: %q", ansi.Strip(lastLine(m)))
 	}
+
+	// A theme renders them in its styles.
+	again = &m.hints[0]
+	m.Update(tea.BackgroundColorMsg{Color: lipgloss.White})
+	m.View()
+	if &m.hints[0] == again {
+		t.Error("the hints weren't rendered again for the theme")
+	}
+	// Narrower, the zoom does nothing, and its keys leave.
+	again = &m.hints[0]
+	m.Update(tea.WindowSizeMsg{Width: 60, Height: 24})
+	m.View()
+	if &m.hints[0] == again || strings.Contains(ansi.Strip(lastLine(m)), "unzoom") {
+		t.Errorf("the hints weren't rendered again for the resize: %q", ansi.Strip(lastLine(m)))
+	}
+	// The open help takes the keys, and the hints are its own.
+	again = &m.hints[0]
+	run(m, m.key(press("?")))
+	m.View()
+	if &m.hints[0] == again || !strings.Contains(ansi.Strip(lastLine(m)), "tab find a key") {
+		t.Errorf("the hints weren't rendered again for the help: %q", ansi.Strip(lastLine(m)))
+	}
 }
 
 // TestLineReplacesStatusBar checks that the command line takes the place
@@ -259,21 +281,21 @@ func TestLineReplacesStatusBar(t *testing.T) {
 	}
 }
 
-// TestFullHelpOverStatusBar checks that the help key shows every key over
-// the status bar, and hides them again.
-func TestFullHelpOverStatusBar(t *testing.T) {
+// TestHelpOverStatusBar checks that the help opens over the screen and
+// leaves the status bar, which hints at the help's own keys meanwhile.
+func TestHelpOverStatusBar(t *testing.T) {
 	m, _ := newTestApp(t)
 	drive(m, m.key(press("?")))
 	v := ansi.Strip(m.View().Content)
-	if !strings.Contains(v, "shift+tab previous pane") || !strings.Contains(ansi.Strip(lastLine(m)), "? help") {
-		t.Errorf("? should show every key over the status bar:\n%s", v)
+	if !strings.Contains(v, "next pane") || !strings.Contains(ansi.Strip(lastLine(m)), "tab find a key") {
+		t.Errorf("? should list every key over the screen, and the bar the help's:\n%s", v)
 	}
 	if got := strings.Count(v, "\n") + 1; got != 24 {
 		t.Errorf("the screen is %d lines, want 24", got)
 	}
 	drive(m, m.key(press("?")))
-	if v := ansi.Strip(m.View().Content); strings.Contains(v, "shift+tab previous pane") {
-		t.Errorf("? again should hide the keys:\n%s", v)
+	if v := ansi.Strip(m.View().Content); strings.Contains(v, "next pane") || !strings.Contains(ansi.Strip(lastLine(m)), "? help") {
+		t.Errorf("? again should close the help:\n%s", v)
 	}
 }
 

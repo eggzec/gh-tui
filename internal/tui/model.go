@@ -12,7 +12,6 @@ import (
 	"slices"
 	"time"
 
-	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 
@@ -89,10 +88,8 @@ type Model struct {
 	hints, stats []statusbar.Item
 	layers       []keyhelp.Layer
 	bst          barStyles
-	// help renders full, every key that reaches something, over the
-	// status bar while it is toggled on.
-	help help.Model
-	full string
+	// keyhelp lists the keys that reach something while it is open.
+	keyhelp keyhelp.Model
 	// line is the command line, which takes the place of the status bar
 	// while it is open.
 	line cmdline.Model
@@ -262,16 +259,17 @@ func WithWarning(text string) Option {
 // New returns the root model with the sections of layout. ctx bounds every
 // request the app makes.
 func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) *Model {
+	keys := newKeyMap(cfg.Keys)
 	m := &Model{
-		ctx:    ctx,
-		cfg:    cfg,
-		keys:   newKeyMap(cfg.Keys),
-		toast:  toast.New(),
-		help:   help.New(),
-		status: statusbar.New(),
-		line:   newLine(cfg.Keys),
-		spin:   newSpinner(),
-		voice:  ui.NewVoice(cfg.Keys, ""),
+		ctx:     ctx,
+		cfg:     cfg,
+		keys:    keys,
+		toast:   toast.New(),
+		keyhelp: newHelp(keys),
+		status:  statusbar.New(),
+		line:    newLine(cfg.Keys),
+		spin:    newSpinner(),
+		voice:   ui.NewVoice(cfg.Keys, ""),
 	}
 	if layout.Files != nil {
 		m.panes, m.left = append(m.panes, &pane{section: layout.Files}), 1
@@ -415,7 +413,7 @@ func (m *Model) applyTheme(dark bool) {
 	m.theme = ui.NewTheme(p, dark)
 	m.st = newStyles(m.theme)
 	m.toast.SetStyles(m.theme.Toast())
-	m.help.Styles = m.theme.Help()
+	m.keyhelp.SetStyles(m.theme.KeyHelp())
 	m.bst = newBarStyles(m.theme)
 	m.status.SetStyles(statusbar.Styles{Separator: m.st.edge})
 	m.drawStatus()

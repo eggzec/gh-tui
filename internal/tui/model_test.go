@@ -411,32 +411,58 @@ func (backKeys) ShortHelp() []key.Binding {
 }
 func (k backKeys) FullHelp() [][]key.Binding { return [][]key.Binding{k.ShortHelp()} }
 
+// TestZoomHelp checks that the bar and the help name esc for what it does:
+// the section's back, or the way out of a zoom, which only works where
+// the zoom does.
 func TestZoomHelp(t *testing.T) {
 	m, fakes := newTestApp(t)
 	fakes[0].keyMap = backKeys{}
-	for _, full := range []bool{false, true} {
-		m.help.ShowAll = full
-		m.layout()
-		if s := onScreen(m); strings.Contains(s, "esc unzoom") || !strings.Contains(s, "esc back") || full && !strings.Contains(s, "z zoom") {
-			t.Errorf("full %v: the help should show the zoom key, and esc as the section's:\n%s", full, s)
+	check := func(when string, bar, help []string, not ...string) {
+		t.Helper()
+		s := onScreen(m)
+		for _, want := range bar {
+			if !strings.Contains(s, want) {
+				t.Errorf("%s: the bar lacks %q:\n%s", when, want, s)
+			}
+		}
+		rows := helpRows(t, m)
+		for _, want := range help {
+			if !slices.Contains(rows, want) {
+				t.Errorf("%s: the help lacks %q: %q", when, want, rows)
+			}
+		}
+		for _, no := range not {
+			if strings.Contains(s, no) || slices.Contains(rows, no) {
+				t.Errorf("%s: %q shows:\n%s\n%q", when, no, s, rows)
+			}
 		}
 	}
+	check("unzoomed", []string{"esc back"}, []string{"z zoom", "esc back"}, "esc unzoom")
 	run(m, m.key(press("z")))
-	for _, full := range []bool{false, true} {
-		m.help.ShowAll = full
-		m.layout()
-		if s := onScreen(m); !strings.Contains(s, "esc unzoom") || strings.Contains(s, "esc back") || !strings.Contains(s, "x close") {
-			t.Errorf("full %v: the zoomed help should say esc unzooms, and only that:\n%s", full, s)
-		}
-	}
+	check("zoomed", []string{"esc unzoom", "x close"}, []string{"esc unzoom"}, "esc back")
 	m.Update(tea.WindowSizeMsg{Width: 60, Height: 24})
-	for _, full := range []bool{false, true} {
-		m.help.ShowAll = full
-		m.layout()
-		if s := onScreen(m); strings.Contains(s, "unzoom") || strings.Contains(s, "z zoom") || !strings.Contains(s, "esc back") {
-			t.Errorf("full %v: at 60 columns the zoom shows nothing, so the help should leave it out:\n%s", full, s)
+	check("at 60 columns", []string{"esc back"}, []string{"esc back"}, "esc unzoom", "z zoom")
+}
+
+// helpRows returns the rows that reach something in the help opened on
+// the app now, each as its keys and description, and closes it again.
+func helpRows(t *testing.T, m *Model) []string {
+	t.Helper()
+	run(m, m.key(press("?")))
+	if !m.helpOpen() {
+		t.Fatal("? didn't open the help")
+	}
+	var out []string
+	for _, r := range m.keyhelp.Shown() {
+		if r.Status == keyhelp.Active {
+			out = append(out, strings.Join(r.Binding.Keys(), " ")+" "+r.Binding.Help().Desc)
 		}
 	}
+	run(m, m.key(press("?")))
+	if m.helpOpen() {
+		t.Fatal("? didn't close the help")
+	}
+	return out
 }
 
 func TestZoomView(t *testing.T) {
@@ -589,8 +615,8 @@ func TestCapturingSectionTakesEveryKey(t *testing.T) {
 			t.Errorf("%s returned a command while the section captures keys", k)
 		}
 	}
-	if m.focus != 0 || m.screen != repoScreen || m.help.ShowAll {
-		t.Errorf("app keys acted while captured: focus %d, screen %d, full help %v", m.focus, m.screen, m.help.ShowAll)
+	if m.focus != 0 || m.screen != repoScreen || m.helpOpen() {
+		t.Errorf("app keys acted while captured: focus %d, screen %d, help open %v", m.focus, m.screen, m.helpOpen())
 	}
 	var got []string
 	for _, msg := range fakes[0].msgs {
@@ -904,21 +930,26 @@ func TestOpenReportsFailure(t *testing.T) {
 	}
 }
 
+// TestHelpShowsPaneAndAppKeys checks that the bar hints at the keys of the
+// focused pane and of the app, and that the help lists them all without
+// taking room from the panes.
 func TestHelpShowsPaneAndAppKeys(t *testing.T) {
 	m, fakes := newTestApp(t)
 	s := onScreen(m)
 	for _, want := range []string{"x close", "/ search", "n notifications", "? help", "q quit"} {
 		if !strings.Contains(s, want) {
-			t.Errorf("help lacks %q:\n%s", want, s)
+			t.Errorf("the bar lacks %q:\n%s", want, s)
 		}
 	}
-	short := fakes[0].height
-	run(m, m.key(press("?")))
-	if fakes[0].height >= short {
-		t.Errorf("height with full help = %d, want less than %d", fakes[0].height, short)
+	height := fakes[0].height
+	rows := helpRows(t, m)
+	for _, want := range []string{"tab ] next pane", "1 2 3 focus pane", "x close", "? help"} {
+		if !slices.Contains(rows, want) {
+			t.Errorf("the help lacks %q: %q", want, rows)
+		}
 	}
-	if s = onScreen(m); !strings.Contains(s, "next pane") || !strings.Contains(s, "1/2/3 focus pane") {
-		t.Errorf("full help lacks the pane keys:\n%s", s)
+	if fakes[0].height != height {
+		t.Errorf("the help resized the pane from %d to %d rows", height, fakes[0].height)
 	}
 }
 

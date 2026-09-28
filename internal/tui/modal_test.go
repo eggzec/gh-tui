@@ -18,6 +18,8 @@ type fakeModal struct {
 	width, height int
 	themed        bool
 	msgs          []tea.Msg
+	// typing is whether the modal types keys into an input.
+	typing bool
 }
 
 func (f *fakeModal) Title() string { return f.title }
@@ -37,7 +39,7 @@ func (f *fakeModal) View() string {
 func (f *fakeModal) SetSize(w, h int)  { f.width, f.height = w, h }
 func (f *fakeModal) SetTheme(ui.Theme) { f.themed = true }
 func (f *fakeModal) KeyLayers() []keyhelp.Layer {
-	return []keyhelp.Layer{keyhelp.FromHelp(f.title, sectionKeys{}, false)}
+	return []keyhelp.Layer{keyhelp.FromHelp(f.title, sectionKeys{}, f.typing)}
 }
 
 func (f *fakeModal) keys() []string {
@@ -50,6 +52,8 @@ func (f *fakeModal) keys() []string {
 	return ks
 }
 
+// TestModalTakesEveryKey checks that a modal takes every key but ctrl+c,
+// which quits, and the help key, which opens the help over it.
 func TestModalTakesEveryKey(t *testing.T) {
 	m, fakes := newTestApp(t)
 	mod := &fakeModal{title: "Preview"}
@@ -58,17 +62,17 @@ func TestModalTakesEveryKey(t *testing.T) {
 		t.Fatalf("modal opened without theme or size: themed %v, %dx%d", mod.themed, mod.width, mod.height)
 	}
 
-	for _, k := range []string{"q", "?", "tab", "x"} {
+	for _, k := range []string{"q", "tab", "x"} {
 		run(m, m.key(press(k)))
 	}
-	if got := mod.keys(); !slices.Equal(got, []string{"q", "?", "tab", "x"}) {
-		t.Errorf("modal got keys %v, want all four", got)
+	if got := mod.keys(); !slices.Equal(got, []string{"q", "tab", "x"}) {
+		t.Errorf("modal got keys %v, want all three", got)
 	}
 	if fakes[0].got(func(msg tea.Msg) bool { _, ok := msg.(tea.KeyPressMsg); return ok }) {
 		t.Error("a section got a key while a modal was open")
 	}
-	if m.focus != 0 || m.help.ShowAll {
-		t.Errorf("app keys acted under a modal: focus %d, full help %v", m.focus, m.help.ShowAll)
+	if m.focus != 0 || m.helpOpen() {
+		t.Errorf("app keys acted under a modal: focus %d, help open %v", m.focus, m.helpOpen())
 	}
 
 	cmd := m.key(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})

@@ -38,7 +38,7 @@ var commands = []command{
 	{name: "copy", detail: "copy the url, ref, sha or path of what is selected", args: true, run: (*Model).copyCommand, complete: completeCopy},
 	{name: "filter", detail: "filter the focused list", run: filtering(filterform.FiltersTab)},
 	{name: "goto", detail: "open a repository, issue, pull request or link", args: true, run: (*Model).gotoCommand, complete: (*Model).completeTarget},
-	{name: "help", detail: "show every key", run: pressing(config.ActionHelp)},
+	{name: "help", detail: "list the keys", run: pressing(config.ActionHelp)},
 	{name: "open", detail: "open on GitHub what follows, or what is selected", args: true, run: (*Model).openCommand, complete: (*Model).completeTarget},
 	{name: "q", detail: "quit", quits: true, run: func(*Model, string) tea.Cmd { return tea.Quit }},
 	{name: "refresh", detail: "read the focused view again", run: pressing(config.ActionRefresh)},

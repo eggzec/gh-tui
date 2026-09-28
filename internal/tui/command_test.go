@@ -214,7 +214,7 @@ func TestLineTakesEveryKey(t *testing.T) {
 	m, fakes := newTestApp(t)
 	drive(m, m.key(press(":")))
 	typeKeys(m, "qn2?/")
-	if m.screen != repoScreen || m.focus != 0 || m.help.ShowAll {
+	if m.screen != repoScreen || m.focus != 0 || m.helpOpen() {
 		t.Errorf("app keys acted while the line was open: screen %d, focus %d", m.screen, m.focus)
 	}
 	if fakes[0].got(func(msg tea.Msg) bool { _, ok := msg.(tea.KeyPressMsg); return ok }) {
@@ -333,9 +333,8 @@ func TestHelpNamesTheCommandKey(t *testing.T) {
 	if s := onScreen(m); !strings.Contains(s, ": command") {
 		t.Errorf("short help lacks the command key:\n%s", s)
 	}
-	drive(m, m.key(press("?")))
-	if s := onScreen(m); !strings.Contains(s, ": command") {
-		t.Errorf("full help lacks the command key:\n%s", s)
+	if rows := helpRows(t, m); !slices.Contains(rows, ": command") {
+		t.Errorf("the help lacks the command key: %q", rows)
 	}
 	fakes[0].capturing = true
 	if s := onScreen(m); strings.Contains(s, ": command") {
@@ -344,7 +343,10 @@ func TestHelpNamesTheCommandKey(t *testing.T) {
 	fakes[0].capturing = false
 	m.openModal(&fakeModal{title: "Preview"})
 	if s := onScreen(m); strings.Contains(s, ": command") {
-		t.Errorf("the help under a modal names the command key, which it doesn't take:\n%s", s)
+		t.Errorf("the bar over a modal names the command key, which it doesn't take:\n%s", s)
+	}
+	if rows := helpRows(t, m); slices.Contains(rows, ": command") {
+		t.Errorf("the help of a modal names the command key, which it doesn't take: %q", rows)
 	}
 }
 
@@ -456,12 +458,8 @@ func TestPressingCommands(t *testing.T) {
 	t.Run("help", func(t *testing.T) {
 		m, fakes := newTestApp(t)
 		runCommand(t, m, "help")
-		if !m.help.ShowAll {
-			t.Fatal("help didn't show every key")
-		}
-		runCommand(t, m, "help")
-		if m.help.ShowAll {
-			t.Error("help again didn't hide them, as ? does")
+		if !m.helpOpen() || m.keyhelp.Title() != "Help · Files" {
+			t.Fatalf("help didn't open the help of the focused pane: open %v, title %q", m.helpOpen(), m.keyhelp.Title())
 		}
 		if fakes[0].got(isKey("?")) {
 			t.Error("the key reached the section")

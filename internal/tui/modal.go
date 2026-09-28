@@ -32,6 +32,8 @@ func (m *Model) openModal(mod ui.Modal) {
 	if h, ok := m.modal.(ui.Hider); ok && m.modal != mod {
 		h.Hide()
 	}
+	// The help lists the keys of what had them before.
+	m.keyhelp.Blur()
 	m.modal = mod
 	mod.SetTheme(m.theme)
 	mod.SetSize(m.modalSize())

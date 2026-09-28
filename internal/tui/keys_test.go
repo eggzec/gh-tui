@@ -80,7 +80,11 @@ func TestKeyLayersOrder(t *testing.T) {
 	if got := winner(m, "x"); got != "Preview: close" {
 		t.Errorf("x reaches %q with a modal open, want the modal", got)
 	}
+	if got := winner(m, "?"); got != "app: help" {
+		t.Errorf("? reaches %q with a modal open, want the help", got)
+	}
+	mod.typing = true
 	if got := winner(m, "?"); got != "nothing" {
-		t.Errorf("? reaches %q with a modal open, want nothing", got)
+		t.Errorf("? reaches %q with a modal that types, want it typed", got)
 	}
 }
