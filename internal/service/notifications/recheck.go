@@ -23,8 +23,12 @@ const SyncKey = "notifications"
 // changed is cached and kept, and reports SyncKey. The later pages are
 // left out: they shift whenever a thread arrives, so a check would mostly
 // find them changed, and pay for it, and they are read again as the list
-// is scrolled anyway. It reads the store, so call it where I/O is fine.
+// is scrolled anyway. Nothing is listed while the token may not read
+// notifications. It reads the store, so call it where I/O is fine.
 func (s *Service) Kept() []revalidate.Entry {
+	if s.refused() != nil {
+		return nil
+	}
 	return recheck.Entries(s.kept, kind, s.target)
 }
 

@@ -58,8 +58,12 @@ func (s *Service) MarkAllRead(until time.Time) *optimistic.Op {
 // answers these requests without the thread, so on success ch is applied
 // again rather than storing a response: a page that was refetched before
 // GitHub made the change would otherwise show the old state until the next
-// refresh.
+// refresh. When the token may not mark notifications, nothing changes and
+// the Op returns why.
 func (s *Service) apply(ch change, send func(ctx context.Context) error) *optimistic.Op {
+	if err := s.refused(); err != nil {
+		return optimistic.Refused(fmt.Errorf("mark notifications: %w", err))
+	}
 	rollback := s.cache.MutateTag(tag, ch)
 	return optimistic.New(func(ctx context.Context) error {
 		if err := send(ctx); err != nil {

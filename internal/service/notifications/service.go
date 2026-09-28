@@ -20,10 +20,19 @@ type API interface {
 	MarkNotificationsRead(ctx context.Context, lastReadAt time.Time) error
 }
 
+// Access tells whether the token may do what an operation needs, as the
+// access service does: nil, or why not.
+type Access interface {
+	Check(n core.Need) error
+}
+
 // Service serves notifications. It is safe for concurrent use.
 type Service struct {
-	api   API
-	cache *cache.Cache[page]
+	api API
+	// access refuses what the token may not do before it is asked for, if
+	// set.
+	access Access
+	cache  *cache.Cache[page]
 	// kept holds what an earlier session read, if the service has a store.
 	kept *cache.Shelf[page]
 	// interval is the latest X-Poll-Interval, in nanoseconds.
@@ -36,8 +45,9 @@ type page = core.Page[core.Notification]
 type Option func(*options)
 
 type options struct {
-	cache []cache.Option
-	store cache.Store
+	cache  []cache.Option
+	store  cache.Store
+	access Access
 }
 
 // WithTTL sets how long a fetched page stays fresh. The default is
@@ -60,6 +70,14 @@ func WithStore(store cache.Store) Option {
 	return func(o *options) { o.store = store }
 }
 
+// WithAccess has the service ask access before it reads or marks
+// notifications, which only some tokens may, so that what the token may
+// not do makes no request, and the poll waits until it may. By default
+// everything is asked for, and GitHub has the last word.
+func WithAccess(access Access) Option {
+	return func(o *options) { o.access = access }
+}
+
 // kind is what the service keeps its pages as, and schema the version of
 // core.Notification they hold. Bump it when the type changes shape.
 const (
@@ -74,8 +92,18 @@ func New(api API, opts ...Option) *Service {
 		opt(&o)
 	}
 	return &Service{
-		api:   api,
-		cache: cache.New[page](o.cache...),
-		kept:  cache.NewShelf[page](o.store, kind, schema),
+		api:    api,
+		access: o.access,
+		cache:  cache.New[page](o.cache...),
+		kept:   cache.NewShelf[page](o.store, kind, schema),
 	}
+}
+
+// refused returns why the token may not read or mark notifications, or
+// nil when it may, or when that isn't known.
+func (s *Service) refused() error {
+	if s.access == nil {
+		return nil
+	}
+	return s.access.Check(core.NeedNotifications)
 }
