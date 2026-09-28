@@ -39,6 +39,8 @@ type Client struct {
 	graphqlURL   string
 	budget       *budget
 	access       *tokenAccess
+	// logURLs keeps the signed URLs of the logs of jobs in progress.
+	logURLs logURLs
 }
 
 // Option configures a Client.
