@@ -7,7 +7,8 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/ansi"
+
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // Kind is what a line of a log is, as the runner marked it.
@@ -242,7 +243,7 @@ func normalize(sections []Section, n int) []section {
 
 // cleanTitle returns a title on one line, without escape sequences.
 func cleanTitle(s string) string {
-	t, _ := sanitize(strings.Join(strings.Fields(ansi.Strip(s)), " "), 1)
+	t, _ := sanitize(strings.Join(strings.Fields(termtext.OneLine(s)), " "), 1)
 	return t
 }
 

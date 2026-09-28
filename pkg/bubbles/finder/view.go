@@ -296,9 +296,9 @@ func isContinuation(c byte) bool { return c&0xc0 == 0x80 }
 // the layout.
 func clean(s string) string {
 	if !strings.ContainsFunc(s, func(r rune) bool { return r < 0x20 || r == 0x7f }) {
-		return s
+		return termtext.OneLine(s)
 	}
-	return strings.Join(strings.Fields(ansi.Strip(s)), " ")
+	return strings.Join(strings.Fields(termtext.OneLine(s)), " ")
 }
 
 // fit truncates or pads styled text to exactly width cells.

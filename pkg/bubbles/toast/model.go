@@ -13,7 +13,8 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/ansi"
+
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // Level is the severity of a toast.
@@ -254,5 +255,5 @@ func (m *Model) changed() {
 // clean puts text on one line without escape sequences, so that it can't
 // break the layout it is drawn over.
 func clean(text string) string {
-	return strings.Join(strings.Fields(ansi.Strip(text)), " ")
+	return strings.Join(strings.Fields(termtext.OneLine(text)), " ")
 }

@@ -4,6 +4,8 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // View renders the command line at exactly its width and [Model.Height]:
@@ -169,7 +171,7 @@ func fit(s string, width int) string {
 // clean puts text on one line without escape sequences, so it can't break
 // the layout.
 func clean(s string) string {
-	return strings.Join(strings.Fields(ansi.Strip(s)), " ")
+	return strings.Join(strings.Fields(termtext.OneLine(s)), " ")
 }
 
 // oneLine puts text on one line without escape sequences, keeping its

@@ -5,6 +5,8 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // View renders the prompt at exactly its width and height: the title, the
@@ -138,5 +140,5 @@ func fit(s string, width int) string {
 // clean puts text on one line without escape sequences, so it can't break
 // the frame.
 func clean(s string) string {
-	return strings.Join(strings.Fields(ansi.Strip(s)), " ")
+	return strings.Join(strings.Fields(termtext.OneLine(s)), " ")
 }

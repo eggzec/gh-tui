@@ -6,7 +6,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/alecthomas/chroma/v2"
-	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/pkg/syntax"
 	"github.com/eggzec/gh-tui/pkg/termtext"
@@ -87,7 +86,7 @@ func (m *Model) SetError(name string, err error) {
 func (m *Model) SetMessage(name, text string) {
 	m.reset(name, stateMessage, nil)
 	// One line without escape sequences, so it can't break the layout.
-	m.note = strings.Join(strings.Fields(ansi.Strip(text)), " ")
+	m.note = strings.Join(strings.Fields(termtext.OneLine(text)), " ")
 }
 
 // reset forgets the content and stops its highlighter.
@@ -112,5 +111,5 @@ func (m *Model) reset(name string, s state, err error) {
 // renderName renders the name for the status line, on one line and without
 // escape sequences.
 func (m *Model) renderName() {
-	m.nameView = m.styles.Name.Render(strings.Join(strings.Fields(ansi.Strip(m.name)), " "))
+	m.nameView = m.styles.Name.Render(strings.Join(strings.Fields(termtext.OneLine(m.name)), " "))
 }
