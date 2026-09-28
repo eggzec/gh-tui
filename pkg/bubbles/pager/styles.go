@@ -5,8 +5,11 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
+
 	"github.com/alecthomas/chroma/v2"
 	chromastyles "github.com/alecthomas/chroma/v2/styles"
+
+	"github.com/eggzec/gh-tui/pkg/termtext"
 
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 )
@@ -112,12 +115,16 @@ func (m *Model) SetStyles(s Styles) {
 }
 
 // pair is the escape sequences that turn a style on and off.
-type pair struct{ on, off string }
+// A pair's pen writes content's own styles over its style.
+type pair struct {
+	on, off string
+	pen     termtext.Pen
+}
 
 func newPair(s lipgloss.Style) pair {
 	// Escape sequences never hold an x, so it marks the content.
 	on, off, _ := strings.Cut(s.Render("x"), "x")
-	return pair{on, off}
+	return pair{on: on, off: off, pen: termtext.NewPen(on)}
 }
 
 func (p pair) wrap(s string) string { return p.on + s + p.off }

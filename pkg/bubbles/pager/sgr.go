@@ -69,8 +69,10 @@ func (m Model) writeStyled(b *strings.Builder, i, a, e int) {
 	if k > 0 {
 		style = marks[k-1].Seq
 	}
-	b.WriteString(base.on)
-	b.WriteString(style)
+	// The pen writes only what changes from one style to the next.
+	pen := base.pen
+	pen.Start(b)
+	pen.Write(b, style)
 	mi, inMatch := 0, false
 	for pos := a; pos < e; {
 		if k < len(marks) && marks[k].Pos <= pos {
@@ -80,7 +82,7 @@ func (m Model) writeStyled(b *strings.Builder, i, a, e int) {
 			style = marks[k-1].Seq
 			// A match hides the colors, which come back after it.
 			if !inMatch {
-				writeStyle(b, base, style)
+				pen.Write(b, style)
 			}
 		}
 		for mi < len(matches) && matches[mi][1] <= pos {
@@ -102,6 +104,7 @@ func (m Model) writeStyled(b *strings.Builder, i, a, e int) {
 					}
 					b.WriteString(ansi.ResetStyle)
 					b.WriteString(p.on)
+					pen.Lost()
 					inMatch = true
 				}
 				next = min(next, end)
@@ -110,17 +113,9 @@ func (m Model) writeStyled(b *strings.Builder, i, a, e int) {
 		b.WriteString(s[pos:next])
 		pos = next
 		if inMatch && pos >= matches[mi][1] {
-			writeStyle(b, base, style)
+			pen.Write(b, style)
 			inMatch = false
 		}
 	}
 	b.WriteString(ansi.ResetStyle)
-}
-
-// writeStyle puts the base style back, and the content's style seq over
-// it.
-func writeStyle(b *strings.Builder, base pair, seq string) {
-	b.WriteString(ansi.ResetStyle)
-	b.WriteString(base.on)
-	b.WriteString(seq)
 }

@@ -166,15 +166,23 @@ func (s *sgrState) apply(params string) {
 		case "59":
 			s.ul = ""
 		case "38", "48", "58":
-			c := ps[i]
-			if !colon {
+			var args []string
+			if colon {
+				args = strings.Split(sub, ":")
+			} else {
 				n := colorArgs(ps[i+1:])
 				if n < 0 {
 					// The rest can't be read apart from the color.
 					return
 				}
-				c = params[starts[i] : starts[i+n]+len(ps[i+n])]
+				args = ps[i+1 : i+1+n]
 				i += n
+			}
+			c, ok := color(v, args)
+			if !ok {
+				// A color no terminal reads is dropped, whatever it was
+				// before.
+				continue
 			}
 			switch v {
 			case "38":
@@ -202,6 +210,61 @@ func (s *sgrState) apply(params string) {
 			}
 		}
 	}
+}
+
+// color returns the parameters that set the color of kind, 38, 48 or 58,
+// that args, what follows kind in the sequence, name, in their shortest
+// form: 5;n for one of 256 colors and 2;r;g;b for a true color, in
+// decimal, so no color keeps the padding or the colon form it came in and
+// every style stays short. The colon form of a true color may name a
+// color space before r, which is dropped. It reports false for args that
+// name no color.
+func color(kind string, args []string) (string, bool) {
+	if len(args) == 0 {
+		return "", false
+	}
+	var nums []string
+	switch strings.TrimLeft(args[0], "0") {
+	case "5":
+		nums = args[1:]
+		if len(nums) != 1 {
+			return "", false
+		}
+	case "2":
+		nums = args[1:]
+		if len(nums) == 4 {
+			// The color space of the colon form.
+			nums = nums[1:]
+		}
+		if len(nums) != 3 {
+			return "", false
+		}
+	default:
+		return "", false
+	}
+	var b strings.Builder
+	b.WriteString(kind + ";" + strings.TrimLeft(args[0], "0"))
+	for _, n := range nums {
+		v, ok := byteValue(n)
+		if !ok {
+			return "", false
+		}
+		b.WriteString(";" + v)
+	}
+	return b.String(), true
+}
+
+// byteValue returns n, a decimal of 0 to 255, without its leading zeros,
+// with "" for 0, as the colon form may leave it.
+func byteValue(n string) (string, bool) {
+	v := strings.TrimLeft(n, "0")
+	if v == "" {
+		return "0", true
+	}
+	if len(v) > 3 || strings.Trim(v, "0123456789") != "" || len(v) == 3 && v > "255" {
+		return "", false
+	}
+	return v, true
 }
 
 // colorArgs returns how many of args, the parameters after 38, 48 or 58,

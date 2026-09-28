@@ -127,7 +127,7 @@ func TestViewColors(t *testing.T) {
 		t.Errorf("colors lost: %q", v)
 	}
 	m = find(t, m, "c d")
-	if v := m.View(); !strings.Contains(v, "\x1b[31mab\x1b[m\x1b[7mc d\x1b[m\x1b[31mef\x1b[m ghi") {
+	if v := m.View(); !strings.Contains(v, "\x1b[31mab\x1b[m\x1b[7mc d\x1b[0;31mef\x1b[m ghi") {
 		t.Errorf("match over colors: %q", v)
 	}
 	// Scrolled into the red, the view starts with it.
@@ -138,12 +138,13 @@ func TestViewColors(t *testing.T) {
 	}
 }
 
-// Error lines keep their own colors over the error style.
+// Error lines keep their own colors over the error style, which stays
+// under them: a change writes only what changes.
 func TestViewErrorStyle(t *testing.T) {
 	m := view(t, []Line{{Kind: Error, Text: "plain \x1b[1mbold\x1b[0m after"}}, WithSize(40, 2), WithLineNumbers(false))
 	base := m.esc.kinds[Error].on
 	v := m.View()
-	if !strings.Contains(v, base+"plain \x1b[m"+base+"\x1b[1mbold\x1b[m"+base+" after") {
+	if !strings.Contains(v, base+"plain \x1b[1mbold\x1b[22m after") {
 		t.Errorf("error line %q, want its bold over the error style %q", v, base)
 	}
 	if !strings.Contains(ansi.Strip(v), errorLineGlyph) {
