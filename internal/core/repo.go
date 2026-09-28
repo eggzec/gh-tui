@@ -49,9 +49,9 @@ const maxNameLen = 100
 func checkOwner(s string) error {
 	switch {
 	case strings.HasPrefix(s, "-"):
-		return fmt.Errorf("owner %q may not start with '-'", s)
+		return badPart("an owner may not start with '-'", fmt.Errorf("owner %q may not start with '-'", s))
 	case !onlyChars(s, "-_"):
-		return fmt.Errorf("owner %q may hold only letters, digits, '-' and '_'", s)
+		return badPart("an owner may hold only letters, digits, '-' and '_'", fmt.Errorf("owner %q may hold only letters, digits, '-' and '_'", s))
 	}
 	return nil
 }
@@ -64,13 +64,36 @@ func checkName(s string) error {
 	case len(s) > maxNameLen:
 		return fmt.Errorf("name is longer than %d characters", maxNameLen)
 	case s == "." || s == "..":
-		return fmt.Errorf("name may not be %q", s)
+		return badPart("a name may not be . or ..", fmt.Errorf("name may not be %q", s))
 	case strings.HasSuffix(s, ".git"):
-		return fmt.Errorf("name %q may not end in \".git\"", s)
+		return badPart("a name may not end in .git", fmt.Errorf("name %q may not end in \".git\"", s))
 	case !onlyChars(s, ".-_"):
-		return fmt.Errorf("name %q may hold only letters, digits, '.', '-' and '_'", s)
+		return badPart("a name may hold only letters, digits, '.', '-' and '_'", fmt.Errorf("name %q may hold only letters, digits, '.', '-' and '_'", s))
 	}
 	return nil
+}
+
+// partError is what is wrong with an owner or a name: its message quotes
+// the part, for the log, and its reason doesn't, for the user, who knows
+// what they typed.
+type partError struct {
+	reason string
+	err    error
+}
+
+func (e *partError) Error() string { return e.err.Error() }
+
+func badPart(reason string, err error) error {
+	return &partError{reason: reason, err: err}
+}
+
+// reasonOf returns what err, from parseRepoRef, says is wrong, without
+// quoting the owner or name.
+func reasonOf(err error) string {
+	if e, ok := errors.AsType[*partError](err); ok {
+		return e.reason
+	}
+	return err.Error()
 }
 
 // onlyChars reports whether s holds only ASCII letters, digits and extra.
