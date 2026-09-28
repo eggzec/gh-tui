@@ -31,6 +31,9 @@ func TestExplain(t *testing.T) {
 		reason  string
 		reset   time.Time
 		subject string
+		grant   string
+		sso     bool
+		ssoURL  string
 	}{
 		{name: "plain", err: errors.New("decode response: unexpected EOF"), kind: Internal},
 		{name: "canceled", err: fmt.Errorf("list pulls: %w", &url.Error{Op: "Get", Err: context.Canceled}), kind: Canceled},
@@ -62,13 +65,33 @@ func TestExplain(t *testing.T) {
 		{name: "invalid query", err: fmt.Errorf("search code: %w", &InvalidQueryError{Reason: "unknown qualifier lang"}), kind: Rejected, reason: "unknown qualifier lang"},
 		{name: "rate limit over forbidden", err: errors.Join(ErrForbidden, &RateLimitError{Reset: reset}), kind: RateLimited, reset: reset},
 		{name: "auth over not found", err: errors.Join(ErrNotFound, ErrUnauthorized), kind: Auth},
+		{
+			name:   "scope from GitHub",
+			err:    fmt.Errorf("merge #5: %w", &apiError{"Resource not accessible by personal access token", &ScopeError{Scopes: []string{"workflow", "repo"}}}),
+			kind:   Auth,
+			reason: "Resource not accessible by personal access token",
+			grant:  "workflow",
+		},
+		{name: "scope known before asking", err: fmt.Errorf("re-run: %w", &ScopeError{Scopes: []string{"repo"}}), kind: Auth, reason: "needs the repo scope", grant: "repo"},
+		{name: "scope unnamed", err: &ScopeError{}, kind: Auth},
+		{
+			name:   "sso",
+			err:    fmt.Errorf("list issues: %w", &apiError{sso.msg, &SSOError{URL: "https://github.com/orgs/eggzec/sso?authorization_request=x"}}),
+			kind:   Forbidden,
+			reason: sso.msg,
+			sso:    true,
+			ssoURL: "https://github.com/orgs/eggzec/sso?authorization_request=x",
+		},
+		{name: "sso without a URL", err: &SSOError{Err: sso}, kind: Forbidden, reason: sso.msg, sso: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := Explain("load it", tt.err)
-			if p.Kind != tt.kind || p.Reason != tt.reason || !p.Reset.Equal(tt.reset) || p.Subject != tt.subject {
-				t.Errorf("Explain(%v) = {%v %q %v %q}, want {%v %q %v %q}", tt.err,
-					p.Kind, p.Reason, p.Reset, p.Subject, tt.kind, tt.reason, tt.reset, tt.subject)
+			if p.Kind != tt.kind || p.Reason != tt.reason || !p.Reset.Equal(tt.reset) || p.Subject != tt.subject ||
+				p.Grant != tt.grant || p.SSO != tt.sso || p.SSOURL != tt.ssoURL {
+				t.Errorf("Explain(%v) = {%v %q %v %q %q %v %q}, want {%v %q %v %q %q %v %q}", tt.err,
+					p.Kind, p.Reason, p.Reset, p.Subject, p.Grant, p.SSO, p.SSOURL,
+					tt.kind, tt.reason, tt.reset, tt.subject, tt.grant, tt.sso, tt.ssoURL)
 			}
 			if k := KindOf(tt.err); k != tt.kind {
 				t.Errorf("KindOf(%v) = %v, want %v", tt.err, k, tt.kind)
@@ -116,6 +139,20 @@ func TestProblemChain(t *testing.T) {
 	}
 	if got := (&Problem{Err: err}).Error(); got != err.Error() {
 		t.Errorf("Error() without an action = %q, want %q", got, err.Error())
+	}
+}
+
+func TestScopeError(t *testing.T) {
+	cause := &apiError{"Resource not accessible", ErrForbidden}
+	err := &ScopeError{Scopes: []string{"workflow"}, Err: cause}
+	if !errors.Is(err, ErrUnauthorized) || !errors.Is(err, ErrForbidden) {
+		t.Errorf("%v matches neither ErrUnauthorized nor what it wraps", err)
+	}
+	if got, want := err.Error(), "the token lacks the workflow scope: github: Resource not accessible"; got != want {
+		t.Errorf("Error() = %q, want %q", got, want)
+	}
+	if !errors.Is(&SSOError{}, ErrForbidden) {
+		t.Error("SSOError doesn't match ErrForbidden")
 	}
 }
 

@@ -36,3 +36,62 @@ func (e *RateLimitError) Error() string {
 func (e *RateLimitError) Is(target error) bool {
 	return target == ErrRateLimited
 }
+
+// ScopeError is an operation that the token lacks a scope for, as GitHub
+// said or as Access knew before asking. It matches ErrUnauthorized, and
+// Err, the error it came with, if any.
+type ScopeError struct {
+	// Scopes are those of which the operation needs any one, the one to
+	// grant first.
+	Scopes []string
+	Err    error
+}
+
+func (e *ScopeError) Error() string {
+	msg := "the token lacks the " + e.Grant() + " scope"
+	if e.Err == nil {
+		return msg
+	}
+	return msg + ": " + e.Err.Error()
+}
+
+// Grant returns the scope to grant the token, or "" if none is known.
+func (e *ScopeError) Grant() string {
+	if len(e.Scopes) == 0 {
+		return ""
+	}
+	return e.Scopes[0]
+}
+
+// Unwrap returns ErrUnauthorized and Err.
+func (e *ScopeError) Unwrap() []error {
+	if e.Err == nil {
+		return []error{ErrUnauthorized}
+	}
+	return []error{ErrUnauthorized, e.Err}
+}
+
+// SSOError is an organization refusing a token that isn't authorized for
+// its single sign-on. It matches ErrForbidden, and Err, the error it came
+// with, if any.
+type SSOError struct {
+	// URL is where the user authorizes the token, or "" if GitHub didn't
+	// say.
+	URL string
+	Err error
+}
+
+func (e *SSOError) Error() string {
+	if e.Err == nil {
+		return "the token isn't authorized for the organization's SSO"
+	}
+	return "sso: " + e.Err.Error()
+}
+
+// Unwrap returns ErrForbidden and Err.
+func (e *SSOError) Unwrap() []error {
+	if e.Err == nil {
+		return []error{ErrForbidden}
+	}
+	return []error{ErrForbidden, e.Err}
+}
