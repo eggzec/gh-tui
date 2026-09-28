@@ -1,6 +1,8 @@
 package files
 
 import (
+	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -386,5 +388,48 @@ func TestFindFileAfterRefresh(t *testing.T) {
 	f = findIn(t, h)
 	if f.find.Total() != len(sampleFiles)+1 {
 		t.Errorf("%d files listed after a refresh, want the new one too", f.find.Total())
+	}
+}
+
+// The preview of a file, on its own and beside the finder, says what went
+// wrong the way the user should read it, without the error's chain,
+// request or status code, and names the key that opens the file there.
+func TestPreviewErrorWords(t *testing.T) {
+	tests := []struct {
+		name            string
+		err             error
+		preview, finder string
+	}{
+		{"offline", fmt.Errorf("get blob: github: GET /repos/eggzec/gh-tui/git/blobs/b: %w", core.ErrOffline),
+			"✗ Can't reach GitHub", "✗ Can't reach GitHub"},
+		{"forbidden", fmt.Errorf("get blob: github: 403 Forbidden: %w", core.ErrForbidden),
+			"✗ You don't have access to eggzec/gh-tui · o to open on GitHub", "✗ You don't have access to eggzec/gh-tui · ^o to open on GitHub"},
+		{"internal", errors.New("get blob: github: decode: unexpected EOF"),
+			"✗ Something went wrong. Details are in the log", "✗ Something went wrong. Details are in the log"},
+	}
+	voice := WithVoice(ui.NewVoice(config.Default().Keys, "/var/log/gh-tui.log"))
+	clean := func(v string) string { return strings.Join(strings.Fields(ansi.Strip(v)), " ") }
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fk := sampleFake()
+			fk.blobErrs[file(".gitignore", 0).SHA] = tt.err
+			h := newHost(loaded(t, fk, 40, 12, voice))
+			h.width, h.height = 120, 16
+			h.keys(slices.Repeat([]string{"down"}, rowGitignore)...)
+			h.keys("enter")
+			if got := clean(h.modal()); !strings.Contains(got, tt.preview) || strings.Contains(got, "github:") || strings.Contains(got, "403") || strings.Contains(got, "/repos") {
+				t.Errorf("preview = %q, want %q", got, tt.preview)
+			}
+
+			fk = sampleFake()
+			fk.blobErrs[file(".gitignore", 0).SHA] = tt.err
+			h = newHost(loaded(t, fk, 40, 12, fast, voice))
+			h.width, h.height = 160, 16
+			f := findIn(t, h)
+			h.keys(strings.Split("gitignore", "")...)
+			if got := clean(f.View()); !strings.Contains(got, tt.finder) || strings.Contains(got, "github:") || strings.Contains(got, "403") {
+				t.Errorf("finder = %q, want %q", got, tt.finder)
+			}
+		})
 	}
 }
