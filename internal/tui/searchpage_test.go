@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
@@ -132,8 +133,9 @@ func TestPreviewFromSearch(t *testing.T) {
 			if fakes[5].got(isKey("j")) || !slices.Contains(mod.keys(), "j") {
 				t.Error("the modal should take the keys while it is open")
 			}
-			if short := m.hints().ShortHelp(); len(short) != 1 || short[0].Help().Desc != "close" {
-				t.Errorf("the help line offers %d keys, want the modal's alone", len(short))
+			m.refreshBar()
+			if len(m.hints) != 1 || !strings.HasSuffix(ansi.Strip(m.hints[0].Forms[0]), "close") {
+				t.Errorf("the status bar offers %d keys, want the modal's alone", len(m.hints))
 			}
 			run(m, ui.CloseModal(mod))
 			if m.topModal() != nil || m.screen != searchScreen || !fakes[5].focused {

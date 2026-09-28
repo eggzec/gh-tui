@@ -9,7 +9,7 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 )
 
-// Hints is the key map of the help line, over layers in the order a key
+// Hints is the key map of the status bar, over layers in the order a key
 // reaches them. It offers the bindings that some key reaches, as
 // keyhelp.Analyze finds them: each layer's short help in the short view,
 // and a column of all its bindings a layer in the full view. The layers

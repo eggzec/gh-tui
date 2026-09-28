@@ -53,7 +53,7 @@ func newLine(keys map[string][]string) cmdline.Model {
 	)
 }
 
-// openLine opens the command line in place of the help line.
+// openLine opens the command line in place of the status bar.
 func (m *Model) openLine() tea.Cmd {
 	cmd := m.line.Open("")
 	m.layout()

@@ -13,8 +13,9 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/overlay"
 )
 
-// View lays out the header, the screen on view and the help line, or the
-// command line in its place, with the top modal and the toasts over them.
+// View lays out the header, the screen on view and the status bar, or the
+// command line in its place, with the top modal over them and the toasts
+// over all but the last line, which the status bar keeps.
 func (m *Model) View() tea.View {
 	// The footer is rendered once, and its height is that of what it
 	// shows.
@@ -33,7 +34,7 @@ func (m *Model) View() tea.View {
 		b.WriteString(l)
 	}
 	// The screen fills its height even when it has nothing to show, so the
-	// help line stays at the bottom.
+	// footer stays at the bottom.
 	for range pad {
 		b.WriteByte('\n')
 	}
@@ -47,7 +48,12 @@ func (m *Model) View() tea.View {
 		screen = lipgloss.PlaceVertical(m.height, lipgloss.Top, screen)
 		screen = overlay.Center(screen, m.frame(mod), m.width, m.height)
 	}
-	v := tea.NewView(m.toast.Overlay(screen, m.width, m.height))
+	if i := strings.LastIndexByte(screen, '\n'); i >= 0 && m.height > 1 {
+		screen = m.toast.Overlay(screen[:i], m.width, m.height-1) + screen[i:]
+	} else {
+		screen = m.toast.Overlay(screen, m.width, m.height)
+	}
+	v := tea.NewView(screen)
 	v.AltScreen = true
 	v.ReportFocus = true
 	v.WindowTitle = "gh-tui"
@@ -57,8 +63,9 @@ func (m *Model) View() tea.View {
 // layout gives each part its share of the screen.
 func (m *Model) layout() {
 	m.help.SetWidth(m.width)
+	m.status.SetWidth(m.width)
 	m.line.SetSize(m.width, cmdline.MaxHeight)
-	m.toast.SetSize(m.width, m.height)
+	m.toast.SetSize(m.width, max(m.height-1, 0))
 	m.arrange(m.contentHeight())
 	if m.modal != nil {
 		m.modal.SetSize(m.modalSize())
@@ -67,13 +74,13 @@ func (m *Model) layout() {
 	m.drawHeader()
 }
 
-// contentHeight is the height between the header and the help line.
+// contentHeight is the height between the header and the footer.
 func (m *Model) contentHeight() int {
 	return max(m.height-1-m.footerHeight(), 0)
 }
 
 // footer is what the bottom of the screen shows: the command line while it
-// is open, a spinner while a goto waits for GitHub, and the help line
+// is open, a spinner while a goto waits for GitHub, and the status bar
 // otherwise.
 func (m *Model) footer() string {
 	switch {
@@ -82,7 +89,7 @@ func (m *Model) footer() string {
 	case m.going != nil:
 		return m.goingView()
 	}
-	return m.help.View(m.hints())
+	return m.bar()
 }
 
 // footerHeight is the height of the footer.
@@ -93,18 +100,7 @@ func (m *Model) footerHeight() int {
 	case m.going != nil:
 		return 1
 	}
-	return m.helpHeight()
-}
-
-func (m *Model) helpHeight() int {
-	return lipgloss.Height(m.help.View(m.hints()))
-}
-
-// hints is the key map of the help line: the keys that reach something
-// now, with the app's own after those of what has the focus.
-func (m *Model) hints() ui.Hints {
-	// The way out of a zoom leads, where a narrow line still shows it.
-	return ui.Hints{Layers: m.keyLayers(), Lead: []key.Binding{m.keys.state(m).Back}}
+	return m.barHeight()
 }
 
 // keyLayers returns the keys the app and what has the focus take, in the

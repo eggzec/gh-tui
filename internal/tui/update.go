@@ -85,7 +85,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(cmd, m.broadcast(msg))
 	case ui.SyncMsg:
 		if msg.Key == core.SyncRateLimit {
-			// The sections show nothing of the rate limits.
+			// Only the status bar shows the rate limits.
 			m.readRates()
 			cmd := m.listen()
 			return m, cmd
