@@ -18,6 +18,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/threads"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -203,5 +204,13 @@ func (s *Section) Blur() {
 	s.opener.Stop()
 }
 
-// Help returns the keys of the section, the list's navigation included.
-func (s *Section) Help() help.KeyMap { return s.keys.withFeed(s.feed.KeyMap(), s.filtered()) }
+// Help lists the keys of the section for the help line.
+func (s *Section) Help() help.KeyMap { return ui.Hints{Layers: s.KeyLayers()} }
+
+// KeyLayers implements ui.Keyed: the section's own keys, with the one
+// that clears the filter only while there is one, and then the list's.
+func (s *Section) KeyLayers() []keyhelp.Layer {
+	k := s.keys
+	k.ClearFilter.SetEnabled(k.ClearFilter.Enabled() && s.filtered())
+	return []keyhelp.Layer{keyhelp.FromHelp(ui.NotificationsTitle, k, false), keyhelp.FromHelp("list", s.feed.KeyMap(), false)}
+}
