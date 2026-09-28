@@ -248,16 +248,16 @@ func (m Model) FullHelp() [][]key.Binding {
 
 // Keys returns the main keys of what has the focus, for the short help:
 // the moves through the annotations and the one that opens its file, or
-// the folds, errors and search of the log.
+// the folds, errors and search of the log. Folding every step works from
+// both.
 func (m Model) Keys() []key.Binding {
-	k := m.keys
+	k, lk := m.keys, m.view.KeyMap()
 	if m.OnAnnotations() {
 		ann := k.Annotations
 		ann.SetHelp(ann.Help().Key, "log")
-		return []key.Binding{k.Up, k.Down, k.Select, ann}
+		return []key.Binding{k.Up, k.Down, k.Select, lk.FoldAll, ann}
 	}
-	lk := m.view.KeyMap()
-	keys := []key.Binding{lk.Toggle, lk.NextError, lk.Search}
+	keys := []key.Binding{lk.Toggle, lk.FoldAll, lk.NextError, lk.Search}
 	if len(m.notes.items) > 0 {
 		keys = append(keys, k.Annotations)
 	}

@@ -208,6 +208,12 @@ func TestAnnotations(t *testing.T) {
 	if got := keys(m, "A"); len(got) != 0 || !m.OnAnnotations() || m.view.Focused() {
 		t.Fatal("A didn't give the keys to the annotations")
 	}
+	// Folding every step works from the annotations, which keep the keys.
+	before := m.view.View()
+	if got := keys(m, "*"); len(got) != 0 || !m.OnAnnotations() || m.view.Focused() || m.view.View() == before {
+		t.Error("* didn't fold the steps of the log from the annotations")
+	}
+	keys(m, "*")
 	got := keys(m, "j", "enter")
 	want := ui.OpenFileMsg{Repo: repo, Path: "key.go", Ref: "f00d", Line: 12}
 	if len(got) != 1 || got[0] != want {
@@ -274,11 +280,11 @@ func TestKeys(t *testing.T) {
 		}
 		return strings.Join(out, ", ")
 	}
-	if got := names(); got != "space fold, e next error, / search, A annotations" {
+	if got := names(); got != "space fold, * fold all, e next error, / search, A annotations" {
 		t.Errorf("keys of the log %q", got)
 	}
 	keys(m, "A")
-	if got := names(); got != "↑/k up, ↓/j down, ↵ open file, A log" {
+	if got := names(); got != "↑/k up, ↓/j down, ↵ open file, * fold all, A log" {
 		t.Errorf("keys of the annotations %q", got)
 	}
 	if len(m.FullHelp()) == 0 {
