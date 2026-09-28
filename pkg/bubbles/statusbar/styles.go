@@ -1,6 +1,9 @@
 package statusbar
 
-import "charm.land/lipgloss/v2"
+import (
+	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
+)
 
 // Styles holds the styles of a status bar. The items come styled.
 type Styles struct {
@@ -24,5 +27,6 @@ func (m Model) Styles() Styles { return m.styles }
 func (m *Model) SetStyles(s Styles) {
 	m.styles = s
 	m.sep = s.Separator.Render(" · ")
+	m.sepWidth = ansi.StringWidth(m.sep)
 	m.layout()
 }

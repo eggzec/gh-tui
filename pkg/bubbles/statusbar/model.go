@@ -42,8 +42,10 @@ type Model struct {
 	width       int
 	left, right []Item
 	styles      Styles
-	// sep is the separator of the items on the right, rendered.
-	sep string
+	// sep is the separator of the items on the right, rendered, and
+	// sepWidth its width, which a style's padding or margins may widen.
+	sep      string
+	sepWidth int
 	// widths holds the width of each form of each item, the left ones
 	// first, and forms the form each shows, len(Forms) for none.
 	widths [][]int

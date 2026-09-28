@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"charm.land/lipgloss/v2"
+
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
 )
@@ -113,5 +115,20 @@ func TestViewGolden(t *testing.T) {
 			m := New(WithStyles(DefaultStyles(dark)), WithItems(left, right), WithWidth(80))
 			golden.RequireEqual(t, m.View())
 		})
+	}
+}
+
+// TestWideSeparator checks that the bar measures a separator its style
+// widens, so that it still fits its width.
+func TestWideSeparator(t *testing.T) {
+	left, right := testItems()
+	st := Styles{Separator: lipgloss.NewStyle().Padding(0, 1)}
+	m := New(WithItems(left, right), WithStyles(st), WithWidth(57))
+	want := " ? help  core 4 812/5 000  ·  ● online  ·  me@github.com "
+	if got := ansi.Strip(m.View()); got != want {
+		t.Errorf("got  %q\nwant %q", got, want)
+	}
+	if w := ansi.StringWidth(m.View()); w != 57 {
+		t.Errorf("the bar is %d wide, want 55", w)
 	}
 }
