@@ -47,6 +47,8 @@ type RepoCaps struct {
 	// Archived and Locked repositories are read-only for everyone.
 	Archived bool
 	Locked   bool
+	// Private repositories take a token with the repo scope to change.
+	Private bool
 	// Issues, PullRequests, Discussions, Projects and Wiki say which
 	// features are turned on.
 	Issues, PullRequests, Discussions, Projects, Wiki bool
