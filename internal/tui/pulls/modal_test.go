@@ -2,6 +2,7 @@ package pulls
 
 import (
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -369,5 +370,31 @@ func TestCommentsWrapWithinWidth(t *testing.T) {
 		if w := ansi.StringWidth(l); w > 40 {
 			t.Errorf("line is %d wide: %q", w, ansi.Strip(l))
 		}
+	}
+}
+
+// The comments say what went wrong the way the user should read it,
+// naming the pull request, without the error's chain, request or status
+// code.
+func TestCommentsErrorWords(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want string
+	}{
+		{"offline", fmt.Errorf("pull comments: github: POST /graphql: %w", core.ErrOffline), "✗ Can't reach GitHub · r to retry"},
+		{"forbidden", fmt.Errorf("pull comments: github: 403 Forbidden: %w", core.ErrForbidden), "✗ You don't have access to eggzec/gh-tui#142 · o to open on GitHub"},
+		{"internal", errors.New("pull comments: github: decode: unexpected EOF"), "✗ Something went wrong · r to retry"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := newFakeService()
+			svc.commentsErr = tt.err
+			h := started(t, svc, 100, 30)
+			press(t, h, "enter")
+			if v := modalScreen(t, h); !strings.Contains(v, tt.want) || strings.Contains(v, "github:") || strings.Contains(v, "403") || strings.Contains(v, "/graphql") {
+				t.Errorf("modal = %q, want %q", v, tt.want)
+			}
+		})
 	}
 }

@@ -84,7 +84,7 @@ type Section struct {
 	cancelFeed context.CancelFunc
 	// offline is marked by the feed's reads when GitHub can't be reached.
 	offline *ui.Offline
-	// voice words the feed's errors.
+	// voice words the errors of the feed and of the comments.
 	voice ui.Voice
 
 	// ahead reads the details of the rows of feed before they are opened,
