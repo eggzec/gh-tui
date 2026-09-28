@@ -14,7 +14,7 @@ const errorTextLines = 2
 
 // ErrorStyles are how ErrorLine draws an error.
 type ErrorStyles struct {
-	// Mark is the glyph before the text, one cell wide.
+	// Mark is the glyph before the text, one cell wide, or "" for none.
 	Mark string
 	Text lipgloss.Style
 	Hint lipgloss.Style
@@ -26,6 +26,13 @@ func (t Theme) Errors(ic Icons) ErrorStyles {
 	return ErrorStyles{Mark: ic.Error, Text: t.Error, Hint: t.Subtle}
 }
 
+// Empty returns the styles of an empty state that says why a pane has
+// nothing to show, such as data the token may not read: muted, and
+// unmarked, since nothing went wrong.
+func (t Theme) Empty() ErrorStyles {
+	return ErrorStyles{Text: t.Muted, Hint: t.Subtle}
+}
+
 // ErrorLine renders an error as Say words it, in lines of at most width
 // cells: the mark and the text, which wraps to two lines and ends in "…"
 // when it needs more, then " · " and the hint. The hint goes on a line of
@@ -35,6 +42,9 @@ func (t Theme) Errors(ic Icons) ErrorStyles {
 func ErrorLine(s ErrorStyles, text, hint string, width int) []string {
 	width = max(width, 1)
 	lead := s.Mark + " "
+	if s.Mark == "" {
+		lead = ""
+	}
 	indent := strings.Repeat(" ", ansi.StringWidth(lead))
 	if width <= len(indent) {
 		// Too narrow for the mark and a letter besides.

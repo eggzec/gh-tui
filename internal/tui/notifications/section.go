@@ -94,10 +94,14 @@ type Section struct {
 	opener *threads.Opener
 
 	width, height int
+	theme         ui.Theme
 	styles        styles
 	// links keeps the links of the rows, which are drawn on every frame.
 	links  termtext.Links
 	header string
+	// unreadable is drawn in place of the list while the token may not
+	// read notifications, or is "".
+	unreadable string
 }
 
 var (
@@ -130,8 +134,14 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 
 // list reads a page for the feed, and keeps the threads the filter does.
 // A page the filter leaves empty still leads to the next, which the feed
-// reads while its window has room.
+// reads while its window has room. While the token may not read
+// notifications, it reads nothing.
 func (s *Section) list(ctx context.Context, q notifications.ListQuery, again bool) (core.Page[core.Notification], error) {
+	// The section says why in place of the list, so the refusal isn't a
+	// failure of the list.
+	if s.voice.Token.Check(core.NeedNotifications) != nil {
+		return core.Page[core.Notification]{}, nil
+	}
 	f := s.filter()
 	q.Again = again
 	p, err := s.svc.List(ctx, q)
@@ -184,13 +194,16 @@ func (s *Section) SetSize(width, height int) {
 	s.width, s.height = width, height
 	s.feed.SetSize(width, max(height-headerHeight, 0))
 	s.renderHeader()
+	s.renderUnreadable()
 }
 
 // SetTheme builds the styles of the rows and restyles the list.
 func (s *Section) SetTheme(t ui.Theme) {
+	s.theme = t
 	s.styles = newStyles(t)
 	s.feed.SetStyles(t.Feed())
 	s.renderHeader()
+	s.renderUnreadable()
 }
 
 // Focus makes the list react to keys.
@@ -204,9 +217,14 @@ func (s *Section) Blur() {
 }
 
 // KeyLayers implements ui.Keyed: the section's own keys, with the one
-// that clears the filter only while there is one, and then the list's.
+// that clears the filter only while there is one and the marks only while
+// the token may mark, and then the list's.
 func (s *Section) KeyLayers() []keyhelp.Layer {
 	k := s.keys
 	k.ClearFilter.SetEnabled(k.ClearFilter.Enabled() && s.filtered())
+	g := s.gate()
+	k.MarkRead = g.Gated(k.MarkRead, ui.ActMarkRead, nil)
+	k.MarkDone = g.Gated(k.MarkDone, ui.ActMarkRead, nil)
+	k.MarkAllRead = g.Gated(k.MarkAllRead, ui.ActMarkRead, nil)
 	return []keyhelp.Layer{keyhelp.FromHelp(ui.NotificationsTitle, k, false), keyhelp.FromHelp("list", s.feed.KeyMap(), false)}
 }
