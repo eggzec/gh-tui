@@ -48,6 +48,7 @@ type options struct {
 	http     *http.Client
 	host     string
 	token    string
+	source   string
 	baseURL  string
 	gh       ghLookup
 	notify   func()
@@ -72,6 +73,14 @@ func WithToken(token string) Option {
 	return func(o *options) { o.token = token }
 }
 
+// WithTokenSource sets the token that FindToken found, and where it
+// found it, so that the client acts as one that found the token itself:
+// it sends requests the way gh does, and names the account of a token gh
+// stores by its login.
+func WithTokenSource(token, source string) Option {
+	return func(o *options) { o.token, o.source = token, source }
+}
+
 // WithBaseURL sets the REST API root, such as https://api.github.com/. The
 // GraphQL endpoint is derived from it: graphql below the root, or
 // /api/graphql when the root ends in /api/v3 as on GitHub Enterprise Server.
@@ -89,7 +98,7 @@ func New(opts ...Option) (*Client, error) {
 	if o.host == "" && (o.token == "" || o.baseURL == "") {
 		o.host, _ = o.gh.defaultHost()
 	}
-	var source string
+	source := o.source
 	if o.token == "" {
 		o.token, source = o.gh.token(o.host)
 	}
