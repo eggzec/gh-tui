@@ -51,7 +51,7 @@ func (f format) graphCommit(c core.Commit, now time.Time) graph.Commit {
 		case config.FieldShortSHA:
 			g.Short = short(c.SHA)
 		case config.FieldSubject:
-			g.Title = oneLine(c.Subject)
+			g.Title = ui.OneLine(c.Subject)
 		case config.FieldAuthor:
 			detail = appendNonEmpty(detail, handle(c.Author))
 		case config.FieldCommitter:
@@ -89,7 +89,7 @@ func handle(s core.Signature) string {
 	if s.Login != "" {
 		return s.Login
 	}
-	return oneLine(s.Name)
+	return ui.OneLine(s.Name)
 }
 
 // verifiedMark marks a verified signature, and one GitHub couldn't verify.
@@ -151,9 +151,9 @@ func (f format) dates(authored, committed, now time.Time) string {
 // and the login.
 func (f format) person(s core.Signature) string {
 	parts := make([]string, 0, 3)
-	parts = appendNonEmpty(parts, oneLine(s.Name))
+	parts = appendNonEmpty(parts, ui.OneLine(s.Name))
 	if f.email && s.Email != "" {
-		parts = append(parts, "<"+oneLine(s.Email)+">")
+		parts = append(parts, "<"+ui.OneLine(s.Email)+">")
 	}
 	if s.Login != "" && !strings.EqualFold(s.Login, s.Name) {
 		parts = append(parts, "@"+s.Login)
@@ -169,7 +169,7 @@ func samePerson(a, b core.Signature) bool {
 // trailerValue is the value of a trailer, without the email that a
 // Co-authored-by or Signed-off-by carries unless emails are shown.
 func (f format) trailerValue(v string) string {
-	v = oneLine(v)
+	v = ui.OneLine(v)
 	if f.email {
 		return v
 	}
@@ -192,17 +192,4 @@ func verification(v core.Verification) (text string, ok, signed bool) {
 		return "✗ " + reason, false, true
 	}
 	return "unsigned", false, false
-}
-
-// oneLine keeps text on one line, without control characters that could
-// break the layout.
-func oneLine(s string) string {
-	if !strings.ContainsFunc(s, isControl) {
-		return s
-	}
-	return strings.Join(strings.FieldsFunc(s, isControl), " ")
-}
-
-func isControl(r rune) bool {
-	return r < 0x20 || r == 0x7f || r >= 0x80 && r < 0xa0
 }
