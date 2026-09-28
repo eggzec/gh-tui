@@ -63,8 +63,11 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 	// after a refresh.
 	token := findToken(st.Host)
 	access := accesssvc.New(st.Host, token, accesssvc.WithLookup(findToken), accesssvc.WithChecks(cfg.Auth.Check))
+	// The app tells once of an Enterprise Server older than supported.
+	oldEnterprise := make(chan string, 1)
 	client, err := github.New(github.WithHost(st.Host), github.WithTokenSource(token.Value, token.Source),
 		github.WithOnAccess(access.Set),
+		github.WithOnOldEnterprise(func(v string) { oldEnterprise <- v }),
 		github.WithRateNotify(func() { engine.Publish(core.SyncRateLimit) }))
 	if err != nil {
 		return nil, err
@@ -269,6 +272,7 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 		tui.WithLogin(token.Login),
 		// The app tells what the token can't do, and :auth grants it more.
 		tui.WithAccess(access),
+		tui.WithOldEnterprise(oldEnterprise),
 	}
 	if path, err := historyPath(cfg.Cache.Disk, client.Host(), client.Account()); err == nil && path != "" {
 		opts = append(opts, tui.WithCommandHistory(cmdhist.New(path, cmdhist.DefaultLimit)))
