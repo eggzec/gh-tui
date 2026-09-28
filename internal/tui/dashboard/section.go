@@ -268,7 +268,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 	if s.opener == nil {
 		s.opener = threads.New(ctx)
 	}
-	if p := s.prefetch; p != nil {
+	if p := s.prefetch; p != nil && p.on {
 		s.ahead = details.NewAhead("work", p.pulls, p.issues, aheadRows, p.delay)
 		s.ahead.Reset(ctx)
 	}

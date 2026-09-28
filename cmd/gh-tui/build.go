@@ -200,14 +200,19 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 		dashboard.WithContributions(cfg.Dashboard.ContributionDays()),
 		dashboard.WithIcons(icons),
 		dashboard.WithHost(webHost),
+		// So that the set command may turn reading ahead on.
+		dashboard.WithDetails(pullSvc, issueSvc),
 	}
-	searchOpts := []searchpage.Option{searchpage.WithStart(searchStart(repoSvc, pinned)), searchpage.WithIcons(icons), searchpage.WithHost(webHost), searchpage.WithVoice(voice)}
+	searchOpts := []searchpage.Option{
+		searchpage.WithStart(searchStart(repoSvc, pinned)), searchpage.WithIcons(icons), searchpage.WithHost(webHost), searchpage.WithVoice(voice),
+		searchpage.WithDetails(pullSvc, issueSvc),
+	}
 	if p := cfg.Details.Prefetch; p.Enabled {
 		// A result is read once the cursor rests on it, as a row of a
 		// list is; the first results are a guess, and not read.
 		searchOpts = append(searchOpts, searchpage.WithPrefetch(pullSvc, issueSvc, p.HoverDelay))
 	}
-	if dashboardPrefetch(cfg) {
+	if cfg.DashboardPrefetch() {
 		// The work waiting on the viewer is what they open most from the
 		// dashboard, as quickly as from the lists of a repository, and the
 		// cursor rests as it does there.
@@ -307,13 +312,6 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 func findToken(host string) accesssvc.Token {
 	token, source, login := github.FindToken(host)
 	return accesssvc.Token{Value: token, Source: source, Login: login}
-}
-
-// dashboardPrefetch reports whether the dashboard reads the work waiting
-// on the viewer ahead: it has its own switch, and reads details ahead as
-// the lists do, so it needs theirs too.
-func dashboardPrefetch(cfg config.Config) bool {
-	return cfg.Dashboard.Prefetch && cfg.Details.Prefetch.Enabled
 }
 
 // syncEvents turns the engine's events into the app's sync messages.

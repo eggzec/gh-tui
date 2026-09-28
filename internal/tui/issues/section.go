@@ -104,16 +104,15 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 	for _, opt := range opts {
 		opt(s)
 	}
+	s.rowAt = func(i int) (issuesvc.CommentsQuery, bool) {
+		it, ok := s.list.Item(i)
+		return commentsQuery(s.repo, it.Number), ok
+	}
 	if p := s.prefetch; p != nil {
-		s.ahead = ui.NewAhead("issue", readIssue(svc), svc.Current, p.rows, p.delay)
-		s.rowAt = func(i int) (issuesvc.CommentsQuery, bool) {
-			it, ok := s.list.Item(i)
-			return commentsQuery(s.repo, it.Number), ok
-		}
+		s.ahead = s.newAhead(p.rows, p.delay)
 	}
 	if s.prefetchFilters {
-		s.others = ui.NewFilters("issue_filter", readList(svc), svc.FreshList,
-			func(q issuesvc.ListQuery) string { return string(q.State) })
+		s.others = s.newOthers()
 	}
 	s.hint = "Search for a repository to see its issues."
 	if k := ui.Binding(keys, config.ActionSearch, "search").Help().Key; k != "" {

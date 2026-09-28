@@ -4,7 +4,6 @@
 package pulls
 
 import (
-	"cmp"
 	"context"
 	"time"
 
@@ -211,16 +210,15 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		opt(s)
 	}
 	s.keys.Checks.SetEnabled(s.keys.Checks.Enabled() && s.checks != nil)
+	s.rowAt = func(i int) (pulls.CommentsQuery, bool) {
+		pr, ok := s.feed.Item(i)
+		return commentsQuery(s.repo, pr.Number), ok
+	}
 	if p := s.prefetch; p != nil {
-		s.ahead = ui.NewAhead("pull", readDetail(svc), svc.Current, p.rows, p.delay)
-		s.rowAt = func(i int) (pulls.CommentsQuery, bool) {
-			pr, ok := s.feed.Item(i)
-			return commentsQuery(s.repo, pr.Number), ok
-		}
+		s.ahead = s.newAhead(p.rows, p.delay)
 	}
 	if s.prefetchFilters {
-		s.others = ui.NewFilters("pull_filter", readList(svc), svc.FreshList,
-			func(q pulls.ListQuery) string { return cmp.Or(string(q.State), "all") })
+		s.others = s.newOthers()
 	}
 	s.hint = "Search for a repository to see its pull requests."
 	if k := ui.Binding(keys, config.ActionSearch, "search").Help().Key; k != "" {

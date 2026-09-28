@@ -114,6 +114,15 @@ func (a *Ahead[K]) Reset(parent context.Context) {
 	a.stopHover, a.stopAround = nil, nil
 }
 
+// Set sets how many of the first rows of a list are read, and how long
+// the cursor rests on a row before it is read, from the next list and the
+// next move of the cursor, such as when the user changes the settings.
+func (a *Ahead[K]) Set(rows int, delay time.Duration) {
+	if a != nil {
+		a.rows, a.delay = max(rows, 0), max(delay, 0)
+	}
+}
+
 // Opened records that the detail of k was opened, so that the summary
 // counts it as a use if it was read ahead.
 func (a *Ahead[K]) Opened(k K) {

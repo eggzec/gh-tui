@@ -10,11 +10,12 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
-// prefetch is how the results are read ahead.
+// prefetch is how the results are read ahead, and whether they are.
 type prefetch struct {
 	pulls  details.Pulls
 	issues details.Issues
 	delay  time.Duration
+	on     bool
 }
 
 // WithPrefetch reads the pull request or issue under the cursor ahead
@@ -24,7 +25,19 @@ type prefetch struct {
 // The first results aren't read, since a search is mostly a guess. The
 // default reads nothing ahead.
 func WithPrefetch(pulls details.Pulls, issues details.Issues, delay time.Duration) Option {
-	return func(s *Section) { s.prefetch = &prefetch{pulls: pulls, issues: issues, delay: delay} }
+	return func(s *Section) { s.prefetch = &prefetch{pulls: pulls, issues: issues, delay: delay, on: true} }
+}
+
+// WithDetails gives the results pulls and issues to read their pull
+// requests and issues ahead through, without reading them ahead, so that
+// the settings may turn that on while the app runs. WithPrefetch gives
+// them too, and wins.
+func WithDetails(pulls details.Pulls, issues details.Issues) Option {
+	return func(s *Section) {
+		if s.prefetch == nil {
+			s.prefetch = &prefetch{pulls: pulls, issues: issues}
+		}
+	}
 }
 
 // readAhead starts the delay after which the result under the cursor is
