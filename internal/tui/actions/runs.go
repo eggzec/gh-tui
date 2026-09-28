@@ -180,7 +180,7 @@ func (m *Modal) selectRun() tea.Cmd {
 	m.jobs = newJobs(r)
 	m.log.Clear()
 	var cmd tea.Cmd
-	if p, ok := m.svc.CachedJobs(m.jobsQuery()); ok {
+	if p, ok := m.svc.CachedAllJobs(m.jobsQuery()); ok {
 		cmd = m.setJobs(p, !first)
 	} else {
 		m.jobs.loading = true

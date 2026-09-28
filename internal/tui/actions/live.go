@@ -75,7 +75,7 @@ func (m *Modal) fromCache() tea.Cmd {
 	}
 	m.follow()
 	var cmd tea.Cmd
-	if p, ok := m.svc.CachedJobs(m.jobsQuery()); ok {
+	if p, ok := m.svc.CachedAllJobs(m.jobsQuery()); ok {
 		cmd = m.setJobs(p, false)
 	} else {
 		cmd = m.readJobs()

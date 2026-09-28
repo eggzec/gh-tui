@@ -20,7 +20,7 @@ type jobs struct {
 	runID   int64
 	attempt int
 	items   []core.Job
-	// more reports that the run has more jobs than one page lists.
+	// more reports that the run has more jobs than the pages read list.
 	more bool
 	// loaded is set once a page arrived, and loading while one is read
 	// with none to show yet.
@@ -64,7 +64,7 @@ func (m *Modal) readJobs() tea.Cmd {
 	svc, ctx, id, q, off := m.svc, m.ctx, m.id, m.jobsQuery(), m.opts.offline
 	return func() tea.Msg {
 		ctx, end := obs.Begin(ctx, "actions.jobs")
-		p, err := svc.Jobs(ctx, q)
+		p, err := svc.AllJobs(ctx, q)
 		end(err, "span", "tui", "run", q.RunID, "attempt", q.Attempt, "jobs", len(p.Items), "offline", p.Offline, "limited", p.Limited)
 		switch {
 		case p.Offline:
@@ -202,9 +202,9 @@ func (m *Modal) jobLines(w, h int) []string {
 		lines = append(lines, m.jobRow(j.items[i], i == j.cursor, focused, w, now))
 	}
 	if j.more && len(lines) < h {
-		text := "More jobs than GitHub lists at once."
+		text := "First " + strconv.Itoa(len(j.items)) + " jobs"
 		if k := m.keys.Open.Help().Key; k != "" {
-			text += " " + k + " shows them all."
+			text += " · " + k + " shows all"
 		}
 		lines = append(lines, ui.Fit(st.noGutter+st.Subtle.Render(ansi.Truncate(text, w-2, "…")), w))
 	}

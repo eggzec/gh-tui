@@ -16,9 +16,12 @@ type Service interface {
 	CachedRun(repo core.RepoRef, runID int64) (core.Run, bool)
 	Run(ctx context.Context, repo core.RepoRef, runID int64) (core.Run, error)
 	Workflows(ctx context.Context, q actionssvc.WorkflowsQuery) (core.Page[core.Workflow], error)
-	// CachedJobs returns a page of jobs from memory, without a request.
-	CachedJobs(q actionssvc.JobsQuery) (core.Page[core.Job], bool)
-	Jobs(ctx context.Context, q actionssvc.JobsQuery) (core.Page[core.Job], error)
+	// CachedAllJobs returns the jobs of an attempt from memory, without a
+	// request.
+	CachedAllJobs(q actionssvc.JobsQuery) (core.Page[core.Job], bool)
+	// AllJobs returns the jobs of an attempt, every page of them up to
+	// actionssvc.MaxJobPages, with Next set past that.
+	AllJobs(ctx context.Context, q actionssvc.JobsQuery) (core.Page[core.Job], error)
 	// CachedLog returns a job's log from memory, without a request.
 	CachedLog(repo core.RepoRef, jobID int64) (core.Log, bool)
 	Log(ctx context.Context, repo core.RepoRef, jobID int64) (core.Log, error)
