@@ -1,17 +1,23 @@
 package main
 
 import (
+	"bytes"
 	"compress/gzip"
 	"errors"
 	"io/fs"
+	"log/slog"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/cmdhist"
 	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/internal/obs"
 )
 
 func TestOpenDisk(t *testing.T) {
@@ -233,4 +239,70 @@ func TestMoveAccount(t *testing.T) {
 			t.Errorf("history = %q, want it left alone", got)
 		}
 	})
+}
+
+// syncBuffer is a buffer that a goroutine may write while a test reads it.
+type syncBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *syncBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *syncBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
+// The records of the disk cache say which directory, with the home
+// directory as ~, and, as every record of the session, which host.
+func TestDiskCacheRecordsNameTheDirectory(t *testing.T) {
+	restoreLogger(t)
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	var buf syncBuffer
+	slog.SetDefault(obs.NewLogger(&buf, slog.LevelInfo, "s_test"))
+	logHost("github.com")
+
+	cfg := config.Default().Cache.Disk
+	cfg.Dir = filepath.Join(home, "cache")
+	if store, _ := openDisk(t.Context(), cfg, "api.github.com"); store == nil {
+		t.Fatal("no store")
+	}
+	file := filepath.Join(home, "file")
+	if err := os.WriteFile(file, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg.Dir = file
+	openDisk(t.Context(), cfg, "api.github.com")
+
+	want := map[string]string{
+		"cache collected": filepath.Join("~", "cache", "api.github.com"),
+		"disk cache off":  filepath.Join("~", "file"),
+	}
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		got := map[string]string{}
+		for _, r := range readRecords(t, []byte(buf.String())) {
+			msg, _ := r["msg"].(string)
+			if _, ok := want[msg]; ok {
+				if r["host"] != "github.com" {
+					t.Errorf("record %v doesn't name the host", r)
+				}
+				got[msg], _ = r["dir"].(string)
+			}
+		}
+		if len(got) == len(want) || time.Now().After(deadline) {
+			if !maps.Equal(got, want) {
+				t.Errorf("dirs = %v, want %v", got, want)
+			}
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
 }

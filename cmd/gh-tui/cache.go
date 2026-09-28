@@ -14,6 +14,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/cmdhist"
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/obs"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
 // openDisk opens the disk cache of host as cfg says, and trims it to its
@@ -34,7 +35,7 @@ func openDisk(ctx context.Context, cfg config.Disk, host string) (store *disk.St
 			disk.WithKeep(cmdhist.FileName))
 	}
 	if err != nil {
-		slog.Warn("disk cache off", "span", "cache.disk", "err", err.Error())
+		slog.Warn("disk cache off", "span", "cache.disk", "dir", ui.ShortPath(root), "err", err.Error())
 		if root == "" {
 			return nil, "The cache is in memory only: set cache.disk.dir in the config to a directory to keep it in."
 		}
@@ -48,7 +49,7 @@ func openDisk(ctx context.Context, cfg config.Disk, host string) (store *disk.St
 		u, err := store.Collect(ctx)
 		end(err, "span", "cache.disk")
 		if err == nil {
-			slog.InfoContext(ctx, "cache collected", "span", "cache.disk", "files", u.Files, "bytes", u.Size, "removed", u.Removed, "max_bytes", int64(cfg.MaxSize))
+			slog.InfoContext(ctx, "cache collected", "span", "cache.disk", "dir", ui.ShortPath(store.Dir()), "files", u.Files, "bytes", u.Size, "removed", u.Removed, "max_bytes", int64(cfg.MaxSize))
 		}
 	}()
 	return store, ""

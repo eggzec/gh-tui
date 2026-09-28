@@ -215,6 +215,9 @@ func TestLogREST(t *testing.T) {
 	if _, ok := r["path"]; ok {
 		t.Errorf("info record has the debug fields: %v", r)
 	}
+	if r["conditional"] != false || recs[1]["conditional"] != true {
+		t.Errorf("conditional = %v and %v, want false and then true", r["conditional"], recs[1]["conditional"])
+	}
 	if recs[1]["not_modified"] != true || recs[1]["status"] != 304.0 {
 		t.Errorf("second record = %v, want a 304", recs[1])
 	}
@@ -684,5 +687,39 @@ func TestLogNeedsPermissions(t *testing.T) {
 	_, _ = c.Get(context.Background(), "repos/x/y/pulls", Conditional{}, nil)
 	if r := httpRecords(t, buf)[0]; r["needs_permissions"] != "pull_requests=write,contents=read" {
 		t.Errorf("record = %v, want needs_permissions", r)
+	}
+}
+
+// A request that follows a redirect names the answer that sent it, by
+// status and route, and a download outside the API names its host only.
+func TestLogHops(t *testing.T) {
+	buf, _ := captureLog(t, slog.LevelInfo)
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/repos/old/name" {
+			http.Redirect(w, r, "/repos/new/name?sig=s3cr3t", http.StatusMovedPermanently)
+			return
+		}
+		_, _ = io.WriteString(w, `{}`)
+	}))
+	_, _ = c.Get(context.Background(), "repos/old/name", Conditional{}, nil)
+	recs := httpRecords(t, buf)
+	if len(recs) != 2 {
+		t.Fatalf("got %d records, want 2:\n%s", len(recs), buf)
+	}
+	if _, ok := recs[0]["redirected_from"]; ok {
+		t.Errorf("first record = %v, want no redirected_from", recs[0])
+	}
+	if got := recs[1]["redirected_from"]; got != "301 /repos/{owner}/{repo}" {
+		t.Errorf("redirected_from = %v, want the 301's status and route", got)
+	}
+	if strings.Contains(buf.String(), "s3cr3t") {
+		t.Errorf("log has the query:\n%s", buf)
+	}
+
+	lt := &logTransport{restRoot: "/", graphqlPath: "/graphql"}
+	req := httptest.NewRequest(http.MethodGet, "https://storage.example/logs/1?sig=s3cr3t", http.NoBody)
+	got := lt.hop(req, &call{external: true, op: "JobLog"})
+	if len(got) != 1 || got[0].Key != "download_host" || got[0].Value.String() != "storage.example" {
+		t.Errorf("hop = %v, want the download's host only", got)
 	}
 }
