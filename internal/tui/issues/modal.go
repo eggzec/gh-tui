@@ -185,7 +185,7 @@ func (m *detailModal) Title() string {
 	if !m.loaded || m.issue.Title == "" {
 		return n
 	}
-	return n + " " + clean(m.issue.Title)
+	return n + " " + ui.OneLine(m.issue.Title)
 }
 
 // Link implements ui.Linked.
@@ -427,7 +427,7 @@ func (m *detailModal) header(it core.Issue) string {
 	b.WriteString("  ")
 	// The title and the number link to the issue's page.
 	b.WriteString(termtext.Link(it.URL,
-		t.Title.Render(clean(it.Title))+t.Muted.Render("  #"+strconv.Itoa(it.Number))))
+		t.Title.Render(ui.OneLine(it.Title))+t.Muted.Render("  #"+strconv.Itoa(it.Number))))
 	b.WriteString("\n  ")
 
 	b.WriteString(m.rows.badges[ui.IssueState(it)])
