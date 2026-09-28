@@ -65,3 +65,18 @@ func issuesOff(cached func(ref core.RepoRef) (core.Repo, bool)) func(repo core.R
 		return r.Caps.Known && !r.Caps.Issues
 	}
 }
+
+// refreshOn polls key at once each time what the token may do changes,
+// until ctx is done.
+func refreshOn(ctx context.Context, changes <-chan core.Access, refresh func(key string), key string) {
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-changes:
+				refresh(key)
+			}
+		}
+	}()
+}

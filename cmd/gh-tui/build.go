@@ -82,12 +82,19 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 	if e := openEntries(cfg.Cache.Disk, store, client.Account()); e != nil {
 		entries = e
 	}
-	pullSvc := pullsvc.New(client, pullsvc.WithTTL(ttl), pullsvc.WithStore(entries))
+	// The services ask the access service before a change, and before
+	// the notifications, which only some tokens may read, so what the
+	// token may not do makes no request. Whether a repository is private,
+	// which a change there needs a wider scope for, is what the
+	// repositories service read of it.
+	repoSvc := reposvc.New(client, reposvc.WithTTL(ttl), reposvc.WithStore(entries), reposvc.WithAccess(access))
+	pullSvc := pullsvc.New(client, pullsvc.WithTTL(ttl), pullsvc.WithStore(entries),
+		pullsvc.WithAccess(access), pullsvc.WithRepos(repoSvc))
 	// The issues service tells what a number is, an issue or a pull
 	// request, and a pull request whose detail is cached needs no request.
-	issueSvc := issuesvc.New(client, issuesvc.WithTTL(ttl), issuesvc.WithStore(entries), issuesvc.WithPulls(pullSvc))
-	notifSvc := notifsvc.New(client, notifsvc.WithTTL(ttl), notifsvc.WithStore(entries))
-	repoSvc := reposvc.New(client, reposvc.WithTTL(ttl), reposvc.WithStore(entries))
+	issueSvc := issuesvc.New(client, issuesvc.WithTTL(ttl), issuesvc.WithStore(entries), issuesvc.WithPulls(pullSvc),
+		issuesvc.WithAccess(access), issuesvc.WithRepos(repoSvc))
+	notifSvc := notifsvc.New(client, notifsvc.WithTTL(ttl), notifsvc.WithStore(entries), notifsvc.WithAccess(access))
 	dashSvc := dashsvc.New(client, dashsvc.WithTTL(ttl), dashsvc.WithStore(entries))
 	fileSvcOpts := []filesvc.Option{filesvc.WithTTL(ttl), filesvc.WithMaxBlobSize(int64(cfg.Files.Preview.MaxSize))}
 	if store != nil {
@@ -101,7 +108,7 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 		historySvcOpts = append(historySvcOpts, historysvc.WithObjects(store))
 	}
 	historySvc := historysvc.New(client, historySvcOpts...)
-	actionSvc := actionssvc.New(client, actionssvc.WithTTL(ttl), actionssvc.WithStore(entries))
+	actionSvc := actionssvc.New(client, actionssvc.WithTTL(ttl), actionssvc.WithStore(entries), actionssvc.WithAccess(access))
 	// A release seldom changes once published, so it keeps the service's
 	// long TTL.
 	releaseSvc := releasesvc.New(client, releasesvc.WithStore(entries))
@@ -252,6 +259,10 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 	)
 	if cfg.Sync.Enabled {
 		engine.Subscribe(notifications.SyncKey, notifSvc.Poll)
+		// The inbox isn't polled while the token may not read it, and is
+		// polled at once when what the token may do changes, so that it
+		// catches up as soon as the token may.
+		refreshOn(ctx, access.Changes(), engine.Refresh, notifications.SyncKey)
 		repoPolls := &repoWatch{subscribe: engine.Subscribe, polls: []repoPoll{
 			{key: pullsvc.SyncKey, poll: pullSvc.Poll},
 			{key: issuesvc.SyncKey, poll: unless(issuesOff(repoSvc.CachedGet), issueSvc.Poll)},

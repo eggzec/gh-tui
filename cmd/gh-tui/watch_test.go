@@ -4,6 +4,7 @@ import (
 	"context"
 	"slices"
 	"testing"
+	"testing/synctest"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/watch"
@@ -103,4 +104,32 @@ func TestIssuePollSkipsReposWithoutIssues(t *testing.T) {
 	if !slices.Equal(polled, []core.RepoRef{on, unknown}) {
 		t.Errorf("polled %v, want all but %v", polled, off)
 	}
+}
+
+func TestRefreshOn(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctx, cancel := context.WithCancel(t.Context())
+		changes := make(chan core.Access, 1)
+		var polled []string
+		refreshOn(ctx, changes, func(key string) { polled = append(polled, key) }, "inbox")
+
+		synctest.Wait()
+		if len(polled) != 0 {
+			t.Fatalf("polled %q before any change", polled)
+		}
+		for range 2 {
+			changes <- core.Access{Kind: core.TokenClassic}
+			synctest.Wait()
+		}
+		if !slices.Equal(polled, []string{"inbox", "inbox"}) {
+			t.Errorf("polled %q, want the inbox once per change", polled)
+		}
+		cancel()
+		synctest.Wait()
+		changes <- core.Access{}
+		synctest.Wait()
+		if len(polled) != 2 {
+			t.Errorf("polled %q after ctx was done", polled)
+		}
+	})
 }
