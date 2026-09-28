@@ -190,7 +190,7 @@ func TestFilterStep(t *testing.T) {
 	if m.filterStep == nil || m.filterStep.form == nil || f.wfReads != 1 {
 		t.Fatalf("f didn't open the filter over the workflows (%d reads)", f.wfReads)
 	}
-	if s := screen(m); !strings.Contains(s, "Filter runs") || !strings.Contains(s, "Workflow") {
+	if s := screen(m); !strings.Contains(s, "Filter · Runs") || !strings.Contains(s, "Workflow") {
 		t.Errorf("the filter step shows:\n%s", s)
 	}
 	form := m.filterStep.form

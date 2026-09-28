@@ -90,7 +90,7 @@ func spec(kind core.SearchKind, query string) filterform.Spec {
 		}
 	case core.SearchIssues, core.SearchPulls:
 		pulls := kind == core.SearchPulls
-		states := []filterform.Item{{Label: "Any"}, {Label: "Open", Value: "open"}, {Label: "Closed", Value: "closed"}}
+		states := []filterform.Item{{Label: "All"}, {Label: "Open", Value: "open"}, {Label: "Closed", Value: "closed"}}
 		if pulls {
 			states = append(states, filterform.Item{Label: "Merged", Value: "merged"})
 		}
@@ -112,7 +112,7 @@ func spec(kind core.SearchKind, query string) filterform.Spec {
 						{Label: "Required", Value: "review:required"},
 						{Label: "Approved", Value: "review:approved"},
 						{Label: "Changes requested", Value: "review:changes_requested"},
-						{Label: "Requested of you", Value: "review-requested:@me"},
+						{Label: "Requested from you", Value: "review-requested:@me"},
 						{Label: "Reviewed by you", Value: "reviewed-by:@me"},
 					},
 				},
