@@ -43,6 +43,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/threads"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/watch"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // build wires the client, the services, the sync engine and the sections
@@ -179,8 +180,12 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	// What the set command changes for the session, the modals read as
 	// they open.
 	live := &session{cfg: cfg}
-	// Links go to the pages of the session's host.
+	// Links go to the pages of the session's host, over plain http where
+	// it serves them so, and to no other host so.
 	webHost := client.WebHost()
+	if core.WebScheme(webHost) == "http" {
+		termtext.AllowPlainHTTP(webHost)
+	}
 	icons := ui.NewIcons(cfg.UI.Icons)
 	// What went wrong names the configured keys, and the log file while
 	// the app logs to one.

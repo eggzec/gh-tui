@@ -32,18 +32,34 @@ func main() {
 	}
 }
 
+// usage prints how to run gh-tui, with its flags spelled as the usage line
+// and gh spell them, with two dashes.
+func usage() {
+	out := flag.CommandLine.Output()
+	fmt.Fprintln(out, "usage: gh-tui [--debug] [--hostname HOST] [--version]")
+	flag.VisitAll(func(f *flag.Flag) {
+		arg, text := flag.UnquoteUsage(f)
+		if arg != "" {
+			arg = " " + arg
+		}
+		fmt.Fprintf(out, "  --%s%s\n    \t%s\n", f.Name, arg, text)
+	})
+}
+
 func run() error {
 	debugLog := flag.Bool("debug", false, "log at debug level for this run, as GH_DEBUG does")
 	showVersion := flag.Bool("version", false, "print the version and exit")
-	hostname := flag.String("hostname", "", "the GitHub `host` to use, in place of the current repository's or gh's default")
-	flag.Usage = func() {
-		fmt.Fprintln(flag.CommandLine.Output(), "usage: gh-tui [--debug] [--hostname HOST] [--version]")
-		flag.PrintDefaults()
-	}
+	hostname := flag.String("hostname", "", "use the GitHub host `HOST`, in place of the current repository's or gh's default")
+	flag.Usage = usage
 	flag.Parse()
 	if flag.NArg() > 0 {
 		flag.Usage()
 		return fmt.Errorf("unexpected argument %q: gh-tui takes no arguments; use :goto owner/name inside the app", flag.Arg(0))
+	}
+	if *hostname != "" {
+		if err := checkHostname(*hostname); err != nil {
+			return err
+		}
 	}
 	if *showVersion {
 		fmt.Println("gh-tui", version())

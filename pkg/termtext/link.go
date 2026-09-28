@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync/atomic"
 
 	"github.com/charmbracelet/x/ansi"
 )
@@ -16,7 +17,8 @@ const MaxLink = 2 << 10
 // knows them opens on a click, and others show as text: ESC ]8;;addr ESC \
 // text ESC ]8;; ESC \. Text keeps only its printable characters and the
 // style sequences that color it, so it can't open, close or carry a link
-// of its own. When addr is empty or not a plain https address of at most
+// of its own. When addr is empty or not a plain https address, or http of
+// the host [AllowPlainHTTP] names, of at most
 // [MaxLink] bytes of printable ASCII, with a host of ASCII names and no
 // user or port out of range, Link returns text as it is.
 //
@@ -50,7 +52,10 @@ func linkable(addr string) bool {
 		}
 	}
 	u, err := url.Parse(addr)
-	if err != nil || u.Scheme != "https" || u.User != nil || u.Hostname() == "" {
+	if err != nil || u.User != nil || u.Hostname() == "" {
+		return false
+	}
+	if u.Scheme != "https" && (u.Scheme != "http" || !plainHTTP(u.Host)) {
 		return false
 	}
 	for label := range strings.SplitSeq(strings.ToLower(u.Hostname()), ".") {
@@ -64,6 +69,28 @@ func linkable(addr string) bool {
 	}
 	// A colon with no port after it.
 	return !strings.HasSuffix(u.Host, ":")
+}
+
+// httpHost is the host, with its port if it has one, whose addresses may
+// be plain http, or "" for none.
+var httpHost atomic.Pointer[string]
+
+// AllowPlainHTTP lets [Link] link to host, with its port if it has one,
+// over plain http as well as https, or no host at all for "". It is for
+// the host of the session when its web pages are served over plain http,
+// as a GitHub run locally for development, github.localhost, serves them
+// (core.WebScheme): then its links are that host's, while an address of
+// any other host, or of the same name on another port, as a third party
+// may give, must still be https.
+func AllowPlainHTTP(host string) {
+	httpHost.Store(&host)
+}
+
+// plainHTTP reports whether host, of an address, may be linked to over
+// plain http.
+func plainHTTP(host string) bool {
+	h := httpHost.Load()
+	return h != nil && *h != "" && strings.EqualFold(host, *h)
 }
 
 // plain returns s with only its printable characters and its style

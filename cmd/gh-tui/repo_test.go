@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/cli/go-gh/v2/pkg/repository"
@@ -89,5 +90,18 @@ func TestParseRefs(t *testing.T) {
 	}
 	if _, err := parseRefs([]string{"nope"}); err == nil {
 		t.Error("parseRefs accepted a ref without an owner")
+	}
+}
+
+func TestCheckHostname(t *testing.T) {
+	for _, h := range []string{"github.com", "GHE.example.com", "ghe.example.com:8443", "https://ghe.example.com/", "github.localhost"} {
+		if err := checkHostname(h); err != nil {
+			t.Errorf("checkHostname(%q) = %v, want nil", h, err)
+		}
+	}
+	for _, h := range []string{"ghe.example.com/api/v3", "https://ghe.example.com/api/v3/", "u@ghe.example.com", "ghe.example.com?x=1", "ghe.example.com#x", "ghe example.com", " "} {
+		if err := checkHostname(h); err == nil || !strings.Contains(err.Error(), "names no host") {
+			t.Errorf("checkHostname(%q) = %v, want it to name no host", h, err)
+		}
 	}
 }

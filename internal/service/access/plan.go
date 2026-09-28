@@ -80,7 +80,7 @@ type situation struct {
 // plan returns what the user can do in st.
 func plan(st situation) Plan {
 	scopes := phrase(st.missing)
-	tokens := "https://" + st.host + "/settings/tokens"
+	tokens := core.WebScheme(st.host) + "://" + st.host + "/settings/tokens"
 	env := envSource(st.source)
 	switch {
 	case !st.known:
