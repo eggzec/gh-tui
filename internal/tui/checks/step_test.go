@@ -19,6 +19,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keytest"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
+	"github.com/eggzec/gh-tui/pkg/termtext/termtexttest"
 )
 
 func TestGroupsAndSummary(t *testing.T) {
@@ -386,7 +387,7 @@ func TestErrorsAndEmpty(t *testing.T) {
 	f := newFake()
 	f.checksErr = errBoom
 	s, h := newStep(t, f, wideW, wideH)
-	if v := text(s); !strings.Contains(v, "Couldn't load the checks: boom · r to retry") {
+	if v := text(s); !strings.Contains(v, "✗ Something went wrong · r to retry") {
 		t.Errorf("the error isn't inline:\n%s", v)
 	}
 	f.checksErr = nil
@@ -399,6 +400,67 @@ func TestErrorsAndEmpty(t *testing.T) {
 	s, _ = newStep(t, f, wideW, wideH)
 	if v := text(s); !strings.Contains(v, "No checks have reported") {
 		t.Errorf("no checks:\n%s", v)
+	}
+}
+
+// The checks and the job say what went wrong the way the user should read
+// it, without the error's chain, request or status code. The open key
+// opens the check of a job, but there is nothing to open without checks.
+func TestErrorWords(t *testing.T) {
+	pr := "charmbracelet/bubbletea#" + strconv.Itoa(query.Number)
+	tests := []struct {
+		name        string
+		err         error
+		checks, job string
+	}{
+		{
+			"offline", fmt.Errorf("pull checks: github: POST /graphql: %w", core.ErrOffline),
+			"✗ Can't reach GitHub · r to retry", "✗ Can't reach GitHub · r to retry",
+		},
+		{
+			"forbidden", fmt.Errorf("pull checks: github: 403 Forbidden: %w", core.ErrForbidden),
+			"✗ You don't have access to " + pr, "✗ You don't have access to charmbracelet/bubbletea · o to open on GitHub",
+		},
+		{
+			"not found", fmt.Errorf("pull checks: github: 404 Not Found: %w", core.ErrNotFound),
+			"✗ " + pr + " doesn't exist or is private.", "✗ test (ubuntu-latest) doesn't exist or is private.",
+		},
+		{
+			"internal", fmt.Errorf("pull checks: github: decode: %s", termtexttest.Hostile),
+			"✗ Something went wrong · r to retry", "✗ Something went wrong · r to retry",
+		},
+	}
+	check := func(t *testing.T, s *Step, want string) {
+		t.Helper()
+		termtexttest.AssertClean(t, s.View(), wideW)
+		v := text(s)
+		if !strings.Contains(v+" ", want+" ") {
+			t.Errorf("the step shows %q, want %q", v, want)
+		}
+		for _, hint := range []string{"to retry", "open on GitHub"} {
+			if strings.Contains(v, hint) != strings.Contains(want, hint) {
+				t.Errorf("the step shows %q, want %q", v, want)
+			}
+		}
+		for _, leak := range []string{"github:", "pull checks", "POST", "403", "404", "decode"} {
+			if strings.Contains(v, leak) {
+				t.Errorf("the step shows %q: %q", leak, v)
+			}
+		}
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newFake()
+			f.checksErr = tt.err
+			s, _ := newStep(t, f, wideW, wideH)
+			check(t, s, tt.checks)
+
+			f = newFake()
+			f.jobsErr = tt.err
+			s, h := newStep(t, f, wideW, wideH)
+			h.keys("enter")
+			check(t, s, tt.job)
+		})
 	}
 }
 

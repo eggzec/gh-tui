@@ -146,8 +146,8 @@ type fake struct {
 	jobs      map[int64][]core.Job
 	logs      map[int64]core.Log
 	notes     map[int64][]core.Annotation
-	// logErr fails every read of a log.
-	logErr error
+	// logErr fails every read of a log, and jobsErr of the jobs of a run.
+	logErr, jobsErr error
 
 	checkReads, runReads, jobReads, noteReads int
 	invalidated                               int
@@ -206,6 +206,9 @@ func (f *fake) AllJobs(_ context.Context, q actionssvc.JobsQuery) (core.Page[cor
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.jobReads++
+	if f.jobsErr != nil {
+		return core.Page[core.Job]{}, f.jobsErr
+	}
 	return f.allJobs(q), nil
 }
 

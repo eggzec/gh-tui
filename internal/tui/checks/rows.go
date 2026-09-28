@@ -277,7 +277,7 @@ func (s *Step) listLines(w, h int) []string {
 	st := &s.st
 	switch {
 	case !s.loaded && s.err != nil:
-		return ui.FitLines(ui.Wrap(s.errorLine("Couldn't load the checks: ", s.err), w), w, h)
+		return ui.FitLines(s.errorLines("load the checks", core.Target{Repo: s.q.Repo, Number: s.q.Number}.String(), s.err, false, w), w, h)
 	case !s.loaded:
 		return ui.FitLines([]string{s.spin.View() + st.run.Muted.Render("Loading the checks…")}, w, h)
 	case len(s.rows) == 0:
@@ -324,11 +324,13 @@ func (s *Step) renderRow(r row, cursor bool, w int, now time.Time) string {
 	return ui.Spread(left, right, w)
 }
 
-// errorLine renders an error that the refresh key reads again.
-func (s *Step) errorLine(what string, err error) string {
-	text := s.st.run.Error.Render("✗ " + what + ui.FirstLine(err.Error()))
-	if k := s.keys.Refresh.Help().Key; k != "" {
-		text += s.st.run.Subtle.Render(" · " + k + " to retry")
-	}
-	return text
+// errorLines renders err, which stopped action on subject, in lines of w
+// cells. The refresh key reads it again, and the open key opens on GitHub
+// only what failed, when open is set; with no checks, it opens nothing.
+func (s *Step) errorLines(action, subject string, err error, open bool, w int) []string {
+	v := s.voice
+	v.Open = s.keys.Open
+	v.Open.SetEnabled(open && v.Open.Enabled())
+	text, hint := ui.ErrorText(action, subject, v)(err)
+	return ui.ErrorLine(s.errs, text, hint, w)
 }
