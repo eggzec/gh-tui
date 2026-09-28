@@ -37,6 +37,9 @@ func TestKeyLayersOrder(t *testing.T) {
 		{results, "enter", "search: open", func(_, _ *Section, msgs []tea.Msg) bool { return len(msgs) > 0 }},
 		{results, "left", "search: kinds", func(s, _ *Section, _ []tea.Msg) bool { return s.area == kindsArea }},
 		{results, "esc", "search: back", back},
+		// The app opens the filter; its keys don't page the results.
+		{results, "f", "search: filter", func(s, b *Section, msgs []tea.Msg) bool { return selectedHit(s) == selectedHit(b) && len(msgs) == 0 }},
+		{results, "s", "search: sort", func(s, b *Section, msgs []tea.Msg) bool { return selectedHit(s) == selectedHit(b) && len(msgs) == 0 }},
 		{kinds, "j", "search: down", func(s, b *Section, _ []tea.Msg) bool { return s.kind != b.kind }},
 		{kinds, "enter", "search: results", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea }},
 		{kinds, "tab", "search: next", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea }},
