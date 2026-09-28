@@ -300,7 +300,7 @@ func (s *Step) listLines(w, h int) []string {
 func (s *Step) renderRow(r row, cursor bool, w int, now time.Time) string {
 	st := &s.st
 	if r.title() {
-		return ui.Fit(st.group.Render(r.group), w)
+		return ui.Fit(st.group.Render(ui.OneLine(r.group)), w)
 	}
 	gutter := st.noGutter
 	name := st.run.Text.Render(r.name())
