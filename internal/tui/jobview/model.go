@@ -12,6 +12,7 @@ package jobview
 
 import (
 	"context"
+	"slices"
 	"sync/atomic"
 	"time"
 
@@ -21,6 +22,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/logview"
 )
 
@@ -47,6 +49,21 @@ type KeyMap struct {
 	Up, Down, Select key.Binding
 	// Open opens the job on GitHub, which the notices name.
 	Open key.Binding
+}
+
+// own returns the keys of the view itself, in the order it matches them.
+func (k KeyMap) own() []key.Binding {
+	return []key.Binding{k.Annotations, k.Up, k.Down, k.Select, k.Open}
+}
+
+// ShortHelp implements help.KeyMap.
+func (k KeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.Up, k.Down, k.Select, k.Annotations}
+}
+
+// FullHelp implements help.KeyMap.
+func (k KeyMap) FullHelp() [][]key.Binding {
+	return append([][]key.Binding{k.own()}, k.Log.FullHelp()...)
 }
 
 // Hints are what the parent knows of a job shown beyond the job itself.
@@ -271,6 +288,44 @@ func (m Model) Keys() []key.Binding {
 		keys = append(keys, k.Annotations)
 	}
 	return keys
+}
+
+// KeyLayers returns the keys of the view in the order it matches them:
+// those of the annotations, which take every key but those of the whole
+// log while they have the focus, and then those of the log, once it
+// shows.
+func (m Model) KeyLayers() []keyhelp.Layer {
+	k := m.keys.state(m)
+	notes := keyhelp.Layer{Source: "annotations", Bindings: k.own(), Short: k.ShortHelp()}
+	log := keyhelp.FromHelp("log", m.view, m.view.Capturing())
+	on := m.OnAnnotations()
+	whole := m.wholeLog()
+	for i, b := range log.Bindings {
+		// The log's keys do nothing until it shows, and only those of the
+		// whole log reach it from the annotations.
+		keep := m.state == Ready && (!on || slices.ContainsFunc(whole, func(w key.Binding) bool {
+			return slices.Equal(w.Keys(), b.Keys())
+		}))
+		log.Bindings[i].SetEnabled(b.Enabled() && keep)
+	}
+	return []keyhelp.Layer{notes, log}
+}
+
+// state returns k as the view takes it now: the annotations only while
+// there are some, the keys that move through them while they have the
+// focus, and not the open key, which the parent handles.
+func (k KeyMap) state(m Model) KeyMap {
+	notes := len(m.notes.items) > 0 && !m.view.Capturing()
+	on := m.OnAnnotations()
+	k.Annotations.SetEnabled(k.Annotations.Enabled() && notes)
+	if on {
+		k.Annotations.SetHelp(k.Annotations.Help().Key, "log")
+	}
+	for _, b := range []*key.Binding{&k.Up, &k.Down, &k.Select} {
+		b.SetEnabled(b.Enabled() && notes && on)
+	}
+	k.Open.SetEnabled(false)
+	return k
 }
 
 // State is what the view shows.
