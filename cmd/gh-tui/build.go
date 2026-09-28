@@ -305,6 +305,9 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 	var (
 		activity []func(bool)
 		watchers []func(core.RepoRef)
+		// online wakes what backed off while GitHub couldn't be reached,
+		// once it answers again.
+		online = []func(){engine.Online}
 	)
 	if cfg.Sync.Enabled {
 		engine.Subscribe(notifications.SyncKey, notifSvc.Poll)
@@ -324,11 +327,16 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 			go func() { _ = r.Run(ctx) }()
 			activity = append(activity, r.SetActive)
 			watchers = append(watchers, r.SetRepo)
+			online = append(online, r.Online)
 		}
 	}
 	// The engine runs with nothing to poll too, for the rate limits.
 	go func() { _ = engine.Run(ctx) }()
-	opts = append(opts, tui.WithSync(syncEvents(engine)))
+	opts = append(opts, tui.WithSync(syncEvents(engine)), tui.WithOnline(func() {
+		for _, fn := range online {
+			fn()
+		}
+	}))
 	if len(watchers) > 0 {
 		opts = append(opts,
 			tui.WithActivity(fanOut(activity...)),
