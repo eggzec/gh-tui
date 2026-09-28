@@ -38,6 +38,7 @@ type fakeGitHub struct {
 	runs      []core.Run
 	jobs      map[int64][]core.Job
 	logs      map[int64]string
+	partial   map[int64]string
 	truncated bool
 	checks    map[string]core.Checks
 	notes     map[int64][]core.Annotation
@@ -51,6 +52,7 @@ func newFake() *fakeGitHub {
 	f := &fakeGitHub{
 		jobs:      map[int64][]core.Job{},
 		logs:      map[int64]string{},
+		partial:   map[int64]string{},
 		checks:    map[string]core.Checks{},
 		notes:     map[int64][]core.Annotation{},
 		errs:      map[string]error{},
@@ -249,6 +251,26 @@ func (f *fakeGitHub) JobLog(_ context.Context, r core.RepoRef, jobID, limit int6
 		return nil, false, core.ErrLogPending
 	}
 	return []byte(f.logs[jobID]), f.truncated, nil
+}
+
+// JobLogFrom serves partial[jobID] from offset, as the storage of a job in
+// progress does, or else nothing yet.
+func (f *fakeGitHub) JobLogFrom(_ context.Context, r core.RepoRef, jobID, offset, limit int64) (github.LogPart, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.record("JobLogFrom", "%s %d from=%d limit=%d", r, jobID, offset, limit); err != nil {
+		return github.LogPart{}, err
+	}
+	text, ok := f.partial[jobID]
+	if !ok {
+		return github.LogPart{}, core.ErrLogPending
+	}
+	size := int64(len(text))
+	if offset > size {
+		// The log started over.
+		offset = 0
+	}
+	return github.LogPart{Text: []byte(text[offset:]), Start: offset, Size: size}, nil
 }
 
 func (f *fakeGitHub) ListAnnotations(_ context.Context, r core.RepoRef, checkRunID int64, cursor string, perPage int, cond github.Conditional) (core.Page[core.Annotation], github.Response, error) {

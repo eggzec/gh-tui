@@ -31,8 +31,9 @@ func (s *Service) CachedLog(repo core.RepoRef, jobID int64) (core.Log, bool) {
 // from GitHub, and kept for good. The store keeps the text, which the disk
 // layer compresses. Memory is bounded by bytes, as logs run to megabytes.
 //
-// The log of a job that hasn't completed isn't there to read: Log fails
-// with core.ErrLogPending, without asking for it. A log larger than the
+// The log of a job that hasn't completed isn't there to read whole: Log
+// fails with core.ErrLogPending, without asking for it, and PartialLog
+// reads what there is of it. A log larger than the
 // limit is read from its end, with Truncated set. One past the retention
 // period fails with core.ErrLogExpired.
 func (s *Service) Log(ctx context.Context, repo core.RepoRef, jobID int64) (core.Log, error) {

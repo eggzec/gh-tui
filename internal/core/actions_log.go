@@ -44,6 +44,18 @@ type Log struct {
 	Truncated bool
 }
 
+// PartialLog is the log of a job in progress as far as GitHub publishes it,
+// in blocks of about 2 MiB as the runner uploads them, so its end is often
+// minutes behind the job.
+type PartialLog struct {
+	Log
+	// At is when the read that brought its last lines ended.
+	At time.Time
+	// Gen counts the times it was read again from the start, as when the
+	// log started over; within one Gen, Lines only grow.
+	Gen int
+}
+
 // logMarkers are the kinds of the ##[name] prefixes the runner writes.
 var logMarkers = map[string]LogKind{
 	"group":    LogGroup,
@@ -66,18 +78,41 @@ var logMarkers = map[string]LogKind{
 // a group that starts with "Run ", "Post job cleanup." and "Cleaning up
 // orphan processes" start the next step that ran.
 func ParseLog(text string, steps []Step) Log {
-	text = strings.TrimPrefix(text, "\uFEFF")
+	return Log{Lines: NewLogParser(steps).Parse(text, steps)}
+}
+
+// LogParser parses a log that grows, such as that of a job in progress, a
+// part at a time, the way ParseLog parses it whole: which step wrote a
+// line depends on the lines before it.
+type LogParser struct {
+	st      *stepper
+	started bool
+}
+
+// NewLogParser returns a parser of the log of a job with steps, which may
+// be nil.
+func NewLogParser(steps []Step) *LogParser {
+	return &LogParser{st: newStepper(steps)}
+}
+
+// Parse parses text, the whole lines that follow those parsed before,
+// with the steps of the job as they stand now, which move on as it runs.
+func (p *LogParser) Parse(text string, steps []Step) []LogLine {
+	if !p.started {
+		text = strings.TrimPrefix(text, "\uFEFF")
+		p.started = true
+	}
+	p.st.update(steps)
 	lines := make([]LogLine, 0, strings.Count(text, "\n")+1)
-	st := newStepper(steps)
 	for text != "" {
 		var line string
 		line, text, _ = strings.Cut(text, "\n")
 		line = strings.TrimSuffix(line, "\r")
 		l := parseLogLine(line)
-		l.Step = st.at(l)
+		l.Step = p.st.at(l)
 		lines = append(lines, l)
 	}
-	return Log{Lines: lines}
+	return lines
 }
 
 func parseLogLine(line string) LogLine {
@@ -174,6 +209,21 @@ func newStepper(steps []Step) *stepper {
 		}
 	}
 	return s
+}
+
+// update takes the steps as they stand now, the same steps with later
+// times, and keeps the step reached. Steps first known now start the
+// stepper, and none, as of a job no longer known, leave it as it was.
+func (s *stepper) update(steps []Step) {
+	if len(steps) == 0 {
+		return
+	}
+	if s.cur < 0 {
+		*s = *newStepper(steps)
+		return
+	}
+	s.steps = steps
+	s.cur = min(s.cur, len(steps)-1)
 }
 
 // at returns the number of the step that wrote l.
