@@ -405,9 +405,10 @@ func (m *Model) showScreen(s screen, i int) tea.Cmd {
 	return tea.Batch(m.startScreen(), revisit)
 }
 
-// cycle moves the focus by delta panes on the repository screen.
+// cycle moves the focus by delta panes on the repository screen, the only
+// screen whose panes the app cycles through.
 func (m *Model) cycle(delta int) tea.Cmd {
-	if m.screen != repoScreen || len(m.panes) == 0 {
+	if len(m.panes) == 0 {
 		return nil
 	}
 	n := len(m.panes)
