@@ -2,7 +2,9 @@ package github
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -88,7 +90,12 @@ type workHits struct {
 	nodes[workNode]
 }
 
-func (h workHits) core() core.WorkList {
+// core returns the list of h, which is refused for the nil of a search
+// GitHub refused.
+func (h *workHits) core() core.WorkList {
+	if h == nil {
+		return core.WorkList{Refused: true}
+	}
 	return core.WorkList{Count: h.IssueCount, Items: convert(h.Nodes, workNode.core)}
 }
 
@@ -96,18 +103,43 @@ func (h workHits) core() core.WorkList {
 // requests that ask for their review, those they opened, and the issues
 // assigned to them, each with its count and its first most recently
 // updated items. First is at most 100.
+//
+// When GitHub refuses some of the three and answers the others, the work
+// holds the others, and the refused ones are empty with Refused set,
+// rather than it failing whole, which would drop what was kept of the
+// work.
 func (c *Client) ViewerWork(ctx context.Context, first int) (core.Work, error) {
 	var data struct {
-		ReviewRequested workHits `json:"reviewRequested"`
-		Authored        workHits `json:"authored"`
-		Assigned        workHits `json:"assigned"`
+		ReviewRequested *workHits `json:"reviewRequested"`
+		Authored        *workHits `json:"authored"`
+		Assigned        *workHits `json:"assigned"`
 	}
 	if err := c.Query(ctx, viewerWorkQuery, map[string]any{"first": first}, &data); err != nil {
-		return core.Work{}, fmt.Errorf("viewer work: %w", err)
+		answered := data.ReviewRequested != nil || data.Authored != nil || data.Assigned != nil
+		if !answered || !rootsRefused(err) {
+			return core.Work{}, fmt.Errorf("viewer work: %w", err)
+		}
+		slog.WarnContext(ctx, "viewer work partly refused", "span", "http", "err", err.Error())
 	}
 	return core.Work{
 		ReviewRequested: data.ReviewRequested.core(),
 		Authored:        data.Authored.core(),
 		Assigned:        data.Assigned.core(),
 	}, nil
+}
+
+// rootsRefused reports whether err is only GitHub refusing fields at the
+// root of a query, FORBIDDEN or NOT_FOUND, which leaves the other roots
+// answered.
+func rootsRefused(err error) bool {
+	g, ok := errors.AsType[*GraphQLError](err)
+	if !ok || len(g.Errors) == 0 {
+		return false
+	}
+	for _, item := range g.Errors {
+		if len(item.Path) != 1 || item.Type != "FORBIDDEN" && item.Type != "NOT_FOUND" {
+			return false
+		}
+	}
+	return true
 }

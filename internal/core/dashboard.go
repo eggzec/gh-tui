@@ -64,6 +64,10 @@ type Header struct {
 type WorkList struct {
 	Count int
 	Items []SearchHit
+	// Refused reports that GitHub refused the search, as it may one of
+	// several in a query that it answers the others of, so the list is
+	// unknown rather than empty.
+	Refused bool
 }
 
 // Work is the open work waiting on the viewer, across every repository.

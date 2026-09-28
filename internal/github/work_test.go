@@ -89,3 +89,31 @@ func TestViewerWorkRateLimited(t *testing.T) {
 		t.Errorf("error = %v, want a *core.RateLimitError", err)
 	}
 }
+
+// A search GitHub refuses at its root leaves the others answered, which
+// ViewerWork keeps; a refusal of all, or an error that isn't a refusal of
+// a root, fails it.
+func TestViewerWorkPartlyRefused(t *testing.T) {
+	answer := func(body string) *Client {
+		return newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = io.WriteString(w, body)
+		}))
+	}
+	c := answer(`{"data":{"reviewRequested":{"issueCount":2,"nodes":[]},"authored":null,"assigned":{"issueCount":1,"nodes":[]}},` +
+		`"errors":[{"type":"FORBIDDEN","message":"Resource not accessible","path":["authored"]}]}`)
+	got, err := c.ViewerWork(t.Context(), 10)
+	if err != nil || got.ReviewRequested.Count != 2 || got.Assigned.Count != 1 || got.Authored.Count != 0 ||
+		!got.Authored.Refused || got.ReviewRequested.Refused || got.Assigned.Refused {
+		t.Errorf("ViewerWork = %+v, %v; want review requested and assigned, authored refused", got, err)
+	}
+
+	c = answer(`{"data":null,"errors":[{"type":"FORBIDDEN","message":"Resource not accessible","path":["reviewRequested"]}]}`)
+	if _, err := c.ViewerWork(t.Context(), 10); !errors.Is(err, core.ErrForbidden) {
+		t.Errorf("all refused: error = %v, want ErrForbidden", err)
+	}
+	c = answer(`{"data":{"reviewRequested":{"issueCount":2,"nodes":[]},"authored":null,"assigned":null},` +
+		`"errors":[{"type":"INTERNAL","message":"Something went wrong","path":["authored"]}]}`)
+	if _, err := c.ViewerWork(t.Context(), 10); err == nil {
+		t.Error("an internal error: no error, want it")
+	}
+}

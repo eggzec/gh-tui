@@ -245,3 +245,29 @@ func TestWorkStates(t *testing.T) {
 		}
 	}
 }
+
+// A list whose search GitHub refused, while it answered the others, says
+// it can't be read, as another refused pane does, not that it is empty,
+// and its tab counts it as unknown.
+func TestWorkRefusedList(t *testing.T) {
+	svc := newFake()
+	svc.work = longWork()
+	svc.work.Authored = core.WorkList{Refused: true}
+	s := newSection(t, svc, nil, 140, 38)
+	press(t, s, "3", "]")
+	if s.tasks.cur != 1 {
+		t.Fatalf("on tab %d, want your pull requests", s.tasks.cur)
+	}
+	view := ansi.Strip(s.View())
+	want, _ := s.say("load your pull requests", core.ErrForbidden)
+	if !strings.Contains(view, "Mine ?") && !strings.Contains(view, "Your pull requests ?") {
+		t.Errorf("the tab doesn't count the refused list as unknown:\n%s", view)
+	}
+	words := strings.Fields(want)
+	if len(words) < 3 || !strings.Contains(strings.Join(strings.Fields(view), " "), strings.Join(words[:3], " ")) {
+		t.Errorf("the pane doesn't say %q:\n%s", want, view)
+	}
+	if strings.Contains(view, workLists[1].empty) {
+		t.Errorf("the pane says the refused list is empty:\n%s", view)
+	}
+}
