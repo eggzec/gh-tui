@@ -2,7 +2,6 @@ package actions
 
 import (
 	"slices"
-	"strings"
 
 	"charm.land/bubbles/v2/key"
 
@@ -13,8 +12,9 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/logview"
 )
 
-// KeyMap holds the keys of the modal. The modal handles its own keys
-// first, so the bubbles' keys leave out any the modal takes.
+// KeyMap holds the keys of the modal and of the bubbles it shows. The
+// modal matches its own keys first, so the bubbles get only the keys it
+// leaves them.
 type KeyMap struct {
 	// Next and Prev move the focus through the panes, and Left and Right
 	// to the pane beside the focused one.
@@ -68,29 +68,14 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		Annotations: ui.Binding(keys, config.ActionAnnotations, "annotations"),
 		Confirm:     ui.DefaultConfirmKeys(),
 	}
-	// The tabs take their keys from the panes' keys, which the app shares
-	// with other screens.
-	// PR5: this decides where ] goes, since the modal matches the panes
-	// before the tabs; match the tabs first instead.
-	tabs := []key.Binding{k.NextTab, k.PrevTab}
-	k.Next = without(ui.Binding(keys, config.ActionNextTab, "pane"), tabs)
-	k.Prev = without(ui.Binding(keys, config.ActionPrevTab, "previous pane"), tabs)
-	// Refresh reads the runs again, so ctrl+r, its second key, is free for
-	// the re-run of the failed jobs.
-	// PR5: the modal matches the re-run first anyway, so this only keeps
-	// the collision out of help.
-	k.Refresh = without(k.Refresh, []key.Binding{k.RerunFailed})
-
-	// PR5: the modal matches its own keys first, so dropping them from the
-	// lists and the log below only keeps the collisions out of help.
-	own := []key.Binding{
-		k.Next, k.Prev, k.Left, k.Right, k.NextTab, k.PrevTab, k.Select, k.Back, k.Filter, k.Zoom, k.Open,
-		k.Refresh, k.RerunFailed, k.Rerun, k.RerunJob, k.Cancel,
-	}
+	// The tabs take ] and [ from the panes, whose keys the app shares
+	// with other screens: the modal matches the tabs first. ctrl+r, the
+	// second key of refresh, re-runs the failed jobs, which the modal
+	// matches before refresh. Its own keys come before those of the lists
+	// and the log, such as f, which pages down there and filters here.
+	k.Next = ui.Binding(keys, config.ActionNextTab, "pane")
+	k.Prev = ui.Binding(keys, config.ActionPrevTab, "previous pane")
 	fk := feed.DefaultKeyMap()
-	for _, b := range []*key.Binding{&fk.Up, &fk.Down, &fk.PageUp, &fk.PageDown, &fk.Home, &fk.End} {
-		*b = without(*b, own)
-	}
 	fk.Retry = relabel(k.Refresh, "retry")
 	fk.Retry.SetEnabled(false)
 	k.List = fk
@@ -98,21 +83,6 @@ func newKeyMap(keys map[string][]string) KeyMap {
 	// The log folds with enter, and closes with the back key, which
 	// clears a search first.
 	lk := logview.DefaultKeyMap()
-	logOwn := slices.DeleteFunc(slices.Clone(own), func(b key.Binding) bool {
-		return slices.Equal(b.Keys(), k.Select.Keys()) || slices.Equal(b.Keys(), k.Back.Keys())
-	})
-	for _, b := range []*key.Binding{
-		&lk.Up, &lk.Down, &lk.PageUp, &lk.PageDown, &lk.HalfPageUp, &lk.HalfPageDown, &lk.Home, &lk.End,
-		&lk.Left, &lk.Right, &lk.Toggle, &lk.Expand, &lk.Collapse, &lk.FoldAll,
-		&lk.NextError, &lk.PrevError, &lk.NextWarning, &lk.PrevWarning, &lk.Wrap, &lk.Times, &lk.LineNumbers,
-		&lk.Follow, &lk.Search, &lk.Next, &lk.Prev,
-	} {
-		enabled := b.Enabled()
-		*b = without(*b, logOwn)
-		// The view enables the moves between errors, warnings and matches
-		// only while there are some.
-		b.SetEnabled(enabled && len(b.Keys()) > 0)
-	}
 	lk.Close = relabel(k.Back, "back")
 	k.Log = lk
 	return k
@@ -121,7 +91,7 @@ func newKeyMap(keys map[string][]string) KeyMap {
 // own returns the keys of the modal itself, in the order it matches them.
 func (k KeyMap) own() []key.Binding {
 	return []key.Binding{
-		k.Next, k.Prev, k.Right, k.Left, k.NextTab, k.PrevTab, k.Filter, k.Zoom, k.Open,
+		k.NextTab, k.PrevTab, k.Next, k.Prev, k.Right, k.Left, k.Filter, k.Zoom, k.Open,
 		k.RerunFailed, k.Rerun, k.RerunJob, k.Cancel, k.Refresh, k.Back, k.Select, k.Annotations,
 	}
 }
@@ -143,28 +113,6 @@ func (k KeyMap) job() jobview.KeyMap {
 		Log: k.Log, Annotations: k.Annotations, Up: k.List.Up, Down: k.List.Down,
 		Select: relabel(k.Select, "open file"), Open: k.Open,
 	}
-}
-
-var keyLabels = strings.NewReplacer("pgdown", "pgdn", "down", "↓", "up", "↑", "left", "←", "right", "→")
-
-// without returns b without the keys that taken use.
-func without(b key.Binding, taken []key.Binding) key.Binding {
-	keys := slices.DeleteFunc(slices.Clone(b.Keys()), func(k string) bool {
-		return slices.ContainsFunc(taken, func(t key.Binding) bool {
-			return slices.Contains(t.Keys(), k)
-		})
-	})
-	switch len(keys) {
-	case len(b.Keys()):
-		return b
-	case 0:
-		return key.NewBinding(key.WithDisabled())
-	}
-	labels := make([]string, len(keys))
-	for i, k := range keys {
-		labels[i] = keyLabels.Replace(k)
-	}
-	return key.NewBinding(key.WithKeys(keys...), key.WithHelp(strings.Join(labels, "/"), b.Help().Desc))
 }
 
 // relabel returns b described as desc.

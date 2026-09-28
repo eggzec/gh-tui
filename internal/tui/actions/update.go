@@ -131,6 +131,11 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 	}
 	k := m.keys
 	switch {
+	// The tabs share ] and [ with the panes, and take them first.
+	case key.Matches(msg, k.NextTab):
+		return m.switchTab(1)
+	case key.Matches(msg, k.PrevTab):
+		return m.switchTab(-1)
 	case key.Matches(msg, k.Next):
 		return m.moveFocus(1, true)
 	case key.Matches(msg, k.Prev):
@@ -139,10 +144,6 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.moveFocus(1, false)
 	case key.Matches(msg, k.Left):
 		return m.moveFocus(-1, false)
-	case key.Matches(msg, k.NextTab):
-		return m.switchTab(1)
-	case key.Matches(msg, k.PrevTab):
-		return m.switchTab(-1)
 	case key.Matches(msg, k.Filter):
 		return m.openFilter()
 	case key.Matches(msg, k.Zoom):
