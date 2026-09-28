@@ -121,7 +121,8 @@ func (m *Model) noteRows() int {
 }
 
 // press takes the keys that move the focus to the annotations and back,
-// and those of the annotations while they have it.
+// and those of the annotations while they have it, passing on to the log
+// the ones that don't need its cursor.
 func (m *Model) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	k, n := m.keys, &m.notes
 	if len(n.items) == 0 || m.view.Capturing() {
@@ -133,6 +134,15 @@ func (m *Model) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	}
 	if !m.onNotes {
 		return nil, false
+	}
+	// The keys that change how the whole log shows need none of its
+	// cursor, so they work from here too.
+	if lk := m.view.KeyMap(); key.Matches(msg, lk.FoldAll, lk.Wrap, lk.Times, lk.LineNumbers, lk.Follow) {
+		m.view.Focus()
+		var cmd tea.Cmd
+		m.view, cmd = m.view.Update(msg)
+		m.view.Blur()
+		return cmd, true
 	}
 	switch {
 	case key.Matches(msg, k.Up):
