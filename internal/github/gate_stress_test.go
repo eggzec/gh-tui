@@ -134,15 +134,17 @@ func TestGateStress(t *testing.T) {
 		if g := c.budget.gate; g.scout != 0 || g.lifting {
 			t.Errorf("a scout %d, lifting %v, left after all came back", g.scout, g.lifting)
 		}
+		// Whether a limit comes while requests wait for a slot is up to
+		// the draw, and a run now and then has none, so recalls are left
+		// to TestGateRecall.
 		sum := obs.Default().Summary().RateLimit
-		var held, released, recalled int64
+		var held, released int64
 		for _, r := range sum.Resources {
 			held += r.Held
 			released += r.Released
-			recalled += r.Recalled
 		}
-		if held == 0 || released == 0 || recalled == 0 {
-			t.Errorf("rate limit stats = %+v, want requests held, let go and recalled", sum)
+		if held == 0 || released == 0 {
+			t.Errorf("rate limit stats = %+v, want requests held and let go", sum)
 		}
 	})
 }
