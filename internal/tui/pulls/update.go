@@ -33,6 +33,9 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 		return s.setRepo(msg.Repo)
 	case ui.SyncMsg:
 		return s.sync(msg)
+	case ui.SettingsMsg:
+		s.configure(msg.Config)
+		return nil
 	case ui.CapsMsg:
 		if s.hasRepo && msg.Repo == s.repo {
 			s.caps = msg.Caps

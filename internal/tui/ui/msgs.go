@@ -201,7 +201,8 @@ type BackMsg struct{}
 
 // SettingsMsg carries the config once the user changed a setting of it
 // for the session, such as ui.icons. Each section takes what it uses of
-// it.
+// it; the app sets the theme again after, so a section need only keep
+// what it draws with, such as the icons.
 type SettingsMsg struct {
 	Config config.Config
 }
