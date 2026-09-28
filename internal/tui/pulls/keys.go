@@ -1,9 +1,6 @@
 package pulls
 
 import (
-	"slices"
-	"strings"
-
 	"charm.land/bubbles/v2/key"
 
 	"github.com/eggzec/gh-tui/internal/config"
@@ -13,8 +10,9 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
 )
 
-// keyMap holds the keys of the section, and those of its bubbles without
-// the keys the section takes for itself.
+// keyMap holds the keys of the section and of the bubbles it shows. The
+// section and its modal match their own keys first, so the bubbles get
+// only the keys they leave them.
 type keyMap struct {
 	Select key.Binding
 	Back   key.Binding
@@ -62,41 +60,22 @@ func newKeyMap(keys map[string][]string) keyMap {
 		Checks:      ui.Binding(keys, config.ActionChecks, "checks"),
 		confirm:     ui.DefaultConfirmKeys(),
 	}
-	// PR5: the section and the modal match their own keys first, so
-	// dropping them from the feed and the thread only keeps the
-	// collisions out of help.
-	own := k.list()
+	// The section and the modal match their own keys first, so the feed
+	// and the thread get only the keys they leave them, such as f, which
+	// pages down there and opens the filter here.
 	f := feed.DefaultKeyMap()
-	f.Up, f.Down = without(f.Up, own), without(f.Down, own)
-	f.PageUp, f.PageDown = without(f.PageUp, own), without(f.PageDown, own)
-	f.Home, f.End = without(f.Home, own), without(f.End, own)
 	// Refresh fetches failed chunks again too, so the feed's error row names
 	// its keys.
 	f.Retry = retry(k.Refresh)
 	k.feed = f
 
-	own = k.detail()
 	t := thread.DefaultKeyMap()
-	t.Up, t.Down = without(t.Up, own), without(t.Down, own)
-	t.PageUp, t.PageDown = without(t.PageUp, own), without(t.PageDown, own)
-	t.HalfPageUp, t.HalfPageDown = without(t.HalfPageUp, own), without(t.HalfPageDown, own)
-	t.Top, t.Bottom = without(t.Top, own), without(t.Bottom, own)
-	t.Toggle = without(ui.Binding(keys, config.ActionSelect, t.Toggle.Help().Desc), own)
+	t.Toggle = ui.Binding(keys, config.ActionSelect, t.Toggle.Help().Desc)
 	// The thread offers retry itself once something failed.
 	t.Retry = retry(k.Refresh)
 	t.Retry.SetEnabled(k.Refresh.Enabled())
 	k.thread = t
 	return k
-}
-
-// list returns the bindings the section handles before the feed.
-func (k keyMap) list() []key.Binding {
-	return []key.Binding{k.Select, k.Filter, k.Sort, k.ClearFilter, k.NextTab, k.PrevTab, k.Refresh, k.Open, k.Merge, k.Close, k.Reopen, k.ToggleDraft, k.Checks}
-}
-
-// detail returns the bindings the modal handles before the thread.
-func (k keyMap) detail() []key.Binding {
-	return []key.Binding{k.Back, k.Refresh, k.Open, k.Merge, k.Close, k.Reopen, k.ToggleDraft, k.Checks}
 }
 
 // retry returns the refresh keys as a retry binding that starts disabled, so
@@ -110,39 +89,6 @@ func retry(refresh key.Binding) key.Binding {
 		key.WithHelp(refresh.Help().Key, "retry"),
 		key.WithDisabled(),
 	)
-}
-
-// without returns b without the keys of taken, relabelled with what it has
-// left, so that help never offers a key that does something else here.
-func without(b key.Binding, taken []key.Binding) key.Binding {
-	keys := slices.DeleteFunc(slices.Clone(b.Keys()), func(k string) bool {
-		return slices.ContainsFunc(taken, func(t key.Binding) bool {
-			return t.Enabled() && slices.Contains(t.Keys(), k)
-		})
-	})
-	if len(keys) == len(b.Keys()) {
-		return b
-	}
-	if len(keys) == 0 {
-		return key.NewBinding(key.WithDisabled())
-	}
-	labels := make([]string, 0, 2)
-	for _, k := range keys[:min(len(keys), 2)] {
-		labels = append(labels, keyLabel(k))
-	}
-	return key.NewBinding(key.WithKeys(keys...), key.WithHelp(strings.Join(labels, "/"), b.Help().Desc))
-}
-
-func keyLabel(k string) string {
-	switch k {
-	case "up":
-		return "↑"
-	case "down":
-		return "↓"
-	case "pgdown":
-		return "pgdn"
-	}
-	return k
 }
 
 // ShortHelp implements help.KeyMap.

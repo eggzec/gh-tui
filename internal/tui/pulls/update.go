@@ -123,6 +123,10 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 			return ui.Open(pr.URL)
 		}
 		return nil
+	case key.Matches(msg, k.Filter, k.Sort):
+		// The app opens the filter. Its keys don't reach the feed, whose
+		// page down f is too.
+		return nil
 	}
 	var cmd tea.Cmd
 	*s.feed, cmd = s.feed.Update(msg)
