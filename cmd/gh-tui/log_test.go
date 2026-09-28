@@ -9,8 +9,11 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
+	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
@@ -44,7 +47,6 @@ func TestOpenLog(t *testing.T) {
 		t.Fatal(err)
 	}
 	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
-	// The start record is at info, below the level.
 	if len(lines) != 1 {
 		t.Fatalf("log = %q, want only the warning", data)
 	}
@@ -54,6 +56,114 @@ func TestOpenLog(t *testing.T) {
 	}
 	if id, _ := rec["session_id"].(string); rec["msg"] != "shown" || !strings.HasPrefix(id, obs.SessionPrefix) {
 		t.Errorf("record = %v, want the warning with a session id", rec)
+	}
+}
+
+// fakeToken looks like a token, so a test can tell that none is logged.
+const fakeToken = "ghp_16C7e42F292c6912E7710c838347Ae178B4a"
+
+// readRecords reads the records of the log at path.
+func readRecords(t *testing.T, data []byte) []map[string]any {
+	t.Helper()
+	var recs []map[string]any
+	for line := range strings.Lines(string(data)) {
+		var m map[string]any
+		if err := json.Unmarshal([]byte(line), &m); err != nil {
+			t.Fatalf("line %q: %v", line, err)
+		}
+		recs = append(recs, m)
+	}
+	return recs
+}
+
+func TestLogStart(t *testing.T) {
+	restoreLogger(t)
+	dir := t.TempDir()
+	// The paths below the home directory are logged with it as ~.
+	t.Setenv("HOME", dir)
+	for _, kv := range os.Environ() {
+		if name, _, _ := strings.Cut(kv, "="); strings.HasPrefix(name, "LC_") {
+			t.Setenv(name, "")
+		}
+	}
+	for k, v := range map[string]string{
+		"GH_TOKEN": fakeToken, "GH_ENTERPRISE_TOKEN": fakeToken, "GH_TUI_LOG": "", "GH_DEBUG": "",
+		"TERM": "xterm-256color", "COLORTERM": "truecolor", "TERM_PROGRAM": "tmux", "TERM_PROGRAM_VERSION": "3.5",
+		"TMUX": "/tmp/tmux-1000/default,1,0", "LANG": "en_US.UTF-8", "LC_ALL": "C.UTF-8", "NO_COLOR": "",
+		"SSH_TTY": "", "SSH_CONNECTION": "",
+	} {
+		t.Setenv(k, v)
+	}
+	cfg := config.Default()
+	cfg.Log.File = filepath.Join(dir, "gh-tui.log")
+	cfg.Editor = "vim -c " + fakeToken
+	cfg.Sync.Interval = 30 * time.Second
+	closeLog, warning := openLog(cfg.Log)
+	if warning != "" {
+		t.Fatalf("warning = %q", warning)
+	}
+	logStart(cfg, filepath.Join(dir, "config.yaml"), levelFrom(cfg.Log, true))
+	closeLog()
+
+	data, err := os.ReadFile(cfg.Log.File)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), fakeToken) {
+		t.Fatalf("the start record gives the token away: %s", data)
+	}
+	recs := readRecords(t, data)
+	if len(recs) != 1 || recs[0]["msg"] != "start" {
+		t.Fatalf("records = %v, want the start record", recs)
+	}
+	rec := recs[0]
+	for key, want := range map[string]any{
+		"goos": runtime.GOOS, "goarch": runtime.GOARCH, "go": runtime.Version(),
+		"span": "app", "log_level": "INFO", "level_from": "--debug", "file": filepath.Join("~", "gh-tui.log"),
+		"config_path": filepath.Join("~", "config.yaml"), "config_exists": false,
+		"term": "xterm-256color", "colorterm": "truecolor", "term_program": "tmux", "term_program_version": "3.5",
+		"multiplexer": "tmux", "ssh": false, "no_color": false,
+	} {
+		if rec[key] != want {
+			t.Errorf("start %s = %v, want %v", key, rec[key], want)
+		}
+	}
+	for _, key := range []string{"pid", "version", "cgo", "session_id"} {
+		if _, ok := rec[key]; !ok {
+			t.Errorf("start has no %s: %v", key, rec)
+		}
+	}
+	if got, want := rec["locale"], map[string]any{"lang": "en_US.UTF-8", "lc_all": "C.UTF-8"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("start locale = %v, want %v", got, want)
+	}
+	want := map[string]any{"editor": config.Redacted, "log.file": config.Redacted, "sync.interval": "30s"}
+	if got := rec["non_default"]; !reflect.DeepEqual(got, want) {
+		t.Errorf("start non_default = %v, want %v", got, want)
+	}
+}
+
+func TestLevelFrom(t *testing.T) {
+	debug := config.Log{Level: config.LevelDebug}
+	for _, tt := range []struct {
+		name            string
+		cfg             config.Log
+		flag            bool
+		ghDebug, envLog string
+		want            string
+	}{
+		{name: "default", cfg: config.Default().Log, want: "default"},
+		{name: "config", cfg: debug, want: "config"},
+		{name: "GH_TUI_LOG", cfg: debug, envLog: "debug", want: "GH_TUI_LOG"},
+		{name: "GH_DEBUG", cfg: debug, envLog: "warn", ghDebug: "1", want: "GH_DEBUG"},
+		{name: "--debug", cfg: debug, ghDebug: "1", flag: true, want: "--debug"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("GH_DEBUG", tt.ghDebug)
+			t.Setenv(config.EnvLog, tt.envLog)
+			if got := levelFrom(tt.cfg, tt.flag); got != tt.want {
+				t.Errorf("levelFrom = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }
 

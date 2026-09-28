@@ -58,11 +58,13 @@ func run() error {
 		return err
 	}
 
+	from := levelFrom(cfg.Log, *debugLog)
 	if *debugLog || ghDebug(os.Getenv("GH_DEBUG")) {
 		cfg.Log.Level = config.LevelDebug
 	}
 	closeLog, warning := openLog(cfg.Log)
 	defer closeLog()
+	logStart(cfg, path, from)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
