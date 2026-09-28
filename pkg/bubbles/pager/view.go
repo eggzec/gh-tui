@@ -353,6 +353,8 @@ func (m Model) statusLine() string {
 	switch {
 	case m.opt:
 		left = m.esc.prompt.wrap("-")
+	case m.counting:
+		left = m.esc.prompt.wrap(strconv.Itoa(m.num))
 	case m.flash != "" && m.flashInfo:
 		left = m.esc.status.wrap(m.flash)
 	case m.flash != "":

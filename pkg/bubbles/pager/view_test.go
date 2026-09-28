@@ -72,6 +72,8 @@ func TestView(t *testing.T) {
 		{name: "no such option", file: "main.go", text: goSource, width: 80, height: 8, keys: []string{"-", "x"}},
 		{name: "squeezed", file: "main.go", text: "package main\n\n\n\nfunc main() {\n\n\n}\n", width: 80, height: 8,
 			keys: []string{"-", "s"}},
+		{name: "count", file: "lines.txt", text: numbered(40), width: 30, height: 8, keys: []string{"1", "2"}},
+		{name: "went to a line", file: "lines.txt", text: numbered(40), width: 30, height: 8, keys: []string{"1", "2", "g"}},
 		{name: "long name", file: "internal/some/very/deeply/nested/package/main.go", text: goSource,
 			width: 40, height: 4},
 		{name: "loading", width: 40, height: 4, set: func(m *Model) { _ = m.SetLoading("main.go") }},

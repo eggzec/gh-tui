@@ -192,6 +192,18 @@ func (m *Model) GoToLine(n int) {
 	m.clamp()
 }
 
+// goTo scrolls line n, counted from 1, to the top of the window, or the
+// first line shown after it, as less's g does with a count. A line past
+// the end goes to the last.
+func (m *Model) goTo(n int) {
+	if m.count() == 0 {
+		return
+	}
+	i := max(min(n, len(m.lines)), 1) - 1
+	m.top, m.row = min(m.posOf(i), m.count()-1), 0
+	m.clamp()
+}
+
 // clamp keeps the window within the content after anything that moved or
 // resized it.
 func (m *Model) clamp() {

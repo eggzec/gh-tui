@@ -28,7 +28,7 @@ func TestHelpState(t *testing.T) {
 	}
 	m := open(t, "lines.txt", numbered(100), WithSize(40, 11))
 	keytest.NoConflicts(t, m)
-	if got := enabled(m); len(got) != 14 {
+	if got := enabled(m); len(got) != 15 {
 		t.Errorf("idle: %d enabled, want all but the four search keys: %q", len(got), got)
 	}
 	m, _ = keys(t, m, "/")
@@ -42,6 +42,14 @@ func TestHelpState(t *testing.T) {
 		if !slices.Contains(got, want) {
 			t.Errorf("search shown: enabled %q, want %q", got, want)
 		}
+	}
+	m, _ = keys(t, m, "esc", "esc", "1")
+	if got := enabled(m); !slices.Equal(got, []string{"g/home active", "G/end active", "0-9 active", "esc active"}) {
+		t.Errorf("counting: enabled %q, want g, G, the digits and esc", got)
+	}
+	m, _ = keys(t, m, "esc", "-")
+	if got := enabled(m); !slices.Equal(got, []string{"esc active"}) {
+		t.Errorf("option: enabled %q, want esc", got)
 	}
 	m, _ = keys(t, m, "esc")
 	keytest.NoConflicts(t, m)

@@ -12,6 +12,9 @@ type KeyMap struct {
 	HalfPageDown key.Binding
 	Home         key.Binding
 	End          key.Binding
+	// Count types a digit of a count, which Home and End take for the
+	// line to go to, as less's g and G do.
+	Count key.Binding
 	// Left and Right scroll sideways while lines are not wrapped.
 	Left  key.Binding
 	Right key.Binding
@@ -59,16 +62,18 @@ func DefaultKeyMap() KeyMap {
 		HalfPageDown: key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "½ page down")),
 		Home:         key.NewBinding(key.WithKeys("home", "g"), key.WithHelp("g/home", "top")),
 		End:          key.NewBinding(key.WithKeys("end", "G"), key.WithHelp("G/end", "bottom")),
-		Left:         key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←/h", "left")),
-		Right:        key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "right")),
-		Option:       key.NewBinding(key.WithKeys("-"), key.WithHelp("-", "option: S N s i I")),
-		Search:       key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "search")),
-		Filter:       key.NewBinding(key.WithKeys("&"), key.WithHelp("&", "filter")),
-		Confirm:      key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "search"), key.WithDisabled()),
-		Cancel:       key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel"), key.WithDisabled()),
-		Next:         key.NewBinding(key.WithKeys("n"), key.WithHelp("n", "next match"), key.WithDisabled()),
-		Prev:         key.NewBinding(key.WithKeys("N"), key.WithHelp("N", "prev match"), key.WithDisabled()),
-		Close:        key.NewBinding(key.WithKeys("q", "esc"), key.WithHelp("q", "close")),
+		Count: key.NewBinding(key.WithKeys("0", "1", "2", "3", "4", "5", "6", "7", "8", "9"),
+			key.WithHelp("0-9", "line for g/G")),
+		Left:    key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←/h", "left")),
+		Right:   key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "right")),
+		Option:  key.NewBinding(key.WithKeys("-"), key.WithHelp("-", "option: S N s i I")),
+		Search:  key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "search")),
+		Filter:  key.NewBinding(key.WithKeys("&"), key.WithHelp("&", "filter")),
+		Confirm: key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "search"), key.WithDisabled()),
+		Cancel:  key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel"), key.WithDisabled()),
+		Next:    key.NewBinding(key.WithKeys("n"), key.WithHelp("n", "next match"), key.WithDisabled()),
+		Prev:    key.NewBinding(key.WithKeys("N"), key.WithHelp("N", "prev match"), key.WithDisabled()),
+		Close:   key.NewBinding(key.WithKeys("q", "esc"), key.WithHelp("q", "close")),
 	}
 }
 
@@ -81,7 +86,7 @@ func (k KeyMap) ShortHelp() []key.Binding {
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.PageUp, k.PageDown, k.HalfPageUp, k.HalfPageDown},
-		{k.Home, k.End, k.Left, k.Right, k.Option},
+		{k.Home, k.End, k.Count, k.Left, k.Right, k.Option},
 		{k.Search, k.Filter, k.Confirm, k.Cancel, k.Next, k.Prev, k.Close},
 	}
 }
