@@ -102,7 +102,7 @@ func DefaultKeyMap() KeyMap {
 
 // ShortHelp returns the bindings for the short help view.
 func (k KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Toggle, k.NextError, k.Search, k.Next, k.Close}
+	return []key.Binding{k.Toggle, k.FoldAll, k.NextError, k.Search, k.Next, k.Close}
 }
 
 // FullHelp returns the bindings for the full help view.

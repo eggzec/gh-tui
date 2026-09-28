@@ -137,7 +137,7 @@ func (m *Model) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	}
 	// The keys that change how the whole log shows need none of its
 	// cursor, so they work from here too.
-	if lk := m.view.KeyMap(); key.Matches(msg, lk.FoldAll, lk.Wrap, lk.Times, lk.LineNumbers, lk.Follow) {
+	if key.Matches(msg, m.wholeLog()...) {
 		m.view.Focus()
 		var cmd tea.Cmd
 		m.view, cmd = m.view.Update(msg)
@@ -155,6 +155,12 @@ func (m *Model) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	n.scroll(m.noteRows())
 	// The log keeps still while the annotations have the keys.
 	return nil, true
+}
+
+// wholeLog returns the keys that change how the whole log shows.
+func (m *Model) wholeLog() []key.Binding {
+	lk := m.view.KeyMap()
+	return []key.Binding{lk.FoldAll, lk.Wrap, lk.Times, lk.LineNumbers, lk.Follow}
 }
 
 // openNote previews the file of the annotation under the cursor on its

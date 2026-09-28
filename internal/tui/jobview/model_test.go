@@ -11,6 +11,8 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keytest"
 )
 
 func TestShowsAFailedJobOnItsError(t *testing.T) {
@@ -268,26 +270,47 @@ func TestAnnotationsRetry(t *testing.T) {
 	}
 }
 
-func TestKeys(t *testing.T) {
+func TestKeyLayers(t *testing.T) {
 	m := newView(t, newFake(), 80, 20)
 	run(m, m.Show(failed(), false, Hints{}))
 	m.Focus()
 	names := func() string {
-		bs := m.Keys()
+		bs := ui.Hints{Layers: m.KeyLayers()}.ShortHelp()
 		out := make([]string, 0, len(bs))
 		for _, b := range bs {
 			out = append(out, b.Help().Key+" "+b.Help().Desc)
 		}
 		return strings.Join(out, ", ")
 	}
-	if got := names(); got != "space fold, * fold all, e next error, / search, A annotations" {
-		t.Errorf("keys of the log %q", got)
+	if got, want := names(), "space fold, * fold all, e next error, / search, q close, A annotations"; got != want {
+		t.Errorf("keys of the log %q, want %q", got, want)
 	}
 	keys(m, "A")
-	if got := names(); got != "↑/k up, ↓/j down, ↵ open file, * fold all, A log" {
-		t.Errorf("keys of the annotations %q", got)
+	if got, want := names(), "* fold all, ↑/k up, ↓/j down, ↵ open file, A log"; got != want {
+		t.Errorf("keys of the annotations %q, want %q", got, want)
 	}
-	if len(m.FullHelp()) == 0 {
-		t.Error("no full help")
+}
+
+func TestKeyMapComplete(t *testing.T) {
+	keytest.Complete(t, testKeys())
+}
+
+// The layers take a key in the order the view does: the log's until the
+// annotations have the focus, and theirs alone then.
+func TestKeyLayersOrder(t *testing.T) {
+	m := newView(t, newFake(), 80, 20)
+	run(m, m.Show(failed(), false, Hints{}))
+	m.Focus()
+	if _, src, _ := uitest.Winner(m.KeyLayers(), "j"); src != "log" {
+		t.Errorf("j reaches %q, want the log", src)
+	}
+	keys(m, "A")
+	if _, src, _ := uitest.Winner(m.KeyLayers(), "j"); src != "annotations" {
+		t.Errorf("j reaches %q on the annotations, want them", src)
+	}
+	before := m.notes.cursor
+	keys(m, "j")
+	if m.notes.cursor != before+1 {
+		t.Errorf("j moved the annotations from %d to %d, want one down", before, m.notes.cursor)
 	}
 }
