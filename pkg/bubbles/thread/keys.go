@@ -63,9 +63,11 @@ func DefaultKeyMap() KeyMap {
 	}
 }
 
-// ShortHelp implements help.KeyMap.
+// ShortHelp implements help.KeyMap: the moves, as a list offers them, and
+// the keys that apply now, so that a parent's own keys still fit beside
+// them.
 func (k KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Up, k.Down, k.HalfPageDown, k.Bottom, k.Toggle, k.Retry}
+	return []key.Binding{k.Up, k.Down, k.Toggle, k.Retry}
 }
 
 // FullHelp implements help.KeyMap.
