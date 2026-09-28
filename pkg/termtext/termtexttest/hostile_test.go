@@ -28,6 +28,7 @@ func TestAssertClean(t *testing.T) {
 		{name: "link elsewhere", view: "\x1b]8;;https://evil.test\x1b\\gh\x1b]8;;\x1b\\", width: 2, fails: true},
 		{name: "c1 byte", view: "a\x9b2J", width: 5, fails: true},
 		{name: "bidi", view: "a\u2066b", width: 5, fails: true},
+		{name: "image placeholder", view: "\x1b[38;5;1m\U0010EEEE\u0305\u0305", width: 5, fails: true},
 		{name: "too wide", view: "abc", width: 2, fails: true},
 	}
 	for _, tt := range tests {

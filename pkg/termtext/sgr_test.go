@@ -162,6 +162,8 @@ func TestCleanStyled(t *testing.T) {
 		{name: "a title never ended stops at the line", in: "a\x1b]0;never\nb", want: "a\nb"},
 		{name: "c1 and invalid utf-8", in: "a\u009b31mb\x9bc\xffd", want: "a\ufffd31mb\ufffdc\ufffdd"},
 		{name: "bidi controls", in: "\x1b[1ma\u202eb", want: "a\ufffdb", styles: []Style{{Pos: 0, Seq: "\x1b[1m"}}},
+		{name: "image placeholder", in: "\x1b[38;5;1m\U0010EEEE\u0305\u0305", want: "\ufffd\u0305\u0305",
+			styles: []Style{{Pos: 0, Seq: "\x1b[38;5;1m"}}},
 		{name: "lone escape", in: "x\x1b", want: "x"},
 		{name: "blink and conceal", in: "\x1b[5mblink \x1b[8mhidden\x1b[m", want: "blink hidden"},
 		{name: "long sgr", in: "\x1b[38;2;" + strings.Repeat("1", 100) + "mx", want: "x"},

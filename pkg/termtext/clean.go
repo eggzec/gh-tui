@@ -10,9 +10,10 @@ import (
 )
 
 // Clean expands tabs to spaces and replaces control characters, the
-// characters that reorder text and invalid UTF-8, so that the text can
-// neither break the layout, nor send escape sequences to the terminal, nor
-// show in an order other than the one it is read in. It drops the CR of
+// characters that reorder text, the kitty image placeholder and invalid
+// UTF-8, so that the text can neither break the layout, nor send escape
+// sequences to the terminal, nor show in an order other than the one it
+// is read in, nor draw an image. It drops the CR of
 // CRLF line endings. Text that needs none of this is returned as it is.
 func Clean(src string, tabWidth int) string {
 	s, _ := clean(src, tabWidth, false)
@@ -98,11 +99,18 @@ func firstChange(src string) int {
 	return len(src)
 }
 
-// Control reports whether r is a control character, C0, DEL or C1, or one
-// of the characters that change the order text shows in, which can make
-// code read differently from how it runs.
+// Placeholder is the kitty graphics protocol's Unicode placeholder. A
+// terminal that knows it draws a part of an image in its cell, the image
+// its foreground color names, so text from outside must not hold it.
+const Placeholder = '\U0010EEEE'
+
+// Control reports whether r is a control character, C0, DEL or C1, one of
+// the characters that change the order text shows in, which can make code
+// read differently from how it runs, or the kitty image [Placeholder].
 func Control(r rune) bool {
 	switch {
+	case r == Placeholder:
+		return true
 	case r < 0x20, r >= 0x7f && r < 0xa0:
 		return true
 	case r >= 0x202a && r <= 0x202e, r >= 0x2066 && r <= 0x2069:

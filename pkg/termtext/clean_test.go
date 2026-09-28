@@ -20,6 +20,8 @@ func TestClean(t *testing.T) {
 		{name: "c1 controls", in: "a\u009bb", tab: 4, want: "a�b"},
 		{name: "invalid utf-8", in: "a\xffb", tab: 4, want: "a�b"},
 		{name: "bidi overrides", in: "a\u202eb\u2066c\u2069d\u200f", tab: 4, want: "a�b�c�d�"},
+		// A hostile comment could draw an image with the kitty placeholder.
+		{name: "image placeholder", in: "a\x1b[38;5;1m\U0010EEEE\u0305\u030db", tab: 4, want: "a\ufffd[38;5;1m\ufffd\u0305\u030db"},
 		{name: "unicode is kept", in: "héllo wörld 👋", tab: 4, want: "héllo wörld 👋"},
 	}
 	for _, tt := range tests {

@@ -15,10 +15,11 @@ import (
 // 0x9b, as a C1 control. OneLine drops the invisible format characters
 // too, such as the bidi controls, which can make text read other than it
 // is, like a right-to-left override in a name from GitHub; the zero-width
-// joiner and non-joiner stay, since emoji and scripts need them.
+// joiner and non-joiner stay, since emoji and scripts need them. The
+// kitty image [Placeholder] turns into U+FFFD, so the text draws no image.
 func OneLine(s string) string {
 	valid := utf8.ValidString(s)
-	if valid && !strings.ContainsFunc(s, func(r rune) bool { return isControl(r) || isHidden(r) }) {
+	if valid && !strings.ContainsFunc(s, func(r rune) bool { return isControl(r) || isMapped(r) }) {
 		return s
 	}
 	if !valid {
@@ -27,9 +28,12 @@ func OneLine(s string) string {
 		s = strings.ToValidUTF8(s, "\ufffd")
 	}
 	s = ansi.Strip(s)
-	if strings.ContainsFunc(s, isHidden) {
+	if strings.ContainsFunc(s, isMapped) {
 		s = strings.Map(func(r rune) rune {
-			if isHidden(r) {
+			switch {
+			case r == Placeholder:
+				return utf8.RuneError
+			case isHidden(r):
 				return -1
 			}
 			return r
@@ -40,6 +44,11 @@ func OneLine(s string) string {
 
 func isControl(r rune) bool {
 	return r < 0x20 || r == 0x7f || r >= 0x80 && r < 0xa0
+}
+
+// isMapped reports whether OneLine drops or replaces r, which is no control.
+func isMapped(r rune) bool {
+	return r == Placeholder || isHidden(r)
 }
 
 // isHidden reports whether r is an invisible format character that OneLine
