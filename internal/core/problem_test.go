@@ -156,6 +156,13 @@ func TestScopeError(t *testing.T) {
 	}
 }
 
+func TestKindError(t *testing.T) {
+	p := Explain("load notifications", &KindError{Kind: TokenFineGrained})
+	if p.Kind != Auth || p.Reason != "needs a classic token" || p.Grant != "" {
+		t.Errorf("Explain = %+v, want Auth that needs a classic token and grants no scope", p)
+	}
+}
+
 func TestProblemKindString(t *testing.T) {
 	for k := Internal; k <= Rejected; k++ {
 		if k != Internal && k.String() == Internal.String() {

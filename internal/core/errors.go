@@ -71,6 +71,27 @@ func (e *ScopeError) Unwrap() []error {
 	return []error{ErrUnauthorized, e.Err}
 }
 
+// KindError is an operation that no token of Kind may do, whatever it is
+// allowed, as a fine-grained token may not read notifications. It
+// matches ErrUnauthorized.
+type KindError struct {
+	Kind TokenKind
+}
+
+func (e *KindError) Error() string {
+	return "a token of kind " + e.Kind.String() + " can't do this"
+}
+
+// Reason says what the operation needs, for Explain.
+func (e *KindError) Reason() string {
+	return "needs a classic token"
+}
+
+// Is reports whether target is ErrUnauthorized.
+func (e *KindError) Is(target error) bool {
+	return target == ErrUnauthorized
+}
+
 // SSOError is an organization refusing a token that isn't authorized for
 // its single sign-on. It matches ErrForbidden, and Err, the error it came
 // with, if any.
