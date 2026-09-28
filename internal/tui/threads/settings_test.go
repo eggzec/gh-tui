@@ -29,6 +29,12 @@ func TestConfigure(t *testing.T) {
 	if bare.ahead != nil {
 		t.Error("an opener with nothing to read with reads ahead")
 	}
+	c = config.Default()
+	c.Notifications.MarkReadOnOpen = false
+	o.Configure(c)
+	if o.MarksRead() {
+		t.Error("the opener still marks threads read")
+	}
 	var none *Opener
 	none.Configure(config.Default())
 }

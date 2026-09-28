@@ -228,6 +228,11 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 		Dashboard: dashboard.New(ctx, dashSvc, cfg.Keys, dashOpts...),
 	}
 
+	// The history reads the settings of the session, which the set
+	// command may have changed since the start, each time it opens.
+	historyOpts := func(h config.History) []history.Option {
+		return []history.Option{history.WithConfig(h), history.WithOffline(offline), history.WithHost(webHost), history.WithVoice(voice)}
+	}
 	b := browser.New("", io.Discard, io.Discard)
 	opts := []tui.Option{
 		tui.WithBrowser(b.Browse),
@@ -240,10 +245,12 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 		tui.WithRecall(recall{pinned: pinned, here: here, dash: dashSvc, repos: repoSvc, pulls: pullSvc, issues: issueSvc}),
 		tui.WithHost(webHost),
 		tui.WithVoice(voice),
-		tui.WithHistory(history.Opener(historySvc, cfg.Keys,
-			history.WithConfig(cfg.History), history.WithOffline(offline), history.WithHost(webHost), history.WithVoice(voice))),
-		tui.WithCommit(history.CommitOpener(historySvc, cfg.Keys,
-			history.WithConfig(cfg.History), history.WithOffline(offline), history.WithHost(webHost), history.WithVoice(voice))),
+		tui.WithHistory(func(ctx context.Context, repo core.RepoRef, defaultBranch string, base ui.BaseMsg) (ui.Modal, tea.Cmd) {
+			return history.Opener(historySvc, cfg.Keys, historyOpts(live.cfg.History)...)(ctx, repo, defaultBranch, base)
+		}),
+		tui.WithCommit(func(ctx context.Context, repo core.RepoRef, sha, defaultBranch string) (ui.Modal, tea.Cmd) {
+			return history.CommitOpener(historySvc, cfg.Keys, historyOpts(live.cfg.History)...)(ctx, repo, sha, defaultBranch)
+		}),
 		tui.WithRelease(releases.Opener(releaseSvc, cfg.Keys, releases.WithVoice(voice))),
 		tui.WithRateStatus(client),
 		// The status bar names the account gh stores the token for; a

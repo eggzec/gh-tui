@@ -41,3 +41,13 @@ func TestSettingsPrefetch(t *testing.T) {
 		t.Error("a section with nothing to read with reads ahead")
 	}
 }
+
+func TestSettingsCalendar(t *testing.T) {
+	s := newSection(t, newFake(), nil, 140, 38)
+	c := config.Default()
+	c.Dashboard.CalendarGlyph, c.Dashboard.Contributions = "#", config.Contributions30d
+	s.Update(ui.SettingsMsg{Config: c})
+	if s.cal.Glyph() != "#" || s.cal.Range() != 30 || s.calDays != 30 {
+		t.Errorf("glyph %q, range %d; want # over 30 days", s.cal.Glyph(), s.cal.Range())
+	}
+}
