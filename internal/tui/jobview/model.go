@@ -19,6 +19,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
@@ -123,6 +124,7 @@ type Model struct {
 
 	width, height int
 	st            ui.RunStyles
+	errs          ui.ErrorStyles
 }
 
 // Option configures a Model in [New].
@@ -136,7 +138,8 @@ type options struct {
 	voice ui.Voice
 }
 
-// WithVoice sets how the view words a log that failed to load, with the
+// WithVoice sets how the view words a log or annotations that failed to
+// load, with the
 // keys a hint names and the log file it points to. By default it names no
 // keys and no log.
 func WithVoice(v ui.Voice) Option {
@@ -191,6 +194,8 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, keys KeyMap, opts 
 // SetTheme styles the view.
 func (m *Model) SetTheme(t ui.Theme) {
 	m.st = ui.NewRunStyles(t, m.opts.icons)
+	// The mark is the log's, which draws "✗" whatever the icons.
+	m.errs = t.Errors(ui.NewIcons(config.IconsUnicode))
 	m.view.SetStyles(t.LogView())
 }
 

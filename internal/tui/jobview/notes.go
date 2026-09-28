@@ -1,7 +1,9 @@
 package jobview
 
 import (
+	"errors"
 	"strconv"
+	"strings"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
@@ -107,7 +109,7 @@ func (m *Model) setNotes(p core.Page[core.Annotation]) {
 func (m *Model) notesHeight() int {
 	switch {
 	case m.notes.err != nil:
-		return 1
+		return len(m.noteError(m.width))
 	case len(m.notes.items) == 0:
 		return 0
 	}
@@ -190,12 +192,33 @@ func inFile(a core.Annotation) bool {
 	return a.Path != "" && a.Path != ".github" && a.StartLine > 0
 }
 
+// noteError renders why the annotations failed to load, after their
+// title, in lines of w cells.
+func (m *Model) noteError(w int) []string {
+	title := "Annotations "
+	tw := ansi.StringWidth(title)
+	// Access is granted by repository, so a refusal names it.
+	subject := ui.OneLine(m.job.Name)
+	if errors.Is(m.notes.err, core.ErrForbidden) {
+		subject = m.repo.String()
+	}
+	text, hint := ui.ErrorText("load the annotations", subject, m.opts.voice)(m.notes.err)
+	lines := ui.ErrorLine(m.errs, text, hint, max(w-tw, 1))
+	for i, l := range lines {
+		lead := strings.Repeat(" ", tw)
+		if i == 0 {
+			lead = m.st.Strong.Render(title)
+		}
+		lines[i] = ui.Fit(lead+l, w)
+	}
+	return lines
+}
+
 // noteLines renders the annotations, notesHeight lines of w cells.
 func (m *Model) noteLines(w int) []string {
 	st, n := &m.st, &m.notes
 	if n.err != nil {
-		text := st.Error.Render("✗ Couldn't load the annotations: " + ui.FirstLine(n.err.Error()))
-		return []string{ui.Fit(ansi.Truncate(text, w, "…"), w)}
+		return m.noteError(w)
 	}
 	if len(n.items) == 0 {
 		return nil
