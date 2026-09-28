@@ -95,7 +95,7 @@ func TestReloadFailureKeepsCommentsAndRetries(t *testing.T) {
 	src.fail[""] = 1
 	m = drain(t, m, m.Reload())
 	out := ansi.Strip(m.View())
-	if !m.failed() || !strings.Contains(out, "@user0") || !strings.Contains(out, "Press r to retry") {
+	if !m.failed() || !strings.Contains(out, "@user0") || !strings.Contains(out, "· r to retry") {
 		t.Fatalf("want the old comments and an error line:\n%s", out)
 	}
 	m = press(t, m, "r")

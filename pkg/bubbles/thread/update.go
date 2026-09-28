@@ -226,7 +226,7 @@ func (m *Model[T]) apply(msg fetchedMsg[T]) {
 	a := m.anchor()
 	c.loading = false
 	if msg.err != nil {
-		c.err = msg.err
+		c.err, c.said = msg.err, m.word(msg.err)
 	} else {
 		c.items = msg.items
 		if msg.index == len(m.chunks)-1 {
@@ -245,7 +245,7 @@ func (m *Model[T]) applyTail(msg fetchedMsg[T]) {
 	a := m.anchor()
 	m.tail.loading = false
 	if msg.err != nil {
-		m.tail.err = msg.err
+		m.tail.err, m.tail.said = msg.err, m.word(msg.err)
 	} else {
 		c := chunk[T]{cursor: msg.cursor, next: msg.next, items: msg.items}
 		m.renderChunk(&c)
