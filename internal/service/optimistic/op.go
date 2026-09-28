@@ -34,6 +34,13 @@ func New(send func(ctx context.Context) error, rollbacks ...func()) *Op {
 	return &Op{send: send, rollbacks: rollbacks}
 }
 
+// Refused returns an Op for a change that was refused before it was
+// applied, such as one the token lacks a scope for: it changes nothing,
+// and its Do returns err without sending anything.
+func Refused(err error) *Op {
+	return New(func(context.Context) error { return err })
+}
+
 // Do sends the change. If sending fails, Do rolls back the local change and
 // returns the error.
 func (o *Op) Do(ctx context.Context) error {
