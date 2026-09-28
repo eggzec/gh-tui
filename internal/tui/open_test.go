@@ -73,6 +73,34 @@ func TestOpenCommand(t *testing.T) {
 	}
 }
 
+// TestOpenCommandRefuses checks that open opens no link that could lead
+// off the user's host, or out of the browser's web pages.
+func TestOpenCommandRefuses(t *testing.T) {
+	for _, line := range []string{
+		"open https://github.com@evil.com/o/n",
+		"open https://github.com:8443/o/n",
+		"open http://github.com:443/o/n",
+		"open javascript:alert(1)",
+		"open javascript://github.com/o/n%0aalert(1)",
+		"open file:///etc/passwd",
+		"open file://github.com/o/n",
+		"open data:text/html,<script>alert(1)</script>",
+		"open data://github.com/o/n",
+	} {
+		t.Run(line, func(t *testing.T) {
+			b := &browser{}
+			m, _ := newGotoApp(t, newGotoRepos(), WithBrowser(b.open), WithRepo(testRepo))
+			runCommand(t, m, line)
+			if len(b.urls) > 0 {
+				t.Errorf("opened %q", b.urls)
+			}
+			if toasted(m) == "" {
+				t.Error("no toast says why not")
+			}
+		})
+	}
+}
+
 // TestOpenCommandPressesTheKey checks that open alone opens what is
 // selected by pressing the open key, where the key goes.
 func TestOpenCommandPressesTheKey(t *testing.T) {

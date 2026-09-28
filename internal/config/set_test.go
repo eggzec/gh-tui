@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -117,6 +118,36 @@ func TestSetKeepsTheRest(t *testing.T) {
 	}
 	if got.Sync.Interval != time.Minute || got.UI != c.UI || got.Details != c.Details {
 		t.Error("Set changed other settings")
+	}
+}
+
+// TestSetRefusedKeepsTheConfig checks that a list that fails validation
+// leaves the config Set was called on as it was, down to the items of its
+// lists.
+func TestSetRefusedKeepsTheConfig(t *testing.T) {
+	for key, value := range map[string]string{
+		"history.row":    "subject, nope",
+		"history.detail": "[body, nope]",
+		"repos":          "cli/cli, nope",
+	} {
+		t.Run(key, func(t *testing.T) {
+			c := Default()
+			c.Repos = []string{"eggzec/gh-tui", "cli/cli"}
+			want := Default()
+			want.Repos = slices.Clone(c.Repos)
+			got, err := c.Set(key, value)
+			if err == nil {
+				t.Fatalf("Set(%q, %q) took it", key, value)
+			}
+			if !reflect.DeepEqual(c, want) {
+				v, _ := c.Get(key)
+				t.Errorf("Set changed the config it was called on: %s is %s", key, v)
+			}
+			if !reflect.DeepEqual(got, want) {
+				v, _ := got.Get(key)
+				t.Errorf("Set returned a changed config with its error: %s is %s", key, v)
+			}
+		})
 	}
 }
 
