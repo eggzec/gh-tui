@@ -88,6 +88,8 @@ func TestView(t *testing.T) {
 		{name: "colors filtered", file: "test.log", text: colored, width: 50, height: 5, filter: "view_test"},
 		{name: "colors wrapped", file: "test.log", text: colored, width: 30, height: 8, opts: []Option{WithWrap(true)}},
 		{name: "colors scrolled sideways", file: "test.log", text: colored, width: 30, height: 5, keys: []string{"l", "l"}},
+		{name: "latin-1", file: "notes.txt", text: "Gr\xfc\xdfe aus K\xf6ln\n\x93Zitat\x94 \x96 5 \x80\n", width: 30, height: 3},
+		{name: "invalid bytes", file: "notes.txt", text: "你好, w\xf6rld \xff\n", width: 30, height: 2},
 		{name: "long name", file: "internal/some/very/deeply/nested/package/main.go", text: goSource,
 			width: 40, height: 4},
 		{name: "loading", width: 40, height: 4, set: func(m *Model) { _ = m.SetLoading("main.go") }},

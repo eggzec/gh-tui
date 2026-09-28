@@ -20,8 +20,9 @@ const binarySniff = 8000
 // line does; only common languages are highlighted. The returned command
 // highlights the text in the background, and the pager shows it plain
 // until then. Text with colors of its own (SGR sequences) shows in them
-// instead of highlighted. Text with a NUL byte is taken for binary and not
-// shown.
+// instead of highlighted. Text that isn't UTF-8 is decoded, as
+// [termtext.Decode] tells its encoding. Text with a NUL byte is taken for
+// binary and not shown.
 func (m *Model) SetContent(name, text string) tea.Cmd {
 	return m.setContent(name, text, func(full string) chroma.Lexer { return lexerFor(name, full) })
 }
@@ -38,10 +39,16 @@ func (m *Model) SetContentSyntax(name, lang, text string) tea.Cmd {
 // called only in the command.
 func (m *Model) setContent(name, text string, lexerOf func(full string) chroma.Lexer) tea.Cmd {
 	m.reset(name, stateReady, nil)
+	// UTF-16 holds NUL bytes, so it is decoded before the check; other
+	// text only once it passed, so binary content isn't decoded.
+	if termtext.UTF16(text) {
+		text = termtext.Decode(text)
+	}
 	if strings.IndexByte(text[:min(len(text), binarySniff)], 0) >= 0 {
 		m.state = stateBinary
 		return nil
 	}
+	text = termtext.Decode(text)
 	var full string
 	var sgr []termtext.Style
 	if termtext.HasSGR(text) {
