@@ -99,17 +99,11 @@ type served struct {
 
 // readCmd runs read in a command, as a trace of its own named name.
 func readCmd[V any](s *Section, k kind, name string, read func(ctx context.Context) (V, served, error)) tea.Cmd {
-	ctx, id, gen, off := s.ctx, s.id, s.gen, s.offline
+	ctx, id, gen := s.ctx, s.id, s.gen
 	return func() tea.Msg {
 		ctx, end := obs.Begin(ctx, name)
 		v, how, err := read(ctx)
 		end(err, "span", "tui", "stale", how.stale, "offline", how.offline, "limited", how.limited)
-		switch {
-		case how.offline:
-			off.Mark()
-		case how.limited:
-			off.MarkLimited()
-		}
 		return loadedMsg{id: id, gen: gen, kind: k, value: v, err: err}
 	}
 }

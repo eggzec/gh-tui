@@ -51,8 +51,6 @@ type Section struct {
 	// never reads the section from another goroutine.
 	list       feed.Model[core.Issue]
 	cancelList context.CancelFunc
-	// offline is marked by the list's reads when GitHub can't be reached.
-	offline *ui.Offline
 	// voice words the errors of the list and of the comments.
 	voice ui.Voice
 
@@ -93,7 +91,6 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 	s := &Section{
 		ctx:       ctx,
 		svc:       svc,
-		offline:   new(ui.Offline),
 		voice:     ui.NewVoice(keys, ""),
 		keys:      newKeyMap(keys),
 		now:       time.Now,
@@ -206,7 +203,7 @@ func (s *Section) newList() feed.Model[core.Issue] {
 		q.Cursor = cursor
 		return q
 	}
-	fetch := ui.FeedPages("list.issues", s.offline, query, func(ctx context.Context, q issuesvc.ListQuery, again bool) (core.Page[core.Issue], error) {
+	fetch := ui.FeedPages("list.issues", query, func(ctx context.Context, q issuesvc.ListQuery, again bool) (core.Page[core.Issue], error) {
 		q.Again = again
 		return svc.List(ctx, q)
 	})

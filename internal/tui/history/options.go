@@ -11,8 +11,7 @@ import (
 type Option func(*options)
 
 type options struct {
-	cfg     config.History
-	offline *ui.Offline
+	cfg config.History
 	// voice words the errors of the graph; New makes one of its keys if
 	// it is nil.
 	voice *ui.Voice
@@ -32,7 +31,7 @@ type options struct {
 }
 
 func defaultOptions() options {
-	return options{cfg: config.Default().History, offline: new(ui.Offline), now: time.Now, loc: time.Local, icons: ui.NewIcons(config.Default().UI.Icons)}
+	return options{cfg: config.Default().History, now: time.Now, loc: time.Local, icons: ui.NewIcons(config.Default().UI.Icons)}
 }
 
 // WithConfig sets what the rows and the commit pane show, how dates read,
@@ -40,17 +39,6 @@ func defaultOptions() options {
 // config.Default.
 func WithConfig(h config.History) Option {
 	return func(o *options) { o.cfg = h }
-}
-
-// WithOffline shares off with the sections, so that the user is told once
-// for all of them that GitHub can't be reached. By default the modal has
-// its own.
-func WithOffline(off *ui.Offline) Option {
-	return func(o *options) {
-		if off != nil {
-			o.offline = off
-		}
-	}
 }
 
 // WithVoice sets how the modal words what went wrong, with the keys a

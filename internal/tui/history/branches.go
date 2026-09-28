@@ -116,12 +116,6 @@ func (m *Modal) receiveBranches(msg branchesMsg) tea.Cmd {
 		return nil
 	}
 	b.err = nil
-	switch {
-	case msg.page.Offline:
-		m.opts.offline.Mark()
-	case msg.page.Limited:
-		m.opts.offline.MarkLimited()
-	}
 	selected, _ := b.selected()
 	if msg.cursor == "" {
 		b.items, b.pages = nil, 0
@@ -152,7 +146,7 @@ func (m *Modal) receiveBranches(msg branchesMsg) tea.Cmd {
 	if b.filter != nil {
 		b.filter.SetItems(m.filterItems())
 	}
-	cmds := []tea.Cmd{m.opts.offline.Notify(), m.moreBranches()}
+	cmds := []tea.Cmd{m.moreBranches()}
 	if msg.page.Stale && msg.cursor == "" {
 		cmds = append(cmds, m.loadBranches("", true))
 	}

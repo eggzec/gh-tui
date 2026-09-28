@@ -123,7 +123,7 @@ func (m *Modal) newRuns() feed.Model[core.Run] {
 		}
 		return svc.Runs(ctx, q)
 	}
-	return feed.New(ui.FeedPages("list.runs", m.opts.offline, query, read), m.renderRun,
+	return feed.New(ui.FeedPages("list.runs", query, read), m.renderRun,
 		feed.WithContext(m.ctx),
 		feed.WithKey(func(r core.Run) string { return strconv.FormatInt(r.ID, 10) }),
 		feed.WithKeyMap(m.keys.List),

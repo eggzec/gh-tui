@@ -158,7 +158,7 @@ func TestFeedPagesRereadsKeptPage(t *testing.T) {
 		filter  = "a"
 	)
 	query := func(cursor string) string { return filter + "?" + cursor }
-	fetch := FeedPages("list.test", new(Offline), query, func(_ context.Context, _ string, again bool) (core.Page[int], error) {
+	fetch := FeedPages("list.test", query, func(_ context.Context, _ string, again bool) (core.Page[int], error) {
 		rereads = append(rereads, again)
 		return core.Page[int]{Items: []int{1}, Stale: !again}, nil
 	})
@@ -187,13 +187,14 @@ func TestFeedPagesRereadsKeptPage(t *testing.T) {
 }
 
 func TestFeedPages(t *testing.T) {
-	var off Offline
 	pages := map[string]core.Page[int]{
 		"":      {Items: []int{1}, Next: "stale", Stale: true},
-		"stale": {Items: []int{2}, Next: "off", Offline: true},
-		"off":   {Items: []int{3}},
+		"stale": {Items: []int{2}, Next: "off", Offline: true, Stale: true},
+		"off":   {Items: []int{3}, Next: "limited"},
+		// Served because GitHub rate limited the read.
+		"limited": {Items: []int{4}, Limited: true, Stale: true},
 	}
-	fetch := FeedPages("list.test", &off, func(cursor string) string { return cursor }, func(_ context.Context, cursor string, _ bool) (core.Page[int], error) {
+	fetch := FeedPages("list.test", func(cursor string) string { return cursor }, func(_ context.Context, cursor string, _ bool) (core.Page[int], error) {
 		if cursor == "fail" {
 			return core.Page[int]{}, errors.New("boom")
 		}
@@ -202,40 +203,15 @@ func TestFeedPages(t *testing.T) {
 	if items, next, err := fetch(t.Context(), ""); !errors.Is(err, feed.ErrStale) || len(items) != 1 || next != "stale" {
 		t.Errorf("stale page = %v, %q, %v; want its items with feed.ErrStale", items, next, err)
 	}
-	if off.Notify() != nil {
-		t.Error("Notify before any offline page returned a toast")
-	}
-	if items, _, err := fetch(t.Context(), "stale"); err != nil || len(items) != 1 {
-		t.Errorf("offline page = %v, %v; want its items", items, err)
-	}
-	cmd := off.Notify()
-	if cmd == nil {
-		t.Fatal("Notify after an offline page = nil, want a toast")
-	}
-	if msg, ok := cmd().(NotifyMsg); !ok || msg.Text != OfflineText {
-		t.Errorf("toast = %v, want the offline text", cmd())
-	}
-	if off.Notify() != nil {
-		t.Error("second Notify returned a toast, want one only")
+	// A kept page served for want of GitHub isn't read again at once:
+	// that read would be served the same.
+	for _, cursor := range []string{"stale", "limited"} {
+		if items, _, err := fetch(t.Context(), cursor); err != nil || len(items) != 1 {
+			t.Errorf("page %q = %v, %v; want its items", cursor, items, err)
+		}
 	}
 	if _, _, err := fetch(t.Context(), "fail"); err == nil || errors.Is(err, feed.ErrStale) {
 		t.Errorf("failed read error = %v, want it passed on", err)
-	}
-
-	// A page served because GitHub rate limited the read marks it too.
-	var limited Offline
-	fetch = FeedPages("list.test", &limited, func(cursor string) string { return cursor }, func(context.Context, string, bool) (core.Page[int], error) {
-		return core.Page[int]{Items: []int{4}, Limited: true}, nil
-	})
-	if items, _, err := fetch(t.Context(), ""); err != nil || len(items) != 1 {
-		t.Errorf("limited page = %v, %v; want its items", items, err)
-	}
-	cmd = limited.Notify()
-	if cmd == nil {
-		t.Fatal("Notify after a limited page = nil, want a toast")
-	}
-	if msg, ok := cmd().(NotifyMsg); !ok || msg.Text != LimitedText {
-		t.Errorf("toast = %v, want the rate-limited text", cmd())
 	}
 }
 

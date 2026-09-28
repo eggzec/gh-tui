@@ -22,12 +22,11 @@ type Follow func(repo core.RepoRef, runID int64) (stop func())
 type Viewer func(ctx context.Context) (string, error)
 
 type options struct {
-	offline *ui.Offline
-	icons   ui.Icons
-	follow  Follow
-	viewer  Viewer
-	repos   ui.Repos
-	filter  core.RunFilter
+	icons  ui.Icons
+	follow Follow
+	viewer Viewer
+	repos  ui.Repos
+	filter core.RunFilter
 	// voice words the errors of the runs and the log; New makes one of
 	// its keys if it is nil.
 	voice *ui.Voice
@@ -45,18 +44,7 @@ type options struct {
 const defaultRest = 150 * time.Millisecond
 
 func defaultOptions() options {
-	return options{offline: new(ui.Offline), icons: ui.NewIcons(config.Default().UI.Icons), rest: defaultRest, tick: time.Second, now: time.Now}
-}
-
-// WithOffline shares off with the sections, so that the user is told once
-// for all of them that GitHub can't be reached. By default the modal has
-// its own.
-func WithOffline(off *ui.Offline) Option {
-	return func(o *options) {
-		if off != nil {
-			o.offline = off
-		}
-	}
+	return options{icons: ui.NewIcons(config.Default().UI.Icons), rest: defaultRest, tick: time.Second, now: time.Now}
 }
 
 // WithVoice sets how the modal words what went wrong, with the keys a hint

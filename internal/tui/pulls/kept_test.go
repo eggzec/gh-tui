@@ -60,22 +60,19 @@ func TestKeptPageIsShownThenRefetched(t *testing.T) {
 	}
 }
 
-func TestOfflineToastOnce(t *testing.T) {
+// TestOfflineShowsKeptRows checks that rows served offline show without
+// a toast: the status bar says the app is offline.
+func TestOfflineShowsKeptRows(t *testing.T) {
 	svc := &keptService{fakeService: newFakeService(), offline: true, served: map[pulls.ListQuery]bool{}}
 	h := newTest(t, svc, 100, 12)
 	drain(t, h, h.Update(ui.RepoMsg{Repo: repo}))
-	var toasts []string
-	for _, msg := range drain(t, h, h.Init()) {
+	msgs := append(drain(t, h, h.Init()), press(t, h, "r")...)
+	for _, msg := range msgs {
 		if n, ok := msg.(ui.NotifyMsg); ok {
-			toasts = append(toasts, n.Text)
+			t.Errorf("toast %q, want none", n.Text)
 		}
 	}
-	for _, msg := range press(t, h, "r") {
-		if n, ok := msg.(ui.NotifyMsg); ok {
-			toasts = append(toasts, n.Text)
-		}
-	}
-	if len(toasts) != 1 || toasts[0] != ui.OfflineText {
-		t.Errorf("toasts = %q, want the offline one once", toasts)
+	if h.feed.Len() == 0 || h.feed.Err() != nil {
+		t.Errorf("rows = %d, error %v; want the rows served offline", h.feed.Len(), h.feed.Err())
 	}
 }
