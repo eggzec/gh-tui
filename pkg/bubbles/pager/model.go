@@ -72,7 +72,15 @@ type Model struct {
 
 	searching bool
 	input     textinput.Model
-	search    search
+	// search is the search shown and hits its matches in the window. qgen
+	// counts searches; what an older one found is dropped. stopSearch
+	// stops the one running in the background.
+	search     search
+	hits       hits
+	qgen       int
+	stopSearch context.CancelFunc
+	// size is the size in bytes of the content shown.
+	size int
 
 	// Rendered once in SetStyles, so View only copies them.
 	esc      esc

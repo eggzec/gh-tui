@@ -130,8 +130,8 @@ func TestSearch(t *testing.T) {
 	}{
 		{name: "lower case ignores case", query: "apple", wantMatches: 3},
 		{name: "capitals match case", query: "Apple", wantMatches: 1},
-		{name: "no match", query: "kiwi", wantMatches: 0},
-		{name: "meta characters are literal", query: "a.d", wantMatches: 0},
+		{name: "no match", query: "kiwi", wantMatches: 0, wantCur: -1},
+		{name: "meta characters are literal", query: "a.d", wantMatches: 0, wantCur: -1},
 		// The window of two rows ends at the last line.
 		{name: "jumps down to the match", query: "cherry", wantMatches: 1, wantTop: 2},
 	}

@@ -1,7 +1,10 @@
 package pager
 
 import (
+	"context"
 	"math"
+	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -22,7 +25,9 @@ var bigPager = sync.OnceValue(func() Model {
 	msg := m.SetContent("big.go", bigSource())()
 	m, _ = m.Update(msg)
 	m.top = m.Lines() / 2
-	m.runSearch("fmt")
+	if cmd := m.runSearch("fmt", smartCase("fmt", "fmt"), m.top); cmd != nil {
+		m, _ = m.Update(cmd())
+	}
 	return m
 })
 
@@ -81,5 +86,27 @@ func BenchmarkSetContent(b *testing.B) {
 	b.ReportAllocs()
 	for b.Loop() {
 		_ = m.SetContent("big.go", src)
+	}
+}
+
+// BenchmarkSearch measures a search of 1 MiB and 16 MiB of Go, as the
+// command that runs it does, for a literal and for a pattern.
+func BenchmarkSearch(b *testing.B) {
+	for _, size := range []int{1 << 20, 16 << 20} {
+		text := strings.Repeat(goSource, size/len(goSource)+1)[:size]
+		lines := strings.Split(text, "\n")
+		for _, tt := range []struct{ name, pattern string }{
+			{name: "literal", pattern: "(?i)fmt"},
+			{name: "regexp", pattern: `(?i)print\w*\(`},
+		} {
+			re := regexp.MustCompile(tt.pattern)
+			b.Run(strconv.Itoa(size>>20)+"MiB/"+tt.name, func(b *testing.B) {
+				b.SetBytes(int64(size))
+				b.ReportAllocs()
+				for b.Loop() {
+					_, _, _ = find(context.Background(), re, lines)
+				}
+			})
+		}
 	}
 }

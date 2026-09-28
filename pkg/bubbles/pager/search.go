@@ -1,6 +1,7 @@
 package pager
 
 import (
+	"context"
 	"math"
 	"regexp"
 	"slices"
@@ -10,33 +11,117 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-// match is where a search matched: bytes start to end of a line.
-type match struct {
-	line, start, end int
+// syncLimit is the size in bytes of content below which a search runs
+// inside Update, so short files and SetSearch show their matches at once.
+// Larger content is searched in a command.
+const syncLimit = 256 << 10
+
+// checkEvery is how many lines a search goes between checks that it was
+// cancelled.
+const checkEvery = 4096
+
+// maxLineMatches is the most matches a search finds in one line, so a
+// pattern that matches every character of a minified file costs no more
+// than one that matches a word.
+const maxLineMatches = 1000
+
+// search is the last search that was run and what it found. It keeps the
+// lines with a match and how many matches they hold, not the matches, so
+// its memory grows with the lines of the content; where the matches are in
+// a line is found only for the lines in the window ([hits]).
+type search struct {
+	query string
+	re    *regexp.Regexp
+	// running reports whether the command that finds the matches is still
+	// going.
+	running bool
+	// from is the line the search started at: the first match at or after
+	// it is the first it jumps to, unless the window moved from top and
+	// row while the search ran.
+	from     int
+	top, row int
+	// lines are the lines with a match, in order, and ends[k] is the
+	// number of matches in lines[:k+1].
+	lines []int32
+	ends  []int32
+	// cur is the match the last jump went to, or -1 before the first:
+	// match curNth of line curLine.
+	cur, curLine, curNth int
 }
 
-// search is the last search that was run and what it found. cur is the
-// match the last jump went to.
-type search struct {
-	query   string
-	matches []match
-	cur     int
+// total returns the number of matches found.
+func (s search) total() int {
+	if len(s.ends) == 0 {
+		return 0
+	}
+	return int(s.ends[len(s.ends)-1])
+}
+
+// hits are the matches of the search in the window: the lines from top to
+// bottom, from row of the top one, scrolled left columns sideways, for
+// search qgen.
+type hits struct {
+	valid                  bool
+	top, bottom, row, left int
+	qgen                   int
+	lines                  []lineHits
+}
+
+// lineHits are the byte ranges of the matches in the part of a line the
+// window shows, the first of which is match first of the line.
+type lineHits struct {
+	line, first int
+	ranges      [][]int
+}
+
+// searchMsg carries what search qgen of the pager with ID id found.
+type searchMsg struct {
+	id    int64
+	qgen  int
+	lines []int32
+	ends  []int32
 }
 
 // Query returns the text of the search shown, or "" if there is none.
 func (m Model) Query() string { return m.search.query }
 
-// Matches returns the number of matches of the search shown.
-func (m Model) Matches() int { return len(m.search.matches) }
+// Matches returns the number of matches of the search shown, once it has
+// found them all.
+func (m Model) Matches() int { return m.search.total() }
 
-// SetSearch searches the content for query as if the user had typed it,
-// and jumps to the first match, so that a parent can open the pager on
-// what it is looking for. The search is of the content shown, so set it
-// after SetContent; new content clears it. An empty query clears it too.
-func (m *Model) SetSearch(query string) {
+// SetSearch searches the content for query, as it is and not as a
+// pattern, and jumps to the first match, so that a parent can open the
+// pager on what it is looking for: the first from the line GoToLine
+// marked, if it did, or else from the start. The search is of the content
+// shown, so set it after SetContent and GoToLine; new content clears it.
+// An empty query clears it too. The returned command searches large
+// content in the background.
+func (m *Model) SetSearch(query string) tea.Cmd {
 	m.closeSearch()
-	m.top, m.row = 0, 0
-	m.runSearch(query)
+	from := m.mark
+	if from < 0 {
+		from = 0
+		m.top, m.row = 0, 0
+		m.clamp()
+	}
+	if query == "" {
+		m.clearSearch()
+		return nil
+	}
+	return m.runSearch(query, smartCase(regexp.QuoteMeta(query), query), from)
+}
+
+// smartCase compiles pattern, which is query as a regexp, to ignore case
+// unless query has a capital.
+func smartCase(pattern, query string) *regexp.Regexp {
+	if !strings.ContainsFunc(query, unicode.IsUpper) {
+		pattern = "(?i)" + pattern
+	}
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return nil
+	}
+	return re
 }
 
 func (m *Model) openSearch() tea.Cmd {
@@ -52,88 +137,221 @@ func (m *Model) closeSearch() {
 	m.input.Blur()
 }
 
+// clearSearch forgets the search, and stops it if it is still running.
 func (m *Model) clearSearch() {
-	m.search = search{}
+	if m.stopSearch != nil {
+		m.stopSearch()
+		m.stopSearch = nil
+	}
+	m.qgen++
+	m.search = search{cur: -1}
+	m.hits = hits{}
 	m.enableSearchKeys()
 }
 
 func (m *Model) enableSearchKeys() {
-	found := len(m.search.matches) > 0
+	found := m.search.total() > 0
 	m.keys.Next.SetEnabled(found)
 	m.keys.Prev.SetEnabled(found)
 	m.keys.Confirm.SetEnabled(m.searching)
 	m.keys.Cancel.SetEnabled(m.searching || m.search.query != "")
 }
 
-// runSearch finds every match of query and jumps to the first one at or
-// after the top of the window. A query without capitals ignores case.
-func (m *Model) runSearch(query string) {
+// runSearch starts a search of the content with re, named query, from
+// line from. Content smaller than syncLimit is searched at once; for
+// larger content, the returned command searches it and the pager says it
+// is searching until the matches arrive. The window shows its matches at
+// once either way.
+func (m *Model) runSearch(query string, re *regexp.Regexp, from int) tea.Cmd {
 	m.clearSearch()
-	if query == "" {
-		return
+	if re == nil {
+		return nil
 	}
-	m.search.query = query
-	pattern := regexp.QuoteMeta(query)
-	if !strings.ContainsFunc(query, unicode.IsUpper) {
-		pattern = "(?i)" + pattern
+	m.search = search{query: query, re: re, from: from, top: m.top, row: m.row, cur: -1}
+	m.findHits()
+	if m.size < syncLimit {
+		lines, ends, _ := find(context.Background(), re, m.lines)
+		m.found(lines, ends)
+		return nil
 	}
-	re := regexp.MustCompile(pattern)
-	for i, l := range m.lines {
-		for _, loc := range re.FindAllStringIndex(l, -1) {
-			m.search.matches = append(m.search.matches, match{line: i, start: loc[0], end: loc[1]})
-		}
-	}
+	ctx, cancel := context.WithCancel(context.Background())
+	m.stopSearch = cancel
+	m.search.running = true
 	m.enableSearchKeys()
-	if len(m.search.matches) == 0 {
+	id, qgen, all := m.id, m.qgen, m.lines
+	return func() tea.Msg {
+		defer cancel()
+		lines, ends, err := find(ctx, re, all)
+		if err != nil {
+			return nil
+		}
+		return searchMsg{id: id, qgen: qgen, lines: lines, ends: ends}
+	}
+}
+
+// find returns the indices of the lines that re matches, and the number of
+// matches in them and every line before, until ctx is done.
+func find(ctx context.Context, re *regexp.Regexp, all []string) (lines, ends []int32, err error) {
+	var n int32
+	for i, l := range all {
+		if i%checkEvery == 0 {
+			if err := ctx.Err(); err != nil {
+				return nil, nil, err
+			}
+		}
+		k := len(lineMatches(re, l))
+		if k == 0 {
+			continue
+		}
+		n += int32(k)
+		lines = append(lines, int32(i))
+		ends = append(ends, n)
+	}
+	return lines, ends, nil
+}
+
+// lineMatches returns the byte ranges of the matches of re in s, up to
+// maxLineMatches of them, without the empty ones, which can't be shown.
+func lineMatches(re *regexp.Regexp, s string) [][]int {
+	all := re.FindAllStringIndex(s, maxLineMatches)
+	return slices.DeleteFunc(all, func(r []int) bool { return r[0] == r[1] })
+}
+
+// found takes the lines and counts of the running search and jumps to the
+// first match at or after the line it started at, or the first of all.
+// If the user scrolled while it ran, it leaves the window where they took
+// it, and the next step goes to the first match from there.
+func (m *Model) found(lines, ends []int32) {
+	s := &m.search
+	s.running, s.lines, s.ends = false, lines, ends
+	m.stopSearch = nil
+	m.enableSearchKeys()
+	if len(lines) == 0 || m.top != s.top || m.row != s.row {
 		return
 	}
-	first, _ := slices.BinarySearchFunc(m.search.matches, m.top, func(x match, line int) int {
-		return x.line - line
-	})
-	m.jump(first % len(m.search.matches))
+	m.jump(m.firstFrom(s.from))
+}
+
+// firstFrom returns the first match at or after line i, or the first of
+// all past the last.
+func (m Model) firstFrom(i int) int {
+	s := m.search
+	k, _ := slices.BinarySearch(s.lines, int32(i))
+	if k == 0 || k == len(s.lines) {
+		return 0
+	}
+	return int(s.ends[k-1])
 }
 
 // step jumps to the next match, or the previous one for a negative d,
-// wrapping around at the ends.
+// wrapping around at the ends. Before the first jump, it goes to the
+// first match from the top of the window, or the last before it.
 func (m *Model) step(d int) {
-	n := len(m.search.matches)
-	if n == 0 {
-		return
+	n := m.search.total()
+	switch {
+	case n == 0:
+	case m.search.cur >= 0:
+		m.jump(((m.search.cur+d)%n + n) % n)
+	case d > 0:
+		m.jump(m.firstFrom(m.top))
+	default:
+		m.jump((m.firstFrom(m.top) - 1 + n) % n)
 	}
-	m.jump(((m.search.cur+d)%n + n) % n)
 }
 
 // jump makes match i current and scrolls it into view: its line to the top
 // unless it is shown already, and its start into the columns shown.
 func (m *Model) jump(i int) {
-	m.search.cur = i
-	x := m.search.matches[i]
-	line := m.lines[x.line]
-	if x.line < m.top || x.line > m.bottom() {
-		m.top, m.row = x.line, 0
+	s := &m.search
+	k, _ := slices.BinarySearch(s.ends, int32(i+1))
+	nth := i
+	if k > 0 {
+		nth -= int(s.ends[k-1])
+	}
+	s.cur, s.curLine, s.curNth = i, int(s.lines[k]), nth
+	line := m.lines[s.curLine]
+	ranges := lineMatches(s.re, line)
+	if len(ranges) <= nth {
+		// The count and the ranges come from the same regexp, so only
+		// content changed behind the search's back gets here.
+		return
+	}
+	start, end := ranges[nth][0], ranges[nth][1]
+	if s.curLine < m.top || s.curLine > m.bottom() {
+		m.top, m.row = s.curLine, 0
 	}
 	tw := m.textWidth()
 	if m.wrap {
-		if x.line == m.top {
-			m.row = m.rowOf(x.line, x.start)
+		if s.curLine == m.top {
+			m.row = m.rowOf(s.curLine, start)
 		}
 	} else {
-		_, start := advance(line[:x.start], 0, math.MaxInt)
-		_, end := advance(line[:x.end], 0, math.MaxInt)
-		if start < m.left || end > m.left+tw {
-			m.left = max(start-tw/4, 0)
+		_, from := advance(line[:start], 0, math.MaxInt)
+		_, to := advance(line[:end], 0, math.MaxInt)
+		if from < m.left || to > m.left+tw {
+			m.left = max(from-tw/4, 0)
 		}
 	}
 	m.clamp()
 }
 
-// lineMatches returns the matches in line i, and the index of the first.
-func (m Model) lineMatches(i int) (ms []match, first int) {
-	all := m.search.matches
-	lo, _ := slices.BinarySearchFunc(all, i, func(x match, line int) int { return x.line - line })
-	hi := lo
-	for hi < len(all) && all[hi].line == i {
-		hi++
+// findHits finds the matches in the part of each line the window shows,
+// unless it has them already.
+func (m *Model) findHits() {
+	re := m.search.re
+	if re == nil || len(m.lines) == 0 {
+		m.hits = hits{}
+		return
 	}
-	return all[lo:hi], lo
+	top, bottom := m.top, m.bottom()
+	if h := m.hits; h.valid && h.qgen == m.qgen && h.top == top && h.bottom == bottom &&
+		h.row == m.row && h.left == m.left {
+		return
+	}
+	var lines []lineHits
+	for i := top; i <= bottom; i++ {
+		all := lineMatches(re, m.lines[i])
+		a, e := m.shown(i)
+		first, _ := slices.BinarySearchFunc(all, a+1, func(r []int, pos int) int { return r[1] - pos })
+		end := first
+		for end < len(all) && all[end][0] < e {
+			end++
+		}
+		if end > first {
+			// A copy, so the matches out of view go.
+			lines = append(lines, lineHits{line: i, first: first, ranges: slices.Clone(all[first:end])})
+		}
+	}
+	m.hits = hits{valid: true, top: top, bottom: bottom, row: m.row, left: m.left, qgen: m.qgen, lines: lines}
+}
+
+// shown returns the bytes a to e of line i that the window shows.
+func (m Model) shown(i int) (a, e int) {
+	s, tw := m.lines[i], m.textWidth()
+	if !m.wrap {
+		a, _ = m.leftEdge(s)
+		e, _ = advance(s, a, tw)
+		return a, e
+	}
+	if i == m.top {
+		for range m.row {
+			a, _ = nextRow(s, a, tw)
+		}
+	}
+	e = a
+	for r := 0; r < m.bodyHeight() && e < len(s); r++ {
+		e, _ = nextRow(s, e, tw)
+	}
+	return a, e
+}
+
+// lineHits returns the byte ranges of the matches in the part of line i
+// that the window shows, and the index in the line of the first.
+func (m Model) lineHits(i int) (ranges [][]int, first int) {
+	ls := m.hits.lines
+	k, ok := slices.BinarySearchFunc(ls, i, func(h lineHits, line int) int { return h.line - line })
+	if !ok {
+		return nil, 0
+	}
+	return ls[k].ranges, ls[k].first
 }
