@@ -145,54 +145,14 @@ func secondaryLimit(msg string) bool {
 // can't tell and says no.
 func missingScope(h http.Header) bool {
 	granted, ok := h[http.CanonicalHeaderKey("X-OAuth-Scopes")]
-	accepted := scopes(h.Get("X-Accepted-OAuth-Scopes"))
+	accepted := core.ParseScopes(h.Get("X-Accepted-OAuth-Scopes"))
 	if !ok || len(accepted) == 0 {
 		return false
 	}
-	have := scopes(strings.Join(granted, ","))
+	have := core.ParseScopes(strings.Join(granted, ","))
 	return !slices.ContainsFunc(accepted, func(want string) bool {
-		return slices.ContainsFunc(have, func(g string) bool { return coversScope(g, want) })
+		return slices.ContainsFunc(have, func(g string) bool { return core.Covers(g, want) })
 	})
-}
-
-// scopes splits a list of scopes such as "repo, read:org".
-func scopes(list string) []string {
-	var out []string
-	for s := range strings.SplitSeq(list, ",") {
-		if s = strings.TrimSpace(s); s != "" {
-			out = append(out, s)
-		}
-	}
-	return out
-}
-
-// coversScope reports whether a token with scope have may do what scope
-// want allows. Scopes form a hierarchy: repo includes repo:status,
-// public_repo, repo_deployment and admin:repo_hook, user includes
-// read:user, and admin:org includes write:org, which includes read:org.
-func coversScope(have, want string) bool {
-	if have == want {
-		return true
-	}
-	switch have {
-	case "repo":
-		switch want {
-		case "public_repo", "security_events", "repo_deployment":
-			return true
-		}
-		return strings.HasPrefix(want, "repo:") || coversScope("admin:repo_hook", want)
-	case "user":
-		return strings.HasPrefix(want, "user:") || want == "read:user"
-	case "project":
-		return want == "read:project"
-	}
-	if name, ok := strings.CutPrefix(have, "admin:"); ok {
-		return want == "write:"+name || want == "read:"+name
-	}
-	if name, ok := strings.CutPrefix(have, "write:"); ok {
-		return want == "read:"+name
-	}
-	return false
 }
 
 // oneLine puts s on one line without escape sequences or other control
