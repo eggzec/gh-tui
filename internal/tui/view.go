@@ -48,16 +48,23 @@ func (m *Model) View() tea.View {
 		screen = lipgloss.PlaceVertical(m.height, lipgloss.Top, screen)
 		screen = overlay.Center(screen, m.frame(mod), m.width, m.height)
 	}
-	if i := strings.LastIndexByte(screen, '\n'); i >= 0 && m.height > 1 {
-		screen = m.toast.Overlay(screen[:i], m.width, m.height-1) + screen[i:]
-	} else {
-		screen = m.toast.Overlay(screen, m.width, m.height)
+	if !m.toast.Empty() {
+		screen = m.overToasts(screen)
 	}
 	v := tea.NewView(screen)
 	v.AltScreen = true
 	v.ReportFocus = true
 	v.WindowTitle = "gh-tui"
 	return v
+}
+
+// overToasts draws the toasts over screen, but for its last line, which
+// the status bar keeps.
+func (m *Model) overToasts(screen string) string {
+	if i := strings.LastIndexByte(screen, '\n'); i >= 0 && m.height > 1 {
+		return m.toast.Overlay(screen[:i], m.width, m.height-1) + screen[i:]
+	}
+	return m.toast.Overlay(screen, m.width, m.height)
 }
 
 // layout gives each part its share of the screen.
