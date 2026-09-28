@@ -2,7 +2,6 @@ package search
 
 import (
 	"slices"
-	"strings"
 	"unicode/utf8"
 
 	"charm.land/bubbles/v2/key"
@@ -42,7 +41,8 @@ type KeyMap struct {
 	Left    key.Binding
 	Right   key.Binding
 
-	// feed is the navigation of the results, without the keys above.
+	// feed is the navigation of the results, which gets the keys above
+	// only if the page leaves them.
 	feed feed.KeyMap
 }
 
@@ -63,14 +63,10 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		Left:    key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←/h", "kinds")),
 		Right:   key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "results")),
 	}
-	// PR5: the page matches its own keys first, so dropping them from the
-	// feed only keeps the collisions out of help.
-	own := []key.Binding{k.Select, k.Open, k.Repo, k.Checks, k.Refresh, k.Back, k.Filter, k.Sort, k.Next, k.Prev, k.Left, k.Right}
+	// The page, and the app for the filter, match these keys first, so
+	// the results get only the keys they leave them, such as f, which
+	// pages down there.
 	f := feed.DefaultKeyMap()
-	f.PageUp = free(f.PageUp, own)
-	f.PageDown = free(f.PageDown, own)
-	f.Home = free(f.Home, own)
-	f.End = free(f.End, own)
 	f.Retry = key.NewBinding(key.WithKeys(k.Refresh.Keys()...), key.WithHelp(k.Refresh.Help().Key, "retry"), key.WithDisabled())
 	k.feed = f
 	return k
@@ -89,22 +85,6 @@ func typing(b key.Binding) key.Binding {
 		return key.NewBinding(key.WithDisabled())
 	}
 	return key.NewBinding(key.WithKeys(keys...), key.WithHelp(keys[0], b.Help().Desc))
-}
-
-// free drops the keys of b that the page binds itself.
-func free(b key.Binding, taken []key.Binding) key.Binding {
-	keys := slices.DeleteFunc(slices.Clone(b.Keys()), func(k string) bool {
-		return slices.ContainsFunc(taken, func(t key.Binding) bool {
-			return t.Enabled() && slices.Contains(t.Keys(), k)
-		})
-	})
-	if len(keys) == len(b.Keys()) {
-		return b
-	}
-	if len(keys) == 0 {
-		return key.NewBinding(key.WithDisabled())
-	}
-	return key.NewBinding(key.WithKeys(keys...), key.WithHelp(strings.Join(keys, "/"), b.Help().Desc))
 }
 
 // arrows keeps the arrow of b, for while the query has the focus.
