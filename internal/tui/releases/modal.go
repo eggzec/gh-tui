@@ -161,7 +161,7 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, id int64, url stri
 		thread.WithContext(ctx),
 		thread.WithKeyMap(m.keys.thread),
 		thread.WithFocused(true),
-		thread.WithEmptyText("No files were uploaded with it."),
+		thread.WithEmptyText("No assets."),
 		thread.WithErrorText(ui.ErrorText("load the release", repo.String(), v)),
 	)
 	m.thread.SetCutHint(ui.OpenHint(m.keys.Open))

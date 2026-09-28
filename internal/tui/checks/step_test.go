@@ -398,7 +398,7 @@ func TestErrorsAndEmpty(t *testing.T) {
 	f = newFake()
 	f.checks = core.Checks{SHA: "f00dcafe"}
 	s, _ = newStep(t, f, wideW, wideH)
-	if v := text(s); !strings.Contains(v, "No checks have reported") {
+	if v := text(s); !strings.Contains(v, "No checks on the head commit yet.") {
 		t.Errorf("no checks:\n%s", v)
 	}
 }

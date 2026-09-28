@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
 // View implements ui.Section. It renders exactly the section's size.
@@ -119,23 +120,20 @@ func (s *Section) placard(title, hint string) string {
 // emptyText is what the list says when no issue is in the tab, with the
 // key that shows more.
 func (s *Section) emptyText() string {
-	kind := "No " + strings.ToLower(tabLabel(s.tab)) + " issues"
+	kind := strings.ToLower(tabLabel(s.tab)) + " issues"
 	if s.tab == core.FilterAll {
-		kind = "No issues"
+		kind = "issues"
 	}
 	if s.query != "" {
-		text := kind + " match the filters."
-		if k := s.keys.ClearFilter; k.Enabled() {
-			text += " Press " + k.Help().Key + " to clear them."
-		}
+		return ui.NoMatch(kind, ui.KeyOf(s.keys.ClearFilter))
+	}
+	text := ui.None(kind)
+	switch next := nextTab(s.tab, 1); {
+	case s.tab == core.FilterAll:
 		return text
+	case next == core.FilterAll:
+		return ui.Press(text, ui.KeyOf(s.keys.NextTab), "show all of them")
+	default:
+		return ui.Press(text, ui.KeyOf(s.keys.NextTab), "show "+strings.ToLower(tabLabel(next))+" ones")
 	}
-	if s.tab == core.FilterAll {
-		return "No issues yet."
-	}
-	text := kind + "."
-	if k := s.keys.NextTab; k.Enabled() {
-		text += " Press " + k.Help().Key + " to see " + strings.ToLower(tabLabel(nextTab(s.tab, 1))) + " issues."
-	}
-	return text
 }

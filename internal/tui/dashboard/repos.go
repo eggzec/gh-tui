@@ -34,22 +34,16 @@ type owner struct {
 	filter atomic.Pointer[repoFilter]
 }
 
-// emptyText is what the list of o says when it has no repository.
-func (o *owner) emptyText(f *repoFilter) string {
+// emptyText is what the list of o says when it has no repository, with
+// clearKey, the key that clears the filter.
+func (o *owner) emptyText(f *repoFilter, clearKey string) string {
 	switch {
 	case f.active():
-		return "No repository of " + ownerName(o) + " matches the filter."
+		return ui.NoMatch("repositories", clearKey)
 	case o.q.Viewer:
-		return "You own no repository yet."
+		return ui.None("repositories")
 	}
-	return o.label + " has no repository you can see."
-}
-
-func ownerName(o *owner) string {
-	if o.q.Viewer {
-		return "yours"
-	}
-	return o.label
+	return ui.None("repositories you can see")
 }
 
 // key identifies the owner, whose login GitHub matches regardless of case.
@@ -100,9 +94,10 @@ func (t *repoTabs) newOwner(label string, q dashboard.ReposQuery) *owner {
 		p.Items, p.Next = f.apply(p.Items), ""
 		return p, err
 	}
-	empty := o.emptyText(&repoFilter{})
+	clearKey := ui.KeyOf(s.keys.ClearFilter)
+	empty := o.emptyText(&repoFilter{}, clearKey)
 	if f := o.filter.Load(); f != nil {
-		empty = o.emptyText(f)
+		empty = o.emptyText(f, clearKey)
 	}
 	render := func(r core.Repo, selected bool, _ int) string { return s.renderRepo(o.cols, r, selected) }
 	o.feed = feed.New(ui.FeedPages("dashboard.repos", s.offline, query, read), render,

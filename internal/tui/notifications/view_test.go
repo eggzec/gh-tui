@@ -1,10 +1,12 @@
 package notifications
 
 import (
+	"maps"
 	"testing"
 
 	"github.com/charmbracelet/x/exp/golden"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 )
 
@@ -31,5 +33,15 @@ func TestView(t *testing.T) {
 			press(t, s, tt.keys...)
 			golden.RequireEqual(t, s.View())
 		})
+	}
+}
+
+// An empty list names no key that isn't bound.
+func TestEmptyTextWithoutKeys(t *testing.T) {
+	keys := maps.Clone(config.Default().Keys)
+	delete(keys, config.ActionFilter)
+	s := New(t.Context(), newFake(), keys)
+	if got, want := s.emptyText(), "No unread notifications."; got != want {
+		t.Errorf("empty text = %q, want %q", got, want)
 	}
 }
