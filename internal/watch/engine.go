@@ -119,6 +119,20 @@ func (e *Engine) Refresh(key string) {
 	}
 }
 
+// Online tells the engine that GitHub answers again after it couldn't be
+// reached. Every key whose last poll got no answer, and so backed off,
+// polls at once; the others keep their schedule, so that nothing that
+// didn't fail costs a request.
+func (e *Engine) Online() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	for _, p := range e.pollers {
+		if p.unreached.Load() {
+			p.kick()
+		}
+	}
+}
+
 // SetActive tells the engine whether the user is looking. While inactive, for
 // example when the terminal loses focus, intervals are multiplied by the idle
 // multiplier. Becoming active again polls every key at once, so the screen

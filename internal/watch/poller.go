@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"sync/atomic"
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -16,6 +17,9 @@ type poller struct {
 	wake   chan struct{}
 	refs   int
 	cancel context.CancelFunc
+	// unreached is whether the last poll got no answer from GitHub, so
+	// that it backs off until GitHub answers again.
+	unreached atomic.Bool
 }
 
 // kick asks for an immediate poll. A poll that is already requested absorbs
@@ -47,6 +51,7 @@ func (e *Engine) poll(ctx context.Context, p *poller) {
 		if ctx.Err() != nil {
 			return
 		}
+		p.unreached.Store(unreached(err))
 		switch {
 		case err == nil:
 			failures = 0
@@ -69,6 +74,12 @@ func (e *Engine) poll(ctx context.Context, p *poller) {
 		logPoll(pctx, p.key, start, res, err, failures, next)
 		timer.Reset(next)
 	}
+}
+
+// unreached reports whether err is of a poll that got no answer from
+// GitHub, or only a server error.
+func unreached(err error) bool {
+	return errors.Is(err, core.ErrOffline) || errors.Is(err, core.ErrUnavailable)
 }
 
 // delay returns how long to wait before the next poll, given the last server
