@@ -136,6 +136,9 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 		logPath, _ = cfg.Log.Path()
 	}
 	voice := ui.NewVoice(cfg.Keys, logPath)
+	// The gates and the words of what went wrong follow what the token
+	// may do, and point to the command that grants it more.
+	voice.Token = ui.NewToken(access, cfg.Keys)
 	fileOpts := []files.Option{
 		files.WithOffline(offline), files.WithIcons(icons), files.WithFinderPreview(cfg.Files.Finder.Preview),
 		files.WithHost(webHost), files.WithVoice(voice),
@@ -256,6 +259,8 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 		// The status bar names the account gh stores the token for; a
 		// token from elsewhere may be anyone's.
 		tui.WithLogin(token.Login),
+		// The app tells what the token can't do, and :auth grants it more.
+		tui.WithAccess(access),
 	}
 	if path, err := historyPath(cfg.Cache.Disk, client.Host(), client.Account()); err == nil && path != "" {
 		opts = append(opts, tui.WithCommandHistory(cmdhist.New(path, cmdhist.DefaultLimit)))
