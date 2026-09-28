@@ -3,13 +3,14 @@ package tui
 import (
 	"cmp"
 	"context"
+	"errors"
 	"log/slog"
 	"strings"
 	"unicode"
-	"unicode/utf8"
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
@@ -87,7 +88,7 @@ func (m *Model) gotoCommand(arg string) tea.Cmd {
 	m.cancelGoto()
 	t, err := core.ParseTarget(arg, m.host)
 	if err != nil {
-		return m.toast.Push(toast.Error, sentence(err.Error()))
+		return m.badTarget(err)
 	}
 	if !t.HasRepo() {
 		// A number alone is one of the repository on view, never of one
@@ -217,15 +218,55 @@ func (m *Model) gotoFailed(t core.Target, err error) tea.Cmd {
 	return m.toast.Push(toast.Error, text)
 }
 
-// sentence makes s, such as an error, a sentence for a toast: it starts
-// with a capital and ends with a full stop.
-func sentence(s string) string {
-	r, n := utf8.DecodeRuneInString(s)
-	s = string(unicode.ToUpper(r)) + s[n:]
-	if !strings.HasSuffix(s, ".") {
-		s += "."
+// badTarget tells why goto or open can't read what the user typed, which
+// err, from core.ParseTarget, says: "Can't open bubbletea: want
+// owner/name." What was typed is cut to fit the toast, and the reason is
+// kept whole.
+func (m *Model) badTarget(err error) tea.Cmd {
+	e, ok := errors.AsType[*core.TargetError](err)
+	switch {
+	case !ok:
+		return m.toast.Push(toast.Error, "Can't open that: type owner/name, #number or a link.")
+	case e.Input == "":
+		return m.toast.Push(toast.Error, "Nothing to open: "+plain(e.Reason)+".")
 	}
-	return s
+	return m.toast.Push(toast.Error, cantOpen(plain(e.Input), plain(e.Reason), m.fitsToast))
+}
+
+// cantOpen returns "Can't open <typed>: <reason>.", with typed cut to the
+// widest that fits says fits, and reason whole.
+func cantOpen(typed, reason string, fits func(string) bool) string {
+	say := func(w int) string { return "Can't open " + ansi.Truncate(typed, w, "…") + ": " + reason + "." }
+	// No toast holds more than Say's text, so a paste is cut to that
+	// before the search for the widest cut that fits, which wraps the
+	// text each time it tries a width.
+	w := min(ansi.StringWidth(typed), ui.SayWidth)
+	if fits(say(w)) {
+		return say(w)
+	}
+	lo, hi := 1, w-1
+	for lo < hi {
+		mid := (lo + hi + 1) / 2
+		if fits(say(mid)) {
+			lo = mid
+		} else {
+			hi = mid - 1
+		}
+	}
+	return say(lo)
+}
+
+// plain puts s, what the user typed or a reason that quotes it, on one line
+// without escape sequences or the invisible format characters, such as
+// bidi overrides, that could make it read other than it is.
+func plain(s string) string {
+	s = strings.Map(func(r rune) rune {
+		if unicode.Is(unicode.Cf, r) {
+			return -1
+		}
+		return r
+	}, ansi.Strip(s))
+	return strings.Join(strings.Fields(ui.OneLine(s)), " ")
 }
 
 // startGoto starts waiting for GitHub on t, in place of any goto waiting
