@@ -201,6 +201,7 @@ func (m *Model) clamp() {
 		m.left = 0
 	}
 	m.left = max(m.left, 0)
+	m.findHits()
 }
 
 // scrollRight scrolls n columns right, but no further than the longest

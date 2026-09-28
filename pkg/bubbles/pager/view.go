@@ -271,7 +271,11 @@ func (m Model) writeSpan(b *strings.Builder, i, a, e int) {
 		spans = m.spans[i]
 	}
 	k, _ := slices.BinarySearchFunc(spans, a+1, func(x span, pos int) int { return x.end - pos })
-	matches, first := m.lineMatches(i)
+	matches, first := m.lineHits(i)
+	cur := -1
+	if m.search.cur >= 0 && i == m.search.curLine {
+		cur = m.search.curNth
+	}
 	mi := 0
 	for pos := a; pos < e; {
 		next, p := e, m.esc.text
@@ -281,18 +285,18 @@ func (m Model) writeSpan(b *strings.Builder, i, a, e int) {
 		if k < len(spans) {
 			next, p = min(next, spans[k].end), m.esc.token(spans[k].typ)
 		}
-		for mi < len(matches) && matches[mi].end <= pos {
+		for mi < len(matches) && matches[mi][1] <= pos {
 			mi++
 		}
 		if mi < len(matches) {
-			x := matches[mi]
+			start, end := matches[mi][0], matches[mi][1]
 			switch {
-			case x.start > pos:
-				next = min(next, x.start)
-			case first+mi == m.search.cur:
-				next, p = min(next, x.end), m.esc.current
+			case start > pos:
+				next = min(next, start)
+			case first+mi == cur:
+				next, p = min(next, end), m.esc.current
 			default:
-				next, p = min(next, x.end), m.esc.match
+				next, p = min(next, end), m.esc.match
 			}
 		}
 		b.WriteString(p.on)
@@ -309,11 +313,17 @@ func (m Model) statusLine() string {
 		return fit(m.input.View(), m.width)
 	}
 	var parts []string
-	if q := m.search.query; q != "" {
-		if n := len(m.search.matches); n == 0 {
+	switch s := m.search; {
+	case s.running:
+		parts = append(parts, m.esc.status.wrap("searching…"))
+	case s.query != "":
+		switch n := s.total(); {
+		case n == 0:
 			parts = append(parts, m.esc.notice.wrap("no matches"))
-		} else {
-			parts = append(parts, m.esc.status.wrap(fmt.Sprintf("match %d/%d", m.search.cur+1, n)))
+		case s.cur < 0:
+			parts = append(parts, m.esc.status.wrap(fmt.Sprintf("%d matches", n)))
+		default:
+			parts = append(parts, m.esc.status.wrap(fmt.Sprintf("match %d/%d", s.cur+1, n)))
 		}
 	}
 	if n := len(m.lines); m.state == stateReady && n > 0 && m.bodyHeight() > 0 {

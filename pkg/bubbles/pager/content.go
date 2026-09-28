@@ -44,6 +44,7 @@ func (m *Model) setContent(name, text string, lexerOf func(full string) chroma.L
 	if full != "" {
 		m.lines = strings.Split(full, "\n")
 	}
+	m.size = len(full)
 	m.clamp()
 	if full == "" || len(full) > m.highlightLimit {
 		return nil
@@ -102,7 +103,7 @@ func (m *Model) reset(name string, s state, err error) {
 		m.errText, m.errHint = m.errorWords()
 	}
 	m.renderName()
-	m.lines, m.spans = nil, nil
+	m.lines, m.spans, m.size = nil, nil, 0
 	m.top, m.row, m.left = 0, 0, 0
 	m.mark = -1
 	m.clearSearch()

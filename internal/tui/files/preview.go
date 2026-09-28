@@ -153,9 +153,10 @@ func findEntry(ctx context.Context, svc Service, repo core.RepoRef, ref, name st
 func (p *preview) show(b core.Blob, err error) tea.Cmd {
 	cmd, ok := fill(&p.pager, p.entry, b, err, p.open)
 	if ok {
-		p.pager.SetSearch(p.find)
-		p.preset = p.find != ""
+		// The search starts from the line, if there is one.
 		p.pager.GoToLine(p.line)
+		cmd = tea.Batch(cmd, p.pager.SetSearch(p.find))
+		p.preset = p.find != ""
 	}
 	return cmd
 }
