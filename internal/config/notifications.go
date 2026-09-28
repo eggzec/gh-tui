@@ -8,7 +8,3 @@ type Notifications struct {
 	// the thread on GitHub, never marks it read.
 	MarkReadOnOpen bool `yaml:"mark_read_on_open"`
 }
-
-func defaultNotifications() Notifications {
-	return Notifications{MarkReadOnOpen: true}
-}

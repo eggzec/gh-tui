@@ -102,15 +102,6 @@ const (
 // diff, and the cursor rarely jumps further before it rests.
 const maxAround = 10
 
-func defaultHistory() History {
-	return History{
-		Row:        []string{FieldShortSHA, FieldSubject, FieldAuthor, FieldAge},
-		Detail:     []string{FieldSHA, FieldAuthor, FieldCommitter, FieldDate, FieldVerification, FieldParents, FieldTrailers, FieldBody, FieldStats},
-		DateFormat: DateRelative,
-		Prefetch:   HistoryPrefetch{Around: 3, HoverDelay: 150 * time.Millisecond},
-	}
-}
-
 func (h History) validate() error {
 	var errs []error
 	if len(h.Row) == 0 {

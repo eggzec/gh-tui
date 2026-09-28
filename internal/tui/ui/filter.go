@@ -130,8 +130,8 @@ func WithFormVoice(v Voice) FilterOption {
 	return func(o *filterOptions) { o.voice = &v }
 }
 
-// WithFormIcons marks what failed to load with the error glyph of ic. The
-// default is the Nerd Font set.
+// WithFormIcons marks what failed to load with the error glyph of ic.
+// Without it, the icons are the config's default.
 func WithFormIcons(ic Icons) FilterOption {
 	return func(o *filterOptions) { o.icons = ic }
 }
@@ -148,7 +148,7 @@ func FilterFormKeys(keys map[string][]string) filterform.KeyMap {
 // NewFilterModal returns the modal that filters target with f, titled
 // "Filter · section · subject". ctx bounds what the form loads.
 func NewFilterModal(ctx context.Context, section string, target Filterable, f Filter, opts ...FilterOption) *FilterModal {
-	o := filterOptions{keys: filterform.DefaultKeyMap(), icons: NewIcons(config.IconsNerd)}
+	o := filterOptions{keys: filterform.DefaultKeyMap(), icons: NewIcons(config.Default().UI.Icons)}
 	for _, opt := range opts {
 		opt(&o)
 	}

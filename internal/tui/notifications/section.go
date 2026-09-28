@@ -64,8 +64,8 @@ func WithVoice(v ui.Voice) Option {
 	return func(s *Section) { s.voice = v }
 }
 
-// WithIcons sets the icons whose error glyph marks a failed read. The
-// default is the Nerd Font set.
+// WithIcons sets the icons whose error glyph marks a failed read. Without
+// it, the icons are the config's default.
 func WithIcons(ic ui.Icons) Option {
 	return func(s *Section) { s.icons = ic }
 }
@@ -120,7 +120,7 @@ var (
 // New returns the section, which reads through svc and binds the actions
 // in keys. ctx bounds every request it makes.
 func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Option) *Section {
-	s := &Section{ctx: ctx, svc: svc, keys: newKeyMap(keys), now: time.Now, offline: new(ui.Offline), voice: ui.NewVoice(keys, ""), icons: ui.NewIcons(config.IconsNerd)}
+	s := &Section{ctx: ctx, svc: svc, keys: newKeyMap(keys), now: time.Now, offline: new(ui.Offline), voice: ui.NewVoice(keys, ""), icons: ui.NewIcons(config.Default().UI.Icons)}
 	for _, opt := range opts {
 		opt(s)
 	}

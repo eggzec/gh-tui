@@ -80,7 +80,8 @@ func WithHost(host string) Option {
 }
 
 // WithIcons sets the glyphs that mark repositories, languages and the
-// states of issues and pull requests. The default is the Nerd Font set.
+// states of issues and pull requests. Without it, the icons are the
+// config's default.
 func WithIcons(icons ui.Icons) Option {
 	return func(s *Section) { s.icons = icons }
 }
@@ -210,7 +211,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		stale:      make(map[core.SearchKind][]string),
 		dots:       make(map[string]string),
 		langs:      make(map[string]string),
-		icons:      ui.NewIcons(config.IconsNerd),
+		icons:      ui.NewIcons(config.Default().UI.Icons),
 		spin:       spinner.New(spinner.WithSpinner(spinner.MiniDot)),
 	}
 	s.textCtx, s.cancelText = context.WithCancel(ctx)

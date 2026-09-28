@@ -13,7 +13,7 @@ func TestDashboardCalendarGlyph(t *testing.T) {
 		glyph string
 		ok    bool
 	}{
-		{DefaultCalendarGlyph, true},
+		{"■", true},
 		{"▪", true},
 		{"#", true},
 		{"", false},

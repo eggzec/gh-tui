@@ -100,8 +100,8 @@ func WithVoice(v ui.Voice) Option {
 	return func(o *options) { o.voice = &v }
 }
 
-// WithIcons sets the glyphs of the states of the checks. The default is
-// the Nerd Font set.
+// WithIcons sets the glyphs of the states of the checks. Without it, the
+// icons are the config's default.
 func WithIcons(ic ui.Icons) Option {
 	return func(o *options) { o.icons = ic }
 }
@@ -209,7 +209,7 @@ type Step struct {
 // New returns the Checks step of pull request number of repo, with the
 // configured keys. ctx bounds its reads until it closes, and its changes.
 func New(ctx context.Context, svc Service, repo core.RepoRef, number int, keys map[string][]string, opts ...Option) *Step {
-	o := options{icons: ui.NewIcons(""), tick: time.Second, now: time.Now}
+	o := options{icons: ui.NewIcons(config.Default().UI.Icons), tick: time.Second, now: time.Now}
 	for _, opt := range opts {
 		opt(&o)
 	}

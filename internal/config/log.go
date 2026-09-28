@@ -51,10 +51,6 @@ const (
 	minLogSummary = 10 * time.Second
 )
 
-func defaultLog() Log {
-	return Log{Level: LevelInfo, MaxSize: 10 * MiB, Keep: 3, Summary: 5 * time.Minute}
-}
-
 func (l Log) validate() error {
 	var errs []error
 	if !slices.Contains([]string{LevelDebug, LevelInfo, LevelWarn, LevelError}, l.Level) {

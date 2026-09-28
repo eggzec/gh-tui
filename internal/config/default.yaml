@@ -1,0 +1,349 @@
+# gh-tui's defaults: every setting and its default value.
+#
+# Your config file, $GH_TUI_CONFIG or gh-tui/config.yaml in your config
+# directory ($XDG_CONFIG_HOME on Linux), goes over this file. Write only
+# what you change:
+#
+#   - a mapping merges key by key, so setting one key, one action of keys,
+#     or one colour of a theme leaves the others as they are here;
+#   - a list replaces the whole list here, so write every item you want;
+#   - an empty value, such as "editor:" with nothing after it, is refused:
+#     to keep a default, remove the line.
+#
+# Hex colours must be quoted, since an unquoted # starts a comment.
+# Durations read like 150ms, 30s, 5m or 1h, and sizes like 64KiB or 1MB:
+# B, kB, MB and GB count in powers of 1000, KiB, MiB and GiB in powers of
+# 1024.
+
+# Your pinned repositories, as owner/name.
+repos: []
+
+# The active theme: one of themes, below.
+theme: default
+
+# The command of the editor that v opens a file in from the pager, such as
+# vim or "code --wait": a program and its arguments, split at white space
+# and run without a shell. Empty takes $VISUAL, and else $EDITOR.
+editor: ""
+
+ui:
+  # The glyphs that mark repositories, languages and the states of issues
+  # and pull requests: nerd, which needs a Nerd Font and marks the types
+  # of files too, unicode, or ascii.
+  icons: nerd
+
+cache:
+  # How long a cached response is served before it is revalidated.
+  ttl: 5m
+  # The disk cache keeps what doesn't change, such as the files of a
+  # commit, across sessions, and where branches pointed, so that a new
+  # session asks GitHub only whether they moved.
+  disk:
+    enabled: true
+    # Keep lists and details too, such as pull requests, issues and
+    # notifications, apart for each account, so that a new session shows
+    # them at once while it asks GitHub whether they changed.
+    entries: true
+    # The cache directory, an absolute path. Empty means gh-tui in your
+    # cache directory ($XDG_CACHE_HOME on Linux).
+    dir: ""
+    # The space the cache may take on disk, for each host. When it takes
+    # more at startup, the objects used least recently go. At least 8MiB.
+    max_size: 512MiB
+    # How new objects are stored: gzip or none. Objects stored either way
+    # stay readable.
+    compression: gzip
+    # The time gzip takes against the space it saves: fastest, default or
+    # best.
+    compression_level: default
+  # Checking cached entries in the background, such as the lists, issues
+  # and branches kept on disk, with one conditional request each, so that
+  # what a view reads is known to be current and needs no request when it
+  # loads. A request that finds nothing changed is free against GitHub's
+  # rate limit, but not against its limits on how many requests come at
+  # once, hence the budget.
+  revalidate:
+    enabled: true
+    # How often a pass over the entries starts. A pass checks at most what
+    # the budget allows in an interval. At least 10s.
+    interval: 2m
+    # How many requests a minute the checks send at most, 1 to 300. It
+    # shrinks while the terminal is unfocused.
+    budget: 60
+    # Which entries are checked: recent, those of the selected repository
+    # and those used in the last week, or all.
+    scope: recent
+
+# Polling for changes in the background.
+sync:
+  enabled: true
+  # The polling interval when the server doesn't ask for a longer one. At
+  # least 10s.
+  interval: 1m
+
+# The Files pane.
+files:
+  # Reading files before they are opened, so the preview shows them at
+  # once. Each file costs one request.
+  prefetch:
+    # Read the small top-level files of a repository once it is listed,
+    # and the file under the cursor once it rests there.
+    enabled: true
+    # The largest top-level file read ahead, at most preview.max_size. The
+    # file under the cursor is read up to preview.max_size.
+    max_size: 64KiB
+    # How long the cursor rests on a file before it is read, so that
+    # moving through the tree doesn't read every file passed.
+    hover_delay: 150ms
+  preview:
+    # The largest file the preview reads, at most 100MiB. Larger files are
+    # better opened in the browser.
+    max_size: 1MiB
+  finder:
+    # Show the content of the selected file beside the paths, where the
+    # finder is at least 100 columns wide. Tab shows or hides it either
+    # way.
+    preview: true
+
+# The details of pull requests and issues, which open in a modal from
+# their lists.
+details:
+  # Reading details before they are opened, so the modal shows them at
+  # once. The notifications follow these too. Each detail costs two
+  # requests, one for the pull request or issue and one for its first
+  # comments.
+  prefetch:
+    # Read the details of the first rows of a list once it loads, and of
+    # the row under the cursor once it rests there.
+    enabled: true
+    # How many of the first rows of each list are read ahead, 0 to 30.
+    # Zero reads only the row under the cursor.
+    rows: 5
+    # How long the cursor rests on a row before its detail is read, so
+    # that moving through a list doesn't read every row passed.
+    hover_delay: 150ms
+    # Read the first page of each filter of the pull requests and issues
+    # not shown, such as the closed and merged pull requests, once you
+    # first switch tabs in a repository and the list shown loads, so that
+    # switching further shows them at once. It costs a request per filter
+    # and repository, once a session, and none for pages still fresh in
+    # the cache. Their details are only read ahead once the filter is
+    # shown. It needs enabled.
+    filters: true
+
+# The notifications screen and the dashboard's inbox.
+notifications:
+  # Mark a thread read when the select key opens what it is about, in the
+  # app or in the browser. The open key, which opens the thread on GitHub,
+  # never marks it read.
+  mark_read_on_open: true
+
+# The History modal: the branches of the repository, the graph of one of
+# them, and the commit under the graph's cursor.
+history:
+  # What each row of the graph shows, in this order within its place: the
+  # short SHA first, then the subject, then the rest after it, and the age
+  # or date at the right edge. Choose from short_sha, subject, author,
+  # committer, age, date, verified and trailers. The author and the
+  # committer show the GitHub login, or the name without one; age is how
+  # long ago the commit was authored, such as 3d; verified marks a
+  # verified signature with ✓, and one GitHub couldn't verify with ✗;
+  # trailers counts the co-authors.
+  row: [short_sha, subject, author, age]
+  # What the header of the commit pane shows, in this order. Choose from
+  # sha, author, committer, date, verification, parents, trailers, body
+  # and stats. When it lists both the author and the committer and they
+  # are the same person, with the same name and email, they share one
+  # line, where the author is listed; list only one of them to always
+  # show just that one.
+  detail: [sha, author, committer, date, verification, parents, trailers, body, stats]
+  # How dates read: relative (3d ago), absolute (2006-01-02 15:04 MST), or
+  # a Go time layout such as "2006-01-02 15:04".
+  date_format: relative
+  # Show the git email next to each name, and in trailers such as
+  # Co-authored-by.
+  show_email: false
+  # Reading commits before the cursor lands on them, so the commit pane
+  # keeps up as the cursor moves. A commit costs one request the first
+  # time, and none after: what a commit changed never changes, so it is
+  # kept on disk.
+  prefetch:
+    # How many commits on each side of the cursor are read once the
+    # cursor rests, 0 to 10. Zero reads only the commit under the cursor.
+    around: 3
+    # How long the cursor rests on a commit, or a branch, before what it
+    # needs is read, so that moving through the graph doesn't read every
+    # commit passed.
+    hover_delay: 150ms
+
+# The dashboard, the screen the app opens on.
+dashboard:
+  # The cell of a day in the contribution calendar. It must be one cell
+  # wide; some terminals draw ■ two cells wide, and "▪" or "#" suit them
+  # better.
+  calendar_glyph: "■"
+  # How far back the contribution calendar goes: 30d, 90d or year. Its
+  # total counts the days it shows.
+  contributions: 90d
+  # Read the pull requests and issues of Waiting on you ahead while its
+  # pane has the focus: the first three rows of the list on view, and the
+  # row the cursor rests on for details.prefetch.hover_delay, so that they
+  # open at once. Each costs two requests, the detail and its first
+  # comments; what is cached is skipped. It needs details.prefetch.enabled.
+  prefetch: true
+
+# What the app checks of the token.
+auth:
+  # Refuse at once what the token is known to lack a scope for, rather
+  # than asking GitHub, and ask GitHub what the token may do when no
+  # answer said so soon after the start. Turn it off if the app ever
+  # refuses what the token may do.
+  check: true
+
+# The log file, which holds one JSON object per line. The app owns the
+# terminal, so nothing is logged anywhere else.
+log:
+  # The least level logged: debug, info, warn or error. GH_TUI_LOG,
+  # --debug and GH_DEBUG override it for one run.
+  level: info
+  # The log file, an absolute path. Empty means gh-tui/gh-tui.log in your
+  # state directory: $XDG_STATE_HOME, or ~/.local/state, also on macOS,
+  # and %LocalAppData% on Windows.
+  file: ""
+  # How large the file grows before it is rotated. At least 64KiB.
+  max_size: 10MiB
+  # How many rotated files are kept, 0 to 100.
+  keep: 3
+  # How often a summary of the requests, the caches and the reads ahead is
+  # logged. Zero turns these off; one is still logged on exit. Otherwise
+  # at least 10s.
+  summary: 5m
+
+# The keys of each action, as the terminal names them, such as ctrl+c,
+# shift+tab or space. Setting an action replaces its keys only. A key may
+# serve different actions in different places, such as m for merge in
+# pull requests and mark read in the notifications.
+keys:
+  quit: [q, ctrl+c]
+  help: ["?"]
+  refresh: [r, ctrl+r]
+  search: [/]
+  # Cycle the focus through the panes of the screen. They keep the names
+  # they had when the app had tabs.
+  next_tab: [tab, "]"]
+  prev_tab: [shift+tab, "["]
+  open_in_browser: [o]
+  # Focus the pane with that number on the screen: files, pull requests
+  # and issues on the repository screen, and pinned, repositories, work,
+  # contributions and notifications on the dashboard.
+  pane_1: ["1"]
+  pane_2: ["2"]
+  pane_3: ["3"]
+  pane_4: ["4"]
+  pane_5: ["5"]
+  # Switch between the screen on view and the notifications.
+  notifications: [n]
+  # Show the dashboard, from any screen. 0 sits before the pane keys, as
+  # the dashboard comes before the repository, and no section binds it.
+  dashboard: ["0"]
+  # Open the History modal of the repository screen.
+  history: [B]
+  # Show the files at the head of the default branch again, after
+  # use_as_base chose another base.
+  reset_base: [H]
+  # Open the Actions modal of the repository screen.
+  actions: [a]
+  # Open the file finder of the repository screen, which finds a file by
+  # some letters of its path. t is the key of github.com's file finder,
+  # and ctrl+p that of editors.
+  find_file: [t, ctrl+p]
+  # Open the command line at the bottom of the screen, where commands such
+  # as goto are typed. As in vim.
+  command: [":"]
+
+  select: [enter]
+  back: [esc]
+  # Open the filter modal of the focused list where it has one, on its
+  # Filters tab; sort opens it on its Sort tab, in a list that can be
+  # sorted; clear_filter puts the filters of a list back to its defaults.
+  filter: [f]
+  sort: [s]
+  clear_filter: [F]
+  merge: [m]
+  close: [x]
+  reopen: [X]
+  toggle_draft: [D]
+  mark_read: [m]
+  mark_done: [d]
+  mark_all_read: [M]
+  # Star the repository, or unstar it. Reserved, with its key, and does
+  # nothing yet.
+  star: [S]
+  comment: [c]
+  label: [l]
+  # The file tree.
+  expand: [+]
+  collapse: ["-"]
+  expand_all: ["*"]
+  collapse_all: [=]
+  # Show the files at the branch or commit under the cursor of the
+  # History modal.
+  use_as_base: [space]
+  # Switch the repositories of the dashboard between your own and those
+  # of each organization.
+  next_owner: ["]", right]
+  prev_owner: ["[", left]
+  # Open the repository of the current directory from the dashboard.
+  current_repo: [.]
+  # Show the repository of the search result under the cursor, where
+  # enter previews the result over the search.
+  go_to_repo: [ctrl+o]
+  # Switch between the tabs of a list, such as All, Failing, Running and
+  # Mine of the Actions modal, and the states of the pull requests and the
+  # issues.
+  next_filter: ["]"]
+  prev_filter: ["["]
+  # Move the focus to the pane on the left or right, in a modal with panes
+  # such as Actions.
+  pane_left: [h]
+  pane_right: [l]
+  # Show the focused pane of the dashboard, the repository screen, or a
+  # modal such as Actions, alone, or all of them again.
+  zoom: [z]
+  # The Actions modal: re-run the failed jobs of a run, all of them, or
+  # the job under the cursor, and cancel a run.
+  rerun_failed: [ctrl+r]
+  rerun: [R]
+  rerun_job: [J]
+  cancel_run: [x]
+  # Move the focus between the annotations of a failed job and its log.
+  annotations: [A]
+  # Show the checks of a pull request, in its modal.
+  checks: [C]
+
+# Named palettes, each with a variant for light and dark terminals. A
+# theme you add needs every colour of both variants; to change the default
+# theme, set only the colours you change. The colours: accent marks the
+# focused element, selections and links; foreground is the main text;
+# muted is for secondary text such as metadata; subtle for the faintest
+# text, such as hints and placeholders; border for borders and separators.
+themes:
+  default:
+    light:
+      accent: "#3b63c4"
+      foreground: "#1f2330"
+      muted: "#545b6e"
+      subtle: "#8a90a0"
+      border: "#d3d7e0"
+      success: "#2f7d4f"
+      warning: "#9a6700"
+      error: "#c0392b"
+    dark:
+      accent: "#7aa2f7"
+      foreground: "#d8dce6"
+      muted: "#a0a7b8"
+      subtle: "#6b7285"
+      border: "#3a3f4d"
+      success: "#7fc99a"
+      warning: "#e5c07b"
+      error: "#ef7d7d"

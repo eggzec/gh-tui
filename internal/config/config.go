@@ -29,10 +29,9 @@ const EnvPath = "GH_TUI_CONFIG"
 type Config struct {
 	// Repos are the user's pinned repositories, as "owner/name".
 	Repos []string `yaml:"repos"`
-	// Theme is the name of the active theme, built in or from Themes.
+	// Theme is the name of the active theme, one of Themes.
 	Theme string `yaml:"theme"`
-	// Themes are user-defined themes. They shadow built-in themes of the
-	// same name.
+	// Themes are the themes by name: those of default.yaml, and the user's.
 	Themes map[string]Theme `yaml:"themes"`
 	// Keys maps action names to keys. An entry replaces the default keys
 	// of that action only.
@@ -73,28 +72,6 @@ type Sync struct {
 // sync engine never polls more often either.
 const minSyncInterval = 10 * time.Second
 
-// Default returns the default configuration. Each call returns fresh maps
-// and slices, so callers may modify the result.
-func Default() Config {
-	return Config{
-		Repos:  []string{},
-		Theme:  DefaultTheme,
-		Themes: map[string]Theme{},
-		Keys:   defaultKeys(),
-		Cache:  defaultCache(),
-		Sync:   Sync{Enabled: true, Interval: time.Minute},
-		Files:  defaultFiles(),
-
-		Details:       defaultDetails(),
-		Notifications: defaultNotifications(),
-		History:       defaultHistory(),
-		Dashboard:     defaultDashboard(),
-		UI:            defaultUI(),
-		Auth:          defaultAuth(),
-		Log:           defaultLog(),
-	}
-}
-
 // Path returns the config file path: $GH_TUI_CONFIG if set, else
 // gh-tui/config.yaml in [os.UserConfigDir].
 func Path() (string, error) {
@@ -108,24 +85,26 @@ func Path() (string, error) {
 	return filepath.Join(dir, "gh-tui", "config.yaml"), nil
 }
 
-// Load reads the config file at path over the defaults, applies $GH_TUI_LOG
-// over the log level, and validates the result. A missing or empty file
-// yields the defaults.
+// Load reads the config file at path over the defaults, default.yaml,
+// applies $GH_TUI_LOG over the log level, and validates the result. A
+// mapping in the file merges key by key with the defaults, and anything
+// else, a list too, replaces the default; an empty value is refused. A
+// missing or empty file yields the defaults.
 func Load(path string) (Config, error) {
-	cfg := Default()
+	tree := defaultTree()
 	data, err := os.ReadFile(path)
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
 	case err != nil:
 		return Config{}, fmt.Errorf("load config: %w", err)
 	default:
-		dec := yaml.NewDecoder(bytes.NewReader(data))
-		dec.KnownFields(true)
-		// Decoding into the defaults merges maps key by key, so overriding
-		// one action or theme leaves the others in place.
-		if err := dec.Decode(&cfg); err != nil && !errors.Is(err, io.EOF) {
+		if tree, err = overlay(tree, data); err != nil {
 			return Config{}, fmt.Errorf("load config %s: %w", path, err)
 		}
+	}
+	cfg, err := decode(tree)
+	if err != nil {
+		return Config{}, fmt.Errorf("load config %s: %w", path, err)
 	}
 	if level := os.Getenv(EnvLog); level != "" {
 		cfg.Log.Level = strings.ToLower(level)
@@ -134,6 +113,27 @@ func Load(path string) (Config, error) {
 		return Config{}, fmt.Errorf("invalid config %s:\n%w", path, err)
 	}
 	return cfg, nil
+}
+
+// overlay returns the user's file, data, merged over the tree of
+// defaults. The file is first decoded on its own, strictly, so that an
+// unknown key or a value of the wrong type is reported at its line in the
+// file.
+func overlay(tree *yaml.Node, data []byte) (*yaml.Node, error) {
+	root, err := parseYAML(data)
+	if err != nil || root == nil {
+		return tree, err
+	}
+	dec := yaml.NewDecoder(bytes.NewReader(data))
+	dec.KnownFields(true)
+	if err := dec.Decode(new(Config)); err != nil && !errors.Is(err, io.EOF) {
+		return nil, err
+	}
+	over, err := plain(root, "")
+	if err != nil {
+		return nil, err
+	}
+	return merge(tree, over), nil
 }
 
 // Validate reports every problem in c at once, joined with [errors.Join].

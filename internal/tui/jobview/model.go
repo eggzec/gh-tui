@@ -21,6 +21,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
@@ -169,8 +170,8 @@ func WithReturn(m ui.Modal) Option {
 	return func(o *options) { o.ret = m }
 }
 
-// WithIcons sets the glyphs of the states of the steps. The default is the
-// Nerd Font set.
+// WithIcons sets the glyphs of the states of the steps. Without it, the
+// icons are the config's default.
 func WithIcons(ic ui.Icons) Option {
 	return func(o *options) { o.icons = ic }
 }
@@ -191,7 +192,7 @@ func WithClock(now func() time.Time) Option {
 // New returns a view that shows no job, which reads the logs of repo from
 // svc under ctx.
 func New(ctx context.Context, svc Service, repo core.RepoRef, keys KeyMap, opts ...Option) Model {
-	o := options{icons: ui.NewIcons(""), now: time.Now}
+	o := options{icons: ui.NewIcons(config.Default().UI.Icons), now: time.Now}
 	for _, opt := range opts {
 		opt(&o)
 	}

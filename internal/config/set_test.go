@@ -153,7 +153,7 @@ func TestSetRefusedKeepsTheConfig(t *testing.T) {
 
 func TestValues(t *testing.T) {
 	c := Default()
-	c.Themes = map[string]Theme{"mine": {}}
+	c.Themes["mine"] = Theme{}
 	for key, want := range map[string][]string{
 		"ui.icons":                {"nerd", "unicode", "ascii"},
 		"theme":                   {"default", "mine"},

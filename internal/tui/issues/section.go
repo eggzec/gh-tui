@@ -99,7 +99,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		now:       time.Now,
 		tab:       core.FilterOpen,
 		colsWidth: -1,
-		icons:     ui.NewIcons(config.IconsNerd),
+		icons:     ui.NewIcons(config.Default().UI.Icons),
 	}
 	for _, opt := range opts {
 		opt(s)

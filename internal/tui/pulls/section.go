@@ -165,8 +165,8 @@ func WithVoice(v ui.Voice) Option {
 	return func(s *Section) { s.voice = v }
 }
 
-// WithIcons sets the glyphs of the states of pull requests. The default is
-// the Nerd Font set.
+// WithIcons sets the glyphs of the states of pull requests. Without it, the
+// icons are the config's default.
 func WithIcons(icons ui.Icons) Option {
 	return func(s *Section) { s.icons = icons }
 }
@@ -216,7 +216,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		now:         time.Now,
 		mergeMethod: core.MergeSquash,
 		tab:         core.StateOpen,
-		icons:       ui.NewIcons(config.IconsNerd),
+		icons:       ui.NewIcons(config.Default().UI.Icons),
 	}
 	for _, opt := range opts {
 		opt(s)

@@ -41,14 +41,15 @@ func WithHoverPrefetch(delay time.Duration, maxSize int64) Option {
 }
 
 // WithFinderPreview sets whether the finder shows the content of the
-// selected file beside the paths, where the width leaves room for it. It
-// does by default; the toggle key shows or hides it either way.
+// selected file beside the paths, where the width leaves room for it.
+// Without it, it does as the config's default says; the toggle key shows or
+// hides it either way.
 func WithFinderPreview(show bool) Option {
 	return func(s *Section) { s.findPreview = show }
 }
 
 // WithIcons sets the glyphs drawn before the names of files and
-// directories. The default is the Nerd Font set.
+// directories. Without it, the icons are the config's default.
 func WithIcons(icons ui.Icons) Option {
 	return func(s *Section) { s.icons = icons }
 }

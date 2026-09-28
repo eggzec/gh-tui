@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"slices"
+	"sync"
 )
 
 // Global action names, used as keys of [Config.Keys].
@@ -115,76 +116,20 @@ const (
 	ActionChecks = "checks"
 )
 
-func defaultKeys() map[string][]string {
-	return map[string][]string{
-		ActionQuit:    {"q", "ctrl+c"},
-		ActionHelp:    {"?"},
-		ActionRefresh: {"r", "ctrl+r"},
-		ActionSearch:  {"/"},
-		ActionNextTab: {"tab", "]"},
-		ActionPrevTab: {"shift+tab", "["},
-		ActionOpen:    {"o"},
-
-		ActionPane1:         {"1"},
-		ActionPane2:         {"2"},
-		ActionPane3:         {"3"},
-		ActionPane4:         {"4"},
-		ActionPane5:         {"5"},
-		ActionNotifications: {"n"},
-		// 0 sits before the pane keys, as the dashboard comes before the
-		// repository, and no section binds it.
-		ActionDashboard: {"0"},
-		ActionHistory:   {"B"},
-		ActionResetBase: {"H"},
-		ActionActions:   {"a"},
-		// t is the key of github.com's file finder, and ctrl+p that of
-		// editors.
-		ActionFindFile: {"t", "ctrl+p"},
-		// As in vim.
-		ActionCommand: {":"},
-
-		ActionSelect:      {"enter"},
-		ActionBack:        {"esc"},
-		ActionFilter:      {"f"},
-		ActionSort:        {"s"},
-		ActionClearFilter: {"F"},
-		ActionMerge:       {"m"},
-		ActionClose:       {"x"},
-		ActionReopen:      {"X"},
-		ActionToggleDraft: {"D"},
-		ActionMarkRead:    {"m"},
-		ActionMarkDone:    {"d"},
-		ActionMarkAllRead: {"M"},
-		ActionStar:        {"S"},
-		ActionComment:     {"c"},
-		ActionLabel:       {"l"},
-		ActionExpand:      {"+"},
-		ActionCollapse:    {"-"},
-		ActionExpandAll:   {"*"},
-		ActionCollapseAll: {"="},
-		ActionUseAsBase:   {"space"},
-		ActionNextOwner:   {"]", "right"},
-		ActionPrevOwner:   {"[", "left"},
-		ActionCurrentRepo: {"."},
-		ActionGoToRepo:    {"ctrl+o"},
-		ActionNextFilter:  {"]"},
-		ActionPrevFilter:  {"["},
-		ActionPaneLeft:    {"h"},
-		ActionPaneRight:   {"l"},
-		ActionZoom:        {"z"},
-		ActionRerunFailed: {"ctrl+r"},
-		ActionRerun:       {"R"},
-		ActionRerunJob:    {"J"},
-		ActionCancelRun:   {"x"},
-		ActionAnnotations: {"A"},
-		ActionChecks:      {"C"},
+// actions are the names of the actions: those that default.yaml gives
+// keys.
+var actions = sync.OnceValue(func() map[string]bool {
+	out := map[string]bool{}
+	for action := range Default().Keys {
+		out[action] = true
 	}
-}
+	return out
+})
 
 // validateKeys rejects unknown actions so that a typo in the config file
 // doesn't silently leave the default binding in place.
 func validateKeys(action string, keys []string) error {
-	if _, ok := defaultKeys()[action]; !ok {
+	if !actions()[action] {
 		return fmt.Errorf("keys.%s: unknown action", action)
 	}
 	if len(keys) == 0 {

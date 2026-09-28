@@ -27,19 +27,12 @@ type Dashboard struct {
 	Prefetch bool `yaml:"prefetch"`
 }
 
-// DefaultCalendarGlyph is the default Dashboard.CalendarGlyph.
-const DefaultCalendarGlyph = "■"
-
 // Ranges of the contribution calendar.
 const (
 	Contributions30d  = "30d"
 	Contributions90d  = "90d"
 	ContributionsYear = "year"
 )
-
-func defaultDashboard() Dashboard {
-	return Dashboard{CalendarGlyph: DefaultCalendarGlyph, Contributions: Contributions90d, Prefetch: true}
-}
 
 // DashboardPrefetch reports whether the dashboard reads the work waiting
 // on the viewer ahead: it has its own switch, and reads details ahead as

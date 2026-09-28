@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
@@ -44,7 +45,7 @@ type options struct {
 const defaultRest = 150 * time.Millisecond
 
 func defaultOptions() options {
-	return options{offline: new(ui.Offline), icons: ui.NewIcons(""), rest: defaultRest, tick: time.Second, now: time.Now}
+	return options{offline: new(ui.Offline), icons: ui.NewIcons(config.Default().UI.Icons), rest: defaultRest, tick: time.Second, now: time.Now}
 }
 
 // WithOffline shares off with the sections, so that the user is told once
@@ -65,8 +66,8 @@ func WithVoice(v ui.Voice) Option {
 	return func(o *options) { o.voice = &v }
 }
 
-// WithIcons sets the glyphs of the states of runs, jobs and steps. The
-// default is the Nerd Font set.
+// WithIcons sets the glyphs of the states of runs, jobs and steps. Without
+// it, the icons are the config's default.
 func WithIcons(ic ui.Icons) Option {
 	return func(o *options) { o.icons = ic }
 }

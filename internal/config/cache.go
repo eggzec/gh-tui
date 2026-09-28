@@ -87,20 +87,6 @@ const (
 // large repositories.
 const minDiskSize = 8 * MiB
 
-func defaultCache() Cache {
-	return Cache{
-		TTL: 5 * time.Minute,
-		Disk: Disk{
-			Enabled:          true,
-			Entries:          true,
-			MaxSize:          512 * MiB,
-			Compression:      CompressionGzip,
-			CompressionLevel: LevelDefault,
-		},
-		Revalidate: Revalidate{Enabled: true, Interval: 2 * time.Minute, Budget: 60, Scope: ScopeRecent},
-	}
-}
-
 func (c Cache) validate() error {
 	var errs []error
 	if c.TTL <= 0 {

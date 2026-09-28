@@ -59,7 +59,7 @@ func TestHistoryListsReplaceTheDefaults(t *testing.T) {
 	if got := cfg.History.Detail; len(got) != 0 {
 		t.Errorf("detail = %v, want none", got)
 	}
-	if got := cfg.History.Prefetch; got != defaultHistory().Prefetch {
+	if got := cfg.History.Prefetch; got != Default().History.Prefetch {
 		t.Errorf("prefetch = %+v, want the default", got)
 	}
 }

@@ -39,12 +39,6 @@ type DetailsPrefetch struct {
 // aren't loaded yet.
 const maxPrefetchRows = 30
 
-func defaultDetails() Details {
-	return Details{
-		Prefetch: DetailsPrefetch{Enabled: true, Rows: 5, HoverDelay: 150 * time.Millisecond, Filters: true},
-	}
-}
-
 func (d Details) validate() error {
 	var errs []error
 	if p := d.Prefetch; p.Rows < 0 || p.Rows > maxPrefetchRows {

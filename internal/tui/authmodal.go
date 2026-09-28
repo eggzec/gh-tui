@@ -76,7 +76,7 @@ func newAuthModal(keys map[string][]string, account string, a core.Access, p acc
 		close:    ui.Binding(keys, config.ActionBack, "close"),
 		confirm:  ui.DefaultConfirmKeys(),
 		voice:    v,
-		icons:    ui.NewIcons(config.IconsNerd),
+		icons:    ui.NewIcons(config.Default().UI.Icons),
 	}
 }
 

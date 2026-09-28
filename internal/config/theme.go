@@ -6,9 +6,6 @@ import (
 	"strconv"
 )
 
-// DefaultTheme is the name of the built-in theme used when none is set.
-const DefaultTheme = "default"
-
 // Theme is a named palette with a variant for light and dark terminals.
 type Theme struct {
 	Light Palette `yaml:"light"`
@@ -33,31 +30,6 @@ type Palette struct {
 	Error   string `yaml:"error"`
 }
 
-var builtinThemes = map[string]Theme{
-	DefaultTheme: {
-		Light: Palette{
-			Accent:     "#3b63c4",
-			Foreground: "#1f2330",
-			Muted:      "#545b6e",
-			Subtle:     "#8a90a0",
-			Border:     "#d3d7e0",
-			Success:    "#2f7d4f",
-			Warning:    "#9a6700",
-			Error:      "#c0392b",
-		},
-		Dark: Palette{
-			Accent:     "#7aa2f7",
-			Foreground: "#d8dce6",
-			Muted:      "#a0a7b8",
-			Subtle:     "#6b7285",
-			Border:     "#3a3f4d",
-			Success:    "#7fc99a",
-			Warning:    "#e5c07b",
-			Error:      "#ef7d7d",
-		},
-	},
-}
-
 // Palette returns the active theme's palette for a dark or light terminal.
 func (c Config) Palette(dark bool) (Palette, error) {
 	t, ok := c.theme(c.Theme)
@@ -71,10 +43,7 @@ func (c Config) Palette(dark bool) (Palette, error) {
 }
 
 func (c Config) theme(name string) (Theme, bool) {
-	if t, ok := c.Themes[name]; ok {
-		return t, true
-	}
-	t, ok := builtinThemes[name]
+	t, ok := c.Themes[name]
 	return t, ok
 }
 
