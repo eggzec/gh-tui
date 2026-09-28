@@ -14,8 +14,9 @@ import (
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
-	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 )
 
 var lastID atomic.Int64
@@ -70,8 +71,11 @@ type Model struct {
 	// -1.
 	mark int
 
-	searching bool
-	input     textinput.Model
+	// prompt is the search prompt, open while it is focused.
+	prompt cmdline.Model
+	// flash is a note on the last search, such as "Pattern not found",
+	// shown in place of the name until the next key.
+	flash string
 	// search is the search shown and hits its matches in the window. qgen
 	// counts searches; what an older one found is dropped. stopSearch
 	// stops the one running in the background.
@@ -93,12 +97,10 @@ func New(opts ...Option) Model {
 	for _, opt := range opts {
 		opt(&s)
 	}
-	input := textinput.New()
-	input.Prompt = "/"
 	m := Model{
 		settings: s,
 		id:       lastID.Add(1),
-		input:    input,
+		prompt:   cmdline.New(cmdline.WithPrompt("/"), cmdline.WithKeyMap(promptKeys())),
 		spin:     spinner.New(spinner.WithSpinner(spinner.Dot)),
 		mark:     -1,
 	}
@@ -124,7 +126,7 @@ func (m Model) Lines() int { return len(m.lines) }
 // SetSize sets the width and height, including the status line.
 func (m *Model) SetSize(width, height int) {
 	m.width, m.height = max(width, 0), max(height, 0)
-	m.input.SetWidth(max(m.width-2, 1))
+	m.prompt.SetSize(m.width, 1)
 	m.clamp()
 }
 
@@ -137,18 +139,18 @@ func (m Model) Height() int { return m.height }
 // Focus makes the pager react to keys.
 func (m *Model) Focus() { m.focused = true }
 
-// Blur makes the pager ignore keys. It closes the search input.
+// Blur makes the pager ignore keys. It closes the search prompt.
 func (m *Model) Blur() {
 	m.focused = false
-	m.closeSearch()
+	m.closePrompt()
 }
 
 // Focused reports whether the pager reacts to keys.
 func (m Model) Focused() bool { return m.focused }
 
-// Capturing reports whether the search input is open. It then takes every
-// key, so the parent should not act on keys of its own.
-func (m Model) Capturing() bool { return m.searching }
+// Capturing reports whether the search prompt is open. It then takes
+// every key, so the parent should not act on keys of its own.
+func (m Model) Capturing() bool { return m.prompt.Focused() }
 
 // Wrap reports whether long lines are soft-wrapped.
 func (m Model) Wrap() bool { return m.wrap }
@@ -179,20 +181,20 @@ func (m *Model) SetKeyMap(k KeyMap) {
 	m.enableSearchKeys()
 }
 
-// ShortHelp implements help.KeyMap. While the search input is open, it
+// ShortHelp implements help.KeyMap. While the search prompt is open, it
 // lists the keys that close it.
 func (m Model) ShortHelp() []key.Binding {
-	if m.searching {
+	if m.prompt.Focused() {
 		return []key.Binding{m.keys.Confirm, m.keys.Cancel}
 	}
 	return m.keys.ShortHelp()
 }
 
-// FullHelp implements help.KeyMap. While the search input is open, only
-// the keys that close it act, and the input takes the rest.
+// FullHelp implements help.KeyMap. While the search prompt is open, only
+// the keys that close it act, and the prompt takes the rest.
 func (m Model) FullHelp() [][]key.Binding {
 	k := m.keys
-	if m.searching {
+	if m.prompt.Focused() {
 		for _, b := range []*key.Binding{
 			&k.Up, &k.Down, &k.PageUp, &k.PageDown, &k.HalfPageUp, &k.HalfPageDown, &k.Home, &k.End,
 			&k.Left, &k.Right, &k.Wrap, &k.LineNumbers, &k.Search, &k.Next, &k.Prev, &k.Close,

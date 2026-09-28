@@ -250,11 +250,24 @@ func (m Model) writeGutter(b *strings.Builder, i int, first bool, gw int) {
 		b.WriteString(strings.Repeat(" ", gw))
 		return
 	}
-	n := strconv.Itoa(i + 1)
 	st := m.esc.number
-	if i == m.mark {
+	s := m.search
+	_, _, hit := m.lineHits(i)
+	switch {
+	case s.invert && s.cur >= 0 && i == s.curLine:
+		st = m.esc.current
+	case s.invert && hit:
+		st = m.esc.match
+	case i == m.mark:
 		st = m.esc.current
 	}
+	if !m.lineNumbers {
+		// Only the marks of an inverted search show, in a cell of their
+		// own.
+		b.WriteString(st.on + " " + st.off + " ")
+		return
+	}
+	n := strconv.Itoa(i + 1)
 	b.WriteString(st.on)
 	b.WriteString(strings.Repeat(" ", gw-1-len(n)))
 	b.WriteString(n)
@@ -271,7 +284,7 @@ func (m Model) writeSpan(b *strings.Builder, i, a, e int) {
 		spans = m.spans[i]
 	}
 	k, _ := slices.BinarySearchFunc(spans, a+1, func(x span, pos int) int { return x.end - pos })
-	matches, first := m.lineHits(i)
+	matches, first, _ := m.lineHits(i)
 	cur := -1
 	if m.search.cur >= 0 && i == m.search.curLine {
 		cur = m.search.curNth
@@ -306,11 +319,12 @@ func (m Model) writeSpan(b *strings.Builder, i, a, e int) {
 	}
 }
 
-// statusLine renders the name on the left and where the window is on the
-// right, or the search input while it is open.
+// statusLine renders the name, or a note on the last search, on the left
+// and where the window is on the right, or the search prompt while it is
+// open.
 func (m Model) statusLine() string {
-	if m.searching {
-		return fit(m.input.View(), m.width)
+	if m.prompt.Focused() {
+		return fit(m.prompt.View(), m.width)
 	}
 	var parts []string
 	switch s := m.search; {
@@ -318,8 +332,6 @@ func (m Model) statusLine() string {
 		parts = append(parts, m.esc.status.wrap("searching…"))
 	case s.query != "":
 		switch n := s.total(); {
-		case n == 0:
-			parts = append(parts, m.esc.notice.wrap("no matches"))
 		case s.cur < 0:
 			parts = append(parts, m.esc.status.wrap(fmt.Sprintf("%d matches", n)))
 		default:
@@ -330,12 +342,16 @@ func (m Model) statusLine() string {
 		pct := (m.bottom() + 1) * 100 / n
 		parts = append(parts, m.esc.status.wrap(fmt.Sprintf("line %d/%d  %d%%", m.top+1, n, pct)))
 	}
+	left := m.nameView
+	if m.flash != "" {
+		left = m.esc.notice.wrap(m.flash)
+	}
 	right := strings.Join(parts, "  ")
 	rw := ansi.StringWidth(right)
 	if rw+2 > m.width {
 		return fit(right, m.width)
 	}
-	return fit(m.nameView, m.width-rw-2) + "  " + right
+	return fit(left, m.width-rw-2) + "  " + right
 }
 
 // fit truncates or pads styled text to exactly width cells.

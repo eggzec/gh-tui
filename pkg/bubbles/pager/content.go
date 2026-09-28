@@ -97,7 +97,7 @@ func (m *Model) reset(name string, s state, err error) {
 		m.cancel = nil
 	}
 	m.gen++
-	m.name, m.state, m.err, m.note = name, s, err, ""
+	m.name, m.state, m.err, m.note, m.flash = name, s, err, "", ""
 	m.errText, m.errHint = "", ""
 	if s == stateFailed {
 		m.errText, m.errHint = m.errorWords()

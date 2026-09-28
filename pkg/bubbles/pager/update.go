@@ -1,8 +1,6 @@
 package pager
 
 import (
-	"regexp"
-
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
@@ -34,16 +32,15 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		if !m.focused {
 			return m, nil
 		}
-		if m.searching {
-			return m.updateSearch(msg)
+		m.flash = ""
+		if m.prompt.Focused() {
+			return m.updatePrompt(msg)
 		}
 		return m.updateKey(msg)
 	}
-	if m.focused && m.searching {
-		// Pastes and the like go to the input.
-		var cmd tea.Cmd
-		m.input, cmd = m.input.Update(msg)
-		return m, cmd
+	if m.prompt.Focused() {
+		// Pastes and the like go to the prompt.
+		return m.updatePrompt(msg)
 	}
 	return m, nil
 }
@@ -82,7 +79,7 @@ func (m Model) updateKey(k tea.KeyPressMsg) (Model, tea.Cmd) {
 	case key.Matches(k, m.keys.LineNumbers):
 		m.SetLineNumbers(!m.lineNumbers)
 	case key.Matches(k, m.keys.Search):
-		cmd := m.openSearch()
+		cmd := m.openPrompt()
 		return m, cmd
 	case key.Matches(k, m.keys.Next):
 		m.step(1)
@@ -90,28 +87,9 @@ func (m Model) updateKey(k tea.KeyPressMsg) (Model, tea.Cmd) {
 		m.step(-1)
 	case m.search.query != "" && key.Matches(k, m.keys.Cancel):
 		m.clearSearch()
+		m.clamp()
 	case key.Matches(k, m.keys.Close):
 		return m, m.close()
 	}
 	return m, nil
-}
-
-func (m Model) updateSearch(k tea.KeyPressMsg) (Model, tea.Cmd) {
-	switch {
-	case key.Matches(k, m.keys.Confirm):
-		query := m.input.Value()
-		m.closeSearch()
-		if query == "" {
-			m.clearSearch()
-			return m, nil
-		}
-		cmd := m.runSearch(query, smartCase(regexp.QuoteMeta(query), query), m.top)
-		return m, cmd
-	case key.Matches(k, m.keys.Cancel):
-		m.closeSearch()
-		return m, nil
-	}
-	var cmd tea.Cmd
-	m.input, cmd = m.input.Update(k)
-	return m, cmd
 }

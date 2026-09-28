@@ -4,11 +4,11 @@ import (
 	"image/color"
 	"strings"
 
-	"charm.land/bubbles/v2/textinput"
-	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/alecthomas/chroma/v2"
 	chromastyles "github.com/alecthomas/chroma/v2/styles"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 )
 
 // Styles holds the styles of a pager.
@@ -30,7 +30,8 @@ type Styles struct {
 	Name lipgloss.Style
 	// Status styles the position and match count in the status line.
 	Status lipgloss.Style
-	// Notice styles a search that found nothing.
+	// Notice styles the notes on a search, such as a pattern that found
+	// nothing or didn't compile.
 	Notice lipgloss.Style
 	// Message styles the placeholder shown instead of lines, such as
 	// "Loading…".
@@ -39,7 +40,7 @@ type Styles struct {
 	Spinner lipgloss.Style
 	// Error styles the placeholder of content that failed to load.
 	Error lipgloss.Style
-	// Prompt styles the "/" before the search input, and Cursor its
+	// Prompt styles the "/" before the search prompt, and Cursor its
 	// cursor, with its foreground.
 	Prompt lipgloss.Style
 	Cursor lipgloss.Style
@@ -89,16 +90,11 @@ func (m *Model) SetStyles(s Styles) {
 	m.esc = newEsc(s)
 	m.spin.Style = s.Spinner
 	m.renderName()
-	st := textinput.StyleState{
+	m.prompt.SetStyles(cmdline.Styles{
+		Prompt:      s.Prompt,
 		Text:        s.Text,
 		Placeholder: s.Status,
-		Suggestion:  s.Status,
-		Prompt:      s.Prompt,
-	}
-	m.input.SetStyles(textinput.Styles{
-		Focused: st,
-		Blurred: st,
-		Cursor:  textinput.CursorStyle{Color: s.Cursor.GetForeground(), Shape: tea.CursorBlock},
+		Cursor:      s.Cursor,
 	})
 }
 

@@ -19,11 +19,12 @@ type KeyMap struct {
 	Wrap        key.Binding
 	LineNumbers key.Binding
 
-	// Search opens the search input, Confirm searches for what it holds,
-	// and Cancel closes it. Outside the input, Cancel clears the search.
-	// The pager enables Confirm only while the input is open, and Cancel
-	// only while it is or a search is shown, so esc closes the pager
-	// otherwise.
+	// Search opens the search prompt, Confirm searches for the pattern
+	// typed, a regexp, or for the lines it doesn't match after a "!", and
+	// Cancel closes the prompt. Outside the prompt, Cancel clears the
+	// search. The pager enables Confirm only while the prompt is open, and
+	// Cancel only while it is or a search is shown, so esc closes the
+	// pager otherwise.
 	Search  key.Binding
 	Confirm key.Binding
 	Cancel  key.Binding

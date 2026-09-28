@@ -49,12 +49,20 @@ func nextRow(s string, i, cols int) (j, used int) {
 func (m Model) bodyHeight() int { return max(m.height-1, 0) }
 
 // gutterWidth returns the width of the line numbers and the space after
-// them, or 0 when they are hidden or would leave no room for text.
+// them, or of the marks of an inverted search while the numbers are
+// hidden, or 0 when there is neither or no room for text.
 func (m Model) gutterWidth() int {
-	if !m.lineNumbers || len(m.lines) == 0 {
+	var w int
+	switch {
+	case len(m.lines) == 0:
+		return 0
+	case m.lineNumbers:
+		w = len(strconv.Itoa(len(m.lines))) + 1
+	case m.search.invert:
+		w = 2
+	default:
 		return 0
 	}
-	w := len(strconv.Itoa(len(m.lines))) + 1
 	if w >= m.width {
 		return 0
 	}
