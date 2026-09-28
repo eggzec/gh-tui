@@ -48,6 +48,8 @@ type Model struct {
 	ctx  context.Context
 	cfg  config.Config
 	keys KeyMap
+	// term is what the terminal said of itself, for the log.
+	term terminal
 
 	// panes are those of the repository screen, in the order focus cycles
 	// through them. The first left of them are on the left.
@@ -345,11 +347,11 @@ func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) 
 	return m
 }
 
-// Init asks for the terminal background, starts the sections on screen and
+// Init asks for the terminal background and version, starts the sections on screen and
 // the notifications, whose badge is on every screen, and listens for sync
 // events.
 func (m *Model) Init() tea.Cmd {
-	cmds := []tea.Cmd{tea.RequestBackgroundColor, m.pending, m.startScreen(), m.listen(), m.loadRepoInfo(), m.loadHistory(), m.startAccess(), m.listenOldEnterprise()}
+	cmds := []tea.Cmd{tea.RequestBackgroundColor, requestTerminal(), m.pending, m.startScreen(), m.listen(), m.loadRepoInfo(), m.loadHistory(), m.startAccess(), m.listenOldEnterprise()}
 	m.pending = nil
 	for _, w := range m.warnings {
 		cmds = append(cmds, ui.Notify(toast.Warning, w))

@@ -261,7 +261,8 @@ reacts to messages. Concretely:
   was built from, how it is set up and the terminal, and the `session`
   record, once the host is picked, who the session is; every record after
   it carries `host` and `account`. The `server` record, at GitHub's first
-  answer, says what it told of the server. Start a trace where a user action or a
+  answer, says what it told of the server, and the `terminal` record the
+  terminal's size, color profile and version. Start a trace where a user action or a
   background job starts (`obs.WithTrace` or `obs.Begin`, which also logs the
   end and the error) and pass its context down; records logged with it carry
   `trace_id` and `trace`. Each HTTP attempt gets a `request_id`, and

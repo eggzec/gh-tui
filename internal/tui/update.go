@@ -21,7 +21,10 @@ import (
 // app messages to the app, and everything else to every section and
 // modal.
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	m.term.observe(m.ctx, msg)
 	switch msg := msg.(type) {
+	case terminalWaitMsg:
+		return m, nil
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		m.layout()
