@@ -56,7 +56,8 @@ func (m *Model) remember(repo core.RepoRef) {
 }
 
 // complete returns the candidates that complete line at cursor: the names
-// of commands in the first word, and what goto opens in its argument.
+// of commands in the first word, and the argument of a command that
+// completes it.
 func (m *Model) complete(line string, cursor int) []cmdline.Candidate {
 	before := line[:cursor]
 	start := len(before) - len(strings.TrimLeft(before, " "))
@@ -69,11 +70,20 @@ func (m *Model) complete(line string, cursor int) []cmdline.Candidate {
 		}
 		return completeCommand(name, start, end, end == len(line))
 	}
-	// goto takes one argument, so only its first word completes.
-	if name != "goto" || strings.Contains(strings.TrimLeft(arg, " "), " ") {
+	c, ok := findCommand(name)
+	if !ok || c.complete == nil {
 		return nil
 	}
+	return c.complete(m, arg, cursor, end)
+}
+
+// completeTarget completes what goto opens: a repository, or a number
+// after '#'. It takes one argument, so only its first word completes.
+func (m *Model) completeTarget(arg string, cursor, end int) []cmdline.Candidate {
 	word := strings.TrimLeft(arg, " ")
+	if strings.Contains(word, " ") {
+		return nil
+	}
 	wordStart := cursor - len(word)
 	if strings.Contains(word, "#") {
 		return m.completeNumber(word, wordStart, end)

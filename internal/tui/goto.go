@@ -83,6 +83,8 @@ type gotoKindMsg struct {
 // issue or pull request in its modal over the screen on view. A number
 // alone is one of the repository screen on view.
 func (m *Model) gotoCommand(arg string) tea.Cmd {
+	// It replaces a goto still waiting, whether or not it goes anywhere.
+	m.cancelGoto()
 	t, err := core.ParseTarget(arg, m.host)
 	if err != nil {
 		return m.toast.Push(toast.Error, sentence(err.Error()))

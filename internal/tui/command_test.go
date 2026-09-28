@@ -414,3 +414,62 @@ func BenchmarkUpdateLine(b *testing.B) {
 		}
 	}
 }
+
+func TestKeyPress(t *testing.T) {
+	for _, name := range []string{"r", "?", "R", "+", ":", "é", "ctrl+r", "alt+x", "ctrl+alt+x", "shift+tab", "enter", "esc", "space", "pgdown", "f5", "ctrl+space"} {
+		msg, ok := keyPress(name)
+		if !ok || msg.String() != name {
+			t.Errorf("keyPress(%q) = %q, %v, want the key", name, msg.String(), ok)
+		}
+	}
+	for _, name := range []string{"", "rr", "ctrl+", "nosuch+x", "\xff"} {
+		if msg, ok := keyPress(name); ok {
+			t.Errorf("keyPress(%q) = %q, want none", name, msg.String())
+		}
+	}
+}
+
+// TestPressingCommands checks that a command that does what a key does
+// presses that key, as the config binds it, where the key would go.
+func TestPressingCommands(t *testing.T) {
+	t.Run("refresh", func(t *testing.T) {
+		m, fakes := newTestApp(t)
+		drive(m, m.key(press("2")))
+		runCommand(t, m, "refresh")
+		if !fakes[1].got(isKey("r")) || fakes[0].got(isKey("r")) {
+			t.Error("refresh didn't press r in the focused pane alone")
+		}
+	})
+	t.Run("refresh bound elsewhere", func(t *testing.T) {
+		cfg := config.Default()
+		cfg.Keys[config.ActionRefresh] = []string{"nosuch+key", "ctrl+r"}
+		fakes := []*fakeSection{{title: "Files"}}
+		m := New(t.Context(), cfg, Layout{Files: fakes[0]}, WithRepo(testRepo))
+		m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+		runCommand(t, m, "refresh")
+		if !fakes[0].got(isKey("ctrl+r")) {
+			t.Error("refresh didn't press the key the config binds")
+		}
+	})
+	t.Run("help", func(t *testing.T) {
+		m, fakes := newTestApp(t)
+		runCommand(t, m, "help")
+		if !m.help.ShowAll {
+			t.Fatal("help didn't show every key")
+		}
+		runCommand(t, m, "help")
+		if m.help.ShowAll {
+			t.Error("help again didn't hide them, as ? does")
+		}
+		if fakes[0].got(isKey("?")) {
+			t.Error("the key reached the section")
+		}
+	})
+	t.Run("no argument", func(t *testing.T) {
+		m, fakes := newTestApp(t)
+		runCommand(t, m, "refresh now")
+		if !hasToast(m, "The refresh command takes no argument.") || fakes[0].got(isKey("r")) {
+			t.Errorf("refresh with an argument ran: %s", toasted(m))
+		}
+	})
+}
