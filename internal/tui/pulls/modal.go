@@ -91,8 +91,9 @@ type detailModal struct {
 
 // openDetail opens a modal on pull request number of repo, on its checks
 // if onChecks is set and the section has them. pr is the list item, shown
-// until the detail arrives, or nil when there is none.
-func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest, onChecks bool, from ui.Pauser) tea.Cmd {
+// until the detail arrives, or nil when there is none. The title names
+// repo if showRepo is set or it isn't the one selected.
+func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest, onChecks, showRepo bool, from ui.Pauser) tea.Cmd {
 	// The reads of the modal are one trace, however many pages it reads.
 	ctx, cancel := context.WithCancel(obs.WithTrace(s.ctx, "open.pull"))
 	s.ahead.Opened(commentsQuery(repo, number))
@@ -109,7 +110,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 		sendCtx:     s.ctx,
 		repo:        repo,
 		number:      number,
-		other:       !s.hasRepo || !repo.Same(s.repo),
+		other:       showRepo || !s.hasRepo || !repo.Same(s.repo),
 		caps:        s.capsOf(repo),
 		ctx:         ctx,
 		cancel:      cancel,

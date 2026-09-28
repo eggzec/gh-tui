@@ -106,8 +106,8 @@ func TestPreviewFromSearch(t *testing.T) {
 		owner int
 		open  tea.Msg
 	}{
-		{"issue", 2, ui.OpenIssueMsg{Repo: other, Number: 1203}},
-		{"pull request", 1, ui.OpenPullMsg{Repo: other, Number: 1388}},
+		{"issue", 2, ui.OpenIssueMsg{Repo: other, Number: 1203, ShowRepo: true}},
+		{"pull request", 1, ui.OpenPullMsg{Repo: other, Number: 1388, ShowRepo: true}},
 		{"file", 0, ui.OpenFileMsg{Repo: other, Path: "tea.go", SHA: "b1", Find: "tea"}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {

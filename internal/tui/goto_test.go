@@ -377,14 +377,14 @@ func TestGotoNumber(t *testing.T) {
 		// asks reports whether GitHub is asked what the number is.
 		asks bool
 	}{
-		{name: "pull request", line: "goto charmbracelet/bubbletea#1813", want: ui.OpenPullMsg{Repo: bubbletea, Number: 1813}, asks: true},
-		{name: "issue", line: "goto charmbracelet/bubbletea#1698", want: ui.OpenIssueMsg{Repo: bubbletea, Number: 1698}, asks: true},
-		{name: "known", line: "goto eggzec/gh-tui#7", want: ui.OpenPullMsg{Repo: testRepo, Number: 7}},
+		{name: "pull request", line: "goto charmbracelet/bubbletea#1813", want: ui.OpenPullMsg{Repo: bubbletea, Number: 1813, ShowRepo: true}, asks: true},
+		{name: "issue", line: "goto charmbracelet/bubbletea#1698", want: ui.OpenIssueMsg{Repo: bubbletea, Number: 1698, ShowRepo: true}, asks: true},
+		{name: "known", line: "goto eggzec/gh-tui#7", want: ui.OpenPullMsg{Repo: testRepo, Number: 7, ShowRepo: true}},
 		{name: "number of the repository", repo: testRepo, line: "goto #12", want: ui.OpenIssueMsg{Repo: testRepo, Number: 12}, asks: true},
 		{name: "number without a repository", line: "goto #12", toast: "Open a repository first, or use goto owner/name#12."},
 		{name: "number off the repository screen", repo: testRepo, notif: true, line: "goto #12", toast: "Open a repository first, or use goto owner/name#12."},
-		{name: "link to a pull request", line: "goto https://github.com/cli/cli/pull/1", want: ui.OpenPullMsg{Repo: cli, Number: 1}},
-		{name: "link to an issue", line: "goto github.com/cli/cli/issues/5#issuecomment-1", want: ui.OpenIssueMsg{Repo: cli, Number: 5}},
+		{name: "link to a pull request", line: "goto https://github.com/cli/cli/pull/1", want: ui.OpenPullMsg{Repo: cli, Number: 1, ShowRepo: true}},
+		{name: "link to an issue", line: "goto github.com/cli/cli/issues/5#issuecomment-1", want: ui.OpenIssueMsg{Repo: cli, Number: 5, ShowRepo: true}},
 		{name: "neither", line: "goto charmbracelet/bubbletea#99999999", toast: "charmbracelet/bubbletea#99999999 doesn't exist or is private.", asks: true},
 		{name: "offline", line: "goto charmbracelet/bubbletea#1813", err: errOffline, toast: "Couldn't open charmbracelet/bubbletea#1813: can't reach GitHub.", asks: true},
 		{name: "not a number", repo: testRepo, line: "goto #x", toast: "Not an issue number"},
@@ -426,7 +426,7 @@ func TestGotoNumber(t *testing.T) {
 func TestGotoNumberWithoutKinds(t *testing.T) {
 	m, fakes := newGotoApp(t, newGotoRepos())
 	runCommand(t, m, "goto charmbracelet/bubbletea#1813")
-	if got, want := opened(fakes), (ui.OpenIssueMsg{Repo: bubbletea, Number: 1813}); got != want {
+	if got, want := opened(fakes), (ui.OpenIssueMsg{Repo: bubbletea, Number: 1813, ShowRepo: true}); got != want {
 		t.Errorf("sections got %#v, want %#v, whose modal shows a pull request too", got, want)
 	}
 }

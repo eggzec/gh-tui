@@ -278,6 +278,13 @@ func TestOpenFromSearch(t *testing.T) {
 			t.Errorf("changes = %v, want close 7", got)
 		}
 	})
+	t.Run("the selected repository away from its screen", func(t *testing.T) {
+		h := started(t, newFakeService(), 80, 30)
+		drain(t, h, h.Update(ui.OpenPullMsg{Repo: repo, Number: 135, ShowRepo: true}))
+		if m := h.modal(); m == nil || !strings.HasPrefix(m.Title(), "eggzec/gh-tui#135 ") {
+			t.Errorf("modal = %v, want its title to name eggzec/gh-tui", m)
+		}
+	})
 	t.Run("before the section starts", func(t *testing.T) {
 		svc := newFakeService()
 		h := newTest(t, svc, 80, 30)
