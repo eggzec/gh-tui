@@ -81,7 +81,7 @@ func (m *Model) searchFor(line string) tea.Cmd {
 		m.flash = noteInvalid + reason(err)
 		return nil
 	}
-	return m.runSearch(line, re, invert, m.top)
+	return m.runSearch(line, re, invert, m.topLine())
 }
 
 // compile compiles pattern to ignore case unless it has a capital.

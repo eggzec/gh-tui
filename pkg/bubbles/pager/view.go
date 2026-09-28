@@ -21,7 +21,7 @@ func (m Model) View() string {
 	b.Grow(m.height * (m.width + 64))
 	rows := 0
 	switch {
-	case m.state == stateReady && len(m.lines) > 0:
+	case m.state == stateReady && m.count() > 0:
 		rows = m.writeLines(&b)
 	case m.state == stateFailed:
 		for _, l := range m.errorLines(m.width, m.bodyHeight()) {
@@ -195,7 +195,8 @@ const (
 func (m Model) writeLines(b *strings.Builder) int {
 	h, gw, tw := m.bodyHeight(), m.gutterWidth(), m.textWidth()
 	rows := 0
-	for i := m.top; i < len(m.lines) && rows < h; i++ {
+	for p := m.top; p < m.count() && rows < h; p++ {
+		i := m.at(p)
 		s := m.lines[i]
 		if !m.wrap {
 			a, pad := m.leftEdge(s)
@@ -210,7 +211,7 @@ func (m Model) writeLines(b *strings.Builder) int {
 		}
 		for r, a := 0, 0; rows < h; r++ {
 			e, used := nextRow(s, a, tw)
-			if i > m.top || r >= m.row {
+			if p > m.top || r >= m.row {
 				m.writeGutter(b, i, r == 0, gw)
 				if used > tw {
 					// Only a grapheme wider than the whole text column
@@ -338,9 +339,9 @@ func (m Model) statusLine() string {
 			parts = append(parts, m.esc.status.wrap(fmt.Sprintf("match %d/%d", s.cur+1, n)))
 		}
 	}
-	if n := len(m.lines); m.state == stateReady && n > 0 && m.bodyHeight() > 0 {
+	if n := m.count(); m.state == stateReady && n > 0 && m.bodyHeight() > 0 {
 		pct := (m.bottom() + 1) * 100 / n
-		parts = append(parts, m.esc.status.wrap(fmt.Sprintf("line %d/%d  %d%%", m.top+1, n, pct)))
+		parts = append(parts, m.esc.status.wrap(fmt.Sprintf("line %d/%d  %d%%", m.topLine()+1, len(m.lines), pct)))
 	}
 	left := m.nameView
 	if m.flash != "" {

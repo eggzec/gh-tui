@@ -57,14 +57,17 @@ type Model struct {
 	// and spans their tokens once the highlighter is done, or nil.
 	lines []string
 	spans [][]span
+	// vis are the indices of the lines shown, in order, or nil to show
+	// them all. It is replaced, never changed in place.
+	vis []int32
 
 	// gen counts contents; highlights of an older one are dropped. cancel
 	// stops the highlighter of the current one.
 	gen    int
 	cancel context.CancelFunc
 
-	// top and row are the first line in the window and, when wrapping,
-	// the first of its rows shown. left is the first column shown when not
+	// top and row are the position of the first line in the window, among
+	// the lines shown, and, when wrapping, the first of its rows shown. left is the first column shown when not
 	// wrapping.
 	top, row, left int
 	// mark is the line that GoToLine went to, whose number stands out, or
