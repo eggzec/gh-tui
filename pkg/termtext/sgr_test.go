@@ -120,3 +120,62 @@ func TestEscape(t *testing.T) {
 		}
 	}
 }
+
+func TestHasSGR(t *testing.T) {
+	tests := []struct {
+		in   string
+		want bool
+	}{
+		{"plain", false},
+		{"a\x1b[31mred", true},
+		{"a\x1b[mreset", true},
+		{"\x1b[2J\x1b[Hmoves", false},
+		{"\x1b]0;t\a\x1b[?25l", false},
+		{"\x1b[>4;2m", false},
+		{"\x1b[2J then \x1b[1m", true},
+		{"cut \x1b[31", false},
+		{"lone \x1b", false},
+	}
+	for _, tt := range tests {
+		if got := HasSGR(tt.in); got != tt.want {
+			t.Errorf("HasSGR(%q) = %v, want %v", tt.in, got, tt.want)
+		}
+	}
+}
+
+func TestCleanStyled(t *testing.T) {
+	tests := []struct {
+		name, in, want string
+		styles         []Style
+	}{
+		{name: "plain", in: "a\tb\r\nc", want: "a   b\nc"},
+		{name: "colors", in: "\x1b[1;32mok\x1b[0m done\n\x1b[31mfail", want: "ok done\nfail",
+			styles: []Style{{Pos: 0, Seq: "\x1b[1;32m"}, {Pos: 2}, {Pos: 8, Seq: "\x1b[31m"}}},
+		{name: "tabs after colors", in: "\x1b[1ma\x1b[m\tb", want: "a   b",
+			styles: []Style{{Pos: 0, Seq: "\x1b[1m"}, {Pos: 1}}},
+		{name: "wide runes keep their bytes", in: "你\x1b[31m好", want: "你好",
+			styles: []Style{{Pos: 3, Seq: "\x1b[31m"}}},
+		// What moves the cursor, clears, titles, links or asks the
+		// terminal goes whole, and its text stays.
+		{name: "hostile sequences", in: "a\x1b[2J\x1b[H\x1b[10;20Hb\x1b[3A\x1b[?1049h\x1b]0;pwned\a\x1b]52;c;eA==\x1b\\" +
+			"\x1b]8;;https://evil.test\x1b\\link\x1b]8;;\x1b\\\x1bP+q\x1b\\\x1b[6n\x1bc\x1b[>4;2mc", want: "ablinkc"},
+		{name: "a title never ended stops at the line", in: "a\x1b]0;never\nb", want: "a\nb"},
+		{name: "c1 and invalid utf-8", in: "a\u009b31mb\x9bc\xffd", want: "a\ufffd31mb\ufffdc\ufffdd"},
+		{name: "bidi controls", in: "\x1b[1ma\u202eb", want: "a\ufffdb", styles: []Style{{Pos: 0, Seq: "\x1b[1m"}}},
+		{name: "lone escape", in: "x\x1b", want: "x"},
+		{name: "blink and conceal", in: "\x1b[5mblink \x1b[8mhidden\x1b[m", want: "blink hidden"},
+		{name: "long sgr", in: "\x1b[38;2;" + strings.Repeat("1", 100) + "mx", want: "x"},
+		{name: "nothing to clean", in: "plain\nlines", want: "plain\nlines"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, styles := CleanStyled(tt.in, 4)
+			if got != tt.want {
+				t.Errorf("text = %q, want %q", got, tt.want)
+			}
+			if !slices.Equal(styles, tt.styles) {
+				t.Errorf("styles = %+v, want %+v", styles, tt.styles)
+			}
+		})
+	}
+}
