@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"charm.land/bubbles/v2/help"
 	tea "charm.land/bubbletea/v2"
 )
 
@@ -23,8 +22,7 @@ type Modal interface {
 	// modal is first drawn and whenever the terminal is resized.
 	SetSize(width, height int)
 	SetTheme(t Theme)
-	// Help lists the keys of the modal, for the help line.
-	Help() help.KeyMap
+	Keyed
 }
 
 // Tabbed is a Modal with tabs, such as the filters of a list, which the

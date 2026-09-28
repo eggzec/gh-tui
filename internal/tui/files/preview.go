@@ -7,7 +7,6 @@ import (
 	"slices"
 	"strings"
 
-	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
@@ -266,9 +265,6 @@ func (p *preview) SetSize(width, height int) {
 func (p *preview) SetTheme(t ui.Theme) {
 	p.pager.SetStyles(t.Pager())
 }
-
-// Help lists the keys of the preview for the help line.
-func (p *preview) Help() help.KeyMap { return ui.Hints{Layers: p.KeyLayers()} }
 
 // KeyLayers implements ui.Keyed: the open key, unless the pager's search
 // input takes it, and then the pager's keys.

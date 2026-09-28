@@ -5,11 +5,11 @@ import (
 	"strings"
 	"testing"
 
-	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
@@ -170,7 +170,7 @@ func TestPreviewHelp(t *testing.T) {
 	has := func(bs []key.Binding, k string) bool {
 		return slices.ContainsFunc(bs, func(b key.Binding) bool { return b.Help().Key == k })
 	}
-	short := func() []key.Binding { return ui.Hints{Layers: h.top().(ui.Keyed).KeyLayers()}.ShortHelp() }
+	short := func() []key.Binding { return ui.Hints{Layers: h.top().KeyLayers()}.ShortHelp() }
 	if short := short(); !has(short, "o") || !has(short, "q") {
 		t.Errorf("help lists %v, want the pager keys and o", short)
 	}
@@ -249,11 +249,11 @@ func TestPreviewFileClosesOverItsSearch(t *testing.T) {
 // reopened.
 type stub struct{ reopened bool }
 
-func (*stub) Title() string     { return "stub" }
-func (*stub) View() string      { return "" }
-func (*stub) SetSize(int, int)  {}
-func (*stub) SetTheme(ui.Theme) {}
-func (*stub) Help() help.KeyMap { return nil }
+func (*stub) Title() string              { return "stub" }
+func (*stub) View() string               { return "" }
+func (*stub) SetSize(int, int)           {}
+func (*stub) SetTheme(ui.Theme)          {}
+func (*stub) KeyLayers() []keyhelp.Layer { return nil }
 func (s *stub) Update(msg tea.Msg) tea.Cmd {
 	if msg == (ui.ReopenedMsg{Modal: s}) {
 		s.reopened = true

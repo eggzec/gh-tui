@@ -4,8 +4,6 @@ import (
 	"slices"
 	"strings"
 
-	"charm.land/bubbles/v2/help"
-
 	"charm.land/bubbles/v2/key"
 
 	"github.com/eggzec/gh-tui/internal/config"
@@ -171,9 +169,6 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 	}
 	return []keyhelp.Layer{own, keyhelp.FromHelp("list", s.feed.KeyMap(), false)}
 }
-
-// Help lists the keys of the section for the help line.
-func (s *Section) Help() help.KeyMap { return ui.Hints{Layers: s.KeyLayers()} }
 
 // onList returns k as the list takes it: the changes that apply to the pull
 // request under the cursor, and the clear key while a filter is in

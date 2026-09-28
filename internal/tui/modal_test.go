@@ -5,11 +5,11 @@ import (
 	"strings"
 	"testing"
 
-	"charm.land/bubbles/v2/help"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 )
 
 // fakeModal records what the app asks of it.
@@ -36,7 +36,9 @@ func (f *fakeModal) View() string {
 }
 func (f *fakeModal) SetSize(w, h int)  { f.width, f.height = w, h }
 func (f *fakeModal) SetTheme(ui.Theme) { f.themed = true }
-func (f *fakeModal) Help() help.KeyMap { return sectionKeys{} }
+func (f *fakeModal) KeyLayers() []keyhelp.Layer {
+	return []keyhelp.Layer{keyhelp.FromHelp(f.title, sectionKeys{}, false)}
+}
 
 func (f *fakeModal) keys() []string {
 	var ks []string

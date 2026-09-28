@@ -11,7 +11,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/spinner"
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
@@ -289,9 +288,6 @@ func (s *Section) Blur() {
 
 // View returns the page, rendered when its state last changed.
 func (s *Section) View() string { return s.view }
-
-// Help lists the keys of the page for the help line.
-func (s *Section) Help() help.KeyMap { return ui.Hints{Layers: s.KeyLayers()} }
 
 func inputStyles(t ui.Theme) textinput.Styles {
 	st := textinput.StyleState{

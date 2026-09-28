@@ -10,7 +10,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"charm.land/bubbles/v2/help"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
@@ -364,9 +363,6 @@ func (s *Section) Blur() {
 
 // View returns the dashboard, rendered when its state last changed.
 func (s *Section) View() string { return s.view }
-
-// Help lists the keys of the dashboard for the help line.
-func (s *Section) Help() help.KeyMap { return ui.Hints{Layers: s.KeyLayers()} }
 
 // Focused returns the number of the focused pane, from 0.
 func (s *Section) Focused() int { return int(s.focus) }

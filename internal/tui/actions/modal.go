@@ -20,7 +20,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
@@ -211,11 +210,6 @@ func (m *Modal) SetTheme(t ui.Theme) {
 	if f := m.filterStep; f != nil && f.form != nil {
 		f.form.SetStyles(t.FilterForm())
 	}
-}
-
-// Help lists the keys of the modal for the help line.
-func (m *Modal) Help() help.KeyMap {
-	return ui.Hints{Layers: m.KeyLayers()}
 }
 
 // KeyLayers implements ui.Keyed. The confirmation, the filter and a search

@@ -9,7 +9,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"charm.land/bubbles/v2/help"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -203,9 +202,6 @@ func (s *Section) Blur() {
 	s.feed.Blur()
 	s.opener.Stop()
 }
-
-// Help lists the keys of the section for the help line.
-func (s *Section) Help() help.KeyMap { return ui.Hints{Layers: s.KeyLayers()} }
 
 // KeyLayers implements ui.Keyed: the section's own keys, with the one
 // that clears the filter only while there is one, and then the list's.

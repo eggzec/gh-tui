@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -440,9 +439,6 @@ func (f *finderModal) SetTheme(t ui.Theme) {
 	border := lipgloss.NewStyle().Foreground(lipgloss.Color(t.Palette.Border))
 	f.sep = " " + border.Render("│") + " "
 }
-
-// Help lists the keys of the finder for the help line.
-func (f *finderModal) Help() help.KeyMap { return ui.Hints{Layers: f.KeyLayers()} }
 
 // KeyLayers implements ui.Keyed: the finder's own keys, and then the
 // bubble's, whose query types the rest.

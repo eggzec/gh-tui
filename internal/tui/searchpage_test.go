@@ -132,8 +132,8 @@ func TestPreviewFromSearch(t *testing.T) {
 			if fakes[5].got(isKey("j")) || !slices.Contains(mod.keys(), "j") {
 				t.Error("the modal should take the keys while it is open")
 			}
-			if hk, ok := m.helpKeys().(helpKeys); !ok || !hk.modal || hk.section != mod.Help() {
-				t.Error("the help line should list the modal's keys")
+			if short := m.hints().ShortHelp(); len(short) != 1 || short[0].Help().Desc != "close" {
+				t.Errorf("the help line offers %d keys, want the modal's alone", len(short))
 			}
 			run(m, ui.CloseModal(mod))
 			if m.topModal() != nil || m.screen != searchScreen || !fakes[5].focused {

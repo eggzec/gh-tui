@@ -3,7 +3,6 @@ package checks
 import (
 	"slices"
 
-	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/viewport"
 
@@ -151,9 +150,6 @@ func (s *Step) KeyLayers() []keyhelp.Layer {
 	}
 	return []keyhelp.Layer{own}
 }
-
-// Help lists the keys of the step for the help line.
-func (s *Step) Help() help.KeyMap { return ui.Hints{Layers: s.KeyLayers()} }
 
 // state returns k as the step takes it in its mode, named for what the
 // keys do there: the list's keys only on the list, and the annotations

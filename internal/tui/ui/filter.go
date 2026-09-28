@@ -3,7 +3,6 @@ package ui
 import (
 	"context"
 
-	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
@@ -211,9 +210,6 @@ func (m *FilterModal) Fit(maxWidth, maxHeight int) (width, height int) {
 
 // SetTheme implements Modal.
 func (m *FilterModal) SetTheme(t Theme) { m.form.SetStyles(t.FilterForm()) }
-
-// Help implements Modal.
-func (m *FilterModal) Help() help.KeyMap { return m.form }
 
 // KeyLayers implements Keyed: the keys of the form, which types what the
 // editor or the query line takes.

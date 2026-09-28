@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -447,9 +446,6 @@ func (m *detailModal) reload() tea.Cmd {
 func (m *detailModal) show() tea.Cmd {
 	return m.thread.SetDocument(m.detailHeader(m.width), m.detail.Body)
 }
-
-// Help lists the keys of the modal for the help line.
-func (m *detailModal) Help() help.KeyMap { return ui.Hints{Layers: m.KeyLayers()} }
 
 // KeyLayers implements ui.Keyed: those of the Checks step while it shows,
 // the answer while a change waits for one, and otherwise the modal's own
