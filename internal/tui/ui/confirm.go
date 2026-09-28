@@ -9,6 +9,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
@@ -69,6 +70,12 @@ func (k ConfirmKeys) ShortHelp() []key.Binding { return []key.Binding{k.Yes, k.N
 
 // FullHelp implements help.KeyMap.
 func (k ConfirmKeys) FullHelp() [][]key.Binding { return [][]key.Binding{k.ShortHelp()} }
+
+// Layer returns the layer of the keys, which take every key while the
+// question is open: those that answer it, and the rest to do nothing.
+func (k ConfirmKeys) Layer() keyhelp.Layer {
+	return keyhelp.FromHelp("confirm", k, false)
+}
 
 // Answer takes msg as the answer to c: yes runs c and returns what sends
 // the change, and no drops it. Either way done is set, and the question
@@ -237,6 +244,11 @@ func (m *ConfirmModal) SetTheme(t Theme) {
 
 // Help implements Modal.
 func (m *ConfirmModal) Help() help.KeyMap { return m.keys }
+
+// KeyLayers implements Keyed: the keys that answer the question.
+func (m *ConfirmModal) KeyLayers() []keyhelp.Layer {
+	return []keyhelp.Layer{m.keys.Layer()}
+}
 
 func (m *ConfirmModal) render() {
 	if m.width <= 0 || m.height <= 0 {
