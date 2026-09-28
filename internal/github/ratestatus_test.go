@@ -185,6 +185,21 @@ func TestRateStatusRejected(t *testing.T) {
 	})
 }
 
+// TestRateStatusRejectedNotByGitHub checks that a 401 without GitHub's
+// request id, such as one from a proxy on the way, doesn't say GitHub
+// rejected the token.
+func TestRateStatusRejectedNotByGitHub(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		a := answers{"x": make(chan answer, 1)}
+		c := newAnswered(t, a)
+		a["x"] <- answer{status: http.StatusUnauthorized}
+		_, _ = c.Get(t.Context(), "x", Conditional{}, nil)
+		if s := c.RateStatus(); !s.Rejected.IsZero() {
+			t.Errorf("after a 401 without a request id: Rejected = %v, want zero", s.Rejected)
+		}
+	})
+}
+
 // notified is a client that keeps the status it reads each time it is
 // told the rate limits changed, as the app does.
 type notified struct {
