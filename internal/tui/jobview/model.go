@@ -259,37 +259,6 @@ func (m Model) LogID() int64 { return m.view.ID() }
 // KeyMap returns the keys of the log.
 func (m Model) KeyMap() logview.KeyMap { return m.view.KeyMap() }
 
-// ShortHelp returns the keys of the log for the short help.
-func (m Model) ShortHelp() []key.Binding { return m.view.ShortHelp() }
-
-// FullHelp returns the keys of the log for the full help, and those of
-// the annotations when there are some.
-func (m Model) FullHelp() [][]key.Binding {
-	full := m.view.FullHelp()
-	if len(m.notes.items) > 0 {
-		full = append(full, []key.Binding{m.keys.Up, m.keys.Down, m.keys.Select, m.keys.Annotations})
-	}
-	return full
-}
-
-// Keys returns the main keys of what has the focus, for the short help:
-// the moves through the annotations and the one that opens its file, or
-// the folds, errors and search of the log. Folding every step works from
-// both.
-func (m Model) Keys() []key.Binding {
-	k, lk := m.keys, m.view.KeyMap()
-	if m.OnAnnotations() {
-		ann := k.Annotations
-		ann.SetHelp(ann.Help().Key, "log")
-		return []key.Binding{k.Up, k.Down, k.Select, lk.FoldAll, ann}
-	}
-	keys := []key.Binding{lk.Toggle, lk.FoldAll, lk.NextError, lk.Search}
-	if len(m.notes.items) > 0 {
-		keys = append(keys, k.Annotations)
-	}
-	return keys
-}
-
 // KeyLayers returns the keys of the view in the order it matches them:
 // those of the annotations, which take every key but those of the whole
 // log while they have the focus, and then those of the log, once it

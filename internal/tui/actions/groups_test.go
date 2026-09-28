@@ -12,6 +12,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 )
 
 // shape writes nodes as "job" and "group{kid | kid}", to compare trees.
@@ -252,6 +253,9 @@ func TestViewJobGroups(t *testing.T) {
 func TestJobGroupsFold(t *testing.T) {
 	m, h := newModal(t, duckFake(), wideW, wideH)
 	h.keys("tab")
+	if b, _, _ := uitest.Winner(m.KeyLayers(), "enter"); b.Help().Desc != "open" {
+		t.Errorf("enter on a job reads %q, want open", b.Help().Desc)
+	}
 	// The failed group opens, on its failed job; the rest stay folded.
 	want := []string{
 		"✓ check-draft 1m 0s",
@@ -276,6 +280,10 @@ func TestJobGroupsFold(t *testing.T) {
 	h.keys("j", "j")
 	if !m.jobs.onGroup() || m.log.JobID() != 9009 {
 		t.Fatalf("on %q the log shows job %d, want the group's running job", jobsPaneRows(m)[7], m.log.JobID())
+	}
+	// The help says so, as it says that enter opens a job.
+	if b, src, _ := uitest.Winner(m.KeyLayers(), "enter"); src != "actions" || b.Help().Desc != "fold" {
+		t.Errorf("enter on a group reaches %q of %q, want the fold", b.Help().Desc, src)
 	}
 	h.keys("enter")
 	if rows := jobsPaneRows(m); rows[7] != "▌ ▾ Test 3 ◐" || rows[8] != "✓ linux, amd64 9m 0s" || m.focus != jobsPane {

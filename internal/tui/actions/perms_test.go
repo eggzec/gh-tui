@@ -7,6 +7,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
@@ -27,16 +28,10 @@ func (c *capsOf) Get(_ context.Context, ref core.RepoRef) (core.Repo, error) {
 	return core.Repo{Ref: ref, Caps: c.caps}, nil
 }
 
-// offered returns what the enabled change keys do, as help shows them.
+// offered returns what the enabled change keys do.
 func offered(m *Modal) []string {
-	var out []string
-	h := helpKeys{m: m}
-	for _, b := range h.changes() {
-		if d := b.Help().Desc; b.Enabled() && d != m.keys.Filter.Help().Desc && d != m.keys.Open.Help().Desc {
-			out = append(out, d)
-		}
-	}
-	return out
+	changes := []string{"cancel run", "rerun failed", "rerun all", "rerun job"}
+	return slices.DeleteFunc(uitest.Enabled(m.KeyLayers()), func(d string) bool { return !slices.Contains(changes, d) })
 }
 
 func TestChangesNeedWriteAccess(t *testing.T) {
