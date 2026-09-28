@@ -5,8 +5,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/charmbracelet/x/ansi"
 	"github.com/sahilm/fuzzy"
+
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // result is an item as the picker lists it.
@@ -115,5 +116,5 @@ func group(rs []result) {
 
 // clean puts text on one line without escape sequences.
 func clean(s string) string {
-	return strings.Join(strings.Fields(ansi.Strip(s)), " ")
+	return strings.Join(strings.Fields(termtext.OneLine(s)), " ")
 }
