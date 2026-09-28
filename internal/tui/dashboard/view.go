@@ -622,6 +622,15 @@ func (s *Section) workItem(lines []string, r *workRow, selected, focused bool, w
 
 func (s *Section) inboxBody(w, h int) []string {
 	st := &s.st
+	if s.inbox != nil {
+		if text, hint, ok := ui.Unreadable(core.NeedNotifications, "load your notifications", s.voice); ok {
+			lines := ui.ErrorLine(s.theme.Empty(), text, hint, max(w-1, 1))
+			for i := range lines {
+				lines[i] = " " + lines[i]
+			}
+			return lines
+		}
+	}
 	switch {
 	case s.inbox == nil:
 		return []string{" " + st.muted.render("Notifications aren't available.")}
