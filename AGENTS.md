@@ -323,6 +323,9 @@ reacts to messages. Concretely:
   embedded and commented, and only there. The user's file merges over it:
   mappings key by key, while lists and scalars replace, and an empty value
   is refused. A new setting goes into default.yaml (`TestDefaultsComplete`).
+  A constant in Go that looks like a default must either move there or be
+  listed as a true constant in `internal/config/testdata/constants.allow`
+  (`TestNoDefaultsInGo`).
 - Keybindings map action names to keys and are applied through each bubble's
   `SetKeyMap`. Action names are registered in `internal/config/keys.go`;
   unknown names are rejected so typos don't pass silently.
