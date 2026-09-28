@@ -57,7 +57,9 @@ func NewTheme(p config.Palette, dark bool) Theme {
 }
 
 // Each bubble keeps the shape of its default styles, such as glyphs and
-// borders, and takes its colors from the palette.
+// borders, and takes its colors from the palette. A bubble that marks what
+// went wrong takes the mark from the icons, as the error lines of the
+// sections do.
 
 // Toast returns the styles of the toasts.
 func (t Theme) Toast() toast.Styles {
@@ -72,8 +74,9 @@ func (t Theme) Toast() toast.Styles {
 }
 
 // Feed returns the styles of a list.
-func (t Theme) Feed() feed.Styles {
+func (t Theme) Feed(ic Icons) feed.Styles {
 	s := feed.DefaultStyles(t.Dark)
+	s.ErrorGlyph = ic.Error
 	s.Cursor = s.Cursor.Foreground(lipgloss.Color(t.Palette.Accent))
 	s.BlurredCursor = s.BlurredCursor.Foreground(lipgloss.Color(t.Palette.Subtle))
 	s.Placeholder = s.Placeholder.Foreground(lipgloss.Color(t.Palette.Subtle))
@@ -86,8 +89,9 @@ func (t Theme) Feed() feed.Styles {
 }
 
 // Thread returns the styles of a document with comments.
-func (t Theme) Thread() thread.Styles {
+func (t Theme) Thread(ic Icons) thread.Styles {
 	s := thread.DefaultStyles(t.Dark)
+	s.ErrorGlyph = ic.Error
 	s.Spinner = s.Spinner.Foreground(lipgloss.Color(t.Palette.Accent))
 	s.Loading = s.Loading.Foreground(lipgloss.Color(t.Palette.Muted))
 	s.Empty = s.Empty.Foreground(lipgloss.Color(t.Palette.Muted))
@@ -98,8 +102,9 @@ func (t Theme) Thread() thread.Styles {
 }
 
 // Tree returns the styles of a tree, such as the files of a repository.
-func (t Theme) Tree() tree.Styles {
+func (t Theme) Tree(ic Icons) tree.Styles {
 	s := tree.DefaultStyles(t.Dark)
+	s.ErrorGlyph = ic.Error
 	s.Cursor = s.Cursor.Foreground(lipgloss.Color(t.Palette.Accent))
 	s.BlurredCursor = s.BlurredCursor.Foreground(lipgloss.Color(t.Palette.Subtle))
 	s.Guide = s.Guide.Foreground(lipgloss.Color(t.Palette.Border))
@@ -118,8 +123,9 @@ func (t Theme) Tree() tree.Styles {
 // Graph returns the styles of a commit graph. The lanes keep their
 // default hues, which tell lanes apart, except the first, which takes the
 // accent.
-func (t Theme) Graph() graph.Styles {
+func (t Theme) Graph(ic Icons) graph.Styles {
 	s := graph.DefaultStyles(t.Dark)
+	s.ErrorGlyph = ic.Error
 	accent := lipgloss.Color(t.Palette.Accent)
 	s.Cursor = s.Cursor.Foreground(accent)
 	s.BlurredCursor = s.BlurredCursor.Foreground(lipgloss.Color(t.Palette.Subtle))
@@ -142,8 +148,9 @@ func (t Theme) Graph() graph.Styles {
 // Pager returns the styles of a file viewer. The syntax colors and the
 // search highlights, which need backgrounds the palette doesn't have, keep
 // their defaults for a light or dark terminal.
-func (t Theme) Pager() pager.Styles {
+func (t Theme) Pager(ic Icons) pager.Styles {
 	s := pager.DefaultStyles(t.Dark)
+	s.ErrorGlyph = ic.Error
 	s.Text = s.Text.Foreground(lipgloss.Color(t.Palette.Foreground))
 	s.LineNumber = s.LineNumber.Foreground(lipgloss.Color(t.Palette.Subtle))
 	s.Name = s.Name.Foreground(lipgloss.Color(t.Palette.Foreground))
@@ -160,8 +167,9 @@ func (t Theme) Pager() pager.Styles {
 // LogView returns the styles of a job log. The search highlights, which
 // need backgrounds the palette doesn't have, keep their defaults for a
 // light or dark terminal.
-func (t Theme) LogView() logview.Styles {
+func (t Theme) LogView(ic Icons) logview.Styles {
 	s := logview.DefaultStyles(t.Dark)
+	s.ErrorGlyph = ic.Error
 	c := lipgloss.Color
 	p := t.Palette
 	s.Text = s.Text.Foreground(c(p.Foreground))
@@ -194,8 +202,9 @@ func (t Theme) LogView() logview.Styles {
 
 // FilterForm returns the styles of a filter form. The accent marks only
 // what is in focus, and its pickers take the styles of the search popups.
-func (t Theme) FilterForm() filterform.Styles {
+func (t Theme) FilterForm(ic Icons) filterform.Styles {
 	s := filterform.DefaultStyles(t.Dark)
+	s.ErrorGlyph = ic.Error
 	c := lipgloss.Color
 	p := t.Palette
 	s.Tab = s.Tab.Foreground(c(p.Muted))
@@ -219,7 +228,7 @@ func (t Theme) FilterForm() filterform.Styles {
 	s.Error = s.Error.Foreground(c(p.Error))
 	s.Help = t.Help()
 	frame := s.Picker.Frame
-	s.Picker = t.Picker()
+	s.Picker = t.Picker(ic)
 	s.Picker.Frame = frame.BorderForeground(c(p.Border))
 	return s
 }
@@ -242,8 +251,9 @@ func (t Theme) Prompt() prompt.Styles {
 // Picker returns the styles of a search popup. Its frame takes the Border
 // color, and the accent marks the prompt, the scope, the selection and the
 // matches.
-func (t Theme) Picker() picker.Styles {
+func (t Theme) Picker(ic Icons) picker.Styles {
 	s := picker.DefaultStyles(t.Dark)
+	s.ErrorGlyph = ic.Error
 	fg, accent := lipgloss.Color(t.Palette.Foreground), lipgloss.Color(t.Palette.Accent)
 	muted, subtle := lipgloss.Color(t.Palette.Muted), lipgloss.Color(t.Palette.Subtle)
 	s.Frame = s.Frame.BorderForeground(lipgloss.Color(t.Palette.Border))
@@ -267,8 +277,9 @@ func (t Theme) Picker() picker.Styles {
 }
 
 // Finder returns the styles of a file finder.
-func (t Theme) Finder() finder.Styles {
+func (t Theme) Finder(ic Icons) finder.Styles {
 	s := finder.DefaultStyles(t.Dark)
+	s.ErrorGlyph = ic.Error
 	fg, accent := lipgloss.Color(t.Palette.Foreground), lipgloss.Color(t.Palette.Accent)
 	muted, subtle := lipgloss.Color(t.Palette.Muted), lipgloss.Color(t.Palette.Subtle)
 	s.Prompt = s.Prompt.Foreground(accent)

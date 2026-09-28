@@ -338,3 +338,6 @@ func keyPress(k string) tea.KeyPressMsg {
 	r, _ := utf8.DecodeRuneInString(k)
 	return tea.KeyPressMsg{Code: r, Text: k}
 }
+
+// errMark is the error glyph of the default icons, which mark what failed.
+var errMark = ui.NewIcons(config.IconsNerd).Error

@@ -230,6 +230,7 @@ func (m *Model) authCommand(string) tea.Cmd {
 	a := m.access.Access()
 	mod := newAuthModal(m.cfg.Keys, m.account(), a, m.access.Refresh(needs()...), m.token, m.run)
 	mod.checksOff = !m.cfg.Auth.Check
+	mod.icons = ui.NewIcons(m.cfg.UI.Icons)
 	m.openModal(mod)
 	return m.reloadToken(nil)
 }

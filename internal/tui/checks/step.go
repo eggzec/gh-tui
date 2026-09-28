@@ -268,8 +268,7 @@ func (s *Step) SetSize(width, height int) {
 func (s *Step) SetTheme(t ui.Theme) {
 	s.theme = t
 	s.st = newStyles(t, s.opts.icons)
-	// The mark is the bubbles', which draw "✗" whatever the icons.
-	s.errs = t.Errors(ui.NewIcons(config.IconsUnicode))
+	s.errs = t.Errors(s.opts.icons)
 	s.spin.Style = t.Accent
 	s.view.SetTheme(t)
 	s.md, s.rendered = nil, ""

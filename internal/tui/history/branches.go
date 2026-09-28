@@ -306,7 +306,7 @@ func (m *Modal) openFilter() tea.Cmd {
 		picker.WithGroupHeaders(false),
 		picker.WithPlaceholder("Filter branches"),
 		picker.WithEmptyText("No branch matches. Press esc to see them all."),
-		picker.WithStyles(filterStyles(m.theme)),
+		picker.WithStyles(filterStyles(m.theme, m.opts.icons)),
 		picker.WithSize(m.paneWidth(branchPane), m.bodyHeight()),
 	)
 	b.filter = &f
@@ -326,9 +326,9 @@ func (m *Modal) filterItems() []picker.Item {
 }
 
 // filterStyles are the picker's styles for the filter, which the pane
-// frames.
-func filterStyles(t ui.Theme) picker.Styles {
-	s := t.Picker()
+// frames, marking a failed search with the error glyph of ic.
+func filterStyles(t ui.Theme, ic ui.Icons) picker.Styles {
+	s := t.Picker(ic)
 	s.Frame = lipgloss.NewStyle()
 	return s
 }

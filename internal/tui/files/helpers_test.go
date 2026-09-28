@@ -284,3 +284,6 @@ func (h *host) modal() string {
 	}
 	return ""
 }
+
+// errMark is the error glyph of the default icons, which mark what failed.
+var errMark = ui.NewIcons(config.IconsNerd).Error

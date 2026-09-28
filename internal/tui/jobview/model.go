@@ -21,7 +21,6 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
@@ -210,9 +209,8 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, keys KeyMap, opts 
 // SetTheme styles the view.
 func (m *Model) SetTheme(t ui.Theme) {
 	m.st = ui.NewRunStyles(t, m.opts.icons)
-	// The mark is the log's, which draws "✗" whatever the icons.
-	m.errs = t.Errors(ui.NewIcons(config.IconsUnicode))
-	m.view.SetStyles(t.LogView())
+	m.errs = t.Errors(m.opts.icons)
+	m.view.SetStyles(t.LogView(m.opts.icons))
 }
 
 // SetSize sets the size of the view.

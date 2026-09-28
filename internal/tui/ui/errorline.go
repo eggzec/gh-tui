@@ -14,7 +14,8 @@ const errorTextLines = 2
 
 // ErrorStyles are how ErrorLine draws an error.
 type ErrorStyles struct {
-	// Mark is the glyph before the text, one cell wide, or "" for none.
+	// Mark is the glyph before the text, or "" for none. ErrorLine indents
+	// the text's other lines by its width.
 	Mark string
 	Text lipgloss.Style
 	Hint lipgloss.Style

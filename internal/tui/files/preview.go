@@ -31,6 +31,8 @@ type preview struct {
 	entry core.TreeEntry
 	open  key.Binding
 	pager pager.Model
+	// icons mark a failed load.
+	icons ui.Icons
 	// find is searched for once the content is shown, and preset holds
 	// while that search is the one shown, until the user starts another.
 	// line is the line the preview opens on, if set.
@@ -59,13 +61,14 @@ type blobMsg struct {
 
 // newPreview returns a preview of e, a file of repo at ref, whose page
 // is on host, which words what went wrong with v and opens the file in
-// editor, if set. Its load runs under ctx until it closes.
-func newPreview(ctx context.Context, svc Service, host string, repo core.RepoRef, ref string, e core.TreeEntry, open key.Binding, v ui.Voice, editor string) *preview {
+// editor, if set, and marks a failed load with the error glyph of ic. Its
+// load runs under ctx until it closes.
+func newPreview(ctx context.Context, svc Service, host string, repo core.RepoRef, ref string, e core.TreeEntry, open key.Binding, v ui.Voice, editor string, ic ui.Icons) *preview {
 	ctx, cancel := context.WithCancel(ctx)
 	// The preview loads the file once, and opens it on GitHub with open.
 	v.Retry, v.Open = key.Binding{}, open
 	pg := pager.New(pager.WithErrorText(fileErrorText(repo, v)), pager.WithEditor(editor))
-	p := &preview{ctx: ctx, cancel: cancel, svc: svc, host: host, repo: repo, ref: ref, entry: e, open: open, pager: pg}
+	p := &preview{ctx: ctx, cancel: cancel, svc: svc, host: host, repo: repo, ref: ref, entry: e, open: open, pager: pg, icons: ic}
 	p.pager.Focus()
 	return p
 }
@@ -264,7 +267,7 @@ func (p *preview) SetSize(width, height int) {
 
 // SetTheme styles the pager.
 func (p *preview) SetTheme(t ui.Theme) {
-	p.pager.SetStyles(t.Pager())
+	p.pager.SetStyles(t.Pager(p.icons))
 }
 
 // KeyLayers implements ui.Keyed: the open key, unless the pager's search

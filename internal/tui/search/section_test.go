@@ -169,9 +169,9 @@ func TestCodeErrorWords(t *testing.T) {
 		err  error
 		want string
 	}{
-		{"offline", fmt.Errorf("search code: github: GET /search/code: %w", core.ErrOffline), "✗ Can't reach GitHub · r to retry"},
-		{"forbidden", fmt.Errorf("search code: github: 403 Forbidden: %w", core.ErrForbidden), "✗ You don't have access to this · o to open on GitHub"},
-		{"internal", errors.New("search code: github: decode: unexpected EOF"), "✗ Something went wrong · r to retry"},
+		{"offline", fmt.Errorf("search code: github: GET /search/code: %w", core.ErrOffline), errMark + " Can't reach GitHub · r to retry"},
+		{"forbidden", fmt.Errorf("search code: github: 403 Forbidden: %w", core.ErrForbidden), errMark + " You don't have access to this · o to open on GitHub"},
+		{"internal", errors.New("search code: github: decode: unexpected EOF"), errMark + " Something went wrong · r to retry"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -325,10 +325,10 @@ func TestStartFailure(t *testing.T) {
 		err  error
 		want string
 	}{
-		{"offline", fmt.Errorf("list repos: github: GET /user/repos: %w", core.ErrOffline), "✗ Can't reach GitHub"},
-		{"forbidden", fmt.Errorf("list repos: github: 403 Forbidden: %w", core.ErrForbidden), "✗ You don't have access to this"},
-		{"not found", fmt.Errorf("list repos: github: 404 Not Found: %w", core.ErrNotFound), "✗ This doesn't exist or is private."},
-		{"internal", fmt.Errorf("list repos: github: decode: %s", termtexttest.Hostile), "✗ Something went wrong"},
+		{"offline", fmt.Errorf("list repos: github: GET /user/repos: %w", core.ErrOffline), errMark + " Can't reach GitHub"},
+		{"forbidden", fmt.Errorf("list repos: github: 403 Forbidden: %w", core.ErrForbidden), errMark + " You don't have access to this"},
+		{"not found", fmt.Errorf("list repos: github: 404 Not Found: %w", core.ErrNotFound), errMark + " This doesn't exist or is private."},
+		{"internal", fmt.Errorf("list repos: github: decode: %s", termtexttest.Hostile), errMark + " Something went wrong"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

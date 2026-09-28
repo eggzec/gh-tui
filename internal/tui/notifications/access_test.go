@@ -60,7 +60,7 @@ func TestViewUnreadable(t *testing.T) {
 						t.Errorf("line %d is %d cells wide, want %d", i, w, tt.width)
 					}
 				}
-				if strings.Contains(ansi.Strip(view), "✗") {
+				if strings.Contains(ansi.Strip(view), errMark) {
 					t.Errorf("the empty state is marked as an error:\n%s", ansi.Strip(view))
 				}
 				golden.RequireEqual(t, view)

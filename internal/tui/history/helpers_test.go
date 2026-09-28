@@ -182,3 +182,6 @@ func assertFits(tb testing.TB, v string, width, height int) {
 		}
 	}
 }
+
+// errMark is the error glyph of the default icons, which mark what failed.
+var errMark = ui.NewIcons(config.IconsNerd).Error

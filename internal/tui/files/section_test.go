@@ -256,11 +256,11 @@ func TestErrorWords(t *testing.T) {
 			f := sampleFake()
 			f.errs[treeKey(ghTUI, "")] = tt.err
 			s := loaded(t, f, 120, 5, voice)
-			if got := screen(s); !strings.Contains(got, "✗ "+tt.tree) || strings.Contains(got, "github") {
+			if got := screen(s); !strings.Contains(got, errMark+" "+tt.tree) || strings.Contains(got, "github") {
 				t.Errorf("tree = %q, want %q", got, tt.tree)
 			}
 			fm := findIn(t, newHost(s))
-			if got := ansi.Strip(fm.find.View()); !strings.Contains(got, "✗ "+tt.finder) || strings.Contains(got, "github") || strings.Contains(got, "to open") {
+			if got := ansi.Strip(fm.find.View()); !strings.Contains(got, errMark+" "+tt.finder) || strings.Contains(got, "github") || strings.Contains(got, "to open") {
 				t.Errorf("finder = %q, want %q", got, tt.finder)
 			}
 		})

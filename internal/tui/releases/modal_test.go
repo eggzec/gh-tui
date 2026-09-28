@@ -203,7 +203,7 @@ func TestErrorIsRecoverable(t *testing.T) {
 	run(t, m, m.Init())
 	v := m.View()
 	assertFits(t, v, 100, 20)
-	if s := ansi.Strip(v); !strings.Contains(s, "✗ Something went wrong · r to retry") || strings.Contains(s, "boom") {
+	if s := ansi.Strip(v); !strings.Contains(s, errMark+" Something went wrong · r to retry") || strings.Contains(s, "boom") {
 		t.Errorf("failed read shows as\n%s", s)
 	}
 	svc.mu.Lock()
@@ -225,11 +225,11 @@ func TestErrorWords(t *testing.T) {
 		url  string
 		want string
 	}{
-		{"offline", fmt.Errorf("get release: github: GET /repos/charmbracelet/glow/releases/1: %w", core.ErrOffline), "u", "✗ Can't reach GitHub · r to retry"},
-		{"forbidden", fmt.Errorf("get release: github: 403 Forbidden: %w", core.ErrForbidden), "u", "✗ You don't have access to charmbracelet/glow · o to open on GitHub"},
-		{"forbidden without a page", fmt.Errorf("get release: github: 403 Forbidden: %w", core.ErrForbidden), "", "✗ You don't have access to charmbracelet/glow"},
-		{"not found", fmt.Errorf("get release: github: 404 Not Found: %w", core.ErrNotFound), "u", "✗ This doesn't exist or is private."},
-		{"internal", fmt.Errorf("get release: github: decode: %s", termtexttest.Hostile), "u", "✗ Something went wrong · r to retry"},
+		{"offline", fmt.Errorf("get release: github: GET /repos/charmbracelet/glow/releases/1: %w", core.ErrOffline), "u", errMark + " Can't reach GitHub · r to retry"},
+		{"forbidden", fmt.Errorf("get release: github: 403 Forbidden: %w", core.ErrForbidden), "u", errMark + " You don't have access to charmbracelet/glow · o to open on GitHub"},
+		{"forbidden without a page", fmt.Errorf("get release: github: 403 Forbidden: %w", core.ErrForbidden), "", errMark + " You don't have access to charmbracelet/glow"},
+		{"not found", fmt.Errorf("get release: github: 404 Not Found: %w", core.ErrNotFound), "u", errMark + " This doesn't exist or is private."},
+		{"internal", fmt.Errorf("get release: github: decode: %s", termtexttest.Hostile), "u", errMark + " Something went wrong · r to retry"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -240,7 +240,7 @@ func TestErrorWords(t *testing.T) {
 			v := strings.TrimRight(ansi.Strip(m.View()), " \n")
 			line := ""
 			for l := range strings.SplitSeq(v, "\n") {
-				if strings.Contains(l, "✗") {
+				if strings.Contains(l, errMark) {
 					line = strings.TrimSpace(l)
 				}
 			}
@@ -391,9 +391,9 @@ func TestFilesErrorWords(t *testing.T) {
 		err  error
 		want string
 	}{
-		{"offline", fmt.Errorf("get release: github: GET /repos/charmbracelet/glow/releases/1: %w", core.ErrOffline), "✗ Can't reach GitHub"},
-		{"forbidden", fmt.Errorf("get release: github: 403 Forbidden: %w", core.ErrForbidden), "✗ You don't have access to charmbracelet/glow · o to open on GitHub"},
-		{"internal", errors.New("get release: github: decode: unexpected EOF"), "✗ Something went wrong. Details are in the log"},
+		{"offline", fmt.Errorf("get release: github: GET /repos/charmbracelet/glow/releases/1: %w", core.ErrOffline), errMark + " Can't reach GitHub"},
+		{"forbidden", fmt.Errorf("get release: github: 403 Forbidden: %w", core.ErrForbidden), errMark + " You don't have access to charmbracelet/glow · o to open on GitHub"},
+		{"internal", errors.New("get release: github: decode: unexpected EOF"), errMark + " Something went wrong. Details are in the log"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -418,3 +418,6 @@ func TestFilesErrorWords(t *testing.T) {
 		})
 	}
 }
+
+// errMark is the error glyph of the default icons, which mark what failed.
+var errMark = ui.NewIcons(config.IconsNerd).Error

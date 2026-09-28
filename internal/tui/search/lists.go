@@ -88,7 +88,7 @@ func (s *Section) ensureHits(k core.SearchKind) tea.Cmd {
 		feed.WithItemHeight(hitHeight),
 		feed.WithPrefetch(defaultPrefetch),
 		feed.WithKeyMap(s.keys.feed),
-		feed.WithStyles(s.theme.Feed()),
+		feed.WithStyles(s.theme.Feed(s.icons)),
 		feed.WithEmptyText(emptyText(k)),
 		feed.WithErrorText(ui.ErrorText("search", "", s.voice)),
 	)
@@ -132,7 +132,7 @@ func (s *Section) searchCode() tea.Cmd {
 		feed.WithItemHeight(codeHeight),
 		feed.WithPrefetch(defaultPrefetch),
 		feed.WithKeyMap(s.keys.feed),
-		feed.WithStyles(s.theme.Feed()),
+		feed.WithStyles(s.theme.Feed(s.icons)),
 		feed.WithEmptyText(emptyText(core.SearchCode)),
 		feed.WithErrorText(ui.ErrorText("search the code", "", s.voice)),
 	)

@@ -170,7 +170,7 @@ func (s *Section) SetTheme(t ui.Theme) {
 	s.theme = t
 	s.rows = newRowStyles(t, s.icons)
 	s.chips = newChipCache(s.rows)
-	s.list.SetStyles(t.Feed())
+	s.list.SetStyles(t.Feed(s.icons))
 	s.renderChrome()
 }
 
@@ -214,7 +214,7 @@ func (s *Section) newList() feed.Model[core.Issue] {
 		feed.WithContext(ctx),
 		feed.WithKey(func(it core.Issue) string { return strconv.Itoa(it.Number) }),
 		feed.WithKeyMap(s.keys.feed),
-		feed.WithStyles(s.theme.Feed()),
+		feed.WithStyles(s.theme.Feed(s.icons)),
 		feed.WithSize(s.width, s.bodyHeight()),
 		feed.WithFocused(s.focused),
 		feed.WithEmptyText(s.emptyText()),

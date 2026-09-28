@@ -62,17 +62,18 @@ func TestThemeTakesPaletteColors(t *testing.T) {
 		t.Fatal(err)
 	}
 	th := NewTheme(p, true)
+	ic := NewIcons(config.IconsNerd)
 	accent := lipgloss.Color(p.Accent)
 	checks := map[string]any{
-		"feed cursor":  th.Feed().Cursor.GetForeground(),
-		"thread key":   th.Thread().Key.GetForeground(),
+		"feed cursor":  th.Feed(ic).Cursor.GetForeground(),
+		"thread key":   th.Thread(ic).Key.GetForeground(),
 		"prompt edge":  th.Prompt().Frame.GetBorderLeftForeground(),
 		"prompt caret": th.Prompt().Cursor.GetForeground(),
 		"toast info":   th.Toast().Info.Color,
-		"tree cursor":  th.Tree().Cursor.GetForeground(),
-		"pager prompt": th.Pager().Prompt.GetForeground(),
+		"tree cursor":  th.Tree(ic).Cursor.GetForeground(),
+		"pager prompt": th.Pager(ic).Prompt.GetForeground(),
 		"accent text":  th.Accent.GetForeground(),
-		"picker match": th.Picker().Match.GetForeground(),
+		"picker match": th.Picker(ic).Match.GetForeground(),
 	}
 	for name, got := range checks {
 		if got != accent {
@@ -85,11 +86,48 @@ func TestThemeTakesPaletteColors(t *testing.T) {
 	if got := th.Prompt().Text.GetForeground(); got != lipgloss.Color(p.Foreground) {
 		t.Errorf("prompt text = %v, want the palette foreground", got)
 	}
-	if th.Pager().Syntax == nil {
+	if th.Pager(ic).Syntax == nil {
 		t.Error("pager has no syntax colors")
 	}
 	if got := th.Toast().Error.Color; got != lipgloss.Color(p.Error) {
 		t.Errorf("toast error = %v, want the palette error color", got)
+	}
+}
+
+// Every bubble that marks what went wrong takes the mark of the icons, as
+// the error lines of the sections do.
+func TestThemeTakesErrorGlyph(t *testing.T) {
+	p, err := config.Default().Palette(false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	th := NewTheme(p, false)
+	// The Octicons x-circle-fill, as GitHub marks a failure; the ballot x;
+	// and an x, since "!" marks the warnings of a log.
+	want := map[string]string{config.IconsNerd: "\uf530", config.IconsUnicode: "✗", config.IconsASCII: "x"}
+	for set, mark := range want {
+		ic := NewIcons(set)
+		if ic.Error != mark {
+			t.Errorf("%s: error glyph = %q, want %q", set, ic.Error, mark)
+		}
+		got := map[string]string{
+			"feed":        th.Feed(ic).ErrorGlyph,
+			"thread":      th.Thread(ic).ErrorGlyph,
+			"tree":        th.Tree(ic).ErrorGlyph,
+			"graph":       th.Graph(ic).ErrorGlyph,
+			"pager":       th.Pager(ic).ErrorGlyph,
+			"logview":     th.LogView(ic).ErrorGlyph,
+			"filterform":  th.FilterForm(ic).ErrorGlyph,
+			"form picker": th.FilterForm(ic).Picker.ErrorGlyph,
+			"picker":      th.Picker(ic).ErrorGlyph,
+			"finder":      th.Finder(ic).ErrorGlyph,
+			"error lines": th.Errors(ic).Mark,
+		}
+		for name, g := range got {
+			if g != ic.Error {
+				t.Errorf("%s: %s mark = %q, want %q", set, name, g, ic.Error)
+			}
+		}
 	}
 }
 

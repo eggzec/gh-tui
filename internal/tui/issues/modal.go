@@ -130,7 +130,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, show
 	m.thread = thread.New(fetch, m.renderComment,
 		thread.WithContext(ctx),
 		thread.WithKeyMap(s.keys.thread),
-		thread.WithStyles(s.theme.Thread()),
+		thread.WithStyles(s.theme.Thread(s.icons)),
 		thread.WithFocused(true),
 		thread.WithErrorText(ui.ErrorText("load the comments", core.Target{Repo: repo, Number: number}.String(), v)),
 	)
@@ -205,7 +205,7 @@ func (m *detailModal) SetTheme(t ui.Theme) {
 	m.confirmSt = t.Confirm()
 	m.rows = newRowStyles(t, m.icons)
 	m.chips = newChipCache(m.rows)
-	m.thread.SetStyles(t.Thread())
+	m.thread.SetStyles(t.Thread(m.icons))
 	if m.composing != composeNone {
 		m.prompt.SetStyles(t.Prompt())
 	}

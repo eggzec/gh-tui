@@ -515,3 +515,6 @@ func (f *fakeService) state(number int) core.PullRequest {
 	defer f.mu.Unlock()
 	return f.find(number)
 }
+
+// errMark is the error glyph of the default icons, which mark what failed.
+var errMark = ui.NewIcons(config.IconsNerd).Error

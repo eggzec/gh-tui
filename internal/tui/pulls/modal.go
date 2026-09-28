@@ -149,7 +149,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 	v.Retry = s.keys.thread.Retry
 	m.thread = thread.New(fetch, m.renderComment,
 		thread.WithContext(ctx),
-		thread.WithStyles(s.theme.Thread()),
+		thread.WithStyles(s.theme.Thread(s.icons)),
 		thread.WithKeyMap(s.keys.thread),
 		thread.WithFocused(true),
 		thread.WithErrorText(ui.ErrorText("load the comments", core.Target{Repo: repo, Number: number}.String(), v)),
@@ -227,7 +227,7 @@ func (m *detailModal) SetTheme(t ui.Theme) {
 	m.st = newStyles(t, m.icons)
 	m.runSt = ui.NewRunStyles(t, m.icons)
 	m.confirmSt = t.Confirm()
-	m.thread.SetStyles(t.Thread())
+	m.thread.SetStyles(t.Thread(m.icons))
 	if m.checks != nil {
 		m.checks.SetTheme(t)
 	}

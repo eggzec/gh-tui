@@ -206,13 +206,12 @@ func (m *Modal) SetSize(width, height int) {
 func (m *Modal) SetTheme(t ui.Theme) {
 	m.theme = t
 	m.st = newStyles(t, m.opts.icons)
-	// The mark is the bubbles', which draw "✗" whatever the icons.
-	m.errs = t.Errors(ui.NewIcons(config.IconsUnicode))
+	m.errs = t.Errors(m.opts.icons)
 	m.spin.Style = t.Accent
-	m.runs.SetStyles(t.Feed())
+	m.runs.SetStyles(t.Feed(m.opts.icons))
 	m.log.SetTheme(t)
 	if f := m.filterStep; f != nil && f.form != nil {
-		f.form.SetStyles(t.FilterForm())
+		f.form.SetStyles(t.FilterForm(m.opts.icons))
 	}
 }
 

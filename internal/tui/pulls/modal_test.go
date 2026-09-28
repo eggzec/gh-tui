@@ -394,9 +394,9 @@ func TestCommentsErrorWords(t *testing.T) {
 		err  error
 		want string
 	}{
-		{"offline", fmt.Errorf("pull comments: github: POST /graphql: %w", core.ErrOffline), "✗ Can't reach GitHub · r to retry"},
-		{"forbidden", fmt.Errorf("pull comments: github: 403 Forbidden: %w", core.ErrForbidden), "✗ You don't have access to eggzec/gh-tui · o to open on GitHub"},
-		{"internal", errors.New("pull comments: github: decode: unexpected EOF"), "✗ Something went wrong · r to retry"},
+		{"offline", fmt.Errorf("pull comments: github: POST /graphql: %w", core.ErrOffline), errMark + " Can't reach GitHub · r to retry"},
+		{"forbidden", fmt.Errorf("pull comments: github: 403 Forbidden: %w", core.ErrForbidden), errMark + " You don't have access to eggzec/gh-tui · o to open on GitHub"},
+		{"internal", errors.New("pull comments: github: decode: unexpected EOF"), errMark + " Something went wrong · r to retry"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

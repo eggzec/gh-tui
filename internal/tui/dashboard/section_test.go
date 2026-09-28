@@ -176,10 +176,10 @@ func TestErrorsAreInline(t *testing.T) {
 		err        error
 		text, hint string
 	}{
-		{"offline", fmt.Errorf("viewer header: github: GET /graphql: %w", core.ErrOffline), "✗ Can't reach GitHub", "r to retry"},
-		{"forbidden", fmt.Errorf("viewer header: github: 403 Forbidden: %w", core.ErrForbidden), "✗ You don't have access to this", ""},
-		{"not found", fmt.Errorf("viewer header: github: 404 Not Found: %w", core.ErrNotFound), "✗ This doesn't exist or is private.", ""},
-		{"internal", fmt.Errorf("viewer header: github: decode: %s", termtexttest.Hostile), "✗ Something went wrong", "r to retry"},
+		{"offline", fmt.Errorf("viewer header: github: GET /graphql: %w", core.ErrOffline), errMark + " Can't reach GitHub", "r to retry"},
+		{"forbidden", fmt.Errorf("viewer header: github: 403 Forbidden: %w", core.ErrForbidden), errMark + " You don't have access to this", ""},
+		{"not found", fmt.Errorf("viewer header: github: 404 Not Found: %w", core.ErrNotFound), errMark + " This doesn't exist or is private.", ""},
+		{"internal", fmt.Errorf("viewer header: github: decode: %s", termtexttest.Hostile), errMark + " Something went wrong", "r to retry"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -216,7 +216,7 @@ func TestProfileErrorKeepsHint(t *testing.T) {
 	svc.fail["header"] = errors.New("github: decode: unexpected EOF")
 	s := newSection(t, svc, nil, 40, 24, WithVoice(logVoice(t)))
 	lines := strings.Split(screen(s), "\n")
-	if !strings.HasPrefix(strings.TrimSpace(lines[0]), "✗ Something went wrong.") || !strings.HasSuffix(strings.TrimSpace(lines[0]), "…") {
+	if !strings.HasPrefix(strings.TrimSpace(lines[0]), errMark+" Something went wrong.") || !strings.HasSuffix(strings.TrimSpace(lines[0]), "…") {
 		t.Errorf("the profile's first line = %q, want the text cut to it", lines[0])
 	}
 	if got := strings.TrimSpace(lines[1]); got != "r to retry" {
@@ -232,7 +232,7 @@ func TestCanceledReadIsQuiet(t *testing.T) {
 	svc.fail["work"] = err
 	s := newSection(t, svc, &fakeInbox{threads: inboxThreads(), err: err}, 140, 38)
 	view := screen(s)
-	for _, bad := range []string{"✗", "canceled", "context", "POST", "went wrong"} {
+	for _, bad := range []string{errMark, "canceled", "context", "POST", "went wrong"} {
 		if strings.Contains(view, bad) {
 			t.Errorf("the dashboard shows %q for a canceled read:\n%s", bad, view)
 		}
@@ -711,9 +711,9 @@ func TestReposErrorWords(t *testing.T) {
 		err  error
 		want string
 	}{
-		{"offline", fmt.Errorf("list repos: github: GET /user/repos: %w", core.ErrOffline), "✗ Can't reach GitHub · r to retry"},
-		{"forbidden", fmt.Errorf("list repos: github: 403 Forbidden: %w", core.ErrForbidden), "✗ You don't have access to this · o to open on GitHub"},
-		{"internal", errors.New("list repos: github: decode: unexpected EOF"), "✗ Something went wrong · r to retry"},
+		{"offline", fmt.Errorf("list repos: github: GET /user/repos: %w", core.ErrOffline), errMark + " Can't reach GitHub · r to retry"},
+		{"forbidden", fmt.Errorf("list repos: github: 403 Forbidden: %w", core.ErrForbidden), errMark + " You don't have access to this · o to open on GitHub"},
+		{"internal", errors.New("list repos: github: decode: unexpected EOF"), errMark + " Something went wrong · r to retry"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

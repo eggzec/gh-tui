@@ -11,6 +11,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/notifications"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
@@ -63,6 +64,12 @@ func WithVoice(v ui.Voice) Option {
 	return func(s *Section) { s.voice = v }
 }
 
+// WithIcons sets the icons whose error glyph marks a failed read. The
+// default is the Nerd Font set.
+func WithIcons(ic ui.Icons) Option {
+	return func(s *Section) { s.icons = ic }
+}
+
 // WithOpener opens the threads, and reads them ahead while the section is
 // on view, with o, which the dashboard may share. By default the section
 // has one that reads nothing ahead and marks a thread read as it opens it.
@@ -88,8 +95,9 @@ type Section struct {
 	started bool
 	// offline is marked by the feed's reads when GitHub can't be reached.
 	offline *ui.Offline
-	// voice words the feed's errors.
+	// voice words the feed's errors, and icons mark them.
 	voice ui.Voice
+	icons ui.Icons
 	// opener opens the threads and reads them ahead.
 	opener *threads.Opener
 
@@ -112,7 +120,7 @@ var (
 // New returns the section, which reads through svc and binds the actions
 // in keys. ctx bounds every request it makes.
 func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Option) *Section {
-	s := &Section{ctx: ctx, svc: svc, keys: newKeyMap(keys), now: time.Now, offline: new(ui.Offline), voice: ui.NewVoice(keys, "")}
+	s := &Section{ctx: ctx, svc: svc, keys: newKeyMap(keys), now: time.Now, offline: new(ui.Offline), voice: ui.NewVoice(keys, ""), icons: ui.NewIcons(config.IconsNerd)}
 	for _, opt := range opts {
 		opt(s)
 	}
@@ -201,7 +209,7 @@ func (s *Section) SetSize(width, height int) {
 func (s *Section) SetTheme(t ui.Theme) {
 	s.theme = t
 	s.styles = newStyles(t)
-	s.feed.SetStyles(t.Feed())
+	s.feed.SetStyles(t.Feed(s.icons))
 	s.renderHeader()
 	s.renderUnreadable()
 }
