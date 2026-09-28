@@ -383,25 +383,28 @@ func (m *Modal) branchLines(w, h int) []string {
 	for i := b.top; i < len(b.items) && len(lines) < h; i++ {
 		lines = append(lines, m.branchRow(b.items[i], i == b.cursor, focused, w))
 	}
-	if s := m.branchStatus(); s != "" && len(lines) < h {
-		lines = append(lines, wrap(s, w, m.st.noGutter)...)
+	if len(lines) < h {
+		lines = append(lines, m.branchStatus(w)...)
 	}
 	return padLines(lines, w, h)
 }
 
-// branchStatus is the row after the branches: loading, an error, or that
-// there are none.
-func (m *Modal) branchStatus() string {
+// branchStatus is the rows after the branches, in w cells: loading, an
+// error, or that there are none.
+func (m *Modal) branchStatus(w int) []string {
 	b := &m.branches
+	var s string
 	switch {
 	case b.err != nil:
-		return m.errorLine("Couldn't load: ", b.err)
+		return m.errorLines("load the branches", m.repo.String(), b.err, false, m.st.noGutter, w)
 	case b.loading:
-		return m.spin.View() + m.st.muted.Render("Loading…")
+		s = m.spin.View() + m.st.muted.Render("Loading…")
 	case b.loaded && len(b.items) == 0:
-		return m.st.muted.Render("No branches.")
+		s = m.st.muted.Render("No branches.")
+	default:
+		return nil
 	}
-	return ""
+	return wrap(s, w, m.st.noGutter)
 }
 
 // branchRow renders one branch: its name, how far it is from the default

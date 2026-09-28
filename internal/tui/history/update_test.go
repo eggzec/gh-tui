@@ -12,6 +12,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	historysvc "github.com/eggzec/gh-tui/internal/service/history"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/termtext/termtexttest"
 )
 
 // main0 and the rest are the SHAs of the commits of main, newest first.
@@ -480,10 +481,11 @@ func TestErrorsAndRetry(t *testing.T) {
 	f.errs["branches"] = errBoom
 	f.errs["commit "+short(main0)] = errBoom
 	m, h := newModal(t, f, 108, 30)
-	if s := paneText(m, branchPane); !strings.Contains(s, "✗ Couldn't load: boom · r to retry") {
+	// The branches are narrow, so the hint takes a line of its own.
+	if s := paneText(m, branchPane); !strings.Contains(s, "✗ Something went wrong r to retry") {
 		t.Errorf("branch pane lacks the error:\n%s", s)
 	}
-	if s := paneText(m, commitPane); !strings.Contains(s, "✗ Couldn't load the changes: boom · r to retry") {
+	if s := paneText(m, commitPane); !strings.Contains(s, "✗ Something went wrong · r to retry") {
 		t.Errorf("commit pane lacks the error:\n%s", s)
 	}
 	delete(f.errs, "branches")
@@ -495,6 +497,79 @@ func TestErrorsAndRetry(t *testing.T) {
 	h.keys("tab", "r")
 	if len(m.branches.items) != 3 {
 		t.Error("r didn't read the branches again")
+	}
+}
+
+// The branches and the commit say what went wrong the way the user should
+// read it, without the error's chain, request or status code. The open key
+// opens the commit, but not the page of branches or of files that failed.
+func TestPaneErrorWords(t *testing.T) {
+	commit := "charmbracelet/bubbletea@" + short(main0)
+	tests := []struct {
+		name                   string
+		err                    error
+		branches, commit, more string
+	}{
+		{
+			"offline", fmt.Errorf("get commit: github: GET /repos/o/r/commits/x: %w", core.ErrOffline),
+			"✗ Can't reach GitHub · r to retry", "✗ Can't reach GitHub · r to retry", "✗ Can't reach GitHub · r to retry",
+		},
+		{
+			"forbidden", fmt.Errorf("get commit: github: 403 Forbidden: %w", core.ErrForbidden),
+			"✗ You don't have access to charmbracelet/bubbletea",
+			"✗ You don't have access to " + commit + " · o to open on GitHub",
+			"✗ You don't have access to " + commit,
+		},
+		{
+			"not found", fmt.Errorf("get commit: github: 404 Not Found: %w", core.ErrNotFound),
+			"✗ charmbracelet/bubbletea doesn't exist or is private.",
+			"✗ " + commit + " doesn't exist or is private.",
+			"✗ " + commit + " doesn't exist or is private.",
+		},
+		{
+			"internal", fmt.Errorf("get commit: github: decode: %s", termtexttest.Hostile),
+			"✗ Something went wrong · r to retry", "✗ Something went wrong · r to retry", "✗ Something went wrong · r to retry",
+		},
+	}
+	leaks := []string{"github:", "get commit", "GET", "403", "404", "decode", "Hostile"}
+	// check compares the words of pane p with want, apart from the " · "
+	// before the hint, which goes when the hint takes a line of its own.
+	check := func(t *testing.T, m *Modal, p pane, want string) {
+		t.Helper()
+		termtexttest.AssertClean(t, strings.Join(m.paneLines(p, m.paneWidth(p), m.bodyHeight()), "\n"), m.paneWidth(p))
+		s := strings.ReplaceAll(paneText(m, p), " · ", " ")
+		if !strings.Contains(s+" ", strings.ReplaceAll(want, " · ", " ")+" ") {
+			t.Errorf("pane %d = %q, want %q", p, s, want)
+		}
+		for _, hint := range []string{"to retry", "open on GitHub"} {
+			if strings.Contains(s, hint) != strings.Contains(want, hint) {
+				t.Errorf("pane %d = %q, want %q", p, s, want)
+			}
+		}
+		for _, leak := range leaks {
+			if strings.Contains(s, leak) {
+				t.Errorf("pane %d shows %q: %q", p, leak, s)
+			}
+		}
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newFake()
+			f.errs["branches"] = tt.err
+			f.errs["commit "+short(main0)] = tt.err
+			m, h := newModal(t, f, 200, 30)
+			check(t, m, commitPane, tt.commit)
+			// Narrow, the branches take the width.
+			m.SetSize(narrowW, narrowH)
+			h.keys("esc")
+			check(t, m, branchPane, tt.branches)
+
+			delete(f.errs, "commit "+short(main0))
+			m, h = newModal(t, f, 200, 30)
+			h.keys("tab")
+			m.commit.filesErr = tt.err
+			check(t, m, commitPane, tt.more)
+		})
 	}
 }
 

@@ -1,11 +1,16 @@
 package history
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
+
+	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
 // The sizes inside the frame on terminals of 140 by 40 and 80 by 24.
@@ -36,6 +41,36 @@ func TestView(t *testing.T) {
 			h.keys(tt.keys...)
 			v := m.View()
 			assertFits(t, v, tt.width, tt.height)
+			golden.RequireEqual(t, v)
+		})
+	}
+}
+
+// The commit and the branches say why they failed, in both themes.
+func TestViewFailed(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		keys []string
+		dark bool
+	}{
+		{"commit light", []string{"enter"}, false},
+		{"commit dark", []string{"enter"}, true},
+		{"branches light", []string{"esc"}, false},
+		{"branches dark", []string{"esc"}, true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newFake()
+			f.errs["branches"] = fmt.Errorf("list branches: %w", core.ErrOffline)
+			f.errs["commit "+short(main0)] = fmt.Errorf("get commit: %w", core.ErrForbidden)
+			m, h := newModal(t, f, narrowW, narrowH)
+			p, err := config.Default().Palette(tt.dark)
+			if err != nil {
+				t.Fatal(err)
+			}
+			m.SetTheme(ui.NewTheme(p, tt.dark))
+			h.keys(tt.keys...)
+			v := m.View()
+			assertFits(t, v, narrowW, narrowH)
 			golden.RequireEqual(t, v)
 		})
 	}
