@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"regexp"
 	"slices"
 	"strings"
 	"unicode"
@@ -18,11 +20,14 @@ import (
 )
 
 // Error is a failed API response. It unwraps to the core error that matches
-// its status, so callers can test for it with errors.Is: a 401, or a 403
-// for a scope the token lacks, matches core.ErrUnauthorized, another 403
-// core.ErrForbidden, a 404 or 410 core.ErrNotFound, a 405, 409 or 422
-// core.ErrConflict, and a 5xx core.ErrUnavailable. A rate limit unwraps to
-// a *core.RateLimitError that says when to retry.
+// its status, so callers can test for it with errors.Is: a 401 matches
+// core.ErrUnauthorized, a 403 core.ErrForbidden, a 404 or 410
+// core.ErrNotFound, a 405, 409 or 422 core.ErrConflict, and a 5xx
+// core.ErrUnavailable. A rate limit unwraps to a *core.RateLimitError that
+// says when to retry, a 403 for a scope the token lacks, or a refusal to
+// change a workflow for want of the workflow scope, to a *core.ScopeError,
+// which matches core.ErrUnauthorized, and a 403 of an organization's SSO
+// to a *core.SSOError.
 type Error struct {
 	StatusCode int
 	// Message is GitHub's explanation, including field errors.
@@ -119,14 +124,26 @@ func (c *Client) httpError(resp *http.Response) error {
 		if resp.StatusCode != http.StatusForbidden {
 			break
 		}
-		switch {
-		case missingScope(resp.Header):
-			e.err = core.ErrUnauthorized
+		if u, ok := ssoRequired(resp.Header.Values("X-GitHub-SSO")); ok {
+			e.err = &core.SSOError{URL: c.ssoLink(u)}
+			break
+		}
+		switch missing := missingScopes(resp.Header); {
+		case len(missing) > 0:
+			e.err = &core.ScopeError{Scopes: missing}
 		case secondaryLimit(body.Message):
 			// GitHub's docs say to wait a minute when a secondary limit
 			// doesn't say how long, or longer when it comes again.
 			e.err = &core.RateLimitError{Reset: c.budget.liftsAt(c.budget.now().Add(secondaryBackoff))}
 		}
+	}
+	if e.err == nil && resp.StatusCode < http.StatusInternalServerError {
+		e.err = workflowRefusal(body.Message)
+	}
+	// A fine-grained or App token is told the permissions it lacks, which
+	// no scope grants, so they only explain.
+	if needs := permissionsNeeded(resp.Header.Get("X-Accepted-GitHub-Permissions")); needs != "" {
+		e.Message = strings.TrimSpace(e.Message + " (needs " + needs + ")")
 	}
 	return e
 }
@@ -138,21 +155,127 @@ func secondaryLimit(msg string) bool {
 	return strings.Contains(strings.ToLower(msg), "rate limit")
 }
 
-// missingScope reports whether a 403 is for a scope the token lacks.
+// missingScopes returns the scopes of which a 403 needs one that the
+// token lacks, the one to grant first, or nil if it isn't for a scope.
 // X-OAuth-Scopes lists the scopes of an OAuth or classic token, and
 // X-Accepted-OAuth-Scopes those of which the endpoint needs one. Other
 // tokens get neither, and many endpoints accept any token, so then it
-// can't tell and says no.
-func missingScope(h http.Header) bool {
+// can't tell and says nil.
+func missingScopes(h http.Header) []string {
 	granted, ok := h[http.CanonicalHeaderKey("X-OAuth-Scopes")]
 	accepted := core.ParseScopes(h.Get("X-Accepted-OAuth-Scopes"))
 	if !ok || len(accepted) == 0 {
-		return false
+		return nil
 	}
 	have := core.ParseScopes(strings.Join(granted, ","))
-	return !slices.ContainsFunc(accepted, func(want string) bool {
+	if slices.ContainsFunc(accepted, func(want string) bool {
 		return slices.ContainsFunc(have, func(g string) bool { return core.Covers(g, want) })
-	})
+	}) {
+		return nil
+	}
+	return core.SortScopes(accepted)
+}
+
+// insufficientScopes are the scopes that GraphQL's INSUFFICIENT_SCOPES
+// says a field requires one of, as in "The 'teams' field requires one of
+// the following scopes: ['read:org'], but your token has only been
+// granted the: ['repo'] scopes."
+var insufficientScopes = regexp.MustCompile(`following scopes: \[([^\]]*)\]`)
+
+// scopesRequired returns the scopes, the one to grant first, that msg, an
+// INSUFFICIENT_SCOPES message, says are required, or nil if it names none.
+func scopesRequired(msg string) []string {
+	m := insufficientScopes.FindStringSubmatch(msg)
+	if m == nil {
+		return nil
+	}
+	return core.SortScopes(core.ParseScopes(strings.NewReplacer("'", "", `"`, "").Replace(m[1])))
+}
+
+// workflowRefusal returns what GitHub's msg means when it refuses to
+// change a workflow file, as merging a pull request that changes one
+// does: a scope an OAuth or classic token lacks, as in "refusing to allow
+// an OAuth App to create or update workflow `.github/workflows/ci.yml`
+// without `workflow` scope", or a permission a GitHub App lacks ("…
+// without `workflows` permission"). It returns nil for any other msg.
+func workflowRefusal(msg string) error {
+	m := strings.NewReplacer("`", "", "'", "", `"`, "").Replace(strings.ToLower(msg))
+	if !strings.Contains(m, "refusing to allow") {
+		return nil
+	}
+	switch {
+	case strings.Contains(m, "without workflow scope"):
+		return &core.ScopeError{Scopes: []string{"workflow"}}
+	case strings.Contains(m, "without workflows permission"):
+		return core.ErrForbidden
+	}
+	return nil
+}
+
+// permissionsNeeded says the permissions of X-Accepted-GitHub-Permissions,
+// such as "pull_requests=write,contents=read", which GitHub sends when it
+// refuses a fine-grained or App token, as "Pull requests: write, Contents:
+// read". Sets that would each do, separated by semicolons, are joined by
+// "or". It returns "" for a header it can't read, or one longer than any
+// GitHub sends.
+func permissionsNeeded(header string) string {
+	if len(header) > maxPermissions {
+		return ""
+	}
+	var sets []string
+	for set := range strings.SplitSeq(header, ";") {
+		var perms []string
+		for p := range strings.SplitSeq(set, ",") {
+			name, level, ok := strings.Cut(strings.TrimSpace(p), "=")
+			if !ok || !lowerWord(name) || !lowerWord(level) {
+				return ""
+			}
+			name = strings.ReplaceAll(name, "_", " ")
+			perms = append(perms, strings.ToUpper(name[:1])+name[1:]+": "+level)
+		}
+		sets = append(sets, strings.Join(perms, ", "))
+	}
+	return strings.Join(sets, " or ")
+}
+
+// maxPermissions is the most of X-Accepted-GitHub-Permissions read, far
+// more than GitHub's, which name a few permissions.
+const maxPermissions = 1 << 10
+
+// lowerWord reports whether s is a word of lower-case letters and
+// underscores, as the names and levels of permissions are.
+func lowerWord(s string) bool {
+	return s != "" && strings.Trim(s, "abcdefghijklmnopqrstuvwxyz_") == ""
+}
+
+// ssoLink returns u, the URL where GitHub says to authorize the token for
+// an organization's SSO, if it is a page of the GitHub the client talks
+// to, since the user may be sent to open it, or "". It never names a user.
+func (c *Client) ssoLink(u string) string {
+	link, err := url.Parse(u)
+	if err != nil || link.Scheme != "https" && link.Scheme != c.restURL.Scheme {
+		return ""
+	}
+	web := &url.URL{Scheme: link.Scheme, Host: c.WebHost()}
+	if !strings.EqualFold(link.Hostname(), web.Hostname()) || port(link) != port(web) {
+		return ""
+	}
+	link.User = nil
+	return link.String()
+}
+
+// port returns the port of u, or its scheme's when it names none.
+func port(u *url.URL) string {
+	if p := u.Port(); p != "" {
+		return p
+	}
+	switch u.Scheme {
+	case "https":
+		return "443"
+	case "http":
+		return "80"
+	}
+	return ""
 }
 
 // oneLine puts s on one line without escape sequences or other control

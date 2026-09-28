@@ -23,9 +23,11 @@ import (
 // GraphQLError holds the errors of a GraphQL response. It unwraps to the
 // core errors that match their types, so errors.Is(err, core.ErrNotFound)
 // works for a query that names a missing repository: NOT_FOUND matches
-// core.ErrNotFound, FORBIDDEN core.ErrForbidden, INSUFFICIENT_SCOPES
-// core.ErrUnauthorized, UNPROCESSABLE core.ErrConflict and RATE_LIMITED a
-// *core.RateLimitError.
+// core.ErrNotFound, FORBIDDEN core.ErrForbidden, INSUFFICIENT_SCOPES a
+// *core.ScopeError, which matches core.ErrUnauthorized, UNPROCESSABLE
+// core.ErrConflict and RATE_LIMITED a *core.RateLimitError. A refusal to
+// change a workflow file is a *core.ScopeError for the workflow scope, or
+// core.ErrForbidden for a GitHub App, whatever its type.
 type GraphQLError struct {
 	Errors []GraphQLErrorItem
 	causes []error
@@ -230,6 +232,10 @@ func (c *Client) graphqlError(ctx context.Context, h http.Header, shape string, 
 	e := &GraphQLError{Errors: items}
 	var below []string
 	for _, item := range items {
+		if err := workflowRefusal(item.Message); err != nil {
+			e.causes = append(e.causes, err)
+			continue
+		}
 		switch item.Type {
 		case "NOT_FOUND":
 			e.causes = append(e.causes, core.ErrNotFound)
@@ -241,7 +247,7 @@ func (c *Client) graphqlError(ctx context.Context, h http.Header, shape string, 
 			if item.Type == "FORBIDDEN" {
 				e.causes = append(e.causes, core.ErrForbidden)
 			} else {
-				e.causes = append(e.causes, core.ErrUnauthorized)
+				e.causes = append(e.causes, &core.ScopeError{Scopes: scopesRequired(item.Message)})
 			}
 		case "UNPROCESSABLE":
 			e.causes = append(e.causes, core.ErrConflict)
