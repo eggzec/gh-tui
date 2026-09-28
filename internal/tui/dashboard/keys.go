@@ -2,7 +2,6 @@ package dashboard
 
 import (
 	"slices"
-	"strings"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
@@ -59,7 +58,8 @@ type KeyMap struct {
 	// Jump holds the keys of Panes, which it stands for in help.
 	Jump key.Binding
 
-	// feed is the navigation of the repositories, without the keys above.
+	// feed is the navigation of the repositories, which gets the keys
+	// above only if the dashboard leaves them.
 	feed feed.KeyMap
 }
 
@@ -98,37 +98,13 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		k.Jump = key.NewBinding(key.WithKeys(labels...), key.WithHelp(labels[0]+"-"+labels[len(labels)-1], "focus pane"))
 	}
 
-	// PR5: the dashboard, and the app for the filter, match these keys
-	// first, so dropping them from the list only keeps the collisions out
-	// of help.
-	own := []key.Binding{k.Select, k.Open, k.Refresh, k.Filter, k.Sort, k.ClearFilter, k.NextOwner, k.PrevOwner, k.Here, k.Next, k.Prev, k.Zoom, k.Back}
+	// The dashboard, and the app for the filter, match these keys first,
+	// so the list gets only the keys they leave it, such as f, which
+	// pages down there.
 	f := feed.DefaultKeyMap()
-	f.Up = free(f.Up, own)
-	f.Down = free(f.Down, own)
-	f.PageUp = free(f.PageUp, own)
-	f.PageDown = free(f.PageDown, own)
-	f.Home = free(f.Home, own)
-	f.End = free(f.End, own)
 	f.Retry = key.NewBinding(key.WithKeys(k.Refresh.Keys()...), key.WithHelp(k.Refresh.Help().Key, "retry"), key.WithDisabled())
 	k.feed = f
 	return k
-}
-
-// free drops the keys of b that the dashboard binds itself, such as "f",
-// which the list uses for page down and the dashboard for the filter.
-func free(b key.Binding, taken []key.Binding) key.Binding {
-	keys := slices.DeleteFunc(slices.Clone(b.Keys()), func(k string) bool {
-		return slices.ContainsFunc(taken, func(t key.Binding) bool {
-			return t.Enabled() && slices.Contains(t.Keys(), k)
-		})
-	})
-	if len(keys) == len(b.Keys()) {
-		return b
-	}
-	if len(keys) == 0 {
-		return key.NewBinding(key.WithDisabled())
-	}
-	return key.NewBinding(key.WithKeys(keys...), key.WithHelp(strings.Join(keys, "/"), b.Help().Desc))
 }
 
 // pane returns the pane that msg focuses, or -1.

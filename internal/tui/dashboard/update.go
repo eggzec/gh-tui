@@ -165,8 +165,15 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 			return t.switchTab(1), true
 		case key.Matches(msg, k.PrevOwner):
 			return t.switchTab(-1), true
-		case key.Matches(msg, k.ClearFilter) && t.filter().active():
+		case key.Matches(msg, k.ClearFilter):
+			if !t.filter().active() {
+				return nil, true
+			}
 			return t.setFilter(""), true
+		case key.Matches(msg, k.Filter, k.Sort):
+			// The app opens the filter. Its keys don't reach the list,
+			// whose page down f is too.
+			return nil, true
 		case key.Matches(msg, k.Select):
 			if r, ok := t.selected(); ok {
 				return selectRepo(r.Ref), true
