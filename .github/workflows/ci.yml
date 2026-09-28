@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+# Build and test as the release builds, without cgo.
+env:
+  CGO_ENABLED: "0"
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -31,5 +35,26 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
+      # The race detector is the one thing here that needs cgo.
       - run: go test -race ./...
+        env:
+          CGO_ENABLED: "1"
       - run: go test -run '^$' -bench . -benchtime 100x ./...
+
+  # Build every platform the release ships without cgo, so a dependency that
+  # needs cgo, or builds on one OS only, fails here first. The list is
+  # cli/gh-extension-precompile's, in its build_and_release.sh.
+  cross:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - run: |
+          for p in darwin/amd64 darwin/arm64 freebsd/386 freebsd/amd64 \
+            freebsd/arm64 linux/386 linux/amd64 linux/arm linux/arm64 \
+            windows/386 windows/amd64 windows/arm64; do
+            echo "$p"
+            GOOS=${p%/*} GOARCH=${p#*/} go build -o /dev/null ./cmd/gh-tui
+          done
