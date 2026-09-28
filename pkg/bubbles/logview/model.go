@@ -5,8 +5,9 @@
 //
 // The log arrives already fetched and parsed, as [Line] values and optional
 // [Section] values for the steps, with [Model.SetLines]. A job that is still
-// running grows with [Model.Append]. The view renders only the rows in its
-// window, so logs of a hundred thousand lines stay cheap to scroll.
+// running grows with [Model.Append], and its steps with [Model.SetSections].
+// The view renders only the rows in its window, so logs of a hundred
+// thousand lines stay cheap to scroll.
 package logview
 
 import (

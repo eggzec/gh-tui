@@ -184,6 +184,32 @@ func (m *Model) Append(lines ...Line) {
 	m.clamp()
 }
 
+// SetSections updates the sections of a log that grows by Append, with
+// all of them as they stand now, such as the steps of a job that moved on.
+// Those the view shows keep their lines and take the failure and duration
+// of the one at the same place, and the rest start where they start among
+// the lines appended next, which end the section before.
+func (m *Model) SetSections(sections []Section) {
+	if m.state != stateReady {
+		return
+	}
+	sorted := slices.Clone(sections)
+	slices.SortStableFunc(sorted, func(a, b Section) int { return a.Start - b.Start })
+	// The sections are copied, so copies of the model keep theirs.
+	secs := slices.Clone(m.secs)
+	prev := m.n
+	for i, s := range sorted {
+		if i < len(secs) {
+			secs[i].failed, secs[i].duration = s.Failed, s.Duration
+			continue
+		}
+		start := max(s.Start, prev)
+		secs = append(secs, section{start: start, end: math.MaxInt, failed: s.Failed, duration: s.Duration, title: cleanTitle(s.Title)})
+		prev = start
+	}
+	m.secs = secs
+}
+
 // SetLoading shows a spinner while the log is on its way. The returned
 // command starts the spinner, which stops once the lines or an error are
 // set.
