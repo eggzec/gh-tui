@@ -14,7 +14,8 @@ import (
 )
 
 // Each change is shown in every cached list page and detail that holds the
-// issue as soon as it is made. When GitHub confirms it, the cache takes
+// issue as soon as it is made, unless the token may not make it: then
+// nothing changes, and the Op returns why. When GitHub confirms it, the cache takes
 // GitHub's version, and the repository's lists are marked stale because the
 // change may move the issue within them or out of them.
 //
@@ -33,6 +34,9 @@ func (s *Service) Reopen(repo core.RepoRef, number int) *optimistic.Op {
 }
 
 func (s *Service) setState(repo core.RepoRef, number int, state core.State, verb string) *optimistic.Op {
+	if err := s.refused(repo); err != nil {
+		return optimistic.Refused(fmt.Errorf("%s issue %s#%d: %w", verb, repo, number, err))
+	}
 	rollbacks := s.update(repo, number, func(it core.Issue) core.Issue {
 		it.State = state
 		return it
@@ -55,6 +59,9 @@ func (s *Service) setState(repo core.RepoRef, number int, state core.State, verb
 // AddLabels adds labels to an issue by name. Until GitHub answers, a label
 // that no cached issue of the repository has is shown with its name only.
 func (s *Service) AddLabels(repo core.RepoRef, number int, names []string) *optimistic.Op {
+	if err := s.refused(repo); err != nil {
+		return optimistic.Refused(fmt.Errorf("label issue %s#%d: %w", repo, number, err))
+	}
 	names = slices.Clone(names)
 	known := s.knownLabels(repo)
 	rollbacks := s.update(repo, number, func(it core.Issue) core.Issue {
@@ -84,6 +91,9 @@ func (s *Service) AddLabels(repo core.RepoRef, number int, names []string) *opti
 
 // RemoveLabel removes a label from an issue.
 func (s *Service) RemoveLabel(repo core.RepoRef, number int, name string) *optimistic.Op {
+	if err := s.refused(repo); err != nil {
+		return optimistic.Refused(fmt.Errorf("unlabel issue %s#%d: %w", repo, number, err))
+	}
 	rollbacks := s.update(repo, number, func(it core.Issue) core.Issue {
 		it.Labels = slices.DeleteFunc(slices.Clone(it.Labels), labelNamed(name))
 		return it
@@ -147,6 +157,9 @@ func IsPending(c core.Comment) bool {
 // issue's comments; otherwise only the issue's comment count changes, and
 // the comment appears when the tui pages to the end.
 func (s *Service) Comment(repo core.RepoRef, number int, body string) *optimistic.Op {
+	if err := s.refused(repo); err != nil {
+		return optimistic.Refused(fmt.Errorf("comment on issue %s#%d: %w", repo, number, err))
+	}
 	now := time.Now()
 	pending := core.Comment{
 		ID:        pendingPrefix + strconv.FormatUint(s.pending.Add(1), 10),
@@ -190,6 +203,20 @@ func (s *Service) Comment(repo core.RepoRef, number int, body string) *optimisti
 		s.lists.InvalidateTag(repoTag(repo))
 		return nil
 	}, rollbacks...)
+}
+
+// refused returns why the token may not change an issue of repo, or nil
+// when it may, or when that isn't known.
+func (s *Service) refused(repo core.RepoRef) error {
+	if s.access == nil {
+		return nil
+	}
+	var caps core.RepoCaps
+	if s.repos != nil {
+		r, _ := s.repos.CachedGet(repo)
+		caps = r.Caps
+	}
+	return s.access.Check(core.NeedWrite(caps))
 }
 
 // update applies fn to the issue in every cached list page and in its

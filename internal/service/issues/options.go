@@ -14,6 +14,8 @@ type options struct {
 	viewer string
 	store  cache.Store
 	pulls  PullCache
+	access Access
+	repos  Repos
 }
 
 // WithTTL sets how long fetched issues count as fresh. Until then, reads
@@ -47,4 +49,18 @@ func WithStore(store cache.Store) Option {
 // without a request.
 func WithPulls(pulls PullCache) Option {
 	return func(o *options) { o.pulls = pulls }
+}
+
+// WithAccess has the service ask access before it changes an issue, so
+// that a change the token may not make is neither shown nor sent. By
+// default every change is sent, and GitHub has the last word.
+func WithAccess(access Access) Option {
+	return func(o *options) { o.access = access }
+}
+
+// WithRepos lets the service tell a private repository from a public one
+// by what repos holds of it, which a change there needs a wider scope for.
+// A repository it holds nothing of may be either.
+func WithRepos(repos Repos) Option {
+	return func(o *options) { o.repos = repos }
 }
