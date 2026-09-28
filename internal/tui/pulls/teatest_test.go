@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"slices"
+	"sync"
 	"testing"
 	"time"
 
@@ -27,6 +28,9 @@ type app struct {
 	// or closes.
 	applied chan filterform.AppliedMsg
 	modals  chan struct{}
+	// met, if set, runs after any message that leaves until true.
+	until func(h *host) bool
+	met   func()
 }
 
 func (a app) Init() tea.Cmd {
@@ -35,6 +39,14 @@ func (a app) Init() tea.Cmd {
 }
 
 func (a app) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	m, cmd := a.update(msg)
+	if a.met != nil && a.until(a.h) {
+		a.met()
+	}
+	return m, cmd
+}
+
+func (a app) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		a.h.SetSize(msg.Width, msg.Height)
@@ -92,7 +104,23 @@ func TestProgramOpensGoesBackAndMerges(t *testing.T) {
 	svc := newFakeService()
 	h := newTest(t, svc, 80, 24)
 	done := make(chan ui.DoneMsg, 1)
-	tm := teatest.NewTestModel(t, app{h: h, done: done}, teatest.WithInitialTermSize(80, 24))
+	// gone is closed once the list shows the open pull requests again
+	// without #135, merged: drawing the list again after the question
+	// closes shows the rest of it before the reload does.
+	gone := make(chan struct{})
+	until := func(h *host) bool {
+		if h.feed == nil || svc.state(135).State != core.StateMerged || !h.feed.Settled() {
+			return false
+		}
+		for i := range h.feed.Len() {
+			if pr, ok := h.feed.Item(i); !ok || pr.Number == 135 {
+				return false
+			}
+		}
+		return true
+	}
+	a := app{h: h, done: done, until: until, met: sync.OnceFunc(func() { close(gone) })}
+	tm := teatest.NewTestModel(t, a, teatest.WithInitialTermSize(80, 24))
 	wait := func(text string) {
 		t.Helper()
 		teatest.WaitFor(t, tm.Output(), func(b []byte) bool {
@@ -117,8 +145,11 @@ func TestProgramOpensGoesBackAndMerges(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("the merge never finished")
 	}
-	// Once the merge is confirmed, the open list no longer has it.
-	wait("Bump charm.land")
+	select {
+	case <-gone:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the open list still has the merged pull request")
+	}
 	tm.Type("q")
 
 	final := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(app).h
