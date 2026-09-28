@@ -1,5 +1,12 @@
 package pager
 
+import (
+	"os"
+	"os/exec"
+
+	tea "charm.land/bubbletea/v2"
+)
+
 // Option configures a pager in [New].
 type Option func(*settings)
 
@@ -12,6 +19,13 @@ type settings struct {
 	wrap           bool
 	highlightLimit int
 	errorText      func(error) (text, hint string)
+	// editorCmd is the editor set with WithEditor. getenv reads the
+	// environment for the others, exec runs the editor, and tempDir is
+	// where the file it opens goes; tests fake them.
+	editorCmd string
+	getenv    func(string) string
+	exec      func(*exec.Cmd, tea.ExecCallback) tea.Cmd
+	tempDir   string
 }
 
 // DefaultTabWidth is the number of columns between tab stops by default.
@@ -29,6 +43,8 @@ func defaultSettings() settings {
 		tabWidth:       DefaultTabWidth,
 		lineNumbers:    true,
 		highlightLimit: DefaultHighlightLimit,
+		getenv:         os.Getenv,
+		exec:           tea.ExecProcess,
 	}
 }
 
@@ -92,5 +108,17 @@ func WithHighlightLimit(bytes int) Option {
 func WithErrorText(say func(error) (text, hint string)) Option {
 	return func(s *settings) {
 		s.errorText = say
+	}
+}
+
+// WithEditor sets the command of the editor that the key bound to Edit
+// opens the content in, such as "vim" or "code --wait": a program and its
+// arguments, split at white space and run without a shell. When it is
+// empty, as by default, the pager takes $VISUAL, and else $EDITOR. A
+// graphical editor needs the argument that makes it wait until the file is
+// closed, since the file is removed once the command exits.
+func WithEditor(cmd string) Option {
+	return func(s *settings) {
+		s.editorCmd = cmd
 	}
 }
