@@ -1,6 +1,8 @@
 package history
 
 import (
+	"slices"
+
 	"charm.land/bubbles/v2/key"
 
 	"github.com/eggzec/gh-tui/internal/config"
@@ -59,4 +61,25 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		List:      list,
 		Graph:     g,
 	}
+}
+
+// own returns the keys of the modal itself, in the order it matches them.
+func (k KeyMap) own() []key.Binding {
+	return []key.Binding{k.Next, k.Prev, k.Open, k.ResetBase, k.Zoom, k.Back, k.UseAsBase, k.Select, k.Filter, k.Retry}
+}
+
+// ShortHelp implements help.KeyMap.
+func (k KeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.Select, k.Filter, k.UseAsBase, k.Open, k.Retry, k.Next, k.Zoom, k.Back}
+}
+
+// FullHelp implements help.KeyMap.
+func (k KeyMap) FullHelp() [][]key.Binding {
+	return slices.Concat([][]key.Binding{k.own()}, k.List.FullHelp(), k.Graph.FullHelp())
+}
+
+// named returns b described as desc.
+func named(b key.Binding, desc string) key.Binding {
+	b.SetHelp(b.Help().Key, desc)
+	return b
 }
