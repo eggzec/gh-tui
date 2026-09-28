@@ -205,7 +205,14 @@ func (f *fakeGitHub) ListJobs(_ context.Context, r core.RepoRef, runID int64, at
 			items = append(items, *j)
 		}
 	}
-	v, res := answer(core.Page[core.Job]{Items: items}, cond)
+	start, _ := strconv.Atoi(cursor)
+	start = min(start, len(items))
+	end := min(start+perPage, len(items))
+	page := core.Page[core.Job]{Items: items[start:end]}
+	if end < len(items) {
+		page.Next = strconv.Itoa(end)
+	}
+	v, res := answer(page, cond)
 	return v, res, nil
 }
 
@@ -338,4 +345,14 @@ func (f *fakeGitHub) CancelRun(_ context.Context, r core.RepoRef, runID int64) e
 	}
 	// GitHub cancels a moment later.
 	return nil
+}
+
+// queueJobs adds n queued jobs to run 2, which is in progress, from ID from
+// on.
+func (f *fakeGitHub) queueJobs(from int64, n int) {
+	f.change(func(f *fakeGitHub) {
+		for id := range int64(n) {
+			f.jobs[2] = append(f.jobs[2], core.Job{ID: from + id, RunID: 2, Attempt: 1, Name: "shard " + strconv.FormatInt(from+id, 10), Status: core.RunQueued})
+		}
+	})
 }
