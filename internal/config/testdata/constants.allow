@@ -124,6 +124,14 @@ internal/obs/stats.go:farReset  keep: a sanity bound on the reset GitHub reports
 # Images.
 internal/imgcaps/tmux.go:TmuxTimeout  keep: a safety mechanism, the most the startup check waits for tmux
 internal/tui/images.go:probeTimeout  keep: a safety mechanism, the most the startup check waits for the terminal
+internal/images/client.go:timeout  keep: a safety mechanism, the bound on one image's fetch
+internal/images/decode.go:defaultCellHeight  keep: a layout measure, the cell size when the terminal doesn't say
+internal/images/decode.go:defaultCellWidth  keep: a layout measure, the cell size when the terminal doesn't say
+internal/images/fetch.go:failedFor  keep: a safety mechanism, how long a failed image isn't asked for again
+internal/images/fetch.go:flightTimeout  keep: a safety mechanism, the bound on a shared fetch
+internal/images/fetch.go:revalidateAfter  keep: how often an avatar may change, not a preference
+internal/images/signed.go:expiryMargin  keep: a margin for clocks and transit on GitHub's signatures
+internal/images/signed.go:unknownExpiry  keep: a safety mechanism, the life of a signature that can't be read
 
 # The tui.
 internal/tui/actions/options.go:defaultRest  move: prefetch.rest
