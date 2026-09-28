@@ -2,12 +2,14 @@ package pager
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // bigText is more than syncLimit of numbered lines, so it is searched in
@@ -215,4 +217,44 @@ func TestSearchCounts(t *testing.T) {
 
 func lastLine(v string) string {
 	return v[strings.LastIndexByte(v, '\n')+1:]
+}
+
+// Every match n and N go to is in the window, however long lines wrap:
+// also one late in a long line that starts in the window, or one that
+// starts in a row above the window.
+func TestSearchStepsShowTheMatch(t *testing.T) {
+	var b strings.Builder
+	for i := range 40 {
+		switch i % 4 {
+		case 0:
+			fmt.Fprintf(&b, "%s hit %d\n", strings.Repeat("word ", 30+i), i)
+		case 1:
+			fmt.Fprintf(&b, "hit %s hit %s hit\n", strings.Repeat("ab ", 20), strings.Repeat("你好", 25))
+		case 2:
+			b.WriteString("short\n")
+		default:
+			fmt.Fprintf(&b, "%s\n", strings.Repeat("filler ", i))
+		}
+	}
+	text := b.String()
+	for _, width := range []int{12, 20, 33, 47, 80} {
+		for _, wrap := range []bool{true, false} {
+			t.Run(fmt.Sprintf("%d/wrap=%v", width, wrap), func(t *testing.T) {
+				m := open(t, "hits.txt", text, WithSize(width, 6), WithWrap(wrap))
+				m, _ = typeSearch(t, m, "hit")
+				n := m.Matches()
+				if n == 0 {
+					t.Fatal("no matches")
+				}
+				for i, k := range slices.Concat(slices.Repeat([]string{"n"}, 2*n), slices.Repeat([]string{"N"}, n)) {
+					m, _ = keys(t, m, k)
+					body, _ := strings.CutSuffix(m.View(), lastLine(m.View()))
+					if !strings.Contains(body, m.esc.current.on) {
+						t.Fatalf("press %d (%s): match %d on line %d is out of the window:\n%s",
+							i+1, k, m.search.cur+1, m.search.curLine+1, ansi.Strip(m.View()))
+					}
+				}
+			})
+		}
+	}
 }

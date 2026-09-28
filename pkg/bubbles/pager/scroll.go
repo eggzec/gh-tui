@@ -95,6 +95,21 @@ func (m Model) rowOf(p, b int) int {
 	return r
 }
 
+// inView reports whether row r of the line shown at p is in the window.
+// It walks only the lines above it in the window.
+func (m Model) inView(p, r int) bool {
+	if p < m.top || p == m.top && r < m.row {
+		return false
+	}
+	h, rows := m.bodyHeight(), -m.row
+	for q := m.top; q < p; q++ {
+		if rows += m.rowsIn(q); rows >= h {
+			return false
+		}
+	}
+	return rows+r < h
+}
+
 // down scrolls n rows down.
 func (m *Model) down(n int) {
 	if !m.wrap || m.count() == 0 {
