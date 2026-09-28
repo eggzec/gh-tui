@@ -33,6 +33,12 @@ type API interface {
 	Unstar(ctx context.Context, ref core.RepoRef) error
 }
 
+// Access tells whether the token may do what an operation needs, as the
+// access service does: nil, or why not.
+type Access interface {
+	Check(n core.Need) error
+}
+
 // ListQuery selects a page of the viewer's repositories.
 type ListQuery struct {
 	// Cursor is the Next of the previous page, or empty for the first page.
@@ -55,9 +61,12 @@ func (q ListQuery) normalize() ListQuery {
 
 // Service reads repositories through a cache. It is safe for concurrent use.
 type Service struct {
-	api   API
-	lists *cache.Cache[core.Page[core.Repo]]
-	repos *cache.Cache[core.Repo]
+	api API
+	// access refuses a star the token may not change before it is shown,
+	// if set.
+	access Access
+	lists  *cache.Cache[core.Page[core.Repo]]
+	repos  *cache.Cache[core.Repo]
 	// kept holds the list pages an earlier session read, and keptRepos
 	// the repositories, if the service has a store.
 	kept      *cache.Shelf[core.Page[core.Repo]]
@@ -81,6 +90,7 @@ func New(api API, opts ...Option) *Service {
 	}
 	return &Service{
 		api:       api,
+		access:    o.access,
 		lists:     cache.New[core.Page[core.Repo]](cache.WithTTL(o.ttl), cache.WithCapacity(o.capacity)),
 		repos:     cache.New[core.Repo](cache.WithTTL(max(o.ttl, DetailTTL)), cache.WithCapacity(o.capacity)),
 		kept:      cache.NewShelf[core.Page[core.Repo]](o.store, kind, schema),

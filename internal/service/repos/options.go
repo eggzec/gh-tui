@@ -13,6 +13,7 @@ type options struct {
 	ttl      time.Duration
 	capacity int
 	store    cache.Store
+	access   Access
 }
 
 // WithTTL sets how long fetched list pages stay fresh before a read
@@ -35,4 +36,11 @@ func WithCapacity(n int) Option {
 // outlives the service.
 func WithStore(store cache.Store) Option {
 	return func(o *options) { o.store = store }
+}
+
+// WithAccess has the service ask access before it stars a repository or
+// removes a star, so that one the token may not change is neither shown
+// nor sent. By default every change is sent, and GitHub has the last word.
+func WithAccess(access Access) Option {
+	return func(o *options) { o.access = access }
 }

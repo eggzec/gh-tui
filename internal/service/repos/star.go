@@ -22,7 +22,16 @@ func (s *Service) Unstar(ref core.RepoRef) *optimistic.Op {
 	return s.setStarred(ref, false)
 }
 
+// setStarred stars ref or removes the star. A star the token may not
+// change changes nothing, and the Op returns why.
 func (s *Service) setStarred(ref core.RepoRef, starred bool) *optimistic.Op {
+	if err := s.refused(ref); err != nil {
+		verb := "star"
+		if !starred {
+			verb = "unstar"
+		}
+		return optimistic.Refused(fmt.Errorf("%s %s: %w", verb, ref, err))
+	}
 	tag := repoTag(ref)
 	rollbacks := []func(){
 		s.repos.MutateTag(tag, func(r core.Repo) (core.Repo, bool) {
@@ -59,6 +68,17 @@ func (s *Service) setStarred(ref core.RepoRef, starred bool) *optimistic.Op {
 		return nil
 	}
 	return optimistic.New(send, rollbacks...)
+}
+
+// refused returns why the token may not star ref or remove its star, or
+// nil when it may, or when that isn't known. A repository not read yet
+// may be public, where public_repo is enough.
+func (s *Service) refused(ref core.RepoRef) error {
+	if s.access == nil {
+		return nil
+	}
+	r, _ := s.CachedGet(ref)
+	return s.access.Check(core.NeedWrite(r.Caps))
 }
 
 // withStarred returns r starred or not, and whether that changed it.
