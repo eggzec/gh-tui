@@ -13,6 +13,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 )
 
 // The real service is what the app passes in.
@@ -190,7 +191,7 @@ func TestNoRepoShowsWhatToDo(t *testing.T) {
 	if msgs := press(t, s, "f"); len(msgs) != 0 {
 		t.Errorf("keys without a repository sent %v", msgs)
 	}
-	if len(s.Help().ShortHelp()) != 0 {
+	if len(uitest.Enabled(s.KeyLayers())) != 0 {
 		t.Error("help offers keys without a repository")
 	}
 }

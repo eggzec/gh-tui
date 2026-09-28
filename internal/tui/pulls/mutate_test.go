@@ -14,6 +14,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
@@ -502,15 +503,7 @@ func TestDoneMsgReloads(t *testing.T) {
 }
 
 func TestHelpOffersWhatApplies(t *testing.T) {
-	enabled := func(s *host) []string {
-		var d []string
-		for _, b := range s.Help().ShortHelp() {
-			if b.Enabled() {
-				d = append(d, b.Help().Desc)
-			}
-		}
-		return d
-	}
+	enabled := func(s *host) []string { return uitest.Enabled(s.KeyLayers()) }
 	svc := newFakeService()
 	s := started(t, svc, 80, 20)
 	if got := enabled(s); !slices.Contains(got, "merge") || !slices.Contains(got, "close") || slices.Contains(got, "reopen") {

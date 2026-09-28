@@ -7,11 +7,12 @@ import (
 	"sync"
 	"testing"
 
-	"charm.land/bubbles/v2/help"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
@@ -28,16 +29,8 @@ func asStranger(svc *fakeService) {
 	}
 }
 
-// offered returns what the enabled keys of km do, as help shows them.
-func offered(km help.KeyMap) []string {
-	var out []string
-	for _, b := range km.ShortHelp() {
-		if b.Enabled() {
-			out = append(out, b.Help().Desc)
-		}
-	}
-	return out
-}
+// offered returns what the enabled keys of layers do.
+func offered(layers []keyhelp.Layer) []string { return uitest.Enabled(layers) }
 
 func info(text string) tea.Msg { return ui.NotifyMsg{Level: toast.Info, Text: text} }
 
@@ -68,9 +61,9 @@ func TestReadAccessHidesChanges(t *testing.T) {
 			for _, k := range tt.keys[:last] {
 				press(t, h, k)
 			}
-			km := h.Help()
+			km := h.KeyLayers()
 			if m := h.modal(); m != nil {
-				km = m.Help()
+				km = m.KeyLayers()
 			}
 			for _, desc := range offered(km) {
 				if slices.Contains([]string{"merge", "close", "reopen", "convert to draft"}, desc) {
@@ -97,20 +90,20 @@ func TestCapsArrivingLaterGateTheList(t *testing.T) {
 	h := started(t, svc, 120, 20)
 	// Until the caps are known, GitHub decides; GitHub's own no still
 	// counts, as it does here for close.
-	if got := offered(h.Help()); !slices.Contains(got, "merge") {
+	if got := offered(h.KeyLayers()); !slices.Contains(got, "merge") {
 		t.Errorf("help before the caps = %v, want merge offered", got)
 	}
 	drain(t, h, h.Update(ui.CapsMsg{Repo: repo, Caps: readCaps}))
-	if got := offered(h.Help()); slices.Contains(got, "merge") {
+	if got := offered(h.KeyLayers()); slices.Contains(got, "merge") {
 		t.Errorf("help after read caps = %v, want no merge", got)
 	}
 	// The caps of another repository change nothing.
 	drain(t, h, h.Update(ui.CapsMsg{Repo: core.RepoRef{Owner: "o", Name: "r"}, Caps: writeCaps}))
-	if got := offered(h.Help()); slices.Contains(got, "merge") {
+	if got := offered(h.KeyLayers()); slices.Contains(got, "merge") {
 		t.Errorf("help after another's caps = %v, want no merge", got)
 	}
 	drain(t, h, h.Update(ui.CapsMsg{Repo: repo, Caps: writeCaps}))
-	if got := offered(h.Help()); !slices.Contains(got, "merge") {
+	if got := offered(h.KeyLayers()); !slices.Contains(got, "merge") {
 		t.Errorf("help after write caps = %v, want merge", got)
 	}
 	press(t, h, "m")
@@ -126,7 +119,7 @@ func TestAuthorChangesTheirOwn(t *testing.T) {
 	svc.pulls[0].Caps = core.ItemCaps{Known: true, Update: true, Close: true, Authored: true}
 	h := started(t, svc, 120, 20)
 	drain(t, h, h.Update(ui.CapsMsg{Repo: repo, Caps: readCaps}))
-	if got := offered(h.Help()); !slices.Contains(got, "close") || slices.Contains(got, "merge") {
+	if got := offered(h.KeyLayers()); !slices.Contains(got, "close") || slices.Contains(got, "merge") {
 		t.Errorf("help = %v, want close but no merge", got)
 	}
 	for _, k := range []string{"D", "y", "x", "y"} {
@@ -160,7 +153,7 @@ func TestMergeUsesAnAllowedMethod(t *testing.T) {
 			svc := newFakeService()
 			h := started(t, svc, 160, 20)
 			drain(t, h, h.Update(ui.CapsMsg{Repo: repo, Caps: tt.caps}))
-			if got := offered(h.Help()); !slices.Contains(got, tt.label) {
+			if got := offered(h.KeyLayers()); !slices.Contains(got, tt.label) {
 				t.Errorf("help = %v, want %q", got, tt.label)
 			}
 			press(t, h, "m")
@@ -220,7 +213,7 @@ func TestModalOfAnotherRepoReadsItsCaps(t *testing.T) {
 	if m.caps != readCaps || !slices.Equal(repos.gets, []core.RepoRef{other}) {
 		t.Fatalf("modal %v with caps %+v after reads %v, want those of %v read", m, m.caps, repos.gets, other)
 	}
-	if got := offered(m.Help()); slices.Contains(got, "merge") {
+	if got := offered(m.KeyLayers()); slices.Contains(got, "merge") {
 		t.Errorf("help = %v, want no merge in %v", got, other)
 	}
 	msgs := press(t, h, "m")

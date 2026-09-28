@@ -13,6 +13,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
@@ -334,25 +335,17 @@ func TestRepoMsgKeepsModal(t *testing.T) {
 
 func TestHelpFollowsTheView(t *testing.T) {
 	h := started(t, newFakeService(), 80, 20)
-	descs := func(km interface{ ShortHelp() []key.Binding }) []string {
-		short := km.ShortHelp()
-		d := make([]string, 0, len(short))
-		for _, b := range short {
-			d = append(d, b.Help().Desc)
-		}
-		return d
-	}
-	if got := descs(h.Help()); !slices.Contains(got, "filter") || slices.Contains(got, "back") {
+	if got := uitest.Enabled(h.KeyLayers()); !slices.Contains(got, "filter") || slices.Contains(got, "back") {
 		t.Errorf("list help = %v, want filter and no back", got)
 	}
 	press(t, h, "enter")
-	if got := descs(h.modal().Help()); slices.Contains(got, "filter") || !slices.Contains(got, "back") {
+	if got := uitest.Enabled(h.modal().KeyLayers()); slices.Contains(got, "filter") || !slices.Contains(got, "back") {
 		t.Errorf("modal help = %v, want back and no filter", got)
 	}
 	// The bubbles lose the keys the section takes.
-	for _, g := range h.modal().Help().FullHelp() {
-		for _, b := range g {
-			if b.Help().Desc != "refresh" && slices.Contains(b.Keys(), "r") {
+	for _, l := range h.modal().KeyLayers() {
+		for _, b := range l.Bindings {
+			if b.Enabled() && b.Help().Desc != "refresh" && slices.Contains(b.Keys(), "r") {
 				t.Errorf("%q also claims r", b.Help().Desc)
 			}
 		}

@@ -194,26 +194,24 @@ func (s *Section) reload() tea.Cmd {
 	return s.feed.Reload()
 }
 
-// changeHelp returns the change keys, enabled when they apply to pr, which
-// ok says there is, and g allows them. The merge key names the method
-// when the repository refuses method, the configured one.
-func (k keyMap) changeHelp(g ui.Gate, method core.MergeMethod, pr core.PullRequest, ok bool) []key.Binding {
-	merge, closing, reopen, draft := k.Merge, k.Close, k.Reopen, k.ToggleDraft
-	merge.SetEnabled(merge.Enabled() && ok && canMerge(pr))
-	closing.SetEnabled(closing.Enabled() && ok && canClose(pr))
-	reopen.SetEnabled(reopen.Enabled() && ok && canReopen(pr))
-	draft.SetEnabled(draft.Enabled() && ok && canDraft(pr))
+// withChanges returns k with the change keys enabled when they apply to
+// pr, which ok says there is, and g allows them. The merge key names the
+// method when the repository refuses method, the configured one.
+func (k keyMap) withChanges(g ui.Gate, method core.MergeMethod, pr core.PullRequest, ok bool) keyMap {
+	k.Merge.SetEnabled(k.Merge.Enabled() && ok && canMerge(pr))
+	k.Close.SetEnabled(k.Close.Enabled() && ok && canClose(pr))
+	k.Reopen.SetEnabled(k.Reopen.Enabled() && ok && canReopen(pr))
+	k.ToggleDraft.SetEnabled(k.ToggleDraft.Enabled() && ok && canDraft(pr))
 	if pr.Draft {
-		draft.SetHelp(draft.Help().Key, "mark ready")
+		k.ToggleDraft.SetHelp(k.ToggleDraft.Help().Key, "mark ready")
 	}
 	if m, allowed := g.Caps.MergeMethod(method); allowed && m != method {
-		merge.SetHelp(merge.Help().Key, "merge ("+string(m)+")")
+		k.Merge.SetHelp(k.Merge.Help().Key, "merge ("+string(m)+")")
 	}
 	it := &pr.Issue
-	return []key.Binding{
-		g.Gated(merge, ui.ActMerge, it), g.Gated(closing, ui.ActClose, it),
-		g.Gated(reopen, ui.ActReopen, it), g.Gated(draft, ui.ActDraft, it),
-	}
+	k.Merge, k.Close = g.Gated(k.Merge, ui.ActMerge, it), g.Gated(k.Close, ui.ActClose, it)
+	k.Reopen, k.ToggleDraft = g.Gated(k.Reopen, ui.ActReopen, it), g.Gated(k.ToggleDraft, ui.ActDraft, it)
+	return k
 }
 
 // gate decides what the viewer may do in the repository of the list.
