@@ -139,3 +139,98 @@ func TestNilToken(t *testing.T) {
 		t.Errorf("Hint = %q, want none", h)
 	}
 }
+
+// TestSayToken checks the words for a token problem when the app has the
+// command that grants the token what it lacks.
+func TestSayToken(t *testing.T) {
+	keys := map[string][]string{config.ActionCommand: {":"}}
+	tok := func(a core.Access) *Token { return NewToken(fakeChecker{a: a}, keys) }
+	tests := []struct {
+		name        string
+		p           *core.Problem
+		access      core.Access
+		text, hint  string
+		toast       string
+		narrowToast string
+	}{
+		{
+			name:  "a missing scope",
+			p:     core.Explain("merge #5", &core.ScopeError{Scopes: []string{"workflow"}}),
+			text:  "The token lacks the workflow scope",
+			hint:  ":auth to grant it",
+			toast: "Couldn't merge #5: the token lacks the workflow scope · :auth to grant it.",
+		},
+		{
+			name:        "a token of another kind",
+			p:           core.Explain("mark read", &core.KindError{Kind: core.TokenFineGrained}),
+			text:        "This needs a classic token, not a fine-grained one",
+			hint:        ":auth to see how",
+			toast:       "Couldn't mark read: this needs a classic token, not a fine-grained one · :auth to see how.",
+			narrowToast: "Couldn't mark read: this needs a classic token, not a fine-grained one · :auth.",
+		},
+		{
+			name: "an app's token",
+			p:    core.Explain("load the notifications", &core.KindError{Kind: core.TokenApp}),
+			text: "This needs a classic token, not a GitHub App's",
+			hint: ":auth to see how",
+		},
+		{
+			name:  "a rejected token",
+			p:     core.Explain("load your profile", core.ErrUnauthorized),
+			text:  "GitHub rejected the token. Run gh auth login, then :auth.",
+			toast: "Couldn't load your profile: GitHub rejected the token. Run gh auth login, then :auth.",
+		},
+		{
+			name:  "SSO",
+			p:     &core.Problem{Kind: core.Forbidden, Action: "sync", Subject: "eggzec/x", SSO: true},
+			text:  "eggzec requires SSO",
+			hint:  ":auth to authorize the token",
+			toast: "Couldn't sync: eggzec requires SSO · :auth to authorize the token.",
+		},
+		{
+			name: "SSO of an unnamed organization",
+			p:    &core.Problem{Kind: core.Forbidden, Action: "sync", SSO: true},
+			text: "The organization requires SSO",
+			hint: ":auth to authorize the token",
+		},
+		{
+			name:   "not found without repo",
+			p:      &core.Problem{Kind: core.NotFound, Action: "open eggzec/x", Subject: "eggzec/x"},
+			access: classic("public_repo"),
+			text:   "eggzec/x doesn't exist or is private. If it's private, the token needs the repo scope.",
+			hint:   ":auth to grant it",
+			toast:  "Couldn't open eggzec/x: eggzec/x doesn't exist or is private · :auth grants the repo scope.",
+		},
+		{
+			name:   "not found with repo",
+			p:      &core.Problem{Kind: core.NotFound, Action: "open eggzec/x", Subject: "eggzec/x"},
+			access: classic("repo"),
+			text:   "eggzec/x doesn't exist or is private.",
+		},
+		{
+			name: "not found while the scopes aren't known",
+			p:    &core.Problem{Kind: core.NotFound, Subject: "eggzec/x"},
+			text: "eggzec/x doesn't exist or is private.",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v := testVoice()
+			v.Token = tok(tt.access)
+			text, hint := Say(tt.p, v)
+			if text != tt.text || hint != tt.hint {
+				t.Errorf("Say = %q, %q; want %q, %q", text, hint, tt.text, tt.hint)
+			}
+			if tt.toast != "" {
+				if got := SayToast(tt.p, v, within(120)); got != tt.toast {
+					t.Errorf("SayToast = %q, want %q", got, tt.toast)
+				}
+			}
+			if tt.narrowToast != "" {
+				if got := SayToast(tt.p, v, within(80)); got != tt.narrowToast {
+					t.Errorf("SayToast in 80 cells = %q, want %q", got, tt.narrowToast)
+				}
+			}
+		})
+	}
+}
