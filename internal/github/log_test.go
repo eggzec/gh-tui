@@ -613,3 +613,76 @@ func BenchmarkTransport(b *testing.B) {
 		send(b, logged)
 	})
 }
+
+// A background loop's requests that went well are logged at debug level,
+// and those that didn't as any other.
+func TestLogBackgroundQuiet(t *testing.T) {
+	buf, _ := captureLog(t, slog.LevelDebug)
+	status := http.StatusOK
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(status)
+		_, _ = io.WriteString(w, `{}`)
+	}))
+	bg := obs.ForBackground(context.Background())
+	_, _ = c.Get(bg, "notifications", Conditional{}, nil)
+	_, _ = c.Get(context.Background(), "notifications", Conditional{}, nil)
+	status = http.StatusNotFound
+	_, _ = c.Get(bg, "notifications", Conditional{}, nil)
+	recs := httpRecords(t, buf)
+	if len(recs) != 3 {
+		t.Fatalf("got %d records, want 3:\n%s", len(recs), buf)
+	}
+	for i, want := range []string{"DEBUG", "INFO", "WARN"} {
+		if recs[i]["level"] != want {
+			t.Errorf("record %d = %v, want %s", i, recs[i], want)
+		}
+	}
+}
+
+// A deprecated route is told once, at warn level; the debug record of a
+// request has its media type and whether a page follows.
+func TestLogDeprecatedAndDebugFields(t *testing.T) {
+	buf, _ := captureLog(t, slog.LevelDebug)
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Deprecation", "@1767225600")
+		w.Header().Set("Sunset", "Thu, 01 Jan 2027 00:00:00 GMT")
+		w.Header().Set("X-GitHub-Media-Type", "github.v3; format=json")
+		w.Header().Set("Link", `<https://`+r.Host+`/notifications?page=2>; rel="next"`)
+		_, _ = io.WriteString(w, `[]`)
+	}))
+	for range 2 {
+		_, _ = c.Get(context.Background(), "notifications", Conditional{}, nil)
+	}
+	var told []map[string]any
+	for line := range strings.Lines(buf.String()) {
+		var m map[string]any
+		if err := json.Unmarshal([]byte(line), &m); err != nil {
+			t.Fatal(err)
+		}
+		if m["msg"] == "api deprecated" {
+			told = append(told, m)
+		}
+	}
+	if len(told) != 1 || told[0]["level"] != "WARN" || told[0]["route"] != "/notifications" ||
+		told[0]["deprecation"] != "@1767225600" || told[0]["sunset"] != "Thu, 01 Jan 2027 00:00:00 GMT" {
+		t.Errorf("deprecation records = %v, want one for /notifications", told)
+	}
+	r := httpRecords(t, buf)[0]
+	if r["media_type"] != "github.v3; format=json" || r["has_next"] != true {
+		t.Errorf("record = %v, want media_type and has_next", r)
+	}
+}
+
+// A refusal of a fine-grained token says the permissions it needs.
+func TestLogNeedsPermissions(t *testing.T) {
+	buf, _ := captureLog(t, slog.LevelInfo)
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("X-Accepted-GitHub-Permissions", "pull_requests=write,contents=read")
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = io.WriteString(w, `{"message":"Resource not accessible by personal access token"}`)
+	}))
+	_, _ = c.Get(context.Background(), "repos/x/y/pulls", Conditional{}, nil)
+	if r := httpRecords(t, buf)[0]; r["needs_permissions"] != "pull_requests=write,contents=read" {
+		t.Errorf("record = %v, want needs_permissions", r)
+	}
+}
