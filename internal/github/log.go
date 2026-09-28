@@ -28,6 +28,9 @@ type logTransport struct {
 	// or /api/v3/, and of the GraphQL endpoint.
 	restRoot    string
 	graphqlPath string
+	// deprecated holds the routes that GitHub said are deprecated, which
+	// are told once.
+	deprecated sync.Map
 }
 
 // call is what the client knows of a request that the transport can't see
@@ -173,6 +176,15 @@ func (a *attempt) done(resp *http.Response, err error) {
 	if err == nil && c != nil && len(c.errors) > 0 && !c.partial {
 		level = max(level, slog.LevelWarn)
 	}
+	// The background loops, the polls and the revalidator, sum up what
+	// their requests found in records of their own, so a request of
+	// theirs that went well is detail.
+	if level == slog.LevelInfo && err == nil && obs.IsBackground(ctx) && (c == nil || len(c.errors) == 0) {
+		level = slog.LevelDebug
+	}
+	if resp != nil && (c == nil || !c.external) {
+		a.t.deprecation(ctx, api, route, resp.Header)
+	}
 	obs.CountHTTP(h)
 	if api == obs.GraphQL && resp != nil {
 		obs.ChargeGraphQL(ctx, h.Cost)
@@ -239,6 +251,14 @@ func (a *attempt) done(resp *http.Response, err error) {
 		if !a.headers.IsZero() {
 			attrs = append(attrs, slog.Float64("ttfb_ms", obs.Millis(a.headers.Sub(a.start))))
 		}
+		if resp != nil {
+			if mt := resp.Header.Get("X-GitHub-Media-Type"); mt != "" && len(mt) <= maxHeaderLogged {
+				attrs = append(attrs, slog.String("media_type", mt))
+			}
+			if link := resp.Header.Get("Link"); link != "" {
+				attrs = append(attrs, slog.Bool("has_next", parseLinks(link)["next"] != ""))
+			}
+		}
 	}
 	slog.LogAttrs(ctx, level, "http", attrs...)
 }
@@ -250,22 +270,49 @@ func isTimeout(err error) bool {
 	return ok && ne.Timeout()
 }
 
-// maxLoggedScopes and maxLoggedPaths bound what a record lists, far more
-// than GitHub sends.
+// maxLoggedScopes and maxLoggedPaths bound what a record lists, and
+// maxHeaderLogged the value of a header it holds, far more than GitHub
+// sends.
 const (
 	maxLoggedScopes = 16
 	maxLoggedPaths  = 3
+	maxHeaderLogged = 128
 )
 
+// deprecation warns, once per route, that GitHub said with the headers h
+// of an answer that route of api is deprecated, or when it goes away.
+func (t *logTransport) deprecation(ctx context.Context, api, route string, h http.Header) {
+	dep, sunset := h.Get("Deprecation"), h.Get("Sunset")
+	if dep == "" && sunset == "" {
+		return
+	}
+	if _, told := t.deprecated.LoadOrStore(api+" "+route, true); told {
+		return
+	}
+	attrs := []slog.Attr{slog.String("span", "http"), slog.String("api", api), slog.String("route", route)}
+	if dep != "" && len(dep) <= maxHeaderLogged {
+		attrs = append(attrs, slog.String("deprecation", dep))
+	}
+	if sunset != "" && len(sunset) <= maxHeaderLogged {
+		attrs = append(attrs, slog.String("sunset", sunset))
+	}
+	slog.LogAttrs(ctx, slog.LevelWarn, "api deprecated", attrs...)
+}
+
 // refusalAttrs returns what the headers h of a 4xx answer say of why it
-// was refused: the scopes of which the endpoint accepts one, and whether
-// SSO stands in the way. The value of X-GitHub-SSO names an authorization
+// was refused: the scopes of which the endpoint accepts one, the
+// permissions it needs of a fine-grained or App token, and whether SSO
+// stands in the way. The value of X-GitHub-SSO names an authorization
 // request, so only its kind is logged.
 func refusalAttrs(h http.Header) []slog.Attr {
 	var attrs []slog.Attr
 	if v, ok := h[http.CanonicalHeaderKey("X-Accepted-OAuth-Scopes")]; ok {
 		scopes := core.ParseScopes(strings.Join(v, ","))
 		attrs = append(attrs, slog.Any("accepted_scopes", append([]string{}, scopes[:min(len(scopes), maxLoggedScopes)]...)))
+	}
+	// Only a value of permissions GitHub's shape is logged.
+	if v := h.Get("X-Accepted-GitHub-Permissions"); permissionsNeeded(v) != "" {
+		attrs = append(attrs, slog.String("needs_permissions", v))
 	}
 	for _, v := range h.Values("X-GitHub-SSO") {
 		kind, _, _ := strings.Cut(v, ";")
