@@ -33,6 +33,15 @@ type Tabbed interface {
 	Tabs() (names []string, active int)
 }
 
+// Hider is a Modal that works in the background while it is open, such as
+// following a run in progress, which it stops once another modal replaces
+// it: the app calls Hide then. A modal that opened the one in
+// its place, such as a preview, gets a [ReopenedMsg] when it is back, and
+// starts again; one that another replaced for good stays paused.
+type Hider interface {
+	Hide()
+}
+
 // Linked is a Modal about something that has a page on the web, such as a
 // pull request, whose title in the top edge of the frame links to it.
 type Linked interface {

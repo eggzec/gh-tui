@@ -90,6 +90,30 @@ func TestModalGetsOtherMessages(t *testing.T) {
 	}
 }
 
+// hidingModal is a modal that stops what it does while another is open in
+// its place.
+type hidingModal struct {
+	fakeModal
+	hidden int
+}
+
+func (h *hidingModal) Hide() { h.hidden++ }
+
+func TestOpeningAModalHidesTheOpenOne(t *testing.T) {
+	m, _ := newTestApp(t)
+	first := &hidingModal{}
+	first.title = "Actions"
+	run(m, ui.OpenModal(first))
+	run(m, ui.OpenModal(first))
+	if first.hidden != 0 {
+		t.Fatal("opening the open modal again hid it")
+	}
+	run(m, ui.OpenModal(&fakeModal{title: "Preview"}))
+	if first.hidden != 1 {
+		t.Errorf("the replaced modal was hidden %d times, want once", first.hidden)
+	}
+}
+
 func TestOpeningAModalReplacesTheOpenOne(t *testing.T) {
 	m, fakes := newTestApp(t)
 	first, second := &fakeModal{title: "Search"}, &fakeModal{title: "Preview"}
