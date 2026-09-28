@@ -4,6 +4,9 @@
 //
 // The content arrives already fetched with [Model.SetContent]; while it is
 // on its way, [Model.SetLoading] and [Model.SetError] show a placeholder.
+// Content with colors of its own, SGR escape sequences such as a
+// program's output kept in a file, shows in them, and every other escape
+// sequence is dropped.
 // The pager renders only the lines in its window, so large files stay cheap
 // to scroll.
 package pager
@@ -17,6 +20,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 var lastID atomic.Int64
@@ -57,6 +61,10 @@ type Model struct {
 	// and spans their tokens once the highlighter is done, or nil.
 	lines []string
 	spans [][]span
+	// sgr are the colors of content that has its own, such as a program's
+	// output kept in a file, for each line, or nil for content without
+	// them. Such content isn't highlighted.
+	sgr [][]termtext.Style
 	// vis are the indices of the lines shown, in order, or nil to show
 	// them all. It is replaced, never changed in place. proj is what
 	// picked them, and kept how many lines its filter kept; want is what
