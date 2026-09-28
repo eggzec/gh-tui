@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
 // fit pads or cuts s to width cells.
@@ -54,10 +56,10 @@ func wrap(s string, width, n int) []string {
 	return lines
 }
 
-// cleanLine puts text from GitHub on one line without escape sequences, so
-// it can't break the layout.
+// cleanLine puts text from GitHub on one line without escape sequences or
+// controls, so it can't break the layout.
 func cleanLine(s string) string {
-	return strings.Join(strings.Fields(ansi.Strip(s)), " ")
+	return strings.Join(strings.Fields(ui.OneLine(s)), " ")
 }
 
 // count formats n the way GitHub shows counts: 999, 1.2k, 12k.
