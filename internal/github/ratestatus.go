@@ -41,7 +41,7 @@ func (b *budget) snapshot() core.RateStatus {
 		cq := core.Quota{
 			Resource:  resource,
 			Limit:     q.limit,
-			Remaining: b.left(resource, q, now),
+			Remaining: b.left(q, now),
 			Reset:     b.local(q.reset),
 			SeenAt:    q.seenAt,
 			Held:      b.held(resource),
@@ -57,16 +57,20 @@ func (b *budget) snapshot() core.RateStatus {
 	return s
 }
 
-// left returns what is left of q, the quota of resource, at now, once
-// the requests in flight are answered, and never below zero. Once its
-// reset has passed the window has refilled, although GitHub may not have
-// said so yet, so the full limit is left then. b.mu must be held.
-func (b *budget) left(resource string, q *quota, now time.Time) int {
-	n := b.est(resource, q)
+// left returns what is left of q at now, as GitHub said: never more
+// within a window than before, since report takes no answer that says
+// more. The requests in flight aren't taken off, although the gate does
+// (est): one that GitHub doesn't count, such as a 304, one that got no
+// answer, or a query that cost less than it was counted for, gives back
+// what it took when it settles, which would show as the quota going up.
+// Once its reset has passed the window has refilled, although GitHub may
+// not have said so yet, so the full limit is left then. b.mu must be
+// held.
+func (b *budget) left(q *quota, now time.Time) int {
 	if !b.local(q.reset).After(now) {
-		n += q.limit - q.remaining
+		return q.limit
 	}
-	return max(n, 0)
+	return max(q.remaining, 0)
 }
 
 // resourceRank is where resource comes in resourceOrder, or after them
@@ -225,12 +229,9 @@ func (b *budget) view(now time.Time) (v rateView, next time.Time) {
 		}
 	}
 	for resource, q := range b.quotas {
-		// What GitHub reported, not the estimate, which a request in
-		// flight at a step would move to and fro.
-		step := q.remaining
-		if !b.local(q.reset).After(now) {
-			step = q.limit
-		}
+		// What the snapshot shows, which a request in flight at a step
+		// doesn't move to and fro.
+		step := b.left(q, now)
 		if q.limit > 0 {
 			step = step * 100 / q.limit
 		}

@@ -8,10 +8,11 @@ type Quota struct {
 	// code_search.
 	Resource string
 	Limit    int
-	// Remaining is what the client expects to be left once the requests
-	// in flight are answered, never below zero. Once Reset has passed it
-	// is the full Limit less those requests, until GitHub reports the new
-	// window.
+	// Remaining is what GitHub last said is left, never below zero, and
+	// never more than before within a window: an answer that says more
+	// for the same Reset came from a request GitHub counted earlier. The
+	// requests in flight aren't taken off. Once Reset has passed it is the
+	// full Limit, until GitHub reports the new window.
 	Remaining int
 	// Reset is when the window refills, in local time. It stays the
 	// passed reset until GitHub reports the new window.
