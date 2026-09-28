@@ -366,15 +366,17 @@ func (m Model) detail(n Node) string {
 	if n.Detail == "" {
 		return ""
 	}
-	return m.styles.Detail.Render(n.Detail)
+	return m.styles.Detail.Render(termtext.OneLine(n.Detail))
 }
 
+// label renders the name of n, which may come from elsewhere, such as a
+// file's name, and hold anything but a slash.
 func (m Model) label(n Node) string {
 	st := m.styles.Leaf
 	if n.Branch {
 		st = m.styles.Branch
 	}
-	return termtext.Link(n.Link, st.Render(n.Name))
+	return termtext.Link(n.Link, st.Render(termtext.OneLine(n.Name)))
 }
 
 // growGuides renders the indentation of every depth up to depth.
