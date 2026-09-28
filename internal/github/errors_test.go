@@ -486,29 +486,32 @@ func TestReason(t *testing.T) {
 	}
 }
 
-func TestMissingScope(t *testing.T) {
+func TestMissingScopes(t *testing.T) {
 	tests := []struct {
 		granted  *string
 		accepted string
-		want     bool
+		want     string // the scope to grant first, "" for none
 	}{
-		{nil, "repo", false},
-		{new(""), "", false},
-		{new(""), "repo", true},
-		{new("repo"), "repo", false},
-		{new("repo"), "public_repo", false},
-		{new("repo"), "repo:status", false},
-		{new("public_repo"), "repo", true},
-		{new("admin:org"), "read:org", false},
-		{new("write:org"), "read:org", false},
-		{new("read:org"), "write:org", true},
-		{new("user"), "user:email", false},
-		{new("repo"), "repo_deployment", false},
-		{new("repo"), "admin:repo_hook", false},
-		{new("repo"), "read:repo_hook", false},
-		{new("public_repo"), "admin:repo_hook", true},
-		{new("gist, read:org"), "repo, workflow", true},
-		{new("gist, workflow"), "repo, workflow", false},
+		{nil, "repo", ""},
+		{new(""), "", ""},
+		{new(""), "repo", "repo"},
+		{new("repo"), "repo", ""},
+		{new("repo"), "public_repo", ""},
+		{new("repo"), "repo:status", ""},
+		{new("public_repo"), "repo", "repo"},
+		{new("admin:org"), "read:org", ""},
+		{new("write:org"), "read:org", ""},
+		{new("read:org"), "write:org", "write:org"},
+		{new("user"), "user:email", ""},
+		{new("repo"), "repo_deployment", ""},
+		{new("repo"), "admin:repo_hook", ""},
+		{new("repo"), "read:repo_hook", ""},
+		{new("public_repo"), "admin:repo_hook", "admin:repo_hook"},
+		{new("gist, read:org"), "repo, workflow", "workflow"},
+		{new("gist, workflow"), "repo, workflow", ""},
+		{new("gist"), "notifications, repo", "notifications"},
+		{new("gist"), "public_repo, repo", "public_repo"},
+		{new("gist"), "admin:org, read:org, repo, user, write:org", "read:org"},
 	}
 	for _, tt := range tests {
 		h := http.Header{}
@@ -516,8 +519,12 @@ func TestMissingScope(t *testing.T) {
 			h.Set("X-OAuth-Scopes", *tt.granted)
 		}
 		h.Set("X-Accepted-OAuth-Scopes", tt.accepted)
-		if got := missingScope(h); got != tt.want {
-			t.Errorf("missingScope(%v, %q) = %v, want %v", tt.granted, tt.accepted, got, tt.want)
+		var got string
+		if missing := missingScopes(h); len(missing) > 0 {
+			got = missing[0]
+		}
+		if got != tt.want {
+			t.Errorf("missingScopes(%v, %q) = %q first, want %q", tt.granted, tt.accepted, got, tt.want)
 		}
 	}
 }

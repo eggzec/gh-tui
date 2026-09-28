@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 
@@ -362,6 +363,139 @@ func TestProbeAccess(t *testing.T) {
 	}
 }
 
+// TestAccessErrors checks what core.Explain makes of GitHub's refusals of
+// what the token may do.
+func TestAccessErrors(t *testing.T) {
+	const workflowMsg = "refusing to allow an OAuth App to create or update workflow `.github/workflows/ci.yml` without `workflow` scope"
+	tests := []struct {
+		name    string
+		h       http.Handler
+		graphql bool
+		kind    core.ProblemKind
+		reason  string
+		grant   string
+		sso     bool
+		ssoURL  string // with %s for the server's host
+	}{
+		{
+			name:   "classic 403 without the scope",
+			h:      reply(403, map[string]string{"X-OAuth-Scopes": "gist", "X-Accepted-OAuth-Scopes": "notifications, repo"}, "Not allowed"),
+			kind:   core.Auth,
+			reason: "Not allowed",
+			grant:  "notifications",
+		},
+		{
+			name: "fine-grained 403",
+			h: reply(403, map[string]string{"X-Accepted-GitHub-Permissions": "pull_requests=write,contents=read"},
+				"Resource not accessible by personal access token"),
+			kind:   core.Forbidden,
+			reason: "Resource not accessible by personal access token (needs Pull requests: write, Contents: read)",
+		},
+		{
+			name:   "permissions that would each do",
+			h:      reply(403, map[string]string{"X-Accepted-GitHub-Permissions": "issues=write; pull_requests=write"}, "Resource not accessible by integration"),
+			kind:   core.Forbidden,
+			reason: "Resource not accessible by integration (needs Issues: write or Pull requests: write)",
+		},
+		{
+			name:   "permissions it can't read",
+			h:      reply(403, map[string]string{"X-Accepted-GitHub-Permissions": "issues=write, $(rm -rf ~)=admin"}, "Resource not accessible by integration"),
+			kind:   core.Forbidden,
+			reason: "Resource not accessible by integration",
+		},
+		{
+			name: "sso",
+			h: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				reply(403, map[string]string{"X-GitHub-SSO": "required; url=http://" + r.Host + "/orgs/eggzec/sso?authorization_request=x"}, ssoMessage)(w, r)
+			}),
+			kind:   core.Forbidden,
+			reason: ssoMessage,
+			sso:    true,
+			ssoURL: "http://%s/orgs/eggzec/sso?authorization_request=x",
+		},
+		{
+			name: "sso with a user and the host in capitals",
+			h: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				reply(403, map[string]string{"X-GitHub-SSO": "required; url=http://me:pw@" + strings.ToUpper(r.Host) + "/orgs/eggzec/sso"}, ssoMessage)(w, r)
+			}),
+			kind:   core.Forbidden,
+			reason: ssoMessage,
+			sso:    true,
+			ssoURL: "http://%s/orgs/eggzec/sso",
+		},
+		{
+			name:   "sso elsewhere",
+			h:      reply(403, map[string]string{"X-GitHub-SSO": "required; url=https://evil.example/sso"}, ssoMessage),
+			kind:   core.Forbidden,
+			reason: ssoMessage,
+			sso:    true,
+		},
+		{
+			name:   "sso without a url",
+			h:      reply(403, map[string]string{"X-GitHub-SSO": "required"}, "Forbidden"),
+			kind:   core.Forbidden,
+			reason: "Forbidden",
+			sso:    true,
+		},
+		{
+			name:   "permissions too long to read",
+			h:      reply(403, map[string]string{"X-Accepted-GitHub-Permissions": strings.Repeat("issues=write,", 100) + "issues=write"}, "Resource not accessible by integration"),
+			kind:   core.Forbidden,
+			reason: "Resource not accessible by integration",
+		},
+		{
+			name:    "graphql insufficient scopes",
+			h:       graphqlReply("INSUFFICIENT_SCOPES", "The 'teams' field requires one of the following scopes: ['read:org', 'admin:org'], but your token has only been granted the: ['repo'] scopes.", map[string]string{"X-OAuth-Scopes": "repo"}),
+			graphql: true,
+			kind:    core.Auth,
+			reason:  "The 'teams' field requires one of the following scopes: ['read:org', 'admin:org'], but your token has only been granted the: ['repo'] scopes.",
+			grant:   "read:org",
+		},
+		{
+			name:    "graphql workflow",
+			h:       graphqlReply("UNPROCESSABLE", workflowMsg, nil),
+			graphql: true,
+			kind:    core.Auth,
+			reason:  workflowMsg,
+			grant:   "workflow",
+		},
+		{
+			name:    "graphql workflow of an app",
+			h:       graphqlReply("", "refusing to allow a GitHub App to create or update workflow `.github/workflows/ci.yml` without `workflows` permission", nil),
+			graphql: true,
+			kind:    core.Forbidden,
+			reason:  "refusing to allow a GitHub App to create or update workflow `.github/workflows/ci.yml` without `workflows` permission",
+		},
+		{
+			name:   "rest workflow",
+			h:      reply(422, nil, workflowMsg),
+			kind:   core.Auth,
+			reason: workflowMsg,
+			grant:  "workflow",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, _ := accessClient(t, "gho_abc", tt.h)
+			var err error
+			if tt.graphql {
+				err = c.Query(t.Context(), "mutation { merge }", nil, nil)
+			} else {
+				_, err = c.Get(t.Context(), "repos/eggzec/gh-tui", Conditional{}, nil)
+			}
+			p := core.Explain("merge #5", fmt.Errorf("merge: %w", err))
+			ssoURL := tt.ssoURL
+			if ssoURL != "" {
+				ssoURL = fmt.Sprintf(ssoURL, c.WebHost())
+			}
+			if p.Kind != tt.kind || p.Reason != tt.reason || p.Grant != tt.grant || p.SSO != tt.sso || p.SSOURL != ssoURL {
+				t.Errorf("Explain(%v) = {%v %q %q %v %q}, want {%v %q %q %v %q}", err,
+					p.Kind, p.Reason, p.Grant, p.SSO, p.SSOURL, tt.kind, tt.reason, tt.grant, tt.sso, ssoURL)
+			}
+		})
+	}
+}
+
 func TestTokenKind(t *testing.T) {
 	for token, want := range map[string]core.TokenKind{
 		"gho_16C7e42F292c6912E7710c838347Ae178B4a": core.TokenClassic,
@@ -404,5 +538,26 @@ func TestAccessToldInOrder(t *testing.T) {
 	defer mu.Unlock()
 	if len(told) == 0 || !told[len(told)-1].Equal(a.get()) {
 		t.Errorf("told %+v last, want %+v", told, a.get())
+	}
+}
+
+func TestSSOLink(t *testing.T) {
+	c, err := New(WithBaseURL("https://api.github.com/"), WithToken("t"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for u, want := range map[string]string{
+		"https://github.com/orgs/x/sso?authorization_request=a": "https://github.com/orgs/x/sso?authorization_request=a",
+		"https://GitHub.com/orgs/x/sso":                         "https://GitHub.com/orgs/x/sso",
+		"https://github.com:443/orgs/x/sso":                     "https://github.com:443/orgs/x/sso",
+		"https://me:pw@github.com/orgs/x/sso":                   "https://github.com/orgs/x/sso",
+		"https://github.com:8443/orgs/x/sso":                    "",
+		"http://github.com/orgs/x/sso":                          "",
+		"javascript:alert(1)":                                   "",
+		"https://github.com.evil.example/sso":                   "",
+	} {
+		if got := c.ssoLink(u); got != want {
+			t.Errorf("ssoLink(%q) = %q, want %q", u, got, want)
+		}
 	}
 }

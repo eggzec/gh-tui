@@ -193,6 +193,21 @@ func partialSSO(values []string) string {
 	return ""
 }
 
+// ssoRequired reports whether an X-GitHub-SSO says the token must be
+// authorized for an organization's SSO, as a 403 does with "required;
+// url=https://github.com/orgs/eggzec/sso?authorization_request=…", and
+// returns the url, or "" if it has none.
+func ssoRequired(values []string) (string, bool) {
+	for _, v := range values {
+		kind, params, _ := strings.Cut(v, ";")
+		if strings.TrimSpace(kind) == "required" {
+			u, _ := ssoParam(params, "url")
+			return u, true
+		}
+	}
+	return "", false
+}
+
 // ssoParam returns the value of the parameter name of an X-GitHub-SSO,
 // whose params follow its kind. Each kind has one parameter, and a URL may
 // hold a semicolon, so params are not split.
