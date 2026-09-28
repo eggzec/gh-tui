@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
@@ -352,22 +351,36 @@ func TestHelp(t *testing.T) {
 	if got := enabled(h.KeyLayers()); slices.Contains(got, "back") || !slices.Contains(got, "filter") {
 		t.Errorf("list help = %v, want filter and no back", got)
 	}
-	// No binding in help shares a key with another.
-	for _, layers := range [][]keyhelp.Layer{h.KeyLayers(), m.KeyLayers()} {
-		seen := map[string]string{}
-		for _, group := range (ui.Hints{Layers: layers}).FullHelp() {
-			for _, b := range group {
-				for _, k := range b.Keys() {
-					if prev, ok := seen[k]; ok && prev != b.Help().Desc {
-						t.Errorf("key %q is both %q and %q", k, prev, b.Help().Desc)
-					}
-					seen[k] = b.Help().Desc
-				}
-			}
+	// The section's and the modal's keys come before the bubbles'.
+	for _, tt := range []struct {
+		layers    []keyhelp.Layer
+		key, want string
+	}{
+		{h.KeyLayers(), "f", "filter"},
+		{h.KeyLayers(), "s", "sort"},
+		{m.KeyLayers(), "r", "refresh"},
+	} {
+		if b, _, _ := uitest.Winner(tt.layers, tt.key); b.Help().Desc != tt.want {
+			t.Errorf("%s reaches %q, want %q", tt.key, b.Help().Desc, tt.want)
 		}
 	}
-	if !key.Matches(keyMsg("f"), h.keys.Filter) || key.Matches(keyMsg("f"), h.keys.feed.PageDown) {
-		t.Error("f should filter the list, not page it")
+}
+
+// TestFilterKeysStayOffTheList checks that the keys of the filter, which
+// the app opens, reach the section rather than the list, whose page down
+// f is too.
+func TestFilterKeysStayOffTheList(t *testing.T) {
+	for _, k := range []string{"f", "s"} {
+		t.Run(k, func(t *testing.T) {
+			h := started(t, newFakeService(sampleIssues(40)), 80, 20)
+			before, _ := h.list.Selected()
+			if msgs := press(t, h, k); len(msgs) != 0 {
+				t.Errorf("%s sent %v", k, msgs)
+			}
+			if after, _ := h.list.Selected(); after.Number != before.Number {
+				t.Errorf("%s moved the cursor from #%d to #%d", k, before.Number, after.Number)
+			}
+		})
 	}
 }
 

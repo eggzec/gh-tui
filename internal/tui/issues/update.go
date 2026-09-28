@@ -171,6 +171,10 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 			return ui.Open(it.URL)
 		}
 		return nil
+	case key.Matches(msg, k.Filter, k.Sort):
+		// The app opens the filter. Its keys don't reach the list, whose
+		// page down f is too.
+		return nil
 	}
 	return s.forward(msg)
 }

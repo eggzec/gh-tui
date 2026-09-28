@@ -1,9 +1,6 @@
 package issues
 
 import (
-	"slices"
-	"strings"
-
 	"charm.land/bubbles/v2/key"
 
 	"github.com/eggzec/gh-tui/internal/config"
@@ -15,8 +12,8 @@ import (
 )
 
 // keyMap holds the keys of the section and of the bubbles it shows. The
-// section handles its own keys first, so the bubbles' keys leave out any the
-// section takes in the same view.
+// section and its modal match their own keys first, so the bubbles get
+// only the keys they leave them.
 type keyMap struct {
 	Select key.Binding
 	Back   key.Binding
@@ -60,25 +57,17 @@ func newKeyMap(keys map[string][]string) keyMap {
 		confirm:     ui.DefaultConfirmKeys(),
 	}
 
-	// PR5: the section and the modal match their own keys first, so
-	// dropping them from the feed and the thread only keeps the
-	// collisions out of help.
+	// The section and the modal match their own keys first, so the feed
+	// and the thread get only the keys they leave them, such as f, which
+	// pages down there and opens the filter here.
 	fk := feed.DefaultKeyMap()
-	listKeys := []key.Binding{k.Select, k.Filter, k.Sort, k.ClearFilter, k.NextTab, k.PrevTab, k.Refresh, k.Open, k.Close, k.Reopen}
-	for _, b := range []*key.Binding{&fk.Up, &fk.Down, &fk.PageUp, &fk.PageDown, &fk.Home, &fk.End} {
-		*b = without(*b, listKeys)
-	}
 	// Refresh reloads failed pages too, so it doubles as retry.
 	fk.Retry = retry(k.Refresh)
 	fk.Retry.SetEnabled(false)
 	k.feed = fk
 
 	tk := thread.DefaultKeyMap()
-	detailKeys := []key.Binding{k.Back, k.Refresh, k.Open, k.Close, k.Reopen, k.Comment, k.Label}
-	for _, b := range []*key.Binding{&tk.Up, &tk.Down, &tk.PageUp, &tk.PageDown, &tk.HalfPageUp, &tk.HalfPageDown, &tk.Top, &tk.Bottom} {
-		*b = without(*b, detailKeys)
-	}
-	tk.Toggle = without(ui.Binding(keys, config.ActionSelect, tk.Toggle.Help().Desc), detailKeys)
+	tk.Toggle = ui.Binding(keys, config.ActionSelect, tk.Toggle.Help().Desc)
 	tk.Retry = retry(k.Refresh)
 	k.thread = tk
 	return k
@@ -91,28 +80,6 @@ func retry(refresh key.Binding) key.Binding {
 		return key.NewBinding(key.WithDisabled())
 	}
 	return key.NewBinding(key.WithKeys(refresh.Keys()...), key.WithHelp(refresh.Help().Key, "retry"))
-}
-
-var keyLabels = strings.NewReplacer("pgdown", "pgdn", "pgup", "pgup", "down", "↓", "up", "↑")
-
-// without returns b without the keys that taken use.
-func without(b key.Binding, taken []key.Binding) key.Binding {
-	keys := slices.DeleteFunc(slices.Clone(b.Keys()), func(k string) bool {
-		return slices.ContainsFunc(taken, func(t key.Binding) bool {
-			return slices.Contains(t.Keys(), k)
-		})
-	})
-	switch len(keys) {
-	case len(b.Keys()):
-		return b
-	case 0:
-		return key.NewBinding(key.WithDisabled())
-	}
-	labels := make([]string, len(keys))
-	for i, k := range keys {
-		labels[i] = keyLabels.Replace(k)
-	}
-	return key.NewBinding(key.WithKeys(keys...), key.WithHelp(strings.Join(labels, "/"), b.Help().Desc))
 }
 
 // ShortHelp implements help.KeyMap.
