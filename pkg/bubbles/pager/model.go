@@ -46,6 +46,9 @@ type Model struct {
 	name  string
 	state state
 	err   error
+	// errText and errHint are what the pager says of err, worded once as
+	// it is set.
+	errText, errHint string
 	// note is the message of stateMessage.
 	note string
 	spin spinner.Model

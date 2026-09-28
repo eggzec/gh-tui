@@ -11,6 +11,7 @@ type settings struct {
 	lineNumbers    bool
 	wrap           bool
 	highlightLimit int
+	errorText      func(error) (text, hint string)
 }
 
 // DefaultTabWidth is the number of columns between tab stops by default.
@@ -81,5 +82,15 @@ func WithWrap(wrap bool) Option {
 func WithHighlightLimit(bytes int) Option {
 	return func(s *settings) {
 		s.highlightLimit = bytes
+	}
+}
+
+// WithErrorText sets how content that failed to load reads. say returns
+// the words for err and a hint, such as "o to open on GitHub", or "" for
+// none, styled as one. An empty text shows no error. By default the pager
+// says "Couldn't load:" and the first line of the error.
+func WithErrorText(say func(error) (text, hint string)) Option {
+	return func(s *settings) {
+		s.errorText = say
 	}
 }

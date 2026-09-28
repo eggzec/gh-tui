@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/charmbracelet/x/ansi"
 )
@@ -19,9 +20,16 @@ func (m Model) View() string {
 	// Tokens carry escape sequences, so leave room for them.
 	b.Grow(m.height * (m.width + 64))
 	rows := 0
-	if m.state == stateReady && len(m.lines) > 0 {
+	switch {
+	case m.state == stateReady && len(m.lines) > 0:
 		rows = m.writeLines(&b)
-	} else {
+	case m.state == stateFailed:
+		for _, l := range m.errorLines(m.width, m.bodyHeight()) {
+			b.WriteString(fit(l, m.width))
+			b.WriteByte('\n')
+			rows++
+		}
+	default:
 		// A message longer than the width wraps, as far as the height
 		// lets it.
 		for l := range strings.SplitSeq(ansi.Wrap(m.message(), m.width, ""), "\n") {
@@ -48,12 +56,6 @@ func (m Model) message() string {
 	switch m.state {
 	case stateLoading:
 		return m.spin.View() + s.Message.Render("Loading…")
-	case stateFailed:
-		msg := "unknown error"
-		if m.err != nil {
-			msg, _, _ = strings.Cut(m.err.Error(), "\n")
-		}
-		return s.Error.Render("✗ Couldn't load: " + msg)
 	case stateBinary:
 		return s.Message.Render("Binary file, not shown.")
 	case stateMessage:
@@ -64,6 +66,129 @@ func (m Model) message() string {
 		return s.Message.Render("Nothing to show.")
 	}
 }
+
+// errorWords returns what the pager says of the failed load, and the hint
+// after it.
+func (m *Model) errorWords() (text, hint string) {
+	if m.errorText != nil && m.err != nil {
+		return m.errorText(m.err)
+	}
+	msg := "unknown error"
+	if m.err != nil {
+		msg, _, _ = strings.Cut(m.err.Error(), "\n")
+	}
+	return "Couldn't load: " + msg, ""
+}
+
+// errorLines renders the failed load in at most height lines of width
+// cells, as the app's error lines are: the mark and the text, wrapped and
+// ending in "…" where it needs more lines than the hint leaves it, then
+// " · " and the hint, after the text where it fits and else on a line of
+// its own. The hint is never cut, unless the width can't hold it at all.
+func (m *Model) errorLines(width, height int) []string {
+	text, hint := m.errText, m.errHint
+	if text == "" || width <= 0 || height <= 0 {
+		return nil
+	}
+	s := m.styles
+	lead := errorGlyph + " "
+	indent := strings.Repeat(" ", ansi.StringWidth(lead))
+	inner := width - len(indent)
+	if inner < 1 {
+		lead, indent, inner = "", "", width
+	}
+	tail := ""
+	if hint != "" {
+		tail = " · " + hint
+	}
+	if height == 1 && tail != "" {
+		// One line holds the hint first, and what is left of the text.
+		room := width - ansi.StringWidth(tail)
+		if room < ansi.StringWidth(lead)+1 {
+			return []string{s.Message.Render(hint)}
+		}
+		t := lead + text
+		if ansi.StringWidth(t) > room {
+			t = ansi.Truncate(t, room, ellipsisGlyph)
+		}
+		return []string{s.Error.Render(t) + s.Message.Render(tail)}
+	}
+	most := height
+	if tail != "" {
+		most = height - 1
+	}
+	rows := wrapWords(text, inner)
+	if len(rows) == 0 {
+		rows = []string{""}
+	}
+	if len(rows) > most {
+		cut := ansi.Truncate(rows[most-1]+" "+rows[most], inner-1, "")
+		rows = append(rows[:most-1], strings.TrimRight(cut, " ")+ellipsisGlyph)
+	}
+	lines := make([]string, 0, len(rows)+1)
+	for i, r := range rows {
+		pre := indent
+		if i == 0 {
+			pre = lead
+		}
+		lines = append(lines, s.Error.Render(pre+r))
+	}
+	if tail == "" {
+		return lines
+	}
+	if n := len(rows); ansi.StringWidth(rows[n-1])+ansi.StringWidth(tail) <= inner {
+		lines[n-1] += s.Message.Render(tail)
+		return lines
+	}
+	if ansi.StringWidth(indent+hint) > width {
+		indent = ""
+	}
+	return append(lines, indent+s.Message.Render(hint))
+}
+
+// wrapWords wraps s to rows of width cells, between words, and cuts a
+// word only when it alone is wider.
+func wrapWords(s string, width int) []string {
+	var rows []string
+	row := ""
+	for w := range strings.FieldsSeq(s) {
+		for ansi.StringWidth(w) > width {
+			if row != "" {
+				rows, row = append(rows, row), ""
+			}
+			head := ansi.Truncate(w, width, "")
+			if head == "" {
+				// A character wider than the row can't show.
+				_, n := utf8.DecodeRuneInString(w)
+				head = ellipsisGlyph
+				w = w[n:]
+			} else {
+				w = w[len(head):]
+			}
+			rows = append(rows, head)
+		}
+		switch {
+		case w == "":
+		case row == "":
+			row = w
+		case ansi.StringWidth(row)+1+ansi.StringWidth(w) <= width:
+			row += " " + w
+		default:
+			rows, row = append(rows, row), w
+		}
+	}
+	if row != "" {
+		rows = append(rows, row)
+	}
+	return rows
+}
+
+const (
+	// errorGlyph starts the text of a failed load.
+	errorGlyph = "✗"
+	// ellipsisGlyph ends text that was cut.
+	ellipsisGlyph = "…"
+)
 
 // writeLines writes the rows of the window, each followed by a newline, and
 // returns how many it wrote.

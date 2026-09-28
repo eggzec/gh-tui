@@ -150,3 +150,77 @@ func TestViewWrapsMessages(t *testing.T) {
 		t.Errorf("status line lost: %q", ansi.Strip(v))
 	}
 }
+
+func TestErrorText(t *testing.T) {
+	forbidden := func(error) (string, string) { return "You don't have access to eggzec/x", "o to open on GitHub" }
+	tests := []struct {
+		name string
+		opts []Option
+		want string
+	}{
+		{"default", nil, "✗ Couldn't load: 404 Not Found"},
+		{"custom", []Option{WithErrorText(forbidden)}, "✗ You don't have access to eggzec/x · o to open on GitHub"},
+		{"empty", []Option{WithErrorText(func(error) (string, string) { return "", "" })}, ""},
+		{"text with a dot", []Option{WithErrorText(func(error) (string, string) { return "GitHub says a · b", "" })}, "✗ GitHub says a · b"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := New(append([]Option{WithSize(80, 4)}, tt.opts...)...)
+			m.SetError("main.go", errors.New("404 Not Found\nmore"))
+			lines := strings.Split(ansi.Strip(m.View()), "\n")
+			if got := strings.TrimRight(lines[0], " "); got != tt.want {
+				t.Errorf("first row = %q, want %q", got, tt.want)
+			}
+			if got := lines[len(lines)-1]; !strings.HasPrefix(got, "main.go") {
+				t.Errorf("status line = %q, want the name", got)
+			}
+		})
+	}
+}
+
+// The hint of a failed load stays whole at any size that can hold it,
+// after the text or on a line of its own, and the text gives way to it.
+func TestErrorKeepsTheHintWhole(t *testing.T) {
+	const hint = "o to open on GitHub"
+	say := func(error) (string, string) {
+		return "GitHub says the token can't read this organization's repositories until SSO allows it", hint
+	}
+	for height := 2; height <= 6; height++ {
+		for width := 1; width <= 120; width++ {
+			m := New(WithSize(width, height), WithErrorText(say))
+			m.SetError("main.go", errors.New("boom"))
+			v := m.View()
+			assertFits(t, v, width, height)
+			if width < len(hint) {
+				continue
+			}
+			lines := strings.Split(ansi.Strip(v), "\n")
+			body := strings.Join(lines[:height-1], "\n")
+			if !strings.Contains(body, hint) {
+				t.Errorf("at %dx%d the hint is cut:\n%s", width, height, body)
+			}
+			if height > 2 && width > 20 && !strings.Contains(body, "✗ GitHub") {
+				t.Errorf("at %dx%d the text is lost:\n%s", width, height, body)
+			}
+		}
+	}
+}
+
+// The words of a failed load are asked for once, as it fails, not on
+// every render.
+func TestErrorTextWordedOnce(t *testing.T) {
+	calls := 0
+	m := New(WithSize(60, 4), WithErrorText(func(error) (string, string) {
+		calls++
+		return "Can't reach GitHub", ""
+	}))
+	m.SetError("main.go", errors.New("boom"))
+	for range 3 {
+		_ = m.View()
+	}
+	m.SetSize(40, 6)
+	_ = m.View()
+	if calls != 1 {
+		t.Errorf("asked for the words %d times, want once", calls)
+	}
+}
