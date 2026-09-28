@@ -335,6 +335,34 @@ func TestErrorText(t *testing.T) {
 	}
 }
 
+// The error row starts with the glyph of the styles, which the styles set
+// again after the failure change too, and fits the width whatever the
+// glyph's.
+func TestErrorGlyph(t *testing.T) {
+	// A Nerd Font circled x, the ASCII x, and a glyph two cells wide.
+	for _, glyph := range []string{"", "x", "❌"} {
+		t.Run(glyph, func(t *testing.T) {
+			src := newSource(10, 10)
+			src.setFail("", errors.New("boom"))
+			m := load(t, src, WithSize(24, 3))
+			if text, _ := m.statusLine(); !strings.HasPrefix(ansi.Strip(text), "✗ Couldn't load") {
+				t.Fatalf("statusLine() = %q, want the default ✗", ansi.Strip(text))
+			}
+			st := DefaultStyles(true)
+			st.ErrorGlyph = glyph
+			m.SetStyles(st)
+			if text, _ := m.statusLine(); !strings.HasPrefix(ansi.Strip(text), glyph+" Couldn't load") {
+				t.Errorf("statusLine() = %q, want it marked with %q", ansi.Strip(text), glyph)
+			}
+			for i, line := range strings.Split(m.View(), "\n") {
+				if w := ansi.StringWidth(line); w != 24 {
+					t.Errorf("line %d is %d cells, want 24: %q", i, w, ansi.Strip(line))
+				}
+			}
+		})
+	}
+}
+
 func TestSetErrorText(t *testing.T) {
 	src := newSource(30, 10)
 	src.setFail("10", errors.New("boom"))

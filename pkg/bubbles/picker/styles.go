@@ -47,6 +47,8 @@ type Styles struct {
 	Empty lipgloss.Style
 	// Error styles a failed search.
 	Error lipgloss.Style
+	// ErrorGlyph starts the line of a failed search. The default is "✗".
+	ErrorGlyph string
 }
 
 // DefaultStyles returns calm styles for a light or dark terminal, with the
@@ -81,6 +83,7 @@ func DefaultStyles(isDark bool) Styles {
 		Detail:        lipgloss.NewStyle().Foreground(subtle),
 		Empty:         lipgloss.NewStyle().Foreground(muted),
 		Error:         lipgloss.NewStyle().Foreground(errColor),
+		ErrorGlyph:    "✗",
 	}
 }
 

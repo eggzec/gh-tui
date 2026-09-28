@@ -89,7 +89,7 @@ func (m *Model) errorLines(width, height int) []string {
 		return nil
 	}
 	s := m.styles
-	lead := errorGlyph + " "
+	lead := s.ErrorGlyph + " "
 	indent := strings.Repeat(" ", ansi.StringWidth(lead))
 	inner := width - len(indent)
 	if inner < 1 {

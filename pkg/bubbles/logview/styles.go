@@ -10,13 +10,13 @@ import (
 
 // Glyphs drawn in the gutter and before folds.
 const (
-	cursorGlyph   = "▌"
-	openGlyph     = "▾ "
-	closedGlyph   = "▸ "
-	errorGlyph    = "✗"
-	warningGlyph  = "!"
-	noticeGlyph   = "i"
-	ellipsisGlyph = "…"
+	cursorGlyph    = "▌"
+	openGlyph      = "▾ "
+	closedGlyph    = "▸ "
+	errorLineGlyph = "✗"
+	warningGlyph   = "!"
+	noticeGlyph    = "i"
+	ellipsisGlyph  = "…"
 )
 
 // Styles holds the styles of a log view. The styles of lines go under the
@@ -66,6 +66,10 @@ type Styles struct {
 	Message   lipgloss.Style
 	Spinner   lipgloss.Style
 	LoadError lipgloss.Style
+	// ErrorGlyph starts the text of a log that failed to load. The
+	// default is "✗". The gutter marks error lines with "✗" whatever it
+	// is, beside the "!" of warnings and the "i" of notices.
+	ErrorGlyph string
 	// Prompt styles the "/" before the search input, and InputCursor its
 	// cursor, with its foreground.
 	Prompt      lipgloss.Style
@@ -113,6 +117,7 @@ func DefaultStyles(isDark bool) Styles {
 		Message:       lipgloss.NewStyle().Foreground(muted),
 		Spinner:       lipgloss.NewStyle().Foreground(accent),
 		LoadError:     lipgloss.NewStyle().Foreground(errColor),
+		ErrorGlyph:    "✗",
 		Prompt:        lipgloss.NewStyle().Foreground(accent),
 		InputCursor:   lipgloss.NewStyle().Foreground(accent),
 	}
@@ -184,7 +189,7 @@ func newEsc(s Styles) esc {
 		closed:      s.Marker.Render(closedGlyph),
 		cursor:      s.Cursor.Render(cursorGlyph),
 		blurred:     s.BlurredCursor.Render(cursorGlyph),
-		errorMark:   s.ErrorMark.Render(errorGlyph),
+		errorMark:   s.ErrorMark.Render(errorLineGlyph),
 		warningMark: s.WarningMark.Render(warningGlyph),
 		noticeMark:  s.NoticeMark.Render(noticeGlyph),
 	}

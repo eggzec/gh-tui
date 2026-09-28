@@ -63,6 +63,8 @@ type Styles struct {
 	Spinner lipgloss.Style
 	// Error styles a load that failed.
 	Error lipgloss.Style
+	// ErrorGlyph starts the line of a load that failed. The default is "✗".
+	ErrorGlyph string
 	// Help styles the help line.
 	Help help.Styles
 	// Picker styles the picker of a Multi or Person field. Its frame is
@@ -107,6 +109,7 @@ func DefaultStyles(isDark bool) Styles {
 		Cursor:       lipgloss.NewStyle().Foreground(accent),
 		Spinner:      lipgloss.NewStyle().Foreground(accent),
 		Error:        lipgloss.NewStyle().Foreground(errColor),
+		ErrorGlyph:   "✗",
 		Help:         help.DefaultStyles(isDark),
 		Picker:       pk,
 	}

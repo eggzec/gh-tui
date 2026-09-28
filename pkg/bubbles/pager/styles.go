@@ -42,6 +42,9 @@ type Styles struct {
 	Spinner lipgloss.Style
 	// Error styles the placeholder of content that failed to load.
 	Error lipgloss.Style
+	// ErrorGlyph starts the text of content that failed to load. The
+	// default is "✗".
+	ErrorGlyph string
 	// Prompt styles the "/" or "&" before the prompt, and the "-" that
 	// waits for an option, and Cursor the prompt's cursor, with its
 	// foreground.
@@ -78,6 +81,7 @@ func DefaultStyles(isDark bool) Styles {
 		Message:      lipgloss.NewStyle().Foreground(muted),
 		Spinner:      lipgloss.NewStyle().Foreground(accent),
 		Error:        lipgloss.NewStyle().Foreground(errColor),
+		ErrorGlyph:   "✗",
 		Prompt:       lipgloss.NewStyle().Foreground(accent),
 		Cursor:       lipgloss.NewStyle().Foreground(accent),
 	}

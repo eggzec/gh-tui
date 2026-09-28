@@ -146,7 +146,7 @@ func TestViewErrorStyle(t *testing.T) {
 	if !strings.Contains(v, base+"plain \x1b[m"+base+"\x1b[1mbold\x1b[m"+base+" after") {
 		t.Errorf("error line %q, want its bold over the error style %q", v, base)
 	}
-	if !strings.Contains(ansi.Strip(v), errorGlyph) {
+	if !strings.Contains(ansi.Strip(v), errorLineGlyph) {
 		t.Errorf("error line without its mark: %q", ansi.Strip(v))
 	}
 }

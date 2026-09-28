@@ -137,7 +137,7 @@ func (m *Model) errorWords(err error) (text, hint string) {
 // errorLine renders the error row in w cells, the text cut to keep the
 // hint whole.
 func (m *Model) errorLine(text, hint string, w int) string {
-	text = "✗ " + text
+	text = m.styles.ErrorGlyph + " " + text
 	if hint == "" {
 		return fit(m.styles.Error.Render(text), w)
 	}

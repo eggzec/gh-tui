@@ -338,7 +338,7 @@ func (m *Model) loadSegment(i int) []string {
 		if text, _ := m.errorWords(m.fields[i].err, ""); text == "" {
 			return nil
 		}
-		return []string{m.styles.Error.Render("✗ couldn't load")}
+		return []string{m.styles.Error.Render(m.styles.ErrorGlyph + " couldn't load")}
 	default:
 		return nil
 	}
@@ -410,7 +410,7 @@ func (m *Model) editorLines(w int) []string {
 			back = hint + " · " + back
 		}
 		return []string{
-			fit(indent+m.styles.Error.Render("✗ "+text), w),
+			fit(indent+m.styles.Error.Render(m.styles.ErrorGlyph+" "+text), w),
 			fit(indent+m.styles.Hint.Render(back), w),
 		}
 	}
