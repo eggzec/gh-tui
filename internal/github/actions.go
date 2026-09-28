@@ -169,9 +169,7 @@ func (c *Client) ListRuns(ctx context.Context, repo core.RepoRef, f core.RunFilt
 	if path == "" {
 		path = runsPath(repo, f, perPage)
 	}
-	var body struct {
-		WorkflowRuns []restRun `json:"workflow_runs"`
-	}
+	var body restRuns
 	res, err := c.Get(ctx, path, cond, &body)
 	switch {
 	case err != nil:
@@ -225,9 +223,7 @@ func (c *Client) ListWorkflows(ctx context.Context, repo core.RepoRef, cursor st
 	if path == "" {
 		path = actionsPath(repo) + "/workflows" + perPageQuery(perPage)
 	}
-	var body struct {
-		Workflows []restWorkflow `json:"workflows"`
-	}
+	var body restWorkflows
 	res, err := c.Get(ctx, path, cond, &body)
 	switch {
 	case err != nil:
@@ -247,9 +243,7 @@ func (c *Client) ListJobs(ctx context.Context, repo core.RepoRef, runID int64, a
 	if path == "" {
 		path = jobsPath(repo, runID, attempt, perPage)
 	}
-	var body struct {
-		Jobs []restJob `json:"jobs"`
-	}
+	var body restJobs
 	res, err := c.Get(ctx, path, cond, &body)
 	switch {
 	case err != nil:
@@ -304,4 +298,19 @@ func runPath(repo core.RepoRef, runID int64) string {
 
 func jobPath(repo core.RepoRef, jobID int64) string {
 	return actionsPath(repo) + "/jobs/" + strconv.FormatInt(jobID, 10)
+}
+
+// restRuns is a page of workflow runs.
+type restRuns struct {
+	WorkflowRuns []restRun `json:"workflow_runs"`
+}
+
+// restWorkflows is a page of workflows.
+type restWorkflows struct {
+	Workflows []restWorkflow `json:"workflows"`
+}
+
+// restJobs is a page of jobs.
+type restJobs struct {
+	Jobs []restJob `json:"jobs"`
 }

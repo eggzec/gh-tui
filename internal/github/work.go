@@ -24,8 +24,8 @@ fragment workHits on SearchResultItemConnection {
   issueCount
   nodes {
     __typename
-    ... on PullRequest { id number title state isDraft author { login } comments { totalCount } createdAt updatedAt url repository { name owner { login } } }
-    ... on Issue { id number title state stateReason author { login } comments { totalCount } createdAt updatedAt url repository { name owner { login } } }
+    ... on PullRequest { id number title pullState: state isDraft author { login } comments { totalCount } createdAt updatedAt url repository { name owner { login } } }
+    ... on Issue { id number title issueState: state stateReason author { login } comments { totalCount } createdAt updatedAt url repository { name owner { login } } }
   }
 }`
 
@@ -35,7 +35,11 @@ type workNode struct {
 	ID       string `json:"id"`
 	Number   int    `json:"number"`
 	Title    string `json:"title"`
-	State    string `json:"state"`
+	// PullState and IssueState are the state of a pull request and of an
+	// issue: aliased apart, since their types differ, which strict
+	// GraphQL validation refuses under one name.
+	PullState  string `json:"pullState"`
+	IssueState string `json:"issueState"`
 	// IsDraft is read of pull requests, and StateReason of issues.
 	IsDraft     bool   `json:"isDraft"`
 	StateReason string `json:"stateReason"`
@@ -61,7 +65,7 @@ func (n workNode) core() core.SearchHit {
 			Repo:      core.RepoRef{Owner: n.Repository.Owner.Login, Name: n.Repository.Name},
 			Number:    n.Number,
 			Title:     n.Title,
-			State:     core.State(strings.ToLower(n.State)),
+			State:     core.State(strings.ToLower(n.PullState + n.IssueState)),
 			Reason:    core.StateReason(strings.ToLower(n.StateReason)),
 			Comments:  n.Comments.TotalCount,
 			CreatedAt: n.CreatedAt,
