@@ -524,6 +524,10 @@ func (s *Section) workBody(w, h int) []string {
 	lines = append(lines, s.workTabs(w))
 	focused := s.focused && s.focus == workPane
 	t := l.current()
+	if t.refused {
+		// GitHub refused this list's search and answered the others.
+		return append(lines, indent(s.failure(workLists[l.cur].action, core.ErrForbidden, w-1))...)
+	}
 	for i := t.top; i < len(t.rows); i++ {
 		// Rows show whole, but for one taller than the pane.
 		if n := t.lines(i); len(lines)+n > h && i > t.top {
@@ -551,7 +555,12 @@ func (s *Section) workTabs(w int) string {
 			if short {
 				title = wl.short
 			}
-			labels[i] = title + " " + strconv.Itoa(l.tabs[i].count)
+			count := strconv.Itoa(l.tabs[i].count)
+			if l.tabs[i].refused {
+				// Not none: unknown.
+				count = "?"
+			}
+			labels[i] = title + " " + count
 			n += ansi.StringWidth(labels[i]) + 2
 		}
 		if n-2 <= w {

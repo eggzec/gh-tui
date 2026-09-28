@@ -29,9 +29,12 @@ type workRow struct {
 // items come first in rows, then a note if it has one.
 type workTab struct {
 	count int
-	rows  []workRow
-	items int
-	sel   int
+	// refused is set when GitHub refused the list's search, which the
+	// pane says in place of its rows.
+	refused bool
+	rows    []workRow
+	items   int
+	sel     int
 	// top is the first row on view.
 	top int
 }
@@ -58,14 +61,15 @@ type workList struct {
 const workIndent = 4
 
 // The lists of the work pane, the titles of their tabs in full and short,
-// and what each says when it is empty.
+// what each says when it is empty, and what reads it, for when GitHub
+// refuses that.
 var workLists = [...]struct {
-	title, short, empty string
-	list                func(*core.Work) core.WorkList
+	title, short, empty, action string
+	list                        func(*core.Work) core.WorkList
 }{
-	{"Review requests", "Reviews", ui.None("review requests"), func(w *core.Work) core.WorkList { return w.ReviewRequested }},
-	{"Your pull requests", "Mine", ui.None("open pull requests of yours"), func(w *core.Work) core.WorkList { return w.Authored }},
-	{"Assigned issues", "Assigned", ui.None("open issues assigned to you"), func(w *core.Work) core.WorkList { return w.Assigned }},
+	{"Review requests", "Reviews", ui.None("review requests"), "load the pull requests that ask for your review", func(w *core.Work) core.WorkList { return w.ReviewRequested }},
+	{"Your pull requests", "Mine", ui.None("open pull requests of yours"), "load your pull requests", func(w *core.Work) core.WorkList { return w.Authored }},
+	{"Assigned issues", "Assigned", ui.None("open issues assigned to you"), "load the issues assigned to you", func(w *core.Work) core.WorkList { return w.Assigned }},
 }
 
 // set lists w, and keeps the cursor of each tab on the item it was on if
@@ -84,12 +88,13 @@ func (l *workList) set(w core.Work) {
 			rows = append(rows, workRow{hit: &list.Items[j]})
 		}
 		switch more := list.Count - len(list.Items); {
+		case list.Refused:
 		case len(list.Items) == 0:
 			rows = append(rows, workRow{note: wl.empty})
 		case more > 0:
 			rows = append(rows, workRow{note: "and " + itoa(more) + " more on GitHub"})
 		}
-		*t = workTab{count: list.Count, rows: rows, items: len(list.Items), top: t.top}
+		*t = workTab{count: list.Count, refused: list.Refused, rows: rows, items: len(list.Items), top: t.top}
 		for j := range t.items {
 			if prev != "" && rows[j].hit.Issue.URL == prev {
 				t.sel = j
