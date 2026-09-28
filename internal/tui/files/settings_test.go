@@ -35,3 +35,13 @@ func TestSettingsPrefetch(t *testing.T) {
 		t.Errorf("top %d, hover %d; want nothing read ahead, and the wait of the cursor moot", h.prefetchMax, h.hover.max)
 	}
 }
+
+func TestSettingsFinderPreview(t *testing.T) {
+	h := loaded(t, sampleFake(), 60, 12)
+	c := config.Default()
+	c.Files.Finder.Preview = false
+	h.Update(ui.SettingsMsg{Config: c})
+	if h.findPreview {
+		t.Error("the finder still shows a preview")
+	}
+}

@@ -6,13 +6,15 @@ import (
 )
 
 // Configure takes the settings of c that the opener uses, which the set
-// command changed: the reads ahead, as WithPrefetch sets them. An opener
-// without the pull requests and issues to read reads nothing ahead still.
-// The views that share it may each pass it the settings.
+// command changed: whether opening a thread marks it read, and the reads
+// ahead, as WithMarkRead and WithPrefetch set them. An opener without the
+// pull requests and issues to read reads nothing ahead still. The views
+// that share it may each pass it the settings.
 func (o *Opener) Configure(c config.Config) {
 	if o == nil {
 		return
 	}
+	o.markRead = c.Notifications.MarkReadOnOpen
 	p := c.Details.Prefetch
 	o.rows, o.delay = max(p.Rows, 0), p.HoverDelay
 	switch {

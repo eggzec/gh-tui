@@ -25,6 +25,9 @@ var liveSettings = []string{
 	"theme", "ui.icons",
 	"details.prefetch.enabled", "details.prefetch.rows", "details.prefetch.hover_delay", "details.prefetch.filters",
 	"dashboard.prefetch", "files.prefetch.enabled", "files.prefetch.max_size", "files.prefetch.hover_delay",
+	"dashboard.calendar_glyph", "dashboard.contributions", "files.finder.preview", "notifications.mark_read_on_open",
+	"history.row", "history.detail", "history.date_format", "history.show_email",
+	"history.prefetch.around", "history.prefetch.hover_delay",
 }
 
 // startup says why a setting that isn't live needs a restart, by the
@@ -32,6 +35,8 @@ var liveSettings = []string{
 var startup = []struct{ prefix, why string }{
 	{"repos", "the pinned repositories are read at startup"},
 	{"cache.", "the cache is opened at startup"},
+	{"sync.enabled", "the polls are set up at startup"},
+	{"files.preview.", "the files are read with it from the start"},
 	{"auth.", "the token's checks start with the app"},
 	{"log.", "the log file is opened at startup"},
 	{"", "it is read at startup"},
