@@ -33,5 +33,5 @@ func (s *Service) Compare(ctx context.Context, repo core.RepoRef, base, head str
 }
 
 func compareKey(repo core.RepoRef, base, head string) string {
-	return "compare:" + repo.String() + ":" + base + "..." + head
+	return "compare:" + repoKey(repo) + ":" + base + "..." + head
 }
