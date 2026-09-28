@@ -286,8 +286,7 @@ func (s *Section) startLines(w, h int) []string {
 		case l.loading:
 			return notice(w, st.muted.render("Loading your repositories…"))
 		case l.err != nil:
-			return notice(w, st.fail.render("Couldn't load your repositories: "+cleanLine(l.err.Error())),
-				st.subtle.render("Type to search GitHub."))
+			return append(s.startError(l.err, w), notice(w, st.subtle.render("Type to search GitHub."))...)
 		}
 		return notice(w, st.muted.render("Type to search repositories, issues, pull requests and code."),
 			st.subtle.render("Use GitHub's qualifiers, such as is:open, author:@me or language:go."))
@@ -321,6 +320,22 @@ func (s *Section) startLines(w, h int) []string {
 		lines = append(lines, line)
 	}
 	return lines
+}
+
+// startError renders why the repositories offered before the user types
+// failed to load, after a blank line, as notice does. They load once, and
+// the open key opens a recent search or repository, so no hint names a
+// key.
+func (s *Section) startError(err error, w int) []string {
+	v := s.voice
+	v.Retry.SetEnabled(false)
+	v.Open.SetEnabled(false)
+	text, hint := ui.ErrorText("load your repositories", "", v)(err)
+	lines := ui.ErrorLine(s.errs, text, hint, max(w-2, 1))
+	for i := range lines {
+		lines[i] = " " + lines[i]
+	}
+	return append([]string{""}, lines...)
 }
 
 // Widths of the right of a result row.

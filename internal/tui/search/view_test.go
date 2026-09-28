@@ -1,9 +1,16 @@
 package search
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/charmbracelet/x/exp/golden"
+
+	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
 func TestView(t *testing.T) {
@@ -31,6 +38,23 @@ func TestView(t *testing.T) {
 			s := newSection(t, newFake(), tt.width, tt.height)
 			typeText(t, s, tt.text)
 			press(t, s, tt.keys...)
+			golden.RequireEqual(t, s.View())
+		})
+	}
+}
+
+// The repositories offered before the user types say why they failed, in
+// both themes.
+func TestViewStartFailed(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(fmt.Sprintf("dark=%t", dark), func(t *testing.T) {
+			s := newSection(t, newFake(), 80, 22, WithIcons(ui.NewIcons(config.IconsUnicode)),
+				WithStart(func(context.Context) ([]core.Repo, error) { return nil, errors.New("github: 502 Bad Gateway") }))
+			p, err := config.Default().Palette(dark)
+			if err != nil {
+				t.Fatal(err)
+			}
+			s.SetTheme(ui.NewTheme(p, dark))
 			golden.RequireEqual(t, s.View())
 		})
 	}

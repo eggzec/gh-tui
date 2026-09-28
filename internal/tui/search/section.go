@@ -175,6 +175,7 @@ type Section struct {
 	width, height int
 	theme         ui.Theme
 	st            styles
+	errs          ui.ErrorStyles
 	icons         ui.Icons
 	// dots caches the rendered dot of each label color, and langs the
 	// glyph of each language, by theme.
@@ -256,6 +257,8 @@ func (s *Section) SetSize(width, height int) {
 func (s *Section) SetTheme(t ui.Theme) {
 	s.theme = t
 	s.st = newStyles(t)
+	// The mark is the bubbles', which draw "✗" whatever the icons.
+	s.errs = t.Errors(ui.NewIcons(config.IconsUnicode))
 	clear(s.dots)
 	clear(s.langs)
 	s.input.SetStyles(inputStyles(t))
