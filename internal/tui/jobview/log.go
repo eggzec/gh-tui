@@ -16,20 +16,34 @@ import (
 
 // Show shows job j: its log from memory at once, or read, after the rest
 // of WithRest if rest is set, and the annotations of a failed job with it.
-// A job that hasn't finished shows its steps, and its log once it is shown
-// again, finished. Showing the job shown again keeps its log, and only
-// takes its steps.
+// A job that hasn't finished shows its steps, or once it runs what GitHub
+// publishes of its log, and its whole log once it is shown again,
+// finished. Showing the job shown again keeps its log, and only takes its
+// steps and what the poll read of a partial log.
 func (m *Model) Show(j core.Job, rest bool, h Hints) tea.Cmd {
 	defer m.layout()
-	if j.ID == m.job.ID && m.state != None && (m.state != Pending || !j.Done()) {
+	running := m.state == Pending || m.state == Partial
+	if j.ID == m.job.ID && m.state != None && (!running || !j.Done()) {
 		m.job, m.hints = j, h
+		if running {
+			// A job that started, or a view shown again after a pause, has
+			// the poll read on.
+			if m.unwatch == nil && j.Status == core.RunInProgress {
+				m.unwatch = m.svc.WatchLog(m.repo, j.RunID, j.ID)
+			}
+			m.fromPartial()
+		}
 		return nil
 	}
 	m.Clear()
 	m.job, m.hints = j, h
 	if !j.Done() {
 		m.state = Pending
-		return nil
+		if j.Status != core.RunInProgress {
+			// A job that waits for a runner has no log yet.
+			return nil
+		}
+		return m.watch(rest)
 	}
 	notes := m.cachedNotes()
 	if lg, ok := m.svc.CachedLog(m.repo, j.ID); ok {
@@ -53,7 +67,12 @@ func (m *Model) Show(j core.Job, rest bool, h Hints) tea.Cmd {
 
 // Clear shows no job.
 func (m *Model) Clear() {
+	if m.unwatch != nil {
+		m.unwatch()
+	}
 	m.job, m.hints, m.state, m.truncated, m.resting = core.Job{}, Hints{}, None, false, false
+	m.part, m.unwatch = shownPart{}, nil
+	m.view.SetTitle("")
 	m.notes = notes{}
 	m.focusLog(true)
 	m.layout()
@@ -105,6 +124,9 @@ func (m *Model) read() tea.Cmd {
 	if m.job.ID == 0 {
 		return nil
 	}
+	if !m.job.Done() {
+		return m.readPartial()
+	}
 	var notes tea.Cmd
 	if !m.notes.loaded && !m.notes.loading {
 		notes = m.readNotes()
@@ -140,26 +162,41 @@ func (m *Model) receive(msg logMsg) {
 // and the failed step open on its first error. A log without errors opens
 // on its steps, folded, as the steps of a job in progress show.
 func (m *Model) setLog(lg core.Log) {
-	lines, secs := logLines(lg, m.job.Steps, m.opts.now())
+	m.setLines(logLines(lg, m.job.Steps, m.opts.now()))
+	m.state, m.truncated = Ready, lg.Truncated
+}
+
+func (m *Model) setLines(lines []logview.Line, secs []logview.Section) {
 	m.view.SetLines(lines, secs)
 	if m.view.Errors() == 0 && !slices.ContainsFunc(secs, func(s logview.Section) bool { return s.Failed }) {
 		m.view.CollapseAll()
 	}
-	m.state, m.truncated = Ready, lg.Truncated
 }
 
 // logLines turns a parsed log into the lines of a log view, and the steps
 // of its job into sections of the lines each step wrote.
 func logLines(lg core.Log, steps []core.Step, now time.Time) ([]logview.Line, []logview.Section) {
+	return viewLines(lg.Lines), stepSections(lg.Lines, steps, now)
+}
+
+// viewLines turns lines of a parsed log into lines of a log view.
+func viewLines(lines []core.LogLine) []logview.Line {
+	out := make([]logview.Line, len(lines))
+	for i, ln := range lines {
+		out[i] = logview.Line{Time: ln.Time, Text: ln.Text, Kind: logKind(ln.Kind)}
+	}
+	return out
+}
+
+// stepSections returns the sections of the lines each of steps wrote.
+func stepSections(lines []core.LogLine, steps []core.Step, now time.Time) []logview.Section {
 	byNumber := make(map[int]core.Step, len(steps))
 	for _, st := range steps {
 		byNumber[st.Number] = st
 	}
-	lines := make([]logview.Line, len(lg.Lines))
 	var secs []logview.Section
 	cur := 0
-	for i, ln := range lg.Lines {
-		lines[i] = logview.Line{Time: ln.Time, Text: ln.Text, Kind: logKind(ln.Kind)}
+	for i, ln := range lines {
 		if ln.Step == 0 || ln.Step == cur {
 			continue
 		}
@@ -175,7 +212,7 @@ func logLines(lg core.Log, steps []core.Step, now time.Time) ([]logview.Line, []
 		d, _ := stepSpan(st, now)
 		secs = append(secs, logview.Section{Title: title, Start: i, End: len(lines), Failed: st.Conclusion.Failed(), Duration: d})
 	}
-	return lines, secs
+	return secs
 }
 
 // stepSpan is how long st ran, or has run so far.

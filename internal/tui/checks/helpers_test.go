@@ -228,6 +228,16 @@ func (f *fake) Log(_ context.Context, _ core.RepoRef, jobID int64) (core.Log, er
 	return f.logs[jobID], nil
 }
 
+func (f *fake) CachedPartialLog(core.RepoRef, int64) (core.PartialLog, bool) {
+	return core.PartialLog{}, false
+}
+
+func (f *fake) PartialLog(context.Context, core.RepoRef, int64) (core.PartialLog, error) {
+	return core.PartialLog{}, core.ErrLogPending
+}
+
+func (f *fake) WatchLog(core.RepoRef, int64, int64) func() { return func() {} }
+
 func (f *fake) CachedAnnotations(actionssvc.AnnotationsQuery) (core.Page[core.Annotation], bool) {
 	return core.Page[core.Annotation]{}, false
 }

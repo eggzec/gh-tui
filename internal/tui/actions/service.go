@@ -25,6 +25,13 @@ type Service interface {
 	// CachedLog returns a job's log from memory, without a request.
 	CachedLog(repo core.RepoRef, jobID int64) (core.Log, bool)
 	Log(ctx context.Context, repo core.RepoRef, jobID int64) (core.Log, error)
+	// CachedPartialLog returns what was read of the log of a job in
+	// progress from memory, without a request.
+	CachedPartialLog(repo core.RepoRef, jobID int64) (core.PartialLog, bool)
+	PartialLog(ctx context.Context, repo core.RepoRef, jobID int64) (core.PartialLog, error)
+	// WatchLog has the poll of the run of a job in progress read what is
+	// added to its log, until stop is called.
+	WatchLog(repo core.RepoRef, runID, jobID int64) (stop func())
 	// CachedAnnotations returns a page of the annotations of a job from
 	// memory, without a request.
 	CachedAnnotations(q actionssvc.AnnotationsQuery) (core.Page[core.Annotation], bool)

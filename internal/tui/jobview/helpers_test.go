@@ -94,12 +94,21 @@ type fake struct {
 	cachedNotes map[int64]bool
 	notesErr    error
 	noteReads   []int64
+
+	// partial holds the partial logs of jobs in progress, which a read
+	// finds, and cachedPartial those in memory. watching counts the
+	// watches of each.
+	partial       map[int64]core.PartialLog
+	cachedPartial map[int64]bool
+	partialReads  []int64
+	watching      map[int64]int
 }
 
 func newFake() *fake {
 	return &fake{
 		logs: map[int64]core.Log{failedJob: testLog()}, cached: map[int64]bool{}, errs: map[int64]error{},
 		notes: map[int64][]core.Annotation{failedJob: testNotes()}, cachedNotes: map[int64]bool{},
+		partial: map[int64]core.PartialLog{}, cachedPartial: map[int64]bool{}, watching: map[int64]int{},
 	}
 }
 
@@ -135,6 +144,43 @@ func (f *fake) Log(_ context.Context, _ core.RepoRef, jobID int64) (core.Log, er
 	}
 	f.cached[jobID] = true
 	return f.logs[jobID], nil
+}
+
+func (f *fake) CachedPartialLog(_ core.RepoRef, jobID int64) (core.PartialLog, bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.partial[jobID], f.cachedPartial[jobID]
+}
+
+func (f *fake) PartialLog(_ context.Context, _ core.RepoRef, jobID int64) (core.PartialLog, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.partialReads = append(f.partialReads, jobID)
+	l, ok := f.partial[jobID]
+	if !ok {
+		return core.PartialLog{}, core.ErrLogPending
+	}
+	f.cachedPartial[jobID] = true
+	return l, nil
+}
+
+func (f *fake) WatchLog(_ core.RepoRef, _, jobID int64) func() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.watching[jobID]++
+	return func() {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		f.watching[jobID]--
+	}
+}
+
+// poll sets the partial log of the running job as a poll of its run reads
+// it: into memory.
+func (f *fake) poll(l core.PartialLog) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.partial[runningJob], f.cachedPartial[runningJob] = l, true
 }
 
 var errBoom = errors.New("boom")

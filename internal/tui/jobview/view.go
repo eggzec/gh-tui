@@ -35,7 +35,7 @@ func (m Model) lines() []string {
 
 // notice is the line above the log, if any: that only its end was read.
 func (m Model) notice() string {
-	if m.state != Ready || !m.truncated {
+	if (m.state != Ready && m.state != Partial) || !m.truncated {
 		return ""
 	}
 	text := "Only the end of this log: it is too large to read whole."

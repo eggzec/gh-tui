@@ -392,6 +392,23 @@ func TestPendingLogShowsTheSteps(t *testing.T) {
 	if _, _, logs := f.counts(); logs != 1 {
 		t.Errorf("a running job's log was asked for: %d reads", logs)
 	}
+	// The poll reads what GitHub publishes of the log only while the log
+	// shows the job.
+	if f.watching[runLintJob] != 1 {
+		t.Errorf("the log of the running job is watched %d times, want once", f.watching[runLintJob])
+	}
+	h.keys("k")
+	if f.watching[runLintJob] != 0 {
+		t.Error("the log of a job no longer shown is still watched")
+	}
+	h.keys("j")
+	if f.watching[runLintJob] != 1 {
+		t.Fatal("the log of the running job isn't watched once shown again")
+	}
+	h.keys("esc")
+	if f.watching[runLintJob] != 0 {
+		t.Error("the log of the running job is still watched once the modal closed")
+	}
 }
 
 func TestRerunFailedJobs(t *testing.T) {

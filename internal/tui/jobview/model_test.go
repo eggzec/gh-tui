@@ -179,16 +179,22 @@ func TestClear(t *testing.T) {
 
 func TestView(t *testing.T) {
 	tests := []struct {
-		name string
-		job  core.Job
-		w, h int
+		name    string
+		job     core.Job
+		partial bool
+		w, h    int
 	}{
-		{"failed", failed(), 80, 12},
-		{"running", running(), 60, 8},
+		{"failed", failed(), false, 80, 12},
+		{"running", running(), false, 60, 8},
+		{"partial", running(), true, 60, 8},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := newView(t, newFake(), tt.w, tt.h)
+			f := newFake()
+			if tt.partial {
+				f.partial[runningJob] = partialLog(2, 5, 1)
+			}
+			m := newView(t, f, tt.w, tt.h)
 			run(m, m.Show(tt.job, false, Hints{}))
 			v := m.View()
 			assertFits(t, v, tt.w, tt.h)

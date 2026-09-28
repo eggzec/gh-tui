@@ -281,6 +281,7 @@ func (s *Step) SetTheme(t ui.Theme) {
 func (s *Step) Close() {
 	s.unwatch()
 	s.unfollow()
+	s.view.Clear()
 	s.cancel()
 }
 

@@ -6,9 +6,10 @@
 // re-run or cancelled, once the user confirms.
 //
 // The jobs follow the cursor of the runs, and the log that of the jobs,
-// once it rests. A job's log is published only when the job ends, so the
-// log pane of a job in progress shows its steps as they run instead,
-// while the sync engine follows the run; the log loads once the job ends.
+// once it rests. A job's log is published whole only when the job ends,
+// so the log pane of a job in progress shows its steps as they run
+// instead, or the part of its log that GitHub already publishes, while the
+// sync engine follows the run; the whole log loads once the job ends.
 //
 // On a narrow terminal the modal shows one pane at a time, with a
 // breadcrumb of where it is.
@@ -293,6 +294,7 @@ func (m *Modal) narrow() bool {
 // app to close it.
 func (m *Modal) close() tea.Cmd {
 	m.unfollow()
+	m.log.Clear()
 	m.cancel()
 	return ui.CloseModal(m)
 }
