@@ -189,7 +189,7 @@ func (s *Service) Start(ctx context.Context) {
 		case <-t.C:
 		}
 		if err := c.ProbeAccess(ctx); err != nil {
-			slog.WarnContext(ctx, "access not probed", "span", span, "err", err)
+			slog.WarnContext(ctx, "access not probed", "span", span, "err", err.Error())
 		}
 	}()
 }

@@ -154,7 +154,7 @@ func (s *Service) pollLogs(ctx context.Context, repo core.RepoRef, runID int64) 
 		}
 		_, ch, err := s.readPartial(ctx, p, true)
 		if err != nil && !errors.Is(err, core.ErrLogPending) {
-			slog.WarnContext(ctx, "read partial log", "span", "service.actions", "job", p.jobID, "err", err)
+			slog.WarnContext(ctx, "read partial log", "span", "service.actions", "job", p.jobID, "err", err.Error())
 		}
 		changed = changed || ch
 	}
