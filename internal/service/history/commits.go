@@ -108,7 +108,7 @@ func refName(ref string) string {
 // refPageKey keys the first page of the history of a ref. Git refs can't
 // hold colons, but the ref comes last anyway.
 func refPageKey(q CommitsQuery) string {
-	return "commits:" + q.Repo.String() + ":" + strconv.Itoa(q.PageSize) + ":" + q.Ref
+	return "commits:" + repoKey(q.Repo) + ":" + strconv.Itoa(q.PageSize) + ":" + q.Ref
 }
 
 // pageKey keys a page that a SHA names: by its cursor, which names the SHA

@@ -72,5 +72,5 @@ func (s *Service) loadBranches(q BranchesQuery) func(ctx context.Context, cond g
 // branchesKey keys a page of branches. The cursor is a URL, and may hold
 // colons, so it comes last.
 func branchesKey(q BranchesQuery) string {
-	return "branches:" + q.Repo.String() + ":" + strconv.Itoa(q.PageSize) + ":" + q.Cursor
+	return "branches:" + repoKey(q.Repo) + ":" + strconv.Itoa(q.PageSize) + ":" + q.Cursor
 }

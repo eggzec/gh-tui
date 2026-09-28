@@ -122,7 +122,7 @@ func (s *Service) Invalidate(repo core.RepoRef) {
 // SyncKey names changes to the branches of repo, or to where they point,
 // in sync events.
 func SyncKey(repo core.RepoRef) string {
-	return "history:" + strings.ToLower(repo.String())
+	return "history:" + repoKey(repo)
 }
 
 // fetch reads key from c, or loads it with load when it is missing or
@@ -163,7 +163,7 @@ func pageSize(n, def int) int {
 }
 
 func repoTag(repo core.RepoRef) string {
-	return "repo:" + repo.String()
+	return "repo:" + repoKey(repo)
 }
 
 // isSHA reports whether ref is a full SHA-1 or SHA-256 object name. A
