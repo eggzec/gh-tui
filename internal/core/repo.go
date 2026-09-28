@@ -3,6 +3,7 @@
 package core
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -17,15 +18,25 @@ type RepoRef struct {
 // ParseRepoRef parses "owner/name". It keeps the case the caller used and
 // rejects characters GitHub doesn't allow in an owner or a name.
 func ParseRepoRef(s string) (RepoRef, error) {
+	r, err := parseRepoRef(s)
+	if err != nil {
+		return RepoRef{}, fmt.Errorf("invalid repo %q: %w", s, err)
+	}
+	return r, nil
+}
+
+// parseRepoRef parses "owner/name", with an error that says only what is
+// wrong, for callers that name s themselves.
+func parseRepoRef(s string) (RepoRef, error) {
 	owner, name, ok := strings.Cut(s, "/")
 	if !ok || owner == "" || name == "" || strings.Contains(name, "/") {
-		return RepoRef{}, fmt.Errorf("invalid repo %q: want owner/name", s)
+		return RepoRef{}, errors.New("want owner/name")
 	}
 	if err := checkOwner(owner); err != nil {
-		return RepoRef{}, fmt.Errorf("invalid repo %q: %w", s, err)
+		return RepoRef{}, err
 	}
 	if err := checkName(name); err != nil {
-		return RepoRef{}, fmt.Errorf("invalid repo %q: %w", s, err)
+		return RepoRef{}, err
 	}
 	return RepoRef{Owner: owner, Name: name}, nil
 }
@@ -46,13 +57,16 @@ func checkOwner(s string) error {
 }
 
 // checkName rejects "." and ".." because GitHub does; they would also turn
-// into path traversal in a URL.
+// into path traversal in a URL. GitHub drops ".git" from the end of a name,
+// since clone URLs add it, so no name ends in it.
 func checkName(s string) error {
 	switch {
 	case len(s) > maxNameLen:
 		return fmt.Errorf("name is longer than %d characters", maxNameLen)
 	case s == "." || s == "..":
 		return fmt.Errorf("name may not be %q", s)
+	case strings.HasSuffix(s, ".git"):
+		return fmt.Errorf("name %q may not end in \".git\"", s)
 	case !onlyChars(s, ".-_"):
 		return fmt.Errorf("name %q may hold only letters, digits, '.', '-' and '_'", s)
 	}

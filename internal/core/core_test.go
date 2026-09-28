@@ -31,6 +31,8 @@ func TestParseRepoRef(t *testing.T) {
 		{in: "eggzec/gh-tui#1", wantErr: true},
 		{in: "eggzec/.", wantErr: true},
 		{in: "eggzec/..", wantErr: true, errText: `name may not be ".."`},
+		{in: "eggzec/gh-tui.git", wantErr: true, errText: `may not end in ".git"`},
+		{in: "eggzec/.gitignore", want: RepoRef{Owner: "eggzec", Name: ".gitignore"}},
 		{in: "eggzec/gh-tüi", wantErr: true},
 		{in: "eggzec/" + strings.Repeat("a", 100), want: RepoRef{Owner: "eggzec", Name: strings.Repeat("a", 100)}},
 		{in: "eggzec/" + strings.Repeat("a", 101), wantErr: true, errText: "longer than 100"},

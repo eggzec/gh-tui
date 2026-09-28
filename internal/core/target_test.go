@@ -47,6 +47,12 @@ func TestParseTarget(t *testing.T) {
 		{name: "enterprise short", in: "eggzec/gh-tui#2", host: "ghe.example.com", want: Target{Repo: repo, Number: 2}},
 		{name: "dotless host", in: "ghe/eggzec/gh-tui", host: "ghe", want: Target{Repo: repo}},
 		{name: "owner named like dotless host", in: "ghe/gh-tui", host: "ghe", want: Target{Repo: RepoRef{Owner: "ghe", Name: "gh-tui"}}},
+		{name: "short clone name", in: "eggzec/gh-tui.git", want: Target{Repo: repo}},
+		{name: "short clone name number", in: "eggzec/gh-tui.git#4", want: Target{Repo: repo, Number: 4}},
+		{name: "default port", in: "https://github.com:443/eggzec/gh-tui/pull/12", want: Target{Repo: repo, Number: 12, Kind: KindPull}},
+		{name: "default port no scheme", in: "github.com:443/eggzec/gh-tui", want: Target{Repo: repo}},
+		{name: "default http port", in: "http://github.com:80/eggzec/gh-tui", want: Target{Repo: repo}},
+		{name: "enterprise default port", in: "https://ghe.example.com:443/eggzec/gh-tui", host: "ghe.example.com", want: Target{Repo: repo}},
 		{name: "managed user", in: "octocat_acme/gh-tui", want: Target{Repo: RepoRef{Owner: "octocat_acme", Name: "gh-tui"}}},
 
 		{name: "empty", in: "", err: "nothing to open"},
@@ -78,6 +84,9 @@ func TestParseTarget(t *testing.T) {
 		{name: "overflow int32", in: "#2147483648", err: "issue number too large"},
 		{name: "overflow int64", in: "#99999999999999999999999", err: "issue number too large"},
 
+		{name: "twice .git", in: "eggzec/gh-tui.git.git", err: `may not end in ".git"`},
+		{name: "other port", in: "https://github.com:8443/eggzec/gh-tui", err: "not a link to github.com"},
+		{name: "https port on http", in: "http://github.com:443/eggzec/gh-tui", err: "not a link to github.com"},
 		{name: "other host", in: "https://gitlab.com/eggzec/gh-tui", err: "not a link to github.com"},
 		{name: "other host no scheme", in: "gitlab.com/eggzec/gh-tui", err: "not a link to github.com"},
 		{name: "github on enterprise", in: "https://github.com/eggzec/gh-tui", host: "ghe.example.com", err: "not a link to ghe.example.com"},
@@ -108,6 +117,7 @@ func TestParseTarget(t *testing.T) {
 		{name: "link negative", in: "https://github.com/eggzec/gh-tui/issues/-1", want: Target{Repo: repo}},
 		{name: "link zeros", in: "https://github.com/eggzec/gh-tui/issues/000", err: "issue numbers are positive"},
 		{name: "clone link only", in: "https://github.com/eggzec/.git", err: "not a repository"},
+		{name: "link empty number", in: "https://github.com/eggzec/gh-tui/pull//12", err: "missing number after /pull/"},
 		{name: "link overflow", in: "https://github.com/eggzec/gh-tui/pull/99999999999", err: "issue number too large"},
 	}
 	for _, tt := range tests {
@@ -126,6 +136,21 @@ func TestParseTarget(t *testing.T) {
 				t.Errorf("ParseTarget(%q, %q) = %+v, want %+v", tt.in, tt.host, got, tt.want)
 			}
 		})
+	}
+}
+
+// TestParseTargetSaysRepoOnce checks that an error about a repository
+// names it once, with what is wrong, rather than repeating itself.
+func TestParseTargetSaysRepoOnce(t *testing.T) {
+	for in, want := range map[string]string{
+		"eggzec":                        `not a repository: "eggzec": want owner/name`,
+		"-eggzec/gh-tui":                `not a repository: "-eggzec/gh-tui": owner "-eggzec" may not start with '-'`,
+		"https://github.com/a/b~c/pull": `not a repository: "a/b~c": name "b~c" may hold only letters, digits, '.', '-' and '_'`,
+	} {
+		_, err := ParseTarget(in, "")
+		if err == nil || err.Error() != want {
+			t.Errorf("ParseTarget(%q) error = %v, want %q", in, err, want)
+		}
 	}
 }
 
