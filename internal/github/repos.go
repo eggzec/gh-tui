@@ -3,9 +3,11 @@ package github
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -53,12 +55,11 @@ const listReposQuery = `query ListRepos($first: Int!, $after: String) {
 
 // repoCapsFields selects what core.RepoCaps holds. Only the read of one
 // repository asks for them: they cost nothing, but a list has no use for
-// them.
+// them. Whether pull requests are on comes from REST (restRepoFlags).
 const repoCapsFields = `fragment repoCapsFields on Repository {
   viewerPermission
   isLocked
   hasIssuesEnabled
-  hasPullRequestsEnabled
   hasDiscussionsEnabled
   hasProjectsEnabled
   hasWikiEnabled
@@ -129,7 +130,6 @@ type repoDetail struct {
 	ViewerPermission         string `json:"viewerPermission"`
 	IsLocked                 bool   `json:"isLocked"`
 	HasIssuesEnabled         bool   `json:"hasIssuesEnabled"`
-	HasPullRequestsEnabled   bool   `json:"hasPullRequestsEnabled"`
 	HasDiscussionsEnabled    bool   `json:"hasDiscussionsEnabled"`
 	HasProjectsEnabled       bool   `json:"hasProjectsEnabled"`
 	HasWikiEnabled           bool   `json:"hasWikiEnabled"`
@@ -149,7 +149,6 @@ func (d repoDetail) core() core.Repo {
 		Locked:       d.IsLocked,
 		Private:      d.IsPrivate,
 		Issues:       d.HasIssuesEnabled,
-		PullRequests: d.HasPullRequestsEnabled,
 		Discussions:  d.HasDiscussionsEnabled,
 		Projects:     d.HasProjectsEnabled,
 		Wiki:         d.HasWikiEnabled,
@@ -198,21 +197,57 @@ func (c *Client) ListRepos(ctx context.Context, first int, after string) (core.P
 	}, nil
 }
 
+// restRepoFlags is what the REST read of a repository adds to
+// getRepoQuery.
+type restRepoFlags struct {
+	// HasPullRequests comes from REST: Repository.hasPullRequestsEnabled
+	// isn't in the GraphQL of every supported GitHub Enterprise Server
+	// (it came in 3.21). It is nil where GitHub leaves it out, as a
+	// server that can't turn pull requests off may.
+	HasPullRequests *bool `json:"has_pull_requests"`
+}
+
+// pullRequests reports whether pull requests are on, as flags say, or as
+// they are unless turned off when the read failed, err, or didn't say.
+func (f restRepoFlags) pullRequests(err error) bool {
+	return err != nil || f.HasPullRequests == nil || *f.HasPullRequests
+}
+
 // GetRepo returns one repository with what the viewer may do in it. It
 // returns an error matching core.ErrNotFound if the repository doesn't
-// exist or the viewer can't see it.
+// exist or the viewer can't see it. It reads the repository with GraphQL
+// and, at the same time, the few flags that only REST has.
 func (c *Client) GetRepo(ctx context.Context, ref core.RepoRef) (core.Repo, error) {
+	var (
+		flags    restRepoFlags
+		flagsErr error
+		wg       sync.WaitGroup
+	)
+	wg.Go(func() { _, flagsErr = c.Get(ctx, repoPath(ref), Conditional{}, &flags) })
 	var data struct {
 		Repository *repoDetail `json:"repository"`
 	}
 	vars := map[string]any{"owner": ref.Owner, "name": ref.Name}
-	if err := c.Query(ctx, getRepoQuery, vars, &data); err != nil {
+	err := c.Query(ctx, getRepoQuery, vars, &data)
+	wg.Wait()
+	if err != nil {
 		return core.Repo{}, fmt.Errorf("get repo %s: %w", ref, err)
 	}
 	if data.Repository == nil {
 		return core.Repo{}, fmt.Errorf("get repo %s: %w", ref, core.ErrNotFound)
 	}
-	return data.Repository.core(), nil
+	if flagsErr != nil && ctx.Err() == nil {
+		// The flags only refine what GraphQL said, so the read stands.
+		slog.WarnContext(ctx, "repo flags unread", "span", "http", "repo", ref.String(), "err", flagsErr.Error())
+	}
+	r := data.Repository.core()
+	r.Caps.PullRequests = flags.pullRequests(flagsErr)
+	return r, nil
+}
+
+// repoPath is the REST path of repo.
+func repoPath(repo core.RepoRef) string {
+	return "repos/" + url.PathEscape(repo.Owner) + "/" + url.PathEscape(repo.Name)
 }
 
 // Star stars a repository for the viewer. Starring it again does nothing.

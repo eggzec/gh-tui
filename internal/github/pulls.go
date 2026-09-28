@@ -27,6 +27,9 @@ const (
 )
 
 // pullFields selects what core.PullRequest holds, apart from the body.
+// PullRequest.viewerCanLabel came to GitHub Enterprise Server in 3.15:
+// the client leaves it out on older servers, and labeling then follows
+// triage access to the repository.
 var pullFields = fmt.Sprintf(`fragment pullFields on PullRequest {
   id
   number

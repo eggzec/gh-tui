@@ -130,6 +130,10 @@ type ItemCaps struct {
 	// Update is editing it, which covers converting a pull request to a
 	// draft, Close and Reopen changing its state, and Label its labels.
 	Update, Close, Reopen, Label bool
+	// LabelKnown is set when GitHub said Label, which a GitHub Enterprise
+	// Server older than 3.15 doesn't; triage access to the repository
+	// decides it then.
+	LabelKnown bool
 	// Authored is set when the viewer opened it.
 	Authored bool
 }

@@ -26,7 +26,6 @@
       "viewerPermission": "READ",
       "isLocked": false,
       "hasIssuesEnabled": true,
-      "hasPullRequestsEnabled": true,
       "hasDiscussionsEnabled": true,
       "hasProjectsEnabled": true,
       "hasWikiEnabled": true,

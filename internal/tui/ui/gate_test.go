@@ -24,8 +24,11 @@ func TestGate(t *testing.T) {
 	mine := &core.Issue{Number: 13, Author: core.User{Login: "Me"}}
 	locked := &core.Issue{Number: 14, Author: core.User{Login: "octocat"}, Locked: true, LockReason: "too_heated"}
 	// Pull requests read with GraphQL, which says.
-	refused := &core.Issue{Number: 15, Caps: core.ItemCaps{Known: true}}
-	allowed := &core.Issue{Number: 16, Caps: core.ItemCaps{Known: true, Update: true, Close: true, Label: true}}
+	refused := &core.Issue{Number: 15, Caps: core.ItemCaps{Known: true, LabelKnown: true}}
+	allowed := &core.Issue{Number: 16, Caps: core.ItemCaps{Known: true, Update: true, Close: true, Label: true, LabelKnown: true}}
+	// A pull request from an Enterprise Server that doesn't say who
+	// labels.
+	unsaid := &core.Issue{Number: 17, Caps: core.ItemCaps{Known: true, Update: true}}
 
 	tests := []struct {
 		name   string
@@ -92,6 +95,13 @@ func TestGate(t *testing.T) {
 		},
 		{
 			name: "GitHub says who labels", caps: caps(core.PermissionAdmin), action: ActLabel, it: refused,
+			why: "Labeling needs triage access to charmbracelet/bubbletea.",
+		},
+		// A custom role that adds labeling to read access.
+		{name: "GitHub says a reader labels", caps: caps(core.PermissionRead), action: ActLabel, it: allowed},
+		{name: "triage labels where GitHub doesn't say", caps: caps(core.PermissionTriage), action: ActLabel, it: unsaid},
+		{
+			name: "read can't label where GitHub doesn't say", caps: caps(core.PermissionRead), action: ActLabel, it: unsaid,
 			why: "Labeling needs triage access to charmbracelet/bubbletea.",
 		},
 		{

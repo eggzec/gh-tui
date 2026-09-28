@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -31,6 +32,12 @@ func serveFixture(t *testing.T, fixture string) (c *Client, reqs <-chan gqlReque
 	}
 	ch := make(chan gqlRequest, 1)
 	c = newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// The read of one repository reads its REST flags too, which say
+		// nothing here.
+		if r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/repos/") {
+			_, _ = w.Write([]byte("{}"))
+			return
+		}
 		if r.Method != http.MethodPost || r.URL.Path != "/graphql" {
 			t.Errorf("request = %s %s, want POST /graphql", r.Method, r.URL.Path)
 		}
@@ -128,9 +135,9 @@ func TestGetRepo(t *testing.T) {
 		t.Errorf("variables = %v, want owner eggzec and name gh-tui", v)
 	}
 	// The fixture leaves the caps out, and GitHub says nothing of what
-	// they would be.
+	// they would be, but pull requests are on unless REST says not.
 	want := ghTUI
-	want.Caps = core.RepoCaps{Known: true}
+	want.Caps = core.RepoCaps{Known: true, PullRequests: true}
 	if got != want {
 		t.Errorf("repo = %+v\nwant %+v", got, want)
 	}
@@ -274,6 +281,50 @@ func TestStarErrors(t *testing.T) {
 			}
 			if err := c.Unstar(t.Context(), ghTUI.Ref); !errors.Is(err, tt.want) {
 				t.Errorf("Unstar error = %v, want %v", err, tt.want)
+			}
+		})
+	}
+}
+
+// TestGetRepoPullRequests reads whether pull requests are on from REST,
+// and takes them for on when REST doesn't say, or fails, since the
+// GraphQL read stands on its own.
+func TestGetRepoPullRequests(t *testing.T) {
+	gql, err := os.ReadFile(filepath.Join("testdata", "repos_get_admin.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name   string
+		status int
+		body   string
+		want   bool
+	}{
+		{"off", http.StatusOK, `{"has_pull_requests": false}`, false},
+		{"on", http.StatusOK, `{"has_pull_requests": true}`, true},
+		{"unsaid", http.StatusOK, `{"has_issues": true}`, true},
+		{"failed", http.StatusForbidden, `{"message": "Resource not accessible"}`, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ref := core.RepoRef{Owner: "eggzec", Name: "gh-tui"}
+			c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch {
+				case r.Method == http.MethodGet && r.URL.Path == "/repos/eggzec/gh-tui":
+					w.WriteHeader(tt.status)
+					_, _ = w.Write([]byte(tt.body))
+				case r.Method == http.MethodPost && r.URL.Path == "/graphql":
+					_, _ = w.Write(gql)
+				default:
+					t.Errorf("request = %s %s", r.Method, r.URL.Path)
+				}
+			}))
+			got, err := c.GetRepo(t.Context(), ref)
+			if err != nil {
+				t.Fatalf("GetRepo: %v", err)
+			}
+			if got.Caps.PullRequests != tt.want || got.Caps.Permission != core.PermissionAdmin {
+				t.Errorf("caps = %+v, want pull requests %v and the rest of GraphQL's", got.Caps, tt.want)
 			}
 		})
 	}
