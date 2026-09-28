@@ -215,3 +215,28 @@ func TestFetchLogsDropped(t *testing.T) {
 		}
 	}
 }
+
+// TestRefused pins what drops what was kept: GitHub refusing the token or
+// the account, or saying the thing isn't there, but not an outage, a rate
+// limit, a cancellation, or an action it refused with a reason.
+func TestRefused(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"unauthorized", core.ErrUnauthorized, true},
+		{"missing scope", &core.ScopeError{Scopes: []string{"repo"}}, true},
+		{"forbidden", fmt.Errorf("list: %w", core.ErrForbidden), true},
+		{"not found", core.ErrNotFound, true},
+		{"offline", core.ErrOffline, false},
+		{"rate limited", &core.RateLimitError{}, false},
+		{"canceled", context.Canceled, false},
+		{"rejected with a reason", &core.RefusedError{Action: "merge", Reason: "not mergeable", Err: core.ErrForbidden}, false},
+	}
+	for _, tt := range tests {
+		if got := Refused(tt.err); got != tt.want {
+			t.Errorf("%s: Refused = %v, want %v", tt.name, got, tt.want)
+		}
+	}
+}

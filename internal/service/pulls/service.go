@@ -313,7 +313,7 @@ func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.PullReq
 	lp, err := fetch(ctx, s.lists, shelf, key, listMarks, s.loadList(q))
 	p := lp.Page
 	if err != nil {
-		if github.Refused(err) {
+		if fallback.Refused(err) {
 			// A kept page may have vouched for what is cached of the
 			// repository's pull requests.
 			s.seen.DeletePrefix(pullPrefix(q.Repo))
