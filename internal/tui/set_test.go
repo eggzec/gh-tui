@@ -1,0 +1,190 @@
+package tui
+
+import (
+	"os"
+	"path/filepath"
+	"slices"
+	"strings"
+	"testing"
+
+	tea "charm.land/bubbletea/v2"
+
+	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
+)
+
+// newSetApp returns an app of cfg on testRepo, whose settings are told to
+// told.
+func newSetApp(t *testing.T, cfg config.Config, told *[]config.Config) (*Model, []*fakeSection) {
+	t.Helper()
+	fakes := []*fakeSection{{title: "Files"}, {title: "Pull requests"}, {title: "Issues"}, {title: "Notifications"}}
+	layout := Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3]}
+	m := New(t.Context(), cfg, layout, WithRepo(testRepo), WithSettings(func(c config.Config) { *told = append(*told, c) }))
+	m.toast.SetDuration(0)
+	m.toast.SetErrorDuration(0)
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 24})
+	return m, fakes
+}
+
+// userConfig returns the defaults with a theme of the user's, mine.
+func userConfig() config.Config {
+	cfg := config.Default()
+	p, _ := cfg.Palette(true)
+	p.Accent = "#ff00ff"
+	cfg.Themes["mine"] = config.Theme{Light: p, Dark: p}
+	return cfg
+}
+
+func TestSetCommand(t *testing.T) {
+	tests := []struct {
+		line  string
+		toast string
+		// changes reports whether the setting changes.
+		changes bool
+	}{
+		{line: "set", toast: "Set what? Use set key=value, or set key to see its value."},
+		{line: "set theme", toast: "theme is default."},
+		{line: "set ui.icons", toast: "ui.icons is nerd."},
+		{line: "set log.file", toast: `log.file is "".`},
+		{line: "set nope=1", toast: "Unknown setting: nope."},
+		{line: "set nope", toast: "Unknown setting: nope."},
+		{line: "set keys.quit=x", toast: "Keys and themes can't be set here: change them in the config file, then restart gh-tui."},
+		{line: "set cache.ttl=1m", toast: "cache.ttl can't change while gh-tui runs: the cache is opened at startup. Set it in the config file, then restart."},
+		{line: "set log.level=debug", toast: "log.level can't change while gh-tui runs: the log file is opened at startup."},
+		{line: "set theme=nosuch", toast: `Can't set theme: unknown theme "nosuch".`},
+		{line: "set theme=mine", toast: "theme is mine for this session.", changes: true},
+		{line: "set  theme = mine ", toast: "theme is mine for this session.", changes: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.line, func(t *testing.T) {
+			var told []config.Config
+			m, fakes := newSetApp(t, userConfig(), &told)
+			accent := m.theme.Palette.Accent
+			for _, f := range fakes {
+				f.themed = false
+			}
+			runCommand(t, m, tt.line)
+			if !hasToast(m, tt.toast) {
+				t.Errorf("toasts lack %q: %s", tt.toast, toasted(m))
+			}
+			changed := m.cfg.Theme == "mine"
+			if changed != tt.changes || len(told) > 0 != tt.changes {
+				t.Fatalf("theme %q, told %d times; want a change %v", m.cfg.Theme, len(told), tt.changes)
+			}
+			if !tt.changes {
+				return
+			}
+			if told[0].Theme != "mine" || m.theme.Palette.Accent == accent || m.theme.Palette.Accent != "#ff00ff" {
+				t.Errorf("the theme wasn't applied: told %q, accent %s", told[0].Theme, m.theme.Palette.Accent)
+			}
+			for _, f := range fakes {
+				if !f.themed || !f.got(func(msg tea.Msg) bool { s, ok := msg.(ui.SettingsMsg); return ok && s.Config.Theme == "mine" }) {
+					t.Errorf("%s wasn't given the settings", f.title)
+				}
+			}
+		})
+	}
+}
+
+// TestSetWritesNothing checks that a setting changes for the session only:
+// the config file stays as it was, and nothing else is written beside it.
+func TestSetWritesNothing(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	const file = "theme: default\nui:\n  icons: nerd\n"
+	if err := os.WriteFile(path, []byte(file), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(config.EnvPath, path)
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	cfg, err := config.Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.Themes["mine"] = userConfig().Themes["mine"]
+	var told []config.Config
+	m, _ := newSetApp(t, cfg, &told)
+	runCommand(t, m, "set theme=mine")
+	if m.cfg.Theme != "mine" {
+		t.Fatalf("theme = %q, want it set", m.cfg.Theme)
+	}
+	if got, _ := os.ReadFile(path); string(got) != file {
+		t.Errorf("the config file changed:\n%s", got)
+	}
+	if entries, _ := os.ReadDir(dir); len(entries) != 1 {
+		t.Errorf("files beside the config: %v", entries)
+	}
+}
+
+func TestNeedsRestart(t *testing.T) {
+	for _, key := range config.Keys() {
+		why, restart := needsRestart(key)
+		if slices.Contains(liveSettings, key) == restart {
+			t.Errorf("%s: live %v and needs a restart %v", key, !restart, restart)
+		}
+		if restart && why == "" {
+			t.Errorf("%s needs a restart for no reason", key)
+		}
+	}
+	for _, key := range liveSettings {
+		if !slices.Contains(config.Keys(), key) {
+			t.Errorf("live setting %s isn't a setting", key)
+		}
+	}
+}
+
+func TestCompleteSet(t *testing.T) {
+	m, _ := newTestApp(t)
+	tests := []struct {
+		line string
+		want []string
+	}{
+		{line: "se", want: []string{"search ", "set "}},
+		{line: "set ui.ic", want: []string{"ui.icons="}},
+		{line: "set icons", want: []string{"ui.icons="}},
+		{line: "set sync.", want: []string{"sync.enabled=", "sync.interval="}},
+		{line: "set ui.icons=", want: []string{"nerd", "unicode", "ascii"}},
+		{line: "set ui.icons=u", want: []string{"unicode"}},
+		{line: "set sync.enabled=", want: []string{"true", "false"}},
+		{line: "set theme=", want: []string{"default"}},
+		{line: "set sync.interval=", want: nil},
+		{line: "set nope=", want: nil},
+		{line: "set ui.icons nerd", want: nil},
+	}
+	for _, tt := range tests {
+		if got := texts(m.complete(tt.line, len(tt.line))); !slices.Equal(got, tt.want) {
+			t.Errorf("complete(%q) = %q, want %q", tt.line, got, tt.want)
+		}
+	}
+	if got := m.complete("set them x", 8); len(got) != 1 || got[0].Text != "theme" || got[0].Detail != "default" {
+		t.Errorf("a key before more text = %+v, want theme without = and its value", got)
+	}
+	if got := m.complete("set cache.ttl", 13); len(got) != 1 || got[0].Detail != "5m, at startup" {
+		t.Errorf("cache.ttl = %+v, want its value and that it is read at startup", got)
+	}
+	if got := m.complete("set ui.icons=a", 14); got[0].Start != 13 || got[0].End != 14 {
+		t.Errorf("value span = %d..%d, want 13..14", got[0].Start, got[0].End)
+	}
+	if got := m.complete("set ", 4); len(got) != maxCandidates || !strings.HasSuffix(got[0].Text, "=") {
+		t.Errorf("keys = %q, want the first %d", texts(got), maxCandidates)
+	}
+}
+
+// TestSetDrawsTheHintsAgain checks that a setting set drops the key hints
+// the status bar found, which the theme draws.
+func TestSetDrawsTheHintsAgain(t *testing.T) {
+	m, _ := newTestApp(t)
+	_ = m.View()
+	if m.layers == nil {
+		t.Fatal("the view found no key hints to keep")
+	}
+	// The line closing lays the screen out, which drops them too, so the
+	// settings are applied alone here.
+	m.applySettings()
+	if m.layers != nil {
+		t.Error("the key hints were kept across the settings")
+	}
+	if s := onScreen(m); !strings.Contains(s, "?") {
+		t.Errorf("the hints are gone:\n%s", s)
+	}
+}

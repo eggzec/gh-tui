@@ -358,6 +358,8 @@ func TestLineView(t *testing.T) {
 		{name: "commands", typed: "g"},
 		{name: "repos", typed: "goto "},
 		{name: "numbers", typed: "goto #"},
+		{name: "settings", typed: "set ui"},
+		{name: "values", typed: "set ui.icons="},
 	}
 	for _, width := range []int{80, 120} {
 		for _, c := range cases {
