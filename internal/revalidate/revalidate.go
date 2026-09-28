@@ -113,6 +113,8 @@ type Revalidator struct {
 	cfg     config
 	budget  window
 	kick    chan struct{}
+	// online starts a pass at once after passes found GitHub unreachable.
+	online chan struct{}
 
 	mu     sync.Mutex
 	repo   core.RepoRef
@@ -147,6 +149,7 @@ func New(sources []Source, opts ...Option) *Revalidator {
 		sources: sources,
 		cfg:     cfg,
 		kick:    make(chan struct{}, 1),
+		online:  make(chan struct{}, 1),
 		active:  true,
 		checked: make(map[string]time.Time),
 		pending: make(map[string]bool),
@@ -170,6 +173,16 @@ func (r *Revalidator) SetRepo(repo core.RepoRef) {
 	}
 }
 
+// Online tells the revalidator that GitHub answers again after it couldn't
+// be reached. If the last pass found it unreachable, and so the next one
+// backed off, the next one starts at once; otherwise nothing changes.
+func (r *Revalidator) Online() {
+	select {
+	case r.online <- struct{}{}:
+	default:
+	}
+}
+
 // SetActive tells the revalidator whether the user is looking. While
 // inactive, such as when the terminal loses focus, passes are further apart
 // and the budget smaller, both by the idle multiplier.
@@ -186,7 +199,8 @@ func (r *Revalidator) SetActive(active bool) {
 // The first pass starts after the start delay, and each one after the
 // previous ended: an interval later, longer while inactive, doubled after
 // each pass that found GitHub unreachable, and not before a rate limit
-// resets. A revalidator can be run only once.
+// resets, or at once when GitHub answers again after an unreachable pass
+// (Online). A revalidator can be run only once.
 func (r *Revalidator) Run(ctx context.Context) error {
 	r.mu.Lock()
 	if r.ran {
@@ -211,6 +225,11 @@ func (r *Revalidator) Run(ctx context.Context) error {
 			// A new repository doesn't make GitHub reachable, or lift a
 			// rate limit.
 			if offline > 0 || time.Now().Before(retryAt) {
+				continue
+			}
+			timer.Stop()
+		case <-r.online:
+			if offline == 0 || time.Now().Before(retryAt) {
 				continue
 			}
 			timer.Stop()

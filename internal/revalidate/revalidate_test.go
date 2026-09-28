@@ -319,6 +319,47 @@ func TestOfflinePausesAndBacksOff(t *testing.T) {
 	})
 }
 
+// TestOnlineEndsBackoff checks that GitHub answering again starts the
+// pass that backed off at once, and that it starts none otherwise.
+func TestOnlineEndsBackoff(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		var mu sync.Mutex
+		offline := true
+		srv := newServer(func(string, int) Result {
+			mu.Lock()
+			defer mu.Unlock()
+			if offline {
+				return Result{Status: Offline, Err: errors.New("dial tcp: no route to host")}
+			}
+			return Result{Status: NotModified}
+		})
+		entries := []Entry{srv.entry("a", repoA, time.Minute), srv.entry("b", repoA, 2*time.Minute)}
+		rec := new(recorder)
+		r := start(t, entries, rec, WithConcurrency(1), WithInterval(time.Minute), WithFreshFor(time.Hour))
+
+		// Passes at 0 and 2m; the next would be 4m after that.
+		synctest.Sleep(3 * time.Minute)
+		mu.Lock()
+		offline = false
+		mu.Unlock()
+		r.Online()
+		synctest.Sleep(10 * time.Second)
+		if got := srv.ids(); !slices.Equal(got, []string{"a", "a", "a", "b"}) {
+			t.Fatalf("checked %q once online, want every entry at once", got)
+		}
+		if at := rec.all()[2].Start.Sub(srv.start); at != 3*time.Minute {
+			t.Errorf("pass after Online at %v, want 3m", at)
+		}
+
+		// The pass found GitHub, so another Online has nothing to wake.
+		r.Online()
+		synctest.Sleep(20 * time.Second)
+		if got := len(rec.all()); got != 3 {
+			t.Errorf("passes after Online with nothing backed off = %d, want 3", got)
+		}
+	})
+}
+
 func TestRateLimitWaitsForReset(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		reset := time.Now().Add(15 * time.Minute)
