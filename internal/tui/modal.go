@@ -190,7 +190,8 @@ func (m *Model) frame(mod ui.Modal) string {
 	if room := w - 6 - tw; tabs != "" && room >= minTitleWidth {
 		titleWidth = min(titleWidth, room)
 	}
-	title := ansi.Truncate(" "+mod.Title()+" ", titleWidth, "… ")
+	// A title may hold text from GitHub, such as a pull request's.
+	title := ansi.Truncate(" "+ui.OneLine(mod.Title())+" ", titleWidth, "… ")
 	rest := max(w-3-lipgloss.Width(title), 0)
 	switch {
 	case tabs == "":

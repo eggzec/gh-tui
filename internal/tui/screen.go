@@ -221,9 +221,9 @@ func (m *Model) drawHeader() {
 	switch {
 	case m.screen != repoScreen:
 	case m.base.Ref != "":
-		left += " " + rule(1) + " " + m.st.base.Render(cmp.Or(m.base.Label, m.base.Ref))
+		left += " " + rule(1) + " " + m.st.base.Render(ui.OneLine(cmp.Or(m.base.Label, m.base.Ref)))
 	case m.branch != "":
-		left += " " + rule(1) + " " + m.st.branch.Render(m.branch)
+		left += " " + rule(1) + " " + m.st.branch.Render(ui.OneLine(m.branch))
 	}
 	var right string
 	if m.badge != "" {
