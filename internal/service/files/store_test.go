@@ -265,16 +265,16 @@ func TestStoreOffline(t *testing.T) {
 
 func TestStoreNoFallback(t *testing.T) {
 	tests := []struct {
-		name     string
-		err      error
-		fallback bool
+		name              string
+		err               error
+		fallback, limited bool
 	}{
-		{"not found", &github.Error{StatusCode: 404}, false},
-		{"unauthorized", &github.Error{StatusCode: 401}, false},
-		{"forbidden", &github.Error{StatusCode: 403}, false},
-		{"rate limited", &github.Error{StatusCode: 429}, false},
-		{"server error", &github.Error{StatusCode: 502}, true},
-		{"unreachable", errOffline, true},
+		{"not found", &github.Error{StatusCode: 404}, false, false},
+		{"unauthorized", &github.Error{StatusCode: 401}, false, false},
+		{"forbidden", &github.Error{StatusCode: 403}, false, false},
+		{"rate limited", &core.RateLimitError{Reset: time.Now().Add(time.Minute)}, true, true},
+		{"server error", &github.Error{StatusCode: 502}, true, false},
+		{"unreachable", errOffline, true, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -288,8 +288,8 @@ func TestStoreNoFallback(t *testing.T) {
 			}}
 			got, err := New(api, WithStore(store)).All(t.Context(), head)
 			if tt.fallback {
-				if err != nil || !got.Offline || len(got.Entries) == 0 {
-					t.Errorf("All = %+v, %v; want the stored listing", got, err)
+				if err != nil || got.Offline == tt.limited || got.Limited != tt.limited || len(got.Entries) == 0 {
+					t.Errorf("All = %+v, %v; want the stored listing, limited %v, else offline", got, err, tt.limited)
 				}
 				return
 			}
