@@ -8,14 +8,16 @@ import (
 	"strings"
 	"testing"
 
-	"charm.land/bubbles/v2/help"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/tui/jobview"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keytest"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
@@ -417,7 +419,7 @@ func TestRerunNeedsWriteAccess(t *testing.T) {
 	f := newFake()
 	s, h := newStep(t, f, wideW, wideH, WithCaps(read))
 	h.keys("enter")
-	if got := keysOf(s.Help()); slices.Contains(got, "rerun failed") {
+	if got := uitest.Enabled(s.KeyLayers()); slices.Contains(got, "rerun failed") {
 		t.Errorf("help offers a re-run with read access: %v", got)
 	}
 	h.keys("ctrl+r")
@@ -428,7 +430,7 @@ func TestRerunNeedsWriteAccess(t *testing.T) {
 
 	// Once the caps say the viewer may write, the re-run is offered.
 	h.send(ui.CapsMsg{Repo: repo, Caps: core.RepoCaps{Known: true, Permission: core.PermissionWrite}})
-	if got := keysOf(s.Help()); !slices.Contains(got, "rerun failed") {
+	if got := uitest.Enabled(s.KeyLayers()); !slices.Contains(got, "rerun failed") {
 		t.Errorf("help lacks the re-run with write access: %v", got)
 	}
 	h.keys("ctrl+r", "y")
@@ -437,15 +439,52 @@ func TestRerunNeedsWriteAccess(t *testing.T) {
 	}
 }
 
-// keysOf returns what the enabled keys of km do, as help shows them.
-func keysOf(km help.KeyMap) []string {
-	var out []string
-	for _, b := range km.ShortHelp() {
-		if b.Enabled() {
-			out = append(out, b.Help().Desc)
-		}
+func TestKeyMapComplete(t *testing.T) {
+	keytest.Complete(t, newKeyMap(config.Default().Keys))
+}
+
+// The layers take a key in the order the step does: its own keys before
+// those of the job it shows, and the answer alone while it asks.
+func TestKeyLayersOrder(t *testing.T) {
+	s, h := newStep(t, newFake(), wideW, wideH)
+	if b, src, _ := uitest.Winner(s.KeyLayers(), "enter"); src != "checks" || b.Help().Desc != "log" {
+		t.Errorf("enter reaches %q of %q, want the step's log", b.Help().Desc, src)
 	}
-	return out
+	h.keys("enter")
+	layers := s.KeyLayers()
+	if b, src, _ := uitest.Winner(layers, "esc"); src != "checks" || b.Help().Desc != "checks" {
+		t.Errorf("esc reaches %q of %q in the job, want the step's back to the checks", b.Help().Desc, src)
+	}
+	if _, src, _ := uitest.Winner(layers, "space"); src != "log" {
+		t.Errorf("space reaches %q in the job, want the log", src)
+	}
+	// With a search of the log, esc clears it before it steps back.
+	h.keys("/", "e", "x", "i", "t", "enter")
+	if s.view.Query() == "" {
+		t.Fatal("the search of the log didn't take")
+	}
+	if _, src, _ := uitest.Winner(s.KeyLayers(), "esc"); src != "log" {
+		t.Errorf("esc reaches %q with a search, want the log", src)
+	}
+	h.keys("esc")
+	if s.mode != jobMode || s.view.Query() != "" {
+		t.Fatalf("esc with a search left mode %d and query %q, want the job without it", s.mode, s.view.Query())
+	}
+	layers = s.KeyLayers()
+	if b, src, _ := uitest.Winner(layers, "ctrl+r"); src != "checks" || b.Help().Desc != "rerun failed" {
+		t.Errorf("ctrl+r reaches %q of %q, want the re-run", b.Help().Desc, src)
+	}
+	h.keys("ctrl+r")
+	if s.ask == nil {
+		t.Fatal("ctrl+r didn't ask to re-run")
+	}
+	if _, src, _ := uitest.Winner(s.KeyLayers(), "esc"); src != "confirm" {
+		t.Errorf("esc reaches %q while asking, want the answer", src)
+	}
+	h.keys("esc", "esc")
+	if s.ask != nil || s.mode != listMode {
+		t.Errorf("esc, esc left mode %d asking %v, want the checks", s.mode, s.ask != nil)
+	}
 }
 
 // A diagram in a detail shows as its head, whose offer links to it on

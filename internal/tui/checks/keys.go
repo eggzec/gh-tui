@@ -1,6 +1,8 @@
 package checks
 
 import (
+	"slices"
+
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/viewport"
@@ -9,6 +11,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/jobview"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/logview"
 )
 
@@ -54,8 +57,12 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		Confirm:     ui.DefaultConfirmKeys(),
 	}
 	// ctrl+r, the second key of refresh, re-runs the failed jobs here.
+	// PR5: this decides where ctrl+r goes, since the step matches refresh
+	// first; match the re-run first instead of dropping the key.
 	k.Refresh = ui.FreeKeys(k.Refresh, k.RerunFailed)
 	own := []key.Binding{k.Select, k.Back, k.Open, k.Refresh, k.RerunFailed, k.Annotations}
+	// PR5: the step matches its own keys first, so dropping them here and
+	// below only keeps the collisions out of help.
 	for _, b := range []*key.Binding{&k.Up, &k.Down, &k.PageUp, &k.PageDown, &k.Home, &k.End} {
 		*b = ui.FreeKeys(*b, own...)
 	}
@@ -98,49 +105,77 @@ func relabel(b key.Binding, desc string) key.Binding {
 	return b
 }
 
-// keyHelp is a help.KeyMap made of fixed lists.
-type keyHelp struct {
-	short []key.Binding
-	full  [][]key.Binding
+// own returns the keys of the step itself, in the order it matches them.
+func (k KeyMap) own() []key.Binding {
+	return []key.Binding{
+		k.Back, k.Refresh, k.Open, k.RerunFailed,
+		k.Select, k.Up, k.Down, k.PageUp, k.PageDown, k.Home, k.End, k.Annotations,
+	}
 }
 
-func (h keyHelp) ShortHelp() []key.Binding  { return h.short }
-func (h keyHelp) FullHelp() [][]key.Binding { return h.full }
+// detail returns the keys that move through what an app reported.
+func (k KeyMap) detail() []key.Binding {
+	d := k.Detail
+	return []key.Binding{d.Up, d.Down, d.PageUp, d.PageDown, d.HalfPageUp, d.HalfPageDown, d.Left, d.Right}
+}
 
-// Help lists the keys of what the step shows, named for what they do
-// there.
-func (s *Step) Help() help.KeyMap {
+// ShortHelp implements help.KeyMap.
+func (k KeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.Up, k.Down, k.Select, k.Back, k.RerunFailed, k.Open}
+}
+
+// FullHelp implements help.KeyMap.
+func (k KeyMap) FullHelp() [][]key.Binding {
+	return slices.Concat([][]key.Binding{k.own(), {k.Confirm.Yes, k.Confirm.No}, k.detail()}, k.Log.FullHelp())
+}
+
+// KeyLayers implements ui.Keyed: the answer to the question while it is
+// open, or else the keys of the step, and then those of the job or of
+// what an app reported, whichever shows.
+func (s *Step) KeyLayers() []keyhelp.Layer {
 	k := s.keys
 	if s.ask != nil {
-		return k.Confirm
+		return []keyhelp.Layer{k.Confirm.Layer()}
 	}
-	back := relabel(k.Back, "checks")
-	rerun := s.rerunKey()
+	if s.mode == jobMode && s.view.Capturing() {
+		return s.view.KeyLayers()
+	}
+	k = k.state(s)
+	own := keyhelp.Layer{Source: "checks", Bindings: k.own(), Short: k.ShortHelp()}
 	switch s.mode {
 	case jobMode:
-		if s.view.Capturing() {
-			return keyHelp{short: s.view.ShortHelp(), full: [][]key.Binding{s.view.ShortHelp()}}
-		}
-		short := append(s.view.Keys(), back, rerun, k.Open)
-		return keyHelp{short: short, full: append(s.view.FullHelp(), []key.Binding{back, rerun, k.Open, k.Refresh})}
+		return append([]keyhelp.Layer{own}, s.view.KeyLayers()...)
 	case detailMode:
-		d := k.Detail
-		short := []key.Binding{d.Up, d.Down, back, k.Open}
-		return keyHelp{short: short, full: [][]key.Binding{{d.Up, d.Down, d.PageUp, d.PageDown, d.HalfPageUp, d.HalfPageDown}, {back, k.Open}}}
+		return []keyhelp.Layer{own, {Source: "detail", Bindings: k.detail(), Short: k.detail()[:2]}}
 	case listMode:
 	}
-	sel := relabel(k.Select, "open")
+	return []keyhelp.Layer{own}
+}
+
+// Help lists the keys of the step for the help line.
+func (s *Step) Help() help.KeyMap { return ui.Hints{Layers: s.KeyLayers()} }
+
+// state returns k as the step takes it in its mode, named for what the
+// keys do there: the list's keys only on the list, and the annotations
+// key, which the job view handles, never.
+func (k KeyMap) state(s *Step) KeyMap {
+	k.RerunFailed = s.rerunKey()
+	k.Annotations.SetEnabled(false)
+	if s.mode != listMode {
+		k.Back = relabel(k.Back, "checks")
+		// The back key clears the search of the log first.
+		k.Back.SetEnabled(k.Back.Enabled() && (s.mode != jobMode || s.view.Query() == ""))
+		for _, b := range []*key.Binding{&k.Select, &k.Up, &k.Down, &k.PageUp, &k.PageDown, &k.Home, &k.End} {
+			b.SetEnabled(false)
+		}
+		return k
+	}
+	k.Back = relabel(k.Back, "detail")
+	k.Select = relabel(k.Select, "open")
 	if r, ok := s.selected(); ok && r.job() {
-		sel = relabel(k.Select, "log")
+		k.Select = relabel(k.Select, "log")
 	}
-	leave := relabel(k.Back, "detail")
-	return keyHelp{
-		short: []key.Binding{k.Up, k.Down, sel, leave, rerun, k.Open},
-		full: [][]key.Binding{
-			{k.Up, k.Down, k.PageUp, k.PageDown, k.Home, k.End},
-			{sel, leave, k.Refresh, rerun, k.Open},
-		},
-	}
+	return k
 }
 
 // rerunKey is the re-run key, enabled while the check shown, or the one
