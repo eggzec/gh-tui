@@ -309,7 +309,7 @@ func TestZoomOnlyWhereItShows(t *testing.T) {
 func TestZoomHelp(t *testing.T) {
 	s := newSection(t, newFake(), nil, 140, 38)
 	has := func(desc string) bool {
-		return slices.ContainsFunc(s.Help().ShortHelp(), func(b key.Binding) bool {
+		return slices.ContainsFunc((ui.Hints{Layers: s.KeyLayers()}).ShortHelp(), func(b key.Binding) bool {
 			return b.Enabled() && b.Help().Desc == desc
 		})
 	}
@@ -544,7 +544,7 @@ func TestInboxOpensAsTheNotificationsDo(t *testing.T) {
 	if m := in.marks(); len(m) != 0 {
 		t.Errorf("marked %v read with mark_read_on_open off", m)
 	}
-	if h := s.Help().ShortHelp(); !slices.ContainsFunc(h, func(b key.Binding) bool { return b.Help().Desc == "open" }) {
+	if h := (ui.Hints{Layers: s.KeyLayers()}).ShortHelp(); !slices.ContainsFunc(h, func(b key.Binding) bool { return b.Help().Desc == "open" }) {
 		t.Error("the help doesn't say enter opens without marking read")
 	}
 }
