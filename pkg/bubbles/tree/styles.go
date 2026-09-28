@@ -34,6 +34,10 @@ type Styles struct {
 	Error lipgloss.Style
 	// ErrorGlyph starts the message of a failed load. The default is "✗".
 	ErrorGlyph string
+	// ErrorSeparator goes between the text of an error and its hint, and
+	// ErrorEllipsis ends the text where it is cut. The defaults are " · "
+	// and "…".
+	ErrorSeparator, ErrorEllipsis string
 	// Hint styles secondary text such as the retry key.
 	Hint lipgloss.Style
 }
@@ -47,18 +51,20 @@ func DefaultStyles(isDark bool) Styles {
 	errColor := ld(lipgloss.Color("#c0392b"), lipgloss.Color("#ef7d7d"))
 
 	return Styles{
-		Cursor:        lipgloss.NewStyle().Foreground(accent),
-		BlurredCursor: lipgloss.NewStyle().Foreground(subtle),
-		Guide:         lipgloss.NewStyle().Foreground(subtle),
-		Marker:        lipgloss.NewStyle().Foreground(muted),
-		Branch:        lipgloss.NewStyle().Bold(true),
-		Leaf:          lipgloss.NewStyle(),
-		Detail:        lipgloss.NewStyle().Foreground(subtle),
-		Spinner:       lipgloss.NewStyle().Foreground(accent),
-		Loading:       lipgloss.NewStyle().Foreground(muted),
-		Empty:         lipgloss.NewStyle().Foreground(muted),
-		Error:         lipgloss.NewStyle().Foreground(errColor),
-		ErrorGlyph:    "✗",
-		Hint:          lipgloss.NewStyle().Foreground(subtle),
+		Cursor:         lipgloss.NewStyle().Foreground(accent),
+		BlurredCursor:  lipgloss.NewStyle().Foreground(subtle),
+		Guide:          lipgloss.NewStyle().Foreground(subtle),
+		Marker:         lipgloss.NewStyle().Foreground(muted),
+		Branch:         lipgloss.NewStyle().Bold(true),
+		Leaf:           lipgloss.NewStyle(),
+		Detail:         lipgloss.NewStyle().Foreground(subtle),
+		Spinner:        lipgloss.NewStyle().Foreground(accent),
+		Loading:        lipgloss.NewStyle().Foreground(muted),
+		Empty:          lipgloss.NewStyle().Foreground(muted),
+		Error:          lipgloss.NewStyle().Foreground(errColor),
+		ErrorGlyph:     "✗",
+		ErrorSeparator: " · ",
+		ErrorEllipsis:  "…",
+		Hint:           lipgloss.NewStyle().Foreground(subtle),
 	}
 }

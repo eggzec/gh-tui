@@ -45,6 +45,10 @@ type Styles struct {
 	// ErrorGlyph starts the text of content that failed to load. The
 	// default is "✗".
 	ErrorGlyph string
+	// ErrorSeparator goes between the text of an error and its hint, and
+	// ErrorEllipsis ends the text where it is cut. The defaults are " · "
+	// and "…".
+	ErrorSeparator, ErrorEllipsis string
 	// Prompt styles the "/" or "&" before the prompt, and the "-" that
 	// waits for an option, and Cursor the prompt's cursor, with its
 	// foreground.
@@ -70,20 +74,22 @@ func DefaultStyles(isDark bool) Styles {
 		syntax = "github-dark"
 	}
 	return Styles{
-		Syntax:       chromastyles.Get(syntax),
-		Text:         lipgloss.NewStyle().Foreground(text),
-		LineNumber:   lipgloss.NewStyle().Foreground(subtle),
-		Match:        lipgloss.NewStyle().Foreground(text).Background(match),
-		CurrentMatch: lipgloss.NewStyle().Foreground(onCurrent).Background(current),
-		Name:         lipgloss.NewStyle().Foreground(text).Bold(true),
-		Status:       lipgloss.NewStyle().Foreground(muted),
-		Notice:       lipgloss.NewStyle().Foreground(errColor),
-		Message:      lipgloss.NewStyle().Foreground(muted),
-		Spinner:      lipgloss.NewStyle().Foreground(accent),
-		Error:        lipgloss.NewStyle().Foreground(errColor),
-		ErrorGlyph:   "✗",
-		Prompt:       lipgloss.NewStyle().Foreground(accent),
-		Cursor:       lipgloss.NewStyle().Foreground(accent),
+		Syntax:         chromastyles.Get(syntax),
+		Text:           lipgloss.NewStyle().Foreground(text),
+		LineNumber:     lipgloss.NewStyle().Foreground(subtle),
+		Match:          lipgloss.NewStyle().Foreground(text).Background(match),
+		CurrentMatch:   lipgloss.NewStyle().Foreground(onCurrent).Background(current),
+		Name:           lipgloss.NewStyle().Foreground(text).Bold(true),
+		Status:         lipgloss.NewStyle().Foreground(muted),
+		Notice:         lipgloss.NewStyle().Foreground(errColor),
+		Message:        lipgloss.NewStyle().Foreground(muted),
+		Spinner:        lipgloss.NewStyle().Foreground(accent),
+		Error:          lipgloss.NewStyle().Foreground(errColor),
+		ErrorGlyph:     "✗",
+		ErrorSeparator: " · ",
+		ErrorEllipsis:  "…",
+		Prompt:         lipgloss.NewStyle().Foreground(accent),
+		Cursor:         lipgloss.NewStyle().Foreground(accent),
 	}
 }
 

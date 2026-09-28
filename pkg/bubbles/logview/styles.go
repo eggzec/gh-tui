@@ -70,6 +70,10 @@ type Styles struct {
 	// default is "✗". The gutter marks error lines with "✗" whatever it
 	// is, beside the "!" of warnings and the "i" of notices.
 	ErrorGlyph string
+	// ErrorSeparator goes between the text of an error and its hint, and
+	// ErrorEllipsis ends the text where it is cut. The defaults are " · "
+	// and "…".
+	ErrorSeparator, ErrorEllipsis string
 	// Prompt styles the "/" before the search input, and InputCursor its
 	// cursor, with its foreground.
 	Prompt      lipgloss.Style
@@ -91,35 +95,37 @@ func DefaultStyles(isDark bool) Styles {
 	onCurrent := ld(lipgloss.Color("#1f2330"), lipgloss.Color("#1a1b26"))
 
 	return Styles{
-		Text:          lipgloss.NewStyle().Foreground(text),
-		Command:       lipgloss.NewStyle().Foreground(accent),
-		Debug:         lipgloss.NewStyle().Foreground(debug),
-		ErrorLine:     lipgloss.NewStyle().Foreground(errColor),
-		WarningLine:   lipgloss.NewStyle().Foreground(warnColor),
-		NoticeLine:    lipgloss.NewStyle().Foreground(text),
-		Group:         lipgloss.NewStyle().Foreground(text),
-		Section:       lipgloss.NewStyle().Foreground(text).Bold(true),
-		FailedSection: lipgloss.NewStyle().Foreground(errColor).Bold(true),
-		Duration:      lipgloss.NewStyle().Foreground(subtle),
-		Marker:        lipgloss.NewStyle().Foreground(muted),
-		ErrorMark:     lipgloss.NewStyle().Foreground(errColor),
-		WarningMark:   lipgloss.NewStyle().Foreground(warnColor),
-		NoticeMark:    lipgloss.NewStyle().Foreground(accent),
-		Cursor:        lipgloss.NewStyle().Foreground(accent),
-		BlurredCursor: lipgloss.NewStyle().Foreground(subtle),
-		LineNumber:    lipgloss.NewStyle().Foreground(subtle),
-		Time:          lipgloss.NewStyle().Foreground(subtle),
-		Match:         lipgloss.NewStyle().Foreground(text).Background(match),
-		CurrentMatch:  lipgloss.NewStyle().Foreground(onCurrent).Background(current),
-		Title:         lipgloss.NewStyle().Foreground(text).Bold(true),
-		Status:        lipgloss.NewStyle().Foreground(muted),
-		NoMatches:     lipgloss.NewStyle().Foreground(errColor),
-		Message:       lipgloss.NewStyle().Foreground(muted),
-		Spinner:       lipgloss.NewStyle().Foreground(accent),
-		LoadError:     lipgloss.NewStyle().Foreground(errColor),
-		ErrorGlyph:    "✗",
-		Prompt:        lipgloss.NewStyle().Foreground(accent),
-		InputCursor:   lipgloss.NewStyle().Foreground(accent),
+		Text:           lipgloss.NewStyle().Foreground(text),
+		Command:        lipgloss.NewStyle().Foreground(accent),
+		Debug:          lipgloss.NewStyle().Foreground(debug),
+		ErrorLine:      lipgloss.NewStyle().Foreground(errColor),
+		WarningLine:    lipgloss.NewStyle().Foreground(warnColor),
+		NoticeLine:     lipgloss.NewStyle().Foreground(text),
+		Group:          lipgloss.NewStyle().Foreground(text),
+		Section:        lipgloss.NewStyle().Foreground(text).Bold(true),
+		FailedSection:  lipgloss.NewStyle().Foreground(errColor).Bold(true),
+		Duration:       lipgloss.NewStyle().Foreground(subtle),
+		Marker:         lipgloss.NewStyle().Foreground(muted),
+		ErrorMark:      lipgloss.NewStyle().Foreground(errColor),
+		WarningMark:    lipgloss.NewStyle().Foreground(warnColor),
+		NoticeMark:     lipgloss.NewStyle().Foreground(accent),
+		Cursor:         lipgloss.NewStyle().Foreground(accent),
+		BlurredCursor:  lipgloss.NewStyle().Foreground(subtle),
+		LineNumber:     lipgloss.NewStyle().Foreground(subtle),
+		Time:           lipgloss.NewStyle().Foreground(subtle),
+		Match:          lipgloss.NewStyle().Foreground(text).Background(match),
+		CurrentMatch:   lipgloss.NewStyle().Foreground(onCurrent).Background(current),
+		Title:          lipgloss.NewStyle().Foreground(text).Bold(true),
+		Status:         lipgloss.NewStyle().Foreground(muted),
+		NoMatches:      lipgloss.NewStyle().Foreground(errColor),
+		Message:        lipgloss.NewStyle().Foreground(muted),
+		Spinner:        lipgloss.NewStyle().Foreground(accent),
+		LoadError:      lipgloss.NewStyle().Foreground(errColor),
+		ErrorGlyph:     "✗",
+		ErrorSeparator: " · ",
+		ErrorEllipsis:  "…",
+		Prompt:         lipgloss.NewStyle().Foreground(accent),
+		InputCursor:    lipgloss.NewStyle().Foreground(accent),
 	}
 }
 

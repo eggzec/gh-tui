@@ -436,7 +436,7 @@ func (m *Model[T]) refreshError() {
 	}
 	m.errLine = m.styles.Error.Render(m.styles.ErrorGlyph + " " + text)
 	if hint != "" {
-		m.errHint = m.styles.Hint.Render(" · " + hint)
+		m.errHint = m.styles.Hint.Render(m.styles.ErrorSeparator + hint)
 	}
 }
 

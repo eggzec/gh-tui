@@ -185,7 +185,7 @@ func (m *Model[T]) appendChunk(lines []string, c *chunk[T]) []string {
 }
 
 // errorLine renders a failed fetch as a status line: the mark and the
-// text, then " · " and the hint, which is kept whole and the text cut
+// text, then the separator and the hint, which is kept whole and the text cut
 // before it, unless the width can't hold it at all. An empty text shows
 // the hint alone, and nothing at all shows a blank line.
 func (m *Model[T]) errorLine(s said) string {
@@ -197,7 +197,7 @@ func (m *Model[T]) errorLine(s said) string {
 	}
 	text, tail := m.styles.ErrorGlyph+" "+s.text, ""
 	if s.hint != "" {
-		tail = " · " + s.hint
+		tail = m.styles.ErrorSeparator + s.hint
 	}
 	room := m.width - len(statusIndent) - ansi.StringWidth(tail)
 	if tail != "" && ansi.StringWidth(text) > room {
@@ -205,7 +205,7 @@ func (m *Model[T]) errorLine(s said) string {
 			// Too narrow for any of the text beside the hint.
 			return m.fit(statusIndent + m.styles.Hint.Render(s.hint))
 		}
-		text = ansi.Truncate(text, room, "…")
+		text = ansi.Truncate(text, room, m.styles.ErrorEllipsis)
 	}
 	return m.fit(statusIndent + m.styles.Error.Render(text) + m.styles.Hint.Render(tail))
 }

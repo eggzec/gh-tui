@@ -11,7 +11,7 @@ func (m Model) View() string {
 	if m.width <= 0 || m.height <= 0 {
 		return ""
 	}
-	w := lineWriter{width: m.width, height: m.height}
+	w := lineWriter{width: m.width, height: m.height, ellipsis: m.styles.ErrorEllipsis}
 	// Rows carry styles, so leave room for escape sequences.
 	w.b.Grow(m.height * (m.width + 48))
 
@@ -61,10 +61,10 @@ func (m Model) writeRow(w *lineWriter, i int) {
 	nw, mw := ansi.StringWidth(name), ansi.StringWidth(msg)
 	if nw+mw > room {
 		if nw > room/2 {
-			name = ansi.Truncate(name, max(room/2, 1), "…")
+			name = ansi.Truncate(name, max(room/2, 1), w.ellipsis)
 			nw = ansi.StringWidth(name)
 		}
-		msg = ansi.Truncate(msg, max(room-nw, 0), "…")
+		msg = ansi.Truncate(msg, max(room-nw, 0), w.ellipsis)
 	}
 	w.line(prefix, guide, marker, icon, name, msg, hint)
 }
@@ -126,7 +126,7 @@ func (m Model) errorWords(err error, top bool) (text, hint string) {
 		return "", ""
 	}
 	if h != "" {
-		hint = m.styles.Hint.Render(" · " + h)
+		hint = m.styles.Hint.Render(m.styles.ErrorSeparator + h)
 	}
 	return m.styles.Error.Render(m.styles.ErrorGlyph + " " + words), hint
 }
@@ -153,6 +153,8 @@ type lineWriter struct {
 	width  int
 	height int
 	lines  int
+	// ellipsis ends the text of a status line where it is cut.
+	ellipsis string
 }
 
 func (w *lineWriter) full() bool {
@@ -206,7 +208,7 @@ func (w *lineWriter) right(detail string, gap int, parts ...string) {
 func (w *lineWriter) status(prefix, text, hint string) {
 	room := w.width - ansi.StringWidth(prefix) - ansi.StringWidth(hint)
 	if tw := ansi.StringWidth(text); tw > room {
-		text = ansi.Truncate(text, max(room, 0), "…")
+		text = ansi.Truncate(text, max(room, 0), w.ellipsis)
 	}
 	w.line(prefix, text, hint)
 }

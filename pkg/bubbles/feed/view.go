@@ -11,7 +11,7 @@ func (m Model[T]) View() string {
 	if m.width <= 0 || m.height <= 0 {
 		return ""
 	}
-	w := lineWriter{width: m.width, height: m.height}
+	w := lineWriter{width: m.width, height: m.height, ellipsis: m.styles.ErrorEllipsis}
 	// Rows carry styles, so leave room for escape sequences.
 	w.b.Grow(m.height * (m.width + 32))
 
@@ -91,6 +91,8 @@ type lineWriter struct {
 	width  int
 	height int
 	lines  int
+	// ellipsis ends the text of a status line where it is cut.
+	ellipsis string
 }
 
 func (w *lineWriter) full() bool {
@@ -127,7 +129,7 @@ func (w *lineWriter) line(parts ...string) {
 func (w *lineWriter) status(prefix, text, hint string) {
 	room := w.width - ansi.StringWidth(prefix) - ansi.StringWidth(hint)
 	if tw := ansi.StringWidth(text); tw > room {
-		text = ansi.Truncate(text, max(room, 0), "…")
+		text = ansi.Truncate(text, max(room, 0), w.ellipsis)
 	}
 	w.line(prefix, text, hint)
 }
