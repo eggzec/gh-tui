@@ -13,7 +13,9 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/facets"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 )
 
 // The section is what the app's filter modal filters.
@@ -35,17 +37,8 @@ func apply(t *testing.T, h *host, query string) {
 	drain(t, h, h.ApplyFilter(filterform.AppliedMsg{ID: form.ID(), Values: form.Values(), Sort: form.Sort(), Query: form.Query()}))
 }
 
-// shown returns what the short help shows: the descriptions of the keys
-// that are enabled.
-func shown(km interface{ ShortHelp() []key.Binding }) []string {
-	var d []string
-	for _, b := range km.ShortHelp() {
-		if b.Enabled() {
-			d = append(d, b.Help().Desc)
-		}
-	}
-	return d
-}
+// shown returns the descriptions of the keys that are enabled.
+func shown(layers []keyhelp.Layer) []string { return uitest.Enabled(layers) }
 
 // firstLists returns the first pages listed, in order.
 func firstLists(svc *fakeService) []pulls.ListQuery {
@@ -132,11 +125,11 @@ func TestTabsKeepTheFilter(t *testing.T) {
 func TestClearFilter(t *testing.T) {
 	svc := newFakeService()
 	h := started(t, svc, 80, 20)
-	if descs := shown(h.Help()); slices.Contains(descs, "clear filters") {
+	if descs := shown(h.KeyLayers()); slices.Contains(descs, "clear filters") {
 		t.Error("help offers to clear filters before any")
 	}
 	apply(t, h, "is:closed author:vilmibm")
-	if descs := shown(h.Help()); !slices.Contains(descs, "clear filters") {
+	if descs := shown(h.KeyLayers()); !slices.Contains(descs, "clear filters") {
 		t.Errorf("help %v, want clear filters while filtered", descs)
 	}
 	press(t, h, "F")

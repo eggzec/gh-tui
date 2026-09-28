@@ -20,6 +20,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/checks"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 	"github.com/eggzec/gh-tui/pkg/markdown"
@@ -447,27 +448,25 @@ func (m *detailModal) show() tea.Cmd {
 	return m.thread.SetDocument(m.detailHeader(m.width), m.detail.Body)
 }
 
-// Help implements ui.Modal.
-func (m *detailModal) Help() help.KeyMap {
-	if m.checks != nil {
-		return m.checks.Help()
+// Help lists the keys of the modal for the help line.
+func (m *detailModal) Help() help.KeyMap { return ui.Hints{Layers: m.KeyLayers()} }
+
+// KeyLayers implements ui.Keyed: those of the Checks step while it shows,
+// the answer while a change waits for one, and otherwise the modal's own
+// keys and then the thread's.
+func (m *detailModal) KeyLayers() []keyhelp.Layer {
+	switch {
+	case m.checks != nil:
+		return m.checks.KeyLayers()
+	case m.ask != nil:
+		return []keyhelp.Layer{m.keys.confirm.Layer()}
 	}
-	if m.ask != nil {
-		return m.keys.confirm
+	k := m.keys.withChanges(m.gate(), m.mergeMethod, m.detail.PullRequest, m.loaded)
+	// The list's keys don't work here.
+	for _, b := range []*key.Binding{&k.Select, &k.Filter, &k.Sort, &k.ClearFilter, &k.NextTab, &k.PrevTab} {
+		b.SetEnabled(false)
 	}
-	k, t := m.keys, m.keys.thread
-	changes := k.changeHelp(m.gate(), m.mergeMethod, m.detail.PullRequest, m.loaded)
-	merge, closing, reopen := changes[0], changes[1], changes[2]
-	t.Toggle.SetEnabled(t.Toggle.Enabled() && m.thread.OnDiagram())
-	return keyHelp{
-		short: []key.Binding{t.Up, t.Down, k.Back, merge, closing, reopen, k.Checks, k.Open, t.Toggle},
-		full: [][]key.Binding{
-			{t.Up, t.Down, t.PageUp, t.PageDown},
-			{t.HalfPageUp, t.HalfPageDown, t.Top, t.Bottom},
-			{k.Back, k.Refresh, k.Checks, k.Open, t.Toggle},
-			changes,
-		},
-	}
+	return []keyhelp.Layer{keyhelp.FromHelp("pull request", k, false), keyhelp.FromHelp("thread", m.thread, false)}
 }
 
 // gate decides what the viewer may do in the repository.

@@ -5,11 +5,13 @@ import (
 	"strings"
 
 	"charm.land/bubbles/v2/help"
+
 	"charm.land/bubbles/v2/key"
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
 )
 
@@ -62,6 +64,9 @@ func newKeyMap(keys map[string][]string) keyMap {
 		Checks:      ui.Binding(keys, config.ActionChecks, "checks"),
 		confirm:     ui.DefaultConfirmKeys(),
 	}
+	// PR5: the section and the modal match their own keys first, so
+	// dropping them from the feed and the thread only keeps the
+	// collisions out of help.
 	own := k.list()
 	f := feed.DefaultKeyMap()
 	f.Up, f.Down = without(f.Up, own), without(f.Down, own)
@@ -142,33 +147,41 @@ func keyLabel(k string) string {
 	return k
 }
 
-// keyHelp is a help.KeyMap made of fixed lists.
-type keyHelp struct {
-	short []key.Binding
-	full  [][]key.Binding
+// ShortHelp implements help.KeyMap.
+func (k keyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.Select, k.Back, k.Filter, k.ClearFilter, k.NextTab, k.Merge, k.Close, k.Reopen, k.Checks, k.Open}
 }
 
-func (h keyHelp) ShortHelp() []key.Binding  { return h.short }
-func (h keyHelp) FullHelp() [][]key.Binding { return h.full }
+// FullHelp implements help.KeyMap: the changes, which the section and the
+// modal match first, and then the rest.
+func (k keyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{k.Merge, k.Close, k.Reopen, k.ToggleDraft},
+		{k.Back, k.Select, k.Checks, k.NextTab, k.PrevTab, k.ClearFilter, k.Refresh, k.Open, k.Filter, k.Sort},
+	}
+}
 
-// Help implements ui.Section. It lists the keys of the list; the modal of
-// an open pull request lists its own.
-func (s *Section) Help() help.KeyMap {
-	if !s.hasRepo {
-		return keyHelp{}
+// KeyLayers implements ui.Keyed: the keys of the list, and then those of
+// the feed. The modal of an open pull request lists its own. Without a
+// repository, no key does anything.
+func (s *Section) KeyLayers() []keyhelp.Layer {
+	own := keyhelp.FromHelp(ui.PullsTitle, s.keys.onList(s), false)
+	if !s.hasRepo || s.feed == nil {
+		return []keyhelp.Layer{ui.Off(own)}
 	}
-	k, f := s.keys, s.keys.feed
+	return []keyhelp.Layer{own, keyhelp.FromHelp("list", s.feed.KeyMap(), false)}
+}
+
+// Help lists the keys of the section for the help line.
+func (s *Section) Help() help.KeyMap { return ui.Hints{Layers: s.KeyLayers()} }
+
+// onList returns k as the list takes it: the changes that apply to the pull
+// request under the cursor, and the clear key while a filter is in
+// force. Back is the modal's.
+func (k keyMap) onList(s *Section) keyMap {
 	pr, ok := s.target()
-	changes := k.changeHelp(s.gate(), s.mergeMethod, pr, ok)
-	merge, closing, reopen := changes[0], changes[1], changes[2]
+	k = k.withChanges(s.gate(), s.mergeMethod, pr, ok)
 	k.ClearFilter.SetEnabled(k.ClearFilter.Enabled() && s.query != "")
-	return keyHelp{
-		short: []key.Binding{f.Up, f.Down, k.Select, k.Filter, k.ClearFilter, k.NextTab, merge, closing, reopen, k.Checks, k.Open},
-		full: [][]key.Binding{
-			{f.Up, f.Down, f.PageUp, f.PageDown},
-			{f.Home, f.End},
-			{k.Select, k.Filter, k.Sort, k.ClearFilter, k.NextTab, k.PrevTab, k.Refresh, k.Checks, k.Open},
-			changes,
-		},
-	}
+	k.Back.SetEnabled(false)
+	return k
 }
