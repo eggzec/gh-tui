@@ -21,7 +21,7 @@ func TestRowLinks(t *testing.T) {
 		uitest.CheckLinks(t, func(host, title string, width int) (string, string) {
 			j := core.Job{ID: 2, Name: title, Status: core.RunCompleted, Conclusion: core.ConclusionFailure,
 				URL: ui.WebURL(host, "o/r/actions/runs/1/job/2")}
-			return m.jobRow(j, selected, true, width, testNow), j.URL
+			return m.jobRow(j, title, m.rowGutter(selected, true), selected, width, testNow), j.URL
 		}, 120, 40, 12, 3)
 	}
 }
