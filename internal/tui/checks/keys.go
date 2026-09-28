@@ -14,8 +14,9 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/logview"
 )
 
-// KeyMap holds the keys of the step. The step handles its own keys first,
-// so the bubbles' keys leave out any it takes.
+// KeyMap holds the keys of the step and of the bubbles it shows. The step
+// matches its own keys first, so the bubbles get only the keys it leaves
+// them.
 type KeyMap struct {
 	// Up, Down, PageUp, PageDown, Home and End move through the checks.
 	Up, Down, PageUp, PageDown, Home, End key.Binding
@@ -55,38 +56,15 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		Annotations: ui.Binding(keys, config.ActionAnnotations, "annotations"),
 		Confirm:     ui.DefaultConfirmKeys(),
 	}
-	// ctrl+r, the second key of refresh, re-runs the failed jobs here.
-	// PR5: this decides where ctrl+r goes, since the step matches refresh
-	// first; match the re-run first instead of dropping the key.
-	k.Refresh = ui.FreeKeys(k.Refresh, k.RerunFailed)
-	own := []key.Binding{k.Select, k.Back, k.Open, k.Refresh, k.RerunFailed, k.Annotations}
-	// PR5: the step matches its own keys first, so dropping them here and
-	// below only keeps the collisions out of help.
-	for _, b := range []*key.Binding{&k.Up, &k.Down, &k.PageUp, &k.PageDown, &k.Home, &k.End} {
-		*b = ui.FreeKeys(*b, own...)
-	}
-
-	// The log folds with enter and closes with the back key, which clears
-	// its search first, so both stay the log's.
+	// ctrl+r, the second key of refresh, re-runs the failed jobs here:
+	// the step matches the re-run first. Its own keys come before those
+	// of the log and of what an app reported.
 	lk := logview.DefaultKeyMap()
-	logOwn := []key.Binding{k.Open, k.Refresh, k.RerunFailed, k.Annotations}
-	for _, b := range []*key.Binding{
-		&lk.Up, &lk.Down, &lk.PageUp, &lk.PageDown, &lk.HalfPageUp, &lk.HalfPageDown, &lk.Home, &lk.End,
-		&lk.Left, &lk.Right, &lk.Toggle, &lk.Expand, &lk.Collapse, &lk.FoldAll,
-		&lk.NextError, &lk.PrevError, &lk.NextWarning, &lk.PrevWarning, &lk.Wrap, &lk.Times, &lk.LineNumbers,
-		&lk.Follow, &lk.Search, &lk.Next, &lk.Prev,
-	} {
-		*b = ui.FreeKeys(*b, logOwn...)
-	}
 	lk.Close = k.Back
 	lk.Close.SetHelp(k.Back.Help().Key, "back")
 	k.Log = lk
 
-	dk := viewport.DefaultKeyMap()
-	for _, b := range []*key.Binding{&dk.PageDown, &dk.PageUp, &dk.HalfPageUp, &dk.HalfPageDown, &dk.Up, &dk.Down, &dk.Left, &dk.Right} {
-		*b = ui.FreeKeys(*b, own...)
-	}
-	k.Detail = dk
+	k.Detail = viewport.DefaultKeyMap()
 	return k
 }
 
@@ -107,7 +85,7 @@ func relabel(b key.Binding, desc string) key.Binding {
 // own returns the keys of the step itself, in the order it matches them.
 func (k KeyMap) own() []key.Binding {
 	return []key.Binding{
-		k.Back, k.Refresh, k.Open, k.RerunFailed,
+		k.Back, k.RerunFailed, k.Refresh, k.Open,
 		k.Select, k.Up, k.Down, k.PageUp, k.PageDown, k.Home, k.End, k.Annotations,
 	}
 }
