@@ -59,9 +59,14 @@ type Config struct {
 type Sync struct {
 	Enabled bool `yaml:"enabled"`
 	// Interval is the polling interval when the server doesn't ask for a
-	// longer one.
+	// longer one. It is at least minSyncInterval.
 	Interval time.Duration `yaml:"interval"`
 }
+
+// minSyncInterval is the shortest polling interval: polls closer than that
+// would spend the rate limit on changes that rarely come so often. The
+// sync engine never polls more often either.
+const minSyncInterval = 10 * time.Second
 
 // Default returns the default configuration. Each call returns fresh maps
 // and slices, so callers may modify the result.
@@ -147,8 +152,8 @@ func (c Config) Validate() error {
 	}
 
 	errs = append(errs, c.Cache.validate())
-	if c.Sync.Interval <= 0 {
-		errs = append(errs, fmt.Errorf("sync.interval: must be positive, got %v", c.Sync.Interval))
+	if c.Sync.Interval < minSyncInterval {
+		errs = append(errs, fmt.Errorf("sync.interval: must be at least %v, got %v", minSyncInterval, c.Sync.Interval))
 	}
 	errs = append(errs, c.Files.validate(), c.Details.validate(), c.History.validate(), c.Dashboard.validate(), c.UI.validate(), c.Log.validate())
 	return errors.Join(errs...)
