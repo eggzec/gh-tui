@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
@@ -348,16 +347,30 @@ func TestHelpFollowsTheView(t *testing.T) {
 	if got := uitest.Enabled(h.modal().KeyLayers()); slices.Contains(got, "filter") || !slices.Contains(got, "back") {
 		t.Errorf("modal help = %v, want back and no filter", got)
 	}
-	// The bubbles lose the keys the section takes.
-	for _, l := range h.modal().KeyLayers() {
-		for _, b := range l.Bindings {
-			if b.Enabled() && b.Help().Desc != "refresh" && slices.Contains(b.Keys(), "r") {
-				t.Errorf("%q also claims r", b.Help().Desc)
-			}
-		}
+	// The modal's keys come before the thread's.
+	if got := winner(h.modal().KeyLayers(), "r"); got != "pull request: refresh" {
+		t.Errorf("r reaches %q in the modal, want its refresh", got)
 	}
-	if key.Matches(keyMsg("f"), h.keys.feed.PageDown) {
-		t.Error("the feed's page down still takes the filter key")
+}
+
+// TestFilterKeysStayOffTheFeed checks that the keys of the filter, which
+// the app opens, reach the list rather than the feed, whose page down f
+// is too, and that the help says so.
+func TestFilterKeysStayOffTheFeed(t *testing.T) {
+	for _, k := range []string{"f", "s"} {
+		t.Run(k, func(t *testing.T) {
+			h := started(t, newFakeService(), 80, 20)
+			if got := winner(h.KeyLayers(), k); got != ui.PullsTitle+": "+map[string]string{"f": "filter", "s": "sort"}[k] {
+				t.Errorf("%s reaches %q, want the list's", k, got)
+			}
+			before, _ := h.feed.Selected()
+			if msgs := press(t, h, k); len(msgs) != 0 {
+				t.Errorf("%s sent %v", k, msgs)
+			}
+			if after, _ := h.feed.Selected(); after.Number != before.Number {
+				t.Errorf("%s moved the cursor from #%d to #%d", k, before.Number, after.Number)
+			}
+		})
 	}
 }
 
