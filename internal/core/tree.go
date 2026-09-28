@@ -61,8 +61,9 @@ type Tree struct {
 	Entries   []TreeEntry
 	Truncated bool
 	// Offline reports that GitHub couldn't be reached, so the listing is
-	// what the ref pointed at when it was last read, kept on disk.
-	Offline bool
+	// what the ref pointed at when it was last read, kept on disk, and
+	// Limited that GitHub rate limited the read, which it is served for.
+	Offline, Limited bool
 }
 
 // Blob is the content of a file.

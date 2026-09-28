@@ -141,7 +141,8 @@ var offlineAt = time.Unix(1, 0)
 // into memory: fresh if GitHub confirmed it within the TTL, and otherwise
 // stale, to make the request conditional, so a new session pays nothing for
 // a ref that didn't move. If GitHub can't be reached, the tree the ref last
-// pointed at is served with Offline set.
+// pointed at is served with Offline set, and if it rate limits the read,
+// with Limited set.
 func (s *Service) byRef(ctx context.Context, q TreeQuery, l lister) (core.Tree, error) {
 	key, rkey := l.key(q.Repo, q.Ref), refKey(l.kind, q.Repo, q.Ref)
 	if _, st := s.refs.Get(key); st == cache.Miss {
@@ -165,7 +166,8 @@ const (
 // l lists it. It asks GitHub with the validators of the previous entry, or
 // of the ref's last response in the store, and keeps what GitHub sends and
 // when it confirmed the ref. If fallback is set and GitHub can't be
-// reached, it serves the previous tree with Offline set. It records what
+// reached, it serves the previous tree with Offline set, and if GitHub
+// rate limits the read, with Limited set. It records what
 // GitHub said in found, if set.
 func (s *Service) refFetch(q TreeQuery, l lister, fallback bool, found *atomic.Int32) cache.FetchFunc[core.Tree] {
 	tags := []string{repoTag(q.Repo)}
@@ -186,7 +188,11 @@ func (s *Service) refFetch(q TreeQuery, l lister, fallback bool, found *atomic.I
 		t, res, err := l.get(s.api, ctx, q.Repo, q.Ref, cond)
 		switch {
 		case err != nil && fallback && ok && github.Unreachable(ctx, err):
-			prev.Value.Offline = true
+			prev.Value.Offline, prev.Value.Limited = true, false
+			prev.FetchedAt, prev.Tags = offlineAt, tags
+			return prev, nil
+		case err != nil && fallback && ok && ctx.Err() == nil && core.KindOf(err) == core.RateLimited:
+			prev.Value.Offline, prev.Value.Limited = false, true
 			prev.FetchedAt, prev.Tags = offlineAt, tags
 			return prev, nil
 		case err != nil:
@@ -194,7 +200,7 @@ func (s *Service) refFetch(q TreeQuery, l lister, fallback bool, found *atomic.I
 		case res.NotModified && ok:
 			note(refNotModified)
 			s.confirmRef(q, l, prev)
-			prev.Value.Offline = false
+			prev.Value.Offline, prev.Value.Limited = false, false
 			prev.FetchedAt, prev.Tags = time.Time{}, tags
 			return prev, nil
 		case res.NotModified:

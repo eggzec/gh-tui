@@ -21,8 +21,8 @@ type index struct {
 	// may be missing entries and are read one by one instead.
 	truncated bool
 	// offline reports that GitHub couldn't be reached, so the listing is
-	// the one kept on disk.
-	offline bool
+	// the one kept on disk, and limited that GitHub rate limited the read.
+	offline, limited bool
 	// dirs holds the entries of each directory by its path, "" for the
 	// root, in the order the tree shows them.
 	dirs map[string][]core.TreeEntry
@@ -54,7 +54,7 @@ func newIndex(t core.Tree) *index {
 		slices.SortFunc(d, filesvc.CompareEntries)
 		dirs[dir] = d
 	}
-	return &index{sha: t.SHA, truncated: t.Truncated, offline: t.Offline, dirs: dirs}
+	return &index{sha: t.SHA, truncated: t.Truncated, offline: t.Offline, limited: t.Limited, dirs: dirs}
 }
 
 // parentOf returns the directory of a path, "" for a top-level entry.
@@ -118,7 +118,7 @@ func (s *source) cached(ctx context.Context) (*index, error) {
 func (s *source) indexOf(t core.Tree) *index {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if x := s.idx; x != nil && t.SHA != "" && x.sha == t.SHA && x.truncated == t.Truncated && x.offline == t.Offline {
+	if x := s.idx; x != nil && t.SHA != "" && x.sha == t.SHA && x.truncated == t.Truncated && x.offline == t.Offline && x.limited == t.Limited {
 		return x
 	}
 	s.idx = newIndex(t)
