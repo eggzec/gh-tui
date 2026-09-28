@@ -6,3 +6,5 @@ cache:
   ttl: 0s
   disk:
     compression: zstd
+sync:
+  interval: 1s

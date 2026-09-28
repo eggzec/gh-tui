@@ -124,7 +124,7 @@ func TestLoadErrors(t *testing.T) {
 	}{
 		{"unknown_field.yaml", []string{"line 3", "field size not found"}},
 		{"malformed.yaml", []string{"malformed.yaml", "line 3"}},
-		{"invalid.yaml", []string{"repos[0]", "theme:", "keys.quit", "cache.ttl", "cache.disk.compression"}},
+		{"invalid.yaml", []string{"repos[0]", "theme:", "keys.quit", "cache.ttl", "cache.disk.compression", "sync.interval: must be at least 10s, got 1s"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.file, func(t *testing.T) {
@@ -192,7 +192,7 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 		`cache.revalidate.interval: must be at least 10s, got 1s`,
 		`cache.revalidate.budget: must be between 1 and 300, got 0`,
 		`cache.revalidate.scope: must be recent or all, got "some"`,
-		`sync.interval: must be positive, got -1s`,
+		`sync.interval: must be at least 10s, got -1s`,
 		`files.prefetch.max_size: must not exceed files.preview.max_size (32KiB), got 64KiB`,
 		`files.prefetch.hover_delay: must not be negative, got -1ms`,
 		`details.prefetch.rows: must be between 0 and 30, got 31`,

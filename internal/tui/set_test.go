@@ -57,6 +57,8 @@ func TestSetCommand(t *testing.T) {
 		{line: "set  theme = mine ", toast: "theme is mine for this session.", changes: true},
 		{line: "set ui.icons=ascii", toast: "ui.icons is ascii for this session.", changes: true},
 		{line: "set details.prefetch.enabled=false", toast: "details.prefetch.enabled is false for this session.", changes: true},
+		{line: "set sync.interval=1ms", toast: "Can't set sync.interval: must be at least 10s, got 1ms."},
+		{line: "set sync.interval=10s", toast: "sync.interval is 10s for this session.", changes: true},
 		{line: "set files.prefetch.max_size=2MiB", toast: "Can't set files.prefetch.max_size: must not exceed files.preview.max_size (1MiB), got 2MiB."},
 	}
 	for _, tt := range tests {
