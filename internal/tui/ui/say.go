@@ -2,6 +2,7 @@ package ui
 
 import (
 	"cmp"
+	"errors"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -25,8 +26,8 @@ const (
 	minCause    = 12
 )
 
-// restart ends the sentences that ask the user to fix the token with gh,
-// since the app reads the token only as it starts.
+// restart ends the sentences that ask the user to fix the token with gh
+// when the app has no command that reads the token again.
 const restart = ", then restart gh-tui"
 
 // Voice is what Say needs besides the problem: the keys a hint names, from
@@ -43,6 +44,10 @@ type Voice struct {
 	Loc *time.Location
 	// Now is the clock; nil means time.Now.
 	Now func() time.Time
+	// Token is what the token may do, and names the command that grants
+	// it more, which the words for a token problem point to. Without it
+	// they ask the user to fix the token with gh and restart the app.
+	Token *Token
 }
 
 // NewVoice returns the voice of the configured keys, whose refresh key
@@ -145,26 +150,23 @@ func words(p *core.Problem, v Voice) (text, hint string, named bool) {
 		}
 		return "Rate limited until " + p.Reset.In(cmp.Or(v.Loc, time.Local)).Format(layout), "loads again then", false
 	case core.Auth:
-		// The app reads the token once, as it starts, so a new one from gh
-		// reaches it only after a restart; the token-scopes work (A3, a
-		// token Reload) will switch these to "then r to retry".
-		if s := grant(p); s != "" {
-			return "The token lacks the " + s + " scope. Run gh auth refresh -s " + s + restart + ".", "", false
-		}
-		return "GitHub rejected the token. Run gh auth login" + restart + ".", "", false
+		return authWords(p, v.Token.Hint())
 	case core.Forbidden:
 		if sso(p) {
-			if org, _, _ := strings.Cut(subject, "/"); org != "" {
-				return org + " requires SSO. Run gh auth refresh" + restart + ".", "", true
-			}
-			return "The organization requires SSO. Run gh auth refresh" + restart + ".", "", false
+			return ssoWords(subject, v.Token.Hint())
 		}
 		return "You don't have access to " + cmp.Or(subject, "this"), open, false
 	case core.NotFound:
+		text := "This doesn't exist or is private."
 		if subject != "" {
-			return subject + " doesn't exist or is private.", "", true
+			text = subject + " doesn't exist or is private."
 		}
-		return "This doesn't exist or is private.", "", false
+		// Without repo, GitHub hides what is private as if it weren't
+		// there.
+		if h := v.Token.Hint(); h != "" && lacksRepo(v.Token) {
+			return text + " If it's private, the token needs the repo scope.", h + " to grant it", subject != ""
+		}
+		return text, "", subject != ""
 	case core.Rejected:
 		if reason := clean(p.Reason); reason != "" {
 			return reason, open, true
@@ -176,6 +178,50 @@ func words(p *core.Problem, v Voice) (text, hint string, named bool) {
 		}
 		return "Something went wrong. Details are in the log (" + v.Log + ")", retry, false
 	}
+}
+
+// authWords says an Auth problem p, pointing to the command hint, such as
+// ":auth", that grants the token what it lacks, or to gh and a restart
+// when hint is "".
+func authWords(p *core.Problem, hint string) (text, do string, named bool) {
+	if e, ok := errors.AsType[*core.KindError](p.Err); ok {
+		text = "This needs a classic token, not " + kindArticle(e.Kind)
+		if hint == "" {
+			return text + ". Run gh auth login to use one" + restart + ".", "", false
+		}
+		return text, hint + " to see how", false
+	}
+	s := grant(p)
+	switch {
+	case s != "" && hint != "":
+		return "The token lacks the " + s + " scope", hint + " to grant it", false
+	case s != "":
+		return "The token lacks the " + s + " scope. Run gh auth refresh -s " + s + restart + ".", "", false
+	case hint != "":
+		return "GitHub rejected the token. Run gh auth login, then " + hint + ".", "", false
+	}
+	return "GitHub rejected the token. Run gh auth login" + restart + ".", "", false
+}
+
+// ssoWords says that the organization of subject, such as "eggzec/x",
+// requires SSO, pointing to the command hint that authorizes the token,
+// or to gh and a restart when hint is "".
+func ssoWords(subject, hint string) (text, do string, named bool) {
+	org, _, _ := strings.Cut(subject, "/")
+	text, named = "The organization requires SSO", false
+	if org != "" {
+		text, named = org+" requires SSO", true
+	}
+	if hint != "" {
+		return text, hint + " to authorize the token", named
+	}
+	return text + ". Run gh auth refresh" + restart + ".", "", named
+}
+
+// lacksRepo reports whether t is known to lack the repo scope.
+func lacksRepo(t *Token) bool {
+	_, ok := errors.AsType[*core.ScopeError](t.Check(core.NeedRuns))
+	return ok
 }
 
 // SayToast returns the toast that tells the user p stopped its action,
@@ -254,6 +300,9 @@ func actionCuts(action string) []string {
 // for the longer sentences, so the shorter ones keep what the user needs
 // from them: the command to run, or where the log is.
 func toastCauses(p *core.Problem, v Voice, text string) []string {
+	if h := v.Token.Hint(); h != "" {
+		return hintedCauses(p, v, text, h)
+	}
 	var run string
 	switch scope := grant(p); {
 	case p.Kind == core.Auth && scope != "":
@@ -270,6 +319,26 @@ func toastCauses(p *core.Problem, v Voice, text string) []string {
 	// Without the restart the command seems not to work, so the restart
 	// outlasts what went wrong.
 	return []string{text, run + restart, run}
+}
+
+// hintedCauses are toastCauses when the app has a command, hint, that
+// fixes the token: a toast names it, though it names no key, since the
+// command works from anywhere.
+func hintedCauses(p *core.Problem, v Voice, text, hint string) []string {
+	_, do, _ := words(p, v)
+	switch {
+	case p.Kind == core.Internal && v.Log != "":
+		return []string{"something went wrong, see " + v.Log, "something went wrong, see the log"}
+	case p.Kind == core.Auth && do == "":
+		// The text names the command already.
+		return []string{text, "run gh auth login, then " + hint}
+	case p.Kind == core.NotFound && do != "":
+		first, _, _ := strings.Cut(text, ". ")
+		return []string{text + " · " + do, first + " · " + hint + " grants the repo scope", first}
+	case p.Kind == core.Auth || p.Kind == core.Forbidden && sso(p):
+		return []string{text + " · " + do, text + " · " + hint}
+	}
+	return []string{text}
 }
 
 // sentence ends s with a full stop, unless it ends a sentence already.
