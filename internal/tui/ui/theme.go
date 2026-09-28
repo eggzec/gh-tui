@@ -77,6 +77,7 @@ func (t Theme) Toast() toast.Styles {
 func (t Theme) Feed(ic Icons) feed.Styles {
 	s := feed.DefaultStyles(t.Dark)
 	s.ErrorGlyph = ic.Error
+	s.ErrorSeparator, s.ErrorEllipsis = ic.Separator, ic.Ellipsis
 	s.Cursor = s.Cursor.Foreground(lipgloss.Color(t.Palette.Accent))
 	s.BlurredCursor = s.BlurredCursor.Foreground(lipgloss.Color(t.Palette.Subtle))
 	s.Placeholder = s.Placeholder.Foreground(lipgloss.Color(t.Palette.Subtle))
@@ -92,6 +93,7 @@ func (t Theme) Feed(ic Icons) feed.Styles {
 func (t Theme) Thread(ic Icons) thread.Styles {
 	s := thread.DefaultStyles(t.Dark)
 	s.ErrorGlyph = ic.Error
+	s.ErrorSeparator, s.ErrorEllipsis = ic.Separator, ic.Ellipsis
 	s.Spinner = s.Spinner.Foreground(lipgloss.Color(t.Palette.Accent))
 	s.Loading = s.Loading.Foreground(lipgloss.Color(t.Palette.Muted))
 	s.Empty = s.Empty.Foreground(lipgloss.Color(t.Palette.Muted))
@@ -105,6 +107,7 @@ func (t Theme) Thread(ic Icons) thread.Styles {
 func (t Theme) Tree(ic Icons) tree.Styles {
 	s := tree.DefaultStyles(t.Dark)
 	s.ErrorGlyph = ic.Error
+	s.ErrorSeparator, s.ErrorEllipsis = ic.Separator, ic.Ellipsis
 	s.Cursor = s.Cursor.Foreground(lipgloss.Color(t.Palette.Accent))
 	s.BlurredCursor = s.BlurredCursor.Foreground(lipgloss.Color(t.Palette.Subtle))
 	s.Guide = s.Guide.Foreground(lipgloss.Color(t.Palette.Border))
@@ -126,6 +129,7 @@ func (t Theme) Tree(ic Icons) tree.Styles {
 func (t Theme) Graph(ic Icons) graph.Styles {
 	s := graph.DefaultStyles(t.Dark)
 	s.ErrorGlyph = ic.Error
+	s.ErrorSeparator, s.ErrorEllipsis = ic.Separator, ic.Ellipsis
 	accent := lipgloss.Color(t.Palette.Accent)
 	s.Cursor = s.Cursor.Foreground(accent)
 	s.BlurredCursor = s.BlurredCursor.Foreground(lipgloss.Color(t.Palette.Subtle))
@@ -151,6 +155,7 @@ func (t Theme) Graph(ic Icons) graph.Styles {
 func (t Theme) Pager(ic Icons) pager.Styles {
 	s := pager.DefaultStyles(t.Dark)
 	s.ErrorGlyph = ic.Error
+	s.ErrorSeparator, s.ErrorEllipsis = ic.Separator, ic.Ellipsis
 	s.Text = s.Text.Foreground(lipgloss.Color(t.Palette.Foreground))
 	s.LineNumber = s.LineNumber.Foreground(lipgloss.Color(t.Palette.Subtle))
 	s.Name = s.Name.Foreground(lipgloss.Color(t.Palette.Foreground))
@@ -170,6 +175,7 @@ func (t Theme) Pager(ic Icons) pager.Styles {
 func (t Theme) LogView(ic Icons) logview.Styles {
 	s := logview.DefaultStyles(t.Dark)
 	s.ErrorGlyph = ic.Error
+	s.ErrorSeparator, s.ErrorEllipsis = ic.Separator, ic.Ellipsis
 	c := lipgloss.Color
 	p := t.Palette
 	s.Text = s.Text.Foreground(c(p.Foreground))
@@ -205,6 +211,7 @@ func (t Theme) LogView(ic Icons) logview.Styles {
 func (t Theme) FilterForm(ic Icons) filterform.Styles {
 	s := filterform.DefaultStyles(t.Dark)
 	s.ErrorGlyph = ic.Error
+	s.ErrorSeparator, s.ErrorEllipsis = ic.Separator, ic.Ellipsis
 	c := lipgloss.Color
 	p := t.Palette
 	s.Tab = s.Tab.Foreground(c(p.Muted))
@@ -254,6 +261,7 @@ func (t Theme) Prompt() prompt.Styles {
 func (t Theme) Picker(ic Icons) picker.Styles {
 	s := picker.DefaultStyles(t.Dark)
 	s.ErrorGlyph = ic.Error
+	s.ErrorSeparator, s.ErrorEllipsis = ic.Separator, ic.Ellipsis
 	fg, accent := lipgloss.Color(t.Palette.Foreground), lipgloss.Color(t.Palette.Accent)
 	muted, subtle := lipgloss.Color(t.Palette.Muted), lipgloss.Color(t.Palette.Subtle)
 	s.Frame = s.Frame.BorderForeground(lipgloss.Color(t.Palette.Border))
@@ -280,6 +288,7 @@ func (t Theme) Picker(ic Icons) picker.Styles {
 func (t Theme) Finder(ic Icons) finder.Styles {
 	s := finder.DefaultStyles(t.Dark)
 	s.ErrorGlyph = ic.Error
+	s.ErrorSeparator, s.ErrorEllipsis = ic.Separator, ic.Ellipsis
 	fg, accent := lipgloss.Color(t.Palette.Foreground), lipgloss.Color(t.Palette.Accent)
 	muted, subtle := lipgloss.Color(t.Palette.Muted), lipgloss.Color(t.Palette.Subtle)
 	s.Prompt = s.Prompt.Foreground(accent)

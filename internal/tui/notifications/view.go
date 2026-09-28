@@ -226,7 +226,7 @@ func (s *Section) renderUnreadable() {
 		h -= headerHeight
 	}
 	// The text starts where the titles of the rows do.
-	lines := ui.ErrorLine(s.theme.Empty(), text, hint, max(s.width-2, 1))
+	lines := ui.ErrorLine(s.theme.Empty(s.icons), text, hint, max(s.width-2, 1))
 	for i := range lines {
 		lines[i] = "  " + lines[i]
 	}

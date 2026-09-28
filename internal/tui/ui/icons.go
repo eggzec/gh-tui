@@ -21,6 +21,10 @@ type Icons struct {
 	Star string
 	// Error marks what went wrong, as ErrorLine shows it.
 	Error string
+	// Separator goes between the text of an error and its hint, and
+	// Ellipsis ends the text where it is cut: " · " and "…", or ASCII in
+	// the ASCII set.
+	Separator, Ellipsis string
 
 	// langs holds the glyphs of languages that have one; the others get
 	// lang.
@@ -65,7 +69,7 @@ func newIcons(set string) Icons {
 	case config.IconsUnicode:
 		return Icons{
 			Fork: "⑂", Private: "⊘", Archived: "⊟", Template: "⧉", Mirror: "⇄", Here: "⌂",
-			Star: "★", Error: "✗",
+			Star: "★", Error: "✗", Separator: " · ", Ellipsis: "…",
 			lang: "◉",
 			states: [NumStates]string{
 				IssueOpen: "⦾", IssueClosed: "⦿", IssueNotPlanned: "⊘",
@@ -75,7 +79,7 @@ func newIcons(set string) Icons {
 	case config.IconsASCII:
 		return Icons{
 			Fork: "F", Private: "P", Archived: "A", Template: "T", Mirror: "M", Here: "~",
-			Star: "*", Error: "x",
+			Star: "*", Error: "x", Separator: " - ", Ellipsis: "...",
 			// A colored dot, as the other sets have, since the star takes *.
 			lang: "o",
 			states: [NumStates]string{
@@ -89,7 +93,7 @@ func newIcons(set string) Icons {
 		return Icons{
 			Fork: "\uf402", Private: "\uf456", Archived: "\uf411", Template: "\uf509", Mirror: "\uf41a", Here: "\uf46d",
 			Star:  "\uf41e",
-			Error: "\uf530",
+			Error: "\uf530", Separator: " · ", Ellipsis: "…",
 			langs: nerdLanguages,
 			lang:  "\uf44f",
 			files: nerdFiles,

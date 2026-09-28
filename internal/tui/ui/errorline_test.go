@@ -166,3 +166,35 @@ func BenchmarkErrorLine(b *testing.B) {
 		ErrorLine(st, text, hint, 80)
 	}
 }
+
+// The ASCII set draws error lines in ASCII alone: its mark, the separator
+// before the hint and the ellipsis of a cut text, at any width.
+func TestErrorLineASCII(t *testing.T) {
+	p, err := config.Default().Palette(true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	st := NewTheme(p, true).Errors(NewIcons(config.IconsASCII))
+	cut := false
+	for width := 12; width <= 120; width++ {
+		lines := ErrorLine(st, longReason, "r to retry", width)
+		for _, l := range lines {
+			plain := ansi.Strip(l)
+			for i := range len(plain) {
+				if plain[i] >= 0x80 {
+					t.Fatalf("width %d: line %q has a byte beyond ASCII", width, plain)
+				}
+			}
+			if w := ansi.StringWidth(plain); w > width {
+				t.Errorf("width %d: line %q is %d cells", width, plain, w)
+			}
+			cut = cut || strings.Contains(plain, "...")
+		}
+	}
+	if !cut {
+		t.Error("the text was never cut with ...")
+	}
+	if got := ansi.Strip(ErrorLine(st, "Can't reach GitHub", "r to retry", 80)[0]); got != "x Can't reach GitHub - r to retry" {
+		t.Errorf("line = %q, want the ASCII mark and separator", got)
+	}
+}

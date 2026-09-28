@@ -624,7 +624,7 @@ func (s *Section) inboxBody(w, h int) []string {
 	st := &s.st
 	if s.inbox != nil {
 		if text, hint, ok := ui.Unreadable(core.NeedNotifications, "load your notifications", s.voice); ok {
-			lines := ui.ErrorLine(s.theme.Empty(), text, hint, max(w-1, 1))
+			lines := ui.ErrorLine(s.theme.Empty(s.icons), text, hint, max(w-1, 1))
 			for i := range lines {
 				lines[i] = " " + lines[i]
 			}

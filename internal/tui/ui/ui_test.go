@@ -128,6 +128,25 @@ func TestThemeTakesErrorGlyph(t *testing.T) {
 				t.Errorf("%s: %s mark = %q, want %q", set, name, g, ic.Error)
 			}
 		}
+		// The separator and the ellipsis take the same path.
+		joins := map[string][2]string{
+			"feed":        {th.Feed(ic).ErrorSeparator, th.Feed(ic).ErrorEllipsis},
+			"thread":      {th.Thread(ic).ErrorSeparator, th.Thread(ic).ErrorEllipsis},
+			"tree":        {th.Tree(ic).ErrorSeparator, th.Tree(ic).ErrorEllipsis},
+			"graph":       {th.Graph(ic).ErrorSeparator, th.Graph(ic).ErrorEllipsis},
+			"pager":       {th.Pager(ic).ErrorSeparator, th.Pager(ic).ErrorEllipsis},
+			"logview":     {th.LogView(ic).ErrorSeparator, th.LogView(ic).ErrorEllipsis},
+			"filterform":  {th.FilterForm(ic).ErrorSeparator, th.FilterForm(ic).ErrorEllipsis},
+			"picker":      {th.Picker(ic).ErrorSeparator, th.Picker(ic).ErrorEllipsis},
+			"finder":      {th.Finder(ic).ErrorSeparator, th.Finder(ic).ErrorEllipsis},
+			"error lines": {th.Errors(ic).Separator, th.Errors(ic).Ellipsis},
+			"empty lines": {th.Empty(ic).Separator, th.Empty(ic).Ellipsis},
+		}
+		for name, j := range joins {
+			if j != [2]string{ic.Separator, ic.Ellipsis} {
+				t.Errorf("%s: %s separator and ellipsis = %q, want %q and %q", set, name, j, ic.Separator, ic.Ellipsis)
+			}
+		}
 	}
 }
 
