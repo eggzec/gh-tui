@@ -420,7 +420,7 @@ func TestLabelQuestion(t *testing.T) {
 		{nil, []string{"wontfix"}, "Remove the label wontfix from #12?"},
 		{nil, []string{"wontfix", "ui"}, "Remove the labels wontfix, ui from #12?"},
 		{[]string{"bug"}, []string{"wontfix", "ui"}, "Add the label bug to #12 and remove wontfix, ui?"},
-		{[]string{"a\x1b[31mb"}, nil, "Add the label a [31mb to #12?"},
+		{[]string{"a\x1b[31mb"}, nil, "Add the label ab to #12?"},
 	}
 	for _, tt := range tests {
 		if got := labelQuestion("#12", tt.added, tt.removed); got != tt.want {

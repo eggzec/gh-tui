@@ -66,7 +66,7 @@ func TestOneLine(t *testing.T) {
 	tests := []struct{ in, want string }{
 		{"plain", "plain"},
 		{"a\nb\tc", "a b c"},
-		{"a\r\n\x1b[31mb", "a [31mb"},
+		{"a\r\n\x1b[31mb", "a b"},
 		// Bidi controls would make the text read other than it is.
 		{"CI \u202efdp.exe", "CI fdp.exe"},
 		{"\u202aa\u202bb\u202cc\u202dd\u202ee", "abcde"},
