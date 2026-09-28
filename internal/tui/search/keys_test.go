@@ -33,6 +33,12 @@ func TestKeyLayersOrder(t *testing.T) {
 		{[]string{"t"}, "enter", "query: search", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea && s.text == "t" }},
 		{nil, "j", "nothing", func(s, _ *Section, _ []tea.Msg) bool { return s.input.Value() == "j" }},
 		{nil, "esc", "query: back", back},
+		// The query types ] and [ before the moves that hold them, whose
+		// other keys still move.
+		{nil, "]", "nothing", func(s, _ *Section, _ []tea.Msg) bool { return s.input.Value() == "]" && s.area == inputArea }},
+		{nil, "[", "nothing", func(s, _ *Section, _ []tea.Msg) bool { return s.input.Value() == "[" && s.area == inputArea }},
+		{nil, "tab", "query: next", func(s, _ *Section, _ []tea.Msg) bool { return s.area == kindsArea }},
+		{nil, "shift+tab", "query: previous", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea }},
 		{results, "j", "results: down", func(s, b *Section, _ []tea.Msg) bool { return selectedHit(s) != selectedHit(b) }},
 		{results, "enter", "search: open", func(_, _ *Section, msgs []tea.Msg) bool { return len(msgs) > 0 }},
 		{results, "left", "search: kinds", func(s, _ *Section, _ []tea.Msg) bool { return s.area == kindsArea }},

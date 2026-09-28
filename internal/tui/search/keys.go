@@ -1,9 +1,6 @@
 package search
 
 import (
-	"slices"
-	"unicode/utf8"
-
 	"charm.land/bubbles/v2/key"
 
 	"github.com/eggzec/gh-tui/internal/config"
@@ -72,21 +69,6 @@ func newKeyMap(keys map[string][]string) KeyMap {
 	return k
 }
 
-// typing returns b without the keys that type text, such as "]", for
-// while the query has the focus.
-func typing(b key.Binding) key.Binding {
-	keys := slices.DeleteFunc(slices.Clone(b.Keys()), func(k string) bool {
-		return utf8.RuneCountInString(k) == 1 || k == "space"
-	})
-	if len(keys) == len(b.Keys()) {
-		return b
-	}
-	if len(keys) == 0 {
-		return key.NewBinding(key.WithDisabled())
-	}
-	return key.NewBinding(key.WithKeys(keys...), key.WithHelp(keys[0], b.Help().Desc))
-}
-
 // arrows keeps the arrow of b, for while the query has the focus.
 var (
 	arrowUp   = key.NewBinding(key.WithKeys("up"), key.WithHelp("↑", "kinds"))
@@ -114,10 +96,12 @@ func (k KeyMap) FullHelp() [][]key.Binding { return [][]key.Binding{k.own()} }
 // results on view. The query types what its keys don't take.
 func (s *Section) KeyLayers() []keyhelp.Layer {
 	if s.area == inputArea {
+		// The query types first, so its keys get only those that type
+		// nothing, such as tab rather than ].
 		k := s.keys.inInput()
 		keys := append(k.own(), arrowUp, arrowDown)
 		short := []key.Binding{k.Select, arrowDown, k.Next, k.Back}
-		return []keyhelp.Layer{{Source: "query", Bindings: keys, Typing: true, Short: short}}
+		return []keyhelp.Layer{{Source: "query", Typing: true}, {Source: "query", Bindings: keys, Short: short}}
 	}
 	k := s.keys.state(s)
 	own := keyhelp.Layer{Source: "search", Bindings: k.own(), Short: k.ShortHelp()}
@@ -127,17 +111,16 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 	return []keyhelp.Layer{own, keyhelp.FromHelp("results", s.feedKeys(), false)}
 }
 
-// inInput returns k as the query takes it: only the keys that type
-// nothing act, and the arrows move to the kinds and the results.
+// inInput returns k as the query takes it: back, select and the moves
+// between the parts of the page act, where the query leaves them a key,
+// and the arrows move to the kinds and the results.
 func (k KeyMap) inInput() KeyMap {
-	back, sel, next, prev := typing(k.Back), typing(k.Select), typing(k.Next), typing(k.Prev)
-	sel.SetHelp(sel.Help().Key, "search")
+	k.Select.SetHelp(k.Select.Help().Key, "search")
 	for _, b := range []*key.Binding{
 		&k.Left, &k.Right, &k.Up, &k.Down, &k.Open, &k.Repo, &k.Checks, &k.Refresh, &k.Filter, &k.Sort,
 	} {
 		b.SetEnabled(false)
 	}
-	k.Back, k.Select, k.Next, k.Prev = back, sel, next, prev
 	return k
 }
 
