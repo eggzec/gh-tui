@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net"
 	"net/url"
 	"slices"
 	"strconv"
@@ -110,9 +111,9 @@ func parseShort(s string) (Target, error) {
 	repo, num, hasNum := strings.Cut(s, "#")
 	var t Target
 	if repo != "" {
-		r, err := ParseRepoRef(repo)
+		r, err := parseRepo(repo)
 		if err != nil {
-			return Target{}, fmt.Errorf("not a repository: %w", err)
+			return Target{}, err
 		}
 		t.Repo = r
 	}
@@ -178,7 +179,7 @@ func parseLink(s, host string) (Target, error) {
 	if u.Scheme != "https" && u.Scheme != "http" {
 		return Target{}, fmt.Errorf("not a web link: %q", s)
 	}
-	if !sameHost(u.Host, host) {
+	if !sameHost(u.Host, u.Scheme, host) {
 		return Target{}, fmt.Errorf("not a link to %s: %q", host, s)
 	}
 	parts := strings.Split(strings.Trim(u.Path, "/"), "/")
@@ -186,12 +187,9 @@ func parseLink(s, host string) (Target, error) {
 		slices.ContainsFunc(reservedOwners, func(o string) bool { return strings.EqualFold(o, parts[0]) }) {
 		return Target{}, fmt.Errorf("not a repository link: %q", s)
 	}
-	// A clone URL names the repository with ".git", which GitHub drops
-	// from names, so a repository can't end in it.
-	name := strings.TrimSuffix(parts[1], ".git")
-	repo, err := ParseRepoRef(parts[0] + "/" + name)
+	repo, err := parseRepo(parts[0] + "/" + parts[1])
 	if err != nil {
-		return Target{}, fmt.Errorf("not a repository: %w", err)
+		return Target{}, err
 	}
 	t := Target{Repo: repo}
 	var kind NumberKind
@@ -203,6 +201,11 @@ func parseLink(s, host string) (Target, error) {
 		// a list, opens the repository.
 		return t, nil
 	}
+	if parts[3] == "" {
+		// A link has no '#' before its number, which parseNumber would
+		// ask for.
+		return Target{}, fmt.Errorf("missing number after /%s/: %q", parts[2], s)
+	}
 	n, err := parseNumber(parts[3])
 	if err != nil {
 		return Target{}, err
@@ -211,11 +214,38 @@ func parseLink(s, host string) (Target, error) {
 	return t, nil
 }
 
-// sameHost matches got, a URL's host, to the user's host. The www. prefix
-// is allowed on github.com, which redirects it.
-func sameHost(got, host string) bool {
+// parseRepo parses the repository of a target, s, as "owner/name". A clone
+// URL names the repository with ".git", which GitHub drops from names, and
+// so does the short form.
+func parseRepo(s string) (RepoRef, error) {
+	r, err := parseRepoRef(strings.TrimSuffix(s, ".git"))
+	if err != nil {
+		return RepoRef{}, fmt.Errorf("not a repository: %q: %w", s, err)
+	}
+	return r, nil
+}
+
+// sameHost matches got, the host of a URL with scheme, to the user's
+// host, which is served over https. A port that is the scheme's default
+// is the same as none. The www. prefix is allowed on github.com, which
+// redirects it.
+func sameHost(got, scheme, host string) bool {
+	got, host = defaultPort(got, scheme), defaultPort(host, "https")
 	if strings.EqualFold(got, host) {
 		return true
 	}
 	return strings.EqualFold(host, DefaultHost) && strings.EqualFold(got, "www."+DefaultHost)
+}
+
+// defaultPorts are the ports that URLs of each scheme leave out.
+var defaultPorts = map[string]string{"https": "443", "http": "80"}
+
+// defaultPort returns hostport without its port if that is the default of
+// scheme, since github.com:443 is github.com.
+func defaultPort(hostport, scheme string) string {
+	h, port, err := net.SplitHostPort(hostport)
+	if err != nil || port != defaultPorts[scheme] {
+		return hostport
+	}
+	return h
 }
