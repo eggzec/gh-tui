@@ -88,3 +88,19 @@ func TestKeyLayersOrder(t *testing.T) {
 		t.Errorf("? reaches %q with a modal that types, want it typed", got)
 	}
 }
+
+// The open command line takes every key, ctrl+c too, so its keys are the
+// only ones that reach anything, and it types the rest.
+func TestKeyLayersOfTheCommandLine(t *testing.T) {
+	m, _ := newTestApp(t)
+	run(m, m.key(press(":")))
+	layers := m.keyLayers()
+	if len(layers) != 1 || layers[0].Source != "command line" || !layers[0].Typing {
+		t.Fatalf("the open command line has the layers %+v, want its own alone", layers)
+	}
+	for k, want := range map[string]string{"esc": "command line: cancel", "ctrl+c": "command line: cancel", "q": "nothing"} {
+		if got := winner(m, k); got != want {
+			t.Errorf("%s reaches %q with the command line open, want %q", k, got, want)
+		}
+	}
+}
