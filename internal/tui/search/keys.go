@@ -11,6 +11,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 )
 
 // KeyMap holds the keys of the search page. While the query has the
@@ -62,6 +63,8 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		Left:    key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←/h", "kinds")),
 		Right:   key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "results")),
 	}
+	// PR5: the page matches its own keys first, so dropping them from the
+	// feed only keeps the collisions out of help.
 	own := []key.Binding{k.Select, k.Open, k.Repo, k.Checks, k.Refresh, k.Back, k.Filter, k.Sort, k.Next, k.Prev, k.Left, k.Right}
 	f := feed.DefaultKeyMap()
 	f.PageUp = free(f.PageUp, own)
@@ -110,54 +113,76 @@ var (
 	arrowDown = key.NewBinding(key.WithKeys("down"), key.WithHelp("↓", "results"))
 )
 
-// helpKeys lists the keys of the part of the page that has the focus.
-type helpKeys struct {
-	k    KeyMap
-	area area
-	kind core.SearchKind
-	feed feed.KeyMap
+// own returns the keys of the page, in the order it matches them.
+func (k KeyMap) own() []key.Binding {
+	return []key.Binding{
+		k.Back, k.Select, k.Next, k.Prev, k.Left, k.Right, k.Up, k.Down,
+		k.Open, k.Repo, k.Checks, k.Refresh, k.Filter, k.Sort,
+	}
 }
 
-// ShortHelp returns the bindings for the short help view.
-func (h helpKeys) ShortHelp() []key.Binding {
-	k := h.k
-	switch h.area {
-	case inputArea:
-		sel := typing(k.Select)
-		sel.SetHelp(sel.Help().Key, "search")
-		return []key.Binding{sel, arrowDown, typing(k.Next), typing(k.Back)}
-	case kindsArea:
-		sel := k.Select
-		if h.kind == core.SearchCode {
-			sel.SetHelp(sel.Help().Key, "search code")
+// ShortHelp implements help.KeyMap.
+func (k KeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.Up, k.Down, k.Select, k.Repo, k.Checks, k.Open, k.Filter, k.Sort, k.Left, k.Next, k.Back}
+}
+
+// FullHelp implements help.KeyMap.
+func (k KeyMap) FullHelp() [][]key.Binding { return [][]key.Binding{k.own()} }
+
+// KeyLayers implements ui.Keyed: the keys of the part of the page that
+// has the focus, named for what they do there, and then those of the
+// results on view. The query types what its keys don't take.
+func (s *Section) KeyLayers() []keyhelp.Layer {
+	if s.area == inputArea {
+		k := s.keys.inInput()
+		keys := append(k.own(), arrowUp, arrowDown)
+		short := []key.Binding{k.Select, arrowDown, k.Next, k.Back}
+		return []keyhelp.Layer{{Source: "query", Bindings: keys, Typing: true, Short: short}}
+	}
+	k := s.keys.state(s)
+	own := keyhelp.Layer{Source: "search", Bindings: k.own(), Short: k.ShortHelp()}
+	if s.area == kindsArea || s.text == "" {
+		return []keyhelp.Layer{own}
+	}
+	return []keyhelp.Layer{own, keyhelp.FromHelp("results", s.feedKeys(), false)}
+}
+
+// inInput returns k as the query takes it: only the keys that type
+// nothing act, and the arrows move to the kinds and the results.
+func (k KeyMap) inInput() KeyMap {
+	back, sel, next, prev := typing(k.Back), typing(k.Select), typing(k.Next), typing(k.Prev)
+	sel.SetHelp(sel.Help().Key, "search")
+	for _, b := range []*key.Binding{
+		&k.Left, &k.Right, &k.Up, &k.Down, &k.Open, &k.Repo, &k.Checks, &k.Refresh, &k.Filter, &k.Sort,
+	} {
+		b.SetEnabled(false)
+	}
+	k.Back, k.Select, k.Next, k.Prev = back, sel, next, prev
+	return k
+}
+
+// state returns k as the kinds or the results take it, named for what
+// the keys do there.
+func (k KeyMap) state(s *Section) KeyMap {
+	k.Sort.SetEnabled(k.Sort.Enabled() && s.kind != core.SearchCode)
+	if s.area == kindsArea {
+		if s.kind == core.SearchCode {
+			k.Select.SetHelp(k.Select.Help().Key, "search code")
 		} else {
-			sel.SetHelp(sel.Help().Key, "results")
+			k.Select.SetHelp(k.Select.Help().Key, "results")
 		}
-		return []key.Binding{k.Up, k.Down, sel, k.Filter, h.sort(), k.Next, k.Back}
-	default:
-		sel := k.Select
-		if h.kind != core.SearchRepos {
-			sel.SetHelp(sel.Help().Key, "preview")
+		for _, b := range []*key.Binding{&k.Left, &k.Open, &k.Repo, &k.Checks, &k.Refresh} {
+			b.SetEnabled(false)
 		}
-		checks := k.Checks
-		checks.SetEnabled(checks.Enabled() && h.kind == core.SearchPulls)
-		return []key.Binding{k.Up, k.Down, sel, k.Repo, checks, k.Open, k.Filter, h.sort(), k.Left, k.Back, h.feed.Retry}
+		return k
 	}
-}
-
-// sort returns the sort key, which code search, sorted by best match
-// alone, doesn't take.
-func (h helpKeys) sort() key.Binding {
-	s := h.k.Sort
-	s.SetEnabled(s.Enabled() && h.kind != core.SearchCode)
-	return s
-}
-
-// FullHelp returns the bindings for the full help view.
-func (h helpKeys) FullHelp() [][]key.Binding {
-	groups := [][]key.Binding{h.ShortHelp()}
-	if h.area == resultsArea {
-		groups = append(groups, []key.Binding{h.feed.PageUp, h.feed.PageDown, h.feed.Home, h.feed.End, h.k.Refresh})
+	if s.kind != core.SearchRepos {
+		k.Select.SetHelp(k.Select.Help().Key, "preview")
 	}
-	return append(groups, []key.Binding{h.k.Next, h.k.Prev})
+	k.Checks.SetEnabled(k.Checks.Enabled() && s.kind == core.SearchPulls)
+	k.Right.SetEnabled(false)
+	// The moves are the list's once there is a query.
+	k.Up.SetEnabled(k.Up.Enabled() && s.text == "")
+	k.Down.SetEnabled(k.Down.Enabled() && s.text == "")
+	return k
 }
