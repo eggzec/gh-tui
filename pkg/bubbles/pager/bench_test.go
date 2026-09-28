@@ -17,6 +17,35 @@ var bigSource = sync.OnceValue(func() string {
 	return strings.Repeat(goSource, 5_000)
 })
 
+// bigColored is about 50,000 lines of a program's output with its colors.
+var bigColored = sync.OnceValue(func() string {
+	return strings.Repeat(colored, 12_500)
+})
+
+// coloredPager returns a pager over bigColored scrolled to the middle,
+// with every "view" found.
+var coloredPager = sync.OnceValue(func() Model {
+	m := New(WithSize(120, 40))
+	m.Focus()
+	_ = m.SetContent("test.log", bigColored())
+	m.top = m.Lines() / 2
+	re, _ := compile("view", caseSmart)
+	if cmd := m.runSearch("view", re, false, m.top, false); cmd != nil {
+		m, _ = m.Update(cmd())
+	}
+	return m
+})
+
+// hostilePager returns a pager over one long line that changes its style
+// at every cell and never resets, wrapped and at its end.
+var hostilePager = sync.OnceValue(func() Model {
+	m := New(WithSize(120, 40), WithWrap(true))
+	m.Focus()
+	_ = m.SetContent("hostile.log", strings.Repeat("\x1b[1mx\x1b[3my\x1b[22;23mz\x1b[38;5;208m", 70_000))
+	m, _ = m.Update(press("G"))
+	return m
+})
+
 // bigPager returns a pager over bigSource, highlighted and scrolled to the
 // middle, with every "fmt" found.
 var bigPager = sync.OnceValue(func() Model {
@@ -45,17 +74,25 @@ var filteredPager = sync.OnceValue(func() Model {
 
 func BenchmarkView(b *testing.B) {
 	for _, tt := range []struct {
-		name           string
-		wrap, filtered bool
+		name                             string
+		wrap, filtered, colored, hostile bool
 	}{
 		{name: "scroll"},
 		{name: "wrap", wrap: true},
 		{name: "filtered", filtered: true},
+		{name: "colored", colored: true},
+		{name: "colored/wrap", colored: true, wrap: true},
+		{name: "colored/hostile", hostile: true, wrap: true},
 	} {
 		b.Run(tt.name, func(b *testing.B) {
 			m := bigPager()
-			if tt.filtered {
+			switch {
+			case tt.filtered:
 				m = filteredPager()
+			case tt.colored:
+				m = coloredPager()
+			case tt.hostile:
+				m = hostilePager()
 			}
 			m.SetWrap(tt.wrap)
 			b.ReportAllocs()
@@ -103,13 +140,23 @@ func BenchmarkUpdate(b *testing.B) {
 }
 
 // BenchmarkSetContent measures what SetContent costs Update, without the
-// highlighting, which runs in a command.
+// highlighting, which runs in a command, for plain and colored content.
 func BenchmarkSetContent(b *testing.B) {
-	m := New(WithSize(120, 40))
-	src := bigSource()
-	b.ReportAllocs()
-	for b.Loop() {
-		_ = m.SetContent("big.go", src)
+	for _, tt := range []struct {
+		name string
+		src  func() string
+	}{
+		{name: "plain", src: bigSource},
+		{name: "colored", src: bigColored},
+	} {
+		b.Run(tt.name, func(b *testing.B) {
+			m := New(WithSize(120, 40))
+			src := tt.src()
+			b.ReportAllocs()
+			for b.Loop() {
+				_ = m.SetContent("big", src)
+			}
+		})
 	}
 }
 

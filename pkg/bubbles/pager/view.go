@@ -279,6 +279,10 @@ func (m Model) writeGutter(b *strings.Builder, i int, first bool, gw int) {
 // writeSpan writes bytes a to e of line i in the colors of their tokens,
 // or of the matches over them.
 func (m Model) writeSpan(b *strings.Builder, i, a, e int) {
+	if m.sgr != nil {
+		m.writeStyled(b, i, a, e)
+		return
+	}
 	s := m.lines[i]
 	var spans []span
 	if i < len(m.spans) {

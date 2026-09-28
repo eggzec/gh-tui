@@ -14,6 +14,13 @@ import (
 
 const markdown = "# Title\n\nSome *emphasis* and `code`.\n\n- one\n- two\n"
 
+// colored is a program's output kept with its colors, one of which spans
+// lines, and escapes that aren't colors.
+const colored = "\x1b[1;32m=== RUN\x1b[0m   TestView\n" +
+	"\x1b[31m--- FAIL: TestView (0.01s)\n" +
+	"    view_test.go:42: got \x1b[1mred\x1b[22m, want 你好\x1b[0m\n" +
+	"\x1b]0;title\a\x1b[2Jok \x1b[38;5;208mgithub.com/eggzec/gh-tui/pkg/bubbles/pager\x1b[m 0.4s\n"
+
 func TestView(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -74,6 +81,13 @@ func TestView(t *testing.T) {
 			keys: []string{"-", "s"}},
 		{name: "count", file: "lines.txt", text: numbered(40), width: 30, height: 8, keys: []string{"1", "2"}},
 		{name: "went to a line", file: "lines.txt", text: numbered(40), width: 30, height: 8, keys: []string{"1", "2", "g"}},
+		{name: "colors", file: "test.log", text: colored, width: 50, height: 5},
+		{name: "colors light", file: "test.log", text: colored, width: 50, height: 5,
+			opts: []Option{WithStyles(DefaultStyles(false))}},
+		{name: "colors search", file: "test.log", text: colored, width: 50, height: 5, search: "red|FAIL", keys: []string{"n"}},
+		{name: "colors filtered", file: "test.log", text: colored, width: 50, height: 5, filter: "view_test"},
+		{name: "colors wrapped", file: "test.log", text: colored, width: 30, height: 8, opts: []Option{WithWrap(true)}},
+		{name: "colors scrolled sideways", file: "test.log", text: colored, width: 30, height: 5, keys: []string{"l", "l"}},
 		{name: "long name", file: "internal/some/very/deeply/nested/package/main.go", text: goSource,
 			width: 40, height: 4},
 		{name: "loading", width: 40, height: 4, set: func(m *Model) { _ = m.SetLoading("main.go") }},

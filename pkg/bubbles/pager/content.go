@@ -19,7 +19,9 @@ const binarySniff = 8000
 // the syntax, usually by its file extension, or else a script's shebang
 // line does; only common languages are highlighted. The returned command
 // highlights the text in the background, and the pager shows it plain
-// until then. Text with a NUL byte is taken for binary and not shown.
+// until then. Text with colors of its own (SGR sequences) shows in them
+// instead of highlighted. Text with a NUL byte is taken for binary and not
+// shown.
 func (m *Model) SetContent(name, text string) tea.Cmd {
 	return m.setContent(name, text, func(full string) chroma.Lexer { return lexerFor(name, full) })
 }
@@ -40,17 +42,27 @@ func (m *Model) setContent(name, text string, lexerOf func(full string) chroma.L
 		m.state = stateBinary
 		return nil
 	}
-	full := strings.TrimSuffix(termtext.Clean(text, m.tabWidth), "\n")
+	var full string
+	var sgr []termtext.Style
+	if termtext.HasSGR(text) {
+		full, sgr = termtext.CleanStyled(text, m.tabWidth)
+	} else {
+		full = termtext.Clean(text, m.tabWidth)
+	}
+	full = strings.TrimSuffix(full, "\n")
 	if full != "" {
 		m.lines = strings.Split(full, "\n")
 	}
 	m.size = len(full)
+	if sgr != nil {
+		m.sgr = styleLines(m.lines, sgr)
+	}
 	if m.proj.squeeze {
 		// Squeeze has no pattern to match, so it picks the lines at once.
 		_ = m.project(m.proj)
 	}
 	m.clamp()
-	if full == "" || len(full) > m.highlightLimit {
+	if full == "" || len(full) > m.highlightLimit || m.sgr != nil {
 		return nil
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -108,7 +120,7 @@ func (m *Model) reset(name string, s state, err error) {
 		m.errText, m.errHint = m.errorWords()
 	}
 	m.renderName()
-	m.lines, m.spans, m.vis, m.size = nil, nil, nil, 0
+	m.lines, m.spans, m.sgr, m.vis, m.size = nil, nil, nil, nil, 0
 	m.top, m.row, m.left = 0, 0, 0
 	m.mark = -1
 	m.opt, m.num, m.counting = false, 0, false
