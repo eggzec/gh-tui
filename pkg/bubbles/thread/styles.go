@@ -19,6 +19,8 @@ type Styles struct {
 	Empty lipgloss.Style
 	// Error styles the error message.
 	Error lipgloss.Style
+	// ErrorGlyph starts the error message. The default is "✗".
+	ErrorGlyph string
 	// Key styles the pointer at the diagram the toggle key opens.
 	Key lipgloss.Style
 	// Hint styles the text around a key in a hint.
@@ -37,12 +39,13 @@ func DefaultStyles(isDark bool) Styles {
 	failure := ld(lipgloss.Color("#c0392b"), lipgloss.Color("#ef7d7d"))
 
 	return Styles{
-		Spinner:  lipgloss.NewStyle().Foreground(accent),
-		Loading:  lipgloss.NewStyle().Foreground(muted),
-		Empty:    lipgloss.NewStyle().Foreground(muted),
-		Error:    lipgloss.NewStyle().Foreground(failure),
-		Key:      lipgloss.NewStyle().Foreground(accent).Bold(true),
-		Hint:     lipgloss.NewStyle().Foreground(subtle),
-		Markdown: markdown.DefaultStyle(isDark),
+		Spinner:    lipgloss.NewStyle().Foreground(accent),
+		Loading:    lipgloss.NewStyle().Foreground(muted),
+		Empty:      lipgloss.NewStyle().Foreground(muted),
+		Error:      lipgloss.NewStyle().Foreground(failure),
+		ErrorGlyph: "✗",
+		Key:        lipgloss.NewStyle().Foreground(accent).Bold(true),
+		Hint:       lipgloss.NewStyle().Foreground(subtle),
+		Markdown:   markdown.DefaultStyle(isDark),
 	}
 }

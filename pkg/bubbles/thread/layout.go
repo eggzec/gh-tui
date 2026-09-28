@@ -195,13 +195,13 @@ func (m *Model[T]) errorLine(s said) string {
 		}
 		return m.fit(statusIndent + m.styles.Hint.Render(s.hint))
 	}
-	text, tail := errorMark+" "+s.text, ""
+	text, tail := m.styles.ErrorGlyph+" "+s.text, ""
 	if s.hint != "" {
 		tail = " · " + s.hint
 	}
 	room := m.width - len(statusIndent) - ansi.StringWidth(tail)
 	if tail != "" && ansi.StringWidth(text) > room {
-		if room < ansi.StringWidth(errorMark)+2 {
+		if room < ansi.StringWidth(m.styles.ErrorGlyph)+2 {
 			// Too narrow for any of the text beside the hint.
 			return m.fit(statusIndent + m.styles.Hint.Render(s.hint))
 		}
@@ -209,9 +209,6 @@ func (m *Model[T]) errorLine(s said) string {
 	}
 	return m.fit(statusIndent + m.styles.Error.Render(text) + m.styles.Hint.Render(tail))
 }
-
-// errorMark starts the text of a failed fetch.
-const errorMark = "✗"
 
 // anchor is a reading position that survives a new layout: a line within a
 // comment, a chunk or the document. When the comment's height changes, as

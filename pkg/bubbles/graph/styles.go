@@ -34,6 +34,8 @@ type Styles struct {
 	Empty lipgloss.Style
 	// Error styles the message of the error row.
 	Error lipgloss.Style
+	// ErrorGlyph starts the error row. The default is "✗".
+	ErrorGlyph string
 	// Hint styles secondary text such as the retry key.
 	Hint lipgloss.Style
 }
@@ -69,6 +71,7 @@ func DefaultStyles(isDark bool) Styles {
 		Loading:       lipgloss.NewStyle().Foreground(muted),
 		Empty:         lipgloss.NewStyle().Foreground(muted),
 		Error:         lipgloss.NewStyle().Foreground(errColor),
+		ErrorGlyph:    "✗",
 		Hint:          lipgloss.NewStyle().Foreground(subtle),
 	}
 }

@@ -119,7 +119,7 @@ func (m Model) errorWords(err error, top bool) (text, hint string) {
 		if top {
 			msg = "Couldn't load: " + msg
 		}
-		return m.styles.Error.Render("✗ " + msg), m.errHint
+		return m.styles.Error.Render(m.styles.ErrorGlyph + " " + msg), m.errHint
 	}
 	words, h := m.errorText(err)
 	if words == "" {
@@ -128,7 +128,7 @@ func (m Model) errorWords(err error, top bool) (text, hint string) {
 	if h != "" {
 		hint = m.styles.Hint.Render(" · " + h)
 	}
-	return m.styles.Error.Render("✗ " + words), hint
+	return m.styles.Error.Render(m.styles.ErrorGlyph + " " + words), hint
 }
 
 // statusLine returns the row shown after the rows, or instead of them:

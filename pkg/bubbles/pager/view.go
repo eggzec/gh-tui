@@ -91,7 +91,7 @@ func (m *Model) errorLines(width, height int) []string {
 		return nil
 	}
 	s := m.styles
-	lead := errorGlyph + " "
+	lead := s.ErrorGlyph + " "
 	indent := strings.Repeat(" ", ansi.StringWidth(lead))
 	inner := width - len(indent)
 	if inner < 1 {
@@ -183,12 +183,8 @@ func wrapWords(s string, width int) []string {
 	return rows
 }
 
-const (
-	// errorGlyph starts the text of a failed load.
-	errorGlyph = "✗"
-	// ellipsisGlyph ends text that was cut.
-	ellipsisGlyph = "…"
-)
+// ellipsisGlyph ends text that was cut.
+const ellipsisGlyph = "…"
 
 // writeLines writes the rows of the window, each followed by a newline, and
 // returns how many it wrote.
