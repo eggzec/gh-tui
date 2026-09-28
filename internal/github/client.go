@@ -146,7 +146,9 @@ func New(opts ...Option) (*Client, error) {
 		o.host, _ = o.gh.defaultHost()
 	}
 	source := o.source
-	if o.token == "" && !o.later {
+	// A token looked for already, and not found, isn't looked for again,
+	// which may run gh auth token again.
+	if o.token == "" && source == "" && !o.later {
 		o.token, source = o.gh.token(o.host)
 	}
 	if o.token == "" && !o.later {

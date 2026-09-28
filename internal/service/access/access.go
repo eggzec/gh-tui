@@ -59,7 +59,8 @@ type Service struct {
 	token  Token
 	cur    core.Access
 	subs   []chan core.Access
-	// heard is closed once an answer told what the token may do.
+	// heard is closed once GitHub answered, which the client tells of
+	// whether or not the answer said what the token may do (Set).
 	heard     chan struct{}
 	heardOnce sync.Once
 

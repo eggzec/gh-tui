@@ -11,8 +11,9 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 )
 
-// WithOnAccess sets a function that is told what the token may do each
-// time an answer of GitHub changes that, and once the token is replaced
+// WithOnAccess sets a function that is told what the token may do once
+// GitHub first answers, whatever the answer says of it, each time an
+// answer changes that, and once the token is replaced
 // (Client.SetToken). It is called from the goroutine of the request, one
 // call at a time, and must not block. It may call SetToken, whose change
 // it is told of once it returns.
@@ -71,6 +72,10 @@ type tokenAccess struct {
 	// was last called with, and telling is set while it is called.
 	version, delivered uint64
 	telling            bool
+	// answered is set once GitHub answered, which onAccess is told of
+	// even when the answer says nothing of the token, as for a
+	// fine-grained one, so that it knows no probe is needed.
+	answered bool
 }
 
 func newTokenAccess(host, token string, onAccess func(core.Access)) *tokenAccess {
@@ -111,22 +116,26 @@ func (a *tokenAccess) reset(token string) {
 }
 
 // observe learns what the token may do from the headers h of the answer
-// to req. An answer without X-OAuth-Scopes, as a fine-grained token gets,
+// to req, of HTTP status status. An answer without X-OAuth-Scopes, as a fine-grained token gets,
 // one from another host, as a download from storage is, or one to a
 // request sent with a token SetToken replaced, changes nothing. Only a
 // classic token is told its scopes, and when they are there, the token
 // is classic whatever its prefix says, unless they are empty and its
 // prefix is of another kind, which may be how a proxy passes a header on.
-func (a *tokenAccess) observe(req *http.Request, h http.Header) {
+func (a *tokenAccess) observe(req *http.Request, status int, h http.Header) {
 	if a == nil || req.URL.Host != a.host {
 		return
 	}
 	if c, _ := req.Context().Value(callKey{}).(*call); c != nil && c.external {
 		return
 	}
+	first := a.firstAnswer(status, h)
 	granted, ok := h[http.CanonicalHeaderKey("X-OAuth-Scopes")]
 	sso := partialSSO(h.Values("X-GitHub-SSO"))
 	if !ok && sso == "" {
+		if first {
+			a.tell()
+		}
 		return
 	}
 	scopes := strings.Join(granted, ",")
@@ -154,9 +163,30 @@ func (a *tokenAccess) observe(req *http.Request, h http.Header) {
 		a.version++
 	}
 	a.mu.Unlock()
-	if changed {
+	if changed || first {
 		a.tell()
 	}
+}
+
+// firstAnswer reports whether h, of an answer of HTTP status status, are
+// the headers of GitHub's first answer, and then has the next tell call
+// onAccess, whatever the answer says. A 304 isn't counted: it may leave
+// X-OAuth-Scopes out even for a classic token, and a session whose first
+// requests are conditional, as the revalidator's are, would then be told
+// that the token says nothing of itself, and the app wouldn't ask what
+// it may do.
+func (a *tokenAccess) firstAnswer(status int, h http.Header) bool {
+	if status == http.StatusNotModified || h.Get("X-GitHub-Request-Id") == "" {
+		return false
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.answered {
+		return false
+	}
+	a.answered = true
+	a.version++
+	return true
 }
 
 // tell calls onAccess with what the token may do, unless it was called
