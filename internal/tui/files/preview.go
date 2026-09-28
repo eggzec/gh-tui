@@ -58,11 +58,14 @@ type blobMsg struct {
 }
 
 // newPreview returns a preview of e, a file of repo at ref, whose page
-// is on host. Its load runs
-// under ctx until it closes.
-func newPreview(ctx context.Context, svc Service, host string, repo core.RepoRef, ref string, e core.TreeEntry, open key.Binding) *preview {
+// is on host, which words what went wrong with v. Its load runs under ctx
+// until it closes.
+func newPreview(ctx context.Context, svc Service, host string, repo core.RepoRef, ref string, e core.TreeEntry, open key.Binding, v ui.Voice) *preview {
 	ctx, cancel := context.WithCancel(ctx)
-	p := &preview{ctx: ctx, cancel: cancel, svc: svc, host: host, repo: repo, ref: ref, entry: e, open: open, pager: pager.New()}
+	// The preview loads the file once, and opens it on GitHub with open.
+	v.Retry, v.Open = key.Binding{}, open
+	pg := pager.New(pager.WithErrorText(fileErrorText(repo, v)))
+	p := &preview{ctx: ctx, cancel: cancel, svc: svc, host: host, repo: repo, ref: ref, entry: e, open: open, pager: pg}
 	p.pager.Focus()
 	return p
 }
@@ -103,6 +106,18 @@ func (p *preview) findFile() tea.Cmd {
 
 // errNoFile reports that a path names no file at a commit.
 var errNoFile = errors.New("no such file at this commit")
+
+// fileErrorText returns how a pager says that a file of repo failed to
+// load, with v.
+func fileErrorText(repo core.RepoRef, v ui.Voice) func(error) (text, hint string) {
+	say := ui.ErrorText("load the file", repo.String(), v)
+	return func(err error) (text, hint string) {
+		if errors.Is(err, errNoFile) {
+			return "No such file at this commit.", ""
+		}
+		return say(err)
+	}
+}
 
 // findEntry returns the entry of the file at path name of the commit of
 // ref, with its path from the root.

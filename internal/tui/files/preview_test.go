@@ -44,7 +44,7 @@ func TestPreview(t *testing.T) {
 		{"too large", rowReadme, "README with spaces.md", "Too large to preview · o opens it in the browser"},
 		{"binary", rowGoMod, "go.mod", "Binary file, not shown · o opens it in the browser"},
 		{"symlink", rowLink, "CLAUDE.md", "Symbolic link → AGENTS.md"},
-		{"error", rowGitignore, ".gitignore", "Couldn't load: get blob b-.gitignore: boom"},
+		{"error", rowGitignore, ".gitignore", "✗ Something went wrong"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -152,10 +152,10 @@ func TestPreviewClose(t *testing.T) {
 func TestPreviewIgnoresOtherResults(t *testing.T) {
 	f := sampleFake()
 	e := f.trees[treeKey(ghTUI, "")].Entries[rowAgents]
-	p := newPreview(t.Context(), f, "", ghTUI, "", e, key.NewBinding(key.WithKeys("o")))
+	p := newPreview(t.Context(), f, "", ghTUI, "", e, key.NewBinding(key.WithKeys("o")), ui.Voice{})
 	p.SetSize(40, 4)
 	_ = p.load()
-	other := newPreview(t.Context(), f, "", ghTUI, "", e, key.NewBinding(key.WithKeys("o")))
+	other := newPreview(t.Context(), f, "", ghTUI, "", e, key.NewBinding(key.WithKeys("o")), ui.Voice{})
 	_ = p.Update(blobMsg{id: other.pager.ID(), err: errNoTree})
 	if cmd := p.Update(pager.CloseMsg{ID: other.pager.ID()}); cmd != nil {
 		t.Error("the close of another pager closed the preview")
@@ -304,7 +304,7 @@ func TestPreviewFileAtACommitNotThere(t *testing.T) {
 	for _, name := range []string{"nope.go", "cmd/gh-tui", "go.mod/x"} {
 		h := newHost(newSection(t, f, 40, 12))
 		h.run(func() tea.Msg { return ui.OpenFileMsg{Repo: ghTUI, Path: name, Ref: "c0ffee"} })
-		if got := strings.Join(strings.Fields(h.modal()), " "); !strings.Contains(got, "no such file at this commit") {
+		if got := strings.Join(strings.Fields(h.modal()), " "); !strings.Contains(got, "✗ No such file at this commit.") {
 			t.Errorf("%s: preview = %q, want why it isn't shown", name, got)
 		}
 	}

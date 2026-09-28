@@ -128,7 +128,6 @@ func (s *Section) newFinder() *finderModal {
 		ctx:   ctx,
 		stop:  stop,
 		keys:  newFinderKeys(),
-		pager: pager.New(),
 		delay: s.hover.delay,
 		theme: s.theme,
 	}
@@ -147,6 +146,11 @@ func (s *Section) newFinder() *finderModal {
 	// types into its query.
 	v := s.voice
 	v.Retry, v.Open = key.Binding{}, key.Binding{}
+	// The preview loads a file again only when it is chosen again, and
+	// opens it on GitHub with the browser key.
+	pv := s.voice
+	pv.Retry, pv.Open = key.Binding{}, f.keys.Browser
+	f.pager = pager.New(pager.WithErrorText(fileErrorText(repo, pv)))
 	f.find = finder.New(func(ctx context.Context) (finder.Listing, error) { return listFiles(ctx, src) },
 		finder.WithContext(ctx),
 		finder.WithKeyMap(f.keys.find),
