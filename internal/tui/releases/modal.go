@@ -32,6 +32,9 @@ type Option func(*options)
 type options struct {
 	now func() time.Time
 	loc *time.Location
+	// voice words the errors of the files; New makes one of its keys if
+	// it is nil.
+	voice *ui.Voice
 }
 
 // WithNow sets the clock that ages are measured against. The default is
@@ -44,6 +47,13 @@ func WithNow(now func() time.Time) Option {
 // time.Local.
 func WithLocation(loc *time.Location) Option {
 	return func(o *options) { o.loc = loc }
+}
+
+// WithVoice sets how the modal words what went wrong, with the keys a
+// hint names and the log it points to. By default the hints name the
+// configured keys and no log.
+func WithVoice(v ui.Voice) Option {
+	return func(o *options) { o.voice = &v }
 }
 
 // releaseMsg carries the release that a modal asked for.
@@ -106,6 +116,10 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, id int64, url stri
 	for _, opt := range opts {
 		opt(&o)
 	}
+	if o.voice == nil {
+		v := ui.NewVoice(keys, "")
+		o.voice = &v
+	}
 	ctx, cancel := context.WithCancel(obs.WithTrace(ctx, "open.release"))
 	m := &Modal{
 		id:     lastID.Add(1),
@@ -123,11 +137,16 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, id int64, url stri
 		r, err := svc.Get(ctx, repo, id)
 		return r.Assets, "", err
 	}
+	// The files come with the release, which the thread has no key to
+	// read again.
+	v := *o.voice
+	v.Retry = m.keys.thread.Retry
 	m.thread = thread.New(fetch, m.renderAsset,
 		thread.WithContext(ctx),
 		thread.WithKeyMap(m.keys.thread),
 		thread.WithFocused(true),
 		thread.WithEmptyText("No files were uploaded with it."),
+		thread.WithErrorText(ui.ErrorText("load the release", repo.String(), v)),
 	)
 	m.thread.SetCutHint(ui.OpenHint(m.keys.Open))
 	r, cached := svc.CachedGet(repo, id)
