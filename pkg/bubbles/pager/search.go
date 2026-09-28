@@ -36,6 +36,9 @@ type search struct {
 	// running reports whether the command that finds the matches is still
 	// going.
 	running bool
+	// stay keeps the window where it is when the matches arrive, for a
+	// search run again over other lines shown.
+	stay bool
 	// from is the line the search started at: the first match at or after
 	// it is the first it jumps to, unless the window moved from top and
 	// row while the search ran.
@@ -114,7 +117,7 @@ func (m *Model) SetSearch(query string) tea.Cmd {
 	if err != nil {
 		return nil
 	}
-	return m.runSearch(query, re, false, from)
+	return m.runSearch(query, re, false, from, false)
 }
 
 // clearSearch forgets the search, and stops it if it is still running.
@@ -134,17 +137,26 @@ func (m *Model) enableSearchKeys() {
 	m.keys.Next.SetEnabled(found)
 	m.keys.Prev.SetEnabled(found)
 	m.keys.Confirm.SetEnabled(m.prompt.Focused())
-	m.keys.Cancel.SetEnabled(m.prompt.Focused() || m.search.query != "")
+	m.keys.Cancel.SetEnabled(m.prompt.Focused() || m.search.query != "" ||
+		m.projecting || m.proj.filter.re != nil)
+}
+
+// researchShown runs the search shown again over the lines shown, and
+// leaves the window where it is.
+func (m *Model) researchShown() tea.Cmd {
+	s := m.search
+	return m.runSearch(s.query, s.re, s.invert, m.topLine(), true)
 }
 
 // runSearch starts a search of the content for the lines re matches, or
 // doesn't match if invert is set, named query, from line from. Content
 // smaller than syncLimit is searched at once; for larger content, the
 // returned command searches it and the pager says it is searching until
-// the matches arrive. The window shows its matches at once either way.
-func (m *Model) runSearch(query string, re *regexp.Regexp, invert bool, from int) tea.Cmd {
+// the matches arrive. The window shows its matches at once either way. It
+// jumps to the first match unless stay is set.
+func (m *Model) runSearch(query string, re *regexp.Regexp, invert bool, from int, stay bool) tea.Cmd {
 	m.clearSearch()
-	m.search = search{query: query, re: re, invert: invert, from: from, cur: -1}
+	m.search = search{query: query, re: re, invert: invert, from: from, cur: -1, stay: stay}
 	// Marks in the gutter may widen it.
 	m.clamp()
 	m.search.top, m.search.row = m.top, m.row
@@ -229,7 +241,7 @@ func (m *Model) found(lines, ends []int32) {
 		return
 	}
 	m.enableSearchKeys()
-	if m.top != s.top || m.row != s.row {
+	if s.stay || m.top != s.top || m.row != s.row {
 		return
 	}
 	m.jump(m.firstFrom(s.from))

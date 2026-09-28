@@ -1,6 +1,6 @@
 // Package pager is a less-like viewer for text such as a file: it
 // highlights the syntax, scrolls in both directions or soft-wraps, numbers
-// the lines and searches them.
+// the lines, searches them, and filters them.
 //
 // The content arrives already fetched with [Model.SetContent]; while it is
 // on its way, [Model.SetLoading] and [Model.SetError] show a placeholder.
@@ -58,8 +58,17 @@ type Model struct {
 	lines []string
 	spans [][]span
 	// vis are the indices of the lines shown, in order, or nil to show
-	// them all. It is replaced, never changed in place.
-	vis []int32
+	// them all. It is replaced, never changed in place. proj is what
+	// picked them, and kept how many lines its filter kept; want is what
+	// the user asked for, which differs while projecting, as the command
+	// that picks the lines runs. pgen counts projections; what an older
+	// one picked is dropped. stopProject stops the one running.
+	vis         []int32
+	proj, want  projection
+	kept        int
+	projecting  bool
+	pgen        int
+	stopProject context.CancelFunc
 
 	// gen counts contents; highlights of an older one are dropped. cancel
 	// stops the highlighter of the current one.
@@ -103,7 +112,7 @@ func New(opts ...Option) Model {
 	m := Model{
 		settings: s,
 		id:       lastID.Add(1),
-		prompt:   cmdline.New(cmdline.WithPrompt("/"), cmdline.WithKeyMap(promptKeys())),
+		prompt:   cmdline.New(cmdline.WithPrompt(promptSearch), cmdline.WithKeyMap(promptKeys())),
 		spin:     spinner.New(spinner.WithSpinner(spinner.Dot)),
 		mark:     -1,
 	}
@@ -151,7 +160,7 @@ func (m *Model) Blur() {
 // Focused reports whether the pager reacts to keys.
 func (m Model) Focused() bool { return m.focused }
 
-// Capturing reports whether the search prompt is open. It then takes
+// Capturing reports whether the prompt is open. It then takes
 // every key, so the parent should not act on keys of its own.
 func (m Model) Capturing() bool { return m.prompt.Focused() }
 
@@ -184,23 +193,34 @@ func (m *Model) SetKeyMap(k KeyMap) {
 	m.enableSearchKeys()
 }
 
-// ShortHelp implements help.KeyMap. While the search prompt is open, it
-// lists the keys that close it.
+// ShortHelp implements help.KeyMap. While the prompt is open, it lists
+// the keys that close it.
 func (m Model) ShortHelp() []key.Binding {
 	if m.prompt.Focused() {
-		return []key.Binding{m.keys.Confirm, m.keys.Cancel}
+		return []key.Binding{m.confirmKey(), m.keys.Cancel}
 	}
 	return m.keys.ShortHelp()
 }
 
-// FullHelp implements help.KeyMap. While the search prompt is open, only
-// the keys that close it act, and the prompt takes the rest.
+// confirmKey returns the Confirm binding, which says what it does at the
+// prompt open.
+func (m Model) confirmKey() key.Binding {
+	c := m.keys.Confirm
+	if m.prompt.Focused() && m.prompt.Prompt() == promptFilter {
+		c.SetHelp(c.Help().Key, "filter")
+	}
+	return c
+}
+
+// FullHelp implements help.KeyMap. While the prompt is open, only the keys
+// that close it act, and the prompt takes the rest.
 func (m Model) FullHelp() [][]key.Binding {
 	k := m.keys
+	k.Confirm = m.confirmKey()
 	if m.prompt.Focused() {
 		for _, b := range []*key.Binding{
 			&k.Up, &k.Down, &k.PageUp, &k.PageDown, &k.HalfPageUp, &k.HalfPageDown, &k.Home, &k.End,
-			&k.Left, &k.Right, &k.Wrap, &k.LineNumbers, &k.Search, &k.Next, &k.Prev, &k.Close,
+			&k.Left, &k.Right, &k.Wrap, &k.LineNumbers, &k.Search, &k.Filter, &k.Next, &k.Prev, &k.Close,
 		} {
 			b.SetEnabled(false)
 		}

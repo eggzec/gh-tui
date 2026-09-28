@@ -26,21 +26,38 @@ var bigPager = sync.OnceValue(func() Model {
 	m, _ = m.Update(msg)
 	m.top = m.Lines() / 2
 	re, _ := compile("fmt")
-	if cmd := m.runSearch("fmt", re, false, m.top); cmd != nil {
+	if cmd := m.runSearch("fmt", re, false, m.top, false); cmd != nil {
 		m, _ = m.Update(cmd())
 	}
 	return m
 })
 
+// filteredPager returns bigPager showing only the lines with "Println"
+// or "func", so that about half the matches of "fmt" are shown.
+var filteredPager = sync.OnceValue(func() Model {
+	m := bigPager()
+	re, _ := compile("println|func")
+	if cmd := m.project(projection{filter: filter{query: "println|func", re: re}}); cmd != nil {
+		m, _ = deliver(m, cmd())
+	}
+	return m
+})
+
 func BenchmarkView(b *testing.B) {
-	for _, wrap := range []bool{false, true} {
-		name := "scroll"
-		if wrap {
-			name = "wrap"
-		}
-		b.Run(name, func(b *testing.B) {
+	for _, tt := range []struct {
+		name           string
+		wrap, filtered bool
+	}{
+		{name: "scroll"},
+		{name: "wrap", wrap: true},
+		{name: "filtered", filtered: true},
+	} {
+		b.Run(tt.name, func(b *testing.B) {
 			m := bigPager()
-			m.SetWrap(wrap)
+			if tt.filtered {
+				m = filteredPager()
+			}
+			m.SetWrap(tt.wrap)
 			b.ReportAllocs()
 			for b.Loop() {
 				_ = m.View()
@@ -54,15 +71,21 @@ func BenchmarkUpdate(b *testing.B) {
 		name     string
 		fwd, bwd tea.Msg
 		wrap     bool
+		filtered bool
 	}{
 		{name: "line", fwd: press("j"), bwd: press("k")},
 		{name: "page", fwd: press("f"), bwd: press("b")},
 		{name: "page/wrap", fwd: press("f"), bwd: press("b"), wrap: true},
 		{name: "match", fwd: press("n"), bwd: press("N")},
 		{name: "end", fwd: press("G"), bwd: press("g")},
+		{name: "page/filtered", fwd: press("f"), bwd: press("b"), filtered: true},
+		{name: "match/filtered", fwd: press("n"), bwd: press("N"), filtered: true},
 	} {
 		b.Run(tt.name, func(b *testing.B) {
 			m := bigPager()
+			if tt.filtered {
+				m = filteredPager()
+			}
 			m.SetWrap(tt.wrap)
 			b.ReportAllocs()
 			i := 0
@@ -110,4 +133,46 @@ func BenchmarkSearch(b *testing.B) {
 			})
 		}
 	}
+}
+
+// BenchmarkFilter measures a filter of 100,000 lines of Go, as the command
+// that runs it does, for a literal, a pattern and the lines a pattern
+// doesn't match, and what confirming it costs Update, which only starts
+// that command.
+func BenchmarkFilter(b *testing.B) {
+	const n = 100_000
+	text := strings.Repeat(goSource, n/strings.Count(goSource, "\n")+1)
+	lines := strings.Split(text, "\n")[:n]
+	for _, tt := range []struct {
+		name, pattern string
+		invert        bool
+	}{
+		{name: "literal", pattern: "(?i)fmt"},
+		{name: "regexp", pattern: `(?i)print\w*\(`},
+		{name: "inverted", pattern: "(?i)fmt", invert: true},
+	} {
+		p := projection{filter: filter{re: regexp.MustCompile(tt.pattern), invert: tt.invert}}
+		b.Run("100k/"+tt.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				_, _, _ = pick(context.Background(), lines, p)
+			}
+		})
+	}
+	b.Run("100k/update", func(b *testing.B) {
+		m := New(WithSize(120, 40))
+		m.Focus()
+		_ = m.SetContent("big.go", strings.Join(lines, "\n"))
+		m, _ = m.Update(press("&"))
+		for _, r := range "fmt" {
+			m, _ = m.Update(tea.KeyPressMsg{Code: r, Text: string(r)})
+		}
+		b.ReportAllocs()
+		for b.Loop() {
+			_, cmd := m.Update(enter)
+			if cmd == nil {
+				b.Fatal("the filter ran in Update")
+			}
+		}
+	})
 }
