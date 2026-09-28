@@ -211,6 +211,27 @@ func (m *Modal) moreFiles() tea.Cmd {
 	})
 }
 
+// retryCommit reads again the detail of the commit, or else the page of
+// its files, if it failed as retry says it may be read again.
+func (m *Modal) retryCommit(retry func(err error) bool) tea.Cmd {
+	c := &m.commit
+	switch {
+	case c.err != nil:
+		if !retry(c.err) {
+			return nil
+		}
+		c.err, c.requested = nil, false
+		return m.loadDetail()
+	case c.filesErr != nil:
+		if !retry(c.filesErr) {
+			return nil
+		}
+		c.filesErr = nil
+		return m.moreFiles()
+	}
+	return nil
+}
+
 // receiveFiles adds a page of files.
 func (m *Modal) receiveFiles(msg filesMsg) tea.Cmd {
 	c := &m.commit
@@ -244,15 +265,7 @@ func (m *Modal) pressCommit(msg tea.KeyPressMsg) tea.Cmd {
 		c.pager.Focus()
 		return m.showFile()
 	case key.Matches(msg, m.keys.Retry):
-		switch {
-		case c.err != nil:
-			c.err, c.requested = nil, false
-			return m.loadDetail()
-		case c.filesErr != nil:
-			c.filesErr = nil
-			return m.moreFiles()
-		}
-		return nil
+		return m.retryCommit(func(error) bool { return true })
 	case key.Matches(msg, k.Up):
 		c.cursor--
 	case key.Matches(msg, k.Down):

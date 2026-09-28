@@ -199,6 +199,9 @@ func (m *FilterModal) Update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		return CloseModal(m)
+	case OnlineMsg:
+		// The options that failed for want of an answer load again.
+		return RetryUnreached(&m.form)
 	}
 	var cmd tea.Cmd
 	m.form, cmd = m.form.Update(msg)

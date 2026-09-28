@@ -52,6 +52,8 @@ func (m *Modal) update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		return m.receiveDetail(msg)
+	case ui.OnlineMsg:
+		return m.online()
 	case filesMsg:
 		if msg.id != m.id {
 			return nil
@@ -279,4 +281,14 @@ func (m *Modal) open() tea.Cmd {
 		}
 	}
 	return nil
+}
+
+// online reads again, now that GitHub answers again, what failed for want
+// of an answer from it: the branches, the history and the commit shown.
+func (m *Modal) online() tea.Cmd {
+	var branches tea.Cmd
+	if ui.Unreached(m.branches.err) {
+		branches = m.retryBranches()
+	}
+	return tea.Batch(branches, ui.RetryUnreached(&m.graph.model), m.retryCommit(ui.Unreached))
 }

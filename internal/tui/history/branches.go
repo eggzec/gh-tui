@@ -211,12 +211,7 @@ func (m *Modal) pressBranches(msg tea.KeyPressMsg) tea.Cmd {
 		if b.err == nil {
 			return nil
 		}
-		b.err = nil
-		cursor := ""
-		if b.loaded {
-			cursor = b.next
-		}
-		return m.loadBranches(cursor, false)
+		return m.retryBranches()
 	case key.Matches(msg, k.Up):
 		b.cursor--
 	case key.Matches(msg, k.Down):
@@ -283,6 +278,17 @@ func (m *Modal) compare(msg branchRestMsg) tea.Cmd {
 		end(err, "span", "tui", "repo", repo.String(), "head", br.Name)
 		return compareMsg{id: id, branch: br.Name, cmp: c, err: err}
 	}
+}
+
+// retryBranches reads again the page of branches that failed.
+func (m *Modal) retryBranches() tea.Cmd {
+	b := &m.branches
+	b.err = nil
+	cursor := ""
+	if b.loaded {
+		cursor = b.next
+	}
+	return m.loadBranches(cursor, false)
 }
 
 // receiveCompare keeps a comparison. A failed one shows nothing: the

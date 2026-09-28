@@ -40,6 +40,8 @@ func (s *Step) Update(msg tea.Msg) tea.Cmd {
 		return s.ticked()
 	case ui.SyncMsg:
 		return s.synced(msg)
+	case ui.OnlineMsg:
+		return s.online()
 	case ui.CapsMsg:
 		if msg.Repo.Same(s.q.Repo) {
 			s.opts.caps = msg.Caps
@@ -219,8 +221,7 @@ func (s *Step) back() {
 func (s *Step) refresh() tea.Cmd {
 	if s.mode == jobMode {
 		if s.job.err != nil {
-			s.job.err, s.job.loading = nil, !s.job.hasJob
-			return tea.Batch(s.readJob(), s.startSpinner())
+			return s.retryJob()
 		}
 		return s.view.Retry()
 	}
@@ -228,6 +229,30 @@ func (s *Step) refresh() tea.Cmd {
 	s.svc.Invalidate(s.q.Repo)
 	s.err = nil
 	return s.read()
+}
+
+// retryJob reads again the job shown, which failed to load.
+func (s *Step) retryJob() tea.Cmd {
+	s.job.err, s.job.loading = nil, !s.job.hasJob
+	return tea.Batch(s.readJob(), s.startSpinner())
+}
+
+// online reads again, now that GitHub answers again, what failed for want
+// of an answer from it: the checks while none show, and the job shown and
+// its log. The checks shown are the poll's to bring up to date.
+func (s *Step) online() tea.Cmd {
+	var cmds []tea.Cmd
+	if !s.loaded && !s.loading && ui.Unreached(s.err) {
+		s.err = nil
+		cmds = append(cmds, s.read())
+	}
+	if s.mode == jobMode {
+		if ui.Unreached(s.job.err) {
+			cmds = append(cmds, s.retryJob())
+		}
+		cmds = append(cmds, ui.RetryUnreached(&s.view))
+	}
+	return tea.Batch(cmds...)
 }
 
 // open opens the job, or the check shown or under the cursor, on GitHub or

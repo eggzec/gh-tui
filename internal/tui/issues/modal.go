@@ -60,6 +60,8 @@ type detailModal struct {
 	// anything is: a modal opened from the search starts with nothing.
 	issue  core.Issue
 	loaded bool
+	// failed is why the last read of the issue failed, or nil.
+	failed error
 
 	thread thread.Model[core.Comment]
 	// ctx bounds the reads of the modal and is cancelled when it closes.
@@ -269,6 +271,8 @@ func (m *detailModal) Update(msg tea.Msg) tea.Cmd {
 	case viewerMsg:
 		m.viewer = msg.login
 		return nil
+	case ui.OnlineMsg:
+		return m.online()
 	case ui.DoneMsg:
 		// The thread reloads too, since the change may be a comment.
 		if msg.From != ui.IssuesTitle {
@@ -335,8 +339,10 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 }
 
 // get reads the issue, since a list page may carry less than the issue
-// itself, such as no body.
+// itself, such as no body. What failed before is forgotten, so that GitHub
+// answering again doesn't read it once more while this read is under way.
 func (m *detailModal) get() tea.Cmd {
+	m.failed = nil
 	svc, repo, number, id, ctx, resume := m.svc, m.repo, m.number, m.thread.ID(), m.ctx, m.resume
 	return func() tea.Msg {
 		start := time.Now()
@@ -345,6 +351,16 @@ func (m *detailModal) get() tea.Cmd {
 		obs.End(ctx, start, err, "span", "tui", "repo", repo.String(), "number", number)
 		return issueMsg{thread: id, issue: it, err: err}
 	}
+}
+
+// online reads again, now that GitHub answers again, the issue and the
+// comments that failed for want of an answer from it.
+func (m *detailModal) online() tea.Cmd {
+	var get tea.Cmd
+	if ui.Unreached(m.failed) {
+		get = m.get()
+	}
+	return tea.Batch(get, ui.RetryUnreached(&m.thread))
 }
 
 // gotIssue shows the issue that Get read for this modal.
@@ -356,9 +372,10 @@ func (m *detailModal) gotIssue(msg issueMsg) tea.Cmd {
 		if errors.Is(msg.err, context.Canceled) {
 			return nil
 		}
+		m.failed = msg.err
 		return ui.Fail("load #"+strconv.Itoa(m.number), core.About(m.subject(), msg.err))
 	}
-	m.issue, m.loaded = msg.issue, true
+	m.issue, m.loaded, m.failed = msg.issue, true, nil
 	return m.show()
 }
 

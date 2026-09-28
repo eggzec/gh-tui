@@ -50,6 +50,8 @@ type finderModal struct {
 	seq     int
 	cancel  context.CancelFunc
 	delay   time.Duration
+	// failed is why the file shown failed to load, or nil.
+	failed error
 
 	width, height int
 	theme         ui.Theme
@@ -279,8 +281,11 @@ func (f *finderModal) Update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		f.cancel = nil
+		f.failed = msg.err
 		cmd, _ := fill(&f.pager, msg.entry, msg.blob, msg.err, f.keys.Browser)
 		return cmd
+	case ui.OnlineMsg:
+		return f.online()
 	case ui.ReopenedMsg:
 		if msg.Modal != ui.Modal(f) {
 			return nil
@@ -338,7 +343,7 @@ func (f *finderModal) moved() tea.Cmd {
 	if f.current && it.Path == f.shown {
 		return nil
 	}
-	f.shown, f.current = it.Path, true
+	f.shown, f.current, f.failed = it.Path, true, nil
 	f.seq++
 	f.stopRead()
 	e, ok := entryOfItem(it)
@@ -358,6 +363,17 @@ func (f *finderModal) moved() tea.Cmd {
 	f.pager.SetMessage(e.Path, "")
 	msg := finderRestMsg{f: f, seq: f.seq}
 	return tea.Tick(f.delay, func(time.Time) tea.Msg { return msg })
+}
+
+// online loads again, now that GitHub answers again, what failed for want
+// of an answer from it: the paths, and the file the preview shows.
+func (f *finderModal) online() tea.Cmd {
+	var read tea.Cmd
+	if f.preview && f.cancel == nil && ui.Unreached(f.failed) {
+		f.failed = nil
+		read = f.read()
+	}
+	return tea.Batch(ui.RetryUnreached(&f.find), read)
 }
 
 // read reads the file the cursor rested on.
