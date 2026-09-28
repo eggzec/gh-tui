@@ -15,7 +15,9 @@ import (
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/tui/jobview"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keytest"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
@@ -735,7 +737,7 @@ func TestHelpNamesWhatTheKeysDo(t *testing.T) {
 	m, h := newModal(t, newFake(), wideW, wideH)
 	short := func() string {
 		var ks []string
-		for _, b := range m.Help().ShortHelp() {
+		for _, b := range (ui.Hints{Layers: m.KeyLayers()}).ShortHelp() {
 			if b.Enabled() {
 				ks = append(ks, b.Help().Key+" "+b.Help().Desc)
 			}
@@ -746,11 +748,11 @@ func TestHelpNamesWhatTheKeysDo(t *testing.T) {
 		keys []string
 		want string
 	}{
-		{nil, "↵ jobs, tab pane, z zoom, ^r rerun failed, R rerun all, f filter, o browser"},
-		{[]string{"tab"}, "↵ log, tab pane, z zoom, ^r rerun failed, R rerun all, J rerun job, f filter, o browser"},
-		{[]string{"tab"}, "space fold, * fold all, e next error, / search, A annotations, tab pane, z zoom, ^r rerun failed, R rerun all, J rerun job, f filter, o browser"},
-		{[]string{"A"}, "↑/k up, ↓/j down, ↵ open file, * fold all, A log, tab pane, z zoom, ^r rerun failed, R rerun all, J rerun job, f filter, o browser"},
-		{[]string{"A"}, "space fold, * fold all, e next error, / search, A annotations, tab pane, z zoom, ^r rerun failed, R rerun all, J rerun job, f filter, o browser"},
+		{nil, "↑/k up, ↓/j down, ↵ jobs, tab pane, z zoom, ^r rerun failed, R rerun all, f filter, o browser"},
+		{[]string{"tab"}, "↑/k up, ↓/j down, ↵ open, tab pane, z zoom, ^r rerun failed, R rerun all, J rerun job, f filter, o browser"},
+		{[]string{"tab"}, "space fold, * fold all, e next error, / search, esc back, A annotations, tab pane, z zoom, ^r rerun failed, R rerun all, J rerun job, f filter, o browser"},
+		{[]string{"A"}, "* fold all, ↑/k up, ↓/j down, ↵ open file, A log, tab pane, z zoom, ^r rerun failed, R rerun all, J rerun job, f filter, o browser"},
+		{[]string{"A"}, "space fold, * fold all, e next error, / search, esc back, A annotations, tab pane, z zoom, ^r rerun failed, R rerun all, J rerun job, f filter, o browser"},
 		// The steps of a job in progress don't fold.
 		{[]string{"tab", "j", "tab", "tab"}, "tab pane, z zoom, x cancel run, f filter, o browser"},
 		{[]string{"x"}, "y yes, n no"},
@@ -760,6 +762,46 @@ func TestHelpNamesWhatTheKeysDo(t *testing.T) {
 		if got := short(); got != s.want {
 			t.Errorf("after %q the help is %q, want %q", s.keys, got, s.want)
 		}
+	}
+}
+
+func TestKeyMapComplete(t *testing.T) {
+	keytest.Complete(t, newKeyMap(config.Default().Keys))
+}
+
+// The layers take a key in the order the modal does: its own keys before
+// the pane's, the tabs' ] rather than the next pane's, and the log's
+// enter, which folds, rather than the drill of the other panes.
+func TestKeyLayersOrder(t *testing.T) {
+	m, h := newModal(t, newFake(), wideW, wideH)
+	if b, src, _ := uitest.Winner(m.KeyLayers(), "]"); src != "actions" || b.Help().Desc != "tab" {
+		t.Errorf("] reaches %q of %q, want the tabs", b.Help().Desc, src)
+	}
+	before := m.filter
+	h.keys("]")
+	if m.filter == before {
+		t.Error("] didn't switch the tab")
+	}
+	if b, src, _ := uitest.Winner(m.KeyLayers(), "enter"); src != "actions" || b.Help().Desc != "jobs" {
+		t.Errorf("enter reaches %q of %q on the runs, want the jobs", b.Help().Desc, src)
+	}
+	h.keys("[", "tab", "tab")
+	if m.focus != logPane {
+		t.Fatalf("focus %d, want the log", m.focus)
+	}
+	if _, src, _ := uitest.Winner(m.KeyLayers(), "enter"); src != "log" {
+		t.Errorf("enter reaches %q in the log, want the log", src)
+	}
+	h.keys("enter")
+	if m.focus != logPane {
+		t.Errorf("enter in the log moved the focus to %d", m.focus)
+	}
+	if b, src, _ := uitest.Winner(m.KeyLayers(), "esc"); src != "actions" || b.Help().Desc != "back" {
+		t.Errorf("esc reaches %q of %q in the log, want the modal's back", b.Help().Desc, src)
+	}
+	h.keys("esc")
+	if m.focus != jobsPane {
+		t.Errorf("esc left the focus on %d, want the jobs", m.focus)
 	}
 }
 

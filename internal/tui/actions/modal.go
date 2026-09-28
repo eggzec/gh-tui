@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 
@@ -29,6 +30,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/jobview"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -211,9 +213,78 @@ func (m *Modal) SetTheme(t ui.Theme) {
 	}
 }
 
-// Help lists the keys of the focused pane.
+// Help lists the keys of the modal for the help line.
 func (m *Modal) Help() help.KeyMap {
-	return helpKeys{m: m}
+	return ui.Hints{Layers: m.KeyLayers()}
+}
+
+// KeyLayers implements ui.Keyed. The confirmation, the filter and a search
+// of the log each take every key while open; otherwise the modal's own
+// keys come first, named for what they do in the focused pane, and then
+// those of the pane.
+func (m *Modal) KeyLayers() []keyhelp.Layer {
+	k := m.keys
+	switch {
+	case m.ask != nil:
+		return []keyhelp.Layer{k.Confirm.Layer()}
+	case m.filterStep != nil:
+		if f := m.filterStep.form; f != nil {
+			return []keyhelp.Layer{keyhelp.FromHelp("filter", *f, f.Capturing())}
+		}
+		// Until the form shows, only the back key does something.
+		return []keyhelp.Layer{{Source: "filter", Bindings: []key.Binding{k.Back}, Short: []key.Binding{k.Back}}}
+	case m.focus == logPane && m.log.Capturing():
+		return m.log.KeyLayers()
+	}
+	k = k.state(m)
+	own := keyhelp.Layer{Source: "actions", Bindings: k.own(), Short: k.ShortHelp()}
+	switch m.focus {
+	case runsPane:
+		return []keyhelp.Layer{own, keyhelp.FromHelp("runs", m.runs.KeyMap(), false)}
+	case jobsPane:
+		return []keyhelp.Layer{own, keyhelp.FromHelp("jobs", k.List, false)}
+	case logPane:
+	}
+	return append([]keyhelp.Layer{own}, m.log.KeyLayers()...)
+}
+
+// state returns k as the modal takes it now, named for what the keys do
+// in the focused pane: select drills into the pane after, or folds a
+// group of jobs, back closes the modal from the runs, and a run offers
+// the changes that apply to it, if the viewer may make them.
+func (k KeyMap) state(m *Modal) KeyMap {
+	switch m.focus {
+	case runsPane:
+		k.Select = relabel(k.Select, "jobs")
+		if !m.zoom {
+			k.Back = relabel(k.Back, "close")
+		}
+	case jobsPane:
+		// Enter folds a group of jobs, and opens the log of a job.
+		k.Select = relabel(k.Select, "open")
+		if m.jobs.onGroup() {
+			k.Select = relabel(k.Select, "fold")
+		}
+	case logPane:
+		k.Select.SetEnabled(false)
+		// The back key clears the search of the log first.
+		k.Back.SetEnabled(k.Back.Enabled() && m.log.Query() == "")
+	}
+	g := m.gate()
+	done := m.hasRun && m.run.Done()
+	k.Cancel.SetEnabled(k.Cancel.Enabled() && m.hasRun && !m.run.Done())
+	k.RerunFailed.SetEnabled(k.RerunFailed.Enabled() && done)
+	k.Rerun.SetEnabled(k.Rerun.Enabled() && done)
+	k.RerunJob.SetEnabled(k.RerunJob.Enabled() && done && m.focus != runsPane)
+	k.Cancel, k.RerunFailed = g.Gated(k.Cancel, ui.ActCancelRun, nil), g.Gated(k.RerunFailed, ui.ActRerun, nil)
+	k.Rerun, k.RerunJob = g.Gated(k.Rerun, ui.ActRerun, nil), g.Gated(k.RerunJob, ui.ActRerun, nil)
+	k.Open.SetEnabled(k.Open.Enabled() && m.hasRun)
+	// The job view handles the annotations, and only a question takes
+	// the answers.
+	k.Annotations.SetEnabled(false)
+	k.Confirm.Yes.SetEnabled(false)
+	k.Confirm.No.SetEnabled(false)
+	return k
 }
 
 // narrow reports whether the modal shows one pane at a time.

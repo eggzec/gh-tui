@@ -70,13 +70,19 @@ func newKeyMap(keys map[string][]string) KeyMap {
 	}
 	// The tabs take their keys from the panes' keys, which the app shares
 	// with other screens.
+	// PR5: this decides where ] goes, since the modal matches the panes
+	// before the tabs; match the tabs first instead.
 	tabs := []key.Binding{k.NextTab, k.PrevTab}
 	k.Next = without(ui.Binding(keys, config.ActionNextTab, "pane"), tabs)
 	k.Prev = without(ui.Binding(keys, config.ActionPrevTab, "previous pane"), tabs)
 	// Refresh reads the runs again, so ctrl+r, its second key, is free for
 	// the re-run of the failed jobs.
+	// PR5: the modal matches the re-run first anyway, so this only keeps
+	// the collision out of help.
 	k.Refresh = without(k.Refresh, []key.Binding{k.RerunFailed})
 
+	// PR5: the modal matches its own keys first, so dropping them from the
+	// lists and the log below only keeps the collisions out of help.
 	own := []key.Binding{
 		k.Next, k.Prev, k.Left, k.Right, k.NextTab, k.PrevTab, k.Select, k.Back, k.Filter, k.Zoom, k.Open,
 		k.Refresh, k.RerunFailed, k.Rerun, k.RerunJob, k.Cancel,
@@ -110,6 +116,24 @@ func newKeyMap(keys map[string][]string) KeyMap {
 	lk.Close = relabel(k.Back, "back")
 	k.Log = lk
 	return k
+}
+
+// own returns the keys of the modal itself, in the order it matches them.
+func (k KeyMap) own() []key.Binding {
+	return []key.Binding{
+		k.Next, k.Prev, k.Right, k.Left, k.NextTab, k.PrevTab, k.Filter, k.Zoom, k.Open,
+		k.RerunFailed, k.Rerun, k.RerunJob, k.Cancel, k.Refresh, k.Back, k.Select, k.Annotations,
+	}
+}
+
+// ShortHelp implements help.KeyMap.
+func (k KeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.Select, k.Next, k.Zoom, k.Cancel, k.RerunFailed, k.Rerun, k.RerunJob, k.Filter, k.Open}
+}
+
+// FullHelp implements help.KeyMap.
+func (k KeyMap) FullHelp() [][]key.Binding {
+	return slices.Concat([][]key.Binding{k.own(), {k.Confirm.Yes, k.Confirm.No}}, k.List.FullHelp(), k.Log.FullHelp())
 }
 
 // job returns the keys of the log pane's job view: the moves of the
