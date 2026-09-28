@@ -201,18 +201,18 @@ func TestFilterBeforeTheFirstPageReadsAheadOnceCleared(t *testing.T) {
 	}
 }
 
-func TestClaims(t *testing.T) {
+func TestClaimed(t *testing.T) {
 	h := newTest(t, newFakeService(), 80, 20)
-	if h.Claims(keyMsg("]")) {
-		t.Error("claimed ] without a repository")
+	if h.Claimed() != nil {
+		t.Error("claimed keys without a repository")
 	}
 	h = started(t, newFakeService(), 80, 20)
 	for k, want := range map[string]bool{"]": true, "[": true, "x": false, "f": false} {
-		if got := h.Claims(keyMsg(k)); got != want {
-			t.Errorf("Claims(%q) = %v, want %v", k, got, want)
+		if got := key.Matches(keyMsg(k), h.Claimed()...); got != want {
+			t.Errorf("claimed %q = %v, want %v", k, got, want)
 		}
 	}
-	if h.Claims(tea.KeyPressMsg{Code: tea.KeyRight}) {
+	if key.Matches(tea.KeyPressMsg{Code: tea.KeyRight}, h.Claimed()...) {
 		t.Error("claimed right, which isn't a key of next_filter")
 	}
 }

@@ -67,9 +67,10 @@ type Chipper interface {
 
 // Claimer is a Section that at times takes keys the app would handle,
 // such as ] and [, which switch the section's tabs while the app would
-// move to the next pane. Claims reports whether the section takes msg.
+// move to the next pane. Claimed returns the bindings it takes before the
+// app now, or none.
 type Claimer interface {
-	Claims(msg tea.KeyPressMsg) bool
+	Claimed() []key.Binding
 }
 
 // Fitter is a Modal that needs less room than the app offers. Fit returns

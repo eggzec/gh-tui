@@ -204,17 +204,17 @@ func TestFilterOffersMilestones(t *testing.T) {
 	}
 }
 
-func TestClaims(t *testing.T) {
-	if newSection(t, newFakeService(nil), 80, 20).Claims(keyMsg("]")) {
-		t.Error("claimed ] without a repository")
+func TestClaimed(t *testing.T) {
+	if newSection(t, newFakeService(nil), 80, 20).Claimed() != nil {
+		t.Error("claimed keys without a repository")
 	}
 	h := started(t, newFakeService(sampleIssues(12)), 80, 20)
 	for k, want := range map[string]bool{"]": true, "[": true, "x": false, "f": false} {
-		if got := h.Claims(keyMsg(k)); got != want {
-			t.Errorf("Claims(%q) = %v, want %v", k, got, want)
+		if got := key.Matches(keyMsg(k), h.Claimed()...); got != want {
+			t.Errorf("claimed %q = %v, want %v", k, got, want)
 		}
 	}
-	if h.Claims(tea.KeyPressMsg{Code: tea.KeyLeft}) {
+	if key.Matches(tea.KeyPressMsg{Code: tea.KeyLeft}, h.Claimed()...) {
 		t.Error("claimed left, which isn't a key of prev_filter")
 	}
 }
