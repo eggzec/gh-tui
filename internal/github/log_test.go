@@ -163,6 +163,39 @@ func rateHeaders(w http.ResponseWriter, resource string, remaining int) {
 	w.Header().Set("X-GitHub-Request-Id", "ABCD:1234")
 }
 
+// The debug record of a request names its query with the values the
+// user may have typed, such as a search, replaced by their length.
+func TestLogQueryHidesUserText(t *testing.T) {
+	tests := []struct{ raw, want string }{
+		{"q=secret+plans+repo%3Ao%2Fr&per_page=30&page=2", "q=…21&per_page=30&page=2"},
+		{"labels=bug%2Cmine&creator=octocat&sort=updated&direction=desc&state=open", "labels=…8&creator=…7&sort=updated&direction=desc&state=open"},
+		{"branch=wip%2Fsecret&status=failure", "branch=…10&status=failure"},
+		{"all=true&participating=true", "all=true&participating=true"},
+		{"recursive", "recursive"},
+	}
+	for _, tt := range tests {
+		if got := logQuery(tt.raw); got != tt.want {
+			t.Errorf("logQuery(%q) = %q, want %q", tt.raw, got, tt.want)
+		}
+	}
+
+	buf, _ := captureLog(t, slog.LevelDebug)
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(w, `{"total_count":0,"items":[]}`)
+	}))
+	var v any
+	if _, err := c.Get(context.Background(), "search/issues?q=secret+plans&per_page=30", Conditional{}, &v); err != nil {
+		t.Fatal(err)
+	}
+	recs := httpRecords(t, buf)
+	if len(recs) != 1 || recs[0]["query"] != "q=…12&per_page=30" {
+		t.Errorf("records = %v, want one whose query hides the search", recs)
+	}
+	if strings.Contains(buf.String(), "secret") {
+		t.Errorf("the log holds the search:\n%s", buf)
+	}
+}
+
 func TestLogREST(t *testing.T) {
 	buf, stats := captureLog(t, slog.LevelInfo)
 	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -614,6 +614,54 @@ func TestRetryLogsOutageVolume(t *testing.T) {
 	})
 }
 
+// A request sent again after a redirect logs its attempts sent again at
+// debug level and its last attempt once, with all that a record says of
+// a request: where it was redirected from, the attempt, that it was
+// conditional, the page links and media type, and its query without what
+// the user typed. The deprecation of its route is logged once.
+func TestRetryLogsLastRecordWhole(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		buf, _ := captureLog(t, slog.LevelDebug)
+		moved := step{status: http.StatusMovedPermanently, header: http.Header{
+			"Location": {"https://gh.test/repos/o/r2/issues?q=secret+plans&per_page=30"},
+		}}
+		last := step{status: http.StatusOK, body: `[]`, header: http.Header{
+			"Link":                {`<https://gh.test/repos/o/r2/issues?page=2>; rel="next"`},
+			"X-Github-Media-Type": {"github.v3; format=json"},
+			"Deprecation":         {"true"},
+			"X-Github-Request-Id": {"ABCD:1"},
+		}}
+		c := scriptedClient(t, &script{steps: []step{moved, unavailable, last}})
+		var v any
+		if _, err := c.Get(t.Context(), "repos/o/r/issues", Conditional{ETag: `"v1"`}, &v); err != nil {
+			t.Fatal(err)
+		}
+		recs := httpRecords(t, buf)
+		if len(recs) != 3 {
+			t.Fatalf("%d http records, want the redirect, the attempt sent again and the last:\n%s", len(recs), buf)
+		}
+		if recs[1]["level"] != "DEBUG" || recs[1]["status"] != 503.0 {
+			t.Errorf("attempt sent again = %v, want the 503 at DEBUG", recs[1])
+		}
+		r := recs[2]
+		for k, want := range map[string]any{
+			"level": "INFO", "status": 200.0, "attempt": 2.0, "conditional": true,
+			"redirected_from": "301 /repos/{owner}/{repo}/issues", "has_next": true,
+			"media_type": "github.v3; format=json", "query": "q=…12&per_page=30", "gh_request_id": "ABCD:1",
+		} {
+			if r[k] != want {
+				t.Errorf("last record %s = %v, want %v", k, r[k], want)
+			}
+		}
+		if n := len(records(t, buf, "api deprecated")); n != 1 {
+			t.Errorf("%d deprecation records, want 1", n)
+		}
+		if strings.Contains(buf.String(), "secret") {
+			t.Errorf("the log holds the search:\n%s", buf)
+		}
+	})
+}
+
 // The records of retries never hold the token.
 func TestRetryLogsNoToken(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {

@@ -149,7 +149,7 @@ func (s *Service) warmIssue(ctx context.Context, repo core.RepoRef, number int, 
 // under key.
 func logKind(ctx context.Context, key, found string) {
 	if obs.Enabled(ctx, slog.LevelDebug) {
-		slog.DebugContext(ctx, "number kind", "span", span, "key", key, "found", found)
+		slog.DebugContext(ctx, "number kind", "span", span, "key", obs.LogKey(key), "found", found)
 	}
 }
 

@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
@@ -275,7 +276,7 @@ func (a *attempt) done(resp *http.Response, err error) {
 	if obs.Enabled(ctx, slog.LevelDebug) && (c == nil || !c.external) {
 		attrs = append(attrs, slog.String("path", a.req.URL.EscapedPath()))
 		if q := a.req.URL.RawQuery; q != "" {
-			attrs = append(attrs, slog.String("query", q))
+			attrs = append(attrs, slog.String("query", logQuery(q)))
 		}
 		if !a.headers.IsZero() {
 			attrs = append(attrs, slog.Float64("ttfb_ms", obs.Millis(a.headers.Sub(a.start))))
@@ -519,4 +520,32 @@ var restWords = map[string]bool{
 	"compare": true, "files": true, "milestones": true,
 	"actions": true, "runs": true, "attempts": true, "jobs": true, "workflows": true, "logs": true,
 	"rerun": true, "rerun-failed-jobs": true, "cancel": true, "check-runs": true, "annotations": true,
+}
+
+// plainParams are the query parameters whose values the log keeps: pages,
+// sorting and switches, which the app picks. The others, such as q or
+// labels, hold what the user typed into a search or a filter.
+var plainParams = map[string]bool{
+	"page": true, "per_page": true, "sort": true, "direction": true, "state": true, "all": true,
+	"participating": true, "recursive": true, "filter": true, "status": true, "event": true,
+	"since": true, "before": true, "after": true,
+}
+
+// logQuery returns raw, the query of a request, as its record names it:
+// every parameter in order, with the value of one that may hold what the
+// user typed replaced by how long it is, as q=…12, so that a debug log
+// pasted into an issue doesn't carry a search or a filter.
+func logQuery(raw string) string {
+	params := strings.Split(raw, "&")
+	for i, p := range params {
+		name, value, ok := strings.Cut(p, "=")
+		if !ok || plainParams[name] {
+			continue
+		}
+		if v, err := url.QueryUnescape(value); err == nil {
+			value = v
+		}
+		params[i] = name + "=…" + strconv.Itoa(utf8.RuneCountInString(value))
+	}
+	return strings.Join(params, "&")
 }

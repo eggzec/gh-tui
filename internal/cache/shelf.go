@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/obs"
@@ -170,10 +169,7 @@ func (s *Shelf[V]) dropped(ctx context.Context, why, key string) {
 	}
 	attrs := []any{"span", "cache.disk", "kind", s.kind, "reason", why}
 	if key != "" {
-		// A key's query may hold what the user typed, such as a filter,
-		// so only what comes before it is logged.
-		entry, _, _ := strings.Cut(key, "?")
-		attrs = append(attrs, "entry", entry)
+		attrs = append(attrs, "entry", obs.LogKey(key))
 	}
 	slog.Log(ctx, level, "kept dropped", append(attrs, obs.Suppressed(held)...)...)
 }
@@ -199,7 +195,7 @@ func (s *Shelf[V]) Warm(c *Cache[V], key string, again bool) (Entry[V], bool) {
 	if _, st := c.Get(key); st == Miss {
 		if e, ok := s.Load(key); ok && c.Seed(key, e) {
 			if _, st := c.Get(key); st == Stale && obs.Enabled(context.Background(), slog.LevelDebug) {
-				slog.Debug("cache", "span", "cache.disk", "kind", kindOf(key), "key", key, "found", "stale", "fetched_at", e.FetchedAt)
+				slog.Debug("cache", "span", "cache.disk", "kind", kindOf(key), "key", obs.LogKey(key), "found", "stale", "fetched_at", e.FetchedAt)
 			}
 		}
 	}
