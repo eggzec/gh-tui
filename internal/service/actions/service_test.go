@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -505,4 +506,73 @@ func TestAnnotations(t *testing.T) {
 		t.Fatal(err)
 	}
 	checkCalls(t, f, "ListAnnotations octo-org/hello 12 cursor= per_page=50", "ListAnnotations octo-org/hello 12 cursor= per_page=50 if-none-match")
+}
+
+func TestAllJobs(t *testing.T) {
+	f := newFake()
+	f.queueJobs(100, 3)
+	s := New(f)
+	q := JobsQuery{Repo: repo, RunID: 2, Attempt: 1, PageSize: 2}
+	if _, ok := s.CachedAllJobs(q); ok {
+		t.Fatal("CachedAllJobs before a read reports jobs")
+	}
+	p, err := s.AllJobs(t.Context(), q)
+	if err != nil || len(p.Items) != 5 || !p.Last() || p.Items[4].ID != 102 {
+		t.Fatalf("AllJobs = %+v, %v; want the 5 jobs of 3 pages", p, err)
+	}
+	checkCalls(t, f,
+		"ListJobs octo-org/hello 2 attempt=1 cursor= per_page=2",
+		"ListJobs octo-org/hello 2 attempt=1 cursor=2 per_page=2",
+		"ListJobs octo-org/hello 2 attempt=1 cursor=4 per_page=2")
+	if c, ok := s.CachedAllJobs(q); !ok || len(c.Items) != 5 {
+		t.Errorf("CachedAllJobs = %+v, %v; want the 5 jobs", c, ok)
+	}
+
+	// A page that isn't in memory leaves the cached read empty.
+	s = New(f)
+	if _, err := s.Jobs(t.Context(), q); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := s.CachedAllJobs(q); ok {
+		t.Error("CachedAllJobs without its second page reports jobs")
+	}
+}
+
+// Past MaxJobPages the jobs stop, and Next tells there are more.
+func TestAllJobsStopsAtMaxPages(t *testing.T) {
+	f := newFake()
+	f.queueJobs(100, 2*MaxJobPages)
+	s := New(f)
+	p, err := s.AllJobs(t.Context(), JobsQuery{Repo: repo, RunID: 2, Attempt: 1, PageSize: 2})
+	if err != nil || len(p.Items) != 2*MaxJobPages || p.Next != strconv.Itoa(2*MaxJobPages) {
+		t.Fatalf("AllJobs = %d jobs, next %q, %v; want %d and more", len(p.Items), p.Next, err, 2*MaxJobPages)
+	}
+	if calls := f.take(); len(calls) != MaxJobPages {
+		t.Errorf("AllJobs asked %d times, want %d", len(calls), MaxJobPages)
+	}
+}
+
+func TestAllJobsFails(t *testing.T) {
+	f := newFake()
+	f.queueJobs(100, 3)
+	s := New(f)
+	f.change(func(f *fakeGitHub) { f.errs["ListJobs"] = errNotFound })
+	if _, err := s.AllJobs(t.Context(), JobsQuery{Repo: repo, RunID: 2, Attempt: 1, PageSize: 2}); !errors.Is(err, core.ErrNotFound) {
+		t.Errorf("AllJobs = %v, want ErrNotFound", err)
+	}
+}
+
+// A job that moved to the next page between two reads shows once, as the
+// later read has it.
+func TestAllJobsKeepsTheLaterRead(t *testing.T) {
+	pages := map[string]core.Page[core.Job]{
+		"":  {Items: []core.Job{{ID: 1}, {ID: 2, Status: core.RunQueued}}, Next: "2"},
+		"2": {Items: []core.Job{{ID: 2, Status: core.RunInProgress}, {ID: 3}}},
+	}
+	p, err := allJobs(JobsQuery{Repo: repo, RunID: 2}, func(q JobsQuery) (core.Page[core.Job], error) {
+		return pages[q.Cursor], nil
+	})
+	if err != nil || len(p.Items) != 3 || p.Items[1].ID != 2 || p.Items[1].Status != core.RunInProgress {
+		t.Errorf("allJobs = %+v, %v; want jobs 1, 2 as read last, and 3", p.Items, err)
+	}
 }

@@ -2,6 +2,7 @@ package actions
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"slices"
@@ -86,6 +87,68 @@ func (s *Service) Jobs(ctx context.Context, q JobsQuery) (core.Page[core.Job], e
 		_ = s.keptJobs.Save(key, done)
 	}
 	return e.Value, nil
+}
+
+// MaxJobPages is how many pages of jobs AllJobs reads: a thousand jobs at
+// the default page size, more than all but the largest matrices run.
+const MaxJobPages = 10
+
+// errNotCached stops CachedAllJobs at a page that isn't in memory.
+var errNotCached = errors.New("not cached")
+
+// CachedAllJobs returns what AllJobs would, from memory, without a
+// request. It reports false unless every page it would read is there.
+func (s *Service) CachedAllJobs(q JobsQuery) (core.Page[core.Job], bool) {
+	p, err := allJobs(q, func(q JobsQuery) (core.Page[core.Job], error) {
+		p, ok := s.CachedJobs(q)
+		if !ok {
+			return p, errNotCached
+		}
+		return p, nil
+	})
+	return p, err == nil
+}
+
+// AllJobs returns the jobs of q.Attempt of run q.RunID, from q's page on,
+// following the pages GitHub links for up to MaxJobPages pages. Each page
+// is read as Jobs reads it, with its own ETag, so pages that didn't change
+// cost no rate limit. Next is set when there are more jobs than that, and
+// Stale, Offline and Limited when any page had them.
+func (s *Service) AllJobs(ctx context.Context, q JobsQuery) (core.Page[core.Job], error) {
+	return allJobs(q, func(q JobsQuery) (core.Page[core.Job], error) { return s.Jobs(ctx, q) })
+}
+
+// allJobs joins the pages of jobs that page returns, from q's page on.
+// A job that moved to the next page between two reads shows once, where
+// it showed first, as the later read has it.
+func allJobs(q JobsQuery, page func(JobsQuery) (core.Page[core.Job], error)) (core.Page[core.Job], error) {
+	q = q.normalize()
+	var all core.Page[core.Job]
+	at := make(map[int64]int)
+	for range MaxJobPages {
+		p, err := page(q)
+		if err != nil {
+			return core.Page[core.Job]{}, err
+		}
+		for i := range p.Items {
+			j := &p.Items[i]
+			if k, ok := at[j.ID]; ok {
+				all.Items[k] = *j
+				continue
+			}
+			at[j.ID] = len(all.Items)
+			all.Items = append(all.Items, *j)
+		}
+		all.Next = p.Next
+		all.Stale = all.Stale || p.Stale
+		all.Offline = all.Offline || p.Offline
+		all.Limited = all.Limited || p.Limited
+		if p.Last() {
+			break
+		}
+		q.Cursor = p.Next
+	}
+	return all, nil
 }
 
 // attemptDone reports whether the service knows that the attempt of q

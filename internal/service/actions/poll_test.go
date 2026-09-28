@@ -147,3 +147,51 @@ func TestPollChecksError(t *testing.T) {
 		t.Error("a failed read isn't an error")
 	}
 }
+
+// A poll revalidates every page of jobs, each with its ETag, and follows
+// the pages that new jobs add.
+func TestPollJobPages(t *testing.T) {
+	f := newFake()
+	f.queueJobs(100, DefaultJobPageSize)
+	s := New(f)
+	if _, err := s.Run(t.Context(), repo, 2); err != nil {
+		t.Fatal(err)
+	}
+	q := JobsQuery{Repo: repo, RunID: 2, Attempt: 1}
+	if p, err := s.AllJobs(t.Context(), q); err != nil || len(p.Items) != DefaultJobPageSize+2 {
+		t.Fatalf("AllJobs = %d jobs, %v", len(p.Items), err)
+	}
+	f.take()
+	poll := s.Poll(repo, 2)
+
+	// Nothing moved: every page is a free 304.
+	if res, err := poll(t.Context()); err != nil || res.Changed {
+		t.Errorf("poll = %+v, %v; want no change", res, err)
+	}
+	checkCalls(t, f, "GetRun octo-org/hello 2 if-none-match",
+		"ListJobs octo-org/hello 2 attempt=1 cursor= per_page=100 if-none-match",
+		"ListJobs octo-org/hello 2 attempt=1 cursor=100 per_page=100 if-none-match")
+
+	// A new job lands on the second page.
+	f.queueJobs(1000, 1)
+	if res, err := poll(t.Context()); err != nil || !res.Changed {
+		t.Errorf("poll = %+v, %v; want a change", res, err)
+	}
+	f.take()
+	if p, ok := s.CachedAllJobs(q); !ok || p.Items[len(p.Items)-1].ID != 1000 {
+		t.Errorf("cached jobs end with %+v, want job 1000", p.Items[len(p.Items)-1])
+	}
+
+	// Enough new jobs to fill a third page, which the poll reads anew.
+	f.queueJobs(2000, DefaultJobPageSize)
+	if res, err := poll(t.Context()); err != nil || !res.Changed {
+		t.Errorf("poll = %+v, %v; want a change", res, err)
+	}
+	checkCalls(t, f, "GetRun octo-org/hello 2 if-none-match",
+		"ListJobs octo-org/hello 2 attempt=1 cursor= per_page=100 if-none-match",
+		"ListJobs octo-org/hello 2 attempt=1 cursor=100 per_page=100 if-none-match",
+		"ListJobs octo-org/hello 2 attempt=1 cursor=200 per_page=100")
+	if p, ok := s.CachedAllJobs(q); !ok || len(p.Items) != 2*DefaultJobPageSize+3 {
+		t.Errorf("cached jobs = %d, want %d", len(p.Items), 2*DefaultJobPageSize+3)
+	}
+}

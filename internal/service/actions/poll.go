@@ -17,10 +17,10 @@ func RunSyncKey(repo core.RepoRef, runID int64) string {
 }
 
 // Poll returns a watch.PollFunc that follows run runID of repo while it
-// runs. Each poll revalidates the run and the jobs of its latest attempt
-// with their ETags, two requests that cost no rate limit while nothing
+// runs. Each poll revalidates the run and the pages of jobs of its latest
+// attempt with their ETags, requests that cost no rate limit while nothing
 // moved, and stores what changed in the cache, where the next reads find
-// it. It reports a change when either did, and the run in the cached
+// it. It reports a change when any did, and the run in the cached
 // pages of runs is replaced, which are marked stale besides, as the run
 // may have left a filter such as the one of runs in progress. Once the run
 // completed, the poll reports that change and then asks nothing more.
@@ -40,15 +40,11 @@ func (s *Service) Poll(repo core.RepoRef, runID int64) watch.PollFunc {
 		after, _ := s.run.Get(key)
 		changed := before.ETag != after.ETag
 
-		q := JobsQuery{Repo: repo, RunID: runID, Attempt: run.Attempt}.normalize()
-		jkey := jobsKey(q)
-		jobsBefore, _ := s.liveJobs.Get(jkey)
-		s.liveJobs.Invalidate(jkey)
-		if _, err := s.Jobs(ctx, q); err != nil {
+		jobsChanged, err := s.pollJobs(ctx, JobsQuery{Repo: repo, RunID: runID, Attempt: run.Attempt})
+		if err != nil {
 			return watch.Result{}, fmt.Errorf("poll run %d of %s: %w", runID, repo, err)
 		}
-		jobsAfter, _ := s.liveJobs.Get(jkey)
-		changed = changed || jobsBefore.ETag != jobsAfter.ETag
+		changed = changed || jobsChanged
 
 		if changed {
 			tag := repoTag(repo)
@@ -62,4 +58,21 @@ func (s *Service) Poll(repo core.RepoRef, runID int64) watch.PollFunc {
 		}
 		return watch.Result{Changed: changed}, nil
 	}
+}
+
+// pollJobs revalidates the pages of jobs of q that AllJobs reads, each
+// with its ETag, and reports whether any changed. A page that lists more
+// leads to the next, so jobs that a new page holds are read too.
+func (s *Service) pollJobs(ctx context.Context, q JobsQuery) (bool, error) {
+	changed := false
+	_, err := allJobs(q, func(q JobsQuery) (core.Page[core.Job], error) {
+		key := jobsKey(q)
+		before, _ := s.liveJobs.Get(key)
+		s.liveJobs.Invalidate(key)
+		p, err := s.Jobs(ctx, q)
+		after, _ := s.liveJobs.Get(key)
+		changed = changed || before.ETag != after.ETag
+		return p, err
+	})
+	return changed, err
 }
