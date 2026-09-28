@@ -40,6 +40,22 @@ type GraphQLErrorItem struct {
 	Message string `json:"message"`
 	// Path leads to the field that failed, as names and list indexes.
 	Path []any `json:"path"`
+	// Locations are where in the query an error of the query itself is,
+	// such as a field the schema lacks, from line and column 1.
+	Locations []struct {
+		Line   int `json:"line"`
+		Column int `json:"column"`
+	} `json:"locations"`
+	// Extensions say what such an error is, or are nil.
+	Extensions *GraphQLErrorExtensions `json:"extensions"`
+}
+
+// GraphQLErrorExtensions say what an error of a query itself is: its code,
+// such as undefinedField, and the type and field it is about.
+type GraphQLErrorExtensions struct {
+	Code      string `json:"code"`
+	TypeName  string `json:"typeName"`
+	FieldName string `json:"fieldName"`
 }
 
 func (e *GraphQLError) Error() string {
@@ -82,7 +98,28 @@ func (c *Client) Query(ctx context.Context, query string, vars map[string]any, v
 	return nil
 }
 
+// query is Query. On an Enterprise Server, it sends query without the
+// fields that GitHub said its schema lacks, and when GitHub says so of
+// more of them, it sends it once more without those too: GitHub refused
+// the whole query before running any of it.
 func (c *Client) query(ctx context.Context, query string, vars map[string]any, v any) error {
+	sent := c.unsupported.rewrite(query)
+	err := c.queryOnce(ctx, sent, vars, v)
+	// github.com lacks no field the client selects, so one it says it
+	// lacks is a bug to show, not to cut.
+	if err == nil || !c.enterprise.Load() {
+		return err
+	}
+	fewer, fields, ok := withoutMissing(sent, err)
+	if !ok {
+		return err
+	}
+	slog.WarnContext(ctx, "graphql fields unsupported", "span", "http", "op", operation(query), "fields", fields)
+	c.unsupported.remember(query, fewer)
+	return c.queryOnce(ctx, fewer, vars, v)
+}
+
+func (c *Client) queryOnce(ctx context.Context, query string, vars map[string]any, v any) error {
 	cl := &call{op: operation(query), query: readOnly(query)}
 	cl.shape = queryShape(cl.op, query)
 	if owner, ok := vars["owner"].(string); ok {
@@ -253,6 +290,12 @@ func (c *Client) graphqlError(ctx context.Context, h http.Header, shape string, 
 			e.causes = append(e.causes, core.ErrConflict)
 		case "RATE_LIMITED":
 			e.causes = append(e.causes, &core.RateLimitError{Reset: c.graphqlReset(ctx, h, shape, item.Message)})
+		default:
+			// An Enterprise Server may lack what github.com has, which
+			// no query of github.com lacks.
+			if item.schemaError() && c.enterprise.Load() {
+				e.causes = append(e.causes, core.ErrUnsupported)
+			}
 		}
 	}
 	if len(below) > 0 {

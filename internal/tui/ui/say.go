@@ -175,6 +175,8 @@ func words(p *core.Problem, v Voice) (text, hint string, named bool) {
 			return reason, open, true
 		}
 		return "GitHub refused this", open, false
+	case core.Unsupported:
+		return "This GitHub Enterprise version doesn't support this", open, false
 	default:
 		if v.Log == "" {
 			return "Something went wrong", retry, false
