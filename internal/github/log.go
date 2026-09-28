@@ -204,6 +204,7 @@ func (a *attempt) done(resp *http.Response, err error) {
 	if repo != "" {
 		attrs = append(attrs, slog.String("repo", repo))
 	}
+	attrs = append(attrs, a.t.hop(a.req, c)...)
 	if resp != nil {
 		if id := resp.Header.Get("X-GitHub-Request-Id"); id != "" {
 			attrs = append(attrs, slog.String("gh_request_id", id))
@@ -215,6 +216,11 @@ func (a *attempt) done(resp *http.Response, err error) {
 	} else {
 		// No response came: the status is 0.
 		attrs = append(attrs, slog.Int("status", 0))
+	}
+	// A conditional request that got a 200 tells a change, or validators
+	// that didn't hold.
+	if c == nil || !c.external {
+		attrs = append(attrs, slog.Bool("conditional", a.req.Header.Get("If-None-Match") != "" || a.req.Header.Get("If-Modified-Since") != ""))
 	}
 	attrs = append(attrs, slog.Float64("duration_ms", obs.Millis(elapsed)), slog.Int64("bytes", a.bytes))
 	if r := h.Rate; r.Resource != "" || h.Cost > 0 {
@@ -247,7 +253,6 @@ func (a *attempt) done(resp *http.Response, err error) {
 		if q := a.req.URL.RawQuery; q != "" {
 			attrs = append(attrs, slog.String("query", q))
 		}
-		attrs = append(attrs, slog.Bool("conditional", a.req.Header.Get("If-None-Match") != "" || a.req.Header.Get("If-Modified-Since") != ""))
 		if !a.headers.IsZero() {
 			attrs = append(attrs, slog.Float64("ttfb_ms", obs.Millis(a.headers.Sub(a.start))))
 		}
@@ -261,6 +266,22 @@ func (a *attempt) done(resp *http.Response, err error) {
 		}
 	}
 	slog.LogAttrs(ctx, level, "http", attrs...)
+}
+
+// hop returns what a record says of where req came from: the host of a
+// download outside the API, never its signed path or query, and for a
+// request that follows a redirect, the status and route of the answer
+// that redirected it, which ties the two records together.
+func (t *logTransport) hop(req *http.Request, c *call) []slog.Attr {
+	if c != nil && c.external {
+		return []slog.Attr{slog.String("download_host", req.URL.Hostname())}
+	}
+	prev := req.Response
+	if prev == nil || prev.Request == nil || prev.Request.URL == nil {
+		return nil
+	}
+	_, route, _ := t.route(prev.Request, nil)
+	return []slog.Attr{slog.String("redirected_from", strconv.Itoa(prev.StatusCode)+" "+route)}
 }
 
 // isTimeout reports whether err says that time ran out, as a dial or a
