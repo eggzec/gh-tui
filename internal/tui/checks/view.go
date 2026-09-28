@@ -1,10 +1,12 @@
 package checks
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -106,7 +108,13 @@ func (s *Step) jobLines(w, h int) []string {
 	st := &s.st
 	switch {
 	case !s.job.hasJob && s.job.err != nil:
-		return ui.FitLines(ui.Wrap(s.errorLine("Couldn't load the job: ", s.job.err), w), w, h)
+		// The open key opens the check, whose job failed to load. Access
+		// is granted by repository, so a refusal names it.
+		subject := s.check.name()
+		if errors.Is(s.job.err, core.ErrForbidden) {
+			subject = s.q.Repo.String()
+		}
+		return ui.FitLines(s.errorLines("load the job", subject, s.job.err, true, w), w, h)
 	case !s.job.hasJob:
 		return ui.FitLines([]string{s.spin.View() + st.run.Muted.Render("Loading the job…")}, w, h)
 	}

@@ -195,9 +195,13 @@ type Step struct {
 	spin     spinner.Model
 	spinning bool
 
+	// voice words why the checks or the job failed to load.
+	voice ui.Voice
+
 	width, height int
 	theme         ui.Theme
 	st            styles
+	errs          ui.ErrorStyles
 	// links keeps the links of the rows, which are drawn on every frame.
 	links termtext.Links
 }
@@ -228,6 +232,7 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, number int, keys m
 		v = *o.voice
 	}
 	v.Retry = s.keys.Refresh
+	s.voice = v
 	s.view = jobview.New(rctx, svc, repo, s.keys.job(),
 		jobview.WithIcons(o.icons), jobview.WithClock(o.now), jobview.WithReturn(o.ret), jobview.WithVoice(v))
 	s.detail = viewport.New()
@@ -263,6 +268,8 @@ func (s *Step) SetSize(width, height int) {
 func (s *Step) SetTheme(t ui.Theme) {
 	s.theme = t
 	s.st = newStyles(t, s.opts.icons)
+	// The mark is the bubbles', which draw "✗" whatever the icons.
+	s.errs = t.Errors(ui.NewIcons(config.IconsUnicode))
 	s.spin.Style = t.Accent
 	s.view.SetTheme(t)
 	s.md, s.rendered = nil, ""
