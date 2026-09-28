@@ -1,0 +1,10 @@
+[38;2;216;220;230moctocat@github.com · fine-grained token[m                                 
+                                                                        
+[38;2;239;125;125m✗[m [38;2;216;220;230mRead and mark notifications[m[38;2;107;114;133m · needs a classic token[m                   
+[38;2;107;114;133m?[m [38;2;216;220;230mChange public repositories[m[38;2;107;114;133m[m                                            
+[38;2;107;114;133m?[m [38;2;216;220;230mChange private repositories[m[38;2;107;114;133m[m                                           
+[38;2;107;114;133m?[m [38;2;216;220;230mRe-run and cancel workflow runs[m[38;2;107;114;133m[m                                       
+[38;2;107;114;133m?[m [38;2;216;220;230mMerge changes to workflows[m[38;2;107;114;133m[m                                            
+                                                                        
+[38;2;160;167;184mA fine-grained token has no scopes to grant; run gh auth login to use a[m 
+[38;2;160;167;184mclassic token.[m                                                          

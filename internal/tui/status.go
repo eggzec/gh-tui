@@ -123,12 +123,18 @@ func (m *Model) drawStatus() {
 	if it := m.linkItem(); len(it.Forms) > 0 {
 		m.stats = append(m.stats, it)
 	}
+	m.stats = append(m.stats, statusbar.Item{Forms: []string{m.bst.label.Render(m.account())}, Rank: rankAccount})
+	m.status.SetItems(m.hints, m.stats)
+}
+
+// account names the account the app acts as: the login before the host,
+// or the host alone while the login isn't known.
+func (m *Model) account() string {
 	account := cmp.Or(m.host, "github.com")
 	if m.login != "" {
 		account = m.login + "@" + account
 	}
-	m.stats = append(m.stats, statusbar.Item{Forms: []string{m.bst.label.Render(account)}, Rank: rankAccount})
-	m.status.SetItems(m.hints, m.stats)
+	return account
 }
 
 // readRates reads the rate limits again, if the app has what tells them,
