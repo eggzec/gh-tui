@@ -9,9 +9,11 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -391,6 +393,131 @@ func TestLogTransportCanceledBody(t *testing.T) {
 	}
 	if r := recs[0]; r["level"] != "INFO" || r["canceled"] != true || r["err"] == nil || r["duration_ms"] == nil {
 		t.Errorf("record = %v, want the canceled read", r)
+	}
+}
+
+// A request that runs out of time is logged as timed out, at warn, and
+// one its caller cancels as canceled, at info.
+func TestLogTimedOutOrCanceled(t *testing.T) {
+	for _, tt := range []struct {
+		name               string
+		cancelAfter        time.Duration
+		level              string
+		timedOut, canceled bool
+	}{
+		{name: "timed out", level: "WARN", timedOut: true},
+		{name: "canceled", cancelAfter: time.Second, level: "INFO", canceled: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				buf, _ := captureLog(t, slog.LevelInfo)
+				ctx, cancel := context.WithCancel(t.Context())
+				defer cancel()
+				if tt.cancelAfter > 0 {
+					time.AfterFunc(tt.cancelAfter, cancel)
+				}
+				c := scriptedClient(t, &script{steps: []step{hangs}})
+				defer c.Close()
+				if err := get(ctx, c); err == nil {
+					t.Fatal("the request succeeded")
+				}
+				recs := httpRecords(t, buf)
+				if len(recs) == 0 {
+					t.Fatal("no http record")
+				}
+				r := recs[0]
+				if r["level"] != tt.level || r["timed_out"] != tt.timedOut || r["canceled"] != tt.canceled {
+					t.Errorf("record = %v, want level %s, timed_out %v, canceled %v", r, tt.level, tt.timedOut, tt.canceled)
+				}
+			})
+		})
+	}
+}
+
+// The errors of a GraphQL answer, which come with a 200, are on its
+// record, without their messages: at warn when no data came with them.
+func TestLogGraphQLErrors(t *testing.T) {
+	const private = "eggzec/private-repo"
+	tests := []struct {
+		name, body, level string
+		want              map[string]any
+	}{
+		{
+			name:  "no data",
+			body:  `{"data":null,"errors":[{"message":"Field 'x' doesn't exist on type '` + private + `'","path":["query","repository","x"],"extensions":{"code":"undefinedField","typeName":"Repository"}},{"type":"NOT_FOUND","message":"Could not resolve ` + private + `","path":["repository"]}]}`,
+			level: "WARN",
+			want: map[string]any{
+				"gql_errors": 2.0, "gql_types": []any{"NOT_FOUND"}, "gql_codes": []any{"undefinedField"},
+				"gql_paths": []any{"query.repository.x", "repository"},
+			},
+		},
+		{
+			name:  "partial",
+			body:  `{"data":{"search":{"nodes":[{},{},{},null]}},"errors":[{"type":"FORBIDDEN","message":"` + private + `","path":["search","nodes",3]}]}`,
+			level: "INFO",
+			want:  map[string]any{"gql_errors": 1.0, "gql_types": []any{"FORBIDDEN"}, "gql_paths": []any{"search.nodes.3"}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf, _ := captureLog(t, slog.LevelInfo)
+			c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				_, _ = io.WriteString(w, tt.body)
+			}))
+			if err := c.Query(context.Background(), "query Q { repository { x } }", nil, nil); err == nil {
+				t.Fatal("Query succeeded, want the errors")
+			}
+			recs := httpRecords(t, buf)
+			if len(recs) != 1 {
+				t.Fatalf("got %d records, want 1:\n%s", len(recs), buf)
+			}
+			r := recs[0]
+			if r["level"] != tt.level || r["status"] != 200.0 {
+				t.Errorf("record = %v, want a 200 at %s", r, tt.level)
+			}
+			for k, want := range tt.want {
+				if !reflect.DeepEqual(r[k], want) {
+					t.Errorf("%s = %v, want %v", k, r[k], want)
+				}
+			}
+			if strings.Contains(buf.String(), private) {
+				t.Errorf("the log has the messages:\n%s", buf)
+			}
+		})
+	}
+}
+
+// A refusal's record says which scopes the endpoint accepts and that SSO
+// stands in the way, and never where to authorize, nor the token's scopes.
+func TestLogRefusal(t *testing.T) {
+	buf, _ := captureLog(t, slog.LevelInfo)
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("X-Accepted-OAuth-Scopes", "repo, read:org")
+		w.Header().Set("X-OAuth-Scopes", "gist")
+		w.Header().Set("X-GitHub-SSO", "required; url=https://github.com/orgs/x/sso?authorization_request=AR_s3cr3t")
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = io.WriteString(w, `{"message":"Resource protected by organization SAML enforcement."}`)
+	}))
+	_, _ = c.Get(context.Background(), "repos/x/y", Conditional{}, nil)
+	r := httpRecords(t, buf)[0]
+	if r["level"] != "WARN" || r["sso"] != "required" || !reflect.DeepEqual(r["accepted_scopes"], []any{"read:org", "repo"}) {
+		t.Errorf("record = %v, want the accepted scopes and sso", r)
+	}
+	for _, s := range []string{"AR_s3cr3t", "authorization_request", "gist"} {
+		if strings.Contains(buf.String(), s) {
+			t.Errorf("log contains %q:\n%s", s, buf)
+		}
+	}
+
+	// A success says neither.
+	buf.Reset()
+	ok := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("X-Accepted-OAuth-Scopes", "repo")
+		_, _ = io.WriteString(w, `{}`)
+	}))
+	_, _ = ok.Get(context.Background(), "repos/x/y", Conditional{}, nil)
+	if r := httpRecords(t, buf)[0]; r["accepted_scopes"] != nil || r["sso"] != nil {
+		t.Errorf("record = %v, want no refusal fields", r)
 	}
 }
 
