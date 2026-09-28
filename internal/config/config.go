@@ -51,6 +51,7 @@ type Config struct {
 	// Dashboard configures the screen the app opens on.
 	Dashboard Dashboard `yaml:"dashboard"`
 	UI        UI        `yaml:"ui"`
+	Auth      Auth      `yaml:"auth"`
 	Log       Log       `yaml:"log"`
 }
 
@@ -79,6 +80,7 @@ func Default() Config {
 		History:       defaultHistory(),
 		Dashboard:     defaultDashboard(),
 		UI:            defaultUI(),
+		Auth:          defaultAuth(),
 		Log:           defaultLog(),
 	}
 }

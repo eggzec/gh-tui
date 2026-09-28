@@ -84,6 +84,9 @@ dashboard:
 ui:
   icons: unicode
 
+auth:
+  check: false
+
 log:
   level: debug
   file: /var/log/gh-tui.log
