@@ -8,6 +8,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
@@ -197,6 +198,13 @@ type ShowMsg struct {
 // BackMsg asks the app to go back to the screen before the one on view,
 // such as when the user leaves the search.
 type BackMsg struct{}
+
+// SettingsMsg carries the config once the user changed a setting of it
+// for the session, such as ui.icons. Each section takes what it uses of
+// it.
+type SettingsMsg struct {
+	Config config.Config
+}
 
 // OpenMsg asks the app to open URL in the browser.
 type OpenMsg struct {

@@ -150,6 +150,8 @@ type Model struct {
 	// voice words what went wrong in the app's toasts and the modals it
 	// opens.
 	voice ui.Voice
+	// settings is told the config when the set command changes it.
+	settings func(config.Config)
 }
 
 // Option configures a Model.

@@ -93,7 +93,7 @@ func article(noun string) string {
 }
 
 // completeCopy completes what copy copies.
-func completeCopy(_ *Model, arg string, cursor, end int) []cmdline.Candidate {
+func completeCopy(_ *Model, arg string, cursor, end int, _ bool) []cmdline.Candidate {
 	word := strings.TrimLeft(arg, " ")
 	if strings.Contains(word, " ") {
 		return nil

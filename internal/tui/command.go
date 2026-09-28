@@ -28,8 +28,9 @@ type command struct {
 	run   func(m *Model, arg string) tea.Cmd
 	// complete, if set, completes the argument: arg is the line from
 	// after the name to the cursor, which is at cursor, and end is the
-	// end of the word under it. It reads memory only.
-	complete func(m *Model, arg string, cursor, end int) []cmdline.Candidate
+	// end of the word under it, which atEnd reports is the end of the
+	// line. It reads memory only.
+	complete func(m *Model, arg string, cursor, end int, atEnd bool) []cmdline.Candidate
 }
 
 // commands are those of the command line, in the order they complete.
@@ -42,6 +43,7 @@ var commands = []command{
 	{name: "q", detail: "quit", quits: true, run: func(*Model, string) tea.Cmd { return tea.Quit }},
 	{name: "refresh", detail: "read the focused view again", run: pressing(config.ActionRefresh)},
 	{name: "search", detail: "search GitHub, for what follows if anything", args: true, run: (*Model).searchCommand},
+	{name: "set", detail: "change a setting for this session, or show it", args: true, run: (*Model).setCommand, complete: (*Model).completeSet},
 	{name: "sort", detail: "sort the focused list", run: filtering(filterform.SortTab)},
 }
 

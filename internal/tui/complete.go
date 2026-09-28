@@ -74,12 +74,12 @@ func (m *Model) complete(line string, cursor int) []cmdline.Candidate {
 	if !ok || c.complete == nil {
 		return nil
 	}
-	return c.complete(m, arg, cursor, end)
+	return c.complete(m, arg, cursor, end, end == len(line))
 }
 
 // completeTarget completes what goto opens: a repository, or a number
 // after '#'. It takes one argument, so only its first word completes.
-func (m *Model) completeTarget(arg string, cursor, end int) []cmdline.Candidate {
+func (m *Model) completeTarget(arg string, cursor, end int, _ bool) []cmdline.Candidate {
 	word := strings.TrimLeft(arg, " ")
 	if strings.Contains(word, " ") {
 		return nil

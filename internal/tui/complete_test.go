@@ -88,7 +88,7 @@ func TestComplete(t *testing.T) {
 		{name: "search", line: "sea", want: []string{"search "}},
 		{name: "after search", line: "search c"},
 		{name: "filter", line: "f", want: []string{"filter"}},
-		{name: "sort and search", line: "s", want: []string{"search ", "sort"}},
+		{name: "search, set and sort", line: "s", want: []string{"search ", "set ", "sort"}},
 		{name: "open", line: "op", want: []string{"open "}},
 		{name: "open completes as goto", line: "open CLI/", want: []string{"cli/cli"}},
 		{name: "open completes numbers", line: "open #13", want: []string{"#131", "#130", "#13"}},
