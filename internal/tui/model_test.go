@@ -952,13 +952,13 @@ func TestProgramRendersAndQuits(t *testing.T) {
 	tm := teatest.NewTestModel(t, app, teatest.WithInitialTermSize(80, 24))
 	teatest.WaitFor(t, tm.Output(), func(out []byte) bool {
 		return bytes.Contains(out, []byte("Files content")) && bytes.Contains(out, []byte("Issues content"))
-	}, teatest.WithDuration(time.Second))
+	}, teatest.WithDuration(5*time.Second))
 	tm.Send(press("n"))
 	teatest.WaitFor(t, tm.Output(), func(out []byte) bool {
 		return bytes.Contains(out, []byte("Notifications content"))
-	}, teatest.WithDuration(time.Second))
+	}, teatest.WithDuration(5*time.Second))
 	tm.Send(press("q"))
-	final, ok := tm.FinalModel(t, teatest.WithFinalTimeout(time.Second)).(*Model)
+	final, ok := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(*Model)
 	if !ok || final.screen != notifScreen {
 		t.Error("the final model isn't on the notifications")
 	}

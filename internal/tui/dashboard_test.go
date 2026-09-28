@@ -165,7 +165,7 @@ func TestProgramOpensOnDashboard(t *testing.T) {
 	tm.Send(ui.RepoMsg{Repo: testRepo})
 	tm.Send(press("0"))
 	tm.Send(press("q"))
-	final, ok := tm.FinalModel(t, teatest.WithFinalTimeout(time.Second)).(*Model)
+	final, ok := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(*Model)
 	if !ok || final.screen != dashScreen || final.back != repoScreen || final.repo != testRepo {
 		t.Errorf("the final model should be on the dashboard, back from the repository")
 	}

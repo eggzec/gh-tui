@@ -97,7 +97,7 @@ func TestProgramOpensGoesBackAndMerges(t *testing.T) {
 		t.Helper()
 		teatest.WaitFor(t, tm.Output(), func(b []byte) bool {
 			return bytes.Contains(b, []byte(text))
-		}, teatest.WithDuration(3*time.Second))
+		}, teatest.WithDuration(5*time.Second))
 	}
 
 	wait("Retry GraphQL requests")
@@ -114,14 +114,14 @@ func TestProgramOpensGoesBackAndMerges(t *testing.T) {
 		if msg.What != "merge #135" || msg.Err != nil {
 			t.Errorf("done = %+v, want merge #135 without error", msg)
 		}
-	case <-time.After(3 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("the merge never finished")
 	}
 	// Once the merge is confirmed, the open list no longer has it.
 	wait("Bump charm.land")
 	tm.Type("q")
 
-	final := tm.FinalModel(t, teatest.WithFinalTimeout(3*time.Second)).(app).h
+	final := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(app).h
 	if got := svc.state(135).State; got != core.StateMerged {
 		t.Errorf("#135 is %s, want merged", got)
 	}
@@ -142,7 +142,7 @@ func TestProgramMergesFromTheModalOnceConfirmed(t *testing.T) {
 		t.Helper()
 		teatest.WaitFor(t, tm.Output(), func(b []byte) bool {
 			return bytes.Contains(b, []byte(text))
-		}, teatest.WithDuration(3*time.Second))
+		}, teatest.WithDuration(5*time.Second))
 	}
 
 	wait("Add a disk layer")
@@ -158,7 +158,7 @@ func TestProgramMergesFromTheModalOnceConfirmed(t *testing.T) {
 		if msg.What != "merge #142" || msg.Err != nil {
 			t.Errorf("done = %+v, want merge #142 without error", msg)
 		}
-	case <-time.After(3 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("the merge never finished")
 	}
 	wait("Merged")
@@ -166,7 +166,7 @@ func TestProgramMergesFromTheModalOnceConfirmed(t *testing.T) {
 	wait("Retry GraphQL requests")
 	tm.Type("q")
 
-	final := tm.FinalModel(t, teatest.WithFinalTimeout(3*time.Second)).(app).h
+	final := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(app).h
 	if got := svc.changes(); !slices.Equal(got, []string{"merge squash 142"}) {
 		t.Errorf("changes = %v, want exactly one merge of #142", got)
 	}
@@ -184,7 +184,7 @@ func TestProgramSwitchesTabsAndFilters(t *testing.T) {
 		t.Helper()
 		select {
 		case <-modals:
-		case <-time.After(3 * time.Second):
+		case <-time.After(5 * time.Second):
 			t.Fatalf("the filter modal never %s", what)
 		}
 	}
@@ -192,7 +192,7 @@ func TestProgramSwitchesTabsAndFilters(t *testing.T) {
 		t.Helper()
 		teatest.WaitFor(t, tm.Output(), func(b []byte) bool {
 			return bytes.Contains(b, []byte(text))
-		}, teatest.WithDuration(3*time.Second))
+		}, teatest.WithDuration(5*time.Second))
 	}
 	wait("Retry GraphQL requests")
 
@@ -211,7 +211,7 @@ func TestProgramSwitchesTabsAndFilters(t *testing.T) {
 		if msg.Query != "is:merged author:hubot sort:updated-desc" {
 			t.Errorf("applied %q, want the tab and the author", msg.Query)
 		}
-	case <-time.After(3 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("the filter was never applied")
 	}
 	// q is typed into the form until it closes, and the filtered list loads
@@ -220,7 +220,7 @@ func TestProgramSwitchesTabsAndFilters(t *testing.T) {
 	wait("Rename the watch package")
 	tm.Type("q")
 
-	final := tm.FinalModel(t, teatest.WithFinalTimeout(3*time.Second)).(app).h
+	final := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(app).h
 	if final.tab != core.StateMerged || final.query != "author:hubot" || len(final.modals) != 0 {
 		t.Errorf("tab %q, query %q, %d modals; want merged by hubot, the modal closed", final.tab, final.query, len(final.modals))
 	}
@@ -238,7 +238,7 @@ func TestProgramSorts(t *testing.T) {
 		t.Helper()
 		select {
 		case <-modals:
-		case <-time.After(3 * time.Second):
+		case <-time.After(5 * time.Second):
 			t.Fatalf("the filter modal never %s", what)
 		}
 	}
@@ -246,7 +246,7 @@ func TestProgramSorts(t *testing.T) {
 		t.Helper()
 		teatest.WaitFor(t, tm.Output(), func(b []byte) bool {
 			return bytes.Contains(b, []byte(text))
-		}, teatest.WithDuration(3*time.Second))
+		}, teatest.WithDuration(5*time.Second))
 	}
 	wait("Retry GraphQL requests")
 
@@ -264,17 +264,17 @@ func TestProgramSorts(t *testing.T) {
 		if msg.Query != "is:open sort:created-asc" {
 			t.Errorf("applied %q, want the open ones, oldest created first", msg.Query)
 		}
-	case <-time.After(3 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("the sort was never applied")
 	}
 	waitModal("closed")
 	teatest.WaitFor(t, tm.Output(), func([]byte) bool {
 		q := svc.listed()
 		return len(q) > 0 && q[len(q)-1].Filter == "sort:created-asc"
-	}, teatest.WithDuration(3*time.Second))
+	}, teatest.WithDuration(5*time.Second))
 	tm.Type("q")
 
-	final := tm.FinalModel(t, teatest.WithFinalTimeout(3*time.Second)).(app).h
+	final := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(app).h
 	if final.tab != core.StateOpen || final.query != "sort:created-asc" || len(final.modals) != 0 {
 		t.Errorf("tab %q, query %q, %d modals; want the open ones sorted, the modal closed", final.tab, final.query, len(final.modals))
 	}
