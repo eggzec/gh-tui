@@ -46,17 +46,6 @@ func WithNow(now func() time.Time) Option {
 	return func(s *Section) { s.now = now }
 }
 
-// WithOffline shares off with other sections, so that the user is told once
-// for all of them that GitHub can't be reached. By default the section has
-// its own.
-func WithOffline(off *ui.Offline) Option {
-	return func(s *Section) {
-		if off != nil {
-			s.offline = off
-		}
-	}
-}
-
 // WithVoice sets how the section words what went wrong, with the keys a
 // hint names and the log it points to. By default the hints name the
 // configured keys and no log.
@@ -93,8 +82,6 @@ type Section struct {
 	// which run in commands, read it.
 	filt    atomic.Pointer[filter]
 	started bool
-	// offline is marked by the feed's reads when GitHub can't be reached.
-	offline *ui.Offline
 	// voice words the feed's errors, and icons mark them.
 	voice ui.Voice
 	icons ui.Icons
@@ -120,7 +107,7 @@ var (
 // New returns the section, which reads through svc and binds the actions
 // in keys. ctx bounds every request it makes.
 func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Option) *Section {
-	s := &Section{ctx: ctx, svc: svc, keys: newKeyMap(keys), now: time.Now, offline: new(ui.Offline), voice: ui.NewVoice(keys, ""), icons: ui.NewIcons(config.Default().UI.Icons)}
+	s := &Section{ctx: ctx, svc: svc, keys: newKeyMap(keys), now: time.Now, voice: ui.NewVoice(keys, ""), icons: ui.NewIcons(config.Default().UI.Icons)}
 	for _, opt := range opts {
 		opt(s)
 	}
@@ -130,7 +117,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 	if !s.opener.MarksRead() {
 		s.keys.Select.SetHelp(s.keys.Select.Help().Key, "open")
 	}
-	s.feed = feed.New(ui.FeedPages("list.notifications", s.offline, s.query, s.list), s.render,
+	s.feed = feed.New(ui.FeedPages("list.notifications", s.query, s.list), s.render,
 		feed.WithContext(ctx),
 		feed.WithKey(func(n core.Notification) string { return n.ID }),
 		feed.WithKeyMap(s.keys.feed),

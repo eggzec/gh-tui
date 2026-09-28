@@ -25,9 +25,6 @@ func (s *Section) Update(msg tea.Msg) tea.Cmd {
 		return s.opener.Rested(msg)
 	}
 	cmd := s.update(msg)
-	if off := s.offline.Notify(); off != nil {
-		cmd = tea.Batch(cmd, off)
-	}
 	if ahead := s.readAhead(); ahead != nil {
 		cmd = tea.Batch(cmd, ahead)
 	}

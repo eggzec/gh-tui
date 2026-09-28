@@ -72,17 +72,18 @@ func TestKeptInboxIsShownThenRevalidated(t *testing.T) {
 	}
 }
 
-func TestOfflineToastOnce(t *testing.T) {
+// TestOfflineShowsKeptInbox checks that an inbox served offline shows
+// without a toast: the status bar says the app is offline.
+func TestOfflineShowsKeptInbox(t *testing.T) {
 	svc := &keptService{fakeService: newFake(inbox()...), offline: true, served: map[notifications.ListQuery]bool{}}
 	s := unstarted(t, svc)
 	msgs := append(run(t, s, s.Init()), press(t, s, "r")...)
-	var toasts []string
 	for _, msg := range msgs {
 		if n, ok := msg.(ui.NotifyMsg); ok {
-			toasts = append(toasts, n.Text)
+			t.Errorf("toast %q, want none", n.Text)
 		}
 	}
-	if len(toasts) != 1 || toasts[0] != ui.OfflineText {
-		t.Errorf("toasts = %q, want the offline one once", toasts)
+	if s.feed.Len() == 0 || s.feed.Err() != nil {
+		t.Errorf("rows = %d, error %v; want the inbox served offline", s.feed.Len(), s.feed.Err())
 	}
 }

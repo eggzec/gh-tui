@@ -300,9 +300,9 @@ func (s *Section) profile() []string {
 	// notifications pane.
 	switch {
 	case s.offlineNow():
-		right = st.warning.render("offline · showing the last visit")
+		right = st.warning.render(ui.SayKept(core.Offline))
 	case s.limitedNow():
-		right = st.warning.render("rate limited · showing the last visit")
+		right = st.warning.render(ui.SayKept(core.RateLimited))
 	case s.updating():
 		right = st.subtle.render("updating…")
 	}

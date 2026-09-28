@@ -84,8 +84,6 @@ type Section struct {
 	// section has started with a repository.
 	feed       *feed.Model[core.PullRequest]
 	cancelFeed context.CancelFunc
-	// offline is marked by the feed's reads when GitHub can't be reached.
-	offline *ui.Offline
 	// voice words the errors of the feed and of the comments.
 	voice ui.Voice
 
@@ -147,17 +145,6 @@ func WithViewer(v Viewer) Option {
 	return func(s *Section) { s.readViewer = v }
 }
 
-// WithOffline shares off with other sections, so that the user is told once
-// for all of them that GitHub can't be reached. By default the section has
-// its own.
-func WithOffline(off *ui.Offline) Option {
-	return func(s *Section) {
-		if off != nil {
-			s.offline = off
-		}
-	}
-}
-
 // WithVoice sets how the section words what went wrong, with the keys a
 // hint names and the log it points to. By default the hints name the
 // configured keys and no log.
@@ -209,7 +196,6 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 	s := &Section{
 		ctx:         ctx,
 		svc:         svc,
-		offline:     new(ui.Offline),
 		voice:       ui.NewVoice(keys, ""),
 		keys:        newKeyMap(keys),
 		rawKeys:     keys,
@@ -270,7 +256,7 @@ func (s *Section) newFeed() tea.Cmd {
 		q.Cursor = cursor
 		return q
 	}
-	fetch := ui.FeedPages("list.pulls", s.offline, query, func(ctx context.Context, q pulls.ListQuery, again bool) (core.Page[core.PullRequest], error) {
+	fetch := ui.FeedPages("list.pulls", query, func(ctx context.Context, q pulls.ListQuery, again bool) (core.Page[core.PullRequest], error) {
 		q.Again = again
 		return svc.List(ctx, q)
 	})

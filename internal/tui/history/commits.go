@@ -73,19 +73,13 @@ func (g *commits) show(m *Modal, branch string) tea.Cmd {
 
 // fetchCommits reads the history of branch for the graph, a page at a time.
 func (m *Modal) fetchCommits(branch string, stale *atomic.Bool) graph.Fetch {
-	svc, repo, format, now, off, host := m.svc, m.repo, m.format, m.opts.now, m.opts.offline, m.opts.host
+	svc, repo, format, now, host := m.svc, m.repo, m.format, m.opts.now, m.opts.host
 	return func(ctx context.Context, cursor string) ([]graph.Commit, string, error) {
 		ctx, end := obs.Begin(ctx, "history.commits")
 		p, err := svc.Commits(ctx, historysvc.CommitsQuery{Repo: repo, Ref: branch, Cursor: cursor})
 		end(err, "span", "tui", "repo", repo.String(), "ref", branch, "first", cursor == "", "stale", p.Stale)
 		if err != nil {
 			return nil, "", err
-		}
-		switch {
-		case p.Offline:
-			off.Mark()
-		case p.Limited:
-			off.MarkLimited()
 		}
 		if p.Stale && cursor == "" {
 			stale.Store(true)

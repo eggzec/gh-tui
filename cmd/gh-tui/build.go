@@ -143,9 +143,6 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	// milestones and people of the repository.
 	facetSvc := facetsvc.New(client, facetsvc.WithTTL(ttl))
 
-	// The sections share whether GitHub can't be reached, so the user is
-	// told once.
-	offline := new(ui.Offline)
 	// What the set command changes for the session, the modals read as
 	// they open.
 	live := &session{cfg: cfg}
@@ -163,7 +160,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	// may do, and point to the command that grants it more.
 	voice.Token = ui.NewToken(access, cfg.Keys)
 	fileOpts := []files.Option{
-		files.WithOffline(offline), files.WithIcons(icons), files.WithFinderPreview(cfg.Files.Finder.Preview),
+		files.WithIcons(icons), files.WithFinderPreview(cfg.Files.Finder.Preview),
 		files.WithHost(webHost), files.WithVoice(voice), files.WithEditor(cfg.Editor),
 	}
 	if p := cfg.Files.Prefetch; p.Enabled {
@@ -187,11 +184,11 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	})
 	var (
 		pullOpts = []pulls.Option{
-			pulls.WithOffline(offline), pulls.WithVoice(voice), pulls.WithIcons(icons), pulls.WithFacets(facetSvc),
+			pulls.WithVoice(voice), pulls.WithIcons(icons), pulls.WithFacets(facetSvc),
 			pulls.WithChecks(actionSvc, checkOpts...), pulls.WithRepos(repoSvc), pulls.WithViewer(pulls.Viewer(viewer)),
 		}
 		issueOpts = []issues.Option{
-			issues.WithOffline(offline), issues.WithVoice(voice), issues.WithIcons(icons), issues.WithFacets(facetSvc),
+			issues.WithVoice(voice), issues.WithIcons(icons), issues.WithFacets(facetSvc),
 			issues.WithRepos(repoSvc), issues.WithViewer(issues.Viewer(viewer)),
 		}
 	)
@@ -217,7 +214,6 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	}
 	opener := threads.New(ctx, threadOpts...)
 	dashOpts := []dashboard.Option{
-		dashboard.WithOffline(offline),
 		dashboard.WithVoice(voice),
 		dashboard.WithInbox(notifSvc),
 		dashboard.WithOpener(opener),
@@ -249,7 +245,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		Pulls:  pulls.New(ctx, pullSvc, cfg.Keys, pullOpts...),
 		Issues: issues.New(ctx, issueSvc, cfg.Keys, issueOpts...),
 		Notifications: notifications.New(ctx, notifSvc, cfg.Keys,
-			notifications.WithOffline(offline), notifications.WithVoice(voice), notifications.WithOpener(opener),
+			notifications.WithVoice(voice), notifications.WithOpener(opener),
 			notifications.WithIcons(icons)),
 		Search:    searchpage.New(ctx, searchSvc, cfg.Keys, searchOpts...),
 		Dashboard: dashboard.New(ctx, dashSvc, cfg.Keys, dashOpts...),
@@ -260,7 +256,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	// they open.
 	historyOpts := func(c config.Config) []history.Option {
 		return []history.Option{
-			history.WithConfig(c.History), history.WithOffline(offline), history.WithHost(webHost), history.WithVoice(voice),
+			history.WithConfig(c.History), history.WithHost(webHost), history.WithVoice(voice),
 			history.WithEditor(c.Editor), history.WithIcons(ui.NewIcons(c.UI.Icons)),
 		}
 	}
@@ -305,7 +301,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		}
 	}
 	actionOpts := []actions.Option{
-		actions.WithOffline(offline), actions.WithVoice(voice),
+		actions.WithVoice(voice),
 		actions.WithViewer(viewer), actions.WithRepos(repoSvc),
 	}
 	if cfg.Sync.Enabled {

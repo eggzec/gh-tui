@@ -13,8 +13,7 @@ import (
 // to the feed, the log and the form. Messages of other modals, such as the
 // one this replaced, are ignored.
 func (m *Modal) Update(msg tea.Msg) tea.Cmd {
-	cmd := m.update(msg)
-	return tea.Batch(cmd, m.opts.offline.Notify())
+	return m.update(msg)
 }
 
 func (m *Modal) update(msg tea.Msg) tea.Cmd {

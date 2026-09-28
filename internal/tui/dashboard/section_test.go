@@ -119,29 +119,30 @@ func TestStaleIsReadAgain(t *testing.T) {
 
 func TestOffline(t *testing.T) {
 	for _, tt := range []struct {
-		name          string
-		limited       bool
-		toast, status string
+		name    string
+		limited bool
+		status  string
 	}{
-		{"offline", false, ui.OfflineText, "offline · showing the last visit"},
-		{"rate limited", true, ui.LimitedText, "rate limited · showing the last visit"},
+		{"offline", false, "offline · showing the last visit"},
+		{"rate limited", true, "rate limited · showing the last visit"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			testServedEarlier(t, tt.limited, tt.toast, tt.status)
+			testServedEarlier(t, tt.limited, tt.status)
 		})
 	}
 }
 
 // testServedEarlier checks what the dashboard says when its reads are
-// served what was read earlier, offline or rate limited.
-func testServedEarlier(t *testing.T, limited bool, toast, status string) {
+// served what was read earlier, offline or rate limited: the profile says
+// so, in the words of ui.SayKept, and no toast does, since the status bar
+// tells the connection.
+func testServedEarlier(t *testing.T, limited bool, status string) {
 	t.Helper()
 	svc := newFake()
 	svc.offline, svc.limited = !limited, limited
 	s := New(t.Context(), svc, nil)
 	s.SetSize(140, 38)
 	s.Focus()
-	var notified bool
 	queue := []tea.Cmd{s.Init()}
 	for len(queue) > 0 {
 		c := queue[0]
@@ -153,16 +154,27 @@ func testServedEarlier(t *testing.T, limited bool, toast, status string) {
 		case tea.BatchMsg:
 			queue = append(queue, msg...)
 		case ui.NotifyMsg:
-			notified = notified || msg.Text == toast
+			t.Errorf("toast %q, want none", msg.Text)
 		case loadedMsg:
 			queue = append(queue, s.Update(msg))
 		}
 	}
-	if !notified {
-		t.Errorf("a read served earlier should tell the user once: %q", toast)
-	}
 	if !strings.Contains(screen(s), status) {
 		t.Errorf("the profile should say %q:\n%s", status, screen(s))
+	}
+
+	if limited {
+		// A rate limit lifts by itself, with no answer to wait for.
+		return
+	}
+	// Once GitHub answers again, what was served earlier is read again,
+	// and the profile no longer says it.
+	svc.mu.Lock()
+	svc.offline, svc.limited = false, false
+	svc.mu.Unlock()
+	run(t, s, s.Update(ui.OnlineMsg{}))
+	if strings.Contains(screen(s), "showing the last visit") {
+		t.Errorf("the profile still shows the last visit once online:\n%s", screen(s))
 	}
 }
 

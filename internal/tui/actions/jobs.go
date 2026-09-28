@@ -184,17 +184,11 @@ func (m *Modal) readJobs() tea.Cmd {
 	if !m.hasRun {
 		return nil
 	}
-	svc, ctx, id, q, off := m.svc, m.ctx, m.id, m.jobsQuery(), m.opts.offline
+	svc, ctx, id, q := m.svc, m.ctx, m.id, m.jobsQuery()
 	return func() tea.Msg {
 		ctx, end := obs.Begin(ctx, "actions.jobs")
 		p, err := svc.AllJobs(ctx, q)
 		end(err, "span", "tui", "run", q.RunID, "attempt", q.Attempt, "jobs", len(p.Items), "offline", p.Offline, "limited", p.Limited)
-		switch {
-		case p.Offline:
-			off.Mark()
-		case p.Limited:
-			off.MarkLimited()
-		}
 		return jobsMsg{id: id, runID: q.RunID, attempt: q.Attempt, page: p, err: err}
 	}
 }

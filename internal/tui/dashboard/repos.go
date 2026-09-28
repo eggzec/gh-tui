@@ -100,7 +100,7 @@ func (t *repoTabs) newOwner(label string, q dashboard.ReposQuery) *owner {
 		empty = o.emptyText(f, clearKey)
 	}
 	render := func(r core.Repo, selected bool, _ int) string { return s.renderRepo(o.cols, r, selected) }
-	o.feed = feed.New(ui.FeedPages("dashboard.repos", s.offline, query, read), render,
+	o.feed = feed.New(ui.FeedPages("dashboard.repos", query, read), render,
 		feed.WithContext(s.ctx),
 		feed.WithKey(func(r core.Repo) string { return r.Ref.String() }),
 		feed.WithKeyMap(s.keys.feed),

@@ -77,17 +77,11 @@ type workflowsMsg struct {
 // readWorkflows reads the workflows of the repository, past the ones an
 // earlier session kept with again set.
 func (m *Modal) readWorkflows(again bool) tea.Cmd {
-	svc, ctx, id, repo, off := m.svc, m.ctx, m.id, m.repo, m.opts.offline
+	svc, ctx, id, repo := m.svc, m.ctx, m.id, m.repo
 	return func() tea.Msg {
 		ctx, end := obs.Begin(ctx, "actions.workflows")
 		p, err := svc.Workflows(ctx, actionssvc.WorkflowsQuery{Repo: repo, Again: again})
 		end(err, "span", "tui", "workflows", len(p.Items), "stale", p.Stale, "offline", p.Offline, "limited", p.Limited)
-		switch {
-		case p.Offline:
-			off.Mark()
-		case p.Limited:
-			off.MarkLimited()
-		}
 		return workflowsMsg{id: id, items: p.Items, stale: p.Stale, err: err}
 	}
 }

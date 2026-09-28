@@ -54,17 +54,6 @@ func WithIcons(icons ui.Icons) Option {
 	return func(s *Section) { s.icons = icons }
 }
 
-// WithOffline shares off with other sections, so that the user is told once
-// for all of them that GitHub can't be reached. By default the section has
-// its own.
-func WithOffline(off *ui.Offline) Option {
-	return func(s *Section) {
-		if off != nil {
-			s.offline = off
-		}
-	}
-}
-
 // WithVoice sets how the section words what went wrong, with the keys a
 // hint names and the log it points to. By default the hints name the
 // configured keys and no log.

@@ -225,7 +225,7 @@ func TestTracePropagates(t *testing.T) {
 		q.Cursor = cursor
 		return q
 	}
-	fetch := ui.FeedPages("list.pulls", new(ui.Offline), query, func(ctx context.Context, q pullsvc.ListQuery, again bool) (core.Page[core.PullRequest], error) {
+	fetch := ui.FeedPages("list.pulls", query, func(ctx context.Context, q pullsvc.ListQuery, again bool) (core.Page[core.PullRequest], error) {
 		q.Again = again
 		return svc.List(ctx, q)
 	})

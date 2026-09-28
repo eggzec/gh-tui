@@ -53,9 +53,6 @@ type Section struct {
 	// whether it said that the listing of repo is truncated.
 	idx    *index
 	warned bool
-	// offline tells the user once that GitHub can't be reached, and may be
-	// shared with other sections.
-	offline *ui.Offline
 	// voice words the errors of the tree and the finder.
 	voice ui.Voice
 	// editor is the editor the preview opens a file in, if set.
@@ -101,7 +98,6 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		keys:        newKeyMap(keys),
 		styles:      tree.DefaultStyles(true),
 		icons:       ui.NewIcons(config.Default().UI.Icons),
-		offline:     new(ui.Offline),
 		voice:       ui.NewVoice(keys, ""),
 		seen:        obs.NewPrefetched[filesvc.BlobQuery]("file"),
 		findPreview: config.Default().Files.Finder.Preview,
@@ -319,10 +315,6 @@ func (s *Section) observe() tea.Cmd {
 		}
 	}
 	prefetch := s.prefetchTop(s.treeCtx, x)
-	if x.offline {
-		s.offline.Mark()
-		prefetch = tea.Batch(prefetch, s.offline.Notify())
-	}
 	if !x.truncated {
 		s.tree.SetExpandAllLimits(expandAllNodes, expandAllDepth)
 		return prefetch
