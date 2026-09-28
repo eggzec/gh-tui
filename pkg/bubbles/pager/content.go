@@ -45,6 +45,10 @@ func (m *Model) setContent(name, text string, lexerOf func(full string) chroma.L
 		m.lines = strings.Split(full, "\n")
 	}
 	m.size = len(full)
+	if m.proj.squeeze {
+		// Squeeze has no pattern to match, so it picks the lines at once.
+		_ = m.project(m.proj)
+	}
 	m.clamp()
 	if full == "" || len(full) > m.highlightLimit {
 		return nil

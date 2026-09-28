@@ -350,7 +350,12 @@ func (m Model) statusLine() string {
 		parts = append(parts, m.esc.status.wrap(fmt.Sprintf("line %d/%d  %d%%", m.topLine()+1, len(m.lines), pct)))
 	}
 	left := m.nameView
-	if m.flash != "" {
+	switch {
+	case m.opt:
+		left = m.esc.prompt.wrap("-")
+	case m.flash != "" && m.flashInfo:
+		left = m.esc.status.wrap(m.flash)
+	case m.flash != "":
 		left = m.esc.notice.wrap(m.flash)
 	}
 	right := strings.Join(parts, "  ")

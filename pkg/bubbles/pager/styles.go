@@ -28,7 +28,9 @@ type Styles struct {
 	CurrentMatch lipgloss.Style
 	// Name styles the name of the content in the status line.
 	Name lipgloss.Style
-	// Status styles the position and match count in the status line.
+	// Status styles the position, filter and match count in the status
+	// line, and the notes that aren't errors, such as an option's new
+	// value.
 	Status lipgloss.Style
 	// Notice styles the notes on a search, such as a pattern that found
 	// nothing or didn't compile.
@@ -40,8 +42,9 @@ type Styles struct {
 	Spinner lipgloss.Style
 	// Error styles the placeholder of content that failed to load.
 	Error lipgloss.Style
-	// Prompt styles the "/" before the search prompt, and Cursor its
-	// cursor, with its foreground.
+	// Prompt styles the "/" or "&" before the prompt, and the "-" that
+	// waits for an option, and Cursor the prompt's cursor, with its
+	// foreground.
 	Prompt lipgloss.Style
 	Cursor lipgloss.Style
 }
@@ -113,7 +116,7 @@ func (p pair) wrap(s string) string { return p.on + s + p.off }
 // escape sequences is much cheaper than rendering it with lipgloss.
 type esc struct {
 	text, number, match, current pair
-	status, notice               pair
+	status, notice, prompt       pair
 	// tokens holds the style of every standard token type that differs
 	// from text.
 	tokens map[chroma.TokenType]pair
@@ -127,6 +130,7 @@ func newEsc(s Styles) esc {
 		current: newPair(s.CurrentMatch),
 		status:  newPair(s.Status),
 		notice:  newPair(s.Notice),
+		prompt:  newPair(s.Prompt),
 		tokens:  map[chroma.TokenType]pair{},
 	}
 	if s.Syntax == nil {

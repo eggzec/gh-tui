@@ -79,8 +79,8 @@ func (m Model) updatePrompt(msg tea.Msg) (Model, tea.Cmd) {
 	return m, cmd
 }
 
-// searchFor runs the search the user typed after the prompt: a regexp that
-// ignores case unless it has a capital, or, after a "!", the lines it
+// searchFor runs the search the user typed after the prompt: a regexp
+// that matches case as the options say, or, after a "!", the lines it
 // doesn't match. A pattern that doesn't compile leaves the search shown
 // as it was.
 func (m *Model) searchFor(line string) tea.Cmd {
@@ -88,7 +88,7 @@ func (m *Model) searchFor(line string) tea.Cmd {
 	if strings.TrimSpace(pattern) == "" {
 		return nil
 	}
-	re, err := compile(pattern)
+	re, err := compile(pattern, m.cases)
 	if err != nil {
 		m.flash = noteInvalid + reason(err)
 		return nil
@@ -96,9 +96,9 @@ func (m *Model) searchFor(line string) tea.Cmd {
 	return m.runSearch(line, re, invert, m.topLine(), false)
 }
 
-// compile compiles pattern to ignore case unless it has a capital.
-func compile(pattern string) (*regexp.Regexp, error) {
-	if !strings.ContainsFunc(pattern, unicode.IsUpper) {
+// compile compiles pattern to match case as c says.
+func compile(pattern string, c caseMode) (*regexp.Regexp, error) {
+	if c == caseIgnore || c == caseSmart && !strings.ContainsFunc(pattern, unicode.IsUpper) {
 		pattern = "(?i)" + pattern
 	}
 	return regexp.Compile(pattern)

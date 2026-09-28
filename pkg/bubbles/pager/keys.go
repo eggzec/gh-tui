@@ -16,8 +16,12 @@ type KeyMap struct {
 	Left  key.Binding
 	Right key.Binding
 
-	Wrap        key.Binding
-	LineNumbers key.Binding
+	// Option waits for the name of an option to toggle, as less's - does:
+	// S chops or wraps long lines, N shows or hides the line numbers, s
+	// squeezes runs of blank lines into one, i ignores case in searches
+	// unless the pattern has a capital, or matches it, and I ignores case
+	// always, or matches it. Esc then cancels it.
+	Option key.Binding
 
 	// Search opens the search prompt, Confirm searches for the pattern
 	// typed, a regexp, or for the lines it doesn't match after a "!", and
@@ -57,8 +61,7 @@ func DefaultKeyMap() KeyMap {
 		End:          key.NewBinding(key.WithKeys("end", "G"), key.WithHelp("G/end", "bottom")),
 		Left:         key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←/h", "left")),
 		Right:        key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "right")),
-		Wrap:         key.NewBinding(key.WithKeys("w"), key.WithHelp("w", "wrap")),
-		LineNumbers:  key.NewBinding(key.WithKeys("#"), key.WithHelp("#", "line numbers")),
+		Option:       key.NewBinding(key.WithKeys("-"), key.WithHelp("-", "option: S N s i I")),
 		Search:       key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "search")),
 		Filter:       key.NewBinding(key.WithKeys("&"), key.WithHelp("&", "filter")),
 		Confirm:      key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "search"), key.WithDisabled()),
@@ -78,7 +81,7 @@ func (k KeyMap) ShortHelp() []key.Binding {
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.PageUp, k.PageDown, k.HalfPageUp, k.HalfPageDown},
-		{k.Home, k.End, k.Left, k.Right, k.Wrap, k.LineNumbers},
+		{k.Home, k.End, k.Left, k.Right, k.Option},
 		{k.Search, k.Filter, k.Confirm, k.Cancel, k.Next, k.Prev, k.Close},
 	}
 }
