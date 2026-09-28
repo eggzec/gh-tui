@@ -57,3 +57,25 @@ func TestCount(t *testing.T) {
 		})
 	}
 }
+
+// New content drops a count or an option the pager waited for, so the
+// parent's keys act again.
+func TestContentDropsPending(t *testing.T) {
+	for _, pending := range [][]string{{"4", "2"}, {"-"}} {
+		m := open(t, "lines.txt", numbered(100), WithSize(40, 11))
+		m, _ = keys(t, m, pending...)
+		if !m.Capturing() {
+			t.Fatalf("%v: not capturing", pending)
+		}
+		m.SetContent("other.txt", numbered(50))
+		if m.Capturing() || m.num != 0 || m.KeyMap().Cancel.Enabled() {
+			t.Errorf("%v: after new content capturing %v, count %d, cancel enabled %v; want none",
+				pending, m.Capturing(), m.num, m.KeyMap().Cancel.Enabled())
+		}
+		// g goes to the top, not to line 42.
+		m, _ = keys(t, m, "G", "g")
+		if m.topLine() != 0 {
+			t.Errorf("%v: g went to line %d", pending, m.topLine()+1)
+		}
+	}
+}
