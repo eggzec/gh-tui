@@ -28,7 +28,7 @@ func (m *Model) openCommand(arg string) tea.Cmd {
 	if isLink(arg) {
 		// A link names more than its target, such as a file, and
 		// ParseTarget made sure it is on the user's host.
-		return ui.Open(webLink(arg))
+		return ui.Open(webLink(m.host, arg))
 	}
 	if !t.HasRepo() {
 		// As goto, a number alone is one of the repository on view.
@@ -59,9 +59,10 @@ func (m *Model) targetURL(t core.Target) string {
 	return ui.WebURL(m.host, path+page+strconv.Itoa(t.Number))
 }
 
-// webLink returns s, a link that core.ParseTarget read, with the scheme it
-// may have left out.
-func webLink(s string) string {
+// webLink returns s, a link to a page on host that core.ParseTarget read,
+// on host as ui.WebURL writes it: with its scheme, which s may have left
+// out or given as http, and its port, which s may have spelled otherwise.
+func webLink(host, s string) string {
 	if !strings.Contains(s, "://") {
 		s = "https://" + s
 	}
@@ -70,5 +71,10 @@ func webLink(s string) string {
 		// ParseTarget parsed it already.
 		return s
 	}
+	base, err := url.Parse(ui.WebURL(host, ""))
+	if err != nil {
+		return u.String()
+	}
+	u.Scheme, u.Host, u.User = base.Scheme, base.Host, nil
 	return u.String()
 }
