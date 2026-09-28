@@ -8,7 +8,8 @@
 // workflows are kept on a shelf of the account's own for the revalidator.
 // What can't change any more is kept for good: the jobs of an attempt of a
 // run that completed, and the log of a job that completed, which GitHub
-// publishes only then.
+// publishes whole only then. What it publishes of the log of a job in
+// progress is read while a view watches it, and never kept.
 package actions
 
 import (
@@ -16,6 +17,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unsafe"
 
@@ -34,6 +36,7 @@ type API interface {
 	ListJobs(ctx context.Context, repo core.RepoRef, runID int64, attempt int, cursor string, perPage int, cond github.Conditional) (core.Page[core.Job], github.Response, error)
 	GetJob(ctx context.Context, repo core.RepoRef, jobID int64, cond github.Conditional) (core.Job, github.Response, error)
 	JobLog(ctx context.Context, repo core.RepoRef, jobID, limit int64) (text []byte, truncated bool, err error)
+	JobLogFrom(ctx context.Context, repo core.RepoRef, jobID, offset, limit int64) (github.LogPart, error)
 	ListAnnotations(ctx context.Context, repo core.RepoRef, checkRunID int64, cursor string, perPage int, cond github.Conditional) (core.Page[core.Annotation], github.Response, error)
 	PullChecks(ctx context.Context, repo core.RepoRef, number int) (core.Checks, error)
 	CommitChecks(ctx context.Context, repo core.RepoRef, sha string) (core.Checks, error)
@@ -77,6 +80,12 @@ type Service struct {
 	// store keeps the logs, which are text rather than JSON.
 	store    cache.Store
 	logLimit int64
+
+	// partials holds what was read of the logs of jobs in progress that
+	// views watch, by the key of the log.
+	partialMu sync.Mutex
+	partials  map[string]*partialLog
+	now       func() time.Time
 }
 
 // The kinds of entries the service keeps, and the version of their values.
@@ -113,6 +122,8 @@ func New(api API, opts ...Option) *Service {
 		keptJobs:      cache.NewShelf[core.Page[core.Job]](o.store, kindJobs, schema),
 		store:         o.store,
 		logLimit:      o.logLimit,
+		partials:      map[string]*partialLog{},
+		now:           time.Now,
 	}
 }
 

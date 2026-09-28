@@ -308,3 +308,40 @@ func BenchmarkParseLog(b *testing.B) {
 		ParseLog(big, steps)
 	}
 }
+
+// A log parsed a part at a time, with the steps as they stood when each
+// part was read, tells the steps of its lines as the whole log does.
+func TestLogParserParts(t *testing.T) {
+	text, steps := readLog(t, "actions_log_lint_windows")
+	whole := ParseLog(text, steps)
+	p := NewLogParser(nil)
+	var got []LogLine
+	for text != "" {
+		i := strings.IndexByte(text[min(len(text)-1, 700):], '\n') + min(len(text)-1, 700) + 1
+		got = append(got, p.Parse(text[:i], steps)...)
+		text = text[i:]
+	}
+	if len(got) != len(whole.Lines) {
+		t.Fatalf("parsed %d lines in parts, want %d", len(got), len(whole.Lines))
+	}
+	for i := range got {
+		if got[i] != whole.Lines[i] {
+			t.Fatalf("line %d = %+v, want %+v", i, got[i], whole.Lines[i])
+		}
+	}
+}
+
+// A part parsed without the steps, as of a job the cache no longer has,
+// goes on from the step reached.
+func TestLogParserWithoutSteps(t *testing.T) {
+	text, steps := readLog(t, "actions_log_lint_windows")
+	whole := ParseLog(text, steps)
+	half := strings.IndexByte(text[len(text)/2:], '\n') + len(text)/2 + 1
+	p := NewLogParser(steps)
+	got := append(p.Parse(text[:half], steps), p.Parse(text[half:], nil)...)
+	for i := range got {
+		if got[i] != whole.Lines[i] {
+			t.Fatalf("line %d = %+v, want %+v", i, got[i], whole.Lines[i])
+		}
+	}
+}

@@ -22,7 +22,10 @@ func RunSyncKey(repo core.RepoRef, runID int64) string {
 // moved, and stores what changed in the cache, where the next reads find
 // it. It reports a change when any did, and the run in the cached
 // pages of runs is replaced, which are marked stale besides, as the run
-// may have left a filter such as the one of runs in progress. Once the run
+// may have left a filter such as the one of runs in progress. It reads
+// what was added to the logs of its jobs in progress that views watch
+// (WatchLog) too, less often while they don't grow, and reports a change
+// when one grew, or the minute it was checked at moved on. Once the run
 // completed, the poll reports that change and then asks nothing more.
 func (s *Service) Poll(repo core.RepoRef, runID int64) watch.PollFunc {
 	var done atomic.Bool
@@ -56,7 +59,9 @@ func (s *Service) Poll(repo core.RepoRef, runID int64) watch.PollFunc {
 		if run.Done() {
 			done.Store(true)
 		}
-		return watch.Result{Changed: changed}, nil
+		// A log that grew leaves the runs as they are.
+		grew := s.pollLogs(ctx, repo, runID)
+		return watch.Result{Changed: changed || grew}, nil
 	}
 }
 
