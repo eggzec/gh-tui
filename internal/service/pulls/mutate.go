@@ -58,12 +58,16 @@ func (s *Service) ConvertToDraft(repo core.RepoRef, number int) *optimistic.Op {
 
 // change applies edit to every cached copy of pull request number of repo
 // and returns the Op that sends the change with send. What names the change
-// in errors.
+// in errors. A change the token may not make changes nothing, and the Op
+// returns why.
 func (s *Service) change(
 	what string, repo core.RepoRef, number int,
 	edit func(*core.PullRequest),
 	send func(ctx context.Context, id string) (core.PullRequest, error),
 ) *optimistic.Op {
+	if err := s.refused(repo); err != nil {
+		return optimistic.Refused(fmt.Errorf("%s pull %s#%d: %w", what, repo, number, err))
+	}
 	// The change moves the pull request past the version the list showed,
 	// so what is cached of it is only as good as its TTL.
 	s.seen.Delete(detailKey(repo, number))
@@ -97,6 +101,20 @@ func (s *Service) change(
 		s.reconcile(repo, number, pr)
 		return nil
 	}, undoLists, undoDetail)
+}
+
+// refused returns why the token may not change a pull request of repo, or
+// nil when it may, or when that isn't known.
+func (s *Service) refused(repo core.RepoRef) error {
+	if s.access == nil {
+		return nil
+	}
+	var caps core.RepoCaps
+	if s.repos != nil {
+		r, _ := s.repos.CachedGet(repo)
+		caps = r.Caps
+	}
+	return s.access.Check(core.NeedWrite(caps))
 }
 
 // reconcile stores pr, as the server returned it, in place of every cached
