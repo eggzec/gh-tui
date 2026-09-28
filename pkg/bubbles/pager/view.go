@@ -345,8 +345,12 @@ func (m Model) statusLine() string {
 			parts = append(parts, m.esc.status.wrap(fmt.Sprintf("match %d/%d", s.cur+1, n)))
 		}
 	}
-	if n := m.count(); m.state == stateReady && n > 0 && m.bodyHeight() > 0 {
-		pct := (m.bottom() + 1) * 100 / n
+	if m.state == stateReady && m.count() > 0 && m.bodyHeight() > 0 {
+		// Both the line and the percent count the lines of the content,
+		// as the gutter and less do while a filter hides some: the
+		// percent is how far into the content the last line in the
+		// window is.
+		pct := (m.at(m.bottom()) + 1) * 100 / len(m.lines)
 		parts = append(parts, m.esc.status.wrap(fmt.Sprintf("line %d/%d  %d%%", m.topLine()+1, len(m.lines), pct)))
 	}
 	left := m.nameView
