@@ -98,6 +98,7 @@ func TestLoadMergesOverDefaults(t *testing.T) {
 				}
 				c.Dashboard = Dashboard{CalendarGlyph: "#", Contributions: ContributionsYear, Prefetch: false}
 				c.UI = UI{Icons: IconsUnicode}
+				c.Auth = Auth{Check: false}
 				c.Log = Log{Level: LevelDebug, File: "/var/log/gh-tui.log", MaxSize: MiB, Keep: 5, Summary: time.Minute}
 			},
 		},
@@ -435,6 +436,12 @@ func TestActionsModalActions(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), want) {
 			t.Errorf("Validate() = %v, want %q", err, want)
 		}
+	}
+}
+
+func TestAuthDefaults(t *testing.T) {
+	if !Default().Auth.Check {
+		t.Error("the token isn't checked by default")
 	}
 }
 
