@@ -44,9 +44,12 @@ type authModal struct {
 	close   key.Binding
 	confirm ui.ConfirmKeys
 	voice   ui.Voice
-	st      authStyles
-	cst     ui.ConfirmStyles
-	links   termtext.Links
+	// icons mark why the token couldn't be read, in errs.
+	icons ui.Icons
+	errs  ui.ErrorStyles
+	st    authStyles
+	cst   ui.ConfirmStyles
+	links termtext.Links
 
 	width, height int
 	view          string
@@ -73,6 +76,7 @@ func newAuthModal(keys map[string][]string, account string, a core.Access, p acc
 		close:    ui.Binding(keys, config.ActionBack, "close"),
 		confirm:  ui.DefaultConfirmKeys(),
 		voice:    v,
+		icons:    ui.NewIcons(config.IconsNerd),
 	}
 }
 
@@ -132,6 +136,7 @@ func (m *authModal) Fit(maxWidth, maxHeight int) (width, height int) {
 // SetTheme implements ui.Modal.
 func (m *authModal) SetTheme(t ui.Theme) {
 	m.st = authStyles{text: t.Text, muted: t.Muted, subtle: t.Subtle, yes: t.Success, no: t.Error}
+	m.errs = t.Errors(m.icons)
 	m.cst = t.Confirm()
 	m.render()
 }
@@ -187,7 +192,7 @@ func (m *authModal) lines(w int) []string {
 		return lines
 	case m.err != nil:
 		text, hint := ui.Say(core.Explain("check the token", m.err), m.voice)
-		lines = append(lines, ui.ErrorLine(ui.ErrorStyles{Mark: "✗", Text: st.no, Hint: st.subtle}, text, hint, w)...)
+		lines = append(lines, ui.ErrorLine(m.errs, text, hint, w)...)
 	}
 	for _, l := range wrapPlain(m.plan.Why, w) {
 		lines = append(lines, st.muted.Render(l))

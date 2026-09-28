@@ -110,7 +110,7 @@ func (t *repoTabs) newOwner(label string, q dashboard.ReposQuery) *owner {
 		feed.WithKey(func(r core.Repo) string { return r.Ref.String() }),
 		feed.WithKeyMap(s.keys.feed),
 		feed.WithEmptyText(empty),
-		feed.WithStyles(s.theme.Feed()),
+		feed.WithStyles(s.theme.Feed(s.icons)),
 		feed.WithErrorText(ui.ErrorText("load your repositories", "", s.voice)),
 	)
 	return o
@@ -254,9 +254,9 @@ func (t *repoTabs) resize(width, height int) {
 	}
 }
 
-func (t *repoTabs) setTheme(th ui.Theme) {
+func (t *repoTabs) setTheme(th ui.Theme, ic ui.Icons) {
 	for _, o := range t.tabs {
-		o.feed.SetStyles(th.Feed())
+		o.feed.SetStyles(th.Feed(ic))
 	}
 }
 

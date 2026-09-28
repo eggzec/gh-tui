@@ -257,17 +257,16 @@ func (s *Section) SetSize(width, height int) {
 func (s *Section) SetTheme(t ui.Theme) {
 	s.theme = t
 	s.st = newStyles(t)
-	// The mark is the bubbles', which draw "✗" whatever the icons.
-	s.errs = t.Errors(ui.NewIcons(config.IconsUnicode))
+	s.errs = t.Errors(s.icons)
 	clear(s.dots)
 	clear(s.langs)
 	s.input.SetStyles(inputStyles(t))
 	s.spin.Style = t.Accent
 	for _, l := range s.hits {
-		l.feed.SetStyles(t.Feed())
+		l.feed.SetStyles(t.Feed(s.icons))
 	}
 	if s.code != nil {
-		s.code.feed.SetStyles(t.Feed())
+		s.code.feed.SetStyles(t.Feed(s.icons))
 	}
 	s.render()
 }

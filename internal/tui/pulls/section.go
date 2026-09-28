@@ -266,7 +266,7 @@ func (s *Section) newFeed() tea.Cmd {
 		feed.WithContext(ctx),
 		feed.WithKey(pullKey),
 		feed.WithKeyMap(s.keys.feed),
-		feed.WithStyles(s.theme.Feed()),
+		feed.WithStyles(s.theme.Feed(s.icons)),
 		feed.WithFocused(s.focused),
 		feed.WithEmptyText(s.emptyText()),
 		feed.WithErrorText(ui.ErrorText("load the pull requests", s.repo.String(), s.voice)),
@@ -302,7 +302,7 @@ func (s *Section) SetTheme(t ui.Theme) {
 	s.theme = t
 	s.st = newStyles(t, s.icons)
 	if s.feed != nil {
-		s.feed.SetStyles(t.Feed())
+		s.feed.SetStyles(t.Feed(s.icons))
 	}
 	s.renderHeader()
 	s.blank = s.st.noRepo(s.width, s.height, s.hint)

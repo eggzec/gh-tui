@@ -730,3 +730,6 @@ func has[M tea.Msg](msgs []tea.Msg) (M, bool) {
 	var zero M
 	return zero, false
 }
+
+// errMark is the error glyph of the default icons, which mark what failed.
+var errMark = ui.NewIcons(config.IconsNerd).Error

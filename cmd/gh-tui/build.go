@@ -226,17 +226,19 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 		Pulls:  pulls.New(ctx, pullSvc, cfg.Keys, pullOpts...),
 		Issues: issues.New(ctx, issueSvc, cfg.Keys, issueOpts...),
 		Notifications: notifications.New(ctx, notifSvc, cfg.Keys,
-			notifications.WithOffline(offline), notifications.WithVoice(voice), notifications.WithOpener(opener)),
+			notifications.WithOffline(offline), notifications.WithVoice(voice), notifications.WithOpener(opener),
+			notifications.WithIcons(icons)),
 		Search:    searchpage.New(ctx, searchSvc, cfg.Keys, searchOpts...),
 		Dashboard: dashboard.New(ctx, dashSvc, cfg.Keys, dashOpts...),
 	}
 
-	// The history reads the settings of the session, which the set
-	// command may have changed since the start, each time it opens.
+	// The history and the releases read the settings of the session,
+	// which the set command may have changed since the start, each time
+	// they open.
 	historyOpts := func(c config.Config) []history.Option {
 		return []history.Option{
 			history.WithConfig(c.History), history.WithOffline(offline), history.WithHost(webHost), history.WithVoice(voice),
-			history.WithEditor(c.Editor),
+			history.WithEditor(c.Editor), history.WithIcons(ui.NewIcons(c.UI.Icons)),
 		}
 	}
 	b := browser.New("", io.Discard, io.Discard)
@@ -257,7 +259,10 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 		tui.WithCommit(func(ctx context.Context, repo core.RepoRef, sha, defaultBranch string) (ui.Modal, tea.Cmd) {
 			return history.CommitOpener(historySvc, cfg.Keys, historyOpts(live.cfg)...)(ctx, repo, sha, defaultBranch)
 		}),
-		tui.WithRelease(releases.Opener(releaseSvc, cfg.Keys, releases.WithVoice(voice))),
+		tui.WithRelease(func(ctx context.Context, repo core.RepoRef, id int64, url string) (ui.Modal, tea.Cmd) {
+			o := []releases.Option{releases.WithVoice(voice), releases.WithIcons(ui.NewIcons(live.cfg.UI.Icons))}
+			return releases.Opener(releaseSvc, cfg.Keys, o...)(ctx, repo, id, url)
+		}),
 		tui.WithRateStatus(client),
 		// The status bar names the account gh stores the token for; a
 		// token from elsewhere may be anyone's.

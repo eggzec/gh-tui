@@ -87,6 +87,7 @@ type FilterModal struct {
 	target Filterable
 	form   filterform.Model
 	rows   int
+	icons  Icons
 }
 
 // Size of the filter modal: wide enough for a row of chips, and as tall as
@@ -108,6 +109,7 @@ type filterOptions struct {
 	tab   filterform.Tab
 	keys  filterform.KeyMap
 	voice *Voice
+	icons Icons
 }
 
 // OnTab opens the modal on tab t. A list without a sort has only the
@@ -128,6 +130,12 @@ func WithFormVoice(v Voice) FilterOption {
 	return func(o *filterOptions) { o.voice = &v }
 }
 
+// WithFormIcons marks what failed to load with the error glyph of ic. The
+// default is the Nerd Font set.
+func WithFormIcons(ic Icons) FilterOption {
+	return func(o *filterOptions) { o.icons = ic }
+}
+
 // FilterFormKeys returns the keys of a filter form. Its tabs switch with
 // the keys that switch the tabs of the lists and the other modals.
 func FilterFormKeys(keys map[string][]string) filterform.KeyMap {
@@ -140,7 +148,7 @@ func FilterFormKeys(keys map[string][]string) filterform.KeyMap {
 // NewFilterModal returns the modal that filters target with f, titled
 // "Filter · section · subject". ctx bounds what the form loads.
 func NewFilterModal(ctx context.Context, section string, target Filterable, f Filter, opts ...FilterOption) *FilterModal {
-	o := filterOptions{keys: filterform.DefaultKeyMap()}
+	o := filterOptions{keys: filterform.DefaultKeyMap(), icons: NewIcons(config.IconsNerd)}
 	for _, opt := range opts {
 		opt(&o)
 	}
@@ -171,7 +179,7 @@ func NewFilterModal(ctx context.Context, section string, target Filterable, f Fi
 	if f.Spec.Sort != nil {
 		rows = max(rows, sortRows)
 	}
-	return &FilterModal{title: title, target: target, form: form, rows: rows}
+	return &FilterModal{title: title, target: target, form: form, rows: rows, icons: o.icons}
 }
 
 // Title implements Modal.
@@ -209,7 +217,7 @@ func (m *FilterModal) Fit(maxWidth, maxHeight int) (width, height int) {
 }
 
 // SetTheme implements Modal.
-func (m *FilterModal) SetTheme(t Theme) { m.form.SetStyles(t.FilterForm()) }
+func (m *FilterModal) SetTheme(t Theme) { m.form.SetStyles(t.FilterForm(m.icons)) }
 
 // KeyLayers implements Keyed: the keys of the form, which types what the
 // editor or the query line takes.

@@ -10,7 +10,7 @@
                                                             
 [38;2;216;220;230mSequence ran its commands at once, so their messages could[m  
 [38;2;216;220;230marrive out of order. Now each waits for the last.[m           
-[38;2;239;125;125m✗ You don't have access to charmbracelet/bubbletea@469565b[m  
+[38;2;239;125;125m You don't have access to charmbracelet/bubbletea@469565b[m  
   [38;2;107;114;133mo to open on GitHub[m                                       
                                                             
                                                             

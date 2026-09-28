@@ -35,6 +35,8 @@ type options struct {
 	// voice words the errors of the files; New makes one of its keys if
 	// it is nil.
 	voice *ui.Voice
+	// icons mark what failed to load.
+	icons ui.Icons
 }
 
 // WithNow sets the clock that ages are measured against. The default is
@@ -54,6 +56,12 @@ func WithLocation(loc *time.Location) Option {
 // configured keys and no log.
 func WithVoice(v ui.Voice) Option {
 	return func(o *options) { o.voice = &v }
+}
+
+// WithIcons sets the icons whose error glyph marks what failed to load.
+// The default is the Nerd Font set.
+func WithIcons(ic ui.Icons) Option {
+	return func(o *options) { o.icons = ic }
 }
 
 // releaseMsg carries the release that a modal asked for.
@@ -90,6 +98,8 @@ type Modal struct {
 
 	// voice words why the release failed to load.
 	voice ui.Voice
+	// icons mark what failed to load.
+	icons ui.Icons
 
 	width, height int
 	theme         ui.Theme
@@ -116,7 +126,7 @@ var lastID atomic.Int64
 // key shows until the release is loaded. ctx bounds its reads until it
 // closes. Call Init once it is open. A cached release shows at once.
 func New(ctx context.Context, svc Service, repo core.RepoRef, id int64, url string, keys map[string][]string, opts ...Option) *Modal {
-	o := options{now: time.Now, loc: time.Local}
+	o := options{now: time.Now, loc: time.Local, icons: ui.NewIcons(config.IconsNerd)}
 	for _, opt := range opts {
 		opt(&o)
 	}
@@ -137,6 +147,7 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, id int64, url stri
 		ctx:    ctx,
 		cancel: cancel,
 		voice:  *o.voice,
+		icons:  o.icons,
 	}
 	fetch := func(ctx context.Context, _ string) ([]core.ReleaseAsset, string, error) {
 		r, err := svc.Get(ctx, repo, id)
@@ -246,9 +257,8 @@ func (m *Modal) SetSize(width, height int) {
 func (m *Modal) SetTheme(t ui.Theme) {
 	m.theme = t
 	m.st = newStyles(t)
-	// The mark is the thread's, which says why the files failed.
-	m.errs = t.Errors(ui.NewIcons(config.IconsUnicode))
-	m.thread.SetStyles(t.Thread())
+	m.errs = t.Errors(m.icons)
+	m.thread.SetStyles(t.Thread(m.icons))
 	if m.loaded {
 		_ = m.show()
 	}

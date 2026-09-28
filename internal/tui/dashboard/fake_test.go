@@ -542,3 +542,6 @@ func logVoice(tb testing.TB) ui.Voice {
 	}
 	return ui.NewVoice(config.Default().Keys, filepath.Join(home, ".local", "state", "gh-tui", "gh-tui.log"))
 }
+
+// errMark is the error glyph of the default icons, which mark what failed.
+var errMark = ui.NewIcons(config.IconsNerd).Error

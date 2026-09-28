@@ -150,7 +150,7 @@ func (s *Section) newFinder() *finderModal {
 	f.find = finder.New(func(ctx context.Context) (finder.Listing, error) { return listFiles(ctx, src) },
 		finder.WithContext(ctx),
 		finder.WithKeyMap(f.keys.find),
-		finder.WithStyles(s.theme.Finder()),
+		finder.WithStyles(s.theme.Finder(s.icons)),
 		finder.WithRecent(s.recentFiles()),
 		// Each file links to its page at the base.
 		finder.WithLinks(func(it finder.Item) string {
@@ -431,11 +431,11 @@ func (f *finderModal) layout() {
 // SetTheme styles the finder and the preview.
 func (f *finderModal) SetTheme(t ui.Theme) {
 	f.theme = t
-	f.find.SetStyles(t.Finder())
+	f.find.SetStyles(t.Finder(f.s.icons))
 	// The finder may be themed before the section is, so it renders its
 	// icons in its own theme.
 	f.find.SetIcons(newFileIcons(f.s.icons, t).item)
-	f.pager.SetStyles(t.Pager())
+	f.pager.SetStyles(t.Pager(f.s.icons))
 	border := lipgloss.NewStyle().Foreground(lipgloss.Color(t.Palette.Border))
 	f.sep = " " + border.Render("│") + " "
 }

@@ -401,11 +401,11 @@ func TestPreviewErrorWords(t *testing.T) {
 		preview, finder string
 	}{
 		{"offline", fmt.Errorf("get blob: github: GET /repos/eggzec/gh-tui/git/blobs/b: %w", core.ErrOffline),
-			"✗ Can't reach GitHub", "✗ Can't reach GitHub"},
+			errMark + " Can't reach GitHub", errMark + " Can't reach GitHub"},
 		{"forbidden", fmt.Errorf("get blob: github: 403 Forbidden: %w", core.ErrForbidden),
-			"✗ You don't have access to eggzec/gh-tui · o to open on GitHub", "✗ You don't have access to eggzec/gh-tui · ^o to open on GitHub"},
+			errMark + " You don't have access to eggzec/gh-tui · o to open on GitHub", errMark + " You don't have access to eggzec/gh-tui · ^o to open on GitHub"},
 		{"internal", errors.New("get blob: github: decode: unexpected EOF"),
-			"✗ Something went wrong. Details are in the log", "✗ Something went wrong. Details are in the log"},
+			errMark + " Something went wrong. Details are in the log", errMark + " Something went wrong. Details are in the log"},
 	}
 	voice := WithVoice(ui.NewVoice(config.Default().Keys, "/var/log/gh-tui.log"))
 	clean := func(v string) string { return strings.Join(strings.Fields(ansi.Strip(v)), " ") }

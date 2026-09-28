@@ -352,7 +352,7 @@ func (s *Section) preview(n tree.Node) tea.Cmd {
 func (s *Section) open(e core.TreeEntry, ret ui.Modal) tea.Cmd {
 	s.opened(e.Path)
 	s.seen.Opened(s.blobQuery(e))
-	p := newPreview(s.ctx, s.svc, s.host, s.repo, s.ref, e, s.keys.Open, s.voice, s.editor)
+	p := newPreview(s.ctx, s.svc, s.host, s.repo, s.ref, e, s.keys.Open, s.voice, s.editor, s.icons)
 	p.ret = ret
 	// The app passes messages to a modal only once it is open, so the load
 	// starts after the modal opens.
@@ -410,7 +410,7 @@ func (s *Section) previewFile(msg ui.OpenFileMsg) tea.Cmd {
 		return nil
 	}
 	e := core.TreeEntry{Path: msg.Path, Name: path.Base(msg.Path), Type: core.EntryBlob, Mode: "100644", SHA: msg.SHA}
-	p := newPreview(s.ctx, s.svc, s.host, msg.Repo, msg.Ref, e, s.keys.Open, s.voice, s.editor)
+	p := newPreview(s.ctx, s.svc, s.host, msg.Repo, msg.Ref, e, s.keys.Open, s.voice, s.editor, s.icons)
 	p.find, p.line, p.ret = msg.Find, msg.Line, msg.Return
 	return tea.Sequence(ui.OpenModal(p), p.load())
 }
@@ -443,7 +443,7 @@ func (s *Section) SetSize(width, height int) {
 // SetTheme styles the tree and its icons.
 func (s *Section) SetTheme(t ui.Theme) {
 	s.theme = t
-	s.styles = t.Tree()
+	s.styles = t.Tree(s.icons)
 	s.fileIcons = newFileIcons(s.icons, t)
 	if s.tree != nil {
 		s.tree.SetStyles(s.styles)

@@ -27,10 +27,12 @@ type options struct {
 	commit string
 	// editor is the editor the pager opens a patch in, if set.
 	editor string
+	// icons mark what failed to load.
+	icons ui.Icons
 }
 
 func defaultOptions() options {
-	return options{cfg: config.Default().History, offline: new(ui.Offline), now: time.Now, loc: time.Local}
+	return options{cfg: config.Default().History, offline: new(ui.Offline), now: time.Now, loc: time.Local, icons: ui.NewIcons(config.IconsNerd)}
 }
 
 // WithConfig sets what the rows and the commit pane show, how dates read,
@@ -68,6 +70,12 @@ func WithHost(host string) Option {
 // in, before $VISUAL and $EDITOR, as pager.WithEditor takes it.
 func WithEditor(cmd string) Option {
 	return func(o *options) { o.editor = cmd }
+}
+
+// WithIcons sets the icons whose error glyph marks what failed to load.
+// The default is the Nerd Font set.
+func WithIcons(ic ui.Icons) Option {
+	return func(o *options) { o.icons = ic }
 }
 
 // onCommit opens the modal on the history of commit sha, with the commit

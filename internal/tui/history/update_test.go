@@ -482,10 +482,10 @@ func TestErrorsAndRetry(t *testing.T) {
 	f.errs["commit "+short(main0)] = errBoom
 	m, h := newModal(t, f, 108, 30)
 	// The branches are narrow, so the hint takes a line of its own.
-	if s := paneText(m, branchPane); !strings.Contains(s, "✗ Something went wrong r to retry") {
+	if s := paneText(m, branchPane); !strings.Contains(s, errMark+" Something went wrong r to retry") {
 		t.Errorf("branch pane lacks the error:\n%s", s)
 	}
-	if s := paneText(m, commitPane); !strings.Contains(s, "✗ Something went wrong · r to retry") {
+	if s := paneText(m, commitPane); !strings.Contains(s, errMark+" Something went wrong · r to retry") {
 		t.Errorf("commit pane lacks the error:\n%s", s)
 	}
 	delete(f.errs, "branches")
@@ -512,23 +512,23 @@ func TestPaneErrorWords(t *testing.T) {
 	}{
 		{
 			"offline", fmt.Errorf("get commit: github: GET /repos/o/r/commits/x: %w", core.ErrOffline),
-			"✗ Can't reach GitHub · r to retry", "✗ Can't reach GitHub · r to retry", "✗ Can't reach GitHub · r to retry",
+			errMark + " Can't reach GitHub · r to retry", errMark + " Can't reach GitHub · r to retry", errMark + " Can't reach GitHub · r to retry",
 		},
 		{
 			"forbidden", fmt.Errorf("get commit: github: 403 Forbidden: %w", core.ErrForbidden),
-			"✗ You don't have access to charmbracelet/bubbletea",
-			"✗ You don't have access to " + commit + " · o to open on GitHub",
-			"✗ You don't have access to " + commit,
+			errMark + " You don't have access to charmbracelet/bubbletea",
+			errMark + " You don't have access to " + commit + " · o to open on GitHub",
+			errMark + " You don't have access to " + commit,
 		},
 		{
 			"not found", fmt.Errorf("get commit: github: 404 Not Found: %w", core.ErrNotFound),
-			"✗ charmbracelet/bubbletea doesn't exist or is private.",
-			"✗ " + commit + " doesn't exist or is private.",
-			"✗ " + commit + " doesn't exist or is private.",
+			errMark + " charmbracelet/bubbletea doesn't exist or is private.",
+			errMark + " " + commit + " doesn't exist or is private.",
+			errMark + " " + commit + " doesn't exist or is private.",
 		},
 		{
 			"internal", fmt.Errorf("get commit: github: decode: %s", termtexttest.Hostile),
-			"✗ Something went wrong · r to retry", "✗ Something went wrong · r to retry", "✗ Something went wrong · r to retry",
+			errMark + " Something went wrong · r to retry", errMark + " Something went wrong · r to retry", errMark + " Something went wrong · r to retry",
 		},
 	}
 	leaks := []string{"github:", "get commit", "GET", "403", "404", "decode", "Hostile"}
@@ -581,9 +581,9 @@ func TestGraphErrorWords(t *testing.T) {
 		err  error
 		want string
 	}{
-		{"offline", fmt.Errorf("list commits: github: GET /repos/o/r/commits: %w", core.ErrOffline), "✗ Can't reach GitHub · r to retry"},
-		{"forbidden", fmt.Errorf("list commits: github: 403 Forbidden: %w", core.ErrForbidden), "✗ You don't have access to charmbracelet/bubbl… · o to open on GitHub"},
-		{"internal", errors.New("list commits: github: decode: unexpected EOF"), "✗ Something went wrong · r to retry"},
+		{"offline", fmt.Errorf("list commits: github: GET /repos/o/r/commits: %w", core.ErrOffline), errMark + " Can't reach GitHub · r to retry"},
+		{"forbidden", fmt.Errorf("list commits: github: 403 Forbidden: %w", core.ErrForbidden), errMark + " You don't have access to charmbracelet/bubbl… · o to open on GitHub"},
+		{"internal", errors.New("list commits: github: decode: unexpected EOF"), errMark + " Something went wrong · r to retry"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

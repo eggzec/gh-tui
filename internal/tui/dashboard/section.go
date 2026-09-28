@@ -337,10 +337,9 @@ func (s *Section) SetSize(width, height int) {
 func (s *Section) SetTheme(t ui.Theme) {
 	s.theme = t
 	s.st = newStyles(t)
-	// The mark is the bubbles', which draw "✗" whatever the icons.
-	s.errs = t.Errors(ui.NewIcons(config.IconsUnicode))
+	s.errs = t.Errors(s.icons)
 	s.cal.SetStyles(t.Calendar())
-	s.repos.setTheme(t)
+	s.repos.setTheme(t, s.icons)
 	s.render()
 }
 

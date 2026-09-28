@@ -124,7 +124,7 @@ func (m *Modal) showForm() tea.Cmd {
 		filterform.WithQuery(queryOf(m.filter, m.workflows.items)),
 		filterform.WithContext(m.ctx),
 		filterform.WithHelpLine(false),
-		filterform.WithStyles(m.theme.FilterForm()),
+		filterform.WithStyles(m.theme.FilterForm(m.opts.icons)),
 		filterform.WithSize(m.width, m.bodyHeight()),
 	)
 	m.filterStep.form = &f

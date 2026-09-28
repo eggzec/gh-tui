@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"sync"
@@ -294,6 +295,37 @@ func TestAuthModalView(t *testing.T) {
 				mod.SetSize(w, h)
 				golden.RequireEqual(t, mod.View())
 			})
+		}
+	}
+}
+
+// TestAuthModalErrorMark checks that the modal marks why the token
+// couldn't be read with the icon set's glyph, and joins the hint as the
+// set does, as the app's other error lines are.
+func TestAuthModalErrorMark(t *testing.T) {
+	p, err := config.Default().Palette(true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, set := range []string{config.IconsNerd, config.IconsUnicode, config.IconsASCII} {
+		cfg, err := config.Default().Set("ui.icons", set)
+		if err != nil {
+			t.Fatal(err)
+		}
+		m := New(t.Context(), cfg, Layout{}, WithRepo(testRepo), WithAccess(newFakeAccess(core.Access{})))
+		m.theme = ui.NewTheme(p, true)
+		_ = m.authCommand("")
+		mod, ok := m.modal.(*authModal)
+		if !ok {
+			t.Fatalf("%s: the modal open is %T, want the auth modal", set, m.modal)
+		}
+		w, h := mod.Fit(72, 30)
+		mod.SetSize(w, h)
+		mod.checked(core.Access{}, access.Plan{}, fmt.Errorf("read the token: %w", core.ErrOffline))
+		ic := ui.NewIcons(set)
+		want := ic.Error + " Can't reach GitHub"
+		if v := ansi.Strip(mod.View()); !strings.Contains(v, want) {
+			t.Errorf("%s: view lacks %q:\n%s", set, want, v)
 		}
 	}
 }

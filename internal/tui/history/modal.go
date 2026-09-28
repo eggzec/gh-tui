@@ -182,13 +182,12 @@ func (m *Modal) SetSize(width, height int) {
 func (m *Modal) SetTheme(t ui.Theme) {
 	m.theme = t
 	m.st = newStyles(t)
-	// The mark is the graph's, which says why the commits failed.
-	m.errs = t.Errors(ui.NewIcons(config.IconsUnicode))
+	m.errs = t.Errors(m.opts.icons)
 	m.spin.Style = t.Accent
-	m.graph.model.SetStyles(t.Graph())
-	m.commit.pager.SetStyles(t.Pager())
+	m.graph.model.SetStyles(t.Graph(m.opts.icons))
+	m.commit.pager.SetStyles(t.Pager(m.opts.icons))
 	if m.branches.filter != nil {
-		m.branches.filter.SetStyles(filterStyles(t))
+		m.branches.filter.SetStyles(filterStyles(t, m.opts.icons))
 	}
 	m.commit.header = nil
 }
