@@ -25,6 +25,7 @@ type options struct {
 	logMemory int64
 	logLimit  int64
 	store     cache.Store
+	access    Access
 }
 
 // WithTTL sets how long runs, workflows, checks and annotations stay fresh
@@ -82,4 +83,11 @@ func WithLogLimit(n int64) Option {
 // service.
 func WithStore(store cache.Store) Option {
 	return func(o *options) { o.store = store }
+}
+
+// WithAccess has the service ask access before it re-runs or cancels a
+// run, so that one the token may not make is neither shown nor sent. By
+// default every change is sent, and GitHub has the last word.
+func WithAccess(access Access) Option {
+	return func(o *options) { o.access = access }
 }

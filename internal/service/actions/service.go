@@ -43,6 +43,12 @@ type API interface {
 	CancelRun(ctx context.Context, repo core.RepoRef, runID int64) error
 }
 
+// Access tells whether the token may do what an operation needs, as the
+// access service does: nil, or why not.
+type Access interface {
+	Check(n core.Need) error
+}
+
 // forever is the TTL of what can't change.
 const forever = time.Duration(math.MaxInt64)
 
@@ -50,6 +56,9 @@ const forever = time.Duration(math.MaxInt64)
 // concurrent use.
 type Service struct {
 	api API
+	// access refuses a re-run or a cancel the token may not make before
+	// it is shown, if set.
+	access Access
 
 	runs      *cache.Cache[core.Page[core.Run]]
 	run       *cache.Cache[core.Run]
@@ -89,6 +98,7 @@ func New(api API, opts ...Option) *Service {
 	std := []cache.Option{cache.WithTTL(o.ttl), cache.WithCapacity(o.capacity)}
 	return &Service{
 		api:         api,
+		access:      o.access,
 		runs:        cache.New[core.Page[core.Run]](std...),
 		run:         cache.New[core.Run](std...),
 		workflows:   cache.New[core.Page[core.Workflow]](std...),
