@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -212,6 +213,33 @@ func TestGotoWaitsWhileTheLineIsOpen(t *testing.T) {
 	drive(m, cmd)
 	if m.repo != bubbletea {
 		t.Errorf("repo = %v, want the goto to end on %v", m.repo, bubbletea)
+	}
+}
+
+// TestGotoClosesTheLine checks that a goto that ends while the user types
+// another command opens its modal in place of the line, which would
+// otherwise take the keys meant for the modal.
+func TestGotoClosesTheLine(t *testing.T) {
+	m, fakes := newGotoApp(t, newGotoRepos(), WithKinds(newGotoKinds()))
+	fakes[1].reply = func(msg tea.Msg) tea.Cmd {
+		if _, ok := msg.(ui.OpenPullMsg); ok {
+			return ui.OpenModal(&fakeModal{title: "Pull request"})
+		}
+		return nil
+	}
+	cmd := submitLine(t, m, "goto charmbracelet/bubbletea#1813")
+	drive(m, m.key(press(":")))
+	typeKeys(m, "go")
+	drive(m, cmd)
+	if m.modal == nil {
+		t.Fatal("the goto opened no modal")
+	}
+	if m.line.Focused() {
+		t.Error("the line is still open over the modal")
+	}
+	drive(m, m.key(press("x")))
+	if !slices.Contains(m.modal.(*fakeModal).keys(), "x") {
+		t.Error("the modal didn't get the key")
 	}
 }
 
