@@ -20,6 +20,7 @@ func TestLink(t *testing.T) {
 		{"styled", "https://x.test/a?b=c#d", styled, linkOpen + "https://x.test/a?b=c#d\x1b\\" + styled + linkClose},
 		{"empty", "", "#1", "#1"},
 		{"http", "http://x.test", "x", "x"},
+		{"http of a local GitHub not allowed", "http://github.localhost/o/r", "x", "x"},
 		{"javascript", "javascript:alert(1)", "x", "x"},
 		{"no host", "https:///path", "x", "x"},
 		{"space", "https://x.test/a b", "x", "x"},
@@ -54,6 +55,38 @@ func TestLink(t *testing.T) {
 
 // A link takes no cells, and cutting it anywhere, from either side,
 // leaves it closed.
+// Plain http links only to the host AllowPlainHTTP names, and to no
+// other name or port, however like it.
+func TestLinkPlainHTTP(t *testing.T) {
+	AllowPlainHTTP("github.localhost")
+	t.Cleanup(func() { AllowPlainHTTP("") })
+	for addr, want := range map[string]bool{
+		"http://github.localhost/o/r":         true,
+		"http://GitHub.LocalHost/o/r":         true,
+		"https://github.localhost/o/r":        true,
+		"http://github.localhost:3000/o/r":    false,
+		"http://github.localhost.evil.test/":  false,
+		"http://github.localhost./":           false,
+		"http://evil.test/":                   false,
+		"http://github.localhost@evil.test/":  false,
+		"http://evil.test#@github.localhost/": false,
+		"http://user@github.localhost/o/r":    false,
+		"http://api.github.localhost/o/r":     false,
+	} {
+		if got := Link(addr, "x") != "x"; got != want {
+			t.Errorf("Link(%q) links %v, want %v", addr, got, want)
+		}
+	}
+	AllowPlainHTTP("github.localhost:3000")
+	if Link("http://github.localhost/o/r", "x") != "x" || Link("http://github.localhost:3000/o/r", "x") == "x" {
+		t.Error("a host with a port allows plain http on that port alone")
+	}
+	AllowPlainHTTP("")
+	if Link("http://github.localhost/o/r", "x") != "x" {
+		t.Error("plain http is allowed with no host")
+	}
+}
+
 func TestLinkWidthAndCuts(t *testing.T) {
 	text := "\x1b[1mView\x1b[m diagram ↗"
 	l := "ab " + Link("https://x.test/v", text) + " cd"

@@ -15,6 +15,16 @@ import (
 // is given no host.
 const DefaultHost = "github.com"
 
+// WebScheme returns the scheme of the web pages of host, as gh has it:
+// http for github.localhost, a GitHub run locally for development, and
+// https for any other.
+func WebScheme(host string) string {
+	if strings.EqualFold(host, "github.localhost") {
+		return "http"
+	}
+	return "https"
+}
+
 // Target is what the user names after ':': a repository, a pull request or
 // issue number, or both. A number without a repository refers to the
 // current one, which the caller supplies. Kind is what a link said the

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/cli/go-gh/v2/pkg/auth"
@@ -55,6 +57,21 @@ func normalizeHostname(h string) string {
 		h = rest
 	}
 	return auth.NormalizeHostname(strings.TrimRight(strings.TrimSpace(h), "/"))
+}
+
+// checkHostname returns why hostname, the value of --hostname, names no
+// host, or nil if it does: a host with its port, if it has one, and a
+// scheme and a trailing slash, which normalizeHostname drops, but no path,
+// such as an Enterprise Server's /api/v3, nor a user or a query, which
+// would otherwise fail later as a host gh has no token for.
+func checkHostname(hostname string) error {
+	host := normalizeHostname(hostname)
+	u, err := url.Parse("//" + host)
+	if host == "" || err != nil || u.Host != host || u.Path != "" || u.RawQuery != "" || u.Fragment != "" ||
+		strings.ContainsAny(host, "@/ ") {
+		return fmt.Errorf("--hostname %q names no host; give the host alone, such as github.com or ghe.example.com", hostname)
+	}
+	return nil
 }
 
 // currentRepo reads the repository of the current directory the way gh
