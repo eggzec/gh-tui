@@ -290,6 +290,14 @@ func (m *Modal) narrow() bool {
 	return m.width < narrowWidth
 }
 
+// Hide implements ui.Hider: it stops following the run and reading the
+// log of its job while another modal is open in its place, until the
+// modal is reopened.
+func (m *Modal) Hide() {
+	m.unfollow()
+	m.log.Pause()
+}
+
 // close ends the modal's reads and the following of its run, and asks the
 // app to close it.
 func (m *Modal) close() tea.Cmd {

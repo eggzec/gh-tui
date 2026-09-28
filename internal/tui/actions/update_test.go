@@ -918,3 +918,23 @@ func TestReopenedRestartsTheTimers(t *testing.T) {
 		t.Error("reopened didn't start the timers again")
 	}
 }
+
+// Another modal open in place of this one stops the following of the run
+// and the reads of the log of its job, until this one is reopened.
+func TestHideStopsTheReads(t *testing.T) {
+	f := newFake()
+	fl := &follows{}
+	m, h := newModal(t, f, wideW, wideH, WithFollow(fl.follow))
+	h.keys("j")
+	if f.watching[runLintJob] != 1 || !slices.Equal(fl.started, []int64{runningRun}) {
+		t.Fatalf("watches %v, follows %v; want the running job's log watched and its run followed", f.watching, fl.started)
+	}
+	m.Hide()
+	if f.watching[runLintJob] != 0 || !slices.Equal(fl.stopped, []int64{runningRun}) {
+		t.Errorf("hidden, watches %v and stopped following %v; want nothing watched or followed", f.watching, fl.stopped)
+	}
+	h.send(ui.ReopenedMsg{Modal: m})
+	if f.watching[runLintJob] != 1 || len(fl.started) != 2 {
+		t.Errorf("reopened, watches %v and follows %v; want the log watched and the run followed again", f.watching, fl.started)
+	}
+}

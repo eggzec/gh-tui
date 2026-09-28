@@ -318,7 +318,12 @@ func (s *Step) pause() {
 	s.hidden = true
 	s.unwatch()
 	s.unfollow()
+	s.view.Pause()
 }
+
+// Hide stops the polls while another modal is open in place of the one
+// the step is in, until that modal is reopened.
+func (s *Step) Hide() { s.pause() }
 
 // resume starts again what stopped while the step was hidden, from what
 // the cache has now.

@@ -279,6 +279,14 @@ func (m *detailModal) closeChecks() tea.Cmd {
 	return m.show()
 }
 
+// Hide implements ui.Hider: the Checks step stops its polls while
+// another modal is open in place of this one.
+func (m *detailModal) Hide() {
+	if m.checks != nil {
+		m.checks.Hide()
+	}
+}
+
 // updateChecks passes msg to the Checks step, and steps back to the
 // detail when the step asks.
 func (m *detailModal) updateChecks(msg tea.Msg) tea.Cmd {
