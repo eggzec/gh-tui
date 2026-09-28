@@ -27,6 +27,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			return m, cmd
 		}
 		return m, nil
+	case editedMsg:
+		if msg.id == m.id {
+			m.edited(msg.err)
+		}
+		return m, nil
 	case spinner.TickMsg:
 		if m.state != stateLoading {
 			return m, nil
@@ -128,6 +133,12 @@ func (m Model) updateKey(k tea.KeyPressMsg) (Model, tea.Cmd) {
 		}
 		cmd := m.clearFilter()
 		return m, cmd
+	case key.Matches(k, m.keys.Edit):
+		// A count before it is dropped, as it means nothing to the editor.
+		if !counted {
+			cmd := m.edit()
+			return m, cmd
+		}
 	case key.Matches(k, m.keys.Close):
 		return m, m.close()
 	}

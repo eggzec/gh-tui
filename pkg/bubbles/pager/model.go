@@ -61,6 +61,11 @@ type Model struct {
 	// and spans their tokens once the highlighter is done, or nil.
 	lines []string
 	spans [][]span
+	// raw is the content as it was given, which the editor gets, and lang
+	// the syntax it was given with, if any. It costs no memory of its own
+	// unless the content needed cleaning, since then lines are slices of
+	// it (termtext.Clean returns clean text as it is).
+	raw, lang string
 	// sgr are the colors of content that has its own, such as a program's
 	// output kept in a file, for each line, or nil for content without
 	// them. Such content isn't highlighted.
@@ -248,10 +253,11 @@ func (m Model) FullHelp() [][]key.Binding {
 	k := m.keys
 	k.Confirm = m.confirmKey()
 	k.Percent.SetEnabled(m.counting)
+	k.Edit.SetEnabled(m.state == stateReady && !m.Capturing())
 	if m.Capturing() {
 		for _, b := range []*key.Binding{
 			&k.Up, &k.Down, &k.PageUp, &k.PageDown, &k.HalfPageUp, &k.HalfPageDown, &k.Home, &k.End,
-			&k.Left, &k.Right, &k.Option, &k.Search, &k.Filter, &k.Next, &k.Prev, &k.Close,
+			&k.Left, &k.Right, &k.Option, &k.Search, &k.Filter, &k.Next, &k.Prev, &k.Edit, &k.Close,
 		} {
 			b.SetEnabled(false)
 		}

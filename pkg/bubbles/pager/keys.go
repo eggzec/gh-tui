@@ -50,6 +50,12 @@ type KeyMap struct {
 	Next key.Binding
 	Prev key.Binding
 
+	// Edit opens the content in an external editor, at the line at the
+	// top of the window, and suspends the program until it exits: the
+	// editor set with WithEditor, else $VISUAL, else $EDITOR. The pager
+	// enables it only while it shows content.
+	Edit key.Binding
+
 	// Close asks the parent to close the pager with a [CloseMsg]. While a
 	// search is shown, a key bound to Cancel clears it first.
 	Close key.Binding
@@ -78,6 +84,7 @@ func DefaultKeyMap() KeyMap {
 		Cancel:  key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel"), key.WithDisabled()),
 		Next:    key.NewBinding(key.WithKeys("n"), key.WithHelp("n", "next match"), key.WithDisabled()),
 		Prev:    key.NewBinding(key.WithKeys("N"), key.WithHelp("N", "prev match"), key.WithDisabled()),
+		Edit:    key.NewBinding(key.WithKeys("v"), key.WithHelp("v", "edit")),
 		Close:   key.NewBinding(key.WithKeys("q", "esc"), key.WithHelp("q", "close")),
 	}
 }
@@ -92,6 +99,6 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.PageUp, k.PageDown, k.HalfPageUp, k.HalfPageDown},
 		{k.Home, k.End, k.Count, k.Percent, k.Left, k.Right, k.Option},
-		{k.Search, k.Filter, k.Confirm, k.Cancel, k.Next, k.Prev, k.Close},
+		{k.Search, k.Filter, k.Confirm, k.Cancel, k.Next, k.Prev, k.Edit, k.Close},
 	}
 }

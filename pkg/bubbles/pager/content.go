@@ -31,7 +31,9 @@ func (m *Model) SetContent(name, text string) tea.Cmd {
 // lang, a lexer's name or alias such as "diff", rather than by the name of
 // the content. An unknown lang shows the text plain.
 func (m *Model) SetContentSyntax(name, lang, text string) tea.Cmd {
-	return m.setContent(name, text, func(string) chroma.Lexer { return lexerNamed(lang) })
+	cmd := m.setContent(name, text, func(string) chroma.Lexer { return lexerNamed(lang) })
+	m.lang = lang
+	return cmd
 }
 
 // setContent shows text, and returns the command that highlights it with
@@ -39,6 +41,7 @@ func (m *Model) SetContentSyntax(name, lang, text string) tea.Cmd {
 // called only in the command.
 func (m *Model) setContent(name, text string, lexerOf func(full string) chroma.Lexer) tea.Cmd {
 	m.reset(name, stateReady, nil)
+	m.raw = text
 	// UTF-16 holds NUL bytes, so it is decoded before the check; other
 	// text only once it passed, so binary content isn't decoded.
 	if termtext.UTF16(text) {
@@ -128,6 +131,7 @@ func (m *Model) reset(name string, s state, err error) {
 	}
 	m.renderName()
 	m.lines, m.spans, m.sgr, m.vis, m.size = nil, nil, nil, nil, 0
+	m.raw, m.lang = "", ""
 	m.top, m.row, m.left = 0, 0, 0
 	m.mark = -1
 	m.opt, m.num, m.counting = false, 0, false
