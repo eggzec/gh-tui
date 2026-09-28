@@ -9,10 +9,12 @@ import (
 
 	"github.com/charmbracelet/x/exp/golden"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keytest"
+	"github.com/eggzec/gh-tui/pkg/termtext/termtexttest"
 )
 
 func TestShowsAFailedJobOnItsError(t *testing.T) {
@@ -260,13 +262,67 @@ func TestAnnotationsRetry(t *testing.T) {
 	f.notesErr = errBoom
 	m := newView(t, f, 80, 20)
 	run(m, m.Show(failed(), false, Hints{}))
-	if s := text(m); !strings.Contains(s, "Couldn't load the annotations: boom") {
+	if s := text(m); !strings.Contains(s, "Annotations ✗ Something went wrong") {
 		t.Fatalf("the view doesn't say the annotations failed:\n%s", s)
 	}
 	f.notesErr = nil
 	run(m, m.Retry())
 	if s := text(m); !strings.Contains(s, "Annotations 3") {
 		t.Errorf("retry didn't read the annotations again:\n%s", s)
+	}
+}
+
+// The annotations say why they failed to load the way the user should
+// read it, after their title, without the error's chain, request or status
+// code.
+func TestAnnotationErrorWords(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want string
+	}{
+		{"offline", fmt.Errorf("list annotations: github: GET /repos/o/r/check-runs/1/annotations: %w", core.ErrOffline), "Annotations ✗ Can't reach GitHub · r to retry"},
+		{"forbidden", fmt.Errorf("list annotations: github: 403 Forbidden: %w", core.ErrForbidden), "Annotations ✗ You don't have access to charmbracelet/bubbletea · o to open on GitHub"},
+		{"not found", fmt.Errorf("list annotations: github: 404 Not Found: %w", core.ErrNotFound), "Annotations ✗ test (ubuntu-latest, 1.26) doesn't exist or is private."},
+		{"internal", fmt.Errorf("list annotations: github: decode: %s", termtexttest.Hostile), "Annotations ✗ Something went wrong · r to retry"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newFake()
+			f.notesErr = tt.err
+			m := newView(t, f, 120, 20, WithVoice(ui.NewVoice(config.Default().Keys, "")))
+			run(m, m.Show(failed(), false, Hints{}))
+			termtexttest.AssertClean(t, m.View(), 120)
+			s := text(m)
+			if !strings.Contains(s+" ", tt.want+" ") {
+				t.Errorf("the view shows %q, want %q", s, tt.want)
+			}
+			for _, leak := range []string{"github:", "list annotations", "GET", "403", "404", "decode"} {
+				if strings.Contains(s, leak) {
+					t.Errorf("the view shows %q: %q", leak, s)
+				}
+			}
+		})
+	}
+}
+
+// Annotations that failed to load say why, in both themes.
+func TestViewNotesFailed(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(fmt.Sprintf("dark=%t", dark), func(t *testing.T) {
+			f := newFake()
+			f.notesErr = fmt.Errorf("list annotations: %w", core.ErrForbidden)
+			m := newView(t, f, 60, 12, WithVoice(ui.NewVoice(config.Default().Keys, "")))
+			p, err := config.Default().Palette(dark)
+			if err != nil {
+				t.Fatal(err)
+			}
+			m.SetTheme(ui.NewTheme(p, dark))
+			run(m, m.Show(failed(), false, Hints{}))
+			v := m.View()
+			assertFits(t, v, 60, 12)
+			golden.RequireEqual(t, v)
+		})
 	}
 }
 
