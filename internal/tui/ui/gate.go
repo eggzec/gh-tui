@@ -26,23 +26,82 @@ const (
 	// ActRerun re-runs a workflow run or some of its jobs.
 	ActRerun
 	ActCancelRun
+	// ActMarkRead marks notifications read or done, which the Gate decides
+	// by the token alone.
+	ActMarkRead
 )
 
 // Gate decides what the viewer may do in one repository, from what GitHub
-// said of it and of the issue or pull request at hand. What isn't known
-// yet is allowed, so that GitHub decides, as it would anyway.
+// said of it and of the issue or pull request at hand, and what the token
+// may do. What isn't known yet is allowed, so that GitHub decides, as it
+// would anyway.
 type Gate struct {
 	Repo core.RepoRef
 	Caps core.RepoCaps
 	// Viewer is the login of the signed-in user, or empty while it is
 	// unknown.
 	Viewer string
+	// Token is what the token may do, or nil, which allows everything.
+	Token *Token
 }
 
 // Allow reports whether the viewer may take a on it, which is nil for the
 // actions on the repository, such as a re-run. When not, why tells the
-// user, in a sentence.
+// user, in a sentence. The repository is asked first, since what it says,
+// such as that it is archived, says more than what the token lacks.
 func (g Gate) Allow(a Action, it *core.Issue) (ok bool, why string) {
+	if ok, why := g.allowRepo(a, it); !ok {
+		return false, why
+	}
+	return g.allowToken(a)
+}
+
+// allowToken reports whether the token may take a.
+func (g Gate) allowToken(a Action) (ok bool, why string) {
+	need, gerund := g.need(a)
+	if gerund == "" {
+		return true, ""
+	}
+	if err := g.Token.Check(need); err != nil {
+		return false, g.Token.refusal(gerund, err)
+	}
+	return true, ""
+}
+
+// need returns what a needs of the token, and the gerund that names a in
+// a sentence, or "" when a needs nothing.
+func (g Gate) need(a Action) (need core.Need, gerund string) {
+	switch a {
+	case ActRerun:
+		return core.NeedRuns, "Re-running"
+	case ActCancelRun:
+		return core.NeedRuns, "Cancelling"
+	case ActMarkRead:
+		return core.NeedNotifications, "Marking notifications"
+	case ActMerge:
+		gerund = "Merging"
+	case ActClose:
+		gerund = "Closing"
+	case ActReopen:
+		gerund = "Reopening"
+	case ActDraft:
+		gerund = "Changing a draft"
+	case ActComment:
+		gerund = "Commenting"
+	case ActLabel:
+		gerund = "Labeling"
+	default:
+		return core.Need{}, ""
+	}
+	return core.NeedWrite(g.Caps), gerund
+}
+
+// allowRepo reports whether the repository and it let the viewer take a.
+func (g Gate) allowRepo(a Action, it *core.Issue) (ok bool, why string) {
+	// Notifications aren't a repository's.
+	if a == ActMarkRead {
+		return true, ""
+	}
 	c, repo := g.Caps, g.Repo.String()
 	switch {
 	case c.Known && c.Archived:
@@ -102,6 +161,7 @@ func (g Gate) Allow(a Action, it *core.Issue) (ok bool, why string) {
 		if !c.CanWrite() {
 			return false, "Cancelling needs write access to " + repo + "."
 		}
+	case ActMarkRead:
 	}
 	return true, ""
 }
