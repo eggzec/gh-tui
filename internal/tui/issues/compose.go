@@ -157,7 +157,7 @@ func (m *detailModal) comment(body string) (c ui.Confirm, ok bool, refusal tea.C
 			m.closePrompt()
 			op := m.svc.Comment(m.repo, n, body)
 			return tea.Batch(m.reload(), m.thread.Reload(), m.changed(),
-				ui.Do(m.sendCtx, ui.IssuesTitle, op, "comment on "+num))
+				m.send(op, "comment on "+num))
 		},
 	}, true, nil
 }
@@ -217,11 +217,11 @@ func (m *detailModal) labels(typed string) (c ui.Confirm, ok bool, refusal tea.C
 			cmds := make([]tea.Cmd, 0, len(removed)+1)
 			if len(added) > 0 {
 				op := m.svc.AddLabels(m.repo, n, added)
-				cmds = append(cmds, ui.Do(m.sendCtx, ui.IssuesTitle, op, "add "+strings.Join(added, ", ")+" to "+num))
+				cmds = append(cmds, m.send(op, "add "+strings.Join(added, ", ")+" to "+num))
 			}
 			for _, name := range removed {
 				op := m.svc.RemoveLabel(m.repo, n, name)
-				cmds = append(cmds, ui.Do(m.sendCtx, ui.IssuesTitle, op, "remove "+name+" from "+num))
+				cmds = append(cmds, m.send(op, "remove "+name+" from "+num))
 			}
 			return tea.Batch(m.reload(), m.changed(), tea.Sequence(cmds...))
 		},

@@ -21,7 +21,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
-	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 	"github.com/eggzec/gh-tui/pkg/markdown"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
@@ -392,7 +391,7 @@ func (m *detailModal) change(msg tea.KeyPressMsg) tea.Cmd {
 	if !ok {
 		return warn
 	}
-	repo := m.repo
+	repo, about := m.repo, m.subject()
 	run := m.keys.confirmed(m.svc, m.mergeMethod, m.number, c.question, msg,
 		func() (core.PullRequest, ui.Gate, bool) {
 			return m.detail.PullRequest, m.gate(), m.loaded
@@ -400,7 +399,7 @@ func (m *detailModal) change(msg tea.KeyPressMsg) tea.Cmd {
 		func(op *optimistic.Op, what string) tea.Cmd {
 			return tea.Batch(m.reload(),
 				func() tea.Msg { return changedMsg{repo: repo} },
-				ui.Do(m.sendCtx, ui.PullsTitle, op, what))
+				ui.Do(m.sendCtx, ui.PullsTitle, ui.About(about, op), what))
 		})
 	m.ask = &ui.Confirm{Question: c.question, Run: run}
 	return nil
@@ -437,10 +436,17 @@ func (m *detailModal) receive(msg detailMsg) tea.Cmd {
 		if m.ctx.Err() != nil {
 			return nil
 		}
-		return ui.Notify(toast.Error, "Couldn't load #"+strconv.Itoa(m.number)+": "+msg.err.Error())
+		return ui.Fail("load #"+strconv.Itoa(m.number), core.About(m.subject(), msg.err))
 	}
 	m.detail, m.loaded = msg.detail, true
 	return m.show()
+}
+
+// subject names the pull request in what the user reads of a failure,
+// such as "eggzec/gh-tui#5", since GitHub may not find it or refuse access
+// to it while it finds its repository.
+func (m *detailModal) subject() string {
+	return core.Target{Repo: m.repo, Number: m.number}.String()
 }
 
 // reload shows the detail from the cache again, which a change has just
