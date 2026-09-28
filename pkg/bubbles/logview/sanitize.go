@@ -12,9 +12,11 @@ import (
 // sanitize returns the text of s without escape sequences and control
 // characters, so that a log can neither break the layout nor send commands
 // to the terminal, and the SGR sequences it held, which only color text.
-// Tabs expand to tabWidth, invalid UTF-8 turns into U+FFFD, and a carriage
-// return drops what came before it, the way a terminal overwrites a
-// progress line.
+// Tabs expand to tabWidth; invalid UTF-8, C1 controls, the characters that
+// reorder text and the kitty image placeholder turn into U+FFFD
+// (termtext.Control); other invisible format characters are dropped
+// (termtext.Hidden); and a carriage return drops what came before it, the
+// way a terminal overwrites a progress line.
 func sanitize(s string, tabWidth int) (string, []termtext.Style) {
 	s = strings.TrimRight(s, "\r\n")
 	if i := strings.LastIndexByte(s, '\r'); i >= 0 {
@@ -54,10 +56,14 @@ func sanitize(s string, tabWidth int) (string, []termtext.Style) {
 		default:
 			r, size := utf8.DecodeRuneInString(s[i:])
 			switch {
-			case r == utf8.RuneError && size == 1:
+			case r == utf8.RuneError && size == 1, termtext.Control(r):
+				// A C1 control, such as the one-byte CSI, a character that
+				// reorders the text, or the kitty graphics protocol's image
+				// placeholder, which a workflow may echo into its log.
 				b.WriteRune(utf8.RuneError)
-			case r < 0xa0:
-				// A C1 control, such as the one-byte CSI.
+			case termtext.Hidden(r):
+				// An invisible format character, dropped as OneLine drops
+				// it.
 			default:
 				b.WriteString(s[i : i+size])
 			}

@@ -71,7 +71,11 @@ func TestSanitizeStripsSequences(t *testing.T) {
 		{name: "cut csi", in: "x\x1b[31", want: "x"},
 		{name: "csi cut by text", in: "\x1b[31é", want: "é"},
 		{name: "c0 controls", in: "a\a\bb\x00c\x7fd\ve\ff", want: "abcdef"},
-		{name: "c1 controls", in: "a\u009b31mb\u0085c\u009d0;x\u009c", want: "a31mbc0;x"},
+		{name: "c1 controls", in: "a\u009b31mb\u0085c\u009d0;x\u009c", want: "a\ufffd31mb\ufffdc\ufffd0;x\ufffd"},
+		{name: "bidi controls", in: "a\u202eexe.txt\u202c \u2066b\u2069\u200fc", want: "a\ufffdexe.txt\ufffd \ufffdb\ufffd\ufffdc"},
+		{name: "image placeholder", in: "\U0010EEEE\u0305\u0305x", want: "\ufffd\u0305\u0305x"},
+		{name: "invisible format", in: "a\u2060b\ufeffc\U000E0041d", want: "abcd"},
+		{name: "joiners kept", in: "\U0001F469\u200d\U0001F4BB", want: "\U0001F469\u200d\U0001F4BB"},
 		{name: "newline", in: "a\nb", want: "ab"},
 	}
 	for _, tt := range tests {
