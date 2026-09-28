@@ -11,6 +11,7 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/finder"
 	"github.com/eggzec/gh-tui/pkg/bubbles/graph"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/logview"
 	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
 	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
@@ -285,6 +286,30 @@ func (t Theme) Finder() finder.Styles {
 	s.Spinner = s.Spinner.Foreground(accent)
 	s.Empty = s.Empty.Foreground(muted)
 	s.Error = s.Error.Foreground(lipgloss.Color(t.Palette.Error))
+	return s
+}
+
+// KeyHelp returns the styles of the help, which the accent marks as it
+// does the finder: its query and the keys.
+func (t Theme) KeyHelp() keyhelp.Styles {
+	s := keyhelp.DefaultStyles(t.Dark)
+	fg, accent := lipgloss.Color(t.Palette.Foreground), lipgloss.Color(t.Palette.Accent)
+	muted, subtle := lipgloss.Color(t.Palette.Muted), lipgloss.Color(t.Palette.Subtle)
+	s.Title = s.Title.Foreground(fg)
+	s.Count = s.Count.Foreground(subtle)
+	s.Prompt = s.Prompt.Foreground(accent)
+	s.Text = s.Text.Foreground(fg)
+	s.Placeholder = s.Placeholder.Foreground(subtle)
+	s.Cursor = s.Cursor.Foreground(accent)
+	s.Capture = s.Capture.Foreground(accent)
+	s.Key = s.Key.Foreground(accent)
+	s.Desc = s.Desc.Foreground(fg)
+	s.Source = s.Source.Foreground(muted)
+	s.Disabled = s.Disabled.Foreground(subtle)
+	s.Conflict = s.Conflict.Foreground(lipgloss.Color(t.Palette.Error))
+	s.Shadowed = s.Shadowed.Foreground(lipgloss.Color(t.Palette.Warning))
+	s.Typed = s.Typed.Foreground(subtle)
+	s.Empty = s.Empty.Foreground(muted)
 	return s
 }
 
