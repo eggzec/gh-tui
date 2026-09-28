@@ -481,3 +481,66 @@ func TestShortPath(t *testing.T) {
 		}
 	}
 }
+
+// longestCut finds by halves the cut a search of every width finds.
+func TestLongestCut(t *testing.T) {
+	texts := []string{
+		"the base branch was modified; review and try the merge again",
+		"run gh auth refresh -s read:org, then restart gh-tui",
+		strings.Repeat("abcdefghij", 8),
+	}
+	linear := func(s string, least int, fits func(string) bool) string {
+		for w := ansi.StringWidth(s); w > least; w-- {
+			if c := cutWords(s, w); fits(c) {
+				return c
+			}
+		}
+		return cutWords(s, least)
+	}
+	for _, s := range texts {
+		for room := range 70 {
+			fits := func(c string) bool { return ansi.StringWidth(c) <= room }
+			for _, least := range []int{1, 5, 12} {
+				least = min(least, ansi.StringWidth(s))
+				if got, want := longestCut(s, least, fits), linear(s, least, fits); got != want {
+					t.Errorf("longestCut(%q, %d) in %d cells = %q, want %q", s, least, room, got, want)
+				}
+			}
+		}
+	}
+}
+
+// longestCut finds the cut a search of every width finds with the fit of
+// a real toast too, which wraps the text by words over several lines.
+func TestLongestCutInAToast(t *testing.T) {
+	texts := []string{
+		"the base branch was modified; review and try the merge again",
+		"run gh auth refresh -s read:org, then restart gh-tui",
+		"a few words of very uneven lengths: internationalization, a, of, incomprehensibilities, so",
+		strings.Repeat("abcdefghij", 8),
+	}
+	linear := func(s string, least int, fits func(string) bool) string {
+		for w := ansi.StringWidth(s); w > least; w-- {
+			if c := cutWords(s, w); fits(c) {
+				return c
+			}
+		}
+		return cutWords(s, least)
+	}
+	for _, s := range texts {
+		for width := 20; width <= 120; width += 3 {
+			for _, height := range []int{0, 3, 4, 6} {
+				m := toast.New(4*time.Second, 8*time.Second, toast.WithSize(width, height))
+				for _, head := range []string{"", "Couldn't merge: "} {
+					fits := func(c string) bool { return m.Fits(toast.Error, head+c) }
+					for _, least := range []int{1, 5, 12} {
+						least = min(least, ansi.StringWidth(s))
+						if got, want := longestCut(s, least, fits), linear(s, least, fits); got != want {
+							t.Errorf("longestCut(%q, %d) in a toast %dx%d after %q = %q, want %q", s, least, width, height, head, got, want)
+						}
+					}
+				}
+			}
+		}
+	}
+}

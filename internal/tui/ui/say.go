@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"errors"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 	"unicode"
@@ -288,14 +289,28 @@ func SayToast(p *core.Problem, v Voice, fits func(string) bool) string {
 		if !fits(head + cutWords(shortest, least)) {
 			continue
 		}
-		for w := ansi.StringWidth(shortest); w > least; w-- {
-			if s := head + cutWords(shortest, w); fits(s) {
-				return s
-			}
-		}
-		return head + cutWords(shortest, least)
+		return head + longestCut(shortest, least, func(c string) bool { return fits(head + c) })
 	}
 	return "Couldn't " + actions[len(actions)-1] + ": …"
+}
+
+// longestCut returns the longest cut of s, by cutWords, that fits, and
+// the cut to least cells when none longer does. A longer cut fits no
+// better, so it is found by halves rather than by trying each width. If
+// fits breaks that, and the cut found doesn't fit, each width is tried
+// from the longest, so the cut is never worse than that search's.
+func longestCut(s string, least int, fits func(string) bool) string {
+	n := ansi.StringWidth(s) - least
+	w := least + sort.Search(max(n, 0), func(i int) bool { return !fits(cutWords(s, least+1+i)) })
+	if c := cutWords(s, w); w == least || fits(c) {
+		return c
+	}
+	for w := ansi.StringWidth(s); w > least; w-- {
+		if c := cutWords(s, w); fits(c) {
+			return c
+		}
+	}
+	return cutWords(s, least)
 }
 
 // actionCuts returns action and ever shorter cuts of it, down to "…".
