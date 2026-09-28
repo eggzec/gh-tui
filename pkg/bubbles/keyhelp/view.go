@@ -6,6 +6,8 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // Widths of the columns of a row: the mark, the keys, and at most the
@@ -186,8 +188,9 @@ func fit(s string, width int) string {
 	return s
 }
 
-// clean puts text on one line without escape sequences, so it can't break
-// the layout.
+// clean puts text on one line without escape sequences, control or
+// invisible format characters, so it can't break the layout or command
+// the terminal.
 func clean(s string) string {
-	return strings.Join(strings.Fields(ansi.Strip(s)), " ")
+	return strings.Join(strings.Fields(termtext.OneLine(s)), " ")
 }
