@@ -111,6 +111,20 @@ func (m *Model) ExpandAll() { m.setAll(true) }
 // CollapseAll collapses every section and group.
 func (m *Model) CollapseAll() { m.setAll(false) }
 
+// FoldAll collapses every section when any is expanded, and expands every
+// section otherwise. Groups keep their state, and the cursor stays on its
+// row or on the section that now hides it.
+func (m *Model) FoldAll() {
+	open := !slices.ContainsFunc(m.folds, func(f fold) bool { return f.sec >= 0 && f.open })
+	m.refold(func(folds []fold) {
+		for i := range folds {
+			if folds[i].sec >= 0 {
+				folds[i].open = open
+			}
+		}
+	})
+}
+
 func (m *Model) setAll(open bool) {
 	m.refold(func(folds []fold) {
 		for i := range folds {

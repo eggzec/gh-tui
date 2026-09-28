@@ -42,8 +42,8 @@ func TestProgram(t *testing.T) {
 	m := open(t, WithFocusFailed(true))
 	tm := teatest.NewTestModel(t, host{log: m}, teatest.WithInitialTermSize(80, 16))
 
-	// Collapse everything, then find the second error again.
-	tm.Send(press("="))
+	// Fold every step, then find the second error again.
+	tm.Send(press("*"))
 	tm.Send(press("e"))
 	tm.Send(press("e"))
 	tm.Send(press("t"))

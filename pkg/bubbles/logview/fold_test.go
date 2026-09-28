@@ -44,14 +44,19 @@ func TestFoldGroups(t *testing.T) {
 	if got, want := shownRows(m), []string{"before", "outer", "after"}; !slices.Equal(got, want) {
 		t.Errorf("groups start collapsed: %q, want %q", got, want)
 	}
+	// Fold all folds steps only, so it leaves groups as they are.
 	m, _ = keys(t, m, "*")
+	if got, want := shownRows(m), []string{"before", "outer", "after"}; !slices.Equal(got, want) {
+		t.Errorf("fold all changed groups: %q, want %q", got, want)
+	}
+	m.ExpandAll()
 	if got, want := shownRows(m), []string{"before", "outer", ".a", ".inner", "..b", "after"}; !slices.Equal(got, want) {
 		t.Errorf("after expand all: %q, want %q", got, want)
 	}
 	if m.Lines() != len(lines) {
 		t.Errorf("Lines() = %d, want %d", m.Lines(), len(lines))
 	}
-	m, _ = keys(t, m, "=")
+	m.CollapseAll()
 	if got, want := shownRows(m), []string{"before", "outer", "after"}; !slices.Equal(got, want) {
 		t.Errorf("after collapse all: %q, want %q", got, want)
 	}
@@ -116,10 +121,17 @@ func TestFoldKeys(t *testing.T) {
 			open: map[string]bool{"Set up job": false}},
 		{name: "minus on a collapsed group collapses its section", keys: []string{"j", "j", "-"},
 			wantCursor: "Set up job", open: map[string]bool{"Set up job": false}},
-		{name: "expand all", keys: []string{"j", "j", "j", "*"}, wantCursor: "Operating System",
-			open: map[string]bool{"Runner Image": true, "run golangci-lint": true}},
-		{name: "collapse all keeps the cursor on what holds it", keys: []string{"j", "j", "j", "*", "j", "="},
-			wantCursor: "Set up job", open: map[string]bool{"Set up job": false, "Operating System": false}},
+		{name: "fold all keeps the cursor on what holds it and groups as they are",
+			keys: []string{"j", "j", "+", "j", "*"}, wantCursor: "Set up job",
+			open: map[string]bool{"Set up job": false, "Install Go": false, "Runner Image Provisioner": true}},
+		{name: "fold all again expands the steps", keys: []string{"j", "j", "+", "j", "*", "*"},
+			wantCursor: "Set up job",
+			open: map[string]bool{"Set up job": true, "Install Go": true, "Runner Image Provisioner": true,
+				"run golangci-lint": false}},
+		{name: "one step open folds all", keys: []string{"*", "space", "*"}, wantCursor: "Set up job",
+			open: map[string]bool{"Set up job": false, "Install Go": false}},
+		{name: "equals is not bound", keys: []string{"="}, wantCursor: "Set up job",
+			open: map[string]bool{"Set up job": true, "Install Go": true}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

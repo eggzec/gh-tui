@@ -322,7 +322,7 @@ func TestAppend(t *testing.T) {
 	if got := shownRows(m); !slices.Equal(got, want) {
 		t.Errorf("rows = %q, want %q", got, want)
 	}
-	m, _ = keys(t, m, "*")
+	m.ExpandAll()
 	if got := len(m.vis); got != 8 {
 		t.Errorf("expand all shows %d rows, want 8", got)
 	}

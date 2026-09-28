@@ -97,7 +97,7 @@ func newKeyMap(keys map[string][]string) KeyMap {
 	})
 	for _, b := range []*key.Binding{
 		&lk.Up, &lk.Down, &lk.PageUp, &lk.PageDown, &lk.HalfPageUp, &lk.HalfPageDown, &lk.Home, &lk.End,
-		&lk.Left, &lk.Right, &lk.Toggle, &lk.Expand, &lk.Collapse, &lk.ExpandAll, &lk.CollapseAll,
+		&lk.Left, &lk.Right, &lk.Toggle, &lk.Expand, &lk.Collapse, &lk.FoldAll,
 		&lk.NextError, &lk.PrevError, &lk.NextWarning, &lk.PrevWarning, &lk.Wrap, &lk.Times, &lk.LineNumbers,
 		&lk.Follow, &lk.Search, &lk.Next, &lk.Prev,
 	} {
