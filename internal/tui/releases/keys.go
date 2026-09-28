@@ -29,6 +29,8 @@ func newKeyMap(keys map[string][]string) keyMap {
 		Open:    ui.Binding(keys, config.ActionOpen, "open in browser"),
 		Refresh: ui.Binding(keys, config.ActionRefresh, "retry"),
 	}
+	// PR5: the modal matches its own keys first, so dropping them from
+	// the thread only keeps the collisions out of help.
 	own := []key.Binding{k.Back, k.Open, k.Refresh}
 	t := thread.DefaultKeyMap()
 	t.Up, t.Down = without(t.Up, own), without(t.Down, own)
@@ -59,26 +61,8 @@ func without(b key.Binding, taken []key.Binding) key.Binding {
 	return key.NewBinding(key.WithKeys(keys...), key.WithHelp(strings.Join(keys, "/"), b.Help().Desc))
 }
 
-// help lists the keys of the modal, with retry while a read failed, and
-// the toggle while a diagram is on screen.
-func (k keyMap) help(retry key.Binding, onDiagram bool) keyHelp {
-	t := k.thread
-	t.Toggle.SetEnabled(t.Toggle.Enabled() && onDiagram)
-	return keyHelp{
-		short: []key.Binding{t.Up, t.Down, k.Back, k.Open, t.Toggle, retry},
-		full: [][]key.Binding{
-			{t.Up, t.Down, t.PageUp, t.PageDown},
-			{t.HalfPageUp, t.HalfPageDown, t.Top, t.Bottom},
-			{k.Back, k.Open, t.Toggle, retry},
-		},
-	}
-}
+// ShortHelp implements help.KeyMap.
+func (k keyMap) ShortHelp() []key.Binding { return []key.Binding{k.Back, k.Open, k.Refresh} }
 
-// keyHelp is a help.KeyMap made of fixed lists.
-type keyHelp struct {
-	short []key.Binding
-	full  [][]key.Binding
-}
-
-func (h keyHelp) ShortHelp() []key.Binding  { return h.short }
-func (h keyHelp) FullHelp() [][]key.Binding { return h.full }
+// FullHelp implements help.KeyMap.
+func (k keyMap) FullHelp() [][]key.Binding { return [][]key.Binding{k.ShortHelp()} }

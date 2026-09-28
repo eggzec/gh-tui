@@ -17,6 +17,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
 )
 
@@ -267,12 +268,20 @@ func (m *Modal) Update(msg tea.Msg) tea.Cmd {
 	return cmd
 }
 
-// Help implements ui.Modal.
-func (m *Modal) Help() help.KeyMap {
+// Help lists the keys of the modal for the help line.
+func (m *Modal) Help() help.KeyMap { return ui.Hints{Layers: m.KeyLayers()} }
+
+// KeyLayers implements ui.Keyed: the modal's own keys, with retry while a
+// read failed, and then the thread's, which take no keys while nothing
+// shows.
+func (m *Modal) KeyLayers() []keyhelp.Layer {
 	k := m.keys
-	retry := k.Refresh
-	retry.SetEnabled(retry.Enabled() && m.failed())
-	return m.keys.help(retry, m.thread.OnDiagram())
+	k.Refresh.SetEnabled(k.Refresh.Enabled() && m.failed())
+	doc := keyhelp.FromHelp("thread", m.thread, false)
+	if m.failed() {
+		doc = ui.Off(doc)
+	}
+	return []keyhelp.Layer{keyhelp.FromHelp("release", k, false), doc}
 }
 
 // failed reports whether the release couldn't be read and nothing shows.
