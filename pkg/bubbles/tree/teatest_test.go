@@ -2,6 +2,7 @@ package tree
 
 import (
 	"bytes"
+	"sync"
 	"testing"
 	"time"
 
@@ -14,6 +15,10 @@ import (
 type app struct {
 	tree   Model
 	opened []string
+	// expanded, if set, runs once * has been pressed and every load of the
+	// expand-all it started has landed.
+	expanding *bool
+	expanded  func()
 }
 
 func (a app) Init() tea.Cmd {
@@ -38,6 +43,14 @@ func (a app) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	var cmd tea.Cmd
 	a.tree, cmd = a.tree.Update(msg)
+	if a.expanded != nil {
+		if k, ok := msg.(tea.KeyPressMsg); ok && k.String() == "*" {
+			*a.expanding = true
+		}
+		if *a.expanding && !a.tree.bulk.active() {
+			a.expanded()
+		}
+	}
 	return a, cmd
 }
 
@@ -47,7 +60,9 @@ func (a app) View() tea.View {
 
 func TestProgram(t *testing.T) {
 	m := New(repo().children, WithFocused(true))
-	tm := teatest.NewTestModel(t, app{tree: m}, teatest.WithInitialTermSize(80, 12))
+	expanded := make(chan struct{})
+	a := app{tree: m, expanding: new(bool), expanded: sync.OnceFunc(func() { close(expanded) })}
+	tm := teatest.NewTestModel(t, a, teatest.WithInitialTermSize(80, 12))
 
 	waitFor := func(s string) {
 		t.Helper()
@@ -60,7 +75,13 @@ func TestProgram(t *testing.T) {
 	tm.Send(press("j"))
 	tm.Send(press("j"))
 	tm.Send(press("*"))
-	waitFor("app.go")
+	// The expand-all loads the branches of internal at once, so wait for
+	// all of them: tui's app.go may show while core still loads.
+	select {
+	case <-expanded:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the expand-all never finished")
+	}
 	for range 3 {
 		tm.Send(press("j"))
 	}
