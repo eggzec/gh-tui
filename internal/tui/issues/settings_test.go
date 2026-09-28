@@ -1,8 +1,10 @@
 package issues
 
 import (
+	"slices"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/config"
@@ -53,4 +55,28 @@ func TestSettingsPrefetch(t *testing.T) {
 	if h.ahead == nil || h.others == nil {
 		t.Error("the reads ahead didn't start again")
 	}
+}
+
+// TestSettingsPrefetchOnReadsTheListShown checks that turning the reads
+// ahead on reads the first rows of the list already on screen, rather
+// than waiting for the next list.
+func TestSettingsPrefetchOnReadsTheListShown(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		svc := newFakeService(sampleIssues(12))
+		h := started(t, svc, 80, 30)
+		off := prefetchConfig(t, "details.prefetch.enabled=false")
+		run(t, h, h.Update(ui.SettingsMsg{Config: off}))
+		on, err := off.Set("details.prefetch.enabled", "true")
+		if err != nil {
+			t.Fatal(err)
+		}
+		on, err = on.Set("details.prefetch.rows", "3")
+		if err != nil {
+			t.Fatal(err)
+		}
+		run(t, h, h.Update(ui.SettingsMsg{Config: on}))
+		if got, want := sorted(svc.getCalls()), []int{998, 999, 1000}; !slices.Equal(got, want) {
+			t.Errorf("read issues %v, want the first rows %v", got, want)
+		}
+	})
 }
