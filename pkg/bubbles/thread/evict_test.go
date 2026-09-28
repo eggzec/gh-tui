@@ -110,7 +110,7 @@ func TestEvictedChunkFailsAndRetries(t *testing.T) {
 	src.fail[""] = 1
 	m = press(t, m, "g")
 	m = scrollUntil(t, m, func(m Model[comment]) bool { return m.chunks[0].err != nil })
-	if all := ansi.Strip(strings.Join(m.lines, "\n")); !m.failed() || !strings.Contains(all, "Press r to retry") {
+	if all := ansi.Strip(strings.Join(m.lines, "\n")); !m.failed() || !strings.Contains(all, "· r to retry") {
 		t.Fatalf("no error line:\n%s", all)
 	}
 	m = press(t, m, "r")

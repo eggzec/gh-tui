@@ -44,6 +44,7 @@ type Model[T any] struct {
 	markdown      *ansi.StyleConfig
 	maxChunks     int
 	emptyText     string
+	errorText     func(error) (text, hint string)
 
 	parent context.Context
 	ctx    context.Context
@@ -99,6 +100,8 @@ type chunk[T any] struct {
 	loading bool
 	seq     int
 	err     error
+	// said is what the thread says of err, worded once as it is set.
+	said said
 }
 
 // tail tracks the request for the chunk after the last one.
@@ -106,11 +109,18 @@ type tail struct {
 	loading bool
 	seq     int
 	err     error
+	said    said
+}
+
+// said is what the thread says of a failed fetch: the words, and the
+// hint after them, such as "r to retry".
+type said struct {
+	text, hint string
 }
 
 // texts are the fixed status fragments, styled once in SetStyles.
 type texts struct {
-	loadingDoc, loadingComments, empty, errPrefix, retry string
+	loadingDoc, loadingComments, empty string
 	// pointer marks the head of the diagram that the toggle key opens.
 	pointer string
 }
@@ -137,6 +147,7 @@ func New[T any](fetch Fetch[T], render Render[T], opts ...Option) Model[T] {
 		markdown:  s.markdown,
 		maxChunks: s.maxChunks,
 		emptyText: s.emptyText,
+		errorText: s.errorText,
 		parent:    s.ctx,
 		vp:        viewport.New(),
 		spin:      spinner.New(spinner.WithSpinner(spinner.Dot)),
@@ -286,10 +297,8 @@ func (m *Model[T]) SetStyles(s Styles) {
 		loadingDoc:      s.Loading.Render("Loading…"),
 		loadingComments: s.Loading.Render("Loading comments…"),
 		empty:           s.Empty.Render(m.emptyText),
-		errPrefix:       s.Error.Render("Couldn't load comments."),
 		pointer:         s.Key.Render("›"),
 	}
-	m.styleRetry()
 	m.rerender(a)
 }
 
@@ -341,8 +350,14 @@ func (m Model[T]) Styles() Styles { return m.styles }
 // SetKeyMap sets the key bindings.
 func (m *Model[T]) SetKeyMap(k KeyMap) {
 	m.keys = k
-	m.styleRetry()
-	m.layout(m.anchor())
+	m.reword()
+}
+
+// SetErrorText sets how the thread reads a failed fetch, as
+// [WithErrorText] does.
+func (m *Model[T]) SetErrorText(say func(error) (text, hint string)) {
+	m.errorText = say
+	m.reword()
 }
 
 // KeyMap returns the key bindings.
@@ -391,11 +406,37 @@ func (m Model[T]) YOffset() int { return m.vp.YOffset() }
 // TotalLines returns the number of lines laid out.
 func (m Model[T]) TotalLines() int { return len(m.lines) }
 
-func (m *Model[T]) styleRetry() {
-	s := m.styles
-	m.text.retry = s.Hint.Render(" Press ") +
-		s.Key.Render(m.keys.Retry.Help().Key) +
-		s.Hint.Render(" to retry.")
+// word returns what the thread says of err, a failed fetch.
+func (m *Model[T]) word(err error) said {
+	retry := ""
+	if k := m.keys.Retry.Help().Key; k != "" {
+		retry = k + " to retry"
+	}
+	if m.errorText == nil {
+		msg, _, _ := strings.Cut(err.Error(), "\n")
+		return said{text: "Couldn't load comments: " + msg, hint: retry}
+	}
+	text, hint := m.errorText(err)
+	if text == "" {
+		// A failure not worth telling, such as a canceled fetch, still
+		// leaves comments to read again, which the retry key does.
+		return said{hint: retry}
+	}
+	return said{text: text, hint: hint}
+}
+
+// reword words the failed fetches again, after the keys or the error text
+// changed, and lays the thread out with them.
+func (m *Model[T]) reword() {
+	for i := range m.chunks {
+		if c := &m.chunks[i]; c.err != nil {
+			c.said = m.word(c.err)
+		}
+	}
+	if m.tail.err != nil {
+		m.tail.said = m.word(m.tail.err)
+	}
+	m.layout(m.anchor())
 }
 
 func (m Model[T]) failed() bool {

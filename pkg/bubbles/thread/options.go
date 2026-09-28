@@ -18,6 +18,7 @@ type settings struct {
 	ctx           context.Context
 	maxChunks     int
 	emptyText     string
+	errorText     func(error) (text, hint string)
 }
 
 // DefaultMaxChunks is how many comment chunks a thread keeps rendered unless
@@ -86,5 +87,18 @@ func WithMaxChunks(n int) Option {
 func WithEmptyText(text string) Option {
 	return func(s *settings) {
 		s.emptyText = text
+	}
+}
+
+// WithErrorText sets how the thread reads a failed fetch of comments, in
+// the status line or in place of a chunk that failed to load again. say
+// returns the words for err and a hint, such as "r to retry", or "" for
+// none; the hint is styled as one and kept whole when the line is cut. An
+// empty text shows no error, only the retry key. By default the thread
+// says "Couldn't load comments:" and the first line of the error, and
+// names the retry key.
+func WithErrorText(say func(error) (text, hint string)) Option {
+	return func(s *settings) {
+		s.errorText = say
 	}
 }

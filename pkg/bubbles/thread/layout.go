@@ -88,9 +88,9 @@ func (m *Model[T]) statusText() string {
 	case m.tail.loading:
 		s = m.spin.View() + " " + m.text.loadingComments
 	case m.tail.err != nil:
-		s = m.errorText(m.tail.err)
+		return m.errorLine(m.tail.said)
 	case m.reloadErr() != nil:
-		s = m.errorText(m.reloadErr())
+		return m.errorLine(m.reloadErr().said)
 	case m.done() && m.empty():
 		s = m.text.empty
 	default:
@@ -99,12 +99,12 @@ func (m *Model[T]) statusText() string {
 	return m.fit(statusIndent + s)
 }
 
-// reloadErr returns why reloading a chunk failed. The chunk keeps showing
-// what it had, so the error goes in the status.
-func (m *Model[T]) reloadErr() error {
+// reloadErr returns the chunk whose reload failed, or nil. The chunk
+// keeps showing what it had, so the error goes in the status.
+func (m *Model[T]) reloadErr() *chunk[T] {
 	for i := range m.chunks {
 		if c := &m.chunks[i]; c.loaded && c.err != nil {
-			return c.err
+			return c
 		}
 	}
 	return nil
@@ -173,20 +173,45 @@ func (m *Model[T]) appendChunk(lines []string, c *chunk[T]) []string {
 		return lines
 	}
 	// An evicted chunk on screen is always being fetched again.
-	first := m.text.loadingComments
+	first := m.fit(statusIndent + m.text.loadingComments)
 	if c.err != nil {
-		first = m.errorText(c.err)
+		first = m.errorLine(c.said)
 	}
-	lines = append(lines, m.fit(statusIndent+first))
+	lines = append(lines, first)
 	for range c.height - 1 {
 		lines = append(lines, m.blank)
 	}
 	return lines
 }
 
-func (m *Model[T]) errorText(err error) string {
-	return m.text.errPrefix + m.text.retry + m.styles.Hint.Render(" ("+err.Error()+")")
+// errorLine renders a failed fetch as a status line: the mark and the
+// text, then " · " and the hint, which is kept whole and the text cut
+// before it, unless the width can't hold it at all. An empty text shows
+// the hint alone, and nothing at all shows a blank line.
+func (m *Model[T]) errorLine(s said) string {
+	if s.text == "" {
+		if s.hint == "" {
+			return m.blank
+		}
+		return m.fit(statusIndent + m.styles.Hint.Render(s.hint))
+	}
+	text, tail := errorMark+" "+s.text, ""
+	if s.hint != "" {
+		tail = " · " + s.hint
+	}
+	room := m.width - len(statusIndent) - ansi.StringWidth(tail)
+	if tail != "" && ansi.StringWidth(text) > room {
+		if room < ansi.StringWidth(errorMark)+2 {
+			// Too narrow for any of the text beside the hint.
+			return m.fit(statusIndent + m.styles.Hint.Render(s.hint))
+		}
+		text = ansi.Truncate(text, room, "…")
+	}
+	return m.fit(statusIndent + m.styles.Error.Render(text) + m.styles.Hint.Render(tail))
 }
+
+// errorMark starts the text of a failed fetch.
+const errorMark = "✗"
 
 // anchor is a reading position that survives a new layout: a line within a
 // comment, a chunk or the document. When the comment's height changes, as

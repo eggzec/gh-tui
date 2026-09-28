@@ -138,7 +138,7 @@ func TestErrorAndRetry(t *testing.T) {
 	src := newSource(1, 3)
 	src.fail[""] = 1
 	m := loaded(t, src, nil, 60, 24)
-	if !m.failed() || !strings.Contains(ansi.Strip(m.View()), "Press r to retry") {
+	if !m.failed() || !strings.Contains(ansi.Strip(m.View()), "· r to retry") {
 		t.Fatalf("no error line:\n%s", ansi.Strip(m.View()))
 	}
 	if !slices.ContainsFunc(m.ShortHelp(), func(b key.Binding) bool { return b.Enabled() && b.Help().Desc == "retry" }) {

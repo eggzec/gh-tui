@@ -19,7 +19,7 @@ type Styles struct {
 	Empty lipgloss.Style
 	// Error styles the error message.
 	Error lipgloss.Style
-	// Key styles a key named in a hint, such as the retry key.
+	// Key styles the pointer at the diagram the toggle key opens.
 	Key lipgloss.Style
 	// Hint styles the text around a key in a hint.
 	Hint lipgloss.Style
