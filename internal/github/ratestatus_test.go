@@ -2,6 +2,7 @@ package github
 
 import (
 	"io"
+	"math/rand/v2"
 	"net/http"
 	"slices"
 	"strconv"
@@ -61,47 +62,126 @@ func TestRateStatusOrder(t *testing.T) {
 	})
 }
 
-// TestRateStatusRemaining checks that Remaining counts the requests in
-// flight, never goes below zero when more are in flight than is left, and
-// is the full limit once the reset has passed.
+// TestRateStatusRemaining checks that Remaining is what GitHub said, with
+// the requests in flight not taken off, so that one GitHub doesn't count,
+// such as a 304, doesn't show as the quota going down and then up; that
+// it never goes up within a window, whatever order the answers come in;
+// and that it is the full limit once the reset has passed, until GitHub
+// reports the new window, whatever is left in it.
 func TestRateStatusRemaining(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		a := answers{"x": make(chan answer, 3)}
 		c := newAnswered(t, a)
 		reset := time.Now().Add(time.Hour)
-		a["x"] <- answerQuota(resourceCore, 5000, 2, reset)
+		a["x"] <- answerQuota(resourceCore, 5000, 10, reset)
 		if _, err := c.Get(t.Context(), "x", Conditional{}, nil); err != nil {
 			t.Fatalf("Get: %v", err)
 		}
-
-		first := getAsync(c, "x")
-		if got := coreQuota(t, c.RateStatus()); got.Remaining != 1 || got.Limit != 5000 {
-			t.Errorf("with one in flight: Remaining, Limit = %d, %d; want 1, 5000", got.Remaining, got.Limit)
+		shown := func() int {
+			t.Helper()
+			return coreQuota(t, c.RateStatus()).Remaining
 		}
-		second := getAsync(c, "x")
-		third := getAsync(c, "x")
-		if got := coreQuota(t, c.RateStatus()); got.Remaining != 0 {
-			t.Errorf("with three in flight of two left: Remaining = %d, want 0", got.Remaining)
+
+		first, second, third := getAsync(c, "x"), getAsync(c, "x"), getAsync(c, "x")
+		if got := shown(); got != 10 {
+			t.Errorf("with three in flight: Remaining = %d, want 10, what GitHub said", got)
+		}
+		// GitHub counted the third first, and the others' answers come
+		// late, with more left.
+		for i, left := range []int{7, 9, 8} {
+			a["x"] <- answerQuota(resourceCore, 5000, left, reset)
+			synctest.Wait()
+			if got := shown(); got != 7 {
+				t.Errorf("after %d answers: Remaining = %d, want 7", i+1, got)
+			}
 		}
 		for _, done := range []<-chan error{first, second, third} {
-			a["x"] <- answerQuota(resourceCore, 5000, 2, reset)
-			<-done
+			if err := <-done; err != nil {
+				t.Fatal(err)
+			}
 		}
-		if got := coreQuota(t, c.RateStatus()); got.Remaining != 2 {
-			t.Errorf("once answered: Remaining = %d, want 2", got.Remaining)
+		// A 304 isn't counted, and gives back what it took.
+		done := getAsync(c, "x")
+		a["x"] <- answer{status: http.StatusNotModified, header: answerQuota(resourceCore, 5000, 7, reset).header}
+		<-done
+		if got := shown(); got != 7 {
+			t.Errorf("after a 304: Remaining = %d, want 7", got)
 		}
 
 		// Past the reset the window has refilled, before GitHub says so.
 		time.Sleep(time.Until(reset))
 		next := getAsync(c, "x")
-		if got := coreQuota(t, c.RateStatus()); got.Remaining != 4999 || !got.Reset.Equal(reset) {
-			t.Errorf("past the reset, one in flight: Remaining, Reset = %d, %v; want 4999, %v", got.Remaining, got.Reset, reset)
+		if got := coreQuota(t, c.RateStatus()); got.Remaining != 5000 || !got.Reset.Equal(reset) {
+			t.Errorf("past the reset, one in flight: Remaining, Reset = %d, %v; want 5000, %v", got.Remaining, got.Reset, reset)
 		}
 		a["x"] <- answerQuota(resourceCore, 5000, 4990, reset.Add(time.Hour))
 		<-next
 		if got := coreQuota(t, c.RateStatus()); got.Remaining != 4990 || !got.Reset.Equal(reset.Add(time.Hour)) {
 			t.Errorf("once GitHub reports the new window: Remaining, Reset = %d, %v; want 4990, the new reset", got.Remaining, got.Reset)
 		}
+	})
+}
+
+// TestRateStatusNeverRises sends many requests at once, answered in any
+// order, some with 304s, some failing, and checks that no two snapshots
+// taken one after the other show more left within the same window.
+func TestRateStatusNeverRises(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		reset := time.Now().Add(time.Hour)
+		var mu sync.Mutex
+		used, sent := 0, 0
+		c := newNotified(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			mu.Lock()
+			sent++
+			n := sent
+			status := http.StatusOK
+			switch n % 7 {
+			case 0:
+				mu.Unlock()
+				return nil, io.ErrUnexpectedEOF
+			case 3:
+				// GitHub doesn't count a 304.
+				status = http.StatusNotModified
+			default:
+				used++
+			}
+			left := 5000 - used
+			mu.Unlock()
+			// Answers are held up for a while, so they come back in
+			// another order than GitHub counted them.
+			time.Sleep(time.Duration(rand.IntN(50)) * time.Millisecond)
+			h := make(http.Header)
+			for k, v := range quotaHeader(resourceCore, 5000, left, reset) {
+				h.Set(k, v)
+			}
+			return &http.Response{StatusCode: status, Header: h, Body: io.NopCloser(strings.NewReader("{}")), Request: req}, nil
+		}))
+		var wg sync.WaitGroup
+		for range 16 {
+			wg.Go(func() {
+				for range 20 {
+					_, _ = c.Get(t.Context(), "x", Conditional{}, nil)
+				}
+			})
+		}
+		last := -1
+		watching := make(chan struct{})
+		go func() {
+			defer close(watching)
+			for range 400 {
+				s := c.RateStatus()
+				if i := slices.IndexFunc(s.Quotas, func(q core.Quota) bool { return q.Resource == resourceCore }); i >= 0 {
+					if got := s.Quotas[i].Remaining; last >= 0 && got > last {
+						t.Errorf("Remaining went up from %d to %d within a window", last, got)
+					} else {
+						last = got
+					}
+				}
+				time.Sleep(time.Millisecond)
+			}
+		}()
+		wg.Wait()
+		<-watching
 	})
 }
 
