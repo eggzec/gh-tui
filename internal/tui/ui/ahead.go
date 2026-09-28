@@ -264,7 +264,32 @@ func (a *Ahead[K]) halt() bool {
 	}
 	a.overBudget = why == obs.PrefetchOverBudget
 	a.seen.Count(why)
+	logSkipped(a.ctx, a.seen.Kind(), why, 1)
 	return true
+}
+
+// logSkipped logs, at debug level, that n reads ahead of kind weren't
+// sent, and why, which the summary only counts.
+func logSkipped(ctx context.Context, kind string, why obs.PrefetchEvent, n int) {
+	if n == 0 || !obs.Enabled(ctx, slog.LevelDebug) {
+		return
+	}
+	slog.DebugContext(ctx, "prefetch skipped", "span", "prefetch", "kind", kind, "why", skipReason(why), "count", n)
+}
+
+// skipReason names why, a reason not to read ahead, as the summary does.
+func skipReason(why obs.PrefetchEvent) string {
+	if r, ok := skipReasons[why]; ok {
+		return r
+	}
+	return "other"
+}
+
+var skipReasons = map[obs.PrefetchEvent]string{
+	obs.PrefetchCached:     "cached",
+	obs.PrefetchLimited:    "limit",
+	obs.PrefetchCanceled:   "canceled",
+	obs.PrefetchOverBudget: "budget",
 }
 
 // batch is a group of reads started at once, which ends them. It only
@@ -291,12 +316,12 @@ func (b batch[K]) readAll(ctx context.Context, ks []K) {
 		select {
 		case sem <- struct{}{}:
 		case <-ctx.Done():
-			b.skip(obs.PrefetchCanceled, ks[i:])
+			b.skip(ctx, obs.PrefetchCanceled, ks[i:])
 			return
 		}
 		if why, ok := halted(b.limited); ok {
 			<-sem
-			b.skip(why, ks[i:])
+			b.skip(ctx, why, ks[i:])
 			return
 		}
 		wg.Go(func() {
@@ -307,7 +332,8 @@ func (b batch[K]) readAll(ctx context.Context, ks []K) {
 }
 
 // skip counts the reads of ks that weren't sent, for why, and ends them.
-func (b batch[K]) skip(why obs.PrefetchEvent, ks []K) {
+func (b batch[K]) skip(ctx context.Context, why obs.PrefetchEvent, ks []K) {
+	logSkipped(ctx, b.seen.Kind(), why, len(ks))
 	for _, k := range ks {
 		b.seen.Count(why)
 		b.end(k, false)
@@ -329,13 +355,13 @@ func (b batch[K]) end(k K, ok bool) {
 func (b batch[K]) readOne(ctx context.Context, k K) {
 	held, waited, err := b.pause.wait(ctx)
 	if err != nil {
-		b.skip(obs.PrefetchCanceled, []K{k})
+		b.skip(ctx, obs.PrefetchCanceled, []K{k})
 		return
 	}
 	// Reads that ended meanwhile may have met the rate limit or spent the
 	// budget.
 	if why, ok := halted(b.limited); ok {
-		b.skip(why, []K{k})
+		b.skip(ctx, why, []K{k})
 		return
 	}
 	if held {
@@ -346,7 +372,7 @@ func (b batch[K]) readOne(ctx context.Context, k K) {
 		// What paused it, such as the detail the user opened, may have
 		// read it meanwhile.
 		if b.current(k) {
-			b.skip(obs.PrefetchCached, []K{k})
+			b.skip(ctx, obs.PrefetchCached, []K{k})
 			return
 		}
 	}

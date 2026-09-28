@@ -1,9 +1,13 @@
 package ui
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
+	"log/slog"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"testing/synctest"
@@ -688,4 +692,36 @@ func TestAheadSet(t *testing.T) {
 	}
 	var none *Ahead[int]
 	none.Set(1, time.Second)
+}
+
+// Reads not sent are logged at debug level, with why.
+func TestAheadLogsSkipped(t *testing.T) {
+	var buf bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+
+	r := newReader()
+	r.err = &core.RateLimitError{Reset: time.Now()}
+	a := NewAhead("row", r.readRow, r.current, 30, time.Millisecond)
+	a.Reset(t.Context())
+	run(a.First(rowsOf(30)))
+	a.Moved(7, true)
+
+	var limit int
+	for line := range strings.Lines(buf.String()) {
+		var m map[string]any
+		if err := json.Unmarshal([]byte(line), &m); err != nil {
+			t.Fatal(err)
+		}
+		if m["msg"] == "prefetch skipped" {
+			if m["level"] != "DEBUG" || m["kind"] != "row" || m["why"] != "limit" {
+				t.Errorf("record = %v, want a debug record of rows skipped for the limit", m)
+			}
+			limit++
+		}
+	}
+	if limit == 0 {
+		t.Errorf("no prefetch skipped record:\n%s", buf.String())
+	}
 }
