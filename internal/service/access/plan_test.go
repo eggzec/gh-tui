@@ -32,7 +32,7 @@ func TestPlan(t *testing.T) {
 			name: "keyring",
 			st:   situation{kind: core.TokenClassic, known: true, source: "gh", gh: gh, missing: workflow},
 			want: Plan{
-				Cmd: []string{gh, "auth", "refresh", "-h", "github.com", "-s", "workflow"},
+				Cmd: []string{gh, "auth", "refresh", "--hostname=github.com", "-s", "workflow"},
 				Why: "gh opens the browser to grant the token the workflow scope.", Scopes: workflow,
 			},
 		},
@@ -40,7 +40,7 @@ func TestPlan(t *testing.T) {
 			name: "hosts file keeps its storage",
 			st:   situation{kind: core.TokenClassic, known: true, source: "oauth_token", gh: gh, missing: []string{"notifications", "workflow"}},
 			want: Plan{
-				Cmd: []string{gh, "auth", "refresh", "-h", "github.com", "-s", "notifications,workflow", "--insecure-storage"},
+				Cmd: []string{gh, "auth", "refresh", "--hostname=github.com", "-s", "notifications,workflow", "--insecure-storage"},
 				Why: "gh opens the browser to grant the token the notifications and workflow scopes.", Scopes: []string{"notifications", "workflow"},
 			},
 		},
@@ -48,7 +48,7 @@ func TestPlan(t *testing.T) {
 			name: "enterprise",
 			st:   situation{host: "ghe.corp", kind: core.TokenClassic, known: true, source: "gh", gh: gh, missing: []string{"a", "b", "c"}},
 			want: Plan{
-				Cmd: []string{gh, "auth", "refresh", "-h", "ghe.corp", "-s", "a,b,c"},
+				Cmd: []string{gh, "auth", "refresh", "--hostname=ghe.corp", "-s", "a,b,c"},
 				Why: "gh opens the browser to grant the token the a, b and c scopes.", Scopes: []string{"a", "b", "c"},
 			},
 		},
@@ -56,7 +56,7 @@ func TestPlan(t *testing.T) {
 			name: "sso only",
 			st:   situation{kind: core.TokenClassic, known: true, source: "gh", gh: gh, sso: true},
 			want: Plan{
-				Cmd: []string{gh, "auth", "refresh", "-h", "github.com"},
+				Cmd: []string{gh, "auth", "refresh", "--hostname=github.com"},
 				Why: "gh signs in again, where you can authorize the organizations' SSO.",
 			},
 		},
@@ -125,7 +125,7 @@ func TestRefresh(t *testing.T) {
 	s, _ := bound(Token{Value: "gho_x", Source: "gh"}, withGHPath(func() string { looked++; return "gh" }))
 	s.Set(classic("gist", "read:org"))
 	got := s.Refresh(core.NeedRuns, core.NeedWrite(core.RepoCaps{}), core.NeedNotifications, core.NeedWorkflow)
-	want := []string{"gh", "auth", "refresh", "-h", "github.com", "-s", "notifications,repo,workflow"}
+	want := []string{"gh", "auth", "refresh", "--hostname=github.com", "-s", "notifications,repo,workflow"}
 	if !reflect.DeepEqual(got.Cmd, want) || looked != 1 {
 		t.Errorf("Refresh = %q after %d lookups of gh, want %q after 1", got.Cmd, looked, want)
 	}
@@ -140,5 +140,46 @@ func TestRefresh(t *testing.T) {
 	s.Set(core.Access{Kind: core.TokenFineGrained})
 	if got := s.Refresh(core.NeedNotifications); got.Cmd != nil || got.Why == "" {
 		t.Errorf("Refresh of a fine-grained token = %+v, want only why", got)
+	}
+}
+
+// A host that could be read as more than a host, such as a flag, goes
+// into no command and no link.
+func TestPlanHost(t *testing.T) {
+	why := "The host isn't a plain host name, so gh-tui can't refresh its token; run gh auth refresh yourself."
+	for _, tt := range []struct {
+		host string
+		ok   bool
+	}{
+		{"github.com", true},
+		{"ghe.corp:8443", true},
+		{"GHE-1.example.com", true},
+		{"10.0.0.1:443", true},
+		{"--help", false},
+		{"-h", false},
+		{"ghe.corp/evil", false},
+		{"ghe.corp:", false},
+		{"ghe.corp:44a", false},
+		{"ghe corp", false},
+		{"", false},
+		{"ghe.corp\x1b[2J", false},
+	} {
+		st := situation{host: tt.host, kind: core.TokenClassic, known: true, source: "gh", gh: "/usr/bin/gh", missing: []string{"workflow"}}
+		got := plan(st)
+		if tt.ok {
+			want := []string{"/usr/bin/gh", "auth", "refresh", "--hostname=" + tt.host, "-s", "workflow"}
+			if !reflect.DeepEqual(got.Cmd, want) {
+				t.Errorf("plan for %q = %q, want %q", tt.host, got.Cmd, want)
+			}
+			continue
+		}
+		if got.Cmd != nil || got.URL != "" || got.Why != why {
+			t.Errorf("plan for %q = %+v, want no command, no link and why", tt.host, got)
+		}
+		// The token from GH_TOKEN gets no link either.
+		st.source = "GH_TOKEN"
+		if got := plan(st); got.URL != "" {
+			t.Errorf("plan for %q from GH_TOKEN links %q", tt.host, got.URL)
+		}
 	}
 }
