@@ -88,8 +88,8 @@ var sayCases = []sayCase{
 	},
 	{
 		name: "rate limited until another day", p: &core.Problem{Kind: core.RateLimited, Action: "merge #5", Reset: reset.Add(30 * time.Hour)},
-		text: "Rate limited until Sep 28, 20:05", hint: "loads again then",
-		toast: "Couldn't merge #5: rate limited until Sep 28, 20:05.",
+		text: "Rate limited until Sep 28 20:05", hint: "loads again then",
+		toast: "Couldn't merge #5: rate limited until Sep 28 20:05.",
 	},
 	{
 		name: "auth", p: &core.Problem{Kind: core.Auth, Action: "load your profile", Reason: "Bad credentials"},

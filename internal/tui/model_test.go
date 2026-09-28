@@ -754,7 +754,7 @@ func failures() []failure {
 		{name: "forbidden", err: &ghError{is: core.ErrForbidden, reason: "Resource not accessible"}, cause: "you don't have access to this."},
 		{name: "not found", err: &ghError{is: core.ErrNotFound, reason: "Not Found"}, cause: "this doesn't exist or is private."},
 		{name: "rejected", err: &ghError{is: core.ErrConflict, reason: "Pull Request is not mergeable"}, cause: "Pull Request is not mergeable."},
-		{name: "rate limited", err: fmt.Errorf("github: 403: %w", &core.RateLimitError{Reset: reset}), cause: "rate limited until " + reset.Format("15:04") + "."},
+		{name: "rate limited", err: fmt.Errorf("github: 403: %w", &core.RateLimitError{Reset: reset}), cause: "rate limited until " + ui.Clock(reset, time.Now()) + "."},
 		{name: "rate limited with no reset", err: fmt.Errorf("github: 403: %w", &core.RateLimitError{}), cause: "rate limited by GitHub."},
 		{name: "auth", err: &ghError{is: core.ErrUnauthorized, reason: "Bad credentials"}, cause: "GitHub rejected the token. Run gh auth login, then restart gh-tui."},
 		{name: "internal", err: errors.New("github: decode 200: unexpected EOF"), cause: "something went wrong, see " + testLog + "."},

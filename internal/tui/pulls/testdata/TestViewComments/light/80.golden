@@ -13,7 +13,7 @@
   • Pages expire with their TTL                                                 
   • [38;5;203;48;5;254m --no-disk [m turns it off                                                    
                                                                                 
-  [1;38;2;31;35;48mhubot[m[38;2;138;144;160m · 5h[m                                                                    
+  [1;38;2;31;35;48mhubot[m[38;2;138;144;160m · 5h ago[m                                                                
   [38;2;138;144;160m│ [m[38;5;27;1mWhat happened[m                                                               
   [38;2;138;144;160m│ [m                                                                            
   [38;2;138;144;160m│ [mThe modal shows [1mraw[m markdown                                                
@@ -24,7 +24,7 @@
   [38;2;138;144;160m│ [m[✓] I searched the issues                                                   
   [38;2;138;144;160m│ [m[ ] I tried [38;5;203;48;5;254m main [m                                                          
                                                                                 
-  [1;38;2;31;35;48moctocat[m[38;2;138;144;160m · 4h[m                                                                  
+  [1;38;2;31;35;48moctocat[m[38;2;138;144;160m · 4h ago[m                                                              
   [38;2;138;144;160m│ [mLooks like [38;5;203;48;5;254m renderComment [m wraps the body as plain text, see #12 and [38;5;29;1mthe[m    
   [38;2;138;144;160m│ [m[1;38;5;29mdocs [m[38;5;36;4mhttps://github.com/charmbracelet/glamour[m. cc @mona                     
   [38;2;138;144;160m│ [m                                                                            
@@ -32,7 +32,7 @@
   [38;2;138;144;160m│ [m      [38;2;39;158;252mreturn [m[38;2;42;42;42mansi[m[38;2;250;120;120m.[m[38;2;1;159;87mWrap[m[38;2;250;120;120m([m[38;2;42;42;42mbody[m[38;2;250;120;120m, [m[38;2;34;204;174m80[m[38;2;250;120;120m, [m[38;2;126;91;56m""[m[38;2;250;120;120m)[m                                        
   [38;2;138;144;160m│ [m  [38;2;250;120;120m}[m                                                                         
                                                                                 
-  [1;38;2;31;35;48mmonalisa[m[38;2;138;144;160m · 3h[m                                                                 
+  [1;38;2;31;35;48mmonalisa[m[38;2;138;144;160m · 3h ago[m                                                             
   [38;2;138;144;160m│ [m│ the comments inside the current issue and pr are not rendering            
   [38;2;138;144;160m│ [m                                                                            
   [38;2;138;144;160m│ [m Where                  │ Before                 │ After                    
@@ -40,7 +40,7 @@
   [38;2;138;144;160m│ [m issues                 │ glamour                │ shared                   
   [38;2;138;144;160m│ [m pulls                  │ plain                  │ shared                   
                                                                                 
-  [1;38;2;31;35;48mdefunkt[m[38;2;138;144;160m · 2h[m                                                                  
+  [1;38;2;31;35;48mdefunkt[m[38;2;138;144;160m · 2h ago[m                                                              
   [38;2;138;144;160m│ [m[38;5;243m🖼 screenshot [m[38;5;205;4m(https://github.com/user-attachments/assets/1234)[m              
   [38;2;138;144;160m│ [m[38;5;243m🖼 light theme [m[38;5;205;4m(https://github.com/user-attachments/assets/5678)[m             
   [38;2;138;144;160m│ [m                                                                            
@@ -49,7 +49,7 @@
   [38;2;138;144;160m│ [m  [38;5;242mpanic: runtime error[m                                                      
   [38;2;138;144;160m│ [m  [38;5;242m    main.go:12[m                                                            
                                                                                 
-  [1;38;2;31;35;48mhubot[m[38;2;138;144;160m · 1h[m                                                                    
+  [1;38;2;31;35;48mhubot[m[38;2;138;144;160m · 1h ago[m                                                                
 [1;38;2;59;99;196m›[m [38;2;138;144;160m│ [m  [1;38;5;29m◆ flowchart[m[38;5;242m · 2 lines · [m[4;38;5;36;4m]8;;https://mermaid.live/view#pako:eNo0yrEKwjAQh_FXOf5z-gIZBMXRydHa4TBnGmh64dKbSt9dBB0_vt-OlyZBRDZuM93uz5XoPJbeXSYahhNdxqqJlwkB2UpC3MwloIpV_ib2AwGN14dq_V9TzzPim5cuAd4Sb3ItnI1_5PgMAGd-KNA\View[m[38;5;36;4m [m[4;38;5;36;4mdiagram[m[38;5;36;4m [m[4;38;5;36;4m↗]8;;\[m                                    
   [38;2;138;144;160m│ [m                                                                            
   [38;2;138;144;160m│ [mTitle �]0;pwned� and �[31mred�[0m text.                                     

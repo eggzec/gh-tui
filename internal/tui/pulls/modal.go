@@ -595,7 +595,7 @@ func plural(n int, noun string) string {
 func (m *detailModal) renderComment(c core.Comment, width int) string {
 	st := &m.st
 	var b strings.Builder
-	b.WriteString(gutter + st.commenter.Render(c.Author.Login) + st.age.Render(" · "+ui.Ago(c.CreatedAt, m.now())))
+	b.WriteString(gutter + st.commenter.Render(c.Author.Login) + st.age.Render(" · "+ui.AgoProse(c.CreatedAt, m.now())))
 	bar := gutter + st.bar
 	// The bar takes two cells, and as many stay free on the right.
 	body := m.thread.Markdown(c.Body, markdown.Room(width, 2*len(gutter)+2))
