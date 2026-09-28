@@ -855,7 +855,7 @@ func TestSharedKeys(t *testing.T) {
 		name string
 		to   []string // the keys that reach the pane
 		key  string
-		desc string // the binding the help names for key
+		desc string // the binding the help names for key, if any
 		ok   func(*Modal) bool
 	}{
 		{name: "] on the runs", key: "]", desc: "tab", ok: tab(1)},
@@ -866,6 +866,9 @@ func TestSharedKeys(t *testing.T) {
 		{name: "ctrl+r on the runs", key: "ctrl+r", desc: "rerun failed", ok: asks},
 		{name: "ctrl+r in the log", to: []string{"tab", "tab"}, key: "ctrl+r", desc: "rerun failed", ok: asks},
 		{name: "r on the runs", key: "r", desc: "refresh", ok: func(m *Modal) bool { return m.ask == nil && m.focus == runsPane }},
+		// A run still running can't be re-run, so ctrl+r says why rather
+		// than refresh, and the help gives it to no binding it could reach.
+		{name: "ctrl+r on a running run", to: []string{"]", "]"}, key: "ctrl+r", ok: func(m *Modal) bool { return m.ask == nil && m.notice != "" }},
 		{name: "f on the runs", key: "f", desc: "filter", ok: filters},
 		{name: "f on the jobs", to: []string{"tab"}, key: "f", desc: "filter", ok: filters},
 		{name: "f in the log", to: []string{"tab", "tab"}, key: "f", desc: "filter", ok: filters},
@@ -876,7 +879,7 @@ func TestSharedKeys(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			m, h := newModal(t, newFake(), wideW, wideH)
 			h.keys(tt.to...)
-			if b, src, _ := uitest.Winner(m.KeyLayers(), tt.key); src != "actions" || b.Help().Desc != tt.desc {
+			if b, src, ok := uitest.Winner(m.KeyLayers(), tt.key); ok != (tt.desc != "") || ok && (src != "actions" || b.Help().Desc != tt.desc) {
 				t.Errorf("the help gives %s to %q of %q, want %q of the modal", tt.key, b.Help().Desc, src, tt.desc)
 			}
 			h.keys(tt.key)
