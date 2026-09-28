@@ -52,6 +52,7 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 		return nil, err
 	}
 	st := startRepos(hostname, currentRepo, defaultHost)
+	logHost(st.Host)
 	here := st.Here
 	// The sync engine delivers the changes that its polls find, those
 	// that the revalidator finds, and those of the rate limits, through
@@ -72,6 +73,7 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 	if err != nil {
 		return nil, err
 	}
+	logSession(newSessionInfo(st, token, client, cfg.Cache.Disk))
 	context.AfterFunc(ctx, client.Close)
 	access.Bind(client)
 	access.Start(ctx)

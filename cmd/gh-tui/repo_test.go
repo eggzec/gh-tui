@@ -27,43 +27,43 @@ func TestStartRepos(t *testing.T) {
 	}{
 		{
 			name: "--hostname", hostname: "ghe.corp", current: outside, defaultHost: "github.com",
-			want: start{Host: "ghe.corp"},
+			want: start{Host: "ghe.corp", From: "--hostname"},
 		},
 		{
 			name: "--hostname over the current repository's host", hostname: "ghe.corp",
 			current: inRepo("github.com"), defaultHost: "github.com",
-			want: start{Host: "ghe.corp"},
+			want: start{Host: "ghe.corp", From: "--hostname"},
 		},
 		{
 			name: "--hostname of the current repository's host", hostname: "GitHub.com",
 			current: inRepo("github.com"), defaultHost: "ghe.corp",
-			want: start{Host: "github.com", Here: ghTUI},
+			want: start{Host: "github.com", Here: ghTUI, From: "--hostname"},
 		},
 		{
 			name: "--hostname with a scheme and a slash", hostname: "https://GHE.corp/",
 			current: outside, defaultHost: "github.com",
-			want: start{Host: "ghe.corp"},
+			want: start{Host: "ghe.corp", From: "--hostname"},
 		},
 		{
 			name: "enterprise remote over GH_HOST", current: inRepo("ghe.corp"), defaultHost: "github.com",
-			want: start{Host: "ghe.corp", Here: ghTUI},
+			want: start{Host: "ghe.corp", Here: ghTUI, From: "repo"},
 		},
 		{
 			name: "current repository", current: inRepo("github.com"), defaultHost: "ghe.corp",
-			want: start{Host: "github.com", Here: ghTUI},
+			want: start{Host: "github.com", Here: ghTUI, From: "repo"},
 		},
 		{
 			name: "GH_HOST or the default host", current: outside, defaultHost: "ghe.corp",
-			want: start{Host: "ghe.corp"},
+			want: start{Host: "ghe.corp", From: "hosts"},
 		},
 		{
 			name: "github.com subdomain", current: inRepo("www.github.com"), defaultHost: "ghe.corp",
-			want: start{Host: "github.com", Here: ghTUI},
+			want: start{Host: "github.com", Here: ghTUI, From: "repo"},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := startRepos(tt.hostname, tt.current, func() string { return tt.defaultHost })
+			got := startRepos(tt.hostname, tt.current, func() (string, string) { return tt.defaultHost, "hosts" })
 			if got != tt.want {
 				t.Errorf("startRepos = %+v, want %+v", got, tt.want)
 			}
@@ -75,8 +75,8 @@ func TestStartRepos(t *testing.T) {
 func TestCurrentRepoGHRepo(t *testing.T) {
 	t.Setenv("GH_CONFIG_DIR", t.TempDir())
 	t.Setenv("GH_REPO", "ghe.corp/eggzec/gh-tui")
-	got := startRepos("", currentRepo, func() string { return "github.com" })
-	want := start{Host: "ghe.corp", Here: core.RepoRef{Owner: "eggzec", Name: "gh-tui"}}
+	got := startRepos("", currentRepo, func() (string, string) { return "github.com", "default" })
+	want := start{Host: "ghe.corp", Here: core.RepoRef{Owner: "eggzec", Name: "gh-tui"}, From: "repo"}
 	if got != want {
 		t.Errorf("startRepos with GH_REPO = %+v, want %+v", got, want)
 	}

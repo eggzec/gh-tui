@@ -89,7 +89,7 @@ func withGHPath(f func() string) Option {
 // New returns a service for token on host, the host gh names it by, such
 // as github.com. Bind gives it the client that sends the token.
 func New(host string, token Token, opts ...Option) *Service {
-	s := &Service{host: host, token: token, checks: true, ghPath: ghPath, heard: make(chan struct{})}
+	s := &Service{host: host, token: token, checks: true, ghPath: GHPath, heard: make(chan struct{})}
 	for _, opt := range opts {
 		opt(s)
 	}
@@ -194,9 +194,9 @@ func (s *Service) Start(ctx context.Context) {
 	}()
 }
 
-// ghPath returns where gh is, as go-gh finds it: GH_PATH, else gh on the
+// GHPath returns where gh is, as go-gh finds it: GH_PATH, else gh on the
 // PATH, or "" when it isn't installed.
-func ghPath() string {
+func GHPath() string {
 	if p := os.Getenv("GH_PATH"); p != "" {
 		return p
 	}
