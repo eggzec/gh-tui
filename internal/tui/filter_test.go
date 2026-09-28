@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/exp/golden"
 
@@ -48,7 +49,12 @@ func (s *filterSection) ApplyFilter(msg filterform.AppliedMsg) tea.Cmd {
 
 func (s *filterSection) Chips() string { return s.chips }
 
-func (s *filterSection) Claims(msg tea.KeyPressMsg) bool { return msg.String() == s.claim }
+func (s *filterSection) Claimed() []key.Binding {
+	if s.claim == "" {
+		return nil
+	}
+	return []key.Binding{key.NewBinding(key.WithKeys(s.claim), key.WithHelp(s.claim, "claimed"))}
+}
 
 // newFilterApp returns an app whose pull requests filter, focused on them.
 func newFilterApp(t *testing.T) (*Model, *filterSection, []*fakeSection) {

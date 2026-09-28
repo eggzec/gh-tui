@@ -234,8 +234,11 @@ func (s *Section) show(state core.StateFilter, query string) tea.Cmd {
 // Chips implements ui.Chipper: the filters in force, for the pane's title.
 func (s *Section) Chips() string { return s.filterChips }
 
-// Claims implements ui.Claimer: the section takes the keys that switch
+// Claimed implements ui.Claimer: the section takes the keys that switch
 // tabs once it shows a repository.
-func (s *Section) Claims(msg tea.KeyPressMsg) bool {
-	return s.hasRepo && !s.issuesOff() && (key.Matches(msg, s.keys.NextTab) || key.Matches(msg, s.keys.PrevTab))
+func (s *Section) Claimed() []key.Binding {
+	if !s.hasRepo || s.issuesOff() {
+		return nil
+	}
+	return []key.Binding{s.keys.NextTab, s.keys.PrevTab}
 }

@@ -225,7 +225,7 @@ func (m *Model) takes(s ui.Section, msg tea.KeyPressMsg) bool {
 		return true
 	}
 	c, ok := s.(ui.Claimer)
-	return ok && c.Claims(msg)
+	return ok && key.Matches(msg, c.Claimed()...)
 }
 
 // openFilter opens the filter modal of s on tab, and reports whether s has
