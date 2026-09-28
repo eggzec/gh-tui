@@ -14,7 +14,7 @@ type styles struct {
 	title, focusTitle paint
 
 	name, login, text, muted, subtle paint
-	accent, success, warning, fail   paint
+	accent, success, warning         paint
 	selected                         paint
 	// states color the glyphs of the states of issues and pull requests,
 	// and langs those of languages, by name and color, as they are met.
@@ -47,7 +47,6 @@ func newStyles(t ui.Theme) styles {
 		accent:     newPaint(t.Accent),
 		success:    newPaint(t.Success),
 		warning:    newPaint(t.Warning),
-		fail:       newPaint(t.Error),
 		selected:   newPaint(t.Title),
 		cursor:     t.Accent.Render("▌") + " ",
 		blurred:    t.Subtle.Render("▌") + " ",

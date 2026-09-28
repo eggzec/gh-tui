@@ -22,6 +22,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/threads"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/termtext/termtexttest"
 )
 
 // screen is the view with styles removed.
@@ -165,19 +166,87 @@ func testServedEarlier(t *testing.T, limited bool, toast, status string) {
 	}
 }
 
+// Each pane says why its read failed the way the user should read it:
+// the cause alone, since the pane's title says what failed, without the
+// error's chain, request or status code. The open key opens the row under
+// the cursor, not what failed, so no hint names it.
 func TestErrorsAreInline(t *testing.T) {
+	tests := []struct {
+		name       string
+		err        error
+		text, hint string
+	}{
+		{"offline", fmt.Errorf("viewer header: github: GET /graphql: %w", core.ErrOffline), "✗ Can't reach GitHub", "r to retry"},
+		{"forbidden", fmt.Errorf("viewer header: github: 403 Forbidden: %w", core.ErrForbidden), "✗ You don't have access to this", ""},
+		{"not found", fmt.Errorf("viewer header: github: 404 Not Found: %w", core.ErrNotFound), "✗ This doesn't exist or is private.", ""},
+		{"internal", fmt.Errorf("viewer header: github: decode: %s", termtexttest.Hostile), "✗ Something went wrong", "r to retry"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := newFake()
+			// The contributions fail in TestViewStates, since their
+			// narrow pane wraps the error.
+			for _, what := range []string{"header", "work"} {
+				svc.fail[what] = tt.err
+			}
+			in := &fakeInbox{threads: inboxThreads(), err: tt.err}
+			s := newSection(t, svc, in, 140, 38)
+			termtexttest.AssertClean(t, s.View(), 140)
+			view := screen(s)
+			// The profile, and the pinned, work and notifications panes.
+			if n := strings.Count(view, tt.text); n != 4 {
+				t.Errorf("the dashboard shows %q %d times, want 4:\n%s", tt.text, n, view)
+			}
+			if n := strings.Count(view, "to retry"); tt.hint == "" && n > 0 || tt.hint != "" && n != 4 {
+				t.Errorf("the dashboard names the retry key %d times, want the hint %q:\n%s", n, tt.hint, view)
+			}
+			for _, leak := range []string{"github", "viewer header", "GET", "403", "404", "decode", "open on GitHub"} {
+				if strings.Contains(view, leak) {
+					t.Errorf("the dashboard shows %q:\n%s", leak, view)
+				}
+			}
+		})
+	}
+}
+
+// The profile's error keeps to its two lines and keeps its hint: when the
+// hint needs a line of its own, the text is cut to one.
+func TestProfileErrorKeepsHint(t *testing.T) {
 	svc := newFake()
-	svc.fail["header"] = errors.New("github: 502 Bad Gateway")
-	svc.fail["work"] = errors.New("github: 502 Bad Gateway")
-	s := newSection(t, svc, nil, 140, 38)
+	svc.fail["header"] = errors.New("github: decode: unexpected EOF")
+	s := newSection(t, svc, nil, 40, 24, WithVoice(logVoice(t)))
+	lines := strings.Split(screen(s), "\n")
+	if !strings.HasPrefix(strings.TrimSpace(lines[0]), "✗ Something went wrong.") || !strings.HasSuffix(strings.TrimSpace(lines[0]), "…") {
+		t.Errorf("the profile's first line = %q, want the text cut to it", lines[0])
+	}
+	if got := strings.TrimSpace(lines[1]); got != "r to retry" {
+		t.Errorf("the profile's second line = %q, want the hint", got)
+	}
+}
+
+// A read that was canceled says nothing of the error, no mark and no
+// cause, but its pane still offers to read again.
+func TestCanceledReadIsQuiet(t *testing.T) {
+	svc := newFake()
+	err := fmt.Errorf("viewer work: github: POST /graphql: %w", context.Canceled)
+	svc.fail["work"] = err
+	s := newSection(t, svc, &fakeInbox{threads: inboxThreads(), err: err}, 140, 38)
 	view := screen(s)
-	for _, want := range []string{"Couldn't load your profile: github: 502 Bad Gateway · r retries", "Couldn't load your work"} {
-		if !strings.Contains(view, want) {
-			t.Errorf("the dashboard doesn't show %q:\n%s", want, view)
+	for _, bad := range []string{"✗", "canceled", "context", "POST", "went wrong"} {
+		if strings.Contains(view, bad) {
+			t.Errorf("the dashboard shows %q for a canceled read:\n%s", bad, view)
 		}
 	}
+	// The work and the notifications.
+	if n := strings.Count(view, "r to retry"); n != 2 {
+		t.Errorf("the dashboard offers to retry %d times, want 2:\n%s", n, view)
+	}
+}
 
-	// A refresh tries again.
+func TestRefreshRetries(t *testing.T) {
+	svc := newFake()
+	svc.fail["header"] = errors.New("github: 502 Bad Gateway")
+	s := newSection(t, svc, nil, 140, 38)
 	clear(svc.fail)
 	press(t, s, "r")
 	if !strings.Contains(screen(s), "Mona Lisa Octocat") {

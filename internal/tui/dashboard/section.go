@@ -224,6 +224,7 @@ type Section struct {
 	frames [numPanes][]string
 	theme  ui.Theme
 	st     styles
+	errs   ui.ErrorStyles
 	// view is rendered whenever the state changes, so View is free.
 	view string
 }
@@ -336,6 +337,8 @@ func (s *Section) SetSize(width, height int) {
 func (s *Section) SetTheme(t ui.Theme) {
 	s.theme = t
 	s.st = newStyles(t)
+	// The mark is the bubbles', which draw "✗" whatever the icons.
+	s.errs = t.Errors(ui.NewIcons(config.IconsUnicode))
 	s.cal.SetStyles(t.Calendar())
 	s.repos.setTheme(t)
 	s.render()

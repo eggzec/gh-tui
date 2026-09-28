@@ -1,6 +1,7 @@
 package dashboard
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -73,6 +74,29 @@ func TestViewStates(t *testing.T) {
 		s := newSection(t, svc, &fakeInbox{}, 140, 38, WithHere(core.RepoRef{}, nil))
 		golden.RequireEqual(t, s.View())
 	})
+	// Every read fails, and each pane says why, in both themes: the
+	// profile and the work, then the contributions.
+	for _, tt := range []struct {
+		pane string
+		dark bool
+	}{{"3", false}, {"3", true}, {"4", false}, {"4", true}} {
+		t.Run(fmt.Sprintf("failed %s dark=%t", tt.pane, tt.dark), func(t *testing.T) {
+			svc := newFake()
+			err := errors.New("github: decode: unexpected EOF")
+			for _, what := range []string{"header", "work", "contributions"} {
+				svc.fail[what] = err
+			}
+			s := newSection(t, svc, &fakeInbox{err: err}, 80, 24, WithIcons(ui.NewIcons(config.IconsUnicode)),
+				WithVoice(logVoice(t)))
+			p, perr := config.Default().Palette(tt.dark)
+			if perr != nil {
+				t.Fatal(perr)
+			}
+			s.SetTheme(ui.NewTheme(p, tt.dark))
+			press(t, s, tt.pane)
+			golden.RequireEqual(t, s.View())
+		})
+	}
 }
 
 func TestLayout(t *testing.T) {
