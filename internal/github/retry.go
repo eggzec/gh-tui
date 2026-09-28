@@ -232,8 +232,10 @@ func shortSecondary(h http.Header) bool {
 
 // peekGraphQL reads the body of resp, the 200 of a GraphQL query, and
 // returns why to send the query again if the answer has no data and only
-// errors without a type. Otherwise resp reads the same body as it came.
-// A body that breaks off returns no response and the error.
+// errors without a type. An error with a code, such as undefinedField,
+// is GitHub refusing the query itself, which it would refuse again.
+// Otherwise resp reads the same body as it came. A body that breaks off
+// returns no response and the error.
 func peekGraphQL(resp *http.Response) (*http.Response, string, error) {
 	if resp.ContentLength > maxPeek {
 		return resp, "", nil
@@ -254,14 +256,17 @@ func peekGraphQL(resp *http.Response) (*http.Response, string, error) {
 	var body struct {
 		Data   *struct{} `json:"data"`
 		Errors []struct {
-			Type string `json:"type"`
+			Type       string `json:"type"`
+			Extensions struct {
+				Code string `json:"code"`
+			} `json:"extensions"`
 		} `json:"errors"`
 	}
 	if json.Unmarshal(b, &body) != nil || body.Data != nil || len(body.Errors) == 0 {
 		return resp, "", nil
 	}
 	for _, e := range body.Errors {
-		if e.Type != "" {
+		if e.Type != "" || e.Extensions.Code != "" {
 			return resp, "", nil
 		}
 	}

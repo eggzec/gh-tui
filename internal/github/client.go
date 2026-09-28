@@ -39,6 +39,10 @@ type Client struct {
 	graphqlURL   string
 	budget       *budget
 	access       *tokenAccess
+	// enterprise is set when the host is a GitHub Enterprise Server, and
+	// unsupported keeps the queries it lacks fields of.
+	enterprise  atomic.Bool
+	unsupported unsupported
 	// logURLs keeps the signed URLs of the logs of jobs in progress.
 	logURLs logURLs
 }
@@ -159,6 +163,8 @@ func New(opts ...Option) (*Client, error) {
 		access:       acc,
 	}
 	c.token.Store(&o.token)
+	// An Enterprise Server's API is below /api/v3.
+	c.enterprise.Store(strings.HasSuffix(base.Path, "/api/v3/"))
 	b.gate.probe = c.rateLimits
 	return c, nil
 }

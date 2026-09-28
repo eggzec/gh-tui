@@ -165,6 +165,11 @@ var sayCases = []sayCase{
 		toast: "Couldn't merge #5: GitHub refused this.",
 	},
 	{
+		name: "unsupported", p: &core.Problem{Kind: core.Unsupported, Action: "open o/r", Reason: "Field 'x' doesn't exist on type 'Repository'"},
+		text: "This GitHub Enterprise version doesn't support this", hint: "o to open on GitHub",
+		toast: "Couldn't open o/r: this GitHub Enterprise version doesn't support this.",
+	},
+	{
 		name: "internal", p: &core.Problem{Kind: core.Internal, Action: "merge #5", Err: errors.New("graphql: decode: unexpected EOF")},
 		text: "Something went wrong. Details are in the log (" + testLog + ")", hint: "r to retry",
 		toast: "Couldn't merge #5: something went wrong, see " + testLog + ".",

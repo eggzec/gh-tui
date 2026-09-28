@@ -35,6 +35,9 @@ const (
 	// Rejected means GitHub refused an action for a reason it gave, such
 	// as a pull request that can't be merged.
 	Rejected
+	// Unsupported means the GitHub Enterprise Server is of a version that
+	// lacks what was asked.
+	Unsupported
 )
 
 func (k ProblemKind) String() string {
@@ -55,6 +58,8 @@ func (k ProblemKind) String() string {
 		return "not found"
 	case Rejected:
 		return "rejected"
+	case Unsupported:
+		return "unsupported"
 	default:
 		return "internal"
 	}
@@ -218,6 +223,8 @@ func kind(err error) ProblemKind {
 		return Rejected
 	case errors.Is(err, ErrUnavailable):
 		return Unavailable
+	case errors.Is(err, ErrUnsupported):
+		return Unsupported
 	default:
 		return Internal
 	}

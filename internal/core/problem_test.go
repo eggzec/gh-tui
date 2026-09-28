@@ -40,6 +40,7 @@ func TestExplain(t *testing.T) {
 		{name: "deadline", err: fmt.Errorf("list pulls: %w", context.DeadlineExceeded), kind: Canceled},
 		{name: "client timeout", err: fmt.Errorf("%w: %w", ErrOffline, &url.Error{Op: "Get", Err: fmt.Errorf("timeout: %w", context.DeadlineExceeded)}), kind: Offline},
 		{name: "offline", err: fmt.Errorf("viewer header: %w", fmt.Errorf("%w: %w", ErrOffline, dial)), kind: Offline},
+		{name: "unsupported", err: fmt.Errorf("get repo: %w", &apiError{"Field 'x' doesn't exist on type 'Repository'", ErrUnsupported}), kind: Unsupported, reason: "Field 'x' doesn't exist on type 'Repository'"},
 		{name: "unavailable", err: fmt.Errorf("a: %w", fmt.Errorf("b: %w", &apiError{"Bad Gateway", ErrUnavailable})), kind: Unavailable, reason: "Bad Gateway"},
 		{name: "unauthorized", err: fmt.Errorf("a: %w", &apiError{"Bad credentials", ErrUnauthorized}), kind: Auth, reason: "Bad credentials"},
 		{name: "rate limit", err: fmt.Errorf("a: %w", fmt.Errorf("b: %w", &apiError{"API rate limit exceeded", &RateLimitError{Reset: reset}})), kind: RateLimited, reason: "API rate limit exceeded", reset: reset},

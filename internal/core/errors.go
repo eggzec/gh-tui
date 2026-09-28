@@ -20,6 +20,9 @@ var (
 	ErrUnavailable = errors.New("unavailable")
 	// ErrTooLarge is matched by a *TooLargeError.
 	ErrTooLarge = errors.New("too large")
+	// ErrUnsupported is a GitHub Enterprise Server whose version lacks
+	// what was asked, such as a field of a query.
+	ErrUnsupported = errors.New("unsupported")
 )
 
 // RateLimitError reports when the rate limit resets. It matches
