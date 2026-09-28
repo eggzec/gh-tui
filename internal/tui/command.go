@@ -37,11 +37,32 @@ var commands = []command{
 	{name: "help", detail: "show every key", run: pressing(config.ActionHelp)},
 	{name: "q", detail: "quit", quits: true, run: func(*Model, string) tea.Cmd { return tea.Quit }},
 	{name: "refresh", detail: "read the focused view again", run: pressing(config.ActionRefresh)},
+	{name: "search", detail: "search GitHub, for what follows if anything", args: true, run: (*Model).searchCommand},
 }
 
 // pressing returns the run of a command that presses the key of action.
 func pressing(action string) func(m *Model, arg string) tea.Cmd {
 	return func(m *Model, _ string) tea.Cmd { return m.press(action) }
+}
+
+// Searcher is a search page that searches for a query, as if the user
+// typed it and pressed enter.
+type Searcher interface {
+	Search(query string) tea.Cmd
+}
+
+// searchCommand shows the search page, as the search key does, and
+// searches for query there, unless it is empty.
+func (m *Model) searchCommand(query string) tea.Cmd {
+	if m.srch == nil {
+		return m.toast.Push(toast.Error, "There is no search page.")
+	}
+	show := m.showSearch()
+	s, ok := m.srch.section.(Searcher)
+	if query == "" || !ok {
+		return show
+	}
+	return tea.Batch(show, s.Search(query))
 }
 
 // findCommand returns the command named name.

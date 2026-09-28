@@ -433,3 +433,18 @@ func TestRepoURLOnHost(t *testing.T) {
 		t.Errorf("hitURL = %q, want %q", got, want)
 	}
 }
+
+func TestSearch(t *testing.T) {
+	svc := newFake()
+	s := newSection(t, svc, 120, 30)
+	run(t, s, s.Search("  tea  "))
+	if s.Query() != "tea" || s.input.Value() != "  tea  " {
+		t.Errorf("results for %q with %q typed, want tea as typed", s.Query(), s.input.Value())
+	}
+	if s.Capturing() || !strings.Contains(screen(s), "charmbracelet/bubbletea") {
+		t.Errorf("the results should have the focus, as after enter:\n%s", screen(s))
+	}
+	if !slices.Contains(s.recent, "tea") {
+		t.Error("the search wasn't remembered, as enter remembers it")
+	}
+}
