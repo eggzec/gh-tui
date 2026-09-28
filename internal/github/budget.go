@@ -2,6 +2,7 @@ package github
 
 import (
 	"cmp"
+	"context"
 	"net/http"
 	"slices"
 	"strings"
@@ -112,6 +113,11 @@ type reservation struct {
 	// at is when the request was reserved, which is before it waited
 	// for a slot, so it may have gone out later.
 	at time.Time
+	// sent is set once the request has its slot and goes out, and
+	// recalled once a limit that came before then stopped it; cancel
+	// ends its attempt, to recall it. b.mu guards them.
+	sent, recalled bool
+	cancel         context.CancelCauseFunc
 }
 
 // quotaStatus is what the budget knows of one resource at a moment.
@@ -314,8 +320,9 @@ func (b *budget) report(resource string, rl RateLimit, seq uint64, at, now time.
 // is spent, as a 403 or a GraphQL RATE_LIMITED error says, and returns
 // when to send one again: the release of the resource rl names, or else
 // of resource. A query may be refused with quota left, when it costs more
-// than is left, and then too the resource is spent until its reset. It
-// returns false if the reset is too far away to be real.
+// than is left, and then too the resource is spent until its reset, and
+// the requests of it not sent yet are recalled. It returns false if the
+// reset is too far away to be real.
 func (b *budget) refused(resource string, rl RateLimit) (time.Time, bool) {
 	resource = cmp.Or(rl.Resource, resource)
 	now := b.now()
@@ -331,6 +338,7 @@ func (b *budget) refused(resource string, rl RateLimit) (time.Time, bool) {
 	}
 	if q.release.IsZero() {
 		q.release = b.release(q.reset, q.guard, now)
+		b.recall(now)
 	}
 	return q.release, !q.release.IsZero()
 }

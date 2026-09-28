@@ -132,11 +132,11 @@ func TestBudgetExternalNotCounted(t *testing.T) {
 	b := newBudget("api.github.com", "/", "/graphql")
 	ctx := withCall(t.Context(), &call{external: true})
 	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "https://storage.example.com/logs", http.NoBody)
-	if r, _, err := b.admit(req); r != nil || err != nil {
+	if r, _, err := b.admit(req, time.Time{}); r != nil || err != nil {
 		t.Errorf("admit = %+v, %v; want nothing for an external download", r, err)
 	}
 	req = httptest.NewRequest(http.MethodGet, "https://storage.example.com/repos/o/r", http.NoBody)
-	if r, _, err := b.admit(req); r != nil || err != nil {
+	if r, _, err := b.admit(req, time.Time{}); r != nil || err != nil {
 		t.Errorf("admit = %+v, %v; want nothing for a redirect to another host", r, err)
 	}
 }
@@ -430,7 +430,7 @@ func TestBudgetMutationCost(t *testing.T) {
 	b := newBudget("api.github.com", "/", "/graphql")
 	b.learnCost("Star", 9)
 	ctx := withCall(t.Context(), &call{op: "Star"})
-	r, _, err := b.admit(httptest.NewRequestWithContext(ctx, http.MethodPost, "https://api.github.com/graphql", http.NoBody))
+	r, _, err := b.admit(httptest.NewRequestWithContext(ctx, http.MethodPost, "https://api.github.com/graphql", http.NoBody), time.Time{})
 	if err != nil {
 		t.Fatal(err)
 	}
