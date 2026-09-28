@@ -64,6 +64,13 @@ func (s *Section) update(msg tea.Msg) (tea.Cmd, bool) {
 		}
 		s.readInboxCache()
 		return nil, true
+	case ui.AccessMsg:
+		// The inbox the token was refused, or failed to read, it may
+		// read now.
+		if s.inbox == nil || !s.started || s.notes.loading || s.notes.ok && s.notes.err == nil {
+			return nil, true
+		}
+		return s.readInbox(true), true
 	case ui.DoneMsg:
 		// Marking threads read changes the unread ones.
 		if msg.From != ui.NotificationsTitle {

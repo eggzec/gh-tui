@@ -69,7 +69,8 @@ func (s *Section) readContributions(again bool) tea.Cmd {
 }
 
 func (s *Section) readInbox(again bool) tea.Cmd {
-	if s.inbox == nil {
+	// The pane says why the token may not read the inbox instead.
+	if s.inbox == nil || s.voice.Token.Check(core.NeedNotifications) != nil {
 		return nil
 	}
 	s.notes.loading = true
