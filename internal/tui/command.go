@@ -79,6 +79,9 @@ func (m *Model) searchCommand(query string) tea.Cmd {
 	if m.srch == nil {
 		return m.toast.Push(toast.Error, "There is no search page.")
 	}
+	// It goes somewhere, so a goto still waiting mustn't take the user
+	// elsewhere after it, even when the search page is already on view.
+	m.cancelGoto()
 	show := m.showSearch()
 	s, ok := m.srch.section.(Searcher)
 	if query == "" || !ok {
