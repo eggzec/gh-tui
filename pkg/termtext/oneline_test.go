@@ -23,6 +23,7 @@ func TestOneLine(t *testing.T) {
 		{"unfinished at the end", "x\xe2\x80", "x\ufffd"},
 		{"bidi controls", "CI \u202efdp.exe\u2066x\u2069", "CI fdp.exex"},
 		{"other format characters", "a\u200bb\ufeffc", "abc"},
+		{"image placeholder", "a\x1b[38;5;1m\U0010EEEE\u0305\u0305b", "a\ufffd\u0305\u0305b"},
 		{"joiners stay", "👩\u200d💻", "👩\u200d💻"},
 	}
 	for _, tt := range tests {
@@ -40,6 +41,7 @@ func FuzzOneLine(f *testing.F) {
 	for _, s := range []string{
 		"plain", "a\x1b[2Jb", "a\x9b2Jb", "\xe2\x9b2Jb", "\xc3\xa9\xe2\x9d8;;https://e\x9cX",
 		"a\x80b", "a\xe2b", "x\xe2\x80", "\u202eexe\u2066", "\x1b]8;;https://evil.test\x1b\\x\x1b]8;;\x1b\\",
+		"\U0010EEEE\u0305\u0305",
 	} {
 		f.Add(s)
 	}
@@ -49,7 +51,7 @@ func FuzzOneLine(f *testing.F) {
 			t.Fatalf("OneLine(%q) = %q, which is invalid UTF-8", s, got)
 		}
 		for _, r := range got {
-			if isControl(r) || isHidden(r) {
+			if isControl(r) || isMapped(r) {
 				t.Fatalf("OneLine(%q) = %q, which holds %U", s, got, r)
 			}
 		}

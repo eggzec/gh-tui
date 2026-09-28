@@ -39,6 +39,7 @@ func TestLink(t *testing.T) {
 		{"ipv6", "https://[::1]:443/", "x", linkOpen + "https://[::1]:443/\x1b\\x" + linkClose},
 		{"too long", "https://x.test/" + strings.Repeat("a", MaxLink), "x", "x"},
 		{"text's own link", "https://x.test", linkOpen + "https://evil.test\x1b\\x" + linkClose, linkOpen + "https://x.test\x1b\\x" + linkClose},
+		{"text's image placeholder", "https://x.test", "a\U0010EEEE\u0305\u0305b", linkOpen + "https://x.test\x1b\\a\ufffd\u0305\u0305b" + linkClose},
 		{"text's controls", "https://x.test", "a\x1b[2J\x1b]0;t\ab\u202ec", linkOpen + "https://x.test\x1b\\abc" + linkClose},
 	}
 	for _, tt := range tests {

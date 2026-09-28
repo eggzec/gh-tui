@@ -67,7 +67,7 @@ func linkable(addr string) bool {
 }
 
 // plain returns s with only its printable characters and its style
-// sequences, ESC [ … m.
+// sequences, ESC [ … m. The kitty image [Placeholder] turns into U+FFFD.
 func plain(s string) string {
 	var b strings.Builder
 	b.Grow(len(s))
@@ -77,7 +77,10 @@ func plain(s string) string {
 		if n == 0 {
 			break
 		}
-		if width > 0 || strings.HasPrefix(seq, "\x1b[") && strings.HasSuffix(seq, "m") {
+		switch {
+		case width > 0:
+			b.WriteString(strings.ReplaceAll(seq, string(Placeholder), "\ufffd"))
+		case strings.HasPrefix(seq, "\x1b[") && strings.HasSuffix(seq, "m"):
 			b.WriteString(seq)
 		}
 		s, state = s[n:], next
