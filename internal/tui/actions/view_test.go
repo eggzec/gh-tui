@@ -123,11 +123,11 @@ func TestNarrowBreadcrumb(t *testing.T) {
 
 func TestNarrowShowsOnePane(t *testing.T) {
 	m, h := newModal(t, newFake(), narrowW, narrowH)
-	if s := screen(m); strings.Contains(s, "test (macos") || !strings.Contains(s, "CI #4812") {
+	if s := screen(m); strings.Contains(s, "macos-latest") || !strings.Contains(s, "CI #4812") {
 		t.Errorf("the narrow modal shows more than the runs:\n%s", s)
 	}
 	h.keys("enter")
-	if s := screen(m); !strings.Contains(s, "test (macos") || strings.Contains(s, "docs: add authors") {
+	if s := screen(m); !strings.Contains(s, "macos-latest") || strings.Contains(s, "docs: add authors") {
 		t.Errorf("the narrow jobs:\n%s", s)
 	}
 }

@@ -72,6 +72,7 @@ func (m *Modal) fromCache() tea.Cmd {
 		prev := m.jobs
 		m.jobs = newJobs(m.run)
 		m.jobs.items, m.jobs.cursor, m.jobs.loaded = prev.items, prev.cursor, prev.loaded
+		m.jobs.tree, m.jobs.lines, m.jobs.folds = prev.tree, prev.lines, prev.folds
 	}
 	m.follow()
 	var cmd tea.Cmd

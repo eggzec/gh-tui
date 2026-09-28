@@ -100,6 +100,9 @@ func (m *Modal) rerunJob() (change, string, tea.Cmd) {
 	if !ok || m.jobs.runID != r.ID {
 		return change{}, "Pick a job to re-run.", nil
 	}
+	if m.focus == jobsPane && m.jobs.onGroup() {
+		return change{}, "Pick a job of the group to re-run.", nil
+	}
 	if cmd, refused := m.gate().Refuse(ui.ActRerun, nil); refused {
 		return change{}, "", cmd
 	}

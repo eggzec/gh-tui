@@ -22,6 +22,8 @@ type styles struct {
 	// gutter is the rendered mark of the row under the cursor, in a focused
 	// or a blurred pane, and noGutter its blank.
 	gutter, blurGutter, noGutter string
+	// folded and unfolded mark a group of jobs, rendered.
+	folded, unfolded string
 
 	ui.RunStyles
 	// confirm styles the confirmation.
@@ -39,6 +41,8 @@ func newStyles(t ui.Theme, ic ui.Icons) styles {
 		gutter:     t.Accent.Render(cursorGlyph) + " ",
 		blurGutter: t.Subtle.Render(cursorGlyph) + " ",
 		noGutter:   "  ",
+		folded:     t.Muted.Render("▸") + " ",
+		unfolded:   t.Muted.Render("▾") + " ",
 		RunStyles:  ui.NewRunStyles(t, ic),
 		confirm:    t.Confirm(),
 	}

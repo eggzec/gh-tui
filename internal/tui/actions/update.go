@@ -218,7 +218,8 @@ func (m *Modal) setFocus(p pane) {
 	m.layout()
 }
 
-// drill focuses the pane after the focused one.
+// drill focuses the pane after the focused one, or folds the group of
+// jobs under the cursor, or opens it.
 func (m *Modal) drill() tea.Cmd {
 	switch m.focus {
 	case runsPane:
@@ -227,6 +228,11 @@ func (m *Modal) drill() tea.Cmd {
 		}
 		return m.focusPane(jobsPane)
 	case jobsPane:
+		if m.jobs.onGroup() {
+			m.jobs.toggle()
+			m.scrollJobs()
+			return nil
+		}
 		if _, ok := m.jobs.selected(); !ok {
 			return nil
 		}
@@ -269,8 +275,9 @@ func (m *Modal) refresh() tea.Cmd {
 }
 
 // open opens the run, or the job of the jobs and the log panes, on GitHub.
+// A group has no page, so the run opens from it.
 func (m *Modal) open() tea.Cmd {
-	if m.focus != runsPane {
+	if m.focus == logPane || m.focus == jobsPane && !m.jobs.onGroup() {
 		if j, ok := m.jobs.selected(); ok && j.URL != "" {
 			return ui.Open(j.URL)
 		}
