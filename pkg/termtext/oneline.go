@@ -33,7 +33,7 @@ func OneLine(s string) string {
 			switch {
 			case r == Placeholder:
 				return utf8.RuneError
-			case isHidden(r):
+			case Hidden(r):
 				return -1
 			}
 			return r
@@ -48,12 +48,13 @@ func isControl(r rune) bool {
 
 // isMapped reports whether OneLine drops or replaces r, which is no control.
 func isMapped(r rune) bool {
-	return r == Placeholder || isHidden(r)
+	return r == Placeholder || Hidden(r)
 }
 
-// isHidden reports whether r is an invisible format character that OneLine
+// Hidden reports whether r is an invisible format character, which text
+// from outside may hold to hide or reorder what it shows, and OneLine
 // drops: any of Unicode's category Cf, such as U+202E or U+2066, but the
-// zero-width joiner and non-joiner.
-func isHidden(r rune) bool {
+// zero-width joiner and non-joiner, which join emoji and scripts.
+func Hidden(r rune) bool {
 	return r >= 0xad && r != '\u200c' && r != '\u200d' && unicode.Is(unicode.Cf, r)
 }

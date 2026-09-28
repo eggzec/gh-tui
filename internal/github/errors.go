@@ -11,12 +11,9 @@ import (
 	"regexp"
 	"slices"
 	"strings"
-	"unicode"
-	"unicode/utf8"
-
-	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // Error is a failed API response. It unwraps to the core error that matches
@@ -278,17 +275,12 @@ func port(u *url.URL) string {
 	return ""
 }
 
-// oneLine puts s on one line without escape sequences or other control
-// characters, so that GitHub's text can neither break the layout nor
-// reach the terminal as a command.
+// oneLine puts s on one line without escape sequences, control characters
+// or the kitty image placeholder, and with single spaces, so that
+// GitHub's text can neither break the layout nor reach the terminal as a
+// command.
 func oneLine(s string) string {
-	s = strings.Map(func(r rune) rune {
-		if r == utf8.RuneError || unicode.IsControl(r) {
-			return ' '
-		}
-		return r
-	}, ansi.Strip(s))
-	return strings.Join(strings.Fields(s), " ")
+	return strings.Join(strings.Fields(termtext.OneLine(s)), " ")
 }
 
 // apiError is the body GitHub sends with an error status.

@@ -17,6 +17,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/pkg/termtext/termtexttest"
 )
 
 func TestUnreachable(t *testing.T) {
@@ -480,6 +481,8 @@ func TestReason(t *testing.T) {
 	if got := (&Error{StatusCode: 502}).Reason(); got != "" {
 		t.Errorf("Reason() without a message = %q, want empty", got)
 	}
+	hostile := &Error{StatusCode: 422, Message: termtexttest.Hostile}
+	termtexttest.AssertClean(t, hostile.Reason(), 400)
 	g := &GraphQLError{Errors: []GraphQLErrorItem{{Message: "one\r\ntwo"}, {Message: ""}, {Message: "three"}}}
 	if got, want := g.Reason(), "one two; three"; got != want {
 		t.Errorf("GraphQLError.Reason() = %q, want %q", got, want)

@@ -8,6 +8,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // View renders the lines in the window and the status line, in exactly
@@ -75,7 +77,9 @@ func (m *Model) errorWords() (text, hint string) {
 	}
 	msg := "unknown error"
 	if m.err != nil {
+		// The error may hold text from outside, such as a server's.
 		msg, _, _ = strings.Cut(m.err.Error(), "\n")
+		msg = termtext.OneLine(msg)
 	}
 	return "Couldn't load: " + msg, ""
 }
