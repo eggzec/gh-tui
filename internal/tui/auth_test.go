@@ -364,6 +364,27 @@ func TestAuthPromptNamesTheProgram(t *testing.T) {
 	}
 }
 
+// TestAuthPromptQuotes quotes the words of the prompt that a shell would
+// read otherwise, such as a path with a space, so that it reads as what
+// runs.
+func TestAuthPromptQuotes(t *testing.T) {
+	tests := []struct {
+		argv []string
+		want string
+	}{
+		{[]string{"/Applications/GitHub CLI/gh", "auth", "refresh", "-s", "repo"}, "'/Applications/GitHub CLI/gh' auth refresh -s repo"},
+		{[]string{"/opt/it's/gh", "auth", "login"}, `'/opt/it'\''s/gh' auth login`},
+		{[]string{"/usr/bin/gh", "auth", "refresh", "--hostname=ghe.example.com:8443", "-s", "read:org"}, "gh auth refresh --hostname=ghe.example.com:8443 -s read:org"},
+		{[]string{"/usr/bin/gh", "x", ""}, "gh x ''"},
+		{[]string{"/usr/bin/gh", "$HOME", "a;b", "*"}, "gh '$HOME' 'a;b' '*'"},
+	}
+	for _, tt := range tests {
+		if got := commandLine(tt.argv, "/usr/bin/gh"); got != tt.want {
+			t.Errorf("commandLine(%q) = %s, want %s", tt.argv, got, tt.want)
+		}
+	}
+}
+
 // fakeInbox serves the notifications of the program, and counts reads.
 type fakeInbox struct {
 	mu    sync.Mutex
