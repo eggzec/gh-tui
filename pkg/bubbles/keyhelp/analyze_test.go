@@ -49,6 +49,18 @@ func TestAnalyze(t *testing.T) {
 			},
 		},
 		{
+			name: "a binding listed again loses nothing to itself",
+			layers: []Layer{
+				{Source: "claimed", Bindings: []key.Binding{bind("next state", "]")}},
+				{Source: "list", Bindings: []key.Binding{bind("next state", "]"), bind("next pane", "tab", "]")}},
+			},
+			want: []want{
+				{desc: "next state", status: Active},
+				{desc: "next state", status: Active},
+				{desc: "next pane", status: Shadowed, lost: []loss{{key: "]", by: "next state", source: "claimed", status: Shadowed}}},
+			},
+		},
+		{
 			name: "a binding of a later layer is shadowed",
 			layers: []Layer{
 				{Source: "app", Bindings: []key.Binding{bind("back", "esc")}},
@@ -109,15 +121,12 @@ func TestAnalyze(t *testing.T) {
 			want: []want{{desc: "cancel", status: Disabled}, {desc: "close", status: Active}},
 		},
 		{
-			name: "every binding is listed, twins too",
+			name: "every binding is listed, twins too, and a twin loses nothing",
 			layers: []Layer{
 				{Source: "a", Bindings: []key.Binding{bind("down", "j")}},
 				{Source: "b", Bindings: []key.Binding{bind("down", "j")}},
 			},
-			want: []want{
-				{desc: "down", status: Active},
-				{desc: "down", status: Shadowed, lost: []loss{{key: "j", by: "down", source: "a", status: Shadowed}}},
-			},
+			want: []want{{desc: "down", status: Active}, {desc: "down", status: Active}},
 		},
 	}
 	for _, tt := range tests {
