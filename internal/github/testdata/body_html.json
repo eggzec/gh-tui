@@ -1,0 +1,19 @@
+{
+  "data": {
+    "rateLimit": {
+      "cost": 1,
+      "limit": 5000,
+      "remaining": 4990,
+      "used": 10,
+      "resetAt": "2026-09-28T12:29:23Z"
+    },
+    "nodes": [
+      {
+        "id": "IC_kwDOA1",
+        "bodyHTML": "<p><a target=\"_blank\" rel=\"noopener noreferrer\" href=\"https://private-user-images.githubusercontent.com/1/2-0f1e2d3c-aaaa-bbbb-cccc-0123456789ab.png?jwt=a.b.c\"><img src=\"https://private-user-images.githubusercontent.com/1/2-0f1e2d3c-aaaa-bbbb-cccc-0123456789ab.png?jwt=a.b.c\" alt=\"image\"></a></p>"
+      },
+      null,
+      {}
+    ]
+  }
+}
