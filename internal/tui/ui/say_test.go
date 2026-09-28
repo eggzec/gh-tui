@@ -188,6 +188,47 @@ func TestSay(t *testing.T) {
 	}
 }
 
+// TestSayFields checks that Say goes by the scope and the SSO that the
+// github package found, rather than by GitHub's reason.
+func TestSayFields(t *testing.T) {
+	tests := []struct {
+		name        string
+		p           *core.Problem
+		text, toast string
+	}{
+		{
+			name:  "the scope GitHub named",
+			p:     &core.Problem{Kind: core.Auth, Action: "merge #5", Reason: "refusing to allow an OAuth App to create or update workflow without `workflow` scope", Grant: "workflow"},
+			text:  "The token lacks the workflow scope. Run gh auth refresh -s workflow, then restart gh-tui.",
+			toast: "Couldn't merge #5: run gh auth refresh -s workflow, then restart gh-tui.",
+		},
+		{
+			name: "the scope over the reason",
+			p:    &core.Problem{Kind: core.Auth, Action: "list the members", Reason: `This API operation needs the "admin:org" scope.`, Grant: "read:org"},
+			text: "The token lacks the read:org scope. Run gh auth refresh -s read:org, then restart gh-tui.",
+		},
+		{
+			name:  "the SSO GitHub named",
+			p:     &core.Problem{Kind: core.Forbidden, Action: "sync", Subject: "eggzec/x", Reason: "Resource protected", SSO: true},
+			text:  "eggzec requires SSO. Run gh auth refresh, then restart gh-tui.",
+			toast: "Couldn't sync: eggzec requires SSO. Run gh auth refresh, then restart gh-tui.",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if text, _ := Say(tt.p, testVoice()); text != tt.text {
+				t.Errorf("Say = %q, want %q", text, tt.text)
+			}
+			if tt.toast == "" {
+				return
+			}
+			if got := SayToast(tt.p, testVoice(), within(80)); got != tt.toast {
+				t.Errorf("SayToast = %q, want %q", got, tt.toast)
+			}
+		})
+	}
+}
+
 // TestSayNeverLeaks explains errors as the github package makes them and
 // checks that nothing of the chain but GitHub's reason shows.
 func TestSayNeverLeaks(t *testing.T) {
