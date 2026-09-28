@@ -13,6 +13,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
@@ -75,7 +76,8 @@ func WithPrefetch(rows int, delay time.Duration) Option {
 }
 
 // WithMarkRead sets whether opening a thread marks it read, which
-// [Opener.MarksRead] tells the sections. The default is true.
+// [Opener.MarksRead] tells the sections. Without it, it does as the
+// config's default says.
 func WithMarkRead(on bool) Option {
 	return func(o *Opener) { o.markRead = on }
 }
@@ -106,7 +108,7 @@ type Opener struct {
 
 // New returns an Opener whose reads ahead ctx bounds.
 func New(ctx context.Context, opts ...Option) *Opener {
-	o := &Opener{ctx: ctx, markRead: true}
+	o := &Opener{ctx: ctx, markRead: config.Default().Notifications.MarkReadOnOpen}
 	for _, opt := range opts {
 		opt(o)
 	}

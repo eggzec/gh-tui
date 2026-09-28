@@ -319,6 +319,10 @@ reacts to messages. Concretely:
 - The config file is `$GH_TUI_CONFIG`, or `gh-tui/config.yaml` in
   `os.UserConfigDir()` (`$XDG_CONFIG_HOME` on Linux). It is validated on load
   and every field has a sensible default.
+- The default of every setting is in `internal/config/default.yaml`,
+  embedded and commented, and only there. The user's file merges over it:
+  mappings key by key, while lists and scalars replace, and an empty value
+  is refused. A new setting goes into default.yaml (`TestDefaultsComplete`).
 - Keybindings map action names to keys and are applied through each bubble's
   `SetKeyMap`. Action names are registered in `internal/config/keys.go`;
   unknown names are rejected so typos don't pass silently.

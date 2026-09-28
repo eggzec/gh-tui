@@ -20,10 +20,6 @@ const (
 	IconsASCII   = "ascii"
 )
 
-func defaultUI() UI {
-	return UI{Icons: IconsNerd}
-}
-
 func (u UI) validate() error {
 	if !slices.Contains([]string{IconsNerd, IconsUnicode, IconsASCII}, u.Icons) {
 		return fmt.Errorf("ui.icons: must be %s, %s or %s, got %q", IconsNerd, IconsUnicode, IconsASCII, u.Icons)

@@ -175,14 +175,7 @@ func readError(err error) error {
 // numbers and lists.
 func (c Config) Values(key string) []string {
 	if key == "theme" {
-		names := slices.Collect(maps.Keys(builtinThemes))
-		for name := range c.Themes {
-			if !slices.Contains(names, name) {
-				names = append(names, name)
-			}
-		}
-		slices.Sort(names)
-		return names
+		return slices.Sorted(maps.Keys(c.Themes))
 	}
 	if vs, ok := choices[key]; ok {
 		return slices.Clone(vs)

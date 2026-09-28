@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -19,9 +20,76 @@ func TestDefaultIsValid(t *testing.T) {
 
 func TestDefaultReturnsFreshMaps(t *testing.T) {
 	a := Default()
-	a.Keys[ActionQuit] = []string{"x"}
-	if got := Default().Keys[ActionQuit]; slices.Contains(got, "x") {
-		t.Errorf("Default() shares its keymap between calls: quit = %v", got)
+	a.Keys[ActionQuit][0] = "x"
+	a.Keys[ActionHelp] = []string{"x"}
+	a.History.Row[0] = "x"
+	if b := Default(); b.Keys[ActionQuit][0] == "x" || b.Keys[ActionHelp][0] == "x" || b.History.Row[0] == "x" {
+		t.Errorf("Default() shares its keymap or lists between calls: quit = %v, help = %v, row = %v", b.Keys[ActionQuit], b.Keys[ActionHelp], b.History.Row)
+	}
+	// Every map and list, however deep, a new one included.
+	if shared := sharedRefs(reflect.ValueOf(Default()), reflect.ValueOf(Default()), ""); len(shared) > 0 {
+		t.Errorf("Default() shares these between calls: %v", shared)
+	}
+}
+
+// sharedRefs returns the paths of the maps, non-empty slices and
+// pointers that a and b, two values of one type, share.
+func sharedRefs(a, b reflect.Value, path string) []string {
+	var out []string
+	switch a.Kind() {
+	case reflect.Struct:
+		for i := range a.NumField() {
+			out = append(out, sharedRefs(a.Field(i), b.Field(i), path+"."+a.Type().Field(i).Name)...)
+		}
+	case reflect.Map:
+		if !a.IsNil() && a.UnsafePointer() == b.UnsafePointer() {
+			out = append(out, path)
+		}
+		for _, k := range a.MapKeys() {
+			out = append(out, sharedRefs(a.MapIndex(k), b.MapIndex(k), fmt.Sprintf("%s[%v]", path, k))...)
+		}
+	case reflect.Pointer:
+		if !a.IsNil() && a.UnsafePointer() == b.UnsafePointer() {
+			out = append(out, path)
+		}
+		if !a.IsNil() && !b.IsNil() {
+			out = append(out, sharedRefs(a.Elem(), b.Elem(), path)...)
+		}
+	case reflect.Interface:
+		if !a.IsNil() && !b.IsNil() {
+			out = append(out, sharedRefs(a.Elem(), b.Elem(), path)...)
+		}
+	case reflect.Slice:
+		if a.Len() > 0 && a.UnsafePointer() == b.UnsafePointer() {
+			out = append(out, path)
+		}
+		for i := range a.Len() {
+			out = append(out, sharedRefs(a.Index(i), b.Index(i), fmt.Sprintf("%s[%d]", path, i))...)
+		}
+	default:
+	}
+	return out
+}
+
+// TestSharedRefs checks that sharedRefs finds what two values share
+// through a pointer or an interface too, such as the optional settings
+// that fall back to others.
+func TestSharedRefs(t *testing.T) {
+	type inner struct{ list []int }
+	type outer struct {
+		p *inner
+		i any
+	}
+	shared, own := &inner{list: []int{1}}, &inner{list: []int{1}}
+	list := []int{1}
+	a := outer{p: shared, i: inner{list: list}}
+	b := outer{p: shared, i: inner{list: list}}
+	if got := sharedRefs(reflect.ValueOf(a), reflect.ValueOf(b), ""); len(got) != 3 {
+		t.Errorf("sharedRefs = %v, want .p, .p.list and .i.list", got)
+	}
+	c := outer{p: own, i: inner{list: []int{1}}}
+	if got := sharedRefs(reflect.ValueOf(a), reflect.ValueOf(c), ""); len(got) != 0 {
+		t.Errorf("sharedRefs of copies = %v, want none", got)
 	}
 }
 
@@ -146,7 +214,7 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 	cfg := Default()
 	cfg.Repos = []string{"eggzec/gh-tui", "nope", "a/b/c"}
 	cfg.Theme = "missing"
-	cfg.Themes["bad"] = Theme{Light: builtinThemes[DefaultTheme].Light}
+	cfg.Themes["bad"] = Theme{Light: cfg.Themes["default"].Light}
 	cfg.Keys[ActionHelp] = nil
 	cfg.Keys[ActionSearch] = []string{""}
 	cfg.Keys["jump"] = []string{"j"}

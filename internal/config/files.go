@@ -45,14 +45,6 @@ type Finder struct {
 // maxBlob is the largest file GitHub serves through the API.
 const maxBlob = 100 * MiB
 
-func defaultFiles() Files {
-	return Files{
-		Prefetch: Prefetch{Enabled: true, MaxSize: 64 * KiB, HoverDelay: 150 * time.Millisecond},
-		Preview:  Preview{MaxSize: MiB},
-		Finder:   Finder{Preview: true},
-	}
-}
-
 func (f Files) validate() error {
 	var errs []error
 	if f.Preview.MaxSize <= 0 || f.Preview.MaxSize > maxBlob {

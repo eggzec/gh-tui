@@ -32,7 +32,7 @@ type options struct {
 }
 
 func defaultOptions() options {
-	return options{cfg: config.Default().History, offline: new(ui.Offline), now: time.Now, loc: time.Local, icons: ui.NewIcons(config.IconsNerd)}
+	return options{cfg: config.Default().History, offline: new(ui.Offline), now: time.Now, loc: time.Local, icons: ui.NewIcons(config.Default().UI.Icons)}
 }
 
 // WithConfig sets what the rows and the commit pane show, how dates read,
@@ -73,7 +73,7 @@ func WithEditor(cmd string) Option {
 }
 
 // WithIcons sets the icons whose error glyph marks what failed to load.
-// The default is the Nerd Font set.
+// Without it, the icons are the config's default.
 func WithIcons(ic ui.Icons) Option {
 	return func(o *options) { o.icons = ic }
 }

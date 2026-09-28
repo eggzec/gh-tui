@@ -38,8 +38,8 @@ func WithFilterPrefetch() Option {
 	return func(s *Section) { s.prefetchFilters = true }
 }
 
-// WithIcons sets the glyphs of the states of issues. The default is the
-// Nerd Font set.
+// WithIcons sets the glyphs of the states of issues. Without it, the icons
+// are the config's default.
 func WithIcons(icons ui.Icons) Option {
 	return func(s *Section) { s.icons = icons }
 }

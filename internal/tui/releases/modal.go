@@ -59,7 +59,7 @@ func WithVoice(v ui.Voice) Option {
 }
 
 // WithIcons sets the icons whose error glyph marks what failed to load.
-// The default is the Nerd Font set.
+// Without it, the icons are the config's default.
 func WithIcons(ic ui.Icons) Option {
 	return func(o *options) { o.icons = ic }
 }
@@ -126,7 +126,7 @@ var lastID atomic.Int64
 // key shows until the release is loaded. ctx bounds its reads until it
 // closes. Call Init once it is open. A cached release shows at once.
 func New(ctx context.Context, svc Service, repo core.RepoRef, id int64, url string, keys map[string][]string, opts ...Option) *Modal {
-	o := options{now: time.Now, loc: time.Local, icons: ui.NewIcons(config.IconsNerd)}
+	o := options{now: time.Now, loc: time.Local, icons: ui.NewIcons(config.Default().UI.Icons)}
 	for _, opt := range opts {
 		opt(&o)
 	}

@@ -56,8 +56,8 @@ const (
 )
 
 // NewIcons returns the icon set named set, one of config.IconsNerd,
-// config.IconsUnicode and config.IconsASCII. An unknown name gets the Nerd
-// Font set, the default.
+// config.IconsUnicode and config.IconsASCII. An unknown name, which a
+// validated config never has, gets the Nerd Font set.
 func NewIcons(set string) Icons {
 	ic := newIcons(set)
 	ic.runs = runGlyphs(set)

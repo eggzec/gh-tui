@@ -8,7 +8,3 @@ type Auth struct {
 	// ever refuses what the token may do.
 	Check bool `yaml:"check"`
 }
-
-func defaultAuth() Auth {
-	return Auth{Check: true}
-}

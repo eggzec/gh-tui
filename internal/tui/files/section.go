@@ -96,16 +96,15 @@ type Section struct {
 // keys from the configured keys. ctx bounds its requests.
 func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Option) *Section {
 	s := &Section{
-		ctx:     ctx,
-		svc:     svc,
-		keys:    newKeyMap(keys),
-		styles:  tree.DefaultStyles(true),
-		icons:   ui.NewIcons(config.IconsNerd),
-		offline: new(ui.Offline),
-		voice:   ui.NewVoice(keys, ""),
-		seen:    obs.NewPrefetched[filesvc.BlobQuery]("file"),
-		// The finder shows a preview where it fits, unless told not to.
-		findPreview: true,
+		ctx:         ctx,
+		svc:         svc,
+		keys:        newKeyMap(keys),
+		styles:      tree.DefaultStyles(true),
+		icons:       ui.NewIcons(config.Default().UI.Icons),
+		offline:     new(ui.Offline),
+		voice:       ui.NewVoice(keys, ""),
+		seen:        obs.NewPrefetched[filesvc.BlobQuery]("file"),
+		findPreview: config.Default().Files.Finder.Preview,
 		recent:      map[string][]string{},
 	}
 	for _, opt := range opts {

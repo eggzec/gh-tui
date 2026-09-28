@@ -133,13 +133,15 @@ func WithGlyph(glyph string) Option {
 }
 
 // WithContributions shows the contributions of the last days days, or of
-// the year GitHub reports for 0. The default is 90.
+// the year GitHub reports for 0. Without it, the calendar covers the
+// config's default range.
 func WithContributions(days int) Option {
 	return func(s *Section) { s.calDays = max(days, 0) }
 }
 
 // WithIcons sets the glyphs that mark repositories, languages and the
-// states of issues and pull requests. The default is the Nerd Font set.
+// states of issues and pull requests. Without it, the icons are the
+// config's default.
 func WithIcons(icons ui.Icons) Option {
 	return func(s *Section) { s.icons = icons }
 }
@@ -248,6 +250,7 @@ var (
 // New returns the dashboard, which reads through svc and binds the actions
 // in keys. ctx bounds every request it makes.
 func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Option) *Section {
+	def := config.Default()
 	s := &Section{
 		id:      lastID.Add(1),
 		ctx:     ctx,
@@ -256,9 +259,9 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		now:     time.Now,
 		offline: new(ui.Offline),
 		voice:   ui.NewVoice(keys, ""),
-		glyph:   config.DefaultCalendarGlyph,
-		icons:   ui.NewIcons(config.IconsNerd),
-		calDays: 90,
+		glyph:   def.Dashboard.CalendarGlyph,
+		icons:   ui.NewIcons(def.UI.Icons),
+		calDays: def.Dashboard.ContributionDays(),
 		// Finding a repository is what the dashboard is most often for.
 		focus: reposPane,
 	}

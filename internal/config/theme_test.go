@@ -1,9 +1,12 @@
 package config
 
-import "testing"
+import (
+	"maps"
+	"testing"
+)
 
 func TestPalette(t *testing.T) {
-	builtin := builtinThemes[DefaultTheme]
+	builtin := Default().Themes["default"]
 	mine := Theme{
 		Light: Palette{Accent: "#111111"},
 		Dark:  Palette{Accent: "#eeeeee"},
@@ -16,15 +19,17 @@ func TestPalette(t *testing.T) {
 		want    Palette
 		wantErr bool
 	}{
-		{name: "builtin light", theme: DefaultTheme, want: builtin.Light},
-		{name: "builtin dark", theme: DefaultTheme, dark: true, want: builtin.Dark},
+		{name: "default light", theme: "default", want: builtin.Light},
+		{name: "default dark", theme: "default", dark: true, want: builtin.Dark},
 		{name: "user theme", theme: "mine", themes: map[string]Theme{"mine": mine}, dark: true, want: mine.Dark},
-		{name: "user shadows builtin", theme: DefaultTheme, themes: map[string]Theme{DefaultTheme: mine}, want: mine.Light},
+		{name: "user replaces default", theme: "default", themes: map[string]Theme{"default": mine}, want: mine.Light},
 		{name: "unknown", theme: "nope", wantErr: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg := Config{Theme: tt.theme, Themes: tt.themes}
+			cfg := Default()
+			cfg.Theme = tt.theme
+			maps.Copy(cfg.Themes, tt.themes)
 			got, err := cfg.Palette(tt.dark)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Palette(%v) error = %v, wantErr %v", tt.dark, err, tt.wantErr)
