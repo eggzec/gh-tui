@@ -290,13 +290,21 @@ func (b *budget) observe(r *reservation, status int, h http.Header) (guard time.
 }
 
 // report counts rl in the quota of resource, as the answer to a request
-// reserved as seq at at reported it. Answers may arrive in another order
-// than their requests were sent, so within a window the lowest remaining
-// wins, and one of an earlier window is ignored, as is a reset too far
-// away to be real, unless the window kept is one such. A new window starts
-// with the shortest guard; a request reserved after the release that
-// still finds the old window spent doubles it, which report returns.
-// b.mu must be held.
+// reserved as seq at at reported it. It is the one place that what GitHub
+// says of a quota is taken in, and answers may arrive in another order
+// than their requests were sent, so the reset never moves back and, within
+// a window, remaining never goes up: one of an earlier window is ignored,
+// as is a reset too far away to be real, unless the window kept is one
+// such, and within a window the lowest remaining wins. A later reset
+// starts a new window, whatever is left in it. So does a higher limit in
+// the same window, as when GitHub raises the account's; a lower one is
+// the limit before the raise, from a request GitHub counted before it, so
+// it is ignored, and the window never goes back to it. A lower limit that
+// GitHub set for real takes effect at the next reset, and meanwhile a
+// refusal still holds the resource (refused). A new window starts with the
+// shortest guard; a request reserved after the release that still finds
+// the old window spent doubles it, which report returns. b.mu must be
+// held.
 func (b *budget) report(resource string, rl RateLimit, seq uint64, at, now time.Time) (guard time.Duration) {
 	far := b.far(rl.Reset, now)
 	q := b.quotas[resource]
@@ -305,6 +313,15 @@ func (b *budget) report(resource string, rl RateLimit, seq uint64, at, now time.
 		q = &quota{reset: rl.Reset, guard: minGuard}
 		b.quotas[resource] = q
 	case !rl.Reset.Equal(q.reset):
+		return 0
+	case rl.Limit > q.limit:
+		// GitHub raised the limit, which starts the window over, with
+		// the shortest guard and nothing spent.
+		*q = quota{reset: q.reset, guard: minGuard}
+	case rl.Limit < q.limit:
+		// The limit before a raise, from a request GitHub counted
+		// before it, whatever order they were reserved in.
+		q.seenAt = now
 		return 0
 	case rl.Remaining > q.remaining || rl.Remaining == q.remaining && seq < q.asOf:
 		// An answer that GitHub counted before the one that set remaining.

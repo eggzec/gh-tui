@@ -762,3 +762,149 @@ func TestBudgetContact(t *testing.T) {
 		check("after a cancellation", refused, failed)
 	})
 }
+
+// TestBudgetReportMonotonic pins the one merge of what GitHub says of a
+// quota, whatever order the answers come in: the reset never moves back,
+// within a window remaining never goes up, a later reset starts a window
+// with what it says is left, and a higher limit in the same window starts
+// one too, which a lower one, the limit before, never undoes.
+func TestBudgetReportMonotonic(t *testing.T) {
+	now := time.Now()
+	reset := time.Unix(now.Add(10*time.Minute).Unix(), 0)
+	later := reset.Add(30 * time.Minute)
+	b := newBudget("api.github.com", "/", "/graphql")
+	b.now = func() time.Time { return now }
+	type want struct {
+		limit, remaining int
+		reset            time.Time
+	}
+	steps := []struct {
+		name string
+		rl   RateLimit
+		seq  uint64
+		want want
+	}{
+		{"first", RateLimit{Limit: 5000, Remaining: 100, Reset: reset}, 5, want{5000, 100, reset}},
+		{"lower, later", RateLimit{Limit: 5000, Remaining: 90, Reset: reset}, 7, want{5000, 90, reset}},
+		{"higher, earlier request", RateLimit{Limit: 5000, Remaining: 95, Reset: reset}, 6, want{5000, 90, reset}},
+		{"higher, later request", RateLimit{Limit: 5000, Remaining: 99, Reset: reset}, 9, want{5000, 90, reset}},
+		{"earlier reset", RateLimit{Limit: 5000, Remaining: 4000, Reset: reset.Add(-time.Hour)}, 10, want{5000, 90, reset}},
+		{"new window", RateLimit{Limit: 5000, Remaining: 4999, Reset: later}, 11, want{5000, 4999, later}},
+		{"the old window, late", RateLimit{Limit: 5000, Remaining: 80, Reset: reset}, 8, want{5000, 4999, later}},
+		{"a raised limit", RateLimit{Limit: 15000, Remaining: 14990, Reset: later}, 12, want{15000, 14990, later}},
+		{"the old limit, late", RateLimit{Limit: 5000, Remaining: 4990, Reset: later}, 11, want{15000, 14990, later}},
+		{"the old limit, reserved later", RateLimit{Limit: 5000, Remaining: 4980, Reset: later}, 20, want{15000, 14990, later}},
+		{"lower, the new limit", RateLimit{Limit: 15000, Remaining: 14980, Reset: later}, 13, want{15000, 14980, later}},
+	}
+	for _, s := range steps {
+		b.report(resourceCore, s.rl, s.seq, now, now)
+		q := b.quotas[resourceCore]
+		if got := (want{q.limit, q.remaining, q.reset}); got.limit != s.want.limit || got.remaining != s.want.remaining || !got.reset.Equal(s.want.reset) {
+			t.Errorf("%s: limit, remaining, reset = %v, want %v", s.name, got, s.want)
+		}
+	}
+}
+
+// TestBudgetRaisedLimit checks that a raised limit starts the window over,
+// with nothing spent and the shortest guard, and that answers with the
+// limit before, whenever they come and whatever order their requests were
+// reserved in, never make the status show more left within the window.
+func TestBudgetRaisedLimit(t *testing.T) {
+	now := time.Now()
+	reset := time.Unix(now.Add(10*time.Minute).Unix(), 0)
+	b := newBudget("api.github.com", "/", "/graphql")
+	b.now = func() time.Time { return now }
+	b.report(resourceCore, RateLimit{Limit: 5000, Remaining: 0, Reset: reset}, 1, now, now)
+	q := b.quotas[resourceCore]
+	q.guard = 4 * time.Second
+	if q.release.IsZero() {
+		t.Fatal("no release once spent")
+	}
+
+	b.report(resourceCore, RateLimit{Limit: 15000, Remaining: 9999, Reset: reset}, 2, now, now)
+	q = b.quotas[resourceCore]
+	if !q.release.IsZero() || q.guard != minGuard {
+		t.Errorf("after a raise: release %v, guard %v; want none and %v", q.release, q.guard, minGuard)
+	}
+
+	shown := func() int { return b.snapshot().Quotas[0].Remaining }
+	last := shown()
+	seq := uint64(2)
+	for i := range 20 {
+		seq++
+		limit, left := 15000, 9999-i
+		if i%2 == 0 {
+			// An answer with the limit before, reserved before or after.
+			limit, left = 5000, 4990+i
+			if i%4 == 0 {
+				seq -= 2
+			}
+		}
+		b.report(resourceCore, RateLimit{Limit: limit, Remaining: left, Reset: reset}, seq, now, now)
+		if got := shown(); got > last {
+			t.Errorf("answer %d (limit %d, %d left): shown went up from %d to %d", i, limit, left, last, got)
+		} else {
+			last = got
+		}
+		if got := b.quotas[resourceCore].limit; got != 15000 {
+			t.Errorf("answer %d: limit %d, want 15000", i, got)
+		}
+	}
+}
+
+// TestBudgetSettleNeverRaises checks that what a request gives back when
+// it settles without GitHub counting it, a 304, a failure, or a query that
+// cost less than it was counted for, never leaves more than GitHub said.
+func TestBudgetSettleNeverRaises(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		reset := time.Now().Add(time.Hour)
+		a := answers{"x": make(chan answer, 1), "graphql": make(chan answer, 1)}
+		c := newAnswered(t, a)
+		a["x"] <- answer{header: quotaHeader(resourceCore, 5000, 100, reset)}
+		if _, err := c.Get(t.Context(), "x", Conditional{}, nil); err != nil {
+			t.Fatal(err)
+		}
+		check := func(step string) {
+			t.Helper()
+			st, _ := c.budget.status(resourceCore)
+			if st.est > st.reported.Remaining || st.reported.Remaining != 100 {
+				t.Errorf("%s: est %d, remaining %d; want at most 100, and 100", step, st.est, st.reported.Remaining)
+			}
+		}
+		done := getAsync(c, "x")
+		check("in flight")
+		a["x"] <- answer{status: http.StatusNotModified, header: quotaHeader(resourceCore, 5000, 100, reset)}
+		<-done
+		check("after a 304")
+
+		ctx, cancel := context.WithCancel(t.Context())
+		failed := make(chan error, 1)
+		go func() {
+			_, err := c.Get(ctx, "x", Conditional{}, nil)
+			failed <- err
+		}()
+		synctest.Wait()
+		cancel()
+		<-failed
+		check("after a request that got no answer")
+
+		// A query counted for what it cost last time, 7, that costs 1.
+		a["graphql"] <- answer{header: quotaHeader(resourceGraphQL, 5000, 50, reset), body: `{"data": {"rateLimit": {"cost": 7}}}`}
+		if err := c.Query(t.Context(), "query Q { rateLimit { cost } }", nil, nil); err != nil {
+			t.Fatal(err)
+		}
+		query := make(chan error, 1)
+		go func() { query <- c.Query(t.Context(), "query Q { rateLimit { cost } }", nil, nil) }()
+		synctest.Wait()
+		if st, _ := c.budget.status(resourceGraphQL); st.est != 43 {
+			t.Errorf("query in flight: est %d, want 43", st.est)
+		}
+		a["graphql"] <- answer{header: quotaHeader(resourceGraphQL, 5000, 49, reset), body: `{"data": {"rateLimit": {"cost": 1}}}`}
+		if err := <-query; err != nil {
+			t.Fatal(err)
+		}
+		if st, _ := c.budget.status(resourceGraphQL); st.est != 49 || st.reported.Remaining != 49 {
+			t.Errorf("after the query: est %d, remaining %d; want 49, what GitHub said", st.est, st.reported.Remaining)
+		}
+	})
+}
