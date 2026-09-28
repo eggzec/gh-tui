@@ -41,6 +41,13 @@ func defaultDashboard() Dashboard {
 	return Dashboard{CalendarGlyph: DefaultCalendarGlyph, Contributions: Contributions90d, Prefetch: true}
 }
 
+// DashboardPrefetch reports whether the dashboard reads the work waiting
+// on the viewer ahead: it has its own switch, and reads details ahead as
+// the lists do, so it needs theirs too.
+func (c Config) DashboardPrefetch() bool {
+	return c.Dashboard.Prefetch && c.Details.Prefetch.Enabled
+}
+
 // ContributionDays is the number of recent days the calendar shows, or 0
 // for the year that GitHub reports.
 func (d Dashboard) ContributionDays() int {

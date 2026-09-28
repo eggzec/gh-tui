@@ -47,6 +47,9 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		return s.reload()
+	case ui.SettingsMsg:
+		s.configure(msg.Config)
+		return nil
 	case ui.DoneMsg:
 		// A failed change was rolled back in the cache; a successful one
 		// was applied again.

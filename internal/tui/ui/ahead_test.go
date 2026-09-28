@@ -675,3 +675,17 @@ func TestAheadPausedReadSkipsWhatGotCached(t *testing.T) {
 		}
 	})
 }
+
+func TestAheadSet(t *testing.T) {
+	a := NewAhead("pull", func(context.Context, int) error { return nil }, func(int) bool { return false }, 3, time.Second)
+	a.Set(5, 2*time.Second)
+	if a.rows != 5 || a.delay != 2*time.Second {
+		t.Errorf("rows %d, delay %v, want 5 and 2s", a.rows, a.delay)
+	}
+	a.Set(-1, -time.Second)
+	if a.rows != 0 || a.delay != 0 {
+		t.Errorf("rows %d, delay %v, want none", a.rows, a.delay)
+	}
+	var none *Ahead[int]
+	none.Set(1, time.Second)
+}

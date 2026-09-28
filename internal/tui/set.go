@@ -21,7 +21,11 @@ func WithSettings(apply func(config.Config)) Option {
 
 // liveSettings are the settings that the set command changes while the
 // app runs. Whatever reads the others reads them once, at startup.
-var liveSettings = []string{"theme", "ui.icons"}
+var liveSettings = []string{
+	"theme", "ui.icons",
+	"details.prefetch.enabled", "details.prefetch.rows", "details.prefetch.hover_delay", "details.prefetch.filters",
+	"dashboard.prefetch", "files.prefetch.enabled", "files.prefetch.max_size", "files.prefetch.hover_delay",
+}
 
 // startup says why a setting that isn't live needs a restart, by the
 // start of its key; the first that matches says.

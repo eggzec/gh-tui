@@ -14,11 +14,12 @@ import (
 // ahead.
 const aheadRows = 3
 
-// prefetch is how the work is read ahead.
+// prefetch is how the work is read ahead, and whether it is.
 type prefetch struct {
 	pulls  details.Pulls
 	issues details.Issues
 	delay  time.Duration
+	on     bool
 }
 
 // WithPrefetch reads the pull requests and issues of the work pane ahead
@@ -28,7 +29,19 @@ type prefetch struct {
 // detail and the first comments; what is cached is skipped. The default
 // reads nothing ahead.
 func WithPrefetch(pulls details.Pulls, issues details.Issues, delay time.Duration) Option {
-	return func(s *Section) { s.prefetch = &prefetch{pulls: pulls, issues: issues, delay: delay} }
+	return func(s *Section) { s.prefetch = &prefetch{pulls: pulls, issues: issues, delay: delay, on: true} }
+}
+
+// WithDetails gives the work pane pulls and issues to read its pull
+// requests and issues ahead through, without reading them ahead, so that
+// the settings may turn that on while the app runs. WithPrefetch gives
+// them too, and wins.
+func WithDetails(pulls details.Pulls, issues details.Issues) Option {
+	return func(s *Section) {
+		if s.prefetch == nil {
+			s.prefetch = &prefetch{pulls: pulls, issues: issues}
+		}
+	}
 }
 
 // workAt returns the key of row i of the work on view.

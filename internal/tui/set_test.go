@@ -56,6 +56,8 @@ func TestSetCommand(t *testing.T) {
 		{line: "set theme=mine", toast: "theme is mine for this session.", changes: true},
 		{line: "set  theme = mine ", toast: "theme is mine for this session.", changes: true},
 		{line: "set ui.icons=ascii", toast: "ui.icons is ascii for this session.", changes: true},
+		{line: "set details.prefetch.enabled=false", toast: "details.prefetch.enabled is false for this session.", changes: true},
+		{line: "set files.prefetch.max_size=2MiB", toast: "Can't set files.prefetch.max_size: must not exceed files.preview.max_size (1MiB), got 2MiB."},
 	}
 	for _, tt := range tests {
 		t.Run(tt.line, func(t *testing.T) {

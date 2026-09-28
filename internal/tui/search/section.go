@@ -217,7 +217,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 	for _, opt := range opts {
 		opt(s)
 	}
-	if p := s.prefetch; p != nil {
+	if p := s.prefetch; p != nil && p.on {
 		s.ahead = details.NewAhead("search_hit", p.pulls, p.issues, 0, p.delay)
 		s.ahead.Reset(ctx)
 	}
