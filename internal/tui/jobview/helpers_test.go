@@ -56,6 +56,8 @@ func running() core.Job {
 		Steps: []core.Step{
 			{Number: 1, Name: "Set up job", Status: core.RunCompleted, Conclusion: core.ConclusionSuccess, StartedAt: at(80 * time.Second), CompletedAt: at(78 * time.Second)},
 			{Number: 2, Name: "Run golangci-lint", Status: core.RunInProgress, StartedAt: at(78 * time.Second)},
+			// GitHub lists the steps that haven't started as pending.
+			{Number: 3, Name: "Complete job", Status: core.RunPending},
 		},
 	}
 }

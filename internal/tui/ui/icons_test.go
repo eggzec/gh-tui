@@ -147,8 +147,9 @@ func TestRunStateOf(t *testing.T) {
 		want   RunState
 	}{
 		{core.RunQueued, "", RunQueued},
-		{core.RunWaiting, "", RunQueued},
-		{core.RunPending, "", RunQueued},
+		{core.RunWaiting, "", RunWaiting},
+		{core.RunPending, "", RunWaiting},
+		{core.RunRequested, "", RunWaiting},
 		{core.RunInProgress, "", RunInProgress},
 		{core.RunCancelling, "", RunCancelled},
 		{core.RunCompleted, core.ConclusionSuccess, RunSuccess},
@@ -164,6 +165,20 @@ func TestRunStateOf(t *testing.T) {
 	for _, tt := range tests {
 		if got := RunStateOf(tt.status, tt.c); got != tt.want {
 			t.Errorf("RunStateOf(%s, %s) = %d, want %d", tt.status, tt.c, got, tt.want)
+		}
+	}
+}
+
+func TestStatusText(t *testing.T) {
+	for status, want := range map[core.RunStatus]string{
+		core.RunWaiting:    "waiting for approval",
+		core.RunPending:    "waiting",
+		core.RunRequested:  "waiting",
+		core.RunQueued:     "queued",
+		core.RunInProgress: "in progress",
+	} {
+		if got := StatusText(status); got != want {
+			t.Errorf("StatusText(%s) = %q, want %q", status, got, want)
 		}
 	}
 }

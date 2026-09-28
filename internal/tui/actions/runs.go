@@ -233,7 +233,7 @@ func (m *Modal) renderRun(r core.Run, selected bool, w int) string {
 	case r.Status == core.RunCancelling:
 		took = st.Warning.Render("cancelling")
 	case !r.Done() && r.Status != core.RunInProgress:
-		took = st.Warning.Render(strings.ReplaceAll(string(r.Status), "_", " "))
+		took = st.Warning.Render(ui.StatusText(r.Status))
 	case !ok:
 	case r.Done():
 		took = st.Subtle.Render(ui.Duration(d))

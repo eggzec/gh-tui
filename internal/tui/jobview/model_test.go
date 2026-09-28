@@ -38,7 +38,7 @@ func TestStates(t *testing.T) {
 		state State
 		text  string
 	}{
-		{"running", running(), nil, Pending, "The log is available when the job finishes. ✓ Set up job 2s ◐ Run golangci-lint 1m 18s"},
+		{"running", running(), nil, Pending, "The log is available when the job finishes. ✓ Set up job 2s ◐ Run golangci-lint 1m 18s ○ Complete job queued"},
 		{"not yet", failed(), fmt.Errorf("log: %w", core.ErrLogPending), Pending, "The job hasn't started yet."},
 		{"expired", failed(), fmt.Errorf("log: %w", core.ErrLogExpired), Expired, "GitHub no longer keeps this log. ✓ Set up job 2s ✗ Run go test ./... 2m 58s"},
 		{"failed", failed(), errBoom, Failed, "Couldn't load the log: boom"},

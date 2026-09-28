@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"strings"
 	"time"
 
 	"charm.land/lipgloss/v2"
@@ -13,8 +14,9 @@ import (
 // shows it.
 type RunState int
 
-// Run states. A run waiting to start, for a runner or an approval, is
-// queued, and one being cancelled shows as cancelled already.
+// Run states. A run waiting for a runner is queued, one waiting for an
+// approval or for its concurrency group waits, and one being cancelled
+// shows as cancelled already.
 const (
 	RunQueued RunState = iota
 	RunInProgress
@@ -25,6 +27,7 @@ const (
 	RunTimedOut
 	RunActionRequired
 	RunNeutral
+	RunWaiting
 	// NumRunStates counts the run states, for arrays indexed by them.
 	NumRunStates
 )
@@ -35,18 +38,19 @@ func runGlyphs(set string) [NumRunStates]string {
 	case config.IconsUnicode:
 		return [NumRunStates]string{
 			RunQueued: "○", RunInProgress: "◐", RunSuccess: "✓", RunFailure: "✗", RunCancelled: "⊘",
-			RunSkipped: "⊖", RunTimedOut: "⧗", RunActionRequired: "!", RunNeutral: "◇",
+			RunSkipped: "⊖", RunTimedOut: "⧗", RunActionRequired: "!", RunNeutral: "◇", RunWaiting: "◷",
 		}
 	case config.IconsASCII:
 		return [NumRunStates]string{
 			RunQueued: ".", RunInProgress: "~", RunSuccess: "+", RunFailure: "x", RunCancelled: "/",
-			RunSkipped: ">", RunTimedOut: "T", RunActionRequired: "!", RunNeutral: "=",
+			RunSkipped: ">", RunTimedOut: "T", RunActionRequired: "!", RunNeutral: "=", RunWaiting: "w",
 		}
 	default:
 		// The octicons GitHub marks checks with.
 		return [NumRunStates]string{
 			RunQueued: "", RunInProgress: "", RunSuccess: "", RunFailure: "", RunCancelled: "",
 			RunSkipped: "", RunTimedOut: "", RunActionRequired: "", RunNeutral: "",
+			RunWaiting: "", // oct-hourglass
 		}
 	}
 }
@@ -68,6 +72,8 @@ func RunStateOf(status core.RunStatus, c core.Conclusion) RunState {
 		return RunInProgress
 	case core.RunCancelling:
 		return RunCancelled
+	case core.RunWaiting, core.RunPending, core.RunRequested:
+		return RunWaiting
 	default:
 		return RunQueued
 	}
@@ -102,6 +108,7 @@ var runColors = [NumRunStates][2]string{
 	RunTimedOut:       {"#cf222e", "#f85149"},
 	RunActionRequired: {"#9a6700", "#d29922"},
 	RunNeutral:        {"#59636e", "#9198a1"},
+	RunWaiting:        {"#9a6700", "#d29922"},
 }
 
 // Run returns the style of the glyph of run state s.
@@ -158,6 +165,23 @@ func (s *RunStyles) Took(status core.RunStatus, c core.Conclusion, start, end, n
 		return s.States[RunInProgress].Render("running")
 	case status == core.RunCancelling:
 		return s.Warning.Render("cancelling")
+	case status == core.RunWaiting:
+		return s.States[RunWaiting].Render(StatusText(status))
 	}
-	return s.Muted.Render(string(status))
+	return s.Muted.Render(StatusText(status))
+}
+
+// StatusText names status for people: a run or job that waits says what
+// for, as far as GitHub tells.
+func StatusText(status core.RunStatus) string {
+	switch status {
+	case core.RunWaiting:
+		// GitHub holds a job for the reviewers or the wait timer of its
+		// environment.
+		return "waiting for approval"
+	case core.RunPending, core.RunRequested:
+		return "waiting"
+	default:
+		return strings.ReplaceAll(string(status), "_", " ")
+	}
 }
