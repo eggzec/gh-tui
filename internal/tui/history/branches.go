@@ -440,7 +440,7 @@ func (m *Modal) branchRow(br core.Branch, cursor, focused bool, w int) string {
 	} else {
 		tags, tagsW = nil, 0
 	}
-	name := ansi.Truncate(oneLine(br.Name), nameRoom, "…")
+	name := ansi.Truncate(ui.OneLine(br.Name), nameRoom, "…")
 	line := gutter + style.Render(name)
 	if tagsW == 0 {
 		return fit(line, w)

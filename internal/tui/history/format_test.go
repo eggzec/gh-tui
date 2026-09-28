@@ -112,9 +112,3 @@ func withVerification(c core.Commit, v core.Verification) core.Commit {
 	c.Verification = v
 	return c
 }
-
-func TestOneLine(t *testing.T) {
-	if got := oneLine("evil\x1b[31mred\nname"); got != "evil [31mred name" {
-		t.Errorf("oneLine = %q", got)
-	}
-}

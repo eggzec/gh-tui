@@ -10,6 +10,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
 // labelWidth is the width of the names of the header's fields.
@@ -122,10 +123,10 @@ func (m *Modal) paneTitle(p pane, w int) string {
 	case commitPane:
 		text = "Commit"
 		if c := &m.commit; c.has {
-			text, detail = short(c.c.SHA), oneLine(c.c.Subject)
+			text, detail = short(c.c.SHA), ui.OneLine(c.c.Subject)
 		}
 	}
-	text = ansi.Truncate(oneLine(text), w, "…")
+	text = ansi.Truncate(ui.OneLine(text), w, "…")
 	line := st.Render(text)
 	if room := w - ansi.StringWidth(text) - 1; detail != "" && room > 1 {
 		line += " " + m.st.subtle.Render(ansi.Truncate(detail, room, "…"))
@@ -147,7 +148,7 @@ func (m *Modal) breadcrumb(w int) string {
 		}
 	}
 	for i := range crumbs {
-		crumbs[i] = oneLine(crumbs[i])
+		crumbs[i] = ui.OneLine(crumbs[i])
 	}
 	const sep = " › "
 	// Drop the first crumbs until the rest fit.
@@ -335,9 +336,9 @@ func (m *Modal) fileRow(f core.CommitFile, cursor, focused bool, w int) string {
 	}
 	adds, dels := "+"+strconv.Itoa(f.Additions), "−"+strconv.Itoa(f.Deletions)
 	countsW := ansi.StringWidth(adds) + 1 + ansi.StringWidth(dels)
-	name := oneLine(f.Path)
+	name := ui.OneLine(f.Path)
 	if f.PreviousPath != "" && f.PreviousPath != f.Path {
-		name = oneLine(f.PreviousPath) + " → " + name
+		name = ui.OneLine(f.PreviousPath) + " → " + name
 	}
 	room := w - 4
 	showCounts := room-countsW > 8
@@ -437,7 +438,7 @@ func (m *Modal) renderHeader(w int) []string {
 				if i == 0 {
 					label = "Trailers"
 				}
-				field(label, m.st.muted.Render(oneLine(t.Key)+":")+" "+m.st.text.Render(f.trailerValue(t.Value)))
+				field(label, m.st.muted.Render(ui.OneLine(t.Key)+":")+" "+m.st.text.Render(f.trailerValue(t.Value)))
 			}
 		case config.FieldStats:
 			if !c.loaded {
@@ -470,7 +471,7 @@ func (m *Modal) appendBody(lines []string, body string, w int) []string {
 	}
 	lines = append(lines, strings.Repeat(" ", w))
 	for l := range strings.SplitSeq(reflow(body), "\n") {
-		wrapped := ansi.Wrap(oneLine(l), w, "")
+		wrapped := ansi.Wrap(ui.OneLine(l), w, "")
 		for part := range strings.SplitSeq(wrapped, "\n") {
 			lines = append(lines, fit(m.st.text.Render(ansi.Truncate(part, w, "")), w))
 		}
