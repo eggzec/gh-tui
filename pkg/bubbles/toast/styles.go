@@ -69,6 +69,7 @@ type derivedStyles struct {
 	// each styled span would otherwise clear it.
 	text, count lipgloss.Style
 	frameWidth  int
+	frameHeight int
 	glyphWidth  int
 }
 
@@ -80,9 +81,10 @@ func (m *Model) SetStyles(s Styles) {
 	m.styles = s
 	bg := s.Toast.GetBackground()
 	d := derivedStyles{
-		text:       s.Text.Background(bg),
-		count:      s.Count.Background(bg),
-		frameWidth: s.Toast.GetHorizontalFrameSize(),
+		text:        s.Text.Background(bg),
+		count:       s.Count.Background(bg),
+		frameWidth:  s.Toast.GetHorizontalFrameSize(),
+		frameHeight: s.Toast.GetVerticalFrameSize(),
 	}
 	for l := Info; l <= Error; l++ {
 		ls := s.level(l)

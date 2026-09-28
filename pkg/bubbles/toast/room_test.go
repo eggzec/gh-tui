@@ -114,3 +114,35 @@ func TestFitsShowsWhole(t *testing.T) {
 		}
 	}
 }
+
+// A frame with top and bottom edges takes lines that the text then lacks.
+func TestFitsCountsTheFrameHeight(t *testing.T) {
+	st := DefaultStyles(true)
+	st.Toast = st.Toast.Padding(1, 1)
+	// Four words a line, as in TestFits: three lines.
+	text := strings.Repeat("abcdefghi ", 12)
+	if !New(testDuration, testErrorDuration, WithSize(80, 4)).Fits(Error, text) {
+		t.Fatal("three lines of text don't fit four lines without a frame")
+	}
+	m := New(testDuration, testErrorDuration, WithSize(80, 4), WithStyles(st))
+	if m.Fits(Error, text) {
+		t.Error("three lines of text fit in four lines of which the frame takes two")
+	}
+	if !m.Fits(Error, "a") {
+		t.Error("one line doesn't fit the two lines the frame leaves")
+	}
+}
+
+// Past maxCount a toast stops counting, so the room Fits keeps holds.
+func TestCountStops(t *testing.T) {
+	m := New(testDuration, testErrorDuration, WithSize(80, 24))
+	for range maxCount + 20 {
+		m.Push(Info, "Saved.")
+	}
+	if got := m.toasts[len(m.toasts)-1].count; got != maxCount {
+		t.Errorf("count = %d, want %d", got, maxCount)
+	}
+	if v := ansi.Strip(m.View()); !strings.Contains(v, "×99") || strings.Contains(v, "×100") {
+		t.Errorf("toast shows\n%s", v)
+	}
+}

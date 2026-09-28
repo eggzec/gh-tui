@@ -110,7 +110,8 @@ func (m Model) Init() tea.Cmd { return nil }
 
 // Push shows a toast and returns the command that expires it. A toast with
 // the same level and text that is still visible is refreshed instead: it
-// moves to the bottom, its count goes up, and its timer starts again.
+// moves to the bottom, its count goes up to at most maxCount, and its timer
+// starts again.
 func (m *Model) Push(level Level, text string) tea.Cmd {
 	if !level.valid() {
 		level = Info
@@ -121,7 +122,7 @@ func (m *Model) Push(level Level, text string) tea.Cmd {
 	rest := m.toasts
 	for i, old := range m.toasts {
 		if old.level == level && old.text == text {
-			t.count = old.count + 1
+			t.count = min(old.count+1, maxCount)
 			rest = without(m.toasts, i)
 			break
 		}

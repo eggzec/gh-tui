@@ -55,21 +55,29 @@ func (m *Model) SetRoom(level Level, r Room) {
 	m.changed()
 }
 
+// maxCount is the most a toast counts its repeats, so that the room Fits
+// keeps for the count is always enough.
+const maxCount = 99
+
 // Fits reports whether text shows whole in a toast of level at the
-// current size, even once it has repeated up to 99 times, so that the
-// parent can shorten what it says until it does.
+// current size, however often it repeats, so that the parent can shorten
+// what it says until it does.
 func (m Model) Fits(level Level, text string) bool {
 	if !level.valid() {
 		level = Info
 	}
 	d := m.derived
-	width := m.maxInner(level) - d.glyphWidth - 1 - countWidth(99)
+	width := m.maxInner(level) - d.glyphWidth - 1 - countWidth(maxCount)
 	if width < 1 {
 		return false
 	}
 	lines := m.Room(level).Lines
 	if m.height > 0 {
-		lines = min(lines, m.height)
+		// The frame takes lines of the height too.
+		lines = min(lines, m.height-d.frameHeight)
+		if lines < 1 {
+			return false
+		}
 	}
 	_, cut := wrap(clean(text), width, lines)
 	return !cut
