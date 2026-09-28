@@ -37,9 +37,25 @@ type API interface {
 	ProbeIssues(ctx context.Context, repo core.RepoRef, cond github.Conditional) (github.Response, error)
 }
 
+// Access tells whether the token may do what an operation needs, as the
+// access service does: nil, or why not.
+type Access interface {
+	Check(n core.Need) error
+}
+
+// Repos holds the repositories read so far, as the repositories service
+// does, with what the viewer may do in each.
+type Repos interface {
+	CachedGet(ref core.RepoRef) (core.Repo, bool)
+}
+
 // Service reads and changes issues. It is safe for concurrent use.
 type Service struct {
-	api    API
+	api API
+	// access refuses a change the token may not make before it is shown,
+	// if set, and repos tells whether a repository is private, for it.
+	access Access
+	repos  Repos
 	viewer string
 	// pending numbers the comments shown before GitHub confirms them.
 	pending atomic.Uint64
@@ -85,6 +101,8 @@ func New(api API, opts ...Option) *Service {
 	s := &Service{
 		api:          api,
 		viewer:       o.viewer,
+		access:       o.access,
+		repos:        o.repos,
 		lists:        cache.New[core.Page[core.Issue]](o.cache...),
 		issues:       cache.New[core.Issue](o.cache...),
 		comments:     cache.New[stampedComments](o.cache...),
