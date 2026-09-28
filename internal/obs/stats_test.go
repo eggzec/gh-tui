@@ -70,6 +70,38 @@ func TestSummaryHTTP(t *testing.T) {
 	}
 }
 
+// TestSummaryQuotaNeverRises checks that a response that comes back after
+// a later one, with more left in the same window, with an earlier reset,
+// or with the limit before a raise, doesn't undo what the later one said;
+// that a later reset, or a raised limit, starts over; and that a reset
+// too far away to be real neither stops a sane one nor replaces it.
+func TestSummaryQuotaNeverRises(t *testing.T) {
+	s := NewStats()
+	reset := time.Now().Add(10 * time.Minute).Truncate(time.Second)
+	steps := []struct {
+		name string
+		rate Rate
+		want int
+	}{
+		{"too far to be real", Rate{Limit: 5000, Remaining: 3000, Reset: reset.Add(48 * time.Hour)}, 3000},
+		{"first", Rate{Limit: 5000, Remaining: 100, Reset: reset}, 100},
+		{"lower", Rate{Limit: 5000, Remaining: 90, Reset: reset}, 90},
+		{"higher, late", Rate{Limit: 5000, Remaining: 95, Reset: reset}, 90},
+		{"earlier reset", Rate{Limit: 5000, Remaining: 4000, Reset: reset.Add(-time.Hour)}, 90},
+		{"too far to be real, late", Rate{Limit: 5000, Remaining: 10, Reset: reset.Add(48 * time.Hour)}, 90},
+		{"new window", Rate{Limit: 5000, Remaining: 4999, Reset: reset.Add(30 * time.Minute)}, 4999},
+		{"a raised limit", Rate{Limit: 15000, Remaining: 14990, Reset: reset.Add(30 * time.Minute)}, 14990},
+		{"the limit before, late", Rate{Limit: 5000, Remaining: 4990, Reset: reset.Add(30 * time.Minute)}, 14990},
+	}
+	for _, st := range steps {
+		st.rate.Resource = "core"
+		s.HTTP(HTTP{API: REST, Method: "GET", Route: "/x", Status: 200, Rate: st.rate})
+		if got := s.Summary().Quotas[0].Remaining; got != st.want {
+			t.Errorf("%s: Remaining = %d, want %d", st.name, got, st.want)
+		}
+	}
+}
+
 func TestSummaryReservoir(t *testing.T) {
 	s := NewStats()
 	for i := range 3 * maxSamples {
