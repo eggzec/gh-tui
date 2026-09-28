@@ -41,6 +41,30 @@ jobs:
           CGO_ENABLED: "1"
       - run: go test -run '^$' -bench . -benchtime 100x ./...
 
+  # What the client sends, against GitHub's schemas of github.com and of
+  # the oldest supported GitHub Enterprise Server (core.MinEnterprise). A
+  # job of its own, so that a deprecation upstream, or a download that
+  # fails, shows as this job failing, not the tests.
+  schema:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      # GitHub's schemas, downloaded afresh each week, or for a new oldest
+      # supported GitHub Enterprise Server.
+      - id: week
+        run: echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/schemas
+          key: schemas-${{ steps.week.outputs.week }}-${{ hashFiles('internal/core/enterprise.go') }}
+      - run: go test -tags schemacheck -run '^TestSchema$' ./internal/github/
+        env:
+          GH_TUI_SCHEMAS: ${{ runner.temp }}/schemas
+          GITHUB_TOKEN: ${{ github.token }}
+
   # Build every platform the release ships without cgo, so a dependency that
   # needs cgo, or builds on one OS only, fails here first. The list is
   # cli/gh-extension-precompile's, in its build_and_release.sh.

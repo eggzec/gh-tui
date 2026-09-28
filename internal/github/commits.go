@@ -46,10 +46,11 @@ type commitSignature struct {
 
 // commitVerification is what GitHub found checking a commit's signature.
 type commitVerification struct {
-	Verified   bool       `json:"verified"`
-	Reason     string     `json:"reason"`
-	Signature  *string    `json:"signature"`
-	VerifiedAt *time.Time `json:"verified_at"`
+	Verified  bool    `json:"verified"`
+	Reason    string  `json:"reason"`
+	Signature *string `json:"signature"`
+	// VerifiedAt is absent before GitHub Enterprise Server 3.17.
+	VerifiedAt *time.Time `json:"verified_at" schema:"optional"`
 }
 
 func (v commitVerification) core() core.Verification {
