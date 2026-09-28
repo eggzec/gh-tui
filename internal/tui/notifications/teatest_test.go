@@ -2,7 +2,6 @@ package notifications
 
 import (
 	"bytes"
-	"fmt"
 	"slices"
 	"testing"
 	"time"
@@ -21,9 +20,12 @@ type app struct {
 	s      *Section
 	ask    *ui.ConfirmModal
 	opened []string
-	// width is the terminal's, and sent counts the changes GitHub
-	// answered, which the last line shows.
-	width, sent int
+	width  int
+	// done hears of every change GitHub answered. The test waits on it
+	// rather than on output: the question closes in a command of its own,
+	// so a frame may come between it and the answer, and the terminal then
+	// redraws only the cells that changed.
+	done chan struct{}
 }
 
 func (a *app) Init() tea.Cmd { return a.s.Init() }
@@ -47,7 +49,7 @@ func (a *app) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return a, nil
 	case ui.DoneMsg:
-		a.sent++
+		a.done <- struct{}{}
 	case ui.CloseModalMsg:
 		a.ask = nil
 		return a, nil
@@ -62,15 +64,19 @@ func (a *app) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return a, a.s.Update(msg)
 }
 
-// View shows the section over a line that holds the question, or else
-// how many changes were sent.
+// View shows the section over a line that holds the question, if one is
+// open.
 func (a *app) View() tea.View {
-	last := fmt.Sprintf("%d sent", a.sent)
+	last := ""
 	if a.ask != nil {
 		last = a.ask.View()
 	}
 	return tea.NewView(a.s.View() + "\n" + last)
 }
+
+// wait bounds each step of a program test. It is generous since a loaded
+// machine runs the program slowly, and a passing test never waits it out.
+const wait = 30 * time.Second
 
 func TestProgram(t *testing.T) {
 	svc := newFake(inbox()...)
@@ -78,13 +84,14 @@ func TestProgram(t *testing.T) {
 		"select": {"enter"}, "filter": {"f"}, "mark_done": {"d"}, "refresh": {"r"},
 	}, WithNow(func() time.Time { return now }))
 	s.Focus()
-	tm := teatest.NewTestModel(t, &app{s: s}, teatest.WithInitialTermSize(80, 10))
+	a := &app{s: s, done: make(chan struct{}, 2)}
+	tm := teatest.NewTestModel(t, a, teatest.WithInitialTermSize(80, 10))
 
 	waitFor := func(text string) {
 		t.Helper()
 		teatest.WaitFor(t, tm.Output(), func(b []byte) bool {
 			return bytes.Contains(b, []byte(text))
-		}, teatest.WithDuration(5*time.Second))
+		}, teatest.WithDuration(wait))
 	}
 	waitFor("Add a renderer")
 
@@ -97,10 +104,16 @@ func TestProgram(t *testing.T) {
 	tm.Send(keyPress("d"))
 	waitFor(`Mark "Moderate severity`)
 	tm.Send(keyPress("y"))
-	waitFor("2 sent")
+	for range 2 {
+		select {
+		case <-a.done:
+		case <-time.After(wait):
+			t.Fatal("GitHub didn't answer the read and the mark done")
+		}
+	}
 	tm.Send(keyPress("q"))
 
-	final := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(*app)
+	final := tm.FinalModel(t, teatest.WithFinalTimeout(wait)).(*app)
 	if want := []string{"pull charmbracelet/bubbletea#1"}; !slices.Equal(final.opened, want) {
 		t.Errorf("opened %q, want %q", final.opened, want)
 	}

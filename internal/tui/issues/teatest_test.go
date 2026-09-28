@@ -141,10 +141,10 @@ func TestProgramSwitchesTabs(t *testing.T) {
 	tm := teatest.NewTestModel(t, app{h: &host{Section: s}}, teatest.WithInitialTermSize(80, 16))
 	teatest.WaitFor(t, tm.Output(), func(b []byte) bool {
 		return bytes.Contains(b, []byte("#1000"))
-	}, teatest.WithDuration(3*time.Second))
+	}, teatest.WithDuration(5*time.Second))
 	// Each key is handled before the next, so q quits on the closed tab.
 	tm.Type("]][q")
-	final := tm.FinalModel(t, teatest.WithFinalTimeout(3*time.Second)).(app).h
+	final := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(app).h
 	// The list of the tab loads in a command, which q may beat.
 	if final.tab != core.FilterClosed || final.listQuery(final.tab).State != core.FilterClosed {
 		t.Errorf("tab = %q, want closed", final.tab)
