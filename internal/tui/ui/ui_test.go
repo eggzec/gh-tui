@@ -181,3 +181,21 @@ func TestFeedPages(t *testing.T) {
 		t.Errorf("toast = %v, want the rate-limited text", cmd())
 	}
 }
+
+// TestYield checks that a binding keeps its keys beside an enabled one,
+// and leaves a disabled one the keys they share.
+func TestYield(t *testing.T) {
+	refresh := key.NewBinding(key.WithKeys("r", "ctrl+r"), key.WithHelp("r", "refresh"))
+	rerun := key.NewBinding(key.WithKeys("ctrl+r"), key.WithHelp("^r", "rerun failed"))
+	if got := Yield(refresh, rerun); !slices.Equal(got.Keys(), []string{"r", "ctrl+r"}) {
+		t.Errorf("beside an enabled re-run, refresh holds %q", got.Keys())
+	}
+	rerun.SetEnabled(false)
+	got := Yield(refresh, rerun)
+	if !slices.Equal(got.Keys(), []string{"r"}) || got.Help() != refresh.Help() || !got.Enabled() {
+		t.Errorf("beside a disabled re-run, refresh is %q %+v enabled %v, want r alone", got.Keys(), got.Help(), got.Enabled())
+	}
+	if Yield(rerun, rerun).Enabled() {
+		t.Error("a binding left no key is enabled")
+	}
+}

@@ -134,6 +134,8 @@ func (s *Step) KeyLayers() []keyhelp.Layer {
 // key, which the job view handles, never.
 func (k KeyMap) state(s *Step) KeyMap {
 	k.RerunFailed = s.rerunKey()
+	// ctrl+r says why it can't re-run rather than refresh.
+	k.Refresh = ui.Yield(k.Refresh, k.RerunFailed)
 	k.Annotations.SetEnabled(false)
 	if s.mode != listMode {
 		k.Back = relabel(k.Back, "checks")

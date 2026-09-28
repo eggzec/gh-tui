@@ -276,6 +276,8 @@ func (k KeyMap) state(m *Modal) KeyMap {
 	k.RerunJob.SetEnabled(k.RerunJob.Enabled() && done && m.focus != runsPane)
 	k.Cancel, k.RerunFailed = g.Gated(k.Cancel, ui.ActCancelRun, nil), g.Gated(k.RerunFailed, ui.ActRerun, nil)
 	k.Rerun, k.RerunJob = g.Gated(k.Rerun, ui.ActRerun, nil), g.Gated(k.RerunJob, ui.ActRerun, nil)
+	// ctrl+r says why it can't re-run rather than refresh.
+	k.Refresh = ui.Yield(k.Refresh, k.RerunFailed)
 	k.Open.SetEnabled(k.Open.Enabled() && m.hasRun)
 	// The job view handles the annotations, and only a question takes
 	// the answers.

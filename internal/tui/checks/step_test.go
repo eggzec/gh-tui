@@ -551,36 +551,53 @@ func TestKeyLayersOrder(t *testing.T) {
 
 // TestRerunKeyBeforeRefresh checks that ctrl+r, which refresh holds too,
 // re-runs on the checks and in a job, and that the help names the re-run
-// for it, while r refreshes.
+// for it, while r refreshes. On a check an app reported, which can't be
+// re-run, ctrl+r still doesn't refresh, and the help gives it to nothing.
 func TestRerunKeyBeforeRefresh(t *testing.T) {
+	const (
+		rerun   = "re-run"
+		refresh = "refresh"
+		nothing = "nothing"
+	)
 	tests := []struct {
 		name string
-		to   []string // the keys that reach the list or the job
+		to   []string // the keys that reach the list, a job or a detail
 		key  string
-		desc string // the binding the help names for key
-		// rerun is whether the key re-runs: it asks, or says why not,
-		// rather than reading again.
-		rerun bool
+		desc string // the binding the help names for key, if any
+		// does is what the key does: re-run, which asks or says why
+		// not, refresh, or nothing.
+		does string
 	}{
-		{name: "ctrl+r on the checks", key: "ctrl+r", desc: "rerun failed", rerun: true},
-		{name: "ctrl+r in a job", to: []string{"enter"}, key: "ctrl+r", desc: "rerun failed", rerun: true},
-		{name: "r on the checks", key: "r", desc: "refresh"},
-		{name: "r in a job", to: []string{"enter"}, key: "r", desc: "refresh"},
+		{name: "ctrl+r on the checks", key: "ctrl+r", desc: "rerun failed", does: rerun},
+		{name: "ctrl+r in a job", to: []string{"enter"}, key: "ctrl+r", desc: "rerun failed", does: rerun},
+		{name: "r on the checks", key: "r", desc: "refresh", does: refresh},
+		{name: "r in a job", to: []string{"enter"}, key: "r", desc: "refresh", does: refresh},
+		{name: "ctrl+r on an app's check", to: []string{"down", "down"}, key: "ctrl+r", does: nothing},
+		{name: "ctrl+r in an app's detail", to: []string{"down", "down", "enter"}, key: "ctrl+r", does: nothing},
+		{name: "r on an app's check", to: []string{"down", "down"}, key: "r", desc: "refresh", does: refresh},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			f := newFake()
 			s, h := newStep(t, f, wideW, wideH)
 			h.keys(tt.to...)
-			if b, src, _ := uitest.Winner(s.KeyLayers(), tt.key); src != "checks" || b.Help().Desc != tt.desc {
+			b, src, ok := uitest.Winner(s.KeyLayers(), tt.key)
+			if ok != (tt.desc != "") || ok && (src != "checks" || b.Help().Desc != tt.desc) {
 				t.Errorf("the help gives %s to %q of %q, want %q of the step", tt.key, b.Help().Desc, src, tt.desc)
 			}
 			reads, jobReads := f.checkReads, f.jobReads
 			h.keys(tt.key)
-			reran := s.ask != nil || s.notice != ""
-			read := f.checkReads > reads || f.jobReads > jobReads || f.invalidated > 0
-			if reran != tt.rerun || read == tt.rerun && s.mode == listMode {
-				t.Errorf("%s: asked %v, notice %q, read again %v; want the re-run %v", tt.key, s.ask != nil, s.notice, read, tt.rerun)
+			did := nothing
+			switch {
+			case s.ask != nil || s.notice != "":
+				did = rerun
+			case f.checkReads > reads || f.jobReads > jobReads || f.invalidated > 0:
+				did = refresh
+			}
+			// In a job, refresh retries the log, which reads nothing
+			// that hasn't failed.
+			if did != tt.does && (tt.does != refresh || s.mode != jobMode || did != nothing) {
+				t.Errorf("%s did %s, want %s", tt.key, did, tt.does)
 			}
 		})
 	}
