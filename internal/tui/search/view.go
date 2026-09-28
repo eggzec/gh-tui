@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -12,6 +13,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // Sizes of the page. The query takes a framed line on top. From
@@ -518,7 +520,7 @@ func (s *Section) renderCode(hit core.CodeHit, selected bool, width int) string 
 	lines := make([]string, 0, codeHeight)
 	// The repository and the file link to their pages.
 	repo := s.links.Link(s.repoURL(core.Repo{Ref: hit.Repo}), st.muted.render(hit.Repo.String()))
-	file := s.links.Link(hit.URL, path.render(hit.Path))
+	file := s.links.Link(hit.URL, path.render(ui.OneLine(hit.Path)))
 	lines = append(lines, fit(ansi.Truncate(repo+st.subtle.render(" · ")+file, width, "…"), width))
 	var frag core.Fragment
 	if len(hit.Fragments) > 0 {
@@ -599,7 +601,9 @@ func codeText(s string) string {
 		switch {
 		case r == '\t':
 			return ' '
-		case r < 0x20 || r == 0x7f:
+		case termtext.Control(r), r == utf8.RuneError:
+			// Invalid UTF-8 comes as RuneError, and a lone byte of it
+			// may read as C1.
 			return -1
 		}
 		return r
