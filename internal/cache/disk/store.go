@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sync"
@@ -44,6 +45,10 @@ const (
 // session reading the same object again doesn't write each time.
 const touchAfter = time.Hour
 
+// logEvery is how often a failure is logged for each kind of object and
+// operation. A full disk fails every write, and one record says so.
+const logEvery = 10 * time.Minute
+
 // Store is a directory of objects. It is safe for concurrent use, also by
 // several processes. Create one with Open.
 type Store struct {
@@ -52,6 +57,8 @@ type Store struct {
 	// writers holds *gzip.Writer of opts.level for reuse: a new one
 	// allocates about a megabyte of tables.
 	writers sync.Pool
+	// logs throttles the records of failures.
+	logs *obs.Throttle
 }
 
 // Open returns the store in dir, creating the directory if needed.
@@ -63,7 +70,7 @@ func Open(dir string, opts ...Option) (*Store, error) {
 	if err := os.MkdirAll(dir, dirPerm); err != nil {
 		return nil, fmt.Errorf("open disk cache: %w", err)
 	}
-	return &Store{dir: dir, opts: o}, nil
+	return &Store{dir: dir, opts: o, logs: obs.NewThrottle(logEvery)}, nil
 }
 
 // Dir returns the directory of the store.
@@ -108,7 +115,10 @@ func (s *Store) get(kind, key string, use bool) ([]byte, bool) {
 		}
 		if !errors.Is(err, fs.ErrNotExist) {
 			// A corrupt object is worth nothing; the next Put replaces it.
-			_ = os.Remove(name)
+			s.dropped(kind, err)
+			if err := os.Remove(name); err != nil && !errors.Is(err, fs.ErrNotExist) {
+				s.failed("delete", kind, err)
+			}
 		}
 	}
 	return nil, false
@@ -186,7 +196,9 @@ func gunzip(z []byte) ([]byte, error) {
 // that name. Data that doesn't get smaller compressed is stored as is.
 func (s *Store) Put(kind, key string, data []byte) error {
 	if _, err := s.put(kind, key, data); err != nil {
-		return fmt.Errorf("put %s %s: %w", kind, key, err)
+		err = fmt.Errorf("put %s %s: %w", kind, key, err)
+		s.failed("put", kind, err)
+		return err
 	}
 	return nil
 }
@@ -209,7 +221,9 @@ func (s *Store) Replace(kind, key string, data []byte) error {
 	}
 	name, err := s.put(kind, key, data)
 	if err != nil {
-		return fmt.Errorf("replace %s %s: %w", kind, key, err)
+		err = fmt.Errorf("replace %s %s: %w", kind, key, err)
+		s.failed("replace", kind, err)
+		return err
 	}
 	if !used.IsZero() {
 		// Only eviction depends on it, so a failure doesn't matter.
@@ -290,9 +304,36 @@ func writeFile(name string, data []byte) error {
 
 // Delete removes the object of kind named key, if there is one.
 func (s *Store) Delete(kind, key string) {
-	if p, ok := s.path(kind, key); ok {
-		_ = os.Remove(p)
-		_ = os.Remove(p + gzExt)
+	p, ok := s.path(kind, key)
+	if !ok {
+		return
+	}
+	for _, name := range []string{p, p + gzExt} {
+		if err := os.Remove(name); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			s.failed("delete", kind, err)
+		}
+	}
+}
+
+// failed counts a write of op, such as put, of an object of kind that
+// failed with err, and logs it, with the home directory in its paths as
+// ~. Callers go on without the disk, which is only a shortcut, so this is
+// the one place that tells of it.
+func (s *Store) failed(op, kind string, err error) {
+	obs.CountCache(kind, obs.DiskWriteFailed)
+	if ok, held := s.logs.Allow(op + " " + kind); ok {
+		slog.Warn("disk cache write failed", append([]any{"span", "cache.disk", "kind", kind, "op", op,
+			"err", obs.ShortHome(err.Error())}, obs.Suppressed(held)...)...)
+	}
+}
+
+// dropped counts an object of kind that couldn't be read, for err, and
+// is removed, and logs it.
+func (s *Store) dropped(kind string, err error) {
+	obs.CountCache(kind, obs.DiskDropped)
+	if ok, held := s.logs.Allow("drop " + kind); ok {
+		slog.Warn("kept dropped", append([]any{"span", "cache.disk", "kind", kind, "reason", "unreadable",
+			"err", obs.ShortHome(err.Error())}, obs.Suppressed(held)...)...)
 	}
 }
 

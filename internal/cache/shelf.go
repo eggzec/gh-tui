@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/obs"
@@ -67,7 +68,14 @@ type Shelf[V any] struct {
 	kind   string
 	schema int
 	index  index
+	// logs throttles the records of entries dropped, of which a schema
+	// bump drops every one.
+	logs *obs.Throttle
 }
+
+// shelfLogEvery is how often a Shelf logs entries dropped for each
+// reason.
+const shelfLogEvery = 10 * time.Minute
 
 // NewShelf returns a shelf that keeps entries of kind in store, or nil if
 // store is nil. Bump schema whenever V changes in a way that makes older
@@ -76,7 +84,7 @@ func NewShelf[V any](store Store, kind string, schema int) *Shelf[V] {
 	if store == nil {
 		return nil
 	}
-	return &Shelf[V]{store: store, kind: kind, schema: schema}
+	return &Shelf[V]{store: store, kind: kind, schema: schema, logs: obs.NewThrottle(shelfLogEvery)}
 }
 
 // Load returns the entry kept under key. An entry that can't be decoded, or
@@ -96,8 +104,9 @@ func (s *Shelf[V]) load(key string, get func(kind, key string) ([]byte, bool)) (
 		return Entry[V]{}, false
 	}
 	var r record[V]
-	if err := json.Unmarshal(data, &r); err != nil || r.Format != format || r.Schema != s.schema || r.Key != key {
+	if why := s.mismatch(json.Unmarshal(data, &r), r.Meta, key); why != "" {
 		s.store.Delete(s.kind, name)
+		s.dropped(context.Background(), why, "")
 		return Entry[V]{}, false
 	}
 	return Entry[V]{
@@ -108,6 +117,65 @@ func (s *Shelf[V]) load(key string, get func(kind, key string) ([]byte, bool)) (
 		FetchedAt:    r.FetchedAt,
 		Tags:         r.Tags,
 	}, true
+}
+
+// mismatch returns why an entry that decoded with err, which says m of
+// itself, can't be read as the entry of key, or "" if it can.
+func (s *Shelf[V]) mismatch(err error, m Meta, key string) string {
+	switch {
+	case err != nil:
+		return "decode"
+	case m.Format != format:
+		return "format"
+	case m.Schema != s.schema:
+		return "schema"
+	case m.Key != key:
+		return "key"
+	}
+	return ""
+}
+
+// Drop forgets the entry kept under key, as Delete does, since GitHub
+// refused it for why, such as "not found", and logs it if there was one:
+// a list that no longer comes back from disk is then explained.
+func (s *Shelf[V]) Drop(ctx context.Context, key, why string) {
+	if s == nil {
+		return
+	}
+	name := objectName(key)
+	if _, ok := s.peek(s.kind, name); !ok {
+		return
+	}
+	s.store.Delete(s.kind, name)
+	s.dropped(ctx, why, key)
+}
+
+// dropped counts an entry dropped for why, and logs it once every
+// shelfLogEvery for each reason: at info level, since it happens after an
+// upgrade or a refusal, and at warn level for one that couldn't be read,
+// or was kept under another key. key is the entry's, if the caller knows
+// it.
+func (s *Shelf[V]) dropped(ctx context.Context, why, key string) {
+	obs.CountCache(s.kind, obs.DiskDropped)
+	level := slog.LevelInfo
+	if why == "decode" || why == "key" {
+		level = slog.LevelWarn
+	}
+	if !obs.Enabled(ctx, level) {
+		return
+	}
+	ok, held := s.logs.Allow(why)
+	if !ok {
+		return
+	}
+	attrs := []any{"span", "cache.disk", "kind", s.kind, "reason", why}
+	if key != "" {
+		// A key's query may hold what the user typed, such as a filter,
+		// so only what comes before it is logged.
+		entry, _, _ := strings.Cut(key, "?")
+		attrs = append(attrs, "entry", entry)
+	}
+	slog.Log(ctx, level, "kept dropped", append(attrs, obs.Suppressed(held)...)...)
 }
 
 // Warm puts the entry kept under key into c, unless c has an entry for key
@@ -174,6 +242,12 @@ func (s *Shelf[V]) save(key string, e Entry[V], put func(kind, key string, data 
 		Value:        e.Value,
 	})
 	if err != nil {
+		// The store never sees it, so it is told here.
+		obs.CountCache(s.kind, obs.DiskWriteFailed)
+		if ok, held := s.logs.Allow("encode"); ok {
+			slog.Warn("disk cache write failed", append([]any{"span", "cache.disk", "kind", s.kind, "op", "encode",
+				"err", err.Error()}, obs.Suppressed(held)...)...)
+		}
 		return fmt.Errorf("keep %s %q: %w", s.kind, key, err)
 	}
 	if err := put(s.kind, objectName(key), data); err != nil {

@@ -89,12 +89,15 @@ type CacheSummary struct {
 	Evicted     int64   `json:"evicted"`
 }
 
-// DiskSummary covers the reads of the disk layer of one kind of object.
+// DiskSummary covers the reads of the disk layer of one kind of object,
+// and the writes that failed and the objects dropped, if any.
 type DiskSummary struct {
-	Kind     string  `json:"kind"`
-	Hit      int64   `json:"hit"`
-	Miss     int64   `json:"miss"`
-	HitRatio float64 `json:"hit_ratio"`
+	Kind        string  `json:"kind"`
+	Hit         int64   `json:"hit"`
+	Miss        int64   `json:"miss"`
+	HitRatio    float64 `json:"hit_ratio"`
+	WriteFailed int64   `json:"write_failed,omitempty"`
+	Dropped     int64   `json:"dropped,omitempty"`
 }
 
 // PrefetchStats covers the reads ahead of one kind, such as pull or
@@ -188,8 +191,11 @@ func (s *Stats) Summary() Summary {
 				Revalidated: c.get(Revalidated), Seeded: c.get(Seeded), StaleServed: c.get(StaleServed), Evicted: c.get(Evicted),
 			})
 		}
-		if hit, miss := c.get(DiskHit), c.get(DiskMiss); hit+miss > 0 {
-			out.Disk = append(out.Disk, DiskSummary{Kind: kind, Hit: hit, Miss: miss, HitRatio: ratio(hit, hit+miss)})
+		hit, miss, failed, dropped := c.get(DiskHit), c.get(DiskMiss), c.get(DiskWriteFailed), c.get(DiskDropped)
+		if hit+miss+failed+dropped > 0 {
+			out.Disk = append(out.Disk, DiskSummary{
+				Kind: kind, Hit: hit, Miss: miss, HitRatio: ratio(hit, hit+miss), WriteFailed: failed, Dropped: dropped,
+			})
 		}
 	}
 	for kind, c := range each[PrefetchEvent](&s.prefetch) {

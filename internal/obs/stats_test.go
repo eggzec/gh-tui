@@ -128,6 +128,9 @@ func TestSummaryCounters(t *testing.T) {
 	s.Cache("blob", DiskMiss)
 	s.Cache("blob", DiskMiss)
 	s.Cache("blob", DiskMiss)
+	s.Cache("pr", DiskWriteFailed)
+	s.Cache("pr", DiskWriteFailed)
+	s.Cache("pr", DiskDropped)
 	for range 4 {
 		s.Prefetch("pull", PrefetchSent)
 		s.Prefetch("pull", PrefetchRead)
@@ -141,7 +144,8 @@ func TestSummaryCounters(t *testing.T) {
 	if len(sum.Cache) != 1 || sum.Cache[0] != (CacheSummary{Kind: "pulls", Hit: 3, Miss: 1, HitRatio: 0.75, Evicted: 1}) {
 		t.Errorf("cache = %+v", sum.Cache)
 	}
-	if len(sum.Disk) != 1 || sum.Disk[0] != (DiskSummary{Kind: "blob", Hit: 1, Miss: 3, HitRatio: 0.25}) {
+	if len(sum.Disk) != 2 || sum.Disk[0] != (DiskSummary{Kind: "blob", Hit: 1, Miss: 3, HitRatio: 0.25}) ||
+		sum.Disk[1] != (DiskSummary{Kind: "pr", WriteFailed: 2, Dropped: 1}) {
 		t.Errorf("disk = %+v", sum.Disk)
 	}
 	want := PrefetchStats{Kind: "pull", Sent: 4, Cached: 1, Read: 4, Opened: 1, Useful: 0.25}
