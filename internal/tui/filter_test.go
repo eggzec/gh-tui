@@ -253,3 +253,53 @@ func TestFilterModalFrame(t *testing.T) {
 		})
 	}
 }
+
+// TestFilterCommands checks that filter and sort open the filter modal of
+// the focused list on their tab, as their keys do, and say so where there
+// is none to open.
+func TestFilterCommands(t *testing.T) {
+	tests := []struct {
+		name string
+		line string
+		// sorts gives the list a sort, and ready a filter.
+		sorts, ready bool
+		// tab is the tab the modal opens on, if it opens, and toast the
+		// text of the toast.
+		tab   string
+		toast string
+	}{
+		{name: "filter", line: "filter", ready: true, tab: "Filters"},
+		{name: "sort", line: "sort", ready: true, sorts: true, tab: "Sort"},
+		{name: "no sort", line: "sort", ready: true, toast: "Nothing here to sort."},
+		{name: "no filter", line: "filter", toast: "Nothing here to filter."},
+		{name: "an argument", line: "filter is:open", ready: true, toast: "The filter command takes no argument."},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m, pulls, _ := newFilterApp(t)
+			pulls.ready, pulls.sorts = tt.ready, tt.sorts
+			m.toast.SetDuration(0)
+			m.toast.SetErrorDuration(0)
+			runCommand(t, m, tt.line)
+			if tt.tab == "" {
+				if m.topModal() != nil {
+					t.Errorf("modal %q opened", m.topModal().Title())
+				}
+			} else {
+				tab := "Filters"
+				if names, active := filterModal(t, m).Tabs(); active >= 0 {
+					tab = names[active]
+				}
+				if tab != tt.tab {
+					t.Errorf("tab %q, want %q", tab, tt.tab)
+				}
+			}
+			if tt.toast != "" && !hasToast(m, tt.toast) {
+				t.Errorf("toasts lack %q: %s", tt.toast, toasted(m))
+			}
+			if pulls.got(isKey("f")) || pulls.got(isKey("s")) {
+				t.Error("a key reached the section")
+			}
+		})
+	}
+}

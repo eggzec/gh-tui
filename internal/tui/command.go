@@ -7,6 +7,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
+	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
@@ -33,17 +34,34 @@ type command struct {
 
 // commands are those of the command line, in the order they complete.
 var commands = []command{
+	{name: "filter", detail: "filter the focused list", run: filtering(filterform.FiltersTab)},
 	{name: "goto", detail: "open a repository, issue, pull request or link", args: true, run: (*Model).gotoCommand, complete: (*Model).completeTarget},
 	{name: "help", detail: "show every key", run: pressing(config.ActionHelp)},
 	{name: "open", detail: "open on GitHub what follows, or what is selected", args: true, run: (*Model).openCommand, complete: (*Model).completeTarget},
 	{name: "q", detail: "quit", quits: true, run: func(*Model, string) tea.Cmd { return tea.Quit }},
 	{name: "refresh", detail: "read the focused view again", run: pressing(config.ActionRefresh)},
 	{name: "search", detail: "search GitHub, for what follows if anything", args: true, run: (*Model).searchCommand},
+	{name: "sort", detail: "sort the focused list", run: filtering(filterform.SortTab)},
 }
 
 // pressing returns the run of a command that presses the key of action.
 func pressing(action string) func(m *Model, arg string) tea.Cmd {
 	return func(m *Model, _ string) tea.Cmd { return m.press(action) }
+}
+
+// filtering returns the run of a command that opens the filter modal of
+// the focused view on tab, as the filter and sort keys do. Where the key
+// would go on to a view that has no such tab, the command says so.
+func filtering(tab filterform.Tab) func(m *Model, arg string) tea.Cmd {
+	return func(m *Model, _ string) tea.Cmd {
+		if p := m.focused(); p != nil && m.openFilter(p.section, tab) {
+			return nil
+		}
+		if tab == filterform.SortTab {
+			return m.toast.Push(toast.Error, "Nothing here to sort.")
+		}
+		return m.toast.Push(toast.Error, "Nothing here to filter.")
+	}
 }
 
 // Searcher is a search page that searches for a query, as if the user
