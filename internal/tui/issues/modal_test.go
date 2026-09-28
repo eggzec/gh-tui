@@ -15,6 +15,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 )
 
 // opened returns a section 80 cells wide with the modal of issue #999 open,
@@ -326,29 +327,28 @@ func TestPendingComment(t *testing.T) {
 	}
 }
 
-// enabled returns the descriptions of the enabled keys in short help.
-func enabled(km interface{ ShortHelp() []key.Binding }) []string {
-	var out []string
-	for _, b := range km.ShortHelp() {
-		if b.Enabled() {
-			out = append(out, b.Help().Desc)
-		}
+// enabled returns the descriptions of the keys the help line offers.
+func enabled(layers []keyhelp.Layer) []string {
+	short := ui.Hints{Layers: layers}.ShortHelp()
+	out := make([]string, len(short))
+	for i, b := range short {
+		out[i] = b.Help().Desc
 	}
 	return out
 }
 
 func TestHelp(t *testing.T) {
 	h, m := opened(t, newFakeService(sampleIssues(12)), 20)
-	if got := enabled(m.Help()); !slices.Contains(got, "back") || slices.Contains(got, "filter") {
+	if got := enabled(m.KeyLayers()); !slices.Contains(got, "back") || slices.Contains(got, "filter") {
 		t.Errorf("modal help = %v, want back and no filter", got)
 	}
-	if got := enabled(h.Help()); slices.Contains(got, "back") || !slices.Contains(got, "filter") {
+	if got := enabled(h.KeyLayers()); slices.Contains(got, "back") || !slices.Contains(got, "filter") {
 		t.Errorf("list help = %v, want filter and no back", got)
 	}
 	// No binding in help shares a key with another.
-	for _, km := range []interface{ FullHelp() [][]key.Binding }{h.Help(), m.Help()} {
+	for _, layers := range [][]keyhelp.Layer{h.KeyLayers(), m.KeyLayers()} {
 		seen := map[string]string{}
-		for _, group := range km.FullHelp() {
+		for _, group := range (ui.Hints{Layers: layers}).FullHelp() {
 			for _, b := range group {
 				for _, k := range b.Keys() {
 					if prev, ok := seen[k]; ok && prev != b.Help().Desc {

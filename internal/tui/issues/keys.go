@@ -11,6 +11,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
 )
 
@@ -60,6 +61,9 @@ func newKeyMap(keys map[string][]string) keyMap {
 		confirm:     ui.DefaultConfirmKeys(),
 	}
 
+	// PR5: the section and the modal match their own keys first, so
+	// dropping them from the feed and the thread only keeps the
+	// collisions out of help.
 	fk := feed.DefaultKeyMap()
 	listKeys := []key.Binding{k.Select, k.Filter, k.Sort, k.ClearFilter, k.NextTab, k.PrevTab, k.Refresh, k.Open, k.Close, k.Reopen}
 	for _, b := range []*key.Binding{&fk.Up, &fk.Down, &fk.PageUp, &fk.PageDown, &fk.Home, &fk.End} {
@@ -112,41 +116,64 @@ func without(b key.Binding, taken []key.Binding) key.Binding {
 	return key.NewBinding(key.WithKeys(keys...), key.WithHelp(strings.Join(labels, "/"), b.Help().Desc))
 }
 
-// Help implements ui.Section. It lists the keys of the list; the modal of
-// an open issue lists its own.
-func (s *Section) Help() help.KeyMap {
-	k, fk := s.keys, s.keys.feed
-	if !s.hasRepo || s.issuesOff() {
-		return keyHelp{}
+// ShortHelp implements help.KeyMap.
+func (k keyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.Select, k.Back, k.Filter, k.ClearFilter, k.NextTab, k.Comment, k.Label, k.Close, k.Reopen, k.Open}
+}
+
+// FullHelp implements help.KeyMap: the keys the modal matches, and then
+// the list's.
+func (k keyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{k.Back, k.Comment, k.Label, k.Close, k.Reopen, k.Refresh, k.Open},
+		{k.Select, k.NextTab, k.PrevTab, k.ClearFilter, k.Filter, k.Sort},
 	}
-	// Offer close or reopen, whichever applies to the issue at hand, if
-	// the viewer may.
+}
+
+// Help lists the keys of the section for the help line.
+func (s *Section) Help() help.KeyMap { return ui.Hints{Layers: s.KeyLayers()} }
+
+// KeyLayers implements ui.Keyed: the keys of the list, and then those of
+// the feed. The modal of an open issue lists its own. Without a
+// repository, or with issues turned off, no key does anything.
+func (s *Section) KeyLayers() []keyhelp.Layer {
+	own := keyhelp.FromHelp(ui.IssuesTitle, s.keys.onList(s), false)
+	if !s.hasRepo || s.issuesOff() {
+		return []keyhelp.Layer{ui.Off(own)}
+	}
+	return []keyhelp.Layer{own, keyhelp.FromHelp("list", s.list.KeyMap(), false)}
+}
+
+// onList returns k as the list takes it: close or reopen, whichever applies
+// to the issue at hand, if the viewer may, and the clear key while a
+// filter is in force. The modal's own keys don't work here.
+func (k keyMap) onList(s *Section) keyMap {
 	it, ok := s.target()
 	g := s.gate()
 	k.Close.SetEnabled(k.Close.Enabled() && ok && it.State == core.StateOpen)
 	k.Reopen.SetEnabled(k.Reopen.Enabled() && ok && it.State != core.StateOpen)
 	k.Close, k.Reopen = g.Gated(k.Close, ui.ActClose, &it), g.Gated(k.Reopen, ui.ActReopen, &it)
 	k.ClearFilter.SetEnabled(k.ClearFilter.Enabled() && s.query != "")
-	return keyHelp{
-		short: []key.Binding{fk.Up, fk.Down, k.Select, k.Filter, k.ClearFilter, k.NextTab, k.Close, k.Reopen, k.Open},
-		full: [][]key.Binding{
-			{fk.Up, fk.Down, fk.PageUp, fk.PageDown, fk.Home, fk.End},
-			{k.Select, k.Filter, k.Sort, k.ClearFilter, k.NextTab, k.PrevTab, k.Open, k.Refresh},
-			{k.Close, k.Reopen},
-		},
+	for _, b := range []*key.Binding{&k.Back, &k.Comment, &k.Label} {
+		b.SetEnabled(false)
 	}
+	return k
 }
 
-// Help implements ui.Modal. While a question or the prompt is open, it
-// lists the keys that answer it.
-func (m *detailModal) Help() help.KeyMap {
-	if m.ask != nil {
-		return m.keys.confirm
+// Help lists the keys of the modal for the help line.
+func (m *detailModal) Help() help.KeyMap { return ui.Hints{Layers: m.KeyLayers()} }
+
+// KeyLayers implements ui.Keyed: the answer while a question is open, the
+// prompt while it takes every key, and otherwise the modal's own keys and
+// then the thread's.
+func (m *detailModal) KeyLayers() []keyhelp.Layer {
+	switch {
+	case m.ask != nil:
+		return []keyhelp.Layer{m.keys.confirm.Layer()}
+	case m.composing != composeNone:
+		return []keyhelp.Layer{keyhelp.FromHelp("prompt", m.prompt, true)}
 	}
-	if m.composing != composeNone {
-		return keyHelp{short: m.prompt.ShortHelp(), full: m.prompt.FullHelp()}
-	}
-	k, tk := m.keys, m.keys.thread
+	k := m.keys
 	g, it := m.gate(), &m.issue
 	k.Close.SetEnabled(k.Close.Enabled() && m.loaded && m.issue.State == core.StateOpen)
 	k.Reopen.SetEnabled(k.Reopen.Enabled() && m.loaded && m.issue.State != core.StateOpen)
@@ -154,23 +181,8 @@ func (m *detailModal) Help() help.KeyMap {
 	k.Label.SetEnabled(k.Label.Enabled() && m.loaded)
 	k.Close, k.Reopen = g.Gated(k.Close, ui.ActClose, it), g.Gated(k.Reopen, ui.ActReopen, it)
 	k.Comment, k.Label = g.Gated(k.Comment, ui.ActComment, it), g.Gated(k.Label, ui.ActLabel, it)
-	tk.Toggle.SetEnabled(tk.Toggle.Enabled() && m.thread.OnDiagram())
-	return keyHelp{
-		short: []key.Binding{tk.Down, tk.Up, k.Back, k.Comment, k.Label, k.Close, k.Reopen, k.Open, tk.Toggle},
-		full: [][]key.Binding{
-			{tk.Up, tk.Down, tk.PageUp, tk.PageDown},
-			{tk.HalfPageUp, tk.HalfPageDown, tk.Top, tk.Bottom},
-			{k.Back, k.Comment, k.Label, k.Open, tk.Toggle, k.Refresh},
-			{k.Close, k.Reopen},
-		},
+	for _, b := range []*key.Binding{&k.Select, &k.NextTab, &k.PrevTab, &k.ClearFilter, &k.Filter, &k.Sort} {
+		b.SetEnabled(false)
 	}
+	return []keyhelp.Layer{keyhelp.FromHelp("issue", k, false), keyhelp.FromHelp("thread", m.thread, false)}
 }
-
-// keyHelp is a help.KeyMap of fixed bindings.
-type keyHelp struct {
-	short []key.Binding
-	full  [][]key.Binding
-}
-
-func (h keyHelp) ShortHelp() []key.Binding  { return h.short }
-func (h keyHelp) FullHelp() [][]key.Binding { return h.full }

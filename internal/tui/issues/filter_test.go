@@ -15,7 +15,9 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/facets"
 	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 )
 
 // The section is what the app's filter modal filters.
@@ -42,16 +44,8 @@ func lastList(svc *fakeService) issuesvc.ListQuery {
 	return calls[len(calls)-1]
 }
 
-// shown returns the descriptions of the keys the short help shows.
-func shown(km interface{ ShortHelp() []key.Binding }) []string {
-	var d []string
-	for _, b := range km.ShortHelp() {
-		if b.Enabled() {
-			d = append(d, b.Help().Desc)
-		}
-	}
-	return d
-}
+// shown returns the descriptions of the keys that are enabled.
+func shown(layers []keyhelp.Layer) []string { return uitest.Enabled(layers) }
 
 func TestFilterQueryFollowsTheTab(t *testing.T) {
 	if _, ok := newSection(t, newFakeService(nil), 80, 20).Filter(); ok {
@@ -94,7 +88,7 @@ func TestApplyFilter(t *testing.T) {
 func TestTabsKeepTheFilterUntilCleared(t *testing.T) {
 	svc := newFakeService(sampleIssues(12))
 	h := started(t, svc, 80, 20)
-	if slices.Contains(shown(h.Help()), "clear filters") {
+	if slices.Contains(shown(h.KeyLayers()), "clear filters") {
 		t.Error("help offers to clear filters before any")
 	}
 	apply(t, h, "is:open label:bug")
@@ -102,8 +96,8 @@ func TestTabsKeepTheFilterUntilCleared(t *testing.T) {
 	if want := (issuesvc.ListQuery{Repo: testRepo, State: core.FilterClosed, Filter: "label:bug"}); lastList(svc) != want {
 		t.Errorf("listed %+v after ], want %+v", lastList(svc), want)
 	}
-	if !slices.Contains(shown(h.Help()), "clear filters") {
-		t.Errorf("help %v, want clear filters while filtered", shown(h.Help()))
+	if !slices.Contains(shown(h.KeyLayers()), "clear filters") {
+		t.Errorf("help %v, want clear filters while filtered", shown(h.KeyLayers()))
 	}
 	press(t, h, "F")
 	if want := (issuesvc.ListQuery{Repo: testRepo, State: core.FilterClosed}); lastList(svc) != want {

@@ -190,7 +190,7 @@ func TestDiagramKeys(t *testing.T) {
 		t.Errorf("the head doesn't link to %q once:\n%q", want, v)
 	}
 	var help []string
-	for _, b := range m.Help().ShortHelp() {
+	for _, b := range (ui.Hints{Layers: m.KeyLayers()}).ShortHelp() {
 		if b.Enabled() {
 			help = append(help, b.Help().Key+" "+b.Help().Desc)
 		}

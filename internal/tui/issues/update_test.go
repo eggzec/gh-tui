@@ -13,6 +13,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 )
 
 func TestRepoMsg(t *testing.T) {
@@ -103,7 +104,7 @@ func TestEmptyStateWithoutRepo(t *testing.T) {
 	if msgs := press(t, s, "f", "r", "enter", "o"); len(msgs) != 0 {
 		t.Errorf("keys without a repository sent %v", msgs)
 	}
-	if len(s.Help().ShortHelp()) != 0 {
+	if len(uitest.Enabled(s.KeyLayers())) != 0 {
 		t.Error("help lists keys without a repository")
 	}
 }
