@@ -5,8 +5,12 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
+	"strings"
+	"time"
 
 	"github.com/cli/go-gh/v2/pkg/auth"
 
@@ -106,6 +110,36 @@ func newSessionInfo(st start, token accesssvc.Token, client *github.Client, cfg 
 		s.Here = st.Here.String()
 	}
 	return s
+}
+
+// ghVersionTimeout bounds gh --version, which only prints.
+const ghVersionTimeout = 5 * time.Second
+
+// logGHVersion logs the version of gh, the one at path, which reads and
+// stores the token, in a gh record: it runs gh, so it runs in the
+// background. Nothing is logged when gh isn't installed or doesn't say.
+func logGHVersion(ctx context.Context, path string) {
+	if path == "" {
+		return
+	}
+	ctx, cancel := context.WithTimeout(ctx, ghVersionTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, path, "--version")
+	cmd.Env = append(os.Environ(), "GH_NO_UPDATE_NOTIFIER=1")
+	// A child of gh that holds the output open doesn't hold this past the
+	// timeout.
+	cmd.WaitDelay = time.Second
+	out, err := cmd.Output()
+	if err != nil {
+		slog.WarnContext(ctx, "gh version unknown", "span", "app", "err", err.Error())
+		return
+	}
+	// The first line is the version, such as "gh version 2.63.0
+	// (2024-11-27)", and the next its release page.
+	line, _, _ := strings.Cut(string(out), "\n")
+	if line = strings.TrimSpace(line); line != "" && len(line) <= 128 {
+		slog.InfoContext(ctx, "gh", "span", "app", "version", line)
+	}
 }
 
 // accountDir returns the directory of the disk cache that account keeps

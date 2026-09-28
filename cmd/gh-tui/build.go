@@ -74,6 +74,7 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 		return nil, err
 	}
 	logSession(newSessionInfo(st, token, client, cfg.Cache.Disk))
+	go logGHVersion(ctx, accesssvc.GHPath())
 	context.AfterFunc(ctx, client.Close)
 	access.Bind(client)
 	access.Start(ctx)
