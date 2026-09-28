@@ -92,12 +92,13 @@ func fit(s string, width int) string {
 	return s
 }
 
-// releaseName is what a release is called: its name, or else its tag.
+// releaseName is what a release is called: its name, or else its tag, on
+// one line.
 func releaseName(r core.Release) string {
-	if name := strings.TrimSpace(r.Name); name != "" {
+	if name := strings.TrimSpace(ui.OneLine(r.Name)); name != "" {
 		return name
 	}
-	return r.Tag
+	return ui.OneLine(r.Tag)
 }
 
 // header renders the head of the release at width: its name, its tag,
@@ -112,7 +113,7 @@ func (m *Modal) header(width int) string {
 	}
 	lines = append(lines, "")
 
-	parts := []string{termtext.Link(r.URL, st.text.Render(r.Tag))}
+	parts := []string{termtext.Link(r.URL, st.text.Render(ui.OneLine(r.Tag)))}
 	switch {
 	case r.Draft:
 		parts = append(parts, st.muted.Render("draft"))
@@ -150,7 +151,7 @@ func (m *Modal) renderAsset(a core.ReleaseAsset, width int) string {
 	// The numbers line up in columns wide enough for most files.
 	right := strings.Repeat(" ", max(6-len(size), 0)) + size + "  " + strings.Repeat(" ", max(9-ansi.StringWidth(downloads), 0)) + downloads
 	room := max(width-len(gutter)-ansi.StringWidth(right)-2, 1)
-	name := ansi.Truncate(a.Name, room, "…")
+	name := ansi.Truncate(ui.OneLine(a.Name), room, "…")
 	pad := max(width-len(gutter)-ansi.StringWidth(name)-ansi.StringWidth(right), 1)
 	return gutter + st.text.Render(name) + strings.Repeat(" ", pad) + st.muted.Render(right[:len(right)-len(downloads)]) + st.subtle.Render(downloads)
 }
