@@ -88,9 +88,13 @@ type Modal struct {
 	cancel context.CancelFunc
 	closed bool
 
+	// voice words why the release failed to load.
+	voice ui.Voice
+
 	width, height int
 	theme         ui.Theme
 	st            styles
+	errs          ui.ErrorStyles
 }
 
 var _ ui.Modal = (*Modal)(nil)
@@ -132,6 +136,7 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, id int64, url stri
 		url:    url,
 		ctx:    ctx,
 		cancel: cancel,
+		voice:  *o.voice,
 	}
 	fetch := func(ctx context.Context, _ string) ([]core.ReleaseAsset, string, error) {
 		r, err := svc.Get(ctx, repo, id)
@@ -241,6 +246,8 @@ func (m *Modal) SetSize(width, height int) {
 func (m *Modal) SetTheme(t ui.Theme) {
 	m.theme = t
 	m.st = newStyles(t)
+	// The mark is the thread's, which says why the files failed.
+	m.errs = t.Errors(ui.NewIcons(config.IconsUnicode))
 	m.thread.SetStyles(t.Thread())
 	if m.loaded {
 		_ = m.show()

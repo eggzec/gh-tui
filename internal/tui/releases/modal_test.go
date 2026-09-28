@@ -19,6 +19,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keytest"
+	"github.com/eggzec/gh-tui/pkg/termtext/termtexttest"
 )
 
 var (
@@ -202,7 +203,7 @@ func TestErrorIsRecoverable(t *testing.T) {
 	run(t, m, m.Init())
 	v := m.View()
 	assertFits(t, v, 100, 20)
-	if s := ansi.Strip(v); !strings.Contains(s, "Couldn't load the release: boom") || !strings.Contains(s, "Press r to retry, or o to open it on GitHub.") {
+	if s := ansi.Strip(v); !strings.Contains(s, "✗ Something went wrong · r to retry") || strings.Contains(s, "boom") {
 		t.Errorf("failed read shows as\n%s", s)
 	}
 	svc.mu.Lock()
@@ -211,6 +212,67 @@ func TestErrorIsRecoverable(t *testing.T) {
 	run(t, m, press(m, "r"))
 	if s := ansi.Strip(m.View()); !strings.Contains(s, "Glow v3") {
 		t.Errorf("after retry the modal shows\n%s", s)
+	}
+}
+
+// A release that failed to load says why the way the user should read
+// it, without the error's chain, request or status code, and names the
+// open key only while there is a page to open.
+func TestErrorWords(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		url  string
+		want string
+	}{
+		{"offline", fmt.Errorf("get release: github: GET /repos/charmbracelet/glow/releases/1: %w", core.ErrOffline), "u", "✗ Can't reach GitHub · r to retry"},
+		{"forbidden", fmt.Errorf("get release: github: 403 Forbidden: %w", core.ErrForbidden), "u", "✗ You don't have access to charmbracelet/glow · o to open on GitHub"},
+		{"forbidden without a page", fmt.Errorf("get release: github: 403 Forbidden: %w", core.ErrForbidden), "", "✗ You don't have access to charmbracelet/glow"},
+		{"not found", fmt.Errorf("get release: github: 404 Not Found: %w", core.ErrNotFound), "u", "✗ This doesn't exist or is private."},
+		{"internal", fmt.Errorf("get release: github: decode: %s", termtexttest.Hostile), "u", "✗ Something went wrong · r to retry"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := New(context.Background(), &fakeService{err: tt.err}, repo, v3.ID, tt.url, config.Default().Keys)
+			m.SetSize(100, 20)
+			run(t, m, m.Init())
+			termtexttest.AssertClean(t, m.View(), 100)
+			v := strings.TrimRight(ansi.Strip(m.View()), " \n")
+			line := ""
+			for l := range strings.SplitSeq(v, "\n") {
+				if strings.Contains(l, "✗") {
+					line = strings.TrimSpace(l)
+				}
+			}
+			if line != tt.want {
+				t.Errorf("modal says %q, want %q", line, tt.want)
+			}
+			for _, leak := range []string{"github:", "get release", "GET", "403", "404", "decode"} {
+				if strings.Contains(v, leak) {
+					t.Errorf("modal shows %q:\n%s", leak, v)
+				}
+			}
+		})
+	}
+}
+
+// A release that failed to load says why in both themes.
+func TestViewFailed(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(fmt.Sprintf("dark=%t", dark), func(t *testing.T) {
+			m := New(context.Background(), &fakeService{err: fmt.Errorf("get release: %w", core.ErrOffline)}, repo, v3.ID, "u", config.Default().Keys)
+			p, err := config.Default().Palette(dark)
+			if err != nil {
+				t.Fatal(err)
+			}
+			m.SetTheme(ui.NewTheme(p, dark))
+			// Inside the frame of an 80x24 terminal.
+			m.SetSize(60, 18)
+			run(t, m, m.Init())
+			v := m.View()
+			assertFits(t, v, 60, 18)
+			golden.RequireEqual(t, v)
+		})
 	}
 }
 

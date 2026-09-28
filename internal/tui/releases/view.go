@@ -2,6 +2,7 @@ package releases
 
 import (
 	"cmp"
+	"errors"
 	"strconv"
 	"strings"
 
@@ -19,8 +20,8 @@ const gutter = "  "
 // styles are the styles of the header and the files, built once per
 // theme.
 type styles struct {
-	title, text, muted, subtle, warning, rule, fail lipgloss.Style
-	sep                                             string
+	title, text, muted, subtle, warning, rule lipgloss.Style
+	sep                                       string
 }
 
 func newStyles(t ui.Theme) styles {
@@ -31,7 +32,6 @@ func newStyles(t ui.Theme) styles {
 		subtle:  t.Subtle,
 		warning: t.Warning,
 		rule:    t.Subtle,
-		fail:    t.Error,
 		sep:     t.Subtle.Render(" · "),
 	}
 }
@@ -51,36 +51,26 @@ func (m *Modal) View() string {
 // errorView says why the release couldn't be read, and how to go on, in
 // lines that fill the size.
 func (m *Modal) errorView() string {
-	st := &m.st
-	text := []string{
-		gutter + st.fail.Render("Couldn't load the release: "+m.err.Error()),
-		gutter + st.muted.Render(hint(m.keys.Refresh.Help().Key, "retry", m.keys.Open.Help().Key, "open it on GitHub")),
+	v := m.voice
+	v.Retry, v.Open = m.keys.Refresh, m.keys.Open
+	v.Open.SetEnabled(v.Open.Enabled() && m.Link() != "")
+	// Access is granted by repository, so a refusal names it; the release
+	// that isn't read yet has no name to give otherwise.
+	subject := ""
+	if errors.Is(m.err, core.ErrForbidden) {
+		subject = m.repo.String()
 	}
+	text, hint := ui.ErrorText("load the release", subject, v)(m.err)
+	errs := ui.ErrorLine(m.errs, text, hint, max(m.width-len(gutter), 1))
 	lines := make([]string, m.height)
 	for i := range lines {
 		var l string
-		if i > 0 && i-1 < len(text) {
-			l = text[i-1]
+		if i > 0 && i-1 < len(errs) {
+			l = gutter + errs[i-1]
 		}
 		lines[i] = fit(l, m.width)
 	}
 	return strings.Join(lines, "\n")
-}
-
-// hint names the keys that do what, such as "Press r to retry, or o to
-// open it on GitHub.", leaving out the unbound ones.
-func hint(retry, retryDo, open, openDo string) string {
-	var parts []string
-	if retry != "" {
-		parts = append(parts, retry+" to "+retryDo)
-	}
-	if open != "" {
-		parts = append(parts, open+" to "+openDo)
-	}
-	if len(parts) == 0 {
-		return ""
-	}
-	return "Press " + strings.Join(parts, ", or ") + "."
 }
 
 // fit truncates or pads s to width cells.
