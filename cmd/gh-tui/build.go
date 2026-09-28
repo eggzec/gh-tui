@@ -12,6 +12,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
+	accesssvc "github.com/eggzec/gh-tui/internal/service/access"
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
 	dashsvc "github.com/eggzec/gh-tui/internal/service/dashboard"
 	facetsvc "github.com/eggzec/gh-tui/internal/service/facets"
@@ -55,13 +56,20 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 	// one subscription.
 	engine := watch.New(watch.WithInterval(cfg.Sync.Interval))
 	// The session talks to one host, so the pinned repositories are on it
-	// too.
-	client, err := github.New(github.WithHost(st.Host),
+	// too. The access service learns what the token may do from the
+	// client's answers, and reads the token again from where it was found
+	// after a refresh.
+	token := findToken(st.Host)
+	access := accesssvc.New(st.Host, token, accesssvc.WithLookup(findToken), accesssvc.WithChecks(cfg.Auth.Check))
+	client, err := github.New(github.WithHost(st.Host), github.WithTokenSource(token.Value, token.Source),
+		github.WithOnAccess(access.Set),
 		github.WithRateNotify(func() { engine.Publish(core.SyncRateLimit) }))
 	if err != nil {
 		return nil, err
 	}
 	context.AfterFunc(ctx, client.Close)
+	access.Bind(client)
+	access.Start(ctx)
 
 	ttl := cfg.Cache.TTL
 	// What an account kept under the name of its token, before accounts
@@ -268,6 +276,13 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 		)
 	}
 	return tui.New(ctx, cfg, layout, opts...), nil
+}
+
+// findToken finds the token of host the way gh does, with where it
+// found it and the account gh stores it for.
+func findToken(host string) accesssvc.Token {
+	token, source, login := github.FindToken(host)
+	return accesssvc.Token{Value: token, Source: source, Login: login}
 }
 
 // dashboardPrefetch reports whether the dashboard reads the work waiting
