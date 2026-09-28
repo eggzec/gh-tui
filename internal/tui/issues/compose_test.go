@@ -461,15 +461,15 @@ func TestLabelDiff(t *testing.T) {
 
 func TestHelpWhileComposing(t *testing.T) {
 	h, m := opened(t, newFakeService(sampleIssues(12)), 20)
-	if got := enabled(m.Help()); !slices.Contains(got, "comment") || !slices.Contains(got, "labels") {
+	if got := enabled(m.KeyLayers()); !slices.Contains(got, "comment") || !slices.Contains(got, "labels") {
 		t.Errorf("modal help = %v, want comment and labels", got)
 	}
 	press(t, h, "c")
-	if got := enabled(m.Help()); !slices.Equal(got, []string{"submit", "cancel"}) {
+	if got := enabled(m.KeyLayers()); !slices.Equal(got, []string{"submit", "cancel"}) {
 		t.Errorf("help while composing = %v, want submit and cancel", got)
 	}
 	press(t, h, "esc", "esc")
-	if got := enabled(h.Help()); slices.Contains(got, "comment") {
+	if got := enabled(h.KeyLayers()); slices.Contains(got, "comment") {
 		t.Errorf("list help = %v, want no comment", got)
 	}
 }

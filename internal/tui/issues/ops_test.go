@@ -334,12 +334,14 @@ func TestDoneOfOthersIsIgnored(t *testing.T) {
 func TestHelpOffersTheApplicableChange(t *testing.T) {
 	s := started(t, newFakeService(sampleIssues(12)), 80, 20)
 	offered := func() (closeOn, reopenOn bool) {
-		for _, b := range s.Help().ShortHelp() {
-			switch {
-			case b.Help().Desc == "close":
-				closeOn = b.Enabled()
-			case b.Help().Desc == "reopen":
-				reopenOn = b.Enabled()
+		for _, l := range s.KeyLayers() {
+			for _, b := range l.Bindings {
+				switch {
+				case b.Help().Desc == "close":
+					closeOn = b.Enabled()
+				case b.Help().Desc == "reopen":
+					reopenOn = b.Enabled()
+				}
 			}
 		}
 		return closeOn, reopenOn

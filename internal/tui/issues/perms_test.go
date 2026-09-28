@@ -8,12 +8,13 @@ import (
 	"sync"
 	"testing"
 
-	"charm.land/bubbles/v2/help"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
@@ -23,16 +24,8 @@ var (
 	writeCaps  = core.RepoCaps{Known: true, Permission: core.PermissionWrite, Issues: true}
 )
 
-// offered returns what the enabled keys of km do, as help shows them.
-func offered(km help.KeyMap) []string {
-	var out []string
-	for _, b := range km.ShortHelp() {
-		if b.Enabled() {
-			out = append(out, b.Help().Desc)
-		}
-	}
-	return out
-}
+// offered returns what the enabled keys of layers do.
+func offered(layers []keyhelp.Layer) []string { return uitest.Enabled(layers) }
 
 func info(text string) tea.Msg { return ui.NotifyMsg{Level: toast.Info, Text: text} }
 
@@ -89,9 +82,9 @@ func TestGatedChanges(t *testing.T) {
 			run(t, h, h.Update(ui.CapsMsg{Repo: testRepo, Caps: tt.caps}))
 			last := len(tt.keys) - 1
 			press(t, h, tt.keys[:last]...)
-			km := h.Help()
+			km := h.KeyLayers()
 			if m := h.modal(); m != nil {
-				km = m.Help()
+				km = m.KeyLayers()
 			}
 			for _, desc := range tt.hidden {
 				if slices.Contains(offered(km), desc) {
@@ -123,15 +116,15 @@ func TestCapsArrivingLaterGateTheIssues(t *testing.T) {
 	h := started(t, svc, 120, 30, WithViewer(me))
 	press(t, h, "enter")
 	m := h.modal()
-	if got := offered(m.Help()); !slices.Contains(got, "labels") || !slices.Contains(got, "close") {
+	if got := offered(m.KeyLayers()); !slices.Contains(got, "labels") || !slices.Contains(got, "close") {
 		t.Errorf("help before the caps = %v, want labels and close offered", got)
 	}
 	run(t, h, h.Update(ui.CapsMsg{Repo: testRepo, Caps: readCaps}))
-	if got := offered(m.Help()); slices.Contains(got, "labels") || slices.Contains(got, "close") {
+	if got := offered(m.KeyLayers()); slices.Contains(got, "labels") || slices.Contains(got, "close") {
 		t.Errorf("help after read caps = %v, want neither labels nor close", got)
 	}
 	press(t, h, "esc")
-	if got := offered(h.Help()); slices.Contains(got, "close") {
+	if got := offered(h.KeyLayers()); slices.Contains(got, "close") {
 		t.Errorf("list help after read caps = %v, want no close", got)
 	}
 }
@@ -155,8 +148,8 @@ func TestIssuesTurnedOff(t *testing.T) {
 		if v := h.View(); !strings.Contains(v, "Issues are turned off for eggzec/gh-tui") {
 			t.Errorf("view:\n%s", v)
 		}
-		if _, ok := h.Filter(); ok || len(offered(h.Help())) != 0 {
-			t.Errorf("the filter or help keys are offered: %v", offered(h.Help()))
+		if _, ok := h.Filter(); ok || len(offered(h.KeyLayers())) != 0 {
+			t.Errorf("the filter or help keys are offered: %v", offered(h.KeyLayers()))
 		}
 	})
 	t.Run("learned after the list loaded", func(t *testing.T) {
@@ -219,7 +212,7 @@ func TestModalOfAnotherRepoReadsItsCaps(t *testing.T) {
 	if m == nil || m.caps != readCaps || !slices.Equal(repos.gets, []core.RepoRef{other}) {
 		t.Fatalf("modal %v after reads %v, want the caps of %v read", m, repos.gets, other)
 	}
-	if got := offered(m.Help()); slices.Contains(got, "labels") {
+	if got := offered(m.KeyLayers()); slices.Contains(got, "labels") {
 		t.Errorf("help = %v, want no labels in %v", got, other)
 	}
 }
