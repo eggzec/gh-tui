@@ -1,11 +1,15 @@
 package tui
 
 import (
+	"fmt"
 	"testing"
+	"testing/synctest"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
+	searchpage "github.com/eggzec/gh-tui/internal/tui/search"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keytest"
@@ -102,5 +106,96 @@ func TestKeyLayersOfTheCommandLine(t *testing.T) {
 		if got := winner(m, k); got != want {
 			t.Errorf("%s reaches %q with the command line open, want %q", k, got, want)
 		}
+	}
+}
+
+// focusOf names where the focus is: the focused pane of the repository
+// screen, the notifications, or the part of the search page that has it,
+// by its last layer of keys, and the query it searches for.
+func focusOf(m *Model) string {
+	switch m.screen {
+	case repoScreen:
+		return "repo: " + m.focused().section.Title()
+	case notifScreen:
+		return "notifications"
+	case searchScreen:
+		layers := m.keyLayers()
+		part := map[string]string{"query": "query", "search": "kinds", "results": "results"}[layers[len(layers)-1].Source]
+		return fmt.Sprintf("search: %s %q", part, m.srch.section.(*searchpage.Section).Query())
+	case dashScreen:
+	}
+	return fmt.Sprintf("screen %d", m.screen)
+}
+
+// Tab, shift+tab, ] and [ cycle the panes of the repository screen, which
+// the app does, and reach the section on the notifications and search
+// screens, which does what it defines for them: the search page moves
+// between its query, kinds and results, and its query types ] and [. The
+// notifications have none of them. The help credits each key to what it
+// reaches.
+func TestNextAndPrevKeysOnEachScreen(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		repo bool
+		// keys reach the screen, where from is the focus.
+		keys []string
+		from string
+		key  string
+		// winner is what the help credits key to, and want the focus
+		// after it.
+		winner, want string
+	}{
+		{"repo: tab", true, nil, "repo: Files", "tab", "app: next pane", "repo: Pull requests"},
+		{"repo: shift+tab", true, nil, "repo: Files", "shift+tab", "app: previous pane", "repo: Issues"},
+		{"repo: ]", true, nil, "repo: Files", "]", "app: next pane", "repo: Pull requests"},
+		{"repo: [", true, nil, "repo: Files", "[", "app: previous pane", "repo: Issues"},
+
+		{"notifications: tab", false, []string{"n"}, "notifications", "tab", "nothing", "notifications"},
+		{"notifications: shift+tab", false, []string{"n"}, "notifications", "shift+tab", "nothing", "notifications"},
+		{"notifications: ]", false, []string{"n"}, "notifications", "]", "nothing", "notifications"},
+		{"notifications: [", false, []string{"n"}, "notifications", "[", "nothing", "notifications"},
+
+		{"search query: tab", false, []string{"/", "k", "e", "y"}, `search: query "key"`, "tab", "query: next", `search: kinds "key"`},
+		{"search query: shift+tab", false, []string{"/", "k", "e", "y"}, `search: query "key"`, "shift+tab", "query: previous", `search: results "key"`},
+		{"search query: ]", false, []string{"/", "k", "e", "y"}, `search: query "key"`, "]", "nothing", `search: query "key]"`},
+		{"search query: [", false, []string{"/", "k", "e", "y"}, `search: query "key"`, "[", "nothing", `search: query "key["`},
+
+		{"search kinds: tab", false, []string{"/", "k", "e", "y", "up"}, `search: kinds "key"`, "tab", "search: next", `search: results "key"`},
+		{"search kinds: shift+tab", false, []string{"/", "k", "e", "y", "up"}, `search: kinds "key"`, "shift+tab", "search: previous", `search: query "key"`},
+		{"search kinds: ]", false, []string{"/", "k", "e", "y", "up"}, `search: kinds "key"`, "]", "search: next", `search: results "key"`},
+		{"search kinds: [", false, []string{"/", "k", "e", "y", "up"}, `search: kinds "key"`, "[", "search: previous", `search: query "key"`},
+
+		{"search results: tab", false, []string{"/", "k", "e", "y", "enter"}, `search: results "key"`, "tab", "search: next", `search: query "key"`},
+		{"search results: shift+tab", false, []string{"/", "k", "e", "y", "enter"}, `search: results "key"`, "shift+tab", "search: previous", `search: kinds "key"`},
+		{"search results: ]", false, []string{"/", "k", "e", "y", "enter"}, `search: results "key"`, "]", "search: next", `search: query "key"`},
+		{"search results: [", false, []string{"/", "k", "e", "y", "enter"}, `search: results "key"`, "[", "search: previous", `search: kinds "key"`},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				// Let the clock that regexp2 starts for the highlighting
+				// run out, so the bubble ends with nothing left running.
+				defer time.Sleep(time.Hour)
+				m := newKeysApp(t, tt.repo)
+				for _, k := range tt.keys {
+					msg, _ := keyPress(k)
+					driveKeys(t, m, m.key(msg))
+				}
+				if got := focusOf(m); got != tt.from {
+					t.Fatalf("the keys reach %s, want %s", got, tt.from)
+				}
+				if got := winner(m, tt.key); got != tt.winner {
+					t.Errorf("the help credits %s to %q, want %q", tt.key, got, tt.winner)
+				}
+				before := onScreen(m)
+				msg, _ := keyPress(tt.key)
+				driveKeys(t, m, m.key(msg))
+				if got := focusOf(m); got != tt.want {
+					t.Errorf("%s moved the focus to %s, want %s", tt.key, got, tt.want)
+				}
+				if tt.from == "notifications" && onScreen(m) != before {
+					t.Errorf("%s changed the notifications, which have no use for it", tt.key)
+				}
+			})
+		})
 	}
 }

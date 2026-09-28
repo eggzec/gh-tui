@@ -234,14 +234,18 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 	case m.dash != nil && key.Matches(msg, m.keys.Dashboard):
 		return m.toggleScreen(dashScreen)
 	}
-	// The dashboard moves between its own panes.
-	if m.screen != dashScreen {
+	// Only the repository screen has panes for the app to cycle through;
+	// elsewhere these keys are the section's.
+	if m.screen == repoScreen {
 		switch {
 		case key.Matches(msg, m.keys.Next):
 			return m.cycle(1)
 		case key.Matches(msg, m.keys.Prev):
 			return m.cycle(-1)
 		}
+	}
+	// The dashboard moves between its own panes.
+	if m.screen != dashScreen {
 		if i := m.keys.pane(msg); i >= 0 && i < len(m.panes) {
 			return m.showScreen(repoScreen, i)
 		}
