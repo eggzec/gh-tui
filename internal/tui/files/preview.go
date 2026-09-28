@@ -15,6 +15,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/obs"
 	filesvc "github.com/eggzec/gh-tui/internal/service/files"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
 )
 
@@ -266,30 +267,16 @@ func (p *preview) SetTheme(t ui.Theme) {
 	p.pager.SetStyles(t.Pager())
 }
 
-// Help returns the keys of the pager and the open key.
-func (p *preview) Help() help.KeyMap {
-	return previewKeys{pager: p.pager, open: p.open}
-}
+// Help lists the keys of the preview for the help line.
+func (p *preview) Help() help.KeyMap { return ui.Hints{Layers: p.KeyLayers()} }
 
-// previewKeys lists the keys of a preview for help.
-type previewKeys struct {
-	pager pager.Model
-	open  key.Binding
-}
-
-// ShortHelp returns the bindings for the short help view. While the search
-// input is open, only its own keys work.
-func (k previewKeys) ShortHelp() []key.Binding {
-	if k.pager.Capturing() {
-		return k.pager.ShortHelp()
+// KeyLayers implements ui.Keyed: the open key, unless the pager's search
+// input takes it, and then the pager's keys.
+func (p *preview) KeyLayers() []keyhelp.Layer {
+	open := p.open
+	open.SetEnabled(open.Enabled() && !p.pager.Capturing())
+	return []keyhelp.Layer{
+		{Source: "file", Bindings: []key.Binding{open}, Short: []key.Binding{open}},
+		keyhelp.FromHelp("pager", p.pager, p.pager.Capturing()),
 	}
-	return append(k.pager.ShortHelp(), k.open)
-}
-
-// FullHelp returns the bindings for the full help view.
-func (k previewKeys) FullHelp() [][]key.Binding {
-	if k.pager.Capturing() {
-		return k.pager.FullHelp()
-	}
-	return append(k.pager.FullHelp(), []key.Binding{k.open})
 }

@@ -23,6 +23,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/obs"
 	filesvc "github.com/eggzec/gh-tui/internal/service/files"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 	"github.com/eggzec/gh-tui/pkg/bubbles/tree"
 )
@@ -463,14 +464,21 @@ func (s *Section) Blur() {
 	}
 }
 
-// Help returns the keys of the section and its tree. The key that resets
-// the base shows only while there is one to reset.
-func (s *Section) Help() help.KeyMap {
+// Help lists the keys of the section for the help line.
+func (s *Section) Help() help.KeyMap { return ui.Hints{Layers: s.KeyLayers()} }
+
+// KeyLayers implements ui.Keyed: the section's own keys, with the one
+// that resets the base only while there is one to reset, and then the
+// tree's. Before a repository is selected, no key does anything.
+func (s *Section) KeyLayers() []keyhelp.Layer {
 	k := s.keys
-	if s.ref == "" {
-		k.ResetBase.SetEnabled(false)
+	k.ResetBase.SetEnabled(k.ResetBase.Enabled() && s.ref != "")
+	own := keyhelp.Layer{Source: ui.FilesTitle, Bindings: k.own(), Short: k.own()}
+	moves := keyhelp.FromHelp("tree", k.Tree, false)
+	if s.tree == nil {
+		return []keyhelp.Layer{ui.Off(own), ui.Off(moves)}
 	}
-	return k
+	return []keyhelp.Layer{own, moves}
 }
 
 // Ref returns the base the files are shown at, a branch or a commit SHA,

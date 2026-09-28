@@ -170,11 +170,12 @@ func TestPreviewHelp(t *testing.T) {
 	has := func(bs []key.Binding, k string) bool {
 		return slices.ContainsFunc(bs, func(b key.Binding) bool { return b.Help().Key == k })
 	}
-	if short := h.top().Help().ShortHelp(); !has(short, "o") || !has(short, "q") {
+	short := func() []key.Binding { return ui.Hints{Layers: h.top().(ui.Keyed).KeyLayers()}.ShortHelp() }
+	if short := short(); !has(short, "o") || !has(short, "q") {
 		t.Errorf("help lists %v, want the pager keys and o", short)
 	}
 	h.keys("/")
-	if has(h.top().Help().ShortHelp(), "o") {
+	if has(short(), "o") {
 		t.Error("help lists o while the search input takes it")
 	}
 }

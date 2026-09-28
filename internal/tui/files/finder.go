@@ -16,6 +16,7 @@ import (
 	filesvc "github.com/eggzec/gh-tui/internal/service/files"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/finder"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
 )
 
@@ -84,18 +85,14 @@ func newFinderKeys() finderKeys {
 	}
 }
 
-// ShortHelp returns the bindings for the short help view.
+// ShortHelp implements help.KeyMap.
 func (k finderKeys) ShortHelp() []key.Binding {
-	return []key.Binding{k.find.Up, k.find.Down, k.find.Choose, k.Reveal, k.Preview, k.Browser, k.find.Cancel}
+	return []key.Binding{k.Reveal, k.Preview, k.Browser}
 }
 
-// FullHelp returns the bindings for the full help view.
-func (k finderKeys) FullHelp() [][]key.Binding {
-	return [][]key.Binding{
-		{k.find.Up, k.find.Down, k.find.PageUp, k.find.PageDown},
-		{k.find.Choose, k.Reveal, k.Preview, k.Browser, k.find.Cancel},
-	}
-}
+// FullHelp implements help.KeyMap: the keys of the finder beside the
+// bubble's.
+func (k finderKeys) FullHelp() [][]key.Binding { return [][]key.Binding{k.ShortHelp()} }
 
 // FindFile opens the finder over the files the tree shows, and loads their
 // listing if it isn't cached, with one request. It implements
@@ -444,12 +441,15 @@ func (f *finderModal) SetTheme(t ui.Theme) {
 	f.sep = " " + border.Render("│") + " "
 }
 
-// Help returns the keys of the finder.
-func (f *finderModal) Help() help.KeyMap {
+// Help lists the keys of the finder for the help line.
+func (f *finderModal) Help() help.KeyMap { return ui.Hints{Layers: f.KeyLayers()} }
+
+// KeyLayers implements ui.Keyed: the finder's own keys, and then the
+// bubble's, whose query types the rest.
+func (f *finderModal) KeyLayers() []keyhelp.Layer {
 	k := f.keys
-	k.Preview.SetHelp(k.Preview.Help().Key, "preview")
 	if f.preview {
 		k.Preview.SetHelp(k.Preview.Help().Key, "hide preview")
 	}
-	return k
+	return []keyhelp.Layer{keyhelp.FromHelp("finder", k, false), keyhelp.FromHelp("find", f.find, true)}
 }
