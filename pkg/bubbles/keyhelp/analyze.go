@@ -1,6 +1,7 @@
 package keyhelp
 
 import (
+	"slices"
 	"unicode"
 	"unicode/utf8"
 
@@ -72,7 +73,8 @@ type Loss struct {
 // unless a layer before that one types it. A later enabled binding with
 // the key loses it, in a conflict within one layer and shadowed across
 // layers. A binding that loses a key to another is marked so even if its
-// other keys work; one whose keys are all typed is Typed.
+// other keys work; one whose keys are all typed is Typed. A binding listed
+// again, with the same keys and help, loses nothing to itself.
 func Analyze(layers []Layer) []Row {
 	type claim struct {
 		b     key.Binding
@@ -92,6 +94,12 @@ func Analyze(layers []Layer) []Row {
 			won := false
 			for _, k := range b.Keys() {
 				if c, ok := claimed[k]; ok {
+					if same(b, c.b) {
+						// A layer that lists a binding again, such as the
+						// keys a section claims before the app's and then
+						// lists with its own, loses nothing to itself.
+						continue
+					}
 					st := Shadowed
 					if c.layer == li {
 						st = Conflict
@@ -114,6 +122,12 @@ func Analyze(layers []Layer) []Row {
 		}
 	}
 	return rows
+}
+
+// same reports whether a and b are one binding listed twice: the same
+// keys, named and described alike.
+func same(a, b key.Binding) bool {
+	return a.Help() == b.Help() && slices.Equal(a.Keys(), b.Keys())
 }
 
 // status returns the status of an enabled binding that lost keys, and won
