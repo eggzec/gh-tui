@@ -101,7 +101,7 @@ const ConfirmLines = 2
 // Line renders c on a line of w cells: the question, cut to leave room,
 // and the keys that answer it against the right edge.
 func (c Confirm) Line(st ConfirmStyles, k ConfirmKeys, w int) string {
-	return Spread(st.Question.Render(c.Question), st.Keys.Render(k.answers()), w)
+	return Spread(st.Question.Render(OneLine(c.Question)), st.Keys.Render(k.answers()), w)
 }
 
 // Lines renders c on at most n lines of w cells: the question, wrapped at
@@ -114,7 +114,8 @@ func (c Confirm) Lines(st ConfirmStyles, k ConfirmKeys, w, n int) []string {
 	if n <= 1 || room < 1 {
 		return []string{c.Line(st, k, w)}
 	}
-	wrapped := wrapWords(c.Question, room)
+	// A question may name what GitHub calls something, such as a title.
+	wrapped := wrapWords(OneLine(c.Question), room)
 	if len(wrapped) > n {
 		rest := strings.Join(wrapped[n-1:], " ")
 		wrapped = append(wrapped[:n-1], ansi.Truncate(rest, room, "…"))

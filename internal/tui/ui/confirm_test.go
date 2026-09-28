@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
+	"github.com/eggzec/gh-tui/pkg/termtext/termtexttest"
 )
 
 // press returns the key press of k, as a terminal sends it.
@@ -106,6 +107,16 @@ func TestConfirmLine(t *testing.T) {
 	// A narrow line cuts the question and keeps the keys.
 	if got, want := c.Line(st, k, 12), "Reopen … y/n"; got != want {
 		t.Errorf("narrow line = %q, want %q", got, want)
+	}
+}
+
+// A question may name what GitHub calls something, such as a title.
+func TestConfirmCleansHostileQuestions(t *testing.T) {
+	c := Confirm{Question: "Close " + termtexttest.Hostile + "?"}
+	st, k := Theme{}.Confirm(), DefaultConfirmKeys()
+	for _, w := range []int{20, 80, 300} {
+		termtexttest.AssertClean(t, c.Line(st, k, w), w)
+		termtexttest.AssertClean(t, strings.Join(c.Lines(st, k, w, ConfirmLines), "\n"), w)
 	}
 }
 
