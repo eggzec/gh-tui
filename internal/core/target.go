@@ -210,6 +210,9 @@ func parseLink(s, host string) (Target, error) {
 	if u.Scheme != "https" && u.Scheme != "http" {
 		return Target{}, &TargetError{Reason: "not a web link", Err: fmt.Errorf("not a web link: %q", s)}
 	}
+	if path, ok := apiPath(u, host); ok {
+		return parseAPILink(s, path)
+	}
 	if !sameHost(u.Host, u.Scheme, host) {
 		return Target{}, &TargetError{Reason: "not a link to " + host, Err: fmt.Errorf("not a link to %s: %q", host, s)}
 	}
@@ -241,6 +244,72 @@ func parseLink(s, host string) (Target, error) {
 		}
 	}
 	n, err := parseNumber(parts[3])
+	if err != nil {
+		return Target{}, err
+	}
+	t.Number, t.Kind = n, kind
+	return t, nil
+}
+
+// apiPath returns the path below the API root of u, a link to the REST
+// API of host rather than to its pages: below /api/v3 on an Enterprise
+// Server, whose API shares its host, and on the api. host of github.com
+// or a GHE.com tenant.
+func apiPath(u *url.URL, host string) (string, bool) {
+	if sameHost(u.Host, u.Scheme, "api."+host) {
+		return u.Path, true
+	}
+	// github.com's pages have no /api/v3; an owner named api has them.
+	if !sameHost(u.Host, u.Scheme, host) || strings.EqualFold(host, DefaultHost) {
+		return "", false
+	}
+	// Everything below /api is the API's, such as /api/graphql too.
+	below := func(path, dir string) (string, bool) {
+		rest, ok := strings.CutPrefix(path, dir)
+		return rest, ok && (rest == "" || rest[0] == '/')
+	}
+	rest, ok := below(u.Path, "/api")
+	if !ok {
+		return "", false
+	}
+	if v3, ok := below(rest, "/v3"); ok {
+		return v3, true
+	}
+	return rest, true
+}
+
+// apiKinds are the API paths below a repository whose next segment is a
+// pull request or issue number.
+var apiKinds = map[string]NumberKind{"pulls": KindPull, "issues": KindIssue}
+
+// parseAPILink reads path, the part below the API root of s, a link to
+// GitHub's REST API: /repos/owner/name for a repository, and
+// /repos/owner/name/pulls/N or /issues/N, or a path below them, for a
+// pull request or an issue. The API has no page for anything else.
+func parseAPILink(s, path string) (Target, error) {
+	parts := strings.Split(strings.Trim(path, "/"), "/")
+	if len(parts) < 3 || parts[0] != "repos" {
+		return Target{}, &TargetError{
+			Reason: "an API link opens only a repository, pull request or issue",
+			Err:    fmt.Errorf("not an API link to a repository, pull request or issue: %q", s),
+		}
+	}
+	repo, err := parseRepo(parts[1] + "/" + parts[2])
+	if err != nil {
+		return Target{}, err
+	}
+	t := Target{Repo: repo}
+	if len(parts) == 3 {
+		return t, nil
+	}
+	kind := apiKinds[parts[3]]
+	if !kind.Known() || len(parts) < 5 {
+		return Target{}, &TargetError{
+			Reason: "an API link opens only a repository, pull request or issue",
+			Err:    fmt.Errorf("not an API link to a repository, pull request or issue: %q", s),
+		}
+	}
+	n, err := parseNumber(parts[4])
 	if err != nil {
 		return Target{}, err
 	}
