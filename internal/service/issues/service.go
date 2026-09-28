@@ -6,6 +6,7 @@ package issues
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -152,7 +153,9 @@ func fetch[V any](ctx context.Context, c *cache.Cache[V], shelf *cache.Shelf[V],
 func listKey(q ListQuery) string {
 	if q.Filter != "" {
 		// Filtered lists aren't kept, so their keys needn't parse back.
-		return fmt.Sprintf("filtered:%s:%s:%d:%q:%s", repoID(q.Repo), q.State, q.PageSize, q.Filter, q.Cursor)
+		// The filter comes after '?', which a record of the key leaves
+		// out, since the user typed it.
+		return fmt.Sprintf("filtered:%s:%s:%d:%s?filter=%s", repoID(q.Repo), q.State, q.PageSize, q.Cursor, url.QueryEscape(q.Filter))
 	}
 	return fmt.Sprintf("list:%s:%s:%d:%s", repoID(q.Repo), q.State, q.PageSize, q.Cursor)
 }

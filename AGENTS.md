@@ -278,10 +278,12 @@ reacts to messages. Concretely:
   file contents. Keep logging out of `View` and per-frame `Update`, and
   guard the arguments of hot debug records with `obs.Enabled`.
   `pkg/bubbles` doesn't log.
-- Log paths with the home directory as `~` (`ui.ShortPath`). A log may
-  still name private repositories (`repo`, `here`, `goto`) at info, and
-  search text and cursors (`query`) at debug: ask a user to look for those
-  before they share one.
+- Log paths with the home directory as `~` (`ui.ShortPath`, `obs.ShortHome`
+  in text). Log keys through `obs.LogKey`, and keep what the user typed
+  after a key's `?`; a request's `query` names such values by their length.
+  A log may still name private repositories (`repo`, `here`, `goto`) at
+  info, and cursors at debug: ask a user to look for those before they
+  share one.
 - A background loop's requests that went well log at debug, since the
   loop's own record (`sync poll`, `revalidate pass`) sums them up.
   `:set log.level` changes the level for the session.

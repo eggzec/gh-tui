@@ -366,7 +366,7 @@ func (b batch[K]) readOne(ctx context.Context, k K) {
 	}
 	if held {
 		if obs.Enabled(ctx, slog.LevelDebug) {
-			slog.DebugContext(ctx, "prefetch paused", "span", "prefetch", "kind", b.seen.Kind(), "key", fmt.Sprint(k),
+			slog.DebugContext(ctx, "prefetch paused", "span", "prefetch", "kind", b.seen.Kind(), "key", obs.LogKey(fmt.Sprint(k)),
 				"waited_ms", obs.Millis(waited))
 		}
 		// What paused it, such as the detail the user opened, may have
@@ -395,7 +395,7 @@ func (b batch[K]) readOne(ctx context.Context, k K) {
 	}
 	b.end(k, err == nil)
 	if obs.Enabled(ctx, slog.LevelDebug) {
-		slog.DebugContext(ctx, "prefetch read", "span", "prefetch", "kind", b.seen.Kind(), "key", fmt.Sprint(k),
+		slog.DebugContext(ctx, "prefetch read", "span", "prefetch", "kind", b.seen.Kind(), "key", obs.LogKey(fmt.Sprint(k)),
 			"outcome", outcome, "duration_ms", obs.Millis(time.Since(start)))
 	}
 }

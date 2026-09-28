@@ -184,7 +184,7 @@ func (c *Cache[V]) leave(key string, f *flight[V]) {
 // stale.
 func logFetch(ctx context.Context, key, found string) {
 	if obs.Enabled(ctx, slog.LevelDebug) {
-		slog.DebugContext(ctx, "cache", "span", "cache.memory", "kind", kindOf(key), "key", key, "found", found)
+		slog.DebugContext(ctx, "cache", "span", "cache.memory", "kind", kindOf(key), "key", obs.LogKey(key), "found", found)
 	}
 }
 

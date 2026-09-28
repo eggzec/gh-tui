@@ -2,6 +2,7 @@ package cache
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"log/slog"
 	"math"
@@ -175,5 +176,38 @@ func TestShelfLogsEncodeFailure(t *testing.T) {
 		if d.Kind == "num" && d.WriteFailed != 1 {
 			t.Errorf("write_failed = %d, want 1", d.WriteFailed)
 		}
+	}
+}
+
+// The debug records of reads name a key without its query, which may
+// hold what the user typed, such as a search.
+func TestLogsKeyWithoutQuery(t *testing.T) {
+	var buf bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(obs.NewLogger(&buf, slog.LevelDebug, "s_test"))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+	freshStats(t)
+	const key = "search?kind=issues&q=secret+plans"
+	c := New[page]()
+	fetch := func(context.Context, Entry[page], bool) (Entry[page], error) { return Entry[page]{}, nil }
+	for range 2 {
+		if _, err := c.Fetch(t.Context(), key, fetch); err != nil {
+			t.Fatal(err)
+		}
+	}
+	store := newMemStore()
+	_ = NewShelf[page](store, "search", 1).Save(key, Entry[page]{})
+	NewShelf[page](store, "search", 1).Warm(New[page](WithTTL(time.Nanosecond)), key, false)
+	recs := logged(t, &buf, "cache")
+	if len(recs) == 0 {
+		t.Fatalf("no cache records:\n%s", &buf)
+	}
+	for _, r := range recs {
+		if r["key"] != "search" {
+			t.Errorf("record = %v, want the key search", r)
+		}
+	}
+	if strings.Contains(buf.String(), "secret") {
+		t.Errorf("the log holds the query:\n%s", &buf)
 	}
 }

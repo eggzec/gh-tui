@@ -2,10 +2,12 @@ package issues
 
 import (
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/obs"
 	"github.com/eggzec/gh-tui/internal/revalidate"
 )
 
@@ -177,5 +179,19 @@ func TestKeptSkipsFresh(t *testing.T) {
 	}
 	if calls := api.called(); slices.Contains(calls, "ListIssues") {
 		t.Errorf("calls = %q, want no request for the fresh list", calls)
+	}
+}
+
+// A filtered list's key keeps the filter, which the user typed, where a
+// record of the key leaves it out, and filters apart.
+func TestFilteredListKeyHidesFilter(t *testing.T) {
+	q := ListQuery{Repo: core.RepoRef{Owner: "o", Name: "r"}, State: core.FilterOpen, PageSize: 30, Filter: "author:secret label:bug"}
+	other := q
+	other.Filter = "author:secret"
+	if listKey(q) == listKey(other) {
+		t.Errorf("filters %q and %q share the key %q", q.Filter, other.Filter, listKey(q))
+	}
+	if got := obs.LogKey(listKey(q)); strings.Contains(got, "secret") || got != "filtered:o/r:open:30:" {
+		t.Errorf("logged key = %q, want it without the filter", got)
 	}
 }

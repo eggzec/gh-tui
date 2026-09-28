@@ -234,7 +234,7 @@ func logCheck(ctx context.Context, e Entry, res Result) {
 	}
 	attrs := []slog.Attr{
 		slog.String("span", "revalidate.check"),
-		slog.String("entry", e.ID),
+		slog.String("entry", obs.LogKey(e.ID)),
 		slog.String("status", res.Status.String()),
 	}
 	if e.Repo != (core.RepoRef{}) {
