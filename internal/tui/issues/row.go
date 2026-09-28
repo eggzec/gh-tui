@@ -171,7 +171,7 @@ func (s *Section) renderRow(it core.Issue, selected bool, width int) string {
 		title = st.selected
 	}
 	tcells := max(c.title-over, 0)
-	tw := writeCut(&link, title, clean(it.Title), tcells)
+	tw := writeCut(&link, title, ui.OneLine(it.Title), tcells)
 	b.WriteString(s.links.Link(it.URL, link.String()))
 	pad(&b, tcells-tw)
 
@@ -293,14 +293,6 @@ func textWidth(s string) (int, bool) {
 		}
 	}
 	return len(s), true
-}
-
-// clean keeps a title on one line.
-func clean(s string) string {
-	if !strings.ContainsAny(s, "\n\r\t") {
-		return s
-	}
-	return strings.Join(strings.Fields(s), " ")
 }
 
 const spaces = "                                                                "

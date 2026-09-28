@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
 // chip is a rendered label and its width in cells.
@@ -42,7 +43,7 @@ func (cc *chipCache) get(l core.Label) chip {
 	if len(cc.chips) >= maxChips {
 		clear(cc.chips)
 	}
-	name := ansi.Truncate(clean(l.Name), chipName, "…")
+	name := ansi.Truncate(ui.OneLine(l.Name), chipName, "…")
 	st := cc.label
 	if fg, bg, ok := chipColors(l.Color, cc.dark); ok {
 		st = lipgloss.NewStyle().Foreground(fg).Background(bg).Padding(0, 1)
