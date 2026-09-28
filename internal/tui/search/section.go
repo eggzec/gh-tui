@@ -290,10 +290,8 @@ func (s *Section) Blur() {
 // View returns the page, rendered when its state last changed.
 func (s *Section) View() string { return s.view }
 
-// Help returns the keys of the part of the page that has the focus.
-func (s *Section) Help() help.KeyMap {
-	return helpKeys{k: s.keys, area: s.area, kind: s.kind, feed: s.feedKeys()}
-}
+// Help lists the keys of the page for the help line.
+func (s *Section) Help() help.KeyMap { return ui.Hints{Layers: s.KeyLayers()} }
 
 func inputStyles(t ui.Theme) textinput.Styles {
 	st := textinput.StyleState{
