@@ -29,6 +29,14 @@ func TestCount(t *testing.T) {
 		{name: "then closes", keys: []string{"4", "esc", "esc"}, wantTop: 1, wantClose: true},
 		{name: "a huge count doesn't overflow", keys: []string{"9", "9", "9", "9", "9", "9", "9", "9", "9", "9", "9", "9", "9", "9", "9", "9", "9", "9", "9", "9", "g"},
 			wantTop: 91},
+		{name: "% goes to its percent", keys: []string{"2", "5", "%"}, wantTop: 25},
+		{name: "0% goes to the first", keys: []string{"G", "0", "%"}, wantTop: 1},
+		{name: "100% goes to the last", keys: []string{"1", "0", "0", "%"}, wantTop: 91},
+		{name: "more than 100% goes to the last", keys: []string{"9", "9", "9", "%"}, wantTop: 91},
+		{name: "% alone does nothing", keys: []string{"j", "%"}, wantTop: 2},
+		{name: "a percent lasts one key", keys: []string{"5", "0", "%", "j"}, wantTop: 51},
+		// 20% is line 20, hidden, so it goes to line 23.
+		{name: "a percent counts the lines of the content", filter: "line x ", keys: []string{"2", "0", "%"}, wantTop: 23},
 		// Lines 2, 9, 16, … are shown: line 10 is hidden, so 10g goes to
 		// line 16.
 		{name: "a hidden line goes to the next shown", filter: "line x ", keys: []string{"1", "0", "g"}, wantTop: 16},

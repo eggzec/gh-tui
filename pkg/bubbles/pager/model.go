@@ -216,7 +216,7 @@ func (m Model) ShortHelp() []key.Binding {
 	case m.opt:
 		return []key.Binding{m.keys.Cancel}
 	case m.counting:
-		return []key.Binding{m.keys.Home, m.keys.End, m.keys.Cancel}
+		return []key.Binding{m.keys.Home, m.keys.End, m.keys.Percent, m.keys.Cancel}
 	}
 	return m.keys.ShortHelp()
 }
@@ -234,10 +234,12 @@ func (m Model) confirmKey() key.Binding {
 // FullHelp implements help.KeyMap. While the prompt is open, only the keys
 // that close it act, and the prompt takes the rest; while the pager waits
 // for an option, only the key that cancels it acts, and after a count,
-// the keys that go to its line act too.
+// the keys that go to its line or percent act too. The key that goes to a
+// percent acts only after a count.
 func (m Model) FullHelp() [][]key.Binding {
 	k := m.keys
 	k.Confirm = m.confirmKey()
+	k.Percent.SetEnabled(m.counting)
 	if m.Capturing() {
 		for _, b := range []*key.Binding{
 			&k.Up, &k.Down, &k.PageUp, &k.PageDown, &k.HalfPageUp, &k.HalfPageDown, &k.Home, &k.End,

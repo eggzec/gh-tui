@@ -44,8 +44,8 @@ func TestHelpState(t *testing.T) {
 		}
 	}
 	m, _ = keys(t, m, "esc", "esc", "1")
-	if got := enabled(m); !slices.Equal(got, []string{"g/home active", "G/end active", "0-9 active", "esc active"}) {
-		t.Errorf("counting: enabled %q, want g, G, the digits and esc", got)
+	if got := enabled(m); !slices.Equal(got, []string{"g/home active", "G/end active", "0-9 active", "% active", "esc active"}) {
+		t.Errorf("counting: enabled %q, want g, G, the digits, %% and esc", got)
 	}
 	m, _ = keys(t, m, "esc", "-")
 	if got := enabled(m); !slices.Equal(got, []string{"esc active"}) {
