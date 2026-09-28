@@ -84,13 +84,16 @@ func (m *Model) helpFrame() string {
 }
 
 // keyLayers returns the keys that reach something now, in the order a key
-// reaches them. The help key comes first, and ctrl+c, which quits from
-// the help and a modal, since they take every other key. Then come the
-// open help's, or else an open modal's, or else, while the focused
-// section captures keys, the app's that hold ctrl+c and the section's,
-// or else the keys the section claims, then the app's, and then the
-// section's.
+// reaches them. The open command line takes every key, ctrl+c too.
+// Otherwise the help key comes first, and ctrl+c, which quits from the
+// help and a modal, since they take every other key. Then come the open
+// help's, or else an open modal's, or else, while the focused section
+// captures keys, the app's that hold ctrl+c and the section's, or else
+// the keys the section claims, then the app's, and then the section's.
 func (m *Model) keyLayers() []keyhelp.Layer {
+	if m.line.Focused() {
+		return []keyhelp.Layer{keyhelp.FromHelp("command line", m.line, true)}
+	}
 	quit := keyhelp.Layer{Source: "app", Bindings: []key.Binding{forceQuit}}
 	if m.helpOpen() {
 		return []keyhelp.Layer{quit, keyhelp.FromHelp("help", m.keyhelp, true)}
