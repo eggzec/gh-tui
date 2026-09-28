@@ -164,7 +164,7 @@ func (f *fakeAPI) ProbeIssues(_ context.Context, r core.RepoRef, cond github.Con
 
 func (f *fakeAPI) checkRepo(r core.RepoRef) {
 	f.t.Helper()
-	if r != repo {
+	if !r.Same(repo) {
 		f.t.Errorf("repo = %v, want %v", r, repo)
 	}
 }

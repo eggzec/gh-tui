@@ -3,7 +3,6 @@ package issues
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
@@ -13,7 +12,7 @@ import (
 // SyncKey is the sync key under which the app subscribes Poll(repo).
 // GitHub ignores case in owner and repository names, so the key does too.
 func SyncKey(repo core.RepoRef) string {
-	return "issues:" + strings.ToLower(repo.String())
+	return "issues:" + repoID(repo)
 }
 
 // Poll returns a watch.PollFunc that asks GitHub, with a conditional

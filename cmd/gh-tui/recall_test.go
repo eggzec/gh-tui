@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"slices"
 	"testing"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/github"
 	dashsvc "github.com/eggzec/gh-tui/internal/service/dashboard"
 	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
 	pullsvc "github.com/eggzec/gh-tui/internal/service/pulls"
@@ -77,5 +79,27 @@ func TestRecallNumbers(t *testing.T) {
 	}
 	if got := r.Numbers(ref("cli", "cli")); len(got) != 0 {
 		t.Errorf("Numbers of a repository with nothing cached = %v, want none", got)
+	}
+}
+
+// issueLister is a GitHub that lists one open issue of any repository.
+// It has no other answers.
+type issueLister struct{ issuesvc.API }
+
+func (issueLister) ListIssues(_ context.Context, r core.RepoRef, _ core.StateFilter, _ string, _ int, _ github.Conditional) (core.Page[core.Issue], github.Response, error) {
+	return core.Page[core.Issue]{Items: []core.Issue{{Repo: r, Number: 3, Title: "Parser"}}}, github.Response{StatusCode: 200}, nil
+}
+
+// GitHub ignores the case of names, so the command line completes the
+// numbers the panes read under any spelling of the repository.
+func TestRecallNumbersIgnoreCase(t *testing.T) {
+	issues := issuesvc.New(issueLister{})
+	if _, err := issues.List(t.Context(), issuesvc.ListQuery{Repo: ref("cli", "cli"), State: core.FilterOpen}); err != nil {
+		t.Fatal(err)
+	}
+	r := recall{pulls: cachedPulls{}, issues: issues}
+	want := []tui.Numbered{{Number: 3, Title: "Parser"}}
+	if got := r.Numbers(ref("CLI", "Cli")); !slices.Equal(got, want) {
+		t.Errorf("Numbers(CLI/Cli) = %v, want %v", got, want)
 	}
 }
