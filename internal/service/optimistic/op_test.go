@@ -101,3 +101,14 @@ func TestConcurrentDoAndRollback(t *testing.T) {
 		t.Errorf("calls = %v, want exactly one of send or undo", r.calls)
 	}
 }
+
+func TestRefused(t *testing.T) {
+	errNo := errors.New("no")
+	op := Refused(errNo)
+	if err := op.Do(t.Context()); !errors.Is(err, errNo) {
+		t.Errorf("Do = %v, want %v", err, errNo)
+	}
+	if err := op.Do(t.Context()); !errors.Is(err, ErrDone) {
+		t.Errorf("second Do = %v, want ErrDone", err)
+	}
+}
