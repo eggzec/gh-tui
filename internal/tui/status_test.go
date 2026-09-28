@@ -215,6 +215,33 @@ func narrower(a, b int) bool {
 	return b != -1 && a > b
 }
 
+// TestStatusBarHintsCached checks that the hints are found and rendered
+// again only when the keys that reach something change.
+func TestStatusBarHintsCached(t *testing.T) {
+	m, fakes := newTestApp(t)
+	m.View()
+	first := &m.hints[0]
+	m.View()
+	run(m, m.key(press("j")))
+	m.View()
+	if &m.hints[0] != first {
+		t.Error("the hints were rendered again with the same keys")
+	}
+	fakes[0].capturing = true
+	m.View()
+	if &m.hints[0] == first {
+		t.Error("the hints weren't rendered again once the section captured the keys")
+	}
+	fakes[0].capturing = false
+	m.View()
+	again := &m.hints[0]
+	run(m, m.key(press("z")))
+	m.View()
+	if &m.hints[0] == again || !strings.Contains(ansi.Strip(lastLine(m)), "esc unzoom") {
+		t.Errorf("the hints weren't rendered again for the zoom: %q", ansi.Strip(lastLine(m)))
+	}
+}
+
 // TestLineReplacesStatusBar checks that the command line takes the place
 // of the status bar while it is open.
 func TestLineReplacesStatusBar(t *testing.T) {

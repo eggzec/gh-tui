@@ -66,6 +66,8 @@ func (m *Model) layout() {
 	m.status.SetWidth(m.width)
 	m.line.SetSize(m.width, cmdline.MaxHeight)
 	m.toast.SetSize(m.width, max(m.height-1, 0))
+	// The full help is as wide as the terminal.
+	m.layers = nil
 	m.arrange(m.contentHeight())
 	if m.modal != nil {
 		m.modal.SetSize(m.modalSize())
