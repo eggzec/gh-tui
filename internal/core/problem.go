@@ -74,7 +74,15 @@ type Problem struct { //nolint:errname // It explains an error for the user rath
 	Reason string
 	// Reset is when a rate limit lifts, for RateLimited.
 	Reset time.Time
-	Err   error
+	// Grant is the scope to grant the token, for Auth, or "" if the
+	// problem isn't a missing scope, or GitHub didn't say which.
+	Grant string
+	// SSO is set for Forbidden when an organization refused the token
+	// until it is authorized for the organization's single sign-on, and
+	// SSOURL is where to authorize it, or "" if GitHub didn't say.
+	SSO    bool
+	SSOURL string
+	Err    error
 }
 
 func (p *Problem) Error() string {
@@ -112,6 +120,17 @@ func Explain(action string, err error) *Problem {
 		p.Reason = r.Reason()
 	}
 	switch p.Kind {
+	case Auth:
+		if e, ok := errors.AsType[*ScopeError](err); ok {
+			p.Grant = e.Grant()
+			if p.Reason == "" && p.Grant != "" {
+				p.Reason = "needs the " + p.Grant + " scope"
+			}
+		}
+	case Forbidden:
+		if e, ok := errors.AsType[*SSOError](err); ok {
+			p.SSO, p.SSOURL = true, e.URL
+		}
 	case RateLimited:
 		if rl, ok := errors.AsType[*RateLimitError](err); ok {
 			p.Reset = rl.Reset
