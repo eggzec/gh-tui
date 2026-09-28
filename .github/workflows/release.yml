@@ -12,6 +12,14 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    # The action builds with -trimpath -ldflags="-s -w", and without cgo
+    # unless CGO_ENABLED asks for it. gh-tui needs no cgo, so say so here.
+    # go_build_options reaches go build as one argument, so other flags go in
+    # GOFLAGS: -buildvcs=true fails the build rather than ship a binary that
+    # doesn't know its version, which Go stamps from the tag.
+    env:
+      CGO_ENABLED: "0"
+      GOFLAGS: -buildvcs=true
     steps:
       - uses: actions/checkout@v7
       # Builds dist/<os>-<arch>[.exe] for each platform, which `gh extension
