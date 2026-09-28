@@ -171,6 +171,7 @@ func (c *Client) queryOnce(ctx context.Context, query string, vars map[string]an
 	}
 	if len(body.Errors) > 0 {
 		partial := len(body.Data) > 0 && !bytes.Equal(body.Data, []byte("null"))
+		cl.errors, cl.partial = body.Errors, partial
 		return c.graphqlError(ctx, resp.Header, cl.shape, body.Errors, partial)
 	}
 	return nil

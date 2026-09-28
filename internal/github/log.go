@@ -5,13 +5,16 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
 )
 
@@ -45,6 +48,10 @@ type call struct {
 	// storage that a job log redirects to. Its URL holds a signed
 	// credential, so it is logged by op alone, as API download.
 	external bool
+	// errors are those of a GraphQL answer, which came with an OK
+	// status, and partial says that data came with them.
+	errors  []GraphQLErrorItem
+	partial bool
 }
 
 // apiDownload is the API of the requests that a call marks external.
@@ -149,13 +156,22 @@ func (a *attempt) done(resp *http.Response, err error) {
 		}
 	}
 	// A canceled request is a decision, not a failure, but it cost a
-	// request, so it is logged as one.
-	canceled := err != nil && (errors.Is(err, context.Canceled) || ctx.Err() != nil)
+	// request, so it is logged as one. One that ran out of time, its own
+	// or its caller's, degrades what the user sees. ctx is the attempt's,
+	// which the timeout ends, so its error tells the two apart.
+	timedOut := err != nil && (errors.Is(ctx.Err(), context.DeadlineExceeded) || isTimeout(err))
+	canceled := err != nil && !timedOut && (errors.Is(err, context.Canceled) || ctx.Err() != nil)
 	switch {
 	case canceled:
 		level = slog.LevelInfo
+	case timedOut:
+		level = slog.LevelWarn
 	case err != nil:
 		level = slog.LevelError
+	}
+	// An answer with errors and no data failed, whatever its status.
+	if err == nil && c != nil && len(c.errors) > 0 && !c.partial {
+		level = max(level, slog.LevelWarn)
 	}
 	obs.CountHTTP(h)
 	if api == obs.GraphQL && resp != nil {
@@ -181,6 +197,9 @@ func (a *attempt) done(resp *http.Response, err error) {
 			attrs = append(attrs, slog.String("gh_request_id", id))
 		}
 		attrs = append(attrs, slog.Int("status", resp.StatusCode), slog.Bool("not_modified", h.NotModified))
+		if resp.StatusCode >= http.StatusBadRequest && resp.StatusCode < http.StatusInternalServerError && (c == nil || !c.external) {
+			attrs = append(attrs, refusalAttrs(resp.Header)...)
+		}
 	} else {
 		// No response came: the status is 0.
 		attrs = append(attrs, slog.Int("status", 0))
@@ -206,7 +225,10 @@ func (a *attempt) done(resp *http.Response, err error) {
 		attrs = append(attrs, slog.Float64("held_ms", obs.Millis(held)))
 	}
 	if err != nil {
-		attrs = append(attrs, slog.String("err", err.Error()), slog.Bool("canceled", canceled))
+		attrs = append(attrs, slog.String("err", err.Error()), slog.Bool("canceled", canceled), slog.Bool("timed_out", timedOut))
+	}
+	if c != nil && len(c.errors) > 0 {
+		attrs = append(attrs, graphqlErrorAttrs(c.errors)...)
 	}
 	if obs.Enabled(ctx, slog.LevelDebug) && (c == nil || !c.external) {
 		attrs = append(attrs, slog.String("path", a.req.URL.EscapedPath()))
@@ -219,6 +241,70 @@ func (a *attempt) done(resp *http.Response, err error) {
 		}
 	}
 	slog.LogAttrs(ctx, level, "http", attrs...)
+}
+
+// isTimeout reports whether err says that time ran out, as a dial or a
+// TLS handshake that took too long does.
+func isTimeout(err error) bool {
+	ne, ok := errors.AsType[net.Error](err)
+	return ok && ne.Timeout()
+}
+
+// maxLoggedScopes and maxLoggedPaths bound what a record lists, far more
+// than GitHub sends.
+const (
+	maxLoggedScopes = 16
+	maxLoggedPaths  = 3
+)
+
+// refusalAttrs returns what the headers h of a 4xx answer say of why it
+// was refused: the scopes of which the endpoint accepts one, and whether
+// SSO stands in the way. The value of X-GitHub-SSO names an authorization
+// request, so only its kind is logged.
+func refusalAttrs(h http.Header) []slog.Attr {
+	var attrs []slog.Attr
+	if v, ok := h[http.CanonicalHeaderKey("X-Accepted-OAuth-Scopes")]; ok {
+		scopes := core.ParseScopes(strings.Join(v, ","))
+		attrs = append(attrs, slog.Any("accepted_scopes", append([]string{}, scopes[:min(len(scopes), maxLoggedScopes)]...)))
+	}
+	for _, v := range h.Values("X-GitHub-SSO") {
+		kind, _, _ := strings.Cut(v, ";")
+		if kind = strings.TrimSpace(kind); kind != "" && len(kind) <= 32 && strings.Trim(kind, "abcdefghijklmnopqrstuvwxyz-") == "" {
+			attrs = append(attrs, slog.String("sso", kind))
+			break
+		}
+	}
+	return attrs
+}
+
+// graphqlErrorAttrs returns what a record says of the errors of a GraphQL
+// answer: how many there are, their types and codes, each once, and the
+// paths of the first few. Their messages may name private things, so
+// they are left out.
+func graphqlErrorAttrs(items []GraphQLErrorItem) []slog.Attr {
+	var types, codes, paths []string
+	for _, item := range items {
+		if item.Type != "" && !slices.Contains(types, item.Type) {
+			types = append(types, item.Type)
+		}
+		if e := item.Extensions; e != nil && e.Code != "" && !slices.Contains(codes, e.Code) {
+			codes = append(codes, e.Code)
+		}
+		if len(item.Path) > 0 && len(paths) < maxLoggedPaths {
+			paths = append(paths, graphqlPath(item.Path))
+		}
+	}
+	attrs := []slog.Attr{slog.Int("gql_errors", len(items))}
+	if len(types) > 0 {
+		attrs = append(attrs, slog.Any("gql_types", types))
+	}
+	if len(codes) > 0 {
+		attrs = append(attrs, slog.Any("gql_codes", codes))
+	}
+	if len(paths) > 0 {
+		attrs = append(attrs, slog.Any("gql_paths", paths))
+	}
+	return attrs
 }
 
 // headerRate returns the rate limit that the headers of a response report,
