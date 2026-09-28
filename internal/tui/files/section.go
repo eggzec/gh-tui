@@ -12,7 +12,6 @@ import (
 	"slices"
 	"strings"
 
-	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -463,9 +462,6 @@ func (s *Section) Blur() {
 		s.tree.Blur()
 	}
 }
-
-// Help lists the keys of the section for the help line.
-func (s *Section) Help() help.KeyMap { return ui.Hints{Layers: s.KeyLayers()} }
 
 // KeyLayers implements ui.Keyed: the section's own keys, with the one
 // that resets the base only while there is one to reset, and then the

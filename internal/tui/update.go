@@ -149,7 +149,7 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 		return m.updateLine(msg)
 	}
 	if mod := m.topModal(); mod != nil {
-		if msg.String() == "ctrl+c" {
+		if key.Matches(msg, forceQuit) {
 			return tea.Quit
 		}
 		cmd := mod.Update(msg)
@@ -159,7 +159,7 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 	p := m.focused()
 	// ctrl+c always reaches the quit key, so a capturing section can't
 	// trap the user.
-	if p != nil && msg.String() != "ctrl+c" && m.takes(p.section, msg) {
+	if p != nil && !key.Matches(msg, forceQuit) && m.takes(p.section, msg) {
 		cmd := p.section.Update(msg)
 		m.updateBadges()
 		return cmd
@@ -229,19 +229,29 @@ func (m *Model) takes(s ui.Section, msg tea.KeyPressMsg) bool {
 }
 
 // openFilter opens the filter modal of s on tab, and reports whether s has
-// one to open: the Sort tab needs a list that can be sorted. The key goes
-// on to a section that has none, which may use it otherwise.
+// one to open. The key goes on to a section that has none, which may use
+// it otherwise.
 func (m *Model) openFilter(s ui.Section, tab filterform.Tab) bool {
-	fl, ok := s.(ui.Filterable)
+	fl, f, ok := filterOf(s, tab)
 	if !ok {
-		return false
-	}
-	f, ok := fl.Filter()
-	if !ok || tab == filterform.SortTab && f.Spec.Sort == nil {
 		return false
 	}
 	m.openModal(ui.NewFilterModal(m.ctx, s.Title(), fl, f, ui.OnTab(tab), ui.WithFormKeys(m.keys.form), ui.WithFormVoice(m.voice)))
 	return true
+}
+
+// filterOf returns what the filter modal edits for s on tab, if s has one
+// to open there: the Sort tab needs a list that can be sorted.
+func filterOf(s ui.Section, tab filterform.Tab) (ui.Filterable, ui.Filter, bool) {
+	fl, ok := s.(ui.Filterable)
+	if !ok {
+		return nil, ui.Filter{}, false
+	}
+	f, ok := fl.Filter()
+	if !ok || tab == filterform.SortTab && f.Spec.Sort == nil {
+		return nil, ui.Filter{}, false
+	}
+	return fl, f, true
 }
 
 // showSearch shows the search page, with the focus in its query, if the

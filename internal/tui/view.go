@@ -1,16 +1,15 @@
 package tui
 
 import (
-	"slices"
 	"strings"
 
-	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/overlay"
 )
 
@@ -83,7 +82,7 @@ func (m *Model) footer() string {
 	case m.going != nil:
 		return m.goingView()
 	}
-	return m.help.View(m.helpKeys())
+	return m.help.View(m.hints())
 }
 
 // footerHeight is the height of the footer.
@@ -98,120 +97,38 @@ func (m *Model) footerHeight() int {
 }
 
 func (m *Model) helpHeight() int {
-	return lipgloss.Height(m.help.View(m.helpKeys()))
+	return lipgloss.Height(m.help.View(m.hints()))
 }
 
-func (m *Model) helpKeys() help.KeyMap {
-	hk := helpKeys{
-		app: m.keys, dismiss: m.toast.KeyMap().Dismiss, notifications: m.keys.Notifications,
-		history: m.keys.History, actions: m.keys.Actions, dashboard: m.keys.Dashboard,
-		findFile: m.keys.FindFile, zoom: m.keys.Zoom, unzoom: m.keys.Back,
-	}
-	if m.fileFinder() == nil {
-		hk.findFile.SetEnabled(false)
-	}
-	if !m.canOpenHistory() {
-		hk.history.SetEnabled(false)
-	}
-	if !m.canOpenActions() {
-		hk.actions.SetEnabled(false)
-	}
-	switch m.screen {
-	case notifScreen:
-		hk.notifications.SetHelp(hk.notifications.Help().Key, "back")
-	case dashScreen:
-		hk.dashboard.SetHelp(hk.dashboard.Help().Key, "back")
-		if m.back == dashScreen {
-			hk.dashboard.SetEnabled(false)
-		}
-	case repoScreen, searchScreen:
-	}
-	if m.dash == nil {
-		hk.dashboard.SetEnabled(false)
-	}
+// hints is the key map of the help line: the keys that reach something
+// now, with the app's own after those of what has the focus.
+func (m *Model) hints() ui.Hints {
+	// The way out of a zoom leads, where a narrow line still shows it.
+	return ui.Hints{Layers: m.keyLayers(), Lead: []key.Binding{m.keys.state(m).Back}}
+}
+
+// keyLayers returns the keys the app and what has the focus take, in the
+// order a key reaches them: an open modal takes every key, and so does a
+// section while it captures them, but for the one that quits; otherwise
+// the keys the focused section claims come first, then the app's, and
+// then the section's.
+func (m *Model) keyLayers() []keyhelp.Layer {
+	always := keyhelp.Layer{Source: "app", Bindings: []key.Binding{forceQuit}}
 	if mod := m.topModal(); mod != nil {
-		// The app's own keys don't reach a modal.
-		hk.section, hk.modal = mod.Help(), true
-		return hk
+		return append([]keyhelp.Layer{always}, mod.KeyLayers()...)
 	}
-	if p := m.focused(); p != nil {
-		hk.section = p.section.Help()
-		if c, ok := p.section.(ui.Capturer); ok && c.Capturing() {
-			// The command key types itself there.
-			hk.app.Command.SetEnabled(false)
-		}
+	app := keyhelp.FromHelp("app", m.keys.state(m), false)
+	p := m.focused()
+	if p == nil {
+		return []keyhelp.Layer{app}
 	}
-	hk.panes = m.canZoom()
-	if m.width < narrowWidth {
-		hk.zoom.SetEnabled(false)
+	if c, ok := p.section.(ui.Capturer); ok && c.Capturing() {
+		return append([]keyhelp.Layer{always}, p.section.KeyLayers()...)
 	}
-	if !hk.panes || !m.zoomed() {
-		hk.unzoom.SetEnabled(false)
+	var layers []keyhelp.Layer
+	if c, ok := p.section.(ui.Claimer); ok {
+		layers = append(layers, keyhelp.Layer{Source: p.section.Title(), Bindings: c.Claimed()})
 	}
-	return hk
-}
-
-// helpKeys lists the keys of the focused pane before the app's own.
-type helpKeys struct {
-	section       help.KeyMap
-	app           KeyMap
-	dismiss       key.Binding
-	notifications key.Binding
-	history       key.Binding
-	actions       key.Binding
-	findFile      key.Binding
-	dashboard     key.Binding
-	// zoom shows the focused pane alone, where that shows, and unzoom
-	// every pane again while one is zoomed.
-	zoom, unzoom key.Binding
-	// modal hides the app's keys while a modal takes them.
-	modal bool
-	// panes shows the keys that move between panes and zoom them.
-	panes bool
-}
-
-func (h helpKeys) ShortHelp() []key.Binding {
-	var ks []key.Binding
-	if h.section != nil {
-		ks = h.section.ShortHelp()
-	}
-	if h.modal {
-		return ks
-	}
-	// The way out of a zoom comes first, where a narrow help still shows
-	// it.
-	ks = append([]key.Binding{h.unzoom}, h.untaken(ks)...)
-	return append(ks, h.app.Search, h.app.Command, h.findFile, h.history, h.actions, h.notifications, h.dashboard, h.app.Help, h.app.Quit)
-}
-
-func (h helpKeys) FullHelp() [][]key.Binding {
-	var groups [][]key.Binding
-	if h.section != nil {
-		groups = h.section.FullHelp()
-	}
-	if h.modal {
-		return groups
-	}
-	groups = slices.Clone(groups)
-	for i, g := range groups {
-		groups[i] = h.untaken(g)
-	}
-	app := make([]key.Binding, 0, 16)
-	if h.panes {
-		app = append(app, h.app.Next, h.app.Prev, h.app.jump, h.zoom, h.unzoom)
-	}
-	app = append(app, h.app.Search, h.app.Command, h.findFile, h.history, h.actions, h.notifications, h.dashboard, h.dismiss, h.app.Help, h.app.Quit)
-	return append(groups, app)
-}
-
-// untaken drops the bindings of the section that share a key with those
-// the app takes before it, such as its back key while the app unzooms.
-func (h helpKeys) untaken(bs []key.Binding) []key.Binding {
-	if !h.unzoom.Enabled() {
-		return bs
-	}
-	taken := h.unzoom.Keys()
-	return slices.DeleteFunc(slices.Clone(bs), func(b key.Binding) bool {
-		return b.Enabled() && slices.ContainsFunc(b.Keys(), func(k string) bool { return slices.Contains(taken, k) })
-	})
+	layers = append(layers, app)
+	return append(layers, p.section.KeyLayers()...)
 }

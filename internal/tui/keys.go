@@ -13,6 +13,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
+	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
 // KeyMap holds the keys the app handles itself. Sections have their own.
@@ -51,9 +52,16 @@ type KeyMap struct {
 	// every pane again, and Back shows them again too.
 	Zoom key.Binding
 	Back key.Binding
-	// jump stands for Panes in the help.
-	jump key.Binding
+	// Jump holds the keys of Panes, which it stands for in help.
+	Jump key.Binding
+	// Dismiss closes the newest toast. It is the toasts' own key, which
+	// the app matches, and which they enable while they show.
+	Dismiss key.Binding
 }
+
+// forceQuit quits from anywhere, even while a modal or a section takes
+// every key, so that nothing can trap the user.
+var forceQuit = key.NewBinding(key.WithKeys("ctrl+c"), key.WithHelp("^c", "quit"))
 
 func newKeyMap(keys map[string][]string) KeyMap {
 	k := KeyMap{
@@ -73,6 +81,7 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		Prev:          ui.Binding(keys, config.ActionPrevTab, "previous pane"),
 		Zoom:          ui.Binding(keys, config.ActionZoom, "zoom"),
 		Back:          ui.Binding(keys, config.ActionBack, "unzoom"),
+		Dismiss:       toast.DefaultKeyMap().Dismiss,
 		Panes: []key.Binding{
 			ui.Binding(keys, config.ActionPane1, "files"),
 			ui.Binding(keys, config.ActionPane2, "pull requests"),
@@ -86,10 +95,69 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		}
 	}
 	if len(labels) > 0 {
-		k.jump = key.NewBinding(key.WithKeys(labels...), key.WithHelp(strings.Join(labels, "/"), "focus pane"))
+		k.Jump = key.NewBinding(key.WithKeys(labels...), key.WithHelp(strings.Join(labels, "/"), "focus pane"))
 	} else {
-		k.jump = key.NewBinding(key.WithDisabled())
+		k.Jump = key.NewBinding(key.WithDisabled())
 	}
+	return k
+}
+
+// ShortHelp implements help.KeyMap. The way out of a zoom comes first.
+func (k KeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{
+		k.Back, k.Search, k.Command, k.FindFile, k.History, k.Actions, k.Notifications, k.Dashboard, k.Help, k.Quit,
+	}
+}
+
+// FullHelp implements help.KeyMap: every key the app handles, in the
+// order it matches them.
+func (k KeyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{
+			k.Command, k.Quit, k.Help, k.Search, k.History, k.Actions, k.FindFile, k.Filter, k.Sort,
+			k.Zoom, k.Back, k.Dismiss, k.Notifications, k.Dashboard,
+		},
+		{k.Next, k.Prev, k.Jump},
+	}
+}
+
+// state returns k as the app takes it now: the keys that open what the
+// screen has, named for what they do there, and those of the panes where
+// the app moves between them.
+func (k KeyMap) state(m *Model) KeyMap {
+	p := m.focused()
+	k.History.SetEnabled(k.History.Enabled() && m.canOpenHistory())
+	k.Actions.SetEnabled(k.Actions.Enabled() && m.canOpenActions())
+	k.FindFile.SetEnabled(k.FindFile.Enabled() && m.fileFinder() != nil)
+	filters, sorts := false, false
+	if p != nil {
+		_, _, filters = filterOf(p.section, filterform.FiltersTab)
+		_, _, sorts = filterOf(p.section, filterform.SortTab)
+	}
+	k.Filter.SetEnabled(k.Filter.Enabled() && filters)
+	k.Sort.SetEnabled(k.Sort.Enabled() && sorts)
+	k.Zoom.SetEnabled(k.Zoom.Enabled() && m.canZoom() && m.width >= narrowWidth)
+	k.Back.SetEnabled(k.Back.Enabled() && m.canZoom() && m.zoomed())
+	k.Dismiss = m.toast.KeyMap().Dismiss
+	switch m.screen {
+	case notifScreen:
+		k.Notifications.SetHelp(k.Notifications.Help().Key, "back")
+	case dashScreen:
+		k.Dashboard.SetHelp(k.Dashboard.Help().Key, "back")
+		k.Dashboard.SetEnabled(k.Dashboard.Enabled() && m.back != dashScreen)
+		// The dashboard moves between its own panes.
+		k.Jump.SetEnabled(false)
+	case repoScreen, searchScreen:
+	}
+	if m.screen != repoScreen {
+		// Only the repository screen has panes to cycle through.
+		// PR5: elsewhere the app still takes these keys and does nothing;
+		// leave them to the section instead.
+		k.Next.SetEnabled(false)
+		k.Prev.SetEnabled(false)
+	}
+	k.Dashboard.SetEnabled(k.Dashboard.Enabled() && m.dash != nil)
+	k.Jump.SetEnabled(k.Jump.Enabled() && len(m.panes) > 0)
 	return k
 }
 

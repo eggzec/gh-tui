@@ -22,7 +22,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 
@@ -191,9 +190,6 @@ func (m *Modal) SetTheme(t ui.Theme) {
 	}
 	m.commit.header = nil
 }
-
-// Help lists the keys of the modal for the help line.
-func (m *Modal) Help() help.KeyMap { return ui.Hints{Layers: m.KeyLayers()} }
 
 // KeyLayers implements ui.Keyed. The filter of the branches and a search
 // of the patch each take every key while open; otherwise the modal's own

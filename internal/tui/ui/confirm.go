@@ -3,7 +3,6 @@ package ui
 import (
 	"strings"
 
-	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -241,9 +240,6 @@ func (m *ConfirmModal) SetTheme(t Theme) {
 	m.st = t.Confirm()
 	m.render()
 }
-
-// Help implements Modal.
-func (m *ConfirmModal) Help() help.KeyMap { return m.keys }
 
 // KeyLayers implements Keyed: the keys that answer the question.
 func (m *ConfirmModal) KeyLayers() []keyhelp.Layer {

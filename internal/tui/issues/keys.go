@@ -4,7 +4,6 @@ import (
 	"slices"
 	"strings"
 
-	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
 
 	"github.com/eggzec/gh-tui/internal/config"
@@ -130,9 +129,6 @@ func (k keyMap) FullHelp() [][]key.Binding {
 	}
 }
 
-// Help lists the keys of the section for the help line.
-func (s *Section) Help() help.KeyMap { return ui.Hints{Layers: s.KeyLayers()} }
-
 // KeyLayers implements ui.Keyed: the keys of the list, and then those of
 // the feed. The modal of an open issue lists its own. Without a
 // repository, or with issues turned off, no key does anything.
@@ -159,9 +155,6 @@ func (k keyMap) onList(s *Section) keyMap {
 	}
 	return k
 }
-
-// Help lists the keys of the modal for the help line.
-func (m *detailModal) Help() help.KeyMap { return ui.Hints{Layers: m.KeyLayers()} }
 
 // KeyLayers implements ui.Keyed: the answer while a question is open, the
 // prompt while it takes every key, and otherwise the modal's own keys and

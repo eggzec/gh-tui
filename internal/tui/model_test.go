@@ -27,6 +27,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
@@ -61,11 +62,12 @@ func (s *fakeSection) SetSize(w, h int)  { s.width, s.height = w, h }
 func (s *fakeSection) SetTheme(ui.Theme) { s.themed = true }
 func (s *fakeSection) Focus()            { s.focused = true }
 func (s *fakeSection) Blur()             { s.focused = false }
-func (s *fakeSection) Help() help.KeyMap {
+func (s *fakeSection) KeyLayers() []keyhelp.Layer {
+	var km help.KeyMap = sectionKeys{}
 	if s.keyMap != nil {
-		return s.keyMap
+		km = s.keyMap
 	}
-	return sectionKeys{}
+	return []keyhelp.Layer{keyhelp.FromHelp(s.title, km, s.capturing)}
 }
 func (s *fakeSection) Capturing() bool { return s.capturing }
 func (s *fakeSection) got(match func(tea.Msg) bool) bool {

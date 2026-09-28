@@ -4,7 +4,6 @@
 package ui
 
 import (
-	"charm.land/bubbles/v2/help"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
@@ -24,8 +23,7 @@ type Section interface {
 	SetTheme(t Theme)
 	Focus()
 	Blur()
-	// Help lists the keys of the section, for the help line.
-	Help() help.KeyMap
+	Keyed
 }
 
 // Keyed lists its keys for help, in layers in the order it matches them,

@@ -10,7 +10,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"charm.land/bubbles/v2/help"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
@@ -267,9 +266,6 @@ func (m *Modal) Update(msg tea.Msg) tea.Cmd {
 	m.thread, cmd = m.thread.Update(msg)
 	return cmd
 }
-
-// Help lists the keys of the modal for the help line.
-func (m *Modal) Help() help.KeyMap { return ui.Hints{Layers: m.KeyLayers()} }
 
 // KeyLayers implements ui.Keyed: the modal's own keys, with retry while a
 // read failed, and then the thread's, which take no keys while nothing
