@@ -10,9 +10,11 @@ import (
 type Option func(*options)
 
 type options struct {
-	cache []cache.Option
-	store cache.Store
-	ttl   time.Duration
+	cache  []cache.Option
+	store  cache.Store
+	ttl    time.Duration
+	access Access
+	repos  Repos
 }
 
 // WithTTL sets how long fetched pull requests stay fresh. The default is
@@ -37,4 +39,18 @@ func WithCapacity(n int) Option {
 // default nothing outlives the service.
 func WithStore(store cache.Store) Option {
 	return func(o *options) { o.store = store }
+}
+
+// WithAccess has the service ask access before it changes a pull request,
+// so that a change the token may not make is neither shown nor sent. By
+// default every change is sent, and GitHub has the last word.
+func WithAccess(access Access) Option {
+	return func(o *options) { o.access = access }
+}
+
+// WithRepos lets the service tell a private repository from a public one
+// by what repos holds of it, which a change there needs a wider scope for.
+// A repository it holds nothing of may be either.
+func WithRepos(repos Repos) Option {
+	return func(o *options) { o.repos = repos }
 }

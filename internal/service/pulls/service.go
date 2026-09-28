@@ -40,10 +40,26 @@ type API interface {
 	ProbePullRequests(ctx context.Context, repo core.RepoRef, cond github.Conditional) (github.Response, error)
 }
 
+// Access tells whether the token may do what an operation needs, as the
+// access service does: nil, or why not.
+type Access interface {
+	Check(n core.Need) error
+}
+
+// Repos holds the repositories read so far, as the repositories service
+// does, with what the viewer may do in each.
+type Repos interface {
+	CachedGet(ref core.RepoRef) (core.Repo, bool)
+}
+
 // Service reads pull requests through a cache and changes them
 // optimistically. It is safe for concurrent use.
 type Service struct {
-	api     API
+	api API
+	// access refuses a change the token may not make before it is shown,
+	// if set, and repos tells whether a repository is private, for it.
+	access  Access
+	repos   Repos
 	lists   *cache.Cache[listPage]
 	details *cache.Cache[core.PullRequestDetail]
 	// Comments and reviews are cached a page at a time, so that the pages
@@ -81,6 +97,8 @@ func New(api API, opts ...Option) *Service {
 	}
 	s := &Service{
 		api:          api,
+		access:       o.access,
+		repos:        o.repos,
 		lists:        cache.New[listPage](o.cache...),
 		details:      cache.New[core.PullRequestDetail](o.cache...),
 		comments:     cache.New[stampedComments](o.cache...),
