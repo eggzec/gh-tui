@@ -331,6 +331,35 @@ func TestAppend(t *testing.T) {
 	}
 }
 
+// A log that grows can start new sections, which end the one before, and
+// keeps the cursor and the folds of what it showed.
+func TestAppendSections(t *testing.T) {
+	m := New(WithSize(40, 10))
+	m.Focus()
+	m.SetLines(numbered(3), []Section{{Title: "setup", Start: 0, End: 1}, {Title: "build", Start: 1, End: 3}})
+	m, _ = keys(t, m, "j", "j", "space", "k")
+	m.SetSections([]Section{
+		{Title: "setup", Start: 0, End: 1, Duration: time.Second},
+		{Title: "build", Start: 1, End: 4, Failed: true},
+		{Title: "test", Start: 4, End: 5},
+	})
+	m.Append(numbered(5)[3:]...)
+	want := []string{"setup", ".line 1", "build", "test", ".line 5"}
+	if got := shownRows(m); !slices.Equal(got, want) {
+		t.Errorf("rows = %q, want %q", got, want)
+	}
+	if got := cursorText(m); got != "line 1" {
+		t.Errorf("cursor on %q, want it kept on line 1", got)
+	}
+	if !m.secs[1].failed || m.secs[0].duration != time.Second {
+		t.Errorf("sections shown = %+v, want them updated", m.secs[:2])
+	}
+	m.ExpandAll()
+	if got := shownRows(m); !slices.Equal(got, []string{"setup", ".line 1", "build", ".line 2", ".line 3", ".line 4", "test", ".line 5"}) {
+		t.Errorf("expanded rows = %q, want line 4 in build", got)
+	}
+}
+
 func TestAppendFollows(t *testing.T) {
 	tests := []struct {
 		name       string
