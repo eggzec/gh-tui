@@ -72,12 +72,12 @@ func (m Model) gutterWidth() int {
 // textWidth returns the columns right of the gutter.
 func (m Model) textWidth() int { return max(m.width-m.gutterWidth(), 0) }
 
-// rowsIn returns how many rows line i takes.
-func (m Model) rowsIn(i int) int {
+// rowsIn returns how many rows the line shown at p takes.
+func (m Model) rowsIn(p int) int {
 	if !m.wrap {
 		return 1
 	}
-	s, tw := m.lines[i], m.textWidth()
+	s, tw := m.lines[m.at(p)], m.textWidth()
 	n := 1
 	for j, _ := nextRow(s, 0, tw); j < len(s); j, _ = nextRow(s, j, tw) {
 		n++
@@ -85,9 +85,9 @@ func (m Model) rowsIn(i int) int {
 	return n
 }
 
-// rowOf returns the row of line i that holds byte b.
-func (m Model) rowOf(i, b int) int {
-	s, tw := m.lines[i], m.textWidth()
+// rowOf returns the row of the line shown at p that holds byte b.
+func (m Model) rowOf(p, b int) int {
+	s, tw := m.lines[m.at(p)], m.textWidth()
 	r := 0
 	for j, _ := nextRow(s, 0, tw); j <= b && j < len(s); j, _ = nextRow(s, j, tw) {
 		r++
@@ -97,7 +97,7 @@ func (m Model) rowOf(i, b int) int {
 
 // down scrolls n rows down.
 func (m *Model) down(n int) {
-	if !m.wrap || len(m.lines) == 0 {
+	if !m.wrap || m.count() == 0 {
 		m.top += n
 		m.clamp()
 		return
@@ -106,7 +106,7 @@ func (m *Model) down(n int) {
 		switch {
 		case m.row+1 < m.rowsIn(m.top):
 			m.row++
-		case m.top+1 < len(m.lines):
+		case m.top+1 < m.count():
 			m.top, m.row = m.top+1, 0
 		default:
 			n = 0
@@ -117,7 +117,7 @@ func (m *Model) down(n int) {
 
 // up scrolls n rows up.
 func (m *Model) up(n int) {
-	if !m.wrap || len(m.lines) == 0 {
+	if !m.wrap || m.count() == 0 {
 		m.top -= n
 		m.clamp()
 		return
@@ -138,7 +138,7 @@ func (m *Model) up(n int) {
 
 // last returns the top line and row of the window scrolled to the end.
 func (m Model) last() (top, row int) {
-	n, h := len(m.lines), m.bodyHeight()
+	n, h := m.count(), m.bodyHeight()
 	if n == 0 || h == 0 {
 		return 0, 0
 	}
@@ -160,17 +160,18 @@ func (m Model) last() (top, row int) {
 	return top, row
 }
 
-// bottom returns the last line with a row in the window.
+// bottom returns the position of the last line shown with a row in the
+// window.
 func (m Model) bottom() int {
-	h := m.bodyHeight()
-	if len(m.lines) == 0 {
+	h, n := m.bodyHeight(), m.count()
+	if n == 0 {
 		return -1
 	}
 	if !m.wrap {
-		return min(m.top+h, len(m.lines)) - 1
+		return min(m.top+h, n) - 1
 	}
 	i, rows := m.top, m.rowsIn(m.top)-m.row
-	for rows < h && i+1 < len(m.lines) {
+	for rows < h && i+1 < n {
 		i++
 		rows += m.rowsIn(i)
 	}
@@ -187,7 +188,7 @@ func (m *Model) GoToLine(n int) {
 	}
 	i := min(n, len(m.lines)) - 1
 	m.mark = i
-	m.top, m.row = max(i-m.bodyHeight()/3, 0), 0
+	m.top, m.row = max(m.posOf(i)-m.bodyHeight()/3, 0), 0
 	m.clamp()
 }
 
@@ -200,7 +201,7 @@ func (m *Model) clamp() {
 	}
 	m.top = max(m.top, 0)
 	switch {
-	case !m.wrap || len(m.lines) == 0:
+	case !m.wrap || m.count() == 0:
 		m.row = 0
 	default:
 		m.row = max(min(m.row, m.rowsIn(m.top)-1), 0)
@@ -218,9 +219,9 @@ func (m *Model) scrollRight(n int) {
 	tw := m.textWidth()
 	want := m.left + n
 	reach := 0
-	for i, last := m.top, m.bottom(); i <= last; i++ {
+	for p, last := m.top, m.bottom(); p <= last; p++ {
 		// One more column finds a wide rune that crosses the edge.
-		_, w := advance(m.lines[i], 0, want+tw+1)
+		_, w := advance(m.lines[m.at(p)], 0, want+tw+1)
 		reach = max(reach, w)
 	}
 	m.left = max(min(want, reach-tw), m.left)

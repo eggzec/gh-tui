@@ -105,7 +105,7 @@ func BenchmarkSearch(b *testing.B) {
 				b.SetBytes(int64(size))
 				b.ReportAllocs()
 				for b.Loop() {
-					_, _, _ = find(context.Background(), re, false, lines)
+					_, _, _ = find(context.Background(), re, false, lines, nil)
 				}
 			})
 		}

@@ -149,7 +149,7 @@ func (m *Model) runSearch(query string, re *regexp.Regexp, invert bool, from int
 	m.clamp()
 	m.search.top, m.search.row = m.top, m.row
 	if m.size < syncLimit {
-		lines, ends, _ := find(context.Background(), re, invert, m.lines)
+		lines, ends, _ := find(context.Background(), re, invert, m.lines, m.vis)
 		m.found(lines, ends)
 		return nil
 	}
@@ -157,10 +157,10 @@ func (m *Model) runSearch(query string, re *regexp.Regexp, invert bool, from int
 	m.stopSearch = cancel
 	m.search.running = true
 	m.enableSearchKeys()
-	id, qgen, all := m.id, m.qgen, m.lines
+	id, qgen, all, vis := m.id, m.qgen, m.lines, m.vis
 	return func() tea.Msg {
 		defer cancel()
-		lines, ends, err := find(ctx, re, invert, all)
+		lines, ends, err := find(ctx, re, invert, all, vis)
 		if err != nil {
 			return nil
 		}
@@ -168,17 +168,27 @@ func (m *Model) runSearch(query string, re *regexp.Regexp, invert bool, from int
 	}
 }
 
-// find returns the indices of the lines that re matches, and the number of
-// matches in them and every line before, until ctx is done. With invert,
-// it returns the lines that re doesn't match, each a match of its own.
-func find(ctx context.Context, re *regexp.Regexp, invert bool, all []string) (lines, ends []int32, err error) {
+// find returns the indices of the lines of all that re matches, of those
+// vis shows, or of all of them for a nil vis, and the number of matches in
+// them and every line before, until ctx is done. With invert, it returns
+// the lines that re doesn't match, each a match of its own.
+func find(ctx context.Context, re *regexp.Regexp, invert bool, all []string, vis []int32) (lines, ends []int32, err error) {
 	var n int32
-	for i, l := range all {
-		if i%checkEvery == 0 {
+	count := len(all)
+	if vis != nil {
+		count = len(vis)
+	}
+	for p := range count {
+		if p%checkEvery == 0 {
 			if err := ctx.Err(); err != nil {
 				return nil, nil, err
 			}
 		}
+		i := p
+		if vis != nil {
+			i = int(vis[p])
+		}
+		l := all[i]
 		var k int
 		switch {
 		case !invert:
@@ -246,9 +256,9 @@ func (m *Model) step(d int) {
 	case m.search.cur >= 0:
 		m.jump(((m.search.cur+d)%n + n) % n)
 	case d > 0:
-		m.jump(m.firstFrom(m.top))
+		m.jump(m.firstFrom(m.topLine()))
 	default:
-		m.jump((m.firstFrom(m.top) - 1 + n) % n)
+		m.jump((m.firstFrom(m.topLine()) - 1 + n) % n)
 	}
 }
 
@@ -262,8 +272,9 @@ func (m *Model) jump(i int) {
 		nth -= int(s.ends[k-1])
 	}
 	s.cur, s.curLine, s.curNth = i, int(s.lines[k]), nth
-	if s.curLine < m.top || s.curLine > m.bottom() {
-		m.top, m.row = s.curLine, 0
+	p := m.posOf(s.curLine)
+	if p < m.top || p > m.bottom() {
+		m.top, m.row = p, 0
 	}
 	if s.invert {
 		m.clamp()
@@ -280,8 +291,8 @@ func (m *Model) jump(i int) {
 	start, end := ranges[nth][0], ranges[nth][1]
 	tw := m.textWidth()
 	if m.wrap {
-		if s.curLine == m.top {
-			m.row = m.rowOf(s.curLine, start)
+		if p == m.top {
+			m.row = m.rowOf(p, start)
 		}
 	} else {
 		_, from := advance(line[:start], 0, math.MaxInt)
@@ -297,7 +308,7 @@ func (m *Model) jump(i int) {
 // unless it has them already.
 func (m *Model) findHits() {
 	re := m.search.re
-	if re == nil || len(m.lines) == 0 {
+	if re == nil || m.count() == 0 {
 		m.hits = hits{}
 		return
 	}
@@ -307,7 +318,8 @@ func (m *Model) findHits() {
 		return
 	}
 	var lines []lineHits
-	for i := top; i <= bottom; i++ {
+	for p := top; p <= bottom; p++ {
+		i := m.at(p)
 		if m.search.invert {
 			if !re.MatchString(m.lines[i]) {
 				lines = append(lines, lineHits{line: i})
@@ -315,7 +327,7 @@ func (m *Model) findHits() {
 			continue
 		}
 		all := lineMatches(re, m.lines[i])
-		a, e := m.shown(i)
+		a, e := m.shown(p)
 		first, _ := slices.BinarySearchFunc(all, a+1, func(r []int, pos int) int { return r[1] - pos })
 		end := first
 		for end < len(all) && all[end][0] < e {
@@ -329,15 +341,16 @@ func (m *Model) findHits() {
 	m.hits = hits{valid: true, top: top, bottom: bottom, row: m.row, left: m.left, qgen: m.qgen, lines: lines}
 }
 
-// shown returns the bytes a to e of line i that the window shows.
-func (m Model) shown(i int) (a, e int) {
-	s, tw := m.lines[i], m.textWidth()
+// shown returns the bytes a to e of the line shown at p that the window
+// shows.
+func (m Model) shown(p int) (a, e int) {
+	s, tw := m.lines[m.at(p)], m.textWidth()
 	if !m.wrap {
 		a, _ = m.leftEdge(s)
 		e, _ = advance(s, a, tw)
 		return a, e
 	}
-	if i == m.top {
+	if p == m.top {
 		for range m.row {
 			a, _ = nextRow(s, a, tw)
 		}
