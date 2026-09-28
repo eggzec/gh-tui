@@ -62,20 +62,48 @@ func (t Target) String() string {
 // "owner/name", "owner/name#12", "#12", or a link to a repository, pull
 // request or issue on host, such as https://github.com/owner/name/pull/12.
 // A link to any other page of a repository names the repository. host is the user's GitHub host without a scheme, DefaultHost when
-// empty. Surrounding space is trimmed and case is kept. Error messages can
-// be shown to the user as they are.
+// empty. Surrounding space is trimmed and case is kept. Its errors are
+// *TargetError.
 func ParseTarget(s, host string) (Target, error) {
 	s = strings.TrimSpace(s)
 	if s == "" {
-		return Target{}, errors.New("nothing to open: type owner/name, #number or a link")
+		return Target{}, &TargetError{Reason: "type owner/name, #number or a link", Err: errors.New("nothing to open: type owner/name, #number or a link")}
 	}
 	if host == "" {
 		host = DefaultHost
 	}
+	parse := parseShort
 	if isLink(s, host) {
-		return parseLink(s, host)
+		parse = func(s string) (Target, error) { return parseLink(s, host) }
 	}
-	return parseShort(s)
+	t, err := parse(s)
+	if e, ok := errors.AsType[*TargetError](err); ok {
+		e.Input = s
+	}
+	return t, err
+}
+
+// TargetError reports that ParseTarget couldn't read Input, what the user
+// typed. Reason says what is wrong without repeating Input, such as "want
+// owner/name", for the user, and Err says it for the log.
+type TargetError struct {
+	Input  string
+	Reason string
+	Err    error
+}
+
+func (e *TargetError) Error() string {
+	return e.Err.Error()
+}
+
+// Unwrap returns what the log says of the error.
+func (e *TargetError) Unwrap() error {
+	return e.Err
+}
+
+// badTarget returns a *TargetError whose reason is also its message.
+func badTarget(reason string) error {
+	return &TargetError{Reason: reason, Err: errors.New(reason)}
 }
 
 // isLink reports whether s is a URL rather than the short form. Owners
@@ -133,22 +161,25 @@ func parseShort(s string) (Target, error) {
 func parseNumber(s string) (int, error) {
 	switch {
 	case s == "":
-		return 0, errors.New("missing issue number after '#'")
+		return 0, badTarget("missing issue number after '#'")
 	case s[0] == '-':
-		return 0, errors.New("issue numbers are positive")
+		return 0, badTarget("issue numbers are positive")
 	case strings.Trim(s, "0123456789") != "":
-		return 0, fmt.Errorf("not an issue number: %q", s)
+		return 0, &TargetError{Reason: "not an issue number", Err: fmt.Errorf("not an issue number: %q", s)}
 	}
 	// GitHub's GraphQL Int is 32 bits, so larger numbers can't exist.
 	n, err := strconv.ParseInt(s, 10, 32)
 	if errors.Is(err, strconv.ErrRange) {
-		return 0, fmt.Errorf("issue number too large: %s (at most %d)", s, math.MaxInt32)
+		return 0, &TargetError{
+			Reason: "issue numbers are at most " + strconv.Itoa(math.MaxInt32),
+			Err:    fmt.Errorf("issue number too large: %s (at most %d)", s, math.MaxInt32),
+		}
 	}
 	if err != nil {
-		return 0, fmt.Errorf("not an issue number: %q: %w", s, err)
+		return 0, &TargetError{Reason: "not an issue number", Err: fmt.Errorf("not an issue number: %q: %w", s, err)}
 	}
 	if n == 0 {
-		return 0, errors.New("issue numbers are positive")
+		return 0, badTarget("issue numbers are positive")
 	}
 	return int(n), nil
 }
@@ -174,18 +205,18 @@ func parseLink(s, host string) (Target, error) {
 	}
 	u, err := url.Parse(raw)
 	if err != nil {
-		return Target{}, fmt.Errorf("not a link: %q", s)
+		return Target{}, &TargetError{Reason: "not a link", Err: fmt.Errorf("not a link: %q", s)}
 	}
 	if u.Scheme != "https" && u.Scheme != "http" {
-		return Target{}, fmt.Errorf("not a web link: %q", s)
+		return Target{}, &TargetError{Reason: "not a web link", Err: fmt.Errorf("not a web link: %q", s)}
 	}
 	if !sameHost(u.Host, u.Scheme, host) {
-		return Target{}, fmt.Errorf("not a link to %s: %q", host, s)
+		return Target{}, &TargetError{Reason: "not a link to " + host, Err: fmt.Errorf("not a link to %s: %q", host, s)}
 	}
 	parts := strings.Split(strings.Trim(u.Path, "/"), "/")
 	if len(parts) < 2 || slices.Contains(parts[:2], "") ||
 		slices.ContainsFunc(reservedOwners, func(o string) bool { return strings.EqualFold(o, parts[0]) }) {
-		return Target{}, fmt.Errorf("not a repository link: %q", s)
+		return Target{}, &TargetError{Reason: "not a link to a repository", Err: fmt.Errorf("not a repository link: %q", s)}
 	}
 	repo, err := parseRepo(parts[0] + "/" + parts[1])
 	if err != nil {
@@ -204,7 +235,10 @@ func parseLink(s, host string) (Target, error) {
 	if parts[3] == "" {
 		// A link has no '#' before its number, which parseNumber would
 		// ask for.
-		return Target{}, fmt.Errorf("missing number after /%s/: %q", parts[2], s)
+		return Target{}, &TargetError{
+			Reason: "missing the number after /" + parts[2] + "/",
+			Err:    fmt.Errorf("missing number after /%s/: %q", parts[2], s),
+		}
 	}
 	n, err := parseNumber(parts[3])
 	if err != nil {
@@ -220,7 +254,7 @@ func parseLink(s, host string) (Target, error) {
 func parseRepo(s string) (RepoRef, error) {
 	r, err := parseRepoRef(strings.TrimSuffix(s, ".git"))
 	if err != nil {
-		return RepoRef{}, fmt.Errorf("not a repository: %q: %w", s, err)
+		return RepoRef{}, &TargetError{Reason: reasonOf(err), Err: fmt.Errorf("not a repository: %q: %w", s, err)}
 	}
 	return r, nil
 }

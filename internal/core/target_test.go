@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -119,6 +120,7 @@ func TestParseTarget(t *testing.T) {
 		{name: "clone link only", in: "https://github.com/eggzec/.git", err: "not a repository"},
 		{name: "link empty number", in: "https://github.com/eggzec/gh-tui/pull//12", err: "missing number after /pull/"},
 		{name: "link overflow", in: "https://github.com/eggzec/gh-tui/pull/99999999999", err: "issue number too large"},
+		{name: "long bad owner", in: strings.Repeat("-", 5000) + "/r", err: "may not start with '-'"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -126,6 +128,12 @@ func TestParseTarget(t *testing.T) {
 			if tt.err != "" {
 				if err == nil || !strings.Contains(err.Error(), tt.err) {
 					t.Fatalf("ParseTarget(%q, %q) error = %v, want one containing %q", tt.in, tt.host, err, tt.err)
+				}
+				// The reason is for the user, who knows what they typed, so
+				// it is short and quotes none of it.
+				e, ok := errors.AsType[*TargetError](err)
+				if in := strings.TrimSpace(tt.in); !ok || e.Input != in || e.Reason == "" || len(e.Reason) > 60 || strings.Contains(e.Reason, `"`) {
+					t.Errorf("ParseTarget(%q, %q) error = %#v, want a *TargetError of the input with a reason that doesn't repeat it", tt.in, tt.host, err)
 				}
 				return
 			}
