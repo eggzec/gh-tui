@@ -68,6 +68,21 @@ func TestViewWaiting(t *testing.T) {
 	}
 }
 
+// The jobs past what the service reads are left to GitHub, and only then
+// does the pane say so.
+func TestViewMoreJobs(t *testing.T) {
+	for _, more := range []bool{false, true} {
+		f := newFake()
+		f.moreJobs = more
+		m, h := newModal(t, f, wideW, wideH)
+		h.keys("tab")
+		s := paneText(m, jobsPane)
+		if got := strings.Contains(s, "First 4 jobs · o shows all"); got != more {
+			t.Errorf("more jobs %v: the pane says so %v:\n%s", more, got, s)
+		}
+	}
+}
+
 func TestViewFitsAnySize(t *testing.T) {
 	for _, size := range [][2]int{{1, 1}, {10, 3}, {30, 5}, {109, 12}, {110, 12}, {250, 60}} {
 		for _, keys := range [][]string{nil, {"tab"}, {"tab", "tab"}, {"j", "tab", "tab"}, {"z"}, {"f"}, {"ctrl+r"}} {

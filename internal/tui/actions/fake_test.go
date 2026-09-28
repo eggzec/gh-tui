@@ -151,6 +151,9 @@ type fake struct {
 	// cachedJobs and cachedLogs hold what the Cached reads find.
 	cachedJobs map[int64]bool
 	cachedLogs map[int64]bool
+	// moreJobs makes the jobs tell that there are more than the service
+	// reads.
+	moreJobs bool
 	// notes are the annotations of jobs, and cachedNotes those in memory.
 	notes       map[int64][]core.Annotation
 	cachedNotes map[int64]bool
@@ -238,7 +241,7 @@ func (f *fake) Workflows(_ context.Context, q actionssvc.WorkflowsQuery) (core.P
 	return core.Page[core.Workflow]{Items: f.workflows, Stale: f.keptWorkflows}, nil
 }
 
-func (f *fake) CachedJobs(q actionssvc.JobsQuery) (core.Page[core.Job], bool) {
+func (f *fake) CachedAllJobs(q actionssvc.JobsQuery) (core.Page[core.Job], bool) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if !f.cachedJobs[q.RunID] {
@@ -255,10 +258,14 @@ func (f *fake) page(q actionssvc.JobsQuery) core.Page[core.Job] {
 			out = append(out, jobs[i])
 		}
 	}
-	return core.Page[core.Job]{Items: out}
+	p := core.Page[core.Job]{Items: out}
+	if f.moreJobs {
+		p.Next = "more"
+	}
+	return p
 }
 
-func (f *fake) Jobs(_ context.Context, q actionssvc.JobsQuery) (core.Page[core.Job], error) {
+func (f *fake) AllJobs(_ context.Context, q actionssvc.JobsQuery) (core.Page[core.Job], error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.jobReads = append(f.jobReads, q.RunID)
