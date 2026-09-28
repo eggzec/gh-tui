@@ -840,6 +840,53 @@ func TestKeyLayersOrder(t *testing.T) {
 	}
 }
 
+// TestSharedKeys checks, in each pane, that a key two bindings hold
+// reaches the one the modal matches first, and that the help names that
+// one too: the tabs' ] and [ before the panes', the re-run's ctrl+r before
+// refresh, and the filter's f and the panes' h before the log and the
+// lists, which page and scroll with them.
+func TestSharedKeys(t *testing.T) {
+	tab := func(want int) func(*Modal) bool {
+		return func(m *Modal) bool { _, active := m.Tabs(); return active == want && m.focus == runsPane }
+	}
+	asks := func(m *Modal) bool { return m.ask != nil }
+	filters := func(m *Modal) bool { return m.filterStep != nil }
+	tests := []struct {
+		name string
+		to   []string // the keys that reach the pane
+		key  string
+		desc string // the binding the help names for key
+		ok   func(*Modal) bool
+	}{
+		{name: "] on the runs", key: "]", desc: "tab", ok: tab(1)},
+		{name: "[ on the runs", key: "[", desc: "previous tab", ok: tab(3)},
+		{name: "] on the jobs", to: []string{"tab"}, key: "]", desc: "tab",
+			ok: func(m *Modal) bool { _, active := m.Tabs(); return active == 1 && m.focus == jobsPane }},
+		{name: "tab on the runs", key: "tab", desc: "pane", ok: func(m *Modal) bool { return m.focus == jobsPane }},
+		{name: "ctrl+r on the runs", key: "ctrl+r", desc: "rerun failed", ok: asks},
+		{name: "ctrl+r in the log", to: []string{"tab", "tab"}, key: "ctrl+r", desc: "rerun failed", ok: asks},
+		{name: "r on the runs", key: "r", desc: "refresh", ok: func(m *Modal) bool { return m.ask == nil && m.focus == runsPane }},
+		{name: "f on the runs", key: "f", desc: "filter", ok: filters},
+		{name: "f on the jobs", to: []string{"tab"}, key: "f", desc: "filter", ok: filters},
+		{name: "f in the log", to: []string{"tab", "tab"}, key: "f", desc: "filter", ok: filters},
+		{name: "h in the log", to: []string{"tab", "tab"}, key: "h", desc: "pane left", ok: func(m *Modal) bool { return m.focus == jobsPane }},
+		{name: "l on the jobs", to: []string{"tab"}, key: "l", desc: "pane right", ok: func(m *Modal) bool { return m.focus == logPane }},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m, h := newModal(t, newFake(), wideW, wideH)
+			h.keys(tt.to...)
+			if b, src, _ := uitest.Winner(m.KeyLayers(), tt.key); src != "actions" || b.Help().Desc != tt.desc {
+				t.Errorf("the help gives %s to %q of %q, want %q of the modal", tt.key, b.Help().Desc, src, tt.desc)
+			}
+			h.keys(tt.key)
+			if !tt.ok(m) {
+				t.Errorf("%s didn't reach %q: focus %d, question %v, filter %v", tt.key, tt.desc, m.focus, m.ask != nil, m.filterStep != nil)
+			}
+		})
+	}
+}
+
 func TestRunsWithoutJobsSayWhy(t *testing.T) {
 	tests := []struct {
 		conclusion core.Conclusion
