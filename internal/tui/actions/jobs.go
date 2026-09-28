@@ -1,6 +1,7 @@
 package actions
 
 import (
+	"errors"
 	"slices"
 	"strconv"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
+	"github.com/eggzec/gh-tui/internal/tui/jobview"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -324,7 +326,7 @@ func (m *Modal) jobLines(w, h int) []string {
 	case !m.hasRun:
 		return ui.FitLines([]string{st.Muted.Render("Pick a run to see its jobs.")}, w, h)
 	case !j.loaded && j.err != nil:
-		return ui.FitLines(ui.Wrap(m.errorLine("Couldn't load the jobs: ", j.err), w), w, h)
+		return ui.FitLines(m.errorLines("load the jobs", jobview.RunName(m.run), j.err, w), w, h)
 	case !j.loaded:
 		return ui.FitLines([]string{m.spin.View() + st.Muted.Render("Loading the jobs…")}, w, h)
 	case len(j.items) == 0:
@@ -438,11 +440,15 @@ func (m *Modal) jobsTitle() string {
 	return s
 }
 
-// errorLine renders an error that the refresh key reads again.
-func (m *Modal) errorLine(what string, err error) string {
-	text := m.st.Error.Render("✗ " + what + ui.FirstLine(err.Error()))
-	if k := m.keys.Refresh.Help().Key; k != "" {
-		text += m.st.Subtle.Render(" · " + k + " to retry")
+// errorLines renders err, which stopped action on object, in lines of w
+// cells. Access is granted by repository, so a refusal names it rather than
+// object. The refresh key reads it again, and the open key opens the run.
+func (m *Modal) errorLines(action, object string, err error, w int) []string {
+	v := *m.opts.voice
+	v.Retry, v.Open = m.keys.Refresh, m.keys.Open
+	if errors.Is(err, core.ErrForbidden) {
+		object = m.repo.String()
 	}
-	return text
+	text, hint := ui.ErrorText(action, object, v)(err)
+	return ui.ErrorLine(m.errs, text, hint, w)
 }

@@ -1,6 +1,7 @@
 package actions
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -37,6 +38,26 @@ func TestView(t *testing.T) {
 			h.keys(tt.keys...)
 			v := m.View()
 			assertFits(t, v, tt.width, tt.height)
+			golden.RequireEqual(t, v)
+		})
+	}
+}
+
+// Jobs that failed to load say why, in both themes.
+func TestViewJobsFailed(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(fmt.Sprintf("dark=%t", dark), func(t *testing.T) {
+			f := newFake()
+			f.jobsErr = fmt.Errorf("list jobs: %w", core.ErrOffline)
+			m, h := newModal(t, f, narrowW, narrowH, WithIcons(ui.NewIcons(config.IconsUnicode)))
+			p, err := config.Default().Palette(dark)
+			if err != nil {
+				t.Fatal(err)
+			}
+			m.SetTheme(ui.NewTheme(p, dark))
+			h.keys("enter")
+			v := m.View()
+			assertFits(t, v, narrowW, narrowH)
 			golden.RequireEqual(t, v)
 		})
 	}
