@@ -8,9 +8,10 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/calendar"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 )
 
 // KeyMap holds the keys of the dashboard.
@@ -55,10 +56,11 @@ type KeyMap struct {
 	Left  key.Binding
 	Right key.Binding
 
+	// Jump holds the keys of Panes, which it stands for in help.
+	Jump key.Binding
+
 	// feed is the navigation of the repositories, without the keys above.
 	feed feed.KeyMap
-	// jump stands for Panes in the help.
-	jump key.Binding
 }
 
 func newKeyMap(keys map[string][]string) KeyMap {
@@ -91,11 +93,14 @@ func newKeyMap(keys map[string][]string) KeyMap {
 			labels = append(labels, k.Panes[i].Help().Key)
 		}
 	}
-	k.jump = key.NewBinding(key.WithDisabled())
+	k.Jump = key.NewBinding(key.WithDisabled())
 	if len(labels) > 0 {
-		k.jump = key.NewBinding(key.WithKeys(labels...), key.WithHelp(labels[0]+"-"+labels[len(labels)-1], "focus pane"))
+		k.Jump = key.NewBinding(key.WithKeys(labels...), key.WithHelp(labels[0]+"-"+labels[len(labels)-1], "focus pane"))
 	}
 
+	// PR5: the dashboard, and the app for the filter, match these keys
+	// first, so dropping them from the list only keeps the collisions out
+	// of help.
 	own := []key.Binding{k.Select, k.Open, k.Refresh, k.Filter, k.Sort, k.ClearFilter, k.NextOwner, k.PrevOwner, k.Here, k.Next, k.Prev, k.Zoom, k.Back}
 	f := feed.DefaultKeyMap()
 	f.Up = free(f.Up, own)
@@ -136,76 +141,69 @@ func (k KeyMap) pane(msg tea.KeyPressMsg) paneID {
 	return -1
 }
 
-// helpKeys lists the keys of the focused pane, then those of the
-// dashboard.
-type helpKeys struct {
-	k     KeyMap
-	pane  paneID
-	repos *repoTabs
-	cal   calendar.KeyMap
-	here  bool
-	// wide is set while the dashboard fits every pane, so zooming shows,
-	// and zoom while the focused pane is zoomed.
-	wide, zoom bool
-	// markRead is set when opening a notification marks it read.
-	markRead bool
-}
-
-func (h helpKeys) paneKeys() []key.Binding {
-	k := h.k
-	switch h.pane {
-	case pinnedPane:
-		return []key.Binding{k.Left, k.Right, k.Select, k.Open}
-	case reposPane:
-		clr := k.ClearFilter
-		clr.SetEnabled(clr.Enabled() && h.repos.filter().active())
-		return []key.Binding{h.repos.feedKeys().Up, h.repos.feedKeys().Down, k.Select, k.Filter, k.Sort, clr, k.NextOwner, k.Open, h.repos.feedKeys().Retry}
-	case workPane:
-		next := k.NextOwner
-		next.SetHelp(next.Help().Key, "next list")
-		return []key.Binding{k.Up, k.Down, k.Select, k.Checks, k.Open, next}
-	case inboxPane:
-		sel, open := k.Select, k.Open
-		sel.SetHelp(sel.Help().Key, "open")
-		if h.markRead {
-			sel.SetHelp(sel.Help().Key, "open & read")
-		}
-		return []key.Binding{k.Up, k.Down, sel, open}
-	default:
-		return h.cal.ShortHelp()
+// ShortHelp implements help.KeyMap.
+func (k KeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{
+		k.Up, k.Down, k.Left, k.Right, k.Select, k.Checks, k.Filter, k.Sort, k.ClearFilter, k.NextOwner, k.Open,
+		k.Next, k.Jump, k.Zoom, k.Back, k.Refresh, k.Here,
 	}
 }
 
-func (h helpKeys) own() []key.Binding {
-	here := h.k.Here
-	if !h.here {
-		here.SetEnabled(false)
+// FullHelp implements help.KeyMap: the keys of the panes, which the
+// dashboard matches first, and then its own.
+func (k KeyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{k.Left, k.Right, k.Up, k.Down, k.Select, k.Open, k.Checks, k.NextOwner, k.PrevOwner, k.ClearFilter, k.Filter, k.Sort, k.Notifications},
+		{k.Next, k.Prev, k.Zoom, k.Back, k.Refresh, k.Here, k.Jump},
 	}
-	zoom, back := h.k.Zoom, h.k.Back
-	zoom.SetEnabled(zoom.Enabled() && h.wide)
-	back.SetEnabled(back.Enabled() && h.zoom)
-	return []key.Binding{h.k.Next, h.k.jump, zoom, back, h.k.Refresh, here}
 }
 
-// ShortHelp returns the bindings for the short help view.
-func (h helpKeys) ShortHelp() []key.Binding {
-	return append(h.paneKeys(), h.own()...)
-}
-
-// FullHelp returns the bindings for the full help view.
-func (h helpKeys) FullHelp() [][]key.Binding {
-	groups := [][]key.Binding{h.paneKeys()}
-	switch h.pane {
+// KeyLayers implements ui.Keyed: the keys of the focused pane and of the
+// dashboard, named for what they do there, and then those of the list of
+// repositories or of the calendar, whichever has the focus.
+func (s *Section) KeyLayers() []keyhelp.Layer {
+	own := keyhelp.FromHelp("dashboard", s.keys.state(s), false)
+	switch s.focus {
 	case reposPane:
-		f := h.repos.feedKeys()
-		groups = append(groups, []key.Binding{f.PageUp, f.PageDown, f.Home, f.End, h.k.PrevOwner})
-	case workPane:
-		prev := h.k.PrevOwner
-		prev.SetHelp(prev.Help().Key, "previous list")
-		groups = append(groups, []key.Binding{prev})
+		return []keyhelp.Layer{own, keyhelp.FromHelp("list", s.repos.feedKeys(), false)}
 	case calendarPane:
-		groups = h.cal.FullHelp()
+		return []keyhelp.Layer{own, keyhelp.FromHelp("calendar", s.cal.KeyMap(), false)}
 	default:
 	}
-	return append(groups, append(h.own(), h.k.Prev))
+	return []keyhelp.Layer{own}
+}
+
+// state returns k as the dashboard takes it with the focus on its pane:
+// the keys of that pane, named for what they do there, zoom while every
+// pane fits, and the way back while one is zoomed.
+func (k KeyMap) state(s *Section) KeyMap {
+	panes := map[paneID][]*key.Binding{
+		pinnedPane: {&k.Left, &k.Right, &k.Up, &k.Down, &k.Select, &k.Open},
+		reposPane:  {&k.NextOwner, &k.PrevOwner, &k.ClearFilter, &k.Select, &k.Open, &k.Filter, &k.Sort},
+		workPane:   {&k.NextOwner, &k.PrevOwner, &k.Up, &k.Down, &k.Select, &k.Checks, &k.Open},
+		inboxPane:  {&k.Up, &k.Down, &k.Select, &k.Open},
+	}
+	for _, b := range []*key.Binding{
+		&k.Left, &k.Right, &k.Up, &k.Down, &k.Select, &k.Open, &k.Checks,
+		&k.NextOwner, &k.PrevOwner, &k.ClearFilter, &k.Filter, &k.Sort, &k.Notifications,
+	} {
+		b.SetEnabled(b.Enabled() && slices.Contains(panes[s.focus], b))
+	}
+	switch s.focus {
+	case reposPane:
+		k.ClearFilter.SetEnabled(k.ClearFilter.Enabled() && s.repos.filter().active())
+	case workPane:
+		k.NextOwner.SetHelp(k.NextOwner.Help().Key, "next list")
+		k.PrevOwner.SetHelp(k.PrevOwner.Help().Key, "previous list")
+	case inboxPane:
+		k.Select.SetHelp(k.Select.Help().Key, "open")
+		if s.opener.MarksRead() {
+			k.Select.SetHelp(k.Select.Help().Key, "open & read")
+		}
+	default:
+	}
+	k.Zoom.SetEnabled(k.Zoom.Enabled() && s.wide)
+	k.Back.SetEnabled(k.Back.Enabled() && s.zoomed())
+	k.Here.SetEnabled(k.Here.Enabled() && s.here != (core.RepoRef{}))
+	return k
 }

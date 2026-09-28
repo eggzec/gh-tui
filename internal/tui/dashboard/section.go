@@ -365,10 +365,8 @@ func (s *Section) Blur() {
 // View returns the dashboard, rendered when its state last changed.
 func (s *Section) View() string { return s.view }
 
-// Help returns the keys of the focused pane, then those of the dashboard.
-func (s *Section) Help() help.KeyMap {
-	return helpKeys{k: s.keys, pane: s.focus, repos: &s.repos, cal: s.cal.KeyMap(), here: s.here != (core.RepoRef{}), wide: s.wide, zoom: s.zoomed(), markRead: s.opener.MarksRead()}
-}
+// Help lists the keys of the dashboard for the help line.
+func (s *Section) Help() help.KeyMap { return ui.Hints{Layers: s.KeyLayers()} }
 
 // Focused returns the number of the focused pane, from 0.
 func (s *Section) Focused() int { return int(s.focus) }
