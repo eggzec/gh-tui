@@ -145,7 +145,7 @@ func (s *Section) render(n core.Notification, selected bool, width int) string {
 		spaces(&b, gap)
 	}
 	// The title links to the thread's page.
-	t := cut(n.Subject.Title, l.title)
+	t := cut(ui.OneLine(n.Subject.Title), l.title)
 	b.WriteString(s.links.Link(n.Subject.WebURL, title.render(t)))
 	spaces(&b, l.title-ansi.StringWidth(t)+gap)
 	if l.reason > 0 {
@@ -253,7 +253,8 @@ func shortReason(r string) string {
 	case "assign", "author", "comment", "manual", "mention":
 		return r
 	}
-	return strings.ReplaceAll(r, "_", " ")
+	// GitHub may add reasons, which are shown as they come.
+	return ui.OneLine(strings.ReplaceAll(r, "_", " "))
 }
 
 // repoLabel names r in at most width cells. The name tells repositories
