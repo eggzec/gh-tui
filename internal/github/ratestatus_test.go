@@ -162,6 +162,29 @@ func TestRateStatusContact(t *testing.T) {
 	})
 }
 
+// TestRateStatusRejected checks that the status says GitHub rejected the
+// token while its last answer did, and not once another is accepted.
+func TestRateStatusRejected(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		a := answers{"x": make(chan answer, 1)}
+		c := newAnswered(t, a)
+		github := map[string]string{"X-GitHub-Request-Id": "ABCD:1234"}
+		get := func(status int) {
+			a["x"] <- answer{status: status, header: github}
+			_, _ = c.Get(t.Context(), "x", Conditional{}, nil)
+		}
+		get(http.StatusUnauthorized)
+		if s := c.RateStatus(); !s.Rejected.Equal(time.Now()) {
+			t.Errorf("after a 401: Rejected = %v, want %v", s.Rejected, time.Now())
+		}
+		time.Sleep(time.Second)
+		get(http.StatusNotFound)
+		if s := c.RateStatus(); !s.Rejected.IsZero() {
+			t.Errorf("after a 404: Rejected = %v, want zero", s.Rejected)
+		}
+	})
+}
+
 // notified is a client that keeps the status it reads each time it is
 // told the rate limits changed, as the app does.
 type notified struct {

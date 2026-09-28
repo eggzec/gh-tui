@@ -34,6 +34,9 @@ func (b *budget) snapshot() core.RateStatus {
 	if now.Before(b.gate.secondary) {
 		s.SecondaryUntil = b.gate.secondary
 	}
+	if b.rejected.After(b.accepted) {
+		s.Rejected = b.rejected
+	}
 	for resource, q := range b.quotas {
 		cq := core.Quota{
 			Resource:  resource,
@@ -124,8 +127,9 @@ type rateNotifier struct {
 // telling of a change goes.
 type rateView struct {
 	quotas []quotaView
-	// offline is whether the last request that ended got no answer.
-	offline bool
+	// offline is whether the last request that ended got no answer, and
+	// rejected whether GitHub's last answer rejected the token.
+	offline, rejected bool
 	// secondary is when a secondary limit that holds every request
 	// lifts, or zero if none does.
 	secondary time.Time
@@ -209,6 +213,7 @@ func (b *budget) view(now time.Time) (v rateView, next time.Time) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	v.offline = b.failed.After(b.answered)
+	v.rejected = b.rejected.After(b.accepted)
 	if now.Before(b.gate.secondary) {
 		v.secondary = b.gate.secondary
 		next = v.secondary
@@ -240,7 +245,7 @@ func (b *budget) view(now time.Time) (v rateView, next time.Time) {
 }
 
 func (v rateView) equal(w rateView) bool {
-	return v.offline == w.offline && v.secondary.Equal(w.secondary) && slices.EqualFunc(v.quotas, w.quotas, func(x, y quotaView) bool {
+	return v.offline == w.offline && v.rejected == w.rejected && v.secondary.Equal(w.secondary) && slices.EqualFunc(v.quotas, w.quotas, func(x, y quotaView) bool {
 		return x.resource == y.resource && x.window.Equal(y.window) && x.limited == y.limited && x.held == y.held && x.step == y.step
 	})
 }

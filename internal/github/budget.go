@@ -72,8 +72,11 @@ type budget struct {
 	// snapshot, which counts against dependency_snapshots.
 	learned map[string]string
 	// answered is when GitHub last answered, and failed when a request
-	// last got no answer, for the status of the connection.
-	answered, failed time.Time
+	// last got no answer, for the status of the connection. rejected is
+	// when an answer last rejected the token, and accepted when one last
+	// didn't.
+	answered, failed   time.Time
+	rejected, accepted time.Time
 
 	// logs are what was logged while b.mu was held, which unlock logs
 	// once it is released.
@@ -251,11 +254,11 @@ func (b *budget) contact() (answered, failed time.Time) {
 	return b.answered, b.failed
 }
 
-// observe settles r with the headers h of its answer, and returns the new
-// guard of its resource if the answer shows that the guard was too short.
-// The rate limit they report is counted in the resource they name, or in
-// the resource of r if they name none.
-func (b *budget) observe(r *reservation, h http.Header) (guard time.Duration) {
+// observe settles r with the status and the headers h of its answer, and
+// returns the new guard of its resource if the answer shows that the guard
+// was too short. The rate limit they report is counted in the resource
+// they name, or in the resource of r if they name none.
+func (b *budget) observe(r *reservation, status int, h http.Header) (guard time.Duration) {
 	now := b.now()
 	defer b.changed()
 	b.mu.Lock()
@@ -266,6 +269,13 @@ func (b *budget) observe(r *reservation, h http.Header) (guard time.Duration) {
 	// proxy on the way, whose clock may be another.
 	if h.Get("X-GitHub-Request-Id") != "" {
 		b.answered = now
+		// A 401 is GitHub rejecting the token, whatever was asked; a
+		// missing scope is a 403 or a 404.
+		if status == http.StatusUnauthorized {
+			b.rejected = now
+		} else {
+			b.accepted = now
+		}
 		if date, err := http.ParseTime(h.Get("Date")); err == nil {
 			b.skew.add(date.Sub(now))
 		}
