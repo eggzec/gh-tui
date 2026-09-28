@@ -49,6 +49,13 @@ func (f *fakeChecks) CachedLog(core.RepoRef, int64) (core.Log, bool) { return co
 func (f *fakeChecks) Log(context.Context, core.RepoRef, int64) (core.Log, error) {
 	return core.Log{}, nil
 }
+func (f *fakeChecks) CachedPartialLog(core.RepoRef, int64) (core.PartialLog, bool) {
+	return core.PartialLog{}, false
+}
+func (f *fakeChecks) PartialLog(context.Context, core.RepoRef, int64) (core.PartialLog, error) {
+	return core.PartialLog{}, core.ErrLogPending
+}
+func (f *fakeChecks) WatchLog(core.RepoRef, int64, int64) func() { return func() {} }
 func (f *fakeChecks) CachedAnnotations(actionssvc.AnnotationsQuery) (core.Page[core.Annotation], bool) {
 	return core.Page[core.Annotation]{}, false
 }

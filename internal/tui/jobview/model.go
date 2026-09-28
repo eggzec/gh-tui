@@ -5,9 +5,11 @@
 // job under the cursor of its jobs with it, and the checks of a pull
 // request the job of a check.
 //
-// A job's log is published only when the job ends, so the view of a job in
-// progress shows its steps as they run instead, and the log once the
-// parent shows the job again, done.
+// A job's log is published whole only when the job ends, so the view of a
+// job in progress shows its steps as they run instead, or the part of its
+// log that GitHub already publishes, which grows as the parent's poll of
+// the run reads more, and the whole log once the parent shows the job
+// again, done.
 package jobview
 
 import (
@@ -36,6 +38,13 @@ type Service interface {
 	// a request.
 	CachedAnnotations(q actionssvc.AnnotationsQuery) (core.Page[core.Annotation], bool)
 	Annotations(ctx context.Context, q actionssvc.AnnotationsQuery) (core.Page[core.Annotation], error)
+	// CachedPartialLog returns what was read of the log of a job in
+	// progress from memory, without a request.
+	CachedPartialLog(repo core.RepoRef, jobID int64) (core.PartialLog, bool)
+	PartialLog(ctx context.Context, repo core.RepoRef, jobID int64) (core.PartialLog, error)
+	// WatchLog has the poll of the run of a job in progress read what is
+	// added to its log, until stop is called.
+	WatchLog(repo core.RepoRef, runID, jobID int64) (stop func())
 }
 
 // KeyMap holds the keys of the view. The parent handles its own keys
@@ -90,6 +99,9 @@ const (
 	Loading
 	// Ready shows the log.
 	Ready
+	// Partial shows the log of a job in progress as far as GitHub
+	// publishes it, which grows as the poll of its run reads more.
+	Partial
 	// Expired shows the steps of a job whose log GitHub no longer keeps.
 	Expired
 	// Failed shows why the log failed to load.
@@ -121,6 +133,10 @@ type Model struct {
 	// rest on the job before it is read, and seq counts the rests.
 	resting bool
 	seq     int
+	// part is what the partial log shows, and unwatch stops the reads of
+	// it while the job runs.
+	part    shownPart
+	unwatch func()
 
 	width, height int
 	st            ui.RunStyles
@@ -277,7 +293,7 @@ func (m Model) KeyLayers() []keyhelp.Layer {
 	for i, b := range log.Bindings {
 		// The log's keys do nothing until it shows, and only those of the
 		// whole log reach it from the annotations.
-		keep := m.state == Ready && (!on || slices.ContainsFunc(whole, func(w key.Binding) bool {
+		keep := m.showsLog() && (!on || slices.ContainsFunc(whole, func(w key.Binding) bool {
 			return slices.Equal(w.Keys(), b.Keys())
 		}))
 		log.Bindings[i].SetEnabled(b.Enabled() && keep)
@@ -304,6 +320,10 @@ func (k KeyMap) state(m Model) KeyMap {
 
 // State is what the view shows.
 func (m Model) State() State { return m.state }
+
+// showsLog reports whether the view shows a log, whole or partial, which
+// the keys of the log move through.
+func (m Model) showsLog() bool { return m.state == Ready || m.state == Partial }
 
 // Job returns the job shown, if any.
 func (m Model) Job() (core.Job, bool) {
@@ -349,6 +369,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case logMsg:
 		if msg.id == m.id {
 			m.receive(msg)
+		}
+		return m, nil
+	case partialMsg:
+		if msg.id == m.id {
+			m.receivePartial(msg)
 		}
 		return m, nil
 	}

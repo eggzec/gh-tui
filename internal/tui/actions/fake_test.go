@@ -168,10 +168,12 @@ type fake struct {
 	jobReads  []int64
 	logReads  []int64
 	noteReads []int64
-	wfReads   int
-	wfAgain   []bool
-	runReads  int
-	sent      []string
+	// watching counts the watches of the logs of jobs in progress.
+	watching map[int64]int
+	wfReads  int
+	wfAgain  []bool
+	runReads int
+	sent     []string
 }
 
 func newFake() *fake {
@@ -183,6 +185,7 @@ func newFake() *fake {
 		cachedJobs:  map[int64]bool{},
 		cachedLogs:  map[int64]bool{},
 		logErrs:     map[int64]error{},
+		watching:    map[int64]int{},
 		notes:       map[int64][]core.Annotation{ubuntuJob: testNotes()},
 		cachedNotes: map[int64]bool{},
 	}
@@ -283,6 +286,25 @@ func (f *fake) CachedLog(_ core.RepoRef, jobID int64) (core.Log, bool) {
 		return core.Log{}, false
 	}
 	return f.logs[jobID], true
+}
+
+func (f *fake) CachedPartialLog(core.RepoRef, int64) (core.PartialLog, bool) {
+	return core.PartialLog{}, false
+}
+
+func (f *fake) PartialLog(context.Context, core.RepoRef, int64) (core.PartialLog, error) {
+	return core.PartialLog{}, core.ErrLogPending
+}
+
+func (f *fake) WatchLog(_ core.RepoRef, _, jobID int64) func() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.watching[jobID]++
+	return func() {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		f.watching[jobID]--
+	}
 }
 
 func (f *fake) Log(_ context.Context, _ core.RepoRef, jobID int64) (core.Log, error) {
