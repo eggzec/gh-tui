@@ -92,11 +92,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case ui.NotifyMsg:
 		return m, m.toast.Push(msg.Level, msg.Text)
+	case ui.FailMsg:
+		cmd := m.fail(msg.What, msg.Err)
+		return m, cmd
 	case ui.DoneMsg:
-		var cmd tea.Cmd
-		if text := ui.SayToast(core.Explain(msg.What, msg.Err), m.voice, m.fitsToast); text != "" {
-			cmd = m.toast.Push(toast.Error, text)
-		}
+		cmd := m.fail(msg.What, msg.Err)
 		return m, tea.Batch(cmd, m.broadcast(msg))
 	case ui.SyncMsg:
 		if msg.Key == core.SyncRateLimit {
@@ -386,6 +386,16 @@ func (m *Model) report(active bool) {
 	if m.setActive != nil {
 		m.setActive(active)
 	}
+}
+
+// fail tells in a toast what stopped action, if anything did and the user
+// should hear of it.
+func (m *Model) fail(action string, err error) tea.Cmd {
+	text := ui.SayToast(core.Explain(action, err), m.voice, m.fitsToast)
+	if text == "" {
+		return nil
+	}
+	return m.toast.Push(toast.Error, text)
 }
 
 // fitsToast reports whether an error toast shows text whole.

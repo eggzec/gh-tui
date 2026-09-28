@@ -155,7 +155,10 @@ func words(p *core.Problem, v Voice) (text, hint string, named bool) {
 		if sso(p) {
 			return ssoWords(subject, v.Token.Hint())
 		}
-		return "You don't have access to " + cmp.Or(subject, "this"), open, false
+		// Access is granted per repository, so what is refused is named
+		// by its repository, such as "eggzec/x" for "eggzec/x#5".
+		repo, _, _ := strings.Cut(subject, "#")
+		return "You don't have access to " + cmp.Or(repo, "this"), open, false
 	case core.NotFound:
 		text := "This doesn't exist or is private."
 		if subject != "" {

@@ -49,6 +49,35 @@ func (r refused) Do(ctx context.Context) error {
 	return err
 }
 
+// About returns op, whose error names subject, such as the pull request
+// "eggzec/gh-tui#5" it changes, so that the toast says what GitHub didn't
+// find or refused access to.
+func About(subject string, op Op) Op {
+	return about{subject, op}
+}
+
+type about struct {
+	subject string
+	op      Op
+}
+
+func (a about) Do(ctx context.Context) error {
+	return core.About(a.subject, a.op.Do(ctx))
+}
+
+// FailMsg asks the app to tell the user that Err stopped What, such as
+// "load #5", in a toast. The app says it through SayToast, so that no raw
+// error reaches the screen, and says nothing of a read that was canceled.
+type FailMsg struct {
+	What string
+	Err  error
+}
+
+// Fail returns a command that reports a FailMsg.
+func Fail(what string, err error) tea.Cmd {
+	return func() tea.Msg { return FailMsg{What: what, Err: err} }
+}
+
 // DoneMsg reports that an Op finished. Err is set when the server refused
 // the change and it was rolled back. The app shows the error, then passes
 // the message on so the section that sent it can re-render from the cache.
