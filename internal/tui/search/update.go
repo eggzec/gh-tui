@@ -10,6 +10,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 )
 
 // Update handles the page's keys, the waits after typing and the
@@ -111,15 +112,18 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 	k := &s.keys
 	switch s.area {
 	case inputArea:
+		// The query types a printable key before any key of the page
+		// that holds it, such as ].
 		switch {
-		case key.Matches(msg, typing(k.Back)):
+		case keyhelp.Printable(msg.String()):
+		case key.Matches(msg, k.Back):
 			return back
-		case key.Matches(msg, typing(k.Select)):
+		case key.Matches(msg, k.Select):
 			return s.submit()
-		case key.Matches(msg, typing(k.Next)), key.Matches(msg, arrowUp):
+		case key.Matches(msg, k.Next), key.Matches(msg, arrowUp):
 			s.focusArea(kindsArea)
 			return s.settleNow()
-		case key.Matches(msg, typing(k.Prev)), key.Matches(msg, arrowDown):
+		case key.Matches(msg, k.Prev), key.Matches(msg, arrowDown):
 			s.focusArea(resultsArea)
 			return s.settleNow()
 		}
