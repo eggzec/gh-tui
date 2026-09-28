@@ -35,6 +35,7 @@ type command struct {
 var commands = []command{
 	{name: "goto", detail: "open a repository, issue, pull request or link", args: true, run: (*Model).gotoCommand, complete: (*Model).completeTarget},
 	{name: "help", detail: "show every key", run: pressing(config.ActionHelp)},
+	{name: "open", detail: "open on GitHub what follows, or what is selected", args: true, run: (*Model).openCommand, complete: (*Model).completeTarget},
 	{name: "q", detail: "quit", quits: true, run: func(*Model, string) tea.Cmd { return tea.Quit }},
 	{name: "refresh", detail: "read the focused view again", run: pressing(config.ActionRefresh)},
 	{name: "search", detail: "search GitHub, for what follows if anything", args: true, run: (*Model).searchCommand},
