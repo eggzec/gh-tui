@@ -78,6 +78,8 @@ func (m Model) updateKey(k tea.KeyPressMsg) (Model, tea.Cmd) {
 		}
 	case counted && key.Matches(k, m.keys.Home, m.keys.End):
 		m.goTo(n)
+	case counted && key.Matches(k, m.keys.Percent):
+		m.goToPercent(n)
 	case key.Matches(k, m.keys.Down):
 		m.down(1)
 	case key.Matches(k, m.keys.Up):
