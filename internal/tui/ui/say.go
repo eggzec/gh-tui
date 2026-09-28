@@ -148,12 +148,12 @@ func words(p *core.Problem, v Voice) (text, hint string, named bool) {
 		// The app reads the token once, as it starts, so a new one from gh
 		// reaches it only after a restart; the token-scopes work (A3, a
 		// token Reload) will switch these to "then r to retry".
-		if s := missingScope(p.Reason); s != "" {
+		if s := grant(p); s != "" {
 			return "The token lacks the " + s + " scope. Run gh auth refresh -s " + s + restart + ".", "", false
 		}
 		return "GitHub rejected the token. Run gh auth login" + restart + ".", "", false
 	case core.Forbidden:
-		if sso(p.Reason) {
+		if sso(p) {
 			if org, _, _ := strings.Cut(subject, "/"); org != "" {
 				return org + " requires SSO. Run gh auth refresh" + restart + ".", "", true
 			}
@@ -255,12 +255,12 @@ func actionCuts(action string) []string {
 // from them: the command to run, or where the log is.
 func toastCauses(p *core.Problem, v Voice, text string) []string {
 	var run string
-	switch scope := missingScope(p.Reason); {
+	switch scope := grant(p); {
 	case p.Kind == core.Auth && scope != "":
 		run = "run gh auth refresh -s " + scope
 	case p.Kind == core.Auth:
 		run = "run gh auth login"
-	case p.Kind == core.Forbidden && sso(p.Reason):
+	case p.Kind == core.Forbidden && sso(p):
 		run = "run gh auth refresh"
 	case p.Kind == core.Internal && v.Log != "":
 		return []string{"something went wrong, see " + v.Log, "something went wrong, see the log"}
@@ -338,6 +338,16 @@ func clean(s string) string {
 	return strings.Join(strings.Fields(OneLine(s)), " ")
 }
 
+// grant returns the scope to grant the token for p: the one GitHub named
+// in its headers or its error type, or else the one its reason names, or
+// "".
+func grant(p *core.Problem) string {
+	if p.Grant != "" {
+		return p.Grant
+	}
+	return missingScope(p.Reason)
+}
+
 // The ways GitHub names a scope a token lacks: GraphQL's "requires one of
 // the following scopes: ['read:org']", and REST's "needs the "admin:org"
 // scope".
@@ -362,9 +372,10 @@ func missingScope(reason string) string {
 // authorized for an organization's SAML single sign-on.
 var ssoReason = regexp.MustCompile(`\b(?:SAML|SSO)\b`)
 
-// sso reports whether GitHub's reason is an organization's SSO.
-func sso(reason string) bool {
-	return ssoReason.MatchString(reason)
+// sso reports whether p is an organization's SSO: GitHub said so in its
+// headers, or its reason names SSO, as a GraphQL error's does.
+func sso(p *core.Problem) bool {
+	return p.SSO || ssoReason.MatchString(p.Reason)
 }
 
 // lowerFirst lowers the first letter of s, a sentence of the app's own,
