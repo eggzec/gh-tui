@@ -218,6 +218,12 @@ const (
 	// DiskHit and DiskMiss are reads of the disk layer.
 	DiskHit
 	DiskMiss
+	// DiskWriteFailed is a write to the disk layer that failed, such as
+	// on a full disk.
+	DiskWriteFailed
+	// DiskDropped is an object the disk layer removed, since it couldn't
+	// be read, no longer matched what reads it, or GitHub refused it.
+	DiskDropped
 	numCache
 )
 

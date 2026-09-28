@@ -3,8 +3,6 @@ package ui
 import (
 	"cmp"
 	"errors"
-	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -16,6 +14,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/obs"
 )
 
 // The most cells that Say's text and the action in a toast take, and the
@@ -369,21 +368,7 @@ func cutWords(s string, width int) string {
 // ShortPath returns path with the user's home directory as ~, so that a
 // path shown on screen doesn't spell out where the home directory is.
 func ShortPath(path string) string {
-	home, err := os.UserHomeDir()
-	if err != nil || home == "" {
-		return path
-	}
-	// A home at the root would make every path start with ~.
-	if home = filepath.Clean(home); filepath.Dir(home) == home {
-		return path
-	}
-	if path == home {
-		return "~"
-	}
-	if rest, ok := strings.CutPrefix(path, home+string(filepath.Separator)); ok {
-		return "~" + string(filepath.Separator) + rest
-	}
-	return path
+	return obs.ShortHome(path)
 }
 
 // keyHint returns "<key> to <do>" with the key of b, or "" while b is
