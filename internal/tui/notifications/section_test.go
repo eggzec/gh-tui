@@ -263,7 +263,7 @@ func TestKeysFromConfig(t *testing.T) {
 	keys := config.Default().Keys
 	keys[config.ActionMarkDone] = []string{"x"}
 	s := New(t.Context(), newFake(), keys)
-	k := s.Help().(KeyMap)
+	k := s.keys
 	if !key.Matches(keyPress("x"), k.MarkDone) || key.Matches(keyPress("d"), k.MarkDone) {
 		t.Error("mark done should follow the config")
 	}
@@ -271,14 +271,15 @@ func TestKeysFromConfig(t *testing.T) {
 	if slices.Contains(k.feed.PageDown.Keys(), "f") {
 		t.Errorf("page down keys = %q, want no f", k.feed.PageDown.Keys())
 	}
-	short := k.ShortHelp()
+	h := ui.Hints{Layers: s.KeyLayers()}
+	short := h.ShortHelp()
 	for _, b := range []key.Binding{k.feed.Up, k.feed.Down, k.Select, k.Filter} {
 		if !slices.ContainsFunc(short, func(h key.Binding) bool { return slices.Equal(h.Keys(), b.Keys()) }) {
 			t.Errorf("short help lacks %q", b.Keys())
 		}
 	}
-	if len(k.FullHelp()) < 3 {
-		t.Errorf("full help = %d columns, want the list's and the section's", len(k.FullHelp()))
+	if len(h.FullHelp()) < 2 {
+		t.Errorf("full help = %d columns, want the list's and the section's", len(h.FullHelp()))
 	}
 }
 

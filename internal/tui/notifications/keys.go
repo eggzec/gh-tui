@@ -39,6 +39,9 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		ClearFilter: ui.Binding(keys, config.ActionClearFilter, "clear filters"),
 		Refresh:     ui.Binding(keys, config.ActionRefresh, "refresh"),
 	}
+	// PR5: the section, and the app for the filter, match these keys
+	// first, so dropping them from the list only keeps the collisions out
+	// of help.
 	own := k.bindings()
 	f := feed.DefaultKeyMap()
 	f.Up = free(f.Up, own)
@@ -79,24 +82,10 @@ func free(b key.Binding, taken []key.Binding) key.Binding {
 	return key.NewBinding(key.WithKeys(keys...), key.WithHelp(strings.Join(keys, "/"), b.Help().Desc))
 }
 
-// withFeed returns k with the list's current keys, whose retry the list
-// enables only while a fetch has failed, and with ClearFilter only while
-// the list is filtered.
-func (k KeyMap) withFeed(f feed.KeyMap, filtered bool) KeyMap {
-	k.feed = f
-	k.ClearFilter.SetEnabled(k.ClearFilter.Enabled() && filtered)
-	return k
-}
-
-// ShortHelp returns the bindings for the short help view.
+// ShortHelp implements help.KeyMap.
 func (k KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.feed.Up, k.feed.Down, k.Select, k.MarkRead, k.MarkDone, k.Filter, k.ClearFilter, k.feed.Retry}
+	return []key.Binding{k.Select, k.MarkRead, k.MarkDone, k.Filter, k.ClearFilter}
 }
 
-// FullHelp returns the bindings for the full help view.
-func (k KeyMap) FullHelp() [][]key.Binding {
-	return append(k.feed.FullHelp(),
-		[]key.Binding{k.Select, k.Open, k.Filter, k.ClearFilter, k.Refresh},
-		[]key.Binding{k.MarkRead, k.MarkDone, k.MarkAllRead},
-	)
-}
+// FullHelp implements help.KeyMap.
+func (k KeyMap) FullHelp() [][]key.Binding { return [][]key.Binding{k.bindings()} }
