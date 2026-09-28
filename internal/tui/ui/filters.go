@@ -185,7 +185,7 @@ func (f *Filters[Q]) readOne(ctx context.Context, q Q) (limited bool) {
 	attrs := []any{"span", "prefetch", "kind", f.seen.Kind(), "filter", f.name(q),
 		"decision", "sent", "outcome", outcome, "duration_ms", obs.Millis(time.Since(start))}
 	if err != nil && outcome == "failed" {
-		attrs = append(attrs, "err", err)
+		attrs = append(attrs, "err", err.Error())
 	}
 	slog.Log(ctx, level, "prefetch filter", attrs...)
 	return limited

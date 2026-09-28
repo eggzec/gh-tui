@@ -120,7 +120,7 @@ func (s *Service) probeList(ctx context.Context, q ListQuery, prev cache.Entry[l
 	case err != nil:
 		// Such as the REST rate limit, which the GraphQL read doesn't
 		// share: the page is read without a probe to vouch for it.
-		slog.WarnContext(ctx, "list not probed", "span", "service.pulls", "repo", q.Repo.String(), "err", err)
+		slog.WarnContext(ctx, "list not probed", "span", "service.pulls", "repo", q.Repo.String(), "err", err.Error())
 		return "", nil
 	case !res.NotModified:
 		etag, found = res.ETag, "changed"
