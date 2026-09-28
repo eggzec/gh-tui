@@ -113,7 +113,7 @@ func (m *Model) SetSearch(query string) tea.Cmd {
 		m.clearSearch()
 		return nil
 	}
-	re, err := compile(regexp.QuoteMeta(query))
+	re, err := compile(regexp.QuoteMeta(query), m.cases)
 	if err != nil {
 		return nil
 	}
@@ -137,7 +137,7 @@ func (m *Model) enableSearchKeys() {
 	m.keys.Next.SetEnabled(found)
 	m.keys.Prev.SetEnabled(found)
 	m.keys.Confirm.SetEnabled(m.prompt.Focused())
-	m.keys.Cancel.SetEnabled(m.prompt.Focused() || m.search.query != "" ||
+	m.keys.Cancel.SetEnabled(m.Capturing() || m.search.query != "" ||
 		m.projecting || m.proj.filter.re != nil)
 }
 

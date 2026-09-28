@@ -85,9 +85,16 @@ type Model struct {
 
 	// prompt is the search prompt, open while it is focused.
 	prompt cmdline.Model
-	// flash is a note on the last search, such as "Pattern not found",
-	// shown in place of the name until the next key.
-	flash string
+	// flash is a note on the last key, such as "Pattern not found",
+	// shown in place of the name until the next key, as an error unless
+	// flashInfo is set.
+	flash     string
+	flashInfo bool
+	// opt reports whether the key bound to Option was pressed, so the next
+	// key names the option to toggle.
+	opt bool
+	// cases is how searches and filters match case.
+	cases caseMode
 	// search is the search shown and hits its matches in the window. qgen
 	// counts searches; what an older one found is dropped. stopSearch
 	// stops the one running in the background.
@@ -151,18 +158,21 @@ func (m Model) Height() int { return m.height }
 // Focus makes the pager react to keys.
 func (m *Model) Focus() { m.focused = true }
 
-// Blur makes the pager ignore keys. It closes the search prompt.
+// Blur makes the pager ignore keys. It closes the prompt, and forgets an
+// option it waited for.
 func (m *Model) Blur() {
 	m.focused = false
+	m.opt = false
 	m.closePrompt()
 }
 
 // Focused reports whether the pager reacts to keys.
 func (m Model) Focused() bool { return m.focused }
 
-// Capturing reports whether the prompt is open. It then takes
-// every key, so the parent should not act on keys of its own.
-func (m Model) Capturing() bool { return m.prompt.Focused() }
+// Capturing reports whether the prompt is open, or the pager waits for
+// the name of an option. It then takes every key, so the parent should
+// not act on keys of its own.
+func (m Model) Capturing() bool { return m.prompt.Focused() || m.opt }
 
 // Wrap reports whether long lines are soft-wrapped.
 func (m Model) Wrap() bool { return m.wrap }
@@ -194,10 +204,14 @@ func (m *Model) SetKeyMap(k KeyMap) {
 }
 
 // ShortHelp implements help.KeyMap. While the prompt is open, it lists
-// the keys that close it.
+// the keys that close it, and while the pager waits for an option, the
+// key that cancels it.
 func (m Model) ShortHelp() []key.Binding {
-	if m.prompt.Focused() {
+	switch {
+	case m.prompt.Focused():
 		return []key.Binding{m.confirmKey(), m.keys.Cancel}
+	case m.opt:
+		return []key.Binding{m.keys.Cancel}
 	}
 	return m.keys.ShortHelp()
 }
@@ -213,14 +227,15 @@ func (m Model) confirmKey() key.Binding {
 }
 
 // FullHelp implements help.KeyMap. While the prompt is open, only the keys
-// that close it act, and the prompt takes the rest.
+// that close it act, and the prompt takes the rest; while the pager waits
+// for an option, only the key that cancels it acts.
 func (m Model) FullHelp() [][]key.Binding {
 	k := m.keys
 	k.Confirm = m.confirmKey()
-	if m.prompt.Focused() {
+	if m.Capturing() {
 		for _, b := range []*key.Binding{
 			&k.Up, &k.Down, &k.PageUp, &k.PageDown, &k.HalfPageUp, &k.HalfPageDown, &k.Home, &k.End,
-			&k.Left, &k.Right, &k.Wrap, &k.LineNumbers, &k.Search, &k.Filter, &k.Next, &k.Prev, &k.Close,
+			&k.Left, &k.Right, &k.Option, &k.Search, &k.Filter, &k.Next, &k.Prev, &k.Close,
 		} {
 			b.SetEnabled(false)
 		}

@@ -38,9 +38,12 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		if !m.focused {
 			return m, nil
 		}
-		m.flash = ""
-		if m.prompt.Focused() {
+		m.flash, m.flashInfo = "", false
+		switch {
+		case m.prompt.Focused():
 			return m.updatePrompt(msg)
+		case m.opt:
+			return m.updateOption(msg)
 		}
 		return m.updateKey(msg)
 	}
@@ -80,10 +83,9 @@ func (m Model) updateKey(k tea.KeyPressMsg) (Model, tea.Cmd) {
 	case key.Matches(k, m.keys.Left):
 		m.left = max(m.left-m.hStep(), 0)
 		m.findHits()
-	case key.Matches(k, m.keys.Wrap):
-		m.SetWrap(!m.wrap)
-	case key.Matches(k, m.keys.LineNumbers):
-		m.SetLineNumbers(!m.lineNumbers)
+	case key.Matches(k, m.keys.Option):
+		m.opt = true
+		m.enableSearchKeys()
 	case key.Matches(k, m.keys.Search):
 		cmd := m.openPrompt(promptSearch)
 		return m, cmd

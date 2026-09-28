@@ -25,7 +25,7 @@ var bigPager = sync.OnceValue(func() Model {
 	msg := m.SetContent("big.go", bigSource())()
 	m, _ = m.Update(msg)
 	m.top = m.Lines() / 2
-	re, _ := compile("fmt")
+	re, _ := compile("fmt", caseSmart)
 	if cmd := m.runSearch("fmt", re, false, m.top, false); cmd != nil {
 		m, _ = m.Update(cmd())
 	}
@@ -36,7 +36,7 @@ var bigPager = sync.OnceValue(func() Model {
 // or "func", so that about half the matches of "fmt" are shown.
 var filteredPager = sync.OnceValue(func() Model {
 	m := bigPager()
-	re, _ := compile("println|func")
+	re, _ := compile("println|func", caseSmart)
 	if cmd := m.project(projection{filter: filter{query: "println|func", re: re}}); cmd != nil {
 		m, _ = deliver(m, cmd())
 	}

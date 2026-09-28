@@ -57,13 +57,15 @@ type filter struct {
 	invert bool
 }
 
-// projection is what picks the lines shown.
+// projection is what picks the lines shown: a filter, and squeeze, which
+// shows a run of blank lines as one.
 type projection struct {
-	filter filter
+	filter  filter
+	squeeze bool
 }
 
 // none reports whether p shows every line.
-func (p projection) none() bool { return p.filter.re == nil }
+func (p projection) none() bool { return p.filter.re == nil && !p.squeeze }
 
 // projectMsg carries the lines shown that projection pgen of the pager
 // with ID id picked, and how many lines its filter kept.
@@ -121,10 +123,13 @@ func (m *Model) stopProjecting() {
 	m.enableSearchKeys()
 }
 
-// clearProjection shows every line of new content.
+// clearProjection forgets the filter, for new content, and keeps squeeze,
+// which is an option like wrap; setContent picks the lines of the new
+// content with it.
 func (m *Model) clearProjection() {
 	m.stopProjecting()
-	m.proj, m.want, m.vis, m.kept = projection{}, projection{}, nil, 0
+	p := projection{squeeze: m.proj.squeeze}
+	m.proj, m.want, m.vis, m.kept = p, p, nil, 0
 }
 
 // picked shows the lines the projection asked for picked, and keeps the
@@ -153,7 +158,9 @@ func (m *Model) picked(vis []int32, kept int) tea.Cmd {
 }
 
 // pick returns the indices of the lines of all that p shows, or nil for
-// all of them, and how many lines its filter kept, until ctx is done.
+// all of them, and how many lines its filter kept, until ctx is done. A
+// blank line is an empty one, as in less, and squeeze keeps the first of
+// a run of them among the lines the filter keeps.
 func pick(ctx context.Context, all []string, p projection) (vis []int32, kept int, err error) {
 	if p.none() {
 		return nil, len(all), nil
@@ -169,6 +176,9 @@ func pick(ctx context.Context, all []string, p projection) (vis []int32, kept in
 			continue
 		}
 		kept++
+		if p.squeeze && l == "" && len(vis) > 0 && all[vis[len(vis)-1]] == "" {
+			continue
+		}
 		vis = append(vis, int32(i))
 	}
 	return vis, kept, nil
@@ -188,7 +198,7 @@ func (m *Model) filterFor(line string) tea.Cmd {
 		p.filter = filter{}
 		return m.project(p)
 	}
-	re, err := compile(pattern)
+	re, err := compile(pattern, m.cases)
 	if err != nil {
 		m.flash = noteInvalid + reason(err)
 		return nil

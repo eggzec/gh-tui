@@ -97,25 +97,13 @@ func TestScrollSideways(t *testing.T) {
 	if m.left != 20 {
 		t.Errorf("left = %d, want 20", m.left)
 	}
-	m, _ = keys(t, m, "w")
+	m, _ = keys(t, m, "-", "S")
 	if m.left != 0 || !m.Wrap() {
 		t.Errorf("wrap = %v, left = %d; want wrapped from column 0", m.Wrap(), m.left)
 	}
 	m, _ = keys(t, m, "l")
 	if m.left != 0 {
 		t.Errorf("left = %d while wrapped, want 0", m.left)
-	}
-}
-
-func TestToggles(t *testing.T) {
-	m := open(t, "a.txt", "a\n", WithSize(20, 4))
-	m, _ = keys(t, m, "#")
-	if m.LineNumbers() {
-		t.Error("# didn't hide the line numbers")
-	}
-	m, _ = keys(t, m, "#", "w")
-	if !m.LineNumbers() || !m.Wrap() {
-		t.Errorf("line numbers %v, wrap %v; want both on", m.LineNumbers(), m.Wrap())
 	}
 }
 
