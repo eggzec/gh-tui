@@ -146,7 +146,7 @@ func TestGetRepoCaps(t *testing.T) {
 	read := all
 	read.Permission, read.DefaultMerge = core.PermissionRead, core.MergeCommit
 	admin := core.RepoCaps{
-		Known: true, Permission: core.PermissionAdmin, Issues: true, PullRequests: true, Projects: true,
+		Known: true, Permission: core.PermissionAdmin, Private: true, Issues: true, PullRequests: true, Projects: true,
 		Rebase: true, DefaultMerge: core.MergeRebase,
 	}
 	fork := all

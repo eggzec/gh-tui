@@ -147,6 +147,7 @@ func (d repoDetail) core() core.Repo {
 		Permission:   permission(d.ViewerPermission),
 		Archived:     d.IsArchived,
 		Locked:       d.IsLocked,
+		Private:      d.IsPrivate,
 		Issues:       d.HasIssuesEnabled,
 		PullRequests: d.HasPullRequestsEnabled,
 		Discussions:  d.HasDiscussionsEnabled,
