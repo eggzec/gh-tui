@@ -93,3 +93,5 @@ log:
   max_size: 1MiB
   keep: 5
   summary: 1m
+
+editor: code --wait

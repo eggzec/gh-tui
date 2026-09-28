@@ -141,7 +141,7 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, defaultBranch stri
 		format:        newFormat(o.cfg, o.loc),
 		focus:         graphPane,
 		spin:          spinner.New(spinner.WithSpinner(spinner.Dot)),
-		commit:        newCommit(),
+		commit:        newCommit(o.editor),
 	}
 	m.ahead = ui.NewAhead("commit", m.readDetail, m.cachedDetail, 0, 0)
 	m.branches.init(defaultBranch)

@@ -53,6 +53,11 @@ type Config struct {
 	UI        UI        `yaml:"ui"`
 	Auth      Auth      `yaml:"auth"`
 	Log       Log       `yaml:"log"`
+	// Editor is the command of the editor that v opens a file in from the
+	// pager, such as "vim" or "code --wait": a program and its arguments,
+	// split at white space and run without a shell. Empty, as by default,
+	// takes $VISUAL, and else $EDITOR.
+	Editor string `yaml:"editor"`
 }
 
 // Sync configures background polling.
@@ -155,6 +160,7 @@ func (c Config) Validate() error {
 	if c.Sync.Interval < minSyncInterval {
 		errs = append(errs, fmt.Errorf("sync.interval: must be at least %v, got %v", minSyncInterval, c.Sync.Interval))
 	}
-	errs = append(errs, c.Files.validate(), c.Details.validate(), c.History.validate(), c.Dashboard.validate(), c.UI.validate(), c.Log.validate())
+	errs = append(errs, c.Files.validate(), c.Details.validate(), c.History.validate(), c.Dashboard.validate(), c.UI.validate(), c.Log.validate(),
+		validateEditor(c.Editor))
 	return errors.Join(errs...)
 }

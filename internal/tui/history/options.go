@@ -25,6 +25,8 @@ type options struct {
 	// commit, if set, is the commit the modal opens on, in place of a
 	// branch.
 	commit string
+	// editor is the editor the pager opens a patch in, if set.
+	editor string
 }
 
 func defaultOptions() options {
@@ -60,6 +62,12 @@ func WithVoice(v ui.Voice) Option {
 // one, whose pages the modal opens. It defaults to github.com.
 func WithHost(host string) Option {
 	return func(o *options) { o.host = host }
+}
+
+// WithEditor sets the command of the editor that the pager opens a patch
+// in, before $VISUAL and $EDITOR, as pager.WithEditor takes it.
+func WithEditor(cmd string) Option {
+	return func(o *options) { o.editor = cmd }
 }
 
 // onCommit opens the modal on the history of commit sha, with the commit

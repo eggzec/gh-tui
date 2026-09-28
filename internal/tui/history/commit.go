@@ -85,9 +85,11 @@ type filesMsg struct {
 	err    error
 }
 
-func newCommit() commit {
+// newCommit returns an empty commit pane, whose pager opens a patch in
+// editor, if set.
+func newCommit(editor string) commit {
 	// The numbers of a patch's lines aren't those of the file.
-	return commit{pager: pager.New(pager.WithLineNumbers(false)), shown: -1}
+	return commit{pager: pager.New(pager.WithLineNumbers(false), pager.WithEditor(editor)), shown: -1}
 }
 
 // clear forgets the commit, for another branch.

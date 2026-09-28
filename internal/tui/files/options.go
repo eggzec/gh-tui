@@ -70,3 +70,9 @@ func WithOffline(off *ui.Offline) Option {
 func WithVoice(v ui.Voice) Option {
 	return func(s *Section) { s.voice = v }
 }
+
+// WithEditor sets the command of the editor that the preview opens a file
+// in, before $VISUAL and $EDITOR, as pager.WithEditor takes it.
+func WithEditor(cmd string) Option {
+	return func(s *Section) { s.editor = cmd }
+}
