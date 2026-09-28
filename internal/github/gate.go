@@ -118,10 +118,19 @@ type gate struct {
 	scout   uint64
 	// closed is set once the client is closed, and then no timer is set.
 	closed bool
+	// logs keeps a limit that stops many requests from logging each.
+	logs *obs.Throttle
 }
 
+// gateLogEvery is how often a request held or failed is logged for each
+// resource, class and reason.
+const gateLogEvery = time.Minute
+
 func newGate() gate {
-	return gate{queues: make(map[string]*queue), jitter: rand.Float64, reached: make(map[string]time.Time)}
+	return gate{
+		queues: make(map[string]*queue), jitter: rand.Float64, reached: make(map[string]time.Time),
+		logs: obs.NewThrottle(gateLogEvery),
+	}
 }
 
 // queue is the requests of one resource held until its limit lifts, by
@@ -166,6 +175,8 @@ type hold struct {
 	r      *reservation
 	sendAt time.Time
 	err    error
+	// why is why it failed without being sent, if it did.
+	why string
 }
 
 // byTurn orders held requests by class, and then in the order they came.
@@ -274,14 +285,46 @@ func (b *budget) admit(req *http.Request, since time.Time) (*reservation, time.D
 	h := &hold{class: classOf(req, c), resource: resource, route: route, at: since}
 	h.deadline, _ = ctx.Deadline()
 	r, until, err := b.enter(ctx, h, c)
+	if err != nil {
+		b.logRefused(ctx, h, err)
+	}
 	if r != nil || err != nil {
 		return r, 0, err
 	}
 	if obs.Enabled(ctx, slog.LevelDebug) {
-		slog.DebugContext(ctx, "rate limit hold", "span", "http", "resource", h.resource,
-			"class", h.class.String(), "until", until)
+		if ok, n := b.gate.logs.Allow("hold " + h.resource + " " + h.class.String()); ok {
+			slog.DebugContext(ctx, "rate limit hold", append([]any{"span", "http", "resource", h.resource,
+				"class", h.class.String(), "until", until}, obs.Suppressed(n)...)...)
+		}
 	}
-	return b.wait(ctx, h)
+	r, held, err := b.wait(ctx, h)
+	if h.why != "" {
+		b.logRefused(ctx, h, err)
+	}
+	return r, held, err
+}
+
+// logRefused logs that h failed with err, without being sent, since its
+// limit was on, once a minute for each resource, class and reason: at
+// debug level for a read ahead, which fails quietly and often while a
+// quota runs low, and at info level otherwise.
+func (b *budget) logRefused(ctx context.Context, h *hold, err error) {
+	level := slog.LevelInfo
+	if h.class == classPrefetch {
+		level = slog.LevelDebug
+	}
+	if !obs.Enabled(ctx, level) {
+		return
+	}
+	ok, held := b.gate.logs.Allow("refuse " + h.resource + " " + h.class.String() + " " + h.why)
+	if !ok {
+		return
+	}
+	attrs := []any{"span", "http", "resource", h.resource, "class", h.class.String(), "reason", h.why}
+	if e, ok := errors.AsType[*core.RateLimitError](err); ok {
+		attrs = append(attrs, "until", e.Reset)
+	}
+	slog.Log(ctx, level, "rate limit refused", append(attrs, obs.Suppressed(held)...)...)
 }
 
 // enter decides, in one step with counting it, what becomes of h, a
@@ -316,6 +359,7 @@ func (b *budget) enter(ctx context.Context, h *hold, c *call) (*reservation, tim
 		if on && !l.secondary {
 			b.logReached(ctx, h.resource, until)
 		}
+		h.why = why
 		return nil, until, b.refuse(h.resource, why, until, now)
 	}
 	b.enqueue(h, now)
@@ -466,6 +510,7 @@ func (b *budget) drop(h *hold) *reservation {
 // b.mu must be held.
 func (b *budget) fail(q *queue, h *hold, why string, until, now time.Time) {
 	h.err = b.refuse(h.resource, why, until, now)
+	h.why = why
 	h.done = true
 	close(h.ready)
 	q.failed++
