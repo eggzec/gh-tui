@@ -9,6 +9,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 )
 
 // Filterable is a Section whose list is filtered and sorted in the filter
@@ -212,6 +213,12 @@ func (m *FilterModal) SetTheme(t Theme) { m.form.SetStyles(t.FilterForm()) }
 
 // Help implements Modal.
 func (m *FilterModal) Help() help.KeyMap { return m.form }
+
+// KeyLayers implements Keyed: the keys of the form, which types what the
+// editor or the query line takes.
+func (m *FilterModal) KeyLayers() []keyhelp.Layer {
+	return []keyhelp.Layer{keyhelp.FromHelp("filter", m.form, m.form.Capturing())}
+}
 
 // Tabs implements Tabbed: Filters and Sort, or none for a list that can't
 // be sorted.

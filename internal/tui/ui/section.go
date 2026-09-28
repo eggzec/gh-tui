@@ -6,6 +6,8 @@ package ui
 import (
 	"charm.land/bubbles/v2/help"
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 )
 
 // Section is a top-level view of the app, shown in a framed pane of a
@@ -24,6 +26,15 @@ type Section interface {
 	Blur()
 	// Help lists the keys of the section, for the help line.
 	Help() help.KeyMap
+}
+
+// Keyed lists its keys for help, in layers in the order it matches them,
+// so that a key reaches the first enabled binding that holds it. Each
+// layer holds every binding of its part, disabled ones too. A part that
+// takes every key while it is open, such as a question waiting for its
+// answer, is the only layer while it does.
+type Keyed interface {
+	KeyLayers() []keyhelp.Layer
 }
 
 // Badger is a Section that has a badge for the app's header, such as a
