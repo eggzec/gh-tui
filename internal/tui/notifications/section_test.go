@@ -15,6 +15,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
@@ -259,6 +260,27 @@ func TestBadge(t *testing.T) {
 	}
 }
 
+// TestFilterKeysStayOffTheList checks that the keys of the filter reach
+// the section rather than the list, whose page down f is too: the filter
+// key, which the app opens, and the clear key while nothing is filtered.
+func TestFilterKeysStayOffTheList(t *testing.T) {
+	for _, k := range []string{"f", "F"} {
+		t.Run(k, func(t *testing.T) {
+			s := newSection(t, newFake(inbox()...), 80, 8)
+			before, ok := s.feed.Selected()
+			if !ok {
+				t.Fatal("nothing is selected")
+			}
+			if msgs := press(t, s, k); len(msgs) != 0 {
+				t.Errorf("%s sent %v", k, msgs)
+			}
+			if after, _ := s.feed.Selected(); after.ID != before.ID {
+				t.Errorf("%s moved the cursor from %s to %s", k, before.ID, after.ID)
+			}
+		})
+	}
+}
+
 func TestKeysFromConfig(t *testing.T) {
 	keys := config.Default().Keys
 	keys[config.ActionMarkDone] = []string{"x"}
@@ -267,9 +289,9 @@ func TestKeysFromConfig(t *testing.T) {
 	if !key.Matches(keyPress("x"), k.MarkDone) || key.Matches(keyPress("d"), k.MarkDone) {
 		t.Error("mark done should follow the config")
 	}
-	// The list's page down gives "f" up to the filter.
-	if slices.Contains(k.feed.PageDown.Keys(), "f") {
-		t.Errorf("page down keys = %q, want no f", k.feed.PageDown.Keys())
+	// The filter takes "f" before the list's page down.
+	if b, src, _ := uitest.Winner(s.KeyLayers(), "f"); src != ui.NotificationsTitle || b.Help().Desc != "filter" {
+		t.Errorf("f reaches %q of %q, want the filter", b.Help().Desc, src)
 	}
 	h := ui.Hints{Layers: s.KeyLayers()}
 	short := h.ShortHelp()

@@ -83,8 +83,15 @@ func (s *Section) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		s.svc.Invalidate()
 		s.opener.Resume()
 		return s.reload(), true
-	case key.Matches(msg, k.ClearFilter) && s.filtered():
+	case key.Matches(msg, k.ClearFilter):
+		if !s.filtered() {
+			return nil, true
+		}
 		return s.setFilter(defaultQuery), true
+	case key.Matches(msg, k.Filter):
+		// The app opens the filter. Its key doesn't reach the list, whose
+		// page down f is too.
+		return nil, true
 	case key.Matches(msg, k.Select):
 		return s.open(), true
 	case key.Matches(msg, k.Open):
