@@ -15,6 +15,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 )
 
@@ -191,9 +192,8 @@ func TestOpenUsesCachedIssue(t *testing.T) {
 	if v := ansi.Strip(h.modal().View()); !strings.Contains(v, "The cached body.") {
 		t.Errorf("modal doesn't show the cached issue:\n%s", v)
 	}
-	n, ok := has[ui.NotifyMsg](msgs)
-	if !ok || !strings.Contains(n.Text, "offline") {
-		t.Errorf("a failed Get sent %v, want an error toast", msgs)
+	if f, ok := has[ui.FailMsg](msgs); !ok || f.What != "load #999" || f.Err == nil {
+		t.Errorf("a failed Get sent %v, want the failed load of #999", msgs)
 	}
 }
 
@@ -425,6 +425,74 @@ func TestCommentsErrorWords(t *testing.T) {
 			if v := ansi.Strip(m.View()); !strings.Contains(v, tt.want) || strings.Contains(v, "github:") || strings.Contains(v, "403") || strings.Contains(v, "/repos") {
 				t.Errorf("modal = %q, want %q", v, tt.want)
 			}
+		})
+	}
+}
+
+// failed returns the action and error of the failure in msgs, a FailMsg
+// or a DoneMsg with an error, or "" and nil when there is none.
+func failed(msgs []tea.Msg) (what string, err error) {
+	for _, m := range msgs {
+		switch m := m.(type) {
+		case ui.FailMsg:
+			return m.What, m.Err
+		case ui.DoneMsg:
+			if m.Err != nil {
+				return m.What, m.Err
+			}
+		}
+	}
+	return "", nil
+}
+
+// The toast of a failed load or change of the modal names the issue, never
+// the repository, and shows nothing of the error's chain.
+func TestModalFailureToasts(t *testing.T) {
+	const subject = "eggzec/gh-tui#999"
+	changes := []struct {
+		name, what string
+		do         func(t *testing.T, h *host, m *detailModal) []tea.Msg
+	}{
+		{"close", "close #999", func(t *testing.T, h *host, _ *detailModal) []tea.Msg {
+			t.Helper()
+			return press(t, h, "x", "y")
+		}},
+		{"comment", "comment on #999", func(t *testing.T, h *host, _ *detailModal) []tea.Msg {
+			t.Helper()
+			press(t, h, "c")
+			typeText(t, h, "Nope")
+			return press(t, h, "ctrl+s", "y")
+		}},
+		{"labels", "add bug to #999", func(t *testing.T, h *host, m *detailModal) []tea.Msg {
+			t.Helper()
+			press(t, h, "l")
+			m.prompt.SetValue("enhancement, help wanted, bug")
+			return press(t, h, "enter", "y")
+		}},
+	}
+	for _, f := range uitest.Failures() {
+		t.Run(f.Name+"/load", func(t *testing.T) {
+			svc := newFakeService(sampleIssues(12))
+			svc.getErr = f.Err
+			h := started(t, svc, 80, 20)
+			what, err := failed(press(t, h, "down", "enter"))
+			uitest.CheckToast(t, f, "load #999", subject, uitest.Toast(what, err))
+		})
+		for _, c := range changes {
+			t.Run(f.Name+"/"+c.name, func(t *testing.T) {
+				svc := newFakeService(sampleIssues(12))
+				h, m := opened(t, svc, 30)
+				svc.sendErr = f.Err
+				what, err := failed(c.do(t, h, m))
+				uitest.CheckToast(t, f, c.what, subject, uitest.Toast(what, err))
+			})
+		}
+		t.Run(f.Name+"/close from the list", func(t *testing.T) {
+			svc := newFakeService(sampleIssues(12))
+			svc.sendErr = f.Err
+			h := started(t, svc, 80, 20)
+			what, err := failed(press(t, h, "down", "x", "y"))
+			uitest.CheckToast(t, f, "close #999", subject, uitest.Toast(what, err))
 		})
 	}
 }

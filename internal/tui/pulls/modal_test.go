@@ -14,7 +14,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
-	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
 // modalScreen is the view of the open modal with styles removed.
@@ -99,9 +98,9 @@ func TestModal(t *testing.T) {
 				if !strings.Contains(modalScreen(t, h), "Add a disk layer to the cache") {
 					t.Errorf("header missing:\n%s", modalScreen(t, h))
 				}
-				want := ui.NotifyMsg{Level: toast.Error, Text: "Couldn't load #142: 502 Bad Gateway"}
-				if len(msgs) != 1 || msgs[0] != any(want) {
-					t.Errorf("messages %v, want %v", msgs, want)
+				f, ok := msgs[0].(ui.FailMsg)
+				if len(msgs) != 1 || !ok || f.What != "load #142" || core.Explain(f.What, f.Err).Subject != "eggzec/gh-tui#142" {
+					t.Errorf("messages %v, want the failed load of eggzec/gh-tui#142", msgs)
 				}
 			},
 		},
@@ -157,7 +156,7 @@ func TestModal(t *testing.T) {
 			for _, k := range tt.keys {
 				for _, m := range press(t, h, k) {
 					switch m.(type) {
-					case ui.OpenMsg, ui.NotifyMsg:
+					case ui.OpenMsg, ui.NotifyMsg, ui.FailMsg:
 						msgs = append(msgs, m)
 					}
 				}
@@ -395,6 +394,53 @@ func TestCommentsErrorWords(t *testing.T) {
 			if v := modalScreen(t, h); !strings.Contains(v, tt.want) || strings.Contains(v, "github:") || strings.Contains(v, "403") || strings.Contains(v, "/graphql") {
 				t.Errorf("modal = %q, want %q", v, tt.want)
 			}
+		})
+	}
+}
+
+// failed returns the action and error of the failure in msgs, a FailMsg
+// or a DoneMsg with an error, or "" and nil when there is none.
+func failed(msgs []tea.Msg) (what string, err error) {
+	for _, m := range msgs {
+		switch m := m.(type) {
+		case ui.FailMsg:
+			return m.What, m.Err
+		case ui.DoneMsg:
+			if m.Err != nil {
+				return m.What, m.Err
+			}
+		}
+	}
+	return "", nil
+}
+
+// The toast of a failed load or change of the modal names the pull
+// request, never the repository, and shows nothing of the error's chain.
+func TestModalFailureToasts(t *testing.T) {
+	for _, f := range uitest.Failures() {
+		t.Run(f.Name+"/load", func(t *testing.T) {
+			svc := newFakeService()
+			svc.getErr = f.Err
+			h := started(t, svc, 80, 20)
+			what, err := failed(press(t, h, "enter"))
+			uitest.CheckToast(t, f, "load #142", "eggzec/gh-tui#142", uitest.Toast(what, err))
+		})
+		t.Run(f.Name+"/merge", func(t *testing.T) {
+			svc := newFakeService()
+			svc.sendErr = f.Err
+			h := started(t, svc, 80, 20)
+			press(t, h, "enter")
+			press(t, h, "m")
+			what, err := failed(press(t, h, "y"))
+			uitest.CheckToast(t, f, "merge #142", "eggzec/gh-tui#142", uitest.Toast(what, err))
+		})
+		t.Run(f.Name+"/close from the list", func(t *testing.T) {
+			svc := newFakeService()
+			svc.sendErr = f.Err
+			h := started(t, svc, 80, 20)
+			press(t, h, "x")
+			what, err := failed(press(t, h, "y"))
+			uitest.CheckToast(t, f, "close #142", "eggzec/gh-tui#142", uitest.Toast(what, err))
 		})
 	}
 }

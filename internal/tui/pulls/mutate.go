@@ -180,7 +180,8 @@ func (s *Section) mutate(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 			return pr, s.gate(), ok
 		},
 		func(op *optimistic.Op, what string) tea.Cmd {
-			return tea.Batch(s.reload(), ui.Do(s.ctx, ui.PullsTitle, op, what))
+			about := core.Target{Repo: s.repo, Number: pr.Number}.String()
+			return tea.Batch(s.reload(), ui.Do(s.ctx, ui.PullsTitle, ui.About(about, op), what))
 		})
 	return ui.OpenModal(ui.NewConfirmModal(ui.Confirm{Question: c.question, Run: run})), true
 }

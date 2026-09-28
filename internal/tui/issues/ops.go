@@ -90,7 +90,8 @@ func (s *Section) setState(state core.State) tea.Cmd {
 			return it, s.gate(), ok
 		},
 		func(op *optimistic.Op, what string) tea.Cmd {
-			return tea.Batch(s.reload(), ui.Do(s.ctx, ui.IssuesTitle, op, what))
+			about := core.Target{Repo: s.repo, Number: it.Number}.String()
+			return tea.Batch(s.reload(), ui.Do(s.ctx, ui.IssuesTitle, ui.About(about, op), what))
 		})
 	if !ok {
 		return refusal

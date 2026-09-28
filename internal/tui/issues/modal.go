@@ -19,7 +19,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
 	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
-	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 	"github.com/eggzec/gh-tui/pkg/markdown"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
@@ -357,7 +356,7 @@ func (m *detailModal) gotIssue(msg issueMsg) tea.Cmd {
 		if errors.Is(msg.err, context.Canceled) {
 			return nil
 		}
-		return ui.Notify(toast.Error, "Couldn't load #"+strconv.Itoa(m.number)+": "+msg.err.Error())
+		return ui.Fail("load #"+strconv.Itoa(m.number), core.About(m.subject(), msg.err))
 	}
 	m.issue, m.loaded = msg.issue, true
 	return m.show()
@@ -374,7 +373,7 @@ func (m *detailModal) setState(state core.State) tea.Cmd {
 	c, ok, refusal := stateChange(m.svc, m.gate(), m.issue, state,
 		func() (core.Issue, ui.Gate, bool) { return m.issue, m.gate(), m.loaded },
 		func(op *optimistic.Op, what string) tea.Cmd {
-			return tea.Batch(m.reload(), m.changed(), ui.Do(m.sendCtx, ui.IssuesTitle, op, what))
+			return tea.Batch(m.reload(), m.changed(), m.send(op, what))
 		})
 	if !ok {
 		return refusal
@@ -402,6 +401,19 @@ func (m *detailModal) gate() ui.Gate {
 func (m *detailModal) changed() tea.Cmd {
 	repo := m.repo
 	return func() tea.Msg { return changedMsg{repo: repo} }
+}
+
+// send sends op, the change what, such as "close #5", of the issue, whose
+// failure the app tells of naming the issue.
+func (m *detailModal) send(op ui.Op, what string) tea.Cmd {
+	return ui.Do(m.sendCtx, ui.IssuesTitle, ui.About(m.subject(), op), what)
+}
+
+// subject names the issue in what the user reads of a failure, such as
+// "eggzec/gh-tui#5", since GitHub may not find it or refuse access to it
+// while it finds its repository.
+func (m *detailModal) subject() string {
+	return core.Target{Repo: m.repo, Number: m.number}.String()
 }
 
 // reload shows the issue from the cache again.
