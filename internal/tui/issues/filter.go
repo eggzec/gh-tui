@@ -166,10 +166,16 @@ func (s *Section) loadPeople() filterform.Loader {
 	if s.facets == nil {
 		return nil
 	}
-	f, repo := s.facets, s.repo
+	f, repo, viewer, read := s.facets, s.repo, s.viewer, s.readViewer
 	return func(ctx context.Context, text string) ([]filterform.Item, error) {
 		users, err := f.People(ctx, facets.PeopleQuery{Repo: repo, Text: text})
-		return ui.PersonItems(users), err
+		// Loads run at once, so each reads the viewer into its own v.
+		v := viewer
+		if v == "" && read != nil {
+			// Without the viewer, @me and their login are both offered.
+			v, _ = read(ctx)
+		}
+		return ui.PersonItems(users, v), err
 	}
 }
 

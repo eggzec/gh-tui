@@ -20,11 +20,15 @@ func LabelItems(labels []core.Label) []filterform.Item {
 }
 
 // PersonItems returns users as the options of a person field, by login,
-// with their names beside.
-func PersonItems(users []core.User) []filterform.Item {
-	items := make([]filterform.Item, len(users))
-	for i, u := range users {
-		items[i] = filterform.Item{Label: u.Login, Value: u.Login, Detail: u.Name}
+// with their names beside. It leaves out viewer, the signed-in user, whom
+// MeItem offers already; an empty viewer leaves out no one.
+func PersonItems(users []core.User, viewer string) []filterform.Item {
+	items := make([]filterform.Item, 0, len(users))
+	for _, u := range users {
+		if viewer != "" && strings.EqualFold(u.Login, viewer) {
+			continue
+		}
+		items = append(items, filterform.Item{Label: u.Login, Value: u.Login, Detail: u.Name})
 	}
 	return items
 }

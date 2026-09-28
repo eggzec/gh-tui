@@ -250,3 +250,24 @@ func TestFilterLoadsFacets(t *testing.T) {
 		t.Error("the assignee loads no people")
 	}
 }
+
+// The author picker offers the viewer once, as @me, not by login too.
+func TestFilterOffersTheViewerOnce(t *testing.T) {
+	viewer := func(context.Context) (string, error) { return "OctoCat", nil }
+	h := started(t, newFakeService(), 80, 20, WithFacets(fakeFacets{}), WithViewer(viewer))
+	f, _ := h.Filter()
+	for _, fl := range f.Spec.Fields {
+		if fl.Key != "author" {
+			continue
+		}
+		if !slices.Contains(fl.Options, ui.MeItem) {
+			t.Errorf("author options = %+v, want @me", fl.Options)
+		}
+		people, err := fl.Load(t.Context(), "")
+		if err != nil || len(people) != 1 || people[0].Value != "hubot" {
+			t.Errorf("people = %+v, %v; want hubot alone, the viewer being @me", people, err)
+		}
+		return
+	}
+	t.Fatal("no author field")
+}
