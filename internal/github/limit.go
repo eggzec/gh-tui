@@ -43,9 +43,17 @@ func newLimitTransport(base http.RoundTripper, n, foreground int) *limitTranspor
 	return &limitTransport{base: base, slots: make(chan struct{}, n), background: make(chan struct{}, max(n-foreground, 1))}
 }
 
-// RoundTrip sends req once a slot is free.
+// RoundTrip sends req once a slot is free, unless the gate recalled it
+// meanwhile (markSent).
 func (t *limitTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	release, err := t.acquire(req)
+	if err == nil {
+		// Under the slot, so that once it is marked sent, nothing but its
+		// context stops it going out.
+		if err = markSent(req.Context()); err != nil {
+			release()
+		}
+	}
 	if err != nil {
 		// A RoundTripper closes the body of the request, even on error.
 		if req.Body != nil {

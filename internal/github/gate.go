@@ -5,6 +5,7 @@ import (
 	"cmp"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"math/rand/v2"
@@ -253,10 +254,13 @@ func (l limit) expiry(held []*hold) time.Time {
 // and a request whose context ends while it is held with the context's
 // error.
 //
+// since is when the request first came to the gate, or zero for now: one
+// recalled comes again, and waits no longer in all than it may at once.
+//
 // admit returns the reservation that observe or forget settles, or nil
 // for a request to a host outside the API, which no limit covers, and how
 // long the request was held.
-func (b *budget) admit(req *http.Request) (*reservation, time.Duration, error) {
+func (b *budget) admit(req *http.Request, since time.Time) (*reservation, time.Duration, error) {
 	ctx := req.Context()
 	c, _ := ctx.Value(callKey{}).(*call)
 	if c != nil && c.external || req.URL.Host != b.host {
@@ -267,7 +271,7 @@ func (b *budget) admit(req *http.Request) (*reservation, time.Duration, error) {
 	if resource == resourceCore {
 		route = b.route(req)
 	}
-	h := &hold{class: classOf(req, c), resource: resource, route: route}
+	h := &hold{class: classOf(req, c), resource: resource, route: route, at: since}
 	h.deadline, _ = ctx.Deadline()
 	r, until, err := b.enter(ctx, h, c)
 	if r != nil || err != nil {
@@ -281,16 +285,18 @@ func (b *budget) admit(req *http.Request) (*reservation, time.Duration, error) {
 }
 
 // enter decides, in one step with counting it, what becomes of h, a
-// request of call c that came to the gate, as admit says: it returns the
-// reservation of a request that may be sent at once, or the error of one
-// that fails at once, or neither for one it holds, and until when its
-// limit lasts.
+// request of call c that came to the gate at h.at, or now if that is
+// zero, as admit says: it returns the reservation of a request that may
+// be sent at once, or the error of one that fails at once, or neither for
+// one it holds, and until when its limit lasts.
 func (b *budget) enter(ctx context.Context, h *hold, c *call) (*reservation, time.Time, error) {
 	defer b.changed()
 	b.mu.Lock()
 	defer b.unlock()
 	now := b.now()
-	h.at = now
+	if h.at.IsZero() {
+		h.at = now
+	}
 	h.resource = cmp.Or(b.learned[h.route], h.resource)
 	h.cost = b.cost(h.resource, c)
 	l, on := b.limitOn(h.resource, h.cost, now)
@@ -494,17 +500,19 @@ func (b *budget) letGo(q *queue, h *hold, now time.Time) {
 	obs.CountRateReleased(h.resource, at.Sub(h.at))
 }
 
-// pump moves what is held along as the limits now allow: it lets go what
-// may be sent, fails what can't wait for its limit to lift, and sets the
+// pump moves what is held along as the limits now allow: it recalls what
+// was let through but not sent that a limit now stops, lets go what may
+// be sent, fails what can't wait for its limit to lift, and sets the
 // timers for the rest. Where a limit may have lifted, a probe of the
 // limits, or else the first request held, finds out first. b.mu must be
 // held.
 func (b *budget) pump() {
 	g := &b.gate
+	now := b.now()
+	b.recall(now)
 	if len(g.queues) == 0 && g.secondary.IsZero() && !g.lifting {
 		return
 	}
-	now := b.now()
 	if !g.secondary.IsZero() && !now.Before(g.secondary) {
 		// No probe shows a secondary limit, so the first request held
 		// goes first, and the others wait for its answer.
@@ -846,7 +854,9 @@ func later(a, b time.Time) time.Time {
 // so that each attempt passes it and the attempts retry discards are
 // counted too, and above the timeout and the limit, so that an attempt
 // held takes neither its time nor a slot, and one waiting for a slot is
-// counted already.
+// counted already. An attempt that a limit which came since would stop,
+// while it still waits for a slot, is recalled (budget.recall) and passes
+// the gate again.
 type rateTransport struct {
 	base   http.RoundTripper
 	budget *budget
@@ -857,44 +867,89 @@ type rateTransport struct {
 // RoundTrip sends req once its limit lets it, and observes its answer, and
 // what it says the token may do.
 func (t *rateTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	r, held, err := t.budget.admit(req)
-	if err != nil {
-		// A RoundTripper closes the body of the request, even on error.
-		if req.Body != nil {
-			_ = req.Body.Close()
+	since := t.budget.now()
+	for {
+		r, held, err := t.budget.admit(req, since)
+		if err != nil {
+			// A RoundTripper closes the body of the request, even on error.
+			if req.Body != nil {
+				_ = req.Body.Close()
+			}
+			return nil, err
 		}
-		return nil, err
-	}
-	if r == nil {
-		// Such as GET /rate_limit, which counts against no limit and is
-		// how the client probes what the token may do.
-		resp, err := t.base.RoundTrip(req)
-		if err == nil {
-			t.access.observe(req, resp.Header)
+		if r == nil {
+			// Such as GET /rate_limit, which counts against no limit and is
+			// how the client probes what the token may do.
+			resp, err := t.base.RoundTrip(req)
+			if err == nil {
+				t.access.observe(req, resp.Header)
+			}
+			return resp, err
 		}
-		return resp, err
+		resp, err := t.send(req, r, held)
+		if !errors.Is(err, errRecalled) {
+			return resp, err
+		}
+		obs.CountRate(r.resource, obs.RateRecalled)
+		if obs.Enabled(req.Context(), slog.LevelDebug) {
+			slog.DebugContext(req.Context(), "rate limit recall", "span", "http", "resource", r.resource,
+				"method", req.Method)
+		}
+		if req, err = replay(req); err != nil {
+			return nil, err
+		}
 	}
+}
+
+// send sends req, which r counts, and which was held for held. Unless its
+// body can't be sent again, a limit that comes before it has its slot
+// recalls it, and then send returns errRecalled, with r settled.
+func (t *rateTransport) send(req *http.Request, r *reservation, held time.Duration) (*http.Response, error) {
+	parent := req.Context()
+	ctx := parent
 	if held > 0 {
-		req = req.WithContext(withHeld(req.Context(), held))
+		ctx = withHeld(ctx, held)
+	}
+	cancel := context.CancelCauseFunc(func(error) {})
+	if replayable(req) {
+		ctx, cancel = context.WithCancelCause(ctx)
+		if !t.budget.track(r, cancel) {
+			cancel(nil)
+			t.budget.forget(r, false)
+			return nil, errRecalled
+		}
+		ctx = withSend(ctx, func() error { return t.budget.send(r) })
 	}
 	// A reservation left behind by a panic would take from the
 	// estimate for good.
 	settled := false
 	defer func() {
 		if !settled {
+			cancel(nil)
 			t.budget.forget(r, false)
 		}
 	}()
-	resp, err := t.base.RoundTrip(req)
+	attempt := req.WithContext(ctx)
+	resp, err := t.base.RoundTrip(attempt)
 	settled = true
 	if err != nil {
-		t.budget.forget(r, req.Context().Err() == nil)
+		recalled := errors.Is(context.Cause(ctx), errRecalled) && parent.Err() == nil
+		cancel(nil)
+		t.budget.forget(r, !recalled && parent.Err() == nil)
+		if recalled {
+			return nil, errRecalled
+		}
 		return nil, err
 	}
-	resp = t.noteSecondary(req, resp)
-	t.access.observe(req, resp.Header)
+	if resp.Body == nil {
+		cancel(nil)
+	} else {
+		resp.Body = &sentBody{ReadCloser: resp.Body, cancel: cancel}
+	}
+	resp = t.noteSecondary(attempt, resp)
+	t.access.observe(attempt, resp.Header)
 	if guard := t.budget.observe(r, resp.Header); guard > 0 {
-		outlasted(req.Context(), r.resource, guard)
+		outlasted(ctx, r.resource, guard)
 	}
 	return resp, nil
 }

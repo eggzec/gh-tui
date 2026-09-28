@@ -19,8 +19,9 @@ import (
 // way. It pins what the gate promises whatever happens: no request comes
 // back after its deadline, nor is held past the sanity cap of maxWindow,
 // every request held is let go or failed, nothing is left held or
-// counted once all came back, and the changes are told of with no lock
-// held.
+// counted once all came back, the changes are told of with no lock held,
+// and the limits that come recall requests waiting for a slot, but never
+// one that was sent.
 func TestGateStress(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		gateStats(t)
@@ -29,7 +30,8 @@ func TestGateStress(t *testing.T) {
 		// called while the client holds its lock.
 		var c *Client
 		var told atomic.Int64
-		c, err := New(WithBaseURL("https://api.github.com/"), WithToken("t"), WithHTTPClient(&http.Client{Transport: h}),
+		c, err := New(WithBaseURL("https://api.github.com/"), WithToken("t"),
+			WithHTTPClient(&http.Client{Transport: unrecalled{base: h, t: t}}),
 			WithRateNotify(func() {
 				_ = c.RateStatus()
 				told.Add(1)
@@ -114,13 +116,14 @@ func TestGateStress(t *testing.T) {
 			t.Errorf("a scout %d, lifting %v, left after all came back", g.scout, g.lifting)
 		}
 		sum := obs.Default().Summary().RateLimit
-		var held, released int64
+		var held, released, recalled int64
 		for _, r := range sum.Resources {
 			held += r.Held
 			released += r.Released
+			recalled += r.Recalled
 		}
-		if held == 0 || released == 0 {
-			t.Errorf("rate limit stats = %+v, want requests held and let go", sum)
+		if held == 0 || released == 0 || recalled == 0 {
+			t.Errorf("rate limit stats = %+v, want requests held, let go and recalled", sum)
 		}
 	})
 }
