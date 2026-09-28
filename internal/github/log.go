@@ -100,6 +100,12 @@ type attempt struct {
 	bytes          int64
 	// readErr is why reading the body stopped before its end, if it did.
 	readErr error
+	// held is set once the record of the attempt, which failed at
+	// heldLevel, and timed out if heldTimedOut, was held until the retry
+	// transport decided.
+	held         bool
+	heldLevel    slog.Level
+	heldTimedOut bool
 }
 
 // loggedBody counts what is read of a response and logs the attempt when
@@ -127,7 +133,8 @@ func (b *loggedBody) Close() error {
 }
 
 // done logs the attempt and counts it. resp is nil when err is set, and a
-// body that failed while it was read logs its error.
+// body that failed while it was read logs its error. A failed attempt
+// that the retry transport sends again is logged at debug level.
 func (a *attempt) done(resp *http.Response, err error) {
 	ctx := a.req.Context()
 	if err == nil {
@@ -181,6 +188,20 @@ func (a *attempt) done(resp *http.Response, err error) {
 	// theirs that went well is detail.
 	if level == slog.LevelInfo && err == nil && obs.IsBackground(ctx) && (c == nil || len(c.errors) == 0) {
 		level = slog.LevelDebug
+	}
+	if a.held {
+		// Logged once the retry transport decided, when the attempt's
+		// context may be done: the attempt failed as it did when held.
+		canceled, timedOut, level = false, a.heldTimedOut, a.heldLevel
+	}
+	if s, _ := ctx.Value(settleKey{}).(*settle); s != nil && level > slog.LevelInfo {
+		a.heldLevel, a.heldTimedOut = level, timedOut
+		if !a.held && s.hold(func() { a.held = true; a.done(resp, err) }) {
+			return
+		}
+		if s.sentAgain() {
+			level = slog.LevelDebug
+		}
 	}
 	if resp != nil && (c == nil || !c.external) {
 		a.t.deprecation(ctx, api, route, resp.Header)
@@ -241,6 +262,9 @@ func (a *attempt) done(resp *http.Response, err error) {
 	}
 	if held, ok := ctx.Value(heldKey{}).(time.Duration); ok {
 		attrs = append(attrs, slog.Float64("held_ms", obs.Millis(held)))
+	}
+	if n, ok := ctx.Value(attemptKey{}).(int); ok {
+		attrs = append(attrs, slog.Int("attempt", n))
 	}
 	if err != nil {
 		attrs = append(attrs, slog.String("err", err.Error()), slog.Bool("canceled", canceled), slog.Bool("timed_out", timedOut))

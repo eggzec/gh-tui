@@ -1,9 +1,11 @@
 package github
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
@@ -427,12 +429,207 @@ func TestRetryLogs(t *testing.T) {
 			}
 		}
 		if len(retries) != 2 ||
-			!strings.Contains(retries[0], `"attempt":1,"reason":"unavailable","delay_ms":250`) ||
-			!strings.Contains(retries[1], `"attempt":2,"reason":"dial","delay_ms":1000`) {
+			!strings.Contains(retries[0], `"level":"INFO"`) ||
+			!strings.Contains(retries[0], `"attempt":1,"reason":"unavailable","status":503,"delay_ms":250`) ||
+			!strings.Contains(retries[1], `"attempt":2,"reason":"dial","err":`) ||
+			!strings.Contains(retries[1], `"delay_ms":1000`) {
 			t.Errorf("retry records = %q, want one for each of the first two attempts", retries)
 		}
 		if got := stats.Summary().Retries; got["unavailable"] != 1 || got["dial"] != 1 || len(got) != 2 {
 			t.Errorf("retries = %v, want 1 unavailable and 1 dial", got)
+		}
+		for i, r := range recs {
+			want := any(float64(i + 1))
+			if i == 0 {
+				want = nil
+			}
+			if r["attempt"] != want {
+				t.Errorf("attempt %d logs attempt %v, want %v", i+1, r["attempt"], want)
+			}
+		}
+	})
+}
+
+// records returns the records in buf with the message msg.
+func records(t *testing.T, buf *bytes.Buffer, msg string) []map[string]any {
+	t.Helper()
+	var out []map[string]any
+	for line := range strings.Lines(buf.String()) {
+		var m map[string]any
+		if err := json.Unmarshal([]byte(line), &m); err != nil {
+			t.Fatalf("line %q is not JSON: %v", line, err)
+		}
+		if m["msg"] == msg {
+			out = append(out, m)
+		}
+	}
+	return out
+}
+
+// A request that fails every attempt logs that it gave up, at warn level,
+// and why.
+func TestRetryLogsGivingUp(t *testing.T) {
+	tests := []struct {
+		name     string
+		steps    []step
+		attempt  float64
+		reason   string
+		stop     string
+		giveUps  int
+		statusOK bool
+	}{
+		{name: "attempts", steps: []step{unavailable}, attempt: 3, reason: "unavailable", stop: stopAttempts, giveUps: 1, statusOK: true},
+		{name: "time", steps: []step{{delay: 6 * time.Second, status: http.StatusBadGateway}}, attempt: 1, reason: "unavailable", stop: stopTime, giveUps: 1, statusOK: true},
+		{name: "no retry", steps: []step{notFound}},
+		{name: "success", steps: []step{unavailable, ok}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				buf, _ := captureLog(t, slog.LevelInfo)
+				_ = get(t.Context(), scriptedClient(t, &script{steps: tt.steps}))
+				recs := records(t, buf, "http retry gave up")
+				if len(recs) != tt.giveUps {
+					t.Fatalf("%d give-up records, want %d:\n%s", len(recs), tt.giveUps, buf)
+				}
+				if tt.giveUps == 0 {
+					return
+				}
+				r := recs[0]
+				if r["level"] != "WARN" || r["attempt"] != tt.attempt || r["reason"] != tt.reason || r["stop"] != tt.stop ||
+					r["method"] != "GET" || r["elapsed_ms"] == nil || (r["status"] != nil) != tt.statusOK {
+					t.Errorf("give-up record = %v", r)
+				}
+			})
+		})
+	}
+}
+
+// An outage that fails every request logs a retry and giving up once per
+// reason at info level and above, and says how many it held back.
+func TestRetryLogsThrottled(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		buf, _ := captureLog(t, slog.LevelInfo)
+		c := scriptedClient(t, &script{steps: []step{dialFails}})
+		for range 20 {
+			_ = get(t.Context(), c)
+		}
+		if n := len(records(t, buf, "http retry")); n != 1 {
+			t.Errorf("%d retry records for 40 retries, want 1", n)
+		}
+		if n := len(records(t, buf, "http retry gave up")); n != 1 {
+			t.Errorf("%d give-up records for 20 requests, want 1", n)
+		}
+		time.Sleep(retryLogEvery)
+		buf.Reset()
+		_ = get(t.Context(), c)
+		retries := records(t, buf, "http retry")
+		if len(retries) != 1 || retries[0]["suppressed"] != float64(39) {
+			t.Errorf("retry records after a minute = %v, want 1 that held back 39", retries)
+		}
+		if gave := records(t, buf, "http retry gave up"); len(gave) != 1 || gave[0]["suppressed"] != float64(19) {
+			t.Errorf("give-up records after a minute = %v, want 1 that held back 19", gave)
+		}
+	})
+}
+
+// An attempt sent again is logged at debug level, and the last attempt at
+// the level of its failure, so that a request logs one record at info
+// level or above however often it was sent.
+func TestRetryLogsLastAttemptOnly(t *testing.T) {
+	tests := []struct {
+		name  string
+		steps []step
+		level string
+	}{
+		{name: "unavailable", steps: []step{unavailable}, level: "ERROR"},
+		{name: "dial", steps: []step{dialFails}, level: "ERROR"},
+		{name: "secondary limit", steps: []step{secondary3, notFound}, level: "WARN"},
+		{name: "recovers", steps: []step{badGateway, resets, ok}, level: "INFO"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				buf, _ := captureLog(t, slog.LevelDebug)
+				_ = get(t.Context(), scriptedClient(t, &script{steps: tt.steps}))
+				recs := httpRecords(t, buf)
+				if len(recs) < 2 {
+					t.Fatalf("%d http records, want one per attempt:\n%s", len(recs), buf)
+				}
+				last := len(recs) - 1
+				for i, r := range recs[:last] {
+					if r["level"] != "DEBUG" {
+						t.Errorf("attempt %d, sent again, logged at %v, want DEBUG", i+1, r["level"])
+					}
+				}
+				if recs[last]["level"] != tt.level {
+					t.Errorf("the last attempt logged at %v, want %s", recs[last]["level"], tt.level)
+				}
+			})
+		})
+	}
+}
+
+// An outage that fails every request, those sent again and the polls,
+// which never are, logs one record at info level or above for each
+// request, and one retry and one giving up for each reason, however many
+// requests fail at once.
+func TestRetryLogsOutageVolume(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		buf, _ := captureLog(t, slog.LevelInfo)
+		c := scriptedClient(t, &script{steps: []step{dialFails, unavailable, resets}, random: true})
+		const reads, polls = 30, 30
+		var wg sync.WaitGroup
+		for range reads {
+			wg.Go(func() { _ = get(t.Context(), c) })
+		}
+		for range polls {
+			wg.Go(func() { _ = get(obs.ForBackground(t.Context()), c) })
+		}
+		wg.Wait()
+		counts := make(map[string]int)
+		for line := range strings.Lines(buf.String()) {
+			var m map[string]any
+			if err := json.Unmarshal([]byte(line), &m); err != nil {
+				t.Fatalf("line %q is not JSON: %v", line, err)
+			}
+			counts[m["msg"].(string)]++
+		}
+		if n := counts["http"]; n != reads+polls {
+			t.Errorf("%d http records at info level or above for %d requests, want one each", n, reads+polls)
+		}
+		// Three reasons at most, each logged once a minute.
+		if n := counts["http retry"]; n > 3 {
+			t.Errorf("%d retry records, want one per reason", n)
+		}
+		if n := counts["http retry gave up"]; n > 3 {
+			t.Errorf("%d give-up records, want one per reason", n)
+		}
+		delete(counts, "http")
+		delete(counts, "http retry")
+		delete(counts, "http retry gave up")
+		if len(counts) > 0 {
+			t.Errorf("other records during the outage: %v", counts)
+		}
+	})
+}
+
+// The records of retries never hold the token.
+func TestRetryLogsNoToken(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		buf, _ := captureLog(t, slog.LevelDebug)
+		const token = "ghp_retrysecret0123456789"
+		c, err := New(WithBaseURL("https://gh.test/"), WithToken(token),
+			WithHTTPClient(&http.Client{Timeout: defaultTimeout, Transport: &script{steps: []step{unavailable}}}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = get(t.Context(), c)
+		if len(records(t, buf, "http retry gave up")) != 1 {
+			t.Fatalf("no give-up record:\n%s", buf)
+		}
+		if strings.Contains(buf.String(), token) {
+			t.Errorf("the log holds the token:\n%s", buf)
 		}
 	})
 }

@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -72,10 +73,76 @@ type retryTransport struct {
 	jitter func() float64
 	// wait waits for d, or until ctx is done.
 	wait func(ctx context.Context, d time.Duration) error
+	// logs keeps an outage, when every request is sent again, from
+	// logging each retry at info level.
+	logs *obs.Throttle
 }
 
+// retryLogEvery is how often a retry, or giving up, is logged at info
+// level or above for each reason; the others are logged at debug level.
+const retryLogEvery = time.Minute
+
 func newRetryTransport(base http.RoundTripper) *retryTransport {
-	return &retryTransport{base: base, jitter: rand.Float64, wait: sleep}
+	return &retryTransport{base: base, jitter: rand.Float64, wait: sleep, logs: obs.NewThrottle(retryLogEvery)}
+}
+
+type attemptKey struct{}
+
+// withAttempt returns ctx carrying n, the number of the attempt at its
+// request, which the log records from the second on.
+func withAttempt(ctx context.Context, n int) context.Context {
+	return context.WithValue(ctx, attemptKey{}, n)
+}
+
+type settleKey struct{}
+
+// settle holds the record of an attempt that failed until the retry
+// transport decides whether to send its request again: an attempt sent
+// again is logged at debug level, since the retry's record says what
+// became of it, and the last attempt keeps its level. Otherwise an outage
+// would log each failure once per attempt.
+type settle struct {
+	mu            sync.Mutex
+	decided, sent bool
+	held          func()
+}
+
+// withSettle returns ctx carrying s for the attempt's log.
+func withSettle(ctx context.Context, s *settle) context.Context {
+	return context.WithValue(ctx, settleKey{}, s)
+}
+
+// hold keeps log, which logs the attempt, until decide, and reports true,
+// unless the decision was made already.
+func (s *settle) hold(log func()) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.decided {
+		return false
+	}
+	s.held = log
+	return true
+}
+
+// decide records whether the request is sent again, and logs the attempt
+// if its record was held.
+func (s *settle) decide(again bool) {
+	s.mu.Lock()
+	s.decided, s.sent = true, again
+	log := s.held
+	s.held = nil
+	s.mu.Unlock()
+	if log != nil {
+		log()
+	}
+}
+
+// sentAgain reports whether the request was sent again after the
+// attempt.
+func (s *settle) sentAgain() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.sent
 }
 
 // RoundTrip sends req, and again as long as the policy allows.
@@ -91,10 +158,8 @@ func (t *retryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	start := time.Now()
 	attempt := req
 	for n := 1; ; n++ {
-		resp, err := t.base.RoundTrip(attempt)
-		if n > maxRetries {
-			return resp, err
-		}
+		s := new(settle)
+		resp, err := t.base.RoundTrip(attempt.WithContext(withSettle(attempt.Context(), s)))
 		var why string
 		if err == nil && query && resp.StatusCode == http.StatusOK && resp.Body != nil {
 			resp, why, err = peekGraphQL(resp)
@@ -106,9 +171,23 @@ func (t *retryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		case read:
 			why = statusRetry(resp, &limited)
 		}
-		if why == "" || time.Since(start) > retryWithin {
+		if why == "" {
+			s.decide(false)
 			return resp, err
 		}
+		stop := ""
+		switch {
+		case n > maxRetries:
+			stop = stopAttempts
+		case time.Since(start) > retryWithin:
+			stop = stopTime
+		}
+		if stop != "" {
+			s.decide(false)
+			t.logGiveUp(ctx, req, c, n, why, stop, time.Since(start), resp, err)
+			return resp, err
+		}
+		s.decide(true)
 		if resp != nil {
 			discard(resp)
 		}
@@ -117,17 +196,24 @@ func (t *retryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 			wait = t.backoff(n)
 		}
 		obs.CountHTTPRetry(why)
-		if obs.Enabled(ctx, slog.LevelDebug) {
-			logRetry(ctx, req, c, n, why, wait, resp, err)
-		}
+		t.logRetry(ctx, req, c, n, why, wait, resp, err)
 		if err := t.wait(ctx, wait); err != nil {
 			return nil, err
 		}
-		if attempt, err = replay(req); err != nil {
+		if attempt, err = replay(req.WithContext(withAttempt(ctx, n+1))); err != nil {
 			return nil, err
 		}
 	}
 }
+
+// Why a request that might have been sent again was not, as the record
+// of giving up says.
+const (
+	// stopAttempts is a request sent as often as it may be.
+	stopAttempts = "attempts"
+	// stopTime is a request first sent longer than retryWithin ago.
+	stopTime = "time"
+)
 
 // backoff is the wait before retry n, 1 for the first.
 func (t *retryTransport) backoff(n int) time.Duration {
@@ -296,10 +382,47 @@ func sleep(ctx context.Context, d time.Duration) error {
 }
 
 // logRetry logs the decision to send req again after attempt n, which got
-// resp or failed with err. The attempt itself is logged by the log
+// resp or failed with err, at info level once a minute for each reason,
+// and at debug level otherwise. The attempt itself is logged by the log
 // transport.
-func logRetry(ctx context.Context, req *http.Request, c *call, n int, why string, wait time.Duration, resp *http.Response, err error) {
-	attrs := []any{"span", "http", "method", req.Method, "attempt", n, "reason", why, "delay_ms", obs.Millis(wait)}
+func (t *retryTransport) logRetry(ctx context.Context, req *http.Request, c *call, n int, why string, wait time.Duration, resp *http.Response, err error) {
+	level, held, ok := t.level(ctx, "retry "+why, slog.LevelInfo)
+	if !ok {
+		return
+	}
+	attrs := append(retryAttrs(req, c, n, why, resp, err), "delay_ms", obs.Millis(wait))
+	slog.Log(ctx, level, "http retry", append(attrs, obs.Suppressed(held)...)...)
+}
+
+// logGiveUp logs that req, which attempt n failed for why, isn't sent
+// again, since it was sent as often as it may be or too long ago, at warn
+// level once a minute for each reason, and at debug level otherwise.
+func (t *retryTransport) logGiveUp(ctx context.Context, req *http.Request, c *call, n int, why, stop string, elapsed time.Duration, resp *http.Response, err error) {
+	level, held, ok := t.level(ctx, "give up "+why, slog.LevelWarn)
+	if !ok {
+		return
+	}
+	attrs := append(retryAttrs(req, c, n, why, resp, err), "stop", stop, "elapsed_ms", obs.Millis(elapsed))
+	slog.Log(ctx, level, "http retry gave up", append(attrs, obs.Suppressed(held)...)...)
+}
+
+// level returns the level to log a record of key at, and how many like
+// it the throttle held back before it: want, if the throttle lets it
+// through, or else debug. It reports false if that level isn't enabled.
+func (t *retryTransport) level(ctx context.Context, key string, want slog.Level) (slog.Level, int, bool) {
+	if !obs.Enabled(ctx, want) {
+		return 0, 0, false
+	}
+	if ok, held := t.logs.Allow(key); ok {
+		return want, held, true
+	}
+	return slog.LevelDebug, 0, obs.Enabled(ctx, slog.LevelDebug)
+}
+
+// retryAttrs are what the records of retries say of attempt n at req,
+// which got resp or failed with err, and was to be sent again for why.
+func retryAttrs(req *http.Request, c *call, n int, why string, resp *http.Response, err error) []any {
+	attrs := []any{"span", "http", "method", req.Method, "attempt", n, "reason", why}
 	if c != nil && c.op != "" {
 		attrs = append(attrs, "op", c.op)
 	}
@@ -309,5 +432,5 @@ func logRetry(ctx context.Context, req *http.Request, c *call, n int, why string
 	if err != nil {
 		attrs = append(attrs, "err", err.Error())
 	}
-	slog.DebugContext(ctx, "http retry", attrs...)
+	return attrs
 }
