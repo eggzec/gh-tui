@@ -2,6 +2,7 @@ package issues
 
 import (
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -395,4 +396,28 @@ func TestViewModal(t *testing.T) {
 		it.Labels, it.Assignees = nil, nil
 		golden.RequireEqual(t, m.header(it))
 	})
+}
+
+// The comments say what went wrong the way the user should read it,
+// naming the issue, without the error's chain, request or status code.
+func TestCommentsErrorWords(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want string
+	}{
+		{"offline", fmt.Errorf("issue comments: github: GET /repos/eggzec/gh-tui/issues/999/comments: %w", core.ErrOffline), "✗ Can't reach GitHub · r to retry"},
+		{"forbidden", fmt.Errorf("issue comments: github: 403 Forbidden: %w", core.ErrForbidden), "✗ You don't have access to eggzec/gh-tui#999 · o to open on GitHub"},
+		{"internal", errors.New("issue comments: github: decode: unexpected EOF"), "✗ Something went wrong · r to retry"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := newFakeService(sampleIssues(12))
+			svc.commentsErr = tt.err
+			_, m := opened(t, svc, 30)
+			if v := ansi.Strip(m.View()); !strings.Contains(v, tt.want) || strings.Contains(v, "github:") || strings.Contains(v, "403") || strings.Contains(v, "/repos") {
+				t.Errorf("modal = %q, want %q", v, tt.want)
+			}
+		})
+	}
 }

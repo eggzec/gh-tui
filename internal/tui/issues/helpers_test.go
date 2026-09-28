@@ -59,6 +59,8 @@ type fakeService struct {
 	getCtxs  []context.Context
 	getErr   error
 	comments map[int][]core.Comment
+	// commentsErr fails the reads of comments.
+	commentsErr error
 	// commentQueries are the comment pages asked for, and commented the
 	// ones served, which CachedComments then serves.
 	commentQueries []issuesvc.CommentsQuery
@@ -289,6 +291,9 @@ func (f *fakeService) Comments(_ context.Context, q issuesvc.CommentsQuery) (cor
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.commentQueries = append(f.commentQueries, q)
+	if f.commentsErr != nil {
+		return core.Page[core.Comment]{}, f.commentsErr
+	}
 	f.commented[q] = true
 	return f.commentPage(q), nil
 }

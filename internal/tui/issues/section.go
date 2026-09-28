@@ -53,7 +53,7 @@ type Section struct {
 	cancelList context.CancelFunc
 	// offline is marked by the list's reads when GitHub can't be reached.
 	offline *ui.Offline
-	// voice words the list's errors.
+	// voice words the errors of the list and of the comments.
 	voice ui.Voice
 
 	// ahead reads the issues of list before they are opened, if prefetch
