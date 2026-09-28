@@ -73,17 +73,22 @@ type viewerCaps struct {
 	ViewerCanUpdate  bool   `json:"viewerCanUpdate"`
 	ViewerCanClose   bool   `json:"viewerCanClose"`
 	ViewerCanReopen  bool   `json:"viewerCanReopen"`
-	ViewerCanLabel   bool   `json:"viewerCanLabel"`
-	ViewerDidAuthor  bool   `json:"viewerDidAuthor"`
+	// ViewerCanLabel is nil when the query left it out, as it does on a
+	// server whose schema lacks it.
+	ViewerCanLabel  *bool `json:"viewerCanLabel"`
+	ViewerDidAuthor bool  `json:"viewerDidAuthor"`
 }
 
 func (v viewerCaps) core() core.ItemCaps {
-	return core.ItemCaps{
+	caps := core.ItemCaps{
 		Known:    true,
 		Update:   v.ViewerCanUpdate,
 		Close:    v.ViewerCanClose,
 		Reopen:   v.ViewerCanReopen,
-		Label:    v.ViewerCanLabel,
 		Authored: v.ViewerDidAuthor,
 	}
+	if v.ViewerCanLabel != nil {
+		caps.Label, caps.LabelKnown = *v.ViewerCanLabel, true
+	}
+	return caps
 }

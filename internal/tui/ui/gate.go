@@ -144,7 +144,10 @@ func (g Gate) allowRepo(a Action, it *core.Issue) (ok bool, why string) {
 			return false, lockedText(it)
 		}
 	case ActLabel:
-		if it != nil && it.Caps.Known {
+		// GitHub says who labels a pull request, a custom role that
+		// adds labeling to read access too. An older Enterprise Server
+		// doesn't say, and only triage access or more labels there.
+		if it != nil && it.Caps.Known && it.Caps.LabelKnown {
 			if it.Caps.Label {
 				return true, ""
 			}

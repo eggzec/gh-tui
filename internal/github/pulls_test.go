@@ -117,7 +117,7 @@ func TestListPullRequests(t *testing.T) {
 		Additions:      512,
 		Deletions:      18,
 		ChangedFiles:   7,
-		Caps:           core.ItemCaps{Known: true, Update: true, Close: true, Label: true, Authored: true},
+		Caps:           core.ItemCaps{Known: true, Update: true, Close: true, Label: true, LabelKnown: true, Authored: true},
 	}
 	if !reflect.DeepEqual(page.Items[0], want) {
 		t.Errorf("first pull request =\n%+v\nwant\n%+v", page.Items[0], want)
@@ -131,7 +131,7 @@ func TestListPullRequests(t *testing.T) {
 	if draft.Author != (core.User{Login: "dependabot"}) || draft.Labels != nil {
 		t.Errorf("bot author = %+v, labels %v; want login only and no labels", draft.Author, draft.Labels)
 	}
-	if !draft.Locked || draft.LockReason != "too_heated" || draft.Caps != (core.ItemCaps{Known: true}) {
+	if !draft.Locked || draft.LockReason != "too_heated" || draft.Caps != (core.ItemCaps{Known: true, LabelKnown: true}) {
 		t.Errorf("locked %v for %q, caps %+v; want locked for too_heated, and nothing allowed", draft.Locked, draft.LockReason, draft.Caps)
 	}
 
@@ -612,7 +612,7 @@ func TestGetPullRequestCaps(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetPullRequest: %v", err)
 	}
-	if got.Number != 1816 || got.Locked || got.Caps != (core.ItemCaps{Known: true}) {
+	if got.Number != 1816 || got.Locked || got.Caps != (core.ItemCaps{Known: true, LabelKnown: true}) {
 		t.Errorf("#%d locked %v, caps %+v; want #1816 unlocked, with nothing allowed", got.Number, got.Locked, got.Caps)
 	}
 	if want := (core.CheckCounts{Passed: 34}); got.CheckCounts != want {
