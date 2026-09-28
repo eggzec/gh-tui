@@ -19,6 +19,7 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keytest"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
+	"github.com/eggzec/gh-tui/pkg/termtext/termtexttest"
 )
 
 func TestOpensOnTheFailedJobAndItsError(t *testing.T) {
@@ -296,29 +297,41 @@ func TestLogStates(t *testing.T) {
 	}
 }
 
-// The runs and the log say what went wrong the way the user should read
-// it, without the error's chain, request or status code.
+// The runs, the jobs and the log say what went wrong the way the user
+// should read it, without the error's chain, request or status code.
 func TestErrorWords(t *testing.T) {
-	// The runs pane is narrow, so it cuts the words and keeps the hint,
-	// and the log puts the hint on a line of its own where it doesn't fit
-	// after the words.
+	// The runs and the jobs panes are narrow, so they cut the words and
+	// keep the hint, and they and the log put the hint on a line of its
+	// own where it doesn't fit after the words.
 	tests := []struct {
-		name       string
-		err        error
-		want, runs string
+		name             string
+		err              error
+		want, runs, jobs string
 	}{
 		{"offline", fmt.Errorf("list runs: github: GET /repos/o/r/actions/runs: %w", core.ErrOffline),
-			"✗ Can't reach GitHub · r to retry", "✗ Can't reach GitHub · r to retry"},
+			"✗ Can't reach GitHub · r to retry", "✗ Can't reach GitHub · r to retry", "✗ Can't reach GitHub r to retry"},
 		{"forbidden", fmt.Errorf("list runs: github: 403 Forbidden: %w", core.ErrForbidden),
-			"✗ You don't have access to charmbracelet/bubbletea o to open on GitHub", "✗ You don't have ac… · o to open on GitHub"},
-		{"internal", errors.New("list runs: github: decode: unexpected EOF"),
-			"✗ Something went wrong. Details", "✗ Something went wrong. Deta… · r to retry"},
+			"✗ You don't have access to charmbracelet/bubbletea o to open on GitHub", "✗ You don't have ac… · o to open on GitHub",
+			"✗ You don't have access to charmbracelet/bubbletea o to open on GitHub"},
+		{"not found", fmt.Errorf("list runs: github: 404 Not Found: %w", core.ErrNotFound),
+			"✗ charmbracelet/bubbletea doesn't exist or is private.", "✗ charmbracelet/bubbletea doesn't exist o…",
+			"✗ CI #4812 doesn't exist or is private."},
+		{"internal", fmt.Errorf("list runs: github: decode: %s", termtexttest.Hostile),
+			"✗ Something went wrong. Details", "✗ Something went wrong. Deta… · r to retry",
+			"✗ Something went wrong. Details are in the log (/var/log/gh-t… r to retry"},
 	}
 	voice := WithVoice(ui.NewVoice(config.Default().Keys, "/var/log/gh-tui.log"))
-	clean := func(t *testing.T, pane, s, want string) {
+	clean := func(t *testing.T, m *Modal, p pane, want string) {
 		t.Helper()
-		if s = strings.Join(strings.Fields(s), " "); !strings.Contains(s, want) || strings.Contains(s, "github:") || strings.Contains(s, "403") {
-			t.Errorf("the %s pane = %q, want %q", pane, s, want)
+		termtexttest.AssertClean(t, strings.Join(m.paneLines(p, m.paneWidth(p), m.bodyHeight()), "\n"), m.paneWidth(p))
+		s := strings.Join(strings.Fields(paneText(m, p)), " ")
+		if !strings.Contains(s, want) {
+			t.Errorf("pane %d = %q, want %q", p, s, want)
+		}
+		for _, leak := range []string{"github:", "list runs", "GET", "403", "404", "decode"} {
+			if strings.Contains(s, leak) {
+				t.Errorf("pane %d shows %q: %q", p, leak, s)
+			}
 		}
 	}
 	for _, tt := range tests {
@@ -326,12 +339,17 @@ func TestErrorWords(t *testing.T) {
 			f := newFake()
 			f.logErrs[ubuntuJob] = tt.err
 			m, _ := newModal(t, f, wideW, wideH, voice)
-			clean(t, "log", paneText(m, logPane), tt.want)
+			clean(t, m, logPane, tt.want)
+
+			f = newFake()
+			f.jobsErr = tt.err
+			m, _ = newModal(t, f, wideW, wideH, voice)
+			clean(t, m, jobsPane, tt.jobs)
 
 			f = newFake()
 			f.runsErr = tt.err
 			m, _ = newModal(t, f, wideW, wideH, voice)
-			clean(t, "runs", paneText(m, runsPane), tt.runs)
+			clean(t, m, runsPane, tt.runs)
 		})
 	}
 }
@@ -691,7 +709,7 @@ func TestErrorsAreInline(t *testing.T) {
 	f := newFake()
 	f.jobsErr = errors.New("jobs boom")
 	m, h := newModal(t, f, wideW, wideH)
-	if s := paneText(m, jobsPane); !strings.Contains(s, "Couldn't load the jobs: jobs boom · r to retry") {
+	if s := paneText(m, jobsPane); !strings.Contains(s, "Something went wrong r to retry") {
 		t.Errorf("the jobs pane:\n%s", s)
 	}
 	f.jobsErr = nil

@@ -109,6 +109,7 @@ type Modal struct {
 	width, height int
 	theme         ui.Theme
 	st            styles
+	errs          ui.ErrorStyles
 	// links keeps the links of the rows, which are drawn on every frame.
 	links termtext.Links
 }
@@ -204,6 +205,8 @@ func (m *Modal) SetSize(width, height int) {
 func (m *Modal) SetTheme(t ui.Theme) {
 	m.theme = t
 	m.st = newStyles(t, m.opts.icons)
+	// The mark is the bubbles', which draw "✗" whatever the icons.
+	m.errs = t.Errors(ui.NewIcons(config.IconsUnicode))
 	m.spin.Style = t.Accent
 	m.runs.SetStyles(t.Feed())
 	m.log.SetTheme(t)
