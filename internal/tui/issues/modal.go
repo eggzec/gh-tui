@@ -122,11 +122,15 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, from
 		p, err := svc.Comments(ctx, q)
 		return p.Items, p.Next, err
 	}
+	// The thread fetches failed comments again with its own retry key.
+	v := s.voice
+	v.Retry = s.keys.thread.Retry
 	m.thread = thread.New(fetch, m.renderComment,
 		thread.WithContext(ctx),
 		thread.WithKeyMap(s.keys.thread),
 		thread.WithStyles(s.theme.Thread()),
 		thread.WithFocused(true),
+		thread.WithErrorText(ui.ErrorText("load the comments", core.Target{Repo: repo, Number: number}.String(), v)),
 	)
 	m.thread.SetCutHint(ui.OpenHint(s.keys.Open))
 	switch cached, ok := svc.CachedGet(repo, number); {
