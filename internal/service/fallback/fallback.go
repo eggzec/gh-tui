@@ -57,9 +57,10 @@ func Fetch[V any](ctx context.Context, c *cache.Cache[V], shelf *cache.Shelf[V],
 				prev.Fallback, prev.FetchedAt = err, staleAt
 				return prev, nil
 			}
-		case core.Auth, core.Forbidden, core.NotFound:
-			shelf.Drop(ctx, key, core.KindOf(err).String())
 		default:
+			if Refused(err) {
+				shelf.Drop(ctx, key, core.KindOf(err).String())
+			}
 		}
 		return cache.Entry[V]{}, err
 	})
@@ -70,6 +71,19 @@ func Fetch[V any](ctx context.Context, c *cache.Cache[V], shelf *cache.Shelf[V],
 		mark(&e.Value, marks, e.Fallback)
 	}
 	return e, nil
+}
+
+// Refused reports whether err is GitHub refusing a read, for the token or
+// the account, or saying that what was asked isn't there: then what was
+// kept of it, or vouched for by it, goes, since the account may have lost
+// access.
+func Refused(err error) bool {
+	switch core.KindOf(err) {
+	case core.Auth, core.Forbidden, core.NotFound:
+		return true
+	default:
+		return false
+	}
 }
 
 // Keep returns load, which also keeps what it reads from GitHub on shelf

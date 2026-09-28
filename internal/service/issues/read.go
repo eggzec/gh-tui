@@ -110,7 +110,7 @@ func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.Issue],
 			return s.readList(ctx, q, cond)
 		})
 	if err != nil {
-		if github.Refused(err) {
+		if fallback.Refused(err) {
 			// A kept page may have vouched for what is cached of the
 			// repository's issues.
 			s.seen.DeletePrefix(issuePrefix(q.Repo))
