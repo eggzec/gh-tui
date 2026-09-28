@@ -266,6 +266,7 @@ func TestSummaryRateLimit(t *testing.T) {
 	s.RateReleased("core", 3*time.Millisecond)
 	s.RateReleased("core", time.Millisecond)
 	s.Rate("core", RateDropped)
+	s.Rate("core", RateRecalled)
 	s.RateFailed("search", "prefetch")
 	s.RateFailed("", "deadline")
 	s.RateEarly()
@@ -274,7 +275,7 @@ func TestSummaryRateLimit(t *testing.T) {
 	got := s.Summary().RateLimit
 	want := RateSummary{
 		Resources: []RateResourceSummary{
-			{Resource: "core", Held: 2, Released: 2, Dropped: 1},
+			{Resource: "core", Held: 2, Released: 2, Dropped: 1, Recalled: 1},
 			{Resource: "none", Failed: 1},
 			{Resource: "search", Failed: 1},
 		},
