@@ -315,3 +315,19 @@ func sgrParams(p string) bool {
 	}
 	return true
 }
+
+// HasSGR reports whether s holds an SGR sequence, such as the colors of
+// a program's output kept in a file.
+func HasSGR(s string) bool {
+	for {
+		i := strings.IndexByte(s, ansi.ESC)
+		if i < 0 {
+			return false
+		}
+		n, sgr := Escape(s[i:])
+		if sgr {
+			return true
+		}
+		s = s[i+max(n, 1):]
+	}
+}

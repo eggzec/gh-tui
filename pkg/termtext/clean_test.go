@@ -1,6 +1,9 @@
 package termtext
 
-import "testing"
+import (
+	"testing"
+	"unsafe"
+)
 
 func TestClean(t *testing.T) {
 	tests := []struct {
@@ -25,5 +28,19 @@ func TestClean(t *testing.T) {
 				t.Errorf("Clean(%q) = %q, want %q", tt.in, got, tt.want)
 			}
 		})
+	}
+}
+
+// Text with nothing to clean comes back as it is, without a copy, so a
+// view that keeps both costs no more memory.
+func TestCleanKeepsCleanText(t *testing.T) {
+	for _, s := range []string{"plain\nlines 你好 👋\n", "", "héllo"} {
+		got := Clean(s, 4)
+		if got != s || s != "" && unsafe.StringData(got) != unsafe.StringData(s) {
+			t.Errorf("Clean(%q) is a copy", s)
+		}
+	}
+	if got := Clean("ok\n\tx", 4); got != "ok\n    x" {
+		t.Errorf("a tab after clean text: %q", got)
 	}
 }

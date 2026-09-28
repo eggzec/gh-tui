@@ -13,14 +13,41 @@ import (
 // characters that reorder text and invalid UTF-8, so that the text can
 // neither break the layout, nor send escape sequences to the terminal, nor
 // show in an order other than the one it is read in. It drops the CR of
-// CRLF line endings.
+// CRLF line endings. Text that needs none of this is returned as it is.
 func Clean(src string, tabWidth int) string {
-	var b strings.Builder
+	s, _ := clean(src, tabWidth, false)
+	return s
+}
+
+// CleanStyled cleans src as Clean does, but for its escape sequences: it
+// keeps the SGR sequences, which only color text, as the styles of the
+// text it returns, and drops the others whole, such as those that move
+// the cursor or set the title. It is for text with colors of its own,
+// such as a program's output kept in a file ([HasSGR]).
+func CleanStyled(src string, tabWidth int) (string, []Style) {
+	return clean(src, tabWidth, true)
+}
+
+func clean(src string, tabWidth int, styled bool) (string, []Style) {
+	var (
+		b      strings.Builder
+		styles Styler
+	)
+	start := firstChange(src)
+	if start == len(src) {
+		// Most text needs nothing changed, and costs no copy.
+		return src, nil
+	}
 	b.Grow(len(src))
+	b.WriteString(src[:start])
+	if styled {
+		// At most one style for each escape, and no growing to get there.
+		styles.Grow(strings.Count(src[start:], "\x1b"))
+	}
 	// col is the column at byte mark of the output, which is where the
 	// last tab or line ended; the columns after it are measured lazily.
-	mark, col := 0, 0
-	for i := 0; i < len(src); {
+	mark, col := strings.LastIndexByte(src[:start], '\n')+1, 0
+	for i := start; i < len(src); {
 		r, size := utf8.DecodeRuneInString(src[i:])
 		switch {
 		case r == '\n':
@@ -34,6 +61,12 @@ func Clean(src string, tabWidth int) string {
 			}
 			mark, col = b.Len(), col+n
 		case r == '\r' && strings.HasPrefix(src[i+size:], "\n"):
+		case styled && r == ansi.ESC:
+			n, sgr := Escape(src[i:])
+			if sgr {
+				styles.Add(b.Len(), src[i:i+n])
+			}
+			size = n
 		case r == utf8.RuneError && size == 1, Control(r):
 			b.WriteRune(utf8.RuneError)
 		default:
@@ -41,7 +74,28 @@ func Clean(src string, tabWidth int) string {
 		}
 		i += size
 	}
-	return b.String()
+	return b.String(), styles.Styles()
+}
+
+// firstChange returns the index of the first byte of src that cleaning
+// changes, or len(src) if it changes none.
+func firstChange(src string) int {
+	for i := 0; i < len(src); {
+		c := src[i]
+		if c < utf8.RuneSelf {
+			if c < 0x20 && c != '\n' || c == 0x7f {
+				return i
+			}
+			i++
+			continue
+		}
+		r, size := utf8.DecodeRuneInString(src[i:])
+		if r == utf8.RuneError && size == 1 || Control(r) {
+			return i
+		}
+		i += size
+	}
+	return len(src)
 }
 
 // Control reports whether r is a control character, C0, DEL or C1, or one
