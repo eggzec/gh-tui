@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
@@ -232,5 +234,43 @@ func TestModalOfAnotherRepoReadsItsCaps(t *testing.T) {
 	drain(t, h, h.Update(ui.OpenPullMsg{Repo: repo, Number: 142}))
 	if m := h.modal(); m.caps != writeCaps || len(repos.gets) != 1 {
 		t.Errorf("caps %+v after reads %v, want the section's", m.caps, repos.gets)
+	}
+}
+
+func TestTokenGatesChanges(t *testing.T) {
+	private := writeCaps
+	private.Private = true
+	why := "Merging needs the repo scope · :auth to grant it"
+	for _, keys := range [][]string{{"m"}, {"enter", "m"}} {
+		t.Run(strings.Join(keys, " "), func(t *testing.T) {
+			tok := &uitest.Checker{A: uitest.Classic("public_repo")}
+			v := ui.NewVoice(config.Default().Keys, "")
+			v.Token = uitest.Token(tok)
+			svc := newFakeService()
+			h := started(t, svc, 120, 20, WithVoice(v))
+			drain(t, h, h.Update(ui.CapsMsg{Repo: repo, Caps: private}))
+			last := len(keys) - 1
+			for _, k := range keys[:last] {
+				press(t, h, k)
+			}
+			layers := func() []keyhelp.Layer {
+				if m := h.modal(); m != nil {
+					return m.KeyLayers()
+				}
+				return h.KeyLayers()
+			}
+			if got := offered(layers()); slices.Contains(got, "merge") {
+				t.Errorf("help = %v, want no merge", got)
+			}
+			msgs := press(t, h, keys[last])
+			if got := svc.changes(); len(got) != 0 || question(h) != "" || !slices.Contains(msgs, info(why)) {
+				t.Errorf("merge sent %v and showed %v, want the toast %q only", got, msgs, why)
+			}
+			// Once the token has repo, the key works again.
+			tok.A = uitest.Classic("repo")
+			if got := offered(layers()); !slices.Contains(got, "merge") {
+				t.Errorf("help after repo = %v, want merge", got)
+			}
+		})
 	}
 }

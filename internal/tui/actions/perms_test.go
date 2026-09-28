@@ -5,6 +5,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
@@ -79,5 +80,32 @@ func TestCachedCapsAreNotReadAgain(t *testing.T) {
 	m, _ := newModal(t, newFake(), wideW, wideH, WithRepos(src))
 	if src.gets != 0 || m.caps != src.caps {
 		t.Errorf("caps %+v after %d reads, want the cached ones", m.caps, src.gets)
+	}
+}
+
+func TestChangesNeedRepo(t *testing.T) {
+	src := &capsOf{caps: core.RepoCaps{Known: true, Permission: core.PermissionAdmin}, cached: true}
+	v := ui.NewVoice(config.Default().Keys, "")
+	v.Token = uitest.Token(&uitest.Checker{A: uitest.Classic("public_repo")})
+	f := newFake()
+	m, h := newModal(t, f, wideW, wideH, WithRepos(src), WithVoice(v))
+	if got := offered(m); len(got) != 0 {
+		t.Errorf("help offers %v without repo", got)
+	}
+	rerun := ui.NotifyMsg{Level: toast.Info, Text: "Re-running needs the repo scope · :auth to grant it"}
+	h.keys("R")
+	if m.ask != nil || !slices.Contains(h.take(), any(rerun)) {
+		t.Errorf("R asked %+v, want the toast %q", m.ask, rerun.Text)
+	}
+	for m.run.ID != runningRun {
+		h.keys("down")
+	}
+	h.keys("x")
+	cancel := ui.NotifyMsg{Level: toast.Info, Text: "Cancelling needs the repo scope · :auth to grant it"}
+	if m.ask != nil || !slices.Contains(h.take(), any(cancel)) {
+		t.Errorf("x asked %+v, want the toast %q", m.ask, cancel.Text)
+	}
+	if len(f.sent) != 0 {
+		t.Errorf("sent %v, want nothing", f.sent)
 	}
 }

@@ -55,6 +55,8 @@ type detailModal struct {
 	// viewer who they are, or empty.
 	caps   core.RepoCaps
 	viewer string
+	// token is what the token may do.
+	token *ui.Token
 	// issue is what is known of the issue, and loaded says whether
 	// anything is: a modal opened from the search starts with nothing.
 	issue  core.Issue
@@ -106,6 +108,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, show
 		other:   showRepo || !s.hasRepo || !repo.Same(s.repo),
 		caps:    s.capsOf(repo),
 		viewer:  s.viewer,
+		token:   s.voice.Token,
 		ctx:     ctx,
 		cancel:  cancel,
 		resume:  resume,
@@ -392,7 +395,7 @@ func (m *detailModal) answer(msg tea.KeyPressMsg) tea.Cmd {
 
 // gate decides what the viewer may do in the repository.
 func (m *detailModal) gate() ui.Gate {
-	return ui.Gate{Repo: m.repo, Caps: m.caps, Viewer: m.viewer}
+	return ui.Gate{Repo: m.repo, Caps: m.caps, Viewer: m.viewer, Token: m.token}
 }
 
 // changed tells the section that the issue changed in the cache.

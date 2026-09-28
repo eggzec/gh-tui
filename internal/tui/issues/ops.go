@@ -100,7 +100,7 @@ func (s *Section) setState(state core.State) tea.Cmd {
 
 // gate decides what the viewer may do in the repository of the list.
 func (s *Section) gate() ui.Gate {
-	return ui.Gate{Repo: s.repo, Caps: s.caps, Viewer: s.viewer}
+	return ui.Gate{Repo: s.repo, Caps: s.caps, Viewer: s.viewer, Token: s.voice.Token}
 }
 
 // done reloads the list after a change this section or its modal sent, to

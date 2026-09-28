@@ -58,6 +58,8 @@ type detailModal struct {
 	other bool
 	// caps is what the viewer may do in repo, as far as it is known.
 	caps core.RepoCaps
+	// token is what the token may do.
+	token *ui.Token
 	// detail is what is known of the pull request, and loaded says whether
 	// anything is: a modal opened from the search starts with nothing.
 	detail core.PullRequestDetail
@@ -112,6 +114,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 		number:      number,
 		other:       showRepo || !s.hasRepo || !repo.Same(s.repo),
 		caps:        s.capsOf(repo),
+		token:       s.voice.Token,
 		ctx:         ctx,
 		cancel:      cancel,
 		resume:      resume,
@@ -476,7 +479,7 @@ func (m *detailModal) KeyLayers() []keyhelp.Layer {
 
 // gate decides what the viewer may do in the repository.
 func (m *detailModal) gate() ui.Gate {
-	return ui.Gate{Repo: m.repo, Caps: m.caps}
+	return ui.Gate{Repo: m.repo, Caps: m.caps, Token: m.token}
 }
 
 // detailHeader renders the head of the pull request at width: the title,

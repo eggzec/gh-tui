@@ -145,7 +145,7 @@ func runTarget(id int64) string { return strconv.FormatInt(id, 10) }
 
 // gate decides what the viewer may do in the repository.
 func (m *Modal) gate() ui.Gate {
-	return ui.Gate{Repo: m.repo, Caps: m.caps}
+	return ui.Gate{Repo: m.repo, Caps: m.caps, Token: m.opts.voice.Token}
 }
 
 // doneRun returns the run shown, if it completed, as a re-run needs, or
