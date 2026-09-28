@@ -16,7 +16,7 @@ import (
 // SyncKey names changes to where the refs of repo point in sync events,
 // such as a branch that a force-push moved.
 func SyncKey(repo core.RepoRef) string {
-	return "files:" + strings.ToLower(repo.String())
+	return "files:" + repoID(repo)
 }
 
 // catalog is a Store that can go through its objects, and read and rewrite

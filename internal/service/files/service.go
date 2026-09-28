@@ -14,9 +14,9 @@ package files
 
 import (
 	"context"
-	"fmt"
 	"math"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/cache"
@@ -89,17 +89,23 @@ func (s *Service) Invalidate(repo core.RepoRef) {
 // Cache keys and tags.
 
 func treeKey(repo core.RepoRef, ref string) string {
-	return fmt.Sprintf("tree:%s:%s", repo, ref)
+	return "tree:" + repoID(repo) + ":" + ref
 }
 
 func allKey(repo core.RepoRef, ref string) string {
-	return fmt.Sprintf("all:%s:%s", repo, ref)
+	return "all:" + repoID(repo) + ":" + ref
 }
 
 func blobKey(repo core.RepoRef, sha string) string {
-	return fmt.Sprintf("blob:%s:%s", repo, sha)
+	return "blob:" + repoID(repo) + ":" + sha
 }
 
 func repoTag(repo core.RepoRef) string {
-	return "repo:" + repo.String()
+	return "repo:" + repoID(repo)
+}
+
+// repoID names a repository in keys and tags. GitHub ignores case in owner
+// and repository names, so keys do too.
+func repoID(r core.RepoRef) string {
+	return strings.ToLower(r.String())
 }

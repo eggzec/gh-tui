@@ -11,7 +11,6 @@ import (
 	"math"
 	"path"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -217,7 +216,7 @@ func (d *decoder) string() string {
 // refKey names the record of ref in repo, read as kind. Repository names
 // ignore case, refs don't. Hashing makes any ref a valid key.
 func refKey(kind string, repo core.RepoRef, ref string) string {
-	h := sha256.Sum256([]byte(kind + "\x00" + strings.ToLower(repo.String()) + "\x00" + ref))
+	h := sha256.Sum256([]byte(kind + "\x00" + repoID(repo) + "\x00" + ref))
 	return hex.EncodeToString(h[:])
 }
 
