@@ -277,7 +277,10 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 		// have changed since the start.
 		o := append(slices.Clip(actionOpts), actions.WithIcons(ui.NewIcons(live.cfg.UI.Icons)))
 		return actions.Opener(actionSvc, cfg.Keys, o...)(ctx, repo, f)
-	}), tui.WithSettings(live.set))
+	}), tui.WithSettings(func(c config.Config) {
+		live.set(c)
+		engine.SetInterval(c.Sync.Interval)
+	}))
 	var (
 		activity []func(bool)
 		watchers []func(core.RepoRef)
