@@ -134,8 +134,8 @@ func TestPreviewFromSearch(t *testing.T) {
 				t.Error("the modal should take the keys while it is open")
 			}
 			m.refreshBar()
-			if len(m.hints) != 1 || !strings.HasSuffix(ansi.Strip(m.hints[0].Forms[0]), "close") {
-				t.Errorf("the status bar offers %d keys, want the modal's alone", len(m.hints))
+			if len(m.hints) != 2 || ansi.Strip(m.hints[0].Forms[0]) != "? help" || !strings.HasSuffix(ansi.Strip(m.hints[1].Forms[0]), "close") {
+				t.Errorf("the status bar offers %d keys, want the help and the modal's alone", len(m.hints))
 			}
 			run(m, ui.CloseModal(mod))
 			if m.topModal() != nil || m.screen != searchScreen || !fakes[5].focused {

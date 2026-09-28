@@ -71,23 +71,10 @@ func newBarStyles(t ui.Theme) barStyles {
 // lowShare is the percent of a quota left under which the bar warns.
 const lowShare = 10
 
-// bar is the footer when nothing takes its place: the status bar, under
-// the full help while that is shown.
+// bar is the footer when nothing takes its place: the status bar.
 func (m *Model) bar() string {
 	m.refreshBar()
-	if m.full == "" {
-		return m.status.View()
-	}
-	return m.full + "\n" + m.status.View()
-}
-
-// barHeight is the height of bar.
-func (m *Model) barHeight() int {
-	m.refreshBar()
-	if m.full == "" {
-		return 1
-	}
-	return lipgloss.Height(m.full) + 1
+	return m.status.View()
 }
 
 // refreshBar brings the hints up to date before they are drawn. Finding
@@ -102,12 +89,15 @@ func (m *Model) refreshBar() {
 	m.drawHints()
 }
 
-// drawHints renders the hints of the layers kept, and the full help while
-// it is shown, and lays the bar out with them.
+// drawHints renders the hints of the layers kept, and lays the bar out
+// with them.
 func (m *Model) drawHints() {
-	// The help key leads, and the way out of a zoom follows, where a
-	// narrow bar still shows them.
-	help := m.keys.Help
+	// The help key, as the first layer holds it now, leads, and the way
+	// out of a zoom follows, where a narrow bar still shows them.
+	var help key.Binding
+	if short := m.layers[0].Short; len(short) > 0 {
+		help = short[0]
+	}
 	h := ui.Hints{Layers: m.layers, Lead: []key.Binding{help, m.keys.state(m).Back}}
 	short := h.ShortHelp()
 	left := make([]statusbar.Item, 0, len(short))
@@ -121,10 +111,6 @@ func (m *Model) drawHints() {
 	}
 	m.hints = left
 	m.status.SetItems(m.hints, m.stats)
-	m.full = ""
-	if m.help.ShowAll {
-		m.full = m.help.FullHelpView(h.FullHelp())
-	}
 }
 
 // drawStatus renders what the right of the bar tells: the rate limits,

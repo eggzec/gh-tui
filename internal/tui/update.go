@@ -13,12 +13,14 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
-// Update routes msg: keys to the open command line, or else to the top
-// modal, or else to the app or the focused pane, app messages to the
-// app, and everything else to every section and modal.
+// Update routes msg: keys to the open command line, or else to the open
+// help, or else to the top modal, or else to the app or the focused pane,
+// app messages to the app, and everything else to every section and
+// modal.
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -38,10 +40,20 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd := m.key(msg)
 		return m, cmd
 	case tea.PasteMsg:
-		// A link pasted into the open command line goes there.
-		if m.line.Focused() {
+		// A link pasted into the open command line goes there, and text
+		// pasted into the open help's query there.
+		switch {
+		case m.line.Focused():
 			cmd := m.updateLine(msg)
 			return m, cmd
+		case m.helpOpen():
+			cmd := m.updateHelp(msg)
+			return m, cmd
+		}
+	case keyhelp.CloseMsg:
+		if msg.ID == m.keyhelp.ID() {
+			m.keyhelp.Blur()
+			return m, nil
 		}
 	case cmdline.SubmitMsg:
 		if msg.ID == m.line.ID() {
@@ -158,6 +170,19 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 	if m.line.Focused() {
 		return m.updateLine(msg)
 	}
+	// ctrl+c quits from the help and a modal, which take every other
+	// key, so that they can't trap the user.
+	if m.helpOpen() {
+		if key.Matches(msg, forceQuit) {
+			return tea.Quit
+		}
+		return m.updateHelp(msg)
+	}
+	// The help key reaches the app from inside a modal and a capturing
+	// section, unless it types into an input there.
+	if m.opensHelp(msg) {
+		return m.openHelp()
+	}
 	if mod := m.topModal(); mod != nil {
 		if key.Matches(msg, forceQuit) {
 			return tea.Quit
@@ -167,7 +192,7 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 		return cmd
 	}
 	p := m.focused()
-	// ctrl+c always reaches the quit key, so a capturing section can't
+	// ctrl+c always reaches the app's keys, so a capturing section can't
 	// trap the user.
 	if p != nil && !key.Matches(msg, forceQuit) && m.takes(p.section, msg) {
 		cmd := p.section.Update(msg)
@@ -179,10 +204,6 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 		return m.openLine()
 	case key.Matches(msg, m.keys.Quit):
 		return tea.Quit
-	case key.Matches(msg, m.keys.Help):
-		m.help.ShowAll = !m.help.ShowAll
-		m.layout()
-		return nil
 	case key.Matches(msg, m.keys.Search):
 		return m.showSearch()
 	case m.canOpenHistory() && key.Matches(msg, m.keys.History):
