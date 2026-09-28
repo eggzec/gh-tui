@@ -143,7 +143,7 @@ func TestViewErrorStyle(t *testing.T) {
 	m := view(t, []Line{{Kind: Error, Text: "plain \x1b[1mbold\x1b[0m after"}}, WithSize(40, 2), WithLineNumbers(false))
 	base := m.esc.kinds[Error].on
 	v := m.View()
-	if !strings.Contains(v, base+"plain \x1b[1mbold\x1b[m"+base+" after") {
+	if !strings.Contains(v, base+"plain \x1b[m"+base+"\x1b[1mbold\x1b[m"+base+" after") {
 		t.Errorf("error line %q, want its bold over the error style %q", v, base)
 	}
 	if !strings.Contains(ansi.Strip(v), errorGlyph) {

@@ -72,7 +72,7 @@ type row struct {
 	// text is the sanitized text, without escape sequences, and marks the
 	// SGR sequences that color it.
 	text  string
-	marks []mark
+	marks []termtext.Style
 	time  time.Time
 	// src is the index of the line in the log. The title of a section has
 	// the index of the section's first line.

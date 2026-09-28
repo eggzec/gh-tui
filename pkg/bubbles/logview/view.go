@@ -9,6 +9,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // View renders the rows in the window and the status line, in exactly
@@ -425,24 +427,25 @@ func (m *Model) writeText(b *strings.Builder, ri int, r *row, a, e int) {
 		b.WriteString(r.text[a:e])
 		return
 	}
-	// k counts the marks that apply at a, and those from lo on make the
-	// style there.
-	k, _ := slices.BinarySearchFunc(marks, a+1, func(x mark, pos int) int { return x.pos - pos })
-	lo := k - 1
-	for lo > 0 && !marks[lo].reset {
-		lo--
+	// k counts the marks before or at a, the last of which is the style
+	// there.
+	k, _ := slices.BinarySearchFunc(marks, a+1, func(x termtext.Style, pos int) int { return x.Pos - pos })
+	cur := ""
+	if k > 0 {
+		cur = marks[k-1].Seq
 	}
-	lo = max(lo, 0)
-	writeState(b, base, marks[lo:k])
+	b.WriteString(base.on)
+	b.WriteString(cur)
 	mi, inMatch := 0, false
 	for pos := a; pos < e; {
-		for ; k < len(marks) && marks[k].pos <= pos; k++ {
-			if marks[k].reset {
-				lo = k
+		if k < len(marks) && marks[k].Pos <= pos {
+			for k < len(marks) && marks[k].Pos <= pos {
+				k++
 			}
+			cur = marks[k-1].Seq
 			// A match hides the log's colors, which come back after it.
 			if !inMatch {
-				writeMark(b, base, marks[k])
+				writeStyle(b, base, cur)
 			}
 		}
 		for mi < len(matches) && matches[mi].end <= pos {
@@ -450,7 +453,7 @@ func (m *Model) writeText(b *strings.Builder, ri int, r *row, a, e int) {
 		}
 		next := e
 		if k < len(marks) {
-			next = min(next, marks[k].pos)
+			next = min(next, marks[k].Pos)
 		}
 		if mi < len(matches) {
 			x := matches[mi]
@@ -472,30 +475,18 @@ func (m *Model) writeText(b *strings.Builder, ri int, r *row, a, e int) {
 		b.WriteString(r.text[pos:next])
 		pos = next
 		if inMatch && pos >= matches[mi].end {
-			b.WriteString(ansi.ResetStyle)
-			writeState(b, base, marks[lo:k])
+			writeStyle(b, base, cur)
 			inMatch = false
 		}
 	}
 	b.WriteString(ansi.ResetStyle)
 }
 
-// writeState writes the base style and the marks that apply over it.
-func writeState(b *strings.Builder, base pair, marks []mark) {
+// writeStyle puts the base style back, and the log's style seq over it.
+func writeStyle(b *strings.Builder, base pair, seq string) {
+	b.WriteString(ansi.ResetStyle)
 	b.WriteString(base.on)
-	for _, mk := range marks {
-		b.WriteString(mk.seq)
-	}
-}
-
-// writeMark writes one mark. A reset puts the base style back under what
-// follows.
-func writeMark(b *strings.Builder, base pair, mk mark) {
-	if mk.reset {
-		b.WriteString(ansi.ResetStyle)
-		b.WriteString(base.on)
-	}
-	b.WriteString(mk.seq)
+	b.WriteString(seq)
 }
 
 // statusLine renders the title on the left and where the cursor is on the

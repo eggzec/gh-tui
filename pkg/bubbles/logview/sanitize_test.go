@@ -4,32 +4,35 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 func TestSanitize(t *testing.T) {
 	tests := []struct {
 		name, in, want string
-		marks          []mark
+		marks          []termtext.Style
 	}{
 		{name: "plain", in: "ok 1.2s", want: "ok 1.2s"},
 		{name: "unicode", in: "✓ passed 你好", want: "✓ passed 你好"},
 		{name: "crlf", in: "done\r\n", want: "done"},
 		{name: "keeps colors", in: "\x1b[36;1mgo test\x1b[0m", want: "go test",
-			marks: []mark{{pos: 0, seq: "\x1b[36;1m"}, {pos: 7, reset: true}}},
+			marks: []termtext.Style{{Pos: 0, Seq: "\x1b[1;36m"}, {Pos: 7}}},
 		{name: "splits a reset from what follows", in: "a\x1b[0;31mb", want: "ab",
-			marks: []mark{{pos: 1, seq: "\x1b[31m", reset: true}}},
+			marks: []termtext.Style{{Pos: 1, Seq: "\x1b[31m"}}},
 		{name: "an empty parameter resets", in: "\x1b[;1mb", want: "b",
-			marks: []mark{{pos: 0, seq: "\x1b[1m", reset: true}}},
+			marks: []termtext.Style{{Pos: 0, Seq: "\x1b[1m"}}},
 		{name: "a zero in a color is no reset", in: "\x1b[38;5;0mx\x1b[38;2;255;0;0my", want: "xy",
-			marks: []mark{{pos: 0, seq: "\x1b[38;5;0m"}, {pos: 1, seq: "\x1b[38;2;255;0;0m"}}},
+			marks: []termtext.Style{{Pos: 0, Seq: "\x1b[38;5;0m"}, {Pos: 1, Seq: "\x1b[38;2;255;0;0m"}}},
 		{name: "colon colors", in: "\x1b[38:2::255:0:0mx", want: "x",
-			marks: []mark{{pos: 0, seq: "\x1b[38:2::255:0:0m"}}},
+			marks: []termtext.Style{{Pos: 0, Seq: "\x1b[38:2::255:0:0m"}}},
 		{name: "tabs", in: "a\tb\t\tc", want: "a       b               c"},
 		{name: "tabs after wide runes", in: "你\tx", want: "你      x"},
 		{name: "tabs after colors", in: "\x1b[1ma\x1b[m\tb", want: "a       b",
-			marks: []mark{{pos: 0, seq: "\x1b[1m"}, {pos: 1, reset: true}}},
+			marks: []termtext.Style{{Pos: 0, Seq: "\x1b[1m"}, {Pos: 1}}},
 		{name: "carriage return overwrites", in: "10%\r50%\r100%", want: "100%"},
 		{name: "invalid utf-8", in: "a\xffb", want: "a�b"},
 	}
@@ -104,4 +107,28 @@ func TestSanitizeView(t *testing.T) {
 		t.Errorf("view reads %q", got)
 	}
 	assertFits(t, v, 40, 3)
+}
+
+// However many colors a log holds, a frame writes at most one short
+// sequence for each cell: sequences too long to keep are dropped, and the
+// colors since the last reset fold into one.
+func TestSanitizeViewBounded(t *testing.T) {
+	const width, height = 80, 10
+	huge := "\x1b[38;2;" + strings.Repeat("1", 60<<10) + "m"
+	for _, text := range []string{
+		strings.Repeat("\x1b[1mx", 200_000),
+		strings.Repeat("\x1b[1mx\x1b[3my\x1b[22;23m", 50_000),
+		strings.Repeat(huge+"x", 50),
+	} {
+		m := view(t, []Line{{Text: text}}, WithSize(width, height), WithLineNumbers(false))
+		start := time.Now()
+		v := m.View()
+		if d := time.Since(start); d > time.Second {
+			t.Errorf("a frame took %v", d)
+		}
+		if limit := 64 * width * height; len(v) > limit {
+			t.Errorf("a frame is %d bytes, more than %d", len(v), limit)
+		}
+		assertFits(t, v, width, height)
+	}
 }
