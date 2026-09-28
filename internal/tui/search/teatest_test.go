@@ -19,7 +19,8 @@ type app struct {
 	s    *Section
 	sent []tea.Msg
 	// got hears of every message sent, so the test knows when to quit,
-	// and ready is closed once results are listed.
+	// and ready is closed once the results of the entered query are
+	// listed, with the cursor on one.
 	got   chan tea.Msg
 	ready chan struct{}
 	shown bool
@@ -42,9 +43,15 @@ func (a *app) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, nil
 	}
 	cmd := a.s.Update(msg)
-	if l, ok := a.s.visibleHits(); ok && l.feed.Len() > 0 && !a.shown {
-		a.shown = true
-		close(a.ready)
+	// The results of a query typed so far may come while typing, so
+	// only those shown after enter, which focuses them, will do.
+	if a.s.area == resultsArea && !a.shown {
+		if l, ok := a.s.visibleHits(); ok {
+			if _, ok := l.feed.Selected(); ok {
+				a.shown = true
+				close(a.ready)
+			}
+		}
 	}
 	return a, cmd
 }
