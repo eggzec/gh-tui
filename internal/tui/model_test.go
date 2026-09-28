@@ -809,6 +809,32 @@ func TestDoneWithErrorShowsToast(t *testing.T) {
 	}
 }
 
+func TestFailShowsToast(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want string
+	}{
+		{"not found names the subject", &ghError{is: core.ErrNotFound, reason: "Not Found"}, "Couldn't load #42: eggzec/gh-tui#42 doesn't exist or is private."},
+		{"forbidden names the repository", &ghError{is: core.ErrForbidden, reason: "Resource not accessible"}, "Couldn't load #42: you don't have access to eggzec/gh-tui."},
+		{"offline", fmt.Errorf("github: %w: dial tcp", core.ErrOffline), "Couldn't load #42: can't reach GitHub."},
+		{"canceled", fmt.Errorf("github: GET /repos: %w", context.Canceled), ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m, _ := newTestApp(t, WithVoice(logVoice(t)))
+			m.Update(ui.FailMsg{What: "load #42", Err: core.About("eggzec/gh-tui#42", tt.err)})
+			switch got := toasted(m); {
+			case tt.want == "" && got != "":
+				t.Errorf("toast %q, want none", got)
+			case tt.want != "" && !hasToast(m, tt.want):
+				t.Errorf("toast %q, want %q", got, tt.want)
+			}
+			checkClean(t, toasted(m))
+		})
+	}
+}
+
 func TestDoneWithErrorWithoutLog(t *testing.T) {
 	m, _ := newTestApp(t)
 	m.Update(ui.DoneMsg{What: "merge #42", Err: errors.New("github: decode 200: unexpected EOF")})

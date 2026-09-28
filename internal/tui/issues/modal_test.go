@@ -414,7 +414,7 @@ func TestCommentsErrorWords(t *testing.T) {
 		want string
 	}{
 		{"offline", fmt.Errorf("issue comments: github: GET /repos/eggzec/gh-tui/issues/999/comments: %w", core.ErrOffline), "✗ Can't reach GitHub · r to retry"},
-		{"forbidden", fmt.Errorf("issue comments: github: 403 Forbidden: %w", core.ErrForbidden), "✗ You don't have access to eggzec/gh-tui#999 · o to open on GitHub"},
+		{"forbidden", fmt.Errorf("issue comments: github: 403 Forbidden: %w", core.ErrForbidden), "✗ You don't have access to eggzec/gh-tui · o to open on GitHub"},
 		{"internal", errors.New("issue comments: github: decode: unexpected EOF"), "✗ Something went wrong · r to retry"},
 	}
 	for _, tt := range tests {

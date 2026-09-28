@@ -419,7 +419,7 @@ func TestErrorWords(t *testing.T) {
 		},
 		{
 			"forbidden", fmt.Errorf("pull checks: github: 403 Forbidden: %w", core.ErrForbidden),
-			"✗ You don't have access to " + pr, "✗ You don't have access to charmbracelet/bubbletea · o to open on GitHub",
+			"✗ You don't have access to charmbracelet/bubbletea", "✗ You don't have access to charmbracelet/bubbletea · o to open on GitHub",
 		},
 		{
 			"not found", fmt.Errorf("pull checks: github: 404 Not Found: %w", core.ErrNotFound),

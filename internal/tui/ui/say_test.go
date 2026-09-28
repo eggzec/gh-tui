@@ -288,6 +288,7 @@ func TestErrorText(t *testing.T) {
 	}{
 		{"offline", "eggzec/x", fmt.Errorf("list files: %w", core.ErrOffline), "Can't reach GitHub", "r to retry"},
 		{"forbidden names the subject", "eggzec/x", fmt.Errorf("list files: %w", core.ErrForbidden), "You don't have access to eggzec/x", "o to open on GitHub"},
+		{"forbidden names the repository of an item", "eggzec/x#5", fmt.Errorf("merge #5: %w", core.ErrForbidden), "You don't have access to eggzec/x", "o to open on GitHub"},
 		{"forbidden without a subject", "", fmt.Errorf("list files: %w", core.ErrForbidden), "You don't have access to this", "o to open on GitHub"},
 		{"not found names the subject", "eggzec/x", fmt.Errorf("list files: %w", core.ErrNotFound), "eggzec/x doesn't exist or is private.", ""},
 		{"the error's own subject wins", "eggzec/x", &core.NoNumberError{Repo: x, Number: 5, Err: core.ErrNotFound}, "eggzec/x#5 doesn't exist or is private.", ""},
