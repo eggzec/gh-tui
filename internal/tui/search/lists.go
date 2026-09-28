@@ -100,8 +100,8 @@ func (s *Section) ensureHits(k core.SearchKind) tea.Cmd {
 	return l.feed.Init()
 }
 
-// searchCode searches code for the query, unless it has, or GitHub has run
-// out of code searches, in which case it counts down to when they resume.
+// searchCode searches code for the query, unless it has, or code search
+// ran out of requests and the countdown to when they resume runs.
 func (s *Section) searchCode() tea.Cmd {
 	if s.text == "" {
 		return nil
@@ -113,11 +113,6 @@ func (s *Section) searchCode() tea.Cmd {
 	}
 	if s.limited() {
 		return nil
-	}
-	if _, ok := s.svc.CachedCode(search.CodeQuery{Text: s.text}); !ok {
-		if reset, limited := s.svc.CodeLimited(); limited {
-			return s.limitCode(reset)
-		}
 	}
 	svc, text := s.svc, s.text
 	fetch := func(ctx context.Context, cursor string) ([]core.CodeHit, string, error) {
@@ -345,11 +340,15 @@ func (s *Section) limited() bool {
 	return !s.codeReset.IsZero() && s.now().Before(s.codeReset)
 }
 
-// ticked counts down, and stops once code search resumes.
+// ticked counts down, and stops once code search resumes, when the search
+// that the limit refused is offered again, as one not run yet.
 func (s *Section) ticked() tea.Cmd {
 	s.ticking = false
 	if !s.limited() {
 		s.codeReset = time.Time{}
+		if s.code != nil && errors.Is(s.code.feed.Err(), core.ErrRateLimited) {
+			s.code = nil
+		}
 		return nil
 	}
 	return s.tick()

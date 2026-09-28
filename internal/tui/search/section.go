@@ -34,9 +34,6 @@ type Service interface {
 	Prefetch(ctx context.Context, q search.Query) error
 	CachedCode(q search.CodeQuery) (core.SearchPage[core.CodeHit], bool)
 	Code(ctx context.Context, q search.CodeQuery) (core.SearchPage[core.CodeHit], error)
-	// CodeLimited reports whether code search is out of requests, and when
-	// it resumes.
-	CodeLimited() (reset time.Time, limited bool)
 	// Invalidate marks every cached page stale.
 	Invalidate()
 }

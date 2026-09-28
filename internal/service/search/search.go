@@ -103,12 +103,8 @@ type Service struct {
 	code   *cache.Cache[core.SearchPage[core.CodeHit]]
 	counts *cache.Cache[map[core.SearchKind]int]
 
-	// mu guards the read, change and write of an entry of counts, and
-	// codeReset.
+	// mu guards the read, change and write of an entry of counts.
 	mu sync.Mutex
-	// codeReset is when code search may run again after GitHub said it
-	// ran out, or the zero time.
-	codeReset time.Time
 }
 
 // New returns a Service that searches with api.

@@ -247,15 +247,6 @@ func (f *fakeService) Code(_ context.Context, q search.CodeQuery) (core.SearchPa
 	return p, nil
 }
 
-func (f *fakeService) CodeLimited() (time.Time, bool) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if time.Now().Before(f.limited) {
-		return f.limited, true
-	}
-	return time.Time{}, false
-}
-
 func (f *fakeService) Invalidate() {
 	f.mu.Lock()
 	defer f.mu.Unlock()
