@@ -96,7 +96,7 @@ func TestKeptListConfirmedByProbe(t *testing.T) {
 
 	// The kept page is marked fetched now, so the next session starts
 	// fresh.
-	e, ok := New(v.api(), WithStore(store)).keptLists.Load(openList.key())
+	e, ok := New(v.api(), WithStore(store)).keptLists.Load(openList.key(30))
 	if !ok || e.FetchedAt.Before(before) || e.ETag != v.etag() {
 		t.Errorf("kept page fetched at %v with ETag %s, %v; want at least %v with %s", e.FetchedAt, e.ETag, ok, before, v.etag())
 	}
@@ -115,7 +115,7 @@ func TestKeptListReadWhenProbeChanged(t *testing.T) {
 	}
 	wantReads(t, api, 1, 1)
 	// The page read carries the probe's new ETag, which predates it.
-	e, ok := New(v.api(), WithStore(store)).keptLists.Load(openList.key())
+	e, ok := New(v.api(), WithStore(store)).keptLists.Load(openList.key(30))
 	if !ok || e.ETag != v.etag() {
 		t.Errorf("kept page has ETag %s, %v; want %s", e.ETag, ok, v.etag())
 	}
@@ -176,7 +176,7 @@ func TestNewListNotProbed(t *testing.T) {
 	}
 	q := ListQuery{Repo: repo, State: core.StateClosed}
 	list(t, s, q)
-	if e, _ := s.lists.Get(q.key()); e.ETag != v.etag() {
+	if e, _ := s.lists.Get(q.key(30)); e.ETag != v.etag() {
 		t.Errorf("page read after Poll has ETag %q, want %q", e.ETag, v.etag())
 	}
 }
@@ -242,7 +242,7 @@ func TestKeptListProbeFails(t *testing.T) {
 				if err == nil {
 					t.Errorf("List = %+v; want the refusal", p)
 				}
-				if _, ok := New(v.api(), WithStore(store)).keptLists.Load(openList.key()); ok {
+				if _, ok := New(v.api(), WithStore(store)).keptLists.Load(openList.key(30)); ok {
 					t.Error("the refused page is still kept")
 				}
 			}
@@ -298,7 +298,7 @@ func TestListInvalidatedWhileRead(t *testing.T) {
 	}
 	// The list's probe, Poll's, and the list's again.
 	wantReads(t, api, 3, 1)
-	if _, st := s.lists.Get(openList.key()); st != cache.Fresh {
+	if _, st := s.lists.Get(openList.key(30)); st != cache.Fresh {
 		t.Errorf("page is %v, want fresh", st)
 	}
 }

@@ -13,6 +13,18 @@ type options struct {
 	ttl      time.Duration
 	capacity int
 	store    cache.Store
+	workSize int
+}
+
+// WithWorkSize sets how many of the most recently updated items each list
+// of work holds whose query sets no size, at most 100. By default, and for
+// n below one, it is the default of the config (config.Default).
+func WithWorkSize(n int) Option {
+	return func(o *options) {
+		if n > 0 {
+			o.workSize = n
+		}
+	}
 }
 
 // WithTTL sets how long the work waiting stays fresh before a read fetches

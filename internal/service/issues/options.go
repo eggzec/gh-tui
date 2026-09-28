@@ -16,6 +16,19 @@ type options struct {
 	pulls  PullCache
 	access Access
 	repos  Repos
+	// pageSize is that of a page whose query sets none.
+	pageSize int
+}
+
+// WithPageSize sets how many issues or comments a page holds whose query
+// sets no size, at most 100. By default, and for n below one, it is the
+// default of the config (config.Default).
+func WithPageSize(n int) Option {
+	return func(o *options) {
+		if n > 0 {
+			o.pageSize = n
+		}
+	}
 }
 
 // WithTTL sets how long fetched issues count as fresh. Until then, reads

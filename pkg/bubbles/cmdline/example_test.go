@@ -22,7 +22,7 @@ func Example() {
 		}
 		return out
 	}
-	m := cmdline.New(
+	m := cmdline.New(100,
 		cmdline.WithSize(80, cmdline.MaxHeight),
 		cmdline.WithComplete(complete),
 	)

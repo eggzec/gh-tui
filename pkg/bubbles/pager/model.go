@@ -135,9 +135,11 @@ func New(opts ...Option) Model {
 	m := Model{
 		settings: s,
 		id:       lastID.Add(1),
-		prompt:   cmdline.New(cmdline.WithPrompt(promptSearch), cmdline.WithKeyMap(promptKeys())),
-		spin:     spinner.New(spinner.WithSpinner(spinner.Dot)),
-		mark:     -1,
+		// The pager submits the prompt itself, so nothing enters the
+		// prompt's history, which needs no limit.
+		prompt: cmdline.New(0, cmdline.WithPrompt(promptSearch), cmdline.WithKeyMap(promptKeys())),
+		spin:   spinner.New(spinner.WithSpinner(spinner.Dot)),
+		mark:   -1,
 	}
 	m.SetKeyMap(s.keys)
 	m.SetStyles(s.styles)

@@ -21,6 +21,7 @@
 package history
 
 import (
+	"cmp"
 	"context"
 	"encoding/hex"
 	"errors"
@@ -29,6 +30,7 @@ import (
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/cache"
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
 	"github.com/eggzec/gh-tui/internal/service/fallback"
@@ -67,6 +69,9 @@ type Service struct {
 	keptPages    *cache.Shelf[core.Page[core.Commit]]
 	keptDetails  *cache.Shelf[core.CommitDetail]
 	keptFiles    *cache.Shelf[core.Page[core.CommitFile]]
+	// commitPageSize is the size of a page of commits whose query sets
+	// none.
+	commitPageSize int
 }
 
 // The kinds of entries the service keeps, and the version of their values.
@@ -106,6 +111,8 @@ func New(api API, opts ...Option) *Service {
 		keptPages:    cache.NewShelf[core.Page[core.Commit]](o.objects, kindPages, schema),
 		keptDetails:  cache.NewShelf[core.CommitDetail](o.objects, kindDetails, schema),
 		keptFiles:    cache.NewShelf[core.Page[core.CommitFile]](o.objects, kindFiles, schema),
+
+		commitPageSize: cmp.Or(o.commitPageSize, config.Default().PageSize.Commits),
 	}
 }
 
@@ -157,10 +164,13 @@ func object[V any](ctx context.Context, c *cache.Cache[V], shelf *cache.Shelf[V]
 // pageSize returns n, or def for 0, at most the 100 that GitHub lists.
 func pageSize(n, def int) int {
 	if n <= 0 {
-		return def
+		n = def
 	}
-	return min(n, 100)
+	return min(n, maxPageSize)
 }
+
+// maxPageSize is the most items GitHub returns in a page.
+const maxPageSize = 100
 
 func repoTag(repo core.RepoRef) string {
 	return "repo:" + repoKey(repo)

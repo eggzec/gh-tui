@@ -96,6 +96,12 @@ func reason(key string, err error) string {
 // the sections, which take what they use of it, whatever WithSettings
 // tells, and the theme, which draws the sections with what they took.
 func (m *Model) applySettings() tea.Cmd {
+	// Toasts shown keep the time they were given; later ones take the new.
+	if m.cfg.UI.Toast != m.toastTimes {
+		m.toastTimes = m.cfg.UI.Toast
+		m.toast.SetDuration(m.toastTimes.Info)
+		m.toast.SetErrorDuration(m.toastTimes.Error)
+	}
 	if m.settings != nil {
 		m.settings(m.cfg)
 	}

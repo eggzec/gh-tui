@@ -55,10 +55,10 @@ func parseCommentsKey(key string) (CommentsQuery, bool) {
 		return CommentsQuery{}, false
 	}
 	size, err := strconv.Atoi(v.Get("first"))
-	if err != nil {
+	if err != nil || size <= 0 {
 		return CommentsQuery{}, false
 	}
 	q := CommentsQuery{Repo: repo, Number: number, Cursor: v.Get("cursor"), PageSize: size}
 	// A key that doesn't make itself again isn't one of the service's.
-	return q, q.key() == key
+	return q, q.key(size) == key
 }

@@ -445,7 +445,7 @@ func TestSayToastShowsTheWayOut(t *testing.T) {
 	for _, tt := range tests {
 		tt.p.Action = action
 		for width := 40; width <= 200; width++ {
-			m := toast.New(toast.WithSize(width, 24))
+			m := toast.New(4*time.Second, 8*time.Second, toast.WithSize(width, 24))
 			text := SayToast(tt.p, testVoice(), func(s string) bool { return m.Fits(toast.Error, s) })
 			m.Push(toast.Error, text)
 			shown := squeeze(ansi.Strip(m.View()))

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/cache"
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
 	"github.com/eggzec/gh-tui/internal/service/fallback"
@@ -75,6 +76,8 @@ type Service struct {
 	now          func() time.Time
 	// ttl is how long a fetched entry stays fresh.
 	ttl time.Duration
+	// pageSize is the size of a page whose query sets none.
+	pageSize int
 	// etags holds the latest probe ETag of each polled repository.
 	etags probe.Tracker
 	// seen holds what the list pages last showed of each pull request, by
@@ -108,6 +111,7 @@ func New(api API, opts ...Option) *Service {
 		keptComments: cache.NewShelf[stampedComments](o.store, kindComments, commentsSchema),
 		now:          time.Now,
 		ttl:          cmp.Or(o.ttl, cache.DefaultTTL),
+		pageSize:     cmp.Or(o.pageSize, config.Default().PageSize.Pulls),
 	}
 	s.etags.Keep(o.store)
 	return s
@@ -129,17 +133,14 @@ const (
 	commentsSchema = 3
 )
 
-// Page sizes. GitHub returns at most maxPageSize items per page.
-const (
-	defaultPageSize = 30
-	maxPageSize     = 100
-)
+// maxPageSize is the most items GitHub returns in a page.
+const maxPageSize = 100
 
-// pageSize returns n as a page size GitHub accepts: defaultPageSize if n is
-// not positive, and at most maxPageSize.
-func pageSize(n int) int {
+// pageSize returns n as a page size GitHub accepts: def, the service's, if
+// n is not positive, and at most maxPageSize.
+func pageSize(n, def int) int {
 	if n <= 0 {
-		return defaultPageSize
+		n = def
 	}
 	return min(n, maxPageSize)
 }
@@ -157,15 +158,17 @@ type ListQuery struct {
 	// Cursor is the Next of the previous page, or empty for the first page.
 	Cursor string
 	// PageSize is how many pull requests the page holds at most. Zero means
-	// 30, and GitHub's maximum of 100 caps it.
+	// the service's page size, and GitHub's maximum of 100 caps it.
 	PageSize int
 	// Again reads past a kept page: set it on the read that follows one
 	// that came back Stale. It doesn't key the cache.
 	Again bool
 }
 
-func (q ListQuery) key() string {
-	v := url.Values{"state": {string(q.State)}, "cursor": {q.Cursor}, "first": {strconv.Itoa(pageSize(q.PageSize))}}
+// key is the key of the page of q, whose size is size, the service's page
+// size, unless q sets one.
+func (q ListQuery) key(size int) string {
+	v := url.Values{"state": {string(q.State)}, "cursor": {q.Cursor}, "first": {strconv.Itoa(pageSize(q.PageSize, size))}}
 	if q.Filter != "" {
 		v.Set("filter", q.Filter)
 	}
@@ -260,7 +263,7 @@ func stampedMarks(p *stampedComments) (offline, limited *bool) {
 // CachedList returns the page for q if it is cached, fresh or stale, without
 // fetching it.
 func (s *Service) CachedList(q ListQuery) (core.Page[core.PullRequest], bool) {
-	p, ok := cached(s.lists, q.key())
+	p, ok := cached(s.lists, q.key(s.pageSize))
 	return p.Page, ok
 }
 
@@ -271,7 +274,7 @@ func (s *Service) CachedList(q ListQuery) (core.Page[core.PullRequest], bool) {
 // validators. It may read the store, so call it where I/O is fine, such as
 // in a tea.Cmd.
 func (s *Service) FreshList(q ListQuery) bool {
-	key := q.key()
+	key := q.key(s.pageSize)
 	s.keptLists.Warm(s.lists, key, true)
 	return fresh(s.lists, key)
 }
@@ -292,7 +295,7 @@ func (s *Service) FreshList(q ListQuery) bool {
 // read: see loadList. If GitHub can't be reached, a stale page is served
 // with Offline set, and if it rate limits the read, with Limited set.
 func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.PullRequest], error) {
-	key := q.key()
+	key := q.key(s.pageSize)
 	shelf := s.keptLists
 	if q.Filter != "" {
 		// Filters are many and short-lived, so only the lists every

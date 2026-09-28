@@ -351,7 +351,7 @@ func TestParseKeys(t *testing.T) {
 		}
 	}
 	for _, q := range []CommitsQuery{
-		CommitsQuery{Repo: repo}.normalize(),
+		CommitsQuery{Repo: repo}.normalize(50),
 		{Repo: repo, Ref: "feat/x", PageSize: 20},
 	} {
 		if got, ok := parseRefPageKey(refPageKey(q)); !ok || got != q {

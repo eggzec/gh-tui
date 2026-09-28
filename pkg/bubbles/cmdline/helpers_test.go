@@ -41,9 +41,12 @@ func press(tb testing.TB, m Model, msgs ...tea.Msg) (after Model, sent tea.Msg) 
 }
 
 // opened returns a command line built with opts and opened with initial.
+// testHistoryLimit is how many lines the history of a test keeps.
+const testHistoryLimit = 100
+
 func opened(tb testing.TB, initial string, opts ...Option) Model {
 	tb.Helper()
-	m := New(opts...)
+	m := New(testHistoryLimit, opts...)
 	m.Open(initial)
 	return m
 }

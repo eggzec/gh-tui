@@ -282,7 +282,7 @@ func TestViewWidePlaceholder(t *testing.T) {
 
 // A value set before the size scrolls again once the line has room.
 func TestViewScrollsAgainOnResize(t *testing.T) {
-	m := New(WithValue("goto cli/cli"))
+	m := New(testHistoryLimit, WithValue("goto cli/cli"))
 	m.Open(m.Value())
 	m.SetSize(40, MaxHeight)
 	if v := ansi.Strip(m.View()); !strings.Contains(v, ":goto cli/cli") {
@@ -291,7 +291,7 @@ func TestViewScrollsAgainOnResize(t *testing.T) {
 }
 
 func TestViewFollowsFocus(t *testing.T) {
-	m := New(WithValue("goto"), WithSize(20, MaxHeight))
+	m := New(testHistoryLimit, WithValue("goto"), WithSize(20, MaxHeight))
 	blurred := m.View()
 	m.Focus()
 	if m.View() == blurred {

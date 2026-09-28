@@ -24,7 +24,7 @@ type ListQuery struct {
 	Filter string
 	// Cursor is the Next of the previous page, or empty for the first.
 	Cursor string
-	// PageSize defaults to DefaultPageSize and is at most 100. A
+	// PageSize defaults to the service's page size and is at most 100. A
 	// cursor keeps the size of the page it came from, so it sizes only the
 	// first page, but every size is cached apart.
 	PageSize int
@@ -33,22 +33,22 @@ type ListQuery struct {
 	Again bool
 }
 
-func (q ListQuery) normalize() ListQuery {
+// normalize returns q with its defaults set: size is the service's page
+// size.
+func (q ListQuery) normalize(size int) ListQuery {
 	q.State = cmp.Or(q.State, core.FilterOpen)
-	q.PageSize = pageSize(q.PageSize)
+	q.PageSize = pageSize(q.PageSize, size)
 	return q
 }
 
-// Page sizes of the queries.
-const (
-	DefaultPageSize = 30
-	// maxPageSize is the most GitHub returns in one page.
-	maxPageSize = 100
-)
+// maxPageSize is the most GitHub returns in one page.
+const maxPageSize = 100
 
-func pageSize(n int) int {
+// pageSize returns n as a page size GitHub accepts: def if n is not
+// positive, and at most maxPageSize.
+func pageSize(n, def int) int {
 	if n <= 0 {
-		return DefaultPageSize
+		n = def
 	}
 	return min(n, maxPageSize)
 }
@@ -56,7 +56,7 @@ func pageSize(n int) int {
 // CachedList returns the cached page for q, fresh or stale, without a
 // request. It reports false if the page isn't cached.
 func (s *Service) CachedList(q ListQuery) (core.Page[core.Issue], bool) {
-	e, st := s.lists.Get(listKey(q.normalize()))
+	e, st := s.lists.Get(listKey(q.normalize(s.pageSize)))
 	return e.Value, st != cache.Miss
 }
 
@@ -67,7 +67,7 @@ func (s *Service) CachedList(q ListQuery) (core.Page[core.Issue], bool) {
 // it with its validators. It may read the store, so call it where I/O is
 // fine, such as in a tea.Cmd.
 func (s *Service) FreshList(q ListQuery) bool {
-	key := listKey(q.normalize())
+	key := listKey(q.normalize(s.pageSize))
 	s.keptLists.Warm(s.lists, key, true)
 	return fresh(s.lists, key)
 }
@@ -89,7 +89,7 @@ func (s *Service) FreshList(q ListQuery) bool {
 // can't be reached, a stale page is served with Offline set, and if it
 // rate limits the read, with Limited set.
 func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.Issue], error) {
-	q = q.normalize()
+	q = q.normalize(s.pageSize)
 	key := listKey(q)
 	shelf := s.keptLists
 	if q.Filter != "" {
@@ -171,15 +171,15 @@ type CommentsQuery struct {
 	PageSize int
 }
 
-func (q CommentsQuery) normalize() CommentsQuery {
-	q.PageSize = pageSize(q.PageSize)
+func (q CommentsQuery) normalize(size int) CommentsQuery {
+	q.PageSize = pageSize(q.PageSize, size)
 	return q
 }
 
 // CachedComments returns the cached page for q, fresh or stale, without a
 // request. It reports false if the page isn't cached.
 func (s *Service) CachedComments(q CommentsQuery) (core.Page[core.Comment], bool) {
-	e, st := s.comments.Get(commentsKey(q.normalize()))
+	e, st := s.comments.Get(commentsKey(q.normalize(s.pageSize)))
 	return e.Value.Value, st != cache.Miss
 }
 
@@ -188,7 +188,7 @@ func (s *Service) CachedComments(q CommentsQuery) (core.Page[core.Comment], bool
 // while it was read at the version of the issue that the list last showed.
 // What an earlier session kept counts as cached, as for Get.
 func (s *Service) Comments(ctx context.Context, q CommentsQuery) (core.Page[core.Comment], error) {
-	q = q.normalize()
+	q = q.normalize(s.pageSize)
 	ckey := commentsKey(q)
 	s.keptComments.Warm(s.comments, ckey, true)
 	if p, ok := s.currentComments(q); ok {

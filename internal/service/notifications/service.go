@@ -3,11 +3,13 @@
 package notifications
 
 import (
+	"cmp"
 	"context"
 	"sync/atomic"
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/cache"
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
 )
@@ -37,6 +39,8 @@ type Service struct {
 	kept *cache.Shelf[page]
 	// interval is the latest X-Poll-Interval, in nanoseconds.
 	interval atomic.Int64
+	// pageSize is the size of a page whose query sets none.
+	pageSize int
 }
 
 type page = core.Page[core.Notification]
@@ -48,6 +52,19 @@ type options struct {
 	cache  []cache.Option
 	store  cache.Store
 	access Access
+	// pageSize is that of a page whose query sets none.
+	pageSize int
+}
+
+// WithPageSize sets how many threads a page holds whose query sets no
+// size, at most 100. By default, and for n below one, it is
+// the default of the config (config.Default).
+func WithPageSize(n int) Option {
+	return func(o *options) {
+		if n > 0 {
+			o.pageSize = n
+		}
+	}
 }
 
 // WithTTL sets how long a fetched page stays fresh. The default is
@@ -92,10 +109,11 @@ func New(api API, opts ...Option) *Service {
 		opt(&o)
 	}
 	return &Service{
-		api:    api,
-		access: o.access,
-		cache:  cache.New[page](o.cache...),
-		kept:   cache.NewShelf[page](o.store, kind, schema),
+		api:      api,
+		access:   o.access,
+		cache:    cache.New[page](o.cache...),
+		kept:     cache.NewShelf[page](o.store, kind, schema),
+		pageSize: cmp.Or(o.pageSize, config.Default().PageSize.Notifications),
 	}
 }
 

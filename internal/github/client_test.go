@@ -14,7 +14,16 @@ import (
 
 	"github.com/cli/go-gh/v2/pkg/config"
 
+	ghtui "github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
+)
+
+// defaultTimeout and maxInFlight are the timeout and the concurrency of a
+// client built without WithHTTPClient and WithConcurrency: those of the
+// default config.
+var (
+	defaultTimeout = ghtui.Default().GitHub.Timeout
+	maxInFlight    = ghtui.Default().GitHub.Concurrency
 )
 
 // newTestClient returns a client whose REST root and GraphQL endpoint are

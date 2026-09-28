@@ -12,6 +12,7 @@
 package search
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"maps"
@@ -22,14 +23,13 @@ import (
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/cache"
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
 )
 
-// Defaults of a Service and a Query.
+// Defaults of a Service.
 const (
-	// DefaultPageSize is the page size of a Query that sets none.
-	DefaultPageSize = 20
 	// DefaultTTL is short: results change, and a query typed again soon
 	// after is the case the cache is for.
 	DefaultTTL = 30 * time.Second
@@ -63,14 +63,16 @@ type Query struct {
 	Kind core.SearchKind
 	// Cursor is the Next of the previous page, or empty for the first page.
 	Cursor string
-	// PageSize is how many results a page holds. Zero means
-	// DefaultPageSize, and sizes above GitHub's maximum of 100 are clamped.
+	// PageSize is how many results a page holds. Zero means the service's
+	// page size, and sizes above GitHub's maximum of 100 are clamped.
 	PageSize int
 }
 
-func (q Query) normalize() Query {
+// normalize returns q with its defaults set: size is the service's page
+// size.
+func (q Query) normalize(size int) Query {
 	q.Text = normalizeText(q.Text)
-	q.PageSize = pageSize(q.PageSize)
+	q.PageSize = pageSize(q.PageSize, size)
 	return q
 }
 
@@ -78,9 +80,11 @@ func normalizeText(s string) string {
 	return strings.Join(strings.Fields(s), " ")
 }
 
-func pageSize(n int) int {
+// pageSize returns n as a page size GitHub accepts: def if n is not
+// positive, and at most maxPageSize.
+func pageSize(n, def int) int {
 	if n <= 0 {
-		return DefaultPageSize
+		n = def
 	}
 	return min(n, maxPageSize)
 }
@@ -102,6 +106,8 @@ type Service struct {
 	pages  *cache.Cache[core.SearchPage[core.SearchHit]]
 	code   *cache.Cache[core.SearchPage[core.CodeHit]]
 	counts *cache.Cache[map[core.SearchKind]int]
+	// pageSize is the size of a page whose query sets none.
+	pageSize int
 
 	// mu guards the read, change and write of an entry of counts.
 	mu sync.Mutex
@@ -114,17 +120,18 @@ func New(api API, opts ...Option) *Service {
 		opt(&o)
 	}
 	return &Service{
-		api:    api,
-		pages:  cache.New[core.SearchPage[core.SearchHit]](cache.WithTTL(o.ttl), cache.WithCapacity(o.capacity)),
-		code:   cache.New[core.SearchPage[core.CodeHit]](cache.WithTTL(o.codeTTL), cache.WithCapacity(o.capacity)),
-		counts: cache.New[map[core.SearchKind]int](cache.WithTTL(o.ttl), cache.WithCapacity(o.capacity)),
+		api:      api,
+		pages:    cache.New[core.SearchPage[core.SearchHit]](cache.WithTTL(o.ttl), cache.WithCapacity(o.capacity)),
+		code:     cache.New[core.SearchPage[core.CodeHit]](cache.WithTTL(o.codeTTL), cache.WithCapacity(o.capacity)),
+		counts:   cache.New[map[core.SearchKind]int](cache.WithTTL(o.ttl), cache.WithCapacity(o.capacity)),
+		pageSize: cmp.Or(o.pageSize, config.Default().PageSize.Search),
 	}
 }
 
 // CachedSearch returns the cached page for q, fresh or stale, without I/O.
 // A query without text has no results, which are always known.
 func (s *Service) CachedSearch(q Query) (Result, bool) {
-	q = q.normalize()
+	q = q.normalize(s.pageSize)
 	if q.Text == "" {
 		return Result{}, true
 	}
@@ -160,7 +167,7 @@ func (s *Service) Prefetch(ctx context.Context, q Query) error {
 }
 
 func (s *Service) search(ctx context.Context, q Query, count bool) (Result, error) {
-	q = q.normalize()
+	q = q.normalize(s.pageSize)
 	if q.Text == "" {
 		return Result{}, nil
 	}

@@ -83,6 +83,9 @@ dashboard:
 
 ui:
   icons: unicode
+  toast:
+    info: 6s
+    error: 12s
 
 images:
   enabled: "off"
@@ -92,6 +95,23 @@ images:
 
 auth:
   check: false
+
+github:
+  timeout: 1m
+  concurrency: 4
+
+page_size:
+  pulls: 50
+  issues: 40
+  notifications: 20
+  repos: 60
+  runs: 25
+  commits: 100
+  search: 10
+  waiting_on_you: 15
+
+commands:
+  history: 500
 
 log:
   level: debug

@@ -177,8 +177,8 @@ func TestListPageSize(t *testing.T) {
 	tests := []struct {
 		size, want int
 	}{
-		{0, DefaultPageSize},
-		{-1, DefaultPageSize},
+		{0, 30},
+		{-1, 30},
 		{1, 1},
 		{100, 100},
 		{101, 100},
@@ -294,7 +294,7 @@ func TestPollOffline(t *testing.T) {
 		return page{}, github.Response{}, fmt.Errorf("%w: dial tcp: connection refused", core.ErrOffline)
 	}}
 	s := New(api)
-	s.cache.Set(ListQuery{}.key(), entry(page1, modified1))
+	s.cache.Set(ListQuery{}.key(30), entry(page1, modified1))
 
 	if res, err := s.Poll(t.Context()); !errors.Is(err, core.ErrOffline) || res.Changed {
 		t.Errorf("Poll = %+v, %v; want it to fail offline without a change", res, err)
@@ -339,7 +339,7 @@ func TestPollChanged(t *testing.T) {
 		return page2, github.Response{LastModified: modified2, PollInterval: 90 * time.Second}, nil
 	}}
 	s := New(api)
-	s.cache.Set(ListQuery{}.key(), entry(page1, modified1))
+	s.cache.Set(ListQuery{}.key(30), entry(page1, modified1))
 
 	res, err := s.Poll(t.Context())
 	if err != nil {
@@ -366,7 +366,7 @@ func TestPollError(t *testing.T) {
 		return page{}, github.Response{}, core.ErrRateLimited
 	}}
 	s := New(api)
-	s.cache.Set(ListQuery{}.key(), entry(page1, modified1))
+	s.cache.Set(ListQuery{}.key(30), entry(page1, modified1))
 
 	if _, err := s.Poll(t.Context()); !errors.Is(err, core.ErrRateLimited) {
 		t.Errorf("error = %v, want it to match ErrRateLimited", err)

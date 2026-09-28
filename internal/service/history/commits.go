@@ -12,9 +12,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/fallback"
 )
 
-// DefaultCommitPageSize is the page size of a CommitsQuery that sets none.
-const DefaultCommitPageSize = 50
-
 // CommitsQuery selects a page of the history of a ref.
 type CommitsQuery struct {
 	Repo core.RepoRef
@@ -25,16 +22,18 @@ type CommitsQuery struct {
 	// cursor names the commit the first page started at, so it reads the
 	// same commits for good, whatever Ref points at meanwhile.
 	Cursor string
-	// PageSize defaults to DefaultCommitPageSize and is at most 100. A
-	// cursor keeps the size of the page it came from.
+	// PageSize defaults to the service's commit page size and is at most
+	// 100. A cursor keeps the size of the page it came from.
 	PageSize int
 	// Again reads past a kept page: set it on the read that follows one
 	// that came back Stale. It doesn't key the cache.
 	Again bool
 }
 
-func (q CommitsQuery) normalize() CommitsQuery {
-	q.PageSize = pageSize(q.PageSize, DefaultCommitPageSize)
+// normalize returns q with its defaults set: size is the service's commit
+// page size.
+func (q CommitsQuery) normalize(size int) CommitsQuery {
+	q.PageSize = pageSize(q.PageSize, size)
 	if isSHA(q.Ref) {
 		q.Ref = strings.ToLower(q.Ref)
 	}
@@ -49,7 +48,7 @@ func (q CommitsQuery) pinned() bool {
 // CachedCommits returns the cached page for q, fresh or stale, without a
 // request. It reports false if the page isn't in memory.
 func (s *Service) CachedCommits(q CommitsQuery) (core.Page[core.Commit], bool) {
-	q = q.normalize()
+	q = q.normalize(s.commitPageSize)
 	c, key := s.refPages, refPageKey(q)
 	if q.pinned() {
 		c, key = s.pages, pageKey(q)
@@ -67,7 +66,7 @@ func (s *Service) CachedCommits(q CommitsQuery) (core.Page[core.Commit], bool) {
 // the first page of a commit and every page after the first, are cached
 // for good.
 func (s *Service) Commits(ctx context.Context, q CommitsQuery) (core.Page[core.Commit], error) {
-	q = q.normalize()
+	q = q.normalize(s.commitPageSize)
 	var (
 		p   core.Page[core.Commit]
 		err error

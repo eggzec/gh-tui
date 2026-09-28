@@ -28,8 +28,8 @@ var (
 // full inbox [a c].
 func seeded(api API) *Service {
 	s := New(api)
-	s.cache.Set(inbox.key(), entry(page{Items: []core.Notification{a, b}}, modified1))
-	s.cache.Set(allInbox.key(), entry(page{Items: []core.Notification{a, c}, Next: "next"}, modified1))
+	s.cache.Set(inbox.key(30), entry(page{Items: []core.Notification{a, b}}, modified1))
+	s.cache.Set(allInbox.key(30), entry(page{Items: []core.Notification{a, c}, Next: "next"}, modified1))
 	return s
 }
 
@@ -171,7 +171,7 @@ func TestMarkReconciles(t *testing.T) {
 			s := seeded(api)
 			api.onMark = func() {
 				for q, p := range snapshot(seeded(&fakeAPI{})) {
-					s.cache.Set(q.key(), entry(p, modified2))
+					s.cache.Set(q.key(30), entry(p, modified2))
 				}
 			}
 
@@ -205,6 +205,6 @@ func TestMarkUncached(t *testing.T) {
 }
 
 func state(s *Service, q ListQuery) cache.State {
-	_, st := s.cache.Get(q.key())
+	_, st := s.cache.Get(q.key(30))
 	return st
 }

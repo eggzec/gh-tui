@@ -34,10 +34,6 @@ import (
 // side by side, so the modal shows one at a time.
 const narrowWidth = 90
 
-// pageSize is how many commits the graph reads at a time. It is fixed, so
-// that the pages cached survive a resize.
-const pageSize = 50
-
 // pane is one of the modal's panes, in the order the focus moves through
 // them.
 type pane int

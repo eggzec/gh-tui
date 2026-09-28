@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"slices"
 
@@ -69,6 +70,7 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning, configW
 	// The app tells once of an Enterprise Server older than supported.
 	oldEnterprise := make(chan string, 1)
 	client, err := github.New(github.WithHost(st.Host), github.WithTokenSource(token.Value, token.Source),
+		github.WithHTTPClient(&http.Client{Timeout: cfg.GitHub.Timeout}), github.WithConcurrency(cfg.GitHub.Concurrency),
 		github.WithOnAccess(access.Set),
 		github.WithOnOldEnterprise(func(v string) { oldEnterprise <- v }),
 		github.WithRateNotify(func() { engine.Publish(core.SyncRateLimit) }))
@@ -97,15 +99,18 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning, configW
 	// token may not do makes no request. Whether a repository is private,
 	// which a change there needs a wider scope for, is what the
 	// repositories service read of it.
-	repoSvc := reposvc.New(client, reposvc.WithTTL(ttl), reposvc.WithStore(entries), reposvc.WithAccess(access))
+	size := cfg.PageSize
+	repoSvc := reposvc.New(client, reposvc.WithTTL(ttl), reposvc.WithStore(entries), reposvc.WithAccess(access),
+		reposvc.WithPageSize(size.Repos))
 	pullSvc := pullsvc.New(client, pullsvc.WithTTL(ttl), pullsvc.WithStore(entries),
-		pullsvc.WithAccess(access), pullsvc.WithRepos(repoSvc))
+		pullsvc.WithAccess(access), pullsvc.WithRepos(repoSvc), pullsvc.WithPageSize(size.Pulls))
 	// The issues service tells what a number is, an issue or a pull
 	// request, and a pull request whose detail is cached needs no request.
 	issueSvc := issuesvc.New(client, issuesvc.WithTTL(ttl), issuesvc.WithStore(entries), issuesvc.WithPulls(pullSvc),
-		issuesvc.WithAccess(access), issuesvc.WithRepos(repoSvc))
-	notifSvc := notifsvc.New(client, notifsvc.WithTTL(ttl), notifsvc.WithStore(entries), notifsvc.WithAccess(access))
-	dashSvc := dashsvc.New(client, dashsvc.WithTTL(ttl), dashsvc.WithStore(entries))
+		issuesvc.WithAccess(access), issuesvc.WithRepos(repoSvc), issuesvc.WithPageSize(size.Issues))
+	notifSvc := notifsvc.New(client, notifsvc.WithTTL(ttl), notifsvc.WithStore(entries), notifsvc.WithAccess(access),
+		notifsvc.WithPageSize(size.Notifications))
+	dashSvc := dashsvc.New(client, dashsvc.WithTTL(ttl), dashsvc.WithStore(entries), dashsvc.WithWorkSize(size.WaitingOnYou))
 	fileSvcOpts := []filesvc.Option{filesvc.WithTTL(ttl), filesvc.WithMaxBlobSize(int64(cfg.Files.Preview.MaxSize))}
 	if store != nil {
 		fileSvcOpts = append(fileSvcOpts, filesvc.WithStore(store))
@@ -113,17 +118,18 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning, configW
 	fileSvc := filesvc.New(client, fileSvcOpts...)
 	// What a commit SHA names never changes, so it is kept with the files'
 	// objects, which accounts on a host share.
-	historySvcOpts := []historysvc.Option{historysvc.WithTTL(ttl), historysvc.WithStore(entries)}
+	historySvcOpts := []historysvc.Option{historysvc.WithTTL(ttl), historysvc.WithStore(entries), historysvc.WithCommitPageSize(size.Commits)}
 	if store != nil {
 		historySvcOpts = append(historySvcOpts, historysvc.WithObjects(store))
 	}
 	historySvc := historysvc.New(client, historySvcOpts...)
-	actionSvc := actionssvc.New(client, actionssvc.WithTTL(ttl), actionssvc.WithStore(entries), actionssvc.WithAccess(access))
+	actionSvc := actionssvc.New(client, actionssvc.WithTTL(ttl), actionssvc.WithStore(entries), actionssvc.WithAccess(access),
+		actionssvc.WithRunPageSize(size.Runs))
 	// A release seldom changes once published, so it keeps the service's
 	// long TTL.
 	releaseSvc := releasesvc.New(client, releasesvc.WithStore(entries))
 	// Search results keep the search service's own short TTL.
-	searchSvc := searchsvc.New(client)
+	searchSvc := searchsvc.New(client, searchsvc.WithPageSize(size.Search))
 	// The filters of the pull requests and issues offer the labels,
 	// milestones and people of the repository.
 	facetSvc := facetsvc.New(client, facetsvc.WithTTL(ttl))
@@ -282,7 +288,7 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning, configW
 		tui.WithOldEnterprise(oldEnterprise),
 	}
 	if path, err := historyPath(cfg.Cache.Disk, client.Host(), client.Account()); err == nil && path != "" {
-		opts = append(opts, tui.WithCommandHistory(cmdhist.New(path, cmdhist.DefaultLimit)))
+		opts = append(opts, tui.WithCommandHistory(cmdhist.New(path, cfg.Commands.History)))
 	}
 	for _, w := range []string{logWarning, configWarning, warning} {
 		if w != "" {

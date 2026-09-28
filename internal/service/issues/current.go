@@ -56,7 +56,7 @@ func (s *Service) currentComments(q CommentsQuery) (core.Page[core.Comment], boo
 // can both be read without a request, since they are cached and fresh or
 // current.
 func (s *Service) Current(q CommentsQuery) bool {
-	q = q.normalize()
+	q = q.normalize(s.pageSize)
 	key := issueKey(q.Repo, q.Number)
 	if _, ok := s.currentIssue(key); !ok && !fresh(s.issues, key) {
 		return false

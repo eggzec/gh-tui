@@ -15,9 +15,9 @@ func TestParseKey(t *testing.T) {
 		{},
 		{Filter: core.NotificationFilter{All: true, Participating: true}, PageSize: 50, Cursor: "https://api.github.com/notifications?all=true&page=2"},
 	} {
-		want := q.normalize()
-		if got, ok := parseKey(q.key()); !ok || got != want {
-			t.Errorf("parseKey(%q) = %+v, %v; want %+v", q.key(), got, ok, want)
+		want := q.normalize(30)
+		if got, ok := parseKey(q.key(30)); !ok || got != want {
+			t.Errorf("parseKey(%q) = %+v, %v; want %+v", q.key(30), got, ok, want)
 		}
 	}
 	for _, key := range []string{"", "notifications?all=true", "notifications?all=x&participating=false&page_size=30&cursor=", "list:o/r"} {
@@ -82,7 +82,7 @@ func TestKeptListsFirstPagesOnly(t *testing.T) {
 		got = append(got, e.ID)
 	}
 	slices.Sort(got)
-	want := []string{kind + ":" + allInbox.key(), kind + ":" + inbox.key()}
+	want := []string{kind + ":" + allInbox.key(30), kind + ":" + inbox.key(30)}
 	slices.Sort(want)
 	if !slices.Equal(got, want) {
 		t.Errorf("Kept = %q, want the first pages %q", got, want)

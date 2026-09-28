@@ -1,6 +1,7 @@
 package github
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"slices"
@@ -19,8 +20,6 @@ import (
 const (
 	// searchLabels is how many labels a row shows.
 	searchLabels = 5
-	// searchPageSize is the page size of a SearchQuery that sets none.
-	searchPageSize = 20
 )
 
 // searchVars names the variables of the search field of each kind in
@@ -110,7 +109,8 @@ type SearchQuery struct {
 	// repo:, org: or language: apply to every kind they make sense for;
 	// Search adds is:issue and is:pr itself.
 	Text string
-	// First is the page size of each kind, 1 to 100. Zero means 20.
+	// First is the page size of each kind, 1 to 100. Zero means
+	// page_size.search of the default config (config.Default).
 	First int
 	// After holds the kinds to search, core.SearchRepos, core.SearchIssues
 	// or core.SearchPulls, each with the cursor of the page before the one
@@ -134,11 +134,10 @@ func kindQuery(text string, kind core.SearchKind) string {
 	}
 }
 
-func (q SearchQuery) vars() (map[string]any, error) {
-	first := q.First
-	if first == 0 {
-		first = searchPageSize
-	}
+// vars returns the variables of q, whose page size is size unless q sets
+// one.
+func (q SearchQuery) vars(size int) (map[string]any, error) {
+	first := cmp.Or(q.First, size)
 	if first < 1 || first > 100 {
 		return nil, fmt.Errorf("page size %d is not between 1 and 100", first)
 	}
@@ -331,7 +330,7 @@ func (d *searchData) pages() map[core.SearchKind]core.SearchPage[core.SearchHit]
 // result holds a page for each kind asked for; a kind only counted has its
 // Total and no results.
 func (c *Client) Search(ctx context.Context, q SearchQuery) (map[core.SearchKind]core.SearchPage[core.SearchHit], error) {
-	vars, err := q.vars()
+	vars, err := q.vars(c.searchSize)
 	if err != nil {
 		return nil, fmt.Errorf("search %q: %w", q.Text, err)
 	}

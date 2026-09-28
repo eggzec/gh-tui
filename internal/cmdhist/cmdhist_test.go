@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/eggzec/gh-tui/internal/config"
 )
 
 func TestRoundTrip(t *testing.T) {
@@ -44,6 +46,9 @@ func TestRoundTrip(t *testing.T) {
 	}
 }
 
+// defaultLimit is how many lines a store keeps without a limit of its own.
+var defaultLimit = config.Default().Commands.History
+
 func TestLimit(t *testing.T) {
 	path := filepath.Join(t.TempDir(), FileName)
 	lines := make([]string, 0, 150)
@@ -54,8 +59,8 @@ func TestLimit(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, err := New(path, 0).Load()
-	if err != nil || len(got) != DefaultLimit || got[0] != "goto #50" || got[99] != "goto #149" {
-		t.Errorf("Load = %d lines from %q, %v, want the last %d", len(got), got[0], err, DefaultLimit)
+	if err != nil || len(got) != defaultLimit || got[0] != "goto #50" || got[99] != "goto #149" {
+		t.Errorf("Load = %d lines from %q, %v, want the last %d", len(got), got[0], err, defaultLimit)
 	}
 	// A smaller limit reads a larger file's last lines.
 	got, err = New(path, 3).Load()

@@ -238,10 +238,10 @@ func TestCompleteHelp(t *testing.T) {
 		}
 		return short, full
 	}
-	if s, f := has(New(), "tab"); s || f {
+	if s, f := has(New(testHistoryLimit), "tab"); s || f {
 		t.Errorf("without Complete, help offers tab: short %v, full %v", s, f)
 	}
-	if s, f := has(New(WithComplete(repoComplete)), "tab"); !s || !f {
+	if s, f := has(New(testHistoryLimit, WithComplete(repoComplete)), "tab"); !s || !f {
 		t.Errorf("with Complete, help leaves out tab: short %v, full %v", s, f)
 	}
 }

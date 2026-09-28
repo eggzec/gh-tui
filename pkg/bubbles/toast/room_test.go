@@ -9,7 +9,7 @@ import (
 )
 
 func TestRoom(t *testing.T) {
-	m := New()
+	m := New(testDuration, testErrorDuration)
 	for l := Info; l <= Warning; l++ {
 		if got := m.Room(l); got != (Room{Share: 40, Lines: 3}) {
 			t.Errorf("Room(%s) = %+v, want 40%% and 3 lines", l, got)
@@ -19,7 +19,7 @@ func TestRoom(t *testing.T) {
 		t.Errorf("Room(error) = %+v, want 60%% and 5 lines", got)
 	}
 
-	m = New(WithRoom(Info, Room{Share: 150, Lines: 0}), WithRoom(Level(9), Room{Share: 10, Lines: 1}))
+	m = New(testDuration, testErrorDuration, WithRoom(Info, Room{Share: 150, Lines: 0}), WithRoom(Level(9), Room{Share: 10, Lines: 1}))
 	if got := m.Room(Info); got != (Room{Share: 100, Lines: 1}) {
 		t.Errorf("Room(info) = %+v, want it kept to 100%% and 1 line", got)
 	}
@@ -37,7 +37,7 @@ func TestRoom(t *testing.T) {
 // the toast shows.
 func TestSetRoomWrapsToItsLines(t *testing.T) {
 	long := strings.Repeat("word ", 60)
-	m := New(WithSize(80, 0))
+	m := New(testDuration, testErrorDuration, WithSize(80, 0))
 	m.Push(Info, long)
 	if n := strings.Count(m.View(), "\n") + 1; n != 3 {
 		t.Errorf("info toast has %d lines, want 3", n)
@@ -53,7 +53,7 @@ func TestSetRoomWrapsToItsLines(t *testing.T) {
 }
 
 func TestFits(t *testing.T) {
-	m := New(WithSize(80, 24))
+	m := New(testDuration, testErrorDuration, WithSize(80, 24))
 	// At 80 columns an error has 48 cells, 39 of them for text once the
 	// frame, the glyph and room for a count are taken: four words of these
 	// a line, on five lines.
@@ -74,10 +74,10 @@ func TestFits(t *testing.T) {
 			t.Errorf("Fits(%s, %s) = %v, want %v", tt.level, tt.name, got, tt.want)
 		}
 	}
-	if New(WithSize(80, 2)).Fits(Error, strings.Repeat("abcdefghi ", 10)) {
+	if New(testDuration, testErrorDuration, WithSize(80, 2)).Fits(Error, strings.Repeat("abcdefghi ", 10)) {
 		t.Error("a toast taller than the area fits")
 	}
-	if New(WithSize(5, 0)).Fits(Error, "a") {
+	if New(testDuration, testErrorDuration, WithSize(5, 0)).Fits(Error, "a") {
 		t.Error("a toast fits where there is no room for text")
 	}
 }
@@ -92,7 +92,7 @@ func TestFitsShowsWhole(t *testing.T) {
 	}
 	for width := 40; width <= 200; width += 7 {
 		for _, text := range texts {
-			m := New(WithSize(width, 24))
+			m := New(testDuration, testErrorDuration, WithSize(width, 24))
 			if !m.Fits(Error, text) {
 				continue
 			}

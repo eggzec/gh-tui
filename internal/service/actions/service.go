@@ -13,6 +13,7 @@
 package actions
 
 import (
+	"cmp"
 	"context"
 	"math"
 	"strconv"
@@ -22,6 +23,7 @@ import (
 	"unsafe"
 
 	"github.com/eggzec/gh-tui/internal/cache"
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
 	"github.com/eggzec/gh-tui/internal/service/fallback"
@@ -80,6 +82,8 @@ type Service struct {
 	// store keeps the logs, which are text rather than JSON.
 	store    cache.Store
 	logLimit int64
+	// runPageSize is the size of a page of runs whose query sets none.
+	runPageSize int
 
 	// partials holds what was read of the logs of jobs in progress that
 	// views watch, by the key of the log.
@@ -122,6 +126,7 @@ func New(api API, opts ...Option) *Service {
 		keptJobs:      cache.NewShelf[core.Page[core.Job]](o.store, kindJobs, schema),
 		store:         o.store,
 		logLimit:      o.logLimit,
+		runPageSize:   cmp.Or(o.runPageSize, config.Default().PageSize.Runs),
 		partials:      map[string]*partialLog{},
 		now:           time.Now,
 	}
@@ -159,10 +164,13 @@ func fetch[V any](ctx context.Context, c *cache.Cache[V], shelf *cache.Shelf[V],
 // pageSize returns n, or def for 0, at most the 100 that GitHub lists.
 func pageSize(n, def int) int {
 	if n <= 0 {
-		return def
+		n = def
 	}
-	return min(n, 100)
+	return min(n, maxPageSize)
 }
+
+// maxPageSize is the most items GitHub returns in a page.
+const maxPageSize = 100
 
 // repoID names a repository in keys and tags. GitHub ignores case in owner
 // and repository names, so keys do too.

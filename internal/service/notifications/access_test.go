@@ -52,7 +52,7 @@ func TestRefusedAsksNothing(t *testing.T) {
 			var marks int
 			api.onMark = func() { marks++ }
 			s := New(api, WithStore(keptInbox(t)), WithAccess(tokenWith(tc.access, true)))
-			s.cache.Set(inbox.key(), entry(page{Items: []core.Notification{a, b}}, modified1))
+			s.cache.Set(inbox.key(30), entry(page{Items: []core.Notification{a, b}}, modified1))
 
 			if _, ok := s.CachedList(inbox); ok {
 				t.Error("CachedList served a page the token may not read")
@@ -84,7 +84,7 @@ func TestRefusedAsksNothing(t *testing.T) {
 			}
 			// The refused marks changed nothing, so allowing them shows
 			// the inbox as it was.
-			if e, _ := s.cache.Get(inbox.key()); !equal(e.Value, page{Items: []core.Notification{a, b}}) {
+			if e, _ := s.cache.Get(inbox.key(30)); !equal(e.Value, page{Items: []core.Notification{a, b}}) {
 				t.Errorf("cached inbox = %+v, want it unchanged", e.Value)
 			}
 		})

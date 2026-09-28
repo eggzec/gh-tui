@@ -252,16 +252,16 @@ func TestListKeysByQuery(t *testing.T) {
 	}
 	// Zero and negative sizes mean the default, and sizes above GitHub's
 	// maximum are clamped to it, so each pair shares a page.
-	for _, size := range []int{defaultPageSize, -1, 10, 10, 500, maxPageSize} {
+	for _, size := range []int{30, -1, 10, 10, 500, maxPageSize} {
 		if _, err := s.List(t.Context(), ListQuery{Repo: repo, State: core.StateOpen, PageSize: size}); err != nil {
 			t.Fatalf("List: %v", err)
 		}
 	}
 
 	want := []call{
-		{core.StateOpen, "", defaultPageSize},
-		{core.StateOpen, "c1", defaultPageSize},
-		{core.StateClosed, "", defaultPageSize},
+		{core.StateOpen, "", 30},
+		{core.StateOpen, "c1", 30},
+		{core.StateClosed, "", 30},
 		{core.StateOpen, "", 10},
 		{core.StateOpen, "", maxPageSize},
 	}

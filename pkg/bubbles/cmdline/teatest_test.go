@@ -96,7 +96,7 @@ func TestProgram(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tm := teatest.NewTestModel(t, host{line: New(tt.opts...)}, teatest.WithInitialTermSize(80, 4))
+			tm := teatest.NewTestModel(t, host{line: New(testHistoryLimit, tt.opts...)}, teatest.WithInitialTermSize(80, 4))
 			// The renderer may split words with escape sequences, so match
 			// the output without them.
 			teatest.WaitFor(t, tm.Output(), func(b []byte) bool {

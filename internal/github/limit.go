@@ -11,21 +11,13 @@ import (
 	"github.com/eggzec/gh-tui/internal/obs"
 )
 
-// maxInFlight bounds the requests the client has in flight at once, from
-// the time each is sent until its body is closed. GitHub's secondary rate
-// limits frown on many concurrent requests, and a burst, such as the reads
-// ahead of a list next to those of a detail the user opened, gains nothing
-// past a few at once: they only queue behind each other on the
-// connection, and delay the reads the user waits for. Eight lets the
-// reads of a screen run side by side. No config section covers the
-// transport, so it is a constant.
-const maxInFlight = 8
-
-// foregroundSlots of those are kept for what the user waits for: reads
-// ahead (obs.IsPrefetch) and the requests of background loops
-// (obs.IsBackground) may take the others only, so that they never make a
-// read the user asked for wait, even when many that a rate limit held
-// are let go at once.
+// foregroundSlots of the requests in flight (WithConcurrency) are kept for
+// what the user waits for: reads ahead (obs.IsPrefetch) and the requests
+// of background loops (obs.IsBackground) may take the others only, so
+// that they never make a read the user asked for wait, even when many
+// that a rate limit held are let go at once. GitHub's secondary rate
+// limits frown on many requests at once, and a burst gains nothing past a
+// few: they only queue behind each other on the connection.
 const foregroundSlots = 2
 
 // limitTransport lets at most cap(slots) requests through at once, and of
