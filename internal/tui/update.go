@@ -129,6 +129,16 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ui.OpenReleaseMsg:
 		cmd := m.openRelease(msg)
 		return m, cmd
+	case ui.OpenPullMsg:
+		// Away from the repository screen, a number alone doesn't say
+		// which repository it is of.
+		msg.ShowRepo = msg.ShowRepo || m.screen != repoScreen
+		cmd := m.broadcast(msg)
+		return m, cmd
+	case ui.OpenIssueMsg:
+		msg.ShowRepo = msg.ShowRepo || m.screen != repoScreen
+		cmd := m.broadcast(msg)
+		return m, cmd
 	case ui.OpenModalMsg:
 		m.openModal(msg.Modal)
 		return m, nil

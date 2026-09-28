@@ -119,6 +119,10 @@ type OpenPullMsg struct {
 	Number int
 	// Checks opens it on its checks, such as when its CI glyph is picked.
 	Checks bool
+	// ShowRepo names Repo in the title of the modal even when it is the
+	// selected repository, which the app asks for when the modal opens
+	// away from the repository screen, such as over the dashboard.
+	ShowRepo bool
 	// Pause, if set, holds the reads ahead of the list it was opened
 	// from, such as the dashboard's, while its detail loads.
 	Pause Pauser
@@ -129,6 +133,9 @@ type OpenPullMsg struct {
 type OpenIssueMsg struct {
 	Repo   core.RepoRef
 	Number int
+	// ShowRepo names Repo in the title of the modal even when it is the
+	// selected repository, as OpenPullMsg's does.
+	ShowRepo bool
 	// Pause, if set, holds the reads ahead of the list it was opened
 	// from, such as the dashboard's, while it loads.
 	Pause Pauser
