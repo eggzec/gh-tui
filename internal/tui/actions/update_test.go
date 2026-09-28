@@ -384,7 +384,7 @@ func TestPendingLogShowsTheSteps(t *testing.T) {
 	m, h := newModal(t, f, wideW, wideH)
 	h.keys("j")
 	s := paneText(m, logPane)
-	for _, want := range []string{"The log is available when the job finishes.", "✓ Set up job 2s", "◐ Run golangci-lint 1m 18s", "○ Post Run actions/checkout@v4 queued"} {
+	for _, want := range []string{"Logs appear when the job finishes · o to watch live on GitHub", "✓ Set up job 2s", "◐ Run golangci-lint 1m 18s", "○ Post Run actions/checkout@v4 queued"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("the log of a running job lacks %q:\n%s", want, s)
 		}
