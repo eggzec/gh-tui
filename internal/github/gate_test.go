@@ -616,6 +616,7 @@ func TestGateSlots(t *testing.T) {
 // frees the quota; if none comes in time, it fails with the end of the
 // window.
 func TestGateWaitsForAnswers(t *testing.T) {
+	watchdog(t)
 	synctest.Test(t, func(t *testing.T) {
 		reset := time.Now().Add(time.Hour)
 		a := answers{"x": make(chan answer, 1), "y": make(chan answer, 1)}
@@ -961,6 +962,115 @@ func TestGateScoutFails(t *testing.T) {
 			t.Errorf("sent %v, want the next held at %v", sent, scout.Add(minStagger))
 		}
 	})
+}
+
+// TestGateScoutPastTooLate pins the hand-off of the scout when no probe
+// can tell whether a limit lifted: the first request held, whose deadline
+// is too close for its turn, fails, and the next goes in its place, rather
+// than the queue wait with no scout out.
+func TestGateScoutPastTooLate(t *testing.T) {
+	watchdog(t)
+	synctest.Test(t, func(t *testing.T) {
+		stats := gateStats(t)
+		h := &hub{limit: 5, window: time.Minute, noProbe: true}
+		c := newHubClient(t, h, 0)
+		reset := time.Now().Add(10 * time.Second)
+		spendCore(t, c, h, reset)
+		release := reset.Add(minGuard)
+
+		background := obs.ForBackground(t.Context())
+		// Held, since it may be sent by the release, but not a stagger later.
+		ctx, cancel := context.WithDeadline(background, release.Add(deadlineMargin+minStagger/2))
+		defer cancel()
+		first := goAsync(func() error {
+			_, err := c.Get(ctx, "repos/o/r/first", Conditional{}, nil)
+			return err
+		})
+		dones := make([]<-chan error, 0, 2)
+		for _, path := range []string{"repos/o/r/scout", "repos/o/r/next"} {
+			dones = append(dones, goAsync(func() error {
+				_, err := c.Get(background, path, Conditional{}, nil)
+				return err
+			}))
+		}
+		if err := <-first; !errors.Is(err, core.ErrRateLimited) {
+			t.Errorf("the first held = %v, want a rate limit for its deadline", err)
+		}
+		for _, done := range dones {
+			if err := <-done; err != nil {
+				t.Errorf("held Get = %v, want it sent", err)
+			}
+		}
+		sent, _ := h.requests()
+		want := []hubRequest{{"repos/o/r/scout", release.Add(minStagger)}, {"repos/o/r/next", release.Add(2 * minStagger)}}
+		if len(sent) != 3 || sent[1] != want[0] || sent[2] != want[1] {
+			t.Errorf("sent %v, want the scout and then the next, %v", sent, want)
+		}
+		if got := stats.Summary().RateLimit.FailedFast["deadline"]; got != 1 {
+			t.Errorf("failed for the deadline %d times, want 1", got)
+		}
+	})
+}
+
+// TestGateNoTimerAfterClose pins that once the client is closed, the gate
+// neither sets a timer for a queue that comes after, nor sets again the
+// timer of one it stopped.
+func TestGateNoTimerAfterClose(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		h := &hub{limit: 5, window: time.Minute}
+		c := newHubClient(t, h, 0)
+		spendCore(t, c, h, time.Now().Add(10*time.Minute))
+		ctx, cancel := context.WithCancel(obs.ForBackground(t.Context()))
+		defer cancel()
+		get := func(path string) <-chan error {
+			return goAsync(func() error {
+				_, err := c.Get(ctx, path, Conditional{}, nil)
+				return err
+			})
+		}
+		dones := make([]<-chan error, 0, 3)
+		dones = append(dones, get("repos/o/r/1"))
+		c.Close()
+
+		// Another held pumps the queue, which would set its timer again.
+		dones = append(dones, get("repos/o/r/2"))
+		h.spend(resourceSearch, time.Now().Add(10*time.Minute))
+		if _, err := c.Get(t.Context(), "search/issues?q=x", Conditional{}, nil); !errors.Is(err, core.ErrRateLimited) {
+			t.Fatalf("Get of a spent quota = %v, want a rate limit", err)
+		}
+		dones = append(dones, get("search/issues?q=y"))
+		c.budget.mu.Lock()
+		coreTimer, search := c.budget.gate.queues[resourceCore].timer, c.budget.gate.queues[resourceSearch]
+		c.budget.mu.Unlock()
+		if coreTimer.Stop() {
+			t.Error("the timer of core was set again after Close")
+		}
+		if search == nil || search.timer != nil {
+			t.Errorf("the queue of search after Close = %+v, want one held and no timer", search)
+		}
+		cancel()
+		for _, done := range dones {
+			<-done
+		}
+	})
+}
+
+// TestGateExpiryFails pins that when a request held can wait no longer
+// (limit.expiry), it is too late for it then (hold.tooLate): otherwise the
+// timer set for that instant would find it may still wait, and set itself
+// for the same instant again, for good.
+func TestGateExpiryFails(t *testing.T) {
+	now := time.Now()
+	for _, l := range []limit{{inFlight: true}, {inFlight: true, secondary: true}, {until: now.Add(2 * maxWindow)}} {
+		for _, k := range []class{classForeground, classMutation, classBackground} {
+			h := &hold{class: k, at: now}
+			at := l.expiry([]*hold{h})
+			if why := h.tooLate(l, at); why == "" {
+				t.Errorf("a %v request held for a limit (in flight %t, secondary %t) may still wait at its expiry, %v after it was held",
+					k, l.inFlight, l.secondary, at.Sub(now))
+			}
+		}
+	}
 }
 
 // TestGateDropAfterLetGo pins a request whose context ends as it is let
