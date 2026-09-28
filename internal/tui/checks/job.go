@@ -52,7 +52,7 @@ func (s *Step) fromCacheJob() (tea.Cmd, bool) {
 	if !ok {
 		return nil, false
 	}
-	p, ok := s.svc.CachedJobs(actionssvc.JobsQuery{Repo: s.q.Repo, RunID: c.RunID, Attempt: run.Attempt})
+	p, ok := s.svc.CachedAllJobs(actionssvc.JobsQuery{Repo: s.q.Repo, RunID: c.RunID, Attempt: run.Attempt})
 	if !ok {
 		return nil, false
 	}
@@ -116,7 +116,7 @@ func (s *Step) readJob() tea.Cmd {
 		run, err := svc.Run(ctx, repo, runID)
 		var p core.Page[core.Job]
 		if err == nil {
-			p, err = svc.Jobs(ctx, actionssvc.JobsQuery{Repo: repo, RunID: runID, Attempt: run.Attempt})
+			p, err = svc.AllJobs(ctx, actionssvc.JobsQuery{Repo: repo, RunID: runID, Attempt: run.Attempt})
 		}
 		end(err, "span", "tui", "run", runID, "jobs", len(p.Items))
 		return jobMsg{id: id, checkID: checkID, run: run, jobs: p.Items, err: err}

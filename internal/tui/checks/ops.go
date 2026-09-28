@@ -52,7 +52,7 @@ func (s *Step) rerun() (c ui.Confirm, id int64, name, notice string) {
 		return ui.Confirm{}, 0, "", name + " is still running."
 	}
 	jobs := "the failed jobs"
-	if p, ok := s.svc.CachedJobs(actionssvc.JobsQuery{Repo: s.q.Repo, RunID: run.ID, Attempt: run.Attempt}); ok {
+	if p, ok := s.svc.CachedAllJobs(actionssvc.JobsQuery{Repo: s.q.Repo, RunID: run.ID, Attempt: run.Attempt}); ok {
 		switch n := jobview.FailedJobs(p.Items); n {
 		case 0:
 			return ui.Confirm{}, 0, "", name + " has no failed jobs to re-run."
