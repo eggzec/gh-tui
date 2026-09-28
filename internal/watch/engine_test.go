@@ -465,3 +465,54 @@ func TestPublish(t *testing.T) {
 		e.Publish("late") // must not panic or block
 	})
 }
+
+// TestOnlineWakesUnreachedPolls checks that GitHub answering again polls
+// at once the keys that backed off because it couldn't be reached, and
+// only those.
+func TestOnlineWakesUnreachedPolls(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		e := New(WithInterval(10*time.Second), WithMaxBackoff(10*time.Minute))
+		out := newSource(func(n int) (Result, error) {
+			if n < 4 {
+				return Result{}, fmt.Errorf("poll: %w", core.ErrOffline)
+			}
+			return Result{}, nil
+		})
+		well := newSource(nil)
+		limited := newSource(func(int) (Result, error) {
+			return Result{}, &core.RateLimitError{Reset: time.Now().Add(time.Hour)}
+		})
+		refused := newSource(func(int) (Result, error) { return Result{}, errPoll })
+		e.Subscribe("out", out.poll)
+		e.Subscribe("well", well.poll)
+		e.Subscribe("limited", limited.poll)
+		e.Subscribe("refused", refused.poll)
+		run(t, e)
+
+		// Backed off to 160s after the fourth failure at 150s, the next
+		// poll would be at 310s.
+		synctest.Sleep(200 * time.Second)
+		e.Online()
+		synctest.Sleep(10 * time.Second)
+
+		if got, want := out.times(), seconds(10, 30, 70, 150, 200, 210); !slices.Equal(got, want) {
+			t.Errorf("unreached poll times = %v, want %v", got, want)
+		}
+		if got, want := well.times(), seconds(10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200, 210); !slices.Equal(got, want) {
+			t.Errorf("healthy poll times = %v, want %v", got, want)
+		}
+		if got, want := limited.times(), seconds(10); !slices.Equal(got, want) {
+			t.Errorf("rate limited poll times = %v, want %v: no answer came for it", got, want)
+		}
+		if got, want := refused.times(), seconds(10, 30, 70, 150); !slices.Equal(got, want) {
+			t.Errorf("refused poll times = %v, want %v: GitHub answered it", got, want)
+		}
+
+		// Once it was answered, another Online costs nothing.
+		e.Online()
+		synctest.Sleep(time.Second)
+		if got := out.count(); got != 6 {
+			t.Errorf("polls after a second Online = %d, want 6", got)
+		}
+	})
+}
