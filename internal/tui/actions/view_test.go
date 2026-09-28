@@ -6,6 +6,10 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
+
+	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
 func TestView(t *testing.T) {
@@ -33,6 +37,32 @@ func TestView(t *testing.T) {
 			h.keys(tt.keys...)
 			v := m.View()
 			assertFits(t, v, tt.width, tt.height)
+			golden.RequireEqual(t, v)
+		})
+	}
+}
+
+// Jobs that wait for an approval or for others to finish look apart from
+// queued ones, in every icon set.
+func TestViewWaiting(t *testing.T) {
+	for _, set := range []string{config.IconsUnicode, config.IconsASCII, config.IconsNerd} {
+		t.Run(set, func(t *testing.T) {
+			f := newFake()
+			waiting := func(id int64, name string, status core.RunStatus) core.Job {
+				return core.Job{ID: id, RunID: runningRun, Attempt: 1, Name: name, Status: status}
+			}
+			f.jobs[runningRun] = append(f.jobs[runningRun],
+				waiting(501, "deploy (production)", core.RunWaiting),
+				waiting(502, "e2e", core.RunPending),
+				waiting(503, "release", core.RunRequested),
+				waiting(504, "docs", core.RunQueued))
+			m, h := newModal(t, f, narrowW, 10, WithIcons(ui.NewIcons(set)))
+			h.keys("j", "enter")
+			v := m.View()
+			if s := paneText(m, jobsPane); !strings.Contains(s, "deploy (production) waiting for approval") || !strings.Contains(s, "e2e waiting") {
+				t.Errorf("the waiting jobs:\n%s", s)
+			}
+			assertFits(t, v, narrowW, 10)
 			golden.RequireEqual(t, v)
 		})
 	}

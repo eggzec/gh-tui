@@ -68,8 +68,14 @@ func (m Model) stepLines(w, h int) []string {
 		if len(lines) >= h {
 			break
 		}
-		state := ui.RunStateOf(s.Status, s.Conclusion)
-		lines = append(lines, ui.Spread(st.Glyphs[state]+" "+st.Text.Render(ui.OneLine(s.Name)), st.Took(s.Status, s.Conclusion, s.StartedAt, s.CompletedAt, now), w))
+		status := s.Status
+		if status == core.RunPending {
+			// A step is pending until the steps before it end, which is
+			// no wait of the kind a pending job's is.
+			status = core.RunQueued
+		}
+		state := ui.RunStateOf(status, s.Conclusion)
+		lines = append(lines, ui.Spread(st.Glyphs[state]+" "+st.Text.Render(ui.OneLine(s.Name)), st.Took(status, s.Conclusion, s.StartedAt, s.CompletedAt, now), w))
 	}
 	return ui.FitLines(lines, w, h)
 }
