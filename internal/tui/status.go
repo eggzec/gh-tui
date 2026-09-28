@@ -12,6 +12,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/statusbar"
 )
 
@@ -89,10 +90,15 @@ func (m *Model) barHeight() int {
 	return lipgloss.Height(m.full) + 1
 }
 
-// refreshBar finds the hints of the keys that reach something now, and
-// the full help while it is shown.
+// refreshBar brings the hints up to date before they are drawn. Finding
+// what each key reaches and rendering the hints costs more than listing
+// the keys, so that is done again only when the keys changed.
 func (m *Model) refreshBar() {
-	m.layers = m.keyLayers()
+	layers := m.keyLayers()
+	if sameLayers(layers, m.layers) {
+		return
+	}
+	m.layers = cloneLayers(layers)
 	m.drawHints()
 }
 
@@ -298,4 +304,24 @@ func clock(t, now time.Time) string {
 // state.
 func sameBinding(a, b key.Binding) bool {
 	return a.Enabled() == b.Enabled() && a.Help() == b.Help() && slices.Equal(a.Keys(), b.Keys())
+}
+
+// sameLayers reports whether a and b hold the same bindings, in the same
+// state, so that the hints they give are the same.
+func sameLayers(a, b []keyhelp.Layer) bool {
+	return slices.EqualFunc(a, b, func(x, y keyhelp.Layer) bool {
+		return x.Source == y.Source && x.Typing == y.Typing &&
+			slices.EqualFunc(x.Bindings, y.Bindings, sameBinding) && slices.EqualFunc(x.Short, y.Short, sameBinding)
+	})
+}
+
+// cloneLayers returns a copy of layers that what made them can't change,
+// as a section may keep its bindings and change them later.
+func cloneLayers(layers []keyhelp.Layer) []keyhelp.Layer {
+	out := slices.Clone(layers)
+	for i := range out {
+		out[i].Bindings = slices.Clone(out[i].Bindings)
+		out[i].Short = slices.Clone(out[i].Short)
+	}
+	return out
 }

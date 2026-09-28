@@ -417,6 +417,8 @@ func (m *Model) applyTheme(dark bool) {
 	m.bst = newBarStyles(m.theme)
 	m.status.SetStyles(statusbar.Styles{Separator: m.st.edge})
 	m.drawStatus()
+	// The hints are drawn again in the theme's styles.
+	m.layers = nil
 	m.line.SetStyles(m.theme.Cmdline())
 	m.spin.Style = m.theme.Accent
 	for _, p := range m.all {
