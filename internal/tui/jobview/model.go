@@ -122,7 +122,9 @@ type Model struct {
 	job   core.Job
 	hints Hints
 	state State
-	notes notes
+	// failed is why the log failed to load, while the state is Failed.
+	failed error
+	notes  notes
 	// focused is set while the view takes keys, and onNotes while the
 	// annotations take them rather than the log.
 	focused, onNotes bool

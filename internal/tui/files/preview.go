@@ -41,6 +41,8 @@ type preview struct {
 	line   int
 	// ret is the modal the preview reopens when it closes, if set.
 	ret ui.Modal
+	// failed is why the file failed to load, or nil.
+	failed error
 }
 
 // entryMsg carries the entry of the file of the preview whose pager has
@@ -154,6 +156,7 @@ func findEntry(ctx context.Context, svc Service, repo core.RepoRef, ref, name st
 
 // show puts the content, or why it isn't shown, in the pager.
 func (p *preview) show(b core.Blob, err error) tea.Cmd {
+	p.failed = err
 	cmd, ok := fill(&p.pager, p.entry, b, err, p.open)
 	if ok {
 		// The search starts from the line, if there is one.
@@ -229,6 +232,13 @@ func (p *preview) Update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		return p.close()
+	case ui.OnlineMsg:
+		// The file that failed for want of an answer is read again.
+		if !ui.Unreached(p.failed) {
+			return nil
+		}
+		p.failed = nil
+		return p.load()
 	case tea.KeyPressMsg:
 		if !p.pager.Capturing() && key.Matches(msg, p.open) {
 			return ui.Open(webURL(p.host, p.repo, p.ref, p.entry))

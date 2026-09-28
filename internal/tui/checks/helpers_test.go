@@ -149,9 +149,9 @@ type fake struct {
 	// logErr fails every read of a log, and jobsErr of the jobs of a run.
 	logErr, jobsErr error
 
-	checkReads, runReads, jobReads, noteReads int
-	invalidated                               int
-	sent                                      []string
+	checkReads, runReads, jobReads, noteReads, logReads int
+	invalidated                                         int
+	sent                                                []string
 }
 
 func newFake() *fake {
@@ -222,6 +222,7 @@ func (f *fake) CachedLog(core.RepoRef, int64) (core.Log, bool) { return core.Log
 func (f *fake) Log(_ context.Context, _ core.RepoRef, jobID int64) (core.Log, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	f.logReads++
 	if f.logErr != nil {
 		return core.Log{}, f.logErr
 	}

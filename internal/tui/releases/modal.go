@@ -278,6 +278,8 @@ func (m *Modal) Update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		return m.receive(msg)
+	case ui.OnlineMsg:
+		return m.online()
 	}
 	var cmd tea.Cmd
 	m.thread, cmd = m.thread.Update(msg)
@@ -295,6 +297,17 @@ func (m *Modal) KeyLayers() []keyhelp.Layer {
 		doc = ui.Off(doc)
 	}
 	return []keyhelp.Layer{keyhelp.FromHelp("release", k, false), doc}
+}
+
+// online reads again, now that GitHub answers again, the release and its
+// files if they failed for want of an answer from it.
+func (m *Modal) online() tea.Cmd {
+	var get tea.Cmd
+	if m.failed() && ui.Unreached(m.err) {
+		m.err = nil
+		get = m.get()
+	}
+	return tea.Batch(get, ui.RetryUnreached(&m.thread))
 }
 
 // failed reports whether the release couldn't be read and nothing shows.

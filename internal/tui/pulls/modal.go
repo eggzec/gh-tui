@@ -63,6 +63,8 @@ type detailModal struct {
 	// anything is: a modal opened from the search starts with nothing.
 	detail core.PullRequestDetail
 	loaded bool
+	// failed is why the last read of the detail failed, or nil.
+	failed error
 
 	thread thread.Model[core.Comment]
 	// ctx bounds the reads of the modal and is cancelled when it closes.
@@ -345,10 +347,22 @@ func (m *detailModal) updateDetail(msg tea.Msg) tea.Cmd {
 			m.caps = msg.Caps
 		}
 		return nil
+	case ui.OnlineMsg:
+		return m.online()
 	}
 	var cmd tea.Cmd
 	m.thread, cmd = m.thread.Update(msg)
 	return cmd
+}
+
+// online reads again, now that GitHub answers again, the detail and the
+// comments that failed for want of an answer from it.
+func (m *detailModal) online() tea.Cmd {
+	var get tea.Cmd
+	if ui.Unreached(m.failed) {
+		get = m.get()
+	}
+	return tea.Batch(get, ui.RetryUnreached(&m.thread))
 }
 
 func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
@@ -416,8 +430,11 @@ func (m *detailModal) answer(msg tea.KeyPressMsg) tea.Cmd {
 }
 
 // get fetches the detail. A fresh cached detail costs no request. Once it
-// returns, the reads ahead of the list go on.
+// returns, the reads ahead of the list go on. What failed before is
+// forgotten, so that GitHub answering again doesn't read it once more
+// while this read is under way.
 func (m *detailModal) get() tea.Cmd {
+	m.failed = nil
 	svc, ctx, repo, number, id, resume := m.svc, m.ctx, m.repo, m.number, m.thread.ID(), m.resume
 	return func() tea.Msg {
 		start := time.Now()
@@ -436,9 +453,10 @@ func (m *detailModal) receive(msg detailMsg) tea.Cmd {
 		if m.ctx.Err() != nil {
 			return nil
 		}
+		m.failed = msg.err
 		return ui.Fail("load #"+strconv.Itoa(m.number), core.About(m.subject(), msg.err))
 	}
-	m.detail, m.loaded = msg.detail, true
+	m.detail, m.loaded, m.failed = msg.detail, true, nil
 	return m.show()
 }
 

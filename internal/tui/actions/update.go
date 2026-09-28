@@ -48,6 +48,8 @@ func (m *Modal) update(msg tea.Msg) tea.Cmd {
 		return m.ticked()
 	case ui.SyncMsg:
 		return m.synced(msg)
+	case ui.OnlineMsg:
+		return m.online()
 	case ui.CapsMsg:
 		if msg.Repo.Same(m.repo) {
 			m.caps = msg.Caps
@@ -263,16 +265,32 @@ func (m *Modal) back() tea.Cmd {
 func (m *Modal) refresh() tea.Cmd {
 	switch m.focus {
 	case jobsPane:
-		if !m.hasRun {
-			return nil
-		}
-		m.seq++
-		return tea.Batch(m.readJobs(), m.startSpinner())
+		return m.rereadJobs()
 	case logPane:
 		return m.log.Retry()
 	case runsPane:
 	}
 	return m.runs.Reload()
+}
+
+// rereadJobs reads the jobs of the run shown again.
+func (m *Modal) rereadJobs() tea.Cmd {
+	if !m.hasRun {
+		return nil
+	}
+	m.seq++
+	return tea.Batch(m.readJobs(), m.startSpinner())
+}
+
+// online reads again, now that GitHub answers again, what failed for want
+// of an answer from it: the runs, the jobs of the run shown and the log
+// of the job.
+func (m *Modal) online() tea.Cmd {
+	cmds := []tea.Cmd{ui.RetryUnreached(&m.runs), ui.RetryUnreached(&m.log)}
+	if !m.jobs.loading && ui.Unreached(m.jobs.err) {
+		cmds = append(cmds, m.rereadJobs())
+	}
+	return tea.Batch(cmds...)
 }
 
 // open opens the run, or the job of the jobs and the log panes, on GitHub.

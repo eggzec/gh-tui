@@ -89,6 +89,15 @@ func (m *Model) ReadNow() tea.Cmd {
 	return m.read()
 }
 
+// Err returns why the log failed to load, else why the annotations did,
+// or nil if neither failed.
+func (m Model) Err() error {
+	if m.state == Failed {
+		return m.failed
+	}
+	return m.notes.err
+}
+
 // Retry reads the log or the annotations again once they failed to load,
 // and does nothing otherwise.
 func (m *Model) Retry() tea.Cmd {
@@ -100,7 +109,7 @@ func (m *Model) Retry() tea.Cmd {
 	if m.state != Failed {
 		return notes
 	}
-	m.state = Loading
+	m.state, m.failed = Loading, nil
 	return tea.Batch(notes, m.view.SetLoading(), m.read())
 }
 
@@ -151,7 +160,7 @@ func (m *Model) receive(msg logMsg) {
 	case errors.Is(msg.err, core.ErrLogExpired):
 		m.state = Expired
 	case msg.err != nil:
-		m.state = Failed
+		m.state, m.failed = Failed, msg.err
 		m.view.SetError(msg.err)
 	default:
 		m.setLog(msg.log)
