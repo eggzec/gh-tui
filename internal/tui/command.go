@@ -34,6 +34,7 @@ type command struct {
 
 // commands are those of the command line, in the order they complete.
 var commands = []command{
+	{name: "copy", detail: "copy the url, ref, sha or path of what is selected", args: true, run: (*Model).copyCommand, complete: completeCopy},
 	{name: "filter", detail: "filter the focused list", run: filtering(filterform.FiltersTab)},
 	{name: "goto", detail: "open a repository, issue, pull request or link", args: true, run: (*Model).gotoCommand, complete: (*Model).completeTarget},
 	{name: "help", detail: "show every key", run: pressing(config.ActionHelp)},
