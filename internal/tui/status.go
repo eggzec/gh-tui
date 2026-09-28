@@ -2,12 +2,14 @@ package tui
 
 import (
 	"cmp"
+	"log/slog"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -139,11 +141,14 @@ func (m *Model) account() string {
 
 // readRates reads the rate limits again, if the app has what tells them,
 // and redraws the status. The connection is offline since the request
-// that failed first after GitHub last answered.
-func (m *Model) readRates() {
+// that failed first after GitHub last answered. Once GitHub answers again
+// the command wakes what failed meanwhile; only an answer to a request
+// does that, never a read the caches served.
+func (m *Model) readRates() tea.Cmd {
 	if m.rates == nil {
-		return
+		return nil
 	}
+	was, wasRejected := m.offSince, !m.rate.Rejected.IsZero()
 	m.rate = m.rates.RateStatus()
 	if offline := m.rate.Failed.After(m.rate.Answered); !offline {
 		m.offSince = time.Time{}
@@ -151,6 +156,29 @@ func (m *Model) readRates() {
 		m.offSince = m.rate.Failed
 	}
 	m.drawStatus()
+	m.logLink(was, wasRejected)
+	if !was.IsZero() && m.offSince.IsZero() {
+		return m.cameOnline()
+	}
+	return nil
+}
+
+// logLink logs a change of the connection, once: going offline, and
+// since when; online again, and for how long it was offline, from was,
+// when it went offline; and GitHub rejecting the token, unless it was
+// already.
+func (m *Model) logLink(was time.Time, wasRejected bool) {
+	host := cmp.Or(m.host, "github.com")
+	switch {
+	case was.IsZero() && !m.offSince.IsZero():
+		slog.InfoContext(m.ctx, "connection", "span", "tui", "state", "offline", "host", host, "since", m.offSince)
+	case !was.IsZero() && m.offSince.IsZero():
+		slog.InfoContext(m.ctx, "connection", "span", "tui", "state", "online", "host", host,
+			"offline_s", m.rate.Answered.Sub(was).Round(time.Second).Seconds())
+	}
+	if !wasRejected && !m.rate.Rejected.IsZero() {
+		slog.InfoContext(m.ctx, "connection", "span", "tui", "state", "rejected", "host", host)
+	}
 }
 
 // linkNow returns the state of the connection, and the time that goes
