@@ -47,6 +47,10 @@ type Client struct {
 	// and toldOld is set once it was.
 	onOld   func(version string)
 	toldOld atomic.Bool
+	// version is the Enterprise Server version the answers tell, and
+	// toldServer is set once the server record is logged.
+	version    atomic.Pointer[string]
+	toldServer atomic.Bool
 	// logURLs keeps the signed URLs of the logs of jobs in progress.
 	logURLs logURLs
 }
@@ -301,6 +305,7 @@ func (c *Client) sendWith(hc *http.Client, req *http.Request) (*http.Response, e
 	}
 	if req.URL.Host == c.restURL.Host {
 		c.observeVersion(req.Context(), resp.Header.Get(enterpriseHeader))
+		c.observeServer(req.Context(), resp.Header, time.Now())
 	}
 	return resp, nil
 }
