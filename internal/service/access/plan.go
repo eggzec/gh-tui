@@ -87,6 +87,10 @@ func plan(st situation) Plan {
 		return Plan{Why: "GitHub hasn't said yet what the token may do."}
 	case len(st.missing) == 0 && !st.refused && !st.sso:
 		return Plan{Why: "The token may do everything gh-tui does."}
+	case !hostName(st.host):
+		// The host goes into a command and a link, so one that could
+		// be read as more goes into neither.
+		return Plan{Why: "The host isn't a plain host name, so gh-tui can't refresh its token; run gh auth refresh yourself.", Scopes: st.missing}
 	case st.kind == core.TokenFineGrained || st.kind == core.TokenApp:
 		why := "A " + kindName(st.kind) + " token has no scopes to grant; "
 		if env {
@@ -115,7 +119,7 @@ func plan(st situation) Plan {
 		}
 		return Plan{Why: "Install GitHub CLI to grant the token " + scopes + ".", Scopes: st.missing}
 	}
-	cmd := []string{st.gh, "auth", "refresh", "-h", st.host}
+	cmd := []string{st.gh, "auth", "refresh", "--hostname=" + st.host}
 	if len(st.missing) > 0 {
 		cmd = append(cmd, "-s", strings.Join(st.missing, ","))
 	}
@@ -128,6 +132,24 @@ func plan(st situation) Plan {
 		return Plan{Cmd: cmd, Why: "gh signs in again, where you can authorize the organizations' SSO."}
 	}
 	return Plan{Cmd: cmd, Why: "gh opens the browser to grant the token " + scopes + ".", Scopes: st.missing}
+}
+
+// hostName reports whether host is a host name, or an address, with an
+// optional port, and nothing else, such as a flag or a path.
+func hostName(host string) bool {
+	name, port, hasPort := strings.Cut(host, ":")
+	if name == "" || strings.HasPrefix(name, "-") || strings.HasPrefix(name, ".") {
+		return false
+	}
+	if strings.ContainsFunc(name, func(r rune) bool {
+		return (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') && (r < '0' || r > '9') && r != '.' && r != '-'
+	}) {
+		return false
+	}
+	if !hasPort {
+		return true
+	}
+	return port != "" && len(port) <= 5 && !strings.ContainsFunc(port, func(r rune) bool { return r < '0' || r > '9' })
 }
 
 // stored reports whether source is gh's own store.
