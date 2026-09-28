@@ -4,7 +4,6 @@ import (
 	"errors"
 	"strconv"
 	"strings"
-	"time"
 	"unicode/utf8"
 
 	"charm.land/lipgloss/v2"
@@ -205,13 +204,9 @@ func (s *Section) resultsLabel() string {
 	return label
 }
 
-// wait is how long until code search resumes, such as "42s".
+// wait is how long until code search resumes, such as "42s" or "1m 5s".
 func (s *Section) wait() string {
-	d := max(s.codeReset.Sub(s.now()), 0).Round(time.Second)
-	if d < time.Minute {
-		return strconv.Itoa(int(d/time.Second)) + "s"
-	}
-	return strconv.Itoa(int(d/time.Minute)) + "m" + strconv.Itoa(int(d%time.Minute/time.Second)) + "s"
+	return ui.Duration(s.codeReset.Sub(s.now()))
 }
 
 // results renders the results on view in w by h cells, or what stands in
@@ -432,16 +427,14 @@ func isHex(s string) bool {
 
 // repoCols are the widths of the columns at the right of the first line
 // of a repository, which line up from row to row. A narrow row shows the
-// language by its glyph alone and the age in its short form, and the
-// narrowest only the stars.
+// language by its glyph alone, and the narrowest only the stars.
 type repoCols struct {
 	lang, age int
-	short     bool
 }
 
 // repoLayouts are the columns of repository rows, widest first:
-// "TypeScript" and "11mo ago", then a glyph and "11mo".
-var repoLayouts = []repoCols{{lang: 12, age: 8}, {lang: 1, age: 4, short: true}, {}}
+// "TypeScript" and "11mo", then a glyph and "11mo".
+var repoLayouts = []repoCols{{lang: 12, age: 4}, {lang: 1, age: 4}, {}}
 
 // minRepoName is the room the name of a repository keeps, before the
 // columns give way.
@@ -481,12 +474,8 @@ func (s *Section) renderRepo(r core.Repo, selected bool, width int) string {
 	cells = append(cells, padLeft(st.muted.render(s.icons.Star+" "+count(r.Stars)), starsWidth))
 	if cols.age > 0 {
 		age := ""
-		switch {
-		case r.UpdatedAt.IsZero():
-		case cols.short:
+		if !r.UpdatedAt.IsZero() {
 			age = ui.Ago(r.UpdatedAt, s.now())
-		default:
-			age = ui.AgoProse(r.UpdatedAt, s.now())
 		}
 		cells = append(cells, padLeft(st.subtle.render(age), cols.age))
 	}

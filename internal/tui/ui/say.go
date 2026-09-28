@@ -143,11 +143,7 @@ func words(p *core.Problem, v Voice) (text, hint string, named bool) {
 			// it lifts, may pass on a retry.
 			return "Rate limited by GitHub", retry, false
 		}
-		layout := "15:04"
-		if p.Reset.Sub(now) >= 24*time.Hour {
-			layout = "Jan 2, 15:04"
-		}
-		return "Rate limited until " + p.Reset.In(cmp.Or(v.Loc, time.Local)).Format(layout), "loads again then", false
+		return "Rate limited until " + Clock(p.Reset.In(cmp.Or(v.Loc, time.Local)), now), "loads again then", false
 	case core.Auth:
 		return authWords(p, v.Token.Hint())
 	case core.Forbidden:

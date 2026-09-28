@@ -8,6 +8,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
 // shownPart is what the view shows of a partial log: the lines of its
@@ -114,5 +115,5 @@ func (m *Model) setPartial(l core.PartialLog) {
 	}
 	m.state, m.truncated = Partial, l.Truncated
 	m.part = shownPart{gen: l.Gen, lines: len(l.Lines), at: l.At}
-	m.view.SetTitle("partial, as of " + l.At.Local().Format("15:04"))
+	m.view.SetTitle("partial, as of " + ui.Clock(l.At.Local(), m.opts.now()))
 }

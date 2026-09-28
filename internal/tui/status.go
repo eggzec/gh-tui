@@ -218,9 +218,9 @@ func (m *Model) linkItem() statusbar.Item {
 	case linkOnline:
 		dot, text = m.bst.online, "online"
 	case linkOffline:
-		dot, text = m.bst.warn, "offline since "+clock(at, m.rate.At)
+		dot, text = m.bst.warn, "offline since "+ui.Clock(at, m.rate.At)
 	case linkLimited:
-		dot, text = m.bst.warn, "rate limited until "+clock(at, m.rate.At)
+		dot, text = m.bst.warn, "rate limited until "+ui.Clock(at, m.rate.At)
 	case linkRejected:
 		dot, text = m.bst.fail, "token rejected"
 	}
@@ -256,7 +256,7 @@ func (m *Model) ratesItem() statusbar.Item {
 		held += q.Held
 	}
 	if !reset.IsZero() {
-		parts = append(parts, st.label.Render("resets ")+st.value.Render(clock(reset, m.rate.At)))
+		parts = append(parts, st.label.Render("resets ")+st.value.Render(ui.Clock(reset, m.rate.At)))
 	}
 	if held > 0 {
 		parts = append(parts, st.warn.Render(strconv.Itoa(held)+" held"))
@@ -309,15 +309,6 @@ func grouped(n int) string {
 		b.WriteRune(r)
 	}
 	return b.String()
-}
-
-// clock returns the time of t, with its day when that isn't the day of
-// now.
-func clock(t, now time.Time) string {
-	if y, m, d := t.Date(); y == now.Year() && m == now.Month() && d == now.Day() {
-		return t.Format("15:04")
-	}
-	return t.Format("Jan 2 15:04")
 }
 
 // sameBinding reports whether a and b are the same binding, in the same
