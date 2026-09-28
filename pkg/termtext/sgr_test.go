@@ -38,7 +38,15 @@ func TestStyler(t *testing.T) {
 			want: []Style{{0, "\x1b[38;5;208;48;2;1;2;3;58;5;1m"}}},
 		{name: "a zero in a color is no reset", seqs: []string{"\x1b[1m", "\x1b[38;5;0m"},
 			want: []Style{{0, "\x1b[1m"}, {1, "\x1b[1;38;5;0m"}}},
-		{name: "colon colors", seqs: []string{"\x1b[38:2::255:0:0m"}, want: []Style{{0, "\x1b[38:2::255:0:0m"}}},
+		{name: "colon colors", seqs: []string{"\x1b[38:2::255:0:0m"}, want: []Style{{0, "\x1b[38;2;255;0;0m"}}},
+		// A color keeps none of the length it came in.
+		{name: "padded colors", seqs: []string{"\x1b[38;02;0000000255;000;00001;048;005;0000208m"},
+			want: []Style{{0, "\x1b[38;2;255;0;1;48;5;208m"}}},
+		{name: "colon color with a color space", seqs: []string{"\x1b[48:2:1:0010:0020:0030m"}, want: []Style{{0, "\x1b[48;2;10;20;30m"}}},
+		{name: "underline colors", seqs: []string{"\x1b[4;58:2::001:2:3m", "\x1b[58;5;9;31m", "\x1b[59m"},
+			want: []Style{{0, "\x1b[4;58;2;1;2;3m"}, {1, "\x1b[4;31;58;5;9m"}, {2, "\x1b[4;31m"}}},
+		{name: "a color out of range is dropped", seqs: []string{"\x1b[31m", "\x1b[1;38;2;256;0;0m", "\x1b[48;5;1000m"},
+			want: []Style{{0, "\x1b[31m"}, {1, "\x1b[1;31m"}}},
 		{name: "bright colors", seqs: []string{"\x1b[91;103m"}, want: []Style{{0, "\x1b[91;103m"}}},
 		{name: "underline styles", seqs: []string{"\x1b[4:3m", "\x1b[4:0m"}, want: []Style{{0, "\x1b[4m"}, {1, ""}}},
 		{name: "a cut color drops the rest", seqs: []string{"\x1b[1;38;5m"}, want: []Style{{0, "\x1b[1m"}}},
@@ -86,6 +94,35 @@ func TestStyleBounded(t *testing.T) {
 			t.Fatalf("style %q is %d bytes", st.Seq, len(st.Seq))
 		}
 	}
+	// Colors padded to the longest a sequence may be keep none of it.
+	var p Styler
+	for i := range 1000 {
+		text := padded(i)
+		for pos := 0; pos < len(text); {
+			n, sgr := Escape(text[pos:])
+			if sgr {
+				p.Add(i, text[pos:pos+n])
+			}
+			pos += max(n, 1)
+		}
+	}
+	// The longest style: every attribute and three true colors.
+	for _, st := range p.Styles() {
+		if len(st.Seq) > 71 {
+			t.Fatalf("padded style %q is %d bytes", st.Seq, len(st.Seq))
+		}
+	}
+}
+
+// padded is one cell of text whose colors, all three, change at every
+// cell and come as long as a kept sequence may be, padded with zeros, with
+// every attribute on, as text crafted to make the styles long is.
+func padded(i int) string {
+	pad := func(v int) string { return fmt.Sprintf("%017d", v%256) }
+	c := func(kind string) string {
+		return "\x1b[" + kind + ":2::" + pad(i) + ":" + pad(i/256) + ":" + pad(i+1) + "m"
+	}
+	return "\x1b[1;2;3;4;7;9;21;53m" + c("38") + c("48") + c("58") + "x"
 }
 
 func TestEscape(t *testing.T) {

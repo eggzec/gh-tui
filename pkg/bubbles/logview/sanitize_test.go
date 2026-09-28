@@ -1,6 +1,7 @@
 package logview
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -28,7 +29,7 @@ func TestSanitize(t *testing.T) {
 		{name: "a zero in a color is no reset", in: "\x1b[38;5;0mx\x1b[38;2;255;0;0my", want: "xy",
 			marks: []termtext.Style{{Pos: 0, Seq: "\x1b[38;5;0m"}, {Pos: 1, Seq: "\x1b[38;2;255;0;0m"}}},
 		{name: "colon colors", in: "\x1b[38:2::255:0:0mx", want: "x",
-			marks: []termtext.Style{{Pos: 0, Seq: "\x1b[38:2::255:0:0m"}}},
+			marks: []termtext.Style{{Pos: 0, Seq: "\x1b[38;2;255;0;0m"}}},
 		{name: "tabs", in: "a\tb\t\tc", want: "a       b               c"},
 		{name: "tabs after wide runes", in: "你\tx", want: "你      x"},
 		{name: "tabs after colors", in: "\x1b[1ma\x1b[m\tb", want: "a       b",
@@ -119,12 +120,18 @@ func TestSanitizeView(t *testing.T) {
 func TestSanitizeViewBounded(t *testing.T) {
 	const width, height = 80, 10
 	huge := "\x1b[38;2;" + strings.Repeat("1", 60<<10) + "m"
-	for _, text := range []string{
-		strings.Repeat("\x1b[1mx", 200_000),
-		strings.Repeat("\x1b[1mx\x1b[3my\x1b[22;23m", 50_000),
-		strings.Repeat(huge+"x", 50),
+	rows := make([]Line, 0, height*2)
+	for range height * 2 {
+		rows = append(rows, Line{Text: padded(width)})
+	}
+	for _, lines := range [][]Line{
+		{{Text: strings.Repeat("\x1b[1mx", 200_000)}},
+		{{Text: strings.Repeat("\x1b[1mx\x1b[3my\x1b[22;23m", 50_000)}},
+		{{Text: strings.Repeat(huge+"x", 50)}},
+		{{Text: padded(width * height * 2)}},
+		rows,
 	} {
-		m := view(t, []Line{{Text: text}}, WithSize(width, height), WithLineNumbers(false))
+		m := view(t, lines, WithSize(width, height), WithLineNumbers(false))
 		start := time.Now()
 		v := m.View()
 		if d := time.Since(start); d > time.Second {
@@ -135,4 +142,25 @@ func TestSanitizeViewBounded(t *testing.T) {
 		}
 		assertFits(t, v, width, height)
 	}
+}
+
+// padded is n cells of text crafted to make a frame as large as it can:
+// every cell changes all three colors, which come in the colon form and
+// padded with zeros, as long as a kept sequence may be, and every other
+// cell turns every attribute on, and the next turns them off.
+func padded(n int) string {
+	var b strings.Builder
+	pad := func(v int) string { return fmt.Sprintf("%017d", v%256) }
+	for i := range n {
+		if i%2 == 0 {
+			b.WriteString("\x1b[1;2;3;4;7;9;21;53m")
+		} else {
+			b.WriteString("\x1b[22;23;24;27;29;55m")
+		}
+		for _, kind := range []string{"38", "48", "58"} {
+			b.WriteString("\x1b[" + kind + ":2::" + pad(i) + ":" + pad(i/256) + ":" + pad(i+1) + "m")
+		}
+		b.WriteString("x")
+	}
+	return b.String()
 }

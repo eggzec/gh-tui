@@ -435,8 +435,10 @@ func (m *Model) writeText(b *strings.Builder, ri int, r *row, a, e int) {
 	if k > 0 {
 		cur = marks[k-1].Seq
 	}
-	b.WriteString(base.on)
-	b.WriteString(cur)
+	// The pen writes only what changes from one style to the next.
+	pen := base.pen
+	pen.Start(b)
+	pen.Write(b, cur)
 	mi, inMatch := 0, false
 	for pos := a; pos < e; {
 		if k < len(marks) && marks[k].Pos <= pos {
@@ -446,7 +448,7 @@ func (m *Model) writeText(b *strings.Builder, ri int, r *row, a, e int) {
 			cur = marks[k-1].Seq
 			// A match hides the log's colors, which come back after it.
 			if !inMatch {
-				writeStyle(b, base, cur)
+				pen.Write(b, cur)
 			}
 		}
 		for mi < len(matches) && matches[mi].end <= pos {
@@ -468,6 +470,7 @@ func (m *Model) writeText(b *strings.Builder, ri int, r *row, a, e int) {
 					}
 					b.WriteString(ansi.ResetStyle)
 					b.WriteString(p.on)
+					pen.Lost()
 					inMatch = true
 				}
 				next = min(next, x.end)
@@ -476,18 +479,11 @@ func (m *Model) writeText(b *strings.Builder, ri int, r *row, a, e int) {
 		b.WriteString(r.text[pos:next])
 		pos = next
 		if inMatch && pos >= matches[mi].end {
-			writeStyle(b, base, cur)
+			pen.Write(b, cur)
 			inMatch = false
 		}
 	}
 	b.WriteString(ansi.ResetStyle)
-}
-
-// writeStyle puts the base style back, and the log's style seq over it.
-func writeStyle(b *strings.Builder, base pair, seq string) {
-	b.WriteString(ansi.ResetStyle)
-	b.WriteString(base.on)
-	b.WriteString(seq)
 }
 
 // statusLine renders the title on the left and where the cursor is on the

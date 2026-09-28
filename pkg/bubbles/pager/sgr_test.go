@@ -1,6 +1,7 @@
 package pager
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -68,6 +69,8 @@ func TestColorsBounded(t *testing.T) {
 		{name: "many colors at one place", text: strings.Repeat("\x1b[1m\x1b[3m\x1b[22;23m", 100_000) + "x"},
 		{name: "huge sequences", text: strings.Repeat(huge+"x", 50)},
 		{name: "many lines never reset", text: strings.Repeat("\x1b[1m\x1b[4m\x1b[31mline\n", 50_000)},
+		{name: "padded colors at every cell", text: padded(width * height * 2)},
+		{name: "padded colors on every row", text: strings.Repeat(padded(width)+"\n", height*2)},
 	}
 	for _, tt := range tests {
 		for _, wrap := range []bool{false, true} {
@@ -140,11 +143,12 @@ func TestColorsSearch(t *testing.T) {
 	v := m.View()
 	// The first match starts inside a color and spans another; it hides
 	// both, and the colors come back after it.
-	cur := m.esc.current.on + "fail\x1b[m"
+	cur := "\x1b[m" + m.esc.current.on + "fail"
 	if !strings.Contains(v, cur) {
 		t.Errorf("view doesn't show %q over fail: %q", cur, v)
 	}
-	if !strings.Contains(v, "\x1b[m"+m.esc.text.on+"\x1b[1;31m-ed") {
+	// Bold and red over the text style, in one sequence after a reset.
+	if !strings.Contains(v, "fail\x1b[0;1;31m-ed") {
 		t.Errorf("the colors don't come back after the match: %q", v)
 	}
 	if got := strings.Count(v, m.esc.match.on+"fail"); got != 2 {
@@ -168,4 +172,25 @@ func TestColorsNotHighlighted(t *testing.T) {
 	if m.sgr != nil {
 		t.Error("plain content kept the colors of the content before it")
 	}
+}
+
+// padded is n cells of text crafted to make a frame as large as it can:
+// every cell changes all three colors, which come in the colon form and
+// padded with zeros, as long as a kept sequence may be, and every other
+// cell turns every attribute on, and the next turns them off.
+func padded(n int) string {
+	var b strings.Builder
+	pad := func(v int) string { return fmt.Sprintf("%017d", v%256) }
+	for i := range n {
+		if i%2 == 0 {
+			b.WriteString("\x1b[1;2;3;4;7;9;21;53m")
+		} else {
+			b.WriteString("\x1b[22;23;24;27;29;55m")
+		}
+		for _, kind := range []string{"38", "48", "58"} {
+			b.WriteString("\x1b[" + kind + ":2::" + pad(i) + ":" + pad(i/256) + ":" + pad(i+1) + "m")
+		}
+		b.WriteString("x")
+	}
+	return b.String()
 }
