@@ -108,6 +108,47 @@ func TestTabsKeepTheFilterUntilCleared(t *testing.T) {
 	}
 }
 
+// The author picker offers the viewer once, as @me, not by login too.
+func TestFilterOffersTheViewerOnce(t *testing.T) {
+	viewer := func(context.Context) (string, error) { return "OCTOCAT", nil }
+	h := started(t, newFakeService(sampleIssues(3)), 80, 20, WithFacets(&fakeFacets{}), WithViewer(viewer))
+	f, _ := h.Filter()
+	for _, fl := range f.Spec.Fields {
+		if fl.Key != "author" {
+			continue
+		}
+		people, err := fl.Load(t.Context(), "")
+		if err != nil || len(people) != 0 {
+			t.Errorf("people = %+v, %v; want none, the viewer being @me", people, err)
+		}
+		return
+	}
+	t.Fatal("no author field")
+}
+
+// Picker searches overlap, and each reads the viewer while it is unknown.
+func TestFilterLoadsPeopleAtOnce(t *testing.T) {
+	viewer := func(context.Context) (string, error) { return "octocat", nil }
+	h := newSection(t, newFakeService(sampleIssues(3)), 80, 20, WithFacets(&fakeFacets{}), WithViewer(viewer))
+	run(t, h, h.Update(ui.RepoMsg{Repo: testRepo}))
+	f, _ := h.Filter()
+	var load filterform.Loader
+	for _, fl := range f.Spec.Fields {
+		if fl.Key == "author" {
+			load = fl.Load
+		}
+	}
+	var wg sync.WaitGroup
+	for range 2 {
+		wg.Go(func() {
+			if people, err := load(t.Context(), ""); err != nil || len(people) != 0 {
+				t.Errorf("people = %+v, %v; want none, the viewer being @me", people, err)
+			}
+		})
+	}
+	wg.Wait()
+}
+
 func TestFilteredEmptyText(t *testing.T) {
 	h := started(t, newFakeService(sampleIssues(12)), 80, 6)
 	apply(t, h, "is:open author:nobody")

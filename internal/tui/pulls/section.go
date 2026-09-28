@@ -64,6 +64,9 @@ type Section struct {
 	// modals, and caps is what they may do in repo, as far as it is known.
 	repos ui.Repos
 	caps  core.RepoCaps
+	// readViewer reads the login of the signed-in user, whom the filter
+	// offers as @me.
+	readViewer Viewer
 
 	repo    core.RepoRef
 	hasRepo bool
@@ -133,6 +136,15 @@ func WithMergeMethod(m core.MergeMethod) Option {
 // refuses what it doesn't allow.
 func WithRepos(r ui.Repos) Option {
 	return func(s *Section) { s.repos = r }
+}
+
+// Viewer returns the login of the signed-in user. It may do I/O.
+type Viewer func(ctx context.Context) (string, error)
+
+// WithViewer sets how the section learns who the user is, so that the
+// filter offers them once, as @me, rather than by their login as well.
+func WithViewer(v Viewer) Option {
+	return func(s *Section) { s.readViewer = v }
 }
 
 // WithOffline shares off with other sections, so that the user is told once
