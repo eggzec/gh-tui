@@ -362,8 +362,8 @@ func TestRepoMsgResetsTheBase(t *testing.T) {
 
 // helpHas reports whether the help of s lists a key described as desc.
 func helpHas(s *Section, desc string) bool {
-	for _, b := range s.Help().ShortHelp() {
-		if b.Enabled() && b.Help().Desc == desc {
+	for _, b := range (ui.Hints{Layers: s.KeyLayers()}).ShortHelp() {
+		if b.Help().Desc == desc {
 			return true
 		}
 	}

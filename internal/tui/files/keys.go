@@ -46,6 +46,12 @@ func withKeys(b key.Binding, desc, label string, keys ...string) key.Binding {
 	return b
 }
 
+// own returns the keys of the section itself, in the order it matches
+// them.
+func (k KeyMap) own() []key.Binding {
+	return []key.Binding{k.Refresh, k.Open, k.ResetBase}
+}
+
 // ShortHelp returns the bindings for the short help view.
 func (k KeyMap) ShortHelp() []key.Binding {
 	return []key.Binding{k.Tree.Up, k.Tree.Down, k.Tree.Right, k.Tree.Collapse, k.Tree.Open, k.Open, k.Refresh, k.ResetBase}
@@ -53,5 +59,5 @@ func (k KeyMap) ShortHelp() []key.Binding {
 
 // FullHelp returns the bindings for the full help view.
 func (k KeyMap) FullHelp() [][]key.Binding {
-	return append(k.Tree.FullHelp(), []key.Binding{k.Open, k.Refresh, k.ResetBase})
+	return append(k.Tree.FullHelp(), k.own())
 }
