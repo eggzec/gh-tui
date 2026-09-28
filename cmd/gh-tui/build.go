@@ -236,6 +236,9 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 			history.WithConfig(cfg.History), history.WithOffline(offline), history.WithHost(webHost), history.WithVoice(voice))),
 		tui.WithRelease(releases.Opener(releaseSvc, cfg.Keys, releases.WithVoice(voice))),
 		tui.WithRateStatus(client),
+		// The status bar names the account gh stores the token for; a
+		// token from elsewhere may be anyone's.
+		tui.WithLogin(token.Login),
 	}
 	if path, err := historyPath(cfg.Cache.Disk, client.Host(), client.Account()); err == nil && path != "" {
 		opts = append(opts, tui.WithCommandHistory(cmdhist.New(path, cmdhist.DefaultLimit)))

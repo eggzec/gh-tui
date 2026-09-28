@@ -30,7 +30,7 @@ type KeyMap struct {
 	// FindFile opens the file finder of the section that has one, on the
 	// repository screen.
 	FindFile key.Binding
-	// Command opens the command line in place of the help line.
+	// Command opens the command line in place of the status bar.
 	Command key.Binding
 	// Filter opens the filter modal of the focused pane on its Filters
 	// tab, if it has one, and Sort opens it on its Sort tab, if the pane

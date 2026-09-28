@@ -13,10 +13,3 @@ type RateLimits interface {
 func WithRateStatus(r RateLimits) Option {
 	return func(m *Model) { m.rates = r }
 }
-
-// readRates reads the rate limits again, if the app has what tells them.
-func (m *Model) readRates() {
-	if m.rates != nil {
-		m.rate = m.rates.RateStatus()
-	}
-}

@@ -13,7 +13,7 @@ import (
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
-// screen is what fills the space between the header and the help line.
+// screen is what fills the space between the header and the status bar.
 type screen int
 
 const (

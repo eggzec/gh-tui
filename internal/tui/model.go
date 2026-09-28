@@ -1,7 +1,7 @@
 // Package tui is the root of the program. It lays the sections out on
 // four screens, the dashboard, the repository screen with its panes, the
-// notifications screen and the search page, draws the header, the help
-// line and toasts, opens modals such as the history over them, runs the
+// notifications screen and the search page, draws the header, the status
+// bar and toasts, opens modals such as the history over them, runs the
 // commands of the command line, and routes messages between them all.
 // The sections themselves live in their own packages and share the ui
 // package.
@@ -10,6 +10,7 @@ package tui
 import (
 	"context"
 	"slices"
+	"time"
 
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/spinner"
@@ -20,6 +21,8 @@ import (
 	"github.com/eggzec/gh-tui/internal/obs"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/statusbar"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
@@ -79,8 +82,18 @@ type Model struct {
 	badge string
 
 	toast toast.Model
-	help  help.Model
-	// line is the command line, which takes the place of the help line
+	// status is the status bar: hints, of the keys of layers, on the
+	// left, and stats, the rate limits, the connection and the account,
+	// on the right.
+	status       statusbar.Model
+	hints, stats []statusbar.Item
+	layers       []keyhelp.Layer
+	bst          barStyles
+	// help renders full, every key that reaches something, over the
+	// status bar while it is toggled on.
+	help help.Model
+	full string
+	// line is the command line, which takes the place of the status bar
 	// while it is open.
 	line cmdline.Model
 	// going is the goto waiting for GitHub, or nil, and gotoSeq numbers
@@ -127,8 +140,13 @@ type Model struct {
 	// warnings are shown as toasts once the app starts.
 	warnings []string
 	// rates tells the rate limits, and rate is what it told last.
-	rates RateLimits
-	rate  core.RateStatus
+	// offSince is when the connection went offline, or zero while it
+	// isn't.
+	rates    RateLimits
+	rate     core.RateStatus
+	offSince time.Time
+	// login is the account's, for the status bar.
+	login string
 	// voice words what went wrong in the app's toasts and the modals it
 	// opens.
 	voice ui.Voice
@@ -243,14 +261,15 @@ func WithWarning(text string) Option {
 // request the app makes.
 func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) *Model {
 	m := &Model{
-		ctx:   ctx,
-		cfg:   cfg,
-		keys:  newKeyMap(cfg.Keys),
-		toast: toast.New(),
-		help:  help.New(),
-		line:  newLine(cfg.Keys),
-		spin:  newSpinner(),
-		voice: ui.NewVoice(cfg.Keys, ""),
+		ctx:    ctx,
+		cfg:    cfg,
+		keys:   newKeyMap(cfg.Keys),
+		toast:  toast.New(),
+		help:   help.New(),
+		status: statusbar.New(),
+		line:   newLine(cfg.Keys),
+		spin:   newSpinner(),
+		voice:  ui.NewVoice(cfg.Keys, ""),
 	}
 	if layout.Files != nil {
 		m.panes, m.left = append(m.panes, &pane{section: layout.Files}), 1
@@ -395,6 +414,9 @@ func (m *Model) applyTheme(dark bool) {
 	m.st = newStyles(m.theme)
 	m.toast.SetStyles(m.theme.Toast())
 	m.help.Styles = m.theme.Help()
+	m.bst = newBarStyles(m.theme)
+	m.status.SetStyles(statusbar.Styles{Separator: m.st.edge})
+	m.drawStatus()
 	m.line.SetStyles(m.theme.Cmdline())
 	m.spin.Style = m.theme.Accent
 	for _, p := range m.all {
