@@ -2,6 +2,7 @@ package picker
 
 import (
 	"bytes"
+	"sync"
 	"testing"
 	"time"
 
@@ -15,6 +16,10 @@ type host struct {
 	picker    Model
 	chosen    Item
 	cancelled bool
+	// listed runs once the picker lists the results of what it waits for,
+	// if set.
+	want   string
+	listed func()
 }
 
 func (h host) Init() tea.Cmd { return h.picker.Init() }
@@ -37,6 +42,9 @@ func (h host) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	var cmd tea.Cmd
 	h.picker, cmd = h.picker.Update(msg)
+	if h.listed != nil && h.picker.Query().Text == h.want && !h.picker.Loading() && h.picker.Len() > 0 {
+		h.listed()
+	}
 	return h, cmd
 }
 
@@ -57,14 +65,21 @@ func TestProgram(t *testing.T) {
 			f := &fakeSearch{}
 			m := New(f.search, WithDebounce(20*time.Millisecond), WithScopes(kindRepos, kindIssues, kindPulls))
 			m.Focus()
-			tm := teatest.NewTestModel(t, host{picker: m}, teatest.WithInitialTermSize(70, 12))
+			listed := make(chan struct{})
+			h := host{picker: m, want: "crash", listed: sync.OnceFunc(func() { close(listed) })}
+			tm := teatest.NewTestModel(t, h, teatest.WithInitialTermSize(70, 12))
 			teatest.WaitFor(t, tm.Output(), func(b []byte) bool {
 				return bytes.Contains(b, []byte("2 results"))
 			}, teatest.WithDuration(5*time.Second))
+			// Every prefix of the query lists #7 too, and a slow key may let
+			// the debounce search one, so wait for the results of the query
+			// itself before moving through them.
 			tm.Type("crash")
-			teatest.WaitFor(t, tm.Output(), func(b []byte) bool {
-				return bytes.Contains(b, []byte("eggzec/gh-tui#7"))
-			}, teatest.WithDuration(5*time.Second))
+			select {
+			case <-listed:
+			case <-time.After(5 * time.Second):
+				t.Fatal("the picker listed nothing for crash")
+			}
 			for _, k := range tt.keys {
 				tm.Send(k)
 			}
@@ -76,8 +91,10 @@ func TestProgram(t *testing.T) {
 				t.Errorf("chosen %+v, cancelled %v; want %+v, %v",
 					final.chosen, final.cancelled, tt.wantChosen, tt.wantCancelled)
 			}
-			if got := f.Queries(); len(got) != 2 || got[1].Text != "crash" {
-				t.Errorf("queries = %+v, want the empty one and one for crash", got)
+			// A slow key may let the debounce search a prefix too, which
+			// TestDebounce covers, so only the first and last are known.
+			if got := f.Queries(); len(got) < 2 || got[0].Text != "" || got[len(got)-1].Text != "crash" {
+				t.Errorf("queries = %+v, want the empty one first and one for crash last", got)
 			}
 		})
 	}
