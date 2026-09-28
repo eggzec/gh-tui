@@ -23,9 +23,10 @@ type KeyMap struct {
 	Expand key.Binding
 	// Collapse collapses the section or group under the cursor, or the one
 	// the cursor is in.
-	Collapse    key.Binding
-	ExpandAll   key.Binding
-	CollapseAll key.Binding
+	Collapse key.Binding
+	// FoldAll folds every section when any is open, and expands every
+	// section otherwise. Groups keep their state.
+	FoldAll key.Binding
 
 	// NextError and PrevError move to the next and previous error line,
 	// expanding what hides it, and NextWarning and PrevWarning to the
@@ -81,8 +82,7 @@ func DefaultKeyMap() KeyMap {
 		Toggle:       key.NewBinding(key.WithKeys("space", "enter"), key.WithHelp("space", "fold")),
 		Expand:       key.NewBinding(key.WithKeys("+"), key.WithHelp("+", "expand")),
 		Collapse:     key.NewBinding(key.WithKeys("-"), key.WithHelp("-", "collapse")),
-		ExpandAll:    key.NewBinding(key.WithKeys("*"), key.WithHelp("*", "expand all")),
-		CollapseAll:  key.NewBinding(key.WithKeys("="), key.WithHelp("=", "collapse all")),
+		FoldAll:      key.NewBinding(key.WithKeys("*"), key.WithHelp("*", "fold all")),
 		NextError:    key.NewBinding(key.WithKeys("e"), key.WithHelp("e", "next error"), key.WithDisabled()),
 		PrevError:    key.NewBinding(key.WithKeys("E"), key.WithHelp("E", "prev error"), key.WithDisabled()),
 		NextWarning:  key.NewBinding(key.WithKeys("w"), key.WithHelp("w", "next warning"), key.WithDisabled()),
@@ -109,7 +109,7 @@ func (k KeyMap) ShortHelp() []key.Binding {
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.PageUp, k.PageDown, k.HalfPageUp, k.HalfPageDown, k.Home, k.End},
-		{k.Toggle, k.Expand, k.Collapse, k.ExpandAll, k.CollapseAll},
+		{k.Toggle, k.Expand, k.Collapse, k.FoldAll},
 		{k.NextError, k.PrevError, k.NextWarning, k.PrevWarning, k.Search, k.Confirm, k.Cancel, k.Next, k.Prev},
 		{k.Left, k.Right, k.Wrap, k.Times, k.LineNumbers, k.Follow, k.Close},
 	}

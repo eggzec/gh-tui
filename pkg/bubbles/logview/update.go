@@ -66,10 +66,8 @@ func (m Model) updateKey(k tea.KeyPressMsg) (Model, tea.Cmd) {
 		m.expand()
 	case key.Matches(k, m.keys.Collapse):
 		m.collapse()
-	case key.Matches(k, m.keys.ExpandAll):
-		m.ExpandAll()
-	case key.Matches(k, m.keys.CollapseAll):
-		m.CollapseAll()
+	case key.Matches(k, m.keys.FoldAll):
+		m.FoldAll()
 	case key.Matches(k, m.keys.NextError):
 		m.stepIssue(Error, 1)
 	case key.Matches(k, m.keys.PrevError):
