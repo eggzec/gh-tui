@@ -1,16 +1,20 @@
 package fallback
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/cache/disk"
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/obs"
 )
 
 type page = core.Page[string]
@@ -186,6 +190,28 @@ func TestKeep(t *testing.T) {
 		}
 		if e, ok := shelf.Load(key); !ok || e.ETag != want {
 			t.Errorf("shelf keeps %+v, %v; want ETag %s", e, ok, want)
+		}
+	}
+}
+
+// A refusal that drops a kept page logs it, with why, once.
+func TestFetchLogsDropped(t *testing.T) {
+	var buf bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(obs.NewLogger(&buf, slog.LevelInfo, "s_test"))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+
+	c, shelf := setup(t, true)
+	_, _ = Fetch(t.Context(), c, shelf, key, Page[string], serve(fail(core.ErrForbidden)))
+	c, shelf = setup(t, false)
+	_, _ = Fetch(t.Context(), c, shelf, key, Page[string], serve(fail(core.ErrForbidden)))
+	out := buf.String()
+	if n := strings.Count(out, `"msg":"kept dropped"`); n != 1 {
+		t.Fatalf("%d records, want 1 for the kept page:\n%s", n, out)
+	}
+	for _, want := range []string{`"level":"INFO"`, `"kind":"pages"`, `"reason":"forbidden"`, `"entry":"` + key + `"`} {
+		if !strings.Contains(out, want) {
+			t.Errorf("record lacks %s:\n%s", want, out)
 		}
 	}
 }

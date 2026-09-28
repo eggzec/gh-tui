@@ -58,7 +58,7 @@ func Fetch[V any](ctx context.Context, c *cache.Cache[V], shelf *cache.Shelf[V],
 				return prev, nil
 			}
 		case core.Auth, core.Forbidden, core.NotFound:
-			shelf.Delete(key)
+			shelf.Drop(ctx, key, core.KindOf(err).String())
 		default:
 		}
 		return cache.Entry[V]{}, err
