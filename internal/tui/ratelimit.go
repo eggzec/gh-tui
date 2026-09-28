@@ -13,3 +13,11 @@ type RateLimits interface {
 func WithRateStatus(r RateLimits) Option {
 	return func(m *Model) { m.rates = r }
 }
+
+// WithOnline sets the function called when GitHub answers again after the
+// app couldn't reach it, such as to poll at once what backed off
+// meanwhile. It is called from Update, as the sections are sent a
+// ui.OnlineMsg, and must not block.
+func WithOnline(online func()) Option {
+	return func(m *Model) { m.online = online }
+}

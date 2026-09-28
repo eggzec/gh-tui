@@ -105,12 +105,15 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(cmd, m.broadcast(msg))
 	case ui.SyncMsg:
 		if msg.Key == core.SyncRateLimit {
-			// Only the status bar shows the rate limits.
-			m.readRates()
-			cmd := m.listen()
-			return m, cmd
+			// Only the status bar shows the rate limits, but GitHub
+			// answering again wakes what failed.
+			cmd := m.readRates()
+			return m, tea.Batch(cmd, m.listen())
 		}
 		return m, tea.Batch(m.broadcast(msg), m.listen())
+	case onlineTickMsg:
+		cmd := m.onlineTick()
+		return m, cmd
 	case ui.RepoMsg:
 		cmd := m.selectRepo(msg)
 		return m, cmd

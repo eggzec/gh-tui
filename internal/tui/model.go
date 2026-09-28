@@ -144,6 +144,12 @@ type Model struct {
 	rates    RateLimits
 	rate     core.RateStatus
 	offSince time.Time
+	// online is told when GitHub answers again, as the sections are.
+	// wokeAt is when they last were, and waking is set while a wake that
+	// came too soon after waits for its turn.
+	online func()
+	wokeAt time.Time
+	waking bool
 	// login is the account's, for the status bar.
 	login string
 	// voice words what went wrong in the app's toasts and the modals it
