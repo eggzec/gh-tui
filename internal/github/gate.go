@@ -948,7 +948,7 @@ func (t *rateTransport) send(req *http.Request, r *reservation, held time.Durati
 	}
 	resp = t.noteSecondary(attempt, resp)
 	t.access.observe(attempt, resp.Header)
-	if guard := t.budget.observe(r, resp.Header); guard > 0 {
+	if guard := t.budget.observe(r, resp.StatusCode, resp.Header); guard > 0 {
 		outlasted(ctx, r.resource, guard)
 	}
 	return resp, nil

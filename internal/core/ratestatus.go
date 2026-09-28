@@ -41,6 +41,10 @@ type RateStatus struct {
 	// the connection is unknown, and it is offline only while Failed is
 	// after Answered.
 	Answered, Failed time.Time
+	// Rejected is when GitHub rejected the token, if its last answer
+	// did, or zero: the token expired or was revoked, and every request
+	// fails until it is refreshed.
+	Rejected time.Time
 	// At is when the status was taken.
 	At time.Time
 }
