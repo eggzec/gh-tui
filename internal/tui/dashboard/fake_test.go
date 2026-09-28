@@ -3,6 +3,8 @@ package dashboard
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -275,6 +277,8 @@ type fakeInbox struct {
 	lists   int
 	// marked are the threads marked read.
 	marked []string
+	// err, when set, fails every list.
+	err error
 }
 
 // MarkRead marks thread id read at once, as the service does in its
@@ -313,6 +317,9 @@ func (f *fakeInbox) List(context.Context, notifications.ListQuery) (core.Page[co
 	defer f.mu.Unlock()
 	f.read = true
 	f.lists++
+	if f.err != nil {
+		return core.Page[core.Notification]{}, f.err
+	}
 	return core.Page[core.Notification]{Items: slices.Clone(f.threads)}, nil
 }
 
@@ -523,4 +530,15 @@ func keyPress(k string) tea.KeyPressMsg {
 	}
 	r, _ := utf8.DecodeRuneInString(k)
 	return tea.KeyPressMsg{Code: r, Text: k}
+}
+
+// logVoice returns the voice of the default keys, pointing to the log
+// file where the app keeps it, so that the view shows it under ~.
+func logVoice(tb testing.TB) ui.Voice {
+	tb.Helper()
+	home, err := os.UserHomeDir()
+	if err != nil {
+		tb.Skip("no home directory:", err)
+	}
+	return ui.NewVoice(config.Default().Keys, filepath.Join(home, ".local", "state", "gh-tui", "gh-tui.log"))
 }

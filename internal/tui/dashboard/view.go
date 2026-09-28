@@ -282,7 +282,17 @@ func (s *Section) profile() []string {
 		}
 		second = s.facts(p)
 	case h.err != nil:
-		first = st.fail.render("Couldn't load your profile: "+cleanLine(h.err.Error())) + st.subtle.render(" · "+s.keys.Refresh.Help().Key+" retries")
+		// The error takes both lines of the profile, and no more: when
+		// the hint would need a third, the text gives up all but its
+		// first line to it.
+		text, hint := s.say("load your profile", h.err)
+		lines := ui.ErrorLine(s.errs, text, hint, w-1)
+		if len(lines) > 2 {
+			mark := ansi.StringWidth(s.errs.Mark + " ")
+			lines = ui.ErrorLine(s.errs, ansi.Truncate(text, w-1-mark, "…"), hint, w-1)
+		}
+		lines = append(lines, "", "")
+		first, second = lines[0], lines[1]
 	default:
 		first = st.muted.render("Loading your profile…")
 	}
@@ -352,7 +362,7 @@ func (s *Section) pinnedBody(w, h int) []string {
 	if len(c.items) == 0 {
 		switch {
 		case s.header.err != nil && !s.header.ok:
-			return []string{" " + st.fail.render("Couldn't load your pins.")}
+			return indent(s.failure("load your pins", s.header.err, w-1))
 		case !s.header.ok:
 			return []string{" " + st.muted.render("Loading pinned repositories…")}
 		}
@@ -506,7 +516,7 @@ func (s *Section) workBody(w, h int) []string {
 	st, l := &s.st, &s.tasks
 	switch {
 	case !s.work.ok && s.work.err != nil:
-		return []string{" " + st.fail.render("Couldn't load your work: "+cleanLine(s.work.err.Error())), " " + st.subtle.render(s.keys.Refresh.Help().Key+" retries")}
+		return indent(s.failure("load your work", s.work.err, w-1))
 	case !s.work.ok:
 		return []string{" " + st.muted.render("Loading the work waiting on you…")}
 	}
@@ -616,7 +626,7 @@ func (s *Section) inboxBody(w, h int) []string {
 	case s.inbox == nil:
 		return []string{" " + st.muted.render("Notifications aren't available.")}
 	case !s.notes.ok && s.notes.err != nil:
-		return []string{" " + st.fail.render("Couldn't load your notifications.")}
+		return indent(s.failure("load your notifications", s.notes.err, w-1))
 	case !s.notes.ok:
 		return []string{" " + st.muted.render("Loading notifications…")}
 	}
@@ -657,10 +667,40 @@ func (s *Section) inboxBody(w, h int) []string {
 	return lines
 }
 
+// failure renders err, which stopped action, in lines of w cells. Every
+// read of the dashboard is the viewer's own, so it names no subject, and
+// the open key opens the row under the cursor rather than what failed, so
+// no hint names it.
+func (s *Section) failure(action string, err error, w int) []string {
+	text, hint := s.say(action, err)
+	return ui.ErrorLine(s.errs, text, hint, w)
+}
+
+// say returns the text and the hint that failure renders. A read that was
+// canceled has nothing to say, but the pane still offers to read again,
+// rather than stay blank.
+func (s *Section) say(action string, err error) (text, hint string) {
+	v := s.voice
+	v.Open.SetEnabled(false)
+	text, hint = ui.ErrorText(action, "", v)(err)
+	if k := v.Retry; text == "" && hint == "" && k.Enabled() && k.Help().Key != "" {
+		hint = k.Help().Key + " to retry"
+	}
+	return text, hint
+}
+
+// indent puts a space before each of lines, as the panes' lines start.
+func indent(lines []string) []string {
+	for i := range lines {
+		lines[i] = " " + lines[i]
+	}
+	return lines
+}
+
 // calendarBody centers the calendar in w cells.
 func (s *Section) calendarBody(w int) []string {
 	if !s.contribs.ok && s.contribs.err != nil {
-		return []string{" " + s.st.fail.render("Couldn't load your contributions.")}
+		return indent(s.failure("load your contributions", s.contribs.err, w-1))
 	}
 	view := s.cal.View()
 	if view == "" {
