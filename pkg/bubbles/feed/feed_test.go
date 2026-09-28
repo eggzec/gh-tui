@@ -913,3 +913,19 @@ func TestSettled(t *testing.T) {
 		t.Error("Settled() = true after the first chunk failed")
 	}
 }
+
+// TestRetry checks that Retry repeats the failed fetch, as the retry key
+// does, and costs nothing when none failed.
+func TestRetry(t *testing.T) {
+	src := newSource(10, 10)
+	src.setFail("", errors.New("offline"))
+	m := load(t, src)
+	src.setFail("", nil)
+	m = run(t, m, m.Retry())
+	if m.Err() != nil || m.Len() != 10 {
+		t.Fatalf("after Retry: Err() = %v, Len() = %d", m.Err(), m.Len())
+	}
+	if cmd := m.Retry(); cmd != nil {
+		t.Error("Retry with nothing failed returned a command")
+	}
+}

@@ -867,3 +867,28 @@ func TestAccessors(t *testing.T) {
 		t.Fatal("key map has no help")
 	}
 }
+
+// TestRetry checks that Retry loads again the top-level nodes if they
+// failed, else each open branch that failed, and nothing when none did.
+func TestRetry(t *testing.T) {
+	f := repo()
+	f.setFail("", errors.New("offline"))
+	m := load(t, f)
+	f.setFail("", nil)
+	m = run(t, m, m.Retry())
+	if m.Err() != nil || m.Len() != len(roots) {
+		t.Fatalf("after Retry: Err() = %v, Len() = %d", m.Err(), m.Len())
+	}
+
+	f.setFail("internal", errors.New("offline"))
+	m.SetSize(60, 10)
+	m = keys(t, m, "j", "j", "+")
+	f.setFail("internal", nil)
+	m = run(t, m, m.Retry())
+	if e := m.nodes["internal"]; e.err != nil || len(e.kids) != 2 {
+		t.Fatalf("branch after Retry: err = %v, kids = %v", e.err, e.kids)
+	}
+	if cmd := m.Retry(); cmd != nil {
+		t.Error("Retry with nothing failed returned a command")
+	}
+}

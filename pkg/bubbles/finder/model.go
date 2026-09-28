@@ -127,8 +127,23 @@ func (m Model) Init() tea.Cmd {
 	if !m.loading {
 		return nil
 	}
+	return tea.Batch(m.loadCmd(), m.spin.Tick)
+}
+
+// Retry loads the paths again once their load failed, such as once the
+// network is back. It returns nil if it didn't fail.
+func (m *Model) Retry() tea.Cmd {
+	if m.err == nil || m.loading {
+		return nil
+	}
+	m.loading, m.err = true, nil
+	m.render()
+	return tea.Batch(m.loadCmd(), m.tick())
+}
+
+func (m Model) loadCmd() tea.Cmd {
 	load, ctx, id := m.load, m.ctx, m.id
-	return tea.Batch(func() tea.Msg {
+	return func() tea.Msg {
 		l, err := load(ctx)
 		if err != nil {
 			return loadedMsg{id: id, err: err}
@@ -138,7 +153,7 @@ func (m Model) Init() tea.Cmd {
 			return loadedMsg{id: id, err: err}
 		}
 		return loadedMsg{id: id, corpus: c, note: l.Note}
-	}, m.spin.Tick)
+	}
 }
 
 // Close cancels the load and any match in flight, for a finder that is

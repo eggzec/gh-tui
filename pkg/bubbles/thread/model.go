@@ -439,6 +439,20 @@ func (m *Model[T]) reword() {
 	m.layout(m.anchor())
 }
 
+// Err returns the error of a fetch that failed, the next chunk's first,
+// or nil if none did.
+func (m Model[T]) Err() error {
+	if m.tail.err != nil {
+		return m.tail.err
+	}
+	for i := range m.chunks {
+		if err := m.chunks[i].err; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (m Model[T]) failed() bool {
 	if m.tail.err != nil {
 		return true

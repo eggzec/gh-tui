@@ -464,6 +464,26 @@ func TestErrorAndRetry(t *testing.T) {
 	}
 }
 
+// TestRetry checks that Retry fetches the failed page again, as the
+// retry key does, and costs nothing when none failed.
+func TestRetry(t *testing.T) {
+	src := newSource(sample(), 5)
+	src.setFail("5", errors.New("offline"))
+	m := load(t, src)
+	m, _ = keys(t, m, "G")
+	if m.Err() == nil {
+		t.Fatal("Err() = nil after the page failed")
+	}
+	src.setFail("5", nil)
+	m, _ = run(t, m, m.Retry())
+	if m.Err() != nil || m.Len() != 8 {
+		t.Fatalf("after Retry: Err() = %v, Len() = %d", m.Err(), m.Len())
+	}
+	if cmd := m.Retry(); cmd != nil {
+		t.Error("Retry with nothing failed returned a command")
+	}
+}
+
 func TestEmpty(t *testing.T) {
 	m := load(t, newSource(nil, 10), WithEmptyText("No commits yet."))
 	if !m.Done() || m.Len() != 0 {

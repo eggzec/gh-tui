@@ -121,6 +121,39 @@ func (m *Model) pickHighlighted(enter bool) {
 	m.markPicked(value)
 }
 
+// Err returns why the options of a field failed to load, the first
+// field's, or nil if none failed.
+func (m Model) Err() error {
+	for _, fs := range m.fields {
+		if fs.state == failed {
+			return fs.err
+		}
+	}
+	return nil
+}
+
+// Retry loads again the options of each field whose load failed, as
+// opening the field does, such as once the network is back. It returns
+// nil if none failed.
+func (m *Model) Retry() tea.Cmd {
+	var cmds []tea.Cmd
+	for i := range m.fields {
+		if m.fields[i].state != failed {
+			continue
+		}
+		if cmds == nil {
+			// Copies of the model share the fields.
+			m.fields = slices.Clone(m.fields)
+		}
+		cmds = append(cmds, m.load(i))
+	}
+	if cmds == nil {
+		return nil
+	}
+	m.render()
+	return tea.Batch(cmds...)
+}
+
 // load starts loading field i's options.
 func (m *Model) load(i int) tea.Cmd {
 	m.seq++

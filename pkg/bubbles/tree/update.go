@@ -94,6 +94,28 @@ func (m *Model) expand(e *entry) tea.Cmd {
 	return cmd
 }
 
+// Retry loads again what failed to load and is open: the top-level nodes,
+// or else each expanded branch, as expanding it does, such as once the
+// network is back. It returns nil if nothing open failed.
+func (m *Model) Retry() tea.Cmd {
+	if root := m.nodes[""]; root != nil && root.err != nil {
+		cmd := m.startLoad(root)
+		m.flatten(m.anchor(m.current()))
+		return cmd
+	}
+	var cmds []tea.Cmd
+	for _, e := range m.nodes {
+		if e.err != nil && e.expanded {
+			cmds = append(cmds, m.startLoad(e))
+		}
+	}
+	if len(cmds) == 0 {
+		return nil
+	}
+	m.flatten(m.anchor(m.current()))
+	return tea.Batch(cmds...)
+}
+
 // right moves into an expanded branch, or expands it.
 func (m *Model) right() tea.Cmd {
 	e := m.current()

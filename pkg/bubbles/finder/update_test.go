@@ -5,6 +5,7 @@ import (
 	"errors"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -314,4 +315,30 @@ func TestResizeKeepsSelectionInView(t *testing.T) {
 		t.Errorf("selection %d outside rows %d to %d", m.sel, m.top, m.top+m.listHeight())
 	}
 	assertFits(t, m.View(), 40, 5)
+}
+
+// TestRetry checks that Retry loads the paths again once their load
+// failed, and does nothing otherwise.
+func TestRetry(t *testing.T) {
+	var fail atomic.Bool
+	fail.Store(true)
+	m := New(func(context.Context) (Listing, error) {
+		if fail.Load() {
+			return Listing{}, errors.New("offline")
+		}
+		return Listing{Items: items("a.go", "b.go")}, nil
+	}, WithSize(40, 5))
+	m.Focus()
+	m = run(t, m, m.Init())
+	fail.Store(false)
+	m = run(t, m, m.Retry())
+	if m.Err() != nil || m.Loading() {
+		t.Fatalf("after Retry: err %v, loading %v", m.Err(), m.Loading())
+	}
+	if v := ansi.Strip(m.View()); !strings.Contains(v, "a.go") {
+		t.Errorf("view = %q, want the paths", v)
+	}
+	if cmd := m.Retry(); cmd != nil {
+		t.Error("Retry with nothing failed returned a command")
+	}
 }

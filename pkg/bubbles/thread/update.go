@@ -66,7 +66,7 @@ func (m *Model[T]) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 	case key.Matches(msg, k.Bottom):
 		m.vp.SetYOffset(math.MaxInt)
 	case key.Matches(msg, k.Retry):
-		return m.retry()
+		return m.Retry()
 	case key.Matches(msg, k.Toggle):
 		m.toggle()
 	}
@@ -194,8 +194,10 @@ func (m *Model[T]) loadChunk(i int) tea.Cmd {
 	return m.fetchCmd(i, c.seq, false, c.cursor)
 }
 
-// retry fetches again whatever failed: the next chunk or evicted ones.
-func (m *Model[T]) retry() tea.Cmd {
+// Retry fetches again whatever failed, the next chunk or evicted ones, as
+// the retry key does, such as once the network is back. It returns nil if
+// no fetch failed.
+func (m *Model[T]) Retry() tea.Cmd {
 	var cmd tea.Cmd
 	for i := range m.chunks {
 		if m.chunks[i].err != nil {
