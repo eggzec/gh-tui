@@ -3,7 +3,6 @@ package tui
 import (
 	"log/slog"
 	"os"
-	"strings"
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
@@ -110,7 +109,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd := m.selectRepo(msg)
 		return m, cmd
 	case ui.BaseMsg:
-		if !sameRepo(msg.Repo, m.repo) {
+		if !msg.Repo.Same(m.repo) {
 			return m, nil
 		}
 		m.base = msg
@@ -118,7 +117,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd := m.broadcast(msg)
 		return m, cmd
 	case repoInfoMsg:
-		if msg.err != nil || msg.repo.Ref != m.repo {
+		if msg.err != nil || !msg.repo.Ref.Same(m.repo) {
 			return m, nil
 		}
 		m.branch = msg.repo.DefaultBranch
@@ -309,7 +308,7 @@ func (m *Model) selectRepo(msg ui.RepoMsg) tea.Cmd {
 	if m.watchRepo != nil {
 		m.watchRepo(msg.Repo)
 	}
-	if msg.Repo != m.repo {
+	if !msg.Repo.Same(m.repo) {
 		m.repo, m.branch = msg.Repo, ""
 	}
 	// Selecting a repository shows the head of its default branch.
@@ -374,12 +373,6 @@ func (m *Model) openURL(url string) tea.Cmd {
 		}
 		return nil
 	}
-}
-
-// sameRepo reports whether a and b name the same repository, which GitHub
-// matches regardless of case.
-func sameRepo(a, b core.RepoRef) bool {
-	return strings.EqualFold(a.Owner, b.Owner) && strings.EqualFold(a.Name, b.Name)
 }
 
 func (m *Model) report(active bool) {

@@ -77,3 +77,32 @@ func TestSyncRefreshesDetail(t *testing.T) {
 		t.Errorf("listed %d times, want %d, so the list is current on the way back", got, lists+1)
 	}
 }
+
+// A modal's change reloads the list of its repository, however either
+// spells it.
+func TestChangedReloads(t *testing.T) {
+	tests := []struct {
+		name   string
+		repo   core.RepoRef
+		reload bool
+	}{
+		{"this repository", repo, true},
+		{"this repository in other case", core.RepoRef{Owner: "EggZec", Name: "GH-TUI"}, true},
+		{"another repository", core.RepoRef{Owner: "cli", Name: "cli"}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := newFakeService()
+			s := started(t, svc, 80, 20)
+			n := len(svc.listed())
+			drain(t, s, s.Update(changedMsg{repo: tt.repo}))
+			want := n
+			if tt.reload {
+				want++
+			}
+			if got := len(svc.listed()); got != want {
+				t.Errorf("listed %d times, want %d", got, want)
+			}
+		})
+	}
+}

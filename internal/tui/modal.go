@@ -93,7 +93,7 @@ func (m *Model) openCommit(msg ui.OpenCommitMsg) tea.Cmd {
 		return nil
 	}
 	var branch string
-	if sameRepo(msg.Repo, m.repo) {
+	if msg.Repo.Same(m.repo) {
 		branch = m.branch
 	}
 	mod, load := m.commit(m.ctx, msg.Repo, msg.SHA, branch)

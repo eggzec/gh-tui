@@ -203,13 +203,13 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case ui.RepoMsg:
 		// Selecting a repository shows the head of its default branch.
-		if s.tree != nil && sameRef(msg.Repo, s.repo) && s.ref == "" {
+		if s.tree != nil && msg.Repo.Same(s.repo) && s.ref == "" {
 			return nil
 		}
 		s.newTree(msg.Repo, "")
 		return s.start()
 	case ui.BaseMsg:
-		if s.tree == nil || !sameRef(msg.Repo, s.repo) || msg.Ref == s.ref {
+		if s.tree == nil || !msg.Repo.Same(s.repo) || msg.Ref == s.ref {
 			return nil
 		}
 		s.newTree(s.repo, msg.Ref)
@@ -507,10 +507,4 @@ func (s *Section) renderBlank() {
 		lines[i] = ansi.Truncate(l, s.width, "")
 	}
 	s.blank = strings.Join(lines, "\n")
-}
-
-// sameRef reports whether a and b name the same repository, which GitHub
-// matches regardless of case.
-func sameRef(a, b core.RepoRef) bool {
-	return strings.EqualFold(a.Owner, b.Owner) && strings.EqualFold(a.Name, b.Name)
 }

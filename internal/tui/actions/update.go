@@ -49,7 +49,7 @@ func (m *Modal) update(msg tea.Msg) tea.Cmd {
 	case ui.SyncMsg:
 		return m.synced(msg)
 	case ui.CapsMsg:
-		if msg.Repo == m.repo {
+		if msg.Repo.Same(m.repo) {
 			m.caps = msg.Caps
 		}
 		return nil

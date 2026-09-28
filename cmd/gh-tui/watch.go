@@ -27,7 +27,7 @@ type repoWatch struct {
 
 // set switches the polls over to repo. The zero RepoRef polls nothing.
 func (w *repoWatch) set(repo core.RepoRef) {
-	if repo == w.repo {
+	if repo.Same(w.repo) {
 		return
 	}
 	for _, unsub := range w.unsub {

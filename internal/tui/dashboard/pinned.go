@@ -2,7 +2,6 @@ package dashboard
 
 import (
 	"slices"
-	"strings"
 
 	"github.com/eggzec/gh-tui/internal/core"
 )
@@ -46,7 +45,7 @@ func (c *cards) set(pinned []core.Repo) {
 	items := make([]card, 0, len(pinned)+1)
 	if c.here != (core.RepoRef{}) {
 		r := c.hereRepo
-		if i := slices.IndexFunc(pinned, func(p core.Repo) bool { return sameRef(p.Ref, c.here) }); i >= 0 {
+		if i := slices.IndexFunc(pinned, func(p core.Repo) bool { return p.Ref.Same(c.here) }); i >= 0 {
 			r = pinned[i]
 		}
 		if r.Ref == (core.RepoRef{}) {
@@ -55,12 +54,12 @@ func (c *cards) set(pinned []core.Repo) {
 		items = append(items, card{repo: r, here: true})
 	}
 	for i := range pinned {
-		if c.here == (core.RepoRef{}) || !sameRef(pinned[i].Ref, c.here) {
+		if c.here == (core.RepoRef{}) || !pinned[i].Ref.Same(c.here) {
 			items = append(items, card{repo: pinned[i]})
 		}
 	}
 	c.items = items
-	c.sel = max(slices.IndexFunc(items, func(it card) bool { return it.repo.Ref == prev }), 0)
+	c.sel = max(slices.IndexFunc(items, func(it card) bool { return it.repo.Ref.Same(prev) }), 0)
 	c.scroll()
 }
 
@@ -129,10 +128,4 @@ func (c *cards) pages() (at, of int) {
 		return 0, 0
 	}
 	return c.top + 1, of
-}
-
-// sameRef reports whether a and b name the same repository, which GitHub
-// matches regardless of case.
-func sameRef(a, b core.RepoRef) bool {
-	return strings.EqualFold(a.Owner, b.Owner) && strings.EqualFold(a.Name, b.Name)
 }

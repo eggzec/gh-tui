@@ -37,14 +37,14 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 		s.configure(msg.Config)
 		return nil
 	case ui.CapsMsg:
-		if s.hasRepo && msg.Repo == s.repo {
+		if s.hasRepo && msg.Repo.Same(s.repo) {
 			s.caps = msg.Caps
 		}
 		return nil
 	case ui.OpenPullMsg:
 		return s.openDetail(msg.Repo, msg.Number, nil, msg.Checks, msg.ShowRepo, msg.Pause)
 	case changedMsg:
-		if !s.hasRepo || msg.repo != s.repo {
+		if !s.hasRepo || !msg.repo.Same(s.repo) {
 			return nil
 		}
 		return s.reload()
@@ -66,7 +66,7 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 
 // setRepo shows the pull requests of repo, once the section has started.
 func (s *Section) setRepo(repo core.RepoRef) tea.Cmd {
-	if s.hasRepo && repo == s.repo {
+	if s.hasRepo && repo.Same(s.repo) {
 		return nil
 	}
 	s.repo, s.hasRepo = repo, true
