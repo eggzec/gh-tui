@@ -367,6 +367,19 @@ func (s *Section) codeFailed() tea.Cmd {
 	return s.limitCode(rl.Reset)
 }
 
+// online reads again the results on view if they failed for want of an
+// answer from GitHub, now that it answers. The other kinds read again as
+// they are shown.
+func (s *Section) online() tea.Cmd {
+	if l, ok := s.visibleHits(); ok {
+		return ui.RetryUnreached(&l.feed)
+	}
+	if l, ok := s.visibleCode(); ok {
+		return ui.RetryUnreached(&l.feed)
+	}
+	return nil
+}
+
 // visible returns the feed of the results on view, if there is one.
 func (s *Section) visibleHits() (*hitList, bool) {
 	if s.text == "" || s.kind == core.SearchCode {

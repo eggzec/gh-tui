@@ -47,6 +47,8 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		return s.reload()
+	case ui.OnlineMsg:
+		return ui.RetryUnreached(&s.feed)
 	case ui.SettingsMsg:
 		s.configure(msg.Config)
 		return nil

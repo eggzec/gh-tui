@@ -218,6 +218,13 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 	case ui.SettingsMsg:
 		s.configure(msg.Config)
 		return nil
+	case ui.OnlineMsg:
+		// The tree reads again its top level, or the open branches,
+		// that failed. What GitHub refused seldom shows in a tree.
+		if s.tree == nil {
+			return nil
+		}
+		return s.tree.Retry()
 	case hoverMsg:
 		if s.tree == nil {
 			return nil

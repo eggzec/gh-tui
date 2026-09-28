@@ -10,6 +10,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/obs"
 	"github.com/eggzec/gh-tui/internal/service/dashboard"
 	"github.com/eggzec/gh-tui/internal/service/notifications"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/calendar"
 )
 
@@ -187,6 +188,41 @@ func (s *Section) refresh() tea.Cmd {
 	s.gen++
 	s.hereRepo.ok = false
 	return tea.Batch(s.load(), s.repos.reload())
+}
+
+// online reads again, now that GitHub answers again, what failed for want
+// of an answer from it, or was served from what an earlier read kept:
+// the profile, the work, the calendar, the inbox, the repository of the
+// directory and the lists of repositories. What is being read already
+// is left to finish.
+func (s *Section) online() tea.Cmd {
+	if !s.started {
+		return nil
+	}
+	var cmds []tea.Cmd
+	if unreached(s.header, s.header.value.Offline) {
+		cmds = append(cmds, s.readHeader(true))
+	}
+	if unreached(s.work, s.work.value.Offline) {
+		cmds = append(cmds, s.readWork(true))
+	}
+	if unreached(s.contribs, s.contribs.value.Offline) {
+		cmds = append(cmds, s.readContributions(true))
+	}
+	if unreached(s.notes, s.notes.value.Offline) {
+		cmds = append(cmds, s.readInbox(true))
+	}
+	if unreached(s.hereRepo, false) && s.getHere != nil {
+		cmds = append(cmds, s.readHere())
+	}
+	cmds = append(cmds, s.repos.online())
+	return tea.Batch(cmds...)
+}
+
+// unreached reports whether r, which isn't being read, failed for want of
+// an answer from GitHub, or shows a value served offline.
+func unreached[V any](r read[V], offline bool) bool {
+	return !r.loading && (ui.Unreached(r.err) || r.ok && r.err == nil && offline)
 }
 
 // Revisit reads again what went past its TTL while another screen was on

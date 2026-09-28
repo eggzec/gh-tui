@@ -45,6 +45,8 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 		return s.reload()
 	case ui.SyncMsg:
 		return s.sync(msg)
+	case ui.OnlineMsg:
+		return ui.RetryUnreached(&s.list)
 	case ui.CapsMsg:
 		return s.setCaps(msg)
 	case ui.SettingsMsg:

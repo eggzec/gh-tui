@@ -64,6 +64,8 @@ func (s *Section) update(msg tea.Msg) (tea.Cmd, bool) {
 		}
 		s.readInboxCache()
 		return nil, true
+	case ui.OnlineMsg:
+		return s.online(), true
 	case ui.AccessMsg:
 		// The inbox the token was refused, or failed to read, it may
 		// read now.
