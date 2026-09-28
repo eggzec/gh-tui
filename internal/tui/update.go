@@ -66,6 +66,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case accessChangedMsg, authRanMsg, authReloadedMsg:
 		cmd := m.updateAccess(msg)
 		return m, cmd
+	case oldEnterpriseMsg:
+		cmd := m.toldOldEnterprise(msg)
+		return m, cmd
 	case quitWaitedMsg:
 		cmd := m.quitWaited()
 		return m, cmd

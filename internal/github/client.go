@@ -43,6 +43,10 @@ type Client struct {
 	// unsupported keeps the queries it lacks fields of.
 	enterprise  atomic.Bool
 	unsupported unsupported
+	// onOld is told once of an Enterprise Server older than supported,
+	// and toldOld is set once it was.
+	onOld   func(version string)
+	toldOld atomic.Bool
 	// logURLs keeps the signed URLs of the logs of jobs in progress.
 	logURLs logURLs
 }
@@ -59,6 +63,7 @@ type options struct {
 	gh       ghLookup
 	notify   func()
 	onAccess func(core.Access)
+	onOld    func(version string)
 }
 
 // WithHTTPClient sets the HTTP client that sends requests. Its Timeout
@@ -161,6 +166,7 @@ func New(opts ...Option) (*Client, error) {
 		graphqlURL:   gql.String(),
 		budget:       b,
 		access:       acc,
+		onOld:        o.onOld,
 	}
 	c.token.Store(&o.token)
 	// An Enterprise Server's API is below /api/v3.
@@ -292,6 +298,9 @@ func (c *Client) sendWith(hc *http.Client, req *http.Request) (*http.Response, e
 	resp, err := hc.Do(req)
 	if err != nil {
 		return nil, offline(req.Context(), err)
+	}
+	if req.URL.Host == c.restURL.Host {
+		c.observeVersion(req.Context(), resp.Header.Get(enterpriseHeader))
 	}
 	return resp, nil
 }
