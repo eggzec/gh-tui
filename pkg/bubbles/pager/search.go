@@ -274,8 +274,9 @@ func (m *Model) step(d int) {
 	}
 }
 
-// jump makes match i current and scrolls it into view: its line to the top
-// unless it is shown already, and its start into the columns shown.
+// jump makes match i current and scrolls it into view: the row of its
+// start to the top unless it is shown already, and its start into the
+// columns shown.
 func (m *Model) jump(i int) {
 	s := &m.search
 	k, _ := slices.BinarySearch(s.ends, int32(i+1))
@@ -285,31 +286,28 @@ func (m *Model) jump(i int) {
 	}
 	s.cur, s.curLine, s.curNth = i, int(s.lines[k]), nth
 	p := m.posOf(s.curLine)
-	if p < m.top || p > m.bottom() {
-		m.top, m.row = p, 0
-	}
-	if s.invert {
-		m.clamp()
-		return
-	}
-	line := m.lines[s.curLine]
-	ranges := lineMatches(s.re, line)
-	if len(ranges) <= nth {
-		// The count and the ranges come from the same regexp, so only
-		// content changed behind the search's back gets here.
-		m.clamp()
-		return
-	}
-	start, end := ranges[nth][0], ranges[nth][1]
-	tw := m.textWidth()
-	if m.wrap {
-		if p == m.top {
-			m.row = m.rowOf(p, start)
+	// An inverted search matches whole lines, from their first row.
+	var ranges [][]int
+	if !s.invert {
+		ranges = lineMatches(s.re, m.lines[s.curLine])
+		if len(ranges) <= nth {
+			// The count and the ranges come from the same regexp, so only
+			// content changed behind the search's back gets here.
+			ranges = nil
 		}
-	} else {
-		_, from := advance(line[:start], 0, math.MaxInt)
-		_, to := advance(line[:end], 0, math.MaxInt)
-		if from < m.left || to > m.left+tw {
+	}
+	r := 0
+	if ranges != nil && m.wrap {
+		r = m.rowOf(p, ranges[nth][0])
+	}
+	if !m.inView(p, r) {
+		m.top, m.row = p, r
+	}
+	if ranges != nil && !m.wrap {
+		line := m.lines[s.curLine]
+		_, from := advance(line[:ranges[nth][0]], 0, math.MaxInt)
+		_, to := advance(line[:ranges[nth][1]], 0, math.MaxInt)
+		if tw := m.textWidth(); from < m.left || to > m.left+tw {
 			m.left = max(from-tw/4, 0)
 		}
 	}
