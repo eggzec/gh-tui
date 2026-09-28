@@ -3,6 +3,7 @@ package tui
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -54,6 +55,7 @@ func TestSetCommand(t *testing.T) {
 		{line: "set theme=nosuch", toast: `Can't set theme: unknown theme "nosuch".`},
 		{line: "set theme=mine", toast: "theme is mine for this session.", changes: true},
 		{line: "set  theme = mine ", toast: "theme is mine for this session.", changes: true},
+		{line: "set ui.icons=ascii", toast: "ui.icons is ascii for this session.", changes: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.line, func(t *testing.T) {
@@ -67,19 +69,22 @@ func TestSetCommand(t *testing.T) {
 			if !hasToast(m, tt.toast) {
 				t.Errorf("toasts lack %q: %s", tt.toast, toasted(m))
 			}
-			changed := m.cfg.Theme == "mine"
+			changed := !reflect.DeepEqual(m.cfg, userConfig())
 			if changed != tt.changes || len(told) > 0 != tt.changes {
-				t.Fatalf("theme %q, told %d times; want a change %v", m.cfg.Theme, len(told), tt.changes)
+				t.Fatalf("config changed %v, told %d times; want a change %v", changed, len(told), tt.changes)
 			}
 			if !tt.changes {
 				return
 			}
-			if told[0].Theme != "mine" || m.theme.Palette.Accent == accent || m.theme.Palette.Accent != "#ff00ff" {
-				t.Errorf("the theme wasn't applied: told %q, accent %s", told[0].Theme, m.theme.Palette.Accent)
+			if !reflect.DeepEqual(told[0], m.cfg) {
+				t.Errorf("told %+v, want the config set", told[0])
+			}
+			if (m.cfg.Theme == "mine") != (m.theme.Palette.Accent != accent) {
+				t.Errorf("theme %q with accent %s, was %s", m.cfg.Theme, m.theme.Palette.Accent, accent)
 			}
 			for _, f := range fakes {
-				if !f.themed || !f.got(func(msg tea.Msg) bool { s, ok := msg.(ui.SettingsMsg); return ok && s.Config.Theme == "mine" }) {
-					t.Errorf("%s wasn't given the settings", f.title)
+				if !f.themed || !f.got(func(msg tea.Msg) bool { s, ok := msg.(ui.SettingsMsg); return ok && reflect.DeepEqual(s.Config, m.cfg) }) {
+					t.Errorf("%s wasn't given the settings, then the theme", f.title)
 				}
 			}
 		})
@@ -167,6 +172,38 @@ func TestCompleteSet(t *testing.T) {
 	}
 	if got := m.complete("set ", 4); len(got) != maxCandidates || !strings.HasSuffix(got[0].Text, "=") {
 		t.Errorf("keys = %q, want the first %d", texts(got), maxCandidates)
+	}
+}
+
+// orderSection records whether it was given the settings, and whether the
+// theme came after them.
+type orderSection struct {
+	*fakeSection
+	settings, themedAfter bool
+}
+
+func (s *orderSection) Update(msg tea.Msg) tea.Cmd {
+	if _, ok := msg.(ui.SettingsMsg); ok {
+		s.settings = true
+	}
+	return s.fakeSection.Update(msg)
+}
+
+func (s *orderSection) SetTheme(t ui.Theme) {
+	s.themedAfter = s.settings
+	s.fakeSection.SetTheme(t)
+}
+
+// TestSetThemesAfterSettings checks that sections are drawn again after
+// they took the settings, so that they draw with what changed, such as the
+// icons.
+func TestSetThemesAfterSettings(t *testing.T) {
+	files := &orderSection{fakeSection: &fakeSection{title: "Files"}}
+	m := New(t.Context(), config.Default(), Layout{Files: files}, WithRepo(testRepo))
+	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	runCommand(t, m, "set ui.icons=unicode")
+	if !files.settings || !files.themedAfter {
+		t.Errorf("settings %v, themed after them %v", files.settings, files.themedAfter)
 	}
 }
 

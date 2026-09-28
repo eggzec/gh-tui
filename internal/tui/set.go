@@ -21,7 +21,7 @@ func WithSettings(apply func(config.Config)) Option {
 
 // liveSettings are the settings that the set command changes while the
 // app runs. Whatever reads the others reads them once, at startup.
-var liveSettings = []string{"theme"}
+var liveSettings = []string{"theme", "ui.icons"}
 
 // startup says why a setting that isn't live needs a restart, by the
 // start of its key; the first that matches says.
@@ -94,14 +94,15 @@ func reason(key string, err error) string {
 }
 
 // applySettings applies the config to what reads it while the app runs:
-// the theme of the app, the sections, which take what they use of it, and
-// whatever WithSettings tells.
+// the sections, which take what they use of it, whatever WithSettings
+// tells, and the theme, which draws the sections with what they took.
 func (m *Model) applySettings() tea.Cmd {
 	if m.settings != nil {
 		m.settings(m.cfg)
 	}
+	cmd := m.broadcast(ui.SettingsMsg{Config: m.cfg})
 	m.applyTheme(m.theme.Dark)
-	return m.broadcast(ui.SettingsMsg{Config: m.cfg})
+	return cmd
 }
 
 // maxValue is the most characters of the value of a setting that its

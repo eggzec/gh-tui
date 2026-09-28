@@ -54,6 +54,9 @@ func (s *Section) update(msg tea.Msg) (tea.Cmd, bool) {
 		return s.loaded(msg), true
 	case tea.KeyPressMsg:
 		return s.press(msg), true
+	case ui.SettingsMsg:
+		s.configure(msg.Config)
+		return nil, false
 	case ui.SyncMsg:
 		// The poll refreshed the cache of the inbox.
 		if msg.Key != notifications.SyncKey || msg.Err != nil {

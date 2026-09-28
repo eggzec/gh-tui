@@ -47,6 +47,9 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 		return s.sync(msg)
 	case ui.CapsMsg:
 		return s.setCaps(msg)
+	case ui.SettingsMsg:
+		s.configure(msg.Config)
+		return nil
 	case viewerMsg:
 		s.viewer = msg.login
 		return nil

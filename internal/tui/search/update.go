@@ -52,6 +52,9 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		return s.ticked()
+	case ui.SettingsMsg:
+		s.configure(msg.Config)
+		return nil
 	case startMsg:
 		if msg.id == s.id {
 			s.started(msg)

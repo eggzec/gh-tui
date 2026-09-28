@@ -213,6 +213,9 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 		s.newTree(s.repo, msg.Ref)
 		s.baseLabel = cmp.Or(msg.Label, shortRef(msg.Ref))
 		return s.start()
+	case ui.SettingsMsg:
+		s.configure(msg.Config)
+		return nil
 	case hoverMsg:
 		if s.tree == nil {
 			return nil

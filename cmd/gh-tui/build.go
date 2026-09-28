@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"slices"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/cli/go-gh/v2/pkg/browser"
 
 	"github.com/eggzec/gh-tui/internal/cache"
@@ -121,6 +123,9 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 	// The sections share whether GitHub can't be reached, so the user is
 	// told once.
 	offline := new(ui.Offline)
+	// What the set command changes for the session, the modals read as
+	// they open.
+	live := &session{cfg: cfg}
 	// Links go to the pages of the session's host.
 	webHost := client.WebHost()
 	icons := ui.NewIcons(cfg.UI.Icons)
@@ -249,13 +254,18 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 		}
 	}
 	actionOpts := []actions.Option{
-		actions.WithOffline(offline), actions.WithVoice(voice), actions.WithIcons(icons),
+		actions.WithOffline(offline), actions.WithVoice(voice),
 		actions.WithViewer(viewer), actions.WithRepos(repoSvc),
 	}
 	if cfg.Sync.Enabled {
 		actionOpts = append(actionOpts, actions.WithFollow(followRuns(engine.Subscribe, engine.Refresh, actionSvc.Poll)))
 	}
-	opts = append(opts, tui.WithActions(actions.Opener(actionSvc, cfg.Keys, actionOpts...)))
+	opts = append(opts, tui.WithActions(func(ctx context.Context, repo core.RepoRef, f core.RunFilter) (ui.Modal, tea.Cmd) {
+		// The icons are those of the session, which the set command may
+		// have changed since the start.
+		o := append(slices.Clip(actionOpts), actions.WithIcons(ui.NewIcons(live.cfg.UI.Icons)))
+		return actions.Opener(actionSvc, cfg.Keys, o...)(ctx, repo, f)
+	}), tui.WithSettings(live.set))
 	var (
 		activity []func(bool)
 		watchers []func(core.RepoRef)
