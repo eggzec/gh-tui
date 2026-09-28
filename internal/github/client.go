@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/cli/go-gh/v2/pkg/auth"
@@ -28,24 +29,29 @@ const (
 
 // Client talks to the API of one GitHub host. It is safe for concurrent use.
 type Client struct {
-	http       *http.Client
-	token      string
-	login      string
-	restURL    *url.URL
-	graphqlURL string
-	budget     *budget
+	http *http.Client
+	// token is swapped by SetToken while requests read it.
+	token atomic.Pointer[string]
+	// tokenAccount is TokenAccount, of the token the client started with.
+	tokenAccount string
+	login        string
+	restURL      *url.URL
+	graphqlURL   string
+	budget       *budget
+	access       *tokenAccess
 }
 
 // Option configures a Client.
 type Option func(*options)
 
 type options struct {
-	http    *http.Client
-	host    string
-	token   string
-	baseURL string
-	gh      ghLookup
-	notify  func()
+	http     *http.Client
+	host     string
+	token    string
+	baseURL  string
+	gh       ghLookup
+	notify   func()
+	onAccess func(core.Access)
 }
 
 // WithHTTPClient sets the HTTP client that sends requests. Its Timeout
@@ -118,8 +124,10 @@ func New(opts ...Option) (*Client, error) {
 	if o.notify != nil {
 		b.notifier = newRateNotifier(b, o.notify)
 	}
+	acc := newTokenAccess(base.Host, o.token, o.onAccess)
 	hc.Transport = newRetryTransport(&rateTransport{
 		budget: b,
+		access: acc,
 		base: &timeoutTransport{
 			base: newLimitTransport(&logTransport{
 				base:        cmp.Or[http.RoundTripper](hc.Transport, http.DefaultTransport),
@@ -131,13 +139,15 @@ func New(opts ...Option) (*Client, error) {
 	})
 	hc.Timeout = 0
 	c := &Client{
-		http:       &hc,
-		token:      o.token,
-		login:      o.gh.login(o.host, source),
-		restURL:    base,
-		graphqlURL: gql.String(),
-		budget:     b,
+		http:         &hc,
+		tokenAccount: tokenAccount(base.Host, o.token),
+		login:        o.gh.login(o.host, source),
+		restURL:      base,
+		graphqlURL:   gql.String(),
+		budget:       b,
+		access:       acc,
 	}
+	c.token.Store(&o.token)
 	b.gate.probe = c.rateLimits
 	return c, nil
 }
@@ -219,11 +229,17 @@ func (c *Client) Account() string {
 	return hex.EncodeToString(h[:16])
 }
 
-// TokenAccount returns a name for the token the client sends: a hash of
-// the host and the token. Another token, even of the same user, has
-// another name. Before Account named logins, it returned this.
+// TokenAccount returns a name for the token the client started with: a
+// hash of the host and the token. Another token, even of the same user,
+// has another name, but one set by SetToken keeps the first one's, so
+// that what is kept for the account stays where it is for the session.
+// Before Account named logins, it returned this.
 func (c *Client) TokenAccount() string {
-	h := sha256.Sum256([]byte("gh-tui account\x00" + c.restURL.Host + "\x00" + c.token))
+	return c.tokenAccount
+}
+
+func tokenAccount(host, token string) string {
+	h := sha256.Sum256([]byte("gh-tui account\x00" + host + "\x00" + token))
 	return hex.EncodeToString(h[:16])
 }
 
@@ -250,7 +266,7 @@ func (c *Client) send(req *http.Request) (*http.Response, error) {
 // sendWith is send with hc, such as a copy of the client's that doesn't
 // follow redirects.
 func (c *Client) sendWith(hc *http.Client, req *http.Request) (*http.Response, error) {
-	req.Header.Set("Authorization", "Bearer "+c.token)
+	req.Header.Set("Authorization", "Bearer "+*c.token.Load())
 	req.Header.Set("User-Agent", userAgent)
 	if req.Header.Get("Accept") == "" {
 		req.Header.Set("Accept", "application/vnd.github+json")
