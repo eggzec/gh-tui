@@ -328,8 +328,21 @@ func TestAccountByLogin(t *testing.T) {
 			t.Errorf("%s: two tokens from the environment have the same account", source)
 		}
 	}
+	// A token found before New is named as if New had found it.
+	found := fakeGH("", "", octocat)
+	found.token = func(string) (string, string) {
+		t.Error("New looked for a token it was given")
+		return "", ""
+	}
+	c, err := New(WithHost("github.com"), WithTokenSource("token-a", sourceKeyring), withGH(found))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := client("token-a", sourceKeyring, octocat).Account(); c.Account() != want {
+		t.Error("a token found before New isn't named by its login")
+	}
 	// A token given to New is named by the token, as before.
-	c, err := New(WithHost("github.com"), WithToken("t"), withGH(fakeGH("", "", octocat)))
+	c, err = New(WithHost("github.com"), WithToken("t"), withGH(fakeGH("", "", octocat)))
 	if err != nil {
 		t.Fatal(err)
 	}

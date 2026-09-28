@@ -26,6 +26,17 @@ func ghDefaults() ghLookup {
 	}
 }
 
+// FindToken returns the token of host that gh would use, where it found
+// it, as auth.TokenForHost names it, such as GH_TOKEN or gh, and the login
+// of the account gh stores it for, or "" for a token from elsewhere. It
+// reads the environment and gh's store each time, so it finds a token gh
+// refreshed.
+func FindToken(host string) (token, source, login string) {
+	g := ghDefaults()
+	token, source = g.token(host)
+	return token, source, g.login(host, source)
+}
+
 // Where auth.TokenForHost found a token that gh itself stores: hosts.yml,
 // or the keyring through gh auth token.
 const (
