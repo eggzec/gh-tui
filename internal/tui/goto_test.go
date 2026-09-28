@@ -199,6 +199,53 @@ func TestGotoIsCanceled(t *testing.T) {
 	}
 }
 
+// TestGotoAndOtherCommands checks that a command that goes somewhere
+// drops a goto still waiting, even on the screen it already shows, while
+// one that goes nowhere leaves the goto to end where it would.
+func TestGotoAndOtherCommands(t *testing.T) {
+	tests := []struct {
+		line string
+		// cancels reports whether the command drops the goto.
+		cancels bool
+	}{
+		{line: "search tea", cancels: true},
+		{line: "search", cancels: true},
+		{line: "help"},
+		{line: "set theme"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.line, func(t *testing.T) {
+			repos := newGotoRepos()
+			page := &fakeSearch{title: ui.SearchTitle}
+			layout := Layout{Files: &fakeSection{title: "Files"}, Dashboard: &fakeSection{title: ui.DashboardTitle}, Search: page}
+			m := New(t.Context(), config.Default(), layout, WithRepos(repos))
+			m.toast.SetDuration(0)
+			m.toast.SetErrorDuration(0)
+			m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+			run(m, m.Init())
+			drive(m, m.key(press("/")))
+			cmd := submitLine(t, m, "goto charmbracelet/bubbletea")
+			if m.going == nil {
+				t.Fatal("the goto doesn't wait for GitHub")
+			}
+			drive(m, m.runLine(tt.line, nil))
+			if waits := m.going != nil; waits == tt.cancels {
+				t.Fatalf("the goto waits = %v after %s, want %v", waits, tt.line, !tt.cancels)
+			}
+			drive(m, cmd)
+			if tt.cancels {
+				if m.repo == bubbletea || m.screen != searchScreen {
+					t.Errorf("the canceled goto went on to screen %d with %v", m.screen, m.repo)
+				}
+				return
+			}
+			if m.repo != bubbletea || m.screen != repoScreen {
+				t.Errorf("screen %d with %v, want the goto to end on %v", m.screen, m.repo, bubbletea)
+			}
+		})
+	}
+}
+
 func TestGotoWaitsWhileTheLineIsOpen(t *testing.T) {
 	m, _ := newGotoApp(t, newGotoRepos())
 	cmd := submitLine(t, m, "goto charmbracelet/bubbletea")
