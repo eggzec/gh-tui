@@ -104,9 +104,15 @@ func TestGotoRepo(t *testing.T) {
 		{name: "not found", line: "goto nosuchowner/nosuchrepo", toast: "nosuchowner/nosuchrepo doesn't exist or is private.", asks: true},
 		{name: "offline", line: "goto charmbracelet/bubbletea", err: errOffline, toast: "Couldn't open charmbracelet/bubbletea: can't reach GitHub.", asks: true},
 		{name: "rate limited", line: "goto charmbracelet/bubbletea", err: core.ErrRateLimited, toast: "Couldn't open charmbracelet/bubbletea: rate limited by GitHub.", asks: true},
-		{name: "nothing", line: "goto", toast: "Nothing to open"},
-		{name: "not a repository", line: "goto bubbletea", toast: "Not a repository"},
-		{name: "another host", line: "goto https://gitlab.com/a/b", toast: "Not a link to github.com"},
+		{name: "nothing", line: "goto", toast: "Nothing to open: type owner/name, #number or a link."},
+		{name: "not a repository", line: "goto bubbletea", toast: "Can't open bubbletea: want owner/name."},
+		{name: "not a number", line: "goto eggzec/gh-tui#abc", toast: "Can't open eggzec/gh-tui#abc: not an issue number."},
+		{name: "number zero", line: "goto #0", toast: "Can't open #0: issue numbers are positive."},
+		{name: "number too large", line: "goto #2147483648", toast: "Can't open #2147483648: issue numbers are at most 2147483647."},
+		{name: "bad owner", line: "goto -eggzec/gh-tui", toast: "Can't open -eggzec/gh-tui: an owner may not start with '-'."},
+		{name: "another host", line: "goto https://gitlab.com/a/b", toast: "Can't open https://gitlab.com/a/b: not a link to github.com."},
+		{name: "not a web link", line: "goto ftp://github.com/a/b", toast: "Can't open ftp://github.com/a/b: not a web link."},
+		{name: "not a repository link", line: "goto https://github.com/settings/profile", toast: "Can't open https://github.com/settings/profile: not a link to a repository."},
 		{name: "bare", line: "charmbracelet/bubbletea", toast: "Unknown command: charmbracelet/bubbletea."},
 	}
 	for _, tt := range tests {
@@ -434,7 +440,7 @@ func TestGotoNumber(t *testing.T) {
 		{name: "link to an issue", line: "goto github.com/cli/cli/issues/5#issuecomment-1", want: ui.OpenIssueMsg{Repo: cli, Number: 5, ShowRepo: true}},
 		{name: "neither", line: "goto charmbracelet/bubbletea#99999999", toast: "charmbracelet/bubbletea#99999999 doesn't exist or is private.", asks: true},
 		{name: "offline", line: "goto charmbracelet/bubbletea#1813", err: errOffline, toast: "Couldn't open charmbracelet/bubbletea#1813: can't reach GitHub.", asks: true},
-		{name: "not a number", repo: testRepo, line: "goto #x", toast: "Not an issue number"},
+		{name: "not a number", repo: testRepo, line: "goto #x", toast: "Can't open #x: not an issue number."},
 		{name: "bare", repo: testRepo, line: "#12", toast: "Unknown command: #12."},
 	}
 	for _, tt := range tests {
@@ -521,5 +527,41 @@ func TestProgramGotoNumber(t *testing.T) {
 	final, ok := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(*Model)
 	if !ok || final.screen != dashScreen || final.modal == nil {
 		t.Error("the final model should show the modal over the dashboard")
+	}
+}
+
+// What goto can't read is cut to fit the toast, which keeps the reason
+// whole, and shows no invisible characters that reorder the text.
+func TestGotoBadTargetFits(t *testing.T) {
+	m, _ := newGotoApp(t, newGotoRepos())
+	runCommand(t, m, "goto "+strings.Repeat("a", 300)+"\u202e")
+	got := toasted(m)
+	if !strings.HasPrefix(got, "✗ Can't open aaa") || !hasToast(m, "…: want owner/name.") {
+		t.Errorf("toast %q, want the input cut and the reason whole", got)
+	}
+	if strings.ContainsRune(got, '\u202e') {
+		t.Errorf("toast %q shows a bidi override", got)
+	}
+}
+
+// A long paste is cut in a few tries, each of which wraps the toast, so
+// the toast doesn't hold up the app, and the reason stays whole.
+func TestGotoBadTargetPasteIsFast(t *testing.T) {
+	m, _ := newGotoApp(t, newGotoRepos())
+	tries := 0
+	fits := func(s string) bool {
+		tries++
+		return m.fitsToast(s)
+	}
+	text := cantOpen(strings.Repeat("a", 20<<10), "want owner/name", fits)
+	if tries > 10 {
+		t.Errorf("cutting a 20 KB paste tried %d widths, want 10 or fewer", tries)
+	}
+	if !strings.HasSuffix(text, "…: want owner/name.") || !m.fitsToast(text) {
+		t.Errorf("toast %q, want the input cut to fit and the reason whole", text)
+	}
+	m.gotoCommand(strings.Repeat("a", 20<<10))
+	if !hasToast(m, "…: want owner/name.") {
+		t.Errorf("toast %q, want the input cut and the reason whole", toasted(m))
 	}
 }

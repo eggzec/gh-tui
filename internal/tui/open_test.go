@@ -39,8 +39,8 @@ func TestOpenCommand(t *testing.T) {
 		{name: "http link with its port", line: "open http://github.com:80/cli/cli", want: "https://github.com/cli/cli"},
 		{name: "enterprise http link", host: "ghe.example.com:8443", line: "open http://ghe.example.com:8443/cli/cli/pull/3", want: "https://ghe.example.com:8443/cli/cli/pull/3"},
 		{name: "user in a link", line: "open https://me@github.com/cli/cli", want: "https://github.com/cli/cli"},
-		{name: "another host", line: "open https://gitlab.com/a/b", toast: "Not a link to github.com"},
-		{name: "not a repository", line: "open bubbletea", toast: `Not a repository: "bubbletea": want owner/name.`},
+		{name: "another host", line: "open https://gitlab.com/a/b", toast: "Can't open https://gitlab.com/a/b: not a link to github.com."},
+		{name: "not a repository", line: "open bubbletea", toast: "Can't open bubbletea: want owner/name."},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

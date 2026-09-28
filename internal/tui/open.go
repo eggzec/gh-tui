@@ -23,7 +23,7 @@ func (m *Model) openCommand(arg string) tea.Cmd {
 	}
 	t, err := core.ParseTarget(arg, m.host)
 	if err != nil {
-		return m.toast.Push(toast.Error, sentence(err.Error()))
+		return m.badTarget(err)
 	}
 	if isLink(arg) {
 		// A link names more than its target, such as a file, and
