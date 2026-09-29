@@ -39,7 +39,8 @@ func stateVerb(g ui.Gate, it core.Issue, state core.State) (verb string, ok bool
 // returns send, the command that sends it. By then the issue may have
 // changed and so may what the viewer may do, so run checks again the
 // issue and the gate that now returns, and sends nothing when the change
-// no longer applies. ok is unset when the change doesn't apply now, and
+// no longer applies, such as for another issue or the same number of
+// another repository. ok is unset when the change doesn't apply now, and
 // refusal says why when g refuses it.
 func stateChange(svc Service, g ui.Gate, it core.Issue, state core.State,
 	now func() (core.Issue, ui.Gate, bool), send func(op *optimistic.Op, what string) tea.Cmd,
@@ -48,7 +49,7 @@ func stateChange(svc Service, g ui.Gate, it core.Issue, state core.State,
 	if !ok {
 		return ui.Confirm{}, false, refusal
 	}
-	number := it.Number
+	repo, number := g.Repo, it.Number
 	n := "#" + strconv.Itoa(number)
 	return ui.Confirm{
 		Question: verb + " issue " + n + "?",
@@ -56,7 +57,9 @@ func stateChange(svc Service, g ui.Gate, it core.Issue, state core.State,
 			it, g, found := now()
 			var applies bool
 			var refused tea.Cmd
-			if found && it.Number == number {
+			// The question names the issue by its number alone, which
+			// another repository has too.
+			if found && it.Number == number && g.Repo.Same(repo) {
 				_, applies, refused = stateVerb(g, it, state)
 			}
 			switch {

@@ -335,6 +335,15 @@ func TestYesAsksAgain(t *testing.T) {
 			},
 		},
 		{
+			// The question reads the same for #142 of any repository.
+			name: "the list shows another repository",
+			lead: []string{"x"},
+			meddle: func(t *testing.T, s *host, _ *fakeService) {
+				t.Helper()
+				s.repo = core.RepoRef{Owner: "eggzec", Name: "other"}
+			},
+		},
+		{
 			name: "the cursor moved, in the list",
 			lead: []string{"x"},
 			meddle: func(t *testing.T, s *host, _ *fakeService) {
