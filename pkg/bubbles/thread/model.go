@@ -409,7 +409,7 @@ func (m Model[T]) TotalLines() int { return len(m.lines) }
 // word returns what the thread says of err, a failed fetch.
 func (m *Model[T]) word(err error) said {
 	retry := ""
-	if k := m.keys.Retry.Help().Key; k != "" {
+	if k := m.keys.Retry.Help().Key; k != "" && m.keys.Retry.Enabled() {
 		retry = k + " to retry"
 	}
 	if m.errorText == nil {
