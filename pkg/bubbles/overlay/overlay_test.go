@@ -92,3 +92,27 @@ func TestPlaceKeepsStyles(t *testing.T) {
 		}
 	}
 }
+
+// A link that the box cuts closes before the box and opens again after
+// it, and no link closes that isn't open.
+func TestPlaceKeepsLinksWhole(t *testing.T) {
+	link := ansi.SetHyperlink("https://github.com/cli/cli") + "link" + ansi.ResetHyperlink()
+	for _, bg := range []string{"ab" + link + "cd", link + "abcdefgh", "abcdefgh" + link} {
+		out := Place(bg, "XY", 4, 0)
+		open := false
+		for _, part := range strings.Split(out, "\x1b]8;")[1:] {
+			_, rest, _ := strings.Cut(part, ";")
+			opens := rest != "" && rest[0] != '\x1b' && rest[0] != '\a'
+			if !opens && !open {
+				t.Errorf("Place(%q) = %q: a link closes that isn't open", bg, out)
+			}
+			open = opens
+		}
+		if open {
+			t.Errorf("Place(%q) = %q: a link stays open", bg, out)
+		}
+		if before, _, _ := strings.Cut(out, "XY"); linkOpen(before) {
+			t.Errorf("Place(%q) = %q: the box is inside the link", bg, out)
+		}
+	}
+}
