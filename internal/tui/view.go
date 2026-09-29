@@ -62,6 +62,10 @@ func (m *Model) View() tea.View {
 	return v
 }
 
+// toastInset is the border of a pane, which the toasts leave showing at
+// the right and the bottom of the screen.
+const toastInset = 1
+
 // overToasts draws the toasts over screen, but for its last line, which
 // the status bar keeps.
 func (m *Model) overToasts(screen string) string {
@@ -75,7 +79,10 @@ func (m *Model) overToasts(screen string) string {
 func (m *Model) layout() {
 	m.status.SetWidth(m.width)
 	m.line.SetSize(m.width, cmdline.MaxHeight)
-	m.toast.SetSize(m.width, max(m.height-1, 0))
+	// The toasts keep inside the border of the pane they are over, and
+	// take their share of the whole width.
+	m.toast.SetInset(toastInset, toastInset)
+	m.toast.SetSize(m.width, max(m.height-1-toastInset, 0))
 	m.arrange(m.contentHeight())
 	if m.modal != nil {
 		m.modal.SetSize(m.modalSize())

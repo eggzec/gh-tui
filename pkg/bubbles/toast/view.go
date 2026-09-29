@@ -22,11 +22,14 @@ const (
 func (m Model) View() string { return m.view }
 
 // Overlay draws the stack over the bottom-right corner of a background of
-// the given size and returns the result, which has exactly height lines.
-// Styled content in the background keeps its escape sequences intact. The
-// stack is meant for a background of the size set with SetSize.
+// the given size, within the inset, and returns the result, which has
+// exactly height lines. Styled content in the background keeps its escape
+// sequences intact. The stack is meant for a background of the size set
+// with SetSize, with the inset.
 func (m Model) Overlay(background string, width, height int) string {
-	if m.view == "" || width <= 0 || height <= 0 {
+	right, bottom := m.inset[0], m.inset[1]
+	room := height - bottom
+	if m.view == "" || width <= 0 || room <= 0 {
 		return background
 	}
 	rows := strings.Split(background, "\n")
@@ -35,19 +38,21 @@ func (m Model) Overlay(background string, width, height int) string {
 		rows = append(rows, "")
 	}
 	stack := m.view
-	if n := strings.Count(stack, "\n") + 1; n > height {
+	if n := strings.Count(stack, "\n") + 1; n > room {
 		// Keep the newest, at the bottom.
-		stack = stack[nthNewline(stack, n-height)+1:]
+		stack = stack[nthNewline(stack, n-room)+1:]
 	}
 	fg := lipgloss.NewLayer(stack)
 	// Only the rows under the stack need a canvas; the rest pass through.
-	band := rows[height-fg.Height():]
+	top := room - fg.Height()
+	band := rows[top:room]
 	bg := lipgloss.NewLayer(strings.Join(band, "\n"))
-	fg.X(max(width-fg.Width(), 0)).Z(1)
+	fg.X(max(width-right-fg.Width(), 0)).Z(1)
 	composed := lipgloss.NewCanvas(width, len(band)).
 		Compose(lipgloss.NewCompositor(bg, fg)).
 		Render()
-	return strings.Join(append(rows[:height-len(band)], composed), "\n")
+	out := append(slices.Clip(rows[:top]), composed)
+	return strings.Join(append(out, rows[room:]...), "\n")
 }
 
 // nthNewline returns the index of the nth newline in s, counting from one.

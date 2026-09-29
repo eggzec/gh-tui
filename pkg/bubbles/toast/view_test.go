@@ -179,3 +179,56 @@ func TestOverlayClipsToTheArea(t *testing.T) {
 		t.Errorf("overlay = %q", lines)
 	}
 }
+
+// An inset keeps the edges of the background, such as a pane's border.
+func TestOverlayInset(t *testing.T) {
+	bg := strings.Repeat("│"+strings.Repeat(".", 38)+"│\n", 9) + "╰" + strings.Repeat("─", 38) + "╯"
+	m := New(testDuration, testErrorDuration, WithSize(39, 9), WithInset(1, 1))
+	m.Push(Error, "Couldn't merge #5: the base branch was modified.")
+	lines := strings.Split(ansi.Strip(m.Overlay(bg, 40, 10)), "\n")
+	if len(lines) != 10 {
+		t.Fatalf("overlay has %d lines, want 10", len(lines))
+	}
+	if lines[9] != "╰"+strings.Repeat("─", 38)+"╯" {
+		t.Errorf("bottom border = %q, want it kept", lines[9])
+	}
+	covered := 0
+	for i, l := range lines[:9] {
+		if !strings.HasSuffix(l, "│") || ansi.StringWidth(l) != 40 {
+			t.Errorf("line %d = %q, want the right border kept", i, l)
+		}
+		if strings.Contains(l, "✗") || strings.Contains(l, "modified") {
+			covered++
+		}
+	}
+	if covered == 0 {
+		t.Errorf("no toast drawn:\n%s", strings.Join(lines, "\n"))
+	}
+}
+
+// However narrow the background, an inset keeps both of its edges: the
+// stack is never wider than the width within the inset on either side.
+func TestOverlayInsetWhenNarrow(t *testing.T) {
+	for _, width := range []int{20, 24} {
+		inner := width - 2
+		bg := strings.Repeat("│"+strings.Repeat(".", inner)+"│\n", 9) + "╰" + strings.Repeat("─", inner) + "╯"
+		m := New(testDuration, testErrorDuration, WithSize(width, 9), WithInset(1, 1))
+		m.Push(Error, "Couldn't merge #5: the base branch was modified.")
+		lines := strings.Split(ansi.Strip(m.Overlay(bg, width, 10)), "\n")
+		covered := 0
+		for i, l := range lines[:9] {
+			if !strings.HasPrefix(l, "│") || !strings.HasSuffix(l, "│") || ansi.StringWidth(l) != width {
+				t.Errorf("at %d cells line %d = %q, want both borders kept", width, i, l)
+			}
+			if strings.Contains(l, "✗") {
+				covered++
+			}
+		}
+		if covered == 0 {
+			t.Errorf("at %d cells no toast drawn:\n%s", width, strings.Join(lines, "\n"))
+		}
+		if !m.Fits(Error, "merged") {
+			t.Errorf("at %d cells a short text doesn't fit", width)
+		}
+	}
+}
