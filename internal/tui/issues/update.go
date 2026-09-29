@@ -2,6 +2,7 @@ package issues
 
 import (
 	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -66,7 +67,32 @@ func (s *Section) forward(msg tea.Msg) tea.Cmd {
 	}
 	var cmd tea.Cmd
 	s.list, cmd = s.list.Update(msg)
+	switch msg.(type) {
+	case tea.KeyPressMsg, spinner.TickMsg:
+		// Neither brings issues.
+	default:
+		s.scanLabels()
+	}
 	return cmd
+}
+
+// scanLabels notes whether any issue the list has loaded has labels, and
+// lays the rows out again once one has. A page may bring labels without
+// changing how many issues the list has, as a reload does, so it looks at
+// every message that may carry one. Once the list has had labels it keeps
+// room for them, so the rows don't move when the issues that had them
+// are dropped as the list scrolls.
+func (s *Section) scanLabels() {
+	if s.labeled {
+		return
+	}
+	for i := range s.list.Len() {
+		if it, ok := s.list.Item(i); ok && len(it.Labels) > 0 {
+			s.labeled = true
+			s.cols = layout(s.colsWidth, true)
+			return
+		}
+	}
 }
 
 // sync reloads the list when the issues of the repository changed. Poll

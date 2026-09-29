@@ -61,12 +61,15 @@ var layouts = []columns{
 	{},
 }
 
-// layout returns the columns of a row width cells wide. The number, the
-// state and the title always show.
-func layout(width int) columns {
+// layout returns the columns of a row width cells wide, with room for
+// labels if labeled. The number, the state and the title always show.
+func layout(width int, labeled bool) columns {
 	want := max(minTitle, int(float64(width)*titleShare))
 	var c columns
 	for _, c = range layouts {
+		if !labeled {
+			c.chips = 0
+		}
 		if c.chips > 0 {
 			c.labels = c.chips*(chipName+2) + c.chips - 1 + moreWidth
 		}
@@ -150,7 +153,7 @@ func newRowStyles(t ui.Theme, icons ui.Icons) rowStyles {
 func (s *Section) renderRow(it core.Issue, selected bool, width int) string {
 	c := s.cols
 	if width != s.colsWidth {
-		c = layout(width)
+		c = layout(width, s.labeled)
 	}
 	st := &s.rows
 	var b strings.Builder

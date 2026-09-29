@@ -70,9 +70,12 @@ type Section struct {
 	rows          rowStyles
 	icons         ui.Icons
 	chips         chipCache
-	// cols is the layout of the rows at colsWidth.
+	// cols is the layout of the rows at colsWidth. labeled is whether
+	// any issue the list has loaded so far has labels; until one has, the
+	// rows keep no room for them. A new list starts without.
 	cols      columns
 	colsWidth int
+	labeled   bool
 	// links keeps the links of the rows, which are drawn on every frame.
 	links termtext.Links
 
@@ -229,6 +232,8 @@ func (s *Section) listQuery(state core.StateFilter) issuesvc.ListQuery {
 // top, loading it if the section has started.
 func (s *Section) resetList() tea.Cmd {
 	s.list = s.newList()
+	// The new list has loaded no issue yet, so none with labels.
+	s.labeled = false
 	s.renderChrome()
 	if !s.live() {
 		return nil
