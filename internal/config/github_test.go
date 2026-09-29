@@ -38,7 +38,7 @@ commands: {history: 500}
 		t.Fatal(err)
 	}
 	t.Setenv(EnvLog, "")
-	c, _, err := Load(path)
+	c, _, err := loadBase(path)
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}

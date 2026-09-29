@@ -77,7 +77,7 @@ func TestLoadSizes(t *testing.T) {
 			if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
 				t.Fatal(err)
 			}
-			cfg, _, err := Load(path)
+			cfg, _, err := loadBase(path)
 			if tt.wantErr != "" {
 				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
 					t.Fatalf("Load error = %v, want it to contain %q", err, tt.wantErr)

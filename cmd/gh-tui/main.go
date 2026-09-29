@@ -54,10 +54,13 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	cfg, renamed, err := config.Load(path)
+	file, err := config.Load(path)
 	if err != nil {
 		return err
 	}
+	// The log opens before the host is known, on the settings of the top
+	// level of the file, which are the same for every host and account.
+	cfg, renamed := file.Base(), file.Renamed()
 
 	from := levelFrom(cfg.Log, *debugLog)
 	if *debugLog || ghDebug(os.Getenv("GH_DEBUG")) {
@@ -76,7 +79,7 @@ func run() error {
 	// The last summary covers the whole session.
 	defer obs.Default().Log(context.Background())
 
-	app, err := build(ctx, cfg, *hostname, warning, config.RenamedWarning(renamed))
+	app, err := build(ctx, file, cfg.Log.Level, *hostname, warning, config.RenamedWarning(renamed))
 	if err != nil {
 		slog.Error("start failed", "err", err.Error())
 		return err
