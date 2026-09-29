@@ -104,7 +104,7 @@ func TestLoadDefaults(t *testing.T) {
 	t.Setenv(EnvLog, "")
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := Load(tt.path)
+			got, _, err := Load(tt.path)
 			if err != nil {
 				t.Fatalf("Load(%q) error = %v", tt.path, err)
 			}
@@ -175,7 +175,7 @@ func TestLoadMergesOverDefaults(t *testing.T) {
 	t.Setenv(EnvLog, "")
 	for _, tt := range tests {
 		t.Run(tt.file, func(t *testing.T) {
-			got, err := Load(filepath.Join("testdata", tt.file))
+			got, _, err := Load(filepath.Join("testdata", tt.file))
 			if err != nil {
 				t.Fatalf("Load error = %v", err)
 			}
@@ -191,13 +191,13 @@ func TestLoadErrors(t *testing.T) {
 		file string
 		want []string
 	}{
-		{"unknown_field.yaml", []string{"line 3", "field size not found"}},
+		{"unknown_field.yaml", []string{"line 3: unknown setting cache.size"}},
 		{"malformed.yaml", []string{"malformed.yaml", "line 3"}},
 		{"invalid.yaml", []string{"repos[0]", "theme:", "keys.quit", "cache.ttl", "cache.disk.compression", "sync.interval: must be at least 10s, got 1s"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.file, func(t *testing.T) {
-			_, err := Load(filepath.Join("testdata", tt.file))
+			_, _, err := Load(filepath.Join("testdata", tt.file))
 			if err == nil {
 				t.Fatal("Load error = nil, want an error")
 			}
@@ -332,7 +332,7 @@ func TestSectionActionsCanBeRebound(t *testing.T) {
 	if err := os.WriteFile(path, []byte("keys:\n  merge: [\"ctrl+m\"]\n  star: [\"*\"]\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	cfg, err := Load(path)
+	cfg, _, err := Load(path)
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
@@ -356,7 +356,7 @@ func TestComposeActions(t *testing.T) {
 	if err := os.WriteFile(path, []byte("keys:\n  comment: [\"C\", \"ctrl+o\"]\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	cfg, err := Load(path)
+	cfg, _, err := Load(path)
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
@@ -388,7 +388,7 @@ func TestScreenActions(t *testing.T) {
 	if err := os.WriteFile(path, []byte("keys:\n  notifications: [\"N\"]\n  pane_1: [\"F\"]\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	cfg, err := Load(path)
+	cfg, _, err := Load(path)
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
@@ -429,7 +429,7 @@ func TestLogLevelFromEnv(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.env, func(t *testing.T) {
 			t.Setenv(EnvLog, tt.env)
-			cfg, err := Load(path)
+			cfg, _, err := Load(path)
 			if tt.wantErr != "" {
 				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
 					t.Errorf("Load error = %v, want %q", err, tt.wantErr)
@@ -447,7 +447,7 @@ func TestLogLevelFromEnv(t *testing.T) {
 
 	// The override applies without a config file too.
 	t.Setenv(EnvLog, "debug")
-	cfg, err := Load(filepath.Join(t.TempDir(), "missing.yaml"))
+	cfg, _, err := Load(filepath.Join(t.TempDir(), "missing.yaml"))
 	if err != nil || cfg.Log.Level != LevelDebug {
 		t.Errorf("Load without a file = %q, %v; want debug", cfg.Log.Level, err)
 	}
@@ -488,7 +488,7 @@ func TestActionsModalActions(t *testing.T) {
 	if err := os.WriteFile(path, []byte("keys:\n  rerun_failed: [\"F\"]\n  cancel_run: [\"C\"]\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	cfg, err := Load(path)
+	cfg, _, err := Load(path)
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
@@ -524,7 +524,7 @@ func TestNotifications(t *testing.T) {
 	if err := os.WriteFile(path, []byte("notifications:\n  mark_read_on_open: sometimes\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Load(path); err == nil || !strings.Contains(err.Error(), "sometimes") {
+	if _, _, err := Load(path); err == nil || !strings.Contains(err.Error(), "sometimes") {
 		t.Errorf("Load of a word for a bool = %v, want an error naming it", err)
 	}
 }
@@ -547,7 +547,7 @@ func TestCommandKey(t *testing.T) {
 	if err := os.WriteFile(path, []byte("keys:\n  command: [\";\"]\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	cfg, err := Load(path)
+	cfg, _, err := Load(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -568,7 +568,7 @@ func TestSortAndStarKeys(t *testing.T) {
 	if err := os.WriteFile(path, []byte("keys:\n  sort: [\"o\"]\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	cfg, err := Load(path)
+	cfg, _, err := Load(path)
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}

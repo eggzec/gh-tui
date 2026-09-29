@@ -156,8 +156,7 @@ func plain(n *yaml.Node, path string) (*yaml.Node, error) {
 }
 
 // plainMapping is plain of a mapping: its own keys, then those that its
-// merge keys bring and it doesn't set itself, as YAML reads them. The
-// strict decode of the file has already refused a key set twice.
+// merge keys bring and it doesn't set itself, as YAML reads them.
 func plainMapping(n *yaml.Node, path string) (*yaml.Node, error) {
 	out := *n
 	out.Content = nil
@@ -167,6 +166,10 @@ func plainMapping(n *yaml.Node, path string) (*yaml.Node, error) {
 		k, v := n.Content[i], n.Content[i+1]
 		if k.Kind == yaml.ScalarNode && k.ShortTag() == "!!merge" {
 			merged = append(merged, v)
+			continue
+		}
+		if j := mappingIndex(&out, k.Value); j >= 0 {
+			errs = append(errs, fmt.Errorf("line %d: %s is set twice, here and at line %d", k.Line, join(path, k.Value), out.Content[j].Line))
 			continue
 		}
 		pv, err := plain(v, join(path, k.Value))

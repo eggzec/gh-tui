@@ -5,14 +5,13 @@
 package config
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"maps"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"time"
@@ -89,51 +88,55 @@ func Path() (string, error) {
 // applies $GH_TUI_LOG over the log level, and validates the result. A
 // mapping in the file merges key by key with the defaults, and anything
 // else, a list too, replaces the default; an empty value is refused. A
-// missing or empty file yields the defaults.
-func Load(path string) (Config, error) {
+// missing or empty file yields the defaults. A setting under the name it
+// had before it was renamed is read under its new name, and returned
+// among renamed, for the user to be told.
+func Load(path string) (cfg Config, renamed []Renamed, err error) {
 	tree := defaultTree()
 	data, err := os.ReadFile(path)
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
 	case err != nil:
-		return Config{}, fmt.Errorf("load config: %w", err)
+		return Config{}, nil, fmt.Errorf("load config: %w", err)
 	default:
-		if tree, err = overlay(tree, data); err != nil {
-			return Config{}, fmt.Errorf("load config %s: %w", path, err)
+		if tree, renamed, err = overlay(tree, data); err != nil {
+			return Config{}, nil, fmt.Errorf("load config %s: %w", path, err)
 		}
 	}
-	cfg, err := decode(tree)
-	if err != nil {
-		return Config{}, fmt.Errorf("load config %s: %w", path, err)
+	// A value of the wrong type is reported at its line in the file, which
+	// the nodes laid over the defaults keep.
+	if cfg, err = decode(tree); err != nil {
+		return Config{}, nil, fmt.Errorf("load config %s: %w", path, err)
 	}
 	if level := os.Getenv(EnvLog); level != "" {
 		cfg.Log.Level = strings.ToLower(level)
 	}
-	if err := cfg.Validate(); err != nil {
-		return Config{}, fmt.Errorf("invalid config %s:\n%w", path, err)
+	if err := renamedErrors(cfg.Validate(), renamed); err != nil {
+		return Config{}, nil, fmt.Errorf("invalid config %s:\n%w", path, err)
 	}
-	return cfg, nil
+	return cfg, renamed, nil
 }
 
 // overlay returns the user's file, data, merged over the tree of
-// defaults. The file is first decoded on its own, strictly, so that an
-// unknown key or a value of the wrong type is reported at its line in the
-// file.
-func overlay(tree *yaml.Node, data []byte) (*yaml.Node, error) {
+// defaults, with its renamed settings moved to their new names first.
+// Every key must then be known, so that a typo doesn't pass silently.
+func overlay(tree *yaml.Node, data []byte) (*yaml.Node, []Renamed, error) {
 	root, err := parseYAML(data)
 	if err != nil || root == nil {
-		return tree, err
-	}
-	dec := yaml.NewDecoder(bytes.NewReader(data))
-	dec.KnownFields(true)
-	if err := dec.Decode(new(Config)); err != nil && !errors.Is(err, io.EOF) {
-		return nil, err
+		return tree, nil, err
 	}
 	over, err := plain(root, "")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return merge(tree, over), nil
+	renamed, err := migrate(over, renames)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := errors.Join(checkKnown(over, reflect.TypeFor[Config](), "")...); err != nil {
+		return nil, nil, err
+	}
+	return merge(tree, over), renamed, nil
 }
 
 // Validate reports every problem in c at once, joined with [errors.Join].

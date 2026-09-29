@@ -112,7 +112,7 @@ func TestSetWritesNothing(t *testing.T) {
 	}
 	t.Setenv(config.EnvPath, path)
 	t.Setenv("XDG_CONFIG_HOME", dir)
-	cfg, err := config.Load(path)
+	cfg, _, err := config.Load(path)
 	if err != nil {
 		t.Fatal(err)
 	}
