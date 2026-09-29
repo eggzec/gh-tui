@@ -82,7 +82,7 @@ func newTokenAccess(host, token string, onAccess func(core.Access)) *tokenAccess
 // forget sets what the token may do to what its prefix says. a.mu must
 // be held, unless a is new.
 func (a *tokenAccess) forget(token string) {
-	a.token, a.kind = token, tokenKind(token)
+	a.token, a.kind = token, TokenKind(token)
 	a.cur = core.Access{Kind: a.kind}
 	a.scopes, a.sso, a.seen = "", "", false
 }
@@ -91,6 +91,14 @@ func (a *tokenAccess) get() core.Access {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return a.cur
+}
+
+// start sets the token of a client that had none yet, as though the
+// client was made with it: it tells nobody, since nothing was known.
+func (a *tokenAccess) start(token string) {
+	a.mu.Lock()
+	a.forget(token)
+	a.mu.Unlock()
 }
 
 // reset forgets what the token may do, for a new token.
@@ -229,10 +237,10 @@ func orgIDs(list string) []string {
 	return slices.Compact(ids)
 }
 
-// tokenKind returns the kind of token its prefix says it is. gh's OAuth
+// TokenKind returns the kind of token its prefix says it is. gh's OAuth
 // tokens (gho_), classic personal access tokens (ghp_) and the 40 hex
 // digits of older ones, as older Enterprise Servers issue, are classic.
-func tokenKind(token string) core.TokenKind {
+func TokenKind(token string) core.TokenKind {
 	switch {
 	case strings.HasPrefix(token, "gho_"), strings.HasPrefix(token, "ghp_"):
 		return core.TokenClassic

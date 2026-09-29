@@ -97,11 +97,12 @@ func newSessionInfo(st start, token accesssvc.Token, client *github.Client, cfg 
 		WebHost:     client.WebHost(),
 		Login:       token.Login,
 		TokenSource: token.Source,
-		TokenKind:   client.Access().Kind.String(),
-		Account:     client.Account(),
-		CacheDir:    accountDir(cfg, client.Host(), client.Account()),
-		GH:          ui.ShortPath(accesssvc.GHPath()),
-		Proxy:       proxyHost("https://"+client.Host()+"/", http.ProxyFromEnvironment),
+		// The kind its prefix says, which the client may not have yet.
+		TokenKind: github.TokenKind(token.Value).String(),
+		Account:   client.Account(),
+		CacheDir:  accountDir(cfg, client.Host(), client.Account()),
+		GH:        ui.ShortPath(accesssvc.GHPath()),
+		Proxy:     proxyHost("https://"+client.Host()+"/", http.ProxyFromEnvironment),
 	}
 	hosts := auth.KnownHosts()
 	s.GHHosts = len(hosts)

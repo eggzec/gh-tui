@@ -79,12 +79,28 @@ func run() error {
 	// The last summary covers the whole session.
 	defer obs.Default().Log(context.Background())
 
-	app, err := build(ctx, file, cfg.Log.Level, *hostname, warning, config.RenamedWarning(renamed))
+	app, found, err := build(ctx, file, cfg.Log.Level, *hostname, warning, config.RenamedWarning(renamed))
 	if err != nil {
 		slog.Error("start failed", "err", err.Error())
 		return err
 	}
-	_, err = tea.NewProgram(app).Run()
+	p := tea.NewProgram(app)
+	// A token that gh couldn't read after all fails the start, as one
+	// that build found missing does.
+	failed := make(chan error, 1)
+	go func() {
+		if err := <-found; err != nil {
+			failed <- err
+			p.Quit()
+		}
+	}()
+	_, err = p.Run()
+	select {
+	case err := <-failed:
+		slog.Error("start failed", "err", err.Error())
+		return err
+	default:
+	}
 	if err != nil {
 		slog.Error("exit", "err", err.Error())
 	} else {

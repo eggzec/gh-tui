@@ -69,3 +69,17 @@ func TestReloadUnbound(t *testing.T) {
 		t.Error("Reload without a client or a lookup succeeded")
 	}
 }
+
+// A token found after the service was made is the one Reload compares
+// the token it reads again with.
+func TestReloadAfterFound(t *testing.T) {
+	found := Token{Value: "gho_found", Source: "gh", Login: "octocat"}
+	s, c := bound(Token{Source: "gh", Login: "octocat"}, WithLookup(func(string) Token { return found }))
+	s.Found(found)
+	if _, err := s.Reload(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if tokens, _ := c.counts(); len(tokens) != 0 {
+		t.Errorf("set tokens %q, want none: the token read again is the one found", tokens)
+	}
+}
