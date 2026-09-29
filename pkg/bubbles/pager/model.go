@@ -219,6 +219,15 @@ func (m *Model) SetKeyMap(k KeyMap) {
 	m.enableSearchKeys()
 }
 
+// SetErrorText sets how content that failed to load reads, as
+// [WithErrorText] does, and words the failure shown again.
+func (m *Model) SetErrorText(say func(error) (text, hint string)) {
+	m.errorText = say
+	if m.state == stateFailed {
+		m.errText, m.errHint = m.errorWords()
+	}
+}
+
 // ShortHelp implements help.KeyMap. While the prompt is open, it lists
 // the keys that close it, and while the pager waits for an option, the
 // key that cancels it.

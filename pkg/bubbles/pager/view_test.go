@@ -271,3 +271,13 @@ func TestErrorTextWordedOnce(t *testing.T) {
 		t.Errorf("asked for the words %d times, want once", calls)
 	}
 }
+
+// TestSetErrorText checks that new words for a failed load show at once.
+func TestSetErrorText(t *testing.T) {
+	m := New(WithSize(60, 4))
+	m.SetError("main.go", errors.New("boom"))
+	m.SetErrorText(func(error) (string, string) { return "Can't reach GitHub", "r to retry" })
+	if v := ansi.Strip(m.View()); !strings.Contains(v, "Can't reach GitHub · r to retry") {
+		t.Errorf("View() = %q, want the new words", v)
+	}
+}
