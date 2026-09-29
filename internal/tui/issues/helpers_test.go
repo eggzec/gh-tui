@@ -356,7 +356,7 @@ func (f *fakeService) List(ctx context.Context, q issuesvc.ListQuery) (core.Page
 	if err := cmp.Or(f.listErr, f.stateErrs[q.State]); err != nil {
 		return core.Page[core.Issue]{}, err
 	}
-	if q.Repo != testRepo {
+	if !slices.ContainsFunc(f.issues, func(it core.Issue) bool { return it.Repo == q.Repo }) && q.Repo != testRepo {
 		return core.Page[core.Issue]{}, errors.New("unknown repo " + q.Repo.String())
 	}
 	if p, ok := f.pages[q]; ok {
@@ -365,6 +365,9 @@ func (f *fakeService) List(ctx context.Context, q issuesvc.ListQuery) (core.Page
 	var match []core.Issue
 	for i := range f.issues {
 		it := &f.issues[i]
+		if it.Repo != q.Repo {
+			continue
+		}
 		inState := q.State == core.FilterAll || string(it.State) == string(q.State) || (q.State == "" && it.State == core.StateOpen)
 		if inState && matches(it, q.Filter) {
 			match = append(match, *it)
