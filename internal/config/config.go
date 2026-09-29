@@ -11,12 +11,8 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
-	"reflect"
 	"slices"
-	"strings"
 	"time"
-
-	"go.yaml.in/yaml/v3"
 
 	"github.com/eggzec/gh-tui/internal/core"
 )
@@ -24,7 +20,9 @@ import (
 // EnvPath is the environment variable that overrides the config file path.
 const EnvPath = "GH_TUI_CONFIG"
 
-// Config is the user configuration.
+// Config is the user configuration. A field tagged scope:"global" is the
+// same for every host and account, so the file sets it only at its top
+// level, not under hosts or profiles.
 type Config struct {
 	// Repos are the user's pinned repositories, as "owner/name".
 	Repos []string `yaml:"repos" when:"startup" why:"the pinned repositories are read at startup"`
@@ -90,59 +88,31 @@ func Path() (string, error) {
 	return filepath.Join(dir, "gh-tui", "config.yaml"), nil
 }
 
-// Load reads the config file at path over the defaults, default.yaml,
-// applies $GH_TUI_LOG over the log level, and validates the result. A
-// mapping in the file merges key by key with the defaults, and anything
-// else, a list too, replaces the default; an empty value is refused. A
-// missing or empty file yields the defaults. A setting under the name it
-// had before it was renamed is read under its new name, and returned
-// among renamed, for the user to be told.
-func Load(path string) (cfg Config, renamed []Renamed, err error) {
-	tree := defaultTree()
+// Load reads the config file at path over the defaults, default.yaml, in
+// its layers: the top level, and the settings for hosts and profiles,
+// which [File.Resolve] lays over it for a session. A mapping in the file
+// merges key by key with what it goes over, and anything else, a list
+// too, replaces it; an empty value is refused. Every combination of the
+// layers that a session can resolve is validated, with $GH_TUI_LOG over
+// the log level. A missing or empty file yields the defaults. A setting
+// under the name it had before it was renamed is read under its new name,
+// and listed by [File.Renamed], for the user to be told.
+func Load(path string) (*File, error) {
 	data, err := os.ReadFile(path)
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
+		data = nil
 	case err != nil:
-		return Config{}, nil, fmt.Errorf("load config: %w", err)
-	default:
-		if tree, renamed, err = overlay(tree, data); err != nil {
-			return Config{}, nil, fmt.Errorf("load config %s: %w", path, err)
-		}
+		return nil, fmt.Errorf("load config: %w", err)
 	}
-	// A value of the wrong type is reported at its line in the file, which
-	// the nodes laid over the defaults keep.
-	if cfg, err = decode(tree); err != nil {
-		return Config{}, nil, fmt.Errorf("load config %s: %w", path, err)
-	}
-	if level := os.Getenv(EnvLog); level != "" {
-		cfg.Log.Level = strings.ToLower(level)
-	}
-	if err := renamedErrors(cfg.Validate(), renamed); err != nil {
-		return Config{}, nil, fmt.Errorf("invalid config %s:\n%w", path, err)
-	}
-	return cfg, renamed, nil
-}
-
-// overlay returns the user's file, data, merged over the tree of
-// defaults, with its renamed settings moved to their new names first.
-// Every key must then be known, so that a typo doesn't pass silently.
-func overlay(tree *yaml.Node, data []byte) (*yaml.Node, []Renamed, error) {
-	root, err := parseYAML(data)
-	if err != nil || root == nil {
-		return tree, nil, err
-	}
-	over, err := plain(root, "")
+	f, err := parseFile(data)
 	if err != nil {
-		return nil, nil, err
+		return nil, fmt.Errorf("invalid config %s:\n%w", path, err)
 	}
-	renamed, err := migrate(over, renames)
-	if err != nil {
-		return nil, nil, err
+	if err := f.validate(); err != nil {
+		return nil, fmt.Errorf("invalid config %s:\n%w", path, err)
 	}
-	if err := errors.Join(checkKnown(over, reflect.TypeFor[Config](), "")...); err != nil {
-		return nil, nil, err
-	}
-	return merge(tree, over), renamed, nil
+	return f, nil
 }
 
 // Validate reports every problem in c at once, joined with [errors.Join].

@@ -49,7 +49,7 @@ func TestHistoryListsReplaceTheDefaults(t *testing.T) {
 	if err := os.WriteFile(path, []byte("history:\n  row: [subject]\n  detail: []\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	cfg, _, err := Load(path)
+	cfg, _, err := loadBase(path)
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}

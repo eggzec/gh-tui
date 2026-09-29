@@ -261,10 +261,13 @@ reacts to messages. Concretely:
 - Every record has a `session_id`. The `start` record says what the binary
   was built from, how it is set up and the terminal, and the `session`
   record, once the host is picked, who the session is; every record after
-  it carries `host` and `account`. The `server` record, at GitHub's first
-  answer, says what it told of the server, and the `terminal` record the
-  terminal's size, color profile and version. Start a trace where a user action or a
-  background job starts (`obs.WithTrace` or `obs.Begin`, which also logs the
+  it carries `host` and `account`. The `config` record that follows says
+  whether the file's settings for the host and a profile apply, and which
+  settings the session's config changes from the defaults. The `server`
+  record, at GitHub's first answer, says what it told of the server, and
+  the `terminal` record the terminal's size, color profile and version.
+  Start a trace where a user action or a background job starts
+  (`obs.WithTrace` or `obs.Begin`, which also logs the
   end and the error) and pass its context down; records logged with it carry
   `trace_id` and `trace`. Each HTTP attempt gets a `request_id`, and
   GitHub's `X-GitHub-Request-Id` as `gh_request_id`. `span` names the layer.
@@ -341,6 +344,16 @@ reacts to messages. Concretely:
   the new one, with a warning at startup and a line in the log for each;
   then its `move` goes, and the old name is refused with an error that
   names the new one.
+- The file's `hosts.<host>` and `profiles.<name>` (for the `accounts`,
+  `login@host`, it lists) hold settings that go over its top level for a
+  session on that host, or as that account: `config.Load` reads the
+  layers, and `File.Resolve(host, login)` lays those that apply over each
+  other, once the host and the token's account are known. Load validates
+  every combination that can apply. A field tagged `scope:"global"` is set
+  only at the top level; the log opens on the top level, before the host
+  is known. The profile is picked once, at startup, by the login gh
+  stores the token for; a token from `GH_TOKEN` names no login, so no
+  profile applies to it.
 - Keybindings map action names to keys and are applied through each bubble's
   `SetKeyMap`. Action names are registered in `internal/config/keys.go`;
   unknown names are rejected so typos don't pass silently.

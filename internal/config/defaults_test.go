@@ -152,7 +152,7 @@ func TestLoadMerges(t *testing.T) {
 	t.Setenv(EnvLog, "")
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, _, err := Load(writeConfig(t, tt.file))
+			got, _, err := loadBase(writeConfig(t, tt.file))
 			if err != nil {
 				t.Fatalf("Load error = %v", err)
 			}
@@ -176,7 +176,7 @@ func TestLoadRefusesEmptyValues(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.file, func(t *testing.T) {
-			_, _, err := Load(writeConfig(t, tt.file))
+			_, _, err := loadBase(writeConfig(t, tt.file))
 			if err == nil {
 				t.Fatal("Load error = nil, want an error")
 			}
@@ -193,7 +193,7 @@ func TestLoadRefusesEmptyValues(t *testing.T) {
 // a theme of the user's own needs every colour, which the default theme
 // doesn't lend it.
 func TestLoadValidatesMerged(t *testing.T) {
-	_, _, err := Load(writeConfig(t, "theme: mine\nthemes:\n  mine:\n    dark:\n      accent: \"#ffffff\"\n"))
+	_, _, err := loadBase(writeConfig(t, "theme: mine\nthemes:\n  mine:\n    dark:\n      accent: \"#ffffff\"\n"))
 	if err == nil || !strings.Contains(err.Error(), "themes.mine.light.accent") {
 		t.Errorf("Load error = %v, want the colours mine lacks", err)
 	}
@@ -201,7 +201,7 @@ func TestLoadValidatesMerged(t *testing.T) {
 
 func TestMergeLeavesItsInputs(t *testing.T) {
 	before := Default()
-	if _, _, err := Load(writeConfig(t, "cache:\n  ttl: 1m\nkeys:\n  quit: [x]\n")); err != nil {
+	if _, _, err := loadBase(writeConfig(t, "cache:\n  ttl: 1m\nkeys:\n  quit: [x]\n")); err != nil {
 		t.Fatal(err)
 	}
 	assertEqual(t, Default(), before)

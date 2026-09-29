@@ -47,25 +47,31 @@ import (
 
 // build wires the client, the services, the sync engine and the sections
 // into the app. The app talks to the host startRepos picks from hostname,
-// the value of --hostname, if set, and shows logWarning and configWarning,
-// if any, once it starts.
-func build(ctx context.Context, cfg config.Config, hostname, logWarning, configWarning string) (*tui.Model, error) {
-	pinned, err := parseRefs(cfg.Repos)
-	if err != nil {
-		return nil, err
-	}
+// the value of --hostname, if set, with the config file resolves for that
+// host and the account of its token, at logLevel, the level the log was
+// opened at, and shows logWarning and configWarning, if any, once it
+// starts.
+func build(ctx context.Context, file *config.File, logLevel, hostname, logWarning, configWarning string) (*tui.Model, error) {
 	st := startRepos(hostname, currentRepo, defaultHost)
 	logHost(st.Host)
 	here := st.Here
-	// The sync engine delivers the changes that its polls find, those
-	// that the revalidator finds, and those of the rate limits, through
-	// one subscription.
-	engine := watch.New(watch.WithInterval(cfg.Sync.Interval))
 	// The session talks to one host, so the pinned repositories are on it
 	// too. The access service learns what the token may do from the
 	// client's answers, and reads the token again from where it was found
 	// after a refresh.
 	token := findToken(st.Host)
+	cfg, src, err := sessionConfig(file, st.Host, token.Login, logLevel)
+	if err != nil {
+		return nil, err
+	}
+	pinned, err := parseRefs(cfg.Repos)
+	if err != nil {
+		return nil, err
+	}
+	// The sync engine delivers the changes that its polls find, those
+	// that the revalidator finds, and those of the rate limits, through
+	// one subscription.
+	engine := watch.New(watch.WithInterval(cfg.Sync.Interval))
 	access := accesssvc.New(st.Host, token, accesssvc.WithLookup(findToken), accesssvc.WithChecks(cfg.Auth.Check))
 	// The app tells once of an Enterprise Server older than supported.
 	oldEnterprise := make(chan string, 1)
@@ -78,6 +84,9 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning, configW
 		return nil, err
 	}
 	logSession(newSessionInfo(st, token, client, cfg.Cache.Disk))
+	// After the session record, so that it carries the host and the
+	// account the config was resolved for.
+	logConfig(cfg, src)
 	go logGHVersion(ctx, accesssvc.GHPath())
 	context.AfterFunc(ctx, client.Close)
 	access.Bind(client)
@@ -389,4 +398,17 @@ func parseRefs(names []string) ([]core.RepoRef, error) {
 		refs = append(refs, ref)
 	}
 	return refs, nil
+}
+
+// sessionConfig returns the config file resolved for the session on host
+// as login, the account gh stores its token for, with the log at
+// logLevel, the level it was opened at, which --debug and GH_DEBUG may
+// have raised. The app takes this config, not the top level of the file.
+func sessionConfig(file *config.File, host, login, logLevel string) (config.Config, config.Source, error) {
+	cfg, src, err := file.Resolve(host, login)
+	if err != nil {
+		return config.Config{}, src, fmt.Errorf("config for %s: %w", host, err)
+	}
+	cfg.Log.Level = logLevel
+	return cfg, src, nil
 }

@@ -102,13 +102,7 @@ func logStart(cfg config.Config, configPath, levelFrom string) {
 		slog.String("config_path", ui.ShortPath(configPath)),
 		slog.Bool("config_exists", statErr == nil),
 	)
-	if changed := cfg.Changed(); len(changed) > 0 {
-		set := make([]any, len(changed))
-		for i, s := range changed {
-			set[i] = slog.String(s.Key, s.Value)
-		}
-		attrs = append(attrs, slog.Group("non_default", set...))
-	}
+	attrs = append(attrs, nonDefault(cfg)...)
 	attrs = append(attrs, terminalEnv(os.Getenv, os.Environ())...)
 	slog.LogAttrs(context.Background(), slog.LevelInfo, "start", attrs...)
 }
@@ -188,4 +182,30 @@ func couldntOpen(path string, err error) string {
 		s += " (" + pe.Err.Error() + ")"
 	}
 	return s + "."
+}
+
+// nonDefault returns the non_default group of the settings cfg changes
+// from the defaults, or nothing when it changes none.
+func nonDefault(cfg config.Config) []slog.Attr {
+	changed := cfg.Changed()
+	if len(changed) == 0 {
+		return nil
+	}
+	set := make([]any, len(changed))
+	for i, s := range changed {
+		set[i] = slog.String(s.Key, s.Value)
+	}
+	return []slog.Attr{slog.Group("non_default", set...)}
+}
+
+// logConfig logs which layers of the config file the session's config,
+// cfg, was resolved from, src, and what it changes from the defaults,
+// which the start record told only of the top level.
+func logConfig(cfg config.Config, src config.Source) {
+	attrs := append([]slog.Attr{
+		slog.String("span", "config"),
+		slog.Bool("host_layer", src.HostLayer),
+		slog.String("profile", src.Profile),
+	}, nonDefault(cfg)...)
+	slog.LogAttrs(context.Background(), slog.LevelInfo, "config", attrs...)
 }

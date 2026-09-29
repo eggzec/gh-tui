@@ -305,3 +305,51 @@ func TestSetLogLevel(t *testing.T) {
 		t.Errorf("records = %q, want %q", got, want)
 	}
 }
+
+// The app is handed the config resolved for its host and account, with
+// the level the log was opened at, not the top level of the file.
+func TestSessionConfig(t *testing.T) {
+	t.Setenv(config.EnvLog, "")
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	const file = "sync:\n  interval: 1m\nhosts:\n  ghe.corp.com:\n    sync: {interval: 2m}\n" +
+		"profiles:\n  work:\n    accounts: [ali@ghe.corp.com]\n    repos: [platform/api]\n"
+	if err := os.WriteFile(path, []byte(file), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	f, err := config.Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg, src, err := sessionConfig(f, "ghe.corp.com", "Ali", config.LevelDebug)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Sync.Interval != 2*time.Minute || !slices.Equal(cfg.Repos, []string{"platform/api"}) || cfg.Log.Level != config.LevelDebug {
+		t.Errorf("interval %v, repos %v, log level %q; want the host's 2m, the profile's repos and debug", cfg.Sync.Interval, cfg.Repos, cfg.Log.Level)
+	}
+	if src.Profile != "work" || !src.HostLayer {
+		t.Errorf("source = %+v, want the host and profile work", src)
+	}
+}
+
+// The config record says which layers applied and what the session's
+// config changes, which the start record tells only of the top level.
+func TestLogConfig(t *testing.T) {
+	restoreLogger(t)
+	var buf bytes.Buffer
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, nil)))
+	cfg := config.Default()
+	cfg.Sync.Interval = 2 * time.Minute
+	logConfig(cfg, config.Source{Host: "ghe.corp.com", HostLayer: true, Profile: "work"})
+	recs := readRecords(t, buf.Bytes())
+	if len(recs) != 1 {
+		t.Fatalf("records = %v, want one", recs)
+	}
+	rec := recs[0]
+	if rec["msg"] != "config" || rec["span"] != "config" || rec["host_layer"] != true || rec["profile"] != "work" {
+		t.Errorf("record = %v, want the config record with the host layer and profile work", rec)
+	}
+	if got, want := rec["non_default"], map[string]any{"sync.interval": "2m0s"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("non_default = %v, want %v", got, want)
+	}
+}

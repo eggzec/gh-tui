@@ -72,7 +72,7 @@ func TestDashboardFromFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv(EnvLog, "")
-	cfg, _, err := Load(path)
+	cfg, _, err := loadBase(path)
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
@@ -110,7 +110,7 @@ func TestDashboardPrefetch(t *testing.T) {
 			if err := os.WriteFile(path, []byte(tt.yaml), 0o600); err != nil {
 				t.Fatal(err)
 			}
-			cfg, _, err := Load(path)
+			cfg, _, err := loadBase(path)
 			if (err == nil) != (tt.fails == "") {
 				t.Fatalf("Load = %v, want it to fail = %v", err, tt.fails != "")
 			}

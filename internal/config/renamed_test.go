@@ -142,7 +142,7 @@ func TestLoadRenamed(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, renamed, err := Load(writeConfig(t, tt.file))
+			got, renamed, err := loadBase(writeConfig(t, tt.file))
 			if err != nil {
 				t.Fatalf("Load error = %v", err)
 			}
@@ -175,7 +175,7 @@ func TestLoadRenamedShared(t *testing.T) {
 			return out, nil
 		},
 	}})
-	got, renamed, err := Load(writeConfig(t, "history:\n  old_hover: 2s\ndetails:\n  prefetch:\n    hover_delay: 3s\n"))
+	got, renamed, err := loadBase(writeConfig(t, "history:\n  old_hover: 2s\ndetails:\n  prefetch:\n    hover_delay: 3s\n"))
 	if err != nil {
 		t.Fatalf("Load error = %v", err)
 	}
@@ -185,7 +185,7 @@ func TestLoadRenamedShared(t *testing.T) {
 	if len(renamed) != 1 {
 		t.Errorf("renamed = %v, want history.old_hover", renamed)
 	}
-	if _, _, err := Load(writeConfig(t, "history:\n  old_hover: 2s\n  prefetch:\n    hover_delay: 3s\n")); err == nil || !strings.Contains(err.Error(), "which line 4 sets too") {
+	if _, _, err := loadBase(writeConfig(t, "history:\n  old_hover: 2s\n  prefetch:\n    hover_delay: 3s\n")); err == nil || !strings.Contains(err.Error(), "which line 4 sets too") {
 		t.Errorf("Load error = %v, want the clash refused", err)
 	}
 }
@@ -213,7 +213,7 @@ func TestLoadRenamedErrors(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.file, func(t *testing.T) {
-			_, renamed, err := Load(writeConfig(t, tt.file))
+			_, renamed, err := loadBase(writeConfig(t, tt.file))
 			if err == nil {
 				t.Fatalf("Load error = nil, renamed %v; want an error", renamed)
 			}
@@ -239,7 +239,7 @@ func TestMoveContract(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			withRenames(t, []rename{{old: []string{"x.y"}, new: []string{"sync.interval"}, move: move}})
-			if _, _, err := Load(writeConfig(t, "x:\n  y: 1m\n")); err == nil || !strings.Contains(err.Error(), "isn't one of its new names or has no value") {
+			if _, _, err := loadBase(writeConfig(t, "x:\n  y: 1m\n")); err == nil || !strings.Contains(err.Error(), "isn't one of its new names or has no value") {
 				t.Errorf("Load error = %v, want the move refused", err)
 			}
 		})

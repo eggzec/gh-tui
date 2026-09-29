@@ -40,7 +40,7 @@ func TestUIFromFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv(EnvLog, "")
-	cfg, _, err := Load(path)
+	cfg, _, err := loadBase(path)
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}

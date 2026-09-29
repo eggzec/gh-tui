@@ -116,10 +116,11 @@ func TestSetWritesNothing(t *testing.T) {
 	}
 	t.Setenv(config.EnvPath, path)
 	t.Setenv("XDG_CONFIG_HOME", dir)
-	cfg, _, err := config.Load(path)
+	loaded, err := config.Load(path)
 	if err != nil {
 		t.Fatal(err)
 	}
+	cfg := loaded.Base()
 	cfg.Themes["mine"] = userConfig().Themes["mine"]
 	var told []config.Config
 	m, _ := newSetApp(t, cfg, &told)
