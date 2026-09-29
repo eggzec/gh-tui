@@ -36,6 +36,18 @@ type Model struct {
 	focused bool
 	// view is rendered whenever the state changes, so View is free.
 	view string
+	// drawn holds the lines of each row, the row and what it lost,
+	// rendered at drawnWidth; a nil entry isn't rendered yet. A row is
+	// rendered once per width, layers and styles, however the query
+	// changes what is shown. Copies share it, which is safe: a change of
+	// any of those gives a model a new one, and an entry is the same
+	// whichever copy renders it.
+	drawn      [][]string
+	drawnWidth int
+	// stale is set when a change came while the help was blurred: nobody
+	// sees a closed help, so it lists the rows again only once focused or
+	// viewed.
+	stale bool
 }
 
 // New returns a blurred help.
@@ -116,7 +128,7 @@ func (m *Model) Reset() {
 // SetSize sets the width and height.
 func (m *Model) SetSize(width, height int) {
 	m.width, m.height = max(width, 0), max(height, 0)
-	m.relist()
+	m.list()
 }
 
 // Width returns the width.
@@ -129,7 +141,11 @@ func (m Model) Height() int { return m.height }
 func (m *Model) Focus() tea.Cmd {
 	m.focused = true
 	cmd := m.input.Focus()
-	m.render()
+	if m.stale {
+		m.relist()
+	} else {
+		m.render()
+	}
 	return cmd
 }
 
@@ -182,4 +198,5 @@ func (m *Model) analyze() {
 		h := r.Binding.Help()
 		m.hay[i] = strings.Join([]string{h.Desc, r.Source, strings.Join(r.Binding.Keys(), " "), h.Key}, " ")
 	}
+	m.drawn = nil
 }

@@ -280,6 +280,21 @@ func BenchmarkViewWithHelp(b *testing.B) {
 	}
 }
 
+// BenchmarkTypeInHelp types a letter into the open help's filter and
+// deletes it, drawing a frame after each key, as the user sees it.
+func BenchmarkTypeInHelp(b *testing.B) {
+	m, _ := benchApp(b)
+	run(m, m.key(press("?")))
+	keys := []tea.KeyPressMsg{press("a"), {Code: tea.KeyBackspace}}
+	b.ReportAllocs()
+	for b.Loop() {
+		for _, k := range keys {
+			m.Update(k)
+			_ = m.View()
+		}
+	}
+}
+
 // quits reports whether cmd quits the program.
 func quits(cmd tea.Cmd) bool {
 	if cmd == nil {

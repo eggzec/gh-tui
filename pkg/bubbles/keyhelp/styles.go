@@ -87,7 +87,8 @@ func (m *Model) SetStyles(s Styles) {
 	m.styles = s
 	m.input.SetStyles(inputStyles(s))
 	m.prompt = s.Prompt.Render("› ")
-	m.relist()
+	m.drawn = nil
+	m.list()
 }
 
 func inputStyles(s Styles) textinput.Styles {

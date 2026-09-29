@@ -419,6 +419,21 @@ func BenchmarkUpdateLine(b *testing.B) {
 	}
 }
 
+// BenchmarkTypeInLine types a command that opens and closes the list of
+// candidates, drawing a frame after each key, as the user sees it.
+func BenchmarkTypeInLine(b *testing.B) {
+	m, _ := benchApp(b)
+	m.key(press(":"))
+	keys := []tea.KeyPressMsg{press("g"), press("o"), {Code: tea.KeyBackspace}, {Code: tea.KeyBackspace}}
+	b.ReportAllocs()
+	for b.Loop() {
+		for _, k := range keys {
+			m.Update(k)
+			_ = m.View()
+		}
+	}
+}
+
 func TestKeyPress(t *testing.T) {
 	for _, name := range []string{"r", "?", "R", "+", ":", "é", "ctrl+r", "alt+x", "ctrl+alt+x", "shift+tab", "enter", "esc", "space", "pgdown", "f5", "ctrl+space"} {
 		msg, ok := keyPress(name)

@@ -23,7 +23,14 @@ const (
 // View renders the help at exactly its width and height: the title, the
 // query line, and the rows that match below. A help one row high keeps
 // the query line.
-func (m Model) View() string { return m.view }
+func (m Model) View() string {
+	if m.stale {
+		// A copy, so the rows it renders don't go into the shared cache.
+		m.drawn = nil
+		m.relist()
+	}
+	return m.view
+}
 
 // columns returns the widths of the keys and the source columns at the
 // current width, each with the gap after the column before it.
@@ -39,9 +46,20 @@ func (m Model) columns() (keys, source int) {
 	return keys, source
 }
 
+// list lists the rows shown now if the help is open, or else when it
+// opens.
+func (m *Model) list() {
+	if !m.focused {
+		m.stale = true
+		return
+	}
+	m.relist()
+}
+
 // relist renders the rows shown into the viewport, at the current width
 // and styles.
 func (m *Model) relist() {
+	m.stale = false
 	w := m.width
 	m.vp.SetWidth(w)
 	m.vp.SetHeight(max(m.height-2, 0))
@@ -50,17 +68,28 @@ func (m *Model) relist() {
 		m.render()
 		return
 	}
-	kw, sw := m.columns()
+	if m.drawnWidth != w || len(m.drawn) != len(m.rows) {
+		m.drawn, m.drawnWidth = make([][]string, len(m.rows)), w
+	}
+	kw, sw := -1, -1
 	lines := make([]string, 0, len(m.shown)+4)
 	for i, ri := range m.shown {
 		r := m.rows[ri]
 		if i > 0 && m.rows[m.shown[i-1]].Layer != r.Layer {
 			lines = append(lines, strings.Repeat(" ", w))
 		}
-		lines = append(lines, m.row(r, w, kw, sw))
-		for _, l := range r.Lost {
-			lines = append(lines, m.loss(l, w, kw))
+		if m.drawn[ri] == nil {
+			if kw < 0 {
+				kw, sw = m.columns()
+			}
+			drawn := make([]string, 0, 1+len(r.Lost))
+			drawn = append(drawn, m.row(r, w, kw, sw))
+			for _, l := range r.Lost {
+				drawn = append(drawn, m.loss(l, w, kw))
+			}
+			m.drawn[ri] = drawn
 		}
+		lines = append(lines, m.drawn[ri]...)
 	}
 	m.vp.SetContentLines(lines)
 	m.render()
