@@ -5,10 +5,10 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/eggzec/gh-tui/pkg/bubbles/errline"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -85,111 +85,39 @@ func (m *Model) errorWords() (text, hint string) {
 }
 
 // errorLines renders the failed load in at most height lines of width
-// cells, as the app's error lines are: the mark and the text, wrapped and
-// ending in the ellipsis where it needs more lines than the hint leaves
-// it, then the separator and the hint, after the text where it fits and
-// else on a line of its own. The hint is never cut, unless the width
-// can't hold it at all.
+// cells, as the app's error lines are (errline.Lines), with the text given
+// the lines the hint leaves. On one line the hint comes first, and what is
+// left of the text.
 func (m *Model) errorLines(width, height int) []string {
 	text, hint := m.errText, m.errHint
 	if text == "" || width <= 0 || height <= 0 {
 		return nil
 	}
 	s := m.styles
-	lead := s.ErrorGlyph + " "
-	indent := strings.Repeat(" ", ansi.StringWidth(lead))
-	inner := width - len(indent)
-	if inner < 1 {
-		lead, indent, inner = "", "", width
+	st := errline.Styles{
+		Mark: s.ErrorGlyph, Separator: s.ErrorSeparator, Ellipsis: s.ErrorEllipsis,
+		Text: s.Error, Hint: s.Message,
 	}
-	tail := ""
-	if hint != "" {
-		tail = s.ErrorSeparator + hint
+	if hint == "" {
+		return errline.Lines(st, text, "", width, height)
 	}
-	if height == 1 && tail != "" {
-		// One line holds the hint first, and what is left of the text.
+	if height == 1 {
+		tail := st.Separator + hint
+		lead := st.Mark + " "
 		room := width - ansi.StringWidth(tail)
 		if room < ansi.StringWidth(lead)+1 {
-			return []string{s.Message.Render(hint)}
+			return []string{st.Hint.Render(hint)}
 		}
 		t := lead + text
 		if ansi.StringWidth(t) > room {
-			t = ansi.Truncate(t, room, s.ErrorEllipsis)
+			t = ansi.Truncate(t, room, st.Ellipsis)
 		}
-		return []string{s.Error.Render(t) + s.Message.Render(tail)}
+		return []string{st.Text.Render(t) + st.Hint.Render(tail)}
 	}
-	most := height
-	if tail != "" {
-		most = height - 1
-	}
-	rows := wrapWords(text, inner)
-	if len(rows) == 0 {
-		rows = []string{""}
-	}
-	if len(rows) > most {
-		cut := ansi.Truncate(rows[most-1]+" "+rows[most], max(inner-ansi.StringWidth(s.ErrorEllipsis), 0), "")
-		rows = append(rows[:most-1], strings.TrimRight(cut, " ")+s.ErrorEllipsis)
-	}
-	lines := make([]string, 0, len(rows)+1)
-	for i, r := range rows {
-		pre := indent
-		if i == 0 {
-			pre = lead
-		}
-		lines = append(lines, s.Error.Render(pre+r))
-	}
-	if tail == "" {
-		return lines
-	}
-	if n := len(rows); ansi.StringWidth(rows[n-1])+ansi.StringWidth(tail) <= inner {
-		lines[n-1] += s.Message.Render(tail)
-		return lines
-	}
-	if ansi.StringWidth(indent+hint) > width {
-		indent = ""
-	}
-	return append(lines, indent+s.Message.Render(hint))
+	lines := errline.Lines(st, text, hint, width, height-1)
+	// Only a hint wider than the pane wraps past its height.
+	return lines[:min(len(lines), height)]
 }
-
-// wrapWords wraps s to rows of width cells, between words, and cuts a
-// word only when it alone is wider.
-func wrapWords(s string, width int) []string {
-	var rows []string
-	row := ""
-	for w := range strings.FieldsSeq(s) {
-		for ansi.StringWidth(w) > width {
-			if row != "" {
-				rows, row = append(rows, row), ""
-			}
-			head := ansi.Truncate(w, width, "")
-			if head == "" {
-				// A character wider than the row can't show.
-				_, n := utf8.DecodeRuneInString(w)
-				head = ellipsisGlyph
-				w = w[n:]
-			} else {
-				w = w[len(head):]
-			}
-			rows = append(rows, head)
-		}
-		switch {
-		case w == "":
-		case row == "":
-			row = w
-		case ansi.StringWidth(row)+1+ansi.StringWidth(w) <= width:
-			row += " " + w
-		default:
-			rows, row = append(rows, row), w
-		}
-	}
-	if row != "" {
-		rows = append(rows, row)
-	}
-	return rows
-}
-
-// ellipsisGlyph ends text that was cut.
-const ellipsisGlyph = "…"
 
 // writeLines writes the rows of the window, each followed by a newline, and
 // returns how many it wrote.
