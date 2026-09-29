@@ -85,11 +85,11 @@ func (m Model) Fits(level Level, text string) bool {
 
 // maxInner is the widest the content of a toast of level may be: its
 // share of the width, but no narrower than minWidth and never wider than
-// the width, less the frame.
+// the width within the inset on both sides, less the frame.
 func (m Model) maxInner(level Level) int {
 	block := minWidth
 	if m.width > 0 {
-		block = min(max(m.width*m.Room(level).Share/100, minWidth), m.width)
+		block = min(max(m.width*m.Room(level).Share/100, minWidth), m.width-2*m.inset[0])
 	}
 	return block - m.derived.frameWidth
 }

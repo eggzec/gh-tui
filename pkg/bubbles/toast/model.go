@@ -72,9 +72,12 @@ type Model struct {
 	// rooms are indexed by Level.
 	rooms         [Error + 1]Room
 	width, height int
-	keys          KeyMap
-	styles        Styles
-	derived       derivedStyles
+	// inset is how far the stack keeps from the right and the bottom
+	// edges when it is drawn over a background.
+	inset   [2]int
+	keys    KeyMap
+	styles  Styles
+	derived derivedStyles
 	// view is rendered whenever the state changes, so View is free.
 	view string
 }
@@ -194,6 +197,17 @@ func (m Model) Height() int { return m.height }
 // doesn't limit it.
 func (m *Model) SetSize(width, height int) {
 	m.width, m.height = width, height
+	m.changed()
+}
+
+// Inset returns how far the stack keeps from the right and the bottom
+// edges of a background. See [WithInset].
+func (m Model) Inset() (right, bottom int) { return m.inset[0], m.inset[1] }
+
+// SetInset sets how far the stack keeps from the right and the bottom
+// edges of a background. See [WithInset].
+func (m *Model) SetInset(right, bottom int) {
+	m.inset = [2]int{max(right, 0), max(bottom, 0)}
 	m.changed()
 }
 

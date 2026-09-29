@@ -1085,3 +1085,29 @@ func TestSyncRateLimitRereadsRates(t *testing.T) {
 		t.Errorf("after %s: read %d times, kept %+v; want the second read", core.SyncRateLimit, rates.reads, m.rate)
 	}
 }
+
+// The toasts leave the border of the pane under them, however narrow the
+// screen.
+func TestToastsKeepThePaneBorder(t *testing.T) {
+	for _, width := range []int{80, 24, 20} {
+		m, _ := newTestApp(t)
+		m.Update(tea.WindowSizeMsg{Width: width, Height: 24})
+		m.toast.Push(toast.Error, "Couldn't merge #5: the base branch was modified; review and try the merge again.")
+		lines := strings.Split(ansi.Strip(m.View().Content), "\n")
+		if last := lines[len(lines)-2]; !strings.HasSuffix(last, "╯") || strings.Contains(last, "▌") {
+			t.Errorf("at %d columns the bottom border is %q, want it whole", width, last)
+		}
+		drawn := false
+		for _, l := range lines[:len(lines)-2] {
+			if strings.Contains(l, "✗") {
+				drawn = true
+				if !strings.HasPrefix(l, "│") || !strings.HasSuffix(l, "│") {
+					t.Errorf("at %d columns toast line %q covers a border", width, l)
+				}
+			}
+		}
+		if !drawn {
+			t.Errorf("at %d columns no toast drawn:\n%s", width, strings.Join(lines, "\n"))
+		}
+	}
+}
