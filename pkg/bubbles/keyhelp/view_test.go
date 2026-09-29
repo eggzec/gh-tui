@@ -98,3 +98,28 @@ func TestViewCleansText(t *testing.T) {
 		t.Errorf("the row isn't on one clean line:\n%s", v)
 	}
 }
+
+// A help changed while blurred, as the parent resizes it or restyles it
+// while it is closed, shows the same as one changed while open, once it
+// opens, and a view of it before then is right too.
+func TestBlurredHelpListsWhenShown(t *testing.T) {
+	open := New(WithLayers(layers()), WithSize(60, 12))
+	open.Focus()
+	open.SetSize(80, 20)
+	open.SetStyles(DefaultStyles(false))
+	open.SetQuery("r")
+
+	closed := New(WithLayers(layers()), WithSize(60, 12))
+	closed.SetSize(80, 20)
+	closed.SetStyles(DefaultStyles(false))
+	closed.SetQuery("r")
+	blurred := open
+	blurred.Blur()
+	if got, want := closed.View(), blurred.View(); got != want {
+		t.Errorf("blurred view:\n%s\nwant:\n%s", got, want)
+	}
+	closed.Focus()
+	if got, want := closed.View(), open.View(); got != want {
+		t.Errorf("view once focused:\n%s\nwant:\n%s", got, want)
+	}
+}

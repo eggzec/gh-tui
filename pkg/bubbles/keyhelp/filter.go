@@ -30,5 +30,5 @@ func (m *Model) refilter() {
 	}
 	m.shown = in
 	m.vp.GotoTop()
-	m.relist()
+	m.list()
 }
