@@ -50,8 +50,11 @@ import (
 // the value of --hostname, if set, with the config file resolves for that
 // host and the account of its token, at logLevel, the level the log was
 // opened at, and shows logWarning and configWarning, if any, once it
-// starts.
-func build(ctx context.Context, file *config.File, logLevel, hostname, logWarning, configWarning string) (*tui.Model, error) {
+// starts. The token may still be on its way when build returns, as when
+// gh reads it from the system keyring, which takes tens of milliseconds the
+// app can start in; found then says whether it came, and is closed or sends
+// nil once it did. The account is known before, from gh's hosts file.
+func build(ctx context.Context, file *config.File, logLevel, hostname, logWarning, configWarning string) (app *tui.Model, found <-chan error, err error) {
 	st := startRepos(hostname, currentRepo, defaultHost)
 	logHost(st.Host)
 	here := st.Here
@@ -59,14 +62,14 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	// too. The access service learns what the token may do from the
 	// client's answers, and reads the token again from where it was found
 	// after a refresh.
-	token := findToken(st.Host)
+	token, later := quickToken(st.Host)
 	cfg, src, err := sessionConfig(file, st.Host, token.Login, logLevel)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	pinned, err := parseRefs(cfg.Repos)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	// The sync engine delivers the changes that its polls find, those
 	// that the revalidator finds, and those of the rate limits, through
@@ -75,27 +78,57 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	access := accesssvc.New(st.Host, token, accesssvc.WithLookup(findToken), accesssvc.WithChecks(cfg.Auth.Check))
 	// The app tells once of an Enterprise Server older than supported.
 	oldEnterprise := make(chan string, 1)
-	client, err := github.New(github.WithHost(st.Host), github.WithTokenSource(token.Value, token.Source),
+	tokenOpt := github.WithTokenSource(token.Value, token.Source)
+	if later {
+		tokenOpt = github.WithTokenLater(token.Source)
+	}
+	client, err := github.New(github.WithHost(st.Host), tokenOpt,
 		github.WithHTTPClient(&http.Client{Timeout: cfg.GitHub.Timeout}), github.WithConcurrency(cfg.GitHub.Concurrency),
 		github.WithOnAccess(access.Set),
 		github.WithOnOldEnterprise(func(v string) { oldEnterprise <- v }),
 		github.WithRateNotify(func() { engine.Publish(core.SyncRateLimit) }))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	logSession(newSessionInfo(st, token, client, cfg.Cache.Disk))
-	// After the session record, so that it carries the host and the
-	// account the config was resolved for.
-	logConfig(cfg, src)
-	go logGHVersion(ctx, accesssvc.GHPath())
 	context.AfterFunc(ctx, client.Close)
-	access.Bind(client)
-	access.Start(ctx)
+	go logGHVersion(ctx, accesssvc.GHPath())
+	// The session's record names the token's kind, and comes before the
+	// records of any request it sends; what the token may do starts from
+	// its kind once the client has it.
+	logStart := func(token accesssvc.Token) {
+		logSession(newSessionInfo(st, token, client, cfg.Cache.Disk))
+		// After the session record, so that it carries the host and the
+		// account the config was resolved for.
+		logConfig(cfg, src)
+	}
+	start := func() {
+		access.Bind(client)
+		access.Start(ctx)
+	}
+	done := make(chan error, 1)
+	switch {
+	case !later:
+		logStart(token)
+		start()
+		// What an account kept under the name of its token, before
+		// accounts were named by their login, stays its own.
+		moveAccount(cfg.Cache.Disk, client.Host(), client.TokenAccount(), client.Account())
+		close(done)
+	case accountKept(cfg.Cache.Disk, client.Host(), client.Account()):
+		// Nothing kept is named by the token, so the app starts while gh
+		// reads it.
+		go func() { done <- authorize(st.Host, client, access, logStart, start) }()
+	default:
+		// What the account kept may still be named by its token, which
+		// moving it needs.
+		if err := authorize(st.Host, client, access, logStart, start); err != nil {
+			return nil, nil, err
+		}
+		moveAccount(cfg.Cache.Disk, client.Host(), client.TokenAccount(), client.Account())
+		close(done)
+	}
 
 	ttl := cfg.Cache.TTL
-	// What an account kept under the name of its token, before accounts
-	// were named by their login, stays its own.
-	moveAccount(cfg.Cache.Disk, client.Host(), client.TokenAccount(), client.Account())
 	store, warning := openDisk(ctx, cfg.Cache.Disk, client.Host())
 	// A nil store must stay a nil interface, which the services take for
 	// none.
@@ -362,7 +395,35 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 			tui.WithRepoWatcher(fanOut(watchers...)),
 		)
 	}
-	return tui.New(ctx, cfg, layout, opts...), nil
+	return tui.New(ctx, cfg, layout, opts...), done, nil
+}
+
+// quickToken returns the token of host when it needn't run gh for it, and
+// otherwise, when gh keeps it in the system keyring, only where it is and
+// the login it is for, and reports that it comes later, from authorize.
+func quickToken(host string) (token accesssvc.Token, later bool) {
+	value, source, login := github.QuickToken(host)
+	if value == "" && source != "" {
+		return accesssvc.Token{Source: source, Login: login}, true
+	}
+	return findToken(host), false
+}
+
+// authorize reads the token of host that gh keeps, logs the session of
+// it, gives it to access and client, which sends the requests waiting
+// for it, and then starts what the token may do. Without one, the
+// requests waiting for it fail, and so does the app.
+func authorize(host string, client *github.Client, access *accesssvc.Service, logStart func(accesssvc.Token), start func()) error {
+	token := findToken(host)
+	if token.Value == "" {
+		client.Authorize("")
+		return github.NoTokenError(host)
+	}
+	access.Found(token)
+	logStart(token)
+	client.Authorize(token.Value)
+	start()
+	return nil
 }
 
 // findToken finds the token of host the way gh does, with where it

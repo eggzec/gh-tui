@@ -306,3 +306,25 @@ func TestDiskCacheRecordsNameTheDirectory(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 }
+
+// An account whose directory is there has nothing to move, so the start
+// needn't wait for its token; one whose directory isn't may still be kept
+// under its token's name.
+func TestAccountKept(t *testing.T) {
+	const host = "api.github.com"
+	cfg := config.Default().Cache.Disk
+	cfg.Dir = t.TempDir()
+	if err := os.MkdirAll(filepath.Join(cfg.Dir, host, entryDir, "login"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if !accountKept(cfg, host, "login") {
+		t.Error("an account with its directory isn't kept")
+	}
+	if accountKept(cfg, host, "new") {
+		t.Error("an account without its directory is kept")
+	}
+	cfg.Enabled = false
+	if !accountKept(cfg, host, "new") {
+		t.Error("without a disk cache, an account has something to move")
+	}
+}

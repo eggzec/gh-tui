@@ -509,8 +509,8 @@ func TestTokenKind(t *testing.T) {
 		"test-token": core.TokenUnknown,
 		"":           core.TokenUnknown,
 	} {
-		if got := tokenKind(token); got != want {
-			t.Errorf("tokenKind(%q) = %v, want %v", token, got, want)
+		if got := TokenKind(token); got != want {
+			t.Errorf("TokenKind(%q) = %v, want %v", token, got, want)
 		}
 	}
 }

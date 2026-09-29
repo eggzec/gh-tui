@@ -182,3 +182,38 @@ func TestStartProbesWhenSilent(t *testing.T) {
 		})
 	}
 }
+
+// A client bound after the app subscribed tells it the kind of its token,
+// which no answer may ever say, as of a fine-grained token; yet binding
+// isn't an answer, so Start still asks GitHub what a classic token may do.
+func TestBindTellsTheKind(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		s := New("github.com", Token{Source: "gh", Login: "octocat"})
+		ch := s.Changes()
+		c := &fakeClient{svc: s, initial: core.Access{Kind: core.TokenClassic}, learned: classic("repo")}
+		s.Bind(c)
+		select {
+		case a := <-ch:
+			if a.Kind != core.TokenClassic {
+				t.Errorf("subscribers heard %v, want the kind the client knows", a)
+			}
+		default:
+			t.Fatal("subscribers heard nothing of the bound client")
+		}
+		s.Start(t.Context())
+		time.Sleep(time.Minute)
+		synctest.Wait()
+		if _, probes := c.counts(); probes != 1 {
+			t.Errorf("probed %d times after Bind, want 1", probes)
+		}
+		// A client that knows nothing tells nothing.
+		s2 := New("github.com", Token{})
+		ch2 := s2.Changes()
+		s2.Bind(&fakeClient{svc: s2})
+		select {
+		case a := <-ch2:
+			t.Errorf("subscribers heard %v of a client that knows nothing", a)
+		default:
+		}
+	})
+}

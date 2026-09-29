@@ -6,12 +6,14 @@ package github
 
 import (
 	"cmp"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -28,13 +30,21 @@ type Client struct {
 	http *http.Client
 	// token is swapped by SetToken while requests read it.
 	token atomic.Pointer[string]
+	// authorized is closed once the client has its first token: at once,
+	// or by Authorize for a client made WithTokenLater. authorize sets it
+	// once.
+	authorized chan struct{}
+	authorize  sync.Once
 	// tokenAccount is TokenAccount, of the token the client started with.
+	// It is set before authorized is closed.
 	tokenAccount string
-	login        string
-	restURL      *url.URL
-	graphqlURL   string
-	budget       *budget
-	access       *tokenAccess
+	// host is the host as gh names it, for the error of a missing token.
+	host       string
+	login      string
+	restURL    *url.URL
+	graphqlURL string
+	budget     *budget
+	access     *tokenAccess
 	// enterprise is set when the host is a GitHub Enterprise Server, and
 	// unsupported keeps the queries it lacks fields of.
 	enterprise  atomic.Bool
@@ -62,6 +72,7 @@ type options struct {
 	host        string
 	token       string
 	source      string
+	later       bool
 	baseURL     string
 	gh          ghLookup
 	notify      func()
@@ -108,6 +119,14 @@ func WithTokenSource(token, source string) Option {
 	return func(o *options) { o.token, o.source = token, source }
 }
 
+// WithTokenLater makes a client whose token comes later, by Authorize,
+// from source, as FindToken names it: such as one that gh reads from the
+// system keyring, which takes tens of milliseconds that the app can spend
+// starting. Requests wait for it.
+func WithTokenLater(source string) Option {
+	return func(o *options) { o.token, o.source, o.later = "", source, true }
+}
+
 // WithBaseURL sets the REST API root, such as https://api.github.com/. The
 // GraphQL endpoint is derived from it: graphql below the root, or
 // /api/graphql when the root ends in /api/v3 as on GitHub Enterprise Server.
@@ -127,11 +146,11 @@ func New(opts ...Option) (*Client, error) {
 		o.host, _ = o.gh.defaultHost()
 	}
 	source := o.source
-	if o.token == "" {
+	if o.token == "" && !o.later {
 		o.token, source = o.gh.token(o.host)
 	}
-	if o.token == "" {
-		return nil, fmt.Errorf("no token for %s, run %s: %w", o.host, loginCommand(o.host), core.ErrUnauthorized)
+	if o.token == "" && !o.later {
+		return nil, NoTokenError(o.host)
 	}
 	// A client found the way gh finds one also sends its requests the way
 	// gh does, unless it was given a transport.
@@ -176,17 +195,21 @@ func New(opts ...Option) (*Client, error) {
 	})
 	hc.Timeout = 0
 	c := &Client{
-		http:         &hc,
-		tokenAccount: tokenAccount(base.Host, o.token),
-		login:        o.gh.login(o.host, source),
-		restURL:      base,
-		graphqlURL:   gql.String(),
-		budget:       b,
-		access:       acc,
-		onOld:        o.onOld,
-		searchSize:   def.PageSize.Search,
+		http:       &hc,
+		authorized: make(chan struct{}),
+		host:       o.host,
+		login:      o.gh.login(o.host, source),
+		restURL:    base,
+		graphqlURL: gql.String(),
+		budget:     b,
+		access:     acc,
+		onOld:      o.onOld,
+		searchSize: def.PageSize.Search,
 	}
 	c.token.Store(&o.token)
+	if !o.later {
+		c.Authorize(o.token)
+	}
 	// An Enterprise Server's API is below /api/v3.
 	c.enterprise.Store(strings.HasSuffix(base.Path, "/api/v3/"))
 	b.gate.probe = c.rateLimits
@@ -200,6 +223,48 @@ func New(opts ...Option) (*Client, error) {
 func (c *Client) Close() {
 	c.budget.notifier.stop()
 	c.budget.close()
+}
+
+// NoTokenError is the error of a client that has no token for host, which
+// says how to log in.
+func NoTokenError(host string) error {
+	return fmt.Errorf("no token for %s, run %s: %w", host, loginCommand(host), core.ErrUnauthorized)
+}
+
+// Authorize gives a client made WithTokenLater its token, and sends the
+// requests that wait for it. An empty token fails them with
+// NoTokenError. What the token may do starts from what its prefix says,
+// as though New had it. Only the first call counts; SetToken replaces the
+// token after. A token SetToken set meanwhile, as one an :auth refresh
+// read while gh still read this one, is the newer, so it stays.
+func (c *Client) Authorize(token string) {
+	c.authorize.Do(func() {
+		none := c.token.Load()
+		if *none == "" && c.token.CompareAndSwap(none, &token) {
+			c.access.start(token)
+		} else {
+			token = *c.token.Load()
+		}
+		c.tokenAccount = tokenAccount(c.restURL.Host, token)
+		close(c.authorized)
+	})
+}
+
+// waitToken waits until the client has its token, or ctx ends. A client
+// that has it sends even a request whose context has ended, as it would
+// have without waiting, so that the attempt is logged as canceled.
+func (c *Client) waitToken(ctx context.Context) error {
+	select {
+	case <-c.authorized:
+		return nil
+	default:
+	}
+	select {
+	case <-c.authorized:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // loginCommand is the gh command that logs in to host. gh logs in to
@@ -261,7 +326,8 @@ func (c *Client) WebHost() string {
 // the one gh stores for its active account, the name is a hash of the host
 // and that account's login, so it outlasts a refreshed token or a new
 // login. A token from the environment may be anyone's, so its name is its
-// TokenAccount.
+// TokenAccount, and then it waits for the token as TokenAccount does:
+// never call it from Update.
 func (c *Client) Account() string {
 	if c.login == "" {
 		return c.TokenAccount()
@@ -274,8 +340,11 @@ func (c *Client) Account() string {
 // hash of the host and the token. Another token, even of the same user,
 // has another name, but one set by SetToken keeps the first one's, so
 // that what is kept for the account stays where it is for the session.
-// Before Account named logins, it returned this.
+// Before Account named logins, it returned this. A client made
+// WithTokenLater has no token until Authorize, so it waits until then:
+// never call it from Update.
 func (c *Client) TokenAccount() string {
+	<-c.authorized
 	return c.tokenAccount
 }
 
@@ -307,7 +376,14 @@ func (c *Client) send(req *http.Request) (*http.Response, error) {
 // sendWith is send with hc, such as a copy of the client's that doesn't
 // follow redirects.
 func (c *Client) sendWith(hc *http.Client, req *http.Request) (*http.Response, error) {
-	req.Header.Set("Authorization", "Bearer "+*c.token.Load())
+	if err := c.waitToken(req.Context()); err != nil {
+		return nil, err
+	}
+	token := *c.token.Load()
+	if token == "" {
+		return nil, NoTokenError(c.host)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("User-Agent", userAgent)
 	if req.Header.Get("Accept") == "" {
 		req.Header.Set("Accept", "application/vnd.github+json")

@@ -72,6 +72,21 @@ func openEntries(cfg config.Disk, host *disk.Store, account string) *disk.Store 
 	return store
 }
 
+// accountKept reports whether moveAccount has nothing to move to the
+// directory of account on host, since it is there already, or cfg keeps
+// nothing, so that it needs no token to tell.
+func accountKept(cfg config.Disk, host, account string) bool {
+	if !cfg.Enabled {
+		return true
+	}
+	root, err := cfg.Path()
+	if err != nil {
+		return true
+	}
+	_, err = os.Lstat(filepath.Join(root, hostDir(host), entryDir, account))
+	return !errors.Is(err, fs.ErrNotExist)
+}
+
 // moveAccount renames the directory of an account from its old name to its
 // new one, so that what it read and typed survives a change of its name:
 // from a hash of its token, as gh-tui named accounts before, to a hash of

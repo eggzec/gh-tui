@@ -445,7 +445,7 @@ func TestChecksOff(t *testing.T) {
 
 // newTokenApp returns an app with the notifications section, whose token
 // acc knows of, started on the notifications, and what the section reads.
-func newTokenApp(t *testing.T, cfg config.Config, acc *fakeAccess) (*Model, *notifications.Section, *fakeInbox) {
+func newTokenApp(t *testing.T, cfg config.Config, acc Access) (*Model, *notifications.Section, *fakeInbox) {
 	t.Helper()
 	v := ui.NewVoice(cfg.Keys, "")
 	v.Token = ui.NewToken(acc, cfg.Keys)
@@ -498,5 +498,43 @@ func TestHelpShowsWhatTheTokenRefuses(t *testing.T) {
 		if got := helpStatus(m, desc); got == -1 || got == keyhelp.Disabled {
 			t.Errorf("the help over :auth lists %q as %v, want it offered", desc, got)
 		}
+	}
+}
+
+// boundClient is a client whose token's kind its prefix tells, and whose
+// answers never say more, as of a fine-grained token.
+type boundClient struct{ kind core.TokenKind }
+
+func (c boundClient) Access() core.Access             { return core.Access{Kind: c.kind} }
+func (boundClient) SetToken(string)                   {}
+func (boundClient) ProbeAccess(context.Context) error { return nil }
+
+// TestTokenFoundWhileRunning starts the app before gh read a fine-grained
+// token from the keyring: once the client is bound, the app tells the
+// user once that notifications need a classic token, and the pane says
+// so in place of the list.
+func TestTokenFoundWhileRunning(t *testing.T) {
+	svc := access.New("github.com", access.Token{Source: "gh", Login: "octocat"})
+	m, _, _ := newTokenApp(t, config.Default(), svc)
+	if got := toasted(m); got != "" {
+		t.Fatalf("toasts %q before the token came", got)
+	}
+	m.accessChanges = svc.Changes()
+	listen := m.listenAccess()
+	m.accessChanges = nil
+	heard := make(chan tea.Msg, 1)
+	go func() { heard <- listen() }()
+	svc.Bind(boundClient{kind: core.TokenFineGrained})
+	select {
+	case msg := <-heard:
+		run(m, m.updateAccess(msg))
+	case <-time.After(5 * time.Second):
+		t.Fatal("the app heard nothing of the bound client")
+	}
+	if got := toasted(m); !strings.Contains(got, "Notifications need a classic token") {
+		t.Errorf("toasts %q, want the notice of a fine-grained token", got)
+	}
+	if got := onScreen(m); !strings.Contains(got, "needs a classic token") {
+		t.Errorf("the notifications show %q, want that they need a classic token", got)
 	}
 }

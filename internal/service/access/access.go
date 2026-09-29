@@ -96,17 +96,32 @@ func New(host string, token Token, opts ...Option) *Service {
 	return s
 }
 
+// Found sets the token of a service made while it was still being looked
+// up, such as while gh read it from the system keyring, which New would
+// have been given: Reload and Refresh go by it. Bind the client once it
+// has the token too.
+func (s *Service) Found(token Token) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.token = token
+}
+
 // Bind sets the client that sends the token, which is made after the
 // service, since it tells the service what it learns (Set), and starts
 // from what the client knows before any answer: the kind of token its
-// prefix says, which GitHub may never say otherwise.
+// prefix says, which GitHub may never say otherwise, as of a fine-grained
+// token. The subscribers hear of it, since a client bound once the app
+// runs, as one whose token gh read meanwhile, tells it what Access said
+// nothing of before. It isn't an answer, so Start still asks GitHub what
+// a classic token may do.
 func (s *Service) Bind(c Client) {
 	a := c.Access()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.client = c
-	if s.cur.Equal(core.Access{}) {
+	if s.cur.Equal(core.Access{}) && !a.Equal(core.Access{}) {
 		s.cur = a
+		s.publish(a)
 	}
 }
 
@@ -121,6 +136,14 @@ func (s *Service) Set(a core.Access) {
 		return
 	}
 	s.cur = a
+	s.publish(a)
+	slog.Info("token access", "span", span, "kind", a.Kind.String(), "known", a.Known,
+		"scopes", strings.Join(a.Scopes, ","), "sso", len(a.SSO))
+}
+
+// publish sends a to every subscriber, replacing what one hasn't read.
+// s.mu must be held.
+func (s *Service) publish(a core.Access) {
 	for _, ch := range s.subs {
 		select {
 		case <-ch:
@@ -128,8 +151,6 @@ func (s *Service) Set(a core.Access) {
 		}
 		ch <- a
 	}
-	slog.Info("token access", "span", span, "kind", a.Kind.String(), "known", a.Known,
-		"scopes", strings.Join(a.Scopes, ","), "sso", len(a.SSO))
 }
 
 // Access returns what the token may do, as far as GitHub said.

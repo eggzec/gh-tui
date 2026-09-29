@@ -15,13 +15,17 @@ import (
 type ghLookup struct {
 	defaultHost func() (host, source string)
 	token       func(host string) (token, source string)
-	config      func() (*config.Config, error)
+	// stored finds a token as token does, but only where it can without
+	// running gh: the environment and gh's hosts file.
+	stored func(host string) (token, source string)
+	config func() (*config.Config, error)
 }
 
 func ghDefaults() ghLookup {
 	return ghLookup{
 		defaultHost: auth.DefaultHost,
 		token:       auth.TokenForHost,
+		stored:      auth.TokenFromEnvOrConfig,
 		config:      func() (*config.Config, error) { return config.Read(nil) },
 	}
 }
@@ -35,6 +39,27 @@ func FindToken(host string) (token, source, login string) {
 	g := ghDefaults()
 	token, source = g.token(host)
 	return token, source, g.login(host, source)
+}
+
+// QuickToken returns what FindToken would, as far as it can without
+// running gh, which FindToken does for a token gh keeps in the system
+// keyring and which takes tens of milliseconds: a token from the
+// environment or gh's hosts file, where it came from and the login; or no
+// token, with the keyring as its source and the login gh is logged in as
+// on host, when gh keeps the token there; or nothing when gh isn't logged
+// in to host.
+func QuickToken(host string) (token, source, login string) {
+	return ghDefaults().quickToken(host)
+}
+
+func (g ghLookup) quickToken(host string) (token, source, login string) {
+	if token, source = g.stored(host); token != "" {
+		return token, source, g.login(host, source)
+	}
+	if login = g.login(host, sourceKeyring); login == "" {
+		return "", "", ""
+	}
+	return "", sourceKeyring, login
 }
 
 // Where auth.TokenForHost found a token that gh itself stores: hosts.yml,
