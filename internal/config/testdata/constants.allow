@@ -97,6 +97,9 @@ internal/github/actions_logs.go:logURLTTL  keep: an API limit, GitHub's log link
 internal/github/budget.go:maxGuard  keep: a mechanism of the rate-limit budget
 internal/github/budget.go:maxWindow  keep: an API limit, the longest rate-limit window
 internal/github/budget.go:minGuard  keep: a mechanism of the rate-limit budget
+internal/github/failing.go:failingAfter  keep: a mechanism of the status, how long server errors must last before the bar tells of them
+internal/github/failing.go:failingClear  keep: a mechanism of the status, the hysteresis that keeps a resource failing now and then from flapping the bar and waking the polls
+internal/github/failing.go:failingResume  keep: a mechanism of the status, how long a lapsed run of server errors keeps its start; above the longest poll backoff
 internal/github/gate.go:deadlineMargin  keep: a safety mechanism of the rate-limit gate
 internal/github/gate.go:foregroundWait  keep: a safety mechanism of the rate-limit gate
 internal/github/gate.go:maxSecondaryBackoff  keep: a safety mechanism of the rate-limit gate

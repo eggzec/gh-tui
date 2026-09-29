@@ -50,6 +50,9 @@ const (
 	linkLimited
 	// linkRejected is while GitHub rejects the token.
 	linkRejected
+	// linkFailing is while GitHub answers with server errors, and reads
+	// are served what earlier ones kept.
+	linkFailing
 )
 
 // barStyles are the styles of the status bar, built once per theme.
@@ -148,16 +151,23 @@ func (m *Model) readRates() tea.Cmd {
 	if m.rates == nil {
 		return nil
 	}
-	was, wasRejected := m.offSince, !m.rate.Rejected.IsZero()
+	was, wasRejected, wasMended := m.offSince, !m.rate.Rejected.IsZero(), m.rate.Mended
 	m.rate = m.rates.RateStatus()
 	if offline := m.rate.Failed.After(m.rate.Answered); !offline {
 		m.offSince = time.Time{}
 	} else if m.offSince.IsZero() {
 		m.offSince = m.rate.Failed
 	}
+	mended := m.rate.Mended.After(wasMended)
 	m.drawStatus()
-	m.logLink(was, wasRejected)
-	if !was.IsZero() && m.offSince.IsZero() {
+	m.logLink(was, wasRejected, mended)
+	// GitHub answering again after an outage, or a resource that failed
+	// with server errors answering well again, mends what failed
+	// meanwhile. Failing that only went quiet, because other resources
+	// answered well, doesn't: the polls of the resource would fail
+	// again, and waking them would undo their backoff. Coming back from
+	// an outage wakes them whether or not some resource still fails.
+	if (!was.IsZero() || mended) && m.offSince.IsZero() {
 		return m.cameOnline()
 	}
 	return nil
@@ -165,9 +175,10 @@ func (m *Model) readRates() tea.Cmd {
 
 // logLink logs a change of the connection, once: going offline, and
 // since when; online again, and for how long it was offline, from was,
-// when it went offline; and GitHub rejecting the token, unless it was
-// already.
-func (m *Model) logLink(was time.Time, wasRejected bool) {
+// when it went offline; GitHub rejecting the token, unless it was
+// already; and GitHub failing with server errors, once per start, and
+// mended, if it was.
+func (m *Model) logLink(was time.Time, wasRejected, mended bool) {
 	host := cmp.Or(m.host, "github.com")
 	switch {
 	case was.IsZero() && !m.offSince.IsZero():
@@ -179,10 +190,24 @@ func (m *Model) logLink(was time.Time, wasRejected bool) {
 	if !wasRejected && !m.rate.Rejected.IsZero() {
 		slog.InfoContext(m.ctx, "connection", "span", "tui", "state", "rejected", "host", host)
 	}
+	if failing := m.rate.Failing; !failing.IsZero() && !failing.Equal(m.failSince) {
+		m.failSince = failing
+		slog.InfoContext(m.ctx, "connection", "span", "tui", "state", "failing", "host", host, "since", failing)
+	}
+	if mended && !m.failSince.IsZero() {
+		slog.InfoContext(m.ctx, "connection", "span", "tui", "state", "mended", "host", host,
+			"failing_s", m.rate.Mended.Sub(m.failSince).Round(time.Second).Seconds())
+		m.failSince = time.Time{}
+	}
 }
 
 // linkNow returns the state of the connection, and the time that goes
-// with it: since when it is offline, or until when it is limited.
+// with it: since when it is offline or failing, or until when it is
+// limited. One state shows at a time, the first that holds of offline,
+// token rejected, GitHub failing, rate limited and online: no answer at
+// all says more than a rejected token, which fails every request, and
+// that more than server errors, which serve what was kept. Failing hides
+// a rate limit, whose reset the rates still show.
 func (m *Model) linkNow() (link, time.Time) {
 	r := m.rate
 	switch {
@@ -190,6 +215,8 @@ func (m *Model) linkNow() (link, time.Time) {
 		return linkOffline, m.offSince
 	case !r.Rejected.IsZero():
 		return linkRejected, time.Time{}
+	case !r.Failing.IsZero():
+		return linkFailing, r.Failing
 	}
 	until := r.SecondaryUntil
 	for _, q := range shownQuotas(r) {
@@ -223,6 +250,8 @@ func (m *Model) linkItem() statusbar.Item {
 		dot, text = m.bst.warn, "rate limited until "+ui.Clock(at, m.rate.At)
 	case linkRejected:
 		dot, text = m.bst.fail, "token rejected"
+	case linkFailing:
+		dot, text = m.bst.warn, "GitHub failing since "+ui.Clock(at, m.rate.At)
 	}
 	mark := dot.Render("●")
 	return statusbar.Item{Forms: []string{mark + " " + m.bst.value.Render(text), mark}, Rank: rankLink}

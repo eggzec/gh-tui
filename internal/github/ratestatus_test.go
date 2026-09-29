@@ -265,6 +265,285 @@ func TestRateStatusRejected(t *testing.T) {
 	})
 }
 
+// failingClient is a client whose REST path x and GraphQL endpoint are
+// answered as a test says, with what it was told of the rate limits.
+type failingClient struct {
+	*notified
+	a answers
+}
+
+// githubAnswer is the header of an answer GitHub sent.
+var githubAnswer = map[string]string{"X-GitHub-Request-Id": "ABCD:1234"}
+
+func newFailingClient(t *testing.T) *failingClient {
+	t.Helper()
+	a := answers{"x": make(chan answer, 1), "graphql": make(chan answer, 1), "search/issues": make(chan answer, 1)}
+	return &failingClient{notified: newNotified(t, a), a: a}
+}
+
+// get has a REST read answered with status and header, and query a
+// GraphQL one. Background reads aren't sent again, so one answer ends
+// each.
+func (f *failingClient) get(t *testing.T, status int, header map[string]string) {
+	t.Helper()
+	f.a["x"] <- answer{status: status, header: header}
+	_, _ = f.Get(obs.ForBackground(t.Context()), "x", Conditional{}, nil)
+}
+
+func (f *failingClient) query(t *testing.T, status int) {
+	t.Helper()
+	f.a["graphql"] <- answer{status: status, header: githubAnswer, body: `{"data":{}}`}
+	_ = f.Query(obs.ForBackground(t.Context()), "query Q { x }", nil, nil)
+}
+
+// toldFailing returns since when the status said GitHub fails, the last time
+// f was told of the rate limits.
+func (f *failingClient) toldFailing() time.Time {
+	_, s := f.last()
+	return s.Failing
+}
+
+// TestRateStatusFailing checks that the status says GitHub fails once its
+// answers, or a proxy's on the way to it, kept being server errors for
+// failingAfter, since the first of them, which more don't move, and no
+// longer once GitHub answered otherwise, with no error, for failingClear.
+// Each change is told of with no answer to bring it.
+func TestRateStatusFailing(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		f := newFailingClient(t)
+		f.get(t, http.StatusOK, githubAnswer)
+		if s := f.RateStatus(); !s.Failing.IsZero() {
+			t.Errorf("after a 200: Failing = %v, want zero", s.Failing)
+		}
+		time.Sleep(time.Second)
+		f.get(t, http.StatusServiceUnavailable, githubAnswer)
+		began := time.Now()
+		if s := f.RateStatus(); !s.Failing.IsZero() {
+			t.Errorf("right after a 503: Failing = %v, want zero until it lasts", s.Failing)
+		}
+		time.Sleep(failingAfter)
+		if got := f.toldFailing(); !got.Equal(began) {
+			t.Errorf("%v after a 503 with no answer since: told Failing = %v, want %v", failingAfter, got, began)
+		}
+		// A proxy's 502 fails too, and doesn't move when it began.
+		time.Sleep(time.Second)
+		f.get(t, http.StatusBadGateway, nil)
+		if s := f.RateStatus(); !s.Failing.Equal(began) {
+			t.Errorf("after a proxy's 502: Failing = %v, want %v", s.Failing, began)
+		}
+		last := time.Now()
+		// An answer without GitHub's request id, such as a portal's page,
+		// doesn't count toward ending it.
+		time.Sleep(time.Second)
+		f.get(t, http.StatusOK, nil)
+		// GitHub answering otherwise, a 404 too, ends it only once no
+		// error came for failingClear.
+		time.Sleep(time.Second)
+		f.get(t, http.StatusNotFound, githubAnswer)
+		answered := time.Now()
+		if s := f.RateStatus(); !s.Failing.Equal(began) {
+			t.Errorf("right after GitHub's 404: Failing = %v, want %v until it lasts", s.Failing, began)
+		}
+		time.Sleep(time.Until(last.Add(failingClear)) - time.Second)
+		if s := f.RateStatus(); !s.Failing.Equal(began) {
+			t.Errorf("a second before failingClear: Failing = %v, want %v", s.Failing, began)
+		}
+		time.Sleep(time.Second)
+		if _, s := f.last(); !s.Failing.IsZero() || !s.Mended.Equal(answered) {
+			t.Errorf("failingClear after the last error: told Failing = %v and Mended = %v, want zero and %v, when GitHub answered", s.Failing, s.Mended, answered)
+		}
+	})
+}
+
+// TestRateStatusFailingBlip checks that a server error that a retry
+// mends at once, or a few within failingAfter, never say GitHub fails.
+func TestRateStatusFailingBlip(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		f := newFailingClient(t)
+		f.get(t, http.StatusOK, githubAnswer)
+		for range 3 {
+			f.get(t, http.StatusBadGateway, nil)
+			time.Sleep(time.Second)
+			f.get(t, http.StatusOK, githubAnswer)
+			time.Sleep(time.Second)
+		}
+		for range 60 {
+			if s := f.RateStatus(); !s.Failing.IsZero() || !s.Mended.IsZero() {
+				t.Fatalf("after blips: Failing = %v and Mended = %v, want both zero", s.Failing, s.Mended)
+			}
+			time.Sleep(time.Second)
+		}
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		for _, s := range f.told {
+			if !s.Failing.IsZero() {
+				t.Errorf("told Failing = %v after blips, want it never told", s.Failing)
+			}
+		}
+	})
+}
+
+// TestRateStatusFailingNotAskedAgain checks that a run of server errors
+// of a resource no request asks for again, such as a search the user
+// doesn't run again, goes quiet failingClear after its last error once
+// GitHub answered another resource well, without mending; that the next
+// error of the resource takes it up again, since when it began; and that
+// it mends once the resource answers well.
+func TestRateStatusFailingNotAskedAgain(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		f := newFailingClient(t)
+		search := func(status int, header map[string]string) {
+			f.a["search/issues"] <- answer{status: status, header: header}
+			_, _ = f.Get(obs.ForBackground(t.Context()), "search/issues", Conditional{}, nil)
+		}
+		began := time.Now()
+		for range 3 {
+			search(http.StatusBadGateway, nil)
+			time.Sleep(time.Second)
+		}
+		last := began.Add(2 * time.Second)
+		time.Sleep(failingAfter)
+		if got := f.toldFailing(); !got.Equal(began) {
+			t.Fatalf("searches failing: told Failing = %v, want %v", got, began)
+		}
+		f.get(t, http.StatusOK, githubAnswer)
+		if s := f.RateStatus(); !s.Failing.Equal(began) {
+			t.Errorf("right after REST answered: Failing = %v, want %v until failingClear", s.Failing, began)
+		}
+		time.Sleep(time.Until(last.Add(failingClear)))
+		if _, s := f.last(); !s.Failing.IsZero() || !s.Mended.IsZero() {
+			t.Errorf("failingClear after the last error: told Failing = %v and Mended = %v, want both zero", s.Failing, s.Mended)
+		}
+
+		// Within failingResume of its last error, the next error takes it
+		// up again: it shows by the same rules as a new streak, since when
+		// it began.
+		time.Sleep(failingResume - failingClear - time.Minute)
+		search(http.StatusBadGateway, nil)
+		if s := f.RateStatus(); !s.Failing.IsZero() {
+			t.Errorf("right after a search failed again: Failing = %v, want zero until it lasts", s.Failing)
+		}
+		time.Sleep(failingAfter)
+		if got := f.toldFailing(); !got.Equal(began) {
+			t.Errorf("%v after a search failed again: told Failing = %v, want %v", failingAfter, got, began)
+		}
+		last = time.Now().Add(-failingAfter)
+		search(http.StatusOK, githubAnswer)
+		answered := time.Now()
+		time.Sleep(time.Until(last.Add(failingClear)))
+		if _, s := f.last(); !s.Failing.IsZero() || !s.Mended.Equal(answered) {
+			t.Errorf("failingClear after the search failed again: told Failing = %v and Mended = %v, want zero and %v, when it answered", s.Failing, s.Mended, answered)
+		}
+		f.budget.mu.Lock()
+		defer f.budget.mu.Unlock()
+		if n := len(f.budget.failing); n != 0 {
+			t.Errorf("%d runs of errors still kept, want none", n)
+		}
+	})
+}
+
+// lapseSearch has searches fail for failingAfter while REST answers
+// well, until the streak lapses.
+func (f *failingClient) lapseSearch(t *testing.T) {
+	t.Helper()
+	began := time.Now()
+	f.search(t, http.StatusBadGateway, nil)
+	time.Sleep(failingAfter)
+	if got := f.toldFailing(); !got.Equal(began) {
+		t.Fatalf("searches failing: told Failing = %v, want %v", got, began)
+	}
+	f.get(t, http.StatusOK, githubAnswer)
+	time.Sleep(failingClear)
+	if s := f.RateStatus(); !s.Failing.IsZero() {
+		t.Fatalf("failingClear after the search failed: Failing = %v, want zero", s.Failing)
+	}
+}
+
+func (f *failingClient) search(t *testing.T, status int, header map[string]string) {
+	t.Helper()
+	f.a["search/issues"] <- answer{status: status, header: header}
+	_, _ = f.Get(obs.ForBackground(t.Context()), "search/issues", Conditional{}, nil)
+}
+
+// TestRateStatusFailingResumedBlip checks that a blip that takes up a
+// streak that lapsed, mended at once, neither shows nor mends anything.
+func TestRateStatusFailingResumedBlip(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		f := newFailingClient(t)
+		f.lapseSearch(t)
+		_, before := f.last()
+		time.Sleep(10 * time.Minute)
+		f.search(t, http.StatusBadGateway, nil)
+		time.Sleep(time.Second)
+		f.search(t, http.StatusOK, githubAnswer)
+		for range 60 {
+			if s := f.RateStatus(); !s.Failing.IsZero() || !s.Mended.Equal(before.Mended) {
+				t.Fatalf("after a blip: Failing = %v and Mended = %v, want zero and %v", s.Failing, s.Mended, before.Mended)
+			}
+			time.Sleep(time.Second)
+		}
+		f.budget.mu.Lock()
+		defer f.budget.mu.Unlock()
+		if n := len(f.budget.failing); n != 0 {
+			t.Errorf("%d runs of errors still kept, want none", n)
+		}
+	})
+}
+
+// TestRateStatusFailingResumeBound checks that an error more than
+// failingResume after the last of a streak that lapsed starts a streak
+// of its own.
+func TestRateStatusFailingResumeBound(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		f := newFailingClient(t)
+		f.lapseSearch(t)
+		time.Sleep(failingResume)
+		again := time.Now()
+		f.search(t, http.StatusBadGateway, nil)
+		time.Sleep(failingAfter)
+		if got := f.toldFailing(); !got.Equal(again) {
+			t.Errorf("a search failing %v later: told Failing = %v, want %v", failingResume, got, again)
+		}
+	})
+}
+
+// TestRateStatusFailingPartial checks that GraphQL failing at each of
+// its polls a minute apart, while REST answers well in between, tells
+// the same start each time it shows, never mends, and mends once GraphQL
+// answers well.
+func TestRateStatusFailingPartial(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		f := newFailingClient(t)
+		began := time.Now()
+		for i := range 600 {
+			if i%60 == 0 {
+				f.query(t, http.StatusBadGateway)
+			}
+			f.get(t, http.StatusOK, githubAnswer)
+			time.Sleep(time.Second)
+			if s := f.RateStatus(); !s.Failing.IsZero() && !s.Failing.Equal(began) || !s.Mended.IsZero() {
+				t.Fatalf("%v into the outage: Failing = %v and Mended = %v, want %v or zero, and zero", time.Since(began), s.Failing, s.Mended, began)
+			}
+		}
+		f.mu.Lock()
+		shown := 0
+		for _, s := range f.told {
+			if !s.Failing.IsZero() {
+				shown++
+			}
+		}
+		f.mu.Unlock()
+		if shown == 0 {
+			t.Error("never told GitHub fails while GraphQL failed")
+		}
+		f.query(t, http.StatusOK)
+		time.Sleep(failingClear)
+		if _, s := f.last(); !s.Failing.IsZero() || s.Mended.IsZero() {
+			t.Errorf("failingClear after GraphQL answered well: told Failing = %v and Mended = %v, want zero and set", s.Failing, s.Mended)
+		}
+	})
+}
+
 // TestRateStatusRejectedNotByGitHub checks that a 401 without GitHub's
 // request id, such as one from a proxy on the way, doesn't say GitHub
 // rejected the token.
