@@ -84,6 +84,12 @@ dashboard:
 ui:
   icons: unicode
 
+images:
+  enabled: "off"
+  max_rows: 8
+  avatars: false
+  animate: false
+
 auth:
   check: false
 

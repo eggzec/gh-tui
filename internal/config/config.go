@@ -50,8 +50,11 @@ type Config struct {
 	// Dashboard configures the screen the app opens on.
 	Dashboard Dashboard `yaml:"dashboard"`
 	UI        UI        `yaml:"ui"`
-	Auth      Auth      `yaml:"auth" when:"startup" why:"the token's checks start with the app"`
-	Log       Log       `yaml:"log" scope:"global"`
+	// Images configures the images drawn inline, which only some
+	// terminals show.
+	Images Images `yaml:"images" when:"startup" why:"the terminal is asked whether it shows images at startup" scope:"global"`
+	Auth   Auth   `yaml:"auth" when:"startup" why:"the token's checks start with the app"`
+	Log    Log    `yaml:"log" scope:"global"`
 	// Editor is the command of the editor that v opens a file in from the
 	// pager, such as "vim" or "code --wait": a program and its arguments,
 	// split at white space and run without a shell. Empty, as by default,
@@ -160,7 +163,7 @@ func (c Config) Validate() error {
 	if c.Sync.Interval < minSyncInterval {
 		errs = append(errs, fmt.Errorf("sync.interval: must be at least %v, got %v", minSyncInterval, c.Sync.Interval))
 	}
-	errs = append(errs, c.Files.validate(), c.Details.validate(), c.History.validate(), c.Dashboard.validate(), c.UI.validate(), c.Log.validate(),
+	errs = append(errs, c.Files.validate(), c.Details.validate(), c.History.validate(), c.Dashboard.validate(), c.UI.validate(), c.Images.validate(), c.Log.validate(),
 		validateEditor(c.Editor))
 	return errors.Join(errs...)
 }
