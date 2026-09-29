@@ -247,6 +247,17 @@ func TestYesAsksAgain(t *testing.T) {
 			t.Errorf("sent %v and showed %v, want only the notice", svc.changeCalls(), msgs)
 		}
 	})
+	t.Run("the list shows another repository while asking", func(t *testing.T) {
+		svc := newFakeService(sampleIssues(12))
+		s := started(t, svc, 80, 20)
+		press(t, s, "down", "x")
+		// The question reads the same for #999 of any repository.
+		s.repo = core.RepoRef{Owner: "eggzec", Name: "other"}
+		msgs := press(t, s, "y")
+		if len(svc.changeCalls()) != 0 || !slices.Contains(msgs, info("#999 changed meanwhile, so nothing was sent.")) {
+			t.Errorf("sent %v and showed %v, want only the notice", svc.changeCalls(), msgs)
+		}
+	})
 	t.Run("closed elsewhere while asking", func(t *testing.T) {
 		svc := newFakeService(sampleIssues(12))
 		s := started(t, svc, 80, 20)

@@ -49,10 +49,31 @@ func (k keyMap) action(pr core.PullRequest, msg tea.KeyPressMsg) (ui.Action, boo
 
 // change is a change that a key asks of a pull request: start shows it
 // in the cache at once and returns the op that sends it, named by what.
-// question asks the user to confirm it first.
+// question asks the user to confirm it first, and of says what it is.
 type change struct {
 	question, what string
+	of             changeOf
 	start          func() *optimistic.Op
+}
+
+// changeOf says what a change is: its action on pull request number of
+// repo, for a merge the method and the base branch, and for the draft
+// toggle which way it goes, so that a yes makes only the change it was
+// asked about.
+type changeOf struct {
+	repo   core.RepoRef
+	number int
+	action ui.Action
+	method core.MergeMethod
+	base   string
+	// ready is set when the draft toggle marks a draft ready.
+	ready bool
+}
+
+// same reports whether c and d are one change.
+func (c changeOf) same(d changeOf) bool {
+	return c.repo.Same(d.repo) && c.number == d.number && c.action == d.action &&
+		c.method == d.method && c.base == d.base && c.ready == d.ready
 }
 
 // change returns the change that msg asks of pr, and ok when there is one.
@@ -68,38 +89,46 @@ func (k keyMap) change(svc Service, g ui.Gate, method core.MergeMethod, pr core.
 	}
 	repo, number := g.Repo, pr.Number
 	n := "#" + strconv.Itoa(number)
+	of := changeOf{repo: repo, number: number, action: a}
 	switch a {
 	case ui.ActMerge:
 		if pr.Draft {
 			return change{}, false, ui.Notify(toast.Warning, "Mark "+n+" ready for review before merging it.")
 		}
 		m, _ := g.Caps.MergeMethod(method)
+		of.method, of.base = m, pr.BaseRef
 		return change{
+			of:       of,
 			question: mergeQuestion(pr, m),
 			what:     "merge " + n,
 			start:    func() *optimistic.Op { return svc.Merge(repo, number, m) },
 		}, true, nil
 	case ui.ActClose:
 		return change{
+			of:       of,
 			question: "Close PR " + n + "?",
 			what:     "close " + n,
 			start:    func() *optimistic.Op { return svc.Close(repo, number) },
 		}, true, nil
 	case ui.ActReopen:
 		return change{
+			of:       of,
 			question: "Reopen PR " + n + "?",
 			what:     "reopen " + n,
 			start:    func() *optimistic.Op { return svc.Reopen(repo, number) },
 		}, true, nil
 	case ui.ActDraft:
+		of.ready = pr.Draft
 		if pr.Draft {
 			return change{
+				of:       of,
 				question: "Mark PR " + n + " ready for review?",
 				what:     "mark " + n + " ready",
 				start:    func() *optimistic.Op { return svc.MarkReady(repo, number) },
 			}, true, nil
 		}
 		return change{
+			of:       of,
 			question: "Convert PR " + n + " to a draft?",
 			what:     "convert " + n + " to draft",
 			start:    func() *optimistic.Op { return svc.ConvertToDraft(repo, number) },
@@ -129,13 +158,15 @@ func mergeQuestion(pr core.PullRequest, method core.MergeMethod) string {
 	return "Merge " + n + into + "?"
 }
 
-// confirmed returns what makes the change that msg asked of pull request
-// number, when the user says yes to question. By then the pull request may have changed, such as merged
-// elsewhere or retargeted, and so may what the viewer may do and how the
-// repository merges, so it asks for the change again of the pull request
-// and the gate that now returns. send sends that one only if it is still
-// the change that question asked, and otherwise nothing.
-func (k keyMap) confirmed(svc Service, method core.MergeMethod, number int, question string, msg tea.KeyPressMsg,
+// confirmed returns what makes asked, the change that msg asked of a pull
+// request, when the user says yes to its question. By then the pull
+// request may have changed, such as merged elsewhere or retargeted, and
+// so may what the viewer may do, how the repository merges and even which
+// repository the list shows, so it asks for the change again of the pull
+// request and the gate that now return. send sends that one only if it is
+// still the change asked, the same action with the same method and base
+// on the same pull request of the same repository, and otherwise nothing.
+func (k keyMap) confirmed(svc Service, method core.MergeMethod, asked change, msg tea.KeyPressMsg,
 	now func() (core.PullRequest, ui.Gate, bool), send func(op *optimistic.Op, what string) tea.Cmd,
 ) func() tea.Cmd {
 	return func() tea.Cmd {
@@ -146,15 +177,13 @@ func (k keyMap) confirmed(svc Service, method core.MergeMethod, number int, ques
 		if found {
 			c, ok, warn = k.change(svc, g, method, pr, msg)
 		}
-		// The question names the pull request, so a different one, such as
-		// the one under a cursor that moved, asks another question too.
 		switch {
-		case ok && c.question == question:
+		case ok && c.of.same(asked.of):
 			return send(c.start(), c.what)
 		case warn != nil:
 			return warn
 		}
-		return ui.Notify(toast.Info, ui.Meanwhile("#"+strconv.Itoa(number)))
+		return ui.Notify(toast.Info, ui.Meanwhile("#"+strconv.Itoa(asked.of.number)))
 	}
 }
 
@@ -174,7 +203,7 @@ func (s *Section) mutate(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	if !ok {
 		return warn, true
 	}
-	run := s.keys.confirmed(s.svc, s.mergeMethod, pr.Number, c.question, msg,
+	run := s.keys.confirmed(s.svc, s.mergeMethod, c, msg,
 		func() (core.PullRequest, ui.Gate, bool) {
 			pr, ok := s.target()
 			return pr, s.gate(), ok

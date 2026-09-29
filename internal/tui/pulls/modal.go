@@ -406,7 +406,7 @@ func (m *detailModal) change(msg tea.KeyPressMsg) tea.Cmd {
 		return warn
 	}
 	repo, about := m.repo, m.subject()
-	run := m.keys.confirmed(m.svc, m.mergeMethod, m.number, c.question, msg,
+	run := m.keys.confirmed(m.svc, m.mergeMethod, c, msg,
 		func() (core.PullRequest, ui.Gate, bool) {
 			return m.detail.PullRequest, m.gate(), m.loaded
 		},
