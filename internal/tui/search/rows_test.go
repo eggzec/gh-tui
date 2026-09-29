@@ -3,6 +3,7 @@ package search
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -90,5 +91,35 @@ func TestRepoRowLines(t *testing.T) {
 	}
 	if strings.Contains(second, "Jupyter") || strings.Contains(second, "1y") {
 		t.Errorf("second line %q, want the language and age on the first", second)
+	}
+}
+
+// However narrow the row, the number of an issue shows whole; the
+// repository before it is cut first.
+func TestHitKeepsTheNumber(t *testing.T) {
+	s := newSection(t, newFake(), 80, 22)
+	hit := issue(core.SearchIssues, "charmbracelet/bubbletea", 1203, "Terminal tea renders twice after resize", core.StateOpen, false)
+	for _, width := range []int{30, 40, 56, 80, 120} {
+		first, _, _ := strings.Cut(ansi.Strip(s.renderHit(hit, false, width)), "\n")
+		if !strings.Contains(first, "#1203") {
+			t.Errorf("at %d cells the row is %q, want the number in it", width, first)
+		}
+		if w := ansi.StringWidth(first); w != width {
+			t.Errorf("at %d cells the row is %d wide", width, w)
+		}
+	}
+}
+
+// Lines of a fragment without text don't take the rows of a result.
+func TestFragmentViewSkipsBlankLines(t *testing.T) {
+	text := "package tea\n\n// Program is a terminal user interface.\n   \ntype Program struct {\n"
+	f := core.Fragment{Text: text, Matches: [][2]int{{8, 11}}}
+	got := make([]string, 0, 3)
+	for _, l := range fragmentView(f, 3) {
+		got = append(got, l.text)
+	}
+	want := []string{"package tea", "// Program is a terminal user interface.", "type Program struct {"}
+	if !slices.Equal(got, want) {
+		t.Errorf("fragmentView = %q, want %q", got, want)
 	}
 }
