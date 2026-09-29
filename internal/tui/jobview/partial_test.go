@@ -100,6 +100,29 @@ func TestPartialLogStartsOver(t *testing.T) {
 	}
 }
 
+// A read of a partial log that replaces the lines shown prepares them in
+// its command, as a big log takes a while to; one that adds to them
+// leaves that to the view.
+func TestPartialLogPreparedInRead(t *testing.T) {
+	f := newFake()
+	f.partial[runningJob] = partialLog(4, 5, 1)
+	m := newView(t, f, 80, 12)
+	run(m, m.Show(running(), false, Hints{}))
+	f.partial[runningJob] = partialLog(6, 6, 1)
+	if msg := m.readPartial()().(partialMsg); msg.shown != nil {
+		t.Error("a read that adds to the lines shown prepared them")
+	}
+	f.partial[runningJob] = partialLog(1, 7, 2)
+	msg := m.readPartial()().(partialMsg)
+	if msg.shown == nil {
+		t.Fatal("a read of a new generation didn't prepare it")
+	}
+	*m, _ = m.Update(msg)
+	if m.State() != Partial || m.Lines() != 2 {
+		t.Errorf("state %d with %d lines, want the 2 of the new log", m.State(), m.Lines())
+	}
+}
+
 // Until GitHub publishes some of the log, the steps show, and the poll
 // brings the log.
 func TestPartialLogPending(t *testing.T) {

@@ -133,7 +133,22 @@ type content struct {
 // with [WithFocusFailed] only the failed section is expanded. Lines of the
 // kind Group and EndGroup fold the lines between them.
 func (m *Model) SetLines(lines []Line, sections []Section) {
-	m.reset(stateReady, nil)
+	m.SetLog(m.Prepare(lines, sections))
+}
+
+// Log is a log read into the rows and folds a view shows, ready for
+// SetLog to show at once. Reading a big log takes a while, so read it
+// with Prepare in a tea.Cmd rather than in Update.
+type Log struct {
+	content content
+}
+
+// Prepare reads lines and sections into a Log, as SetLines shows them.
+// It only reads the model's options, and never changes the model, so it
+// may run in a tea.Cmd on a copy of the model that will show the log.
+func (m Model) Prepare(lines []Line, sections []Section) Log {
+	// m is a copy: what it reads goes into a content of its own.
+	m.content = content{inSec: -1}
 	m.secs = normalize(sections, len(lines))
 	m.rows = make([]row, 0, len(lines)+len(m.secs))
 	for _, l := range lines {
@@ -142,6 +157,14 @@ func (m *Model) SetLines(lines []Line, sections []Section) {
 	m.reach(m.n)
 	m.settle()
 	m.rebuild()
+	return Log{content: m.content}
+}
+
+// SetLog shows l, which Prepare read, as SetLines shows a log. A Log is
+// shown once: the view adds to its rows as lines are appended.
+func (m *Model) SetLog(l Log) {
+	m.reset(stateReady, nil)
+	m.content = l.content
 	m.enableKeys()
 	m.clamp()
 	if m.focusFailed {

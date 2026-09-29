@@ -79,6 +79,18 @@ func BenchmarkSetLines(b *testing.B) {
 	}
 }
 
+// BenchmarkSetLog shows a big log that Prepare read in a tea.Cmd: what is
+// left for Update.
+func BenchmarkSetLog(b *testing.B) {
+	lines, secs := big()
+	m := New(WithSize(120, 40))
+	l := m.Prepare(lines, secs)
+	b.ReportAllocs()
+	for b.Loop() {
+		m.SetLog(l)
+	}
+}
+
 // BenchmarkView renders the same window of a small and a big log: the cost
 // is the window's, not the log's.
 func BenchmarkView(b *testing.B) {
