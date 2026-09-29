@@ -119,11 +119,13 @@ type restMsg struct {
 	seq int
 }
 
-// logMsg carries the log of a job.
+// logMsg carries the log of a job, and what the view shows of it, which
+// the read prepared, since a big log takes a while to prepare.
 type logMsg struct {
 	id    int64
 	jobID int64
 	log   core.Log
+	shown shownLog
 	err   error
 }
 
@@ -141,11 +143,18 @@ func (m *Model) read() tea.Cmd {
 		notes = m.readNotes()
 	}
 	svc, ctx, id, repo, jobID := m.svc, m.ctx, m.id, m.repo, m.job.ID
+	// The view and the steps as they are now, since the command runs
+	// apart from Update.
+	view, steps, now := m.view, m.job.Steps, m.opts.now
 	return tea.Batch(notes, func() tea.Msg {
 		ctx, end := obs.Begin(ctx, "actions.log")
 		l, err := svc.Log(ctx, repo, jobID)
 		end(err, "span", "tui", "job", jobID, "lines", len(l.Lines), "truncated", l.Truncated)
-		return logMsg{id: id, jobID: jobID, log: l, err: err}
+		msg := logMsg{id: id, jobID: jobID, log: l, err: err}
+		if err == nil {
+			msg.shown = prepare(view, l, steps, now())
+		}
+		return msg
 	})
 }
 
@@ -163,7 +172,7 @@ func (m *Model) receive(msg logMsg) {
 		m.state, m.failed = Failed, msg.err
 		m.view.SetError(msg.err)
 	default:
-		m.setLog(msg.log)
+		m.show(msg.log, msg.shown)
 	}
 }
 
@@ -171,13 +180,36 @@ func (m *Model) receive(msg logMsg) {
 // and the failed step open on its first error. A log without errors opens
 // on its steps, folded, as the steps of a job in progress show.
 func (m *Model) setLog(lg core.Log) {
-	m.setLines(logLines(lg, m.job.Steps, m.opts.now()))
+	m.show(lg, prepare(m.view, lg, m.job.Steps, m.opts.now()))
+}
+
+// show shows lg as setLog does, from what prepare made of it.
+func (m *Model) show(lg core.Log, p shownLog) {
+	m.showLines(p)
 	m.state, m.truncated = Ready, lg.Truncated
 }
 
-func (m *Model) setLines(lines []logview.Line, secs []logview.Section) {
-	m.view.SetLines(lines, secs)
-	if m.view.Errors() == 0 && !slices.ContainsFunc(secs, func(s logview.Section) bool { return s.Failed }) {
+// shownLog is a log read into the lines of the view, with whether a step
+// failed.
+type shownLog struct {
+	log    logview.Log
+	failed bool
+}
+
+// prepare reads lg into the lines of view, with steps as its sections as
+// of now. It only reads view, so it may run in a tea.Cmd.
+func prepare(view logview.Model, lg core.Log, steps []core.Step, now time.Time) shownLog {
+	lines, secs := logLines(lg, steps, now)
+	return shownLog{
+		log:    view.Prepare(lines, secs),
+		failed: slices.ContainsFunc(secs, func(s logview.Section) bool { return s.Failed }),
+	}
+}
+
+// showLines shows p in the view, folded as setLog says.
+func (m *Model) showLines(p shownLog) {
+	m.view.SetLog(p.log)
+	if m.view.Errors() == 0 && !p.failed {
 		m.view.CollapseAll()
 	}
 }

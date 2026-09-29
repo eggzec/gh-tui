@@ -49,17 +49,24 @@ func (m *Model) Pause() {
 	m.part.gen = -1
 }
 
-// partialMsg carries the partial log of a job in progress.
+// partialMsg carries the partial log of a job in progress, and what the
+// view shows of it when the read prepared that, as it does for a log that
+// replaces the lines shown.
 type partialMsg struct {
 	id    int64
 	jobID int64
 	log   core.PartialLog
+	shown *shownLog
 	err   error
 }
 
 // readPartial reads what GitHub publishes of the log of the job shown.
 func (m *Model) readPartial() tea.Cmd {
 	svc, ctx, id, repo, jobID := m.svc, m.ctx, m.id, m.repo, m.job.ID
+	// The view, the steps and the generation shown as they are now, since
+	// the command runs apart from Update.
+	view, steps, now := m.view, m.job.Steps, m.opts.now
+	gen, partial := m.part.gen, m.state == Partial
 	return func() tea.Msg {
 		ctx, end := obs.Begin(ctx, "actions.partial_log")
 		l, err := svc.PartialLog(ctx, repo, jobID)
@@ -69,7 +76,14 @@ func (m *Model) readPartial() tea.Cmd {
 			logged = nil
 		}
 		end(logged, "span", "tui", "job", jobID, "lines", len(l.Lines), "pending", err != nil && logged == nil)
-		return partialMsg{id: id, jobID: jobID, log: l, err: err}
+		msg := partialMsg{id: id, jobID: jobID, log: l, err: err}
+		// A log of another generation replaces the lines shown, which
+		// takes a while for a big one; one of the same adds to them.
+		if err == nil && len(l.Lines) > 0 && (!partial || l.Gen != gen) {
+			p := prepare(view, l.Log, steps, now())
+			msg.shown = &p
+		}
+		return msg
 	}
 }
 
@@ -80,7 +94,7 @@ func (m *Model) receivePartial(msg partialMsg) {
 		return
 	}
 	defer m.layout()
-	m.setPartial(msg.log)
+	m.setPartial(msg.log, msg.shown)
 }
 
 // fromPartial shows what the poll read of the log of the job shown, and
@@ -90,7 +104,9 @@ func (m *Model) fromPartial() bool {
 	if !ok {
 		return false
 	}
-	m.setPartial(l)
+	// What the poll read is shown at once, as the view opens, so it is
+	// prepared here, in Update.
+	m.setPartial(l, nil)
 	return true
 }
 
@@ -98,20 +114,22 @@ func (m *Model) fromPartial() bool {
 // lines yet, or it is older than the one shown, as a read that took longer
 // than the poll after it is. Lines added to the ones shown are appended,
 // which keeps the cursor, the folds and the search; a log that started
-// over replaces them.
-func (m *Model) setPartial(l core.PartialLog) {
-	p, shown := &m.part, m.state == Partial
-	if len(l.Lines) == 0 || shown && (l.Gen < p.gen || l.Gen == p.gen && l.At.Before(p.at)) {
+// over replaces them, with shown, what the read prepared of it, if set.
+func (m *Model) setPartial(l core.PartialLog, shown *shownLog) {
+	p, partial := &m.part, m.state == Partial
+	if len(l.Lines) == 0 || partial && (l.Gen < p.gen || l.Gen == p.gen && l.At.Before(p.at)) {
 		return
 	}
 	switch {
-	case shown && l.Gen == p.gen && len(l.Lines) >= p.lines:
+	case partial && l.Gen == p.gen && len(l.Lines) >= p.lines:
 		if len(l.Lines) > p.lines {
 			m.view.SetSections(stepSections(l.Lines, m.job.Steps, m.opts.now()))
 			m.view.Append(viewLines(l.Lines[p.lines:])...)
 		}
+	case shown != nil:
+		m.showLines(*shown)
 	default:
-		m.setLines(logLines(l.Log, m.job.Steps, m.opts.now()))
+		m.showLines(prepare(m.view, l.Log, m.job.Steps, m.opts.now()))
 	}
 	m.state, m.truncated = Partial, l.Truncated
 	m.part = shownPart{gen: l.Gen, lines: len(l.Lines), at: l.At}

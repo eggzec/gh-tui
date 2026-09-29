@@ -231,3 +231,27 @@ func TestFocusFailedWithoutErrors(t *testing.T) {
 		t.Errorf("cursor on %q with %q shown, want on the failed step", cursorText(m), shownRows(m))
 	}
 }
+
+// A log that Prepare read and SetLog showed shows as SetLines shows it,
+// and Prepare leaves the model that it read on as it was.
+func TestPrepareThenSetLog(t *testing.T) {
+	lines, secs := synthetic(3000)
+	want := New(WithSize(80, 20), WithFocusFailed(true))
+	want.SetLines(lines, secs)
+
+	m := New(WithSize(80, 20), WithFocusFailed(true))
+	m.SetLines(lines[:10], nil)
+	before := m.View()
+	l := m.Prepare(lines, secs)
+	if m.View() != before || m.Lines() != 10 {
+		t.Fatalf("Prepare changed the model: %d lines", m.Lines())
+	}
+	m.SetLog(l)
+	if got := m.View(); got != want.View() {
+		t.Errorf("SetLog shows:\n%s\nwant as SetLines:\n%s", got, want.View())
+	}
+	if m.Lines() != want.Lines() || m.Errors() != want.Errors() || m.Warnings() != want.Warnings() {
+		t.Errorf("SetLog: %d lines, %d errors, %d warnings; want %d, %d, %d",
+			m.Lines(), m.Errors(), m.Warnings(), want.Lines(), want.Errors(), want.Warnings())
+	}
+}
