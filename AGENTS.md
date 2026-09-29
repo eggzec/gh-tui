@@ -336,6 +336,11 @@ reacts to messages. Concretely:
   level of the file, not per host or profile, is tagged `scope:"global"`.
   `:set key&` drops what the session set of a key, back to what gh-tui
   started with.
+- A setting that is renamed gets a line in `renames`
+  (`internal/config/renamed.go`): for one release the old name is read as
+  the new one, with a warning at startup and a line in the log for each;
+  then its `move` goes, and the old name is refused with an error that
+  names the new one.
 - Keybindings map action names to keys and are applied through each bubble's
   `SetKeyMap`. Action names are registered in `internal/config/keys.go`;
   unknown names are rejected so typos don't pass silently.

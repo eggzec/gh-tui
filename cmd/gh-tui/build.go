@@ -46,9 +46,9 @@ import (
 
 // build wires the client, the services, the sync engine and the sections
 // into the app. The app talks to the host startRepos picks from hostname,
-// the value of --hostname, if set, and shows logWarning, if any, once it
-// starts.
-func build(ctx context.Context, cfg config.Config, hostname, logWarning string) (*tui.Model, error) {
+// the value of --hostname, if set, and shows logWarning and configWarning,
+// if any, once it starts.
+func build(ctx context.Context, cfg config.Config, hostname, logWarning, configWarning string) (*tui.Model, error) {
 	pinned, err := parseRefs(cfg.Repos)
 	if err != nil {
 		return nil, err
@@ -284,7 +284,7 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 	if path, err := historyPath(cfg.Cache.Disk, client.Host(), client.Account()); err == nil && path != "" {
 		opts = append(opts, tui.WithCommandHistory(cmdhist.New(path, cmdhist.DefaultLimit)))
 	}
-	for _, w := range []string{logWarning, warning} {
+	for _, w := range []string{logWarning, configWarning, warning} {
 		if w != "" {
 			opts = append(opts, tui.WithWarning(w))
 		}

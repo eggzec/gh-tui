@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -53,7 +54,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	cfg, err := config.Load(path)
+	cfg, renamed, err := config.Load(path)
 	if err != nil {
 		return err
 	}
@@ -65,6 +66,9 @@ func run() error {
 	closeLog, warning := openLog(cfg.Log)
 	defer closeLog()
 	logStart(cfg, path, from)
+	for _, r := range renamed {
+		slog.Warn("config uses an old setting", "span", "config", "old", r.Old, "line", r.Line, "new", strings.Join(r.New, ", "), "note", r.Note)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -72,7 +76,7 @@ func run() error {
 	// The last summary covers the whole session.
 	defer obs.Default().Log(context.Background())
 
-	app, err := build(ctx, cfg, *hostname, warning)
+	app, err := build(ctx, cfg, *hostname, warning, config.RenamedWarning(renamed))
 	if err != nil {
 		slog.Error("start failed", "err", err.Error())
 		return err
