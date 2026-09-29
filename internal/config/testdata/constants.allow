@@ -126,6 +126,10 @@ cmd/gh-tui/session.go:ghVersionTimeout  keep: a probe timeout, gh --version only
 internal/obs/budget.go:fallbackPrefetchWindow  keep: used before GitHub reports a limit
 internal/obs/stats.go:farReset  keep: a sanity bound on the reset GitHub reports
 
+# Images.
+internal/imgcaps/tmux.go:TmuxTimeout  keep: a safety mechanism, the most the startup check waits for tmux
+internal/tui/images.go:probeTimeout  keep: a safety mechanism, the most the startup check waits for the terminal
+
 # The tui.
 internal/tui/actions/options.go:defaultRest  move: prefetch.rest
 internal/tui/files/finder.go:defaultFinderDelay  move: prefetch.finder.rest

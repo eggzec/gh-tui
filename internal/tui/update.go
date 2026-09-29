@@ -22,9 +22,20 @@ import (
 // modal.
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.term.observe(m.ctx, msg)
+	// The answers of the terminal to the images probe are its own.
+	if cmd, handled := m.images.update(msg); handled {
+		return m, cmd
+	}
 	switch msg := msg.(type) {
 	case terminalWaitMsg:
 		return m, nil
+	case tea.ColorProfileMsg:
+		return m, tea.Batch(m.images.plan(m.ctx, msg.Profile), m.broadcast(msg))
+	case graphicsDecidedMsg:
+		m.graphics = msg.graphics
+		m.term.imagesDecided(m.ctx, msg.attrs)
+		cmd := m.broadcast(ui.GraphicsMsg{Graphics: msg.graphics})
+		return m, cmd
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		m.layout()

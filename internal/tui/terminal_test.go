@@ -12,6 +12,12 @@ import (
 	"github.com/charmbracelet/colorprofile"
 )
 
+// verdict stands, among the messages of a test, for the images verdict.
+type verdict []slog.Attr
+
+// noImages is a verdict without images.
+var noImages = verdict{slog.Bool("images", false), slog.String("images_reason", "NO_COLOR is set")}
+
 // terminalRecords feeds msgs to a terminal and returns the terminal
 // records it logs.
 func terminalRecords(t *testing.T, msgs ...tea.Msg) []map[string]any {
@@ -22,6 +28,10 @@ func terminalRecords(t *testing.T, msgs ...tea.Msg) []map[string]any {
 	t.Cleanup(func() { slog.SetDefault(prev) })
 	var term terminal
 	for _, msg := range msgs {
+		if v, ok := msg.(verdict); ok {
+			term.imagesDecided(context.Background(), v)
+			continue
+		}
 		term.observe(context.Background(), msg)
 	}
 	var out []map[string]any
@@ -47,18 +57,27 @@ func TestTerminalRecord(t *testing.T) {
 	}{
 		{
 			name: "with its version",
-			msgs: []tea.Msg{profile, size, tea.TerminalVersionMsg{Name: "ghostty 1.3.1"}, tea.WindowSizeMsg{Width: 80, Height: 24}, terminalWaitMsg{}},
-			want: map[string]any{"width": 120.0, "height": 40.0, "color_profile": "TrueColor", "xtversion": "ghostty 1.3.1"},
+			msgs: []tea.Msg{
+				profile, size, tea.TerminalVersionMsg{Name: "ghostty 1.3.1"}, tea.WindowSizeMsg{Width: 80, Height: 24}, terminalWaitMsg{},
+				verdict{slog.Bool("images", true), slog.String("images_reason", "the terminal draws kitty placeholders")},
+			},
+			want: map[string]any{
+				"width": 120.0, "height": 40.0, "color_profile": "TrueColor", "xtversion": "ghostty 1.3.1",
+				"images": true, "images_reason": "the terminal draws kitty placeholders",
+			},
 		},
 		{
 			name: "silent about its version",
-			msgs: []tea.Msg{size, profile, terminalWaitMsg{}, profile},
-			want: map[string]any{"width": 120.0, "height": 40.0, "color_profile": "TrueColor"},
+			msgs: []tea.Msg{noImages, size, profile, terminalWaitMsg{}, profile},
+			want: map[string]any{"width": 120.0, "height": 40.0, "color_profile": "TrueColor", "images": false},
 		},
-		{name: "no size yet", msgs: []tea.Msg{profile, terminalWaitMsg{}}},
+		{name: "no size yet", msgs: []tea.Msg{noImages, profile, terminalWaitMsg{}}},
+		// The images verdict may come after the version, as it does when
+		// the terminal answers only DA1 late, or tmux is slow.
+		{name: "no verdict yet", msgs: []tea.Msg{size, profile, tea.TerminalVersionMsg{Name: "kitty(0.43.1)"}}},
 		{
 			name: "a version of many lines",
-			msgs: []tea.Msg{size, profile, tea.TerminalVersionMsg{Name: "term\x1b[31m\nx" + strings.Repeat("v", 300)}},
+			msgs: []tea.Msg{size, profile, noImages, tea.TerminalVersionMsg{Name: "term\x1b[31m\nx" + strings.Repeat("v", 300)}},
 			want: map[string]any{"width": 120.0, "height": 40.0, "color_profile": "TrueColor"},
 		},
 	}
