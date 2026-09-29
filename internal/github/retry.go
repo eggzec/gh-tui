@@ -244,9 +244,10 @@ func replay(req *http.Request) (*http.Request, error) {
 // which got no response, may be sent again, or "" if it may not. A
 // cancellation is final, and so is a rate limit, which the gate already
 // held the attempt for as long as it may wait, and a certificate that
-// isn't trusted, which won't be trusted a moment later either.
+// isn't trusted, which won't be trusted a moment later either, as is a
+// request that can't be sent as it is (unsendable).
 func transportRetry(ctx context.Context, err error, read bool) string {
-	if ctx.Err() != nil || errors.Is(err, core.ErrRateLimited) {
+	if ctx.Err() != nil || errors.Is(err, core.ErrRateLimited) || unsendable(err) {
 		return ""
 	}
 	if dialFailed(err) {
