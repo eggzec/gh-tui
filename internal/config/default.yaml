@@ -32,6 +32,26 @@ ui:
   # of files too, unicode, or ascii.
   icons: nerd
 
+# Images drawn inline, such as avatars and the images of comments, with
+# kitty's graphics protocol. Only kitty 0.28 or newer and Ghostty show them
+# as the app draws them, directly or through tmux 3.3 or newer with
+# allow-passthrough on, and only with 256 colours or more and NO_COLOR
+# unset. Elsewhere an image stays a link.
+images:
+  # auto draws images when the terminal names itself as one of those and
+  # then answers kitty's graphics query; on still needs the terminal to
+  # name itself as one of those, and only skips the graphics query, for
+  # one that doesn't answer it; off never draws them or asks.
+  enabled: auto
+  # The tallest an image may be, in rows, and never taller than the pane.
+  max_rows: 20
+  # Draw the avatars of people, and of the owners of repositories as their
+  # icons.
+  avatars: true
+  # Play animated GIFs where the terminal can, which only kitty does;
+  # elsewhere, and when this is off, a GIF shows its first frame.
+  animate: true
+
 cache:
   # How long a cached response is served before it is revalidated.
   ttl: 5m

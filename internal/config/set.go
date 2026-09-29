@@ -213,6 +213,7 @@ func (c Config) Values(key string) []string {
 // choices are the values of the settings that choose one of a few.
 var choices = map[string][]string{
 	"ui.icons":                     {IconsNerd, IconsUnicode, IconsASCII},
+	"images.enabled":               {ImagesAuto, ImagesOn, ImagesOff},
 	"dashboard.contributions":      {Contributions30d, Contributions90d, ContributionsYear},
 	"history.date_format":          {DateRelative, DateAbsolute},
 	"cache.revalidate.scope":       {ScopeRecent, ScopeAll},

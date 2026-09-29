@@ -157,6 +157,7 @@ func TestLoadMergesOverDefaults(t *testing.T) {
 					Prefetch: DetailsPrefetch{Enabled: false, Rows: 10, HoverDelay: time.Second},
 				}
 				c.Notifications = Notifications{MarkReadOnOpen: false}
+				c.Images = Images{Enabled: ImagesOff, MaxRows: 8}
 				c.History = History{
 					Row:        []string{FieldShortSHA, FieldSubject, FieldVerified, FieldAge},
 					Detail:     []string{FieldSHA, FieldAuthor, FieldDate, FieldTrailers},
@@ -235,6 +236,7 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 	cfg.Dashboard.CalendarGlyph = "■■"
 	cfg.Dashboard.Contributions = "week"
 	cfg.UI.Icons = "emoji"
+	cfg.Images = Images{Enabled: "yes", MaxRows: 0}
 	cfg.Log = Log{Level: "trace", File: "gh-tui.log", MaxSize: KiB, Keep: -1, Summary: time.Second}
 	cfg.Editor = "vim\n-c q"
 
@@ -276,6 +278,8 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 		`dashboard.calendar_glyph: must be one character one cell wide, such as "■" or "#", got "■■"`,
 		`dashboard.contributions: must be 30d, 90d or year, got "week"`,
 		`ui.icons: must be nerd, unicode or ascii, got "emoji"`,
+		`images.enabled: must be auto, on or off, got "yes"`,
+		`images.max_rows: must be at least 1, got 0`,
 		`log.level: must be debug, info, warn or error, got "trace"`,
 		`log.file: must be an absolute path, got "gh-tui.log"`,
 		`log.max_size: must be at least 64KiB, got 1KiB`,
