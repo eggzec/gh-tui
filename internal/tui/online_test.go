@@ -10,6 +10,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
@@ -97,6 +98,124 @@ func TestOnlineWakesOnce(t *testing.T) {
 		a.check(t, "answered again", 1)
 		run(a.m, a.online())
 		a.check(t, "answered once more", 1)
+	})
+}
+
+// TestFailingWakesOnRecovery checks that GitHub failing with server
+// errors, while reads were served what earlier ones kept, shows in the
+// status bar, and that the failing resource answering well again wakes
+// the polls and the sections once, as coming online does.
+func TestFailingWakesOnRecovery(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		a := newLinkApp(t)
+		a.m.Update(tea.WindowSizeMsg{Width: 200, Height: 12})
+		time.Sleep(time.Minute)
+		s := a.rates.RateStatus()
+		s.Answered, s.Failing, s.At = time.Now(), time.Now(), time.Now()
+		a.rates.set(s)
+		run(a.m, a.sync())
+		if line := ansi.Strip(lastLine(a.m)); !strings.Contains(line, "GitHub failing since") {
+			t.Errorf("while GitHub fails the bar says %q, want it failing", line)
+		}
+		a.check(t, "while failing", 0)
+
+		time.Sleep(time.Minute)
+		s = a.rates.RateStatus()
+		s.Answered, s.Failing, s.Mended, s.At = time.Now(), time.Time{}, time.Now(), time.Now()
+		a.rates.set(s)
+		run(a.m, a.sync())
+		if line := ansi.Strip(lastLine(a.m)); !strings.Contains(line, "● online") {
+			t.Errorf("once GitHub answers well the bar says %q, want it online", line)
+		}
+		a.check(t, "answered well", 1)
+		run(a.m, a.online())
+		a.check(t, "answered once more", 1)
+	})
+}
+
+// TestFailingLapsesDoNotWake checks that failing that only goes quiet,
+// as when GraphQL fails at each of its polls a minute apart while REST
+// answers well in between, wakes neither the polls nor the sections,
+// which would undo the backoff of the failing poll, that the bar tells
+// the same start each time it shows, and that it is logged once.
+func TestFailingLapsesDoNotWake(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		var buf bytes.Buffer
+		prev := slog.Default()
+		slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, nil)))
+		t.Cleanup(func() { slog.SetDefault(prev) })
+
+		a := newLinkApp(t)
+		a.m.Update(tea.WindowSizeMsg{Width: 200, Height: 12})
+		since := time.Now()
+		want := "GitHub failing since " + ui.Clock(since, time.Now())
+		for range 10 {
+			s := a.rates.RateStatus()
+			s.Answered, s.Failing, s.At = time.Now(), since, time.Now()
+			a.rates.set(s)
+			run(a.m, a.sync())
+			if line := ansi.Strip(lastLine(a.m)); !strings.Contains(line, want) {
+				t.Errorf("while failing the bar says %q, want %q", line, want)
+			}
+			time.Sleep(35 * time.Second)
+			s = a.rates.RateStatus()
+			s.Answered, s.Failing, s.At = time.Now(), time.Time{}, time.Now()
+			a.rates.set(s)
+			run(a.m, a.sync())
+			time.Sleep(25 * time.Second)
+		}
+		a.check(t, "after ten lapses", 0)
+		if n := strings.Count(buf.String(), `"state":"failing"`); n != 1 {
+			t.Errorf("logged failing %d times, want once", n)
+		}
+	})
+}
+
+// TestOnlineWakesWhileFailing checks that GitHub answering again after
+// an outage wakes the polls and the sections even while a resource still
+// fails with server errors, and so does the wait for onlineGap.
+func TestOnlineWakesWhileFailing(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		a := newLinkApp(t)
+		s := a.rates.RateStatus()
+		s.Failing = time.Now()
+		a.rates.set(s)
+		a.offline()
+		run(a.m, a.online())
+		a.check(t, "answer after an outage while failing", 1)
+
+		time.Sleep(time.Second)
+		a.offline()
+		tick := a.online()
+		if tick == nil {
+			t.Fatal("a flip within the gap should wait for its end")
+		}
+		run(a.m, tick)
+		a.check(t, "end of the gap while failing", 2)
+	})
+}
+
+// TestFailingSteadyDoesNotWake checks that while GitHub keeps failing,
+// as when GraphQL fails while REST answers well, answers coming in don't
+// wake the polls and the sections, and the bar keeps telling since when
+// it failed.
+func TestFailingSteadyDoesNotWake(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		a := newLinkApp(t)
+		a.m.Update(tea.WindowSizeMsg{Width: 200, Height: 12})
+		since := time.Now()
+		for range 30 {
+			s := a.rates.RateStatus()
+			s.Answered, s.Failing, s.At = time.Now(), since, time.Now()
+			a.rates.set(s)
+			run(a.m, a.sync())
+			time.Sleep(10 * time.Second)
+		}
+		want := "GitHub failing since " + ui.Clock(since, time.Now())
+		if line := ansi.Strip(lastLine(a.m)); !strings.Contains(line, want) {
+			t.Errorf("after five minutes of failing the bar says %q, want %q", line, want)
+		}
+		a.check(t, "while failing", 0)
 	})
 }
 

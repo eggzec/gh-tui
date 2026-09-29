@@ -73,6 +73,7 @@ func statusCases() []struct {
 		{"secondary", core.RateStatus{Quotas: quotas(4812, 4960), SecondaryUntil: statusAt.Add(2 * time.Minute), Answered: answered, At: statusAt}},
 		{"held", core.RateStatus{Quotas: held, Answered: answered, At: statusAt}},
 		{"rejected", core.RateStatus{Answered: answered, Rejected: answered, At: statusAt}},
+		{"failing", core.RateStatus{Quotas: quotas(4812, 4960), Answered: answered, Failing: statusAt.Add(-2 * time.Minute), At: statusAt}},
 	}
 }
 
@@ -116,12 +117,41 @@ func TestStatusBarStates(t *testing.T) {
 		"secondary": "● rate limited until 14:02",
 		"held":      "resets 14:05 · 3 held · ● online",
 		"rejected":  "● token rejected · laraibg786@github.com",
+		"failing":   "resets 14:05 · ● GitHub failing since 13:58 · laraibg786@github.com",
 	}
 	for _, c := range statusCases() {
 		m, _ := newTestApp(t, WithRateStatus(&fixedRates{s: c.s}), WithLogin("laraibg786"), WithHost("github.com"))
 		m.Update(tea.WindowSizeMsg{Width: 200, Height: 12})
 		if line := ansi.Strip(lastLine(m)); !strings.Contains(line, want[c.name]) {
 			t.Errorf("%s: the bar says\n%q\nwant it to say %q", c.name, line, want[c.name])
+		}
+	}
+}
+
+// TestStatusLinkOrder checks the order the states of the connection win
+// in when several hold: offline, then token rejected, then GitHub
+// failing, then rate limited.
+func TestStatusLinkOrder(t *testing.T) {
+	answered := statusAt.Add(-time.Minute)
+	failing := statusAt.Add(-2 * time.Minute)
+	limited := quotas(0, 4960)
+	limited[0].LimitedUntil = statusAt.Add(5 * time.Minute)
+	for _, c := range []struct {
+		name string
+		s    core.RateStatus
+		want string
+	}{
+		{"failing and offline", core.RateStatus{Answered: answered, Failed: statusAt.Add(-30 * time.Second), Failing: failing, At: statusAt},
+			"● offline since 13:59"},
+		{"failing and rejected", core.RateStatus{Answered: answered, Rejected: answered, Failing: failing, At: statusAt},
+			"● token rejected"},
+		{"failing and limited", core.RateStatus{Quotas: limited, Answered: answered, Failing: failing, At: statusAt},
+			"resets 14:05 · ● GitHub failing since 13:58"},
+	} {
+		m, _ := newTestApp(t, WithRateStatus(&fixedRates{s: c.s}), WithLogin("laraibg786"), WithHost("github.com"))
+		m.Update(tea.WindowSizeMsg{Width: 200, Height: 12})
+		if line := ansi.Strip(lastLine(m)); !strings.Contains(line, c.want) {
+			t.Errorf("%s: the bar says\n%q\nwant it to say %q", c.name, line, c.want)
 		}
 	}
 }

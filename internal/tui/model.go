@@ -150,10 +150,12 @@ type Model struct {
 	warnings []string
 	// rates tells the rate limits, and rate is what it told last.
 	// offSince is when the connection went offline, or zero while it
-	// isn't.
-	rates    RateLimits
-	rate     core.RateStatus
-	offSince time.Time
+	// isn't, and failSince the start of the failing last logged, or zero
+	// once it mended.
+	rates     RateLimits
+	rate      core.RateStatus
+	offSince  time.Time
+	failSince time.Time
 	// online is told when GitHub answers again, as the sections are.
 	// wokeAt is when they last were, and waking is set while a wake that
 	// came too soon after waits for its turn.

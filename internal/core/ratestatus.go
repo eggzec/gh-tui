@@ -46,6 +46,24 @@ type RateStatus struct {
 	// did, or zero: the token expired or was revoked, and every request
 	// fails until it is refreshed.
 	Rejected time.Time
+	// Failing is since when GitHub's answers, or a proxy's on the way to
+	// it, have been server errors, or zero. It is the first error of the
+	// run, and stays put while more come. A run shows only once its
+	// errors have kept coming for a few seconds, so that a blip a retry
+	// mends doesn't show, and hides once half a minute passed with no
+	// more of them and GitHub answered well since. A later error of the
+	// same resource within the hour takes the run up again, since when
+	// it began, unless that resource answered well meanwhile, so that
+	// GraphQL failing at each poll keeps the start of its outage; taken
+	// up, it shows by the same rules as a new run. Reads are served what
+	// earlier ones kept meanwhile.
+	Failing time.Time
+	// Mended is when the resource of a run of server errors that showed
+	// first answered well after the run's last error, for the last run
+	// that ended so, or zero. A run that only went quiet, because other
+	// resources answered well meanwhile, hides from Failing but doesn't
+	// move Mended: nothing that failed would read any better.
+	Mended time.Time
 	// At is when the status was taken.
 	At time.Time
 }

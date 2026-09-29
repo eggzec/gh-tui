@@ -37,6 +37,8 @@ func (b *budget) snapshot() core.RateStatus {
 	if b.rejected.After(b.accepted) {
 		s.Rejected = b.rejected
 	}
+	s.Failing = b.failingSince(now)
+	s.Mended = b.mended
 	for resource, q := range b.quotas {
 		cq := core.Quota{
 			Resource:  resource,
@@ -131,9 +133,12 @@ type rateNotifier struct {
 // telling of a change goes.
 type rateView struct {
 	quotas []quotaView
-	// offline is whether the last request that ended got no answer, and
-	// rejected whether GitHub's last answer rejected the token.
-	offline, rejected bool
+	// offline is whether the last request that ended got no answer,
+	// rejected whether GitHub's last answer rejected the token, and
+	// failing whether answers fail with server errors. mended is when
+	// such a run last ended with its resource answering well.
+	offline, rejected, failing bool
+	mended                     time.Time
 	// secondary is when a secondary limit that holds every request
 	// lifts, or zero if none does.
 	secondary time.Time
@@ -211,13 +216,15 @@ func (n *rateNotifier) stop() {
 
 // view returns what a status bar shows of the rate limits at now, and
 // the next time after now that it changes with no answer, when a window
-// refills, a spent resource is released or a secondary limit lifts, or
-// zero if none is.
+// refills, a spent resource is released, a secondary limit lifts, or
+// failing shows or ends, or zero if none is.
 func (b *budget) view(now time.Time) (v rateView, next time.Time) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	v.offline = b.failed.After(b.answered)
 	v.rejected = b.rejected.After(b.accepted)
+	v.failing = !b.failingSince(now).IsZero()
+	v.mended = b.mended
 	if now.Before(b.gate.secondary) {
 		v.secondary = b.gate.secondary
 		next = v.secondary
@@ -241,12 +248,15 @@ func (b *budget) view(now time.Time) (v rateView, next time.Time) {
 			resource: resource, window: q.reset, limited: q.release.After(now), held: b.held(resource), step: step,
 		})
 	}
+	for _, s := range b.failing {
+		soonest(s.next(now, b.healthy))
+	}
 	slices.SortFunc(v.quotas, func(x, y quotaView) int { return cmp.Compare(x.resource, y.resource) })
 	return v, next
 }
 
 func (v rateView) equal(w rateView) bool {
-	return v.offline == w.offline && v.rejected == w.rejected && v.secondary.Equal(w.secondary) && slices.EqualFunc(v.quotas, w.quotas, func(x, y quotaView) bool {
+	return v.offline == w.offline && v.rejected == w.rejected && v.failing == w.failing && v.mended.Equal(w.mended) && v.secondary.Equal(w.secondary) && slices.EqualFunc(v.quotas, w.quotas, func(x, y quotaView) bool {
 		return x.resource == y.resource && x.window.Equal(y.window) && x.limited == y.limited && x.held == y.held && x.step == y.step
 	})
 }

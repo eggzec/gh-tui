@@ -74,9 +74,14 @@ type budget struct {
 	// answered is when GitHub last answered, and failed when a request
 	// last got no answer, for the status of the connection. rejected is
 	// when an answer last rejected the token, and accepted when one last
-	// didn't.
+	// didn't. failing are the runs of server errors, by resource, that
+	// haven't mended (failStreak), healthy is when GitHub last answered
+	// any request with anything but one, and mended when a streak that
+	// showed last ended with its resource answering well.
 	answered, failed   time.Time
 	rejected, accepted time.Time
+	failing            map[string]*failStreak
+	healthy, mended    time.Time
 
 	// logs are what was logged while b.mu was held, which unlock logs
 	// once it is released.
@@ -146,6 +151,7 @@ func newBudget(host, restRoot, graphqlPath string) *budget {
 		pending:     make(map[uint64]*reservation),
 		opCost:      make(map[string]int),
 		learned:     make(map[string]string),
+		failing:     make(map[string]*failStreak),
 		gate:        newGate(),
 	}
 }
@@ -280,6 +286,9 @@ func (b *budget) observe(r *reservation, status int, h http.Header) (guard time.
 			b.skew.add(date.Sub(now))
 		}
 	}
+	// A server error fails the read, which is then served what was kept,
+	// whether GitHub or a proxy that can't reach it sent it.
+	b.noteAnswer(r.resource, status >= http.StatusInternalServerError, h.Get("X-GitHub-Request-Id") != "", now)
 	rl, ok := parseRateLimit(h)
 	resource := cmp.Or(rl.Resource, r.resource)
 	if !ok || resource == "" {
