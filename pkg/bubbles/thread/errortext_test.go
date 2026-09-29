@@ -137,3 +137,19 @@ func TestRetry(t *testing.T) {
 		t.Error("Retry with nothing failed returned a command")
 	}
 }
+
+// A retry key that is turned off is named nowhere, not even beside a
+// failure not worth telling.
+func TestErrorTextWithoutRetry(t *testing.T) {
+	off := DefaultKeyMap()
+	off.Retry.SetEnabled(false)
+	for _, opts := range [][]Option{
+		{WithKeyMap(off)},
+		{WithKeyMap(off), WithErrorText(func(error) (string, string) { return "", "" })},
+	} {
+		m := failedTail(t, 60, opts...)
+		if v := ansi.Strip(m.View()); strings.Contains(v, "to retry") {
+			t.Errorf("View() = %q, want no retry key", v)
+		}
+	}
+}
