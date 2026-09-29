@@ -54,6 +54,10 @@ type Model struct {
 	keys KeyMap
 	// term is what the terminal said of itself, for the log.
 	term terminal
+	// images finds out whether the terminal shows images, and graphics
+	// is what it found.
+	images   imageProbe
+	graphics ui.Graphics
 
 	// panes are those of the repository screen, in the order focus cycles
 	// through them. The first left of them are on the left.
@@ -295,6 +299,7 @@ func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) 
 		line:    newLine(cfg.Keys),
 		spin:    newSpinner(),
 		voice:   ui.NewVoice(cfg.Keys, ""),
+		images:  newImageProbe(cfg.Images.Enabled),
 	}
 	if layout.Files != nil {
 		m.panes, m.left = append(m.panes, &pane{section: layout.Files}), 1
@@ -362,7 +367,7 @@ func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) 
 // the notifications, whose badge is on every screen, and listens for sync
 // events.
 func (m *Model) Init() tea.Cmd {
-	cmds := []tea.Cmd{tea.RequestBackgroundColor, requestTerminal(), m.pending, m.startScreen(), m.listen(), m.loadRepoInfo(), m.loadHistory(), m.startAccess(), m.listenOldEnterprise()}
+	cmds := []tea.Cmd{tea.RequestBackgroundColor, waitTerminal(), m.pending, m.startScreen(), m.listen(), m.loadRepoInfo(), m.loadHistory(), m.startAccess(), m.listenOldEnterprise()}
 	m.pending = nil
 	for _, w := range m.warnings {
 		cmds = append(cmds, ui.Notify(toast.Warning, w))

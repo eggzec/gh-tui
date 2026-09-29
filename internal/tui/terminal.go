@@ -22,8 +22,8 @@ const maxVersion = 128
 type terminalWaitMsg struct{}
 
 // terminal is what the first messages of the program say of the terminal,
-// which the terminal record logs once: its size, its color profile, and
-// its name and version, if it says them.
+// which the terminal record logs once: its size, its color profile, its
+// name and version, if it says them, and whether it shows images.
 type terminal struct {
 	width, height int
 	sized         bool
@@ -31,18 +31,35 @@ type terminal struct {
 	version       string
 	// waited is set once the version came, or the wait for it ended.
 	waited bool
-	logged bool
+	// images are the fields of the images verdict, once it came.
+	images  []slog.Attr
+	decided bool
+	logged  bool
 }
 
-// requestTerminal asks the terminal for its version, and ends the wait
-// for it after terminalWait.
-func requestTerminal() tea.Cmd {
-	return tea.Batch(tea.RequestTerminalVersion, tea.Tick(terminalWait, func(time.Time) tea.Msg { return terminalWaitMsg{} }))
+// waitTerminal ends the wait for the terminal's version after
+// terminalWait. The images probe asks for it, with its own questions.
+func waitTerminal() tea.Cmd {
+	return tea.Tick(terminalWait, func(time.Time) tea.Msg { return terminalWaitMsg{} })
+}
+
+// imagesDecided takes attrs, the fields of the images verdict, and logs
+// the terminal record if it waited only for them. A verdict that comes
+// after the record, as one does when a better color profile starts the
+// probe again, is logged on its own.
+func (t *terminal) imagesDecided(ctx context.Context, attrs []slog.Attr) {
+	if t.logged {
+		slog.LogAttrs(ctx, slog.LevelInfo, "images", append([]slog.Attr{slog.String("span", "tui")}, attrs...)...)
+		return
+	}
+	t.images, t.decided = attrs, true
+	t.log(ctx)
 }
 
 // observe learns from msg what it says of the terminal, and logs the
-// terminal record once it knows the size and the profile and has waited
-// for the version.
+// terminal record once it knows the size and the profile, has waited for
+// the version, and knows whether images are drawn: the probe's verdict
+// comes within its own timeout.
 func (t *terminal) observe(ctx context.Context, msg tea.Msg) {
 	if t.logged {
 		return
@@ -56,18 +73,18 @@ func (t *terminal) observe(ctx context.Context, msg tea.Msg) {
 	case tea.ColorProfileMsg:
 		t.profile = msg.String()
 	case tea.TerminalVersionMsg:
-		// The terminal writes what it likes, so only a line of it is kept.
-		v := termtext.OneLine(msg.Name)
-		if len(v) > maxVersion {
-			v = strings.ToValidUTF8(v[:maxVersion], "")
-		}
-		t.version, t.waited = v, true
+		t.version, t.waited = terminalName(msg.Name), true
 	case terminalWaitMsg:
 		t.waited = true
 	default:
 		return
 	}
-	if !t.sized || t.profile == "" || !t.waited {
+	t.log(ctx)
+}
+
+// log logs the terminal record, once it knows all it waits for.
+func (t *terminal) log(ctx context.Context) {
+	if t.logged || !t.sized || t.profile == "" || !t.waited || !t.decided {
 		return
 	}
 	t.logged = true
@@ -80,5 +97,16 @@ func (t *terminal) observe(ctx context.Context, msg tea.Msg) {
 	if t.version != "" {
 		attrs = append(attrs, slog.String("xtversion", t.version))
 	}
+	attrs = append(attrs, t.images...)
 	slog.LogAttrs(ctx, slog.LevelInfo, "terminal", attrs...)
+}
+
+// terminalName keeps a line of name, as a terminal said it, at most
+// maxVersion bytes long: the terminal writes what it likes.
+func terminalName(name string) string {
+	name = termtext.OneLine(name)
+	if len(name) > maxVersion {
+		name = strings.ToValidUTF8(name[:maxVersion], "")
+	}
+	return name
 }

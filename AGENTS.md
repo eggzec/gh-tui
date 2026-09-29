@@ -46,6 +46,7 @@ internal/
   watch/              sync engine: polling, conditional requests, change events
   revalidate/         re-checks cached entries in the background within a budget
   buildinfo/          what the binary was built from, such as its version
+  imgcaps/            whether the terminal shows images: the startup check's rules
   obs/                log/slog setup, trace and request ids, counters and summaries
   logfile/            the log file, rotated by size, shared by several processes
   service/<domain>/   business logic per domain (pulls, issues, repos, notifications…)

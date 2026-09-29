@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"slices"
 
 	tea "charm.land/bubbletea/v2"
@@ -14,6 +15,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
+	"github.com/eggzec/gh-tui/internal/imgcaps"
 	accesssvc "github.com/eggzec/gh-tui/internal/service/access"
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
 	dashsvc "github.com/eggzec/gh-tui/internal/service/dashboard"
@@ -250,6 +252,8 @@ func build(ctx context.Context, cfg config.Config, hostname, logWarning string) 
 	b := browser.New("", io.Discard, io.Discard)
 	opts := []tui.Option{
 		tui.WithBrowser(b.Browse),
+		// The images probe reads the real environment and runs tmux.
+		tui.WithImageProbe(imgcaps.EnvFrom(os.Getenv), imgcaps.RunTmux),
 		tui.WithRepoInfo(repoSvc.Get),
 		// goto opens a repository only once it is known to exist, a number
 		// once it knows whether it is an issue or a pull request, and links
