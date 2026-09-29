@@ -351,14 +351,16 @@ func (s *Section) renderHit(hit core.SearchHit, selected bool, width int) string
 	if selected {
 		title = st.name
 	}
-	ref := is.Repo.String() + "#" + strconv.Itoa(is.Number)
+	repo, num := is.Repo.String(), "#"+strconv.Itoa(is.Number)
 	right := ""
 	if is.Comments > 0 {
 		right = st.muted.render("◦ " + strconv.Itoa(is.Comments))
 	}
 	room := max(width-2-commentsWidth-1, 0)
-	// The title matters more than where it is.
-	ref = truncate(ref, min(ansi.StringWidth(ref), max(room/3, 12)))
+	// The title matters more than where it is, and the number more than
+	// the repository, which is cut first.
+	refWidth := min(ansi.StringWidth(repo)+len(num), max(room/3, 12))
+	ref := truncate(repo, max(refWidth-len(num), 1)) + num
 	// Where it is and its title link to its page.
 	head := s.stateGlyph(hit) + " " + s.links.Link(is.URL, st.muted.render(ref)+" "+
 		title.render(truncate(cleanLine(is.Title), max(room-ansi.StringWidth(ref)-1, 0))))
@@ -546,8 +548,8 @@ type fragLine struct {
 	matches [][2]int
 }
 
-// fragmentView returns up to n lines of f, from the line of its first
-// match.
+// fragmentView returns up to n lines of f that have text, from the line
+// of its first match.
 func fragmentView(f core.Fragment, n int) []fragLine {
 	var all []fragLine
 	start := 0
@@ -575,12 +577,16 @@ func fragmentView(f core.Fragment, n int) []fragLine {
 			break
 		}
 	}
-	all = all[first:]
-	// Lines without text at the end show nothing.
-	for len(all) > 0 && strings.TrimSpace(all[len(all)-1].text) == "" {
-		all = all[:len(all)-1]
+	// Lines without text show nothing, so they don't take the few rows
+	// a result has. The kept lines are written over all in place, from
+	// first: shown starts empty there and never passes the line read.
+	shown := all[first:first]
+	for _, l := range all[first:] {
+		if strings.TrimSpace(l.text) != "" {
+			shown = append(shown, l)
+		}
 	}
-	return all[:min(n, len(all))]
+	return shown[:min(n, len(shown))]
 }
 
 // highlight renders a line of code, its matches in the accent. Tabs become
