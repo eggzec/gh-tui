@@ -464,16 +464,17 @@ func TestGateForegroundFailsFast(t *testing.T) {
 	}
 }
 
-// TestGatePrefetchReserve pins the share kept from reads ahead:
-// once less than a tenth of a quota is left, a read ahead fails
-// at once and isn't held, while a read the user waits for goes.
+// TestGatePrefetchReserve pins the share kept from reads ahead, the
+// share under which the status bar warns too (core.LowQuotaShare): once
+// a read ahead would leave less than it, it fails at once and isn't held,
+// while a read the user waits for goes.
 func TestGatePrefetchReserve(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		stats := gateStats(t)
 		h := &hub{limit: 100, window: time.Hour}
 		c := newHubClient(t, h, 0)
 		h.mu.Lock()
-		h.quota(resourceCore, time.Now()).remaining = 10
+		h.quota(resourceCore, time.Now()).remaining = 100 * core.LowQuotaShare / 100
 		h.mu.Unlock()
 		if _, err := c.Get(t.Context(), "user", Conditional{}, nil); err != nil {
 			t.Fatal(err)

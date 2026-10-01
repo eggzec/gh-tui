@@ -2,6 +2,12 @@ package core
 
 import "time"
 
+// LowQuotaShare is the percent of a quota left under which the status bar
+// warns of it, and under which reads ahead stop, leaving the rest to what
+// the user asks for. It is one value, so that the bar turning to warn
+// says that reads ahead have stopped.
+const LowQuotaShare = 10
+
 // Quota is one rate-limit resource as the client last saw it.
 type Quota struct {
 	// Resource names the quota, such as core, graphql, search or

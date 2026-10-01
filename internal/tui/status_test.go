@@ -167,6 +167,30 @@ func TestStatusBarCompactRates(t *testing.T) {
 	}
 }
 
+// TestStatusBarLowMark checks that the bar warns of a quota once less
+// than core.LowQuotaShare percent of it is left, the share under which
+// reads ahead stop too.
+func TestStatusBarLowMark(t *testing.T) {
+	low := 5000 * core.LowQuotaShare / 100
+	for _, tt := range []struct {
+		left int
+		warn bool
+	}{{low, false}, {low - 1, true}} {
+		s := core.RateStatus{Quotas: quotas(tt.left, 5000), Answered: statusAt, At: statusAt}
+		m, _ := newTestApp(t, WithRateStatus(&fixedRates{s: s}))
+		m.Update(tea.WindowSizeMsg{Width: 200, Height: 12})
+		forms := m.ratesItem().Forms
+		pct := strconv.Itoa(tt.left*100/5000) + "%"
+		want := m.bst.value.Render(pct)
+		if tt.warn {
+			want = m.bst.low.Render(pct)
+		}
+		if got := forms[len(forms)-1]; !strings.HasSuffix(got, want) {
+			t.Errorf("with %d of 5000 left the bar says %q, want it to end in %q", tt.left, got, want)
+		}
+	}
+}
+
 // TestStatusBarGivesWay checks the order the bar gives way in as the
 // terminal narrows, at every width: every hint but "? help", the last
 // first, then the account, then the rate limits, which shrink to the
