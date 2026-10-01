@@ -374,7 +374,7 @@ func (s *Section) renderHit(hit core.SearchHit, selected bool, width int) string
 		parts = append(parts, st.muted.render(is.Author.Login))
 	}
 	if !is.UpdatedAt.IsZero() {
-		parts = append(parts, st.subtle.render("updated "+ui.AgoProse(is.UpdatedAt, s.now())))
+		parts = append(parts, st.subtle.render("updated "+s.dates.Prose(is.UpdatedAt, s.now())))
 	}
 	second := "  " + strings.Join(parts, st.subtle.render(" · "))
 	return first + "\n" + fit(ansi.Truncate(second, width, "…"), width)
@@ -434,16 +434,15 @@ type repoCols struct {
 	lang, age int
 }
 
-// repoLayouts are the columns of repository rows, widest first:
-// "TypeScript" and "11mo", then a glyph and "11mo".
-var repoLayouts = []repoCols{{lang: 12, age: 4}, {lang: 1, age: 4}, {}}
-
 // minRepoName is the room the name of a repository keeps, before the
 // columns give way.
 const minRepoName = 20
 
-func repoColumns(width int) repoCols {
-	for _, c := range repoLayouts {
+// repoColumns returns the columns of repository rows of width cells,
+// with dates of age cells at most: the first that fits of "TypeScript"
+// and the date, a glyph and the date, and neither.
+func repoColumns(width, age int) repoCols {
+	for _, c := range []repoCols{{lang: 12, age: age}, {lang: 1, age: age}, {}} {
 		if width-c.width()-1 >= minRepoName {
 			return c
 		}
@@ -468,7 +467,7 @@ func (c repoCols) width() int {
 // right, then its description.
 func (s *Section) renderRepo(r core.Repo, selected bool, width int) string {
 	st := &s.st
-	cols := repoColumns(width)
+	cols := repoColumns(width, s.dates.Width())
 	cells := make([]string, 0, 3)
 	if cols.lang > 0 {
 		cells = append(cells, s.langCell(r, cols.lang))
@@ -477,7 +476,7 @@ func (s *Section) renderRepo(r core.Repo, selected bool, width int) string {
 	if cols.age > 0 {
 		age := ""
 		if !r.UpdatedAt.IsZero() {
-			age = ui.Ago(r.UpdatedAt, s.now())
+			age = s.dates.Short(r.UpdatedAt, s.now())
 		}
 		cells = append(cells, padLeft(st.subtle.render(age), cols.age))
 	}

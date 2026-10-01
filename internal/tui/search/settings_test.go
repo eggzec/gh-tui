@@ -5,6 +5,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 )
 
 func TestSettingsIcons(t *testing.T) {
@@ -40,4 +41,15 @@ func TestSettingsPrefetch(t *testing.T) {
 	if bare.ahead != nil {
 		t.Error("a section with nothing to read with reads ahead")
 	}
+}
+
+// Setting the date format tells the dates of the results in it at once,
+// the repositories' in a column that keeps room for the widest.
+func TestSettingsDateFormat(t *testing.T) {
+	f := flagged()
+	s := newSection(t, f, 140, 22)
+	typeText(t, s, "tea")
+	s.Update(ui.SettingsMsg{Config: uitest.DateFormat(t)})
+	s.SetTheme(s.theme)
+	uitest.Dated(t, s.View(), 140, f.repos[0].Repo.UpdatedAt, f.repos[1].Repo.UpdatedAt)
 }

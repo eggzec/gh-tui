@@ -27,6 +27,8 @@ type options struct {
 	viewer Viewer
 	repos  ui.Repos
 	filter core.RunFilter
+	// dates tell when the runs started.
+	dates ui.Dates
 	// voice words the errors of the runs and the log; New makes one of
 	// its keys if it is nil.
 	voice *ui.Voice
@@ -52,6 +54,12 @@ func defaultOptions() options {
 // keys and no log.
 func WithVoice(v ui.Voice) Option {
 	return func(o *options) { o.voice = &v }
+}
+
+// WithDates sets how dates read, as ui.date_format says. The default is
+// as ages.
+func WithDates(d ui.Dates) Option {
+	return func(o *options) { o.dates = d }
 }
 
 // WithIcons sets the glyphs of the states of runs, jobs and steps. Without

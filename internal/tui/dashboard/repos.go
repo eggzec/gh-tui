@@ -137,7 +137,7 @@ func (t *repoTabs) remeasure(o *owner) {
 
 // layout fits the columns of o in the list, inside the cursor's gutter.
 func (t *repoTabs) layout(o *owner) {
-	o.cols = layoutCols(max(t.width-gutterWidth, 0), o.measure, t.s.icons.Star)
+	o.cols = layoutCols(max(t.width-gutterWidth, 0), o.measure, t.s.icons.Star, t.s.dates.Width())
 }
 
 // gutterWidth is the room the list leaves for its cursor.

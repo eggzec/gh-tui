@@ -85,6 +85,7 @@ type detailModal struct {
 	theme         ui.Theme
 	rows          rowStyles
 	icons         ui.Icons
+	dates         ui.Dates
 	chips         chipCache
 }
 
@@ -116,6 +117,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, show
 		theme:   s.theme,
 		rows:    s.rows,
 		icons:   s.icons,
+		dates:   s.dates,
 		chips:   newChipCache(s.rows),
 	}
 	m.confirmSt = s.theme.Confirm()
@@ -465,10 +467,10 @@ func (m *detailModal) header(it core.Issue) string {
 	b.WriteString(m.rows.badges[ui.IssueState(it)])
 	b.WriteString("  ")
 	b.WriteString(t.Muted.Render(login(it.Author)))
-	b.WriteString(t.Subtle.Render(" opened " + ui.AgoProse(it.CreatedAt, now)))
+	b.WriteString(t.Subtle.Render(" opened " + m.dates.Prose(it.CreatedAt, now)))
 	if it.UpdatedAt.After(it.CreatedAt) {
 		b.WriteString(dot)
-		b.WriteString(t.Subtle.Render("updated " + ui.AgoProse(it.UpdatedAt, now)))
+		b.WriteString(t.Subtle.Render("updated " + m.dates.Prose(it.UpdatedAt, now)))
 	}
 	b.WriteString(dot)
 	b.WriteString(t.Muted.Render(commentMark + plural(it.Comments, "comment")))
@@ -510,7 +512,7 @@ func (m *detailModal) renderComment(c core.Comment, width int) string {
 		b.WriteString(t.Subtle.Render(who + " · sending…"))
 	} else {
 		b.WriteString(t.Title.Render(login(c.Author)))
-		b.WriteString(t.Subtle.Render(" · " + ui.AgoProse(c.CreatedAt, m.now())))
+		b.WriteString(t.Subtle.Render(" · " + m.dates.Prose(c.CreatedAt, m.now())))
 	}
 	// The body is indented by two cells, with as much room on the right.
 	if body := m.thread.Markdown(c.Body, markdown.Room(width, 4)); body != "" {

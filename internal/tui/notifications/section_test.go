@@ -331,7 +331,7 @@ func TestLayoutDropsColumns(t *testing.T) {
 		{20, false, false, false},
 	}
 	for _, tt := range tests {
-		l := newLayout(tt.width)
+		l := newLayout(tt.width, 4)
 		if (l.repo > 0) != tt.repo || (l.tag > 0) != tt.tag || (l.reason > 0) != tt.withReason {
 			t.Errorf("newLayout(%d) = %+v, want repo %v, tag %v, reason %v", tt.width, l, tt.repo, tt.tag, tt.withReason)
 		}

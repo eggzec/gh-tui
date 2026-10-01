@@ -44,6 +44,12 @@ func WithIcons(icons ui.Icons) Option {
 	return func(s *Section) { s.icons = icons }
 }
 
+// WithDates sets how dates read, as ui.date_format says. The default is
+// as ages.
+func WithDates(d ui.Dates) Option {
+	return func(s *Section) { s.dates = d }
+}
+
 // WithRepos reads what the viewer may do in the repository of a modal
 // from r, when it isn't the selected one, whose caps the app sends in a
 // ui.CapsMsg. Until they are known, every change is offered, and GitHub

@@ -20,7 +20,6 @@ const (
 	prefixWidth   = 2 + ui.NumberWidth + 1
 	commentsWidth = 5 // "◦ 999"
 	authorWidth   = 8
-	ageWidth      = 4 // "11mo"
 	gap           = 2
 	// chipName is the longest label name a chip shows.
 	chipName = 11
@@ -41,8 +40,10 @@ const (
 
 // columns is which columns a row shows at a width, and how wide they are.
 type columns struct {
-	title    int
-	labels   int
+	title  int
+	labels int
+	// ageWidth is the room of the dates, as wide as the widest.
+	ageWidth int
 	chips    int
 	comments bool
 	author   bool
@@ -62,14 +63,16 @@ var layouts = []columns{
 }
 
 // layout returns the columns of a row width cells wide, with room for
-// labels if labeled. The number, the state and the title always show.
-func layout(width int, labeled bool) columns {
+// labels if labeled, and dates of ageWidth cells at most. The number, the
+// state and the title always show.
+func layout(width int, labeled bool, ageWidth int) columns {
 	want := max(minTitle, int(float64(width)*titleShare))
 	var c columns
 	for _, c = range layouts {
 		if !labeled {
 			c.chips = 0
 		}
+		c.ageWidth = ageWidth
 		if c.chips > 0 {
 			c.labels = c.chips*(chipName+2) + c.chips - 1 + moreWidth
 		}
@@ -93,7 +96,7 @@ func (c columns) right() int {
 	add(c.chips > 0, c.labels)
 	add(c.comments, commentsWidth)
 	add(c.author, authorWidth)
-	add(c.age, ageWidth)
+	add(c.age, c.ageWidth)
 	return w
 }
 
@@ -152,8 +155,8 @@ func newRowStyles(t ui.Theme, icons ui.Icons) rowStyles {
 // renderRow renders an issue as one line of the list.
 func (s *Section) renderRow(it core.Issue, selected bool, width int) string {
 	c := s.cols
-	if width != s.colsWidth {
-		c = layout(width, s.labeled)
+	if width != s.colsWidth || c.ageWidth != s.dates.Width() {
+		c = layout(width, s.labeled, s.dates.Width())
 	}
 	st := &s.rows
 	var b strings.Builder
@@ -198,8 +201,11 @@ func (s *Section) renderRow(it core.Issue, selected bool, width int) string {
 	}
 	if c.age {
 		pad(&b, gap)
-		age := ui.Ago(it.UpdatedAt, s.now())
-		pad(&b, ageWidth-len(age))
+		age := ""
+		if !it.UpdatedAt.IsZero() {
+			age = s.dates.Short(it.UpdatedAt, s.now())
+		}
+		pad(&b, c.ageWidth-ansi.StringWidth(age))
 		st.age.write(&b, age)
 	}
 	if over >= c.title {

@@ -102,7 +102,10 @@ type Section struct {
 	theme         ui.Theme
 	st            styles
 	icons         ui.Icons
-	cols          columns
+	// dates tell when the pull requests were updated, in the rows and
+	// the modal.
+	dates ui.Dates
+	cols  columns
 	// links keeps the links of the rows, which are drawn on every frame.
 	links  termtext.Links
 	header string
@@ -156,6 +159,12 @@ func WithVoice(v ui.Voice) Option {
 // icons are the config's default.
 func WithIcons(icons ui.Icons) Option {
 	return func(s *Section) { s.icons = icons }
+}
+
+// WithDates sets how dates read, as ui.date_format says. The default is
+// as ages.
+func WithDates(d ui.Dates) Option {
+	return func(s *Section) { s.dates = d }
 }
 
 // WithChecks shows the checks of a pull request in a step of its modal,

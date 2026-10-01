@@ -32,6 +32,8 @@ type Option func(*options)
 type options struct {
 	now func() time.Time
 	loc *time.Location
+	// dates tell when the release was published.
+	dates ui.Dates
 	// voice words the errors of the files; New makes one of its keys if
 	// it is nil.
 	voice *ui.Voice
@@ -49,6 +51,12 @@ func WithNow(now func() time.Time) Option {
 // time.Local.
 func WithLocation(loc *time.Location) Option {
 	return func(o *options) { o.loc = loc }
+}
+
+// WithDates sets how dates read, as ui.date_format says. The default is
+// as ages.
+func WithDates(d ui.Dates) Option {
+	return func(o *options) { o.dates = d }
 }
 
 // WithVoice sets how the modal words what went wrong, with the keys a
@@ -77,7 +85,9 @@ type Modal struct {
 	svc  Service
 	keys keyMap
 	now  func() time.Time
-	loc  *time.Location
+	// dates tell when the release was published, in the zone of the
+	// modal.
+	dates ui.Dates
 
 	repo core.RepoRef
 	rid  int64
@@ -140,7 +150,7 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, id int64, url stri
 		svc:    svc,
 		keys:   newKeyMap(keys),
 		now:    o.now,
-		loc:    o.loc,
+		dates:  o.dates.In(o.loc),
 		repo:   repo,
 		rid:    id,
 		url:    url,

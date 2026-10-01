@@ -26,7 +26,6 @@ const (
 	diffWidth   = 11
 	labelsWidth = 14 // the first label and how many more, such as "bug +2"
 	authorWidth = 10
-	ageWidth    = 4 // "11mo"
 	// minTitle is the narrowest the title may get before columns drop. On
 	// wide rows the title keeps titleShare of the width instead.
 	minTitle   = 20
@@ -36,16 +35,19 @@ const (
 // columns says which of the optional columns fit a width, and how wide the
 // title is.
 type columns struct {
-	width                                     int
-	title                                     int
+	width int
+	title int
+	// ageWidth is the room of the dates, as wide as the widest.
+	ageWidth                                  int
 	review, checks, diff, labels, author, age bool
 }
 
-// columnsFor lays out a row of width cells. Columns drop, least important
+// columnsFor lays out a row of width cells, with dates of ageWidth cells
+// at most. Columns drop, least important
 // first, until the title has its room. The state glyphs go last, since they
 // take little room and say the most.
-func columnsFor(width int) columns {
-	c := columns{width: width, review: true, checks: true, diff: true, labels: true, author: true, age: true}
+func columnsFor(width, ageWidth int) columns {
+	c := columns{width: width, ageWidth: ageWidth, review: true, checks: true, diff: true, labels: true, author: true, age: true}
 	drops := []*bool{&c.diff, &c.labels, &c.author, &c.age, &c.review, &c.checks}
 	want := max(minTitle, int(float64(width)*titleShare))
 	for {
@@ -75,7 +77,7 @@ func (c columns) fixed() int {
 	add(c.diff, 2, diffWidth)
 	add(c.labels, 2, labelsWidth)
 	add(c.author, 2, authorWidth)
-	add(c.age, 2, ageWidth)
+	add(c.age, 2, c.ageWidth)
 	return n
 }
 
@@ -206,8 +208,8 @@ func (st *styles) noRepo(width, height int, hint string) string {
 
 // renderRow renders pr in one line of width cells.
 func (s *Section) renderRow(pr core.PullRequest, selected bool, width int) string {
-	if s.cols.width != width {
-		s.cols = columnsFor(width)
+	if aw := s.dates.Width(); s.cols.width != width || s.cols.ageWidth != aw {
+		s.cols = columnsFor(width, aw)
 	}
 	c, st := s.cols, &s.st
 
@@ -263,8 +265,11 @@ func (s *Section) renderRow(pr core.PullRequest, selected bool, width int) strin
 	}
 	if c.age {
 		pad(&b, 2)
-		ago := ui.Ago(pr.UpdatedAt, s.now())
-		pad(&b, ageWidth-len(ago))
+		ago := ""
+		if !pr.UpdatedAt.IsZero() {
+			ago = s.dates.Short(pr.UpdatedAt, s.now())
+		}
+		pad(&b, c.ageWidth-ansi.StringWidth(ago))
 		st.rowAge.write(&b, ago)
 	}
 	if over >= c.title {

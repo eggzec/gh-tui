@@ -89,7 +89,7 @@ func (s *Section) scanLabels() {
 	for i := range s.list.Len() {
 		if it, ok := s.list.Item(i); ok && len(it.Labels) > 0 {
 			s.labeled = true
-			s.cols = layout(s.colsWidth, true)
+			s.cols = layout(s.colsWidth, true, s.dates.Width())
 			return
 		}
 	}

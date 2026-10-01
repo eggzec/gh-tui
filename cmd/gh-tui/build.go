@@ -202,7 +202,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	if core.WebScheme(webHost) == "http" {
 		termtext.AllowPlainHTTP(webHost)
 	}
-	icons := ui.NewIcons(cfg.UI.Icons)
+	icons, dates := ui.NewIcons(cfg.UI.Icons), ui.NewDates(cfg.UI.DateFormat)
 	// What went wrong names the configured keys, and the log file while
 	// the app logs to one.
 	var logPath string
@@ -238,11 +238,11 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	})
 	var (
 		pullOpts = []pulls.Option{
-			pulls.WithVoice(voice), pulls.WithIcons(icons), pulls.WithFacets(facetSvc),
+			pulls.WithVoice(voice), pulls.WithIcons(icons), pulls.WithDates(dates), pulls.WithFacets(facetSvc),
 			pulls.WithChecks(actionSvc, checkOpts...), pulls.WithRepos(repoSvc), pulls.WithViewer(pulls.Viewer(viewer)),
 		}
 		issueOpts = []issues.Option{
-			issues.WithVoice(voice), issues.WithIcons(icons), issues.WithFacets(facetSvc),
+			issues.WithVoice(voice), issues.WithIcons(icons), issues.WithDates(dates), issues.WithFacets(facetSvc),
 			issues.WithRepos(repoSvc), issues.WithViewer(issues.Viewer(viewer)),
 		}
 	)
@@ -275,12 +275,13 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		dashboard.WithGlyph(cfg.Dashboard.CalendarGlyph),
 		dashboard.WithContributions(cfg.Dashboard.ContributionDays()),
 		dashboard.WithIcons(icons),
+		dashboard.WithDates(dates),
 		dashboard.WithHost(webHost),
 		// So that the set command may turn reading ahead on.
 		dashboard.WithDetails(pullSvc, issueSvc),
 	}
 	searchOpts := []searchpage.Option{
-		searchpage.WithStart(searchStart(repoSvc, pinned)), searchpage.WithIcons(icons), searchpage.WithHost(webHost), searchpage.WithVoice(voice),
+		searchpage.WithStart(searchStart(repoSvc, pinned)), searchpage.WithIcons(icons), searchpage.WithDates(dates), searchpage.WithHost(webHost), searchpage.WithVoice(voice),
 		searchpage.WithDetails(pullSvc, issueSvc),
 	}
 	if p := cfg.Details.Prefetch; p.Enabled {
@@ -300,7 +301,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		Issues: issues.New(ctx, issueSvc, cfg.Keys, issueOpts...),
 		Notifications: notifications.New(ctx, notifSvc, cfg.Keys,
 			notifications.WithVoice(voice), notifications.WithOpener(opener),
-			notifications.WithIcons(icons)),
+			notifications.WithIcons(icons), notifications.WithDates(dates)),
 		Search:    searchpage.New(ctx, searchSvc, cfg.Keys, searchOpts...),
 		Dashboard: dashboard.New(ctx, dashSvc, cfg.Keys, dashOpts...),
 	}
@@ -336,7 +337,9 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 			return history.CommitOpener(historySvc, cfg.Keys, historyOpts(live.cfg)...)(ctx, repo, sha, defaultBranch)
 		}),
 		tui.WithRelease(func(ctx context.Context, repo core.RepoRef, id int64, url string) (ui.Modal, tea.Cmd) {
-			o := []releases.Option{releases.WithVoice(voice), releases.WithIcons(ui.NewIcons(live.cfg.UI.Icons))}
+			o := []releases.Option{
+				releases.WithVoice(voice), releases.WithIcons(ui.NewIcons(live.cfg.UI.Icons)), releases.WithDates(ui.NewDates(live.cfg.UI.DateFormat)),
+			}
 			return releases.Opener(releaseSvc, cfg.Keys, o...)(ctx, repo, id, url)
 		}),
 		tui.WithRateStatus(client),
@@ -364,9 +367,9 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		actionOpts = append(actionOpts, actions.WithFollow(followRuns(subscriber(engine, pollActions), engine.Refresh, actionSvc.Poll)))
 	}
 	opts = append(opts, tui.WithActions(func(ctx context.Context, repo core.RepoRef, f core.RunFilter) (ui.Modal, tea.Cmd) {
-		// The icons are those of the session, which the set command may
-		// have changed since the start.
-		o := append(slices.Clip(actionOpts), actions.WithIcons(ui.NewIcons(live.cfg.UI.Icons)))
+		// The icons and the dates are those of the session, which the set
+		// command may have changed since the start.
+		o := append(slices.Clip(actionOpts), actions.WithIcons(ui.NewIcons(live.cfg.UI.Icons)), actions.WithDates(ui.NewDates(live.cfg.UI.DateFormat)))
 		return actions.Opener(actionSvc, cfg.Keys, o...)(ctx, repo, f)
 	}), tui.WithSettings(func(c config.Config) {
 		live.set(c)

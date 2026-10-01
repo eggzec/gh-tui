@@ -59,6 +59,12 @@ func WithIcons(ic ui.Icons) Option {
 	return func(s *Section) { s.icons = ic }
 }
 
+// WithDates sets how dates read, as ui.date_format says. The default is
+// as ages.
+func WithDates(d ui.Dates) Option {
+	return func(s *Section) { s.dates = d }
+}
+
 // WithOpener opens the threads, and reads them ahead while the section is
 // on view, with o, which the dashboard may share. By default the section
 // has one that reads nothing ahead and marks a thread read as it opens it.
@@ -85,6 +91,8 @@ type Section struct {
 	// voice words the feed's errors, and icons mark them.
 	voice ui.Voice
 	icons ui.Icons
+	// dates tell when the threads were updated.
+	dates ui.Dates
 	// opener opens the threads and reads them ahead.
 	opener *threads.Opener
 

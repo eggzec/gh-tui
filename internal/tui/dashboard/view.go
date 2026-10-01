@@ -598,7 +598,7 @@ func (s *Section) workItem(lines []string, r *workRow, selected, focused bool, w
 		titleStyle = st.selected
 	}
 	hit := r.hit
-	age := ui.Ago(hit.Issue.UpdatedAt, s.now())
+	age := s.dates.Short(hit.Issue.UpdatedAt, s.now())
 	for i, text := range r.lines {
 		var b, link strings.Builder
 		b.WriteString(gutter)
@@ -621,7 +621,7 @@ func (s *Section) workItem(lines []string, r *workRow, selected, focused bool, w
 		b.WriteString(s.links.Link(hit.Issue.URL, link.String()))
 		used += ansi.StringWidth(text)
 		if i == len(r.lines)-1 {
-			b.WriteString(strings.Repeat(" ", max(w-used-len(age), 1)))
+			b.WriteString(strings.Repeat(" ", max(w-used-ansi.StringWidth(age), 1)))
 			st.subtle.write(&b, age)
 		}
 		lines = append(lines, b.String())
@@ -672,15 +672,15 @@ func (s *Section) inboxBody(w, h int) []string {
 			}
 			titleStyle = st.selected
 		}
-		age := ui.Ago(nt.UpdatedAt, s.now())
-		room := max(w-4-ageWidth-1, 0)
+		age := s.dates.Short(nt.UpdatedAt, s.now())
+		room := max(w-4-s.dates.Width()-1, 0)
 		repo := truncate(nt.Repo.Name, min(ansi.StringWidth(nt.Repo.Name), room/3))
 		title := truncate(cleanLine(nt.Subject.Title), max(room-ansi.StringWidth(repo)-2, 0))
 		used := 4 + ansi.StringWidth(repo) + 2 + ansi.StringWidth(title)
 		// The repository and the title link to the thread's page.
 		link := s.links.Link(nt.Subject.WebURL, st.muted.render(repo)+"  "+titleStyle.render(title))
 		lines = append(lines, gutter+st.accent.render("●")+" "+link+
-			strings.Repeat(" ", max(w-used-len(age), 1))+st.subtle.render(age))
+			strings.Repeat(" ", max(w-used-ansi.StringWidth(age), 1))+st.subtle.render(age))
 	}
 	return lines
 }

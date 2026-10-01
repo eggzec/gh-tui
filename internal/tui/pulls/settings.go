@@ -11,10 +11,11 @@ import (
 
 // configure keeps the settings of c that the section uses while it runs,
 // which the set command changed: the icons, which the theme the app sets
-// again after draws with, and the reads ahead, as WithPrefetch and
+// again after draws with, the dates, and the reads ahead, as WithPrefetch and
 // WithFilterPrefetch set them.
 func (s *Section) configure(c config.Config) {
 	s.icons = ui.NewIcons(c.UI.Icons)
+	s.dates = ui.NewDates(c.UI.DateFormat)
 	p := c.Details.Prefetch
 	s.setAhead(p.Enabled, p.Rows, p.HoverDelay)
 	s.setOthers(p.Enabled && p.Filters)

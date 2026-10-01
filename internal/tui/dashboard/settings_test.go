@@ -8,6 +8,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 )
 
 func TestSettingsIcons(t *testing.T) {
@@ -88,4 +89,16 @@ func TestSettingsCalendar(t *testing.T) {
 	if s.cal.Glyph() != "#" || s.cal.Range() != 30 || s.calDays != 30 {
 		t.Errorf("glyph %q, range %d; want # over 30 days", s.cal.Glyph(), s.cal.Range())
 	}
+}
+
+// Setting the date format tells the dates of every pane in it at once:
+// the repositories in a column that keeps room for the widest, the work
+// wrapped around them, and the inbox.
+func TestSettingsDateFormat(t *testing.T) {
+	svc := newFake()
+	s := newSection(t, svc, &fakeInbox{threads: inboxThreads()}, 160, 44)
+	s.Update(ui.SettingsMsg{Config: uitest.DateFormat(t)})
+	s.SetTheme(s.theme)
+	uitest.Dated(t, s.View(), 160,
+		svc.repos["@me"][0].UpdatedAt, work().ReviewRequested.Items[0].Issue.UpdatedAt, inboxThreads()[0].UpdatedAt)
 }
