@@ -241,14 +241,15 @@ func (f *File) resolve(host string, p *profile, before *Config) (Config, error) 
 	if level := os.Getenv(EnvLog); level != "" {
 		cfg.Log.Level = strings.ToLower(level)
 	}
-	return cfg, atLines(renamedErrors(cfg.Validate(), renamed), nodes)
+	return cfg, atLines(renamedErrors(cfg.Validate(), renamed), nodes, renamed)
 }
 
 // atLines returns err, an error of Validate, with each problem that
 // names a setting the file sets prefixed with the line of the value in
 // effect: that of the last of nodes, the layers laid over each other, to
-// set it.
-func atLines(err error, nodes []*yaml.Node) error {
+// set it. A value that a rename made has no line of its own, so it is
+// given the line of the old name it was made from, among renamed, or none.
+func atLines(err error, nodes []*yaml.Node, renamed []Renamed) error {
 	if err == nil {
 		return nil
 	}
@@ -260,12 +261,28 @@ func atLines(err error, nodes []*yaml.Node) error {
 		}
 		for _, n := range slices.Backward(nodes) {
 			if _, v := find(n, p); v != nil {
-				lines[i] = fmt.Sprintf("line %d: %s", v.Line, line)
+				if at := lineOf(v, p, renamed); at > 0 {
+					lines[i] = fmt.Sprintf("line %d: %s", at, line)
+				}
 				break
 			}
 		}
 	}
 	return errors.New(strings.Join(lines, "\n"))
+}
+
+// lineOf returns the line of v, the value of the setting p, or if it has
+// none, that of the last old name among renamed it was made from, or 0.
+func lineOf(v *yaml.Node, p string, renamed []Renamed) int {
+	if v.Line > 0 {
+		return v.Line
+	}
+	for _, r := range slices.Backward(renamed) {
+		if slices.Contains(r.New, p) {
+			return r.Line
+		}
+	}
+	return 0
 }
 
 // problemPath returns the setting a line of an error of Validate is
