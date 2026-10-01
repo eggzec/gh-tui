@@ -328,3 +328,32 @@ func TestAccountKept(t *testing.T) {
 		t.Error("without a disk cache, an account has something to move")
 	}
 }
+
+// The records of a trim go to the logger that was the default when the
+// cache opened, not to whichever is the default once the trim ends, such
+// as a later test's capture.
+func TestDiskCacheRecordsGoToItsSession(t *testing.T) {
+	restoreLogger(t)
+	var opened, later syncBuffer
+	slog.SetDefault(obs.NewLogger(&opened, slog.LevelDebug, "s_opened"))
+	cfg := config.Default().Cache.Disk
+	cfg.Dir = t.TempDir()
+	if store, _ := openDisk(t.Context(), cfg, "api.github.com"); store == nil {
+		t.Fatal("no store")
+	}
+	slog.SetDefault(obs.NewLogger(&later, slog.LevelDebug, "s_later"))
+	deadline := time.Now().Add(10 * time.Second)
+	for !strings.Contains(opened.String(), "cache collected") {
+		if time.Now().After(deadline) {
+			t.Fatalf("no cache collected record; opened %q, later %q", opened.String(), later.String())
+		}
+		time.Sleep(time.Millisecond)
+	}
+	// The trim's trace ends, at debug, before it says what it collected.
+	if !strings.Contains(opened.String(), `"trace":"cache.collect"`) {
+		t.Errorf("the trim's end record didn't reach its logger: %s", opened.String())
+	}
+	if strings.Contains(later.String(), "cache collected") || strings.Contains(later.String(), "cache.collect") {
+		t.Errorf("the later logger got the trim's records: %s", later.String())
+	}
+}
