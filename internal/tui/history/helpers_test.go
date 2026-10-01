@@ -23,12 +23,20 @@ func testTheme() ui.Theme {
 	return ui.NewTheme(p, true)
 }
 
-// testConfig reads nothing after a delay, so that tests run the reads of a
-// rest at once.
 func testConfig() config.History {
-	h := config.Default().History
-	h.Prefetch.HoverDelay = 0
-	return h
+	return config.Default().History
+}
+
+// testPrefetch reads ahead as the defaults do, but with no rest, so that
+// tests run the reads of a rest at once, after edit changes the settings,
+// if set.
+func testPrefetch(edit func(p *config.PrefetchLayers)) Option {
+	p := config.Default().Prefetch
+	p.History.Rest = new(time.Duration(0))
+	if edit != nil {
+		edit(&p)
+	}
+	return WithPrefetch(p)
 }
 
 // withClock fixes the clock and the time zone, so that ages and dates
@@ -56,7 +64,7 @@ func newModal(tb testing.TB, f Service, width, height int, opts ...Option) (*Mod
 
 func newModalAt(tb testing.TB, f Service, width, height int, base ui.BaseMsg, opts ...Option) (*Modal, *host) {
 	tb.Helper()
-	opts = append([]Option{WithConfig(testConfig()), withClock(testNow)}, opts...)
+	opts = append([]Option{WithConfig(testConfig()), testPrefetch(nil), withClock(testNow)}, opts...)
 	m := New(tb.Context(), f, repo, "main", base, config.Default().Keys, opts...)
 	m.SetTheme(testTheme())
 	m.SetSize(width, height)

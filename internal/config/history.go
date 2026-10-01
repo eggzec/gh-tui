@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"time"
 )
 
 // History configures the History modal: the branches of the repository, the
@@ -24,22 +23,7 @@ type History struct {
 	Detail []string `yaml:"detail"`
 	// ShowEmail shows the git email next to each name, and in trailers
 	// such as Co-authored-by.
-	ShowEmail bool            `yaml:"show_email"`
-	Prefetch  HistoryPrefetch `yaml:"prefetch"`
-}
-
-// HistoryPrefetch configures reading commits before the cursor lands on
-// them, so the commit pane keeps up as the cursor moves. A commit costs one
-// request the first time, and none after: what a commit changed never
-// changes, so it is kept on disk.
-type HistoryPrefetch struct {
-	// Around is how many commits on each side of the cursor are read once
-	// the cursor rests. Zero reads only the commit under the cursor.
-	Around int `yaml:"around"`
-	// HoverDelay is how long the cursor rests on a commit, or a branch,
-	// before what it needs is read, so that moving through the graph
-	// doesn't read every commit passed.
-	HoverDelay time.Duration `yaml:"hover_delay"`
+	ShowEmail bool `yaml:"show_email"`
 }
 
 // Fields of a graph row, for [History.Row].
@@ -88,22 +72,12 @@ var (
 	}
 )
 
-// maxAround bounds History.Prefetch.Around: each commit may be a large
-// diff, and the cursor rarely jumps further before it rests.
-const maxAround = 10
-
 func (h History) validate() error {
 	var errs []error
 	if len(h.Row) == 0 {
 		errs = append(errs, errors.New("history.row: needs at least one field"))
 	}
 	errs = append(errs, validateFields("history.row", h.Row, HistoryRowFields), validateFields("history.detail", h.Detail, HistoryDetailFields))
-	if p := h.Prefetch; p.Around < 0 || p.Around > maxAround {
-		errs = append(errs, fmt.Errorf("history.prefetch.around: must be between 0 and %d, got %d", maxAround, p.Around))
-	}
-	if h.Prefetch.HoverDelay < 0 {
-		errs = append(errs, fmt.Errorf("history.prefetch.hover_delay: must not be negative, got %v", h.Prefetch.HoverDelay))
-	}
 	return errors.Join(errs...)
 }
 

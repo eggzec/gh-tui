@@ -165,12 +165,12 @@ func TestLoadMergesOverDefaults(t *testing.T) {
 					Row:       []string{FieldShortSHA, FieldSubject, FieldVerified, FieldAge},
 					Detail:    []string{FieldSHA, FieldAuthor, FieldDate, FieldTrailers},
 					ShowEmail: true,
-					Prefetch:  HistoryPrefetch{Around: 5, HoverDelay: 250 * time.Millisecond},
 				}
-				files, finder := &c.Prefetch.Files, &c.Prefetch.Finder
+				files, finder, history := &c.Prefetch.Files, &c.Prefetch.Finder, &c.Prefetch.History
 				files.Rest = new(300 * time.Millisecond)
 				files.Preview.Enabled, files.Preview.MaxSize = new(false), 16*KiB
 				finder.Preview.Window, finder.Preview.MaxSize = Span{Before: new(1), After: new(2)}, 8*KiB
+				history.Window, history.Rest = Span{Before: new(5), After: new(5)}, new(250*time.Millisecond)
 				c.Dashboard = Dashboard{CalendarGlyph: "#", Contributions: ContributionsYear, Prefetch: false}
 				c.UI = UI{Icons: IconsUnicode, Toast: Toast{Info: 6 * time.Second, Error: 12 * time.Second}, DateFormat: "2006-01-02 15:04"}
 				c.Auth = Auth{Check: false}
@@ -238,9 +238,8 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 	cfg.Details.Prefetch.Rows = 31
 	cfg.Details.Prefetch.HoverDelay = -time.Second
 	cfg.History = History{
-		Row:      []string{FieldSubject, "sha", FieldSubject},
-		Detail:   []string{FieldBody, "age"},
-		Prefetch: HistoryPrefetch{Around: 11, HoverDelay: -time.Millisecond},
+		Row:    []string{FieldSubject, "sha", FieldSubject},
+		Detail: []string{FieldBody, "age"},
 	}
 	cfg.Dashboard.CalendarGlyph = "■■"
 	cfg.Dashboard.Contributions = "week"
@@ -283,8 +282,6 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 		`history.row[1]: unknown field "sha", want one of short_sha, subject, author, committer, age, date, verified, trailers`,
 		`history.row[2]: "subject" is listed twice`,
 		`history.detail[1]: unknown field "age", want one of sha, author, committer, date, verification, parents, trailers, body, stats`,
-		`history.prefetch.around: must be between 0 and 10, got 11`,
-		`history.prefetch.hover_delay: must not be negative, got -1ms`,
 		`dashboard.calendar_glyph: must be one character one cell wide, such as "■" or "#", got "■■"`,
 		`dashboard.contributions: must be 30d, 90d or year, got "week"`,
 		`ui.icons: must be nerd, unicode or ascii, got "emoji"`,

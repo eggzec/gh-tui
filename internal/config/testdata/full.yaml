@@ -72,9 +72,6 @@ history:
   row: [short_sha, subject, verified, age]
   detail: [sha, author, date, trailers]
   show_email: true
-  prefetch:
-    around: 5
-    hover_delay: 250ms
 
 prefetch:
   files:
@@ -82,6 +79,9 @@ prefetch:
     preview: {enabled: false, max_size: 16KiB}
   finder:
     preview: {window: {before: 1, after: 2}, max_size: 8KiB}
+  history:
+    window: {before: 5, after: 5}
+    rest: 250ms
 
 dashboard:
   calendar_glyph: "#"

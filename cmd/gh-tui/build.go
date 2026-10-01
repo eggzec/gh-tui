@@ -304,7 +304,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	// they open.
 	historyOpts := func(c config.Config) []history.Option {
 		return []history.Option{
-			history.WithConfig(c.History), history.WithHost(webHost), history.WithVoice(voice),
+			history.WithConfig(c.History), history.WithPrefetch(c.Prefetch), history.WithHost(webHost), history.WithVoice(voice),
 			history.WithEditor(c.Editor), history.WithIcons(ui.NewIcons(c.UI.Icons)), history.WithDates(ui.NewDates(c.UI.DateFormat)),
 		}
 	}

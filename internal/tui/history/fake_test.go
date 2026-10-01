@@ -22,8 +22,8 @@ var testNow = time.Date(2026, time.September, 24, 12, 0, 0, 0, time.UTC)
 
 var errBoom = errors.New("boom")
 
-// fake is a Service over fixed branches and histories. Details it read are
-// cached, as the service caches them. calls lists what it was asked, in
+// fake is a Service over fixed branches and histories. Details and
+// comparisons it read are cached, as the service caches them. calls lists what it was asked, in
 // order, as "branches", "commits ref@cursor", "commit sha", "files
 // sha@cursor" and "compare head".
 type fake struct {
@@ -261,8 +261,10 @@ func (f *fake) CommitFiles(ctx context.Context, q historysvc.CommitFilesQuery) (
 	return p, nil
 }
 
-func (f *fake) CachedCompare(_ core.RepoRef, _, _ string) (core.Compare, bool) {
-	return core.Compare{}, false
+func (f *fake) CachedCompare(_ core.RepoRef, _, head string) (core.Compare, bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.compares[head], f.cached["compare "+head]
 }
 
 func (f *fake) Compare(ctx context.Context, _ core.RepoRef, base, head string) (core.Compare, error) {
@@ -272,5 +274,9 @@ func (f *fake) Compare(ctx context.Context, _ core.RepoRef, base, head string) (
 	if base != "main" {
 		return core.Compare{}, fmt.Errorf("compare with %q, want main", base)
 	}
-	return f.compares[head], ctx.Err()
+	if ctx.Err() != nil {
+		return core.Compare{}, ctx.Err()
+	}
+	f.cached["compare "+head] = true
+	return f.compares[head], nil
 }

@@ -190,18 +190,6 @@ history:
   # Show the git email next to each name, and in trailers such as
   # Co-authored-by.
   show_email: false
-  # Reading commits before the cursor lands on them, so the commit pane
-  # keeps up as the cursor moves. A commit costs one request the first
-  # time, and none after: what a commit changed never changes, so it is
-  # kept on disk.
-  prefetch:
-    # How many commits on each side of the cursor are read once the
-    # cursor rests, 0 to 10. Zero reads only the commit under the cursor.
-    around: 3
-    # How long the cursor rests on a commit, or a branch, before what it
-    # needs is read, so that moving through the graph doesn't read every
-    # commit passed.
-    hover_delay: 150ms
 
 # The dashboard, the screen the app opens on.
 dashboard:

@@ -69,8 +69,11 @@ type Modal struct {
 	branches branches
 	graph    commits
 	commit   commit
-	// ahead reads the details of the commits around the cursor.
-	ahead *ui.Ahead[string]
+	// ahead reads the details of the commits around the cursor, and
+	// compares how far the branches around the branch pane's cursor are
+	// from the default branch.
+	ahead    *ui.Ahead[string]
+	compares *ui.Ahead[branchPair]
 	// seq counts the moves of the graph's cursor, so that only the last
 	// rest reads.
 	seq int
@@ -140,6 +143,10 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, defaultBranch stri
 		commit:        newCommit(o.editor),
 	}
 	m.ahead = ui.NewAhead("commit", m.readDetail, m.cachedDetail, 0, 0)
+	m.ahead.Configure(o.prefetch.commits)
+	m.compares = ui.NewAhead("compare", m.readCompare, m.cachedCompare, 0, 0)
+	m.compares.Reset(ctx)
+	m.compares.Configure(o.prefetch.branches)
 	m.branches.init(defaultBranch)
 	start := base.Branch
 	if base.Ref == "" || start == "" {

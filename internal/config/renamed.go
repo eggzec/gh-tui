@@ -65,6 +65,15 @@ var renames = []rename{
 	renameTo("files.prefetch.enabled", "prefetch.files.preview.enabled"),
 	renameTo("files.prefetch.max_size", "prefetch.files.preview.max_size"),
 	restRename("files.prefetch.hover_delay", "prefetch.files.rest"),
+	{
+		old: []string{"history.prefetch.around"}, new: []string{"prefetch.history.window.before", "prefetch.history.window.after"},
+		note: "the commits on each side of the cursor",
+		move: func(v map[string]*yaml.Node) (map[string]*yaml.Node, error) {
+			n := v["history.prefetch.around"]
+			return map[string]*yaml.Node{"prefetch.history.window.before": n, "prefetch.history.window.after": n}, nil
+		},
+	},
+	restRename("history.prefetch.hover_delay", "prefetch.history.rest"),
 }
 
 // renameTo moves the value of the setting from to the setting to.

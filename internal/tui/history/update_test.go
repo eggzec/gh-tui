@@ -9,6 +9,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	historysvc "github.com/eggzec/gh-tui/internal/service/history"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
@@ -251,30 +252,36 @@ func TestPrefetchedCommitShowsAtOnce(t *testing.T) {
 	m, h := newModal(t, f, 108, 30)
 	f.took()
 	// The commit after the cursor was read ahead, so moving there shows
-	// its detail before the cursor rests.
+	// its detail before the cursor rests, and resting there reads only
+	// the commit that the window reaches now, the fourth after it.
 	h.skip = isRest
 	h.keys("j")
 	if !m.commit.loaded || m.commit.c.SHA != main1 {
 		t.Fatalf("commit pane shows %q, loaded %v; want the next commit at once", short(m.commit.c.SHA), m.commit.loaded)
 	}
-	if got := f.took(); len(got) != 0 {
-		t.Errorf("calls = %q, want none", got)
-	}
-	// Resting there reads one more ahead, the fourth after it.
-	h.skip = nil
-	h.run(m.Update(restMsg{id: m.id, seq: m.seq}))
 	if got, want := f.took(), commitCalls(sha("main", 4)); !slices.Equal(got, want) {
 		t.Errorf("calls = %q, want %q", got, want)
+	}
+	h.skip = nil
+	h.run(m.Update(restMsg{id: m.id, seq: m.seq}))
+	if got := f.took(); len(got) != 0 {
+		t.Errorf("calls = %q, want none", got)
 	}
 }
 
 func TestAroundIsConfigured(t *testing.T) {
-	f := newFake()
-	cfg := testConfig()
-	cfg.Prefetch.Around = 0
-	_, _ = newModal(t, f, 108, 30, WithConfig(cfg))
-	if got, want := f.took(), append([]string{"branches", "commits main"}, commitCalls(main0)...); !slices.Equal(got, want) {
-		t.Errorf("calls = %q, want only the commit under the cursor, %q", got, want)
+	for name, edit := range map[string]func(p *config.PrefetchLayers){
+		"no window": func(p *config.PrefetchLayers) { p.History.Window = config.Span{Before: new(0), After: new(0)} },
+		"off":       func(p *config.PrefetchLayers) { p.History.Commits.Enabled = new(false) },
+		"all off":   func(p *config.PrefetchLayers) { p.Enabled = false },
+	} {
+		t.Run(name, func(t *testing.T) {
+			f := newFake()
+			_, _ = newModal(t, f, 108, 30, testPrefetch(edit))
+			if got, want := f.took(), append([]string{"branches", "commits main"}, commitCalls(main0)...); !slices.Equal(got, want) {
+				t.Errorf("calls = %q, want only the commit under the cursor, %q", got, want)
+			}
+		})
 	}
 }
 
@@ -385,6 +392,28 @@ func TestCompareOnlyTheBranchUnderTheCursor(t *testing.T) {
 	h.keys("j", "k")
 	if got := f.took(); !slices.Equal(got, []string{"compare v2-exp"}) {
 		t.Errorf("calls = %q, want v2-exp compared alone", got)
+	}
+}
+
+func TestCompareAroundIsConfigured(t *testing.T) {
+	f := newFake()
+	m, h := newModal(t, f, 108, 30, testPrefetch(func(p *config.PrefetchLayers) {
+		p.History.Branches.Window = config.Span{Before: new(0), After: new(1)}
+	}))
+	// The branch after the cursor is compared ahead, so moving there shows
+	// it at once; main, under the cursor, isn't compared with itself.
+	if got := f.took(); !slices.Contains(got, "compare fix/tabs") {
+		t.Errorf("calls = %q, want fix/tabs compared ahead", got)
+	}
+	h.keys("esc")
+	for _, br := range []string{"fix/tabs", "v2-exp"} {
+		h.keys("j")
+		if _, ok := m.branches.compares[br]; !ok {
+			t.Errorf("%s shows no comparison", br)
+		}
+		if got, want := f.took(), []string{"compare v2-exp"}; br == "fix/tabs" && !slices.Equal(got, want) || br == "v2-exp" && len(got) != 0 {
+			t.Errorf("on %s: calls = %q, want only v2-exp compared ahead, once", br, got)
+		}
 	}
 }
 
