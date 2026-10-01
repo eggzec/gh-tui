@@ -13,6 +13,7 @@ import (
 	"github.com/alecthomas/chroma/v2/lexers"
 
 	"github.com/eggzec/gh-tui/pkg/syntax"
+	"github.com/eggzec/gh-tui/pkg/syntax/syntaxtest"
 )
 
 // spy is a lexer that never finishes, as JSONata's and Jungle's don't on
@@ -126,6 +127,7 @@ func TestUpdateNeverReachesChroma(t *testing.T) {
 // A file whose lexer never finishes, by its name or by a guess, shows at
 // once and plain, its command ends at once, and nothing is left running.
 func TestHostileFilesStayPlain(t *testing.T) {
+	syntaxtest.Use(t, nil)
 	s := registerSpy(t)
 	before := runtime.NumGoroutine()
 	for _, name := range []string{"a.jsonata", "a.jungle", "a.spy", "notes", "notes.txt"} {

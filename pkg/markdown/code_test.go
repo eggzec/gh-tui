@@ -12,6 +12,8 @@ import (
 	"github.com/alecthomas/chroma/v2"
 	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/eggzec/gh-tui/pkg/syntax/syntaxtest"
 )
 
 // settle waits a while for the goroutines to come down to n, and returns
@@ -28,6 +30,7 @@ func settle(n int) int {
 // fence in markdown, never reaches the lexers that never finish, at any
 // width.
 func TestDelegatedCodeRendersQuickly(t *testing.T) {
+	wallClock(t)
 	for name, src := range map[string]string{
 		"markdown":   "~~~markdown\n```jsonata\n\\\n```\n~~~",
 		"postgresql": "```postgresql\nDO LANGUAGE jsonata $$\\$$;\n```",
@@ -192,6 +195,7 @@ func TestHighlightedCodeFitsTheWidth(t *testing.T) {
 // Code a lexer never finishes on renders quickly in any container, at
 // any width, and leaves nothing running.
 func TestContainedCodeRendersQuickly(t *testing.T) {
+	wallClock(t)
 	for _, lang := range []string{"jsonata", "jungle"} {
 		for name, src := range shapes(lang, `\`) {
 			t.Run(lang+"/"+name, func(t *testing.T) {
@@ -232,6 +236,7 @@ func (l *stuck) Tokenise(*chroma.TokeniseOptions, string) (chroma.Iterator, erro
 // A lexer that overruns goes on alone: while it runs, code shows plain
 // without another starting, and the code it overran on stays plain.
 func TestOverrunLexerRunsAlone(t *testing.T) {
+	wallClock(t)
 	idle(t)
 	before := runtime.NumGoroutine()
 	l := &stuck{Lexer: lexers.Get("go"), release: make(chan struct{}), entered: make(chan struct{})}
@@ -261,6 +266,9 @@ func TestOverrunLexerRunsAlone(t *testing.T) {
 	// Another goroutine may have ended first, while the lexer's still
 	// held its token.
 	idle(t)
+	// Nothing overruns from here on, so other code highlights on a busy
+	// machine too.
+	syntaxtest.Use(t, syntaxtest.Stopped{})
 	if _, ok := tokens(l, overran, newBudget()); ok {
 		t.Error("the code the lexer overran on highlights")
 	}
@@ -277,15 +285,25 @@ func TestOverrunLexerRunsAlone(t *testing.T) {
 func TestHighlightingIsBounded(t *testing.T) {
 	idle(t)
 	golang := lexer("go", "x := 1")
-	b := &budget{time: time.Hour, blocks: maxHighlightedBlocks}
-	n := 0
-	for range 2 * maxHighlightedBlocks {
-		if _, ok := tokens(golang, "x := 1", b); ok {
-			n++
+	count := func(b *budget) int {
+		n := 0
+		for range 2 * maxHighlightedBlocks {
+			if _, ok := tokens(golang, "x := 1", b); ok {
+				n++
+			}
 		}
+		return n
 	}
-	if n != maxHighlightedBlocks {
+	if n := count(newBudget()); n != maxHighlightedBlocks {
 		t.Errorf("%d blocks are highlighted, want %d", n, maxHighlightedBlocks)
+	}
+	// Each block takes 30ms, so the time runs out in the fourth. This
+	// checks what the render counts of the time lexers took, not that a
+	// lexer is cut short when the time left runs out: the stepping
+	// clock's After never fires.
+	syntaxtest.Use(t, &syntaxtest.Stepping{Step: 30 * time.Millisecond})
+	if n := count(newBudget()); n != 4 {
+		t.Errorf("%d blocks of 30ms are highlighted in %v, want 4", n, renderLexLimit)
 	}
 	if _, ok := tokens(golang, "x := 1", &budget{blocks: 1}); ok {
 		t.Error("a block past the time a render has is highlighted")
