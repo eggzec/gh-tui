@@ -27,7 +27,7 @@ type HeaderQuery struct {
 }
 
 // Header returns the viewer's profile, pinned repositories and
-// organizations. It is fresh for HeaderTTL. A header an earlier session
+// organizations. It is fresh for TTLs.Header. A header an earlier session
 // kept comes back at once with Stale set once that has passed, until a
 // read with q.Again set fetches it; if GitHub can't be reached, the last
 // one is served with Offline set.

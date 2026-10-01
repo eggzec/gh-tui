@@ -31,7 +31,7 @@ func TestTags(t *testing.T) {
 func TestStartup(t *testing.T) {
 	for key, want := range map[string]string{
 		"repos":                          "the pinned repositories are read at startup",
-		"cache.ttl":                      "the cache is opened at startup",
+		"cache.ttl.pulls":                "the cache is opened at startup",
 		"cache.disk.dir":                 "the cache is opened at startup",
 		"sync.enabled":                   "the polls are set up at startup",
 		"sync.poll.lists":                "",
@@ -59,8 +59,9 @@ func TestGlobal(t *testing.T) {
 		"keys.quit": true, "themes.dusk.dark.accent": true, "log.level.x": true, "theme.x": false,
 		"log": true, "log.level": true, "log.file": true,
 		"cache.disk.dir": true, "cache.disk.max_size": true, "cache.disk.compression": true, "cache.disk.compression_level": true,
-		"theme": false, "ui": false, "repos": false, "cache": false, "cache.ttl": false,
-		"cache.disk.enabled": false, "cache.disk.entries": false, "cache.revalidate.budget": false,
+		"cache.memory": true, "cache.memory.entries": true, "cache.memory.logs": true,
+		"theme": false, "ui": false, "repos": false, "cache": false, "cache.ttl.pulls": false,
+		"cache.disk.enabled": false, "cache.disk.entries": false, "cache.revalidate.per_minute": false,
 		"sync.poll.lists": false, "prefetch.window.after": false, "nope": false,
 	} {
 		if got := Global(key); got != want {

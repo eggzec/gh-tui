@@ -69,7 +69,7 @@ func TestFetchCounts(t *testing.T) {
 func TestFetchCountsShared(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		s := freshStats(t)
-		c := New[int]()
+		c := New[int](WithTTL(time.Minute))
 		release := make(chan struct{})
 		for range 2 {
 			go func() {
@@ -91,7 +91,7 @@ func TestFetchLogsAtDebug(t *testing.T) {
 	slog.SetDefault(obs.NewLogger(&buf, slog.LevelDebug, "s_test"))
 	t.Cleanup(func() { slog.SetDefault(prev) })
 
-	c := New[int]()
+	c := New[int](WithTTL(time.Minute))
 	ctx := obs.WithTrace(t.Context(), "open.pull")
 	for range 2 {
 		if _, err := c.Fetch(ctx, "pull:cli/cli#1", value(1, new(atomic.Int32))); err != nil {
@@ -114,7 +114,7 @@ func TestWarmCountsStaleServed(t *testing.T) {
 	if err := shelf.Save("pulls:a", Entry[int]{Value: 1, FetchedAt: time.Now().Add(-time.Hour)}); err != nil {
 		t.Fatal(err)
 	}
-	c := New[int]()
+	c := New[int](WithTTL(time.Minute))
 	// Two readers are served the kept entry, which counts once.
 	for range 2 {
 		if _, ok := shelf.Warm(c, "pulls:a", false); !ok {
@@ -151,7 +151,7 @@ func TestWarmLogsDiskReadsOnly(t *testing.T) {
 		if err := shelf.Save("pulls:a", Entry[int]{Value: 1, FetchedAt: time.Now().Add(-time.Hour)}); err != nil {
 			t.Fatal(err)
 		}
-		c := New[int]()
+		c := New[int](WithTTL(time.Minute))
 		for range 3 {
 			shelf.Warm(c, "pulls:a", again)
 		}

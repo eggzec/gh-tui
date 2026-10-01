@@ -63,7 +63,7 @@ type Store struct {
 
 // Open returns the store in dir, creating the directory if needed.
 func Open(dir string, opts ...Option) (*Store, error) {
-	o := options{maxSize: DefaultMaxSize, level: gzip.DefaultCompression}
+	o := options{level: gzip.DefaultCompression}
 	for _, opt := range opts {
 		opt(&o)
 	}

@@ -62,6 +62,7 @@ func (s *Service) Kept() []revalidate.Entry {
 			Repo:      repo,
 			UsedAt:    usedAt,
 			CheckedAt: r.CheckedAt,
+			FreshFor:  s.ttl,
 			Check: func(ctx context.Context) revalidate.Result {
 				return s.recheckRef(ctx, q, l, r)
 			},

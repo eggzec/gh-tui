@@ -62,13 +62,13 @@ func TestConfigCommand(t *testing.T) {
 		"# file: ",
 		"# account: octocat@github.com",
 		"icons: ascii # config.yaml:2",
-		"ttl: 5m ",
+		"pulls: 5m ",
 	} {
 		if !strings.Contains(text, want) {
 			t.Errorf("the config lacks %q:\n%s", want, text)
 		}
 	}
-	if strings.Contains(text, "ttl: 5m #") {
+	if strings.Contains(text, "pulls: 5m #") {
 		t.Errorf("a default has a comment:\n%s", text)
 	}
 	// What lies below the screen is in the pager, a search away.

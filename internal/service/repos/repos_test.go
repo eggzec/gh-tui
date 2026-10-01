@@ -11,6 +11,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
 )
@@ -271,17 +272,17 @@ func TestGetFreshAndStale(t *testing.T) {
 			t.Errorf("CachedGet(%v) = %+v, %v; want v1", upper, got, ok)
 		}
 
-		// The TTL of the service is shorter than DetailTTL, which Get keeps
-		// to.
+		// The TTL of the lists is shorter than that of a repository, which
+		// Get keeps to.
 		desc = "v2"
 		time.Sleep(time.Minute)
 		if _, err := s.Get(t.Context(), ghTUI.Ref); err != nil {
 			t.Fatal(err)
 		}
 		api.wantCalls(t, "get eggzec/gh-tui")
-		time.Sleep(DetailTTL)
+		time.Sleep(config.Default().Cache.TTL.RepoInfo)
 		if s.FreshGet(ghTUI.Ref) {
-			t.Error("FreshGet past DetailTTL")
+			t.Error("FreshGet past its TTL")
 		}
 		if got, ok := s.CachedGet(ghTUI.Ref); !ok || got.Description != "v1" {
 			t.Errorf("stale CachedGet = %+v, %v; want v1", got, ok)

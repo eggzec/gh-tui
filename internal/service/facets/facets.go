@@ -5,12 +5,14 @@
 package facets
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/cache"
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
 )
@@ -32,25 +34,46 @@ type Service struct {
 }
 
 // Option configures a Service.
-type Option func(*[]cache.Option)
+type Option func(*options)
 
-// WithTTL sets how long what was read stays fresh. The default is
-// cache.DefaultTTL.
+type options struct {
+	ttl      time.Duration
+	capacity int
+}
+
+// WithTTL sets how long what was read stays fresh. Without it, or with d
+// at or below zero, it is the default of the config (config.Default).
 func WithTTL(d time.Duration) Option {
-	return func(o *[]cache.Option) { *o = append(*o, cache.WithTTL(d)) }
+	return func(o *options) {
+		if d > 0 {
+			o.ttl = d
+		}
+	}
+}
+
+// WithCapacity sets how many lists of labels, of milestones and of people
+// are each kept. Without it, or with n below one, it is the default of the config (config.Default).
+func WithCapacity(n int) Option {
+	return func(o *options) {
+		if n > 0 {
+			o.capacity = n
+		}
+	}
 }
 
 // New returns a service that reads from api.
 func New(api API, opts ...Option) *Service {
-	var o []cache.Option
+	var o options
 	for _, opt := range opts {
 		opt(&o)
 	}
+	d := config.Default().Cache
+	mem := []cache.Option{cache.WithTTL(cmp.Or(o.ttl, d.TTL.Filters)), cache.WithCapacity(cmp.Or(o.capacity, d.Memory.Entries))}
 	return &Service{
 		api:        api,
-		labels:     cache.New[[]core.Label](o...),
-		milestones: cache.New[[]core.Milestone](o...),
-		people:     cache.New[[]core.User](o...),
+		labels:     cache.New[[]core.Label](mem...),
+		milestones: cache.New[[]core.Milestone](mem...),
+		people:     cache.New[[]core.User](mem...),
 	}
 }
 

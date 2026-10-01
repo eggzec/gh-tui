@@ -122,7 +122,7 @@ func TestLoadMergesOverDefaults(t *testing.T) {
 			file: "partial.yaml",
 			want: func(c *Config) {
 				c.Keys[ActionQuit] = []string{"x"}
-				c.Cache.TTL = 10 * time.Minute
+				c.Cache.TTL.Pulls = 10 * time.Minute
 				c.Prefetch.Pulls.Window.After = new(3)
 			},
 		},
@@ -143,10 +143,22 @@ func TestLoadMergesOverDefaults(t *testing.T) {
 				}
 				c.Keys[ActionQuit] = []string{"x"}
 				c.Keys[ActionSearch] = []string{"/", "ctrl+f"}
-				c.Cache = Cache{TTL: 30 * time.Second, Disk: Disk{
-					Enabled: false, Dir: "/var/cache/gh-tui", MaxSize: GiB,
-					Compression: CompressionNone, CompressionLevel: LevelBest,
-				}, Revalidate: Revalidate{Enabled: false, Interval: 5 * time.Minute, Budget: 30, Scope: ScopeAll}}
+				c.Cache = Cache{
+					TTL: TTL{
+						Pulls: time.Minute, Issues: 2 * time.Minute, Notifications: 3 * time.Minute, Repos: 4 * time.Minute,
+						DashboardRepos: 30 * time.Minute, WaitingOnYou: 6 * time.Minute, RepoInfo: 2 * time.Hour,
+						Files: 7 * time.Minute, History: 8 * time.Minute, Compare: time.Minute,
+						Actions: 9 * time.Minute, ActionsRunning: 20 * time.Second, Filters: 10 * time.Minute,
+						Search: 40 * time.Second, CodeSearch: 2 * time.Minute, Releases: 3 * time.Hour,
+						Profile: 4 * time.Hour, Contributions: 12 * time.Hour,
+					},
+					Memory: Memory{Entries: 512, Files: 16 * MiB, Diffs: 8 * MiB, Logs: 128 * MiB},
+					Disk: Disk{
+						Enabled: false, Dir: "/var/cache/gh-tui", MaxSize: GiB,
+						Compression: CompressionNone, CompressionLevel: LevelBest,
+					},
+					Revalidate: Revalidate{Enabled: false, Interval: 5 * time.Minute, PerMinute: 30, Scope: ScopeAll, Recent: 24 * time.Hour},
+				}
 				c.Sync = Sync{
 					Enabled:           false,
 					Poll:              Poll{Notifications: 2 * time.Minute, Lists: 3 * time.Minute, Actions: 20 * time.Second, Checks: 30 * time.Second},
@@ -202,7 +214,7 @@ func TestLoadErrors(t *testing.T) {
 	}{
 		{"unknown_field.yaml", []string{"line 3: unknown setting cache.size"}},
 		{"malformed.yaml", []string{"malformed.yaml", "line 3"}},
-		{"invalid.yaml", []string{"repos[0]", "theme:", "keys.quit", "cache.ttl", "cache.disk.compression", "sync.poll.lists: must be at least 10s, got 1s"}},
+		{"invalid.yaml", []string{"repos[0]", "theme:", "keys.quit", "cache.ttl.pulls: must be positive", "cache.disk.compression", "sync.poll.lists: must be at least 10s, got 1s"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.file, func(t *testing.T) {
@@ -227,9 +239,10 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 	cfg.Keys[ActionHelp] = nil
 	cfg.Keys[ActionSearch] = []string{""}
 	cfg.Keys["jump"] = []string{"j"}
-	cfg.Cache.TTL = 0
+	cfg.Cache.TTL.Pulls = 0
+	cfg.Cache.Memory.Entries = 0
 	cfg.Cache.Disk = Disk{Dir: "cache", MaxSize: MiB, Compression: "zip", CompressionLevel: "9"}
-	cfg.Cache.Revalidate = Revalidate{Interval: time.Second, Budget: 0, Scope: "some"}
+	cfg.Cache.Revalidate = Revalidate{Interval: time.Second, PerMinute: 0, Scope: "some"}
 	cfg.Sync.Poll.Checks = -time.Second
 	cfg.Sync.UnfocusedSlowdown = 0
 	cfg.Files.Preview.MaxSize = 32 * KiB
@@ -264,14 +277,16 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 		`keys.help: needs at least one key`,
 		`keys.jump: unknown action`,
 		`keys.search: empty key`,
-		`cache.ttl: must be positive, got 0s`,
+		`cache.ttl.pulls: must be positive, got 0s`,
+		`cache.memory.entries: must be at least 1, got 0`,
 		`cache.disk.max_size: must be at least 8MiB, got 1MiB`,
 		`cache.disk.dir: must be an absolute path, got "cache"`,
 		`cache.disk.compression: must be gzip or none, got "zip"`,
 		`cache.disk.compression_level: must be fastest, default or best, got "9"`,
 		`cache.revalidate.interval: must be at least 10s, got 1s`,
-		`cache.revalidate.budget: must be between 1 and 300, got 0`,
+		`cache.revalidate.per_minute: must be between 1 and 300, got 0`,
 		`cache.revalidate.scope: must be recent or all, got "some"`,
+		`cache.revalidate.recent: must be positive, got 0s`,
 		`sync.poll.checks: must be at least 10s, got -1s`,
 		`sync.unfocused_slowdown: must be between 1 and 60, got 0`,
 		`prefetch.files.preview.max_size: must be between 0B and files.preview.max_size (32KiB), got 64KiB`,

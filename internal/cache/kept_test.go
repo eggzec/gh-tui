@@ -238,7 +238,7 @@ func TestRecheck(t *testing.T) {
 			if !tt.noKept {
 				_ = s.Save("k", kept)
 			}
-			c := New[page]()
+			c := New[page](WithTTL(time.Minute))
 			if tt.cached != nil {
 				c.Set("k", *tt.cached)
 				if tt.stale {
@@ -285,7 +285,7 @@ func TestRecheckError(t *testing.T) {
 		t.Run(strconv.FormatBool(cached), func(t *testing.T) {
 			s := NewShelf[page](newMemCatalog(), "page", 1)
 			_ = s.Save("k", Entry[page]{ETag: `"v1"`, FetchedAt: time.Now().Add(-time.Hour)})
-			c := New[page]()
+			c := New[page](WithTTL(time.Minute))
 			if cached {
 				s.Warm(c, "k", false)
 			}
@@ -296,7 +296,7 @@ func TestRecheckError(t *testing.T) {
 		})
 	}
 	var none *Shelf[page]
-	if _, got, err := none.Recheck(t.Context(), New[page](), "k", (&answer{}).fetch); got != RecheckSkipped || err != nil {
+	if _, got, err := none.Recheck(t.Context(), New[page](WithTTL(time.Minute)), "k", (&answer{}).fetch); got != RecheckSkipped || err != nil {
 		t.Errorf("Recheck of a nil shelf = %v, %v", got, err)
 	}
 }
@@ -304,7 +304,7 @@ func TestRecheckError(t *testing.T) {
 func TestRecheckJoinsFetch(t *testing.T) {
 	s := NewShelf[page](newMemCatalog(), "page", 1)
 	_ = s.Save("k", Entry[page]{ETag: `"v1"`, FetchedAt: time.Now().Add(-time.Hour)})
-	c := New[page]()
+	c := New[page](WithTTL(time.Minute))
 	s.Warm(c, "k", false)
 	started, release := make(chan struct{}), make(chan struct{})
 	done := make(chan struct{})

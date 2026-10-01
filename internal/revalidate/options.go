@@ -4,18 +4,29 @@ import "time"
 
 // Defaults used when no option overrides them.
 const (
-	DefaultInterval    = 2 * time.Minute
-	DefaultBudget      = 60
 	DefaultConcurrency = 2
-	// DefaultRecent is how recently an entry must have been used for
-	// ScopeRecent to check it.
-	DefaultRecent = 7 * 24 * time.Hour
 	// DefaultStartDelay leaves the first reads of a session to the views,
 	// which revalidate what they show, so the first pass finds those
 	// entries current and doesn't ask GitHub about them twice.
 	DefaultStartDelay = 2 * time.Second
 	DefaultMaxBackoff = 10 * time.Minute
 )
+
+// Settings are what a Revalidator is told by the code that makes it, from
+// the user's config. It has no defaults for them.
+type Settings struct {
+	// Interval is how long after a pass ends the next one starts. One
+	// below a second counts as a second, so that passes never spin.
+	Interval time.Duration
+	// PerMinute is how many requests the revalidator sends in any minute
+	// at most. A pass checks at most as many entries as that allows in an
+	// interval, and leaves the rest to the passes after. Values below 1
+	// count as 1.
+	PerMinute int
+	// Recent is how recently an entry must have been used for ScopeRecent
+	// to check it. Zero leaves only the entries of the selected repository.
+	Recent time.Duration
+}
 
 // Scope selects the entries a pass checks.
 type Scope int
@@ -31,12 +42,9 @@ const (
 )
 
 type config struct {
-	interval    time.Duration
-	budget      int
+	Settings
 	concurrency int
 	scope       Scope
-	recent      time.Duration
-	freshFor    time.Duration
 	idle        int
 	startDelay  time.Duration
 	maxBackoff  time.Duration
@@ -46,28 +54,6 @@ type config struct {
 
 // Option configures a Revalidator.
 type Option func(*config)
-
-// WithInterval sets how long after a pass ends the next one starts. The
-// default is DefaultInterval. Values <= 0 are ignored.
-func WithInterval(d time.Duration) Option {
-	return func(c *config) {
-		if d > 0 {
-			c.interval = d
-		}
-	}
-}
-
-// WithBudget sets how many requests the revalidator sends in any minute at
-// most. A pass checks at most as many entries as the budget allows in an
-// interval, and leaves the rest to the passes after. The default is
-// DefaultBudget. Values < 1 are ignored.
-func WithBudget(n int) Option {
-	return func(c *config) {
-		if n >= 1 {
-			c.budget = n
-		}
-	}
-}
 
 // WithConcurrency sets how many requests are in flight at most. The
 // default is DefaultConcurrency. Values < 1 are ignored.
@@ -82,28 +68,6 @@ func WithConcurrency(n int) Option {
 // WithScope sets which entries a pass checks. The default is ScopeRecent.
 func WithScope(s Scope) Option {
 	return func(c *config) { c.scope = s }
-}
-
-// WithRecent sets how recently an entry must have been used for
-// ScopeRecent to check it. The default is DefaultRecent. Values <= 0 are
-// ignored.
-func WithRecent(d time.Duration) Option {
-	return func(c *config) {
-		if d > 0 {
-			c.recent = d
-		}
-	}
-}
-
-// WithFreshFor sets how long after it was fetched or found current an
-// entry is left alone, such as the TTL of the cache. The default is
-// DefaultInterval. Values <= 0 are ignored.
-func WithFreshFor(d time.Duration) Option {
-	return func(c *config) {
-		if d > 0 {
-			c.freshFor = d
-		}
-	}
 }
 
 // WithIdleMultiplier sets the factor that intervals are multiplied, and the

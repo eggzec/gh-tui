@@ -96,6 +96,11 @@ type Entry struct {
 	// last fetched or found current.
 	UsedAt    time.Time
 	CheckedAt time.Time
+	// FreshFor is how long after it was fetched or found current the
+	// entry is left alone, such as the TTL of its cache, since a read
+	// wouldn't ask GitHub about it either. A source must set it: zero
+	// leaves the entry due on every pass.
+	FreshFor time.Duration
 	// Check sends the conditional request and stores what it brings. It
 	// is called in the revalidator's goroutines, a few at once.
 	Check func(ctx context.Context) Result
@@ -120,22 +125,21 @@ type Revalidator struct {
 	repo   core.RepoRef
 	active bool
 	ran    bool
-	// checked holds when this revalidator last found each entry current,
-	// by ID, in case its source can't tell yet.
+	// checked holds until when each entry this revalidator found current
+	// stays fresh, by ID, in case its source can't tell yet.
 	checked map[string]time.Time
 	// pending holds the sync keys of changes not yet published.
 	pending map[string]bool
 }
 
-// New returns an active revalidator of the entries of sources. It checks
-// nothing until Run is called.
-func New(sources []Source, opts ...Option) *Revalidator {
+// New returns an active revalidator of the entries of sources, as s says.
+// It checks nothing until Run is called.
+func New(sources []Source, s Settings, opts ...Option) *Revalidator {
+	s.Interval = max(s.Interval, time.Second)
+	s.PerMinute = max(1, s.PerMinute)
 	cfg := config{
-		interval:    DefaultInterval,
-		budget:      DefaultBudget,
+		Settings:    s,
 		concurrency: DefaultConcurrency,
-		recent:      DefaultRecent,
-		freshFor:    DefaultInterval,
 		idle:        1,
 		startDelay:  DefaultStartDelay,
 		maxBackoff:  DefaultMaxBackoff,
@@ -256,7 +260,7 @@ func (r *Revalidator) Run(ctx context.Context) error {
 // delay returns how long to wait for the next pass after offline passes in
 // a row that found GitHub unreachable.
 func (r *Revalidator) delay(offline int) time.Duration {
-	d := r.cfg.interval
+	d := r.cfg.Interval
 	limit := max(r.cfg.maxBackoff, d)
 	for range offline {
 		if d >= limit {
@@ -274,9 +278,9 @@ func (r *Revalidator) delay(offline int) time.Duration {
 // limit returns how many requests a minute may bring now.
 func (r *Revalidator) limit() int {
 	if r.isActive() {
-		return r.cfg.budget
+		return r.cfg.PerMinute
 	}
-	return max(1, r.cfg.budget/r.cfg.idle)
+	return max(1, r.cfg.PerMinute/r.cfg.idle)
 }
 
 func (r *Revalidator) isActive() bool {

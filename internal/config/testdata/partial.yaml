@@ -2,7 +2,8 @@
 keys:
   quit: [x]
 cache:
-  ttl: 10m
+  ttl:
+    pulls: 10m
 prefetch:
   pulls:
     window: {after: 3}

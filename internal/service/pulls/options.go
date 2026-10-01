@@ -10,21 +10,22 @@ import (
 type Option func(*options)
 
 type options struct {
-	cache []cache.Option
-	store cache.Store
-	ttl   time.Duration
+	store    cache.Store
+	ttl      time.Duration
+	capacity int
 	// pageSize is that of a page whose query sets none.
 	pageSize int
 	access   Access
 	repos    Repos
 }
 
-// WithTTL sets how long fetched pull requests stay fresh. The default is
-// cache.DefaultTTL.
+// WithTTL sets how long fetched pull requests stay fresh. Without it, or
+// with d at or below zero, it is the default of the config (config.Default).
 func WithTTL(d time.Duration) Option {
 	return func(o *options) {
-		o.cache = append(o.cache, cache.WithTTL(d))
-		o.ttl = d
+		if d > 0 {
+			o.ttl = d
+		}
 	}
 }
 
@@ -40,10 +41,14 @@ func WithPageSize(n int) Option {
 }
 
 // WithCapacity sets how many entries each of the service's caches keeps:
-// list pages, pull request details, comment pages and review pages. The
-// default is cache.DefaultCapacity.
+// list pages, pull request details, comment pages and review pages.
+// Without it, or with n below one, it is the default of the config (config.Default).
 func WithCapacity(n int) Option {
-	return func(o *options) { o.cache = append(o.cache, cache.WithCapacity(n)) }
+	return func(o *options) {
+		if n > 0 {
+			o.capacity = n
+		}
+	}
 }
 
 // WithStore keeps list pages, details and comment pages in store as well as

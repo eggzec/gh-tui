@@ -10,6 +10,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/cache/cachetest"
 	"github.com/eggzec/gh-tui/internal/cache/disk"
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
 )
@@ -108,7 +109,7 @@ func TestKeptRepo(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// A new session within DetailTTL reads the kept repository without a
+	// A new session within its TTL reads the kept repository without a
 	// request.
 	api = &fakeAPI{t: t}
 	if got, err := New(api, WithStore(store)).Get(t.Context(), ghTUI.Ref); err != nil || got != caps {
@@ -120,14 +121,14 @@ func TestKeptRepo(t *testing.T) {
 	// reached.
 	offline := fmt.Errorf("%w: %w", core.ErrOffline, &url.Error{Op: "Post", URL: "https://api.github.com/graphql", Err: errors.New("refused")})
 	api = &fakeAPI{t: t, getRepo: func(core.RepoRef) (core.Repo, error) { return core.Repo{}, offline }}
-	if got, err := New(api, WithStore(cachetest.Aged(store, 2*DetailTTL))).Get(t.Context(), ghTUI.Ref); err != nil || got != caps {
+	if got, err := New(api, WithStore(cachetest.Aged(store, 2*config.Default().Cache.TTL.RepoInfo))).Get(t.Context(), ghTUI.Ref); err != nil || got != caps {
 		t.Errorf("Get offline = %+v, %v; want the kept repository", got, err)
 	}
 	api.wantCalls(t, "get eggzec/gh-tui")
 
 	// A refusal drops it.
 	api = &fakeAPI{t: t, getRepo: func(core.RepoRef) (core.Repo, error) { return core.Repo{}, &github.Error{StatusCode: 404} }}
-	if _, err := New(api, WithStore(cachetest.Aged(store, 2*DetailTTL))).Get(t.Context(), ghTUI.Ref); err == nil {
+	if _, err := New(api, WithStore(cachetest.Aged(store, 2*config.Default().Cache.TTL.RepoInfo))).Get(t.Context(), ghTUI.Ref); err == nil {
 		t.Error("Get after a refusal succeeded")
 	}
 	api = &fakeAPI{t: t, getRepo: func(core.RepoRef) (core.Repo, error) { return ghTUI, nil }}

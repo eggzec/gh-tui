@@ -78,7 +78,7 @@ func TestLayersYAML(t *testing.T) {
 		`editor: ""`,
 		"ui:",
 		"icons: unicode # session (:set)",
-		"ttl: 5m",
+		"pulls: 5m",
 		"row: [short_sha, subject] # config.yaml:7",
 		"level: debug # --debug, GH_DEBUG or GH_TUI_LOG",
 		"keys:",

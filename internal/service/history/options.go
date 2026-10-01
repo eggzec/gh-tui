@@ -6,17 +6,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/cache"
 )
 
-// Defaults used when no option overrides them.
-const (
-	// DefaultCompareTTL is how long a comparison stays fresh. Refs move
-	// more often than lists change, and a revalidation is free.
-	DefaultCompareTTL = 30 * time.Second
-	// DefaultDiffMemory bounds the memory that the changes of commits
-	// take, separately for details and for later pages of files: a large
-	// commit's patches may take megabytes.
-	DefaultDiffMemory = 32 << 20
-)
-
 // Option configures a Service.
 type Option func(*options)
 
@@ -43,14 +32,21 @@ func WithCommitPageSize(n int) Option {
 }
 
 // WithTTL sets how long branches and the first pages of commits of a ref
-// stay fresh before a read asks GitHub whether they changed. The default
-// is cache.DefaultTTL. What a SHA names never goes stale.
+// stay fresh before a read asks GitHub whether they changed. What a SHA
+// names never goes stale. Without it, or with d at or below zero, it is
+// the default of the config (config.Default).
 func WithTTL(d time.Duration) Option {
-	return func(o *options) { o.ttl = d }
+	return func(o *options) {
+		if d > 0 {
+			o.ttl = d
+		}
+	}
 }
 
-// WithCompareTTL sets how long a comparison stays fresh. The default is
-// DefaultCompareTTL.
+// WithCompareTTL sets how long a comparison stays fresh. Refs move more
+// often than lists change, and a revalidation is free, so it is usually
+// shorter than the TTL. Without it, or with d at or below zero, it is the
+// default of the config (config.Default).
 func WithCompareTTL(d time.Duration) Option {
 	return func(o *options) {
 		if d > 0 {
@@ -59,15 +55,22 @@ func WithCompareTTL(d time.Duration) Option {
 	}
 }
 
-// WithCapacity sets how many pages of branches, of commits and
-// comparisons are each kept in memory. The default is
-// cache.DefaultCapacity.
+// WithCapacity sets how many pages of branches, of commits and of the
+// files of commits, commits and comparisons are each kept in memory.
+// WithDiffMemory bounds the commits and their files too. Without it, or
+// with n below one, it is the default of the config (config.Default).
 func WithCapacity(n int) Option {
-	return func(o *options) { o.capacity = n }
+	return func(o *options) {
+		if n > 0 {
+			o.capacity = n
+		}
+	}
 }
 
 // WithDiffMemory sets the memory, in bytes, that the changes of commits
-// take. The default is DefaultDiffMemory. Values below 1 are ignored.
+// take, separately for details and for later pages of files: a large
+// commit's patches may take megabytes. Without it, or with n below one,
+// it is the default of the config (config.Default).
 func WithDiffMemory(n int64) Option {
 	return func(o *options) {
 		if n >= 1 {

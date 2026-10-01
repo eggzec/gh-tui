@@ -19,8 +19,8 @@ import (
 // isn't listed. It reads the store, so call it where I/O is fine.
 func (s *Service) Kept() []revalidate.Entry {
 	return slices.Concat(
-		recheck.Entries(s.keptBranches, kindBranches, s.branchesTarget),
-		recheck.Entries(s.keptRefPages, kindRefPages, s.refPageTarget),
+		recheck.Entries(s.keptBranches, kindBranches, s.ttl, s.branchesTarget),
+		recheck.Entries(s.keptRefPages, kindRefPages, s.ttl, s.refPageTarget),
 	)
 }
 

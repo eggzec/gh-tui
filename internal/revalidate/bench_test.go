@@ -21,7 +21,7 @@ func BenchmarkDue(b *testing.B) {
 			Check:  func(context.Context) Result { return Result{} },
 		}
 	}
-	r := New(nil)
+	r := New(nil, settings)
 	r.SetRepo(core.RepoRef{Owner: "octo", Name: "repo7"})
 	b.ReportAllocs()
 	for b.Loop() {

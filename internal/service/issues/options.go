@@ -10,12 +10,13 @@ import (
 type Option func(*options)
 
 type options struct {
-	cache  []cache.Option
-	viewer string
-	store  cache.Store
-	pulls  PullCache
-	access Access
-	repos  Repos
+	ttl      time.Duration
+	capacity int
+	viewer   string
+	store    cache.Store
+	pulls    PullCache
+	access   Access
+	repos    Repos
 	// pageSize is that of a page whose query sets none.
 	pageSize int
 }
@@ -32,15 +33,24 @@ func WithPageSize(n int) Option {
 }
 
 // WithTTL sets how long fetched issues count as fresh. Until then, reads
-// make no request. The default is cache.DefaultTTL.
+// make no request. Without it, or with d at or below zero, it is the
+// default of the config (config.Default).
 func WithTTL(d time.Duration) Option {
-	return func(o *options) { o.cache = append(o.cache, cache.WithTTL(d)) }
+	return func(o *options) {
+		if d > 0 {
+			o.ttl = d
+		}
+	}
 }
 
 // WithCapacity sets how many list pages, issues and comment pages are each
-// kept. The default is cache.DefaultCapacity.
+// kept. Without it, or with n below one, it is the default of the config (config.Default).
 func WithCapacity(n int) Option {
-	return func(o *options) { o.cache = append(o.cache, cache.WithCapacity(n)) }
+	return func(o *options) {
+		if n > 0 {
+			o.capacity = n
+		}
+	}
 }
 
 // WithViewer sets the login of the signed-in user, who is shown as the

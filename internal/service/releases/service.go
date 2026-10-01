@@ -5,6 +5,7 @@
 package releases
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"strconv"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/cache"
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
 	"github.com/eggzec/gh-tui/internal/service/fallback"
@@ -22,9 +24,6 @@ import (
 type API interface {
 	GetRelease(ctx context.Context, repo core.RepoRef, id int64, cond github.Conditional) (core.Release, github.Response, error)
 }
-
-// DefaultTTL is how long a release read stays fresh by default.
-const DefaultTTL = time.Hour
 
 // Service reads releases. It is safe for concurrent use.
 type Service struct {
@@ -38,14 +37,30 @@ type Service struct {
 type Option func(*options)
 
 type options struct {
-	cache []cache.Option
-	store cache.Store
+	ttl      time.Duration
+	capacity int
+	store    cache.Store
 }
 
-// WithTTL sets how long a release read stays fresh. The default is
-// DefaultTTL.
+// WithTTL sets how long a release read stays fresh. A release seldom
+// changes once published, so it is usually long. Without it, or with d at
+// or below zero, it is the default of the config (config.Default).
 func WithTTL(d time.Duration) Option {
-	return func(o *options) { o.cache = append(o.cache, cache.WithTTL(d)) }
+	return func(o *options) {
+		if d > 0 {
+			o.ttl = d
+		}
+	}
+}
+
+// WithCapacity sets how many releases are kept in memory. Without it, or
+// with n below one, it is the default of the config (config.Default).
+func WithCapacity(n int) Option {
+	return func(o *options) {
+		if n > 0 {
+			o.capacity = n
+		}
+	}
 }
 
 // WithStore keeps the releases read in store as well as in memory, so that
@@ -64,14 +79,18 @@ const (
 
 // New returns a service that reads releases through api.
 func New(api API, opts ...Option) *Service {
-	o := options{cache: []cache.Option{cache.WithTTL(DefaultTTL)}}
+	var o options
 	for _, opt := range opts {
 		opt(&o)
 	}
+	d := config.Default().Cache
 	return &Service{
-		api:   api,
-		cache: cache.New[core.Release](o.cache...),
-		kept:  cache.NewShelf[core.Release](o.store, kind, schema),
+		api: api,
+		cache: cache.New[core.Release](
+			cache.WithTTL(cmp.Or(o.ttl, d.TTL.Releases)),
+			cache.WithCapacity(cmp.Or(o.capacity, d.Memory.Entries)),
+		),
+		kept: cache.NewShelf[core.Release](o.store, kind, schema),
 	}
 }
 

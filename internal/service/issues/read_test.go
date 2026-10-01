@@ -10,12 +10,13 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
 )
 
 // pastTTL is long enough for a cached entry to go stale.
-const pastTTL = 2 * time.Minute
+var pastTTL = config.Default().Cache.TTL.Issues + time.Minute
 
 func TestListFreshHitMakesNoCall(t *testing.T) {
 	api := &fakeAPI{t: t, listIssues: func(core.StateFilter, string, int, github.Conditional) (core.Page[core.Issue], github.Response, error) {

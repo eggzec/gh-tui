@@ -38,23 +38,15 @@ internal/watch/options.go:DefaultMaxBackoff  keep: a safety mechanism, how far p
 internal/watch/options.go:DefaultMinInterval  keep: a bound, the engine's own floor under sync.poll
 
 # Caches.
-internal/cache/options.go:DefaultCapacity  move: cache.memory.entries
-internal/cache/options.go:DefaultTTL  move: cache.ttl.* (services are given their TTL; this fallback goes)
-internal/cache/disk/options.go:DefaultMaxSize  move: cache.disk.max_size (already a setting; this fallback goes)
 internal/cache/disk/collect.go:tmpMaxAge  keep: a safety mechanism, when a temporary file counts as abandoned
 internal/cache/disk/store.go:touchAfter  keep: a mechanism, how seldom a read marks an object used
 internal/cache/disk/store.go:logEvery  keep: a log throttle, one record of a failure per kind and operation a while
 internal/cache/shelf.go:shelfLogEvery  keep: a log throttle, one record of dropped entries per reason a while
-internal/revalidate/options.go:DefaultInterval  move: cache.revalidate.interval (already a setting; this fallback goes)
-internal/revalidate/options.go:DefaultBudget  move: cache.revalidate.budget (already a setting; this fallback goes)
-internal/revalidate/options.go:DefaultRecent  move: cache.revalidate.recent
 internal/revalidate/options.go:DefaultConcurrency  keep: a safety mechanism, checks at once under the secondary limits
 internal/revalidate/options.go:DefaultMaxBackoff  keep: a safety mechanism, how far passes back off after errors
 internal/revalidate/options.go:DefaultStartDelay  keep: a mechanism, leaves a session's first reads to the views
 
 # Services.
-internal/service/actions/options.go:DefaultLiveTTL  move: cache.ttl.actions_running
-internal/service/actions/options.go:DefaultLogMemory  move: cache.memory.logs
 internal/service/actions/runs.go:workflowsPageSize  keep: an API limit, the largest page, so one page lists every workflow
 internal/service/actions/jobs.go:DefaultJobPageSize  keep: an API limit, the largest page, so one page holds a run's jobs
 internal/service/actions/checks.go:DefaultAnnotationPageSize  keep: annotations come a page at a time with the job; not a setting
@@ -62,28 +54,15 @@ internal/service/actions/partial.go:partialFresh  keep: a mechanism of live logs
 internal/service/actions/partial.go:partialSlack  keep: a mechanism of live logs
 internal/service/actions/service.go:maxPageSize  keep: an API limit
 internal/service/actions/service.go:logLineSize  keep: a measure of the memory a log line takes
-internal/service/dashboard/service.go:HeaderTTL  move: cache.ttl.profile
-internal/service/dashboard/service.go:ReposTTL  move: cache.ttl.dashboard_repos
-internal/service/dashboard/service.go:ContributionsTTL  move: cache.ttl.contributions
 internal/service/dashboard/work.go:maxPageSize  keep: an API limit
 internal/service/dashboard/repos.go:DefaultReposSize  keep: an API limit, the largest page, so the pane lists them all
-internal/service/files/options.go:DefaultBlobMemory  move: cache.memory.files
-internal/service/files/options.go:DefaultBlobCapacity  move: cache.memory.entries
-internal/service/files/options.go:DefaultMaxBlobSize  move: files.preview.max_size (already a setting; this fallback goes)
 internal/service/history/branches.go:DefaultBranchPageSize  keep: an API limit, the largest page; branches are small
 internal/service/history/service.go:maxPageSize  keep: an API limit
-internal/service/history/options.go:DefaultCompareTTL  move: cache.ttl.compare
-internal/service/history/options.go:DefaultDiffMemory  move: cache.memory.diffs
 internal/service/issues/read.go:maxPageSize  keep: an API limit
 internal/service/notifications/list.go:maxPageSize  keep: an API limit
 internal/service/pulls/service.go:maxPageSize  keep: an API limit
 internal/service/pulls/confirm.go:confirmFor  keep: a mechanism, how long a change waits for a full read to confirm it
-internal/service/releases/service.go:DefaultTTL  move: cache.ttl.releases
-internal/service/repos/repos.go:DetailTTL  move: cache.ttl.repo_info
 internal/service/repos/repos.go:maxPageSize  keep: an API limit
-internal/service/search/search.go:DefaultTTL  move: cache.ttl.search
-internal/service/search/search.go:DefaultCodeTTL  move: cache.ttl.code_search
-internal/service/search/search.go:DefaultCapacity  move: cache.memory.entries
 internal/service/search/search.go:maxPageSize  keep: an API limit
 internal/service/access/access.go:quiet  keep: a mechanism, how long startup waits for an answer before asking about the token
 

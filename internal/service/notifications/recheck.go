@@ -29,7 +29,7 @@ func (s *Service) Kept() []revalidate.Entry {
 	if s.refused() != nil {
 		return nil
 	}
-	return recheck.Entries(s.kept, kind, s.target)
+	return recheck.Entries(s.kept, kind, s.ttl, s.target)
 }
 
 func (s *Service) target(key string) (recheck.Target, bool) {

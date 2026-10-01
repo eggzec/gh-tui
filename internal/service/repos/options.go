@@ -11,6 +11,7 @@ type Option func(*options)
 
 type options struct {
 	ttl      time.Duration
+	infoTTL  time.Duration
 	capacity int
 	store    cache.Store
 	access   Access
@@ -30,16 +31,37 @@ func WithPageSize(n int) Option {
 }
 
 // WithTTL sets how long fetched list pages stay fresh before a read
-// revalidates them. By default it is cache.DefaultTTL. A repository that
-// Get read stays fresh for DetailTTL, or for d if it is longer.
+// revalidates them. Without it, or with d at or below zero, it is the
+// default of the config (config.Default).
 func WithTTL(d time.Duration) Option {
-	return func(o *options) { o.ttl = d }
+	return func(o *options) {
+		if d > 0 {
+			o.ttl = d
+		}
+	}
+}
+
+// WithInfoTTL sets how long a repository that Get read stays fresh. What
+// it holds, such as the viewer's permission and the merge methods, seldom
+// changes, so it is usually longer than the TTL of the lists. Without it,
+// or with d at or below zero, it is the default of the config (config.Default).
+func WithInfoTTL(d time.Duration) Option {
+	return func(o *options) {
+		if d > 0 {
+			o.infoTTL = d
+		}
+	}
 }
 
 // WithCapacity sets how many list pages, and separately how many
-// repositories, the service keeps. By default it is cache.DefaultCapacity.
+// repositories, the service keeps. Without it, or with n below one, it is
+// the default of the config (config.Default).
 func WithCapacity(n int) Option {
-	return func(o *options) { o.capacity = n }
+	return func(o *options) {
+		if n > 0 {
+			o.capacity = n
+		}
+	}
 }
 
 // WithStore keeps the list pages and the repositories that Get read in

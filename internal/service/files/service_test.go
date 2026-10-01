@@ -10,6 +10,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
 )
@@ -306,7 +307,7 @@ func TestBlob(t *testing.T) {
 		if c, ok := s.CachedBlob(BlobQuery{Repo: repo, SHA: "b1"}); !ok || string(c.Content) != "hello" {
 			t.Errorf("CachedBlob = %+v, %v; want hello", c, ok)
 		}
-		api.wantCalls(t, fmt.Sprintf("blob eggzec/gh-tui b1 %d", DefaultMaxBlobSize))
+		api.wantCalls(t, fmt.Sprintf("blob eggzec/gh-tui b1 %d", int64(config.Default().Files.Preview.MaxSize)))
 	})
 }
 

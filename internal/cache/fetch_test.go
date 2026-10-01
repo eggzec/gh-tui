@@ -29,7 +29,7 @@ func blockUntil(release <-chan struct{}, v int, calls *atomic.Int32) FetchFunc[i
 }
 
 func TestFetchMiss(t *testing.T) {
-	c := New[int]()
+	c := New[int](WithTTL(time.Minute))
 	var gotOK bool
 	e, err := c.Fetch(t.Context(), "k", func(_ context.Context, _ Entry[int], ok bool) (Entry[int], error) {
 		gotOK = ok
@@ -50,7 +50,7 @@ func TestFetchMiss(t *testing.T) {
 }
 
 func TestFetchFreshHit(t *testing.T) {
-	c := New[int]()
+	c := New[int](WithTTL(time.Minute))
 	c.Set("k", Entry[int]{Value: 1})
 	var calls atomic.Int32
 	e, err := c.Fetch(t.Context(), "k", value(2, &calls))
@@ -113,7 +113,7 @@ func TestFetchNotModified(t *testing.T) {
 // TestFetchNotModifiedClearsFallback checks that a 304 confirms an entry
 // that was served in place of an answer, so it no longer says so.
 func TestFetchNotModifiedClearsFallback(t *testing.T) {
-	c := New[int]()
+	c := New[int](WithTTL(time.Minute))
 	errDown := errors.New("down")
 	c.Set("k", Entry[int]{Value: 1, ETag: `"v1"`, Fallback: errDown})
 	c.Invalidate("k")
@@ -136,7 +136,7 @@ func TestFetchNotModifiedClearsFallback(t *testing.T) {
 }
 
 func TestFetchNotModifiedWithoutEntry(t *testing.T) {
-	c := New[int]()
+	c := New[int](WithTTL(time.Minute))
 	_, err := c.Fetch(t.Context(), "k", func(context.Context, Entry[int], bool) (Entry[int], error) {
 		return Entry[int]{}, ErrNotModified
 	})
@@ -149,7 +149,7 @@ func TestFetchNotModifiedWithoutEntry(t *testing.T) {
 }
 
 func TestFetchErrorNotCached(t *testing.T) {
-	c := New[int]()
+	c := New[int](WithTTL(time.Minute))
 	c.Set("k", Entry[int]{Value: 1})
 	c.Invalidate("k")
 
@@ -174,7 +174,7 @@ func TestFetchErrorNotCached(t *testing.T) {
 
 func TestFetchDedupes(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		c := New[int]()
+		c := New[int](WithTTL(time.Minute))
 		release := make(chan struct{})
 		var calls atomic.Int32
 		fn := blockUntil(release, 7, &calls)
@@ -208,7 +208,7 @@ func TestFetchDedupes(t *testing.T) {
 
 func TestFetchContextCanceled(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		c := New[int]()
+		c := New[int](WithTTL(time.Minute))
 		var fnErr error
 		block := func(ctx context.Context, _ Entry[int], _ bool) (Entry[int], error) {
 			<-ctx.Done()
@@ -238,7 +238,7 @@ func TestFetchContextCanceled(t *testing.T) {
 }
 
 func TestFetchCanceledBeforeStart(t *testing.T) {
-	c := New[int]()
+	c := New[int](WithTTL(time.Minute))
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 	var calls atomic.Int32
@@ -252,7 +252,7 @@ func TestFetchCanceledBeforeStart(t *testing.T) {
 
 func TestFetchSurvivesOneCallerCanceling(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		c := New[int]()
+		c := New[int](WithTTL(time.Minute))
 		release := make(chan struct{})
 		var fnCtx context.Context
 		wrapped := blockUntil(release, 1, new(atomic.Int32))

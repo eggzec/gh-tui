@@ -24,15 +24,6 @@ type API interface {
 	OrgRepos(ctx context.Context, login string, first int, after string) (core.Page[core.Repo], error)
 }
 
-// How long the reads that change slowly stay fresh, unless the TTL of the
-// service is longer. A profile, its pins and organizations change seldom,
-// and the calendar only counts whole days.
-const (
-	HeaderTTL        = time.Hour
-	ReposTTL         = 15 * time.Minute
-	ContributionsTTL = 6 * time.Hour
-)
-
 // Service reads the dashboard through a cache. It is safe for concurrent
 // use.
 type Service struct {
@@ -58,26 +49,42 @@ const (
 
 // New returns a Service that fetches from api.
 func New(api API, opts ...Option) *Service {
-	o := options{ttl: cache.DefaultTTL}
+	var o options
 	for _, opt := range opts {
 		opt(&o)
 	}
+	d := config.Default()
+	ttl := d.Cache.TTL
+	t := o.ttls
+	t.Header = positive(t.Header, ttl.Profile)
+	t.Work = positive(t.Work, ttl.WaitingOnYou)
+	t.Repos = positive(t.Repos, ttl.DashboardRepos)
+	t.Contributions = positive(t.Contributions, ttl.Contributions)
+	o.capacity = cmp.Or(o.capacity, d.Cache.Memory.Entries)
 	return &Service{
 		api: api,
-		header: newReads(o, kindHeader, max(o.ttl, HeaderTTL), func(h *core.Header) (*bool, *bool, *bool) {
+		header: newReads(o, kindHeader, t.Header, func(h *core.Header) (*bool, *bool, *bool) {
 			return &h.Stale, &h.Offline, &h.Limited
 		}),
-		work: newReads(o, kindWork, o.ttl, func(w *core.Work) (*bool, *bool, *bool) {
+		work: newReads(o, kindWork, t.Work, func(w *core.Work) (*bool, *bool, *bool) {
 			return &w.Stale, &w.Offline, &w.Limited
 		}),
-		contributions: newReads(o, kindContributions, max(o.ttl, ContributionsTTL), func(c *core.Contributions) (*bool, *bool, *bool) {
+		contributions: newReads(o, kindContributions, t.Contributions, func(c *core.Contributions) (*bool, *bool, *bool) {
 			return &c.Stale, &c.Offline, &c.Limited
 		}),
-		repos: newReads(o, kindRepos, max(o.ttl, ReposTTL), func(p *core.Page[core.Repo]) (*bool, *bool, *bool) {
+		repos: newReads(o, kindRepos, t.Repos, func(p *core.Page[core.Repo]) (*bool, *bool, *bool) {
 			return &p.Stale, &p.Offline, &p.Limited
 		}),
-		workSize: cmp.Or(o.workSize, config.Default().PageSize.WaitingOnYou),
+		workSize: cmp.Or(o.workSize, d.PageSize.WaitingOnYou),
 	}
+}
+
+// positive returns d, or def if d isn't positive.
+func positive(d, def time.Duration) time.Duration {
+	if d > 0 {
+		return d
+	}
+	return def
 }
 
 // Invalidate marks everything the service cached stale. It is still served

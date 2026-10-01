@@ -10,14 +10,14 @@ import (
 )
 
 func TestGetMiss(t *testing.T) {
-	c := New[int]()
+	c := New[int](WithTTL(time.Minute))
 	if e, st := c.Get("k"); st != Miss || e.Value != 0 {
 		t.Errorf("Get on empty cache = %v, %v; want zero entry, miss", e, st)
 	}
 }
 
 func TestSetGet(t *testing.T) {
-	c := New[string]()
+	c := New[string](WithTTL(time.Minute))
 	c.Set("k", Entry[string]{Value: "v", ETag: `"abc"`, Tags: []string{"t"}})
 	e, st := c.Get("k")
 	if st != Fresh {
@@ -90,7 +90,7 @@ func TestSetKeepsFetchedAt(t *testing.T) {
 }
 
 func TestInvalidate(t *testing.T) {
-	c := New[int]()
+	c := New[int](WithTTL(time.Minute))
 	c.Set("a", Entry[int]{Value: 1})
 	c.Set("b", Entry[int]{Value: 2})
 	c.Invalidate("a")
@@ -108,7 +108,7 @@ func TestInvalidate(t *testing.T) {
 }
 
 func TestInvalidateTag(t *testing.T) {
-	c := New[int]()
+	c := New[int](WithTTL(time.Minute))
 	c.Set("pr/1", Entry[int]{Tags: []string{"repo:a", "pulls"}})
 	c.Set("pr/2", Entry[int]{Tags: []string{"repo:b", "pulls"}})
 	c.Set("issue/1", Entry[int]{Tags: []string{"repo:a"}})
@@ -127,7 +127,7 @@ func TestInvalidateTag(t *testing.T) {
 
 func TestInvalidateBefore(t *testing.T) {
 	t0 := time.Now()
-	c := New[int]()
+	c := New[int](WithTTL(time.Minute))
 	c.Set("old", Entry[int]{Tags: []string{"pr/1"}, FetchedAt: t0.Add(-time.Second)})
 	c.Set("new", Entry[int]{Tags: []string{"pr/1"}, FetchedAt: t0.Add(time.Second)})
 	c.Set("other", Entry[int]{Tags: []string{"pr/2"}, FetchedAt: t0.Add(-time.Second)})
@@ -141,10 +141,22 @@ func TestInvalidateBefore(t *testing.T) {
 	}
 }
 
-func TestOptionsIgnoreInvalidValues(t *testing.T) {
-	c := New[int](WithCapacity(0), WithTTL(-time.Second))
-	if c.opts.capacity != DefaultCapacity || c.opts.ttl != DefaultTTL {
-		t.Errorf("options = %+v, want defaults", c.opts)
+func TestNoLimits(t *testing.T) {
+	for name, c := range map[string]*Cache[int]{
+		"no options":     New[int](),
+		"invalid values": New[int](WithCapacity(0), WithTTL(-time.Second)),
+	} {
+		t.Run(name, func(t *testing.T) {
+			for i := range 2000 {
+				c.Set(strconv.Itoa(i), Entry[int]{Value: i, FetchedAt: time.Now().Add(-24 * time.Hour)})
+			}
+			if n := c.Len(); n != 2000 {
+				t.Errorf("Len = %d, want every entry kept", n)
+			}
+			if _, st := c.Get("0"); st != Fresh {
+				t.Errorf("state of an old entry = %v, want fresh without a TTL", st)
+			}
+		})
 	}
 }
 
@@ -176,7 +188,7 @@ func TestConcurrentAccess(t *testing.T) {
 }
 
 func TestTagged(t *testing.T) {
-	c := New[int]()
+	c := New[int](WithTTL(time.Minute))
 	c.Set("a", Entry[int]{Value: 1, Tags: []string{"repo"}})
 	c.Set("b", Entry[int]{Value: 2, Tags: []string{"repo", "other"}})
 	c.Set("c", Entry[int]{Value: 3, Tags: []string{"other"}})
@@ -237,7 +249,7 @@ func TestMaxSizeOtherType(t *testing.T) {
 }
 
 func TestTaggedEntries(t *testing.T) {
-	c := New[int]()
+	c := New[int](WithTTL(time.Minute))
 	c.Set("a", Entry[int]{Value: 1, ETag: `"a"`, Tags: []string{"t"}})
 	c.Set("b", Entry[int]{Value: 2, Tags: []string{"u"}})
 	c.Set("c", Entry[int]{Value: 3, Tags: []string{"t", "u"}})

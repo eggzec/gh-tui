@@ -92,7 +92,7 @@ type node[V any] struct {
 
 // New returns an empty cache.
 func New[V any](opts ...Option) *Cache[V] {
-	o := options{capacity: DefaultCapacity, ttl: DefaultTTL}
+	var o options
 	for _, opt := range opts {
 		opt(&o)
 	}
@@ -271,7 +271,7 @@ func (c *Cache[V]) set(key string, e Entry[V]) {
 		return
 	}
 	var n *node[V]
-	if len(c.items) < c.opts.capacity {
+	if c.opts.capacity < 1 || len(c.items) < c.opts.capacity {
 		n = new(node[V])
 	} else {
 		// Reuse the evicted node so a full cache doesn't allocate on Set.
@@ -330,7 +330,7 @@ func (c *Cache[V]) markStale(n *node[V]) {
 }
 
 func (c *Cache[V]) state(n *node[V]) State {
-	if n.stale || time.Since(n.entry.FetchedAt) >= c.opts.ttl {
+	if n.stale || c.opts.ttl > 0 && time.Since(n.entry.FetchedAt) >= c.opts.ttl {
 		return Stale
 	}
 	return Fresh

@@ -188,7 +188,7 @@ func TestLogsKeyWithoutQuery(t *testing.T) {
 	t.Cleanup(func() { slog.SetDefault(prev) })
 	freshStats(t)
 	const key = "search?kind=issues&q=secret+plans"
-	c := New[page]()
+	c := New[page](WithTTL(time.Minute))
 	fetch := func(context.Context, Entry[page], bool) (Entry[page], error) { return Entry[page]{}, nil }
 	for range 2 {
 		if _, err := c.Fetch(t.Context(), key, fetch); err != nil {

@@ -63,8 +63,58 @@ images:
   animate: true
 
 cache:
-  # How long a cached response is served before it is revalidated.
-  ttl: 5m
+  # How long what was read of each kind of data is shown without asking
+  # GitHub again. After that it is read again, usually with a conditional
+  # request that costs nothing against the rate limit when nothing changed.
+  ttl:
+    # The lists and details of pull requests, and their comments.
+    pulls: 5m
+    # The lists and details of issues, and their comments.
+    issues: 5m
+    notifications: 5m
+    # The lists of repositories: the search screen's start, an owner's
+    # repositories and the completion of :goto.
+    repos: 5m
+    # The dashboard's Repositories pane, which lists every owner's
+    # repositories and costs more to read again.
+    dashboard_repos: 15m
+    # The dashboard's pull requests and issues that wait on you.
+    waiting_on_you: 5m
+    # One repository's details, such as its default branch and whether it
+    # is private.
+    repo_info: 1h
+    # Where branches point. The files of a commit never go stale.
+    files: 5m
+    # Branches and the commits of a branch. A commit itself never goes
+    # stale.
+    history: 5m
+    # Comparisons of two refs.
+    compare: 30s
+    # Workflow runs, finished jobs and checks.
+    actions: 5m
+    # The jobs of a run that is still going.
+    actions_running: 10s
+    # The labels, milestones and people the filters offer.
+    filters: 5m
+    search: 30s
+    code_search: 1m
+    releases: 1h
+    # The dashboard's header: you, your organizations and your pinned
+    # repositories.
+    profile: 1h
+    contributions: 6h
+  # What gh-tui keeps in memory. These may only be set at the top level,
+  # not for one host or profile.
+  memory:
+    # How many entries each kind of data keeps, such as the pages of pull
+    # requests, or the files read.
+    entries: 1024
+    # The memory that the contents of files take.
+    files: 32MiB
+    # The memory that the changes of commits take.
+    diffs: 32MiB
+    # The memory that the logs of jobs take.
+    logs: 64MiB
   # The disk cache keeps what doesn't change, such as the files of a
   # commit, across sessions, and where branches pointed, so that a new
   # session asks GitHub only whether they moved.
@@ -91,18 +141,21 @@ cache:
   # what a view reads is known to be current and needs no request when it
   # loads. A request that finds nothing changed is free against GitHub's
   # rate limit, but not against its limits on how many requests come at
-  # once, hence the budget.
+  # once, hence per_minute.
   revalidate:
     enabled: true
     # How often a pass over the entries starts. A pass checks at most what
-    # the budget allows in an interval. At least 10s.
+    # per_minute allows in an interval. At least 10s.
     interval: 2m
     # How many requests a minute the checks send at most, 1 to 300. It
     # shrinks while the terminal is unfocused.
-    budget: 60
+    per_minute: 60
     # Which entries are checked: recent, those of the selected repository
-    # and those used in the last week, or all.
+    # and those used within recent, below, or all.
     scope: recent
+    # How recently an entry must have been used for the recent scope to
+    # check it.
+    recent: 168h
 
 # Polling for changes in the background.
 sync:

@@ -2,10 +2,6 @@ package disk
 
 import "compress/gzip"
 
-// DefaultMaxSize is the size, in bytes, that Collect keeps the store under
-// by default: 512 MiB.
-const DefaultMaxSize = 512 << 20
-
 type options struct {
 	maxSize int64
 	level   int
@@ -16,7 +12,7 @@ type options struct {
 type Option func(*options)
 
 // WithMaxSize sets the size, in bytes on disk, that Collect keeps the store
-// under. The default is DefaultMaxSize. Values below 1 are ignored.
+// under. Without it, or with a value below 1, Collect removes nothing.
 func WithMaxSize(n int64) Option {
 	return func(o *options) {
 		if n >= 1 {

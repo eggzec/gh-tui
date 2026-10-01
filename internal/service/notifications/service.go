@@ -35,6 +35,8 @@ type Service struct {
 	// set.
 	access Access
 	cache  *cache.Cache[page]
+	// ttl is how long a page the service read stays fresh.
+	ttl time.Duration
 	// kept holds what an earlier session read, if the service has a store.
 	kept *cache.Shelf[page]
 	// interval is the latest X-Poll-Interval, in nanoseconds.
@@ -49,9 +51,10 @@ type page = core.Page[core.Notification]
 type Option func(*options)
 
 type options struct {
-	cache  []cache.Option
-	store  cache.Store
-	access Access
+	ttl      time.Duration
+	capacity int
+	store    cache.Store
+	access   Access
 	// pageSize is that of a page whose query sets none.
 	pageSize int
 }
@@ -67,16 +70,24 @@ func WithPageSize(n int) Option {
 	}
 }
 
-// WithTTL sets how long a fetched page stays fresh. The default is
-// cache.DefaultTTL.
+// WithTTL sets how long a fetched page stays fresh. Without it, or with d
+// at or below zero, it is the default of the config (config.Default).
 func WithTTL(d time.Duration) Option {
-	return func(o *options) { o.cache = append(o.cache, cache.WithTTL(d)) }
+	return func(o *options) {
+		if d > 0 {
+			o.ttl = d
+		}
+	}
 }
 
-// WithCapacity sets how many pages are cached. The default is
-// cache.DefaultCapacity.
+// WithCapacity sets how many pages are cached. Without it, or with n below
+// one, it is the default of the config (config.Default).
 func WithCapacity(n int) Option {
-	return func(o *options) { o.cache = append(o.cache, cache.WithCapacity(n)) }
+	return func(o *options) {
+		if n > 0 {
+			o.capacity = n
+		}
+	}
 }
 
 // WithStore keeps the pages in store as well as in memory, so that a later
@@ -108,12 +119,15 @@ func New(api API, opts ...Option) *Service {
 	for _, opt := range opts {
 		opt(&o)
 	}
+	d := config.Default()
+	ttl := cmp.Or(o.ttl, d.Cache.TTL.Notifications)
 	return &Service{
 		api:      api,
 		access:   o.access,
-		cache:    cache.New[page](o.cache...),
+		cache:    cache.New[page](cache.WithTTL(ttl), cache.WithCapacity(cmp.Or(o.capacity, d.Cache.Memory.Entries))),
 		kept:     cache.NewShelf[page](o.store, kind, schema),
-		pageSize: cmp.Or(o.pageSize, config.Default().PageSize.Notifications),
+		ttl:      ttl,
+		pageSize: cmp.Or(o.pageSize, d.PageSize.Notifications),
 	}
 }
 

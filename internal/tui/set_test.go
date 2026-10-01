@@ -49,14 +49,14 @@ func TestSetCommand(t *testing.T) {
 		{line: "set theme&=mine", toast: "Set theme& resets it, and takes no value."},
 		{line: "set theme&", toast: "theme is default, as gh-tui started with."},
 		{line: "set nope&", toast: "Unknown setting: nope."},
-		{line: "set cache.ttl&", toast: "cache.ttl is 5m, as gh-tui started with."},
+		{line: "set cache.ttl.pulls&", toast: "cache.ttl.pulls is 5m, as gh-tui started with."},
 		{line: "set theme", toast: "theme is default."},
 		{line: "set ui.icons", toast: "ui.icons is nerd."},
 		{line: "set log.file", toast: `log.file is "".`},
 		{line: "set nope=1", toast: "Unknown setting: nope."},
 		{line: "set nope", toast: "Unknown setting: nope."},
 		{line: "set keys.quit=x", toast: "Keys and themes can't be set here: change them in the config file, then restart gh-tui."},
-		{line: "set cache.ttl=1m", toast: "cache.ttl can't change while gh-tui runs: the cache is opened at startup. Set it in the config file, then restart."},
+		{line: "set cache.ttl.pulls=1m", toast: "cache.ttl.pulls can't change while gh-tui runs: the cache is opened at startup. Set it in the config file, then restart."},
 		{line: "set log.keep=5", toast: "log.keep can't change while gh-tui runs: the log file is opened at startup."},
 		{line: "set log.level=debug", toast: "log.level is debug for this session.", changes: true},
 		{line: "set github.timeout=1m", toast: "github.timeout can't change while gh-tui runs: the connection to GitHub is set up at startup. Set it in the config file, then restart."},
@@ -208,8 +208,8 @@ func TestCompleteSet(t *testing.T) {
 	if got := m.complete("set them x", 8); len(got) != 1 || got[0].Text != "theme" || got[0].Detail != "default" {
 		t.Errorf("a key before more text = %+v, want theme without = and its value", got)
 	}
-	if got := m.complete("set cache.ttl", 13); len(got) != 1 || got[0].Detail != "5m, at startup" {
-		t.Errorf("cache.ttl = %+v, want its value and that it is read at startup", got)
+	if got := m.complete("set cache.ttl.pulls", 19); len(got) != 1 || got[0].Detail != "5m, at startup" {
+		t.Errorf("cache.ttl.pulls = %+v, want its value and that it is read at startup", got)
 	}
 	if got := m.complete("set ui.icons=a", 14); got[0].Start != 13 || got[0].End != 14 {
 		t.Errorf("value span = %d..%d, want 13..14", got[0].Start, got[0].End)
