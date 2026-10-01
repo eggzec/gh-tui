@@ -42,9 +42,13 @@ func (m Model) writeRow(w *lineWriter, i int) {
 			marker = m.markerClosed
 		}
 	}
-	icon := e.icon
+	g := e.icon
 	if e.expanded {
-		icon = e.iconOpen
+		g = e.iconOpen
+	}
+	var icon glyph
+	if g != nil {
+		icon = *g
 	}
 	prefix := m.gutter(i == m.sel)
 	text, hint := e.errText, e.errHint
@@ -56,7 +60,7 @@ func (m Model) writeRow(w *lineWriter, i int) {
 	// the error.
 	guide := m.guides[e.depth]
 	room := w.width - ansi.StringWidth(prefix) - ansi.StringWidth(guide) -
-		ansi.StringWidth(marker) - ansi.StringWidth(icon) - ansi.StringWidth(hint)
+		ansi.StringWidth(marker) - icon.width - ansi.StringWidth(hint)
 	name, msg := e.label, " "+text
 	nw, mw := ansi.StringWidth(name), ansi.StringWidth(msg)
 	if nw+mw > room {
@@ -66,7 +70,7 @@ func (m Model) writeRow(w *lineWriter, i int) {
 		}
 		msg = ansi.Truncate(msg, max(room-nw, 0), w.ellipsis)
 	}
-	w.line(prefix, guide, marker, icon, name, msg, hint)
+	w.line(prefix, guide, marker, icon.text, name, msg, hint)
 }
 
 // minDetailName is the fewest cells of a name that a detail may leave.
@@ -75,20 +79,20 @@ const minDetailName = 10
 // writeName writes a row that loaded, with its detail at the right edge
 // when there is room for it. The name is truncated before the detail is
 // dropped, but never below minDetailName cells.
-func (m Model) writeName(w *lineWriter, e *entry, prefix, marker, icon string) {
+func (m Model) writeName(w *lineWriter, e *entry, prefix, marker string, icon glyph) {
 	guide := m.guides[e.depth]
 	if e.detail == "" {
-		w.line(prefix, guide, marker, icon, e.label)
+		w.line(prefix, guide, marker, icon.text, e.label)
 		return
 	}
 	room := w.width - ansi.StringWidth(prefix) - ansi.StringWidth(guide) -
-		ansi.StringWidth(marker) - ansi.StringWidth(icon)
+		ansi.StringWidth(marker) - icon.width
 	dw := ansi.StringWidth(e.detail)
 	nw := ansi.StringWidth(e.label)
 	// One space keeps the name and the detail apart.
 	avail := room - dw - 1
 	if avail < min(nw, minDetailName) {
-		w.line(prefix, guide, marker, icon, e.label)
+		w.line(prefix, guide, marker, icon.text, e.label)
 		return
 	}
 	name := e.label
@@ -96,7 +100,7 @@ func (m Model) writeName(w *lineWriter, e *entry, prefix, marker, icon string) {
 		name = ansi.Truncate(name, avail, "…")
 		nw = ansi.StringWidth(name)
 	}
-	w.right(e.detail, room-nw-dw, prefix, guide, marker, icon, name)
+	w.right(e.detail, room-nw-dw, prefix, guide, marker, icon.text, name)
 }
 
 func (m Model) gutter(selected bool) string {
