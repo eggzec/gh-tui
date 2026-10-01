@@ -139,3 +139,41 @@ func TestFinderOnlineRetriesPreview(t *testing.T) {
 		})
 	}
 }
+
+// TestKeptListingReadAgainOnline checks that a listing kept while GitHub
+// couldn't be reached, or rate limited the read, is read again once
+// GitHub answers, once, though it didn't fail, and that a listing GitHub
+// sent costs nothing.
+func TestKeptListingReadAgainOnline(t *testing.T) {
+	tests := []struct {
+		name string
+		kept func(f *fake) map[string]bool
+		want int
+	}{
+		{"offline", func(f *fake) map[string]bool { return f.offline }, 1},
+		{"limited", func(f *fake) map[string]bool { return f.limited }, 1},
+		{"sent", nil, 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := sampleFake()
+			if tt.kept != nil {
+				tt.kept(f)["eggzec/gh-tui"] = true
+			}
+			h := newHost(loaded(t, f, 40, 12))
+			f.mu.Lock()
+			if tt.kept != nil {
+				delete(tt.kept(f), "eggzec/gh-tui")
+			}
+			f.mu.Unlock()
+			before := f.allCount()
+			h.online()
+			if got := f.allCount() - before; got != tt.want {
+				t.Errorf("listings once online = %d, want %d", got, tt.want)
+			}
+			if x := h.s.idx; x == nil || x.offline || x.limited {
+				t.Errorf("index once online = %+v, want the listing GitHub sent", x)
+			}
+		})
+	}
+}
