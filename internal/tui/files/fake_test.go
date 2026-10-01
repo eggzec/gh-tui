@@ -33,9 +33,11 @@ type fake struct {
 	truncated map[string]bool
 	cachedAll map[string]bool
 	// offline holds the repositories whose listing comes from the disk,
-	// as if GitHub couldn't be reached.
-	offline map[string]bool
-	version int
+	// as if GitHub couldn't be reached, and limited those whose listing
+	// is kept as if GitHub rate limited the read. A kept listing stays
+	// stale, so the next read asks GitHub again.
+	offline, limited map[string]bool
+	version          int
 
 	// blobs and blobErrs are keyed by SHA. blobReads lists the queries
 	// Blob was called with, and cachedBlobs the SHAs it returned.
@@ -51,7 +53,7 @@ type fake struct {
 func newFake() *fake {
 	return &fake{
 		trees: map[string]core.Tree{}, errs: map[string]error{}, cached: map[string]bool{},
-		truncated: map[string]bool{}, cachedAll: map[string]bool{}, offline: map[string]bool{},
+		truncated: map[string]bool{}, cachedAll: map[string]bool{}, offline: map[string]bool{}, limited: map[string]bool{},
 		blobs: map[string]core.Blob{}, blobErrs: map[string]error{}, cachedBlobs: map[string]bool{},
 	}
 }
@@ -114,7 +116,8 @@ func (f *fake) listing(repo core.RepoRef, ref string) (core.Tree, error) {
 		return core.Tree{}, errNoTree
 	}
 	cut := f.truncated[strings.ToLower(repo.String())]
-	out := core.Tree{SHA: fmt.Sprintf("all-%s-%s-%d", repo, ref, f.version), Truncated: cut, Offline: f.offline[strings.ToLower(repo.String())]}
+	name := strings.ToLower(repo.String())
+	out := core.Tree{SHA: fmt.Sprintf("all-%s-%s-%d", repo, ref, f.version), Truncated: cut, Offline: f.offline[name], Limited: f.limited[name]}
 	var walk func(dir string, t core.Tree)
 	walk = func(dir string, t core.Tree) {
 		for _, e := range t.Entries {
@@ -156,7 +159,9 @@ func (f *fake) All(ctx context.Context, q filesvc.TreeQuery) (core.Tree, error) 
 	if err != nil {
 		return core.Tree{}, err
 	}
-	f.cachedAll[k] = true
+	if !t.Offline && !t.Limited {
+		f.cachedAll[k] = true
+	}
 	return t, nil
 }
 

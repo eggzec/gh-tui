@@ -215,9 +215,16 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 		return nil
 	case ui.OnlineMsg:
 		// The tree reads again its top level, or the open branches,
-		// that failed. What GitHub refused seldom shows in a tree.
+		// that failed. What GitHub refused seldom shows in a tree. A
+		// listing kept while GitHub couldn't be reached, or rate
+		// limited the read, didn't fail, so it is read again too.
 		if s.tree == nil {
 			return nil
+		}
+		if x := s.idx; s.started && x != nil && (x.offline || x.limited) {
+			// Reloading reads the listing once, and loads again every
+			// open branch, what failed too.
+			return s.tree.Reload()
 		}
 		return s.tree.Retry()
 	case hoverMsg:
