@@ -10,7 +10,7 @@
 # keep is for what the user has no reason to change: an API limit, a
 # format version, a layout measure, a bound the validator enforces, or a
 # safety mechanism. move is for a default that is still in Go, and names
-# the key the config redesign (notes/config-redesign.md) gives it; the
+# the key of default.yaml it is headed for; the
 # line goes when it moves. Add no new move lines: a new default goes
 # straight into default.yaml.
 
