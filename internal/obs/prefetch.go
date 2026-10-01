@@ -141,7 +141,8 @@ type prefetchKey struct{}
 
 // ForPrefetch returns ctx marked as a read ahead of its use, which the
 // client lets use fewer of its requests in flight than what the user waits
-// for, and whose GraphQL points count against the prefetch budget.
+// for, and whose GraphQL points and REST core requests count against the
+// prefetch budget.
 func ForPrefetch(ctx context.Context) context.Context {
 	return context.WithValue(ctx, prefetchKey{}, true)
 }

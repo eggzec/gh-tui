@@ -295,6 +295,8 @@ func TestFiltersStopAtRateLimit(t *testing.T) {
 
 func TestFiltersStopOnBudget(t *testing.T) {
 	buf, stats := captureLog(t)
+	obs.SetPrefetchBudget(10)
+	t.Cleanup(func() { obs.SetPrefetchBudget(0) })
 	p := newPages()
 	read := func(ctx context.Context, q string) error {
 		obs.ChargeGraphQL(ctx, 500)

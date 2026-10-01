@@ -208,8 +208,12 @@ func (a *attempt) done(resp *http.Response, err error) {
 		a.t.deprecation(ctx, api, route, resp.Header)
 	}
 	obs.CountHTTP(h)
-	if api == obs.GraphQL && resp != nil {
+	switch {
+	case resp == nil:
+	case api == obs.GraphQL:
 		obs.ChargeGraphQL(ctx, h.Cost)
+	default:
+		obs.ChargeREST(ctx, h.Rate.Resource, h.NotModified)
 	}
 
 	if !obs.Enabled(ctx, level) {

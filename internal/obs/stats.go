@@ -39,7 +39,7 @@ type Stats struct {
 	rate rateStats
 
 	budgetMu sync.Mutex
-	budget   prefetchBudget
+	budget   [len(budgetQuotas)]prefetchBudget
 }
 
 // NewStats returns empty stats that measure uptime from now.
@@ -250,7 +250,7 @@ const (
 	// PrefetchOpened is something read ahead that was then opened.
 	PrefetchOpened
 	// PrefetchOverBudget is a read skipped since the reads ahead of the
-	// session spent their budget of GraphQL points.
+	// session spent their budget of a quota.
 	PrefetchOverBudget
 	numPrefetch
 )

@@ -781,6 +781,8 @@ func TestNilAheadPause(_ *testing.T) {
 
 func TestAheadStopsOnBudget(t *testing.T) {
 	_, stats := captureLog(t)
+	obs.SetPrefetchBudget(10)
+	t.Cleanup(func() { obs.SetPrefetchBudget(0) })
 	r := newReader()
 	// Each read costs a fifth of the budget GitHub leaves reads ahead
 	// before it reported the limit.

@@ -294,8 +294,17 @@ func TestLogGraphQL(t *testing.T) {
 	}
 }
 
+// withPrefetchBudget sets the share of each quota reads ahead may spend
+// for the rest of the test.
+func withPrefetchBudget(t *testing.T, percent int) {
+	t.Helper()
+	obs.SetPrefetchBudget(percent)
+	t.Cleanup(func() { obs.SetPrefetchBudget(0) })
+}
+
 func TestGraphQLChargesPrefetchBudget(t *testing.T) {
 	_, stats := captureLog(t, slog.LevelInfo)
+	withPrefetchBudget(t, 10)
 	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		rateHeaders(w, "graphql", 4000)
 		_, _ = io.WriteString(w, `{"data":{"rateLimit":{"cost":3,"limit":5000,"remaining":4000,"used":1000,"resetAt":"2030-01-01T00:00:00Z"},"repository":{"pullRequest":{"id":"PR_1"}}}}`)
@@ -308,8 +317,49 @@ func TestGraphQLChargesPrefetchBudget(t *testing.T) {
 	if _, err := c.PullRequestID(obs.ForPrefetch(context.Background()), r, 1); err != nil {
 		t.Fatal(err)
 	}
-	if b := stats.Summary().Budget; b.Points != 3 || b.Budget != 500 {
+	if b := stats.Summary().Budget.GraphQL; b.Used != 3 || b.Budget != 500 {
 		t.Errorf("budget = %+v, want 3 points of 500", b)
+	}
+}
+
+// Reads ahead stop once their REST requests spent the budget of the core
+// quota: a tenth of a limit of 100 is 10 requests. An answer 304 Not
+// Modified is free, and so is what the user asks for.
+func TestRESTChargesPrefetchBudget(t *testing.T) {
+	_, stats := captureLog(t, slog.LevelInfo)
+	withPrefetchBudget(t, 10)
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-RateLimit-Limit", "100")
+		w.Header().Set("X-RateLimit-Remaining", "90")
+		w.Header().Set("X-RateLimit-Reset", "1900000000")
+		w.Header().Set("X-RateLimit-Resource", "core")
+		w.Header().Set("ETag", `"e"`)
+		if r.Header.Get("If-None-Match") != "" {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+		_, _ = io.WriteString(w, `{}`)
+	}))
+	ahead := obs.ForPrefetch(context.Background())
+	for range 9 {
+		if _, err := c.Get(ahead, "repos/o/r", Conditional{}, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := c.Get(ahead, "repos/o/r", Conditional{ETag: `"e"`}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Get(context.Background(), "repos/o/r", Conditional{}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if obs.PrefetchSpent() {
+		t.Fatalf("spent at %+v, want 9 requests of 10", stats.Summary().Budget.Core)
+	}
+	if _, err := c.Get(ahead, "repos/o/r", Conditional{}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if b := stats.Summary().Budget; !obs.PrefetchSpent() || !b.Spent || b.Core.Used != 10 || b.Core.Budget != 10 || b.GraphQL.Used != 0 {
+		t.Errorf("budget = %+v, want the core quota's spent at 10 requests of 10", b)
 	}
 }
 
