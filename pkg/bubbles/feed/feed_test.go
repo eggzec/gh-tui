@@ -303,6 +303,55 @@ func TestErrorAndRetry(t *testing.T) {
 	}
 }
 
+// TestRetryKept checks that a chunk that came with ErrKept shows its
+// items, isn't fetched again by Retry, and is fetched again once by
+// RetryKept, which keeps the selection on its item and then has nothing
+// left to fetch.
+func TestRetryKept(t *testing.T) {
+	src := newSource(10, 5)
+	var mu sync.Mutex
+	kept := map[string]bool{"": true}
+	fetch := func(ctx context.Context, cursor string) ([]item, string, error) {
+		items, next, err := src.fetch(ctx, cursor)
+		mu.Lock()
+		defer mu.Unlock()
+		if err == nil && kept[cursor] {
+			return items, next, ErrKept
+		}
+		return items, next, err
+	}
+	m := New(fetch, renderItem, WithSize(40, 5), WithFocused(true), WithKey(itemKey))
+	m = run(t, m, m.Init())
+	m = keys(t, m, "down", "down")
+	if m.Err() != nil || m.Len() < 5 {
+		t.Fatalf("kept chunk: Err() = %v, Len() = %d; want its items", m.Err(), m.Len())
+	}
+	if cmd := m.Retry(); cmd != nil {
+		t.Error("Retry fetched a kept chunk, which didn't fail")
+	}
+
+	mu.Lock()
+	kept[""] = false
+	mu.Unlock()
+	// An item came in at the front meanwhile.
+	src.insert(1)
+	n := src.callCount()
+	cmd := m.RetryKept()
+	if again := m.RetryKept(); again != nil {
+		t.Error("RetryKept fetched again a chunk being fetched")
+	}
+	m = run(t, m, cmd)
+	if got := src.callCount() - n; got != 1 {
+		t.Errorf("fetches by RetryKept = %d, want 1", got)
+	}
+	if it, ok := m.Selected(); !ok || it.id != "2" || m.Index() != 3 {
+		t.Errorf("Selected() = %v, %v at %d; want item 2 at 3", it, ok, m.Index())
+	}
+	if cmd := m.RetryKept(); cmd != nil {
+		t.Error("RetryKept fetched a chunk that came fresh")
+	}
+}
+
 func TestErrorText(t *testing.T) {
 	rebound := DefaultKeyMap()
 	rebound.Retry = key.NewBinding(key.WithKeys("R"), key.WithHelp("R", "reload"))

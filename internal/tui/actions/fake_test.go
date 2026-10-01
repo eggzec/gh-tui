@@ -154,6 +154,9 @@ type fake struct {
 	// moreJobs makes the jobs tell that there are more than the service
 	// reads.
 	moreJobs bool
+	// limited serves the runs and the jobs Limited, as kept while GitHub
+	// rate limits the reads.
+	limited bool
 	// notes are the annotations of jobs, and cachedNotes those in memory.
 	notes       map[int64][]core.Annotation
 	cachedNotes map[int64]bool
@@ -212,7 +215,7 @@ func (f *fake) Runs(_ context.Context, q actionssvc.RunsQuery) (core.Page[core.R
 			out = append(out, *r)
 		}
 	}
-	return core.Page[core.Run]{Items: out}, nil
+	return core.Page[core.Run]{Items: out, Limited: f.limited}, nil
 }
 
 func (f *fake) CachedRun(_ core.RepoRef, runID int64) (core.Run, bool) {
@@ -276,7 +279,9 @@ func (f *fake) AllJobs(_ context.Context, q actionssvc.JobsQuery) (core.Page[cor
 		return core.Page[core.Job]{}, f.jobsErr
 	}
 	f.cachedJobs[q.RunID] = true
-	return f.page(q), nil
+	p := f.page(q)
+	p.Limited = f.limited
+	return p, nil
 }
 
 func (f *fake) CachedLog(_ core.RepoRef, jobID int64) (core.Log, bool) {

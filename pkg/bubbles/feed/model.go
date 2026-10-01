@@ -31,6 +31,12 @@ type Fetch[T any] func(ctx context.Context, cursor string) (items []T, next stri
 // every time.
 var ErrStale = errors.New("feed: stale items")
 
+// ErrKept is returned by a Fetch together with items kept from an earlier
+// fetch, because the source can't give new ones now, such as while it
+// can't be reached. The feed shows them as if the fetch had succeeded, and
+// [Model.RetryKept] fetches the chunk again once the source can.
+var ErrKept = errors.New("feed: kept items")
+
 // Render renders one item in at most width cells. With an item height above
 // one, lines are separated by "\n"; extra lines are dropped.
 type Render[T any] func(item T, selected bool, width int) string
@@ -51,7 +57,9 @@ type chunk[T any] struct {
 	// positions of later items stay stable.
 	n int
 	// loaded is false once the chunk's items have been evicted.
-	loaded   bool
+	loaded bool
+	// kept reports that the chunk's items came with ErrKept.
+	kept     bool
 	err      error
 	fetching bool
 }

@@ -51,25 +51,34 @@ func TestOnlineRetriesOnce(t *testing.T) {
 	}
 }
 
-// TestOnlineReadsOfflineValues checks that what was served offline, from
-// what an earlier read kept, is read again once GitHub answers. The
-// fake serves the calendar as read.
-func TestOnlineReadsOfflineValues(t *testing.T) {
-	svc := newFake()
-	svc.offline = true
-	s := newSection(t, svc, nil, 140, 38)
-	svc.mu.Lock()
-	svc.offline = false
-	svc.mu.Unlock()
+// TestOnlineReadsKeptValues checks that what was served from what an
+// earlier read kept, offline or rate limited, is read again once GitHub
+// answers or the limit lifts, once. The fake serves the calendar as read.
+func TestOnlineReadsKeptValues(t *testing.T) {
+	for _, limited := range []bool{false, true} {
+		t.Run(map[bool]string{false: "offline", true: "limited"}[limited], func(t *testing.T) {
+			svc := newFake()
+			svc.offline, svc.limited = !limited, limited
+			s := newSection(t, svc, nil, 140, 38)
+			svc.mu.Lock()
+			svc.offline, svc.limited = false, false
+			svc.mu.Unlock()
 
-	n := svc.callCount()
-	run(t, s, s.Update(ui.OnlineMsg{}))
-	got := svc.callsSince(n)
-	slices.Sort(got)
-	if want := []string{"header", "work"}; !slices.Equal(got, want) {
-		t.Errorf("reads once online = %q, want %q", got, want)
-	}
-	if s.offlineNow() {
-		t.Error("still offline after reading again")
+			n := svc.callCount()
+			run(t, s, s.Update(ui.OnlineMsg{}))
+			got := svc.callsSince(n)
+			slices.Sort(got)
+			if want := []string{"header", "work"}; !slices.Equal(got, want) {
+				t.Errorf("reads once online = %q, want %q", got, want)
+			}
+			if s.offlineNow() || s.limitedNow() {
+				t.Error("still kept after reading again")
+			}
+			n = svc.callCount()
+			run(t, s, s.Update(ui.OnlineMsg{}))
+			if got := svc.callsSince(n); len(got) != 0 {
+				t.Errorf("reads on the next OnlineMsg = %q, want none", got)
+			}
+		})
 	}
 }

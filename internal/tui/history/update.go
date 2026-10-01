@@ -286,10 +286,23 @@ func (m *Modal) open() tea.Cmd {
 
 // online reads again, now that GitHub answers again, what failed for want
 // of an answer from it: the branches, the history and the commit shown.
+// The branches, and the head of the history, served from what an earlier
+// read kept while GitHub couldn't be reached or rate limited the read, are
+// read again too; the history is shown again if its head moved. What is
+// being read already is left to finish.
 func (m *Modal) online() tea.Cmd {
-	var branches tea.Cmd
-	if ui.Unreached(m.branches.err) {
+	var branches, head tea.Cmd
+	switch b := &m.branches; {
+	case b.kept && !b.loading:
+		// Reading from the first page also reads again a later page
+		// that failed.
+		b.err = nil
+		branches = m.loadBranches("", true)
+	case ui.Unreached(b.err):
 		branches = m.retryBranches()
 	}
-	return tea.Batch(branches, ui.RetryUnreached(&m.graph.model), m.retryCommit(ui.Unreached))
+	if k := m.graph.kept; k != nil && k.CompareAndSwap(true, false) {
+		head = m.readHead()
+	}
+	return tea.Batch(branches, head, ui.RetryUnreached(&m.graph.model), m.retryCommit(ui.Unreached))
 }

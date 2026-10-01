@@ -191,7 +191,8 @@ func (s *Section) refresh() tea.Cmd {
 }
 
 // online reads again, now that GitHub answers again, what failed for want
-// of an answer from it, or was served from what an earlier read kept:
+// of an answer from it, or was served from what an earlier read kept
+// while GitHub couldn't be reached or rate limited it:
 // the profile, the work, the calendar, the inbox, the repository of the
 // directory and the lists of repositories. What is being read already
 // is left to finish.
@@ -200,16 +201,16 @@ func (s *Section) online() tea.Cmd {
 		return nil
 	}
 	var cmds []tea.Cmd
-	if unreached(s.header, s.header.value.Offline) {
+	if unreached(s.header, s.header.value.Offline || s.header.value.Limited) {
 		cmds = append(cmds, s.readHeader(true))
 	}
-	if unreached(s.work, s.work.value.Offline) {
+	if unreached(s.work, s.work.value.Offline || s.work.value.Limited) {
 		cmds = append(cmds, s.readWork(true))
 	}
-	if unreached(s.contribs, s.contribs.value.Offline) {
+	if unreached(s.contribs, s.contribs.value.Offline || s.contribs.value.Limited) {
 		cmds = append(cmds, s.readContributions(true))
 	}
-	if unreached(s.notes, s.notes.value.Offline) {
+	if unreached(s.notes, s.notes.value.Offline || s.notes.value.Limited) {
 		cmds = append(cmds, s.readInbox(true))
 	}
 	if unreached(s.hereRepo, false) && s.hasHere() {
@@ -220,9 +221,10 @@ func (s *Section) online() tea.Cmd {
 }
 
 // unreached reports whether r, which isn't being read, failed for want of
-// an answer from GitHub, or shows a value served offline.
-func unreached[V any](r read[V], offline bool) bool {
-	return !r.loading && (ui.Unreached(r.err) || r.ok && r.err == nil && offline)
+// an answer from GitHub, or shows a value kept, served while GitHub
+// couldn't be reached or rate limited the read.
+func unreached[V any](r read[V], kept bool) bool {
+	return !r.loading && (ui.Unreached(r.err) || r.ok && r.err == nil && kept)
 }
 
 // Revisit reads again what went past its TTL while another screen was on

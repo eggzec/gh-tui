@@ -193,7 +193,8 @@ func (t *repoTabs) reload() tea.Cmd {
 }
 
 // online reads again the lists of the tabs started that failed for want
-// of an answer from GitHub.
+// of an answer from GitHub, and the pages they were served kept while
+// GitHub couldn't be reached or rate limited the read.
 func (t *repoTabs) online() tea.Cmd {
 	cmds := make([]tea.Cmd, 0, len(t.tabs))
 	for _, o := range t.tabs {

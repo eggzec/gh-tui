@@ -32,7 +32,9 @@ func FeedPages[Q comparable, T any](name string, query func(cursor string) Q, re
 		case err != nil:
 			return nil, "", err
 		case p.Offline, p.Limited:
-			// Read again now, it would be served the same.
+			// Read again now, it would be served the same; the feed reads
+			// it again once GitHub answers, or the limit lifts.
+			return p.Items, p.Next, feed.ErrKept
 		case p.Stale:
 			kept.Store(q, true)
 			return p.Items, p.Next, feed.ErrStale
