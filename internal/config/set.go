@@ -95,7 +95,7 @@ func settingField(key string) (reflect.StructField, bool) {
 	var f reflect.StructField
 	for part := range strings.SplitSeq(key, ".") {
 		var ok bool
-		if f, ok = fieldByYAML(t, part); !ok {
+		if f, ok = fieldByName(t, part); !ok {
 			return f, false
 		}
 		t = f.Type
