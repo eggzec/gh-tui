@@ -16,10 +16,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# cross keeps its own module and build cache, since it builds for platforms
-# no other job does, and setup-go's cache is one for all jobs, saved by
-# whichever finishes first. Go's build cache is content-addressed, so a
-# stale cache can only cost a rebuild; go.mod's hash covers the Go version.
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -44,6 +40,17 @@ jobs:
       - run: go test -race -count=1 ./...
         env:
           CGO_ENABLED: "1"
+
+  # The benchmarks, run a fixed number of times so they finish, and so that
+  # one that breaks or turns very slow fails here. A job of its own, so it
+  # runs beside the tests instead of after them.
+  bench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
       - run: go test -run '^$' -bench . -benchtime 100x ./...
 
   # What the client sends, against GitHub's schemas of github.com and of
@@ -73,6 +80,11 @@ jobs:
   # Build every platform the release ships without cgo, so a dependency that
   # needs cgo, or builds on one OS only, fails here first. The list is
   # cli/gh-extension-precompile's, in its build_and_release.sh.
+  #
+  # cross keeps its own module and build cache, since it builds for platforms
+  # no other job does, and setup-go's cache is one for all jobs, saved by
+  # whichever finishes first. Go's build cache is content-addressed, so a
+  # stale cache can only cost a rebuild; go.mod's hash covers the Go version.
   cross:
     runs-on: ubuntu-latest
     steps:
