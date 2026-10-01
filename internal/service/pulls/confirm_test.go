@@ -13,6 +13,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/cache/disk"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
+	"github.com/eggzec/gh-tui/internal/revalidate"
 )
 
 // etag is the ETag of the probe while the pull requests of v are as they
@@ -453,4 +454,95 @@ func TestFailedChangeNotConfirmed(t *testing.T) {
 		// The page is read again in full, not confirmed.
 		wantReads(t, api, 3, 2)
 	})
+}
+
+// keptListCheck checks the kept open list of store with the revalidator's
+// entry, in a session an hour later, whose clock reads at, or now if at is
+// zero.
+func keptListCheck(t *testing.T, v *versioned, store *disk.Store, at time.Time) (revalidate.Result, *fakeAPI) {
+	t.Helper()
+	id := kindList + ":" + openList.key(30)
+	api := v.probing()
+	s := New(api, WithStore(cachetest.Aged(store, time.Hour)))
+	if !at.IsZero() {
+		s.now = func() time.Time { return at }
+	}
+	for _, e := range s.Kept() {
+		if e.ID == id {
+			return e.Check(t.Context()), api
+		}
+	}
+	t.Fatalf("Kept lacks %s", id)
+	return revalidate.Result{}, nil
+}
+
+// TestKeptListRevalidated checks that the revalidator lists a kept list
+// page, and confirms it with the free probe while no pull request changed,
+// but leaves it to the views, without reading it, once one did.
+func TestKeptListRevalidated(t *testing.T) {
+	v := &versioned{updated: epoch, checks: core.ChecksSuccess}
+	store := openStore(t)
+	probedSession(t, v, store)
+
+	res, api := keptListCheck(t, v, store, time.Time{})
+	if res.Status != revalidate.NotModified {
+		t.Errorf("check = %+v, want not modified", res)
+	}
+	wantReads(t, api, 1, 0)
+
+	v.set(epoch.Add(time.Minute), core.ChecksSuccess)
+	res, api = keptListCheck(t, v, store, time.Time{})
+	if res.Status != revalidate.Skipped {
+		t.Errorf("check after a change = %+v, want skipped", res)
+	}
+	wantReads(t, api, 1, 0)
+}
+
+// TestKeptListUnconfirmableSkipped checks that the revalidator spends
+// nothing on a kept page the probe can't vouch for: one read in full too
+// long ago, or that shows checks running.
+func TestKeptListUnconfirmableSkipped(t *testing.T) {
+	tests := []struct {
+		name   string
+		checks core.ChecksState
+		// later is how long after the page was read the check runs.
+		later time.Duration
+	}{
+		{"old", core.ChecksSuccess, confirmFor + time.Minute},
+		{"checks running", core.ChecksPending, 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v := &versioned{updated: epoch, checks: tt.checks}
+			store := openStore(t)
+			probedSession(t, v, store)
+			var at time.Time
+			if tt.later > 0 {
+				// The page's ReadAt is this session's clock, which Aged
+				// doesn't move.
+				at = time.Now().Add(tt.later)
+			}
+			res, api := keptListCheck(t, v, store, at)
+			if res.Status != revalidate.Skipped {
+				t.Errorf("check = %+v, want skipped", res)
+			}
+			wantReads(t, api, 0, 0)
+		})
+	}
+}
+
+func TestParseListKey(t *testing.T) {
+	for _, size := range []int{30, 50} {
+		for _, q := range []ListQuery{openList, {Repo: repo}, {Repo: repo, State: core.StateClosed, Cursor: "Y3Vyc29yOjI=", PageSize: 50}} {
+			got, ok := parseListKey(q.key(size), size)
+			if !ok || got.key(size) != q.key(size) {
+				t.Errorf("parseListKey(%q, %d) = %+v, %v; want %+v", q.key(size), size, got, ok, q)
+			}
+		}
+	}
+	for _, key := range []string{"pulls:eggzec/gh-tui", "pull:eggzec/gh-tui?state=open", (ListQuery{Repo: repo, Filter: "label:bug"}).key(30)} {
+		if _, ok := parseListKey(key, 30); ok {
+			t.Errorf("parseListKey(%q) ok, want refused", key)
+		}
+	}
 }

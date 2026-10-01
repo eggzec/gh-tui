@@ -216,7 +216,10 @@ changes minimal so that pulling in new upstream versions stays easy.
   `service/recheck` over `cache.Shelf.Kept` and `Recheck`) and says what a
   check found. Only entries with validators are listed; content named by a
   SHA never changes, and GraphQL entries are left to the probes (`Poll`,
-  whose ETags are kept too) and the update times (`service/seen`).
+  whose ETags are kept too) and the update times (`service/seen`). A
+  pull list page carries the probe's ETag, so it is listed and confirmed
+  with the probe; one the probe can't confirm is left to the views, so
+  the background spends no GraphQL quota on it.
 - A 304 marks the entry fetched now, in memory and on disk, without a
   re-render. A 200 stores the new value and returns a sync key, which the
   revalidator publishes through the sync engine (`watch.Engine.Publish`),
