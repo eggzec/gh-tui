@@ -68,11 +68,13 @@ type Section struct {
 	// most recent first, so that the finder offers them first.
 	recent map[string][]string
 
-	// prefetchMax is the largest top-level file read ahead, or 0.
-	prefetchMax int64
-	hover       hover
-	// seen remembers the files read ahead, so that opening one counts as
-	// a use.
+	// prefetch is what is read ahead. ahead reads the files around the
+	// cursor of the tree, and dirs the listings of the folders around it.
+	prefetch prefetch
+	ahead    *ui.Ahead[filesvc.BlobQuery]
+	dirs     *ui.Ahead[filesvc.TreeQuery]
+	// seen remembers the files the finder read, so that opening one
+	// counts as a use.
 	seen *obs.Prefetched[filesvc.BlobQuery]
 
 	width, height int
@@ -102,10 +104,12 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		seen:        obs.NewPrefetched[filesvc.BlobQuery]("file"),
 		findPreview: config.Default().Files.Finder.Preview,
 		recent:      map[string][]string{},
+		prefetch:    noPrefetch(),
 	}
 	for _, opt := range opts {
 		opt(s)
 	}
+	s.newAheads()
 	s.fileIcons = newFileIcons(s.icons, s.theme)
 	s.hint = "Search for a repository to browse its files."
 	if k := ui.Binding(keys, config.ActionSearch, "search").Help().Key; k != "" {
@@ -143,7 +147,7 @@ func (s *Section) newTree(repo core.RepoRef, ref string) {
 	s.repo, s.ref, s.tree, s.src, s.started = repo, ref, &t, src, false
 	s.treeCtx, s.cancelTree = ctx, cancel
 	s.idx, s.warned = nil, false
-	s.hover.reset()
+	s.resetAheads(ctx)
 	s.baseLabel = ""
 	if s.finder != nil {
 		s.finder.close()
@@ -191,7 +195,7 @@ func (s *Section) Update(msg tea.Msg) tea.Cmd {
 	if s.tree == nil {
 		return cmd
 	}
-	return tea.Batch(cmd, s.observe(), s.moved())
+	return tea.Batch(cmd, s.observe(), s.readAhead())
 }
 
 func (s *Section) update(msg tea.Msg) tea.Cmd {
@@ -227,11 +231,8 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 			return s.tree.Reload()
 		}
 		return s.tree.Retry()
-	case hoverMsg:
-		if s.tree == nil {
-			return nil
-		}
-		return s.rested(msg)
+	case ui.AheadMsg:
+		return tea.Batch(s.ahead.Rested(msg), s.dirs.Rested(msg))
 	case listingMsg:
 		if s.tree == nil || msg.src != s.src {
 			return nil
@@ -301,10 +302,9 @@ func (s *Section) reload() tea.Cmd {
 	}
 }
 
-// observe reacts to a listing the tree read since the last call: it reads
-// the small top-level files ahead. A truncated listing is read one
-// directory at a time, with a request each, so an expand-all goes back to
-// the tree's cautious limits.
+// observe reacts to a listing the tree read since the last call. A
+// truncated listing is read one directory at a time, with a request each,
+// so an expand-all goes back to the tree's cautious limits.
 func (s *Section) observe() tea.Cmd {
 	x := s.src.current()
 	if x == nil || x == s.idx {
@@ -321,18 +321,16 @@ func (s *Section) observe() tea.Cmd {
 			s.finder = nil
 		}
 	}
-	prefetch := s.prefetchTop(s.treeCtx, x)
 	if !x.truncated {
 		s.tree.SetExpandAllLimits(expandAllNodes, expandAllDepth)
-		return prefetch
+		return nil
 	}
 	s.tree.SetExpandAllLimits(tree.DefaultExpandAllNodes, tree.DefaultExpandAllDepth)
 	if s.warned {
-		return prefetch
+		return nil
 	}
 	s.warned = true
-	return tea.Batch(prefetch,
-		ui.Notify(toast.Info, s.repo.String()+" is too large to list at once, so folders load as you open them."))
+	return ui.Notify(toast.Info, s.repo.String()+" is too large to list at once, so folders load as you open them.")
 }
 
 // preview opens the file of n in a modal. A submodule has no content in
@@ -356,7 +354,9 @@ func (s *Section) preview(n tree.Node) tea.Cmd {
 // closes, if set.
 func (s *Section) open(e core.TreeEntry, ret ui.Modal) tea.Cmd {
 	s.opened(e.Path)
-	s.seen.Opened(s.blobQuery(e))
+	q := s.blobQuery(e)
+	s.ahead.Opened(q)
+	s.seen.Opened(q)
 	p := newPreview(s.ctx, s.svc, s.host, s.repo, s.ref, e, s.keys.Open, s.voice, s.editor, s.icons)
 	p.ret = ret
 	// The app passes messages to a modal only once it is open, so the load

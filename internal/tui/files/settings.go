@@ -9,22 +9,13 @@ import (
 // which the set command changed: the icons, which the theme the app sets
 // again after draws with, whether the finder shows a preview, which it
 // lays out with when it opens, the editor, which the next preview opens
-// files in, and the reads ahead, as WithPrefetch and WithHoverPrefetch set
-// them.
+// files in, and the reads ahead, as WithPrefetch sets them, from the next
+// move of a cursor.
 func (s *Section) configure(c config.Config) {
 	s.icons = ui.NewIcons(c.UI.Icons)
 	s.findPreview = c.Files.Finder.Preview
 	s.editor = c.Editor
-	p := c.Files.Prefetch
-	if !p.Enabled {
-		s.prefetchMax, s.hover.max = 0, 0
-		// The read in flight stops, and the wait of the cursor is moot.
-		s.hover.stop()
-		s.hover.seq++
-		return
-	}
-	// The file under the cursor is likely opened next, so it is read up
-	// to the size the preview reads.
-	s.prefetchMax = int64(p.MaxSize)
-	s.hover.delay, s.hover.max = max(p.HoverDelay, 0), int64(c.Files.Preview.MaxSize)
+	s.prefetch = newPrefetch(c.Prefetch, c.Files.Preview.MaxSize)
+	s.ahead.Configure(s.prefetch.preview)
+	s.dirs.Configure(s.prefetch.tree)
 }

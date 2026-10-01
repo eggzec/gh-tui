@@ -6,87 +6,137 @@ import (
 	"log/slog"
 	"path"
 	"strings"
-	"sync"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
 	filesvc "github.com/eggzec/gh-tui/internal/service/files"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
-// Reading top-level files ahead costs a request each, so it is bounded.
-const (
-	// prefetchFiles is the most top-level files read ahead per listing.
-	prefetchFiles = 32
-	// prefetchWorkers is the most reads in flight at once.
-	prefetchWorkers = 4
-)
-
-// prefetchTop reads the small top-level files of x ahead of the preview,
-// into the service's cache. Their contents come back through CachedBlob, so
-// the command reports nothing. The reads stop when ctx is done.
-func (s *Section) prefetchTop(ctx context.Context, x *index) tea.Cmd {
-	if s.prefetchMax <= 0 {
-		return nil
-	}
-	var todo []filesvc.BlobQuery
-	cached := 0
-	for _, e := range x.dirs[""] {
-		if len(todo) == prefetchFiles {
-			break
-		}
-		q := s.blobQuery(e)
-		if !worthReading(e, s.prefetchMax) {
-			continue
-		}
-		if _, ok := s.svc.CachedBlob(q); ok {
-			cached++
-			s.seen.Count(obs.PrefetchCached)
-			continue
-		}
-		todo = append(todo, q)
-	}
-	if len(todo) == 0 {
-		return nil
-	}
-	svc, seen, repo := s.svc, s.seen, s.repo
-	return func() tea.Msg {
-		ctx := obs.WithTrace(obs.ForPrefetch(ctx), "prefetch.files")
-		slog.InfoContext(ctx, "prefetch", "span", "prefetch", "kind", seen.Kind(), "trigger", "top",
-			"repo", repo.String(), "sent", len(todo), "skipped_cached", cached)
-		readAll(ctx, svc, seen, todo, prefetchWorkers)
-		return nil
-	}
+// prefetch is what the section reads ahead, as the prefetch settings of
+// the files tree and the finder resolve.
+type prefetch struct {
+	// preview reads the content of the files around the tree's cursor,
+	// tree the listings of its folders, and finder the content of the
+	// files around the finder's cursor.
+	preview, tree, finder config.Resolved
+	// previewMax and finderMax are the largest files read around the
+	// cursors, and cursorMax the largest under them: the file under the
+	// cursor is likely opened next, or the finder shows it, so it is read
+	// up to the size the preview reads.
+	previewMax, finderMax, cursorMax int64
 }
 
-// readAll reads the blobs of qs with at most workers reads in flight, and
-// ignores failures: the preview reports them if the file is opened.
-func readAll(ctx context.Context, svc Service, seen *obs.Prefetched[filesvc.BlobQuery], qs []filesvc.BlobQuery, workers int) {
-	sem := make(chan struct{}, workers)
-	var wg sync.WaitGroup
-	defer wg.Wait()
-	for i, q := range qs {
-		select {
-		case sem <- struct{}{}:
-		case <-ctx.Done():
-			for range len(qs) - i {
-				seen.Count(obs.PrefetchCanceled)
-			}
-			return
-		}
-		// select picks at random when a slot frees as ctx ends, so check
-		// again rather than start a read after the cancel.
-		if ctx.Err() != nil {
-			<-sem
-			return
-		}
-		wg.Go(func() {
-			defer func() { <-sem }()
-			_, _ = readBlob(ctx, svc, seen, q)
-		})
+// newPrefetch resolves the settings of the files tree and the finder in
+// p, where previewMax is the largest file the preview reads.
+func newPrefetch(p config.PrefetchLayers, previewMax config.Size) prefetch {
+	var r prefetch
+	// The names are those of the settings, so these can't fail.
+	r.preview, _ = p.Resolve("files", "preview")
+	r.tree, _ = p.Resolve("files", "tree")
+	r.finder, _ = p.Resolve("finder", "preview")
+	r.previewMax, r.finderMax = int64(p.Files.Preview.MaxSize), int64(p.Finder.Preview.MaxSize)
+	r.cursorMax = int64(previewMax)
+	return r
+}
+
+// noPrefetch reads nothing ahead, but for the file under the finder's
+// cursor, which the finder shows, after the default rest.
+func noPrefetch() prefetch {
+	d := config.Default()
+	p := newPrefetch(d.Prefetch, d.Files.Preview.MaxSize)
+	p.preview.Enabled, p.tree.Enabled, p.finder.Enabled = false, false, false
+	return p
+}
+
+// fileAhead returns reads ahead of the content of files, as r says.
+func (s *Section) fileAhead(r config.Resolved) *ui.Ahead[filesvc.BlobQuery] {
+	svc := s.svc
+	a := ui.NewAhead("file",
+		func(ctx context.Context, q filesvc.BlobQuery) error {
+			_, err := svc.Blob(ctx, q)
+			return err
+		},
+		func(q filesvc.BlobQuery) bool {
+			_, ok := svc.CachedBlob(q)
+			return ok
+		}, 0, 0)
+	a.Configure(r)
+	return a
+}
+
+// newAheads makes the reads ahead of the tree: of the content of files,
+// and of the listings of folders.
+func (s *Section) newAheads() {
+	svc := s.svc
+	s.ahead = s.fileAhead(s.prefetch.preview)
+	s.dirs = ui.NewAhead("dir",
+		func(ctx context.Context, q filesvc.TreeQuery) error {
+			_, err := svc.Tree(ctx, q)
+			return err
+		},
+		func(q filesvc.TreeQuery) bool {
+			_, ok := svc.CachedTree(q)
+			return ok
+		}, 0, 0)
+	s.dirs.Configure(s.prefetch.tree)
+}
+
+// readAhead reads, once the cursor rests, the files in a window around it
+// in the order of the tree, and the listings of the folders in a window
+// when the listing of the repository was too large to read at once; a
+// whole listing expands its folders without requests.
+func (s *Section) readAhead() tea.Cmd {
+	i := s.tree.Index()
+	// Until the tree shows rows, it has no window.
+	files, dirs := s.fileAt, s.dirAt
+	if s.tree.Len() == 0 {
+		files, dirs = nil, nil
 	}
+	if s.idx == nil || !s.idx.truncated {
+		dirs = nil
+	}
+	return tea.Batch(s.ahead.Window(files, i), s.dirs.Window(dirs, i))
+}
+
+// fileAt returns the blob of the file at row i of the tree, if it is
+// worth reading ahead.
+func (s *Section) fileAt(i int) (filesvc.BlobQuery, bool) {
+	n, ok := s.tree.At(i)
+	e, isEntry := entryOf(n)
+	limit := s.prefetch.previewMax
+	if i == s.tree.Index() {
+		limit = s.prefetch.cursorMax
+	}
+	if !ok || !isEntry || !worthReading(e, limit) {
+		return filesvc.BlobQuery{}, false
+	}
+	return s.blobQuery(e), true
+}
+
+// dirAt returns the listing of the folder at row i of the tree, if it is
+// a folder.
+func (s *Section) dirAt(i int) (filesvc.TreeQuery, bool) {
+	n, ok := s.tree.At(i)
+	e, isEntry := entryOf(n)
+	if !ok || !isEntry || !e.Dir() {
+		return filesvc.TreeQuery{}, false
+	}
+	return filesvc.TreeQuery{Repo: s.repo, Ref: e.SHA}, true
+}
+
+// resetAheads cancels the reads ahead of the tree shown, for a new tree
+// whose reads ctx bounds.
+func (s *Section) resetAheads(ctx context.Context) {
+	s.ahead.Reset(ctx)
+	s.dirs.Reset(ctx)
+	// Another repository may not be rate limited.
+	s.ahead.Resume()
+	s.dirs.Resume()
 }
 
 // readBlob reads the blob of q ahead, records what came of it, and returns
@@ -141,4 +191,8 @@ var binaryExt = map[string]bool{
 	// Compiled code and data.
 	".exe": true, ".dll": true, ".so": true, ".dylib": true, ".a": true, ".o": true, ".class": true,
 	".pyc": true, ".wasm": true, ".bin": true, ".dat": true, ".db": true, ".sqlite": true, ".pdf": true,
+}
+
+func (s *Section) blobQuery(e core.TreeEntry) filesvc.BlobQuery {
+	return filesvc.BlobQuery{Repo: s.repo, SHA: e.SHA, Size: e.Size}
 }

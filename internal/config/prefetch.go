@@ -61,6 +61,23 @@ type Layer struct {
 	Rest    *time.Duration `yaml:"rest,omitempty" inherit:"prefetch"`
 }
 
+// PreviewLayer is the knobs of a kind that reads the content of files,
+// and the largest file it reads around the cursor.
+type PreviewLayer struct {
+	Enabled *bool          `yaml:"enabled,omitempty" inherit:"prefetch"`
+	Window  Span           `yaml:"window,omitempty"`
+	Rest    *time.Duration `yaml:"rest,omitempty" inherit:"prefetch"`
+	// MaxSize is the largest file read around the cursor, at most
+	// files.preview.max_size. The file under the cursor, which a pane
+	// shows or is likely opened next, is read up to that.
+	MaxSize Size `yaml:"max_size"`
+}
+
+// isKind reports whether t is the type of a kind of item's settings.
+func isKind(t reflect.Type) bool {
+	return t == reflect.TypeFor[Layer]() || t == reflect.TypeFor[PreviewLayer]()
+}
+
 // The pages and their kinds of items. A page's own knobs are fields of its
 // own rather than an embedded Layer, so that the path of each setting is
 // the path of its field.
@@ -129,7 +146,7 @@ type FilesKinds struct {
 	Window  Span           `yaml:"window,omitempty"`
 	Rest    *time.Duration `yaml:"rest,omitempty" inherit:"prefetch"`
 	Tree    Layer          `yaml:"tree,omitempty"`
-	Preview Layer          `yaml:"preview,omitempty"`
+	Preview PreviewLayer   `yaml:"preview,omitempty"`
 }
 
 // FinderKinds is the file finder's: the content of the result.
@@ -137,7 +154,7 @@ type FinderKinds struct {
 	Enabled *bool          `yaml:"enabled,omitempty" inherit:"prefetch"`
 	Window  Span           `yaml:"window,omitempty"`
 	Rest    *time.Duration `yaml:"rest,omitempty" inherit:"prefetch"`
-	Preview Layer          `yaml:"preview,omitempty"`
+	Preview PreviewLayer   `yaml:"preview,omitempty"`
 }
 
 // HistoryKinds is the history's: what commits changed, and the graphs
@@ -203,7 +220,7 @@ func (PrefetchLayers) Kinds() []PageKind {
 			continue
 		}
 		for kind := range page.Type.Fields() {
-			if kind.Type == reflect.TypeFor[Layer]() {
+			if isKind(kind.Type) {
 				out = append(out, PageKind{yamlName(page), yamlName(kind)})
 			}
 		}
@@ -275,7 +292,7 @@ func (p PrefetchLayers) layers(page, kind string) (pv, kv reflect.Value, err err
 	}
 	pv = v.FieldByIndex(pf.Index)
 	kf, ok := fieldByYAML(pf.Type, kind)
-	if !ok || kf.Type != reflect.TypeFor[Layer]() {
+	if !ok || !isKind(kf.Type) {
 		return pv, kv, fmt.Errorf("%w %q", ErrUnknownKey, "prefetch."+page+"."+kind)
 	}
 	return pv, pv.FieldByIndex(kf.Index), nil
@@ -303,9 +320,10 @@ func windowBound(page, kind string) int {
 	return maxWindow
 }
 
-// validate checks the bounds of every knob each layer sets, and that no
-// kind without a window sets one.
-func (p PrefetchLayers) validate() error {
+// validate checks the bounds of every knob each layer sets, that no kind
+// without a window sets one, and that no kind reads files ahead larger
+// than previewMax, the largest the preview reads.
+func (p PrefetchLayers) validate(previewMax Size) error {
 	var errs []error
 	errs = append(errs, checkWindow("prefetch.window.before", p.Window.Before, maxWindow),
 		checkWindow("prefetch.window.after", p.Window.After, maxWindow),
@@ -322,7 +340,7 @@ func (p PrefetchLayers) validate() error {
 		pv := v.FieldByIndex(pf.Index)
 		errs = append(errs, validateLayer("prefetch."+page, pv, windowBound(page, "")))
 		for kf := range pf.Type.Fields() {
-			if kf.Type != reflect.TypeFor[Layer]() {
+			if !isKind(kf.Type) {
 				continue
 			}
 			kind := yamlName(kf)
@@ -334,6 +352,9 @@ func (p PrefetchLayers) validate() error {
 				}
 			}
 			errs = append(errs, validateLayer(path, kv, windowBound(page, kind)))
+			if l, ok := reflect.TypeAssert[PreviewLayer](kv); ok && (l.MaxSize < 0 || l.MaxSize > previewMax) {
+				errs = append(errs, fmt.Errorf("%s.max_size: must be between 0B and files.preview.max_size (%v), got %v", path, previewMax, l.MaxSize))
+			}
 		}
 	}
 	return errors.Join(errs...)

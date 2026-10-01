@@ -182,7 +182,7 @@ func (c Config) Validate() error {
 		errs = append(errs, validateKeys(action, c.Keys[action]))
 	}
 
-	errs = append(errs, c.Cache.validate(), c.Sync.validate(), c.Files.validate(), c.Details.validate(), c.History.validate(), c.Dashboard.validate(), c.Prefetch.validate(),
+	errs = append(errs, c.Cache.validate(), c.Sync.validate(), c.Files.validate(), c.Details.validate(), c.History.validate(), c.Dashboard.validate(), c.Prefetch.validate(c.Files.Preview.MaxSize),
 		c.UI.validate(), c.GitHub.validate(), c.PageSize.validate(), c.Commands.validate(), c.Images.validate(), c.Log.validate(),
 		validateEditor(c.Editor))
 	return errors.Join(errs...)

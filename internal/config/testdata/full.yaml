@@ -53,10 +53,6 @@ sync:
   unfocused_slowdown: 2
 
 files:
-  prefetch:
-    enabled: false
-    max_size: 16KiB
-    hover_delay: 300ms
   preview:
     max_size: 2000000
   finder:
@@ -79,6 +75,13 @@ history:
   prefetch:
     around: 5
     hover_delay: 250ms
+
+prefetch:
+  files:
+    rest: 300ms
+    preview: {enabled: false, max_size: 16KiB}
+  finder:
+    preview: {window: {before: 1, after: 2}, max_size: 8KiB}
 
 dashboard:
   calendar_glyph: "#"

@@ -69,7 +69,7 @@ func TestSetCommand(t *testing.T) {
 		{line: "set details.prefetch.enabled=false", toast: "details.prefetch.enabled is false for this session.", changes: true},
 		{line: "set sync.poll.lists=1ms", toast: "Can't set sync.poll.lists: must be at least 10s, got 1ms."},
 		{line: "set sync.poll.lists=10s", toast: "sync.poll.lists is 10s for this session.", changes: true},
-		{line: "set files.prefetch.max_size=2MiB", toast: "Can't set files.prefetch.max_size: must not exceed files.preview.max_size (1MiB), got 2MiB."},
+		{line: "set prefetch.files.preview.max_size=2MiB", toast: "Can't set prefetch.files.preview.max_size: must be between 0B and files.preview.max_size (1MiB), got 2MiB."},
 	}
 	for _, tt := range tests {
 		t.Run(tt.line, func(t *testing.T) {

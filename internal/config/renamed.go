@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"go.yaml.in/yaml/v3"
 )
@@ -61,6 +62,32 @@ var renames = []rename{
 			return map[string]*yaml.Node{"ui.date_format": old["history.date_format"]}, nil
 		},
 	},
+	renameTo("files.prefetch.enabled", "prefetch.files.preview.enabled"),
+	renameTo("files.prefetch.max_size", "prefetch.files.preview.max_size"),
+	restRename("files.prefetch.hover_delay", "prefetch.files.rest"),
+}
+
+// renameTo moves the value of the setting from to the setting to.
+func renameTo(from, to string) rename {
+	return rename{old: []string{from}, new: []string{to}, move: func(v map[string]*yaml.Node) (map[string]*yaml.Node, error) {
+		return map[string]*yaml.Node{to: v[from]}, nil
+	}}
+}
+
+// restRename moves a delay of one page, from, to its rest, to, unless it
+// is the default of prefetch.rest, which the page then takes from there,
+// so that changing prefetch.rest changes the page too.
+func restRename(from, to string) rename {
+	return rename{old: []string{from}, new: []string{to}, move: func(v map[string]*yaml.Node) (map[string]*yaml.Node, error) {
+		d, err := time.ParseDuration(v[from].Value)
+		if err != nil {
+			return nil, errors.New("want a duration such as 150ms")
+		}
+		if d == Default().Prefetch.Rest {
+			return map[string]*yaml.Node{}, nil
+		}
+		return map[string]*yaml.Node{to: v[from]}, nil
+	}}
 }
 
 // checkRenames returns what is wrong with table: an old name that is a

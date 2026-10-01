@@ -135,7 +135,6 @@ internal/images/signed.go:unknownExpiry  keep: a safety mechanism, the life of a
 
 # The tui.
 internal/tui/actions/options.go:defaultRest  move: prefetch.rest
-internal/tui/files/finder.go:defaultFinderDelay  move: prefetch.finder.rest
 internal/tui/search/section.go:OthersWait  move: prefetch.search.other_kinds.rest
 internal/tui/search/section.go:DefaultDebounce  keep: the debounce of typing, a feel constant
 internal/tui/search/lists.go:defaultPrefetch  keep: a paging threshold, the rows before the end that load the next page

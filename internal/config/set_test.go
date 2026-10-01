@@ -10,7 +10,7 @@ import (
 
 func TestKeys(t *testing.T) {
 	keys := Keys()
-	for _, k := range []string{"repos", "theme", "ui.icons", "sync.poll.lists", "details.prefetch.rows", "files.prefetch.max_size", "history.row", "cache.disk.dir", "log.level"} {
+	for _, k := range []string{"repos", "theme", "ui.icons", "sync.poll.lists", "details.prefetch.rows", "prefetch.files.preview.max_size", "history.row", "cache.disk.dir", "log.level"} {
 		if !slices.Contains(keys, k) {
 			t.Errorf("Keys() lacks %s", k)
 		}
@@ -29,19 +29,19 @@ func TestKeys(t *testing.T) {
 func TestGet(t *testing.T) {
 	c := Default()
 	for key, want := range map[string]string{
-		"ui.icons":                     "nerd",
-		"sync.enabled":                 "true",
-		"sync.poll.notifications":      "1m",
-		"sync.poll.lists":              "1m",
-		"sync.poll.actions":            "10s",
-		"sync.poll.checks":             "15s",
-		"sync.unfocused_slowdown":      "4",
-		"details.prefetch.hover_delay": "150ms",
-		"details.prefetch.rows":        "5",
-		"files.prefetch.max_size":      "64KiB",
-		"history.row":                  "[short_sha, subject, author, age]",
-		"repos":                        "[]",
-		"log.file":                     `""`,
+		"ui.icons":                        "nerd",
+		"sync.enabled":                    "true",
+		"sync.poll.notifications":         "1m",
+		"sync.poll.lists":                 "1m",
+		"sync.poll.actions":               "10s",
+		"sync.poll.checks":                "15s",
+		"sync.unfocused_slowdown":         "4",
+		"details.prefetch.hover_delay":    "150ms",
+		"details.prefetch.rows":           "5",
+		"prefetch.files.preview.max_size": "64KiB",
+		"history.row":                     "[short_sha, subject, author, age]",
+		"repos":                           "[]",
+		"log.file":                        `""`,
 	} {
 		if got, err := c.Get(key); err != nil || got != want {
 			t.Errorf("Get(%q) = %q, %v, want %q", key, got, err, want)
@@ -79,8 +79,8 @@ func TestSet(t *testing.T) {
 		{key: "details.prefetch.rows", value: "10", want: "10"},
 		{key: "details.prefetch.rows", value: "40", err: "details.prefetch.rows: must be between 0 and 30, got 40"},
 		{key: "details.prefetch.hover_delay", value: "1s", want: "1s"},
-		{key: "files.prefetch.max_size", value: "512KiB", want: "512KiB"},
-		{key: "files.prefetch.max_size", value: "2MiB", err: "files.prefetch.max_size: must not exceed files.preview.max_size"},
+		{key: "prefetch.files.preview.max_size", value: "512KiB", want: "512KiB"},
+		{key: "prefetch.files.preview.max_size", value: "2MiB", err: "prefetch.files.preview.max_size: must be between 0B and files.preview.max_size"},
 		{key: "dashboard.calendar_glyph", value: "#", want: "#"},
 		{key: "dashboard.calendar_glyph", value: `"▪"`, want: "▪"},
 		{key: "history.row", value: "short_sha, subject", want: "[short_sha, subject]"},
