@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"log/slog"
+	"slices"
 	"strings"
 	"testing"
 	"testing/synctest"
@@ -130,6 +131,136 @@ func TestFailingWakesOnRecovery(t *testing.T) {
 		a.check(t, "answered well", 1)
 		run(a.m, a.online())
 		a.check(t, "answered once more", 1)
+	})
+}
+
+// TestLimitLiftWakes checks that a rate limit lifting wakes the polls
+// and the sections once, a spent quota's as well as a secondary limit's,
+// since what was kept while it held was served and read only on a wake,
+// and that a limit holding wakes nothing.
+func TestLimitLiftWakes(t *testing.T) {
+	limits := map[string]func(s *core.RateStatus, until time.Time){
+		"quota": func(s *core.RateStatus, until time.Time) {
+			s.Quotas = []core.Quota{{Resource: "core", Limit: 5000, Reset: until, LimitedUntil: until}}
+		},
+		"secondary": func(s *core.RateStatus, until time.Time) { s.SecondaryUntil = until },
+	}
+	for name, limit := range limits {
+		t.Run(name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				a := newLinkApp(t)
+				s := a.rates.RateStatus()
+				limit(&s, time.Now().Add(time.Minute))
+				s.At = time.Now()
+				a.rates.set(s)
+				run(a.m, a.sync())
+				run(a.m, a.online())
+				a.check(t, "while limited", 0)
+
+				time.Sleep(time.Minute)
+				s = a.rates.RateStatus()
+				limit(&s, time.Time{})
+				s.At = time.Now()
+				a.rates.set(s)
+				run(a.m, a.sync())
+				a.check(t, "lifted", 1)
+				run(a.m, a.online())
+				a.check(t, "answered once more", 1)
+			})
+		})
+	}
+}
+
+// limit sets the rate status to change, taken now, and tells the app,
+// returning the command it answers with.
+func (a *linkApp) limit(change func(s *core.RateStatus)) tea.Cmd {
+	s := a.rates.RateStatus()
+	// The app keeps the status it read, quotas and all.
+	s.Quotas = slices.Clone(s.Quotas)
+	change(&s)
+	s.At = time.Now()
+	a.rates.set(s)
+	return a.sync()
+}
+
+// spent returns the quota of resource, spent until until, or not spent if
+// until is zero.
+func spent(resource string, until time.Time) core.Quota {
+	return core.Quota{Resource: resource, Limit: 5000, Reset: until, LimitedUntil: until}
+}
+
+// TestLimitLiftWaitsForTheLast checks that a quota lifting while another
+// still holds wakes nothing, and that the last one lifting wakes the polls
+// and the sections.
+func TestLimitLiftWaitsForTheLast(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		a := newLinkApp(t)
+		now := time.Now()
+		run(a.m, a.limit(func(s *core.RateStatus) {
+			s.Quotas = []core.Quota{spent("core", now.Add(time.Minute)), spent("graphql", now.Add(2*time.Minute))}
+		}))
+		time.Sleep(time.Minute)
+		run(a.m, a.limit(func(s *core.RateStatus) { s.Quotas[0] = spent("core", time.Time{}) }))
+		a.check(t, "core lifted, graphql holds", 0)
+		time.Sleep(time.Minute)
+		run(a.m, a.limit(func(s *core.RateStatus) { s.Quotas[1] = spent("graphql", time.Time{}) }))
+		a.check(t, "graphql lifted too", 1)
+	})
+}
+
+// TestLimitLiftWhileOfflineOrFailing checks that a limit lifting while
+// GitHub can't be reached, or fails with server errors, wakes nothing:
+// the reads would fail again, and waking the polls would undo their
+// backoff.
+func TestLimitLiftWhileOfflineOrFailing(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		down func(a *linkApp)
+	}{
+		{"offline", func(a *linkApp) { a.offline() }},
+		{"failing", func(a *linkApp) {
+			run(a.m, a.limit(func(s *core.RateStatus) { s.Answered, s.Failing = time.Now(), time.Now() }))
+		}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				a := newLinkApp(t)
+				until := time.Now().Add(time.Minute)
+				run(a.m, a.limit(func(s *core.RateStatus) { s.Quotas = []core.Quota{spent("core", until)} }))
+				tt.down(a)
+				time.Sleep(time.Minute)
+				run(a.m, a.limit(func(s *core.RateStatus) { s.Quotas = []core.Quota{spent("core", time.Time{})} }))
+				a.check(t, "lifted while "+tt.name, 0)
+			})
+		})
+	}
+}
+
+// TestLimitLiftsWakeOnceAGap checks that a limit that holds and lifts
+// again within onlineGap of the last wake waits for the gap's end.
+func TestLimitLiftsWakeOnceAGap(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		a := newLinkApp(t)
+		hold := func(until time.Time) tea.Cmd {
+			return a.limit(func(s *core.RateStatus) { s.Quotas = []core.Quota{spent("core", until)} })
+		}
+		run(a.m, hold(time.Now().Add(time.Second)))
+		time.Sleep(time.Second)
+		run(a.m, hold(time.Time{}))
+		a.check(t, "first lift", 1)
+
+		run(a.m, hold(time.Now().Add(time.Second)))
+		time.Sleep(time.Second)
+		tick := hold(time.Time{})
+		if tick == nil {
+			t.Fatal("a lift within the gap should wait for its end")
+		}
+		a.check(t, "second lift within the gap", 1)
+		run(a.m, tick)
+		a.check(t, "end of the gap", 2)
+		if gap := a.wakes[1].Sub(a.wakes[0]); gap != onlineGap {
+			t.Errorf("woke again %v after the first lift, want %v", gap, onlineGap)
+		}
 	})
 }
 

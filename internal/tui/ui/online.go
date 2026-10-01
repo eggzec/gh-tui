@@ -9,9 +9,10 @@ import (
 )
 
 // OnlineMsg tells the sections that GitHub answers again after the app
-// couldn't reach it. Each reads again, once, what it shows that failed
-// meanwhile (Unreached), such as a list whose page didn't load; what
-// didn't fail costs no request.
+// couldn't reach it, or that the last rate limit lifted. Each reads
+// again, once, what it shows that failed meanwhile (Unreached), such as a
+// list whose page didn't load; the files section also reads again a
+// listing it was served kept. What was served fresh costs no request.
 type OnlineMsg struct{}
 
 // Unreached reports whether err is of a read that got no answer from
