@@ -153,3 +153,21 @@ func TestErrorTextWithoutRetry(t *testing.T) {
 		}
 	}
 }
+
+// Turning the retry key off after a failure stops naming it, and the
+// retry key doesn't fetch again.
+func TestRetryTurnedOffAfterFailure(t *testing.T) {
+	m := failedTail(t, 60)
+	if v := ansi.Strip(m.View()); !strings.Contains(v, "r to retry") {
+		t.Fatalf("View() = %q, want the retry key named", v)
+	}
+	off := DefaultKeyMap()
+	off.Retry.SetEnabled(false)
+	m.SetKeyMap(off)
+	if v := ansi.Strip(m.View()); strings.Contains(v, "to retry") {
+		t.Errorf("View() = %q after SetKeyMap, want no retry key", v)
+	}
+	if _, cmd := m.Update(keyMsg("r")); cmd != nil {
+		t.Error("r fetched again with the retry key off")
+	}
+}

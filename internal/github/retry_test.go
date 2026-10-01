@@ -297,6 +297,38 @@ func TestRetryTimesOutOnce(t *testing.T) {
 	})
 }
 
+// A read that can't be sent as it is is sent once, since every attempt
+// would fail the same way, while a connection reset is sent again. The
+// cause may be wrapped, as a proxy's refusal is in a *net.OpError.
+func TestRetryUnsendable(t *testing.T) {
+	proxyAuth := errors.New(http.StatusText(http.StatusProxyAuthRequired))
+	tests := []struct {
+		name string
+		err  error
+		want int
+	}{
+		{"bad header", errors.New(`net/http: invalid header field value for "X"`), 1},
+		{"proxy wants credentials", proxyAuth, 1},
+		{"proxy wants credentials, wrapped", &net.OpError{Op: "proxyconnect", Net: "tcp", Err: proxyAuth}, 1},
+		{"no scheme", errors.New(`unsupported protocol scheme ""`), 1},
+		{"no host", errors.New("http: no Host in request URL"), 1},
+		{"connection reset", errReset, 3},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				s := &script{steps: []step{{err: tt.err}}}
+				if err := get(t.Context(), scriptedClient(t, s)); err == nil {
+					t.Error("the read succeeded")
+				}
+				if n, _ := s.attempts(); n != tt.want {
+					t.Errorf("%d attempts, want %d", n, tt.want)
+				}
+			})
+		})
+	}
+}
+
 // A query whose answer is too large to look at passes through whole.
 func TestRetryPassesLargeBodies(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
