@@ -253,7 +253,7 @@ func commandLine(argv []string, gh string) string {
 		words[0] = filepath.Base(gh)
 	}
 	for i, w := range words {
-		words[i] = shellQuote(ui.OneLine(w))
+		words[i] = shellQuote(ui.OneLine(w), i == 0)
 	}
 	return strings.Join(words, " ")
 }
@@ -261,9 +261,14 @@ func commandLine(argv []string, gh string) string {
 // shellQuote returns w as a POSIX shell reads it as one word: as it is
 // when it holds only characters no shell treats specially, and else in
 // single quotes, in which a single quote ends the quotes, is escaped
-// with a backslash, and opens them again.
-func shellQuote(w string) string {
-	if w != "" && strings.Trim(w, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_@%+=:,./-") == "" {
+// with a backslash, and opens them again. A first word with an = is
+// quoted too, since a shell reads one such as A=b as an assignment, not
+// as the program to run, and so is any word that starts with one, which
+// zsh expands to the path of the program it names.
+func shellQuote(w string, first bool) string {
+	plain := w != "" && strings.Trim(w, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_@%+=:,./-") == ""
+	special := (first && strings.Contains(w, "=")) || strings.HasPrefix(w, "=")
+	if plain && !special {
 		return w
 	}
 	return "'" + strings.ReplaceAll(w, "'", `'\''`) + "'"
