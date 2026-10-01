@@ -17,14 +17,22 @@ func TestViewCleansHostilePulls(t *testing.T) {
 		pr := &svc.pulls[0]
 		pr.Title, pr.HeadRef, pr.BaseRef = h, h, h
 		pr.Labels = []core.Label{{Name: h}, {Name: h}}
+		pr.Author.Login = termtexttest.HostileLogin
 		s := started(t, svc, w, 10)
 		termtexttest.AssertClean(t, s.View(), w)
+		// The column cuts the login.
+		if w == 200 && !strings.Contains(s.View(), "malicio") {
+			t.Errorf("the rows don't show the author cleaned: %q", s.View())
+		}
 		press(t, s, "enter")
 		m := s.modal()
 		m.SetSize(w, 20)
 		v := m.View()
 		if !strings.Contains(v, "moved") {
 			t.Fatalf("the detail doesn't show the title: %q", v)
+		}
+		if w == 200 && !strings.Contains(v, termtexttest.CleanLogin) {
+			t.Errorf("the detail doesn't show the author cleaned: %q", v)
 		}
 		termtexttest.AssertClean(t, v, w)
 	}

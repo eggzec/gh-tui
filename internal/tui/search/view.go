@@ -370,8 +370,8 @@ func (s *Section) renderHit(hit core.SearchHit, selected bool, width int) string
 	if labels := s.labels(is.Labels); labels != "" {
 		parts = append(parts, labels)
 	}
-	if is.Author.Login != "" {
-		parts = append(parts, st.muted.render(is.Author.Login))
+	if login := ui.OneLine(is.Author.Login); login != "" {
+		parts = append(parts, st.muted.render(login))
 	}
 	if !is.UpdatedAt.IsZero() {
 		parts = append(parts, st.subtle.render("updated "+s.dates.Prose(is.UpdatedAt, s.now())))

@@ -42,7 +42,7 @@ func (n notification) core() core.Notification {
 	sub.Title, sub.Type, sub.URL = n.Subject.Title, typ, n.Subject.URL
 	return core.Notification{
 		ID:        n.ID,
-		Repo:      core.RepoRef{Owner: n.Repository.Owner.Login, Name: n.Repository.Name},
+		Repo:      repoRef(n.Repository.Owner.Login, n.Repository.Name),
 		Subject:   sub,
 		Reason:    n.Reason,
 		Unread:    n.Unread,

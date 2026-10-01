@@ -51,7 +51,7 @@ func (h codeSearchHit) core() core.CodeHit {
 	// come rather than checked by core.ParseRepoRef.
 	owner, name, _ := strings.Cut(h.Repository.FullName, "/")
 	return core.CodeHit{
-		Repo:      core.RepoRef{Owner: owner, Name: name},
+		Repo:      repoRef(owner, name),
 		Path:      h.Path,
 		SHA:       h.SHA,
 		URL:       h.HTMLURL,

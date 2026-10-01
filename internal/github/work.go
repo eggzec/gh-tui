@@ -64,7 +64,7 @@ func (n workNode) core() core.SearchHit {
 		Kind: core.SearchIssues,
 		Issue: core.Issue{
 			ID:        n.ID,
-			Repo:      core.RepoRef{Owner: n.Repository.Owner.Login, Name: n.Repository.Name},
+			Repo:      repoRef(n.Repository.Owner.Login, n.Repository.Name),
 			Number:    n.Number,
 			Title:     n.Title,
 			State:     core.State(strings.ToLower(n.PullState + n.IssueState)),

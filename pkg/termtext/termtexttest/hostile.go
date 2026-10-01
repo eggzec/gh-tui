@@ -26,6 +26,15 @@ const Hostile = "Fix \x1b[2J\x1b[H\x1b[5;10Hmoved \x1b]0;pwned\a\x1b]2;pwned\x1b
 	"\u202eexe.txt\u202c \u2066isolated\u2069 " +
 	"\x1b[38;5;1m\U0010EEEE\u0305\u0305\U0010EEEE\u0305\u030d\x1b[m end"
 
+// HostileLogin is a login, which GitHub keeps to letters, digits and
+// hyphens but a hostile server needn't, that clears the screen, reverses
+// the text after it and breaks the line. Drawn clean, it reads
+// CleanLogin.
+const (
+	HostileLogin = "mal\x1b[2J\u202eicious\nuser"
+	CleanLogin   = "malicious user"
+)
+
 // styles matches what a view may send the terminal: the SGR sequences
 // that color text, and the opening or closing of a link (OSC 8).
 var styles = regexp.MustCompile("\x1b\\[[0-9;:]*m|\x1b\\]8;[^;\x1b\a]*;([^\x1b\a]*)(?:\x1b\\\\|\a)")

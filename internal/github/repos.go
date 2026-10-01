@@ -102,7 +102,7 @@ type repoNode struct {
 func (n repoNode) core() core.Repo {
 	r := core.Repo{
 		ID:          n.ID,
-		Ref:         core.RepoRef{Owner: n.Owner.Login, Name: n.Name},
+		Ref:         repoRef(n.Owner.Login, n.Name),
 		Description: n.Description,
 		Stars:       n.StargazerCount,
 		Starred:     n.ViewerHasStarred,

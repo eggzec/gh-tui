@@ -16,6 +16,7 @@ func TestViewCleansHostileHistory(t *testing.T) {
 		f.branches = append(f.branches, core.Branch{Name: h})
 		top := &f.histories["main"][0]
 		top.Subject, top.Body, top.Author.Name, top.Author.Email = h, h+"\n"+h, h, h
+		top.Author.Login = termtexttest.HostileLogin
 		d := detail(*top)
 		d.Files[0].Path, d.Files[1].Path, d.Files[1].PreviousPath = h, h, "old/"+h
 		d.Files[1].Status = core.FileRenamed

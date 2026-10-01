@@ -161,7 +161,7 @@ func (t *repoTabs) setOrgs(orgs []core.Org, login string) {
 			tabs = append(tabs, t.tabs[i])
 			continue
 		}
-		o := t.newOwner(org.Login, dashboard.ReposQuery{Owner: org.Login})
+		o := t.newOwner(ui.OneLine(org.Login), dashboard.ReposQuery{Owner: org.Login})
 		o.feed.SetSize(t.width, max(t.height-listTop, 0))
 		t.layout(o)
 		tabs = append(tabs, o)

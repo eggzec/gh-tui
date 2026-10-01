@@ -1,6 +1,7 @@
 package search
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -14,6 +15,7 @@ func TestRowsCleanHostileHits(t *testing.T) {
 	s := newSection(t, newFake(), 140, 38)
 	is := issue(core.SearchIssues, "cli/cli", 1, h, core.StateOpen, false)
 	is.Issue.Labels = []core.Label{{Name: h, Color: "d73a4a"}}
+	is.Issue.Author.Login = termtexttest.HostileLogin
 	r := repo("cli", "cli", h, "Go", 38000, 0)
 	code := core.CodeHit{
 		Repo: core.RepoRef{Owner: "cli", Name: "cli"}, Path: "dir/" + h,
@@ -21,6 +23,9 @@ func TestRowsCleanHostileHits(t *testing.T) {
 	}
 	for _, w := range []int{40, 80, 200} {
 		termtexttest.AssertClean(t, s.renderHit(is, false, w), w)
+		if v := s.renderHit(is, false, w); w == 200 && !strings.Contains(v, termtexttest.CleanLogin) {
+			t.Errorf("the hit doesn't show the author cleaned: %q", v)
+		}
 		termtexttest.AssertClean(t, s.renderHit(r, true, w), w)
 		termtexttest.AssertClean(t, s.renderCode(code, false, w), w)
 	}
