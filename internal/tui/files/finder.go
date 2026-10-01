@@ -36,6 +36,9 @@ type finderModal struct {
 	keys  finderKeys
 
 	find finder.Model
+	// icons renders the icons of the files in the theme of the finder,
+	// which may be themed before the section is.
+	icons *fileIcons
 	// pager shows the content of the selected file, while preview says
 	// so. Below previewWidth columns the preview hides by default, and
 	// toggled holds the user's choice once the toggle is pressed.
@@ -149,10 +152,12 @@ func (s *Section) newFinder() *finderModal {
 	pv := s.voice
 	pv.Retry, pv.Open = key.Binding{}, f.keys.Browser
 	f.pager = pager.New(pager.WithErrorText(fileErrorText(repo, pv)))
+	f.icons = newFileIcons(s.icons, s.theme)
 	f.find = finder.New(func(ctx context.Context) (finder.Listing, error) { return listFiles(ctx, src) },
 		finder.WithContext(ctx),
 		finder.WithKeyMap(f.keys.find),
 		finder.WithStyles(s.theme.Finder(s.icons)),
+		finder.WithIcons(f.icons.item),
 		finder.WithRecent(s.recentFiles()),
 		// Each file links to its page at the base.
 		finder.WithLinks(func(it finder.Item) string {
@@ -447,10 +452,10 @@ func (f *finderModal) layout() {
 // SetTheme styles the finder and the preview.
 func (f *finderModal) SetTheme(t ui.Theme) {
 	f.theme = t
+	// The icons take the theme first, so that the finder draws once, in
+	// the new styles and with the new icons.
+	f.icons.setTheme(t)
 	f.find.SetStyles(t.Finder(f.s.icons))
-	// The finder may be themed before the section is, so it renders its
-	// icons in its own theme.
-	f.find.SetIcons(newFileIcons(f.s.icons, t).item)
 	f.pager.SetStyles(t.Pager(f.s.icons))
 	border := lipgloss.NewStyle().Foreground(lipgloss.Color(t.Palette.Border))
 	f.sep = " " + border.Render("│") + " "
