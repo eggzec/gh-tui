@@ -206,6 +206,12 @@ func TestLoadRenamedErrors(t *testing.T) {
 		{"theme: default\ntheme: dusk\n", []string{"line 2: theme is set twice, here and at line 1"}},
 		// Validate names the old setting the file has.
 		{"sync:\n  every: 1s\n", []string{"sync.every (now sync.interval): must be at least 10s, got 1s"}},
+		// A value a move made has no line of its own, so it is given the
+		// old name's.
+		{"details:\n  prefetch:\n    count: 40\n", []string{
+			"line 3: details.prefetch.count (now details.prefetch.rows): must be between 0 and 30, got 39",
+			"line 3: details.prefetch.count (now history.prefetch.around): must be between 0 and 10, got 39",
+		}},
 		// Several old names that fed one setting are all named.
 		{"a:\n  delay: -1s\nb:\n  delay: -5s\n", []string{"a.delay, b.delay (now files.prefetch.hover_delay): must not be negative, got -1s"}},
 		// put can't make a group where the file sets a value.
@@ -221,6 +227,9 @@ func TestLoadRenamedErrors(t *testing.T) {
 				if !strings.Contains(err.Error(), w) {
 					t.Errorf("Load error = %q, want it to contain %q", err, w)
 				}
+			}
+			if strings.Contains(err.Error(), "line 0:") {
+				t.Errorf("Load error = %q, names line 0", err)
 			}
 		})
 	}
