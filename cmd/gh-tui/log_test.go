@@ -98,7 +98,7 @@ func TestLogStart(t *testing.T) {
 	cfg := config.Default()
 	cfg.Log.File = filepath.Join(dir, "gh-tui.log")
 	cfg.Editor = "vim -c " + fakeToken
-	cfg.Sync.Interval = 30 * time.Second
+	cfg.Sync.Poll.Lists = 30 * time.Second
 	closeLog, warning := openLog(cfg.Log)
 	if warning != "" {
 		t.Fatalf("warning = %q", warning)
@@ -137,7 +137,7 @@ func TestLogStart(t *testing.T) {
 	if got, want := rec["locale"], map[string]any{"lang": "en_US.UTF-8", "lc_all": "C.UTF-8"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("start locale = %v, want %v", got, want)
 	}
-	want := map[string]any{"editor": config.Redacted, "log.file": config.Redacted, "sync.interval": "30s"}
+	want := map[string]any{"editor": config.Redacted, "log.file": config.Redacted, "sync.poll.lists": "30s"}
 	if got := rec["non_default"]; !reflect.DeepEqual(got, want) {
 		t.Errorf("start non_default = %v, want %v", got, want)
 	}
@@ -311,7 +311,7 @@ func TestSetLogLevel(t *testing.T) {
 func TestSessionConfig(t *testing.T) {
 	t.Setenv(config.EnvLog, "")
 	path := filepath.Join(t.TempDir(), "config.yaml")
-	const file = "sync:\n  interval: 1m\nhosts:\n  ghe.corp.com:\n    sync: {interval: 2m}\n" +
+	const file = "sync:\n  poll: {lists: 1m}\nhosts:\n  ghe.corp.com:\n    sync: {poll: {lists: 2m}}\n" +
 		"profiles:\n  work:\n    accounts: [ali@ghe.corp.com]\n    repos: [platform/api]\n"
 	if err := os.WriteFile(path, []byte(file), 0o600); err != nil {
 		t.Fatal(err)
@@ -324,8 +324,8 @@ func TestSessionConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Sync.Interval != 2*time.Minute || !slices.Equal(cfg.Repos, []string{"platform/api"}) || cfg.Log.Level != config.LevelDebug {
-		t.Errorf("interval %v, repos %v, log level %q; want the host's 2m, the profile's repos and debug", cfg.Sync.Interval, cfg.Repos, cfg.Log.Level)
+	if cfg.Sync.Poll.Lists != 2*time.Minute || !slices.Equal(cfg.Repos, []string{"platform/api"}) || cfg.Log.Level != config.LevelDebug {
+		t.Errorf("interval %v, repos %v, log level %q; want the host's 2m, the profile's repos and debug", cfg.Sync.Poll.Lists, cfg.Repos, cfg.Log.Level)
 	}
 	if src.Profile != "work" || !src.HostLayer {
 		t.Errorf("source = %+v, want the host and profile work", src)
@@ -339,7 +339,7 @@ func TestLogConfig(t *testing.T) {
 	var buf bytes.Buffer
 	slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, nil)))
 	cfg := config.Default()
-	cfg.Sync.Interval = 2 * time.Minute
+	cfg.Sync.Poll.Lists = 2 * time.Minute
 	logConfig(cfg, config.Source{Host: "ghe.corp.com", HostLayer: true, Profile: "work"})
 	recs := readRecords(t, buf.Bytes())
 	if len(recs) != 1 {
@@ -349,7 +349,7 @@ func TestLogConfig(t *testing.T) {
 	if rec["msg"] != "config" || rec["span"] != "config" || rec["host_layer"] != true || rec["profile"] != "work" {
 		t.Errorf("record = %v, want the config record with the host layer and profile work", rec)
 	}
-	if got, want := rec["non_default"], map[string]any{"sync.interval": "2m0s"}; !reflect.DeepEqual(got, want) {
+	if got, want := rec["non_default"], map[string]any{"sync.poll.lists": "2m0s"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("non_default = %v, want %v", got, want)
 	}
 }

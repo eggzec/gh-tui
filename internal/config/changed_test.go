@@ -16,7 +16,7 @@ func TestChangedDefaults(t *testing.T) {
 func TestChanged(t *testing.T) {
 	const secret = "ghp_16C7e42F292c6912E7710c838347Ae178B4a"
 	c := Default()
-	c.Sync.Interval = 30 * time.Second
+	c.Sync.Poll.Lists = 30 * time.Second
 	c.Keys[ActionQuit] = []string{"x"}
 	c.Repos = []string{"eggzec/private"}
 	c.Editor = "vim --token " + secret
@@ -30,7 +30,7 @@ func TestChanged(t *testing.T) {
 		{"keys.quit", "[x]"},
 		{"log.file", Redacted},
 		{"repos", Redacted},
-		{"sync.interval", "30s"},
+		{"sync.poll.lists", "30s"},
 	}
 	if !slices.Equal(got, want) {
 		t.Errorf("Changed() = %v, want %v", got, want)
@@ -48,7 +48,7 @@ func TestPrivate(t *testing.T) {
 		"cache.disk.dir":      true,
 		"auth.token":          true,
 		"future.proxy_url":    true,
-		"sync.interval":       false,
+		"sync.poll.lists":     false,
 		"auth.check":          false,
 		"keys.open_file":      false,
 		"themes.mine.dark.fg": false,

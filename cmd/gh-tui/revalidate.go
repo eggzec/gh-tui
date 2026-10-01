@@ -6,10 +6,11 @@ import (
 )
 
 // newRevalidator returns the revalidator of what sources list, as cfg says,
-// which publishes what changed with publish. It returns nil when cfg turns
+// slowed down by slowdown while the terminal is unfocused, which publishes
+// what changed with publish. It returns nil when cfg turns
 // revalidation off. An entry fetched within the TTL is left alone, since a
 // read wouldn't ask GitHub about it either.
-func newRevalidator(cfg config.Cache, publish func(key string), sources ...revalidate.Source) *revalidate.Revalidator {
+func newRevalidator(cfg config.Cache, slowdown int, publish func(key string), sources ...revalidate.Source) *revalidate.Revalidator {
 	r := cfg.Revalidate
 	if !r.Enabled {
 		return nil
@@ -23,6 +24,7 @@ func newRevalidator(cfg config.Cache, publish func(key string), sources ...reval
 		revalidate.WithBudget(r.Budget),
 		revalidate.WithScope(scope),
 		revalidate.WithFreshFor(cfg.TTL),
+		revalidate.WithIdleMultiplier(slowdown),
 		revalidate.WithPublish(publish),
 	)
 }

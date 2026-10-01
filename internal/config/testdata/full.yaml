@@ -45,7 +45,12 @@ cache:
 
 sync:
   enabled: false
-  interval: 2m
+  poll:
+    notifications: 2m
+    lists: 3m
+    actions: 20s
+    checks: 30s
+  unfocused_slowdown: 2
 
 files:
   prefetch:

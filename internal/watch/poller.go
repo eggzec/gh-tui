@@ -13,6 +13,7 @@ import (
 
 type poller struct {
 	key    string
+	kind   Kind
 	fn     PollFunc
 	wake   chan struct{}
 	refs   int
@@ -36,7 +37,7 @@ func (e *Engine) poll(ctx context.Context, p *poller) {
 		hint     time.Duration
 		failures int
 	)
-	timer := time.NewTimer(e.delay(hint, failures))
+	timer := time.NewTimer(e.delay(p.kind, hint, failures))
 	defer timer.Stop()
 	for {
 		select {
@@ -65,7 +66,7 @@ func (e *Engine) poll(ctx context.Context, p *poller) {
 		if err != nil || res.Changed {
 			e.publish(p, Event{Key: p.key, Err: err})
 		}
-		next := e.delay(hint, failures)
+		next := e.delay(p.kind, hint, failures)
 		if rl, ok := errors.AsType[*core.RateLimitError](err); ok {
 			// One the client didn't see coming, such as another's use of
 			// the quota, lifts at its Reset, and polling sooner is wasted.
@@ -82,11 +83,11 @@ func unreached(err error) bool {
 	return errors.Is(err, core.ErrOffline) || errors.Is(err, core.ErrUnavailable)
 }
 
-// delay returns how long to wait before the next poll, given the last server
-// hint and the number of consecutive failures.
-func (e *Engine) delay(hint time.Duration, failures int) time.Duration {
+// delay returns how long to wait before the next poll of a key of kind,
+// given the last server hint and the number of consecutive failures.
+func (e *Engine) delay(kind Kind, hint time.Duration, failures int) time.Duration {
 	e.mu.Lock()
-	d, active := e.cfg.interval, e.active
+	d, active := e.cfg.every(kind), e.active
 	e.mu.Unlock()
 	if hint > 0 {
 		d = hint

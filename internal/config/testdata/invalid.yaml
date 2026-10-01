@@ -7,4 +7,5 @@ cache:
   disk:
     compression: zstd
 sync:
-  interval: 1s
+  poll:
+    lists: 1s

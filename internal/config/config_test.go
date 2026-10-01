@@ -147,7 +147,11 @@ func TestLoadMergesOverDefaults(t *testing.T) {
 					Enabled: false, Dir: "/var/cache/gh-tui", MaxSize: GiB,
 					Compression: CompressionNone, CompressionLevel: LevelBest,
 				}, Revalidate: Revalidate{Enabled: false, Interval: 5 * time.Minute, Budget: 30, Scope: ScopeAll}}
-				c.Sync = Sync{Enabled: false, Interval: 2 * time.Minute}
+				c.Sync = Sync{
+					Enabled:           false,
+					Poll:              Poll{Notifications: 2 * time.Minute, Lists: 3 * time.Minute, Actions: 20 * time.Second, Checks: 30 * time.Second},
+					UnfocusedSlowdown: 2,
+				}
 				c.Files = Files{
 					Prefetch: Prefetch{Enabled: false, MaxSize: 16 * KiB, HoverDelay: 300 * time.Millisecond},
 					Preview:  Preview{MaxSize: 2_000_000},
@@ -197,7 +201,7 @@ func TestLoadErrors(t *testing.T) {
 	}{
 		{"unknown_field.yaml", []string{"line 3: unknown setting cache.size"}},
 		{"malformed.yaml", []string{"malformed.yaml", "line 3"}},
-		{"invalid.yaml", []string{"repos[0]", "theme:", "keys.quit", "cache.ttl", "cache.disk.compression", "sync.interval: must be at least 10s, got 1s"}},
+		{"invalid.yaml", []string{"repos[0]", "theme:", "keys.quit", "cache.ttl", "cache.disk.compression", "sync.poll.lists: must be at least 10s, got 1s"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.file, func(t *testing.T) {
@@ -225,7 +229,8 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 	cfg.Cache.TTL = 0
 	cfg.Cache.Disk = Disk{Dir: "cache", MaxSize: MiB, Compression: "zip", CompressionLevel: "9"}
 	cfg.Cache.Revalidate = Revalidate{Interval: time.Second, Budget: 0, Scope: "some"}
-	cfg.Sync.Interval = -time.Second
+	cfg.Sync.Poll.Checks = -time.Second
+	cfg.Sync.UnfocusedSlowdown = 0
 	cfg.Files.Preview.MaxSize = 32 * KiB
 	cfg.Files.Prefetch.HoverDelay = -time.Millisecond
 	cfg.Details.Prefetch.Rows = 31
@@ -267,7 +272,8 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 		`cache.revalidate.interval: must be at least 10s, got 1s`,
 		`cache.revalidate.budget: must be between 1 and 300, got 0`,
 		`cache.revalidate.scope: must be recent or all, got "some"`,
-		`sync.interval: must be at least 10s, got -1s`,
+		`sync.poll.checks: must be at least 10s, got -1s`,
+		`sync.unfocused_slowdown: must be between 1 and 60, got 0`,
 		`files.prefetch.max_size: must not exceed files.preview.max_size (32KiB), got 64KiB`,
 		`files.prefetch.hover_delay: must not be negative, got -1ms`,
 		`details.prefetch.rows: must be between 0 and 30, got 31`,

@@ -49,10 +49,9 @@ type Engine struct {
 // and Run is called.
 func New(opts ...Option) *Engine {
 	cfg := config{
-		interval:    DefaultInterval,
 		minInterval: DefaultMinInterval,
 		maxBackoff:  DefaultMaxBackoff,
-		idle:        DefaultIdleMultiplier,
+		idle:        1,
 	}
 	for _, opt := range opts {
 		opt(&cfg)
@@ -72,12 +71,20 @@ func New(opts ...Option) *Engine {
 // fn of the first subscriber and stops when the last one unsubscribes. The
 // first poll happens one interval after the poller starts; call Refresh to
 // poll at once. Calling the returned function more than once has no effect.
+// The key polls at the interval of no kind; see SubscribeKind.
 func (e *Engine) Subscribe(key string, fn PollFunc) (unsubscribe func()) {
+	return e.SubscribeKind("", key, fn)
+}
+
+// SubscribeKind is Subscribe for a key of kind, which polls at the
+// interval of its kind. A key subscribed again keeps the kind it was
+// first subscribed with.
+func (e *Engine) SubscribeKind(kind Kind, key string, fn PollFunc) (unsubscribe func()) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	p, ok := e.pollers[key]
 	if !ok {
-		p = &poller{key: key, fn: fn, wake: make(chan struct{}, 1)}
+		p = &poller{key: key, kind: kind, fn: fn, wake: make(chan struct{}, 1)}
 		e.pollers[key] = p
 		e.start(p)
 	}
@@ -152,17 +159,14 @@ func (e *Engine) SetActive(active bool) {
 	}
 }
 
-// SetInterval sets the interval used when a poll returns no server hint,
-// as WithInterval does, from the next poll of each key on: a poll already
-// scheduled keeps its time, so that the server's hints hold. Values <= 0
-// are ignored.
-func (e *Engine) SetInterval(d time.Duration) {
-	if d <= 0 {
-		return
-	}
+// SetIntervals sets the interval of the keys of each kind, as
+// WithIntervals does, from the next poll of each key on: a poll already
+// scheduled keeps its time, so that the server's hints hold.
+func (e *Engine) SetIntervals(intervals map[Kind]time.Duration) {
+	intervals = positive(intervals)
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	e.cfg.interval = d
+	e.cfg.intervals = intervals
 }
 
 // Events returns the channel that change events are delivered on. It is

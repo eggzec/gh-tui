@@ -4,30 +4,61 @@ import "time"
 
 // Defaults used when no option overrides them.
 const (
-	DefaultInterval       = time.Minute
-	DefaultMinInterval    = 10 * time.Second
-	DefaultMaxBackoff     = 10 * time.Minute
-	DefaultIdleMultiplier = 4
+	DefaultMinInterval = 10 * time.Second
+	DefaultMaxBackoff  = 10 * time.Minute
 )
+
+// Kind names a kind of key that polls at an interval of its own, such as
+// the notifications or a run in progress.
+type Kind string
 
 type config struct {
 	interval    time.Duration
+	intervals   map[Kind]time.Duration
 	minInterval time.Duration
 	maxBackoff  time.Duration
 	idle        int
 }
 
+// every returns the interval of the keys of kind when a poll returns no
+// server hint.
+func (c config) every(kind Kind) time.Duration {
+	if d, ok := c.intervals[kind]; ok {
+		return d
+	}
+	return c.interval
+}
+
 // Option configures an Engine.
 type Option func(*config)
 
-// WithInterval sets the interval used when a poll returns no server hint.
-// Values <= 0 are ignored.
+// WithInterval sets the interval used when a poll returns no server hint,
+// for the keys of a kind that WithIntervals leaves out. Without it, they
+// poll as often as the minimum interval allows. Values <= 0 are ignored.
 func WithInterval(d time.Duration) Option {
 	return func(c *config) {
 		if d > 0 {
 			c.interval = d
 		}
 	}
+}
+
+// WithIntervals sets the interval of the keys of each kind, used when a
+// poll returns no server hint. Values <= 0 are ignored.
+func WithIntervals(intervals map[Kind]time.Duration) Option {
+	return func(c *config) { c.intervals = positive(intervals) }
+}
+
+// positive returns the entries of intervals that are positive, in a map
+// of their own.
+func positive(intervals map[Kind]time.Duration) map[Kind]time.Duration {
+	out := make(map[Kind]time.Duration, len(intervals))
+	for k, d := range intervals {
+		if d > 0 {
+			out[k] = d
+		}
+	}
+	return out
 }
 
 // WithMinInterval sets the shortest interval between polls of one key, no
@@ -51,7 +82,7 @@ func WithMaxBackoff(d time.Duration) Option {
 }
 
 // WithIdleMultiplier sets the factor that intervals are multiplied by while
-// the engine is inactive. Values < 1 are ignored.
+// the engine is inactive. Without it they aren't. Values < 1 are ignored.
 func WithIdleMultiplier(n int) Option {
 	return func(c *config) {
 		if n >= 1 {

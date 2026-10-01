@@ -103,9 +103,21 @@ cache:
 # Polling for changes in the background.
 sync:
   enabled: true
-  # The polling interval when the server doesn't ask for a longer one. At
-  # least 10s.
-  interval: 1m
+  # How often each thing on view is polled, when the server doesn't ask
+  # for a longer interval. Each is at least 10s.
+  poll:
+    # The inbox.
+    notifications: 1m
+    # The pull requests and issues of the repository on view.
+    lists: 1m
+    # A workflow run in progress, in the Actions modal or a pull request's
+    # checks.
+    actions: 10s
+    # A pull request's checks while some are pending.
+    checks: 15s
+  # How much slower the polls and the revalidation of the cache go while
+  # the terminal is unfocused, 1 to 60. 1 doesn't slow them down.
+  unfocused_slowdown: 4
 
 # The Files pane.
 files:

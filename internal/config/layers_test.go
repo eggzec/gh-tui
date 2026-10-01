@@ -43,11 +43,11 @@ themes:
     dark: *palette
   work: {light: *palette, dark: *palette}
 sync:
-  interval: 2m
+  poll: {lists: 2m}
 hosts:
   GHE.corp.com:
     repos: [platform/api]
-    sync: {interval: 5m}
+    sync: {poll: {lists: 5m}}
 profiles:
   work:
     accounts: [Ali-Corp@ghe.corp.com, ali-work@github.com]
@@ -81,8 +81,8 @@ func TestResolveLayers(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg, src := resolveFile(t, layered, tt.host, tt.login)
-			if !slices.Equal(cfg.Repos, tt.repos) || cfg.Theme != tt.theme || cfg.Sync.Interval != tt.interval {
-				t.Errorf("repos %v, theme %q, interval %v; want %v, %q, %v", cfg.Repos, cfg.Theme, cfg.Sync.Interval, tt.repos, tt.theme, tt.interval)
+			if !slices.Equal(cfg.Repos, tt.repos) || cfg.Theme != tt.theme || cfg.Sync.Poll.Lists != tt.interval {
+				t.Errorf("repos %v, theme %q, interval %v; want %v, %q, %v", cfg.Repos, cfg.Theme, cfg.Sync.Poll.Lists, tt.repos, tt.theme, tt.interval)
 			}
 			// Only the session's fields: the rest says where each value
 			// is set, which other tests check.
@@ -179,7 +179,7 @@ func TestLoadLayersErrors(t *testing.T) {
 // where it appears.
 func TestLoadValidatesEveryCombination(t *testing.T) {
 	t.Setenv(EnvLog, "")
-	file := "hosts:\n  ghe.corp.com:\n    sync: {interval: 1s}\n" +
+	file := "hosts:\n  ghe.corp.com:\n    sync: {poll: {lists: 1s}}\n" +
 		"profiles:\n  work:\n    accounts: [a@ghe.corp.com, b@github.com]\n    theme: nowhere\n"
 	_, err := Load(writeConfig(t, file))
 	if err == nil {
@@ -187,14 +187,14 @@ func TestLoadValidatesEveryCombination(t *testing.T) {
 	}
 	msg := err.Error()
 	for _, want := range []string{
-		"with hosts.ghe.corp.com:\nline 3: sync.interval: must be at least 10s",
+		"with hosts.ghe.corp.com:\nline 3: sync.poll.lists: must be at least 10s",
 		"with profile work for b@github.com:\nline 7: theme: unknown theme \"nowhere\"",
 	} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("error = %q, want it to say %q", msg, want)
 		}
 	}
-	if strings.Contains(msg, "for a@ghe.corp.com") || strings.Count(msg, "sync.interval") != 1 {
+	if strings.Contains(msg, "for a@ghe.corp.com") || strings.Count(msg, "sync.poll.lists") != 1 {
 		t.Errorf("error = %q, want each problem once, where it appears", msg)
 	}
 }
@@ -260,8 +260,8 @@ func TestLoadRenamedInLayers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg, _, _ := f.Resolve("ghe.corp.com", ""); cfg.Sync.Interval != 2*time.Minute {
-		t.Errorf("sync.interval = %v, want 2m", cfg.Sync.Interval)
+	if cfg, _, _ := f.Resolve("ghe.corp.com", ""); cfg.Sync.Poll.Lists != 2*time.Minute {
+		t.Errorf("sync.poll.lists = %v, want 2m", cfg.Sync.Poll.Lists)
 	}
 	if r := f.Renamed(); len(r) != 1 || r[0].Old != "hosts.ghe.corp.com.sync.every" {
 		t.Errorf("renamed = %+v, want the host's sync.every", r)
@@ -274,7 +274,7 @@ func TestLoadRenamedErrorsInLayers(t *testing.T) {
 	withRenames(t, testRenames)
 	t.Setenv(EnvLog, "")
 	_, err := Load(writeConfig(t, "sync:\n  every: 2m\nhosts:\n  ghe.corp.com:\n    sync:\n      every: 1s\n"))
-	want := "with hosts.ghe.corp.com:\nline 6: hosts.ghe.corp.com.sync.every (now sync.interval): must be at least 10s"
+	want := "with hosts.ghe.corp.com:\nline 6: hosts.ghe.corp.com.sync.every (now sync.poll.lists): must be at least 10s"
 	if err == nil || !strings.Contains(err.Error(), want) {
 		t.Fatalf("Load error = %v, want it to say %q", err, want)
 	}
@@ -299,5 +299,22 @@ func TestSourceHeader(t *testing.T) {
 		if got := tt.src.Header("c.yaml"); !slices.Equal(got, tt.want) {
 			t.Errorf("Header = %q, want %q", got, tt.want)
 		}
+	}
+}
+
+// The polls may differ per host, a slow Enterprise Server polled less
+// often, and per account.
+func TestResolveSyncPerHost(t *testing.T) {
+	t.Setenv(EnvLog, "")
+	const file = "hosts:\n  ghe.corp.com:\n    sync: {poll: {checks: 30s}, unfocused_slowdown: 8}\n" +
+		"profiles:\n  work:\n    accounts: [ali@ghe.corp.com]\n    sync: {poll: {lists: 5m}}\n"
+	cfg, _ := resolveFile(t, file, "ghe.corp.com", "ali")
+	want := Default().Sync
+	want.Poll.Checks, want.Poll.Lists, want.UnfocusedSlowdown = 30*time.Second, 5*time.Minute, 8
+	if cfg.Sync != want {
+		t.Errorf("sync = %+v, want %+v", cfg.Sync, want)
+	}
+	if cfg, _ := resolveFile(t, file, "github.com", "ali"); cfg.Sync != Default().Sync {
+		t.Errorf("sync on github.com = %+v, want the defaults", cfg.Sync)
 	}
 }

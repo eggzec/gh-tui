@@ -9,8 +9,7 @@ const (
 	DefaultConcurrency = 2
 	// DefaultRecent is how recently an entry must have been used for
 	// ScopeRecent to check it.
-	DefaultRecent         = 7 * 24 * time.Hour
-	DefaultIdleMultiplier = 4
+	DefaultRecent = 7 * 24 * time.Hour
 	// DefaultStartDelay leaves the first reads of a session to the views,
 	// which revalidate what they show, so the first pass finds those
 	// entries current and doesn't ask GitHub about them twice.
@@ -108,8 +107,8 @@ func WithFreshFor(d time.Duration) Option {
 }
 
 // WithIdleMultiplier sets the factor that intervals are multiplied, and the
-// budget divided, by while the revalidator is inactive. The default is
-// DefaultIdleMultiplier. Values < 1 are ignored.
+// budget divided, by while the revalidator is inactive. Without it they
+// aren't. Values < 1 are ignored.
 func WithIdleMultiplier(n int) Option {
 	return func(c *config) {
 		if n >= 1 {

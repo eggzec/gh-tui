@@ -33,12 +33,8 @@ internal/config/log.go:minLogSummary  keep: a bound the validator enforces
 internal/config/ui.go:minToast  keep: a bound the validator enforces
 
 # Polling.
-cmd/gh-tui/actions.go:checksPollInterval  move: sync.poll.checks
-cmd/gh-tui/actions.go:runPollInterval  move: sync.poll.actions
-internal/watch/options.go:DefaultInterval  move: sync.poll.notifications and sync.poll.lists
-internal/watch/options.go:DefaultIdleMultiplier  move: sync.unfocused_slowdown
 internal/watch/options.go:DefaultMaxBackoff  keep: a safety mechanism, how far polls back off after errors
-internal/watch/options.go:DefaultMinInterval  keep: a bound, the engine's own floor under sync.interval
+internal/watch/options.go:DefaultMinInterval  keep: a bound, the engine's own floor under sync.poll
 
 # Caches.
 internal/cache/options.go:DefaultCapacity  move: cache.memory.entries
@@ -51,7 +47,6 @@ internal/cache/shelf.go:shelfLogEvery  keep: a log throttle, one record of dropp
 internal/revalidate/options.go:DefaultInterval  move: cache.revalidate.interval (already a setting; this fallback goes)
 internal/revalidate/options.go:DefaultBudget  move: cache.revalidate.budget (already a setting; this fallback goes)
 internal/revalidate/options.go:DefaultRecent  move: cache.revalidate.recent
-internal/revalidate/options.go:DefaultIdleMultiplier  move: sync.unfocused_slowdown
 internal/revalidate/options.go:DefaultConcurrency  keep: a safety mechanism, checks at once under the secondary limits
 internal/revalidate/options.go:DefaultMaxBackoff  keep: a safety mechanism, how far passes back off after errors
 internal/revalidate/options.go:DefaultStartDelay  keep: a mechanism, leaves a session's first reads to the views

@@ -136,7 +136,7 @@ func New(sources []Source, opts ...Option) *Revalidator {
 		concurrency: DefaultConcurrency,
 		recent:      DefaultRecent,
 		freshFor:    DefaultInterval,
-		idle:        DefaultIdleMultiplier,
+		idle:        1,
 		startDelay:  DefaultStartDelay,
 		maxBackoff:  DefaultMaxBackoff,
 		publish:     func(string) {},
