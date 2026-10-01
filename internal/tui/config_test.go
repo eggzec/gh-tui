@@ -155,3 +155,24 @@ func TestConfigAfterReset(t *testing.T) {
 		t.Errorf("after the reset, the config lacks the file's icons:\n%s", text)
 	}
 }
+
+// TestPrefetchTable checks the comments at the end of the config command
+// that show what each page and kind of item reads ahead, resolved.
+func TestPrefetchTable(t *testing.T) {
+	text := prefetchTable(config.Default().Prefetch)
+	for _, want := range []string{
+		"# What each page and kind of item reads ahead",
+		"#   pulls.checks ",
+		"enabled false (prefetch.pulls.checks.enabled)",
+		"window 0 (prefetch.files.preview.window.before) / 32 (prefetch.files.preview.window.after)",
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("the table lacks %q:\n%s", want, text)
+		}
+	}
+	for line := range strings.Lines(text) {
+		if line != "\n" && !strings.HasPrefix(line, "#") {
+			t.Errorf("line %q isn't a comment, so the YAML would read it", line)
+		}
+	}
+}

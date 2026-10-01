@@ -34,7 +34,7 @@ func (m *Model) configCommand(arg string) tea.Cmd {
 		if err != nil {
 			return m.toast.Push(toast.Error, "Can't show the config: "+ui.OneLine(err.Error())+".")
 		}
-		return m.openText("Config", "config.yaml", m.configHeader()+text)
+		return m.openText("Config", "config.yaml", m.configHeader()+text+prefetchTable(m.cfg.Prefetch))
 	case configDefaults:
 		return m.openText("Default config", "default.yaml", config.DefaultFile())
 	}
@@ -72,6 +72,19 @@ func (m *Model) configHeader() string {
 		b.WriteString("# " + l + "\n")
 	}
 	b.WriteString("\n")
+	return b.String()
+}
+
+// prefetchTable returns, as comments, what each page and kind of item
+// reads ahead, each knob as it resolves through the three layers of
+// prefetch and with the setting it came from, since the YAML shows only
+// what each layer sets.
+func prefetchTable(p config.PrefetchLayers) string {
+	var b strings.Builder
+	b.WriteString("\n# What each page and kind of item reads ahead, with the setting each\n# value comes from:\n")
+	for _, l := range p.Table() {
+		b.WriteString("#   " + l + "\n")
+	}
 	return b.String()
 }
 
