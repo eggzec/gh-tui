@@ -19,6 +19,12 @@ func newFileIcons(icons ui.Icons, t ui.Theme) *fileIcons {
 	return &fileIcons{icons: icons, theme: t, rendered: map[ui.FileIcon]string{}}
 }
 
+// setTheme renders the icons in t from now on.
+func (f *fileIcons) setTheme(t ui.Theme) {
+	f.theme = t
+	clear(f.rendered)
+}
+
 // entry returns the rendered icon of e, open or not, or "" in icon sets
 // without file icons.
 func (f *fileIcons) entry(e core.TreeEntry, open bool) string {

@@ -433,3 +433,29 @@ func TestPreviewErrorWords(t *testing.T) {
 		})
 	}
 }
+
+// A theme draws the finder once, with its icons in the theme's colors.
+func TestFinderThemeDrawsOnce(t *testing.T) {
+	h := newHost(loaded(t, sampleFake(), 60, 14))
+	f := findIn(t, h)
+	calls := 0
+	f.find.SetIcons(func(it finder.Item) string {
+		calls++
+		return f.icons.item(it)
+	})
+	calls = 0
+	p, err := config.Default().Palette(false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	light := ui.NewTheme(p, false)
+	f.SetTheme(light)
+	if shown := f.find.Total(); calls == 0 || calls > min(shown, 14) {
+		t.Errorf("a theme asked for %d icons, want one per row shown", calls)
+	}
+	ic := ui.NewIcons(config.IconsNerd)
+	goIcon := ic.Entry(core.TreeEntry{Name: "main.go", Type: core.EntryBlob}, false)
+	if want := light.FileIcon(goIcon).Render(goIcon.Glyph); !strings.Contains(f.find.View(), want) {
+		t.Errorf("no light Go icon %q in\n%s", want, f.find.View())
+	}
+}
