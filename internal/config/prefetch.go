@@ -26,6 +26,11 @@ type PrefetchLayers struct {
 	// user's own. The connection is shared by every page, so it is set
 	// here, not per page or kind.
 	Parallel int `yaml:"parallel"`
+	// Budget is the percent of each hourly quota, GraphQL points and REST
+	// core requests alike, that reads ahead may spend, at most
+	// maxBudget. Once they spent it of either, nothing is read ahead until
+	// that quota refills. It is spent by every page, so it is global only.
+	Budget int `yaml:"budget" scope:"global"`
 
 	Pulls         PullsKinds         `yaml:"pulls"`
 	Issues        IssuesKinds        `yaml:"issues"`
@@ -185,6 +190,9 @@ const (
 	maxRest = 2 * time.Second
 	// maxParallel is the most reads ahead in flight at once.
 	maxParallel = 10
+	// maxBudget is the largest share of a quota, in percent, that reads
+	// ahead may spend, so that they can't starve what the user asks for.
+	maxBudget = 50
 )
 
 // windowBounds are the most rows on either side of the pages and kinds
@@ -330,6 +338,9 @@ func (p PrefetchLayers) validate(previewMax Size) error {
 		checkRest("prefetch.rest", p.Rest))
 	if p.Parallel < 1 || p.Parallel > maxParallel {
 		errs = append(errs, fmt.Errorf("prefetch.parallel: must be between 1 and %d, got %d", maxParallel, p.Parallel))
+	}
+	if p.Budget < 1 || p.Budget > maxBudget {
+		errs = append(errs, fmt.Errorf("prefetch.budget: must be between 1 and %d, got %d", maxBudget, p.Budget))
 	}
 	v := reflect.ValueOf(p)
 	for pf := range v.Type().Fields() {

@@ -230,6 +230,12 @@ prefetch:
   # The most reads ahead in flight at once, on top of yours, 1 to 10. Set
   # here, not per page or kind, since every page shares the connection.
   parallel: 3
+  # The percent of each hourly quota, GraphQL points and REST requests
+  # alike, that reads ahead may spend, 1 to 50. Once they spent it, nothing
+  # is read ahead until that quota refills. Apart from it, reads ahead stop
+  # while less than 10% of a quota is left, when the status bar turns to
+  # warn of it. Global only.
+  budget: 10
   # The pages, and the kinds of items on them. Each may set enabled,
   # window and rest. Kinds that read a page at a time (other_tabs,
   # other_kinds) take no window.

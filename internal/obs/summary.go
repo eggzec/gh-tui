@@ -117,11 +117,19 @@ type PrefetchStats struct {
 	Useful float64 `json:"useful_share"`
 }
 
-// BudgetSummary covers the GraphQL points the reads ahead spent out of
-// their budget, since it last started over, and whether they stopped for
-// it, until when.
+// BudgetSummary covers what the reads ahead spent of their budget of each
+// quota, and whether they stopped for either.
 type BudgetSummary struct {
-	Points int64      `json:"points"`
+	Spent   bool      `json:"spent"`
+	GraphQL BudgetUse `json:"graphql"`
+	Core    BudgetUse `json:"core"`
+}
+
+// BudgetUse covers what the reads ahead spent of one quota, GraphQL
+// points or REST requests, out of their budget, since it last started
+// over, and whether they stopped for it, until when.
+type BudgetUse struct {
+	Used   int64      `json:"used"`
 	Budget int64      `json:"budget"`
 	Spent  bool       `json:"spent"`
 	Until  *time.Time `json:"until,omitempty"`
@@ -210,15 +218,14 @@ func (s *Stats) Summary() Summary {
 	slices.SortFunc(out.Disk, func(a, b DiskSummary) int { return cmp.Compare(a.Kind, b.Kind) })
 	slices.SortFunc(out.Prefetch, func(a, b PrefetchStats) int { return cmp.Compare(a.Kind, b.Kind) })
 
-	limit, _ := s.prefetchLimit()
-	s.budgetMu.Lock()
-	s.renewPrefetch(time.Now())
-	out.Budget = BudgetSummary{Points: s.budget.points, Budget: limit, Spent: s.budget.spent}
-	if s.budget.spent {
-		renew := s.budget.renew
-		out.Budget.Until = &renew
+	now := time.Now()
+	uses := make([]BudgetUse, len(budgetQuotas))
+	for i := range budgetQuotas {
+		uses[i] = s.prefetchUse(context.Background(), i, now)
 	}
-	s.budgetMu.Unlock()
+	out.Budget = BudgetSummary{
+		Spent: uses[budgetGraphQL].Spent || uses[budgetCore].Spent, GraphQL: uses[budgetGraphQL], Core: uses[budgetCore],
+	}
 
 	sent, budget := s.revalSent.Load(), s.revalBudget.Load()
 	out.Revalidate = RevalSummary{Passes: s.passes.Load(), Sent: sent, Budget: budget, BudgetUsed: ratio(sent, budget)}

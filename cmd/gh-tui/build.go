@@ -18,6 +18,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
 	"github.com/eggzec/gh-tui/internal/imgcaps"
+	"github.com/eggzec/gh-tui/internal/obs"
 	accesssvc "github.com/eggzec/gh-tui/internal/service/access"
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
 	dashsvc "github.com/eggzec/gh-tui/internal/service/dashboard"
@@ -84,6 +85,8 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	// that the revalidator finds, and those of the rate limits, through
 	// one subscription.
 	engine := newEngine(cfg.Sync)
+	// Reads ahead may spend only a share of each quota, from the first.
+	obs.SetPrefetchBudget(cfg.Prefetch.Budget)
 	access := accesssvc.New(st.Host, token, accesssvc.WithLookup(findToken), accesssvc.WithChecks(cfg.Auth.Check))
 	// The app tells once of an Enterprise Server older than supported.
 	oldEnterprise := make(chan string, 1)
@@ -367,6 +370,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	}), tui.WithSettings(func(c config.Config) {
 		live.set(c)
 		engine.SetIntervals(pollIntervals(c.Sync.Poll))
+		obs.SetPrefetchBudget(c.Prefetch.Budget)
 		setLogLevel(c.Log.Level)
 	}))
 	var (
