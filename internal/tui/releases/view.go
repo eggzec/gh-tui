@@ -114,9 +114,10 @@ func (m *Modal) header(width int) string {
 	if when.IsZero() {
 		when, verb = r.CreatedAt, " drafted "
 	}
-	by := st.text.Render(cmp.Or(r.Author.Login, "someone")) + st.muted.Render(verb+ui.AgoProse(when, m.now()))
-	if !when.IsZero() {
-		by += st.subtle.Render(" (" + when.In(m.loc).Format("2006-01-02") + ")")
+	by := st.text.Render(cmp.Or(r.Author.Login, "someone")) + st.muted.Render(verb+m.dates.Prose(when, m.now()))
+	// An age has the day after it.
+	if !when.IsZero() && m.dates.Relative() {
+		by += st.subtle.Render(" (" + m.dates.Date(when, "2006-01-02") + ")")
 	}
 	parts = append(parts, by)
 	lines = append(lines, gutter+strings.Join(parts, st.sep))

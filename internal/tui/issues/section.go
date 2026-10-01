@@ -70,6 +70,9 @@ type Section struct {
 	rows          rowStyles
 	icons         ui.Icons
 	chips         chipCache
+	// dates tell when the issues were updated, in the rows and the
+	// modal.
+	dates ui.Dates
 	// cols is the layout of the rows at colsWidth. labeled is whether
 	// any issue the list has loaded so far has labels; until one has, the
 	// rows keep no room for them. A new list starts without.

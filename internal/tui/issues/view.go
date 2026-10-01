@@ -30,7 +30,7 @@ func (s *Section) View() string {
 // renderChrome renders what surrounds the bubbles: the bar over the list,
 // with the repository and the tabs, and the empty state.
 func (s *Section) renderChrome() {
-	s.cols, s.colsWidth = layout(max(s.width-2, 0), s.labeled), max(s.width-2, 0)
+	s.cols, s.colsWidth = layout(max(s.width-2, 0), s.labeled, s.dates.Width()), max(s.width-2, 0)
 	s.renderBar()
 	s.renderEmpty()
 	s.renderOff()

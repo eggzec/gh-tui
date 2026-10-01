@@ -23,11 +23,11 @@ func TestLayoutDropsColumns(t *testing.T) {
 		{20, columns{}},
 	}
 	for _, tt := range tests {
-		got := layout(tt.width, true)
-		if got.title < minTitle && got != (columns{title: got.title}) {
+		got := layout(tt.width, true, 4)
+		if got.title < minTitle && got != (columns{title: got.title, ageWidth: got.ageWidth}) {
 			t.Errorf("layout(%d) leaves the title %d cells", tt.width, got.title)
 		}
-		got.title, got.labels = 0, 0
+		got.title, got.labels, got.ageWidth = 0, 0, 0
 		if got != tt.want {
 			t.Errorf("layout(%d) = %+v, want %+v", tt.width, got, tt.want)
 		}
@@ -38,7 +38,7 @@ func TestLayoutDropsColumns(t *testing.T) {
 // columns and the title take it.
 func TestLayoutWithoutLabels(t *testing.T) {
 	for _, width := range []int{118, 78, 66, 58, 40, 20} {
-		with, without := layout(width, true), layout(width, false)
+		with, without := layout(width, true, 4), layout(width, false, 4)
 		if without.chips != 0 || without.labels != 0 {
 			t.Errorf("layout(%d, false) = %+v, want no labels", width, without)
 		}
@@ -49,7 +49,7 @@ func TestLayoutWithoutLabels(t *testing.T) {
 			t.Errorf("layout(%d, false) keeps the labels", width)
 		}
 	}
-	if got := layout(78, false); got.title != 78-prefixWidth-got.right() || !got.comments || !got.author || !got.age {
+	if got := layout(78, false, 4); got.title != 78-prefixWidth-got.right() || !got.comments || !got.author || !got.age {
 		t.Errorf("layout(78, false) = %+v, want every other column", got)
 	}
 }

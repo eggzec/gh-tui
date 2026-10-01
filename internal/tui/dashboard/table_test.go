@@ -30,7 +30,7 @@ func TestLayoutCols(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := layoutCols(tt.width, tt.m, "★")
+			got := layoutCols(tt.width, tt.m, "★", 4)
 			if got != tt.want {
 				t.Errorf("layoutCols(%d) = %+v, want %+v", tt.width, got, tt.want)
 			}

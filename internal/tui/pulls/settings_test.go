@@ -9,6 +9,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 )
 
 func TestSettingsIcons(t *testing.T) {
@@ -79,4 +80,22 @@ func TestSettingsPrefetchOnReadsTheListShown(t *testing.T) {
 			t.Errorf("read details %v, want the first rows %v", got, want)
 		}
 	})
+}
+
+// Setting the date format tells the dates of the rows in it at once, in a
+// column that keeps room for the widest, and those of the modal opened
+// after.
+func TestSettingsDateFormat(t *testing.T) {
+	svc := newFakeService()
+	h := started(t, svc, 120, 30)
+	h.Update(ui.SettingsMsg{Config: uitest.DateFormat(t)})
+	h.SetTheme(h.theme)
+	ps := samplePulls()
+	uitest.Dated(t, h.View(), 120, ps[0].UpdatedAt, ps[3].UpdatedAt)
+	press(t, h, "enter")
+	if h.modal() == nil {
+		t.Fatal("enter didn't open the pull request")
+	}
+	d := svc.detail(ps[0].Number)
+	uitest.Dated(t, h.modal().View(), 120, d.CreatedAt, d.UpdatedAt)
 }

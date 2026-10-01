@@ -242,8 +242,8 @@ func TestColumnsDropLeastImportantFirst(t *testing.T) {
 		{20, columns{}},
 	}
 	for _, tt := range tests {
-		got := columnsFor(tt.width)
-		tt.want.width, tt.want.title = tt.width, got.title
+		got := columnsFor(tt.width, 4)
+		tt.want.width, tt.want.title, tt.want.ageWidth = tt.width, got.title, 4
 		if got != tt.want {
 			t.Errorf("columnsFor(%d) = %+v, want %+v", tt.width, got, tt.want)
 		}

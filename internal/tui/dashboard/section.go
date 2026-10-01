@@ -135,6 +135,12 @@ func WithIcons(icons ui.Icons) Option {
 	return func(s *Section) { s.icons = icons }
 }
 
+// WithDates sets how dates read, as ui.date_format says. The default is
+// as ages.
+func WithDates(d ui.Dates) Option {
+	return func(s *Section) { s.dates = d }
+}
+
 // paneID names a pane of the dashboard. They are numbered in this order,
 // the order they are read in.
 type paneID int
@@ -172,6 +178,8 @@ type Section struct {
 	voice    ui.Voice
 	glyph    string
 	icons    ui.Icons
+	// dates tell when what the panes list was updated.
+	dates ui.Dates
 	// host is the web host of the user's GitHub, for the links it opens.
 	host string
 	// links keeps the links of the rows, which are drawn again on every
@@ -268,7 +276,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		calendar.WithEmptyText("Loading contributions…"),
 	)
 	s.repos = newRepoTabs(s)
-	s.tasks.now = s.now
+	s.tasks.now, s.tasks.dates = s.now, s.dates
 	s.pinned.here = s.here
 	s.paintCached()
 	s.SetTheme(ui.NewTheme(defaultPalette(), true))

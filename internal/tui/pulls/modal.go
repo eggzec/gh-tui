@@ -90,6 +90,7 @@ type detailModal struct {
 	st            styles
 	runSt         ui.RunStyles
 	icons         ui.Icons
+	dates         ui.Dates
 }
 
 // openDetail opens a modal on pull request number of repo, on its checks
@@ -121,6 +122,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 		resume:      resume,
 		st:          s.st,
 		icons:       s.icons,
+		dates:       s.dates,
 		checksSvc:   s.checks,
 	}
 	m.theme, m.runSt, m.confirmSt = s.theme, ui.NewRunStyles(s.theme, s.icons), s.theme.Confirm()
@@ -527,8 +529,8 @@ func (m *detailModal) detailHeader(width int) string {
 	dot := st.sep.Render(" · ")
 	line(st.badge(d.PullRequest), "  ",
 		termtext.Link(d.URL, st.age.Render("#"+strconv.Itoa(d.Number))), dot,
-		st.title.Render(d.Author.Login), st.author.Render(" opened "+ui.AgoProse(d.CreatedAt, now)), dot,
-		st.author.Render("updated "+ui.AgoProse(d.UpdatedAt, now)))
+		st.title.Render(d.Author.Login), st.author.Render(" opened "+m.dates.Prose(d.CreatedAt, now)), dot,
+		st.author.Render("updated "+m.dates.Prose(d.UpdatedAt, now)))
 
 	stats := []string{
 		st.title.Render(ui.OneLine(d.HeadRef)) + st.sep.Render(" → ") + st.title.Render(ui.OneLine(d.BaseRef)),
@@ -595,7 +597,7 @@ func plural(n int, noun string) string {
 func (m *detailModal) renderComment(c core.Comment, width int) string {
 	st := &m.st
 	var b strings.Builder
-	b.WriteString(gutter + st.commenter.Render(c.Author.Login) + st.age.Render(" · "+ui.AgoProse(c.CreatedAt, m.now())))
+	b.WriteString(gutter + st.commenter.Render(c.Author.Login) + st.age.Render(" · "+m.dates.Prose(c.CreatedAt, m.now())))
 	bar := gutter + st.bar
 	// The bar takes two cells, and as many stay free on the right.
 	body := m.thread.Markdown(c.Body, markdown.Room(width, 2*len(gutter)+2))

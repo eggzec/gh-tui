@@ -38,7 +38,7 @@ func TestRepoLinks(t *testing.T) {
 		r := core.Repo{Ref: core.RepoRef{Owner: "o", Name: "r"}, Description: "A repository"}
 		want := ui.WebURL(host, "o/r")
 		for _, width := range []int{100, 40, 20} {
-			c := layoutCols(width, repoMeasure{name: 1, stars: 1}, "*")
+			c := layoutCols(width, repoMeasure{name: 1, stars: 1}, "*", 4)
 			checkLinks(t, host+" row", []string{s.renderRepo(c, r, true)}, want, width)
 			card := s.card(card{repo: r}, true, width)
 			checkLinks(t, host+" card", card[:1], want, width)

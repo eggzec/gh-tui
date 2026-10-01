@@ -52,8 +52,10 @@ type workList struct {
 	// width is the width of the pane inside its frame, and height the
 	// lines under the tabs.
 	width, height int
-	// now is the clock that ages are measured against.
-	now func() time.Time
+	// now is the clock that ages are measured against, and dates tell
+	// them.
+	now   func() time.Time
+	dates ui.Dates
 }
 
 // workIndent is the room before the text of a work item: the gutter, and
@@ -171,7 +173,7 @@ func (l *workList) wrap() {
 	for i := range l.tabs {
 		for j := range l.tabs[i].items {
 			r := &l.tabs[i].rows[j]
-			age := ansi.StringWidth(ui.Ago(r.hit.Issue.UpdatedAt, l.now()))
+			age := ansi.StringWidth(l.dates.Short(r.hit.Issue.UpdatedAt, l.now()))
 			r.ref, r.lines = wrapWork(r.hit.Issue, l.width-workIndent, age)
 		}
 	}

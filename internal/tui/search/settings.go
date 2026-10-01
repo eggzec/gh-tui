@@ -8,10 +8,11 @@ import (
 
 // configure keeps the settings of c that the section uses while it runs,
 // which the set command changed: the icons, which the theme the app sets
-// again after draws with, and the reads ahead of the result under the
-// cursor.
+// again after draws with, the dates, and the reads ahead of the result
+// under the cursor.
 func (s *Section) configure(c config.Config) {
 	s.icons = ui.NewIcons(c.UI.Icons)
+	s.dates = ui.NewDates(c.UI.DateFormat)
 	p := s.prefetch
 	on, delay := c.Details.Prefetch.Enabled, c.Details.Prefetch.HoverDelay
 	switch {

@@ -421,3 +421,24 @@ func TestFilesErrorWords(t *testing.T) {
 
 // errMark is the error glyph of the default icons, which mark what failed.
 var errMark = ui.NewIcons(config.IconsNerd).Error
+
+// The release tells when it was published as the date format says: an age
+// with the day after it, or the date in the layout alone.
+func TestDates(t *testing.T) {
+	for format, want := range map[string]string{
+		config.DateRelative: "published 1mo ago (2026-08-11)",
+		config.DateAbsolute: "published 2026-08-11 18:09 UTC",
+		"Jan _2 2006":       "published Aug 11 2026",
+	} {
+		m := New(context.Background(), &fakeService{cached: true}, repo, v3.ID, "", config.Default().Keys,
+			WithNow(func() time.Time { return clock }), WithLocation(time.UTC), WithDates(ui.NewDates(format)))
+		m.SetSize(100, 30)
+		got := ansi.Strip(m.View())
+		if !strings.Contains(got, want) {
+			t.Errorf("%s: the modal doesn't say %q:\n%s", format, want, got)
+		}
+		if format != config.DateRelative && strings.Contains(got, "(2026-08-11)") {
+			t.Errorf("%s: the modal tells the day twice:\n%s", format, got)
+		}
+	}
+}

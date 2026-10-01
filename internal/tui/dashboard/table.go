@@ -28,9 +28,6 @@ const (
 	minName = 12
 )
 
-// ageWidth is the widest age, such as "11mo".
-const ageWidth = 4
-
 // repoCols are the widths of the columns of the repositories, which every
 // row of a tab shares so that they line up. A width of 0 drops a column:
 // narrow panes drop the description first, then the language.
@@ -54,12 +51,12 @@ func (m *repoMeasure) add(r core.Repo, icons ui.Icons) {
 }
 
 // layoutCols fits the columns of repositories measured by m in width
-// cells.
-func layoutCols(width int, m repoMeasure, star string) repoCols {
+// cells, with dates of age cells at most.
+func layoutCols(width int, m repoMeasure, star string, age int) repoCols {
 	c := repoCols{
 		lang:  len(langHeader),
 		stars: max(m.stars, ansi.StringWidth(star)),
-		age:   len(ageHeader),
+		age:   max(len(ageHeader), age),
 	}
 	if m.flags > 0 {
 		c.flags = 2*m.flags - 1
@@ -183,9 +180,9 @@ func (s *Section) renderRepo(c repoCols, r core.Repo, selected bool) string {
 		gap()
 		age := ""
 		if !r.UpdatedAt.IsZero() {
-			age = ui.Ago(r.UpdatedAt, s.now())
+			age = s.dates.Short(r.UpdatedAt, s.now())
 		}
-		b.WriteString(strings.Repeat(" ", max(c.age-len(age), 0)))
+		b.WriteString(strings.Repeat(" ", max(c.age-ansi.StringWidth(age), 0)))
 		st.subtle.write(&b, age)
 	}
 	return b.String()

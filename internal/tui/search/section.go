@@ -86,6 +86,12 @@ func WithIcons(icons ui.Icons) Option {
 	return func(s *Section) { s.icons = icons }
 }
 
+// WithDates sets how dates read, as ui.date_format says. The default is
+// as ages.
+func WithDates(d ui.Dates) Option {
+	return func(s *Section) { s.dates = d }
+}
+
 // WithVoice sets how the page words what went wrong, with the keys a hint
 // names and the log it points to. By default the hints name the configured
 // keys and no log.
@@ -178,6 +184,8 @@ type Section struct {
 	st            styles
 	errs          ui.ErrorStyles
 	icons         ui.Icons
+	// dates tell when the results were updated.
+	dates ui.Dates
 	// dots caches the rendered dot of each label color, and langs the
 	// glyph of each language, by theme.
 	dots  map[string]string

@@ -9,6 +9,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 )
 
 func TestSettingsIcons(t *testing.T) {
@@ -79,4 +80,22 @@ func TestSettingsPrefetchOnReadsTheListShown(t *testing.T) {
 			t.Errorf("read issues %v, want the first rows %v", got, want)
 		}
 	})
+}
+
+// Setting the date format tells the dates of the rows in it at once, in a
+// column that keeps room for the widest, and those of the modal opened
+// after.
+func TestSettingsDateFormat(t *testing.T) {
+	svc := newFakeService(sampleIssues(12))
+	h := started(t, svc, 100, 30)
+	h.Update(ui.SettingsMsg{Config: uitest.DateFormat(t)})
+	h.SetTheme(testTheme())
+	is := sampleIssues(12)
+	uitest.Dated(t, h.View(), 100, is[0].UpdatedAt, is[1].UpdatedAt)
+	press(t, h, "enter")
+	m := h.modal()
+	if m == nil {
+		t.Fatal("enter didn't open the issue")
+	}
+	uitest.Dated(t, m.View(), 100, is[0].CreatedAt, is[0].UpdatedAt)
 }

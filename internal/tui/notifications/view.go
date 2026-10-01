@@ -19,7 +19,6 @@ const (
 	dotWidth    = 1
 	tagWidth    = 3
 	reasonWidth = 7
-	ageWidth    = 4
 	gap         = 2
 )
 
@@ -88,13 +87,16 @@ func defaultPalette() config.Palette {
 // layout is where the columns of a row go at one width. A zero width drops
 // the column.
 type layout struct {
-	tag, repo, title, reason int
+	tag, repo, title, reason, age int
 }
 
-func newLayout(width int) layout {
+// newLayout lays out a row of width cells, with dates of age cells at
+// most.
+func newLayout(width, age int) layout {
 	// The dot, the title and the age are always shown.
-	rest := width - dotWidth - 1 - gap - ageWidth
+	rest := width - dotWidth - 1 - gap - age
 	l := layout{
+		age:    age,
 		tag:    tagWidth,
 		repo:   min(max(width/5, 12), 28),
 		reason: reasonWidth,
@@ -121,7 +123,7 @@ func newLayout(width int) layout {
 //	● pr  owner/name      Title of the thread               mention  3h
 func (s *Section) render(n core.Notification, selected bool, width int) string {
 	st := &s.styles
-	l := newLayout(width)
+	l := newLayout(width, s.dates.Width())
 	tag, repo, title := st.tag, st.repo, st.title
 	dot := st.unreadDot
 	if !n.Unread {
@@ -152,8 +154,11 @@ func (s *Section) render(n core.Notification, selected bool, width int) string {
 		st.reason.write(&b, fit(shortReason(n.Reason), l.reason))
 		spaces(&b, gap)
 	}
-	age := ui.Ago(n.UpdatedAt, s.now())
-	st.age.write(&b, fitRight(age, ageWidth))
+	age := ""
+	if !n.UpdatedAt.IsZero() {
+		age = s.dates.Short(n.UpdatedAt, s.now())
+	}
+	st.age.write(&b, fitRight(age, l.age))
 	return b.String()
 }
 
