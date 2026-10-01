@@ -303,7 +303,9 @@ func parseAPILink(s, path string) (Target, error) {
 		return t, nil
 	}
 	kind := apiKinds[parts[3]]
-	if !kind.Known() || len(parts) < 5 {
+	// Below pulls and issues, a segment that isn't a number names other
+	// resources, such as issues/comments/5, a comment.
+	if !kind.Known() || len(parts) < 5 || strings.Trim(parts[4], "0123456789") != "" {
 		return Target{}, &TargetError{
 			Reason: "an API link opens only a repository, pull request or issue",
 			Err:    fmt.Errorf("not an API link to a repository, pull request or issue: %q", s),
