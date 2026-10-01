@@ -86,18 +86,16 @@ func Tokenise(l chroma.Lexer, code string, limit time.Duration) (toks []chroma.T
 	if r == nil {
 		return nil, 0, ErrBusy
 	}
-	timer := time.NewTimer(limit)
-	defer timer.Stop()
 	select {
 	case <-r.done:
 		<-lexing
 		toks, err := r.result()
 		if err != nil {
 			remember(k)
-			return nil, time.Since(r.start), fmt.Errorf("tokenise: %w", err)
+			return nil, r.took(), fmt.Errorf("tokenise: %w", err)
 		}
-		return toks, time.Since(r.start), nil
-	case <-timer.C:
+		return toks, r.took(), nil
+	case <-r.clock.After(limit):
 		r.halt()
 		if limit >= Limit {
 			remember(k)
@@ -125,8 +123,6 @@ func Head(ctx context.Context, l chroma.Lexer, code string, limit time.Duration)
 	}
 	r := lex(l, code, k)
 	if r == nil {
-		wait, cancel := context.WithTimeout(ctx, Wait)
-		defer cancel()
 		select {
 		case lexing <- struct{}{}:
 			// The lexer waited for may have overrun on this code.
@@ -135,16 +131,16 @@ func Head(ctx context.Context, l chroma.Lexer, code string, limit time.Duration)
 				return nil, ErrOverran
 			}
 			r = start(l, code, k)
-		case <-wait.Done():
+		case <-now().After(Wait):
+			return nil, ErrBusy
+		case <-ctx.Done():
 			return nil, ErrBusy
 		}
 	}
-	timer := time.NewTimer(limit)
-	defer timer.Stop()
 	select {
 	case <-r.done:
 		<-lexing
-	case <-timer.C:
+	case <-r.clock.After(limit):
 		r.halt()
 	case <-ctx.Done():
 		r.halt()
@@ -158,6 +154,9 @@ func Head(ctx context.Context, l chroma.Lexer, code string, limit time.Duration)
 
 // run is a lexer running on some code in a goroutine of its own.
 type run struct {
+	// clock is what the run is timed by, from start to end, whatever
+	// clock lexers started after it use.
+	clock Clock
 	start time.Time
 	// done is closed once the lexer finished.
 	done chan struct{}
@@ -184,7 +183,8 @@ func lex(l chroma.Lexer, code string, k key) *run {
 // start starts l on code with the lexing token the caller took, which
 // the lexer holds until it ends, or whoever waits for it until then.
 func start(l chroma.Lexer, code string, k key) *run {
-	r := &run{start: time.Now(), done: make(chan struct{})}
+	c := now()
+	r := &run{clock: c, start: c.Now(), done: make(chan struct{})}
 	go func() {
 		// Whatever ends the lexer must go through finish, or the token
 		// is never given back: a recover added here would call it with
@@ -223,7 +223,7 @@ func (r *run) running(k key) bool {
 	if halted.IsZero() {
 		return true
 	}
-	if time.Since(halted) > Limit {
+	if r.clock.Now().Sub(halted) > Limit {
 		remember(k)
 	}
 	return false
@@ -260,7 +260,12 @@ func (r *run) halt() {
 		<-lexing
 		return
 	}
-	r.halted = time.Now()
+	r.halted = r.clock.Now()
+}
+
+// took returns how long the lexer has run.
+func (r *run) took() time.Duration {
+	return r.clock.Now().Sub(r.start)
 }
 
 // result returns the tokens made so far, which the lexer no longer

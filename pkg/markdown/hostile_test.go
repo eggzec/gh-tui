@@ -83,6 +83,7 @@ func listLines(n int) string {
 }
 
 func TestHostileRendersQuickly(t *testing.T) {
+	wallClock(t)
 	t.Cleanup(func() { idle(t) })
 	limits := make(map[string]time.Duration)
 	for name := range hostile {
@@ -135,6 +136,7 @@ var hostileCode = []string{
 
 // Every language that is highlighted finishes quickly on hostile code.
 func TestHighlightedLexersFinish(t *testing.T) {
+	wallClock(t)
 	t.Cleanup(func() { idle(t) })
 	r := New(DefaultStyle(true))
 	for _, l := range lexers.GlobalLexerRegistry.Lexers {
