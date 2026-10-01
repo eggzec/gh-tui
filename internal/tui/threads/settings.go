@@ -13,5 +13,6 @@ func (o *Opener) Configure(c config.Config) {
 		return
 	}
 	o.markRead = c.Notifications.MarkReadOnOpen
-	o.ahead.Configure(c.Prefetch)
+	o.prefetch = &c.Prefetch
+	o.apply()
 }

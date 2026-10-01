@@ -2,7 +2,6 @@ package dashboard
 
 import (
 	"github.com/eggzec/gh-tui/internal/config"
-	"github.com/eggzec/gh-tui/internal/tui/details"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -31,19 +30,5 @@ func (s *Section) configure(c config.Config) {
 		}
 	}
 	s.opener.Configure(c)
-	p := s.prefetch
-	on, delay := c.DashboardPrefetch()
-	switch {
-	case !on:
-		// Resetting cancels the reads in flight.
-		s.ahead.Reset(s.ctx)
-		s.ahead = nil
-	case p == nil:
-		// Nothing was given to read with.
-	case s.ahead == nil:
-		s.ahead = details.NewAhead("work", p.pulls, p.issues, aheadRows, delay)
-		s.ahead.Reset(s.ctx)
-	default:
-		s.ahead.Set(aheadRows, delay)
-	}
+	s.setPrefetch(c.Prefetch)
 }

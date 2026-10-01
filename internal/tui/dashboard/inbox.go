@@ -90,6 +90,7 @@ func (s *Section) readAhead() tea.Cmd {
 	if !s.started || !s.focused {
 		return nil
 	}
+	s.opener.FollowInbox(true)
 	if s.inbox == nil || !s.notes.ok {
 		// There is no inbox, or it hasn't loaded.
 		return s.opener.ReadAhead(nil, 0)

@@ -261,17 +261,12 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		dashboard.WithIcons(icons),
 		dashboard.WithDates(dates),
 		dashboard.WithHost(webHost),
-		// So that the set command may turn reading ahead on.
 		dashboard.WithDetails(pullSvc, issueSvc),
+		dashboard.WithPrefetch(cfg.Prefetch),
 	}
 	searchOpts := []searchpage.Option{
 		searchpage.WithStart(searchStart(repoSvc, pinned)), searchpage.WithIcons(icons), searchpage.WithDates(dates), searchpage.WithHost(webHost), searchpage.WithVoice(voice),
 		searchpage.WithDetails(pullSvc, issueSvc), searchpage.WithPrefetch(cfg.Prefetch),
-	}
-	if on, rest := cfg.DashboardPrefetch(); on {
-		// The work waiting on the viewer is what they open most from the
-		// dashboard, as quickly as from the lists of a repository.
-		dashOpts = append(dashOpts, dashboard.WithPrefetch(pullSvc, issueSvc, rest))
 	}
 	layout := tui.Layout{
 		Files:  files.New(ctx, fileSvc, cfg.Keys, fileOpts...),

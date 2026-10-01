@@ -85,7 +85,6 @@ history:
 dashboard:
   calendar_glyph: "#"
   contributions: year
-  prefetch: false
 
 ui:
   icons: unicode

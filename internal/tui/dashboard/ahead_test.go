@@ -8,6 +8,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
 	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
@@ -126,7 +127,7 @@ func aheadSection(t *testing.T, f *detailFake) *Section {
 	t.Helper()
 	svc := newFake()
 	svc.work = manyReviews()
-	return newSection(t, svc, nil, 140, 38, WithPrefetch(fakePulls{f}, fakeIssues{f}, 150*time.Millisecond))
+	return newSection(t, svc, nil, 140, 38, WithDetails(fakePulls{f}, fakeIssues{f}), WithPrefetch(config.Default().Prefetch))
 }
 
 func TestWorkReadsAhead(t *testing.T) {
@@ -144,14 +145,19 @@ func TestWorkReadsAhead(t *testing.T) {
 		if f.comments != 3 {
 			t.Errorf("read %d first comments, want one per detail", f.comments)
 		}
-		// The row under the cursor, once it rests, and only once.
-		press(t, s, "down", "down", "down", "up", "down")
+		// The window around the cursor, each time it rests: the rows that
+		// come into it, once each.
+		press(t, s, "down")
 		if got := f.numbers(); len(got) != 4 || got[3] != 4 {
 			t.Errorf("read %v, want the fourth row last", got)
 		}
+		press(t, s, "down", "down", "up", "down")
+		if got := slices.Sorted(slices.Values(f.numbers())); !slices.Equal(got, []int{1, 2, 3, 4, 5, 6}) {
+			t.Errorf("read %v, want every row once", got)
+		}
 		// The first rows of another list, once it is on view.
 		press(t, s, "]")
-		if got := f.numbers(); len(got) != 6 || !slices.Contains(got, 12) || !slices.Contains(got, 3) {
+		if got := f.numbers(); !slices.Contains(got, 12) {
 			t.Errorf("read %v, want the pull requests of the viewer too", got)
 		}
 		// An issue, from its own service.
@@ -246,7 +252,6 @@ func TestWorkOpenPausesAndCounts(t *testing.T) {
 		// The modal holds the reads while it loads, as the pull requests
 		// section does.
 		resume := ui.PauseAll(open.Pause)
-		press(t, s, "down", "down")
 		rest := s.Update(keyPress("down"))
 		done := make(chan struct{})
 		go func() {

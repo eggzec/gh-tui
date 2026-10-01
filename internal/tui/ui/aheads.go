@@ -70,6 +70,17 @@ func (a *Aheads[K]) Configure(p config.PrefetchLayers) {
 	}
 }
 
+// ConfigureAll applies r to every kind, for a view whose settings have one
+// kind for all of them, such as the dashboard's inbox.
+func (a *Aheads[K]) ConfigureAll(r config.Resolved) {
+	if a == nil {
+		return
+	}
+	for _, ah := range a.aheads {
+		ah.Configure(r)
+	}
+}
+
 // On reports whether any kind reads ahead.
 func (a *Aheads[K]) On() bool {
 	return a != nil && slices.ContainsFunc(a.aheads, (*Ahead[K]).On)

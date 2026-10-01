@@ -69,7 +69,8 @@ func WithReleases(svc Releases) Option {
 
 // WithPrefetch reads ahead what the threads in the window around the
 // cursor are about, each time it rests, and at once when a list loads, as
-// p says for prefetch.notifications: details reads the pull request,
+// p says for prefetch.notifications, or for prefetch.dashboard.inbox while
+// the opener follows the inbox ([Opener.FollowInbox]): details reads the pull request,
 // issue or release, and comments the first comments of a pull request or
 // issue. Each costs a request; what is cached and as recent as the
 // notification is skipped. The default reads nothing ahead.
@@ -98,10 +99,11 @@ type Opener struct {
 	markRead bool
 
 	// details reads the pull requests and issues, as the other lists do.
-	// ahead reads them ahead, by kind; prefetch is the settings it starts
-	// with.
+	// ahead reads them ahead, by kind, as prefetch says for the view that
+	// inbox names.
 	details  details.Reader
 	prefetch *config.PrefetchLayers
+	inbox    bool
 	ahead    *ui.Aheads[target]
 }
 
@@ -116,10 +118,34 @@ func New(ctx context.Context, opts ...Option) *Opener {
 	o.ahead = ui.NewAheads(ctx, "notifications",
 		ui.AheadKind[target]{Name: "details", Log: "thread", Read: o.read, Current: o.current},
 		ui.AheadKind[target]{Name: "comments", Log: "thread_comments", Read: o.readComments, Current: o.currentComments})
-	if o.prefetch != nil {
+	o.apply()
+	return o
+}
+
+// FollowInbox makes the reads ahead follow the settings of the dashboard's
+// inbox, prefetch.dashboard.inbox, while on is set, and else those of the
+// notifications screen, prefetch.notifications. The views share the
+// opener one at a time, so the dashboard follows its inbox's while it is
+// on view, and gives them back as it leaves.
+func (o *Opener) FollowInbox(on bool) {
+	if o == nil || o.inbox == on {
+		return
+	}
+	o.inbox = on
+	o.apply()
+}
+
+// apply configures the reads ahead with the settings of the view the
+// opener follows. The inbox has one kind for both what a thread is about
+// and its first comments.
+func (o *Opener) apply() {
+	switch {
+	case o.prefetch == nil:
+	case o.inbox:
+		o.ahead.ConfigureAll(ui.Resolve(*o.prefetch, "dashboard", "inbox"))
+	default:
 		o.ahead.Configure(*o.prefetch)
 	}
-	return o
 }
 
 // MarksRead reports whether opening a thread marks it read.

@@ -68,8 +68,11 @@ func TestSettingsPrefetch(t *testing.T) {
 	if s.ahead == nil {
 		t.Fatal("the settings didn't turn the reads ahead on")
 	}
+	if w := s.workAhead.Window; w != (config.Window{Before: 1, After: 2}) {
+		t.Errorf("the work reads %+v around the cursor, want 1 above and 2 below", w)
+	}
 	off := config.Default()
-	off.Prefetch.Dashboard.WaitingOnYou.Enabled = new(false)
+	off.Prefetch.Enabled = false
 	s.Update(ui.SettingsMsg{Config: off})
 	if s.ahead != nil {
 		t.Error("the reads ahead didn't stop")

@@ -6,7 +6,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
 )
 
 func TestDashboardCalendarGlyph(t *testing.T) {
@@ -88,22 +87,24 @@ func TestDashboardFromFile(t *testing.T) {
 	}
 }
 
-func TestDashboardPrefetch(t *testing.T) {
-	if !Default().Dashboard.Prefetch {
-		t.Error("dashboard.prefetch is off by default, want on")
-	}
+// The old dashboard.prefetch switch is read as the switch of Waiting on
+// you: off turns the pane off, and on, as it was by default, leaves it to
+// inherit.
+func TestDashboardPrefetchRenamed(t *testing.T) {
 	t.Setenv(EnvLog, "")
 	tests := []struct {
 		name, yaml string
 		want       bool
+		from       string
 		// fails is what the error names, if loading fails.
 		fails string
 	}{
-		{"unset", "dashboard:\n  contributions: 30d\n", true, ""},
-		{"off", "dashboard:\n  prefetch: false\n", false, ""},
-		{"on", "dashboard:\n  prefetch: true\n", true, ""},
-		{"not a switch", "dashboard:\n  prefetch: often\n", false, "line 2"},
-		{"mistyped", "dashboard:\n  prefetchs: false\n", false, "prefetchs"},
+		{"off", "dashboard:\n  prefetch: false\n", false, "prefetch.dashboard.waiting_on_you.enabled", ""},
+		{"on", "dashboard:\n  prefetch: true\n", true, "prefetch.enabled", ""},
+		{"on, with prefetch off", "prefetch:\n  enabled: false\ndashboard:\n  prefetch: true\n", false, "prefetch.enabled", ""},
+		{"not a switch", "dashboard:\n  prefetch: often\n", false, "", "line 2"},
+		{"both names", "dashboard:\n  prefetch: false\nprefetch:\n  dashboard:\n    waiting_on_you: {enabled: true}\n", false, "",
+			"set only prefetch.dashboard.waiting_on_you.enabled"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -111,15 +112,25 @@ func TestDashboardPrefetch(t *testing.T) {
 			if err := os.WriteFile(path, []byte(tt.yaml), 0o600); err != nil {
 				t.Fatal(err)
 			}
-			cfg, _, err := loadBase(path)
+			cfg, renamed, err := loadBase(path)
 			if (err == nil) != (tt.fails == "") {
 				t.Fatalf("Load = %v, want it to fail = %v", err, tt.fails != "")
 			}
-			if err != nil && !strings.Contains(err.Error(), tt.fails) {
-				t.Errorf("Load = %v, want it to name %s", err, tt.fails)
+			if err != nil {
+				if !strings.Contains(err.Error(), tt.fails) {
+					t.Errorf("Load = %v, want it to name %s", err, tt.fails)
+				}
+				return
 			}
-			if err == nil && cfg.Dashboard.Prefetch != tt.want {
-				t.Errorf("dashboard.prefetch = %v, want %v", cfg.Dashboard.Prefetch, tt.want)
+			if len(renamed) != 1 || renamed[0].Old != "dashboard.prefetch" {
+				t.Errorf("renamed = %v, want dashboard.prefetch", renamed)
+			}
+			r, err := cfg.Prefetch.Resolve("dashboard", "waiting_on_you")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if r.Enabled != tt.want || r.From.Enabled != tt.from {
+				t.Errorf("waiting_on_you enabled %v (from %s), want %v (from %s)", r.Enabled, r.From.Enabled, tt.want, tt.from)
 			}
 		})
 	}
@@ -144,34 +155,5 @@ func TestDashboardActions(t *testing.T) {
 		if action != ActionDashboard && slices.Contains(keys, "0") {
 			t.Errorf("%s also binds 0", action)
 		}
-	}
-}
-
-// The dashboard reads ahead only when both its switch and that of its
-// kind of reads ahead are on, and rests as the kind says.
-func TestConfigDashboardPrefetch(t *testing.T) {
-	tests := []struct {
-		dashboard, kind, want bool
-	}{
-		{true, true, true},
-		{true, false, false},
-		{false, true, false},
-		{false, false, false},
-	}
-	for _, tt := range tests {
-		cfg := Default()
-		cfg.Dashboard.Prefetch = tt.dashboard
-		cfg.Prefetch.Dashboard.WaitingOnYou.Enabled = new(tt.kind)
-		if got, _ := cfg.DashboardPrefetch(); got != tt.want {
-			t.Errorf("dashboard.prefetch %v, prefetch.dashboard.waiting_on_you.enabled %v: read ahead = %v, want %v", tt.dashboard, tt.kind, got, tt.want)
-		}
-	}
-	if on, rest := Default().DashboardPrefetch(); !on || rest != Default().Prefetch.Rest {
-		t.Errorf("the default config reads the dashboard ahead %v, after %v, want on after prefetch.rest", on, rest)
-	}
-	cfg := Default()
-	cfg.Prefetch.Dashboard.Rest = new(time.Second)
-	if _, rest := cfg.DashboardPrefetch(); rest != time.Second {
-		t.Errorf("rest = %v, want the dashboard's own, 1s", rest)
 	}
 }

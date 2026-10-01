@@ -1,46 +1,57 @@
 package dashboard
 
 import (
-	"time"
-
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/details"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
-// aheadRows is how many of the first rows of the work on view are read
-// ahead.
-const aheadRows = 3
-
-// prefetch is how the work is read ahead, and whether it is.
-type prefetch struct {
+// readers are what the pull requests and issues of the work pane are read
+// ahead through.
+type readers struct {
 	pulls  details.Pulls
 	issues details.Issues
-	delay  time.Duration
-	on     bool
-}
-
-// WithPrefetch reads the pull requests and issues of the work pane ahead
-// through pulls and issues while the pane has the focus: the first rows of
-// the list on view, and the row under the cursor once it has rested there
-// for delay, so that they open at once. Each costs two requests, the
-// detail and the first comments; what is cached is skipped. The default
-// reads nothing ahead.
-func WithPrefetch(pulls details.Pulls, issues details.Issues, delay time.Duration) Option {
-	return func(s *Section) { s.prefetch = &prefetch{pulls: pulls, issues: issues, delay: delay, on: true} }
 }
 
 // WithDetails gives the work pane pulls and issues to read its pull
-// requests and issues ahead through, without reading them ahead, so that
-// the settings may turn that on while the app runs. WithPrefetch gives
-// them too, and wins.
+// requests and issues ahead through. Whether and how it reads them is
+// WithPrefetch's, which the settings may change while the app runs.
 func WithDetails(pulls details.Pulls, issues details.Issues) Option {
-	return func(s *Section) {
-		if s.prefetch == nil {
-			s.prefetch = &prefetch{pulls: pulls, issues: issues}
-		}
+	return func(s *Section) { s.readers = &readers{pulls: pulls, issues: issues} }
+}
+
+// WithPrefetch reads the work pane ahead as p says of the dashboard's
+// waiting_on_you, while the pane has the focus: the row under the cursor
+// and a window of rows around it, each time the cursor rests, so that they
+// open at once. A pull request or an issue costs two requests, the detail
+// and the first comments; what is cached is skipped. The default reads
+// nothing ahead. The opener reads the inbox's threads ahead, as
+// prefetch.dashboard.inbox says, while the dashboard is on view.
+func WithPrefetch(p config.PrefetchLayers) Option {
+	return func(s *Section) { s.layers = p }
+}
+
+// setPrefetch takes how the work is read ahead from p. The opener takes
+// the inbox's settings.
+func (s *Section) setPrefetch(p config.PrefetchLayers) {
+	work := ui.Resolve(p, "dashboard", "waiting_on_you")
+	s.workAhead = work
+	switch {
+	case !work.Enabled:
+		// Resetting cancels the reads in flight.
+		s.ahead.Reset(s.ctx)
+		s.ahead = nil
+	case s.readers == nil:
+		// Nothing was given to read with.
+	case s.ahead == nil:
+		s.ahead = details.NewAhead("work", s.readers.pulls, s.readers.issues, 0, work.Rest)
+		s.ahead.Configure(work)
+		s.ahead.Reset(s.ctx)
+	default:
+		s.ahead.Configure(work)
 	}
 }
 
@@ -53,28 +64,18 @@ func (s *Section) workAt(i int) (details.Key, bool) {
 	return details.Of(*t.rows[i].hit)
 }
 
-// readWorkAhead reads the first rows of the work on view and the row under
-// the cursor ahead, while the dashboard is on view and the work pane has
-// the focus, if they changed since the last message.
+// readWorkAhead reads the work around the cursor ahead, while the
+// dashboard is on view and the work pane has the focus, once the cursor
+// rests, if the rows around it changed since the last message.
 func (s *Section) readWorkAhead() tea.Cmd {
 	if s.ahead == nil || !s.started {
 		return nil
 	}
-	if !s.focused || s.focus != workPane {
-		// The delay of a row the cursor rested on no longer reads it.
-		return s.ahead.Moved(details.Key{}, false)
+	if !s.focused || s.focus != workPane || !s.work.ok {
+		// A rest that was due no longer reads anything.
+		return s.ahead.Window(nil, -1)
 	}
-	first := s.ahead.First(s.workAt)
-	hit, ok := s.tasks.selected()
-	k, readable := details.Of(hit)
-	hover := s.ahead.Moved(k, ok && readable)
-	switch {
-	case first == nil:
-		return hover
-	case hover == nil:
-		return first
-	}
-	return tea.Batch(first, hover)
+	return s.ahead.Window(s.workAt, s.tasks.current().sel)
 }
 
 // openHit returns the command that opens the pull request or issue of hit
