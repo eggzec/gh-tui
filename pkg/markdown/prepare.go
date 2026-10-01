@@ -45,15 +45,17 @@ func plain(_ int, b Block, open bool) string {
 }
 
 // scan makes src safe to draw and passes it on a line at a time, with the
-// HTML of each line turned into markdown, except that it passes each
-// fenced code block whole, with its index among them. A source longer
-// than maxLines is cut, and ends with cutNote(hint).
+// HTML of each line turned into markdown and its footnotes moved to its
+// end, except that it passes each fenced code block whole, with its index
+// among them. A source longer than maxLines is cut, and ends with
+// cutNote(hint).
 func scan(src, hint string, line func(string), block func(int, Block)) {
 	lines := strings.Split(termtext.Clean(src, tabWidth), "\n")
-	if len(lines) > maxLines {
+	cut := len(lines) > maxLines
+	if cut {
 		lines = lines[:maxLines]
-		defer line("\n" + cutNote(hint))
 	}
+	var out []piece
 	var p htmlState
 	c := codeState{blank: true}
 	var lim bounds
@@ -63,13 +65,14 @@ func scan(src, hint string, line func(string), block func(int, Block)) {
 		if !ok || p.inComment || c.holds(lines[i]) {
 			l, end := lim.table(lim.nest(lines[i]))
 			if end {
-				line("")
+				out = append(out, piece{text: true})
 			}
 			l = p.line(refs(l))
-			if !c.in(l) {
+			text := !c.in(l)
+			if text {
 				l = linkItem(alert(literal(l)))
 			}
-			line(l)
+			out = append(out, piece{line: l, text: text})
 			continue
 		}
 		end := len(lines) - 1
@@ -79,10 +82,29 @@ func scan(src, hint string, line func(string), block func(int, Block)) {
 				break
 			}
 		}
-		block(n, showBlock(f.lang, strings.Join(lines[i:end+1], "\n")))
+		out = append(out, piece{block: new(showBlock(f.lang, strings.Join(lines[i:end+1], "\n"))), n: n})
 		n++
 		i = end
 	}
+	for _, pc := range footnotes(out) {
+		if pc.block != nil {
+			block(pc.n, *pc.block)
+		} else {
+			line(pc.line)
+		}
+	}
+	if cut {
+		line("\n" + cutNote(hint))
+	}
+}
+
+// piece is a line of a source that scan passes on, and whether it is text
+// rather than code, or a fenced code block with its index.
+type piece struct {
+	line  string
+	text  bool
+	block *Block
+	n     int
 }
 
 // fence is the opening fence of a code block.
