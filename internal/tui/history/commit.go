@@ -130,18 +130,29 @@ func (m *Modal) follow(k core.Commit) tea.Cmd {
 		cmds = append(cmds, m.startSpinner())
 	}
 	msg := restMsg{id: m.id, seq: m.seq}
-	cmds = append(cmds, tea.Tick(m.opts.cfg.Prefetch.HoverDelay, func(time.Time) tea.Msg { return msg }))
+	cmds = append(cmds, tea.Tick(m.opts.prefetch.commits.Rest, func(time.Time) tea.Msg { return msg }), m.readAround())
 	return tea.Batch(cmds...)
 }
 
-// rested reads the commit the cursor rested on, unless it moved on, and
-// the commits around it.
+// rested reads the commit the cursor rested on, unless it moved on.
 func (m *Modal) rested(msg restMsg) tea.Cmd {
 	if msg.seq != m.seq {
 		return nil
 	}
-	around := m.ahead.Around(m.graphSHA, m.graph.model.Index(), m.opts.cfg.Prefetch.Around)
-	return tea.Batch(m.loadDetail(), around)
+	return m.loadDetail()
+}
+
+// readAround reads, once the cursor rests, what the commits in a window
+// around it changed, as the prefetch settings say. The commit pane reads
+// the commit under the cursor itself, whatever they say.
+func (m *Modal) readAround() tea.Cmd {
+	i := m.graph.model.Index()
+	return m.ahead.Window(func(j int) (string, bool) {
+		if j == i {
+			return "", false
+		}
+		return m.graphSHA(j)
+	}, i)
 }
 
 // graphSHA returns the SHA of the commit at index i of the graph.

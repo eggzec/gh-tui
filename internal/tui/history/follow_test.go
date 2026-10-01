@@ -8,6 +8,8 @@ import (
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/eggzec/gh-tui/internal/config"
 )
 
 // clock is a host that runs every command in a goroutine of its own, as
@@ -70,10 +72,11 @@ func (c *clock) press(k string) {
 func TestFollowWaitsForTheCursorToRest(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		f := newFake()
-		cfg := testConfig()
-		cfg.Prefetch.HoverDelay = 150 * time.Millisecond
-		cfg.Prefetch.Around = 1
-		m := New(t.Context(), f, repo, "main", baseNone, testKeys(), WithConfig(cfg), withClock(testNow))
+		around := testPrefetch(func(p *config.PrefetchLayers) {
+			p.History.Rest = new(150 * time.Millisecond)
+			p.History.Window = config.Span{Before: new(1), After: new(1)}
+		})
+		m := New(t.Context(), f, repo, "main", baseNone, testKeys(), WithConfig(testConfig()), around, withClock(testNow))
 		m.SetTheme(testTheme())
 		// Narrow, so that no patch is highlighted: the highlighter keeps a
 		// clock of its own running, which synctest takes for a leak.
@@ -116,9 +119,8 @@ func TestFollowWaitsForTheCursorToRest(t *testing.T) {
 func TestReadsAroundAreBoundedAndCancelled(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		f := newFake()
-		cfg := testConfig()
-		cfg.Prefetch.Around = 5
-		m := New(t.Context(), f, repo, "main", baseNone, testKeys(), WithConfig(cfg), withClock(testNow))
+		around := testPrefetch(func(p *config.PrefetchLayers) { p.History.Window = config.Span{Before: new(5), After: new(5)} })
+		m := New(t.Context(), f, repo, "main", baseNone, testKeys(), WithConfig(testConfig()), around, withClock(testNow))
 		m.SetTheme(testTheme())
 		// Narrow, so that no patch is highlighted: the highlighter keeps a
 		// clock of its own running, which synctest takes for a leak.

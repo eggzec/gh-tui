@@ -13,7 +13,8 @@ type Option func(*options)
 type options struct {
 	cfg config.History
 	// dates tell the dates of the rows and the commit pane.
-	dates ui.Dates
+	dates    ui.Dates
+	prefetch prefetch
 	// voice words the errors of the graph; New makes one of its keys if
 	// it is nil.
 	voice *ui.Voice
@@ -33,11 +34,27 @@ type options struct {
 }
 
 func defaultOptions() options {
-	return options{cfg: config.Default().History, now: time.Now, loc: time.Local, icons: ui.NewIcons(config.Default().UI.Icons)}
+	d := config.Default()
+	return options{cfg: d.History, prefetch: newPrefetch(d.Prefetch), now: time.Now, loc: time.Local, icons: ui.NewIcons(d.UI.Icons)}
 }
 
-// WithConfig sets what the rows and the commit pane show, and how far
-// the modal reads ahead. The default is that of config.Default.
+// prefetch is what the modal reads ahead: what the commits around the
+// graph's cursor changed, and how far the branches around the branch
+// pane's cursor are from the default branch.
+type prefetch struct {
+	commits, branches config.Resolved
+}
+
+func newPrefetch(p config.PrefetchLayers) prefetch {
+	var r prefetch
+	// The names are those of the settings, so these can't fail.
+	r.commits, _ = p.Resolve("history", "commits")
+	r.branches, _ = p.Resolve("history", "branches")
+	return r
+}
+
+// WithConfig sets what the rows and the commit pane show, and how dates
+// read. The default is that of config.Default.
 func WithConfig(h config.History) Option {
 	return func(o *options) { o.cfg = h }
 }
@@ -46,6 +63,15 @@ func WithConfig(h config.History) Option {
 // as ages.
 func WithDates(d ui.Dates) Option {
 	return func(o *options) { o.dates = d }
+}
+
+// WithPrefetch sets how far the modal reads ahead, and how long a cursor
+// rests before it does, as p, the prefetch settings, says for the
+// history. The commit and the branch under the cursors are read once they
+// rest whatever p says, since the panes show them. The default is that of
+// config.Default.
+func WithPrefetch(p config.PrefetchLayers) Option {
+	return func(o *options) { o.prefetch = newPrefetch(p) }
 }
 
 // WithVoice sets how the modal words what went wrong, with the keys a

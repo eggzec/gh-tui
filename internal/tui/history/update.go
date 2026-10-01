@@ -41,6 +41,8 @@ func (m *Modal) update(msg tea.Msg) tea.Cmd {
 			m.receiveCompare(msg)
 		}
 		return nil
+	case ui.AheadMsg:
+		return tea.Batch(m.ahead.Rested(msg), m.compares.Rested(msg))
 	case restMsg:
 		if msg.id != m.id {
 			return nil

@@ -292,17 +292,21 @@ func TestLoadSyncInterval(t *testing.T) {
 	}
 }
 
-// TestLoadRenamedPrefetch checks the settings that moved under prefetch.
+// TestLoadRenamedPrefetch checks the files and history settings that moved
+// under prefetch.
 func TestLoadRenamedPrefetch(t *testing.T) {
 	t.Setenv(EnvLog, "")
-	file := "files:\n  prefetch:\n    enabled: false\n    max_size: 16KiB\n    hover_delay: 300ms\n"
+	file := "files:\n  prefetch:\n    enabled: false\n    max_size: 16KiB\n    hover_delay: 300ms\n" +
+		"history:\n  prefetch:\n    around: 5\n    hover_delay: 150ms\n"
 	got, renamed, err := loadBase(writeConfig(t, file))
 	if err != nil {
 		t.Fatalf("Load error = %v", err)
 	}
 	want := Default()
-	files := &want.Prefetch.Files
+	files, history := &want.Prefetch.Files, &want.Prefetch.History
 	files.Preview.Enabled, files.Preview.MaxSize, files.Rest = new(false), 16*KiB, new(300*time.Millisecond)
+	// A delay at the default of prefetch.rest is left to it.
+	history.Window = Span{Before: new(5), After: new(5)}
 	assertEqual(t, got, want)
 	names := make([]string, 0, len(renamed))
 	for _, r := range renamed {
@@ -312,6 +316,8 @@ func TestLoadRenamedPrefetch(t *testing.T) {
 		"files.prefetch.enabled → prefetch.files.preview.enabled",
 		"files.prefetch.max_size → prefetch.files.preview.max_size",
 		"files.prefetch.hover_delay → prefetch.files.rest",
+		"history.prefetch.around → prefetch.history.window.before, prefetch.history.window.after (the commits on each side of the cursor)",
+		"history.prefetch.hover_delay → prefetch.history.rest",
 	}
 	if !slices.Equal(names, wantNames) {
 		t.Errorf("renamed = %q, want %q", names, wantNames)

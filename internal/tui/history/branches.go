@@ -1,6 +1,7 @@
 package history
 
 import (
+	"context"
 	"slices"
 	"strconv"
 	"strings"
@@ -230,8 +231,14 @@ func (m *Modal) pressBranches(msg tea.KeyPressMsg) tea.Cmd {
 }
 
 // branchMoved starts the delay after which the branch under the cursor is
-// compared with the default branch.
+// compared with the default branch, and the branches around it.
 func (m *Modal) branchMoved() tea.Cmd {
+	return tea.Batch(m.branchRest(), m.compareAround())
+}
+
+// branchRest starts the delay after which the branch under the cursor is
+// compared with the default branch, unless it was.
+func (m *Modal) branchRest() tea.Cmd {
 	b := &m.branches
 	b.seq++
 	br, ok := b.selected()
@@ -246,7 +253,44 @@ func (m *Modal) branchMoved() tea.Cmd {
 		return nil
 	}
 	msg := branchRestMsg{id: m.id, seq: b.seq}
-	return tea.Tick(m.opts.cfg.Prefetch.HoverDelay, func(time.Time) tea.Msg { return msg })
+	return tea.Tick(m.opts.prefetch.branches.Rest, func(time.Time) tea.Msg { return msg })
+}
+
+// branchPair names a comparison of head with base.
+type branchPair struct {
+	base, head string
+}
+
+// compareAround compares, once the cursor rests, the branches in a window
+// around it with the default branch, as the prefetch settings say, so
+// that they show at once. The branch under the cursor is compared by
+// itself, whatever they say.
+func (m *Modal) compareAround() tea.Cmd {
+	b := &m.branches
+	at := func(j int) (branchPair, bool) {
+		if j == b.cursor || j < 0 || j >= len(b.items) || !m.comparable(b.items[j].Name) {
+			return branchPair{}, false
+		}
+		return branchPair{b.defaultBranch, b.items[j].Name}, true
+	}
+	// Until the branches are listed, there is no window.
+	if !b.loaded {
+		at = nil
+	}
+	return m.compares.Window(at, b.cursor)
+}
+
+// readCompare compares the branches of k ahead of their use, for
+// m.compares.
+func (m *Modal) readCompare(ctx context.Context, k branchPair) error {
+	_, err := m.svc.Compare(ctx, m.repo, k.base, k.head)
+	return err
+}
+
+// cachedCompare reports whether the comparison of k is in memory.
+func (m *Modal) cachedCompare(k branchPair) bool {
+	_, ok := m.svc.CachedCompare(m.repo, k.base, k.head)
+	return ok
 }
 
 // comparable reports whether name can be compared with the default branch.
