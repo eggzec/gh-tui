@@ -16,6 +16,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# cross keeps its own module and build cache, since it builds for platforms
+# no other job does, and setup-go's cache is one for all jobs, saved by
+# whichever finishes first. Go's build cache is content-addressed, so a
+# stale cache can only cost a rebuild; go.mod's hash covers the Go version.
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -35,8 +39,9 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
-      # The race detector is the one thing here that needs cgo.
-      - run: go test -race ./...
+      # The race detector is the one thing here that needs cgo. -count=1
+      # runs every test rather than report a result kept in the build cache.
+      - run: go test -race -count=1 ./...
         env:
           CGO_ENABLED: "1"
       - run: go test -run '^$' -bench . -benchtime 100x ./...
@@ -60,7 +65,7 @@ jobs:
         with:
           path: ${{ runner.temp }}/schemas
           key: schemas-${{ steps.week.outputs.week }}-${{ hashFiles('internal/core/enterprise.go') }}
-      - run: go test -tags schemacheck -run '^TestSchema$' ./internal/github/
+      - run: go test -tags schemacheck -count=1 -run '^TestSchema$' ./internal/github/
         env:
           GH_TUI_SCHEMAS: ${{ runner.temp }}/schemas
           GITHUB_TOKEN: ${{ github.token }}
@@ -75,6 +80,13 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
+          cache: false
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: go-cross-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
       - run: |
           for p in darwin/amd64 darwin/arm64 freebsd/386 freebsd/amd64 \
             freebsd/arm64 linux/386 linux/amd64 linux/arm linux/arm64 \
