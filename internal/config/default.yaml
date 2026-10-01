@@ -416,9 +416,12 @@ themes:
 # profiles, set what differs for the accounts, login@host, a profile
 # lists. The profile of the account gh is logged in as applies, and goes
 # over its host's settings. It is picked once, at startup, by the login
-# gh stores the token for; a token from GH_TOKEN or GH_ENTERPRISE_TOKEN
-# names no login, so no profile applies to it. A profile picks a theme by
-# name, and the theme itself is defined at the top level:
+# gh stores the token for. A token from GH_TOKEN, GITHUB_TOKEN or
+# GH_ENTERPRISE_TOKEN names no login, so gh-tui asks GitHub whose it is
+# and keeps the answer in the disk cache: the first start with such a
+# token applies no profile, and the next starts apply the login's. A
+# profile picks a theme by name, and the theme itself is defined at the
+# top level:
 #
 #   themes:
 #     work:

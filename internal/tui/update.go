@@ -83,6 +83,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case oldEnterpriseMsg:
 		cmd := m.toldOldEnterprise(msg)
 		return m, cmd
+	case lateWarningMsg:
+		cmd := m.toast.Push(toast.Warning, msg.text)
+		return m, cmd
 	case quitWaitedMsg:
 		cmd := m.quitWaited()
 		return m, cmd

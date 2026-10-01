@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -78,4 +79,30 @@ func (c *Client) ViewerLogin(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("read viewer: %w", err)
 	}
 	return data.Viewer.Login, nil
+}
+
+// restUser is what UserLogin reads of the REST user.
+type restUser struct {
+	Login string `json:"login"`
+}
+
+// UserLogin returns the login of the account the token is for, from REST
+// GET /user, which costs no GraphQL points. A login that isn't one GitHub
+// could have (core.ValidLogin) is an error. With the validators of an
+// earlier answer in cond, an unchanged account answers 304, free against
+// the rate limit: the Response then has NotModified set and the login is
+// "".
+func (c *Client) UserLogin(ctx context.Context, cond Conditional) (string, Response, error) {
+	var v restUser
+	resp, err := c.Get(ctx, "user", cond, &v)
+	if err != nil {
+		return "", resp, fmt.Errorf("read user: %w", err)
+	}
+	// The login is shown on screen and kept on disk, so an answer that
+	// names no login GitHub could have, such as one with control
+	// characters, names none.
+	if !resp.NotModified && !core.ValidLogin(v.Login) {
+		return "", resp, errors.New("read user: GitHub named no valid login")
+	}
+	return v.Login, resp, nil
 }

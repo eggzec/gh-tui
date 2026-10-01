@@ -73,6 +73,7 @@ type options struct {
 	token       string
 	source      string
 	later       bool
+	login       string
 	baseURL     string
 	gh          ghLookup
 	notify      func()
@@ -125,6 +126,14 @@ func WithTokenSource(token, source string) Option {
 // starting. Requests wait for it.
 func WithTokenLater(source string) Option {
 	return func(o *options) { o.token, o.source, o.later = "", source, true }
+}
+
+// WithLogin sets the login of the account the token is for, when gh
+// doesn't store the token, such as one from GH_TOKEN, and the login is
+// known from an earlier answer of GitHub. Account then names the account
+// by its login. The login gh stores for its own token wins.
+func WithLogin(login string) Option {
+	return func(o *options) { o.login = login }
 }
 
 // WithBaseURL sets the REST API root, such as https://api.github.com/. The
@@ -198,7 +207,7 @@ func New(opts ...Option) (*Client, error) {
 		http:       &hc,
 		authorized: make(chan struct{}),
 		host:       o.host,
-		login:      o.gh.login(o.host, source),
+		login:      cmp.Or(o.gh.login(o.host, source), o.login),
 		restURL:    base,
 		graphqlURL: gql.String(),
 		budget:     b,
@@ -288,6 +297,18 @@ func restRoot(host string) string {
 	return "https://api." + host + "/"
 }
 
+// APIHost returns the host of the REST API of host, as Client.Host
+// returns it for a client of host: api.github.com for github.com, and an
+// Enterprise Server's own host. What the app keeps on disk for a host is
+// below this name.
+func APIHost(host string) string {
+	u, err := url.Parse(restRoot(host))
+	if err != nil {
+		return host
+	}
+	return u.Hostname()
+}
+
 func graphqlEndpoint(base *url.URL) *url.URL {
 	u := *base
 	if prefix, ok := strings.CutSuffix(u.Path, "/api/v3/"); ok {
@@ -326,8 +347,8 @@ func (c *Client) WebHost() string {
 // the one gh stores for its active account, the name is a hash of the host
 // and that account's login, so it outlasts a refreshed token or a new
 // login. A token from the environment may be anyone's, so its name is its
-// TokenAccount, and then it waits for the token as TokenAccount does:
-// never call it from Update.
+// TokenAccount, unless WithLogin named its login, and then it waits for
+// the token as TokenAccount does: never call it from Update.
 func (c *Client) Account() string {
 	if c.login == "" {
 		return c.TokenAccount()

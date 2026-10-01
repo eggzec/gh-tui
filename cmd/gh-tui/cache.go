@@ -31,8 +31,9 @@ func openDisk(ctx context.Context, cfg config.Disk, host string) (store *disk.St
 			disk.WithMaxSize(int64(cfg.MaxSize)),
 			disk.WithCompression(gzipLevel(cfg)),
 			// The command line's history lives beside the entries of each
-			// account, and isn't a cache to trim.
-			disk.WithKeep(cmdhist.FileName))
+			// account, and the login of a token from the environment in a
+			// directory of its own; neither is a cache to trim.
+			disk.WithKeep(cmdhist.FileName, loginFile))
 	}
 	if err != nil {
 		slog.Warn("disk cache off", "span", "cache.disk", "dir", ui.ShortPath(root), "err", err.Error())

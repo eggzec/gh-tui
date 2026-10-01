@@ -114,6 +114,7 @@ var restCalls = []restCall{
 	{Func: "MarkNotificationsRead", Method: http.MethodPut, Path: "/notifications"},
 	{Func: "GetRelease", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/releases/{release_id}", Decode: restRelease{}},
 	{Func: "GetRepo", Method: http.MethodGet, Path: "/repos/{owner}/{repo}", Decode: restRepoFlags{}},
+	{Func: "UserLogin", Method: http.MethodGet, Path: "/user", Decode: restUser{}},
 	{Func: "Star", Method: http.MethodPut, Path: "/user/starred/{owner}/{repo}"},
 	{Func: "Unstar", Method: http.MethodDelete, Path: "/user/starred/{owner}/{repo}"},
 	{Func: "search", Method: http.MethodGet, Path: "/search/repositories", Query: []string{"q", "per_page"}, Decode: searchResults[searchRepo]{}},

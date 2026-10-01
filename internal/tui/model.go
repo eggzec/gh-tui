@@ -183,6 +183,8 @@ type Model struct {
 	// oldEnterprise tells of a GitHub Enterprise Server older than
 	// supported.
 	oldEnterprise <-chan string
+	// lateWarning tells of a warning found once the app runs.
+	lateWarning <-chan string
 }
 
 // Option configures a Model.
@@ -374,7 +376,7 @@ func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) 
 // the notifications, whose badge is on every screen, and listens for sync
 // events.
 func (m *Model) Init() tea.Cmd {
-	cmds := []tea.Cmd{tea.RequestBackgroundColor, waitTerminal(), m.pending, m.startScreen(), m.listen(), m.loadRepoInfo(), m.loadHistory(), m.startAccess(), m.listenOldEnterprise()}
+	cmds := []tea.Cmd{tea.RequestBackgroundColor, waitTerminal(), m.pending, m.startScreen(), m.listen(), m.loadRepoInfo(), m.loadHistory(), m.startAccess(), m.listenOldEnterprise(), m.listenLateWarning()}
 	m.pending = nil
 	for _, w := range m.warnings {
 		cmds = append(cmds, ui.Notify(toast.Warning, w))
