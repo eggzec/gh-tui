@@ -55,10 +55,13 @@ func TestStyleLinesCarryOne(t *testing.T) {
 	}
 }
 
-// However many colors the content holds, a frame writes at most one short
-// style for each byte shown: sequences too long to keep are dropped, and
-// the colors before a row fold into one style.
-func TestColorsBounded(t *testing.T) {
+// However many colors the content holds, a frame averages at most 72
+// bytes a cell: sequences too long to keep are dropped, the colors before
+// a row fold into one style, and each change writes only what changes.
+// The costliest content measured, two opposite styles at every cell, takes
+// about 65; 72 leaves room above it. It is an average over the frame, not
+// a bound on each cell: one cell may take more where others take less.
+func TestColorsAverageBytesBounded(t *testing.T) {
 	const width, height = 120, 40
 	huge := "\x1b[38;2;" + strings.Repeat("1", 60<<10) + "m"
 	tests := []struct {
@@ -71,18 +74,20 @@ func TestColorsBounded(t *testing.T) {
 		{name: "many lines never reset", text: strings.Repeat("\x1b[1m\x1b[4m\x1b[31mline\n", 50_000)},
 		{name: "padded colors at every cell", text: padded(width * height * 2)},
 		{name: "padded colors on every row", text: strings.Repeat(padded(width)+"\n", height*2)},
+		{name: "opposite styles at every cell", text: opposite(width * height * 2)},
+		{name: "opposite styles on every row", text: strings.Repeat(opposite(width)+"\n", height*2)},
 	}
 	for _, tt := range tests {
 		for _, wrap := range []bool{false, true} {
-			m := open(t, "out.log", tt.text, WithSize(width, height), WithWrap(wrap))
+			m := open(t, "out.log", tt.text, WithSize(width, height), WithWrap(wrap), WithLineNumbers(false))
 			m, _ = keys(t, m, "G")
 			start := time.Now()
 			v := m.View()
 			if d := time.Since(start); d > time.Second {
 				t.Errorf("%s, wrap %v: a frame took %v", tt.name, wrap, d)
 			}
-			if limit := 64 * width * height; len(v) > limit {
-				t.Errorf("%s, wrap %v: a frame is %d bytes, more than %d", tt.name, wrap, len(v), limit)
+			if limit := 72 * width * height; len(v) > limit {
+				t.Errorf("%s, wrap %v: a frame is %d bytes, more than an average of 72 a cell (%d)", tt.name, wrap, len(v), limit)
 			}
 			assertFits(t, v, width, height)
 		}
@@ -191,6 +196,22 @@ func padded(n int) string {
 			b.WriteString("\x1b[" + kind + ":2::" + pad(i) + ":" + pad(i/256) + ":" + pad(i+1) + "m")
 		}
 		b.WriteString("x")
+	}
+	return b.String()
+}
+
+// opposite is n cells of text that alternate two opposite styles, as
+// costly to change between as kept sequences allow: every attribute on
+// and off, two underline styles, and three true colors of three-digit
+// values, which no color of the other style shares.
+func opposite(n int) string {
+	styles := [2]string{
+		"\x1b[1;2;3;4:3;7;9;53m\x1b[38;2;255;254;253;48;2;252;251;250;58;2;249;248;247m",
+		"\x1b[22;23;27;29;55;4:5m\x1b[38;2;246;245;244;48;2;243;242;241;58;2;240;239;238m",
+	}
+	var b strings.Builder
+	for i := range n {
+		b.WriteString(styles[i%2] + "x")
 	}
 	return b.String()
 }
