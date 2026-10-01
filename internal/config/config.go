@@ -46,7 +46,10 @@ type Config struct {
 	History History `yaml:"history"`
 	// Dashboard configures the screen the app opens on.
 	Dashboard Dashboard `yaml:"dashboard"`
-	UI        UI        `yaml:"ui"`
+	// Prefetch configures reading ahead, globally, by page and by kind of
+	// item.
+	Prefetch PrefetchLayers `yaml:"prefetch"`
+	UI       UI             `yaml:"ui"`
 	// Images configures the images drawn inline, which only some
 	// terminals show.
 	Images   Images   `yaml:"images" when:"startup" why:"the terminal is asked whether it shows images at startup" scope:"global"`
@@ -179,7 +182,8 @@ func (c Config) Validate() error {
 		errs = append(errs, validateKeys(action, c.Keys[action]))
 	}
 
-	errs = append(errs, c.Cache.validate(), c.Sync.validate(), c.Files.validate(), c.Details.validate(), c.History.validate(), c.Dashboard.validate(), c.UI.validate(), c.GitHub.validate(), c.PageSize.validate(), c.Commands.validate(), c.Images.validate(), c.Log.validate(),
+	errs = append(errs, c.Cache.validate(), c.Sync.validate(), c.Files.validate(), c.Details.validate(), c.History.validate(), c.Dashboard.validate(), c.Prefetch.validate(),
+		c.UI.validate(), c.GitHub.validate(), c.PageSize.validate(), c.Commands.validate(), c.Images.validate(), c.Log.validate(),
 		validateEditor(c.Editor))
 	return errors.Join(errs...)
 }

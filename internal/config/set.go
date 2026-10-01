@@ -73,7 +73,34 @@ func (c Config) Get(key string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if v.Kind() == reflect.Pointer && v.IsNil() {
+		if s, ok := c.Prefetch.inherited(key); ok {
+			return s, nil
+		}
+	}
 	return format(v), nil
+}
+
+// Inherits reports whether the setting key may be left unset, to take the
+// value of the layer above it, as the knobs of prefetch's pages and kinds
+// do.
+func Inherits(key string) bool {
+	f, ok := settingField(key)
+	return ok && f.Tag.Get("inherit") != ""
+}
+
+// settingField returns the field of Config that key names.
+func settingField(key string) (reflect.StructField, bool) {
+	t := reflect.TypeFor[Config]()
+	var f reflect.StructField
+	for part := range strings.SplitSeq(key, ".") {
+		var ok bool
+		if f, ok = fieldByYAML(t, part); !ok {
+			return f, false
+		}
+		t = f.Type
+	}
+	return f, true
 }
 
 // format spells v as the config file may.
@@ -85,6 +112,11 @@ func format(v reflect.Value) string {
 		return x.String()
 	}
 	switch v.Kind() {
+	case reflect.Pointer:
+		if v.IsNil() {
+			return ""
+		}
+		return format(v.Elem())
 	case reflect.String:
 		if v.String() == "" {
 			return `""`
@@ -204,7 +236,8 @@ func (c Config) Values(key string) []string {
 	if vs, ok := choices[key]; ok {
 		return slices.Clone(vs)
 	}
-	if v, err := setting(reflect.ValueOf(c), key); err == nil && v.Kind() == reflect.Bool {
+	if v, err := setting(reflect.ValueOf(c), key); err == nil && (v.Kind() == reflect.Bool ||
+		v.Kind() == reflect.Pointer && v.Type().Elem().Kind() == reflect.Bool) {
 		return []string{"true", "false"}
 	}
 	return nil

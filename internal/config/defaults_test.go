@@ -34,6 +34,10 @@ func TestDefaultsComplete(t *testing.T) {
 
 	root := defaultTree()
 	for _, key := range Keys() {
+		// A knob of a page or a kind is set only where it differs.
+		if Inherits(key) {
+			continue
+		}
 		if lookup(root, key) == nil {
 			t.Errorf("default.yaml doesn't set %s", key)
 		}

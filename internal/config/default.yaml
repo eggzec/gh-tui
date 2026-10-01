@@ -230,6 +230,64 @@ dashboard:
   # comments; what is cached is skipped. It needs details.prefetch.enabled.
   prefetch: true
 
+# Reading ahead: what the app reads before you open it, so that it opens
+# at once. It's a guess, and it spends quota; what was read is kept in the
+# cache either way. It has three layers, each setting only what it names:
+# these global knobs, then prefetch.<page>, then prefetch.<page>.<kind>,
+# one kind of item on that page. A knob a layer leaves out comes from the
+# layer above, so enabled: false here turns off every page and kind that
+# doesn't enable itself. The pages below that set a window of their own
+# (search, finder, history and actions) don't follow the window set here;
+# set one of their knobs to null to hand it back to the layer above.
+# (Pages don't read these yet: each moves to them in turn.)
+prefetch:
+  # Whether anything is read ahead.
+  enabled: true
+  # The rows around the cursor read once it rests, besides the row under
+  # it: before above it, after below it, each 0 to 30. Nearest rows go
+  # first, and below before above. 0/0 reads the row under the cursor only.
+  window: {before: 1, after: 4}
+  # How long the cursor stays on a row before anything is read for it, up
+  # to 2s. The window is read again each time it rests.
+  rest: 150ms
+  # The most reads ahead in flight at once, on top of yours, 1 to 10. Set
+  # here, not per page or kind, since every page shares the connection.
+  parallel: 3
+  # The pages, and the kinds of items on them. Each may set enabled,
+  # window and rest. Kinds that read a page at a time (other_tabs,
+  # other_kinds) take no window.
+  #   pulls: details, comments, checks, other_tabs
+  #   issues: details, comments, other_tabs
+  #   notifications: details, comments
+  #   dashboard: waiting_on_you, inbox, repositories, pinned
+  #   search: details, comments, other_kinds
+  #   files: tree, preview (window up to 64)
+  #   finder: preview
+  #   history: commits, branches (windows up to 10)
+  #   actions: jobs, logs
+  pulls:
+    # The full check list costs a request or more a row.
+    checks: {enabled: false}
+  dashboard:
+    waiting_on_you: {window: {before: 1, after: 2}}
+    repositories: {enabled: false}
+    pinned: {enabled: false}
+  search:
+    window: {before: 0, after: 0}
+    other_kinds: {rest: 700ms}
+  files:
+    tree: {enabled: false}
+    preview: {window: {before: 0, after: 32}}
+  finder:
+    window: {before: 0, after: 0}
+    rest: 100ms
+  history:
+    window: {before: 3, after: 3}
+    branches: {window: {before: 0, after: 0}}
+  actions:
+    window: {before: 0, after: 0}
+    logs: {enabled: false}
+
 # What the app checks of the token.
 auth:
   # Refuse at once what the token is known to lack a scope for, rather
