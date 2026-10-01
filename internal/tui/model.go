@@ -51,7 +51,9 @@ type Model struct {
 	// flags and environment raised the log level, which the set command
 	// changes cfg from, for the session, and resets settings to.
 	file config.Config
-	keys KeyMap
+	// source is what the config file said, for the config command.
+	source config.Source
+	keys   KeyMap
 	// term is what the terminal said of itself, for the log.
 	term terminal
 	// images finds out whether the terminal shows images, and graphics

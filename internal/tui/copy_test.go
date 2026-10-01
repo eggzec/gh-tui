@@ -118,7 +118,7 @@ func TestCompleteCopy(t *testing.T) {
 		"copy p":     {"path"},
 		"copy x":     nil,
 		"copy url x": nil,
-		"co":         {"copy "},
+		"cop":        {"copy "},
 	} {
 		if got := texts(m.complete(line, len(line))); !slices.Equal(got, want) {
 			t.Errorf("complete(%q) = %q, want %q", line, got, want)

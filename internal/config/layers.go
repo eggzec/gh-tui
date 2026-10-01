@@ -37,6 +37,9 @@ type File struct {
 	// cfg is the top level resolved, which is what the session uses
 	// before it knows its host, such as for the log.
 	cfg Config
+	// path is where the file is, and exists whether there was one.
+	path   string
+	exists bool
 }
 
 // layer is a group of settings of the file, at the top level or under a
@@ -70,6 +73,63 @@ type Source struct {
 	Account string
 	// Profile is the name of the profile that lists Account, or "".
 	Profile string
+
+	// f is the file the config was resolved from, or nil, and applied
+	// the layers of it that applied, in the order they were laid on.
+	// :config finds the line of each value in them only when it opens,
+	// so that startup doesn't walk them.
+	f       *File
+	applied []applied
+	// file is the config the layers made, before $GH_TUI_LOG.
+	file Config
+}
+
+// applied is a layer of the file that applied to a session, and its name:
+// "" for the top level, else "hosts.<host>" or "profiles.<name>".
+type applied struct {
+	name string
+	layer
+}
+
+// Origin is where the config file sets a value: the layer it is in, as
+// applied names it, and its line in the file.
+type Origin struct {
+	Layer string
+	Line  int
+}
+
+// Path returns the path of the config file, whether or not it exists, or
+// "" for a Source that no file resolved.
+func (s Source) Path() string {
+	if s.f == nil {
+		return ""
+	}
+	return s.f.path
+}
+
+// Exists reports whether there was a config file.
+func (s Source) Exists() bool { return s.f != nil && s.f.exists }
+
+// Renamed returns the settings that the layers that applied have under
+// the names they had before they were renamed.
+func (s Source) Renamed() []Renamed {
+	var out []Renamed
+	for _, a := range s.applied {
+		out = append(out, a.renamed...)
+	}
+	return out
+}
+
+// origins returns where the file sets each value of the session, by its
+// path, such as "ui.icons": a later layer's line over an earlier one's.
+func (s Source) origins() map[string]Origin {
+	out := map[string]Origin{}
+	for _, a := range s.applied {
+		if a.node != nil {
+			fileLines(a.node, "", a.name, out, a.renamed)
+		}
+	}
+	return out
 }
 
 // Header returns the lines that head the config of a session where it
@@ -130,13 +190,28 @@ func (f *File) Resolve(host, login string) (Config, Source, error) {
 			src.Profile = p.name
 		}
 	}
-	cfg, err := f.resolve(host, p)
+	src.f, src.applied = f, f.layers(host, p)
+	cfg, err := f.resolve(host, p, &src.file)
 	return cfg, src, err
 }
 
+// layers returns the layers of f that apply with host and p, if not nil,
+// in the order they are laid on.
+func (f *File) layers(host string, p *profile) []applied {
+	out := []applied{{name: "", layer: f.base}}
+	if l, ok := f.hosts[host]; ok {
+		out = append(out, applied{name: join(hostsKey, host), layer: l})
+	}
+	if p != nil {
+		out = append(out, applied{name: join(profilesKey, p.name), layer: p.layer})
+	}
+	return out
+}
+
 // resolve returns the config of the defaults, the top level, the layer
-// of host, if any, and p, if not nil, validated.
-func (f *File) resolve(host string, p *profile) (Config, error) {
+// of host, if any, and p, if not nil, validated. If before isn't nil, it
+// is set to the config before $GH_TUI_LOG, as the layers made it.
+func (f *File) resolve(host string, p *profile, before *Config) (Config, error) {
 	tree := defaultTree()
 	var (
 		renamed []Renamed
@@ -159,6 +234,9 @@ func (f *File) resolve(host string, p *profile) (Config, error) {
 	}
 	if err != nil {
 		return Config{}, err
+	}
+	if before != nil {
+		*before = cfg.clone()
 	}
 	if level := os.Getenv(EnvLog); level != "" {
 		cfg.Log.Level = strings.ToLower(level)
@@ -420,7 +498,7 @@ func checkGlobal(n *yaml.Node, path string) []error {
 // profile for each of its accounts. It reports each problem
 // once, where it first appears, and keeps the top level's config.
 func (f *File) validate() error {
-	base, err := f.resolve("", nil)
+	base, err := f.resolve("", nil, nil)
 	if err != nil {
 		return err
 	}
@@ -428,7 +506,7 @@ func (f *File) validate() error {
 	var errs []error
 	bad := map[string]bool{}
 	for _, host := range slices.Sorted(maps.Keys(f.hosts)) {
-		if _, err := f.resolve(host, nil); err != nil {
+		if _, err := f.resolve(host, nil, nil); err != nil {
 			bad[host] = true
 			errs = append(errs, fmt.Errorf("with hosts.%s:\n%w", host, err))
 		}
@@ -445,7 +523,7 @@ func (f *File) validate() error {
 			if bad[host] {
 				continue
 			}
-			if _, err := f.resolve(host, p); err != nil {
+			if _, err := f.resolve(host, p, nil); err != nil {
 				if err := unseen(err, seen); err != nil {
 					errs = append(errs, fmt.Errorf("with profile %s for %s:\n%w", p.name, a, err))
 				}

@@ -354,6 +354,12 @@ reacts to messages. Concretely:
   is known. The profile is picked once, at startup, by the login gh
   stores the token for; a token from `GH_TOKEN` names no login, so no
   profile applies to it.
+- `:config` shows the session's config in the pager, each value that isn't
+  the default with where it came from (the file and its line, with the
+  `hosts` or `profiles` entry it is under, the startup flags, or `:set`),
+  and `:config defaults` shows default.yaml. Neither writes anything. The
+  lines are found only when `:config` opens, from the layers that
+  `File.Resolve` keeps in its `Source`.
 - Keybindings map action names to keys and are applied through each bubble's
   `SetKeyMap`. Action names are registered in `internal/config/keys.go`;
   unknown names are rejected so typos don't pass silently.
