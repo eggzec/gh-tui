@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 )
 
 // capture makes the default logger write JSON lines at level into the
@@ -171,5 +172,22 @@ func BenchmarkLog(b *testing.B) {
 	b.ReportAllocs()
 	for b.Loop() {
 		slog.InfoContext(ctx, "http", "method", "GET", "status", 200, "duration_ms", 12.5)
+	}
+}
+
+// EndWith logs through the logger it is given, not the default one.
+func TestEndWith(t *testing.T) {
+	prev := slog.Default()
+	t.Cleanup(func() { slog.SetDefault(prev) })
+	var def, own bytes.Buffer
+	slog.SetDefault(NewLogger(&def, slog.LevelDebug, "s_default"))
+	l := NewLogger(&own, slog.LevelDebug, "s_own")
+	ctx := WithTrace(context.Background(), "test.end")
+	EndWith(ctx, l, time.Now(), nil, "span", "test")
+	if !strings.Contains(own.String(), `"msg":"done"`) || !strings.Contains(own.String(), `"trace":"test.end"`) {
+		t.Errorf("own logger got %q, want the end record in its trace", own.String())
+	}
+	if def.Len() != 0 {
+		t.Errorf("default logger got %q, want nothing", def.String())
 	}
 }

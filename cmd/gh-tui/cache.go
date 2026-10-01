@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/eggzec/gh-tui/internal/cache/disk"
 	"github.com/eggzec/gh-tui/internal/cmdhist"
@@ -45,12 +46,15 @@ func openDisk(ctx context.Context, cfg config.Disk, host string) (store *disk.St
 	// Objects in use are touched on every session, so trimming the ones
 	// used least recently at startup is enough. It is only a cleanup, so a
 	// failure is only logged.
+	// The records go to the logger of the session that opened the cache,
+	// even when the default logger has changed by the time the trim ends.
+	log := slog.Default()
 	go func() {
-		ctx, end := obs.Begin(ctx, "cache.collect")
+		ctx, start := obs.WithTrace(ctx, "cache.collect"), time.Now()
 		u, err := store.Collect(ctx)
-		end(err, "span", "cache.disk")
+		obs.EndWith(ctx, log, start, err, "span", "cache.disk")
 		if err == nil {
-			slog.InfoContext(ctx, "cache collected", "span", "cache.disk", "dir", ui.ShortPath(store.Dir()), "files", u.Files, "bytes", u.Size, "removed", u.Removed, "max_bytes", int64(cfg.MaxSize))
+			log.InfoContext(ctx, "cache collected", "span", "cache.disk", "dir", ui.ShortPath(store.Dir()), "files", u.Files, "bytes", u.Size, "removed", u.Removed, "max_bytes", int64(cfg.MaxSize))
 		}
 	}()
 	return store, ""

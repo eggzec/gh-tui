@@ -86,6 +86,13 @@ func Begin(ctx context.Context, name string) (traced context.Context, end func(e
 // End logs the end of the trace of ctx that started at start, as the
 // function Begin returns does.
 func End(ctx context.Context, start time.Time, err error, args ...any) {
+	EndWith(ctx, slog.Default(), start, err, args...)
+}
+
+// EndWith is End through l, for work in the background that should log to
+// the logger of the session that started it, even when the default logger
+// has changed by the time it ends.
+func EndWith(ctx context.Context, l *slog.Logger, start time.Time, err error, args ...any) {
 	level, msg := slog.LevelDebug, "done"
 	switch {
 	case err == nil:
@@ -94,7 +101,7 @@ func End(ctx context.Context, start time.Time, err error, args ...any) {
 	default:
 		level, msg = slog.LevelError, "failed"
 	}
-	if !Enabled(ctx, level) {
+	if !l.Enabled(ctx, level) {
 		return
 	}
 	attrs := make([]any, 0, 2+len(args))
@@ -103,7 +110,7 @@ func End(ctx context.Context, start time.Time, err error, args ...any) {
 		attrs = append(attrs, slog.String("err", err.Error()))
 	}
 	attrs = append(attrs, args...)
-	slog.Log(ctx, level, msg, attrs...)
+	l.Log(ctx, level, msg, attrs...)
 }
 
 // Enabled reports whether the default logger logs records at level with

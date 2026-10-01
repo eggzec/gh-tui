@@ -210,7 +210,10 @@ func (g *graphqlTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 // checks that the trace it starts reaches the HTTP request and its record.
 func TestTracePropagates(t *testing.T) {
 	restoreLogger(t)
-	var buf bytes.Buffer
+	// Another test's work in the background may still log to the default
+	// logger, so the records are matched by the trace, and the buffer
+	// takes writes from any goroutine.
+	var buf syncBuffer
 	slog.SetDefault(obs.NewLogger(&buf, slog.LevelDebug, "s_test"))
 
 	rt := new(graphqlTransport)
@@ -241,6 +244,9 @@ func TestTracePropagates(t *testing.T) {
 		var m map[string]any
 		if err := json.Unmarshal([]byte(line), &m); err != nil {
 			t.Fatal(err)
+		}
+		if m["trace_id"] != rt.traces[0] {
+			continue
 		}
 		switch m["msg"] {
 		case "http":
