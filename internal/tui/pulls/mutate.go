@@ -57,15 +57,17 @@ type change struct {
 }
 
 // changeOf says what a change is: its action on pull request number of
-// repo, for a merge the method and the base branch, and for the draft
-// toggle which way it goes, so that a yes makes only the change it was
-// asked about.
+// repo, for a merge the method, the base branch and the head commit, and
+// for the draft toggle which way it goes, so that a yes makes only the
+// change it was asked about.
 type changeOf struct {
 	repo   core.RepoRef
 	number int
 	action ui.Action
 	method core.MergeMethod
 	base   string
+	// head is the commit a merge is pinned to.
+	head string
 	// ready is set when the draft toggle marks a draft ready.
 	ready bool
 }
@@ -73,7 +75,7 @@ type changeOf struct {
 // same reports whether c and d are one change.
 func (c changeOf) same(d changeOf) bool {
 	return c.repo.Same(d.repo) && c.number == d.number && c.action == d.action &&
-		c.method == d.method && c.base == d.base && c.ready == d.ready
+		c.method == d.method && c.base == d.base && c.head == d.head && c.ready == d.ready
 }
 
 // change returns the change that msg asks of pr, and ok when there is one.
@@ -96,12 +98,13 @@ func (k keyMap) change(svc Service, g ui.Gate, method core.MergeMethod, pr core.
 			return change{}, false, ui.Notify(toast.Warning, "Mark "+n+" ready for review before merging it.")
 		}
 		m, _ := g.Caps.MergeMethod(method)
-		of.method, of.base = m, pr.BaseRef
+		of.method, of.base, of.head = m, pr.BaseRef, pr.HeadSHA
+		head := pr.HeadSHA
 		return change{
 			of:       of,
 			question: mergeQuestion(pr, m),
 			what:     "merge " + n,
-			start:    func() *optimistic.Op { return svc.Merge(repo, number, m) },
+			start:    func() *optimistic.Op { return svc.Merge(repo, number, m, head) },
 		}, true, nil
 	case ui.ActClose:
 		return change{
@@ -164,8 +167,9 @@ func mergeQuestion(pr core.PullRequest, method core.MergeMethod) string {
 // so may what the viewer may do, how the repository merges and even which
 // repository the list shows, so it asks for the change again of the pull
 // request and the gate that now return. send sends that one only if it is
-// still the change asked, the same action with the same method and base
-// on the same pull request of the same repository, and otherwise nothing.
+// still the change asked, the same action with the same method, base and
+// head on the same pull request of the same repository, and otherwise
+// nothing.
 func (k keyMap) confirmed(svc Service, method core.MergeMethod, asked change, msg tea.KeyPressMsg,
 	now func() (core.PullRequest, ui.Gate, bool), send func(op *optimistic.Op, what string) tea.Cmd,
 ) func() tea.Cmd {

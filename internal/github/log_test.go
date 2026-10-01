@@ -96,6 +96,7 @@ func TestOperation(t *testing.T) {
 		{getPullQuery, "GetPull"},
 		{pullReviewsQuery, "PullReviews"},
 		{pullIDQuery, "PullID"},
+		{pullHeadQuery, "PullHead"},
 		{listReposQuery, "ListRepos"},
 		{pullChecksQuery, "PullChecks"},
 		{commitChecksQuery, "CommitChecks"},
@@ -116,7 +117,7 @@ func TestOperation(t *testing.T) {
 // TestQueriesAskRateLimit checks that every query asks what it cost, so that
 // the log has it. Mutations can't.
 func TestQueriesAskRateLimit(t *testing.T) {
-	for _, q := range []string{listPullsQuery, getPullQuery, pullReviewsQuery, pullIDQuery, listReposQuery, getRepoQuery} {
+	for _, q := range []string{listPullsQuery, getPullQuery, pullReviewsQuery, pullIDQuery, pullHeadQuery, listReposQuery, getRepoQuery} {
 		if !strings.Contains(q, rateLimitField) {
 			t.Errorf("query %s doesn't select %s", operation(q), rateLimitField)
 		}

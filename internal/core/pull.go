@@ -28,8 +28,11 @@ const (
 // issues, so it embeds Issue.
 type PullRequest struct {
 	Issue
-	Draft          bool
-	HeadRef        string
+	Draft   bool
+	HeadRef string
+	// HeadSHA is the commit the head branch was at when it was read, which
+	// a merge confirmed for it is pinned to.
+	HeadSHA        string
 	BaseRef        string
 	ReviewDecision ReviewDecision
 	Checks         ChecksState

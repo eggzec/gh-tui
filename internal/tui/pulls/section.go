@@ -37,8 +37,8 @@ type Service interface {
 	Invalidate(repo core.RepoRef)
 
 	// The changes are shown in the cache at once. The returned Op sends
-	// them.
-	Merge(repo core.RepoRef, number int, method core.MergeMethod) *optimistic.Op
+	// them. A merge is pinned to head, the commit it was confirmed for.
+	Merge(repo core.RepoRef, number int, method core.MergeMethod, head string) *optimistic.Op
 	Close(repo core.RepoRef, number int) *optimistic.Op
 	Reopen(repo core.RepoRef, number int) *optimistic.Op
 	MarkReady(repo core.RepoRef, number int) *optimistic.Op

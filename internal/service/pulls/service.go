@@ -33,7 +33,7 @@ type API interface {
 	ListIssueComments(ctx context.Context, repo core.RepoRef, number int, cursor string, perPage int, cond github.Conditional) (core.Page[core.Comment], github.Response, error)
 	ListPullRequestReviews(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.Page[core.Review], error)
 	PullRequestID(ctx context.Context, repo core.RepoRef, number int) (string, error)
-	MergePullRequest(ctx context.Context, id string, method core.MergeMethod) (core.PullRequest, error)
+	MergePullRequest(ctx context.Context, id string, method core.MergeMethod, head string) (core.PullRequest, error)
 	ClosePullRequest(ctx context.Context, id string) (core.PullRequest, error)
 	ReopenPullRequest(ctx context.Context, id string) (core.PullRequest, error)
 	MarkPullRequestReady(ctx context.Context, id string) (core.PullRequest, error)
@@ -125,10 +125,10 @@ const (
 	kindDetail   = "pull"
 	kindComments = "pullcomments"
 
-	// listSchema 3 keeps when the page was last read in full.
-	listSchema = 3
-	// detailSchema 3 counts the checks rather than listing them.
-	detailSchema = 3
+	// listSchema 4 keeps the head commit of each pull request.
+	listSchema = 4
+	// detailSchema 4 keeps the head commit.
+	detailSchema = 4
 	// commentsSchema 3 reads the pages with REST, whose cursors are URLs.
 	commentsSchema = 3
 )
