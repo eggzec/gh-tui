@@ -94,6 +94,25 @@ var renames = []rename{
 		note: "a rest above " + formatDuration(maxRest) + " is cut to it",
 		move: moveDetailsDelay,
 	},
+	// Waiting on you's switch moved into the layers of prefetch.
+	{
+		old:  []string{"dashboard.prefetch"},
+		new:  []string{"prefetch.dashboard.waiting_on_you.enabled"},
+		note: "its window is read again each time the cursor rests",
+		move: func(old map[string]*yaml.Node) (map[string]*yaml.Node, error) {
+			on, err := boolNode(old["dashboard.prefetch"])
+			if err != nil {
+				return nil, err
+			}
+			if on {
+				// It was on by default, and read only while the details
+				// were read ahead too, so on it adds nothing to what the
+				// pane inherits.
+				return nil, nil
+			}
+			return map[string]*yaml.Node{"prefetch.dashboard.waiting_on_you.enabled": old["dashboard.prefetch"]}, nil
+		},
+	},
 }
 
 // renameTo moves the value of the setting from to the setting to.

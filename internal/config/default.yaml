@@ -174,13 +174,6 @@ dashboard:
   # How far back the contribution calendar goes: 30d, 90d or year. Its
   # total counts the days it shows.
   contributions: 90d
-  # Read the pull requests and issues of Waiting on you ahead while its
-  # pane has the focus: the first three rows of the list on view, and the
-  # row the cursor rests on for the rest of
-  # prefetch.dashboard.waiting_on_you, so that they open at once. Each
-  # costs two requests, the detail and its first comments; what is cached
-  # is skipped. It needs prefetch.dashboard.waiting_on_you.enabled.
-  prefetch: true
 
 # Reading ahead: what the app reads before you open it, so that it opens
 # at once. It's a guess, and it spends quota; what was read is kept in the
@@ -191,8 +184,8 @@ dashboard:
 # doesn't enable itself. The pages below that set a window of their own
 # (search, finder, history and actions) don't follow the window set here;
 # set one of their knobs to null to hand it back to the layer above. (The
-# lists of pull requests and issues, the notifications and the search read
-# these; the other pages move to them in turn.)
+# lists of pull requests and issues, the notifications, the search and the
+# dashboard read these; the other pages move to them in turn.)
 prefetch:
   # Whether anything is read ahead.
   enabled: true
@@ -228,6 +221,9 @@ prefetch:
     # The full check list costs a request or more a row.
     checks: {enabled: false}
   dashboard:
+    # Waiting on you is read while its pane has the focus, and the inbox
+    # while the dashboard is on view. A row costs two requests, the detail
+    # and its first comments.
     waiting_on_you: {window: {before: 1, after: 2}}
     repositories: {enabled: false}
     pinned: {enabled: false}

@@ -28,7 +28,7 @@ import (
 // It reads the code, not the types: a setting counts as read where a
 // chain of selectors from the config names it, as c.History.Row, through
 // a variable, as p := c.Files.Preview then p.MaxSize, or through an
-// accessor of this package, as c.DashboardPrefetch(). A group of settings
+// accessor of this package, as c.Prefetch.Resolve(…). A group of settings
 // read whole, as c.History given to the History modal, counts for each
 // setting in it; the whole config given on doesn't.
 func TestLiveSettingsAreRead(t *testing.T) {
@@ -279,7 +279,7 @@ func markRead(p []string, acc map[string][][]string, read map[string]bool) {
 }
 
 // accessors returns, for each method of this package that reads settings
-// for others, such as Config.DashboardPrefetch, what it reads, relative
+// for others, such as PrefetchLayers.Resolve, what it reads, relative
 // to its receiver, where an empty path is the receiver whole. Validate, Get, Set and Values read every setting, and
 // so say nothing of whether one is applied.
 func accessors(t *testing.T) map[string][][]string {

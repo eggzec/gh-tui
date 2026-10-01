@@ -658,20 +658,21 @@ func (f *aheadPulls) CurrentComments(q pulls.CommentsQuery) bool {
 	return f.CurrentGet(q.Repo, q.Number)
 }
 
-// inboxPrefetch returns the settings that read the thread under the
-// cursor and the after threads below it, once the cursor rests for rest.
-func inboxPrefetch(after int, rest time.Duration) config.PrefetchLayers {
-	p := config.Default().Prefetch
-	p.Window, p.Rest = config.Window{After: after}, rest
-	return p
-}
-
 func (*aheadPulls) Changed(core.RepoRef, int, time.Time) {}
 
 func (f *aheadPulls) got() []int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return slices.Clone(f.reads)
+}
+
+// inboxPrefetch returns the default settings of reading ahead, with the
+// inbox's window after threads below the cursor, read once the cursor
+// rests for rest.
+func inboxPrefetch(after int, rest time.Duration) config.PrefetchLayers {
+	p := config.Default().Prefetch
+	p.Dashboard.Inbox.Window.After, p.Dashboard.Inbox.Rest = &after, &rest
+	return p
 }
 
 func TestInboxReadsAhead(t *testing.T) {
@@ -734,9 +735,7 @@ func TestInboxReadsNothingAheadOffScreen(t *testing.T) {
 		in := &fakeInbox{threads: inboxThreads()}
 		// The window reaches the row above the cursor, where a new thread
 		// comes.
-		p := inboxPrefetch(1, 150*time.Millisecond)
-		p.Window.Before = 1
-		o := threads.New(t.Context(), threads.WithPulls(ps), threads.WithPrefetch(p))
+		o := threads.New(t.Context(), threads.WithPulls(ps), threads.WithPrefetch(inboxPrefetch(1, 150*time.Millisecond)))
 		s := newSection(t, newFake(), in, 140, 38, WithOpener(o))
 		before := len(ps.got())
 		s.Blur()

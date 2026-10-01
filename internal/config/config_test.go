@@ -170,7 +170,7 @@ func TestLoadMergesOverDefaults(t *testing.T) {
 				files.Preview.Enabled, files.Preview.MaxSize = new(false), 16*KiB
 				finder.Preview.Window, finder.Preview.MaxSize = Span{Before: new(1), After: new(2)}, 8*KiB
 				history.Window, history.Rest = Span{Before: new(5), After: new(5)}, new(250*time.Millisecond)
-				c.Dashboard = Dashboard{CalendarGlyph: "#", Contributions: ContributionsYear, Prefetch: false}
+				c.Dashboard = Dashboard{CalendarGlyph: "#", Contributions: ContributionsYear}
 				c.UI = UI{Icons: IconsUnicode, Toast: Toast{Info: 6 * time.Second, Error: 12 * time.Second}, DateFormat: "2006-01-02 15:04"}
 				c.Auth = Auth{Check: false}
 				c.GitHub = GitHub{Timeout: time.Minute, Concurrency: 4}

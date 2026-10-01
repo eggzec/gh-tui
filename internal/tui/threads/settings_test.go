@@ -50,3 +50,35 @@ func TestConfigureWithoutServices(t *testing.T) {
 		run(bare, cmd)
 	}
 }
+
+// The dashboard's inbox reads ahead as its own settings say, apart from
+// the notifications screen's, and gives the opener back as it leaves.
+func TestFollowInbox(t *testing.T) {
+	f := newReads()
+	o := newOpener(t, f, 1, time.Second)
+	c := config.Default()
+	c.Prefetch.Notifications.Enabled = new(false)
+	o.Configure(c)
+	o.FollowInbox(true)
+	if !o.ahead.On() {
+		t.Fatal("the inbox doesn't read ahead with the notifications screen's reads off")
+	}
+	ns := []core.Notification{note(core.SubjectIssue, 1, 0)}
+	run(o, o.ReadAhead(list(ns), 0))
+	if got := f.got(); len(got) != 1 {
+		t.Errorf("read %q, want the issue", got)
+	}
+	o.FollowInbox(false)
+	if o.ahead.On() {
+		t.Error("the notifications screen reads ahead with its reads off")
+	}
+	c.Prefetch.Notifications.Enabled = nil
+	c.Prefetch.Dashboard.Inbox.Enabled = new(false)
+	o.Configure(c)
+	o.FollowInbox(true)
+	if o.ahead.On() {
+		t.Error("the inbox reads ahead with its reads off")
+	}
+	var none *Opener
+	none.FollowInbox(true)
+}

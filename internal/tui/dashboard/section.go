@@ -180,14 +180,17 @@ type Section struct {
 	inbox  Inbox
 	marker Marker
 	opener *threads.Opener
-	// ahead reads the work ahead, if prefetch is set.
-	prefetch *prefetch
-	ahead    *ui.Ahead[details.Key]
-	keys     KeyMap
-	now      func() time.Time
-	voice    ui.Voice
-	glyph    string
-	icons    ui.Icons
+	// ahead reads the work ahead through readers, as workAhead says.
+	// layers are the settings WithPrefetch gave, which New resolves.
+	readers   *readers
+	ahead     *ui.Ahead[details.Key]
+	layers    config.PrefetchLayers
+	workAhead config.Resolved
+	keys      KeyMap
+	now       func() time.Time
+	voice     ui.Voice
+	glyph     string
+	icons     ui.Icons
 	// dates tell when what the panes list was updated.
 	dates ui.Dates
 	// host is the web host of the user's GitHub, for the links it opens.
@@ -276,10 +279,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 	if s.opener == nil {
 		s.opener = threads.New(ctx)
 	}
-	if p := s.prefetch; p != nil && p.on {
-		s.ahead = details.NewAhead("work", p.pulls, p.issues, aheadRows, p.delay)
-		s.ahead.Reset(ctx)
-	}
+	s.setPrefetch(s.layers)
 	s.cal = calendar.New(
 		calendar.WithGlyph(s.glyph),
 		calendar.WithRange(s.calDays),
@@ -365,6 +365,8 @@ func (s *Section) Focus() {
 func (s *Section) Blur() {
 	s.focused = false
 	s.opener.Stop()
+	// The notifications screen reads ahead as its own settings say.
+	s.opener.FollowInbox(false)
 	s.ahead.Reset(s.ctx)
 	s.repos.blur()
 	s.cal.Blur()

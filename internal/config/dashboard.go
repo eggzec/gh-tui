@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"time"
 
 	"github.com/charmbracelet/x/ansi"
 )
@@ -19,13 +18,6 @@ type Dashboard struct {
 	// Contributions30d, Contributions90d or ContributionsYear. Its total
 	// counts the days it shows.
 	Contributions string `yaml:"contributions"`
-	// Prefetch reads the pull requests and issues of Waiting on you ahead
-	// while its pane has the focus: the first three rows of the list on
-	// view, and the row the cursor rests on for the rest of
-	// prefetch.dashboard.waiting_on_you, so that they open at once. Each
-	// costs two requests, the detail and its first comments; what is
-	// cached is skipped. It needs prefetch.dashboard.waiting_on_you.enabled.
-	Prefetch bool `yaml:"prefetch"`
 }
 
 // Ranges of the contribution calendar.
@@ -34,14 +26,6 @@ const (
 	Contributions90d  = "90d"
 	ContributionsYear = "year"
 )
-
-// DashboardPrefetch reports whether the dashboard reads the work waiting
-// on the viewer ahead, and how long the cursor rests on a row first: it
-// has its own switch, and the knobs of prefetch.dashboard.waiting_on_you.
-func (c Config) DashboardPrefetch() (on bool, rest time.Duration) {
-	r, err := c.Prefetch.Resolve("dashboard", "waiting_on_you")
-	return err == nil && c.Dashboard.Prefetch && r.Enabled, r.Rest
-}
 
 // ContributionDays is the number of recent days the calendar shows, or 0
 // for the year that GitHub reports.
