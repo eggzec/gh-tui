@@ -69,6 +69,17 @@ func (s *Service) CachedList(q ListQuery) (core.Page[core.Notification], bool) {
 	return e.Value, st != cache.Miss
 }
 
+// FreshList reports whether the page for q is cached and fresh, so that
+// List returns it without a request. It does no I/O, and reports false
+// while the token may not read notifications.
+func (s *Service) FreshList(q ListQuery) bool {
+	if s.refused() != nil {
+		return false
+	}
+	_, st := s.cache.Get(q.key(s.pageSize))
+	return st == cache.Fresh
+}
+
 // List returns the page for q. A fresh cached page is returned as is; a stale
 // one is revalidated with its validators, which costs no rate limit when
 // nothing changed.

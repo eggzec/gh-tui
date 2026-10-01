@@ -39,7 +39,7 @@ type loadedMsg struct {
 // cache has at once, so a fresh cache costs no request.
 func (s *Section) load() tea.Cmd {
 	cmds := []tea.Cmd{s.readHeader(false), s.readWork(false), s.readContributions(false), s.readInbox(false)}
-	if s.here != (core.RepoRef{}) && s.getHere != nil && !s.hereRepo.ok {
+	if s.hasHere() && !s.hereRepo.ok {
 		cmds = append(cmds, s.readHere())
 	}
 	return tea.Batch(cmds...)
@@ -82,11 +82,17 @@ func (s *Section) readInbox(again bool) tea.Cmd {
 	})
 }
 
+// hasHere reports whether the dashboard reads the repository of the
+// current directory.
+func (s *Section) hasHere() bool {
+	return s.here != (core.RepoRef{}) && s.hereRepos != nil
+}
+
 func (s *Section) readHere() tea.Cmd {
 	s.hereRepo.loading = true
-	get, ref := s.getHere, s.here
+	repos, ref := s.hereRepos, s.here
 	return readCmd(s, kindHere, "dashboard.here", func(ctx context.Context) (core.Repo, served, error) {
-		r, err := get(ctx, ref)
+		r, err := repos.Get(ctx, ref)
 		return r, served{}, err
 	})
 }
@@ -206,7 +212,7 @@ func (s *Section) online() tea.Cmd {
 	if unreached(s.notes, s.notes.value.Offline) {
 		cmds = append(cmds, s.readInbox(true))
 	}
-	if unreached(s.hereRepo, false) && s.getHere != nil {
+	if unreached(s.hereRepo, false) && s.hasHere() {
 		cmds = append(cmds, s.readHere())
 	}
 	cmds = append(cmds, s.repos.online())
@@ -220,9 +226,10 @@ func unreached[V any](r read[V], offline bool) bool {
 }
 
 // Revisit reads again what went past its TTL while another screen was on
-// view: the profile, the work, the calendar and the lists of repositories
-// read. The dashboard shows what it has until the new values arrive, and
-// what is still fresh isn't read.
+// view: the profile, the work, the calendar, the inbox, the repository of
+// the directory and the lists of repositories read. The dashboard shows
+// what it has until the new values arrive, and what is still fresh isn't
+// read.
 func (s *Section) Revisit() tea.Cmd {
 	if !s.started {
 		return nil
@@ -238,6 +245,14 @@ func (s *Section) Revisit() tea.Cmd {
 	}
 	if !s.contribs.loading && !s.svc.FreshContributions() {
 		cmds = append(cmds, s.readContributions(true))
+	}
+	// The polls keep the inbox current, but may not have while another
+	// screen was on view.
+	if s.inbox != nil && !s.notes.loading && !s.inbox.FreshList(notifications.ListQuery{}) {
+		cmds = append(cmds, s.readInbox(true))
+	}
+	if s.hasHere() && !s.hereRepo.loading && !s.hereRepos.FreshGet(s.here) {
+		cmds = append(cmds, s.readHere())
 	}
 	cmds = append(cmds, s.repos.revisit())
 	cmd := tea.Batch(cmds...)

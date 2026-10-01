@@ -264,7 +264,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		dashboard.WithVoice(voice),
 		dashboard.WithInbox(notifSvc),
 		dashboard.WithOpener(opener),
-		dashboard.WithHere(here, repoSvc.Get),
+		dashboard.WithHere(here, repoSvc),
 		dashboard.WithGlyph(cfg.Dashboard.CalendarGlyph),
 		dashboard.WithContributions(cfg.Dashboard.ContributionDays()),
 		dashboard.WithIcons(icons),

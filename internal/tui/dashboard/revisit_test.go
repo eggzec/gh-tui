@@ -1,10 +1,13 @@
 package dashboard
 
 import (
+	"context"
 	"slices"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/eggzec/gh-tui/internal/core"
 )
 
 // expire marks what went past its TTL in svc, as another screen was on
@@ -107,5 +110,43 @@ func TestRevisitOfTheRepositoriesShowsUpdating(t *testing.T) {
 	}
 	if v := screen(s); strings.Contains(v, "updating…") {
 		t.Errorf("still updating once the repositories arrived:\n%s", v)
+	}
+}
+
+// Coming back reads the inbox and the repository of the directory again
+// once they went past their TTL, as the other panes are, and not while
+// they are fresh.
+func TestRevisitReadsInboxAndHere(t *testing.T) {
+	other := core.RepoRef{Owner: "someone", Name: "elsewhere"}
+	stars := 9
+	repos := &fakeRepos{get: func(_ context.Context, r core.RepoRef) (core.Repo, error) {
+		return core.Repo{Ref: r, Description: "Read for its card", Stars: stars}, nil
+	}}
+	in := &fakeInbox{threads: inboxThreads()}
+	s := newSection(t, newFake(), in, 140, 38, WithHere(other, repos))
+	lists, gets := in.lists, repos.reads()
+
+	s.Blur()
+	s.Focus()
+	if cmd := s.Revisit(); cmd != nil {
+		run(t, s, cmd)
+	}
+	if in.lists != lists || repos.reads() != gets {
+		t.Errorf("read the inbox %d and the repository %d more times while fresh, want none", in.lists-lists, repos.reads()-gets)
+	}
+
+	s.Blur()
+	in.mu.Lock()
+	in.expired = true
+	in.mu.Unlock()
+	repos.expire()
+	stars = 10
+	s.Focus()
+	run(t, s, s.Revisit())
+	if in.lists != lists+1 || repos.reads() != gets+1 {
+		t.Errorf("read the inbox %d and the repository %d more times once stale, want once each", in.lists-lists, repos.reads()-gets)
+	}
+	if c, _ := s.pinned.selected(); c.repo.Stars != 10 {
+		t.Errorf("the card here has %d stars, want the 10 read again", c.repo.Stars)
 	}
 }

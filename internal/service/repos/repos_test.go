@@ -252,12 +252,18 @@ func TestGetFreshAndStale(t *testing.T) {
 		if _, ok := s.CachedGet(ghTUI.Ref); ok {
 			t.Error("CachedGet hit before any Get")
 		}
+		if s.FreshGet(ghTUI.Ref) {
+			t.Error("FreshGet before any Get")
+		}
 		for range 2 {
 			if got, err := s.Get(t.Context(), ghTUI.Ref); err != nil || got.Description != "v1" {
 				t.Fatalf("Get = %+v, %v; want v1", got, err)
 			}
 		}
 		api.wantCalls(t, "get eggzec/gh-tui")
+		if !s.FreshGet(ghTUI.Ref) {
+			t.Error("FreshGet false after a Get")
+		}
 
 		// Owners and names are case-insensitive, so this is the same entry.
 		upper := core.RepoRef{Owner: "Eggzec", Name: "GH-TUI"}
@@ -274,6 +280,9 @@ func TestGetFreshAndStale(t *testing.T) {
 		}
 		api.wantCalls(t, "get eggzec/gh-tui")
 		time.Sleep(DetailTTL)
+		if s.FreshGet(ghTUI.Ref) {
+			t.Error("FreshGet past DetailTTL")
+		}
 		if got, ok := s.CachedGet(ghTUI.Ref); !ok || got.Description != "v1" {
 			t.Errorf("stale CachedGet = %+v, %v; want v1", got, ok)
 		}
