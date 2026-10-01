@@ -144,14 +144,16 @@ func (m *Model) account() string {
 
 // readRates reads the rate limits again, if the app has what tells them,
 // and redraws the status. The connection is offline since the request
-// that failed first after GitHub last answered. Once GitHub answers again
-// the command wakes what failed meanwhile; only an answer to a request
-// does that, never a read the caches served.
+// that failed first after GitHub last answered. Once GitHub answers again,
+// or the last rate limit lifts, the command wakes what failed meanwhile;
+// only the client's rate status does that, never a read the caches
+// served.
 func (m *Model) readRates() tea.Cmd {
 	if m.rates == nil {
 		return nil
 	}
 	was, wasRejected, wasMended := m.offSince, !m.rate.Rejected.IsZero(), m.rate.Mended
+	wasLimited := limitedUntil(m.rate).After(m.rate.At)
 	m.rate = m.rates.RateStatus()
 	if offline := m.rate.Failed.After(m.rate.Answered); !offline {
 		m.offSince = time.Time{}
@@ -159,6 +161,7 @@ func (m *Model) readRates() tea.Cmd {
 		m.offSince = m.rate.Failed
 	}
 	mended := m.rate.Mended.After(wasMended)
+	lifted := wasLimited && !limitedUntil(m.rate).After(m.rate.At)
 	m.drawStatus()
 	m.logLink(was, wasRejected, mended)
 	// GitHub answering again after an outage, or a resource that failed
@@ -166,8 +169,12 @@ func (m *Model) readRates() tea.Cmd {
 	// meanwhile. Failing that only went quiet, because other resources
 	// answered well, doesn't: the polls of the resource would fail
 	// again, and waking them would undo their backoff. Coming back from
-	// an outage wakes them whether or not some resource still fails.
-	if (!was.IsZero() || mended) && m.offSince.IsZero() {
+	// an outage wakes them whether or not some resource still fails. The
+	// last rate limit lifting wakes them too, unless GitHub fails, so
+	// that a section that reads again on a wake what it was served kept
+	// meanwhile, such as the files' listing, does.
+	lifted = lifted && m.rate.Failing.IsZero()
+	if (!was.IsZero() || mended || lifted) && m.offSince.IsZero() {
 		return m.cameOnline()
 	}
 	return nil
@@ -218,19 +225,26 @@ func (m *Model) linkNow() (link, time.Time) {
 	case !r.Failing.IsZero():
 		return linkFailing, r.Failing
 	}
-	until := r.SecondaryUntil
-	for _, q := range shownQuotas(r) {
-		if q.LimitedUntil.After(until) {
-			until = q.LimitedUntil
-		}
-	}
-	switch {
+	switch until := limitedUntil(r); {
 	case until.After(r.At):
 		return linkLimited, until
 	case !r.Answered.IsZero():
 		return linkOnline, time.Time{}
 	}
 	return linkUnknown, time.Time{}
+}
+
+// limitedUntil returns when the last rate limit of r that holds the
+// requests lifts: a secondary limit, or a quota the bar shows that is
+// spent. It is in the past, or zero, if none holds them at r.At.
+func limitedUntil(r core.RateStatus) time.Time {
+	until := r.SecondaryUntil
+	for _, q := range shownQuotas(r) {
+		if q.LimitedUntil.After(until) {
+			until = q.LimitedUntil
+		}
+	}
+	return until
 }
 
 // linkItem is the connection as the bar tells it, or with no forms while
