@@ -201,3 +201,47 @@ func TestSetIcons(t *testing.T) {
 		t.Fatalf("SetIcons(nil) should drop the icons:\n%s", v)
 	}
 }
+
+// Nodes of a kind share one icon, with its width worked out once.
+func TestIconsAreShared(t *testing.T) {
+	m := load(t, repo(), WithIcons(boxIcons))
+	var leaf, branch *glyph
+	for _, e := range m.nodes {
+		if e.depth < 0 {
+			continue
+		}
+		g := e.icon
+		if g == nil || g.text != boxIcons(e.node, false)+" " || g.width != 2 {
+			t.Fatalf("%s has icon %+v", e.node.ID, g)
+		}
+		mine := &leaf
+		if e.node.Branch {
+			mine = &branch
+			if e.iconOpen == nil || e.iconOpen.text != "□ " {
+				t.Errorf("%s opens with icon %+v", e.node.ID, e.iconOpen)
+			}
+		}
+		if *mine == nil {
+			*mine = g
+		} else if *mine != g {
+			t.Errorf("%s has its own copy of its icon", e.node.ID)
+		}
+	}
+	if leaf == nil || branch == nil {
+		t.Fatal("no leaf or no branch")
+	}
+	// Other icons are asked for again, and shared again.
+	m.SetIcons(func(_ Node, _ bool) string { return "x" })
+	var first *glyph
+	for _, e := range m.nodes {
+		if e.depth < 0 {
+			continue
+		}
+		if first == nil {
+			first = e.icon
+		}
+		if e.icon != first || e.icon.text != "x " {
+			t.Errorf("%s has icon %+v after SetIcons", e.node.ID, e.icon)
+		}
+	}
+}

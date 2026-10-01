@@ -14,6 +14,8 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/charmbracelet/x/ansi"
+
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -57,10 +59,10 @@ type entry struct {
 	// label is the name rendered in its style, and detail the detail.
 	label  string
 	detail string
-	// icon is the icon of the node and the space after it, and iconOpen
-	// that of a branch while it is expanded.
-	icon     string
-	iconOpen string
+	// icon is the icon of the node, and iconOpen that of a branch while
+	// it is expanded, or nil for none. Nodes of a kind share one.
+	icon     *glyph
+	iconOpen *glyph
 	parent   string
 	// depth is 0 for top-level nodes and -1 for the root.
 	depth int
@@ -91,6 +93,9 @@ type Model struct {
 	cancel   context.CancelFunc
 
 	nodes map[string]*entry
+	// glyphs holds each icon once, however many nodes draw it, since a
+	// tree has many nodes but few kinds of them.
+	glyphs map[string]*glyph
 	// rows are the visible entries in order.
 	rows []*entry
 	sel  int
@@ -127,6 +132,7 @@ func New(children Children, opts ...Option) Model {
 	m := Model{
 		settings: defaultSettings(),
 		id:       nextID(),
+		glyphs:   map[string]*glyph{},
 		children: children,
 		spin:     spinner.New(spinner.WithSpinner(spinner.MiniDot)),
 	}
@@ -336,6 +342,7 @@ func (m Model) ExpandAllLimits() (nodes, depth int) {
 // those of every node known. See [WithIcons].
 func (m *Model) SetIcons(icons Icons) {
 	m.icons = icons
+	m.glyphs = map[string]*glyph{}
 	for _, e := range m.nodes {
 		if e.depth >= 0 {
 			m.setIcons(e)
@@ -343,23 +350,36 @@ func (m *Model) SetIcons(icons Icons) {
 	}
 }
 
+// glyph is an icon with the space after it, and its width in cells.
+type glyph struct {
+	text  string
+	width int
+}
+
 // setIcons renders the icons of e, once per state, so that View only
 // copies them.
-func (m Model) setIcons(e *entry) {
-	e.icon, e.iconOpen = m.icon(e.node, false), ""
+func (m *Model) setIcons(e *entry) {
+	e.icon, e.iconOpen = m.icon(e.node, false), nil
 	if e.node.Branch {
 		e.iconOpen = m.icon(e.node, true)
 	}
 }
 
-func (m Model) icon(n Node, expanded bool) string {
+// icon returns the icon of n, or nil for none.
+func (m *Model) icon(n Node, expanded bool) *glyph {
 	if m.icons == nil {
-		return ""
+		return nil
 	}
-	if ic := m.icons(n, expanded); ic != "" {
-		return ic + " "
+	ic := m.icons(n, expanded)
+	if ic == "" {
+		return nil
 	}
-	return ""
+	g, ok := m.glyphs[ic]
+	if !ok {
+		g = &glyph{text: ic + " ", width: ansi.StringWidth(ic) + 1}
+		m.glyphs[ic] = g
+	}
+	return g
 }
 
 func (m Model) detail(n Node) string {
