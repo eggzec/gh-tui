@@ -4,6 +4,44 @@ import "strings"
 
 const esc = 0x1b
 
+// quoteBars returns line with the indent glamour drew for its quotes
+// made to read as such: glamour draws a quote's indent as two quoteTokens,
+// past spaces and style sequences at the start of the line, and they
+// become a bar and a space. What the text draws, bars included, stays.
+func quoteBars(line string) string {
+	if !strings.Contains(line, quoteToken) {
+		return line
+	}
+	var b strings.Builder
+	b.Grow(len(line))
+	tokens, i := 0, 0
+scan:
+	for i < len(line) {
+		switch {
+		case line[i] == esc:
+			n, _ := escape(line[i:])
+			b.WriteString(line[i : i+n])
+			i += n
+		case line[i] == ' ':
+			b.WriteByte(' ')
+			i++
+		case strings.HasPrefix(line[i:], quoteToken):
+			tokens++
+			if tokens%2 == 0 {
+				// One cell for one, so the line keeps its width.
+				b.WriteByte(' ')
+			} else {
+				b.WriteString(quoteBar)
+			}
+			i += len(quoteToken)
+		default:
+			break scan
+		}
+	}
+	b.WriteString(line[i:])
+	return b.String()
+}
+
 // tidy returns a line glamour rendered with what draws nothing left out:
 // the spaces that pad it to the width, the style sequences that close a
 // style only for the next to open it again, which glamour writes around

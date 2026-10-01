@@ -1,6 +1,11 @@
 package markdown
 
-import "testing"
+import (
+	"strings"
+	"testing"
+
+	xansi "github.com/charmbracelet/x/ansi"
+)
 
 func TestTidy(t *testing.T) {
 	tests := []struct {
@@ -63,6 +68,78 @@ func TestTidy(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := tidy(tt.in); got != tt.want {
 				t.Errorf("tidy(%q)\n got %q\nwant %q", tt.in, got, tt.want)
+			}
+		})
+	}
+}
+
+// A quote's lines fit the width: glamour counts its indent as two cells,
+// and the bar and the space after it take two.
+func TestQuotesFitTheWidth(t *testing.T) {
+	r := New(DefaultStyle(true))
+	src := "> This is a long quoted line that should wrap across several lines of the view at forty cells.\n>\n> > nested quote with enough words to wrap as well, surely at this width."
+	for _, width := range []int{20, 30, 40, 41, 80} {
+		out := r.Render(src, width)
+		for l := range strings.SplitSeq(out, "\n") {
+			if w := xansi.StringWidth(l); w > width {
+				t.Errorf("at %d cells a line is %d wide: %q", width, w, xansi.Strip(l))
+			}
+			if p := xansi.Strip(l); p != "" && !strings.HasPrefix(p, "│ ") && p != "│" {
+				t.Errorf("at %d cells a line of the quote is %q, want it behind its bar", width, p)
+			}
+		}
+		if !strings.Contains(xansi.Strip(out), "│ │ nested") {
+			t.Errorf("at %d cells the nested quote reads\n%s", width, xansi.Strip(out))
+		}
+	}
+}
+
+func TestQuoteBars(t *testing.T) {
+	q := quoteToken
+	tests := []struct{ in, want string }{
+		{q + q + " text", "│  text"},
+		{"  " + q + q + " " + q + q + " nested", "  │  │  nested"},
+		{"\x1b[38;5;252m" + q + "\x1b[m\x1b[38;5;252m" + q + "\x1b[m text", "\x1b[38;5;252m│\x1b[m\x1b[38;5;252m \x1b[m text"},
+		{q + q + "│ starts with a bar", "│ │ starts with a bar"},
+		{q + q + "││ a box", "│ ││ a box"},
+		{"││ inner box │", "││ inner box │"},
+		{"│ a table edge │", "│ a table edge │"},
+		{"plain " + q + q + " inside", "plain " + q + q + " inside"},
+		{q + q, "│ "},
+	}
+	for _, tt := range tests {
+		if got := quoteBars(tt.in); got != tt.want {
+			t.Errorf("quoteBars(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}
+
+// Only a quote's indent changes: bars in the text, in code or a table,
+// inside a quote or not, stay as they are.
+func TestQuoteBarsKeepText(t *testing.T) {
+	r := New(DefaultStyle(true))
+	tests := []struct {
+		name, src string
+		want      []string
+	}{
+		{"code outside a quote", "```\n││ inner box │\n```", []string{"││ inner box │"}},
+		{"quoted line starting with a bar", "> │ starts with a bar", []string{"│ │ starts with a bar"}},
+		{"quoted code", "> ```\n> │ x\n> ││ y\n> ```", []string{"│   │ x", "│   ││ y"}},
+		{"three levels", "> one\n>\n> > two\n> >\n> > > three", []string{"│ one", "│ │ two", "│ │ │ three"}},
+		{"marks in a paragraph", quoteToken + quoteToken + " text", []string{"││ text"}},
+		{"marks in a quote", "> " + quoteToken + quoteToken + " x", []string{"│ ││ x"}},
+		{"quoted table", "> | a | b |\n> |---|---|\n> | 1 | 2 |", []string{"│  a", "│ b", "│  1", "│ 2"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			out := xansi.Strip(r.Render(tt.src, 40))
+			if strings.Contains(out, "\u200b") {
+				t.Errorf("a quote's mark is left in\n%s", out)
+			}
+			for _, w := range tt.want {
+				if !strings.Contains(out, w) {
+					t.Errorf("want %q in\n%s", w, out)
+				}
 			}
 		})
 	}

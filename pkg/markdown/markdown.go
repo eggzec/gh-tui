@@ -172,6 +172,9 @@ func (r *Renderer) Renders() int { return r.renders }
 // it isn't if it left code plain that may highlight in another.
 func (r *Renderer) render(src string, width int, open []int) (rendered, bool) {
 	r.renders++
+	// Only glamour may draw the token that marks a quote's indent, or the
+	// text could pass for a quote.
+	src = strings.ReplaceAll(src, quoteToken, quoteBar)
 	b := newBudget()
 	var parts []part
 	text := prepare(src, open, r.hint, func(i int, blk Block, shown bool) string {
@@ -217,7 +220,7 @@ func (r *Renderer) render(src string, width int, open []int) (rendered, bool) {
 	}
 	lines, front := trimBlank(lines)
 	for i, l := range lines {
-		lines[i] = safe(tidy(l))
+		lines[i] = safe(tidy(quoteBars(l)))
 	}
 	for i := range heads {
 		heads[i].Line -= front
