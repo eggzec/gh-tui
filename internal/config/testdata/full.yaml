@@ -29,7 +29,30 @@ keys:
   search: ["/", "ctrl+f"]
 
 cache:
-  ttl: 30s
+  ttl:
+    pulls: 1m
+    issues: 2m
+    notifications: 3m
+    repos: 4m
+    dashboard_repos: 30m
+    waiting_on_you: 6m
+    repo_info: 2h
+    files: 7m
+    history: 8m
+    compare: 1m
+    actions: 9m
+    actions_running: 20s
+    filters: 10m
+    search: 40s
+    code_search: 2m
+    releases: 3h
+    profile: 4h
+    contributions: 12h
+  memory:
+    entries: 512
+    files: 16MiB
+    diffs: 8MiB
+    logs: 128MiB
   disk:
     enabled: false
     entries: false
@@ -40,8 +63,9 @@ cache:
   revalidate:
     enabled: false
     interval: 5m
-    budget: 30
+    per_minute: 30
     scope: all
+    recent: 24h
 
 sync:
   enabled: false

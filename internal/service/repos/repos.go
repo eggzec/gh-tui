@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/config"
@@ -18,11 +17,6 @@ import (
 
 // maxPageSize is the largest page GitHub returns.
 const maxPageSize = 100
-
-// DetailTTL is how long a repository that Get read stays fresh, unless the
-// TTL of the service is longer: what it holds, such as the viewer's
-// permission and the merge methods, seldom changes.
-const DetailTTL = time.Hour
 
 // API is the part of the GitHub client the service uses.
 type API interface {
@@ -92,14 +86,16 @@ func New(api API, opts ...Option) *Service {
 	for _, opt := range opts {
 		opt(&o)
 	}
+	d := config.Default()
+	capacity := cache.WithCapacity(cmp.Or(o.capacity, d.Cache.Memory.Entries))
 	return &Service{
 		api:       api,
 		access:    o.access,
-		lists:     cache.New[core.Page[core.Repo]](cache.WithTTL(o.ttl), cache.WithCapacity(o.capacity)),
-		repos:     cache.New[core.Repo](cache.WithTTL(max(o.ttl, DetailTTL)), cache.WithCapacity(o.capacity)),
+		lists:     cache.New[core.Page[core.Repo]](cache.WithTTL(cmp.Or(o.ttl, d.Cache.TTL.Repos)), capacity),
+		repos:     cache.New[core.Repo](cache.WithTTL(cmp.Or(o.infoTTL, d.Cache.TTL.RepoInfo)), capacity),
 		kept:      cache.NewShelf[core.Page[core.Repo]](o.store, kind, schema),
 		keptRepos: cache.NewShelf[core.Repo](o.store, kindRepo, schema),
-		pageSize:  cmp.Or(o.pageSize, config.Default().PageSize.Repos),
+		pageSize:  cmp.Or(o.pageSize, d.PageSize.Repos),
 	}
 }
 
@@ -157,8 +153,8 @@ func (s *Service) FreshGet(ref core.RepoRef) bool {
 
 // Get returns one repository, with what the viewer may do in it. A fresh
 // cached repository is returned without a request, and so is one that an
-// earlier session kept and fetched within DetailTTL. An older kept one is
-// fetched again, and served if GitHub can't be reached.
+// earlier session kept and fetched within its TTL (WithInfoTTL). An older
+// kept one is fetched again, and served if GitHub can't be reached.
 func (s *Service) Get(ctx context.Context, ref core.RepoRef) (core.Repo, error) {
 	key := repoKey(ref)
 	// A stale kept repository is only what to fall back on, as the header

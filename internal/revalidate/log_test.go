@@ -71,7 +71,7 @@ func TestPassLog(t *testing.T) {
 			{ID: "issues:octo/a", Repo: repoA, UsedAt: time.Now(), Check: check(Result{Status: NotModified})},
 			{ID: "notifications", UsedAt: time.Now(), Check: check(Result{Status: Changed, Sync: "notifications"})},
 		}
-		start(t, entries, new(recorder), WithBudget(30), WithInterval(time.Minute))
+		start(t, entries, new(recorder), Settings{Interval: time.Minute, PerMinute: 30, Recent: settings.Recent})
 		synctest.Sleep(time.Second)
 
 		passes := buf.records(t, "revalidate pass")
@@ -115,7 +115,7 @@ func TestPassLogWarnsWhenOffline(t *testing.T) {
 		t.Cleanup(func() { slog.SetDefault(prev) })
 
 		srv := newServer(func(string, int) Result { return Result{Status: Offline} })
-		start(t, []Entry{srv.entry("a", repoA, 0)}, new(recorder), WithInterval(time.Minute))
+		start(t, []Entry{srv.entry("a", repoA, 0)}, new(recorder), everyMinute)
 		synctest.Sleep(time.Second)
 
 		passes := buf.records(t, "revalidate pass")

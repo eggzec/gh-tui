@@ -45,7 +45,7 @@ type rename struct {
 // renames are the settings that moved, in the order they are moved in:
 // where two set one path, the later wins, so the more specific of two
 // old settings comes later.
-var renames = []rename{
+var renames = slices.Concat([]rename{
 	// One interval was every poll's but those of the Actions runs and
 	// checks, which have intervals of their own now too.
 	{
@@ -113,7 +113,7 @@ var renames = []rename{
 			return map[string]*yaml.Node{"prefetch.dashboard.waiting_on_you.enabled": old["dashboard.prefetch"]}, nil
 		},
 	},
-}
+}, cacheRenames)
 
 // renameTo moves the value of the setting from to the setting to.
 func renameTo(from, to string) rename {

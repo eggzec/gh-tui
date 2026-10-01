@@ -63,7 +63,7 @@ var testRenames = []rename{
 			return map[string]*yaml.Node{"prefetch.files.rest": longest}, nil
 		},
 	},
-	// A setting that keeps its name and becomes a group, as cache.ttl will.
+	// A setting that keeps its name and becomes a group, as cache.ttl did.
 	same("cache.revalidate", "cache.revalidate.interval"),
 	// One whose release has passed.
 	{old: []string{"files.hover"}, new: []string{"prefetch.files.rest"}},

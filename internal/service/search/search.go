@@ -20,24 +20,11 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
-)
-
-// Defaults of a Service.
-const (
-	// DefaultTTL is short: results change, and a query typed again soon
-	// after is the case the cache is for.
-	DefaultTTL = 30 * time.Second
-	// DefaultCodeTTL is longer, since code search allows only 10 requests
-	// a minute and GitHub indexes code with a delay anyway.
-	DefaultCodeTTL = time.Minute
-	// DefaultCapacity is how many pages of results a Service keeps.
-	DefaultCapacity = 256
 )
 
 // maxPageSize is the largest page GitHub returns.
@@ -115,16 +102,19 @@ type Service struct {
 
 // New returns a Service that searches with api.
 func New(api API, opts ...Option) *Service {
-	o := options{ttl: DefaultTTL, codeTTL: DefaultCodeTTL, capacity: DefaultCapacity}
+	var o options
 	for _, opt := range opts {
 		opt(&o)
 	}
+	d := config.Default()
+	ttl := cache.WithTTL(cmp.Or(o.ttl, d.Cache.TTL.Search))
+	capacity := cache.WithCapacity(cmp.Or(o.capacity, d.Cache.Memory.Entries))
 	return &Service{
 		api:      api,
-		pages:    cache.New[core.SearchPage[core.SearchHit]](cache.WithTTL(o.ttl), cache.WithCapacity(o.capacity)),
-		code:     cache.New[core.SearchPage[core.CodeHit]](cache.WithTTL(o.codeTTL), cache.WithCapacity(o.capacity)),
-		counts:   cache.New[map[core.SearchKind]int](cache.WithTTL(o.ttl), cache.WithCapacity(o.capacity)),
-		pageSize: cmp.Or(o.pageSize, config.Default().PageSize.Search),
+		pages:    cache.New[core.SearchPage[core.SearchHit]](ttl, capacity),
+		code:     cache.New[core.SearchPage[core.CodeHit]](cache.WithTTL(cmp.Or(o.codeTTL, d.Cache.TTL.CodeSearch)), capacity),
+		counts:   cache.New[map[core.SearchKind]int](ttl, capacity),
+		pageSize: cmp.Or(o.pageSize, d.PageSize.Search),
 	}
 }
 

@@ -218,8 +218,8 @@ func TestReadMeta(t *testing.T) {
 }
 
 func TestSeed(t *testing.T) {
-	c := New[string]()
-	at := time.Now().Add(-DefaultTTL)
+	c := New[string](WithTTL(time.Minute))
+	at := time.Now().Add(-time.Minute)
 	if !c.Seed("k", Entry[string]{Value: "kept", ETag: `"e"`, FetchedAt: at, Tags: []string{"t"}}) {
 		t.Fatal("Seed into an empty cache = false, want true")
 	}
@@ -246,12 +246,12 @@ func TestSeedState(t *testing.T) {
 		want State
 	}{
 		{"within the TTL", now.Add(-time.Second), Fresh},
-		{"past the TTL", now.Add(-DefaultTTL), Stale},
+		{"past the TTL", now.Add(-time.Minute), Stale},
 		{"no fetch time", time.Time{}, Stale},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := New[string]()
+			c := New[string](WithTTL(time.Minute))
 			c.Seed("k", Entry[string]{Value: "kept", FetchedAt: tt.at})
 			if _, st := c.Get("k"); st != tt.want {
 				t.Errorf("state = %v, want %v", st, tt.want)
@@ -261,7 +261,7 @@ func TestSeedState(t *testing.T) {
 }
 
 func TestSeedThenFetchRevalidates(t *testing.T) {
-	c := New[string]()
+	c := New[string](WithTTL(time.Minute))
 	c.Seed("k", Entry[string]{Value: "kept", ETag: `"e"`})
 	e, err := c.Fetch(t.Context(), "k", func(_ context.Context, prev Entry[string], ok bool) (Entry[string], error) {
 		if !ok || prev.ETag != `"e"` {
@@ -278,7 +278,7 @@ func TestSeedThenFetchRevalidates(t *testing.T) {
 }
 
 func TestSeedDuringFetch(t *testing.T) {
-	c := New[string]()
+	c := New[string](WithTTL(time.Minute))
 	started, release := make(chan struct{}), make(chan struct{})
 	done := make(chan struct{})
 	go func() {
@@ -303,8 +303,8 @@ func TestSeedDuringFetch(t *testing.T) {
 func TestShelfWarm(t *testing.T) {
 	store := newMemStore()
 	s := NewShelf[page](store, "page", 1)
-	_ = s.Save("k", Entry[page]{Value: page{Next: "kept"}, ETag: `"e"`, FetchedAt: time.Now().Add(-DefaultTTL), Tags: []string{"t"}})
-	c := New[page]()
+	_ = s.Save("k", Entry[page]{Value: page{Next: "kept"}, ETag: `"e"`, FetchedAt: time.Now().Add(-time.Minute), Tags: []string{"t"}})
+	c := New[page](WithTTL(time.Minute))
 
 	e, ok := s.Warm(c, "k", false)
 	if !ok || e.Value.Next != "kept" {
@@ -338,8 +338,8 @@ func TestShelfWarm(t *testing.T) {
 func TestShelfWarmConcurrentReaders(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		s := NewShelf[page](newMemStore(), "page", 1)
-		_ = s.Save("k", Entry[page]{Value: page{Next: "kept"}, ETag: `"e"`, FetchedAt: time.Now().Add(-DefaultTTL)})
-		c := New[page]()
+		_ = s.Save("k", Entry[page]{Value: page{Next: "kept"}, ETag: `"e"`, FetchedAt: time.Now().Add(-time.Minute)})
+		c := New[page](WithTTL(time.Minute))
 
 		const readers = 4
 		var wg sync.WaitGroup
@@ -389,7 +389,7 @@ func TestShelfWarmConcurrentReaders(t *testing.T) {
 func TestShelfWarmFresh(t *testing.T) {
 	s := NewShelf[page](newMemStore(), "page", 1)
 	_ = s.Save("k", Entry[page]{Value: page{Next: "kept"}, ETag: `"e"`})
-	c := New[page]()
+	c := New[page](WithTTL(time.Minute))
 	if _, ok := s.Warm(c, "k", false); ok {
 		t.Error("Warm of an entry kept within the TTL = true, want false: it needs no revalidation")
 	}

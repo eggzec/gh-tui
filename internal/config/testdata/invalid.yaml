@@ -3,7 +3,8 @@ theme: missing
 keys:
   quit: []
 cache:
-  ttl: 0s
+  ttl:
+    pulls: 0s
   disk:
     compression: zstd
 sync:

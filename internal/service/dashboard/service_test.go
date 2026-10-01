@@ -7,6 +7,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 )
 
@@ -37,24 +38,25 @@ func TestHeaderCachesUntilInvalidated(t *testing.T) {
 	api.wantCalls(t, "header", "header")
 }
 
-// Each read stays fresh for its own TTL, and the service's TTL stretches the
-// long ones only when it is longer.
+// Each read stays fresh for its own TTL: the config's by default, or the
+// one given.
 func TestTTLs(t *testing.T) {
+	d := config.Default().Cache.TTL
 	tests := []struct {
 		name string
-		ttl  time.Duration
+		ttls TTLs
 		want time.Duration
 		read func(context.Context, *Service) error
 	}{
-		{"header", 0, HeaderTTL, func(ctx context.Context, s *Service) error { _, err := s.Header(ctx, HeaderQuery{}); return err }},
-		{"header with a longer ttl", 2 * time.Hour, 2 * time.Hour, func(ctx context.Context, s *Service) error { _, err := s.Header(ctx, HeaderQuery{}); return err }},
-		{"work", 0, time.Minute, func(ctx context.Context, s *Service) error { _, err := s.Work(ctx, WorkQuery{}); return err }},
-		{"work with a ttl", 5 * time.Minute, 5 * time.Minute, func(ctx context.Context, s *Service) error { _, err := s.Work(ctx, WorkQuery{}); return err }},
-		{"contributions", 0, ContributionsTTL, func(ctx context.Context, s *Service) error {
+		{"header", TTLs{}, d.Profile, func(ctx context.Context, s *Service) error { _, err := s.Header(ctx, HeaderQuery{}); return err }},
+		{"header with a ttl", TTLs{Header: 2 * time.Hour}, 2 * time.Hour, func(ctx context.Context, s *Service) error { _, err := s.Header(ctx, HeaderQuery{}); return err }},
+		{"work", TTLs{}, d.WaitingOnYou, func(ctx context.Context, s *Service) error { _, err := s.Work(ctx, WorkQuery{}); return err }},
+		{"work with a ttl", TTLs{Work: time.Minute}, time.Minute, func(ctx context.Context, s *Service) error { _, err := s.Work(ctx, WorkQuery{}); return err }},
+		{"contributions", TTLs{}, d.Contributions, func(ctx context.Context, s *Service) error {
 			_, err := s.Contributions(ctx, ContributionsQuery{})
 			return err
 		}},
-		{"repos", 0, ReposTTL, func(ctx context.Context, s *Service) error {
+		{"repos", TTLs{}, d.DashboardRepos, func(ctx context.Context, s *Service) error {
 			_, err := s.Repos(ctx, ReposQuery{Viewer: true})
 			return err
 		}},
@@ -68,11 +70,7 @@ func TestTTLs(t *testing.T) {
 					contributions: func() (core.Contributions, error) { return core.Contributions{}, nil },
 					ownRepos:      func(int, string) (core.Page[core.Repo], error) { return core.Page[core.Repo]{}, nil },
 				}
-				var opts []Option
-				if tt.ttl > 0 {
-					opts = append(opts, WithTTL(tt.ttl))
-				}
-				s := New(api, opts...)
+				s := New(api, WithTTLs(tt.ttls))
 				fresh := func(s *Service) bool {
 					return s.FreshHeader() || s.FreshWork(WorkQuery{}) || s.FreshContributions() || s.FreshRepos(ReposQuery{Viewer: true})
 				}

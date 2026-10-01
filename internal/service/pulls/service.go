@@ -98,20 +98,23 @@ func New(api API, opts ...Option) *Service {
 	for _, opt := range opts {
 		opt(&o)
 	}
+	d := config.Default()
+	ttl := cmp.Or(o.ttl, d.Cache.TTL.Pulls)
+	mem := []cache.Option{cache.WithTTL(ttl), cache.WithCapacity(cmp.Or(o.capacity, d.Cache.Memory.Entries))}
 	s := &Service{
 		api:          api,
 		access:       o.access,
 		repos:        o.repos,
-		lists:        cache.New[listPage](o.cache...),
-		details:      cache.New[core.PullRequestDetail](o.cache...),
-		comments:     cache.New[stampedComments](o.cache...),
-		reviews:      cache.New[core.Page[core.Review]](o.cache...),
+		lists:        cache.New[listPage](mem...),
+		details:      cache.New[core.PullRequestDetail](mem...),
+		comments:     cache.New[stampedComments](mem...),
+		reviews:      cache.New[core.Page[core.Review]](mem...),
 		keptLists:    cache.NewShelf[listPage](o.store, kindList, listSchema),
 		keptDetails:  cache.NewShelf[core.PullRequestDetail](o.store, kindDetail, detailSchema),
 		keptComments: cache.NewShelf[stampedComments](o.store, kindComments, commentsSchema),
 		now:          time.Now,
-		ttl:          cmp.Or(o.ttl, cache.DefaultTTL),
-		pageSize:     cmp.Or(o.pageSize, config.Default().PageSize.Pulls),
+		ttl:          ttl,
+		pageSize:     cmp.Or(o.pageSize, d.PageSize.Pulls),
 	}
 	s.etags.Keep(o.store)
 	return s

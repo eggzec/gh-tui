@@ -77,7 +77,7 @@ func (s *Store) Collect(ctx context.Context) (Usage, error) {
 		return u, fmt.Errorf("collect disk cache: %w", err)
 	}
 	u.Files = len(objects)
-	if u.Size <= s.opts.maxSize {
+	if s.opts.maxSize < 1 || u.Size <= s.opts.maxSize {
 		return u, nil
 	}
 

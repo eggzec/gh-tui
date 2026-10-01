@@ -148,7 +148,9 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		return src.Profile
 	}, func(w string) { lateWarning <- w }, time.Now)
 
-	ttl := cfg.Cache.TTL
+	// Each kind of data stays fresh for its own TTL, and each cache keeps
+	// as many entries.
+	ttl, mem := cfg.Cache.TTL, cfg.Cache.Memory
 	store, warning := openDisk(ctx, cfg.Cache.Disk, client.Host())
 	// A nil store must stay a nil interface, which the services take for
 	// none.
@@ -162,39 +164,47 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	// which a change there needs a wider scope for, is what the
 	// repositories service read of it.
 	size := cfg.PageSize
-	repoSvc := reposvc.New(client, reposvc.WithTTL(ttl), reposvc.WithStore(entries), reposvc.WithAccess(access),
-		reposvc.WithPageSize(size.Repos))
-	pullSvc := pullsvc.New(client, pullsvc.WithTTL(ttl), pullsvc.WithStore(entries),
+	repoSvc := reposvc.New(client, reposvc.WithTTL(ttl.Repos), reposvc.WithInfoTTL(ttl.RepoInfo), reposvc.WithCapacity(mem.Entries),
+		reposvc.WithStore(entries), reposvc.WithAccess(access), reposvc.WithPageSize(size.Repos))
+	pullSvc := pullsvc.New(client, pullsvc.WithTTL(ttl.Pulls), pullsvc.WithCapacity(mem.Entries), pullsvc.WithStore(entries),
 		pullsvc.WithAccess(access), pullsvc.WithRepos(repoSvc), pullsvc.WithPageSize(size.Pulls))
 	// The issues service tells what a number is, an issue or a pull
 	// request, and a pull request whose detail is cached needs no request.
-	issueSvc := issuesvc.New(client, issuesvc.WithTTL(ttl), issuesvc.WithStore(entries), issuesvc.WithPulls(pullSvc),
-		issuesvc.WithAccess(access), issuesvc.WithRepos(repoSvc), issuesvc.WithPageSize(size.Issues))
-	notifSvc := notifsvc.New(client, notifsvc.WithTTL(ttl), notifsvc.WithStore(entries), notifsvc.WithAccess(access),
-		notifsvc.WithPageSize(size.Notifications))
-	dashSvc := dashsvc.New(client, dashsvc.WithTTL(ttl), dashsvc.WithStore(entries), dashsvc.WithWorkSize(size.WaitingOnYou))
-	fileSvcOpts := []filesvc.Option{filesvc.WithTTL(ttl), filesvc.WithMaxBlobSize(int64(cfg.Files.Preview.MaxSize))}
+	issueSvc := issuesvc.New(client, issuesvc.WithTTL(ttl.Issues), issuesvc.WithCapacity(mem.Entries), issuesvc.WithStore(entries),
+		issuesvc.WithPulls(pullSvc), issuesvc.WithAccess(access), issuesvc.WithRepos(repoSvc), issuesvc.WithPageSize(size.Issues))
+	notifSvc := notifsvc.New(client, notifsvc.WithTTL(ttl.Notifications), notifsvc.WithCapacity(mem.Entries),
+		notifsvc.WithStore(entries), notifsvc.WithAccess(access), notifsvc.WithPageSize(size.Notifications))
+	dashSvc := dashsvc.New(client, dashsvc.WithTTLs(dashsvc.TTLs{
+		Header: ttl.Profile, Work: ttl.WaitingOnYou, Repos: ttl.DashboardRepos, Contributions: ttl.Contributions,
+	}), dashsvc.WithCapacity(mem.Entries), dashsvc.WithStore(entries), dashsvc.WithWorkSize(size.WaitingOnYou))
+	fileSvcOpts := []filesvc.Option{
+		filesvc.WithTTL(ttl.Files), filesvc.WithCapacity(mem.Entries),
+		filesvc.WithBlobCapacity(mem.Entries), filesvc.WithBlobMemory(int64(mem.Files)),
+		filesvc.WithMaxBlobSize(int64(cfg.Files.Preview.MaxSize)),
+	}
 	if store != nil {
 		fileSvcOpts = append(fileSvcOpts, filesvc.WithStore(store))
 	}
 	fileSvc := filesvc.New(client, fileSvcOpts...)
 	// What a commit SHA names never changes, so it is kept with the files'
 	// objects, which accounts on a host share.
-	historySvcOpts := []historysvc.Option{historysvc.WithTTL(ttl), historysvc.WithStore(entries), historysvc.WithCommitPageSize(size.Commits)}
+	historySvcOpts := []historysvc.Option{
+		historysvc.WithTTL(ttl.History), historysvc.WithCompareTTL(ttl.Compare), historysvc.WithCapacity(mem.Entries),
+		historysvc.WithDiffMemory(int64(mem.Diffs)), historysvc.WithStore(entries), historysvc.WithCommitPageSize(size.Commits),
+	}
 	if store != nil {
 		historySvcOpts = append(historySvcOpts, historysvc.WithObjects(store))
 	}
 	historySvc := historysvc.New(client, historySvcOpts...)
-	actionSvc := actionssvc.New(client, actionssvc.WithTTL(ttl), actionssvc.WithStore(entries), actionssvc.WithAccess(access),
-		actionssvc.WithRunPageSize(size.Runs))
-	// A release seldom changes once published, so it keeps the service's
-	// long TTL.
-	releaseSvc := releasesvc.New(client, releasesvc.WithStore(entries))
-	// Search results keep the search service's own short TTL.
-	searchSvc := searchsvc.New(client, searchsvc.WithPageSize(size.Search))
+	actionSvc := actionssvc.New(client, actionssvc.WithTTL(ttl.Actions), actionssvc.WithLiveTTL(ttl.ActionsRunning),
+		actionssvc.WithCapacity(mem.Entries), actionssvc.WithLogMemory(int64(mem.Logs)),
+		actionssvc.WithStore(entries), actionssvc.WithAccess(access), actionssvc.WithRunPageSize(size.Runs))
+	releaseSvc := releasesvc.New(client, releasesvc.WithTTL(ttl.Releases), releasesvc.WithCapacity(mem.Entries), releasesvc.WithStore(entries))
+	searchSvc := searchsvc.New(client, searchsvc.WithTTL(ttl.Search), searchsvc.WithCodeTTL(ttl.CodeSearch), searchsvc.WithCapacity(mem.Entries),
+		searchsvc.WithPageSize(size.Search))
 	// The filters of the pull requests and issues offer the labels,
 	// milestones and people of the repository.
-	facetSvc := facetsvc.New(client, facetsvc.WithTTL(ttl))
+	facetSvc := facetsvc.New(client, facetsvc.WithTTL(ttl.Filters), facetsvc.WithCapacity(mem.Entries))
 
 	// What the set command changes for the session, the modals read as
 	// they open.

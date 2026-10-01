@@ -18,8 +18,8 @@ import (
 // aren't listed. It reads the store, so call it where I/O is fine.
 func (s *Service) Kept() []revalidate.Entry {
 	return slices.Concat(
-		recheck.Entries(s.keptRuns, kindRuns, s.runsTarget),
-		recheck.Entries(s.keptWorkflows, kindWorkflows, s.workflowsTarget),
+		recheck.Entries(s.keptRuns, kindRuns, s.ttl, s.runsTarget),
+		recheck.Entries(s.keptWorkflows, kindWorkflows, s.ttl, s.workflowsTarget),
 	)
 }
 

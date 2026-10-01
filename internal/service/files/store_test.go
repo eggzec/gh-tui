@@ -11,6 +11,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
 )
@@ -131,7 +132,7 @@ func TestStoreColdWritesThrough(t *testing.T) {
 	}
 	api.wantCalls(t,
 		"all eggzec/gh-tui HEAD ",
-		fmt.Sprintf("blob eggzec/gh-tui %s %d", helloSHA, DefaultMaxBlobSize),
+		fmt.Sprintf("blob eggzec/gh-tui %s %d", helloSHA, int64(config.Default().Files.Preview.MaxSize)),
 	)
 }
 
@@ -365,7 +366,7 @@ func TestStoreCorruptBlob(t *testing.T) {
 	if got, _ := store.Get(kindBlob, helloSHA); string(got) != "hello" {
 		t.Errorf("stored blob = %q, want hello", got)
 	}
-	api.wantCalls(t, fmt.Sprintf("blob eggzec/gh-tui %s %d", helloSHA, DefaultMaxBlobSize))
+	api.wantCalls(t, fmt.Sprintf("blob eggzec/gh-tui %s %d", helloSHA, int64(config.Default().Files.Preview.MaxSize)))
 }
 
 func TestStoreBlobNotNamedByContent(t *testing.T) {

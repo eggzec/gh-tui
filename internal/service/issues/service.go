@@ -61,6 +61,8 @@ type Service struct {
 	access Access
 	repos  Repos
 	viewer string
+	// ttl is how long what the service read stays fresh.
+	ttl time.Duration
 	// pending numbers the comments shown before GitHub confirms them.
 	pending atomic.Uint64
 	// An issue and each page of its comments are separate entries, each with
@@ -104,20 +106,24 @@ func New(api API, opts ...Option) *Service {
 	for _, opt := range opts {
 		opt(&o)
 	}
+	d := config.Default()
+	ttl := cmp.Or(o.ttl, d.Cache.TTL.Issues)
+	mem := []cache.Option{cache.WithTTL(ttl), cache.WithCapacity(cmp.Or(o.capacity, d.Cache.Memory.Entries))}
 	s := &Service{
 		api:          api,
 		viewer:       o.viewer,
+		ttl:          ttl,
 		access:       o.access,
 		repos:        o.repos,
-		lists:        cache.New[core.Page[core.Issue]](o.cache...),
-		issues:       cache.New[core.Issue](o.cache...),
-		comments:     cache.New[stampedComments](o.cache...),
+		lists:        cache.New[core.Page[core.Issue]](mem...),
+		issues:       cache.New[core.Issue](mem...),
+		comments:     cache.New[stampedComments](mem...),
 		keptLists:    cache.NewShelf[core.Page[core.Issue]](o.store, kindList, schema),
 		keptIssues:   cache.NewShelf[core.Issue](o.store, kindIssue, schema),
 		keptComments: cache.NewShelf[stampedComments](o.store, kindComments, schema),
 		keptKinds:    cache.NewShelf[core.NumberKind](o.store, kindNumber, numberSchema),
 		pulls:        o.pulls,
-		pageSize:     cmp.Or(o.pageSize, config.Default().PageSize.Issues),
+		pageSize:     cmp.Or(o.pageSize, d.PageSize.Issues),
 	}
 	s.etags.Keep(o.store)
 	return s

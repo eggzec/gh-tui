@@ -21,9 +21,9 @@ import (
 // the store, so call it where I/O is fine.
 func (s *Service) Kept() []revalidate.Entry {
 	return slices.Concat(
-		recheck.Entries(s.keptLists, kindList, s.listTarget),
-		recheck.Entries(s.keptIssues, kindIssue, s.issueTarget),
-		recheck.Entries(s.keptComments, kindComments, s.commentsTarget),
+		recheck.Entries(s.keptLists, kindList, s.ttl, s.listTarget),
+		recheck.Entries(s.keptIssues, kindIssue, s.ttl, s.issueTarget),
+		recheck.Entries(s.keptComments, kindComments, s.ttl, s.commentsTarget),
 	)
 }
 

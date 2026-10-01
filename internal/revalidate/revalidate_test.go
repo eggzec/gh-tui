@@ -25,7 +25,9 @@ var (
 type server struct {
 	start   time.Time
 	latency time.Duration
-	result  func(id string, n int) Result
+	// freshFor is how long its entries stay fresh.
+	freshFor time.Duration
+	result   func(id string, n int) Result
 
 	mu    sync.Mutex
 	calls []call
@@ -38,15 +40,16 @@ type call struct {
 }
 
 func newServer(result func(id string, n int) Result) *server {
-	return &server{start: time.Now(), latency: 100 * time.Millisecond, result: result, byID: make(map[string]int)}
+	return &server{start: time.Now(), latency: 100 * time.Millisecond, freshFor: 2 * time.Minute, result: result, byID: make(map[string]int)}
 }
 
 // entry returns an entry of repo, last used ago before now.
 func (s *server) entry(id string, repo core.RepoRef, ago time.Duration) Entry {
 	return Entry{
-		ID:     id,
-		Repo:   repo,
-		UsedAt: time.Now().Add(-ago),
+		ID:       id,
+		Repo:     repo,
+		UsedAt:   time.Now().Add(-ago),
+		FreshFor: s.freshFor,
 		Check: func(ctx context.Context) Result {
 			s.mu.Lock()
 			n := s.byID[id]
@@ -117,12 +120,19 @@ func (r *recorder) all() []Pass {
 	return slices.Clone(r.passes)
 }
 
+// settings are those gh-tui starts with, and everyMinute the same with
+// passes a minute apart.
+var (
+	settings    = Settings{Interval: 2 * time.Minute, PerMinute: 60, Recent: 7 * 24 * time.Hour}
+	everyMinute = Settings{Interval: time.Minute, PerMinute: settings.PerMinute, Recent: settings.Recent}
+)
+
 // start runs a revalidator of entries, reporting to rec, until the test
 // ends.
-func start(t *testing.T, entries []Entry, rec *recorder, opts ...Option) *Revalidator {
+func start(t *testing.T, entries []Entry, rec *recorder, s Settings, opts ...Option) *Revalidator {
 	t.Helper()
 	opts = append([]Option{WithStartDelay(0), WithPublish(rec.publish), WithReport(rec.report)}, opts...)
-	r := New([]Source{func() []Entry { return entries }}, opts...)
+	r := New([]Source{func() []Entry { return entries }}, s, opts...)
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
 	go func() { done <- r.Run(ctx) }()
@@ -138,12 +148,13 @@ func start(t *testing.T, entries []Entry, rec *recorder, opts ...Option) *Revali
 func TestBudget(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		srv := newServer(nil)
+		srv.freshFor = time.Hour
 		entries := make([]Entry, 0, 300)
 		for i := range 300 {
 			entries = append(entries, srv.entry(string(rune('a'+i%26))+string(rune('0'+i/26)), repoB, time.Duration(i)*time.Minute))
 		}
 		rec := new(recorder)
-		start(t, entries, rec, WithBudget(60), WithInterval(2*time.Minute), WithFreshFor(time.Hour))
+		start(t, entries, rec, settings)
 		synctest.Sleep(20 * time.Minute)
 
 		times := srv.times()
@@ -175,6 +186,26 @@ func TestBudget(t *testing.T) {
 	})
 }
 
+// Each entry is left alone for its own FreshFor, and one without is
+// checked on every pass.
+func TestFreshForPerEntry(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		srv := newServer(nil)
+		short, long, none := srv.entry("short", repoA, time.Minute), srv.entry("long", repoA, 2*time.Minute), srv.entry("none", repoA, 3*time.Minute)
+		short.FreshFor, long.FreshFor, none.FreshFor = 30*time.Second, time.Hour, 0
+		start(t, []Entry{short, long, none}, new(recorder), everyMinute, WithConcurrency(1))
+		synctest.Sleep(90 * time.Second)
+
+		count := map[string]int{}
+		for _, id := range srv.ids() {
+			count[id]++
+		}
+		if count["short"] != 2 || count["long"] != 1 || count["none"] != 2 {
+			t.Errorf("checks = %v, want short and none checked by both passes, long by the first only", count)
+		}
+	})
+}
+
 func TestPriority(t *testing.T) {
 	for _, tt := range []struct {
 		scope Scope
@@ -186,6 +217,7 @@ func TestPriority(t *testing.T) {
 		t.Run(map[Scope]string{ScopeRecent: "recent", ScopeAll: "all"}[tt.scope], func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				srv := newServer(nil)
+				srv.freshFor = 5 * time.Minute
 				fresh := srv.entry("a-fresh", repoA, 0)
 				fresh.CheckedAt = time.Now().Add(-time.Minute)
 				entries := []Entry{
@@ -200,8 +232,8 @@ func TestPriority(t *testing.T) {
 					fresh,
 				}
 				rec := new(recorder)
-				r := New([]Source{func() []Entry { return entries }}, WithStartDelay(0), WithScope(tt.scope),
-					WithConcurrency(1), WithFreshFor(5*time.Minute), WithReport(rec.report))
+				r := New([]Source{func() []Entry { return entries }}, settings, WithStartDelay(0), WithScope(tt.scope),
+					WithConcurrency(1), WithReport(rec.report))
 				r.SetRepo(repoA)
 				ctx, cancel := context.WithCancel(t.Context())
 				go func() { _ = r.Run(ctx) }()
@@ -234,7 +266,7 @@ func TestChangesArePublishedOncePerGroup(t *testing.T) {
 		}
 		entries = append(entries, srv.entry("b1", repoB, time.Hour), srv.entry("b2", repoB, time.Hour))
 		rec := new(recorder)
-		r := start(t, entries, rec, WithStartDelay(time.Second))
+		r := start(t, entries, rec, settings, WithStartDelay(time.Second))
 		r.SetRepo(repoA)
 		synctest.Sleep(time.Minute)
 
@@ -263,7 +295,7 @@ func TestSkippedIsFree(t *testing.T) {
 			entries = append(entries, srv.entry(id, repoA, time.Minute))
 		}
 		rec := new(recorder)
-		start(t, entries, rec, WithBudget(2), WithInterval(4*time.Minute))
+		start(t, entries, rec, Settings{Interval: 4 * time.Minute, PerMinute: 2, Recent: settings.Recent})
 		synctest.Sleep(10 * time.Second)
 		if got := len(srv.ids()); got != 7 {
 			t.Errorf("%d checks in 10s under a budget of 2, want all 7: skipped ones cost nothing", got)
@@ -286,9 +318,10 @@ func TestOfflinePausesAndBacksOff(t *testing.T) {
 			}
 			return Result{Status: NotModified}
 		})
+		srv.freshFor = time.Hour
 		entries := []Entry{srv.entry("a", repoA, time.Minute), srv.entry("b", repoA, 2*time.Minute), srv.entry("c", repoA, 3*time.Minute)}
 		rec := new(recorder)
-		start(t, entries, rec, WithConcurrency(1), WithInterval(time.Minute), WithFreshFor(time.Hour))
+		start(t, entries, rec, everyMinute, WithConcurrency(1))
 
 		// Passes at 0, then 2m and 4m after each ended as the backoff
 		// doubles.
@@ -333,9 +366,10 @@ func TestOnlineEndsBackoff(t *testing.T) {
 			}
 			return Result{Status: NotModified}
 		})
+		srv.freshFor = time.Hour
 		entries := []Entry{srv.entry("a", repoA, time.Minute), srv.entry("b", repoA, 2*time.Minute)}
 		rec := new(recorder)
-		r := start(t, entries, rec, WithConcurrency(1), WithInterval(time.Minute), WithFreshFor(time.Hour))
+		r := start(t, entries, rec, everyMinute, WithConcurrency(1))
 
 		// Passes at 0 and 2m; the next would be 4m after that.
 		synctest.Sleep(3 * time.Minute)
@@ -369,9 +403,10 @@ func TestRateLimitWaitsForReset(t *testing.T) {
 			}
 			return Result{Status: NotModified}
 		})
+		srv.freshFor = time.Hour
 		entries := []Entry{srv.entry("a", repoA, time.Minute), srv.entry("b", repoB, time.Minute)}
 		rec := new(recorder)
-		r := start(t, entries, rec, WithConcurrency(1), WithInterval(time.Minute), WithFreshFor(time.Hour))
+		r := start(t, entries, rec, everyMinute, WithConcurrency(1))
 		synctest.Sleep(time.Minute)
 		// Selecting a repository doesn't lift the limit.
 		r.SetRepo(repoB)
@@ -392,14 +427,16 @@ func TestRateLimitWaitsForReset(t *testing.T) {
 func TestInactiveSlowsDown(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		srv := newServer(nil)
+		srv.freshFor = time.Second
 		srv.latency = 0
 		entries := make([]Entry, 0, 10)
 		for _, id := range []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"} {
 			entries = append(entries, srv.entry(id, repoA, time.Minute))
 		}
 		rec := new(recorder)
-		r := New([]Source{func() []Entry { return entries }}, WithStartDelay(0), WithBudget(8),
-			WithInterval(time.Minute), WithIdleMultiplier(4), WithFreshFor(time.Second), WithReport(rec.report))
+		r := New([]Source{func() []Entry { return entries }}, Settings{Interval: time.Minute, PerMinute: 8, Recent: settings.Recent},
+			WithStartDelay(0),
+			WithIdleMultiplier(4), WithReport(rec.report))
 		r.SetActive(false)
 		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
@@ -431,12 +468,13 @@ func TestInactiveWithoutMultiplier(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		srv := newServer(nil)
 		srv.latency = 0
+		srv.freshFor = time.Second
 		entries := make([]Entry, 0, 8)
 		for _, id := range []string{"a", "b", "c", "d", "e", "f", "g", "h"} {
 			entries = append(entries, srv.entry(id, repoA, time.Minute))
 		}
-		r := New([]Source{func() []Entry { return entries }}, WithStartDelay(0), WithBudget(8),
-			WithInterval(time.Minute), WithFreshFor(time.Second))
+		r := New([]Source{func() []Entry { return entries }},
+			Settings{Interval: time.Minute, PerMinute: 8, Recent: settings.Recent}, WithStartDelay(0))
 		r.SetActive(false)
 		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
@@ -454,9 +492,10 @@ func TestInactiveWithoutMultiplier(t *testing.T) {
 func TestSetRepoStartsPass(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		srv := newServer(nil)
+		srv.freshFor = time.Hour
 		entries := []Entry{srv.entry("a", repoA, time.Minute), srv.entry("b", repoB, 30*24*time.Hour)}
 		rec := new(recorder)
-		r := start(t, entries, rec, WithInterval(10*time.Minute), WithFreshFor(time.Hour))
+		r := start(t, entries, rec, Settings{Interval: 10 * time.Minute, PerMinute: settings.PerMinute, Recent: settings.Recent})
 		r.SetRepo(repoA)
 		synctest.Sleep(time.Minute)
 		if got := srv.ids(); !slices.Equal(got, []string{"a"}) {
@@ -483,7 +522,7 @@ func TestPassIsBackground(t *testing.T) {
 			}
 			return Result{Status: NotModified}
 		}}
-		start(t, []Entry{e}, new(recorder))
+		start(t, []Entry{e}, new(recorder), settings)
 		synctest.Wait()
 		select {
 		case bg := <-checked:
@@ -498,7 +537,7 @@ func TestPassIsBackground(t *testing.T) {
 
 func TestRunOnce(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		r := New(nil)
+		r := New(nil, settings)
 		ctx, cancel := context.WithCancel(t.Context())
 		done := make(chan error, 1)
 		go func() { done <- r.Run(ctx) }()

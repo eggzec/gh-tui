@@ -28,7 +28,7 @@ type ContributionsQuery struct {
 }
 
 // Contributions returns the viewer's contribution calendar for the past
-// year. It is fresh for ContributionsTTL, and is served stale or offline
+// year. It is fresh for TTLs.Contributions, and is served stale or offline
 // as in Header.
 func (s *Service) Contributions(ctx context.Context, q ContributionsQuery) (core.Contributions, error) {
 	// The client already names the request in its error.

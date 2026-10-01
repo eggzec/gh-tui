@@ -13,13 +13,13 @@
 package files
 
 import (
+	"cmp"
 	"context"
-	"math"
-	"slices"
 	"strings"
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/cache"
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
 )
@@ -31,14 +31,13 @@ type API interface {
 	GetBlob(ctx context.Context, repo core.RepoRef, sha string, limit int64) (core.Blob, error)
 }
 
-// forever is the TTL of entries read by SHA, which can't change.
-const forever = time.Duration(math.MaxInt64)
-
 // Service reads trees and blobs. It is safe for concurrent use.
 type Service struct {
 	api     API
 	store   Store
 	maxBlob int64
+	// ttl is how long a tree read by a ref stays fresh.
+	ttl time.Duration
 	// refs holds trees read by a ref, which may move, so they go stale and
 	// are revalidated with their ETag.
 	refs *cache.Cache[core.Tree]
@@ -50,26 +49,24 @@ type Service struct {
 
 // New returns a service that calls api.
 func New(api API, opts ...Option) *Service {
-	o := options{
-		blobCapacity: DefaultBlobCapacity,
-		blobMemory:   DefaultBlobMemory,
-		maxBlob:      DefaultMaxBlobSize,
-		store:        noStore{},
-	}
+	o := options{store: noStore{}}
 	for _, opt := range opts {
 		opt(&o)
 	}
-	immutable := slices.Concat(o.cache, []cache.Option{cache.WithTTL(forever)})
+	d := config.Default()
+	ttl := cmp.Or(o.ttl, d.Cache.TTL.Files)
+	capacity := cache.WithCapacity(cmp.Or(o.capacity, d.Cache.Memory.Entries))
+	// What a SHA names never changes, so it never goes stale.
 	return &Service{
 		api:     api,
 		store:   o.store,
-		maxBlob: o.maxBlob,
-		refs:    cache.New[core.Tree](o.cache...),
-		objects: cache.New[core.Tree](immutable...),
+		maxBlob: cmp.Or(o.maxBlob, int64(d.Files.Preview.MaxSize)),
+		ttl:     ttl,
+		refs:    cache.New[core.Tree](cache.WithTTL(ttl), capacity),
+		objects: cache.New[core.Tree](capacity),
 		blobs: cache.New[core.Blob](
-			cache.WithCapacity(o.blobCapacity),
-			cache.WithMaxSize(o.blobMemory, blobSize),
-			cache.WithTTL(forever),
+			cache.WithCapacity(cmp.Or(o.blobCapacity, d.Cache.Memory.Entries)),
+			cache.WithMaxSize(cmp.Or(o.blobMemory, int64(d.Cache.Memory.Files)), blobSize),
 		),
 	}
 }

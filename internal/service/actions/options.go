@@ -6,15 +6,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/cache"
 )
 
-// Defaults used when no option overrides them.
-const (
-	// DefaultLiveTTL is how long the jobs of a run in progress stay fresh:
-	// their steps move by the second, and a revalidation is free.
-	DefaultLiveTTL = 10 * time.Second
-	// DefaultLogMemory bounds the memory that parsed logs take.
-	DefaultLogMemory = 64 << 20
-)
-
 // Option configures a Service.
 type Option func(*options)
 
@@ -42,15 +33,20 @@ func WithRunPageSize(n int) Option {
 }
 
 // WithTTL sets how long runs, workflows, checks and annotations stay fresh
-// before a read asks GitHub whether they changed. The default is
-// cache.DefaultTTL.
+// before a read asks GitHub whether they changed. Without it, or with d
+// at or below zero, it is the default of the config (config.Default).
 func WithTTL(d time.Duration) Option {
-	return func(o *options) { o.ttl = d }
+	return func(o *options) {
+		if d > 0 {
+			o.ttl = d
+		}
+	}
 }
 
 // WithLiveTTL sets how long the jobs of a run that may still change stay
-// fresh. The default is DefaultLiveTTL. Values below or equal to zero are
-// ignored.
+// fresh: their steps move by the second, and a revalidation is free, so
+// it is usually much shorter than the TTL. Without it, or with d at or
+// below zero, it is the default of the config (config.Default).
 func WithLiveTTL(d time.Duration) Option {
 	return func(o *options) {
 		if d > 0 {
@@ -59,15 +55,19 @@ func WithLiveTTL(d time.Duration) Option {
 	}
 }
 
-// WithCapacity sets how many entries each of the service's caches keeps,
-// apart from logs, which WithLogMemory bounds. The default is
-// cache.DefaultCapacity.
+// WithCapacity sets how many entries each of the service's caches keeps.
+// WithLogMemory bounds the logs too. Without it, or with n below one, it
+// is the default of the config (config.Default).
 func WithCapacity(n int) Option {
-	return func(o *options) { o.capacity = n }
+	return func(o *options) {
+		if n > 0 {
+			o.capacity = n
+		}
+	}
 }
 
-// WithLogMemory sets the memory, in bytes, that parsed logs take. The
-// default is DefaultLogMemory. Values below 1 are ignored.
+// WithLogMemory sets the memory, in bytes, that parsed logs take. Without
+// it, or with n below one, it is the default of the config (config.Default).
 func WithLogMemory(n int64) Option {
 	return func(o *options) {
 		if n >= 1 {

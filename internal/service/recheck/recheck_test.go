@@ -37,7 +37,7 @@ func TestEntries(t *testing.T) {
 	_ = s.Save("unknown", cache.Entry[string]{ETag: `"u"`})
 
 	checked := ""
-	got := Entries(s, "thing", func(key string) (Target, bool) {
+	got := Entries(s, "thing", 5*time.Minute, func(key string) (Target, bool) {
 		if key == "unknown" {
 			return Target{}, false
 		}
@@ -50,7 +50,7 @@ func TestEntries(t *testing.T) {
 	if len(got) != 2 || got[0].ID != "thing:a" || got[1].ID != "thing:b" {
 		t.Fatalf("Entries = %+v, want a and b, which have validators", got)
 	}
-	if e := got[0]; e.Repo != repo || !e.CheckedAt.Equal(old) || e.UsedAt.IsZero() {
+	if e := got[0]; e.Repo != repo || !e.CheckedAt.Equal(old) || e.UsedAt.IsZero() || e.FreshFor != 5*time.Minute {
 		t.Errorf("entry a = %+v", e)
 	}
 	got[1].Check(t.Context())

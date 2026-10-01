@@ -205,7 +205,7 @@ func TestLoadValidatesMerged(t *testing.T) {
 
 func TestMergeLeavesItsInputs(t *testing.T) {
 	before := Default()
-	if _, _, err := loadBase(writeConfig(t, "cache:\n  ttl: 1m\nkeys:\n  quit: [x]\n")); err != nil {
+	if _, _, err := loadBase(writeConfig(t, "cache:\n  ttl:\n    pulls: 1m\nkeys:\n  quit: [x]\n")); err != nil {
 		t.Fatal(err)
 	}
 	assertEqual(t, Default(), before)

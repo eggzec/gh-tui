@@ -10,7 +10,7 @@ import (
 type Option func(*options)
 
 type options struct {
-	ttl      time.Duration
+	ttls     TTLs
 	capacity int
 	store    cache.Store
 	workSize int
@@ -27,19 +27,36 @@ func WithWorkSize(n int) Option {
 	}
 }
 
-// WithTTL sets how long the work waiting stays fresh before a read fetches
-// it again. By default it is cache.DefaultTTL. The other reads change less
-// often and stay fresh for HeaderTTL, ReposTTL and ContributionsTTL, or for
-// d if it is longer.
-func WithTTL(d time.Duration) Option {
-	return func(o *options) { o.ttl = d }
+// TTLs are how long each read of the service stays fresh before a read
+// fetches it again. One that is zero or below is the default of the
+// config (config.Default).
+type TTLs struct {
+	// Header covers the viewer, their organizations and their pins, which
+	// change seldom.
+	Header time.Duration
+	// Work covers the work waiting on the viewer.
+	Work time.Duration
+	// Repos covers the pages of every owner's repositories, which cost
+	// many requests to read again.
+	Repos time.Duration
+	// Contributions covers the calendar, which only counts whole days.
+	Contributions time.Duration
+}
+
+// WithTTLs sets how long each read stays fresh.
+func WithTTLs(t TTLs) Option {
+	return func(o *options) { o.ttls = t }
 }
 
 // WithCapacity sets how many entries each of the service's caches holds,
-// most of them pages of repositories. By default it is
-// cache.DefaultCapacity.
+// most of them pages of repositories. Without it, or with n below one, it
+// is the default of the config (config.Default).
 func WithCapacity(n int) Option {
-	return func(o *options) { o.capacity = n }
+	return func(o *options) {
+		if n > 0 {
+			o.capacity = n
+		}
+	}
 }
 
 // WithStore keeps what the service reads in store as well as in memory, so

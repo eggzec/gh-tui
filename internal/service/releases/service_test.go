@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/cache/disk"
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
 )
@@ -80,7 +81,7 @@ func TestGetCaches(t *testing.T) {
 		}
 
 		// Past the TTL, the release is revalidated with its ETag.
-		time.Sleep(DefaultTTL)
+		time.Sleep(config.Default().Cache.TTL.Releases)
 		if s.Current(repo, v3.ID) {
 			t.Error("Current past the TTL")
 		}

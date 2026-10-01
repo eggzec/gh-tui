@@ -11,6 +11,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
 )
@@ -297,7 +298,7 @@ func TestSearchExpires(t *testing.T) {
 		if _, err := s.Search(t.Context(), q); err != nil {
 			t.Fatal(err)
 		}
-		time.Sleep(DefaultTTL)
+		time.Sleep(config.Default().Cache.TTL.Search)
 		if got, ok := s.CachedSearch(q); !ok || got.Items[0].Repo.Stars != 1 {
 			t.Errorf("stale CachedSearch = %+v, %v; want the old page", got, ok)
 		}
@@ -378,12 +379,12 @@ func TestCode(t *testing.T) {
 			t.Errorf("Counts = %v, %v; want the code count too", res.Counts, err)
 		}
 
-		// A code page lasts DefaultCodeTTL.
-		time.Sleep(DefaultTTL)
+		// A code page lasts the TTL of code search.
+		time.Sleep(config.Default().Cache.TTL.Search)
 		if _, err := s.Code(t.Context(), q); err != nil {
 			t.Fatal(err)
 		}
-		time.Sleep(DefaultCodeTTL - DefaultTTL)
+		time.Sleep(config.Default().Cache.TTL.CodeSearch - config.Default().Cache.TTL.Search)
 		if _, err := s.Code(t.Context(), q); err != nil {
 			t.Fatal(err)
 		}

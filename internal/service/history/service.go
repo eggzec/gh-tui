@@ -25,7 +25,6 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
-	"math"
 	"strings"
 	"time"
 
@@ -46,13 +45,12 @@ type API interface {
 	Compare(ctx context.Context, repo core.RepoRef, base, head string, cond github.Conditional) (core.Compare, github.Response, error)
 }
 
-// forever is the TTL of entries named by a SHA, which can't change.
-const forever = time.Duration(math.MaxInt64)
-
 // Service reads branches, commits and comparisons. It is safe for
 // concurrent use.
 type Service struct {
-	api      API
+	api API
+	// ttl is how long branches and the first pages of refs stay fresh.
+	ttl      time.Duration
 	branches *cache.Cache[core.Page[core.Branch]]
 	// refPages holds the first page of the commits of a ref, which moves;
 	// pages holds the pages named by a SHA, which don't.
@@ -87,32 +85,31 @@ const (
 
 // New returns a service that calls api.
 func New(api API, opts ...Option) *Service {
-	o := options{compareTTL: DefaultCompareTTL, diffMemory: DefaultDiffMemory}
+	var o options
 	for _, opt := range opts {
 		opt(&o)
 	}
-	lists := []cache.Option{cache.WithTTL(o.ttl), cache.WithCapacity(o.capacity)}
+	d := config.Default()
+	ttl := cmp.Or(o.ttl, d.Cache.TTL.History)
+	capacity := cache.WithCapacity(cmp.Or(o.capacity, d.Cache.Memory.Entries))
+	diffs := cmp.Or(o.diffMemory, int64(d.Cache.Memory.Diffs))
+	// What a SHA names never changes, so it never goes stale.
 	return &Service{
-		api:      api,
-		branches: cache.New[core.Page[core.Branch]](lists...),
-		refPages: cache.New[core.Page[core.Commit]](lists...),
-		pages:    cache.New[core.Page[core.Commit]](cache.WithCapacity(o.capacity), cache.WithTTL(forever)),
-		details: cache.New[core.CommitDetail](
-			cache.WithMaxSize(o.diffMemory, detailSize),
-			cache.WithTTL(forever),
-		),
-		files: cache.New[core.Page[core.CommitFile]](
-			cache.WithMaxSize(o.diffMemory, filesSize),
-			cache.WithTTL(forever),
-		),
-		compares:     cache.New[core.Compare](cache.WithTTL(o.compareTTL), cache.WithCapacity(o.capacity)),
+		api:          api,
+		ttl:          ttl,
+		branches:     cache.New[core.Page[core.Branch]](cache.WithTTL(ttl), capacity),
+		refPages:     cache.New[core.Page[core.Commit]](cache.WithTTL(ttl), capacity),
+		pages:        cache.New[core.Page[core.Commit]](capacity),
+		details:      cache.New[core.CommitDetail](capacity, cache.WithMaxSize(diffs, detailSize)),
+		files:        cache.New[core.Page[core.CommitFile]](capacity, cache.WithMaxSize(diffs, filesSize)),
+		compares:     cache.New[core.Compare](cache.WithTTL(cmp.Or(o.compareTTL, d.Cache.TTL.Compare)), capacity),
 		keptBranches: cache.NewShelf[core.Page[core.Branch]](o.store, kindBranches, schema),
 		keptRefPages: cache.NewShelf[core.Page[core.Commit]](o.store, kindRefPages, schema),
 		keptPages:    cache.NewShelf[core.Page[core.Commit]](o.objects, kindPages, schema),
 		keptDetails:  cache.NewShelf[core.CommitDetail](o.objects, kindDetails, schema),
 		keptFiles:    cache.NewShelf[core.Page[core.CommitFile]](o.objects, kindFiles, schema),
 
-		commitPageSize: cmp.Or(o.commitPageSize, config.Default().PageSize.Commits),
+		commitPageSize: cmp.Or(o.commitPageSize, d.PageSize.Commits),
 	}
 }
 

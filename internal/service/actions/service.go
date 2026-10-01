@@ -15,7 +15,6 @@ package actions
 import (
 	"cmp"
 	"context"
-	"math"
 	"strconv"
 	"strings"
 	"sync"
@@ -54,9 +53,6 @@ type Access interface {
 	Check(n core.Need) error
 }
 
-// forever is the TTL of what can't change.
-const forever = time.Duration(math.MaxInt64)
-
 // Service reads and changes GitHub Actions through caches. It is safe for
 // concurrent use.
 type Service struct {
@@ -64,6 +60,8 @@ type Service struct {
 	// access refuses a re-run or a cancel the token may not make before
 	// it is shown, if set.
 	access Access
+	// ttl is how long runs and workflows stay fresh.
+	ttl time.Duration
 
 	runs      *cache.Cache[core.Page[core.Run]]
 	run       *cache.Cache[core.Run]
@@ -104,20 +102,26 @@ const (
 
 // New returns a service that calls api.
 func New(api API, opts ...Option) *Service {
-	o := options{liveTTL: DefaultLiveTTL, logMemory: DefaultLogMemory, logLimit: github.DefaultLogLimit}
+	o := options{logLimit: github.DefaultLogLimit}
 	for _, opt := range opts {
 		opt(&o)
 	}
-	std := []cache.Option{cache.WithTTL(o.ttl), cache.WithCapacity(o.capacity)}
+	d := config.Default()
+	ttl := cmp.Or(o.ttl, d.Cache.TTL.Actions)
+	capacity := cache.WithCapacity(cmp.Or(o.capacity, d.Cache.Memory.Entries))
+	std := []cache.Option{cache.WithTTL(ttl), capacity}
+	// What can't change any more, such as the jobs of a finished attempt,
+	// never goes stale.
 	return &Service{
 		api:         api,
 		access:      o.access,
+		ttl:         ttl,
 		runs:        cache.New[core.Page[core.Run]](std...),
 		run:         cache.New[core.Run](std...),
 		workflows:   cache.New[core.Page[core.Workflow]](std...),
-		liveJobs:    cache.New[core.Page[core.Job]](cache.WithTTL(o.liveTTL), cache.WithCapacity(o.capacity)),
-		doneJobs:    cache.New[core.Page[core.Job]](cache.WithTTL(forever), cache.WithCapacity(o.capacity)),
-		logs:        cache.New[core.Log](cache.WithTTL(forever), cache.WithMaxSize(o.logMemory, logSize)),
+		liveJobs:    cache.New[core.Page[core.Job]](cache.WithTTL(cmp.Or(o.liveTTL, d.Cache.TTL.ActionsRunning)), capacity),
+		doneJobs:    cache.New[core.Page[core.Job]](capacity),
+		logs:        cache.New[core.Log](capacity, cache.WithMaxSize(cmp.Or(o.logMemory, int64(d.Cache.Memory.Logs)), logSize)),
 		checks:      cache.New[core.Checks](std...),
 		annotations: cache.New[core.Page[core.Annotation]](std...),
 
@@ -126,7 +130,7 @@ func New(api API, opts ...Option) *Service {
 		keptJobs:      cache.NewShelf[core.Page[core.Job]](o.store, kindJobs, schema),
 		store:         o.store,
 		logLimit:      o.logLimit,
-		runPageSize:   cmp.Or(o.runPageSize, config.Default().PageSize.Runs),
+		runPageSize:   cmp.Or(o.runPageSize, d.PageSize.Runs),
 		partials:      map[string]*partialLog{},
 		now:           time.Now,
 	}

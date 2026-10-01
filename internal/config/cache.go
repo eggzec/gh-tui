@@ -11,10 +11,12 @@ import (
 
 // Cache configures the response cache.
 type Cache struct {
-	// TTL is how long a cached response is served before it is revalidated.
-	TTL        time.Duration `yaml:"ttl"`
-	Disk       Disk          `yaml:"disk"`
-	Revalidate Revalidate    `yaml:"revalidate"`
+	TTL TTL `yaml:"ttl"`
+	// Memory is what the process keeps in memory, which belongs to the
+	// machine, not to one host.
+	Memory     Memory     `yaml:"memory" scope:"global"`
+	Disk       Disk       `yaml:"disk"`
+	Revalidate Revalidate `yaml:"revalidate"`
 }
 
 // Revalidate configures checking cached entries in the background, such as
@@ -22,18 +24,21 @@ type Cache struct {
 // each, so that what a view reads is known to be current and needs no
 // request when it loads. A request that finds nothing changed is free
 // against GitHub's rate limit, but not against its limits on how many
-// requests come at once, hence the budget.
+// requests come at once, hence PerMinute.
 type Revalidate struct {
 	Enabled bool `yaml:"enabled"`
 	// Interval is how often a pass over the entries starts. A pass
-	// checks at most what the budget allows in an interval.
+	// checks at most what PerMinute allows in an interval.
 	Interval time.Duration `yaml:"interval"`
-	// Budget is how many requests a minute the checks send at most. It
+	// PerMinute is how many requests a minute the checks send at most. It
 	// shrinks while the terminal is unfocused.
-	Budget int `yaml:"budget"`
+	PerMinute int `yaml:"per_minute"`
 	// Scope is which entries are checked: ScopeRecent, those of the
-	// selected repository and those used in the last week, or ScopeAll.
+	// selected repository and those used within Recent, or ScopeAll.
 	Scope string `yaml:"scope"`
+	// Recent is how recently an entry must have been used for ScopeRecent
+	// to check it.
+	Recent time.Duration `yaml:"recent"`
 }
 
 // Scopes of revalidation.
@@ -43,11 +48,12 @@ const (
 )
 
 // The bounds of revalidation: passes closer than minRevalidateInterval
-// would mostly find entries checked by the last one, and a budget above
-// maxRevalidateBudget would come close to GitHub's secondary rate limits.
+// would mostly find entries checked by the last one, and more requests a
+// minute than maxRevalidatePerMinute would come close to GitHub's
+// secondary rate limits.
 const (
-	minRevalidateInterval = 10 * time.Second
-	maxRevalidateBudget   = 300
+	minRevalidateInterval  = 10 * time.Second
+	maxRevalidatePerMinute = 300
 )
 
 // Disk configures the disk cache, which keeps what doesn't change, such as
@@ -88,10 +94,7 @@ const (
 const minDiskSize = 8 * MiB
 
 func (c Cache) validate() error {
-	var errs []error
-	if c.TTL <= 0 {
-		errs = append(errs, fmt.Errorf("cache.ttl: must be positive, got %v", c.TTL))
-	}
+	errs := append(c.TTL.validate(), c.Memory.validate()...)
 	d := c.Disk
 	if d.MaxSize < minDiskSize {
 		errs = append(errs, fmt.Errorf("cache.disk.max_size: must be at least %v, got %v", minDiskSize, d.MaxSize))
@@ -109,11 +112,14 @@ func (c Cache) validate() error {
 	if r.Interval < minRevalidateInterval {
 		errs = append(errs, fmt.Errorf("cache.revalidate.interval: must be at least %v, got %v", minRevalidateInterval, r.Interval))
 	}
-	if r.Budget < 1 || r.Budget > maxRevalidateBudget {
-		errs = append(errs, fmt.Errorf("cache.revalidate.budget: must be between 1 and %d, got %d", maxRevalidateBudget, r.Budget))
+	if r.PerMinute < 1 || r.PerMinute > maxRevalidatePerMinute {
+		errs = append(errs, fmt.Errorf("cache.revalidate.per_minute: must be between 1 and %d, got %d", maxRevalidatePerMinute, r.PerMinute))
 	}
 	if !slices.Contains([]string{ScopeRecent, ScopeAll}, r.Scope) {
 		errs = append(errs, fmt.Errorf("cache.revalidate.scope: must be %s or %s, got %q", ScopeRecent, ScopeAll, r.Scope))
+	}
+	if r.Recent <= 0 {
+		errs = append(errs, fmt.Errorf("cache.revalidate.recent: must be positive, got %v", r.Recent))
 	}
 	return errors.Join(errs...)
 }

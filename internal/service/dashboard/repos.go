@@ -70,7 +70,7 @@ func (s *Service) FreshRepos(q ReposQuery) bool {
 	return s.repos.fresh(q.normalize().key())
 }
 
-// Repos returns the page for q. It is fresh for ReposTTL, and is served
+// Repos returns the page for q. It is fresh for TTLs.Repos, and is served
 // stale or offline as in Header. An organization that doesn't exist fails
 // with an error matching core.ErrNotFound.
 func (s *Service) Repos(ctx context.Context, q ReposQuery) (core.Page[core.Repo], error) {

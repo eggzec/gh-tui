@@ -34,7 +34,7 @@ func setup(t *testing.T, kept bool) (*cache.Cache[page], *cache.Shelf[page]) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	c, shelf := cache.New[page](), cache.NewShelf[page](store, "pages", 1)
+	c, shelf := cache.New[page](cache.WithTTL(time.Minute)), cache.NewShelf[page](store, "pages", 1)
 	if kept {
 		c.Set(key, old)
 		c.Invalidate(key)

@@ -53,7 +53,7 @@ func (r *Revalidator) pass(ctx context.Context) Pass {
 	// A pass sends what the budget allows in an interval, so that one over
 	// many entries doesn't hold back the next, which starts over from the
 	// most important ones.
-	quota := max(1, int(int64(r.cfg.budget)*int64(r.cfg.interval)/int64(time.Minute)))
+	quota := max(1, int(int64(r.cfg.PerMinute)*int64(r.cfg.Interval)/int64(time.Minute)))
 	p.Budget = quota
 	if n := len(first) + len(rest); n > quota {
 		p.Deferred += n - quota
@@ -80,8 +80,8 @@ func (r *Revalidator) pass(ctx context.Context) Pass {
 func (r *Revalidator) due(all []Entry, now time.Time) (first, rest []Entry) {
 	repo := r.selected()
 	r.mu.Lock()
-	for id, at := range r.checked {
-		if now.Sub(at) >= r.cfg.freshFor {
+	for id, until := range r.checked {
+		if !now.Before(until) {
 			delete(r.checked, id)
 		}
 	}
@@ -89,7 +89,7 @@ func (r *Revalidator) due(all []Entry, now time.Time) (first, rest []Entry) {
 	r.mu.Unlock()
 
 	for _, e := range all {
-		if now.Sub(e.CheckedAt) < r.cfg.freshFor {
+		if now.Sub(e.CheckedAt) < e.FreshFor {
 			continue
 		}
 		if _, ok := checked[e.ID]; ok {
@@ -98,7 +98,7 @@ func (r *Revalidator) due(all []Entry, now time.Time) (first, rest []Entry) {
 		// Entries of no repository, such as the inbox, are on every
 		// screen, but those not used lately, such as a filter tried once,
 		// are left out like any other.
-		inScope := r.cfg.scope == ScopeAll || now.Sub(e.UsedAt) < r.cfg.recent
+		inScope := r.cfg.scope == ScopeAll || now.Sub(e.UsedAt) < r.cfg.Recent
 		none := e.Repo == (core.RepoRef{})
 		switch {
 		case none && inScope, !none && sameRepo(e.Repo, repo):
@@ -199,7 +199,7 @@ func (r *Revalidator) record(p *Pass, e Entry, res Result) {
 	}
 	if res.Status == NotModified || res.Status == Changed {
 		r.mu.Lock()
-		r.checked[e.ID] = time.Now()
+		r.checked[e.ID] = time.Now().Add(e.FreshFor)
 		if res.Status == Changed && res.Sync != "" {
 			r.pending[res.Sync] = true
 		}

@@ -7,6 +7,7 @@ package recheck
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/core"
@@ -22,9 +23,10 @@ type Target struct {
 }
 
 // Entries returns the entries that shelf keeps with validators, as
-// entries of kind for a revalidator. target returns the target of the
-// entry under a key, or false for a key it can't check.
-func Entries[V any](shelf *cache.Shelf[V], kind string, target func(key string) (Target, bool)) []revalidate.Entry {
+// entries of kind for a revalidator, each fresh for ttl, the TTL of the
+// cache they are read into. target returns the target of the entry under
+// a key, or false for a key it can't check.
+func Entries[V any](shelf *cache.Shelf[V], kind string, ttl time.Duration, target func(key string) (Target, bool)) []revalidate.Entry {
 	var out []revalidate.Entry
 	for k := range shelf.Kept() {
 		if k.ETag == "" && k.LastModified == "" {
@@ -39,6 +41,7 @@ func Entries[V any](shelf *cache.Shelf[V], kind string, target func(key string) 
 			Repo:      t.Repo,
 			UsedAt:    k.UsedAt,
 			CheckedAt: k.FetchedAt,
+			FreshFor:  ttl,
 			Check:     t.Check,
 		})
 	}
