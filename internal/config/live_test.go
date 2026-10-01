@@ -365,7 +365,7 @@ func goPath(key string) []string {
 	var out []string
 	t := reflect.TypeFor[Config]()
 	for part := range strings.SplitSeq(key, ".") {
-		f, ok := fieldByYAML(t, part)
+		f, ok := fieldByName(t, part)
 		if !ok {
 			return nil
 		}

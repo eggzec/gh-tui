@@ -286,26 +286,16 @@ func (p PrefetchLayers) Resolve(page, kind string) (Resolved, error) {
 // layers returns the settings of page and of kind on it.
 func (p PrefetchLayers) layers(page, kind string) (pv, kv reflect.Value, err error) {
 	v := reflect.ValueOf(p)
-	pf, ok := fieldByYAML(v.Type(), page)
+	pf, ok := fieldByName(v.Type(), page)
 	if !ok || !isPage(pf.Type) {
 		return pv, kv, fmt.Errorf("%w %q", ErrUnknownKey, "prefetch."+page)
 	}
 	pv = v.FieldByIndex(pf.Index)
-	kf, ok := fieldByYAML(pf.Type, kind)
+	kf, ok := fieldByName(pf.Type, kind)
 	if !ok || !isKind(kf.Type) {
 		return pv, kv, fmt.Errorf("%w %q", ErrUnknownKey, "prefetch."+page+"."+kind)
 	}
 	return pv, pv.FieldByIndex(kf.Index), nil
-}
-
-// fieldByYAML returns the field of t named name in the config file.
-func fieldByYAML(t reflect.Type, name string) (reflect.StructField, bool) {
-	for f := range t.Fields() {
-		if yamlName(f) == name {
-			return f, true
-		}
-	}
-	return reflect.StructField{}, false
 }
 
 // windowBound returns the most rows on either side that kind on page may
