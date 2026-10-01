@@ -1,8 +1,10 @@
 package dashboard
 
 import (
+	"strings"
 	"testing"
 
+	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/pkg/termtext/termtexttest"
 )
 
@@ -14,11 +16,16 @@ func TestViewCleansHostileText(t *testing.T) {
 		svc := newFake()
 		p := &svc.header.Profile
 		p.Name, p.Bio, p.Company, p.Location, p.Status.Message = h, h, h, h, h
+		p.Login = termtexttest.HostileLogin
+		svc.header.Orgs = append(svc.header.Orgs, core.Org{Login: termtexttest.HostileLogin})
 		svc.work.ReviewRequested.Items[0].Issue.Title = h
 		svc.repos["@me"][0].Description = h
 		threads := inboxThreads()
 		threads[0].Subject.Title = h
 		s := newSection(t, svc, &fakeInbox{threads: threads}, w, 40)
 		termtexttest.AssertClean(t, s.View(), w)
+		if w == 190 && !strings.Contains(s.View(), "@"+termtexttest.CleanLogin) {
+			t.Errorf("the profile doesn't show the login cleaned: %q", s.View())
+		}
 	}
 }

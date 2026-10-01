@@ -259,7 +259,7 @@ func (s *Section) renderRow(pr core.PullRequest, selected bool, width int) strin
 	}
 	if c.author {
 		pad(&b, 2)
-		login, lw := truncate(pr.Author.Login, authorWidth)
+		login, lw := truncate(ui.OneLine(pr.Author.Login), authorWidth)
 		st.rowAuthor.write(&b, login)
 		pad(&b, authorWidth-lw)
 	}

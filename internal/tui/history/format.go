@@ -80,7 +80,7 @@ func appendNonEmpty(s []string, v string) []string {
 // handle names who signed in a row: the GitHub login, or else the name.
 func handle(s core.Signature) string {
 	if s.Login != "" {
-		return s.Login
+		return ui.OneLine(s.Login)
 	}
 	return ui.OneLine(s.Name)
 }
@@ -134,7 +134,7 @@ func (f format) person(s core.Signature) string {
 		parts = append(parts, "<"+ui.OneLine(s.Email)+">")
 	}
 	if s.Login != "" && !strings.EqualFold(s.Login, s.Name) {
-		parts = append(parts, "@"+s.Login)
+		parts = append(parts, "@"+ui.OneLine(s.Login))
 	}
 	return strings.Join(parts, " ")
 }

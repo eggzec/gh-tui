@@ -505,7 +505,7 @@ func (m *detailModal) renderComment(c core.Comment, width int) string {
 	b.WriteString("  ")
 	if issuesvc.IsPending(c) {
 		// The service may not know who the viewer is.
-		who := c.Author.Login
+		who := ui.OneLine(c.Author.Login)
 		if who == "" {
 			who = "you"
 		}
@@ -522,11 +522,13 @@ func (m *detailModal) renderComment(c core.Comment, width int) string {
 	return b.String()
 }
 
+// login is how a user shows: their login, cleaned since it comes from
+// GitHub, or "ghost" for a deleted account.
 func login(u core.User) string {
 	if u.Login == "" {
 		return "ghost"
 	}
-	return u.Login
+	return ui.OneLine(u.Login)
 }
 
 func plural(n int, noun string) string {

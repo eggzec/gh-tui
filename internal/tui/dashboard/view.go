@@ -276,7 +276,7 @@ func (s *Section) profile() []string {
 	switch h := s.header; {
 	case h.ok:
 		p := h.value.Profile
-		first = st.name.render(cleanLine(cmp.Or(p.Name, p.Login))) + " " + st.login.render("@"+p.Login)
+		first = st.name.render(cleanLine(cmp.Or(p.Name, p.Login))) + " " + st.login.render("@"+cleanLine(p.Login))
 		if p.Bio != "" {
 			first += st.subtle.render(" · ") + st.text.render(cleanLine(p.Bio))
 		}

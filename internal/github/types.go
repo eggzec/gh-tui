@@ -1,6 +1,9 @@
 package github
 
-import "github.com/eggzec/gh-tui/internal/core"
+import (
+	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/pkg/termtext"
+)
 
 // JSON shapes shared by the domain methods. REST and GraphQL use the same
 // field names for these, so one shape decodes both.
@@ -91,4 +94,13 @@ func (v viewerCaps) core() core.ItemCaps {
 		caps.Label, caps.LabelKnown = *v.ViewerCanLabel, true
 	}
 	return caps
+}
+
+// repoRef is the repository owner/name as GitHub named it in an answer.
+// GitHub keeps both to letters, digits and a few marks, but a hostile
+// server needn't, and they are drawn in many places, so they are cleaned
+// once here, as termtext.OneLine cleans any text from the API. A real
+// name comes back as it is, without allocating.
+func repoRef(owner, name string) core.RepoRef {
+	return core.RepoRef{Owner: termtext.OneLine(owner), Name: termtext.OneLine(name)}
 }

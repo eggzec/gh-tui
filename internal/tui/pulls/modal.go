@@ -529,7 +529,7 @@ func (m *detailModal) detailHeader(width int) string {
 	dot := st.sep.Render(" · ")
 	line(st.badge(d.PullRequest), "  ",
 		termtext.Link(d.URL, st.age.Render("#"+strconv.Itoa(d.Number))), dot,
-		st.title.Render(d.Author.Login), st.author.Render(" opened "+m.dates.Prose(d.CreatedAt, now)), dot,
+		st.title.Render(ui.OneLine(d.Author.Login)), st.author.Render(" opened "+m.dates.Prose(d.CreatedAt, now)), dot,
 		st.author.Render("updated "+m.dates.Prose(d.UpdatedAt, now)))
 
 	stats := []string{
@@ -597,7 +597,7 @@ func plural(n int, noun string) string {
 func (m *detailModal) renderComment(c core.Comment, width int) string {
 	st := &m.st
 	var b strings.Builder
-	b.WriteString(gutter + st.commenter.Render(c.Author.Login) + st.age.Render(" · "+m.dates.Prose(c.CreatedAt, m.now())))
+	b.WriteString(gutter + st.commenter.Render(ui.OneLine(c.Author.Login)) + st.age.Render(" · "+m.dates.Prose(c.CreatedAt, m.now())))
 	bar := gutter + st.bar
 	// The bar takes two cells, and as many stay free on the right.
 	body := m.thread.Markdown(c.Body, markdown.Room(width, 2*len(gutter)+2))

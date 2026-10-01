@@ -138,7 +138,7 @@ type pull struct {
 func (p pull) core() core.PullRequest {
 	pr := core.PullRequest{
 		ID:             p.ID,
-		Repo:           core.RepoRef{Owner: p.Repository.Owner.Login, Name: p.Repository.Name},
+		Repo:           repoRef(p.Repository.Owner.Login, p.Repository.Name),
 		Number:         p.Number,
 		Title:          p.Title,
 		State:          core.State(strings.ToLower(p.State)),

@@ -42,7 +42,7 @@ type searchRepo struct {
 func (r searchRepo) core() core.Repo {
 	return core.Repo{
 		ID:            r.NodeID,
-		Ref:           core.RepoRef{Owner: r.Owner.Login, Name: r.Name},
+		Ref:           repoRef(r.Owner.Login, r.Name),
 		Description:   r.Description,
 		DefaultBranch: r.DefaultBranch,
 		Language:      r.Language,
@@ -91,7 +91,7 @@ func repoFromURL(s string) core.RepoRef {
 	if len(parts) < 2 {
 		return core.RepoRef{}
 	}
-	return core.RepoRef{Owner: parts[len(parts)-2], Name: parts[len(parts)-1]}
+	return repoRef(parts[len(parts)-2], parts[len(parts)-1])
 }
 
 // searchResults is the body of a search response.

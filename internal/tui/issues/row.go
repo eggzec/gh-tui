@@ -197,7 +197,7 @@ func (s *Section) renderRow(it core.Issue, selected bool, width int) string {
 	}
 	if c.author {
 		pad(&b, gap)
-		writeFit(&b, st.meta, it.Author.Login, authorWidth)
+		writeFit(&b, st.meta, ui.OneLine(it.Author.Login), authorWidth)
 	}
 	if c.age {
 		pad(&b, gap)

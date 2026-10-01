@@ -20,6 +20,7 @@ func (f *hostile) Get(ctx context.Context, r core.RepoRef, id int64) (core.Relea
 	rel, err := f.fakeService.Get(ctx, r, id)
 	h := termtexttest.Hostile
 	rel.Name, rel.Tag = f.name, h
+	rel.Author.Login = termtexttest.HostileLogin
 	rel.Assets = []core.ReleaseAsset{{Name: h, Size: 5300, Downloads: 12}}
 	return rel, err
 }
@@ -37,6 +38,9 @@ func TestViewCleansHostileReleases(t *testing.T) {
 			}
 			termtexttest.AssertClean(t, v, w)
 			termtexttest.AssertClean(t, m.Title(), 1000)
+			if w == 148 && !strings.Contains(v, termtexttest.CleanLogin) {
+				t.Errorf("the release doesn't show its author cleaned: %q", v)
+			}
 		}
 	}
 }
