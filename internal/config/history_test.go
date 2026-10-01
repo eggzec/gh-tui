@@ -8,28 +8,6 @@ import (
 	"testing"
 )
 
-func TestHistoryDateFormats(t *testing.T) {
-	tests := []struct {
-		format string
-		ok     bool
-	}{
-		{DateRelative, true},
-		{DateAbsolute, true},
-		{"2006-01-02 15:04", true},
-		{"Jan _2", true},
-		{"", false},
-		{"   ", false},
-		{"yesterday", false},
-	}
-	for _, tt := range tests {
-		cfg := Default()
-		cfg.History.DateFormat = tt.format
-		if err := cfg.Validate(); (err == nil) != tt.ok {
-			t.Errorf("date_format %q: Validate() = %v, want ok = %v", tt.format, err, tt.ok)
-		}
-	}
-}
-
 func TestHistoryNeedsARowField(t *testing.T) {
 	cfg := Default()
 	cfg.History.Row = nil

@@ -4,7 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"time"
+	"unicode"
+
+	"github.com/charmbracelet/x/ansi"
 )
 
 // UI configures what every screen draws with.
@@ -14,6 +18,11 @@ type UI struct {
 	// Font and marks the types of files too, IconsUnicode or IconsASCII.
 	Icons string `yaml:"icons" scope:"global"`
 	Toast Toast  `yaml:"toast"`
+	// DateFormat is how every date reads, in the lists, the modals and
+	// the history: DateRelative, as an age, such as "3d" in a row and
+	// "3d ago" in a sentence, DateAbsolute ("2006-01-02 15:04 MST"), or
+	// a Go time layout such as "2006-01-02 15:04".
+	DateFormat string `yaml:"date_format"`
 }
 
 // Toast is how long a toast stays before it goes on its own.
@@ -26,6 +35,12 @@ type Toast struct {
 
 // minToast is the shortest a toast stays, so that it can be read.
 const minToast = time.Second
+
+// Date formats of [UI.DateFormat] besides a Go layout.
+const (
+	DateRelative = "relative"
+	DateAbsolute = "absolute"
+)
 
 // Icon sets.
 const (
@@ -45,5 +60,40 @@ func (u UI) validate() error {
 	if u.Toast.Error < minToast {
 		errs = append(errs, fmt.Errorf("ui.toast.error: must be at least %v, got %v", minToast, u.Toast.Error))
 	}
+	errs = append(errs, validateDateFormat(u.DateFormat))
 	return errors.Join(errs...)
+}
+
+// maxDateWidth bounds the cells a date takes, since the rows that always
+// show one, such as the notifications', have no room for a longer one.
+const maxDateWidth = 40
+
+func validateDateFormat(f string) error {
+	switch {
+	case !validDateFormat(f):
+		return fmt.Errorf(`ui.date_format: must be relative, absolute or a Go time layout such as "2006-01-02 15:04", got %q`, f)
+	case strings.ContainsFunc(f, unicode.IsControl):
+		return fmt.Errorf("ui.date_format: must be one line with no control characters, got %q", f)
+	}
+	if f == DateRelative || f == DateAbsolute {
+		return nil
+	}
+	// A Wednesday in September, the longest names of a day and a month.
+	wide := time.Date(2026, time.September, 30, 23, 59, 59, 999999999, time.UTC).Format(f)
+	if w := ansi.StringWidth(wide); w > maxDateWidth {
+		return fmt.Errorf("ui.date_format: must make dates of at most %d cells, but makes %q, %d cells", maxDateWidth, wide, w)
+	}
+	return nil
+}
+
+// validDateFormat reports whether f is a format name, or a layout with at
+// least one element of the reference time: any other text formats to
+// itself, whatever the time. The time must not be the reference time, which
+// formats every layout to itself.
+func validDateFormat(f string) bool {
+	if f == DateRelative || f == DateAbsolute {
+		return true
+	}
+	t := time.Date(2001, time.March, 4, 7, 8, 9, 0, time.UTC)
+	return strings.TrimSpace(f) != "" && t.Format(f) != f
 }

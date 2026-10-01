@@ -328,3 +328,36 @@ func TestCheckRenames(t *testing.T) {
 		t.Errorf("checkRenames(testRenames) = %v, want none", err)
 	}
 }
+
+// TestHistoryDateFormatRenamed reads the old history.date_format as
+// ui.date_format, which now tells every date, at the top level and for a
+// host, and names the old setting in what is wrong with it.
+func TestHistoryDateFormatRenamed(t *testing.T) {
+	t.Setenv(EnvLog, "")
+	cfg, renamed, err := loadBase(writeConfig(t, "history:\n  date_format: absolute\n"))
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.UI.DateFormat != DateAbsolute {
+		t.Errorf("ui.date_format = %q, want absolute", cfg.UI.DateFormat)
+	}
+	want := "history.date_format → ui.date_format (it now applies to every date)"
+	if len(renamed) != 1 || renamed[0].String() != want {
+		t.Errorf("renamed = %v, want %s", renamed, want)
+	}
+	f, err := Load(writeConfig(t, "hosts:\n  ghe.corp.com:\n    history:\n      date_format: absolute\n"))
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg, _, _ := f.Resolve("ghe.corp.com", ""); cfg.UI.DateFormat != DateAbsolute {
+		t.Errorf("the host's ui.date_format = %q, want absolute", cfg.UI.DateFormat)
+	}
+	for file, want := range map[string]string{
+		"history:\n  date_format: absolute\nui:\n  date_format: relative\n": "set only ui.date_format",
+		"history:\n  date_format: yesterday\n":                              `history.date_format (now ui.date_format): must be relative, absolute`,
+	} {
+		if _, err := Load(writeConfig(t, file)); err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("Load(%q) error = %v, want it to contain %q", file, err, want)
+		}
+	}
+}

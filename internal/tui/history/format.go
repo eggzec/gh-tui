@@ -12,9 +12,6 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/graph"
 )
 
-// absoluteLayout is how dates read with the absolute format.
-const absoluteLayout = "2006-01-02 15:04 MST"
-
 // rowDateLayout is how a row's date reads when dates are relative: the
 // row has an age field for that.
 const rowDateLayout = "2006-01-02"
@@ -26,16 +23,12 @@ const shortSHA = 7
 // the configured fields.
 type format struct {
 	row, detail []string
-	date        string
+	date        ui.Dates
 	email       bool
-	loc         *time.Location
 }
 
-func newFormat(h config.History, loc *time.Location) format {
-	return format{
-		row: slices.Clone(h.Row), detail: slices.Clone(h.Detail),
-		date: h.DateFormat, email: h.ShowEmail, loc: loc,
-	}
+func newFormat(h config.History, dates ui.Dates) format {
+	return format{row: slices.Clone(h.Row), detail: slices.Clone(h.Detail), date: dates, email: h.ShowEmail}
 }
 
 func short(sha string) string {
@@ -116,35 +109,20 @@ func coauthors(ts []core.Trailer) int {
 
 // rowDate is the date of a row, in the configured layout.
 func (f format) rowDate(t time.Time) string {
-	switch f.date {
-	case config.DateRelative:
-		return t.In(f.loc).Format(rowDateLayout)
-	case config.DateAbsolute:
-		return t.In(f.loc).Format(absoluteLayout)
-	}
-	return t.In(f.loc).Format(f.date)
+	return f.date.Date(t, rowDateLayout)
 }
 
 // dates is when a commit was authored in the header, and when it was
-// committed if that was later, as after a rebase.
+// committed if that was later, as after a rebase. Relative dates add the
+// date to an age, unless there are two.
 func (f format) dates(authored, committed, now time.Time) string {
-	later := committed.Sub(authored) > time.Minute
-	switch f.date {
-	case config.DateRelative:
-		if later {
-			return ui.AgoProse(authored, now) + ", committed " + ui.AgoProse(committed, now)
-		}
-		return ui.AgoProse(authored, now) + " · " + authored.In(f.loc).Format(absoluteLayout)
-	case config.DateAbsolute:
-		if later {
-			return authored.In(f.loc).Format(absoluteLayout) + ", committed " + committed.In(f.loc).Format(absoluteLayout)
-		}
-		return authored.In(f.loc).Format(absoluteLayout)
+	if committed.Sub(authored) > time.Minute {
+		return f.date.Prose(authored, now) + ", committed " + f.date.Prose(committed, now)
 	}
-	if later {
-		return authored.In(f.loc).Format(f.date) + ", committed " + committed.In(f.loc).Format(f.date)
+	if f.date.Relative() {
+		return f.date.Prose(authored, now) + " · " + f.date.Date(authored, ui.AbsoluteLayout)
 	}
-	return authored.In(f.loc).Format(f.date)
+	return f.date.Prose(authored, now)
 }
 
 // person is who signed in the header: the name, the email if configured,

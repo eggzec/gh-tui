@@ -22,10 +22,6 @@ type History struct {
 	// and email, they share one line, where the author is listed; list
 	// only one of them to always show just that one.
 	Detail []string `yaml:"detail"`
-	// DateFormat is how dates read: relative ("3d ago"), absolute
-	// ("2006-01-02 15:04 MST"), or a Go time layout such as
-	// "2006-01-02 15:04".
-	DateFormat string `yaml:"date_format"`
 	// ShowEmail shows the git email next to each name, and in trailers
 	// such as Co-authored-by.
 	ShowEmail bool            `yaml:"show_email"`
@@ -56,7 +52,7 @@ const (
 	FieldCommitter = "committer"
 	// FieldAge is how long ago the commit was authored, such as "3d".
 	FieldAge = "age"
-	// FieldDate is the date it was authored, in DateFormat, or as
+	// FieldDate is the date it was authored, in UI.DateFormat, or as
 	// 2006-01-02 when that is relative.
 	FieldDate = "date"
 	// FieldVerified marks a verified signature with ✓, and a signature
@@ -92,12 +88,6 @@ var (
 	}
 )
 
-// Date formats of [History.DateFormat] besides a Go layout.
-const (
-	DateRelative = "relative"
-	DateAbsolute = "absolute"
-)
-
 // maxAround bounds History.Prefetch.Around: each commit may be a large
 // diff, and the cursor rarely jumps further before it rests.
 const maxAround = 10
@@ -108,9 +98,6 @@ func (h History) validate() error {
 		errs = append(errs, errors.New("history.row: needs at least one field"))
 	}
 	errs = append(errs, validateFields("history.row", h.Row, HistoryRowFields), validateFields("history.detail", h.Detail, HistoryDetailFields))
-	if !validDateFormat(h.DateFormat) {
-		errs = append(errs, fmt.Errorf(`history.date_format: must be relative, absolute or a Go time layout such as "2006-01-02 15:04", got %q`, h.DateFormat))
-	}
 	if p := h.Prefetch; p.Around < 0 || p.Around > maxAround {
 		errs = append(errs, fmt.Errorf("history.prefetch.around: must be between 0 and %d, got %d", maxAround, p.Around))
 	}
@@ -133,16 +120,4 @@ func validateFields(name string, fields, known []string) error {
 		}
 	}
 	return errors.Join(errs...)
-}
-
-// validDateFormat reports whether f is a format name, or a layout with at
-// least one element of the reference time: any other text formats to
-// itself, whatever the time. The time must not be the reference time, which
-// formats every layout to itself.
-func validDateFormat(f string) bool {
-	if f == DateRelative || f == DateAbsolute {
-		return true
-	}
-	t := time.Date(2001, time.March, 4, 7, 8, 9, 0, time.UTC)
-	return strings.TrimSpace(f) != "" && t.Format(f) != f
 }

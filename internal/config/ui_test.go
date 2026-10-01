@@ -48,3 +48,32 @@ func TestUIFromFile(t *testing.T) {
 		t.Errorf("icons = %q, want %q", cfg.UI.Icons, IconsASCII)
 	}
 }
+
+func TestDateFormats(t *testing.T) {
+	tests := []struct {
+		format string
+		ok     bool
+	}{
+		{DateRelative, true},
+		{DateAbsolute, true},
+		{"2006-01-02 15:04", true},
+		{"Jan _2", true},
+		{"", false},
+		{"   ", false},
+		{"yesterday", false},
+		{"1/2/2006 3:04PM", true},
+		{"Jan 2\n15:04", false},
+		{"2006\x1b[31m", false},
+		// "Wednesday, 30 September 2026 23:59:59.999999999" is 49 cells.
+		{"Monday, 2 January 2006 15:04:05.000000000", false},
+		// "Wednesday, 30 September 2026 23:59 UTC" is 38.
+		{"Monday, 2 January 2006 15:04 MST", true},
+	}
+	for _, tt := range tests {
+		cfg := Default()
+		cfg.UI.DateFormat = tt.format
+		if err := cfg.Validate(); (err == nil) != tt.ok {
+			t.Errorf("date_format %q: Validate() = %v, want ok = %v", tt.format, err, tt.ok)
+		}
+	}
+}

@@ -12,6 +12,8 @@ type Option func(*options)
 
 type options struct {
 	cfg config.History
+	// dates tell the dates of the rows and the commit pane.
+	dates ui.Dates
 	// voice words the errors of the graph; New makes one of its keys if
 	// it is nil.
 	voice *ui.Voice
@@ -34,11 +36,16 @@ func defaultOptions() options {
 	return options{cfg: config.Default().History, now: time.Now, loc: time.Local, icons: ui.NewIcons(config.Default().UI.Icons)}
 }
 
-// WithConfig sets what the rows and the commit pane show, how dates read,
-// and how far the modal reads ahead. The default is that of
-// config.Default.
+// WithConfig sets what the rows and the commit pane show, and how far
+// the modal reads ahead. The default is that of config.Default.
 func WithConfig(h config.History) Option {
 	return func(o *options) { o.cfg = h }
+}
+
+// WithDates sets how dates read, as ui.date_format says. The default is
+// as ages.
+func WithDates(d ui.Dates) Option {
+	return func(o *options) { o.dates = d }
 }
 
 // WithVoice sets how the modal words what went wrong, with the keys a

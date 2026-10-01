@@ -53,6 +53,14 @@ var renames = []rename{
 			return map[string]*yaml.Node{"sync.poll.notifications": v["sync.interval"], "sync.poll.lists": v["sync.interval"]}, nil
 		},
 	},
+	// The history's date format is every date's now.
+	{
+		old: []string{"history.date_format"}, new: []string{"ui.date_format"},
+		note: "it now applies to every date",
+		move: func(old map[string]*yaml.Node) (map[string]*yaml.Node, error) {
+			return map[string]*yaml.Node{"ui.date_format": old["history.date_format"]}, nil
+		},
+	},
 }
 
 // checkRenames returns what is wrong with table: an old name that is a
