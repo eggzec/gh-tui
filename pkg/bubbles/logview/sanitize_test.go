@@ -114,15 +114,20 @@ func TestSanitizeView(t *testing.T) {
 	assertFits(t, v, 40, 3)
 }
 
-// However many colors a log holds, a frame writes at most one short
-// sequence for each cell: sequences too long to keep are dropped, and the
-// colors since the last reset fold into one.
-func TestSanitizeViewBounded(t *testing.T) {
+// However many colors a log holds, a frame averages at most 72 bytes a
+// cell: sequences too long to keep are dropped, the colors since the last
+// reset fold into one, and each change writes only what changes. The
+// costliest content measured, two opposite styles at every cell, takes
+// about 65; 72 leaves room above it. It is an average over the frame, not
+// a bound on each cell.
+func TestSanitizeViewAverageBytesBounded(t *testing.T) {
 	const width, height = 80, 10
 	huge := "\x1b[38;2;" + strings.Repeat("1", 60<<10) + "m"
 	rows := make([]Line, 0, height*2)
+	oppositeRows := make([]Line, 0, height*2)
 	for range height * 2 {
 		rows = append(rows, Line{Text: padded(width)})
+		oppositeRows = append(oppositeRows, Line{Text: opposite(width)})
 	}
 	for _, lines := range [][]Line{
 		{{Text: strings.Repeat("\x1b[1mx", 200_000)}},
@@ -130,6 +135,8 @@ func TestSanitizeViewBounded(t *testing.T) {
 		{{Text: strings.Repeat(huge+"x", 50)}},
 		{{Text: padded(width * height * 2)}},
 		rows,
+		{{Text: opposite(width * height * 2)}},
+		oppositeRows,
 	} {
 		m := view(t, lines, WithSize(width, height), WithLineNumbers(false))
 		start := time.Now()
@@ -137,8 +144,8 @@ func TestSanitizeViewBounded(t *testing.T) {
 		if d := time.Since(start); d > time.Second {
 			t.Errorf("a frame took %v", d)
 		}
-		if limit := 64 * width * height; len(v) > limit {
-			t.Errorf("a frame is %d bytes, more than %d", len(v), limit)
+		if limit := 72 * width * height; len(v) > limit {
+			t.Errorf("a frame is %d bytes, more than an average of 72 a cell (%d)", len(v), limit)
 		}
 		assertFits(t, v, width, height)
 	}
@@ -161,6 +168,22 @@ func padded(n int) string {
 			b.WriteString("\x1b[" + kind + ":2::" + pad(i) + ":" + pad(i/256) + ":" + pad(i+1) + "m")
 		}
 		b.WriteString("x")
+	}
+	return b.String()
+}
+
+// opposite is n cells of text that alternate two opposite styles, as
+// costly to change between as kept sequences allow: every attribute on
+// and off, two underline styles, and three true colors of three-digit
+// values, which no color of the other style shares.
+func opposite(n int) string {
+	styles := [2]string{
+		"\x1b[1;2;3;4:3;7;9;53m\x1b[38;2;255;254;253;48;2;252;251;250;58;2;249;248;247m",
+		"\x1b[22;23;27;29;55;4:5m\x1b[38;2;246;245;244;48;2;243;242;241;58;2;240;239;238m",
+	}
+	var b strings.Builder
+	for i := range n {
+		b.WriteString(styles[i%2] + "x")
 	}
 	return b.String()
 }
