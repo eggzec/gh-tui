@@ -20,6 +20,7 @@ func TestOnlineRetriesOnce(t *testing.T) {
 	}{
 		{"offline", fmt.Errorf("list pulls: %w", core.ErrOffline), 1},
 		{"server error", fmt.Errorf("list pulls: %w", core.ErrUnavailable), 1},
+		{"rate limited", fmt.Errorf("list pulls: %w", &core.RateLimitError{}), 1},
 		{"refused", fmt.Errorf("list pulls: %w", core.ErrNotFound), 0},
 		{"loaded", nil, 0},
 	}

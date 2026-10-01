@@ -85,6 +85,24 @@ func (m *Model[T]) Retry() tea.Cmd {
 	return cmd
 }
 
+// RetryKept fetches again every loaded chunk whose items came with
+// [ErrKept], such as once the source can give new ones, and returns nil
+// if none did. A chunk being fetched already is left to finish.
+func (m *Model[T]) RetryKept() tea.Cmd {
+	var cmd tea.Cmd
+	for i := range m.chunks {
+		if c := &m.chunks[i]; c.kept && c.loaded && !c.fetching {
+			if cmd == nil {
+				// The new items may move the selected one, as after a
+				// Reload.
+				m.anchorSelection()
+			}
+			cmd = tea.Batch(cmd, m.startFetch(i))
+		}
+	}
+	return cmd
+}
+
 // receive stores a fetched chunk. Results that no longer match a chunk, for
 // example because the chunk was already fetched again, are dropped.
 func (m *Model[T]) receive(msg chunkMsg[T]) tea.Cmd {
@@ -96,9 +114,9 @@ func (m *Model[T]) receive(msg chunkMsg[T]) tea.Cmd {
 		return nil
 	}
 	c.fetching = false
-	stale := errors.Is(msg.err, ErrStale)
-	if msg.err != nil && !stale {
-		c.err = msg.err
+	stale, kept := errors.Is(msg.err, ErrStale), errors.Is(msg.err, ErrKept)
+	if msg.err != nil && !stale && !kept {
+		c.err, c.kept = msg.err, false
 		m.refreshError()
 		return nil
 	}
@@ -108,7 +126,7 @@ func (m *Model[T]) receive(msg chunkMsg[T]) tea.Cmd {
 		m.chunks = append(m.chunks, chunk[T]{cursor: msg.cursor})
 	}
 	c = &m.chunks[msg.index]
-	c.items, c.n, c.loaded = msg.items, len(msg.items), true
+	c.items, c.n, c.loaded, c.kept = msg.items, len(msg.items), true, kept
 	if appended || msg.next != c.next {
 		// The chunks after this one no longer follow from it, so fetch
 		// them again from its new next cursor.

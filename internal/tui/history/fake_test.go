@@ -44,8 +44,11 @@ type fake struct {
 	// stale serves the first page of commits Stale, as a page an earlier
 	// session kept, until a read marked to read again.
 	stale bool
-	errs  map[string]error
-	calls []string
+	// limited serves every page of branches and of commits Limited, as
+	// pages kept while GitHub rate limits the reads.
+	limited bool
+	errs    map[string]error
+	calls   []string
 	// hold, if set, holds each read of a detail until it is closed or the
 	// read is cancelled.
 	hold      chan struct{}
@@ -161,9 +164,10 @@ func (f *fake) Branches(ctx context.Context, q historysvc.BranchesQuery) (core.P
 		if f.keptBranches[q.Cursor] && !q.Again {
 			p.Stale = true
 		}
+		p.Limited = f.limited
 		return p, nil
 	}
-	return core.Page[core.Branch]{Items: slices.Clone(f.branches)}, nil
+	return core.Page[core.Branch]{Items: slices.Clone(f.branches), Limited: f.limited}, nil
 }
 
 func at(cursor string) string {
@@ -190,7 +194,7 @@ func (f *fake) Commits(ctx context.Context, q historysvc.CommitsQuery) (core.Pag
 	h := f.histories[q.Ref]
 	start, _ := strconv.Atoi(q.Cursor)
 	end := min(start+commitPage, len(h))
-	p := core.Page[core.Commit]{Items: slices.Clone(h[start:end])}
+	p := core.Page[core.Commit]{Items: slices.Clone(h[start:end]), Limited: f.limited}
 	if end < len(h) {
 		p.Next = strconv.Itoa(end)
 	}

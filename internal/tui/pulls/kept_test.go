@@ -14,10 +14,11 @@ import (
 )
 
 // keptService serves the first read of each page as an earlier session
-// kept it, with "Kept " before each title, or every page offline.
+// kept it, with "Kept " before each title, or every page offline, or
+// rate limited.
 type keptService struct {
 	*fakeService
-	offline bool
+	offline, limited bool
 
 	mu     sync.Mutex
 	served map[pulls.ListQuery]bool
@@ -36,8 +37,9 @@ func (k *keptService) List(ctx context.Context, q pulls.ListQuery) (core.Page[co
 	if again {
 		k.served[q] = true
 	}
-	if k.offline {
-		p.Offline = true
+	if k.offline || k.limited {
+		// What GitHub sends next is no older than this.
+		k.served[q], p.Offline, p.Limited = true, k.offline, k.limited
 		return p, nil
 	}
 	if !k.served[q] {
@@ -74,5 +76,26 @@ func TestOfflineShowsKeptRows(t *testing.T) {
 	}
 	if h.feed.Len() == 0 || h.feed.Err() != nil {
 		t.Errorf("rows = %d, error %v; want the rows served offline", h.feed.Len(), h.feed.Err())
+	}
+}
+
+// TestKeptRowsReadAgainOnline checks that rows served offline, or rate
+// limited, are read again once GitHub answers or the limit lifts, once.
+func TestKeptRowsReadAgainOnline(t *testing.T) {
+	for _, limited := range []bool{false, true} {
+		t.Run(map[bool]string{false: "offline", true: "limited"}[limited], func(t *testing.T) {
+			svc := &keptService{fakeService: newFakeService(), offline: !limited, limited: limited, served: map[pulls.ListQuery]bool{}}
+			h := started(t, svc, 100, 12)
+			svc.mu.Lock()
+			svc.offline, svc.limited = false, false
+			svc.mu.Unlock()
+
+			n := len(svc.listed())
+			drain(t, h, h.Update(ui.OnlineMsg{}))
+			drain(t, h, h.Update(ui.OnlineMsg{}))
+			if got := len(svc.listed()) - n; got != 1 {
+				t.Errorf("lists read after two OnlineMsg = %d, want 1", got)
+			}
+		})
 	}
 }

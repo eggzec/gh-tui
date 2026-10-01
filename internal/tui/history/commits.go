@@ -27,11 +27,17 @@ type commits struct {
 	// stale is set by a fetch that served a first page an earlier session
 	// kept, so that the modal reads it again.
 	stale *atomic.Bool
+	// kept is set by a read that served a first page from what an earlier
+	// read kept, because GitHub couldn't be reached or rate limited it, or
+	// by a read of the head that failed, so that the modal reads the head
+	// again once GitHub answers.
+	kept  *atomic.Bool
 	fetch graph.Fetch
 }
 
 // headMsg carries the first commit of branch gen, read again after a stale
-// first page was shown, or after a sync event.
+// first page was shown, after a sync event, or once GitHub answers again
+// after a kept first page was shown.
 type headMsg struct {
 	id    int64
 	gen   int
@@ -53,8 +59,8 @@ func (g *commits) show(m *Modal, branch string) tea.Cmd {
 	g.ctx, g.cancel = context.WithCancel(m.ctx)
 	g.gen++
 	g.branch = branch
-	g.stale = new(atomic.Bool)
-	g.fetch = m.fetchCommits(branch, g.stale)
+	g.stale, g.kept = new(atomic.Bool), new(atomic.Bool)
+	g.fetch = m.fetchCommits(branch, g.stale, g.kept)
 	m.ahead.Reset(g.ctx)
 	m.seq++
 	m.commit.clear()
@@ -72,17 +78,20 @@ func (g *commits) show(m *Modal, branch string) tea.Cmd {
 }
 
 // fetchCommits reads the history of branch for the graph, a page at a time.
-func (m *Modal) fetchCommits(branch string, stale *atomic.Bool) graph.Fetch {
+func (m *Modal) fetchCommits(branch string, stale, kept *atomic.Bool) graph.Fetch {
 	svc, repo, format, now, host := m.svc, m.repo, m.format, m.opts.now, m.opts.host
 	return func(ctx context.Context, cursor string) ([]graph.Commit, string, error) {
 		ctx, end := obs.Begin(ctx, "history.commits")
 		p, err := svc.Commits(ctx, historysvc.CommitsQuery{Repo: repo, Ref: branch, Cursor: cursor})
-		end(err, "span", "tui", "repo", repo.String(), "ref", branch, "first", cursor == "", "stale", p.Stale)
+		end(err, "span", "tui", "repo", repo.String(), "ref", branch, "first", cursor == "", "stale", p.Stale, "offline", p.Offline, "limited", p.Limited)
 		if err != nil {
 			return nil, "", err
 		}
 		if p.Stale && cursor == "" {
 			stale.Store(true)
+		}
+		if (p.Offline || p.Limited) && cursor == "" {
+			kept.Store(true)
 		}
 		t := now()
 		out := make([]graph.Commit, len(p.Items))
@@ -119,11 +128,16 @@ func (m *Modal) updateGraph(msg tea.Msg) tea.Cmd {
 // GitHub whether it moved, and reports its first commit.
 func (m *Modal) readHead() tea.Cmd {
 	g := &m.graph
-	svc, repo, ctx, id, gen, branch := m.svc, m.repo, g.ctx, m.id, g.gen, g.branch
+	svc, repo, ctx, id, gen, branch, kept := m.svc, m.repo, g.ctx, m.id, g.gen, g.branch, g.kept
 	return func() tea.Msg {
 		ctx, end := obs.Begin(ctx, "history.head")
 		p, err := svc.Commits(ctx, historysvc.CommitsQuery{Repo: repo, Ref: branch, Again: true})
-		end(err, "span", "tui", "repo", repo.String(), "ref", branch)
+		end(err, "span", "tui", "repo", repo.String(), "ref", branch, "offline", p.Offline, "limited", p.Limited)
+		if kept != nil && (err != nil || p.Offline || p.Limited) {
+			// The head is read again at the next wake, until GitHub
+			// answers with it.
+			kept.Store(true)
+		}
 		msg := headMsg{id: id, gen: gen, err: err}
 		if len(p.Items) > 0 {
 			msg.first = p.Items[0].SHA

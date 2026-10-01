@@ -32,11 +32,16 @@ type jobs struct {
 	folds map[string]fold
 	// more reports that the run has more jobs than the pages read list.
 	more bool
-	// loaded is set once a page arrived, and loading while one is read
-	// with none to show yet.
+	// loaded is set once a page arrived, and loading while one is read.
 	loaded, loading bool
 	err             error
-	cursor, top     int
+	// kept reports that the jobs shown were served from what an earlier
+	// read kept, because GitHub couldn't be reached or rate limited the
+	// read, so they are read again once it answers. Only a read clears
+	// it: the cache holds such a page without its marks, so a page from
+	// CachedAllJobs may be the kept one.
+	kept        bool
+	cursor, top int
 }
 
 func newJobs(r core.Run) jobs {
@@ -203,7 +208,7 @@ func (m *Modal) receiveJobs(msg jobsMsg) tea.Cmd {
 		m.jobs.err = msg.err
 		return nil
 	}
-	m.jobs.err = nil
+	m.jobs.err, m.jobs.kept = nil, msg.page.Offline || msg.page.Limited
 	return m.setJobs(msg.page, false)
 }
 

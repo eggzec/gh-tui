@@ -1,6 +1,7 @@
 package history
 
 import (
+	"cmp"
 	"context"
 	"slices"
 	"strconv"
@@ -37,6 +38,14 @@ type branches struct {
 	loaded  bool
 	loading bool
 	err     error
+	// kept reports that a page shown was served from what an earlier read
+	// kept, because GitHub couldn't be reached or rate limited the read,
+	// so the branches are read again once it answers.
+	kept bool
+	// follow names the branch the cursor was on when the branches were
+	// read again from the first page, until a page brings it back or the
+	// user moves, so that the cursor returns to it from a later page.
+	follow string
 
 	cursor, top int
 	// defaultBranch is listed first, and the others are compared with it.
@@ -99,7 +108,7 @@ func (m *Modal) loadBranches(cursor string, again bool) tea.Cmd {
 	return tea.Batch(m.startSpinner(), func() tea.Msg {
 		ctx, end := obs.Begin(ctx, "history.branches")
 		p, err := svc.Branches(ctx, historysvc.BranchesQuery{Repo: repo, Cursor: cursor, Again: again})
-		end(err, "span", "tui", "repo", repo.String(), "first", cursor == "", "stale", p.Stale)
+		end(err, "span", "tui", "repo", repo.String(), "first", cursor == "", "stale", p.Stale, "offline", p.Offline, "limited", p.Limited)
 		return branchesMsg{id: id, cursor: cursor, page: p, err: err}
 	})
 }
@@ -119,8 +128,12 @@ func (m *Modal) receiveBranches(msg branchesMsg) tea.Cmd {
 	b.err = nil
 	selected, _ := b.selected()
 	if msg.cursor == "" {
-		b.items, b.pages = nil, 0
+		if b.follow == "" {
+			b.follow = selected.Name
+		}
+		b.items, b.pages, b.kept = nil, 0, false
 	}
+	b.kept = b.kept || msg.page.Offline || msg.page.Limited
 	b.items = append(slices.Clip(b.items), msg.page.Items...)
 	b.pages++
 	b.next = msg.page.Next
@@ -134,13 +147,18 @@ func (m *Modal) receiveBranches(msg branchesMsg) tea.Cmd {
 	}
 	first := !b.loaded
 	b.loaded = true
-	switch {
+	switch name := cmp.Or(b.follow, selected.Name); {
 	case first:
 		b.cursor = max(b.index(m.graph.shown()), 0)
-	case selected.Name != "":
-		if i := b.index(selected.Name); i >= 0 {
-			b.cursor = i
+		b.follow = ""
+	case name != "":
+		if i := b.index(name); i >= 0 {
+			b.cursor, b.follow = i, ""
 		}
+	}
+	if b.next == "" {
+		// No page left to bring it back.
+		b.follow = ""
 	}
 	b.clamp()
 	m.scrollBranches()
@@ -168,7 +186,7 @@ func (m *Modal) moreBranches() tea.Cmd {
 	if b.next == "" || b.loading || b.err != nil {
 		return nil
 	}
-	if b.filter == nil && b.cursor+branchAhead < len(b.items) {
+	if b.filter == nil && b.follow == "" && b.cursor+branchAhead < len(b.items) {
 		return nil
 	}
 	// A later page is appended where it goes rather than shown and read
@@ -222,6 +240,7 @@ func (m *Modal) pressBranches(msg tea.KeyPressMsg) tea.Cmd {
 	default:
 		return nil
 	}
+	b.follow = ""
 	b.clamp()
 	m.scrollBranches()
 	if b.cursor == before {
@@ -388,7 +407,7 @@ func (m *Modal) updateFilter(msg tea.Msg) tea.Cmd {
 		if msg.ID != b.filter.ID() {
 			return nil
 		}
-		b.filter = nil
+		b.filter, b.follow = nil, ""
 		name, _ := msg.Item.Value.(string)
 		if i := b.index(name); i >= 0 {
 			b.cursor = i

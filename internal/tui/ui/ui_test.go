@@ -204,10 +204,11 @@ func TestFeedPages(t *testing.T) {
 		t.Errorf("stale page = %v, %q, %v; want its items with feed.ErrStale", items, next, err)
 	}
 	// A kept page served for want of GitHub isn't read again at once:
-	// that read would be served the same.
+	// that read would be served the same. The feed reads it again once
+	// GitHub answers, or the limit lifts.
 	for _, cursor := range []string{"stale", "limited"} {
-		if items, _, err := fetch(t.Context(), cursor); err != nil || len(items) != 1 {
-			t.Errorf("page %q = %v, %v; want its items", cursor, items, err)
+		if items, _, err := fetch(t.Context(), cursor); !errors.Is(err, feed.ErrKept) || len(items) != 1 {
+			t.Errorf("page %q = %v, %v; want its items with feed.ErrKept", cursor, items, err)
 		}
 	}
 	if _, _, err := fetch(t.Context(), "fail"); err == nil || errors.Is(err, feed.ErrStale) {
