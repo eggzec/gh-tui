@@ -33,14 +33,37 @@ import (
 // setting in it; the whole config given on doesn't.
 func TestLiveSettingsAreRead(t *testing.T) {
 	read := liveReads(t)
+	for _, group := range unapplied {
+		for key := range read {
+			if key == group || strings.HasPrefix(key, group+".") {
+				t.Errorf("%s is applied now, so take %s off the list of groups nothing applies yet", key, group)
+				break
+			}
+		}
+	}
 	for _, key := range Keys() {
-		if _, ok := Startup(key); ok {
+		if _, ok := Startup(key); ok || isUnapplied(key) {
 			continue
 		}
 		if !read[key] {
 			t.Errorf("%s changes while the app runs, but nothing applies it when the settings change: apply it where they are, or tag it when:\"startup\" with why", key)
 		}
 	}
+}
+
+// unapplied are the groups of settings that the config holds, checks and
+// resolves, and that nothing reads yet. prefetch.* is read by each list
+// as it moves to it. A group leaves the list once anything applies it.
+var unapplied = []string{"prefetch"}
+
+// isUnapplied reports whether key is in a group of unapplied.
+func isUnapplied(key string) bool {
+	for _, group := range unapplied {
+		if key == group || strings.HasPrefix(key, group+".") {
+			return true
+		}
+	}
+	return false
 }
 
 // liveReads returns the settings that the path the set command applies
@@ -280,7 +303,7 @@ func markRead(p []string, acc map[string][][]string, read map[string]bool) {
 
 // accessors returns, for each method of this package that reads settings
 // for others, such as Config.DashboardPrefetch, what it reads, relative
-// to its receiver. Validate, Get, Set and Values read every setting, and
+// to its receiver, where an empty path is the receiver whole. Validate, Get, Set and Values read every setting, and
 // so say nothing of whether one is applied.
 func accessors(t *testing.T) map[string][][]string {
 	t.Helper()
@@ -312,15 +335,24 @@ func accessors(t *testing.T) map[string][][]string {
 			}
 			recv := fn.Recv.List[0].Names[0].Name
 			s := scope{body: fn.Body, roots: map[string]bool{recv: true}}
+			name := chain(typ) + "." + fn.Name.Name
 			ast.Inspect(fn.Body, func(n ast.Node) bool {
-				sel, ok := n.(*ast.SelectorExpr)
-				if !ok {
-					return true
+				switch n := n.(type) {
+				case *ast.Ident:
+					// The prefetch settings used whole, as Resolve
+					// gives them to reflect, read every setting in them.
+					// Other methods that take their receiver whole, as
+					// clone does, apply nothing.
+					if n.Name == recv && chain(typ) == "PrefetchLayers" {
+						out[name] = append(out[name], []string{})
+					}
+				case *ast.SelectorExpr:
+					if p := s.resolve(n, nil); len(p) > 0 {
+						out[name] = append(out[name], p)
+					}
+					return false
 				}
-				if p := s.resolve(sel, nil); len(p) > 0 {
-					out[chain(typ)+"."+fn.Name.Name] = append(out[chain(typ)+"."+fn.Name.Name], p)
-				}
-				return false
+				return true
 			})
 		}
 	}
@@ -333,7 +365,7 @@ func goPath(key string) []string {
 	var out []string
 	t := reflect.TypeFor[Config]()
 	for part := range strings.SplitSeq(key, ".") {
-		f, ok := fieldByYAMLName(t, part)
+		f, ok := fieldByYAML(t, part)
 		if !ok {
 			return nil
 		}
@@ -343,11 +375,15 @@ func goPath(key string) []string {
 	return out
 }
 
-func fieldByYAMLName(t reflect.Type, name string) (reflect.StructField, bool) {
-	for f := range t.Fields() {
-		if yamlName(f) == name {
-			return f, true
+// TestResolveReadsEveryKnob checks that a list that applies its settings
+// with Resolve counts as reading every knob of prefetch, which Resolve
+// reaches through reflection rather than by name.
+func TestResolveReadsEveryKnob(t *testing.T) {
+	read := map[string]bool{}
+	markRead([]string{"Prefetch", "Resolve"}, accessors(t), read)
+	for _, key := range []string{"prefetch.enabled", "prefetch.pulls.window.after", "prefetch.files.preview.rest"} {
+		if !read[key] {
+			t.Errorf("Resolve doesn't count as reading %s", key)
 		}
 	}
-	return reflect.StructField{}, false
 }

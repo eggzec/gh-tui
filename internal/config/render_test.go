@@ -359,3 +359,36 @@ profiles:
 		}
 	}
 }
+
+// TestLayersYAMLPrefetchKnobs checks that a knob left to the layer above
+// isn't spelled, and nor is a group of them none of which is set, while
+// one that is set is, with its line.
+func TestLayersYAMLPrefetchKnobs(t *testing.T) {
+	t.Setenv(EnvLog, "")
+	cfg, src, err := resolvePath(t, writeConfig(t, "prefetch:\n  pulls:\n    window: {after: 6}\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := Layers{Source: src, Start: cfg, Session: cfg}.YAML()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, block, _ := strings.Cut(got, "\nprefetch:\n")
+	// Up to the next top-level setting.
+	var lines []string
+	for line := range strings.Lines(block) {
+		if !strings.HasPrefix(line, " ") {
+			break
+		}
+		lines = append(lines, line)
+	}
+	block = strings.Join(lines, "")
+	if want := "  pulls:\n    checks:\n      enabled: false\n    window:\n      after: 6 # config.yaml:3\n"; !strings.Contains(block, want) {
+		t.Errorf("the prefetch settings lack the pulls window, set alone:\n%s", block)
+	}
+	for _, unwanted := range []string{"issues:", "{}", "null"} {
+		if strings.Contains(block, unwanted) {
+			t.Errorf("the prefetch settings spell %q:\n%s", unwanted, block)
+		}
+	}
+}

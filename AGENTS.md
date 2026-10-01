@@ -327,7 +327,9 @@ reacts to messages. Concretely:
 - The default of every setting is in `internal/config/default.yaml`,
   embedded and commented, and only there. The user's file merges over it:
   mappings key by key, while lists and scalars replace, and an empty value
-  is refused. A new setting goes into default.yaml (`TestDefaultsComplete`).
+  is refused, except null on a prefetch knob that inherits, which hands it
+  back to the layer above. A new setting goes into default.yaml
+  (`TestDefaultsComplete`).
   A constant in Go that looks like a default must either move there or be
   listed as a true constant in `internal/config/testdata/constants.allow`
   (`TestNoDefaultsInGo`).

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"reflect"
 	"slices"
 	"strconv"
 	"sync"
@@ -59,7 +60,26 @@ func (c Config) clone() Config {
 	}
 	c.History.Row = slices.Clone(c.History.Row)
 	c.History.Detail = slices.Clone(c.History.Detail)
+	clonePointers(reflect.ValueOf(&c.Prefetch).Elem())
 	return c
+}
+
+// clonePointers points each pointer in v, an addressable struct, however
+// deep, at a copy of its own of what it points at.
+func clonePointers(v reflect.Value) {
+	for _, f := range v.Fields() {
+		switch f.Kind() {
+		case reflect.Struct:
+			clonePointers(f)
+		case reflect.Pointer:
+			if !f.IsNil() {
+				p := reflect.New(f.Type().Elem())
+				p.Elem().Set(f.Elem())
+				f.Set(p)
+			}
+		default:
+		}
+	}
 }
 
 // parseYAML returns the root node of the document in data, or nil when
@@ -126,12 +146,26 @@ func mappingIndex(m *yaml.Node, key string) int {
 // merge keys (<<) by the keys they bring, and every empty value is
 // refused. An empty value would be a third state beside a value and no
 // line at all, and it is easy to write by accident, as "editor:" with
-// nothing after it.
+// nothing after it. The one exception is a knob that may take its value
+// from the layer above (Inherits), where null hands it back, over what
+// default.yaml sets for it.
 func plain(n *yaml.Node, path string) (*yaml.Node, error) {
+	return plainAt(n, path, "")
+}
+
+// names stands for the setting path of the entries of hosts and of
+// profiles, whose keys are names, such as a host's, rather than settings.
+const names = "\x00names"
+
+// plainAt is plain of n at path in the file, which is the setting at
+// setting: the same path, but inside an entry of hosts or profiles, where
+// it starts again at the entry. Host names hold dots, so it is kept
+// apart as the tree is walked rather than cut from path.
+func plainAt(n *yaml.Node, path, setting string) (*yaml.Node, error) {
 	for n.Kind == yaml.AliasNode {
 		n = n.Alias
 	}
-	if isNull(n) {
+	if isNull(n) && !Inherits(setting) {
 		return nil, fmt.Errorf("line %d: %s is empty: remove the line to keep the default", n.Line, name(path))
 	}
 	out := *n
@@ -141,13 +175,13 @@ func plain(n *yaml.Node, path string) (*yaml.Node, error) {
 		var errs []error
 		for i, item := range n.Content {
 			var err error
-			if out.Content[i], err = plain(item, path+"["+strconv.Itoa(i)+"]"); err != nil {
+			if out.Content[i], err = plainAt(item, path+"["+strconv.Itoa(i)+"]", setting+"["+strconv.Itoa(i)+"]"); err != nil {
 				errs = append(errs, err)
 			}
 		}
 		return &out, errors.Join(errs...)
 	case yaml.MappingNode:
-		return plainMapping(n, path)
+		return plainMapping(n, path, setting)
 	case yaml.DocumentNode, yaml.ScalarNode, yaml.AliasNode:
 		// A scalar is taken as it is; the others were resolved above, or
 		// by parseYAML.
@@ -157,7 +191,7 @@ func plain(n *yaml.Node, path string) (*yaml.Node, error) {
 
 // plainMapping is plain of a mapping: its own keys, then those that its
 // merge keys bring and it doesn't set itself, as YAML reads them.
-func plainMapping(n *yaml.Node, path string) (*yaml.Node, error) {
+func plainMapping(n *yaml.Node, path, setting string) (*yaml.Node, error) {
 	out := *n
 	out.Content = nil
 	var merged []*yaml.Node
@@ -172,7 +206,15 @@ func plainMapping(n *yaml.Node, path string) (*yaml.Node, error) {
 			errs = append(errs, fmt.Errorf("line %d: %s is set twice, here and at line %d", k.Line, join(path, k.Value), out.Content[j].Line))
 			continue
 		}
-		pv, err := plain(v, join(path, k.Value))
+		child := join(setting, k.Value)
+		switch {
+		case path == "" && (k.Value == hostsKey || k.Value == profilesKey):
+			child = names
+		case setting == names:
+			// An entry's settings, under its name.
+			child = ""
+		}
+		pv, err := plainAt(v, join(path, k.Value), child)
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -180,7 +222,7 @@ func plainMapping(n *yaml.Node, path string) (*yaml.Node, error) {
 		out.Content = append(out.Content, k, pv)
 	}
 	for _, m := range merged {
-		pm, err := plain(m, path)
+		pm, err := plainAt(m, path, setting)
 		if err != nil {
 			errs = append(errs, err)
 			continue

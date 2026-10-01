@@ -18,6 +18,7 @@
 internal/config/defaults.go:defaultTree  keep: default.yaml parsed, what every default is read from
 internal/config/defaults.go:defaultYAML  keep: default.yaml itself, embedded
 internal/config/defaults.go:defaults  keep: default.yaml decoded, what Default copies
+internal/config/prefetch.go:maxRest  keep: a bound Validate holds prefetch.*.rest to, not a default
 internal/config/size.go:KiB  keep: a unit
 internal/config/size.go:MiB  keep: a unit
 internal/config/size.go:GiB  keep: a unit

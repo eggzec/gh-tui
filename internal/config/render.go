@@ -116,6 +116,9 @@ type render struct {
 // default.yaml at path, or nil, whose keys give a mapping its order.
 func (r render) node(path string, def *yaml.Node, s, start, file reflect.Value) *yaml.Node {
 	switch s.Kind() {
+	case reflect.Pointer:
+		// A knob that may take its value from the layer above, set.
+		return r.node(path, def, s.Elem(), elem(start), elem(file))
 	case reflect.Struct:
 		n := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
 		fields := slices.Collect(s.Type().Fields())
@@ -125,7 +128,17 @@ func (r render) node(path string, def *yaml.Node, s, start, file reflect.Value) 
 		}
 		for _, i := range inOrder(def, names, false) {
 			name := names[i]
-			n.Content = append(n.Content, str(name), r.node(join(path, name), child(def, name), s.Field(i), field(start, i), field(file, i)))
+			v := s.Field(i)
+			if v.Kind() == reflect.Pointer && v.IsNil() {
+				// Left to the layer above, as the table of prefetch shows.
+				continue
+			}
+			c := r.node(join(path, name), child(def, name), v, field(start, i), field(file, i))
+			if c.Kind == yaml.MappingNode && len(c.Content) == 0 {
+				// A group of such knobs, none of them set.
+				continue
+			}
+			n.Content = append(n.Content, str(name), c)
 		}
 		return n
 	case reflect.Map:
@@ -214,6 +227,15 @@ func field(v reflect.Value, i int) reflect.Value {
 		return reflect.Value{}
 	}
 	return v.Field(i)
+}
+
+// elem returns what the pointer v points at, or the zero Value where v is
+// the zero Value or nil.
+func elem(v reflect.Value) reflect.Value {
+	if !v.IsValid() || v.IsNil() {
+		return reflect.Value{}
+	}
+	return v.Elem()
 }
 
 // entry returns the value of k in the map v, or the zero Value where v
