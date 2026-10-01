@@ -21,5 +21,19 @@ func DefaultStyle(isDark bool) ansi.StyleConfig {
 	}
 	s.ImageText.Format = "🖼 {{.text}}"
 	s.Image.Format = "({{.text}})"
+	// Glamour counts a quote's indent as its Indent cells, however wide
+	// the token it draws them with, so "│ " once made each quoted line a
+	// cell wider than the width. The bar is drawn twice instead, which is
+	// as wide as glamour counts, and quoteBars makes the second a space.
+	s.BlockQuote.Indent = new(uint(2))
+	s.BlockQuote.IndentToken = new(quoteToken)
 	return s
 }
+
+// quoteToken is what glamour draws each cell of a quote's indent with: a
+// bar, marked by a zero-width space as glamour's rather than the text's,
+// so quoteBars changes only the indent.
+const quoteToken = quoteBar + "\u200b"
+
+// quoteBar is the bar that shows a quote.
+const quoteBar = "│"
