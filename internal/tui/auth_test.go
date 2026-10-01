@@ -377,6 +377,10 @@ func TestAuthPromptQuotes(t *testing.T) {
 		{[]string{"/usr/bin/gh", "auth", "refresh", "--hostname=ghe.example.com:8443", "-s", "read:org"}, "gh auth refresh --hostname=ghe.example.com:8443 -s read:org"},
 		{[]string{"/usr/bin/gh", "x", ""}, "gh x ''"},
 		{[]string{"/usr/bin/gh", "$HOME", "a;b", "*"}, "gh '$HOME' 'a;b' '*'"},
+		// A first word with an = would read as an assignment.
+		{[]string{"A=b", "--x=y"}, "'A=b' --x=y"},
+		// zsh expands a word that starts with = to a program's path.
+		{[]string{"/usr/bin/gh", "=gh", "a=b"}, "gh '=gh' a=b"},
 	}
 	for _, tt := range tests {
 		if got := commandLine(tt.argv, "/usr/bin/gh"); got != tt.want {
