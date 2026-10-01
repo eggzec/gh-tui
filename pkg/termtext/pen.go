@@ -10,12 +10,19 @@ import "strings"
 // next in full each time, but a frame stays small whatever its content:
 // even when every cell changes every color and attribute.
 //
+// The base style may set what a [Style] never holds, such as blink or
+// conceal. The pen then never resets to write the whole of the next style
+// in one sequence, which would drop it, but resets only to write the base
+// style's own sequences again.
+//
 // The zero value has no base style and doesn't know what the terminal is
 // in.
 type Pen struct {
 	// on is the base style's own sequences, and base what they set.
 	on   string
 	base sgrState
+	// full is set when base holds all that on sets.
+	full bool
 	cur  sgrState
 	// known is set while the terminal is in cur.
 	known bool
@@ -26,7 +33,7 @@ type Pen struct {
 // attributes add to. It doesn't know what the terminal is in until
 // [Pen.Start].
 func NewPen(base string) Pen {
-	p := Pen{on: base}
+	p := Pen{on: base, full: true}
 	for s := base; s != ""; {
 		i := strings.IndexByte(s, '\x1b')
 		if i < 0 {
@@ -35,7 +42,11 @@ func NewPen(base string) Pen {
 		n, sgr := Escape(s[i:])
 		if sgr {
 			seq := s[i : i+n]
-			p.base.apply(seq[2 : len(seq)-1])
+			if !p.base.apply(seq[2 : len(seq)-1]) {
+				p.full = false
+			}
+		} else {
+			p.full = false
 		}
 		s = s[i+max(n, 1):]
 	}
@@ -64,6 +75,9 @@ func (p *Pen) Write(b *strings.Builder, seq string) {
 	}
 	next := p.base
 	next.attrs |= s.attrs
+	if s.under != underNone {
+		next.under = s.under
+	}
 	for _, c := range []struct{ to, from *string }{{&next.fg, &s.fg}, {&next.bg, &s.bg}, {&next.ul, &s.ul}} {
 		if *c.from != "" {
 			*c.to = *c.from
@@ -78,12 +92,14 @@ func (p *Pen) Write(b *strings.Builder, seq string) {
 
 // change returns what sets the terminal from p.cur, if known, to next,
 // the shortest of: what changes; a reset, the base style and what next
-// changes of it; and a reset that the whole of next follows in the same
-// sequence.
+// changes of it; and, when base holds the whole base style, a reset that
+// the whole of next follows in the same sequence.
 func (p *Pen) change(next sgrState) string {
 	best := "\x1b[m" + p.on + p.base.diff(next)
-	if seq := next.seq(); seq != "" && len(seq)+2 < len(best) {
-		best = "\x1b[0;" + seq[2:]
+	if p.full {
+		if seq := next.seq(); seq != "" && len(seq)+2 < len(best) {
+			best = "\x1b[0;" + seq[2:]
+		}
 	}
 	if p.known {
 		if diff := p.cur.diff(next); len(diff) < len(best) {
@@ -96,10 +112,10 @@ func (p *Pen) change(next sgrState) string {
 // attrOffs are the parameters that turn attributes off, and the
 // attributes each turns off.
 var attrOffs = []struct {
-	attrs uint16
+	attrs uint8
 	param string
 }{
-	{attrBold | attrDim, "22"}, {attrItalic, "23"}, {attrUnderline | attrDoubleUnderline, "24"},
+	{attrBold | attrDim, "22"}, {attrItalic, "23"},
 	{attrInverse, "27"}, {attrStrike, "29"}, {attrOverline, "55"},
 }
 
@@ -119,6 +135,9 @@ func (s sgrState) diff(next sgrState) string {
 		if next.attrs&a.attr != 0 && have&a.attr == 0 {
 			ps = append(ps, a.param)
 		}
+	}
+	if s.under != next.under {
+		ps = append(ps, underParams[next.under])
 	}
 	for _, c := range []struct{ from, to, off string }{{s.fg, next.fg, "39"}, {s.bg, next.bg, "49"}, {s.ul, next.ul, "59"}} {
 		switch {

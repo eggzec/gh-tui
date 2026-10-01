@@ -48,7 +48,12 @@ func TestStyler(t *testing.T) {
 		{name: "a color out of range is dropped", seqs: []string{"\x1b[31m", "\x1b[1;38;2;256;0;0m", "\x1b[48;5;1000m"},
 			want: []Style{{0, "\x1b[31m"}, {1, "\x1b[1;31m"}}},
 		{name: "bright colors", seqs: []string{"\x1b[91;103m"}, want: []Style{{0, "\x1b[91;103m"}}},
-		{name: "underline styles", seqs: []string{"\x1b[4:3m", "\x1b[4:0m"}, want: []Style{{0, "\x1b[4m"}, {1, ""}}},
+		// A terminal has one underline setting, which each of these
+		// overwrites.
+		{name: "underline styles", seqs: []string{"\x1b[4:3m", "\x1b[4:0m"}, want: []Style{{0, "\x1b[4:3m"}, {1, ""}}},
+		{name: "double then single underline", seqs: []string{"\x1b[21m", "\x1b[4m"}, want: []Style{{0, "\x1b[21m"}, {1, "\x1b[4m"}}},
+		{name: "single then double underline", seqs: []string{"\x1b[4;21m"}, want: []Style{{0, "\x1b[21m"}}},
+		{name: "unknown underline style", seqs: []string{"\x1b[4:9m"}, want: []Style{{0, "\x1b[4m"}}},
 		{name: "a cut color drops the rest", seqs: []string{"\x1b[1;38;5m"}, want: []Style{{0, "\x1b[1m"}}},
 		// Text that hides or flashes can make a file read other than it
 		// is.

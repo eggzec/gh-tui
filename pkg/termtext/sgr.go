@@ -69,37 +69,54 @@ func (s *Styler) seq() string {
 }
 
 // Attributes of an SGR style, with the parameters that set them.
+// Underline isn't one: a terminal has one underline setting, which 4, 21
+// and 4:n each overwrite.
 const (
-	attrBold uint16 = 1 << iota
+	attrBold uint8 = 1 << iota
 	attrDim
 	attrItalic
-	attrUnderline
-	attrDoubleUnderline
 	attrInverse
 	attrStrike
 	attrOverline
 )
 
 var attrParams = []struct {
-	attr  uint16
+	attr  uint8
 	param string
 }{
-	{attrBold, "1"}, {attrDim, "2"}, {attrItalic, "3"}, {attrUnderline, "4"},
-	{attrDoubleUnderline, "21"}, {attrInverse, "7"}, {attrStrike, "9"}, {attrOverline, "53"},
+	{attrBold, "1"}, {attrDim, "2"}, {attrItalic, "3"},
+	{attrInverse, "7"}, {attrStrike, "9"}, {attrOverline, "53"},
 }
+
+// Underline styles, the values of 4:n.
+const (
+	underNone uint8 = iota
+	underSingle
+	underDouble
+	underCurly
+	underDotted
+	underDashed
+)
+
+// underParams are the shortest parameters that set each underline style,
+// by its value.
+var underParams = [...]string{"24", "4", "21", "4:3", "4:4", "4:5"}
 
 // sgrState is the style SGR sequences set, as far as it colors and weighs
-// text: its attributes, and the parameters of its foreground, background
-// and underline colors, such as "31" or "38;5;208", or "" for the default.
+// text: its attributes, its underline style, and the parameters of its
+// foreground, background and underline colors, such as "31" or
+// "38;5;208", or "" for the default.
 type sgrState struct {
-	attrs      uint16
-	fg, bg, ul string
+	attrs, under uint8
+	fg, bg, ul   string
 }
 
-// apply folds the parameters of an SGR sequence into s. Those that don't
-// color or weigh text are dropped, blink and conceal too, since text that
-// hides or flashes can make a file read other than it is.
-func (s *sgrState) apply(params string) {
+// apply folds the parameters of an SGR sequence into s, and reports
+// whether s now holds all they set. Those that don't color or weigh text
+// are dropped, blink and conceal too, since text that hides or flashes
+// can make a file read other than it is.
+func (s *sgrState) apply(params string) (kept bool) {
+	kept = true
 	// The parameters, and where each starts in params, split without an
 	// allocation.
 	var (
@@ -110,7 +127,7 @@ func (s *sgrState) apply(params string) {
 	for off := 0; ; {
 		if len(ps) == maxSGRParams {
 			// Escape doesn't let such a sequence through.
-			return
+			return false
 		}
 		p, _, more := strings.Cut(params[off:], ";")
 		starts[len(ps)] = off
@@ -132,25 +149,31 @@ func (s *sgrState) apply(params string) {
 		case "3":
 			s.attrs |= attrItalic
 		case "4":
-			// 4:0 turns underline off; the other styles of 4:n are all
-			// underline here.
-			if colon && strings.TrimLeft(sub, "0") == "" {
-				s.attrs &^= attrUnderline | attrDoubleUnderline
-			} else {
-				s.attrs |= attrUnderline
+			s.under = underSingle
+			if colon {
+				// 4:0 turns underline off, and 4:1 to 4:5 set a style;
+				// one no terminal names is a plain underline.
+				switch n := strings.TrimLeft(sub, "0"); {
+				case n == "":
+					s.under = underNone
+				case len(n) == 1 && n[0] <= '5':
+					s.under = n[0] - '0'
+				default:
+					kept = false
+				}
 			}
 		case "7":
 			s.attrs |= attrInverse
 		case "9":
 			s.attrs |= attrStrike
 		case "21":
-			s.attrs |= attrDoubleUnderline
+			s.under = underDouble
 		case "22":
 			s.attrs &^= attrBold | attrDim
 		case "23":
 			s.attrs &^= attrItalic
 		case "24":
-			s.attrs &^= attrUnderline | attrDoubleUnderline
+			s.under = underNone
 		case "27":
 			s.attrs &^= attrInverse
 		case "29":
@@ -173,7 +196,7 @@ func (s *sgrState) apply(params string) {
 				n := colorArgs(ps[i+1:])
 				if n < 0 {
 					// The rest can't be read apart from the color.
-					return
+					return false
 				}
 				args = ps[i+1 : i+1+n]
 				i += n
@@ -182,6 +205,7 @@ func (s *sgrState) apply(params string) {
 			if !ok {
 				// A color no terminal reads is dropped, whatever it was
 				// before.
+				kept = false
 				continue
 			}
 			switch v {
@@ -193,23 +217,36 @@ func (s *sgrState) apply(params string) {
 				s.ul = c
 			}
 		default:
-			switch len(v) {
-			case 2:
-				if v[1] >= '0' && v[1] <= '7' {
-					switch v[0] {
-					case '3', '9':
-						s.fg = v
-					case '4':
-						s.bg = v
-					}
-				}
-			case 3:
-				if v[:2] == "10" && v[2] <= '7' {
-					s.bg = v
-				}
+			if !s.basicColor(v) {
+				kept = false
 			}
 		}
 	}
+	return kept
+}
+
+// basicColor sets the color that v, a parameter of one of the 16 colors,
+// names, and reports whether it was one.
+func (s *sgrState) basicColor(v string) bool {
+	switch len(v) {
+	case 2:
+		if v[1] >= '0' && v[1] <= '7' {
+			switch v[0] {
+			case '3', '9':
+				s.fg = v
+				return true
+			case '4':
+				s.bg = v
+				return true
+			}
+		}
+	case 3:
+		if v[:2] == "10" && v[2] >= '0' && v[2] <= '7' {
+			s.bg = v
+			return true
+		}
+	}
+	return false
 }
 
 // color returns the parameters that set the color of kind, 38, 48 or 58,
@@ -293,6 +330,11 @@ func (s sgrState) seq() string {
 	for _, a := range attrParams {
 		if s.attrs&a.attr != 0 {
 			ps = append(ps, a.param)
+		}
+		// In the order of the parameters' numbers, as most programs
+		// write them.
+		if a.attr == attrItalic && s.under != underNone {
+			ps = append(ps, underParams[s.under])
 		}
 	}
 	for _, c := range []string{s.fg, s.bg, s.ul} {
