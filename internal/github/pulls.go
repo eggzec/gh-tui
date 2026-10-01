@@ -46,6 +46,7 @@ var pullFields = fmt.Sprintf(`fragment pullFields on PullRequest {
   assignees(first: %d) { nodes { login name } }
   comments { totalCount }
   headRefName
+  headRefOid
   baseRefName
   reviewDecision
   additions
@@ -118,6 +119,7 @@ type pull struct {
 		TotalCount int `json:"totalCount"`
 	} `json:"comments"`
 	HeadRefName    string `json:"headRefName"`
+	HeadRefOid     string `json:"headRefOid"`
 	BaseRefName    string `json:"baseRefName"`
 	ReviewDecision string `json:"reviewDecision"`
 	Additions      int    `json:"additions"`
@@ -148,6 +150,7 @@ func (p pull) core() core.PullRequest {
 		URL:            p.URL,
 		Draft:          p.IsDraft,
 		HeadRef:        p.HeadRefName,
+		HeadSHA:        p.HeadRefOid,
 		BaseRef:        p.BaseRefName,
 		ReviewDecision: core.ReviewDecision(strings.ToLower(p.ReviewDecision)),
 		Additions:      p.Additions,
@@ -471,6 +474,11 @@ var pullIDQuery = `query PullID($owner: String!, $name: String!, $number: Int!) 
   repository(owner: $owner, name: $name) { pullRequest(number: $number) { id } }
 }`
 
+var pullHeadQuery = `query PullHead($id: ID!) {
+  ` + rateLimitField + `
+  node(id: $id) { ... on PullRequest { headRefOid } }
+}`
+
 // PullRequestID returns the node ID of pull request number of repo, which
 // the mutations take.
 func (c *Client) PullRequestID(ctx context.Context, repo core.RepoRef, number int) (string, error) {
@@ -502,8 +510,8 @@ func pullMutation(field string) string {
 }
 
 var (
-	mergePullMutation = `mutation MergePullRequest($id: ID!, $method: PullRequestMergeMethod!) {
-  result: mergePullRequest(input: {pullRequestId: $id, mergeMethod: $method}) { pullRequest { ...pullFields } }
+	mergePullMutation = `mutation MergePullRequest($id: ID!, $method: PullRequestMergeMethod!, $head: GitObjectID) {
+  result: mergePullRequest(input: {pullRequestId: $id, mergeMethod: $method, expectedHeadOid: $head}) { pullRequest { ...pullFields } }
 }
 ` + pullFields
 	closePullMutation   = pullMutation("closePullRequest")
@@ -535,15 +543,75 @@ func (c *Client) mutatePull(ctx context.Context, what, query string, vars map[st
 }
 
 // MergePullRequest merges the pull request with node ID id using method and
-// returns it as merged.
-func (c *Client) MergePullRequest(ctx context.Context, id string, method core.MergeMethod) (core.PullRequest, error) {
+// returns it as merged. A head other than "" pins the merge to that
+// commit: if the head branch has moved on since, GitHub refuses, and the
+// error is a *core.RefusedError that says new commits were pushed, so
+// that a merge never takes in commits the user didn't see.
+func (c *Client) MergePullRequest(ctx context.Context, id string, method core.MergeMethod, head string) (core.PullRequest, error) {
 	switch method {
 	case core.MergeCommit, core.MergeSquash, core.MergeRebase:
 	default:
 		return core.PullRequest{}, fmt.Errorf("merge pull request %s: unknown merge method %q", id, method)
 	}
-	vars := map[string]any{"id": id, "method": strings.ToUpper(string(method))}
-	return c.mutatePull(ctx, "merge", mergePullMutation, vars)
+	vars := map[string]any{"id": id, "method": strings.ToUpper(string(method)), "head": nil}
+	if head != "" {
+		vars["head"] = head
+	}
+	pr, err := c.mutatePull(ctx, "merge", mergePullMutation, vars)
+	if err != nil && head != "" && c.headMoved(ctx, id, head, err) {
+		return pr, &core.RefusedError{Action: "merge pull request " + id, Reason: HeadMoved, Err: err}
+	}
+	return pr, err
+}
+
+// HeadMoved is why a merge pinned to a head that has moved on is refused.
+const HeadMoved = "New commits were pushed; look again before merging"
+
+// headMoved reports whether err, the refusal of a merge of pull request id
+// pinned to head, is because the head branch moved on from head. GitHub
+// says so only in words, "Head branch was modified. Review and try the
+// merge again.", on the mutation's result. Any other refusal of the
+// result reads the head again, in case the words change: a head other than
+// head means new commits were pushed.
+func (c *Client) headMoved(ctx context.Context, id, head string, err error) bool {
+	e, ok := errors.AsType[*GraphQLError](err)
+	if !ok {
+		return false
+	}
+	refused := false
+	for _, item := range e.Errors {
+		if item.Type != "UNPROCESSABLE" || len(item.Path) == 0 || item.Path[len(item.Path)-1] != "result" {
+			continue
+		}
+		// Unlike "Head branch is out of date", which branch protection
+		// says of a head behind its base.
+		if strings.HasPrefix(strings.ToLower(item.Message), "head branch was modified") {
+			return true
+		}
+		refused = true
+	}
+	if !refused {
+		return false
+	}
+	now, herr := c.pullHead(ctx, id)
+	return herr == nil && now != "" && now != head
+}
+
+// pullHead returns the head commit of the pull request with node ID id.
+func (c *Client) pullHead(ctx context.Context, id string) (string, error) {
+	var data struct {
+		Node *struct {
+			HeadRefOid string `json:"headRefOid"`
+		} `json:"node"`
+	}
+	err := c.Query(ctx, pullHeadQuery, map[string]any{"id": id}, &data)
+	if err == nil && data.Node == nil {
+		err = errNoPull
+	}
+	if err != nil {
+		return "", fmt.Errorf("read the head of pull request %s: %w", id, err)
+	}
+	return data.Node.HeadRefOid, nil
 }
 
 // ClosePullRequest closes the pull request with node ID id without merging

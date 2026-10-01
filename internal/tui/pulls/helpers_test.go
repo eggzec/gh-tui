@@ -484,8 +484,12 @@ func (f *fakeService) change(what string, number int, edit func(*core.PullReques
 	})
 }
 
-func (f *fakeService) Merge(_ core.RepoRef, number int, method core.MergeMethod) *optimistic.Op {
-	return f.change("merge "+string(method), number, func(pr *core.PullRequest) { pr.State = core.StateMerged })
+func (f *fakeService) Merge(_ core.RepoRef, number int, method core.MergeMethod, head string) *optimistic.Op {
+	what := "merge " + string(method)
+	if head != "" {
+		what += " at " + head
+	}
+	return f.change(what, number, func(pr *core.PullRequest) { pr.State = core.StateMerged })
 }
 
 func (f *fakeService) Close(_ core.RepoRef, number int) *optimistic.Op {

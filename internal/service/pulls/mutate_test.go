@@ -36,7 +36,7 @@ var mutations = []mutation{
 	{
 		name:    "merge",
 		seed:    func(*core.PullRequest) {},
-		run:     func(s *Service, n int) *optimistic.Op { return s.Merge(repo, n, core.MergeRebase) },
+		run:     func(s *Service, n int) *optimistic.Op { return s.Merge(repo, n, core.MergeRebase, "9f1c2e4") },
 		method:  "merge",
 		how:     core.MergeRebase,
 		changed: func(pr core.PullRequest) bool { return pr.State == core.StateMerged && pr.MergedAt.Equal(clock) },
@@ -275,5 +275,24 @@ func TestMutationLookupFails(t *testing.T) {
 	}
 	if n := api.count("close"); n != 0 {
 		t.Errorf("close called %d times, want 0 without a node ID", n)
+	}
+}
+
+// A merge sends the head it was confirmed for, which pins it there.
+func TestMergeSendsHead(t *testing.T) {
+	for _, head := range []string{"9f1c2e4", ""} {
+		api := &fakeAPI{mutate: func(context.Context, string, string, core.MergeMethod) (core.PullRequest, error) {
+			return core.PullRequest{Number: 1, State: core.StateMerged}, nil
+		}}
+		s := seeded(t, api, func(*core.PullRequest) {})
+		if err := s.Merge(repo, 1, core.MergeSquash, head).Do(t.Context()); err != nil {
+			t.Fatalf("merge: %v", err)
+		}
+		api.mu.Lock()
+		got := api.heads
+		api.mu.Unlock()
+		if len(got) != 1 || got[0] != head {
+			t.Errorf("merge sent heads %q, want [%q]", got, head)
+		}
 	}
 }

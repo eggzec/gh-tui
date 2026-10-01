@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -477,13 +478,24 @@ func TestPullMutations(t *testing.T) {
 			name:    "merge",
 			fixture: "pulls_merge.json",
 			call: func(c *Client) (core.PullRequest, error) {
-				return c.MergePullRequest(t.Context(), id, core.MergeSquash)
+				return c.MergePullRequest(t.Context(), id, core.MergeSquash, "")
 			},
-			mutation: "mergePullRequest(input: {pullRequestId: $id, mergeMethod: $method})",
-			vars:     map[string]any{"id": id, "method": "SQUASH"},
+			mutation: "mergePullRequest(input: {pullRequestId: $id, mergeMethod: $method, expectedHeadOid: $head})",
+			vars:     map[string]any{"id": id, "method": "SQUASH", "head": nil},
 			check: func(pr core.PullRequest) bool {
-				return pr.State == core.StateMerged && pr.MergedAt.Equal(pullTime("2026-09-23T09:00:04Z"))
+				return pr.State == core.StateMerged && pr.MergedAt.Equal(pullTime("2026-09-23T09:00:04Z")) &&
+					pr.HeadSHA == "9f1c2e4b7a0d3c5e8f6a1b2c3d4e5f6a7b8c9d0e"
 			},
+		},
+		{
+			name:    "merge pinned to a head",
+			fixture: "pulls_merge.json",
+			call: func(c *Client) (core.PullRequest, error) {
+				return c.MergePullRequest(t.Context(), id, core.MergeSquash, "9f1c2e4")
+			},
+			mutation: "mergePullRequest(input: {pullRequestId: $id, mergeMethod: $method, expectedHeadOid: $head})",
+			vars:     map[string]any{"id": id, "method": "SQUASH", "head": "9f1c2e4"},
+			check:    func(pr core.PullRequest) bool { return pr.State == core.StateMerged },
 		},
 		{
 			name:     "close",
@@ -544,7 +556,7 @@ func TestPullMutations(t *testing.T) {
 
 func TestMergePullRequestUnknownMethod(t *testing.T) {
 	c, reqs := pullServer(t, "pulls_merge.json")
-	if _, err := c.MergePullRequest(t.Context(), "PR_1", "fast-forward"); err == nil {
+	if _, err := c.MergePullRequest(t.Context(), "PR_1", "fast-forward", ""); err == nil {
 		t.Error("merge with an unknown method succeeded")
 	}
 	if n := len(reqs()); n != 0 {
@@ -553,12 +565,34 @@ func TestMergePullRequestUnknownMethod(t *testing.T) {
 }
 
 func TestPullMutationErrors(t *testing.T) {
+	const moved = `{"data":{"result":null},"errors":[{"type":"UNPROCESSABLE","path":["result"],"message":"Head branch was modified. Review and try the merge again."}]}`
 	tests := []struct {
 		name   string
 		status int
 		body   string
-		check  func(error) bool
+		// head is the head the merge is pinned to.
+		head  string
+		check func(error) bool
 	}{
+		{
+			name:   "head moved on",
+			status: http.StatusOK,
+			body:   moved,
+			head:   "9f1c2e4",
+			check: func(err error) bool {
+				e, ok := errors.AsType[*core.RefusedError](err)
+				return ok && e.Reason == HeadMoved && errors.Is(err, core.ErrConflict) && core.KindOf(err) == core.Rejected
+			},
+		},
+		{
+			name:   "head moved on, unpinned",
+			status: http.StatusOK,
+			body:   moved,
+			check: func(err error) bool {
+				_, refused := errors.AsType[*core.RefusedError](err)
+				return !refused && errors.Is(err, core.ErrConflict)
+			},
+		},
 		{
 			name:   "not mergeable",
 			status: http.StatusOK,
@@ -593,7 +627,7 @@ func TestPullMutationErrors(t *testing.T) {
 				w.WriteHeader(tt.status)
 				_, _ = w.Write([]byte(tt.body))
 			}))
-			_, err := c.MergePullRequest(t.Context(), "PR_1", core.MergeCommit)
+			_, err := c.MergePullRequest(t.Context(), "PR_1", core.MergeCommit, tt.head)
 			if err == nil || !tt.check(err) {
 				t.Errorf("error = %v, want %s", err, tt.name)
 			}
@@ -617,5 +651,55 @@ func TestGetPullRequestCaps(t *testing.T) {
 	}
 	if want := (core.CheckCounts{Passed: 34}); got.CheckCounts != want {
 		t.Errorf("check counts = %+v, want %+v", got.CheckCounts, want)
+	}
+}
+
+// TestMergeHeadMoved checks how a refusal of a merge pinned to a head is
+// read: GitHub's words for a head that moved on map to HeadMoved at once,
+// and any other refusal of the result reads the head again, which maps
+// to HeadMoved only if it moved.
+func TestMergeHeadMoved(t *testing.T) {
+	const pinned = "9f1c2e4"
+	refusal := func(msg string, path string) string {
+		return `{"data":{"result":null},"errors":[{"type":"UNPROCESSABLE","path":[` + path + `],"message":"` + msg + `"}]}`
+	}
+	tests := []struct {
+		name, body, head string
+		// reads is how many requests the merge takes.
+		reads int
+		moved bool
+	}{
+		{"GitHub's words", refusal("Head branch was modified. Review and try the merge again.", `"result"`), pinned, 1, true},
+		{"other words, head moved", refusal("Expected the head to be 9f1c2e4.", `"result"`), "b2c3d4e", 2, true},
+		{"behind its base, head still", refusal("Head branch is out of date. Review and try the merge again.", `"result"`), pinned, 2, false},
+		{"not the result", refusal("Head branch was modified.", `"other"`), "b2c3d4e", 1, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var reads atomic.Int32
+			c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				reads.Add(1)
+				var req struct {
+					Query string `json:"query"`
+				}
+				_ = json.NewDecoder(r.Body).Decode(&req)
+				if strings.Contains(req.Query, "PullHead") {
+					_, _ = w.Write([]byte(`{"data":{"node":{"headRefOid":"` + tt.head + `"}}}`))
+					return
+				}
+				_, _ = w.Write([]byte(tt.body))
+			}))
+			_, err := c.MergePullRequest(t.Context(), "PR_1", core.MergeSquash, pinned)
+			e, refused := errors.AsType[*core.RefusedError](err)
+			if moved := refused && e.Reason == HeadMoved; moved != tt.moved {
+				t.Errorf("error = %v, want moved %v", err, tt.moved)
+			}
+			if !errors.Is(err, core.ErrConflict) {
+				t.Errorf("error = %v, want it to match core.ErrConflict", err)
+			}
+			if n := int(reads.Load()); n != tt.reads {
+				t.Errorf("%d requests, want %d", n, tt.reads)
+			}
+		})
 	}
 }

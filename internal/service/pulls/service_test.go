@@ -41,6 +41,8 @@ type fakeAPI struct {
 
 	mu    sync.Mutex
 	calls map[string]int
+	// heads are the heads that merges were pinned to, in order.
+	heads []string
 }
 
 func (f *fakeAPI) called(method string) {
@@ -98,8 +100,11 @@ func (f *fakeAPI) PullRequestID(ctx context.Context, repo core.RepoRef, number i
 	return f.id(ctx, repo, number)
 }
 
-func (f *fakeAPI) MergePullRequest(ctx context.Context, id string, method core.MergeMethod) (core.PullRequest, error) {
+func (f *fakeAPI) MergePullRequest(ctx context.Context, id string, method core.MergeMethod, head string) (core.PullRequest, error) {
 	f.called("merge")
+	f.mu.Lock()
+	f.heads = append(f.heads, head)
+	f.mu.Unlock()
 	return f.mutate(ctx, "merge", id, method)
 }
 

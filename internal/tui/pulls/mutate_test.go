@@ -189,6 +189,20 @@ func question(h *host) string {
 	return ""
 }
 
+// A merge is pinned to the head commit the question was asked about.
+func TestMergePinnedToHead(t *testing.T) {
+	svc := newFakeService()
+	svc.mu.Lock()
+	svc.pulls[slices.IndexFunc(svc.pulls, func(pr core.PullRequest) bool { return pr.Number == 142 })].HeadSHA = "a1b2c3d"
+	svc.mu.Unlock()
+	s := started(t, svc, 80, 20)
+	press(t, s, "m")
+	press(t, s, "y")
+	if got, want := svc.changes(), []string{"merge squash at a1b2c3d 142"}; !slices.Equal(got, want) {
+		t.Errorf("changes = %v, want %v", got, want)
+	}
+}
+
 func TestASecondYesChangesOnce(t *testing.T) {
 	tests := []struct {
 		name string
@@ -287,6 +301,15 @@ func TestYesAsksAgain(t *testing.T) {
 			meddle: func(t *testing.T, s *host, _ *fakeService) {
 				t.Helper()
 				drain(t, s, s.Update(ui.CapsMsg{Repo: repo, Caps: core.RepoCaps{Known: true, Permission: core.PermissionWrite, Rebase: true}}))
+			},
+		},
+		{
+			name: "new commits pushed, from the list",
+			lead: []string{"m"},
+			meddle: func(t *testing.T, s *host, svc *fakeService) {
+				t.Helper()
+				edit(svc, func(pr *core.PullRequest) { pr.HeadSHA = "b2c3d4e" })
+				reread(t, s)
 			},
 		},
 		{

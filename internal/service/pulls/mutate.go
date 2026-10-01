@@ -18,13 +18,15 @@ import (
 // change, every list page of the repository is marked stale for that reason,
 // and because the change reorders pull requests by update time.
 
-// Merge merges pull request number of repo with method.
-func (s *Service) Merge(repo core.RepoRef, number int, method core.MergeMethod) *optimistic.Op {
+// Merge merges pull request number of repo with method. A head other than
+// "" pins the merge to that commit, the head the user saw, so that GitHub
+// refuses it if new commits were pushed since.
+func (s *Service) Merge(repo core.RepoRef, number int, method core.MergeMethod, head string) *optimistic.Op {
 	now := s.now()
 	return s.change("merge", repo, number, func(pr *core.PullRequest) {
 		pr.State, pr.MergedAt = core.StateMerged, now
 	}, func(ctx context.Context, id string) (core.PullRequest, error) {
-		return s.api.MergePullRequest(ctx, id, method)
+		return s.api.MergePullRequest(ctx, id, method, head)
 	})
 }
 
