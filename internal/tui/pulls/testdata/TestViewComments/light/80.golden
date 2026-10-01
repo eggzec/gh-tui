@@ -11,7 +11,7 @@
   Cold starts read [1mevery[m page again. This keeps them on disk.                   
                                                                                 
   • Pages expire with their TTL                                                 
-  • [38;5;203;48;5;254m --no-disk [m turns it off                                                    
+  • [38;5;124;48;5;254m --no-disk [m turns it off                                                    
                                                                                 
   [1;38;2;31;35;48mhubot[m[38;2;138;144;160m · 5h ago[m                                                                
   [38;2;138;144;160m│ [m[38;5;27;1mWhat happened[m                                                               
@@ -22,15 +22,15 @@
   [38;2;138;144;160m│ [m[38;5;27;1mChecklist[m                                                                   
   [38;2;138;144;160m│ [m                                                                            
   [38;2;138;144;160m│ [m[✓] I searched the issues                                                   
-  [38;2;138;144;160m│ [m[ ] I tried [38;5;203;48;5;254m main [m                                                          
+  [38;2;138;144;160m│ [m[ ] I tried [38;5;124;48;5;254m main [m                                                          
                                                                                 
   [1;38;2;31;35;48moctocat[m[38;2;138;144;160m · 4h ago[m                                                              
-  [38;2;138;144;160m│ [mLooks like [38;5;203;48;5;254m renderComment [m wraps the body as plain text, see #12 and [38;5;29;1mthe[m    
+  [38;2;138;144;160m│ [mLooks like [38;5;124;48;5;254m renderComment [m wraps the body as plain text, see #12 and [38;5;29;1mthe[m    
   [38;2;138;144;160m│ [m[1;38;5;29mdocs [m[38;5;36;4mhttps://github.com/charmbracelet/glamour[m. cc @mona                     
   [38;2;138;144;160m│ [m                                                                            
-  [38;2;138;144;160m│ [m  [38;2;39;158;252mfunc [m[38;2;1;159;87mrender[m[38;2;250;120;120m([m[38;2;42;42;42mbody [m[38;2;112;73;194mstring[m[38;2;250;120;120m) [m[38;2;112;73;194mstring [m[38;2;250;120;120m{[m                                         
-  [38;2;138;144;160m│ [m      [38;2;39;158;252mreturn [m[38;2;42;42;42mansi[m[38;2;250;120;120m.[m[38;2;1;159;87mWrap[m[38;2;250;120;120m([m[38;2;42;42;42mbody[m[38;2;250;120;120m, [m[38;2;34;204;174m80[m[38;2;250;120;120m, [m[38;2;126;91;56m""[m[38;2;250;120;120m)[m                                        
-  [38;2;138;144;160m│ [m  [38;2;250;120;120m}[m                                                                         
+  [38;2;138;144;160m│ [m  [38;2;207;34;46mfunc [m[38;2;102;57;186mrender[m[38;2;31;35;40m(body [m[38;2;5;80;174mstring[m[38;2;31;35;40m) [m[38;2;5;80;174mstring [m[38;2;31;35;40m{[m                                         
+  [38;2;138;144;160m│ [m      [38;2;207;34;46mreturn [m[38;2;31;35;40mansi.[m[38;2;102;57;186mWrap[m[38;2;31;35;40m(body, [m[38;2;5;80;174m80[m[38;2;31;35;40m, [m[38;2;10;48;105m""[m[38;2;31;35;40m)[m                                        
+  [38;2;138;144;160m│ [m  [38;2;31;35;40m}[m                                                                         
                                                                                 
   [1;38;2;31;35;48mmonalisa[m[38;2;138;144;160m · 3h ago[m                                                             
   [38;2;138;144;160m│ [m│ the comments inside the current issue and pr are not rendering            
