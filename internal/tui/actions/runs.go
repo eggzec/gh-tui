@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -233,7 +234,13 @@ func (m *Modal) renderRun(r core.Run, selected bool, w int) string {
 		took = st.Warning.Render("cancelling")
 	case !r.Done() && r.Status != core.RunInProgress:
 		took = st.Warning.Render(ui.StatusText(r.Status))
+	case r.Conclusion == core.ConclusionSkipped:
+		// As its jobs and steps say.
+		took = st.Subtle.Render("skipped")
 	case !ok:
+	case r.Done() && d < time.Second/2:
+		// A run that ended as it was created, such as one cancelled
+		// while queued, never ran, so it has no duration.
 	case r.Done():
 		took = st.Subtle.Render(ui.Duration(d))
 	default:
