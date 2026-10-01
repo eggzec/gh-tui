@@ -342,3 +342,18 @@ func TestRetry(t *testing.T) {
 		t.Error("Retry with nothing failed returned a command")
 	}
 }
+
+func TestAt(t *testing.T) {
+	m := typed(t, open(t, 40, 8, sample), "rend")
+	for i := range m.Matches() {
+		m2 := keys(t, m, slices.Repeat([]string{"down"}, i)...)
+		if it, ok := m.At(i); !ok || it.Path != selected(m2) {
+			t.Errorf("At(%d) = %q, %v, want %q, the row the cursor reaches", i, it.Path, ok, selected(m2))
+		}
+	}
+	for _, i := range []int{-1, m.Matches()} {
+		if it, ok := m.At(i); ok {
+			t.Errorf("At(%d) = %q, want no row", i, it.Path)
+		}
+	}
+}

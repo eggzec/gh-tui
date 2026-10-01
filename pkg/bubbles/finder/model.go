@@ -222,6 +222,15 @@ func (m Model) Selected() (Item, bool) {
 	return m.corpus.items[m.res.items[m.sel]], true
 }
 
+// At returns the item of row i among the matches, and false for a row
+// that isn't there.
+func (m Model) At(i int) (Item, bool) {
+	if m.res == nil || i < 0 || i >= len(m.res.items) {
+		return Item{}, false
+	}
+	return m.corpus.items[m.res.items[i]], true
+}
+
 // Index returns the row of the selection among the matches.
 func (m Model) Index() int { return m.sel }
 
