@@ -15,6 +15,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
 )
@@ -202,6 +203,13 @@ func TestAheadStopsAtRateLimit(t *testing.T) {
 	}
 }
 
+// win sets the window of a to before and after, with the rest it has,
+// and returns it.
+func win(a *Ahead[int], before, after int) *Ahead[int] {
+	a.Configure(config.Resolved{Enabled: true, Window: config.Window{Before: before, After: after}, Rest: a.delay})
+	return a
+}
+
 // rest runs the delay cmd started, and passes its message to a.
 func rest(t *testing.T, a *Ahead[int], cmd tea.Cmd) tea.Cmd {
 	t.Helper()
@@ -279,7 +287,7 @@ func TestNilAhead(t *testing.T) {
 	var a *Ahead[int]
 	a.Reset(t.Context())
 	a.Resume()
-	if a.First(rowsOf(3)) != nil || a.Moved(1, true) != nil || a.Rested(AheadMsg{}) != nil {
+	if a.First(rowsOf(3)) != nil || a.Moved(1, true) != nil || a.Window(rowsOf(3), 0) != nil || a.On() || a.Rested(AheadMsg{}) != nil {
 		t.Error("a nil Ahead read ahead")
 	}
 }
@@ -359,6 +367,172 @@ func TestAheadAroundCancelsTheLastReads(t *testing.T) {
 		}
 		close(r.hold)
 	})
+}
+
+func TestAheadWindowFirstReadsAtOnce(t *testing.T) {
+	r := newReader()
+	r.cached[3] = true
+	a := NewAhead("row", r.readRow, r.current, 0, time.Hour)
+	a.Reset(t.Context())
+
+	if cmd := win(a, 1, 4).Window(nil, 0); cmd != nil {
+		t.Error("Window read ahead before the list loaded")
+	}
+	// The list loading counts as a rest: no delay, and nothing above the
+	// first row.
+	cmd := win(a, 1, 4).Window(rowsOf(30), 0)
+	if cmd == nil {
+		t.Fatal("the first window read nothing")
+	}
+	if _, ok := cmd().(AheadMsg); ok {
+		t.Fatal("the first window waited for the cursor to rest")
+	}
+	if got, want := r.reads(), []int{1, 2, 4, 5}; !slices.Equal(got, want) {
+		t.Errorf("read %v, want the row under the cursor and the four below it but the cached one, %v", got, want)
+	}
+	if cmd := win(a, 1, 4).Window(rowsOf(30), 0); cmd != nil {
+		t.Error("the same window read again without the cursor moving")
+	}
+}
+
+func TestWindowRows(t *testing.T) {
+	// Row 10 is at index 9. The row under the cursor comes first, then
+	// the nearest rows, the one below before the one above.
+	if got, want := windowRows(rowsOf(30), 9, 2, 3), []int{10, 11, 9, 12, 8, 13}; !slices.Equal(got, want) {
+		t.Errorf("window %v, want %v", got, want)
+	}
+	// Nothing above the first row nor past the loaded ones.
+	if got, want := windowRows(rowsOf(3), 0, 2, 4), []int{1, 2, 3}; !slices.Equal(got, want) {
+		t.Errorf("window %v, want %v", got, want)
+	}
+	if got, want := windowRows(rowsOf(30), 4, 0, 0), []int{5}; !slices.Equal(got, want) {
+		t.Errorf("window %v, want the row under the cursor only, %v", got, want)
+	}
+}
+
+func TestAheadWindowStartsNearestFirst(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		r := newReader()
+		r.hold = make(chan struct{})
+		a := NewAhead("row", r.readRow, r.current, 0, 0)
+		a.Reset(t.Context())
+		done := make(chan struct{})
+		go func() {
+			run(win(a, 2, 3).Window(rowsOf(30), 9))
+			close(done)
+		}()
+		synctest.Wait()
+		// The farther rows wait for a worker.
+		if got, want := r.reads(), []int{9, 10, 11}; !slices.Equal(got, want) {
+			t.Errorf("started %v, want the row under the cursor and the nearest, %v", got, want)
+		}
+		close(r.hold)
+		<-done
+		if got, want := r.reads(), []int{8, 9, 10, 11, 12, 13}; !slices.Equal(got, want) {
+			t.Errorf("read %v, want %v", got, want)
+		}
+	})
+}
+
+func TestAheadWindowRereadsOnEveryRest(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		r := newReader()
+		a := NewAhead("row", r.readRow, r.current, 0, 150*time.Millisecond)
+		a.Reset(t.Context())
+		rows := rowsOf(30)
+		run(win(a, 0, 1).Window(rows, 0))
+
+		// The cursor passes row 5 for row 6 before it rests.
+		passed := win(a, 0, 1).Window(rows, 4)
+		rested := win(a, 0, 1).Window(rows, 5)
+		start := time.Now()
+		if cmd := rest(t, a, passed); cmd != nil {
+			t.Error("the rest of a window the cursor left read it")
+		}
+		run(rest(t, a, rested))
+		if waited := time.Since(start); waited != 150*time.Millisecond {
+			t.Errorf("waited %v, want the delay", waited)
+		}
+		if got, want := r.reads(), []int{1, 2, 6, 7}; !slices.Equal(got, want) {
+			t.Errorf("read %v, want the first window and the one rested on, %v", got, want)
+		}
+
+		// Back on the first row, which went stale meanwhile: the rest
+		// reads the window again, and only what isn't cached.
+		r.mu.Lock()
+		delete(r.cached, 2)
+		r.mu.Unlock()
+		run(rest(t, a, win(a, 0, 1).Window(rows, 0)))
+		if got, want := r.reads(), []int{1, 2, 2, 6, 7}; !slices.Equal(got, want) {
+			t.Errorf("read %v, want the stale row again, %v", got, want)
+		}
+		if cmd := rest(t, a, win(a, 0, 1).Window(rows, 5)); cmd != nil {
+			t.Error("a rest on a window all cached read it")
+		}
+	})
+}
+
+func TestAheadWindowSkipsRowsWithNoDetail(t *testing.T) {
+	r := newReader()
+	a := NewAhead("row", r.readRow, r.current, 0, 0)
+	a.Reset(t.Context())
+	// Even rows, such as directories, have no detail, but count toward the
+	// window.
+	at := func(i int) (int, bool) { return i + 1, i%2 == 1 }
+	run(win(a, 2, 2).Window(at, 4))
+	if got, want := r.reads(), []int{4, 6}; !slices.Equal(got, want) {
+		t.Errorf("read %v, want the rows with a detail within two of row 5, %v", got, want)
+	}
+}
+
+func TestAheadWindowCancelsTheLastRest(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		r := newReader()
+		r.hold = make(chan struct{})
+		a := NewAhead("row", r.readRow, r.current, 0, time.Millisecond)
+		a.Reset(t.Context())
+		first := win(a, 0, 1).Window(rowsOf(30), 10)
+		done := make(chan struct{})
+		go func() {
+			run(first)
+			close(done)
+		}()
+		synctest.Wait()
+		// The cursor rests elsewhere, which cancels the reads of the last
+		// rest.
+		second := rest(t, a, win(a, 0, 0).Window(rowsOf(30), 20))
+		<-done
+		r.mu.Lock()
+		cancelled := slices.Sorted(slices.Values(r.cancelled))
+		r.mu.Unlock()
+		if want := []int{11, 12}; !slices.Equal(cancelled, want) {
+			t.Errorf("cancelled %v, want the reads of the last rest, %v", cancelled, want)
+		}
+		close(r.hold)
+		run(second)
+		if got := r.reads(); !slices.Contains(got, 21) {
+			t.Errorf("read %v, want row 21 too", got)
+		}
+	})
+}
+
+func TestAheadWindowResetReadsAtOnce(t *testing.T) {
+	r := newReader()
+	a := NewAhead("row", r.readRow, r.current, 0, time.Hour)
+	a.Reset(t.Context())
+	run(win(a, 0, 0).Window(rowsOf(30), 0))
+	// Another list, such as another repository's, loads.
+	a.Reset(t.Context())
+	cmd := win(a, 0, 0).Window(func(i int) (int, bool) { return i + 100, i < 30 }, 0)
+	if cmd == nil {
+		t.Fatal("the first window of a new list read nothing")
+	}
+	if _, ok := cmd().(AheadMsg); ok {
+		t.Error("the first window of a new list waited for the cursor to rest")
+	}
+	if got, want := r.reads(), []int{1, 100}; !slices.Equal(got, want) {
+		t.Errorf("read %v, want %v", got, want)
+	}
 }
 
 // rowCounts returns the prefetch counters of the rows in stats, which the
@@ -724,4 +898,180 @@ func TestAheadLogsSkipped(t *testing.T) {
 	if limit == 0 {
 		t.Errorf("no prefetch skipped record:\n%s", buf.String())
 	}
+}
+
+// TestAheadWindowKeepsReadsStillInIt checks that a rest stops only the
+// reads of the rows that left the window, and neither stops nor sends
+// again those of the rows still in it.
+func TestAheadWindowKeepsReadsStillInIt(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		r := newReader()
+		r.hold = make(chan struct{})
+		a := NewAhead("row", r.readRow, r.current, 0, time.Millisecond)
+		a.Reset(t.Context())
+		win(a, 0, 2)
+		first := a.Window(rowsOf(30), 10)
+		done := make(chan struct{})
+		go func() {
+			run(first)
+			close(done)
+		}()
+		synctest.Wait()
+		// One row down: row 11 leaves the window, 12 and 13 stay, and 14
+		// comes in.
+		second := rest(t, a, a.Window(rowsOf(30), 11))
+		go run(second)
+		synctest.Wait()
+		r.mu.Lock()
+		cancelled, started := slices.Clone(r.cancelled), slices.Sorted(slices.Values(r.read))
+		r.mu.Unlock()
+		if want := []int{11}; !slices.Equal(cancelled, want) {
+			t.Errorf("cancelled %v, want only the row that left, %v", cancelled, want)
+		}
+		if want := []int{11, 12, 13, 14}; !slices.Equal(started, want) {
+			t.Errorf("started %v, want each row once, %v", started, want)
+		}
+		close(r.hold)
+		<-done
+		synctest.Wait()
+	})
+}
+
+// TestAheadWindowAfterResume checks that a window the rate limit stopped
+// is read once the reads resume, though the cursor didn't move.
+func TestAheadWindowAfterResume(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		r := newReader()
+		r.err = core.ErrRateLimited
+		a := NewAhead("row", r.readRow, r.current, 0, time.Millisecond)
+		a.Reset(t.Context())
+		win(a, 0, 1)
+		run(a.Window(rowsOf(30), 0))
+		if cmd := a.Window(rowsOf(30), 0); cmd != nil {
+			t.Error("the same window waited again under the rate limit")
+		}
+		r.mu.Lock()
+		r.err = nil
+		n := len(r.read)
+		r.mu.Unlock()
+		a.Resume()
+		run(rest(t, a, a.Window(rowsOf(30), 0)))
+		if got := r.reads(); len(got) <= n {
+			t.Errorf("read %v after Resume, want the window again", got)
+		}
+	})
+}
+
+func TestWindowRowsEdges(t *testing.T) {
+	var asked []int
+	at := func(i int) (int, bool) {
+		asked = append(asked, i)
+		// Rows 4 and 5 are the same item, as a list may show twice.
+		if i == 5 {
+			return 4, true
+		}
+		return i, i < 30
+	}
+	if got, want := windowRows(at, 4, 2, 2), []int{4, 3, 6, 2}; !slices.Equal(got, want) {
+		t.Errorf("window %v, want each item once, %v", got, want)
+	}
+	asked = nil
+	windowRows(at, 1, 3, 0)
+	if slices.ContainsFunc(asked, func(i int) bool { return i < 0 }) {
+		t.Errorf("asked for rows %v, want none above the first", asked)
+	}
+	if got := windowRows(at, -1, 1, 1); len(got) != 0 {
+		t.Errorf("window %v for no row, want none", got)
+	}
+}
+
+func TestAheadConfigureOff(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		r := newReader()
+		r.hold = make(chan struct{})
+		a := NewAhead("row", r.readRow, r.current, 0, time.Millisecond)
+		a.Reset(t.Context())
+		win(a, 0, 1)
+		cmd := a.Window(rowsOf(30), 0)
+		done := make(chan struct{})
+		go func() {
+			run(cmd)
+			close(done)
+		}()
+		synctest.Wait()
+		a.Configure(config.Resolved{Enabled: false})
+		<-done
+		if a.On() || a.Window(rowsOf(30), 5) != nil {
+			t.Error("the reads went on once the settings turned them off")
+		}
+		r.mu.Lock()
+		defer r.mu.Unlock()
+		if len(r.cancelled) != 2 {
+			t.Errorf("cancelled %v, want the reads in flight", r.cancelled)
+		}
+	})
+}
+
+// TestAheadsShareSlots checks that two Aheads that share slots keep to
+// them together.
+func TestAheadsShareSlots(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		r := newReader()
+		r.hold = make(chan struct{})
+		slots := NewSlots(2)
+		cmds := make([]tea.Cmd, 0, 2)
+		for range 2 {
+			a := NewAhead("row", r.readRow, r.current, 0, 0)
+			a.Share(slots)
+			a.Reset(t.Context())
+			cmds = append(cmds, win(a, 0, 3).Window(rowsOf(30), len(cmds)*10))
+		}
+		done := make(chan struct{})
+		go func() {
+			run(tea.Batch(cmds...))
+			close(done)
+		}()
+		synctest.Wait()
+		r.mu.Lock()
+		if r.inFlight != 2 {
+			t.Errorf("%d reads in flight, want the 2 slots", r.inFlight)
+		}
+		r.mu.Unlock()
+		slots.SetSize(3)
+		synctest.Wait()
+		r.mu.Lock()
+		if r.inFlight != 3 {
+			t.Errorf("%d reads in flight after the slots grew, want 3", r.inFlight)
+		}
+		r.mu.Unlock()
+		close(r.hold)
+		<-done
+	})
+}
+
+// TestAheadWindowFirstShownOnly checks that only the window of the list as
+// it first shows is read at once: when its first rows have nothing to
+// read, the first row that does waits for the cursor to rest.
+func TestAheadWindowFirstShownOnly(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		r := newReader()
+		a := NewAhead("row", r.readRow, r.current, 0, time.Hour)
+		a.Reset(t.Context())
+		// The first five rows are folders, with nothing to read.
+		at := func(i int) (int, bool) { return i + 1, i >= 5 && i < 30 }
+		if cmd := win(a, 0, 0).Window(at, 0); cmd != nil {
+			run(cmd)
+		}
+		cmd := a.Window(at, 5)
+		if cmd == nil {
+			t.Fatal("the first file started no rest")
+		}
+		start := time.Now()
+		if _, ok := cmd().(AheadMsg); !ok || time.Since(start) != time.Hour {
+			t.Error("the first file was read at once, want it to wait for the rest")
+		}
+		if got := r.reads(); len(got) != 0 {
+			t.Errorf("read %v before the cursor rested", got)
+		}
+	})
 }
