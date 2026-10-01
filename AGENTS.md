@@ -172,7 +172,8 @@ changes minimal so that pulling in new upstream versions stays easy.
 - Keep lists, details and comment pages on a `cache.Shelf`, in a directory
   per account (`<host>/entry/<account>`, a hash of host and the login gh
   is logged in as, or of host and token when the token comes from the
-  environment), so no account reads another's. A read that misses memory warms it from the
+  environment and no start has learned its login yet), so no account
+  reads another's. A read that misses memory warms it from the
   shelf in its `tea.Cmd`. A kept list page, dashboard value or page of
   branches comes back at once with `Stale` set, to every reader until
   any write replaces it: the revalidator, a poll, a read with `Again` set,
@@ -351,9 +352,16 @@ reacts to messages. Concretely:
   other, once the host and the token's account are known. Load validates
   every combination that can apply. A field tagged `scope:"global"` is set
   only at the top level; the log opens on the top level, before the host
-  is known. The profile is picked once, at startup, by the login gh
-  stores the token for; a token from `GH_TOKEN` names no login, so no
-  profile applies to it.
+  is known. The profile is picked once, at startup, by the login of the
+  token's account: the one gh stores the token for, or, for a token from
+  the environment (`GH_TOKEN`, `GITHUB_TOKEN`, `GH_ENTERPRISE_TOKEN`),
+  the one GitHub named at an earlier start. A background `GET /user` asks
+  for it, and the answer is kept by a hash of host and token below the
+  host's disk cache (`cmd/gh-tui/login.go`). Startup never waits for it:
+  the first start with a token applies no profile, and the login applies
+  from the next start, with a warning when that changes the profile. A
+  token GitHub refuses to name, such as an Actions token, is asked about
+  again a day later.
 - `:config` shows the session's config in the pager, each value that isn't
   the default with where it came from (the file and its line, with the
   `hosts` or `profiles` entry it is under, the startup flags, or `:set`),

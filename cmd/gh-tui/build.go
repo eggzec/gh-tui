@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"slices"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/cli/go-gh/v2/pkg/browser"
@@ -63,7 +64,14 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	// client's answers, and reads the token again from where it was found
 	// after a refresh.
 	token, later := quickToken(st.Host)
-	cfg, src, err := sessionConfig(file, st.Host, token.Login, logLevel)
+	// The login of a token from the environment is kept in the disk cache
+	// of the host, as the host's settings place it.
+	hostCfg, _, err := file.Resolve(st.Host, "")
+	if err != nil {
+		return nil, nil, fmt.Errorf("config for %s: %w", st.Host, err)
+	}
+	login := startLogin(hostCfg.Cache.Disk, st.Host, token, time.Now())
+	cfg, src, err := sessionConfig(file, st.Host, login.login, logLevel)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -82,7 +90,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	if later {
 		tokenOpt = github.WithTokenLater(token.Source)
 	}
-	client, err := github.New(github.WithHost(st.Host), tokenOpt,
+	client, err := github.New(github.WithHost(st.Host), tokenOpt, github.WithLogin(login.login),
 		github.WithHTTPClient(&http.Client{Timeout: cfg.GitHub.Timeout}), github.WithConcurrency(cfg.GitHub.Concurrency),
 		github.WithOnAccess(access.Set),
 		github.WithOnOldEnterprise(func(v string) { oldEnterprise <- v }),
@@ -96,7 +104,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	// records of any request it sends; what the token may do starts from
 	// its kind once the client has it.
 	logStart := func(token accesssvc.Token) {
-		logSession(newSessionInfo(st, token, client, cfg.Cache.Disk))
+		logSession(newSessionInfo(st, token, login, client, cfg.Cache.Disk))
 		// After the session record, so that it carries the host and the
 		// account the config was resolved for.
 		logConfig(cfg, src)
@@ -127,6 +135,14 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		moveAccount(cfg.Cache.Disk, client.Host(), client.TokenAccount(), client.Account())
 		close(done)
 	}
+	// What applies is settled already; the answer is for the next start.
+	// Only a token from the environment is asked about, which is there at
+	// once.
+	lateWarning := make(chan string, 1)
+	go learnLogin(ctx, login, client.UserLogin, func(l string) string {
+		_, src, _ := file.Resolve(st.Host, l)
+		return src.Profile
+	}, func(w string) { lateWarning <- w }, time.Now)
 
 	ttl := cfg.Cache.TTL
 	store, warning := openDisk(ctx, cfg.Cache.Disk, client.Host())
@@ -319,12 +335,13 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 			return releases.Opener(releaseSvc, cfg.Keys, o...)(ctx, repo, id, url)
 		}),
 		tui.WithRateStatus(client),
-		// The status bar names the account gh stores the token for; a
-		// token from elsewhere may be anyone's.
-		tui.WithLogin(token.Login),
+		// The status bar names the account the token is for, once gh or an
+		// earlier start's answer of GitHub named it.
+		tui.WithLogin(login.login),
 		// The app tells what the token can't do, and :auth grants it more.
 		tui.WithAccess(access),
 		tui.WithOldEnterprise(oldEnterprise),
+		tui.WithLateWarning(lateWarning),
 	}
 	if path, err := historyPath(cfg.Cache.Disk, client.Host(), client.Account()); err == nil && path != "" {
 		opts = append(opts, tui.WithCommandHistory(cmdhist.New(path, cfg.Commands.History)))

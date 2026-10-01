@@ -32,10 +32,11 @@ type sessionInfo struct {
 	// WebHost is the host of the host's pages, which for github.com is
 	// not that of its API.
 	WebHost string
-	// Login is the account gh stores the token for, or "" for a token
-	// from elsewhere. TokenSource is where the token was found, such as
-	// GH_TOKEN or oauth_token, and TokenKind the kind its prefix says.
-	Login, TokenSource, TokenKind string
+	// Login is the account the token is for, or "" when it isn't known
+	// yet, and LoginFrom where it is from (see sessionLogin). TokenSource
+	// is where the token was found, such as GH_TOKEN or oauth_token, and
+	// TokenKind the kind its prefix says.
+	Login, LoginFrom, TokenSource, TokenKind string
 	// Account names the account in the cache, a hash.
 	Account string
 	// CacheDir is the account's directory of the disk cache, with the
@@ -74,6 +75,7 @@ func logSession(s sessionInfo) {
 	}
 	attrs = append(attrs,
 		slog.String("login", s.Login),
+		slog.String("login_from", s.LoginFrom),
 		slog.String("token_source", s.TokenSource),
 		slog.String("token_kind", s.TokenKind),
 		slog.String("account", s.Account),
@@ -90,12 +92,13 @@ func logSession(s sessionInfo) {
 
 // newSessionInfo returns who the session that st started, with token,
 // through client is, and where it keeps its cache as cfg says.
-func newSessionInfo(st start, token accesssvc.Token, client *github.Client, cfg config.Disk) sessionInfo {
+func newSessionInfo(st start, token accesssvc.Token, login sessionLogin, client *github.Client, cfg config.Disk) sessionInfo {
 	s := sessionInfo{
 		Host:        st.Host,
 		From:        st.From,
 		WebHost:     client.WebHost(),
-		Login:       token.Login,
+		Login:       login.login,
+		LoginFrom:   login.from,
 		TokenSource: token.Source,
 		// The kind its prefix says, which the client may not have yet.
 		TokenKind: github.TokenKind(token.Value).String(),

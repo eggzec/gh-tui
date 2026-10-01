@@ -43,13 +43,14 @@ func TestLogSession(t *testing.T) {
 
 	st := start{Host: "ghe.corp", From: "GH_HOST", Here: core.RepoRef{Owner: "eggzec", Name: "gh-tui"}}
 	logHost(st.Host)
-	client, err := github.New(github.WithHost(st.Host), github.WithToken(fakeToken),
+	client, err := github.New(github.WithHost(st.Host), github.WithToken(fakeToken), github.WithLogin("octocat"),
 		github.WithHTTPClient(&http.Client{Transport: http.DefaultTransport}))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer client.Close()
-	info := newSessionInfo(st, accesssvc.Token{Value: fakeToken, Source: "GH_TOKEN"}, client, cfg.Cache.Disk)
+	info := newSessionInfo(st, accesssvc.Token{Value: fakeToken, Source: "GH_TOKEN"},
+		sessionLogin{login: "octocat", from: "kept"}, client, cfg.Cache.Disk)
 	logSession(info)
 
 	slog.Info("after")
@@ -75,7 +76,7 @@ func TestLogSession(t *testing.T) {
 	sess := recs[1]
 	for key, want := range map[string]any{
 		"msg": "session", "host": "ghe.corp", "host_from": "GH_HOST", "here": "eggzec/gh-tui", "web_host": "ghe.corp",
-		"login": "", "token_source": "GH_TOKEN", "token_kind": "classic", "account": client.Account(),
+		"login": "octocat", "login_from": "kept", "token_source": "GH_TOKEN", "token_kind": "classic", "account": client.Account(),
 		"cache_dir": filepath.Join(dir, "cache", "ghe.corp", "entry", client.Account()),
 		"gh_path":   filepath.Join("~", "bin", "gh"),
 		"span":      "app", "gh_hosts": 2.0, "gh_knows_host": true,

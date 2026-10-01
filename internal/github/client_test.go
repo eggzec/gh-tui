@@ -422,3 +422,40 @@ func TestUnixSocketKeepsTransport(t *testing.T) {
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+// A token from the environment whose login an earlier answer named is
+// named by that login, as gh's own token of that login is, while the
+// login gh stores for its own token wins.
+func TestAccountWithLogin(t *testing.T) {
+	client := func(token, source, hosts string, opts ...Option) *Client {
+		t.Helper()
+		c, err := New(append([]Option{withGH(fakeGH(token, source, hosts))}, opts...)...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return c
+	}
+	const octocat = "hosts:\n  github.com:\n    user: octocat\n"
+	gh := client("token-a", sourceKeyring, octocat)
+	env := client("token-b", "GH_TOKEN", octocat, WithLogin("OctoCat"))
+	if env.Account() != gh.Account() || env.Account() == env.TokenAccount() {
+		t.Error("an environment token with a known login isn't named by the login")
+	}
+	if c := client("token-a", sourceKeyring, octocat, WithLogin("hubot")); c.Account() != gh.Account() {
+		t.Error("WithLogin overrode the login gh stores")
+	}
+}
+
+// APIHost names the host a client of host talks to.
+func TestAPIHost(t *testing.T) {
+	for _, host := range []string{"github.com", "GitHub.com", "ghe.corp.com", "ghe.corp.com:8443", "github.localhost"} {
+		c, err := New(WithHost(host), WithToken("t"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := APIHost(host); got != c.Host() {
+			t.Errorf("APIHost(%q) = %q, want %q", host, got, c.Host())
+		}
+		c.Close()
+	}
+}

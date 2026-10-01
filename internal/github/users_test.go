@@ -1,6 +1,7 @@
 package github
 
 import (
+	"net/http"
 	"slices"
 	"testing"
 
@@ -48,5 +49,42 @@ func TestViewerLogin(t *testing.T) {
 	}
 	if n := len(reqs()); n != 1 {
 		t.Errorf("sent %d requests, want 1", n)
+	}
+}
+
+// UserLogin reads the login from GET /user, and an unchanged account
+// answers 304 to its ETag.
+func TestUserLogin(t *testing.T) {
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/user" {
+			t.Errorf("path = %s, want /user", r.URL.Path)
+		}
+		if r.Header.Get("If-None-Match") == `"v1"` {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+		w.Header().Set("ETag", `"v1"`)
+		_, _ = w.Write([]byte(`{"login":"octocat","id":1}`))
+	}))
+	login, resp, err := c.UserLogin(t.Context(), Conditional{})
+	if err != nil || login != "octocat" || resp.ETag != `"v1"` {
+		t.Fatalf("UserLogin = %q, %+v, %v; want octocat with its ETag", login, resp, err)
+	}
+	login, resp, err = c.UserLogin(t.Context(), Conditional{ETag: resp.ETag})
+	if err != nil || login != "" || !resp.NotModified {
+		t.Errorf("UserLogin again = %q, %+v, %v; want not modified", login, resp, err)
+	}
+}
+
+// An answer without a login, or with one GitHub couldn't have, such as
+// one with escape sequences, is an error, not a login.
+func TestUserLoginInvalid(t *testing.T) {
+	for _, body := range []string{`{}`, `{"login":"octo\u001b[2Jcat"}`, `{"login":"octo cat"}`} {
+		c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = w.Write([]byte(body))
+		}))
+		if login, _, err := c.UserLogin(t.Context(), Conditional{}); err == nil {
+			t.Errorf("UserLogin(%s) = %q, want an error", body, login)
+		}
 	}
 }
