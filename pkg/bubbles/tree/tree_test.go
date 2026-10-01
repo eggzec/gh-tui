@@ -892,3 +892,18 @@ func TestRetry(t *testing.T) {
 		t.Error("Retry with nothing failed returned a command")
 	}
 }
+
+func TestAt(t *testing.T) {
+	m := New(repo().children, WithSize(40, 10))
+	m = run(t, m, m.Init())
+	for i, id := range roots {
+		if n, ok := m.At(i); !ok || n.ID != id {
+			t.Errorf("At(%d) = %q, %v, want %q", i, n.ID, ok, id)
+		}
+	}
+	for _, i := range []int{-1, len(roots)} {
+		if n, ok := m.At(i); ok {
+			t.Errorf("At(%d) = %q, want no row", i, n.ID)
+		}
+	}
+}

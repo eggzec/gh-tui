@@ -231,6 +231,15 @@ func (m Model) Index() int {
 	return m.sel
 }
 
+// At returns the node of visible row i, and false for a row that isn't
+// there.
+func (m Model) At(i int) (Node, bool) {
+	if i < 0 || i >= len(m.rows) {
+		return Node{}, false
+	}
+	return m.rows[i].node, true
+}
+
 // Len returns the number of visible rows.
 func (m Model) Len() int {
 	return len(m.rows)
