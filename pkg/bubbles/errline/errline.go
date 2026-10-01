@@ -1,6 +1,7 @@
 // Package errline lays out an error the way the bubbles and the app show
 // one: a mark and the text, wrapped between words and cut with an
-// ellipsis, then a hint that is never cut, such as "r to retry".
+// ellipsis, then a hint, such as "r to retry", which wraps rather than
+// being cut. A pane too short for a wrapped hint shows its first lines.
 package errline
 
 import (
@@ -26,8 +27,8 @@ type Styles struct {
 // text, wrapped to at most rows lines and ending in the ellipsis when it
 // needs more, then the separator and the hint. The hint goes after the
 // text where it fits, else on a line of its own, unindented if the indent
-// would make it wrap; it wraps only where the width can't hold it whole. Empty text leaves the hint
-// alone. The text and the hint are plain.
+// would make it wrap; it wraps only where the width can't hold it whole.
+// Empty text leaves the hint alone. The text and the hint are plain.
 func Lines(s Styles, text, hint string, width, rows int) []string {
 	width, rows = max(width, 1), max(rows, 1)
 	lead := ""

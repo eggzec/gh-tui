@@ -26,9 +26,10 @@ func (t Theme) Empty(ic Icons) ErrorStyles {
 // ErrorLine renders an error as Say words it, in lines of at most width
 // cells: the mark and the text, which wraps to two lines and ends in the
 // ellipsis when it needs more, then the separator and the hint. The hint
-// goes on a line of its own when it doesn't fit after the text, and is
-// never cut; it wraps only where the width can't hold it at all. The text
-// and the hint are plain.
+// goes on a line of its own when it doesn't fit after the text, indented
+// under the text, or unindented when the indent would make it wrap, and
+// is never cut; it wraps only where the width can't hold it at all. The
+// text and the hint are plain.
 func ErrorLine(s ErrorStyles, text, hint string, width int) []string {
 	return errline.Lines(s, text, hint, width, errorTextLines)
 }
