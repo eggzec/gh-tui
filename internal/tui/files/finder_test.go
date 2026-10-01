@@ -23,9 +23,12 @@ import (
 // listing, but no directories or submodules.
 var sampleFiles = []string{".gitignore", "AGENTS.md", "CLAUDE.md", "cmd/gh-tui/main.go", "go.mod", "README with spaces.md"}
 
-// fast reads the file under the cursor of the finder after a millisecond,
-// so that tests don't wait.
-var fast = WithHoverPrefetch(time.Millisecond, 1<<20)
+// fast reads the file under the cursor of the finder and of the tree after
+// a millisecond, so that tests don't wait.
+var fast = prefetching(func(p *config.PrefetchLayers) {
+	p.Files.Rest, p.Finder.Rest = new(time.Millisecond), new(time.Millisecond)
+	p.Files.Preview.Window = config.Span{Before: new(0), After: new(0)}
+})
 
 // findIn opens the finder of the host's section and returns it.
 func findIn(t *testing.T, h *host) *finderModal {
@@ -248,6 +251,44 @@ func TestFindFilePreview(t *testing.T) {
 			}
 			if got := len(fk.blobSHAs()) - before; got != tt.reads {
 				t.Errorf("%d reads, want %d", got, tt.reads)
+			}
+		})
+	}
+}
+
+// TestFindFileReadsAhead reads the files around the cursor of the finder
+// as its prefetch settings say, besides the one its preview shows.
+func TestFindFileReadsAhead(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		window  config.Span
+		maxSize config.Size
+		want    bool
+	}{
+		{"none by default", config.Span{}, 64 * config.KiB, false},
+		{"the next", config.Span{Before: new(0), After: new(1)}, 64 * config.KiB, true},
+		{"too large", config.Span{Before: new(0), After: new(1)}, 5, false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			fk := filesFake(3)
+			opt := prefetching(func(p *config.PrefetchLayers) {
+				p.Finder.Rest = new(time.Millisecond)
+				if tt.window.After != nil {
+					p.Finder.Preview.Window = tt.window
+				}
+				p.Finder.Preview.MaxSize = tt.maxSize
+				p.Files.Preview.Enabled = new(false)
+			})
+			h := newHost(loaded(t, fk, 40, 12, opt))
+			h.width, h.height = 120, 16
+			f := findIn(t, h)
+			// Each file has 10 bytes.
+			next, ok := f.find.At(f.find.Index() + 1)
+			if !ok {
+				t.Fatal("no file after the cursor")
+			}
+			if got := slices.Contains(fk.blobSHAs(), "b-"+next.Path); got != tt.want {
+				t.Errorf("%s read ahead: %v, want %v; read %q", next.Path, got, tt.want, fk.blobSHAs())
 			}
 		})
 	}

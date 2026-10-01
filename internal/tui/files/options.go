@@ -1,8 +1,7 @@
 package files
 
 import (
-	"time"
-
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
@@ -22,22 +21,15 @@ func WithHost(host string) Option {
 	return func(s *Section) { s.host = host }
 }
 
-// WithPrefetch reads the top-level files of at most maxSize bytes as soon
-// as a repository is listed, so that their preview opens at once. Each
-// costs a request. Files that are likely binary are skipped. The default,
-// 0, reads nothing ahead.
-func WithPrefetch(maxSize int64) Option {
-	return func(s *Section) { s.prefetchMax = max(maxSize, 0) }
-}
-
-// WithHoverPrefetch reads the file under the cursor once the cursor has
-// rested on it for delay, if it has at most maxSize bytes, so that its
-// preview opens at once. Each costs a request. The default, a maxSize of 0,
-// reads nothing ahead.
-func WithHoverPrefetch(delay time.Duration, maxSize int64) Option {
-	return func(s *Section) {
-		s.hover.delay, s.hover.max = max(delay, 0), max(maxSize, 0)
-	}
+// WithPrefetch reads ahead as p, the prefetch settings, says for the
+// files tree and the finder, so that the preview of a file opens at once.
+// Each file costs a request, and files that are likely binary are
+// skipped. The file under a cursor is read up to previewMax, the largest
+// the preview reads. Without it, the tree reads nothing ahead, and the
+// finder reads only the file under its cursor, which it shows, once the
+// cursor rests for the default rest.
+func WithPrefetch(p config.PrefetchLayers, previewMax config.Size) Option {
+	return func(s *Section) { s.prefetch = newPrefetch(p, previewMax) }
 }
 
 // WithFinderPreview sets whether the finder shows the content of the

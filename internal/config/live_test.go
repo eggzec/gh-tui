@@ -52,9 +52,9 @@ func TestLiveSettingsAreRead(t *testing.T) {
 }
 
 // unapplied are the groups of settings that the config holds, checks and
-// resolves, and that nothing reads yet. prefetch.* is read by each list
-// as it moves to it. A group leaves the list once anything applies it.
-var unapplied = []string{"prefetch"}
+// resolves, and that nothing reads yet. A group leaves the list once
+// anything applies it.
+var unapplied []string
 
 // isUnapplied reports whether key is in a group of unapplied.
 func isUnapplied(key string) bool {

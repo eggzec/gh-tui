@@ -32,22 +32,22 @@ var testRenames = []rename{
 	same("sync.every", "sync.poll.lists"),
 	// One to several, with a new value.
 	{
-		old: []string{"details.prefetch.count"}, new: []string{"details.prefetch.rows", "history.prefetch.around"},
+		old: []string{"sync.count"}, new: []string{"prefetch.issues.window.after", "prefetch.history.window.after"},
 		note: "it now counts the rows after the cursor",
 		move: func(v map[string]*yaml.Node) (map[string]*yaml.Node, error) {
-			n, err := strconv.Atoi(v["details.prefetch.count"].Value)
+			n, err := strconv.Atoi(v["sync.count"].Value)
 			if err != nil {
 				return nil, errors.New("want a number of rows")
 			}
 			out := &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!int", Value: strconv.Itoa(max(n-1, 0))}
-			return map[string]*yaml.Node{"details.prefetch.rows": out, "history.prefetch.around": out}, nil
+			return map[string]*yaml.Node{"prefetch.issues.window.after": out, "prefetch.history.window.after": out}, nil
 		},
 	},
 	// One out of a group that is then left empty.
 	same("old.glyph", "dashboard.calendar_glyph"),
 	// Several to one: the longest delay wins.
 	{
-		old: []string{"a.delay", "b.delay"}, new: []string{"files.prefetch.hover_delay"},
+		old: []string{"a.delay", "b.delay"}, new: []string{"prefetch.files.rest"},
 		move: func(v map[string]*yaml.Node) (map[string]*yaml.Node, error) {
 			var longest *yaml.Node
 			var most time.Duration
@@ -60,13 +60,13 @@ var testRenames = []rename{
 					longest, most = n, d
 				}
 			}
-			return map[string]*yaml.Node{"files.prefetch.hover_delay": longest}, nil
+			return map[string]*yaml.Node{"prefetch.files.rest": longest}, nil
 		},
 	},
 	// A setting that keeps its name and becomes a group, as cache.ttl will.
 	same("cache.revalidate", "cache.revalidate.interval"),
 	// One whose release has passed.
-	{old: []string{"files.hover"}, new: []string{"files.prefetch.hover_delay"}},
+	{old: []string{"files.hover"}, new: []string{"prefetch.files.rest"}},
 	// A group renamed as a whole, whose release has passed.
 	{old: []string{"gone.deep.key"}, new: []string{"sync.poll.lists"}},
 }
@@ -87,11 +87,11 @@ func TestLoadRenamed(t *testing.T) {
 		},
 		{
 			name: "one to several, the value moved",
-			file: "details:\n  prefetch:\n    count: 5\n    enabled: false\n",
+			file: "sync:\n  count: 5\n  enabled: false\n",
 			want: func(c *Config) {
-				c.Details.Prefetch.Rows, c.History.Prefetch.Around, c.Details.Prefetch.Enabled = 4, 4, false
+				c.Prefetch.Issues.Window.After, c.Prefetch.History.Window.After, c.Sync.Enabled = new(4), new(4), false
 			},
-			renamed: []string{"details.prefetch.count → details.prefetch.rows, history.prefetch.around (it now counts the rows after the cursor)"},
+			renamed: []string{"sync.count → prefetch.issues.window.after, prefetch.history.window.after (it now counts the rows after the cursor)"},
 		},
 		{
 			name:    "a group left empty goes",
@@ -102,14 +102,14 @@ func TestLoadRenamed(t *testing.T) {
 		{
 			name:    "several to one",
 			file:    "a:\n  delay: 1s\nb:\n  delay: 2s\n",
-			want:    func(c *Config) { c.Files.Prefetch.HoverDelay = 2 * time.Second },
-			renamed: []string{"a.delay → files.prefetch.hover_delay", "b.delay → files.prefetch.hover_delay"},
+			want:    func(c *Config) { c.Prefetch.Files.Rest = new(2 * time.Second) },
+			renamed: []string{"a.delay → prefetch.files.rest", "b.delay → prefetch.files.rest"},
 		},
 		{
 			name:    "several to one, one of them set",
 			file:    "b:\n  delay: 1s\n",
-			want:    func(c *Config) { c.Files.Prefetch.HoverDelay = time.Second },
-			renamed: []string{"b.delay → files.prefetch.hover_delay"},
+			want:    func(c *Config) { c.Prefetch.Files.Rest = new(time.Second) },
+			renamed: []string{"b.delay → prefetch.files.rest"},
 		},
 		{
 			name:    "a value that became a group",
@@ -124,8 +124,8 @@ func TestLoadRenamed(t *testing.T) {
 		},
 		{
 			name:    "through an alias",
-			file:    "files:\n  prefetch:\n    hover_delay: &d 20s\nsync:\n  every: *d\n",
-			want:    func(c *Config) { c.Files.Prefetch.HoverDelay, c.Sync.Poll.Lists = 20*time.Second, 20*time.Second },
+			file:    "cache:\n  revalidate:\n    interval: &d 20s\nsync:\n  every: *d\n",
+			want:    func(c *Config) { c.Cache.Revalidate.Interval, c.Sync.Poll.Lists = 20*time.Second, 20*time.Second },
 			renamed: []string{"sync.every → sync.poll.lists"},
 		},
 		{
@@ -165,27 +165,27 @@ func TestLoadRenamed(t *testing.T) {
 // the file feeds.
 func TestLoadRenamedShared(t *testing.T) {
 	withRenames(t, []rename{{
-		old: []string{"details.old_hover", "history.old_hover"},
-		new: []string{"details.prefetch.hover_delay", "history.prefetch.hover_delay"},
+		old: []string{"files.old_rest", "history.old_rest"},
+		new: []string{"prefetch.files.rest", "prefetch.history.rest"},
 		move: func(v map[string]*yaml.Node) (map[string]*yaml.Node, error) {
 			out := map[string]*yaml.Node{}
 			for o, n := range v {
-				out[strings.Replace(o, "old_hover", "prefetch.hover_delay", 1)] = n
+				out["prefetch."+strings.TrimSuffix(o, ".old_rest")+".rest"] = n
 			}
 			return out, nil
 		},
 	}})
-	got, renamed, err := loadBase(writeConfig(t, "history:\n  old_hover: 2s\ndetails:\n  prefetch:\n    hover_delay: 3s\n"))
+	got, renamed, err := loadBase(writeConfig(t, "history:\n  old_rest: 200ms\nprefetch:\n  files:\n    rest: 300ms\n"))
 	if err != nil {
 		t.Fatalf("Load error = %v", err)
 	}
 	want := Default()
-	want.History.Prefetch.HoverDelay, want.Details.Prefetch.HoverDelay = 2*time.Second, 3*time.Second
+	want.Prefetch.History.Rest, want.Prefetch.Files.Rest = new(200*time.Millisecond), new(300*time.Millisecond)
 	assertEqual(t, got, want)
 	if len(renamed) != 1 {
-		t.Errorf("renamed = %v, want history.old_hover", renamed)
+		t.Errorf("renamed = %v, want history.old_rest", renamed)
 	}
-	if _, _, err := loadBase(writeConfig(t, "history:\n  old_hover: 2s\n  prefetch:\n    hover_delay: 3s\n")); err == nil || !strings.Contains(err.Error(), "which line 4 sets too") {
+	if _, _, err := loadBase(writeConfig(t, "history:\n  old_rest: 200ms\nprefetch:\n  history:\n    rest: 300ms\n")); err == nil || !strings.Contains(err.Error(), "which line 5 sets too") {
 		t.Errorf("Load error = %v, want the clash refused", err)
 	}
 }
@@ -197,8 +197,8 @@ func TestLoadRenamedErrors(t *testing.T) {
 		want []string
 	}{
 		{"sync:\n  every: 2m\n  poll:\n    lists: 3m\n", []string{"line 2: sync.every was renamed to sync.poll.lists, which line 4 sets too: set only sync.poll.lists"}},
-		{"details:\n  prefetch:\n    count: many\n", []string{"line 3: details.prefetch.count: want a number of rows"}},
-		{"files:\n  hover: 1s\n", []string{"line 2: files.hover was renamed to files.prefetch.hover_delay"}},
+		{"sync:\n  count: many\n", []string{"line 2: sync.count: want a number of rows"}},
+		{"files:\n  hover: 1s\n", []string{"line 2: files.hover was renamed to prefetch.files.rest"}},
 		{"gone:\n  deep:\n    key: 1m\n", []string{"line 3: gone.deep.key was renamed to sync.poll.lists"}},
 		{"sync:\n  evry: 2m\n", []string{"line 2: unknown setting sync.evry"}},
 		{"old:\n  glyph: \"#\"\n  other: 1\n", []string{"line 1: unknown setting old"}},
@@ -208,14 +208,14 @@ func TestLoadRenamedErrors(t *testing.T) {
 		{"sync:\n  every: 1s\n", []string{"line 2: sync.every (now sync.poll.lists): must be at least 10s, got 1s"}},
 		// A value a move made has no line of its own, so it is given the
 		// old name's.
-		{"details:\n  prefetch:\n    count: 40\n", []string{
-			"line 3: details.prefetch.count (now details.prefetch.rows): must be between 0 and 30, got 39",
-			"line 3: details.prefetch.count (now history.prefetch.around): must be between 0 and 10, got 39",
+		{"sync:\n  count: 40\n", []string{
+			"line 2: sync.count (now prefetch.issues.window.after): must be between 0 and 30, got 39",
+			"line 2: sync.count (now prefetch.history.window.after): must be between 0 and 10, got 39",
 		}},
 		// Several old names that fed one setting are all named.
-		{"a:\n  delay: -1s\nb:\n  delay: -5s\n", []string{"a.delay, b.delay (now files.prefetch.hover_delay): must not be negative, got -1s"}},
+		{"a:\n  delay: -1s\nb:\n  delay: -5s\n", []string{"a.delay, b.delay (now prefetch.files.rest): must be between 0 and 2s, got -1s"}},
 		// put can't make a group where the file sets a value.
-		{"a:\n  delay: 1s\nfiles: 3\n", []string{"line 2: a.delay: can't move it to files.prefetch.hover_delay: line 3 sets files to a value"}},
+		{"a:\n  delay: 1s\nprefetch: 3\n", []string{"line 2: a.delay: can't move it to prefetch.files.rest: line 3 sets prefetch to a value"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.file, func(t *testing.T) {
@@ -289,6 +289,32 @@ func TestLoadSyncInterval(t *testing.T) {
 		!strings.Contains(err.Error(), "line 2: sync.interval (now sync.poll.notifications): must be at least 10s, got 5s") ||
 		!strings.Contains(err.Error(), "line 2: sync.interval (now sync.poll.lists): must be at least 10s, got 5s") {
 		t.Errorf("Load error = %v, want the old name in what is wrong", err)
+	}
+}
+
+// TestLoadRenamedPrefetch checks the settings that moved under prefetch.
+func TestLoadRenamedPrefetch(t *testing.T) {
+	t.Setenv(EnvLog, "")
+	file := "files:\n  prefetch:\n    enabled: false\n    max_size: 16KiB\n    hover_delay: 300ms\n"
+	got, renamed, err := loadBase(writeConfig(t, file))
+	if err != nil {
+		t.Fatalf("Load error = %v", err)
+	}
+	want := Default()
+	files := &want.Prefetch.Files
+	files.Preview.Enabled, files.Preview.MaxSize, files.Rest = new(false), 16*KiB, new(300*time.Millisecond)
+	assertEqual(t, got, want)
+	names := make([]string, 0, len(renamed))
+	for _, r := range renamed {
+		names = append(names, r.String())
+	}
+	wantNames := []string{
+		"files.prefetch.enabled → prefetch.files.preview.enabled",
+		"files.prefetch.max_size → prefetch.files.preview.max_size",
+		"files.prefetch.hover_delay → prefetch.files.rest",
+	}
+	if !slices.Equal(names, wantNames) {
+		t.Errorf("renamed = %q, want %q", names, wantNames)
 	}
 }
 

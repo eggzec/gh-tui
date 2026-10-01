@@ -64,16 +64,16 @@ func TestLoadSizes(t *testing.T) {
 		{yaml: "65536", want: 64 * KiB},
 		{yaml: `"32KiB"`, want: 32 * KiB},
 		{yaml: "8KB", want: 8000},
-		{yaml: "big", wantErr: `line 3: invalid size "big"`},
-		{yaml: "[1]", wantErr: "line 3: want a size"},
+		{yaml: "0", want: 0},
+		{yaml: "big", wantErr: `line 4: invalid size "big"`},
+		{yaml: "[1]", wantErr: "line 4: want a size"},
 		{yaml: "-5", wantErr: `invalid size "-5"`},
-		{yaml: "0", wantErr: "files.prefetch.max_size: must be positive, got 0B"},
-		{yaml: "2MiB", wantErr: "must not exceed files.preview.max_size (1MiB), got 2MiB"},
+		{yaml: "2MiB", wantErr: "prefetch.files.preview.max_size: must be between 0B and files.preview.max_size (1MiB), got 2MiB"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.yaml, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "config.yaml")
-			data := "files:\n  prefetch:\n    max_size: " + tt.yaml + "\n"
+			data := "prefetch:\n  files:\n    preview:\n      max_size: " + tt.yaml + "\n"
 			if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
 				t.Fatal(err)
 			}
@@ -87,11 +87,13 @@ func TestLoadSizes(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Load error = %v", err)
 			}
-			if cfg.Files.Prefetch.MaxSize != tt.want {
-				t.Errorf("max_size = %v, want %v", cfg.Files.Prefetch.MaxSize, tt.want)
+			p := cfg.Prefetch.Files.Preview
+			if p.MaxSize != tt.want {
+				t.Errorf("max_size = %v, want %v", p.MaxSize, tt.want)
 			}
-			if !cfg.Files.Prefetch.Enabled || cfg.Files.Preview.MaxSize != MiB {
-				t.Errorf("files = %+v, want the other fields defaulted", cfg.Files)
+			r, _ := cfg.Prefetch.Resolve("files", "preview")
+			if r.Window != (Window{After: 32}) || cfg.Files.Preview.MaxSize != MiB {
+				t.Errorf("window %+v, files %+v, want the other fields defaulted", r.Window, cfg.Files)
 			}
 		})
 	}
@@ -100,11 +102,11 @@ func TestLoadSizes(t *testing.T) {
 func TestValidateFileSizes(t *testing.T) {
 	cfg := Default()
 	cfg.Files.Preview.MaxSize = 0
-	cfg.Files.Prefetch.MaxSize = -1
+	cfg.Prefetch.Files.Preview.MaxSize = -1
 	err := cfg.Validate()
 	for _, w := range []string{
 		"files.preview.max_size: must be between 1B and 100MiB, got 0B",
-		"files.prefetch.max_size: must be positive, got -1B",
+		"prefetch.files.preview.max_size: must be between 0B and files.preview.max_size (0B), got -1B",
 	} {
 		if err == nil || !strings.Contains(err.Error(), w) {
 			t.Errorf("Validate() = %v, want it to contain %q", err, w)

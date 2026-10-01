@@ -246,11 +246,11 @@ func BenchmarkLayersYAML(b *testing.B) {
 func TestResolveSourceRenamed(t *testing.T) {
 	withRenames(t, testRenames)
 	t.Setenv(EnvLog, "")
-	_, src, err := resolvePath(t, writeConfig(t, "details:\n  prefetch:\n    count: 6\nsync:\n  every: 2m\n"))
+	_, src, err := resolvePath(t, writeConfig(t, "sync:\n  count: 6\n  every: 2m\n"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]Origin{"details.prefetch.rows": {Line: 3}, "history.prefetch.around": {Line: 3}, "sync.poll.lists": {Line: 5}}
+	want := map[string]Origin{"prefetch.issues.window.after": {Line: 2}, "prefetch.history.window.after": {Line: 2}, "sync.poll.lists": {Line: 3}}
 	if got := src.origins(); !reflect.DeepEqual(got, want) {
 		t.Errorf("origins = %v, want %v", got, want)
 	}

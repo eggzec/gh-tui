@@ -153,9 +153,8 @@ func TestLoadMergesOverDefaults(t *testing.T) {
 					UnfocusedSlowdown: 2,
 				}
 				c.Files = Files{
-					Prefetch: Prefetch{Enabled: false, MaxSize: 16 * KiB, HoverDelay: 300 * time.Millisecond},
-					Preview:  Preview{MaxSize: 2_000_000},
-					Finder:   Finder{Preview: false},
+					Preview: Preview{MaxSize: 2_000_000},
+					Finder:  Finder{Preview: false},
 				}
 				c.Details = Details{
 					Prefetch: DetailsPrefetch{Enabled: false, Rows: 10, HoverDelay: time.Second},
@@ -168,6 +167,10 @@ func TestLoadMergesOverDefaults(t *testing.T) {
 					ShowEmail: true,
 					Prefetch:  HistoryPrefetch{Around: 5, HoverDelay: 250 * time.Millisecond},
 				}
+				files, finder := &c.Prefetch.Files, &c.Prefetch.Finder
+				files.Rest = new(300 * time.Millisecond)
+				files.Preview.Enabled, files.Preview.MaxSize = new(false), 16*KiB
+				finder.Preview.Window, finder.Preview.MaxSize = Span{Before: new(1), After: new(2)}, 8*KiB
 				c.Dashboard = Dashboard{CalendarGlyph: "#", Contributions: ContributionsYear, Prefetch: false}
 				c.UI = UI{Icons: IconsUnicode, Toast: Toast{Info: 6 * time.Second, Error: 12 * time.Second}, DateFormat: "2006-01-02 15:04"}
 				c.Auth = Auth{Check: false}
@@ -231,7 +234,7 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 	cfg.Sync.Poll.Checks = -time.Second
 	cfg.Sync.UnfocusedSlowdown = 0
 	cfg.Files.Preview.MaxSize = 32 * KiB
-	cfg.Files.Prefetch.HoverDelay = -time.Millisecond
+	cfg.Prefetch.Finder.Preview.MaxSize = -1
 	cfg.Details.Prefetch.Rows = 31
 	cfg.Details.Prefetch.HoverDelay = -time.Second
 	cfg.History = History{
@@ -273,8 +276,8 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 		`cache.revalidate.scope: must be recent or all, got "some"`,
 		`sync.poll.checks: must be at least 10s, got -1s`,
 		`sync.unfocused_slowdown: must be between 1 and 60, got 0`,
-		`files.prefetch.max_size: must not exceed files.preview.max_size (32KiB), got 64KiB`,
-		`files.prefetch.hover_delay: must not be negative, got -1ms`,
+		`prefetch.files.preview.max_size: must be between 0B and files.preview.max_size (32KiB), got 64KiB`,
+		`prefetch.finder.preview.max_size: must be between 0B and files.preview.max_size (32KiB), got -1B`,
 		`details.prefetch.rows: must be between 0 and 30, got 31`,
 		`details.prefetch.hover_delay: must not be negative, got -1s`,
 		`history.row[1]: unknown field "sha", want one of short_sha, subject, author, committer, age, date, verified, trailers`,

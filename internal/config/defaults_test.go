@@ -131,10 +131,10 @@ func TestLoadMerges(t *testing.T) {
 		},
 		{
 			name: "aliases read as what they name",
-			file: "files:\n  prefetch:\n    hover_delay: &d 1s\nhistory:\n  prefetch:\n    hover_delay: *d\n",
+			file: "github:\n  timeout: &d 2m\nsync:\n  poll:\n    lists: *d\n",
 			want: func(c *Config) {
-				c.Files.Prefetch.HoverDelay = time.Second
-				c.History.Prefetch.HoverDelay = time.Second
+				c.GitHub.Timeout = 2 * time.Minute
+				c.Sync.Poll.Lists = 2 * time.Minute
 			},
 		},
 		{

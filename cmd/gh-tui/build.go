@@ -216,14 +216,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	fileOpts := []files.Option{
 		files.WithIcons(icons), files.WithFinderPreview(cfg.Files.Finder.Preview),
 		files.WithHost(webHost), files.WithVoice(voice), files.WithEditor(cfg.Editor),
-	}
-	if p := cfg.Files.Prefetch; p.Enabled {
-		fileOpts = append(fileOpts,
-			files.WithPrefetch(int64(p.MaxSize)),
-			// The file under the cursor is likely opened next, so it is
-			// read up to the size the preview reads.
-			files.WithHoverPrefetch(p.HoverDelay, int64(cfg.Files.Preview.MaxSize)),
-		)
+		files.WithPrefetch(cfg.Prefetch, cfg.Files.Preview.MaxSize),
 	}
 	checkOpts := []checks.Option{checks.WithVoice(voice)}
 	if cfg.Sync.Enabled {

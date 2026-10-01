@@ -52,7 +52,9 @@ type finderModal struct {
 	current bool
 	seq     int
 	cancel  context.CancelFunc
-	delay   time.Duration
+	// ahead reads the files around the cursor, as the finder's prefetch
+	// settings say.
+	ahead *ui.Ahead[filesvc.BlobQuery]
 	// failed is why the file shown failed to load, or nil.
 	failed error
 
@@ -64,10 +66,6 @@ type finderModal struct {
 // previewWidth is the width inside the frame below which the preview is
 // hidden unless the user shows it.
 const previewWidth = 100
-
-// defaultFinderDelay is how long the cursor rests on a file before its
-// content is read, when the hover prefetch doesn't set it.
-const defaultFinderDelay = 100 * time.Millisecond
 
 // finderKeys are the keys of the finder besides those of the bubble. None
 // is a letter, since letters go to the query.
@@ -129,7 +127,6 @@ func (s *Section) newFinder() *finderModal {
 		ctx:   ctx,
 		stop:  stop,
 		keys:  newFinderKeys(),
-		delay: s.hover.delay,
 		theme: s.theme,
 	}
 	if s.idx != nil {
@@ -138,9 +135,8 @@ func (s *Section) newFinder() *finderModal {
 	if s.baseLabel != "" {
 		f.title += " · " + s.baseLabel
 	}
-	if f.delay <= 0 {
-		f.delay = defaultFinderDelay
-	}
+	f.ahead = s.fileAhead(s.prefetch.finder)
+	f.ahead.Reset(ctx)
 	src := s.src
 	host, repo, ref := s.host, s.repo, s.ref
 	// The finder lists the files again only when it opens again, and o
@@ -276,6 +272,8 @@ func (f *finderModal) Update(msg tea.Msg) tea.Cmd {
 		}
 		f.stopRead()
 		return ui.CloseModal(f)
+	case ui.AheadMsg:
+		return f.ahead.Rested(msg)
 	case finderRestMsg:
 		if msg.f != f || msg.seq != f.seq {
 			return nil
@@ -305,7 +303,7 @@ func (f *finderModal) Update(msg tea.Msg) tea.Cmd {
 	var cmd, pcmd tea.Cmd
 	f.find, cmd = f.find.Update(msg)
 	f.pager, pcmd = f.pager.Update(msg)
-	return tea.Batch(cmd, pcmd, f.moved())
+	return tea.Batch(cmd, pcmd, f.moved(), f.readAhead())
 }
 
 // press handles the finder's own keys and reports whether msg was one.
@@ -367,7 +365,29 @@ func (f *finderModal) moved() tea.Cmd {
 	// The name shows at once, and the content once the cursor rests.
 	f.pager.SetMessage(e.Path, "")
 	msg := finderRestMsg{f: f, seq: f.seq}
-	return tea.Tick(f.delay, func(time.Time) tea.Msg { return msg })
+	return tea.Tick(f.s.prefetch.finder.Rest, func(time.Time) tea.Msg { return msg })
+}
+
+// readAhead reads, once the cursor rests, the files in a window around it
+// while the preview shows, as the finder's prefetch settings say. The
+// preview reads the file under the cursor itself, whatever they say.
+func (f *finderModal) readAhead() tea.Cmd {
+	f.ahead.Configure(f.s.prefetch.finder)
+	i := f.find.Index()
+	at := func(j int) (filesvc.BlobQuery, bool) {
+		it, ok := f.find.At(j)
+		e, isEntry := entryOfItem(it)
+		if j == i || !ok || !isEntry || !worthReading(e, f.s.prefetch.finderMax) {
+			return filesvc.BlobQuery{}, false
+		}
+		return f.s.blobQuery(e), true
+	}
+	// Until the paths are listed, or while the preview is hidden, there
+	// is no window.
+	if !f.preview || f.find.Loading() {
+		at = nil
+	}
+	return f.ahead.Window(at, i)
 }
 
 // online loads again, now that GitHub answers again, what failed for want

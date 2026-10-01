@@ -1,6 +1,7 @@
 package files
 
 import (
+	"slices"
 	"testing"
 	"time"
 
@@ -23,16 +24,29 @@ func TestSettingsIcons(t *testing.T) {
 func TestSettingsPrefetch(t *testing.T) {
 	h := loaded(t, sampleFake(), 60, 12)
 	c := config.Default()
-	c.Files.Prefetch.MaxSize, c.Files.Prefetch.HoverDelay = 32*config.KiB, time.Second
+	c.Prefetch.Files.Preview.MaxSize, c.Prefetch.Files.Rest = 32*config.KiB, new(time.Second)
+	c.Prefetch.Finder.Preview.Window.After = new(2)
 	h.Update(ui.SettingsMsg{Config: c})
-	if h.prefetchMax != 32<<10 || h.hover.max != int64(c.Files.Preview.MaxSize) || h.hover.delay != time.Second {
-		t.Errorf("top %d, hover %d after %v; want 32KiB, the preview's size after 1s", h.prefetchMax, h.hover.max, h.hover.delay)
+	p := h.prefetch
+	if !p.preview.Enabled || p.preview.Rest != time.Second || p.preview.Window.After != 32 || p.previewMax != 32<<10 {
+		t.Errorf("tree reads %+v up to %d, want after 32 up to 32KiB, after 1s", p.preview, p.previewMax)
 	}
-	seq := h.hover.seq
-	c.Files.Prefetch.Enabled = false
+	if p.cursorMax != int64(c.Files.Preview.MaxSize) {
+		t.Errorf("the file under the cursor is read up to %d, want the preview's size", p.cursorMax)
+	}
+	if p.finder.Window.After != 2 || p.finder.Rest != 100*time.Millisecond {
+		t.Errorf("finder reads %+v, want after 2, after 100ms", p.finder)
+	}
+	c.Prefetch.Files.Preview.Enabled = new(false)
 	h.Update(ui.SettingsMsg{Config: c})
-	if h.prefetchMax != 0 || h.hover.max != 0 || h.hover.seq == seq {
-		t.Errorf("top %d, hover %d; want nothing read ahead, and the wait of the cursor moot", h.prefetchMax, h.hover.max)
+	if h.prefetch.preview.Enabled {
+		t.Error("the tree still reads ahead")
+	}
+	// Moving the cursor reads nothing.
+	f := h.svc.(*fake)
+	keys(h, slices.Repeat([]string{"down"}, rowAgents)...)
+	if got := f.blobSHAs(); len(got) != 0 {
+		t.Errorf("read %q, want nothing", got)
 	}
 }
 

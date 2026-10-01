@@ -30,21 +30,21 @@ func TestTags(t *testing.T) {
 
 func TestStartup(t *testing.T) {
 	for key, want := range map[string]string{
-		"repos":                   "the pinned repositories are read at startup",
-		"cache.ttl":               "the cache is opened at startup",
-		"cache.disk.dir":          "the cache is opened at startup",
-		"sync.enabled":            "the polls are set up at startup",
-		"sync.poll.lists":         "",
-		"sync.unfocused_slowdown": "the polls and the revalidation are set up at startup",
-		"files.preview.max_size":  "the files are read with it from the start",
-		"files.prefetch.enabled":  "",
-		"auth.check":              "the token's checks start with the app",
-		"log.level":               "",
-		"log.keep":                "the log file is opened at startup",
-		"theme":                   "",
-		"ui.icons":                "",
-		"editor":                  "",
-		"nope":                    "",
+		"repos":                          "the pinned repositories are read at startup",
+		"cache.ttl":                      "the cache is opened at startup",
+		"cache.disk.dir":                 "the cache is opened at startup",
+		"sync.enabled":                   "the polls are set up at startup",
+		"sync.poll.lists":                "",
+		"sync.unfocused_slowdown":        "the polls and the revalidation are set up at startup",
+		"files.preview.max_size":         "the files are read with it from the start",
+		"prefetch.files.preview.enabled": "",
+		"auth.check":                     "the token's checks start with the app",
+		"log.level":                      "",
+		"log.keep":                       "the log file is opened at startup",
+		"theme":                          "",
+		"ui.icons":                       "",
+		"editor":                         "",
+		"nope":                           "",
 	} {
 		why, ok := Startup(key)
 		if why != want || ok != (want != "") {
