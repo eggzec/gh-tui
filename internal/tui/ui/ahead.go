@@ -12,19 +12,27 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
 )
 
-// aheadWorkers is the most rows whose details are read ahead at once, on
-// top of the row under the cursor. A detail may take a few requests.
+// aheadWorkers is the most rows whose details an Ahead reads at once, on
+// top of the row under the cursor, unless it shares slots with others
+// ([Ahead.Share]). A detail may take a few requests.
 const aheadWorkers = 3
 
 // Ahead reads the details of the rows of a list before they are opened, into
-// the cache the detail reads from, so that they open at once: those of the
-// first rows once the list loads, and that of the row the cursor rests on.
-// K identifies a row, such as the query of its first comments. Create it
-// with [NewAhead]; a nil *Ahead reads nothing.
+// the cache the detail reads from, so that they open at once. K identifies
+// a row, such as the query of its first comments. Create it with
+// [NewAhead]; a nil *Ahead reads nothing.
+//
+// [Ahead.Window] reads the row under the cursor and a window of rows
+// around it, each time the cursor rests, as the settings that
+// [Ahead.Configure] applies say. [Ahead.First], [Ahead.Moved] and
+// [Ahead.Around] are the older way, which reads the first rows once the
+// list loads, the row the cursor rests on, and the rows around it apart;
+// they stay until every list reads its window.
 //
 // Each read costs requests, so few run at once, and the reads stop once
 // GitHub reports the rate limit, until [Ahead.Resume], and once the reads
@@ -67,6 +75,28 @@ type Ahead[K comparable] struct {
 	stopHover  func()
 	// stopAround cancels the reads around the cursor still in flight.
 	stopAround func()
+
+	// slots bound the reads in flight, with those of the Aheads that share
+	// them.
+	slots *Slots
+	// parent bounds the reads of the list shown, as Reset was given it.
+	parent context.Context
+
+	// span is the window that Configure set, and off says the settings
+	// turned the reads off.
+	span config.Window
+	off  bool
+	// around holds the rows of the window around the cursor that have a
+	// detail to read, the row under the cursor first, and windowed says
+	// that the next rest reads them, rather than hovered.
+	around   []K
+	windowed bool
+	// loaded is set once the list showed since it was reset: the first
+	// window of a list is read at once, as if the cursor had rested.
+	loaded bool
+	// reading cancels each read of a window still in flight, by row, so
+	// that a rest stops only the reads of the rows that left the window.
+	reading map[K]context.CancelFunc
 }
 
 // AheadMsg reports that the cursor rested on a row. Sections pass it to
@@ -95,6 +125,17 @@ func NewAhead[K comparable](kind string, read func(ctx context.Context, k K) err
 		limited: new(atomic.Bool),
 		flying:  newFlights[K](),
 		pause:   newGate(),
+		slots:   NewSlots(aheadWorkers),
+		parent:  context.Background(),
+		reading: make(map[K]context.CancelFunc),
+	}
+}
+
+// Share bounds the reads of a, from its next ones, with those of every
+// Ahead that shares s, so that they keep to s together.
+func (a *Ahead[K]) Share(s *Slots) {
+	if a != nil && s != nil {
+		a.slots = s
 	}
 }
 
@@ -105,6 +146,7 @@ func (a *Ahead[K]) Reset(parent context.Context) {
 		return
 	}
 	a.cancel()
+	a.parent = parent
 	a.ctx, a.cancel = context.WithCancel(obs.ForPrefetch(parent))
 	a.flying.clear()
 	a.first = a.first[:0]
@@ -112,6 +154,9 @@ func (a *Ahead[K]) Reset(parent context.Context) {
 	a.hovered, a.hasHovered = zero, false
 	a.seq++
 	a.stopHover, a.stopAround = nil, nil
+	// Cancelling ctx cancelled the reads of the window.
+	clear(a.reading)
+	a.around, a.windowed, a.loaded = a.around[:0], false, false
 }
 
 // Set sets how many of the first rows of a list are read, and how long
@@ -136,6 +181,9 @@ func (a *Ahead[K]) Opened(k K) {
 func (a *Ahead[K]) Resume() {
 	if a != nil {
 		a.limited.Store(false)
+		// The window the rate limit stopped is read at the next call,
+		// even if the cursor didn't move.
+		a.windowed = false
 	}
 }
 
@@ -207,7 +255,7 @@ func (a *Ahead[K]) First(at func(i int) (K, bool)) tea.Cmd {
 		ctx := obs.WithTrace(ctx, "prefetch.rows")
 		slog.InfoContext(ctx, "prefetch", "span", "prefetch", "kind", r.seen.Kind(), "trigger", "rows",
 			"sent", len(todo), "skipped_cached", cached)
-		r.readAll(ctx, todo)
+		r.readAll(ctx, todo, nil)
 		return nil
 	}
 }
@@ -218,7 +266,7 @@ func (a *Ahead[K]) start(ks []K) batch[K] {
 	for _, k := range ks {
 		a.seen.Started(k)
 	}
-	return batch[K]{id: id, read: a.read, current: a.current, limited: a.limited, seen: a.seen, flying: a.flying, pause: a.pause}
+	return batch[K]{id: id, read: a.read, current: a.current, limited: a.limited, seen: a.seen, flying: a.flying, pause: a.pause, slots: a.slots}
 }
 
 // same reports whether the first rows are those read ahead already.
@@ -303,30 +351,33 @@ type batch[K comparable] struct {
 	seen    *obs.Prefetched[K]
 	flying  *flights[K]
 	pause   *gate
+	slots   *Slots
 }
 
-// readAll reads the details of ks, a few at a time, until ctx is done or
-// GitHub reports the rate limit. Other failures are for the detail to
-// report, if it is opened.
-func (b batch[K]) readAll(ctx context.Context, ks []K) {
-	sem := make(chan struct{}, aheadWorkers)
+// readAll reads the details of ks, as many at a time as the slots let,
+// until ctx is done or GitHub reports the rate limit. rowCtx, if not nil,
+// returns the context of the read of one row, which may end before ctx.
+// Other failures are for the detail to report, if it is opened.
+func (b batch[K]) readAll(ctx context.Context, ks []K, rowCtx func(K) context.Context) {
 	var wg sync.WaitGroup
 	defer wg.Wait()
 	for i, k := range ks {
-		select {
-		case sem <- struct{}{}:
-		case <-ctx.Done():
+		if b.slots.acquire(ctx) != nil {
 			b.skip(ctx, obs.PrefetchCanceled, ks[i:])
 			return
 		}
 		if why, ok := halted(b.limited); ok {
-			<-sem
+			b.slots.release()
 			b.skip(ctx, why, ks[i:])
 			return
 		}
+		kctx := ctx
+		if rowCtx != nil {
+			kctx = rowCtx(k)
+		}
 		wg.Go(func() {
-			defer func() { <-sem }()
-			b.readOne(ctx, k)
+			defer b.slots.release()
+			b.readOne(kctx, k)
 		})
 	}
 }
@@ -407,6 +458,7 @@ func (a *Ahead[K]) Moved(k K, ok bool) tea.Cmd {
 		return nil
 	}
 	a.hovered, a.hasHovered = k, ok
+	a.windowed = false
 	a.seq++
 	if ok && a.halt() {
 		return nil
@@ -429,7 +481,13 @@ func (a *Ahead[K]) Moved(k K, ok bool) tea.Cmd {
 // since. A newer read cancels an older one still in flight, so at most one
 // runs.
 func (a *Ahead[K]) Rested(msg AheadMsg) tea.Cmd {
-	if a == nil || msg.id != a.id || msg.seq != a.seq || !a.hasHovered {
+	if a == nil || msg.id != a.id || msg.seq != a.seq {
+		return nil
+	}
+	if a.windowed {
+		return a.readWindow()
+	}
+	if !a.hasHovered {
 		return nil
 	}
 	if a.stopHover != nil {
@@ -498,7 +556,7 @@ func (a *Ahead[K]) Around(at func(i int) (K, bool), i, n int) tea.Cmd {
 		defer cancel()
 		slog.InfoContext(ctx, "prefetch", "span", "prefetch", "kind", r.seen.Kind(), "trigger", "around",
 			"sent", len(todo), "skipped_cached", cached)
-		r.readAll(ctx, todo)
+		r.readAll(ctx, todo, nil)
 		return nil
 	}
 }
@@ -548,6 +606,13 @@ func (f *flights[K]) forget(id int) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	maps.DeleteFunc(f.rows, func(_ K, b int) bool { return b == id })
+}
+
+// drop forgets the read of k, whichever batch reads it.
+func (f *flights[K]) drop(k K) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	delete(f.rows, k)
 }
 
 // has reports whether k is being read.
