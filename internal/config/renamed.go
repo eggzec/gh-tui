@@ -74,6 +74,26 @@ var renames = []rename{
 		},
 	},
 	restRename("history.prefetch.hover_delay", "prefetch.history.rest"),
+	{
+		// The lists, the notifications and the dashboard read details
+		// ahead under one switch, and the other tabs under another that
+		// needed it.
+		old:  []string{"details.prefetch.enabled", "details.prefetch.filters"},
+		new:  append(slices.Clone(detailsFollowers), "prefetch.pulls.other_tabs.enabled", "prefetch.issues.other_tabs.enabled"),
+		move: moveDetailsEnabled,
+	},
+	{
+		old:  []string{"details.prefetch.rows"},
+		new:  []string{"prefetch.pulls.window.after", "prefetch.issues.window.after", "prefetch.notifications.window.after", "prefetch.dashboard.inbox.window.after"},
+		note: "it now counts the rows below the cursor, so it is one less",
+		move: moveDetailsRows,
+	},
+	{
+		old:  []string{"details.prefetch.hover_delay"},
+		new:  []string{"prefetch.rest"},
+		note: "a rest above " + formatDuration(maxRest) + " is cut to it",
+		move: moveDetailsDelay,
+	},
 }
 
 // renameTo moves the value of the setting from to the setting to.
@@ -97,6 +117,84 @@ func restRename(from, to string) rename {
 		}
 		return map[string]*yaml.Node{to: v[from]}, nil
 	}}
+}
+
+// detailsFollowers are the pages and kinds that read details ahead under
+// details.prefetch.enabled. Search read only its pull requests and issues
+// under it, not the other kinds of results.
+var detailsFollowers = []string{
+	"prefetch.pulls.enabled", "prefetch.issues.enabled", "prefetch.notifications.enabled",
+	"prefetch.search.details.enabled", "prefetch.search.comments.enabled",
+	"prefetch.dashboard.waiting_on_you.enabled", "prefetch.dashboard.inbox.enabled",
+}
+
+// moveDetailsEnabled moves details.prefetch.enabled: false to every page
+// and kind that followed it, and details.prefetch.filters: false to the
+// other tabs. true moves nowhere: it was the default, so the knobs keep
+// following the layers above, and a later prefetch.enabled: false still
+// turns them off.
+func moveDetailsEnabled(v map[string]*yaml.Node) (map[string]*yaml.Node, error) {
+	out := map[string]*yaml.Node{}
+	if on, ok := v["details.prefetch.enabled"]; ok {
+		enabled, err := boolNode(on)
+		if err != nil {
+			return nil, err
+		}
+		if !enabled {
+			for _, p := range detailsFollowers {
+				out[p] = on
+			}
+		}
+	}
+	if filters, ok := v["details.prefetch.filters"]; ok {
+		tabs, err := boolNode(filters)
+		if err != nil {
+			return nil, err
+		}
+		if !tabs {
+			out["prefetch.pulls.other_tabs.enabled"], out["prefetch.issues.other_tabs.enabled"] = filters, filters
+		}
+	}
+	return out, nil
+}
+
+// moveDetailsDelay moves the delay before a row's detail was read to
+// prefetch.rest, cut to the longest rest, so that a file that set a longer
+// one still loads while it uses the old name.
+func moveDetailsDelay(v map[string]*yaml.Node) (map[string]*yaml.Node, error) {
+	n := v["details.prefetch.hover_delay"]
+	d, err := time.ParseDuration(n.Value)
+	if err != nil {
+		return nil, fmt.Errorf("want a duration, such as 150ms, got %q", n.Value)
+	}
+	if d > maxRest {
+		n = &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: formatDuration(maxRest), Line: n.Line}
+	}
+	return map[string]*yaml.Node{"prefetch.rest": n}, nil
+}
+
+// moveDetailsRows moves the rows read when a list loaded, which counted
+// the row under the cursor, to the rows the window reads below it.
+func moveDetailsRows(v map[string]*yaml.Node) (map[string]*yaml.Node, error) {
+	rows := v["details.prefetch.rows"]
+	n, err := strconv.Atoi(rows.Value)
+	if err != nil {
+		return nil, fmt.Errorf("want a number of rows, got %q", rows.Value)
+	}
+	after := &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!int", Value: strconv.Itoa(max(n-1, 0)), Line: rows.Line}
+	return map[string]*yaml.Node{
+		"prefetch.pulls.window.after": after, "prefetch.issues.window.after": after,
+		"prefetch.notifications.window.after": after, "prefetch.dashboard.inbox.window.after": after,
+	}, nil
+}
+
+// boolNode returns the value of n, a true or false.
+func boolNode(n *yaml.Node) (bool, error) {
+	var b bool
+	if err := n.Decode(&b); err != nil {
+		return false, fmt.Errorf("want true or false, got %q", n.Value)
+	}
+	return b, nil
 }
 
 // checkRenames returns what is wrong with table: an old name that is a

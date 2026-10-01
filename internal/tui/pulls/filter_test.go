@@ -153,7 +153,7 @@ func TestFilteredEmptyText(t *testing.T) {
 
 func TestFilteredListsReadNoOtherTabsAhead(t *testing.T) {
 	svc := newFakeService()
-	h := started(t, svc, 80, 30, WithFilterPrefetch())
+	h := started(t, svc, 80, 30, readingTabs())
 	n := len(svc.requested())
 	apply(t, h, "is:open author:octocat")
 	want := make([]pulls.ListQuery, 0, 2)
@@ -176,7 +176,7 @@ func TestFilteredListsReadNoOtherTabsAhead(t *testing.T) {
 
 func TestFilterBeforeTheFirstPageReadsAheadOnceCleared(t *testing.T) {
 	svc := newFakeService()
-	h := newTest(t, svc, 80, 30, WithFilterPrefetch())
+	h := newTest(t, svc, 80, 30, readingTabs())
 	drain(t, h, h.Update(ui.RepoMsg{Repo: repo}))
 	// The list isn't loaded, so nothing is read ahead yet.
 	h.started = true

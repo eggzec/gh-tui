@@ -95,69 +95,77 @@ func TestMarksRead(t *testing.T) {
 	}
 }
 
-func TestReadAheadFirstRows(t *testing.T) {
-	f := newReads()
-	o := newOpener(t, f, 4, time.Hour)
-	ns := []core.Notification{
-		note(core.SubjectDiscussion, 1, time.Minute),
-		note(core.SubjectPullRequest, 2, time.Minute),
-		note(core.SubjectIssue, 3, time.Minute),
-		note(core.SubjectCommit, 4, time.Minute),
-		note(core.SubjectRelease, 5, time.Minute),
-	}
-	// The cursor is on the discussion, which has nothing to read.
-	run(o, o.ReadAhead(list(ns), ns[0], true))
-	// Of the first four rows, the pull request and the issue, each with
-	// its first comments. The release is the fifth.
-	want := []string{"issue charmbracelet/glow#3", "pull charmbracelet/glow#2"}
-	if got := slices.Sorted(slices.Values(f.got())); !slices.Equal(got, want) {
-		t.Errorf("read %q, want %q", got, want)
-	}
-	if got := slices.Sorted(slices.Values(f.comments)); !slices.Equal(got, want) {
-		t.Errorf("read the first comments of %q, want %q", got, want)
-	}
+func TestReadAheadWindow(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		f := newReads()
+		o := newOpener(t, f, 3, time.Hour)
+		ns := []core.Notification{
+			note(core.SubjectDiscussion, 1, time.Minute),
+			note(core.SubjectPullRequest, 2, time.Minute),
+			note(core.SubjectIssue, 3, time.Minute),
+			note(core.SubjectCommit, 4, time.Minute),
+			note(core.SubjectRelease, 5, time.Minute),
+		}
+		// The cursor is on the discussion, which has nothing to read, as
+		// the list loads, which counts as a rest.
+		run(o, o.ReadAhead(list(ns), 0))
+		// Of the rows in the window, the pull request and the issue, each
+		// with its first comments. The release is past it.
+		want := []string{"issue charmbracelet/glow#3", "pull charmbracelet/glow#2"}
+		if got := slices.Sorted(slices.Values(f.got())); !slices.Equal(got, want) {
+			t.Errorf("read %q, want %q", got, want)
+		}
+		if got := slices.Sorted(slices.Values(f.comments)); !slices.Equal(got, want) {
+			t.Errorf("read the first comments of %q, want %q", got, want)
+		}
 
-	// The same rows read nothing again.
-	run(o, o.ReadAhead(list(ns), ns[0], true))
-	if n := len(f.got()); n != 2 {
-		t.Errorf("read %d details, want no more", n)
-	}
+		// The same rows read nothing again.
+		run(o, o.ReadAhead(list(ns), 0))
+		if n := len(f.got()); n != 2 {
+			t.Errorf("read %d details, want no more", n)
+		}
 
-	// A notification that the pull request changed since reads it again.
-	ns[1].UpdatedAt = now.Add(time.Minute)
-	run(o, o.ReadAhead(list(ns), ns[0], true))
-	if got := f.got(); len(got) != 3 || got[2] != "pull charmbracelet/glow#2" {
-		t.Errorf("read %q, want the pull request read again", got)
-	}
+		// A notification that the pull request changed since reads it
+		// again, once the cursor rests.
+		ns[1].UpdatedAt = now.Add(time.Minute)
+		run(o, o.ReadAhead(list(ns), 0))
+		if got := f.got(); len(got) != 3 || got[2] != "pull charmbracelet/glow#2" {
+			t.Errorf("read %q, want the pull request read again", got)
+		}
+	})
 }
 
-func TestReadAheadHover(t *testing.T) {
+func TestReadAheadRest(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		f := newReads()
 		o := newOpener(t, f, 0, 150*time.Millisecond)
 		ns := []core.Notification{note(core.SubjectRelease, 1, 0), note(core.SubjectCommit, 2, 0), note(core.SubjectIssue, 3, 0)}
 
-		start := time.Now()
-		run(o, o.ReadAhead(list(ns), ns[0], true))
-		if waited := time.Since(start); waited != 150*time.Millisecond {
-			t.Errorf("read after %v, want the delay", waited)
-		}
+		run(o, o.ReadAhead(list(ns), 0))
 		if got := f.got(); !slices.Equal(got, []string{"release charmbracelet/glow#1"}) {
 			t.Errorf("read %q, want the release under the cursor", got)
 		}
 		// A commit has nothing to read ahead, and a row already read
 		// reads nothing.
-		run(o, o.ReadAhead(list(ns), ns[1], true))
-		run(o, o.ReadAhead(list(ns), ns[0], true))
+		run(o, o.ReadAhead(list(ns), 1))
+		run(o, o.ReadAhead(list(ns), 0))
 		if n := len(f.got()); n != 1 {
 			t.Errorf("read %d, want no more", n)
 		}
-		// Moving on before the delay reads only where the cursor rests.
-		first := o.ReadAhead(list(ns), ns[2], true)
-		second := o.ReadAhead(list(ns), ns[1], true)
+		// Moving on before the rest reads only where the cursor rests.
+		first := o.ReadAhead(list(ns), 2)
+		second := o.ReadAhead(list(ns), 1)
 		run(o, tea.Batch(first, second))
 		if n := len(f.got()); n != 1 {
 			t.Errorf("read %q, want nothing for a row passed", f.got())
+		}
+		start := time.Now()
+		run(o, o.ReadAhead(list(ns), 2))
+		if waited := time.Since(start); waited != 150*time.Millisecond {
+			t.Errorf("read after %v, want the rest", waited)
+		}
+		if got := f.got(); len(got) != 2 || got[1] != "issue charmbracelet/glow#3" {
+			t.Errorf("read %q, want the issue rested on", got)
 		}
 	})
 }
@@ -166,9 +174,9 @@ func TestReadAheadCancelledByReset(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		f := newReads()
 		f.hold = make(chan struct{})
-		o := newOpener(t, f, 3, time.Hour)
+		o := newOpener(t, f, 2, time.Hour)
 		ns := []core.Notification{note(core.SubjectIssue, 1, 0), note(core.SubjectPullRequest, 2, 0)}
-		cmd := o.ReadAhead(list(ns), core.Notification{}, false)
+		cmd := o.ReadAhead(list(ns), 0)
 		done := make(chan struct{})
 		go func() {
 			run(o, cmd)
@@ -195,9 +203,9 @@ func TestStopCancelsReadsAhead(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		f := newReads()
 		f.hold = make(chan struct{})
-		o := newOpener(t, f, 3, time.Hour)
+		o := newOpener(t, f, 2, time.Hour)
 		ns := []core.Notification{note(core.SubjectIssue, 1, 0), note(core.SubjectPullRequest, 2, 0)}
-		cmd := o.ReadAhead(list(ns), core.Notification{}, false)
+		cmd := o.ReadAhead(list(ns), 0)
 		done := make(chan struct{})
 		go func() {
 			run(o, cmd)
@@ -221,7 +229,7 @@ func TestStopCancelsReadsAhead(t *testing.T) {
 		f.hold = nil
 		f.mu.Unlock()
 		other := []core.Notification{note(core.SubjectIssue, 1, 0), note(core.SubjectIssue, 3, 0)}
-		run(o, o.ReadAhead(list(other), core.Notification{}, false))
+		run(o, o.ReadAhead(list(other), 0))
 		if got := slices.Sorted(slices.Values(f.got()[2:])); !slices.Equal(got, []string{"issue charmbracelet/glow#1", "issue charmbracelet/glow#3"}) {
 			t.Errorf("read %q after Stop, want the new rows, the cancelled one again", got)
 		}
@@ -233,9 +241,9 @@ func TestStopCancelsReadsAhead(t *testing.T) {
 func TestSharedOpenerRateLimitStopsBoth(t *testing.T) {
 	f := newReads()
 	f.err = &core.RateLimitError{Reset: now}
-	o := newOpener(t, f, 3, 0)
+	o := newOpener(t, f, 2, 0)
 	screen := []core.Notification{note(core.SubjectIssue, 1, 0), note(core.SubjectIssue, 2, 0)}
-	run(o, o.ReadAhead(list(screen), screen[0], true))
+	run(o, o.ReadAhead(list(screen), 0))
 	n := len(f.got())
 	if n == 0 {
 		t.Fatal("nothing was read ahead")
@@ -243,7 +251,7 @@ func TestSharedOpenerRateLimitStopsBoth(t *testing.T) {
 	// The screen leaves, and the dashboard's inbox shows other threads.
 	o.Stop()
 	inbox := []core.Notification{note(core.SubjectPullRequest, 7, 0), note(core.SubjectIssue, 8, 0)}
-	run(o, o.ReadAhead(list(inbox), inbox[0], true))
+	run(o, o.ReadAhead(list(inbox), 0))
 	if got := len(f.got()); got != n {
 		t.Errorf("read %d more for the other view under the rate limit", got-n)
 	}
@@ -252,17 +260,17 @@ func TestSharedOpenerRateLimitStopsBoth(t *testing.T) {
 func TestReadAheadStopsAtRateLimit(t *testing.T) {
 	f := newReads()
 	f.err = &core.RateLimitError{Reset: now}
-	o := newOpener(t, f, 5, 0)
+	o := newOpener(t, f, 4, 0)
 	ns := make([]core.Notification, 0, 8)
 	for i := range 8 {
 		ns = append(ns, note(core.SubjectIssue, i+1, 0))
 	}
-	run(o, o.ReadAhead(list(ns), ns[0], true))
+	run(o, o.ReadAhead(list(ns), 0))
 	n := len(f.got())
 	if n == 0 || n > 3 {
 		t.Errorf("read %d before the rate limit stopped it, want 1 to 3", n)
 	}
-	run(o, o.ReadAhead(list(ns[1:]), ns[6], true))
+	run(o, o.ReadAhead(list(ns[1:]), 5))
 	if got := len(f.got()); got != n {
 		t.Errorf("read %d more under the rate limit", got-n)
 	}
@@ -270,7 +278,7 @@ func TestReadAheadStopsAtRateLimit(t *testing.T) {
 	f.err = nil
 	f.mu.Unlock()
 	o.Resume()
-	run(o, o.ReadAhead(list(ns), ns[7], true))
+	run(o, o.ReadAhead(list(ns), 7))
 	if got := len(f.got()); got == n {
 		t.Error("nothing was read ahead after Resume")
 	}
@@ -280,11 +288,11 @@ func TestNothingAheadWithoutPrefetch(t *testing.T) {
 	f := newReads()
 	o := New(t.Context(), WithPulls(fakePulls{f}), WithIssues(fakeIssues{f}))
 	ns := []core.Notification{note(core.SubjectIssue, 1, 0)}
-	if cmd := o.ReadAhead(list(ns), ns[0], true); cmd != nil {
+	if cmd := o.ReadAhead(list(ns), 0); cmd != nil {
 		run(o, cmd)
 	}
 	var none *Opener
-	if none.ReadAhead(list(ns), ns[0], true) != nil || none.Rested(ui.AheadMsg{}) != nil {
+	if none.ReadAhead(list(ns), 0) != nil || none.Rested(ui.AheadMsg{}) != nil {
 		t.Error("a nil Opener reads ahead")
 	}
 	if n := len(f.got()); n != 0 {
@@ -297,7 +305,7 @@ func TestNothingAheadWithoutPrefetch(t *testing.T) {
 func TestOpenHoldsReadsAhead(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		f := newReads()
-		o := newOpener(t, f, 3, time.Hour)
+		o := newOpener(t, f, 2, time.Hour)
 		for _, n := range []core.Notification{note(core.SubjectPullRequest, 1, 0), note(core.SubjectIssue, 2, 0)} {
 			var pause ui.Pauser
 			switch msg := o.Open(n)().(type) {
@@ -315,7 +323,7 @@ func TestOpenHoldsReadsAhead(t *testing.T) {
 		ns := []core.Notification{note(core.SubjectIssue, 3, 0)}
 		done := make(chan struct{})
 		go func() {
-			run(o, o.ReadAhead(list(ns), core.Notification{}, false))
+			run(o, o.ReadAhead(list(ns), 0))
 			close(done)
 		}()
 		synctest.Wait()

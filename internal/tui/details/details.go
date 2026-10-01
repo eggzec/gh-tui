@@ -1,8 +1,8 @@
 // Package details reads pull requests and issues ahead of their modals,
-// for the lists outside the repository screen that open them, such as the
-// work on the dashboard, the results of the search and the notification
-// threads: the detail and the first comments, as the modals read them, so
-// that they open at once.
+// for the lists that open them, such as those of a repository, the work on
+// the dashboard, the results of the search and the notification threads:
+// the detail and the first comments, as the modals read them, so that they
+// open at once.
 package details
 
 import (
@@ -21,14 +21,20 @@ import (
 type Pulls interface {
 	Get(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error)
 	Comments(ctx context.Context, q pulls.CommentsQuery) (core.Page[core.Comment], error)
-	Current(q pulls.CommentsQuery) bool
+	// CurrentGet and CurrentComments report whether Get and Comments
+	// would answer without a request. They do no I/O.
+	CurrentGet(repo core.RepoRef, number int) bool
+	CurrentComments(q pulls.CommentsQuery) bool
 }
 
 // Issues is what a read ahead needs of the issues service.
 type Issues interface {
 	Get(ctx context.Context, repo core.RepoRef, number int) (core.Issue, error)
 	Comments(ctx context.Context, q issuesvc.CommentsQuery) (core.Page[core.Comment], error)
-	Current(q issuesvc.CommentsQuery) bool
+	// CurrentGet and CurrentComments report whether Get and Comments
+	// would answer without a request. They do no I/O.
+	CurrentGet(repo core.RepoRef, number int) bool
+	CurrentComments(q issuesvc.CommentsQuery) bool
 }
 
 // Key names a pull request or an issue.
@@ -67,28 +73,71 @@ type Reader struct {
 	Issues Issues
 }
 
+// Kinds returns what a list reads ahead of each pull request or issue, as
+// the kinds details and comments of its page's settings: the detail, and
+// apart from it the first comments, each counted in the log under log,
+// such as pull, and log_comments.
+func (r Reader) Kinds(log string) []ui.AheadKind[Key] {
+	return []ui.AheadKind[Key]{
+		{Name: "details", Log: log, Read: r.ReadDetail, Current: r.CurrentDetail},
+		{Name: "comments", Log: log + "_comments", Read: r.ReadComments, Current: r.CurrentComments},
+	}
+}
+
 // Current reports whether the modal of k would open without a request, or
 // there is no service to read it with. It does no I/O.
 func (r Reader) Current(k Key) bool {
+	return r.CurrentDetail(k) && r.CurrentComments(k)
+}
+
+// CurrentDetail reports whether the detail of k is cached so that reading
+// it costs no request, or there is no service to read it with. It does no
+// I/O.
+func (r Reader) CurrentDetail(k Key) bool {
 	if k.Pull {
-		return r.Pulls == nil || r.Pulls.Current(pulls.CommentsQuery{Repo: k.Repo, Number: k.Number})
+		return r.Pulls == nil || r.Pulls.CurrentGet(k.Repo, k.Number)
 	}
-	return r.Issues == nil || r.Issues.Current(issuesvc.CommentsQuery{Repo: k.Repo, Number: k.Number})
+	return r.Issues == nil || r.Issues.CurrentGet(k.Repo, k.Number)
+}
+
+// CurrentComments reports whether the first comments of k are cached so
+// that reading them costs no request, or there is no service to read them
+// with. It does no I/O.
+func (r Reader) CurrentComments(k Key) bool {
+	if k.Pull {
+		return r.Pulls == nil || r.Pulls.CurrentComments(pulls.CommentsQuery{Repo: k.Repo, Number: k.Number})
+	}
+	return r.Issues == nil || r.Issues.CurrentComments(issuesvc.CommentsQuery{Repo: k.Repo, Number: k.Number})
+}
+
+// ReadDetail reads the detail of k into the cache its modal reads from.
+func (r Reader) ReadDetail(ctx context.Context, k Key) error {
+	var err error
+	if k.Pull {
+		_, err = r.Pulls.Get(ctx, k.Repo, k.Number)
+	} else {
+		_, err = r.Issues.Get(ctx, k.Repo, k.Number)
+	}
+	return err
+}
+
+// ReadComments reads the first comments of k into the cache its modal
+// reads from. It asks GitHub conditionally when a stale page is cached, so
+// a page that didn't change costs no rate limit.
+func (r Reader) ReadComments(ctx context.Context, k Key) error {
+	var err error
+	if k.Pull {
+		_, err = r.Pulls.Comments(ctx, pulls.CommentsQuery{Repo: k.Repo, Number: k.Number})
+	} else {
+		_, err = r.Issues.Comments(ctx, issuesvc.CommentsQuery{Repo: k.Repo, Number: k.Number})
+	}
+	return err
 }
 
 // Read reads the detail and the first comments of k into the cache its
 // modal reads from.
 func (r Reader) Read(ctx context.Context, k Key) error {
-	if k.Pull {
-		q := pulls.CommentsQuery{Repo: k.Repo, Number: k.Number}
-		return both(
-			func() error { _, err := r.Pulls.Get(ctx, k.Repo, k.Number); return err },
-			func() error { _, err := r.Pulls.Comments(ctx, q); return err })
-	}
-	q := issuesvc.CommentsQuery{Repo: k.Repo, Number: k.Number}
-	return both(
-		func() error { _, err := r.Issues.Get(ctx, k.Repo, k.Number); return err },
-		func() error { _, err := r.Issues.Comments(ctx, q); return err })
+	return both(func() error { return r.ReadDetail(ctx, k) }, func() error { return r.ReadComments(ctx, k) })
 }
 
 // both runs a and b at once, since the modal waits for both.

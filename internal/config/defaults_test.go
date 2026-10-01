@@ -139,8 +139,8 @@ func TestLoadMerges(t *testing.T) {
 		},
 		{
 			name: "a merge key brings what the mapping doesn't set",
-			file: "details:\n  prefetch:\n    <<: {enabled: false, rows: 1}\n    rows: 2\n",
-			want: func(c *Config) { c.Details.Prefetch.Enabled, c.Details.Prefetch.Rows = false, 2 },
+			file: "log:\n  <<: {level: warn, keep: 1}\n  keep: 2\n",
+			want: func(c *Config) { c.Log.Level, c.Log.Keep = "warn", 2 },
 		},
 		{
 			name: "a file of comments only",

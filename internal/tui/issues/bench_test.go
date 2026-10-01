@@ -109,7 +109,7 @@ func BenchmarkViewCompose(b *testing.B) {
 // BenchmarkUpdatePrefetch moves with reading ahead on. Each move starts the
 // hover delay, which the loop doesn't run.
 func BenchmarkUpdatePrefetch(b *testing.B) {
-	s := started(b, newFakeService(sampleIssues(300)), 120, 40, WithPrefetch(5, time.Nanosecond), WithFilterPrefetch())
+	s := started(b, newFakeService(sampleIssues(300)), 120, 40, readingAhead(4, time.Nanosecond, true))
 	down, up := tea.Msg(keyMsg("down")), tea.Msg(keyMsg("up"))
 	b.ReportAllocs()
 	i := 0

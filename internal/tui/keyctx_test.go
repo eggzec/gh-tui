@@ -104,8 +104,10 @@ func (keyPulls) CachedComments(pullsvc.CommentsQuery) (core.Page[core.Comment], 
 func (keyPulls) Comments(context.Context, pullsvc.CommentsQuery) (core.Page[core.Comment], error) {
 	return core.Page[core.Comment]{}, nil
 }
-func (keyPulls) Current(pullsvc.CommentsQuery) bool { return true }
-func (keyPulls) Invalidate(core.RepoRef)            {}
+func (keyPulls) CurrentGet(core.RepoRef, int) bool { return true }
+
+func (keyPulls) CurrentComments(pullsvc.CommentsQuery) bool { return true }
+func (keyPulls) Invalidate(core.RepoRef)                    {}
 
 // keyIssues serves one open issue and its detail.
 type keyIssues struct{ issues.Service }
@@ -127,8 +129,10 @@ func (keyIssues) CachedComments(issuesvc.CommentsQuery) (core.Page[core.Comment]
 func (keyIssues) Comments(context.Context, issuesvc.CommentsQuery) (core.Page[core.Comment], error) {
 	return core.Page[core.Comment]{}, nil
 }
-func (keyIssues) Current(issuesvc.CommentsQuery) bool { return true }
-func (keyIssues) Invalidate(core.RepoRef)             {}
+func (keyIssues) CurrentGet(core.RepoRef, int) bool { return true }
+
+func (keyIssues) CurrentComments(issuesvc.CommentsQuery) bool { return true }
+func (keyIssues) Invalidate(core.RepoRef)                     {}
 
 // keyFiles serves a tree of a directory and a file, and the file.
 type keyFiles struct{ files.Service }

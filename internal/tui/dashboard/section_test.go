@@ -647,10 +647,23 @@ func (f *aheadPulls) Comments(context.Context, pulls.CommentsQuery) (core.Page[c
 	return core.Page[core.Comment]{}, nil
 }
 
-func (f *aheadPulls) Current(q pulls.CommentsQuery) bool {
+func (f *aheadPulls) CurrentGet(_ core.RepoRef, number int) bool {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	return slices.Contains(f.reads, q.Number)
+	return slices.Contains(f.reads, number)
+}
+
+// CurrentComments counts the comments as cached with the detail.
+func (f *aheadPulls) CurrentComments(q pulls.CommentsQuery) bool {
+	return f.CurrentGet(q.Repo, q.Number)
+}
+
+// inboxPrefetch returns the settings that read the thread under the
+// cursor and the after threads below it, once the cursor rests for rest.
+func inboxPrefetch(after int, rest time.Duration) config.PrefetchLayers {
+	p := config.Default().Prefetch
+	p.Window, p.Rest = config.Window{After: after}, rest
+	return p
 }
 
 func (*aheadPulls) Changed(core.RepoRef, int, time.Time) {}
@@ -665,7 +678,7 @@ func TestInboxReadsAhead(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ps := &aheadPulls{}
 		in := &fakeInbox{threads: inboxThreads()}
-		o := threads.New(t.Context(), threads.WithPulls(ps), threads.WithPrefetch(2, 150*time.Millisecond))
+		o := threads.New(t.Context(), threads.WithPulls(ps), threads.WithPrefetch(inboxPrefetch(1, 150*time.Millisecond)))
 		s := newSection(t, newFake(), in, 140, 38, WithOpener(o))
 		// The first two unread threads, once the inbox loads.
 		if got := slices.Sorted(slices.Values(ps.got())); !slices.Equal(got, []int{1, 2}) {
@@ -680,6 +693,38 @@ func TestInboxReadsAhead(t *testing.T) {
 	})
 }
 
+// TestInboxNotLoadedReadsAtOnceWhenItIs checks that an inbox that hasn't
+// loaded tells the reads ahead so, and that the window it first shows once
+// it loads is read at once rather than after the cursor rests.
+func TestInboxNotLoadedReadsAtOnceWhenItIs(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ps := &aheadPulls{}
+		in := &fakeInbox{threads: inboxThreads()}
+		o := threads.New(t.Context(), threads.WithPulls(ps), threads.WithPrefetch(inboxPrefetch(1, time.Hour)))
+		s := newSection(t, newFake(), in, 140, 38, WithOpener(o))
+		// As if the inbox hadn't loaded yet: a new list, not loaded.
+		loaded := s.notes
+		o.Stop()
+		s.notes.ok = false
+		// Nothing read so far, so that the first window has rows to read.
+		ps.mu.Lock()
+		ps.reads = nil
+		ps.mu.Unlock()
+		if cmd := s.readAhead(); cmd != nil {
+			t.Fatal("an inbox that hasn't loaded read ahead")
+		}
+		s.notes = loaded
+		start := time.Now()
+		run(t, s, s.readAhead())
+		if waited := time.Since(start); waited != 0 {
+			t.Errorf("the inbox as it first showed was read after %v, want at once", waited)
+		}
+		if got := ps.got(); len(got) == 0 {
+			t.Errorf("read %v, want the threads the inbox first shows", got)
+		}
+	})
+}
+
 // A change to the inbox while another screen is on view, such as the one
 // a poll reports, reads nothing ahead, and nor does the cursor's delay
 // that fires meanwhile.
@@ -687,7 +732,11 @@ func TestInboxReadsNothingAheadOffScreen(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ps := &aheadPulls{}
 		in := &fakeInbox{threads: inboxThreads()}
-		o := threads.New(t.Context(), threads.WithPulls(ps), threads.WithPrefetch(2, 150*time.Millisecond))
+		// The window reaches the row above the cursor, where a new thread
+		// comes.
+		p := inboxPrefetch(1, 150*time.Millisecond)
+		p.Window.Before = 1
+		o := threads.New(t.Context(), threads.WithPulls(ps), threads.WithPrefetch(p))
 		s := newSection(t, newFake(), in, 140, 38, WithOpener(o))
 		before := len(ps.got())
 		s.Blur()

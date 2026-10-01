@@ -32,7 +32,7 @@ func (s *Section) configure(c config.Config) {
 	}
 	s.opener.Configure(c)
 	p := s.prefetch
-	on, delay := c.DashboardPrefetch(), c.Details.Prefetch.HoverDelay
+	on, delay := c.DashboardPrefetch()
 	switch {
 	case !on:
 		// Resetting cancels the reads in flight.

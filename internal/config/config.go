@@ -36,9 +36,6 @@ type Config struct {
 	Cache Cache               `yaml:"cache" when:"startup" why:"the cache is opened at startup"`
 	Sync  Sync                `yaml:"sync"`
 	Files Files               `yaml:"files"`
-	// Details configures the pull request and issue modals, and reading
-	// them ahead, which the notifications follow too.
-	Details Details `yaml:"details"`
 	// Notifications configures the notifications screen and the
 	// dashboard's inbox.
 	Notifications Notifications `yaml:"notifications"`
@@ -182,7 +179,7 @@ func (c Config) Validate() error {
 		errs = append(errs, validateKeys(action, c.Keys[action]))
 	}
 
-	errs = append(errs, c.Cache.validate(), c.Sync.validate(), c.Files.validate(), c.Details.validate(), c.History.validate(), c.Dashboard.validate(), c.Prefetch.validate(c.Files.Preview.MaxSize),
+	errs = append(errs, c.Cache.validate(), c.Sync.validate(), c.Files.validate(), c.History.validate(), c.Dashboard.validate(), c.Prefetch.validate(c.Files.Preview.MaxSize),
 		c.UI.validate(), c.GitHub.validate(), c.PageSize.validate(), c.Commands.validate(), c.Images.validate(), c.Log.validate(),
 		validateEditor(c.Editor))
 	return errors.Join(errs...)

@@ -57,7 +57,11 @@ func (f pullsFake) Comments(_ context.Context, q pulls.CommentsQuery) (core.Page
 	return core.Page[core.Comment]{}, f.add("pull comments")
 }
 
-func (f pullsFake) Current(pulls.CommentsQuery) bool { return false }
+func (f pullsFake) CurrentGet(core.RepoRef, int) bool { return false }
+
+// CurrentComments says the comments are cached, so that a test can tell
+// the two kinds apart.
+func (f pullsFake) CurrentComments(pulls.CommentsQuery) bool { return true }
 
 type issuesFake struct{ *calls }
 
@@ -72,7 +76,9 @@ func (f issuesFake) Comments(_ context.Context, q issuesvc.CommentsQuery) (core.
 	return core.Page[core.Comment]{}, f.add("issue comments")
 }
 
-func (f issuesFake) Current(issuesvc.CommentsQuery) bool { return true }
+func (f issuesFake) CurrentGet(core.RepoRef, int) bool { return true }
+
+func (f issuesFake) CurrentComments(issuesvc.CommentsQuery) bool { return true }
 
 func TestRead(t *testing.T) {
 	c := &calls{}
@@ -95,5 +101,27 @@ func TestRead(t *testing.T) {
 	}
 	if none := (Reader{}); !none.Current(Key{Pull: true}) || !none.Current(Key{}) {
 		t.Error("without a service there should be nothing to read")
+	}
+}
+
+func TestKinds(t *testing.T) {
+	c := &calls{}
+	r := Reader{Pulls: pullsFake{c}, Issues: issuesFake{c}}
+	kinds := r.Kinds("pull")
+	if len(kinds) != 2 || kinds[0].Name != "details" || kinds[1].Name != "comments" || kinds[1].Log != "pull_comments" {
+		t.Fatalf("kinds = %+v, want details and comments", kinds)
+	}
+	k := Key{Pull: true, Repo: cli, Number: 7}
+	if kinds[0].Current(k) || !kinds[1].Current(k) {
+		t.Error("each kind should ask the service of its own reads whether they are cached")
+	}
+	if err := kinds[0].Read(t.Context(), k); err != nil {
+		t.Fatal(err)
+	}
+	if err := kinds[1].Read(t.Context(), k); err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"pull", "pull comments"}; len(c.what) != 2 || c.what[0] != want[0] || c.what[1] != want[1] {
+		t.Errorf("read %v, want the detail, then apart from it the comments, %v", c.what, want)
 	}
 }

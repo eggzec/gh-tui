@@ -140,10 +140,43 @@ func (f *fakeService) CachedComments(q pulls.CommentsQuery) (core.Page[core.Comm
 	return f.commentPage(q), true
 }
 
-func (f *fakeService) Current(q pulls.CommentsQuery) bool {
+func (f *fakeService) CurrentGet(_ core.RepoRef, number int) bool {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	return f.cached[q.Number] && f.commented[q]
+	return f.cached[number]
+}
+
+func (f *fakeService) CurrentComments(q pulls.CommentsQuery) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.commented[q]
+}
+
+// readingAhead returns the option that reads the details and the first
+// comments of the row under the cursor and of the after rows below it,
+// once the cursor rests for rest, and the first pages of the other tabs if
+// tabs is set.
+func readingAhead(after int, rest time.Duration, tabs bool) Option {
+	p := prefetchOf(after, rest)
+	p.Pulls.OtherTabs.Enabled = new(tabs)
+	return WithPrefetch(p)
+}
+
+// prefetchOf returns the settings that read the row under the cursor and
+// the after rows below it, once the cursor rests for rest.
+func prefetchOf(after int, rest time.Duration) config.PrefetchLayers {
+	p := config.Default().Prefetch
+	p.Window, p.Rest = config.Window{After: after}, rest
+	return p
+}
+
+// readingTabs returns the option that reads only the first pages of the
+// other tabs ahead.
+func readingTabs() Option {
+	p := config.Default().Prefetch
+	p.Enabled = false
+	p.Pulls.OtherTabs.Enabled = new(true)
+	return WithPrefetch(p)
 }
 
 func (f *fakeService) commentPage(q pulls.CommentsQuery) core.Page[core.Comment] {

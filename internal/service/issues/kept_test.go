@@ -232,7 +232,7 @@ func TestKeptIssueIsCurrentAfterRestart(t *testing.T) {
 		t.Fatalf("Comments = %+v, %v; want the kept page", c, err)
 	}
 	api.checkCalls(t)
-	if !s.Current(sevenComments) {
+	if !current(s, sevenComments) {
 		t.Error("Current = false, want true once read from the store")
 	}
 }
@@ -313,7 +313,7 @@ func TestKeptOffline(t *testing.T) {
 				if err == nil || getErr == nil || commentsErr == nil {
 					t.Errorf("errors = %v, %v, %v; want each read to fail", err, getErr, commentsErr)
 				}
-				if s.Current(sevenComments) {
+				if current(s, sevenComments) {
 					t.Error("Current = true after a refusal, want the kept page's vouching forgotten")
 				}
 				// A refusal drops what was kept.

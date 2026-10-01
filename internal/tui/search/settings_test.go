@@ -23,23 +23,24 @@ func TestSettingsIcons(t *testing.T) {
 func TestSettingsPrefetch(t *testing.T) {
 	f := &detailFake{}
 	s := newSection(t, newFake(), 120, 30, WithDetails(fakePulls{f}, fakeIssues{f}))
-	if s.ahead != nil {
-		t.Fatal("reads ahead without WithPrefetch")
+	if s.ahead.On() || !s.othersOn {
+		t.Fatal("without WithPrefetch, want only the other kinds read ahead")
 	}
 	s.Update(ui.SettingsMsg{Config: config.Default()})
-	if s.ahead == nil {
+	if !s.ahead.On() || !s.othersOn || s.othersWait != defaultOthersWait {
 		t.Fatal("the settings didn't turn the reads ahead on")
 	}
-	off := config.Default()
-	off.Details.Prefetch.Enabled = false
-	s.Update(ui.SettingsMsg{Config: off})
-	if s.ahead != nil {
-		t.Error("the reads ahead didn't stop")
+	kinds := config.Default()
+	kinds.Prefetch.Search.OtherKinds.Enabled = new(false)
+	s.Update(ui.SettingsMsg{Config: kinds})
+	if !s.ahead.On() || s.othersOn {
+		t.Errorf("other kinds off: ahead %v, other kinds %v", s.ahead.On(), s.othersOn)
 	}
-	bare := newSection(t, newFake(), 120, 30)
-	bare.Update(ui.SettingsMsg{Config: config.Default()})
-	if bare.ahead != nil {
-		t.Error("a section with nothing to read with reads ahead")
+	off := config.Default()
+	off.Prefetch.Search.Enabled = new(false)
+	s.Update(ui.SettingsMsg{Config: off})
+	if s.ahead.On() || s.othersOn {
+		t.Error("the reads ahead didn't stop")
 	}
 }
 

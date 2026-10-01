@@ -13,6 +13,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
+	"github.com/eggzec/gh-tui/internal/tui/details"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/termtext"
@@ -54,16 +55,15 @@ type Section struct {
 	// voice words the errors of the list and of the comments.
 	voice ui.Voice
 
-	// ahead reads the issues of list before they are opened, if prefetch
-	// is set. rowAt returns the query of the first comments of row i,
-	// which is how ahead knows a row.
-	prefetch *prefetch
-	ahead    *ui.Ahead[issuesvc.CommentsQuery]
-	rowAt    func(i int) (issuesvc.CommentsQuery, bool)
-	// others reads the first pages of the tabs not shown, if
-	// prefetchFilters is set.
-	prefetchFilters bool
-	others          *ui.Filters[issuesvc.ListQuery]
+	// ahead reads the issues of list and their first comments before
+	// they are opened, as prefetch.issues says. rowAt returns the key of
+	// row i, which is how ahead knows a row. others reads the first pages
+	// of the tabs not shown, if prefetch.issues.other_tabs is on.
+	// prefetch is the settings they start with.
+	prefetch *config.PrefetchLayers
+	ahead    *ui.Aheads[details.Key]
+	rowAt    func(i int) (details.Key, bool)
+	others   *ui.Filters[issuesvc.ListQuery]
 
 	width, height int
 	theme         ui.Theme
@@ -107,15 +107,13 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 	for _, opt := range opts {
 		opt(s)
 	}
-	s.rowAt = func(i int) (issuesvc.CommentsQuery, bool) {
+	s.rowAt = func(i int) (details.Key, bool) {
 		it, ok := s.list.Item(i)
-		return commentsQuery(s.repo, it.Number), ok
+		return detailKey(s.repo, it.Number), ok
 	}
+	s.ahead = ui.NewAheads(ctx, "issues", details.Reader{Issues: svc}.Kinds("issue")...)
 	if p := s.prefetch; p != nil {
-		s.ahead = s.newAhead(p.rows, p.delay)
-	}
-	if s.prefetchFilters {
-		s.others = s.newOthers()
+		s.setPrefetch(*p)
 	}
 	s.hint = "Search for a repository to see its issues."
 	if k := ui.Binding(keys, config.ActionSearch, "search").Help().Key; k != "" {

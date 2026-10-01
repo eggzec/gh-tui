@@ -18,6 +18,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/checks"
+	"github.com/eggzec/gh-tui/internal/tui/details"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
@@ -100,7 +101,7 @@ type detailModal struct {
 func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest, onChecks, showRepo bool, from ui.Pauser) tea.Cmd {
 	// The reads of the modal are one trace, however many pages it reads.
 	ctx, cancel := context.WithCancel(obs.WithTrace(s.ctx, "open.pull"))
-	s.ahead.Opened(commentsQuery(repo, number))
+	s.ahead.Opened(detailKey(repo, number))
 	// The reads ahead wait, so that the detail's requests go first: the
 	// list's, and those of the list it was opened from.
 	resume := ui.PauseAll(s.ahead, from)
@@ -188,6 +189,11 @@ func (s *Section) capsOf(repo core.RepoRef) core.RepoCaps {
 		return s.caps
 	}
 	return ui.CachedCaps(s.repos, repo)
+}
+
+// detailKey names pull request number of repo to the reads ahead.
+func detailKey(repo core.RepoRef, number int) details.Key {
+	return details.Key{Pull: true, Repo: repo, Number: number}
 }
 
 // commentsQuery selects the first page of the comments on pull request

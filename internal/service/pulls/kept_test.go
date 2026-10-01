@@ -146,7 +146,7 @@ func TestKeptDetailIsCurrentAfterRestart(t *testing.T) {
 	// The list still shows the version kept, so the detail and comments
 	// cost nothing.
 	wantCalls(t, api, 0, 0)
-	if !s.Current(firstComments) {
+	if !current(s, firstComments) {
 		t.Error("Current = false, want true once read from the store")
 	}
 }
@@ -230,7 +230,7 @@ func TestKeptRefusalDropsKept(t *testing.T) {
 	if _, err := s.List(t.Context(), openList.again()); err == nil {
 		t.Fatal("List succeeded, want the refusal")
 	}
-	if s.Current(firstComments) {
+	if current(s, firstComments) {
 		t.Error("Current = true after a refusal, want the kept page's vouching forgotten")
 	}
 	if _, err := s.Get(t.Context(), repo, 1); err == nil {

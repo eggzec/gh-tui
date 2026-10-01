@@ -45,11 +45,6 @@ type Start func(ctx context.Context) ([]core.Repo, error)
 // searches.
 const DefaultDebounce = 250 * time.Millisecond
 
-// OthersWait is how long the query rests before the page reads the first
-// pages of the kinds not on view: long enough that a pause between words
-// doesn't, since each costs a search.
-const OthersWait = 700 * time.Millisecond
-
 // maxRecent is how many recent searches the page keeps.
 const maxRecent = 8
 
@@ -148,17 +143,22 @@ type Section struct {
 	kind       core.SearchKind
 
 	// edits counts the edits of the query alone, after the last of which
-	// the other kinds are read once it rests for othersWait. othersFor is
+	// the other kinds are read once it rests for othersWait, if othersOn
+	// is set, as prefetch.search.other_kinds says. othersFor is
 	// the text they were read for, stopOthers stops them, and seen counts
 	// them as reads ahead.
 	edits      int
+	othersOn   bool
 	othersWait time.Duration
 	othersFor  string
 	stopOthers context.CancelFunc
 	seen       *obs.Prefetched[othersKey]
-	// ahead reads the result under the cursor ahead, if prefetch is set.
-	prefetch *prefetch
-	ahead    *ui.Ahead[details.Key]
+	// ahead reads the pull requests and issues of the results around the
+	// cursor ahead, through reader, as prefetch.search says. prefetch is
+	// the settings it starts with.
+	prefetch *config.PrefetchLayers
+	reader   details.Reader
+	ahead    *ui.Aheads[details.Key]
 	// hits holds the results of each kind for text, made when the kind is
 	// first shown, and code those of code search, made when asked for.
 	hits   map[core.SearchKind]*hitList
@@ -203,6 +203,9 @@ var (
 // New returns the search page, which searches through svc and binds the
 // actions in keys. ctx bounds every request it makes.
 func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Option) *Section {
+	// The other kinds are read as the defaults say until the settings say
+	// otherwise.
+	others := ui.Resolve(config.Default().Prefetch, "search", "other_kinds")
 	s := &Section{
 		id:         lastID.Add(1),
 		ctx:        ctx,
@@ -212,7 +215,8 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		now:        time.Now,
 		debounce:   DefaultDebounce,
 		kind:       core.SearchRepos,
-		othersWait: OthersWait,
+		othersOn:   others.Enabled,
+		othersWait: others.Rest,
 		stopOthers: func() {},
 		seen:       obs.NewPrefetched[othersKey]("search"),
 		hits:       make(map[core.SearchKind]*hitList),
@@ -226,9 +230,9 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 	for _, opt := range opts {
 		opt(s)
 	}
-	if p := s.prefetch; p != nil && p.on {
-		s.ahead = details.NewAhead("search_hit", p.pulls, p.issues, 0, p.delay)
-		s.ahead.Reset(ctx)
+	s.ahead = ui.NewAheads(ctx, "search", s.reader.Kinds("search_hit")...)
+	if p := s.prefetch; p != nil {
+		s.setPrefetch(*p)
 	}
 	s.input = textinput.New()
 	s.input.Prompt = ""

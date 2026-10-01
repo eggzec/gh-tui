@@ -66,7 +66,7 @@ func TestSetCommand(t *testing.T) {
 		{line: "set theme=mine", toast: "theme is mine for this session.", changes: true},
 		{line: "set  theme = mine ", toast: "theme is mine for this session.", changes: true},
 		{line: "set ui.icons=ascii", toast: "ui.icons is ascii for this session.", changes: true},
-		{line: "set details.prefetch.enabled=false", toast: "details.prefetch.enabled is false for this session.", changes: true},
+		{line: "set prefetch.enabled=false", toast: "prefetch.enabled is false for this session.", changes: true},
 		{line: "set sync.poll.lists=1ms", toast: "Can't set sync.poll.lists: must be at least 10s, got 1ms."},
 		{line: "set sync.poll.lists=10s", toast: "sync.poll.lists is 10s for this session.", changes: true},
 		{line: "set prefetch.files.preview.max_size=2MiB", toast: "Can't set prefetch.files.preview.max_size: must be between 0B and files.preview.max_size (1MiB), got 2MiB."},

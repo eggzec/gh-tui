@@ -172,7 +172,7 @@ type othersKey struct {
 // requests the user waits for, and stop when the page is left. A query
 // reads them once.
 func (s *Section) readOthers(trigger string) tea.Cmd {
-	if s.text == "" || s.othersFor == s.text {
+	if !s.othersOn || s.text == "" || s.othersFor == s.text {
 		return nil
 	}
 	s.othersFor = s.text

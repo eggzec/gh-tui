@@ -43,7 +43,7 @@ func TestPrefetchFirstRows(t *testing.T) {
 		// 999 is cached already.
 		svc.cached[999] = issue(svc, 999)
 		svc.commented[commentsQuery(testRepo, 999)] = true
-		started(t, svc, 80, 30, WithPrefetch(3, 150*time.Millisecond))
+		started(t, svc, 80, 30, readingAhead(2, 150*time.Millisecond, false))
 
 		// The first three rows but the cached one. The row under the
 		// cursor is among them, so it isn't read again.
@@ -60,7 +60,7 @@ func TestPrefetchFirstRows(t *testing.T) {
 func TestPrefetchHover(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		svc := newFakeService(sampleIssues(12))
-		h := started(t, svc, 80, 30, WithPrefetch(0, 150*time.Millisecond))
+		h := started(t, svc, 80, 30, readingAhead(0, 150*time.Millisecond, false))
 		if got := svc.getCalls(); !slices.Equal(got, []int{1000}) {
 			t.Errorf("read issues %v, want the row under the cursor", got)
 		}
@@ -81,7 +81,7 @@ func TestPrefetchHover(t *testing.T) {
 
 func TestPrefetchCancelledByRepo(t *testing.T) {
 	svc := newFakeService(sampleIssues(12))
-	h := started(t, svc, 80, 30, WithPrefetch(3, time.Millisecond))
+	h := started(t, svc, 80, 30, readingAhead(2, time.Millisecond, false))
 	svc.mu.Lock()
 	ctxs := slices.Clone(svc.getCtxs)
 	svc.mu.Unlock()
@@ -99,7 +99,7 @@ func TestPrefetchCancelledByRepo(t *testing.T) {
 func TestPrefetchStopsAtRateLimit(t *testing.T) {
 	svc := newFakeService(sampleIssues(12))
 	svc.getErr = &core.RateLimitError{Reset: testNow}
-	h := started(t, svc, 80, 30, WithPrefetch(5, time.Millisecond))
+	h := started(t, svc, 80, 30, readingAhead(4, time.Millisecond, false))
 	n := len(svc.getCalls())
 	if n == 0 || n > 3 {
 		t.Errorf("read %d issues before the rate limit stopped it, want 1 to 3", n)
@@ -113,7 +113,7 @@ func TestPrefetchStopsAtRateLimit(t *testing.T) {
 func TestPrefetchedModalOpensAtOnce(t *testing.T) {
 	svc := newFakeService(sampleIssues(12))
 	svc.addComments(999, sampleComments(3)...)
-	h := started(t, svc, 80, 40, WithPrefetch(5, time.Millisecond))
+	h := started(t, svc, 80, 40, readingAhead(4, time.Millisecond, false))
 	press(t, h, "down")
 	seq, ok := sequence(h.Update(keyMsg("enter"))())
 	if !ok || len(seq) != 2 {
@@ -154,8 +154,8 @@ func TestNotificationReadAheadOpensAtOnce(t *testing.T) {
 	svc.addComments(997, sampleComments(3)...)
 	h := started(t, svc, 80, 40)
 	n := core.Notification{Repo: testRepo, Subject: core.Subject{Type: core.SubjectIssue, Number: 997}, UpdatedAt: time.Now()}
-	o := threads.New(t.Context(), threads.WithIssues(svc), threads.WithPrefetch(1, time.Millisecond))
-	run(t, h, o.ReadAhead(func(i int) (core.Notification, bool) { return n, i == 0 }, n, false))
+	o := threads.New(t.Context(), threads.WithIssues(svc), threads.WithPrefetch(prefetchOf(0, time.Millisecond)))
+	run(t, h, o.ReadAhead(func(i int) (core.Notification, bool) { return n, i == 0 }, 0))
 	if got := svc.getCalls(); !slices.Contains(got, 997) {
 		t.Fatalf("read %v ahead, want #997", got)
 	}
@@ -227,7 +227,7 @@ func TestModalPausesReadAhead(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				svc := newFakeService(sampleIssues(12))
-				h := started(t, svc, 80, 40, WithPrefetch(0, 150*time.Millisecond))
+				h := started(t, svc, 80, 40, readingAhead(0, 150*time.Millisecond, false))
 				seq, ok := sequence(h.Update(keyMsg("enter"))())
 				if !ok || len(seq) != 2 {
 					t.Fatal("enter should open the modal, then start its loads")

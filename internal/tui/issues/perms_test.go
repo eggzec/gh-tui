@@ -134,7 +134,7 @@ func TestIssuesTurnedOff(t *testing.T) {
 	t.Run("known before the list loads", func(t *testing.T) {
 		svc := newFakeService(sampleIssues(8))
 		repos := &fakeRepos{caps: map[core.RepoRef]core.RepoCaps{testRepo: off}, cached: map[core.RepoRef]bool{testRepo: true}}
-		h := newSection(t, svc, 80, 12, WithRepos(repos), WithPrefetch(3, 0), WithFilterPrefetch())
+		h := newSection(t, svc, 80, 12, WithRepos(repos), readingAhead(2, 0, true))
 		run(t, h, h.Update(ui.RepoMsg{Repo: testRepo}))
 		run(t, h, h.Init())
 		press(t, h, "r", "]", "down", "enter")
@@ -154,7 +154,7 @@ func TestIssuesTurnedOff(t *testing.T) {
 	})
 	t.Run("learned after the list loaded", func(t *testing.T) {
 		svc := newFakeService(sampleIssues(8))
-		h := started(t, svc, 80, 12, WithPrefetch(3, 0), WithFilterPrefetch())
+		h := started(t, svc, 80, 12, readingAhead(2, 0, true))
 		lists, gets := len(svc.listCalls()), len(svc.getCalls())
 		run(t, h, h.Update(ui.CapsMsg{Repo: testRepo, Caps: off}))
 		press(t, h, "r", "down")

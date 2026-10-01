@@ -159,7 +159,7 @@ func TestFilteredEmptyText(t *testing.T) {
 
 func TestFilteredListsReadNoOtherTabsAhead(t *testing.T) {
 	svc := newFakeService(sampleIssues(12))
-	h := started(t, svc, 80, 30, WithFilterPrefetch())
+	h := started(t, svc, 80, 30, readingTabs())
 	n := len(svc.requested())
 	apply(t, h, "is:open label:bug")
 	want := []issuesvc.ListQuery{{Repo: testRepo, State: core.FilterOpen, Filter: "label:bug"}}

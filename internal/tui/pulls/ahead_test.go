@@ -43,7 +43,7 @@ func TestPrefetchFirstRows(t *testing.T) {
 		// #135 is cached already.
 		svc.cached[135] = true
 		svc.commented[commentsQuery(repo, 135)] = true
-		started(t, svc, 80, 30, WithPrefetch(3, 150*time.Millisecond))
+		started(t, svc, 80, 30, readingAhead(2, 150*time.Millisecond, false))
 
 		// The first three rows but the cached one. The row under the
 		// cursor is among them, so it isn't read again.
@@ -60,7 +60,7 @@ func TestPrefetchFirstRows(t *testing.T) {
 func TestPrefetchHover(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		svc := newFakeService()
-		h := started(t, svc, 80, 30, WithPrefetch(0, 150*time.Millisecond))
+		h := started(t, svc, 80, 30, readingAhead(0, 150*time.Millisecond, false))
 		if got := svc.got(); !slices.Equal(got, []int{142}) {
 			t.Errorf("read details %v, want the row under the cursor", got)
 		}
@@ -82,7 +82,7 @@ func TestPrefetchHover(t *testing.T) {
 
 func TestPrefetchCancelledByRepo(t *testing.T) {
 	svc := newFakeService()
-	h := started(t, svc, 80, 30, WithPrefetch(3, time.Millisecond))
+	h := started(t, svc, 80, 30, readingAhead(2, time.Millisecond, false))
 	svc.mu.Lock()
 	ctxs := slices.Clone(svc.getCtxs)
 	svc.mu.Unlock()
@@ -100,7 +100,7 @@ func TestPrefetchCancelledByRepo(t *testing.T) {
 func TestPrefetchStopsAtRateLimit(t *testing.T) {
 	svc := newFakeService()
 	svc.getErr = &core.RateLimitError{Reset: clock}
-	h := started(t, svc, 80, 30, WithPrefetch(5, time.Millisecond))
+	h := started(t, svc, 80, 30, readingAhead(4, time.Millisecond, false))
 	n := len(svc.got())
 	if n == 0 || n > 3 {
 		t.Errorf("read %d details before the rate limit stopped it, want 1 to 3", n)
@@ -126,7 +126,7 @@ func TestPrefetchStopsAtRateLimit(t *testing.T) {
 
 func TestPrefetchedModalOpensAtOnce(t *testing.T) {
 	svc := newFakeService()
-	h := started(t, svc, 80, 40, WithPrefetch(5, time.Millisecond))
+	h := started(t, svc, 80, 40, readingAhead(4, time.Millisecond, false))
 	press(t, h, "down")
 	seq, ok := sequence(h.Update(keyMsg("enter"))())
 	if !ok || len(seq) != 2 {
@@ -161,8 +161,8 @@ func TestNotificationReadAheadOpensAtOnce(t *testing.T) {
 	h := started(t, svc, 80, 40)
 	other := core.RepoRef{Owner: "charmbracelet", Name: "glow"}
 	n := core.Notification{Repo: other, Subject: core.Subject{Type: core.SubjectPullRequest, Number: 142}, UpdatedAt: clock}
-	o := threads.New(t.Context(), threads.WithPulls(svc), threads.WithPrefetch(1, time.Millisecond))
-	drain(t, h, o.ReadAhead(func(i int) (core.Notification, bool) { return n, i == 0 }, n, false))
+	o := threads.New(t.Context(), threads.WithPulls(svc), threads.WithPrefetch(prefetchOf(0, time.Millisecond)))
+	drain(t, h, o.ReadAhead(func(i int) (core.Notification, bool) { return n, i == 0 }, 0))
 	if got := svc.got(); !slices.Equal(got, []int{142}) {
 		t.Fatalf("read %v ahead, want #142", got)
 	}
@@ -234,7 +234,7 @@ func TestModalPausesReadAhead(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				svc := newFakeService()
-				h := started(t, svc, 80, 40, WithPrefetch(0, 150*time.Millisecond))
+				h := started(t, svc, 80, 40, readingAhead(0, 150*time.Millisecond, false))
 				seq, ok := sequence(h.Update(keyMsg("enter"))())
 				if !ok || len(seq) != 2 {
 					t.Fatal("enter should open the modal, then start its loads")
@@ -317,7 +317,7 @@ func TestModalResumesReadAheadWhateverTheOrder(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				svc := newFakeService()
-				h := started(t, svc, 80, 40, WithPrefetch(0, 150*time.Millisecond))
+				h := started(t, svc, 80, 40, readingAhead(0, 150*time.Millisecond, false))
 				tt.run(t, h, svc)
 				svc.mu.Lock()
 				svc.getErr = nil
@@ -348,4 +348,21 @@ func TestModalResumesReadAheadWhateverTheOrder(t *testing.T) {
 			})
 		})
 	}
+}
+
+// TestPrefetchKindsApart checks that the details and the first comments
+// are read ahead apart, each as its own settings say.
+func TestPrefetchKindsApart(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		svc := newFakeService()
+		p := prefetchOf(1, time.Millisecond)
+		p.Pulls.Comments.Enabled = new(false)
+		started(t, svc, 80, 30, WithPrefetch(p))
+		if got, want := sorted(svc.got()), []int{135, 142}; !slices.Equal(got, want) {
+			t.Errorf("read details %v, want %v", got, want)
+		}
+		if got := svc.firstComments(); len(got) != 0 {
+			t.Errorf("read the first comments of %v, want none while they are off", got)
+		}
+	})
 }

@@ -39,21 +39,21 @@ func prefetchConfig(t *testing.T, set ...string) config.Config {
 }
 
 func TestSettingsPrefetch(t *testing.T) {
-	h := started(t, newFakeService(), 80, 20, WithPrefetch(3, time.Second), WithFilterPrefetch())
-	h.Update(ui.SettingsMsg{Config: prefetchConfig(t, "details.prefetch.rows=7", "details.prefetch.hover_delay=2s")})
-	if h.ahead == nil || h.others == nil {
+	h := started(t, newFakeService(), 80, 20, readingAhead(2, time.Second, true))
+	h.Update(ui.SettingsMsg{Config: prefetchConfig(t, "prefetch.pulls.window.after=6", "prefetch.pulls.rest=2s")})
+	if !h.ahead.On() || h.others == nil {
 		t.Fatal("the reads ahead stopped")
 	}
-	h.Update(ui.SettingsMsg{Config: prefetchConfig(t, "details.prefetch.filters=false")})
-	if h.ahead == nil || h.others != nil {
-		t.Errorf("filters off: ahead %v, others %v", h.ahead != nil, h.others != nil)
+	h.Update(ui.SettingsMsg{Config: prefetchConfig(t, "prefetch.pulls.other_tabs.enabled=false")})
+	if !h.ahead.On() || h.others != nil {
+		t.Errorf("other tabs off: ahead %v, others %v", h.ahead.On(), h.others != nil)
 	}
-	h.Update(ui.SettingsMsg{Config: prefetchConfig(t, "details.prefetch.enabled=false")})
-	if h.ahead != nil || h.others != nil {
+	h.Update(ui.SettingsMsg{Config: prefetchConfig(t, "prefetch.pulls.enabled=false")})
+	if h.ahead.On() || h.others != nil {
 		t.Error("the reads ahead didn't stop")
 	}
 	h.Update(ui.SettingsMsg{Config: config.Default()})
-	if h.ahead == nil || h.others == nil {
+	if !h.ahead.On() || h.others == nil {
 		t.Error("the reads ahead didn't start again")
 	}
 }
@@ -65,13 +65,13 @@ func TestSettingsPrefetchOnReadsTheListShown(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		svc := newFakeService()
 		h := started(t, svc, 80, 30)
-		off := prefetchConfig(t, "details.prefetch.enabled=false")
+		off := prefetchConfig(t, "prefetch.pulls.enabled=false")
 		drain(t, h, h.Update(ui.SettingsMsg{Config: off}))
-		on, err := off.Set("details.prefetch.enabled", "true")
+		on, err := off.Set("prefetch.pulls.enabled", "true")
 		if err != nil {
 			t.Fatal(err)
 		}
-		on, err = on.Set("details.prefetch.rows", "3")
+		on, err = on.Set("prefetch.pulls.window.after", "2")
 		if err != nil {
 			t.Fatal(err)
 		}
