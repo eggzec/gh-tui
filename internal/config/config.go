@@ -109,6 +109,7 @@ func Load(path string) (*File, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid config %s:\n%w", path, err)
 	}
+	f.path, f.exists = path, data != nil
 	if err := f.validate(); err != nil {
 		return nil, fmt.Errorf("invalid config %s:\n%w", path, err)
 	}

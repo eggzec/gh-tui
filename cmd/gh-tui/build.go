@@ -278,6 +278,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		tui.WithRecall(recall{pinned: pinned, here: here, dash: dashSvc, repos: repoSvc, pulls: pullSvc, issues: issueSvc}),
 		tui.WithHost(webHost),
 		tui.WithVoice(voice),
+		tui.WithSource(src),
 		tui.WithHistory(func(ctx context.Context, repo core.RepoRef, defaultBranch string, base ui.BaseMsg) (ui.Modal, tea.Cmd) {
 			return history.Opener(historySvc, cfg.Keys, historyOpts(live.cfg)...)(ctx, repo, defaultBranch, base)
 		}),

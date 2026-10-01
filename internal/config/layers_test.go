@@ -84,7 +84,9 @@ func TestResolveLayers(t *testing.T) {
 			if !slices.Equal(cfg.Repos, tt.repos) || cfg.Theme != tt.theme || cfg.Sync.Interval != tt.interval {
 				t.Errorf("repos %v, theme %q, interval %v; want %v, %q, %v", cfg.Repos, cfg.Theme, cfg.Sync.Interval, tt.repos, tt.theme, tt.interval)
 			}
-			if src != tt.src {
+			// Only the session's fields: the rest says where each value
+			// is set, which other tests check.
+			if got := (Source{Host: src.Host, HostLayer: src.HostLayer, Account: src.Account, Profile: src.Profile}); !reflect.DeepEqual(got, tt.src) {
 				t.Errorf("source = %+v, want %+v", src, tt.src)
 			}
 		})
