@@ -14,6 +14,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/checks"
+	"github.com/eggzec/gh-tui/internal/tui/details"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/termtext"
@@ -29,9 +30,10 @@ type Service interface {
 	Get(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error)
 	CachedComments(q pulls.CommentsQuery) (core.Page[core.Comment], bool)
 	Comments(ctx context.Context, q pulls.CommentsQuery) (core.Page[core.Comment], error)
-	// Current reports whether the detail of the pull request of q and the
-	// comments q selects are cached so that reading them costs no request.
-	Current(q pulls.CommentsQuery) bool
+	// CurrentGet and CurrentComments report whether Get and Comments
+	// would answer without a request. They do no I/O.
+	CurrentGet(repo core.RepoRef, number int) bool
+	CurrentComments(q pulls.CommentsQuery) bool
 	// Invalidate marks what is cached of repo stale, so that the reads
 	// after it ask GitHub.
 	Invalidate(repo core.RepoRef)
@@ -87,16 +89,15 @@ type Section struct {
 	// voice words the errors of the feed and of the comments.
 	voice ui.Voice
 
-	// ahead reads the details of the rows of feed before they are opened,
-	// if prefetch is set. rowAt returns the query of the first comments of
-	// row i, which is how ahead knows a row.
-	prefetch *prefetch
-	ahead    *ui.Ahead[pulls.CommentsQuery]
-	rowAt    func(i int) (pulls.CommentsQuery, bool)
-	// others reads the first pages of the tabs not shown, if
-	// prefetchFilters is set.
-	prefetchFilters bool
-	others          *ui.Filters[pulls.ListQuery]
+	// ahead reads the details and the first comments of the rows of feed
+	// before they are opened, as prefetch.pulls says. rowAt returns the
+	// key of row i, which is how ahead knows a row. others reads the
+	// first pages of the tabs not shown, if prefetch.pulls.other_tabs is
+	// on. prefetch is the settings they start with.
+	prefetch *config.PrefetchLayers
+	ahead    *ui.Aheads[details.Key]
+	rowAt    func(i int) (details.Key, bool)
+	others   *ui.Filters[pulls.ListQuery]
 
 	width, height int
 	theme         ui.Theme
@@ -174,29 +175,21 @@ func WithChecks(svc checks.Service, opts ...checks.Option) Option {
 	return func(s *Section) { s.checks, s.checksOpts = svc, opts }
 }
 
-// prefetch is how the details are read ahead.
-type prefetch struct {
-	rows  int
-	delay time.Duration
-}
-
-// WithPrefetch reads the detail and the first comments of the first rows
-// of each list once it loads, and of the row under the cursor once the
-// cursor has rested on it for delay, so that they open at once. Each costs
-// two requests; details already cached are skipped. The default reads
-// nothing ahead.
-func WithPrefetch(rows int, delay time.Duration) Option {
-	return func(s *Section) { s.prefetch = &prefetch{rows: rows, delay: delay} }
-}
-
-// WithFilterPrefetch reads the first page of each state not shown once the
-// user switched tabs in a repository, with the next or previous tab key,
-// and the list shown loaded, so that switching further shows them at once.
-// It reads them once per repository and session. Each costs a request;
-// pages cached fresh are skipped, and so is a list the user filtered. The
-// default reads nothing ahead.
-func WithFilterPrefetch() Option {
-	return func(s *Section) { s.prefetchFilters = true }
+// WithPrefetch reads ahead as p says for prefetch.pulls, so that what the
+// user opens next opens at once:
+//   - details and comments: the detail and the first comments of the rows
+//     in the window around the cursor, each time it rests, and at once
+//     when a list loads. Each costs a request; what is cached is skipped.
+//   - other_tabs: the first page of each state not shown, once the user
+//     switched tabs in a repository, with the next or previous tab key,
+//     and the list shown loaded, so that switching further shows them at
+//     once. It reads them once per repository and session. Each costs a
+//     request; pages cached fresh are skipped, and so is a list the user
+//     filtered.
+//
+// The default reads nothing ahead.
+func WithPrefetch(p config.PrefetchLayers) Option {
+	return func(s *Section) { s.prefetch = &p }
 }
 
 // New returns the section, reading from svc with the configured keys. ctx
@@ -217,15 +210,13 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		opt(s)
 	}
 	s.keys.Checks.SetEnabled(s.keys.Checks.Enabled() && s.checks != nil)
-	s.rowAt = func(i int) (pulls.CommentsQuery, bool) {
+	s.rowAt = func(i int) (details.Key, bool) {
 		pr, ok := s.feed.Item(i)
-		return commentsQuery(s.repo, pr.Number), ok
+		return detailKey(s.repo, pr.Number), ok
 	}
+	s.ahead = ui.NewAheads(ctx, "pulls", details.Reader{Pulls: svc}.Kinds("pull")...)
 	if p := s.prefetch; p != nil {
-		s.ahead = s.newAhead(p.rows, p.delay)
-	}
-	if s.prefetchFilters {
-		s.others = s.newOthers()
+		s.setPrefetch(*p)
 	}
 	s.hint = "Search for a repository to see its pull requests."
 	if k := ui.Binding(keys, config.ActionSearch, "search").Help().Key; k != "" {

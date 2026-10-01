@@ -64,18 +64,20 @@ func (s *Service) currentComments(q CommentsQuery) (core.Page[core.Comment], boo
 	return e.Value.Value, st != cache.Miss && seen.Current(e.Value.Version, m.updated)
 }
 
-// Current reports whether the detail of the pull request of q and the page
-// of comments q selects can both be read without a request, since they are
-// cached and fresh or current.
-func (s *Service) Current(q CommentsQuery) bool {
-	key := detailKey(q.Repo, q.Number)
-	if _, ok := s.currentDetail(key); !ok && !fresh(s.details, key) {
-		return false
-	}
-	if _, ok := s.currentComments(q); !ok && !fresh(s.comments, q.key(s.pageSize)) {
-		return false
-	}
-	return true
+// CurrentGet reports whether Get returns pull request number of repo
+// without a request, since it is cached and fresh or current. It does no
+// I/O.
+func (s *Service) CurrentGet(repo core.RepoRef, number int) bool {
+	key := detailKey(repo, number)
+	_, ok := s.currentDetail(key)
+	return ok || fresh(s.details, key)
+}
+
+// CurrentComments reports whether Comments returns the page of q without a
+// request, since it is cached and fresh or current. It does no I/O.
+func (s *Service) CurrentComments(q CommentsQuery) bool {
+	_, ok := s.currentComments(q)
+	return ok || fresh(s.comments, q.key(s.pageSize))
 }
 
 func fresh[V any](c *cache.Cache[V], key string) bool {

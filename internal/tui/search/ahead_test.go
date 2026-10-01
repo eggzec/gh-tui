@@ -8,6 +8,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
 	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
@@ -19,10 +20,11 @@ import (
 // detailFake records the reads of details and first comments, for the
 // pull requests and issues services, and counts a read detail as cached.
 type detailFake struct {
-	mu       sync.Mutex
-	gets     []details.Key
-	comments int
-	ctxs     []context.Context
+	mu        sync.Mutex
+	gets      []details.Key
+	comments  int
+	commented []details.Key
+	ctxs      []context.Context
 	// hold, if set, holds every read of a detail until it is closed or the
 	// read is canceled.
 	hold chan struct{}
@@ -46,10 +48,17 @@ func (f *detailFake) get(ctx context.Context, k details.Key) error {
 	return nil
 }
 
-func (f *detailFake) comment() {
+func (f *detailFake) comment(k details.Key) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.comments++
+	f.commented = append(f.commented, k)
+}
+
+func (f *detailFake) hasComments(k details.Key) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Contains(f.commented, k)
 }
 
 func (f *detailFake) has(k details.Key) bool {
@@ -74,13 +83,17 @@ func (f fakePulls) Get(ctx context.Context, repo core.RepoRef, number int) (core
 	return core.PullRequestDetail{}, f.get(ctx, details.Key{Pull: true, Repo: repo, Number: number})
 }
 
-func (f fakePulls) Comments(context.Context, pulls.CommentsQuery) (core.Page[core.Comment], error) {
-	f.comment()
+func (f fakePulls) Comments(_ context.Context, q pulls.CommentsQuery) (core.Page[core.Comment], error) {
+	f.comment(details.Key{Pull: true, Repo: q.Repo, Number: q.Number})
 	return core.Page[core.Comment]{}, nil
 }
 
-func (f fakePulls) Current(q pulls.CommentsQuery) bool {
-	return f.has(details.Key{Pull: true, Repo: q.Repo, Number: q.Number})
+func (f fakePulls) CurrentGet(repo core.RepoRef, number int) bool {
+	return f.has(details.Key{Pull: true, Repo: repo, Number: number})
+}
+
+func (f fakePulls) CurrentComments(q pulls.CommentsQuery) bool {
+	return f.hasComments(details.Key{Pull: true, Repo: q.Repo, Number: q.Number})
 }
 
 type fakeIssues struct{ *detailFake }
@@ -89,20 +102,28 @@ func (f fakeIssues) Get(ctx context.Context, repo core.RepoRef, number int) (cor
 	return core.Issue{}, f.get(ctx, details.Key{Repo: repo, Number: number})
 }
 
-func (f fakeIssues) Comments(context.Context, issuesvc.CommentsQuery) (core.Page[core.Comment], error) {
-	f.comment()
+func (f fakeIssues) Comments(_ context.Context, q issuesvc.CommentsQuery) (core.Page[core.Comment], error) {
+	f.comment(details.Key{Repo: q.Repo, Number: q.Number})
 	return core.Page[core.Comment]{}, nil
 }
 
-func (f fakeIssues) Current(q issuesvc.CommentsQuery) bool {
-	return f.has(details.Key{Repo: q.Repo, Number: q.Number})
+func (f fakeIssues) CurrentGet(repo core.RepoRef, number int) bool {
+	return f.has(details.Key{Repo: repo, Number: number})
+}
+
+func (f fakeIssues) CurrentComments(q issuesvc.CommentsQuery) bool {
+	return f.hasComments(details.Key{Repo: q.Repo, Number: q.Number})
 }
 
 // aheadSection returns a page that reads the results ahead into f, with
 // the pull requests for tea on view and the kinds focused.
 func aheadSection(t *testing.T, f *detailFake) *Section {
 	t.Helper()
-	s := newSection(t, newFake(), 120, 30, WithPrefetch(fakePulls{f}, fakeIssues{f}, 150*time.Millisecond))
+	p := config.Default().Prefetch
+	p.Rest = 150 * time.Millisecond
+	// The other kinds are read at once, as newSection reads them.
+	p.Search.OtherKinds.Rest = new(time.Duration(0))
+	s := newSection(t, newFake(), 120, 30, WithDetails(fakePulls{f}, fakeIssues{f}), WithPrefetch(p))
 	typeText(t, s, "tea")
 	press(t, s, "tab", "down", "down")
 	return s

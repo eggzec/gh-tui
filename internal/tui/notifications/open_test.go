@@ -17,8 +17,9 @@ import (
 
 // fakePulls records the pull requests read ahead.
 type fakePulls struct {
-	mu    sync.Mutex
-	reads []int
+	mu        sync.Mutex
+	reads     []int
+	commented []int
 }
 
 func (f *fakePulls) Get(_ context.Context, _ core.RepoRef, number int) (core.PullRequestDetail, error) {
@@ -28,14 +29,31 @@ func (f *fakePulls) Get(_ context.Context, _ core.RepoRef, number int) (core.Pul
 	return core.PullRequestDetail{}, nil
 }
 
-func (f *fakePulls) Comments(context.Context, pulls.CommentsQuery) (core.Page[core.Comment], error) {
+func (f *fakePulls) Comments(_ context.Context, q pulls.CommentsQuery) (core.Page[core.Comment], error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.commented = append(f.commented, q.Number)
 	return core.Page[core.Comment]{}, nil
 }
 
-func (f *fakePulls) Current(q pulls.CommentsQuery) bool {
+func (f *fakePulls) CurrentGet(_ core.RepoRef, number int) bool {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	return slices.Contains(f.reads, q.Number)
+	return slices.Contains(f.reads, number)
+}
+
+func (f *fakePulls) CurrentComments(q pulls.CommentsQuery) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Contains(f.commented, q.Number)
+}
+
+// prefetchOf returns the settings that read the row under the cursor and
+// the after rows below it, once the cursor rests for rest.
+func prefetchOf(after int, rest time.Duration) config.PrefetchLayers {
+	p := config.Default().Prefetch
+	p.Window, p.Rest = config.Window{After: after}, rest
+	return p
 }
 
 func (*fakePulls) Changed(core.RepoRef, int, time.Time) {}
@@ -84,18 +102,26 @@ func TestPrefetchFirstThreadsAndHover(t *testing.T) {
 			thread("3", "charmbracelet/bubbletea", core.SubjectPullRequest, "c", "mention", true, time.Minute),
 			thread("4", "charmbracelet/bubbletea", core.SubjectPullRequest, "d", "mention", true, time.Minute),
 		}
-		s := newSectionWith(t, newFake(ts...), threads.New(t.Context(), threads.WithPulls(ps), threads.WithPrefetch(3, 150*time.Millisecond)))
-		// The first three rows: the discussion has nothing to read.
+		s := newSectionWith(t, newFake(ts...), threads.New(t.Context(), threads.WithPulls(ps), threads.WithPrefetch(prefetchOf(2, 150*time.Millisecond))))
+		// The window around the first row: the discussion has nothing to
+		// read.
 		if got := slices.Sorted(slices.Values(ps.got())); !slices.Equal(got, []int{1, 3}) {
 			t.Errorf("read %v ahead, want 1 and 3", got)
 		}
+		// The window around the discussion reaches the fourth row, once the
+		// cursor rests.
 		start := time.Now()
-		press(t, s, "down", "down", "down")
+		press(t, s, "down")
 		if waited := time.Since(start); waited != 150*time.Millisecond {
 			t.Errorf("read after %v, want the delay once the cursor rests", waited)
 		}
 		if got := ps.got(); len(got) != 3 || got[2] != 4 {
-			t.Errorf("read %v, want the row under the cursor last", got)
+			t.Errorf("read %v, want the fourth row last", got)
+		}
+		// Rows read already are read no more.
+		press(t, s, "down", "down")
+		if got := ps.got(); len(got) != 3 {
+			t.Errorf("read %v, want nothing more", got)
 		}
 	})
 }
@@ -118,7 +144,7 @@ func TestBlurCancelsReadsAhead(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ps := &heldPulls{ctxs: make(chan context.Context, 4)}
 		svc := newFake()
-		s := newSectionWith(t, svc, threads.New(t.Context(), threads.WithPulls(ps), threads.WithPrefetch(3, time.Hour)))
+		s := newSectionWith(t, svc, threads.New(t.Context(), threads.WithPulls(ps), threads.WithPrefetch(prefetchOf(2, time.Millisecond))))
 		svc.mu.Lock()
 		svc.threads = []core.Notification{thread("1", "charmbracelet/bubbletea", core.SubjectPullRequest, "a", "mention", true, time.Minute)}
 		svc.mu.Unlock()
@@ -127,6 +153,9 @@ func TestBlurCancelsReadsAhead(t *testing.T) {
 			defer close(done)
 			run(t, s, s.Update(ui.SyncMsg{Key: SyncKey}))
 		}()
+		// The list showed empty first, so its first thread waits for the
+		// cursor to rest.
+		time.Sleep(time.Millisecond)
 		synctest.Wait()
 		var ctx context.Context
 		select {
@@ -148,7 +177,7 @@ func TestNoReadsAheadOffScreen(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ps := &fakePulls{}
 		svc := newFake()
-		s := newSectionWith(t, svc, threads.New(t.Context(), threads.WithPulls(ps), threads.WithPrefetch(3, time.Hour)))
+		s := newSectionWith(t, svc, threads.New(t.Context(), threads.WithPulls(ps), threads.WithPrefetch(prefetchOf(2, time.Hour))))
 		s.Blur()
 		svc.mu.Lock()
 		svc.threads = []core.Notification{thread("1", "charmbracelet/bubbletea", core.SubjectPullRequest, "a", "mention", true, time.Minute)}

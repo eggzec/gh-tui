@@ -27,43 +27,20 @@ import (
 //
 // It reads the code, not the types: a setting counts as read where a
 // chain of selectors from the config names it, as c.History.Row, through
-// a variable, as p := c.Details.Prefetch then p.Rows, or through an
+// a variable, as p := c.Files.Preview then p.MaxSize, or through an
 // accessor of this package, as c.DashboardPrefetch(). A group of settings
 // read whole, as c.History given to the History modal, counts for each
 // setting in it; the whole config given on doesn't.
 func TestLiveSettingsAreRead(t *testing.T) {
 	read := liveReads(t)
-	for _, group := range unapplied {
-		for key := range read {
-			if key == group || strings.HasPrefix(key, group+".") {
-				t.Errorf("%s is applied now, so take %s off the list of groups nothing applies yet", key, group)
-				break
-			}
-		}
-	}
 	for _, key := range Keys() {
-		if _, ok := Startup(key); ok || isUnapplied(key) {
+		if _, ok := Startup(key); ok {
 			continue
 		}
 		if !read[key] {
 			t.Errorf("%s changes while the app runs, but nothing applies it when the settings change: apply it where they are, or tag it when:\"startup\" with why", key)
 		}
 	}
-}
-
-// unapplied are the groups of settings that the config holds, checks and
-// resolves, and that nothing reads yet. A group leaves the list once
-// anything applies it.
-var unapplied []string
-
-// isUnapplied reports whether key is in a group of unapplied.
-func isUnapplied(key string) bool {
-	for _, group := range unapplied {
-		if key == group || strings.HasPrefix(key, group+".") {
-			return true
-		}
-	}
-	return false
 }
 
 // liveReads returns the settings that the path the set command applies
@@ -205,7 +182,7 @@ func chain(e ast.Expr) string {
 
 // reads adds to read the settings that s reads.
 func (s scope) reads(acc map[string][][]string, read map[string]bool) {
-	// Variables that hold a group of settings, as p := c.Details.Prefetch.
+	// Variables that hold a group of settings, as p := c.Files.Preview.
 	alias := map[string][]string{}
 	skip := map[ast.Expr]bool{}
 	ast.Inspect(s.body, func(n ast.Node) bool {
@@ -241,7 +218,7 @@ func (s scope) reads(acc map[string][][]string, read map[string]bool) {
 }
 
 // resolve returns the names that e selects from the config, such as
-// [Details Prefetch Rows], or nil if e doesn't start from it.
+// [Files Preview MaxSize], or nil if e doesn't start from it.
 func (s scope) resolve(e ast.Expr, alias map[string][]string) []string {
 	c := chain(e)
 	if c == "" {
@@ -360,7 +337,7 @@ func accessors(t *testing.T) map[string][][]string {
 }
 
 // goPath returns the names of the fields of Config that key names, such
-// as [Details Prefetch Rows].
+// as [Files Preview MaxSize].
 func goPath(key string) []string {
 	var out []string
 	t := reflect.TypeFor[Config]()

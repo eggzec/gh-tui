@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -19,23 +20,21 @@ func WithNow(now func() time.Time) Option {
 	}
 }
 
-// WithPrefetch reads the issue and the first comments of the first rows of
-// each list once it loads, and of the row under the cursor once the cursor
-// has rested on it for delay, so that they open at once. Each costs two
-// requests; issues already cached are skipped. The default reads nothing
-// ahead.
-func WithPrefetch(rows int, delay time.Duration) Option {
-	return func(s *Section) { s.prefetch = &prefetch{rows: rows, delay: delay} }
-}
-
-// WithFilterPrefetch reads the first page of each state not shown once the
-// user switched tabs in a repository, with the next or previous tab key,
-// and the list shown loaded, so that switching further shows them at once.
-// It reads them once per repository and session. Each costs a request;
-// pages cached fresh are skipped, and so is a list the user filtered. The
-// default reads nothing ahead.
-func WithFilterPrefetch() Option {
-	return func(s *Section) { s.prefetchFilters = true }
+// WithPrefetch reads ahead as p says for prefetch.issues, so that what the
+// user opens next opens at once:
+//   - details and comments: the issue and its first comments, for the rows
+//     in the window around the cursor, each time it rests, and at once
+//     when a list loads. Each costs a request; what is cached is skipped.
+//   - other_tabs: the first page of each state not shown, once the user
+//     switched tabs in a repository, with the next or previous tab key,
+//     and the list shown loaded, so that switching further shows them at
+//     once. It reads them once per repository and session. Each costs a
+//     request; pages cached fresh are skipped, and so is a list the user
+//     filtered.
+//
+// The default reads nothing ahead.
+func WithPrefetch(p config.PrefetchLayers) Option {
+	return func(s *Section) { s.prefetch = &p }
 }
 
 // WithIcons sets the glyphs of the states of issues. Without it, the icons
@@ -67,12 +66,6 @@ type Viewer func(ctx context.Context) (string, error)
 // offered on every issue.
 func WithViewer(v Viewer) Option {
 	return func(s *Section) { s.readViewer = v }
-}
-
-// prefetch is how the issues are read ahead.
-type prefetch struct {
-	rows  int
-	delay time.Duration
 }
 
 // WithVoice sets how the section words what went wrong, with the keys a

@@ -84,7 +84,7 @@ func TestCurrentIssueOutlivesTTL(t *testing.T) {
 		api.checkCalls(t, "ListIssues", "GetIssue", "ListIssueComments")
 
 		time.Sleep(time.Hour)
-		if !s.Current(sevenComments) {
+		if !current(s, sevenComments) {
 			t.Error("Current = false past the TTL, want true: the list vouches for 7")
 		}
 		// Not even a conditional request.
@@ -103,7 +103,7 @@ func TestNewerIssueRefetches(t *testing.T) {
 	// Another list page, well within the TTL, shows that 7 changed.
 	set(epoch.Add(time.Minute))
 	listIssues(t, s, ListQuery{Repo: repo, PageSize: 10})
-	if s.Current(sevenComments) {
+	if current(s, sevenComments) {
 		t.Error("Current = true after 7 changed, want false")
 	}
 	readIssue(t, s)
@@ -125,7 +125,7 @@ func TestUnlistedIssueFollowsTTL(t *testing.T) {
 		api.checkCalls(t, "GetIssue", "ListIssueComments")
 
 		time.Sleep(2 * time.Minute)
-		if s.Current(sevenComments) {
+		if current(s, sevenComments) {
 			t.Error("Current = true past the TTL without a list")
 		}
 		readIssue(t, s)
@@ -188,7 +188,7 @@ func TestChangedMarksOlderStale(t *testing.T) {
 
 		// A notification of a change the cache has seen changes nothing.
 		s.Changed(repo, 7, time.Now().Add(-time.Second))
-		if !s.Current(sevenComments) {
+		if !current(s, sevenComments) {
 			t.Error("Current = false after an older change, want true")
 		}
 
@@ -196,7 +196,7 @@ func TestChangedMarksOlderStale(t *testing.T) {
 		changed := time.Now()
 		set(changed)
 		s.Changed(repo, 7, changed)
-		if s.Current(sevenComments) {
+		if current(s, sevenComments) {
 			t.Error("Current = true after a newer change, want false")
 		}
 		readIssue(t, s)
@@ -204,7 +204,7 @@ func TestChangedMarksOlderStale(t *testing.T) {
 			t.Errorf("cached issue updated at %v, want %v", it.UpdatedAt, changed)
 		}
 		s.Changed(repo, 7, changed)
-		if !s.Current(sevenComments) {
+		if !current(s, sevenComments) {
 			t.Error("Current = false after reading the change, want true")
 		}
 	})
@@ -222,7 +222,7 @@ func TestCurrentReadsCountAsHits(t *testing.T) {
 		time.Sleep(time.Hour)
 		// Past the TTL, the list vouches for them: two hits, no misses.
 		readIssue(t, s)
-		if !s.Current(sevenComments) {
+		if !current(s, sevenComments) {
 			t.Fatal("Current = false, want true")
 		}
 		var hit, miss int64
@@ -234,4 +234,10 @@ func TestCurrentReadsCountAsHits(t *testing.T) {
 			t.Errorf("counted %d hits and %d misses, want 2 and 3", hit, miss)
 		}
 	})
+}
+
+// current reports whether the modal of q's issue would open without a
+// request: the issue and the comments q selects.
+func current(s *Service, q CommentsQuery) bool {
+	return s.CurrentGet(q.Repo, q.Number) && s.CurrentComments(q)
 }

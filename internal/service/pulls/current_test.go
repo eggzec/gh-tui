@@ -95,7 +95,7 @@ func TestCurrentDetailOutlivesTTL(t *testing.T) {
 		readDetail(t, s)
 
 		time.Sleep(time.Hour)
-		if !s.Current(firstComments) {
+		if !current(s, firstComments) {
 			t.Error("Current = false past the TTL, want true: the list vouches for #1")
 		}
 		readDetail(t, s)
@@ -113,7 +113,7 @@ func TestNewerVersionRefetches(t *testing.T) {
 	// Another list page, well within the TTL, shows that #1 changed.
 	v.set(clock.Add(time.Minute), core.ChecksSuccess)
 	list(t, s, ListQuery{Repo: repo, State: core.StateOpen, PageSize: 10})
-	if s.Current(firstComments) {
+	if current(s, firstComments) {
 		t.Error("Current = true after #1 changed, want false")
 	}
 	readDetail(t, s)
@@ -136,7 +136,7 @@ func TestUnlistedDetailFollowsTTL(t *testing.T) {
 		wantCalls(t, api, 1, 1)
 
 		time.Sleep(2 * time.Minute)
-		if s.Current(firstComments) {
+		if current(s, firstComments) {
 			t.Error("Current = true past the TTL without a list")
 		}
 		readDetail(t, s)
@@ -210,7 +210,7 @@ func TestChangedMarksOlderStale(t *testing.T) {
 
 		// A notification of a change the cache has seen changes nothing.
 		s.Changed(repo, 1, time.Now().Add(-time.Second))
-		if !s.Current(firstComments) {
+		if !current(s, firstComments) {
 			t.Error("Current = false after an older change, want true")
 		}
 
@@ -218,7 +218,7 @@ func TestChangedMarksOlderStale(t *testing.T) {
 		changed := time.Now()
 		v.set(changed, core.ChecksSuccess)
 		s.Changed(repo, 1, changed)
-		if s.Current(firstComments) {
+		if current(s, firstComments) {
 			t.Error("Current = true after a newer change, want false")
 		}
 		readDetail(t, s)
@@ -226,7 +226,7 @@ func TestChangedMarksOlderStale(t *testing.T) {
 
 		// What was read since is as recent as the change.
 		s.Changed(repo, 1, changed)
-		if !s.Current(firstComments) {
+		if !current(s, firstComments) {
 			t.Error("Current = false after reading the change, want true")
 		}
 	})
@@ -260,7 +260,7 @@ func TestCurrentReadsCountAsHits(t *testing.T) {
 		time.Sleep(time.Hour)
 		// Past the TTL, the list vouches for them: two hits, no misses.
 		readDetail(t, s)
-		if !s.Current(firstComments) {
+		if !current(s, firstComments) {
 			t.Fatal("Current = false, want true")
 		}
 		var hit, miss int64
@@ -272,4 +272,10 @@ func TestCurrentReadsCountAsHits(t *testing.T) {
 			t.Errorf("counted %d hits and %d misses, want 2 and 3", hit, miss)
 		}
 	})
+}
+
+// current reports whether the modal of q's pull request would open without
+// a request: its detail and the comments q selects.
+func current(s *Service, q CommentsQuery) bool {
+	return s.CurrentGet(q.Repo, q.Number) && s.CurrentComments(q)
 }

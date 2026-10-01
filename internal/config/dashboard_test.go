@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestDashboardCalendarGlyph(t *testing.T) {
@@ -146,11 +147,11 @@ func TestDashboardActions(t *testing.T) {
 	}
 }
 
-// The dashboard reads ahead only when both its switch and that of the
-// details are on.
+// The dashboard reads ahead only when both its switch and that of its
+// kind of reads ahead are on, and rests as the kind says.
 func TestConfigDashboardPrefetch(t *testing.T) {
 	tests := []struct {
-		dashboard, details, want bool
+		dashboard, kind, want bool
 	}{
 		{true, true, true},
 		{true, false, false},
@@ -160,12 +161,17 @@ func TestConfigDashboardPrefetch(t *testing.T) {
 	for _, tt := range tests {
 		cfg := Default()
 		cfg.Dashboard.Prefetch = tt.dashboard
-		cfg.Details.Prefetch.Enabled = tt.details
-		if got := cfg.DashboardPrefetch(); got != tt.want {
-			t.Errorf("dashboard.prefetch %v, details.prefetch.enabled %v: read ahead = %v, want %v", tt.dashboard, tt.details, got, tt.want)
+		cfg.Prefetch.Dashboard.WaitingOnYou.Enabled = new(tt.kind)
+		if got, _ := cfg.DashboardPrefetch(); got != tt.want {
+			t.Errorf("dashboard.prefetch %v, prefetch.dashboard.waiting_on_you.enabled %v: read ahead = %v, want %v", tt.dashboard, tt.kind, got, tt.want)
 		}
 	}
-	if !Default().DashboardPrefetch() {
-		t.Error("the default config doesn't read the dashboard ahead")
+	if on, rest := Default().DashboardPrefetch(); !on || rest != Default().Prefetch.Rest {
+		t.Errorf("the default config reads the dashboard ahead %v, after %v, want on after prefetch.rest", on, rest)
+	}
+	cfg := Default()
+	cfg.Prefetch.Dashboard.Rest = new(time.Second)
+	if _, rest := cfg.DashboardPrefetch(); rest != time.Second {
+		t.Errorf("rest = %v, want the dashboard's own, 1s", rest)
 	}
 }

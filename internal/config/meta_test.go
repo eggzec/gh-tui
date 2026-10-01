@@ -61,7 +61,7 @@ func TestGlobal(t *testing.T) {
 		"cache.disk.dir": true, "cache.disk.max_size": true, "cache.disk.compression": true, "cache.disk.compression_level": true,
 		"theme": false, "ui": false, "repos": false, "cache": false, "cache.ttl": false,
 		"cache.disk.enabled": false, "cache.disk.entries": false, "cache.revalidate.budget": false,
-		"sync.poll.lists": false, "details.prefetch.rows": false, "nope": false,
+		"sync.poll.lists": false, "prefetch.window.after": false, "nope": false,
 	} {
 		if got := Global(key); got != want {
 			t.Errorf("Global(%q) = %v, want %v", key, got, want)

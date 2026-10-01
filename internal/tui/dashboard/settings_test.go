@@ -69,7 +69,7 @@ func TestSettingsPrefetch(t *testing.T) {
 		t.Fatal("the settings didn't turn the reads ahead on")
 	}
 	off := config.Default()
-	off.Details.Prefetch.Enabled = false
+	off.Prefetch.Dashboard.WaitingOnYou.Enabled = new(false)
 	s.Update(ui.SettingsMsg{Config: off})
 	if s.ahead != nil {
 		t.Error("the reads ahead didn't stop")

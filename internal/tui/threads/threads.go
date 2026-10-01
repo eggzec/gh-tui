@@ -27,7 +27,8 @@ import (
 type Pulls interface {
 	Get(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error)
 	Comments(ctx context.Context, q pulls.CommentsQuery) (core.Page[core.Comment], error)
-	Current(q pulls.CommentsQuery) bool
+	CurrentGet(repo core.RepoRef, number int) bool
+	CurrentComments(q pulls.CommentsQuery) bool
 	Changed(repo core.RepoRef, number int, updated time.Time)
 }
 
@@ -36,7 +37,8 @@ type Pulls interface {
 type Issues interface {
 	Get(ctx context.Context, repo core.RepoRef, number int) (core.Issue, error)
 	Comments(ctx context.Context, q issuesvc.CommentsQuery) (core.Page[core.Comment], error)
-	Current(q issuesvc.CommentsQuery) bool
+	CurrentGet(repo core.RepoRef, number int) bool
+	CurrentComments(q issuesvc.CommentsQuery) bool
 	Changed(repo core.RepoRef, number int, updated time.Time)
 }
 
@@ -65,14 +67,14 @@ func WithReleases(svc Releases) Option {
 	return func(o *Opener) { o.releases = svc }
 }
 
-// WithPrefetch reads ahead what the first rows of threads are about once
-// they load, and what the row under the cursor is about once the cursor
-// has rested on it for delay. An issue or a pull request costs two
-// requests, its detail and its first comments, and a release one; what is
-// cached and as recent as the notification is skipped. The default reads
-// nothing ahead.
-func WithPrefetch(rows int, delay time.Duration) Option {
-	return func(o *Opener) { o.rows, o.delay, o.prefetch = max(rows, 0), delay, true }
+// WithPrefetch reads ahead what the threads in the window around the
+// cursor are about, each time it rests, and at once when a list loads, as
+// p says for prefetch.notifications: details reads the pull request,
+// issue or release, and comments the first comments of a pull request or
+// issue. Each costs a request; what is cached and as recent as the
+// notification is skipped. The default reads nothing ahead.
+func WithPrefetch(p config.PrefetchLayers) Option {
+	return func(o *Opener) { o.prefetch = &p }
 }
 
 // WithMarkRead sets whether opening a thread marks it read, which
@@ -96,14 +98,11 @@ type Opener struct {
 	markRead bool
 
 	// details reads the pull requests and issues, as the other lists do.
+	// ahead reads them ahead, by kind; prefetch is the settings it starts
+	// with.
 	details  details.Reader
-	prefetch bool
-	rows     int
-	delay    time.Duration
-	ahead    *ui.Ahead[target]
-	// first holds the first rows that have something to read, reused by
-	// each ReadAhead.
-	first []target
+	prefetch *config.PrefetchLayers
+	ahead    *ui.Aheads[target]
 }
 
 // New returns an Opener whose reads ahead ctx bounds.
@@ -113,9 +112,12 @@ func New(ctx context.Context, opts ...Option) *Opener {
 		opt(o)
 	}
 	o.details = details.Reader{Pulls: o.pulls, Issues: o.issues}
-	if o.prefetch {
-		o.ahead = ui.NewAhead("thread", o.read, o.current, o.rows, o.delay)
-		o.ahead.Reset(ctx)
+	// What there is no service for counts as cached, so it isn't read.
+	o.ahead = ui.NewAheads(ctx, "notifications",
+		ui.AheadKind[target]{Name: "details", Log: "thread", Read: o.read, Current: o.current},
+		ui.AheadKind[target]{Name: "comments", Log: "thread_comments", Read: o.readComments, Current: o.currentComments})
+	if o.prefetch != nil {
+		o.ahead.Configure(*o.prefetch)
 	}
 	return o
 }
@@ -163,7 +165,7 @@ func (o *Opener) Open(n core.Notification) tea.Cmd {
 	// The modal of an issue or a pull request holds the reads ahead while
 	// it loads, as those of the lists do.
 	var pause ui.Pauser
-	if o != nil && o.ahead != nil {
+	if o != nil && o.ahead.On() {
 		pause = o.ahead
 	}
 	var msg tea.Msg
@@ -259,37 +261,27 @@ func (o *Opener) Resume() {
 	}
 }
 
-// ReadAhead reads ahead what the first rows of a list are about, which
-// item returns by index, and false for a row not loaded, and what the
-// thread under the cursor, sel, is about; ok is false when the cursor is
-// on no row. Call it after every update of the list: it reads again only
-// what changed.
-func (o *Opener) ReadAhead(item func(i int) (core.Notification, bool), sel core.Notification, ok bool) tea.Cmd {
-	if o == nil || o.ahead == nil {
+// ReadAhead tells the reads ahead that the cursor is on row i of a list,
+// which item returns by index, and false for a row not loaded; a nil item
+// says the list hasn't loaded. Once the cursor rests, they read what the
+// threads in the window around it are about. Call it after every update
+// of the list: it waits again only when the window changed.
+func (o *Opener) ReadAhead(item func(i int) (core.Notification, bool), i int) tea.Cmd {
+	if o == nil {
 		return nil
 	}
-	// The rows that have nothing to read are left out.
-	o.first = o.first[:0]
-	for i := range o.rows {
-		n, ok := item(i)
+	if item == nil {
+		return o.ahead.Window(nil, i)
+	}
+	return o.ahead.Window(func(j int) (target, bool) {
+		n, ok := item(j)
 		if !ok {
-			break
+			return target{}, false
 		}
-		if t, ok := targetOf(n); ok {
-			o.first = append(o.first, t)
-		}
-	}
-	cmd := o.ahead.First(o.firstAt)
-	t, readable := targetOf(sel)
-	return batch(cmd, o.ahead.Moved(t, ok && readable))
-}
-
-// firstAt returns the ith of the first rows that have something to read.
-func (o *Opener) firstAt(i int) (target, bool) {
-	if i < len(o.first) {
-		return o.first[i], true
-	}
-	return target{}, false
+		// A thread about what has nothing to read counts toward the
+		// window, and costs nothing.
+		return targetOf(n)
+	}, i)
 }
 
 // Rested reads what the thread the cursor rested on is about, unless it
@@ -312,14 +304,15 @@ func (o *Opener) changed(t target) {
 	}
 }
 
-// current reports whether what t is about is cached and as recent as the
-// notification, so that its modal opens without a request. Without a
-// service to read it, there is nothing to read. It does no I/O.
+// current reports whether the detail of what t is about, or its release,
+// is cached and as recent as the notification, so that reading it costs
+// no request. Without a service to read it, there is nothing to read. It
+// does no I/O.
 func (o *Opener) current(t target) bool {
 	o.changed(t)
 	switch t.kind {
 	case core.SubjectPullRequest, core.SubjectIssue:
-		return o.details.Current(t.detail())
+		return o.details.CurrentDetail(t.detail())
 	case core.SubjectRelease:
 		return o.releases == nil || o.releases.Current(t.repo, t.release)
 	default:
@@ -327,27 +320,40 @@ func (o *Opener) current(t target) bool {
 	}
 }
 
+// currentComments reports whether the first comments of what t is about
+// are cached and as recent as the notification, or it has none to read.
+// It does no I/O.
+func (o *Opener) currentComments(t target) bool {
+	o.changed(t)
+	switch t.kind {
+	case core.SubjectPullRequest, core.SubjectIssue:
+		return o.details.CurrentComments(t.detail())
+	default:
+		return true
+	}
+}
+
+// readComments reads the first comments of the pull request or issue t is
+// about into the cache its modal reads from.
+func (o *Opener) readComments(ctx context.Context, t target) error {
+	switch t.kind {
+	case core.SubjectPullRequest, core.SubjectIssue:
+		return o.details.ReadComments(ctx, t.detail())
+	default:
+		return nil
+	}
+}
+
 // read reads what t is about into the cache its modal reads from: the
-// detail and the first comments, as the modal asks for them, or the
-// release.
+// detail of a pull request or issue, or the release.
 func (o *Opener) read(ctx context.Context, t target) error {
 	switch t.kind {
 	case core.SubjectPullRequest, core.SubjectIssue:
-		return o.details.Read(ctx, t.detail())
+		return o.details.ReadDetail(ctx, t.detail())
 	case core.SubjectRelease:
 		_, err := o.releases.Get(ctx, t.repo, t.release)
 		return err
 	default:
 		return nil
 	}
-}
-
-func batch(a, b tea.Cmd) tea.Cmd {
-	switch {
-	case a == nil:
-		return b
-	case b == nil:
-		return a
-	}
-	return tea.Batch(a, b)
 }

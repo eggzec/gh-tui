@@ -84,13 +84,15 @@ func (s *Section) openThread() tea.Cmd {
 	return cmd
 }
 
-// readAhead reads ahead what the first unread threads are about while the
-// dashboard is on view, and the one under the cursor while the pane has the
-// focus.
+// readAhead reads ahead what the unread threads around the cursor are
+// about while the dashboard is on view.
 func (s *Section) readAhead() tea.Cmd {
-	if !s.started || s.inbox == nil || !s.focused {
+	if !s.started || !s.focused {
 		return nil
 	}
-	n, ok := s.threads.selected()
-	return s.opener.ReadAhead(s.threads.item, n, ok && s.focus == inboxPane)
+	if s.inbox == nil || !s.notes.ok {
+		// There is no inbox, or it hasn't loaded.
+		return s.opener.ReadAhead(nil, 0)
+	}
+	return s.opener.ReadAhead(s.threads.item, s.threads.sel)
 }

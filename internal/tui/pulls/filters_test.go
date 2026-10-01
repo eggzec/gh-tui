@@ -50,7 +50,7 @@ func TestPrefetchFiltersAfterTheFirstSwitch(t *testing.T) {
 			for _, q := range tt.fresh {
 				svc.fresh[q] = true
 			}
-			h := started(t, svc, 80, 30, WithFilterPrefetch())
+			h := started(t, svc, 80, 30, readingTabs())
 			for _, k := range tt.keys {
 				press(t, h, k)
 			}
@@ -65,7 +65,7 @@ func TestPrefetchFiltersAfterTheFirstSwitch(t *testing.T) {
 // after a first switch to the closed ones, and back.
 func switched(t *testing.T, svc *fakeService, opts ...Option) *host {
 	t.Helper()
-	h := started(t, svc, 80, 30, append([]Option{WithFilterPrefetch()}, opts...)...)
+	h := started(t, svc, 80, 30, append([]Option{readingTabs()}, opts...)...)
 	press(t, h, "]")
 	press(t, h, "[")
 	return h
@@ -92,7 +92,7 @@ func TestPrefetchedFilterShowsWithoutRequest(t *testing.T) {
 
 func TestPrefetchFiltersReadsNoDetailsAhead(t *testing.T) {
 	svc := newFakeService()
-	h := switched(t, svc, WithPrefetch(5, time.Millisecond))
+	h := switched(t, svc, readingAhead(4, time.Millisecond, true))
 	for _, n := range svc.got() {
 		if pr := svc.find(n); pr.State == core.StateMerged {
 			t.Errorf("read the detail of #%d, %s, ahead of its filter", n, pr.State)
@@ -128,7 +128,7 @@ func TestPrefetchFiltersCancelledByRepo(t *testing.T) {
 	svc.mu.Lock()
 	svc.fresh[pulls.ListQuery{Repo: repo, State: core.StateOpen}] = true
 	svc.mu.Unlock()
-	h := started(t, svc, 80, 30, WithFilterPrefetch())
+	h := started(t, svc, 80, 30, readingTabs())
 	press(t, h, "]")
 	svc.mu.Lock()
 	ctxs := slices.Clone(svc.listCtxs[1:])
@@ -154,7 +154,7 @@ func TestPrefetchFiltersCancelledByRepo(t *testing.T) {
 func TestPrefetchFiltersStopsAtRateLimit(t *testing.T) {
 	svc := newFakeService()
 	svc.stateErrs = map[core.State]error{core.StateMerged: &core.RateLimitError{Reset: clock}}
-	h := started(t, svc, 80, 30, WithFilterPrefetch())
+	h := started(t, svc, 80, 30, readingTabs())
 	press(t, h, "[")
 	want := firstPages(repo, core.StateOpen, "", core.StateClosed, core.StateMerged)
 	if got := svc.requested(); !slices.Equal(got, want) {
@@ -164,7 +164,7 @@ func TestPrefetchFiltersStopsAtRateLimit(t *testing.T) {
 
 func TestNoFilterPrefetchByDefault(t *testing.T) {
 	svc := newFakeService()
-	started(t, svc, 80, 30, WithPrefetch(5, time.Millisecond))
+	started(t, svc, 80, 30, readingAhead(4, time.Millisecond, false))
 	want := firstPages(repo, core.StateOpen)
 	if got := svc.requested(); !slices.Equal(got, want) {
 		t.Errorf("requested %v without WithFilterPrefetch, want %v", got, want)

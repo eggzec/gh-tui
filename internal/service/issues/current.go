@@ -52,19 +52,20 @@ func (s *Service) currentComments(q CommentsQuery) (core.Page[core.Comment], boo
 	return e.Value.Value, st != cache.Miss && seen.Current(e.Value.Version, version)
 }
 
-// Current reports whether the issue of q and the page of comments q selects
-// can both be read without a request, since they are cached and fresh or
-// current.
-func (s *Service) Current(q CommentsQuery) bool {
+// CurrentGet reports whether Get returns issue number of repo without a
+// request, since it is cached and fresh or current. It does no I/O.
+func (s *Service) CurrentGet(repo core.RepoRef, number int) bool {
+	key := issueKey(repo, number)
+	_, ok := s.currentIssue(key)
+	return ok || fresh(s.issues, key)
+}
+
+// CurrentComments reports whether Comments returns the page of q without a
+// request, since it is cached and fresh or current. It does no I/O.
+func (s *Service) CurrentComments(q CommentsQuery) bool {
 	q = q.normalize(s.pageSize)
-	key := issueKey(q.Repo, q.Number)
-	if _, ok := s.currentIssue(key); !ok && !fresh(s.issues, key) {
-		return false
-	}
-	if _, ok := s.currentComments(q); !ok && !fresh(s.comments, commentsKey(q)) {
-		return false
-	}
-	return true
+	_, ok := s.currentComments(q)
+	return ok || fresh(s.comments, commentsKey(q))
 }
 
 func fresh[V any](c *cache.Cache[V], key string) bool {

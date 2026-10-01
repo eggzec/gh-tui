@@ -80,7 +80,13 @@ func (f fakePulls) Comments(context.Context, pulls.CommentsQuery) (core.Page[cor
 	return core.Page[core.Comment]{}, nil
 }
 
-func (f fakePulls) Current(q pulls.CommentsQuery) bool {
+func (f fakePulls) CurrentGet(repo core.RepoRef, number int) bool {
+	return f.has(details.Key{Pull: true, Repo: repo, Number: number})
+}
+
+// CurrentComments counts the comments as cached with the detail, which
+// the dashboard reads together.
+func (f fakePulls) CurrentComments(q pulls.CommentsQuery) bool {
 	return f.has(details.Key{Pull: true, Repo: q.Repo, Number: q.Number})
 }
 
@@ -95,7 +101,11 @@ func (f fakeIssues) Comments(context.Context, issuesvc.CommentsQuery) (core.Page
 	return core.Page[core.Comment]{}, nil
 }
 
-func (f fakeIssues) Current(q issuesvc.CommentsQuery) bool {
+func (f fakeIssues) CurrentGet(repo core.RepoRef, number int) bool {
+	return f.has(details.Key{Repo: repo, Number: number})
+}
+
+func (f fakeIssues) CurrentComments(q issuesvc.CommentsQuery) bool {
 	return f.has(details.Key{Repo: q.Repo, Number: q.Number})
 }
 

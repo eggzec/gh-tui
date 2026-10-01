@@ -123,7 +123,7 @@ func TestLoadMergesOverDefaults(t *testing.T) {
 			want: func(c *Config) {
 				c.Keys[ActionQuit] = []string{"x"}
 				c.Cache.TTL = 10 * time.Minute
-				c.Details.Prefetch.Rows = 3
+				c.Prefetch.Pulls.Window.After = new(3)
 			},
 		},
 		{
@@ -156,9 +156,8 @@ func TestLoadMergesOverDefaults(t *testing.T) {
 					Preview: Preview{MaxSize: 2_000_000},
 					Finder:  Finder{Preview: false},
 				}
-				c.Details = Details{
-					Prefetch: DetailsPrefetch{Enabled: false, Rows: 10, HoverDelay: time.Second},
-				}
+				c.Prefetch.Enabled, c.Prefetch.Window, c.Prefetch.Rest, c.Prefetch.Parallel = false, Window{Before: 2, After: 6}, time.Second, 2
+				c.Prefetch.Pulls.OtherTabs.Enabled = new(false)
 				c.Notifications = Notifications{MarkReadOnOpen: false}
 				c.Images = Images{Enabled: ImagesOff, MaxRows: 8}
 				c.History = History{
@@ -235,8 +234,8 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 	cfg.Sync.UnfocusedSlowdown = 0
 	cfg.Files.Preview.MaxSize = 32 * KiB
 	cfg.Prefetch.Finder.Preview.MaxSize = -1
-	cfg.Details.Prefetch.Rows = 31
-	cfg.Details.Prefetch.HoverDelay = -time.Second
+	cfg.Prefetch.Window.After = 31
+	cfg.Prefetch.Rest = -time.Second
 	cfg.History = History{
 		Row:    []string{FieldSubject, "sha", FieldSubject},
 		Detail: []string{FieldBody, "age"},
@@ -277,8 +276,8 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 		`sync.unfocused_slowdown: must be between 1 and 60, got 0`,
 		`prefetch.files.preview.max_size: must be between 0B and files.preview.max_size (32KiB), got 64KiB`,
 		`prefetch.finder.preview.max_size: must be between 0B and files.preview.max_size (32KiB), got -1B`,
-		`details.prefetch.rows: must be between 0 and 30, got 31`,
-		`details.prefetch.hover_delay: must not be negative, got -1s`,
+		`prefetch.window.after: must be between 0 and 30, got 31`,
+		`prefetch.rest: must be between 0 and 2s, got -1s`,
 		`history.row[1]: unknown field "sha", want one of short_sha, subject, author, committer, age, date, verified, trailers`,
 		`history.row[2]: "subject" is listed twice`,
 		`history.detail[1]: unknown field "age", want one of sha, author, committer, date, verification, parents, trailers, body, stats`,

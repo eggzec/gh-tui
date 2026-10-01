@@ -12,6 +12,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
@@ -77,6 +78,13 @@ func (f *fakeReads) comment(name string) {
 	f.comments = append(f.comments, name)
 }
 
+// commented reports whether the first comments of name were read.
+func (f *fakeReads) commented(name string) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Contains(f.comments, name)
+}
+
 func (f *fakeReads) current(name string) bool {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -125,8 +133,12 @@ func (f fakePulls) Comments(_ context.Context, q pulls.CommentsQuery) (core.Page
 	return core.Page[core.Comment]{}, nil
 }
 
-func (f fakePulls) Current(q pulls.CommentsQuery) bool {
-	return f.current(itemName("pull", q.Repo, int64(q.Number)))
+func (f fakePulls) CurrentGet(repo core.RepoRef, number int) bool {
+	return f.current(itemName("pull", repo, int64(number)))
+}
+
+func (f fakePulls) CurrentComments(q pulls.CommentsQuery) bool {
+	return f.commented(itemName("pull", q.Repo, int64(q.Number)))
 }
 
 func (f fakePulls) Changed(repo core.RepoRef, number int, updated time.Time) {
@@ -147,8 +159,12 @@ func (f fakeIssues) Comments(_ context.Context, q issuesvc.CommentsQuery) (core.
 	return core.Page[core.Comment]{}, nil
 }
 
-func (f fakeIssues) Current(q issuesvc.CommentsQuery) bool {
-	return f.current(itemName("issue", q.Repo, int64(q.Number)))
+func (f fakeIssues) CurrentGet(repo core.RepoRef, number int) bool {
+	return f.current(itemName("issue", repo, int64(number)))
+}
+
+func (f fakeIssues) CurrentComments(q issuesvc.CommentsQuery) bool {
+	return f.commented(itemName("issue", q.Repo, int64(q.Number)))
 }
 
 func (f fakeIssues) Changed(repo core.RepoRef, number int, updated time.Time) {
@@ -165,13 +181,16 @@ func (f fakeReleases) Current(repo core.RepoRef, id int64) bool {
 	return f.current(itemName("release", repo, id))
 }
 
-// newOpener returns an opener over f for every kind, which reads the first
-// rows ahead, and the row under the cursor after delay.
-func newOpener(tb testing.TB, f *fakeReads, rows int, delay time.Duration) *Opener {
+// newOpener returns an opener over f for every kind, which reads the row
+// under the cursor and the after rows below it ahead once the cursor rests
+// for rest.
+func newOpener(tb testing.TB, f *fakeReads, after int, rest time.Duration) *Opener {
 	tb.Helper()
+	p := config.Default().Prefetch
+	p.Window, p.Rest = config.Window{After: after}, rest
 	return New(tb.Context(),
 		WithPulls(fakePulls{f}), WithIssues(fakeIssues{f}), WithReleases(fakeReleases{f}),
-		WithPrefetch(rows, delay),
+		WithPrefetch(p),
 	)
 }
 

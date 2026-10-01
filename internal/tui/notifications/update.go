@@ -229,14 +229,17 @@ func (s *Section) open() tea.Cmd {
 	return cmd
 }
 
-// readAhead reads ahead what the first threads and the one under the
-// cursor are about, once the list has started, while it is on view.
+// readAhead reads ahead what the threads around the cursor are about, once
+// the list has started, while it is on view.
 func (s *Section) readAhead() tea.Cmd {
 	if !s.started || !s.feed.Focused() {
 		return nil
 	}
-	n, ok := s.feed.Selected()
-	return s.opener.ReadAhead(s.feed.Item, n, ok)
+	if s.feed.Len() == 0 && !s.feed.Settled() {
+		// The list hasn't loaded.
+		return s.opener.ReadAhead(nil, 0)
+	}
+	return s.opener.ReadAhead(s.feed.Item, s.feed.Index())
 }
 
 // do shows the change op already made to the cache and sends it.

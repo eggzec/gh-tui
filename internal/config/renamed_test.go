@@ -393,3 +393,105 @@ func TestHistoryDateFormatRenamed(t *testing.T) {
 		}
 	}
 }
+
+// TestDetailsPrefetchRenamed checks how the old settings of reading
+// details ahead are read under the prefetch settings.
+func TestDetailsPrefetchRenamed(t *testing.T) {
+	t.Setenv(EnvLog, "")
+	tests := []struct {
+		name, file string
+		want       func(*Config)
+	}{
+		{
+			name: "rows no longer count the row under the cursor",
+			file: "details:\n  prefetch:\n    rows: 3\n",
+			want: func(c *Config) {
+				p := &c.Prefetch
+				p.Pulls.Window.After, p.Issues.Window.After, p.Notifications.Window.After = new(2), new(2), new(2)
+				p.Dashboard.Inbox.Window.After = new(2)
+			},
+		},
+		{
+			name: "no rows reads the row under the cursor only",
+			file: "details:\n  prefetch:\n    rows: 0\n",
+			want: func(c *Config) {
+				p := &c.Prefetch
+				p.Pulls.Window.After, p.Issues.Window.After, p.Notifications.Window.After = new(0), new(0), new(0)
+				p.Dashboard.Inbox.Window.After = new(0)
+			},
+		},
+		{
+			name: "off turns off what followed it, and the other tabs, which follow their page",
+			file: "details:\n  prefetch:\n    enabled: false\n    filters: true\n",
+			want: func(c *Config) {
+				p := &c.Prefetch
+				p.Pulls.Enabled, p.Issues.Enabled, p.Notifications.Enabled = new(false), new(false), new(false)
+				p.Search.Details.Enabled, p.Search.Comments.Enabled = new(false), new(false)
+				p.Dashboard.WaitingOnYou.Enabled, p.Dashboard.Inbox.Enabled = new(false), new(false)
+			},
+		},
+		{
+			name: "on was the default, so it moves nowhere",
+			file: "details:\n  prefetch:\n    enabled: true\n    filters: true\n",
+			want: func(*Config) {},
+		},
+		{
+			name: "the other tabs alone",
+			file: "details:\n  prefetch:\n    filters: false\n",
+			want: func(c *Config) {
+				c.Prefetch.Pulls.OtherTabs.Enabled, c.Prefetch.Issues.OtherTabs.Enabled = new(false), new(false)
+			},
+		},
+		{
+			name: "the delay is the rest of every page",
+			file: "details:\n  prefetch:\n    hover_delay: 1s\n",
+			want: func(c *Config) { c.Prefetch.Rest = time.Second },
+		},
+		{
+			name: "a delay longer than any rest is cut to the longest",
+			file: "details:\n  prefetch:\n    hover_delay: 5s\n",
+			want: func(c *Config) { c.Prefetch.Rest = maxRest },
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, renamed, err := loadBase(writeConfig(t, tt.file))
+			if err != nil {
+				t.Fatalf("Load error = %v", err)
+			}
+			want := Default()
+			tt.want(&want)
+			assertEqual(t, got, want)
+			if len(renamed) == 0 {
+				t.Error("Load reported no old setting")
+			}
+		})
+	}
+	// Off left the other kinds of search results on, as they were.
+	off, _, err := loadBase(writeConfig(t, "details:\n  prefetch:\n    enabled: false\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r := resolve(t, off, "search", "other_kinds"); !r.Enabled {
+		t.Error("details.prefetch.enabled: false turned off the other kinds of search results")
+	}
+	// On, then prefetch off, turns everything off.
+	on, _, err := loadBase(writeConfig(t, "details:\n  prefetch:\n    enabled: true\n    filters: true\nprefetch:\n  enabled: false\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, pk := range on.Prefetch.Kinds() {
+		if resolve(t, on, pk.Page, pk.Kind).Enabled {
+			t.Errorf("%s reads ahead with prefetch.enabled: false", pk)
+		}
+	}
+	for _, file := range []string{
+		"details:\n  prefetch:\n    rows: some\n",
+		"details:\n  prefetch:\n    enabled: often\n",
+		"details:\n  prefetch:\n    rows: 3\nprefetch:\n  pulls:\n    window: {after: 1}\n",
+	} {
+		if _, _, err := loadBase(writeConfig(t, file)); err == nil {
+			t.Errorf("Load(%q) = nil error, want it refused", file)
+		}
+	}
+}

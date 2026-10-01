@@ -58,22 +58,13 @@ files:
   finder:
     preview: false
 
-details:
-  prefetch:
-    enabled: false
-    rows: 10
-    hover_delay: 1s
-    filters: false
-
-notifications:
-  mark_read_on_open: false
-
-history:
-  row: [short_sha, subject, verified, age]
-  detail: [sha, author, date, trailers]
-  show_email: true
-
 prefetch:
+  enabled: false
+  window: {before: 2, after: 6}
+  rest: 1s
+  parallel: 2
+  pulls:
+    other_tabs: {enabled: false}
   files:
     rest: 300ms
     preview: {enabled: false, max_size: 16KiB}
@@ -82,6 +73,14 @@ prefetch:
   history:
     window: {before: 5, after: 5}
     rest: 250ms
+
+notifications:
+  mark_read_on_open: false
+
+history:
+  row: [short_sha, subject, verified, age]
+  detail: [sha, author, date, trailers]
+  show_email: true
 
 dashboard:
   calendar_glyph: "#"

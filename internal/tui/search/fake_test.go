@@ -328,7 +328,7 @@ func startRepos(context.Context) ([]core.Repo, error) {
 }
 
 // withOthersWait sets how long the query rests before the other kinds are
-// read. The default is OthersWait.
+// read. The default is defaultOthersWait.
 func withOthersWait(d time.Duration) Option {
 	return func(s *Section) { s.othersWait = d }
 }

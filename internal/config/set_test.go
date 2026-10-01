@@ -10,7 +10,7 @@ import (
 
 func TestKeys(t *testing.T) {
 	keys := Keys()
-	for _, k := range []string{"repos", "theme", "ui.icons", "sync.poll.lists", "details.prefetch.rows", "prefetch.files.preview.max_size", "history.row", "cache.disk.dir", "log.level"} {
+	for _, k := range []string{"repos", "theme", "ui.icons", "sync.poll.lists", "prefetch.window.after", "prefetch.files.preview.max_size", "history.row", "cache.disk.dir", "log.level"} {
 		if !slices.Contains(keys, k) {
 			t.Errorf("Keys() lacks %s", k)
 		}
@@ -36,8 +36,8 @@ func TestGet(t *testing.T) {
 		"sync.poll.actions":               "10s",
 		"sync.poll.checks":                "15s",
 		"sync.unfocused_slowdown":         "4",
-		"details.prefetch.hover_delay":    "150ms",
-		"details.prefetch.rows":           "5",
+		"prefetch.rest":                   "150ms",
+		"prefetch.window.after":           "4",
 		"prefetch.files.preview.max_size": "64KiB",
 		"history.row":                     "[short_sha, subject, author, age]",
 		"repos":                           "[]",
@@ -76,9 +76,9 @@ func TestSet(t *testing.T) {
 		{key: "sync.unfocused_slowdown", value: "100000000", err: "sync.unfocused_slowdown: must be between 1 and 60, got 100000000"},
 		{key: "sync.enabled", value: "false", want: "false"},
 		{key: "sync.enabled", value: "maybe", err: `sync.enabled: can't read "maybe"`},
-		{key: "details.prefetch.rows", value: "10", want: "10"},
-		{key: "details.prefetch.rows", value: "40", err: "details.prefetch.rows: must be between 0 and 30, got 40"},
-		{key: "details.prefetch.hover_delay", value: "1s", want: "1s"},
+		{key: "prefetch.window.after", value: "10", want: "10"},
+		{key: "prefetch.window.after", value: "40", err: "prefetch.window.after: must be between 0 and 30, got 40"},
+		{key: "prefetch.rest", value: "1s", want: "1s"},
 		{key: "prefetch.files.preview.max_size", value: "512KiB", want: "512KiB"},
 		{key: "prefetch.files.preview.max_size", value: "2MiB", err: "prefetch.files.preview.max_size: must be between 0B and files.preview.max_size"},
 		{key: "dashboard.calendar_glyph", value: "#", want: "#"},
@@ -123,7 +123,7 @@ func TestSetKeepsTheRest(t *testing.T) {
 	if !slices.Equal(c.History.Row, Default().History.Row) {
 		t.Errorf("the list set is shared with the config before: %v", c.History.Row)
 	}
-	if got.Sync != c.Sync || got.UI != c.UI || got.Details != c.Details {
+	if got.Sync != c.Sync || got.UI != c.UI || got.Notifications != c.Notifications {
 		t.Error("Set changed other settings")
 	}
 }

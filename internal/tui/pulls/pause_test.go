@@ -118,7 +118,7 @@ func TestOpenReleasesTheListItCameFrom(t *testing.T) {
 			svc.pulls = append(svc.pulls,
 				core.PullRequest{Repo: other, Number: 7, Title: "Speed up gh pr list", State: core.StateOpen},
 				core.PullRequest{Repo: other, Number: 8, Title: "Speed up gh pr view", State: core.StateOpen})
-			h := started(t, svc, 80, 30, WithPrefetch(3, 0))
+			h := started(t, svc, 80, 30, readingAhead(2, 0, false))
 			p := &holds{}
 			tt.run(t, h, svc, p)
 			if p.held() != 0 {

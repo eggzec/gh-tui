@@ -233,20 +233,14 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		pullOpts = []pulls.Option{
 			pulls.WithVoice(voice), pulls.WithIcons(icons), pulls.WithDates(dates), pulls.WithFacets(facetSvc),
 			pulls.WithChecks(actionSvc, checkOpts...), pulls.WithRepos(repoSvc), pulls.WithViewer(pulls.Viewer(viewer)),
+			pulls.WithPrefetch(cfg.Prefetch),
 		}
 		issueOpts = []issues.Option{
 			issues.WithVoice(voice), issues.WithIcons(icons), issues.WithDates(dates), issues.WithFacets(facetSvc),
 			issues.WithRepos(repoSvc), issues.WithViewer(issues.Viewer(viewer)),
+			issues.WithPrefetch(cfg.Prefetch),
 		}
 	)
-	if p := cfg.Details.Prefetch; p.Enabled {
-		pullOpts = append(pullOpts, pulls.WithPrefetch(p.Rows, p.HoverDelay))
-		issueOpts = append(issueOpts, issues.WithPrefetch(p.Rows, p.HoverDelay))
-		if p.Filters {
-			pullOpts = append(pullOpts, pulls.WithFilterPrefetch())
-			issueOpts = append(issueOpts, issues.WithFilterPrefetch())
-		}
-	}
 	// The notifications screen and the dashboard's inbox open what each
 	// thread is about in its modal, and read it ahead as the lists of the
 	// repository screen do, with one opener: whichever is on view reads
@@ -254,10 +248,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	// reads.
 	threadOpts := []threads.Option{
 		threads.WithPulls(pullSvc), threads.WithIssues(issueSvc), threads.WithReleases(releaseSvc),
-		threads.WithMarkRead(cfg.Notifications.MarkReadOnOpen),
-	}
-	if p := cfg.Details.Prefetch; p.Enabled {
-		threadOpts = append(threadOpts, threads.WithPrefetch(p.Rows, p.HoverDelay))
+		threads.WithMarkRead(cfg.Notifications.MarkReadOnOpen), threads.WithPrefetch(cfg.Prefetch),
 	}
 	opener := threads.New(ctx, threadOpts...)
 	dashOpts := []dashboard.Option{
@@ -275,18 +266,12 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	}
 	searchOpts := []searchpage.Option{
 		searchpage.WithStart(searchStart(repoSvc, pinned)), searchpage.WithIcons(icons), searchpage.WithDates(dates), searchpage.WithHost(webHost), searchpage.WithVoice(voice),
-		searchpage.WithDetails(pullSvc, issueSvc),
+		searchpage.WithDetails(pullSvc, issueSvc), searchpage.WithPrefetch(cfg.Prefetch),
 	}
-	if p := cfg.Details.Prefetch; p.Enabled {
-		// A result is read once the cursor rests on it, as a row of a
-		// list is; the first results are a guess, and not read.
-		searchOpts = append(searchOpts, searchpage.WithPrefetch(pullSvc, issueSvc, p.HoverDelay))
-	}
-	if cfg.DashboardPrefetch() {
+	if on, rest := cfg.DashboardPrefetch(); on {
 		// The work waiting on the viewer is what they open most from the
-		// dashboard, as quickly as from the lists of a repository, and the
-		// cursor rests as it does there.
-		dashOpts = append(dashOpts, dashboard.WithPrefetch(pullSvc, issueSvc, cfg.Details.Prefetch.HoverDelay))
+		// dashboard, as quickly as from the lists of a repository.
+		dashOpts = append(dashOpts, dashboard.WithPrefetch(pullSvc, issueSvc, rest))
 	}
 	layout := tui.Layout{
 		Files:  files.New(ctx, fileSvc, cfg.Keys, fileOpts...),
