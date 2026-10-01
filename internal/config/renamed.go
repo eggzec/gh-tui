@@ -44,7 +44,16 @@ type rename struct {
 // renames are the settings that moved, in the order they are moved in:
 // where two set one path, the later wins, so the more specific of two
 // old settings comes later.
-var renames []rename
+var renames = []rename{
+	// One interval was every poll's but those of the Actions runs and
+	// checks, which have intervals of their own now too.
+	{
+		old: []string{"sync.interval"}, new: []string{"sync.poll.notifications", "sync.poll.lists"},
+		move: func(v map[string]*yaml.Node) (map[string]*yaml.Node, error) {
+			return map[string]*yaml.Node{"sync.poll.notifications": v["sync.interval"], "sync.poll.lists": v["sync.interval"]}, nil
+		},
+	},
+}
 
 // checkRenames returns what is wrong with table: an old name that is a
 // setting still, a new one that isn't, or an old name inside another,

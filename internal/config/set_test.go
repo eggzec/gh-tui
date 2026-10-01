@@ -6,12 +6,11 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
 )
 
 func TestKeys(t *testing.T) {
 	keys := Keys()
-	for _, k := range []string{"repos", "theme", "ui.icons", "sync.interval", "details.prefetch.rows", "files.prefetch.max_size", "history.row", "cache.disk.dir", "log.level"} {
+	for _, k := range []string{"repos", "theme", "ui.icons", "sync.poll.lists", "details.prefetch.rows", "files.prefetch.max_size", "history.row", "cache.disk.dir", "log.level"} {
 		if !slices.Contains(keys, k) {
 			t.Errorf("Keys() lacks %s", k)
 		}
@@ -32,7 +31,11 @@ func TestGet(t *testing.T) {
 	for key, want := range map[string]string{
 		"ui.icons":                     "nerd",
 		"sync.enabled":                 "true",
-		"sync.interval":                "1m",
+		"sync.poll.notifications":      "1m",
+		"sync.poll.lists":              "1m",
+		"sync.poll.actions":            "10s",
+		"sync.poll.checks":             "15s",
+		"sync.unfocused_slowdown":      "4",
 		"details.prefetch.hover_delay": "150ms",
 		"details.prefetch.rows":        "5",
 		"files.prefetch.max_size":      "64KiB",
@@ -62,11 +65,15 @@ func TestSet(t *testing.T) {
 		{key: "ui.icons", value: "emoji", err: `ui.icons: must be nerd, unicode or ascii, got "emoji"`},
 		{key: "ui.icons", value: "", err: `ui.icons: must be nerd, unicode or ascii, got ""`},
 		{key: "theme", value: "nosuch", err: `theme: unknown theme "nosuch"`},
-		{key: "sync.interval", value: "30s", want: "30s"},
-		{key: "sync.interval", value: "10s", want: "10s"},
-		{key: "sync.interval", value: "-1s", err: "sync.interval: must be at least 10s, got -1s"},
-		{key: "sync.interval", value: "1ms", err: "sync.interval: must be at least 10s, got 1ms"},
-		{key: "sync.interval", value: "soon", err: `sync.interval: can't read "soon"`},
+		{key: "sync.poll.lists", value: "30s", want: "30s"},
+		{key: "sync.poll.lists", value: "10s", want: "10s"},
+		{key: "sync.poll.lists", value: "-1s", err: "sync.poll.lists: must be at least 10s, got -1s"},
+		{key: "sync.poll.lists", value: "1ms", err: "sync.poll.lists: must be at least 10s, got 1ms"},
+		{key: "sync.poll.lists", value: "soon", err: `sync.poll.lists: can't read "soon"`},
+		{key: "sync.unfocused_slowdown", value: "60", want: "60"},
+		{key: "sync.unfocused_slowdown", value: "61", err: "sync.unfocused_slowdown: must be between 1 and 60, got 61"},
+		// A factor that would overflow the intervals it multiplies.
+		{key: "sync.unfocused_slowdown", value: "100000000", err: "sync.unfocused_slowdown: must be between 1 and 60, got 100000000"},
 		{key: "sync.enabled", value: "false", want: "false"},
 		{key: "sync.enabled", value: "maybe", err: `sync.enabled: can't read "maybe"`},
 		{key: "details.prefetch.rows", value: "10", want: "10"},
@@ -116,7 +123,7 @@ func TestSetKeepsTheRest(t *testing.T) {
 	if !slices.Equal(c.History.Row, Default().History.Row) {
 		t.Errorf("the list set is shared with the config before: %v", c.History.Row)
 	}
-	if got.Sync.Interval != time.Minute || got.UI != c.UI || got.Details != c.Details {
+	if got.Sync != c.Sync || got.UI != c.UI || got.Details != c.Details {
 		t.Error("Set changed other settings")
 	}
 }
@@ -159,7 +166,7 @@ func TestValues(t *testing.T) {
 		"theme":                   {"default", "mine"},
 		"sync.enabled":            {"true", "false"},
 		"dashboard.contributions": {"30d", "90d", "year"},
-		"sync.interval":           nil,
+		"sync.poll.lists":         nil,
 		"history.row":             nil,
 		"nope":                    nil,
 	} {

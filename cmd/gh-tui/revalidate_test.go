@@ -36,7 +36,7 @@ func TestNewRevalidator(t *testing.T) {
 					defer mu.Unlock()
 					published = append(published, key)
 				}
-				r := newRevalidator(cfg, publish, source)
+				r := newRevalidator(cfg, config.Default().Sync.UnfocusedSlowdown, publish, source)
 				if (r != nil) != enabled {
 					t.Fatalf("newRevalidator = %v, want one only when enabled", r)
 				}

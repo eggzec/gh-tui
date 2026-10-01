@@ -74,7 +74,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	// The sync engine delivers the changes that its polls find, those
 	// that the revalidator finds, and those of the rate limits, through
 	// one subscription.
-	engine := watch.New(watch.WithInterval(cfg.Sync.Interval))
+	engine := newEngine(cfg.Sync)
 	access := accesssvc.New(st.Host, token, accesssvc.WithLookup(findToken), accesssvc.WithChecks(cfg.Auth.Check))
 	// The app tells once of an Enterprise Server older than supported.
 	oldEnterprise := make(chan string, 1)
@@ -207,8 +207,8 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	checkOpts := []checks.Option{checks.WithVoice(voice)}
 	if cfg.Sync.Enabled {
 		checkOpts = append(checkOpts,
-			checks.WithWatch(watchChecks(engine.Subscribe, engine.Refresh, actionSvc.PollChecks)),
-			checks.WithFollow(checks.Follow(followRuns(engine.Subscribe, engine.Refresh, actionSvc.Poll))))
+			checks.WithWatch(watchChecks(subscriber(engine, pollChecks), engine.Refresh, actionSvc.PollChecks)),
+			checks.WithFollow(checks.Follow(followRuns(subscriber(engine, pollActions), engine.Refresh, actionSvc.Poll))))
 	}
 	// The login of the viewer, from the header the dashboard read.
 	viewer := viewerLogin(dashSvc.CachedHeader, func(ctx context.Context) (core.Header, error) {
@@ -339,7 +339,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		actions.WithViewer(viewer), actions.WithRepos(repoSvc),
 	}
 	if cfg.Sync.Enabled {
-		actionOpts = append(actionOpts, actions.WithFollow(followRuns(engine.Subscribe, engine.Refresh, actionSvc.Poll)))
+		actionOpts = append(actionOpts, actions.WithFollow(followRuns(subscriber(engine, pollActions), engine.Refresh, actionSvc.Poll)))
 	}
 	opts = append(opts, tui.WithActions(func(ctx context.Context, repo core.RepoRef, f core.RunFilter) (ui.Modal, tea.Cmd) {
 		// The icons are those of the session, which the set command may
@@ -348,7 +348,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		return actions.Opener(actionSvc, cfg.Keys, o...)(ctx, repo, f)
 	}), tui.WithSettings(func(c config.Config) {
 		live.set(c)
-		engine.SetInterval(c.Sync.Interval)
+		engine.SetIntervals(pollIntervals(c.Sync.Poll))
 		setLogLevel(c.Log.Level)
 	}))
 	var (
@@ -359,12 +359,12 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		online = []func(){engine.Online}
 	)
 	if cfg.Sync.Enabled {
-		engine.Subscribe(notifications.SyncKey, notifSvc.Poll)
+		engine.SubscribeKind(pollNotifications, notifications.SyncKey, notifSvc.Poll)
 		// The inbox isn't polled while the token may not read it, and is
 		// polled at once when what the token may do changes, so that it
 		// catches up as soon as the token may.
 		refreshOn(ctx, access.Changes(), engine.Refresh, notifications.SyncKey)
-		repoPolls := &repoWatch{subscribe: engine.Subscribe, polls: []repoPoll{
+		repoPolls := &repoWatch{subscribe: subscriber(engine, pollLists), polls: []repoPoll{
 			{key: pullsvc.SyncKey, poll: pullSvc.Poll},
 			{key: issuesvc.SyncKey, poll: unless(issuesOff(repoSvc.CachedGet), issueSvc.Poll)},
 		}}
@@ -372,7 +372,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		watchers = append(watchers, repoPolls.set)
 	}
 	if store != nil {
-		if r := newRevalidator(cfg.Cache, engine.Publish, issueSvc.Kept, pullSvc.Kept, notifSvc.Kept, fileSvc.Kept, historySvc.Kept, actionSvc.Kept); r != nil {
+		if r := newRevalidator(cfg.Cache, cfg.Sync.UnfocusedSlowdown, engine.Publish, issueSvc.Kept, pullSvc.Kept, notifSvc.Kept, fileSvc.Kept, historySvc.Kept, actionSvc.Kept); r != nil {
 			go func() { _ = r.Run(ctx) }()
 			activity = append(activity, r.SetActive)
 			watchers = append(watchers, r.SetRepo)

@@ -30,20 +30,21 @@ func TestTags(t *testing.T) {
 
 func TestStartup(t *testing.T) {
 	for key, want := range map[string]string{
-		"repos":                  "the pinned repositories are read at startup",
-		"cache.ttl":              "the cache is opened at startup",
-		"cache.disk.dir":         "the cache is opened at startup",
-		"sync.enabled":           "the polls are set up at startup",
-		"sync.interval":          "",
-		"files.preview.max_size": "the files are read with it from the start",
-		"files.prefetch.enabled": "",
-		"auth.check":             "the token's checks start with the app",
-		"log.level":              "",
-		"log.keep":               "the log file is opened at startup",
-		"theme":                  "",
-		"ui.icons":               "",
-		"editor":                 "",
-		"nope":                   "",
+		"repos":                   "the pinned repositories are read at startup",
+		"cache.ttl":               "the cache is opened at startup",
+		"cache.disk.dir":          "the cache is opened at startup",
+		"sync.enabled":            "the polls are set up at startup",
+		"sync.poll.lists":         "",
+		"sync.unfocused_slowdown": "the polls and the revalidation are set up at startup",
+		"files.preview.max_size":  "the files are read with it from the start",
+		"files.prefetch.enabled":  "",
+		"auth.check":              "the token's checks start with the app",
+		"log.level":               "",
+		"log.keep":                "the log file is opened at startup",
+		"theme":                   "",
+		"ui.icons":                "",
+		"editor":                  "",
+		"nope":                    "",
 	} {
 		why, ok := Startup(key)
 		if why != want || ok != (want != "") {
@@ -60,7 +61,7 @@ func TestGlobal(t *testing.T) {
 		"cache.disk.dir": true, "cache.disk.max_size": true, "cache.disk.compression": true, "cache.disk.compression_level": true,
 		"theme": false, "ui": false, "repos": false, "cache": false, "cache.ttl": false,
 		"cache.disk.enabled": false, "cache.disk.entries": false, "cache.revalidate.budget": false,
-		"sync.interval": false, "details.prefetch.rows": false, "nope": false,
+		"sync.poll.lists": false, "details.prefetch.rows": false, "nope": false,
 	} {
 		if got := Global(key); got != want {
 			t.Errorf("Global(%q) = %v, want %v", key, got, want)

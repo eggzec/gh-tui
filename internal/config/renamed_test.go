@@ -29,7 +29,7 @@ func same(from, to string) rename {
 // testRenames are renames of the kinds the table will hold.
 var testRenames = []rename{
 	// One setting to another.
-	same("sync.every", "sync.interval"),
+	same("sync.every", "sync.poll.lists"),
 	// One to several, with a new value.
 	{
 		old: []string{"details.prefetch.count"}, new: []string{"details.prefetch.rows", "history.prefetch.around"},
@@ -68,7 +68,7 @@ var testRenames = []rename{
 	// One whose release has passed.
 	{old: []string{"files.hover"}, new: []string{"files.prefetch.hover_delay"}},
 	// A group renamed as a whole, whose release has passed.
-	{old: []string{"gone.deep.key"}, new: []string{"sync.interval"}},
+	{old: []string{"gone.deep.key"}, new: []string{"sync.poll.lists"}},
 }
 
 func TestLoadRenamed(t *testing.T) {
@@ -82,8 +82,8 @@ func TestLoadRenamed(t *testing.T) {
 		{
 			name:    "one to one",
 			file:    "sync:\n  every: 2m\n",
-			want:    func(c *Config) { c.Sync.Interval = 2 * time.Minute },
-			renamed: []string{"sync.every → sync.interval"},
+			want:    func(c *Config) { c.Sync.Poll.Lists = 2 * time.Minute },
+			renamed: []string{"sync.every → sync.poll.lists"},
 		},
 		{
 			name: "one to several, the value moved",
@@ -125,19 +125,19 @@ func TestLoadRenamed(t *testing.T) {
 		{
 			name:    "through an alias",
 			file:    "files:\n  prefetch:\n    hover_delay: &d 20s\nsync:\n  every: *d\n",
-			want:    func(c *Config) { c.Files.Prefetch.HoverDelay, c.Sync.Interval = 20*time.Second, 20*time.Second },
-			renamed: []string{"sync.every → sync.interval"},
+			want:    func(c *Config) { c.Files.Prefetch.HoverDelay, c.Sync.Poll.Lists = 20*time.Second, 20*time.Second },
+			renamed: []string{"sync.every → sync.poll.lists"},
 		},
 		{
 			name:    "through a merge key",
 			file:    "sync:\n  <<: {every: 3m}\n",
-			want:    func(c *Config) { c.Sync.Interval = 3 * time.Minute },
-			renamed: []string{"sync.every → sync.interval"},
+			want:    func(c *Config) { c.Sync.Poll.Lists = 3 * time.Minute },
+			renamed: []string{"sync.every → sync.poll.lists"},
 		},
 		{
 			name: "none",
-			file: "sync:\n  interval: 2m\n",
-			want: func(c *Config) { c.Sync.Interval = 2 * time.Minute },
+			file: "sync:\n  poll:\n    lists: 2m\n",
+			want: func(c *Config) { c.Sync.Poll.Lists = 2 * time.Minute },
 		},
 	}
 	for _, tt := range tests {
@@ -196,16 +196,16 @@ func TestLoadRenamedErrors(t *testing.T) {
 		file string
 		want []string
 	}{
-		{"sync:\n  every: 2m\n  interval: 3m\n", []string{"line 2: sync.every was renamed to sync.interval, which line 3 sets too: set only sync.interval"}},
+		{"sync:\n  every: 2m\n  poll:\n    lists: 3m\n", []string{"line 2: sync.every was renamed to sync.poll.lists, which line 4 sets too: set only sync.poll.lists"}},
 		{"details:\n  prefetch:\n    count: many\n", []string{"line 3: details.prefetch.count: want a number of rows"}},
 		{"files:\n  hover: 1s\n", []string{"line 2: files.hover was renamed to files.prefetch.hover_delay"}},
-		{"gone:\n  deep:\n    key: 1m\n", []string{"line 3: gone.deep.key was renamed to sync.interval"}},
+		{"gone:\n  deep:\n    key: 1m\n", []string{"line 3: gone.deep.key was renamed to sync.poll.lists"}},
 		{"sync:\n  evry: 2m\n", []string{"line 2: unknown setting sync.evry"}},
 		{"old:\n  glyph: \"#\"\n  other: 1\n", []string{"line 1: unknown setting old"}},
 		{"themes:\n  mine:\n    dark:\n      accnt: \"#fff\"\n", []string{"line 4: unknown setting themes.mine.dark.accnt"}},
 		{"theme: default\ntheme: dusk\n", []string{"line 2: theme is set twice, here and at line 1"}},
 		// Validate names the old setting the file has.
-		{"sync:\n  every: 1s\n", []string{"sync.every (now sync.interval): must be at least 10s, got 1s"}},
+		{"sync:\n  every: 1s\n", []string{"line 2: sync.every (now sync.poll.lists): must be at least 10s, got 1s"}},
 		// A value a move made has no line of its own, so it is given the
 		// old name's.
 		{"details:\n  prefetch:\n    count: 40\n", []string{
@@ -243,11 +243,11 @@ func TestMoveContract(t *testing.T) {
 			return map[string]*yaml.Node{"editor": v["x.y"]}, nil
 		},
 		"no node": func(map[string]*yaml.Node) (map[string]*yaml.Node, error) {
-			return map[string]*yaml.Node{"sync.interval": nil}, nil
+			return map[string]*yaml.Node{"sync.poll.lists": nil}, nil
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
-			withRenames(t, []rename{{old: []string{"x.y"}, new: []string{"sync.interval"}, move: move}})
+			withRenames(t, []rename{{old: []string{"x.y"}, new: []string{"sync.poll.lists"}, move: move}})
 			if _, _, err := loadBase(writeConfig(t, "x:\n  y: 1m\n")); err == nil || !strings.Contains(err.Error(), "isn't one of its new names or has no value") {
 				t.Errorf("Load error = %v, want the move refused", err)
 			}
@@ -273,6 +273,25 @@ func TestRenamedWarning(t *testing.T) {
 	}
 }
 
+func TestLoadSyncInterval(t *testing.T) {
+	t.Setenv(EnvLog, "")
+	got, renamed, err := loadBase(writeConfig(t, "sync:\n  interval: 2m\n"))
+	if err != nil {
+		t.Fatalf("Load error = %v", err)
+	}
+	want := Default()
+	want.Sync.Poll.Notifications, want.Sync.Poll.Lists = 2*time.Minute, 2*time.Minute
+	assertEqual(t, got, want)
+	if len(renamed) != 1 || renamed[0].String() != "sync.interval → sync.poll.notifications, sync.poll.lists" {
+		t.Errorf("renamed = %v, want sync.interval", renamed)
+	}
+	if _, _, err := loadBase(writeConfig(t, "sync:\n  interval: 5s\n")); err == nil ||
+		!strings.Contains(err.Error(), "line 2: sync.interval (now sync.poll.notifications): must be at least 10s, got 5s") ||
+		!strings.Contains(err.Error(), "line 2: sync.interval (now sync.poll.lists): must be at least 10s, got 5s") {
+		t.Errorf("Load error = %v, want the old name in what is wrong", err)
+	}
+}
+
 // TestRenames checks the table itself.
 func TestRenames(t *testing.T) {
 	for _, err := range checkRenames(renames, Keys()) {
@@ -282,8 +301,8 @@ func TestRenames(t *testing.T) {
 
 func TestCheckRenames(t *testing.T) {
 	bad := []rename{
-		{old: []string{"old.grp"}, new: []string{"sync.interval"}},
-		{old: []string{"old.grp.a"}, new: []string{"sync.interval"}},
+		{old: []string{"old.grp"}, new: []string{"sync.poll.lists"}},
+		{old: []string{"old.grp.a"}, new: []string{"sync.poll.lists"}},
 		{old: []string{"theme"}, new: []string{"nope"}},
 		{old: []string{"x"}, new: []string{"editor"}},
 		{old: []string{"x"}, new: []string{"editor"}},

@@ -426,6 +426,31 @@ func TestInactiveSlowsDown(t *testing.T) {
 	})
 }
 
+// Without WithIdleMultiplier an inactive revalidator keeps its budget.
+func TestInactiveWithoutMultiplier(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		srv := newServer(nil)
+		srv.latency = 0
+		entries := make([]Entry, 0, 8)
+		for _, id := range []string{"a", "b", "c", "d", "e", "f", "g", "h"} {
+			entries = append(entries, srv.entry(id, repoA, time.Minute))
+		}
+		r := New([]Source{func() []Entry { return entries }}, WithStartDelay(0), WithBudget(8),
+			WithInterval(time.Minute), WithFreshFor(time.Second))
+		r.SetActive(false)
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		go func() { _ = r.Run(ctx) }()
+
+		synctest.Sleep(50 * time.Second)
+		if got := len(srv.ids()); got != 8 {
+			t.Errorf("%d checks in 50s while inactive, want 8 at 8 a minute", got)
+		}
+		cancel()
+		synctest.Wait()
+	})
+}
+
 func TestSetRepoStartsPass(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		srv := newServer(nil)

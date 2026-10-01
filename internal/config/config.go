@@ -65,15 +65,58 @@ type Config struct {
 // Sync configures background polling.
 type Sync struct {
 	Enabled bool `yaml:"enabled" when:"startup" why:"the polls are set up at startup"`
-	// Interval is the polling interval when the server doesn't ask for a
-	// longer one. It is at least minSyncInterval.
-	Interval time.Duration `yaml:"interval"`
+	Poll    Poll `yaml:"poll"`
+	// UnfocusedSlowdown is the factor that the polls' intervals and the
+	// revalidation's are multiplied by, and its budget divided by, while
+	// the terminal is unfocused, 1 to maxUnfocusedSlowdown. 1 doesn't slow
+	// them down.
+	UnfocusedSlowdown int `yaml:"unfocused_slowdown" when:"startup" why:"the polls and the revalidation are set up at startup"`
+}
+
+// Poll are the polling intervals of what the app polls, when the server
+// doesn't ask for a longer one. Each is at least minSyncInterval.
+type Poll struct {
+	// Notifications is the interval of the inbox.
+	Notifications time.Duration `yaml:"notifications"`
+	// Lists is the interval of the pull requests and issues of the
+	// repository on view.
+	Lists time.Duration `yaml:"lists"`
+	// Actions is the interval of a workflow run in progress that the
+	// Actions modal or a pull request's checks show.
+	Actions time.Duration `yaml:"actions"`
+	// Checks is the interval of a pull request's checks while some are
+	// pending.
+	Checks time.Duration `yaml:"checks"`
 }
 
 // minSyncInterval is the shortest polling interval: polls closer than that
 // would spend the rate limit on changes that rarely come so often. The
 // sync engine never polls more often either.
 const minSyncInterval = 10 * time.Second
+
+// maxUnfocusedSlowdown is the largest unfocused slowdown: polls 60 times
+// apart are an hour apart at the default intervals, and a larger factor
+// only risks intervals too long to count.
+const maxUnfocusedSlowdown = 60
+
+func (s Sync) validate() error {
+	var errs []error
+	for _, p := range []struct {
+		key string
+		d   time.Duration
+	}{
+		{"notifications", s.Poll.Notifications}, {"lists", s.Poll.Lists},
+		{"actions", s.Poll.Actions}, {"checks", s.Poll.Checks},
+	} {
+		if p.d < minSyncInterval {
+			errs = append(errs, fmt.Errorf("sync.poll.%s: must be at least %v, got %v", p.key, minSyncInterval, p.d))
+		}
+	}
+	if s.UnfocusedSlowdown < 1 || s.UnfocusedSlowdown > maxUnfocusedSlowdown {
+		errs = append(errs, fmt.Errorf("sync.unfocused_slowdown: must be between 1 and %d, got %d", maxUnfocusedSlowdown, s.UnfocusedSlowdown))
+	}
+	return errors.Join(errs...)
+}
 
 // Path returns the config file path: $GH_TUI_CONFIG if set, else
 // gh-tui/config.yaml in [os.UserConfigDir].
@@ -136,11 +179,7 @@ func (c Config) Validate() error {
 		errs = append(errs, validateKeys(action, c.Keys[action]))
 	}
 
-	errs = append(errs, c.Cache.validate())
-	if c.Sync.Interval < minSyncInterval {
-		errs = append(errs, fmt.Errorf("sync.interval: must be at least %v, got %v", minSyncInterval, c.Sync.Interval))
-	}
-	errs = append(errs, c.Files.validate(), c.Details.validate(), c.History.validate(), c.Dashboard.validate(), c.UI.validate(), c.GitHub.validate(), c.PageSize.validate(), c.Commands.validate(), c.Images.validate(), c.Log.validate(),
+	errs = append(errs, c.Cache.validate(), c.Sync.validate(), c.Files.validate(), c.Details.validate(), c.History.validate(), c.Dashboard.validate(), c.UI.validate(), c.GitHub.validate(), c.PageSize.validate(), c.Commands.validate(), c.Images.validate(), c.Log.validate(),
 		validateEditor(c.Editor))
 	return errors.Join(errs...)
 }

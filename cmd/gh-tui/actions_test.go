@@ -9,12 +9,13 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/watch"
 )
 
-func TestFollowRunsPollsAtOnceAndOften(t *testing.T) {
+func TestFollowRunsPollsAtOnce(t *testing.T) {
 	subs := &subscriptions{}
 	var refreshed []string
 	polled := 0
@@ -35,8 +36,8 @@ func TestFollowRunsPollsAtOnceAndOften(t *testing.T) {
 	if !slices.Equal(refreshed, []string{"actions:o/r/run/42"}) {
 		t.Errorf("refreshed %v, want the run polled at once", refreshed)
 	}
-	if polled != 2 || !got.Changed || got.Interval != runPollInterval {
-		t.Errorf("polled %d times with %+v, want the change and the run's interval", polled, got)
+	if polled != 2 || !got.Changed {
+		t.Errorf("polled %d times with %+v, want the change", polled, got)
 	}
 }
 
@@ -64,14 +65,16 @@ func TestViewerLogin(t *testing.T) {
 }
 
 // TestWatchChecksPollsWhilePending runs the checks' poll on the sync
-// engine with a fake clock: at once, then every checksPollInterval, until
+// engine with a fake clock: at once, then every sync.poll.checks, until
 // the checks are done or the step stops it.
 func TestWatchChecksPollsWhilePending(t *testing.T) {
+	poll := config.Default().Sync.Poll
+	checksPollInterval := poll.Checks
 	synctest.Test(t, func(t *testing.T) {
-		e := watch.New(watch.WithInterval(time.Minute))
+		e := watch.New(watch.WithInterval(time.Minute), watch.WithIntervals(pollIntervals(poll)))
 		var mu sync.Mutex
 		polls := 0
-		poll := func(actionssvc.ChecksQuery) watch.PollFunc {
+		pollChecksOf := func(actionssvc.ChecksQuery) watch.PollFunc {
 			return func(context.Context) (watch.Result, error) {
 				mu.Lock()
 				defer mu.Unlock()
@@ -91,7 +94,7 @@ func TestWatchChecksPollsWhilePending(t *testing.T) {
 			}
 		}()
 		q := actionssvc.ChecksQuery{Repo: core.RepoRef{Owner: "o", Name: "r"}, Number: 5}
-		stop := watchChecks(e.Subscribe, e.Refresh, poll)(q)
+		stop := watchChecks(subscriber(e, pollChecks), e.Refresh, pollChecksOf)(q)
 		synctest.Wait()
 		time.Sleep(2*checksPollInterval + time.Second)
 		synctest.Wait()

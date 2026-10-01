@@ -250,7 +250,7 @@ func TestResolveSourceRenamed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]Origin{"details.prefetch.rows": {Line: 3}, "history.prefetch.around": {Line: 3}, "sync.interval": {Line: 5}}
+	want := map[string]Origin{"details.prefetch.rows": {Line: 3}, "history.prefetch.around": {Line: 3}, "sync.poll.lists": {Line: 5}}
 	if got := src.origins(); !reflect.DeepEqual(got, want) {
 		t.Errorf("origins = %v, want %v", got, want)
 	}
@@ -264,8 +264,8 @@ func TestResolveSourceRenamed(t *testing.T) {
 // mapping it brings.
 func TestLayersYAMLFileLines(t *testing.T) {
 	t.Setenv(EnvLog, "")
-	// 1m is sync.interval's default.
-	cfg, src, err := resolvePath(t, writeConfig(t, "sync:\n  interval: 1m\nui:\n  <<: {icons: ascii}\n"))
+	// 1m is sync.poll.lists's default.
+	cfg, src, err := resolvePath(t, writeConfig(t, "sync:\n  poll:\n    lists: 1m\nui:\n  <<: {icons: ascii}\n"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -273,7 +273,7 @@ func TestLayersYAMLFileLines(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"  interval: 1m # config.yaml:2\n", "  icons: ascii # config.yaml:4\n"} {
+	for _, want := range []string{"    lists: 1m # config.yaml:3\n", "  icons: ascii # config.yaml:5\n"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("the config lacks %q:\n%s", want, got)
 		}
@@ -317,18 +317,21 @@ func resolvePath(t *testing.T, path string) (Config, Source, error) {
 func TestLayersYAMLHostsAndProfiles(t *testing.T) {
 	t.Setenv(EnvLog, "")
 	f, err := Load(writeConfig(t, `sync:
-  interval: 2m
+  poll:
+    lists: 2m
 dashboard:
   contributions: 90d
 hosts:
   ghe.corp.com:
     sync:
-      interval: 3m
+      poll:
+        lists: 3m
 profiles:
   work:
     accounts: [mona@ghe.corp.com]
     sync:
-      interval: 4m
+      poll:
+        lists: 4m
 `))
 	if err != nil {
 		t.Fatal(err)
@@ -337,9 +340,9 @@ profiles:
 		host, login string
 		want        string
 	}{
-		{"github.com", "mona", "  interval: 2m # config.yaml:2\n"},
-		{"ghe.corp.com", "", "  interval: 3m # config.yaml:8 (hosts.ghe.corp.com)\n"},
-		{"ghe.corp.com", "mona", "  interval: 4m # config.yaml:13 (profiles.work)\n"},
+		{"github.com", "mona", "    lists: 2m # config.yaml:3\n"},
+		{"ghe.corp.com", "", "    lists: 3m # config.yaml:10 (hosts.ghe.corp.com)\n"},
+		{"ghe.corp.com", "mona", "    lists: 4m # config.yaml:16 (profiles.work)\n"},
 	} {
 		cfg, src, err := f.Resolve(tt.host, tt.login)
 		if err != nil {
@@ -349,7 +352,7 @@ profiles:
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, want := range []string{tt.want, "  contributions: 90d # config.yaml:4\n"} {
+		for _, want := range []string{tt.want, "  contributions: 90d # config.yaml:5\n"} {
 			if !strings.Contains(got, want) {
 				t.Errorf("%s as %q: the config lacks %q:\n%s", tt.host, tt.login, want, got)
 			}

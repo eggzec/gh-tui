@@ -361,16 +361,66 @@ func TestSetActive(t *testing.T) {
 	})
 }
 
-func TestSetInterval(t *testing.T) {
+// Without WithIdleMultiplier an inactive engine polls as often as an
+// active one.
+func TestInactiveWithoutMultiplier(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		e := New(WithInterval(10*time.Second), WithMinInterval(time.Second))
+		e := New(WithInterval(10 * time.Second))
 		src := newSource(nil)
-		e.Subscribe("a", src.poll)
+		e.Subscribe("k", src.poll)
+		e.SetActive(false)
+		run(t, e)
+
+		synctest.Sleep(30 * time.Second)
+		if got, want := src.times(), seconds(10, 20, 30); !slices.Equal(got, want) {
+			t.Errorf("poll times = %v, want %v", got, want)
+		}
+	})
+}
+
+func TestKinds(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		e := New(WithInterval(10*time.Second), WithMinInterval(time.Second),
+			WithIntervals(map[Kind]time.Duration{"fast": 5 * time.Second, "slow": 30 * time.Second, "none": 0}))
+		fast, slow, none, plain, again := newSource(nil), newSource(nil), newSource(nil), newSource(nil), newSource(nil)
+		e.SubscribeKind("fast", "f", fast.poll)
+		e.SubscribeKind("slow", "s", slow.poll)
+		e.SubscribeKind("none", "n", none.poll)
+		e.Subscribe("p", plain.poll)
+		// A key subscribed again keeps its first kind.
+		e.SubscribeKind("fast", "s", again.poll)
+		run(t, e)
+
+		synctest.Sleep(30 * time.Second)
+		for name, tt := range map[string]struct {
+			src  *source
+			want []time.Duration
+		}{
+			"fast":                  {fast, seconds(5, 10, 15, 20, 25, 30)},
+			"slow":                  {slow, seconds(30)},
+			"a kind of no interval": {none, seconds(10, 20, 30)},
+			"no kind":               {plain, seconds(10, 20, 30)},
+		} {
+			if got := tt.src.times(); !slices.Equal(got, tt.want) {
+				t.Errorf("%s poll times = %v, want %v", name, got, tt.want)
+			}
+		}
+		if got := again.times(); len(got) != 0 {
+			t.Errorf("the second subscriber's fn polled at %v, want the first's", got)
+		}
+	})
+}
+
+func TestSetIntervals(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		e := New(WithInterval(time.Minute), WithMinInterval(time.Second),
+			WithIntervals(map[Kind]time.Duration{"k": 10 * time.Second}))
+		src := newSource(nil)
+		e.SubscribeKind("k", "a", src.poll)
 		run(t, e)
 
 		synctest.Sleep(15 * time.Second)
-		e.SetInterval(30 * time.Second)
-		e.SetInterval(0)
+		e.SetIntervals(map[Kind]time.Duration{"k": 30 * time.Second})
 		synctest.Sleep(60 * time.Second)
 
 		// The poll scheduled for 20s keeps its time, and the new interval

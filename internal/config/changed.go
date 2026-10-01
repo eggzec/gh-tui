@@ -13,7 +13,7 @@ import (
 const Redacted = "(redacted)"
 
 // Setting is one setting of a Config: its key, the YAML keys that lead
-// to it joined by dots, such as sync.interval, and its value.
+// to it joined by dots, such as sync.poll.lists, and its value.
 type Setting struct {
 	Key, Value string
 }
