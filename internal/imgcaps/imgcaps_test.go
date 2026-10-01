@@ -39,7 +39,7 @@ func TestVerdicts(t *testing.T) {
 		mode    string
 		env     Env
 		profile colorprofile.Profile
-		// path is the plan's. A probe answers XTVERSION with xtversion
+		// path is the route the probe takes. A probe answers XTVERSION with xtversion
 		// and the kitty query, if asked, with reply; tmux answers with
 		// tmux.
 		path      Path

@@ -230,8 +230,8 @@ func goAsync(send func() error) <-chan error {
 	return done
 }
 
-// TestGateReleaseTiming pins the release of a held request (design 5,
-// test 1): nothing is sent before the reset and its guard, then the probe
+// TestGateReleaseTiming pins the release of a held request:
+// nothing is sent before the reset and its guard, then the probe
 // confirms the new window, and the request goes a stagger of 2ms to 10ms
 // after it.
 func TestGateReleaseTiming(t *testing.T) {
@@ -263,8 +263,8 @@ func TestGateReleaseTiming(t *testing.T) {
 	}
 }
 
-// TestGateStagger pins the order and spacing of the releases (design 5,
-// test 2): the requests held are let go by class, then as they came, each
+// TestGateStagger pins the order and spacing of the releases:
+// the requests held are let go by class, then as they came, each
 // 2ms to 10ms after the one before, whatever the jitter.
 func TestGateStagger(t *testing.T) {
 	for _, jitter := range []float64{0, 0.999} {
@@ -328,7 +328,7 @@ func TestGateStagger(t *testing.T) {
 	}
 }
 
-// TestGateCancelWhileHeld pins cancellation (design 5, test 3): a held
+// TestGateCancelWhileHeld pins cancellation: a held
 // request whose context ends leaves the queue at once with the context's
 // error, never a rate limit, and counts as dropped.
 func TestGateCancelWhileHeld(t *testing.T) {
@@ -376,7 +376,7 @@ func TestGateCancelWhileHeld(t *testing.T) {
 	})
 }
 
-// TestGateDeadline pins the deadline rule (design 5, test 4): a request
+// TestGateDeadline pins the deadline rule: a request
 // that couldn't be sent 50ms before its deadline fails at once with the
 // release as its reset, and nothing is sent; one with time to spare is
 // held and sent.
@@ -410,8 +410,8 @@ func TestGateDeadline(t *testing.T) {
 	})
 }
 
-// TestGateForegroundFailsFast pins what the user waits for (design 5,
-// test 5): a read or a change of a quota that refills in half an hour
+// TestGateForegroundFailsFast pins what the user waits for:
+// a read or a change of a quota that refills in half an hour
 // fails at once, with the release as its reset, and nothing is sent; one
 // that refills within foregroundWait waits and succeeds.
 func TestGateForegroundFailsFast(t *testing.T) {
@@ -464,8 +464,8 @@ func TestGateForegroundFailsFast(t *testing.T) {
 	}
 }
 
-// TestGatePrefetchReserve pins the share kept from reads ahead (design 5,
-// test 6): once less than a tenth of a quota is left, a read ahead fails
+// TestGatePrefetchReserve pins the share kept from reads ahead:
+// once less than a tenth of a quota is left, a read ahead fails
 // at once and isn't held, while a read the user waits for goes.
 func TestGatePrefetchReserve(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
@@ -498,8 +498,8 @@ func TestGatePrefetchReserve(t *testing.T) {
 	})
 }
 
-// TestGateEarlyLimit pins a limit that outlasts its guard (design 5, test
-// 11): the probe finds the old window, so the guard doubles and the
+// TestGateEarlyLimit pins a limit that outlasts its guard:
+// the probe finds the old window, so the guard doubles and the
 // request stays held until the next probe finds the new one; nothing is
 // sent in between, and nothing loops.
 func TestGateEarlyLimit(t *testing.T) {
@@ -531,7 +531,7 @@ func TestGateEarlyLimit(t *testing.T) {
 	})
 }
 
-// TestGateScout pins what happens when the probe can't tell (design 4.4):
+// TestGateScout pins what happens when the probe can't tell:
 // the first request held goes alone, and when it finds the old window,
 // the guard doubles and the others stay held until the next one finds
 // the new window.
@@ -571,8 +571,8 @@ func TestGateScout(t *testing.T) {
 	})
 }
 
-// TestGateSlots pins how a release meets the limit of requests in flight
-// (design 5, test 13): of 100 background requests let go at once, never
+// TestGateSlots pins how a release meets the limit of requests in flight:
+// of 100 background requests let go at once, never
 // more than 8 are in flight, nor more than 6 of the background, and a
 // read the user waits for that comes meanwhile is sent at once.
 func TestGateSlots(t *testing.T) {
@@ -669,7 +669,7 @@ func (h *hub) secondary(retryAfter ...string) {
 	h.secondaries = append(h.secondaries, retryAfter...)
 }
 
-// TestGateSecondary pins secondary limits (design 5, test 10): one holds
+// TestGateSecondary pins secondary limits: one holds
 // every resource; what the user waits for waits up to 10s for it and
 // fails at once otherwise; once it lifts, the first request held goes
 // alone, and the rest a stagger after its answer.
@@ -731,7 +731,7 @@ func TestGateSecondary(t *testing.T) {
 }
 
 // TestGateSecondaryBackoff pins how long a secondary limit that doesn't
-// say lasts (design 4.1): a minute, doubling each time one comes again,
+// say lasts: a minute, doubling each time one comes again,
 // up to 15 minutes, until a request succeeds.
 func TestGateSecondaryBackoff(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
@@ -759,7 +759,7 @@ func TestGateSecondaryBackoff(t *testing.T) {
 }
 
 // TestGateRetriesSecondaryOnce pins how retry and the gate share a short
-// secondary limit (design 5, test 14): a read the user waits for is sent
+// secondary limit: a read the user waits for is sent
 // again once, which the gate holds until the limit lifts, so it waits
 // once, 3s and a stagger, not twice.
 func TestGateRetriesSecondaryOnce(t *testing.T) {
@@ -811,7 +811,7 @@ func TestGateGraphQLSecondaryBackoff(t *testing.T) {
 	})
 }
 
-// TestGateCap pins the sanity cap (design 6, R2): a request held for a
+// TestGateCap pins the sanity cap: a request held for a
 // limit that then moves past maxWindow from when it was held fails at
 // once, with a rate limit, rather than wait longer.
 func TestGateCap(t *testing.T) {

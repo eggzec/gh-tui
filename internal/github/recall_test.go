@@ -64,8 +64,8 @@ func (u unrecalled) RoundTrip(req *http.Request) (*http.Response, error) {
 	return resp, err
 }
 
-// TestGateRecall pins the recall of what was let through but not sent
-// (design 5, test 12): with the 8 slots taken and 3 requests of the
+// TestGateRecall pins the recall of what was let through but not sent:
+// with the 8 slots taken and 3 requests of the
 // background waiting for one, an answer that says the quota is spent
 // sends the 3 back to the gate, which holds them, and the base never sees
 // them before the limit lifts; the 8 in flight complete.
