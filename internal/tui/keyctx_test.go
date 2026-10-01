@@ -164,7 +164,8 @@ func (keyInbox) CachedList(notifsvc.ListQuery) (core.Page[core.Notification], bo
 func (keyInbox) List(context.Context, notifsvc.ListQuery) (core.Page[core.Notification], error) {
 	return core.Page[core.Notification]{Items: []core.Notification{keyThread}}, nil
 }
-func (keyInbox) Invalidate() {}
+func (keyInbox) FreshList(notifsvc.ListQuery) bool { return true }
+func (keyInbox) Invalidate()                       {}
 
 // keyDash serves a profile with a pinned repository, a repository, and
 // work waiting on the viewer.

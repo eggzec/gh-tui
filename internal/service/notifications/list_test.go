@@ -67,6 +67,9 @@ func TestListMiss(t *testing.T) {
 func TestListFreshHit(t *testing.T) {
 	api := &fakeAPI{list: servePage1}
 	s := New(api)
+	if s.FreshList(ListQuery{}) {
+		t.Error("FreshList before any List")
+	}
 	for range 2 {
 		if _, err := s.List(t.Context(), ListQuery{}); err != nil {
 			t.Fatalf("List: %v", err)
@@ -74,6 +77,13 @@ func TestListFreshHit(t *testing.T) {
 	}
 	if n := api.lists.Load(); n != 1 {
 		t.Errorf("API called %d times, want 1", n)
+	}
+	if !s.FreshList(ListQuery{}) {
+		t.Error("FreshList false after a List")
+	}
+	s.Invalidate()
+	if s.FreshList(ListQuery{}) {
+		t.Error("FreshList after Invalidate")
 	}
 }
 

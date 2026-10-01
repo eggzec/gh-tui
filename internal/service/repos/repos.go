@@ -148,6 +148,13 @@ func (s *Service) CachedGet(ref core.RepoRef) (core.Repo, bool) {
 	return e.Value, state != cache.Miss
 }
 
+// FreshGet reports whether the repository is cached and fresh in memory, so
+// that Get returns it without a request. It does no I/O.
+func (s *Service) FreshGet(ref core.RepoRef) bool {
+	_, state := s.repos.Get(repoKey(ref))
+	return state == cache.Fresh
+}
+
 // Get returns one repository, with what the viewer may do in it. A fresh
 // cached repository is returned without a request, and so is one that an
 // earlier session kept and fetched within DetailTTL. An older kept one is

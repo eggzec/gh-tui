@@ -279,6 +279,8 @@ type fakeInbox struct {
 	marked []string
 	// err, when set, fails every list.
 	err error
+	// expired marks the page read past its TTL.
+	expired bool
 }
 
 // MarkRead marks thread id read at once, as the service does in its
@@ -312,10 +314,16 @@ func (f *fakeInbox) CachedList(q notifications.ListQuery) (core.Page[core.Notifi
 	return core.Page[core.Notification]{Items: slices.Clone(f.threads)}, f.read
 }
 
+func (f *fakeInbox) FreshList(q notifications.ListQuery) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return q == (notifications.ListQuery{}) && f.read && !f.expired
+}
+
 func (f *fakeInbox) List(context.Context, notifications.ListQuery) (core.Page[core.Notification], error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.read = true
+	f.read, f.expired = true, false
 	f.lists++
 	if f.err != nil {
 		return core.Page[core.Notification]{}, f.err
@@ -545,3 +553,38 @@ func logVoice(tb testing.TB) ui.Voice {
 
 // errMark is the error glyph of the default icons, which mark what failed.
 var errMark = ui.NewIcons(config.IconsNerd).Error
+
+// fakeRepos reads the repository of the directory with get, and counts the
+// reads. What it read is fresh until expire.
+type fakeRepos struct {
+	get   func(ctx context.Context, r core.RepoRef) (core.Repo, error)
+	mu    sync.Mutex
+	gets  int
+	fresh bool
+}
+
+func (f *fakeRepos) Get(ctx context.Context, r core.RepoRef) (core.Repo, error) {
+	f.mu.Lock()
+	f.gets++
+	f.fresh = true
+	f.mu.Unlock()
+	return f.get(ctx, r)
+}
+
+func (f *fakeRepos) FreshGet(core.RepoRef) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.fresh
+}
+
+func (f *fakeRepos) expire() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.fresh = false
+}
+
+func (f *fakeRepos) reads() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.gets
+}

@@ -53,7 +53,17 @@ type Service interface {
 // page of the default inbox, which holds the unread threads.
 type Inbox interface {
 	CachedList(q notifications.ListQuery) (core.Page[core.Notification], bool)
+	// FreshList reports whether reading q costs no request, without I/O.
+	FreshList(q notifications.ListQuery) bool
 	List(ctx context.Context, q notifications.ListQuery) (core.Page[core.Notification], error)
+}
+
+// Repos reads the repository of the current directory, for its card.
+type Repos interface {
+	Get(ctx context.Context, repo core.RepoRef) (core.Repo, error)
+	// FreshGet reports whether reading repo costs no request, without
+	// I/O.
+	FreshGet(repo core.RepoRef) bool
 }
 
 // Option configures a Section.
@@ -100,12 +110,12 @@ func WithOpener(o *threads.Opener) Option {
 }
 
 // WithHere shows repo, the repository of the current directory, as the
-// first card of the pinned pane, where the current_repo key opens it. get
+// first card of the pinned pane, where the current_repo key opens it. r
 // reads the rest of the card, such as its description, in a command; it
 // may be nil.
-func WithHere(repo core.RepoRef, get func(ctx context.Context, repo core.RepoRef) (core.Repo, error)) Option {
+func WithHere(repo core.RepoRef, r Repos) Option {
 	return func(s *Section) {
-		s.here, s.getHere = repo, get
+		s.here, s.hereRepos = repo, r
 	}
 }
 
@@ -188,8 +198,8 @@ type Section struct {
 	// calDays is the range of the calendar, 0 for the year.
 	calDays int
 
-	here    core.RepoRef
-	getHere func(ctx context.Context, repo core.RepoRef) (core.Repo, error)
+	here      core.RepoRef
+	hereRepos Repos
 
 	// gen counts refreshes; replies to reads of an earlier one are
 	// dropped.

@@ -476,7 +476,7 @@ func TestHereWithoutPin(t *testing.T) {
 	get := func(_ context.Context, r core.RepoRef) (core.Repo, error) {
 		return core.Repo{Ref: r, Description: "Read for its card", Stars: 9}, nil
 	}
-	s := newSection(t, newFake(), nil, 140, 38, WithHere(other, get))
+	s := newSection(t, newFake(), nil, 140, 38, WithHere(other, &fakeRepos{get: get}))
 	c, _ := s.pinned.selected()
 	if !c.here || c.repo.Ref != other || c.repo.Description != "Read for its card" {
 		t.Errorf("the first card is %+v, want the repository here as read", c)
