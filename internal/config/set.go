@@ -215,7 +215,7 @@ var choices = map[string][]string{
 	"ui.icons":                     {IconsNerd, IconsUnicode, IconsASCII},
 	"images.enabled":               {ImagesAuto, ImagesOn, ImagesOff},
 	"dashboard.contributions":      {Contributions30d, Contributions90d, ContributionsYear},
-	"history.date_format":          {DateRelative, DateAbsolute},
+	"ui.date_format":               {DateRelative, DateAbsolute},
 	"cache.revalidate.scope":       {ScopeRecent, ScopeAll},
 	"cache.disk.compression":       {CompressionGzip, CompressionNone},
 	"cache.disk.compression_level": {LevelFastest, LevelDefault, LevelBest},

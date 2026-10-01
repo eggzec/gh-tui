@@ -75,7 +75,6 @@ notifications:
 history:
   row: [short_sha, subject, verified, age]
   detail: [sha, author, date, trailers]
-  date_format: "2006-01-02 15:04"
   show_email: true
   prefetch:
     around: 5
@@ -91,6 +90,7 @@ ui:
   toast:
     info: 6s
     error: 12s
+  date_format: "2006-01-02 15:04"
 
 images:
   enabled: "off"

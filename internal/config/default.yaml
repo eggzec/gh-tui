@@ -37,6 +37,10 @@ ui:
   toast:
     info: 4s
     error: 8s
+  # How every date reads, in the lists, the modals and the history:
+  # relative, as an age (3d in a row, 3d ago in a sentence), absolute
+  # (2006-01-02 15:04 MST), or a Go time layout such as "2006-01-02 15:04".
+  date_format: relative
 
 # Images drawn inline, such as avatars and the images of comments, with
 # kitty's graphics protocol. Only kitty 0.28 or newer and Ghostty show them
@@ -195,9 +199,6 @@ history:
   # line, where the author is listed; list only one of them to always
   # show just that one.
   detail: [sha, author, committer, date, verification, parents, trailers, body, stats]
-  # How dates read: relative (3d ago), absolute (2006-01-02 15:04 MST), or
-  # a Go time layout such as "2006-01-02 15:04".
-  date_format: relative
   # Show the git email next to each name, and in trailers such as
   # Co-authored-by.
   show_email: false

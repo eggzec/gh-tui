@@ -163,14 +163,13 @@ func TestLoadMergesOverDefaults(t *testing.T) {
 				c.Notifications = Notifications{MarkReadOnOpen: false}
 				c.Images = Images{Enabled: ImagesOff, MaxRows: 8}
 				c.History = History{
-					Row:        []string{FieldShortSHA, FieldSubject, FieldVerified, FieldAge},
-					Detail:     []string{FieldSHA, FieldAuthor, FieldDate, FieldTrailers},
-					DateFormat: "2006-01-02 15:04",
-					ShowEmail:  true,
-					Prefetch:   HistoryPrefetch{Around: 5, HoverDelay: 250 * time.Millisecond},
+					Row:       []string{FieldShortSHA, FieldSubject, FieldVerified, FieldAge},
+					Detail:    []string{FieldSHA, FieldAuthor, FieldDate, FieldTrailers},
+					ShowEmail: true,
+					Prefetch:  HistoryPrefetch{Around: 5, HoverDelay: 250 * time.Millisecond},
 				}
 				c.Dashboard = Dashboard{CalendarGlyph: "#", Contributions: ContributionsYear, Prefetch: false}
-				c.UI = UI{Icons: IconsUnicode, Toast: Toast{Info: 6 * time.Second, Error: 12 * time.Second}}
+				c.UI = UI{Icons: IconsUnicode, Toast: Toast{Info: 6 * time.Second, Error: 12 * time.Second}, DateFormat: "2006-01-02 15:04"}
 				c.Auth = Auth{Check: false}
 				c.GitHub = GitHub{Timeout: time.Minute, Concurrency: 4}
 				c.PageSize = PageSize{Pulls: 50, Issues: 40, Notifications: 20, Repos: 60, Runs: 25, Commits: 100, Search: 10, WaitingOnYou: 15}
@@ -236,14 +235,14 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 	cfg.Details.Prefetch.Rows = 31
 	cfg.Details.Prefetch.HoverDelay = -time.Second
 	cfg.History = History{
-		Row:        []string{FieldSubject, "sha", FieldSubject},
-		Detail:     []string{FieldBody, "age"},
-		DateFormat: "yesterday",
-		Prefetch:   HistoryPrefetch{Around: 11, HoverDelay: -time.Millisecond},
+		Row:      []string{FieldSubject, "sha", FieldSubject},
+		Detail:   []string{FieldBody, "age"},
+		Prefetch: HistoryPrefetch{Around: 11, HoverDelay: -time.Millisecond},
 	}
 	cfg.Dashboard.CalendarGlyph = "■■"
 	cfg.Dashboard.Contributions = "week"
 	cfg.UI.Icons = "emoji"
+	cfg.UI.DateFormat = "yesterday"
 	cfg.Images = Images{Enabled: "yes", MaxRows: 0}
 	cfg.Log = Log{Level: "trace", File: "gh-tui.log", MaxSize: KiB, Keep: -1, Summary: time.Second}
 	cfg.Editor = "vim\n-c q"
@@ -281,12 +280,12 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 		`history.row[1]: unknown field "sha", want one of short_sha, subject, author, committer, age, date, verified, trailers`,
 		`history.row[2]: "subject" is listed twice`,
 		`history.detail[1]: unknown field "age", want one of sha, author, committer, date, verification, parents, trailers, body, stats`,
-		`history.date_format: must be relative, absolute or a Go time layout such as "2006-01-02 15:04", got "yesterday"`,
 		`history.prefetch.around: must be between 0 and 10, got 11`,
 		`history.prefetch.hover_delay: must not be negative, got -1ms`,
 		`dashboard.calendar_glyph: must be one character one cell wide, such as "■" or "#", got "■■"`,
 		`dashboard.contributions: must be 30d, 90d or year, got "week"`,
 		`ui.icons: must be nerd, unicode or ascii, got "emoji"`,
+		`ui.date_format: must be relative, absolute or a Go time layout such as "2006-01-02 15:04", got "yesterday"`,
 		`images.enabled: must be auto, on or off, got "yes"`,
 		`images.max_rows: must be at least 1, got 0`,
 		`log.level: must be debug, info, warn or error, got "trace"`,

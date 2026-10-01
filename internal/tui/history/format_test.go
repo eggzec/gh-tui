@@ -7,25 +7,29 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
 func TestGraphRowFields(t *testing.T) {
 	c := history("main", 3)[0]
 	tests := []struct {
 		row                         []string
+		format                      string
 		short, title, detail, right string
 	}{
-		{[]string{config.FieldShortSHA, config.FieldSubject, config.FieldAuthor, config.FieldAge},
+		{[]string{config.FieldShortSHA, config.FieldSubject, config.FieldAuthor, config.FieldAge}, config.DateRelative,
 			short(c.SHA), "main: change 0", "kevin9327", "1d"},
 		// Fields after the subject keep their order in their place.
-		{[]string{config.FieldDate, config.FieldTrailers, config.FieldCommitter, config.FieldVerified, config.FieldAge},
+		{[]string{config.FieldDate, config.FieldTrailers, config.FieldCommitter, config.FieldVerified, config.FieldAge}, config.DateRelative,
 			"", "", "+1 · web-flow · ✓", "2026-09-23 1d"},
-		{[]string{config.FieldSubject}, "", "main: change 0", "", ""},
+		// The date follows the format; the age stays an age.
+		{[]string{config.FieldDate, config.FieldAge}, "Jan _2", "", "", "", "Sep 23 1d"},
+		{[]string{config.FieldSubject}, config.DateRelative, "", "main: change 0", "", ""},
 	}
 	for _, tt := range tests {
 		cfg := testConfig()
 		cfg.Row = tt.row
-		g := newFormat(cfg, time.UTC).graphCommit(c, testNow)
+		g := newFormat(cfg, ui.NewDates(tt.format).In(time.UTC)).graphCommit(c, testNow)
 		if g.Short != tt.short || g.Title != tt.title || g.Detail != tt.detail || g.Right != tt.right {
 			t.Errorf("row %v = %q %q %q %q, want %q %q %q %q", tt.row, g.Short, g.Title, g.Detail, g.Right, tt.short, tt.title, tt.detail, tt.right)
 		}
@@ -45,12 +49,12 @@ func TestDates(t *testing.T) {
 		{config.DateRelative, authored, "2d ago · 2026-09-22 10:00 UTC"},
 		{config.DateRelative, testNow.Add(-time.Hour), "2d ago, committed 1h ago"},
 		{config.DateAbsolute, authored, "2026-09-22 10:00 UTC"},
+		{config.DateAbsolute, testNow.Add(-time.Hour), "2026-09-22 10:00 UTC, committed 2026-09-24 11:00 UTC"},
 		{"Jan _2 15:04", authored.Add(30 * time.Second), "Sep 22 10:00"},
 	}
 	for _, tt := range tests {
-		cfg := testConfig()
-		cfg.DateFormat = tt.format
-		if got := newFormat(cfg, time.UTC).dates(authored, tt.committed, testNow); got != tt.want {
+		dates := ui.NewDates(tt.format).In(time.UTC)
+		if got := newFormat(testConfig(), dates).dates(authored, tt.committed, testNow); got != tt.want {
 			t.Errorf("%s: dates = %q, want %q", tt.format, got, tt.want)
 		}
 	}
