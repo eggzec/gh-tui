@@ -73,9 +73,6 @@ func newBarStyles(t ui.Theme) barStyles {
 	}
 }
 
-// lowShare is the percent of a quota left under which the bar warns.
-const lowShare = 10
-
 // bar is the footer when nothing takes its place: the status bar.
 func (m *Model) bar() string {
 	m.refreshBar()
@@ -287,7 +284,7 @@ func (m *Model) ratesItem() statusbar.Item {
 	held := 0
 	for _, q := range quotas {
 		v := st.value
-		if share(q) < lowShare {
+		if share(q) < core.LowQuotaShare {
 			v = st.low
 		}
 		parts = append(parts, st.label.Render(quotaName(q.Resource)+" ")+v.Render(grouped(q.Remaining)+"/"+grouped(q.Limit)))
@@ -306,7 +303,7 @@ func (m *Model) ratesItem() statusbar.Item {
 	}
 	tight := slices.MinFunc(quotas, func(a, b core.Quota) int { return cmp.Compare(share(a), share(b)) })
 	v := st.value
-	if share(tight) < lowShare {
+	if share(tight) < core.LowQuotaShare {
 		v = st.low
 	}
 	pct := strconv.Itoa(share(tight)) + "%"

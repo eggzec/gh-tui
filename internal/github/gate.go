@@ -39,9 +39,6 @@ const (
 	// their limit lifts.
 	minStagger = 2 * time.Millisecond
 	maxStagger = 10 * time.Millisecond
-	// prefetchReserve is the share of a quota, in percent, that reads
-	// ahead leave to what the user asks for.
-	prefetchReserve = 10
 	// probeTimeout bounds the probe of the rate limits, which the
 	// requests held wait for, so no longer than the foreground waits.
 	probeTimeout = foregroundWait
@@ -253,7 +250,7 @@ func (l limit) expiry(held []*hold) time.Time {
 // answered, isn't sent only to be refused, nor any request while a
 // secondary limit is on. What becomes of it then depends on who waits for
 // it. A read ahead fails at once, and so does one that would take what is
-// kept of the quota for what the user asks for (prefetchReserve). A read
+// kept of the quota for what the user asks for (core.LowQuotaShare). A read
 // the user waits for, or a change they asked for, is held if the limit
 // lifts within foregroundWait, or maxSecondaryWait for a secondary limit,
 // and fails at once otherwise; if only the requests in flight make the
@@ -421,7 +418,7 @@ func (b *budget) spent(resource string, cost int, now time.Time) (limit, bool) {
 // be held.
 func (b *budget) short(resource string, cost int, now time.Time) bool {
 	q := b.quotas[resource]
-	return q != nil && !b.far(q.reset, now) && b.est(resource, q)-cost < q.limit*prefetchReserve/100
+	return q != nil && !b.far(q.reset, now) && b.est(resource, q)-cost < q.limit*core.LowQuotaShare/100
 }
 
 // refuse returns the error of a request of resource that fails at once
