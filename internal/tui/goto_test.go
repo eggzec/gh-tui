@@ -589,7 +589,7 @@ func TestGotoBadTargetFits(t *testing.T) {
 	m, _ := newGotoApp(t, newGotoRepos())
 	runCommand(t, m, "goto "+strings.Repeat("a", 300)+"\u202e")
 	got := toasted(m)
-	if !strings.HasPrefix(got, "✗ Can't open aaa") || !hasToast(m, "…: want owner/name.") {
+	if !strings.HasPrefix(got, ui.NewIcons(config.Default().UI.Icons).Error+" Can't open aaa") || !hasToast(m, "…: want owner/name.") {
 		t.Errorf("toast %q, want the input cut and the reason whole", got)
 	}
 	if strings.ContainsRune(got, '\u202e') {
