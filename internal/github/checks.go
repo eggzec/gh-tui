@@ -48,6 +48,7 @@ var pullChecksQuery = `query PullChecks($owner: String!, $name: String!, $number
   ` + rateLimitField + `
   repository(owner: $owner, name: $name) {
     pullRequest(number: $number) {
+      headRefOid
       commits(last: 1) { nodes { commit { ...commitChecks } } }
     }
   }
@@ -174,7 +175,8 @@ func (c *Client) PullChecks(ctx context.Context, repo core.RepoRef, number int) 
 	var data struct {
 		Repository *struct {
 			PullRequest *struct {
-				Commits nodes[struct {
+				HeadRefOid string `json:"headRefOid"`
+				Commits    nodes[struct {
 					Commit commitChecks `json:"commit"`
 				}] `json:"commits"`
 			} `json:"pullRequest"`
@@ -187,11 +189,13 @@ func (c *Client) PullChecks(ctx context.Context, repo core.RepoRef, number int) 
 	if data.Repository == nil || data.Repository.PullRequest == nil {
 		return core.Checks{}, fmt.Errorf("checks of pull %s#%d: %w", repo, number, core.ErrNotFound)
 	}
-	commits := data.Repository.PullRequest.Commits.Nodes
-	if len(commits) == 0 {
-		return core.Checks{}, nil
+	pr := data.Repository.PullRequest
+	if len(pr.Commits.Nodes) == 0 {
+		return core.Checks{Head: pr.HeadRefOid}, nil
 	}
-	return commits[0].Commit.core(), nil
+	out := pr.Commits.Nodes[0].Commit.core()
+	out.Head = pr.HeadRefOid
+	return out, nil
 }
 
 // CommitChecks returns the checks of commit sha of repo.

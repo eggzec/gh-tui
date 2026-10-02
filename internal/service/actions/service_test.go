@@ -1,6 +1,7 @@
 package actions
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"slices"
@@ -461,9 +462,15 @@ func TestChecks(t *testing.T) {
 	})
 	s := New(f)
 	pr := ChecksQuery{Repo: repo, Number: 5}
+	if s.FreshChecks(pr) {
+		t.Error("FreshChecks before a read = true")
+	}
 	c, err := s.Checks(t.Context(), pr)
 	if err != nil || c.State != core.ChecksFailure || len(c.Runs) != 1 {
 		t.Fatalf("Checks = %+v, %v", c, err)
+	}
+	if !s.FreshChecks(pr) {
+		t.Error("FreshChecks after a read = false")
 	}
 	if _, err := s.Checks(t.Context(), pr); err != nil {
 		t.Fatal(err)
@@ -480,11 +487,54 @@ func TestChecks(t *testing.T) {
 		t.Errorf("Checks of nothing = %v", err)
 	}
 
+	// A push moved the head: the checks of the old one are stale for a
+	// query that names the new one, and it reads them again.
+	moved := ChecksQuery{Repo: repo, Number: 5, SHA: "DEF"}
+	if !s.FreshChecks(ChecksQuery{Repo: repo, Number: 5, SHA: "ABC"}) || s.FreshChecks(moved) {
+		t.Error("FreshChecks doesn't tell the checks of the head from another's")
+	}
+	if _, err := s.Checks(t.Context(), moved); err != nil {
+		t.Fatal(err)
+	}
+	checkCalls(t, f, "PullChecks octo-org/hello #5")
+	// A read already cancelled leaves the checks of the old head cached.
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	_, _ = s.Checks(ctx, moved)
+	if !s.FreshChecks(pr) {
+		t.Error("a cancelled read of another head dropped the cached checks")
+	}
+	checkCalls(t, f)
+
 	s.Invalidate(repo)
+	if s.FreshChecks(pr) {
+		t.Error("FreshChecks after Invalidate = true")
+	}
 	if _, err := s.Checks(t.Context(), pr); err != nil {
 		t.Fatal(err)
 	}
 	checkCalls(t, f, "PullChecks octo-org/hello #5")
+}
+
+// TestChecksOfAHeadListedApart reads the checks of a pull request whose
+// head branch is at another commit than the one GitHub lists last: they
+// are fresh for the head, so reading them ahead doesn't read them again.
+func TestChecksOfAHeadListedApart(t *testing.T) {
+	f := newFake()
+	f.change(func(f *fakeGitHub) {
+		f.checks["#5"] = core.Checks{SHA: "abc", Head: "def", State: core.ChecksSuccess}
+	})
+	s := New(f)
+	head := ChecksQuery{Repo: repo, Number: 5, SHA: "def"}
+	for range 2 {
+		if _, err := s.Checks(t.Context(), head); err != nil {
+			t.Fatal(err)
+		}
+	}
+	checkCalls(t, f, "PullChecks octo-org/hello #5")
+	if !s.FreshChecks(head) {
+		t.Error("the checks of the head aren't fresh for it")
+	}
 }
 
 func TestAnnotations(t *testing.T) {

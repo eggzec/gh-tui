@@ -5,12 +5,14 @@ package pulls
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/checks"
@@ -47,6 +49,15 @@ type Service interface {
 	ConvertToDraft(repo core.RepoRef, number int) *optimistic.Op
 }
 
+// ChecksService is what the section needs to show the checks of pull
+// requests and to read them ahead.
+type ChecksService interface {
+	checks.Service
+	// FreshChecks reports whether Checks returns the checks of q without
+	// a request. It does no I/O.
+	FreshChecks(q actions.ChecksQuery) bool
+}
+
 // Section shows the pull requests of the selected repository. Create it with
 // [New].
 type Section struct {
@@ -56,9 +67,10 @@ type Section struct {
 	// rawKeys are the configured keys, for the steps of the modal.
 	rawKeys map[string][]string
 	now     func() time.Time
-	// checks reads the checks of the modal's Checks step, and checksOpts
-	// configure it. Without checks, the modal has no such step.
-	checks     checks.Service
+	// checks reads the checks of the modal's Checks step, and those read
+	// ahead, and checksOpts configure the step. Without checks, the modal
+	// has no such step.
+	checks     ChecksService
 	checksOpts []checks.Option
 	// mergeMethod is how merge merges, if the repository allows it.
 	mergeMethod core.MergeMethod
@@ -89,14 +101,17 @@ type Section struct {
 	// voice words the errors of the feed and of the comments.
 	voice ui.Voice
 
-	// ahead reads the details and the first comments of the rows of feed
-	// before they are opened, as prefetch.pulls says. rowAt returns the
-	// key of row i, which is how ahead knows a row. others reads the
-	// first pages of the tabs not shown, if prefetch.pulls.other_tabs is
-	// on. prefetch is the settings they start with.
+	// ahead reads the details, the first comments and the checks of the
+	// rows of feed before they are opened, as prefetch.pulls says. rowAt
+	// returns the key of row i, which is how ahead knows a row, and keeps
+	// the head of its pull request in heads, by key, for the checks.
+	// others reads the first pages of the tabs not shown, if
+	// prefetch.pulls.other_tabs is on. prefetch is the settings they start
+	// with.
 	prefetch *config.PrefetchLayers
 	ahead    *ui.Aheads[details.Key]
 	rowAt    func(i int) (details.Key, bool)
+	heads    sync.Map
 	others   *ui.Filters[pulls.ListQuery]
 
 	width, height int
@@ -171,7 +186,7 @@ func WithDates(d ui.Dates) Option {
 // WithChecks shows the checks of a pull request in a step of its modal,
 // which the checks key opens there and on the rows of the list, read from
 // svc and configured by opts. The default has no such step.
-func WithChecks(svc checks.Service, opts ...checks.Option) Option {
+func WithChecks(svc ChecksService, opts ...checks.Option) Option {
 	return func(s *Section) { s.checks, s.checksOpts = svc, opts }
 }
 
@@ -180,6 +195,11 @@ func WithChecks(svc checks.Service, opts ...checks.Option) Option {
 //   - details and comments: the detail and the first comments of the rows
 //     in the window around the cursor, each time it rests, and at once
 //     when a list loads. Each costs a request; what is cached is skipped.
+//   - checks: the full list of checks of the same rows, which the
+//     modal's header counts and its Checks step shows, if WithChecks set
+//     how to read them. Each costs a GraphQL query; checks read within
+//     their cache TTL are skipped, even while some are pending, unless
+//     they are of another head than the row shows.
 //   - other_tabs: the first page of each state not shown, once the user
 //     switched tabs in a repository, with the next or previous tab key,
 //     and the list shown loaded, so that switching further shows them at
@@ -212,9 +232,16 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 	s.keys.Checks.SetEnabled(s.keys.Checks.Enabled() && s.checks != nil)
 	s.rowAt = func(i int) (details.Key, bool) {
 		pr, ok := s.feed.Item(i)
+		if ok {
+			s.heads.Store(detailKey(s.repo, pr.Number), pr.HeadSHA)
+		}
 		return detailKey(s.repo, pr.Number), ok
 	}
-	s.ahead = ui.NewAheads(ctx, "pulls", details.Reader{Pulls: svc}.Kinds("pull")...)
+	kinds := details.Reader{Pulls: svc}.Kinds("pull")
+	if s.checks != nil {
+		kinds = append(kinds, ui.AheadKind[details.Key]{Name: "checks", Log: "pull_checks", Read: s.readChecks, Current: s.freshChecks})
+	}
+	s.ahead = ui.NewAheads(ctx, "pulls", kinds...)
 	if p := s.prefetch; p != nil {
 		s.setPrefetch(*p)
 	}
@@ -249,6 +276,7 @@ func (s *Section) newFeed() tea.Cmd {
 	}
 	ctx, cancel := context.WithCancel(s.ctx)
 	s.ahead.Reset(ctx)
+	s.heads.Clear()
 	q := s.listQuery(s.tab)
 	svc := s.svc
 	query := func(cursor string) pulls.ListQuery {

@@ -272,6 +272,7 @@ func (keyActions) Annotations(context.Context, actionssvc.AnnotationsQuery) (cor
 	return core.Page[core.Annotation]{Items: []core.Annotation{{Path: "keys_test.go", StartLine: 1, Level: core.AnnotationFailure, Message: "want a frame"}}}, nil
 }
 func (keyActions) CachedChecks(actionssvc.ChecksQuery) (core.Checks, bool) { return keyChecks(), true }
+func (keyActions) FreshChecks(actionssvc.ChecksQuery) bool                 { return true }
 func (keyActions) Checks(context.Context, actionssvc.ChecksQuery) (core.Checks, error) {
 	return keyChecks(), nil
 }
