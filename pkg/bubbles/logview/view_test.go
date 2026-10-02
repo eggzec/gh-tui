@@ -147,8 +147,23 @@ func TestViewErrorStyle(t *testing.T) {
 	if !strings.Contains(v, base+"plain \x1b[1mbold\x1b[22m after") {
 		t.Errorf("error line %q, want its bold over the error style %q", v, base)
 	}
-	if !strings.Contains(ansi.Strip(v), errorLineGlyph) {
+	if !strings.Contains(ansi.Strip(v), "✗") {
 		t.Errorf("error line without its mark: %q", ansi.Strip(v))
+	}
+}
+
+// The gutter marks error lines and failed sections with the error glyph
+// of the styles, cut to its one cell.
+func TestViewErrorGutterMark(t *testing.T) {
+	lines := []Line{{Kind: Error, Text: "boom"}}
+	for _, tt := range []struct{ glyph, want string }{{"x", "x boom"}, {"\uf530", "\uf530 boom"}, {"xy", "x boom"}, {"界", "  boom"}} {
+		st := DefaultStyles(true)
+		st.ErrorGlyph = tt.glyph
+		m := view(t, lines, WithSize(40, 2), WithLineNumbers(false), WithStyles(st))
+		first, _, _ := strings.Cut(ansi.Strip(m.View()), "\n")
+		if !strings.Contains(first, tt.want) {
+			t.Errorf("glyph %q: error line %q, want %q", tt.glyph, first, tt.want)
+		}
 	}
 }
 

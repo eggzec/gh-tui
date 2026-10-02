@@ -6,19 +6,19 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // Glyphs drawn in the gutter and before folds.
 const (
-	cursorGlyph    = "▌"
-	openGlyph      = "▾ "
-	closedGlyph    = "▸ "
-	errorLineGlyph = "✗"
-	warningGlyph   = "!"
-	noticeGlyph    = "i"
-	ellipsisGlyph  = "…"
+	cursorGlyph   = "▌"
+	openGlyph     = "▾ "
+	closedGlyph   = "▸ "
+	warningGlyph  = "!"
+	noticeGlyph   = "i"
+	ellipsisGlyph = "…"
 )
 
 // Styles holds the styles of a log view. The styles of lines go under the
@@ -68,9 +68,9 @@ type Styles struct {
 	Message   lipgloss.Style
 	Spinner   lipgloss.Style
 	LoadError lipgloss.Style
-	// ErrorGlyph starts the text of a log that failed to load. The
-	// default is "✗". The gutter marks error lines with "✗" whatever it
-	// is, beside the "!" of warnings and the "i" of notices.
+	// ErrorGlyph starts the text of a log that failed to load, and marks
+	// error lines in the gutter, beside the "!" of warnings and the "i" of
+	// notices, cut or padded to the gutter's one cell. The default is "✗".
 	ErrorGlyph string
 	// ErrorSeparator goes between the text of an error and its hint, and
 	// ErrorEllipsis ends the text where it is cut. The defaults are " · "
@@ -201,7 +201,7 @@ func newEsc(s Styles) esc {
 		closed:      s.Marker.Render(closedGlyph),
 		cursor:      s.Cursor.Render(cursorGlyph),
 		blurred:     s.BlurredCursor.Render(cursorGlyph),
-		errorMark:   s.ErrorMark.Render(errorLineGlyph),
+		errorMark:   s.ErrorMark.Render(oneCell(s.ErrorGlyph)),
 		warningMark: s.WarningMark.Render(warningGlyph),
 		noticeMark:  s.NoticeMark.Render(noticeGlyph),
 	}
@@ -241,4 +241,13 @@ func (e *esc) mark(m *Model, r *row) string {
 	default:
 		return ""
 	}
+}
+
+// oneCell returns g cut or padded to one cell, as the gutter's marks are.
+func oneCell(g string) string {
+	g = ansi.Truncate(g, 1, "")
+	if g == "" {
+		return " "
+	}
+	return g
 }

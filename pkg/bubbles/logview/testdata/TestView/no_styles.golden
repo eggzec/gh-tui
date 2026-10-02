@@ -1,12 +1,12 @@
  177       Running [D:\a\_temp\48551658-aac3-4ea1-b666-ddd224bc0dd6\golangci-lin
  178       Running [D:\a\_temp\48551658-aac3-4ea1-b666-ddd224bc0dd6\golangci-lin
  179       Running [D:\a\_temp\48551658-aac3-4ea1-b666-ddd224bc0dd6\golangci-lin
-▌180 ✗     D:\a\bubbletea\bubbletea\charmbracelet\bubbletea\clipboard_backend.go
+▌180       D:\a\bubbletea\bubbletea\charmbracelet\bubbletea\clipboard_backend.go
  181       type clipboardCommand func(selection ClipboardSelection) (name string
  182            ^                                                               
- 183 ✗     D:\a\bubbletea\bubbletea\charmbracelet\bubbletea\clipboard_backend.go
+ 183       D:\a\bubbletea\bubbletea\charmbracelet\bubbletea\clipboard_backend.go
  184       type commandClipboardBackend struct {                                
  185            ^                                                               
- 186 ✗     D:\a\bubbletea\bubbletea\charmbracelet\bubbletea\clipboard_backend.go
+ 186       D:\a\bubbletea\bubbletea\charmbracelet\bubbletea\clipboard_backend.go
  187       func (b commandClipboardBackend) Set(selection ClipboardSelection, co
 lint / lint (windows-latest)                           error 1/5  row 15/36  61%
