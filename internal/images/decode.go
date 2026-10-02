@@ -103,7 +103,12 @@ var codecs = map[string]codec{
 // inspect returns the codec of data, after checking from its header that
 // it would decode within the limits. The format comes from the data,
 // never from the name or a header.
-func inspect(data []byte) (codec, error) {
+func inspect(data []byte) (_ codec, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = panicked(r)
+		}
+	}()
 	if len(data) > maxBytes {
 		return codec{}, fmt.Errorf("%w: %d bytes", ErrTooLarge, len(data))
 	}
@@ -129,7 +134,12 @@ func inspect(data []byte) (codec, error) {
 }
 
 // decode makes data an image that fits box, after inspecting it.
-func decode(data []byte, box Box) (Image, error) {
+func decode(data []byte, box Box) (_ Image, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = panicked(r)
+		}
+	}()
 	c, err := inspect(data)
 	if err != nil {
 		return Image{}, err
@@ -161,6 +171,13 @@ func decode(data []byte, box Box) (Image, error) {
 	}
 	img.PNG = out.Bytes()
 	return img, nil
+}
+
+// panicked is the error of an image whose decoder or scaler panicked
+// with r. They read bytes from anywhere, so a panic is recovered as
+// ErrFormat: it would end the app with the terminal left raw.
+func panicked(r any) error {
+	return fmt.Errorf("%w: decoder panicked: %v", ErrFormat, r)
 }
 
 // shrink returns src scaled down to at most twice w by h, without the

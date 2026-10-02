@@ -10,6 +10,7 @@ import (
 	"image/gif"
 	"image/jpeg"
 	"image/png"
+	"io"
 	"os"
 	"runtime"
 	"testing"
@@ -389,5 +390,32 @@ func TestPNGNext(t *testing.T) {
 		if next != tt.next || ok != tt.ok {
 			t.Errorf("pngNext(%d, %d, %#x) = %d, %v; want %d, %v", tt.i, tt.size, tt.n, next, ok, tt.next, tt.ok)
 		}
+	}
+}
+
+// panicking makes the PNG decoder panic, as one might on hostile bytes,
+// until the test ends: in config if inConfig, else in decode.
+func panicking(t *testing.T, inConfig bool) {
+	t.Helper()
+	c := codecs["image/png"]
+	t.Cleanup(func() { codecs["image/png"] = c })
+	p := c
+	if inConfig {
+		p.config = func(io.Reader) (image.Config, error) { panic("config") }
+	} else {
+		p.decode = func(io.Reader) (image.Image, error) { panic("decode") }
+	}
+	codecs["image/png"] = p
+}
+
+// A decoder that panics fails the image, not the app.
+func TestDecodeRecovers(t *testing.T) {
+	for _, inConfig := range []bool{true, false} {
+		t.Run(map[bool]string{true: "config", false: "decode"}[inConfig], func(t *testing.T) {
+			panicking(t, inConfig)
+			if _, err := decode(pngOf(t, 4, 4), Box{}); !errors.Is(err, ErrFormat) {
+				t.Errorf("err = %v, want ErrFormat", err)
+			}
+		})
 	}
 }
