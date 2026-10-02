@@ -265,6 +265,10 @@ func (m *Model) SetStyles(s Styles) {
 	}
 	m.styles = s
 	m.spin.Style = s.Spinner
+	m.spin.Spinner = spinner.Dot
+	if len(s.SpinnerFrames.Frames) > 0 {
+		m.spin.Spinner = s.SpinnerFrames
+	}
 	glyphs := glyphs(s.CommitGlyph, s.Ellipsis, s.Lines)
 	for g := range glyphCount {
 		m.frags[g] = make([]string, len(s.Lanes))

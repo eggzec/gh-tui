@@ -1,6 +1,7 @@
 package thread
 
 import (
+	"charm.land/bubbles/v2/spinner"
 	"charm.land/glamour/v2/ansi"
 	"charm.land/lipgloss/v2"
 
@@ -13,6 +14,10 @@ import (
 type Styles struct {
 	// Spinner styles the spinner shown while something loads.
 	Spinner lipgloss.Style
+	// SpinnerFrames are the frames the spinner draws. Zero keeps the
+	// default, spinner.Dot. As many frames as the default has keep the
+	// spinner drawing when they change while it spins.
+	SpinnerFrames spinner.Spinner
 	// Loading styles the text next to the spinner.
 	Loading lipgloss.Style
 	// Empty styles the line shown when there are no comments.

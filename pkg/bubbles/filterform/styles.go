@@ -2,6 +2,7 @@ package filterform
 
 import (
 	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/spinner"
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -84,6 +85,10 @@ type Styles struct {
 	Cursor lipgloss.Style
 	// Spinner styles the spinner of a field that is loading.
 	Spinner lipgloss.Style
+	// SpinnerFrames are the frames the spinner draws. Zero keeps the
+	// default, spinner.Dot. As many frames as the default has keep the
+	// spinner drawing when they change while it spins.
+	SpinnerFrames spinner.Spinner
 	// Error styles a load that failed.
 	Error lipgloss.Style
 	// ErrorGlyph starts the line of a load that failed. The default is "✗".
@@ -155,6 +160,10 @@ func (m Model) Styles() Styles { return m.styles }
 func (m *Model) SetStyles(s Styles) {
 	m.styles = s
 	m.spin.Style = s.Spinner
+	m.spin.Spinner = spinner.Dot
+	if len(s.SpinnerFrames.Frames) > 0 {
+		m.spin.Spinner = s.SpinnerFrames
+	}
 	m.help.Styles = s.Help
 	m.help.ShortSeparator = s.Glyphs.Separator
 	in := inputStyles(s)

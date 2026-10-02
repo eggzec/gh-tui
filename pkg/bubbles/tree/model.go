@@ -298,6 +298,10 @@ func (m Model) KeyMap() KeyMap {
 func (m *Model) SetStyles(s Styles) {
 	m.styles = s
 	m.spin.Style = s.Spinner
+	m.spin.Spinner = spinner.MiniDot
+	if len(s.SpinnerFrames.Frames) > 0 {
+		m.spin.Spinner = s.SpinnerFrames
+	}
 	cursor := termtext.Cells(s.CursorGlyph, 1)
 	m.gutterFocused = s.Cursor.Render(cursor) + " "
 	m.gutterBlurred = s.BlurredCursor.Render(cursor) + " "

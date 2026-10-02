@@ -1,6 +1,7 @@
 package picker
 
 import (
+	"charm.land/bubbles/v2/spinner"
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -30,6 +31,10 @@ type Styles struct {
 	Status lipgloss.Style
 	// Spinner styles the spinner shown while a search runs.
 	Spinner lipgloss.Style
+	// SpinnerFrames are the frames the spinner draws. Zero keeps the
+	// default, spinner.Dot. As many frames as the default has keep the
+	// spinner drawing when they change while it spins.
+	SpinnerFrames spinner.Spinner
 	// Header styles the name of a group of items.
 	Header lipgloss.Style
 	// Gutter marks the selected item.
@@ -109,6 +114,10 @@ func (m Model) Styles() Styles { return m.styles }
 func (m *Model) SetStyles(s Styles) {
 	m.styles = s
 	m.spin.Style = s.Spinner
+	m.spin.Spinner = spinner.Dot
+	if len(s.SpinnerFrames.Frames) > 0 {
+		m.spin.Spinner = s.SpinnerFrames
+	}
 	m.input.SetStyles(inputStyles(s))
 	m.gutterOn = s.Gutter.Render(termtext.Cells(s.CursorGlyph, 1)) + " "
 	m.prompt = s.Prompt.Render(s.PromptGlyph + " ")
