@@ -58,8 +58,10 @@ type finderModal struct {
 	// failed is why the file shown failed to load, or nil.
 	failed error
 	// img shows the file in the pager as the file preview does: as its
-	// image where it is an image file the terminal shows.
-	img fileImage
+	// image where it is an image file the terminal shows. named is set
+	// while the pager names the file binary by its name alone, unread.
+	img   fileImage
+	named bool
 
 	width, height int
 	theme         ui.Theme
@@ -295,6 +297,14 @@ func (f *finderModal) Update(msg tea.Msg) tea.Cmd {
 		}
 		return f.showFile(msg.entry, msg.blob, msg.err)
 	case ui.ImagesMsg:
+		if it, _ := f.find.Selected(); f.named {
+			// An image file named binary while the terminal showed no
+			// images is read now that it may.
+			if e, ok := entryOfItem(it); ok && f.drawsImage(e) {
+				f.current = false
+				return f.moved()
+			}
+		}
 		return f.redraw()
 	case ui.OnlineMsg:
 		// A rate limit is the token's, and has lifted unless one holds.
@@ -363,12 +373,14 @@ func (f *finderModal) moved() tea.Cmd {
 	f.seq++
 	f.stopRead()
 	f.img.clear()
+	f.named = false
 	e, ok := entryOfItem(it)
 	if !ok {
 		f.pager.SetMessage("", "")
 		return nil
 	}
 	if binaryExt[strings.ToLower(path.Ext(e.Name))] && !f.drawsImage(e) {
+		f.named = true
 		f.pager.SetMessage(e.Path, "Binary file, not shown"+browserHint(f.keys.Browser))
 		return nil
 	}

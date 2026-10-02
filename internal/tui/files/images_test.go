@@ -293,3 +293,22 @@ func TestFindFileImageNotDrawn(t *testing.T) {
 		})
 	}
 }
+
+// An image file the finder named binary while the terminal showed no
+// images is drawn once it shows them, without the cursor moving.
+func TestFindFileImageTurnsOn(t *testing.T) {
+	src := &uitest.ImageHost{}
+	images := uitest.Avatars(src, false)
+	h, f, _ := imageFinder(t, images, true)
+	h.run(f.Update(tea.PasteMsg{Content: "logo"}))
+	if got := ansi.Strip(f.View()); !strings.Contains(got, "Binary file, not shown") {
+		t.Fatalf("preview = %q, want the binary file's notice", got)
+	}
+	images.SetGraphics(ui.Graphics{Images: true, Cell: uitest.TestCell})
+	h.run(func() tea.Msg { return ui.ImagesMsg{} })
+	uitest.LoadAvatars(t, images)
+	h.run(func() tea.Msg { return ui.ImagesMsg{} })
+	if n := uitest.Placeholders(t, f.View()); n != 69*15 {
+		t.Errorf("%d cells show the image, want %d", n, 69*15)
+	}
+}
