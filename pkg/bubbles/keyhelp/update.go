@@ -66,6 +66,9 @@ func (m Model) press(k tea.KeyPressMsg) (Model, tea.Cmd) {
 // typeIn passes msg to the query, and filters again if it changed.
 func (m Model) typeIn(msg tea.Msg) (Model, tea.Cmd) {
 	before := m.input.Value()
+	// The input edits its text in place, which copies of the model share,
+	// so it gets a copy of its own first.
+	m.input.SetValue(before)
 	var cmd tea.Cmd
 	m.input, cmd = m.input.Update(msg)
 	if m.input.Value() != before {

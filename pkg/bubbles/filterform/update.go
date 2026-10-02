@@ -133,12 +133,16 @@ func (m *Model) typeIn(msg tea.Msg) tea.Cmd {
 		m.pick, cmd = m.pick.Update(msg)
 		return cmd
 	case m.editing && m.kind() == Text:
+		// The inputs edit their text in place, which copies of the model
+		// share, so each gets a copy of its own first.
+		m.text.SetValue(m.text.Value())
 		var cmd tea.Cmd
 		m.text, cmd = m.text.Update(msg)
 		m.setValue(m.row, TextValue(m.text.Value()))
 		return cmd
 	case m.row == m.queryRow():
 		before := m.query.Value()
+		m.query.SetValue(before)
 		var cmd tea.Cmd
 		m.query, cmd = m.query.Update(msg)
 		if v := m.query.Value(); v != before {

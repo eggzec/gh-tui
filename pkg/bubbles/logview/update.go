@@ -28,6 +28,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	}
 	if m.focused && m.searching {
 		// Pastes and the like go to the input.
+		// The input edits its text in place, which copies of the model share,
+		// so it gets a copy of its own first.
+		m.input.SetValue(m.input.Value())
 		var cmd tea.Cmd
 		m.input, cmd = m.input.Update(msg)
 		return m, cmd
@@ -110,6 +113,9 @@ func (m Model) updateSearch(k tea.KeyPressMsg) (Model, tea.Cmd) {
 		m.closeSearch()
 		return m, nil
 	}
+	// The input edits its text in place, which copies of the model share,
+	// so it gets a copy of its own first.
+	m.input.SetValue(m.input.Value())
 	var cmd tea.Cmd
 	m.input, cmd = m.input.Update(k)
 	return m, cmd

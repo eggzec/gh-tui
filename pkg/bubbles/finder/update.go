@@ -87,6 +87,9 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 // edit passes msg to the input, and matches the query if it changed.
 func (m *Model) edit(msg tea.Msg) tea.Cmd {
 	before := m.input.Value()
+	// The input edits its text in place, which copies of the model share,
+	// so it gets a copy of its own first.
+	m.input.SetValue(before)
 	var cmd tea.Cmd
 	m.input, cmd = m.input.Update(msg)
 	if m.input.Value() == before {
