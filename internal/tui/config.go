@@ -34,9 +34,9 @@ func (m *Model) configCommand(arg string) tea.Cmd {
 		if err != nil {
 			return m.toast.Push(toast.Error, "Can't show the config: "+ui.OneLine(err.Error())+".")
 		}
-		return m.openText("Config", "config.yaml", m.configHeader()+text+prefetchTable(m.cfg.Prefetch))
+		return m.openText("Config", "config.yaml", m.configHeader()+text+prefetchTable(m.cfg.Prefetch), false)
 	case configDefaults:
-		return m.openText("Default config", "default.yaml", config.DefaultFile())
+		return m.openText("Default config", "default.yaml", config.DefaultFile(), false)
 	}
 	return m.toast.Push(toast.Error, "Can't show config "+strconv.Quote(ui.OneLine(strings.TrimSpace(arg)))+". Use config, or config "+configDefaults+".")
 }
@@ -97,13 +97,16 @@ func completeConfig(_ *Model, arg string, cursor, end int, _ bool) []cmdline.Can
 	return []cmdline.Candidate{{Text: configDefaults, Detail: "show default.yaml", Start: cursor - len(word), End: end}}
 }
 
-// openText opens text, a YAML file named name, in a pager in a modal
-// titled title, which opens it in the editor too.
-func (m *Model) openText(title, name, text string) tea.Cmd {
+// openText opens text, a file named name, which its extension
+// highlights, in a pager in a modal titled title, which opens it in the
+// editor too. wrap soft-wraps long lines, as prose wants, where a file
+// whose lines line up scrolls sideways.
+func (m *Model) openText(title, name, text string, wrap bool) tea.Cmd {
 	t := &textModal{title: title, pager: pager.New(pager.WithEditor(m.cfg.Editor)), icons: ui.NewIcons(m.cfg.UI.Icons)}
 	t.pager.Focus()
+	t.pager.SetWrap(wrap)
 	m.openModal(t)
-	return t.pager.SetContentSyntax(name, "yaml", text)
+	return t.pager.SetContent(name, text)
 }
 
 // textModal shows text in a pager, in a modal over the screen, until the

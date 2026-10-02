@@ -2,8 +2,10 @@ package tui
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"math/rand/v2"
+	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -339,6 +341,9 @@ func (p *imageProbe) logAttrs() []slog.Attr {
 		slog.String("images_mode", p.mode),
 		slog.String("images_reason", v.Reason),
 	}
+	if v.Fix != "" {
+		attrs = append(attrs, slog.String("images_fix", v.Fix))
+	}
 	if v.Tmux {
 		attrs = append(attrs, slog.Bool("images_tmux", true))
 		if v.Terminal != "" {
@@ -349,4 +354,50 @@ func (p *imageProbe) logAttrs() []slog.Attr {
 		attrs = append(attrs, slog.Float64("images_waited_ms", float64(p.waited.Microseconds())/1000))
 	}
 	return attrs
+}
+
+// imagesCommand shows what the startup check found in the pager, as
+// :config shows the config: whether images are drawn, whether through
+// tmux, in which terminal and why, with the setting it ran with and,
+// where there is one, what the user can change. It changes nothing.
+func (m *Model) imagesCommand(string) tea.Cmd {
+	return m.openText("Images", "images.txt", m.imagesSummary(), true)
+}
+
+// imagesSummary words the verdict for imagesCommand, a fact a line.
+func (m *Model) imagesSummary() string {
+	p := &m.images
+	v := p.verdict
+	var b strings.Builder
+	switch {
+	case !p.done:
+		b.WriteString("Images are off until the terminal answers.\n")
+	case v.Images:
+		b.WriteString("Images are on.\nReason: " + v.Reason + ".\n")
+	default:
+		b.WriteString("Images are off.\nReason: " + v.Reason + ".\n")
+	}
+	terminal := v.Terminal
+	if terminal == "" && !v.Tmux {
+		// The name the terminal gave, when the verdict needed none.
+		terminal = m.term.version
+	}
+	if terminal == "" {
+		terminal = "unknown"
+	}
+	b.WriteString("Terminal: " + terminalName(terminal) + "\n")
+	if v.Tmux {
+		b.WriteString("Through tmux: yes\n")
+	} else {
+		b.WriteString("Through tmux: no\n")
+	}
+	b.WriteString("images.enabled: " + p.mode + "\n")
+	if c := m.graphics.Cell; v.Images && c.Valid() {
+		fmt.Fprintf(&b, "Cell size: %d×%d pixels\n", c.Width, c.Height)
+	}
+	if v.Fix != "" {
+		b.WriteString("To draw them, add this line to tmux.conf:\n" + v.Fix + "\n")
+		b.WriteString("Then reload tmux's config, as with tmux source-file ~/.tmux.conf, and come back to gh-tui.\n")
+	}
+	return b.String()
 }

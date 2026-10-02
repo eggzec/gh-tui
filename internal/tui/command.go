@@ -42,6 +42,7 @@ var commands = []command{
 	{name: "filter", detail: "filter the focused list", run: filtering(filterform.FiltersTab)},
 	{name: "goto", detail: "open a repository, issue, pull request or link", args: true, run: (*Model).gotoCommand, complete: (*Model).completeTarget},
 	{name: "help", detail: "list the keys", run: pressing(config.ActionHelp)},
+	{name: "images", detail: "show whether images are drawn here, and why", run: (*Model).imagesCommand},
 	{name: "open", detail: "open on GitHub what follows, or what is selected", args: true, run: (*Model).openCommand, complete: (*Model).completeTarget},
 	{name: "q", detail: "quit", quits: true, run: func(*Model, string) tea.Cmd { return tea.Quit }},
 	{name: "refresh", detail: "read the focused view again", run: pressing(config.ActionRefresh)},

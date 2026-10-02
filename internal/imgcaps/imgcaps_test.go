@@ -91,10 +91,10 @@ func TestVerdicts(t *testing.T) {
 			xtversion: "ghostty 1.2.0", want: true},
 		{name: "wezterm in ghostty's environment, on", mode: ModeOn, env: ghosttyEnv, profile: colorprofile.TrueColor, path: Probe,
 			xtversion: "WezTerm 20240203-110809-5046fc22", reason: "isn't known"},
-		{name: "off with 256 colors", mode: ModeOff, env: ghosttyEnv, profile: colorprofile.ANSI256, path: Decided, reason: "images.enabled is off"},
+		{name: "off with 256 colors", mode: ModeOff, env: ghosttyEnv, profile: colorprofile.ANSI256, path: Decided, reason: "images are turned off in the settings"},
 		{name: "empty TERM", mode: ModeAuto, env: Env{}, profile: colorprofile.TrueColor, path: Decided, reason: "no graphics"},
 		{name: "no color profile", mode: ModeAuto, env: kittyEnv, profile: colorprofile.NoTTY, path: Decided, reason: "fewer than 256"},
-		{name: "off", mode: ModeOff, env: kittyEnv, profile: colorprofile.TrueColor, path: Decided, reason: "images.enabled is off"},
+		{name: "off", mode: ModeOff, env: kittyEnv, profile: colorprofile.TrueColor, path: Decided, reason: "images are turned off in the settings"},
 		{name: "NO_COLOR", mode: ModeOn, env: Env{Term: "xterm-kitty", NoColor: true}, profile: colorprofile.Ascii, path: Decided, reason: "NO_COLOR"},
 		{name: "16 colors", mode: ModeAuto, env: kittyEnv, profile: colorprofile.ANSI, path: Decided, reason: "fewer than 256"},
 		{name: "dumb", mode: ModeAuto, env: Env{Term: "dumb"}, profile: colorprofile.TrueColor, path: Decided, reason: "no graphics"},
@@ -128,7 +128,7 @@ func TestVerdicts(t *testing.T) {
 		{name: "tmux can't say its client", mode: ModeAuto, env: tmuxEnv, profile: colorprofile.ANSI256, path: AskTmux,
 			tmux:   Tmux{Version: "3.4", Passthrough: "on", TermtypeErr: errors.New("unknown format")},
 			reason: "couldn't say the terminal of its client"},
-		{name: "tmux, off", mode: ModeOff, env: tmuxEnv, profile: colorprofile.ANSI256, path: Decided, reason: "images.enabled is off"},
+		{name: "tmux, off", mode: ModeOff, env: tmuxEnv, profile: colorprofile.ANSI256, path: Decided, reason: "images are turned off in the settings"},
 		{name: "tmux on 16 colors", mode: ModeAuto, env: Env{Term: "tmux", Tmux: true}, profile: colorprofile.ANSI, path: Decided, reason: "fewer than 256"},
 	}
 	for _, tt := range tests {
@@ -239,5 +239,18 @@ func TestRunTmuxDeadline(t *testing.T) {
 	}
 	if v := DecideTmux(got); v.Images {
 		t.Errorf("verdict = %+v, want none", v)
+	}
+}
+
+// Only a fix the user can make is offered: tmux's passthrough, set
+// off, not a terminal that draws no placeholders.
+func TestTmuxFix(t *testing.T) {
+	if v := DecideTmux(Tmux{Version: "3.4", Passthrough: "off", ClientTermtype: "kitty(0.43.1)"}); v.Fix != "set -g allow-passthrough on" {
+		t.Errorf("passthrough off: fix = %q", v.Fix)
+	}
+	for _, tm := range []Tmux{tmuxKitty, {Version: "3.4", Passthrough: "on", ClientTermtype: "Konsole 25.04.0"}} {
+		if v := DecideTmux(tm); v.Fix != "" {
+			t.Errorf("%+v: fix = %q, want none", tm, v.Fix)
+		}
 	}
 }
