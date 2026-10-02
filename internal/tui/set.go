@@ -40,6 +40,11 @@ func (m *Model) setCommand(arg string) tea.Cmd {
 	}
 	was, err := m.cfg.Get(key)
 	if err != nil {
+		if first, rest, spaced := strings.Cut(key, " "); spaced {
+			if _, err := m.cfg.Get(first); err == nil {
+				return m.toast.Push(toast.Error, "Write it as set "+first+"="+ui.OneLine(strings.TrimSpace(rest))+".")
+			}
+		}
 		return m.toast.Push(toast.Error, "Unknown setting: "+ui.OneLine(key)+".")
 	}
 	if reset {
