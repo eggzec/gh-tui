@@ -37,7 +37,7 @@ type options struct {
 	// voice words the errors of the files; New makes one of its keys if
 	// it is nil.
 	voice *ui.Voice
-	// icons mark what failed to load.
+	// icons draw the modal and mark what failed to load.
 	icons ui.Icons
 }
 
@@ -66,8 +66,8 @@ func WithVoice(v ui.Voice) Option {
 	return func(o *options) { o.voice = &v }
 }
 
-// WithIcons sets the icons whose error glyph marks what failed to load.
-// Without it, the icons are the config's default.
+// WithIcons sets the icons that draw the modal and mark what failed to
+// load. Without it, the icons are the config's default.
 func WithIcons(ic ui.Icons) Option {
 	return func(o *options) { o.icons = ic }
 }
@@ -108,7 +108,7 @@ type Modal struct {
 
 	// voice words why the release failed to load.
 	voice ui.Voice
-	// icons mark what failed to load.
+	// icons draw the modal and mark what failed to load.
 	icons ui.Icons
 
 	width, height int
@@ -241,7 +241,7 @@ func (m *Modal) Title() string {
 	if m.loaded {
 		name = releaseName(m.rel)
 	}
-	return name + " · " + m.repo.String()
+	return name + m.icons.Separator + m.repo.String()
 }
 
 // Link implements ui.Linked: the page of the release, or of the releases
@@ -266,7 +266,7 @@ func (m *Modal) SetSize(width, height int) {
 // SetTheme implements ui.Modal.
 func (m *Modal) SetTheme(t ui.Theme) {
 	m.theme = t
-	m.st = newStyles(t)
+	m.st = newStyles(t, m.icons)
 	m.errs = t.Errors(m.icons)
 	m.thread.SetStyles(t.Thread(m.icons))
 	if m.loaded {

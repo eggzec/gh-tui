@@ -8,6 +8,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"unicode"
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
@@ -440,5 +441,23 @@ func TestDates(t *testing.T) {
 		if format != config.DateRelative && strings.Contains(got, "(2026-08-11)") {
 			t.Errorf("%s: the modal tells the day twice:\n%s", format, got)
 		}
+	}
+}
+
+// With the ASCII icons the modal draws its own parts in ASCII: the title,
+// the files with their downloads, and their cut names.
+func TestASCIIIcons(t *testing.T) {
+	m := New(context.Background(), &fakeService{}, repo, v3.ID, "https://github.com/charmbracelet/glow/releases", config.Default().Keys,
+		WithNow(func() time.Time { return clock }), WithLocation(time.UTC), WithIcons(ui.NewIcons(config.IconsASCII)))
+	m.SetSize(60, 18)
+	run(t, m, m.Init())
+	asset := core.ReleaseAsset{Name: strings.Repeat("glow_2.0.0_linux_x86_64", 3) + ".tar.gz", Size: 4 << 20, Downloads: 12345}
+	for _, s := range []string{m.Title(), ansi.Strip(m.renderAsset(asset, 60))} {
+		if strings.ContainsFunc(s, func(r rune) bool { return r > unicode.MaxASCII }) {
+			t.Errorf("%q isn't ASCII", s)
+		}
+	}
+	if row := ansi.Strip(m.renderAsset(asset, 60)); !strings.Contains(row, "...") || !strings.Contains(row, "v 12,345") {
+		t.Errorf("row %q lacks the cut name or the downloads", row)
 	}
 }
