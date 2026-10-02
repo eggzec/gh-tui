@@ -7,6 +7,8 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // View renders the picker at exactly its width and height: the input, a
@@ -52,7 +54,7 @@ func (m *Model) render() {
 		return
 	}
 	lines := make([]string, 0, h)
-	lines = append(lines, fit(m.prompt+m.input.View(), w))
+	lines = append(lines, m.fit(m.prompt+m.input.View(), w))
 	if h > 1 {
 		lines = append(lines, m.metaLine(w))
 	}
@@ -141,9 +143,9 @@ func (m Model) metaLine(w int) string {
 		right = m.styles.Status.Render(count(len(m.results)))
 	}
 	rw := ansi.StringWidth(right)
-	l := fit(left.String(), max(w-rw-1, 0))
+	l := m.fit(left.String(), max(w-rw-1, 0))
 	if rw > w {
-		return fit(right, w)
+		return m.fit(right, w)
 	}
 	return l + strings.Repeat(" ", w-ansi.StringWidth(l)-rw) + right
 }
@@ -168,9 +170,9 @@ func (m *Model) appendList(lines []string, w, n int) []string {
 			lines = append(lines, m.errorLine(text, hint, w))
 		}
 	case len(m.results) == 0 && m.loading:
-		lines = append(lines, fit(m.spin.View()+m.styles.Empty.Render("Searching…"), w))
+		lines = append(lines, m.fit(m.spin.View()+m.styles.Empty.Render("Searching"+m.styles.Ellipsis), w))
 	case len(m.results) == 0:
-		lines = append(lines, fit(m.styles.Empty.Render(m.emptyText), w))
+		lines = append(lines, m.fit(m.styles.Empty.Render(m.emptyText), w))
 	default:
 		for i := m.top; i < len(m.rows) && len(lines) < end; i++ {
 			if m.rows[i].item == m.sel {
@@ -192,7 +194,7 @@ func (m *Model) appendList(lines []string, w, n int) []string {
 
 func (m Model) rowLine(r row, w int) string {
 	if r.item < 0 {
-		return fit(m.styles.Header.Render(r.header), w)
+		return m.fit(m.styles.Header.Render(r.header), w)
 	}
 	res := &m.results[r.item]
 	gutter, title := "  ", m.styles.Title
@@ -206,7 +208,7 @@ func (m Model) rowLine(r row, w int) string {
 		b.WriteString("  ")
 		b.WriteString(m.styles.Detail.Render(res.detail))
 	}
-	return fit(b.String(), w)
+	return m.fit(b.String(), w)
 }
 
 // highlight renders s in base, and the runes at the byte offsets in
@@ -241,7 +243,6 @@ func runeEnd(s string, i int) int {
 	return i + n
 }
 
-// fit truncates or pads styled text to exactly width cells.
 // errorWords returns what the picker says of err, the failed search, and
 // the hint after it.
 func (m *Model) errorWords(err error) (text, hint string) {
@@ -268,13 +269,15 @@ func (m *Model) errorLine(text, hint string, w int) string {
 	return fitCut(m.styles.Error.Render(text)+m.styles.Status.Render(hint), w, cut)
 }
 
-func fit(s string, width int) string { return fitCut(s, width, "…") }
+// fit truncates styled text to exactly width cells, ending it with the
+// ellipsis where it cuts, or pads it.
+func (m *Model) fit(s string, width int) string { return fitCut(s, width, m.styles.Ellipsis) }
 
 // fitCut is fit, ending text that is cut with tail.
 func fitCut(s string, width int, tail string) string {
 	w := ansi.StringWidth(s)
 	if w > width {
-		s = ansi.Truncate(s, width, tail)
+		s = termtext.Truncate(s, width, tail)
 		w = ansi.StringWidth(s)
 	}
 	if w < width {
