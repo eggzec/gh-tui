@@ -240,7 +240,7 @@ func BenchmarkLayersYAML(b *testing.B) {
 	}
 }
 
-// TestLoadSourceRenamed checks that the lines of renamed settings are kept
+// TestResolveSourceRenamed checks that the lines of renamed settings are kept
 // under their new names: the line of the old name, also where the move
 // made a node of its own, which has none.
 func TestResolveSourceRenamed(t *testing.T) {

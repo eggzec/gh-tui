@@ -81,8 +81,9 @@ type Layers struct {
 // value that a layer over default.yaml set is followed by a comment that
 // says which: the config file and its line, such as "config.yaml:12",
 // with the layer of hosts or profiles it is in, if any, as in
-// "config.yaml:30 (hosts.ghe.corp.com)", or OriginStartup or OriginSession. A list replaces a list, so its comment
-// is that of the whole list.
+// "config.yaml:30 (hosts.ghe.corp.com)", or OriginStartup or
+// OriginSession. A list replaces a list, so its comment is that of the
+// whole list.
 func (l Layers) YAML() (string, error) {
 	file := l.Start
 	if l.Source.f != nil {

@@ -36,7 +36,9 @@ const (
 	// NotModified means GitHub answered 304: the entry is current, and
 	// now counts as fetched just now.
 	NotModified
-	// Changed means GitHub sent a new value, which is now cached.
+	// Changed means the check learned that the entry changed: GitHub sent
+	// a new value, which is now cached, or a source left the new value to
+	// the views, which read it again on seeing Result.Sync.
 	Changed
 	// Gone means GitHub refused the request, and the entry was forgotten.
 	Gone
