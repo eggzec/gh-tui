@@ -281,3 +281,15 @@ func TestSetErrorText(t *testing.T) {
 		t.Errorf("View() = %q, want the new words", v)
 	}
 }
+
+// The status line ends a cut name with the ellipsis of the styles.
+func TestViewEllipsis(t *testing.T) {
+	st := DefaultStyles(true)
+	st.Ellipsis = "..."
+	name := strings.Repeat("a-very-long-directory/", 6) + "main.go"
+	m := open(t, name, goSource, WithSize(40, 4), WithStyles(st))
+	lines := strings.Split(plain(m), "\n")
+	if last := lines[len(lines)-1]; !strings.Contains(last, "...") || strings.Contains(last, "…") {
+		t.Errorf("status line %q, want the name cut with ...", last)
+	}
+}

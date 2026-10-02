@@ -52,6 +52,9 @@ type Styles struct {
 	// ErrorEllipsis ends the text where it is cut. The defaults are " · "
 	// and "…".
 	ErrorSeparator, ErrorEllipsis string
+	// Ellipsis ends a line cut to the width, and the texts shown while
+	// the pager loads, filters or searches. The default is "…".
+	Ellipsis string
 	// Prompt styles the "/" or "&" before the prompt, and the "-" that
 	// waits for an option, and Cursor the prompt's cursor, with its
 	// foreground.
@@ -91,6 +94,7 @@ func DefaultStyles(isDark bool) Styles {
 		ErrorGlyph:     "✗",
 		ErrorSeparator: " · ",
 		ErrorEllipsis:  "…",
+		Ellipsis:       "…",
 		Prompt:         lipgloss.NewStyle().Foreground(accent),
 		Cursor:         lipgloss.NewStyle().Foreground(accent),
 	}
