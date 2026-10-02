@@ -55,6 +55,8 @@ func TestSetCommand(t *testing.T) {
 		{line: "set log.file", toast: `log.file is "".`},
 		{line: "set nope=1", toast: "Unknown setting: nope."},
 		{line: "set nope", toast: "Unknown setting: nope."},
+		{line: "set ui.icons ascii", toast: "Write it as set ui.icons=ascii."},
+		{line: "set nope ascii", toast: "Unknown setting: nope ascii."},
 		{line: "set keys.quit=x", toast: "Keys and themes can't be set here: change them in the config file, then restart gh-tui."},
 		{line: "set cache.ttl.pulls=1m", toast: "cache.ttl.pulls can't change while gh-tui runs: the cache is opened at startup. Set it in the config file, then restart."},
 		{line: "set log.keep=5", toast: "log.keep can't change while gh-tui runs: the log file is opened at startup."},
