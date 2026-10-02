@@ -4,10 +4,9 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-)
 
-// cursorGlyph marks the selected row in the gutter.
-const cursorGlyph = "▌"
+	"github.com/eggzec/gh-tui/pkg/termtext"
+)
 
 // Styles holds the styles of a picker.
 type Styles struct {
@@ -53,6 +52,13 @@ type Styles struct {
 	// ErrorEllipsis ends the text where it is cut. The defaults are " · "
 	// and "…".
 	ErrorSeparator, ErrorEllipsis string
+	// PromptGlyph goes before the query, and CursorGlyph marks the
+	// selected row in the gutter, cut or padded to one cell. The defaults
+	// are "›" and "▌".
+	PromptGlyph, CursorGlyph string
+	// Ellipsis ends a line cut to the width, and the default placeholder
+	// and the text while searching. The default is "…".
+	Ellipsis string
 }
 
 // DefaultStyles returns calm styles for a light or dark terminal, with the
@@ -90,6 +96,9 @@ func DefaultStyles(isDark bool) Styles {
 		ErrorGlyph:     "✗",
 		ErrorSeparator: " · ",
 		ErrorEllipsis:  "…",
+		PromptGlyph:    "›",
+		CursorGlyph:    "▌",
+		Ellipsis:       "…",
 	}
 }
 
@@ -101,8 +110,11 @@ func (m *Model) SetStyles(s Styles) {
 	m.styles = s
 	m.spin.Style = s.Spinner
 	m.input.SetStyles(inputStyles(s))
-	m.gutterOn = s.Gutter.Render(cursorGlyph) + " "
-	m.prompt = s.Prompt.Render("› ")
+	m.gutterOn = s.Gutter.Render(termtext.Cells(s.CursorGlyph, 1)) + " "
+	m.prompt = s.Prompt.Render(s.PromptGlyph + " ")
+	if m.placeholder == "" {
+		m.input.Placeholder = "Search" + s.Ellipsis
+	}
 	m.layout()
 }
 
