@@ -6,14 +6,6 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-// Glyphs of the list.
-const (
-	// warnGlyph marks a binding that loses a key to another.
-	warnGlyph = "⚠"
-	// lossGlyph starts the line that says who gets a key.
-	lossGlyph = "↳"
-)
-
 // Styles holds the styles of the help.
 type Styles struct {
 	// Title styles the title, and Count the number of bindings listed
@@ -47,6 +39,15 @@ type Styles struct {
 	Typed lipgloss.Style
 	// Empty styles the text shown when nothing matches.
 	Empty lipgloss.Style
+	// PromptGlyph goes before the query. The default is "›".
+	PromptGlyph string
+	// WarnGlyph marks a binding that loses a key to another, cut or
+	// padded to one cell, and LossGlyph starts the line under it that
+	// says who gets the key. The defaults are "⚠" and "↳".
+	WarnGlyph, LossGlyph string
+	// Separator goes between the parts of a line, and Ellipsis ends a
+	// text cut to its room. The defaults are " · " and "…".
+	Separator, Ellipsis string
 }
 
 // DefaultStyles returns calm styles for a light or dark terminal, with the
@@ -76,6 +77,11 @@ func DefaultStyles(isDark bool) Styles {
 		Shadowed:    lipgloss.NewStyle().Foreground(warn),
 		Typed:       lipgloss.NewStyle().Foreground(subtle),
 		Empty:       lipgloss.NewStyle().Foreground(muted),
+		PromptGlyph: "›",
+		WarnGlyph:   "⚠",
+		LossGlyph:   "↳",
+		Separator:   " · ",
+		Ellipsis:    "…",
 	}
 }
 
@@ -86,7 +92,7 @@ func (m Model) Styles() Styles { return m.styles }
 func (m *Model) SetStyles(s Styles) {
 	m.styles = s
 	m.input.SetStyles(inputStyles(s))
-	m.prompt = s.Prompt.Render("› ")
+	m.prompt = s.Prompt.Render(s.PromptGlyph + " ")
 	m.drawn = nil
 	m.list()
 }
