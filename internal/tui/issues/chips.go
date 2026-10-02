@@ -10,6 +10,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // chip is a rendered label and its width in cells.
@@ -28,10 +29,12 @@ type chipCache struct {
 	// label is the chip of a label whose color is not valid.
 	label lipgloss.Style
 	dark  bool
+	// ellipsis ends a name cut short.
+	ellipsis string
 }
 
 func newChipCache(st rowStyles) chipCache {
-	return chipCache{chips: map[string]chip{}, label: st.label, dark: st.dark}
+	return chipCache{chips: map[string]chip{}, label: st.label, dark: st.dark, ellipsis: st.ellipsis}
 }
 
 // get returns the chip of l, rendering it the first time it is shown.
@@ -43,7 +46,7 @@ func (cc *chipCache) get(l core.Label) chip {
 	if len(cc.chips) >= maxChips {
 		clear(cc.chips)
 	}
-	name := ansi.Truncate(ui.OneLine(l.Name), chipName, "…")
+	name := termtext.Truncate(ui.OneLine(l.Name), chipName, cc.ellipsis)
 	st := cc.label
 	if fg, bg, ok := chipColors(l.Color, cc.dark); ok {
 		st = lipgloss.NewStyle().Foreground(fg).Background(bg).Padding(0, 1)
