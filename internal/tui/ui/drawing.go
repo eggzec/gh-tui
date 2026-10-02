@@ -12,7 +12,7 @@ import (
 // lines and frames. The Nerd Font set draws them as the Unicode set does.
 func (ic *Icons) setDrawing(set string) {
 	if set == config.IconsASCII {
-		ic.Dot, ic.Ring, ic.Crumb, ic.Cell = "*", "o", ">", "#"
+		ic.Dot, ic.Ring, ic.Crumb, ic.Before, ic.Cell = "*", "o", ">", "<", "#"
 		ic.Arrow, ic.Up, ic.Down = "->", "^", "v"
 		ic.Times, ic.Minus = "x", "-"
 		ic.Border = lipgloss.ASCIIBorder()
@@ -22,7 +22,7 @@ func (ic *Icons) setDrawing(set string) {
 		ic.keys = asciiKeys
 		return
 	}
-	ic.Dot, ic.Ring, ic.Crumb, ic.Cell = "●", "○", "›", "■"
+	ic.Dot, ic.Ring, ic.Crumb, ic.Before, ic.Cell = "●", "○", "›", "‹", "■"
 	ic.Arrow, ic.Up, ic.Down = "→", "↑", "↓"
 	ic.Times, ic.Minus = "×", "−"
 	ic.Border = lipgloss.RoundedBorder()

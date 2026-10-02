@@ -12,6 +12,7 @@ import (
 // sets them.
 func (s *Section) configure(c config.Config) {
 	s.icons = ui.NewIcons(c.UI.Icons)
+	s.filterChips = ui.Chips(s.query, s.icons.Separator)
 	s.dates = ui.NewDates(c.UI.DateFormat)
 	s.setPrefetch(c.Prefetch)
 }

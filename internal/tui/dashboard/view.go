@@ -218,7 +218,7 @@ func (s *Section) paneLabel(p paneID) string {
 			text += s.icons.Separator + strconv.Itoa(at) + "/" + strconv.Itoa(of)
 		}
 	case reposPane:
-		if chips := s.repos.filter().chips(); chips != "" {
+		if chips := s.repos.filter().chips(s.icons); chips != "" {
 			text += s.icons.Separator + chips
 		}
 	case workPane:
@@ -527,7 +527,7 @@ func (s *Section) tabsLine(w int) string {
 	b.WriteByte(' ')
 	used := 1
 	if start > 0 {
-		st.subtle.write(&b, "‹ ")
+		st.subtle.write(&b, s.icons.Before+" ")
 		used += 2
 	}
 	for i := start; i < len(t.tabs); i++ {
