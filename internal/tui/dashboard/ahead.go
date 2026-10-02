@@ -93,6 +93,13 @@ func (s *Section) readWorkAhead() tea.Cmd {
 	return s.ahead.Window(s.workAt, s.tasks.current().sel)
 }
 
+// readTabNow has the reads ahead take the tab just switched to as a new
+// list, whose window is read at once rather than after the cursor rests, as
+// when the list loads. The update that follows reads it.
+func (s *Section) readTabNow() {
+	s.ahead.Reset(s.ctx)
+}
+
 // openHit returns the command that opens the pull request or issue of hit
 // in its modal, on its checks if checks is set, which holds the reads
 // ahead of the work while it loads.
