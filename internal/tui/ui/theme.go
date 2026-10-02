@@ -171,13 +171,15 @@ func (t Theme) Pager(ic Icons) pager.Styles {
 	return s
 }
 
-// LogView returns the styles of a job log. The search highlights, which
-// need backgrounds the palette doesn't have, keep their defaults for a
-// light or dark terminal.
+// LogView returns the styles of a job log, with the cursor, the fold
+// marks and the ellipsis of ic. The search highlights, which need
+// backgrounds the palette doesn't have, keep their defaults for a light or
+// dark terminal.
 func (t Theme) LogView(ic Icons) logview.Styles {
 	s := logview.DefaultStyles(t.Dark)
 	s.ErrorGlyph = ic.Error
 	s.ErrorSeparator, s.ErrorEllipsis = ic.Separator, ic.Ellipsis
+	s.CursorGlyph, s.OpenGlyph, s.ClosedGlyph, s.Ellipsis = ic.Cursor, ic.Unfolded, ic.Folded, ic.Ellipsis
 	c := lipgloss.Color
 	p := t.Palette
 	s.Text = s.Text.Foreground(c(p.Foreground))
