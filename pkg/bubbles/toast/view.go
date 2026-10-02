@@ -12,7 +12,6 @@ import (
 const (
 	// minWidth keeps short messages readable in narrow layouts.
 	minWidth = 24
-	ellipsis = "…"
 )
 
 // View renders the stack, newest at the bottom, as a block whose toasts
@@ -73,7 +72,7 @@ func (m Model) render() string {
 	// within the room of each toast's level.
 	inner := 0
 	for _, t := range m.toasts {
-		need := d.glyphWidth + 1 + ansi.StringWidth(t.text) + countWidth(t.count)
+		need := d.glyphWidth + 1 + ansi.StringWidth(t.text) + m.countWidth(t.count)
 		inner = max(inner, min(need, m.maxInner(t.level)))
 	}
 	if inner < d.glyphWidth+2 {
@@ -103,7 +102,7 @@ func (m Model) renderToast(t toast, inner int) string {
 	ls := m.styles.level(t.level)
 	count := ""
 	if t.count > 1 {
-		count = " ×" + strconv.Itoa(t.count)
+		count = " " + m.styles.Times + strconv.Itoa(t.count)
 	}
 	textWidth := inner - d.glyphWidth - 1 - ansi.StringWidth(count)
 	if textWidth < 1 {
@@ -111,7 +110,7 @@ func (m Model) renderToast(t toast, inner int) string {
 		count = ""
 		textWidth = inner - d.glyphWidth - 1
 	}
-	wrapped, _ := wrap(t.text, textWidth, m.rooms[t.level].Lines)
+	wrapped, _ := wrap(t.text, textWidth, m.rooms[t.level].Lines, m.styles.Ellipsis)
 
 	glyph := d.glyph[t.level].Render(padRight(ls.Glyph, d.glyphWidth))
 	blank := d.text.Render(strings.Repeat(" ", d.glyphWidth))
@@ -135,12 +134,13 @@ func (m Model) renderToast(t toast, inner int) string {
 	return d.frame[t.level].Render(sb.String())
 }
 
-// countWidth is the width of " ×n", or zero for a toast seen once.
-func countWidth(n int) int {
+// countWidth is the width of the repeat count n after a space and the
+// Times glyph, or zero for a toast seen once.
+func (m Model) countWidth(n int) int {
 	if n < 2 {
 		return 0
 	}
-	return 2 + len(strconv.Itoa(n))
+	return 1 + ansi.StringWidth(m.styles.Times) + len(strconv.Itoa(n))
 }
 
 func padRight(s string, width int) string {
