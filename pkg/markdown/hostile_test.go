@@ -13,10 +13,24 @@ import (
 // and the limit leaves room for slow and busy machines.
 const hostileLimit = slowdown * 200 * time.Millisecond
 
-// longLimit is hostileLimit for a comment as long as they come, with a
-// thousand lines or as many bytes as GitHub takes, which a busy machine
-// slows down more. It still fails the renders of seconds it guards against.
-const longLimit = 5 * hostileLimit
+// A hostile comment must render in time that grows with its length, as
+// plain text of the same length does, not with its square or worse: a
+// render runs in Update, so the app waits for it. So its time is weighed
+// against that of plain text of the same length, timed alongside it,
+// which a busy machine slows down as much. hostileRatio leaves room for
+// the markup that costs more than words (the costliest take about 35
+// times as long as plain text), and for the long comments a render whose
+// time grows with the square of its length takes hundreds or thousands of
+// times as long. For the short ones, the floor guards: hostileLex is the
+// time lexers may take on top, which the wall clock bounds
+// (renderLexLimit), however fast the machine. hostileCeiling is an
+// absolute bound, well above any render's time today, for a slowdown the
+// ratio can't see, such as one in code that plain text shares.
+const (
+	hostileRatio   = 100
+	hostileLex     = 2 * renderLexLimit
+	hostileCeiling = 10 * hostileLimit
+)
 
 // hostile are comments made to take a long time to render.
 var hostile = map[string]string{
@@ -82,35 +96,44 @@ func listLines(n int) string {
 	return b.String()
 }
 
+// plainText returns plain text of n bytes, words and spaces.
+func plainText(n int) string {
+	const words = "lorem ipsum dolor sit amet, "
+	return strings.Repeat(words, n/len(words)+1)[:n]
+}
+
 func TestHostileRendersQuickly(t *testing.T) {
 	wallClock(t)
 	t.Cleanup(func() { idle(t) })
-	limits := make(map[string]time.Duration)
-	for name := range hostile {
-		limits[name] = hostileLimit
-	}
-	for name := range long {
-		limits[name] = longLimit
-	}
-	for name, limit := range limits {
-		src := hostile[name] + long[name]
-		t.Run(name, func(t *testing.T) {
-			// The fastest of three renders, so a busy machine's pauses
-			// don't count.
-			var out string
-			d := time.Duration(1 << 62)
-			for range 3 {
-				start := time.Now()
-				out = New(DefaultStyle(true)).Render(src, 76)
-				d = min(d, time.Since(start))
-			}
-			if d > limit {
-				t.Errorf("took %v, more than %v", d, limit)
-			}
-			if why := unsafe(out); why != "" {
-				t.Error(why)
-			}
-		})
+	for _, set := range []map[string]string{hostile, long} {
+		for name, src := range set {
+			t.Run(name, func(t *testing.T) {
+				base := plainText(len(src))
+				// The fastest of three renders of each, taken in turns,
+				// so that a busy machine's pauses don't count and its
+				// load weighs on both alike.
+				var out string
+				d, b := time.Duration(1<<62), time.Duration(1<<62)
+				for range 3 {
+					start := time.Now()
+					New(DefaultStyle(true)).Render(base, 76)
+					b = min(b, time.Since(start))
+					start = time.Now()
+					out = New(DefaultStyle(true)).Render(src, 76)
+					d = min(d, time.Since(start))
+				}
+				if limit := hostileLex + hostileRatio*b; d > limit {
+					t.Errorf("took %v, more than %v: %d times the %v plain text of its length takes, and the lexers' %v",
+						d, limit, hostileRatio, b, hostileLex)
+				}
+				if d > hostileCeiling {
+					t.Errorf("took %v, more than %v", d, hostileCeiling)
+				}
+				if why := unsafe(out); why != "" {
+					t.Error(why)
+				}
+			})
+		}
 	}
 }
 
