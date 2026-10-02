@@ -108,8 +108,7 @@ func TestSanitizeView(t *testing.T) {
 	if !strings.Contains(v, "\x1b[31mred") {
 		t.Errorf("view lost the red: %q", v)
 	}
-	// Without styles the cursor has no glyph.
-	if got := strings.Fields(ansi.Strip(v)); !slices.Equal(got[:3], []string{"red", "plain", "link"}) {
+	if got := strings.Fields(ansi.Strip(v)); !slices.Equal(got[:4], []string{"▌", "red", "plain", "link"}) {
 		t.Errorf("view reads %q", got)
 	}
 	assertFits(t, v, 40, 3)

@@ -1,6 +1,7 @@
 package logview
 
 import (
+	"cmp"
 	"strings"
 
 	"charm.land/bubbles/v2/spinner"
@@ -41,8 +42,8 @@ type Styles struct {
 	// groups.
 	Marker lipgloss.Style
 	// OpenGlyph marks a section or group that is open, and ClosedGlyph one
-	// that is folded, each cut or padded to one cell. The defaults are "▾"
-	// and "▸".
+	// that is folded, each cut or padded to one cell. The defaults, which
+	// empty glyphs keep, are "▾" and "▸".
 	OpenGlyph, ClosedGlyph string
 	// ErrorMark, WarningMark and NoticeMark style the marks in the gutter
 	// of those lines, and of failed sections.
@@ -54,7 +55,7 @@ type Styles struct {
 	Cursor        lipgloss.Style
 	BlurredCursor lipgloss.Style
 	// CursorGlyph marks the line under the cursor in the gutter, cut or
-	// padded to one cell. The default is "▌".
+	// padded to one cell. The default, which empty keeps, is "▌".
 	CursorGlyph string
 	// LineNumber and Time style the gutter.
 	LineNumber lipgloss.Style
@@ -86,7 +87,7 @@ type Styles struct {
 	// and "…".
 	ErrorSeparator, ErrorEllipsis string
 	// Ellipsis ends the title of a section or group, and the status line,
-	// where they are cut. The default is "…".
+	// where they are cut. The default, which empty keeps, is "…".
 	Ellipsis string
 	// Prompt styles the "/" before the search input, and InputCursor its
 	// cursor, with its foreground.
@@ -220,15 +221,15 @@ func newEsc(s Styles) esc {
 		current:       newPair(s.CurrentMatch),
 		status:        newPair(s.Status),
 		noMatches:     newPair(s.NoMatches),
-		open:          s.Marker.Render(oneCell(s.OpenGlyph) + " "),
-		closed:        s.Marker.Render(oneCell(s.ClosedGlyph) + " "),
-		cursor:        s.Cursor.Render(oneCell(s.CursorGlyph)),
-		blurred:       s.BlurredCursor.Render(oneCell(s.CursorGlyph)),
+		open:          s.Marker.Render(oneCell(cmp.Or(s.OpenGlyph, "▾")) + " "),
+		closed:        s.Marker.Render(oneCell(cmp.Or(s.ClosedGlyph, "▸")) + " "),
+		cursor:        s.Cursor.Render(oneCell(cmp.Or(s.CursorGlyph, "▌"))),
+		blurred:       s.BlurredCursor.Render(oneCell(cmp.Or(s.CursorGlyph, "▌"))),
 		errorMark:     s.ErrorMark.Render(oneCell(s.ErrorGlyph)),
 		warningMark:   s.WarningMark.Render(warningGlyph),
 		noticeMark:    s.NoticeMark.Render(noticeGlyph),
-		ellipsis:      s.Ellipsis,
-		ellipsisWidth: ansi.StringWidth(s.Ellipsis),
+		ellipsis:      cmp.Or(s.Ellipsis, "…"),
+		ellipsisWidth: ansi.StringWidth(cmp.Or(s.Ellipsis, "…")),
 	}
 	e.kinds[Plain] = newPair(s.Text)
 	e.kinds[Group] = newPair(s.Group)
