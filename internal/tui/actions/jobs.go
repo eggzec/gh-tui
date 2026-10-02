@@ -245,8 +245,10 @@ func (m *Modal) setJobs(p core.Page[core.Job], rest bool) tea.Cmd {
 	default:
 		j.cursor = j.lineOf(firstJob(j.items))
 	}
+	// A read in flight still clears loading when it arrives, so that a
+	// poll that shows the cached jobs meanwhile doesn't let a wake start
+	// a second read.
 	j.loaded = true
-	j.loading = false
 	m.scrollJobs()
 	return m.showJob(rest)
 }

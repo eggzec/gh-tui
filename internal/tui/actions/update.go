@@ -91,10 +91,19 @@ func (m *Modal) update(msg tea.Msg) tea.Cmd {
 
 // reopened starts again what stopped while a preview opened from the modal
 // hid it, whose messages went to the preview: the timers and the spinner,
-// and the run shown, read from the cache in case a poll moved it.
+// the reads that were in flight, whose answers were lost, and the run
+// shown, read from the cache in case a poll moved it.
 func (m *Modal) reopened() tea.Cmd {
 	m.ticking, m.spinning = false, false
-	cmd := m.fromCache()
+	var lost []tea.Cmd
+	if m.jobs.loading && m.hasRun {
+		lost = append(lost, m.readJobs())
+	}
+	if m.workflows.loading {
+		lost = append(lost, m.readWorkflows(false))
+	}
+	lost = append(lost, m.log.ReadLost())
+	cmd := tea.Batch(append(lost, m.fromCache())...)
 	if m.loading() {
 		cmd = tea.Batch(cmd, m.startSpinner())
 	}
