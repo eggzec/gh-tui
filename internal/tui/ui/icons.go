@@ -31,6 +31,10 @@ type Icons struct {
 	// Info marks what is told for its own sake, such as a toast that
 	// neither confirms, warns nor tells of an error.
 	Info string
+	// Cursor marks the row under the cursor in a gutter one cell wide, and
+	// Folded and Unfolded a fold that is closed and one that is open, such
+	// as a step of a job log.
+	Cursor, Folded, Unfolded string
 
 	// langs holds the glyphs of languages that have one; the others get
 	// lang.
@@ -77,6 +81,7 @@ func newIcons(set string) Icons {
 			Fork: "⑂", Private: "⊘", Archived: "⊟", Template: "⧉", Mirror: "⇄", Here: "⌂",
 			Star: "★", Error: "✗", Separator: " · ", Ellipsis: "…",
 			Yes: "✓", No: "✗", Info: "•",
+			Cursor: "▌", Folded: "▸", Unfolded: "▾",
 			lang: "◉",
 			states: [NumStates]string{
 				IssueOpen: "⦾", IssueClosed: "⦿", IssueNotPlanned: "⊘",
@@ -88,6 +93,7 @@ func newIcons(set string) Icons {
 			Fork: "F", Private: "P", Archived: "A", Template: "T", Mirror: "M", Here: "~",
 			Star: "*", Error: "x", Separator: " - ", Ellipsis: "...",
 			Yes: "+", No: "x", Info: "i",
+			Cursor: ">", Folded: "+", Unfolded: "-",
 			// A colored dot, as the other sets have, since the star takes *.
 			lang: "o",
 			states: [NumStates]string{
@@ -103,6 +109,9 @@ func newIcons(set string) Icons {
 			Star:  "\uf41e",
 			Error: "\uf530", Separator: " · ", Ellipsis: "…",
 			Yes: "\uf42e", No: "\uf467", Info: "\uf449", // oct-check, oct-x, oct-info
+			// oct-triangle_right and oct-triangle_down, as the fold marks
+			// of the other sets.
+			Cursor: "▌", Folded: "\uf44a", Unfolded: "\uf44b",
 			langs: nerdLanguages,
 			lang:  "\uf44f",
 			files: nerdFiles,

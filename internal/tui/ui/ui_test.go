@@ -151,6 +151,28 @@ func TestThemeTakesErrorGlyph(t *testing.T) {
 	}
 }
 
+// A job log takes its cursor, fold marks and ellipsis from the icons, so
+// the ASCII set draws them in ASCII.
+func TestThemeLogViewGlyphs(t *testing.T) {
+	p, err := config.Default().Palette(true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	th := NewTheme(p, true)
+	for _, tt := range []struct {
+		set  string
+		want [4]string
+	}{
+		{config.IconsASCII, [4]string{">", "-", "+", "..."}},
+		{config.IconsUnicode, [4]string{"▌", "▾", "▸", "…"}},
+	} {
+		s := th.LogView(NewIcons(tt.set))
+		if got := [4]string{s.CursorGlyph, s.OpenGlyph, s.ClosedGlyph, s.Ellipsis}; got != tt.want {
+			t.Errorf("%s: cursor, open, closed and ellipsis = %q, want %q", tt.set, got, tt.want)
+		}
+	}
+}
+
 // The read that follows a kept page of the same query asks GitHub, and
 // only that one: the others may be served the kept page.
 func TestFeedPagesRereadsKeptPage(t *testing.T) {
