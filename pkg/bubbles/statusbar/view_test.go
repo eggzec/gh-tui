@@ -122,7 +122,7 @@ func TestViewGolden(t *testing.T) {
 // widens, so that it still fits its width.
 func TestWideSeparator(t *testing.T) {
 	left, right := testItems()
-	st := Styles{Separator: lipgloss.NewStyle().Padding(0, 1)}
+	st := Styles{Separator: lipgloss.NewStyle().Padding(0, 1), SeparatorText: " · "}
 	m := New(WithItems(left, right), WithStyles(st), WithWidth(57))
 	want := " ? help  core 4 812/5 000  ·  ● online  ·  me@github.com "
 	if got := ansi.Strip(m.View()); got != want {
@@ -130,5 +130,17 @@ func TestWideSeparator(t *testing.T) {
 	}
 	if w := ansi.StringWidth(m.View()); w != 57 {
 		t.Errorf("the bar is %d wide, want 55", w)
+	}
+}
+
+// The separator is the text of the styles, so a bar of ASCII items with
+// an ASCII separator is ASCII alone.
+func TestSeparatorText(t *testing.T) {
+	st := DefaultStyles(true)
+	st.SeparatorText = " - "
+	right := []Item{{Forms: []string{"core 96%"}}, {Forms: []string{"* online"}}}
+	m := New(WithItems(nil, right), WithStyles(st), WithWidth(30))
+	if got, want := ansi.Strip(m.View()), "          core 96% - * online "; got != want {
+		t.Errorf("got  %q\nwant %q", got, want)
 	}
 }
