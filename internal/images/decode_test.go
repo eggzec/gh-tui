@@ -13,6 +13,7 @@ import (
 	"os"
 	"runtime"
 	"testing"
+	"time"
 )
 
 func pngOf(tb testing.TB, w, h int) []byte {
@@ -327,5 +328,66 @@ func TestDecodeRefusesHidden(t *testing.T) {
 	// The walk reads the frame the decoder reads.
 	if fr, ok := jpegFrameOf(hideFrame(flatJPEG(8, 8, jpegOpts{progressive: true, ids: "\x01\x02\x03", adobe: -1}))); !ok || !fr.progressive {
 		t.Errorf("frame behind a restart marker = %+v, %v; want progressive", fr, ok)
+	}
+}
+
+// pngClaiming returns a PNG whose IHDR is valid and whose next chunk
+// claims n bytes, many more than follow.
+func pngClaiming(n uint32) []byte {
+	var b bytes.Buffer
+	b.WriteString("\x89PNG\r\n\x1a\n")
+	ihdr := make([]byte, 13)
+	binary.BigEndian.PutUint32(ihdr[0:], 1)
+	binary.BigEndian.PutUint32(ihdr[4:], 1)
+	ihdr[8], ihdr[9] = 8, 6
+	pngChunk(&b, "IHDR", ihdr)
+	_ = binary.Write(&b, binary.BigEndian, n)
+	b.WriteString("tEXt")
+	b.Write(make([]byte, 16))
+	return b.Bytes()
+}
+
+// A chunk length too large for the data ends the walk of a PNG's chunks,
+// whatever the size of an int: none can move it backwards or wrap it.
+func TestPNGChunkLengths(t *testing.T) {
+	for _, n := range []uint32{0xfffffff4, 0x80000000, 0xffffffff, 1 << 20} {
+		data := pngClaiming(n)
+		done := make(chan error, 1)
+		go func() {
+			pngBytes(data)
+			_, err := decode(data, Box{})
+			done <- err
+		}()
+		select {
+		case err := <-done:
+			if !errors.Is(err, ErrFormat) {
+				t.Errorf("length %#x: err = %v, want ErrFormat", n, err)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatalf("length %#x: walk didn't end", n)
+		}
+	}
+}
+
+func TestPNGNext(t *testing.T) {
+	tests := []struct {
+		i, size int
+		n       uint32
+		next    int
+		ok      bool
+	}{
+		{8, 33, 13, 33, true},
+		{8, 32, 13, 0, false},
+		{8, 19, 0, 0, false},
+		{8, 100, 0xfffffff4, 0, false},
+		{8, 100, 0x80000000, 0, false},
+		{8, 100, 0xffffffff, 0, false},
+		{8, 1 << 30, 0x7fffffff, 0, false},
+	}
+	for _, tt := range tests {
+		next, ok := pngNext(tt.i, tt.size, tt.n)
+		if next != tt.next || ok != tt.ok {
+			t.Errorf("pngNext(%d, %d, %#x) = %d, %v; want %d, %v", tt.i, tt.size, tt.n, next, ok, tt.next, tt.ok)
+		}
 	}
 }
