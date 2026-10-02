@@ -470,13 +470,13 @@ func (m *Model) applyTheme(dark bool) {
 	m.icons = ui.NewIcons(m.cfg.UI.Icons)
 	m.st = newStyles(m.theme)
 	m.toast.SetStyles(m.theme.Toast(m.icons))
-	m.keyhelp.SetStyles(m.theme.KeyHelp())
+	m.keyhelp.SetStyles(m.theme.KeyHelp(m.icons))
 	m.bst = newBarStyles(m.theme)
 	m.status.SetStyles(statusbar.Styles{Separator: m.st.edge, SeparatorText: m.icons.Separator})
 	m.drawStatus()
 	// The hints are drawn again in the theme's styles.
 	m.layers = nil
-	m.line.SetStyles(m.theme.Cmdline())
+	m.line.SetStyles(m.theme.Cmdline(m.icons))
 	m.spin.Style = m.theme.Accent
 	for _, p := range m.all {
 		p.section.SetTheme(m.theme)
