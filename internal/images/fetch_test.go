@@ -535,9 +535,12 @@ func TestMatch(t *testing.T) {
 		{"https://user-images.githubusercontent.com/3.png", 2, "https://user-images.githubusercontent.com/3.png", true, true},
 		// A proxied image isn't taken for another by its place.
 		{"https://y.test/b.png", 0, "", false, false},
+		// Nor is one of another host for an attachment by a UUID in it.
+		{"https://x.test/" + assetUUID + ".png", 5, "", false, false},
 	}
+	s := &signer{hosts: newHosts("github.com")}
 	for _, tt := range tests {
-		got, ok, placed := match(tt.stable, tt.index, imgs)
+		got, ok, placed := s.match(tt.stable, tt.index, imgs)
 		if ok != tt.ok || placed != tt.placed || got.src != tt.want {
 			t.Errorf("match(%s, %d) = %q, %v, %v; want %q, %v, %v", tt.stable, tt.index, got.src, ok, placed, tt.want, tt.ok, tt.placed)
 		}

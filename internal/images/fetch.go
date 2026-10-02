@@ -105,7 +105,7 @@ func New(web string, opts ...Option) *Fetcher {
 		f.transport = newTransport()
 	}
 	f.client = newClient(f.transport, f.hosts)
-	f.signer.now = f.now
+	f.signer.now, f.signer.hosts = f.now, f.hosts
 	return f
 }
 

@@ -53,8 +53,9 @@ type img struct {
 // signer finds where GitHub serves an image of a body, from the body's
 // HTML, and keeps what it read until the addresses in it expire.
 type signer struct {
-	html HTML
-	now  func() time.Time
+	html  HTML
+	now   func() time.Time
+	hosts hosts
 
 	reads  singleflight.Group // by body
 	mu     sync.Mutex
@@ -75,7 +76,7 @@ func (s *signer) url(ctx context.Context, body, stable string, index int, refuse
 	imgs, ok := s.bodies[body]
 	s.mu.Unlock()
 	if ok {
-		i, found, placed := match(stable, index, imgs)
+		i, found, placed := s.match(stable, index, imgs)
 		fresh := s.now().Before(i.expires)
 		if found && (refused == "" && fresh || refused != "" && i.src != refused) {
 			return i.src, placed, nil
@@ -85,7 +86,7 @@ func (s *signer) url(ctx context.Context, body, stable string, index int, refuse
 	if err != nil {
 		return "", false, err
 	}
-	i, found, placed := match(stable, index, imgs)
+	i, found, placed := s.match(stable, index, imgs)
 	if !found {
 		return "", false, fmt.Errorf("%w: %s isn't in the body's html", ErrUnavailable, stable)
 	}
@@ -173,15 +174,18 @@ var assetID = regexp.MustCompile(`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4
 
 // match finds the image of imgs that stable names, the index-th of its
 // body: by the address the markdown named, which a proxied image keeps,
-// then by the ID of an attachment, then by its place, which placed
+// then, for an attachment, by its ID, then by its place, which placed
 // reports.
-func match(stable string, index int, imgs []img) (found img, ok, placed bool) {
+func (s *signer) match(stable string, index int, imgs []img) (found img, ok, placed bool) {
 	for _, i := range imgs {
 		if i.canonical == stable {
 			return i, true, false
 		}
 	}
-	if id := assetID.FindString(stable); id != "" {
+	// Only an attachment's address names it by its ID; another's may hold
+	// any UUID.
+	u, err := url.Parse(stable)
+	if id := assetID.FindString(stable); id != "" && err == nil && s.hosts.attachment(u) {
 		for _, i := range imgs {
 			if u, err := url.Parse(i.src); err == nil && strings.Contains(u.Path, id) {
 				return i, true, false
