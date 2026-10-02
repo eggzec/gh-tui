@@ -155,9 +155,11 @@ type Section struct {
 	seen       *obs.Prefetched[othersKey]
 	// ahead reads the pull requests and issues of the results around the
 	// cursor ahead, through reader, as prefetch.search says. prefetch is
-	// the settings it starts with.
+	// the settings it starts with, and slots bound its reads with those of
+	// other pages.
 	prefetch *config.PrefetchLayers
 	reader   details.Reader
+	slots    *ui.Slots
 	ahead    *ui.Aheads[details.Key]
 	// hits holds the results of each kind for text, made when the kind is
 	// first shown, and code those of code search, made when asked for.
@@ -231,6 +233,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		opt(s)
 	}
 	s.ahead = ui.NewAheads(ctx, "search", s.reader.Kinds("search_hit")...)
+	s.ahead.Share(s.slots)
 	if p := s.prefetch; p != nil {
 		s.setPrefetch(*p)
 	}

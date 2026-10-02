@@ -30,6 +30,13 @@ func WithPrefetch(p config.PrefetchLayers) Option {
 	return func(s *Section) { s.prefetch = &p }
 }
 
+// WithSlots bounds the reads ahead of the page with those of every page
+// and modal that shares s, so that together they keep to
+// prefetch.parallel. Without it, each kind it reads has slots of its own.
+func WithSlots(s *ui.Slots) Option {
+	return func(x *Section) { x.slots = s }
+}
+
 // readAhead tells the reads ahead where the cursor is in the results on
 // view, while they have the focus, which read the window around it once it
 // rests there.

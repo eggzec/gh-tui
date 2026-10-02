@@ -78,6 +78,13 @@ func WithPrefetch(p config.PrefetchLayers) Option {
 	return func(o *Opener) { o.prefetch = &p }
 }
 
+// WithSlots bounds the reads ahead of the opener with those of every page
+// and modal that shares s, so that together they keep to
+// prefetch.parallel. Without it, each kind it reads has slots of its own.
+func WithSlots(s *ui.Slots) Option {
+	return func(x *Opener) { x.slots = s }
+}
+
 // WithMarkRead sets whether opening a thread marks it read, which
 // [Opener.MarksRead] tells the sections. Without it, it does as the
 // config's default says.
@@ -100,11 +107,12 @@ type Opener struct {
 
 	// details reads the pull requests and issues, as the other lists do.
 	// ahead reads them ahead, by kind, as prefetch says for the view that
-	// inbox names.
+	// inbox names, and slots bound its reads with those of other pages.
 	details  details.Reader
 	prefetch *config.PrefetchLayers
 	inbox    bool
 	ahead    *ui.Aheads[target]
+	slots    *ui.Slots
 }
 
 // New returns an Opener whose reads ahead ctx bounds.
@@ -118,6 +126,7 @@ func New(ctx context.Context, opts ...Option) *Opener {
 	o.ahead = ui.NewAheads(ctx, "notifications",
 		ui.AheadKind[target]{Name: "details", Log: "thread", Read: o.read, Current: o.current},
 		ui.AheadKind[target]{Name: "comments", Log: "thread_comments", Read: o.readComments, Current: o.currentComments})
+	o.ahead.Share(o.slots)
 	o.apply()
 	return o
 }

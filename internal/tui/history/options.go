@@ -15,6 +15,8 @@ type options struct {
 	// dates tell the dates of the rows and the commit pane.
 	dates    ui.Dates
 	prefetch prefetch
+	// slots bound the reads ahead with those of the other pages.
+	slots *ui.Slots
 	// voice words the errors of the graph; New makes one of its keys if
 	// it is nil.
 	voice *ui.Voice
@@ -72,6 +74,13 @@ func WithDates(d ui.Dates) Option {
 // config.Default.
 func WithPrefetch(p config.PrefetchLayers) Option {
 	return func(o *options) { o.prefetch = newPrefetch(p) }
+}
+
+// WithSlots bounds the reads ahead of the modal with those of every page
+// and modal that shares s, so that together they keep to
+// prefetch.parallel. Without it, each kind it reads has slots of its own.
+func WithSlots(s *ui.Slots) Option {
+	return func(o *options) { o.slots = s }
 }
 
 // WithVoice sets how the modal words what went wrong, with the keys a

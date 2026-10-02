@@ -37,6 +37,15 @@ func WithPrefetch(p config.PrefetchLayers) Option {
 	return func(s *Section) { s.layers = p }
 }
 
+// WithSlots bounds the reads ahead of the dashboard's panes with those of
+// every page and modal that shares s, so that together they keep to
+// prefetch.parallel. Without it, each kind it reads has slots of its own.
+// The inbox reads through the opener that WithOpener gives, which shares
+// the session's slots itself.
+func WithSlots(s *ui.Slots) Option {
+	return func(x *Section) { x.slots = s }
+}
+
 // setPrefetch takes how the work and the repositories are read ahead
 // from p. The opener takes the inbox's settings.
 func (s *Section) setPrefetch(p config.PrefetchLayers) {
@@ -53,6 +62,7 @@ func (s *Section) setPrefetch(p config.PrefetchLayers) {
 		// Nothing was given to read with.
 	case s.ahead == nil:
 		s.ahead = details.NewAhead("work", s.readers.pulls, s.readers.issues, 0, work.Rest)
+		s.ahead.Share(s.slots)
 		s.ahead.Configure(work)
 		s.ahead.Reset(s.ctx)
 	default:

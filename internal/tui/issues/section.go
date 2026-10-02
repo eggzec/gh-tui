@@ -59,9 +59,11 @@ type Section struct {
 	// they are opened, as prefetch.issues says. rowAt returns the key of
 	// row i, which is how ahead knows a row. others reads the first pages
 	// of the tabs not shown, if prefetch.issues.other_tabs is on.
-	// prefetch is the settings they start with.
+	// prefetch is the settings they start with, and slots bound the reads
+	// of ahead with those of other pages.
 	prefetch *config.PrefetchLayers
 	ahead    *ui.Aheads[details.Key]
+	slots    *ui.Slots
 	rowAt    func(i int) (details.Key, bool)
 	others   *ui.Filters[issuesvc.ListQuery]
 
@@ -112,6 +114,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		return detailKey(s.repo, it.Number), ok
 	}
 	s.ahead = ui.NewAheads(ctx, "issues", details.Reader{Issues: svc}.Kinds("issue")...)
+	s.ahead.Share(s.slots)
 	if p := s.prefetch; p != nil {
 		s.setPrefetch(*p)
 	}

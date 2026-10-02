@@ -70,9 +70,11 @@ type Section struct {
 
 	// prefetch is what is read ahead. ahead reads the files around the
 	// cursor of the tree, and dirs the listings of the folders around it.
+	// slots bound their reads, and the finder's, with those of other pages.
 	prefetch prefetch
 	ahead    *ui.Ahead[filesvc.BlobQuery]
 	dirs     *ui.Ahead[filesvc.TreeQuery]
+	slots    *ui.Slots
 	// seen remembers the files the finder read, so that opening one
 	// counts as a use.
 	seen *obs.Prefetched[filesvc.BlobQuery]

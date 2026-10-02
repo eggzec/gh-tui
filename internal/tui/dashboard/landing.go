@@ -34,8 +34,10 @@ func (s *Section) newLandingAheads() {
 		return
 	}
 	s.aheadRepos = ui.NewAhead("repo", s.landing.Read, s.landing.Cached, 0, 0)
+	s.aheadRepos.Share(s.slots)
 	s.aheadRepos.Reset(s.ctx)
 	s.aheadPinned = ui.NewAhead("pinned_repo", s.landing.Read, s.landing.Cached, 0, 0)
+	s.aheadPinned.Share(s.slots)
 	s.aheadPinned.Reset(s.ctx)
 }
 

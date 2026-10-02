@@ -181,11 +181,13 @@ type Section struct {
 	marker Marker
 	opener *threads.Opener
 	// ahead reads the work ahead through readers, as workAhead says.
-	// layers are the settings WithPrefetch gave, which New resolves.
+	// layers are the settings WithPrefetch gave, which New resolves, and
+	// slots bound the reads of every pane with those of other pages.
 	readers   *readers
 	ahead     *ui.Ahead[details.Key]
 	layers    config.PrefetchLayers
 	workAhead config.Resolved
+	slots     *ui.Slots
 	// aheadRepos and aheadPinned read ahead, through landing, what
 	// opening the repositories around the cursors of the repositories and
 	// pinned panes reads first.
