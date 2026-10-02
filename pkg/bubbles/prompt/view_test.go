@@ -4,6 +4,9 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"unicode"
+
+	"charm.land/lipgloss/v2"
 
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
@@ -119,5 +122,22 @@ func TestViewScrollsAgainOnResize(t *testing.T) {
 	m.SetSize(40, SingleLineHeight)
 	if v := ansi.Strip(m.View()); !strings.Contains(v, "bug, help wanted") {
 		t.Errorf("the value isn't in view after a resize:\n%s", v)
+	}
+}
+
+// A prompt with an ASCII edge, separator and ellipsis is ASCII alone,
+// however narrow.
+func TestViewASCII(t *testing.T) {
+	st := DefaultStyles(true)
+	edge := lipgloss.Border{Left: "|"}
+	st.Frame = st.Frame.Border(edge, false, false, false, true)
+	st.BlurredFrame = st.BlurredFrame.Border(edge, false, false, false, true)
+	st.Separator, st.Ellipsis = " - ", "..."
+	for _, width := range []int{12, 30, 80} {
+		m := New(WithStyles(st), WithTitle("Comment on the pull request"), WithValue("text"), WithSize(width, 6))
+		m.Focus()
+		if v := ansi.Strip(m.View()); strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
+			t.Errorf("width %d: view isn't ASCII:\n%s", width, v)
+		}
 	}
 }
