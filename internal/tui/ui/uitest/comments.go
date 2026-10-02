@@ -53,6 +53,7 @@ func Thread(n int, now time.Time) []core.Comment {
 		out = append(out, core.Comment{
 			ID:        "IC_" + strconv.Itoa(i),
 			Author:    core.User{Login: authors[i%len(authors)]},
+			AvatarURL: "https://avatars.githubusercontent.com/u/" + authors[i%len(authors)] + "?v=4",
 			Body:      bodies[i%len(bodies)],
 			CreatedAt: at,
 			UpdatedAt: at,

@@ -100,7 +100,8 @@ func run() error {
 		slog.Error("start failed", "err", err.Error())
 		return err
 	}
-	p := tea.NewProgram(app)
+	// The app deletes the images it sent before the program quits.
+	p := tea.NewProgram(app, tea.WithFilter(app.Filter))
 	// A token that gh couldn't read after all fails the start, as one
 	// that build found missing does.
 	failed := make(chan error, 1)
@@ -111,6 +112,11 @@ func run() error {
 		}
 	}()
 	_, err = p.Run()
+	// The images are deleted as the app quits, but not when the program
+	// ended otherwise, as on a panic; the terminal holds them still.
+	if seq := app.ClearImages(); seq != "" {
+		_, _ = os.Stdout.WriteString(seq)
+	}
 	select {
 	case err := <-failed:
 		slog.Error("start failed", "err", err.Error())

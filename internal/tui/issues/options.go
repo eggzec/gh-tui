@@ -56,6 +56,13 @@ func WithDates(d ui.Dates) Option {
 	return func(s *Section) { s.dates = d }
 }
 
+// WithAvatars draws the avatars of the authors of comments with a.
+// Without it, or where the terminal shows no images, the comments show
+// none and take no room for them.
+func WithAvatars(a *ui.Avatars) Option {
+	return func(s *Section) { s.avatars = a }
+}
+
 // WithRepos reads what the viewer may do in the repository of a modal
 // from r, when it isn't the selected one, whose caps the app sends in a
 // ui.CapsMsg. Until they are known, every change is offered, and GitHub

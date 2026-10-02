@@ -76,8 +76,11 @@ type Issue struct {
 
 // Comment is a comment on an issue or pull request.
 type Comment struct {
-	ID        string
-	Author    User
+	ID     string
+	Author User
+	// AvatarURL is the address of the author's avatar as GitHub gave it,
+	// or empty for a deleted account.
+	AvatarURL string
 	Body      string
 	CreatedAt time.Time
 	UpdatedAt time.Time

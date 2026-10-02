@@ -92,6 +92,7 @@ type detailModal struct {
 	runSt         ui.RunStyles
 	icons         ui.Icons
 	dates         ui.Dates
+	avatars       *ui.Avatars
 }
 
 // openDetail opens a modal on pull request number of repo, on its checks
@@ -124,6 +125,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 		st:          s.st,
 		icons:       s.icons,
 		dates:       s.dates,
+		avatars:     s.avatars,
 		checksSvc:   s.checks,
 	}
 	m.theme, m.runSt, m.confirmSt = s.theme, ui.NewRunStyles(s.theme, s.icons), s.theme.Confirm()
@@ -357,6 +359,9 @@ func (m *detailModal) updateDetail(msg tea.Msg) tea.Cmd {
 		return nil
 	case ui.OnlineMsg:
 		return m.online()
+	case ui.AvatarsMsg:
+		m.thread.Redraw()
+		return nil
 	}
 	var cmd tea.Cmd
 	m.thread, cmd = m.thread.Update(msg)
@@ -603,7 +608,9 @@ func plural(n int, noun string) string {
 func (m *detailModal) renderComment(c core.Comment, width int) string {
 	st := &m.st
 	var b strings.Builder
-	b.WriteString(gutter + st.commenter.Render(ui.OneLine(c.Author.Login)) + st.age.Render(" · "+m.dates.Prose(c.CreatedAt, m.now())))
+	// The avatar takes its box from the start, so the line doesn't move
+	// when it arrives.
+	b.WriteString(gutter + m.avatars.Line(c.AvatarURL) + st.commenter.Render(ui.OneLine(c.Author.Login)) + st.age.Render(" · "+m.dates.Prose(c.CreatedAt, m.now())))
 	bar := gutter + st.bar
 	// The bar takes two cells, and as many stay free on the right.
 	body := m.thread.Markdown(c.Body, markdown.Room(width, 2*len(gutter)+2))

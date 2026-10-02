@@ -87,6 +87,7 @@ type detailModal struct {
 	rows          rowStyles
 	icons         ui.Icons
 	dates         ui.Dates
+	avatars       *ui.Avatars
 	chips         chipCache
 }
 
@@ -119,6 +120,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, show
 		rows:    s.rows,
 		icons:   s.icons,
 		dates:   s.dates,
+		avatars: s.avatars,
 		chips:   newChipCache(s.rows),
 	}
 	m.confirmSt = s.theme.Confirm()
@@ -281,6 +283,9 @@ func (m *detailModal) Update(msg tea.Msg) tea.Cmd {
 		return nil
 	case ui.OnlineMsg:
 		return m.online()
+	case ui.AvatarsMsg:
+		m.thread.Redraw()
+		return nil
 	case ui.DoneMsg:
 		// The thread reloads too, since the change may be a comment.
 		if msg.From != ui.IssuesTitle {
@@ -508,7 +513,9 @@ func (m *detailModal) header(it core.Issue) string {
 func (m *detailModal) renderComment(c core.Comment, width int) string {
 	t := m.theme
 	var b strings.Builder
-	b.WriteString("  ")
+	// The avatar takes its box from the start, so the line doesn't move
+	// when it arrives.
+	b.WriteString("  " + m.avatars.Line(c.AvatarURL))
 	if issuesvc.IsPending(c) {
 		// The service may not know who the viewer is.
 		who := ui.OneLine(c.Author.Login)

@@ -214,6 +214,7 @@ func TestListIssueComments(t *testing.T) {
 		{
 			ID:        "IC_kwDOJ5Hs3c7EwZ1R",
 			Author:    core.User{Login: "hubot"},
+			AvatarURL: "https://avatars.githubusercontent.com/u/1234567?v=4",
 			Body:      "I can reproduce this on v0.3.",
 			CreatedAt: issueTime("2026-09-02T09:00:00Z"),
 			UpdatedAt: issueTime("2026-09-02T09:00:00Z"),
@@ -273,7 +274,7 @@ func TestListIssueCommentsDefaultSize(t *testing.T) {
 }
 
 func equalComment(a, b core.Comment) bool {
-	return a.ID == b.ID && a.Author == b.Author && a.Body == b.Body &&
+	return a.ID == b.ID && a.Author == b.Author && a.AvatarURL == b.AvatarURL && a.Body == b.Body &&
 		a.CreatedAt.Equal(b.CreatedAt) && a.UpdatedAt.Equal(b.UpdatedAt)
 }
 

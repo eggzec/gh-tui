@@ -132,8 +132,9 @@ const (
 	listSchema = 4
 	// detailSchema 4 keeps the head commit.
 	detailSchema = 4
-	// commentsSchema 3 reads the pages with REST, whose cursors are URLs.
-	commentsSchema = 3
+	// commentsSchema 3 reads the pages with REST, whose cursors are URLs,
+	// and 4 keeps the avatar of each comment's author.
+	commentsSchema = 4
 )
 
 // maxPageSize is the most items GitHub returns in a page.

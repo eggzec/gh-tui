@@ -62,8 +62,11 @@ func (i restIssue) core(repo core.RepoRef) core.Issue {
 
 // issueComment is the REST shape of an issue comment.
 type issueComment struct {
-	NodeID    string    `json:"node_id"`
-	User      user      `json:"user"`
+	NodeID string `json:"node_id"`
+	User   struct {
+		user
+		AvatarURL string `json:"avatar_url"`
+	} `json:"user"`
 	Body      string    `json:"body"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -73,6 +76,7 @@ func (c issueComment) core() core.Comment {
 	return core.Comment{
 		ID:        c.NodeID,
 		Author:    c.User.core(),
+		AvatarURL: c.User.AvatarURL,
 		Body:      c.Body,
 		CreatedAt: c.CreatedAt,
 		UpdatedAt: c.UpdatedAt,
