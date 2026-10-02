@@ -65,7 +65,7 @@ func (s *Section) update(msg tea.Msg) (tea.Cmd, bool) {
 		s.readInboxCache()
 		return nil, true
 	case ui.OnlineMsg:
-		return s.online(), true
+		return s.online(msg), true
 	case ui.AvatarsMsg:
 		// The profile may have gained or lost the avatar's rows.
 		s.layout()
