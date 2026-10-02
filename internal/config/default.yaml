@@ -308,14 +308,15 @@ prefetch:
     preview:
       window: {before: 0, after: 32}
       # The largest file read around the cursor, at most
-      # files.preview.max_size. The file under the cursor is read up to
-      # files.preview.max_size.
+      # files.preview.max_size; 0 reads no file around it. The file under
+      # the cursor is read up to files.preview.max_size.
       max_size: 64KiB
   finder:
     window: {before: 0, after: 0}
     rest: 100ms
     # The finder's preview always reads the file under its cursor, up to
-    # files.preview.max_size; max_size bounds the files read around it.
+    # files.preview.max_size; max_size bounds the files read around it,
+    # and 0 reads none of them.
     preview: {max_size: 64KiB}
   history:
     window: {before: 3, after: 3}

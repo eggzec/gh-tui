@@ -303,6 +303,10 @@ func TestWorthReading(t *testing.T) {
 			t.Errorf("worthReading(%s) = %v, want %v", tt.e.Name, got, tt.want)
 		}
 	}
+	// A limit of 0 reads nothing, not even an empty file.
+	if worthReading(file("Makefile", 0), 0) {
+		t.Error("worthReading(an empty file, 0) = true, want false")
+	}
 }
 
 func TestPreviewOfPrefetchedFile(t *testing.T) {
