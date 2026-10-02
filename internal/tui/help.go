@@ -6,7 +6,6 @@ import (
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
@@ -56,7 +55,7 @@ func (m *Model) helpTitle() string {
 	if name = ui.OneLine(name); name == "" {
 		return "Help"
 	}
-	return "Help · " + name
+	return "Help" + m.icons.Separator + name
 }
 
 // helpFrameSize is the size of the help with its frame: most of the
@@ -78,19 +77,26 @@ func (m *Model) helpFrame() string {
 	if w < 4 {
 		return ""
 	}
-	b := lipgloss.RoundedBorder()
+	b := m.icons.Border
 	top := m.theme.Accent.Render(b.TopLeft + strings.Repeat(b.Top, w-2) + b.TopRight)
-	return top + "\n" + m.theme.Frame().Render(m.keyhelp.View())
+	return top + "\n" + m.frameStyle().Render(m.keyhelp.View())
 }
 
-// keyLayers returns the keys that reach something now, in the order a key
+// keyLayers returns the keys that reach something now, as layersNow
+// finds them, with their help naming the keys in the words of the icon
+// set, as the hints and the help show them.
+func (m *Model) keyLayers() []keyhelp.Layer {
+	return ui.NameLayerKeys(m.icons, m.layersNow())
+}
+
+// layersNow returns the keys that reach something now, in the order a key
 // reaches them. The open command line takes every key, ctrl+c too.
 // Otherwise the help key comes first, and ctrl+c, which quits from the
 // help and a modal, since they take every other key. Then come the open
 // help's, or else an open modal's, or else, while the focused section
 // captures keys, the app's that hold ctrl+c and the section's, or else
 // the keys the section claims, then the app's, and then the section's.
-func (m *Model) keyLayers() []keyhelp.Layer {
+func (m *Model) layersNow() []keyhelp.Layer {
 	if m.line.Focused() {
 		return []keyhelp.Layer{keyhelp.FromHelp("command line", m.line, true)}
 	}

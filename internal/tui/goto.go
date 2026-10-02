@@ -273,13 +273,13 @@ func (m *Model) badTarget(err error) tea.Cmd {
 	case e.Input == "":
 		return m.toast.Push(toast.Error, "Nothing to open: "+plain(e.Reason)+".")
 	}
-	return m.toast.Push(toast.Error, cantOpen(plain(e.Input), plain(e.Reason), m.fitsToast))
+	return m.toast.Push(toast.Error, cantOpen(plain(e.Input), plain(e.Reason), m.icons.Ellipsis, m.fitsToast))
 }
 
 // cantOpen returns "Can't open <typed>: <reason>.", with typed cut to the
-// widest that fits says fits, and reason whole.
-func cantOpen(typed, reason string, fits func(string) bool) string {
-	say := func(w int) string { return "Can't open " + ansi.Truncate(typed, w, "…") + ": " + reason + "." }
+// widest that fits says fits, ending in tail, and reason whole.
+func cantOpen(typed, reason, tail string, fits func(string) bool) string {
+	say := func(w int) string { return "Can't open " + ansi.Truncate(typed, w, tail) + ": " + reason + "." }
 	// No toast holds more than Say's text, so a paste is cut to that
 	// before the search for the widest cut that fits, which wraps the
 	// text each time it tries a width.
@@ -355,5 +355,5 @@ func newSpinner() spinner.Model {
 
 // goingView is the footer while a goto waits for GitHub.
 func (m *Model) goingView() string {
-	return m.spin.View() + " " + m.theme.Muted.Render("Opening "+m.going.target.String()+"…")
+	return m.spin.View() + " " + m.theme.Muted.Render("Opening "+m.going.target.String()+m.icons.Ellipsis)
 }

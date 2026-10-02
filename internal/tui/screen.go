@@ -170,8 +170,8 @@ func (m *Model) drawFrame(p *pane) {
 	if p.focused {
 		edge, title = m.st.focusEdge, m.st.focusTitle
 	}
-	b := lipgloss.RoundedBorder()
-	label := ansi.Truncate(p.label, max(w-4, 0), "…")
+	b := m.icons.Border
+	label := ansi.Truncate(p.label, max(w-4, 0), m.icons.Ellipsis)
 	if label == "" {
 		p.top = edge.Render(b.TopLeft + strings.Repeat(b.Top, w-2) + b.TopRight)
 	} else {
@@ -199,7 +199,7 @@ func (m *Model) drawHeader() {
 		m.header = ""
 		return
 	}
-	rule := func(n int) string { return m.st.edge.Render(strings.Repeat("─", max(n, 0))) }
+	rule := func(n int) string { return m.st.edge.Render(strings.Repeat(m.icons.Border.Top, max(n, 0))) }
 	var name string
 	switch {
 	case m.screen == dashScreen:
@@ -211,7 +211,7 @@ func (m *Model) drawHeader() {
 	case m.repo.Owner != "":
 		name = m.repo.String()
 	default:
-		name = "No repository · press / to search"
+		name = "No repository" + m.icons.Separator + "press / to search"
 	}
 	left := m.st.repo.Render(name)
 	if name == m.repo.String() {
@@ -233,7 +233,7 @@ func (m *Model) drawHeader() {
 		if m.badge == "1" {
 			noun = " notification"
 		}
-		right = m.st.dot.Render("●") + " " + m.st.badge.Render(m.badge+noun)
+		right = m.st.dot.Render(m.icons.Dot) + " " + m.st.badge.Render(m.badge+noun)
 	}
 	// Two cells of rule and a space on each side frame the text.
 	lw, rw := ansi.StringWidth(left), ansi.StringWidth(right)
@@ -242,7 +242,7 @@ func (m *Model) drawHeader() {
 	}
 	if right == "" {
 		if lw+3 > w {
-			m.header = fit(rule(1)+" "+ansi.Truncate(left, max(w-3, 0), "…"), w)
+			m.header = fit(rule(1)+" "+ansi.Truncate(left, max(w-3, 0), m.icons.Ellipsis), w)
 			return
 		}
 		m.header = rule(1) + " " + left + " " + rule(w-lw-3)

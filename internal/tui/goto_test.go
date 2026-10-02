@@ -606,7 +606,7 @@ func TestGotoBadTargetPasteIsFast(t *testing.T) {
 		tries++
 		return m.fitsToast(s)
 	}
-	text := cantOpen(strings.Repeat("a", 20<<10), "want owner/name", fits)
+	text := cantOpen(strings.Repeat("a", 20<<10), "want owner/name", "…", fits)
 	if tries > 10 {
 		t.Errorf("cutting a 20 KB paste tried %d widths, want 10 or fewer", tries)
 	}

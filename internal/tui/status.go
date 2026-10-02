@@ -100,7 +100,7 @@ func (m *Model) drawHints() {
 	if short := m.layers[0].Short; len(short) > 0 {
 		help = short[0]
 	}
-	h := ui.Hints{Layers: m.layers, Lead: []key.Binding{help, m.keys.state(m).Back}}
+	h := ui.Hints{Layers: m.layers, Lead: []key.Binding{help, ui.NameKeys(m.icons, m.keys.state(m).Back)}}
 	short := h.ShortHelp()
 	left := make([]statusbar.Item, 0, len(short))
 	for i, b := range short {
@@ -264,7 +264,7 @@ func (m *Model) linkItem() statusbar.Item {
 	case linkFailing:
 		dot, text = m.bst.warn, "GitHub failing since "+ui.Clock(at, m.rate.At)
 	}
-	mark := dot.Render("●")
+	mark := dot.Render(m.icons.Dot)
 	return statusbar.Item{Forms: []string{mark + " " + m.bst.value.Render(text), mark}, Rank: rankLink}
 }
 
@@ -278,7 +278,7 @@ func (m *Model) ratesItem() statusbar.Item {
 		return statusbar.Item{}
 	}
 	st := &m.bst
-	sep := m.st.edge.Render(" · ")
+	sep := m.st.edge.Render(m.icons.Separator)
 	var parts []string
 	var reset time.Time
 	held := 0
