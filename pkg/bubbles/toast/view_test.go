@@ -71,6 +71,19 @@ func TestViewErrorRoom(t *testing.T) {
 	}
 }
 
+// Each level is marked with the glyph of its style.
+func TestViewGlyph(t *testing.T) {
+	for _, glyph := range []string{"x", "\uf530", "✗"} {
+		st := DefaultStyles(true)
+		st.Error.Glyph = glyph
+		m := New(testDuration, testErrorDuration, WithStyles(st), WithSize(80, 24))
+		m.Push(Error, "Could not star repo")
+		if v := ansi.Strip(m.View()); !strings.Contains(v, glyph+" Could not star repo") {
+			t.Errorf("glyph %q: view %q lacks it", glyph, v)
+		}
+	}
+}
+
 func TestViewEmpty(t *testing.T) {
 	if v := New(testDuration, testErrorDuration, WithSize(80, 24)).View(); v != "" {
 		t.Errorf("View() = %q, want empty", v)

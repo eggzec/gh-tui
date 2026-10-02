@@ -464,7 +464,7 @@ func (m *Model) applyTheme(dark bool) {
 	}
 	m.theme = ui.NewTheme(p, dark)
 	m.st = newStyles(m.theme)
-	m.toast.SetStyles(m.theme.Toast())
+	m.toast.SetStyles(m.theme.Toast(ui.NewIcons(m.cfg.UI.Icons)))
 	m.keyhelp.SetStyles(m.theme.KeyHelp())
 	m.bst = newBarStyles(m.theme)
 	m.status.SetStyles(statusbar.Styles{Separator: m.st.edge})

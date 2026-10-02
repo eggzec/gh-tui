@@ -61,9 +61,11 @@ func NewTheme(p config.Palette, dark bool) Theme {
 // went wrong takes the mark from the icons, as the error lines of the
 // sections do.
 
-// Toast returns the styles of the toasts.
-func (t Theme) Toast() toast.Styles {
+// Toast returns the styles of the toasts, with errors marked by the error
+// glyph of ic.
+func (t Theme) Toast(ic Icons) toast.Styles {
 	s := toast.DefaultStyles(t.Dark)
+	s.Error.Glyph = ic.Error
 	s.Text = s.Text.Foreground(lipgloss.Color(t.Palette.Foreground))
 	s.Count = s.Count.Foreground(lipgloss.Color(t.Palette.Muted))
 	s.Info.Color = lipgloss.Color(t.Palette.Accent)

@@ -1086,6 +1086,22 @@ func TestSyncRateLimitRereadsRates(t *testing.T) {
 	}
 }
 
+// An error toast is marked with the error glyph of the icon set, and a
+// switch of ui.icons marks the next one with the new set's.
+func TestToastErrorMarkFollowsIcons(t *testing.T) {
+	m, _ := newTestApp(t)
+	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	for _, set := range []string{config.IconsASCII, config.IconsUnicode, config.IconsNerd} {
+		runCommand(t, m, "set ui.icons="+set)
+		m.toast.Clear()
+		m.toast.Push(toast.Error, "Couldn't star the repository")
+		want := ui.NewIcons(set).Error + " Couldn't star the repository"
+		if got := toasted(m); !strings.Contains(got, want) {
+			t.Errorf("%s: toast %q, want %q", set, got, want)
+		}
+	}
+}
+
 // The toasts leave the border of the pane under them, however narrow the
 // screen.
 func TestToastsKeepThePaneBorder(t *testing.T) {
@@ -1099,7 +1115,7 @@ func TestToastsKeepThePaneBorder(t *testing.T) {
 		}
 		drawn := false
 		for _, l := range lines[:len(lines)-2] {
-			if strings.Contains(l, "✗") {
+			if strings.Contains(l, ui.NewIcons(config.Default().UI.Icons).Error) {
 				drawn = true
 				if !strings.HasPrefix(l, "│") || !strings.HasSuffix(l, "│") {
 					t.Errorf("at %d columns toast line %q covers a border", width, l)

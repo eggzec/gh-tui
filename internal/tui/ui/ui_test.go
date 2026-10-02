@@ -69,7 +69,7 @@ func TestThemeTakesPaletteColors(t *testing.T) {
 		"thread key":   th.Thread(ic).Key.GetForeground(),
 		"prompt edge":  th.Prompt().Frame.GetBorderLeftForeground(),
 		"prompt caret": th.Prompt().Cursor.GetForeground(),
-		"toast info":   th.Toast().Info.Color,
+		"toast info":   th.Toast(ic).Info.Color,
 		"tree cursor":  th.Tree(ic).Cursor.GetForeground(),
 		"pager prompt": th.Pager(ic).Prompt.GetForeground(),
 		"accent text":  th.Accent.GetForeground(),
@@ -89,7 +89,7 @@ func TestThemeTakesPaletteColors(t *testing.T) {
 	if th.Pager(ic).Syntax == nil {
 		t.Error("pager has no syntax colors")
 	}
-	if got := th.Toast().Error.Color; got != lipgloss.Color(p.Error) {
+	if got := th.Toast(ic).Error.Color; got != lipgloss.Color(p.Error) {
 		t.Errorf("toast error = %v, want the palette error color", got)
 	}
 }
@@ -122,6 +122,7 @@ func TestThemeTakesErrorGlyph(t *testing.T) {
 			"picker":      th.Picker(ic).ErrorGlyph,
 			"finder":      th.Finder(ic).ErrorGlyph,
 			"error lines": th.Errors(ic).Mark,
+			"toast":       th.Toast(ic).Error.Glyph,
 		}
 		for name, g := range got {
 			if g != ic.Error {
