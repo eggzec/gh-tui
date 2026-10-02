@@ -472,7 +472,7 @@ func (m *Model) applyTheme(dark bool) {
 	m.toast.SetStyles(m.theme.Toast(m.icons))
 	m.keyhelp.SetStyles(m.theme.KeyHelp())
 	m.bst = newBarStyles(m.theme)
-	m.status.SetStyles(statusbar.Styles{Separator: m.st.edge})
+	m.status.SetStyles(statusbar.Styles{Separator: m.st.edge, SeparatorText: m.icons.Separator})
 	m.drawStatus()
 	// The hints are drawn again in the theme's styles.
 	m.layers = nil
