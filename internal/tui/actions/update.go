@@ -294,10 +294,11 @@ func (m *Modal) rereadJobs() tea.Cmd {
 
 // online reads again, now that GitHub answers again, what failed for want
 // of an answer from it: the runs, the jobs of the run shown and the log
-// of the job. Runs and jobs served from what an earlier read kept, while
-// GitHub couldn't be reached or rate limited the read, are read again too.
+// of the job. Runs, jobs, annotations and workflows served from what an
+// earlier read kept, while GitHub couldn't be reached or rate limited the
+// read, are read again too.
 func (m *Modal) online() tea.Cmd {
-	cmds := []tea.Cmd{ui.RetryUnreached(&m.runs), ui.RetryUnreached(&m.log)}
+	cmds := []tea.Cmd{ui.RetryUnreached(&m.runs), ui.RetryUnreached(&m.log), m.rereadWorkflows()}
 	if j := &m.jobs; !j.loading && (ui.Unreached(j.err) || j.kept) {
 		j.kept = false
 		cmds = append(cmds, m.rereadJobs())

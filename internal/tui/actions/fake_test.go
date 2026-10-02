@@ -154,14 +154,14 @@ type fake struct {
 	// moreJobs makes the jobs tell that there are more than the service
 	// reads.
 	moreJobs bool
-	// limited serves the runs and the jobs Limited, as kept while GitHub
-	// rate limits the reads.
+	// limited serves the runs, the jobs, the workflows and the
+	// annotations Limited, as kept while GitHub rate limits the reads.
 	limited bool
 	// notes are the annotations of jobs, and cachedNotes those in memory.
 	notes       map[int64][]core.Annotation
 	cachedNotes map[int64]bool
 
-	runsErr, jobsErr, logErr error
+	runsErr, jobsErr, logErr, wfErr error
 	// logErrs fails the logs of some jobs.
 	logErrs map[int64]error
 	// holdLogs makes the reads of the logs of some jobs wait, once started
@@ -248,10 +248,13 @@ func (f *fake) Workflows(_ context.Context, q actionssvc.WorkflowsQuery) (core.P
 	defer f.mu.Unlock()
 	f.wfReads++
 	f.wfAgain = append(f.wfAgain, q.Again)
+	if f.wfErr != nil {
+		return core.Page[core.Workflow]{}, f.wfErr
+	}
 	if q.Again {
 		f.keptWorkflows = false
 	}
-	return core.Page[core.Workflow]{Items: f.workflows, Stale: f.keptWorkflows}, nil
+	return core.Page[core.Workflow]{Items: f.workflows, Stale: f.keptWorkflows, Limited: f.limited}, nil
 }
 
 func (f *fake) CachedAllJobs(q actionssvc.JobsQuery) (core.Page[core.Job], bool) {
@@ -462,5 +465,5 @@ func (f *fake) Annotations(_ context.Context, q actionssvc.AnnotationsQuery) (co
 	defer f.mu.Unlock()
 	f.noteReads = append(f.noteReads, q.CheckRunID)
 	f.cachedNotes[q.CheckRunID] = true
-	return core.Page[core.Annotation]{Items: f.notes[q.CheckRunID]}, nil
+	return core.Page[core.Annotation]{Items: f.notes[q.CheckRunID], Limited: f.limited}, nil
 }

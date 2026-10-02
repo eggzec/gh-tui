@@ -25,7 +25,12 @@ type notes struct {
 	// err once they failed to.
 	loading, loaded bool
 	err             error
-	cursor, top     int
+	// kept reports that the items were served from what an earlier read
+	// kept, because GitHub couldn't be reached or rate limited the read,
+	// so they are read again once it answers. Only a read clears it: the
+	// cache holds such a page without its marks.
+	kept        bool
+	cursor, top int
 }
 
 // scroll keeps the cursor within rows rows from the top.
@@ -96,6 +101,17 @@ func (m *Model) receiveNotes(msg notesMsg) {
 		return
 	}
 	m.setNotes(msg.page)
+	m.notes.kept = msg.page.Offline || msg.page.Limited
+}
+
+// RetryKept reads the annotations again if they were served kept, now
+// that GitHub answers again, and does nothing otherwise.
+func (m *Model) RetryKept() tea.Cmd {
+	if !m.notes.kept || m.notes.loading {
+		return nil
+	}
+	m.notes.kept = false
+	return m.readNotes()
 }
 
 func (m *Model) setNotes(p core.Page[core.Annotation]) {

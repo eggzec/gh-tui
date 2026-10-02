@@ -65,3 +65,28 @@ func TestOnlineRetriesOnce(t *testing.T) {
 		})
 	}
 }
+
+// TestOnlineReadsKeptAnnotationsAgain checks that the annotations of the
+// job shown, served kept while GitHub rate limited their read, are read
+// again once the limit lifts, once.
+func TestOnlineReadsKeptAnnotationsAgain(t *testing.T) {
+	f := newFake()
+	f.notesLimited = true
+	_, h := newStep(t, f, wideW, wideH)
+	h.keys("enter")
+	f.mu.Lock()
+	f.notesLimited = false
+	notes := f.noteReads
+	f.mu.Unlock()
+	if notes == 0 {
+		t.Fatal("the job's annotations weren't read")
+	}
+
+	h.send(ui.OnlineMsg{})
+	h.send(ui.OnlineMsg{})
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if got := f.noteReads - notes; got != 1 {
+		t.Errorf("annotations read after two OnlineMsg = %d, want 1", got)
+	}
+}
