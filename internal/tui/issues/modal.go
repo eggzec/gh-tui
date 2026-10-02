@@ -190,16 +190,14 @@ func commentsQuery(repo core.RepoRef, number int) issuesvc.CommentsQuery {
 	return issuesvc.CommentsQuery{Repo: repo, Number: number}
 }
 
-// Title implements ui.Modal.
+// Title implements ui.Modal. It is the number only, with the repository
+// when it isn't the page's: the header below the frame holds the title.
 func (m *detailModal) Title() string {
 	n := "#" + strconv.Itoa(m.number)
 	if m.other {
 		n = m.repo.String() + n
 	}
-	if !m.loaded || m.issue.Title == "" {
-		return n
-	}
-	return n + " " + ui.OneLine(m.issue.Title)
+	return n
 }
 
 // Link implements ui.Linked.
@@ -209,6 +207,11 @@ func (m *detailModal) Link() string { return m.issue.URL }
 func (m *detailModal) SetSize(width, height int) {
 	m.width, m.height = max(width, 0), max(height, 0)
 	m.layout()
+	if m.loaded {
+		// The header wraps its title to the width. The thread loads what
+		// the new size shows on its next message.
+		_ = m.show()
+	}
 }
 
 // SetTheme implements ui.Modal. It builds every style the modal uses.
@@ -469,14 +472,19 @@ func (m *detailModal) header(it core.Issue) string {
 	dot := t.Subtle.Render(" · ")
 	var b strings.Builder
 
+	// The title links to the issue's page. A long title wraps.
+	for l := range strings.SplitSeq(ansi.Wrap(ui.OneLine(it.Title), max(m.width-4, 1), ""), "\n") {
+		b.WriteString("  ")
+		b.WriteString(termtext.Link(it.URL, t.Title.Render(l)))
+		b.WriteString("\n")
+	}
 	b.WriteString("  ")
-	// The title and the number link to the issue's page.
-	b.WriteString(termtext.Link(it.URL,
-		t.Title.Render(ui.OneLine(it.Title))+t.Muted.Render("  #"+strconv.Itoa(it.Number))))
-	b.WriteString("\n  ")
 
 	b.WriteString(m.rows.badges[ui.IssueState(it)])
 	b.WriteString("  ")
+	// The number sits by the state, as in the pull request's header.
+	b.WriteString(t.Muted.Render("#" + strconv.Itoa(it.Number)))
+	b.WriteString(dot)
 	b.WriteString(t.Muted.Render(login(it.Author)))
 	b.WriteString(t.Subtle.Render(" opened " + m.dates.Prose(it.CreatedAt, now)))
 	if it.UpdatedAt.After(it.CreatedAt) {

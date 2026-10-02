@@ -205,16 +205,14 @@ func commentsQuery(repo core.RepoRef, number int) pulls.CommentsQuery {
 	return pulls.CommentsQuery{Repo: repo, Number: number}
 }
 
-// Title implements ui.Modal.
+// Title implements ui.Modal. It is the number only, with the repository
+// when it isn't the page's: the header below the frame holds the title.
 func (m *detailModal) Title() string {
 	n := "#" + strconv.Itoa(m.number)
 	if m.other {
 		n = m.repo.String() + n
 	}
-	if !m.loaded || m.detail.Title == "" {
-		return n
-	}
-	return n + " " + ui.OneLine(m.detail.Title)
+	return n
 }
 
 // Link implements ui.Linked.

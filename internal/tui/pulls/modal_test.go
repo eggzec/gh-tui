@@ -41,7 +41,7 @@ func TestModal(t *testing.T) {
 				if m == nil || m.number != 135 {
 					t.Fatalf("modal = %v, want #135 open", m)
 				}
-				if got, want := m.Title(), "#135 Retry GraphQL requests after secondary rate limits"; got != want {
+				if got, want := m.Title(), "#135"; got != want {
 					t.Errorf("title = %q, want %q", got, want)
 				}
 				if got := svc.got(); !slices.Equal(got, []int{135}) {
@@ -257,7 +257,7 @@ func TestOpenFromSearch(t *testing.T) {
 			t.Fatalf("modal = %+v, want cli/cli#7", m)
 		}
 		// The title names the repository, which isn't the one selected.
-		if got := m.Title(); got != "cli/cli#7 Speed up gh pr list" {
+		if got := m.Title(); got != "cli/cli#7" {
 			t.Errorf("title = %q", got)
 		}
 		if !strings.Contains(modalScreen(t, h), "Speed up gh pr list") {
@@ -279,8 +279,8 @@ func TestOpenFromSearch(t *testing.T) {
 	t.Run("the selected repository away from its screen", func(t *testing.T) {
 		h := started(t, newFakeService(), 80, 30)
 		drain(t, h, h.Update(ui.OpenPullMsg{Repo: repo, Number: 135, ShowRepo: true}))
-		if m := h.modal(); m == nil || !strings.HasPrefix(m.Title(), "eggzec/gh-tui#135 ") {
-			t.Errorf("modal = %v, want its title to name eggzec/gh-tui", m)
+		if m := h.modal(); m == nil || m.Title() != "eggzec/gh-tui#135" {
+			t.Errorf("modal = %v, want its title to be eggzec/gh-tui#135", m)
 		}
 	})
 	t.Run("before the section starts", func(t *testing.T) {
@@ -313,7 +313,7 @@ func TestModalBeforeItsDetail(t *testing.T) {
 	m := h.modal()
 	// No repository is selected, so the title names it.
 	if m == nil || m.Title() != "eggzec/gh-tui#135" {
-		t.Fatalf("modal = %v, want eggzec/gh-tui#135 without a title", m)
+		t.Fatalf("modal = %v, want eggzec/gh-tui#135 before its title is read", m)
 	}
 	for _, k := range []string{"m", "x", "X", "D", "o"} {
 		if msgs := press(t, h, k); len(msgs) != 0 {

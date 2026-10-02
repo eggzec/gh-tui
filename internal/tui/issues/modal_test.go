@@ -84,7 +84,7 @@ func TestOpenAndClose(t *testing.T) {
 			t.Errorf("modal lacks %q:\n%s", want, v)
 		}
 	}
-	if got, want := m.Title(), "#999 Support GitHub Enterprise hosts in the repository picker"; got != want {
+	if got, want := m.Title(), "#999"; got != want {
 		t.Errorf("title = %q, want %q", got, want)
 	}
 	if got := svc.getCalls(); !slices.Equal(got, []int{999}) {
@@ -249,7 +249,7 @@ func TestOpenFromSearch(t *testing.T) {
 			t.Fatalf("modal = %+v, want cli/cli#7", m)
 		}
 		// The title names the repository, which isn't the one selected.
-		if got := m.Title(); got != "cli/cli#7 gh issue view hangs" {
+		if got := m.Title(); got != "cli/cli#7" {
 			t.Errorf("title = %q", got)
 		}
 		if v := ansi.Strip(m.View()); !strings.Contains(v, "It never returns.") {
@@ -269,8 +269,8 @@ func TestOpenFromSearch(t *testing.T) {
 	t.Run("the selected repository away from its screen", func(t *testing.T) {
 		h := started(t, newFakeService(sampleIssues(12)), 80, 20)
 		run(t, h, h.Update(ui.OpenIssueMsg{Repo: testRepo, Number: 999, ShowRepo: true}))
-		if m := h.modal(); m == nil || !strings.HasPrefix(m.Title(), "eggzec/gh-tui#999 ") {
-			t.Errorf("modal = %v, want its title to name eggzec/gh-tui", m)
+		if m := h.modal(); m == nil || m.Title() != "eggzec/gh-tui#999" {
+			t.Errorf("modal = %v, want its title to be eggzec/gh-tui#999", m)
 		}
 	})
 	t.Run("before the section starts", func(t *testing.T) {
@@ -300,7 +300,7 @@ func TestOpenFromSearch(t *testing.T) {
 		m := h.modal()
 		// No repository is selected, so the title names it.
 		if m == nil || m.Title() != "eggzec/gh-tui#999" {
-			t.Fatalf("modal = %v, want eggzec/gh-tui#999 without a title", m)
+			t.Fatalf("modal = %v, want eggzec/gh-tui#999 before its title is read", m)
 		}
 		press(t, h, "x", "c", "l")
 		if len(svc.changeCalls()) != 0 || m.composing != composeNone {
@@ -507,5 +507,25 @@ func TestModalFailureToasts(t *testing.T) {
 			what, err := failed(press(t, h, "down", "x", "y"))
 			uitest.CheckToast(t, f, "close #999", subject, uitest.Toast(what, err))
 		})
+	}
+}
+
+// The header wraps a title longer than the modal is wide, whole, since the
+// frame holds only the issue's number.
+func TestModalWrapsLongTitle(t *testing.T) {
+	_, m := opened(t, newFakeService(sampleIssues(12)), 30)
+	m.SetSize(30, 20)
+	words := strings.Fields(ansi.Strip(m.View()))
+	const title = "Support GitHub Enterprise hosts in the repository picker"
+	if got := strings.Join(words, " "); !strings.Contains(got, title) {
+		t.Errorf("the header lacks the whole title %q:\n%s", title, ansi.Strip(m.View()))
+	}
+	if v := ansi.Strip(m.View()); !strings.Contains(v, "#999") {
+		t.Errorf("the header lacks the number:\n%s", v)
+	}
+	for l := range strings.SplitSeq(ansi.Strip(m.View()), "\n") {
+		if w := ansi.StringWidth(l); w > 30 {
+			t.Errorf("line %q is %d wide, want at most 30", l, w)
+		}
 	}
 }

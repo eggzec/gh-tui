@@ -37,6 +37,5 @@ func TestViewCleansHostileIssues(t *testing.T) {
 			t.Errorf("the detail doesn't show the assignee cleaned: %q", v)
 		}
 		termtexttest.AssertClean(t, v, w)
-		termtexttest.AssertClean(t, m.Title(), 1000)
 	}
 }
