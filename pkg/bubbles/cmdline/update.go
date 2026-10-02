@@ -51,6 +51,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 	}
 	value, pos := m.input.Value(), m.input.Position()
+	// The input edits its text in place, which copies of the model share,
+	// so it gets a copy of its own first.
+	m.input.SetValue(value)
 	var cmd tea.Cmd
 	m.input, cmd = m.input.Update(msg)
 	if m.input.Value() != value {

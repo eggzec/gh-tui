@@ -22,6 +22,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	}
 	var cmd tea.Cmd
 	if m.mode == SingleLine {
+		// The input edits its text in place, which copies of the model share,
+		// so it gets a copy of its own first.
+		m.input.SetValue(m.input.Value())
 		m.input, cmd = m.input.Update(msg)
 	} else {
 		m.area, cmd = m.area.Update(msg)

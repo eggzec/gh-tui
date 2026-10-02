@@ -33,6 +33,11 @@ var lastID atomic.Int64
 
 // Model is a prompt. Create it with [New]. It starts blurred, and the parent
 // focuses it when it is shown.
+//
+// Copies of a single-line Model each edit text of their own. Copies of a
+// multi-line Model share the lines of the bubbles text area, which edits
+// them in place, so a parent keeps one Model and replaces it with the
+// result of each Update, as usual.
 type Model struct {
 	id      int64
 	mode    Mode

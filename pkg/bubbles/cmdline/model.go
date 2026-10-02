@@ -41,11 +41,6 @@ var lastID atomic.Int64
 
 // Model is a command line. Create it with [New]. It starts blurred, and
 // the parent opens it when the user starts a command.
-//
-// It wraps a bubbles text input, which keeps the text of the line in a
-// slice, so two copies of a Model that both go on editing share their
-// text. A parent keeps one Model and replaces it with the result of each
-// Update, as usual.
 type Model struct {
 	id      int64
 	focused bool
