@@ -28,7 +28,7 @@ func (m Model) View() string {
 		rows = m.writeRows(&b)
 	case m.state == stateFailed:
 		for _, l := range m.errorLines(m.width, m.bodyHeight()) {
-			b.WriteString(fit(l, m.width))
+			b.WriteString(m.fit(l, m.width))
 			b.WriteByte('\n')
 			rows++
 		}
@@ -39,7 +39,7 @@ func (m Model) View() string {
 			if rows >= m.bodyHeight() {
 				break
 			}
-			b.WriteString(fit(l, m.width))
+			b.WriteString(m.fit(l, m.width))
 			b.WriteByte('\n')
 			rows++
 		}
@@ -102,7 +102,7 @@ func (m *Model) writeRows(b *strings.Builder) int {
 			var t strings.Builder
 			m.writeGutter(&t, l, v, r, true)
 			m.writeMarker(&t, r)
-			b.WriteString(fit(t.String(), m.width))
+			b.WriteString(m.fit(t.String(), m.width))
 			b.WriteByte('\n')
 			rows++
 			continue
@@ -205,8 +205,8 @@ func (m *Model) writeGutter(b *strings.Builder, l layout, v int, r *row, first b
 	spaces(b, 2*r.depth)
 }
 
-// writeMarker writes the ▸ or ▾ of a row that starts a fold, or blanks
-// when the fold is empty.
+// writeMarker writes the glyph of an open or a folded fold before the row
+// that starts it, or blanks when the fold is empty.
 func (m *Model) writeMarker(b *strings.Builder, r *row) {
 	switch {
 	case r.fold < 0:
@@ -288,16 +288,20 @@ func (m *Model) writeHeader(b *strings.Builder, l layout, v, ri int, r *row, tw 
 	}
 	e, used := advance(r.text, 0, room)
 	cut := e < len(r.text)
+	ell, ew := m.esc.ellipsis, m.esc.ellipsisWidth
+	if ew > room {
+		ell, ew = "", 0
+	}
 	if cut {
-		e, used = advance(r.text, 0, room-1)
+		e, used = advance(r.text, 0, room-ew)
 	}
 	m.writeText(b, ri, r, 0, e)
-	if cut {
+	if cut && ell != "" {
 		base := m.esc.text(m, r)
 		b.WriteString(base.on)
-		b.WriteString(ellipsisGlyph)
+		b.WriteString(ell)
 		b.WriteString(base.off)
-		used++
+		used += ew
 	}
 	spaces(b, room-used)
 	if len(dur) > 0 {
@@ -397,7 +401,7 @@ func (m *Model) writeText(b *strings.Builder, ri int, r *row, a, e int) {
 // right, or the search input while it is open.
 func (m *Model) statusLine() string {
 	if m.searching {
-		return fit(m.input.View(), m.width)
+		return m.fit(m.input.View(), m.width)
 	}
 	var parts []string
 	if q := m.search.query; q != "" {
@@ -426,9 +430,9 @@ func (m *Model) statusLine() string {
 	right := strings.Join(parts, "  ")
 	rw := ansi.StringWidth(right)
 	if rw+2 > m.width {
-		return fit(right, m.width)
+		return m.fit(right, m.width)
 	}
-	return fit(m.titleView, m.width-rw-2) + "  " + right
+	return m.fit(m.titleView, m.width-rw-2) + "  " + right
 }
 
 // position is where the cursor is. With nothing folded it is the line of
@@ -458,11 +462,16 @@ func spaces(b *strings.Builder, n int) {
 	}
 }
 
-// fit truncates or pads styled text to exactly width cells.
-func fit(s string, width int) string {
+// fit truncates styled text to exactly width cells, ending it with the
+// ellipsis where it is cut, or pads it.
+func (m *Model) fit(s string, width int) string {
 	w := ansi.StringWidth(s)
 	if w > width {
-		s = ansi.Truncate(s, width, ellipsisGlyph)
+		tail := m.esc.ellipsis
+		if m.esc.ellipsisWidth > width {
+			tail = ""
+		}
+		s = ansi.Truncate(s, width, tail)
 		w = ansi.StringWidth(s)
 	}
 	if w < width {

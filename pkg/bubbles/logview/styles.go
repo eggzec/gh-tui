@@ -11,14 +11,10 @@ import (
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
-// Glyphs drawn in the gutter and before folds.
+// Marks drawn in the gutter of warnings and notices.
 const (
-	cursorGlyph   = "▌"
-	openGlyph     = "▾ "
-	closedGlyph   = "▸ "
-	warningGlyph  = "!"
-	noticeGlyph   = "i"
-	ellipsisGlyph = "…"
+	warningGlyph = "!"
+	noticeGlyph  = "i"
 )
 
 // Styles holds the styles of a log view. The styles of lines go under the
@@ -40,17 +36,25 @@ type Styles struct {
 	Section       lipgloss.Style
 	FailedSection lipgloss.Style
 	Duration      lipgloss.Style
-	// Marker styles the ▸ and ▾ before sections and groups.
+	// Marker styles the OpenGlyph and ClosedGlyph before sections and
+	// groups.
 	Marker lipgloss.Style
+	// OpenGlyph marks a section or group that is open, and ClosedGlyph one
+	// that is folded, each cut or padded to one cell. The defaults are "▾"
+	// and "▸".
+	OpenGlyph, ClosedGlyph string
 	// ErrorMark, WarningMark and NoticeMark style the marks in the gutter
 	// of those lines, and of failed sections.
 	ErrorMark   lipgloss.Style
 	WarningMark lipgloss.Style
 	NoticeMark  lipgloss.Style
-	// Cursor marks the line under the cursor while the view is focused,
-	// and BlurredCursor while it is blurred.
+	// Cursor styles the CursorGlyph that marks the line under the cursor
+	// while the view is focused, and BlurredCursor while it is blurred.
 	Cursor        lipgloss.Style
 	BlurredCursor lipgloss.Style
+	// CursorGlyph marks the line under the cursor in the gutter, cut or
+	// padded to one cell. The default is "▌".
+	CursorGlyph string
 	// LineNumber and Time style the gutter.
 	LineNumber lipgloss.Style
 	Time       lipgloss.Style
@@ -76,6 +80,9 @@ type Styles struct {
 	// ErrorEllipsis ends the text where it is cut. The defaults are " · "
 	// and "…".
 	ErrorSeparator, ErrorEllipsis string
+	// Ellipsis ends the title of a section or group, and the status line,
+	// where they are cut. The default is "…".
+	Ellipsis string
 	// Prompt styles the "/" before the search input, and InputCursor its
 	// cursor, with its foreground.
 	Prompt      lipgloss.Style
@@ -108,11 +115,14 @@ func DefaultStyles(isDark bool) Styles {
 		FailedSection:  lipgloss.NewStyle().Foreground(errColor).Bold(true),
 		Duration:       lipgloss.NewStyle().Foreground(subtle),
 		Marker:         lipgloss.NewStyle().Foreground(muted),
+		OpenGlyph:      "▾",
+		ClosedGlyph:    "▸",
 		ErrorMark:      lipgloss.NewStyle().Foreground(errColor),
 		WarningMark:    lipgloss.NewStyle().Foreground(warnColor),
 		NoticeMark:     lipgloss.NewStyle().Foreground(accent),
 		Cursor:         lipgloss.NewStyle().Foreground(accent),
 		BlurredCursor:  lipgloss.NewStyle().Foreground(subtle),
+		CursorGlyph:    "▌",
 		LineNumber:     lipgloss.NewStyle().Foreground(subtle),
 		Time:           lipgloss.NewStyle().Foreground(subtle),
 		Match:          lipgloss.NewStyle().Foreground(text).Background(match),
@@ -126,6 +136,7 @@ func DefaultStyles(isDark bool) Styles {
 		ErrorGlyph:     "✗",
 		ErrorSeparator: " · ",
 		ErrorEllipsis:  "…",
+		Ellipsis:       "…",
 		Prompt:         lipgloss.NewStyle().Foreground(accent),
 		InputCursor:    lipgloss.NewStyle().Foreground(accent),
 	}
@@ -184,26 +195,31 @@ type esc struct {
 	// Glyphs rendered in their styles.
 	open, closed, cursor, blurred      string
 	errorMark, warningMark, noticeMark string
+	// ellipsis ends cut text, and is ellipsisWidth cells wide.
+	ellipsis      string
+	ellipsisWidth int
 }
 
 func newEsc(s Styles) esc {
 	e := esc{
-		section:     newPair(s.Section),
-		failed:      newPair(s.FailedSection),
-		duration:    newPair(s.Duration),
-		number:      newPair(s.LineNumber),
-		time:        newPair(s.Time),
-		match:       newPair(s.Match),
-		current:     newPair(s.CurrentMatch),
-		status:      newPair(s.Status),
-		noMatches:   newPair(s.NoMatches),
-		open:        s.Marker.Render(openGlyph),
-		closed:      s.Marker.Render(closedGlyph),
-		cursor:      s.Cursor.Render(cursorGlyph),
-		blurred:     s.BlurredCursor.Render(cursorGlyph),
-		errorMark:   s.ErrorMark.Render(oneCell(s.ErrorGlyph)),
-		warningMark: s.WarningMark.Render(warningGlyph),
-		noticeMark:  s.NoticeMark.Render(noticeGlyph),
+		section:       newPair(s.Section),
+		failed:        newPair(s.FailedSection),
+		duration:      newPair(s.Duration),
+		number:        newPair(s.LineNumber),
+		time:          newPair(s.Time),
+		match:         newPair(s.Match),
+		current:       newPair(s.CurrentMatch),
+		status:        newPair(s.Status),
+		noMatches:     newPair(s.NoMatches),
+		open:          s.Marker.Render(oneCell(s.OpenGlyph) + " "),
+		closed:        s.Marker.Render(oneCell(s.ClosedGlyph) + " "),
+		cursor:        s.Cursor.Render(oneCell(s.CursorGlyph)),
+		blurred:       s.BlurredCursor.Render(oneCell(s.CursorGlyph)),
+		errorMark:     s.ErrorMark.Render(oneCell(s.ErrorGlyph)),
+		warningMark:   s.WarningMark.Render(warningGlyph),
+		noticeMark:    s.NoticeMark.Render(noticeGlyph),
+		ellipsis:      s.Ellipsis,
+		ellipsisWidth: ansi.StringWidth(s.Ellipsis),
 	}
 	e.kinds[Plain] = newPair(s.Text)
 	e.kinds[Group] = newPair(s.Group)

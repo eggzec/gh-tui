@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"unicode"
 
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -233,5 +234,39 @@ func TestErrorTextWordedOnce(t *testing.T) {
 	}
 	if calls != 1 {
 		t.Errorf("asked for the words %d times, want once", calls)
+	}
+}
+
+// The cursor, the marks of folds and the ellipsis of cut text are the
+// glyphs of the styles, so a view with ASCII glyphs draws ASCII alone.
+func TestViewGlyphs(t *testing.T) {
+	st := DefaultStyles(true)
+	st.CursorGlyph, st.OpenGlyph, st.ClosedGlyph, st.Ellipsis = ">", "-", "+", "..."
+	st.ErrorGlyph = "x"
+	lines := []Line{
+		{Kind: Group, Text: "a group with a title too long to fit"},
+		{Text: "inside"},
+		{Kind: EndGroup},
+		{Kind: Error, Text: "boom"},
+	}
+	m := New(WithSize(32, 5), WithLineNumbers(false), WithStyles(st))
+	m.Focus()
+	m.SetLines(lines, []Section{{Title: "a step with a title too long to fit", Start: 0, End: 4}})
+	m.ExpandAll()
+	open := ansi.Strip(m.View())
+	m.CollapseAll()
+	closed := ansi.Strip(m.View())
+	for _, want := range []string{">  - a step with a title too ...", "     - a group with a title t...", " x   boom"} {
+		if !strings.Contains(open, want) {
+			t.Errorf("expanded view lacks %q:\n%s", want, open)
+		}
+	}
+	if want := ">  + a step with a title too ..."; !strings.Contains(closed, want) {
+		t.Errorf("collapsed view lacks %q:\n%s", want, closed)
+	}
+	for _, v := range []string{open, closed} {
+		if strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
+			t.Errorf("view has glyphs beyond ASCII:\n%s", v)
+		}
 	}
 }
