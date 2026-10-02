@@ -190,7 +190,7 @@ func (s *Section) show(state core.State, query string) tea.Cmd {
 	}
 	s.tab = state
 	if query != s.query {
-		s.query, s.chips = query, ui.Chips(query)
+		s.query, s.chips = query, ui.Chips(query, s.icons.Separator)
 	}
 	s.others.Opened(s.listQuery(s.tab))
 	return s.newFeed()

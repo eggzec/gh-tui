@@ -48,9 +48,9 @@ func Without(query string, drop func(filterform.Token) bool) string {
 }
 
 // Chips returns the filters of query as short chips for a pane's title,
-// such as "@me · bug" for author:@me label:bug: a label by its name, an
-// author as @login, and the rest as written.
-func Chips(query string) string {
+// apart by sep, such as "@me · bug" for author:@me label:bug: a label by
+// its name, an author as @login, and the rest as written.
+func Chips(query, sep string) string {
 	toks := filterform.Tokenize(query)
 	chips := make([]string, 0, len(toks))
 	for _, t := range toks {
@@ -63,5 +63,5 @@ func Chips(query string) string {
 			chips = append(chips, t.Raw)
 		}
 	}
-	return strings.Join(chips, " · ")
+	return strings.Join(chips, sep)
 }
