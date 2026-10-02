@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/eggzec/gh-tui/pkg/bubbles/errline"
 	"github.com/eggzec/gh-tui/pkg/markdown"
 )
 
@@ -184,30 +185,18 @@ func (m *Model[T]) appendChunk(lines []string, c *chunk[T]) []string {
 	return lines
 }
 
-// errorLine renders a failed fetch as a status line: the mark and the
-// text, then the separator and the hint, which is kept whole and the text cut
-// before it, unless the width can't hold it at all. An empty text shows
-// the hint alone, and nothing at all shows a blank line.
+// errorLine renders a failed fetch as a status line, as errline.Line
+// does: the hint is kept whole and the text cut before it. Nothing at all
+// shows a blank line.
 func (m *Model[T]) errorLine(s said) string {
-	if s.text == "" {
-		if s.hint == "" {
-			return m.blank
-		}
-		return m.fit(statusIndent + m.styles.Hint.Render(s.hint))
+	if s.text == "" && s.hint == "" {
+		return m.blank
 	}
-	text, tail := m.styles.ErrorGlyph+" "+s.text, ""
-	if s.hint != "" {
-		tail = m.styles.ErrorSeparator + s.hint
+	st := errline.Styles{
+		Mark: m.styles.ErrorGlyph, Separator: m.styles.ErrorSeparator, Ellipsis: m.styles.ErrorEllipsis,
+		Text: m.styles.Error, Hint: m.styles.Hint,
 	}
-	room := m.width - len(statusIndent) - ansi.StringWidth(tail)
-	if tail != "" && ansi.StringWidth(text) > room {
-		if room < ansi.StringWidth(m.styles.ErrorGlyph)+2 {
-			// Too narrow for any of the text beside the hint.
-			return m.fit(statusIndent + m.styles.Hint.Render(s.hint))
-		}
-		text = ansi.Truncate(text, room, m.styles.ErrorEllipsis)
-	}
-	return m.fit(statusIndent + m.styles.Error.Render(text) + m.styles.Hint.Render(tail))
+	return m.fit(statusIndent + errline.Line(st, s.text, s.hint, m.width-len(statusIndent)))
 }
 
 // anchor is a reading position that survives a new layout: a line within a

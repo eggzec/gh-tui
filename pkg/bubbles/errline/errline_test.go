@@ -59,3 +59,54 @@ func TestWrap(t *testing.T) {
 		}
 	}
 }
+
+func TestLine(t *testing.T) {
+	st := Styles{Mark: "x", Separator: " - ", Ellipsis: "..."}
+	tests := []struct {
+		name       string
+		text, hint string
+		width      int
+		want       string
+	}{
+		{"whole", "Can't reach GitHub", "r to retry", 40, "x Can't reach GitHub - r to retry"},
+		{"text cut before the hint", "Can't reach GitHub", "r to retry", 26, "x Can't re... - r to retry"},
+		{"no room beside the hint", "Can't reach GitHub", "r to retry", 14, "r to retry"},
+		{"no hint", "Can't reach GitHub", "", 12, "x Can't r..."},
+		{"no text", "", "r to retry", 20, "r to retry"},
+		{"nothing", "", "", 20, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ansi.Strip(Line(st, tt.text, tt.hint, tt.width)); got != tt.want {
+				t.Errorf("Line = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFit(t *testing.T) {
+	st := Styles{Mark: "✗", Separator: " · ", Ellipsis: "…"}
+	tests := []struct {
+		name          string
+		text, hint    string
+		width, height int
+		want          []string
+	}{
+		{"one line keeps the hint", "Can't reach GitHub", "r to retry", 24, 1, []string{"✗ Can't re… · r to retry"}},
+		{"the hint takes a line", "one two three four five", "r to retry", 12, 3, []string{"✗ one two", "  three fou…", "  r to retry"}},
+		{"no hint", "one two three four five", "", 12, 2, []string{"✗ one two", "  three fou…"}},
+		{"no text", "", "r to retry", 20, 2, nil},
+		{"no room", "Can't reach GitHub", "", 20, 0, nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := Fit(st, tt.text, tt.hint, tt.width, tt.height)
+			for i := range got {
+				got[i] = ansi.Strip(got[i])
+			}
+			if !slices.Equal(got, tt.want) {
+				t.Errorf("Fit = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
