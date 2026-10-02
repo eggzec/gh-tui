@@ -189,9 +189,9 @@ func (e *entry) sendSeq() string {
 
 // Images draws images with kitty's Unicode placeholders, when the
 // terminal shows them: the avatars of people and of the owners of
-// repositories, when the config wants them, and image files of
-// repositories. Every section shares one, since the terminal knows the
-// images of the whole app by IDs from one pool.
+// repositories, when the config wants them, image files of repositories,
+// and the images of comments and bodies. Every section shares one, since
+// the terminal knows the images of the whole app by IDs from one pool.
 //
 // An image is drawn as text: cells that name it, which the terminal fills
 // with it. The image is sent once, out of band, through tea.Raw, never in
@@ -218,8 +218,10 @@ func (e *entry) sendSeq() string {
 type Images struct {
 	ctx   context.Context
 	fetch ImageFetch
-	// avatars is the config's images.avatars.
+	// avatars is the config's images.avatars, and maxRows its
+	// images.max_rows.
 	avatars bool
+	maxRows int
 	g       Graphics
 	pool    *termimg.Pool
 	byKey   map[string]*entry
@@ -262,10 +264,47 @@ func (a *Images) Shown() bool {
 	return a.drawing() && a.avatars
 }
 
-// FilesShown reports whether image files are drawn: the terminal shows
-// images.
-func (a *Images) FilesShown() bool {
+// Drawing reports whether images other than avatars are drawn, such as
+// image files and the images of markdown: the terminal shows images.
+func (a *Images) Drawing() bool {
 	return a.drawing()
+}
+
+// SetMaxRows sets the tallest the images of markdown may be, in rows: the
+// config's images.max_rows.
+func (a *Images) SetMaxRows(n int) {
+	if a != nil {
+		a.maxRows = n
+	}
+}
+
+// PictureRows returns the tallest the images of markdown are drawn in a
+// view of height rows: at most the config's images.max_rows, and never
+// taller than the view less two rows, so one never fills it. It returns 0
+// when images aren't drawn.
+func (a *Images) PictureRows(height int) int {
+	if !a.drawing() {
+		return 0
+	}
+	rows := max(height-2, 1)
+	if a.maxRows > 0 {
+		rows = min(rows, a.maxRows)
+	}
+	return rows
+}
+
+// Pictures returns what draws the images of markdown on the web, fitted
+// to the room the markdown gives them and at most rows tall, as
+// PictureRows says, or nil for 0 rows, so markdown renders as it does
+// without images.
+func (a *Images) Pictures(rows int) func(url string, width int) []string {
+	if rows <= 0 || !a.drawing() {
+		return nil
+	}
+	return func(url string, width int) []string {
+		lines, _ := a.Fit(ImageSource{URL: url}, ImageSize{Cols: width, Rows: rows})
+		return lines
+	}
 }
 
 // Line returns the avatar at addr, the address GitHub gave for it, in a
@@ -304,14 +343,14 @@ func (a *Images) Box(addr string, size ImageSize) []string {
 	return lines
 }
 
-// Fit returns the lines of the image file src, scaled down to fit in size
+// Fit returns the lines of the image of src, scaled down to fit in size
 // cells, its aspect kept: as many lines, of as many cells, as the image
 // takes once it arrived, or none until then. The state says which, so the
 // caller can show what it showed without images instead, until the image
 // arrives or when it fails. Like those of Box, the lines must reach the
 // terminal as they are.
 func (a *Images) Fit(src ImageSource, size ImageSize) ([]string, ImageState) {
-	if !a.FilesShown() || !src.file() {
+	if !a.drawing() || !src.file() && src.URL == "" {
 		return nil, ImageOff
 	}
 	size = ImageSize{Cols: min(max(size.Cols, 1), termimg.MaxCells), Rows: min(max(size.Rows, 1), termimg.MaxCells)}

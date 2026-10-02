@@ -93,6 +93,9 @@ type detailModal struct {
 	icons         ui.Icons
 	dates         ui.Dates
 	avatars       *ui.Images
+	// picRows is the tallest the thread draws the images of markdown,
+	// or 0 while it draws none.
+	picRows int
 }
 
 // openDetail opens a modal on pull request number of repo, on its checks
@@ -162,6 +165,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 		thread.WithErrorText(ui.ErrorText("load the comments", core.Target{Repo: repo, Number: number}.String(), v)),
 	)
 	m.thread.SetCutHint(ui.OpenHint(s.keys.Open))
+	m.drawPictures()
 	switch d, ok := svc.CachedGet(repo, number); {
 	case ok:
 		m.detail, m.loaded = d, true
@@ -222,6 +226,7 @@ func (m *detailModal) Link() string { return m.detail.URL }
 func (m *detailModal) SetSize(width, height int) {
 	m.width, m.height = max(width, 0), max(height, 0)
 	m.thread.SetSize(m.width, m.height)
+	m.drawPictures()
 	if m.checks != nil {
 		m.checks.SetSize(m.width, m.height)
 	}
@@ -358,7 +363,9 @@ func (m *detailModal) updateDetail(msg tea.Msg) tea.Cmd {
 	case ui.OnlineMsg:
 		return m.online()
 	case ui.ImagesMsg:
-		m.thread.Redraw()
+		if !m.drawPictures() {
+			m.thread.Redraw()
+		}
 		return nil
 	}
 	var cmd tea.Cmd
@@ -617,4 +624,19 @@ func (m *detailModal) renderComment(c core.Comment, width int) string {
 		b.WriteString(markdown.Indent(body, bar))
 	}
 	return b.String()
+}
+
+// drawPictures has the thread draw the images of the body and comments
+// that stand alone on their lines, where images are drawn, at most as
+// tall as the modal's height allows, and reports whether that changed.
+// Only the bodies whose pictures change render again, and where images
+// aren't drawn the markdown is as without them.
+func (m *detailModal) drawPictures() bool {
+	rows := m.avatars.PictureRows(m.height)
+	if rows == m.picRows {
+		return false
+	}
+	m.picRows = rows
+	m.thread.SetPictures(m.avatars.Pictures(rows))
+	return true
 }
