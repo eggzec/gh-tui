@@ -94,6 +94,49 @@ func TestQuotesFitTheWidth(t *testing.T) {
 	}
 }
 
+// A quote of any shape fits the width with each of its lines behind its
+// bar: nested deep, holding a list, a heading, code, a table or an alert,
+// inside a list item, or holding words too long to wrap. A line glamour
+// draws a cell too wide is wrapped again, so its last word would end up
+// on a line of its own, outside the quote.
+func TestQuotesOfEveryShapeFitTheWidth(t *testing.T) {
+	words := strings.Repeat("lorem ipsum dolor sit amet consectetur adipiscing elit ", 6)
+	srcs := map[string]string{
+		"nested twice":       "> > " + words,
+		"nested four deep":   "> > > > " + words,
+		"nested and back":    "> a\n>\n> > " + words + "\n>\n> back " + words,
+		"holding a list":     "> - " + words + "\n> - " + words,
+		"holding a task":     "> - [ ] " + words,
+		"holding numbers":    "> 1. " + words,
+		"in a list item":     "- item\n\n  > " + words,
+		"holding a heading":  "> # " + words,
+		"holding an address": "> # https://example.com/" + strings.Repeat("path/", 30),
+		"holding code":       "> ```\n> " + words + "\n> ```",
+		"holding a table":    "> | a | b |\n> |---|---|\n> | " + words + " | x |",
+		"an alert":           "> [!NOTE]\n> " + words,
+		"broken by hand":     "> " + strings.ReplaceAll(words, " ", "\n> "),
+		"emphasis":           "> **" + words + "** _" + words + "_",
+		"one long word":      "> " + strings.Repeat("x", 300),
+		"wide characters":    "> " + strings.Repeat("漢字かな ", 40),
+	}
+	r := New(DefaultStyle(true))
+	for name, src := range srcs {
+		for _, width := range []int{6, 7, 12, 19, 20, 33, 40, 41, 79, 80, 120} {
+			for l := range strings.SplitSeq(r.Render(src, width), "\n") {
+				if w := xansi.StringWidth(l); w > width {
+					t.Errorf("%s at %d cells: a line is %d wide: %q", name, width, w, xansi.Strip(l))
+				}
+				p := strings.TrimLeft(xansi.Strip(l), " ")
+				// The list item's own line comes before its quote.
+				item := name == "in a list item" && p == "• item"
+				if p != "" && !item && !strings.HasPrefix(p, "│") {
+					t.Errorf("%s at %d cells: a line of the quote is %q, want it behind its bar", name, width, p)
+				}
+			}
+		}
+	}
+}
+
 func TestQuoteBars(t *testing.T) {
 	q := quoteToken
 	tests := []struct{ in, want string }{

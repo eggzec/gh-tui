@@ -4,10 +4,12 @@ import (
 	"image/color"
 	"math"
 	"reflect"
+	"strings"
 	"testing"
 
 	"charm.land/glamour/v2/ansi"
 	"charm.land/lipgloss/v2"
+	xansi "github.com/charmbracelet/x/ansi"
 )
 
 // TestLightCodeReads checks that every color of code on a light terminal
@@ -55,4 +57,21 @@ func luminance(c color.Color) float64 {
 		return math.Pow((s+0.055)/1.055, 2.4)
 	}
 	return 0.2126*lin(r) + 0.7152*lin(g) + 0.0722*lin(b)
+}
+
+// A title holding a word too long for a line, such as an address, is
+// broken within the width, in either style.
+func TestTitlesFitTheWidth(t *testing.T) {
+	for _, dark := range []bool{true, false} {
+		r := New(DefaultStyle(dark))
+		for _, src := range []string{"# " + strings.Repeat("x", 100), "# https://example.com/" + strings.Repeat("path/", 30)} {
+			for _, width := range []int{8, 20, 40, 80} {
+				for l := range strings.SplitSeq(r.Render(src, width), "\n") {
+					if w := xansi.StringWidth(l); w > width {
+						t.Errorf("dark %t at %d cells: a line of %.20q… is %d wide: %q", dark, width, src, w, xansi.Strip(l))
+					}
+				}
+			}
+		}
+	}
 }

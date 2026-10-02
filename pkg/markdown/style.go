@@ -23,6 +23,12 @@ func DefaultStyle(isDark bool) ansi.StyleConfig {
 	for _, h := range []*ansi.StyleBlock{&s.H2, &s.H3, &s.H4, &s.H5, &s.H6} {
 		h.Prefix = ""
 	}
+	// The wrap glamour gives a title keeps the space before it on the line
+	// of a word too long for one, so the line came out a cell wider than
+	// the width, and in a quote the quote's own wrap then pushed what
+	// didn't fit out from behind the bar. A space that doesn't break is
+	// part of the word, and the wrap breaks it within the width.
+	s.H1.Prefix = "\u00a0"
 	s.ImageText.Format = "🖼 {{.text}}"
 	s.Image.Format = "({{.text}})"
 	// Glamour counts a quote's indent as its Indent cells, however wide
