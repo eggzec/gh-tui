@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"testing"
 	"testing/synctest"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -172,9 +171,6 @@ func TestNextAndPrevKeysOnEachScreen(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
-				// Let the clock that regexp2 starts for the highlighting
-				// run out, so the bubble ends with nothing left running.
-				defer time.Sleep(time.Hour)
 				m := newKeysApp(t, tt.repo)
 				for _, k := range tt.keys {
 					msg, _ := keyPress(k)

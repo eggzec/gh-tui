@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 	"testing/synctest"
-	"time"
 
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 )
@@ -126,10 +125,6 @@ func TestCollisions(t *testing.T) {
 	found := map[collision]bool{}
 	for _, c := range keyContexts() {
 		synctest.Test(t, func(t *testing.T) {
-			// Let the clock that regexp2 starts for the highlighting run
-			// out, so the bubble ends with nothing left running, even
-			// when the context fails.
-			defer time.Sleep(time.Hour)
 			for _, col := range collisionsOf(c.name, c.layers(t)) {
 				found[col] = true
 			}
