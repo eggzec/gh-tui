@@ -33,6 +33,12 @@ type rename struct {
 	// note says what changed besides the name, such as a count that now
 	// leaves out the row under the cursor, or is empty.
 	note string
+	// switches are the new paths that are on switches true by default.
+	// At the top level of a file a true there adds nothing to what they
+	// inherit, and would hide a later prefetch.enabled: false, so it is
+	// not moved; below it, in a host or a profile, true overrides a
+	// false above, so it moves.
+	switches []string
 	// move returns the values of the new paths, by path, from those of the
 	// old ones that the file has, by path: at least one. It may leave out
 	// a new path, but not return one that new doesn't list, nor a nil
@@ -62,9 +68,18 @@ var renames = slices.Concat([]rename{
 			return map[string]*yaml.Node{"ui.date_format": old["history.date_format"]}, nil
 		},
 	},
-	renameTo("files.prefetch.enabled", "prefetch.files.preview.enabled"),
+	{
+		old: []string{"files.prefetch.enabled"}, new: []string{"prefetch.files.preview.enabled"},
+		note:     "it now also follows prefetch.enabled and prefetch.files.enabled",
+		switches: []string{"prefetch.files.preview.enabled"},
+		move:     switchMove("files.prefetch.enabled", "prefetch.files.preview.enabled"),
+	},
 	renameTo("files.prefetch.max_size", "prefetch.files.preview.max_size"),
-	restRename("files.prefetch.hover_delay", "prefetch.files.rest"),
+	{
+		old: []string{"files.prefetch.hover_delay"}, new: []string{"prefetch.files.rest"},
+		note: "it no longer sets the finder's rest, which is prefetch.finder.rest",
+		move: restMove("files.prefetch.hover_delay", "prefetch.files.rest"),
+	},
 	{
 		old: []string{"history.prefetch.around"}, new: []string{"prefetch.history.window.before", "prefetch.history.window.after"},
 		note: "the commits on each side of the cursor",
@@ -78,9 +93,10 @@ var renames = slices.Concat([]rename{
 		// The lists, the notifications and the dashboard read details
 		// ahead under one switch, and the other tabs under another that
 		// needed it.
-		old:  []string{"details.prefetch.enabled", "details.prefetch.filters"},
-		new:  append(slices.Clone(detailsFollowers), "prefetch.pulls.other_tabs.enabled", "prefetch.issues.other_tabs.enabled"),
-		move: moveDetailsEnabled,
+		old:      []string{"details.prefetch.enabled", "details.prefetch.filters"},
+		new:      append(slices.Clone(detailsFollowers), "prefetch.pulls.other_tabs.enabled", "prefetch.issues.other_tabs.enabled"),
+		switches: append(slices.Clone(detailsFollowers), "prefetch.pulls.other_tabs.enabled", "prefetch.issues.other_tabs.enabled"),
+		move:     moveDetailsEnabled,
 	},
 	{
 		old:  []string{"details.prefetch.rows"},
@@ -96,24 +112,24 @@ var renames = slices.Concat([]rename{
 	},
 	// Waiting on you's switch moved into the layers of prefetch.
 	{
-		old:  []string{"dashboard.prefetch"},
-		new:  []string{"prefetch.dashboard.waiting_on_you.enabled"},
-		note: "its window is read again each time the cursor rests",
-		move: func(old map[string]*yaml.Node) (map[string]*yaml.Node, error) {
-			on, err := boolNode(old["dashboard.prefetch"])
-			if err != nil {
-				return nil, err
-			}
-			if on {
-				// It was on by default, and read only while the details
-				// were read ahead too, so on it adds nothing to what the
-				// pane inherits.
-				return nil, nil
-			}
-			return map[string]*yaml.Node{"prefetch.dashboard.waiting_on_you.enabled": old["dashboard.prefetch"]}, nil
-		},
+		old:      []string{"dashboard.prefetch"},
+		new:      []string{"prefetch.dashboard.waiting_on_you.enabled"},
+		note:     "it now also follows prefetch.enabled, and the pane reads its window again each time the cursor rests",
+		switches: []string{"prefetch.dashboard.waiting_on_you.enabled"},
+		move:     switchMove("dashboard.prefetch", "prefetch.dashboard.waiting_on_you.enabled"),
 	},
 }, cacheRenames)
+
+// switchMove returns the move of a switch from to the switch to, which is
+// refused when it isn't true or false.
+func switchMove(from, to string) func(map[string]*yaml.Node) (map[string]*yaml.Node, error) {
+	return func(v map[string]*yaml.Node) (map[string]*yaml.Node, error) {
+		if _, err := boolNode(v[from]); err != nil {
+			return nil, err
+		}
+		return map[string]*yaml.Node{to: v[from]}, nil
+	}
+}
 
 // renameTo moves the value of the setting from to the setting to.
 func renameTo(from, to string) rename {
@@ -126,7 +142,12 @@ func renameTo(from, to string) rename {
 // is the default of prefetch.rest, which the page then takes from there,
 // so that changing prefetch.rest changes the page too.
 func restRename(from, to string) rename {
-	return rename{old: []string{from}, new: []string{to}, move: func(v map[string]*yaml.Node) (map[string]*yaml.Node, error) {
+	return rename{old: []string{from}, new: []string{to}, move: restMove(from, to)}
+}
+
+// restMove returns the move of restRename.
+func restMove(from, to string) func(map[string]*yaml.Node) (map[string]*yaml.Node, error) {
+	return func(v map[string]*yaml.Node) (map[string]*yaml.Node, error) {
 		d, err := time.ParseDuration(v[from].Value)
 		if err != nil {
 			return nil, errors.New("want a duration such as 150ms")
@@ -135,7 +156,7 @@ func restRename(from, to string) rename {
 			return map[string]*yaml.Node{}, nil
 		}
 		return map[string]*yaml.Node{to: v[from]}, nil
-	}}
+	}
 }
 
 // detailsFollowers are the pages and kinds that read details ahead under
@@ -147,32 +168,26 @@ var detailsFollowers = []string{
 	"prefetch.dashboard.waiting_on_you.enabled", "prefetch.dashboard.inbox.enabled",
 }
 
-// moveDetailsEnabled moves details.prefetch.enabled: false to every page
-// and kind that followed it, and details.prefetch.filters: false to the
-// other tabs. true moves nowhere: it was the default, so the knobs keep
-// following the layers above, and a later prefetch.enabled: false still
-// turns them off.
+// moveDetailsEnabled moves details.prefetch.enabled to every page and kind
+// that followed it, and details.prefetch.filters to the other tabs. At the
+// top level, migrate leaves out a true: it was the default, so the knobs
+// keep following the layers above, and a later prefetch.enabled: false
+// still turns them off.
 func moveDetailsEnabled(v map[string]*yaml.Node) (map[string]*yaml.Node, error) {
 	out := map[string]*yaml.Node{}
 	if on, ok := v["details.prefetch.enabled"]; ok {
-		enabled, err := boolNode(on)
-		if err != nil {
+		if _, err := boolNode(on); err != nil {
 			return nil, err
 		}
-		if !enabled {
-			for _, p := range detailsFollowers {
-				out[p] = on
-			}
+		for _, p := range detailsFollowers {
+			out[p] = on
 		}
 	}
 	if filters, ok := v["details.prefetch.filters"]; ok {
-		tabs, err := boolNode(filters)
-		if err != nil {
+		if _, err := boolNode(filters); err != nil {
 			return nil, err
 		}
-		if !tabs {
-			out["prefetch.pulls.other_tabs.enabled"], out["prefetch.issues.other_tabs.enabled"] = filters, filters
-		}
+		out["prefetch.pulls.other_tabs.enabled"], out["prefetch.issues.other_tabs.enabled"] = filters, filters
 	}
 	return out, nil
 }
@@ -294,8 +309,9 @@ func RenamedWarning(renamed []Renamed) string {
 // to their new names, and returns them, one for each old name the file
 // has. A file that sets both an old name and a new one is refused, since
 // it would be unclear which the user meant; so is one with an old name
-// whose release has passed, with an error that names the new ones.
-func migrate(root *yaml.Node, table []rename) ([]Renamed, error) {
+// whose release has passed, with an error that names the new ones. top is
+// whether root is the top level of the file, not a host or a profile.
+func migrate(root *yaml.Node, table []rename, top bool) ([]Renamed, error) {
 	type match struct {
 		r      rename
 		keys   map[string]*yaml.Node
@@ -324,6 +340,15 @@ func migrate(root *yaml.Node, table []rename) ([]Renamed, error) {
 				}
 			}
 		} else if m.values, m.err = r.move(m.vals); m.err == nil {
+			if top {
+				for _, p := range r.switches {
+					if n, ok := m.values[p]; ok {
+						if on, err := boolNode(n); err == nil && on {
+							delete(m.values, p)
+						}
+					}
+				}
+			}
 			// Only the paths that move gives are fed by the file's old
 			// names, so only they can clash with a new name it sets.
 			for _, p := range r.new {
@@ -342,7 +367,8 @@ func migrate(root *yaml.Node, table []rename) ([]Renamed, error) {
 		return nil, errors.Join(errs...)
 	}
 	var out []Renamed
-	for _, m := range found {
+	for i := range found {
+		m := &found[i]
 		first := m.keys[m.r.old[slices.IndexFunc(m.r.old, func(o string) bool { return m.keys[o] != nil })]]
 		values := m.values
 		if m.err != nil {
