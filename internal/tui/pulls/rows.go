@@ -10,6 +10,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // headerHeight is the height of the line above the list that names the
@@ -85,6 +86,8 @@ func (c columns) fixed() int {
 // per theme.
 type styles struct {
 	theme ui.Theme
+	// ic draws the separators, arrows, signs and ellipses.
+	ic ui.Icons
 
 	title, selected, author, age lipgloss.Style
 
@@ -125,6 +128,7 @@ func newStyles(t ui.Theme, icons ui.Icons) styles {
 		badges:         badges,
 		number:         newPaint(t.Muted),
 		theme:          t,
+		ic:             icons,
 		title:          t.Text,
 		selected:       t.Title,
 		author:         t.Muted,
@@ -152,7 +156,7 @@ func newStyles(t ui.Theme, icons ui.Icons) styles {
 		label:         t.Muted,
 		rule:          t.Subtle,
 		commenter:     t.Title,
-		bar:           t.Subtle.Render("│ "),
+		bar:           t.Subtle.Render(icons.Border.Left + " "),
 	}
 }
 
@@ -227,7 +231,7 @@ func (s *Section) renderRow(pr core.PullRequest, selected bool, width int) strin
 	pad(&link, ui.NumberWidth+over-len(num)+1)
 
 	tcells := max(c.title-over, 0)
-	title, tw := truncate(pr.Title, tcells)
+	title, tw := truncate(pr.Title, tcells, st.ic.Ellipsis)
 	ts := st.rowTitle
 	if selected {
 		ts = st.rowSelected
@@ -246,7 +250,7 @@ func (s *Section) renderRow(pr core.PullRequest, selected bool, width int) strin
 	}
 	if c.diff {
 		pad(&b, 2)
-		adds, dels := "+"+compact(pr.Additions), "−"+compact(pr.Deletions)
+		adds, dels := "+"+compact(pr.Additions), st.ic.Minus+compact(pr.Deletions)
 		half := (diffWidth - 1) / 2
 		pad(&b, half-len(adds))
 		st.diff.write(&b, adds)
@@ -260,7 +264,7 @@ func (s *Section) renderRow(pr core.PullRequest, selected bool, width int) strin
 	}
 	if c.author {
 		pad(&b, 2)
-		login, lw := truncate(ui.OneLine(pr.Author.Login), authorWidth)
+		login, lw := truncate(ui.OneLine(pr.Author.Login), authorWidth, st.ic.Ellipsis)
 		st.rowAuthor.write(&b, login)
 		pad(&b, authorWidth-lw)
 	}
@@ -291,25 +295,25 @@ func (st *styles) writeLabels(b *strings.Builder, labels []core.Label) {
 	more := ""
 	switch n := len(labels) - 1; {
 	case n > 9:
-		more = " +…"
+		more = " +" + termtext.Truncate(st.ic.Ellipsis, 1, "")
 	case n > 0:
 		more = " +" + strconv.Itoa(n)
 	}
-	mw := utf8.RuneCountInString(more)
-	name, w := truncate(labels[0].Name, labelsWidth-mw)
+	mw := ansi.StringWidth(more)
+	name, w := truncate(labels[0].Name, labelsWidth-mw, st.ic.Ellipsis)
 	st.rowLabel.write(b, name)
 	st.rowAge.write(b, more)
 	pad(b, labelsWidth-w-mw)
 }
 
-// truncate cuts s, text from GitHub, to at most width cells with an
-// ellipsis, on one line, and returns it with its width. Most titles are
-// printable ASCII, which it measures without the cost of finding grapheme
-// clusters, and which needs no cleaning.
-func truncate(s string, width int) (cut string, cutWidth int) {
+// truncate cuts s, text from GitHub, to at most width cells ending in
+// tail, an ellipsis, on one line, and returns it with its width. Most
+// titles are printable ASCII, which it measures without the cost of
+// finding grapheme clusters, and which needs no cleaning.
+func truncate(s string, width int, tail string) (cut string, cutWidth int) {
 	for i := range len(s) {
 		if s[i] >= utf8.RuneSelf || s[i] < ' ' || s[i] == 0x7f {
-			t := ansi.Truncate(ui.OneLine(s), width, "…")
+			t := termtext.Truncate(ui.OneLine(s), width, tail)
 			return t, ansi.StringWidth(t)
 		}
 	}
@@ -319,7 +323,10 @@ func truncate(s string, width int) (cut string, cutWidth int) {
 	if width <= 0 {
 		return "", 0
 	}
-	return s[:width-1] + "…", width
+	if tw := ansi.StringWidth(tail); tw <= width {
+		return s[:width-tw] + tail, width
+	}
+	return s[:width], width
 }
 
 // compact writes n in at most four characters, such as 12, 1.2k or 34k.
@@ -370,7 +377,7 @@ func (s *Section) renderHeader() {
 	var right strings.Builder
 	for i, t := range tabs {
 		if i > 0 {
-			right.WriteString(st.sep.Render(" · "))
+			right.WriteString(st.sep.Render(st.ic.Separator))
 		}
 		if t.state == s.tab {
 			right.WriteString(st.filterOn.Render(t.label))
@@ -391,7 +398,7 @@ func (s *Section) renderHeader() {
 		s.header = left + strings.Repeat(" ", gap) + st.filterOn.Render(label)
 		return
 	}
-	s.header = ansi.Truncate(left, s.width, "…")
+	s.header = termtext.Truncate(left, s.width, st.ic.Ellipsis)
 	s.header += strings.Repeat(" ", s.width-ansi.StringWidth(s.header))
 }
 
