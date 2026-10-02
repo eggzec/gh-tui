@@ -36,8 +36,9 @@ type cards struct {
 }
 
 // set lists pinned after the repository of the current directory, which
-// takes the card of its pin if it has one.
-func (c *cards) set(pinned []core.Repo) {
+// takes the card of its pin if it has one, and reports whether that
+// changed the repositories listed.
+func (c *cards) set(pinned []core.Repo) bool {
 	var prev core.RepoRef
 	if c.sel < len(c.items) {
 		prev = c.items[c.sel].repo.Ref
@@ -58,9 +59,11 @@ func (c *cards) set(pinned []core.Repo) {
 			items = append(items, card{repo: pinned[i]})
 		}
 	}
+	changed := !slices.EqualFunc(c.items, items, func(a, b card) bool { return a.repo.Ref == b.repo.Ref })
 	c.items = items
 	c.sel = max(slices.IndexFunc(items, func(it card) bool { return it.repo.Ref.Same(prev) }), 0)
 	c.scroll()
+	return changed
 }
 
 // selected returns the card under the cursor.

@@ -318,6 +318,8 @@ func (t *repoTabs) setFilter(query string) tea.Cmd {
 		return nil
 	}
 	f := parseRepoFilter(query)
+	// The reads ahead of the list as it was filtered stop.
+	t.s.aheadRepos.Reset(t.s.ctx)
 	cmds := make([]tea.Cmd, 0, len(t.tabs))
 	for _, o := range t.tabs {
 		o.filter.Store(&f)

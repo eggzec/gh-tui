@@ -186,11 +186,17 @@ type Section struct {
 	ahead     *ui.Ahead[details.Key]
 	layers    config.PrefetchLayers
 	workAhead config.Resolved
-	keys      KeyMap
-	now       func() time.Time
-	voice     ui.Voice
-	glyph     string
-	icons     ui.Icons
+	// aheadRepos and aheadPinned read ahead, through landing, what
+	// opening the repositories around the cursors of the repositories and
+	// pinned panes reads first.
+	landing     Landing
+	aheadRepos  *ui.Ahead[core.RepoRef]
+	aheadPinned *ui.Ahead[core.RepoRef]
+	keys        KeyMap
+	now         func() time.Time
+	voice       ui.Voice
+	glyph       string
+	icons       ui.Icons
 	// dates tell when what the panes list was updated.
 	dates ui.Dates
 	// host is the web host of the user's GitHub, for the links it opens.
@@ -279,6 +285,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 	if s.opener == nil {
 		s.opener = threads.New(ctx)
 	}
+	s.newLandingAheads()
 	s.setPrefetch(s.layers)
 	s.cal = calendar.New(
 		calendar.WithGlyph(s.glyph),
@@ -361,13 +368,16 @@ func (s *Section) Focus() {
 }
 
 // Blur makes every pane ignore keys, and stops the reads ahead of the
-// inbox's threads and of the work, as the dashboard leaves the screen.
+// inbox's threads, of the work and of the repositories, as the dashboard
+// leaves the screen.
 func (s *Section) Blur() {
 	s.focused = false
 	s.opener.Stop()
 	// The notifications screen reads ahead as its own settings say.
 	s.opener.FollowInbox(false)
 	s.ahead.Reset(s.ctx)
+	s.aheadRepos.Reset(s.ctx)
+	s.aheadPinned.Reset(s.ctx)
 	s.repos.blur()
 	s.cal.Blur()
 	s.render()

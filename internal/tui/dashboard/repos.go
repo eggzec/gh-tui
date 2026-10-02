@@ -238,6 +238,8 @@ func (t *repoTabs) switchTab(delta int) tea.Cmd {
 	focused := t.current().feed.Focused()
 	t.current().feed.Blur()
 	t.cur = ((t.cur+delta)%n + n) % n
+	// The reads ahead of the list that left stop.
+	t.s.aheadRepos.Reset(t.s.ctx)
 	if focused {
 		t.current().feed.Focus()
 	}

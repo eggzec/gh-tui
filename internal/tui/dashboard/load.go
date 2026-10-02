@@ -158,7 +158,7 @@ func (s *Section) loaded(msg loadedMsg) tea.Cmd {
 	case kindHere:
 		if take(&s.hereRepo, msg) {
 			s.pinned.hereRepo = s.hereRepo.value
-			s.pinned.set(s.header.value.Pinned)
+			s.setPinned(s.header.value.Pinned)
 		}
 	}
 	return nil
@@ -185,6 +185,8 @@ func (s *Section) refresh() tea.Cmd {
 	s.svc.Invalidate()
 	s.opener.Resume()
 	s.ahead.Resume()
+	s.aheadRepos.Resume()
+	s.aheadPinned.Resume()
 	s.gen++
 	s.hereRepo.ok = false
 	return tea.Batch(s.load(), s.repos.reload())
@@ -267,7 +269,7 @@ func (s *Section) Revisit() tea.Cmd {
 
 func (s *Section) setHeader() {
 	h := s.header.value
-	s.pinned.set(h.Pinned)
+	s.setPinned(h.Pinned)
 	s.repos.setOrgs(h.Orgs, h.Profile.Login)
 }
 
