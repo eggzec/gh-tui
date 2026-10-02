@@ -201,13 +201,14 @@ func (m *Model) receive(msg loadedMsg) tea.Cmd {
 func (m *Model) openPicker(i int) tea.Cmd {
 	f := &m.spec.Fields[i]
 	var search picker.Search
-	placeholder := "Filter…"
+	ell := m.styles.Glyphs.Ellipsis
+	placeholder := "Filter" + ell
 	if f.Kind == Person {
-		placeholder = "Filter, or type a login…"
+		placeholder = "Filter, or type a login" + ell
 		if load := f.Load; load != nil {
 			search = func(ctx context.Context, q picker.Query) ([]picker.Item, error) {
 				items, err := load(ctx, q.Text)
-				return toPickerItems(items, nil, false), err
+				return toPickerItems(items, nil, false, m.styles.Glyphs), err
 			}
 		}
 	}
@@ -239,12 +240,12 @@ func (m *Model) openPicker(i int) tea.Cmd {
 
 // pickerItems returns field i's options as its picker lists them.
 func (m *Model) pickerItems(i int) []picker.Item {
-	return toPickerItems(m.items(i), m.state.values[i].list, m.spec.Fields[i].Kind == Multi)
+	return toPickerItems(m.items(i), m.state.values[i].list, m.spec.Fields[i].Kind == Multi, m.styles.Glyphs)
 }
 
 // toPickerItems returns items as a picker lists them. With marks, each is
-// marked by whether it is in chosen.
-func toPickerItems(items []Item, chosen []string, marks bool) []picker.Item {
+// marked by whether it is in chosen, with the glyphs g.
+func toPickerItems(items []Item, chosen []string, marks bool, g Glyphs) []picker.Item {
 	out := make([]picker.Item, len(items))
 	for j, it := range items {
 		title := it.Label
@@ -253,9 +254,9 @@ func toPickerItems(items []Item, chosen []string, marks bool) []picker.Item {
 		}
 		if marks {
 			if slices.Contains(chosen, it.Value) {
-				title = chosenMark + title
+				title = g.Chosen + " " + title
 			} else {
-				title = notChosenMark + title
+				title = g.NotChosen + " " + title
 			}
 		}
 		out[j] = picker.Item{Title: title, Detail: it.Detail, Value: it.Value}
