@@ -111,9 +111,9 @@ func TestPrefetchStopsAtRateLimit(t *testing.T) {
 	svc.mu.Lock()
 	svc.getErr = nil
 	svc.mu.Unlock()
-	// Once the limit lifts, the window is read again.
+	// Once the limit lifts, the window is read again, before the cursor
+	// moves.
 	run(t, h, h.Update(ui.OnlineMsg{}))
-	press(t, h, "down")
 	if got := len(svc.getCalls()); got == n {
 		t.Error("nothing was read ahead once the rate limit lifted")
 	}
