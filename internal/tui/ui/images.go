@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"maps"
 	"net/url"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -490,7 +491,7 @@ func (a *Images) Update(msg tea.Msg) (cmd tea.Cmd, redraw Redraw, handled bool) 
 		// asked for again once GitHub answers again (Online).
 		e.state, e.gone = imageFailed, m.err == nil || errors.Is(m.err, ErrImageGone)
 		if e.gone && m.err != nil {
-			slog.DebugContext(a.ctx, "image unavailable", "span", "tui", "host", hostOf(e.src.URL), "file", e.src.file(), "err", m.err.Error())
+			slog.DebugContext(a.ctx, "image unavailable", "span", "tui", "host", hostOf(e.src.URL), "file", e.src.file(), "err", hostsOnly(m.err.Error()))
 		}
 		if e.fit {
 			return nil, RedrawSoon, true
@@ -728,6 +729,28 @@ func hostOf(addr string) string {
 		return ""
 	}
 	return u.Host
+}
+
+// webAddr finds the addresses in a message, up to the space, quote or
+// bracket that ends them.
+var webAddr = regexp.MustCompile(`[A-Za-z][A-Za-z0-9+.-]*://[^\s"'<>]*`)
+
+// hostsOnly returns msg, such as a fetch's error, with each address in it
+// cut to its scheme and host, for the log: a path names an account, and a
+// query may hold a signature that lets anyone holding it read a private
+// image until it expires.
+func hostsOnly(msg string) string {
+	return webAddr.ReplaceAllStringFunc(msg, func(addr string) string {
+		scheme, rest, _ := strings.Cut(addr, "://")
+		authority := rest
+		if i := strings.IndexAny(rest, "/?#"); i >= 0 {
+			authority = rest[:i]
+		}
+		if i := strings.LastIndexByte(authority, '@'); i >= 0 {
+			authority = authority[i+1:]
+		}
+		return scheme + "://" + authority
+	})
 }
 
 func imageKey(src ImageSource, size ImageSize, fit bool) string {
