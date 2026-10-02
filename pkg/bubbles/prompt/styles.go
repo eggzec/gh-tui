@@ -28,6 +28,9 @@ type Styles struct {
 	Key lipgloss.Style
 	// Hint styles the text around the keys in the hint.
 	Hint lipgloss.Style
+	// Separator goes between the keys of the hint, and Ellipsis ends a
+	// line cut to the width. The defaults are " · " and "…".
+	Separator, Ellipsis string
 }
 
 // DefaultStyles returns calm styles for a light or dark terminal: plain
@@ -52,6 +55,8 @@ func DefaultStyles(isDark bool) Styles {
 		Cursor:       lipgloss.NewStyle().Foreground(accent),
 		Key:          lipgloss.NewStyle().Foreground(muted),
 		Hint:         lipgloss.NewStyle().Foreground(subtle),
+		Separator:    " · ",
+		Ellipsis:     "…",
 	}
 }
 

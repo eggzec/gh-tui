@@ -72,7 +72,7 @@ func (m *Model) renderHint() {
 			continue
 		}
 		if b.Len() > 0 {
-			b.WriteString(m.styles.Hint.Render(" · "))
+			b.WriteString(m.styles.Hint.Render(m.styles.Separator))
 		}
 		b.WriteString(m.styles.Key.Render(k.Help().Key))
 		b.WriteString(m.styles.Hint.Render(" " + k.Help().Desc))
@@ -93,7 +93,7 @@ func (m *Model) render() {
 
 	lines := make([]string, 0, h)
 	if title {
-		lines = append(lines, fit(m.styles.Title.Render(clean(m.title)), inner))
+		lines = append(lines, m.fit(m.styles.Title.Render(clean(m.title)), inner))
 	}
 	var editor string
 	if m.mode == SingleLine {
@@ -107,28 +107,29 @@ func (m *Model) render() {
 		if i < len(ed) {
 			l = ed[i]
 		}
-		lines = append(lines, fit(l, inner))
+		lines = append(lines, m.fit(l, inner))
 	}
 	if hint {
-		lines = append(lines, fit(m.hint, inner))
+		lines = append(lines, m.fit(m.hint, inner))
 	}
 
 	for i, l := range lines {
 		l = e.left + l + e.right
 		if inner == 0 {
 			// The frame alone is wider than a very narrow prompt.
-			l = fit(l, w)
+			l = m.fit(l, w)
 		}
 		lines[i] = l
 	}
 	m.view = strings.Join(lines, "\n")
 }
 
-// fit truncates or pads styled text to exactly width cells.
-func fit(s string, width int) string {
+// fit truncates styled text to exactly width cells, ending it with the
+// ellipsis where it cuts, or pads it.
+func (m *Model) fit(s string, width int) string {
 	w := ansi.StringWidth(s)
 	if w > width {
-		s = ansi.Truncate(s, width, "…")
+		s = termtext.Truncate(s, width, m.styles.Ellipsis)
 		w = ansi.StringWidth(s)
 	}
 	if w < width {
