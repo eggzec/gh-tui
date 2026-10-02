@@ -253,7 +253,7 @@ func queryOf(f core.RunFilter, wfs []core.Workflow) string {
 func (m *Modal) filterLines(w, h int) []string {
 	f := m.filterStep.form
 	if f == nil {
-		return ui.FitLines([]string{m.spin.View() + m.st.Muted.Render("Loading the workflows…")}, w, h)
+		return ui.FitLines([]string{m.spin.View() + m.st.Muted.Render("Loading the workflows"+m.st.ic.Ellipsis)}, w, h)
 	}
 	return ui.FitLines(strings.Split(f.View(), "\n"), w, h)
 }
