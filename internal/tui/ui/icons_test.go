@@ -1,8 +1,10 @@
 package ui
 
 import (
+	"maps"
 	"slices"
 	"testing"
+	"unicode"
 
 	"github.com/charmbracelet/x/ansi"
 
@@ -12,19 +14,32 @@ import (
 
 var iconSets = []string{config.IconsNerd, config.IconsUnicode, config.IconsASCII}
 
+// marks returns the glyphs of ic that mark something, each one cell wide.
+func marks(ic Icons) []string {
+	return slices.Concat([]string{
+		ic.Fork, ic.Private, ic.Archived, ic.Template, ic.Mirror, ic.Here, ic.Star, ic.Error, ic.Language(""),
+		ic.Yes, ic.No,
+	}, ic.states[:], ic.runs[:], slices.Collect(maps.Values(ic.langs)))
+}
+
 func TestIconsAreOneCellWide(t *testing.T) {
 	for _, set := range iconSets {
-		ic := NewIcons(set)
-		glyphs := []string{ic.Fork, ic.Private, ic.Archived, ic.Template, ic.Mirror, ic.Here, ic.Star, ic.Error, ic.Language("")}
-		for s := range NumStates {
-			glyphs = append(glyphs, ic.State(s))
-		}
-		for _, g := range ic.langs {
-			glyphs = append(glyphs, g)
-		}
-		for _, g := range glyphs {
+		for _, g := range marks(NewIcons(set)) {
 			if w := ansi.StringWidth(g); w != 1 || len([]rune(g)) != 1 {
 				t.Errorf("%s: glyph %q is %d cells wide, want 1", set, g, w)
+			}
+		}
+	}
+}
+
+// The ASCII set is ASCII alone, for terminals and fonts that draw nothing
+// else.
+func TestIconsASCII(t *testing.T) {
+	ic := NewIcons(config.IconsASCII)
+	for _, g := range append(marks(ic), ic.Separator, ic.Ellipsis) {
+		for _, r := range g {
+			if r > unicode.MaxASCII {
+				t.Errorf("glyph %q is not ASCII", g)
 			}
 		}
 	}

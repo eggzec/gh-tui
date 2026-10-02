@@ -427,7 +427,7 @@ func (m *Modal) renderHeader(w int) []string {
 		case config.FieldDate:
 			field("Date", m.st.text.Render(f.dates(k.Author.Date, k.Committer.Date, now)))
 		case config.FieldVerification:
-			text, ok, signed := verification(k.Verification)
+			text, ok, signed := f.verification(k.Verification)
 			st := m.st.muted
 			switch {
 			case ok:
