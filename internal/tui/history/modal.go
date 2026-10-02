@@ -174,7 +174,7 @@ func (m *Modal) Init() tea.Cmd {
 
 // Title names the repository.
 func (m *Modal) Title() string {
-	return "History · " + m.repo.String()
+	return "History" + m.opts.icons.Separator + m.repo.String()
 }
 
 // SetSize sizes the panes to the room inside the frame.
@@ -186,7 +186,7 @@ func (m *Modal) SetSize(width, height int) {
 // SetTheme styles the modal and the bubbles in it.
 func (m *Modal) SetTheme(t ui.Theme) {
 	m.theme = t
-	m.st = newStyles(t)
+	m.st = newStyles(t, m.opts.icons)
 	m.errs = t.Errors(m.opts.icons)
 	m.spin.Style = t.Accent
 	m.graph.model.SetStyles(t.Graph(m.opts.icons))
