@@ -27,7 +27,7 @@ func newStyles(t ui.Theme, ic ui.Icons) styles {
 		group:     t.Muted.Bold(true),
 		required:  t.Warning,
 		confirm:   t.Confirm(),
-		gutter:    t.Accent.Render("▌") + " ",
+		gutter:    t.Accent.Render(ic.Cursor) + " ",
 		noGutter:  "  ",
 	}
 }
