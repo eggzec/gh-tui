@@ -133,7 +133,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 		bodies:      ui.NewImageBodies(s.capsOf(repo).Private),
 		checksSvc:   s.checks,
 	}
-	m.theme, m.runSt, m.confirmSt = s.theme, ui.NewRunStyles(s.theme, s.icons), s.theme.Confirm()
+	m.theme, m.runSt, m.confirmSt = s.theme, ui.NewRunStyles(s.theme, s.icons), s.theme.Confirm(s.icons)
 	if s.checks != nil {
 		svc, keys := s.checks, s.rawKeys
 		opts := append(slices.Clone(s.checksOpts), checks.WithReturn(m), checks.WithIcons(s.icons), checks.WithClock(s.now))
@@ -166,7 +166,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 		thread.WithFocused(true),
 		thread.WithErrorText(ui.ErrorText("load the comments", core.Target{Repo: repo, Number: number}.String(), v)),
 	)
-	m.thread.SetCutHint(ui.OpenHint(s.keys.Open))
+	m.thread.SetCutHint(ui.OpenHint(s.icons, s.keys.Open))
 	m.drawPictures()
 	switch d, ok := svc.CachedGet(repo, number); {
 	case ok:
@@ -243,7 +243,7 @@ func (m *detailModal) SetTheme(t ui.Theme) {
 	m.theme = t
 	m.st = newStyles(t, m.icons)
 	m.runSt = ui.NewRunStyles(t, m.icons)
-	m.confirmSt = t.Confirm()
+	m.confirmSt = t.Confirm(m.icons)
 	m.thread.SetStyles(t.Thread(m.icons))
 	if m.checks != nil {
 		m.checks.SetTheme(t)
@@ -525,7 +525,7 @@ func (m *detailModal) KeyLayers() []keyhelp.Layer {
 
 // gate decides what the viewer may do in the repository.
 func (m *detailModal) gate() ui.Gate {
-	return ui.Gate{Repo: m.repo, Caps: m.caps, Token: m.token}
+	return ui.Gate{Repo: m.repo, Caps: m.caps, Token: m.token, Icons: m.icons}
 }
 
 // detailHeader renders the head of the pull request at width: the title,

@@ -294,6 +294,8 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 	for _, opt := range opts {
 		opt(s)
 	}
+	// Bubbles copy the voice, and read the icons through it.
+	s.voice.Icons = &s.icons
 	if s.opener == nil {
 		s.opener = threads.New(ctx)
 	}
@@ -371,6 +373,7 @@ func cellGlyph(glyph string, ic ui.Icons) string {
 
 // SetTheme builds the styles of the dashboard and restyles its bubbles.
 func (s *Section) SetTheme(t ui.Theme) {
+	s.voice.Icons = &s.icons
 	s.opener.SetIcons(s.icons)
 	s.theme = t
 	s.st = newStyles(t, s.icons)

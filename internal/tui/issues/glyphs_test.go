@@ -87,3 +87,22 @@ func TestRowASCII(t *testing.T) {
 		}
 	}
 }
+
+// With the ASCII icons the detail is ASCII apart from what GitHub wrote:
+// its header, the separators and marks of its comments, and its frame.
+func TestDetailASCII(t *testing.T) {
+	svc := newFakeService(sampleIssues(3))
+	svc.addComments(999, sampleComments(3)...)
+	h := started(t, svc, 80, 30, WithIcons(ui.NewIcons(config.IconsASCII)))
+	press(t, h, "down", "enter")
+	m := h.modal()
+	if m == nil {
+		t.Fatal("enter didn't open the issue")
+	}
+	// The markdown of the body and comments keeps code apart with spaces
+	// that don't break, as GitHub's renderer does.
+	v := strings.ReplaceAll(ansi.Strip(m.header(m.issue)+"\n"+m.View()), "\u00a0", " ")
+	if strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
+		t.Errorf("detail isn't ASCII:\n%s", v)
+	}
+}

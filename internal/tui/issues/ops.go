@@ -99,12 +99,12 @@ func (s *Section) setState(state core.State) tea.Cmd {
 	if !ok {
 		return refusal
 	}
-	return ui.OpenModal(ui.NewConfirmModal(c))
+	return ui.OpenModal(ui.NewConfirmModal(c, s.icons))
 }
 
 // gate decides what the viewer may do in the repository of the list.
 func (s *Section) gate() ui.Gate {
-	return ui.Gate{Repo: s.repo, Caps: s.caps, Viewer: s.viewer, Token: s.voice.Token}
+	return ui.Gate{Repo: s.repo, Caps: s.caps, Viewer: s.viewer, Token: s.voice.Token, Icons: s.icons}
 }
 
 // done reloads the list after a change this section or its modal sent, to

@@ -252,7 +252,7 @@ func (m *Model) noteLines(w int) []string {
 	case k.Annotations.Help().Key != "":
 		hint = ic.Key(k.Annotations.Help().Key) + " to pick one"
 	}
-	lines := []string{ui.SpreadCut(title, st.Subtle.Render(hint), w, ic.Ellipsis)}
+	lines := []string{ui.Spread(title, st.Subtle.Render(hint), w, ic.Ellipsis)}
 	rows := m.noteRows()
 	for i := n.top; i < len(n.items) && i < n.top+rows; i++ {
 		lines = append(lines, m.noteRow(n.items[i], i == n.cursor, w))

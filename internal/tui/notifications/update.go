@@ -120,7 +120,7 @@ func (s *Section) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 
 // gate decides what the token may do with the notifications.
 func (s *Section) gate() ui.Gate {
-	return ui.Gate{Token: s.voice.Token}
+	return ui.Gate{Token: s.voice.Token, Icons: s.icons}
 }
 
 // mark is a change to threads of the inbox, asked as a question: name
@@ -143,7 +143,7 @@ func (s *Section) ask(now func() (mark, bool)) tea.Cmd {
 		again, ok := now()
 		return again.ask, ok && again.ids == m.ids, nil
 	})
-	return ui.OpenModal(ui.NewConfirmModal(c))
+	return ui.OpenModal(ui.NewConfirmModal(c, s.icons))
 }
 
 // markRead marks the unread thread under the cursor read.

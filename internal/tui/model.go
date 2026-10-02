@@ -354,6 +354,7 @@ func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) 
 	for _, opt := range opts {
 		opt(m)
 	}
+	m.voice.Icons = &m.icons
 	m.readRates()
 	m.line.SetComplete(m.complete)
 
@@ -468,6 +469,7 @@ func (m *Model) applyTheme(dark bool) {
 	}
 	m.theme = ui.NewTheme(p, dark)
 	m.icons = ui.NewIcons(m.cfg.UI.Icons)
+	m.voice.Icons = &m.icons
 	m.st = newStyles(m.theme)
 	m.toast.SetStyles(m.theme.Toast(m.icons))
 	m.keyhelp.SetStyles(m.theme.KeyHelp(m.icons))

@@ -42,12 +42,13 @@ func Yield(b, held key.Binding) key.Binding {
 }
 
 // OpenHint returns the hint that open, the key that opens something on
-// GitHub, does so, such as "o to open on GitHub", or "" when it has no key.
-func OpenHint(open key.Binding) string {
+// GitHub, does so, such as "o to open on GitHub", with the key named as ic
+// names it, or "" when it has no key.
+func OpenHint(ic Icons, open key.Binding) string {
 	if !open.Enabled() || open.Help().Key == "" {
 		return ""
 	}
-	return open.Help().Key + " to open on GitHub"
+	return ic.Key(open.Help().Key) + " to open on GitHub"
 }
 
 // label shortens key names for the help line.

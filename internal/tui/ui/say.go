@@ -48,6 +48,20 @@ type Voice struct {
 	// it more, which the words for a token problem point to. Without it
 	// they ask the user to fix the token with gh and restart the app.
 	Token *Token
+	// Icons give the words their separators and ellipses, and name their
+	// keys. They are read each time the words are, so a voice copied into
+	// a bubble follows a switch of the icons it points to. Nil words them
+	// as the Unicode set does.
+	Icons *Icons
+}
+
+// icons returns the icons of v, with the Unicode set's words where it has
+// none.
+func (v Voice) icons() Icons {
+	if v.Icons == nil {
+		return Icons{}.OrUnicode()
+	}
+	return v.Icons.OrUnicode()
 }
 
 // NewVoice returns the voice of the configured keys, whose refresh key
@@ -98,13 +112,13 @@ func SayKept(kind core.ProblemKind, ic Icons) string {
 }
 
 // SayLine returns what the user should read about err, which stopped
-// action, on one line: Say's text and, after " · ", its hint.
+// action, on one line: Say's text and, after the separator, its hint.
 func SayLine(action string, err error, v Voice) string {
 	text, hint := Say(core.Explain(action, err), v)
 	if hint == "" {
 		return text
 	}
-	return text + " · " + hint
+	return text + v.icons().Separator + hint
 }
 
 // ErrorText returns what a bubble shows for an error that stopped action
@@ -135,15 +149,15 @@ func say(p *core.Problem, v Voice) (text, hint string, named bool) {
 	}
 	text, hint, named = words(p, v)
 	if ansi.StringWidth(text) > SayWidth {
-		text = cutWords(text, SayWidth)
+		text = cutWords(text, SayWidth, v.icons().Ellipsis)
 	}
 	return text, hint, named
 }
 
 // words says p, at any length.
 func words(p *core.Problem, v Voice) (text, hint string, named bool) {
-	retry := keyHint(v.Retry, "retry")
-	open := keyHint(v.Open, "open on GitHub")
+	retry := keyHint(v.icons(), v.Retry, "retry")
+	open := keyHint(v.icons(), v.Open, "open on GitHub")
 	subject := clean(p.Subject)
 	switch p.Kind {
 	case core.Canceled:
@@ -253,15 +267,16 @@ func SayToast(p *core.Problem, v Voice, fits func(string) bool) string {
 	if text == "" {
 		return ""
 	}
+	ell := v.icons().Ellipsis
 	action := cmp.Or(clean(p.Action), "do that")
 	if ansi.StringWidth(action) > actionWidth {
-		action = cutWords(action, actionWidth)
+		action = cutWords(action, actionWidth, ell)
 	}
 	if !named {
 		text = lowerFirst(text)
 	}
 	causes := toastCauses(p, v, text)
-	actions := actionCuts(action)
+	actions := actionCuts(action, ell)
 	// A cut that keeps the first word, such as "merge", still says what
 	// failed.
 	first, _, _ := strings.Cut(action, " ")
@@ -287,38 +302,40 @@ func SayToast(p *core.Problem, v Voice, fits func(string) bool) string {
 	least := min(ansi.StringWidth(shortest), minCause)
 	for _, a := range actions {
 		head := "Couldn't " + a + ": "
-		if !fits(head + cutWords(shortest, least)) {
+		if !fits(head + cutWords(shortest, least, ell)) {
 			continue
 		}
-		return head + longestCut(shortest, least, func(c string) bool { return fits(head + c) })
+		return head + longestCut(shortest, least, ell, func(c string) bool { return fits(head + c) })
 	}
-	return "Couldn't " + actions[len(actions)-1] + ": …"
+	return "Couldn't " + actions[len(actions)-1] + ": " + ell
 }
 
-// longestCut returns the longest cut of s, by cutWords, that fits, and
+// longestCut returns the longest cut of s, by cutWords to end in tail,
+// that fits, and
 // the cut to least cells when none longer does. A longer cut fits no
 // better, so it is found by halves rather than by trying each width. If
 // fits breaks that, and the cut found doesn't fit, each width is tried
 // from the longest, so the cut is never worse than that search's.
-func longestCut(s string, least int, fits func(string) bool) string {
+func longestCut(s string, least int, tail string, fits func(string) bool) string {
 	n := ansi.StringWidth(s) - least
-	w := least + sort.Search(max(n, 0), func(i int) bool { return !fits(cutWords(s, least+1+i)) })
-	if c := cutWords(s, w); w == least || fits(c) {
+	w := least + sort.Search(max(n, 0), func(i int) bool { return !fits(cutWords(s, least+1+i, tail)) })
+	if c := cutWords(s, w, tail); w == least || fits(c) {
 		return c
 	}
 	for w := ansi.StringWidth(s); w > least; w-- {
-		if c := cutWords(s, w); fits(c) {
+		if c := cutWords(s, w, tail); fits(c) {
 			return c
 		}
 	}
-	return cutWords(s, least)
+	return cutWords(s, least, tail)
 }
 
-// actionCuts returns action and ever shorter cuts of it, down to "…".
-func actionCuts(action string) []string {
+// actionCuts returns action and ever shorter cuts of it, each ending in
+// tail, down to tail alone.
+func actionCuts(action, tail string) []string {
 	cuts := []string{action}
 	for w := ansi.StringWidth(action); w > 0; w-- {
-		if c := cutWords(action, w); c != cuts[len(cuts)-1] {
+		if c := cutWords(action, w, tail); c != cuts[len(cuts)-1] {
 			cuts = append(cuts, c)
 		}
 	}
@@ -356,6 +373,7 @@ func toastCauses(p *core.Problem, v Voice, text string) []string {
 // command works from anywhere.
 func hintedCauses(p *core.Problem, v Voice, text, hint string) []string {
 	_, do, _ := words(p, v)
+	sep := v.icons().Separator
 	switch {
 	case p.Kind == core.Internal && v.Log != "":
 		return []string{"something went wrong, see " + v.Log, "something went wrong, see the log"}
@@ -364,9 +382,9 @@ func hintedCauses(p *core.Problem, v Voice, text, hint string) []string {
 		return []string{text, "run gh auth login, then " + hint}
 	case p.Kind == core.NotFound && do != "":
 		first, _, _ := strings.Cut(text, ". ")
-		return []string{text + " · " + do, first + " · " + hint + " grants the repo scope", first}
+		return []string{text + sep + do, first + sep + hint + " grants the repo scope", first}
 	case p.Kind == core.Auth || p.Kind == core.Forbidden && sso(p):
-		return []string{text + " · " + do, text + " · " + hint}
+		return []string{text + sep + do, text + sep + hint}
 	}
 	return []string{text}
 }
@@ -380,15 +398,15 @@ func sentence(s string) string {
 }
 
 // cutWords cuts s to width cells, between words unless that loses most of
-// what fits, and ends it in "…".
-func cutWords(s string, width int) string {
-	cut := ansi.Truncate(s, width-1, "")
+// what fits, and ends it in tail, an ellipsis.
+func cutWords(s string, width int, tail string) string {
+	cut := ansi.Truncate(s, max(width-ansi.StringWidth(tail), 0), "")
 	if len(cut) < len(s) && s[len(cut)] != ' ' {
 		if i := strings.LastIndexByte(cut, ' '); i > len(cut)/2 {
 			cut = cut[:i]
 		}
 	}
-	return strings.TrimRight(cut, " ,;:.") + "…"
+	return strings.TrimRight(cut, " ,;:.") + tail
 }
 
 // ShortPath returns path with the user's home directory as ~, so that a
@@ -397,14 +415,14 @@ func ShortPath(path string) string {
 	return obs.ShortHome(path)
 }
 
-// keyHint returns "<key> to <do>" with the key of b, or "" while b is
-// unbound or disabled.
-func keyHint(b key.Binding, do string) string {
+// keyHint returns "<key> to <do>" with the key of b, named as ic names
+// it, or "" while b is unbound or disabled.
+func keyHint(ic Icons, b key.Binding, do string) string {
 	k := b.Help().Key
 	if !b.Enabled() || k == "" {
 		return ""
 	}
-	return k + " to " + do
+	return ic.Key(k) + " to " + do
 }
 
 // clean puts text from elsewhere, such as GitHub's reason, on one line

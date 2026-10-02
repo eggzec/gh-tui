@@ -78,7 +78,7 @@ func (t *Token) Hint() string {
 // refusal says why the token may not do what gerund names, such as
 // "Merging", which err, from Check, refused: "Merging needs the repo scope
 // · :auth to grant it".
-func (t *Token) refusal(gerund string, err error) string {
+func (t *Token) refusal(gerund string, err error, ic Icons) string {
 	var why, do string
 	if e, ok := errors.AsType[*core.KindError](err); ok {
 		why, do = gerund+" needs a classic token, not "+kindArticle(e.Kind), " to see how"
@@ -86,7 +86,7 @@ func (t *Token) refusal(gerund string, err error) string {
 		why, do = gerund+" needs the "+scopeOf(err)+" scope", " to grant it"
 	}
 	if h := t.Hint(); h != "" {
-		return why + " · " + h + do
+		return why + ic.OrUnicode().Separator + h + do
 	}
 	return why + "."
 }

@@ -144,6 +144,7 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, id int64, url stri
 		v := ui.NewVoice(keys, "")
 		o.voice = &v
 	}
+	o.voice.Icons = &o.icons
 	ctx, cancel := context.WithCancel(obs.WithTrace(ctx, "open.release"))
 	m := &Modal{
 		id:     lastID.Add(1),
@@ -174,7 +175,7 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, id int64, url stri
 		thread.WithEmptyText("No assets."),
 		thread.WithErrorText(ui.ErrorText("load the release", repo.String(), v)),
 	)
-	m.thread.SetCutHint(ui.OpenHint(m.keys.Open))
+	m.thread.SetCutHint(ui.OpenHint(m.icons, m.keys.Open))
 	r, cached := svc.CachedGet(repo, id)
 	slog.InfoContext(ctx, "open", "span", "tui", "kind", "release", "repo", repo.String(), "id", id, "cached", cached)
 	if cached {
@@ -265,6 +266,7 @@ func (m *Modal) SetSize(width, height int) {
 
 // SetTheme implements ui.Modal.
 func (m *Modal) SetTheme(t ui.Theme) {
+	m.voice.Icons = &m.icons
 	m.theme = t
 	m.st = newStyles(t, m.icons)
 	m.errs = t.Errors(m.icons)

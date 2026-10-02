@@ -232,6 +232,8 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 	for _, opt := range opts {
 		opt(s)
 	}
+	// Bubbles copy the voice, and read the icons through it.
+	s.voice.Icons = &s.icons
 	s.ahead = ui.NewAheads(ctx, "search", s.reader.Kinds("search_hit")...)
 	s.ahead.Share(s.slots)
 	if p := s.prefetch; p != nil {
@@ -271,6 +273,7 @@ func (s *Section) SetSize(width, height int) {
 
 // SetTheme builds the styles of the page and restyles its bubbles.
 func (s *Section) SetTheme(t ui.Theme) {
+	s.voice.Icons = &s.icons
 	s.theme = t
 	s.st = newStyles(t, s.icons)
 	s.errs = t.Errors(s.icons)

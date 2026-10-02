@@ -7,6 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 	"github.com/eggzec/gh-tui/pkg/termtext/termtexttest"
 )
@@ -113,7 +114,7 @@ func TestConfirmLine(t *testing.T) {
 // A question may name what GitHub calls something, such as a title.
 func TestConfirmCleansHostileQuestions(t *testing.T) {
 	c := Confirm{Question: "Close " + termtexttest.Hostile + "?"}
-	st, k := Theme{}.Confirm(), DefaultConfirmKeys()
+	st, k := Theme{}.Confirm(NewIcons(config.IconsUnicode)), DefaultConfirmKeys()
 	for _, w := range []int{20, 80, 300} {
 		termtexttest.AssertClean(t, c.Line(st, k, w), w)
 		termtexttest.AssertClean(t, strings.Join(c.Lines(st, k, w, ConfirmLines), "\n"), w)
@@ -199,7 +200,7 @@ func TestConfirmModal(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(strings.Join(tt.keys, " "), func(t *testing.T) {
 			var r ran
-			m := NewConfirmModal(r.confirm("Close issue #12?"))
+			m := NewConfirmModal(r.confirm("Close issue #12?"), NewIcons(config.IconsUnicode))
 			var msgs []tea.Msg
 			for _, k := range tt.keys {
 				msgs = append(msgs, runAll(m.Update(press(k)))...)
@@ -216,7 +217,7 @@ func TestConfirmModal(t *testing.T) {
 }
 
 func TestConfirmModalFits(t *testing.T) {
-	m := NewConfirmModal(Confirm{Question: "Close issue #12?"})
+	m := NewConfirmModal(Confirm{Question: "Close issue #12?"}, NewIcons(config.IconsUnicode))
 	if w, h := m.Fit(100, 20); w != len("Close issue #12?")+2+len("y/n") || h != 1 {
 		t.Errorf("Fit = %d×%d, want the question and its keys on one line", w, h)
 	}

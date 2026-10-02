@@ -24,11 +24,11 @@ func Press(text, k, does string) string {
 	return text + " Press " + k + " to " + does + "."
 }
 
-// KeyOf is the key of b as its help names it, for Press, or empty while b
-// is off.
-func KeyOf(b key.Binding) string {
+// KeyOf is the key of b as its help names it, in the words of ic, for
+// Press, or empty while b is off.
+func KeyOf(ic Icons, b key.Binding) string {
 	if !b.Enabled() {
 		return ""
 	}
-	return b.Help().Key
+	return ic.Key(b.Help().Key)
 }

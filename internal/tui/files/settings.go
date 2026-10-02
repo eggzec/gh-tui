@@ -13,6 +13,7 @@ import (
 // move of a cursor.
 func (s *Section) configure(c config.Config) {
 	s.icons = ui.NewIcons(c.UI.Icons)
+	s.voice.Icons = &s.icons
 	s.findPreview = c.Files.Finder.Preview
 	s.editor = c.Editor
 	s.prefetch = newPrefetch(c.Prefetch, c.Files.Preview.MaxSize)

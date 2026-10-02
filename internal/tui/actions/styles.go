@@ -44,7 +44,7 @@ func newStyles(t ui.Theme, ic ui.Icons) styles {
 		folded:     t.Muted.Render("▸") + " ",
 		unfolded:   t.Muted.Render("▾") + " ",
 		RunStyles:  ui.NewRunStyles(t, ic),
-		confirm:    t.Confirm(),
+		confirm:    t.Confirm(ic),
 	}
 	return s
 }

@@ -321,7 +321,7 @@ func (s *Step) renderRow(r row, cursor bool, w int, now time.Time) string {
 	case r.status != nil && r.status.Description != "":
 		left += "  " + st.run.Subtle.Render(ui.OneLine(r.status.Description))
 	}
-	return ui.SpreadCut(left, right, w, s.opts.icons.Ellipsis)
+	return ui.Spread(left, right, w, s.opts.icons.Ellipsis)
 }
 
 // errorLines renders err, which stopped action on subject, in lines of w

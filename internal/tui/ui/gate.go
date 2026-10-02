@@ -43,6 +43,9 @@ type Gate struct {
 	Viewer string
 	// Token is what the token may do, or nil, which allows everything.
 	Token *Token
+	// Icons give the reasons their separators. Zero icons word them as
+	// the Unicode set does.
+	Icons Icons
 }
 
 // Allow reports whether the viewer may take a on it, which is nil for the
@@ -63,7 +66,7 @@ func (g Gate) allowToken(a Action) (ok bool, why string) {
 		return true, ""
 	}
 	if err := g.Token.Check(need); err != nil {
-		return false, g.Token.refusal(gerund, err)
+		return false, g.Token.refusal(gerund, err, g.Icons)
 	}
 	return true, ""
 }
@@ -141,7 +144,7 @@ func (g Gate) allowRepo(a Action, it *core.Issue) (ok bool, why string) {
 		}
 	case ActComment:
 		if it != nil && it.Locked && !c.CanWrite() {
-			return false, lockedText(it)
+			return false, lockedText(it, g.Icons)
 		}
 	case ActLabel:
 		// GitHub says who labels a pull request, a custom role that
@@ -222,10 +225,10 @@ func number(it *core.Issue) string {
 }
 
 // lockedText says that it is locked, and why if GitHub said.
-func lockedText(it *core.Issue) string {
+func lockedText(it *core.Issue, ic Icons) string {
 	s := number(it) + " is locked"
 	if r := it.LockReason; r != "" {
 		s += " as " + strings.ReplaceAll(r, "_", " ")
 	}
-	return s + " · only collaborators can comment."
+	return s + ic.OrUnicode().Separator + "only collaborators can comment."
 }

@@ -152,7 +152,7 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, keys map[string][]
 	if o.voice != nil {
 		v = *o.voice
 	}
-	v.Retry = keyMap.Refresh
+	v.Retry, v.Icons = keyMap.Refresh, &o.icons
 	o.voice = &v
 	m := &Modal{
 		id:     lastID.Add(1),
@@ -223,6 +223,7 @@ func (m *Modal) SetTheme(t ui.Theme) {
 	m.theme = t
 	m.st = newStyles(t, m.opts.icons)
 	m.errs = t.Errors(m.opts.icons)
+	m.opts.voice.Icons = &m.opts.icons
 	m.spin.Style = t.Accent
 	m.spin.Spinner = m.opts.icons.SpinnerOr(spinner.Dot)
 	m.runs.SetStyles(t.Feed(m.opts.icons))

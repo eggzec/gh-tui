@@ -10,6 +10,7 @@ import (
 // what the opener, which reads the threads ahead, reads.
 func (s *Section) configure(c config.Config) {
 	s.icons = ui.NewIcons(c.UI.Icons)
+	s.voice.Icons = &s.icons
 	s.dates = ui.NewDates(c.UI.DateFormat)
 	s.opener.Configure(c)
 }

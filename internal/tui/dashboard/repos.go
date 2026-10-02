@@ -94,7 +94,7 @@ func (t *repoTabs) newOwner(label string, q dashboard.ReposQuery) *owner {
 		p.Items, p.Next = f.apply(p.Items), ""
 		return p, err
 	}
-	clearKey := ui.KeyOf(s.keys.ClearFilter)
+	clearKey := ui.KeyOf(s.icons, s.keys.ClearFilter)
 	empty := o.emptyText(&repoFilter{}, clearKey)
 	if f := o.filter.Load(); f != nil {
 		empty = o.emptyText(f, clearKey)

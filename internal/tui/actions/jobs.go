@@ -399,7 +399,7 @@ func (m *Modal) jobRow(j core.Job, label, gutter string, cursor bool, w int, now
 		name = st.Strong.Render(label)
 	}
 	state := ui.RunStateOf(j.Status, j.Conclusion)
-	return ui.Spread(gutter+st.Glyphs[state]+" "+m.links.Link(j.URL, name), st.Took(j.Status, j.Conclusion, j.StartedAt, j.CompletedAt, now), w)
+	return ui.Spread(gutter+st.Glyphs[state]+" "+m.links.Link(j.URL, name), st.Took(j.Status, j.Conclusion, j.StartedAt, j.CompletedAt, now), w, m.opts.icons.Ellipsis)
 }
 
 // groupRow renders a group: whether it is open, its name, how many jobs
@@ -415,7 +415,7 @@ func (m *Modal) groupRow(l jobLine, gutter string, cursor bool, w int) string {
 	if m.jobs.isOpen(g.key) {
 		marker = st.unfolded
 	}
-	return ui.Spread(gutter+marker+name, st.Subtle.Render(strconv.Itoa(len(g.jobs)))+" "+st.Glyphs[g.state], w)
+	return ui.Spread(gutter+marker+name, st.Subtle.Render(strconv.Itoa(len(g.jobs)))+" "+st.Glyphs[g.state], w, m.opts.icons.Ellipsis)
 }
 
 // jobsTitle is the detail of the jobs pane's title: how many there are,

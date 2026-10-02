@@ -26,7 +26,7 @@ func newStyles(t ui.Theme, ic ui.Icons) styles {
 		lastCrumb: t.Accent.Bold(true),
 		group:     t.Muted.Bold(true),
 		required:  t.Warning,
-		confirm:   t.Confirm(),
+		confirm:   t.Confirm(ic),
 		gutter:    t.Accent.Render(ic.Cursor) + " ",
 		noGutter:  "  ",
 	}

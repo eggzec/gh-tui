@@ -144,7 +144,7 @@ func (m *Modal) emptyText() string {
 	if m.filter == (core.RunFilter{}) {
 		return ui.None("workflow runs")
 	}
-	return ui.Press("No workflow runs match the filters.", ui.KeyOf(m.keys.Filter), "change them")
+	return ui.Press("No workflow runs match the filters.", ui.KeyOf(m.opts.icons, m.keys.Filter), "change them")
 }
 
 // current returns r as the cache last had it after a change or a poll,
@@ -224,7 +224,7 @@ func (m *Modal) renderRun(r core.Run, selected bool, w int) string {
 	// The workflow, the number and the title link to the run's page.
 	head := st.Glyphs[state] + " " + m.links.Link(r.URL,
 		name+" "+st.Muted.Render("#"+strconv.Itoa(r.Number))+"  "+st.Text.Render(ui.OneLine(r.DisplayTitle)))
-	first := ui.Spread(head, st.Subtle.Render(m.opts.dates.Short(r.CreatedAt, now)), w)
+	first := ui.Spread(head, st.Subtle.Render(m.opts.dates.Short(r.CreatedAt, now)), w, m.opts.icons.Ellipsis)
 
 	parts := make([]string, 0, 3)
 	for _, p := range []string{r.Branch, r.Event, r.Actor} {
@@ -251,7 +251,7 @@ func (m *Modal) renderRun(r core.Run, selected bool, w int) string {
 	default:
 		took = st.States[ui.RunInProgress].Render(ui.Duration(d))
 	}
-	return first + "\n" + ui.Spread(detail, took, w)
+	return first + "\n" + ui.Spread(detail, took, w, m.opts.icons.Ellipsis)
 }
 
 // runsTitle is the detail of the runs pane's title: how many are loaded.

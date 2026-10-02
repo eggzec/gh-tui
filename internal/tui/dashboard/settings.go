@@ -12,6 +12,7 @@ import (
 // the inbox's threads.
 func (s *Section) configure(c config.Config) {
 	s.icons = ui.NewIcons(c.UI.Icons)
+	s.voice.Icons = &s.icons
 	if d := ui.NewDates(c.UI.DateFormat); d != s.dates {
 		// The work wraps its titles around the dates, and the
 		// repositories keep a column as wide as the widest.
