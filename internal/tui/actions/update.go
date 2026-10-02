@@ -50,6 +50,9 @@ func (m *Modal) update(msg tea.Msg) tea.Cmd {
 	case ui.SyncMsg:
 		return m.synced(msg)
 	case ui.OnlineMsg:
+		// A rate limit is the token's, and has lifted.
+		m.aheadJobs.Resume()
+		m.aheadLogs.Resume()
 		return m.online()
 	case ui.CapsMsg:
 		if msg.Repo.Same(m.repo) {

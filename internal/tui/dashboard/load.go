@@ -199,6 +199,11 @@ func (s *Section) refresh() tea.Cmd {
 // directory and the lists of repositories. What is being read already
 // is left to finish.
 func (s *Section) online() tea.Cmd {
+	// A rate limit is the token's, and has lifted.
+	s.opener.Resume()
+	s.ahead.Resume()
+	s.aheadRepos.Resume()
+	s.aheadPinned.Resume()
 	if !s.started {
 		return nil
 	}

@@ -54,6 +54,9 @@ func (m *Modal) update(msg tea.Msg) tea.Cmd {
 		}
 		return m.receiveDetail(msg)
 	case ui.OnlineMsg:
+		// A rate limit is the token's, and has lifted.
+		m.ahead.Resume()
+		m.compares.Resume()
 		return m.online()
 	case filesMsg:
 		if msg.id != m.id {
