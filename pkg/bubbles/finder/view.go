@@ -144,7 +144,7 @@ func (m *Model) errorLine(text, hint string, w int) string {
 	}
 	hint = m.styles.ErrorSeparator + hint
 	if room := max(w-ansi.StringWidth(hint), 0); ansi.StringWidth(text) > room {
-		text = ansi.Truncate(text, room, cut)
+		text = termtext.Truncate(text, room, cut)
 	}
 	// A hint wider than the row is cut too.
 	return fitCut(m.styles.Error.Render(text)+m.styles.Status.Render(hint), w, cut)

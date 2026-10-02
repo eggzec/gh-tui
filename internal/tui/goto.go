@@ -16,6 +16,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/obs"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // Repos reads repositories, so that goto opens only one that exists.
@@ -279,7 +280,7 @@ func (m *Model) badTarget(err error) tea.Cmd {
 // cantOpen returns "Can't open <typed>: <reason>.", with typed cut to the
 // widest that fits says fits, ending in tail, and reason whole.
 func cantOpen(typed, reason, tail string, fits func(string) bool) string {
-	say := func(w int) string { return "Can't open " + ansi.Truncate(typed, w, tail) + ": " + reason + "." }
+	say := func(w int) string { return "Can't open " + termtext.Truncate(typed, w, tail) + ": " + reason + "." }
 	// No toast holds more than Say's text, so a paste is cut to that
 	// before the search for the widest cut that fits, which wraps the
 	// text each time it tries a width.

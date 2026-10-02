@@ -171,7 +171,7 @@ func (m *Model) drawFrame(p *pane) {
 		edge, title = m.st.focusEdge, m.st.focusTitle
 	}
 	b := m.icons.Border
-	label := ansi.Truncate(p.label, max(w-4, 0), m.icons.Ellipsis)
+	label := termtext.Truncate(p.label, max(w-4, 0), m.icons.Ellipsis)
 	if label == "" {
 		p.top = edge.Render(b.TopLeft + strings.Repeat(b.Top, w-2) + b.TopRight)
 	} else {
@@ -242,7 +242,7 @@ func (m *Model) drawHeader() {
 	}
 	if right == "" {
 		if lw+3 > w {
-			m.header = fit(rule(1)+" "+ansi.Truncate(left, max(w-3, 0), m.icons.Ellipsis), w)
+			m.header = fit(rule(1)+" "+termtext.Truncate(left, max(w-3, 0), m.icons.Ellipsis), w)
 			return
 		}
 		m.header = rule(1) + " " + left + " " + rule(w-lw-3)

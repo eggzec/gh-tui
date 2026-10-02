@@ -10,6 +10,8 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // Styles are how Lines draws an error.
@@ -100,7 +102,7 @@ func Line(s Styles, text, hint string, width int) string {
 	}
 	t := lead + text
 	if ansi.StringWidth(t) > room {
-		t = ansi.Truncate(t, max(room, 0), s.Ellipsis)
+		t = termtext.Truncate(t, max(room, 0), s.Ellipsis)
 	}
 	if tail == "" {
 		return s.Text.Render(t)
