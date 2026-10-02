@@ -104,11 +104,17 @@ func TestProgramOpensGoesBackAndMerges(t *testing.T) {
 	svc := newFakeService()
 	h := newTest(t, svc, 80, 24)
 	done := make(chan ui.DoneMsg, 1)
-	// gone is closed once the list shows the open pull requests again
-	// without #135, merged: drawing the list again after the question
-	// closes shows the rest of it before the reload does.
+	// gone is closed once the question has closed and the list shows the
+	// open pull requests again without #135, merged: drawing the list
+	// again after the question closes shows the rest of it before the
+	// reload does. The answer closes the question in a command of its own,
+	// beside the merge's, so the reload may settle first, and q would then
+	// go to the question rather than quit.
 	gone := make(chan struct{})
 	until := func(h *host) bool {
+		if h.modal() != nil || len(h.modals) > 0 {
+			return false
+		}
 		if h.feed == nil || svc.state(135).State != core.StateMerged || !h.feed.Settled() {
 			return false
 		}
