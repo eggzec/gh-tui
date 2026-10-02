@@ -172,7 +172,12 @@ func TestPrefetchResumesWhenTheRateLimitLifts(t *testing.T) {
 		t.Fatalf("read %q under the rate limit", got)
 	}
 	delete(f.blobErrs, "b-f00.go")
+	// The window the limit stopped is read at once, before the cursor
+	// moves.
 	run(s, s.Update(ui.OnlineMsg{}))
+	if got := f.blobSHAs(); !slices.Contains(got, "b-f01.go") {
+		t.Errorf("read %q once the rate limit lifted, want f01.go under the cursor", got)
+	}
 	keys(s, "down")
 	if got := f.blobSHAs(); !slices.Contains(got, "b-f02.go") {
 		t.Errorf("read %q once the rate limit lifted, want f02.go", got)

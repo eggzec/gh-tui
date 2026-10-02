@@ -123,9 +123,9 @@ func TestPrefetchStopsAtRateLimit(t *testing.T) {
 	if got := len(svc.got()); got != n {
 		t.Errorf("read %d more details for another repository under the rate limit", got-n)
 	}
-	// Once the limit lifts, the window is read again.
+	// Once the limit lifts, the window is read again, before the cursor
+	// moves.
 	drain(t, h, h.Update(ui.OnlineMsg{}))
-	press(t, h, "down")
 	if got := len(svc.got()); got == n {
 		t.Error("nothing was read ahead once the rate limit lifted")
 	}
