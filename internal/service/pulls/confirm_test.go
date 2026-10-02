@@ -478,7 +478,7 @@ func keptListCheck(t *testing.T, v *versioned, store *disk.Store, at time.Time) 
 
 // TestKeptListRevalidated checks that the revalidator lists a kept list
 // page, and confirms it with the free probe while no pull request changed,
-// but leaves it to the views, without reading it, once one did.
+// but once one did, reports the change to the views without reading it.
 func TestKeptListRevalidated(t *testing.T) {
 	v := &versioned{updated: epoch, checks: core.ChecksSuccess}
 	store := openStore(t)
@@ -492,8 +492,10 @@ func TestKeptListRevalidated(t *testing.T) {
 
 	v.set(epoch.Add(time.Minute), core.ChecksSuccess)
 	res, api = keptListCheck(t, v, store, time.Time{})
-	if res.Status != revalidate.Skipped {
-		t.Errorf("check after a change = %+v, want skipped", res)
+	// The probe that found the change was a request, so it counts as one,
+	// and the views showing the page read it again.
+	if want := (revalidate.Result{Status: revalidate.Changed, Sync: SyncKey(repo)}); res != want {
+		t.Errorf("check after a change = %+v, want %+v", res, want)
 	}
 	wantReads(t, api, 1, 0)
 }

@@ -20,11 +20,13 @@ import (
 // one conditional request, which costs no rate limit when nothing changed.
 // A list page is a GraphQL read, which has no validators, so it carries
 // the probe's ETag (see loadList) and the check only confirms it with the
-// probe: a page the probe can't confirm, or finds changed, is skipped and
-// left to the views that show it, since reading it in full would spend the
-// GraphQL quota on repositories the user may not look at. A comment page
-// that changed is cached and kept, and reports SyncKey of its repository,
-// so that the views showing it read it again. The details have no
+// probe. A page the probe can't confirm is skipped without a request. A
+// page the probe finds changed isn't read in full, since that would spend
+// the GraphQL quota on repositories the user may not look at: the check
+// reports SyncKey of its repository, so that the views showing it read it
+// again, and counts as done, since the probe that found the change was a
+// request. A comment page that changed is cached and kept, and reports
+// SyncKey of its repository, so that the views showing it read it again. The details have no
 // validators: Poll and the list's update times watch them instead. It
 // reads the store, so call it where I/O is fine.
 func (s *Service) Kept() []revalidate.Entry {
@@ -34,8 +36,12 @@ func (s *Service) Kept() []revalidate.Entry {
 	)
 }
 
-// errUnconfirmed is a list page that the probe alone can't vouch for.
+// errUnconfirmed is a list page that the probe can't vouch for, so it
+// wasn't sent.
 var errUnconfirmed = errors.New("page not confirmed by the probe")
+
+// errProbeChanged is a list page that the probe found changed.
+var errProbeChanged = errors.New("page changed since the probe vouched for it")
 
 func (s *Service) listTarget(key string) (recheck.Target, bool) {
 	q, ok := parseListKey(key, s.pageSize)
@@ -47,6 +53,12 @@ func (s *Service) listTarget(key string) (recheck.Target, bool) {
 		switch {
 		case errors.Is(res.Err, errUnconfirmed):
 			return revalidate.Result{Status: revalidate.Skipped}
+		case errors.Is(res.Err, errProbeChanged):
+			// Unlike a skip, the probe was a request that answered 200, and
+			// cost a point of the REST rate limit. Reporting it as a change
+			// spends the revalidator's budget on it, leaves the page alone
+			// until it is due again, and has the views read the page.
+			return revalidate.Result{Status: revalidate.Changed, Sync: SyncKey(q.Repo)}
 		case res.Status == revalidate.NotModified:
 			// As a read of the page does, it vouches for what is cached
 			// of its pull requests.
@@ -58,7 +70,8 @@ func (s *Service) listTarget(key string) (recheck.Target, bool) {
 
 // confirmList returns a load for fetch that confirms the cached page of q
 // with the probe, and never reads it: it fails with errUnconfirmed for a
-// page the probe can't vouch for, or finds changed.
+// page the probe can't vouch for, and with errProbeChanged for one it finds
+// changed.
 func (s *Service) confirmList(q ListQuery) cache.FetchFunc[listPage] {
 	return func(ctx context.Context, prev cache.Entry[listPage], ok bool) (cache.Entry[listPage], error) {
 		if !ok || prev.ETag == "" || s.unconfirmable(q.Repo, prev.Value) != "" {
@@ -69,7 +82,7 @@ func (s *Service) confirmList(q ListQuery) cache.FetchFunc[listPage] {
 		case err != nil:
 			return cache.Entry[listPage]{}, err
 		case !res.NotModified:
-			return cache.Entry[listPage]{}, errUnconfirmed
+			return cache.Entry[listPage]{}, errProbeChanged
 		}
 		return cache.Entry[listPage]{}, cache.ErrNotModified
 	}
