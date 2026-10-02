@@ -89,6 +89,11 @@ func TestViewFitsTheWidth(t *testing.T) {
 		{name: "error", share: 60, pushes: []push{
 			{Info, "short"}, {Error, strings.Repeat("a very long message ", 10)}, {Success, "done"}, {Success, "done"},
 		}},
+		// The wrap may end a line at a hyphen past the width, and the
+		// count would then stick out.
+		{name: "repeated with hyphens", share: 40, pushes: []push{
+			{Info, strings.Repeat("a b - x-y ", 12)}, {Info, strings.Repeat("a b - x-y ", 12)},
+		}},
 	}
 	for _, s := range stacks {
 		for _, width := range []int{10, 16, 24, 40, 60, 80, 120, 200} {

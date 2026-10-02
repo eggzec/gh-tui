@@ -146,3 +146,33 @@ func TestCountStops(t *testing.T) {
 		t.Errorf("toast shows\n%s", v)
 	}
 }
+
+// No line of a wrap is wider than the width or empty, whatever breaks
+// the text, and a text that wraps to n lines isn't cut at n.
+func TestWrapKeepsToTheWidth(t *testing.T) {
+	for _, text := range []string{"a b -", "a x-y", "bb é - —— x-y", "a b / - a - x-y é", "ccc - -", "a x-y 漢字 - x-y 漢字 é https://x.y/z", "abc   def"} {
+		for width := 2; width <= 12; width++ {
+			lines, cut := wrap(text, width, 99)
+			if cut {
+				t.Errorf("wrap(%q, %d) cut the text", text, width)
+			}
+			n := 0
+			for _, l := range lines {
+				if l != "" {
+					n++
+				}
+			}
+			if _, cut := wrap(text, width, n); cut {
+				t.Errorf("wrap(%q, %d, %d) cut a text that wraps to %d lines", text, width, n, n)
+			}
+			for _, l := range lines {
+				if w := ansi.StringWidth(l); w > width || w == 0 || strings.HasSuffix(l, " ") {
+					t.Errorf("wrap(%q, %d) has the line %q, %d wide", text, width, l, w)
+				}
+			}
+			if got, want := strings.ReplaceAll(strings.Join(lines, ""), " ", ""), strings.ReplaceAll(text, " ", ""); got != want {
+				t.Errorf("wrap(%q, %d) shows %q", text, width, got)
+			}
+		}
+	}
+}

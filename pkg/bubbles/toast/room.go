@@ -98,7 +98,7 @@ func (m Model) maxInner(level Level) int {
 // whether it had to cut the text, which then ends in an ellipsis. A word
 // longer than the width is broken.
 func wrap(text string, width, lines int) ([]string, bool) {
-	wrapped := strings.Split(ansi.Wrap(text, width, ""), "\n")
+	wrapped := fit(strings.Split(ansi.Wrap(text, width, ""), "\n"), width)
 	if len(wrapped) <= lines {
 		return wrapped, false
 	}
@@ -106,4 +106,28 @@ func wrap(text string, width, lines int) ([]string, bool) {
 	last := strings.TrimRight(wrapped[lines-1], " ")
 	wrapped[lines-1] = ansi.Truncate(last+" "+ellipsis, width, ellipsis)
 	return wrapped, true
+}
+
+// fit returns lines with no trailing spaces, each at most width cells,
+// breaking any that is wider and dropping any left empty. [ansi.Wrap] can
+// leave a line wider than the width, such as one that ends at a hyphen,
+// and the count after it would then stick out of the toast; it can also
+// end with an empty line, which would count against the toast's lines.
+func fit(lines []string, width int) []string {
+	out := make([]string, 0, len(lines))
+	keep := func(l string) {
+		if l = strings.TrimRight(l, " "); l != "" {
+			out = append(out, l)
+		}
+	}
+	for _, l := range lines {
+		if ansi.StringWidth(strings.TrimRight(l, " ")) <= width {
+			keep(l)
+			continue
+		}
+		for h := range strings.SplitSeq(ansi.Hardwrap(l, width, false), "\n") {
+			keep(h)
+		}
+	}
+	return out
 }
