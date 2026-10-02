@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"unicode"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
@@ -54,11 +55,11 @@ func TestViewMarks(t *testing.T) {
 	m := open(t)
 	v := m.View()
 	for _, want := range []string{
-		s.Conflict.Render(warnGlyph),
-		s.Shadowed.Render(warnGlyph),
+		s.Conflict.Render(s.WarnGlyph),
+		s.Shadowed.Render(s.WarnGlyph),
 		s.Disabled.Render("merge"),
-		s.Shadowed.Render(lossGlyph + " ctrl+r: refresh · app"),
-		s.Conflict.Render(lossGlyph + " esc: cancel · pull requests"),
+		s.Shadowed.Render(s.LossGlyph + " ctrl+r: refresh · app"),
+		s.Conflict.Render(s.LossGlyph + " esc: cancel · pull requests"),
 	} {
 		if !strings.Contains(v, want) {
 			t.Errorf("view lacks %q:\n%s", want, v)
@@ -66,9 +67,26 @@ func TestViewMarks(t *testing.T) {
 	}
 	m = New(WithLayers(typing), WithSize(80, 10))
 	v = m.View()
-	for _, want := range []string{s.Disabled.Render("reload"), s.Typed.Render(lossGlyph + " r: typed in finder")} {
+	for _, want := range []string{s.Disabled.Render("reload"), s.Typed.Render(s.LossGlyph + " r: typed in finder")} {
 		if !strings.Contains(v, want) {
 			t.Errorf("typed view lacks %q:\n%s", want, v)
+		}
+	}
+}
+
+// The help drawn with ASCII glyphs is ASCII alone, marks, losses and cuts
+// too.
+func TestViewASCII(t *testing.T) {
+	s := DefaultStyles(true)
+	s.PromptGlyph, s.WarnGlyph, s.LossGlyph, s.Separator, s.Ellipsis = ">", "!", "->", " - ", "..."
+	for _, width := range []int{30, 80} {
+		m := open(t)
+		m.SetStyles(s)
+		m.SetSize(width, 12)
+		// The title is the caller's.
+		_, v, _ := strings.Cut(ansi.Strip(m.View()), "\n")
+		if strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
+			t.Errorf("width %d: view isn't ASCII:\n%s", width, v)
 		}
 	}
 }
