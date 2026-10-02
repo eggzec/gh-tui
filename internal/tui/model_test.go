@@ -1086,18 +1086,24 @@ func TestSyncRateLimitRereadsRates(t *testing.T) {
 	}
 }
 
-// An error toast is marked with the error glyph of the icon set, and a
-// switch of ui.icons marks the next one with the new set's.
-func TestToastErrorMarkFollowsIcons(t *testing.T) {
+// Toasts are marked with the glyphs of the icon set, and a switch of
+// ui.icons marks the next ones with the new set's.
+func TestToastMarksFollowIcons(t *testing.T) {
 	m, _ := newTestApp(t)
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	for _, set := range []string{config.IconsASCII, config.IconsUnicode, config.IconsNerd} {
 		runCommand(t, m, "set ui.icons="+set)
-		m.toast.Clear()
-		m.toast.Push(toast.Error, "Couldn't star the repository")
-		want := ui.NewIcons(set).Error + " Couldn't star the repository"
-		if got := toasted(m); !strings.Contains(got, want) {
-			t.Errorf("%s: toast %q, want %q", set, got, want)
+		ic := ui.NewIcons(set)
+		for _, tt := range []struct {
+			level toast.Level
+			mark  string
+		}{{toast.Info, ic.Info}, {toast.Success, ic.Yes}, {toast.Error, ic.Error}} {
+			m.toast.Clear()
+			m.toast.Push(tt.level, "The repository is starred")
+			want := tt.mark + " The repository is starred"
+			if got := toasted(m); !strings.Contains(got, want) {
+				t.Errorf("%s: toast %q, want %q", set, got, want)
+			}
 		}
 	}
 }

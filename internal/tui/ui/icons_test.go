@@ -18,7 +18,7 @@ var iconSets = []string{config.IconsNerd, config.IconsUnicode, config.IconsASCII
 func marks(ic Icons) []string {
 	return slices.Concat([]string{
 		ic.Fork, ic.Private, ic.Archived, ic.Template, ic.Mirror, ic.Here, ic.Star, ic.Error, ic.Language(""),
-		ic.Yes, ic.No,
+		ic.Yes, ic.No, ic.Info,
 	}, ic.states[:], ic.runs[:], slices.Collect(maps.Values(ic.langs)))
 }
 
