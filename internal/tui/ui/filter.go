@@ -152,9 +152,9 @@ func NewFilterModal(ctx context.Context, section string, target Filterable, f Fi
 	for _, opt := range opts {
 		opt(&o)
 	}
-	title := "Filter · " + section
+	title := "Filter" + o.icons.Separator + section
 	if f.Subject != "" {
-		title += " · " + f.Subject
+		title += o.icons.Separator + f.Subject
 	}
 	formOpts := []filterform.Option{
 		filterform.WithQuery(f.Query),
@@ -168,7 +168,7 @@ func NewFilterModal(ctx context.Context, section string, target Filterable, f Fi
 		// The form loads the options again with the key that opens them,
 		// and has no key that opens GitHub.
 		v := *o.voice
-		v.Retry, v.Open = o.keys.Edit, key.Binding{}
+		v.Retry, v.Open, v.Icons = o.keys.Edit, key.Binding{}, &o.icons
 		formOpts = append(formOpts, filterform.WithErrorText(ErrorText("load the options", f.Subject, v)))
 	}
 	form := filterform.New(f.Spec, formOpts...)

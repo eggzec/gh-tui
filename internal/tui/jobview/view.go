@@ -80,7 +80,7 @@ func (m Model) stepLines(w, h int) []string {
 			status = core.RunQueued
 		}
 		state := ui.RunStateOf(status, s.Conclusion)
-		lines = append(lines, ui.SpreadCut(st.Glyphs[state]+" "+st.Text.Render(ui.OneLine(s.Name)), st.Took(status, s.Conclusion, s.StartedAt, s.CompletedAt, now), w, m.opts.icons.Ellipsis))
+		lines = append(lines, ui.Spread(st.Glyphs[state]+" "+st.Text.Render(ui.OneLine(s.Name)), st.Took(status, s.Conclusion, s.StartedAt, s.CompletedAt, now), w, m.opts.icons.Ellipsis))
 	}
 	return ui.FitLines(lines, w, h)
 }

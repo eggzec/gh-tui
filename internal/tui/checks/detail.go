@@ -88,7 +88,7 @@ func (s *Step) openHint() string {
 		return ""
 	}
 	if p, err := url.Parse(u); err == nil && p.Host == "github.com" {
-		return ui.OpenHint(s.keys.Open)
+		return ui.OpenHint(s.opts.icons, s.keys.Open)
 	}
 	if k := s.keys.Open.Help().Key; k != "" && s.keys.Open.Enabled() {
 		return s.opts.icons.Key(k) + " to open its page"
@@ -106,7 +106,7 @@ func (s *Step) detailLines(w, h int) []string {
 		right = st.run.Took(c.Status, c.Conclusion, c.StartedAt, c.CompletedAt, s.now())
 	}
 	lines := make([]string, 0, h)
-	lines = append(lines, ui.SpreadCut(head, right, w, s.opts.icons.Ellipsis))
+	lines = append(lines, ui.Spread(head, right, w, s.opts.icons.Ellipsis))
 	for l := range strings.SplitSeq(s.detail.View(), "\n") {
 		lines = append(lines, ui.Fit(l, w))
 	}

@@ -166,7 +166,7 @@ func (s *Step) rerunKey() key.Binding {
 
 // gate decides what the viewer may do in the repository.
 func (s *Step) gate() ui.Gate {
-	g := ui.Gate{Repo: s.q.Repo, Caps: s.opts.caps}
+	g := ui.Gate{Repo: s.q.Repo, Caps: s.opts.caps, Icons: s.opts.icons}
 	if s.opts.voice != nil {
 		g.Token = s.opts.voice.Token
 	}

@@ -128,7 +128,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, show
 		bodies:  ui.NewImageBodies(s.capsOf(repo).Private),
 		chips:   newChipCache(s.rows),
 	}
-	m.confirmSt = s.theme.Confirm()
+	m.confirmSt = s.theme.Confirm(s.icons)
 	svc, q := s.svc, commentsQuery(repo, number)
 	fetch := func(ctx context.Context, cursor string) ([]core.Comment, string, error) {
 		q := q
@@ -146,7 +146,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, show
 		thread.WithFocused(true),
 		thread.WithErrorText(ui.ErrorText("load the comments", core.Target{Repo: repo, Number: number}.String(), v)),
 	)
-	m.thread.SetCutHint(ui.OpenHint(s.keys.Open))
+	m.thread.SetCutHint(ui.OpenHint(s.icons, s.keys.Open))
 	m.drawPictures()
 	switch cached, ok := svc.CachedGet(repo, number); {
 	case ok:
@@ -224,7 +224,7 @@ func (m *detailModal) SetSize(width, height int) {
 // SetTheme implements ui.Modal. It builds every style the modal uses.
 func (m *detailModal) SetTheme(t ui.Theme) {
 	m.theme = t
-	m.confirmSt = t.Confirm()
+	m.confirmSt = t.Confirm(m.icons)
 	m.rows = newRowStyles(t, m.icons)
 	m.chips = newChipCache(m.rows)
 	m.thread.SetStyles(t.Thread(m.icons))
@@ -437,7 +437,7 @@ func (m *detailModal) answer(msg tea.KeyPressMsg) tea.Cmd {
 
 // gate decides what the viewer may do in the repository.
 func (m *detailModal) gate() ui.Gate {
-	return ui.Gate{Repo: m.repo, Caps: m.caps, Viewer: m.viewer, Token: m.token}
+	return ui.Gate{Repo: m.repo, Caps: m.caps, Viewer: m.viewer, Token: m.token, Icons: m.icons}
 }
 
 // changed tells the section that the issue changed in the cache.

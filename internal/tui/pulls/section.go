@@ -246,6 +246,8 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 	for _, opt := range opts {
 		opt(s)
 	}
+	// Bubbles copy the voice, and read the icons through it.
+	s.voice.Icons = &s.icons
 	s.keys.Checks.SetEnabled(s.keys.Checks.Enabled() && s.checks != nil)
 	s.rowAt = func(i int) (details.Key, bool) {
 		pr, ok := s.feed.Item(i)
@@ -343,6 +345,7 @@ func (s *Section) layout() {
 
 // SetTheme implements ui.Section.
 func (s *Section) SetTheme(t ui.Theme) {
+	s.voice.Icons = &s.icons
 	s.theme = t
 	s.st = newStyles(t, s.icons)
 	if s.feed != nil {

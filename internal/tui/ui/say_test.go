@@ -491,18 +491,18 @@ func TestLongestCut(t *testing.T) {
 	}
 	linear := func(s string, least int, fits func(string) bool) string {
 		for w := ansi.StringWidth(s); w > least; w-- {
-			if c := cutWords(s, w); fits(c) {
+			if c := cutWords(s, w, "…"); fits(c) {
 				return c
 			}
 		}
-		return cutWords(s, least)
+		return cutWords(s, least, "…")
 	}
 	for _, s := range texts {
 		for room := range 70 {
 			fits := func(c string) bool { return ansi.StringWidth(c) <= room }
 			for _, least := range []int{1, 5, 12} {
 				least = min(least, ansi.StringWidth(s))
-				if got, want := longestCut(s, least, fits), linear(s, least, fits); got != want {
+				if got, want := longestCut(s, least, "…", fits), linear(s, least, fits); got != want {
 					t.Errorf("longestCut(%q, %d) in %d cells = %q, want %q", s, least, room, got, want)
 				}
 			}
@@ -521,11 +521,11 @@ func TestLongestCutInAToast(t *testing.T) {
 	}
 	linear := func(s string, least int, fits func(string) bool) string {
 		for w := ansi.StringWidth(s); w > least; w-- {
-			if c := cutWords(s, w); fits(c) {
+			if c := cutWords(s, w, "…"); fits(c) {
 				return c
 			}
 		}
-		return cutWords(s, least)
+		return cutWords(s, least, "…")
 	}
 	for _, s := range texts {
 		for width := 20; width <= 120; width += 3 {
@@ -535,12 +535,53 @@ func TestLongestCutInAToast(t *testing.T) {
 					fits := func(c string) bool { return m.Fits(toast.Error, head+c) }
 					for _, least := range []int{1, 5, 12} {
 						least = min(least, ansi.StringWidth(s))
-						if got, want := longestCut(s, least, fits), linear(s, least, fits); got != want {
+						if got, want := longestCut(s, least, "…", fits), linear(s, least, fits); got != want {
 							t.Errorf("longestCut(%q, %d) in a toast %dx%d after %q = %q, want %q", s, least, width, height, head, got, want)
 						}
 					}
 				}
 			}
 		}
+	}
+}
+
+// With the ASCII icons the words of a problem, in a line and in a toast,
+// keep to ASCII: the separator, the ellipsis of a cut and the keys.
+func TestSayASCII(t *testing.T) {
+	v := NewVoice(config.Default().Keys, "")
+	ic := NewIcons(config.IconsASCII)
+	v.Icons = &ic
+	v.Retry = key.NewBinding(key.WithKeys("enter"), key.WithHelp("↵", "retry"))
+	err := fmt.Errorf("list pulls: %w", core.ErrOffline)
+	long := strings.Repeat("merge the pull request into a branch with a long name ", 4)
+	for _, s := range []string{
+		SayLine("load the pull requests", err, v),
+		SayToast(core.Explain(long, err), v, func(s string) bool { return len(s) < 60 }),
+		lockedText(&core.Issue{Number: 7, LockReason: "too_heated"}, ic),
+	} {
+		if strings.ContainsFunc(s, func(r rune) bool { return r > unicode.MaxASCII }) {
+			t.Errorf("%q isn't ASCII", s)
+		}
+	}
+	if got := SayLine("load the pull requests", err, v); !strings.Contains(got, " - enter to retry") {
+		t.Errorf("SayLine = %q, want the ASCII separator and key", got)
+	}
+}
+
+// ErrorText reads the icons of its voice each time it words an error, so
+// a bubble built before the icons switch words its errors in the new set.
+func TestErrorTextFollowsIcons(t *testing.T) {
+	ic := NewIcons(config.IconsUnicode)
+	v := NewVoice(config.Default().Keys, "")
+	v.Icons = &ic
+	v.Retry = key.NewBinding(key.WithKeys("enter"), key.WithHelp("↵", "retry"))
+	say := ErrorText("load the pulls", "", v)
+	err := fmt.Errorf("list pulls: %w", core.ErrOffline)
+	if _, hint := say(err); hint != "↵ to retry" {
+		t.Errorf("Unicode hint = %q", hint)
+	}
+	ic = NewIcons(config.IconsASCII)
+	if _, hint := say(err); hint != "enter to retry" {
+		t.Errorf("hint after the switch = %q, want %q", hint, "enter to retry")
 	}
 }

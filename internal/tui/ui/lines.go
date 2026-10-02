@@ -61,11 +61,8 @@ func Wrap(s string, w int) []string {
 
 // Spread puts left and right on a line of w cells, with right against the
 // edge. Left is cut to leave right whole, while right fits, and ends in
-// "…" where it is cut.
-func Spread(left, right string, w int) string { return SpreadCut(left, right, w, "…") }
-
-// SpreadCut is Spread, ending left in tail where it is cut.
-func SpreadCut(left, right string, w int, tail string) string {
+// tail, an ellipsis, where it is cut.
+func Spread(left, right string, w int, tail string) string {
 	rw := ansi.StringWidth(right)
 	if rw == 0 {
 		return Fit(left, w)

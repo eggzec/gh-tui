@@ -196,6 +196,7 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, keys KeyMap, opts 
 	for _, opt := range opts {
 		opt(&o)
 	}
+	o.voice.Icons = &o.icons
 	m := Model{
 		id:   lastID.Add(1),
 		ctx:  ctx,
@@ -211,6 +212,7 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, keys KeyMap, opts 
 
 // SetTheme styles the view.
 func (m *Model) SetTheme(t ui.Theme) {
+	m.opts.voice.Icons = &m.opts.icons
 	m.st = ui.NewRunStyles(t, m.opts.icons)
 	m.errs = t.Errors(m.opts.icons)
 	m.view.SetStyles(t.LogView(m.opts.icons))

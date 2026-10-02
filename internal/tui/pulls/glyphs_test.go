@@ -111,3 +111,13 @@ func TestRowASCII(t *testing.T) {
 		t.Errorf("row %q lacks a cut or the deletions", row)
 	}
 }
+
+// With the ASCII icons the detail header is ASCII apart from what GitHub
+// wrote: the state, the separators, the arrow, the signs and the rule.
+func TestDetailHeaderASCII(t *testing.T) {
+	s := started(t, newFakeService(), 120, 30, WithIcons(ui.NewIcons(config.IconsASCII)))
+	press(t, s, "enter")
+	if v := ansi.Strip(s.modal().detailHeader(120)); strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
+		t.Errorf("header isn't ASCII:\n%s", v)
+	}
+}

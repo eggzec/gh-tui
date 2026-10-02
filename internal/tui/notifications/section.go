@@ -119,6 +119,8 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 	for _, opt := range opts {
 		opt(s)
 	}
+	// Bubbles copy the voice, and read the icons through it.
+	s.voice.Icons = &s.icons
 	if s.opener == nil {
 		s.opener = threads.New(ctx)
 	}
@@ -202,6 +204,7 @@ func (s *Section) SetSize(width, height int) {
 
 // SetTheme builds the styles of the rows and restyles the list.
 func (s *Section) SetTheme(t ui.Theme) {
+	s.voice.Icons = &s.icons
 	s.opener.SetIcons(s.icons)
 	s.theme = t
 	s.styles = newStyles(t, s.icons)

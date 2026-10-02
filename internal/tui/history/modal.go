@@ -126,6 +126,7 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, defaultBranch stri
 		v := ui.NewVoice(keys, "")
 		o.voice = &v
 	}
+	o.voice.Icons = &o.icons
 	ctx, cancel := context.WithCancel(ctx)
 	m := &Modal{
 		id:            lastID.Add(1),
@@ -185,6 +186,7 @@ func (m *Modal) SetSize(width, height int) {
 
 // SetTheme styles the modal and the bubbles in it.
 func (m *Modal) SetTheme(t ui.Theme) {
+	m.opts.voice.Icons = &m.opts.icons
 	m.theme = t
 	m.st = newStyles(t, m.opts.icons)
 	m.errs = t.Errors(m.opts.icons)

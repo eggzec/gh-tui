@@ -10,6 +10,7 @@ import (
 
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // Confirm is a change that waits for the user to say yes. A modal asks it
@@ -92,12 +93,19 @@ func (k ConfirmKeys) Answer(c Confirm, msg tea.KeyPressMsg) (cmd tea.Cmd, done b
 // ConfirmStyles style the line of a Confirm.
 type ConfirmStyles struct {
 	Question, Keys lipgloss.Style
+	// Ellipsis ends a question cut to its room; empty, it is "…".
+	Ellipsis string
+}
+
+// ellipsis is the ellipsis of st, or the Unicode set's while it has none.
+func (st ConfirmStyles) ellipsis() string {
+	return Icons{Ellipsis: st.Ellipsis}.OrUnicode().Ellipsis
 }
 
 // Confirm returns the styles of a confirmation: the question in the
-// accent, and the keys that answer it muted.
-func (t Theme) Confirm() ConfirmStyles {
-	return ConfirmStyles{Question: t.Accent.Bold(true), Keys: t.Muted}
+// accent, and the keys that answer it muted, cut with the ellipsis of ic.
+func (t Theme) Confirm(ic Icons) ConfirmStyles {
+	return ConfirmStyles{Question: t.Accent.Bold(true), Keys: t.Muted, Ellipsis: ic.Ellipsis}
 }
 
 // ConfirmLines is the most lines a question wraps to, so that a long one,
@@ -107,7 +115,7 @@ const ConfirmLines = 2
 // Line renders c on a line of w cells: the question, cut to leave room,
 // and the keys that answer it against the right edge.
 func (c Confirm) Line(st ConfirmStyles, k ConfirmKeys, w int) string {
-	return Spread(st.Question.Render(OneLine(c.Question)), st.Keys.Render(k.answers()), w)
+	return Spread(st.Question.Render(OneLine(c.Question)), st.Keys.Render(k.answers()), w, st.ellipsis())
 }
 
 // Lines renders c on at most n lines of w cells: the question, wrapped at
@@ -124,16 +132,16 @@ func (c Confirm) Lines(st ConfirmStyles, k ConfirmKeys, w, n int) []string {
 	wrapped := wrapWords(OneLine(c.Question), room)
 	if len(wrapped) > n {
 		rest := strings.Join(wrapped[n-1:], " ")
-		wrapped = append(wrapped[:n-1], ansi.Truncate(rest, room, "…"))
+		wrapped = append(wrapped[:n-1], termtext.Truncate(rest, room, st.ellipsis()))
 	}
 	lines := make([]string, len(wrapped))
 	last := len(wrapped) - 1
 	for i, l := range wrapped {
 		l = st.Question.Render(l)
 		if i < last {
-			lines[i] = Fit(ansi.Truncate(l, w, "…"), w)
+			lines[i] = Fit(termtext.Truncate(l, w, st.ellipsis()), w)
 		} else {
-			lines[i] = Spread(l, st.Keys.Render(keys), w)
+			lines[i] = Spread(l, st.Keys.Render(keys), w, st.ellipsis())
 		}
 	}
 	return lines
@@ -185,6 +193,7 @@ type ConfirmModal struct {
 	ask           Confirm
 	keys          ConfirmKeys
 	st            ConfirmStyles
+	icons         Icons
 	width, height int
 	// answered is set once the user answered, so that a second yes, such
 	// as a repeated key, arriving before the modal closes does nothing.
@@ -193,9 +202,10 @@ type ConfirmModal struct {
 	view string
 }
 
-// NewConfirmModal returns the modal that asks c.
-func NewConfirmModal(c Confirm) *ConfirmModal {
-	return &ConfirmModal{ask: c, keys: DefaultConfirmKeys()}
+// NewConfirmModal returns the modal that asks c, cut with the ellipsis of
+// ic where it must be.
+func NewConfirmModal(c Confirm, ic Icons) *ConfirmModal {
+	return &ConfirmModal{ask: c, keys: DefaultConfirmKeys(), icons: ic}
 }
 
 // Title implements Modal.
@@ -237,7 +247,7 @@ func (m *ConfirmModal) Fit(maxWidth, maxHeight int) (width, height int) {
 
 // SetTheme implements Modal.
 func (m *ConfirmModal) SetTheme(t Theme) {
-	m.st = t.Confirm()
+	m.st = t.Confirm(m.icons)
 	m.render()
 }
 

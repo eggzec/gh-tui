@@ -88,7 +88,7 @@ func (s *Step) crumbLine(w int) string {
 	if s.mode == listMode && s.loaded {
 		right = s.summary()
 	}
-	return ui.SpreadCut(termtext.Truncate(b.String(), w, ell), right, w, ell)
+	return ui.Spread(termtext.Truncate(b.String(), w, ell), right, w, ell)
 }
 
 // groupOf is the title of the group of r.

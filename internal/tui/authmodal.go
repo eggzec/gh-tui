@@ -136,9 +136,10 @@ func (m *authModal) Fit(maxWidth, maxHeight int) (width, height int) {
 
 // SetTheme implements ui.Modal.
 func (m *authModal) SetTheme(t ui.Theme) {
+	m.voice.Icons = &m.icons
 	m.st = authStyles{text: t.Text, muted: t.Muted, subtle: t.Subtle, yes: t.Success, no: t.Error}
 	m.errs = t.Errors(m.icons)
-	m.cst = t.Confirm()
+	m.cst = t.Confirm(m.icons)
 	m.render()
 }
 
@@ -164,7 +165,7 @@ func (m *authModal) render() {
 func (m *authModal) lines(w int) []string {
 	st, a, ic := &m.st, m.access, m.icons
 	head := ui.OneLine(m.account) + ic.Separator + kindName(a)
-	lines := []string{st.text.Render(ansi.Truncate(head, w, ic.Ellipsis))}
+	lines := []string{st.text.Render(termtext.Truncate(head, w, ic.Ellipsis))}
 	if a.Kind == core.TokenClassic && a.Known {
 		scopes := "no scopes"
 		if len(a.Scopes) > 0 {
@@ -184,7 +185,7 @@ func (m *authModal) lines(w int) []string {
 		}
 	}
 	if len(a.SSO) > 0 {
-		lines = append(lines, ansi.Truncate(st.no.Render(m.icons.No)+" "+st.text.Render("Some organizations need SSO authorization"), w, ic.Ellipsis))
+		lines = append(lines, termtext.Truncate(st.no.Render(m.icons.No)+" "+st.text.Render("Some organizations need SSO authorization"), w, ic.Ellipsis))
 	}
 	lines = append(lines, "")
 	switch {
@@ -199,7 +200,7 @@ func (m *authModal) lines(w int) []string {
 		lines = append(lines, st.muted.Render(l))
 	}
 	if u := m.plan.URL; u != "" {
-		lines = append(lines, m.links.Link(u, st.text.Render(ansi.Truncate(u, w, ic.Ellipsis))))
+		lines = append(lines, m.links.Link(u, st.text.Render(termtext.Truncate(u, w, ic.Ellipsis))))
 	}
 	if m.asks() {
 		q := ui.Confirm{Question: "Run " + commandLine(m.plan.Cmd, m.gh) + "?"}
@@ -224,7 +225,7 @@ func (m *authModal) capLine(c capability, w int) string {
 	default:
 		mark, why = st.no.Render(m.icons.No), m.icons.Separator+"needs a classic token"
 	}
-	return ansi.Truncate(mark+" "+st.text.Render(c.name)+st.subtle.Render(why), w, m.icons.Ellipsis)
+	return termtext.Truncate(mark+" "+st.text.Render(c.name)+st.subtle.Render(why), w, m.icons.Ellipsis)
 }
 
 // kindName names the kind of token of a.

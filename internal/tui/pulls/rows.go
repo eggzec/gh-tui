@@ -410,16 +410,16 @@ func (s *Section) emptyText() string {
 		kind = "pull requests"
 	}
 	if s.query != "" {
-		return ui.NoMatch(kind, ui.KeyOf(s.keys.ClearFilter))
+		return ui.NoMatch(kind, ui.KeyOf(s.icons, s.keys.ClearFilter))
 	}
 	text := ui.None(kind)
 	switch next := nextTab(s.tab, 1); {
 	case s.tab == "":
 		return text
 	case next == "":
-		return ui.Press(text, ui.KeyOf(s.keys.NextTab), "show all of them")
+		return ui.Press(text, ui.KeyOf(s.icons, s.keys.NextTab), "show all of them")
 	default:
-		return ui.Press(text, ui.KeyOf(s.keys.NextTab), "show "+strings.ToLower(tabLabel(next))+" ones")
+		return ui.Press(text, ui.KeyOf(s.icons, s.keys.NextTab), "show "+strings.ToLower(tabLabel(next))+" ones")
 	}
 }
 

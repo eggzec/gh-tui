@@ -231,7 +231,7 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, number int, keys m
 	if o.voice != nil {
 		v = *o.voice
 	}
-	v.Retry = s.keys.Refresh
+	v.Retry, v.Icons = s.keys.Refresh, &s.opts.icons
 	s.voice = v
 	s.view = jobview.New(rctx, svc, repo, s.keys.job(),
 		jobview.WithIcons(o.icons), jobview.WithClock(o.now), jobview.WithReturn(o.ret), jobview.WithVoice(v))
@@ -266,6 +266,7 @@ func (s *Step) SetSize(width, height int) {
 
 // SetTheme styles the step and the bubbles in it.
 func (s *Step) SetTheme(t ui.Theme) {
+	s.voice.Icons = &s.opts.icons
 	s.theme = t
 	s.st = newStyles(t, s.opts.icons)
 	s.errs = t.Errors(s.opts.icons)

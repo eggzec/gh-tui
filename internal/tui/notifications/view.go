@@ -195,11 +195,11 @@ func (s *Section) renderHeader() {
 func (s *Section) emptyText() string {
 	switch f := s.filter(); {
 	case f.local():
-		return ui.NoMatch("notifications", ui.KeyOf(s.keys.ClearFilter))
+		return ui.NoMatch("notifications", ui.KeyOf(s.icons, s.keys.ClearFilter))
 	case f.all:
 		return ui.None("notifications")
 	}
-	return ui.Press(ui.None("unread notifications"), ui.KeyOf(s.keys.Filter), "show read ones too")
+	return ui.Press(ui.None("unread notifications"), ui.KeyOf(s.icons, s.keys.Filter), "show read ones too")
 }
 
 // View renders the filter line and the list.

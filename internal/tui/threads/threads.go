@@ -7,7 +7,6 @@
 package threads
 
 import (
-	"cmp"
 	"context"
 	"regexp"
 	"time"
@@ -260,7 +259,7 @@ func (o *Opener) iconSet() ui.Icons {
 // browserText tells the user why a thread opened in the browser, with the
 // dash of ic, or the Unicode set's for zero icons.
 func browserText(typ core.SubjectType, ic ui.Icons) string {
-	dash := cmp.Or(ic.Dash, "—")
+	dash := ic.OrUnicode().Dash
 	if typ == core.SubjectDiscussion {
 		return "Opened in the browser " + dash + " gh-tui has no discussion view yet"
 	}

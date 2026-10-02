@@ -216,7 +216,7 @@ func (s *Section) mutate(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 			about := core.Target{Repo: s.repo, Number: pr.Number}.String()
 			return tea.Batch(s.reload(), ui.Do(s.ctx, ui.PullsTitle, ui.About(about, op), what))
 		})
-	return ui.OpenModal(ui.NewConfirmModal(ui.Confirm{Question: c.question, Run: run})), true
+	return ui.OpenModal(ui.NewConfirmModal(ui.Confirm{Question: c.question, Run: run}, s.icons)), true
 }
 
 // reload shows the list again through the cache, which a change has just
@@ -250,5 +250,5 @@ func (k keyMap) withChanges(g ui.Gate, method core.MergeMethod, pr core.PullRequ
 
 // gate decides what the viewer may do in the repository of the list.
 func (s *Section) gate() ui.Gate {
-	return ui.Gate{Repo: s.repo, Caps: s.caps, Token: s.voice.Token}
+	return ui.Gate{Repo: s.repo, Caps: s.caps, Token: s.voice.Token, Icons: s.icons}
 }

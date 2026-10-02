@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"unicode"
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
@@ -78,6 +79,51 @@ func TestFilterModalErrorWords(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// With the ASCII icons the filter modal is ASCII alone: its title, the
+// form, the spinner while options load, and the words of a failed load,
+// which name the keys in words.
+func TestFilterModalASCII(t *testing.T) {
+	ic := NewIcons(config.IconsASCII)
+	block := make(chan struct{})
+	t.Cleanup(func() { close(block) })
+	loads := map[string]filterform.Loader{
+		"loading": func(ctx context.Context, _ string) ([]filterform.Item, error) {
+			select {
+			case <-block:
+			case <-ctx.Done():
+			}
+			return nil, ctx.Err()
+		},
+		"failed": func(context.Context, string) ([]filterform.Item, error) {
+			return nil, fmt.Errorf("list labels: %w", core.ErrOffline)
+		},
+	}
+	for name, load := range loads {
+		spec := filterform.Spec{Fields: []filterform.Field{{Key: "labels", Label: "Labels", Kind: filterform.Multi, Qualifier: "label", Load: load}}}
+		m := NewFilterModal(t.Context(), "Issues", &fakeFilterable{}, Filter{Spec: spec, Subject: "eggzec/x"},
+			WithFormVoice(NewVoice(config.Default().Keys, "")), WithFormIcons(ic))
+		p, _ := config.Default().Palette(true)
+		m.SetTheme(NewTheme(p, true))
+		m.SetSize(80, 10)
+		if got, want := m.Title(), "Filter - Issues - eggzec/x"; got != want {
+			t.Errorf("%s: title = %q, want %q", name, got, want)
+		}
+		cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+		if name == "failed" {
+			for _, msg := range drain(cmd) {
+				m.Update(msg)
+			}
+		}
+		v := ansi.Strip(m.View())
+		if strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
+			t.Errorf("%s: view isn't ASCII:\n%s", name, v)
+		}
+		if name == "failed" && !strings.Contains(v, "enter to retry - esc to go back") {
+			t.Errorf("%s: view doesn't name the keys in words:\n%s", name, v)
+		}
 	}
 }
 

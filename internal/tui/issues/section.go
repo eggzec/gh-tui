@@ -111,6 +111,8 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 	for _, opt := range opts {
 		opt(s)
 	}
+	// Bubbles copy the voice, and read the icons through it.
+	s.voice.Icons = &s.icons
 	s.rowAt = func(i int) (details.Key, bool) {
 		it, ok := s.list.Item(i)
 		return detailKey(s.repo, it.Number), ok
@@ -173,6 +175,7 @@ func (s *Section) SetSize(width, height int) {
 
 // SetTheme implements ui.Section. It builds every style the rows use.
 func (s *Section) SetTheme(t ui.Theme) {
+	s.voice.Icons = &s.icons
 	s.theme = t
 	s.rows = newRowStyles(t, s.icons)
 	s.chips = newChipCache(s.rows)

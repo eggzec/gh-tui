@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"cmp"
 	"strings"
 
 	"charm.land/bubbles/v2/spinner"
@@ -53,6 +54,16 @@ func (ic Icons) SpinnerOr(def spinner.Spinner) spinner.Spinner {
 		s.Frames[i] = ic.Spinner.Frames[i%n] + pad
 	}
 	return s
+}
+
+// OrUnicode returns ic with the separator, ellipsis and dash of the
+// Unicode set where it has none, as zero icons don't, so words joined
+// with them read well whoever builds them.
+func (ic Icons) OrUnicode() Icons {
+	ic.Separator = cmp.Or(ic.Separator, " · ")
+	ic.Ellipsis = cmp.Or(ic.Ellipsis, "…")
+	ic.Dash = cmp.Or(ic.Dash, "—")
+	return ic
 }
 
 // asciiKeys names in words the keys that help draws as arrows, pairs of
