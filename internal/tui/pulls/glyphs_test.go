@@ -66,3 +66,26 @@ func TestLongNumbers(t *testing.T) {
 		}
 	}
 }
+
+// The review and checks columns take the glyphs of the icon set, the
+// checks those of the checks screen, so the ASCII set draws them in ASCII.
+func TestReviewAndChecksGlyphs(t *testing.T) {
+	h := started(t, newFakeService(), 100, 10, WithIcons(ui.NewIcons(config.IconsASCII)))
+	s := h.Section
+	for _, tt := range []struct {
+		review core.ReviewDecision
+		checks core.ChecksState
+		want   string
+	}{
+		{core.ReviewApproved, core.ChecksSuccess, "  + +  "},
+		{core.ReviewChangesRequested, core.ChecksFailure, "  ~ x  "},
+		{core.ReviewRequired, core.ChecksPending, "  ? .  "},
+	} {
+		pr := core.PullRequest{ReviewDecision: tt.review, Checks: tt.checks}
+		pr.Number, pr.Title, pr.State = 1, "T", core.StateOpen
+		row := ansi.Strip(s.renderRow(pr, false, 100))
+		if !strings.Contains(row, tt.want) {
+			t.Errorf("%s, %s: row = %q, want %q in it", tt.review, tt.checks, row, tt.want)
+		}
+	}
+}
