@@ -173,8 +173,9 @@ type names []string
 func (n names) String(i int) string { return n[i] }
 func (n names) Len() int            { return len(n) }
 
-// chips names what the filter does in a few words, for the pane's title.
-func (f *repoFilter) chips() string {
+// chips names what the filter does in a few words, for the pane's title,
+// with the separator and arrows of ic.
+func (f *repoFilter) chips(ic ui.Icons) string {
 	if !f.active() {
 		return ""
 	}
@@ -204,17 +205,17 @@ func (f *repoFilter) chips() string {
 		parts = append(parts, f.language)
 	}
 	if f.sort.By != "" {
-		dir := "↓"
+		dir := ic.Down
 		if !f.sort.Desc {
-			dir = "↑"
+			dir = ic.Up
 		}
 		parts = append(parts, f.sort.By+" "+dir)
 	}
 	if len(parts) == 0 {
 		// Only tokens the filter doesn't read, which it keeps as typed.
-		return ui.Chips(f.query)
+		return ui.Chips(f.query, ic.Separator)
 	}
-	return strings.Join(parts, " · ")
+	return strings.Join(parts, ic.Separator)
 }
 
 // spec returns the fields of the filter of the repositories.

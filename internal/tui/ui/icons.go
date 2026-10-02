@@ -45,8 +45,9 @@ type Icons struct {
 	// Dot marks what is on, such as an unread notification, a label or a
 	// chosen option, and Ring an option that isn't chosen.
 	Dot, Ring string
-	// Crumb goes between the steps of a breadcrumb, as in "Branches › main".
-	Crumb string
+	// Crumb goes between the steps of a breadcrumb, as in "Branches › main",
+	// and marks more to the right, and Before more to the left.
+	Crumb, Before string
 	// Cell is a day of the contribution calendar.
 	Cell string
 	// Arrow leads from one thing to the next, such as a branch to the one

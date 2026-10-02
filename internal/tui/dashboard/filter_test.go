@@ -7,7 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 )
 
@@ -112,9 +114,13 @@ func TestRepoFilterChips(t *testing.T) {
 	}
 	for _, tt := range tests {
 		f := parseRepoFilter(tt.query)
-		if got := f.chips(); got != tt.want {
+		if got := f.chips(ui.NewIcons(config.IconsUnicode)); got != tt.want {
 			t.Errorf("chips of %q = %q, want %q", tt.query, got, tt.want)
 		}
+	}
+	f := parseRepoFilter("gh tui sort:name-asc")
+	if got, want := f.chips(ui.NewIcons(config.IconsASCII)), `"gh tui" - name ^`; got != want {
+		t.Errorf("ASCII chips = %q, want %q", got, want)
 	}
 }
 

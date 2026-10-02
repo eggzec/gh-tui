@@ -177,7 +177,7 @@ func TestChips(t *testing.T) {
 		{"review:approved sort:created-asc", "review:approved · sort:created-asc"},
 	}
 	for _, tt := range tests {
-		if got := Chips(tt.query); got != tt.want {
+		if got := Chips(tt.query, " · "); got != tt.want {
 			t.Errorf("Chips(%q) = %q, want %q", tt.query, got, tt.want)
 		}
 	}
