@@ -185,7 +185,7 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil || !msg.repo.Ref.Same(m.repo) {
 			return m, nil
 		}
-		m.branch = msg.repo.DefaultBranch
+		m.branch, m.ownerAvatar = msg.repo.DefaultBranch, msg.repo.OwnerAvatarURL
 		m.drawHeader()
 		// The sections and the modal gate their changes on the caps.
 		cmd := m.broadcast(ui.CapsMsg{Repo: m.repo, Caps: msg.repo.Caps})
@@ -379,7 +379,7 @@ func (m *Model) selectRepo(msg ui.RepoMsg) tea.Cmd {
 		m.watchRepo(msg.Repo)
 	}
 	if !msg.Repo.Same(m.repo) {
-		m.repo, m.branch = msg.Repo, ""
+		m.repo, m.branch, m.ownerAvatar = msg.Repo, "", ""
 	}
 	// Selecting a repository shows the head of its default branch.
 	m.base = ui.BaseMsg{}

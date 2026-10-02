@@ -190,9 +190,9 @@ func (m *Model) drawFrames() {
 }
 
 // drawHeader draws the header: the title of the screen on the left, which
-// on the repository screen is the repository and its default branch, or
-// the base its files are shown at, and the unread notifications on the
-// right, on a rule.
+// on the repository screen is the repository, after its owner's avatar
+// where avatars are drawn, and its default branch, or the base its files
+// are shown at, and the unread notifications on the right, on a rule.
 func (m *Model) drawHeader() {
 	w := m.width
 	if w <= 0 {
@@ -215,8 +215,10 @@ func (m *Model) drawHeader() {
 	}
 	left := m.st.repo.Render(name)
 	if name == m.repo.String() {
-		// The repository links to its page.
-		left = termtext.Link(ui.WebURL(m.host, m.repo.String()), left)
+		// The repository links to its page, after its owner's avatar,
+		// which stands for its icon, as on GitHub; the avatar stays out
+		// of the link's style.
+		left = m.avatars.Line(m.ownerAvatar) + termtext.Link(ui.WebURL(m.host, m.repo.String()), left)
 	}
 	switch {
 	case m.screen != repoScreen:

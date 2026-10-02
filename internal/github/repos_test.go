@@ -138,6 +138,7 @@ func TestGetRepo(t *testing.T) {
 	// they would be, but pull requests are on unless REST says not.
 	want := ghTUI
 	want.Caps = core.RepoCaps{Known: true, PullRequests: true}
+	want.OwnerAvatarURL = "https://avatars.githubusercontent.com/u/170000000?v=4"
 	if got != want {
 		t.Errorf("repo = %+v\nwant %+v", got, want)
 	}
