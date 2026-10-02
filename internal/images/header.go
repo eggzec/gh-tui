@@ -53,7 +53,7 @@ func pngBytes(data []byte) int {
 	ihdr := data[sig+8:]
 	depth, colorType, interlaced := ihdr[8], ihdr[9], ihdr[12] != 0
 	trns := false
-	for i := sig; i+8 <= len(data); i += 12 + int(binary.BigEndian.Uint32(data[i:])) {
+	for i := sig; i+8 <= len(data); {
 		typ := string(data[i+4 : i+8])
 		if typ == "IDAT" {
 			break
@@ -62,6 +62,11 @@ func pngBytes(data []byte) int {
 			trns = true
 			break
 		}
+		next, ok := pngNext(i, len(data), binary.BigEndian.Uint32(data[i:]))
+		if !ok {
+			break
+		}
+		i = next
 	}
 	// Paletted, and gray without tRNS, take a sample a pixel; the rest
 	// decode as RGBA or NRGBA, 4 samples. A 16-bit sample takes 2 bytes.
@@ -76,6 +81,20 @@ func pngBytes(data []byte) int {
 		n *= 2
 	}
 	return n
+}
+
+// pngNext returns where the chunk after the one at i starts, in data of
+// size bytes, given n, the length the chunk claims: 4 bytes of length, 4
+// of type, its data, then 4 of CRC. It reports false for a chunk that runs
+// past the data. The length is compared unsigned and never made an int
+// until it is known to fit, so no length can move i backwards or wrap it
+// where an int has 32 bits.
+func pngNext(i, size int, n uint32) (int, bool) {
+	rest := size - i - 12
+	if rest < 0 || uint64(n) > uint64(rest) {
+		return 0, false
+	}
+	return i + 12 + int(n), true
 }
 
 // jpegBytes returns the most bytes data, a JPEG of w by h pixels, takes
