@@ -19,7 +19,7 @@ func (s *Section) Update(msg tea.Msg) tea.Cmd {
 		if !s.focused {
 			return nil
 		}
-		return tea.Batch(s.opener.Rested(msg), s.ahead.Rested(msg))
+		return tea.Batch(s.opener.Rested(msg), s.ahead.Rested(msg), s.aheadRepos.Rested(msg), s.aheadPinned.Rested(msg))
 	}
 	updating := s.updating()
 	cmd, all := s.update(msg)
@@ -38,6 +38,9 @@ func (s *Section) Update(msg tea.Msg) tea.Cmd {
 		cmd = tea.Batch(cmd, ahead)
 	}
 	if ahead := s.readWorkAhead(); ahead != nil {
+		cmd = tea.Batch(cmd, ahead)
+	}
+	if ahead := tea.Batch(s.readReposAhead(), s.readPinnedAhead()); ahead != nil {
 		cmd = tea.Batch(cmd, ahead)
 	}
 	return cmd
@@ -111,6 +114,7 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 		if s.here == (core.RepoRef{}) {
 			return nil
 		}
+		s.aheadPinned.Opened(s.here)
 		return selectRepo(s.here)
 	}
 	if p := k.pane(msg); p >= 0 {
@@ -147,6 +151,7 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 			c.move(c.cols)
 		case key.Matches(msg, k.Select):
 			if it, ok := c.selected(); ok {
+				s.aheadPinned.Opened(it.repo.Ref)
 				return selectRepo(it.repo.Ref), true
 			}
 		case key.Matches(msg, k.Open):
@@ -175,6 +180,7 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 			return nil, true
 		case key.Matches(msg, k.Select):
 			if r, ok := t.selected(); ok {
+				s.aheadRepos.Opened(r.Ref)
 				return selectRepo(r.Ref), true
 			}
 			return nil, true

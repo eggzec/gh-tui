@@ -276,8 +276,14 @@ prefetch:
     # while the dashboard is on view. A row costs two requests, the detail
     # and its first comments.
     waiting_on_you: {window: {before: 1, after: 2}}
-    repositories: {enabled: false}
-    pinned: {enabled: false}
+    # The repositories and pinned panes read, while each has the focus,
+    # what opening the repositories around the cursor reads first: the
+    # repository and the listing of its default branch, about three
+    # requests a repository, and a listing can run to megabytes, so they
+    # are off. The repository under the cursor is read only when it is
+    # opened. The pinned cards count in the order the pane lists them.
+    repositories: {enabled: false, window: {before: 1, after: 1}}
+    pinned: {enabled: false, window: {before: 1, after: 1}}
   search:
     window: {before: 0, after: 0}
     other_kinds: {rest: 700ms}

@@ -8,7 +8,8 @@ import (
 // configure keeps the settings of c that the section uses while it runs,
 // which the set command changed: the icons, which the theme the app sets
 // again after draws with, the dates, the glyph and range of the
-// calendar, and the reads ahead of the work and of the inbox's threads.
+// calendar, and the reads ahead of the work, of the repositories and of
+// the inbox's threads.
 func (s *Section) configure(c config.Config) {
 	s.icons = ui.NewIcons(c.UI.Icons)
 	if d := ui.NewDates(c.UI.DateFormat); d != s.dates {

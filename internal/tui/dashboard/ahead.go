@@ -29,14 +29,19 @@ func WithDetails(pulls details.Pulls, issues details.Issues) Option {
 // open at once. A pull request or an issue costs two requests, the detail
 // and the first comments; what is cached is skipped. The default reads
 // nothing ahead. The opener reads the inbox's threads ahead, as
-// prefetch.dashboard.inbox says, while the dashboard is on view.
+// prefetch.dashboard.inbox says, while the dashboard is on view, and the
+// repositories and pinned panes read through WithLanding's, as
+// prefetch.dashboard.repositories and pinned say, while they have the
+// focus.
 func WithPrefetch(p config.PrefetchLayers) Option {
 	return func(s *Section) { s.layers = p }
 }
 
-// setPrefetch takes how the work is read ahead from p. The opener takes
-// the inbox's settings.
+// setPrefetch takes how the work and the repositories are read ahead
+// from p. The opener takes the inbox's settings.
 func (s *Section) setPrefetch(p config.PrefetchLayers) {
+	s.aheadRepos.Configure(ui.Resolve(p, "dashboard", "repositories"))
+	s.aheadPinned.Configure(ui.Resolve(p, "dashboard", "pinned"))
 	work := ui.Resolve(p, "dashboard", "waiting_on_you")
 	s.workAhead = work
 	switch {
