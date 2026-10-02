@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"unicode"
 
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
@@ -75,7 +76,7 @@ func TestView(t *testing.T) {
 // TestViewMarksMatches checks the characters that the rows mark, without
 // the colors of the golden files.
 func TestViewMarksMatches(t *testing.T) {
-	m := open(t, 60, 6, sample, WithStyles(Styles{Match: DefaultStyles(true).Match.Reverse(true)}))
+	m := open(t, 60, 6, sample, WithStyles(Styles{Match: DefaultStyles(true).Match.Reverse(true), CursorGlyph: "▌"}))
 	m = typed(t, m, "crt")
 	row := strings.Split(m.View(), "\n")[1]
 	on := newPair(m.styles.Match).on
@@ -101,7 +102,7 @@ func extIcons(it Item) string {
 func TestViewMarksMatchesAfterIcons(t *testing.T) {
 	for _, width := range []int{60, 27} {
 		m := open(t, width, 6, sample, WithIcons(extIcons),
-			WithStyles(Styles{Match: DefaultStyles(true).Match.Reverse(true)}))
+			WithStyles(Styles{Match: DefaultStyles(true).Match.Reverse(true), CursorGlyph: "▌"}))
 		m = typed(t, m, "crt")
 		row := strings.Split(m.View(), "\n")[1]
 		plain := ansi.Strip(row)
@@ -144,5 +145,28 @@ func TestViewZeroSize(t *testing.T) {
 	m := open(t, 0, 0, sample)
 	if m.View() != "" {
 		t.Error("a finder of no size renders something")
+	}
+}
+
+// The prompt, the cursor, the separators of the status line and the
+// ellipsis of cut paths are the glyphs of the styles, so a view with ASCII
+// glyphs draws ASCII alone.
+func TestViewGlyphs(t *testing.T) {
+	st := DefaultStyles(true)
+	st.PromptGlyph, st.CursorGlyph, st.Separator, st.Ellipsis = ">", ">", " - ", "..."
+	note := func(context.Context) (Listing, error) {
+		return Listing{Items: items(sample...), Note: "truncated"}, nil
+	}
+	m := New(note, WithSize(24, 6), WithStyles(st))
+	m.Focus()
+	m = typed(t, run(t, m, m.Init()), "rend")
+	v := ansi.Strip(m.View())
+	for _, want := range []string{"> rend", "> renderer.go", "  ...es/render/render.go", "8 files - 5 matches -..."} {
+		if !strings.Contains(v, want) {
+			t.Errorf("view lacks %q:\n%s", want, v)
+		}
+	}
+	if strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
+		t.Errorf("view has glyphs beyond ASCII:\n%s", v)
 	}
 }
