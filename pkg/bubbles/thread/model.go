@@ -310,6 +310,14 @@ func (m *Model[T]) SetCutHint(hint string) {
 	m.rerender(m.anchor())
 }
 
+// Redraw renders the document and the loaded comments again and keeps
+// the reading position, for when what the comment renderer draws changed
+// without the comments changing, such as a picture it shows that arrived.
+// Markdown rendered before is reused, so it costs little.
+func (m *Model[T]) Redraw() {
+	m.rerender(m.anchor())
+}
+
 // rerender renders the document and the loaded comments again and
 // scrolls back to a.
 func (m *Model[T]) rerender(a anchor) {

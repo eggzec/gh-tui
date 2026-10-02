@@ -329,3 +329,27 @@ func TestDefaultStylesPickMarkdownTheme(t *testing.T) {
 		t.Fatal("SetStyles didn't render the body with the new markdown style")
 	}
 }
+
+// Redraw shows what the renderer draws now, such as a picture that
+// arrived, and keeps the reading position.
+func TestRedraw(t *testing.T) {
+	mark := ""
+	render := func(c comment, width int) string { return mark + renderComment(c, width) }
+	src := newSource(1, 12)
+	m := newTest(src, nil, 60, 10)
+	m.render = render
+	m = drain(t, m, m.SetDocument("Title", testBody))
+	m.vp.SetYOffset(7)
+	before := m.View()
+	mark = "*"
+	if m.View() != before {
+		t.Fatal("the view changed before Redraw")
+	}
+	m.Redraw()
+	if m.YOffset() != 7 {
+		t.Errorf("YOffset() = %d after Redraw, want 7", m.YOffset())
+	}
+	if !strings.Contains(ansi.Strip(m.View()), "*  @user") {
+		t.Errorf("Redraw didn't render the comments again:\n%s", ansi.Strip(m.View()))
+	}
+}
