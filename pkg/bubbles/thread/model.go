@@ -17,6 +17,7 @@ import (
 	"charm.land/glamour/v2/ansi"
 
 	"github.com/eggzec/gh-tui/pkg/markdown"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // Fetch returns the chunk of comments after cursor, oldest first. The first
@@ -294,10 +295,10 @@ func (m *Model[T]) SetStyles(s Styles) {
 	m.md.SetStyle(m.markdownStyle())
 	m.spin.Style = s.Spinner
 	m.text = texts{
-		loadingDoc:      s.Loading.Render("Loading…"),
-		loadingComments: s.Loading.Render("Loading comments…"),
+		loadingDoc:      s.Loading.Render("Loading" + s.Ellipsis),
+		loadingComments: s.Loading.Render("Loading comments" + s.Ellipsis),
 		empty:           s.Empty.Render(m.emptyText),
-		pointer:         s.Key.Render("›"),
+		pointer:         s.Key.Render(termtext.Cells(s.Pointer, 1)),
 	}
 	m.rerender(a)
 }

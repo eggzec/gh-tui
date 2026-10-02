@@ -9,6 +9,7 @@ import (
 
 	"github.com/eggzec/gh-tui/pkg/bubbles/errline"
 	"github.com/eggzec/gh-tui/pkg/markdown"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // statusIndent is how far the body is indented, and the status with it.
@@ -73,7 +74,7 @@ func (m *Model[T]) renderChunk(c *chunk[T]) {
 // fit truncates s to the width and pads it with spaces to exactly the width,
 // so View never measures, wraps or pads.
 func (m *Model[T]) fit(s string) string {
-	s = ansi.Truncate(s, m.width, "…")
+	s = termtext.Truncate(s, m.width, m.styles.Ellipsis)
 	if n := ansi.StringWidth(s); n < m.width {
 		s += m.blank[:m.width-n]
 	}
