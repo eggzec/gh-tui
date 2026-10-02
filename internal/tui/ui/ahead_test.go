@@ -808,6 +808,54 @@ func TestAheadWindowKeepsReadsStillInIt(t *testing.T) {
 	})
 }
 
+// TestAheadKeepLetsTheReadGoOn checks that the read of the row kept goes
+// on though it leaves the window, and that it stops once another row is
+// kept and it is out of the window.
+func TestAheadKeepLetsTheReadGoOn(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		r := newReader()
+		r.hold = make(chan struct{})
+		a := newAhead(t, r, 0, 0, time.Millisecond)
+		win(a, 0, 2)
+		first := a.Window(rowsOf(30), 10)
+		done := make(chan struct{})
+		go func() {
+			run(first)
+			close(done)
+		}()
+		synctest.Wait()
+		cancelled := func() []int {
+			r.mu.Lock()
+			defer r.mu.Unlock()
+			return slices.Sorted(slices.Values(r.cancelled))
+		}
+		// The cursor lands on row 12, which the caller reads itself, so
+		// it isn't in the window; nor is row 11 any more.
+		a.Keep(12)
+		at := func(i int) (int, bool) {
+			if i == 11 {
+				return 0, false
+			}
+			return rowsOf(30)(i)
+		}
+		go run(rest(t, a, a.Window(at, 11)))
+		synctest.Wait()
+		if got, want := cancelled(), []int{11}; !slices.Equal(got, want) {
+			t.Errorf("cancelled %v, want only row 11, %v", got, want)
+		}
+		// Far away, with another row kept, the read of row 12 stops too.
+		a.Keep(30)
+		go run(rest(t, a, a.Window(rowsOf(30), 20)))
+		synctest.Wait()
+		if got, want := cancelled(), []int{11, 12, 13, 14}; !slices.Equal(got, want) {
+			t.Errorf("cancelled %v, want %v", got, want)
+		}
+		close(r.hold)
+		<-done
+		synctest.Wait()
+	})
+}
+
 // TestAheadWindowAfterResume checks that a window the rate limit stopped
 // is read once the reads resume, though the cursor didn't move.
 func TestAheadWindowAfterResume(t *testing.T) {

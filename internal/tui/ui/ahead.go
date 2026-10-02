@@ -84,6 +84,10 @@ type Ahead[K comparable] struct {
 	// reading cancels each read of a window still in flight, by row, so
 	// that a rest stops only the reads of the rows that left the window.
 	reading map[K]context.CancelFunc
+	// keep is the row whose read goes on though it left the window, if
+	// kept is set ([Ahead.Keep]).
+	keep K
+	kept bool
 }
 
 // AheadMsg reports that the cursor rested on a row. Sections pass it to
@@ -143,6 +147,8 @@ func (a *Ahead[K]) Reset(parent context.Context) {
 	// Cancelling ctx cancelled the reads of the window.
 	clear(a.reading)
 	a.around, a.windowed, a.loaded = a.around[:0], false, false
+	var zero K
+	a.keep, a.kept = zero, false
 }
 
 // Opened records that the detail of k was opened, so that the summary

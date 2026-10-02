@@ -213,3 +213,37 @@ func TestLogsAheadStopWhenTheFilterChanges(t *testing.T) {
 	h.run(m.setFilter(core.RunFilter{Status: "success"}))
 	checkLogCancelled(t, f, wait)
 }
+
+// TestLogAheadGoesOnForTheJobLanded checks that the read ahead of a log
+// goes on once the cursor lands on its job, though the job leaves the
+// window, so that the log pane's read of it joins the read in flight
+// rather than starting a new download once the rest stops it.
+func TestLogAheadGoesOnForTheJobLanded(t *testing.T) {
+	f := newFake()
+	// The build failed too, so that the window below the macOS job has a
+	// row, and the rest on it reads the window.
+	for i, j := range f.jobs[failedRun] {
+		if j.ID == buildJob {
+			f.jobs[failedRun][i].Conclusion = core.ConclusionFailure
+		}
+	}
+	_, h, wait := holdLogAhead(t, f)
+	f.mu.Lock()
+	// The log pane's own read isn't held.
+	f.holdLogs = nil
+	f.mu.Unlock()
+	h.hold = func(msg tea.Msg) bool { _, ok := msg.(ui.AheadMsg); return ok }
+	h.keys("j")
+	h.hold = nil
+	if j, ok := h.m.jobs.selected(); !ok || j.ID != macosJob || len(h.held) != 1 {
+		t.Fatalf("cursor on job %d with %d rests due, want the macOS job and one", j.ID, len(h.held))
+	}
+	h.release()
+	close(f.release)
+	wait()
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if len(f.canceled) != 0 {
+		t.Errorf("the reads ahead of the logs of %v were cancelled, want none", f.canceled)
+	}
+}
