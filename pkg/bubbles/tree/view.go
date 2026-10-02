@@ -4,6 +4,8 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // View renders the visible rows in exactly Height lines of Width cells.
@@ -11,7 +13,7 @@ func (m Model) View() string {
 	if m.width <= 0 || m.height <= 0 {
 		return ""
 	}
-	w := lineWriter{width: m.width, height: m.height, ellipsis: m.styles.ErrorEllipsis}
+	w := lineWriter{width: m.width, height: m.height, ellipsis: m.styles.ErrorEllipsis, cut: m.styles.Ellipsis}
 	// Rows carry styles, so leave room for escape sequences.
 	w.b.Grow(m.height * (m.width + 48))
 
@@ -65,10 +67,10 @@ func (m Model) writeRow(w *lineWriter, i int) {
 	nw, mw := ansi.StringWidth(name), ansi.StringWidth(msg)
 	if nw+mw > room {
 		if nw > room/2 {
-			name = ansi.Truncate(name, max(room/2, 1), w.ellipsis)
+			name = termtext.Truncate(name, max(room/2, 1), w.ellipsis)
 			nw = ansi.StringWidth(name)
 		}
-		msg = ansi.Truncate(msg, max(room-nw, 0), w.ellipsis)
+		msg = termtext.Truncate(msg, max(room-nw, 0), w.ellipsis)
 	}
 	w.line(prefix, guide, marker, icon.text, name, msg, hint)
 }
@@ -97,7 +99,7 @@ func (m Model) writeName(w *lineWriter, e *entry, prefix, marker string, icon gl
 	}
 	name := e.label
 	if nw > avail {
-		name = ansi.Truncate(name, avail, "…")
+		name = termtext.Truncate(name, avail, m.styles.Ellipsis)
 		nw = ansi.StringWidth(name)
 	}
 	w.right(e.detail, room-nw-dw, prefix, guide, marker, icon.text, name)
@@ -157,8 +159,9 @@ type lineWriter struct {
 	width  int
 	height int
 	lines  int
-	// ellipsis ends the text of a status line where it is cut.
-	ellipsis string
+	// ellipsis ends the text of an error or a status line where it is
+	// cut, and cut any other line.
+	ellipsis, cut string
 }
 
 func (w *lineWriter) full() bool {
@@ -178,7 +181,7 @@ func (w *lineWriter) line(parts ...string) {
 	for _, p := range parts {
 		pw := ansi.StringWidth(p)
 		if pw > left {
-			p = ansi.Truncate(p, left, "…")
+			p = termtext.Truncate(p, left, w.cut)
 			pw = ansi.StringWidth(p)
 			w.b.WriteString(p)
 			w.pad(left - pw)
@@ -212,7 +215,7 @@ func (w *lineWriter) right(detail string, gap int, parts ...string) {
 func (w *lineWriter) status(prefix, text, hint string) {
 	room := w.width - ansi.StringWidth(prefix) - ansi.StringWidth(hint)
 	if tw := ansi.StringWidth(text); tw > room {
-		text = ansi.Truncate(text, max(room, 0), w.ellipsis)
+		text = termtext.Truncate(text, max(room, 0), w.ellipsis)
 	}
 	w.line(prefix, text, hint)
 }
