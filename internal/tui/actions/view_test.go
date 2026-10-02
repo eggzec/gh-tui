@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"unicode"
 
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
@@ -12,6 +13,27 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
+
+// With the ASCII icons every view of the modal is ASCII alone, as wide or
+// narrow as the frame is: the runs, the jobs, the log, the filters and a
+// confirmation.
+func TestViewASCII(t *testing.T) {
+	for _, tt := range []struct {
+		width, height int
+		keys          []string
+	}{
+		{wideW, wideH, nil}, {wideW, wideH, []string{"tab"}}, {wideW, wideH, []string{"j"}},
+		{wideW, wideH, []string{"f"}}, {wideW, wideH, []string{"ctrl+r"}}, {wideW, wideH, []string{"]"}},
+		{narrowW, narrowH, []string{"enter"}}, {narrowW, narrowH, []string{"enter", "enter"}},
+		{narrowW, narrowH, []string{"j", "enter", "enter"}}, {narrowW, narrowH, []string{"f"}},
+	} {
+		m, h := newModal(t, newFake(), tt.width, tt.height, WithIcons(ui.NewIcons(config.IconsASCII)))
+		h.keys(tt.keys...)
+		if v := ansi.Strip(m.View()); strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
+			t.Errorf("%dx%d after %v: view isn't ASCII:\n%s", tt.width, tt.height, tt.keys, v)
+		}
+	}
+}
 
 func TestView(t *testing.T) {
 	tests := []struct {

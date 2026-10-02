@@ -9,13 +9,13 @@ import (
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/tui/jobview"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // jobs are the jobs of the attempt of the run shown.
@@ -329,7 +329,7 @@ func (m *Modal) jobLines(w, h int) []string {
 	case !j.loaded && j.err != nil:
 		return ui.FitLines(m.errorLines("load the jobs", jobview.RunName(m.run), j.err, w), w, h)
 	case !j.loaded:
-		return ui.FitLines([]string{m.spin.View() + st.Muted.Render("Loading the jobs…")}, w, h)
+		return ui.FitLines([]string{m.spin.View() + st.Muted.Render("Loading the jobs"+st.ic.Ellipsis)}, w, h)
 	case len(j.items) == 0:
 		return ui.FitLines(ui.Wrap(st.Muted.Render(m.noJobsText()), w), w, h)
 	}
@@ -342,9 +342,9 @@ func (m *Modal) jobLines(w, h int) []string {
 	if j.more && len(lines) < h {
 		text := "First " + strconv.Itoa(len(j.items)) + " jobs"
 		if k := m.keys.Open.Help().Key; k != "" {
-			text += " · " + k + " shows all"
+			text += st.ic.Separator + st.ic.Key(k) + " shows all"
 		}
-		lines = append(lines, ui.Fit(st.noGutter+st.Subtle.Render(ansi.Truncate(text, w-2, "…")), w))
+		lines = append(lines, ui.Fit(st.noGutter+st.Subtle.Render(termtext.Truncate(text, w-2, st.ic.Ellipsis)), w))
 	}
 	return ui.PadLines(lines, w, h)
 }
@@ -365,7 +365,7 @@ func (m *Modal) noJobsText() string {
 		return "This run has no jobs yet."
 	}
 	if k := m.keys.Open.Help().Key; k != "" {
-		text += " · " + k + " opens it on GitHub"
+		text += m.st.ic.Separator + m.st.ic.Key(k) + " opens it on GitHub"
 	}
 	return text
 }
@@ -436,7 +436,7 @@ func (m *Modal) jobsTitle() string {
 		}
 	}
 	if failed > 0 {
-		s += " · " + strconv.Itoa(failed) + " failed"
+		s += m.st.ic.Separator + strconv.Itoa(failed) + " failed"
 	}
 	return s
 }

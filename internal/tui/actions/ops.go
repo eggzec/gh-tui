@@ -157,7 +157,7 @@ func (m *Modal) doneRun() (r core.Run, notice string) {
 	if !m.run.Done() {
 		notice = jobview.RunName(m.run) + " is still running."
 		if k := m.keys.Cancel.Help().Key; k != "" {
-			notice += " " + k + " cancels it."
+			notice += " " + m.opts.icons.Key(k) + " cancels it."
 		}
 		return core.Run{}, notice
 	}

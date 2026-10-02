@@ -198,7 +198,7 @@ func (m *Modal) Init() tea.Cmd {
 
 // Title names the repository.
 func (m *Modal) Title() string {
-	return Title + " · " + m.repo.String()
+	return Title + m.opts.icons.Separator + m.repo.String()
 }
 
 // Tabs returns the names of the tabs, which the app shows in the top edge
@@ -220,10 +220,10 @@ func (m *Modal) SetSize(width, height int) {
 
 // SetTheme styles the modal and the bubbles in it.
 func (m *Modal) SetTheme(t ui.Theme) {
+	m.opts.voice.Icons = &m.opts.icons
 	m.theme = t
 	m.st = newStyles(t, m.opts.icons)
 	m.errs = t.Errors(m.opts.icons)
-	m.opts.voice.Icons = &m.opts.icons
 	m.spin.Style = t.Accent
 	m.spin.Spinner = m.opts.icons.SpinnerOr(spinner.Dot)
 	m.runs.SetStyles(t.Feed(m.opts.icons))

@@ -7,6 +7,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/tui/jobview"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // View renders the panes side by side, or the focused one alone with a
@@ -21,7 +22,7 @@ func (m *Modal) View() string {
 	var lines []string
 	switch {
 	case m.filterStep != nil:
-		lines = append(lines, ui.Fit(m.st.lastCrumb.Render("Filter · Runs"), w))
+		lines = append(lines, ui.Fit(m.st.lastCrumb.Render("Filter"+m.st.ic.Separator+"Runs"), w))
 		lines = append(lines, m.filterLines(w, h)...)
 	case m.narrow():
 		lines = append(lines, ui.Fit(m.breadcrumb(w), w))
@@ -118,7 +119,7 @@ func (m *Modal) paneTitle(p pane, w int) string {
 	case runsPane:
 		text, detail = "Runs", m.runsTitle()
 		if f := m.filterText(); f != "" {
-			detail = strings.TrimSpace(detail + " · " + f)
+			detail = strings.TrimSpace(detail + m.st.ic.Separator + f)
 		}
 	case jobsPane:
 		text, detail = "Jobs", m.jobsTitle()
@@ -127,7 +128,7 @@ func (m *Modal) paneTitle(p pane, w int) string {
 	}
 	line := st.Render(text)
 	if room := w - ansi.StringWidth(text) - 1; detail != "" && room > 1 {
-		line += " " + m.st.Subtle.Render(ansi.Truncate(detail, room, "…"))
+		line += " " + m.st.Subtle.Render(termtext.Truncate(detail, room, m.st.ic.Ellipsis))
 	}
 	return ui.Fit(line, w)
 }
@@ -143,12 +144,12 @@ func (m *Modal) breadcrumb(w int) string {
 	if j, ok := m.jobs.selected(); m.focus == logPane && ok {
 		crumbs = append(crumbs, ui.OneLine(j.Name))
 	}
-	const sep = " › "
+	sep, ell := " "+m.st.ic.Crumb+" ", m.st.ic.Ellipsis
 	// Drop the first crumbs until the rest fit.
 	for len(crumbs) > 1 && ansi.StringWidth(strings.Join(crumbs, sep)) > w {
 		crumbs = crumbs[1:]
-		if crumbs[0] != "…" {
-			crumbs = append([]string{"…"}, crumbs[1:]...)
+		if crumbs[0] != ell {
+			crumbs = append([]string{ell}, crumbs[1:]...)
 		}
 	}
 	var b strings.Builder
@@ -162,7 +163,7 @@ func (m *Modal) breadcrumb(w int) string {
 		}
 		b.WriteString(st.Render(c))
 	}
-	return ansi.Truncate(b.String(), w, "…")
+	return termtext.Truncate(b.String(), w, ell)
 }
 
 // runsCrumb names the runs shown: their tab, unless it is All, or that a
@@ -171,9 +172,9 @@ func (m *Modal) runsCrumb() string {
 	t, ok := tabOf(m.filter)
 	switch {
 	case m.filterText() != "":
-		return "Runs · filtered"
+		return "Runs" + m.st.ic.Separator + "filtered"
 	case ok && t != tabAll:
-		return "Runs · " + tabNames[t]
+		return "Runs" + m.st.ic.Separator + tabNames[t]
 	}
 	return "Runs"
 }
@@ -185,7 +186,7 @@ func (m *Modal) prompt(w int) string {
 	case m.ask != nil:
 		return m.ask.Line(m.st.confirm, m.keys.Confirm, w)
 	case m.notice != "":
-		return ui.Fit(m.st.Warning.Render(ansi.Truncate(m.notice, w, "…")), w)
+		return ui.Fit(m.st.Warning.Render(termtext.Truncate(m.notice, w, m.st.ic.Ellipsis)), w)
 	}
 	return ""
 }

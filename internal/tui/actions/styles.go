@@ -7,14 +7,14 @@ import (
 )
 
 // cursorGlyph marks the row under the cursor, as the feed does.
-const cursorGlyph = "▌"
-
 // sepWidth is the width of the rule between two panes, with a space on
 // each side.
 const sepWidth = 3
 
 // styles are the modal's own, built once per theme.
 type styles struct {
+	// ic draws the crumbs, separators and ellipses.
+	ic                ui.Icons
 	title, focusTitle lipgloss.Style
 	crumb, lastCrumb  lipgloss.Style
 	// sep is the rule between two panes, rendered.
@@ -33,16 +33,17 @@ type styles struct {
 func newStyles(t ui.Theme, ic ui.Icons) styles {
 	border := lipgloss.NewStyle().Foreground(lipgloss.Color(t.Palette.Border))
 	s := styles{
+		ic:         ic,
 		title:      t.Muted,
 		focusTitle: t.Accent.Bold(true),
 		crumb:      t.Muted,
 		lastCrumb:  t.Accent.Bold(true),
-		sep:        border.Render(" │ "),
-		gutter:     t.Accent.Render(cursorGlyph) + " ",
-		blurGutter: t.Subtle.Render(cursorGlyph) + " ",
+		sep:        border.Render(" " + ic.Border.Left + " "),
+		gutter:     t.Accent.Render(ic.Cursor) + " ",
+		blurGutter: t.Subtle.Render(ic.Cursor) + " ",
 		noGutter:   "  ",
-		folded:     t.Muted.Render("▸") + " ",
-		unfolded:   t.Muted.Render("▾") + " ",
+		folded:     t.Muted.Render(ic.Folded) + " ",
+		unfolded:   t.Muted.Render(ic.Unfolded) + " ",
 		RunStyles:  ui.NewRunStyles(t, ic),
 		confirm:    t.Confirm(ic),
 	}

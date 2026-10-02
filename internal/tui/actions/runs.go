@@ -232,7 +232,7 @@ func (m *Modal) renderRun(r core.Run, selected bool, w int) string {
 			parts = append(parts, p)
 		}
 	}
-	detail := "  " + st.Muted.Render(strings.Join(parts, " · "))
+	detail := "  " + st.Muted.Render(strings.Join(parts, st.ic.Separator))
 	var took string
 	switch d, ok := runSpan(r, now); {
 	case r.Status == core.RunCancelling:
