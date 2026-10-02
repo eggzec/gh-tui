@@ -64,7 +64,7 @@ func (m *Model) relist() {
 	m.vp.SetWidth(w)
 	m.vp.SetHeight(max(m.height-2, 0))
 	if len(m.shown) == 0 {
-		m.vp.SetContentLines([]string{fit(m.styles.Empty.Render(m.emptyText), w)})
+		m.vp.SetContentLines([]string{m.fit(m.styles.Empty.Render(m.emptyText), w)})
 		m.render()
 		return
 	}
@@ -108,33 +108,33 @@ func (m *Model) row(r Row, w, kw, sw int) string {
 	}
 	glyph := "  "
 	if r.Status == Conflict || r.Status == Shadowed {
-		glyph = mark.Render(warnGlyph) + " "
+		glyph = mark.Render(termtext.Cells(s.WarnGlyph, 1)) + " "
 	}
 	dw := max(w-markWidth-kw-sw, 0)
 	var b strings.Builder
 	b.WriteString(glyph)
-	b.WriteString(column(keys, strings.Join(r.Binding.Keys(), " "), kw))
-	b.WriteString(column(desc, r.Binding.Help().Desc, dw))
+	b.WriteString(m.column(keys, strings.Join(r.Binding.Keys(), " "), kw))
+	b.WriteString(m.column(desc, r.Binding.Help().Desc, dw))
 	if sw > 0 {
-		b.WriteString(column(src, r.Source, sw))
+		b.WriteString(m.column(src, r.Source, sw))
 	}
-	return fit(b.String(), w)
+	return m.fit(b.String(), w)
 }
 
 // loss renders the line under a row that says who gets key l, indented to
 // the description.
 func (m *Model) loss(l Loss, w, kw int) string {
 	st := m.styles.Conflict
-	text := lossGlyph + " " + l.Key + ": " + l.By.Help().Desc + " · " + l.Source
+	text := m.styles.LossGlyph + " " + l.Key + ": " + l.By.Help().Desc + m.styles.Separator + l.Source
 	switch l.Status {
 	case Active, Disabled, Conflict:
 	case Shadowed:
 		st = m.styles.Shadowed
 	case Typed:
 		st = m.styles.Typed
-		text = lossGlyph + " " + l.Key + ": typed in " + l.Source
+		text = m.styles.LossGlyph + " " + l.Key + ": typed in " + l.Source
 	}
-	return fit(strings.Repeat(" ", min(markWidth+kw, w))+st.Render(clean(text)), w)
+	return m.fit(strings.Repeat(" ", min(markWidth+kw, w))+st.Render(clean(text)), w)
 }
 
 // render renders the view for the current state.
@@ -169,7 +169,7 @@ func (m *Model) titleLine(w int) string {
 	title := m.styles.Title.Render(clean(m.title))
 	gap := w - ansi.StringWidth(title) - len(count)
 	if gap < 1 {
-		return fit(title, w)
+		return m.fit(title, w)
 	}
 	return title + strings.Repeat(" ", gap) + m.styles.Count.Render(count)
 }
@@ -177,11 +177,11 @@ func (m *Model) titleLine(w int) string {
 // queryLine renders the query, or what to do while a key is captured.
 func (m *Model) queryLine(w int) string {
 	if m.capturing {
-		text := "Press a key to find it · tab to stop"
+		text := "Press a key to find it" + m.styles.Separator + "tab to stop"
 		if m.key != "" {
-			text = "Key " + m.key + " · press another, or tab to stop"
+			text = "Key " + m.key + m.styles.Separator + "press another, or tab to stop"
 		}
-		return fit(m.styles.Capture.Render(clean(text)), w)
+		return m.fit(m.styles.Capture.Render(clean(text)), w)
 	}
 	head := m.prompt
 	if m.key != "" {
@@ -189,26 +189,27 @@ func (m *Model) queryLine(w int) string {
 	}
 	// The input draws one cell more than its width, for the cursor.
 	m.input.SetWidth(max(w-ansi.StringWidth(head)-1, 1))
-	return fit(head+m.input.View(), w)
+	return m.fit(head+m.input.View(), w)
 }
 
 // column renders text in st, cut to leave a gap and padded to width.
-func column(st lipgloss.Style, text string, width int) string {
+func (m *Model) column(st lipgloss.Style, text string, width int) string {
 	if width <= 0 {
 		return ""
 	}
 	text = clean(text)
 	if ansi.StringWidth(text) > width-1 {
-		text = ansi.Truncate(text, max(width-1, 0), "…")
+		text = termtext.Truncate(text, max(width-1, 0), m.styles.Ellipsis)
 	}
 	return st.Render(text) + strings.Repeat(" ", width-ansi.StringWidth(text))
 }
 
-// fit truncates or pads styled text to exactly width cells.
-func fit(s string, width int) string {
+// fit truncates styled text to exactly width cells, ending it with the
+// ellipsis where it cuts, or pads it.
+func (m *Model) fit(s string, width int) string {
 	w := ansi.StringWidth(s)
 	if w > width {
-		s = ansi.Truncate(s, width, "…")
+		s = termtext.Truncate(s, width, m.styles.Ellipsis)
 		w = ansi.StringWidth(s)
 	}
 	if w < width {
