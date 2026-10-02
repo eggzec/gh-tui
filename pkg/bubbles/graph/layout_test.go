@@ -12,11 +12,17 @@ func c(id string, parents ...string) Commit {
 	return Commit{ID: id, Parents: parents, Title: id}
 }
 
+// defaultGlyphs are the glyphs of the default styles.
+var defaultGlyphs = func() [glyphCount]string {
+	st := DefaultStyles(true)
+	return glyphs(st.CommitGlyph, st.Ellipsis, st.Lines)
+}()
+
 // plain draws cells without styles.
 func plain(cells []cell) string {
 	var b strings.Builder
 	for j, c := range cells {
-		b.WriteString(glyphs[c.glyph])
+		b.WriteString(defaultGlyphs[c.glyph])
 		if j == len(cells)-1 {
 			break
 		}

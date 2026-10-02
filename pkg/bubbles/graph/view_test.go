@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"unicode"
 
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
 )
@@ -124,5 +126,32 @@ func TestViewFitsAnySize(t *testing.T) {
 	m.SetSize(0, 10)
 	if m.View() != "" {
 		t.Fatal("zero width should render nothing")
+	}
+}
+
+// The cursor, the commits, the lines of the lanes and the ellipsis of cut
+// titles and hidden lanes are the glyphs of the styles, so a view with
+// ASCII glyphs draws ASCII alone.
+func TestViewGlyphs(t *testing.T) {
+	st := DefaultStyles(true)
+	st.CursorGlyph, st.CommitGlyph, st.Lines, st.Ellipsis = ">", "*", lipgloss.ASCIIBorder(), "..."
+	st.ErrorGlyph, st.ErrorSeparator, st.ErrorEllipsis = "x", " - ", "..."
+	for _, m := range []Model{
+		load(t, newSource(sample(), 10), WithSize(40, 9), WithStyles(st)),
+		load(t, newSource(octopus(), 10), WithSize(30, 6), WithMaxLanes(3), WithStyles(st)),
+	} {
+		v := ansi.Strip(m.View())
+		for _, want := range []string{"> *", "|", "+-", "..."} {
+			if !strings.Contains(v, want) {
+				t.Errorf("view lacks %q:\n%s", want, v)
+			}
+		}
+		if strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
+			t.Errorf("view has glyphs beyond ASCII:\n%s", v)
+		}
+	}
+	loading := New(newSource(sample(), 10).fetch, WithSize(60, 3), WithStyles(st))
+	if v := ansi.Strip(loading.View()); !strings.Contains(v, "Loading...") {
+		t.Errorf("view lacks %q:\n%s", "Loading...", v)
 	}
 }

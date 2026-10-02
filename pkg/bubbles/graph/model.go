@@ -265,6 +265,7 @@ func (m *Model) SetStyles(s Styles) {
 	}
 	m.styles = s
 	m.spin.Style = s.Spinner
+	glyphs := glyphs(s.CommitGlyph, s.Ellipsis, s.Lines)
 	for g := range glyphCount {
 		m.frags[g] = make([]string, len(s.Lanes))
 		for c := range s.Lanes {
@@ -272,20 +273,21 @@ func (m *Model) SetStyles(s Styles) {
 			case glyphSpace, glyphLine:
 				m.frags[g][c] = " "
 			case glyphOverflow:
-				m.frags[g][c] = s.Overflow.Render(glyphs[g])
+				m.frags[g][c] = s.Overflow.Render(termtext.Cells(glyphs[g], 1))
 			default:
-				m.frags[g][c] = s.Lanes[c].Render(glyphs[g])
+				m.frags[g][c] = s.Lanes[c].Render(termtext.Cells(glyphs[g], 1))
 			}
 		}
 	}
 	m.hline = make([]string, len(s.Lanes))
 	for c := range s.Lanes {
-		m.hline[c] = s.Lanes[c].Render("─")
+		m.hline[c] = s.Lanes[c].Render(termtext.Cells(s.Lines.Top, 1))
 	}
-	m.gutterFocused = s.Cursor.Render(cursorGlyph) + " "
-	m.gutterBlurred = s.BlurredCursor.Render(cursorGlyph) + " "
+	cursor := termtext.Cells(s.CursorGlyph, 1)
+	m.gutterFocused = s.Cursor.Render(cursor) + " "
+	m.gutterBlurred = s.BlurredCursor.Render(cursor) + " "
 	m.gutterNone = "  "
-	m.loadingText = s.Loading.Render("Loading…")
+	m.loadingText = s.Loading.Render("Loading" + s.Ellipsis)
 	m.emptyLine = s.Empty.Render(m.emptyText)
 	// Copies of the model share the rows, so render into new ones.
 	m.rows = slices.Clone(m.rows)
