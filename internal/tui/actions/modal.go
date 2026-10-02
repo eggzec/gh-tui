@@ -171,11 +171,11 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, keys map[string][]
 	m.log = jobview.New(rctx, svc, repo, keyMap.job(),
 		jobview.WithIcons(o.icons), jobview.WithRest(o.prefetch.logs.Rest), jobview.WithClock(o.now), jobview.WithReturn(m),
 		jobview.WithVoice(*o.voice))
-	m.aheadJobs = ui.NewAhead("jobs", m.readJobsAhead, m.cachedJobs, 0, 0)
+	m.aheadJobs = ui.NewAhead("jobs", m.readJobsAhead, m.cachedJobs)
 	m.aheadJobs.Share(o.slots)
 	m.aheadJobs.Reset(rctx)
 	m.aheadJobs.Configure(o.prefetch.jobs)
-	m.aheadLogs = ui.NewAhead("job_log", m.readLogAhead, m.cachedLog, 0, 0)
+	m.aheadLogs = ui.NewAhead("job_log", m.readLogAhead, m.cachedLog)
 	m.aheadLogs.Share(o.slots)
 	m.aheadLogs.Reset(rctx)
 	m.aheadLogs.Configure(o.prefetch.logs)

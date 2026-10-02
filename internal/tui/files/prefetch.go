@@ -60,7 +60,7 @@ func (s *Section) fileAhead(r config.Resolved) *ui.Ahead[filesvc.BlobQuery] {
 		func(q filesvc.BlobQuery) bool {
 			_, ok := svc.CachedBlob(q)
 			return ok
-		}, 0, 0)
+		})
 	a.Share(s.slots)
 	a.Configure(r)
 	return a
@@ -79,7 +79,7 @@ func (s *Section) newAheads() {
 		func(q filesvc.TreeQuery) bool {
 			_, ok := svc.CachedTree(q)
 			return ok
-		}, 0, 0)
+		})
 	s.dirs.Share(s.slots)
 	s.dirs.Configure(s.prefetch.tree)
 }

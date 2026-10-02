@@ -80,6 +80,14 @@ func (a *Ahead[K]) Window(at func(i int) (K, bool), i int) tea.Cmd {
 	return tea.Tick(a.delay, func(time.Time) tea.Msg { return msg })
 }
 
+// Rested reads the window the cursor rested on, unless it moved since.
+func (a *Ahead[K]) Rested(msg AheadMsg) tea.Cmd {
+	if a == nil || msg.id != a.id || msg.seq != a.seq || !a.windowed {
+		return nil
+	}
+	return a.readWindow()
+}
+
 // windowRows returns the rows of the window around row i that at has, each
 // once: the row under the cursor first, then nearest first, below before
 // above. A nil at or an i below 0 has none.

@@ -9,7 +9,6 @@ import (
 	"context"
 	"errors"
 	"sync"
-	"time"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
@@ -58,12 +57,12 @@ func Of(hit core.SearchHit) (Key, bool) {
 }
 
 // NewAhead returns a ui.Ahead that reads through ps and is, counted under
-// kind in the log: the first rows of a list, and the row the cursor rests
-// on for delay. Each costs two requests, and what is cached is skipped. A
-// nil service reads nothing of its kind.
-func NewAhead(kind string, ps Pulls, is Issues, rows int, delay time.Duration) *ui.Ahead[Key] {
+// kind in the log, the rows that its window holds. Each costs two
+// requests, and what is cached is skipped. A nil service reads nothing of
+// its kind.
+func NewAhead(kind string, ps Pulls, is Issues) *ui.Ahead[Key] {
 	r := Reader{Pulls: ps, Issues: is}
-	return ui.NewAhead(kind, r.Read, r.Current, rows, delay)
+	return ui.NewAhead(kind, r.Read, r.Current)
 }
 
 // Reader reads pull requests and issues into the caches their modals read
