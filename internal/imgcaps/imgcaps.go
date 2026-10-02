@@ -29,6 +29,9 @@ type Verdict struct {
 	Terminal string
 	// Reason says why, in a few words, for the log.
 	Reason string
+	// Fix, when set, is a line of tmux.conf that would have images
+	// drawn, for the user to add.
+	Fix string
 }
 
 // Env is what the environment says of the terminal.
@@ -73,7 +76,7 @@ const (
 func Plan(mode string, env Env, profile colorprofile.Profile) (Path, Verdict) {
 	switch {
 	case mode == ModeOff:
-		return Decided, off("images.enabled is off")
+		return Decided, off("images are turned off in the settings")
 	case env.NoColor:
 		return Decided, off("NO_COLOR is set")
 	case env.Term == "" || env.Term == "dumb" || env.Term == "linux":
@@ -119,7 +122,7 @@ func Named(mode, name string) (ask bool, v Verdict) {
 	case !ok:
 		return false, Verdict{Terminal: name, Reason: why}
 	case mode == ModeOn:
-		return false, Verdict{Images: true, Terminal: name, Reason: "the terminal draws kitty placeholders; images.enabled is on"}
+		return false, Verdict{Images: true, Terminal: name, Reason: "the terminal is known to draw kitty placeholders, so it wasn't asked"}
 	}
 	return true, Verdict{}
 }

@@ -80,7 +80,7 @@ func DecideTmux(t Tmux) Verdict {
 	case t.PassthroughErr != nil:
 		v.Reason = "tmux couldn't say its allow-passthrough: " + t.PassthroughErr.Error()
 	case t.Passthrough != "on" && t.Passthrough != "all":
-		v.Reason = "tmux's allow-passthrough is off: set -g allow-passthrough on"
+		v.Reason, v.Fix = "tmux's allow-passthrough is off", "set -g allow-passthrough on"
 	case t.TermtypeErr != nil:
 		v.Reason = "tmux couldn't say the terminal of its client: " + t.TermtypeErr.Error()
 	case t.ClientTermtype == "":

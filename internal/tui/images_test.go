@@ -567,3 +567,145 @@ func TestImagesRecordAfterTerminal(t *testing.T) {
 		t.Errorf("images record = %v, want images_waited_ms", imgs[0])
 	}
 }
+
+// The images command says what the startup check found, and changes
+// nothing.
+func TestImagesCommand(t *testing.T) {
+	passthroughOff := &fakeTmux{passthrough: "off", client: imgcaps.TmuxClient{TTY: "/dev/pts/1", Termtype: "kitty(0.43.1)"}}
+	tests := []struct {
+		name  string
+		setup func(t *testing.T) *Model
+		want  []string
+		not   []string
+	}{
+		{
+			name: "ghostty",
+			setup: func(t *testing.T) *Model {
+				t.Helper()
+				m, _, _ := ghosttyApp(t)
+				answer(m, uv.CellSizeEvent{Width: 9, Height: 18})
+				answer(m, da1)
+				return m
+			},
+			want: []string{"Images are on.", "Reason: the terminal draws kitty placeholders.", "Terminal: ghostty 1.2.0\n",
+				"Through tmux: no\n", "images.enabled: auto\n", "Cell size: 9×18 pixels\n"},
+			not: []string{"tmux.conf"},
+		},
+		{
+			name: "tmux without passthrough",
+			setup: func(t *testing.T) *Model {
+				t.Helper()
+				m, _ := newTestApp(t)
+				m.images.mode = imgcaps.ModeAuto
+				WithImageProbe(imgcaps.Env{Term: "tmux-256color", Tmux: true}, passthroughOff.run)(m)
+				answer(m, tea.ColorProfileMsg{Profile: colorprofile.ANSI256})
+				return m
+			},
+			want: []string{"Images are off.", "Reason: tmux's allow-passthrough is off.", "Terminal: kitty(0.43.1)\n",
+				"Through tmux: yes\n", "images.enabled: auto\n", "To draw them, add this line to tmux.conf:", "7 set -g allow-passthrough on\n",
+				"tmux source-file ~/.tmux.conf"},
+			not: []string{"Cell size:"},
+		},
+		{
+			name: "off",
+			setup: func(t *testing.T) *Model {
+				t.Helper()
+				m, _ := probeApp(t, imgcaps.ModeOff, imgcaps.Env{Term: "xterm-kitty"}, "")
+				answer(m, tea.ColorProfileMsg{Profile: colorprofile.TrueColor})
+				answer(m, tea.TerminalVersionMsg{Name: "kitty(0.43.1)"})
+				return m
+			},
+			want: []string{"Images are off.", "Reason: images are turned off in the settings.", "Terminal: kitty(0.43.1)\n", "images.enabled: off\n"},
+			not:  []string{"tmux.conf"},
+		},
+		{
+			name: "before the verdict",
+			setup: func(t *testing.T) *Model {
+				t.Helper()
+				m, _ := probeApp(t, imgcaps.ModeAuto, imgcaps.Env{Term: "xterm-kitty"}, "")
+				return m
+			},
+			want: []string{"Images are off until the terminal answers.", "Terminal: unknown\n"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := tt.setup(t)
+			graphics, verdict := m.graphics, m.images.verdict
+			runCommand(t, m, "images")
+			title, got := shownText(t, m)
+			got = trimLines(got)
+			if title != "Images" {
+				t.Errorf("title %q, want Images", title)
+			}
+			for _, w := range tt.want {
+				if !strings.Contains(got, w) {
+					t.Errorf("pager = %q, want %q in it", got, w)
+				}
+			}
+			for _, w := range tt.not {
+				if strings.Contains(got, w) {
+					t.Errorf("pager = %q, want no %q", got, w)
+				}
+			}
+			if m.graphics != graphics || m.images.verdict != verdict {
+				t.Errorf("the command changed graphics %+v to %+v, verdict %+v to %+v", graphics, m.graphics, verdict, m.images.verdict)
+			}
+			drive(m, m.key(press("q")))
+			if m.modal != nil {
+				t.Errorf("q left %T open, want the pager closed", m.modal)
+			}
+		})
+	}
+}
+
+// The images command takes no argument.
+func TestImagesCommandTakesNoArgument(t *testing.T) {
+	m, _ := newTestApp(t)
+	runCommand(t, m, "images now")
+	if got := toasted(m); !strings.Contains(got, "The images command takes no argument.") {
+		t.Errorf("toast = %q", got)
+	}
+}
+
+// trimLines drops the spaces the pager pads its lines with, and joins
+// the rows it wrapped a line to, which it indents by two columns.
+func trimLines(s string) string {
+	var lines []string
+	for l := range strings.SplitSeq(s, "\n") {
+		l = strings.TrimRight(l, " ")
+		if rest, ok := strings.CutPrefix(l, "  "); ok && len(lines) > 0 {
+			lines[len(lines)-1] += rest
+			continue
+		}
+		lines = append(lines, l)
+	}
+	return strings.Join(lines, "\n")
+}
+
+// At a narrow width the images pager wraps its lines rather than cut
+// them, so the line to add to tmux.conf shows whole.
+func TestImagesCommandNarrow(t *testing.T) {
+	m, _ := newTestApp(t)
+	m.images.mode = imgcaps.ModeAuto
+	ft := &fakeTmux{passthrough: "off", client: imgcaps.TmuxClient{TTY: "/dev/pts/1", Termtype: "kitty(0.43.1)"}}
+	WithImageProbe(imgcaps.Env{Term: "tmux-256color", Tmux: true}, ft.run)(m)
+	answer(m, tea.ColorProfileMsg{Profile: colorprofile.ANSI256})
+	m.Update(tea.WindowSizeMsg{Width: 40, Height: 40})
+	runCommand(t, m, "images")
+	_, text := shownText(t, m)
+	if !m.modal.(*textModal).pager.Wrap() {
+		t.Error("the images pager doesn't wrap")
+	}
+	text = trimLines(text)
+	for _, want := range []string{"\n7 set -g allow-passthrough on\n", "~/.tmux.conf, and come back to gh-tui."} {
+		if !strings.Contains(text, want) {
+			t.Errorf("pager at 40 columns = %q, want %q whole", text, want)
+		}
+	}
+	drive(m, m.key(press("q")))
+	runCommand(t, m, "config")
+	if m.modal.(*textModal).pager.Wrap() {
+		t.Error("the config pager wraps, want its lines scrolled sideways")
+	}
+}
