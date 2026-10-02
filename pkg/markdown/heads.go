@@ -16,6 +16,9 @@ import (
 // code, and its link as a link.
 type headStyles struct {
 	name, size, link, note, text lipgloss.Style
+	// imageText and imageURL style an image shown as its text, as
+	// glamour shows it.
+	imageText, imageURL lipgloss.Style
 }
 
 func newHeadStyles(s ansi.StyleConfig) headStyles {
@@ -26,7 +29,16 @@ func newHeadStyles(s ansi.StyleConfig) headStyles {
 		link: primitive(s.Link),
 		note: code.Italic(true),
 		text: code,
+
+		imageText: primitive(s.ImageText),
+		imageURL:  primitive(s.Image),
 	}
+}
+
+// image returns an image as its text, as the default style shows one:
+// its alt text and, in brackets, its address.
+func (h headStyles) image(alt, url string) string {
+	return h.imageText.Render("🖼 "+termtext.OneLine(alt)) + " " + h.imageURL.Render("("+termtext.OneLine(url)+")")
 }
 
 // line returns the head of b, which is collapsible, as one styled line.

@@ -9,6 +9,7 @@ package markdown
 import (
 	"fmt"
 	"math/rand/v2"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -51,14 +52,38 @@ type Renderer struct {
 	// of collapsible blocks in what glamour renders.
 	nonce string
 	// heads styles the heads of collapsible blocks, and their code while
-	// they are open.
+	// they are open, and the images shown as their text.
 	heads headStyles
+	// pictures draws the images that stand alone on their lines, or is
+	// nil when none are drawn.
+	pictures Pictures
 }
 
-// rendered is a render and the heads of its collapsible blocks.
+// Pictures returns the lines that draw the image at url in at most width
+// cells, or nil while it can't, such as before the image arrived, when
+// the image shows as it does without pictures: its alt text and address.
+// The lines must each be as wide as the others, at most width cells, and
+// are put in the render as they are, after the styles of the markdown
+// around them were closed: they never go through a style or a wrap. The
+// renderer asks again each time it would reuse a render with images, and
+// renders again when the lines changed, so they must change only when
+// what they draw does.
+type Pictures func(url string, width int) []string
+
+// rendered is a render, the heads of its collapsible blocks and the
+// images that stand alone on their lines, with what drew them.
 type rendered struct {
 	text  string
 	heads []Head
+	slots []slot
+}
+
+// slot is an image that stands alone on its lines, the room it had, and
+// the lines Pictures gave for it, nil when it showed as its text.
+type slot struct {
+	url   string
+	width int
+	lines []string
 }
 
 // Head is the line that stands for a collapsible block, such as a
@@ -105,6 +130,20 @@ func (r *Renderer) SetStyle(style ansi.StyleConfig) {
 	r.highlights = nil
 }
 
+// SetPictures draws, with p, the images that stand alone on their lines,
+// as text alone in a paragraph or an img tag on a line of its own,
+// instead of their alt text and address. It forgets what was rendered
+// when pictures begin or stop being drawn; a kept render whose pictures p
+// draws otherwise than the one before renders again when next asked for.
+// An image in running text, or in a link, such as a badge, stays text. A
+// nil p draws none, and the renders are what they were without.
+func (r *Renderer) SetPictures(p Pictures) {
+	if (p == nil) != (r.pictures == nil) {
+		r.recent, r.older = nil, nil
+	}
+	r.pictures = p
+}
+
 // SetHint sets what the note that ends a source too long to show in full
 // offers, such as "o to open on GitHub", and forgets what was rendered.
 // The default offers nothing.
@@ -143,12 +182,12 @@ func (r *Renderer) get(src string, width int, open []int) rendered {
 	if len(open) > 0 {
 		k.open = fmt.Sprint(open)
 	}
-	if out, ok := r.recent[k]; ok {
+	if out, ok := r.recent[k]; ok && r.drawn(out) {
 		return out
 	}
 	out, ok := r.older[k]
 	kept := true
-	if !ok {
+	if !ok || !r.drawn(out) {
 		out, kept = r.render(src, width, open)
 	}
 	if !kept || len(src) > maxKept {
@@ -164,13 +203,51 @@ func (r *Renderer) get(src string, width int, open []int) rendered {
 	return out
 }
 
+// drawn reports whether out shows its images as Pictures would draw them
+// now, so a render whose image arrived since, or changed, is made again:
+// the lines of each image are part of what the render is kept under.
+func (r *Renderer) drawn(out rendered) bool {
+	for _, s := range out.slots {
+		if r.pictures == nil || !slices.Equal(r.pictures(s.url, s.width), s.lines) {
+			return false
+		}
+	}
+	return true
+}
+
 // Renders returns how many times the renderer ran glamour, so tests and
 // benchmarks can tell a render from a cache hit.
 func (r *Renderer) Renders() int { return r.renders }
 
 // render renders src, and reports whether the render is worth keeping:
-// it isn't if it left code plain that may highlight in another.
+// it isn't if it left code plain that may highlight in another. Where
+// Pictures draws any of the images that stand alone on their lines, they
+// show in lines of their own; while it draws none of them, the render is
+// the one without pictures, so an image shows as its text, as it does
+// without them, until it can be drawn.
 func (r *Renderer) render(src string, width int, open []int) (rendered, bool) {
+	if r.pictures == nil || !mayHaveImages(src) {
+		return r.renderWith(src, width, open, false)
+	}
+	pics, kept := r.renderWith(src, width, open, true)
+	if len(pics.slots) == 0 || slices.ContainsFunc(pics.slots, func(s slot) bool { return s.lines != nil }) {
+		// Without slots the source rendered as it does without pictures.
+		return pics, kept
+	}
+	out, plainKept := r.renderWith(src, width, open, false)
+	out.slots = pics.slots
+	return out, kept && plainKept
+}
+
+// mayHaveImages reports whether src may hold an image that stands alone
+// on its line.
+func mayHaveImages(src string) bool {
+	return strings.Contains(src, "![") || strings.Contains(strings.ToLower(src), "<img")
+}
+
+// renderWith renders src, with the images that stand alone on their lines
+// in lines of their own, as Pictures draws them, if pics is set.
+func (r *Renderer) renderWith(src string, width int, open []int, pics bool) (rendered, bool) {
 	r.renders++
 	// Only glamour may draw the token that marks a quote's indent, or the
 	// text could pass for a quote.
@@ -203,32 +280,59 @@ func (r *Renderer) render(src string, width int, open []int) (rendered, bool) {
 		}
 		parts = append(parts, part{lines: lines})
 		return blk.fence + "\n" + indent + r.mark(len(parts)-1) + "\n" + blk.fence
-	})
+	}, r.picture(pics, &parts))
 	lines, err := r.lines(text, width)
-	var heads []Head
+	var sp spliced
 	if err == nil && len(parts) > 0 {
 		var ok bool
-		if lines, heads, ok = r.splice(lines, parts, width); !ok {
-			lines, err = r.lines(prepare(src, open, r.hint, plain), width)
+		if sp, ok = r.splice(lines, parts, width); ok {
+			lines = sp.lines
+		} else {
+			sp = spliced{}
+			lines, err = r.lines(prepare(src, open, r.hint, plain, nil), width)
 		}
 	}
 	if err != nil {
 		// Showing the source beats showing nothing.
-		text = prepare(src, open, r.hint, plain)
+		text = prepare(src, open, r.hint, plain, nil)
 		lines = strings.Split(xansi.Wrap(text, width, ""), "\n")
-		heads = nil
+		sp = spliced{}
 	}
 	lines, front := trimBlank(lines)
 	for i, l := range lines {
 		lines[i] = safe(tidy(quoteBars(l)))
 	}
+	heads := sp.heads
 	for i := range heads {
 		heads[i].Line -= front
 		heads[i].End -= front
 		// Only now, once the lines are safe, which drops every link.
 		lines[heads[i].Line] = linked(lines[heads[i].Line], heads[i].URL)
 	}
-	return rendered{text: strings.Join(lines, "\n"), heads: heads}, !b.busy
+	// The lines of pictures go in only now too, since what makes a line
+	// safe would take the characters that draw them for the text's own.
+	for _, row := range sp.rows {
+		if i := row.line - front; i >= 0 && i < len(lines) {
+			lines[i] = strings.Replace(lines[i], r.rowMark(row.n), row.text, 1)
+		}
+	}
+	return rendered{text: strings.Join(lines, "\n"), heads: heads, slots: sp.slots}, !b.busy
+}
+
+// picture returns what prepare shows an image alone on its line as: a
+// block of its own whose mark splice turns into the image's lines, and
+// adds its part to parts, if pics is set, or nil, which leaves the image
+// as markdown.
+func (r *Renderer) picture(pics bool, parts *[]part) func(alt, url string) string {
+	if !pics {
+		return nil
+	}
+	return func(alt, url string) string {
+		*parts = append(*parts, part{pic: &picture{alt: alt, url: url}})
+		// A code block, which glamour puts on lines of its own even
+		// within a paragraph.
+		return "```\n" + r.mark(len(*parts)-1) + "\n```"
+	}
 }
 
 // lines returns text rendered by glamour at width, a line at a time.

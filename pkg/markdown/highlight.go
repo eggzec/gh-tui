@@ -59,22 +59,54 @@ func (r *Renderer) mark(i int) string {
 }
 
 // part is what a mark stands for: the lines of highlighted code, the head
-// of a collapsible block, or the code of an open one, which follows its
-// head.
+// of a collapsible block, the code of an open one, which follows its head,
+// or an image that stands alone on its line.
 type part struct {
 	lines []string
 	head  *Head
 	body  bool
+	pic   *picture
+}
+
+// picture is an image that stands alone on its line: its alt text and
+// address.
+type picture struct {
+	alt, url string
+}
+
+// spliced is what splice made: the lines, the heads where they landed,
+// the images that stand alone with what drew them, and the rows of the
+// pictures drawn, which go in for their marks once the lines are safe.
+type spliced struct {
+	lines []string
+	heads []Head
+	slots []slot
+	rows  []row
+}
+
+// row is a line of a picture: the line of the render it goes in, for the
+// mark of n, and its text.
+type row struct {
+	line, n int
+	text    string
+}
+
+// rowMark returns what stands for row n of the pictures until the lines
+// are safe.
+func (r *Renderer) rowMark(n int) string {
+	return r.nonce + "!" + strconv.Itoa(n) + "!"
 }
 
 // splice returns lines with the line of each mark replaced by the lines
 // of its part, each after what glamour put before the mark, such as the
 // block's margin, and the heads, where they landed. Code is wrapped at
-// width as glamour wraps code, and a head is cut to one line. It reports
-// false if glamour didn't render each mark as a line of its own, in order.
-func (r *Renderer) splice(lines []string, parts []part, width int) ([]string, []Head, bool) {
+// width as glamour wraps code, and a head is cut to one line. An image
+// takes the lines Pictures draws it in, in the room the margin leaves,
+// or else its text, wrapped as code is. It reports false if glamour didn't render
+// each mark as a line of its own, in order.
+func (r *Renderer) splice(lines []string, parts []part, width int) (spliced, bool) {
 	out := make([]string, 0, len(lines))
-	var heads []Head
+	var sp spliced
 	next := 0
 	for _, l := range lines {
 		i := strings.Index(l, r.nonce+".")
@@ -88,10 +120,10 @@ func (r *Renderer) splice(lines []string, parts []part, width int) ([]string, []
 			k++
 		}
 		if next >= len(parts) || k == j || k == len(l) || l[k] != '.' || l[j:k] != strconv.Itoa(next) {
-			return nil, nil, false
+			return spliced{}, false
 		}
 		if strings.ContainsAny(xansi.Strip(l[:i]), "`~") || strings.TrimSpace(xansi.Strip(l[k+1:])) != "" {
-			return nil, nil, false
+			return spliced{}, false
 		}
 		// The style glamour opened for the mark would only be overridden.
 		prefix := trailingStyle.ReplaceAllString(l[:i], "")
@@ -102,20 +134,38 @@ func (r *Renderer) splice(lines []string, parts []part, width int) ([]string, []
 			h.Line = len(out)
 			out = append(out, xansi.Truncate(prefix+p.lines[0], width, "…")+"\x1b[0m")
 			h.End = len(out)
-			heads = append(heads, h)
+			sp.heads = append(sp.heads, h)
 			continue
 		}
 		room := max(width-xansi.StringWidth(prefix), 1)
+		if p.pic != nil {
+			pic := r.pictures(p.pic.url, room)
+			sp.slots = append(sp.slots, slot{url: p.pic.url, width: room, lines: pic})
+			if pic == nil {
+				for w := range strings.SplitSeq(lipgloss.Wrap(r.heads.image(p.pic.alt, p.pic.url), room, ""), "\n") {
+					out = append(out, xansi.Truncate(prefix+w, width, "")+"\x1b[0m")
+				}
+				continue
+			}
+			// The margin's style is closed before the picture, which must
+			// keep its own colors.
+			for _, text := range pic {
+				sp.rows = append(sp.rows, row{line: len(out), n: len(sp.rows), text: text})
+				out = append(out, prefix+"\x1b[0m"+r.rowMark(len(sp.rows)-1)+"\x1b[0m")
+			}
+			continue
+		}
 		for _, c := range p.lines {
 			for w := range strings.SplitSeq(lipgloss.Wrap(c, room, ""), "\n") {
 				out = append(out, xansi.Truncate(prefix+w, width, "")+"\x1b[0m")
 			}
 		}
-		if p.body && len(heads) > 0 {
-			heads[len(heads)-1].End = len(out)
+		if p.body && len(sp.heads) > 0 {
+			sp.heads[len(sp.heads)-1].End = len(out)
 		}
 	}
-	return out, heads, next == len(parts)
+	sp.lines = out
+	return sp, next == len(parts)
 }
 
 // codeStyle returns the chroma style of the code in s, as glamour would
