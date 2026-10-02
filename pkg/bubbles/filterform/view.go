@@ -23,12 +23,6 @@ func (m Model) View() string { return m.view }
 // orderLabel names the row of the order on the Sort tab.
 const orderLabel = "Order"
 
-// Arrows before the names of the orders.
-const (
-	descArrow = "↓ "
-	ascArrow  = "↑ "
-)
-
 // labelWidth returns the width of the label column, which shrinks to a
 // quarter of the width. Both tabs share it, so the values don't move when
 // the tab changes.
@@ -81,7 +75,7 @@ func (m *Model) render() {
 		tabLine = m.tabLine(w)
 	}
 	if m.glyphs.ruleWidth != w {
-		m.glyphs.rule, m.glyphs.ruleWidth = m.styles.Rule.Render(strings.Repeat(ruleGlyph, w)), w
+		m.glyphs.rule, m.glyphs.ruleWidth = m.styles.Rule.Render(strings.Repeat(m.styles.Glyphs.Rule, w)), w
 	}
 	rule := m.glyphs.rule
 	// Give the rows at least a line: drop the help, the tabs, the query's
@@ -144,7 +138,7 @@ func (m *Model) tabLine(w int) string {
 	b.WriteString("  ")
 	for i, name := range tabNames {
 		if i > 0 {
-			b.WriteString(m.styles.Tab.Render(" · "))
+			b.WriteString(m.styles.Tab.Render(m.styles.Glyphs.Separator))
 		}
 		st := m.styles.Tab
 		if Tab(i) == m.tab {
@@ -152,7 +146,7 @@ func (m *Model) tabLine(w int) string {
 		}
 		b.WriteString(st.Render(name))
 	}
-	line := fit(b.String(), w)
+	line := m.fit(b.String(), w)
 	m.cache.tabs = tabCache{ok: true, tab: m.tab, width: w, line: line}
 	return line
 }
@@ -235,13 +229,13 @@ func (m *Model) rowLines(r, w int) []string {
 	if focused {
 		st = m.styles.FocusedLabel
 	}
-	b.WriteString(st.Render(fit(label, lw)))
+	b.WriteString(st.Render(m.fit(label, lw)))
 	b.WriteString(strings.Repeat(" ", labelGap))
 	first := b.String()
 
 	vw := w - m.valueX()
 	if vw < 1 {
-		return []string{fit(first, w)}
+		return []string{m.fit(first, w)}
 	}
 	var segs []string
 	if m.tab == SortTab {
@@ -254,9 +248,9 @@ func (m *Model) rowLines(r, w int) []string {
 	indent := strings.Repeat(" ", m.valueX())
 	for i, v := range vals {
 		if i == 0 {
-			out[i] = fit(first+v, w)
+			out[i] = m.fit(first+v, w)
 		} else {
-			out[i] = fit(indent+v, w)
+			out[i] = m.fit(indent+v, w)
 		}
 	}
 	return out
@@ -311,10 +305,10 @@ func (m *Model) fieldSegments(i int, focused bool, vw int) []string {
 		} else {
 			seg = s.Value.Render(labelOf(m.items(i), v.text))
 		}
-		return append([]string{seg + " " + s.Option.Render(dropGlyph)}, m.loadSegment(i)...)
+		return append([]string{seg + " " + s.Option.Render(m.styles.Glyphs.Drop)}, m.loadSegment(i)...)
 	case Text:
 		if m.editing && m.row == i {
-			return []string{fit(m.text.View(), vw)}
+			return []string{m.fit(m.text.View(), vw)}
 		}
 		if v.text == "" {
 			return []string{s.Hint.Render(f.Hint)}
@@ -333,7 +327,7 @@ func (m *Model) loadSegment(i int) []string {
 	}
 	switch m.fields[i].state {
 	case loading:
-		return []string{m.spin.View() + m.styles.Hint.Render("loading…")}
+		return []string{m.spin.View() + m.styles.Hint.Render("loading"+m.styles.Glyphs.Ellipsis)}
 	case failed:
 		if text, _ := m.errorWords(m.fields[i].err, ""); text == "" {
 			return nil
@@ -349,11 +343,11 @@ func (m *Model) loadSegment(i int) []string {
 func (m *Model) radio(label string, on, focused bool) string {
 	switch {
 	case on && focused:
-		return m.styles.Active.Render(onGlyph + " " + label)
+		return m.styles.Active.Render(m.styles.Glyphs.On + " " + label)
 	case on:
-		return m.styles.Selected.Render(onGlyph + " " + label)
+		return m.styles.Selected.Render(m.styles.Glyphs.On + " " + label)
 	default:
-		return m.styles.Option.Render(offGlyph + " " + label)
+		return m.styles.Option.Render(m.styles.Glyphs.Off + " " + label)
 	}
 }
 
@@ -378,8 +372,8 @@ func (m *Model) sortSegments(r int, focused bool) []string {
 	}
 	opt := sf.Options[i]
 	return []string{
-		m.radio(descArrow+opt.Desc, so.Desc, focused),
-		m.radio(ascArrow+opt.Asc, !so.Desc, focused),
+		m.radio(m.styles.Glyphs.Down+" "+opt.Desc, so.Desc, focused),
+		m.radio(m.styles.Glyphs.Up+" "+opt.Asc, !so.Desc, focused),
 	}
 }
 
@@ -395,7 +389,7 @@ func (m *Model) editorLines(w int) []string {
 		pv := strings.Split(m.pick.View(), "\n")
 		out := make([]string, len(pv))
 		for i, l := range pv {
-			out[i] = fit(indent+l, w)
+			out[i] = m.fit(indent+l, w)
 		}
 		return out
 	}
@@ -415,7 +409,7 @@ func (m *Model) editorLines(w int) []string {
 			fitCut(indent+m.styles.Hint.Render(back), w, cut),
 		}
 	}
-	return []string{fit(indent+m.spin.View()+m.styles.Hint.Render("Loading "+label+"…"), w)}
+	return []string{m.fit(indent+m.spin.View()+m.styles.Hint.Render("Loading "+label+m.styles.Glyphs.Ellipsis), w)}
 }
 
 // errorWords returns what the editor says of err, the failed load of the
@@ -438,7 +432,7 @@ func (m *Model) errorWords(err error, label string) (text, hint string) {
 // query wrapped onto at most two lines otherwise.
 func (m *Model) queryLines(w int) []string {
 	if m.focused && m.row == m.queryRow() {
-		return []string{fit(m.glyphs.gutter+m.query.View(), w)}
+		return []string{m.fit(m.glyphs.gutter+m.query.View(), w)}
 	}
 	q := m.Query()
 	if c := &m.cache.query; c.ok && c.text == q && c.width == w {
@@ -446,7 +440,7 @@ func (m *Model) queryLines(w int) []string {
 	}
 	var lines []string
 	if q == "" {
-		lines = []string{fit("  "+m.styles.Hint.Render(m.query.Placeholder), w)}
+		lines = []string{m.fit("  "+m.styles.Hint.Render(m.query.Placeholder), w)}
 	} else {
 		toks := Tokenize(q)
 		words := make([]string, len(toks))
@@ -455,7 +449,7 @@ func (m *Model) queryLines(w int) []string {
 		}
 		lines = wrap(words, " ", max(w-gutterWidth, 1), 2)
 		for i, l := range lines {
-			lines[i] = fit("  "+m.styles.Query.Render(l), w)
+			lines[i] = m.fit("  "+m.styles.Query.Render(l), w)
 		}
 	}
 	m.cache.query = queryCache{ok: true, text: q, width: w, lines: lines}
@@ -476,7 +470,7 @@ func (m *Model) helpView(w int) string {
 		return c.line
 	}
 	m.help.SetWidth(w)
-	line := fit(m.help.ShortHelpView(bindings), w)
+	line := m.fit(m.help.ShortHelpView(bindings), w)
 	m.cache.help = helpCache{ok: true, key: b.String(), width: w, line: line}
 	return line
 }
@@ -532,13 +526,15 @@ func wrap(segs []string, sep string, w, maxLines int) []string {
 }
 
 // fit truncates or pads styled text to exactly width cells.
-func fit(s string, width int) string { return fitCut(s, width, "…") }
+// fit truncates styled text to exactly width cells, ending it with the
+// ellipsis where it cuts, or pads it.
+func (m *Model) fit(s string, width int) string { return fitCut(s, width, m.styles.Glyphs.Ellipsis) }
 
 // fitCut is fit, ending text that is cut with tail.
 func fitCut(s string, width int, tail string) string {
 	w := ansi.StringWidth(s)
 	if w > width {
-		s = ansi.Truncate(s, width, tail)
+		s = termtext.Truncate(s, width, tail)
 		w = ansi.StringWidth(s)
 	}
 	if w < width {
