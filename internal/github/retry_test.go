@@ -55,6 +55,7 @@ var (
 	// wentWrong is how GitHub answers a query that failed on its side.
 	wentWrong  = step{status: http.StatusOK, body: `{"data":null,"errors":[{"message":"Something went wrong while executing your query."}]}`}
 	missing    = step{status: http.StatusOK, body: `{"data":null,"errors":[{"type":"NOT_FOUND","message":"Could not resolve"}]}`}
+	badField   = step{status: http.StatusOK, body: `{"data":null,"errors":[{"message":"Field 'x' doesn't exist on type 'Query'","extensions":{"code":"undefinedField"}}]}`}
 	partial    = step{status: http.StatusOK, body: `{"data":{"x":1},"errors":[{"message":"Something went wrong"}]}`}
 	answered   = step{status: http.StatusOK, body: `{"data":{"x":1}}`}
 	secondary3 = step{status: http.StatusForbidden, header: http.Header{"Retry-After": {"3"}},
@@ -214,6 +215,7 @@ func TestRetryPolicy(t *testing.T) {
 		{name: "query 502", send: query, steps: []step{badGateway, answered}, gaps: []time.Duration{first}},
 		{name: "query dial fails", send: query, steps: []step{dialFails, answered}, gaps: []time.Duration{first}},
 		{name: "query not found", send: query, steps: []step{missing}, wantErr: true},
+		{name: "query schema error", send: query, steps: []step{badField, answered}, wantErr: true},
 		{name: "query partial data", send: query, steps: []step{partial}, wantErr: true},
 		{name: "query too large to peek", send: query, steps: []step{huge}, wantErr: true},
 		{name: "query secondary limit", send: query, steps: []step{secondary3, answered}, gaps: []time.Duration{3*time.Second + minStagger}},
