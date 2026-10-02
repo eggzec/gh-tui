@@ -24,9 +24,9 @@ import (
 // that a repository with thousands of branches doesn't read them all.
 const maxBranchPages = 10
 
-// branchAhead is how close to the last branch loaded the cursor gets
-// before the next page is read.
-const branchAhead = 10
+// branchPageAt is how close to the last branch loaded the cursor gets
+// before the next page is read. It pages the list; it isn't a read ahead.
+const branchPageAt = 10
 
 // branches is the branch pane: the branches of the repository, the default
 // one first, with a filter that narrows them as the user types.
@@ -186,7 +186,7 @@ func (m *Modal) moreBranches() tea.Cmd {
 	if b.next == "" || b.loading || b.err != nil {
 		return nil
 	}
-	if b.filter == nil && b.follow == "" && b.cursor+branchAhead < len(b.items) {
+	if b.filter == nil && b.follow == "" && b.cursor+branchPageAt < len(b.items) {
 		return nil
 	}
 	// A later page is appended where it goes rather than shown and read

@@ -19,9 +19,9 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
 )
 
-// filesAhead is how close to the last file loaded the cursor gets before
-// the next page of files is read.
-const filesAhead = 20
+// filesPageAt is how close to the last file loaded the cursor gets before
+// the next page of files is read. It pages the list; it isn't a read ahead.
+const filesPageAt = 20
 
 // commit is the commit pane: the commit under the graph's cursor, what it
 // changed, and the patch of one of its files.
@@ -209,7 +209,7 @@ func (m *Modal) cachedDetail(sha string) bool {
 // those loaded.
 func (m *Modal) moreFiles() tea.Cmd {
 	c := &m.commit
-	if c.next == "" || c.filesLoading || c.filesErr != nil || c.cursor+filesAhead < len(c.files) {
+	if c.next == "" || c.filesLoading || c.filesErr != nil || c.cursor+filesPageAt < len(c.files) {
 		return nil
 	}
 	c.filesLoading = true
