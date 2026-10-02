@@ -156,7 +156,7 @@ func (m *Model) graphicsDecided(msg graphicsDecidedMsg) tea.Cmd {
 	g.Cell = m.graphics.Cell
 	m.graphics = g
 	m.term.imagesDecided(m.ctx, msg.attrs)
-	return tea.Batch(m.broadcast(ui.GraphicsMsg{Graphics: m.graphics}), m.askCells())
+	return tea.Batch(m.broadcast(ui.GraphicsMsg{Graphics: m.graphics}), m.setGraphics(), m.askCells())
 }
 
 // askCells asks the size of a cell, if the terminal draws images: of tmux,
@@ -185,5 +185,5 @@ func (m *Model) cellSized(msg cellSizedMsg) tea.Cmd {
 	m.graphics.Cell = msg.cell
 	slog.InfoContext(m.ctx, "cell size", "span", "tui",
 		"width", msg.cell.Width, "height", msg.cell.Height, "from", msg.from)
-	return tea.Batch(m.broadcast(ui.GraphicsMsg{Graphics: m.graphics}), again)
+	return tea.Batch(m.broadcast(ui.GraphicsMsg{Graphics: m.graphics}), m.setGraphics(), again)
 }

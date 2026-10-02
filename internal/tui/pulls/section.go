@@ -121,7 +121,9 @@ type Section struct {
 	// dates tell when the pull requests were updated, in the rows and
 	// the modal.
 	dates ui.Dates
-	cols  columns
+	// avatars draws the authors' avatars in the comments of the modal.
+	avatars *ui.Avatars
+	cols    columns
 	// links keeps the links of the rows, which are drawn on every frame.
 	links  termtext.Links
 	header string
@@ -181,6 +183,13 @@ func WithIcons(icons ui.Icons) Option {
 // as ages.
 func WithDates(d ui.Dates) Option {
 	return func(s *Section) { s.dates = d }
+}
+
+// WithAvatars draws the avatars of the authors of comments with a.
+// Without it, or where the terminal shows no images, the comments show
+// none and take no room for them.
+func WithAvatars(a *ui.Avatars) Option {
+	return func(s *Section) { s.avatars = a }
 }
 
 // WithChecks shows the checks of a pull request in a step of its modal,

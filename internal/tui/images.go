@@ -29,6 +29,10 @@ type tmuxAnsweredMsg struct{ tmux imgcaps.Tmux }
 // tmuxRecheckedMsg carries what tmux said when it was asked again.
 type tmuxRecheckedMsg struct{ tmux imgcaps.Tmux }
 
+// tmuxMovedMsg says that tmux is attached from another terminal than
+// before, which shows images too.
+type tmuxMovedMsg struct{}
+
 // cellsAgainMsg has the app ask the size of a cell again.
 type cellsAgainMsg struct{}
 
@@ -87,8 +91,11 @@ type imageProbe struct {
 	// which the answer in flight may predate. client is what tmux said of
 	// its client last, and seen what it said when the verdict was made.
 	asking, again bool
-	client        imgcaps.TmuxClient
-	seen          imgcaps.Tmux
+	// moved is set while tmux is asked again because its client is
+	// another terminal.
+	moved  bool
+	client imgcaps.TmuxClient
+	seen   imgcaps.Tmux
 }
 
 // newImageProbe returns a probe in mode that asks nothing, until
@@ -176,21 +183,31 @@ func (p *imageProbe) update(msg tea.Msg) (cmd tea.Cmd, handled bool) {
 		// A change of terminal, or of allow-passthrough, as when the user
 		// sets it on as :images suggests and reloads tmux's config, may
 		// change the verdict.
-		if c.Termtype != p.seen.ClientTermtype || c.Passthrough != p.seen.Passthrough || prev.TTY != "" && c.TTY != prev.TTY {
-			p.asking = true
+		moved := c.Termtype != p.seen.ClientTermtype || prev.TTY != "" && c.TTY != prev.TTY
+		if moved || c.Passthrough != p.seen.Passthrough {
+			p.asking, p.moved = true, moved
 			return msg.recheck, true
 		}
 		return tea.Batch(p.tmuxCell(c.Cell), p.askedMeanwhile()), true
 	case tmuxRecheckedMsg:
 		p.asking = false
 		p.seen = msg.tmux
-		if v := imgcaps.DecideTmux(msg.tmux); v != p.verdict {
+		// The terminal tmux is now attached from has none of the images
+		// sent to the one before, if that showed them too; one that only
+		// now shows images gets them as the verdict turns them on.
+		var moved tea.Cmd
+		v := imgcaps.DecideTmux(msg.tmux)
+		if p.moved && p.verdict.Images && v.Images {
+			moved = func() tea.Msg { return tmuxMovedMsg{} }
+		}
+		p.moved = false
+		if v != p.verdict {
 			// The app asks the size of a cell anew once it has the
 			// verdict, if images are drawn.
 			p.sent, p.waited, p.again = time.Time{}, 0, false
-			return p.finish(v), true
+			return tea.Batch(p.finish(v), moved), true
 		}
-		return tea.Batch(p.tmuxCell(p.client.Cell), p.askedMeanwhile()), true
+		return tea.Batch(p.tmuxCell(p.client.Cell), p.askedMeanwhile(), moved), true
 	}
 	return nil, false
 }

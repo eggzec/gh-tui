@@ -120,7 +120,7 @@ func New(api API, opts ...Option) *Service {
 		comments:     cache.New[stampedComments](mem...),
 		keptLists:    cache.NewShelf[core.Page[core.Issue]](o.store, kindList, schema),
 		keptIssues:   cache.NewShelf[core.Issue](o.store, kindIssue, schema),
-		keptComments: cache.NewShelf[stampedComments](o.store, kindComments, schema),
+		keptComments: cache.NewShelf[stampedComments](o.store, kindComments, commentsSchema),
 		keptKinds:    cache.NewShelf[core.NumberKind](o.store, kindNumber, numberSchema),
 		pulls:        o.pulls,
 		pageSize:     cmp.Or(o.pageSize, d.PageSize.Issues),
@@ -130,12 +130,15 @@ func New(api API, opts ...Option) *Service {
 }
 
 // The kinds of entries the service keeps in its store, and the version of
-// their values. Bump schema when core.Issue or core.Comment change shape.
+// their values. Bump schema when core.Issue changes shape, and
+// commentsSchema when core.Comment does.
 const (
 	kindList     = "issuelist"
 	kindIssue    = "issue"
 	kindComments = "issuecomments"
 	schema       = 3
+	// commentsSchema 4 keeps the avatar of each comment's author.
+	commentsSchema = 4
 	// A number's kind is kept apart, since it outlives any shape of
 	// core.Issue.
 	kindNumber   = "numberkind"

@@ -61,6 +61,14 @@ type Model struct {
 	images   imageProbe
 	cells    cellQuery
 	graphics ui.Graphics
+	// avatars draws the avatars the sections show, or nothing when nil,
+	// and avatarsDue is set while the views wait to draw those arrived.
+	avatars    *ui.Avatars
+	avatarsDue bool
+	// quitStage is how far quitting got while the terminal held images.
+	quitStage int
+	// after sends a message after a while: tick, which tests replace.
+	after func(d time.Duration, msg tea.Msg) tea.Cmd
 
 	// panes are those of the repository screen, in the order focus cycles
 	// through them. The first left of them are on the left.
@@ -310,6 +318,7 @@ func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) 
 		spin:       newSpinner(),
 		voice:      ui.NewVoice(cfg.Keys, ""),
 		images:     newImageProbe(cfg.Images.Enabled),
+		after:      tick,
 	}
 	if layout.Files != nil {
 		m.panes, m.left = append(m.panes, &pane{section: layout.Files}), 1

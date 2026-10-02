@@ -216,6 +216,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		termtext.AllowPlainHTTP(webHost)
 	}
 	icons, dates := ui.NewIcons(cfg.UI.Icons), ui.NewDates(cfg.UI.DateFormat)
+	avatars := ui.NewAvatars(ctx, fetchImage(newImages(webHost, entries)), cfg.Images.Avatars)
 	// What went wrong names the configured keys, and the log file while
 	// the app logs to one.
 	var logPath string
@@ -244,12 +245,12 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	})
 	var (
 		pullOpts = []pulls.Option{
-			pulls.WithVoice(voice), pulls.WithIcons(icons), pulls.WithDates(dates), pulls.WithFacets(facetSvc),
+			pulls.WithVoice(voice), pulls.WithIcons(icons), pulls.WithDates(dates), pulls.WithAvatars(avatars), pulls.WithFacets(facetSvc),
 			pulls.WithChecks(actionSvc, checkOpts...), pulls.WithRepos(repoSvc), pulls.WithViewer(pulls.Viewer(viewer)),
 			pulls.WithPrefetch(cfg.Prefetch),
 		}
 		issueOpts = []issues.Option{
-			issues.WithVoice(voice), issues.WithIcons(icons), issues.WithDates(dates), issues.WithFacets(facetSvc),
+			issues.WithVoice(voice), issues.WithIcons(icons), issues.WithDates(dates), issues.WithAvatars(avatars), issues.WithFacets(facetSvc),
 			issues.WithRepos(repoSvc), issues.WithViewer(issues.Viewer(viewer)),
 			issues.WithPrefetch(cfg.Prefetch),
 		}
@@ -307,6 +308,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		tui.WithBrowser(b.Browse),
 		// The images probe reads the real environment and runs tmux.
 		tui.WithImageProbe(imgcaps.EnvFrom(os.Getenv), imgcaps.RunTmux),
+		tui.WithAvatars(avatars),
 		tui.WithRepoInfo(repoSvc.Get),
 		// goto opens a repository only once it is known to exist, a number
 		// once it knows whether it is an issue or a pull request, and links
