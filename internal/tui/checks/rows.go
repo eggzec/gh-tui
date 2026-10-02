@@ -279,7 +279,7 @@ func (s *Step) listLines(w, h int) []string {
 	case !s.loaded && s.err != nil:
 		return ui.FitLines(s.errorLines("load the checks", core.Target{Repo: s.q.Repo, Number: s.q.Number}.String(), s.err, false, w), w, h)
 	case !s.loaded:
-		return ui.FitLines([]string{s.spin.View() + st.run.Muted.Render("Loading the checks…")}, w, h)
+		return ui.FitLines([]string{s.spin.View() + st.run.Muted.Render("Loading the checks"+s.opts.icons.Ellipsis)}, w, h)
 	case len(s.rows) == 0:
 		return ui.FitLines(ui.Wrap(st.run.Muted.Render(ui.None("checks on the head commit yet")), w), w, h)
 	}
@@ -321,7 +321,7 @@ func (s *Step) renderRow(r row, cursor bool, w int, now time.Time) string {
 	case r.status != nil && r.status.Description != "":
 		left += "  " + st.run.Subtle.Render(ui.OneLine(r.status.Description))
 	}
-	return ui.Spread(left, right, w)
+	return ui.SpreadCut(left, right, w, s.opts.icons.Ellipsis)
 }
 
 // errorLines renders err, which stopped action on subject, in lines of w
