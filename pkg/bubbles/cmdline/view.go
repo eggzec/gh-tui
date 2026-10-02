@@ -38,7 +38,7 @@ func (m *Model) render() {
 		m.view = ""
 		return
 	}
-	line := fit(m.promptView+m.inputView(), m.width)
+	line := m.fit(m.promptView+m.inputView(), m.width)
 	if m.Height() == 1 {
 		m.view = line
 		return
@@ -143,7 +143,7 @@ func (m *Model) rowView() string {
 	}
 	row := b.String()
 	if used > room {
-		row = fit(row, max(room, 0))
+		row = m.fit(row, max(room, 0))
 	} else {
 		row += strings.Repeat(" ", room-used)
 	}
@@ -155,11 +155,12 @@ func (m *Model) rowView() string {
 	return c.row
 }
 
-// fit truncates or pads styled text to exactly width cells.
-func fit(s string, width int) string {
+// fit truncates styled text to exactly width cells, ending it with the
+// ellipsis where it cuts, or pads it.
+func (m *Model) fit(s string, width int) string {
 	w := ansi.StringWidth(s)
 	if w > width {
-		s = ansi.Truncate(s, width, "…")
+		s = termtext.Truncate(s, width, m.styles.Ellipsis)
 		w = ansi.StringWidth(s)
 	}
 	if w < width {
