@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"strings"
+
 	"charm.land/lipgloss/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
@@ -40,6 +42,28 @@ type Icons struct {
 	// one takes Yes.
 	ChangesRequested, ReviewRequired string
 
+	// Dot marks what is on, such as an unread notification, a label or a
+	// chosen option, and Ring an option that isn't chosen.
+	Dot, Ring string
+	// Crumb goes between the steps of a breadcrumb, as in "Branches › main".
+	Crumb string
+	// Cell is a day of the contribution calendar.
+	Cell string
+	// Arrow leads from one thing to the next, such as a branch to the one
+	// it merges into, or the old path of a file to its new one.
+	Arrow string
+	// Up and Down point up and down, as counts of commits ahead and
+	// behind, or the order of a sort, do.
+	Up, Down string
+	// Times goes before a count of repeats, as in "×3", and Minus before a
+	// count of deleted lines.
+	Times, Minus string
+	// Border draws frames, rules and the lines between columns: its Top
+	// across and its Left down.
+	Border lipgloss.Border
+	// keys names keys in help, as Key does.
+	keys *strings.Replacer
+
 	// langs holds the glyphs of languages that have one; the others get
 	// lang.
 	langs  map[string]string
@@ -75,6 +99,7 @@ const (
 func NewIcons(set string) Icons {
 	ic := newIcons(set)
 	ic.runs = runGlyphs(set)
+	ic.setDrawing(set)
 	return ic
 }
 
