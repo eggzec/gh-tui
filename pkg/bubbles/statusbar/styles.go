@@ -7,8 +7,11 @@ import (
 
 // Styles holds the styles of a status bar. The items come styled.
 type Styles struct {
-	// Separator draws the " · " between two items on the right.
+	// Separator styles the SeparatorText between two items on the right.
 	Separator lipgloss.Style
+	// SeparatorText goes between two items on the right. The default is
+	// " · ".
+	SeparatorText string
 }
 
 // DefaultStyles returns the styles for a light or dark background: a
@@ -16,7 +19,8 @@ type Styles struct {
 func DefaultStyles(isDark bool) Styles {
 	ld := lipgloss.LightDark(isDark)
 	return Styles{
-		Separator: lipgloss.NewStyle().Foreground(ld(lipgloss.Color("#C4C4C4"), lipgloss.Color("#4A4A4A"))),
+		Separator:     lipgloss.NewStyle().Foreground(ld(lipgloss.Color("#C4C4C4"), lipgloss.Color("#4A4A4A"))),
+		SeparatorText: " · ",
 	}
 }
 
@@ -26,7 +30,7 @@ func (m Model) Styles() Styles { return m.styles }
 // SetStyles sets the styles.
 func (m *Model) SetStyles(s Styles) {
 	m.styles = s
-	m.sep = s.Separator.Render(" · ")
+	m.sep = s.Separator.Render(s.SeparatorText)
 	m.sepWidth = ansi.StringWidth(m.sep)
 	m.layout()
 }
