@@ -13,6 +13,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/obs"
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // notes are the annotations of the job shown: the first page of them,
@@ -232,7 +233,7 @@ func (m *Model) noteError(w int) []string {
 
 // noteLines renders the annotations, notesHeight lines of w cells.
 func (m *Model) noteLines(w int) []string {
-	st, n := &m.st, &m.notes
+	st, n, ic := &m.st, &m.notes, m.opts.icons
 	if n.err != nil {
 		return m.noteError(w)
 	}
@@ -247,11 +248,11 @@ func (m *Model) noteLines(w int) []string {
 	var hint string
 	switch k := m.keys; {
 	case m.OnAnnotations() && k.Select.Help().Key != "":
-		hint = k.Select.Help().Key + " opens the file · " + k.Annotations.Help().Key + " log"
+		hint = ic.Key(k.Select.Help().Key) + " opens the file" + ic.Separator + ic.Key(k.Annotations.Help().Key) + " log"
 	case k.Annotations.Help().Key != "":
-		hint = k.Annotations.Help().Key + " to pick one"
+		hint = ic.Key(k.Annotations.Help().Key) + " to pick one"
 	}
-	lines := []string{ui.Spread(title, st.Subtle.Render(hint), w)}
+	lines := []string{ui.SpreadCut(title, st.Subtle.Render(hint), w, ic.Ellipsis)}
 	rows := m.noteRows()
 	for i := n.top; i < len(n.items) && i < n.top+rows; i++ {
 		lines = append(lines, m.noteRow(n.items[i], i == n.cursor, w))
@@ -265,7 +266,7 @@ func (m *Model) noteRow(a core.Annotation, cursor bool, w int) string {
 	st := &m.st
 	gutter := "  "
 	if cursor && m.OnAnnotations() {
-		gutter = st.Accent.Render("▌") + " "
+		gutter = st.Accent.Render(m.opts.icons.Cursor) + " "
 	}
 	var glyph string
 	switch a.Level {
@@ -285,5 +286,5 @@ func (m *Model) noteRow(a core.Annotation, cursor bool, w int) string {
 		text = ui.OneLine(a.Title) + ": " + text
 	}
 	line := gutter + glyph + " " + where + st.Text.Render(text)
-	return ui.Fit(ansi.Truncate(line, w, "…"), w)
+	return ui.Fit(termtext.Truncate(line, w, m.opts.icons.Ellipsis), w)
 }

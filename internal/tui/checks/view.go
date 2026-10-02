@@ -8,6 +8,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // View renders the step in exactly the size of the last SetSize: a crumb
@@ -63,12 +64,13 @@ func (s *Step) crumbLine(w int) string {
 		}
 		crumbs = append(crumbs, s.check.name())
 	}
-	const sep = " › "
+	ic := s.opts.icons
+	sep, ell := " "+ic.Crumb+" ", ic.Ellipsis
 	// Drop the first crumbs until the rest fit.
 	for len(crumbs) > 1 && ansi.StringWidth(strings.Join(crumbs, sep)) > w {
 		crumbs = crumbs[1:]
-		if crumbs[0] != "…" {
-			crumbs = append([]string{"…"}, crumbs[1:]...)
+		if crumbs[0] != ell {
+			crumbs = append([]string{ell}, crumbs[1:]...)
 		}
 	}
 	var b strings.Builder
@@ -86,7 +88,7 @@ func (s *Step) crumbLine(w int) string {
 	if s.mode == listMode && s.loaded {
 		right = s.summary()
 	}
-	return ui.Spread(ansi.Truncate(b.String(), w, "…"), right, w)
+	return ui.SpreadCut(termtext.Truncate(b.String(), w, ell), right, w, ell)
 }
 
 // groupOf is the title of the group of r.
@@ -116,7 +118,7 @@ func (s *Step) jobLines(w, h int) []string {
 		}
 		return ui.FitLines(s.errorLines("load the job", subject, s.job.err, true, w), w, h)
 	case !s.job.hasJob:
-		return ui.FitLines([]string{s.spin.View() + st.run.Muted.Render("Loading the job…")}, w, h)
+		return ui.FitLines([]string{s.spin.View() + st.run.Muted.Render("Loading the job"+s.opts.icons.Ellipsis)}, w, h)
 	}
 	return ui.PadLines(strings.Split(s.view.View(), "\n"), w, h)
 }
@@ -128,7 +130,7 @@ func (s *Step) prompt(w int) string {
 	case s.ask != nil:
 		return s.ask.Line(s.st.confirm, s.keys.Confirm, w)
 	case s.notice != "":
-		return ui.Fit(s.st.run.Warning.Render(ansi.Truncate(s.notice, w, "…")), w)
+		return ui.Fit(s.st.run.Warning.Render(termtext.Truncate(s.notice, w, s.opts.icons.Ellipsis)), w)
 	}
 	return ""
 }
