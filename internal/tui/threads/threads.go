@@ -70,10 +70,10 @@ func WithReleases(svc Releases) Option {
 // WithPrefetch reads ahead what the threads in the window around the
 // cursor are about, each time it rests, and at once when a list loads, as
 // p says for prefetch.notifications, or for prefetch.dashboard.inbox while
-// the opener follows the inbox ([Opener.FollowInbox]): details reads the pull request,
-// issue or release, and comments the first comments of a pull request or
-// issue. Each costs a request; what is cached and as recent as the
-// notification is skipped. The default reads nothing ahead.
+// the opener follows the inbox ([Opener.FollowInbox]): details reads the
+// pull request, issue or release, and comments the first comments of a
+// pull request or issue. Each costs a request; what is cached and as
+// recent as the notification is skipped. The default reads nothing ahead.
 func WithPrefetch(p config.PrefetchLayers) Option {
 	return func(o *Opener) { o.prefetch = &p }
 }
