@@ -106,6 +106,9 @@ internal/tui/pictures.go:quitFrame  keep: a mechanism, a frame for the deletes o
 internal/images/client.go:timeout  keep: a safety mechanism, the bound on one image's fetch
 internal/images/decode.go:defaultCellHeight  keep: a layout measure, the cell size when the terminal doesn't say
 internal/images/decode.go:defaultCellWidth  keep: a layout measure, the cell size when the terminal doesn't say
+internal/images/gif.go:gifTick  keep: a unit of the GIF format, the hundredth of a second its delays count in
+internal/images/gif.go:minGIFDelay  keep: compatibility, the shortest delay browsers play as given
+internal/images/gif.go:slowGIFDelay  keep: compatibility, the delay browsers play a shorter one as
 internal/images/fetch.go:failedFor  keep: a safety mechanism, how long a failed image isn't asked for again
 internal/images/fetch.go:flightTimeout  keep: a safety mechanism, the bound on a shared fetch
 internal/images/fetch.go:revalidateAfter  keep: how often an avatar may change, not a preference

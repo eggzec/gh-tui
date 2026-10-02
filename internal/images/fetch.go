@@ -116,6 +116,9 @@ func New(web string, opts ...Option) *Fetcher {
 func (f *Fetcher) Fetch(ctx context.Context, src Source, box Box) (Image, error) {
 	key := src.URL + "\x00" + strconv.Itoa(box.Cols) + "x" + strconv.Itoa(box.Rows) +
 		"@" + strconv.Itoa(box.CellWidth) + "x" + strconv.Itoa(box.CellHeight)
+	if box.Animate {
+		key += " animated"
+	}
 	f.mu.Lock()
 	img, ok := f.mem.get(key)
 	fail, failed := f.failed[src.URL]

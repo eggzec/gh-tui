@@ -3,7 +3,7 @@ package images
 import "container/list"
 
 // memory keeps the images made most recently, up to a size in bytes of
-// their PNGs. It is not safe for concurrent use.
+// their PNGs, their frames' too. It is not safe for concurrent use.
 type memory struct {
 	max, size int
 	order     *list.List // of *memEntry, most recent first
@@ -29,20 +29,20 @@ func (m *memory) get(key string) (Image, bool) {
 }
 
 func (m *memory) put(key string, img Image) {
-	if len(img.PNG) > m.max {
+	if img.size() > m.max {
 		return
 	}
 	if e, ok := m.byKey[key]; ok {
-		m.size -= len(e.Value.(*memEntry).img.PNG)
+		m.size -= e.Value.(*memEntry).img.size()
 		m.order.Remove(e)
 	}
 	m.byKey[key] = m.order.PushFront(&memEntry{key: key, img: img})
-	m.size += len(img.PNG)
+	m.size += img.size()
 	for m.size > m.max {
 		e := m.order.Back()
 		old := e.Value.(*memEntry)
 		m.order.Remove(e)
 		delete(m.byKey, old.key)
-		m.size -= len(old.img.PNG)
+		m.size -= old.img.size()
 	}
 }
