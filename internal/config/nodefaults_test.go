@@ -163,8 +163,7 @@ var (
 )
 
 // readAllow reads constants.allow: one path:Name per line, then keep: and
-// why it is a true constant, or move: and the key it moves to. Blank
-// lines and # comments are skipped.
+// why it is a true constant. Blank lines and # comments are skipped.
 func readAllow(t *testing.T) (allow map[string]string, problems []string) {
 	t.Helper()
 	f, err := os.Open(allowPath)
@@ -180,13 +179,10 @@ func readAllow(t *testing.T) (allow map[string]string, problems []string) {
 			continue
 		}
 		name, reason, ok := strings.Cut(line, " keep: ")
-		if !ok {
-			name, reason, ok = strings.Cut(line, " move: ")
-		}
 		name, reason = strings.TrimSpace(name), strings.TrimSpace(reason)
 		switch {
 		case !ok || reason == "":
-			problems = append(problems, fmt.Sprintf("%s:%d: want path:Name  keep: reason, or path:Name  move: key, got %q", allowPath, n, line))
+			problems = append(problems, fmt.Sprintf("%s:%d: want path:Name  keep: reason, got %q", allowPath, n, line))
 		case allow[name] != "":
 			problems = append(problems, fmt.Sprintf("%s:%d: %s is listed twice", allowPath, n, name))
 		default:
