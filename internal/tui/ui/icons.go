@@ -69,8 +69,11 @@ type Icons struct {
 	// Warning marks what needs a look, such as a key that two bindings
 	// claim, and Below starts a line that says more of the one above it.
 	Warning, Below string
-	// Comment marks a count of comments.
-	Comment string
+	// Comment marks a count of comments, and Recent something the user
+	// did before, such as a search.
+	Comment, Recent string
+	// OpenQuote and CloseQuote go around text quoted in prose.
+	OpenQuote, CloseQuote string
 	// keys names keys in help, as Key does.
 	keys *strings.Replacer
 

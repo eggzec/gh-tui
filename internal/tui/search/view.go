@@ -63,7 +63,7 @@ func (s *Section) render() {
 		return
 	}
 	lines := make([]string, 0, s.height)
-	lines = append(lines, s.frame(" "+s.st.accent.render("›")+" "+s.input.View(), "Search GitHub", s.area == inputArea, s.width, inputHeight)...)
+	lines = append(lines, s.frame(" "+s.st.accent.render(s.icons.Crumb)+" "+s.input.View(), "Search GitHub", s.area == inputArea, s.width, inputHeight)...)
 	rw, rh := s.resultsSize()
 	body := s.results(rw, rh)
 	if !s.wide() {
@@ -102,9 +102,9 @@ func (s *Section) frame(body, label string, focused bool, w, h int) []string {
 	if focused && s.focused {
 		edge, title = s.st.focusEdge, s.st.focusTitle
 	}
-	b := lipgloss.RoundedBorder()
+	b := s.icons.Border
 	lines := make([]string, 0, h)
-	label = truncate(label, max(w-5, 0))
+	label = s.truncate(label, max(w-5, 0))
 	lw := ansi.StringWidth(label)
 	lines = append(lines, edge.render(b.TopLeft+b.Top)+title.render(label)+edge.render(" "+strings.Repeat(b.Top, max(w-4-lw, 0))+b.TopRight))
 	side, inner := edge.render(b.Left), w-2
@@ -130,12 +130,12 @@ func (s *Section) countText(k core.SearchKind) string {
 		if l := s.hits[s.kind]; l != nil && l.text == s.text && l.feed.Err() != nil {
 			return ""
 		}
-		return "…"
+		return s.icons.Ellipsis
 	}
 	if s.limited() {
 		return "in " + s.wait()
 	}
-	return s.keys.Select.Help().Key + " search"
+	return s.icons.Key(s.keys.Select.Help().Key) + " search"
 }
 
 // kindsColumn renders the kinds, one a line, with their counts on the
@@ -154,7 +154,7 @@ func (s *Section) kindsColumn(w int) []string {
 			}
 		}
 		c := s.countText(k)
-		lines = append(lines, spread(gutter+name.render(kindTitles[k]), st.muted.render(c)+" ", w))
+		lines = append(lines, s.spread(gutter+name.render(kindTitles[k]), st.muted.render(c)+" ", w))
 	}
 	return lines
 }
@@ -166,7 +166,7 @@ func (s *Section) kindsLine(w int) string {
 	b.WriteByte(' ')
 	for i, k := range kinds {
 		if i > 0 {
-			st.subtle.write(&b, " · ")
+			st.subtle.write(&b, s.icons.Separator)
 		}
 		title := kindTitles[k]
 		if k == core.SearchPulls {
@@ -182,7 +182,7 @@ func (s *Section) kindsLine(w int) string {
 			st.subtle.write(&b, c)
 		}
 	}
-	return fit(ansi.Truncate(b.String(), w, "…"), w)
+	return fit(termtext.Truncate(b.String(), w, s.icons.Ellipsis), w)
 }
 
 // resultsLabel names the results on view, and counts them.
@@ -199,7 +199,7 @@ func (s *Section) resultsLabel() string {
 		if n == 1 {
 			noun = " result"
 		}
-		label += " · " + commas(n) + noun
+		label += s.icons.Separator + commas(n) + noun
 	}
 	return label
 }
@@ -245,7 +245,7 @@ func (s *Section) results(w, h int) []string {
 		}
 		return strings.Split(f.View(), "\n")
 	case s.kind == core.SearchCode:
-		return notice(w, st.text.render("Press "+s.keys.Select.Help().Key+" to search code for “"+s.text+"”."),
+		return notice(w, st.text.render("Press "+s.icons.Key(s.keys.Select.Help().Key)+" to search code for "+s.icons.OpenQuote+s.text+s.icons.CloseQuote+"."),
 			st.subtle.render("Code search runs only when you ask, since GitHub allows 10 a minute."))
 	}
 	return nil
@@ -279,7 +279,7 @@ func (s *Section) startLines(w, h int) []string {
 	if len(l.items) == 0 {
 		switch {
 		case l.loading:
-			return notice(w, st.muted.render("Loading your repositories…"))
+			return notice(w, st.muted.render("Loading your repositories"+s.icons.Ellipsis))
 		case l.err != nil:
 			return append(s.startError(l.err, w), notice(w, st.subtle.render("Type to search GitHub."))...)
 		}
@@ -303,14 +303,14 @@ func (s *Section) startLines(w, h int) []string {
 			}
 		}
 		if it.query != "" {
-			lines = append(lines, gutter+st.subtle.render("↺ ")+st.text.render(truncate(it.query, w-4)))
+			lines = append(lines, gutter+st.subtle.render(termtext.Cells(s.icons.Recent, 1)+" ")+st.text.render(s.truncate(it.query, w-4)))
 			continue
 		}
 		r := it.repo
-		name := truncate(r.Ref.String(), w-2)
+		name := s.truncate(r.Ref.String(), w-2)
 		line := gutter + st.name.render(name)
 		if d := cleanLine(r.Description); d != "" && ansi.StringWidth(name)+4 < w-2 {
-			line += "  " + st.muted.render(truncate(d, w-2-ansi.StringWidth(name)-2))
+			line += "  " + st.muted.render(s.truncate(d, w-2-ansi.StringWidth(name)-2))
 		}
 		lines = append(lines, line)
 	}
@@ -354,17 +354,17 @@ func (s *Section) renderHit(hit core.SearchHit, selected bool, width int) string
 	repo, num := is.Repo.String(), "#"+strconv.Itoa(is.Number)
 	right := ""
 	if is.Comments > 0 {
-		right = st.muted.render("◦ " + strconv.Itoa(is.Comments))
+		right = st.muted.render(termtext.Cells(s.icons.Comment, 1) + " " + strconv.Itoa(is.Comments))
 	}
 	room := max(width-2-commentsWidth-1, 0)
 	// The title matters more than where it is, and the number more than
 	// the repository, which is cut first.
 	refWidth := min(ansi.StringWidth(repo)+len(num), max(room/3, 12))
-	ref := truncate(repo, max(refWidth-len(num), 1)) + num
+	ref := s.truncate(repo, max(refWidth-len(num), 1)) + num
 	// Where it is and its title link to its page.
 	head := s.stateGlyph(hit) + " " + s.links.Link(is.URL, st.muted.render(ref)+" "+
-		title.render(truncate(cleanLine(is.Title), max(room-ansi.StringWidth(ref)-1, 0))))
-	first := spread(head, right, width)
+		title.render(s.truncate(cleanLine(is.Title), max(room-ansi.StringWidth(ref)-1, 0))))
+	first := s.spread(head, right, width)
 
 	parts := make([]string, 0, 4)
 	if labels := s.labels(is.Labels); labels != "" {
@@ -376,8 +376,8 @@ func (s *Section) renderHit(hit core.SearchHit, selected bool, width int) string
 	if !is.UpdatedAt.IsZero() {
 		parts = append(parts, st.subtle.render("updated "+s.dates.Prose(is.UpdatedAt, s.now())))
 	}
-	second := "  " + strings.Join(parts, st.subtle.render(" · "))
-	return first + "\n" + fit(ansi.Truncate(second, width, "…"), width)
+	second := "  " + strings.Join(parts, st.subtle.render(s.icons.Separator))
+	return first + "\n" + fit(termtext.Truncate(second, width, s.icons.Ellipsis), width)
 }
 
 // stateGlyph marks an issue or pull request by its state; the shapes
@@ -404,9 +404,9 @@ func (s *Section) labels(labels []core.Label) string {
 	for _, l := range labels {
 		dot, ok := s.dots[l.Color]
 		if !ok {
-			dot = "●"
+			dot = s.icons.Dot
 			if isHex(l.Color) {
-				dot = lipgloss.NewStyle().Foreground(lipgloss.Color("#" + l.Color)).Render("●")
+				dot = lipgloss.NewStyle().Foreground(lipgloss.Color("#" + l.Color)).Render(s.icons.Dot)
 			}
 			s.dots[l.Color] = dot
 		}
@@ -489,15 +489,15 @@ func (s *Section) renderRepo(r core.Repo, selected bool, width int) string {
 		name = st.name
 	}
 	var head strings.Builder
-	head.WriteString(s.links.Link(s.repoURL(r), name.render(truncate(r.Ref.String(), max(room, 0)))))
+	head.WriteString(s.links.Link(s.repoURL(r), name.render(s.truncate(r.Ref.String(), max(room, 0)))))
 	for _, f := range flags {
 		head.WriteByte(' ')
 		st.muted.write(&head, f)
 	}
-	first := spread(head.String(), right, width)
+	first := s.spread(head.String(), right, width)
 	second := ""
 	if d := cleanLine(r.Description); d != "" {
-		second = "  " + st.muted.render(truncate(d, width-2))
+		second = "  " + st.muted.render(s.truncate(d, width-2))
 	}
 	return first + "\n" + fit(second, width)
 }
@@ -511,7 +511,7 @@ func (s *Section) langCell(r core.Repo, width int) string {
 	if width < 3 {
 		return fit(s.langGlyph(r), width)
 	}
-	return fit(s.langGlyph(r)+" "+s.st.text.render(truncate(r.Language, width-2)), width)
+	return fit(s.langGlyph(r)+" "+s.st.text.render(s.truncate(r.Language, width-2)), width)
 }
 
 // renderCode renders a file that matches: its repository and path, then a
@@ -526,13 +526,13 @@ func (s *Section) renderCode(hit core.CodeHit, selected bool, width int) string 
 	// The repository and the file link to their pages.
 	repo := s.links.Link(s.repoURL(core.Repo{Ref: hit.Repo}), st.muted.render(hit.Repo.String()))
 	file := s.links.Link(hit.URL, path.render(ui.OneLine(hit.Path)))
-	lines = append(lines, fit(ansi.Truncate(repo+st.subtle.render(" · ")+file, width, "…"), width))
+	lines = append(lines, fit(termtext.Truncate(repo+st.subtle.render(s.icons.Separator)+file, width, s.icons.Ellipsis), width))
 	var frag core.Fragment
 	if len(hit.Fragments) > 0 {
 		frag = hit.Fragments[0]
 	}
 	for _, l := range fragmentView(frag, fragmentLines) {
-		lines = append(lines, fit(ansi.Truncate("  "+s.highlight(l), width, "…"), width))
+		lines = append(lines, fit(termtext.Truncate("  "+s.highlight(l), width, s.icons.Ellipsis), width))
 	}
 	for len(lines) < codeHeight {
 		lines = append(lines, strings.Repeat(" ", width))
