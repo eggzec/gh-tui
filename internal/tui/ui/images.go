@@ -749,8 +749,9 @@ func hostOf(addr string) string {
 }
 
 // webAddr finds the addresses in a message, up to the space, quote or
-// bracket that ends them.
-var webAddr = regexp.MustCompile(`[A-Za-z][A-Za-z0-9+.-]*://[^\s"'<>]*`)
+// bracket that ends them. A character escaped with a backslash, as %q
+// escapes a quote within the address it quotes, doesn't end one.
+var webAddr = regexp.MustCompile(`[A-Za-z][A-Za-z0-9+.-]*://(?:[^\s"'<>\\]|\\.)*`)
 
 // hostsOnly returns msg, such as a fetch's error, with each address in it
 // cut to its scheme and host, for the log: a path names an account, and a
