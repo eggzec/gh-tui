@@ -65,3 +65,10 @@ func WithVoice(v ui.Voice) Option {
 func WithEditor(cmd string) Option {
 	return func(s *Section) { s.editor = cmd }
 }
+
+// WithImages draws the image files the preview opens with i, where the
+// terminal shows images. Without it, the preview shows what it shows of
+// any other file that isn't text.
+func WithImages(i *ui.Images) Option {
+	return func(s *Section) { s.images = i }
+}

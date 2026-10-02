@@ -216,6 +216,15 @@ func (f *Fetcher) remember(addr string, err error) {
 	f.failed[addr] = failure{err: err, until: now.Add(failedFor)}
 }
 
+// Decode makes data, an image read some other way, such as a file of a
+// repository, fit box, within the same limits as an image fetched, and
+// sharing the decodes that may run at once. It blocks, so call it in a
+// tea.Cmd. Data that is no image this can show fails with ErrFormat, and
+// one too large with ErrTooLarge.
+func (f *Fetcher) Decode(ctx context.Context, data []byte, box Box) (Image, error) {
+	return f.decode(ctx, data, box)
+}
+
 func (f *Fetcher) decode(ctx context.Context, data []byte, box Box) (Image, error) {
 	select {
 	case f.decodes <- struct{}{}:
