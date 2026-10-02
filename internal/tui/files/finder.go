@@ -292,8 +292,10 @@ func (f *finderModal) Update(msg tea.Msg) tea.Cmd {
 		cmd, _ := fill(&f.pager, msg.entry, msg.blob, msg.err, f.keys.Browser)
 		return cmd
 	case ui.OnlineMsg:
-		// A rate limit is the token's, and has lifted.
-		f.ahead.Resume()
+		// A rate limit is the token's, and has lifted unless one holds.
+		if !msg.Limited {
+			f.ahead.Resume()
+		}
 		return f.online()
 	case ui.ReopenedMsg:
 		if msg.Modal != ui.Modal(f) {

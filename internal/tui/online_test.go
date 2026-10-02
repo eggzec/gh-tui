@@ -171,6 +171,31 @@ func TestLimitLiftWakes(t *testing.T) {
 	}
 }
 
+// TestOnlineAfterOutageTellsTheLimit checks that GitHub answering again
+// after an outage, while a rate limit still holds, wakes the sections with
+// an OnlineMsg that says so, and that the limit lifting later wakes them
+// with one that doesn't, so that reads ahead resume only then.
+func TestOnlineAfterOutageTellsTheLimit(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		a := newLinkApp(t)
+		run(a.m, a.limit(func(s *core.RateStatus) { s.Quotas = []core.Quota{spent("core", time.Now().Add(time.Minute))} }))
+		a.offline()
+		run(a.m, a.online())
+		time.Sleep(time.Minute)
+		run(a.m, a.limit(func(s *core.RateStatus) { s.Quotas = []core.Quota{spent("core", time.Time{})} }))
+
+		var got []bool
+		for _, msg := range a.fakes[0].msgs {
+			if o, ok := msg.(ui.OnlineMsg); ok {
+				got = append(got, o.Limited)
+			}
+		}
+		if want := []bool{true, false}; !slices.Equal(got, want) {
+			t.Errorf("OnlineMsg Limited = %v, want %v", got, want)
+		}
+	})
+}
+
 // limit sets the rate status to change, taken now, and tells the app,
 // returning the command it answers with.
 func (a *linkApp) limit(change func(s *core.RateStatus)) tea.Cmd {

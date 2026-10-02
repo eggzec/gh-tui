@@ -123,6 +123,11 @@ func TestPrefetchStopsAtRateLimit(t *testing.T) {
 	if got := len(svc.got()); got != n {
 		t.Errorf("read %d more details for another repository under the rate limit", got-n)
 	}
+	// GitHub answering again while a limit holds resumes nothing.
+	drain(t, h, h.Update(ui.OnlineMsg{Limited: true}))
+	if got := len(svc.got()); got != n {
+		t.Errorf("read %d more details while a rate limit still held", got-n)
+	}
 	// Once the limit lifts, the window is read again, before the cursor
 	// moves.
 	drain(t, h, h.Update(ui.OnlineMsg{}))

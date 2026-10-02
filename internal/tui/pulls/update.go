@@ -31,8 +31,10 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 	case ui.SyncMsg:
 		return s.sync(msg)
 	case ui.OnlineMsg:
-		// A rate limit is the token's, and has lifted.
-		s.ahead.Resume()
+		// A rate limit is the token's, and has lifted unless one holds.
+		if !msg.Limited {
+			s.ahead.Resume()
+		}
 		if s.feed == nil {
 			return nil
 		}

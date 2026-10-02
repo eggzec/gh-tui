@@ -54,7 +54,7 @@ func (m *Model) wake(now time.Time) tea.Cmd {
 	if m.online != nil {
 		m.online()
 	}
-	cmd := m.broadcast(ui.OnlineMsg{})
+	cmd := m.broadcast(ui.OnlineMsg{Limited: limitedUntil(m.rate).After(now)})
 	// The avatars that failed ask again as they are drawn again.
 	if m.avatars.Online() {
 		cmd = tea.Batch(cmd, m.avatarsChanged())

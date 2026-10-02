@@ -14,7 +14,13 @@ import (
 // list whose page didn't load, and what it was served kept meanwhile,
 // such as a page kept while GitHub rate limited its read. What was served
 // fresh costs no request.
-type OnlineMsg struct{}
+type OnlineMsg struct {
+	// Limited reports that a rate limit still holds, such as when GitHub
+	// answers again after an outage within the limit's window. Reads
+	// ahead stay stopped until a later OnlineMsg without it, since the
+	// client would refuse them all.
+	Limited bool
+}
 
 // Unreached reports whether err is of a read that got no answer from
 // GitHub, only a server error, or a rate limit, which reading again once
