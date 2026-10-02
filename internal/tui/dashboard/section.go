@@ -374,7 +374,7 @@ func (s *Section) SetTheme(t ui.Theme) {
 	s.theme = t
 	s.st = newStyles(t, s.icons)
 	s.errs = t.Errors(s.icons)
-	s.cal.SetStyles(t.Calendar())
+	s.cal.SetStyles(t.Calendar(s.icons))
 	s.cal.SetGlyph(cellGlyph(s.glyph, s.icons))
 	if !s.contribs.ok {
 		s.cal.SetEmptyText("Loading contributions" + s.icons.Ellipsis)

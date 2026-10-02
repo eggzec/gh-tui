@@ -166,7 +166,7 @@ func TestProgramFinder(t *testing.T) {
 	// The tree shows the file once cmd and cmd/gh-tui are expanded, and
 	// only then may o open it.
 	teatest.WaitFor(t, tm.Output(), func(b []byte) bool {
-		return strings.Count(ansi.Strip(string(b)), "▾") >= 2
+		return strings.Count(ansi.Strip(string(b)), ui.NewIcons(config.Default().UI.Icons).Unfolded) >= 2
 	}, teatest.WithDuration(5*time.Second))
 	tm.Send(press("o"))
 

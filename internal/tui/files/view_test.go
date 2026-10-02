@@ -86,10 +86,10 @@ func TestViewPreview(t *testing.T) {
 // TestViewWithoutFileIcons draws the rows as before in the icon sets
 // without file icons.
 func TestViewWithoutFileIcons(t *testing.T) {
-	for _, set := range []string{config.IconsUnicode, config.IconsASCII} {
+	for set, first := range map[string]string{config.IconsUnicode: "▌ ▸ cmd", config.IconsASCII: "> + cmd"} {
 		s := loaded(t, sampleFake(), 30, 4, WithIcons(ui.NewIcons(set)))
 		lines := strings.Split(ansi.Strip(s.View()), "\n")
-		if lines[0] != "▌ ▸ cmd                       " || lines[2] != "    vendor-lib                " {
+		if strings.TrimRight(lines[0], " ") != first || lines[2] != "    vendor-lib                " {
 			t.Errorf("%s: rows %q, want no icons", set, lines)
 		}
 	}

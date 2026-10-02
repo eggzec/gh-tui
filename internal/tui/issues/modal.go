@@ -229,7 +229,7 @@ func (m *detailModal) SetTheme(t ui.Theme) {
 	m.chips = newChipCache(m.rows)
 	m.thread.SetStyles(t.Thread(m.icons))
 	if m.composing != composeNone {
-		m.prompt.SetStyles(t.Prompt())
+		m.prompt.SetStyles(t.Prompt(m.icons))
 	}
 	if m.loaded {
 		// The header is styled too. The thread loads whatever the new
