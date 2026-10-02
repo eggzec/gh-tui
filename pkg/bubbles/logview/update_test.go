@@ -479,3 +479,29 @@ func TestUpdatePaste(t *testing.T) {
 		t.Error("a paste outside the input did something")
 	}
 }
+
+// With nothing folded the status line gives the cursor's line of the log,
+// as the gutter numbers it. While folds hide rows it gives the row among
+// those shown instead, so a folded log doesn't read as a few lines of many.
+func TestStatusCountsRowsShown(t *testing.T) {
+	m := New(WithSize(40, 6))
+	m.Focus()
+	m.SetLines(numbered(6), []Section{{Title: "setup", Start: 0, End: 3}, {Title: "build", Start: 3, End: 6}})
+	m.CollapseAll()
+	m, _ = keys(t, m, "j")
+	status := func(m Model) string {
+		lines := strings.Split(plain(m), "\n")
+		return lines[len(lines)-1]
+	}
+	if got := status(m); !strings.HasSuffix(got, "row 2/2  100%") {
+		t.Errorf("folded status line = %q, want row 2/2", got)
+	}
+	m.ExpandAll()
+	m, _ = keys(t, m, "j")
+	if got := status(m); !strings.HasSuffix(got, "line 4/6  66%") {
+		t.Errorf("expanded status line = %q, want line 4/6", got)
+	}
+	if got := plain(m); !strings.Contains(got, "▌4     line 4") {
+		t.Errorf("view = %q, want the gutter to number the cursor's line 4", got)
+	}
+}

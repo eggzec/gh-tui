@@ -54,14 +54,14 @@ func TestPartialLogAppends(t *testing.T) {
 	run(m, m.Show(running(), false, Hints{}))
 	// The steps show folded; open the second, onto its first line.
 	keys(m, "j", "space", "j")
-	if s := text(m); !strings.Contains(s, "line 2/3") {
+	if s := text(m); !strings.Contains(s, "▌2 lint 1") {
 		t.Fatalf("the cursor isn't on the first line of the second step:\n%s", s)
 	}
 
 	f.poll(partialLog(4, 15, 1))
 	run(m, m.Show(running(), false, Hints{}))
 	s := text(m)
-	for _, want := range []string{"line 2/5", "lint 4", "partial, as of 14:15"} {
+	for _, want := range []string{"▌2 lint 1", "row 3/6", "lint 4", "partial, as of 14:15"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("the view lacks %q after the poll:\n%s", want, s)
 		}

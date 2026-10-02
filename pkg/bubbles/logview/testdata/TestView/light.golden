@@ -9,4 +9,4 @@
  [38;2;138;144;160m185[m       [38;2;31;35;48m     ^[m                                                               
  [38;2;138;144;160m186[m [38;2;192;57;43m✗[m     [38;2;192;57;43mD:\a\bubbletea\bubbletea\charmbracelet\bubbletea\clipboard_backend.go[m
  [38;2;138;144;160m187[m       [38;2;31;35;48mfunc (b commandClipboardBackend) Set(selection ClipboardSelection, co[m
-[1;38;2;31;35;48mlint / lint (windows-latest)[m                        [38;2;84;91;110merror 1/5[m  [38;2;84;91;110mline 180/215  61%[m
+[1;38;2;31;35;48mlint / lint (windows-latest)[m                           [38;2;84;91;110merror 1/5[m  [38;2;84;91;110mrow 15/36  61%[m
