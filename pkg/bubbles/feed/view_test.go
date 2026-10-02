@@ -6,6 +6,7 @@ import (
 	"testing"
 	"unicode"
 
+	"charm.land/bubbles/v2/spinner"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
 )
@@ -162,5 +163,19 @@ func TestViewGlyphs(t *testing.T) {
 	loading := New(newSource(10, 10).fetch, renderItem, WithSize(40, 5), WithStyles(st))
 	if v := ansi.Strip(loading.View()); !strings.Contains(v, "Loading...") {
 		t.Errorf("view lacks %q:\n%s", "Loading...", v)
+	}
+}
+
+// The spinner draws the frames of the styles, and its own without them.
+func TestViewSpinnerFrames(t *testing.T) {
+	st := DefaultStyles(true)
+	st.SpinnerFrames = spinner.Line
+	m := New(newSource(10, 10).fetch, renderItem, WithSize(40, 5), WithStyles(st))
+	if v := ansi.Strip(m.View()); !strings.Contains(v, spinner.Line.Frames[0]+"Loading") {
+		t.Errorf("view starts %q, want the line spinner", v)
+	}
+	m.SetStyles(DefaultStyles(true))
+	if v := ansi.Strip(m.View()); !strings.Contains(v, spinner.Dot.Frames[0]+"Loading") {
+		t.Errorf("view starts %q, want the dot spinner", v)
 	}
 }

@@ -224,6 +224,7 @@ func (m *Modal) SetTheme(t ui.Theme) {
 	m.st = newStyles(t, m.opts.icons)
 	m.errs = t.Errors(m.opts.icons)
 	m.spin.Style = t.Accent
+	m.spin.Spinner = m.opts.icons.SpinnerOr(spinner.Dot)
 	m.runs.SetStyles(t.Feed(m.opts.icons))
 	m.log.SetTheme(t)
 	if f := m.filterStep; f != nil && f.form != nil {

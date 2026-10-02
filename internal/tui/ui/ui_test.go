@@ -5,6 +5,7 @@ import (
 	"errors"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"unicode"
@@ -174,6 +175,10 @@ func asciiGlyphs(t *testing.T, name string, v reflect.Value) {
 			if f := v.Type().Field(i); f.IsExported() {
 				asciiGlyphs(t, name+"."+f.Name, v.Field(i))
 			}
+		}
+	case reflect.Slice:
+		for i := range v.Len() {
+			asciiGlyphs(t, name+"["+strconv.Itoa(i)+"]", v.Index(i))
 		}
 	default:
 		// Other kinds hold no glyphs.

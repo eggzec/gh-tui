@@ -3,6 +3,8 @@ package ui
 import (
 	"strings"
 
+	"charm.land/bubbles/v2/spinner"
+
 	"charm.land/lipgloss/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
@@ -19,6 +21,7 @@ func (ic *Icons) setDrawing(set string) {
 		ic.Edge, ic.InputEdge, ic.Remove, ic.Warning, ic.Below = "|", "|", "x", "!", "->"
 		ic.Comment, ic.Recent = "c", "~"
 		ic.OpenQuote, ic.CloseQuote = `"`, `"`
+		ic.Spinner = spinner.Line
 		ic.keys = asciiKeys
 		return
 	}
@@ -29,6 +32,27 @@ func (ic *Icons) setDrawing(set string) {
 	ic.Edge, ic.InputEdge, ic.Remove, ic.Warning, ic.Below = "▌", "┃", "✕", "⚠", "↳"
 	ic.Comment, ic.Recent = "◦", "↺"
 	ic.OpenQuote, ic.CloseQuote = "“", "”"
+}
+
+// SpinnerOr returns the spinner of the icon set, or def where the set
+// leaves each view its own. The set's frames repeat to as many as def has,
+// at def's pace, and take a space after them as those of def do, so that a
+// view switching between the two mid-spin always has a frame to draw and
+// keeps the text after it in place.
+func (ic Icons) SpinnerOr(def spinner.Spinner) spinner.Spinner {
+	n := len(ic.Spinner.Frames)
+	if n == 0 || len(def.Frames) == 0 {
+		return def
+	}
+	pad := ""
+	if strings.HasSuffix(def.Frames[0], " ") {
+		pad = " "
+	}
+	s := spinner.Spinner{Frames: make([]string, len(def.Frames)), FPS: def.FPS}
+	for i := range s.Frames {
+		s.Frames[i] = ic.Spinner.Frames[i%n] + pad
+	}
+	return s
 }
 
 // asciiKeys names in words the keys that help draws as arrows, pairs of

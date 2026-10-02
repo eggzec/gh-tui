@@ -189,6 +189,7 @@ func (m *Modal) SetTheme(t ui.Theme) {
 	m.st = newStyles(t, m.opts.icons)
 	m.errs = t.Errors(m.opts.icons)
 	m.spin.Style = t.Accent
+	m.spin.Spinner = m.opts.icons.SpinnerOr(spinner.Dot)
 	m.graph.model.SetStyles(t.Graph(m.opts.icons))
 	m.commit.pager.SetStyles(t.Pager(m.opts.icons))
 	if m.branches.filter != nil {
