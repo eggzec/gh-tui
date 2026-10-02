@@ -97,6 +97,7 @@ internal/core/target.go:defaultPorts  keep: the ports URLs of each scheme leave 
 internal/logfile/logfile.go:followEvery  keep: a mechanism, how often a follower checks for rotation
 internal/logfile/logfile.go:staleLock  keep: a safety mechanism, when a lock's holder counts as dead
 cmd/gh-tui/login.go:refusedFor  keep: GitHub refuses such tokens every time; a day only spares a wasted request
+cmd/gh-tui/login.go:unusedFor  keep: a cleanup of what rotated tokens leave behind; a token back after it is only asked about again
 cmd/gh-tui/session.go:ghVersionTimeout  keep: a probe timeout, gh --version only prints
 internal/obs/budget.go:fallbackPrefetchWindow  keep: used before GitHub reports a limit
 internal/obs/stats.go:farReset  keep: a sanity bound on the reset GitHub reports
