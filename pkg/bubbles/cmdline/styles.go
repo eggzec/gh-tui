@@ -24,6 +24,9 @@ type Styles struct {
 	Selected lipgloss.Style
 	// More styles the marks at either end of the row that say it scrolls.
 	More lipgloss.Style
+	// Ellipsis ends the line or the row cut to the width. The default is
+	// "…".
+	Ellipsis string
 }
 
 // DefaultStyles returns calm styles for a light or dark terminal: plain
@@ -44,6 +47,7 @@ func DefaultStyles(isDark bool) Styles {
 		Detail:      lipgloss.NewStyle().Foreground(subtle),
 		Selected:    lipgloss.NewStyle().Foreground(onAccent).Background(accent).Bold(true),
 		More:        lipgloss.NewStyle().Foreground(accent).Bold(true),
+		Ellipsis:    "…",
 	}
 }
 
