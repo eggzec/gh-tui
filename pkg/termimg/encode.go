@@ -27,6 +27,45 @@ const st = "\x1b\\"
 // (s=, v=). Sending another image as the same id replaces it, and the
 // cells that show it need no redraw. It returns "" for no data.
 func Transmit(id ID, data []byte, width, height int) string {
+	keys := []string{"a=t", "f=100", "t=d", "i=" + id.key()}
+	if width > 0 {
+		keys = append(keys, "s="+strconv.Itoa(width))
+	}
+	if height > 0 {
+		keys = append(keys, "v="+strconv.Itoa(height))
+	}
+	return chunked(keys, data)
+}
+
+// Frame returns the sequences that add data, a PNG of the whole image, as
+// the next frame of image id (a=f), shown for gap milliseconds before the
+// one after it when the animation runs (z), in chunks as Transmit sends
+// them. The frame replaces the canvas (X=1) rather than blending over
+// it, so each frame is drawn whole. A gap below 1 is 1: kitty skips a
+// frame of no gap. It returns "" for no data.
+func Frame(id ID, data []byte, gap int) string {
+	return chunked([]string{"a=f", "f=100", "i=" + id.key(), "X=1", "z=" + strconv.Itoa(max(gap, 1))}, data)
+}
+
+// Animate returns the sequences that run the animation of image id (a=a):
+// its first frame, which a transmission gives no gap, shown for gap
+// milliseconds (r=1, z), and then every frame in turn (s=3), played loops
+// times, or forever for 0, after which the last frame stays. kitty counts
+// the plays as v less one, and v=1 as forever.
+func Animate(id ID, gap, loops int) string {
+	v := 1
+	if loops > 0 {
+		v = loops + 1
+	}
+	i := "i=" + id.key()
+	return ansi.KittyGraphics(nil, "a=a", i, "r=1", "z="+strconv.Itoa(max(gap, 1)), "q=2") +
+		ansi.KittyGraphics(nil, "a=a", i, "s=3", "v="+strconv.Itoa(v), "q=2")
+}
+
+// chunked returns the sequences that send data with keys, quietly (q=2),
+// in chunks of base64 (m=1 up to the last, m=0). Only the first holds
+// the keys but q. It returns "" for no data.
+func chunked(first []string, data []byte) string {
 	if len(data) == 0 {
 		return ""
 	}
@@ -38,13 +77,7 @@ func Transmit(id ID, data []byte, width, height int) string {
 		last := i+chunk >= len(enc)
 		var keys []string
 		if i == 0 {
-			keys = []string{"a=t", "f=100", "t=d", "i=" + id.key()}
-			if width > 0 {
-				keys = append(keys, "s="+strconv.Itoa(width))
-			}
-			if height > 0 {
-				keys = append(keys, "v="+strconv.Itoa(height))
-			}
+			keys = append(keys, first...)
 		}
 		keys = append(keys, "q=2")
 		switch {

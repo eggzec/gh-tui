@@ -18,6 +18,17 @@ func TestSequences(t *testing.T) {
 			"\x1b_Ga=t,f=100,t=d,i=117440554,q=2;UE5HREFUQQ==\x1b\\"},
 		{"place", Place(id, 4, 2), "\x1b_Ga=p,U=1,i=117440554,p=1,c=4,r=2,q=2\x1b\\"},
 		{"place clamped", Place(id, 0, 1000), "\x1b_Ga=p,U=1,i=117440554,p=1,c=1,r=297,q=2\x1b\\"},
+		{"frame", Frame(id, []byte("PNGDATA"), 70),
+			"\x1b_Ga=f,f=100,i=117440554,X=1,z=70,q=2;UE5HREFUQQ==\x1b\\"},
+		{"frame of no gap", Frame(id, []byte("PNGDATA"), 0),
+			"\x1b_Ga=f,f=100,i=117440554,X=1,z=1,q=2;UE5HREFUQQ==\x1b\\"},
+		{"frame of nothing", Frame(id, nil, 70), ""},
+		{"animate forever", Animate(id, 100, 0),
+			"\x1b_Ga=a,i=117440554,r=1,z=100,q=2\x1b\\\x1b_Ga=a,i=117440554,s=3,v=1,q=2\x1b\\"},
+		{"animate once", Animate(id, 100, 1),
+			"\x1b_Ga=a,i=117440554,r=1,z=100,q=2\x1b\\\x1b_Ga=a,i=117440554,s=3,v=2,q=2\x1b\\"},
+		{"animate thrice", Animate(id, 0, 3),
+			"\x1b_Ga=a,i=117440554,r=1,z=1,q=2\x1b\\\x1b_Ga=a,i=117440554,s=3,v=4,q=2\x1b\\"},
 		{"delete", Delete(id), "\x1b_Ga=d,d=I,i=117440554,q=2\x1b\\"},
 		{"query", Query(31), "\x1b_Ga=q,i=31,s=1,v=1,t=d,f=24;AAAA\x1b\\"},
 		{"tmux", Tmux(Delete(id)), "\x1bPtmux;\x1b\x1b_Ga=d,d=I,i=117440554,q=2\x1b\x1b\\\x1b\\"},
@@ -84,6 +95,20 @@ func TestTransmitChunks(t *testing.T) {
 				t.Errorf("chunks decode to %d bytes (%v), want the %d sent", len(got), err, len(data))
 			}
 		})
+	}
+}
+
+// A frame is chunked as a transmission is, its keys on the first chunk
+// alone.
+func TestFrameChunks(t *testing.T) {
+	ms := apc.FindAllStringSubmatch(Frame(NewID(1, 2), make([]byte, 3073), 40), -1)
+	keys := make([]string, 0, len(ms))
+	for _, m := range ms {
+		keys = append(keys, m[1])
+	}
+	want := []string{"a=f,f=100,i=16777218,X=1,z=40,q=2,m=1", "q=2,m=0"}
+	if strings.Join(keys, " ") != strings.Join(want, " ") {
+		t.Errorf("chunk keys %q, want %q", keys, want)
 	}
 }
 
