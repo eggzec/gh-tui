@@ -32,21 +32,39 @@ type options struct {
 	// voice words the errors of the runs and the log; New makes one of
 	// its keys if it is nil.
 	voice *ui.Voice
-	// rest is how long the cursor rests on a run or a job before its jobs
-	// or its log are read; tests set 0.
-	rest time.Duration
+	// prefetch is what the modal reads ahead, and how long the cursors
+	// rest first; tests set no rest.
+	prefetch prefetch
 	// tick is how often the timers of what runs move on; tests set 0,
 	// which stops them.
 	tick time.Duration
 	now  func() time.Time
 }
 
-// defaultRest keeps a scroll through the runs from reading every one of
-// them.
-const defaultRest = 150 * time.Millisecond
-
 func defaultOptions() options {
-	return options{icons: ui.NewIcons(config.Default().UI.Icons), rest: defaultRest, tick: time.Second, now: time.Now}
+	d := config.Default()
+	return options{icons: ui.NewIcons(d.UI.Icons), prefetch: newPrefetch(d.Prefetch), tick: time.Second, now: time.Now}
+}
+
+// prefetch is what the modal reads ahead: the jobs of the runs around the
+// cursor of the runs, and the logs of the failed jobs around the cursor
+// of the jobs. Their rests also time the reads of the run and the job
+// under the cursors, so that a scroll doesn't read each one.
+type prefetch struct {
+	jobs, logs config.Resolved
+}
+
+func newPrefetch(p config.PrefetchLayers) prefetch {
+	return prefetch{jobs: ui.Resolve(p, "actions", "jobs"), logs: ui.Resolve(p, "actions", "logs")}
+}
+
+// WithPrefetch sets how far the modal reads ahead, and how long a cursor
+// rests before it does, as p, the prefetch settings, says for the
+// actions. The jobs of the run under the cursor and the log of the job
+// under theirs are read once the cursors rest whatever p says, since the
+// panes show them. The default is that of config.Default.
+func WithPrefetch(p config.PrefetchLayers) Option {
+	return func(o *options) { o.prefetch = newPrefetch(p) }
 }
 
 // WithVoice sets how the modal words what went wrong, with the keys a hint

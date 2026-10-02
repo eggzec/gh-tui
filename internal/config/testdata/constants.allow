@@ -113,7 +113,6 @@ internal/images/signed.go:expiryMargin  keep: a margin for clocks and transit on
 internal/images/signed.go:unknownExpiry  keep: a safety mechanism, the life of a signature that can't be read
 
 # The tui.
-internal/tui/actions/options.go:defaultRest  move: prefetch.rest
 internal/tui/search/section.go:DefaultDebounce  keep: the debounce of typing, a feel constant
 internal/tui/search/lists.go:defaultPrefetch  keep: a paging threshold, the rows before the end that load the next page
 internal/tui/cmdhistory.go:historyWait  keep: a mechanism, how long saving the command history waits for its lock

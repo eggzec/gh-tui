@@ -49,8 +49,10 @@ func TestResolveDefaults(t *testing.T) {
 			"prefetch.enabled", "prefetch.history.window.before", "prefetch.history.window.after", "prefetch.rest", false},
 		{"history", "branches", true, 0, 0, 150 * time.Millisecond,
 			"prefetch.enabled", "prefetch.history.branches.window.before", "prefetch.history.branches.window.after", "prefetch.rest", false},
-		{"actions", "logs", false, 0, 0, 150 * time.Millisecond,
-			"prefetch.actions.logs.enabled", "prefetch.actions.window.before", "prefetch.actions.window.after", "prefetch.rest", false},
+		{"actions", "jobs", true, 1, 2, 150 * time.Millisecond,
+			"prefetch.enabled", "prefetch.actions.window.before", "prefetch.actions.window.after", "prefetch.rest", false},
+		{"actions", "logs", false, 0, 2, 150 * time.Millisecond,
+			"prefetch.actions.logs.enabled", "prefetch.actions.logs.window.before", "prefetch.actions.logs.window.after", "prefetch.rest", false},
 	}
 	for _, tt := range tests {
 		r := resolve(t, cfg, tt.page, tt.kind)

@@ -164,6 +164,13 @@ type fake struct {
 	runsErr, jobsErr, logErr error
 	// logErrs fails the logs of some jobs.
 	logErrs map[int64]error
+	// holdLogs makes the reads of the logs of some jobs wait, once started
+	// and told on started, until their context ends or release is closed.
+	// canceled lists the jobs whose read ended with its context.
+	holdLogs map[int64]bool
+	started  chan int64
+	release  chan struct{}
+	canceled []int64
 	// refuse fails the changes, as GitHub refusing them.
 	refuse error
 
@@ -312,10 +319,23 @@ func (f *fake) WatchLog(_ core.RepoRef, _, jobID int64) func() {
 	}
 }
 
-func (f *fake) Log(_ context.Context, _ core.RepoRef, jobID int64) (core.Log, error) {
+func (f *fake) Log(ctx context.Context, _ core.RepoRef, jobID int64) (core.Log, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.logReads = append(f.logReads, jobID)
+	if f.holdLogs[jobID] {
+		f.mu.Unlock()
+		f.started <- jobID
+		select {
+		case <-ctx.Done():
+		case <-f.release:
+		}
+		f.mu.Lock()
+		if ctx.Err() != nil {
+			f.canceled = append(f.canceled, jobID)
+			return core.Log{}, ctx.Err()
+		}
+	}
 	if err := f.logErrs[jobID]; err != nil {
 		return core.Log{}, err
 	}

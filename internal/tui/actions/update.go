@@ -25,6 +25,8 @@ func (m *Modal) update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		return m.readJobs()
+	case ui.AheadMsg:
+		return tea.Batch(m.aheadJobs.Rested(msg), m.aheadLogs.Rested(msg))
 	case jobsMsg:
 		if msg.id != m.id {
 			return nil
@@ -233,7 +235,7 @@ func (m *Modal) drill() tea.Cmd {
 		if m.jobs.onGroup() {
 			m.jobs.toggle()
 			m.scrollJobs()
-			return nil
+			return m.readLogsAround()
 		}
 		if _, ok := m.jobs.selected(); !ok {
 			return nil

@@ -99,6 +99,8 @@ func (m *Modal) setFilter(f core.RunFilter) tea.Cmd {
 	m.filter = f
 	m.runs = m.newRuns()
 	m.clearRun()
+	m.aheadJobs.Reset(m.ctx)
+	m.aheadLogs.Reset(m.ctx)
 	return m.runs.Init()
 }
 
@@ -158,7 +160,7 @@ func (m *Modal) current(r core.Run) core.Run {
 func (m *Modal) updateRuns(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
 	m.runs, cmd = m.runs.Update(msg)
-	return tea.Batch(cmd, m.selectRun())
+	return tea.Batch(cmd, m.selectRun(), m.readJobsAround())
 }
 
 // selectRun shows the jobs of the run under the cursor, once it changed:
@@ -177,8 +179,11 @@ func (m *Modal) selectRun() tea.Cmd {
 	m.run, m.hasRun = r, true
 	m.jobs = newJobs(r)
 	m.log.Clear()
+	// The logs read ahead for the run shown before stop.
+	m.aheadLogs.Reset(m.ctx)
 	var cmd tea.Cmd
 	if p, ok := m.svc.CachedAllJobs(m.jobsQuery()); ok {
+		m.aheadJobs.Opened(m.jobsQuery())
 		cmd = m.setJobs(p, !first)
 	} else {
 		m.jobs.loading = true

@@ -6,10 +6,13 @@
 // re-run or cancelled, once the user confirms.
 //
 // The jobs follow the cursor of the runs, and the log that of the jobs,
-// once it rests. A job's log is published whole only when the job ends,
-// so the log pane of a job in progress shows its steps as they run
-// instead, or the part of its log that GitHub already publishes, while the
-// sync engine follows the run; the whole log loads once the job ends.
+// once it rests. The jobs of the runs around the cursor, and the logs of
+// the failed jobs around that of the jobs, are read ahead as
+// prefetch.actions says, so that they show at once. A job's log is
+// published whole only when the job ends, so the log pane of a job in
+// progress shows its steps as they run instead, or the part of its log
+// that GitHub already publishes, while the sync engine follows the run;
+// the whole log loads once the job ends.
 //
 // On a narrow terminal the modal shows one pane at a time, with a
 // breadcrumb of where it is.
@@ -27,6 +30,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
+	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/tui/jobview"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
@@ -89,6 +93,10 @@ type Modal struct {
 	// seq counts the moves of the cursor of the runs, so that only the
 	// last rest reads jobs.
 	seq int
+	// aheadJobs reads the jobs of the runs around the cursor of the runs,
+	// and aheadLogs the logs of the failed jobs around that of the jobs.
+	aheadJobs *ui.Ahead[actionssvc.JobsQuery]
+	aheadLogs *ui.Ahead[int64]
 
 	// filterStep is open while the filter step is shown.
 	filterStep *filterStep
@@ -161,8 +169,14 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, keys map[string][]
 	// Assume a dark terminal until the app sets the theme.
 	p, _ := config.Default().Palette(true)
 	m.log = jobview.New(rctx, svc, repo, keyMap.job(),
-		jobview.WithIcons(o.icons), jobview.WithRest(o.rest), jobview.WithClock(o.now), jobview.WithReturn(m),
+		jobview.WithIcons(o.icons), jobview.WithRest(o.prefetch.logs.Rest), jobview.WithClock(o.now), jobview.WithReturn(m),
 		jobview.WithVoice(*o.voice))
+	m.aheadJobs = ui.NewAhead("jobs", m.readJobsAhead, m.cachedJobs, 0, 0)
+	m.aheadJobs.Reset(rctx)
+	m.aheadJobs.Configure(o.prefetch.jobs)
+	m.aheadLogs = ui.NewAhead("job_log", m.readLogAhead, m.cachedLog, 0, 0)
+	m.aheadLogs.Reset(rctx)
+	m.aheadLogs.Configure(o.prefetch.logs)
 	m.SetTheme(ui.NewTheme(p, true))
 	m.filter = o.filter
 	m.caps = ui.CachedCaps(o.repos, repo)
@@ -332,10 +346,11 @@ func (m *Modal) now() time.Time {
 func (m *Modal) rest() tea.Cmd {
 	m.seq++
 	msg := restMsg{id: m.id, seq: m.seq}
-	if m.opts.rest <= 0 {
+	rest := m.opts.prefetch.jobs.Rest
+	if rest <= 0 {
 		return func() tea.Msg { return msg }
 	}
-	return tea.Tick(m.opts.rest, func(time.Time) tea.Msg { return msg })
+	return tea.Tick(rest, func(time.Time) tea.Msg { return msg })
 }
 
 // restMsg reports that the cursor of the runs rested, for seq.
