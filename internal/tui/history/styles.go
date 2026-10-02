@@ -6,11 +6,10 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
-// cursorGlyph marks the row under the cursor, as the graph does.
-const cursorGlyph = "▌"
-
 // styles are the modal's own, built once per theme.
 type styles struct {
+	// ic draws the crumbs, separators, signs and ellipses.
+	ic                ui.Icons
 	title, focusTitle lipgloss.Style
 	crumb, lastCrumb  lipgloss.Style
 	// sep is the rule between two panes, rendered.
@@ -28,16 +27,17 @@ type styles struct {
 	baseMark string
 }
 
-func newStyles(t ui.Theme) styles {
+func newStyles(t ui.Theme, ic ui.Icons) styles {
 	border := lipgloss.NewStyle().Foreground(lipgloss.Color(t.Palette.Border))
 	return styles{
+		ic:         ic,
 		title:      t.Muted,
 		focusTitle: t.Accent.Bold(true),
 		crumb:      t.Muted,
 		lastCrumb:  t.Accent.Bold(true),
-		sep:        border.Render(" │ "),
-		gutter:     t.Accent.Render(cursorGlyph) + " ",
-		blurGutter: t.Subtle.Render(cursorGlyph) + " ",
+		sep:        border.Render(" " + ic.Border.Left + " "),
+		gutter:     t.Accent.Render(ic.Cursor) + " ",
+		blurGutter: t.Subtle.Render(ic.Cursor) + " ",
 		noGutter:   "  ",
 		text:       t.Text,
 		strong:     t.Title,
@@ -48,7 +48,7 @@ func newStyles(t ui.Theme) styles {
 		warning:    t.Warning,
 		error:      t.Error,
 		label:      t.Muted,
-		baseMark:   t.Accent.Render("●"),
+		baseMark:   t.Accent.Render(ic.Dot),
 	}
 }
 

@@ -18,6 +18,7 @@ import (
 	historysvc "github.com/eggzec/gh-tui/internal/service/history"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // maxBranchPages bounds the pages of branches read, of a hundred each, so
@@ -461,7 +462,7 @@ func (m *Modal) branchStatus(w int) []string {
 	case b.err != nil:
 		return m.errorLines("load the branches", m.repo.String(), b.err, false, m.st.noGutter, w)
 	case b.loading:
-		s = m.spin.View() + m.st.muted.Render("Loading…")
+		s = m.spin.View() + m.st.muted.Render("Loading"+m.st.ic.Ellipsis)
 	case b.loaded && len(b.items) == 0:
 		s = m.st.muted.Render("No branches.")
 	default:
@@ -483,7 +484,7 @@ func (m *Modal) branchRow(br core.Branch, cursor, focused bool, w int) string {
 	var tags []string
 	tagsW := 0
 	if c, ok := m.branches.compares[br.Name]; ok && br.Name != m.branches.defaultBranch {
-		t := "↑" + strconv.Itoa(c.AheadBy) + "↓" + strconv.Itoa(c.BehindBy)
+		t := m.st.ic.Up + strconv.Itoa(c.AheadBy) + m.st.ic.Down + strconv.Itoa(c.BehindBy)
 		tags, tagsW = append(tags, m.st.subtle.Render(t)), ansi.StringWidth(t)
 	}
 	if m.isBase(br.Name) {
@@ -506,7 +507,7 @@ func (m *Modal) branchRow(br core.Branch, cursor, focused bool, w int) string {
 	} else {
 		tags, tagsW = nil, 0
 	}
-	name := ansi.Truncate(ui.OneLine(br.Name), nameRoom, "…")
+	name := termtext.Truncate(ui.OneLine(br.Name), nameRoom, m.st.ic.Ellipsis)
 	line := gutter + style.Render(name)
 	if tagsW == 0 {
 		return fit(line, w)
