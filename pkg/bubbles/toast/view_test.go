@@ -5,6 +5,9 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"unicode"
+
+	"charm.land/lipgloss/v2"
 
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
@@ -248,5 +251,25 @@ func TestOverlayInsetWhenNarrow(t *testing.T) {
 		if !m.Fits(Error, "merged") {
 			t.Errorf("at %d cells a short text doesn't fit", width)
 		}
+	}
+}
+
+// A toast drawn with ASCII glyphs, edge, repeat count and ellipsis is
+// ASCII alone.
+func TestViewASCII(t *testing.T) {
+	st := DefaultStyles(true)
+	st.Toast = st.Toast.Border(lipgloss.Border{Left: "|"}, false, false, false, true)
+	st.Error.Glyph, st.Times, st.Ellipsis = "x", "x", "..."
+	m := New(testDuration, testErrorDuration, WithStyles(st), WithSize(40, 24))
+	long := strings.Repeat("Could not star the repository. ", 20)
+	for range 3 {
+		m.Push(Error, long)
+	}
+	v := ansi.Strip(m.View())
+	if !strings.Contains(v, "x3") || !strings.Contains(v, "...") {
+		t.Errorf("view lacks the count or the ellipsis:\n%s", v)
+	}
+	if strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
+		t.Errorf("view isn't ASCII:\n%s", v)
 	}
 }

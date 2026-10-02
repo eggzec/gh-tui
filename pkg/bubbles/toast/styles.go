@@ -22,6 +22,11 @@ type Styles struct {
 	Text lipgloss.Style
 	// Count is the repeat count, such as "×3".
 	Count lipgloss.Style
+	// Times goes before the repeat count. The default is "×".
+	Times string
+	// Ellipsis ends a text cut to the lines of its room. The default is
+	// "…".
+	Ellipsis string
 
 	Info, Success, Warning, Error LevelStyle
 }
@@ -37,12 +42,14 @@ func DefaultStyles(isDark bool) Styles {
 			Padding(0, 1).
 			Border(lipgloss.Border{Left: "▌"}, false, false, false, true).
 			BorderBackground(panel),
-		Text:    lipgloss.NewStyle().Foreground(c(lipgloss.Color("#1F2328"), lipgloss.Color("#E6EDF3"))),
-		Count:   lipgloss.NewStyle().Foreground(c(lipgloss.Color("#59636E"), lipgloss.Color("#9198A1"))),
-		Info:    LevelStyle{Glyph: "•", Color: c(lipgloss.Color("#0969DA"), lipgloss.Color("#58A6FF"))},
-		Success: LevelStyle{Glyph: "✓", Color: c(lipgloss.Color("#1A7F37"), lipgloss.Color("#3FB950"))},
-		Warning: LevelStyle{Glyph: "!", Color: c(lipgloss.Color("#9A6700"), lipgloss.Color("#D29922"))},
-		Error:   LevelStyle{Glyph: "✗", Color: c(lipgloss.Color("#CF222E"), lipgloss.Color("#F85149"))},
+		Text:     lipgloss.NewStyle().Foreground(c(lipgloss.Color("#1F2328"), lipgloss.Color("#E6EDF3"))),
+		Count:    lipgloss.NewStyle().Foreground(c(lipgloss.Color("#59636E"), lipgloss.Color("#9198A1"))),
+		Times:    "×",
+		Ellipsis: "…",
+		Info:     LevelStyle{Glyph: "•", Color: c(lipgloss.Color("#0969DA"), lipgloss.Color("#58A6FF"))},
+		Success:  LevelStyle{Glyph: "✓", Color: c(lipgloss.Color("#1A7F37"), lipgloss.Color("#3FB950"))},
+		Warning:  LevelStyle{Glyph: "!", Color: c(lipgloss.Color("#9A6700"), lipgloss.Color("#D29922"))},
+		Error:    LevelStyle{Glyph: "✗", Color: c(lipgloss.Color("#CF222E"), lipgloss.Color("#F85149"))},
 	}
 }
 
