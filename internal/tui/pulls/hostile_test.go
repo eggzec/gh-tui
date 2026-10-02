@@ -9,7 +9,7 @@ import (
 )
 
 // A pull request's title, labels and refs are text from GitHub, which
-// the rows and the head of the detail draw.
+// the rows, the head of the detail and the modal's title draw.
 func TestViewCleansHostilePulls(t *testing.T) {
 	h := termtexttest.Hostile
 	for _, w := range []int{40, 80, 200} {
@@ -35,5 +35,7 @@ func TestViewCleansHostilePulls(t *testing.T) {
 			t.Errorf("the detail doesn't show the author cleaned: %q", v)
 		}
 		termtexttest.AssertClean(t, v, w)
+		// The frame and the help draw the title, as may any other caller.
+		termtexttest.AssertClean(t, m.Title(), 1000)
 	}
 }

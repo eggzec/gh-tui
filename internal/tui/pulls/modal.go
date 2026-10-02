@@ -212,7 +212,7 @@ func (m *detailModal) Title() string {
 	if !m.loaded || m.detail.Title == "" {
 		return n
 	}
-	return n + " " + m.detail.Title
+	return n + " " + ui.OneLine(m.detail.Title)
 }
 
 // Link implements ui.Linked.
