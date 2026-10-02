@@ -184,9 +184,10 @@ func TestAuthCommand(t *testing.T) {
 		t.Fatalf("the token was read %d times, checking=%v; want read once", acc.reloads, mod.checking)
 	}
 	view := ansi.Strip(m.View().Content)
+	ic := ui.NewIcons(config.Default().UI.Icons)
 	for _, want := range []string{
 		"octocat@github.com · classic token", "Scopes: gist, read:org, repo",
-		"✓ Read and mark notifications", "✗ Merge changes to workflows · needs workflow",
+		ic.Yes + " Read and mark notifications", ic.No + " Merge changes to workflows · needs workflow",
 		"Run gh auth refresh --hostname=github.com -s workflow?",
 	} {
 		if !strings.Contains(view, want) {
@@ -206,6 +207,25 @@ func TestAuthCommand(t *testing.T) {
 	run(m, func() tea.Msg { return done(nil) })
 	if acc.reloads != 2 || !hasToast(m, "The token has the workflow scope now.") {
 		t.Errorf("after gh: %d reads, toasts %q; want the token read again and the new scope told", acc.reloads, toasted(m))
+	}
+}
+
+// The modal marks what the token may do with the icon set that :set
+// chose, in ASCII alone with the ASCII set.
+func TestAuthCommandIcons(t *testing.T) {
+	acc := newFakeAccess(uitest.Classic("gist", "read:org", "repo"))
+	acc.plan = refreshPlan
+	m, _ := newTestApp(t, WithAccess(acc))
+	runCommand(t, m, "set ui.icons="+config.IconsASCII)
+	runCommand(t, m, "auth")
+	view := ansi.Strip(m.View().Content)
+	for _, want := range []string{"+ Read and mark notifications", "x Merge changes to workflows · needs workflow"} {
+		if !strings.Contains(view, want) {
+			t.Errorf("the modal doesn't show %q:\n%s", want, view)
+		}
+	}
+	if strings.ContainsAny(view, "✓✗") {
+		t.Errorf("the modal shows a mark of another set:\n%s", view)
 	}
 }
 

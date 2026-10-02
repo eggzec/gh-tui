@@ -44,7 +44,8 @@ type authModal struct {
 	close   key.Binding
 	confirm ui.ConfirmKeys
 	voice   ui.Voice
-	// icons mark why the token couldn't be read, in errs.
+	// icons mark what the token may do, and why it couldn't be read, in
+	// errs.
 	icons ui.Icons
 	errs  ui.ErrorStyles
 	st    authStyles
@@ -183,7 +184,7 @@ func (m *authModal) lines(w int) []string {
 		}
 	}
 	if len(a.SSO) > 0 {
-		lines = append(lines, ansi.Truncate(st.no.Render("✗")+" "+st.text.Render("Some organizations need SSO authorization"), w, "…"))
+		lines = append(lines, ansi.Truncate(st.no.Render(m.icons.No)+" "+st.text.Render("Some organizations need SSO authorization"), w, "…"))
 	}
 	lines = append(lines, "")
 	switch {
@@ -207,8 +208,9 @@ func (m *authModal) lines(w int) []string {
 	return lines
 }
 
-// capLine renders whether the token may do c: ✓ when GitHub said it may,
-// ✗ and what it needs when it may not, and ? while that isn't known.
+// capLine renders whether the token may do c: the yes mark when GitHub
+// said it may, the no mark and what it needs when it may not, and ? while
+// that isn't known.
 func (m *authModal) capLine(c capability, w int) string {
 	st := &m.st
 	ok, known := m.access.Allows(c.need)
@@ -216,11 +218,11 @@ func (m *authModal) capLine(c capability, w int) string {
 	switch {
 	case !known:
 	case ok:
-		mark = st.yes.Render("✓")
+		mark = st.yes.Render(m.icons.Yes)
 	case m.access.Missing(c.need) != "":
-		mark, why = st.no.Render("✗"), " · needs "+m.access.Missing(c.need)
+		mark, why = st.no.Render(m.icons.No), " · needs "+m.access.Missing(c.need)
 	default:
-		mark, why = st.no.Render("✗"), " · needs a classic token"
+		mark, why = st.no.Render(m.icons.No), " · needs a classic token"
 	}
 	return ansi.Truncate(mark+" "+st.text.Render(c.name)+st.subtle.Render(why), w, "…")
 }
