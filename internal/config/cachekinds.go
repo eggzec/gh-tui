@@ -60,9 +60,11 @@ type Memory struct {
 	// Entries is how many entries each kind of data keeps, such as the
 	// pages of pull requests, or of files read.
 	Entries int `yaml:"entries"`
-	// Files, Diffs and Logs bound the memory that the contents of files,
-	// the changes of commits and the logs of jobs take.
+	// Files, Trees, Diffs and Logs bound the memory that the contents of
+	// files, listings of files, the changes of commits and the logs of
+	// jobs take.
 	Files Size `yaml:"files"`
+	Trees Size `yaml:"trees"`
 	Diffs Size `yaml:"diffs"`
 	Logs  Size `yaml:"logs"`
 }
@@ -86,7 +88,7 @@ func (m Memory) validate() []error {
 	for _, s := range []struct {
 		name string
 		size Size
-	}{{"files", m.Files}, {"diffs", m.Diffs}, {"logs", m.Logs}} {
+	}{{"files", m.Files}, {"trees", m.Trees}, {"diffs", m.Diffs}, {"logs", m.Logs}} {
 		if s.size <= 0 {
 			errs = append(errs, fmt.Errorf("cache.memory.%s: must be positive, got %v", s.name, s.size))
 		}

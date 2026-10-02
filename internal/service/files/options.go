@@ -10,6 +10,7 @@ type options struct {
 	capacity     int
 	blobCapacity int
 	blobMemory   int64
+	treeMemory   int64
 	maxBlob      int64
 	store        Store
 }
@@ -62,6 +63,17 @@ func WithBlobMemory(n int64) Option {
 	return func(o *options) {
 		if n >= 1 {
 			o.blobMemory = n
+		}
+	}
+}
+
+// WithTreeMemory sets the total size, in bytes, of the listings kept in
+// memory, separately for listings read by a ref and by SHA. Without it, or
+// with n below one, it is the default of the config (config.Default).
+func WithTreeMemory(n int64) Option {
+	return func(o *options) {
+		if n >= 1 {
+			o.treeMemory = n
 		}
 	}
 }

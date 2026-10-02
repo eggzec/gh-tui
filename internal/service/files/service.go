@@ -17,6 +17,7 @@ import (
 	"context"
 	"strings"
 	"time"
+	"unsafe"
 
 	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/config"
@@ -56,14 +57,18 @@ func New(api API, opts ...Option) *Service {
 	d := config.Default()
 	ttl := cmp.Or(o.ttl, d.Cache.TTL.Files)
 	capacity := cache.WithCapacity(cmp.Or(o.capacity, d.Cache.Memory.Entries))
+	// A listing read by a ref is kept under its SHA too, and the two share
+	// its entries. Each cache keeps up to the bound on its own, so together
+	// they take up to twice it.
+	trees := cache.WithMaxSize(cmp.Or(o.treeMemory, int64(d.Cache.Memory.Trees)), treeSize)
 	// What a SHA names never changes, so it never goes stale.
 	return &Service{
 		api:     api,
 		store:   o.store,
 		maxBlob: cmp.Or(o.maxBlob, int64(d.Files.Preview.MaxSize)),
 		ttl:     ttl,
-		refs:    cache.New[core.Tree](cache.WithTTL(ttl), capacity),
-		objects: cache.New[core.Tree](capacity),
+		refs:    cache.New[core.Tree](cache.WithTTL(ttl), capacity, trees),
+		objects: cache.New[core.Tree](capacity, trees),
 		blobs: cache.New[core.Blob](
 			cache.WithCapacity(cmp.Or(o.blobCapacity, d.Cache.Memory.Entries)),
 			cache.WithMaxSize(cmp.Or(o.blobMemory, int64(d.Cache.Memory.Files)), blobSize),
@@ -74,6 +79,21 @@ func New(api API, opts ...Option) *Service {
 // blobSize is what a cached blob costs in memory, roughly.
 func blobSize(b core.Blob) int64 {
 	return int64(len(b.Content)) + 64
+}
+
+// treeEntrySize is what an entry of a listing takes besides its strings.
+const treeEntrySize = int64(unsafe.Sizeof(core.TreeEntry{}))
+
+// treeSize is what a cached listing costs in memory, roughly: its entries
+// and their strings. An entry's Name is cut from its Path, so it costs
+// nothing more.
+func treeSize(t core.Tree) int64 {
+	n := int64(cap(t.Entries))*treeEntrySize + int64(len(t.SHA)) + 64
+	for i := range t.Entries {
+		e := &t.Entries[i]
+		n += int64(len(e.Path) + len(e.Type) + len(e.Mode) + len(e.SHA))
+	}
+	return n
 }
 
 // Invalidate marks the trees that refs of repo point at stale, so the next

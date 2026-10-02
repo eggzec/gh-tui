@@ -178,7 +178,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		Header: ttl.Profile, Work: ttl.WaitingOnYou, Repos: ttl.DashboardRepos, Contributions: ttl.Contributions,
 	}), dashsvc.WithCapacity(mem.Entries), dashsvc.WithStore(entries), dashsvc.WithWorkSize(size.WaitingOnYou))
 	fileSvcOpts := []filesvc.Option{
-		filesvc.WithTTL(ttl.Files), filesvc.WithCapacity(mem.Entries),
+		filesvc.WithTTL(ttl.Files), filesvc.WithCapacity(mem.Entries), filesvc.WithTreeMemory(int64(mem.Trees)),
 		filesvc.WithBlobCapacity(mem.Entries), filesvc.WithBlobMemory(int64(mem.Files)),
 		filesvc.WithMaxBlobSize(int64(cfg.Files.Preview.MaxSize)),
 	}
