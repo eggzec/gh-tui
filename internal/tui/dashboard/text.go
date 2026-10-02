@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // fit pads or cuts s to width cells.
@@ -26,7 +27,7 @@ func fit(s string, width int) string {
 func spread(left, right string, width int, tail string) string {
 	lw, rw := ansi.StringWidth(left), ansi.StringWidth(right)
 	if right == "" || lw+rw+1 > width {
-		return fit(ansi.Truncate(left, width, tail), width)
+		return fit(termtext.Truncate(left, width, tail), width)
 	}
 	return left + strings.Repeat(" ", width-lw-rw) + right
 }
@@ -37,7 +38,7 @@ func truncate(s string, width int, tail string) string {
 	if width <= 0 {
 		return ""
 	}
-	return ansi.Truncate(s, width, tail)
+	return termtext.Truncate(s, width, tail)
 }
 
 // wrap breaks plain text s into at most n lines of width cells at spaces,

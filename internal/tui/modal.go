@@ -5,10 +5,10 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // topModal returns the open modal, or nil if none is open.
@@ -202,7 +202,7 @@ func (m *Model) frame(mod ui.Modal) string {
 		titleWidth = min(titleWidth, room)
 	}
 	// A title may hold text from GitHub, such as a pull request's.
-	title := ansi.Truncate(" "+ui.OneLine(mod.Title())+" ", titleWidth, m.icons.Ellipsis+" ")
+	title := termtext.Truncate(" "+ui.OneLine(mod.Title())+" ", titleWidth, m.icons.Ellipsis+" ")
 	rest := max(w-3-lipgloss.Width(title), 0)
 	switch {
 	case tabs == "":

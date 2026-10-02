@@ -9,6 +9,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // Sizes of the dashboard. From wideWidth by wideHeight cells it shows
@@ -246,7 +247,7 @@ func (s *Section) frame(label string, labelW int, b box, focused bool, body []st
 	bd := s.icons.Border
 	lines := make([]string, 0, b.h)
 	if labelW > b.w-4 {
-		label = ansi.Truncate(label, max(b.w-5, 0), s.icons.Ellipsis)
+		label = termtext.Truncate(label, max(b.w-5, 0), s.icons.Ellipsis)
 		labelW = ansi.StringWidth(label)
 	}
 	if labelW == 0 {
@@ -326,7 +327,7 @@ func (s *Section) profile() []string {
 		lines := ui.ErrorLine(s.errs, text, hint, w-1)
 		if len(lines) > 2 {
 			mark := ansi.StringWidth(s.errs.Mark + " ")
-			lines = ui.ErrorLine(s.errs, ansi.Truncate(text, w-1-mark, s.icons.Ellipsis), hint, w-1)
+			lines = ui.ErrorLine(s.errs, termtext.Truncate(text, w-1-mark, s.icons.Ellipsis), hint, w-1)
 		}
 		lines = append(lines, "", "")
 		first, second = lines[0], lines[1]
@@ -468,7 +469,7 @@ func (s *Section) card(c card, selected bool, w int) [cardHeight]string {
 	if c.here {
 		facts = st.accent.render(s.icons.Here) + "  " + facts
 	}
-	out[3] = gutter + ansi.Truncate(facts, inner, s.icons.Ellipsis)
+	out[3] = gutter + termtext.Truncate(facts, inner, s.icons.Ellipsis)
 	for i := range out {
 		out[i] = fit(out[i], w)
 	}
@@ -486,7 +487,7 @@ func (s *Section) repoFacts(r core.Repo, w int) string {
 	if flags := s.icons.Flags(r); len(flags) > 0 {
 		parts = append(parts, st.subtle.render(strings.Join(flags, " ")))
 	}
-	return ansi.Truncate(strings.Join(parts, "  "), w, s.icons.Ellipsis)
+	return termtext.Truncate(strings.Join(parts, "  "), w, s.icons.Ellipsis)
 }
 
 // reposBody renders the tabs of the owners above the list of the tab on
