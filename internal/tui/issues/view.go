@@ -8,6 +8,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // View implements ui.Section. It renders exactly the section's size.
@@ -42,7 +43,7 @@ func (s *Section) renderBar() {
 	var right strings.Builder
 	for i, tb := range tabs {
 		if i > 0 {
-			right.WriteString(t.Subtle.Render(" · "))
+			right.WriteString(t.Subtle.Render(s.icons.Separator))
 		}
 		st := t.Subtle
 		if tb.state == s.tab {
@@ -56,23 +57,24 @@ func (s *Section) renderBar() {
 		right.Reset()
 		right.WriteString(t.Accent.Render(tabLabel(s.tab)))
 	}
-	s.bar = spread(left, right.String(), s.width)
+	s.bar = spread(left, right.String(), s.width, s.icons.Ellipsis)
 }
 
 // spread puts left and right at the two ends of a line width cells wide,
-// cutting left if both don't fit.
-func spread(left, right string, width int) string {
+// cutting left to end in tail if both don't fit.
+func spread(left, right string, width int, tail string) string {
 	rw := ansi.StringWidth(right)
 	if rw+1 > width {
-		return fitStyled(left, width)
+		return fitStyled(left, width, tail)
 	}
-	left = ansi.Truncate(left, width-rw-1, "…")
+	left = termtext.Truncate(left, width-rw-1, tail)
 	return left + strings.Repeat(" ", width-ansi.StringWidth(left)-rw) + right
 }
 
-// fitStyled truncates or pads styled text to exactly width cells.
-func fitStyled(s string, width int) string {
-	s = ansi.Truncate(s, width, "…")
+// fitStyled truncates styled text to exactly width cells, ending in tail,
+// or pads it.
+func fitStyled(s string, width int, tail string) string {
+	s = termtext.Truncate(s, width, tail)
 	return s + strings.Repeat(" ", max(width-ansi.StringWidth(s), 0))
 }
 
