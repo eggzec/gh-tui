@@ -42,6 +42,7 @@ func TestIconsASCII(t *testing.T) {
 		ic.Separator, ic.Ellipsis, ic.Arrow, ic.Up, ic.Down, ic.Times, ic.Minus,
 		b.Top, b.Bottom, b.Left, b.Right, b.TopLeft, b.TopRight, b.BottomLeft, b.BottomRight,
 		b.MiddleLeft, b.MiddleRight, b.Middle, b.MiddleTop, b.MiddleBottom,
+		ic.Edge, ic.InputEdge, ic.Remove, ic.Warning, ic.Below,
 		ic.Key("↑/k ↓/j ←/h →/l ↵"),
 	}
 	for _, g := range append(marks(ic), drawn...) {
