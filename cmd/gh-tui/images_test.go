@@ -5,8 +5,11 @@ import (
 	"context"
 	"errors"
 	"image"
+	"image/color"
+	"image/gif"
 	"image/png"
 	"testing"
+	"time"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/imgcaps"
@@ -90,5 +93,31 @@ func TestFetchImageOfBody(t *testing.T) {
 	}
 	if len(asked) != 1 || len(asked[0]) != 1 || asked[0][0] != "IC_1" {
 		t.Errorf("HTML of %q read, want that of IC_1 once", asked)
+	}
+}
+
+// An animated GIF file asked for with its frames comes with them, their
+// delays and its loops; asked for without, it is its first frame.
+func TestFetchImageAnimation(t *testing.T) {
+	r := image.Rect(0, 0, 20, 10)
+	pal := color.Palette{color.Black, color.White}
+	var b bytes.Buffer
+	g := &gif.GIF{Image: []*image.Paletted{image.NewPaletted(r, pal), image.NewPaletted(r, pal)}, Delay: []int{5, 30}, LoopCount: -1}
+	if err := gif.EncodeAll(&b, g); err != nil {
+		t.Fatal(err)
+	}
+	repo := core.RepoRef{Owner: "eggzec", Name: "gh-tui"}
+	fetch := fetchImage(newImages("github.com", nil, nil), &fakeBlobs{content: map[string][]byte{"anim": b.Bytes()}})
+	box := ui.ImageBox{Cols: 40, Rows: 20, Cell: imgcaps.Cell{Width: 10, Height: 20}, Animate: true}
+	pic, err := fetch(t.Context(), ui.ImageSource{Repo: repo, SHA: "anim"}, box)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pic.Frames) != 2 || pic.Frames[0].Delay != 50*time.Millisecond || pic.Frames[1].Delay != 300*time.Millisecond || pic.Loops != 1 {
+		t.Errorf("animation of %d frames, loops %d: %+v", len(pic.Frames), pic.Loops, pic.Frames)
+	}
+	box.Animate = false
+	if pic, err := fetch(t.Context(), ui.ImageSource{Repo: repo, SHA: "anim"}, box); err != nil || len(pic.Frames) != 0 || len(pic.PNG) == 0 {
+		t.Errorf("without animation: %d frames, err %v, want the first frame", len(pic.Frames), err)
 	}
 }

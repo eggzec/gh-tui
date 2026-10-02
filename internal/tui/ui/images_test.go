@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -871,5 +872,138 @@ func TestEmbeds(t *testing.T) {
 		if got := embeds(text, u); got != want {
 			t.Errorf("embeds(%q) = %v, want %v", text, got, want)
 		}
+	}
+}
+
+// animFetch serves every file as an animation of three frames, or of
+// frames if set, fitted to the box, when the box asks for its frames, and
+// as its first frame otherwise, and records the boxes asked for.
+type animFetch struct {
+	boxes  []ImageBox
+	frames int
+}
+
+func (f *animFetch) fetch(_ context.Context, _ ImageSource, box ImageBox) (Picture, error) {
+	f.boxes = append(f.boxes, box)
+	pic := Picture{PNG: []byte("one"), Width: box.Cols * box.Cell.Width, Height: box.Rows * box.Cell.Height, Cols: box.Cols, Rows: box.Rows}
+	if box.Animate {
+		pic.Frames = []Frame{{PNG: []byte("one"), Delay: 100 * time.Millisecond}, {PNG: []byte("two"), Delay: 40 * time.Millisecond}, {PNG: []byte("three"), Delay: 70 * time.Millisecond}}
+		pic.Loops = 2
+		for range f.frames - len(pic.Frames) {
+			pic.Frames = append(pic.Frames, Frame{PNG: []byte("more"), Delay: 40 * time.Millisecond})
+		}
+	}
+	return pic, nil
+}
+
+// An image fitted where the terminal plays animations, and the config
+// wants them, is fetched with its frames and sent whole, set playing,
+// before it is placed: the terminal plays it with nothing more from the
+// app. It is one image, of one ID, whose deletion deletes its frames, and
+// which a terminal tmux is attached from anew is sent again whole.
+func TestFitAnimates(t *testing.T) {
+	f := &animFetch{}
+	a := NewImages(context.Background(), f.fetch, true)
+	a.SetAnimate(true)
+	a.SetGraphics(Graphics{Images: true, Animate: true, Tmux: true, Cell: testCell})
+	src, box := fileOf("abc"), ImageSize{Cols: 4, Rows: 2}
+	a.Fit(src, box)
+	raw, _ := load(t, a)
+	if len(f.boxes) != 1 || !f.boxes[0].Animate {
+		t.Fatalf("fetched boxes %+v, want one asking for the frames", f.boxes)
+	}
+	rows, st := a.Fit(src, box)
+	if st != ImageShown {
+		t.Fatalf("Fit = %d, want shown", st)
+	}
+	id := placeholderID(t, rows[0])
+	want := termimg.Tmux(termimg.Transmit(id, []byte("one"), 40, 40) +
+		termimg.Frame(id, []byte("two"), 40) + termimg.Frame(id, []byte("three"), 70) +
+		termimg.Animate(id, 100, 2) + termimg.Place(id, 4, 2))
+	if raw != want {
+		t.Errorf("sent\n%q\nwant\n%q", raw, want)
+	}
+	if a.held() != 1 || len(a.pool.All()) != 1 {
+		t.Errorf("holds %d images of %d IDs, want the animation as one", a.held(), len(a.pool.All()))
+	}
+	if got := rawOf(t, a.Resend()); got != raw {
+		t.Errorf("Resend sent\n%q\nwant it all again\n%q", got, raw)
+	}
+	if got := a.Close(); got != termimg.Tmux(termimg.Delete(id)) {
+		t.Errorf("Close = %q, want the one delete, which takes the frames with it", got)
+	}
+}
+
+// An animation counts toward the bytes the terminal holds by its frames
+// decoded, as the terminal keeps them, while a still counts its PNG.
+func TestFitAnimationBytes(t *testing.T) {
+	pic := Picture{PNG: []byte("ab"), Width: 10, Height: 5, Frames: []Frame{{PNG: []byte("ab")}, {PNG: []byte("cde")}}}
+	if got := pic.bytes(); got != 2*10*5*4 {
+		t.Errorf("an animation takes %d bytes, want %d", got, 2*10*5*4)
+	}
+	if got := (Picture{PNG: []byte("ab")}).bytes(); got != 2 {
+		t.Errorf("a still takes %d bytes, want 2", got)
+	}
+}
+
+// An image fitted shows its first frame where the config wants no
+// animations or the terminal plays none, and an avatar never animates;
+// the first frame is all that is asked for and sent.
+func TestFitFirstFrame(t *testing.T) {
+	for _, tt := range []struct {
+		name           string
+		animate, plays bool
+		avatar         bool
+	}{
+		{"config off", false, true, false},
+		{"terminal plays none", true, false, false},
+		{"avatar", true, true, true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			f := &animFetch{}
+			a := NewImages(context.Background(), f.fetch, true)
+			a.SetAnimate(tt.animate)
+			a.SetGraphics(Graphics{Images: true, Animate: tt.plays, Cell: testCell})
+			if tt.avatar {
+				a.Box(avatarOf("mona"), AvatarLarge)
+			} else {
+				a.Fit(fileOf("abc"), ImageSize{Cols: 4, Rows: 2})
+			}
+			raw, _ := load(t, a)
+			if len(f.boxes) != 1 || f.boxes[0].Animate {
+				t.Errorf("fetched boxes %+v, want one for the first frame", f.boxes)
+			}
+			if strings.Contains(raw, "a=f") || strings.Contains(raw, "a=a") || !strings.Contains(raw, "a=t") {
+				t.Errorf("sent %q, want the first frame alone", raw)
+			}
+		})
+	}
+}
+
+// Animations held take the room of those drawn least recently by their
+// frames decoded: two fill what the terminal may hold, so a third takes
+// the room of one, though their PNGs are a few bytes.
+func TestFitAnimationsTakeRoom(t *testing.T) {
+	// Each is 40 frames of 640x320 pixels decoded: about 31 MiB.
+	f := &animFetch{frames: 40}
+	a := NewImages(context.Background(), f.fetch, true)
+	a.SetAnimate(true)
+	a.SetGraphics(Graphics{Images: true, Animate: true, Cell: testCell})
+	box := ImageSize{Cols: 64, Rows: 16}
+	for _, sha := range []string{"a", "b"} {
+		a.Fit(fileOf(sha), box)
+		load(t, a)
+	}
+	if a.held() != 2 {
+		t.Fatalf("holds %d, want 2", a.held())
+	}
+	a.Fit(fileOf("b"), box)
+	a.Fit(fileOf("c"), box)
+	raw, redraw := load(t, a)
+	if redraw != RedrawNow || strings.Count(raw, "a=d,d=I") != 1 {
+		t.Errorf("redraw %d, sent %q, want the least drawn deleted at once", redraw, raw)
+	}
+	if _, st := a.Fit(fileOf("a"), box); st != ImageLoading {
+		t.Errorf("the least drawn is %d, want gone", st)
 	}
 }

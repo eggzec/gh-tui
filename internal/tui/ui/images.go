@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -26,6 +27,29 @@ type Picture struct {
 	PNG           []byte
 	Width, Height int
 	Cols, Rows    int
+	// Frames are the frames of an animation, the first of which is PNG,
+	// and Loops how many times they play, or 0 for forever. A still
+	// image has none.
+	Frames []Frame
+	Loops  int
+}
+
+// Frame is one frame of an animation: a PNG of the whole picture, and how
+// long it shows before the next.
+type Frame struct {
+	PNG   []byte
+	Delay time.Duration
+}
+
+// bytes returns the bytes p takes of what the terminal holds: of a still
+// image, its PNG, which the app keeps to send again; of an animation,
+// its frames decoded, four bytes a pixel each, as the terminal keeps
+// them, which is far more than their PNGs.
+func (p Picture) bytes() int {
+	if len(p.Frames) == 0 {
+		return len(p.PNG)
+	}
+	return len(p.Frames) * p.Width * p.Height * 4
 }
 
 // ImageBox is the room a picture is made to fit: Cols by Rows cells, each
@@ -33,6 +57,8 @@ type Picture struct {
 type ImageBox struct {
 	Cols, Rows int
 	Cell       imgcaps.Cell
+	// Animate asks for the frames of an animation, rather than its first.
+	Animate bool
 }
 
 // ImageSource is where an image comes from: an address on the web, such
@@ -167,10 +193,11 @@ type entry struct {
 	src  ImageSource
 	size ImageSize
 	// fit is set for an image that takes the cells its picture fits,
-	// rather than its whole box.
-	fit   bool
-	state imageState
-	pic   Picture
+	// rather than its whole box, and animate for one asked for with its
+	// frames.
+	fit, animate bool
+	state        imageState
+	pic          Picture
 	// id is the image the terminal knows the image by, while sent.
 	id   termimg.ID
 	sent bool
@@ -191,9 +218,21 @@ func (e *entry) cells() ImageSize {
 }
 
 // sendSeq returns what sends e to the terminal and places it in its cells.
+// An animation is sent whole, every frame, and set playing, so the
+// terminal plays it with no more from the app; it is still one image.
 func (e *entry) sendSeq() string {
 	c := e.cells()
-	return termimg.Transmit(e.id, e.pic.PNG, e.pic.Width, e.pic.Height) + termimg.Place(e.id, c.Cols, c.Rows)
+	seq := termimg.Transmit(e.id, e.pic.PNG, e.pic.Width, e.pic.Height)
+	if fr := e.pic.Frames; len(fr) > 1 {
+		var b strings.Builder
+		b.WriteString(seq)
+		for _, f := range fr[1:] {
+			b.WriteString(termimg.Frame(e.id, f.PNG, int(f.Delay.Milliseconds())))
+		}
+		b.WriteString(termimg.Animate(e.id, int(fr[0].Delay.Milliseconds()), e.pic.Loops))
+		seq = b.String()
+	}
+	return seq + termimg.Place(e.id, c.Cols, c.Rows)
 }
 
 // Images draws images with kitty's Unicode placeholders, when the
@@ -227,13 +266,13 @@ func (e *entry) sendSeq() string {
 type Images struct {
 	ctx   context.Context
 	fetch ImageFetch
-	// avatars is the config's images.avatars, and maxRows its
-	// images.max_rows.
-	avatars bool
-	maxRows int
-	g       Graphics
-	pool    *termimg.Pool
-	byKey   map[string]*entry
+	// avatars is the config's images.avatars, animate its
+	// images.animate, and maxRows its images.max_rows.
+	avatars, animate bool
+	maxRows          int
+	g                Graphics
+	pool             *termimg.Pool
+	byKey            map[string]*entry
 	// wanted are the keys drawn and not yet fetched, or fetched and not
 	// yet sent.
 	wanted []string
@@ -284,6 +323,14 @@ func (a *Images) Drawing() bool {
 func (a *Images) SetMaxRows(n int) {
 	if a != nil {
 		a.maxRows = n
+	}
+}
+
+// SetAnimate sets whether animations play where the terminal plays them,
+// the config's images.animate; without it, they show their first frame.
+func (a *Images) SetAnimate(on bool) {
+	if a != nil {
+		a.animate = on
 	}
 }
 
@@ -378,13 +425,16 @@ func (a *Images) Fit(src ImageSource, size ImageSize) ([]string, ImageState) {
 // want returns the image of src in a box of size, drawn in this update,
 // and asks for it if it is still to be fetched or sent.
 func (a *Images) want(src ImageSource, size ImageSize, fit bool) *entry {
-	key := imageKey(src, size, fit)
+	// An avatar is never animated; an image fitted is, where the config
+	// and the terminal both play animations.
+	animate := fit && a.animate && a.g.Animate
+	key := imageKey(src, size, fit, animate)
 	e, ok := a.byKey[key]
 	if !ok {
 		if src.Body != "" {
 			src.in = nil
 		}
-		e = &entry{src: src, size: size, fit: fit}
+		e = &entry{src: src, size: size, fit: fit, animate: animate}
 		a.byKey[key] = e
 	}
 	e.drawn = a.gen
@@ -484,7 +534,7 @@ func (a *Images) fetchCmd(key string, e *entry) tea.Cmd {
 		e.src.Body, e.src.Private, e.src.in = in.of(e.src.URL), in.private, nil
 	}
 	ctx, fetch, src := a.ctx, a.fetch, e.src
-	box := ImageBox{Cols: e.size.Cols, Rows: e.size.Rows, Cell: a.g.Cell}
+	box := ImageBox{Cols: e.size.Cols, Rows: e.size.Rows, Cell: a.g.Cell, Animate: e.animate}
 	return func() tea.Msg {
 		pic, err := fetch(ctx, src, box)
 		return imageMsg{images: a, key: key, pic: pic, err: err}
@@ -565,11 +615,11 @@ func (a *Images) victims(e *entry) ([]string, bool) {
 	var held []string
 	for k, v := range a.byKey {
 		if v.sent {
-			n, size = n+1, size+len(v.pic.PNG)
+			n, size = n+1, size+v.pic.bytes()
 			held = append(held, k)
 		}
 	}
-	fits := func() bool { return n < maxImages && size+len(e.pic.PNG) <= maxHeldBytes }
+	fits := func() bool { return n < maxImages && size+e.pic.bytes() <= maxHeldBytes }
 	if fits() {
 		return nil, true
 	}
@@ -581,7 +631,7 @@ func (a *Images) victims(e *entry) ([]string, bool) {
 		if v.drawn >= e.drawn {
 			return nil, false
 		}
-		n, size = n-1, size-len(v.pic.PNG)
+		n, size = n-1, size-v.pic.bytes()
 		if fits() {
 			return held[:i+1], true
 		}
@@ -771,9 +821,12 @@ func hostsOnly(msg string) string {
 	})
 }
 
-func imageKey(src ImageSource, size ImageSize, fit bool) string {
+func imageKey(src ImageSource, size ImageSize, fit, animate bool) string {
 	mode := " "
-	if fit {
+	switch {
+	case animate:
+		mode = " fit animated "
+	case fit:
 		mode = " fit "
 	}
 	return strconv.Itoa(size.Cols) + "x" + strconv.Itoa(size.Rows) + mode + src.key()
