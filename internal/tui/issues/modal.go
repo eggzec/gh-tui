@@ -88,7 +88,10 @@ type detailModal struct {
 	icons         ui.Icons
 	dates         ui.Dates
 	avatars       *ui.Images
-	chips         chipCache
+	// picRows is the tallest the thread draws the images of markdown,
+	// or 0 while it draws none.
+	picRows int
+	chips   chipCache
 }
 
 // openDetail opens a modal on issue number of repo. it is the list item,
@@ -142,6 +145,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, show
 		thread.WithErrorText(ui.ErrorText("load the comments", core.Target{Repo: repo, Number: number}.String(), v)),
 	)
 	m.thread.SetCutHint(ui.OpenHint(s.keys.Open))
+	m.drawPictures()
 	switch cached, ok := svc.CachedGet(repo, number); {
 	case ok:
 		m.issue, m.loaded = cached, true
@@ -207,6 +211,7 @@ func (m *detailModal) Link() string { return m.issue.URL }
 func (m *detailModal) SetSize(width, height int) {
 	m.width, m.height = max(width, 0), max(height, 0)
 	m.layout()
+	m.drawPictures()
 	if m.loaded {
 		// The header wraps its title to the width. The thread loads what
 		// the new size shows on its next message.
@@ -287,7 +292,9 @@ func (m *detailModal) Update(msg tea.Msg) tea.Cmd {
 	case ui.OnlineMsg:
 		return m.online()
 	case ui.ImagesMsg:
-		m.thread.Redraw()
+		if !m.drawPictures() {
+			m.thread.Redraw()
+		}
 		return nil
 	case ui.DoneMsg:
 		// The thread reloads too, since the change may be a comment.
@@ -557,4 +564,19 @@ func plural(n int, noun string) string {
 		return "1 " + noun
 	}
 	return strconv.Itoa(n) + " " + noun + "s"
+}
+
+// drawPictures has the thread draw the images of the body and comments
+// that stand alone on their lines, where images are drawn, at most as
+// tall as the modal's height allows, and reports whether that changed.
+// Only the bodies whose pictures change render again, and where images
+// aren't drawn the markdown is as without them.
+func (m *detailModal) drawPictures() bool {
+	rows := m.avatars.PictureRows(m.height)
+	if rows == m.picRows {
+		return false
+	}
+	m.picRows = rows
+	m.thread.SetPictures(m.avatars.Pictures(rows))
+	return true
 }

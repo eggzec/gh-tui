@@ -532,7 +532,7 @@ func TestFitArrives(t *testing.T) {
 	}
 }
 
-// Fit draws nothing where images aren't drawn, and of no file, but draws
+// Fit draws nothing where images aren't drawn, and of no image, but draws
 // files where the config wants no avatars.
 func TestFitNotShown(t *testing.T) {
 	f := &fakeFetch{}
@@ -549,8 +549,8 @@ func TestFitNotShown(t *testing.T) {
 		}
 	}
 	a := newTestAvatars(f, Graphics{Images: true, Cell: testCell})
-	if _, st := a.Fit(ImageSource{URL: avatarOf("mona")}, ImageSize{Cols: 10, Rows: 10}); st != ImageOff {
-		t.Errorf("Fit of an address is %d, want off", st)
+	if _, st := a.Fit(ImageSource{}, ImageSize{Cols: 10, Rows: 10}); st != ImageOff {
+		t.Errorf("Fit of no image is %d, want off", st)
 	}
 	noAvatars := NewImages(context.Background(), f.fetch, false)
 	noAvatars.SetGraphics(Graphics{Images: true, Cell: testCell})
@@ -672,5 +672,39 @@ func TestFitUnsentForgotten(t *testing.T) {
 	load(t, a)
 	if len(f.urls) != fetched+1 {
 		t.Errorf("fetched %d more, want the forgotten one again", len(f.urls)-fetched)
+	}
+}
+
+// Pictures draws the images of markdown fitted to the room markdown gives,
+// at most images.max_rows tall and never taller than the view less two
+// rows; where images aren't drawn there is nothing to draw with, so
+// markdown renders as it does without.
+func TestPictures(t *testing.T) {
+	f := &fakeFetch{}
+	off := newTestAvatars(f, Graphics{Cell: testCell})
+	if n, p := off.PictureRows(30), off.Pictures(20); n != 0 || p != nil {
+		t.Errorf("draws pictures %d rows tall where images aren't drawn", n)
+	}
+	if n, p := (*Images)(nil).PictureRows(30), (*Images)(nil).Pictures(20); n != 0 || p != nil {
+		t.Error("nil Images draws pictures")
+	}
+	a := newTestAvatars(f, Graphics{Images: true, Cell: testCell})
+	a.SetMaxRows(20)
+	url := "https://github.com/user-attachments/assets/1"
+	for _, tt := range []struct{ height, rows int }{{30, 20}, {12, 10}, {2, 1}} {
+		f.boxes = nil
+		if n := a.PictureRows(tt.height); n != tt.rows {
+			t.Errorf("height %d: PictureRows = %d, want %d", tt.height, n, tt.rows)
+		}
+		if lines := a.Pictures(a.PictureRows(tt.height))(url, 40); lines != nil {
+			t.Errorf("height %d: drew %q before the image arrived", tt.height, lines)
+		}
+		load(t, a)
+		if len(f.boxes) != 1 || f.boxes[0].Cols != 40 || f.boxes[0].Rows != tt.rows {
+			t.Errorf("height %d: fetched boxes %+v, want one of 40×%d", tt.height, f.boxes, tt.rows)
+		}
+		if lines := a.Pictures(tt.rows)(url, 40); len(lines) == 0 {
+			t.Errorf("height %d: drew nothing once the image arrived", tt.height)
+		}
 	}
 }

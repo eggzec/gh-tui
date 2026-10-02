@@ -248,7 +248,7 @@ func (p *preview) imageRows() ([]string, ui.ImageState) {
 	}
 	w, h := p.pager.Width(), p.pager.Height()-1
 	if w <= 0 || h <= 0 {
-		if p.images.FilesShown() {
+		if p.images.Drawing() {
 			return nil, ui.ImageLoading
 		}
 		return nil, ui.ImageOff

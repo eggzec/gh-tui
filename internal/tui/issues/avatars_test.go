@@ -11,12 +11,13 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 )
 
-// avatarModal returns the modal of issue #999 open on comments, width
-// wide, drawing avatars with a.
+// avatarModal returns the modal of issue #999 open on three comments,
+// whose bodies hold no image, so only avatars draw, width wide, drawing
+// avatars with a.
 func avatarModal(tb testing.TB, a *ui.Images, width int) (*host, *detailModal) {
 	tb.Helper()
 	svc := newFakeService(sampleIssues(12))
-	svc.addComments(999, uitest.Thread(4, testNow)...)
+	svc.addComments(999, uitest.Thread(3, testNow)...)
 	h := started(tb, svc, width, 60, WithAvatars(a))
 	h.SetTheme(theme(true))
 	press(tb, h, "down", "enter")
@@ -42,7 +43,7 @@ func commentHeads(v string) []string {
 // without avatars, with no room kept for them.
 func TestCommentAvatarsOff(t *testing.T) {
 	src := &uitest.ImageHost{}
-	_, plain := threadModal(t, uitest.Thread(4, testNow), true, 80, 60)
+	_, plain := threadModal(t, uitest.Thread(3, testNow), true, 80, 60)
 	_, off := avatarModal(t, uitest.Avatars(src, false), 80)
 	if off.View() != plain.View() {
 		t.Errorf("avatars off changed the view:\n%s\nwant\n%s", off.View(), plain.View())
@@ -60,8 +61,8 @@ func TestCommentAvatarsArrive(t *testing.T) {
 	a := uitest.Avatars(src, true)
 	h, m := avatarModal(t, a, 80)
 	heads := commentHeads(m.View())
-	if len(heads) != 4 {
-		t.Fatalf("%d comment heads, want 4:\n%s", len(heads), ansi.Strip(m.View()))
+	if len(heads) != 3 {
+		t.Fatalf("%d comment heads, want 3:\n%s", len(heads), ansi.Strip(m.View()))
 	}
 	if !strings.HasPrefix(heads[0], "     hubot · ") {
 		t.Errorf("head before the avatar arrived = %q, want a blank box before the login", heads[0])
@@ -71,15 +72,15 @@ func TestCommentAvatarsArrive(t *testing.T) {
 	}
 
 	raw, changed := uitest.LoadAvatars(t, a)
-	if !changed || strings.Count(raw, "a=t,") != 4 {
-		t.Fatalf("sent %d avatars, changed %v; want the 4 authors'", strings.Count(raw, "a=t,"), changed)
+	if !changed || strings.Count(raw, "a=t,") != 3 {
+		t.Fatalf("sent %d avatars, changed %v; want the 3 authors'", strings.Count(raw, "a=t,"), changed)
 	}
-	if got := src.Asked(); len(got) != 4 || got[0] != "https://avatars.githubusercontent.com/u/hubot?s=40&v=4" {
+	if got := src.Asked(); len(got) != 3 || got[0] != "https://avatars.githubusercontent.com/u/hubot?s=40&v=4" {
 		t.Errorf("fetched %q", got)
 	}
 	run(t, h, h.Update(ui.ImagesMsg{}))
-	if n := uitest.Placeholders(t, m.View()); n != 4*2 {
-		t.Errorf("%d placeholder cells, want 2 for each of 4 comments", n)
+	if n := uitest.Placeholders(t, m.View()); n != 3*2 {
+		t.Errorf("%d placeholder cells, want 2 for each of 3 comments", n)
 	}
 	after := commentHeads(m.View())
 	for i := range heads {
