@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"unicode"
 
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
@@ -95,5 +96,22 @@ func TestViewFitsAnySize(t *testing.T) {
 		if m.View() != "" {
 			t.Fatal("zero width should render nothing")
 		}
+	}
+}
+
+// A calendar with an ASCII glyph and ellipsis is ASCII alone, at any
+// width.
+func TestViewASCII(t *testing.T) {
+	st := DefaultStyles(true)
+	st.Ellipsis = "..."
+	for _, width := range []int{12, 30, 80} {
+		m := keys(t, New(WithWeeks(year(today)), WithGlyph("#"), WithStyles(st), WithSize(width, 10), WithFocused(true)), "k")
+		if v := ansi.Strip(m.View()); strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
+			t.Errorf("width %d: view isn't ASCII:\n%s", width, v)
+		}
+	}
+	m := New(WithStyles(st), WithEmptyText("Loading the contributions of the year"), WithSize(20, 2))
+	if got := ansi.Strip(m.View()); !strings.Contains(got, "...") {
+		t.Errorf("a cut text doesn't end in the ellipsis:\n%s", got)
 	}
 }
