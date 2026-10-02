@@ -25,10 +25,12 @@ type format struct {
 	row, detail []string
 	date        ui.Dates
 	email       bool
+	// yes and no mark a signature GitHub verified and one it couldn't.
+	yes, no string
 }
 
-func newFormat(h config.History, dates ui.Dates) format {
-	return format{row: slices.Clone(h.Row), detail: slices.Clone(h.Detail), date: dates, email: h.ShowEmail}
+func newFormat(h config.History, dates ui.Dates, ic ui.Icons) format {
+	return format{row: slices.Clone(h.Row), detail: slices.Clone(h.Detail), date: dates, email: h.ShowEmail, yes: ic.Yes, no: ic.No}
 }
 
 func short(sha string) string {
@@ -50,7 +52,7 @@ func (f format) graphCommit(c core.Commit, now time.Time) graph.Commit {
 		case config.FieldCommitter:
 			detail = appendNonEmpty(detail, handle(c.Committer))
 		case config.FieldVerified:
-			detail = appendNonEmpty(detail, verifiedMark(c.Verification))
+			detail = appendNonEmpty(detail, f.verifiedMark(c.Verification))
 		case config.FieldTrailers:
 			if n := coauthors(c.Trailers); n > 0 {
 				detail = append(detail, "+"+strconv.Itoa(n))
@@ -86,12 +88,12 @@ func handle(s core.Signature) string {
 }
 
 // verifiedMark marks a verified signature, and one GitHub couldn't verify.
-func verifiedMark(v core.Verification) string {
+func (f format) verifiedMark(v core.Verification) string {
 	switch {
 	case v.Verified:
-		return "✓"
+		return f.yes
 	case v.Signed:
-		return "✗"
+		return f.no
 	}
 	return ""
 }
@@ -158,16 +160,16 @@ func (f format) trailerValue(v string) string {
 }
 
 // verification says in words whether the signature is verified.
-func verification(v core.Verification) (text string, ok, signed bool) {
+func (f format) verification(v core.Verification) (text string, ok, signed bool) {
 	switch {
 	case v.Verified:
-		return "✓ verified", true, true
+		return f.yes + " verified", true, true
 	case v.Signed:
 		reason := strings.ReplaceAll(v.Reason, "_", " ")
 		if reason == "" {
 			reason = "not verified"
 		}
-		return "✗ " + reason, false, true
+		return f.no + " " + reason, false, true
 	}
 	return "unsigned", false, false
 }

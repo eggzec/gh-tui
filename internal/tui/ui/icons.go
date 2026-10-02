@@ -25,6 +25,9 @@ type Icons struct {
 	// Ellipsis ends the text where it is cut: " · " and "…", or ASCII in
 	// the ASCII set.
 	Separator, Ellipsis string
+	// Yes and No mark what holds and what doesn't, such as a signature
+	// GitHub verified and one it couldn't.
+	Yes, No string
 
 	// langs holds the glyphs of languages that have one; the others get
 	// lang.
@@ -70,6 +73,7 @@ func newIcons(set string) Icons {
 		return Icons{
 			Fork: "⑂", Private: "⊘", Archived: "⊟", Template: "⧉", Mirror: "⇄", Here: "⌂",
 			Star: "★", Error: "✗", Separator: " · ", Ellipsis: "…",
+			Yes: "✓", No: "✗",
 			lang: "◉",
 			states: [NumStates]string{
 				IssueOpen: "⦾", IssueClosed: "⦿", IssueNotPlanned: "⊘",
@@ -80,6 +84,7 @@ func newIcons(set string) Icons {
 		return Icons{
 			Fork: "F", Private: "P", Archived: "A", Template: "T", Mirror: "M", Here: "~",
 			Star: "*", Error: "x", Separator: " - ", Ellipsis: "...",
+			Yes: "+", No: "x",
 			// A colored dot, as the other sets have, since the star takes *.
 			lang: "o",
 			states: [NumStates]string{
@@ -94,6 +99,7 @@ func newIcons(set string) Icons {
 			Fork: "\uf402", Private: "\uf456", Archived: "\uf411", Template: "\uf509", Mirror: "\uf41a", Here: "\uf46d",
 			Star:  "\uf41e",
 			Error: "\uf530", Separator: " · ", Ellipsis: "…",
+			Yes: "\uf42e", No: "\uf467", // oct-check, oct-x
 			langs: nerdLanguages,
 			lang:  "\uf44f",
 			files: nerdFiles,

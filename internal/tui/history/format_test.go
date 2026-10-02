@@ -29,7 +29,7 @@ func TestGraphRowFields(t *testing.T) {
 	for _, tt := range tests {
 		cfg := testConfig()
 		cfg.Row = tt.row
-		g := newFormat(cfg, ui.NewDates(tt.format).In(time.UTC)).graphCommit(c, testNow)
+		g := newFormat(cfg, ui.NewDates(tt.format).In(time.UTC), ui.NewIcons(config.IconsUnicode)).graphCommit(c, testNow)
 		if g.Short != tt.short || g.Title != tt.title || g.Detail != tt.detail || g.Right != tt.right {
 			t.Errorf("row %v = %q %q %q %q, want %q %q %q %q", tt.row, g.Short, g.Title, g.Detail, g.Right, tt.short, tt.title, tt.detail, tt.right)
 		}
@@ -54,8 +54,28 @@ func TestDates(t *testing.T) {
 	}
 	for _, tt := range tests {
 		dates := ui.NewDates(tt.format).In(time.UTC)
-		if got := newFormat(testConfig(), dates).dates(authored, tt.committed, testNow); got != tt.want {
+		if got := newFormat(testConfig(), dates, ui.Icons{}).dates(authored, tt.committed, testNow); got != tt.want {
 			t.Errorf("%s: dates = %q, want %q", tt.format, got, tt.want)
+		}
+	}
+}
+
+// The ASCII set marks signatures in ASCII, in the rows and in the header.
+func TestVerificationASCII(t *testing.T) {
+	f := newFormat(testConfig(), ui.NewDates(config.DateRelative), ui.NewIcons(config.IconsASCII))
+	tests := []struct {
+		v          core.Verification
+		mark, text string
+	}{
+		{core.Verification{Verified: true, Signed: true}, "+", "+ verified"},
+		{core.Verification{Signed: true, Reason: "unknown_key"}, "x", "x unknown key"},
+	}
+	for _, tt := range tests {
+		if got := f.verifiedMark(tt.v); got != tt.mark {
+			t.Errorf("verifiedMark(%+v) = %q, want %q", tt.v, got, tt.mark)
+		}
+		if got, _, _ := f.verification(tt.v); got != tt.text {
+			t.Errorf("verification(%+v) = %q, want %q", tt.v, got, tt.text)
 		}
 	}
 }
@@ -84,7 +104,7 @@ func TestHeaderFields(t *testing.T) {
 		{name: "no emails", c: same, detail: []string{config.FieldTrailers},
 			want: []string{"Trailers  Co-authored-by: Ayman Bagabas"}, absent: []string{"ayman@example.com"}},
 		{name: "unverified", c: withVerification(same, core.Verification{Signed: true, Reason: "unknown_key"}),
-			detail: []string{config.FieldVerification}, want: []string{"Signature ✗ unknown key"}},
+			detail: []string{config.FieldVerification}, want: []string{"Signature " + ui.NewIcons(config.Default().UI.Icons).No + " unknown key"}},
 		{name: "unsigned", c: same, detail: []string{config.FieldVerification}, want: []string{"Signature unsigned"}},
 		{name: "merge", c: history("main", 6)[2], detail: []string{config.FieldParents, config.FieldSHA},
 			want: []string{"Parents   " + short(sha("main", 3)) + " " + short(sha("main", 4)), "Commit    " + sha("main", 2)[:20]}},

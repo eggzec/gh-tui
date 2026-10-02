@@ -31,7 +31,7 @@ type options struct {
 	commit string
 	// editor is the editor the pager opens a patch in, if set.
 	editor string
-	// icons mark what failed to load.
+	// icons mark what failed to load, and verified signatures.
 	icons ui.Icons
 }
 
@@ -102,7 +102,8 @@ func WithEditor(cmd string) Option {
 	return func(o *options) { o.editor = cmd }
 }
 
-// WithIcons sets the icons whose error glyph marks what failed to load.
+// WithIcons sets the icons whose glyphs mark what failed to load, and
+// whether GitHub verified the signature of a commit.
 // Without it, the icons are the config's default.
 func WithIcons(ic ui.Icons) Option {
 	return func(o *options) { o.icons = ic }

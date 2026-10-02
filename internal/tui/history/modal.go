@@ -137,7 +137,7 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, defaultBranch stri
 		base:          base,
 		keys:          newKeyMap(keys),
 		opts:          o,
-		format:        newFormat(o.cfg, o.dates.In(o.loc)),
+		format:        newFormat(o.cfg, o.dates.In(o.loc), o.icons),
 		focus:         graphPane,
 		spin:          spinner.New(spinner.WithSpinner(spinner.Dot)),
 		commit:        newCommit(o.editor),
