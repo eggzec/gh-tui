@@ -189,3 +189,21 @@ func BenchmarkRenderCached(b *testing.B) {
 		r.Render(sample, 76)
 	}
 }
+
+// Single newlines inside a paragraph stay line breaks, as GitHub shows
+// them in issue and pull request bodies, which templates rely on; stock
+// markdown would join the lines into one.
+func TestSoftLineBreaksKept(t *testing.T) {
+	src := "**OS:** linux\nVersion: 0.3.1\nShell: bash\n\nSecond paragraph\nwith two lines."
+	got := ansi.Strip(New(DefaultStyle(true)).Render(src, 76))
+	var lines []string
+	for l := range strings.SplitSeq(got, "\n") {
+		if l = strings.TrimSpace(l); l != "" {
+			lines = append(lines, l)
+		}
+	}
+	want := []string{"OS: linux", "Version: 0.3.1", "Shell: bash", "Second paragraph", "with two lines."}
+	if strings.Join(lines, "\n") != strings.Join(want, "\n") {
+		t.Errorf("rendered lines %q, want %q", lines, want)
+	}
+}
