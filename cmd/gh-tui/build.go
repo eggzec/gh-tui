@@ -219,7 +219,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		termtext.AllowPlainHTTP(webHost)
 	}
 	icons, dates := ui.NewIcons(cfg.UI.Icons), ui.NewDates(cfg.UI.DateFormat)
-	pics := ui.NewImages(ctx, fetchImage(newImages(webHost, entries)), cfg.Images.Avatars)
+	pics := ui.NewImages(ctx, fetchImage(newImages(webHost, entries), fileSvc), cfg.Images.Avatars)
 	// What went wrong names the configured keys, and the log file while
 	// the app logs to one.
 	var logPath string
@@ -233,7 +233,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	fileOpts := []files.Option{
 		files.WithIcons(icons), files.WithFinderPreview(cfg.Files.Finder.Preview),
 		files.WithHost(webHost), files.WithVoice(voice), files.WithEditor(cfg.Editor),
-		files.WithPrefetch(cfg.Prefetch, cfg.Files.Preview.MaxSize), files.WithSlots(slots),
+		files.WithPrefetch(cfg.Prefetch, cfg.Files.Preview.MaxSize), files.WithSlots(slots), files.WithImages(pics),
 	}
 	checkOpts := []checks.Option{checks.WithVoice(voice)}
 	if cfg.Sync.Enabled {
