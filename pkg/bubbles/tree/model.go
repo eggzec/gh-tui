@@ -298,13 +298,14 @@ func (m Model) KeyMap() KeyMap {
 func (m *Model) SetStyles(s Styles) {
 	m.styles = s
 	m.spin.Style = s.Spinner
-	m.gutterFocused = s.Cursor.Render(cursorGlyph) + " "
-	m.gutterBlurred = s.BlurredCursor.Render(cursorGlyph) + " "
+	cursor := termtext.Cells(s.CursorGlyph, 1)
+	m.gutterFocused = s.Cursor.Render(cursor) + " "
+	m.gutterBlurred = s.BlurredCursor.Render(cursor) + " "
 	m.gutterNone = "  "
-	m.markerOpen = s.Marker.Render("▾") + " "
-	m.markerClosed = s.Marker.Render("▸") + " "
+	m.markerOpen = s.Marker.Render(termtext.Cells(s.OpenGlyph, 1)) + " "
+	m.markerClosed = s.Marker.Render(termtext.Cells(s.ClosedGlyph, 1)) + " "
 	m.markerLeaf = "  "
-	m.loadingText = s.Loading.Render(" Loading…")
+	m.loadingText = s.Loading.Render(" Loading" + s.Ellipsis)
 	m.emptyLine = s.Empty.Render(m.emptyText)
 	m.guides = nil
 	maxDepth := 0
@@ -413,7 +414,7 @@ func (m *Model) growGuides(depth int) {
 	for d := len(m.guides); d <= depth; d++ {
 		g := ""
 		if d > 0 {
-			g = m.styles.Guide.Render(strings.Repeat(guideGlyph+" ", d))
+			g = m.styles.Guide.Render(strings.Repeat(termtext.Cells(m.styles.GuideGlyph, 1)+" ", d))
 		}
 		m.guides = append(m.guides, g)
 	}
