@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 	"testing"
@@ -690,21 +691,66 @@ func TestPictures(t *testing.T) {
 	}
 	a := newTestAvatars(f, Graphics{Images: true, Cell: testCell})
 	a.SetMaxRows(20)
-	url := "https://github.com/user-attachments/assets/1"
+	addr := "https://github.com/user-attachments/assets/1"
 	for _, tt := range []struct{ height, rows int }{{30, 20}, {12, 10}, {2, 1}} {
 		f.boxes = nil
 		if n := a.PictureRows(tt.height); n != tt.rows {
 			t.Errorf("height %d: PictureRows = %d, want %d", tt.height, n, tt.rows)
 		}
-		if lines := a.Pictures(a.PictureRows(tt.height))(url, 40); lines != nil {
+		if lines := a.Pictures(a.PictureRows(tt.height))(addr, 40); lines != nil {
 			t.Errorf("height %d: drew %q before the image arrived", tt.height, lines)
 		}
 		load(t, a)
 		if len(f.boxes) != 1 || f.boxes[0].Cols != 40 || f.boxes[0].Rows != tt.rows {
 			t.Errorf("height %d: fetched boxes %+v, want one of 40×%d", tt.height, f.boxes, tt.rows)
 		}
-		if lines := a.Pictures(tt.rows)(url, 40); len(lines) == 0 {
+		if lines := a.Pictures(tt.rows)(addr, 40); len(lines) == 0 {
 			t.Errorf("height %d: drew nothing once the image arrived", tt.height)
+		}
+	}
+}
+
+// An image that won't load is logged with the host of each address in
+// its error, never the path or the query, which may hold a signature.
+func TestFailureLogsHostsOnly(t *testing.T) {
+	buf, _ := captureLog(t)
+	addr := "https://private-user-images.githubusercontent.com/1/2-abc.png?jwt=secret.token.sig"
+	redirect := "https://bucket.s3.amazonaws.com/x?X-Amz-Signature=deadbeef"
+	err := &url.Error{Op: "Get", URL: addr, Err: fmt.Errorf("image host not allowed: redirect to %s", redirect)}
+	f := &fakeFetch{fail: map[string]error{addr: fmt.Errorf("%w: fetch image: %w", ErrImageGone, err)}}
+	a := newTestAvatars(f, Graphics{Images: true, Cell: testCell})
+	a.Fit(ImageSource{URL: addr}, ImageSize{Cols: 10, Rows: 5})
+	load(t, a)
+	var logged string
+	for _, r := range buf.records(t) {
+		if r["msg"] == "image unavailable" {
+			logged, _ = r["err"].(string)
+		}
+	}
+	if logged == "" {
+		t.Fatal("the failure wasn't logged")
+	}
+	for _, secret := range []string{"jwt", "secret", "2-abc", "X-Amz", "deadbeef", "/x"} {
+		if strings.Contains(logged, secret) {
+			t.Errorf("log holds %q:\n%s", secret, logged)
+		}
+	}
+	for _, host := range []string{"private-user-images.githubusercontent.com", "bucket.s3.amazonaws.com"} {
+		if !strings.Contains(logged, host) {
+			t.Errorf("log lacks host %q:\n%s", host, logged)
+		}
+	}
+}
+
+func TestHostsOnly(t *testing.T) {
+	for _, tc := range []struct{ in, want string }{
+		{`Get "https://h.example/a/b?jwt=x": EOF`, `Get "https://h.example": EOF`},
+		{"parse https://u:p@h.example:8443/p#f failed", "parse https://h.example:8443 failed"},
+		{"to http://h.example?q=1 and https://g.example", "to http://h.example and https://g.example"},
+		{"no address here", "no address here"},
+	} {
+		if got := hostsOnly(tc.in); got != tc.want {
+			t.Errorf("hostsOnly(%q) = %q, want %q", tc.in, got, tc.want)
 		}
 	}
 }
