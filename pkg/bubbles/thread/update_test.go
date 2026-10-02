@@ -1,6 +1,7 @@
 package thread
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -351,5 +352,42 @@ func TestRedraw(t *testing.T) {
 	}
 	if !strings.Contains(ansi.Strip(m.View()), "*  @user") {
 		t.Errorf("Redraw didn't render the comments again:\n%s", ansi.Strip(m.View()))
+	}
+}
+
+// A picture that arrives above the top of the screen, in the same body,
+// grows it without moving what the reader was reading.
+func TestRedrawKeepsLinesUnderAPicture(t *testing.T) {
+	var lines strings.Builder
+	lines.WriteString("Intro.\n\n![shot](https://x.test/shot.png)\n\n")
+	for i := range 30 {
+		fmt.Fprintf(&lines, "Paragraph %d.\n\n", i)
+	}
+	ready := false
+	pics := func(string, int) []string {
+		if !ready {
+			return nil
+		}
+		return []string{"\x1b[38;5;9mPIC1\x1b[39m", "\x1b[38;5;9mPIC2\x1b[39m", "\x1b[38;5;9mPIC3\x1b[39m"}
+	}
+	m := newTest(newSource(1, 2), nil, 60, 10)
+	m = drain(t, m, m.SetDocument("Title", lines.String()))
+	m.SetPictures(pics)
+	m.vp.SetYOffset(12)
+	before, _, _ := strings.Cut(ansi.Strip(m.View()), "\n")
+	if !strings.Contains(before, "Paragraph") {
+		t.Fatalf("top line = %q, want a paragraph under the picture", before)
+	}
+	ready = true
+	m.Redraw()
+	if got, _, _ := strings.Cut(ansi.Strip(m.View()), "\n"); got != before {
+		t.Errorf("top line after the picture arrived = %q, want %q", got, before)
+	}
+	if m.YOffset() <= 12 {
+		t.Errorf("YOffset() = %d, want it moved down by the picture's rows", m.YOffset())
+	}
+	m.vp.SetYOffset(0)
+	if !strings.Contains(m.View(), "PIC2") {
+		t.Errorf("the picture isn't drawn:\n%s", ansi.Strip(m.View()))
 	}
 }
