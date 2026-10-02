@@ -94,6 +94,9 @@ type fake struct {
 	cachedNotes map[int64]bool
 	notesErr    error
 	noteReads   []int64
+	// notesLimited serves the annotations kept, as while GitHub rate
+	// limits their read.
+	notesLimited bool
 
 	// partial holds the partial logs of jobs in progress, which a read
 	// finds, and cachedPartial those in memory. watching counts the
@@ -126,7 +129,7 @@ func (f *fake) Annotations(_ context.Context, q actionssvc.AnnotationsQuery) (co
 		return core.Page[core.Annotation]{}, f.notesErr
 	}
 	f.cachedNotes[q.CheckRunID] = true
-	return core.Page[core.Annotation]{Items: f.notes[q.CheckRunID]}, nil
+	return core.Page[core.Annotation]{Items: f.notes[q.CheckRunID], Limited: f.notesLimited}, nil
 }
 
 func (f *fake) CachedLog(_ core.RepoRef, jobID int64) (core.Log, bool) {

@@ -148,6 +148,9 @@ type fake struct {
 	notes     map[int64][]core.Annotation
 	// logErr fails every read of a log, and jobsErr of the jobs of a run.
 	logErr, jobsErr error
+	// notesLimited serves the annotations Limited, as kept while GitHub
+	// rate limits their read.
+	notesLimited bool
 
 	checkReads, runReads, jobReads, noteReads, logReads int
 	invalidated                                         int
@@ -247,7 +250,7 @@ func (f *fake) Annotations(_ context.Context, q actionssvc.AnnotationsQuery) (co
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.noteReads++
-	return core.Page[core.Annotation]{Items: f.notes[q.CheckRunID]}, nil
+	return core.Page[core.Annotation]{Items: f.notes[q.CheckRunID], Limited: f.notesLimited}, nil
 }
 
 func (f *fake) Invalidate(core.RepoRef) {

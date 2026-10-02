@@ -292,6 +292,23 @@ func TestAnnotationsRetry(t *testing.T) {
 	}
 }
 
+// TestAnnotationsKeptReadAgain checks that annotations served kept while
+// GitHub rate limited their read are read again once, by RetryKept, and
+// that annotations read fresh aren't.
+func TestAnnotationsKeptReadAgain(t *testing.T) {
+	f := newFake()
+	f.notesLimited = true
+	m := newView(t, f, 80, 20)
+	run(m, m.Show(failed(), false, Hints{}))
+	f.notesLimited = false
+	reads := len(f.noteReads)
+	run(m, m.RetryKept())
+	run(m, m.RetryKept())
+	if got := f.noteReads[reads:]; len(got) != 1 || got[0] != failedJob {
+		t.Errorf("annotations read after two RetryKept = %v, want those of job %d once", got, failedJob)
+	}
+}
+
 // The annotations say why they failed to load the way the user should
 // read it, after their title, without the error's chain, request or status
 // code.

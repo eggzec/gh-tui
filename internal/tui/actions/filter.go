@@ -24,6 +24,10 @@ type filterStep struct {
 type workflows struct {
 	items           []core.Workflow
 	loaded, loading bool
+	// kept reports that the items were served from what an earlier read
+	// kept, because GitHub couldn't be reached or rate limited the read,
+	// so they are read again once it answers.
+	kept bool
 }
 
 // Keys of the fields of the filter.
@@ -66,12 +70,13 @@ func (m *Modal) openFilter() tea.Cmd {
 }
 
 // workflowsMsg carries the workflows of the repository. Stale reports that
-// they were kept by an earlier session.
+// they were kept by an earlier session, and kept that they were served
+// kept while GitHub couldn't be reached or rate limited the read.
 type workflowsMsg struct {
-	id    int64
-	items []core.Workflow
-	stale bool
-	err   error
+	id          int64
+	items       []core.Workflow
+	stale, kept bool
+	err         error
 }
 
 // readWorkflows reads the workflows of the repository, past the ones an
@@ -82,7 +87,7 @@ func (m *Modal) readWorkflows(again bool) tea.Cmd {
 		ctx, end := obs.Begin(ctx, "actions.workflows")
 		p, err := svc.Workflows(ctx, actionssvc.WorkflowsQuery{Repo: repo, Again: again})
 		end(err, "span", "tui", "workflows", len(p.Items), "stale", p.Stale, "offline", p.Offline, "limited", p.Limited)
-		return workflowsMsg{id: id, items: p.Items, stale: p.Stale, err: err}
+		return workflowsMsg{id: id, items: p.Items, stale: p.Stale, kept: p.Offline || p.Limited, err: err}
 	}
 }
 
@@ -92,8 +97,13 @@ func (m *Modal) readWorkflows(again bool) tea.Cmd {
 // again at once.
 func (m *Modal) receiveWorkflows(msg workflowsMsg) tea.Cmd {
 	m.workflows.loading = false
+	if msg.err != nil && ui.Unreached(msg.err) && m.workflows.loaded {
+		// The workflows shown are still the kept ones, read again at the
+		// next wake.
+		m.workflows.kept = true
+	}
 	if msg.err == nil {
-		m.workflows.items, m.workflows.loaded = msg.items, true
+		m.workflows.items, m.workflows.loaded, m.workflows.kept = msg.items, true, msg.kept
 	}
 	var again tea.Cmd
 	if msg.err == nil && msg.stale {
@@ -103,6 +113,17 @@ func (m *Modal) receiveWorkflows(msg workflowsMsg) tea.Cmd {
 		return again
 	}
 	return tea.Batch(m.showForm(), again)
+}
+
+// rereadWorkflows reads the workflows again, if they were served kept,
+// now that GitHub answers again.
+func (m *Modal) rereadWorkflows() tea.Cmd {
+	w := &m.workflows
+	if !w.kept || w.loading {
+		return nil
+	}
+	w.kept, w.loading = false, true
+	return m.readWorkflows(false)
 }
 
 // showForm shows the form of the filter, on the filter shown.
