@@ -2,7 +2,9 @@ package imgcaps
 
 import (
 	"context"
+	"fmt"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -91,4 +93,48 @@ func DecideTmux(t Tmux) Verdict {
 		v.Images, v.Reason = true, "the terminal draws kitty placeholders, through tmux"
 	}
 	return v
+}
+
+// TmuxClient is what tmux says of the client it shows the app's pane on:
+// the terminal tmux was last attached from.
+type TmuxClient struct {
+	// TTY is the client's terminal device, which changes with each
+	// attach from another terminal.
+	TTY string
+	// Termtype is client_termtype, as Tmux.ClientTermtype.
+	Termtype string
+	// Passthrough is allow-passthrough of the pane, as Tmux.Passthrough.
+	Passthrough string
+	// Cell is the size of the client's cells in pixels, which tmux reads
+	// from the terminal's window size, or no size when the terminal gives
+	// none, as over ssh.
+	Cell Cell
+}
+
+// tmuxClientFormat asks for every field of TmuxClient at once, tab apart,
+// since a terminal's name may hold spaces. A format names an option by
+// its name, and gives the pane's value as show-options -Apv does.
+const tmuxClientFormat = "#{client_tty}\t#{client_termtype}\t#{client_cell_width}\t#{client_cell_height}\t#{allow-passthrough}"
+
+// QueryTmuxClient asks the tmux of this pane, with run, of its client,
+// in one question, cheap enough to ask whenever the app gains focus.
+// tmux 3.3, the oldest that draws images, has all these formats.
+func QueryTmuxClient(ctx context.Context, run func(ctx context.Context, args ...string) (string, error)) (TmuxClient, error) {
+	ctx, cancel := context.WithTimeout(ctx, TmuxTimeout)
+	defer cancel()
+	out, err := run(ctx, "display-message", "-p", tmuxClientFormat)
+	if err != nil {
+		return TmuxClient{}, err
+	}
+	f := strings.Split(strings.TrimRight(out, "\r\n"), "\t")
+	if len(f) != 5 {
+		return TmuxClient{}, fmt.Errorf("tmux answered %d fields of its client, not 5", len(f))
+	}
+	c := TmuxClient{TTY: strings.TrimSpace(f[0]), Termtype: strings.TrimSpace(f[1]), Passthrough: strings.TrimSpace(f[4])}
+	w, werr := strconv.Atoi(strings.TrimSpace(f[2]))
+	h, herr := strconv.Atoi(strings.TrimSpace(f[3]))
+	if werr == nil && herr == nil {
+		c.Cell = Cell{Width: w, Height: h}
+	}
+	return c, nil
 }

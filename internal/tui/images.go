@@ -26,6 +26,20 @@ type probeTimeoutMsg struct{ id uint32 }
 // tmuxAnsweredMsg carries what tmux said of itself and its client.
 type tmuxAnsweredMsg struct{ tmux imgcaps.Tmux }
 
+// tmuxRecheckedMsg carries what tmux said when it was asked again.
+type tmuxRecheckedMsg struct{ tmux imgcaps.Tmux }
+
+// cellsAgainMsg has the app ask the size of a cell again.
+type cellsAgainMsg struct{}
+
+// tmuxClientMsg carries what tmux said of its client, or why it couldn't,
+// and recheck, which asks tmux everything the verdict needs again.
+type tmuxClientMsg struct {
+	client  imgcaps.TmuxClient
+	err     error
+	recheck tea.Cmd
+}
+
 // The stages of a probe, after none.
 const (
 	// stageName asks XTVERSION, with DA1 after it.
@@ -68,6 +82,13 @@ type imageProbe struct {
 	waited   time.Duration
 	done     bool
 	verdict  imgcaps.Verdict
+	// asking is set while tmux is asked of its client or again of
+	// everything, and again when the size of a cell was wanted meanwhile,
+	// which the answer in flight may predate. client is what tmux said of
+	// its client last, and seen what it said when the verdict was made.
+	asking, again bool
+	client        imgcaps.TmuxClient
+	seen          imgcaps.Tmux
 }
 
 // newImageProbe returns a probe in mode that asks nothing, until
@@ -143,9 +164,87 @@ func (p *imageProbe) update(msg tea.Msg) (cmd tea.Cmd, handled bool) {
 		if p.done {
 			return nil, true
 		}
+		p.seen = msg.tmux
 		return p.finish(imgcaps.DecideTmux(msg.tmux)), true
+	case tmuxClientMsg:
+		p.asking = false
+		if msg.err != nil {
+			return tea.Batch(p.tmuxCell(imgcaps.Cell{}), p.askedMeanwhile()), true
+		}
+		prev, c := p.client, msg.client
+		p.client = c
+		// A change of terminal, or of allow-passthrough, as when the user
+		// sets it on as :images suggests and reloads tmux's config, may
+		// change the verdict.
+		if c.Termtype != p.seen.ClientTermtype || c.Passthrough != p.seen.Passthrough || prev.TTY != "" && c.TTY != prev.TTY {
+			p.asking = true
+			return msg.recheck, true
+		}
+		return tea.Batch(p.tmuxCell(c.Cell), p.askedMeanwhile()), true
+	case tmuxRecheckedMsg:
+		p.asking = false
+		p.seen = msg.tmux
+		if v := imgcaps.DecideTmux(msg.tmux); v != p.verdict {
+			// The app asks the size of a cell anew once it has the
+			// verdict, if images are drawn.
+			p.sent, p.waited, p.again = time.Time{}, 0, false
+			return p.finish(v), true
+		}
+		return tea.Batch(p.tmuxCell(p.client.Cell), p.askedMeanwhile()), true
 	}
 	return nil, false
+}
+
+// askClient asks tmux of its client, once the verdict came from tmux:
+// the size of its cells, and whether it is still the terminal the verdict
+// was made for. The app asks when images need the size of a cell and
+// when it gains focus, since client_termtype is that of the terminal
+// tmux was last attached from: after a detach and an attach from another
+// terminal, or a change of allow-passthrough, tmux is asked everything
+// again, and a verdict that changes is told to the app as the first was.
+// One question is in flight at a time: a focus meanwhile asks nothing
+// more, and a size wanted meanwhile is asked once it is answered.
+func (p *imageProbe) askClient(ctx context.Context) tea.Cmd {
+	if !p.done || !p.verdict.Tmux || p.asking || p.tmux == nil {
+		return nil
+	}
+	p.asking = true
+	run := p.tmux
+	recheck := func() tea.Msg { return tmuxRecheckedMsg{tmux: imgcaps.QueryTmux(ctx, run)} }
+	return func() tea.Msg {
+		c, err := imgcaps.QueryTmuxClient(ctx, run)
+		return tmuxClientMsg{client: c, err: err, recheck: recheck}
+	}
+}
+
+// askCells asks tmux the size of its client's cells, or, while a question
+// is in flight, asks again once it is answered.
+func (p *imageProbe) askCells(ctx context.Context) tea.Cmd {
+	if p.asking {
+		p.again = true
+		return nil
+	}
+	return p.askClient(ctx)
+}
+
+// askedMeanwhile has the app ask the size of a cell again if it was
+// wanted while tmux was being asked.
+func (p *imageProbe) askedMeanwhile() tea.Cmd {
+	if !p.again {
+		return nil
+	}
+	p.again = false
+	return func() tea.Msg { return cellsAgainMsg{} }
+}
+
+// tmuxCell tells the app cell, the size of a cell tmux said, if images are
+// drawn.
+func (p *imageProbe) tmuxCell(cell imgcaps.Cell) tea.Cmd {
+	if !p.verdict.Images {
+		return nil
+	}
+	msg := sized(cell, cellFromTmux)
+	return func() tea.Msg { return msg }
 }
 
 // plan starts finding out once profile, that of the output, is known.

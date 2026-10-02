@@ -56,9 +56,10 @@ type Model struct {
 	keys   KeyMap
 	// term is what the terminal said of itself, for the log.
 	term terminal
-	// images finds out whether the terminal shows images, and graphics
-	// is what it found.
+	// images finds out whether the terminal shows images, cells the size
+	// of a cell in pixels when it does, and graphics is what they found.
 	images   imageProbe
+	cells    cellQuery
 	graphics ui.Graphics
 
 	// panes are those of the repository screen, in the order focus cycles

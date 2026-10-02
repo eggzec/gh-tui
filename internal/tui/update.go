@@ -22,7 +22,12 @@ import (
 // modal.
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.term.observe(m.ctx, msg)
-	// The answers of the terminal to the images probe are its own.
+	// The answers of the terminal to the cell query and the images probe
+	// are theirs. The query goes first, since it takes a DA1 only while it
+	// asks, and the probe takes every other.
+	if cmd, handled := m.cells.update(msg); handled {
+		return m, cmd
+	}
 	if cmd, handled := m.images.update(msg); handled {
 		return m, cmd
 	}
@@ -32,20 +37,28 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.ColorProfileMsg:
 		return m, tea.Batch(m.images.plan(m.ctx, msg.Profile), m.broadcast(msg))
 	case graphicsDecidedMsg:
-		m.graphics = msg.graphics
-		m.term.imagesDecided(m.ctx, msg.attrs)
-		cmd := m.broadcast(ui.GraphicsMsg{Graphics: msg.graphics})
+		cmd := m.graphicsDecided(msg)
+		return m, cmd
+	case cellSizedMsg:
+		cmd := m.cellSized(msg)
+		return m, cmd
+	case cellsAgainMsg:
+		cmd := m.askCells()
 		return m, cmd
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		m.layout()
-		return m, nil
+		m.cells.resize(msg.Width, msg.Height)
+		// A resize may come of a change of font, which changes the cells.
+		cmd := m.askCells()
+		return m, cmd
 	case tea.BackgroundColorMsg:
 		m.applyTheme(msg.IsDark())
 		return m, nil
 	case tea.FocusMsg:
 		m.report(true)
-		return m, nil
+		cmd := m.images.askClient(m.ctx)
+		return m, cmd
 	case tea.BlurMsg:
 		m.report(false)
 		return m, nil
