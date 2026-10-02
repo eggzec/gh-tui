@@ -24,21 +24,37 @@ import (
 )
 
 // probeApp is a test app whose image probe reads env, in mode, and whose
-// tmux answers with tmux.
+// tmux says its client runs in the terminal tmux, with cells 9×18.
 func probeApp(t *testing.T, mode string, env imgcaps.Env, tmux string) (*Model, []*fakeSection) {
 	t.Helper()
 	m, sections := newTestApp(t)
 	m.images.mode = mode
-	WithImageProbe(env, func(_ context.Context, args ...string) (string, error) {
-		switch args[len(args)-1] {
-		case "#{version}":
-			return "3.4", nil
-		case "allow-passthrough":
-			return "on", nil
-		}
-		return tmux, nil
-	})(m)
+	ft := &fakeTmux{passthrough: "on", client: imgcaps.TmuxClient{TTY: "/dev/pts/1", Termtype: tmux, Cell: imgcaps.Cell{Width: 9, Height: 18}}}
+	WithImageProbe(env, ft.run)(m)
 	return m, sections
+}
+
+// fakeTmux is a tmux 3.4 that answers with its fields, and counts the
+// times it runs.
+type fakeTmux struct {
+	passthrough string
+	client      imgcaps.TmuxClient
+	runs        int
+}
+
+func (f *fakeTmux) run(_ context.Context, args ...string) (string, error) {
+	f.runs++
+	q := args[len(args)-1]
+	switch {
+	case q == "#{version}":
+		return "3.4", nil
+	case q == "allow-passthrough":
+		return f.passthrough, nil
+	case strings.HasPrefix(q, "#{client_tty}"):
+		c := f.client
+		return fmt.Sprintf("%s\t%s\t%d\t%d\t%s\n", c.TTY, c.Termtype, c.Cell.Width, c.Cell.Height, f.passthrough), nil
+	}
+	return f.client.Termtype, nil
 }
 
 // answer passes msg to m, then what its command gives, as the program
@@ -114,7 +130,7 @@ func TestImagesProbe(t *testing.T) {
 			first:  name("ghostty 1.2.0"),
 			then:   func(id uint32) []tea.Msg { return []tea.Msg{kittyReply(id, "OK"), da1} },
 			want:   ui.Graphics{Images: true},
-			writes: []string{"\x1b[>q\x1b[c", "\x1b_Ga=q,i=ID"},
+			writes: []string{"\x1b[>q\x1b[c", "\x1b_Ga=q,i=ID", "\x1b[16t\x1b[c"},
 		},
 		{
 			name: "konsole is never sent the query", mode: imgcaps.ModeAuto, env: plain, profile: colorprofile.TrueColor,
@@ -122,7 +138,7 @@ func TestImagesProbe(t *testing.T) {
 		},
 		{
 			name: "kitty, on", mode: imgcaps.ModeOn, env: kittyEnv, profile: colorprofile.TrueColor,
-			first: name("kitty(0.43.1)"), want: ui.Graphics{Images: true}, writes: []string{"\x1b[>q\x1b[c"},
+			first: name("kitty(0.43.1)"), want: ui.Graphics{Images: true}, writes: []string{"\x1b[>q\x1b[c", "\x1b[16t\x1b[c"},
 		},
 		{
 			name: "on, only the environment", mode: imgcaps.ModeOn, env: kittyEnv, profile: colorprofile.TrueColor,
@@ -149,7 +165,7 @@ func TestImagesProbe(t *testing.T) {
 			first:  name("kitty(0.43.1)"),
 			then:   func(id uint32) []tea.Msg { return []tea.Msg{kittyReply(id, "OK"), da1} },
 			want:   ui.Graphics{Images: true},
-			writes: []string{"\x1b[>q\x1b[c", "XTGETTCAP RGB", "XTGETTCAP Tc", "\x1b_Ga=q,i=ID"},
+			writes: []string{"\x1b[>q\x1b[c", "XTGETTCAP RGB", "XTGETTCAP Tc", "\x1b_Ga=q,i=ID", "\x1b[16t\x1b[c"},
 		},
 		{
 			name: "konsole on 256 colors isn't asked for 24-bit", mode: imgcaps.ModeAuto, env: plain, profile: colorprofile.ANSI256,
@@ -176,7 +192,10 @@ func TestImagesProbe(t *testing.T) {
 		},
 		{
 			name: "tmux in kitty", mode: imgcaps.ModeAuto, env: imgcaps.Env{Term: "tmux-256color", Tmux: true}, profile: colorprofile.ANSI256,
-			tmux: "kitty(0.43.1)", want: ui.Graphics{Images: true, Tmux: true}, writes: []string{},
+			// The size of a cell comes from tmux, and the terminal is sent
+			// nothing.
+			tmux: "kitty(0.43.1)", want: ui.Graphics{Images: true, Tmux: true, Cell: imgcaps.Cell{Width: 9, Height: 18}},
+			writes: []string{},
 		},
 		{
 			name: "tmux on 16 colors is sent nothing", mode: imgcaps.ModeAuto, env: imgcaps.Env{Term: "tmux", Tmux: true}, profile: colorprofile.ANSI,
