@@ -21,11 +21,14 @@ import (
 // Lines of a result: a repository, issue or pull request takes two, and a
 // file its path, three lines of what matched and a gap.
 const (
-	hitHeight       = 2
-	codeHeight      = 5
-	fragmentLines   = codeHeight - 2
-	defaultPrefetch = 5
+	hitHeight     = 2
+	codeHeight    = 5
+	fragmentLines = codeHeight - 2
 )
+
+// pageAt is how close to the last result loaded the cursor gets before the
+// next page of results is read. It pages the list; it isn't a read ahead.
+const pageAt = 5
 
 // hitList holds the results of one kind for one query, paged as they
 // scroll.
@@ -86,7 +89,7 @@ func (s *Section) ensureHits(k core.SearchKind) tea.Cmd {
 		feed.WithContext(s.textCtx),
 		feed.WithKey(hitKey),
 		feed.WithItemHeight(hitHeight),
-		feed.WithPrefetch(defaultPrefetch),
+		feed.WithPrefetch(pageAt),
 		feed.WithKeyMap(s.keys.feed),
 		feed.WithStyles(s.theme.Feed(s.icons)),
 		feed.WithEmptyText(emptyText(k)),
@@ -130,7 +133,7 @@ func (s *Section) searchCode() tea.Cmd {
 		feed.WithContext(s.textCtx),
 		feed.WithKey(func(h core.CodeHit) string { return h.Repo.String() + "/" + h.Path }),
 		feed.WithItemHeight(codeHeight),
-		feed.WithPrefetch(defaultPrefetch),
+		feed.WithPrefetch(pageAt),
 		feed.WithKeyMap(s.keys.feed),
 		feed.WithStyles(s.theme.Feed(s.icons)),
 		feed.WithEmptyText(emptyText(core.SearchCode)),
