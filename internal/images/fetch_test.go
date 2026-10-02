@@ -377,6 +377,38 @@ func TestExternalOnlyThroughCamo(t *testing.T) {
 	}
 }
 
+// What was read of a body's HTML is used for a few minutes at most, even
+// where its addresses don't expire, as those of the proxy don't, so an
+// edited body is read again.
+func TestBodyReadAgain(t *testing.T) {
+	w, tr := newWeb(t)
+	w.handle("camo.githubusercontent.com", serve(pngOf(t, 8, 8)))
+	clk := &clock{now: time.Date(2026, 9, 28, 12, 0, 0, 0, time.UTC)}
+	external := "https://elsewhere.test/"
+	calls := 0
+	html := htmlOf(func() map[string]string {
+		var b strings.Builder
+		for _, n := range []string{"a", "b", "c"} {
+			b.WriteString(`<img src="https://camo.githubusercontent.com/` + n + `" data-canonical-src="` + external + n + `">`)
+		}
+		return map[string]string{"IC_1": b.String()}
+	}, &calls)
+	f := New("github.com", WithTransport(tr), WithHTML(html), WithClock(clk.Now))
+	for _, step := range []struct {
+		after time.Duration
+		image string
+		reads int
+	}{{0, "a", 1}, {time.Minute, "b", 1}, {4 * time.Minute, "c", 2}} {
+		clk.Add(step.after)
+		if _, err := f.Fetch(t.Context(), Source{URL: external + step.image, Body: "IC_1", Index: -1}, box); err != nil {
+			t.Fatalf("image %s: %v", step.image, err)
+		}
+		if calls != step.reads {
+			t.Errorf("image %s: HTML read %d times, want %d", step.image, calls, step.reads)
+		}
+	}
+}
+
 // jwtURL returns a private image address signed until exp.
 func jwtURL(n int, exp time.Time) string {
 	payload := base64.RawURLEncoding.EncodeToString(fmt.Appendf(nil, `{"exp":%d}`, exp.Unix()))

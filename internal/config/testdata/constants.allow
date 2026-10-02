@@ -111,6 +111,7 @@ internal/images/fetch.go:flightTimeout  keep: a safety mechanism, the bound on a
 internal/images/fetch.go:revalidateAfter  keep: how often an avatar may change, not a preference
 internal/images/signed.go:expiryMargin  keep: a margin for clocks and transit on GitHub's signatures
 internal/images/signed.go:unknownExpiry  keep: a safety mechanism, the life of a signature that can't be read
+internal/images/signed.go:bodyFor  keep: under the life of GitHub's signed addresses, so they are read before they expire
 
 # The tui.
 internal/tui/search/section.go:DefaultDebounce  keep: the debounce of typing, a feel constant

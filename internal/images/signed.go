@@ -35,13 +35,19 @@ const (
 	unknownExpiry = time.Minute
 	// maxBodies is how many bodies' images the signer keeps at most.
 	maxBodies = 256
+	// bodyFor is how long what was read of a body's HTML is used at most,
+	// shorter than the five minutes or so GitHub signs addresses for, so
+	// a body edited since, or an address about to expire, is read anew.
+	bodyFor = 4 * time.Minute
 )
 
 // img is an image of a body's HTML: the address it loads from, and the one
 // the markdown named, which GitHub keeps beside a proxied address.
 type img struct {
 	src, canonical string
-	expires        time.Time // zero for an address that doesn't expire
+	// expires is when the address is read again: when its signature
+	// expires, less a margin, or once bodyFor has passed.
+	expires time.Time
 }
 
 // signer finds where GitHub serves an image of a body, from the body's
@@ -70,7 +76,7 @@ func (s *signer) url(ctx context.Context, body, stable string, index int, refuse
 	s.mu.Unlock()
 	if ok {
 		i, found, placed := match(stable, index, imgs)
-		fresh := i.expires.IsZero() || s.now().Before(i.expires)
+		fresh := s.now().Before(i.expires)
 		if found && (refused == "" && fresh || refused != "" && i.src != refused) {
 			return i.src, placed, nil
 		}
@@ -151,6 +157,9 @@ func images(doc string, now time.Time) []img {
 				continue
 			}
 			i.expires = expiry(i.src, now)
+			if i.expires.IsZero() || i.expires.After(now.Add(bodyFor)) {
+				i.expires = now.Add(bodyFor)
+			}
 			imgs = append(imgs, i)
 		default:
 		}
