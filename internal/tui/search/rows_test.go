@@ -81,12 +81,12 @@ func TestRepoRowLines(t *testing.T) {
 	s := newSection(t, flagged(), 190, 22, WithIcons(ui.NewIcons(config.IconsASCII)))
 	archived := flagged().repos[2]
 	first, second, _ := strings.Cut(ansi.Strip(s.renderHit(archived, false, 80)), "\n")
-	for _, want := range []string{"octo/tea-archived A", "o Jupyter N…", "* 250k", " 1y"} {
+	for _, want := range []string{"octo/tea-archived A", "o Jupyter...", "* 250k", " 1y"} {
 		if !strings.Contains(first, want) {
 			t.Errorf("first line %q, want %q in it", first, want)
 		}
 	}
-	if !strings.HasPrefix(second, "  Kept for history") || !strings.HasSuffix(strings.TrimRight(second, " "), "…") {
+	if !strings.HasPrefix(second, "  Kept for history") || !strings.HasSuffix(strings.TrimRight(second, " "), "...") {
 		t.Errorf("second line %q, want only the description, cut", second)
 	}
 	if strings.Contains(second, "Jupyter") || strings.Contains(second, "1y") {

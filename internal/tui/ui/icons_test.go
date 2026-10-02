@@ -19,7 +19,7 @@ func marks(ic Icons) []string {
 	return slices.Concat([]string{
 		ic.Fork, ic.Private, ic.Archived, ic.Template, ic.Mirror, ic.Here, ic.Star, ic.Error, ic.Language(""),
 		ic.Yes, ic.No, ic.Info, ic.Cursor, ic.Folded, ic.Unfolded,
-		ic.ChangesRequested, ic.ReviewRequired, ic.Dot, ic.Ring, ic.Crumb, ic.Cell, ic.Comment,
+		ic.ChangesRequested, ic.ReviewRequired, ic.Dot, ic.Ring, ic.Crumb, ic.Cell, ic.Comment, ic.Recent,
 	}, ic.states[:], ic.runs[:], slices.Collect(maps.Values(ic.langs)))
 }
 
@@ -42,7 +42,7 @@ func TestIconsASCII(t *testing.T) {
 		ic.Separator, ic.Ellipsis, ic.Arrow, ic.Up, ic.Down, ic.Times, ic.Minus,
 		b.Top, b.Bottom, b.Left, b.Right, b.TopLeft, b.TopRight, b.BottomLeft, b.BottomRight,
 		b.MiddleLeft, b.MiddleRight, b.Middle, b.MiddleTop, b.MiddleBottom,
-		ic.Edge, ic.InputEdge, ic.Remove, ic.Warning, ic.Below,
+		ic.Edge, ic.InputEdge, ic.Remove, ic.Warning, ic.Below, ic.OpenQuote, ic.CloseQuote,
 		ic.Key("↑/k ↓/j ←/h →/l ↵"),
 	}
 	for _, g := range append(marks(ic), drawn...) {

@@ -272,7 +272,7 @@ func (s *Section) SetSize(width, height int) {
 // SetTheme builds the styles of the page and restyles its bubbles.
 func (s *Section) SetTheme(t ui.Theme) {
 	s.theme = t
-	s.st = newStyles(t)
+	s.st = newStyles(t, s.icons)
 	s.errs = t.Errors(s.icons)
 	clear(s.dots)
 	clear(s.langs)
