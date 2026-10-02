@@ -7,6 +7,8 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/charmbracelet/x/ansi"
+
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
@@ -21,6 +23,12 @@ func TestSettingsIcons(t *testing.T) {
 	h.Update(ui.SettingsMsg{Config: c})
 	if got := h.icons.Star; got != ui.NewIcons(config.IconsASCII).Star {
 		t.Errorf("star = %q, want the ASCII one", got)
+	}
+	// The app sets the theme again after a change of settings, which
+	// draws the rows with the new icons.
+	h.SetTheme(h.theme)
+	if got := ansi.Strip(h.st.approved + h.st.checksOK); got != "++" {
+		t.Errorf("review and checks marks = %q, want the ASCII ones", got)
 	}
 }
 

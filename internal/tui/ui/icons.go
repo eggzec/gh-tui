@@ -35,6 +35,10 @@ type Icons struct {
 	// Folded and Unfolded a fold that is closed and one that is open, such
 	// as a step of a job log.
 	Cursor, Folded, Unfolded string
+	// ChangesRequested marks a pull request whose reviewers asked for
+	// changes, and ReviewRequired one that waits for a review. An approved
+	// one takes Yes.
+	ChangesRequested, ReviewRequired string
 
 	// langs holds the glyphs of languages that have one; the others get
 	// lang.
@@ -82,6 +86,7 @@ func newIcons(set string) Icons {
 			Star: "★", Error: "✗", Separator: " · ", Ellipsis: "…",
 			Yes: "✓", No: "✗", Info: "•",
 			Cursor: "▌", Folded: "▸", Unfolded: "▾",
+			ChangesRequested: "±", ReviewRequired: "•",
 			lang: "◉",
 			states: [NumStates]string{
 				IssueOpen: "⦾", IssueClosed: "⦿", IssueNotPlanned: "⊘",
@@ -94,6 +99,7 @@ func newIcons(set string) Icons {
 			Star: "*", Error: "x", Separator: " - ", Ellipsis: "...",
 			Yes: "+", No: "x", Info: "i",
 			Cursor: ">", Folded: "+", Unfolded: "-",
+			ChangesRequested: "~", ReviewRequired: "?",
 			// A colored dot, as the other sets have, since the star takes *.
 			lang: "o",
 			states: [NumStates]string{
@@ -112,6 +118,7 @@ func newIcons(set string) Icons {
 			// oct-triangle_right and oct-triangle_down, as the fold marks
 			// of the other sets.
 			Cursor: "▌", Folded: "\uf44a", Unfolded: "\uf44b",
+			ChangesRequested: "\uf4d2", ReviewRequired: "\uf444", // oct-file_diff, oct-dot_fill
 			langs: nerdLanguages,
 			lang:  "\uf44f",
 			files: nerdFiles,
