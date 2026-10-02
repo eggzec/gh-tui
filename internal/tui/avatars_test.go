@@ -9,9 +9,12 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/colorprofile"
+	"github.com/charmbracelet/x/ansi"
 
+	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/imgcaps"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 )
 
 // later is what a timer of the app would send, once a test says time is
@@ -265,5 +268,55 @@ func TestTmuxAttachResendsAvatars(t *testing.T) {
 	writes := answer(m, tea.FocusMsg{})
 	if len(writes) != 1 || strings.Count(writes[0], "a=t,") != 1 {
 		t.Errorf("an attach from ghostty wrote %q, want the avatar once", writes)
+	}
+}
+
+// The repository screen's header shows the owner's avatar before the
+// repository, as its icon, in a box kept from the start, and looks as it
+// does without avatars where the terminal shows no images.
+func TestHeaderAvatar(t *testing.T) {
+	plain := newHeaderApp(t).header
+	src := &uitest.ImageSource{}
+	if got := newHeaderApp(t, WithAvatars(uitest.Avatars(src, false))).header; got != plain {
+		t.Errorf("without images the header is\n%q\nwant\n%q", got, plain)
+	}
+
+	// The terminal is found to show images once the app has started.
+	a := uitest.Avatars(src, false)
+	m := newHeaderApp(t, WithAvatars(a))
+	m.after = func(_ time.Duration, msg tea.Msg) tea.Cmd { return func() tea.Msg { return later{msg} } }
+	a.SetGraphics(ui.Graphics{Images: true, Cell: uitest.TestCell})
+	feed(m, tea.WindowSizeMsg{Width: 80, Height: 24})
+	if h := ansi.Strip(m.header); !strings.HasPrefix(h, "─    "+testRepo.String()+" ─ main ") {
+		t.Errorf("header before the owner's avatar is known = %q, want a blank box before the repository", h)
+	}
+	if got := ansi.StringWidth(m.header); got != 80 {
+		t.Errorf("header is %d wide, want 80", got)
+	}
+	owner := "https://avatars.githubusercontent.com/u/170000000?v=4"
+	_, arrivals := feed(m, repoInfoMsg{repo: core.Repo{Ref: testRepo, DefaultBranch: "main", OwnerAvatarURL: owner}})
+	_, due := feed(m, arrivals...)
+	feed(m, due[0].(later).msg)
+	if got := src.Asked(); len(got) != 1 || got[0] != "https://avatars.githubusercontent.com/u/170000000?s=40&v=4" {
+		t.Errorf("fetched %q, want the owner's avatar", got)
+	}
+	if n := uitest.Placeholders(t, m.header); n != 2 {
+		t.Errorf("%d placeholder cells in the header, want 2:\n%q", n, m.header)
+	}
+	// They survive the composition of the whole screen.
+	if n := uitest.Placeholders(t, m.View().Content); n != 2 {
+		t.Errorf("%d placeholder cells on screen, want the header's 2", n)
+	}
+	for _, w := range []int{80, 12, 4} {
+		feed(m, tea.WindowSizeMsg{Width: w, Height: 24})
+		if got := ansi.StringWidth(m.header); got != w {
+			t.Errorf("header is %d wide, want %d", got, w)
+		}
+		uitest.Placeholders(t, m.header)
+	}
+	// Other screens name no repository and show no avatar.
+	run(m, m.key(press("n")))
+	if n := uitest.Placeholders(t, m.header); n != 0 {
+		t.Errorf("the notifications' header shows %d placeholder cells", n)
 	}
 }

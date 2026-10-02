@@ -3,7 +3,7 @@
     "repository": {
       "id": "R_kgDOMbT0Qw",
       "name": "gh-tui",
-      "owner": { "login": "eggzec" },
+      "owner": { "login": "eggzec", "avatarUrl": "https://avatars.githubusercontent.com/u/170000000?v=4" },
       "description": "A GitHub client for the terminal",
       "defaultBranchRef": { "name": "main" },
       "primaryLanguage": { "name": "Go", "color": "#00ADD8" },

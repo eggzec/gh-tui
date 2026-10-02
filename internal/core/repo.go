@@ -140,5 +140,8 @@ type Repo struct {
 	Mirror        bool
 	UpdatedAt     time.Time
 	URL           string
-	Caps          RepoCaps
+	// OwnerAvatarURL is the address of the avatar of the owner, a user or
+	// an organization, as GitHub gave it.
+	OwnerAvatarURL string
+	Caps           RepoCaps
 }

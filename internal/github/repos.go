@@ -18,7 +18,7 @@ import (
 const repoFields = `fragment repoFields on Repository {
   id
   name
-  owner { login }
+  owner { login avatarUrl }
   description
   defaultBranchRef { name }
   primaryLanguage { name color }
@@ -80,7 +80,8 @@ type repoNode struct {
 	ID    string `json:"id"`
 	Name  string `json:"name"`
 	Owner struct {
-		Login string `json:"login"`
+		Login     string `json:"login"`
+		AvatarURL string `json:"avatarUrl"`
 	} `json:"owner"`
 	Description string `json:"description"`
 	// An empty repository has no default branch and may have no language.
@@ -113,6 +114,8 @@ func (n repoNode) core() core.Repo {
 		Mirror:      n.IsMirror,
 		UpdatedAt:   n.UpdatedAt,
 		URL:         n.URL,
+
+		OwnerAvatarURL: n.Owner.AvatarURL,
 	}
 	if n.DefaultBranchRef != nil {
 		r.DefaultBranch = n.DefaultBranchRef.Name

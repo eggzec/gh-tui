@@ -96,6 +96,9 @@ type Model struct {
 
 	repo   core.RepoRef
 	branch string
+	// ownerAvatar is the address of the avatar of repo's owner, once its
+	// read says.
+	ownerAvatar string
 	// base is what the files of repo are shown at, set by a ui.BaseMsg;
 	// its Ref is empty for the head of the default branch.
 	base  ui.BaseMsg
