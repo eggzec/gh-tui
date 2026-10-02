@@ -84,13 +84,14 @@ func Say(p *core.Problem, v Voice) (text, hint string) {
 
 // SayKept returns what a view says while it shows what an earlier read
 // kept, because of a problem of kind: GitHub out of reach, or a rate
-// limit. It is "" for any other kind, which serves nothing kept.
-func SayKept(kind core.ProblemKind) string {
+// limit, with the separator of ic. It is "" for any other kind, which
+// serves nothing kept.
+func SayKept(kind core.ProblemKind, ic Icons) string {
 	switch kind {
 	case core.Offline:
-		return "offline · showing the last visit"
+		return "offline" + ic.Separator + "showing the last visit"
 	case core.RateLimited:
-		return "rate limited · showing the last visit"
+		return "rate limited" + ic.Separator + "showing the last visit"
 	default:
 		return ""
 	}

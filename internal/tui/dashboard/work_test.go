@@ -40,7 +40,7 @@ func TestWrapWork(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ref, lines := wrapWork(tt.issue, tt.width, 3)
+			ref, lines := wrapWork(tt.issue, tt.width, 3, "…")
 			if ref != tt.ref || strings.Join(lines, "|") != strings.Join(tt.lines, "|") {
 				t.Fatalf("wrapWork = %q, %q; want %q, %q", ref, lines, tt.ref, tt.lines)
 			}
@@ -99,20 +99,20 @@ func TestWorkWraps(t *testing.T) {
 	want := [][]string{{
 		// The full titles of the tabs don't fit in 54 cells.
 		" Reviews 1  Mine 3  Assigned 1",
-		"▌ O permit#48 Implement license key generation with",
-		"▌   batch metadata and error handling              6mo",
+		"> O permit#48 Implement license key generation with",
+		">   batch metadata and error handling              6mo",
 	}, {
 		" Reviews 1  Mine 3  Assigned 1",
-		"▌ O slk#239 fix(ui): preserve scroll position in",
-		"▌   messages.Model on resize; throttle the redraws  1h",
+		"> O slk#239 fix(ui): preserve scroll position in",
+		">   messages.Model on resize; throttle the redraws  1h",
 		"  O playground#3 Add initial sample README content 9mo",
 		"  O gh-tui#71 feat(dashboard): wrap the work waiting",
 		"    on you under its text, and lay the repositories",
 		"    out in columns                                  2h",
 	}, {
 		" Reviews 1  Mine 3  Assigned 1",
-		"▌ o gh-tui#70 The dashboard cuts the titles of the",
-		"▌   work waiting on you                             3d",
+		"> o gh-tui#70 The dashboard cuts the titles of the",
+		">   work waiting on you                             3d",
 	}}
 	for i, want := range want {
 		got := strings.Join(workLines(s), "\n")
@@ -202,7 +202,7 @@ func TestWorkScrollsByWholeItems(t *testing.T) {
 		sel := tab.rows[tab.sel]
 		marked := 0
 		for _, l := range lines {
-			if strings.HasPrefix(l, "▌") {
+			if strings.HasPrefix(l, ">") {
 				marked++
 			}
 		}

@@ -26,7 +26,7 @@ type styles struct {
 	cursor, blurred string
 }
 
-func newStyles(t ui.Theme) styles {
+func newStyles(t ui.Theme, ic ui.Icons) styles {
 	border := lipgloss.NewStyle().Foreground(lipgloss.Color(t.Palette.Border))
 	var states [ui.NumStates]paint
 	for i := range states {
@@ -48,8 +48,8 @@ func newStyles(t ui.Theme) styles {
 		success:    newPaint(t.Success),
 		warning:    newPaint(t.Warning),
 		selected:   newPaint(t.Title),
-		cursor:     t.Accent.Render("▌") + " ",
-		blurred:    t.Subtle.Render("▌") + " ",
+		cursor:     t.Accent.Render(ic.Cursor) + " ",
+		blurred:    t.Subtle.Render(ic.Cursor) + " ",
 	}
 }
 
