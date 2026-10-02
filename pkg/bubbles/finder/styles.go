@@ -3,6 +3,8 @@ package finder
 import (
 	"strings"
 
+	"charm.land/bubbles/v2/spinner"
+
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -45,6 +47,10 @@ type Styles struct {
 	Note   lipgloss.Style
 	// Spinner styles the spinner shown while the paths load or match.
 	Spinner lipgloss.Style
+	// SpinnerFrames are the frames the spinner draws. Zero keeps the
+	// default, spinner.Dot. As many frames as the default has keep the
+	// spinner drawing when they change while it spins.
+	SpinnerFrames spinner.Spinner
 	// Empty styles the text shown when nothing matches.
 	Empty lipgloss.Style
 	// Error styles a failed load.
@@ -107,6 +113,10 @@ func (m *Model) SetStyles(s Styles) {
 	m.esc = newEsc(s)
 	m.rows = nil
 	m.spin.Style = s.Spinner
+	m.spin.Spinner = spinner.Dot
+	if len(s.SpinnerFrames.Frames) > 0 {
+		m.spin.Spinner = s.SpinnerFrames
+	}
 	st := textinput.StyleState{Text: s.Text, Placeholder: s.Placeholder, Prompt: s.Prompt}
 	m.input.SetStyles(textinput.Styles{
 		Focused: st,

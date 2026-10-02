@@ -3,6 +3,7 @@ package logview
 import (
 	"strings"
 
+	"charm.land/bubbles/v2/spinner"
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -69,9 +70,13 @@ type Styles struct {
 	NoMatches lipgloss.Style
 	// Message styles the placeholder shown instead of a log, Spinner the
 	// spinner while loading, and LoadError a log that failed to load.
-	Message   lipgloss.Style
-	Spinner   lipgloss.Style
-	LoadError lipgloss.Style
+	Message lipgloss.Style
+	Spinner lipgloss.Style
+	// SpinnerFrames are the frames the spinner draws. Zero keeps the
+	// default, spinner.Dot. As many frames as the default has keep the
+	// spinner drawing when they change while it spins.
+	SpinnerFrames spinner.Spinner
+	LoadError     lipgloss.Style
 	// ErrorGlyph starts the text of a log that failed to load, and marks
 	// error lines in the gutter, beside the "!" of warnings and the "i" of
 	// notices, cut or padded to the gutter's one cell. The default is "✗".
@@ -150,6 +155,10 @@ func (m *Model) SetStyles(s Styles) {
 	m.styles = s
 	m.esc = newEsc(s)
 	m.spin.Style = s.Spinner
+	m.spin.Spinner = spinner.Dot
+	if len(s.SpinnerFrames.Frames) > 0 {
+		m.spin.Spinner = s.SpinnerFrames
+	}
 	m.renderTitle()
 	st := textinput.StyleState{
 		Text:        s.Text,

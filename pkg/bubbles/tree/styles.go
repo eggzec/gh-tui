@@ -1,6 +1,9 @@
 package tree
 
-import "charm.land/lipgloss/v2"
+import (
+	"charm.land/bubbles/v2/spinner"
+	"charm.land/lipgloss/v2"
+)
 
 // Styles holds the styles of a tree.
 type Styles struct {
@@ -31,6 +34,10 @@ type Styles struct {
 	Detail lipgloss.Style
 	// Spinner styles the spinner of a branch that is loading.
 	Spinner lipgloss.Style
+	// SpinnerFrames are the frames the spinner draws. Zero keeps the
+	// default, spinner.MiniDot. As many frames as the default has keep the
+	// spinner drawing when they change while it spins.
+	SpinnerFrames spinner.Spinner
 	// Loading styles the text shown while the top-level nodes load.
 	Loading lipgloss.Style
 	// Empty styles the text shown when there are no nodes.

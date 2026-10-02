@@ -294,6 +294,10 @@ func (m *Model[T]) SetStyles(s Styles) {
 	m.styles = s
 	m.md.SetStyle(m.markdownStyle())
 	m.spin.Style = s.Spinner
+	m.spin.Spinner = spinner.Dot
+	if len(s.SpinnerFrames.Frames) > 0 {
+		m.spin.Spinner = s.SpinnerFrames
+	}
 	m.text = texts{
 		loadingDoc:      s.Loading.Render("Loading" + s.Ellipsis),
 		loadingComments: s.Loading.Render("Loading comments" + s.Ellipsis),

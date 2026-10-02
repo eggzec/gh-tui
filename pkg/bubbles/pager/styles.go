@@ -4,6 +4,8 @@ import (
 	"image/color"
 	"strings"
 
+	"charm.land/bubbles/v2/spinner"
+
 	"charm.land/lipgloss/v2"
 
 	"github.com/alecthomas/chroma/v2"
@@ -43,6 +45,10 @@ type Styles struct {
 	Message lipgloss.Style
 	// Spinner styles the spinner shown while loading.
 	Spinner lipgloss.Style
+	// SpinnerFrames are the frames the spinner draws. Zero keeps the
+	// default, spinner.Dot. As many frames as the default has keep the
+	// spinner drawing when they change while it spins.
+	SpinnerFrames spinner.Spinner
 	// Error styles the placeholder of content that failed to load.
 	Error lipgloss.Style
 	// ErrorGlyph starts the text of content that failed to load. The
@@ -109,6 +115,10 @@ func (m *Model) SetStyles(s Styles) {
 	m.styles = s
 	m.esc = newEsc(s)
 	m.spin.Style = s.Spinner
+	m.spin.Spinner = spinner.Dot
+	if len(s.SpinnerFrames.Frames) > 0 {
+		m.spin.Spinner = s.SpinnerFrames
+	}
 	m.renderName()
 	m.prompt.SetStyles(cmdline.Styles{
 		Prompt:      s.Prompt,

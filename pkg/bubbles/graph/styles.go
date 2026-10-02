@@ -1,6 +1,9 @@
 package graph
 
-import "charm.land/lipgloss/v2"
+import (
+	"charm.land/bubbles/v2/spinner"
+	"charm.land/lipgloss/v2"
+)
 
 // gutterWidth is the width of the selection gutter left of every row.
 const gutterWidth = 2
@@ -40,6 +43,10 @@ type Styles struct {
 	Right lipgloss.Style
 	// Spinner styles the spinner of the loading row.
 	Spinner lipgloss.Style
+	// SpinnerFrames are the frames the spinner draws. Zero keeps the
+	// default, spinner.Dot. As many frames as the default has keep the
+	// spinner drawing when they change while it spins.
+	SpinnerFrames spinner.Spinner
 	// Loading styles the text of the loading row.
 	Loading lipgloss.Style
 	// Empty styles the text shown when there are no commits.
