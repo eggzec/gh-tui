@@ -3,6 +3,7 @@ package pulls
 import (
 	"strings"
 	"testing"
+	"unicode"
 
 	"github.com/charmbracelet/x/ansi"
 
@@ -87,5 +88,26 @@ func TestReviewAndChecksGlyphs(t *testing.T) {
 		if !strings.Contains(row, tt.want) {
 			t.Errorf("%s, %s: row = %q, want %q in it", tt.review, tt.checks, row, tt.want)
 		}
+	}
+}
+
+// With the ASCII icons a row is ASCII: its signs, the more after the
+// label and the ellipses of cut text.
+func TestRowASCII(t *testing.T) {
+	h := started(t, newFakeService(), 140, 10, WithIcons(ui.NewIcons(config.IconsASCII)))
+	s := h.Section
+	labels := make([]core.Label, 12)
+	for i := range labels {
+		labels[i] = core.Label{Name: "a-long-label-name"}
+	}
+	pr := core.PullRequest{Labels: labels, Additions: 120, Deletions: 40}
+	pr.Number, pr.Title, pr.State = 1, strings.Repeat("A long title ", 10), core.StateOpen
+	pr.Author.Login = "a-very-long-login"
+	row := ansi.Strip(s.renderRow(pr, false, 140))
+	if strings.ContainsFunc(row, func(r rune) bool { return r > unicode.MaxASCII }) {
+		t.Errorf("row %q isn't ASCII", row)
+	}
+	if !strings.Contains(row, "...") || !strings.Contains(row, "-40") {
+		t.Errorf("row %q lacks a cut or the deletions", row)
 	}
 }
