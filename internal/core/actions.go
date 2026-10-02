@@ -204,7 +204,12 @@ type Check struct {
 // Checks is what CI reported on a commit: its check runs and its commit
 // statuses, and their summary.
 type Checks struct {
-	SHA      string
+	SHA string
+	// Head is the commit the head branch of the pull request was at when
+	// its checks were read, empty for the checks of a commit. It is SHA,
+	// unless GitHub lists another commit last, as it may for a pull
+	// request of more commits than it lists.
+	Head     string
 	State    ChecksState
 	Runs     []Check
 	Statuses []StatusContext

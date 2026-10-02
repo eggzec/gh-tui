@@ -96,7 +96,7 @@ type PullsKinds struct {
 	Details Layer `yaml:"details,omitempty"`
 	// Comments is the first page of its conversation.
 	Comments Layer `yaml:"comments,omitempty"`
-	// Checks is the full list of its Checks tab.
+	// Checks is the full list of its checks, which its Checks step shows.
 	Checks Layer `yaml:"checks,omitempty"`
 	// OtherTabs is the first page of the state tabs not shown yet.
 	OtherTabs Layer `yaml:"other_tabs,omitempty"`

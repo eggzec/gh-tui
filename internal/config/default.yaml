@@ -269,8 +269,12 @@ prefetch:
   #   history: commits, branches (windows up to 10)
   #   actions: jobs, logs
   pulls:
-    # The full check list costs a request or more a row.
-    checks: {enabled: false}
+    # The full check list of a row costs a GraphQL query, and the rows
+    # show how their checks stand already, so it is off. Checks read in
+    # the last cache.ttl.actions aren't read again, even while some are
+    # pending, unless the row shows a new head; the Checks step polls
+    # pending checks once it opens.
+    checks: {enabled: false, window: {before: 0, after: 2}}
   dashboard:
     # Waiting on you is read while its pane has the focus, and the inbox
     # while the dashboard is on view. A row costs two requests, the detail

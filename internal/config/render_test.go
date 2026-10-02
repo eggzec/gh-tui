@@ -383,7 +383,7 @@ func TestLayersYAMLPrefetchKnobs(t *testing.T) {
 		lines = append(lines, line)
 	}
 	block = strings.Join(lines, "")
-	if want := "  pulls:\n    checks:\n      enabled: false\n    window:\n      after: 6 # config.yaml:3\n"; !strings.Contains(block, want) {
+	if want := "  pulls:\n    checks:\n      enabled: false\n      window:\n        before: 0\n        after: 2\n    window:\n      after: 6 # config.yaml:3\n"; !strings.Contains(block, want) {
 		t.Errorf("the prefetch settings lack the pulls window, set alone:\n%s", block)
 	}
 	for _, unwanted := range []string{"issues:", "{}", "null"} {

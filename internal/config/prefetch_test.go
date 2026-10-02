@@ -33,8 +33,8 @@ func TestResolveDefaults(t *testing.T) {
 	}{
 		{"pulls", "details", true, 1, 4, 150 * time.Millisecond,
 			"prefetch.enabled", "prefetch.window.before", "prefetch.window.after", "prefetch.rest", false},
-		{"pulls", "checks", false, 1, 4, 150 * time.Millisecond,
-			"prefetch.pulls.checks.enabled", "prefetch.window.before", "prefetch.window.after", "prefetch.rest", false},
+		{"pulls", "checks", false, 0, 2, 150 * time.Millisecond,
+			"prefetch.pulls.checks.enabled", "prefetch.pulls.checks.window.before", "prefetch.pulls.checks.window.after", "prefetch.rest", false},
 		{"dashboard", "waiting_on_you", true, 1, 2, 150 * time.Millisecond,
 			"prefetch.enabled", "prefetch.dashboard.waiting_on_you.window.before", "prefetch.dashboard.waiting_on_you.window.after", "prefetch.rest", false},
 		{"dashboard", "repositories", false, 1, 1, 150 * time.Millisecond,

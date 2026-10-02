@@ -1,6 +1,7 @@
 package actions
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -18,7 +19,9 @@ import (
 )
 
 // ChecksQuery selects the checks of a commit: of the head of pull request
-// Number, or else of commit SHA.
+// Number, or else of commit SHA. A query that sets both names the head the
+// pull request is known to be at: checks cached of another head count as
+// stale, since the head moved since they were read.
 type ChecksQuery struct {
 	Repo   core.RepoRef
 	Number int
@@ -48,6 +51,23 @@ func (s *Service) CachedChecks(q ChecksQuery) (core.Checks, bool) {
 	return e.Value, st != cache.Miss
 }
 
+// FreshChecks reports whether Checks returns the checks of q without a
+// request, since they are in memory, fresh, and of the head q names, if
+// it names one. It does no I/O.
+func (s *Service) FreshChecks(q ChecksQuery) bool {
+	q = q.normalize()
+	e, st := s.checks.Get(checksKey(q))
+	return st == cache.Fresh && !otherHead(q, e.Value)
+}
+
+// otherHead reports whether c, cached for pull request q.Number, were
+// read while its head was at another commit than q.SHA, the one the pull
+// request is known to be at now.
+func otherHead(q ChecksQuery, c core.Checks) bool {
+	head := cmp.Or(c.Head, c.SHA)
+	return q.Number > 0 && q.SHA != "" && head != "" && !strings.EqualFold(head, q.SHA)
+}
+
 // Checks returns the check runs and commit statuses of the commit q
 // names, in one GraphQL query. GraphQL has no validators, so a stale entry
 // is read again in full, and nothing is kept beyond memory: checks move
@@ -56,6 +76,10 @@ func (s *Service) Checks(ctx context.Context, q ChecksQuery) (core.Checks, error
 	q = q.normalize()
 	if q.Number <= 0 && q.SHA == "" {
 		return core.Checks{}, errNoCommit
+	}
+	// A read already cancelled leaves what is cached alone.
+	if e, st := s.checks.Get(checksKey(q)); ctx.Err() == nil && st != cache.Miss && otherHead(q, e.Value) {
+		s.checks.Invalidate(checksKey(q))
 	}
 	e, err := s.checks.Fetch(ctx, checksKey(q), func(ctx context.Context, _ cache.Entry[core.Checks], _ bool) (cache.Entry[core.Checks], error) {
 		var (

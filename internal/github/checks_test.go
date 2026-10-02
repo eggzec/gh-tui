@@ -18,7 +18,7 @@ func TestPullChecks(t *testing.T) {
 	}
 	checkPullQuery(t, reqs(), "query PullChecks(", map[string]any{"owner": "charmbracelet", "name": "bubbletea", "number": float64(1816)})
 
-	if got.SHA != "c11778a9bb071cc48387ff163ac44456ed859042" || got.State != core.ChecksSuccess ||
+	if got.SHA != "c11778a9bb071cc48387ff163ac44456ed859042" || got.Head != got.SHA || got.State != core.ChecksSuccess ||
 		got.Total != 34 || got.Truncated || len(got.Runs) != 34 || len(got.Statuses) != 0 {
 		t.Fatalf("checks = %+v, want the 34 check runs of the head commit", got)
 	}
