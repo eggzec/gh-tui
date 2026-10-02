@@ -89,6 +89,27 @@ func (m *Model) ReadNow() tea.Cmd {
 	return m.read()
 }
 
+// ReadLost reads again what was being read while the view was hidden,
+// such as behind a file preview opened from an annotation, whose answers
+// went to the preview and were lost: the annotations, and the log unless
+// it waited for a rest, which is lost too and read at once instead.
+func (m *Model) ReadLost() tea.Cmd {
+	if m.state == None {
+		return nil
+	}
+	var notes tea.Cmd
+	if m.notes.loading {
+		notes = m.readNotes()
+	}
+	if m.state != Loading {
+		return notes
+	}
+	// A rest or a read still to come is stale.
+	m.resting = false
+	m.seq++
+	return tea.Batch(notes, m.read())
+}
+
 // Err returns why the log failed to load, else why the annotations did,
 // or nil if neither failed.
 func (m Model) Err() error {

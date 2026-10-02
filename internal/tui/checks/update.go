@@ -361,8 +361,11 @@ func (s *Step) resume() tea.Cmd {
 	s.syncWatch()
 	cmds := []tea.Cmd{s.startTick()}
 	if s.mode == jobMode {
+		// What the view read while hidden first, so that a job shown
+		// anew isn't read twice.
+		lost := s.view.ReadLost()
 		show, _ := s.fromCacheJob()
-		cmds = append(cmds, show)
+		cmds = append(cmds, lost, show)
 		s.follow()
 	}
 	if s.loadingAny() {
