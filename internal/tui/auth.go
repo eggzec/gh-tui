@@ -215,7 +215,7 @@ func (m *Model) notice(a core.Access) string {
 		return ""
 	}
 	if h := m.token.Hint(); h != "" {
-		return text + " · " + h
+		return text + m.icons.Separator + h
 	}
 	return text + "."
 }

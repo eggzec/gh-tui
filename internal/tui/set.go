@@ -151,7 +151,7 @@ func (m *Model) completeSet(arg string, cursor, end int, atEnd bool) []cmdline.C
 			text += "="
 		}
 		detail, _ := m.cfg.Get(key)
-		detail = shorten(ui.OneLine(detail), maxValue)
+		detail = m.shorten(ui.OneLine(detail), maxValue)
 		if _, ok := config.Startup(key); ok {
 			detail += ", at startup"
 		}

@@ -111,3 +111,38 @@ func identify(b key.Binding) string {
 
 // keysOf returns the keys of b, as one string.
 func keysOf(b key.Binding) string { return strings.Join(b.Keys(), " ") }
+
+// NameKeys returns b with its help, the keys it names and what it says
+// they do, in the words of ic, as Icons.Key puts them, such as "up/k" for
+// "↑/k" in the ASCII set. Help passes through it, or through Icons.Key,
+// before it is drawn, since it comes from key maps that know no icon set.
+func NameKeys(ic Icons, b key.Binding) key.Binding {
+	h := b.Help()
+	if k, d := ic.Key(h.Key), ic.Key(h.Desc); k != h.Key || d != h.Desc {
+		b.SetHelp(k, d)
+	}
+	return b
+}
+
+// NameLayerKeys returns layers with the keys of their bindings named as
+// NameKeys names them, for the hints and the help to show. It copies what
+// it changes, so the layers given stay as they were.
+func NameLayerKeys(ic Icons, layers []keyhelp.Layer) []keyhelp.Layer {
+	out := slices.Clone(layers)
+	for i := range out {
+		out[i].Bindings = nameAll(ic, out[i].Bindings)
+		out[i].Short = nameAll(ic, out[i].Short)
+	}
+	return out
+}
+
+func nameAll(ic Icons, bs []key.Binding) []key.Binding {
+	if bs == nil {
+		return nil
+	}
+	out := make([]key.Binding, len(bs))
+	for i, b := range bs {
+		out[i] = NameKeys(ic, b)
+	}
+	return out
+}
