@@ -287,6 +287,12 @@ func (s *Section) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 // so that every directory comes from the same one.
 func (s *Section) refresh() tea.Cmd {
 	s.svc.Invalidate(s.repo)
+	// A refresh tries again the reads ahead that failed lately.
+	s.ahead.Resume()
+	s.dirs.Resume()
+	if f := s.finder; f != nil {
+		f.ahead.Resume()
+	}
 	return s.reload()
 }
 

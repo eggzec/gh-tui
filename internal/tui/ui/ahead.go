@@ -49,6 +49,9 @@ type Ahead[K comparable] struct {
 	// flying holds the rows being read, so that a row whose read is in
 	// flight isn't read again meanwhile.
 	flying *flights[K]
+	// failed holds the rows whose read ahead failed lately, so that a row
+	// that keeps failing isn't sent again on every rest.
+	failed *failures[K]
 	// pause holds the reads that haven't started while it is closed.
 	pause *gate
 	// overBudget is set once a read was skipped for the budget, which
@@ -106,6 +109,7 @@ func NewAhead[K comparable](kind string, read func(ctx context.Context, k K) err
 		cancel:  func() {},
 		limited: new(atomic.Bool),
 		flying:  newFlights[K](),
+		failed:  newFailures[K](),
 		pause:   newGate(),
 		// Until it shares the session's ([Ahead.Share]).
 		slots:   NewSlots(config.Default().Prefetch.Parallel),
@@ -132,6 +136,9 @@ func (a *Ahead[K]) Reset(parent context.Context) {
 	a.parent = parent
 	a.ctx, a.cancel = context.WithCancel(obs.ForPrefetch(parent))
 	a.flying.clear()
+	// A new list tries its rows again. Reads of the last list still
+	// unwinding note their failures in the old set, which nothing reads.
+	a.failed = newFailures[K]()
 	a.seq++
 	// Cancelling ctx cancelled the reads of the window.
 	clear(a.reading)
@@ -147,10 +154,12 @@ func (a *Ahead[K]) Opened(k K) {
 }
 
 // Resume reads ahead again after GitHub reported the rate limit, such as
-// for another repository.
+// for another repository, and tries again the rows whose reads failed
+// lately, such as when the user refreshes the list.
 func (a *Ahead[K]) Resume() {
 	if a != nil {
 		a.limited.Store(false)
+		a.failed = newFailures[K]()
 		// The window the rate limit stopped is read at the next call,
 		// even if the cursor didn't move.
 		a.windowed = false
@@ -196,7 +205,7 @@ func (a *Ahead[K]) start(ks []K) batch[K] {
 	for _, k := range ks {
 		a.seen.Started(k)
 	}
-	return batch[K]{id: id, read: a.read, current: a.current, limited: a.limited, seen: a.seen, flying: a.flying, pause: a.pause, slots: a.slots}
+	return batch[K]{id: id, read: a.read, current: a.current, limited: a.limited, seen: a.seen, flying: a.flying, failed: a.failed, pause: a.pause, slots: a.slots}
 }
 
 // halted reports why reads ahead stop, if they do: GitHub reported the
@@ -264,6 +273,7 @@ type batch[K comparable] struct {
 	limited *atomic.Bool
 	seen    *obs.Prefetched[K]
 	flying  *flights[K]
+	failed  *failures[K]
 	pause   *gate
 	slots   *Slots
 }
@@ -383,6 +393,11 @@ func (b batch[K]) send(ctx context.Context, k K, held bool, waited time.Duration
 	default:
 		outcome = "failed"
 		b.seen.Count(obs.PrefetchFailed)
+		// A read that got no answer, or only a server error, may well
+		// succeed once GitHub answers again, which OnlineMsg tells of.
+		if !Unreached(err) {
+			b.failed.add(k, time.Now())
+		}
 	}
 	b.end(k, err == nil)
 	if obs.Enabled(ctx, slog.LevelDebug) {
@@ -441,6 +456,43 @@ func (f *flights[K]) clear() {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	clear(f.rows)
+}
+
+// aheadFailedFor is how long a row whose read ahead failed isn't read
+// ahead again. A read that fails, such as for a row GitHub no longer has
+// or one the token can't see, mostly fails again, while the cursor rests
+// near it many times a minute.
+const aheadFailedFor = time.Minute
+
+// failures holds the rows whose read ahead failed, each until it may be
+// read ahead again. The reads end in commands, so it is safe for
+// concurrent use.
+type failures[K comparable] struct {
+	mu    sync.Mutex
+	until map[K]time.Time
+}
+
+func newFailures[K comparable]() *failures[K] { return &failures[K]{until: make(map[K]time.Time)} }
+
+// add notes that the read of k failed at now, and forgets the rows whose
+// span has passed.
+func (f *failures[K]) add(k K, now time.Time) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for r, until := range f.until {
+		if !now.Before(until) {
+			delete(f.until, r)
+		}
+	}
+	f.until[k] = now.Add(aheadFailedFor)
+}
+
+// recent reports whether the read of k failed within the span before now.
+func (f *failures[K]) recent(k K, now time.Time) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	until, ok := f.until[k]
+	return ok && now.Before(until)
 }
 
 // gate holds whoever waits on it while it is closed, by one or more

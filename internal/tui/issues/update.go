@@ -190,6 +190,7 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 		return s.show(s.tab, "")
 	case key.Matches(msg, k.Refresh):
 		s.svc.Invalidate(s.repo)
+		s.ahead.Resume()
 		return s.list.Reload()
 	case key.Matches(msg, k.Open):
 		if it, ok := s.list.Selected(); ok && it.URL != "" {

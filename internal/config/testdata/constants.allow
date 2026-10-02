@@ -112,6 +112,7 @@ internal/images/signed.go:unknownExpiry  keep: a safety mechanism, the life of a
 
 # The tui.
 internal/tui/search/section.go:DefaultDebounce  keep: the debounce of typing, a feel constant
+internal/tui/ui/ahead.go:aheadFailedFor  keep: a safety mechanism, how long a row whose read ahead failed isn't read ahead again
 internal/tui/cmdhistory.go:historyWait  keep: a mechanism, how long saving the command history waits for its lock
 internal/tui/online.go:onlineGap  keep: a safety mechanism, how seldom a flapping connection wakes the failed panes
 internal/tui/terminal.go:terminalWait  keep: a probe timeout, how long the terminal may take to say its version

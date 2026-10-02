@@ -65,19 +65,21 @@ func TestPrefetchWindow(t *testing.T) {
 		t.Error("go.mod isn't cached after reading ahead")
 	}
 
-	// A refresh that finds the same listing reads nothing again.
+	// A refresh that finds the same listing reads again only .gitignore,
+	// which failed: a refresh tries again what failed.
 	keys(s, "r")
+	want = []string{"b-.gitignore", "b-.gitignore", "b-empty.txt", "b-go.mod"}
 	if got := f.blobSHAs(); !slices.Equal(got, want) {
-		t.Errorf("read ahead %q after a refresh, want nothing new", got)
+		t.Errorf("read ahead %q after a refresh, want %q", got, want)
 	}
 	// A new listing reads only what isn't cached: the new file, and
-	// .gitignore, which failed.
+	// .gitignore again.
 	root := f.trees[treeKey(ghTUI, "")]
 	added := file("new.md", 10)
 	f.addBlob(added, "new")
 	f.addTree(ghTUI, "", append(root.Entries, added)...)
 	keys(s, "r")
-	want = []string{"b-.gitignore", "b-.gitignore", "b-empty.txt", "b-go.mod", "b-new.md"}
+	want = []string{"b-.gitignore", "b-.gitignore", "b-.gitignore", "b-empty.txt", "b-go.mod", "b-new.md"}
 	if got := f.blobSHAs(); !slices.Equal(got, want) {
 		t.Errorf("read ahead %q after a change, want %q", got, want)
 	}

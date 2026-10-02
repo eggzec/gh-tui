@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"slices"
 	"strings"
@@ -938,6 +939,154 @@ func TestAheadWindowFirstShownOnly(t *testing.T) {
 		}
 		if got := r.reads(); len(got) != 0 {
 			t.Errorf("read %v before the cursor rested", got)
+		}
+	})
+}
+
+// TestAheadSkipsRowsThatFailed checks that a row whose read ahead failed
+// isn't read ahead again for a while, however often the cursor rests near
+// it, and is once the while has passed.
+func TestAheadSkipsRowsThatFailed(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		_, stats := captureLog(t)
+		r := newReader()
+		r.err = errors.New("boom")
+		a := newAhead(t, r, 0, 1, time.Millisecond)
+		rows := rowsOf(30)
+		run(a.Window(rows, 0))
+		// One row down: only the row that came in is sent.
+		run(rest(t, a, a.Window(rows, 1)))
+		if got, want := r.reads(), []int{1, 2, 3}; !slices.Equal(got, want) {
+			t.Errorf("read %v, want each row once, %v", got, want)
+		}
+		if cmd := rest(t, a, a.Window(rows, 0)); cmd != nil {
+			t.Error("a rest on rows that failed lately read them again")
+		}
+		if p := rowCounts(stats); p.Sent != 3 || p.Failed != 3 {
+			t.Errorf("counted %+v, want 3 sent and failed", p)
+		}
+
+		time.Sleep(aheadFailedFor)
+		r.mu.Lock()
+		r.err = nil
+		r.mu.Unlock()
+		run(rest(t, a, a.Window(rows, 1)))
+		if got, want := r.reads(), []int{1, 2, 2, 3, 3}; !slices.Equal(got, want) {
+			t.Errorf("read %v, want the rows again once the while passed, %v", got, want)
+		}
+	})
+}
+
+// TestAheadResetForgetsFailures checks that a new list reads ahead the rows
+// whose reads failed for the last one.
+func TestAheadResetForgetsFailures(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		r := newReader()
+		r.err = errors.New("boom")
+		a := newAhead(t, r, 0, 0, time.Millisecond)
+		run(a.Window(rowsOf(30), 0))
+		r.mu.Lock()
+		r.err = nil
+		r.mu.Unlock()
+		a.Reset(t.Context())
+		run(a.Window(rowsOf(30), 0))
+		if got, want := r.reads(), []int{1, 1}; !slices.Equal(got, want) {
+			t.Errorf("read %v, want the row again for the new list, %v", got, want)
+		}
+	})
+}
+
+// TestAheadRereadsRowsNotFailed checks that rows whose reads got no answer
+// from GitHub, only a server error, or the rate limit, or were cancelled,
+// aren't held back as failed.
+func TestAheadRereadsRowsNotFailed(t *testing.T) {
+	for name, err := range map[string]error{
+		"offline":      fmt.Errorf("list: %w", core.ErrOffline),
+		"server error": fmt.Errorf("list: %w", core.ErrUnavailable),
+	} {
+		t.Run(name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				r := newReader()
+				r.err = err
+				a := newAhead(t, r, 0, 0, time.Millisecond)
+				run(a.Window(rowsOf(30), 0))
+				r.mu.Lock()
+				r.err = nil
+				r.mu.Unlock()
+				// GitHub answers again: away and back, the row is read again.
+				run(rest(t, a, a.Window(rowsOf(30), 1)))
+				run(rest(t, a, a.Window(rowsOf(30), 0)))
+				if got, want := r.reads(), []int{1, 1, 2}; !slices.Equal(got, want) {
+					t.Errorf("read %v, want row 1 again, %v", got, want)
+				}
+			})
+		})
+	}
+	t.Run("rate limit", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			r := newReader()
+			r.err = core.ErrRateLimited
+			a := newAhead(t, r, 0, 0, time.Millisecond)
+			run(a.Window(rowsOf(30), 0))
+			if a.failed.recent(1, time.Now()) {
+				t.Error("a read the rate limit stopped counts as failed")
+			}
+			r.mu.Lock()
+			r.err = nil
+			r.mu.Unlock()
+			a.Resume()
+			run(rest(t, a, a.Window(rowsOf(30), 0)))
+			if got, want := r.reads(), []int{1, 1}; !slices.Equal(got, want) {
+				t.Errorf("read %v, want the row again once resumed, %v", got, want)
+			}
+		})
+	})
+	t.Run("cancelled", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			r := newReader()
+			r.hold = make(chan struct{})
+			a := newAhead(t, r, 0, 0, time.Millisecond)
+			first := a.Window(rowsOf(30), 10)
+			done := make(chan struct{})
+			go func() {
+				run(first)
+				close(done)
+			}()
+			synctest.Wait()
+			// Moving away cancels the read of row 11, which unwinds.
+			away := rest(t, a, a.Window(rowsOf(30), 20))
+			<-done
+			close(r.hold)
+			run(away)
+			run(rest(t, a, a.Window(rowsOf(30), 10)))
+			if got, want := r.reads(), []int{11, 11, 21}; !slices.Equal(got, want) {
+				t.Errorf("read %v, want row 11 again once back, %v", got, want)
+			}
+		})
+	})
+}
+
+// TestAheadResumeRetriesFailures checks that Resume, as a refresh calls it,
+// tries again at once the rows whose reads failed lately.
+func TestAheadResumeRetriesFailures(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		r := newReader()
+		r.err = errors.New("boom")
+		a := newAhead(t, r, 0, 0, time.Millisecond)
+		run(a.Window(rowsOf(30), 0))
+		r.mu.Lock()
+		r.err = nil
+		r.mu.Unlock()
+		if cmd := rest(t, a, a.Window(rowsOf(30), 1)); cmd != nil {
+			run(cmd)
+		}
+		if cmd := rest(t, a, a.Window(rowsOf(30), 0)); cmd != nil {
+			t.Error("a rest read again a row that failed lately")
+		}
+		a.Resume()
+		run(rest(t, a, a.Window(rowsOf(30), 0)))
+		if got, want := r.reads(), []int{1, 1, 2}; !slices.Equal(got, want) {
+			t.Errorf("read %v, want row 1 again once resumed, %v", got, want)
 		}
 	})
 }
