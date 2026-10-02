@@ -345,7 +345,7 @@ func header() core.Header {
 			Login: "octocat", Name: "Mona Lisa Octocat", Bio: "Building tools for the terminal",
 			Company: "@github", Location: "San Francisco", Followers: 1234, Following: 56,
 			Status: core.Status{Emoji: ":ship:", Message: "Shipping the dashboard"},
-			URL:    "https://github.com/octocat",
+			URL:    "https://github.com/octocat", AvatarURL: "https://avatars.githubusercontent.com/u/583231?v=4",
 		},
 		Pinned: []core.Repo{
 			pinnedRepo("octocat", "hello-world", "My first repository on GitHub, with a description long enough to wrap onto a second line", "Go", 2345),

@@ -278,6 +278,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		dashboard.WithContributions(cfg.Dashboard.ContributionDays()),
 		dashboard.WithIcons(icons),
 		dashboard.WithDates(dates),
+		dashboard.WithAvatars(avatars),
 		dashboard.WithHost(webHost),
 		dashboard.WithDetails(pullSvc, issueSvc),
 		dashboard.WithLanding(landing{repos: repoSvc, files: fileSvc}),

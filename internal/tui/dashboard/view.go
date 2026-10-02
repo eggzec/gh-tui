@@ -18,10 +18,12 @@ import (
 // at the bottom. Below that, or zoomed, it shows the profile and the
 // focused pane, whose frame names the others.
 const (
-	wideWidth     = 100
-	wideHeight    = 30
-	profileHeight = 2
-	pinnedHeight  = cardHeight + 2
+	wideWidth  = 100
+	wideHeight = 30
+	// profileLines is how many lines the profile takes without an
+	// avatar beside it.
+	profileLines = 2
+	pinnedHeight = cardHeight + 2
 	// calendarLines is what the calendar draws: the total, the months,
 	// seven days and the legend.
 	calendarLines  = 10
@@ -41,7 +43,7 @@ type box struct{ w, h int }
 // layout sizes the panes for the dashboard's size.
 func (s *Section) layout() {
 	s.wide = s.width >= wideWidth && s.height >= wideHeight
-	rest := max(s.height-profileHeight, 0)
+	rest := max(s.height-s.profileHeight(), 0)
 	var b [numPanes]box
 	if !s.onePane() {
 		mid := max(rest-pinnedHeight-calendarHeight, 0)
@@ -126,7 +128,7 @@ func (s *Section) compose() {
 		s.view = ""
 		return
 	}
-	lines := make([]string, 0, s.height+profileHeight)
+	lines := make([]string, 0, s.height+s.profileHeight())
 	lines = append(lines, s.head...)
 	if s.onePane() {
 		lines = append(lines, s.frames[s.focus]...)
@@ -265,12 +267,48 @@ func (s *Section) frame(label string, labelW int, b box, focused bool, body []st
 	return append(lines, edge.render(bd.BottomLeft+strings.Repeat(bd.Bottom, b.w-2)+bd.BottomRight))
 }
 
-// profile renders the two lines above the panes: who the viewer is, and
-// how the dashboard is doing.
+// profileHeight is how many lines the profile takes: those of the
+// avatar's box when the avatar is drawn, whether it has arrived or not,
+// so that nothing moves when it does.
+func (s *Section) profileHeight() int {
+	if s.avatarShown() {
+		return max(profileLines, ui.AvatarLarge.Rows)
+	}
+	return profileLines
+}
+
+// minAvatarWidth is the narrowest dashboard that shows the avatar: room
+// for its box, the space before it and some of the profile beside it.
+const minAvatarWidth = 1 + 6 + 20
+
+// avatarShown reports whether the profile shows the viewer's avatar:
+// where avatars are drawn, on a dashboard wide enough.
+func (s *Section) avatarShown() bool {
+	return s.avatars.Shown() && s.width >= minAvatarWidth
+}
+
+// profile renders the lines above the panes: who the viewer is, and how
+// the dashboard is doing, beside the viewer's avatar where it is drawn.
 func (s *Section) profile() []string {
 	st, w := &s.st, s.width
+	n := s.profileHeight()
 	if w <= 2 {
-		return []string{fit("", w), fit("", w)}
+		lines := make([]string, n)
+		for i := range lines {
+			lines[i] = fit("", w)
+		}
+		return lines
+	}
+	avatar := ""
+	if s.header.ok {
+		avatar = ui.SizedAvatar(s.header.value.Profile.AvatarURL, ui.AvatarLarge)
+	}
+	// The avatar's box goes first on each line, after a space, outside
+	// any style, since its cells name the image by their color.
+	var box []string
+	if s.avatarShown() {
+		box = s.avatars.Box(avatar, ui.AvatarLarge)
+		w -= 1 + ui.AvatarLarge.Cols
 	}
 	var first, second, right string
 	switch h := s.header; {
@@ -306,7 +344,14 @@ func (s *Section) profile() []string {
 	case s.updating():
 		right = st.subtle.render("updating…")
 	}
-	return []string{spread(" "+first, "", w), spread(" "+second, right+" ", w)}
+	lines := []string{spread(" "+first, "", w), spread(" "+second, right+" ", w)}
+	for len(lines) < n {
+		lines = append(lines, fit("", w))
+	}
+	for i := range box {
+		lines[i] = " " + box[i] + lines[i]
+	}
+	return lines
 }
 
 // facts lists the company, location, follows and status of p.

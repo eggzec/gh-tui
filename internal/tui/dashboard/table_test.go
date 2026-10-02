@@ -46,7 +46,7 @@ func TestLayoutCols(t *testing.T) {
 func reposLines(s *Section) []string {
 	b := s.boxes[reposPane]
 	if !s.wide {
-		b = box{s.width, s.height - profileHeight}
+		b = box{s.width, s.height - s.profileHeight()}
 	}
 	body := s.reposBody(b.w-2, b.h-2)
 	out := make([]string, 0, len(body))

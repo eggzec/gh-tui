@@ -66,6 +66,10 @@ func (s *Section) update(msg tea.Msg) (tea.Cmd, bool) {
 		return nil, true
 	case ui.OnlineMsg:
 		return s.online(), true
+	case ui.AvatarsMsg:
+		// The profile may have gained or lost the avatar's rows.
+		s.layout()
+		return nil, true
 	case ui.AccessMsg:
 		// The inbox the token was refused, or failed to read, it may
 		// read now.
