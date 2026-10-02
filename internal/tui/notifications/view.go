@@ -9,6 +9,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // headerHeight is the line above the list that shows the filter.
@@ -39,7 +40,7 @@ type styles struct {
 	unreadDot, readDot            string
 }
 
-func newStyles(t ui.Theme) styles {
+func newStyles(t ui.Theme, ic ui.Icons) styles {
 	return styles{
 		tag:               newPaint(t.Muted),
 		repo:              newPaint(t.Muted),
@@ -52,7 +53,7 @@ func newStyles(t ui.Theme) styles {
 		selectedReadTitle: newPaint(t.Text),
 		filter:            newPaint(t.Text),
 		hint:              newPaint(t.Subtle),
-		unreadDot:         t.Accent.Render("●"),
+		unreadDot:         t.Accent.Render(ic.Dot),
 		readDot:           " ",
 	}
 }
@@ -134,24 +135,25 @@ func (s *Section) render(n core.Notification, selected bool, width int) string {
 		}
 	}
 
+	ell := s.icons.Ellipsis
 	var b strings.Builder
 	b.Grow(width + 96)
 	b.WriteString(dot)
 	b.WriteByte(' ')
 	if l.tag > 0 {
-		tag.write(&b, fit(subjectTag(n.Subject.Type), l.tag))
+		tag.write(&b, fit(subjectTag(n.Subject.Type, strings.TrimSpace(s.icons.Separator)), l.tag, ell))
 		b.WriteByte(' ')
 	}
 	if l.repo > 0 {
-		repo.write(&b, fit(repoLabel(n.Repo, l.repo), l.repo))
+		repo.write(&b, fit(repoLabel(n.Repo, l.repo, ell), l.repo, ell))
 		spaces(&b, gap)
 	}
 	// The title links to the thread's page.
-	t := cut(ui.OneLine(n.Subject.Title), l.title)
+	t := cut(ui.OneLine(n.Subject.Title), l.title, ell)
 	b.WriteString(s.links.Link(n.Subject.WebURL, title.render(t)))
 	spaces(&b, l.title-ansi.StringWidth(t)+gap)
 	if l.reason > 0 {
-		st.reason.write(&b, fit(shortReason(n.Reason), l.reason))
+		st.reason.write(&b, fit(shortReason(n.Reason), l.reason, ell))
 		spaces(&b, gap)
 	}
 	age := ""
@@ -172,20 +174,21 @@ func (s *Section) renderHeader() {
 		name = "All"
 	}
 	h := "  " + s.styles.filter.render(name)
-	if chips := f.chips(); chips != "" {
-		h += s.styles.filter.render(" · " + chips)
+	sep := s.icons.Separator
+	if chips := f.chips(sep); chips != "" {
+		h += s.styles.filter.render(sep + chips)
 	}
 	var hints []string
 	if k := s.keys.Filter.Help().Key; k != "" {
-		hints = append(hints, k+" filter")
+		hints = append(hints, s.icons.Key(k)+" filter")
 	}
 	if k := s.keys.ClearFilter.Help().Key; k != "" && s.filtered() {
-		hints = append(hints, k+" clear")
+		hints = append(hints, s.icons.Key(k)+" clear")
 	}
 	if len(hints) > 0 {
-		h += s.styles.hint.render("  " + strings.Join(hints, " · "))
+		h += s.styles.hint.render("  " + strings.Join(hints, sep))
 	}
-	s.header = fitANSI(h, s.width)
+	s.header = fitANSI(h, s.width, s.icons.Ellipsis)
 	s.feed.SetEmptyText(s.emptyText())
 }
 
@@ -238,8 +241,9 @@ func (s *Section) renderUnreadable() {
 	s.unreadable = strings.Join(ui.FitLines(lines, s.width, h), "\n")
 }
 
-// subjectTag is the short tag of a subject type.
-func subjectTag(t core.SubjectType) string {
+// subjectTag is the short tag of a subject type, or other for a type
+// without one.
+func subjectTag(t core.SubjectType, other string) string {
 	switch t {
 	case core.SubjectPullRequest:
 		return "pr"
@@ -254,7 +258,7 @@ func subjectTag(t core.SubjectType) string {
 	case core.SubjectCheckSuite:
 		return "ci"
 	}
-	return "·"
+	return other
 }
 
 // shortReason names why the user got a notification in a word.
@@ -288,8 +292,9 @@ func shortReason(r string) string {
 }
 
 // repoLabel names r in at most width cells. The name tells repositories
-// apart better than the owner, so the owner is shortened first.
-func repoLabel(r core.RepoRef, width int) string {
+// apart better than the owner, so the owner is shortened first, to end in
+// tail.
+func repoLabel(r core.RepoRef, width int, tail string) string {
 	full := r.String()
 	if ansi.StringWidth(full) <= width {
 		return full
@@ -299,19 +304,20 @@ func repoLabel(r core.RepoRef, width int) string {
 	if room < 2 {
 		return r.Name
 	}
-	return ansi.Truncate(r.Owner, room, "…") + "/" + r.Name
+	return termtext.Truncate(r.Owner, room, tail) + "/" + r.Name
 }
 
-// fit truncates plain s to width cells and pads it on the right.
-func fit(s string, width int) string {
-	s = cut(s, width)
+// fit truncates plain s to width cells, ending in tail, and pads it on the
+// right.
+func fit(s string, width int, tail string) string {
+	s = cut(s, width, tail)
 	return s + strings.Repeat(" ", width-ansi.StringWidth(s))
 }
 
-// cut truncates plain s to width cells.
-func cut(s string, width int) string {
+// cut truncates plain s to width cells, ending in tail.
+func cut(s string, width int, tail string) string {
 	if ansi.StringWidth(s) > width {
-		return ansi.Truncate(s, width, "…")
+		return termtext.Truncate(s, width, tail)
 	}
 	return s
 }
@@ -325,9 +331,10 @@ func fitRight(s string, width int) string {
 	return strings.Repeat(" ", width-w) + s
 }
 
-// fitANSI truncates styled s to width cells and pads it on the right.
-func fitANSI(s string, width int) string {
-	s = ansi.Truncate(s, width, "…")
+// fitANSI truncates styled s to width cells, ending in tail, and pads it
+// on the right.
+func fitANSI(s string, width int, tail string) string {
+	s = termtext.Truncate(s, width, tail)
 	return s + strings.Repeat(" ", max(width-ansi.StringWidth(s), 0))
 }
 

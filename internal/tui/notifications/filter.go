@@ -222,8 +222,8 @@ func (s *Section) setFilter(query string) tea.Cmd {
 // filtered reports whether the filter is other than the default inbox.
 func (s *Section) filtered() bool { return s.filter().query != defaultQuery }
 
-// chips names the filter in a few words, for the header.
-func (f *filter) chips() string {
+// chips names the filter in a few words, for the header, apart by sep.
+func (f *filter) chips(sep string) string {
 	parts := make([]string, 0, 3)
 	for _, t := range filterform.Tokenize(f.query) {
 		switch strings.ToLower(t.Qualifier) {
@@ -240,7 +240,7 @@ func (f *filter) chips() string {
 			parts = append(parts, t.Raw)
 		}
 	}
-	return strings.Join(parts, " · ")
+	return strings.Join(parts, sep)
 }
 
 // listQuery is what GitHub is asked for the filter: read threads or not.
