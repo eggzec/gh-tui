@@ -128,7 +128,7 @@ func (s *Section) newFinder() *finderModal {
 	f := &finderModal{
 		s:     s,
 		src:   s.src,
-		title: "Find file · " + s.repo.String(),
+		title: "Find file" + s.icons.Separator + s.repo.String(),
 		ctx:   ctx,
 		stop:  stop,
 		keys:  newFinderKeys(),
@@ -138,7 +138,7 @@ func (s *Section) newFinder() *finderModal {
 		f.sha = s.idx.sha
 	}
 	if s.baseLabel != "" {
-		f.title += " · " + s.baseLabel
+		f.title += s.icons.Separator + s.baseLabel
 	}
 	f.ahead = s.fileAhead(s.prefetch.finder)
 	f.ahead.Reset(ctx)
@@ -381,7 +381,7 @@ func (f *finderModal) moved() tea.Cmd {
 	}
 	if binaryExt[strings.ToLower(path.Ext(e.Name))] && !f.drawsImage(e) {
 		f.named = true
-		f.pager.SetMessage(e.Path, "Binary file, not shown"+browserHint(f.keys.Browser))
+		f.pager.SetMessage(e.Path, "Binary file, not shown"+browserHint(f.keys.Browser, f.s.icons))
 		return nil
 	}
 	if b, ok := f.s.svc.CachedBlob(f.s.blobQuery(e)); ok {
@@ -408,7 +408,7 @@ func (f *finderModal) showFile(e core.TreeEntry, b core.Blob, err error) tea.Cmd
 	if !f.img.draw(&f.pager) {
 		return nil
 	}
-	cmd, _ := fill(&f.pager, e, b, err, f.keys.Browser)
+	cmd, _ := fill(&f.pager, e, b, err, f.keys.Browser, f.s.icons)
 	return cmd
 }
 
@@ -418,7 +418,7 @@ func (f *finderModal) redraw() tea.Cmd {
 	if !f.img.redraw(&f.pager) {
 		return nil
 	}
-	cmd, _ := fill(&f.pager, f.img.entry, f.img.blob, f.img.err, f.keys.Browser)
+	cmd, _ := fill(&f.pager, f.img.entry, f.img.blob, f.img.err, f.keys.Browser, f.s.icons)
 	return cmd
 }
 
@@ -538,7 +538,7 @@ func (f *finderModal) SetTheme(t ui.Theme) {
 	f.find.SetStyles(t.Finder(f.s.icons))
 	f.pager.SetStyles(t.Pager(f.s.icons))
 	border := lipgloss.NewStyle().Foreground(lipgloss.Color(t.Palette.Border))
-	f.sep = " " + border.Render("│") + " "
+	f.sep = " " + border.Render(f.s.icons.Border.Left) + " "
 }
 
 // KeyLayers implements ui.Keyed: the finder's own keys, and then the
