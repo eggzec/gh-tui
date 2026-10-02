@@ -25,12 +25,13 @@ type format struct {
 	row, detail []string
 	date        ui.Dates
 	email       bool
-	// yes and no mark a signature GitHub verified and one it couldn't.
-	yes, no string
+	// yes and no mark a signature GitHub verified and one it couldn't,
+	// and sep goes between the parts of a detail.
+	yes, no, sep string
 }
 
 func newFormat(h config.History, dates ui.Dates, ic ui.Icons) format {
-	return format{row: slices.Clone(h.Row), detail: slices.Clone(h.Detail), date: dates, email: h.ShowEmail, yes: ic.Yes, no: ic.No}
+	return format{row: slices.Clone(h.Row), detail: slices.Clone(h.Detail), date: dates, email: h.ShowEmail, yes: ic.Yes, no: ic.No, sep: ic.Separator}
 }
 
 func short(sha string) string {
@@ -67,7 +68,7 @@ func (f format) graphCommit(c core.Commit, now time.Time) graph.Commit {
 			}
 		}
 	}
-	g.Detail = strings.Join(detail, " · ")
+	g.Detail = strings.Join(detail, f.sep)
 	g.Right = strings.Join(right, " ")
 	return g
 }
@@ -122,7 +123,7 @@ func (f format) dates(authored, committed, now time.Time) string {
 		return f.date.Prose(authored, now) + ", committed " + f.date.Prose(committed, now)
 	}
 	if f.date.Relative() {
-		return f.date.Prose(authored, now) + " · " + f.date.Date(authored, ui.AbsoluteLayout)
+		return f.date.Prose(authored, now) + f.sep + f.date.Date(authored, ui.AbsoluteLayout)
 	}
 	return f.date.Prose(authored, now)
 }

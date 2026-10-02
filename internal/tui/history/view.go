@@ -11,6 +11,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // labelWidth is the width of the names of the header's fields.
@@ -126,10 +127,11 @@ func (m *Modal) paneTitle(p pane, w int) string {
 			text, detail = short(c.c.SHA), ui.OneLine(c.c.Subject)
 		}
 	}
-	text = ansi.Truncate(ui.OneLine(text), w, "…")
+	ell := m.st.ic.Ellipsis
+	text = termtext.Truncate(ui.OneLine(text), w, ell)
 	line := st.Render(text)
 	if room := w - ansi.StringWidth(text) - 1; detail != "" && room > 1 {
-		line += " " + m.st.subtle.Render(ansi.Truncate(detail, room, "…"))
+		line += " " + m.st.subtle.Render(termtext.Truncate(detail, room, ell))
 	}
 	return fit(line, w)
 }
@@ -150,12 +152,12 @@ func (m *Modal) breadcrumb(w int) string {
 	for i := range crumbs {
 		crumbs[i] = ui.OneLine(crumbs[i])
 	}
-	const sep = " › "
+	sep, ell := " "+m.st.ic.Crumb+" ", m.st.ic.Ellipsis
 	// Drop the first crumbs until the rest fit.
 	for len(crumbs) > 1 && ansi.StringWidth(strings.Join(crumbs, sep)) > w {
 		crumbs = crumbs[1:]
-		if crumbs[0] != "…" {
-			crumbs = append([]string{"…"}, crumbs[1:]...)
+		if crumbs[0] != ell {
+			crumbs = append([]string{ell}, crumbs[1:]...)
 		}
 	}
 	var b strings.Builder
@@ -169,7 +171,7 @@ func (m *Modal) breadcrumb(w int) string {
 		}
 		b.WriteString(st.Render(c))
 	}
-	return ansi.Truncate(b.String(), w, "…")
+	return termtext.Truncate(b.String(), w, ell)
 }
 
 // commitGeom is how the commit pane shares its height: the header, the
@@ -240,17 +242,18 @@ func (m *Modal) commitLines(w, h int) []string {
 	header := m.headerLines(w)
 	if g.cut > 0 {
 		lines = append(lines, header[:g.header-1]...)
-		more := "… " + strconv.Itoa(g.cut) + " more lines"
+		ic := m.st.ic
+		more := ic.Ellipsis + " " + strconv.Itoa(g.cut) + " more lines"
 		if k := m.keys.Open.Help().Key; k != "" {
-			more += " · " + k + " opens it on GitHub"
+			more += ic.Separator + ic.Key(k) + " opens it on GitHub"
 		}
-		lines = append(lines, fit(m.st.subtle.Render(ansi.Truncate(more, w, "…")), w))
+		lines = append(lines, fit(m.st.subtle.Render(termtext.Truncate(more, w, ic.Ellipsis)), w))
 	} else {
 		lines = append(lines, header...)
 	}
 	lines = append(lines, padLines(m.fileLines(w, g.files), w, g.files)...)
 	if g.pager > 0 {
-		lines = append(lines, m.st.subtle.Render(strings.Repeat("─", w)))
+		lines = append(lines, m.st.subtle.Render(strings.Repeat(m.st.ic.Border.Top, w)))
 		lines = append(lines, strings.Split(c.pager.View(), "\n")...)
 	}
 	// Every part is rendered to the width already.
@@ -266,7 +269,7 @@ func (m *Modal) fileLines(w, h int) []string {
 		// The open key opens the commit, which is what failed.
 		return m.errorLines("load the commit", m.commitName(), c.err, true, "", w)
 	case !c.loaded:
-		return []string{fit(m.spin.View()+m.st.muted.Render("Loading the changes…"), w)}
+		return []string{fit(m.spin.View()+m.st.muted.Render("Loading the changes"+m.st.ic.Ellipsis), w)}
 	case len(c.files) == 0:
 		return []string{fit(m.st.muted.Render("This commit changed no files."), w)}
 	}
@@ -280,11 +283,11 @@ func (m *Modal) fileLines(w, h int) []string {
 		case c.filesErr != nil:
 			lines = append(lines, m.errorLines("load more files", m.commitName(), c.filesErr, false, m.st.noGutter, w)...)
 		case c.filesLoading:
-			lines = append(lines, fit(m.st.noGutter+m.spin.View()+m.st.muted.Render("Loading more files…"), w))
+			lines = append(lines, fit(m.st.noGutter+m.spin.View()+m.st.muted.Render("Loading more files"+m.st.ic.Ellipsis), w))
 		case c.next == "" && c.truncated:
 			text := "GitHub lists " + strconv.Itoa(core.MaxCommitFiles) + " files at most."
 			if k := m.keys.Open.Help().Key; k != "" {
-				text += " " + k + " shows them all."
+				text += " " + m.st.ic.Key(k) + " shows them all."
 			}
 			lines = append(lines, wrap(m.st.subtle.Render(text), w, m.st.noGutter)...)
 		}
@@ -345,21 +348,21 @@ func (m *Modal) fileRow(f core.CommitFile, cursor, focused bool, w int) string {
 	case core.FileCopied:
 		letter, st = "C", m.st.accent
 	case core.FileUnchanged:
-		letter, st = "·", m.st.subtle
+		letter, st = strings.TrimSpace(m.st.ic.Separator), m.st.subtle
 	case core.FileModified, core.FileChanged:
 	}
-	adds, dels := "+"+strconv.Itoa(f.Additions), "−"+strconv.Itoa(f.Deletions)
+	adds, dels := "+"+strconv.Itoa(f.Additions), m.st.ic.Minus+strconv.Itoa(f.Deletions)
 	countsW := ansi.StringWidth(adds) + 1 + ansi.StringWidth(dels)
 	name := ui.OneLine(f.Path)
 	if f.PreviousPath != "" && f.PreviousPath != f.Path {
-		name = ui.OneLine(f.PreviousPath) + " → " + name
+		name = ui.OneLine(f.PreviousPath) + " " + m.st.ic.Arrow + " " + name
 	}
 	room := w - 4
 	showCounts := room-countsW > 8
 	if showCounts {
 		room -= countsW + 1
 	}
-	name = truncateLeft(name, room)
+	name = truncateLeft(name, room, m.st.ic.Ellipsis)
 	line := gutter + st.Render(letter) + " " + m.st.text.Render(name)
 	if !showCounts {
 		return fit(line, w)
@@ -368,9 +371,9 @@ func (m *Modal) fileRow(f core.CommitFile, cursor, focused bool, w int) string {
 	return line + strings.Repeat(" ", max(pad, 1)) + m.st.success.Render(adds) + " " + m.st.error.Render(dels)
 }
 
-// truncateLeft cuts s to w cells from the left, so that a path keeps its
-// file name.
-func truncateLeft(s string, w int) string {
+// truncateLeft cuts s to w cells from the left, starting it with tail, so
+// that a path keeps its file name.
+func truncateLeft(s string, w int, tail string) string {
 	if w <= 0 {
 		return ""
 	}
@@ -378,7 +381,11 @@ func truncateLeft(s string, w int) string {
 	if sw <= w {
 		return s
 	}
-	return "…" + ansi.TruncateLeft(s, sw-w+1, "")
+	tw := ansi.StringWidth(tail)
+	if tw >= w {
+		return ansi.TruncateLeft(s, sw-w, "")
+	}
+	return tail + ansi.TruncateLeft(s, sw-w+tw, "")
 }
 
 // headerLines returns the rendered header of the commit shown, at width w,
@@ -468,7 +475,7 @@ func (m *Modal) renderHeader(w int) []string {
 				noun = " file"
 			}
 			field("Changes", m.st.success.Render("+"+strconv.Itoa(s.Additions))+" "+
-				m.st.error.Render("−"+strconv.Itoa(s.Deletions))+m.st.muted.Render(" in "+n+noun))
+				m.st.error.Render(m.st.ic.Minus+strconv.Itoa(s.Deletions))+m.st.muted.Render(" in "+n+noun))
 		case config.FieldBody:
 			lines = m.appendBody(lines, k.Body, w)
 		}
