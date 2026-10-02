@@ -223,7 +223,7 @@ func (m *Model) completeNumber(word string, start, end int) []cmdline.Candidate 
 			continue
 		}
 		out = append(out, cmdline.Candidate{
-			Text: name + "#" + num, Label: "#" + num, Detail: shorten(n.Title, maxDetail), Start: start, End: end,
+			Text: name + "#" + num, Label: "#" + num, Detail: m.shorten(n.Title, maxDetail), Start: start, End: end,
 		})
 		if len(out) == maxCandidates {
 			break
@@ -232,13 +232,15 @@ func (m *Model) completeNumber(word string, start, end int) []cmdline.Candidate 
 	return out
 }
 
-// shorten cuts s to n characters, ending with an ellipsis if it cut.
-func shorten(s string, n int) string {
+// shorten cuts s to n characters, ending with the icon set's ellipsis if
+// it cut.
+func (m *Model) shorten(s string, n int) string {
 	if utf8.RuneCountInString(s) <= n {
 		return s
 	}
+	tail := m.icons.Ellipsis
 	r := []rune(s)
-	return strings.TrimRight(string(r[:n-1]), " ") + "…"
+	return strings.TrimRight(string(r[:max(n-utf8.RuneCountInString(tail), 0)]), " ") + tail
 }
 
 // isLink reports whether word starts a link rather than a name, which

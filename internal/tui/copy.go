@@ -77,7 +77,7 @@ func (m *Model) copyCommand(arg string) tea.Cmd {
 	case len(text) > maxCopy:
 		return m.toast.Push(toast.Error, "The "+k.noun+" is too long to copy.")
 	}
-	return tea.Batch(tea.SetClipboard(text), m.toast.Push(toast.Info, "Copied "+shorten(ui.OneLine(text), maxCopied)+"."))
+	return tea.Batch(tea.SetClipboard(text), m.toast.Push(toast.Info, "Copied "+m.shorten(ui.OneLine(text), maxCopied)+"."))
 }
 
 // article returns noun after "A" or "An", as its sound needs, capitalized

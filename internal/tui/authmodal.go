@@ -162,9 +162,9 @@ func (m *authModal) render() {
 // lines renders the modal at width w: the account and the kind of token,
 // its scopes, what it may do, and what grants it more.
 func (m *authModal) lines(w int) []string {
-	st, a := &m.st, m.access
-	head := ui.OneLine(m.account) + " · " + kindName(a)
-	lines := []string{st.text.Render(ansi.Truncate(head, w, "…"))}
+	st, a, ic := &m.st, m.access, m.icons
+	head := ui.OneLine(m.account) + ic.Separator + kindName(a)
+	lines := []string{st.text.Render(ansi.Truncate(head, w, ic.Ellipsis))}
 	if a.Kind == core.TokenClassic && a.Known {
 		scopes := "no scopes"
 		if len(a.Scopes) > 0 {
@@ -184,12 +184,12 @@ func (m *authModal) lines(w int) []string {
 		}
 	}
 	if len(a.SSO) > 0 {
-		lines = append(lines, ansi.Truncate(st.no.Render(m.icons.No)+" "+st.text.Render("Some organizations need SSO authorization"), w, "…"))
+		lines = append(lines, ansi.Truncate(st.no.Render(m.icons.No)+" "+st.text.Render("Some organizations need SSO authorization"), w, ic.Ellipsis))
 	}
 	lines = append(lines, "")
 	switch {
 	case m.checking:
-		lines = append(lines, st.subtle.Render("Checking the token…"))
+		lines = append(lines, st.subtle.Render("Checking the token"+ic.Ellipsis))
 		return lines
 	case m.err != nil:
 		text, hint := ui.Say(core.Explain("check the token", m.err), m.voice)
@@ -199,7 +199,7 @@ func (m *authModal) lines(w int) []string {
 		lines = append(lines, st.muted.Render(l))
 	}
 	if u := m.plan.URL; u != "" {
-		lines = append(lines, m.links.Link(u, st.text.Render(ansi.Truncate(u, w, "…"))))
+		lines = append(lines, m.links.Link(u, st.text.Render(ansi.Truncate(u, w, ic.Ellipsis))))
 	}
 	if m.asks() {
 		q := ui.Confirm{Question: "Run " + commandLine(m.plan.Cmd, m.gh) + "?"}
@@ -220,11 +220,11 @@ func (m *authModal) capLine(c capability, w int) string {
 	case ok:
 		mark = st.yes.Render(m.icons.Yes)
 	case m.access.Missing(c.need) != "":
-		mark, why = st.no.Render(m.icons.No), " · needs "+m.access.Missing(c.need)
+		mark, why = st.no.Render(m.icons.No), m.icons.Separator+"needs "+m.access.Missing(c.need)
 	default:
-		mark, why = st.no.Render(m.icons.No), " · needs a classic token"
+		mark, why = st.no.Render(m.icons.No), m.icons.Separator+"needs a classic token"
 	}
-	return ansi.Truncate(mark+" "+st.text.Render(c.name)+st.subtle.Render(why), w, "…")
+	return ansi.Truncate(mark+" "+st.text.Render(c.name)+st.subtle.Render(why), w, m.icons.Ellipsis)
 }
 
 // kindName names the kind of token of a.
