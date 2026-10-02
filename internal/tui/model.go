@@ -61,10 +61,11 @@ type Model struct {
 	images   imageProbe
 	cells    cellQuery
 	graphics ui.Graphics
-	// avatars draws the avatars the sections show, or nothing when nil,
-	// and avatarsDue is set while the views wait to draw those arrived.
-	avatars    *ui.Avatars
-	avatarsDue bool
+	// pics draws the images the sections show, such as avatars, or nothing
+	// when nil, and picsDue is set while the views wait to draw those
+	// arrived.
+	pics    *ui.Images
+	picsDue bool
 	// quitStage is how far quitting got while the terminal held images.
 	quitStage int
 	// after sends a message after a while: tick, which tests replace.

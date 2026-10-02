@@ -16,44 +16,53 @@ import (
 	"github.com/eggzec/gh-tui/pkg/termimg"
 )
 
-// TestCell is the size of a cell the avatars of tests are made for.
+// TestCell is the size of a cell the images of tests are made for.
 var TestCell = imgcaps.Cell{Width: 10, Height: 20}
 
-// ImageSource is a fake image host: it serves every address with a few
-// bytes of PNG at once, and records what it was asked.
-type ImageSource struct {
+// ImageHost is a fake image host: it serves every image with a few bytes
+// of PNG at once, which fill the box asked for, and records what it was
+// asked. A file of a repository it names "blob <repo> <sha>".
+type ImageHost struct {
 	mu    sync.Mutex
 	asked []string
 }
 
-// Fetch serves url.
-func (s *ImageSource) Fetch(_ context.Context, url string, box ui.ImageBox) (ui.Picture, error) {
+// Fetch serves src.
+func (s *ImageHost) Fetch(_ context.Context, src ui.ImageSource, box ui.ImageBox) (ui.Picture, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.asked = append(s.asked, url)
-	return ui.Picture{PNG: []byte("png of " + url), Width: box.Cols * box.Cell.Width, Height: box.Rows * box.Cell.Height}, nil
+	name := src.URL
+	if src.SHA != "" {
+		name = "blob " + src.Repo.String() + " " + src.SHA
+	}
+	s.asked = append(s.asked, name)
+	return ui.Picture{
+		PNG:   []byte("png of " + name),
+		Width: box.Cols * box.Cell.Width, Height: box.Rows * box.Cell.Height,
+		Cols: box.Cols, Rows: box.Rows,
+	}, nil
 }
 
 // Asked returns the addresses fetched, in order.
-func (s *ImageSource) Asked() []string {
+func (s *ImageHost) Asked() []string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return append([]string(nil), s.asked...)
 }
 
-// Avatars returns the avatars of github.com over src, on a terminal that
-// shows images when images is set, with cells of TestCell.
-func Avatars(src *ImageSource, images bool) *ui.Avatars {
-	a := ui.NewAvatars(context.Background(), src.Fetch, true)
+// Avatars returns the images of github.com over src, avatars included, on
+// a terminal that shows images when images is set, with cells of TestCell.
+func Avatars(src *ImageHost, images bool) *ui.Images {
+	a := ui.NewImages(context.Background(), src.Fetch, true)
 	a.SetGraphics(ui.Graphics{Images: images, Cell: TestCell})
 	return a
 }
 
-// LoadAvatars ends an update as the app does: it fetches the avatars
-// drawn since the last load, and hands each to a as it arrives. It returns
-// the sequences a wrote to the terminal, and whether the avatars drawn
-// changed, which the app then tells the sections with an AvatarsMsg.
-func LoadAvatars(tb testing.TB, a *ui.Avatars) (raw string, changed bool) {
+// LoadAvatars ends an update as the app does: it fetches the images drawn
+// since the last load, and hands each to a as it arrives. It returns the
+// sequences a wrote to the terminal, and whether the images drawn
+// changed, which the app then tells the sections with an ImagesMsg.
+func LoadAvatars(tb testing.TB, a *ui.Images) (raw string, changed bool) {
 	tb.Helper()
 	var b strings.Builder
 	var run func(cmd tea.Cmd)
@@ -71,7 +80,7 @@ func LoadAvatars(tb testing.TB, a *ui.Avatars) (raw string, changed bool) {
 		default:
 			sent, redraw, handled := a.Update(msg)
 			if !handled {
-				tb.Fatalf("the avatars didn't take %T", msg)
+				tb.Fatalf("the images didn't take %T", msg)
 			}
 			changed = changed || redraw != ui.RedrawNone
 			run(sent)

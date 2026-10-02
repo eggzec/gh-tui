@@ -19,10 +19,10 @@ import (
 // Update routes msg: keys to the open command line, or else to the open
 // help, or else to the top modal, or else to the app or the focused pane,
 // app messages to the app, and everything else to every section and
-// modal. The avatars that what it drew asks for are fetched after it.
+// modal. The images that what it drew asks for are fetched after it.
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	_, cmd := m.update(msg)
-	if load := m.loadAvatars(); load != nil {
+	if load := m.loadImages(); load != nil {
 		cmd = tea.Batch(cmd, load)
 	}
 	return m, cmd
@@ -39,18 +39,18 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if cmd, handled := m.images.update(msg); handled {
 		return m, cmd
 	}
-	if cmd, redraw, handled := m.avatars.Update(msg); handled {
-		return m, tea.Batch(cmd, m.redrawAvatars(redraw))
+	if cmd, redraw, handled := m.pics.Update(msg); handled {
+		return m, tea.Batch(cmd, m.redrawImages(redraw))
 	}
 	switch msg := msg.(type) {
 	case terminalWaitMsg:
 		return m, nil
-	case avatarsDueMsg:
-		if !m.avatarsDue {
+	case imagesDueMsg:
+		if !m.picsDue {
 			return m, nil
 		}
-		m.avatarsDue = false
-		cmd := m.avatarsChanged()
+		m.picsDue = false
+		cmd := m.imagesChanged()
 		return m, cmd
 	case imagesClearMsg:
 		cmd := m.clearImages(msg)
@@ -61,7 +61,7 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tmuxMovedMsg:
 		// tmux is attached from another terminal, which has none of the
 		// images sent to the one before.
-		return m, m.avatars.Resend()
+		return m, m.pics.Resend()
 	case tea.ColorProfileMsg:
 		return m, tea.Batch(m.images.plan(m.ctx, msg.Profile), m.broadcast(msg))
 	case graphicsDecidedMsg:
@@ -85,11 +85,11 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case tea.FocusMsg:
 		m.report(true)
-		cmd := tea.Batch(m.images.askClient(m.ctx), m.avatars.Show())
+		cmd := tea.Batch(m.images.askClient(m.ctx), m.pics.Show())
 		return m, cmd
 	case tea.BlurMsg:
 		m.report(false)
-		m.hideAvatars()
+		m.hideImages()
 		return m, nil
 	case tea.KeyPressMsg:
 		cmd := m.key(msg)

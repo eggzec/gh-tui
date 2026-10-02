@@ -101,8 +101,8 @@ internal/obs/stats.go:farReset  keep: a sanity bound on the reset GitHub reports
 # Images.
 internal/imgcaps/tmux.go:TmuxTimeout  keep: a safety mechanism, the most the startup check waits for tmux
 internal/tui/images.go:probeTimeout  keep: a safety mechanism, the most the startup check waits for the terminal
-internal/tui/avatars.go:avatarsWait  keep: a mechanism, how long avatars arriving together wait to be drawn together
-internal/tui/avatars.go:quitFrame  keep: a mechanism, a frame for the deletes of the images to reach the terminal before quitting
+internal/tui/pictures.go:imagesWait  keep: a mechanism, how long images arriving together wait to be drawn together
+internal/tui/pictures.go:quitFrame  keep: a mechanism, a frame for the deletes of the images to reach the terminal before quitting
 internal/images/client.go:timeout  keep: a safety mechanism, the bound on one image's fetch
 internal/images/decode.go:defaultCellHeight  keep: a layout measure, the cell size when the terminal doesn't say
 internal/images/decode.go:defaultCellWidth  keep: a layout measure, the cell size when the terminal doesn't say

@@ -8,10 +8,10 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
-// avatarsWait is how long the views wait to draw avatars that arrived,
+// imagesWait is how long the views wait to draw images that arrived,
 // so that the avatars of a thread, which arrive one after the other, are
 // drawn together rather than each with a drawing of every view.
-const avatarsWait = 50 * time.Millisecond
+const imagesWait = 50 * time.Millisecond
 
 // quitFrame is how long quitting waits after the images were deleted, so
 // that the deletes reach the terminal while it still shows the alternate
@@ -19,8 +19,8 @@ const avatarsWait = 50 * time.Millisecond
 // each frame, and leaves the screen as it quits without writing more.
 const quitFrame = 50 * time.Millisecond
 
-// avatarsDueMsg ends the wait to draw the avatars that arrived.
-type avatarsDueMsg struct{}
+// imagesDueMsg ends the wait to draw the images that arrived.
+type imagesDueMsg struct{}
 
 // imagesClearMsg takes the place of the program's quit, or of its
 // interrupt, while the terminal holds images, so that they are deleted
@@ -31,62 +31,62 @@ type imagesClearMsg struct{ interrupt bool }
 // and quits, or interrupts, as the program was asked to.
 type imagesClearedMsg struct{ interrupt bool }
 
-// WithAvatars draws avatars with a, which the sections that show them
+// WithImages draws images with a, which the sections that show them
 // share. The app tells it what the terminal shows, fetches what the
 // sections drew after each update, and has the sections draw again when
-// avatars arrive.
-func WithAvatars(a *ui.Avatars) Option {
-	return func(m *Model) { m.avatars = a }
+// images arrive.
+func WithImages(a *ui.Images) Option {
+	return func(m *Model) { m.pics = a }
 }
 
-// loadAvatars ends an update: it fetches the avatars drawn in it, and
-// sends those waiting to be. An avatar that took the ID of another has
-// the views draw at once, and the avatars those ask for are fetched too.
-func (m *Model) loadAvatars() tea.Cmd {
-	m.avatars.SetOffline(!m.offSince.IsZero())
-	cmd, redraw := m.avatars.Load()
+// loadImages ends an update: it fetches the images drawn in it, and
+// sends those waiting to be. An image that took the room of others has
+// the views draw at once, and the images those ask for are fetched too.
+func (m *Model) loadImages() tea.Cmd {
+	m.pics.SetOffline(!m.offSince.IsZero())
+	cmd, redraw := m.pics.Load()
 	if redraw != ui.RedrawNow {
-		return tea.Batch(cmd, m.redrawAvatars(redraw))
+		return tea.Batch(cmd, m.redrawImages(redraw))
 	}
-	drawn := m.avatarsChanged()
-	again, redraw := m.avatars.Load()
+	drawn := m.imagesChanged()
+	again, redraw := m.pics.Load()
 	if redraw == ui.RedrawNow {
 		redraw = ui.RedrawSoon
 	}
-	return tea.Batch(cmd, drawn, again, m.redrawAvatars(redraw))
+	return tea.Batch(cmd, drawn, again, m.redrawImages(redraw))
 }
 
-// redrawAvatars has the views draw the avatars when r says.
-func (m *Model) redrawAvatars(r ui.Redraw) tea.Cmd {
+// redrawImages has the views draw the images when r says.
+func (m *Model) redrawImages(r ui.Redraw) tea.Cmd {
 	switch r {
 	case ui.RedrawNow:
-		m.avatarsDue = false
-		return m.avatarsChanged()
+		m.picsDue = false
+		return m.imagesChanged()
 	case ui.RedrawSoon:
-		if m.avatarsDue {
+		if m.picsDue {
 			return nil
 		}
-		m.avatarsDue = true
-		return m.after(avatarsWait, avatarsDueMsg{})
+		m.picsDue = true
+		return m.after(imagesWait, imagesDueMsg{})
 	case ui.RedrawNone:
 	}
 	return nil
 }
 
-// avatarsChanged has the header, the sections and the open modal draw
-// their avatars again.
-func (m *Model) avatarsChanged() tea.Cmd {
+// imagesChanged has the header, the sections and the open modal draw
+// their images again.
+func (m *Model) imagesChanged() tea.Cmd {
 	m.drawHeader()
-	return m.broadcast(ui.AvatarsMsg{})
+	return m.broadcast(ui.ImagesMsg{})
 }
 
-// setGraphics tells the avatars what the terminal shows, and has the
+// setGraphics tells the images what the terminal shows, and has the
 // sections draw them again if that changed whether they are drawn.
 func (m *Model) setGraphics() tea.Cmd {
-	if !m.avatars.SetGraphics(m.graphics) {
+	if !m.pics.SetGraphics(m.graphics) {
 		return nil
 	}
-	return m.avatarsChanged()
+	return m.imagesChanged()
 }
 
 // Filter is the program's message filter: while the terminal holds
@@ -109,7 +109,7 @@ func (m *Model) Filter(_ tea.Model, msg tea.Msg) tea.Msg {
 		return msg
 	case m.quitStage == quitClearing:
 		return nil
-	case m.avatars.Holding():
+	case m.pics.Holding():
 		return imagesClearMsg{interrupt: interrupt}
 	}
 	return msg
@@ -127,7 +127,7 @@ const (
 // deletes have been written.
 func (m *Model) clearImages(msg imagesClearMsg) tea.Cmd {
 	m.quitStage = quitClearing
-	return tea.Sequence(tea.Raw(m.avatars.Close()), m.after(quitFrame, imagesClearedMsg(msg)))
+	return tea.Sequence(tea.Raw(m.pics.Close()), m.after(quitFrame, imagesClearedMsg(msg)))
 }
 
 // imagesCleared quits, now that the deletes were written.
@@ -139,12 +139,12 @@ func (m *Model) imagesCleared(msg imagesClearedMsg) tea.Cmd {
 	return tea.Quit
 }
 
-// hideAvatars has the avatars sent while the app's pane isn't on view
+// hideImages has the images sent while the app's pane isn't on view
 // sent again once it is: tmux with allow-passthrough on drops the
 // passthrough of a pane that isn't, while all passes it.
-func (m *Model) hideAvatars() {
+func (m *Model) hideImages() {
 	if m.graphics.Tmux && m.images.seen.Passthrough == "on" {
-		m.avatars.Hide()
+		m.pics.Hide()
 	}
 }
 
@@ -157,5 +157,5 @@ func tick(d time.Duration, msg tea.Msg) tea.Cmd {
 // still in the terminal, as when the program ended without quitting, and
 // sends no more. The caller writes it once the program has ended.
 func (m *Model) ClearImages() string {
-	return m.avatars.Close()
+	return m.pics.Close()
 }

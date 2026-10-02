@@ -14,7 +14,7 @@ import (
 // without avatars.
 func TestProfileAvatarOff(t *testing.T) {
 	plain := newSection(t, newFake(), &fakeInbox{threads: inboxThreads()}, 120, 40)
-	src := &uitest.ImageSource{}
+	src := &uitest.ImageHost{}
 	off := newSection(t, newFake(), &fakeInbox{threads: inboxThreads()}, 120, 40, WithAvatars(uitest.Avatars(src, false)))
 	if off.View() != plain.View() {
 		t.Errorf("avatars off changed the view:\n%s\nwant\n%s", screen(off), screen(plain))
@@ -26,7 +26,7 @@ func TestProfileAvatarOff(t *testing.T) {
 // panes share what is left.
 func TestProfileAvatar(t *testing.T) {
 	for _, size := range []struct{ w, h int }{{120, 40}, {80, 24}} {
-		src := &uitest.ImageSource{}
+		src := &uitest.ImageHost{}
 		a := uitest.Avatars(src, true)
 		s := newSection(t, newFake(), &fakeInbox{threads: inboxThreads()}, size.w, size.h, WithAvatars(a))
 		lines := strings.Split(screen(s), "\n")
@@ -54,7 +54,7 @@ func TestProfileAvatar(t *testing.T) {
 		if got := src.Asked(); len(got) != 1 || got[0] != "https://avatars.githubusercontent.com/u/583231?s=120&v=4" {
 			t.Errorf("fetched %q, want the profile's avatar at the box's size", got)
 		}
-		run(t, s, s.Update(ui.AvatarsMsg{}))
+		run(t, s, s.Update(ui.ImagesMsg{}))
 		if n := uitest.Placeholders(t, s.View()); n != 6*3 {
 			t.Errorf("%d placeholder cells, want the 6×3 of the box", n)
 		}
@@ -70,11 +70,11 @@ func TestProfileAvatar(t *testing.T) {
 // profile without it, and every line keeps the width.
 func TestProfileAvatarNarrow(t *testing.T) {
 	for w := 1; w <= minAvatarWidth+2; w++ {
-		src := &uitest.ImageSource{}
+		src := &uitest.ImageHost{}
 		a := uitest.Avatars(src, true)
 		s := newSection(t, newFake(), &fakeInbox{threads: inboxThreads()}, w, 24, WithAvatars(a))
 		uitest.LoadAvatars(t, a)
-		run(t, s, s.Update(ui.AvatarsMsg{}))
+		run(t, s, s.Update(ui.ImagesMsg{}))
 		for i, l := range strings.Split(s.View(), "\n") {
 			if got := ansi.StringWidth(l); got != w {
 				t.Errorf("width %d: line %d is %d wide", w, i, got)

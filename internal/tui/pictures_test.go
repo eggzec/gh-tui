@@ -27,15 +27,16 @@ type later struct{ msg tea.Msg }
 // comments would.
 func avatarsApp(t *testing.T) (*Model, *fakeSection) {
 	t.Helper()
-	fetch := func(_ context.Context, addr string, _ ui.ImageBox) (ui.Picture, error) {
+	fetch := func(_ context.Context, src ui.ImageSource, _ ui.ImageBox) (ui.Picture, error) {
+		addr := src.URL
 		return ui.Picture{PNG: []byte(addr), Width: 20, Height: 20}, nil
 	}
-	a := ui.NewAvatars(context.Background(), fetch, true)
-	m, sections := newTestApp(t, WithAvatars(a))
+	a := ui.NewImages(context.Background(), fetch, true)
+	m, sections := newTestApp(t, WithImages(a))
 	m.after = func(_ time.Duration, msg tea.Msg) tea.Cmd { return func() tea.Msg { return later{msg} } }
 	s := sections[0]
 	s.reply = func(msg tea.Msg) tea.Cmd {
-		if _, ok := msg.(ui.AvatarsMsg); ok {
+		if _, ok := msg.(ui.ImagesMsg); ok {
 			a.Line("https://avatars.githubusercontent.com/u/1?v=4")
 			a.Line("https://avatars.githubusercontent.com/u/2?v=4")
 		}
@@ -90,7 +91,7 @@ func feed(m *Model, msgs ...tea.Msg) (raw []string, sent []tea.Msg) {
 func told(s *fakeSection) int {
 	n := 0
 	for _, msg := range s.msgs {
-		if _, ok := msg.(ui.AvatarsMsg); ok {
+		if _, ok := msg.(ui.ImagesMsg); ok {
 			n++
 		}
 	}
@@ -251,11 +252,12 @@ func TestTmuxAttachResendsAvatars(t *testing.T) {
 	ft := &fakeTmux{passthrough: "on", client: imgcaps.TmuxClient{TTY: "/dev/pts/1", Termtype: "kitty(0.43.1)", Cell: imgcaps.Cell{Width: 9, Height: 18}}}
 	m, _ := tmuxApp(t, ft)
 	m.after = func(_ time.Duration, msg tea.Msg) tea.Cmd { return func() tea.Msg { return later{msg} } }
-	fetch := func(_ context.Context, addr string, _ ui.ImageBox) (ui.Picture, error) {
+	fetch := func(_ context.Context, src ui.ImageSource, _ ui.ImageBox) (ui.Picture, error) {
+		addr := src.URL
 		return ui.Picture{PNG: []byte(addr), Width: 20, Height: 20}, nil
 	}
-	a := ui.NewAvatars(context.Background(), fetch, true)
-	WithAvatars(a)(m)
+	a := ui.NewImages(context.Background(), fetch, true)
+	WithImages(a)(m)
 	answer(m, tea.ColorProfileMsg{Profile: colorprofile.ANSI256})
 	a.Line("https://avatars.githubusercontent.com/u/1?v=4")
 	if writes := answer(m, terminalWaitMsg{}); len(writes) != 1 || !strings.Contains(writes[0], "a=t,") {
@@ -276,14 +278,14 @@ func TestTmuxAttachResendsAvatars(t *testing.T) {
 // does without avatars where the terminal shows no images.
 func TestHeaderAvatar(t *testing.T) {
 	plain := newHeaderApp(t).header
-	src := &uitest.ImageSource{}
-	if got := newHeaderApp(t, WithAvatars(uitest.Avatars(src, false))).header; got != plain {
+	src := &uitest.ImageHost{}
+	if got := newHeaderApp(t, WithImages(uitest.Avatars(src, false))).header; got != plain {
 		t.Errorf("without images the header is\n%q\nwant\n%q", got, plain)
 	}
 
 	// The terminal is found to show images once the app has started.
 	a := uitest.Avatars(src, false)
-	m := newHeaderApp(t, WithAvatars(a))
+	m := newHeaderApp(t, WithImages(a))
 	m.after = func(_ time.Duration, msg tea.Msg) tea.Cmd { return func() tea.Msg { return later{msg} } }
 	a.SetGraphics(ui.Graphics{Images: true, Cell: uitest.TestCell})
 	feed(m, tea.WindowSizeMsg{Width: 80, Height: 24})

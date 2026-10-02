@@ -12,7 +12,7 @@ import (
 
 // avatarModal returns the modal of a pull request open on comments, 80
 // wide, drawing avatars with a.
-func avatarModal(tb testing.TB, a *ui.Avatars) (*host, *detailModal) {
+func avatarModal(tb testing.TB, a *ui.Images) (*host, *detailModal) {
 	tb.Helper()
 	svc := newFakeService()
 	svc.thread = uitest.Thread(4, clock)
@@ -29,7 +29,7 @@ func avatarModal(tb testing.TB, a *ui.Avatars) (*host, *detailModal) {
 // Where the terminal shows no images, the comments look as they do
 // without avatars.
 func TestCommentAvatarsOff(t *testing.T) {
-	src := &uitest.ImageSource{}
+	src := &uitest.ImageHost{}
 	_, plain := threadModal(t, uitest.Thread(4, clock), true, 80, 60)
 	_, off := avatarModal(t, uitest.Avatars(src, false))
 	if off.View() != plain.View() {
@@ -40,7 +40,7 @@ func TestCommentAvatarsOff(t *testing.T) {
 // Where it does, each comment's head shows its author's avatar once it
 // arrives, in the box it kept from the start.
 func TestCommentAvatarsArrive(t *testing.T) {
-	src := &uitest.ImageSource{}
+	src := &uitest.ImageHost{}
 	a := uitest.Avatars(src, true)
 	h, m := avatarModal(t, a)
 	if !strings.Contains(ansi.Strip(m.View()), "   hubot · ") {
@@ -49,7 +49,7 @@ func TestCommentAvatarsArrive(t *testing.T) {
 	if _, changed := uitest.LoadAvatars(t, a); !changed {
 		t.Fatal("no avatar arrived")
 	}
-	drain(t, h, h.Update(ui.AvatarsMsg{}))
+	drain(t, h, h.Update(ui.ImagesMsg{}))
 	if n := uitest.Placeholders(t, m.View()); n != 4*2 {
 		t.Errorf("%d placeholder cells, want 2 for each of 4 comments", n)
 	}
