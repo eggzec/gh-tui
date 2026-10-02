@@ -13,12 +13,14 @@ import (
 // memory at once, or read, once the cursor rests if rest is set.
 func (m *Modal) showJob(rest bool) tea.Cmd {
 	defer m.layout()
+	around := m.readLogsAround()
 	j, ok := m.jobs.selected()
 	if !ok {
 		m.log.Clear()
-		return nil
+		return around
 	}
-	return m.log.Show(j, rest, jobview.Hints{SHA: m.run.HeadSHA})
+	m.aheadLogs.Opened(j.ID)
+	return tea.Batch(m.log.Show(j, rest, jobview.Hints{SHA: m.run.HeadSHA}), around)
 }
 
 // logBody renders the log pane's body, h lines of w cells.

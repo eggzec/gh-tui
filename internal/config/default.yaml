@@ -236,9 +236,7 @@ dashboard:
 # layer above, so enabled: false here turns off every page and kind that
 # doesn't enable itself. The pages below that set a window of their own
 # (search, finder, history and actions) don't follow the window set here;
-# set one of their knobs to null to hand it back to the layer above. (The
-# lists of pull requests and issues, the notifications, the search and the
-# dashboard read these; the other pages move to them in turn.)
+# set one of their knobs to null to hand it back to the layer above.
 prefetch:
   # Whether anything is read ahead.
   enabled: true
@@ -301,8 +299,15 @@ prefetch:
     window: {before: 3, after: 3}
     branches: {window: {before: 0, after: 0}}
   actions:
-    window: {before: 0, after: 0}
-    logs: {enabled: false}
+    # The jobs of the runs around the cursor of the runs: a request a run,
+    # or more for a run of over 100 jobs, and none again for a run that
+    # ended, whose jobs are kept.
+    window: {before: 1, after: 2}
+    # The logs of the jobs around the cursor of the jobs: the window counts
+    # rows, and only the failed jobs that ended among them are read. A log
+    # can run to megabytes, so they are off. The log of the job under the
+    # cursor is read once it rests, whatever this says.
+    logs: {enabled: false, window: {before: 0, after: 2}}
 
 # What the app checks of the token.
 auth:

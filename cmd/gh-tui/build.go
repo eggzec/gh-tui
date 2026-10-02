@@ -353,9 +353,10 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		actionOpts = append(actionOpts, actions.WithFollow(followRuns(subscriber(engine, pollActions), engine.Refresh, actionSvc.Poll)))
 	}
 	opts = append(opts, tui.WithActions(func(ctx context.Context, repo core.RepoRef, f core.RunFilter) (ui.Modal, tea.Cmd) {
-		// The icons and the dates are those of the session, which the set
-		// command may have changed since the start.
-		o := append(slices.Clip(actionOpts), actions.WithIcons(ui.NewIcons(live.cfg.UI.Icons)), actions.WithDates(ui.NewDates(live.cfg.UI.DateFormat)))
+		// The icons, the dates and the reads ahead are those of the
+		// session, which the set command may have changed since the start.
+		o := append(slices.Clip(actionOpts), actions.WithIcons(ui.NewIcons(live.cfg.UI.Icons)), actions.WithDates(ui.NewDates(live.cfg.UI.DateFormat)),
+			actions.WithPrefetch(live.cfg.Prefetch))
 		return actions.Opener(actionSvc, cfg.Keys, o...)(ctx, repo, f)
 	}), tui.WithSettings(func(c config.Config) {
 		live.set(c)

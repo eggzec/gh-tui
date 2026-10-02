@@ -38,13 +38,36 @@ func testTheme() ui.Theme {
 	return ui.NewTheme(p, true)
 }
 
-// forTests fixes the clock, reads at once rather than after a rest, and
-// stops the timers, so that tests don't wait.
+// forTests fixes the clock, reads at once rather than after a rest, reads
+// nothing ahead, and stops the timers, so that tests don't wait and see
+// only the reads of what the panes show.
 func forTests() Option {
 	return func(o *options) {
 		o.now = func() time.Time { return testNow }
-		o.rest = 0
+		o.prefetch = testPrefetch(func(p *config.PrefetchLayers) { p.Enabled = false })
 		o.tick = 0
+	}
+}
+
+// testPrefetch returns the modal's prefetch settings as the defaults have
+// them, but with no rest, so that tests run the reads of a rest at once,
+// after edit changes the settings.
+func testPrefetch(edit func(p *config.PrefetchLayers)) prefetch {
+	p := config.Default().Prefetch
+	p.Actions.Rest = new(time.Duration(0))
+	edit(&p)
+	return newPrefetch(p)
+}
+
+// withPrefetch reads ahead as the defaults do, after edit, if set, changes
+// them, with no rest.
+func withPrefetch(edit func(p *config.PrefetchLayers)) Option {
+	return func(o *options) {
+		o.prefetch = testPrefetch(func(p *config.PrefetchLayers) {
+			if edit != nil {
+				edit(p)
+			}
+		})
 	}
 }
 
