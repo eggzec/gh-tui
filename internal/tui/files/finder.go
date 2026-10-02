@@ -57,6 +57,9 @@ type finderModal struct {
 	ahead *ui.Ahead[filesvc.BlobQuery]
 	// failed is why the file shown failed to load, or nil.
 	failed error
+	// img shows the file in the pager as the file preview does: as its
+	// image where it is an image file the terminal shows.
+	img fileImage
 
 	width, height int
 	theme         ui.Theme
@@ -148,6 +151,7 @@ func (s *Section) newFinder() *finderModal {
 	pv := s.voice
 	pv.Retry, pv.Open = key.Binding{}, f.keys.Browser
 	f.pager = pager.New(pager.WithErrorText(fileErrorText(repo, pv)))
+	f.img = fileImage{images: s.images, repo: repo, shown: shownText}
 	f.icons = newFileIcons(s.icons, s.theme)
 	f.find = finder.New(func(ctx context.Context) (finder.Listing, error) { return listFiles(ctx, src) },
 		finder.WithContext(ctx),
@@ -289,8 +293,9 @@ func (f *finderModal) Update(msg tea.Msg) tea.Cmd {
 			// Counts as a use only if the window read the file ahead.
 			f.ahead.Opened(f.s.blobQuery(msg.entry))
 		}
-		cmd, _ := fill(&f.pager, msg.entry, msg.blob, msg.err, f.keys.Browser)
-		return cmd
+		return f.showFile(msg.entry, msg.blob, msg.err)
+	case ui.ImagesMsg:
+		return f.redraw()
 	case ui.OnlineMsg:
 		// A rate limit is the token's, and has lifted unless one holds.
 		if !msg.Limited {
@@ -357,25 +362,52 @@ func (f *finderModal) moved() tea.Cmd {
 	f.shown, f.current, f.failed = it.Path, true, nil
 	f.seq++
 	f.stopRead()
+	f.img.clear()
 	e, ok := entryOfItem(it)
 	if !ok {
 		f.pager.SetMessage("", "")
 		return nil
 	}
-	if binaryExt[strings.ToLower(path.Ext(e.Name))] {
+	if binaryExt[strings.ToLower(path.Ext(e.Name))] && !f.drawsImage(e) {
 		f.pager.SetMessage(e.Path, "Binary file, not shown"+browserHint(f.keys.Browser))
 		return nil
 	}
 	if b, ok := f.s.svc.CachedBlob(f.s.blobQuery(e)); ok {
 		// Counts as a use only if the window read the file ahead.
 		f.ahead.Opened(f.s.blobQuery(e))
-		cmd, _ := fill(&f.pager, e, b, nil, f.keys.Browser)
-		return cmd
+		return f.showFile(e, b, nil)
 	}
 	// The name shows at once, and the content once the cursor rests.
 	f.pager.SetMessage(e.Path, "")
 	msg := finderRestMsg{f: f, seq: f.seq}
 	return tea.Tick(f.s.prefetch.finder.Rest, func(time.Time) tea.Msg { return msg })
+}
+
+// drawsImage reports whether the preview draws e as an image, so it reads
+// e although its name says it is binary.
+func (f *finderModal) drawsImage(e core.TreeEntry) bool {
+	return !e.Symlink() && imageFile(e.Path) && f.s.images.Drawing()
+}
+
+// showFile shows e, whose content is b, or which failed to load with err,
+// in the preview, as the file preview shows it.
+func (f *finderModal) showFile(e core.TreeEntry, b core.Blob, err error) tea.Cmd {
+	f.img.set(e, b, err)
+	if !f.img.draw(&f.pager) {
+		return nil
+	}
+	cmd, _ := fill(&f.pager, e, b, err, f.keys.Browser)
+	return cmd
+}
+
+// redraw draws the image of the file shown again, as when the images or
+// the size of the preview changed.
+func (f *finderModal) redraw() tea.Cmd {
+	if !f.img.redraw(&f.pager) {
+		return nil
+	}
+	cmd, _ := fill(&f.pager, f.img.entry, f.img.blob, f.img.err, f.keys.Browser)
+	return cmd
 }
 
 // readAhead reads, once the cursor rests, the files in a window around it
@@ -440,7 +472,7 @@ func (f *finderModal) View() string {
 		return f.find.View()
 	}
 	left := strings.Split(f.find.View(), "\n")
-	right := strings.Split(f.pager.View(), "\n")
+	right := strings.Split(f.img.view(&f.pager), "\n")
 	var b strings.Builder
 	for i := range min(len(left), len(right)) {
 		if i > 0 {
@@ -479,6 +511,10 @@ func (f *finderModal) layout() {
 	}
 	f.find.SetSize(lw, f.height)
 	f.pager.SetSize(f.width-lw-3, f.height)
+	// The image fitted anew, or the loading line; one that no longer
+	// fits shows as without images, and only the highlighting of a text
+	// is dropped, as the file preview's resize drops it.
+	_ = f.redraw()
 }
 
 // SetTheme styles the finder and the preview.

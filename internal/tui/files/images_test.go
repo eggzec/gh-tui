@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	filesvc "github.com/eggzec/gh-tui/internal/service/files"
@@ -164,5 +165,131 @@ func TestPreviewImageRetried(t *testing.T) {
 	p.Update(ui.ImagesMsg{})
 	if n := uitest.Placeholders(t, p.View()); n == 0 {
 		t.Errorf("once GitHub answered the image isn't drawn:\n%s", ansi.Strip(p.View()))
+	}
+}
+
+// imageFinder opens the finder over the sample and an image file, logo.png,
+// drawn with images, at 120 by 16 columns, so the preview shows beside the
+// paths in 69 by 16 cells. The image file is cached when cached is set.
+func imageFinder(t *testing.T, images *ui.Images, cached bool) (*host, *finderModal, *fake) {
+	t.Helper()
+	fk := sampleFake()
+	png := file("logo.png", int64(len(pngBytes)))
+	fk.addTree(ghTUI, "", append(slices.Clone(fk.trees[treeKey(ghTUI, "")].Entries), png)...)
+	fk.addBlob(png, pngBytes)
+	fk.cachedBlobs[png.SHA] = cached
+	h := newHost(loaded(t, fk, 40, 12, WithImages(images)))
+	h.width, h.height = 120, 16
+	f := findIn(t, h)
+	if !f.preview {
+		t.Fatal("no preview at 120 columns")
+	}
+	return h, f, fk
+}
+
+// typeQuery types q into the finder without running what the move of its
+// cursor asks for, so a file not cached waits for its rest, which the test
+// sends itself. It clears the query first.
+func typeQuery(f *finderModal, q string) {
+	for range ansi.StringWidth(f.find.Query()) {
+		f.Update(press("backspace"))
+	}
+	f.Update(tea.PasteMsg{Content: q})
+}
+
+// The finder's preview draws an image file as the file preview does,
+// fitted to the pane above its status line, its cells all naming it, and
+// fits it anew to a new size.
+func TestFindFileImage(t *testing.T) {
+	src := &uitest.ImageHost{}
+	images := uitest.Avatars(src, true)
+	h, f, fk := imageFinder(t, images, false)
+	before := len(fk.blobSHAs())
+	typeQuery(f, "logo")
+	h.run(f.Update(finderRestMsg{f: f, seq: f.seq}))
+	if got := fk.blobSHAs(); len(got) != before+1 || !slices.Contains(got, "b-logo.png") {
+		t.Errorf("read %q, want the image file although its name says binary", got)
+	}
+	if got := ansi.Strip(f.View()); !strings.Contains(got, "Loading the image…") {
+		t.Errorf("before the image arrived the preview = %q, want it loading", got)
+	}
+	raw, changed := uitest.LoadAvatars(t, images)
+	if !changed || !strings.Contains(raw, "c=69,r=15,") {
+		t.Fatalf("sent %q, changed %v, want the image placed in 69×15 cells", raw, changed)
+	}
+	if want := []string{"blob eggzec/gh-tui b-logo.png"}; !slices.Equal(src.Asked(), want) {
+		t.Errorf("fetched %q, want %q", src.Asked(), want)
+	}
+	h.run(func() tea.Msg { return ui.ImagesMsg{} })
+	v := f.View()
+	assertFits(t, v, 120, 16)
+	if n := uitest.Placeholders(t, v); n != 69*15 {
+		t.Errorf("%d cells show the image, want %d", n, 69*15)
+	}
+
+	f.SetSize(110, 12)
+	uitest.LoadAvatars(t, images)
+	h.run(func() tea.Msg { return ui.ImagesMsg{} })
+	v = f.View()
+	assertFits(t, v, 110, 12)
+	if n := uitest.Placeholders(t, v); n != 63*11 {
+		t.Errorf("after a resize %d cells show the image, want %d", n, 63*11)
+	}
+
+	// Another file shows as it did before, with no image left over.
+	typeQuery(f, "agents")
+	h.run(f.Update(finderRestMsg{f: f, seq: f.seq}))
+	v = f.View()
+	if n := uitest.Placeholders(t, v); n != 0 || !strings.Contains(ansi.Strip(v), "Guidance for anyone.") {
+		t.Errorf("after moving to a text file %d cells show the image, view:\n%s", n, ansi.Strip(v))
+	}
+}
+
+// A cached image file is drawn at once, without waiting for the cursor to
+// rest, and isn't read again.
+func TestFindFileImageCached(t *testing.T) {
+	src := &uitest.ImageHost{}
+	images := uitest.Avatars(src, true)
+	h, f, fk := imageFinder(t, images, true)
+	before := len(fk.blobSHAs())
+	h.run(f.Update(tea.PasteMsg{Content: "logo"}))
+	uitest.LoadAvatars(t, images)
+	h.run(func() tea.Msg { return ui.ImagesMsg{} })
+	if n := uitest.Placeholders(t, f.View()); n != 69*15 {
+		t.Errorf("%d cells show the image, want %d", n, 69*15)
+	}
+	if got := fk.blobSHAs()[before:]; len(got) != 0 {
+		t.Errorf("read %q, want the cached file only", got)
+	}
+}
+
+// Where images aren't drawn, the finder names an image file binary by its
+// name as before: it reads nothing, fetches no image and sends the
+// terminal nothing.
+func TestFindFileImageNotDrawn(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		images func(*uitest.ImageHost) *ui.Images
+	}{
+		{"no images", func(*uitest.ImageHost) *ui.Images { return nil }},
+		{"images off", func(src *uitest.ImageHost) *ui.Images { return uitest.Avatars(src, false) }},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			src := &uitest.ImageHost{}
+			images := tt.images(src)
+			h, f, fk := imageFinder(t, images, false)
+			before := len(fk.blobSHAs())
+			h.run(f.Update(tea.PasteMsg{Content: "logo"}))
+			h.run(func() tea.Msg { return ui.ImagesMsg{} })
+			if got := ansi.Strip(f.View()); !strings.Contains(got, "Binary file, not shown") {
+				t.Errorf("preview = %q, want the binary file's notice", got)
+			}
+			if got := fk.blobSHAs()[before:]; len(got) != 0 {
+				t.Errorf("read %q, want nothing", got)
+			}
+			if raw, changed := uitest.LoadAvatars(t, images); raw != "" || changed || len(src.Asked()) != 0 {
+				t.Errorf("sent %q, fetched %q", raw, src.Asked())
+			}
+		})
 	}
 }

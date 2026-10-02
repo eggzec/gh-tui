@@ -4,13 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path"
 	"slices"
 	"strings"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
@@ -45,41 +43,10 @@ type preview struct {
 	ret ui.Modal
 	// failed is why the file failed to load, or nil.
 	failed error
-	// images draws the file where it is an image the terminal shows.
-	// loaded is set once the content arrived, which blob holds; asImage
-	// is set while the file is one to draw as an image, whether it is
-	// drawn, on its way or failed,
-	// shown is what the preview shows, and pic the lines of the image.
-	images  *ui.Images
-	loaded  bool
-	blob    core.Blob
-	asImage bool
-	shown   shown
-	pic     []string
-}
-
-// shown is what the preview shows of its file.
-type shown int
-
-const (
-	shownNothing shown = iota
-	// shownText is the pager's own view of the file: its text, or why it
-	// isn't shown.
-	shownText
-	// shownLoading says the image is on its way.
-	shownLoading
-	// shownImage is the image.
-	shownImage
-)
-
-// imageExts are the extensions of the files the preview tries to draw as
-// images. Whether a file is one comes from its content; the name only
-// says which files to try, so a file of another name is never decoded.
-var imageExts = []string{".png", ".jpg", ".jpeg", ".gif", ".webp"}
-
-// imageFile reports whether the file at name is one to draw as an image.
-func imageFile(name string) bool {
-	return slices.Contains(imageExts, strings.ToLower(path.Ext(name)))
+	// img shows the file in the pager, as its image where it is an image
+	// file the terminal shows. loaded is set once the content arrived.
+	img    fileImage
+	loaded bool
 }
 
 // entryMsg carries the entry of the file of the preview whose pager has
@@ -108,7 +75,8 @@ func newPreview(ctx context.Context, svc Service, host string, repo core.RepoRef
 	// The preview loads the file once, and opens it on GitHub with open.
 	v.Retry, v.Open = key.Binding{}, open
 	pg := pager.New(pager.WithErrorText(fileErrorText(repo, v)), pager.WithEditor(editor))
-	p := &preview{ctx: ctx, cancel: cancel, svc: svc, host: host, repo: repo, ref: ref, entry: e, open: open, pager: pg, icons: ic, images: images}
+	p := &preview{ctx: ctx, cancel: cancel, svc: svc, host: host, repo: repo, ref: ref, entry: e, open: open, pager: pg, icons: ic}
+	p.img = fileImage{images: images, repo: repo}
 	p.pager.Focus()
 	return p
 }
@@ -194,9 +162,8 @@ func findEntry(ctx context.Context, svc Service, repo core.RepoRef, ref, name st
 
 // show puts the content, or why it isn't shown, in the preview.
 func (p *preview) show(b core.Blob, err error) tea.Cmd {
-	p.failed, p.blob, p.loaded = err, b, true
-	p.asImage = err == nil && p.images != nil && !p.entry.Symlink() && imageFile(p.entry.Path)
-	p.shown = shownNothing
+	p.failed, p.loaded = err, true
+	p.img.set(p.entry, b, err)
 	return p.draw()
 }
 
@@ -204,33 +171,10 @@ func (p *preview) show(b core.Blob, err error) tea.Cmd {
 // otherwise as the pager shows any file. The pager changes only when what
 // it shows does, so drawing again keeps the place in the text.
 func (p *preview) draw() tea.Cmd {
-	rows, st := p.imageRows()
-	want := shownText
-	switch st {
-	case ui.ImageShown:
-		want = shownImage
-	case ui.ImageLoading:
-		want = shownLoading
-	case ui.ImageFailed, ui.ImageOff:
-		// It shows as it did before images, such as a binary file. A
-		// failure that may mend is asked for again once GitHub answers
-		// again, which draws the preview again.
-	}
-	p.pic = rows
-	if want == p.shown {
+	if !p.img.draw(&p.pager) {
 		return nil
 	}
-	p.shown = want
-	switch want {
-	case shownImage:
-		p.pager.SetMessage(p.entry.Path, "")
-		return nil
-	case shownLoading:
-		p.pager.SetMessage(p.entry.Path, "Loading the image…")
-		return nil
-	case shownNothing, shownText:
-	}
-	cmd, ok := fill(&p.pager, p.entry, p.blob, p.failed, p.open)
+	cmd, ok := fill(&p.pager, p.entry, p.img.blob, p.failed, p.open)
 	if ok {
 		// The search starts from the line, if there is one.
 		p.pager.GoToLine(p.line)
@@ -238,23 +182,6 @@ func (p *preview) draw() tea.Cmd {
 		p.preset = p.find != ""
 	}
 	return cmd
-}
-
-// imageRows returns the lines of the image of the file, fitted to the
-// pager's room above its status line, and how far the image got.
-func (p *preview) imageRows() ([]string, ui.ImageState) {
-	if !p.asImage {
-		return nil, ui.ImageOff
-	}
-	w, h := p.pager.Width(), p.pager.Height()-1
-	if w <= 0 || h <= 0 {
-		if p.images.Drawing() {
-			return nil, ui.ImageLoading
-		}
-		return nil, ui.ImageOff
-	}
-	src := ui.ImageSource{Repo: p.repo, SHA: p.entry.SHA, Size: p.blob.Size}
-	return p.images.Fit(src, ui.ImageSize{Cols: w, Rows: h})
 }
 
 // fill puts the content of the file of e in pg, or why it isn't shown,
@@ -360,35 +287,15 @@ func (p *preview) close() tea.Cmd {
 	return ui.CloseModal(p)
 }
 
-// View renders the pager, or the image above the pager's status line. The
-// lines of the image reach the terminal as they are, in no style.
+// View renders the pager, or the image above the pager's status line.
 func (p *preview) View() string {
-	v := p.pager.View()
-	if p.shown != shownImage {
-		return v
-	}
-	w, h := p.pager.Width(), p.pager.Height()-1
-	var b strings.Builder
-	for i := range h {
-		line := ""
-		if i < len(p.pic) {
-			line = p.pic[i]
-		}
-		if ansi.StringWidth(line) > w {
-			line = ansi.Truncate(line, w, "")
-		}
-		b.WriteString(line)
-		b.WriteString(strings.Repeat(" ", w-ansi.StringWidth(line)))
-		b.WriteByte('\n')
-	}
-	b.WriteString(v[strings.LastIndexByte(v, '\n')+1:])
-	return b.String()
+	return p.img.view(&p.pager)
 }
 
 // SetSize sets the size of the pager, and fits the image to it.
 func (p *preview) SetSize(width, height int) {
 	p.pager.SetSize(width, height)
-	if p.loaded && p.asImage {
+	if p.loaded && p.img.on {
 		// The image or the loading line; neither has a command.
 		_ = p.draw()
 	}
