@@ -80,6 +80,26 @@ func (a *Ahead[K]) Window(at func(i int) (K, bool), i int) tea.Cmd {
 	return tea.Tick(a.delay, func(time.Time) tea.Msg { return msg })
 }
 
+// Keep has the read ahead of k go on though k leaves the window, such as
+// the row the cursor just landed on, which the caller reads itself and
+// leaves out of the window: the caller's read then joins the one in
+// flight rather than starting over once a rest stops it. Only the last
+// row kept is; a row kept before stops at the next rest if it left the
+// window.
+func (a *Ahead[K]) Keep(k K) {
+	if a != nil {
+		a.keep, a.kept = k, true
+	}
+}
+
+// Unkeep has the read ahead of the row kept stop at the next rest, if it
+// left the window, as any other row's does.
+func (a *Ahead[K]) Unkeep() {
+	if a != nil {
+		a.kept = false
+	}
+}
+
 // Rested reads the window the cursor rested on, unless it moved since.
 func (a *Ahead[K]) Rested(msg AheadMsg) tea.Cmd {
 	if a == nil || msg.id != a.id || msg.seq != a.seq || !a.windowed {
@@ -121,7 +141,7 @@ func windowRows[K comparable](at func(i int) (K, bool), i, before, after int) []
 // for the rows still in it, and stop for those that left it.
 func (a *Ahead[K]) readWindow() tea.Cmd {
 	for k, cancel := range a.reading {
-		left := !slices.Contains(a.around, k)
+		left := !slices.Contains(a.around, k) && (!a.kept || k != a.keep)
 		if left || !a.flying.has(k) {
 			cancel()
 			delete(a.reading, k)

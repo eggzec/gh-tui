@@ -16,10 +16,14 @@ func (m *Modal) showJob(rest bool) tea.Cmd {
 	around := m.readLogsAround()
 	j, ok := m.jobs.selected()
 	if !ok {
+		m.aheadLogs.Unkeep()
 		m.log.Clear()
 		return around
 	}
 	m.aheadLogs.Opened(j.ID)
+	// The log pane reads the job's log itself, and joins its read ahead,
+	// which is left to go on.
+	m.aheadLogs.Keep(j.ID)
 	return tea.Batch(m.log.Show(j, rest, jobview.Hints{SHA: m.run.HeadSHA}), around)
 }
 
