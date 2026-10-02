@@ -115,6 +115,6 @@ var showBlock = fenced
 // collapsible one is what [Renderer.Render] takes to show it in full.
 func Blocks(src string) []Block {
 	var out []Block
-	scan(src, "", func(string) {}, func(_ int, b Block) { out = append(out, b) })
+	scan(src, "", func(string, bool) {}, func(_ int, b Block) { out = append(out, b) })
 	return out
 }

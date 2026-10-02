@@ -19,15 +19,106 @@ const tabWidth = 4
 // go, a collapsed section shows its summary and its content, and an image
 // becomes a markdown image. Code in backticks is left as it is, and a
 // fenced block shows as show has it, told its index and whether it is
-// open, which a collapsible block is if its index is in open. A source cut
-// at maxLines ends with a note that offers hint, such as how to see the
-// rest, if it isn't empty.
-func prepare(src string, open []int, hint string, show func(i int, b Block, open bool) string) string {
-	var out []string
-	scan(src, hint, func(line string) { out = append(out, line) }, func(i int, b Block) {
-		out = append(out, show(i, b, b.Collapsed == "" || slices.Contains(open, i)))
+// open, which a collapsible block is if its index is in open. A line of
+// text that is an image alone shows as pic has it, told the image's alt
+// text and address, unless pic is nil. A source cut at maxLines ends with
+// a note that offers hint, such as how to see the rest, if it isn't empty.
+func prepare(src string, open []int, hint string, show func(i int, b Block, open bool) string, pic func(alt, url string) string) string {
+	type out struct {
+		line string
+		text bool
+	}
+	var outs []out
+	scan(src, hint, func(line string, text bool) { outs = append(outs, out{line, text}) }, func(i int, b Block) {
+		outs = append(outs, out{show(i, b, b.Collapsed == "" || slices.Contains(open, i)), false})
 	})
-	return strings.Join(out, "\n")
+	lines := make([]string, len(outs))
+	for i, o := range outs {
+		lines[i] = o.line
+		if pic == nil || !o.text {
+			continue
+		}
+		alt, url, ok := alone(o.line)
+		if !ok {
+			continue
+		}
+		// A block before the image, such as code, ends any paragraph.
+		prev, next := "", ""
+		if i > 0 && outs[i-1].text {
+			prev = outs[i-1].line
+		}
+		if i+1 < len(outs) && outs[i+1].text {
+			next = outs[i+1].line
+		}
+		if indent := leading(o.line); standsAlone(prev, next, indent) {
+			lines[i] = indentLines(pic(alt, url), o.line[:indent])
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+// setext matches the line under a heading of the setext style, which makes
+// the line before it a heading, not a paragraph.
+var setext = regexp.MustCompile(`^ {0,3}(?:=+|-+)\s*$`)
+
+// standsAlone reports whether a line that is an image alone, indented
+// indent spaces, between the lines prev and next, stands as a paragraph
+// of its own, which a block of its own may take the place of: not under
+// a quote or list item it continues lazily, which the block would end,
+// and not the text of a heading.
+func standsAlone(prev, next string, indent int) bool {
+	if setext.MatchString(next) {
+		return false
+	}
+	if strings.TrimSpace(prev) == "" {
+		return true
+	}
+	// The content of prev starts after its indent and its markers.
+	at := leading(prev)
+	for {
+		n, quote := marker(prev[at:])
+		if n == 0 {
+			break
+		}
+		if quote {
+			return false
+		}
+		at += n
+		at += leading(prev[at:])
+	}
+	return indent >= at
+}
+
+// leading returns how many spaces s starts with.
+func leading(s string) int {
+	return len(s) - len(strings.TrimLeft(s, " "))
+}
+
+// indentLines returns each line of s after indent.
+func indentLines(s, indent string) string {
+	if indent == "" {
+		return s
+	}
+	return indent + strings.ReplaceAll(s, "\n", "\n"+indent)
+}
+
+// aloneImage matches a line that is an image alone, as html leaves an img
+// tag or as markdown writes one, with an address on the web, indented
+// less than code is.
+var aloneImage = regexp.MustCompile(`^ {0,3}!\[((?:\\.|[^\]\\])*)\]\(\s*(?:<(https?://[^>\s]+)>|(https?://[^)\s]+))(?:\s+"[^"]*")?\s*\)\s*$`)
+
+// alone returns the alt text and the address of the image that line is
+// alone, if it is one.
+func alone(line string) (alt, url string, ok bool) {
+	if !strings.HasPrefix(strings.TrimLeft(line, " "), "![") {
+		return "", "", false
+	}
+	m := aloneImage.FindStringSubmatch(line)
+	if m == nil {
+		return "", "", false
+	}
+	alt = strings.NewReplacer(`\\`, `\`, `\[`, "[", `\]`, "]").Replace(m[1])
+	return alt, m[2] + m[3], true
 }
 
 // plain shows a block as markdown alone: a collapsible one as its
@@ -46,10 +137,10 @@ func plain(_ int, b Block, open bool) string {
 
 // scan makes src safe to draw and passes it on a line at a time, with the
 // HTML of each line turned into markdown and its footnotes moved to its
-// end, except that it passes each fenced code block whole, with its index
-// among them. A source longer than maxLines is cut, and ends with
-// cutNote(hint).
-func scan(src, hint string, line func(string), block func(int, Block)) {
+// end, and whether the line is text rather than code, except that it
+// passes each fenced code block whole, with its index among them. A
+// source longer than maxLines is cut, and ends with cutNote(hint).
+func scan(src, hint string, line func(l string, text bool), block func(int, Block)) {
 	lines := strings.Split(termtext.Clean(src, tabWidth), "\n")
 	cut := len(lines) > maxLines
 	if cut {
@@ -90,11 +181,11 @@ func scan(src, hint string, line func(string), block func(int, Block)) {
 		if pc.block != nil {
 			block(pc.n, *pc.block)
 		} else {
-			line(pc.line)
+			line(pc.line, pc.text)
 		}
 	}
 	if cut {
-		line("\n" + cutNote(hint))
+		line("\n"+cutNote(hint), false)
 	}
 }
 
