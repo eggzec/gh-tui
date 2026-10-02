@@ -332,3 +332,172 @@ func TestLearnLoginCanceled(t *testing.T) {
 		t.Errorf("stat = %v, want nothing kept", err)
 	}
 }
+
+// age sets when path last changed to at.
+func age(t *testing.T, path string, at time.Time) {
+	t.Helper()
+	if err := os.Chtimes(path, at, at); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// keptToken keeps a login for token in cfg's disk cache, last used at, and
+// returns its directory.
+func keptToken(t *testing.T, cfg config.Disk, token string, at time.Time) string {
+	t.Helper()
+	path := loginPath(cfg, "github.com", token)
+	if err := writeLogin(path, keptLogin{Login: "octocat"}); err != nil {
+		t.Fatal(err)
+	}
+	age(t, path, at)
+	age(t, filepath.Dir(path), at)
+	return filepath.Dir(path)
+}
+
+func exists(path string) bool {
+	_, err := os.Lstat(path)
+	return err == nil
+}
+
+func TestRemoveUnused(t *testing.T) {
+	cfg := loginDisk(t)
+	cutoff := testNow.Add(-unusedFor)
+	old := keptToken(t, cfg, "old-token", cutoff.Add(-time.Hour))
+	recent := keptToken(t, cfg, "recent-token", cutoff.Add(time.Hour))
+	// The session's own token is kept however old its directory is.
+	current := keptToken(t, cfg, fakeToken, cutoff.Add(-48*time.Hour))
+	dir := filepath.Dir(old)
+	// What isn't a token's directory is left alone.
+	other := filepath.Join(dir, "notes")
+	if err := os.Mkdir(other, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	age(t, other, cutoff.Add(-time.Hour))
+
+	removed, err := removeUnused(dir, tokenKey("github.com", fakeToken), cutoff)
+	if err != nil || removed != 1 {
+		t.Errorf("removeUnused = %d, %v; want 1 removed", removed, err)
+	}
+	for path, want := range map[string]bool{old: false, recent: true, current: true, other: true} {
+		if got := exists(path); got != want {
+			t.Errorf("%s exists = %v, want %v", filepath.Base(path), got, want)
+		}
+	}
+}
+
+// A directory whose own time is old is still used when its login file
+// was touched since.
+func TestRemoveUnusedReadsTheLoginFile(t *testing.T) {
+	cfg := loginDisk(t)
+	cutoff := testNow.Add(-unusedFor)
+	dir := keptToken(t, cfg, "old-token", cutoff.Add(-time.Hour))
+	age(t, filepath.Join(dir, loginFile), cutoff.Add(time.Hour))
+	if removed, err := removeUnused(filepath.Dir(dir), "", cutoff); err != nil || removed != 0 {
+		t.Errorf("removeUnused = %d, %v; want none removed", removed, err)
+	}
+}
+
+// waitGone waits for the background sweep to remove path.
+func waitGone(t *testing.T, path string) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for exists(path) {
+		if time.Now().After(deadline) {
+			t.Fatalf("%s is still there after the sweep", filepath.Base(path))
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
+
+// settle waits until the sweeps started so far are done, by sweeping for
+// real a directory of its own, which the others, running alike, have
+// by then passed over.
+func settle(t *testing.T) {
+	t.Helper()
+	cfg := loginDisk(t)
+	old := keptToken(t, cfg, "settle-token", testNow.Add(-2*unusedFor))
+	sweepTokens(cfg, "github.com", accesssvc.Token{Value: "other-token"}, testNow)
+	waitGone(t, old)
+}
+
+func TestSweepTokensRemovesUnused(t *testing.T) {
+	cfg := loginDisk(t)
+	old := keptToken(t, cfg, "old-token", testNow.Add(-2*unusedFor))
+	recent := keptToken(t, cfg, "recent-token", testNow.Add(-unusedFor/2))
+	sweepTokens(cfg, "github.com", envToken, testNow)
+	waitGone(t, old)
+	if !exists(recent) {
+		t.Error("a directory used within the span was swept")
+	}
+}
+
+// The directory that the sweep keeps is the one that loginPath names for
+// the same host and token, however old it is.
+func TestSweepTokensKeepsTheSessionsDirectory(t *testing.T) {
+	cfg := loginDisk(t)
+	own := keptToken(t, cfg, fakeToken, testNow.Add(-2*unusedFor))
+	if want := filepath.Dir(loginPath(cfg, "github.com", fakeToken)); own != want {
+		t.Fatalf("kept directory %s, want %s", own, want)
+	}
+	old := keptToken(t, cfg, "old-token", testNow.Add(-2*unusedFor))
+	sweepTokens(cfg, "github.com", envToken, testNow)
+	waitGone(t, old)
+	if !exists(own) {
+		t.Error("the directory of the session's own token was swept")
+	}
+}
+
+func TestSweepTokensDisabled(t *testing.T) {
+	cfg := loginDisk(t)
+	old := keptToken(t, cfg, "old-token", testNow.Add(-2*unusedFor))
+	cfg.Enabled = false
+	sweepTokens(cfg, "github.com", envToken, testNow)
+	settle(t)
+	if !exists(old) {
+		t.Error("a sweep with the disk cache off removed a directory")
+	}
+}
+
+// A token with neither a value nor a login, as one still on its way is,
+// sweeps nothing: it can't be told from the others.
+func TestSweepTokensNoToken(t *testing.T) {
+	cfg := loginDisk(t)
+	old := keptToken(t, cfg, "old-token", testNow.Add(-2*unusedFor))
+	sweepTokens(cfg, "github.com", accesssvc.Token{Source: "gh"}, testNow)
+	settle(t)
+	if !exists(old) {
+		t.Error("a sweep without a token removed a directory")
+	}
+}
+
+func TestRemoveUnusedNoDirectory(t *testing.T) {
+	if removed, err := removeUnused(filepath.Join(t.TempDir(), "token"), "", testNow); err != nil || removed != 0 {
+		t.Errorf("removeUnused = %d, %v; want nothing and no error", removed, err)
+	}
+}
+
+// A start with a kept login marks its directory used, so a sweep a while
+// later keeps it.
+func TestStartLoginMarksUsed(t *testing.T) {
+	cfg := loginDisk(t)
+	dir := keptToken(t, cfg, fakeToken, testNow.Add(-2*unusedFor))
+	startLogin(cfg, "github.com", envToken, testNow)
+	later := testNow.Add(unusedFor / 2)
+	if removed, err := removeUnused(filepath.Dir(dir), "", later.Add(-unusedFor)); err != nil || removed != 0 || !exists(dir) {
+		t.Errorf("removeUnused = %d, %v; want the directory kept", removed, err)
+	}
+}
+
+func TestIsTokenKey(t *testing.T) {
+	for name, want := range map[string]bool{
+		tokenKey("github.com", fakeToken): true,
+		"notes":                           false,
+		strings.Repeat("A", 32):           false,
+		strings.Repeat("a", 31):           false,
+		strings.Repeat("a", 34):           false,
+	} {
+		if got := isTokenKey(name); got != want {
+			t.Errorf("isTokenKey(%q) = %v, want %v", name, got, want)
+		}
+	}
+}

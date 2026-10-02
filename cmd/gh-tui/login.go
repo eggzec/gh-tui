@@ -46,6 +46,12 @@ const (
 	// an Actions or an app installation's token, isn't asked about again:
 	// GitHub refuses those every time.
 	refusedFor = 24 * time.Hour
+	// unusedFor is how long the directory of a token from the environment
+	// is kept after the last start with that token. A token that was
+	// rotated is never used again, so its directory would stay for good;
+	// one that comes back after this only starts once without a profile
+	// while its login is asked about again.
+	unusedFor = 30 * 24 * time.Hour
 )
 
 // keptLogin is the login of a token from the environment as GitHub last
@@ -91,6 +97,11 @@ func startLogin(cfg config.Disk, host string, token accesssvc.Token, now time.Ti
 		return sessionLogin{}
 	}
 	s := sessionLogin{path: path, kept: readLogin(path)}
+	if s.kept != (keptLogin{}) {
+		// The start marks the token's directory used, so that the sweep
+		// of unused ones keeps it.
+		_ = os.Chtimes(path, now, now)
+	}
 	if s.kept.Login != "" {
 		s.login, s.from = s.kept.Login, "kept"
 	}
@@ -109,7 +120,104 @@ func loginPath(cfg config.Disk, host, token string) string {
 	if err != nil {
 		return ""
 	}
-	return filepath.Join(root, hostDir(github.APIHost(host)), tokenDir, tokenKey(host, token), loginFile)
+	return filepath.Join(tokensPath(root, host), tokenKey(host, token), loginFile)
+}
+
+// tokensPath returns the directory that holds the directories of host's
+// tokens from the environment, below the disk cache at root.
+func tokensPath(root, host string) string {
+	return filepath.Join(root, hostDir(github.APIHost(host)), tokenDir)
+}
+
+// sweepTokens removes, in the background, the directories of host's
+// tokens from the environment that no start has used within unusedFor of
+// now, but never the one of token, the session's own. It is only a
+// cleanup, so a failure is only logged.
+func sweepTokens(cfg config.Disk, host string, token accesssvc.Token, now time.Time) {
+	if !cfg.Enabled {
+		return
+	}
+	// A token from gh has no directory, and one still on its way can't be
+	// told from the others yet.
+	if token.Value == "" && token.Login == "" {
+		return
+	}
+	root, err := cfg.Path()
+	if err != nil {
+		return
+	}
+	var keep string
+	if token.Value != "" {
+		keep = tokenKey(host, token.Value)
+	}
+	log := slog.Default()
+	go func() {
+		removed, err := removeUnused(tokensPath(root, host), keep, now.Add(-unusedFor))
+		if removed > 0 {
+			log.Info("token logins swept", "span", "login", "removed", removed)
+		}
+		if err != nil {
+			log.Warn("token logins not swept", "span", "login", "err", err.Error())
+		}
+	}()
+}
+
+// removeUnused removes the directories of tokens in dir that were last
+// used before cutoff, except keep, and returns how many it removed and
+// why any of the others couldn't be. A directory is used when it or a
+// file in it last changed: a start touches its login file. Only
+// directories named as tokenKey names them are removed, so nothing else
+// that may be in dir is. A start that overlaps another instance's sweep,
+// or a session that runs for more than the span, can lose its cached
+// login this way, which only costs one start without its profile.
+func removeUnused(dir, keep string, cutoff time.Time) (int, error) {
+	entries, err := os.ReadDir(dir)
+	if errors.Is(err, fs.ErrNotExist) {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, err
+	}
+	var errs []error
+	removed := 0
+	for _, e := range entries {
+		name := e.Name()
+		// A symbolic link isn't followed: Type has no ModeDir for one.
+		if name == keep || !e.Type().IsDir() || !isTokenKey(name) {
+			continue
+		}
+		p := filepath.Join(dir, name)
+		if lastUsed(p).After(cutoff) {
+			continue
+		}
+		if err := os.RemoveAll(p); err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		removed++
+	}
+	return removed, errors.Join(errs...)
+}
+
+// lastUsed returns when dir or a file in it last changed.
+func lastUsed(dir string) time.Time {
+	var last time.Time
+	if fi, err := os.Lstat(dir); err == nil {
+		last = fi.ModTime()
+	}
+	entries, _ := os.ReadDir(dir)
+	for _, e := range entries {
+		if fi, err := e.Info(); err == nil && fi.ModTime().After(last) {
+			last = fi.ModTime()
+		}
+	}
+	return last
+}
+
+// isTokenKey reports whether name is one tokenKey could return.
+func isTokenKey(name string) bool {
+	b, err := hex.DecodeString(name)
+	return err == nil && len(b) == 16 && name == strings.ToLower(name)
 }
 
 // tokenKey names token, of host, without giving it away.

@@ -73,6 +73,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		return nil, nil, fmt.Errorf("config for %s: %w", st.Host, err)
 	}
 	login := startLogin(hostCfg.Cache.Disk, st.Host, token, time.Now())
+	sweepTokens(hostCfg.Cache.Disk, st.Host, token, time.Now())
 	cfg, src, err := sessionConfig(file, st.Host, login.login, logLevel)
 	if err != nil {
 		return nil, nil, err
