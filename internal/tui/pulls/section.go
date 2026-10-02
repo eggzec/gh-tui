@@ -107,9 +107,10 @@ type Section struct {
 	// the head of its pull request in heads, by key, for the checks.
 	// others reads the first pages of the tabs not shown, if
 	// prefetch.pulls.other_tabs is on. prefetch is the settings they start
-	// with.
+	// with, and slots bound the reads of ahead with those of other pages.
 	prefetch *config.PrefetchLayers
 	ahead    *ui.Aheads[details.Key]
+	slots    *ui.Slots
 	rowAt    func(i int) (details.Key, bool)
 	heads    sync.Map
 	others   *ui.Filters[pulls.ListQuery]
@@ -212,6 +213,13 @@ func WithPrefetch(p config.PrefetchLayers) Option {
 	return func(s *Section) { s.prefetch = &p }
 }
 
+// WithSlots bounds the reads ahead of the section with those of every page
+// and modal that shares s, so that together they keep to
+// prefetch.parallel. Without it, each kind it reads has slots of its own.
+func WithSlots(s *ui.Slots) Option {
+	return func(x *Section) { x.slots = s }
+}
+
 // New returns the section, reading from svc with the configured keys. ctx
 // bounds every request it makes.
 func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Option) *Section {
@@ -242,6 +250,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		kinds = append(kinds, ui.AheadKind[details.Key]{Name: "checks", Log: "pull_checks", Read: s.readChecks, Current: s.freshChecks})
 	}
 	s.ahead = ui.NewAheads(ctx, "pulls", kinds...)
+	s.ahead.Share(s.slots)
 	if p := s.prefetch; p != nil {
 		s.setPrefetch(*p)
 	}

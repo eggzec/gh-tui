@@ -20,6 +20,10 @@ import (
 	"github.com/eggzec/gh-tui/internal/obs"
 )
 
+// aheadWorkers is the most rows an Ahead reads at once while it shares
+// no slots.
+var aheadWorkers = config.Default().Prefetch.Parallel
+
 // reader is a fake detail read that records the rows read, and can hold
 // the reads until released or fail them.
 type reader struct {

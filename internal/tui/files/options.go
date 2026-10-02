@@ -32,6 +32,13 @@ func WithPrefetch(p config.PrefetchLayers, previewMax config.Size) Option {
 	return func(s *Section) { s.prefetch = newPrefetch(p, previewMax) }
 }
 
+// WithSlots bounds the reads ahead of the tree and the finder with those
+// of every page and modal that shares s, so that together they keep to
+// prefetch.parallel. Without it, each kind it reads has slots of its own.
+func WithSlots(s *ui.Slots) Option {
+	return func(x *Section) { x.slots = s }
+}
+
 // WithFinderPreview sets whether the finder shows the content of the
 // selected file beside the paths, where the width leaves room for it.
 // Without it, it does as the config's default says; the toggle key shows or

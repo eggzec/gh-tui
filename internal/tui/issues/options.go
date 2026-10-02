@@ -37,6 +37,13 @@ func WithPrefetch(p config.PrefetchLayers) Option {
 	return func(s *Section) { s.prefetch = &p }
 }
 
+// WithSlots bounds the reads ahead of the section with those of every page
+// and modal that shares s, so that together they keep to
+// prefetch.parallel. Without it, each kind it reads has slots of its own.
+func WithSlots(s *ui.Slots) Option {
+	return func(x *Section) { x.slots = s }
+}
+
 // WithIcons sets the glyphs of the states of issues. Without it, the icons
 // are the config's default.
 func WithIcons(icons ui.Icons) Option {

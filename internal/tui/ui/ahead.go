@@ -17,11 +17,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/obs"
 )
 
-// aheadWorkers is the most rows whose details an Ahead reads at once, on
-// top of the row under the cursor, unless it shares slots with others
-// ([Ahead.Share]). A detail may take a few requests.
-const aheadWorkers = 3
-
 // Ahead reads the details of the rows of a list before they are opened, into
 // the cache the detail reads from, so that they open at once. K identifies
 // a row, such as the query of its first comments. Create it with
@@ -125,7 +120,8 @@ func NewAhead[K comparable](kind string, read func(ctx context.Context, k K) err
 		limited: new(atomic.Bool),
 		flying:  newFlights[K](),
 		pause:   newGate(),
-		slots:   NewSlots(aheadWorkers),
+		// Until it shares the session's ([Ahead.Share]).
+		slots:   NewSlots(config.Default().Prefetch.Parallel),
 		parent:  context.Background(),
 		reading: make(map[K]context.CancelFunc),
 	}
@@ -362,7 +358,17 @@ func (b batch[K]) readAll(ctx context.Context, ks []K, rowCtx func(K) context.Co
 	var wg sync.WaitGroup
 	defer wg.Wait()
 	for i, k := range ks {
-		if b.slots.acquire(ctx) != nil {
+		kctx := ctx
+		if rowCtx != nil {
+			kctx = rowCtx(k)
+		}
+		// A row that left the window doesn't wait for a slot.
+		if kctx.Err() != nil && ctx.Err() == nil {
+			b.skip(ctx, obs.PrefetchCanceled, []K{k})
+			continue
+		}
+		held, waited, err := b.take(ctx)
+		if err != nil {
 			b.skip(ctx, obs.PrefetchCanceled, ks[i:])
 			return
 		}
@@ -371,14 +377,32 @@ func (b batch[K]) readAll(ctx context.Context, ks []K, rowCtx func(K) context.Co
 			b.skip(ctx, why, ks[i:])
 			return
 		}
-		kctx := ctx
-		if rowCtx != nil {
-			kctx = rowCtx(k)
-		}
 		wg.Go(func() {
 			defer b.slots.release()
-			b.readOne(kctx, k)
+			b.send(kctx, k, held, waited)
 		})
+	}
+}
+
+// take waits until no pause holds the reads and a slot is free, and takes
+// the slot. It reports whether a pause held it, and for how long. A
+// paused read gives its slot back, so that it doesn't hold up the reads of
+// the other pages and kinds that share the slots.
+func (b batch[K]) take(ctx context.Context) (held bool, waited time.Duration, err error) {
+	for {
+		h, w, err := b.pause.wait(ctx)
+		held, waited = held || h, waited+w
+		if err != nil {
+			return held, waited, err
+		}
+		if err := b.slots.acquire(ctx); err != nil {
+			return held, waited, err
+		}
+		if !b.pause.holding() {
+			return held, waited, nil
+		}
+		// A pause began while it waited for the slot.
+		b.slots.release()
 	}
 }
 
@@ -409,27 +433,36 @@ func (b batch[K]) readOne(ctx context.Context, k K) {
 		b.skip(ctx, obs.PrefetchCanceled, []K{k})
 		return
 	}
+	b.send(ctx, k, held, waited)
+}
+
+// send reads the detail of k, unless it was read while it waited, once a
+// pause held it for waited if held, and records what came of it.
+func (b batch[K]) send(ctx context.Context, k K, held bool, waited time.Duration) {
+	// Such as a row that left the window while it waited.
+	if ctx.Err() != nil {
+		b.skip(ctx, obs.PrefetchCanceled, []K{k})
+		return
+	}
 	// Reads that ended meanwhile may have met the rate limit or spent the
 	// budget.
 	if why, ok := halted(b.limited); ok {
 		b.skip(ctx, why, []K{k})
 		return
 	}
-	if held {
-		if obs.Enabled(ctx, slog.LevelDebug) {
-			slog.DebugContext(ctx, "prefetch paused", "span", "prefetch", "kind", b.seen.Kind(), "key", obs.LogKey(fmt.Sprint(k)),
-				"waited_ms", obs.Millis(waited))
-		}
-		// What paused it, such as the detail the user opened, may have
-		// read it meanwhile.
-		if b.current(k) {
-			b.skip(ctx, obs.PrefetchCached, []K{k})
-			return
-		}
+	if held && obs.Enabled(ctx, slog.LevelDebug) {
+		slog.DebugContext(ctx, "prefetch paused", "span", "prefetch", "kind", b.seen.Kind(), "key", obs.LogKey(fmt.Sprint(k)),
+			"waited_ms", obs.Millis(waited))
+	}
+	// What it waited for, such as a pause for the detail the user opened,
+	// or a slot, may have let something else read it meanwhile.
+	if b.current(k) {
+		b.skip(ctx, obs.PrefetchCached, []K{k})
+		return
 	}
 	b.seen.Count(obs.PrefetchSent)
 	start := time.Now()
-	err = b.read(ctx, k)
+	err := b.read(ctx, k)
 	outcome := "read"
 	switch {
 	case err == nil:
@@ -664,6 +697,13 @@ func (g *gate) close() func() {
 			}
 		})
 	}
+}
+
+// holding reports whether a holder holds g.
+func (g *gate) holding() bool {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.holders > 0
 }
 
 // wait waits until g is open or ctx is done. It reports whether g held it,

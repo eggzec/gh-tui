@@ -86,8 +86,10 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	// that the revalidator finds, and those of the rate limits, through
 	// one subscription.
 	engine := newEngine(cfg.Sync)
-	// Reads ahead may spend only a share of each quota, from the first.
+	// Reads ahead may spend only a share of each quota, from the first,
+	// and every page and modal shares the slots of those in flight.
 	obs.SetPrefetchBudget(cfg.Prefetch.Budget)
+	slots := ui.NewSlots(cfg.Prefetch.Parallel)
 	access := accesssvc.New(st.Host, token, accesssvc.WithLookup(findToken), accesssvc.WithChecks(cfg.Auth.Check))
 	// The app tells once of an Enterprise Server older than supported.
 	oldEnterprise := make(chan string, 1)
@@ -230,7 +232,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	fileOpts := []files.Option{
 		files.WithIcons(icons), files.WithFinderPreview(cfg.Files.Finder.Preview),
 		files.WithHost(webHost), files.WithVoice(voice), files.WithEditor(cfg.Editor),
-		files.WithPrefetch(cfg.Prefetch, cfg.Files.Preview.MaxSize),
+		files.WithPrefetch(cfg.Prefetch, cfg.Files.Preview.MaxSize), files.WithSlots(slots),
 	}
 	checkOpts := []checks.Option{checks.WithVoice(voice)}
 	if cfg.Sync.Enabled {
@@ -247,12 +249,12 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		pullOpts = []pulls.Option{
 			pulls.WithVoice(voice), pulls.WithIcons(icons), pulls.WithDates(dates), pulls.WithFacets(facetSvc),
 			pulls.WithChecks(actionSvc, checkOpts...), pulls.WithRepos(repoSvc), pulls.WithViewer(pulls.Viewer(viewer)),
-			pulls.WithPrefetch(cfg.Prefetch),
+			pulls.WithPrefetch(cfg.Prefetch), pulls.WithSlots(slots),
 		}
 		issueOpts = []issues.Option{
 			issues.WithVoice(voice), issues.WithIcons(icons), issues.WithDates(dates), issues.WithFacets(facetSvc),
 			issues.WithRepos(repoSvc), issues.WithViewer(issues.Viewer(viewer)),
-			issues.WithPrefetch(cfg.Prefetch),
+			issues.WithPrefetch(cfg.Prefetch), issues.WithSlots(slots),
 		}
 	)
 	// The notifications screen and the dashboard's inbox open what each
@@ -263,6 +265,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	threadOpts := []threads.Option{
 		threads.WithPulls(pullSvc), threads.WithIssues(issueSvc), threads.WithReleases(releaseSvc),
 		threads.WithMarkRead(cfg.Notifications.MarkReadOnOpen), threads.WithPrefetch(cfg.Prefetch),
+		threads.WithSlots(slots),
 	}
 	opener := threads.New(ctx, threadOpts...)
 	dashOpts := []dashboard.Option{
@@ -278,10 +281,11 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		dashboard.WithDetails(pullSvc, issueSvc),
 		dashboard.WithLanding(landing{repos: repoSvc, files: fileSvc}),
 		dashboard.WithPrefetch(cfg.Prefetch),
+		dashboard.WithSlots(slots),
 	}
 	searchOpts := []searchpage.Option{
 		searchpage.WithStart(searchStart(repoSvc, pinned)), searchpage.WithIcons(icons), searchpage.WithDates(dates), searchpage.WithHost(webHost), searchpage.WithVoice(voice),
-		searchpage.WithDetails(pullSvc, issueSvc), searchpage.WithPrefetch(cfg.Prefetch),
+		searchpage.WithDetails(pullSvc, issueSvc), searchpage.WithPrefetch(cfg.Prefetch), searchpage.WithSlots(slots),
 	}
 	layout := tui.Layout{
 		Files:  files.New(ctx, fileSvc, cfg.Keys, fileOpts...),
@@ -299,7 +303,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	// they open.
 	historyOpts := func(c config.Config) []history.Option {
 		return []history.Option{
-			history.WithConfig(c.History), history.WithPrefetch(c.Prefetch), history.WithHost(webHost), history.WithVoice(voice),
+			history.WithConfig(c.History), history.WithPrefetch(c.Prefetch), history.WithSlots(slots), history.WithHost(webHost), history.WithVoice(voice),
 			history.WithEditor(c.Editor), history.WithIcons(ui.NewIcons(c.UI.Icons)), history.WithDates(ui.NewDates(c.UI.DateFormat)),
 		}
 	}
@@ -358,12 +362,13 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		// The icons, the dates and the reads ahead are those of the
 		// session, which the set command may have changed since the start.
 		o := append(slices.Clip(actionOpts), actions.WithIcons(ui.NewIcons(live.cfg.UI.Icons)), actions.WithDates(ui.NewDates(live.cfg.UI.DateFormat)),
-			actions.WithPrefetch(live.cfg.Prefetch))
+			actions.WithPrefetch(live.cfg.Prefetch), actions.WithSlots(slots))
 		return actions.Opener(actionSvc, cfg.Keys, o...)(ctx, repo, f)
 	}), tui.WithSettings(func(c config.Config) {
 		live.set(c)
 		engine.SetIntervals(pollIntervals(c.Sync.Poll))
 		obs.SetPrefetchBudget(c.Prefetch.Budget)
+		slots.SetSize(c.Prefetch.Parallel)
 		setLogLevel(c.Log.Level)
 	}))
 	var (

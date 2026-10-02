@@ -35,6 +35,8 @@ type options struct {
 	// prefetch is what the modal reads ahead, and how long the cursors
 	// rest first; tests set no rest.
 	prefetch prefetch
+	// slots bound the reads ahead with those of the other pages.
+	slots *ui.Slots
 	// tick is how often the timers of what runs move on; tests set 0,
 	// which stops them.
 	tick time.Duration
@@ -65,6 +67,13 @@ func newPrefetch(p config.PrefetchLayers) prefetch {
 // panes show them. The default is that of config.Default.
 func WithPrefetch(p config.PrefetchLayers) Option {
 	return func(o *options) { o.prefetch = newPrefetch(p) }
+}
+
+// WithSlots bounds the reads ahead of the modal with those of every page
+// and modal that shares s, so that together they keep to
+// prefetch.parallel. Without it, each kind it reads has slots of its own.
+func WithSlots(s *ui.Slots) Option {
+	return func(o *options) { o.slots = s }
 }
 
 // WithVoice sets how the modal words what went wrong, with the keys a hint

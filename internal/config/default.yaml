@@ -256,8 +256,9 @@ prefetch:
   # How long the cursor stays on a row before anything is read for it, up
   # to 2s. The window is read again each time it rests.
   rest: 150ms
-  # The most reads ahead in flight at once, on top of yours, 1 to 10. Set
-  # here, not per page or kind, since every page shares the connection.
+  # The most reads ahead of rows around the cursors in flight at once, on
+  # top of yours, 1 to 10, for every page and modal together. Set here, not
+  # per page or kind, since they all share the connection.
   parallel: 3
   # The percent of each hourly quota, GraphQL points and REST requests
   # alike, that reads ahead may spend, 1 to 50. Once they spent it, nothing
