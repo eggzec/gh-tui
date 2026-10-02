@@ -69,6 +69,8 @@ type Icons struct {
 	// Warning marks what needs a look, such as a key that two bindings
 	// claim, and Below starts a line that says more of the one above it.
 	Warning, Below string
+	// Comment marks a count of comments.
+	Comment string
 	// keys names keys in help, as Key does.
 	keys *strings.Replacer
 

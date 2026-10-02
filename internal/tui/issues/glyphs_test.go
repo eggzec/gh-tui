@@ -3,6 +3,7 @@ package issues
 import (
 	"strings"
 	"testing"
+	"unicode"
 
 	"github.com/charmbracelet/x/ansi"
 
@@ -59,6 +60,30 @@ func TestLongNumbers(t *testing.T) {
 			if w := ansi.StringWidth(row); w != width {
 				t.Errorf("#%d at %d: row is %d cells wide", tt.number, width, w)
 			}
+		}
+	}
+}
+
+// With the ASCII icons a row is ASCII: its comment mark, the more after
+// the labels and the ellipses of cut text.
+func TestRowASCII(t *testing.T) {
+	s := New(t.Context(), newFakeService(nil), config.Default().Keys, WithIcons(ui.NewIcons(config.IconsASCII)))
+	labels := make([]core.Label, 12)
+	for i := range labels {
+		labels[i] = core.Label{Name: "a-long-label-name", Color: "d73a4a"}
+	}
+	it := core.Issue{
+		Number: 1, Title: strings.Repeat("A long title ", 10), State: core.StateOpen, Comments: 12,
+		Labels: labels, Author: core.User{Login: "a-very-long-login"},
+	}
+	s.labeled = true
+	for _, width := range []int{60, 120} {
+		row := ansi.Strip(s.renderRow(it, false, width))
+		if strings.ContainsFunc(row, func(r rune) bool { return r > unicode.MaxASCII }) {
+			t.Errorf("width %d: row %q isn't ASCII", width, row)
+		}
+		if !strings.Contains(row, "...") {
+			t.Errorf("width %d: row %q cuts nothing with ...", width, row)
 		}
 	}
 }

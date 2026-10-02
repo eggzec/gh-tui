@@ -17,6 +17,7 @@ func (ic *Icons) setDrawing(set string) {
 		ic.Times, ic.Minus = "x", "-"
 		ic.Border = lipgloss.ASCIIBorder()
 		ic.Edge, ic.InputEdge, ic.Remove, ic.Warning, ic.Below = "|", "|", "x", "!", "->"
+		ic.Comment = "c"
 		ic.keys = asciiKeys
 		return
 	}
@@ -25,6 +26,7 @@ func (ic *Icons) setDrawing(set string) {
 	ic.Times, ic.Minus = "×", "−"
 	ic.Border = lipgloss.RoundedBorder()
 	ic.Edge, ic.InputEdge, ic.Remove, ic.Warning, ic.Below = "▌", "┃", "✕", "⚠", "↳"
+	ic.Comment = "◦"
 }
 
 // asciiKeys names in words the keys that help draws as arrows, pairs of
