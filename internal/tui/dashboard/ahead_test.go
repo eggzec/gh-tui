@@ -271,3 +271,21 @@ func TestWorkOpenPausesAndCounts(t *testing.T) {
 		}
 	})
 }
+
+// Switching the work tab reads the window of the new tab at once, as a
+// list that loads does, rather than after the cursor rests.
+func TestWorkTabSwitchReadsAtOnce(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		f := &detailFake{}
+		s := aheadSection(t, f)
+		press(t, s, "3")
+		start := time.Now()
+		press(t, s, "]")
+		if got := time.Since(start); got != 0 {
+			t.Errorf("the tab's window was read after %v, want at once", got)
+		}
+		if got := f.numbers(); !slices.Contains(got, 12) {
+			t.Errorf("read %v, want the pull requests of the viewer too", got)
+		}
+	})
+}
