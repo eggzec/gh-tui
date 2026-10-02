@@ -51,7 +51,7 @@ func (s *Step) detailSource() string {
 	if len(parts) == 0 {
 		text := "The check reported nothing more here."
 		if k := s.keys.Open.Help().Key; k != "" && s.check.url() != "" {
-			text += " " + k + " opens its page."
+			text += " " + s.opts.icons.Key(k) + " opens its page."
 		}
 		return text
 	}
@@ -91,7 +91,7 @@ func (s *Step) openHint() string {
 		return ui.OpenHint(s.keys.Open)
 	}
 	if k := s.keys.Open.Help().Key; k != "" && s.keys.Open.Enabled() {
-		return k + " to open its page"
+		return s.opts.icons.Key(k) + " to open its page"
 	}
 	return ""
 }
@@ -106,7 +106,7 @@ func (s *Step) detailLines(w, h int) []string {
 		right = st.run.Took(c.Status, c.Conclusion, c.StartedAt, c.CompletedAt, s.now())
 	}
 	lines := make([]string, 0, h)
-	lines = append(lines, ui.Spread(head, right, w))
+	lines = append(lines, ui.SpreadCut(head, right, w, s.opts.icons.Ellipsis))
 	for l := range strings.SplitSeq(s.detail.View(), "\n") {
 		lines = append(lines, ui.Fit(l, w))
 	}

@@ -542,15 +542,15 @@ func (m *detailModal) detailHeader(width int) string {
 	}
 	lines = append(lines, "")
 
-	dot := st.sep.Render(" · ")
+	dot := st.sep.Render(st.ic.Separator)
 	line(st.badge(d.PullRequest), "  ",
 		termtext.Link(d.URL, st.age.Render("#"+strconv.Itoa(d.Number))), dot,
 		st.title.Render(ui.OneLine(d.Author.Login)), st.author.Render(" opened "+m.dates.Prose(d.CreatedAt, now)), dot,
 		st.author.Render("updated "+m.dates.Prose(d.UpdatedAt, now)))
 
 	stats := []string{
-		st.title.Render(ui.OneLine(d.HeadRef)) + st.sep.Render(" → ") + st.title.Render(ui.OneLine(d.BaseRef)),
-		st.added.Render("+"+strconv.Itoa(d.Additions)) + " " + st.deleted.Render("−"+strconv.Itoa(d.Deletions)),
+		st.title.Render(ui.OneLine(d.HeadRef)) + st.sep.Render(" "+st.ic.Arrow+" ") + st.title.Render(ui.OneLine(d.BaseRef)),
+		st.added.Render("+"+strconv.Itoa(d.Additions)) + " " + st.deleted.Render(st.ic.Minus+strconv.Itoa(d.Deletions)),
 		st.author.Render(plural(d.ChangedFiles, "file")),
 	}
 	if r := st.reviewText(d.ReviewDecision); r != "" {
@@ -568,7 +568,7 @@ func (m *detailModal) detailHeader(width int) string {
 		}
 		line(strings.Join(names, "  "))
 	}
-	line(st.rule.Render(strings.Repeat("─", inner)))
+	line(st.rule.Render(strings.Repeat(st.ic.Border.Top, inner)))
 	return strings.Join(lines, "\n")
 }
 
@@ -587,7 +587,7 @@ func (m *detailModal) ciLine() string {
 		return ""
 	}
 	if k := m.keys.Checks; k.Enabled() && k.Help().Key != "" {
-		line += m.st.sep.Render("  · " + k.Help().Key + " for details")
+		line += m.st.sep.Render(" " + m.st.ic.Separator + m.st.ic.Key(k.Help().Key) + " for details")
 	}
 	return line
 }
@@ -615,7 +615,7 @@ func (m *detailModal) renderComment(c core.Comment, width int) string {
 	var b strings.Builder
 	// The avatar takes its box from the start, so the line doesn't move
 	// when it arrives.
-	b.WriteString(gutter + m.avatars.Line(c.AvatarURL) + st.commenter.Render(ui.OneLine(c.Author.Login)) + st.age.Render(" · "+m.dates.Prose(c.CreatedAt, m.now())))
+	b.WriteString(gutter + m.avatars.Line(c.AvatarURL) + st.commenter.Render(ui.OneLine(c.Author.Login)) + st.age.Render(st.ic.Separator+m.dates.Prose(c.CreatedAt, m.now())))
 	bar := gutter + st.bar
 	// The bar takes two cells, and as many stay free on the right.
 	body := m.thread.Markdown(c.Body, markdown.Room(width, 2*len(gutter)+2))

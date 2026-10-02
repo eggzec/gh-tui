@@ -259,7 +259,7 @@ func TestMultiEditorMarks(t *testing.T) {
 	m := open(t, prSpec(f.load))
 	m, _ = press(t, m, down, down, down, enter, down, down, space)
 	it, ok := m.pick.Selected()
-	if !ok || it.Value != "docs" || !strings.HasPrefix(it.Title, chosenMark) {
+	if !ok || it.Value != "docs" || !strings.HasPrefix(it.Title, DefaultGlyphs().Chosen+" ") {
 		t.Errorf("selected %+v, want docs marked as chosen", it)
 	}
 	if got := m.query.Value(); !strings.Contains(got, "label:bug,enhancement,docs") {

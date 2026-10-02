@@ -3,6 +3,9 @@ package files
 import (
 	"strings"
 	"testing"
+	"unicode"
+
+	"charm.land/bubbles/v2/key"
 
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
@@ -86,10 +89,10 @@ func TestViewPreview(t *testing.T) {
 // TestViewWithoutFileIcons draws the rows as before in the icon sets
 // without file icons.
 func TestViewWithoutFileIcons(t *testing.T) {
-	for _, set := range []string{config.IconsUnicode, config.IconsASCII} {
+	for set, first := range map[string]string{config.IconsUnicode: "▌ ▸ cmd", config.IconsASCII: "> + cmd"} {
 		s := loaded(t, sampleFake(), 30, 4, WithIcons(ui.NewIcons(set)))
 		lines := strings.Split(ansi.Strip(s.View()), "\n")
-		if lines[0] != "▌ ▸ cmd                       " || lines[2] != "    vendor-lib                " {
+		if strings.TrimRight(lines[0], " ") != first || lines[2] != "    vendor-lib                " {
 			t.Errorf("%s: rows %q, want no icons", set, lines)
 		}
 	}
@@ -128,5 +131,18 @@ func TestViewIconsFitNarrowWidths(t *testing.T) {
 			continue
 		}
 		assertFits(t, s.View(), w, 10)
+	}
+}
+
+// With the ASCII icons the tree draws ASCII alone, and so do the notes of
+// a file the preview doesn't show.
+func TestViewASCII(t *testing.T) {
+	ic := ui.NewIcons(config.IconsASCII)
+	s := loaded(t, sampleFake(), 40, 10, WithIcons(ic))
+	open := key.NewBinding(key.WithKeys("enter"), key.WithHelp("↵", "open"))
+	for _, v := range []string{ansi.Strip(s.View()), browserHint(open, ic)} {
+		if strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
+			t.Errorf("%q isn't ASCII", v)
+		}
 	}
 }

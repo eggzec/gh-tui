@@ -29,6 +29,8 @@ type Styles struct {
 	Status lipgloss.Style
 	// Empty styles the text shown when there are no days.
 	Empty lipgloss.Style
+	// Ellipsis ends a line cut to the width. The default is "…".
+	Ellipsis string
 }
 
 // DefaultStyles returns the default styles for a light or dark terminal: a
@@ -51,12 +53,13 @@ func DefaultStyles(isDark bool) Styles {
 			level("#30a14e", "#26a641"),
 			level("#216e39", "#39d353"),
 		},
-		Cursor:  lipgloss.NewStyle().Reverse(true),
-		Total:   lipgloss.NewStyle(),
-		Month:   lipgloss.NewStyle().Foreground(muted),
-		Weekday: lipgloss.NewStyle().Foreground(muted),
-		Legend:  lipgloss.NewStyle().Foreground(subtle),
-		Status:  lipgloss.NewStyle().Foreground(muted),
-		Empty:   lipgloss.NewStyle().Foreground(muted),
+		Cursor:   lipgloss.NewStyle().Reverse(true),
+		Total:    lipgloss.NewStyle(),
+		Month:    lipgloss.NewStyle().Foreground(muted),
+		Weekday:  lipgloss.NewStyle().Foreground(muted),
+		Legend:   lipgloss.NewStyle().Foreground(subtle),
+		Status:   lipgloss.NewStyle().Foreground(muted),
+		Empty:    lipgloss.NewStyle().Foreground(muted),
+		Ellipsis: "…",
 	}
 }

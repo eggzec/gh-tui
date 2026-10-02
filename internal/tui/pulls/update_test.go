@@ -275,7 +275,7 @@ func TestTruncate(t *testing.T) {
 		{"x", 0, ""},
 	}
 	for _, tt := range tests {
-		got, w := truncate(tt.in, tt.width)
+		got, w := truncate(tt.in, tt.width, "…")
 		if got != tt.want || w != ansi.StringWidth(got) {
 			t.Errorf("truncate(%q, %d) = %q, %d; want %q", tt.in, tt.width, got, w, tt.want)
 		}

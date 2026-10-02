@@ -219,7 +219,7 @@ func TestAuthCommandIcons(t *testing.T) {
 	runCommand(t, m, "set ui.icons="+config.IconsASCII)
 	runCommand(t, m, "auth")
 	view := ansi.Strip(m.View().Content)
-	for _, want := range []string{"+ Read and mark notifications", "x Merge changes to workflows · needs workflow"} {
+	for _, want := range []string{"+ Read and mark notifications", "x Merge changes to workflows - needs workflow"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("the modal doesn't show %q:\n%s", want, view)
 		}

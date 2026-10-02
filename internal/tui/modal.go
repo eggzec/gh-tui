@@ -190,7 +190,7 @@ func (m *Model) frame(mod ui.Modal) string {
 	if w < 4 {
 		return ""
 	}
-	b := lipgloss.RoundedBorder()
+	b := m.icons.Border
 	var tabs string
 	if t, ok := mod.(ui.Tabbed); ok {
 		tabs = m.tabs(t)
@@ -202,7 +202,7 @@ func (m *Model) frame(mod ui.Modal) string {
 		titleWidth = min(titleWidth, room)
 	}
 	// A title may hold text from GitHub, such as a pull request's.
-	title := ansi.Truncate(" "+ui.OneLine(mod.Title())+" ", titleWidth, "… ")
+	title := ansi.Truncate(" "+ui.OneLine(mod.Title())+" ", titleWidth, m.icons.Ellipsis+" ")
 	rest := max(w-3-lipgloss.Width(title), 0)
 	switch {
 	case tabs == "":
@@ -221,7 +221,13 @@ func (m *Model) frame(mod ui.Modal) string {
 		top += tabs + m.theme.Accent.Render(b.Top)
 	}
 	top += m.theme.Accent.Render(b.TopRight)
-	return top + "\n" + m.theme.Frame().Render(mod.View())
+	return top + "\n" + m.frameStyle().Render(mod.View())
+}
+
+// frameStyle draws the sides and bottom of a frame like a modal's, in the
+// theme's frame with the border of the icon set.
+func (m *Model) frameStyle() lipgloss.Style {
+	return m.theme.Frame().Border(m.icons.Border, false, true, true)
 }
 
 // tabs renders the tabs of t for the top edge of a frame: the one shown in
@@ -235,7 +241,7 @@ func (m *Model) tabs(t ui.Tabbed) string {
 	b.WriteString(" ")
 	for i, name := range names {
 		if i > 0 {
-			b.WriteString(m.theme.Subtle.Render(" · "))
+			b.WriteString(m.theme.Subtle.Render(m.icons.Separator))
 		}
 		st := m.theme.Muted
 		if i == active {

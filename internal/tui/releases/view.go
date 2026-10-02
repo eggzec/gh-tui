@@ -22,17 +22,20 @@ const gutter = "  "
 type styles struct {
 	title, text, muted, subtle, warning, rule lipgloss.Style
 	sep                                       string
+	// ic draws the rule, the arrow of downloads and the ellipses.
+	ic ui.Icons
 }
 
-func newStyles(t ui.Theme) styles {
+func newStyles(t ui.Theme, ic ui.Icons) styles {
 	return styles{
+		ic:      ic,
 		title:   t.Title,
 		text:    t.Text,
 		muted:   t.Muted,
 		subtle:  t.Subtle,
 		warning: t.Warning,
 		rule:    t.Subtle,
-		sep:     t.Subtle.Render(" · "),
+		sep:     t.Subtle.Render(ic.Separator),
 	}
 }
 
@@ -68,14 +71,14 @@ func (m *Modal) errorView() string {
 		if i > 0 && i-1 < len(errs) {
 			l = gutter + errs[i-1]
 		}
-		lines[i] = fit(l, m.width)
+		lines[i] = fit(l, m.width, m.st.ic.Ellipsis)
 	}
 	return strings.Join(lines, "\n")
 }
 
-// fit truncates or pads s to width cells.
-func fit(s string, width int) string {
-	s = ansi.Truncate(s, width, "…")
+// fit truncates s to width cells, ending in tail, or pads it.
+func fit(s string, width int, tail string) string {
+	s = termtext.Truncate(s, width, tail)
 	if n := ansi.StringWidth(s); n < width {
 		s += strings.Repeat(" ", width-n)
 	}
@@ -129,7 +132,7 @@ func (m *Modal) header(width int) string {
 		}
 		lines = append(lines, gutter+st.muted.Render(plural(n, "file"))+st.sep+st.muted.Render(plural(downloads, "download")))
 	}
-	lines = append(lines, gutter+st.rule.Render(strings.Repeat("─", inner)))
+	lines = append(lines, gutter+st.rule.Render(strings.Repeat(st.ic.Border.Top, inner)))
 	return strings.Join(lines, "\n")
 }
 
@@ -138,11 +141,11 @@ func (m *Modal) header(width int) string {
 func (m *Modal) renderAsset(a core.ReleaseAsset, width int) string {
 	st := &m.st
 	size := ui.Size(a.Size)
-	downloads := "↓ " + thousands(a.Downloads)
+	downloads := st.ic.Down + " " + thousands(a.Downloads)
 	// The numbers line up in columns wide enough for most files.
 	right := strings.Repeat(" ", max(6-len(size), 0)) + size + "  " + strings.Repeat(" ", max(9-ansi.StringWidth(downloads), 0)) + downloads
 	room := max(width-len(gutter)-ansi.StringWidth(right)-2, 1)
-	name := ansi.Truncate(ui.OneLine(a.Name), room, "…")
+	name := termtext.Truncate(ui.OneLine(a.Name), room, st.ic.Ellipsis)
 	pad := max(width-len(gutter)-ansi.StringWidth(name)-ansi.StringWidth(right), 1)
 	return gutter + st.text.Render(name) + strings.Repeat(" ", pad) + st.muted.Render(right[:len(right)-len(downloads)]) + st.subtle.Render(downloads)
 }

@@ -2,8 +2,11 @@ package checks
 
 import (
 	"fmt"
+	"strings"
 	"testing"
+	"unicode"
 
+	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
 
 	"github.com/eggzec/gh-tui/internal/config"
@@ -35,6 +38,19 @@ func TestView(t *testing.T) {
 			assertFits(t, v, tt.width, tt.height)
 			golden.RequireEqual(t, v)
 		})
+	}
+}
+
+// With the ASCII icons the checks draw ASCII alone: the list and its
+// crumbs, a job and its annotations. A check's detail is left out, since
+// it shows the markdown the check wrote.
+func TestViewASCII(t *testing.T) {
+	for _, keys := range [][]string{nil, {"enter"}, {"enter", "A"}} {
+		s, h := newStep(t, newFake(), narrowW, narrowH, WithIcons(ui.NewIcons(config.IconsASCII)))
+		h.keys(keys...)
+		if v := ansi.Strip(s.View()); strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
+			t.Errorf("after %v: view isn't ASCII:\n%s", keys, v)
+		}
 	}
 }
 

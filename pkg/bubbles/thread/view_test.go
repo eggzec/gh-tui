@@ -97,3 +97,20 @@ func TestViewZeroSize(t *testing.T) {
 		t.Fatalf("View() = %q, want empty", out)
 	}
 }
+
+// The texts while loading and the cut of a long line end in the ellipsis
+// of the styles.
+func TestViewEllipsis(t *testing.T) {
+	st := DefaultStyles(true)
+	st.Ellipsis, st.Pointer = "...", ">"
+	m := newTest(newSource(1, 3), nil, 40, 6)
+	m.SetStyles(st)
+	if v := ansi.Strip(m.View()); !strings.Contains(v, "Loading...") {
+		t.Errorf("view while loading lacks the ellipsis:\n%s", v)
+	}
+	header := strings.Repeat("A very long issue title that goes on ", 4)
+	m = drain(t, m, m.SetDocument(header, testBody))
+	if first, _, _ := strings.Cut(ansi.Strip(m.View()), "\n"); !strings.HasSuffix(first, "...") {
+		t.Errorf("cut header %q doesn't end in the ellipsis", first)
+	}
+}

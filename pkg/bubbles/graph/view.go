@@ -4,6 +4,8 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // minText is the fewest cells of the text that the right column may leave.
@@ -14,7 +16,7 @@ func (m Model) View() string {
 	if m.width <= 0 || m.height <= 0 {
 		return ""
 	}
-	w := lineWriter{width: m.width, height: m.height, ellipsis: m.styles.ErrorEllipsis}
+	w := lineWriter{width: m.width, height: m.height, ellipsis: m.styles.ErrorEllipsis, cut: m.styles.Ellipsis}
 	// Rows carry styles, so leave room for escape sequences.
 	w.b.Grow(m.height * (m.width + 96))
 
@@ -59,7 +61,7 @@ func (m Model) writeRow(w *lineWriter, i, graphW int) {
 		avail -= r.rightW + 1
 	}
 	if textW > avail {
-		text = ansi.Truncate(text, avail, "…")
+		text = termtext.Truncate(text, avail, m.styles.Ellipsis)
 		textW = ansi.StringWidth(text)
 	}
 
@@ -126,8 +128,9 @@ type lineWriter struct {
 	width  int
 	height int
 	lines  int
-	// ellipsis ends the text of a status line where it is cut.
-	ellipsis string
+	// ellipsis ends the text of a status line where it is cut, and cut
+	// any other line.
+	ellipsis, cut string
 }
 
 func (w *lineWriter) full() bool {
@@ -153,7 +156,7 @@ func (w *lineWriter) line(parts ...string) {
 	for _, p := range parts {
 		pw := ansi.StringWidth(p)
 		if pw > left {
-			p = ansi.Truncate(p, left, "…")
+			p = termtext.Truncate(p, left, w.cut)
 			pw = ansi.StringWidth(p)
 			w.b.WriteString(p)
 			w.pad(left - pw)
@@ -170,7 +173,7 @@ func (w *lineWriter) line(parts ...string) {
 func (w *lineWriter) status(prefix, text, hint string) {
 	room := w.width - ansi.StringWidth(prefix) - ansi.StringWidth(hint)
 	if tw := ansi.StringWidth(text); tw > room {
-		text = ansi.Truncate(text, max(room, 0), w.ellipsis)
+		text = termtext.Truncate(text, max(room, 0), w.ellipsis)
 	}
 	w.line(prefix, text, hint)
 }

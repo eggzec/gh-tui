@@ -14,6 +14,8 @@ import (
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // Fetch returns the chunk of items after cursor. An empty cursor asks for the
@@ -304,12 +306,13 @@ func (m Model[T]) KeyMap() KeyMap {
 func (m *Model[T]) SetStyles(s Styles) {
 	m.styles = s
 	m.spin.Style = s.Spinner
-	m.gutterFocused = s.Cursor.Render(cursorGlyph) + " "
-	m.gutterBlurred = s.BlurredCursor.Render(cursorGlyph) + " "
+	cursor := termtext.Cells(s.CursorGlyph, 1)
+	m.gutterFocused = s.Cursor.Render(cursor) + " "
+	m.gutterBlurred = s.BlurredCursor.Render(cursor) + " "
 	m.gutterNone = "  "
-	m.loadingText = s.Loading.Render("Loading…")
+	m.loadingText = s.Loading.Render("Loading" + s.Ellipsis)
 	m.emptyLine = s.Empty.Render(m.emptyText)
-	m.placeholder = s.Placeholder.Render("…")
+	m.placeholder = s.Placeholder.Render(s.Ellipsis)
 	m.refreshError()
 }
 

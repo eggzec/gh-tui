@@ -3,11 +3,15 @@ package ui
 import (
 	"context"
 	"errors"
+	"reflect"
 	"slices"
+	"strings"
 	"testing"
+	"unicode"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
+	glamouransi "charm.land/glamour/v2/ansi"
 	"charm.land/lipgloss/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
@@ -67,8 +71,8 @@ func TestThemeTakesPaletteColors(t *testing.T) {
 	checks := map[string]any{
 		"feed cursor":  th.Feed(ic).Cursor.GetForeground(),
 		"thread key":   th.Thread(ic).Key.GetForeground(),
-		"prompt edge":  th.Prompt().Frame.GetBorderLeftForeground(),
-		"prompt caret": th.Prompt().Cursor.GetForeground(),
+		"prompt edge":  th.Prompt(ic).Frame.GetBorderLeftForeground(),
+		"prompt caret": th.Prompt(ic).Cursor.GetForeground(),
 		"toast info":   th.Toast(ic).Info.Color,
 		"tree cursor":  th.Tree(ic).Cursor.GetForeground(),
 		"pager prompt": th.Pager(ic).Prompt.GetForeground(),
@@ -80,10 +84,10 @@ func TestThemeTakesPaletteColors(t *testing.T) {
 			t.Errorf("%s = %v, want the palette accent %v", name, got, accent)
 		}
 	}
-	if got := th.Prompt().BlurredFrame.GetBorderLeftForeground(); got != lipgloss.Color(p.Border) {
+	if got := th.Prompt(ic).BlurredFrame.GetBorderLeftForeground(); got != lipgloss.Color(p.Border) {
 		t.Errorf("blurred prompt edge = %v, want the palette border color", got)
 	}
-	if got := th.Prompt().Text.GetForeground(); got != lipgloss.Color(p.Foreground) {
+	if got := th.Prompt(ic).Text.GetForeground(); got != lipgloss.Color(p.Foreground) {
 		t.Errorf("prompt text = %v, want the palette foreground", got)
 	}
 	if th.Pager(ic).Syntax == nil {
@@ -148,6 +152,57 @@ func TestThemeTakesErrorGlyph(t *testing.T) {
 				t.Errorf("%s: %s separator and ellipsis = %q, want %q and %q", set, name, j, ic.Separator, ic.Ellipsis)
 			}
 		}
+	}
+}
+
+// asciiGlyphs reports the glyphs of styles v, its string fields and those
+// of its borders and nested styles, that aren't ASCII.
+func asciiGlyphs(t *testing.T, name string, v reflect.Value) {
+	t.Helper()
+	switch v.Kind() {
+	case reflect.String:
+		if strings.ContainsFunc(v.String(), func(r rune) bool { return r > unicode.MaxASCII }) {
+			t.Errorf("%s = %q isn't ASCII", name, v.String())
+		}
+	case reflect.Struct:
+		// Markdown is drawn by its own renderer, which keeps what GitHub
+		// wrote.
+		if v.Type() == reflect.TypeFor[lipgloss.Style]() || v.Type() == reflect.TypeFor[glamouransi.StyleConfig]() {
+			return
+		}
+		for i := range v.NumField() {
+			if f := v.Type().Field(i); f.IsExported() {
+				asciiGlyphs(t, name+"."+f.Name, v.Field(i))
+			}
+		}
+	default:
+		// Other kinds hold no glyphs.
+	}
+}
+
+// With the ASCII icons every glyph the theme gives the bubbles is ASCII.
+func TestThemeASCIIGlyphs(t *testing.T) {
+	p, err := config.Default().Palette(true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	th, ic := NewTheme(p, true), NewIcons(config.IconsASCII)
+	for name, st := range map[string]any{
+		"toast": th.Toast(ic), "feed": th.Feed(ic), "thread": th.Thread(ic), "tree": th.Tree(ic),
+		"graph": th.Graph(ic), "pager": th.Pager(ic), "logview": th.LogView(ic), "filterform": th.FilterForm(ic),
+		"picker": th.Picker(ic), "finder": th.Finder(ic), "prompt": th.Prompt(ic), "keyhelp": th.KeyHelp(ic),
+		"calendar": th.Calendar(ic), "cmdline": th.Cmdline(ic),
+	} {
+		asciiGlyphs(t, name, reflect.ValueOf(st))
+	}
+	// The edges and frames are borders of styles.
+	for name, b := range map[string]string{
+		"toast edge":   th.Toast(ic).Toast.GetBorderStyle().Left,
+		"prompt edge":  th.Prompt(ic).Frame.GetBorderStyle().Left,
+		"picker frame": th.Picker(ic).Frame.GetBorderStyle().TopLeft,
+		"form picker":  th.FilterForm(ic).Picker.Frame.GetBorderStyle().Left,
+	} {
+		asciiGlyphs(t, name, reflect.ValueOf(b))
 	}
 }
 

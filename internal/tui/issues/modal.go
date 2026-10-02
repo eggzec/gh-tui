@@ -227,7 +227,7 @@ func (m *detailModal) SetTheme(t ui.Theme) {
 	m.chips = newChipCache(m.rows)
 	m.thread.SetStyles(t.Thread(m.icons))
 	if m.composing != composeNone {
-		m.prompt.SetStyles(t.Prompt())
+		m.prompt.SetStyles(t.Prompt(m.icons))
 	}
 	if m.loaded {
 		// The header is styled too. The thread loads whatever the new
@@ -476,7 +476,7 @@ func (m *detailModal) show() tea.Cmd {
 func (m *detailModal) header(it core.Issue) string {
 	t := m.theme
 	now := m.now()
-	dot := t.Subtle.Render(" · ")
+	dot := t.Subtle.Render(m.icons.Separator)
 	var b strings.Builder
 
 	// The title links to the issue's page. A long title wraps.
@@ -499,7 +499,7 @@ func (m *detailModal) header(it core.Issue) string {
 		b.WriteString(t.Subtle.Render("updated " + m.dates.Prose(it.UpdatedAt, now)))
 	}
 	b.WriteString(dot)
-	b.WriteString(t.Muted.Render(commentMark + plural(it.Comments, "comment")))
+	b.WriteString(t.Muted.Render(m.rows.comment + plural(it.Comments, "comment")))
 
 	if len(it.Labels) > 0 {
 		b.WriteString("\n  ")
@@ -537,10 +537,10 @@ func (m *detailModal) renderComment(c core.Comment, width int) string {
 		if who == "" {
 			who = "you"
 		}
-		b.WriteString(t.Subtle.Render(who + " · sending…"))
+		b.WriteString(t.Subtle.Render(who + m.icons.Separator + "sending" + m.icons.Ellipsis))
 	} else {
 		b.WriteString(t.Title.Render(login(c.Author)))
-		b.WriteString(t.Subtle.Render(" · " + m.dates.Prose(c.CreatedAt, m.now())))
+		b.WriteString(t.Subtle.Render(m.icons.Separator + m.dates.Prose(c.CreatedAt, m.now())))
 	}
 	// The body is indented by two cells, with as much room on the right.
 	if body := m.thread.Markdown(c.Body, markdown.Room(width, 4)); body != "" {

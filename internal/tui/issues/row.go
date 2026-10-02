@@ -9,6 +9,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // A row is "● #123   Title…   bug +1   ◦ 3  octocat   3d": the glyph of
@@ -18,7 +19,7 @@ import (
 const (
 	// prefixWidth is the glyph and the number, each with a space after it.
 	prefixWidth   = 2 + ui.NumberWidth + 1
-	commentsWidth = 5 // "◦ 999"
+	commentsWidth = 5 // the mark, a space and "999"
 	authorWidth   = 8
 	gap           = 2
 	// chipName is the longest label name a chip shows.
@@ -31,12 +32,9 @@ const (
 	titleShare = 0.35
 )
 
-// The mark of the comment count.
-const (
-	commentMark = "◦ "
-	// commentMarkWidth is the width of commentMark in cells.
-	commentMarkWidth = 2
-)
+// commentMarkWidth is the width of the mark of the comment count and the
+// space after it, in cells.
+const commentMarkWidth = 2
 
 // columns is which columns a row shows at a width, and how wide they are.
 type columns struct {
@@ -125,6 +123,9 @@ type rowStyles struct {
 	// label is the chip of a label whose color is not valid.
 	label lipgloss.Style
 	dark  bool
+	// comment marks the count of comments, with a space after it, and
+	// ellipsis ends cut text.
+	comment, ellipsis string
 }
 
 // stateNames name the states of issues in the detail header.
@@ -149,6 +150,8 @@ func newRowStyles(t ui.Theme, icons ui.Icons) rowStyles {
 		more:     newPaint(t.Subtle),
 		label:    t.Muted.Padding(0, 1),
 		dark:     t.Dark,
+		comment:  termtext.Cells(icons.Comment, 1) + " ",
+		ellipsis: icons.Ellipsis,
 	}
 }
 
@@ -177,7 +180,7 @@ func (s *Section) renderRow(it core.Issue, selected bool, width int) string {
 		title = st.selected
 	}
 	tcells := max(c.title-over, 0)
-	tw := writeCut(&link, title, ui.OneLine(it.Title), tcells)
+	tw := writeCut(&link, title, ui.OneLine(it.Title), tcells, st.ellipsis)
 	b.WriteString(s.links.Link(it.URL, link.String()))
 	pad(&b, tcells-tw)
 
@@ -190,14 +193,14 @@ func (s *Section) renderRow(it core.Issue, selected bool, width int) string {
 		if it.Comments > 0 {
 			n := count(it.Comments)
 			pad(&b, commentsWidth-commentMarkWidth-len(n))
-			st.meta.write(&b, commentMark+n)
+			st.meta.write(&b, st.comment+n)
 		} else {
 			pad(&b, commentsWidth)
 		}
 	}
 	if c.author {
 		pad(&b, gap)
-		writeFit(&b, st.meta, ui.OneLine(it.Author.Login), authorWidth)
+		writeFit(&b, st.meta, ui.OneLine(it.Author.Login), authorWidth, st.ellipsis)
 	}
 	if c.age {
 		pad(&b, gap)
@@ -236,7 +239,7 @@ func (s *Section) writeLabels(b *strings.Builder, labels []core.Label, c columns
 	}
 	more := ""
 	if n := len(labels) - shown; n > 0 {
-		more = "+…"
+		more = "+" + termtext.Truncate(s.rows.ellipsis, moreWidth-1, "")
 		if n < 10 {
 			more = "+" + strconv.Itoa(n)
 		}
@@ -268,25 +271,26 @@ func count(n int) string {
 	return strconv.Itoa(n/1000) + "k"
 }
 
-// writeFit writes s in p, truncated with an ellipsis or padded to width
-// cells.
-func writeFit(b *strings.Builder, p paint, s string, width int) {
-	pad(b, width-writeCut(b, p, s, width))
+// writeFit writes s in p, truncated to end in tail, an ellipsis, or padded
+// to width cells.
+func writeFit(b *strings.Builder, p paint, s string, width int, tail string) {
+	pad(b, width-writeCut(b, p, s, width, tail))
 }
 
-// writeCut writes s in p, truncated with an ellipsis to at most width
-// cells, and returns its width.
-func writeCut(b *strings.Builder, p paint, s string, width int) int {
+// writeCut writes s in p, truncated to end in tail, an ellipsis, at most
+// width cells, and returns its width.
+func writeCut(b *strings.Builder, p paint, s string, width int, tail string) int {
 	if width <= 0 {
 		return 0
 	}
 	w, ascii := textWidth(s)
+	tw, tailASCII := textWidth(tail)
 	switch {
 	case w <= width:
-	case ascii:
-		s, w = s[:width-1]+"…", width
+	case ascii && tailASCII && tw <= width:
+		s, w = s[:width-tw]+tail, width
 	default:
-		s = ansi.Truncate(s, width, "…")
+		s = termtext.Truncate(s, width, tail)
 		w = ansi.StringWidth(s)
 	}
 	p.write(b, s)

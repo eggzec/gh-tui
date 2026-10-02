@@ -115,7 +115,6 @@ func New(spec Spec, opts ...Option) Model {
 		help:     help.New(),
 	}
 	m.query.Placeholder = "Type a query, or choose above"
-	m.help.ShortSeparator = " · "
 	m.fields = make([]field, len(m.spec.Fields))
 	if m.tabbed() && s.tab == SortTab {
 		m.tab = SortTab

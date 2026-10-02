@@ -38,7 +38,7 @@ func (m *detailModal) compose(what composing, a ui.Action) tea.Cmd {
 		return cmd
 	}
 	num := "#" + strconv.Itoa(m.number)
-	opts := []prompt.Option{prompt.WithStyles(m.theme.Prompt())}
+	opts := []prompt.Option{prompt.WithStyles(m.theme.Prompt(m.icons))}
 	switch what {
 	case composeComment:
 		opts = append(opts,

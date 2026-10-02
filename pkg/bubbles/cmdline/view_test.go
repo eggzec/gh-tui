@@ -302,3 +302,15 @@ func TestViewFollowsFocus(t *testing.T) {
 		t.Error("blur didn't restore the view")
 	}
 }
+
+// A candidate too wide for the row ends in the ellipsis of the styles.
+func TestViewEllipsis(t *testing.T) {
+	st := DefaultStyles(true)
+	st.Ellipsis = "..."
+	m := opened(t, "", WithSize(40, MaxHeight), WithStyles(st), WithComplete(wideComplete))
+	m, _ = m.Update(tab)
+	row, _, _ := strings.Cut(ansi.Strip(m.View()), "\n")
+	if !strings.HasSuffix(strings.TrimRight(row, " "), "...") {
+		t.Errorf("row is %q, want it cut with ...", row)
+	}
+}

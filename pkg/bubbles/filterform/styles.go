@@ -7,22 +7,45 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
-// Glyphs of the form, rendered in the styles that hold them.
+// Marks of the form that are ASCII whatever the glyphs.
 const (
-	cursorGlyph   = "▌"
-	onGlyph       = "●"
-	offGlyph      = "○"
-	boxOn         = "[x]"
-	boxOff        = "[ ]"
-	removeGlyph   = "✕"
-	dropGlyph     = "▾"
-	addText       = "+ add"
-	ruleGlyph     = "─"
-	chosenMark    = "✓ "
-	notChosenMark = "· "
+	boxOn   = "[x]"
+	boxOff  = "[ ]"
+	addText = "+ add"
 )
+
+// Glyphs are what the form draws in the styles that hold them.
+type Glyphs struct {
+	// Cursor marks the field in focus in the gutter, cut or padded to one
+	// cell.
+	Cursor string
+	// On marks the chosen option of a choice, and Off the others.
+	On, Off string
+	// Remove follows a chip that a key removes, and Drop a field that
+	// opens a list.
+	Remove, Drop string
+	// Rule draws the line over the query, one per cell.
+	Rule string
+	// Chosen and NotChosen start the options of a list of many, chosen
+	// or not.
+	Chosen, NotChosen string
+	// Down and Up start the names of the orders, newest or oldest first.
+	Down, Up string
+	// Separator goes between tabs and between the keys of the help, and
+	// Ellipsis ends a text cut to its room and the texts while loading.
+	Separator, Ellipsis string
+}
+
+// DefaultGlyphs returns the glyphs of a form in Unicode.
+func DefaultGlyphs() Glyphs {
+	return Glyphs{
+		Cursor: "▌", On: "●", Off: "○", Remove: "✕", Drop: "▾", Rule: "─",
+		Chosen: "✓", NotChosen: "·", Down: "↓", Up: "↑", Separator: " · ", Ellipsis: "…",
+	}
+}
 
 // Styles holds the styles of a form.
 type Styles struct {
@@ -74,6 +97,8 @@ type Styles struct {
 	// Picker styles the picker of a Multi or Person field. Its frame is
 	// drawn inside the form, so keep it light.
 	Picker picker.Styles
+	// Glyphs are the glyphs the form draws.
+	Glyphs Glyphs
 }
 
 // DefaultStyles returns calm styles for a light or dark terminal, with the
@@ -118,6 +143,7 @@ func DefaultStyles(isDark bool) Styles {
 		ErrorEllipsis:  "…",
 		Help:           help.DefaultStyles(isDark),
 		Picker:         pk,
+		Glyphs:         DefaultGlyphs(),
 	}
 }
 
@@ -130,6 +156,7 @@ func (m *Model) SetStyles(s Styles) {
 	m.styles = s
 	m.spin.Style = s.Spinner
 	m.help.Styles = s.Help
+	m.help.ShortSeparator = s.Glyphs.Separator
 	in := inputStyles(s)
 	m.text.SetStyles(in)
 	m.query.SetStyles(in)
@@ -138,8 +165,8 @@ func (m *Model) SetStyles(s Styles) {
 	}
 	m.cache = renderCache{}
 	m.glyphs = glyphs{
-		gutter: s.Gutter.Render(cursorGlyph) + " ",
-		remove: " " + s.Remove.Render(removeGlyph),
+		gutter: s.Gutter.Render(termtext.Cells(s.Glyphs.Cursor, 1)) + " ",
+		remove: " " + s.Remove.Render(s.Glyphs.Remove),
 	}
 	m.render()
 }

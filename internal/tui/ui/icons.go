@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"strings"
+
 	"charm.land/lipgloss/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
@@ -40,6 +42,42 @@ type Icons struct {
 	// one takes Yes.
 	ChangesRequested, ReviewRequired string
 
+	// Dot marks what is on, such as an unread notification, a label or a
+	// chosen option, and Ring an option that isn't chosen.
+	Dot, Ring string
+	// Crumb goes between the steps of a breadcrumb, as in "Branches › main",
+	// and marks more to the right, and Before more to the left.
+	Crumb, Before string
+	// Cell is a day of the contribution calendar.
+	Cell string
+	// Arrow leads from one thing to the next, such as a branch to the one
+	// it merges into, or the old path of a file to its new one.
+	Arrow string
+	// Up and Down point up and down, as counts of commits ahead and
+	// behind, or the order of a sort, do.
+	Up, Down string
+	// Times goes before a count of repeats, as in "×3", and Minus before a
+	// count of deleted lines.
+	Times, Minus string
+	// Border draws frames, rules and the lines between columns: its Top
+	// across and its Left down.
+	Border lipgloss.Border
+	// Edge is the bar along the left edge of a block, such as a toast,
+	// and InputEdge the one along a text input.
+	Edge, InputEdge string
+	// Remove follows what a key removes, such as a chip of a filter.
+	Remove string
+	// Warning marks what needs a look, such as a key that two bindings
+	// claim, and Below starts a line that says more of the one above it.
+	Warning, Below string
+	// Comment marks a count of comments, and Recent something the user
+	// did before, such as a search.
+	Comment, Recent string
+	// OpenQuote and CloseQuote go around text quoted in prose.
+	OpenQuote, CloseQuote string
+	// keys names keys in help, as Key does.
+	keys *strings.Replacer
+
 	// langs holds the glyphs of languages that have one; the others get
 	// lang.
 	langs  map[string]string
@@ -75,6 +113,7 @@ const (
 func NewIcons(set string) Icons {
 	ic := newIcons(set)
 	ic.runs = runGlyphs(set)
+	ic.setDrawing(set)
 	return ic
 }
 

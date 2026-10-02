@@ -127,7 +127,10 @@ type Model struct {
 	gotoSeq int
 	spin    spinner.Model
 	theme   ui.Theme
-	st      styles
+	// icons are the set ui.icons names, which the root draws its marks,
+	// frames and rules with.
+	icons ui.Icons
+	st    styles
 	// header is rendered whenever what it shows changes.
 	header string
 
@@ -464,15 +467,16 @@ func (m *Model) applyTheme(dark bool) {
 		p, _ = config.Default().Palette(dark)
 	}
 	m.theme = ui.NewTheme(p, dark)
+	m.icons = ui.NewIcons(m.cfg.UI.Icons)
 	m.st = newStyles(m.theme)
-	m.toast.SetStyles(m.theme.Toast(ui.NewIcons(m.cfg.UI.Icons)))
-	m.keyhelp.SetStyles(m.theme.KeyHelp())
+	m.toast.SetStyles(m.theme.Toast(m.icons))
+	m.keyhelp.SetStyles(m.theme.KeyHelp(m.icons))
 	m.bst = newBarStyles(m.theme)
-	m.status.SetStyles(statusbar.Styles{Separator: m.st.edge})
+	m.status.SetStyles(statusbar.Styles{Separator: m.st.edge, SeparatorText: m.icons.Separator})
 	m.drawStatus()
 	// The hints are drawn again in the theme's styles.
 	m.layers = nil
-	m.line.SetStyles(m.theme.Cmdline())
+	m.line.SetStyles(m.theme.Cmdline(m.icons))
 	m.spin.Style = m.theme.Accent
 	for _, p := range m.all {
 		p.section.SetTheme(m.theme)
@@ -512,7 +516,7 @@ func (m *Model) updateChips() {
 		}
 		label := paneLabel(i, p.section.Title())
 		if chips := c.Chips(); chips != "" {
-			label += " · " + chips
+			label += m.icons.Separator + chips
 		}
 		if label != p.label {
 			p.label = label

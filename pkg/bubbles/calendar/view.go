@@ -4,6 +4,8 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // View renders the calendar in exactly Height lines of Width cells.
@@ -124,11 +126,12 @@ func (m *Model) renderFooter() {
 	m.lines[lineFooter] = b.String()
 }
 
-// fit truncates or pads s to the width.
+// fit truncates s to the width, ending it with the ellipsis where it
+// cuts, or pads it.
 func (m Model) fit(s string) string {
 	w := ansi.StringWidth(s)
 	if w > m.width {
-		s = ansi.Truncate(s, m.width, "…")
+		s = termtext.Truncate(s, m.width, m.styles.Ellipsis)
 		w = ansi.StringWidth(s)
 	}
 	return s + strings.Repeat(" ", m.width-w)

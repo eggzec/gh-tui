@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"unicode"
 
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
@@ -43,6 +44,28 @@ func TestView(t *testing.T) {
 			assertFits(t, v, tt.width, tt.height)
 			golden.RequireEqual(t, v)
 		})
+	}
+}
+
+// With the ASCII icons every pane draws ASCII alone: the graph, the
+// branches, the commit and its patch, wide and narrow.
+func TestViewASCII(t *testing.T) {
+	for _, tt := range []struct {
+		width, height int
+		keys          []string
+	}{
+		{wideW, wideH, nil},
+		{wideW, wideH, []string{"esc", "j"}},
+		{wideW, wideH, []string{"enter", "enter"}},
+		{narrowW, narrowH, []string{"esc", "j"}},
+		{narrowW, narrowH, []string{"enter"}},
+		{narrowW, narrowH, []string{"enter", "enter"}},
+	} {
+		m, h := newModal(t, newFake(), tt.width, tt.height, WithIcons(ui.NewIcons(config.IconsASCII)))
+		h.keys(tt.keys...)
+		if v := ansi.Strip(m.View()); strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
+			t.Errorf("%dx%d after %v: view isn't ASCII:\n%s", tt.width, tt.height, tt.keys, v)
+		}
 	}
 }
 

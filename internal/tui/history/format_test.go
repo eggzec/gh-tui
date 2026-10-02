@@ -54,7 +54,7 @@ func TestDates(t *testing.T) {
 	}
 	for _, tt := range tests {
 		dates := ui.NewDates(tt.format).In(time.UTC)
-		if got := newFormat(testConfig(), dates, ui.Icons{}).dates(authored, tt.committed, testNow); got != tt.want {
+		if got := newFormat(testConfig(), dates, ui.NewIcons(config.IconsUnicode)).dates(authored, tt.committed, testNow); got != tt.want {
 			t.Errorf("%s: dates = %q, want %q", tt.format, got, tt.want)
 		}
 	}

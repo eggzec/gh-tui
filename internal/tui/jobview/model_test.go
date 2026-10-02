@@ -6,7 +6,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode"
 
+	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
 
 	"github.com/eggzec/gh-tui/internal/config"
@@ -405,5 +407,18 @@ func TestKeyLayersOrder(t *testing.T) {
 	keys(m, "j")
 	if m.notes.cursor != before+1 {
 		t.Errorf("j moved the annotations from %d to %d, want one down", before, m.notes.cursor)
+	}
+}
+
+// With the ASCII icons the job draws ASCII alone: its steps, the log's
+// gutter and folds, and the annotations.
+func TestViewASCII(t *testing.T) {
+	for _, j := range []core.Job{failed(), running()} {
+		f := newFake()
+		m := newView(t, f, 80, 20, WithIcons(ui.NewIcons(config.IconsASCII)))
+		run(m, m.Show(j, false, Hints{SHA: "f00d"}))
+		if v := ansi.Strip(m.View()); strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
+			t.Errorf("job %s: view isn't ASCII:\n%s", j.Name, v)
+		}
 	}
 }

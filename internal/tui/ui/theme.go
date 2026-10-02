@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"strings"
+
 	"charm.land/bubbles/v2/help"
 	"charm.land/lipgloss/v2"
 
@@ -56,16 +58,18 @@ func NewTheme(p config.Palette, dark bool) Theme {
 	}
 }
 
-// Each bubble keeps the shape of its default styles, such as glyphs and
-// borders, and takes its colors from the palette. A bubble that marks what
-// went wrong takes the mark from the icons, as the error lines of the
-// sections do.
+// Each bubble keeps the shape of its default styles and takes its colors
+// from the palette, and its glyphs, such as its cursor, marks, ellipsis
+// and lines, from the icons.
 
 // Toast returns the styles of the toasts, with their levels marked by the
 // glyphs of ic: info, yes for success, and error. Warnings keep their "!".
+// The edge, the repeat sign and the ellipsis are those of ic too.
 func (t Theme) Toast(ic Icons) toast.Styles {
 	s := toast.DefaultStyles(t.Dark)
 	s.Info.Glyph, s.Success.Glyph, s.Error.Glyph = ic.Info, ic.Yes, ic.Error
+	s.Times, s.Ellipsis = ic.Times, ic.Ellipsis
+	s.Toast = s.Toast.Border(lipgloss.Border{Left: ic.Edge}, false, false, false, true)
 	s.Text = s.Text.Foreground(lipgloss.Color(t.Palette.Foreground))
 	s.Count = s.Count.Foreground(lipgloss.Color(t.Palette.Muted))
 	s.Info.Color = lipgloss.Color(t.Palette.Accent)
@@ -80,6 +84,7 @@ func (t Theme) Feed(ic Icons) feed.Styles {
 	s := feed.DefaultStyles(t.Dark)
 	s.ErrorGlyph = ic.Error
 	s.ErrorSeparator, s.ErrorEllipsis = ic.Separator, ic.Ellipsis
+	s.CursorGlyph, s.Ellipsis = ic.Cursor, ic.Ellipsis
 	s.Cursor = s.Cursor.Foreground(lipgloss.Color(t.Palette.Accent))
 	s.BlurredCursor = s.BlurredCursor.Foreground(lipgloss.Color(t.Palette.Subtle))
 	s.Placeholder = s.Placeholder.Foreground(lipgloss.Color(t.Palette.Subtle))
@@ -96,6 +101,7 @@ func (t Theme) Thread(ic Icons) thread.Styles {
 	s := thread.DefaultStyles(t.Dark)
 	s.ErrorGlyph = ic.Error
 	s.ErrorSeparator, s.ErrorEllipsis = ic.Separator, ic.Ellipsis
+	s.Pointer, s.Ellipsis = ic.Crumb, ic.Ellipsis
 	s.Spinner = s.Spinner.Foreground(lipgloss.Color(t.Palette.Accent))
 	s.Loading = s.Loading.Foreground(lipgloss.Color(t.Palette.Muted))
 	s.Empty = s.Empty.Foreground(lipgloss.Color(t.Palette.Muted))
@@ -110,6 +116,8 @@ func (t Theme) Tree(ic Icons) tree.Styles {
 	s := tree.DefaultStyles(t.Dark)
 	s.ErrorGlyph = ic.Error
 	s.ErrorSeparator, s.ErrorEllipsis = ic.Separator, ic.Ellipsis
+	s.CursorGlyph, s.OpenGlyph, s.ClosedGlyph = ic.Cursor, ic.Unfolded, ic.Folded
+	s.GuideGlyph, s.Ellipsis = ic.Border.Left, ic.Ellipsis
 	s.Cursor = s.Cursor.Foreground(lipgloss.Color(t.Palette.Accent))
 	s.BlurredCursor = s.BlurredCursor.Foreground(lipgloss.Color(t.Palette.Subtle))
 	s.Guide = s.Guide.Foreground(lipgloss.Color(t.Palette.Border))
@@ -132,6 +140,7 @@ func (t Theme) Graph(ic Icons) graph.Styles {
 	s := graph.DefaultStyles(t.Dark)
 	s.ErrorGlyph = ic.Error
 	s.ErrorSeparator, s.ErrorEllipsis = ic.Separator, ic.Ellipsis
+	s.CursorGlyph, s.CommitGlyph, s.Lines, s.Ellipsis = ic.Cursor, ic.Dot, ic.Border, ic.Ellipsis
 	accent := lipgloss.Color(t.Palette.Accent)
 	s.Cursor = s.Cursor.Foreground(accent)
 	s.BlurredCursor = s.BlurredCursor.Foreground(lipgloss.Color(t.Palette.Subtle))
@@ -158,6 +167,7 @@ func (t Theme) Pager(ic Icons) pager.Styles {
 	s := pager.DefaultStyles(t.Dark)
 	s.ErrorGlyph = ic.Error
 	s.ErrorSeparator, s.ErrorEllipsis = ic.Separator, ic.Ellipsis
+	s.Ellipsis = ic.Ellipsis
 	s.Text = s.Text.Foreground(lipgloss.Color(t.Palette.Foreground))
 	s.LineNumber = s.LineNumber.Foreground(lipgloss.Color(t.Palette.Subtle))
 	s.Name = s.Name.Foreground(lipgloss.Color(t.Palette.Foreground))
@@ -216,6 +226,11 @@ func (t Theme) FilterForm(ic Icons) filterform.Styles {
 	s := filterform.DefaultStyles(t.Dark)
 	s.ErrorGlyph = ic.Error
 	s.ErrorSeparator, s.ErrorEllipsis = ic.Separator, ic.Ellipsis
+	s.Glyphs = filterform.Glyphs{
+		Cursor: ic.Cursor, On: ic.Dot, Off: ic.Ring, Remove: ic.Remove, Drop: ic.Unfolded, Rule: ic.Border.Top,
+		Chosen: ic.Yes, NotChosen: strings.TrimSpace(ic.Separator), Down: ic.Down, Up: ic.Up,
+		Separator: ic.Separator, Ellipsis: ic.Ellipsis,
+	}
 	c := lipgloss.Color
 	p := t.Palette
 	s.Tab = s.Tab.Foreground(c(p.Muted))
@@ -240,14 +255,19 @@ func (t Theme) FilterForm(ic Icons) filterform.Styles {
 	s.Help = t.Help()
 	frame := s.Picker.Frame
 	s.Picker = t.Picker(ic)
-	s.Picker.Frame = frame.BorderForeground(c(p.Border))
+	s.Picker.Frame = frame.Border(ic.Border, false, false, false, true).BorderForeground(c(p.Border))
 	return s
 }
 
 // Prompt returns the styles of an input panel, such as the one a comment is
-// written in. Only its edge and cursor take the accent.
-func (t Theme) Prompt() prompt.Styles {
+// written in, with the edge, separator and ellipsis of ic. Only its edge
+// and cursor take the accent.
+func (t Theme) Prompt(ic Icons) prompt.Styles {
 	s := prompt.DefaultStyles(t.Dark)
+	edge := lipgloss.Border{Left: ic.InputEdge}
+	s.Frame = s.Frame.Border(edge, false, false, false, true)
+	s.BlurredFrame = s.BlurredFrame.Border(edge, false, false, false, true)
+	s.Separator, s.Ellipsis = ic.Separator, ic.Ellipsis
 	s.Frame = s.Frame.BorderForeground(lipgloss.Color(t.Palette.Accent))
 	s.BlurredFrame = s.BlurredFrame.BorderForeground(lipgloss.Color(t.Palette.Border))
 	s.Title = s.Title.Foreground(lipgloss.Color(t.Palette.Foreground))
@@ -266,9 +286,10 @@ func (t Theme) Picker(ic Icons) picker.Styles {
 	s := picker.DefaultStyles(t.Dark)
 	s.ErrorGlyph = ic.Error
 	s.ErrorSeparator, s.ErrorEllipsis = ic.Separator, ic.Ellipsis
+	s.PromptGlyph, s.CursorGlyph, s.Ellipsis = ic.Crumb, ic.Cursor, ic.Ellipsis
 	fg, accent := lipgloss.Color(t.Palette.Foreground), lipgloss.Color(t.Palette.Accent)
 	muted, subtle := lipgloss.Color(t.Palette.Muted), lipgloss.Color(t.Palette.Subtle)
-	s.Frame = s.Frame.BorderForeground(lipgloss.Color(t.Palette.Border))
+	s.Frame = s.Frame.Border(ic.Border).BorderForeground(lipgloss.Color(t.Palette.Border))
 	s.Prompt = s.Prompt.Foreground(accent)
 	s.Text = s.Text.Foreground(fg)
 	s.Placeholder = s.Placeholder.Foreground(subtle)
@@ -293,6 +314,8 @@ func (t Theme) Finder(ic Icons) finder.Styles {
 	s := finder.DefaultStyles(t.Dark)
 	s.ErrorGlyph = ic.Error
 	s.ErrorSeparator, s.ErrorEllipsis = ic.Separator, ic.Ellipsis
+	s.PromptGlyph, s.CursorGlyph = ic.Crumb, ic.Cursor
+	s.Separator, s.Ellipsis = ic.Separator, ic.Ellipsis
 	fg, accent := lipgloss.Color(t.Palette.Foreground), lipgloss.Color(t.Palette.Accent)
 	muted, subtle := lipgloss.Color(t.Palette.Muted), lipgloss.Color(t.Palette.Subtle)
 	s.Prompt = s.Prompt.Foreground(accent)
@@ -313,10 +336,12 @@ func (t Theme) Finder(ic Icons) finder.Styles {
 	return s
 }
 
-// KeyHelp returns the styles of the help, which the accent marks as it
-// does the finder: its query and the keys.
-func (t Theme) KeyHelp() keyhelp.Styles {
+// KeyHelp returns the styles of the help, with the glyphs of ic, which the
+// accent marks as it does the finder: its query and the keys.
+func (t Theme) KeyHelp(ic Icons) keyhelp.Styles {
 	s := keyhelp.DefaultStyles(t.Dark)
+	s.PromptGlyph, s.WarnGlyph, s.LossGlyph = ic.Crumb, ic.Warning, ic.Below
+	s.Separator, s.Ellipsis = ic.Separator, ic.Ellipsis
 	fg, accent := lipgloss.Color(t.Palette.Foreground), lipgloss.Color(t.Palette.Accent)
 	muted, subtle := lipgloss.Color(t.Palette.Muted), lipgloss.Color(t.Palette.Subtle)
 	s.Title = s.Title.Foreground(fg)
@@ -340,8 +365,9 @@ func (t Theme) KeyHelp() keyhelp.Styles {
 // Calendar returns the styles of a contribution calendar. The levels keep
 // their green scale, which reads as contributions whatever the palette, and
 // the words take the palette's colors.
-func (t Theme) Calendar() calendar.Styles {
+func (t Theme) Calendar(ic Icons) calendar.Styles {
 	s := calendar.DefaultStyles(t.Dark)
+	s.Ellipsis = ic.Ellipsis
 	s.Total = s.Total.Foreground(lipgloss.Color(t.Palette.Foreground))
 	s.Month = s.Month.Foreground(lipgloss.Color(t.Palette.Muted))
 	s.Weekday = s.Weekday.Foreground(lipgloss.Color(t.Palette.Subtle))
@@ -353,8 +379,9 @@ func (t Theme) Calendar() calendar.Styles {
 
 // Cmdline returns the styles of the command line. The accent marks the
 // prompt, the cursor and the chosen candidate, as it does in the finder.
-func (t Theme) Cmdline() cmdline.Styles {
+func (t Theme) Cmdline(ic Icons) cmdline.Styles {
 	s := cmdline.DefaultStyles(t.Dark)
+	s.Ellipsis = ic.Ellipsis
 	fg, accent := lipgloss.Color(t.Palette.Foreground), lipgloss.Color(t.Palette.Accent)
 	subtle := lipgloss.Color(t.Palette.Subtle)
 	s.Prompt = s.Prompt.Foreground(accent)

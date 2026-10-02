@@ -27,13 +27,12 @@ type settings struct {
 
 func defaultSettings() settings {
 	return settings{
-		parent:      context.Background(),
-		debounce:    DefaultDebounce,
-		placeholder: "Search…",
-		emptyText:   "No results. Try other words.",
-		headers:     true,
-		keys:        DefaultKeyMap(),
-		styles:      DefaultStyles(true),
+		parent:    context.Background(),
+		debounce:  DefaultDebounce,
+		emptyText: "No results. Try other words.",
+		headers:   true,
+		keys:      DefaultKeyMap(),
+		styles:    DefaultStyles(true),
 	}
 }
 
@@ -64,7 +63,8 @@ func WithDebounce(d time.Duration) Option {
 	}
 }
 
-// WithPlaceholder sets the text shown while the input is empty.
+// WithPlaceholder sets the text shown while the input is empty. Without
+// it, the picker says "Search" and the ellipsis of its styles.
 func WithPlaceholder(text string) Option {
 	return func(s *settings) {
 		s.placeholder = text

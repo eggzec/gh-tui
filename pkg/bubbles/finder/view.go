@@ -22,7 +22,7 @@ func (m Model) listHeight() int {
 func (m *Model) layout() {
 	m.rows = nil
 	// The input draws one cell more than its width, for the cursor.
-	m.input.SetWidth(max(m.width-ansi.StringWidth(promptGlyph)-1, 1))
+	m.input.SetWidth(max(m.width-m.esc.promptWidth-1, 1))
 	m.input.SetCursor(m.input.Position())
 	m.scroll()
 	m.render()
@@ -36,7 +36,7 @@ func (m *Model) render() {
 		return
 	}
 	lines := make([]string, 0, h)
-	lines = append(lines, fit(m.esc.prompt+m.input.View(), w))
+	lines = append(lines, m.fit(m.esc.prompt+m.input.View(), w))
 	if h > 1 {
 		lines = m.appendList(lines, w, h-2)
 		lines = append(lines, m.statusLine(w))
@@ -50,23 +50,23 @@ func (m *Model) statusLine(w int) string {
 	switch {
 	case m.loading:
 		b.WriteString(m.spin.View())
-		b.WriteString(m.esc.status.wrap("Loading " + m.many + "…"))
+		b.WriteString(m.esc.status.wrap("Loading " + m.many + m.styles.Ellipsis))
 	case m.err != nil:
-		return fit("", w)
+		return m.fit("", w)
 	default:
 		if m.matching {
 			b.WriteString(m.spin.View())
 		}
 		b.WriteString(m.esc.status.wrap(m.count(m.Total(), m.one, m.many)))
 		if m.res != nil && !m.res.all {
-			b.WriteString(m.esc.status.wrap(" · " + m.count(m.Matches(), "match", "matches")))
+			b.WriteString(m.esc.status.wrap(m.styles.Separator + m.count(m.Matches(), "match", "matches")))
 		}
 	}
 	if m.note != "" {
-		b.WriteString(m.esc.status.wrap(" · "))
+		b.WriteString(m.esc.status.wrap(m.styles.Separator))
 		b.WriteString(m.esc.note.wrap(clean(m.note)))
 	}
-	return fit(b.String(), w)
+	return m.fit(b.String(), w)
 }
 
 func (m *Model) count(n int, one, many string) string {
@@ -91,9 +91,9 @@ func (m *Model) appendList(lines []string, w, n int) []string {
 		}
 	case m.loading:
 	case m.Total() == 0:
-		lines = append(lines, fit(st.Empty.Render("No "+m.many+" here."), w))
+		lines = append(lines, m.fit(st.Empty.Render("No "+m.many+" here."), w))
 	case m.Matches() == 0 && !m.matching:
-		lines = append(lines, fit(st.Empty.Render("No "+m.many+" match. Try fewer letters."), w))
+		lines = append(lines, m.fit(st.Empty.Render("No "+m.many+" match. Try fewer letters."), w))
 	case m.res != nil:
 		ts := make([][]byte, len(m.res.terms))
 		for i, t := range m.res.terms {
@@ -187,10 +187,10 @@ func (m *Model) row(i int32, selected bool, ts [][]byte, w int) string {
 	b.WriteString(icon)
 	var used int
 	if m.links == nil {
-		used = iw + writePath(&b, path, marks, room, m.esc.dir, name, m.esc.match)
+		used = iw + writePath(&b, path, marks, room, m.esc.dir, name, m.esc.match, m.styles.Ellipsis)
 	} else {
 		var p strings.Builder
-		used = iw + writePath(&p, path, marks, room, m.esc.dir, name, m.esc.match)
+		used = iw + writePath(&p, path, marks, room, m.esc.dir, name, m.esc.match, m.styles.Ellipsis)
 		b.WriteString(termtext.Link(m.links(*it), p.String()))
 	}
 	if detail != "" {
@@ -241,12 +241,13 @@ func (m *Model) marks(i int32, ts [][]byte) []bool {
 
 // writePath writes path in at most room cells, cut from the left where it
 // is too long, so that the file name stays: dirs in dir, the name in name,
-// and the bytes marked in match. It returns the cells written.
-func writePath(b *strings.Builder, path string, marks []bool, room int, dir, name, match pair) int {
+// and the bytes marked in match, with ellipsis standing for what is cut.
+// It returns the cells written.
+func writePath(b *strings.Builder, path string, marks []bool, room int, dir, name, match pair, ellipsis string) int {
 	if room <= 0 {
 		return 0
 	}
-	cut, prefix := trim(path, room)
+	cut, prefix := trim(path, room, ellipsis)
 	used := 0
 	if prefix != "" {
 		b.WriteString(dir.wrap(prefix))
@@ -276,17 +277,21 @@ func writePath(b *strings.Builder, path string, marks []bool, room int, dir, nam
 	return used + ansi.StringWidth(path[cut:])
 }
 
-// trim returns where to start path so that it fits in room cells, and the
-// ellipsis that stands for what is cut: the path keeps as much of its end
-// as fits, which names the file and the directories nearest it.
-func trim(path string, room int) (cut int, prefix string) {
+// trim returns where to start path so that it fits in room cells, and
+// the prefix that stands for what is cut, ellipsis or nothing when it is
+// wider than room: the path keeps as much of its end as fits, which names
+// the file and the directories nearest it.
+func trim(path string, room int, ellipsis string) (cut int, prefix string) {
 	if ansi.StringWidth(path) <= room {
 		return 0, ""
 	}
+	ew := ansi.StringWidth(ellipsis)
+	if ew > room {
+		ellipsis, ew = "", 0
+	}
 	for i := range len(path) {
-		// One cell goes to the ellipsis.
-		if !isContinuation(path[i]) && ansi.StringWidth(path[i:]) < room {
-			return i, "…"
+		if !isContinuation(path[i]) && ansi.StringWidth(path[i:]) <= room-ew {
+			return i, ellipsis
 		}
 	}
 	return len(path), ""
@@ -303,14 +308,15 @@ func clean(s string) string {
 	return strings.Join(strings.Fields(termtext.OneLine(s)), " ")
 }
 
-// fit truncates or pads styled text to exactly width cells.
-func fit(s string, width int) string { return fitCut(s, width, "…") }
+// fit truncates or pads styled text to exactly width cells, ending text
+// that is cut with the ellipsis of the styles.
+func (m *Model) fit(s string, width int) string { return fitCut(s, width, m.styles.Ellipsis) }
 
 // fitCut is fit, ending text that is cut with tail.
 func fitCut(s string, width int, tail string) string {
 	w := ansi.StringWidth(s)
 	if w > width {
-		s = ansi.Truncate(s, width, tail)
+		s = termtext.Truncate(s, width, tail)
 		w = ansi.StringWidth(s)
 	}
 	if w < width {

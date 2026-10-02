@@ -231,7 +231,7 @@ func (s *Section) show(state core.StateFilter, query string) tea.Cmd {
 	}
 	s.tab = state
 	if query != s.query {
-		s.query, s.filterChips = query, ui.Chips(query)
+		s.query, s.filterChips = query, ui.Chips(query, s.icons.Separator)
 	}
 	s.others.Opened(s.listQuery(s.tab))
 	return s.resetList()

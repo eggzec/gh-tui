@@ -27,7 +27,7 @@ func (m Model) View() string {
 		rows = m.writeLines(&b)
 	case m.state == stateFailed:
 		for _, l := range m.errorLines(m.width, m.bodyHeight()) {
-			b.WriteString(fit(l, m.width))
+			b.WriteString(m.fit(l, m.width))
 			b.WriteByte('\n')
 			rows++
 		}
@@ -38,7 +38,7 @@ func (m Model) View() string {
 			if rows >= m.bodyHeight() {
 				break
 			}
-			b.WriteString(fit(l, m.width))
+			b.WriteString(m.fit(l, m.width))
 			b.WriteByte('\n')
 			rows++
 		}
@@ -57,7 +57,7 @@ func (m Model) message() string {
 	s := m.styles
 	switch m.state {
 	case stateLoading:
-		return m.spin.View() + s.Message.Render("Loading…")
+		return m.spin.View() + s.Message.Render("Loading"+s.Ellipsis)
 	case stateBinary:
 		return s.Message.Render("Binary file, not shown.")
 	case stateMessage:
@@ -234,18 +234,18 @@ func (m Model) writeSpan(b *strings.Builder, i, a, e int) {
 // right, or the prompt while it is open.
 func (m Model) statusLine() string {
 	if m.prompt.Focused() {
-		return fit(m.prompt.View(), m.width)
+		return m.fit(m.prompt.View(), m.width)
 	}
 	var parts []string
 	switch {
 	case m.projecting && m.want.filter.re != nil:
-		parts = append(parts, m.esc.status.wrap("filtering…"))
+		parts = append(parts, m.esc.status.wrap("filtering"+m.styles.Ellipsis))
 	case m.proj.filter.re != nil:
 		parts = append(parts, m.esc.status.wrap(fmt.Sprintf("filtered %d/%d", m.kept, len(m.lines))))
 	}
 	switch s := m.search; {
 	case s.running:
-		parts = append(parts, m.esc.status.wrap("searching…"))
+		parts = append(parts, m.esc.status.wrap("searching"+m.styles.Ellipsis))
 	case s.query != "":
 		switch n := s.total(); {
 		case s.cur < 0:
@@ -276,16 +276,17 @@ func (m Model) statusLine() string {
 	right := strings.Join(parts, "  ")
 	rw := ansi.StringWidth(right)
 	if rw+2 > m.width {
-		return fit(right, m.width)
+		return m.fit(right, m.width)
 	}
-	return fit(left, m.width-rw-2) + "  " + right
+	return m.fit(left, m.width-rw-2) + "  " + right
 }
 
-// fit truncates or pads styled text to exactly width cells.
-func fit(s string, width int) string {
+// fit truncates styled text to exactly width cells, ending it with the
+// ellipsis where it cuts, or pads it.
+func (m *Model) fit(s string, width int) string {
 	w := ansi.StringWidth(s)
 	if w > width {
-		s = ansi.Truncate(s, width, "…")
+		s = termtext.Truncate(s, width, m.styles.Ellipsis)
 		w = ansi.StringWidth(s)
 	}
 	if w < width {

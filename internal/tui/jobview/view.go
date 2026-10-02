@@ -57,7 +57,8 @@ func (m Model) stepLines(w, h int) []string {
 		why = "Logs appear when the job finishes."
 		// Only GitHub shows the lines of a job as it writes them.
 		if k := m.keys.Open; k.Enabled() && k.Help().Key != "" {
-			why = "Logs appear when the job finishes · " + k.Help().Key + " to watch live on GitHub"
+			ic := m.opts.icons
+			why = "Logs appear when the job finishes" + ic.Separator + ic.Key(k.Help().Key) + " to watch live on GitHub"
 		}
 	default:
 		why = "The job hasn't started yet."
@@ -79,7 +80,7 @@ func (m Model) stepLines(w, h int) []string {
 			status = core.RunQueued
 		}
 		state := ui.RunStateOf(status, s.Conclusion)
-		lines = append(lines, ui.Spread(st.Glyphs[state]+" "+st.Text.Render(ui.OneLine(s.Name)), st.Took(status, s.Conclusion, s.StartedAt, s.CompletedAt, now), w))
+		lines = append(lines, ui.SpreadCut(st.Glyphs[state]+" "+st.Text.Render(ui.OneLine(s.Name)), st.Took(status, s.Conclusion, s.StartedAt, s.CompletedAt, now), w, m.opts.icons.Ellipsis))
 	}
 	return ui.FitLines(lines, w, h)
 }

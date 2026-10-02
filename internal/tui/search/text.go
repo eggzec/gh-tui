@@ -7,6 +7,8 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // fit pads or cuts s to width cells.
@@ -27,21 +29,21 @@ func padLeft(s string, width int) string {
 }
 
 // spread puts left and right at the edges of width cells, and drops right
-// when both don't fit.
-func spread(left, right string, width int) string {
+// when both don't fit, cutting left with the icon set's ellipsis.
+func (s *Section) spread(left, right string, width int) string {
 	lw, rw := ansi.StringWidth(left), ansi.StringWidth(right)
 	if right == "" || lw+rw+1 > width {
-		return fit(ansi.Truncate(left, width, "…"), width)
+		return fit(termtext.Truncate(left, width, s.icons.Ellipsis), width)
 	}
 	return left + strings.Repeat(" ", width-lw-rw) + right
 }
 
-// truncate cuts plain text s to width cells, with an ellipsis.
-func truncate(s string, width int) string {
+// truncate cuts plain text t to width cells, with the icon set's ellipsis.
+func (s *Section) truncate(t string, width int) string {
 	if width <= 0 {
 		return ""
 	}
-	return ansi.Truncate(s, width, "…")
+	return termtext.Truncate(t, width, s.icons.Ellipsis)
 }
 
 // cleanLine puts text from GitHub on one line without escape sequences or

@@ -2,22 +2,27 @@ package tree
 
 import "charm.land/lipgloss/v2"
 
-// cursorGlyph marks the selected row in the gutter.
-const cursorGlyph = "▌"
-
-// guideGlyph draws one level of indentation.
-const guideGlyph = "│"
-
 // Styles holds the styles of a tree.
 type Styles struct {
-	// Cursor marks the selected row while the tree is focused.
+	// Cursor styles the CursorGlyph that marks the selected row while the
+	// tree is focused.
 	Cursor lipgloss.Style
-	// BlurredCursor marks the selected row while the tree is blurred.
+	// BlurredCursor styles the CursorGlyph while the tree is blurred.
 	BlurredCursor lipgloss.Style
+	// CursorGlyph marks the selected row in the gutter, cut or padded to
+	// one cell. The default is "▌".
+	CursorGlyph string
 	// Guide styles the indentation guides.
 	Guide lipgloss.Style
-	// Marker styles the ▸ and ▾ in front of branches.
+	// GuideGlyph draws one level of indentation, cut or padded to one
+	// cell. The default is "│".
+	GuideGlyph string
+	// Marker styles the OpenGlyph and ClosedGlyph in front of branches.
 	Marker lipgloss.Style
+	// OpenGlyph marks a branch that is expanded, and ClosedGlyph one that
+	// is collapsed, each cut or padded to one cell. The defaults are "▾"
+	// and "▸".
+	OpenGlyph, ClosedGlyph string
 	// Branch styles the names of branches.
 	Branch lipgloss.Style
 	// Leaf styles the names of leaves.
@@ -38,6 +43,9 @@ type Styles struct {
 	// ErrorEllipsis ends the text where it is cut. The defaults are " · "
 	// and "…".
 	ErrorSeparator, ErrorEllipsis string
+	// Ellipsis ends a name where it is cut, and the "Loading" shown while
+	// the top-level nodes load. The default is "…".
+	Ellipsis string
 	// Hint styles secondary text such as the retry key.
 	Hint lipgloss.Style
 }
@@ -53,8 +61,12 @@ func DefaultStyles(isDark bool) Styles {
 	return Styles{
 		Cursor:         lipgloss.NewStyle().Foreground(accent),
 		BlurredCursor:  lipgloss.NewStyle().Foreground(subtle),
+		CursorGlyph:    "▌",
 		Guide:          lipgloss.NewStyle().Foreground(subtle),
+		GuideGlyph:     "│",
 		Marker:         lipgloss.NewStyle().Foreground(muted),
+		OpenGlyph:      "▾",
+		ClosedGlyph:    "▸",
 		Branch:         lipgloss.NewStyle().Bold(true),
 		Leaf:           lipgloss.NewStyle(),
 		Detail:         lipgloss.NewStyle().Foreground(subtle),
@@ -65,6 +77,7 @@ func DefaultStyles(isDark bool) Styles {
 		ErrorGlyph:     "✗",
 		ErrorSeparator: " · ",
 		ErrorEllipsis:  "…",
+		Ellipsis:       "…",
 		Hint:           lipgloss.NewStyle().Foreground(subtle),
 	}
 }

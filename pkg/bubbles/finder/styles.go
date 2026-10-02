@@ -6,26 +6,29 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-)
+	"github.com/charmbracelet/x/ansi"
 
-// Glyphs of the finder.
-const (
-	promptGlyph = "› "
-	cursorGlyph = "▌"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // Styles holds the styles of a finder.
 type Styles struct {
-	// Prompt styles the glyph before the input.
+	// Prompt styles the PromptGlyph before the input.
 	Prompt lipgloss.Style
+	// PromptGlyph goes before the input, followed by a space. The default
+	// is "›".
+	PromptGlyph string
 	// Text styles what the user types.
 	Text lipgloss.Style
 	// Placeholder styles the text shown while the query is empty.
 	Placeholder lipgloss.Style
 	// Cursor colors the input's cursor with its foreground.
 	Cursor lipgloss.Style
-	// Gutter marks the selected row.
+	// Gutter styles the CursorGlyph that marks the selected row.
 	Gutter lipgloss.Style
+	// CursorGlyph marks the selected row in the gutter, cut or padded to
+	// one cell. The default is "▌".
+	CursorGlyph string
 	// Dir styles the directories of a path, and Name its file name.
 	// SelectedName styles the file name of the selected row.
 	Dir          lipgloss.Style
@@ -52,6 +55,11 @@ type Styles struct {
 	// ErrorEllipsis ends the text where it is cut. The defaults are " · "
 	// and "…".
 	ErrorSeparator, ErrorEllipsis string
+	// Separator goes between the parts of the status line, and Ellipsis
+	// ends text where it is cut, stands for the directories cut from the
+	// start of a path, and follows the "Loading" of the status line. The
+	// defaults are " · " and "…".
+	Separator, Ellipsis string
 }
 
 // DefaultStyles returns calm styles for a light or dark terminal, with the
@@ -66,10 +74,12 @@ func DefaultStyles(isDark bool) Styles {
 	errColor := ld(lipgloss.Color("#c4314b"), lipgloss.Color("#f7768e"))
 	return Styles{
 		Prompt:         lipgloss.NewStyle().Foreground(accent),
+		PromptGlyph:    "›",
 		Text:           lipgloss.NewStyle().Foreground(text),
 		Placeholder:    lipgloss.NewStyle().Foreground(subtle),
 		Cursor:         lipgloss.NewStyle().Foreground(accent),
 		Gutter:         lipgloss.NewStyle().Foreground(accent),
+		CursorGlyph:    "▌",
 		Dir:            lipgloss.NewStyle().Foreground(muted),
 		Name:           lipgloss.NewStyle().Foreground(text),
 		SelectedName:   lipgloss.NewStyle().Foreground(text).Bold(true),
@@ -83,6 +93,8 @@ func DefaultStyles(isDark bool) Styles {
 		ErrorGlyph:     "✗",
 		ErrorSeparator: " · ",
 		ErrorEllipsis:  "…",
+		Separator:      " · ",
+		Ellipsis:       "…",
 	}
 }
 
@@ -129,18 +141,24 @@ type esc struct {
 	dir, name, selName, match pair
 	detail, status, note      pair
 	gutterOn, prompt          string
+	// promptWidth is the width of prompt in cells, and ellipsisWidth that
+	// of the styles' Ellipsis.
+	promptWidth, ellipsisWidth int
 }
 
 func newEsc(s Styles) esc {
+	prompt := s.PromptGlyph + " "
 	return esc{
-		dir:      newPair(s.Dir),
-		name:     newPair(s.Name),
-		selName:  newPair(s.SelectedName),
-		match:    newPair(s.Match),
-		detail:   newPair(s.Detail),
-		status:   newPair(s.Status),
-		note:     newPair(s.Note),
-		gutterOn: s.Gutter.Render(cursorGlyph) + " ",
-		prompt:   s.Prompt.Render(promptGlyph),
+		dir:           newPair(s.Dir),
+		name:          newPair(s.Name),
+		selName:       newPair(s.SelectedName),
+		match:         newPair(s.Match),
+		detail:        newPair(s.Detail),
+		status:        newPair(s.Status),
+		note:          newPair(s.Note),
+		gutterOn:      s.Gutter.Render(termtext.Cells(s.CursorGlyph, 1)) + " ",
+		prompt:        s.Prompt.Render(prompt),
+		promptWidth:   ansi.StringWidth(prompt),
+		ellipsisWidth: ansi.StringWidth(s.Ellipsis),
 	}
 }

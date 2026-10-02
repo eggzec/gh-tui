@@ -19,7 +19,7 @@ func marks(ic Icons) []string {
 	return slices.Concat([]string{
 		ic.Fork, ic.Private, ic.Archived, ic.Template, ic.Mirror, ic.Here, ic.Star, ic.Error, ic.Language(""),
 		ic.Yes, ic.No, ic.Info, ic.Cursor, ic.Folded, ic.Unfolded,
-		ic.ChangesRequested, ic.ReviewRequired,
+		ic.ChangesRequested, ic.ReviewRequired, ic.Dot, ic.Ring, ic.Crumb, ic.Before, ic.Cell, ic.Comment, ic.Recent,
 	}, ic.states[:], ic.runs[:], slices.Collect(maps.Values(ic.langs)))
 }
 
@@ -37,11 +37,32 @@ func TestIconsAreOneCellWide(t *testing.T) {
 // else.
 func TestIconsASCII(t *testing.T) {
 	ic := NewIcons(config.IconsASCII)
-	for _, g := range append(marks(ic), ic.Separator, ic.Ellipsis) {
+	b := ic.Border
+	drawn := []string{
+		ic.Separator, ic.Ellipsis, ic.Arrow, ic.Up, ic.Down, ic.Times, ic.Minus,
+		b.Top, b.Bottom, b.Left, b.Right, b.TopLeft, b.TopRight, b.BottomLeft, b.BottomRight,
+		b.MiddleLeft, b.MiddleRight, b.Middle, b.MiddleTop, b.MiddleBottom,
+		ic.Edge, ic.InputEdge, ic.Remove, ic.Warning, ic.Below, ic.OpenQuote, ic.CloseQuote,
+		ic.Key("↑/k ↓/j ←/h →/l ↵"),
+	}
+	for _, g := range append(marks(ic), drawn...) {
 		for _, r := range g {
 			if r > unicode.MaxASCII {
 				t.Errorf("glyph %q is not ASCII", g)
 			}
+		}
+	}
+}
+
+func TestIconsKey(t *testing.T) {
+	for label, want := range map[string]string{"↑/k ↵": "up/k enter", "↑↓": "up/down", "←→": "left/right", "½ page down": "half page down"} {
+		if got := NewIcons(config.IconsASCII).Key(label); got != want {
+			t.Errorf("ASCII Key(%q) = %q, want %q", label, got, want)
+		}
+	}
+	for _, set := range []string{config.IconsUnicode, config.IconsNerd} {
+		if got := NewIcons(set).Key("↑/k ↵"); got != "↑/k ↵" {
+			t.Errorf("%s Key = %q, want it unchanged", set, got)
 		}
 	}
 }

@@ -4,8 +4,10 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"unicode"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
 )
@@ -165,4 +167,35 @@ func noSortSpec(load Loader) Spec {
 	s := prSpec(load)
 	s.Sort = nil
 	return s
+}
+
+// A form drawn with ASCII glyphs is ASCII alone: its fields, tabs, rule,
+// sort orders and the picker of a list. The help line, which names keys
+// as the key map labels them, is left out.
+func TestViewASCII(t *testing.T) {
+	st := DefaultStyles(true)
+	st.Glyphs = Glyphs{
+		Cursor: ">", On: "*", Off: "o", Remove: "x", Drop: "-", Rule: "-",
+		Chosen: "+", NotChosen: "-", Down: "v", Up: "^", Separator: " - ", Ellipsis: "...",
+	}
+	st.Picker.Frame = st.Picker.Frame.Border(lipgloss.ASCIIBorder(), false, false, false, true)
+	st.Picker.PromptGlyph, st.Picker.CursorGlyph, st.Picker.Ellipsis = ">", ">", "..."
+	for _, tt := range []struct {
+		name string
+		opts []Option
+		keys []tea.Msg
+	}{
+		{name: "filters"},
+		{name: "chips", keys: []tea.Msg{down, down, down, left}},
+		{name: "labels open", keys: []tea.Msg{down, down, down, enter, down, space}},
+		{name: "sort", opts: []Option{WithTab(SortTab)}},
+	} {
+		f := &fakeLoader{}
+		opts := append([]Option{WithStyles(st), WithHelpLine(false), WithSize(40, 18)}, tt.opts...)
+		m := open(t, prSpec(f.load), opts...)
+		m, _ = press(t, m, tt.keys...)
+		if v := ansi.Strip(m.View()); strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
+			t.Errorf("%s: view isn't ASCII:\n%s", tt.name, v)
+		}
+	}
 }
