@@ -152,7 +152,7 @@ func TestLoadMergesOverDefaults(t *testing.T) {
 						Search: 40 * time.Second, CodeSearch: 2 * time.Minute, Releases: 3 * time.Hour,
 						Profile: 4 * time.Hour, Contributions: 12 * time.Hour,
 					},
-					Memory: Memory{Entries: 512, Files: 16 * MiB, Diffs: 8 * MiB, Logs: 128 * MiB},
+					Memory: Memory{Entries: 512, Files: 16 * MiB, Trees: 24 * MiB, Diffs: 8 * MiB, Logs: 128 * MiB},
 					Disk: Disk{
 						Enabled: false, Dir: "/var/cache/gh-tui", MaxSize: GiB,
 						Compression: CompressionNone, CompressionLevel: LevelBest,

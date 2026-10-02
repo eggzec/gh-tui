@@ -51,6 +51,7 @@ cache:
   memory:
     entries: 512
     files: 16MiB
+    trees: 24MiB
     diffs: 8MiB
     logs: 128MiB
   disk:

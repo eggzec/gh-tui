@@ -111,6 +111,14 @@ cache:
     entries: 1024
     # The memory that the contents of files take.
     files: 32MiB
+    # The memory that listings of files take: the directories browsed and
+    # the list of every path of a commit that the file finder searches.
+    # A listing of a large repository, such as one of 100,000 files, takes
+    # about 20MiB, so this keeps one of those beside the directories around
+    # it, and a few listings of repositories of ordinary size. The listings
+    # read by a ref and those read by a SHA are kept apart, each up to this
+    # much, so together they take up to twice it.
+    trees: 32MiB
     # The memory that the changes of commits take.
     diffs: 32MiB
     # The memory that the logs of jobs take.

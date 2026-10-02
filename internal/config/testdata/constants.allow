@@ -54,6 +54,7 @@ internal/service/actions/partial.go:partialFresh  keep: a mechanism of live logs
 internal/service/actions/partial.go:partialSlack  keep: a mechanism of live logs
 internal/service/actions/service.go:maxPageSize  keep: an API limit
 internal/service/actions/service.go:logLineSize  keep: a measure of the memory a log line takes
+internal/service/files/service.go:treeEntrySize  keep: a measure of the memory an entry of a listing takes
 internal/service/dashboard/work.go:maxPageSize  keep: an API limit
 internal/service/dashboard/repos.go:DefaultReposSize  keep: an API limit, the largest page, so the pane lists them all
 internal/service/history/branches.go:DefaultBranchPageSize  keep: an API limit, the largest page; branches are small
