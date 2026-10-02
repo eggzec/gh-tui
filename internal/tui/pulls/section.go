@@ -123,7 +123,7 @@ type Section struct {
 	// the modal.
 	dates ui.Dates
 	// avatars draws the authors' avatars in the comments of the modal.
-	avatars *ui.Avatars
+	avatars *ui.Images
 	cols    columns
 	// links keeps the links of the rows, which are drawn on every frame.
 	links  termtext.Links
@@ -189,7 +189,7 @@ func WithDates(d ui.Dates) Option {
 // WithAvatars draws the avatars of the authors of comments with a.
 // Without it, or where the terminal shows no images, the comments show
 // none and take no room for them.
-func WithAvatars(a *ui.Avatars) Option {
+func WithAvatars(a *ui.Images) Option {
 	return func(s *Section) { s.avatars = a }
 }
 

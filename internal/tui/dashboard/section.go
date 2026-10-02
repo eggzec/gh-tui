@@ -155,7 +155,7 @@ func WithDates(d ui.Dates) Option {
 // box of ui.AvatarLarge, which makes the profile as tall as the box.
 // Without it, or where the terminal shows no images, the profile keeps
 // its two lines.
-func WithAvatars(a *ui.Avatars) Option {
+func WithAvatars(a *ui.Images) Option {
 	return func(s *Section) { s.avatars = a }
 }
 
@@ -212,7 +212,7 @@ type Section struct {
 	// host is the web host of the user's GitHub, for the links it opens.
 	host string
 	// avatars draws the viewer's avatar beside the profile.
-	avatars *ui.Avatars
+	avatars *ui.Images
 	// links keeps the links of the rows, which are drawn again on every
 	// change.
 	links termtext.Links

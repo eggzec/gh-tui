@@ -66,7 +66,7 @@ func (s *Section) update(msg tea.Msg) (tea.Cmd, bool) {
 		return nil, true
 	case ui.OnlineMsg:
 		return s.online(msg), true
-	case ui.AvatarsMsg:
+	case ui.ImagesMsg:
 		// The profile may have gained or lost the avatar's rows.
 		s.layout()
 		return nil, true

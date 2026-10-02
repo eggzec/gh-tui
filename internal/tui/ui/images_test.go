@@ -10,6 +10,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/imgcaps"
 	"github.com/eggzec/gh-tui/pkg/termimg"
 )
@@ -17,23 +18,45 @@ import (
 var testCell = imgcaps.Cell{Width: 10, Height: 20}
 
 // fakeFetch serves each address as a PNG of its own name, or fails the
-// addresses in fail with their error, and records the boxes asked for.
+// addresses in fail with their error, and records the boxes asked for. A
+// file, named by its SHA, it serves as a picture twice as wide as tall,
+// fitted to the box, of fileBytes bytes if set.
 type fakeFetch struct {
-	fail  map[string]error
-	boxes []ImageBox
-	urls  []string
+	fail      map[string]error
+	boxes     []ImageBox
+	urls      []string
+	fileBytes int
 }
 
-func (f *fakeFetch) fetch(_ context.Context, addr string, box ImageBox) (Picture, error) {
+func (f *fakeFetch) fetch(_ context.Context, src ImageSource, box ImageBox) (Picture, error) {
+	addr := src.URL
+	if src.SHA != "" {
+		addr = src.SHA
+	}
 	f.boxes, f.urls = append(f.boxes, box), append(f.urls, addr)
 	if err := f.fail[addr]; err != nil {
 		return Picture{}, err
 	}
-	return Picture{PNG: []byte(addr), Width: 20, Height: 20}, nil
+	if src.SHA == "" {
+		return Picture{PNG: []byte(addr), Width: 20, Height: 20}, nil
+	}
+	// Twice as wide as tall in pixels is four times in cells of 1:2.
+	cols := min(box.Cols, 4*box.Rows)
+	rows := max(cols/4, 1)
+	png := []byte(addr)
+	if f.fileBytes > 0 {
+		png = []byte(strings.Repeat("x", f.fileBytes))
+	}
+	return Picture{PNG: png, Width: cols * box.Cell.Width, Height: rows * box.Cell.Height, Cols: cols, Rows: rows}, nil
 }
 
-func newTestAvatars(f *fakeFetch, g Graphics) *Avatars {
-	a := NewAvatars(context.Background(), f.fetch, true)
+// fileOf is an image file of a repository.
+func fileOf(sha string) ImageSource {
+	return ImageSource{Repo: core.RepoRef{Owner: "eggzec", Name: "gh-tui"}, SHA: sha, Size: 100}
+}
+
+func newTestAvatars(f *fakeFetch, g Graphics) *Images {
+	a := NewImages(context.Background(), f.fetch, true)
 	a.SetGraphics(g)
 	return a
 }
@@ -41,7 +64,7 @@ func newTestAvatars(f *fakeFetch, g Graphics) *Avatars {
 // load ends an update as the app does: it runs what a.Load returns and
 // hands the avatars that arrive to a. It returns what was written to the
 // terminal and the most urgent drawing asked for.
-func load(t *testing.T, a *Avatars) (raw string, redraw Redraw) {
+func load(t *testing.T, a *Images) (raw string, redraw Redraw) {
 	t.Helper()
 	var b strings.Builder
 	var run func(cmd tea.Cmd)
@@ -92,10 +115,10 @@ func avatarOf(login string) string {
 // an avatar takes no cells and nothing is fetched.
 func TestAvatarsNotShown(t *testing.T) {
 	f := &fakeFetch{}
-	for name, a := range map[string]*Avatars{
+	for name, a := range map[string]*Images{
 		"no images":  newTestAvatars(f, Graphics{Cell: testCell}),
-		"config off": NewAvatars(context.Background(), f.fetch, false),
-		"no fetch":   NewAvatars(context.Background(), nil, true),
+		"config off": NewImages(context.Background(), f.fetch, false),
+		"no fetch":   NewImages(context.Background(), nil, true),
 		"nil":        nil,
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -324,18 +347,18 @@ func TestAvatarsCloseAndResend(t *testing.T) {
 func TestAvatarsTakeTheLeastDrawn(t *testing.T) {
 	f := &fakeFetch{}
 	a := newTestAvatars(f, Graphics{Images: true, Cell: testCell})
-	for i := range maxAvatars {
+	for i := range maxImages {
 		a.Line(avatarOf(fmt.Sprint("old", i)))
 		load(t, a)
 	}
 	// All but old0 are drawn again, later.
-	for i := 1; i < maxAvatars; i++ {
+	for i := 1; i < maxImages; i++ {
 		a.Line(avatarOf(fmt.Sprint("old", i)))
 	}
 	load(t, a)
 	victim := placeholderID(t, a.Line(avatarOf("old0")))
 	load(t, a)
-	for i := 1; i < maxAvatars; i++ {
+	for i := 1; i < maxImages; i++ {
 		a.Line(avatarOf(fmt.Sprint("old", i)))
 	}
 	a.Line(avatarOf("new"))
@@ -352,8 +375,8 @@ func TestAvatarsTakeTheLeastDrawn(t *testing.T) {
 	if got := a.Line(avatarOf("old0")); got != "   " {
 		t.Errorf("the avatar taken from = %q, want a blank box", got)
 	}
-	if a.held() != maxAvatars {
-		t.Errorf("holds %d, want %d", a.held(), maxAvatars)
+	if a.held() != maxImages {
+		t.Errorf("holds %d, want %d", a.held(), maxImages)
 	}
 }
 
@@ -394,11 +417,11 @@ func TestAvatarsPastThePool(t *testing.T) {
 	if len(f.urls) > 301+1 {
 		t.Errorf("fetched %d, want each avatar about once", len(f.urls))
 	}
-	if sends > maxAvatars+1 {
-		t.Errorf("sent %d images, want at most the pool's %d and one taken back", sends, maxAvatars)
+	if sends > maxImages+1 {
+		t.Errorf("sent %d images, want at most the pool's %d and one taken back", sends, maxImages)
 	}
 	shown := drawThread()
-	if a.held() != maxAvatars || shown == 0 || shown > maxAvatars {
+	if a.held() != maxImages || shown == 0 || shown > maxImages {
 		t.Errorf("holds %d, thread shows %d", a.held(), shown)
 	}
 	// Drawn again, the thread fetches and sends nothing more.
@@ -407,8 +430,8 @@ func TestAvatarsPastThePool(t *testing.T) {
 		t.Errorf("drawn again: sent %d, redraw %d, fetched %d more", strings.Count(raw, "a=t,"), redraw, len(f.urls)-before)
 	}
 	// Re-sending is bounded by the pool.
-	if n := strings.Count(rawOf(t, a.Resend()), "a=t,"); n != maxAvatars {
-		t.Errorf("Resend sent %d, want %d", n, maxAvatars)
+	if n := strings.Count(rawOf(t, a.Resend()), "a=t,"); n != maxImages {
+		t.Errorf("Resend sent %d, want %d", n, maxImages)
 	}
 }
 
@@ -435,7 +458,7 @@ func TestAvatarsUpdateOthers(t *testing.T) {
 func TestSizedAvatar(t *testing.T) {
 	tests := []struct {
 		raw  string
-		size AvatarSize
+		size ImageSize
 		want string
 	}{
 		{"https://avatars.githubusercontent.com/u/1?v=4", AvatarLarge, "https://avatars.githubusercontent.com/u/1?s=120&v=4"},
@@ -466,5 +489,188 @@ func TestAvatarsHideAndShow(t *testing.T) {
 	}
 	if a.Show() != nil {
 		t.Error("Show without Hide sends")
+	}
+}
+
+// An image file is fitted to its box, keeping its aspect: until it
+// arrives it draws nothing and says it is on its way, and then it takes
+// the cells its picture fits, not the whole box, and is placed in those.
+func TestFitArrives(t *testing.T) {
+	f := &fakeFetch{}
+	a := newTestAvatars(f, Graphics{Images: true, Cell: testCell})
+	src, box := fileOf("abc"), ImageSize{Cols: 40, Rows: 30}
+	if rows, st := a.Fit(src, box); rows != nil || st != ImageLoading {
+		t.Fatalf("before it arrived Fit = %q, %d, want nothing, loading", rows, st)
+	}
+	raw, redraw := load(t, a)
+	if redraw != RedrawSoon {
+		t.Errorf("arrived with redraw %d, want soon", redraw)
+	}
+	if len(f.boxes) != 1 || f.boxes[0] != (ImageBox{Cols: 40, Rows: 30, Cell: testCell}) {
+		t.Errorf("fetched boxes %+v, want the box of 40×30", f.boxes)
+	}
+	rows, st := a.Fit(src, box)
+	if st != ImageShown || len(rows) != 10 {
+		t.Fatalf("Fit = %d lines, %d, want 10 lines shown", len(rows), st)
+	}
+	id := placeholderID(t, rows[0])
+	if want := termimg.Transmit(id, []byte("abc"), 400, 200) + termimg.Place(id, 40, 10); raw != want {
+		t.Errorf("sent\n%q\nwant\n%q", raw, want)
+	}
+	for i, l := range termimg.Rows(id, 40, 10) {
+		if rows[i] != l {
+			t.Errorf("line %d = %q, want %q", i, rows[i], l)
+		}
+	}
+	// Another box is another copy, fitted to it.
+	if _, st := a.Fit(src, ImageSize{Cols: 20, Rows: 30}); st != ImageLoading {
+		t.Errorf("a new box is %d, want loading", st)
+	}
+	load(t, a)
+	if rows, _ := a.Fit(src, ImageSize{Cols: 20, Rows: 30}); len(rows) != 5 {
+		t.Errorf("fitted to 20 columns, %d lines, want 5", len(rows))
+	}
+}
+
+// Fit draws nothing where images aren't drawn, and of no file, but draws
+// files where the config wants no avatars.
+func TestFitNotShown(t *testing.T) {
+	f := &fakeFetch{}
+	for name, a := range map[string]*Images{
+		"no images": newTestAvatars(f, Graphics{Cell: testCell}),
+		"no fetch":  NewImages(context.Background(), nil, true),
+		"nil":       nil,
+	} {
+		if rows, st := a.Fit(fileOf("abc"), ImageSize{Cols: 10, Rows: 10}); rows != nil || st != ImageOff {
+			t.Errorf("%s: Fit = %q, %d, want nothing, off", name, rows, st)
+		}
+		if cmd, _ := a.Load(); cmd != nil {
+			t.Errorf("%s: Load fetches", name)
+		}
+	}
+	a := newTestAvatars(f, Graphics{Images: true, Cell: testCell})
+	if _, st := a.Fit(ImageSource{URL: avatarOf("mona")}, ImageSize{Cols: 10, Rows: 10}); st != ImageOff {
+		t.Errorf("Fit of an address is %d, want off", st)
+	}
+	noAvatars := NewImages(context.Background(), f.fetch, false)
+	noAvatars.SetGraphics(Graphics{Images: true, Cell: testCell})
+	if _, st := noAvatars.Fit(fileOf("abc"), ImageSize{Cols: 10, Rows: 10}); st != ImageLoading {
+		t.Errorf("without avatars Fit is %d, want loading", st)
+	}
+	if len(f.urls) != 0 {
+		t.Errorf("fetched %q", f.urls)
+	}
+}
+
+// A file that fails says so, and its view draws again to show what it
+// shows instead. One that may mend is asked for again once GitHub
+// answers.
+func TestFitFails(t *testing.T) {
+	f := &fakeFetch{fail: map[string]error{"gone": fmt.Errorf("lossless webp: %w", ErrImageGone), "net": errors.New("reset")}}
+	a := newTestAvatars(f, Graphics{Images: true, Cell: testCell})
+	box := ImageSize{Cols: 10, Rows: 10}
+	a.Fit(fileOf("gone"), box)
+	a.Fit(fileOf("net"), box)
+	if _, redraw := load(t, a); redraw != RedrawSoon {
+		t.Errorf("failed with redraw %d, want soon", redraw)
+	}
+	for _, sha := range []string{"gone", "net"} {
+		if rows, st := a.Fit(fileOf(sha), box); rows != nil || st != ImageFailed {
+			t.Errorf("%s: Fit = %q, %d, want failed", sha, rows, st)
+		}
+	}
+	if !a.Online() {
+		t.Error("Online found nothing to ask again")
+	}
+	if _, st := a.Fit(fileOf("net"), box); st != ImageLoading {
+		t.Errorf("after Online the network's failure is %d, want loading", st)
+	}
+	if _, st := a.Fit(fileOf("gone"), box); st != ImageFailed {
+		t.Errorf("after Online the gone file is %d, want still failed", st)
+	}
+}
+
+// While GitHub can't be reached, files are still read, as the files
+// service serves those it kept, while avatars wait.
+func TestFitOffline(t *testing.T) {
+	f := &fakeFetch{}
+	a := newTestAvatars(f, Graphics{Images: true, Cell: testCell})
+	a.SetOffline(true)
+	a.Fit(fileOf("abc"), ImageSize{Cols: 10, Rows: 10})
+	a.Line(avatarOf("mona"))
+	load(t, a)
+	if len(f.urls) != 1 || f.urls[0] != "abc" {
+		t.Errorf("offline fetched %q, want only the file", f.urls)
+	}
+}
+
+// The images held may take at most maxHeldBytes together: a large one
+// takes the room of those drawn least recently, and waits while the room
+// is of those drawn as recently as it.
+func TestFitHeldBytes(t *testing.T) {
+	f := &fakeFetch{fileBytes: maxHeldBytes / 3}
+	a := newTestAvatars(f, Graphics{Images: true, Cell: testCell})
+	box := ImageSize{Cols: 10, Rows: 10}
+	for _, sha := range []string{"a", "b", "c"} {
+		a.Fit(fileOf(sha), box)
+		load(t, a)
+	}
+	if a.held() != 3 {
+		t.Fatalf("holds %d, want 3", a.held())
+	}
+	a.Fit(fileOf("b"), box)
+	a.Fit(fileOf("c"), box)
+	a.Fit(fileOf("d"), box)
+	raw, redraw := load(t, a)
+	if redraw != RedrawNow || !strings.Contains(raw, "a=d,d=I") {
+		t.Errorf("redraw %d, sent %q, want the least drawn deleted at once", redraw, raw)
+	}
+	if _, st := a.Fit(fileOf("a"), box); st != ImageLoading {
+		t.Errorf("the least drawn is %d, want gone and asked for again", st)
+	}
+	for _, sha := range []string{"b", "c", "d"} {
+		if _, st := a.Fit(fileOf(sha), box); st != ImageShown {
+			t.Errorf("%s is %d, want shown", sha, st)
+		}
+	}
+	// a, drawn now as recently as the three held, waits.
+	if raw, _ := load(t, a); strings.Contains(raw, "a=d") {
+		t.Errorf("took room of images drawn as recently: %q", raw)
+	}
+	if a.held() != 3 {
+		t.Errorf("holds %d, want 3", a.held())
+	}
+}
+
+// An image that arrived but couldn't be sent, since the terminal held as
+// much as it may, is forgotten, picture and all, once an update passes
+// that doesn't draw it, so the app doesn't keep it as long as it runs.
+// Drawn again, it is fetched again.
+func TestFitUnsentForgotten(t *testing.T) {
+	f := &fakeFetch{fileBytes: maxHeldBytes / 3}
+	a := newTestAvatars(f, Graphics{Images: true, Cell: testCell})
+	box := ImageSize{Cols: 10, Rows: 10}
+	for _, sha := range []string{"a", "b", "c", "d"} {
+		a.Fit(fileOf(sha), box)
+	}
+	load(t, a)
+	if a.held() != 3 || len(a.byKey) != 4 {
+		t.Fatalf("holds %d of %d, want 3 of 4, the last waiting", a.held(), len(a.byKey))
+	}
+	// An update that draws the three held but not the fourth.
+	for _, sha := range []string{"a", "b", "c"} {
+		a.Fit(fileOf(sha), box)
+	}
+	load(t, a)
+	if len(a.byKey) != 3 {
+		t.Errorf("keeps %d images, want the 3 held, the unsent one forgotten", len(a.byKey))
+	}
+	fetched := len(f.urls)
+	if _, st := a.Fit(fileOf("d"), box); st != ImageLoading {
+		t.Errorf("drawn again, the forgotten one is %d, want loading", st)
+	}
+	load(t, a)
+	if len(f.urls) != fetched+1 {
+		t.Errorf("fetched %d more, want the forgotten one again", len(f.urls)-fetched)
 	}
 }

@@ -92,7 +92,7 @@ type detailModal struct {
 	runSt         ui.RunStyles
 	icons         ui.Icons
 	dates         ui.Dates
-	avatars       *ui.Avatars
+	avatars       *ui.Images
 }
 
 // openDetail opens a modal on pull request number of repo, on its checks
@@ -357,7 +357,7 @@ func (m *detailModal) updateDetail(msg tea.Msg) tea.Cmd {
 		return nil
 	case ui.OnlineMsg:
 		return m.online()
-	case ui.AvatarsMsg:
+	case ui.ImagesMsg:
 		m.thread.Redraw()
 		return nil
 	}

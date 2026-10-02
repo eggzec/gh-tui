@@ -218,7 +218,7 @@ func (m *Model) drawHeader() {
 		// The repository links to its page, after its owner's avatar,
 		// which stands for its icon, as on GitHub; the avatar stays out
 		// of the link's style.
-		left = m.avatars.Line(m.ownerAvatar) + termtext.Link(ui.WebURL(m.host, m.repo.String()), left)
+		left = m.pics.Line(m.ownerAvatar) + termtext.Link(ui.WebURL(m.host, m.repo.String()), left)
 	}
 	switch {
 	case m.screen != repoScreen:

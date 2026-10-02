@@ -21,10 +21,10 @@ func newImages(web string, entries cache.Store) *images.Fetcher {
 	return images.New(web, opts...)
 }
 
-// fetchImage adapts f to what the app's avatars fetch with.
+// fetchImage adapts f to what the app's images fetch with.
 func fetchImage(f *images.Fetcher) ui.ImageFetch {
-	return func(ctx context.Context, url string, box ui.ImageBox) (ui.Picture, error) {
-		img, err := f.Fetch(ctx, images.Source{URL: url}, images.Box{
+	return func(ctx context.Context, src ui.ImageSource, box ui.ImageBox) (ui.Picture, error) {
+		img, err := f.Fetch(ctx, images.Source{URL: src.URL}, images.Box{
 			Cols: box.Cols, Rows: box.Rows, CellWidth: box.Cell.Width, CellHeight: box.Cell.Height,
 		})
 		switch {
@@ -34,6 +34,6 @@ func fetchImage(f *images.Fetcher) ui.ImageFetch {
 		case err != nil:
 			return ui.Picture{}, err
 		}
-		return ui.Picture{PNG: img.PNG, Width: img.Width, Height: img.Height}, nil
+		return ui.Picture{PNG: img.PNG, Width: img.Width, Height: img.Height, Cols: img.Cols, Rows: img.Rows}, nil
 	}
 }

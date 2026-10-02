@@ -87,7 +87,7 @@ type detailModal struct {
 	rows          rowStyles
 	icons         ui.Icons
 	dates         ui.Dates
-	avatars       *ui.Avatars
+	avatars       *ui.Images
 	chips         chipCache
 }
 
@@ -286,7 +286,7 @@ func (m *detailModal) Update(msg tea.Msg) tea.Cmd {
 		return nil
 	case ui.OnlineMsg:
 		return m.online()
-	case ui.AvatarsMsg:
+	case ui.ImagesMsg:
 		m.thread.Redraw()
 		return nil
 	case ui.DoneMsg:

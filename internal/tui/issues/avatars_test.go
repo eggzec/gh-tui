@@ -13,7 +13,7 @@ import (
 
 // avatarModal returns the modal of issue #999 open on comments, width
 // wide, drawing avatars with a.
-func avatarModal(tb testing.TB, a *ui.Avatars, width int) (*host, *detailModal) {
+func avatarModal(tb testing.TB, a *ui.Images, width int) (*host, *detailModal) {
 	tb.Helper()
 	svc := newFakeService(sampleIssues(12))
 	svc.addComments(999, uitest.Thread(4, testNow)...)
@@ -41,7 +41,7 @@ func commentHeads(v string) []string {
 // Where the terminal shows no images, the comments look as they do
 // without avatars, with no room kept for them.
 func TestCommentAvatarsOff(t *testing.T) {
-	src := &uitest.ImageSource{}
+	src := &uitest.ImageHost{}
 	_, plain := threadModal(t, uitest.Thread(4, testNow), true, 80, 60)
 	_, off := avatarModal(t, uitest.Avatars(src, false), 80)
 	if off.View() != plain.View() {
@@ -56,7 +56,7 @@ func TestCommentAvatarsOff(t *testing.T) {
 // from the start, which shows the avatar once it arrives, and nothing
 // else on the line moves.
 func TestCommentAvatarsArrive(t *testing.T) {
-	src := &uitest.ImageSource{}
+	src := &uitest.ImageHost{}
 	a := uitest.Avatars(src, true)
 	h, m := avatarModal(t, a, 80)
 	heads := commentHeads(m.View())
@@ -77,7 +77,7 @@ func TestCommentAvatarsArrive(t *testing.T) {
 	if got := src.Asked(); len(got) != 4 || got[0] != "https://avatars.githubusercontent.com/u/hubot?s=40&v=4" {
 		t.Errorf("fetched %q", got)
 	}
-	run(t, h, h.Update(ui.AvatarsMsg{}))
+	run(t, h, h.Update(ui.ImagesMsg{}))
 	if n := uitest.Placeholders(t, m.View()); n != 4*2 {
 		t.Errorf("%d placeholder cells, want 2 for each of 4 comments", n)
 	}
@@ -94,11 +94,11 @@ func TestCommentAvatarsArrive(t *testing.T) {
 // A narrow modal cuts the head of a comment, and the avatar's cells keep
 // what names the image.
 func TestCommentAvatarsCut(t *testing.T) {
-	src := &uitest.ImageSource{}
+	src := &uitest.ImageHost{}
 	a := uitest.Avatars(src, true)
 	h, m := avatarModal(t, a, 80)
 	uitest.LoadAvatars(t, a)
-	run(t, h, h.Update(ui.AvatarsMsg{}))
+	run(t, h, h.Update(ui.ImagesMsg{}))
 	for _, w := range []int{20, 8, 4} {
 		m.SetSize(w, 60)
 		uitest.Placeholders(t, m.View())
