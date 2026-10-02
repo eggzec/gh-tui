@@ -85,38 +85,14 @@ func (m *Model) errorWords() (text, hint string) {
 }
 
 // errorLines renders the failed load in at most height lines of width
-// cells, as the app's error lines are (errline.Lines), with the text given
-// the lines the hint leaves. On one line the hint comes first, and what is
-// left of the text.
+// cells, as the app's error lines are.
 func (m *Model) errorLines(width, height int) []string {
-	text, hint := m.errText, m.errHint
-	if text == "" || width <= 0 || height <= 0 {
-		return nil
-	}
 	s := m.styles
 	st := errline.Styles{
 		Mark: s.ErrorGlyph, Separator: s.ErrorSeparator, Ellipsis: s.ErrorEllipsis,
 		Text: s.Error, Hint: s.Message,
 	}
-	if hint == "" {
-		return errline.Lines(st, text, "", width, height)
-	}
-	if height == 1 {
-		tail := st.Separator + hint
-		lead := st.Mark + " "
-		room := width - ansi.StringWidth(tail)
-		if room < ansi.StringWidth(lead)+1 {
-			return []string{st.Hint.Render(hint)}
-		}
-		t := lead + text
-		if ansi.StringWidth(t) > room {
-			t = ansi.Truncate(t, room, st.Ellipsis)
-		}
-		return []string{st.Text.Render(t) + st.Hint.Render(tail)}
-	}
-	lines := errline.Lines(st, text, hint, width, height-1)
-	// Only a hint wider than the pane wraps past its height.
-	return lines[:min(len(lines), height)]
+	return errline.Fit(st, m.errText, m.errHint, width, height)
 }
 
 // writeLines writes the rows of the window, each followed by a newline, and

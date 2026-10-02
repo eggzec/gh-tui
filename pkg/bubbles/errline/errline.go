@@ -73,6 +73,59 @@ func Lines(s Styles, text, hint string, width, rows int) []string {
 	return lines
 }
 
+// Line renders an error on one line of at most width cells: the mark and
+// the text, then the separator and the hint. The hint is kept whole and
+// the text cut before it with the ellipsis; where the width leaves no room
+// for any of the text beside the hint, or the text is empty, the hint
+// shows alone. A hint wider than width is the caller's to cut. The text
+// and the hint are plain.
+func Line(s Styles, text, hint string, width int) string {
+	if text == "" {
+		if hint == "" {
+			return ""
+		}
+		return s.Hint.Render(hint)
+	}
+	lead := ""
+	if s.Mark != "" {
+		lead = s.Mark + " "
+	}
+	tail := ""
+	if hint != "" {
+		tail = s.Separator + hint
+	}
+	room := width - ansi.StringWidth(tail)
+	if hint != "" && room < ansi.StringWidth(lead)+1 {
+		return s.Hint.Render(hint)
+	}
+	t := lead + text
+	if ansi.StringWidth(t) > room {
+		t = ansi.Truncate(t, max(room, 0), s.Ellipsis)
+	}
+	if tail == "" {
+		return s.Text.Render(t)
+	}
+	return s.Text.Render(t) + s.Hint.Render(tail)
+}
+
+// Fit renders an error in at most height lines of width cells: as Lines
+// does, with the text given the lines the hint leaves, or on one line as
+// Line does. Empty text, or no room, renders nothing.
+func Fit(s Styles, text, hint string, width, height int) []string {
+	if text == "" || width <= 0 || height <= 0 {
+		return nil
+	}
+	if hint == "" {
+		return Lines(s, text, "", width, height)
+	}
+	if height == 1 {
+		return []string{Line(s, text, hint, width)}
+	}
+	lines := Lines(s, text, hint, width, height-1)
+	// Only a hint wider than width wraps past the height.
+	return lines[:min(len(lines), height)]
+}
+
 // Wrap wraps s, plain text, to rows of width cells. It breaks only
 // between words, not at hyphens as ansi.Wrap does, so that a path stays
 // whole, and cuts a word only when it alone is wider. A character wider
