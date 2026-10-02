@@ -468,7 +468,7 @@ func parseLayer(n *yaml.Node, path string) (layer, error) {
 	if path != "" {
 		errs = checkGlobal(n, "")
 	}
-	renamed, err := migrate(n, renames)
+	renamed, err := migrate(n, renames, path == "")
 	if err != nil {
 		return layer{}, within(path, errors.Join(append(errs, err)...))
 	}

@@ -271,7 +271,9 @@ prefetch:
   # other_kinds) take no window.
   #   pulls: details, comments, checks, other_tabs
   #   issues: details, comments, other_tabs
-  #   notifications: details, comments
+  #   notifications: details, comments (the dashboard's inbox has one
+  #     kind for both, dashboard.inbox, and doesn't follow
+  #     notifications.comments)
   #   dashboard: waiting_on_you, inbox, repositories, pinned
   #   search: details, comments, other_kinds
   #   files: tree, preview (window up to 64)

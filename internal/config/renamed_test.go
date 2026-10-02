@@ -313,14 +313,69 @@ func TestLoadRenamedPrefetch(t *testing.T) {
 		names = append(names, r.String())
 	}
 	wantNames := []string{
-		"files.prefetch.enabled → prefetch.files.preview.enabled",
+		"files.prefetch.enabled → prefetch.files.preview.enabled (it now also follows prefetch.enabled and prefetch.files.enabled)",
 		"files.prefetch.max_size → prefetch.files.preview.max_size",
-		"files.prefetch.hover_delay → prefetch.files.rest",
+		"files.prefetch.hover_delay → prefetch.files.rest (it no longer sets the finder's rest, which is prefetch.finder.rest)",
 		"history.prefetch.around → prefetch.history.window.before, prefetch.history.window.after (the commits on each side of the cursor)",
 		"history.prefetch.hover_delay → prefetch.history.rest",
 	}
 	if !slices.Equal(names, wantNames) {
 		t.Errorf("renamed = %q, want %q", names, wantNames)
+	}
+}
+
+// The old files.prefetch.enabled carries only false: true was the default,
+// so it leaves the switch to inherit, and a later prefetch.enabled: false
+// still turns the preview off.
+func TestLoadRenamedFilesPrefetchEnabledTrue(t *testing.T) {
+	t.Setenv(EnvLog, "")
+	got, renamed, err := loadBase(writeConfig(t, "files:\n  prefetch:\n    enabled: true\nprefetch:\n  enabled: false\n"))
+	if err != nil {
+		t.Fatalf("Load error = %v", err)
+	}
+	if len(renamed) != 1 || renamed[0].Old != "files.prefetch.enabled" {
+		t.Errorf("renamed = %v, want files.prefetch.enabled", renamed)
+	}
+	if got.Prefetch.Files.Preview.Enabled != nil {
+		t.Errorf("preview enabled = %v, want it left to inherit", *got.Prefetch.Files.Preview.Enabled)
+	}
+	r, err := got.Prefetch.Resolve("files", "preview")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Enabled {
+		t.Error("files preview is on, want it off with prefetch.enabled: false")
+	}
+}
+
+// Below the top level, an old true switch overrides a false above it, so
+// it moves, where at the top level it adds nothing to what is inherited.
+func TestRenamedSwitchTrueInHostsAndProfiles(t *testing.T) {
+	t.Setenv(EnvLog, "")
+	const file = "files:\n  prefetch:\n    enabled: false\n" +
+		"dashboard:\n  prefetch: false\n" +
+		"details:\n  prefetch:\n    enabled: false\n" +
+		"hosts:\n  ghe.corp.com:\n    files:\n      prefetch:\n        enabled: true\n" +
+		"    dashboard:\n      prefetch: true\n" +
+		"    details:\n      prefetch:\n        enabled: true\n" +
+		"profiles:\n  work:\n    accounts: [ali@github.com]\n    files:\n      prefetch:\n        enabled: true\n"
+	for _, tt := range []struct {
+		host, user string
+		want       bool
+	}{{"github.com", "", false}, {"ghe.corp.com", "", true}, {"github.com", "ali", true}} {
+		cfg, _ := resolveFile(t, file, tt.host, tt.user)
+		for _, kind := range [][2]string{{"files", "preview"}, {"dashboard", "waiting_on_you"}, {"pulls", "details"}} {
+			if tt.user != "" && kind[0] != "files" {
+				continue
+			}
+			r, err := cfg.Prefetch.Resolve(kind[0], kind[1])
+			if err != nil {
+				t.Fatal(err)
+			}
+			if r.Enabled != tt.want {
+				t.Errorf("%s/%s %s.%s: %s enabled = %v, want %v", tt.host, tt.user, kind[0], kind[1], "switch", r.Enabled, tt.want)
+			}
+		}
 	}
 }
 
