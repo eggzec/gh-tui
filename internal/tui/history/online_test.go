@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -132,6 +133,54 @@ func TestOnlineKeepsBranchOfLaterPage(t *testing.T) {
 	}
 	if n := len(m.branches.items); n != 15 {
 		t.Errorf("%d branches listed, want both pages", n)
+	}
+}
+
+// TestOnlineFollowEndsAtMaxBranchPages checks that, once the branch the
+// cursor was on is in no page any more, reading the branches again from
+// the first page stops following it after maxBranchPages pages, without
+// reading every page of a repository with more.
+func TestOnlineFollowEndsAtMaxBranchPages(t *testing.T) {
+	f := newFake()
+	first := make([]core.Branch, 1, 12)
+	first[0] = core.Branch{Name: "main"}
+	for i := range 11 {
+		first = append(first, core.Branch{Name: fmt.Sprintf("feat/%d", i)})
+	}
+	const pages = maxBranchPages + 5
+	f.branchPages = map[string]core.Page[core.Branch]{"": {Items: first, Next: "2"}}
+	for n := 2; n <= pages; n++ {
+		p := core.Page[core.Branch]{Items: []core.Branch{{Name: fmt.Sprintf("fix/%d", n)}}}
+		if n < pages {
+			p.Next = strconv.Itoa(n + 1)
+		}
+		f.branchPages[strconv.Itoa(n)] = p
+	}
+	f.limited = true
+	m, h := newModal(t, f, 108, 30)
+	h.keys("shift+tab", "j", "j", "j")
+	if b, _ := m.branches.selected(); b.Name != "feat/2" {
+		t.Fatalf("cursor on %q, want feat/2", b.Name)
+	}
+	f.mu.Lock()
+	f.limited = false
+	// The branch is deleted meanwhile.
+	f.branchPages[""] = core.Page[core.Branch]{Items: slices.Delete(slices.Clone(first), 3, 4), Next: "2"}
+	f.mu.Unlock()
+	f.took()
+
+	h.run(func() tea.Msg { return ui.OnlineMsg{} })
+	var reads int
+	for _, c := range f.took() {
+		if strings.HasPrefix(c, "branches") {
+			reads++
+		}
+	}
+	if reads != maxBranchPages {
+		t.Errorf("read %d pages of branches, want %d of %d", reads, maxBranchPages, pages)
+	}
+	if b := &m.branches; b.follow != "" || b.loading || b.next != "" {
+		t.Errorf("following %q, loading %v, next %q; want the follow ended", b.follow, b.loading, b.next)
 	}
 }
 
