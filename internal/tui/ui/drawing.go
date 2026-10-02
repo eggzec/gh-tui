@@ -20,7 +20,7 @@ func (ic *Icons) setDrawing(set string) {
 		ic.Border = lipgloss.ASCIIBorder()
 		ic.Edge, ic.InputEdge, ic.Remove, ic.Warning, ic.Below = "|", "|", "x", "!", "->"
 		ic.Comment, ic.Recent = "c", "~"
-		ic.OpenQuote, ic.CloseQuote = `"`, `"`
+		ic.OpenQuote, ic.CloseQuote, ic.Dash = `"`, `"`, "-"
 		ic.Spinner = spinner.Line
 		ic.keys = asciiKeys
 		return
@@ -31,7 +31,7 @@ func (ic *Icons) setDrawing(set string) {
 	ic.Border = lipgloss.RoundedBorder()
 	ic.Edge, ic.InputEdge, ic.Remove, ic.Warning, ic.Below = "▌", "┃", "✕", "⚠", "↳"
 	ic.Comment, ic.Recent = "◦", "↺"
-	ic.OpenQuote, ic.CloseQuote = "“", "”"
+	ic.OpenQuote, ic.CloseQuote, ic.Dash = "“", "”", "—"
 }
 
 // SpinnerOr returns the spinner of the icon set, or def where the set

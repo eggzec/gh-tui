@@ -53,6 +53,8 @@ type fileImage struct {
 	// shown is what the pager shows, and pic the lines of the image.
 	shown shown
 	pic   []string
+	// ellipsis ends the text shown while the image loads.
+	ellipsis string
 }
 
 // set takes the file the pager shows from now: e, whose content is b, or
@@ -95,7 +97,7 @@ func (fi *fileImage) draw(pg *pager.Model) (text bool) {
 	case shownImage:
 		pg.SetMessage(fi.entry.Path, "")
 	case shownLoading:
-		pg.SetMessage(fi.entry.Path, "Loading the image…")
+		pg.SetMessage(fi.entry.Path, "Loading the image"+fi.ellipsis)
 	case shownNothing, shownText:
 		return true
 	}

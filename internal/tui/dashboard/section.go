@@ -371,6 +371,7 @@ func cellGlyph(glyph string, ic ui.Icons) string {
 
 // SetTheme builds the styles of the dashboard and restyles its bubbles.
 func (s *Section) SetTheme(t ui.Theme) {
+	s.opener.SetIcons(s.icons)
 	s.theme = t
 	s.st = newStyles(t, s.icons)
 	s.errs = t.Errors(s.icons)
