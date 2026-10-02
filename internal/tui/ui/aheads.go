@@ -125,7 +125,8 @@ func (a *Aheads[K]) Reset(parent context.Context) {
 }
 
 // Resume reads ahead again after GitHub reported the rate limit, such as
-// for another repository.
+// for another repository, and tries again the rows whose reads failed
+// lately, as [Ahead.Resume] does.
 func (a *Aheads[K]) Resume() {
 	if a == nil {
 		return

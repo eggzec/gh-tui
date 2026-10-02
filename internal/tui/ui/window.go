@@ -50,9 +50,9 @@ func (a *Ahead[K]) On() bool {
 //
 // Call it whenever the cursor may have moved or the list changed; it
 // waits again only when the rows of the window change. Each rest reads the
-// window again, skipping the rows cached or still being read. The reads of
-// the last rest go on for the rows still in the window, and stop for those
-// that left it.
+// window again, skipping the rows cached or still being read, and those
+// whose read ahead failed lately. The reads of the last rest go on for the
+// rows still in the window, and stop for those that left it.
 func (a *Ahead[K]) Window(at func(i int) (K, bool), i int) tea.Cmd {
 	if a == nil || a.off {
 		return nil
@@ -116,9 +116,9 @@ func windowRows[K comparable](at func(i int) (K, bool), i, before, after int) []
 	return rows
 }
 
-// readWindow reads the rows of the window that aren't cached or being
-// read. The reads of the last window go on for the rows still in it, and
-// stop for those that left it.
+// readWindow reads the rows of the window that aren't cached, being read,
+// or failed lately (aheadFailedFor). The reads of the last window go on
+// for the rows still in it, and stop for those that left it.
 func (a *Ahead[K]) readWindow() tea.Cmd {
 	for k, cancel := range a.reading {
 		left := !slices.Contains(a.around, k)
@@ -136,13 +136,17 @@ func (a *Ahead[K]) readWindow() tea.Cmd {
 		return nil
 	}
 	todo := make([]K, 0, len(a.around))
-	cached := 0
+	cached, failed := 0, 0
+	now := time.Now()
 	for _, k := range a.around {
 		switch {
 		case a.current(k):
 			cached++
 			a.seen.Count(obs.PrefetchCached)
-		case !a.flying.has(k):
+		case a.flying.has(k):
+		case a.failed.recent(k, now):
+			failed++
+		default:
 			todo = append(todo, k)
 		}
 	}
@@ -157,7 +161,7 @@ func (a *Ahead[K]) readWindow() tea.Cmd {
 	r := a.start(todo)
 	return func() tea.Msg {
 		slog.InfoContext(ctx, "prefetch", "span", "prefetch", "kind", r.seen.Kind(), "trigger", "window",
-			"sent", len(todo), "skipped_cached", cached)
+			"sent", len(todo), "skipped_cached", cached, "skipped_failed", failed)
 		r.readAll(ctx, todo, func(k K) context.Context { return ctxs[k] })
 		return nil
 	}

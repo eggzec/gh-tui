@@ -267,6 +267,9 @@ func (m *Modal) back() tea.Cmd {
 // refresh reads again what the focused pane shows, or what failed to
 // load.
 func (m *Modal) refresh() tea.Cmd {
+	// A refresh tries again the reads ahead that failed lately.
+	m.aheadJobs.Resume()
+	m.aheadLogs.Resume()
 	switch m.focus {
 	case jobsPane:
 		return m.rereadJobs()
