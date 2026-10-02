@@ -763,3 +763,32 @@ func TestOneReadPerBody(t *testing.T) {
 		t.Errorf("HTML read %d times for %d images, want 2: once, and once after the refusals", calls, n)
 	}
 }
+
+// A decoder that panics fails every caller of the image, and what was
+// kept of it is dropped.
+func TestDecodePanicFailsFetch(t *testing.T) {
+	panicking(t, false)
+	store := &mapStore{}
+	_ = store.Put(kindData, storeKey(attachment), pngOf(t, 4, 4))
+	f := New("github.com", WithStore(store), WithOffline(func() bool { return true }))
+	errs := make(chan error, 2)
+	for range 2 {
+		go func() {
+			_, err := f.Fetch(t.Context(), Source{URL: attachment}, box)
+			errs <- err
+		}()
+	}
+	for range 2 {
+		select {
+		case err := <-errs:
+			if !errors.Is(err, ErrFormat) {
+				t.Errorf("err = %v, want ErrFormat", err)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatal("a caller is still waiting")
+		}
+	}
+	if _, ok := store.Get(kindData, storeKey(attachment)); ok {
+		t.Error("kept bytes that panicked stay kept")
+	}
+}
