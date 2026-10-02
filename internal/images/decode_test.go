@@ -212,6 +212,24 @@ func TestDecodeMemory(t *testing.T) {
 		{"square into a small box", func(tb testing.TB) []byte { tb.Helper(); return encode(tb, "png", 3500, 3500) }, Box{Cols: 40, Rows: 20}},
 		{"photo", func(tb testing.TB) []byte { tb.Helper(); return encode(tb, "jpeg", 4000, 3000) }, Box{Cols: 200, Rows: 50}},
 		{"gif", func(tb testing.TB) []byte { tb.Helper(); return encode(tb, "gif", 3500, 3500) }, wide},
+		// The frames of an animation and the two canvases they are drawn
+		// on, at about the most bytes they may take, into a box whose
+		// frames the terminal may keep.
+		{"animated gif", func(tb testing.TB) []byte {
+			tb.Helper()
+			r := image.Rect(0, 0, 1400, 1400)
+			g := &gif.GIF{}
+			for i := range 13 {
+				m := image.NewPaletted(r, color.Palette{color.Black, color.White})
+				m.Pix[i] = 1
+				g.Image, g.Delay = append(g.Image, m), append(g.Delay, 10)
+			}
+			var b bytes.Buffer
+			if err := gif.EncodeAll(&b, g); err != nil {
+				tb.Fatal(err)
+			}
+			return b.Bytes()
+		}, Box{Cols: 64, Rows: 32, Animate: true}},
 		// Gray with tRNS decodes to NRGBA, 4 bytes a pixel, or 8 at 16 bits.
 		{"gray png with tRNS", func(tb testing.TB) []byte {
 			tb.Helper()
@@ -264,8 +282,11 @@ func TestDecodeMemory(t *testing.T) {
 				t.Fatal(err)
 			}
 			total := after.TotalAlloc - before.TotalAlloc
-			t.Logf("%d KB into %dx%d cells: sent %dx%d, allocated %d MB", len(data)>>10, tt.box.Cols, tt.box.Rows,
-				img.Width, img.Height, total>>20)
+			t.Logf("%d KB into %dx%d cells: sent %dx%d in %d frames, allocated %d MB", len(data)>>10, tt.box.Cols, tt.box.Rows,
+				img.Width, img.Height, max(len(img.Frames), 1), total>>20)
+			if tt.box.Animate && len(img.Frames) == 0 {
+				t.Error("the animation decoded to its first frame alone")
+			}
 			if total > maxDecodeAlloc {
 				t.Errorf("allocated %d MB, want at most %d", total>>20, maxDecodeAlloc>>20)
 			}
