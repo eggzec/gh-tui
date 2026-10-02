@@ -2,21 +2,33 @@ package graph
 
 import "charm.land/lipgloss/v2"
 
-// cursorGlyph marks the selected row in the gutter.
-const cursorGlyph = "▌"
-
 // gutterWidth is the width of the selection gutter left of every row.
 const gutterWidth = 2
 
 // Styles holds the styles of a graph.
 type Styles struct {
-	// Cursor marks the selected row while the graph is focused.
+	// Cursor styles the CursorGlyph that marks the selected row while the
+	// graph is focused.
 	Cursor lipgloss.Style
-	// BlurredCursor marks the selected row while the graph is blurred.
+	// BlurredCursor styles the CursorGlyph while the graph is blurred.
 	BlurredCursor lipgloss.Style
+	// CursorGlyph marks the selected row in the gutter, cut or padded to
+	// one cell. The default is "▌".
+	CursorGlyph string
 	// Lanes color the lanes in turn: lane i takes Lanes[i%len(Lanes)].
 	Lanes []lipgloss.Style
-	// Overflow styles the … that stands for the lanes not drawn.
+	// CommitGlyph marks a commit in its lane, cut or padded to one cell.
+	// The default is "●".
+	CommitGlyph string
+	// Lines draws the lanes, each glyph cut or padded to one cell: Left a
+	// lane that goes on down, Top a line across to another lane, the
+	// corners a lane that bends into a line across (TopLeft a line that
+	// comes in from the right and goes down), and the Middle glyphs the
+	// tees and the cross where lanes meet, as a frame's are. The default
+	// is lipgloss.RoundedBorder.
+	Lines lipgloss.Border
+	// Overflow styles the first cell of the Ellipsis, which stands for the
+	// lanes not drawn.
 	Overflow lipgloss.Style
 	// Short styles the text before the title, such as the short SHA.
 	Short lipgloss.Style
@@ -40,6 +52,10 @@ type Styles struct {
 	// ErrorEllipsis ends the text where it is cut. The defaults are " · "
 	// and "…".
 	ErrorSeparator, ErrorEllipsis string
+	// Ellipsis ends a row where it is cut, follows the "Loading" of the
+	// loading row, and, cut to one cell, stands for the lanes not drawn.
+	// The default is "…".
+	Ellipsis string
 	// Hint styles secondary text such as the retry key.
 	Hint lipgloss.Style
 }
@@ -65,7 +81,10 @@ func DefaultStyles(isDark bool) Styles {
 	return Styles{
 		Cursor:         lipgloss.NewStyle().Foreground(accent),
 		BlurredCursor:  lipgloss.NewStyle().Foreground(subtle),
+		CursorGlyph:    "▌",
 		Lanes:          palette,
+		CommitGlyph:    "●",
+		Lines:          lipgloss.RoundedBorder(),
 		Overflow:       lipgloss.NewStyle().Foreground(subtle),
 		Short:          lipgloss.NewStyle().Foreground(muted),
 		Title:          lipgloss.NewStyle(),
@@ -78,6 +97,7 @@ func DefaultStyles(isDark bool) Styles {
 		ErrorGlyph:     "✗",
 		ErrorSeparator: " · ",
 		ErrorEllipsis:  "…",
+		Ellipsis:       "…",
 		Hint:           lipgloss.NewStyle().Foreground(subtle),
 	}
 }

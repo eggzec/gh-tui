@@ -1,5 +1,7 @@
 package graph
 
+import "charm.land/lipgloss/v2"
+
 // Sides of a graph slot that a line touches. A slot's glyph follows from the
 // sides it joins, the way box-drawing characters do.
 const (
@@ -19,28 +21,31 @@ const (
 	glyphCount = glyphLine + (up | down | left | right) + 1
 )
 
-// glyphs are the characters of the glyph IDs.
-var glyphs = [glyphCount]string{
-	glyphSpace:    " ",
-	glyphCommit:   "●",
-	glyphOverflow: "…",
+// glyphs returns the characters of the glyph IDs: commit marks a commit,
+// overflow the lanes not drawn, and lines draws the lanes.
+func glyphs(commit, overflow string, lines lipgloss.Border) [glyphCount]string {
+	return [glyphCount]string{
+		glyphSpace:    " ",
+		glyphCommit:   commit,
+		glyphOverflow: overflow,
 
-	glyphLine:                              " ",
-	glyphLine + up:                         "│",
-	glyphLine + down:                       "│",
-	glyphLine + (up | down):                "│",
-	glyphLine + left:                       "─",
-	glyphLine + right:                      "─",
-	glyphLine + (left | right):             "─",
-	glyphLine + (up | left):                "╯",
-	glyphLine + (up | right):               "╰",
-	glyphLine + (down | left):              "╮",
-	glyphLine + (down | right):             "╭",
-	glyphLine + (up | down | left):         "┤",
-	glyphLine + (up | down | right):        "├",
-	glyphLine + (up | left | right):        "┴",
-	glyphLine + (down | left | right):      "┬",
-	glyphLine + (up | down | left | right): "┼",
+		glyphLine:                              " ",
+		glyphLine + up:                         lines.Left,
+		glyphLine + down:                       lines.Left,
+		glyphLine + (up | down):                lines.Left,
+		glyphLine + left:                       lines.Top,
+		glyphLine + right:                      lines.Top,
+		glyphLine + (left | right):             lines.Top,
+		glyphLine + (up | left):                lines.BottomRight,
+		glyphLine + (up | right):               lines.BottomLeft,
+		glyphLine + (down | left):              lines.TopRight,
+		glyphLine + (down | right):             lines.TopLeft,
+		glyphLine + (up | down | left):         lines.MiddleRight,
+		glyphLine + (up | down | right):        lines.MiddleLeft,
+		glyphLine + (up | left | right):        lines.MiddleBottom,
+		glyphLine + (down | left | right):      lines.MiddleTop,
+		glyphLine + (up | down | left | right): lines.Middle,
+	}
 }
 
 // cell is one slot of a row of the graph: a glyph, and after it the gap to
