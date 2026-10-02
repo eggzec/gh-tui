@@ -27,6 +27,12 @@ type Styles struct {
 	ErrorSeparator, ErrorEllipsis string
 	// Key styles the pointer at the diagram the toggle key opens.
 	Key lipgloss.Style
+	// Pointer points at the diagram the toggle key opens, cut or padded
+	// to one cell. The default is "›".
+	Pointer string
+	// Ellipsis ends a line cut to the width, and the texts shown while
+	// something loads. The default is "…".
+	Ellipsis string
 	// Hint styles the text around a key in a hint.
 	Hint lipgloss.Style
 	// Markdown is the glamour style of the body and of what
@@ -51,6 +57,8 @@ func DefaultStyles(isDark bool) Styles {
 		ErrorSeparator: " · ",
 		ErrorEllipsis:  "…",
 		Key:            lipgloss.NewStyle().Foreground(accent).Bold(true),
+		Pointer:        "›",
+		Ellipsis:       "…",
 		Hint:           lipgloss.NewStyle().Foreground(subtle),
 		Markdown:       markdown.DefaultStyle(isDark),
 	}
