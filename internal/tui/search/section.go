@@ -278,6 +278,7 @@ func (s *Section) SetTheme(t ui.Theme) {
 	clear(s.langs)
 	s.input.SetStyles(inputStyles(t))
 	s.spin.Style = t.Accent
+	s.spin.Spinner = s.icons.SpinnerOr(spinner.MiniDot)
 	for _, l := range s.hits {
 		l.feed.SetStyles(t.Feed(s.icons))
 	}

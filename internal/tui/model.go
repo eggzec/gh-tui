@@ -478,6 +478,7 @@ func (m *Model) applyTheme(dark bool) {
 	m.layers = nil
 	m.line.SetStyles(m.theme.Cmdline(m.icons))
 	m.spin.Style = m.theme.Accent
+	m.spin.Spinner = m.icons.SpinnerOr(spinner.MiniDot)
 	for _, p := range m.all {
 		p.section.SetTheme(m.theme)
 	}

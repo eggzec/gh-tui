@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/spinner"
 	"charm.land/lipgloss/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
@@ -60,7 +61,7 @@ func NewTheme(p config.Palette, dark bool) Theme {
 
 // Each bubble keeps the shape of its default styles and takes its colors
 // from the palette, and its glyphs, such as its cursor, marks, ellipsis
-// and lines, from the icons.
+// and lines, and its spinner from the icons.
 
 // Toast returns the styles of the toasts, with their levels marked by the
 // glyphs of ic: info, yes for success, and error. Warnings keep their "!".
@@ -82,6 +83,7 @@ func (t Theme) Toast(ic Icons) toast.Styles {
 // Feed returns the styles of a list.
 func (t Theme) Feed(ic Icons) feed.Styles {
 	s := feed.DefaultStyles(t.Dark)
+	s.SpinnerFrames = ic.SpinnerOr(spinner.Dot)
 	s.ErrorGlyph = ic.Error
 	s.ErrorSeparator, s.ErrorEllipsis = ic.Separator, ic.Ellipsis
 	s.CursorGlyph, s.Ellipsis = ic.Cursor, ic.Ellipsis
@@ -99,6 +101,7 @@ func (t Theme) Feed(ic Icons) feed.Styles {
 // Thread returns the styles of a document with comments.
 func (t Theme) Thread(ic Icons) thread.Styles {
 	s := thread.DefaultStyles(t.Dark)
+	s.SpinnerFrames = ic.SpinnerOr(spinner.Dot)
 	s.ErrorGlyph = ic.Error
 	s.ErrorSeparator, s.ErrorEllipsis = ic.Separator, ic.Ellipsis
 	s.Pointer, s.Ellipsis = ic.Crumb, ic.Ellipsis
@@ -114,6 +117,7 @@ func (t Theme) Thread(ic Icons) thread.Styles {
 // Tree returns the styles of a tree, such as the files of a repository.
 func (t Theme) Tree(ic Icons) tree.Styles {
 	s := tree.DefaultStyles(t.Dark)
+	s.SpinnerFrames = ic.SpinnerOr(spinner.MiniDot)
 	s.ErrorGlyph = ic.Error
 	s.ErrorSeparator, s.ErrorEllipsis = ic.Separator, ic.Ellipsis
 	s.CursorGlyph, s.OpenGlyph, s.ClosedGlyph = ic.Cursor, ic.Unfolded, ic.Folded
@@ -138,6 +142,7 @@ func (t Theme) Tree(ic Icons) tree.Styles {
 // accent.
 func (t Theme) Graph(ic Icons) graph.Styles {
 	s := graph.DefaultStyles(t.Dark)
+	s.SpinnerFrames = ic.SpinnerOr(spinner.Dot)
 	s.ErrorGlyph = ic.Error
 	s.ErrorSeparator, s.ErrorEllipsis = ic.Separator, ic.Ellipsis
 	s.CursorGlyph, s.CommitGlyph, s.Lines, s.Ellipsis = ic.Cursor, ic.Dot, ic.Border, ic.Ellipsis
@@ -165,6 +170,7 @@ func (t Theme) Graph(ic Icons) graph.Styles {
 // their defaults for a light or dark terminal.
 func (t Theme) Pager(ic Icons) pager.Styles {
 	s := pager.DefaultStyles(t.Dark)
+	s.SpinnerFrames = ic.SpinnerOr(spinner.Dot)
 	s.ErrorGlyph = ic.Error
 	s.ErrorSeparator, s.ErrorEllipsis = ic.Separator, ic.Ellipsis
 	s.Ellipsis = ic.Ellipsis
@@ -187,6 +193,7 @@ func (t Theme) Pager(ic Icons) pager.Styles {
 // dark terminal.
 func (t Theme) LogView(ic Icons) logview.Styles {
 	s := logview.DefaultStyles(t.Dark)
+	s.SpinnerFrames = ic.SpinnerOr(spinner.Dot)
 	s.ErrorGlyph = ic.Error
 	s.ErrorSeparator, s.ErrorEllipsis = ic.Separator, ic.Ellipsis
 	s.CursorGlyph, s.OpenGlyph, s.ClosedGlyph, s.Ellipsis = ic.Cursor, ic.Unfolded, ic.Folded, ic.Ellipsis
@@ -224,6 +231,7 @@ func (t Theme) LogView(ic Icons) logview.Styles {
 // what is in focus, and its pickers take the styles of the search popups.
 func (t Theme) FilterForm(ic Icons) filterform.Styles {
 	s := filterform.DefaultStyles(t.Dark)
+	s.SpinnerFrames = ic.SpinnerOr(spinner.Dot)
 	s.ErrorGlyph = ic.Error
 	s.ErrorSeparator, s.ErrorEllipsis = ic.Separator, ic.Ellipsis
 	s.Glyphs = filterform.Glyphs{
@@ -284,6 +292,7 @@ func (t Theme) Prompt(ic Icons) prompt.Styles {
 // matches.
 func (t Theme) Picker(ic Icons) picker.Styles {
 	s := picker.DefaultStyles(t.Dark)
+	s.SpinnerFrames = ic.SpinnerOr(spinner.Dot)
 	s.ErrorGlyph = ic.Error
 	s.ErrorSeparator, s.ErrorEllipsis = ic.Separator, ic.Ellipsis
 	s.PromptGlyph, s.CursorGlyph, s.Ellipsis = ic.Crumb, ic.Cursor, ic.Ellipsis
@@ -312,6 +321,7 @@ func (t Theme) Picker(ic Icons) picker.Styles {
 // Finder returns the styles of a file finder.
 func (t Theme) Finder(ic Icons) finder.Styles {
 	s := finder.DefaultStyles(t.Dark)
+	s.SpinnerFrames = ic.SpinnerOr(spinner.Dot)
 	s.ErrorGlyph = ic.Error
 	s.ErrorSeparator, s.ErrorEllipsis = ic.Separator, ic.Ellipsis
 	s.PromptGlyph, s.CursorGlyph = ic.Crumb, ic.Cursor

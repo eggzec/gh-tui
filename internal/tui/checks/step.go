@@ -270,6 +270,7 @@ func (s *Step) SetTheme(t ui.Theme) {
 	s.st = newStyles(t, s.opts.icons)
 	s.errs = t.Errors(s.opts.icons)
 	s.spin.Style = t.Accent
+	s.spin.Spinner = s.opts.icons.SpinnerOr(spinner.Dot)
 	s.view.SetTheme(t)
 	s.md, s.rendered = nil, ""
 	s.layout()

@@ -3,9 +3,11 @@ package ui
 import (
 	"maps"
 	"slices"
+	"strings"
 	"testing"
 	"unicode"
 
+	"charm.land/bubbles/v2/spinner"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/config"
@@ -216,6 +218,41 @@ func TestStatusText(t *testing.T) {
 	} {
 		if got := StatusText(status); got != want {
 			t.Errorf("StatusText(%s) = %q, want %q", status, got, want)
+		}
+	}
+}
+
+// The ASCII set spins a line, spaced as the view's own spinner is, and
+// the other sets leave each view its own.
+func TestIconsSpinnerOr(t *testing.T) {
+	ascii := NewIcons(config.IconsASCII)
+	if got := ascii.SpinnerOr(spinner.Dot).Frames[0]; got != "| " {
+		t.Errorf("ASCII spinner after a spaced one = %q, want %q", got, "| ")
+	}
+	if got := ascii.SpinnerOr(spinner.MiniDot).Frames[0]; got != "|" {
+		t.Errorf("ASCII spinner after an unspaced one = %q, want %q", got, "|")
+	}
+	for _, def := range []spinner.Spinner{spinner.Dot, spinner.MiniDot} {
+		if got := ascii.SpinnerOr(def); len(got.Frames) != len(def.Frames) || got.FPS != def.FPS {
+			t.Errorf("ASCII spinner has %d frames at %v, want %d at %v", len(got.Frames), got.FPS, len(def.Frames), def.FPS)
+		}
+	}
+	if got := NewIcons(config.IconsUnicode).SpinnerOr(spinner.Dot).Frames[0]; got != spinner.Dot.Frames[0] {
+		t.Errorf("Unicode spinner = %q, want the view's own", got)
+	}
+}
+
+// A spinner switched to the icon set's frames mid-spin, at its last
+// frame, still draws one.
+func TestIconsSpinnerSwitchMidSpin(t *testing.T) {
+	for _, def := range []spinner.Spinner{spinner.Dot, spinner.MiniDot} {
+		sp := spinner.New(spinner.WithSpinner(def))
+		for range len(def.Frames) - 1 {
+			sp, _ = sp.Update(sp.Tick())
+		}
+		sp.Spinner = NewIcons(config.IconsASCII).SpinnerOr(def)
+		if v := sp.View(); v == "(error)" || strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
+			t.Errorf("spinner after the switch draws %q", v)
 		}
 	}
 }

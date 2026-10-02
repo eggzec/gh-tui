@@ -3,6 +3,8 @@ package ui
 import (
 	"strings"
 
+	"charm.land/bubbles/v2/spinner"
+
 	"charm.land/lipgloss/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
@@ -75,6 +77,9 @@ type Icons struct {
 	Comment, Recent string
 	// OpenQuote and CloseQuote go around text quoted in prose.
 	OpenQuote, CloseQuote string
+	// Spinner is the spinner of what loads, or zero where each view keeps
+	// its own. Views take it through SpinnerOr.
+	Spinner spinner.Spinner
 	// keys names keys in help, as Key does.
 	keys *strings.Replacer
 
