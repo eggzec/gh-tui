@@ -15,6 +15,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/obs"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/finder"
 )
@@ -253,6 +254,50 @@ func TestFindFilePreview(t *testing.T) {
 				t.Errorf("%d reads, want %d", got, tt.reads)
 			}
 		})
+	}
+}
+
+// TestFindFilePreviewIsNotCounted checks that the file under the finder's
+// cursor, which isn't a guess, stays out of the prefetch counts.
+func TestFindFilePreviewIsNotCounted(t *testing.T) {
+	stats := obs.NewStats()
+	defer obs.SetDefault(obs.SetDefault(stats))
+	h := newHost(loaded(t, sampleFake(), 40, 12, fast))
+	h.width, h.height = 120, 16
+	f := findIn(t, h)
+	h.keys(strings.Split("agents", "")...)
+	if v := ansi.Strip(f.View()); !strings.Contains(v, "Guidance for anyone.") {
+		t.Fatalf("view = %q, want the preview", v)
+	}
+	for _, p := range stats.Summary().Prefetch {
+		if p.Kind == "file" && (p.Sent != 0 || p.Read != 0 || p.Opened != 0) {
+			t.Errorf("file prefetch counts = %+v, want none for the cursor's file", p)
+		}
+	}
+}
+
+// TestFindFileWindowReadCountsAsUsed checks that a file the finder's window
+// read ahead counts as used once the cursor moves onto it and it shows.
+func TestFindFileWindowReadCountsAsUsed(t *testing.T) {
+	stats := obs.NewStats()
+	defer obs.SetDefault(obs.SetDefault(stats))
+	opt := prefetching(func(p *config.PrefetchLayers) {
+		p.Finder.Rest = new(time.Millisecond)
+		p.Finder.Preview.Window = config.Span{Before: new(0), After: new(1)}
+		p.Files.Preview.Enabled = new(false)
+	})
+	h := newHost(loaded(t, filesFake(3), 40, 12, opt))
+	h.width, h.height = 120, 16
+	f := findIn(t, h)
+	next, _ := f.find.At(f.find.Index() + 1)
+	h.keys("down")
+	if v := ansi.Strip(f.View()); !strings.Contains(v, "package f") {
+		t.Fatalf("view = %q, want the preview of %s", v, next.Path)
+	}
+	for _, p := range stats.Summary().Prefetch {
+		if p.Kind == "file" && p.Opened != 1 {
+			t.Errorf("file prefetch counts = %+v, want the window's read of %s opened once", p, next.Path)
+		}
 	}
 }
 

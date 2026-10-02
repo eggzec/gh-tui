@@ -75,9 +75,6 @@ type Section struct {
 	ahead    *ui.Ahead[filesvc.BlobQuery]
 	dirs     *ui.Ahead[filesvc.TreeQuery]
 	slots    *ui.Slots
-	// seen remembers the files the finder read, so that opening one
-	// counts as a use.
-	seen *obs.Prefetched[filesvc.BlobQuery]
 
 	width, height int
 	focused       bool
@@ -103,7 +100,6 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		styles:      tree.DefaultStyles(true),
 		icons:       ui.NewIcons(config.Default().UI.Icons),
 		voice:       ui.NewVoice(keys, ""),
-		seen:        obs.NewPrefetched[filesvc.BlobQuery]("file"),
 		findPreview: config.Default().Files.Finder.Preview,
 		recent:      map[string][]string{},
 		prefetch:    noPrefetch(),
@@ -361,7 +357,6 @@ func (s *Section) open(e core.TreeEntry, ret ui.Modal) tea.Cmd {
 	s.opened(e.Path)
 	q := s.blobQuery(e)
 	s.ahead.Opened(q)
-	s.seen.Opened(q)
 	p := newPreview(s.ctx, s.svc, s.host, s.repo, s.ref, e, s.keys.Open, s.voice, s.editor, s.icons)
 	p.ret = ret
 	// The app passes messages to a modal only once it is open, so the load

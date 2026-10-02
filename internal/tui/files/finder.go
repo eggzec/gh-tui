@@ -285,6 +285,10 @@ func (f *finderModal) Update(msg tea.Msg) tea.Cmd {
 		}
 		f.cancel = nil
 		f.failed = msg.err
+		if msg.err == nil {
+			// Counts as a use only if the window read the file ahead.
+			f.ahead.Opened(f.s.blobQuery(msg.entry))
+		}
 		cmd, _ := fill(&f.pager, msg.entry, msg.blob, msg.err, f.keys.Browser)
 		return cmd
 	case ui.OnlineMsg:
@@ -361,6 +365,8 @@ func (f *finderModal) moved() tea.Cmd {
 		return nil
 	}
 	if b, ok := f.s.svc.CachedBlob(f.s.blobQuery(e)); ok {
+		// Counts as a use only if the window read the file ahead.
+		f.ahead.Opened(f.s.blobQuery(e))
 		cmd, _ := fill(&f.pager, e, b, nil, f.keys.Browser)
 		return cmd
 	}
@@ -412,10 +418,12 @@ func (f *finderModal) read() tea.Cmd {
 	}
 	ctx, cancel := context.WithCancel(obs.WithTrace(f.ctx, "prefetch.finder"))
 	f.cancel = cancel
-	svc, q, seen, seq := f.s.svc, f.s.blobQuery(e), f.s.seen, f.seq
+	svc, q, seq := f.s.svc, f.s.blobQuery(e), f.seq
 	fetch := func() tea.Msg {
 		defer cancel()
-		b, err := readBlob(ctx, svc, seen, q)
+		// The file under the cursor is no guess, so it isn't counted as read
+		// ahead.
+		b, err := svc.Blob(ctx, q)
 		if ctx.Err() != nil {
 			return nil
 		}

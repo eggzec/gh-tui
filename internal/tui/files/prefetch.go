@@ -2,17 +2,13 @@ package files
 
 import (
 	"context"
-	"errors"
-	"log/slog"
 	"path"
 	"strings"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
-	"github.com/eggzec/gh-tui/internal/obs"
 	filesvc "github.com/eggzec/gh-tui/internal/service/files"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
@@ -136,43 +132,15 @@ func (s *Section) dirAt(i int) (filesvc.TreeQuery, bool) {
 func (s *Section) resetAheads(ctx context.Context) {
 	s.ahead.Reset(ctx)
 	s.dirs.Reset(ctx)
-	// Another repository may not be rate limited.
-	s.ahead.Resume()
-	s.dirs.Resume()
-}
-
-// readBlob reads the blob of q ahead, records what came of it, and returns
-// it. A failure is for the preview to report, if the file is opened.
-func readBlob(ctx context.Context, svc Service, seen *obs.Prefetched[filesvc.BlobQuery], q filesvc.BlobQuery) (core.Blob, error) {
-	seen.Count(obs.PrefetchSent)
-	start := time.Now()
-	b, err := svc.Blob(ctx, q)
-	outcome := "read"
-	switch {
-	case err == nil:
-		seen.Read(q)
-	case errors.Is(err, core.ErrRateLimited):
-		outcome = "rate_limited"
-		seen.Count(obs.PrefetchRateLimited)
-	case ctx.Err() != nil:
-		outcome = "canceled"
-		seen.Count(obs.PrefetchCanceled)
-	default:
-		outcome = "failed"
-		seen.Count(obs.PrefetchFailed)
-	}
-	if obs.Enabled(ctx, slog.LevelDebug) {
-		slog.DebugContext(ctx, "prefetch read", "span", "prefetch", "kind", seen.Kind(), "sha", q.SHA,
-			"size", q.Size, "outcome", outcome, "duration_ms", obs.Millis(time.Since(start)))
-	}
-	return b, err
+	// A rate limit is the token's, so another repository doesn't lift it.
 }
 
 // worthReading reports whether the file of e is worth reading ahead: a
-// regular file of at most limit bytes that is likely text. Submodules have
+// regular file of at most limit bytes that is likely text. A limit of 0
+// reads nothing, not even an empty file. Submodules have
 // no content here, and the preview of a link shows only its target.
 func worthReading(e core.TreeEntry, limit int64) bool {
-	return e.Type == core.EntryBlob && !e.Symlink() && e.Size <= limit && !binaryExt[strings.ToLower(path.Ext(e.Name))]
+	return e.Type == core.EntryBlob && !e.Symlink() && limit > 0 && e.Size <= limit && !binaryExt[strings.ToLower(path.Ext(e.Name))]
 }
 
 // binaryExt holds the extensions of files that are rarely text, which the
