@@ -9,4 +9,4 @@
  185            ^                                                               
  186 ✗     D:\a\bubbletea\bubbletea\charmbracelet\bubbletea\clipboard_backend.go
  187       func (b commandClipboardBackend) Set(selection ClipboardSelection, co
-lint / lint (windows-latest)                        error 1/5  line 180/215  61%
+lint / lint (windows-latest)                           error 1/5  row 15/36  61%

@@ -42,10 +42,10 @@ func Example() {
 	//  2     ▸ Run go test ./...
 	//  5     --- FAIL: TestClipboard (0.00s)
 	// ▌6 ✗   Process completed with exit code 1.
-	// build (windows-latest)   error 1/1  line 6/6  100%
+	// build (windows-latest)    error 1/1  row 5/5  100%
 	//      ▸ Set up job                               1s
 	// ▌  ✗ ▸ Run go test ./...                        2s
-	// build (windows-latest)   error 1/1  line 2/6  100%
+	// build (windows-latest)    error 1/1  row 2/2  100%
 }
 
 // printPlain prints a view without its styles, trailing blanks and empty

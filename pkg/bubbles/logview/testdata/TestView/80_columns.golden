@@ -21,4 +21,4 @@
   [38;2;107;114;133m49[m     [38;2;160;167;184m▸ [m[38;2;200;206;219mRun actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1[m        
   [38;2;107;114;133m67[m     [38;2;200;206;219mSyncing repository: charmbracelet/bubbletea[m                            
   [38;2;107;114;133m68[m     [38;2;160;167;184m▸ [m[38;2;200;206;219mGetting Git version info[m                                             
-[1;38;2;200;206;219mlint / lint (windows-latest)[m                           [38;2;160;167;184m5 errors[m  [38;2;160;167;184mline 1/215  26%[m
+[1;38;2;200;206;219mlint / lint (windows-latest)[m                             [38;2;160;167;184m5 errors[m  [38;2;160;167;184mrow 1/86  26%[m

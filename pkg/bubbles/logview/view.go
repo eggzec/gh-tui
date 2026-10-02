@@ -444,10 +444,8 @@ func (m *Model) statusLine() string {
 	if m.live && m.follow {
 		parts = append(parts, m.esc.status.wrap("follow"))
 	}
-	if r := m.cursorRow(); m.state == stateReady && r >= 0 && m.bodyHeight() > 0 {
-		line := min(m.rows[r].src+1, m.n)
-		pct := (m.bottom() + 1) * 100 / len(m.vis)
-		parts = append(parts, m.esc.status.wrap(fmt.Sprintf("line %d/%d  %d%%", line, m.n, pct)))
+	if m.state == stateReady && len(m.vis) > 0 && m.bodyHeight() > 0 {
+		parts = append(parts, m.esc.status.wrap(m.position()))
 	}
 	right := strings.Join(parts, "  ")
 	rw := ansi.StringWidth(right)
@@ -455,6 +453,21 @@ func (m *Model) statusLine() string {
 		return fit(right, m.width)
 	}
 	return fit(m.titleView, m.width-rw-2) + "  " + right
+}
+
+// position is where the cursor is. With nothing folded it is the line of
+// the log, as the gutter numbers it, and the percent counts lines. While
+// folds hide rows, it is the row among those shown, and the percent
+// counts rows, so a log folded to its step titles doesn't read as a few
+// lines of hundreds.
+func (m *Model) position() string {
+	if len(m.vis) < len(m.rows) || m.n == 0 {
+		pct := (m.bottom() + 1) * 100 / len(m.vis)
+		return fmt.Sprintf("row %d/%d  %d%%", m.cur+1, len(m.vis), pct)
+	}
+	line := min(m.rows[m.vis[m.cur]].src+1, m.n)
+	pct := min(m.rows[m.vis[m.bottom()]].src+1, m.n) * 100 / m.n
+	return fmt.Sprintf("line %d/%d  %d%%", line, m.n, pct)
 }
 
 // spaces writes n spaces.
