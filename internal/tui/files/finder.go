@@ -153,7 +153,7 @@ func (s *Section) newFinder() *finderModal {
 	pv := s.voice
 	pv.Retry, pv.Open = key.Binding{}, f.keys.Browser
 	f.pager = pager.New(pager.WithErrorText(fileErrorText(repo, pv)))
-	f.img = fileImage{images: s.images, repo: repo, shown: shownText}
+	f.img = fileImage{images: s.images, repo: repo, shown: shownText, ellipsis: s.icons.Ellipsis}
 	f.icons = newFileIcons(s.icons, s.theme)
 	f.find = finder.New(func(ctx context.Context) (finder.Listing, error) { return listFiles(ctx, src) },
 		finder.WithContext(ctx),

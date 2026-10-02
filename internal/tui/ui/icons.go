@@ -75,8 +75,9 @@ type Icons struct {
 	// Comment marks a count of comments, and Recent something the user
 	// did before, such as a search.
 	Comment, Recent string
-	// OpenQuote and CloseQuote go around text quoted in prose.
-	OpenQuote, CloseQuote string
+	// OpenQuote and CloseQuote go around text quoted in prose, and Dash
+	// sets a clause apart in it.
+	OpenQuote, CloseQuote, Dash string
 	// Spinner is the spinner of what loads, or zero where each view keeps
 	// its own. Views take it through SpinnerOr.
 	Spinner spinner.Spinner

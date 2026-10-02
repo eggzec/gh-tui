@@ -7,6 +7,7 @@
 package threads
 
 import (
+	"cmp"
 	"context"
 	"regexp"
 	"time"
@@ -113,6 +114,8 @@ type Opener struct {
 	inbox    bool
 	ahead    *ui.Aheads[target]
 	slots    *ui.Slots
+	// icons word the notes the opener shows.
+	icons ui.Icons
 }
 
 // New returns an Opener whose reads ahead ctx bounds.
@@ -129,6 +132,13 @@ func New(ctx context.Context, opts ...Option) *Opener {
 	o.ahead.Share(o.slots)
 	o.apply()
 	return o
+}
+
+// SetIcons sets the icons that word the notes the opener shows.
+func (o *Opener) SetIcons(ic ui.Icons) {
+	if o != nil {
+		o.icons = ic
+	}
 }
 
 // FollowInbox makes the reads ahead follow the settings of the dashboard's
@@ -228,7 +238,7 @@ func (o *Opener) Open(n core.Notification) tea.Cmd {
 	default:
 	}
 	if msg == nil {
-		return tea.Batch(ui.Open(sub.WebURL), ui.Notify(toast.Info, browserText(sub.Type)))
+		return tea.Batch(ui.Open(sub.WebURL), ui.Notify(toast.Info, browserText(sub.Type, o.iconSet())))
 	}
 	if t, ok := targetOf(n); ok && o != nil {
 		// What the notification says changed is read again behind the
@@ -239,12 +249,22 @@ func (o *Opener) Open(n core.Notification) tea.Cmd {
 	return func() tea.Msg { return msg }
 }
 
-// browserText tells the user why a thread opened in the browser.
-func browserText(typ core.SubjectType) string {
-	if typ == core.SubjectDiscussion {
-		return "Opened in the browser — gh-tui has no discussion view yet"
+// iconSet returns the icons of o, which a nil opener has none of.
+func (o *Opener) iconSet() ui.Icons {
+	if o == nil {
+		return ui.Icons{}
 	}
-	return "Opened in the browser — gh-tui has no view of it yet"
+	return o.icons
+}
+
+// browserText tells the user why a thread opened in the browser, with the
+// dash of ic, or the Unicode set's for zero icons.
+func browserText(typ core.SubjectType, ic ui.Icons) string {
+	dash := cmp.Or(ic.Dash, "—")
+	if typ == core.SubjectDiscussion {
+		return "Opened in the browser " + dash + " gh-tui has no discussion view yet"
+	}
+	return "Opened in the browser " + dash + " gh-tui has no view of it yet"
 }
 
 // runTitle is the title GitHub gives a notification of a workflow run,

@@ -202,6 +202,7 @@ func (s *Section) SetSize(width, height int) {
 
 // SetTheme builds the styles of the rows and restyles the list.
 func (s *Section) SetTheme(t ui.Theme) {
+	s.opener.SetIcons(s.icons)
 	s.theme = t
 	s.styles = newStyles(t, s.icons)
 	s.feed.SetStyles(t.Feed(s.icons))

@@ -410,7 +410,7 @@ func (m *Model) imagesSummary() string {
 	}
 	b.WriteString("images.enabled: " + p.mode + "\n")
 	if c := m.graphics.Cell; v.Images && c.Valid() {
-		fmt.Fprintf(&b, "Cell size: %d×%d pixels\n", c.Width, c.Height)
+		fmt.Fprintf(&b, "Cell size: %d%s%d pixels\n", c.Width, m.icons.Times, c.Height)
 	}
 	if v.Fix != "" {
 		b.WriteString("To draw them, add this line to tmux.conf:\n" + v.Fix + "\n")

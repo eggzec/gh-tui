@@ -3,12 +3,15 @@ package threads
 import (
 	"context"
 	"slices"
+	"strings"
 	"testing"
 	"testing/synctest"
 	"time"
+	"unicode"
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
@@ -340,4 +343,17 @@ func TestOpenHoldsReadsAhead(t *testing.T) {
 			t.Error("an opener that reads nothing ahead holds something")
 		}
 	})
+}
+
+// The note of a thread opened in the browser takes the dash of the icon
+// set: ASCII in the ASCII set, and as before in the Unicode set.
+func TestBrowserTextIcons(t *testing.T) {
+	for _, typ := range []core.SubjectType{core.SubjectDiscussion, core.SubjectCommit} {
+		if got := browserText(typ, ui.NewIcons(config.IconsASCII)); strings.ContainsFunc(got, func(r rune) bool { return r > unicode.MaxASCII }) {
+			t.Errorf("%s: %q isn't ASCII", typ, got)
+		}
+		if got := browserText(typ, ui.NewIcons(config.IconsUnicode)); !strings.Contains(got, "browser — gh-tui") {
+			t.Errorf("%s: %q lost its dash", typ, got)
+		}
+	}
 }
