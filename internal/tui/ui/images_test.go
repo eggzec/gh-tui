@@ -750,6 +750,8 @@ func TestHostsOnly(t *testing.T) {
 		{"parse https://u:p@h.example:8443/p#f failed", "parse https://h.example:8443 failed"},
 		{"to http://h.example?q=1 and https://g.example", "to http://h.example and https://g.example"},
 		{"no address here", "no address here"},
+		{`Get "https://h.example/p?a=\"b&jwt=secret": EOF`, `Get "https://h.example": EOF`},
+		{fmt.Sprintf("Get %q: EOF", `https://h.example/p?a="b&jwt=secret`), `Get "https://h.example": EOF`},
 	} {
 		if got := hostsOnly(tc.in); got != tc.want {
 			t.Errorf("hostsOnly(%q) = %q, want %q", tc.in, got, tc.want)
