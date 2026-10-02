@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -26,6 +27,7 @@ type fakeFetch struct {
 	fail      map[string]error
 	boxes     []ImageBox
 	urls      []string
+	srcs      []ImageSource
 	fileBytes int
 }
 
@@ -34,7 +36,7 @@ func (f *fakeFetch) fetch(_ context.Context, src ImageSource, box ImageBox) (Pic
 	if src.SHA != "" {
 		addr = src.SHA
 	}
-	f.boxes, f.urls = append(f.boxes, box), append(f.urls, addr)
+	f.boxes, f.urls, f.srcs = append(f.boxes, box), append(f.urls, addr), append(f.srcs, src)
 	if err := f.fail[addr]; err != nil {
 		return Picture{}, err
 	}
@@ -683,10 +685,10 @@ func TestFitUnsentForgotten(t *testing.T) {
 func TestPictures(t *testing.T) {
 	f := &fakeFetch{}
 	off := newTestAvatars(f, Graphics{Cell: testCell})
-	if n, p := off.PictureRows(30), off.Pictures(20); n != 0 || p != nil {
+	if n, p := off.PictureRows(30), off.Pictures(20, nil); n != 0 || p != nil {
 		t.Errorf("draws pictures %d rows tall where images aren't drawn", n)
 	}
-	if n, p := (*Images)(nil).PictureRows(30), (*Images)(nil).Pictures(20); n != 0 || p != nil {
+	if n, p := (*Images)(nil).PictureRows(30), (*Images)(nil).Pictures(20, nil); n != 0 || p != nil {
 		t.Error("nil Images draws pictures")
 	}
 	a := newTestAvatars(f, Graphics{Images: true, Cell: testCell})
@@ -697,14 +699,14 @@ func TestPictures(t *testing.T) {
 		if n := a.PictureRows(tt.height); n != tt.rows {
 			t.Errorf("height %d: PictureRows = %d, want %d", tt.height, n, tt.rows)
 		}
-		if lines := a.Pictures(a.PictureRows(tt.height))(addr, 40); lines != nil {
+		if lines := a.Pictures(a.PictureRows(tt.height), nil)(addr, 40); lines != nil {
 			t.Errorf("height %d: drew %q before the image arrived", tt.height, lines)
 		}
 		load(t, a)
 		if len(f.boxes) != 1 || f.boxes[0].Cols != 40 || f.boxes[0].Rows != tt.rows {
 			t.Errorf("height %d: fetched boxes %+v, want one of 40×%d", tt.height, f.boxes, tt.rows)
 		}
-		if lines := a.Pictures(tt.rows)(addr, 40); len(lines) == 0 {
+		if lines := a.Pictures(tt.rows, nil)(addr, 40); len(lines) == 0 {
 			t.Errorf("height %d: drew nothing once the image arrived", tt.height)
 		}
 	}
@@ -751,6 +753,121 @@ func TestHostsOnly(t *testing.T) {
 	} {
 		if got := hostsOnly(tc.in); got != tc.want {
 			t.Errorf("hostsOnly(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}
+
+// An image of markdown is fetched with the body it is in, the view's
+// document first, and whether that is of a private repository, so its
+// rendered HTML can say where GitHub serves it; one in no body is
+// fetched without.
+func TestPicturesOfBodies(t *testing.T) {
+	doc := "https://github.com/user-attachments/assets/doc"
+	shot := "https://github.com/user-attachments/assets/shot"
+	lone := "https://elsewhere.test/lone.png"
+	in := NewImageBodies(false)
+	in.SetDocument("I_1", "![doc]("+doc+")")
+	in.Add("IC_1", "first\n\n![shot]("+shot+")\n\nand ![doc]("+doc+")")
+	in.Add("IC_2", "no images")
+	in.Add("", "![shot]("+shot+")")
+	in.SetPrivate(true)
+	f := &fakeFetch{}
+	a := newTestAvatars(f, Graphics{Images: true, Cell: testCell})
+	draw := a.Pictures(10, in)
+	for _, u := range []string{doc, shot, lone} {
+		draw(u, 40)
+	}
+	load(t, a)
+	want := []ImageSource{
+		{URL: doc, Body: "I_1", Private: true},
+		{URL: shot, Body: "IC_1", Private: true},
+		{URL: lone, Private: true},
+	}
+	if !slices.Equal(f.srcs, want) {
+		t.Errorf("fetched %+v, want %+v", f.srcs, want)
+	}
+	// Drawn again, nothing is looked up or fetched anew.
+	for _, u := range []string{doc, shot, lone} {
+		if len(draw(u, 40)) == 0 {
+			t.Errorf("%s isn't drawn once it arrived", u)
+		}
+	}
+	load(t, a)
+	if len(f.srcs) != 3 {
+		t.Errorf("fetched again: %+v", f.srcs[3:])
+	}
+	if b := (*ImageBodies)(nil); b.of(doc) != "" {
+		t.Error("nil bodies named a body")
+	}
+}
+
+// The bodies forget the oldest of the comments past their bound, never
+// the document.
+func TestImageBodiesBound(t *testing.T) {
+	in := NewImageBodies(false)
+	in.SetDocument("I_1", "<IMG src=x>")
+	for i := range maxImageBodies + 1 {
+		in.Add("IC_"+strconv.Itoa(i), "![a](https://x.test/"+strconv.Itoa(i)+".png)")
+	}
+	if got := in.of("https://x.test/0.png"); got != "" {
+		t.Errorf("the oldest comment is still known, as %q", got)
+	}
+	if got := in.of("https://x.test/1.png"); got != "IC_1" {
+		t.Errorf("of the second comment = %q", got)
+	}
+	if got := in.of("src=x"); got != "I_1" {
+		t.Errorf("of the document = %q", got)
+	}
+	if len(in.ids) != maxImageBodies || len(in.bodies) != maxImageBodies {
+		t.Errorf("holds %d ids and %d bodies, want %d", len(in.ids), len(in.bodies), maxImageBodies)
+	}
+}
+
+func TestMayHaveImage(t *testing.T) {
+	for in, want := range map[string]bool{
+		"![a](b)": true, "<img src=x>": true, "a <IMG src=x>": true, "<p>a</p><Img>": true,
+		"plain": false, "<p>a</p>": false, "a <im": false, "": false,
+	} {
+		if got := mayHaveImage(in); got != want {
+			t.Errorf("mayHaveImage(%q) = %v", in, got)
+		}
+	}
+}
+
+// An image is fetched with a body that embeds it, not one that only
+// mentions its address, in text, in code or as the start of a longer
+// one, even when that one comes first.
+func TestImageBodiesPreferEmbeds(t *testing.T) {
+	shot := "https://github.com/user-attachments/assets/shot"
+	in := NewImageBodies(false)
+	in.SetDocument("I_1", "See "+shot+" and `"+shot+"`, or ![other]("+shot+"2).")
+	in.Add("IC_1", "As said at "+shot+".")
+	in.Add("IC_2", "Here:\n\n![shot]("+shot+")")
+	if got := in.of(shot); got != "IC_2" {
+		t.Errorf("of = %q, want the comment that embeds it, IC_2", got)
+	}
+	in.Add("IC_2", "gone")
+	if got := in.of(shot); got != "I_1" {
+		t.Errorf("with none embedding it, of = %q, want the first naming it, I_1", got)
+	}
+}
+
+func TestEmbeds(t *testing.T) {
+	const u = "https://x.test/a.png"
+	for text, want := range map[string]bool{
+		"![a](" + u + ")":              true,
+		"![a]( " + u + " \"title\")":   true,
+		"![a](<" + u + ">)":            true,
+		`<img src="` + u + `" alt=a>`:  true,
+		`<IMG SRC='` + u + `'>`:        true,
+		"<img src=" + u + ">":          true,
+		"see " + u:                     false,
+		"![a](" + u + "2)":             false,
+		"[link](" + u + "?x) and " + u: false,
+		"":                             false,
+	} {
+		if got := embeds(text, u); got != want {
+			t.Errorf("embeds(%q) = %v, want %v", text, got, want)
 		}
 	}
 }

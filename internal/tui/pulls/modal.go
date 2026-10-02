@@ -94,8 +94,9 @@ type detailModal struct {
 	dates         ui.Dates
 	avatars       *ui.Images
 	// picRows is the tallest the thread draws the images of markdown,
-	// or 0 while it draws none.
+	// or 0 while it draws none, and bodies those it draws them of.
 	picRows int
+	bodies  *ui.ImageBodies
 }
 
 // openDetail opens a modal on pull request number of repo, on its checks
@@ -129,6 +130,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 		icons:       s.icons,
 		dates:       s.dates,
 		avatars:     s.avatars,
+		bodies:      ui.NewImageBodies(s.capsOf(repo).Private),
 		checksSvc:   s.checks,
 	}
 	m.theme, m.runSt, m.confirmSt = s.theme, ui.NewRunStyles(s.theme, s.icons), s.theme.Confirm()
@@ -358,6 +360,7 @@ func (m *detailModal) updateDetail(msg tea.Msg) tea.Cmd {
 	case ui.CapsMsg:
 		if msg.Repo.Same(m.repo) {
 			m.caps = msg.Caps
+			m.bodies.SetPrivate(msg.Caps.Private)
 		}
 		return nil
 	case ui.OnlineMsg:
@@ -498,6 +501,7 @@ func (m *detailModal) reload() tea.Cmd {
 
 // show sets the document of the thread from the detail.
 func (m *detailModal) show() tea.Cmd {
+	m.bodies.SetDocument(m.detail.ID, m.detail.Body)
 	return m.thread.SetDocument(m.detailHeader(m.width), m.detail.Body)
 }
 
@@ -618,6 +622,7 @@ func (m *detailModal) renderComment(c core.Comment, width int) string {
 	b.WriteString(gutter + m.avatars.Line(c.AvatarURL) + st.commenter.Render(ui.OneLine(c.Author.Login)) + st.age.Render(" · "+m.dates.Prose(c.CreatedAt, m.now())))
 	bar := gutter + st.bar
 	// The bar takes two cells, and as many stay free on the right.
+	m.bodies.Add(c.ID, c.Body)
 	body := m.thread.Markdown(c.Body, markdown.Room(width, 2*len(gutter)+2))
 	if body != "" {
 		b.WriteByte('\n')
@@ -637,6 +642,6 @@ func (m *detailModal) drawPictures() bool {
 		return false
 	}
 	m.picRows = rows
-	m.thread.SetPictures(m.avatars.Pictures(rows))
+	m.thread.SetPictures(m.avatars.Pictures(rows, m.bodies))
 	return true
 }

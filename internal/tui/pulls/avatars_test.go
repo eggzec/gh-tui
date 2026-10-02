@@ -6,6 +6,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 )
@@ -88,5 +89,35 @@ func TestCommentPictures(t *testing.T) {
 	}
 	if strings.Contains(ansi.Strip(m.View()), "🖼 shot") {
 		t.Errorf("the picture shows as its text:\n%s", ansi.Strip(m.View()))
+	}
+}
+
+// The images of the pull request's body and of its comments are fetched
+// with the body each is in, and whether the repository is private, so
+// GitHub's rendered HTML of the body can say where it serves them.
+func TestPicturesOfBodies(t *testing.T) {
+	const (
+		doc  = "https://github.com/user-attachments/assets/d0c"
+		shot = "https://github.com/user-attachments/assets/0d1c"
+	)
+	svc := newFakeService()
+	svc.pulls[0].Body = "What it looks like:\n\n![doc](" + doc + ")"
+	svc.thread = uitest.Thread(2, clock)
+	svc.thread[1].Body = "Before:\n\n![shot](" + shot + ")"
+	src := &uitest.ImageHost{}
+	a := uitest.Avatars(src, true)
+	h := started(t, svc, 80, 60, WithAvatars(a))
+	h.SetTheme(theme(true))
+	press(t, h, "enter")
+	if h.modal() == nil {
+		t.Fatal("enter didn't open the pull request")
+	}
+	drain(t, h, h.Update(ui.CapsMsg{Repo: repo, Caps: core.RepoCaps{Known: true, Private: true}}))
+	uitest.LoadAvatars(t, a)
+	for url, body := range map[string]string{doc: svc.pulls[0].ID, shot: svc.thread[1].ID} {
+		got, ok := src.Source(url)
+		if !ok || got.Body != body || !got.Private {
+			t.Errorf("%s fetched as %+v (%v), want of body %s, private", url, got, ok, body)
+		}
 	}
 }

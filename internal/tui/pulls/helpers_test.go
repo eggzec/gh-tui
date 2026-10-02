@@ -93,7 +93,9 @@ func (f *fakeService) find(number int) core.PullRequest {
 
 func (f *fakeService) detail(number int) core.PullRequestDetail {
 	pr := f.find(number)
-	pr.Body = "## Why\n\nCold starts read **every** page again. This keeps them on disk.\n\n- Pages expire with their TTL\n- `--no-disk` turns it off"
+	if pr.Body == "" {
+		pr.Body = "## Why\n\nCold starts read **every** page again. This keeps them on disk.\n\n- Pages expire with their TTL\n- `--no-disk` turns it off"
+	}
 	return core.PullRequestDetail{PullRequest: pr, CheckCounts: core.CheckCounts{Passed: 2, Failed: 1, Pending: 1}}
 }
 

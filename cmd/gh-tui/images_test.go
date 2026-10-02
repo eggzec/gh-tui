@@ -50,7 +50,7 @@ func TestFetchImageFile(t *testing.T) {
 		// A lossless WebP, which the decoder refuses from its header.
 		"vp8l": []byte("RIFF\x1a\x00\x00\x00WEBPVP8L\x0d\x00\x00\x00\x2f\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"),
 	}}
-	fetch := fetchImage(newImages("github.com", nil), blobs)
+	fetch := fetchImage(newImages("github.com", nil, nil), blobs)
 	box := ui.ImageBox{Cols: 40, Rows: 20, Cell: imgcaps.Cell{Width: 10, Height: 20}}
 	pic, err := fetch(t.Context(), ui.ImageSource{Repo: repo, SHA: "wide", Size: 9}, box)
 	if err != nil {
@@ -66,5 +66,29 @@ func TestFetchImageFile(t *testing.T) {
 		if _, err := fetch(t.Context(), ui.ImageSource{Repo: repo, SHA: sha}, box); !errors.Is(err, ui.ErrImageGone) {
 			t.Errorf("%s: err = %v, want one that won't load", sha, err)
 		}
+	}
+}
+
+// An image of another host is looked for in the rendered HTML of the
+// body the markdown said it is in, and only there: without a body it is
+// never fetched, and no HTML is read.
+func TestFetchImageOfBody(t *testing.T) {
+	var asked [][]string
+	html := func(_ context.Context, ids []string) (map[string]string, error) {
+		asked = append(asked, ids)
+		// GitHub's HTML of it holds no image.
+		return map[string]string{"IC_1": "<p>moved</p>"}, nil
+	}
+	fetch := fetchImage(newImages("github.com", nil, html), &fakeBlobs{})
+	box := ui.ImageBox{Cols: 40, Rows: 20, Cell: imgcaps.Cell{Width: 10, Height: 20}}
+	external := "https://elsewhere.test/a.png"
+	if _, err := fetch(t.Context(), ui.ImageSource{URL: external}, box); !errors.Is(err, ui.ErrImageGone) || len(asked) != 0 {
+		t.Errorf("without a body: err = %v, HTML of %q read", err, asked)
+	}
+	if _, err := fetch(t.Context(), ui.ImageSource{URL: external + "?b", Body: "IC_1", Private: true}, box); !errors.Is(err, ui.ErrImageGone) {
+		t.Errorf("with a body: err = %v, want one that won't load", err)
+	}
+	if len(asked) != 1 || len(asked[0]) != 1 || asked[0][0] != "IC_1" {
+		t.Errorf("HTML of %q read, want that of IC_1 once", asked)
 	}
 }

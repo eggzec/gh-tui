@@ -89,8 +89,9 @@ type detailModal struct {
 	dates         ui.Dates
 	avatars       *ui.Images
 	// picRows is the tallest the thread draws the images of markdown,
-	// or 0 while it draws none.
+	// or 0 while it draws none, and bodies those it draws them of.
 	picRows int
+	bodies  *ui.ImageBodies
 	chips   chipCache
 }
 
@@ -124,6 +125,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, show
 		icons:   s.icons,
 		dates:   s.dates,
 		avatars: s.avatars,
+		bodies:  ui.NewImageBodies(s.capsOf(repo).Private),
 		chips:   newChipCache(s.rows),
 	}
 	m.confirmSt = s.theme.Confirm()
@@ -284,6 +286,7 @@ func (m *detailModal) Update(msg tea.Msg) tea.Cmd {
 	case ui.CapsMsg:
 		if msg.Repo.Same(m.repo) {
 			m.caps = msg.Caps
+			m.bodies.SetPrivate(msg.Caps.Private)
 		}
 		return nil
 	case viewerMsg:
@@ -468,6 +471,7 @@ func (m *detailModal) reload() tea.Cmd {
 
 // show sets the document of the thread from the issue.
 func (m *detailModal) show() tea.Cmd {
+	m.bodies.SetDocument(m.issue.ID, m.issue.Body)
 	return m.thread.SetDocument(m.header(m.issue), m.issue.Body)
 }
 
@@ -543,6 +547,10 @@ func (m *detailModal) renderComment(c core.Comment, width int) string {
 		b.WriteString(t.Subtle.Render(" · " + m.dates.Prose(c.CreatedAt, m.now())))
 	}
 	// The body is indented by two cells, with as much room on the right.
+	if !issuesvc.IsPending(c) {
+		// GitHub has no HTML of a comment it hasn't taken yet.
+		m.bodies.Add(c.ID, c.Body)
+	}
 	if body := m.thread.Markdown(c.Body, markdown.Room(width, 4)); body != "" {
 		b.WriteByte('\n')
 		b.WriteString(markdown.Indent(body, "  "))
@@ -577,6 +585,6 @@ func (m *detailModal) drawPictures() bool {
 		return false
 	}
 	m.picRows = rows
-	m.thread.SetPictures(m.avatars.Pictures(rows))
+	m.thread.SetPictures(m.avatars.Pictures(rows, m.bodies))
 	return true
 }

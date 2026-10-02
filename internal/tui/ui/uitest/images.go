@@ -23,8 +23,9 @@ var TestCell = imgcaps.Cell{Width: 10, Height: 20}
 // of PNG at once, which fill the box asked for, and records what it was
 // asked. A file of a repository it names "blob <repo> <sha>".
 type ImageHost struct {
-	mu    sync.Mutex
-	asked []string
+	mu      sync.Mutex
+	asked   []string
+	sources []ui.ImageSource
 }
 
 // Fetch serves src.
@@ -35,7 +36,7 @@ func (s *ImageHost) Fetch(_ context.Context, src ui.ImageSource, box ui.ImageBox
 	if src.SHA != "" {
 		name = "blob " + src.Repo.String() + " " + src.SHA
 	}
-	s.asked = append(s.asked, name)
+	s.asked, s.sources = append(s.asked, name), append(s.sources, src)
 	return ui.Picture{
 		PNG:   []byte("png of " + name),
 		Width: box.Cols * box.Cell.Width, Height: box.Rows * box.Cell.Height,
@@ -48,6 +49,19 @@ func (s *ImageHost) Asked() []string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return append([]string(nil), s.asked...)
+}
+
+// Source returns the source the image at url was fetched as, the first
+// time, and whether it was.
+func (s *ImageHost) Source(url string) (ui.ImageSource, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, src := range s.sources {
+		if src.URL == url {
+			return src, true
+		}
+	}
+	return ui.ImageSource{}, false
 }
 
 // Avatars returns the images of github.com over src, avatars included, on
