@@ -160,6 +160,23 @@ func TestPrefetchWaitsForTheCursorToRest(t *testing.T) {
 	})
 }
 
+// A rate limit stops the reads ahead until GitHub answers again.
+func TestPrefetchResumesWhenTheRateLimitLifts(t *testing.T) {
+	f := filesFake(6)
+	f.blobErrs["b-f00.go"] = core.ErrRateLimited
+	s := newSection(t, f, 40, 12, WithRepo(ghTUI), window(0, 1000, 0))
+	keys(s, "down")
+	if got := f.blobSHAs(); slices.Contains(got, "b-f01.go") {
+		t.Fatalf("read %q under the rate limit", got)
+	}
+	delete(f.blobErrs, "b-f00.go")
+	run(s, s.Update(ui.OnlineMsg{}))
+	keys(s, "down")
+	if got := f.blobSHAs(); !slices.Contains(got, "b-f02.go") {
+		t.Errorf("read %q once the rate limit lifted, want f02.go", got)
+	}
+}
+
 func TestPrefetchCancelsTheLastRest(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		f := filesFake(3)

@@ -108,6 +108,15 @@ func TestPrefetchStopsAtRateLimit(t *testing.T) {
 	if got := len(svc.getCalls()); got != n {
 		t.Errorf("read %d more issues under the rate limit", got-n)
 	}
+	svc.mu.Lock()
+	svc.getErr = nil
+	svc.mu.Unlock()
+	// Once the limit lifts, the window is read again.
+	run(t, h, h.Update(ui.OnlineMsg{}))
+	press(t, h, "down")
+	if got := len(svc.getCalls()); got == n {
+		t.Error("nothing was read ahead once the rate limit lifted")
+	}
 }
 
 func TestPrefetchedModalOpensAtOnce(t *testing.T) {

@@ -31,6 +31,8 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 	case ui.SyncMsg:
 		return s.sync(msg)
 	case ui.OnlineMsg:
+		// A rate limit is the token's, and has lifted.
+		s.ahead.Resume()
 		if s.feed == nil {
 			return nil
 		}
@@ -73,8 +75,6 @@ func (s *Section) setRepo(repo core.RepoRef) tea.Cmd {
 	}
 	s.repo, s.hasRepo = repo, true
 	s.caps = ui.CachedCaps(s.repos, repo)
-	// The rate limit may be another's.
-	s.ahead.Resume()
 	s.others.Reset(s.ctx, repo.String())
 	s.renderHeader()
 	if !s.started {

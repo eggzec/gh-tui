@@ -220,6 +220,9 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 		s.configure(msg.Config)
 		return nil
 	case ui.OnlineMsg:
+		// A rate limit is the token's, and has lifted.
+		s.ahead.Resume()
+		s.dirs.Resume()
 		// The tree reads again its top level, or the open branches,
 		// that failed. What GitHub refused seldom shows in a tree. A
 		// listing kept while GitHub couldn't be reached, or rate

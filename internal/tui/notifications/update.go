@@ -45,6 +45,8 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 		}
 		return s.reload()
 	case ui.OnlineMsg:
+		// A rate limit is the token's, and has lifted.
+		s.opener.Resume()
 		return ui.RetryUnreached(&s.feed)
 	case ui.SettingsMsg:
 		s.configure(msg.Config)
