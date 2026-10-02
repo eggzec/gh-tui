@@ -92,7 +92,7 @@ func (c repoCols) width() int {
 }
 
 // header renders the headers of the columns.
-func (c repoCols) header(star string) string {
+func (c repoCols) header(star, tail string) string {
 	var b strings.Builder
 	cell := func(text string, w int, right bool) {
 		if w <= 0 {
@@ -101,7 +101,7 @@ func (c repoCols) header(star string) string {
 		if b.Len() > 0 {
 			b.WriteString(strings.Repeat(" ", colGap))
 		}
-		text = truncate(text, w)
+		text = truncate(text, w, tail)
 		pad := strings.Repeat(" ", w-ansi.StringWidth(text))
 		if right {
 			b.WriteString(pad + text)
@@ -133,7 +133,7 @@ func (s *Section) renderRepo(c repoCols, r core.Repo, selected bool) string {
 	}
 	if c.name > 0 {
 		gap()
-		name := truncate(r.Ref.Name, c.name)
+		name := truncate(r.Ref.Name, c.name, s.icons.Ellipsis)
 		nameStyle := st.text
 		if selected {
 			nameStyle = st.selected
@@ -156,7 +156,7 @@ func (s *Section) renderRepo(c repoCols, r core.Repo, selected bool) string {
 	}
 	if c.desc > 0 {
 		gap()
-		d := truncate(cleanLine(r.Description), c.desc)
+		d := truncate(cleanLine(r.Description), c.desc, s.icons.Ellipsis)
 		st.muted.write(&b, d)
 		b.WriteString(strings.Repeat(" ", c.desc-ansi.StringWidth(d)))
 	}

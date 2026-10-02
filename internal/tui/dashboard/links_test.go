@@ -54,7 +54,7 @@ func TestWorkLinks(t *testing.T) {
 		h.Issue.URL = ui.WebURL(host, "o/r/pull/7")
 		for _, width := range []int{60, 30, 12} {
 			r := workRow{hit: &h}
-			r.ref, r.lines = wrapWork(h.Issue, width-workIndent, 3)
+			r.ref, r.lines = wrapWork(h.Issue, width-workIndent, 3, "…")
 			lines := s.workItem(nil, &r, true, true, width)
 			checkLinks(t, host+" work", lines, h.Issue.URL, width)
 		}
