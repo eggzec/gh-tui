@@ -302,10 +302,9 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 	s.cal = calendar.New(
 		calendar.WithGlyph(s.glyph),
 		calendar.WithRange(s.calDays),
-		calendar.WithEmptyText("Loading contributions…"),
 	)
 	s.repos = newRepoTabs(s)
-	s.tasks.now, s.tasks.dates = s.now, s.dates
+	s.tasks.now, s.tasks.dates, s.tasks.ellipsis = s.now, s.dates, s.icons.Ellipsis
 	s.pinned.here = s.here
 	s.paintCached()
 	s.SetTheme(ui.NewTheme(defaultPalette(), true))
@@ -360,12 +359,30 @@ func (s *Section) SetSize(width, height int) {
 	s.render()
 }
 
+// cellGlyph returns the glyph of a day in the calendar: glyph, as
+// configured, unless it is the default, which the icon set draws as its
+// own cell.
+func cellGlyph(glyph string, ic ui.Icons) string {
+	if glyph == config.Default().Dashboard.CalendarGlyph {
+		return ic.Cell
+	}
+	return glyph
+}
+
 // SetTheme builds the styles of the dashboard and restyles its bubbles.
 func (s *Section) SetTheme(t ui.Theme) {
 	s.theme = t
-	s.st = newStyles(t)
+	s.st = newStyles(t, s.icons)
 	s.errs = t.Errors(s.icons)
 	s.cal.SetStyles(t.Calendar())
+	s.cal.SetGlyph(cellGlyph(s.glyph, s.icons))
+	if !s.contribs.ok {
+		s.cal.SetEmptyText("Loading contributions" + s.icons.Ellipsis)
+	}
+	if s.tasks.ellipsis != s.icons.Ellipsis {
+		s.tasks.ellipsis = s.icons.Ellipsis
+		s.tasks.wrap()
+	}
 	s.repos.setTheme(t, s.icons)
 	s.render()
 }

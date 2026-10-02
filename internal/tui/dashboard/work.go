@@ -56,6 +56,8 @@ type workList struct {
 	// them.
 	now   func() time.Time
 	dates ui.Dates
+	// ellipsis ends a reference cut short.
+	ellipsis string
 }
 
 // workIndent is the room before the text of a work item: the gutter, and
@@ -174,7 +176,7 @@ func (l *workList) wrap() {
 		for j := range l.tabs[i].items {
 			r := &l.tabs[i].rows[j]
 			age := ansi.StringWidth(l.dates.Short(r.hit.Issue.UpdatedAt, l.now()))
-			r.ref, r.lines = wrapWork(r.hit.Issue, l.width-workIndent, age)
+			r.ref, r.lines = wrapWork(r.hit.Issue, l.width-workIndent, age, l.ellipsis)
 		}
 	}
 }
@@ -183,13 +185,13 @@ func (l *workList) wrap() {
 // cells. The reference starts the first line, cut to half of it at most,
 // and lines holds the title, the first after the reference. The last line
 // leaves room for an age of age cells and a space, on a line of its own if
-// need be.
-func wrapWork(is core.Issue, width, age int) (ref string, lines []string) {
+// need be. A reference cut short ends in tail.
+func wrapWork(is core.Issue, width, age int, tail string) (ref string, lines []string) {
 	if width <= 0 {
 		return "", []string{""}
 	}
 	ref = is.Repo.Name + "#" + strconv.Itoa(is.Number)
-	ref = truncate(ref, min(ansi.StringWidth(ref), max(width/2, 1)))
+	ref = truncate(ref, min(ansi.StringWidth(ref), max(width/2, 1)), tail)
 	title := cleanLine(is.Title)
 	if title == "" {
 		lines = []string{""}
