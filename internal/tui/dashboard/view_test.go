@@ -136,7 +136,7 @@ func TestLayout(t *testing.T) {
 				t.Errorf("the work is %dx%d beside repositories of %dx%d, want it to fill the middle row",
 					b[workPane].w, b[workPane].h, b[reposPane].w, b[reposPane].h)
 			}
-			if got := profileHeight + b[pinnedPane].h + b[reposPane].h + b[calendarPane].h; got != tt.height {
+			if got := s.profileHeight() + b[pinnedPane].h + b[reposPane].h + b[calendarPane].h; got != tt.height {
 				t.Errorf("the rows take %d lines of %d", got, tt.height)
 			}
 			if s.cal.Range() != tt.days {

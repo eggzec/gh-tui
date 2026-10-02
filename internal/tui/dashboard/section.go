@@ -151,6 +151,14 @@ func WithDates(d ui.Dates) Option {
 	return func(s *Section) { s.dates = d }
 }
 
+// WithAvatars draws the viewer's avatar beside the profile with a, in a
+// box of ui.AvatarLarge, which makes the profile as tall as the box.
+// Without it, or where the terminal shows no images, the profile keeps
+// its two lines.
+func WithAvatars(a *ui.Avatars) Option {
+	return func(s *Section) { s.avatars = a }
+}
+
 // paneID names a pane of the dashboard. They are numbered in this order,
 // the order they are read in.
 type paneID int
@@ -203,6 +211,8 @@ type Section struct {
 	dates ui.Dates
 	// host is the web host of the user's GitHub, for the links it opens.
 	host string
+	// avatars draws the viewer's avatar beside the profile.
+	avatars *ui.Avatars
 	// links keeps the links of the rows, which are drawn again on every
 	// change.
 	links termtext.Links
