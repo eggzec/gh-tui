@@ -4,6 +4,8 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // Room is how much of the area a toast may take.
@@ -67,7 +69,7 @@ func (m Model) Fits(level Level, text string) bool {
 		level = Info
 	}
 	d := m.derived
-	width := m.maxInner(level) - d.glyphWidth - 1 - countWidth(maxCount)
+	width := m.maxInner(level) - d.glyphWidth - 1 - m.countWidth(maxCount)
 	if width < 1 {
 		return false
 	}
@@ -79,7 +81,7 @@ func (m Model) Fits(level Level, text string) bool {
 			return false
 		}
 	}
-	_, cut := wrap(clean(text), width, lines)
+	_, cut := wrap(clean(text), width, lines, m.styles.Ellipsis)
 	return !cut
 }
 
@@ -95,16 +97,16 @@ func (m Model) maxInner(level Level) int {
 }
 
 // wrap wraps text to width cells and at most lines lines, and reports
-// whether it had to cut the text, which then ends in an ellipsis. A word
+// whether it had to cut the text, which then ends in ellipsis. A word
 // longer than the width is broken.
-func wrap(text string, width, lines int) ([]string, bool) {
+func wrap(text string, width, lines int, ellipsis string) ([]string, bool) {
 	wrapped := fit(strings.Split(ansi.Wrap(text, width, ""), "\n"), width)
 	if len(wrapped) <= lines {
 		return wrapped, false
 	}
 	wrapped = wrapped[:lines]
 	last := strings.TrimRight(wrapped[lines-1], " ")
-	wrapped[lines-1] = ansi.Truncate(last+" "+ellipsis, width, ellipsis)
+	wrapped[lines-1] = termtext.Truncate(last+" "+ellipsis, width, ellipsis)
 	return wrapped, true
 }
 

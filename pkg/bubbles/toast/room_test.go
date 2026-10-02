@@ -152,7 +152,7 @@ func TestCountStops(t *testing.T) {
 func TestWrapKeepsToTheWidth(t *testing.T) {
 	for _, text := range []string{"a b -", "a x-y", "bb é - —— x-y", "a b / - a - x-y é", "ccc - -", "a x-y 漢字 - x-y 漢字 é https://x.y/z", "abc   def"} {
 		for width := 2; width <= 12; width++ {
-			lines, cut := wrap(text, width, 99)
+			lines, cut := wrap(text, width, 99, "…")
 			if cut {
 				t.Errorf("wrap(%q, %d) cut the text", text, width)
 			}
@@ -162,7 +162,7 @@ func TestWrapKeepsToTheWidth(t *testing.T) {
 					n++
 				}
 			}
-			if _, cut := wrap(text, width, n); cut {
+			if _, cut := wrap(text, width, n, "…"); cut {
 				t.Errorf("wrap(%q, %d, %d) cut a text that wraps to %d lines", text, width, n, n)
 			}
 			for _, l := range lines {
