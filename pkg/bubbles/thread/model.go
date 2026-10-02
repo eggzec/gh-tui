@@ -313,9 +313,50 @@ func (m *Model[T]) SetCutHint(hint string) {
 // Redraw renders the document and the loaded comments again and keeps
 // the reading position, for when what the comment renderer draws changed
 // without the comments changing, such as a picture it shows that arrived.
-// Markdown rendered before is reused, so it costs little.
+// Markdown rendered before is reused, so it costs little. The lines at
+// the top of the screen stay there, even when a picture above or below
+// them in the same comment grew it, unless they were what changed.
 func (m *Model[T]) Redraw() {
+	y := m.vp.YOffset()
+	var shown []string
+	if y > 0 && y < len(m.lines) {
+		shown = slices.Clone(m.lines[y:min(y+keepLines, len(m.lines))])
+	}
 	m.rerender(m.anchor())
+	m.keep(shown)
+}
+
+// keepLines is how many lines at the top of the screen Redraw finds again,
+// enough that a few blank or repeated lines don't match elsewhere.
+const keepLines = 3
+
+// keep scrolls to the place of shown, the lines that were at the top of
+// the screen, nearest to where the anchor put them, if they are still
+// in the thread and aren't all blank.
+func (m *Model[T]) keep(shown []string) {
+	if len(shown) == 0 || !slices.ContainsFunc(shown, func(l string) bool { return l != m.blank }) {
+		return
+	}
+	y, best := m.vp.YOffset(), -1
+	for i := 0; i+len(shown) <= len(m.lines); i++ {
+		if slices.Equal(m.lines[i:i+len(shown)], shown) && (best < 0 || abs(i-y) < abs(best-y)) {
+			best = i
+		}
+	}
+	if best >= 0 {
+		m.vp.SetYOffset(best)
+	}
+}
+
+func abs(n int) int { return max(n, -n) }
+
+// SetPictures draws, with p, the images that stand alone on their lines
+// in the body and the comments, as [markdown.Renderer.SetPictures] does,
+// and renders them again, keeping the reading position. A nil p draws
+// none.
+func (m *Model[T]) SetPictures(p markdown.Pictures) {
+	m.md.SetPictures(p)
+	m.Redraw()
 }
 
 // rerender renders the document and the loaded comments again and
