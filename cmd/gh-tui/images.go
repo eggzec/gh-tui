@@ -14,9 +14,11 @@ import (
 
 // newImages returns the fetcher of the images of the GitHub whose web
 // host is web. It keeps what it fetched in entries, the account's own
-// directory of the disk cache, when there is one.
-func newImages(web string, entries cache.Store) *images.Fetcher {
-	var opts []images.Option
+// directory of the disk cache, when there is one, and reads the rendered
+// HTML of bodies with html, for the images that load only from where it
+// says.
+func newImages(web string, entries cache.Store, html images.HTML) *images.Fetcher {
+	opts := []images.Option{images.WithHTML(html)}
 	if entries != nil {
 		opts = append(opts, images.WithStore(entries))
 	}
@@ -42,7 +44,10 @@ func fetchImage(f *images.Fetcher, files blobReader) ui.ImageFetch {
 		if src.SHA != "" {
 			img, err = fetchFile(ctx, f, files, src, b)
 		} else {
-			img, err = f.Fetch(ctx, images.Source{URL: src.URL}, b)
+			// The images of markdown aren't counted as GitHub's HTML
+			// counts them, among badges and inline images, so none is
+			// found in it by its place.
+			img, err = f.Fetch(ctx, images.Source{URL: src.URL, Body: src.Body, Index: -1, Private: src.Private}, b)
 		}
 		switch {
 		case errors.Is(err, images.ErrUnavailable), errors.Is(err, images.ErrNotAllowed),

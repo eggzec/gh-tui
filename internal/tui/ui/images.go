@@ -46,6 +46,14 @@ type ImageSource struct {
 	Repo core.RepoRef
 	SHA  string
 	Size int64
+	// Body is the node ID of the body, such as a comment, that the image
+	// at URL is in, whose rendered HTML says where GitHub serves it, or
+	// "". Private says the body is of a private repository. Neither is
+	// part of what names the image: any body that holds it will do.
+	Body    string
+	Private bool
+	// in are the bodies Body is found among, once the image is fetched.
+	in *ImageBodies
 }
 
 // file reports whether s is a file of a repository.
@@ -297,13 +305,14 @@ func (a *Images) PictureRows(height int) int {
 // Pictures returns what draws the images of markdown on the web, fitted
 // to the room the markdown gives them and at most rows tall, as
 // PictureRows says, or nil for 0 rows, so markdown renders as it does
-// without images.
-func (a *Images) Pictures(rows int) func(url string, width int) []string {
+// without images. The markdown is that of one of in, which says where
+// GitHub serves the images that load only from there; in may be nil.
+func (a *Images) Pictures(rows int, in *ImageBodies) func(url string, width int) []string {
 	if rows <= 0 || !a.drawing() {
 		return nil
 	}
 	return func(url string, width int) []string {
-		lines, _ := a.Fit(ImageSource{URL: url}, ImageSize{Cols: width, Rows: rows})
+		lines, _ := a.Fit(ImageSource{URL: url, in: in}, ImageSize{Cols: width, Rows: rows})
 		return lines
 	}
 }
@@ -372,6 +381,9 @@ func (a *Images) want(src ImageSource, size ImageSize, fit bool) *entry {
 	key := imageKey(src, size, fit)
 	e, ok := a.byKey[key]
 	if !ok {
+		if src.Body != "" {
+			src.in = nil
+		}
 		e = &entry{src: src, size: size, fit: fit}
 		a.byKey[key] = e
 	}
@@ -466,6 +478,11 @@ func (a *Images) prune() {
 }
 
 func (a *Images) fetchCmd(key string, e *entry) tea.Cmd {
+	if in := e.src.in; in != nil {
+		// Only now, as what is known of the bodies may have grown since
+		// the image was drawn, such as whether they are private.
+		e.src.Body, e.src.Private, e.src.in = in.of(e.src.URL), in.private, nil
+	}
 	ctx, fetch, src := a.ctx, a.fetch, e.src
 	box := ImageBox{Cols: e.size.Cols, Rows: e.size.Rows, Cell: a.g.Cell}
 	return func() tea.Msg {

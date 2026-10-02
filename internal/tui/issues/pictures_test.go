@@ -101,3 +101,21 @@ func TestCommentPicturesArrive(t *testing.T) {
 		t.Errorf("the picture takes %d rows, want images.max_rows, 4", rows)
 	}
 }
+
+// An image is fetched with the body it is in, a comment's, and whether
+// the repository is private, as that is known when the image is fetched,
+// so GitHub's rendered HTML of the body can say where it serves it.
+func TestCommentPicturesOfBodies(t *testing.T) {
+	src := &uitest.ImageHost{}
+	a := uitest.Avatars(src, true)
+	h, _ := pictureModal(t, a)
+	run(t, h, h.Update(ui.CapsMsg{Repo: testRepo, Caps: core.RepoCaps{Known: true, Private: true}}))
+	uitest.LoadAvatars(t, a)
+	got, ok := src.Source(shotURL)
+	if !ok {
+		t.Fatalf("fetched %q, want the attachment", src.Asked())
+	}
+	if want := pictureComments()[1].ID; got.Body != want || !got.Private {
+		t.Errorf("fetched the attachment as %+v, want of body %s, private", got, want)
+	}
+}
