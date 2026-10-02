@@ -138,7 +138,7 @@ func TestImagesProbe(t *testing.T) {
 		},
 		{
 			name: "kitty, on", mode: imgcaps.ModeOn, env: kittyEnv, profile: colorprofile.TrueColor,
-			first: name("kitty(0.43.1)"), want: ui.Graphics{Images: true}, writes: []string{"\x1b[>q\x1b[c", "\x1b[16t\x1b[c"},
+			first: name("kitty(0.43.1)"), want: ui.Graphics{Images: true, Animate: true}, writes: []string{"\x1b[>q\x1b[c", "\x1b[16t\x1b[c"},
 		},
 		{
 			name: "on, only the environment", mode: imgcaps.ModeOn, env: kittyEnv, profile: colorprofile.TrueColor,
@@ -164,7 +164,7 @@ func TestImagesProbe(t *testing.T) {
 			name: "kitty on 256 colors asks for 24-bit", mode: imgcaps.ModeAuto, env: kittyEnv, profile: colorprofile.ANSI256,
 			first:  name("kitty(0.43.1)"),
 			then:   func(id uint32) []tea.Msg { return []tea.Msg{kittyReply(id, "OK"), da1} },
-			want:   ui.Graphics{Images: true},
+			want:   ui.Graphics{Images: true, Animate: true},
 			writes: []string{"\x1b[>q\x1b[c", "XTGETTCAP RGB", "XTGETTCAP Tc", "\x1b_Ga=q,i=ID", "\x1b[16t\x1b[c"},
 		},
 		{
@@ -194,7 +194,7 @@ func TestImagesProbe(t *testing.T) {
 			name: "tmux in kitty", mode: imgcaps.ModeAuto, env: imgcaps.Env{Term: "tmux-256color", Tmux: true}, profile: colorprofile.ANSI256,
 			// The size of a cell comes from tmux, and the terminal is sent
 			// nothing.
-			tmux: "kitty(0.43.1)", want: ui.Graphics{Images: true, Tmux: true, Cell: imgcaps.Cell{Width: 9, Height: 18}},
+			tmux: "kitty(0.43.1)", want: ui.Graphics{Images: true, Animate: true, Tmux: true, Cell: imgcaps.Cell{Width: 9, Height: 18}},
 			writes: []string{},
 		},
 		{

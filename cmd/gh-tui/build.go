@@ -221,6 +221,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	icons, dates := ui.NewIcons(cfg.UI.Icons), ui.NewDates(cfg.UI.DateFormat)
 	pics := ui.NewImages(ctx, fetchImage(newImages(webHost, entries, client.BodyHTML), fileSvc), cfg.Images.Avatars)
 	pics.SetMaxRows(cfg.Images.MaxRows)
+	pics.SetAnimate(cfg.Images.Animate)
 	// What went wrong names the configured keys, and the log file while
 	// the app logs to one.
 	var logPath string

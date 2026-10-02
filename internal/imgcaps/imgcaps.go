@@ -169,6 +169,14 @@ func Allowed(name string) (why string, ok bool) {
 	return "the terminal isn't known to draw kitty placeholders", false
 }
 
+// Animates reports whether the terminal that names itself name, as
+// XTVERSION answers, plays the animations of kitty's graphics protocol
+// itself: only kitty does. Ghostty, which draws kitty placeholders, takes
+// no frames, and shows the first.
+func Animates(name string) bool {
+	return strings.HasPrefix(strings.ToLower(strings.TrimSpace(name)), "kitty")
+}
+
 // version reads the first major.minor in s, such as 3.3 in "(3.3a)".
 func version(s string) ([2]int, bool) {
 	i := strings.IndexFunc(s, func(r rune) bool { return r >= '0' && r <= '9' })

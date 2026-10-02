@@ -172,6 +172,18 @@ func TestAllowed(t *testing.T) {
 	}
 }
 
+// Only kitty plays animations; the other terminals that draw kitty's
+// placeholders show their first frame.
+func TestAnimates(t *testing.T) {
+	for name, want := range map[string]bool{
+		"kitty(0.43.1)": true, " KITTY(0.28.0)\n": true, "ghostty 1.2.0": false, "WezTerm 20240203": false, "": false,
+	} {
+		if got := Animates(name); got != want {
+			t.Errorf("Animates(%q) = %v, want %v", name, got, want)
+		}
+	}
+}
+
 func TestVersion(t *testing.T) {
 	tests := []struct {
 		in   string
