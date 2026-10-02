@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"unicode"
 
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
@@ -118,5 +119,48 @@ func TestViewFitsAnySize(t *testing.T) {
 	m.SetSize(0, 10)
 	if m.View() != "" {
 		t.Fatal("zero width should render nothing")
+	}
+}
+
+// The cursor, the ellipsis of cut rows and placeholders, and the marks of
+// errors are the glyphs of the styles, so a view with ASCII glyphs draws
+// ASCII alone.
+func TestViewGlyphs(t *testing.T) {
+	st := DefaultStyles(true)
+	st.CursorGlyph, st.Ellipsis = ">", "..."
+	st.ErrorGlyph, st.ErrorSeparator, st.ErrorEllipsis = "x", " - ", "..."
+	long := newSource(30, 10)
+	for i := range long.items {
+		long.items[i].title = strings.Repeat("a long title ", 4)
+	}
+	cut := ansi.Strip(load(t, long, WithSize(30, 3), WithStyles(st)).View())
+	src := newSource(1000, 10)
+	m := scrolledToEnd(t, src)
+	m.SetStyles(st)
+	m, _ = m.Update(press("home"))
+	refetching := ansi.Strip(m.View())
+	src = newSource(1000, 10)
+	m = scrolledToEnd(t, src)
+	m.SetStyles(st)
+	src.setFail("", errors.New("dial tcp: i/o timeout"))
+	failed := ansi.Strip(keys(t, m, "home", "down").View())
+	for _, tt := range []struct{ view, want string }{
+		{cut, "> "},
+		{cut, "..."},
+		{refetching, "  ..."},
+		{failed, "x "},
+	} {
+		if !strings.Contains(tt.view, tt.want) {
+			t.Errorf("view lacks %q:\n%s", tt.want, tt.view)
+		}
+	}
+	for _, v := range []string{cut, refetching, failed} {
+		if strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
+			t.Errorf("view has glyphs beyond ASCII:\n%s", v)
+		}
+	}
+	loading := New(newSource(10, 10).fetch, renderItem, WithSize(40, 5), WithStyles(st))
+	if v := ansi.Strip(loading.View()); !strings.Contains(v, "Loading...") {
+		t.Errorf("view lacks %q:\n%s", "Loading...", v)
 	}
 }

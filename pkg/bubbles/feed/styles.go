@@ -2,18 +2,19 @@ package feed
 
 import "charm.land/lipgloss/v2"
 
-// cursorGlyph marks the selected row in the gutter.
-const cursorGlyph = "▌"
-
 // gutterWidth is the width of the selection gutter left of every row.
 const gutterWidth = 2
 
 // Styles holds the styles of a feed.
 type Styles struct {
-	// Cursor marks the selected row while the feed is focused.
+	// Cursor styles the CursorGlyph that marks the selected row while the
+	// feed is focused.
 	Cursor lipgloss.Style
-	// BlurredCursor marks the selected row while the feed is blurred.
+	// BlurredCursor styles the CursorGlyph while the feed is blurred.
 	BlurredCursor lipgloss.Style
+	// CursorGlyph marks the selected row in the gutter, cut or padded to
+	// one cell. The default is "▌".
+	CursorGlyph string
 	// Placeholder styles rows whose chunk is being fetched again.
 	Placeholder lipgloss.Style
 	// Spinner styles the spinner of the loading row.
@@ -30,6 +31,10 @@ type Styles struct {
 	// ErrorEllipsis ends the text where it is cut. The defaults are " · "
 	// and "…".
 	ErrorSeparator, ErrorEllipsis string
+	// Ellipsis ends a row where it is cut, follows the "Loading" of the
+	// loading row, and stands for a row whose chunk is being fetched
+	// again. The default is "…".
+	Ellipsis string
 	// Hint styles secondary text such as the retry key.
 	Hint lipgloss.Style
 }
@@ -45,6 +50,7 @@ func DefaultStyles(isDark bool) Styles {
 	return Styles{
 		Cursor:         lipgloss.NewStyle().Foreground(accent),
 		BlurredCursor:  lipgloss.NewStyle().Foreground(subtle),
+		CursorGlyph:    "▌",
 		Placeholder:    lipgloss.NewStyle().Foreground(subtle),
 		Spinner:        lipgloss.NewStyle().Foreground(accent),
 		Loading:        lipgloss.NewStyle().Foreground(muted),
@@ -53,6 +59,7 @@ func DefaultStyles(isDark bool) Styles {
 		ErrorGlyph:     "✗",
 		ErrorSeparator: " · ",
 		ErrorEllipsis:  "…",
+		Ellipsis:       "…",
 		Hint:           lipgloss.NewStyle().Foreground(subtle),
 	}
 }
