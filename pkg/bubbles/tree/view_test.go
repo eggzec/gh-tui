@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"unicode"
 
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
@@ -243,5 +244,46 @@ func TestIconsAreShared(t *testing.T) {
 		if e.icon != first || e.icon.text != "x " {
 			t.Errorf("%s has icon %+v after SetIcons", e.node.ID, e.icon)
 		}
+	}
+}
+
+// asciiStyles returns the default styles with every glyph in ASCII.
+func asciiStyles() Styles {
+	st := DefaultStyles(true)
+	st.CursorGlyph, st.GuideGlyph, st.OpenGlyph, st.ClosedGlyph = ">", "|", "-", "+"
+	st.Ellipsis, st.ErrorGlyph, st.ErrorSeparator, st.ErrorEllipsis = "...", "x", " - ", "..."
+	return st
+}
+
+// The cursor, the guides, the marks of branches and the ellipsis of cut
+// names are the glyphs of the styles, so a view with ASCII glyphs draws
+// ASCII alone.
+func TestViewGlyphs(t *testing.T) {
+	f := repo()
+	f.setFail("docs", errors.New("GET /repos/o/r/contents/docs: 502 Bad Gateway"))
+	m := keys(t, load(t, f, WithSize(40, 12), WithStyles(asciiStyles())), "*", "j", "j", "j", "+", "j", "l")
+	v := ansi.Strip(m.View())
+	for _, want := range []string{"  - cmd", "  | - gh-tui", "  | |   main.go", "> - internal", "  | + core", "  - docs x GET /repos/o/... - + to retry"} {
+		if !strings.Contains(v, want) {
+			t.Errorf("view lacks %q:\n%s", want, v)
+		}
+	}
+	assertASCII(t, v)
+	cut := ansi.Strip(keys(t, load(t, sized(), WithSize(24, 6), WithStyles(asciiStyles())), "l").View())
+	if want := "a-rather-lo... 12K"; !strings.Contains(cut, want) {
+		t.Errorf("view lacks %q:\n%s", want, cut)
+	}
+	assertASCII(t, cut)
+	loading := New(repo().children, WithSize(18, 2), WithStyles(asciiStyles()))
+	if v := ansi.Strip(loading.View()); !strings.Contains(v, "Loading...") {
+		t.Errorf("view lacks %q:\n%s", "Loading...", v)
+	}
+}
+
+// assertASCII fails when v holds a rune beyond ASCII.
+func assertASCII(tb testing.TB, v string) {
+	tb.Helper()
+	if strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
+		tb.Errorf("view has glyphs beyond ASCII:\n%s", v)
 	}
 }
