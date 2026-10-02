@@ -5,6 +5,9 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"unicode"
+
+	"charm.land/lipgloss/v2"
 
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
@@ -149,5 +152,23 @@ func assertFits(t *testing.T, v string, width, height int) {
 		if w := ansi.StringWidth(l); w != width {
 			t.Errorf("line %d is %d wide, want %d: %q", i, w, width, ansi.Strip(l))
 		}
+	}
+}
+
+// A picker with ASCII glyphs and frame is ASCII alone, cut rows and
+// placeholder too.
+func TestViewASCII(t *testing.T) {
+	st := DefaultStyles(true)
+	st.Frame = st.Frame.Border(lipgloss.ASCIIBorder())
+	st.PromptGlyph, st.CursorGlyph, st.Ellipsis = ">", ">", "..."
+	items := []Item{{Title: strings.Repeat("a long title ", 10)}, {Title: "short"}}
+	m := New(nil, WithItems(items), WithStyles(st), WithSize(30, 8))
+	m.Focus()
+	v := ansi.Strip(m.View())
+	if !strings.Contains(v, "Search...") || !strings.Contains(v, "...") {
+		t.Errorf("view lacks the placeholder or a cut row:\n%s", v)
+	}
+	if strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
+		t.Errorf("view isn't ASCII:\n%s", v)
 	}
 }
