@@ -134,3 +134,41 @@ func TestOnlineKeepsBranchOfLaterPage(t *testing.T) {
 		t.Errorf("%d branches listed, want both pages", n)
 	}
 }
+
+// TestOnlineHeadRefusedIsNotReadAgain checks that the head of a history
+// served kept is read again at each wake while GitHub doesn't answer it,
+// but not once GitHub refuses it, such as for a branch deleted meanwhile.
+func TestOnlineHeadRefusedIsNotReadAgain(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want int
+	}{
+		{"offline", fmt.Errorf("github: GET: %w", core.ErrOffline), 2},
+		{"not found", fmt.Errorf("github: 404 Not Found: %w", core.ErrNotFound), 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newFake()
+			f.limited = true
+			_, h := newModal(t, f, 108, 30)
+			f.mu.Lock()
+			f.limited = false
+			f.errs["commits main"] = tt.err
+			f.mu.Unlock()
+			f.took()
+
+			h.run(func() tea.Msg { return ui.OnlineMsg{} })
+			h.run(func() tea.Msg { return ui.OnlineMsg{} })
+			var reads int
+			for _, c := range f.took() {
+				if c == "commits main" {
+					reads++
+				}
+			}
+			if reads != tt.want {
+				t.Errorf("head read %d times after two OnlineMsg, want %d", reads, tt.want)
+			}
+		})
+	}
+}

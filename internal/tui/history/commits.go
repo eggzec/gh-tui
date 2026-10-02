@@ -133,9 +133,10 @@ func (m *Modal) readHead() tea.Cmd {
 		ctx, end := obs.Begin(ctx, "history.head")
 		p, err := svc.Commits(ctx, historysvc.CommitsQuery{Repo: repo, Ref: branch, Again: true})
 		end(err, "span", "tui", "repo", repo.String(), "ref", branch, "offline", p.Offline, "limited", p.Limited)
-		if kept != nil && (err != nil || p.Offline || p.Limited) {
+		if kept != nil && (ui.Unreached(err) || p.Offline || p.Limited) {
 			// The head is read again at the next wake, until GitHub
-			// answers with it.
+			// answers with it. A refusal, such as for a branch deleted
+			// meanwhile, would only be refused again.
 			kept.Store(true)
 		}
 		msg := headMsg{id: id, gen: gen, err: err}
