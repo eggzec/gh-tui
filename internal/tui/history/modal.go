@@ -142,10 +142,10 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, defaultBranch stri
 		spin:          spinner.New(spinner.WithSpinner(spinner.Dot)),
 		commit:        newCommit(o.editor),
 	}
-	m.ahead = ui.NewAhead("commit", m.readDetail, m.cachedDetail, 0, 0)
+	m.ahead = ui.NewAhead("commit", m.readDetail, m.cachedDetail)
 	m.ahead.Share(o.slots)
 	m.ahead.Configure(o.prefetch.commits)
-	m.compares = ui.NewAhead("compare", m.readCompare, m.cachedCompare, 0, 0)
+	m.compares = ui.NewAhead("compare", m.readCompare, m.cachedCompare)
 	m.compares.Share(o.slots)
 	m.compares.Reset(ctx)
 	m.compares.Configure(o.prefetch.branches)

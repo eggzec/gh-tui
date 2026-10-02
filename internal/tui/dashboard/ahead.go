@@ -61,7 +61,7 @@ func (s *Section) setPrefetch(p config.PrefetchLayers) {
 	case s.readers == nil:
 		// Nothing was given to read with.
 	case s.ahead == nil:
-		s.ahead = details.NewAhead("work", s.readers.pulls, s.readers.issues, 0, work.Rest)
+		s.ahead = details.NewAhead("work", s.readers.pulls, s.readers.issues)
 		s.ahead.Share(s.slots)
 		s.ahead.Configure(work)
 		s.ahead.Reset(s.ctx)

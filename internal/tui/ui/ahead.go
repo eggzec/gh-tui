@@ -5,12 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"maps"
 	"sync"
 	"sync/atomic"
 	"time"
-
-	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
@@ -24,10 +21,7 @@ import (
 //
 // [Ahead.Window] reads the row under the cursor and a window of rows
 // around it, each time the cursor rests, as the settings that
-// [Ahead.Configure] applies say. [Ahead.First], [Ahead.Moved] and
-// [Ahead.Around] are the older way, which reads the first rows once the
-// list loads, the row the cursor rests on, and the rows around it apart;
-// they stay until every list reads its window.
+// [Ahead.Configure] applies say.
 //
 // Each read costs requests, so few run at once, and the reads stop once
 // GitHub reports the rate limit, until [Ahead.Resume], and once the reads
@@ -38,8 +32,9 @@ type Ahead[K comparable] struct {
 	id int64
 	// seen remembers what was read, so that opening it counts as a use,
 	// under the kind of detail, such as pull.
-	seen  *obs.Prefetched[K]
-	rows  int
+	seen *obs.Prefetched[K]
+	// delay is how long the cursor rests on a row before its window is
+	// read.
 	delay time.Duration
 	read  func(ctx context.Context, k K) error
 	// current reports whether the detail of k is cached already. It must
@@ -56,20 +51,13 @@ type Ahead[K comparable] struct {
 	flying *flights[K]
 	// pause holds the reads that haven't started while it is closed.
 	pause *gate
-	// first are the first rows read ahead for the list.
-	first []K
 	// overBudget is set once a read was skipped for the budget, which
 	// counts only the first.
 	overBudget bool
 
-	// hovered is the row the cursor was last seen on, and seq counts the
-	// times it moved, so that only the latest delay fires.
-	hovered    K
-	hasHovered bool
-	seq        int
-	stopHover  func()
-	// stopAround cancels the reads around the cursor still in flight.
-	stopAround func()
+	// seq counts the times the window moved, so that only the latest
+	// delay fires.
+	seq int
 
 	// slots bound the reads in flight, with those of the Aheads that share
 	// them.
@@ -83,7 +71,8 @@ type Ahead[K comparable] struct {
 	off  bool
 	// around holds the rows of the window around the cursor that have a
 	// detail to read, the row under the cursor first, and windowed says
-	// that the next rest reads them, rather than hovered.
+	// that the next rest reads them; until it is set again, the next call
+	// to Window waits for a rest even if the window didn't move.
 	around   []K
 	windowed bool
 	// loaded is set once the list showed since it was reset: the first
@@ -104,15 +93,13 @@ type AheadMsg struct {
 var lastAhead atomic.Int64
 
 // NewAhead returns an Ahead that reads the detail of a row with read and
-// asks current whether it is cached already. It reads the first rows of a
-// list, and the row under the cursor once it has rested there for delay.
-// Kind names the detail in the log, such as pull.
-func NewAhead[K comparable](kind string, read func(ctx context.Context, k K) error, current func(k K) bool, rows int, delay time.Duration) *Ahead[K] {
+// asks current whether it is cached already. It reads nothing until
+// [Ahead.Configure] says which rows to read. Kind names the detail in the
+// log, such as pull.
+func NewAhead[K comparable](kind string, read func(ctx context.Context, k K) error, current func(k K) bool) *Ahead[K] {
 	return &Ahead[K]{
 		id:      lastAhead.Add(1),
 		seen:    obs.NewPrefetched[K](kind),
-		rows:    max(rows, 0),
-		delay:   max(delay, 0),
 		read:    read,
 		current: current,
 		ctx:     obs.ForPrefetch(context.Background()),
@@ -145,23 +132,10 @@ func (a *Ahead[K]) Reset(parent context.Context) {
 	a.parent = parent
 	a.ctx, a.cancel = context.WithCancel(obs.ForPrefetch(parent))
 	a.flying.clear()
-	a.first = a.first[:0]
-	var zero K
-	a.hovered, a.hasHovered = zero, false
 	a.seq++
-	a.stopHover, a.stopAround = nil, nil
 	// Cancelling ctx cancelled the reads of the window.
 	clear(a.reading)
 	a.around, a.windowed, a.loaded = a.around[:0], false, false
-}
-
-// Set sets how many of the first rows of a list are read, and how long
-// the cursor rests on a row before it is read, from the next list and the
-// next move of the cursor, such as when the user changes the settings.
-func (a *Ahead[K]) Set(rows int, delay time.Duration) {
-	if a != nil {
-		a.rows, a.delay = max(rows, 0), max(delay, 0)
-	}
 }
 
 // Opened records that the detail of k was opened, so that the summary
@@ -216,46 +190,6 @@ func PauseAll(ps ...Pauser) (resume func()) {
 	}
 }
 
-// First reads the details of the first rows of the list, which at returns
-// by index, and false for a row not loaded. It reads them again only when
-// the first rows change, and skips those cached.
-func (a *Ahead[K]) First(at func(i int) (K, bool)) tea.Cmd {
-	if a == nil || a.rows == 0 || a.limited.Load() || obs.PrefetchSpent() || a.same(at) {
-		return nil
-	}
-	a.first = a.first[:0]
-	for i := range a.rows {
-		k, ok := at(i)
-		if !ok {
-			break
-		}
-		a.first = append(a.first, k)
-	}
-	var todo []K
-	cached := 0
-	for _, k := range a.first {
-		switch {
-		case a.current(k):
-			cached++
-			a.seen.Count(obs.PrefetchCached)
-		case !a.flying.has(k):
-			todo = append(todo, k)
-		}
-	}
-	if len(todo) == 0 {
-		return nil
-	}
-	r := a.start(todo)
-	ctx := a.ctx
-	return func() tea.Msg {
-		ctx := obs.WithTrace(ctx, "prefetch.rows")
-		slog.InfoContext(ctx, "prefetch", "span", "prefetch", "kind", r.seen.Kind(), "trigger", "rows",
-			"sent", len(todo), "skipped_cached", cached)
-		r.readAll(ctx, todo, nil)
-		return nil
-	}
-}
-
 // start marks ks as being read by a new batch of reads, which it returns.
 func (a *Ahead[K]) start(ks []K) batch[K] {
 	id := a.flying.start(ks)
@@ -263,22 +197,6 @@ func (a *Ahead[K]) start(ks []K) batch[K] {
 		a.seen.Started(k)
 	}
 	return batch[K]{id: id, read: a.read, current: a.current, limited: a.limited, seen: a.seen, flying: a.flying, pause: a.pause, slots: a.slots}
-}
-
-// same reports whether the first rows are those read ahead already.
-func (a *Ahead[K]) same(at func(i int) (K, bool)) bool {
-	n := 0
-	for i := range a.rows {
-		k, ok := at(i)
-		if !ok {
-			break
-		}
-		if i >= len(a.first) || a.first[i] != k {
-			return false
-		}
-		n++
-	}
-	return n == len(a.first)
 }
 
 // halted reports why reads ahead stop, if they do: GitHub reported the
@@ -425,17 +343,6 @@ func (b batch[K]) end(k K, ok bool) {
 	}
 }
 
-// readOne reads the detail of k once no pause holds it, and records what
-// came of it.
-func (b batch[K]) readOne(ctx context.Context, k K) {
-	held, waited, err := b.pause.wait(ctx)
-	if err != nil {
-		b.skip(ctx, obs.PrefetchCanceled, []K{k})
-		return
-	}
-	b.send(ctx, k, held, waited)
-}
-
 // send reads the detail of k, unless it was read while it waited, once a
 // pause held it for waited if held, and records what came of it.
 func (b batch[K]) send(ctx context.Context, k K, held bool, waited time.Duration) {
@@ -484,126 +391,6 @@ func (b batch[K]) send(ctx context.Context, k K, held bool, waited time.Duration
 	}
 }
 
-// Moved starts the delay when the cursor moved to a row, k, whose detail
-// isn't cached. ok is false when the cursor is on no row.
-func (a *Ahead[K]) Moved(k K, ok bool) tea.Cmd {
-	if a == nil || ok == a.hasHovered && k == a.hovered {
-		return nil
-	}
-	a.hovered, a.hasHovered = k, ok
-	a.windowed = false
-	a.seq++
-	if ok && a.halt() {
-		return nil
-	}
-	switch {
-	case !ok:
-		return nil
-	case a.current(k):
-		a.seen.Count(obs.PrefetchCached)
-		return nil
-	case a.flying.has(k):
-		// Such as a first row, read since the list loaded.
-		return nil
-	}
-	msg := AheadMsg{id: a.id, seq: a.seq}
-	return tea.Tick(a.delay, func(time.Time) tea.Msg { return msg })
-}
-
-// Rested reads the detail of the row the cursor rested on, unless it moved
-// since. A newer read cancels an older one still in flight, so at most one
-// runs.
-func (a *Ahead[K]) Rested(msg AheadMsg) tea.Cmd {
-	if a == nil || msg.id != a.id || msg.seq != a.seq {
-		return nil
-	}
-	if a.windowed {
-		return a.readWindow()
-	}
-	if !a.hasHovered {
-		return nil
-	}
-	if a.stopHover != nil {
-		a.stopHover()
-		a.stopHover = nil
-	}
-	k := a.hovered
-	if a.halt() {
-		return nil
-	}
-	switch {
-	case a.current(k):
-		a.seen.Count(obs.PrefetchCached)
-		return nil
-	case a.flying.has(k):
-		return nil
-	}
-	ctx, cancel := context.WithCancel(obs.WithTrace(a.ctx, "prefetch.hover"))
-	r := a.start([]K{k})
-	a.stopHover = r.stop(cancel)
-	return func() tea.Msg {
-		defer cancel()
-		r.readOne(ctx, k)
-		return nil
-	}
-}
-
-// Around reads the details of the n rows on each side of row i, which at
-// returns by index, and false for a row not loaded: nearest first, and the
-// row after before the row before, since lists are mostly read downwards.
-// It cancels the reads of the last call still in flight, so call it once
-// the cursor rests, and skips the rows whose details are cached.
-func (a *Ahead[K]) Around(at func(i int) (K, bool), i, n int) tea.Cmd {
-	if a == nil || n <= 0 {
-		return nil
-	}
-	if a.stopAround != nil {
-		a.stopAround()
-		a.stopAround = nil
-	}
-	if a.halt() {
-		return nil
-	}
-	todo := make([]K, 0, 2*n)
-	cached := 0
-	for d := 1; d <= n; d++ {
-		for _, j := range [2]int{i + d, i - d} {
-			k, ok := at(j)
-			switch {
-			case j < 0 || !ok:
-			case a.current(k):
-				cached++
-				a.seen.Count(obs.PrefetchCached)
-			case !a.flying.has(k):
-				todo = append(todo, k)
-			}
-		}
-	}
-	if len(todo) == 0 {
-		return nil
-	}
-	ctx, cancel := context.WithCancel(obs.WithTrace(a.ctx, "prefetch.around"))
-	r := a.start(todo)
-	a.stopAround = r.stop(cancel)
-	return func() tea.Msg {
-		defer cancel()
-		slog.InfoContext(ctx, "prefetch", "span", "prefetch", "kind", r.seen.Kind(), "trigger", "around",
-			"sent", len(todo), "skipped_cached", cached)
-		r.readAll(ctx, todo, nil)
-		return nil
-	}
-}
-
-// stop returns a func that cancels the reads of b with cancel, and forgets
-// them as in flight at once, so that a row they were reading can be read
-// again before they unwind.
-func (b batch[K]) stop(cancel context.CancelFunc) func() {
-	return func() {
-		cancel()
-		b.flying.forget(b.id)
-	}
-}
-
 // flights holds the rows being read, by the batch that reads them. The
 // reads end in commands, so it is safe for concurrent use.
 type flights[K comparable] struct {
@@ -632,13 +419,6 @@ func (f *flights[K]) end(id int, k K) {
 	if f.rows[k] == id {
 		delete(f.rows, k)
 	}
-}
-
-// forget forgets the reads of batch id.
-func (f *flights[K]) forget(id int) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	maps.DeleteFunc(f.rows, func(_ K, b int) bool { return b == id })
 }
 
 // drop forgets the read of k, whichever batch reads it.

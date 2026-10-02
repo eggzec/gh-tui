@@ -41,7 +41,7 @@ type Aheads[K comparable] struct {
 func NewAheads[K comparable](ctx context.Context, page string, kinds ...AheadKind[K]) *Aheads[K] {
 	a := &Aheads[K]{page: page, kinds: kinds, aheads: make([]*Ahead[K], len(kinds))}
 	for i, k := range kinds {
-		a.aheads[i] = NewAhead(k.Log, k.Read, k.Current, 0, 0)
+		a.aheads[i] = NewAhead(k.Log, k.Read, k.Current)
 		a.aheads[i].Configure(config.Resolved{})
 		a.aheads[i].Reset(ctx)
 	}

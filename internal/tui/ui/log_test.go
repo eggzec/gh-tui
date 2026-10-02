@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
 )
@@ -113,9 +114,10 @@ func TestAheadCountsUse(t *testing.T) {
 	buf, stats := captureLog(t)
 	r := newReader()
 	r.cached[2] = true
-	a := NewAhead("pull", r.readRow, r.current, 3, time.Millisecond)
+	a := NewAhead("pull", r.readRow, r.current)
+	a.Configure(config.Resolved{Enabled: true, Window: config.Window{After: 2}, Rest: time.Millisecond})
 	a.Reset(t.Context())
-	run(a.First(rowsOf(30)))
+	run(a.Window(rowsOf(30), 0))
 	a.Opened(1)
 	a.Opened(2) // cached before, not read ahead
 	a.Opened(1) // counts once
@@ -131,7 +133,7 @@ func TestAheadCountsUse(t *testing.T) {
 			decision = rec
 		}
 	}
-	if decision["trigger"] != "rows" || decision["sent"] != 2.0 || decision["skipped_cached"] != 1.0 || decision["kind"] != "pull" {
+	if decision["trigger"] != "window" || decision["sent"] != 2.0 || decision["skipped_cached"] != 1.0 || decision["kind"] != "pull" {
 		t.Errorf("decision = %v", decision)
 	}
 }
@@ -140,11 +142,12 @@ func TestAheadCountsRateLimit(t *testing.T) {
 	_, stats := captureLog(t)
 	r := newReader()
 	r.err = &core.RateLimitError{Reset: time.Now().Add(time.Hour)}
-	a := NewAhead("issue", r.readRow, r.current, 5, time.Millisecond)
+	a := NewAhead("issue", r.readRow, r.current)
+	a.Configure(config.Resolved{Enabled: true, Window: config.Window{After: 4}, Rest: time.Millisecond})
 	a.Reset(t.Context())
-	run(a.First(rowsOf(30)))
-	// Hovering while limited reads nothing.
-	a.Moved(9, true)
+	run(a.Window(rowsOf(30), 0))
+	// Moving while limited reads nothing.
+	a.Window(rowsOf(30), 9)
 
 	p := stats.Summary().Prefetch[0]
 	if p.RateLimited == 0 || p.Limited == 0 || p.Read != 0 || p.Sent != p.RateLimited {
