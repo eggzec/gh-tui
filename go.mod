@@ -14,6 +14,7 @@ require (
 	github.com/charmbracelet/x/exp/golden v0.0.0-20260920004010-53e2afe73ae5
 	github.com/charmbracelet/x/exp/teatest/v2 v2.0.0-20260920004010-53e2afe73ae5
 	github.com/cli/go-gh/v2 v2.16.1
+	github.com/dlclark/regexp2/v2 v2.2.1
 	github.com/getkin/kin-openapi v0.149.0
 	github.com/sahilm/fuzzy v0.1.3
 	github.com/vektah/gqlparser/v2 v2.5.58
@@ -36,7 +37,6 @@ require (
 	github.com/cli/safeexec v1.0.1 // indirect
 	github.com/clipperhouse/displaywidth v0.11.0 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
-	github.com/dlclark/regexp2/v2 v2.2.1 // indirect
 	github.com/go-openapi/jsonpointer v0.22.5 // indirect
 	github.com/go-openapi/swag/jsonname v0.25.5 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
