@@ -1,6 +1,7 @@
 package logview
 
 import (
+	"cmp"
 	"fmt"
 	"slices"
 	"strconv"
@@ -57,7 +58,7 @@ func (m *Model) message() string {
 	s := m.styles
 	switch m.state {
 	case stateLoading:
-		return m.spin.View() + s.Message.Render("Loading the log…")
+		return m.spin.View() + s.Message.Render("Loading the log"+cmp.Or(s.Ellipsis, "…"))
 	case stateReady:
 		return s.Message.Render("No output yet.")
 	default:
