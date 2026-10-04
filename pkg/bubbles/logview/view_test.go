@@ -270,3 +270,14 @@ func TestViewGlyphs(t *testing.T) {
 		}
 	}
 }
+
+// The text while the log loads ends in the ellipsis of the styles.
+func TestViewLoadingEllipsis(t *testing.T) {
+	st := DefaultStyles(true)
+	st.Ellipsis = "..."
+	m := New(WithSize(40, 3), WithStyles(st))
+	_ = m.SetLoading()
+	if v := ansi.Strip(m.View()); !strings.Contains(v, "Loading the log...") {
+		t.Errorf("view %q, want the ellipsis of the styles", v)
+	}
+}
