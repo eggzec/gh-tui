@@ -150,7 +150,7 @@ func TestLoadMergesOverDefaults(t *testing.T) {
 						Files: 7 * time.Minute, History: 8 * time.Minute, Compare: time.Minute,
 						Actions: 9 * time.Minute, ActionsRunning: 20 * time.Second, Filters: 10 * time.Minute,
 						Search: 40 * time.Second, CodeSearch: 2 * time.Minute, Releases: 3 * time.Hour,
-						Profile: 4 * time.Hour, Contributions: 12 * time.Hour,
+						Profile: 4 * time.Hour, Contributions: 12 * time.Hour, People: 2 * time.Hour, Readme: 3 * time.Hour,
 					},
 					Memory: Memory{Entries: 512, Files: 16 * MiB, Trees: 24 * MiB, Diffs: 8 * MiB, Logs: 128 * MiB},
 					Disk: Disk{
@@ -184,10 +184,11 @@ func TestLoadMergesOverDefaults(t *testing.T) {
 				finder.Preview.Window, finder.Preview.MaxSize = Span{Before: new(1), After: new(2)}, 8*KiB
 				history.Window, history.Rest = Span{Before: new(5), After: new(5)}, new(250*time.Millisecond)
 				c.Dashboard = Dashboard{CalendarGlyph: "#", Contributions: ContributionsYear}
+				c.Owner = Owner{DefaultTab: OwnerTabPeople}
 				c.UI = UI{Icons: IconsUnicode, Toast: Toast{Info: 6 * time.Second, Error: 12 * time.Second}, DateFormat: "2006-01-02 15:04"}
 				c.Auth = Auth{Check: false}
 				c.GitHub = GitHub{Timeout: time.Minute, Concurrency: 4}
-				c.PageSize = PageSize{Pulls: 50, Issues: 40, Notifications: 20, Repos: 60, Runs: 25, Commits: 100, Search: 10, WaitingOnYou: 15}
+				c.PageSize = PageSize{Pulls: 50, Issues: 40, Notifications: 20, Repos: 60, Runs: 25, Commits: 100, Search: 10, WaitingOnYou: 15, People: 40}
 				c.Commands = Commands{History: 500}
 				c.Log = Log{Level: LevelDebug, File: "/var/log/gh-tui.log", MaxSize: MiB, Keep: 5, Summary: time.Minute}
 				c.Editor = "code --wait"

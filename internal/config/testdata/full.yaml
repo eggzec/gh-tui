@@ -48,6 +48,8 @@ cache:
     releases: 3h
     profile: 4h
     contributions: 12h
+    people: 2h
+    readme: 3h
   memory:
     entries: 512
     files: 16MiB
@@ -112,6 +114,9 @@ dashboard:
   calendar_glyph: "#"
   contributions: year
 
+owner:
+  default_tab: people
+
 ui:
   icons: unicode
   toast:
@@ -141,6 +146,7 @@ page_size:
   commits: 100
   search: 10
   waiting_on_you: 15
+  people: 40
 
 commands:
   history: 500
