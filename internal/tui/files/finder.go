@@ -160,6 +160,7 @@ func (s *Section) newFinder() *finderModal {
 	f.pager = pager.New(pager.WithErrorText(fileErrorText(repo, pv)), pager.WithResizeRest(resizeRest))
 	f.img = fileImage{images: s.images, repo: repo, shown: shownText, ellipsis: s.icons.Ellipsis}
 	f.md.setFiles(ctx, s.svc, repo, ref, s.images)
+	f.pager.SetReserve(f.md.extra)
 	f.icons = newFileIcons(s.icons, s.theme)
 	f.find = finder.New(func(ctx context.Context) (finder.Listing, error) { return listFiles(ctx, src) },
 		finder.WithContext(ctx),

@@ -232,6 +232,12 @@ const readmeSource = "# Docs\n\n![logo](img/logo.png)\n\n![root](/assets/a.png)\
 // its content arrived and the files it names were looked up.
 func markdownPreview(t *testing.T, images *ui.Images, ref string) (*preview, *fake) {
 	t.Helper()
+	return markdownPreviewOf(t, images, ref, readmeSource)
+}
+
+// markdownPreviewOf is markdownPreview for a README of source.
+func markdownPreviewOf(t *testing.T, images *ui.Images, ref, readmeSource string) (*preview, *fake) {
+	t.Helper()
 	f := newFake()
 	readme := file("README.md", int64(len(readmeSource)))
 	f.addTree(ghTUI, ref, dir("docs", "docs-sha"), dir("assets", "assets-sha"))
@@ -489,5 +495,47 @@ func TestPreviewMarkdownWaitsOutAResize(t *testing.T) {
 	p.SetSize(30, 40)
 	if p.Settle() == nil {
 		t.Error("a resized preview of markdown has no rest to wait out")
+	}
+}
+
+// Images arriving add lines, enough here to widen the line numbers from
+// two digits to three. The numbers have the room from the start, so the
+// text keeps its width and no image is fitted and fetched a second time
+// at another one.
+func TestPreviewMarkdownImagesKeepTheGutter(t *testing.T) {
+	var b strings.Builder
+	for i := range 43 {
+		fmt.Fprintf(&b, "Paragraph %d.\n\n", i)
+	}
+	for i := range 3 {
+		fmt.Fprintf(&b, "![i%d](https://example.com/i%d.png)\n\n", i, i)
+	}
+	src := &uitest.ImageHost{}
+	images := uitest.Avatars(src, true)
+	images.SetMaxRows(6)
+	p, _ := markdownPreviewOf(t, images, "", b.String())
+	if n := p.pager.Lines(); n >= 100 {
+		t.Fatalf("%d lines before the images arrive, want fewer than 100", n)
+	}
+	for range 3 {
+		if _, changed := uitest.LoadAvatars(t, images); !changed {
+			break
+		}
+		feed(p, p.Update(ui.ImagesMsg{}))
+	}
+	if n := p.pager.Lines(); n < 100 {
+		t.Fatalf("%d lines with the images, want 100 or more to widen the numbers", n)
+	}
+	asked := map[string]int{}
+	for _, a := range src.Asked() {
+		asked[a]++
+	}
+	if len(asked) != 3 {
+		t.Errorf("fetched %v, want the three images", asked)
+	}
+	for a, n := range asked {
+		if n != 1 {
+			t.Errorf("%s fetched %d times, want once", a, n)
+		}
 	}
 }

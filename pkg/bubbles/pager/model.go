@@ -74,7 +74,10 @@ type Model struct {
 	// owed is set when a resize left the rendered content at a width
 	// other than its own, until it renders again, and sizeSeq counts the
 	// rests started by Settle, so that only the last one renders.
-	owed    bool
+	owed bool
+	// reserve returns how many lines the rendered content may still gain,
+	// or is nil.
+	reserve func() int
 	sizeSeq int
 	// pics are the lines of rendered content that draw images, as they
 	// are, by their index; the lines hold them blank.
