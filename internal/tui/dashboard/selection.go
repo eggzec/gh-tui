@@ -3,7 +3,8 @@ package dashboard
 import "github.com/eggzec/gh-tui/internal/tui/ui"
 
 // Selected implements ui.Selector: what the cursor of the focused pane is
-// on. The calendar has nothing to select.
+// on. The calendar has nothing to select. The owner of a task is its
+// author, and that of a thread of the inbox its repository's.
 func (s *Section) Selected() (ui.Selection, bool) {
 	switch s.focus {
 	case pinnedPane:
@@ -11,9 +12,7 @@ func (s *Section) Selected() (ui.Selection, bool) {
 			return ui.RepoSelection(c.Repo, s.repoURL(c.Repo)), true
 		}
 	case reposPane:
-		if r, ok := s.repos.selected(); ok {
-			return ui.RepoSelection(r, s.repoURL(r)), true
-		}
+		return s.repos.selection()
 	case workPane:
 		if hit, ok := s.tasks.selected(); ok {
 			return ui.HitSelection(hit, s.repoURL(hit.Repo)), true

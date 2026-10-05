@@ -17,7 +17,7 @@ func TestSelected(t *testing.T) {
 	s := loaded(t, f, 60, 12)
 	e := s.selected()
 	got, ok := s.Selected()
-	if !ok || got.Path != e.Path || got.Repo != ghTUI || got.SHA != "" || got.URL != webURL(s.host, ghTUI, "", e) {
+	if !ok || got.Path != e.Path || got.Repo != ghTUI || got.Owner != ghTUI.Owner || got.SHA != "" || got.URL != webURL(s.host, ghTUI, "", e) {
 		t.Errorf("head: Selected() = %+v, %v, want %s without a SHA", got, ok, e.Path)
 	}
 	run(s, s.Update(ui.BaseMsg{Repo: ghTUI, Ref: old, Label: "main @ 0123456", Branch: "main"}))

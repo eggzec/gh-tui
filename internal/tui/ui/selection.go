@@ -1,6 +1,10 @@
 package ui
 
-import "github.com/eggzec/gh-tui/internal/core"
+import (
+	"cmp"
+
+	"github.com/eggzec/gh-tui/internal/core"
+)
 
 // Selection is what the cursor of a section is on, such as a pull request
 // or a file, which the copy command copies from.
@@ -15,6 +19,10 @@ type Selection struct {
 	Number int
 	SHA    string
 	Path   string
+	// Owner is the login of the person or organization behind it, whose
+	// page the owner key shows: the author of an issue or pull request,
+	// or the owner of a repository. It is empty where there is none.
+	Owner string
 }
 
 // Selector is a Section that tells what its cursor is on, for the copy
@@ -25,20 +33,22 @@ type Selector interface {
 
 // RepoSelection is the selection of repository r, whose page is url.
 func RepoSelection(r core.Repo, url string) Selection {
-	return Selection{What: "repository", URL: url, Repo: r.Ref}
+	return Selection{What: "repository", URL: url, Repo: r.Ref, Owner: r.Ref.Owner}
 }
 
 // HitSelection is the selection of a result of a search, whose page is
-// repoURL for a repository.
+// repoURL for a repository. The owner of an issue or pull request is its
+// author, or its repository's owner when the result names no author.
 func HitSelection(hit core.SearchHit, repoURL string) Selection {
-	switch hit.Kind {
-	case core.SearchRepos:
+	if hit.Kind == core.SearchRepos {
 		return RepoSelection(hit.Repo, repoURL)
-	case core.SearchPulls:
-		return Selection{What: "pull request", URL: hit.Issue.URL, Repo: hit.Issue.Repo, Number: hit.Issue.Number}
-	default:
-		return Selection{What: "issue", URL: hit.Issue.URL, Repo: hit.Issue.Repo, Number: hit.Issue.Number}
 	}
+	what := "issue"
+	if hit.Kind == core.SearchPulls {
+		what = "pull request"
+	}
+	it := hit.Issue
+	return Selection{What: what, URL: it.URL, Repo: it.Repo, Number: it.Number, Owner: cmp.Or(it.Author.Login, it.Repo.Owner)}
 }
 
 // subjects name the kinds of what notifications are about.
@@ -52,11 +62,11 @@ var subjects = map[core.SubjectType]string{
 }
 
 // NotificationSelection is the selection of what notification n is
-// about.
+// about. Notifications name no author, so its owner is the repository's.
 func NotificationSelection(n core.Notification) Selection {
 	what, ok := subjects[n.Subject.Type]
 	if !ok {
 		what = "notification"
 	}
-	return Selection{What: what, URL: n.Subject.WebURL, Repo: n.Repo, Number: n.Subject.Number, SHA: n.Subject.SHA}
+	return Selection{What: what, URL: n.Subject.WebURL, Repo: n.Repo, Number: n.Subject.Number, SHA: n.Subject.SHA, Owner: n.Repo.Owner}
 }
