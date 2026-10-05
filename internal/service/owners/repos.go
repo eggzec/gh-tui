@@ -81,12 +81,12 @@ func (s *Service) FreshRepos(q ReposQuery) bool {
 // in Header.
 func (s *Service) Repos(ctx context.Context, q ReposQuery) (core.Page[core.Repo], error) {
 	q = q.normalize(s.sizes.Repos)
-	p, err := read(ctx, s, &s.repos, q.Owner, q.scope(), q.key(), q.Again, func(ctx context.Context) (core.Page[core.Repo], error) {
+	p, err := read(ctx, s, &s.repos, q.Owner, q.scope(), q.key(), q.Again, whole(func(ctx context.Context) (core.Page[core.Repo], error) {
 		if q.Kind == core.OwnerOrg {
 			return s.api.OrgRepos(ctx, q.Owner, q.PageSize, q.Cursor)
 		}
 		return s.api.UserRepos(ctx, q.Owner, q.Order, q.PageSize, q.Cursor)
-	})
+	}))
 	if err != nil {
 		return core.Page[core.Repo]{}, fmt.Errorf("repos of %s: %w", q.Owner, err)
 	}

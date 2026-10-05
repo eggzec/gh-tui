@@ -36,7 +36,7 @@ type ContributionsQuery struct {
 // offline or limited, or fails for a user that isn't there, as in Header.
 func (s *Service) Contributions(ctx context.Context, q ContributionsQuery) (core.Contributions, error) {
 	// The client already names the request in its error.
-	return read(ctx, s, &s.contributions, q.Login, "contributions", contributionsKey(q.Login), q.Again, func(ctx context.Context) (core.Contributions, error) {
+	return read(ctx, s, &s.contributions, q.Login, "contributions", contributionsKey(q.Login), q.Again, whole(func(ctx context.Context) (core.Contributions, error) {
 		return s.api.UserContributions(ctx, q.Login)
-	})
+	}))
 }

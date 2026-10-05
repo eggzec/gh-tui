@@ -1,17 +1,20 @@
 // Package owners serves what the page of a user or an organization shows
-// from a cache: the account's header with its pins, its repositories and,
-// for a user, the contribution calendar.
+// from a cache: the account's header with its pins, its repositories, its
+// stars, its people and teams, its sponsors, its profile README and, for
+// a user, the contribution calendar.
 package owners
 
 import (
 	"cmp"
 	"context"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/github"
 	"github.com/eggzec/gh-tui/internal/service/fallback"
 )
 
@@ -21,6 +24,16 @@ type API interface {
 	UserRepos(ctx context.Context, login string, order core.RepoOrder, first int, after string) (core.Page[core.Repo], error)
 	OrgRepos(ctx context.Context, login string, first int, after string) (core.Page[core.Repo], error)
 	UserContributions(ctx context.Context, login string) (core.Contributions, error)
+	UserStars(ctx context.Context, login string, first int, after string) (core.Page[core.Repo], error)
+	UserFollowers(ctx context.Context, login string, first int, after string) (core.Page[core.Person], error)
+	UserFollowing(ctx context.Context, login string, first int, after string) (core.Page[core.Person], error)
+	UserOrgs(ctx context.Context, login string, first int, after string) (core.Page[core.Person], error)
+	OrgMembers(ctx context.Context, login string, first int, after string) (core.Page[core.Person], error)
+	OrgTeams(ctx context.Context, login string, first int, after string) (core.Page[core.Team], error)
+	OwnerSponsors(ctx context.Context, login string, first int, after string) (core.Page[core.Person], error)
+	OwnerSponsoring(ctx context.Context, login string, first int, after string) (core.Page[core.Person], error)
+	ProfileReadme(ctx context.Context, login string, kind core.OwnerKind, member bool, cond github.Conditional) (core.Readme, github.Response, error)
+	OrgFollowers(ctx context.Context, login string) (int, error)
 }
 
 // Service reads the pages of users and organizations through a cache. It
@@ -30,9 +43,20 @@ type Service struct {
 	header        reads[core.Owner]
 	repos         reads[core.Page[core.Repo]]
 	contributions reads[core.Contributions]
+	people        reads[core.Page[core.Person]]
+	teams         reads[core.Page[core.Team]]
+	readme        reads[Readme]
+	followers     reads[FollowerCount]
 	// missing holds the logins that GitHub said no account has, for a
 	// moment, so that reading one again doesn't ask at once.
 	missing *cache.Cache[error]
+	// membersOnly holds the organizations whose teams GitHub showed the
+	// viewer only to members, for TTLs.People, so that the tab of teams
+	// read again doesn't ask at once.
+	membersOnly *cache.Cache[error]
+	// noSponsors is set once GitHub said it has no GitHub Sponsors, as an
+	// Enterprise Server says, which holds for the whole session.
+	noSponsors atomic.Bool
 	// ttls and sizes are what the reads of each kind use, those of the
 	// config where an option set none.
 	ttls  TTLs
@@ -45,6 +69,10 @@ const (
 	kindHeader        = "owner"
 	kindRepos         = "ownerpagerepos"
 	kindContributions = "ownercontrib"
+	kindPeople        = "ownerpeople"
+	kindTeams         = "ownerteams"
+	kindReadme        = "ownerreadme"
+	kindFollowers     = "ownerfollowers"
 	schema            = 1
 )
 
@@ -82,9 +110,22 @@ func New(api API, opts ...Option) *Service {
 		contributions: newReads(o, kindContributions, t.Contributions, func(c *core.Contributions) (*bool, *bool, *bool) {
 			return &c.Stale, &c.Offline, &c.Limited
 		}),
-		missing: cache.New[error](cache.WithTTL(missingFor), cache.WithCapacity(o.capacity)),
-		ttls:    t,
-		sizes:   sz,
+		people: newReads(o, kindPeople, t.People, func(p *core.Page[core.Person]) (*bool, *bool, *bool) {
+			return &p.Stale, &p.Offline, &p.Limited
+		}),
+		teams: newReads(o, kindTeams, t.People, func(p *core.Page[core.Team]) (*bool, *bool, *bool) {
+			return &p.Stale, &p.Offline, &p.Limited
+		}),
+		readme: newReads(o, kindReadme, t.Readme, func(r *Readme) (*bool, *bool, *bool) {
+			return &r.Stale, &r.Offline, &r.Limited
+		}),
+		followers: newReads(o, kindFollowers, t.Header, func(f *FollowerCount) (*bool, *bool, *bool) {
+			return &f.Stale, &f.Offline, &f.Limited
+		}),
+		missing:     cache.New[error](cache.WithTTL(missingFor), cache.WithCapacity(o.capacity)),
+		membersOnly: cache.New[error](cache.WithTTL(t.People), cache.WithCapacity(o.capacity)),
+		ttls:        t,
+		sizes:       sz,
 	}
 }
 
@@ -97,14 +138,20 @@ func positive(d, def time.Duration) time.Duration {
 }
 
 // Invalidate marks everything the service cached stale, and forgets the
-// logins it found no account for. What is stale is still served by the
+// logins it found no account for and the organizations whose teams it
+// was refused. What is stale is still served by the
 // Cached reads, and the next read of each entry goes to GitHub, so a
 // refresh reaches the server even while the entries are fresh.
 func (s *Service) Invalidate() {
 	s.header.mem.InvalidateTag(allTag)
 	s.repos.mem.InvalidateTag(allTag)
 	s.contributions.mem.InvalidateTag(allTag)
+	s.people.mem.InvalidateTag(allTag)
+	s.teams.mem.InvalidateTag(allTag)
+	s.readme.mem.InvalidateTag(allTag)
+	s.followers.mem.InvalidateTag(allTag)
 	s.missing.InvalidateTag(allTag)
+	s.membersOnly.InvalidateTag(allTag)
 }
 
 // allTag marks every entry, so that Invalidate finds them all.
@@ -123,7 +170,7 @@ func loginKey(login string) string {
 // the login; another read can miss for an account of the other kind, as
 // the calendar of an organization does, so its answer covers its scope
 // alone. Either is remembered for missingFor.
-func read[V any](ctx context.Context, s *Service, r *reads[V], login, scope, key string, again bool, fetch func(context.Context) (V, error)) (V, error) {
+func read[V any](ctx context.Context, s *Service, r *reads[V], login, scope, key string, again bool, load cache.FetchFunc[V]) (V, error) {
 	login = loginKey(login)
 	for _, k := range missingKeys(login, scope) {
 		if e, state := s.missing.Get(k); state == cache.Fresh {
@@ -131,7 +178,7 @@ func read[V any](ctx context.Context, s *Service, r *reads[V], login, scope, key
 			return zero, e.Value
 		}
 	}
-	v, err := r.get(ctx, key, again, fetch)
+	v, err := r.get(ctx, key, again, load)
 	if core.KindOf(err) == core.NotFound {
 		keys := missingKeys(login, scope)
 		s.missing.Set(keys[len(keys)-1], cache.Entry[error]{Value: err, Tags: []string{allTag}})
@@ -181,24 +228,29 @@ func (r *reads[V]) fresh(key string) bool {
 // get returns the value under key. A fresh value in memory is returned
 // without a request, and so is one kept by an earlier session within the
 // TTL. An older kept one is returned at once, marked stale, until a read
-// with again set fetches it. Otherwise get fetches the value, stores it
-// and keeps it, falling back on the stale value as fallback.Fetch does.
-func (r *reads[V]) get(ctx context.Context, key string, again bool, fetch func(context.Context) (V, error)) (V, error) {
+// with again set fetches it. Otherwise get loads the value, stores it and
+// keeps it, falling back on the stale value as fallback.Fetch does.
+func (r *reads[V]) get(ctx context.Context, key string, again bool, load cache.FetchFunc[V]) (V, error) {
 	if e, ok := r.kept.Warm(r.mem, key, again); ok {
 		v := e.Value
 		stale, _, _ := r.flags(&v)
 		*stale = true
 		return v, nil
 	}
-	// GraphQL has no validators, so a stale value is fetched again in full.
-	e, err := fallback.Fetch(ctx, r.mem, r.kept, key, r.marks, fallback.Keep(r.kept, key, func(ctx context.Context, _ cache.Entry[V], _ bool) (cache.Entry[V], error) {
+	e, err := fallback.Fetch(ctx, r.mem, r.kept, key, r.marks, fallback.Keep(r.kept, key, load))
+	return e.Value, err
+}
+
+// whole adapts fetch, a read without validators such as a GraphQL query,
+// to a cache.FetchFunc: a stale value is fetched again in full.
+func whole[V any](fetch func(context.Context) (V, error)) cache.FetchFunc[V] {
+	return func(ctx context.Context, _ cache.Entry[V], _ bool) (cache.Entry[V], error) {
 		v, err := fetch(ctx)
 		if err != nil {
 			return cache.Entry[V]{}, err
 		}
 		return cache.Entry[V]{Value: v, Tags: []string{allTag}}, nil
-	}))
-	return e.Value, err
+	}
 }
 
 // marks are the fallback.Marks of the values.
