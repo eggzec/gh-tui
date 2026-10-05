@@ -21,9 +21,11 @@ const tabWidth = 4
 // fenced block shows as show has it, told its index and whether it is
 // open, which a collapsible block is if its index is in open. A line of
 // text that is an image alone shows as pic has it, told the image's alt
-// text and address, unless pic is nil. A source cut at maxLines ends with
-// a note that offers hint, such as how to see the rest, if it isn't empty.
-func prepare(src string, open []int, hint string, show func(i int, b Block, open bool) string, pic func(alt, url string) string) string {
+// text and address, unless pic is nil: an image on the web, or by a
+// relative address too if relative is set. A source cut at maxLines ends
+// with a note that offers hint, such as how to see the rest, if it isn't
+// empty.
+func prepare(src string, open []int, hint string, show func(i int, b Block, open bool) string, pic func(alt, url string) string, relative bool) string {
 	type out struct {
 		line string
 		text bool
@@ -38,7 +40,7 @@ func prepare(src string, open []int, hint string, show func(i int, b Block, open
 		if pic == nil || !o.text {
 			continue
 		}
-		alt, url, ok := alone(o.line)
+		alt, url, ok := alone(o.line, relative)
 		if !ok {
 			continue
 		}
@@ -103,13 +105,13 @@ func indentLines(s, indent string) string {
 }
 
 // aloneImage matches a line that is an image alone, as html leaves an img
-// tag or as markdown writes one, with an address on the web, indented
-// less than code is.
-var aloneImage = regexp.MustCompile(`^ {0,3}!\[((?:\\.|[^\]\\])*)\]\(\s*(?:<(https?://[^>\s]+)>|(https?://[^)\s]+))(?:\s+"[^"]*")?\s*\)\s*$`)
+// tag or as markdown writes one, indented less than code is.
+var aloneImage = regexp.MustCompile(`^ {0,3}!\[((?:\\.|[^\]\\])*)\]\(\s*(?:<([^>\s]+)>|([^)\s]+))(?:\s+"[^"]*")?\s*\)\s*$`)
 
 // alone returns the alt text and the address of the image that line is
-// alone, if it is one.
-func alone(line string) (alt, url string, ok bool) {
+// alone, if it is one: one on the web, or with relative set, one by a
+// relative address too, such as a file's beside the markdown.
+func alone(line string, relative bool) (alt, url string, ok bool) {
 	if !strings.HasPrefix(strings.TrimLeft(line, " "), "![") {
 		return "", "", false
 	}
@@ -117,8 +119,23 @@ func alone(line string) (alt, url string, ok bool) {
 	if m == nil {
 		return "", "", false
 	}
+	url = m[2] + m[3]
+	web := strings.HasPrefix(url, "https://") || strings.HasPrefix(url, "http://")
+	if !web && (!relative || !relativeAddr(url)) {
+		return "", "", false
+	}
 	alt = strings.NewReplacer(`\\`, `\`, `\[`, "[", `\]`, "]").Replace(m[1])
-	return alt, m[2] + m[3], true
+	return alt, url, true
+}
+
+// relativeAddr reports whether addr is a relative address, with no scheme
+// and no host of its own, such as img/logo.png or /docs/a.png.
+func relativeAddr(addr string) bool {
+	if strings.HasPrefix(addr, "//") {
+		return false
+	}
+	head, _, _ := strings.Cut(addr, "/")
+	return !strings.Contains(head, ":")
 }
 
 // plain shows a block as markdown alone: a collapsible one as its

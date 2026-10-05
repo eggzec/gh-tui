@@ -55,8 +55,10 @@ type Renderer struct {
 	// they are open, and the images shown as their text.
 	heads headStyles
 	// pictures draws the images that stand alone on their lines, or is
-	// nil when none are drawn.
+	// nil when none are drawn, and relative passes it those by relative
+	// addresses too.
 	pictures Pictures
+	relative bool
 }
 
 // Pictures returns the lines that draw the image at url in at most width
@@ -142,6 +144,18 @@ func (r *Renderer) SetPictures(p Pictures) {
 		r.recent, r.older = nil, nil
 	}
 	r.pictures = p
+}
+
+// SetRelativePictures passes Pictures the images by relative addresses
+// that stand alone on their lines too, such as img/logo.png, for a caller
+// that knows what they are relative to, such as a file of a repository.
+// Without it, only images on the web are drawn, and the rest stay text.
+// It forgets what was rendered when it changes.
+func (r *Renderer) SetRelativePictures(on bool) {
+	if on != r.relative {
+		r.relative = on
+		r.recent, r.older = nil, nil
+	}
 }
 
 // SetHint sets what the note that ends a source too long to show in full
@@ -280,7 +294,7 @@ func (r *Renderer) renderWith(src string, width int, open []int, pics bool) (ren
 		}
 		parts = append(parts, part{lines: lines})
 		return blk.fence + "\n" + indent + r.mark(len(parts)-1) + "\n" + blk.fence
-	}, r.picture(pics, &parts))
+	}, r.picture(pics, &parts), r.relative)
 	lines, err := r.lines(text, width)
 	var sp spliced
 	if err == nil && len(parts) > 0 {
@@ -289,12 +303,12 @@ func (r *Renderer) renderWith(src string, width int, open []int, pics bool) (ren
 			lines = sp.lines
 		} else {
 			sp = spliced{}
-			lines, err = r.lines(prepare(src, open, r.hint, plain, nil), width)
+			lines, err = r.lines(prepare(src, open, r.hint, plain, nil, false), width)
 		}
 	}
 	if err != nil {
 		// Showing the source beats showing nothing.
-		text = prepare(src, open, r.hint, plain, nil)
+		text = prepare(src, open, r.hint, plain, nil, false)
 		lines = strings.Split(xansi.Wrap(text, width, ""), "\n")
 		sp = spliced{}
 	}
