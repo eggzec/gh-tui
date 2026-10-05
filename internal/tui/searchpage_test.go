@@ -10,6 +10,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
+	searchpage "github.com/eggzec/gh-tui/internal/tui/search"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -151,13 +152,23 @@ func TestPreviewFromSearch(t *testing.T) {
 
 // fakeSearch is a search page that records what it was asked to search
 // for.
+var (
+	_ Searcher = (*searchpage.Section)(nil)
+	_ Fresher  = (*searchpage.Section)(nil)
+)
+
 type fakeSearch struct {
 	fakeSection
 	queries []string
+	fresh   int
+	log     []string
 }
+
+func (f *fakeSearch) Fresh() { f.fresh++; f.log = append(f.log, "fresh") }
 
 func (f *fakeSearch) Search(query string) tea.Cmd {
 	f.queries = append(f.queries, query)
+	f.log = append(f.log, "search")
 	return nil
 }
 
@@ -183,6 +194,13 @@ func TestSearchCommand(t *testing.T) {
 			if !slices.Equal(page.queries, tt.want) {
 				t.Errorf("searched for %q, want %q", page.queries, tt.want)
 			}
+			wantLog := []string{"fresh"}
+			if len(tt.want) > 0 {
+				wantLog = append(wantLog, "search")
+			}
+			if !slices.Equal(page.log, wantLog) {
+				t.Errorf("the page was asked %q, want %q: reset first, then search", page.log, wantLog)
+			}
 		})
 	}
 	t.Run("no search page", func(t *testing.T) {
@@ -192,4 +210,16 @@ func TestSearchCommand(t *testing.T) {
 			t.Errorf("screen %d, toasts %q", m.screen, toasted(m))
 		}
 	})
+}
+
+func TestSearchKeyStartsFresh(t *testing.T) {
+	page := &fakeSearch{title: ui.SearchTitle}
+	m := New(t.Context(), config.Default(), Layout{Files: &fakeSection{title: "Files"}, Search: page})
+	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	run(m, m.Init())
+	drive(m, m.key(press("/")))
+	drive(m, m.key(press("/")))
+	if page.fresh != 2 {
+		t.Errorf("the search key made the page start fresh %d times in 2 presses, want 2", page.fresh)
+	}
 }

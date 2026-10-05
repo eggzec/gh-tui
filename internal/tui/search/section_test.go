@@ -448,3 +448,73 @@ func TestSearch(t *testing.T) {
 		t.Error("the search wasn't remembered, as enter remembers it")
 	}
 }
+
+func TestFreshStartsEmptyAndFocused(t *testing.T) {
+	svc := newFake()
+	s := newSection(t, svc, 120, 30)
+	for _, k := range []string{"t", "e", "a"} {
+		run(t, s, s.Update(keyPress(k)))
+	}
+	run(t, s, s.Update(keyPress("enter")))
+	if s.Query() != "tea" || s.area != resultsArea || s.Capturing() {
+		t.Fatalf("after enter: query %q, area %d, capturing %v; want tea in the results", s.Query(), s.area, s.Capturing())
+	}
+
+	s.Fresh()
+	if s.input.Value() != "" || s.Query() != "" {
+		t.Errorf("input %q, query %q after Fresh, want both empty", s.input.Value(), s.Query())
+	}
+	if !s.Capturing() || !s.input.Focused() {
+		t.Errorf("the query isn't focused after Fresh")
+	}
+	for _, k := range []string{"g", "o"} {
+		run(t, s, s.Update(keyPress(k)))
+	}
+	if got := s.input.Value(); got != "go" {
+		t.Errorf("typed go after Fresh, the input is %q", got)
+	}
+}
+
+func TestFreshReadsTheSameQueryAnew(t *testing.T) {
+	svc := newFake()
+	s := newSection(t, svc, 120, 30)
+	// The commands of the first typing are dropped, as when the read of
+	// its first page is still on its way as the user leaves.
+	for _, r := range "tea" {
+		s.Update(keyPress(string(r)))
+	}
+	if svc.requests != 0 {
+		t.Fatalf("%d requests before any command ran", svc.requests)
+	}
+	s.Fresh()
+	// Search sets the whole text at once, so the list of the query
+	// before, which is for the same text, is the one it would reuse.
+	run(t, s, s.Search("tea"))
+	if svc.requests == 0 {
+		t.Fatal("typing the same query again read nothing")
+	}
+	l, ok := s.visibleHits()
+	if !ok || l.feed.Len() == 0 || l.feed.Err() != nil {
+		t.Errorf("the list of the query typed again has %d results, error %v, want results", l.feed.Len(), l.feed.Err())
+	}
+}
+
+func TestFreshDropsTheDebounceInFlight(t *testing.T) {
+	svc := newFake()
+	s := newSection(t, svc, 120, 30, WithDebounce(time.Second))
+	for _, r := range "tea" {
+		s.Update(keyPress(string(r)))
+	}
+	stale := debounceMsg{id: s.id, seq: s.seq}
+	s.Fresh()
+	run(t, s, s.Update(stale))
+	if s.Query() != "" || s.input.Value() != "" {
+		t.Errorf("query %q, input %q after the stale debounce, want both empty", s.Query(), s.input.Value())
+	}
+	if _, ok := s.visibleHits(); ok {
+		t.Error("the stale debounce made a list of results")
+	}
+	if svc.requests != 0 {
+		t.Errorf("%d requests after the stale debounce, want none", svc.requests)
+	}
+}
