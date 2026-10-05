@@ -65,16 +65,14 @@ func TestParseTarget(t *testing.T) {
 		{name: "enterprise api issue", in: "ghe.example.com/api/v3/repos/eggzec/gh-tui/issues/12/", host: "ghe.example.com", want: Target{Repo: repo, Number: 12, Kind: KindIssue}},
 		{name: "api owner on github.com", in: "https://github.com/api/v3", want: Target{Repo: RepoRef{Owner: "api", Name: "v3"}}},
 
-		{name: "api user", in: "https://api.github.com/users/octocat", err: "not an API link to a repository, pull request or issue"},
-		{name: "api root", in: "https://api.github.com/", err: "not an API link to a repository, pull request or issue"},
-		{name: "api commits", in: "https://api.github.com/repos/eggzec/gh-tui/commits/abc", err: "not an API link to a repository, pull request or issue"},
-		{name: "api pulls list", in: "https://api.github.com/repos/eggzec/gh-tui/pulls", err: "not an API link to a repository, pull request or issue"},
-		{name: "api not a number", in: "https://api.github.com/repos/eggzec/gh-tui/issues/x", err: "not an API link to a repository, pull request or issue"},
-		{name: "api issue comment", in: "https://api.github.com/repos/eggzec/gh-tui/issues/comments/5", err: "not an API link to a repository, pull request or issue"},
-		{name: "api pull comment", in: "https://api.github.com/repos/eggzec/gh-tui/pulls/comments/5", err: "not an API link to a repository, pull request or issue"},
+		{name: "api root", in: "https://api.github.com/", err: "not an API link to an owner, repository, pull request or issue"},
+		{name: "api commits", in: "https://api.github.com/repos/eggzec/gh-tui/commits/abc", err: "not an API link to an owner, repository, pull request or issue"},
+		{name: "api pulls list", in: "https://api.github.com/repos/eggzec/gh-tui/pulls", err: "not an API link to an owner, repository, pull request or issue"},
+		{name: "api not a number", in: "https://api.github.com/repos/eggzec/gh-tui/issues/x", err: "not an API link to an owner, repository, pull request or issue"},
+		{name: "api issue comment", in: "https://api.github.com/repos/eggzec/gh-tui/issues/comments/5", err: "not an API link to an owner, repository, pull request or issue"},
+		{name: "api pull comment", in: "https://api.github.com/repos/eggzec/gh-tui/pulls/comments/5", err: "not an API link to an owner, repository, pull request or issue"},
 		{name: "api zero", in: "https://api.github.com/repos/eggzec/gh-tui/issues/0", err: "issue numbers"},
-		{name: "enterprise api orgs", in: "https://ghe.example.com/api/v3/orgs/acme", host: "ghe.example.com", err: "not an API link to a repository, pull request or issue"},
-		{name: "enterprise api graphql", in: "https://ghe.example.com/api/graphql", host: "ghe.example.com", err: "not an API link to a repository, pull request or issue"},
+		{name: "enterprise api graphql", in: "https://ghe.example.com/api/graphql", host: "ghe.example.com", err: "not an API link to an owner, repository, pull request or issue"},
 		{name: "api of another host", in: "https://api.github.com/repos/eggzec/gh-tui", host: "ghe.example.com", err: "not a link to ghe.example.com"},
 		{name: "empty", in: "", err: "nothing to open"},
 		{name: "blank", in: "   ", err: "nothing to open"},
@@ -117,9 +115,7 @@ func TestParseTarget(t *testing.T) {
 		{name: "enterprise gist", in: "https://ghe.example.com/gist/eggzec/0123abcd", host: "ghe.example.com", err: "not a repository link"},
 		{name: "ftp", in: "ftp://github.com/eggzec/gh-tui", err: "not a web link"},
 		{name: "host only", in: "https://github.com", err: "not a repository link"},
-		{name: "user page", in: "https://github.com/eggzec", err: "not a repository link"},
 		{name: "settings", in: "https://github.com/settings/profile", err: "not a repository link"},
-		{name: "orgs", in: "https://github.com/orgs/eggzec", err: "not a repository link"},
 		{name: "empty segment", in: "https://github.com//gh-tui", err: "not a repository link"},
 		{name: "tree", in: "https://github.com/eggzec/gh-tui/tree/main/src", want: Target{Repo: repo}},
 		{name: "blob", in: "https://github.com/eggzec/gh-tui/blob/main/x.go#L3", want: Target{Repo: repo}},
@@ -140,6 +136,68 @@ func TestParseTarget(t *testing.T) {
 		{name: "clone link only", in: "https://github.com/eggzec/.git", err: "not a repository"},
 		{name: "link empty number", in: "https://github.com/eggzec/gh-tui/pull//12", err: "missing number after /pull/"},
 		{name: "link overflow", in: "https://github.com/eggzec/gh-tui/pull/99999999999", err: "issue number too large"},
+		{name: "owner", in: "@octocat", want: Target{Owner: "octocat"}},
+		{name: "owner case kept", in: "@OctoCat", want: Target{Owner: "OctoCat"}},
+		{name: "owner spaces", in: " @octocat ", want: Target{Owner: "octocat"}},
+		{name: "owner underscore", in: "@octo_cat", want: Target{Owner: "octo_cat"}},
+		{name: "owner managed user", in: "@octocat_acme", want: Target{Owner: "octocat_acme"}},
+		{name: "profile managed user", in: "https://acme.ghe.com/octocat_acme", host: "acme.ghe.com", want: Target{Owner: "octocat_acme"}},
+		{name: "profile real account like a page", in: "https://github.com/integrations", want: Target{Owner: "integrations"}},
+		{name: "owner hyphen", in: "@octo-org", want: Target{Owner: "octo-org"}},
+		{name: "owner digits", in: "@0x1", want: Target{Owner: "0x1"}},
+		{name: "owner one char", in: "@a", want: Target{Owner: "a"}},
+		{name: "owner longest", in: "@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", want: Target{Owner: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}},
+		{name: "profile link", in: "https://github.com/octocat", want: Target{Owner: "octocat"}},
+		{name: "profile link slash", in: "https://github.com/octocat/", want: Target{Owner: "octocat"}},
+		{name: "profile tab", in: "github.com/octocat?tab=repositories", want: Target{Owner: "octocat"}},
+		{name: "profile fragment", in: "https://github.com/octocat#readme", want: Target{Owner: "octocat"}},
+		{name: "profile www", in: "https://www.github.com/octocat", want: Target{Owner: "octocat"}},
+		{name: "profile http", in: "http://github.com/octocat", want: Target{Owner: "octocat"}},
+		{name: "profile named api", in: "https://github.com/api", want: Target{Owner: "api"}},
+		{name: "orgs link", in: "https://github.com/orgs/github", want: Target{Owner: "github"}},
+		{name: "orgs people", in: "https://github.com/orgs/github/people", want: Target{Owner: "github"}},
+		{name: "orgs team", in: "https://github.com/orgs/github/teams/x", want: Target{Owner: "github"}},
+		{name: "orgs case", in: "https://github.com/ORGS/github", want: Target{Owner: "github"}},
+		{name: "users link", in: "https://github.com/users/octocat", want: Target{Owner: "octocat"}},
+		{name: "users projects", in: "github.com/users/octocat/projects/1", want: Target{Owner: "octocat"}},
+		{name: "enterprise profile", in: "https://ghe.example.com/octocat", host: "ghe.example.com", want: Target{Owner: "octocat"}},
+		{name: "enterprise profile no scheme", in: "ghe.example.com/octocat", host: "ghe.example.com", want: Target{Owner: "octocat"}},
+		{name: "enterprise profile port", in: "https://ghe.example.com:8443/octocat", host: "ghe.example.com:8443", want: Target{Owner: "octocat"}},
+		{name: "enterprise orgs", in: "https://ghe.example.com/orgs/acme", host: "ghe.example.com", want: Target{Owner: "acme"}},
+		{name: "api user", in: "https://api.github.com/users/octocat", want: Target{Owner: "octocat"}},
+		{name: "api org", in: "api.github.com/orgs/github", want: Target{Owner: "github"}},
+		{name: "api org repos", in: "https://api.github.com/orgs/github/repos", want: Target{Owner: "github"}},
+		{name: "api tenant user", in: "https://api.acme.ghe.com/users/octocat", host: "acme.ghe.com", want: Target{Owner: "octocat"}},
+		{name: "enterprise api user", in: "https://ghe.example.com/api/v3/users/octocat", host: "ghe.example.com", want: Target{Owner: "octocat"}},
+		{name: "enterprise api orgs", in: "https://ghe.example.com/api/v3/orgs/acme", host: "ghe.example.com", want: Target{Owner: "acme"}},
+
+		{name: "owner bare", in: "octocat", err: "not a repository"},
+		{name: "owner at only", in: "@", err: "missing login after '@'"},
+		{name: "owner too long", in: "@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", err: "at most 39 characters"},
+		{name: "owner leading hyphen", in: "@-octo", err: "may not start or end with '-'"},
+		{name: "owner trailing hyphen", in: "@octo-", err: "may not start or end with '-'"},
+		{name: "owner dot", in: "@octo.cat", err: "only letters, digits, '-' and '_'"},
+		{name: "owner slash", in: "@octocat/hello", err: "only letters, digits, '-' and '_'"},
+		{name: "owner number", in: "@octocat#3", err: "only letters, digits, '-' and '_'"},
+		{name: "owner unicode", in: "@öcto", err: "only letters, digits, '-' and '_'"},
+		{name: "owner space", in: "@octo cat", err: "only letters, digits, '-' and '_'"},
+		{name: "owner reserved", in: "@settings", err: "settings is a page of GitHub"},
+		{name: "owner reserved case", in: "@Marketplace", err: "Marketplace is a page of GitHub"},
+		{name: "profile reserved", in: "https://github.com/notifications", err: "notifications is a page of GitHub"},
+		{name: "profile readme", in: "https://github.com/readme", err: "readme is a page of GitHub"},
+		{name: "owner reserved copilot", in: "@copilot", err: "copilot is a page of GitHub"},
+		{name: "profile reserved orgs", in: "https://github.com/orgs", err: "orgs is a page of GitHub"},
+		{name: "profile bad login", in: "https://github.com/octo.cat", err: "only letters, digits, '-' and '_'"},
+		{name: "profile too long", in: "https://github.com/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", err: "at most 39 characters"},
+		{name: "orgs empty login", in: "https://github.com/orgs//people", err: "not a repository link"},
+		{name: "orgs bad login", in: "https://github.com/orgs/-acme", err: "may not start or end with '-'"},
+		{name: "users reserved", in: "https://github.com/users/settings", err: "settings is a page of GitHub"},
+		{name: "enterprise profile reserved", in: "https://ghe.example.com/explore", host: "ghe.example.com", err: "explore is a page of GitHub"},
+		{name: "profile other host", in: "https://gitlab.com/octocat", err: "not a link to github.com"},
+		{name: "api bad login", in: "https://api.github.com/users/octo-", err: "may not start or end with '-'"},
+		{name: "api users list", in: "https://api.github.com/users", err: "not an API link to an owner, repository, pull request or issue"},
+		{name: "api users empty", in: "https://api.github.com/users//repos", err: "not an API link to an owner, repository, pull request or issue"},
+		{name: "api orgs case", in: "https://api.github.com/ORGS/github", err: "not an API link to an owner, repository, pull request or issue"},
 		{name: "long bad owner", in: strings.Repeat("-", 5000) + "/r", err: "may not start with '-'"},
 	}
 	for _, tt := range tests {
@@ -194,6 +252,7 @@ func TestTargetString(t *testing.T) {
 		{Target{Repo: repo, Number: 12, Kind: KindPull}, "eggzec/gh-tui#12"},
 		{Target{Number: 12, Kind: KindIssue}, "#12"},
 		{Target{}, ""},
+		{Target{Owner: "octocat"}, "@octocat"},
 	}
 	for _, tt := range tests {
 		if got := tt.t.String(); got != tt.want {
@@ -205,13 +264,14 @@ func TestTargetString(t *testing.T) {
 func TestTargetHas(t *testing.T) {
 	repo := RepoRef{Owner: "eggzec", Name: "gh-tui"}
 	tests := []struct {
-		t               Target
-		repo, hasNumber bool
+		t                      Target
+		repo, hasNumber, owner bool
 	}{
-		{Target{}, false, false},
-		{Target{Repo: repo}, true, false},
-		{Target{Number: 3}, false, true},
-		{Target{Repo: repo, Number: 3}, true, true},
+		{Target{}, false, false, false},
+		{Target{Repo: repo}, true, false, false},
+		{Target{Number: 3}, false, true, false},
+		{Target{Repo: repo, Number: 3}, true, true, false},
+		{Target{Owner: "octocat"}, false, false, true},
 	}
 	for _, tt := range tests {
 		if got := tt.t.HasRepo(); got != tt.repo {
@@ -219,6 +279,9 @@ func TestTargetHas(t *testing.T) {
 		}
 		if got := tt.t.HasNumber(); got != tt.hasNumber {
 			t.Errorf("%+v.HasNumber() = %v, want %v", tt.t, got, tt.hasNumber)
+		}
+		if got := tt.t.HasOwner(); got != tt.owner {
+			t.Errorf("%+v.HasOwner() = %v, want %v", tt.t, got, tt.owner)
 		}
 	}
 }
@@ -237,6 +300,12 @@ func TestTargetSame(t *testing.T) {
 	if !a.Same(Target{Repo: a.Repo, Number: 3, Kind: KindPull}) {
 		t.Error("a kind hint makes targets differ")
 	}
+	if !(Target{Owner: "octocat"}).Same(Target{Owner: "OctoCat"}) {
+		t.Error("owners differing only in case are not the same")
+	}
+	if (Target{Owner: "octocat"}).Same(Target{Owner: "octo-org"}) {
+		t.Error("different owners are the same")
+	}
 }
 
 func FuzzParseTarget(f *testing.F) {
@@ -246,6 +315,8 @@ func FuzzParseTarget(f *testing.F) {
 		"http://github.com/eggzec/gh-tui/issues/3#issuecomment-1",
 		"github.com/eggzec/gh-tui#3", "https://gist.github.com/a/b",
 		"https://github.com/eggzec/gh-tui.git", "  a/b  ", "ghe/a/b", "://",
+		"@octocat", "@", "https://github.com/octocat", "https://github.com/orgs/github/people",
+		"https://api.github.com/users/octocat",
 	} {
 		f.Add(s, "")
 		f.Add(s, "ghe")
@@ -258,7 +329,10 @@ func FuzzParseTarget(f *testing.F) {
 			}
 			return
 		}
-		if !got.HasRepo() && !got.HasNumber() {
+		if got.HasOwner() && (got.HasRepo() || got.HasNumber()) {
+			t.Fatalf("ParseTarget(%q, %q) = %+v, an owner with a repository or number", s, host, got)
+		}
+		if !got.HasRepo() && !got.HasNumber() && !got.HasOwner() {
 			t.Fatalf("ParseTarget(%q, %q) = %+v, names nothing", s, host, got)
 		}
 		if got.Kind != "" && (!got.Kind.Known() || !got.HasNumber()) {

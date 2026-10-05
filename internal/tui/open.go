@@ -25,6 +25,9 @@ func (m *Model) openCommand(arg string) tea.Cmd {
 	if err != nil {
 		return m.badTarget(err)
 	}
+	if t.HasOwner() {
+		return m.toast.Push(toast.Error, cantOpen(t.String(), "pages of users and organizations aren't supported yet", m.icons.Ellipsis, m.fitsToast))
+	}
 	if isLink(arg) {
 		// A link names more than its target, such as a file, and
 		// ParseTarget made sure it is on the user's host.

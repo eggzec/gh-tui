@@ -26,7 +26,8 @@ func WebScheme(host string) string {
 }
 
 // Target is what the user names after ':': a repository, a pull request or
-// issue number, or both. A number without a repository refers to the
+// issue number, or both, or else Owner, the login of a user or
+// organization, typed as "@login". A number without a repository refers to the
 // current one, which the caller supplies. Kind is what a link said the
 // number is: KindPull from /pull/ or /pulls/, KindIssue from /issues/.
 // A number typed after '#' leaves it unknown, and it can be looked up as
@@ -35,6 +36,13 @@ type Target struct {
 	Repo   RepoRef
 	Number int
 	Kind   NumberKind
+	Owner  string
+}
+
+// HasOwner reports whether t names a user or organization rather than a
+// repository or number.
+func (t Target) HasOwner() bool {
+	return t.Owner != ""
 }
 
 // HasRepo reports whether t names a repository.
@@ -51,12 +59,15 @@ func (t Target) HasNumber() bool {
 // repositories regardless of case as GitHub does. Kind is ignored: it
 // can't make one number name two things.
 func (t Target) Same(o Target) bool {
-	return t.Repo.Same(o.Repo) && t.Number == o.Number
+	return t.Repo.Same(o.Repo) && t.Number == o.Number && strings.EqualFold(t.Owner, o.Owner)
 }
 
 // String returns t in the short form ParseTarget reads: "owner/name",
-// "owner/name#12" or "#12". The short form has no Kind.
+// "owner/name#12", "#12" or "@login". The short form has no Kind.
 func (t Target) String() string {
+	if t.HasOwner() {
+		return "@" + t.Owner
+	}
 	var b strings.Builder
 	if t.HasRepo() {
 		b.WriteString(t.Repo.String())
@@ -69,9 +80,13 @@ func (t Target) String() string {
 }
 
 // ParseTarget parses what the user typed after ':' to name a target:
-// "owner/name", "owner/name#12", "#12", or a link to a repository, pull
-// request or issue on host, such as https://github.com/owner/name/pull/12.
-// A link to any other page of a repository names the repository. host is the user's GitHub host without a scheme, DefaultHost when
+// "owner/name", "owner/name#12", "#12", "@login", or a link to a
+// repository, pull request, issue, user or organization on host, such as
+// https://github.com/owner/name/pull/12 or https://github.com/login.
+// A link to any other page of a repository names the repository, and
+// /orgs/login or /users/login, or a page below them, names the owner.
+// A bare login without '@' is refused, since it reads as half of
+// owner/name. host is the user's GitHub host without a scheme, DefaultHost when
 // empty. Surrounding space is trimmed and case is kept. Its errors are
 // *TargetError.
 func ParseTarget(s, host string) (Target, error) {
@@ -146,6 +161,9 @@ func hasScheme(s string) bool {
 }
 
 func parseShort(s string) (Target, error) {
+	if login, ok := strings.CutPrefix(s, "@"); ok {
+		return parseOwner(login)
+	}
 	repo, num, hasNum := strings.Cut(s, "#")
 	var t Target
 	if repo != "" {
@@ -195,14 +213,59 @@ func parseNumber(s string) (int, error) {
 }
 
 // reservedOwners are first path segments GitHub uses for its own pages, so
-// a link such as github.com/settings/profile isn't taken for a repository.
+// a link such as github.com/settings/profile isn't taken for a repository,
+// nor github.com/readme for a user. Segments that are also the logins of
+// real accounts, such as integrations, are left out, so their pages open.
 var reservedOwners = []string{
-	"about", "account", "apps", "codespaces", "collections", "dashboard",
-	"enterprise", "enterprises", "explore", "features", "gist", "issues",
-	"login", "marketplace", "new", "notifications", "orgs", "organizations",
-	"pricing", "pulls", "search", "security", "settings", "sponsors",
-	"stars", "topics", "trending", "users",
+	"about", "account", "apps", "blog", "codespaces", "collections",
+	"contact", "copilot", "dashboard", "discussions", "education",
+	"enterprise", "enterprises", "events", "explore", "features", "gist",
+	"issues", "join", "login", "logout", "marketplace", "mobile", "models",
+	"new", "nonprofit", "notifications", "orgs", "organizations",
+	"partners", "premium-support", "pricing", "projects", "pulls",
+	"readme", "resources", "search", "security", "sessions", "settings",
+	"signup", "site", "solutions", "sponsors", "stars", "support", "team",
+	"teams", "terms", "topics", "trending", "users",
 }
+
+// maxLoginLen is the longest login GitHub accepts for a user or an
+// organization.
+const maxLoginLen = 39
+
+// parseOwner reads the login of a user or organization. GitHub's logins
+// hold letters, digits and hyphens, with no hyphen at either end, and are
+// at most 39 characters. '_' is allowed too, as checkOwner allows it, for
+// the logins of Enterprise managed users such as "octocat_acme". Its own pages, such as settings, aren't
+// owners.
+func parseOwner(login string) (Target, error) {
+	bad := func(reason string) error {
+		return &TargetError{Reason: reason, Err: fmt.Errorf("not a login: %q: %s", login, reason)}
+	}
+	switch {
+	case login == "":
+		return Target{}, badTarget("missing login after '@'")
+	case len(login) > maxLoginLen:
+		return Target{}, bad("a login is at most " + strconv.Itoa(maxLoginLen) + " characters")
+	case !onlyChars(login, "-_"):
+		return Target{}, bad("a login may hold only letters, digits, '-' and '_'")
+	case strings.HasPrefix(login, "-") || strings.HasSuffix(login, "-"):
+		return Target{}, bad("a login may not start or end with '-'")
+	case isReserved(login):
+		return Target{}, &TargetError{
+			Reason: "that is a page of GitHub, not a user or organization",
+			Err:    fmt.Errorf("%s is a page of GitHub, not a user or organization", login),
+		}
+	}
+	return Target{Owner: login}, nil
+}
+
+func isReserved(segment string) bool {
+	return slices.ContainsFunc(reservedOwners, func(o string) bool { return strings.EqualFold(o, segment) })
+}
+
+// ownerPages are the reserved first segments of a link whose next segment
+// is the login of an owner, such as /orgs/github/people.
+var ownerPages = []string{"orgs", "users"}
 
 // linkKinds are the pages below a repository whose next segment is a pull
 // request or issue number; GitHub serves /pulls/12 as /pull/12.
@@ -227,8 +290,15 @@ func parseLink(s, host string) (Target, error) {
 		return Target{}, &TargetError{Reason: "not a link to " + host, Err: fmt.Errorf("not a link to %s: %q", host, s)}
 	}
 	parts := strings.Split(strings.Trim(u.Path, "/"), "/")
-	if len(parts) < 2 || slices.Contains(parts[:2], "") ||
-		slices.ContainsFunc(reservedOwners, func(o string) bool { return strings.EqualFold(o, parts[0]) }) {
+	if len(parts) == 1 && parts[0] != "" && !strings.HasPrefix(u.Path, "//") {
+		// A profile, such as https://github.com/octocat. A path such as
+		// //gh-tui has lost its owner rather than being one.
+		return parseOwner(parts[0])
+	}
+	if len(parts) >= 2 && parts[1] != "" && slices.ContainsFunc(ownerPages, func(p string) bool { return strings.EqualFold(p, parts[0]) }) {
+		return parseOwner(parts[1])
+	}
+	if len(parts) < 2 || slices.Contains(parts[:2], "") || isReserved(parts[0]) {
 		return Target{}, &TargetError{Reason: "not a link to a repository", Err: fmt.Errorf("not a repository link: %q", s)}
 	}
 	repo, err := parseRepo(parts[0] + "/" + parts[1])
@@ -293,16 +363,17 @@ func apiPath(u *url.URL, host string) (string, bool) {
 var apiKinds = map[string]NumberKind{"pulls": KindPull, "issues": KindIssue}
 
 // parseAPILink reads path, the part below the API root of s, a link to
-// GitHub's REST API: /repos/owner/name for a repository, and
+// GitHub's REST API: /users/login or /orgs/login, or a path below them,
+// for a user or organization, /repos/owner/name for a repository, and
 // /repos/owner/name/pulls/N or /issues/N, or a path below them, for a
 // pull request or an issue. The API has no page for anything else.
 func parseAPILink(s, path string) (Target, error) {
 	parts := strings.Split(strings.Trim(path, "/"), "/")
+	if len(parts) >= 2 && parts[1] != "" && slices.Contains(ownerPages, parts[0]) {
+		return parseOwner(parts[1])
+	}
 	if len(parts) < 3 || parts[0] != "repos" {
-		return Target{}, &TargetError{
-			Reason: "an API link opens only a repository, pull request or issue",
-			Err:    fmt.Errorf("not an API link to a repository, pull request or issue: %q", s),
-		}
+		return Target{}, notAPITarget(s)
 	}
 	repo, err := parseRepo(parts[1] + "/" + parts[2])
 	if err != nil {
@@ -316,10 +387,7 @@ func parseAPILink(s, path string) (Target, error) {
 	// Below pulls and issues, a segment that isn't a number names other
 	// resources, such as issues/comments/5, a comment.
 	if !kind.Known() || len(parts) < 5 || strings.Trim(parts[4], "0123456789") != "" {
-		return Target{}, &TargetError{
-			Reason: "an API link opens only a repository, pull request or issue",
-			Err:    fmt.Errorf("not an API link to a repository, pull request or issue: %q", s),
-		}
+		return Target{}, notAPITarget(s)
 	}
 	n, err := parseNumber(parts[4])
 	if err != nil {
@@ -327,6 +395,15 @@ func parseAPILink(s, path string) (Target, error) {
 	}
 	t.Number, t.Kind = n, kind
 	return t, nil
+}
+
+// notAPITarget reports that s, a link to the API, names nothing that has
+// a page here.
+func notAPITarget(s string) error {
+	return &TargetError{
+		Reason: "API links open only owners, repositories, pulls and issues",
+		Err:    fmt.Errorf("not an API link to an owner, repository, pull request or issue: %q", s),
+	}
 }
 
 // parseRepo parses the repository of a target, s, as "owner/name". A clone
