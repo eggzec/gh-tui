@@ -131,25 +131,14 @@ func (s *Section) compose() {
 		lines = append(lines, s.frames[s.focus]...)
 	} else {
 		lines = append(lines, s.frames[pinnedPane]...)
-		lines = beside(lines, s.frames[reposPane], s.frames[workPane])
-		lines = beside(lines, s.frames[calendarPane], s.frames[inboxPane])
+		lines = ownerui.Beside(lines, s.frames[reposPane], s.frames[workPane])
+		lines = ownerui.Beside(lines, s.frames[calendarPane], s.frames[inboxPane])
 	}
 	blank := strings.Repeat(" ", s.width)
 	for len(lines) < s.height {
 		lines = append(lines, blank)
 	}
 	s.view = strings.Join(lines[:s.height], "\n")
-}
-
-// beside appends the lines of left with those of right after them.
-func beside(lines, left, right []string) []string {
-	for i, l := range left {
-		if i < len(right) {
-			l += right[i]
-		}
-		lines = append(lines, l)
-	}
-	return lines
 }
 
 // label is the text in the top edge of pane p, and its width. In the
@@ -234,34 +223,11 @@ func (s *Section) paneLabel(p paneID) string {
 
 // frame draws body in a frame of size b, with label in its top edge.
 func (s *Section) frame(label string, labelW int, b box, focused bool, body []string) []string {
-	if b.w < 2 || b.h < 2 {
-		return nil
-	}
 	edge := s.st.edge
 	if focused {
 		edge = s.st.focusEdge
 	}
-	bd := s.icons.Border
-	lines := make([]string, 0, b.h)
-	if labelW > b.w-4 {
-		label = termtext.Truncate(label, max(b.w-5, 0), s.icons.Ellipsis)
-		labelW = ansi.StringWidth(label)
-	}
-	if labelW == 0 {
-		lines = append(lines, edge.Render(bd.TopLeft+strings.Repeat(bd.Top, b.w-2)+bd.TopRight))
-	} else {
-		rest := max(b.w-4-labelW, 0)
-		lines = append(lines, edge.Render(bd.TopLeft+bd.Top)+label+edge.Render(" "+strings.Repeat(bd.Top, rest)+bd.TopRight))
-	}
-	side, inner := edge.Render(bd.Left), b.w-2
-	for i := range b.h - 2 {
-		var l string
-		if i < len(body) {
-			l = body[i]
-		}
-		lines = append(lines, side+ownerui.Fit(l, inner)+side)
-	}
-	return append(lines, edge.Render(bd.BottomLeft+strings.Repeat(bd.Bottom, b.w-2)+bd.BottomRight))
+	return ownerui.Frame(label, labelW, b.w, b.h, edge, s.icons.Border, s.icons.Ellipsis, body)
 }
 
 // profileHeight is how many lines the profile takes.
@@ -360,7 +326,7 @@ func (s *Section) pinnedBody(w, h int) []string {
 	if len(c.Items) == 0 {
 		switch {
 		case s.header.err != nil && !s.header.ok:
-			return indent(s.failure("load your pins", s.header.err, w-1))
+			return ownerui.Indent(s.failure("load your pins", s.header.err, w-1))
 		case !s.header.ok:
 			return []string{" " + st.shared.Muted.Render("Loading pinned repositories"+s.icons.Ellipsis)}
 		}
@@ -453,7 +419,7 @@ func (s *Section) workBody(w, h int) []string {
 	st, l := &s.st, &s.tasks
 	switch {
 	case !s.work.ok && s.work.err != nil:
-		return indent(s.failure("load your work", s.work.err, w-1))
+		return ownerui.Indent(s.failure("load your work", s.work.err, w-1))
 	case !s.work.ok:
 		return []string{" " + st.shared.Muted.Render("Loading the work waiting on you"+s.icons.Ellipsis)}
 	}
@@ -463,7 +429,7 @@ func (s *Section) workBody(w, h int) []string {
 	t := l.current()
 	if t.refused {
 		// GitHub refused this list's search and answered the others.
-		return append(lines, indent(s.failure(workLists[l.cur].action, core.ErrForbidden, w-1))...)
+		return append(lines, ownerui.Indent(s.failure(workLists[l.cur].action, core.ErrForbidden, w-1))...)
 	}
 	for i := t.top; i < len(t.rows); i++ {
 		// Rows show whole, but for one taller than the pane.
@@ -581,7 +547,7 @@ func (s *Section) inboxBody(w, h int) []string {
 	case s.inbox == nil:
 		return []string{" " + st.shared.Muted.Render("Notifications aren't available.")}
 	case !s.notes.ok && s.notes.err != nil:
-		return indent(s.failure("load your notifications", s.notes.err, w-1))
+		return ownerui.Indent(s.failure("load your notifications", s.notes.err, w-1))
 	case !s.notes.ok:
 		return []string{" " + st.shared.Muted.Render("Loading notifications"+s.icons.Ellipsis)}
 	}
@@ -644,18 +610,10 @@ func (s *Section) say(action string, err error) (text, hint string) {
 	return text, hint
 }
 
-// indent puts a space before each of lines, as the panes' lines start.
-func indent(lines []string) []string {
-	for i := range lines {
-		lines[i] = " " + lines[i]
-	}
-	return lines
-}
-
 // calendarBody centers the calendar in w cells.
 func (s *Section) calendarBody(w int) []string {
 	if !s.contribs.ok && s.contribs.err != nil {
-		return indent(s.failure("load your contributions", s.contribs.err, w-1))
+		return ownerui.Indent(s.failure("load your contributions", s.contribs.err, w-1))
 	}
 	view := s.cal.View()
 	if view == "" {
