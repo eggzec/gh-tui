@@ -482,3 +482,38 @@ func TestAllReposFails(t *testing.T) {
 		t.Errorf("AllRepos = %v, want the rate limit", err)
 	}
 }
+
+// InvalidateLogin marks the reads of one account stale, and those of
+// others stay fresh.
+func TestInvalidateLogin(t *testing.T) {
+	charm := core.Owner{Kind: core.OwnerOrg, ID: "O_1", Profile: core.Profile{Login: "charm"}}
+	api := &fakeAPI{t: t,
+		header: func(login string) (core.Owner, error) {
+			if login == "charm" {
+				return charm, nil
+			}
+			return octocat, nil
+		},
+		userRepos: func(login string, _ core.RepoOrder, _ int, _ string) (core.Page[core.Repo], error) {
+			return core.Page[core.Repo]{Items: repos(login, 1)}, nil
+		},
+	}
+	s := New(api)
+	ctx := t.Context()
+	for _, login := range []string{"octocat", "charm"} {
+		if _, err := s.Header(ctx, HeaderQuery{Login: login}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	q := ReposQuery{Owner: "octocat"}
+	if _, err := s.Repos(ctx, q); err != nil {
+		t.Fatal(err)
+	}
+	s.InvalidateLogin("OctoCat")
+	if s.FreshHeader("octocat") || s.FreshRepos(q) {
+		t.Error("octocat's reads are still fresh")
+	}
+	if !s.FreshHeader("charm") {
+		t.Error("charm's header went stale too")
+	}
+}

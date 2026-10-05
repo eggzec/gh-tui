@@ -123,7 +123,7 @@ func (s *Service) loadReadme(q ReadmeQuery) cache.FetchFunc[Readme] {
 	return recheck.Load(func(ctx context.Context, cond github.Conditional) (Readme, github.Response, error) {
 		r, res, err := s.api.ProfileReadme(ctx, q.Login, q.Kind, q.Member, cond)
 		return Readme{Readme: r}, res, err
-	}, func(Readme) []string { return []string{allTag} })
+	}, func(Readme) []string { return tags(q.Login) })
 }
 
 // SyncKey names changes to what the page of the account login shows in

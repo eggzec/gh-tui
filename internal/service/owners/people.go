@@ -184,7 +184,7 @@ func (s *Service) Teams(ctx context.Context, q TeamsQuery) (core.Page[core.Team]
 		return s.api.OrgTeams(ctx, q.Login, q.PageSize, q.Cursor)
 	}))
 	if errors.Is(err, core.ErrForbidden) {
-		s.membersOnly.Set(login, cache.Entry[error]{Value: err, Tags: []string{allTag}})
+		s.membersOnly.Set(login, cache.Entry[error]{Value: err, Tags: tags(login)})
 	}
 	return p, err
 }

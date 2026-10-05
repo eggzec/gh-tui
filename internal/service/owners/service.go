@@ -7,6 +7,7 @@ package owners
 import (
 	"cmp"
 	"context"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -73,7 +74,7 @@ const (
 	kindTeams         = "ownerteams"
 	kindReadme        = "ownerreadme"
 	kindFollowers     = "ownerfollowers"
-	schema            = 1
+	schema            = 2
 )
 
 // missingFor is how long a login that no account has is remembered: long
@@ -143,19 +144,55 @@ func positive(d, def time.Duration) time.Duration {
 // Cached reads, and the next read of each entry goes to GitHub, so a
 // refresh reaches the server even while the entries are fresh.
 func (s *Service) Invalidate() {
-	s.header.mem.InvalidateTag(allTag)
-	s.repos.mem.InvalidateTag(allTag)
-	s.contributions.mem.InvalidateTag(allTag)
-	s.people.mem.InvalidateTag(allTag)
-	s.teams.mem.InvalidateTag(allTag)
-	s.readme.mem.InvalidateTag(allTag)
-	s.followers.mem.InvalidateTag(allTag)
-	s.missing.InvalidateTag(allTag)
-	s.membersOnly.InvalidateTag(allTag)
+	s.invalidate(allTag)
+}
+
+// InvalidateLogin does what Invalidate does for the account login alone:
+// what was read of it, whether it has an account and whether its teams
+// are for members only. A refresh of its page leaves the pages of others
+// as they are.
+func (s *Service) InvalidateLogin(login string) {
+	s.invalidate(loginTag(login))
+}
+
+// invalidate marks the entries tagged tag stale, and forgets the misses
+// tagged so.
+func (s *Service) invalidate(tag string) {
+	s.header.mem.InvalidateTag(tag)
+	s.repos.mem.InvalidateTag(tag)
+	s.contributions.mem.InvalidateTag(tag)
+	s.people.mem.InvalidateTag(tag)
+	s.teams.mem.InvalidateTag(tag)
+	s.readme.mem.InvalidateTag(tag)
+	s.followers.mem.InvalidateTag(tag)
+	s.missing.InvalidateTag(tag)
+	s.membersOnly.InvalidateTag(tag)
 }
 
 // allTag marks every entry, so that Invalidate finds them all.
 const allTag = "all"
+
+// loginTag marks the entries of the account login, so that
+// InvalidateLogin finds them.
+func loginTag(login string) string {
+	return "login:" + loginKey(login)
+}
+
+// tags are the tags of an entry of the account login.
+func tags(login string) []string {
+	return []string{allTag, loginTag(login)}
+}
+
+// tagged returns load, whose entries it tags as the account login's too.
+func tagged[V any](login string, load cache.FetchFunc[V]) cache.FetchFunc[V] {
+	return func(ctx context.Context, prev cache.Entry[V], ok bool) (cache.Entry[V], error) {
+		e, err := load(ctx, prev, ok)
+		if err == nil && !slices.Contains(e.Tags, loginTag(login)) {
+			e.Tags = append(slices.Clip(e.Tags), loginTag(login))
+		}
+		return e, err
+	}
+}
 
 // loginKey is login as the keys hold it: GitHub matches logins without
 // regard to case, so keys do too.
@@ -178,10 +215,10 @@ func read[V any](ctx context.Context, s *Service, r *reads[V], login, scope, key
 			return zero, e.Value
 		}
 	}
-	v, err := r.get(ctx, key, again, load)
+	v, err := r.get(ctx, key, again, tagged(login, load))
 	if core.KindOf(err) == core.NotFound {
 		keys := missingKeys(login, scope)
-		s.missing.Set(keys[len(keys)-1], cache.Entry[error]{Value: err, Tags: []string{allTag}})
+		s.missing.Set(keys[len(keys)-1], cache.Entry[error]{Value: err, Tags: tags(login)})
 	}
 	return v, err
 }
