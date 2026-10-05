@@ -1,0 +1,5 @@
+{"data": {"rateLimit": {"cost": 1, "limit": 5000, "remaining": 4990, "used": 10, "resetAt": "2026-10-05T12:00:00Z"}, "organization": {"membersWithRole": {"edges": [
+  {"role": "ADMIN", "node": {"__typename": "User", "login": "mona", "name": "Mona", "bio": ""}},
+  {"role": "MEMBER", "node": {"__typename": "User", "login": "hubot", "name": "Hubot", "bio": "Beep"}},
+  {"role": null, "node": {"__typename": "User", "login": "octocat", "name": null, "bio": null}}
+], "pageInfo": {"hasNextPage": false, "endCursor": "Y3Vyc29yOjM="}}}}}
