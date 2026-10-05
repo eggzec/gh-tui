@@ -50,9 +50,15 @@ type TTL struct {
 	CodeSearch time.Duration `yaml:"code_search"`
 	Releases   time.Duration `yaml:"releases"`
 	// Profile covers the dashboard's header: you, your organizations and
-	// your pinned repositories.
+	// your pinned repositories; and the header of a user or organization
+	// page.
 	Profile       time.Duration `yaml:"profile"`
 	Contributions time.Duration `yaml:"contributions"`
+	// People covers the people of a user or organization page:
+	// followers, following, organizations, members and teams.
+	People time.Duration `yaml:"people"`
+	// Readme covers profile READMEs, which have ETags.
+	Readme time.Duration `yaml:"readme"`
 }
 
 // Memory is what the process keeps in memory.

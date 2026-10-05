@@ -53,6 +53,8 @@ internal/service/actions/service.go:logLineSize  keep: a measure of the memory a
 internal/service/files/service.go:treeEntrySize  keep: a measure of the memory an entry of a listing takes
 internal/service/dashboard/work.go:maxPageSize  keep: an API limit
 internal/service/dashboard/repos.go:DefaultReposSize  keep: an API limit, the largest page, so the pane lists them all
+internal/service/owners/repos.go:maxPageSize  keep: an API limit
+internal/service/owners/service.go:missingFor  keep: a mechanism, how long a login that no account has is remembered so a page read again at once asks no more
 internal/service/history/branches.go:DefaultBranchPageSize  keep: an API limit, the largest page; branches are small
 internal/service/history/service.go:maxPageSize  keep: an API limit
 internal/service/issues/read.go:maxPageSize  keep: an API limit

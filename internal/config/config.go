@@ -43,6 +43,8 @@ type Config struct {
 	History History `yaml:"history"`
 	// Dashboard configures the screen the app opens on.
 	Dashboard Dashboard `yaml:"dashboard"`
+	// Owner configures the page of a user or an organization.
+	Owner Owner `yaml:"owner" when:"startup" why:"the page of a user or an organization reads it when the app starts"`
 	// Prefetch configures reading ahead, globally, by page and by kind of
 	// item.
 	Prefetch PrefetchLayers `yaml:"prefetch"`
@@ -179,7 +181,7 @@ func (c Config) Validate() error {
 		errs = append(errs, validateKeys(action, c.Keys[action]))
 	}
 
-	errs = append(errs, c.Cache.validate(), c.Sync.validate(), c.Files.validate(), c.History.validate(), c.Dashboard.validate(), c.Prefetch.validate(c.Files.Preview.MaxSize),
+	errs = append(errs, c.Cache.validate(), c.Sync.validate(), c.Files.validate(), c.History.validate(), c.Dashboard.validate(), c.Owner.validate(), c.Prefetch.validate(c.Files.Preview.MaxSize),
 		c.UI.validate(), c.GitHub.validate(), c.PageSize.validate(), c.Commands.validate(), c.Images.validate(), c.Log.validate(),
 		validateEditor(c.Editor))
 	return errors.Join(errs...)
