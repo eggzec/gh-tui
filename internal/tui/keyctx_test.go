@@ -18,6 +18,7 @@ import (
 	historysvc "github.com/eggzec/gh-tui/internal/service/history"
 	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
 	notifsvc "github.com/eggzec/gh-tui/internal/service/notifications"
+	ownersvc "github.com/eggzec/gh-tui/internal/service/owners"
 	pullsvc "github.com/eggzec/gh-tui/internal/service/pulls"
 	searchsvc "github.com/eggzec/gh-tui/internal/service/search"
 	"github.com/eggzec/gh-tui/internal/tui/actions"
@@ -27,6 +28,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/history"
 	"github.com/eggzec/gh-tui/internal/tui/issues"
 	"github.com/eggzec/gh-tui/internal/tui/notifications"
+	"github.com/eggzec/gh-tui/internal/tui/owner"
 	"github.com/eggzec/gh-tui/internal/tui/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/releases"
 	searchpage "github.com/eggzec/gh-tui/internal/tui/search"
@@ -213,6 +215,30 @@ func (keyDash) AllRepos(context.Context, dashsvc.ReposQuery, int) (core.Page[cor
 }
 func (keyDash) Invalidate() {}
 
+// keyOwners serves one user, with a pin and a repository.
+type keyOwners struct{}
+
+func keyOwner() core.Owner {
+	return core.Owner{Profile: core.Profile{Login: "octocat", Repos: 1}, Pinned: []core.Repo{keyRepo}}
+}
+
+func (keyOwners) CachedHeader(string) (core.Owner, bool) { return keyOwner(), true }
+func (keyOwners) FreshHeader(string) bool                { return true }
+func (keyOwners) Header(context.Context, ownersvc.HeaderQuery) (core.Owner, error) {
+	return keyOwner(), nil
+}
+func (keyOwners) FreshRepos(ownersvc.ReposQuery) bool { return true }
+func (keyOwners) Repos(context.Context, ownersvc.ReposQuery) (core.Page[core.Repo], error) {
+	return core.Page[core.Repo]{Items: []core.Repo{keyRepo}}, nil
+}
+func (keyOwners) CachedAllRepos(ownersvc.ReposQuery, int) (core.Page[core.Repo], bool) {
+	return core.Page[core.Repo]{Items: []core.Repo{keyRepo}}, true
+}
+func (keyOwners) AllRepos(context.Context, ownersvc.ReposQuery, int) (core.Page[core.Repo], error) {
+	return core.Page[core.Repo]{Items: []core.Repo{keyRepo}}, nil
+}
+func (keyOwners) InvalidateLogin(string) {}
+
 // keySearch finds one issue and one file.
 type keySearch struct{ searchpage.Service }
 
@@ -344,9 +370,10 @@ type keyContext struct {
 	// repo opens the app on testRepo; otherwise it opens on the dashboard.
 	repo bool
 	// keys are pressed in turn to reach the context, and then, if set,
-	// msg is sent.
-	keys []string
-	msg  tea.Msg
+	// msg is sent, and after is pressed in turn.
+	keys  []string
+	msg   tea.Msg
+	after []string
 	// want names the layers the context has, as layerNames does, so
 	// that a context the keys no longer reach fails rather than passes.
 	want string
@@ -379,6 +406,13 @@ func (c keyContext) layers(t *testing.T) []keyhelp.Layer {
 	if c.msg != nil {
 		driveKeys(t, m, func() tea.Msg { return c.msg })
 	}
+	for _, k := range c.after {
+		msg, ok := keyPress(k)
+		if !ok {
+			t.Fatalf("%s: can't press %q", c.name, k)
+		}
+		driveKeys(t, m, m.key(msg))
+	}
 	layers := m.keyLayers()
 	if got := layerNames(layers); got != c.want {
 		t.Fatalf("%s: the keys reach %q, want %q", c.name, got, c.want)
@@ -404,6 +438,7 @@ func newKeysApp(t *testing.T, repo bool) *Model {
 		Search:        searchpage.New(ctx, keySearch{}, cfg.Keys, searchpage.WithVoice(v)),
 		Dashboard: dashboard.New(ctx, keyDash{}, cfg.Keys, dashboard.WithVoice(v),
 			dashboard.WithInbox(keyInbox{}), dashboard.WithHere(testRepo, nil)),
+		Owner: owner.New(ctx, keyOwners{}, cfg.Keys, owner.WithVoice(v)),
 	}
 	opts := []Option{
 		WithVoice(v), WithAccess(acc),
@@ -470,6 +505,11 @@ func cmdsOf(msg tea.Msg) ([]tea.Cmd, bool) {
 // keyContexts returns every context the collisions test walks.
 func keyContexts() []keyContext {
 	return []keyContext{
+		{name: "owner: repositories", msg: ui.OwnerMsg{Login: "octocat"}, want: "app, app, profile, list"},
+		{name: "owner: pinned", msg: ui.OwnerMsg{Login: "octocat"}, after: []string{"1"}, want: "app, app, profile"},
+		{name: "owner: zoomed", msg: ui.OwnerMsg{Login: "octocat"}, after: []string{"z"}, want: "app, app, profile, list"},
+		{name: "owner: filter", msg: ui.OwnerMsg{Login: "octocat"}, after: []string{"f"}, want: "app, filter"},
+		{name: "owner: sort", msg: ui.OwnerMsg{Login: "octocat"}, after: []string{"s"}, want: "app, filter"},
 		{name: "dashboard: repositories", want: "app, app, dashboard, list"},
 		{name: "dashboard: pinned", keys: []string{"1"}, want: "app, app, dashboard"},
 		{name: "dashboard: work", keys: []string{"3"}, want: "app, app, dashboard"},

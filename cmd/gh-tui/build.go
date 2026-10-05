@@ -40,6 +40,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/history"
 	"github.com/eggzec/gh-tui/internal/tui/issues"
 	"github.com/eggzec/gh-tui/internal/tui/notifications"
+	"github.com/eggzec/gh-tui/internal/tui/owner"
 	"github.com/eggzec/gh-tui/internal/tui/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/releases"
 	searchpage "github.com/eggzec/gh-tui/internal/tui/search"
@@ -304,6 +305,9 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 			notifications.WithIcons(icons), notifications.WithDates(dates)),
 		Search:    searchpage.New(ctx, searchSvc, cfg.Keys, searchOpts...),
 		Dashboard: dashboard.New(ctx, dashSvc, cfg.Keys, dashOpts...),
+		Owner: owner.New(ctx, ownerSvc, cfg.Keys,
+			owner.WithVoice(voice), owner.WithIcons(icons), owner.WithDates(dates), owner.WithAvatars(pics),
+			owner.WithHost(webHost), owner.WithDefaultTab(cfg.Owner.DefaultTab)),
 	}
 
 	// The history and the releases read the settings of the session,
