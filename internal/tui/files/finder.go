@@ -114,6 +114,8 @@ func (s *Section) FindFile() (ui.Modal, tea.Cmd) {
 	// The tree loads too, so that a file found can be shown in it.
 	start := s.start()
 	if f := s.finder; f != nil && f.src == s.src {
+		// It got no messages while closed.
+		f.md.reset()
 		f.current = false
 		reset := f.find.Reset(s.recentFiles())
 		return f, tea.Batch(start, reset, f.moved())
@@ -157,6 +159,7 @@ func (s *Section) newFinder() *finderModal {
 	pv.Retry, pv.Open = key.Binding{}, f.keys.Browser
 	f.pager = pager.New(pager.WithErrorText(fileErrorText(repo, pv)))
 	f.img = fileImage{images: s.images, repo: repo, shown: shownText, ellipsis: s.icons.Ellipsis}
+	f.md.setFiles(ctx, s.svc, repo, ref, s.images)
 	f.icons = newFileIcons(s.icons, s.theme)
 	f.find = finder.New(func(ctx context.Context) (finder.Listing, error) { return listFiles(ctx, src) },
 		finder.WithContext(ctx),
@@ -308,7 +311,18 @@ func (f *finderModal) Update(msg tea.Msg) tea.Cmd {
 				return f.moved()
 			}
 		}
-		return f.redraw()
+		// The pictures of markdown drawn again, as they arrived, or
+		// images began or stopped being drawn.
+		if f.md.stale() {
+			f.pager.Rerender()
+		}
+		return tea.Batch(f.redraw(), f.md.lookUp())
+	case imageEntryMsg:
+		if !f.md.take(msg) {
+			return nil
+		}
+		f.pager.Rerender()
+		return f.md.lookUp()
 	case ui.OnlineMsg:
 		// A rate limit is the token's, and has lifted unless one holds.
 		if !msg.Limited {
@@ -319,6 +333,8 @@ func (f *finderModal) Update(msg tea.Msg) tea.Cmd {
 		if msg.Modal != ui.Modal(f) {
 			return nil
 		}
+		// It got no messages while hidden.
+		f.md.reset()
 		f.current = false
 		return f.moved()
 	case tea.KeyPressMsg:
@@ -412,7 +428,7 @@ func (f *finderModal) showFile(e core.TreeEntry, b core.Blob, err error) tea.Cmd
 		return nil
 	}
 	cmd, _ := fill(&f.pager, e, b, err, f.keys.Browser, f.s.icons, f.rendering())
-	return cmd
+	return tea.Batch(cmd, f.md.lookUp())
 }
 
 // rendering returns what renders the markdown files shown, or nil while
@@ -457,14 +473,19 @@ func (f *finderModal) readAhead() tea.Cmd {
 }
 
 // online loads again, now that GitHub answers again, what failed for want
-// of an answer from it: the paths, and the file the preview shows.
+// of an answer from it: the paths, the file the preview shows, and the
+// image files of the markdown it shows.
 func (f *finderModal) online() tea.Cmd {
 	var read tea.Cmd
 	if f.preview && f.cancel == nil && ui.Unreached(f.failed) {
 		f.failed = nil
 		read = f.read()
 	}
-	return tea.Batch(ui.RetryUnreached(&f.find), read)
+	// The image files whose look-ups failed are looked up again.
+	if f.md.online() {
+		f.pager.Rerender()
+	}
+	return tea.Batch(ui.RetryUnreached(&f.find), read, f.md.lookUp())
 }
 
 // read reads the file the cursor rested on.
@@ -534,6 +555,7 @@ func (f *finderModal) layout() {
 		return
 	}
 	f.find.SetSize(lw, f.height)
+	f.md.setHeight(f.height - 1)
 	f.pager.SetSize(f.width-lw-3, f.height)
 	// The image fitted anew, or the loading line; one that no longer
 	// fits shows as without images, and only the highlighting of a text
