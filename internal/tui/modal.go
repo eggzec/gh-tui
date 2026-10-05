@@ -18,8 +18,8 @@ func (m *Model) topModal() ui.Modal {
 
 // openModal opens mod in place of the open modal, if any, which hides:
 // modals never stack, so the screen shows at most one frame over it. It
-// closes the command line, which runs no command over a modal, such as when
-// a goto run before ends while the user types another.
+// closes the command line, whose command was typed for what showed before,
+// such as when a goto run before ends while the user types another.
 func (m *Model) openModal(mod ui.Modal) {
 	if mod == nil {
 		return
@@ -163,7 +163,9 @@ func (m *Model) closeModal(mod ui.Modal) {
 // screen, so that the edges of the screen behind it stay in view, or less
 // if the modal fits in less.
 func (m *Model) frameSize() (width, height int) {
-	width, height = max(m.width-2*max(m.width/10, 2), 0), max(m.height-2*max(m.height/10, 1), 0)
+	// The frame is centred, and leaves the footer below it, such as the
+	// command line with its candidates.
+	width, height = max(m.width-2*max(m.width/10, 2), 0), max(m.height-2*max(m.height/10, m.footerHeight()), 0)
 	if f, ok := m.modal.(ui.Fitter); ok {
 		w, h := f.Fit(max(width-4, 0), max(height-2, 0))
 		width, height = min(width, w+4), min(height, h+2)

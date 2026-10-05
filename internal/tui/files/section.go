@@ -57,6 +57,9 @@ type Section struct {
 	voice ui.Voice
 	// editor is the editor the preview opens a file in, if set.
 	editor string
+	// rawMarkdown shows markdown files as their source, rather than
+	// rendered, from the next preview on: files.markdown.
+	rawMarkdown bool
 	// images draws the image files the preview opens, where they are drawn.
 	images *ui.Images
 
@@ -103,6 +106,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		icons:       ui.NewIcons(config.Default().UI.Icons),
 		voice:       ui.NewVoice(keys, ""),
 		findPreview: config.Default().Files.Finder.Preview,
+		rawMarkdown: config.Default().Files.Markdown == config.MarkdownRaw,
 		recent:      map[string][]string{},
 		prefetch:    noPrefetch(),
 	}
@@ -369,7 +373,7 @@ func (s *Section) open(e core.TreeEntry, ret ui.Modal) tea.Cmd {
 	s.opened(e.Path)
 	q := s.blobQuery(e)
 	s.ahead.Opened(q)
-	p := newPreview(s.ctx, s.svc, s.host, s.repo, s.ref, e, s.keys.Open, s.voice, s.editor, s.icons, s.images)
+	p := newPreview(s.ctx, s.svc, s.host, s.repo, s.ref, e, s.keys.Open, s.voice, s.editor, s.icons, s.images, s.rawMarkdown)
 	p.ret = ret
 	// The app passes messages to a modal only once it is open, so the load
 	// starts after the modal opens.
@@ -422,12 +426,15 @@ func shortRef(ref string) string {
 // previewFile previews the file of msg, which may be of any repository, at
 // its blob, or else found by its path at the commit of msg.Ref, on the
 // first match of msg.Find or on msg.Line. The tree keeps its repository.
+// A markdown file opened on a match or a line shows as its source, which
+// the match and the line are of.
 func (s *Section) previewFile(msg ui.OpenFileMsg) tea.Cmd {
 	if msg.Path == "" || msg.SHA == "" && msg.Ref == "" {
 		return nil
 	}
 	e := core.TreeEntry{Path: msg.Path, Name: path.Base(msg.Path), Type: core.EntryBlob, Mode: "100644", SHA: msg.SHA}
-	p := newPreview(s.ctx, s.svc, s.host, msg.Repo, msg.Ref, e, s.keys.Open, s.voice, s.editor, s.icons, s.images)
+	raw := s.rawMarkdown || msg.Find != "" || msg.Line > 0
+	p := newPreview(s.ctx, s.svc, s.host, msg.Repo, msg.Ref, e, s.keys.Open, s.voice, s.editor, s.icons, s.images, raw)
 	p.find, p.line, p.ret = msg.Find, msg.Line, msg.Return
 	return tea.Sequence(ui.OpenModal(p), p.load())
 }

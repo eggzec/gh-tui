@@ -233,7 +233,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	// may do, and point to the command that grants it more.
 	voice.Token = ui.NewToken(access, cfg.Keys)
 	fileOpts := []files.Option{
-		files.WithIcons(icons), files.WithFinderPreview(cfg.Files.Finder.Preview),
+		files.WithIcons(icons), files.WithFinderPreview(cfg.Files.Finder.Preview), files.WithMarkdown(cfg.Files.Markdown),
 		files.WithHost(webHost), files.WithVoice(voice), files.WithEditor(cfg.Editor),
 		files.WithPrefetch(cfg.Prefetch, cfg.Files.Preview.MaxSize), files.WithSlots(slots), files.WithImages(pics),
 	}

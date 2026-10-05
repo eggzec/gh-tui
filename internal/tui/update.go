@@ -254,6 +254,9 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 		if key.Matches(msg, forceQuit) {
 			return tea.Quit
 		}
+		if m.commandsOver(mod) && key.Matches(msg, m.keys.Command) {
+			return m.openLine()
+		}
 		cmd := mod.Update(msg)
 		m.updateBadges()
 		return cmd

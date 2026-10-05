@@ -72,3 +72,10 @@ func WithEditor(cmd string) Option {
 func WithImages(i *ui.Images) Option {
 	return func(s *Section) { s.images = i }
 }
+
+// WithMarkdown sets how the previews show markdown files, as the config's
+// files.markdown says: config.MarkdownRendered or config.MarkdownRaw.
+// Without it, they show them as the config's default says.
+func WithMarkdown(mode string) Option {
+	return func(s *Section) { s.rawMarkdown = mode == config.MarkdownRaw }
+}

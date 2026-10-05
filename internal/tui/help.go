@@ -109,6 +109,9 @@ func (m *Model) layersNow() []keyhelp.Layer {
 	always := keyhelp.Layer{Source: "app", Short: []key.Binding{help}}
 	if modal {
 		always.Bindings = append(always.Bindings, forceQuit)
+		if m.commandsOver(m.topModal()) {
+			always.Bindings = append(always.Bindings, m.keys.Command)
+		}
 	}
 	always.Bindings = append(always.Bindings, help)
 	return append([]keyhelp.Layer{always}, inner...)

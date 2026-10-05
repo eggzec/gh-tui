@@ -62,6 +62,9 @@ type finderModal struct {
 	// while the pager names the file binary by its name alone, unread.
 	img   fileImage
 	named bool
+	// md renders the markdown files shown, unless the section shows them
+	// as their source.
+	md markdownView
 
 	width, height int
 	theme         ui.Theme
@@ -408,8 +411,17 @@ func (f *finderModal) showFile(e core.TreeEntry, b core.Blob, err error) tea.Cmd
 	if !f.img.draw(&f.pager) {
 		return nil
 	}
-	cmd, _ := fill(&f.pager, e, b, err, f.keys.Browser, f.s.icons)
+	cmd, _ := fill(&f.pager, e, b, err, f.keys.Browser, f.s.icons, f.rendering())
 	return cmd
+}
+
+// rendering returns what renders the markdown files shown, or nil while
+// the section shows them as their source.
+func (f *finderModal) rendering() *markdownView {
+	if f.s.rawMarkdown {
+		return nil
+	}
+	return &f.md
 }
 
 // redraw draws the image of the file shown again, as when the images or
@@ -418,7 +430,7 @@ func (f *finderModal) redraw() tea.Cmd {
 	if !f.img.redraw(&f.pager) {
 		return nil
 	}
-	cmd, _ := fill(&f.pager, f.img.entry, f.img.blob, f.img.err, f.keys.Browser, f.s.icons)
+	cmd, _ := fill(&f.pager, f.img.entry, f.img.blob, f.img.err, f.keys.Browser, f.s.icons, f.rendering())
 	return cmd
 }
 
@@ -537,6 +549,8 @@ func (f *finderModal) SetTheme(t ui.Theme) {
 	f.icons.setTheme(t)
 	f.find.SetStyles(t.Finder(f.s.icons))
 	f.pager.SetStyles(t.Pager(f.s.icons))
+	f.md.setTheme(t, f.s.icons)
+	f.pager.Rerender()
 	border := lipgloss.NewStyle().Foreground(lipgloss.Color(t.Palette.Border))
 	f.sep = " " + border.Render(f.s.icons.Border.Left) + " "
 }
