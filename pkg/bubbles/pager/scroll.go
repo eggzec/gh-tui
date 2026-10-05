@@ -52,12 +52,18 @@ func (m Model) bodyHeight() int { return max(m.height-1, 0) }
 // them, or of the marks of an inverted search while the numbers are
 // hidden, or 0 when there is neither or no room for text.
 func (m Model) gutterWidth() int {
+	return m.gutterFor(len(m.lines))
+}
+
+// gutterFor returns the width of the gutter of n lines, as gutterWidth
+// does of the lines of the content.
+func (m Model) gutterFor(n int) int {
 	var w int
 	switch {
-	case len(m.lines) == 0:
+	case n == 0:
 		return 0
 	case m.lineNumbers:
-		w = len(strconv.Itoa(len(m.lines))) + 1
+		w = len(strconv.Itoa(n)) + 1
 	case m.search.invert:
 		w = 2
 	default:

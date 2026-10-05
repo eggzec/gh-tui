@@ -2,6 +2,11 @@ package pager
 
 import (
 	"context"
+	"strings"
+
+	"github.com/charmbracelet/x/ansi"
+
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // Render returns content rendered to fit width cells, as lines with
@@ -15,6 +20,12 @@ type Render func(width int) string
 // highlighted. The line numbers, the status line, the search and the
 // filter count and match the lines rendered, and the editor gets source,
 // from its first line, since a rendered line has none of its own there.
+//
+// A rendered line that holds the kitty graphics protocol's Unicode
+// placeholder draws an image: it reaches the terminal as it is, at the
+// left edge of the text, and searches and filters see it as blank. Render
+// must have made the rest of such a line safe to draw; every other line
+// is cleaned, so no placeholder there draws an image.
 func (m *Model) SetRendered(name, source string, render Render) {
 	m.reset(name, stateReady, nil)
 	m.raw, m.render = source, render
@@ -48,12 +59,19 @@ func (m *Model) fitRendered(force bool) {
 	top, n := m.topLine(), len(m.lines)
 	s, p := m.search, m.proj
 	// The gutter widens with the number of lines, which leaves less room
-	// for the text, so the text renders again until it fits; a narrower
-	// render never has fewer lines, so twice more is enough. The search
-	// stays until then, since an inverted one has a gutter of its own.
+	// for the text. The first render guesses them from the lines of
+	// before, or of the source, so that it seldom renders again, which
+	// would ask for its images at another width too; a narrower render
+	// never has fewer lines, so twice more is enough. The search stays
+	// until then, since an inverted one has a gutter of its own.
+	guess := n
+	if guess == 0 {
+		guess = strings.Count(m.raw, "\n") + 1
+	}
+	w = max(m.width-m.gutterFor(guess), 1)
 	for range 3 {
 		m.renderedAt = w
-		m.setLines(m.render(w))
+		m.setLines(m.takePictures(m.render(w)))
 		if w = m.textWidth(); w == m.renderedAt || w <= 0 {
 			break
 		}
@@ -68,7 +86,7 @@ func (m *Model) fitRendered(force bool) {
 	}
 	m.proj, m.want = projection{squeeze: p.squeeze}, projection{squeeze: p.squeeze}
 	if !p.none() {
-		vis, kept, _ := pick(context.Background(), m.lines, p)
+		vis, kept, _ := pick(context.Background(), m.lines, p, m.pics)
 		if p.filter.re == nil || kept > 0 {
 			m.proj, m.want, m.vis, m.kept = p, p, vis, kept
 			m.top = m.posOf(m.top)
@@ -87,4 +105,34 @@ func (m *Model) fitRendered(force bool) {
 		}
 	}
 	m.enableSearchKeys()
+}
+
+// takePictures keeps the lines of text that draw images, as they are, by
+// their index, and returns text with each of them blank.
+func (m *Model) takePictures(text string) string {
+	m.pics = nil
+	if !strings.ContainsRune(text, termtext.Placeholder) {
+		return text
+	}
+	lines := strings.Split(text, "\n")
+	for i, l := range lines {
+		if strings.ContainsRune(l, termtext.Placeholder) {
+			if m.pics == nil {
+				m.pics = make(map[int]string)
+			}
+			m.pics[i], lines[i] = l, ""
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+// writePicture writes l, a line that draws an image, cut to tw cells, the
+// width of the text column, and pads it to them.
+func writePicture(b *strings.Builder, l string, tw int) {
+	if ansi.StringWidth(l) > tw {
+		l = ansi.Truncate(l, tw, "")
+	}
+	b.WriteString(l)
+	b.WriteString(ansi.ResetStyle)
+	b.WriteString(strings.Repeat(" ", tw-ansi.StringWidth(l)))
 }

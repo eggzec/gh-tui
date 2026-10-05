@@ -103,6 +103,18 @@ func (m Model) writeLines(b *strings.Builder) int {
 	for p := m.top; p < m.count() && rows < h; p++ {
 		i := m.at(p)
 		s := m.lines[i]
+		if pic, ok := m.pics[i]; ok {
+			m.writeGutter(b, i, true, gw)
+			if m.left > 0 {
+				// An image can't be cut on its left, so it shows blank
+				// while scrolled sideways.
+				pic = ""
+			}
+			writePicture(b, pic, tw)
+			b.WriteByte('\n')
+			rows++
+			continue
+		}
 		if !m.wrap {
 			a, pad := m.leftEdge(s)
 			e, used := advance(s, a, tw-pad)

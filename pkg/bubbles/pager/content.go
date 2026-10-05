@@ -139,7 +139,7 @@ func (m *Model) reset(name string, s state, err error) {
 	m.renderName()
 	m.lines, m.spans, m.sgr, m.vis, m.size = nil, nil, nil, nil, 0
 	m.raw, m.lang = "", ""
-	m.render, m.renderedAt = nil, 0
+	m.render, m.renderedAt, m.pics = nil, 0, nil
 	m.top, m.row, m.left = 0, 0, 0
 	m.mark = -1
 	m.opt, m.num, m.counting = false, 0, false

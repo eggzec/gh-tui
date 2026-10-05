@@ -5,6 +5,9 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/eggzec/gh-tui/pkg/termimg"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // wrapWords is a Render that fills lines of width cells with the words
@@ -198,5 +201,101 @@ func TestRenderedInvertedSearch(t *testing.T) {
 	}
 	if m.search.cur != cur {
 		t.Errorf("the match is %d after a resize, want %d", m.search.cur, cur)
+	}
+}
+
+// The lines of rendered content that draw an image reach the view as they
+// are, and searches see them blank; anywhere else the placeholder draws
+// nothing.
+func TestRenderedPictures(t *testing.T) {
+	pic := termimg.Rows(7, 4, 2)
+	text := "alt text\n" + "> " + pic[0] + "\n> " + pic[1] + "\nafter"
+	m := New(WithSize(30, 6), WithLineNumbers(false))
+	m.Focus()
+	m.SetRendered("README.md", "![alt text](logo.png)", func(int) string { return text })
+	v := m.View()
+	assertFits(t, v, 30, 6)
+	for _, row := range pic {
+		if !strings.Contains(v, "> "+row) {
+			t.Errorf("the view lacks the image row %q:\n%q", row, v)
+		}
+	}
+	if m.Lines() != 4 {
+		t.Errorf("%d lines, want 4", m.Lines())
+	}
+	m = typeText(t, m, "/>")
+	m, _ = deliver(m, enter)
+	if m.Matches() != 0 {
+		t.Errorf("a search matched %d image rows", m.Matches())
+	}
+	// Narrower than the image, its rows are cut to the text.
+	m.SetSize(3, 6)
+	assertFits(t, m.View(), 3, 6)
+
+	// Other content draws no image.
+	_ = m.SetContent("a.txt", text)
+	if strings.ContainsRune(m.View(), termtext.Placeholder) {
+		t.Error("plain content drew an image")
+	}
+}
+
+// picturePager returns a focused pager without line numbers that shows a
+// rendered image of three rows between blank lines, wider than the
+// pager's 6 cells, and the rows.
+func picturePager(t *testing.T) (m Model, rows []string) {
+	t.Helper()
+	rows = termimg.Rows(7, 4, 3)
+	text := "top\n\n\n" + strings.Join(rows, "\n") + "\n\n\nend of a long line"
+	m = New(WithSize(10, 12), WithLineNumbers(false))
+	m.Focus()
+	m.SetRendered("README.md", "![a](a.png)", func(int) string { return text })
+	return m, rows
+}
+
+// Squeeze keeps every row of an image, which isn't blank, and the filter
+// that hides blank lines keeps them too.
+func TestRenderedPicturesProject(t *testing.T) {
+	m, pic := picturePager(t)
+	m, _ = keys(t, m, "-", "s")
+	v := m.View()
+	for _, row := range pic {
+		if !strings.Contains(v, row) {
+			t.Errorf("squeezed, the view lacks the image row %q", row)
+		}
+	}
+	if got := m.Shown(); got != 7 {
+		t.Errorf("squeezed, %d lines show, want 7: top, blank, 3 rows, blank, end", got)
+	}
+	m, _ = keys(t, m, "-", "s")
+	m = typeText(t, m, "&!^$")
+	m, _ = deliver(m, enter)
+	if got := m.Shown(); got != 5 {
+		t.Errorf("filtered by !^$, %d lines show, want 5: top, 3 rows, end", got)
+	}
+	if v := m.View(); !strings.Contains(v, pic[1]) {
+		t.Error("filtered by !^$, the image is gone")
+	}
+	m = typeText(t, m, "&end")
+	m, _ = deliver(m, enter)
+	if got := m.Shown(); got != 1 || strings.ContainsRune(m.View(), termtext.Placeholder) {
+		t.Errorf("filtered by end, %d lines show, with the image: %v", got, strings.ContainsRune(m.View(), termtext.Placeholder))
+	}
+}
+
+// Scrolled sideways, an image, which can't be cut on its left, shows
+// blank.
+func TestRenderedPicturesSideways(t *testing.T) {
+	m, _ := picturePager(t)
+	if !strings.ContainsRune(m.View(), termtext.Placeholder) {
+		t.Fatal("the image doesn't show")
+	}
+	m, _ = keys(t, m, "right")
+	if m.left == 0 {
+		t.Fatal("didn't scroll sideways")
+	}
+	v := m.View()
+	assertFits(t, v, 10, 12)
+	if strings.ContainsRune(v, termtext.Placeholder) {
+		t.Error("scrolled sideways, the image shows cut")
 	}
 }
