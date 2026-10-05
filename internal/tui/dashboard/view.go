@@ -184,7 +184,7 @@ func (s *Section) label(p paneID) (label string, width int) {
 			if i == p {
 				title.Write(&b, part)
 			} else {
-				st.subtle.Write(&b, part)
+				st.shared.Subtle.Write(&b, part)
 			}
 			n += ansi.StringWidth(part)
 		}
@@ -216,7 +216,7 @@ func (s *Section) paneLabel(p paneID) string {
 			text += s.icons.Separator + strconv.Itoa(at) + "/" + strconv.Itoa(of)
 		}
 	case reposPane:
-		if chips := s.repos.filter().chips(s.icons); chips != "" {
+		if chips := s.repos.filter().Chips(s.icons); chips != "" {
 			text += s.icons.Separator + chips
 		}
 	case workPane:
@@ -315,7 +315,7 @@ func (s *Section) profile() []string {
 		lines = append(lines, "", "")
 		first, second = lines[0], lines[1]
 	default:
-		first = st.muted.Render("Loading your profile" + s.icons.Ellipsis)
+		first = st.shared.Muted.Render("Loading your profile" + s.icons.Ellipsis)
 	}
 	// The app's header counts the unread notifications, and so does the
 	// notifications pane.
@@ -325,7 +325,7 @@ func (s *Section) profile() []string {
 	case s.limitedNow():
 		right = st.warning.Render(ui.SayKept(core.RateLimited, s.icons))
 	case s.updating():
-		right = st.subtle.Render("updating" + s.icons.Ellipsis)
+		right = st.shared.Subtle.Render("updating" + s.icons.Ellipsis)
 	}
 	return s.drawer().Profile(box, first, second, right, w, n)
 }
@@ -362,9 +362,9 @@ func (s *Section) pinnedBody(w, h int) []string {
 		case s.header.err != nil && !s.header.ok:
 			return indent(s.failure("load your pins", s.header.err, w-1))
 		case !s.header.ok:
-			return []string{" " + st.muted.Render("Loading pinned repositories"+s.icons.Ellipsis)}
+			return []string{" " + st.shared.Muted.Render("Loading pinned repositories"+s.icons.Ellipsis)}
 		}
-		return []string{" " + st.muted.Render(ui.None("pinned repositories")+" Pin them on your GitHub profile to see them here.")}
+		return []string{" " + st.shared.Muted.Render(ui.None("pinned repositories")+" Pin them on your GitHub profile to see them here.")}
 	}
 	return c.Lines(w, h, s.card)
 }
@@ -373,9 +373,9 @@ func (s *Section) pinnedBody(w, h int) []string {
 func (s *Section) card(c ownerui.Card, selected bool, w int) [ownerui.CardHeight]string {
 	gutter := "  "
 	if selected {
-		gutter = s.st.blurred
+		gutter = s.st.shared.Blurred
 		if s.focused && s.focus == pinnedPane {
-			gutter = s.st.cursor
+			gutter = s.st.shared.Cursor
 		}
 	}
 	return s.drawer().Card(c, gutter, w)
@@ -389,11 +389,11 @@ func (s *Section) reposBody(w, h int) []string {
 	o := s.repos.current()
 	// The headers name the columns once there are rows under them.
 	head := ""
-	if o.feed.Len() > 0 {
-		head = strings.Repeat(" ", gutterWidth) + s.st.subtle.Render(o.cols.header(s.icons.Star, s.icons.Ellipsis))
+	if o.Feed.Len() > 0 {
+		head = strings.Repeat(" ", gutterWidth) + s.st.shared.Subtle.Render(o.Cols().Header(s.icons.Star, s.icons.Ellipsis))
 	}
 	lines = append(lines, head)
-	if body := o.feed.View(); body != "" {
+	if body := o.Feed.View(); body != "" {
 		lines = append(lines, strings.Split(body, "\n")...)
 	}
 	return lines
@@ -406,7 +406,7 @@ func (s *Section) tabsLine(w int) string {
 	st, t := &s.st, &s.repos
 	var right string
 	if r, ok := t.selected(); ok && r.Language != "" {
-		right = s.langPaint(r).Render(s.icons.Language(r.Language)) + " " + st.muted.Render(r.Language)
+		right = s.langPaint(r).Render(s.icons.Language(r.Language)) + " " + st.shared.Muted.Render(r.Language)
 	}
 	room := max(w-ansi.StringWidth(right)-2, 0)
 	// Scroll the tabs so the one on view fits, with the ones before it
@@ -419,20 +419,20 @@ func (s *Section) tabsLine(w int) string {
 	b.WriteByte(' ')
 	used := 1
 	if start > 0 {
-		st.subtle.Write(&b, s.icons.Before+" ")
+		st.shared.Subtle.Write(&b, s.icons.Before+" ")
 		used += 2
 	}
 	for i := start; i < len(t.tabs); i++ {
 		label := t.tabs[i].label
 		lw := ansi.StringWidth(label) + 2
 		if used+lw > room {
-			st.subtle.Write(&b, s.icons.Crumb)
+			st.shared.Subtle.Write(&b, s.icons.Crumb)
 			break
 		}
 		if i == t.cur {
 			st.focusTitle.Write(&b, label)
 		} else {
-			st.muted.Write(&b, label)
+			st.shared.Muted.Write(&b, label)
 		}
 		b.WriteString("  ")
 		used += lw
@@ -455,7 +455,7 @@ func (s *Section) workBody(w, h int) []string {
 	case !s.work.ok && s.work.err != nil:
 		return indent(s.failure("load your work", s.work.err, w-1))
 	case !s.work.ok:
-		return []string{" " + st.muted.Render("Loading the work waiting on you"+s.icons.Ellipsis)}
+		return []string{" " + st.shared.Muted.Render("Loading the work waiting on you"+s.icons.Ellipsis)}
 	}
 	lines := make([]string, 0, h)
 	lines = append(lines, s.workTabs(w))
@@ -472,7 +472,7 @@ func (s *Section) workBody(w, h int) []string {
 		}
 		r := &t.rows[i]
 		if r.hit == nil {
-			lines = append(lines, "   "+st.subtle.Render(r.note))
+			lines = append(lines, "   "+st.shared.Subtle.Render(r.note))
 			continue
 		}
 		lines = s.workItem(lines, r, i == t.sel, focused, w)
@@ -513,7 +513,7 @@ func (s *Section) workTabs(w int) string {
 		if i == l.cur {
 			st.focusTitle.Write(&b, label)
 		} else {
-			st.muted.Write(&b, label)
+			st.shared.Muted.Write(&b, label)
 		}
 	}
 	return b.String()
@@ -526,13 +526,13 @@ func (s *Section) workTabs(w int) string {
 func (s *Section) workItem(lines []string, r *workRow, selected, focused bool, w int) []string {
 	st := &s.st
 	gutter := "  "
-	titleStyle := st.text
+	titleStyle := st.shared.Text
 	if selected {
-		gutter = st.blurred
+		gutter = st.shared.Blurred
 		if focused {
-			gutter = st.cursor
+			gutter = st.shared.Cursor
 		}
-		titleStyle = st.selected
+		titleStyle = st.shared.Selected
 	}
 	hit := r.hit
 	age := s.dates.Short(hit.Issue.UpdatedAt, s.now())
@@ -544,7 +544,7 @@ func (s *Section) workItem(lines []string, r *workRow, selected, focused bool, w
 			state := ui.HitState(*hit)
 			st.states[state].Write(&b, s.icons.State(state))
 			b.WriteByte(' ')
-			st.muted.Write(&link, r.ref)
+			st.shared.Muted.Write(&link, r.ref)
 			used += ansi.StringWidth(r.ref)
 			if text != "" {
 				link.WriteByte(' ')
@@ -559,7 +559,7 @@ func (s *Section) workItem(lines []string, r *workRow, selected, focused bool, w
 		used += ansi.StringWidth(text)
 		if i == len(r.lines)-1 {
 			b.WriteString(strings.Repeat(" ", max(w-used-ansi.StringWidth(age), 1)))
-			st.subtle.Write(&b, age)
+			st.shared.Subtle.Write(&b, age)
 		}
 		lines = append(lines, b.String())
 	}
@@ -579,20 +579,20 @@ func (s *Section) inboxBody(w, h int) []string {
 	}
 	switch {
 	case s.inbox == nil:
-		return []string{" " + st.muted.Render("Notifications aren't available.")}
+		return []string{" " + st.shared.Muted.Render("Notifications aren't available.")}
 	case !s.notes.ok && s.notes.err != nil:
 		return indent(s.failure("load your notifications", s.notes.err, w-1))
 	case !s.notes.ok:
-		return []string{" " + st.muted.Render("Loading notifications"+s.icons.Ellipsis)}
+		return []string{" " + st.shared.Muted.Render("Loading notifications"+s.icons.Ellipsis)}
 	}
 	n := s.unread()
 	if n == "" {
-		return []string{" " + st.muted.Render(ui.None("unread notifications"))}
+		return []string{" " + st.shared.Muted.Render(ui.None("unread notifications"))}
 	}
 	lines := make([]string, 0, h)
-	head := " " + st.text.Render(n) + st.muted.Render(" unread")
+	head := " " + st.shared.Text.Render(n) + st.shared.Muted.Render(" unread")
 	if k := s.keys.Notifications.Help().Key; k != "" {
-		head += st.subtle.Render(s.icons.Separator + s.icons.Key(k) + " shows them all")
+		head += st.shared.Subtle.Render(s.icons.Separator + s.icons.Key(k) + " shows them all")
 	}
 	lines = append(lines, head)
 	l := &s.threads
@@ -601,13 +601,13 @@ func (s *Section) inboxBody(w, h int) []string {
 	for i := l.top; i < len(l.rows) && len(lines) < h; i++ {
 		nt := &l.rows[i]
 		gutter := "  "
-		titleStyle := st.text
+		titleStyle := st.shared.Text
 		if i == l.sel {
-			gutter = st.blurred
+			gutter = st.shared.Blurred
 			if focused {
-				gutter = st.cursor
+				gutter = st.shared.Cursor
 			}
-			titleStyle = st.selected
+			titleStyle = st.shared.Selected
 		}
 		age := s.dates.Short(nt.UpdatedAt, s.now())
 		room := max(w-4-s.dates.Width()-1, 0)
@@ -615,9 +615,9 @@ func (s *Section) inboxBody(w, h int) []string {
 		title := ownerui.Truncate(ownerui.CleanLine(nt.Subject.Title), max(room-ansi.StringWidth(repo)-2, 0), s.icons.Ellipsis)
 		used := 4 + ansi.StringWidth(repo) + 2 + ansi.StringWidth(title)
 		// The repository and the title link to the thread's page.
-		link := s.links.Link(nt.Subject.WebURL, st.muted.Render(repo)+"  "+titleStyle.Render(title))
-		lines = append(lines, gutter+st.accent.Render(s.icons.Dot)+" "+link+
-			strings.Repeat(" ", max(w-used-ansi.StringWidth(age), 1))+st.subtle.Render(age))
+		link := s.links.Link(nt.Subject.WebURL, st.shared.Muted.Render(repo)+"  "+titleStyle.Render(title))
+		lines = append(lines, gutter+st.shared.Accent.Render(s.icons.Dot)+" "+link+
+			strings.Repeat(" ", max(w-used-ansi.StringWidth(age), 1))+st.shared.Subtle.Render(age))
 	}
 	return lines
 }

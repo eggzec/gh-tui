@@ -4,12 +4,12 @@ import (
 	"context"
 	"slices"
 	"strings"
-	"sync/atomic"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/dashboard"
+	"github.com/eggzec/gh-tui/internal/tui/ownerui"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 )
@@ -22,23 +22,18 @@ const yours = "Yours"
 type owner struct {
 	label string
 	q     dashboard.ReposQuery
-	feed  feed.Model[core.Repo]
 	// started is set once the feed has fetched its first page.
 	started bool
-	// measure sizes cols, the columns of the list.
-	measure repoMeasure
-	cols    repoCols
-
-	// filter is the filter of the pane, which the feed's reads use in
-	// their commands.
-	filter atomic.Pointer[repoFilter]
+	// Table lists the owner's repositories, filtered by the pane's
+	// filter.
+	ownerui.Table
 }
 
 // emptyText is what the list of o says when it has no repository, with
 // clearKey, the key that clears the filter.
-func (o *owner) emptyText(f *repoFilter, clearKey string) string {
+func (o *owner) emptyText(f *ownerui.Filter, clearKey string) string {
 	switch {
-	case f.active():
+	case f.Active():
 		return ui.NoMatch("repositories", clearKey)
 	case o.q.Viewer:
 		return ui.None("repositories")
@@ -75,7 +70,7 @@ func (t *repoTabs) newOwner(label string, q dashboard.ReposQuery) *owner {
 	s := t.s
 	o := &owner{label: label, q: q}
 	if len(t.tabs) > 0 {
-		o.filter.Store(t.tabs[0].filter.Load())
+		o.SetFilter(t.tabs[0].Filter())
 	}
 	query := func(cursor string) dashboard.ReposQuery {
 		q := q
@@ -84,23 +79,20 @@ func (t *repoTabs) newOwner(label string, q dashboard.ReposQuery) *owner {
 	}
 	read := func(ctx context.Context, q dashboard.ReposQuery, again bool) (core.Page[core.Repo], error) {
 		q.Again = again
-		f := o.filter.Load()
-		if f == nil || !f.active() {
+		f := o.Filter()
+		if !f.Active() {
 			return s.svc.Repos(ctx, q)
 		}
 		// The filter runs over every repository, so that it sorts them
 		// all. The pages the list read are cached and cost nothing.
 		p, err := s.svc.AllRepos(ctx, q, dashboard.MaxOwnerRepos)
-		p.Items, p.Next = f.apply(p.Items), ""
+		p.Items, p.Next = f.Apply(p.Items), ""
 		return p, err
 	}
 	clearKey := ui.KeyOf(s.icons, s.keys.ClearFilter)
-	empty := o.emptyText(&repoFilter{}, clearKey)
-	if f := o.filter.Load(); f != nil {
-		empty = o.emptyText(f, clearKey)
-	}
-	render := func(r core.Repo, selected bool, _ int) string { return s.renderRepo(o.cols, r, selected) }
-	o.feed = feed.New(ui.FeedPages("dashboard.repos", query, read), render,
+	empty := o.emptyText(o.Filter(), clearKey)
+	render := func(r core.Repo, selected bool, _ int) string { return s.renderRepo(o.Cols(), r, selected) }
+	o.Feed = feed.New(ui.FeedPages("dashboard.repos", query, read), render,
 		feed.WithContext(s.ctx),
 		feed.WithKey(func(r core.Repo) string { return r.Ref.String() }),
 		feed.WithKeyMap(s.keys.feed),
@@ -118,26 +110,14 @@ const listTop = 2
 // remeasure measures the repositories of o read since it last did, and
 // lays the columns out again if they need more room.
 func (t *repoTabs) remeasure(o *owner) {
-	n := o.feed.Len()
-	if n == o.measure.seen {
-		return
-	}
-	m := o.measure
-	for i := range n {
-		if r, ok := o.feed.Item(i); ok {
-			m.add(r, t.s.icons)
-		}
-	}
-	m.seen = n
-	if m != o.measure {
-		o.measure = m
+	if o.Remeasure(t.s.icons) {
 		t.layout(o)
 	}
 }
 
 // layout fits the columns of o in the list, inside the cursor's gutter.
 func (t *repoTabs) layout(o *owner) {
-	o.cols = layoutCols(max(t.width-gutterWidth, 0), o.measure, t.s.icons.Star, t.s.dates.Width())
+	o.Layout(max(t.width-gutterWidth, 0), t.s.icons.Star, t.s.dates.Width())
 }
 
 // gutterWidth is the room the list leaves for its cursor.
@@ -162,7 +142,7 @@ func (t *repoTabs) setOrgs(orgs []core.Org, login string) {
 			continue
 		}
 		o := t.newOwner(ui.OneLine(org.Login), dashboard.ReposQuery{Owner: org.Login})
-		o.feed.SetSize(t.width, max(t.height-listTop, 0))
+		o.Feed.SetSize(t.width, max(t.height-listTop, 0))
 		t.layout(o)
 		tabs = append(tabs, o)
 	}
@@ -178,7 +158,7 @@ func (t *repoTabs) start() tea.Cmd {
 		return nil
 	}
 	o.started = true
-	return o.feed.Init()
+	return o.Feed.Init()
 }
 
 // reload reads the pages of every started tab again.
@@ -186,7 +166,7 @@ func (t *repoTabs) reload() tea.Cmd {
 	cmds := make([]tea.Cmd, 0, len(t.tabs))
 	for _, o := range t.tabs {
 		if o.started {
-			cmds = append(cmds, o.feed.Reload())
+			cmds = append(cmds, o.Feed.Reload())
 		}
 	}
 	return tea.Batch(cmds...)
@@ -199,7 +179,7 @@ func (t *repoTabs) online() tea.Cmd {
 	cmds := make([]tea.Cmd, 0, len(t.tabs))
 	for _, o := range t.tabs {
 		if o.started {
-			cmds = append(cmds, ui.RetryUnreached(&o.feed))
+			cmds = append(cmds, ui.RetryUnreached(&o.Feed))
 		}
 	}
 	return tea.Batch(cmds...)
@@ -211,8 +191,8 @@ func (t *repoTabs) online() tea.Cmd {
 func (t *repoTabs) revisit() tea.Cmd {
 	cmds := make([]tea.Cmd, 0, len(t.tabs))
 	for _, o := range t.tabs {
-		if o.started && o.feed.Settled() && !t.s.svc.FreshRepos(o.q) {
-			cmds = append(cmds, o.feed.Reload())
+		if o.started && o.Feed.Settled() && !t.s.svc.FreshRepos(o.q) {
+			cmds = append(cmds, o.Feed.Reload())
 		}
 	}
 	return tea.Batch(cmds...)
@@ -222,7 +202,7 @@ func (t *repoTabs) revisit() tea.Cmd {
 // first page again.
 func (t *repoTabs) reloading() bool {
 	for _, o := range t.tabs {
-		if o.started && o.feed.Len() > 0 && !o.feed.Settled() {
+		if o.started && o.Feed.Len() > 0 && !o.Feed.Settled() {
 			return true
 		}
 	}
@@ -235,48 +215,48 @@ func (t *repoTabs) switchTab(delta int) tea.Cmd {
 	if n < 2 {
 		return nil
 	}
-	focused := t.current().feed.Focused()
-	t.current().feed.Blur()
+	focused := t.current().Feed.Focused()
+	t.current().Feed.Blur()
 	t.cur = ((t.cur+delta)%n + n) % n
 	// The reads ahead of the list that left stop.
 	t.s.aheadRepos.Reset(t.s.ctx)
 	if focused {
-		t.current().feed.Focus()
+		t.current().Feed.Focus()
 	}
 	return t.start()
 }
 
 func (t *repoTabs) focus() {
-	t.current().feed.Focus()
+	t.current().Feed.Focus()
 }
 
 func (t *repoTabs) blur() {
 	for _, o := range t.tabs {
-		o.feed.Blur()
+		o.Feed.Blur()
 	}
 }
 
 func (t *repoTabs) resize(width, height int) {
 	t.width, t.height = width, height
 	for _, o := range t.tabs {
-		o.feed.SetSize(width, max(height-listTop, 0))
+		o.Feed.SetSize(width, max(height-listTop, 0))
 		t.layout(o)
 	}
 }
 
 func (t *repoTabs) setTheme(th ui.Theme, ic ui.Icons) {
 	for _, o := range t.tabs {
-		o.feed.SetStyles(th.Feed(ic))
+		o.Feed.SetStyles(th.Feed(ic))
 	}
 }
 
 // feedKeys returns the keys of the list on view, whose retry the list
 // enables only while a fetch has failed.
-func (t *repoTabs) feedKeys() feed.KeyMap { return t.current().feed.KeyMap() }
+func (t *repoTabs) feedKeys() feed.KeyMap { return t.current().Feed.KeyMap() }
 
 // selected returns the repository under the cursor.
 func (t *repoTabs) selected() (core.Repo, bool) {
-	return t.current().feed.Selected()
+	return t.current().Feed.Selected()
 }
 
 // update passes msg to the lists, which ignore the messages of others.
@@ -284,13 +264,13 @@ func (t *repoTabs) update(msg tea.Msg) tea.Cmd {
 	if msg, ok := msg.(tea.KeyPressMsg); ok {
 		var cmd tea.Cmd
 		o := t.current()
-		o.feed, cmd = o.feed.Update(msg)
+		o.Feed, cmd = o.Feed.Update(msg)
 		return cmd
 	}
 	cmds := make([]tea.Cmd, 0, len(t.tabs)+1)
 	for _, o := range t.tabs {
 		var cmd tea.Cmd
-		o.feed, cmd = o.feed.Update(msg)
+		o.Feed, cmd = o.Feed.Update(msg)
 		cmds = append(cmds, cmd)
 		t.remeasure(o)
 	}

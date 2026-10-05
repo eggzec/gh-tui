@@ -167,7 +167,7 @@ func (k KeyMap) state(s *Section) KeyMap {
 	}
 	switch s.focus {
 	case reposPane:
-		k.ClearFilter.SetEnabled(k.ClearFilter.Enabled() && s.repos.filter().active())
+		k.ClearFilter.SetEnabled(k.ClearFilter.Enabled() && s.repos.filter().Active())
 	case workPane:
 		k.NextOwner.SetHelp(k.NextOwner.Help().Key, "next list")
 		k.PrevOwner.SetHelp(k.PrevOwner.Help().Key, "previous list")

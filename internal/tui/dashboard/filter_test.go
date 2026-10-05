@@ -5,124 +5,11 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
 
-	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
-	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/internal/tui/ownerui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 )
-
-func TestParseRepoFilter(t *testing.T) {
-	tests := []struct {
-		query string
-		want  repoFilter
-	}{
-		{"", repoFilter{}},
-		{"is:private", repoFilter{visibility: "private"}},
-		{"is:Public fork:false archived:false", repoFilter{visibility: "public", forks: "false", archived: "false"}},
-		{"template:true language:Go", repoFilter{templates: true, language: "go"}},
-		{"is:template fork:only", repoFilter{templates: true, forks: "only"}},
-		{`language:"jupyter notebook"`, repoFilter{language: "jupyter notebook"}},
-		{"sort:stars-desc", repoFilter{sort: filterform.Sort{By: "stars", Desc: true}}},
-		{"sort:name-asc", repoFilter{sort: filterform.Sort{By: "name"}}},
-		{"sort:updated", repoFilter{sort: filterform.Sort{By: "updated", Desc: true}}},
-		{"sort:forks-desc", repoFilter{}},
-		{"gh tui topic:cli", repoFilter{words: []string{"gh", "tui"}}},
-	}
-	for _, tt := range tests {
-		got := parseRepoFilter(tt.query)
-		tt.want.query = tt.query
-		if got.query != tt.want.query || got.visibility != tt.want.visibility || got.forks != tt.want.forks ||
-			got.archived != tt.want.archived || got.templates != tt.want.templates || got.language != tt.want.language ||
-			got.sort != tt.want.sort || !slices.Equal(got.words, tt.want.words) {
-			t.Errorf("parseRepoFilter(%q) = %+v, want %+v", tt.query, got, tt.want)
-		}
-	}
-}
-
-// filterRepos is a small set of repositories with one of each kind.
-func filterRepos() []core.Repo {
-	r := func(name, lang string, stars int) core.Repo {
-		return core.Repo{Ref: core.RepoRef{Owner: "octocat", Name: name}, Language: lang, Stars: stars}
-	}
-	all := []core.Repo{
-		r("gh-tui", "Go", 40),
-		r("dotfiles", "Shell", 3),
-		r("secret", "Go", 1),
-		r("fork-of-cli", "Go", 0),
-		r("old-site", "HTML", 12),
-		r("template-go", "Go", 7),
-	}
-	all[2].Private = true
-	all[3].Fork = true
-	all[4].Archived = true
-	all[5].Template = true
-	for i := range all {
-		all[i].UpdatedAt = now.Add(-time.Duration(i) * time.Hour)
-	}
-	return all
-}
-
-func repoNames(repos []core.Repo) []string {
-	out := make([]string, len(repos))
-	for i := range repos {
-		out[i] = repos[i].Ref.Name
-	}
-	return out
-}
-
-func TestRepoFilterApply(t *testing.T) {
-	tests := []struct {
-		query string
-		want  []string
-	}{
-		{"", []string{"gh-tui", "dotfiles", "secret", "fork-of-cli", "old-site", "template-go"}},
-		{"is:private", []string{"secret"}},
-		{"is:public language:go", []string{"gh-tui", "fork-of-cli", "template-go"}},
-		{"fork:false archived:false", []string{"gh-tui", "dotfiles", "secret", "template-go"}},
-		{"fork:only", []string{"fork-of-cli"}},
-		{"archived:true", []string{"old-site"}},
-		{"template:true", []string{"template-go"}},
-		{"language:go sort:stars-desc", []string{"gh-tui", "template-go", "secret", "fork-of-cli"}},
-		{"sort:stars-asc language:go", []string{"fork-of-cli", "secret", "template-go", "gh-tui"}},
-		{"sort:name-asc archived:false fork:false", []string{"dotfiles", "gh-tui", "secret", "template-go"}},
-		{"sort:updated-asc is:public", []string{"template-go", "old-site", "fork-of-cli", "dotfiles", "gh-tui"}},
-		// Words match names fuzzily, every word, the best matches first.
-		{"ght", []string{"gh-tui"}},
-		{"o t", []string{"old-site", "template-go", "dotfiles"}},
-		{"fork:true", []string{"gh-tui", "dotfiles", "secret", "fork-of-cli", "old-site", "template-go"}},
-		{"go is:private", []string{}},
-		// Tokens the filter doesn't read keep everything.
-		{"topic:cli", []string{"gh-tui", "dotfiles", "secret", "fork-of-cli", "old-site", "template-go"}},
-	}
-	for _, tt := range tests {
-		f := parseRepoFilter(tt.query)
-		if got := repoNames(f.apply(filterRepos())); !slices.Equal(got, tt.want) {
-			t.Errorf("filter %q keeps %v, want %v", tt.query, got, tt.want)
-		}
-	}
-}
-
-func TestRepoFilterChips(t *testing.T) {
-	tests := []struct{ query, want string }{
-		{"", ""},
-		{"is:private fork:false archived:false template:true language:go sort:stars-desc",
-			"private · no forks · no archived · templates · go · stars ↓"},
-		{"gh tui sort:name-asc", `"gh tui" · name ↑`},
-		{"topic:cli", "topic:cli"},
-	}
-	for _, tt := range tests {
-		f := parseRepoFilter(tt.query)
-		if got := f.chips(ui.NewIcons(config.IconsUnicode)); got != tt.want {
-			t.Errorf("chips of %q = %q, want %q", tt.query, got, tt.want)
-		}
-	}
-	f := parseRepoFilter("gh tui sort:name-asc")
-	if got, want := f.chips(ui.NewIcons(config.IconsASCII)), `"gh tui" - name ^`; got != want {
-		t.Errorf("ASCII chips = %q, want %q", got, want)
-	}
-}
 
 // TestFilterSpec checks that the form of the filter opens on a query and
 // writes it back, and that its fields write what the filter reads.
@@ -156,7 +43,7 @@ func TestFilterSpec(t *testing.T) {
 	}
 	// The default sort writes nothing once applied.
 	run(t, s, s.ApplyFilter(filterform.AppliedMsg{Query: "language:go sort:updated-desc"}))
-	if got := s.repos.filter().query; got != "language:go" {
+	if got := s.repos.filter().Query(); got != "language:go" {
 		t.Errorf("the filter in force is %q, want the default sort left out", got)
 	}
 	// A language no repository read has is offered once it filters.
@@ -184,14 +71,14 @@ func TestFilterLists(t *testing.T) {
 		t.Errorf("the filter read %v, want the two pages the list hadn't", got)
 	}
 	o := s.repos.current()
-	pf := parseRepoFilter("is:private language:go")
-	want := pf.apply(repos("octocat", 250))
+	pf := ownerui.ParseFilter("is:private language:go")
+	want := pf.Apply(repos("octocat", 250))
 	slices.SortStableFunc(want, func(a, b core.Repo) int { return b.Stars - a.Stars })
-	if o.feed.Len() != len(want) || len(want) == 0 {
-		t.Fatalf("the list holds %d repositories, want %d", o.feed.Len(), len(want))
+	if o.Feed.Len() != len(want) || len(want) == 0 {
+		t.Fatalf("the list holds %d repositories, want %d", o.Feed.Len(), len(want))
 	}
 	for i := range want {
-		if r, _ := o.feed.Item(i); r.Ref != want[i].Ref || !r.Private || r.Language != "Go" {
+		if r, _ := o.Feed.Item(i); r.Ref != want[i].Ref || !r.Private || r.Language != "Go" {
 			t.Fatalf("row %d is %v, want %v", i, r.Ref, want[i].Ref)
 		}
 	}
@@ -206,7 +93,7 @@ func TestFilterLists(t *testing.T) {
 		t.Errorf("the same filter read %v", svc.calls[calls:])
 	}
 	press(t, s, "]")
-	if n := s.repos.current().feed.Len(); n != 0 {
+	if n := s.repos.current().Feed.Len(); n != 0 {
 		t.Errorf("github lists %d repositories, want none: it has no private Go one", n)
 	}
 	if view := screen(s); !strings.Contains(view, "No repositories match the filters.") {
@@ -215,12 +102,12 @@ func TestFilterLists(t *testing.T) {
 
 	// F clears the filter of every tab.
 	press(t, s, "F")
-	if s.repos.filter().active() || s.repos.current().feed.Len() != 5 {
-		t.Errorf("F should clear the filter; github lists %d", s.repos.current().feed.Len())
+	if s.repos.filter().Active() || s.repos.current().Feed.Len() != 5 {
+		t.Errorf("F should clear the filter; github lists %d", s.repos.current().Feed.Len())
 	}
 	press(t, s, "[")
-	if o := s.repos.current(); o.feed.Len() != 100 || o.feed.Done() {
-		t.Errorf("yours list %d repositories after F, want the first page of the list", o.feed.Len())
+	if o := s.repos.current(); o.Feed.Len() != 100 || o.Feed.Done() {
+		t.Errorf("yours list %d repositories after F, want the first page of the list", o.Feed.Len())
 	}
 	if strings.Contains(screen(s), "stars ↓") {
 		t.Error("the chips should go with the filter")
@@ -232,7 +119,7 @@ func TestFilterIsCapped(t *testing.T) {
 	svc.repos["@me"] = repos("octocat", 1500)
 	s := newSection(t, svc, nil, 140, 38)
 	run(t, s, s.ApplyFilter(filterform.AppliedMsg{Query: "sort:name-asc"}))
-	if got := s.repos.current().feed.Len(); got != 1000 {
+	if got := s.repos.current().Feed.Len(); got != 1000 {
 		t.Errorf("the filter lists %d repositories, want the cap of 1000", got)
 	}
 	if n := svc.count("repos @me@1000"); n != 0 {
@@ -245,13 +132,13 @@ func TestFilterFailure(t *testing.T) {
 	svc.fail["repos @me@100"] = errors.New("github: 502 Bad Gateway")
 	s := newSection(t, svc, nil, 140, 38)
 	run(t, s, s.ApplyFilter(filterform.AppliedMsg{Query: "is:private"}))
-	if err := s.repos.current().feed.Err(); err == nil || !strings.Contains(err.Error(), "502") {
+	if err := s.repos.current().Feed.Err(); err == nil || !strings.Contains(err.Error(), "502") {
 		t.Errorf("the list's error is %v, want the failed page", err)
 	}
 	// Once the page reads, a retry lists what the filter keeps.
 	delete(svc.fail, "repos @me@100")
 	press(t, s, "r")
-	if got := s.repos.current().feed.Len(); got != 50 {
+	if got := s.repos.current().Feed.Len(); got != 50 {
 		t.Errorf("the filter lists %d repositories after the retry, want the 50 private ones", got)
 	}
 }

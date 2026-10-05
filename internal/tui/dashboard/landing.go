@@ -48,7 +48,7 @@ func (s *Section) readReposAhead() tea.Cmd {
 	if s.aheadRepos == nil || !s.started {
 		return nil
 	}
-	f := &s.repos.current().feed
+	f := &s.repos.current().Feed
 	if _, ok := f.Selected(); !ok || !s.focused || s.focus != reposPane {
 		// A rest that was due no longer reads anything.
 		return s.aheadRepos.Window(nil, -1)
