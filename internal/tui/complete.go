@@ -71,7 +71,8 @@ func (m *Model) complete(line string, cursor int) []cmdline.Candidate {
 		return completeCommand(name, start, end, end == len(line), m.topModal() != nil)
 	}
 	c, ok := findCommand(name)
-	if !ok || c.complete == nil {
+	if !ok || c.complete == nil || m.topModal() != nil && !c.overModal {
+		// A command that is refused over the modal gets no suggestions.
 		return nil
 	}
 	return c.complete(m, arg, cursor, end, end == len(line))

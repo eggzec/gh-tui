@@ -244,3 +244,17 @@ func BenchmarkComplete(b *testing.B) {
 func testRepoMsg(i int) ui.RepoMsg {
 	return ui.RepoMsg{Repo: core.RepoRef{Owner: "owner", Name: "repo" + strconv.Itoa(i)}}
 }
+
+func TestCompleteArgumentsOverAModal(t *testing.T) {
+	m, _ := newTestApp(t, WithRecall(newFakeRecall()))
+	if got := m.complete("goto #7", 7); len(got) == 0 {
+		t.Fatal("goto completes nothing without a modal")
+	}
+	m.openModal(&fakeModal{title: "Preview"})
+	if got := m.complete("goto #7", 7); len(got) != 0 {
+		t.Errorf("complete(goto) over a modal = %+v, want nothing, since goto is refused", got)
+	}
+	if got := m.complete("raw ", 4); len(got) == 0 {
+		t.Error("raw completes nothing over a modal, which it runs over")
+	}
+}
