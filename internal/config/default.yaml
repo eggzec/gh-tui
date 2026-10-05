@@ -493,6 +493,10 @@ keys:
   # Show the repository of the search result under the cursor, where
   # enter previews the result over the search.
   go_to_repo: [ctrl+o]
+  # Show the page of the person or organization behind what is selected:
+  # the author of a pull request or issue, or the owner of a repository.
+  # Your own login shows the dashboard.
+  owner: ["@"]
   # Switch between the tabs of a list, such as All, Failing, Running and
   # Mine of the Actions modal, the states of the pull requests and the
   # issues, and the lists of the page of a user or an organization.

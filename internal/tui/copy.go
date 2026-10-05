@@ -60,13 +60,7 @@ func (m *Model) copyCommand(arg string) tea.Cmd {
 		return m.toast.Push(toast.Error, what+" Use copy url, ref, sha or path.")
 	}
 	k := copyKinds[i]
-	var sel ui.Selection
-	ok := false
-	if p := m.focused(); p != nil {
-		if s, is := p.section.(ui.Selector); is {
-			sel, ok = s.Selected()
-		}
-	}
+	sel, ok := m.selection()
 	if !ok {
 		return m.toast.Push(toast.Error, "Nothing is selected to copy.")
 	}
@@ -78,6 +72,20 @@ func (m *Model) copyCommand(arg string) tea.Cmd {
 		return m.toast.Push(toast.Error, "The "+k.noun+" is too long to copy.")
 	}
 	return tea.Batch(tea.SetClipboard(text), m.toast.Push(toast.Info, "Copied "+m.shorten(ui.OneLine(text), maxCopied)+"."))
+}
+
+// selection returns what the cursor of the focused section is on, if
+// anything.
+func (m *Model) selection() (ui.Selection, bool) {
+	p := m.focused()
+	if p == nil {
+		return ui.Selection{}, false
+	}
+	s, ok := p.section.(ui.Selector)
+	if !ok {
+		return ui.Selection{}, false
+	}
+	return s.Selected()
 }
 
 // article returns noun after "A" or "An", as its sound needs, capitalized

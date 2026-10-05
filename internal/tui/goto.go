@@ -294,6 +294,23 @@ func (m *Model) gotoOwner(t core.Target) tea.Cmd {
 	})
 }
 
+// showOwner shows the page of the user or organization login, as the
+// owner key and a ui.OwnerMsg ask. An app, such as dependabot[bot], has
+// no page.
+func (m *Model) showOwner(login string) tea.Cmd {
+	if strings.HasSuffix(login, "[bot]") {
+		return m.toast.Push(toast.Error, ui.OneLine(login)+" is an app; apps have no page here.")
+	}
+	return m.gotoOwner(core.Target{Owner: login})
+}
+
+// selectedOwner returns the owner of the selection of the focused
+// section, or "" when it has none.
+func (m *Model) selectedOwner() string {
+	sel, _ := m.selection()
+	return sel.Owner
+}
+
 // gotOwner shows the page that goto asked for, or says why not.
 func (m *Model) gotOwner(msg gotoOwnerMsg) tea.Cmd {
 	g := m.endGoto(msg.seq)
