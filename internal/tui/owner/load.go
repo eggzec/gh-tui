@@ -109,8 +109,9 @@ func (s *Section) makeLists(p *page, o core.Owner) bool {
 			p.lists[t] = s.newPeopleList(t, login, false)
 		}
 	}
-	if l, ok := p.lists[membersTab].(*peopleList); ok {
+	if l, ok := p.lists[membersTab].(*peopleList); ok && l.roles != member {
 		l.roles = member
+		l.Feed.SetEmptyText(membersEmpty(login, member))
 	}
 	if l, ok := p.lists[teamsTab].(*teamList); ok {
 		l.membersOnly = !member

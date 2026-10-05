@@ -2,6 +2,7 @@ package owner
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -23,7 +24,7 @@ const (
 )
 
 // teamList is the Teams tab of an organization, by name. There is no page
-// of a team here, so enter opens it on GitHub.
+// of a team here, so only the open key opens one, on GitHub.
 type teamList struct {
 	q owners.TeamsQuery
 	feedTab[core.Team]
@@ -77,6 +78,18 @@ func (l *teamList) start() tea.Cmd {
 
 func (l *teamList) fresh(svc Service) bool { return l.membersOnly || svc.FreshTeams(l.q) }
 
+// hidden reports whether the viewer can't see the teams: the header says
+// they aren't a member, or GitHub refused the teams for a reason other
+// than SSO, as it does to someone outside the organization whose header
+// is out of date.
+func (l *teamList) hidden() bool {
+	if l.membersOnly {
+		return true
+	}
+	err := l.Feed.Err()
+	return l.Feed.Len() == 0 && errors.Is(err, core.ErrForbidden) && !ui.SSO(err)
+}
+
 func (l *teamList) resize(s *Section, width, height int) {
 	l.Feed.SetSize(width, max(height-listTop, 0))
 	l.layout(max(width-gutterWidth, 0), ansi.StringWidth(s.icons.Private))
@@ -126,7 +139,7 @@ func (l *teamList) remeasure(*Section) bool {
 }
 
 func (l *teamList) header(s *Section) string {
-	if l.membersOnly || l.Feed.Len() == 0 {
+	if l.hidden() || l.Feed.Len() == 0 {
 		return ""
 	}
 	sub := s.st.shared.Subtle
@@ -160,19 +173,15 @@ func (s *Section) teamRow(c teamCols, t core.Team, selected bool) string {
 
 func (l *teamList) selection(*Section) (ui.Selection, bool) {
 	t, ok := l.Feed.Selected()
-	if !ok {
+	if !ok || l.hidden() {
 		return ui.Selection{}, false
 	}
 	return ui.Selection{What: "team", URL: t.URL}, true
 }
 
-func (l *teamList) enter(*Section) tea.Cmd {
-	t, ok := l.Feed.Selected()
-	if !ok || t.URL == "" {
-		return nil
-	}
-	return ui.Open(t.URL)
-}
+// enter does nothing: there is no page of a team here, and o opens it
+// in the browser.
+func (l *teamList) enter(*Section) tea.Cmd { return nil }
 
 // membersOnlyText is what the Teams tab says to someone outside the
 // organization login.
