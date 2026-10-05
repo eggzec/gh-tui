@@ -83,6 +83,7 @@ func newPreview(ctx context.Context, svc Service, host string, repo core.RepoRef
 	pg := pager.New(pager.WithErrorText(fileErrorText(repo, v)), pager.WithEditor(editor))
 	p := &preview{ctx: ctx, cancel: cancel, svc: svc, host: host, repo: repo, ref: ref, entry: e, open: open, pager: pg, icons: ic, raw: raw}
 	p.md.icons = ic
+	p.md.setFiles(ctx, svc, repo, ref, images)
 	p.img = fileImage{images: images, repo: repo, ellipsis: ic.Ellipsis}
 	p.pager.Focus()
 	return p
@@ -140,10 +141,33 @@ func fileErrorText(repo core.RepoRef, v ui.Voice) func(error) (text, hint string
 // findEntry returns the entry of the file at path name of the commit of
 // ref, with its path from the root.
 func findEntry(ctx context.Context, svc Service, repo core.RepoRef, ref, name string) (core.TreeEntry, error) {
+	return walkEntry(func(q filesvc.TreeQuery) (core.Tree, error) { return svc.Tree(ctx, q) }, repo, ref, name)
+}
+
+// errNotCached reports that a directory isn't cached.
+var errNotCached = errors.New("not cached")
+
+// cachedEntry returns the entry of the file at path name of the commit of
+// ref, as findEntry does, from the directories cached alone, and whether
+// they held it. It does no I/O.
+func cachedEntry(svc Service, repo core.RepoRef, ref, name string) (core.TreeEntry, bool) {
+	e, err := walkEntry(func(q filesvc.TreeQuery) (core.Tree, error) {
+		if t, ok := svc.CachedTree(q); ok {
+			return t, nil
+		}
+		return core.Tree{}, errNotCached
+	}, repo, ref, name)
+	return e, err == nil
+}
+
+// walkEntry returns the entry of the file at path name of the commit of
+// ref, with its path from the root, reading each directory down to it
+// with tree.
+func walkEntry(tree func(filesvc.TreeQuery) (core.Tree, error), repo core.RepoRef, ref, name string) (core.TreeEntry, error) {
 	parts := strings.Split(strings.Trim(name, "/"), "/")
 	at := ref
 	for i, part := range parts {
-		t, err := svc.Tree(ctx, filesvc.TreeQuery{Repo: repo, Ref: at})
+		t, err := tree(filesvc.TreeQuery{Repo: repo, Ref: at})
 		if err != nil {
 			return core.TreeEntry{}, fmt.Errorf("find %s: %w", name, err)
 		}
@@ -182,6 +206,7 @@ func (p *preview) draw() tea.Cmd {
 		return nil
 	}
 	cmd, ok := fill(&p.pager, p.entry, p.img.blob, p.failed, p.open, p.icons, p.rendering())
+	cmd = tea.Batch(cmd, p.md.lookUp())
 	if ok {
 		// The search starts from the line, if there is one.
 		p.pager.GoToLine(p.line)
@@ -222,7 +247,7 @@ func (p *preview) SetRaw(raw bool) tea.Cmd {
 	p.raw = raw
 	query := p.pager.Query()
 	cmd, _ := fill(&p.pager, p.entry, p.img.blob, nil, p.open, p.icons, p.rendering())
-	return tea.Batch(cmd, p.pager.SetSearch(query))
+	return tea.Batch(cmd, p.pager.SetSearch(query), p.md.lookUp())
 }
 
 // TakesCommands implements ui.Commanded: the command key opens the
@@ -250,7 +275,7 @@ func fill(pg *pager.Model, e core.TreeEntry, b core.Blob, err error, open key.Bi
 		pg.SetMessage(name, "Symbolic link "+ic.Arrow+" "+string(b.Content))
 	case md != nil && markdownFile(e.Path):
 		// Decoded as the pager decodes text, such as a README in Latin-1.
-		pg.SetRendered(name, string(b.Content), md.render(termtext.Decode(string(b.Content))))
+		pg.SetRendered(name, string(b.Content), md.render(e.Path, termtext.Decode(string(b.Content))))
 		return nil, true
 	default:
 		return pg.SetContent(name, string(b.Content)), true
@@ -302,16 +327,31 @@ func (p *preview) Update(msg tea.Msg) tea.Cmd {
 		if !p.loaded {
 			return nil
 		}
-		return p.draw()
+		// The pictures of markdown drawn again, as they arrived, or
+		// images began or stopped being drawn.
+		if p.md.stale() {
+			p.pager.Rerender()
+		}
+		return tea.Batch(p.draw(), p.md.lookUp())
+	case imageEntryMsg:
+		if !p.md.take(msg) {
+			return nil
+		}
+		p.pager.Rerender()
+		return p.md.lookUp()
 	case pager.CloseMsg:
 		if msg.ID != p.pager.ID() {
 			return nil
 		}
 		return p.close()
 	case ui.OnlineMsg:
+		// The image files whose look-ups failed are looked up again.
+		if p.md.online() {
+			p.pager.Rerender()
+		}
 		// The file that failed for want of an answer is read again.
 		if !ui.Unreached(p.failed) {
-			return nil
+			return p.md.lookUp()
 		}
 		p.failed = nil
 		return p.load()
@@ -346,8 +386,10 @@ func (p *preview) View() string {
 	return p.img.view(&p.pager)
 }
 
-// SetSize sets the size of the pager, and fits the image to it.
+// SetSize sets the size of the pager, and fits the image, or the pictures
+// of markdown, to it.
 func (p *preview) SetSize(width, height int) {
+	p.md.setHeight(height - 1)
 	p.pager.SetSize(width, height)
 	if p.loaded && p.img.on {
 		// The image or the loading line; neither has a command.
