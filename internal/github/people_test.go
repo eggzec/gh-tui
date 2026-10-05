@@ -352,11 +352,37 @@ func TestProfileReadmeEmpty(t *testing.T) {
 	}
 }
 
+// A member whose token may not read the members-only README gets the
+// public one, but a refusal of the public one is an error.
 func TestProfileReadmeForbidden(t *testing.T) {
-	c, _ := serveReadmes(t, nil, map[string]int{"/repos/github/.github-private/readme/profile": http.StatusForbidden})
+	c, _ := serveReadmes(t, map[string]string{"/repos/github/.github/readme/profile": "public"},
+		map[string]int{"/repos/github/.github-private/readme/profile": http.StatusForbidden})
 
+	got, _, err := c.ProfileReadme(t.Context(), "github", core.OwnerOrg, true, Conditional{})
+	if err != nil || got.Markdown != "public" || got.MembersOnly {
+		t.Errorf("README = %+v, %v, want the public one", got, err)
+	}
+	c, _ = serveReadmes(t, nil, map[string]int{"/repos/github/.github/readme/profile": http.StatusForbidden})
 	if _, _, err := c.ProfileReadme(t.Context(), "github", core.OwnerOrg, true, Conditional{}); !errors.Is(err, core.ErrForbidden) {
 		t.Errorf("error = %v, want ErrForbidden", err)
+	}
+}
+
+// A member's README cached from .github, while .github-private has none,
+// is revalidated with a 304 after the members-only one is not found.
+func TestProfileReadmeMemberNotModified(t *testing.T) {
+	c, asked := serveReadmes(t, map[string]string{"/repos/github/.github/readme/profile": "public"}, nil)
+
+	got, res, err := c.ProfileReadme(t.Context(), "github", core.OwnerOrg, true, Conditional{})
+	if err != nil || got.Source.Name != ".github" {
+		t.Fatalf("README = %+v, %v, want the public one", got, err)
+	}
+	got, res, err = c.ProfileReadme(t.Context(), "github", core.OwnerOrg, true, Conditional{ETag: res.ETag})
+	if err != nil || !res.NotModified || got != (core.Readme{}) {
+		t.Errorf("revalidated = %+v, %+v, %v, want not modified", got, res, err)
+	}
+	if asked.Load() != 4 {
+		t.Errorf("asked %d times, want four, .github-private then .github each time", asked.Load())
 	}
 }
 
