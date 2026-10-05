@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/eggzec/gh-tui/pkg/termimg"
 	"github.com/eggzec/gh-tui/pkg/termtext"
@@ -297,5 +298,55 @@ func TestRenderedPicturesSideways(t *testing.T) {
 	assertFits(t, v, 10, 12)
 	if strings.ContainsRune(v, termtext.Placeholder) {
 		t.Error("scrolled sideways, the image shows cut")
+	}
+}
+
+func TestRenderedWaitsOutAResize(t *testing.T) {
+	r := &wrapWords{src: words(200)}
+	m := New(WithSize(30, 6), WithLineNumbers(false), WithResizeRest(time.Hour))
+	m.Focus()
+	m.SetRendered("README.md", r.src, r.render)
+	m, _ = keys(t, m, "G")
+	m = typeText(t, m, "/word150")
+	m, _ = deliver(m, enter)
+	renders := len(r.widths)
+
+	// A resize that goes on renders nothing, and each step replaces the
+	// rest before it.
+	m.SetSize(40, 6)
+	first := m.Settle()
+	m.SetSize(50, 6)
+	m.SetSize(60, 6)
+	if first == nil || m.Settle() == nil {
+		t.Fatal("a resize left no rest to wait out")
+	}
+	stale := settledMsg{id: m.id, seq: m.sizeSeq - 1}
+	m, _ = m.Update(stale)
+	m, _ = keys(t, m, "k")
+	if len(r.widths) != renders {
+		t.Fatalf("rendered at %v while the resize went on", r.widths[renders:])
+	}
+	if got := strings.Count(plain(m), "\n") + 1; got != m.height {
+		t.Errorf("the old render shows %d rows at the new width, want %d", got, m.height)
+	}
+
+	// The last rest renders once, at the last width, and keeps the
+	// search and the place.
+	m, _ = m.Update(settledMsg{id: m.id, seq: m.sizeSeq})
+	if len(r.widths) != renders+1 || r.widths[renders] != 60 {
+		t.Fatalf("rendered at %v after the rest, want once at 60", r.widths[renders:])
+	}
+	if m.Query() != "word150" || m.Matches() != 1 {
+		t.Errorf("after the rest the search is %q with %d matches", m.Query(), m.Matches())
+	}
+	if m.Settle() != nil {
+		t.Error("a rendered pager still waits")
+	}
+
+	// Sizing back to the width rendered at owes nothing.
+	m.SetSize(40, 6)
+	m.SetSize(60, 6)
+	if m.Settle() != nil {
+		t.Error("the width rendered at again still waits")
 	}
 }

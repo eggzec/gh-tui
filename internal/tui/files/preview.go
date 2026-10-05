@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
@@ -18,6 +19,11 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
+
+// resizeRest is how long rendered markdown waits at a new width, as the
+// window is resized, before it renders again: long files cost tens of
+// milliseconds a render, which would stutter a window being dragged.
+const resizeRest = 120 * time.Millisecond
 
 // preview shows a file in a pager, in a modal over the screen. It is opened
 // for one file and closed when the pager asks.
@@ -80,7 +86,7 @@ func newPreview(ctx context.Context, svc Service, host string, repo core.RepoRef
 	ctx, cancel := context.WithCancel(ctx)
 	// The preview loads the file once, and opens it on GitHub with open.
 	v.Retry, v.Open = key.Binding{}, open
-	pg := pager.New(pager.WithErrorText(fileErrorText(repo, v)), pager.WithEditor(editor))
+	pg := pager.New(pager.WithErrorText(fileErrorText(repo, v)), pager.WithEditor(editor), pager.WithResizeRest(resizeRest))
 	p := &preview{ctx: ctx, cancel: cancel, svc: svc, host: host, repo: repo, ref: ref, entry: e, open: open, pager: pg, icons: ic, raw: raw}
 	p.md.icons = ic
 	p.md.setFiles(ctx, svc, repo, ref, images)
@@ -385,6 +391,10 @@ func (p *preview) close() tea.Cmd {
 func (p *preview) View() string {
 	return p.img.view(&p.pager)
 }
+
+// Settle implements ui.Settler: the markdown renders again at its new
+// width once the resize rests.
+func (p *preview) Settle() tea.Cmd { return p.pager.Settle() }
 
 // SetSize sets the size of the pager, and fits the image, or the pictures
 // of markdown, to it.

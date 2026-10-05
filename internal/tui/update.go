@@ -78,7 +78,7 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.layout()
 		m.cells.resize(msg.Width, msg.Height)
 		// A resize may come of a change of font, which changes the cells.
-		cmd := m.askCells()
+		cmd := tea.Batch(m.askCells(), m.settleModal())
 		return m, cmd
 	case tea.BackgroundColorMsg:
 		m.applyTheme(msg.IsDark())

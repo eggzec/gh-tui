@@ -476,3 +476,18 @@ func TestFinderMarkdownLookUpsDropped(t *testing.T) {
 		t.Error("a look-up of an older generation was taken")
 	}
 }
+
+// A resize leaves the markdown as rendered until it rests, and then the
+// preview asks for one render at the last width.
+func TestPreviewMarkdownWaitsOutAResize(t *testing.T) {
+	images := uitest.Avatars(&uitest.ImageHost{}, false)
+	p, _ := markdownPreview(t, images, "")
+	if p.Settle() != nil {
+		t.Fatal("a preview at rest waits")
+	}
+	p.SetSize(40, 40)
+	p.SetSize(30, 40)
+	if p.Settle() == nil {
+		t.Error("a resized preview of markdown has no rest to wait out")
+	}
+}

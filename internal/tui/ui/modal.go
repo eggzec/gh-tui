@@ -25,6 +25,15 @@ type Modal interface {
 	Keyed
 }
 
+// Settler is a Modal that waits out a resize before it does work that is
+// costly at every width, such as rendering markdown again.
+type Settler interface {
+	// Settle returns the command that ends the wait the last SetSize
+	// began, or nil when nothing waits. The app calls it after the
+	// terminal is resized.
+	Settle() tea.Cmd
+}
+
 // Tabbed is a Modal with tabs, such as the filters of a list, which the
 // app shows at the right end of the top edge of the frame.
 type Tabbed interface {

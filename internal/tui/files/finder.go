@@ -157,7 +157,7 @@ func (s *Section) newFinder() *finderModal {
 	// opens it on GitHub with the browser key.
 	pv := s.voice
 	pv.Retry, pv.Open = key.Binding{}, f.keys.Browser
-	f.pager = pager.New(pager.WithErrorText(fileErrorText(repo, pv)))
+	f.pager = pager.New(pager.WithErrorText(fileErrorText(repo, pv)), pager.WithResizeRest(resizeRest))
 	f.img = fileImage{images: s.images, repo: repo, shown: shownText, ellipsis: s.icons.Ellipsis}
 	f.md.setFiles(ctx, s.svc, repo, ref, s.images)
 	f.icons = newFileIcons(s.icons, s.theme)
@@ -336,7 +336,7 @@ func (f *finderModal) Update(msg tea.Msg) tea.Cmd {
 		// It got no messages while hidden.
 		f.md.reset()
 		f.current = false
-		return f.moved()
+		return tea.Batch(f.moved(), f.pager.Settle())
 	case tea.KeyPressMsg:
 		if cmd, ok := f.press(msg); ok {
 			return cmd
@@ -373,7 +373,7 @@ func (f *finderModal) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		if !f.preview {
 			f.stopRead()
 		}
-		return f.moved(), true
+		return tea.Batch(f.moved(), f.pager.Settle()), true
 	}
 	return nil, false
 }
@@ -529,6 +529,10 @@ func (f *finderModal) View() string {
 	}
 	return b.String()
 }
+
+// Settle implements ui.Settler: the preview renders markdown again at its
+// new width once the resize rests.
+func (f *finderModal) Settle() tea.Cmd { return f.pager.Settle() }
 
 // SetSize shares the size between the finder and the preview.
 func (f *finderModal) SetSize(width, height int) {

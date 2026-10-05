@@ -3,6 +3,7 @@ package pager
 import (
 	"os"
 	"os/exec"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -23,9 +24,12 @@ type settings struct {
 	// environment for the others, exec runs the editor, and tempDir is
 	// where the file it opens goes; tests fake them.
 	editorCmd string
-	getenv    func(string) string
-	exec      func(*exec.Cmd, tea.ExecCallback) tea.Cmd
-	tempDir   string
+	// resizeRest is how long rendered content waits at a new width before
+	// it renders again, or 0 to render at once.
+	resizeRest time.Duration
+	getenv     func(string) string
+	exec       func(*exec.Cmd, tea.ExecCallback) tea.Cmd
+	tempDir    string
 }
 
 // DefaultTabWidth is the number of columns between tab stops by default.
@@ -108,6 +112,19 @@ func WithHighlightLimit(bytes int) Option {
 func WithErrorText(say func(error) (text, hint string)) Option {
 	return func(s *settings) {
 		s.errorText = say
+	}
+}
+
+// WithResizeRest sets how long rendered content waits, after the pager
+// is resized, before it renders again at the new width, so that a
+// resize that goes on, such as a window being dragged, renders it once
+// it stops rather than at every width. The parent starts the wait by
+// calling [Model.Settle] after each resize. It shows what it has, cut to
+// the new width, in the meantime. By default, or for 0, it renders at
+// once.
+func WithResizeRest(d time.Duration) Option {
+	return func(s *settings) {
+		s.resizeRest = d
 	}
 }
 
