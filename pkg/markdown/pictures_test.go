@@ -130,10 +130,56 @@ func TestAlone(t *testing.T) {
 		{"    ![a](https://x.test/a.png)", "", ""},
 		{"x ![a](https://x.test/a.png)", "", ""},
 	} {
-		alt, url, ok := alone(tt.line)
+		alt, url, ok := alone(tt.line, false)
 		if ok != (tt.url != "") || alt != tt.alt && ok || url != tt.url {
 			t.Errorf("alone(%q) = %q, %q, %v, want %q, %q", tt.line, alt, url, ok, tt.alt, tt.url)
 		}
+	}
+}
+
+// With relative addresses, an image alone may have one, but never one of
+// another scheme or host.
+func TestAloneRelative(t *testing.T) {
+	for _, tt := range []struct {
+		line, url string
+	}{
+		{"![a](docs/a.png)", "docs/a.png"},
+		{"![a](./a.png?raw=true)", "./a.png?raw=true"},
+		{"![a](/assets/a.png \"title\")", "/assets/a.png"},
+		{"![a](<../a b.png>)", ""},
+		{"![a](<../a.png>)", "../a.png"},
+		{"![a](https://x.test/a.png)", "https://x.test/a.png"},
+		{"![a](//x.test/a.png)", ""},
+		{"![a](data:image/png;base64,AAAA)", ""},
+		{"![a](javascript:alert(1))", ""},
+		{"![a](file:///etc/passwd)", ""},
+		{"- ![a](docs/a.png)", ""},
+	} {
+		_, url, ok := alone(tt.line, true)
+		if ok != (tt.url != "") || url != tt.url {
+			t.Errorf("alone(%q, true) = %q, %v, want %q", tt.line, url, ok, tt.url)
+		}
+	}
+}
+
+// A renderer told of relative addresses passes them to Pictures; one
+// that isn't leaves them text.
+func TestRelativePictures(t *testing.T) {
+	src := "# Title\n\n![logo](img/logo.png)\n\nText.\n"
+	var asked []string
+	draw := func(url string, width int) []string {
+		asked = append(asked, url)
+		return []string{strings.Repeat("#", width)}
+	}
+	r := New(DefaultStyle(true))
+	r.SetPictures(draw)
+	if out := r.Render(src, 20); len(asked) != 0 || strings.Contains(out, "####") {
+		t.Fatalf("drew %q without relative pictures:\n%s", asked, out)
+	}
+	r.SetRelativePictures(true)
+	out := r.Render(src, 20)
+	if len(asked) == 0 || asked[0] != "img/logo.png" || !strings.Contains(out, "####") {
+		t.Errorf("asked %q, rendered:\n%s", asked, out)
 	}
 }
 

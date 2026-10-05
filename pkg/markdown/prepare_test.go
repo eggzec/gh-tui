@@ -102,7 +102,7 @@ func TestPrepare(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := prepare(tt.in, nil, "", full, nil); got != tt.want {
+			if got := prepare(tt.in, nil, "", full, nil, false); got != tt.want {
 				t.Errorf("prepare(%q)\n got %q\nwant %q", tt.in, got, tt.want)
 			}
 		})
@@ -114,7 +114,7 @@ func TestPrepare(t *testing.T) {
 func TestTableCellsAreBounded(t *testing.T) {
 	row := "|" + strings.Repeat("a|", 15)
 	kept := maxTableCells / 16
-	got := strings.Split(prepare(lines(kept+2, row), nil, "", full, nil), "\n")
+	got := strings.Split(prepare(lines(kept+2, row), nil, "", full, nil, false), "\n")
 	text := strings.ReplaceAll(row, "|", `\|`)
 	want := append(strings.Split(lines(kept, row), "\n"), "", text, text)
 	if !slices.Equal(got, want) {
