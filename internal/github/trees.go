@@ -75,7 +75,7 @@ func (c *Client) getTree(ctx context.Context, endpoint string, cond Conditional)
 // core.ErrTooLarge. The blob's Binary field reports content that isn't text.
 // Blobs never change, so there is no conditional request.
 func (c *Client) GetBlob(ctx context.Context, repo core.RepoRef, sha string, limit int64) (core.Blob, error) {
-	b, err := c.getRaw(ctx, gitPath(repo)+"/blobs/"+url.PathEscape(sha), limit)
+	b, _, err := c.getRaw(ctx, gitPath(repo)+"/blobs/"+url.PathEscape(sha), Conditional{}, limit)
 	if err != nil {
 		return core.Blob{}, fmt.Errorf("get blob %s: %w", sha, err)
 	}
