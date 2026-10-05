@@ -63,9 +63,10 @@ func (m Model) editor() []string {
 }
 
 // edit opens the content in the editor, at the line at the top of the
-// window, and suspends the program until the editor exits. The editor gets
-// the content as it was given, before it was cleaned or decoded, and
-// whatever filter hides, in a file of its own that is removed afterwards.
+// window, or at its first line for rendered content, and suspends the
+// program until the editor exits. The editor gets the content as it was
+// given, before it was cleaned or decoded, and whatever filter hides, in
+// a file of its own that is removed afterwards.
 func (m *Model) edit() tea.Cmd {
 	if m.state != stateReady {
 		return nil
@@ -77,6 +78,10 @@ func (m *Model) edit() tea.Cmd {
 	}
 	id, run, dir := m.id, m.exec, m.tempDir
 	name, lang, text, line := m.name, m.lang, m.raw, m.topLine()+1
+	if m.render != nil {
+		// A rendered line has no line of its own in the source.
+		line = 1
+	}
 	return func() tea.Msg {
 		sweepTemp(dir, time.Now())
 		file, remove, err := writeTemp(dir, tempName(name, lang), text)
