@@ -27,6 +27,9 @@ type keyMap struct {
 	PrevTab key.Binding
 	Refresh key.Binding
 	Open    key.Binding
+	// Owner shows the page of the author, from the modal. On the list,
+	// the app's owner key does it.
+	Owner key.Binding
 
 	Merge       key.Binding
 	Close       key.Binding
@@ -52,6 +55,7 @@ func newKeyMap(keys map[string][]string) keyMap {
 		PrevTab:     ui.Binding(keys, config.ActionPrevFilter, "previous state"),
 		Refresh:     ui.Binding(keys, config.ActionRefresh, "refresh"),
 		Open:        ui.Binding(keys, config.ActionOpen, "open in browser"),
+		Owner:       ui.Binding(keys, config.ActionOwner, "author"),
 
 		Merge:       ui.Binding(keys, config.ActionMerge, "merge"),
 		Close:       ui.Binding(keys, config.ActionClose, "close"),
@@ -101,7 +105,7 @@ func (k keyMap) ShortHelp() []key.Binding {
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Merge, k.Close, k.Reopen, k.ToggleDraft},
-		{k.Back, k.Select, k.Checks, k.NextTab, k.PrevTab, k.ClearFilter, k.Refresh, k.Open, k.Filter, k.Sort},
+		{k.Back, k.Select, k.Checks, k.NextTab, k.PrevTab, k.ClearFilter, k.Refresh, k.Open, k.Owner, k.Filter, k.Sort},
 	}
 }
 
@@ -118,11 +122,12 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 
 // onList returns k as the list takes it: the changes that apply to the pull
 // request under the cursor, and the clear key while a filter is in
-// force. Back is the modal's.
+// force. Back and Owner are the modal's.
 func (k keyMap) onList(s *Section) keyMap {
 	pr, ok := s.target()
 	k = k.withChanges(s.gate(), s.mergeMethod, pr, ok)
 	k.ClearFilter.SetEnabled(k.ClearFilter.Enabled() && s.query != "")
 	k.Back.SetEnabled(false)
+	k.Owner.SetEnabled(false)
 	return k
 }

@@ -457,3 +457,25 @@ func TestModalFailureToasts(t *testing.T) {
 		})
 	}
 }
+
+// TestOwnerKeyInModal checks that the owner key of the modal, which the
+// list leaves to the app, closes it and asks for the author's page.
+func TestOwnerKeyInModal(t *testing.T) {
+	h := started(t, newFakeService(), 80, 20)
+	pr, _ := h.feed.Selected()
+	if got := uitest.Enabled(h.KeyLayers()); slices.Contains(got, "author") {
+		t.Errorf("list help = %v, want no author", got)
+	}
+	press(t, h, "enter")
+	m := h.modal()
+	if got := uitest.Enabled(m.KeyLayers()); !slices.Contains(got, "author") {
+		t.Errorf("modal help = %v, want author", got)
+	}
+	msgs := press(t, h, "@")
+	if !slices.Contains(msgs, tea.Msg(ui.OwnerMsg{Login: pr.Author.Login})) || pr.Author.Login == "" {
+		t.Errorf("@ sent %v, want the page of %q", msgs, pr.Author.Login)
+	}
+	if h.modal() != nil || m.ctx.Err() == nil {
+		t.Error("@ should close the modal and cancel its reads")
+	}
+}

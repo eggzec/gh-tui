@@ -236,6 +236,12 @@ type OwnerMsg struct {
 	Login string
 }
 
+// ShowOwner returns a command that asks the app to show the page of the
+// user or organization login.
+func ShowOwner(login string) tea.Cmd {
+	return func() tea.Msg { return OwnerMsg{Login: login} }
+}
+
 // SettingsMsg carries the config once the user changed a setting of it
 // for the session, such as ui.icons. Each section takes what it uses of
 // it; the app sets the theme again after, so a section need only keep

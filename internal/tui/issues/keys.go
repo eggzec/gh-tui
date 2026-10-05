@@ -28,6 +28,9 @@ type keyMap struct {
 	PrevTab key.Binding
 	Refresh key.Binding
 	Open    key.Binding
+	// Owner shows the page of the author, from the modal. On the list,
+	// the app's owner key does it.
+	Owner   key.Binding
 	Close   key.Binding
 	Reopen  key.Binding
 	Comment key.Binding
@@ -50,6 +53,7 @@ func newKeyMap(keys map[string][]string) keyMap {
 		PrevTab:     ui.Binding(keys, config.ActionPrevFilter, "previous state"),
 		Refresh:     ui.Binding(keys, config.ActionRefresh, "refresh"),
 		Open:        ui.Binding(keys, config.ActionOpen, "browser"),
+		Owner:       ui.Binding(keys, config.ActionOwner, "author"),
 		Close:       ui.Binding(keys, config.ActionClose, "close"),
 		Reopen:      ui.Binding(keys, config.ActionReopen, "reopen"),
 		Comment:     ui.Binding(keys, config.ActionComment, "comment"),
@@ -91,7 +95,7 @@ func (k keyMap) ShortHelp() []key.Binding {
 // the list's.
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Back, k.Comment, k.Label, k.Close, k.Reopen, k.Refresh, k.Open},
+		{k.Back, k.Comment, k.Label, k.Close, k.Reopen, k.Refresh, k.Open, k.Owner},
 		{k.Select, k.NextTab, k.PrevTab, k.ClearFilter, k.Filter, k.Sort},
 	}
 }
@@ -117,7 +121,7 @@ func (k keyMap) onList(s *Section) keyMap {
 	k.Reopen.SetEnabled(k.Reopen.Enabled() && ok && it.State != core.StateOpen)
 	k.Close, k.Reopen = g.Gated(k.Close, ui.ActClose, &it), g.Gated(k.Reopen, ui.ActReopen, &it)
 	k.ClearFilter.SetEnabled(k.ClearFilter.Enabled() && s.query != "")
-	for _, b := range []*key.Binding{&k.Back, &k.Comment, &k.Label} {
+	for _, b := range []*key.Binding{&k.Back, &k.Comment, &k.Label, &k.Owner} {
 		b.SetEnabled(false)
 	}
 	return k
@@ -139,6 +143,7 @@ func (m *detailModal) KeyLayers() []keyhelp.Layer {
 	k.Reopen.SetEnabled(k.Reopen.Enabled() && m.loaded && m.issue.State != core.StateOpen)
 	k.Comment.SetEnabled(k.Comment.Enabled() && m.loaded)
 	k.Label.SetEnabled(k.Label.Enabled() && m.loaded)
+	k.Owner.SetEnabled(k.Owner.Enabled() && m.issue.Author.Login != "")
 	k.Close, k.Reopen = g.Gated(k.Close, ui.ActClose, it), g.Gated(k.Reopen, ui.ActReopen, it)
 	k.Comment, k.Label = g.Gated(k.Comment, ui.ActComment, it), g.Gated(k.Label, ui.ActLabel, it)
 	for _, b := range []*key.Binding{&k.Select, &k.NextTab, &k.PrevTab, &k.ClearFilter, &k.Filter, &k.Sort} {
