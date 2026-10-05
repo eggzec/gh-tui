@@ -440,3 +440,45 @@ func TestNotFoundScopes(t *testing.T) {
 	}
 	gone.wantCalls(t, "header Octocat")
 }
+
+// AllRepos reads every page once, and the pages it read are cached for
+// CachedAllRepos and the reads after it.
+func TestAllRepos(t *testing.T) {
+	pages := map[string]core.Page[core.Repo]{
+		"":   {Items: repos("octocat", 2), Next: "p2"},
+		"p2": {Items: repos("octocat", 1)},
+	}
+	api := &fakeAPI{t: t, userRepos: func(_ string, _ core.RepoOrder, _ int, after string) (core.Page[core.Repo], error) {
+		return pages[after], nil
+	}}
+	s := New(api)
+	q := ReposQuery{Owner: "octocat", PageSize: 2}
+	if _, ok := s.CachedAllRepos(q, 0); ok {
+		t.Fatal("CachedAllRepos found pages before any read")
+	}
+	p, err := s.AllRepos(t.Context(), q, 0)
+	if err != nil || len(p.Items) != 3 || p.Next != "" {
+		t.Fatalf("AllRepos = %d repositories, next %q, %v; want 3 and the end", len(p.Items), p.Next, err)
+	}
+	if c, ok := s.CachedAllRepos(q, 0); !ok || len(c.Items) != 3 {
+		t.Errorf("CachedAllRepos = %d repositories, %v; want the 3 read", len(c.Items), ok)
+	}
+	if p, err := s.AllRepos(t.Context(), q, 1); err != nil || len(p.Items) != 2 || p.Next != "p2" {
+		t.Errorf("AllRepos up to 1 = %d repositories, next %q, %v; want the first page", len(p.Items), p.Next, err)
+	}
+	api.wantCalls(t, "user octocat 2 ", "user octocat 2 p2")
+}
+
+// A page that fails fails the whole read.
+func TestAllReposFails(t *testing.T) {
+	api := &fakeAPI{t: t, orgRepos: func(_ string, _ int, after string) (core.Page[core.Repo], error) {
+		if after == "" {
+			return core.Page[core.Repo]{Items: repos("charm", 1), Next: "p2"}, nil
+		}
+		return core.Page[core.Repo]{}, core.ErrRateLimited
+	}}
+	_, err := New(api).AllRepos(t.Context(), ReposQuery{Owner: "charm", Kind: core.OwnerOrg}, 0)
+	if !errors.Is(err, core.ErrRateLimited) {
+		t.Errorf("AllRepos = %v, want the rate limit", err)
+	}
+}

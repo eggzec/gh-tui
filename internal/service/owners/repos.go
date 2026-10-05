@@ -92,3 +92,66 @@ func (s *Service) Repos(ctx context.Context, q ReposQuery) (core.Page[core.Repo]
 	}
 	return p, nil
 }
+
+// MaxAllRepos is the most repositories AllRepos reads of one owner, so
+// that an organization with thousands costs a bounded number of requests.
+const MaxAllRepos = 1000
+
+// CachedAllRepos returns the repositories of q's owner from q.Cursor that
+// the cached pages hold, up to limit as AllRepos counts them, without I/O.
+// The page's Next is where the cached pages end, or empty if they reach
+// the last page. It reports false if not even the first page is cached.
+func (s *Service) CachedAllRepos(q ReposQuery, limit int) (core.Page[core.Repo], bool) {
+	p, ok, _ := allRepos(q, limit, func(q ReposQuery) (core.Page[core.Repo], bool, error) {
+		p, ok := s.CachedRepos(q)
+		return p, ok, nil
+	})
+	return p, ok
+}
+
+// AllRepos reads the repositories of q's owner page by page from
+// q.Cursor, the cached pages without a request, until the last page or
+// until it holds limit repositories, so that a filter can run over them
+// all. It reads whole pages, so it may hold a page's worth more. A limit
+// that is not positive or above MaxAllRepos means MaxAllRepos. The page's
+// Next is where reading stopped, or empty at the end; it is Stale, Offline
+// or Limited if any page read was, and Again applies to every page.
+func (s *Service) AllRepos(ctx context.Context, q ReposQuery, limit int) (core.Page[core.Repo], error) {
+	p, _, err := allRepos(q, limit, func(q ReposQuery) (core.Page[core.Repo], bool, error) {
+		p, err := s.Repos(ctx, q)
+		return p, err == nil, err
+	})
+	return p, err
+}
+
+// allRepos gathers the pages read from q.Cursor until the last one or
+// limit repositories. It stops at the first page read misses, and reports
+// whether it read any.
+func allRepos(q ReposQuery, limit int, read func(ReposQuery) (core.Page[core.Repo], bool, error)) (core.Page[core.Repo], bool, error) {
+	if limit <= 0 || limit > MaxAllRepos {
+		limit = MaxAllRepos
+	}
+	var all core.Page[core.Repo]
+	all.Next = q.Cursor
+	found := false
+	for len(all.Items) < limit {
+		q.Cursor = all.Next
+		p, ok, err := read(q)
+		if err != nil {
+			return core.Page[core.Repo]{}, false, err
+		}
+		if !ok {
+			break
+		}
+		found = true
+		all.Items = append(all.Items, p.Items...)
+		all.Next = p.Next
+		all.Stale = all.Stale || p.Stale
+		all.Offline = all.Offline || p.Offline
+		all.Limited = all.Limited || p.Limited
+		if p.Last() {
+			break
+		}
+	}
+	return all, found, nil
+}
