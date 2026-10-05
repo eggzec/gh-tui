@@ -1,13 +1,13 @@
 package dashboard
 
 import (
-	"cmp"
 	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/ownerui"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
@@ -18,12 +18,9 @@ import (
 // at the bottom. Below that, or zoomed, it shows the profile and the
 // focused pane, whose frame names the others.
 const (
-	wideWidth  = 100
-	wideHeight = 30
-	// profileLines is how many lines the profile takes without an
-	// avatar beside it.
-	profileLines = 2
-	pinnedHeight = cardHeight + 2
+	wideWidth    = 100
+	wideHeight   = 30
+	pinnedHeight = ownerui.CardHeight + 2
 	// calendarLines is what the calendar draws: the total, the months,
 	// seven days and the legend.
 	calendarLines  = 10
@@ -61,7 +58,7 @@ func (s *Section) layout() {
 	}
 	s.boxes = b
 	in := func(p paneID) (int, int) { return max(b[p].w-2, 0), max(b[p].h-2, 0) }
-	s.pinned.resize(in(pinnedPane))
+	s.pinned.Resize(in(pinnedPane))
 	s.repos.resize(in(reposPane))
 	s.tasks.resize(in(workPane))
 	cw, ch := in(calendarPane)
@@ -165,7 +162,7 @@ func (s *Section) label(p paneID) (label string, width int) {
 	}
 	if !s.onePane() {
 		text := s.paneLabel(p)
-		return title.render(text), ansi.StringWidth(text)
+		return title.Render(text), ansi.StringWidth(text)
 	}
 	// The other panes go by their titles, then by shorter ones, then by
 	// their keys alone, whichever fits.
@@ -185,9 +182,9 @@ func (s *Section) label(p paneID) (label string, width int) {
 				n += 2
 			}
 			if i == p {
-				title.write(&b, part)
+				title.Write(&b, part)
 			} else {
-				st.subtle.write(&b, part)
+				st.subtle.Write(&b, part)
 			}
 			n += ansi.StringWidth(part)
 		}
@@ -215,7 +212,7 @@ func (s *Section) paneLabel(p paneID) string {
 	}
 	switch p {
 	case pinnedPane:
-		if at, of := s.pinned.pages(); of > 1 {
+		if at, of := s.pinned.Pages(); of > 1 {
 			text += s.icons.Separator + strconv.Itoa(at) + "/" + strconv.Itoa(of)
 		}
 	case reposPane:
@@ -251,40 +248,36 @@ func (s *Section) frame(label string, labelW int, b box, focused bool, body []st
 		labelW = ansi.StringWidth(label)
 	}
 	if labelW == 0 {
-		lines = append(lines, edge.render(bd.TopLeft+strings.Repeat(bd.Top, b.w-2)+bd.TopRight))
+		lines = append(lines, edge.Render(bd.TopLeft+strings.Repeat(bd.Top, b.w-2)+bd.TopRight))
 	} else {
 		rest := max(b.w-4-labelW, 0)
-		lines = append(lines, edge.render(bd.TopLeft+bd.Top)+label+edge.render(" "+strings.Repeat(bd.Top, rest)+bd.TopRight))
+		lines = append(lines, edge.Render(bd.TopLeft+bd.Top)+label+edge.Render(" "+strings.Repeat(bd.Top, rest)+bd.TopRight))
 	}
-	side, inner := edge.render(bd.Left), b.w-2
+	side, inner := edge.Render(bd.Left), b.w-2
 	for i := range b.h - 2 {
 		var l string
 		if i < len(body) {
 			l = body[i]
 		}
-		lines = append(lines, side+fit(l, inner)+side)
+		lines = append(lines, side+ownerui.Fit(l, inner)+side)
 	}
-	return append(lines, edge.render(bd.BottomLeft+strings.Repeat(bd.Bottom, b.w-2)+bd.BottomRight))
+	return append(lines, edge.Render(bd.BottomLeft+strings.Repeat(bd.Bottom, b.w-2)+bd.BottomRight))
 }
 
-// profileHeight is how many lines the profile takes: those of the
-// avatar's box when the avatar is drawn, whether it has arrived or not,
-// so that nothing moves when it does.
+// profileHeight is how many lines the profile takes.
 func (s *Section) profileHeight() int {
-	if s.avatarShown() {
-		return max(profileLines, ui.AvatarLarge.Rows)
-	}
-	return profileLines
+	return ownerui.ProfileHeight(s.avatarShown())
 }
-
-// minAvatarWidth is the narrowest dashboard that shows the avatar: room
-// for its box, the space before it and some of the profile beside it.
-const minAvatarWidth = 1 + 6 + 20
 
 // avatarShown reports whether the profile shows the viewer's avatar:
 // where avatars are drawn, on a dashboard wide enough.
 func (s *Section) avatarShown() bool {
-	return s.avatars.Shown() && s.width >= minAvatarWidth
+	return s.avatars.Shown() && s.width >= ownerui.MinAvatarWidth
+}
+
+// drawer draws the profile and the pinned cards in the dashboard's styles.
+func (s *Section) drawer() ownerui.Drawer {
+	return ownerui.Drawer{Styles: &s.st.shared, Icons: s.icons, Links: &s.links, URL: s.repoURL, Lang: s.langPaint}
 }
 
 // profile renders the lines above the panes: who the viewer is, and how
@@ -293,18 +286,12 @@ func (s *Section) profile() []string {
 	st, w := &s.st, s.width
 	n := s.profileHeight()
 	if w <= 2 {
-		lines := make([]string, n)
-		for i := range lines {
-			lines[i] = fit("", w)
-		}
-		return lines
+		return ownerui.BlankProfile(w, n)
 	}
 	avatar := ""
 	if s.header.ok {
 		avatar = ui.SizedAvatar(s.header.value.Profile.AvatarURL, ui.AvatarLarge)
 	}
-	// The avatar's box goes first on each line, after a space, outside
-	// any style, since its cells name the image by their color.
 	var box []string
 	if s.avatarShown() {
 		box = s.avatars.Box(avatar, ui.AvatarLarge)
@@ -313,12 +300,8 @@ func (s *Section) profile() []string {
 	var first, second, right string
 	switch h := s.header; {
 	case h.ok:
-		p := h.value.Profile
-		first = st.name.render(cleanLine(cmp.Or(p.Name, p.Login))) + " " + st.login.render("@"+cleanLine(p.Login))
-		if p.Bio != "" {
-			first += st.subtle.render(s.icons.Separator) + st.text.render(cleanLine(p.Bio))
-		}
-		second = s.facts(p)
+		d := s.drawer()
+		first, second = d.NameLine(h.value.Profile), d.Facts(h.value.Profile)
 	case h.err != nil:
 		// The error takes both lines of the profile, and no more: when
 		// the hint would need a third, the text gives up all but its
@@ -332,50 +315,19 @@ func (s *Section) profile() []string {
 		lines = append(lines, "", "")
 		first, second = lines[0], lines[1]
 	default:
-		first = st.muted.render("Loading your profile" + s.icons.Ellipsis)
+		first = st.muted.Render("Loading your profile" + s.icons.Ellipsis)
 	}
 	// The app's header counts the unread notifications, and so does the
 	// notifications pane.
 	switch {
 	case s.offlineNow():
-		right = st.warning.render(ui.SayKept(core.Offline, s.icons))
+		right = st.warning.Render(ui.SayKept(core.Offline, s.icons))
 	case s.limitedNow():
-		right = st.warning.render(ui.SayKept(core.RateLimited, s.icons))
+		right = st.warning.Render(ui.SayKept(core.RateLimited, s.icons))
 	case s.updating():
-		right = st.subtle.render("updating" + s.icons.Ellipsis)
+		right = st.subtle.Render("updating" + s.icons.Ellipsis)
 	}
-	tail := s.icons.Ellipsis
-	lines := []string{spread(" "+first, "", w, tail), spread(" "+second, right+" ", w, tail)}
-	for len(lines) < n {
-		lines = append(lines, fit("", w))
-	}
-	for i := range box {
-		lines[i] = " " + box[i] + lines[i]
-	}
-	return lines
-}
-
-// facts lists the company, location, follows and status of p.
-func (s *Section) facts(p core.Profile) string {
-	st := &s.st
-	parts := make([]string, 0, 6)
-	for _, t := range []string{p.Company, p.Location} {
-		if t = cleanLine(t); t != "" {
-			parts = append(parts, st.muted.render(t))
-		}
-	}
-	parts = append(parts,
-		st.text.render(count(p.Followers))+st.muted.render(plural(p.Followers, " follower", " followers")),
-		st.text.render(count(p.Following))+st.muted.render(" following"),
-	)
-	if m := cleanLine(p.Status.Message); m != "" || p.Status.Busy {
-		status := m
-		if p.Status.Busy {
-			status = strings.TrimSpace("busy " + status)
-		}
-		parts = append(parts, st.accent.render(status))
-	}
-	return strings.Join(parts, st.subtle.render(s.icons.Separator))
+	return s.drawer().Profile(box, first, second, right, w, n)
 }
 
 // unread is the number of unread threads, with a "+" when more pages
@@ -402,92 +354,31 @@ func (s *Section) unread() string {
 
 func (s *Section) pinnedBody(w, h int) []string {
 	st, c := &s.st, &s.pinned
-	if c.cols == 0 {
+	if c.Cols == 0 {
 		return nil
 	}
-	if len(c.items) == 0 {
+	if len(c.Items) == 0 {
 		switch {
 		case s.header.err != nil && !s.header.ok:
 			return indent(s.failure("load your pins", s.header.err, w-1))
 		case !s.header.ok:
-			return []string{" " + st.muted.render("Loading pinned repositories"+s.icons.Ellipsis)}
+			return []string{" " + st.muted.Render("Loading pinned repositories"+s.icons.Ellipsis)}
 		}
-		return []string{" " + st.muted.render(ui.None("pinned repositories")+" Pin them on your GitHub profile to see them here.")}
+		return []string{" " + st.muted.Render(ui.None("pinned repositories")+" Pin them on your GitHub profile to see them here.")}
 	}
-	lines := make([]string, 0, h)
-	for row := c.top; row < c.top+c.rows && row*c.cols < len(c.items); row++ {
-		if row > c.top {
-			lines = append(lines, "")
-		}
-		var rowLines [cardHeight]strings.Builder
-		for col := range c.cols {
-			i := row*c.cols + col
-			if i >= len(c.items) {
-				break
-			}
-			card := s.card(c.items[i], i == c.sel, c.cardWidth(w, col))
-			for l := range cardHeight {
-				if col > 0 {
-					rowLines[l].WriteString(strings.Repeat(" ", cardGap))
-				}
-				rowLines[l].WriteString(card[l])
-			}
-		}
-		for l := range rowLines {
-			lines = append(lines, rowLines[l].String())
-		}
-	}
-	return lines
+	return c.Lines(w, h, s.card)
 }
 
-// card renders a pinned repository in w cells: its name, two lines of its
-// description, and its language and stars.
-func (s *Section) card(c card, selected bool, w int) [cardHeight]string {
-	st := &s.st
+// card renders a pinned repository in w cells, marked when selected.
+func (s *Section) card(c ownerui.Card, selected bool, w int) [ownerui.CardHeight]string {
 	gutter := "  "
 	if selected {
-		gutter = st.blurred
+		gutter = s.st.blurred
 		if s.focused && s.focus == pinnedPane {
-			gutter = st.cursor
+			gutter = s.st.cursor
 		}
 	}
-	inner := max(w-2, 0)
-	r := c.repo
-	var out [cardHeight]string
-	out[0] = gutter + s.links.Link(s.repoURL(r), st.name.render(truncate(r.Ref.String(), inner, s.icons.Ellipsis)))
-	desc := wrap(cleanLine(r.Description), inner, 2, s.icons.Ellipsis)
-	if len(desc) == 0 && c.here && r.Description == "" {
-		desc = []string{"The repository of this directory."}
-	}
-	for i, d := range desc {
-		out[1+i] = gutter + st.muted.render(d)
-	}
-	for i := len(desc); i < 2; i++ {
-		out[1+i] = gutter
-	}
-	facts := s.repoFacts(r, inner)
-	if c.here {
-		facts = st.accent.render(s.icons.Here) + "  " + facts
-	}
-	out[3] = gutter + termtext.Truncate(facts, inner, s.icons.Ellipsis)
-	for i := range out {
-		out[i] = fit(out[i], w)
-	}
-	return out
-}
-
-// repoFacts renders the language, stars and flags of r in at most w cells.
-func (s *Section) repoFacts(r core.Repo, w int) string {
-	st := &s.st
-	parts := make([]string, 0, 4)
-	if r.Language != "" {
-		parts = append(parts, s.langPaint(r).render(s.icons.Language(r.Language))+" "+st.text.render(r.Language))
-	}
-	parts = append(parts, st.muted.render(s.icons.Star+" "+count(r.Stars)))
-	if flags := s.icons.Flags(r); len(flags) > 0 {
-		parts = append(parts, st.subtle.render(strings.Join(flags, " ")))
-	}
-	return termtext.Truncate(strings.Join(parts, "  "), w, s.icons.Ellipsis)
+	return s.drawer().Card(c, gutter, w)
 }
 
 // reposBody renders the tabs of the owners above the list of the tab on
@@ -499,7 +390,7 @@ func (s *Section) reposBody(w, h int) []string {
 	// The headers name the columns once there are rows under them.
 	head := ""
 	if o.feed.Len() > 0 {
-		head = strings.Repeat(" ", gutterWidth) + s.st.subtle.render(o.cols.header(s.icons.Star, s.icons.Ellipsis))
+		head = strings.Repeat(" ", gutterWidth) + s.st.subtle.Render(o.cols.header(s.icons.Star, s.icons.Ellipsis))
 	}
 	lines = append(lines, head)
 	if body := o.feed.View(); body != "" {
@@ -515,7 +406,7 @@ func (s *Section) tabsLine(w int) string {
 	st, t := &s.st, &s.repos
 	var right string
 	if r, ok := t.selected(); ok && r.Language != "" {
-		right = s.langPaint(r).render(s.icons.Language(r.Language)) + " " + st.muted.render(r.Language)
+		right = s.langPaint(r).Render(s.icons.Language(r.Language)) + " " + st.muted.Render(r.Language)
 	}
 	room := max(w-ansi.StringWidth(right)-2, 0)
 	// Scroll the tabs so the one on view fits, with the ones before it
@@ -528,25 +419,25 @@ func (s *Section) tabsLine(w int) string {
 	b.WriteByte(' ')
 	used := 1
 	if start > 0 {
-		st.subtle.write(&b, s.icons.Before+" ")
+		st.subtle.Write(&b, s.icons.Before+" ")
 		used += 2
 	}
 	for i := start; i < len(t.tabs); i++ {
 		label := t.tabs[i].label
 		lw := ansi.StringWidth(label) + 2
 		if used+lw > room {
-			st.subtle.write(&b, s.icons.Crumb)
+			st.subtle.Write(&b, s.icons.Crumb)
 			break
 		}
 		if i == t.cur {
-			st.focusTitle.write(&b, label)
+			st.focusTitle.Write(&b, label)
 		} else {
-			st.muted.write(&b, label)
+			st.muted.Write(&b, label)
 		}
 		b.WriteString("  ")
 		used += lw
 	}
-	return spread(b.String(), right, w, s.icons.Ellipsis)
+	return ownerui.Spread(b.String(), right, w, s.icons.Ellipsis)
 }
 
 func tabsWidth(tabs []*owner) int {
@@ -564,7 +455,7 @@ func (s *Section) workBody(w, h int) []string {
 	case !s.work.ok && s.work.err != nil:
 		return indent(s.failure("load your work", s.work.err, w-1))
 	case !s.work.ok:
-		return []string{" " + st.muted.render("Loading the work waiting on you"+s.icons.Ellipsis)}
+		return []string{" " + st.muted.Render("Loading the work waiting on you"+s.icons.Ellipsis)}
 	}
 	lines := make([]string, 0, h)
 	lines = append(lines, s.workTabs(w))
@@ -581,7 +472,7 @@ func (s *Section) workBody(w, h int) []string {
 		}
 		r := &t.rows[i]
 		if r.hit == nil {
-			lines = append(lines, "   "+st.subtle.render(r.note))
+			lines = append(lines, "   "+st.subtle.Render(r.note))
 			continue
 		}
 		lines = s.workItem(lines, r, i == t.sel, focused, w)
@@ -620,9 +511,9 @@ func (s *Section) workTabs(w int) string {
 			b.WriteString("  ")
 		}
 		if i == l.cur {
-			st.focusTitle.write(&b, label)
+			st.focusTitle.Write(&b, label)
 		} else {
-			st.muted.write(&b, label)
+			st.muted.Write(&b, label)
 		}
 	}
 	return b.String()
@@ -651,9 +542,9 @@ func (s *Section) workItem(lines []string, r *workRow, selected, focused bool, w
 		used := workIndent
 		if i == 0 {
 			state := ui.HitState(*hit)
-			st.states[state].write(&b, s.icons.State(state))
+			st.states[state].Write(&b, s.icons.State(state))
 			b.WriteByte(' ')
-			st.muted.write(&link, r.ref)
+			st.muted.Write(&link, r.ref)
 			used += ansi.StringWidth(r.ref)
 			if text != "" {
 				link.WriteByte(' ')
@@ -663,12 +554,12 @@ func (s *Section) workItem(lines []string, r *workRow, selected, focused bool, w
 			b.WriteString("  ")
 		}
 		// Where it is and each line of its title link to its page.
-		titleStyle.write(&link, text)
+		titleStyle.Write(&link, text)
 		b.WriteString(s.links.Link(hit.Issue.URL, link.String()))
 		used += ansi.StringWidth(text)
 		if i == len(r.lines)-1 {
 			b.WriteString(strings.Repeat(" ", max(w-used-ansi.StringWidth(age), 1)))
-			st.subtle.write(&b, age)
+			st.subtle.Write(&b, age)
 		}
 		lines = append(lines, b.String())
 	}
@@ -688,20 +579,20 @@ func (s *Section) inboxBody(w, h int) []string {
 	}
 	switch {
 	case s.inbox == nil:
-		return []string{" " + st.muted.render("Notifications aren't available.")}
+		return []string{" " + st.muted.Render("Notifications aren't available.")}
 	case !s.notes.ok && s.notes.err != nil:
 		return indent(s.failure("load your notifications", s.notes.err, w-1))
 	case !s.notes.ok:
-		return []string{" " + st.muted.render("Loading notifications"+s.icons.Ellipsis)}
+		return []string{" " + st.muted.Render("Loading notifications"+s.icons.Ellipsis)}
 	}
 	n := s.unread()
 	if n == "" {
-		return []string{" " + st.muted.render(ui.None("unread notifications"))}
+		return []string{" " + st.muted.Render(ui.None("unread notifications"))}
 	}
 	lines := make([]string, 0, h)
-	head := " " + st.text.render(n) + st.muted.render(" unread")
+	head := " " + st.text.Render(n) + st.muted.Render(" unread")
 	if k := s.keys.Notifications.Help().Key; k != "" {
-		head += st.subtle.render(s.icons.Separator + s.icons.Key(k) + " shows them all")
+		head += st.subtle.Render(s.icons.Separator + s.icons.Key(k) + " shows them all")
 	}
 	lines = append(lines, head)
 	l := &s.threads
@@ -720,13 +611,13 @@ func (s *Section) inboxBody(w, h int) []string {
 		}
 		age := s.dates.Short(nt.UpdatedAt, s.now())
 		room := max(w-4-s.dates.Width()-1, 0)
-		repo := truncate(nt.Repo.Name, min(ansi.StringWidth(nt.Repo.Name), room/3), s.icons.Ellipsis)
-		title := truncate(cleanLine(nt.Subject.Title), max(room-ansi.StringWidth(repo)-2, 0), s.icons.Ellipsis)
+		repo := ownerui.Truncate(nt.Repo.Name, min(ansi.StringWidth(nt.Repo.Name), room/3), s.icons.Ellipsis)
+		title := ownerui.Truncate(ownerui.CleanLine(nt.Subject.Title), max(room-ansi.StringWidth(repo)-2, 0), s.icons.Ellipsis)
 		used := 4 + ansi.StringWidth(repo) + 2 + ansi.StringWidth(title)
 		// The repository and the title link to the thread's page.
-		link := s.links.Link(nt.Subject.WebURL, st.muted.render(repo)+"  "+titleStyle.render(title))
-		lines = append(lines, gutter+st.accent.render(s.icons.Dot)+" "+link+
-			strings.Repeat(" ", max(w-used-ansi.StringWidth(age), 1))+st.subtle.render(age))
+		link := s.links.Link(nt.Subject.WebURL, st.muted.Render(repo)+"  "+titleStyle.Render(title))
+		lines = append(lines, gutter+st.accent.Render(s.icons.Dot)+" "+link+
+			strings.Repeat(" ", max(w-used-ansi.StringWidth(age), 1))+st.subtle.Render(age))
 	}
 	return lines
 }

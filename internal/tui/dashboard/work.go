@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/ownerui"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -96,7 +97,7 @@ func (l *workList) set(w core.Work) {
 		case len(list.Items) == 0:
 			rows = append(rows, workRow{note: wl.empty})
 		case more > 0:
-			rows = append(rows, workRow{note: "and " + itoa(more) + " more on GitHub"})
+			rows = append(rows, workRow{note: "and " + strconv.Itoa(more) + " more on GitHub"})
 		}
 		*t = workTab{count: list.Count, refused: list.Refused, rows: rows, items: len(list.Items), top: t.top}
 		for j := range t.items {
@@ -191,8 +192,8 @@ func wrapWork(is core.Issue, width, age int, tail string) (ref string, lines []s
 		return "", []string{""}
 	}
 	ref = is.Repo.Name + "#" + strconv.Itoa(is.Number)
-	ref = truncate(ref, min(ansi.StringWidth(ref), max(width/2, 1)), tail)
-	title := cleanLine(is.Title)
+	ref = ownerui.Truncate(ref, min(ansi.StringWidth(ref), max(width/2, 1)), tail)
+	title := ownerui.CleanLine(is.Title)
 	if title == "" {
 		lines = []string{""}
 	} else {

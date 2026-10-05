@@ -146,21 +146,21 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		c := &s.pinned
 		switch {
 		case key.Matches(msg, k.Left):
-			c.move(-1)
+			c.Move(-1)
 		case key.Matches(msg, k.Right):
-			c.move(1)
+			c.Move(1)
 		case key.Matches(msg, k.Up):
-			c.move(-c.cols)
+			c.Move(-c.Cols)
 		case key.Matches(msg, k.Down):
-			c.move(c.cols)
+			c.Move(c.Cols)
 		case key.Matches(msg, k.Select):
-			if it, ok := c.selected(); ok {
-				s.aheadPinned.Opened(it.repo.Ref)
-				return selectRepo(it.repo.Ref), true
+			if it, ok := c.Selected(); ok {
+				s.aheadPinned.Opened(it.Repo.Ref)
+				return selectRepo(it.Repo.Ref), true
 			}
 		case key.Matches(msg, k.Open):
-			if it, ok := c.selected(); ok {
-				return ui.Open(s.repoURL(it.repo)), true
+			if it, ok := c.Selected(); ok {
+				return ui.Open(s.repoURL(it.Repo)), true
 			}
 		default:
 			return nil, false

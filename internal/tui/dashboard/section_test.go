@@ -448,10 +448,10 @@ func TestPinned(t *testing.T) {
 	s := newSection(t, newFake(), nil, 140, 38)
 	press(t, s, "1")
 	// The repository of the current directory comes first, on its pin.
-	if c, _ := s.pinned.selected(); !c.here || c.repo.Description == "" {
+	if c, _ := s.pinned.Selected(); !c.Here || c.Repo.Description == "" {
 		t.Errorf("the first card is %+v, want the repository here, with its pin", c)
 	}
-	if n := len(s.pinned.items); n != 5 {
+	if n := len(s.pinned.Items); n != 5 {
 		t.Errorf("%d cards, want the 5 pins with hello-world first", n)
 	}
 	app := press(t, s, "right", "enter")
@@ -477,11 +477,11 @@ func TestHereWithoutPin(t *testing.T) {
 		return core.Repo{Ref: r, Description: "Read for its card", Stars: 9}, nil
 	}
 	s := newSection(t, newFake(), nil, 140, 38, WithHere(other, &fakeRepos{get: get}))
-	c, _ := s.pinned.selected()
-	if !c.here || c.repo.Ref != other || c.repo.Description != "Read for its card" {
+	c, _ := s.pinned.Selected()
+	if !c.Here || c.Repo.Ref != other || c.Repo.Description != "Read for its card" {
 		t.Errorf("the first card is %+v, want the repository here as read", c)
 	}
-	if n := len(s.pinned.items); n != 6 {
+	if n := len(s.pinned.Items); n != 6 {
 		t.Errorf("%d cards, want the repository here and 5 pins", n)
 	}
 }
@@ -491,7 +491,7 @@ func TestNoHere(t *testing.T) {
 	if app := press(t, s, "."); len(app) != 0 {
 		t.Errorf(". sent %v without a repository here", app)
 	}
-	if c, _ := s.pinned.selected(); c.here {
+	if c, _ := s.pinned.Selected(); c.Here {
 		t.Error("without a repository here, no card is marked here")
 	}
 }

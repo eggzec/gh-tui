@@ -6,6 +6,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/eggzec/gh-tui/internal/tui/ownerui"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 )
@@ -69,7 +70,7 @@ func TestProfileAvatar(t *testing.T) {
 // A dashboard too narrow for the avatar beside the profile shows the
 // profile without it, and every line keeps the width.
 func TestProfileAvatarNarrow(t *testing.T) {
-	for w := 1; w <= minAvatarWidth+2; w++ {
+	for w := 1; w <= ownerui.MinAvatarWidth+2; w++ {
 		src := &uitest.ImageHost{}
 		a := uitest.Avatars(src, true)
 		s := newSection(t, newFake(), &fakeInbox{threads: inboxThreads()}, w, 24, WithAvatars(a))
@@ -80,7 +81,7 @@ func TestProfileAvatarNarrow(t *testing.T) {
 				t.Errorf("width %d: line %d is %d wide", w, i, got)
 			}
 		}
-		if n := uitest.Placeholders(t, s.View()); (n > 0) != (w >= minAvatarWidth) {
+		if n := uitest.Placeholders(t, s.View()); (n > 0) != (w >= ownerui.MinAvatarWidth) {
 			t.Errorf("width %d: %d placeholder cells", w, n)
 		}
 	}
