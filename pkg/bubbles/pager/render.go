@@ -3,6 +3,9 @@ package pager
 import (
 	"context"
 	"strings"
+	"time"
+
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/charmbracelet/x/ansi"
 
@@ -29,7 +32,7 @@ type Render func(width int) string
 func (m *Model) SetRendered(name, source string, render Render) {
 	m.reset(name, stateReady, nil)
 	m.raw, m.render = source, render
-	m.renderedAt = -1
+	m.renderedAt, m.owed = -1, false
 	m.fitRendered(false)
 }
 
@@ -54,8 +57,13 @@ func (m *Model) Rerender() {
 func (m *Model) fitRendered(force bool) {
 	w := m.textWidth()
 	if m.render == nil || m.state != stateReady || w <= 0 || w == m.renderedAt && !force {
+		m.owed = m.owed && !force && w != m.renderedAt
 		return
 	}
+	if m.owed && !force {
+		return
+	}
+	m.owed = false
 	top, n := m.topLine(), len(m.lines)
 	s, p := m.search, m.proj
 	// The gutter widens with the number of lines, which leaves less room
@@ -105,6 +113,26 @@ func (m *Model) fitRendered(force bool) {
 		}
 	}
 	m.enableSearchKeys()
+}
+
+// Settle starts the rest that rendered content waits after a resize,
+// set with [WithResizeRest], and returns the command that ends it, or nil
+// when nothing waits. Each call replaces the rest before it, so a resize
+// that goes on renders once, at the last width, when the rest ends: the
+// pager takes the message the command sends through Update.
+func (m *Model) Settle() tea.Cmd {
+	if !m.owed {
+		return nil
+	}
+	m.sizeSeq++
+	msg := settledMsg{id: m.id, seq: m.sizeSeq}
+	return tea.Tick(m.resizeRest, func(time.Time) tea.Msg { return msg })
+}
+
+// settledMsg ends the rest of the pager with the ID that Settle began.
+type settledMsg struct {
+	id  int64
+	seq int
 }
 
 // takePictures keeps the lines of text that draw images, as they are, by

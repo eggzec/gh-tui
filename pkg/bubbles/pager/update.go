@@ -19,6 +19,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case settledMsg:
+		if msg.id == m.id && msg.seq == m.sizeSeq {
+			m.owed = false
+		}
+		return m, nil
 	case highlightMsg:
 		if msg.id == m.id && msg.gen == m.gen {
 			m.spans = msg.spans

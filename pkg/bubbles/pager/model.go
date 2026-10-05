@@ -71,6 +71,11 @@ type Model struct {
 	// at.
 	render     Render
 	renderedAt int
+	// owed is set when a resize left the rendered content at a width
+	// other than its own, until it renders again, and sizeSeq counts the
+	// rests started by Settle, so that only the last one renders.
+	owed    bool
+	sizeSeq int
 	// pics are the lines of rendered content that draw images, as they
 	// are, by their index; the lines hold them blank.
 	pics map[int]string
@@ -173,6 +178,10 @@ func (m *Model) SetSize(width, height int) {
 	m.width, m.height = max(width, 0), max(height, 0)
 	m.prompt.SetSize(m.width, 1)
 	m.clamp()
+	if m.resizeRest > 0 && m.render != nil && m.state == stateReady && m.renderedAt > 0 {
+		// A render owed at the new width waits for the rest.
+		m.owed = m.textWidth() != m.renderedAt
+	}
 	m.fitRendered(false)
 }
 

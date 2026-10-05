@@ -39,6 +39,15 @@ func (m *Model) openModal(mod ui.Modal) {
 	mod.SetSize(m.modalSize())
 }
 
+// settleModal asks the open modal, if it waits out resizes, to end the
+// wait that the resize began.
+func (m *Model) settleModal() tea.Cmd {
+	if s, ok := m.modal.(ui.Settler); ok {
+		return s.Settle()
+	}
+	return nil
+}
+
 // isOpen reports whether mod is open.
 func (m *Model) isOpen(mod ui.Modal) bool {
 	return mod != nil && m.modal == mod
