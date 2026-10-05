@@ -27,6 +27,7 @@ import (
 	historysvc "github.com/eggzec/gh-tui/internal/service/history"
 	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
 	notifsvc "github.com/eggzec/gh-tui/internal/service/notifications"
+	ownersvc "github.com/eggzec/gh-tui/internal/service/owners"
 	pullsvc "github.com/eggzec/gh-tui/internal/service/pulls"
 	releasesvc "github.com/eggzec/gh-tui/internal/service/releases"
 	reposvc "github.com/eggzec/gh-tui/internal/service/repos"
@@ -180,6 +181,9 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	dashSvc := dashsvc.New(client, dashsvc.WithTTLs(dashsvc.TTLs{
 		Header: ttl.Profile, Work: ttl.WaitingOnYou, Repos: ttl.DashboardRepos, Contributions: ttl.Contributions,
 	}), dashsvc.WithCapacity(mem.Entries), dashsvc.WithStore(entries), dashsvc.WithWorkSize(size.WaitingOnYou))
+	ownerSvc := ownersvc.New(client, ownersvc.WithTTLs(ownersvc.TTLs{
+		Header: ttl.Profile, Repos: ttl.DashboardRepos, Contributions: ttl.Contributions, People: ttl.People, Readme: ttl.Readme,
+	}), ownersvc.WithCapacity(mem.Entries), ownersvc.WithStore(entries), ownersvc.WithSizes(ownersvc.Sizes{Repos: size.Repos, People: size.People}))
 	fileSvcOpts := []filesvc.Option{
 		filesvc.WithTTL(ttl.Files), filesvc.WithCapacity(mem.Entries), filesvc.WithTreeMemory(int64(mem.Trees)),
 		filesvc.WithBlobCapacity(mem.Entries), filesvc.WithBlobMemory(int64(mem.Files)),
@@ -397,7 +401,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		watchers = append(watchers, repoPolls.set)
 	}
 	if store != nil {
-		if r := newRevalidator(cfg.Cache, cfg.Sync.UnfocusedSlowdown, engine.Publish, issueSvc.Kept, pullSvc.Kept, notifSvc.Kept, fileSvc.Kept, historySvc.Kept, actionSvc.Kept); r != nil {
+		if r := newRevalidator(cfg.Cache, cfg.Sync.UnfocusedSlowdown, engine.Publish, issueSvc.Kept, pullSvc.Kept, notifSvc.Kept, fileSvc.Kept, historySvc.Kept, actionSvc.Kept, ownerSvc.Kept); r != nil {
 			go func() { _ = r.Run(ctx) }()
 			activity = append(activity, r.SetActive)
 			watchers = append(watchers, r.SetRepo)
