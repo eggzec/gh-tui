@@ -338,10 +338,10 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	k := m.keys
 	switch {
 	case key.Matches(msg, k.Back):
-		m.closed = true
-		m.cancel()
-		m.resume()
-		return ui.CloseModal(m)
+		return m.close()
+	case key.Matches(msg, k.Owner) && m.issue.Author.Login != "":
+		// The page shows in place of the screen behind the modal.
+		return tea.Sequence(m.close(), ui.ShowOwner(m.issue.Author.Login))
 	case key.Matches(msg, k.Comment):
 		return m.compose(composeComment, ui.ActComment)
 	case key.Matches(msg, k.Label):
@@ -362,6 +362,14 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	var cmd tea.Cmd
 	m.thread, cmd = m.thread.Update(msg)
 	return cmd
+}
+
+// close closes the modal, and stops its reads.
+func (m *detailModal) close() tea.Cmd {
+	m.closed = true
+	m.cancel()
+	m.resume()
+	return ui.CloseModal(m)
 }
 
 // get reads the issue, since a list page may carry less than the issue

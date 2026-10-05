@@ -529,3 +529,29 @@ func TestModalWrapsLongTitle(t *testing.T) {
 		}
 	}
 }
+
+// TestOwnerKeyInModal checks that the owner key of the modal, which the
+// list leaves to the app, closes it and asks for the author's page, and
+// that it types into a comment.
+func TestOwnerKeyInModal(t *testing.T) {
+	h, m := opened(t, newFakeService(sampleIssues(3)), 30)
+	if got := uitest.Enabled(h.KeyLayers()); slices.Contains(got, "author") {
+		t.Errorf("list help = %v, want no author", got)
+	}
+	if got := uitest.Enabled(m.KeyLayers()); !slices.Contains(got, "author") {
+		t.Errorf("modal help = %v, want author", got)
+	}
+	press(t, h, "c", "@")
+	if h.modal() != m || !strings.Contains(m.prompt.Value(), "@") {
+		t.Fatalf("@ didn't type into the comment: %q", m.prompt.Value())
+	}
+	press(t, h, "esc")
+	login := m.issue.Author.Login
+	msgs := press(t, h, "@")
+	if !slices.Contains(msgs, tea.Msg(ui.OwnerMsg{Login: login})) || login == "" {
+		t.Errorf("@ sent %v, want the page of %q", msgs, login)
+	}
+	if h.modal() != nil || m.ctx.Err() == nil {
+		t.Error("@ should close the modal and cancel its reads")
+	}
+}
