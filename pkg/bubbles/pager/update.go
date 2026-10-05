@@ -8,8 +8,16 @@ import (
 
 // Update scrolls and searches on keys while the pager is focused, and takes
 // the highlighted tokens of its content and spins while loading whether
-// or not it is.
+// or not it is. Rendered content renders again if what it did changed the
+// width of the text, such as an inverted search, whose marks widen the
+// gutter.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+	m, cmd := m.update(msg)
+	m.fitRendered(false)
+	return m, cmd
+}
+
+func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case highlightMsg:
 		if msg.id == m.id && msg.gen == m.gen {

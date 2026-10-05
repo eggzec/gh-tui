@@ -66,6 +66,11 @@ type Model struct {
 	// unless the content needed cleaning, since then lines are slices of
 	// it (termtext.Clean returns clean text as it is).
 	raw, lang string
+	// render renders the content of SetRendered at a width, or is nil
+	// for other content, and renderedAt is the width it last rendered
+	// at.
+	render     Render
+	renderedAt int
 	// sgr are the colors of content that has its own, such as a program's
 	// output kept in a file, for each line, or nil for content without
 	// them. Such content isn't highlighted.
@@ -165,6 +170,7 @@ func (m *Model) SetSize(width, height int) {
 	m.width, m.height = max(width, 0), max(height, 0)
 	m.prompt.SetSize(m.width, 1)
 	m.clamp()
+	m.fitRendered(false)
 }
 
 // Width returns the width.
@@ -210,6 +216,7 @@ func (m Model) LineNumbers() bool { return m.lineNumbers }
 func (m *Model) SetLineNumbers(show bool) {
 	m.lineNumbers = show
 	m.clamp()
+	m.fitRendered(false)
 }
 
 // KeyMap returns the key bindings.

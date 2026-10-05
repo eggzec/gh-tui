@@ -51,22 +51,7 @@ func (m *Model) setContent(name, text string, lexerOf func(full string) chroma.L
 		m.state = stateBinary
 		return nil
 	}
-	text = termtext.Decode(text)
-	var full string
-	var sgr []termtext.Style
-	if termtext.HasSGR(text) {
-		full, sgr = termtext.CleanStyled(text, m.tabWidth)
-	} else {
-		full = termtext.Clean(text, m.tabWidth)
-	}
-	full = strings.TrimSuffix(full, "\n")
-	if full != "" {
-		m.lines = strings.Split(full, "\n")
-	}
-	m.size = len(full)
-	if sgr != nil {
-		m.sgr = styleLines(m.lines, sgr)
-	}
+	full := m.setLines(termtext.Decode(text))
 	if m.proj.squeeze {
 		// Squeeze has no pattern to match, so it picks the lines at once.
 		_ = m.project(m.proj)
@@ -92,6 +77,28 @@ func (m *Model) setContent(name, text string, lexerOf func(full string) chroma.L
 		}
 		return highlightMsg{id: id, gen: gen, spans: spansOf(toks, len(lines))}
 	}
+}
+
+// setLines takes the lines of text, cleaned, with the colors it has of
+// its own, and returns the text cleaned.
+func (m *Model) setLines(text string) string {
+	var full string
+	var sgr []termtext.Style
+	if termtext.HasSGR(text) {
+		full, sgr = termtext.CleanStyled(text, m.tabWidth)
+	} else {
+		full = termtext.Clean(text, m.tabWidth)
+	}
+	full = strings.TrimSuffix(full, "\n")
+	m.lines, m.sgr = nil, nil
+	if full != "" {
+		m.lines = strings.Split(full, "\n")
+	}
+	m.size = len(full)
+	if sgr != nil {
+		m.sgr = styleLines(m.lines, sgr)
+	}
+	return full
 }
 
 // SetLoading shows a spinner while the content named name is on its way.
@@ -132,6 +139,7 @@ func (m *Model) reset(name string, s state, err error) {
 	m.renderName()
 	m.lines, m.spans, m.sgr, m.vis, m.size = nil, nil, nil, nil, 0
 	m.raw, m.lang = "", ""
+	m.render, m.renderedAt = nil, 0
 	m.top, m.row, m.left = 0, 0, 0
 	m.mark = -1
 	m.opt, m.num, m.counting = false, 0, false
