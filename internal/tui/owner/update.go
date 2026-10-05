@@ -164,7 +164,9 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 			if sel, ok := l.selection(s); ok && sel.URL != "" {
 				return ui.Open(sel.URL), true
 			}
-			return nil, true
+			// With nothing under the cursor, as when the list failed or
+			// is empty, the tab opens on GitHub instead.
+			return ui.Open(s.tabURL(p.tab)), true
 		}
 	default:
 	}
@@ -200,6 +202,27 @@ func (s *Section) blurPage(p *page) {
 			l.feed().Blur()
 		}
 	}
+}
+
+// tabURL is the page on GitHub of tab t of the page on view: the people
+// or the teams of an organization, or the profile of the account on the
+// tab, as GitHub names its tabs.
+func (s *Section) tabURL(t tab) string {
+	login := s.Login()
+	org := s.page.header.ok && s.page.header.value.Kind == core.OwnerOrg
+	switch {
+	case org && t == membersTab:
+		return ui.WebURL(s.host, "orgs/"+login+"/people")
+	case org && t == teamsTab:
+		return ui.WebURL(s.host, "orgs/"+login+"/teams")
+	case org && t == reposTab:
+		return ui.WebURL(s.host, "orgs/"+login+"/repositories")
+	}
+	tabs := map[tab]string{reposTab: "repositories", starsTab: "stars", followersTab: "followers", followingTab: "following"}
+	if name, ok := tabs[t]; ok {
+		return s.profileURL(login) + "?tab=" + name
+	}
+	return s.profileURL(login)
 }
 
 // repoURL is the page of r on GitHub.

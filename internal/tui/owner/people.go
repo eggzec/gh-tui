@@ -66,10 +66,7 @@ func (s *Section) newPeopleList(t tab, login string, roles bool) *peopleList {
 		followersTab: "No followers.",
 		followingTab: "Not following anyone.",
 		orgsTab:      "No public organizations.",
-		membersTab:   login + " has no public members.",
-	}
-	if roles {
-		empty[membersTab] = login + " has no members."
+		membersTab:   membersEmpty(login, roles),
 	}
 	l := &peopleList{q: owners.PeopleQuery{Login: login, List: lists[t]}, roles: roles}
 	query := func(cursor string) owners.PeopleQuery {
@@ -103,6 +100,16 @@ func (s *Section) feedOptions(key feed.Option, empty, action, login string) []fe
 		feed.WithStyles(s.theme.Feed(s.icons)),
 		feed.WithErrorText(ui.ErrorText(action, login, s.voice)),
 	}
+}
+
+// membersEmpty is what the Members tab of the organization login says
+// while it has none: of its members to a member, who sees them all, and
+// of its public ones to anyone else.
+func membersEmpty(login string, member bool) string {
+	if member {
+		return login + " has no members."
+	}
+	return login + " has no public members."
 }
 
 func (l *peopleList) fresh(svc Service) bool { return svc.FreshPeople(l.q) }

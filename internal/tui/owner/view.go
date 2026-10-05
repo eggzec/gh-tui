@@ -138,10 +138,30 @@ func (s *Section) title(p paneID, short bool) string {
 	if p != listPane {
 		return paneTitles[p]
 	}
+	titles := tabTitles
 	if short {
-		return shortTabs[s.page.tab]
+		titles = shortTabs
 	}
-	return tabTitles[s.page.tab]
+	return s.tabTitle(s.page.tab, titles)
+}
+
+// tabTitle is the title of tab t among titles. Until the header says
+// whether the account is a user or an organization, a tab of people goes
+// by no title, since it may be either's.
+func (s *Section) tabTitle(t tab, titles [numTabs]string) string {
+	if t != reposTab && !s.page.header.ok {
+		return "Loading" + s.icons.Ellipsis
+	}
+	return titles[t]
+}
+
+// tabWord names the tab on view in a sentence, such as "repositories", or
+// "lists" while tabTitle gives it no title.
+func (s *Section) tabWord() string {
+	if s.page.tab != reposTab && !s.page.header.ok {
+		return "lists"
+	}
+	return strings.ToLower(tabTitles[s.page.tab])
 }
 
 // label is the text in the top edge of pane p, and its width. In the
@@ -404,11 +424,11 @@ func (s *Section) listBody(w, h int) []string {
 	l := p.list()
 	switch {
 	case l == nil && p.header.err != nil:
-		return append(lines, ownerui.Indent(s.failure("load the "+strings.ToLower(tabTitles[p.tab])+" of "+p.login, p.header.err, w-1))...)
+		return append(lines, ownerui.Indent(s.failure("load the "+s.tabWord()+" of "+p.login, p.header.err, w-1))...)
 	case l == nil:
-		return append(lines, " "+st.Muted.Render("Loading "+strings.ToLower(tabTitles[p.tab])+s.icons.Ellipsis))
+		return append(lines, " "+st.Muted.Render("Loading "+s.tabWord()+s.icons.Ellipsis))
 	}
-	if t, ok := l.(*teamList); ok && t.membersOnly {
+	if t, ok := l.(*teamList); ok && t.hidden() {
 		return append(lines, "", " "+st.Muted.Render(membersOnlyText(s.Login())))
 	}
 	// The headers name the columns once there are rows under them.
@@ -453,7 +473,7 @@ func (s *Section) tabs(tabs []tab, titles [numTabs]string) string {
 		if i > 0 {
 			b.WriteString("  ")
 		}
-		label := titles[t]
+		label := s.tabTitle(t, titles)
 		if count := s.tabCount(t); count != "" {
 			label += " " + count
 		}

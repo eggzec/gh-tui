@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/charmbracelet/x/exp/golden"
@@ -175,9 +176,15 @@ func TestEnterOnTabs(t *testing.T) {
 	}
 
 	run(t, s, s.Update(ui.OwnerMsg{Login: "github"}))
-	open, ok = has[ui.OpenMsg](press(t, s, "]", "]", "down", "enter"))
+	if msgs := press(t, s, "]", "]", "down", "enter"); len(msgs) > 0 {
+		t.Errorf("enter on a team sent %v, want nothing: a team has no page here", msgs)
+	}
+	if s.keys.state(s).Select.Enabled() {
+		t.Error("enter shows as enabled on a team")
+	}
+	open, ok = has[ui.OpenMsg](press(t, s, "o"))
 	if !ok || open.URL != "https://github.com/orgs/github/teams/security" {
-		t.Errorf("enter on a team sent %v, want it in the browser", open)
+		t.Errorf("o on a team sent %v, want it in the browser", open)
 	}
 	if sel, ok := s.Selected(); !ok || sel.What != "team" {
 		t.Errorf("selected %+v, want the team", sel)
@@ -200,6 +207,107 @@ func TestOutsider(t *testing.T) {
 	}
 	if _, ok := has[ui.OpenMsg](press(t, s, "enter")); ok {
 		t.Error("enter opened something on the teams of an outsider")
+	}
+	if sel, ok := s.Selected(); ok {
+		t.Errorf("selected %+v on the hidden teams, want nothing", sel)
+	}
+}
+
+// GitHub refusing the teams, other than for SSO, says that only members
+// see them, though the header said the viewer is a member; the teams it
+// may have shown before can't be opened.
+func TestTeamsRefused(t *testing.T) {
+	svc := newFake()
+	svc.fail["teams"] = fmt.Errorf("list teams of github: only members see the teams: %w", core.ErrForbidden)
+	s := newSection(t, svc, "github", 120, 40)
+	press(t, s, "]", "]")
+	if v := s.View(); !strings.Contains(v, membersOnlyText("github")) {
+		t.Errorf("the refused teams don't say only members see them:\n%s", v)
+	}
+	l := s.page.list().(*teamList)
+	if _, ok := l.selection(s); ok || l.enter(s) != nil {
+		t.Error("the hidden teams can be selected or opened")
+	}
+
+	svc.fail["teams"] = &core.SSOError{}
+	s = newSection(t, svc, "github", 120, 40)
+	press(t, s, "]", "]")
+	if v := s.View(); strings.Contains(v, membersOnlyText("github")) || !strings.Contains(v, "requires SSO") {
+		t.Errorf("SSO on the teams doesn't say so:\n%s", v)
+	}
+}
+
+// o with nothing under the cursor, as when the list failed or is empty,
+// opens the tab on GitHub.
+func TestOpenTabWithoutSelection(t *testing.T) {
+	svc := newFake()
+	svc.fail["people"] = errors.New("boom")
+	svc.fail["teams"] = errors.New("boom")
+	s := newSection(t, svc, "octocat", 120, 40)
+	tests := []struct {
+		login string
+		keys  []string
+		want  string
+	}{
+		{"octocat", []string{"]", "]"}, "https://github.com/octocat?tab=followers"},
+		{"octocat", []string{"["}, "https://github.com/octocat"},
+		{"github", []string{"]"}, "https://github.com/orgs/github/people"},
+		{"github", []string{"]", "]"}, "https://github.com/orgs/github/teams"},
+	}
+	for _, tt := range tests {
+		run(t, s, s.Update(ui.OwnerMsg{Login: tt.login}))
+		s.page.tab = reposTab
+		press(t, s, tt.keys...)
+		msg, ok := has[ui.OpenMsg](press(t, s, "o"))
+		if !ok || msg.URL != tt.want {
+			t.Errorf("o on %s after %q sent %v, want %s", tt.login, tt.keys, msg, tt.want)
+		}
+	}
+}
+
+// The members say they are public ones once a new header says the viewer
+// left the organization.
+func TestMembersEmptyFollowsRoles(t *testing.T) {
+	svc := newFake()
+	svc.people["github members"] = nil
+	s := newSection(t, svc, "github", 120, 40)
+	press(t, s, "]")
+	l := s.page.list().(*peopleList)
+	if got := l.Feed.EmptyText(); got != "github has no members." {
+		t.Errorf("a member reads %q", got)
+	}
+	svc.owners["github"] = outsider()
+	press(t, s, "r")
+	if got := l.Feed.EmptyText(); l.roles || got != "github has no public members." {
+		t.Errorf("an outsider reads %q, roles %v", got, l.roles)
+	}
+}
+
+// Before the header says whose the page is, the tab of people goes by no
+// title, since an organization has no followers.
+func TestPeopleTabBeforeHeader(t *testing.T) {
+	s := New(t.Context(), newFake(), config.Default().Keys, WithDefaultTab(config.OwnerTabPeople))
+	s.SetSize(80, 24)
+	s.Update(ui.OwnerMsg{Login: "github"})
+	s.Focus()
+	if v := s.View(); strings.Contains(v, "Followers") || !strings.Contains(v, "Loading…") {
+		t.Errorf("the page before its header:\n%s", v)
+	}
+}
+
+// A list of people reads its next page as the cursor nears its end.
+func TestPeoplePages(t *testing.T) {
+	svc := newFake()
+	s := newSection(t, svc, "octocat", 120, 40)
+	press(t, s, "]", "]")
+	for range 35 {
+		press(t, s, "down")
+	}
+	if !slices.Contains(svc.calls, "people octocat followers 30") {
+		t.Errorf("scrolling read %q, want the second page of followers", svc.calls)
+	}
+	if p, ok := s.page.list().(*peopleList).Feed.Selected(); !ok || p.Login != "person-35" {
+		t.Errorf("the cursor is on %+v, want person-35", p)
 	}
 }
 

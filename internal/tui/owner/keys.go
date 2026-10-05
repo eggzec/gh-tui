@@ -159,12 +159,11 @@ func (k KeyMap) state(s *Section) KeyMap {
 		k.NextTab.SetEnabled(k.NextTab.Enabled() && tabs)
 		k.PrevTab.SetEnabled(k.PrevTab.Enabled() && tabs)
 		if l := s.page.list(); l != nil {
-			sel, ok := l.selection(s)
-			k.Select.SetEnabled(k.Select.Enabled() && ok)
-			k.Open.SetEnabled(k.Open.Enabled() && ok && sel.URL != "")
-			if _, team := l.(*teamList); team {
-				k.Select.SetHelp(k.Select.Help().Key, "open in browser")
-			}
+			// A team has no page here, so only the open key opens one;
+			// with nothing under the cursor, that opens the tab on GitHub.
+			_, team := l.(*teamList)
+			_, ok := l.selection(s)
+			k.Select.SetEnabled(k.Select.Enabled() && ok && !team)
 		}
 	}
 	k.Zoom.SetEnabled(k.Zoom.Enabled() && s.wide)
