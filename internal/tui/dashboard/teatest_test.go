@@ -48,7 +48,7 @@ func (a *app) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, a.s.ApplyFilter(msg)
 	}
 	cmd := a.s.Update(msg)
-	if o := a.s.repos.current(); a.filtered != nil && a.s.repos.filter().active() && o.feed.Settled() && o.feed.Len() == 1 {
+	if o := a.s.repos.current(); a.filtered != nil && a.s.repos.filter().Active() && o.Feed.Settled() && o.Feed.Len() == 1 {
 		close(a.filtered)
 		a.filtered = nil
 	}
@@ -104,7 +104,7 @@ func TestProgram(t *testing.T) {
 	if !slices.Equal(sent, slices.SortedFunc(slices.Values(want), byString)) {
 		t.Errorf("the dashboard sent %v, want %v", final.sent, want)
 	}
-	if final.s.repos.current().label != "github" || final.s.repos.filter().query != "r4" {
+	if final.s.repos.current().label != "github" || final.s.repos.filter().Query() != "r4" {
 		t.Error("the list should stay filtered, on the tab of github")
 	}
 }

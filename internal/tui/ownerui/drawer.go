@@ -8,14 +8,16 @@ import (
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
-// Drawer draws the profile and the cards of a page.
+// Drawer draws the profile, the cards and the rows of the table of a page.
+// Every field must be set: Card, RepoFacts and Row call URL and Lang
+// without checking them.
 type Drawer struct {
 	Styles *Styles
 	Icons  ui.Icons
-	// Links keeps the links of the cards' names.
+	// Links keeps the links of the names of the cards and rows.
 	Links *termtext.Links
 	// URL is the web page of a repository, and Lang the paint of the glyph
-	// of its language.
+	// of its language. Neither may be nil.
 	URL  func(core.Repo) string
 	Lang func(core.Repo) Paint
 }

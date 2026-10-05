@@ -37,9 +37,11 @@ func (p Paint) Write(b *strings.Builder, s string) {
 	b.WriteString(p.post)
 }
 
-// Styles are the paints of the profile and the cards.
+// Styles are the paints of the profile, the cards and the table.
 type Styles struct {
 	Name, Login, Text, Muted, Subtle, Accent Paint
+	// Selected paints the name of the row under the cursor.
+	Selected Paint
 	// Cursor and Blurred mark the selected card, while its pane is focused
 	// and while it isn't.
 	Cursor, Blurred string

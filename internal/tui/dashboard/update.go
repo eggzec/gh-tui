@@ -174,7 +174,7 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		case key.Matches(msg, k.PrevOwner):
 			return t.switchTab(-1), true
 		case key.Matches(msg, k.ClearFilter):
-			if !t.filter().active() {
+			if !t.filter().Active() {
 				return nil, true
 			}
 			return t.setFilter(""), true
