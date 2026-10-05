@@ -21,15 +21,16 @@ type options struct {
 // config (config.Default).
 type TTLs struct {
 	// Header covers an account's profile, counts and pins, which change
-	// seldom.
+	// seldom, and an organization's follower count.
 	Header time.Duration
-	// Repos covers the pages of an account's repositories.
+	// Repos covers the pages of an account's repositories, and of a
+	// user's stars.
 	Repos time.Duration
 	// Contributions covers a user's calendar, which only counts whole
 	// days.
 	Contributions time.Duration
 	// People covers the lists of people of an account: followers,
-	// following, organizations, members and teams.
+	// following, organizations, members, teams and sponsors.
 	People time.Duration
 	// Readme covers the profile README of an account.
 	Readme time.Duration

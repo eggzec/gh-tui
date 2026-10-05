@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -86,6 +87,85 @@ var ownerReads = []ownerRead{
 		},
 		fresh: func(s *Service) bool { return s.FreshContributions("octocat") },
 	},
+	{
+		name: "stars",
+		fake: func(api *fakeAPI, err error) {
+			api.stars = func(string, int, string) (core.Page[core.Repo], error) {
+				return core.Page[core.Repo]{Items: repos("charm", 2)}, err
+			}
+		},
+		read: func(ctx context.Context, s *Service, again bool) (served, error) {
+			p, err := s.Stars(ctx, StarsQuery{Login: "OctoCat", Again: again})
+			return served{len(p.Items) == 2, p.Stale, p.Offline, p.Limited}, err
+		},
+		fresh: func(s *Service) bool { return s.FreshStars(StarsQuery{Login: "octocat"}) },
+	},
+	peopleRead("followers", Followers, "OctoCat"),
+	peopleRead("following", Following, "octocat"),
+	peopleRead("orgs", Orgs, "Octocat"),
+	peopleRead("members", Members, "Charm"),
+	peopleRead("sponsors", Sponsors, "CHARM"),
+	peopleRead("sponsoring", Sponsoring, "Octocat"),
+	{
+		name: "teams",
+		fake: func(api *fakeAPI, err error) {
+			api.teams = func(string, int, string) (core.Page[core.Team], error) {
+				return core.Page[core.Team]{Items: []core.Team{{Slug: "a"}, {Slug: "b"}}}, err
+			}
+		},
+		read: func(ctx context.Context, s *Service, again bool) (served, error) {
+			p, err := s.Teams(ctx, TeamsQuery{Login: "Charm", Again: again})
+			return served{len(p.Items) == 2, p.Stale, p.Offline, p.Limited}, err
+		},
+		fresh: func(s *Service) bool { return s.FreshTeams(TeamsQuery{Login: "charm"}) },
+	},
+	{
+		name: "readme",
+		fake: func(api *fakeAPI, err error) {
+			api.readme = func(login string, _ core.OwnerKind, _ bool, _ github.Conditional) (core.Readme, github.Response, error) {
+				if err != nil {
+					return core.Readme{}, github.Response{}, err
+				}
+				return core.Readme{Markdown: "# hi", Source: core.RepoRef{Owner: login, Name: login}}, github.Response{ETag: `"r1"`}, nil
+			}
+		},
+		read: func(ctx context.Context, s *Service, again bool) (served, error) {
+			r, err := s.Readme(ctx, ReadmeQuery{Login: "OctoCat", Again: again})
+			return served{r.Markdown == "# hi", r.Stale, r.Offline, r.Limited}, err
+		},
+		fresh: func(s *Service) bool { return s.FreshReadme(ReadmeQuery{Login: "octocat"}) },
+	},
+	{
+		name: "org followers",
+		fake: func(api *fakeAPI, err error) {
+			api.orgFollowers = func(string) (int, error) { return 7, err }
+		},
+		read: func(ctx context.Context, s *Service, again bool) (served, error) {
+			f, err := s.OrgFollowers(ctx, OrgFollowersQuery{Login: "Charm", Again: again})
+			return served{f.Count == 7, f.Stale, f.Offline, f.Limited}, err
+		},
+		fresh: func(s *Service) bool { return s.FreshOrgFollowers("CHARM") },
+	},
+}
+
+// peopleRead is the ownerRead of list, read for login.
+func peopleRead(name string, list PeopleList, login string) ownerRead {
+	return ownerRead{
+		name: name,
+		fake: func(api *fakeAPI, err error) {
+			api.people = func(got, _ string, _ int, _ string) (core.Page[core.Person], error) {
+				if got != name {
+					return core.Page[core.Person]{}, fmt.Errorf("asked for %s: %w", got, errUnexpected)
+				}
+				return core.Page[core.Person]{Items: people(name, 2)}, err
+			}
+		},
+		read: func(ctx context.Context, s *Service, again bool) (served, error) {
+			p, err := s.People(ctx, PeopleQuery{Login: login, List: list, Again: again})
+			return served{len(p.Items) == 2, p.Stale, p.Offline, p.Limited}, err
+		},
+		fresh: func(s *Service) bool { return s.FreshPeople(PeopleQuery{Login: strings.ToLower(login), List: list}) },
+	}
 }
 
 func openStore(t *testing.T) *disk.Store {

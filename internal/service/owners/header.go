@@ -47,14 +47,14 @@ type HeaderQuery struct {
 // repository from the token, the part it answered is the header.
 func (s *Service) Header(ctx context.Context, q HeaderQuery) (core.Owner, error) {
 	// The client already names the request in its error.
-	return read(ctx, s, &s.header, q.Login, "", headerKey(q.Login), q.Again, func(ctx context.Context) (core.Owner, error) {
+	return read(ctx, s, &s.header, q.Login, "", headerKey(q.Login), q.Again, whole(func(ctx context.Context) (core.Owner, error) {
 		o, err := s.api.OwnerHeader(ctx, q.Login)
 		if err != nil && partial(o, err) {
 			slog.DebugContext(ctx, "owner header partly refused", "login", q.Login, "err", err)
 			return o, nil
 		}
 		return o, err
-	})
+	}))
 }
 
 // partial reports whether err is GitHub refusing only some fields of the
