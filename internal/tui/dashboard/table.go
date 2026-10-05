@@ -6,6 +6,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/ownerui"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -47,7 +48,7 @@ type repoMeasure struct {
 func (m *repoMeasure) add(r core.Repo, icons ui.Icons) {
 	m.name = max(m.name, ansi.StringWidth(r.Ref.Name))
 	m.flags = max(m.flags, len(icons.Flags(r)))
-	m.stars = max(m.stars, len(count(r.Stars)))
+	m.stars = max(m.stars, len(ownerui.Count(r.Stars)))
 }
 
 // layoutCols fits the columns of repositories measured by m in width
@@ -101,7 +102,7 @@ func (c repoCols) header(star, tail string) string {
 		if b.Len() > 0 {
 			b.WriteString(strings.Repeat(" ", colGap))
 		}
-		text = truncate(text, w, tail)
+		text = ownerui.Truncate(text, w, tail)
 		pad := strings.Repeat(" ", w-ansi.StringWidth(text))
 		if right {
 			b.WriteString(pad + text)
@@ -133,12 +134,12 @@ func (s *Section) renderRepo(c repoCols, r core.Repo, selected bool) string {
 	}
 	if c.name > 0 {
 		gap()
-		name := truncate(r.Ref.Name, c.name, s.icons.Ellipsis)
+		name := ownerui.Truncate(r.Ref.Name, c.name, s.icons.Ellipsis)
 		nameStyle := st.text
 		if selected {
 			nameStyle = st.selected
 		}
-		b.WriteString(s.links.Link(s.repoURL(r), nameStyle.render(name)))
+		b.WriteString(s.links.Link(s.repoURL(r), nameStyle.Render(name)))
 		b.WriteString(strings.Repeat(" ", c.name-ansi.StringWidth(name)))
 	}
 	if c.flags > 0 {
@@ -149,15 +150,15 @@ func (s *Section) renderRepo(c repoCols, r core.Repo, selected bool) string {
 				b.WriteByte(' ')
 				used++
 			}
-			st.subtle.write(&b, f)
+			st.subtle.Write(&b, f)
 			used += ansi.StringWidth(f)
 		}
 		b.WriteString(strings.Repeat(" ", max(c.flags-used, 0)))
 	}
 	if c.desc > 0 {
 		gap()
-		d := truncate(cleanLine(r.Description), c.desc, s.icons.Ellipsis)
-		st.muted.write(&b, d)
+		d := ownerui.Truncate(ownerui.CleanLine(r.Description), c.desc, s.icons.Ellipsis)
+		st.muted.Write(&b, d)
 		b.WriteString(strings.Repeat(" ", c.desc-ansi.StringWidth(d)))
 	}
 	if c.lang > 0 {
@@ -165,16 +166,16 @@ func (s *Section) renderRepo(c repoCols, r core.Repo, selected bool) string {
 		used := 0
 		if r.Language != "" {
 			g := s.icons.Language(r.Language)
-			s.langPaint(r).write(&b, g)
+			s.langPaint(r).Write(&b, g)
 			used = ansi.StringWidth(g)
 		}
 		b.WriteString(strings.Repeat(" ", max(c.lang-used, 0)))
 	}
 	if c.stars > 0 {
 		gap()
-		n := count(r.Stars)
+		n := ownerui.Count(r.Stars)
 		b.WriteString(strings.Repeat(" ", max(c.stars-len(n), 0)))
-		st.muted.write(&b, n)
+		st.muted.Write(&b, n)
 	}
 	if c.age > 0 {
 		gap()
@@ -183,21 +184,21 @@ func (s *Section) renderRepo(c repoCols, r core.Repo, selected bool) string {
 			age = s.dates.Short(r.UpdatedAt, s.now())
 		}
 		b.WriteString(strings.Repeat(" ", max(c.age-ansi.StringWidth(age), 0)))
-		st.subtle.write(&b, age)
+		st.subtle.Write(&b, age)
 	}
 	return b.String()
 }
 
 // langPaint returns the paint of the language glyph of r, built once per
 // language and theme.
-func (s *Section) langPaint(r core.Repo) paint {
+func (s *Section) langPaint(r core.Repo) ownerui.Paint {
 	k := r.Language + "\x00" + r.LanguageColor
 	if p, ok := s.st.langs[k]; ok {
 		return p
 	}
-	p := newPaint(s.theme.Language(r.Language, r.LanguageColor))
+	p := ownerui.NewPaint(s.theme.Language(r.Language, r.LanguageColor))
 	if s.st.langs == nil {
-		s.st.langs = map[string]paint{}
+		s.st.langs = map[string]ownerui.Paint{}
 	}
 	s.st.langs[k] = p
 	return p

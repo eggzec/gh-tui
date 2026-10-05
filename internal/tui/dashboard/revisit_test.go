@@ -146,7 +146,7 @@ func TestRevisitReadsInboxAndHere(t *testing.T) {
 	if in.lists != lists+1 || repos.reads() != gets+1 {
 		t.Errorf("read the inbox %d and the repository %d more times once stale, want once each", in.lists-lists, repos.reads()-gets)
 	}
-	if c, _ := s.pinned.selected(); c.repo.Stars != 10 {
-		t.Errorf("the card here has %d stars, want the 10 read again", c.repo.Stars)
+	if c, _ := s.pinned.Selected(); c.Repo.Stars != 10 {
+		t.Errorf("the card here has %d stars, want the 10 read again", c.Repo.Stars)
 	}
 }

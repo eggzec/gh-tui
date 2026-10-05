@@ -68,21 +68,21 @@ func (s *Section) readPinnedAhead() tea.Cmd {
 		return nil
 	}
 	c := &s.pinned
-	if _, ok := c.selected(); !ok || !s.focused || s.focus != pinnedPane {
+	if _, ok := c.Selected(); !ok || !s.focused || s.focus != pinnedPane {
 		return s.aheadPinned.Window(nil, -1)
 	}
 	return s.aheadPinned.Window(func(j int) (core.RepoRef, bool) {
-		if j == c.sel || j >= len(c.items) {
+		if j == c.Sel || j >= len(c.Items) {
 			return core.RepoRef{}, false
 		}
-		return c.items[j].repo.Ref, true
-	}, c.sel)
+		return c.Items[j].Repo.Ref, true
+	}, c.Sel)
 }
 
 // setPinned lists pinned in the pinned pane, and stops the reads ahead of
 // the cards that were listed if the repositories changed.
 func (s *Section) setPinned(pinned []core.Repo) {
-	if s.pinned.set(pinned) {
+	if s.pinned.Set(pinned) {
 		s.aheadPinned.Reset(s.ctx)
 	}
 }

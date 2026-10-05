@@ -7,8 +7,8 @@ import "github.com/eggzec/gh-tui/internal/tui/ui"
 func (s *Section) Selected() (ui.Selection, bool) {
 	switch s.focus {
 	case pinnedPane:
-		if c, ok := s.pinned.selected(); ok {
-			return ui.RepoSelection(c.repo, s.repoURL(c.repo)), true
+		if c, ok := s.pinned.Selected(); ok {
+			return ui.RepoSelection(c.Repo, s.repoURL(c.Repo)), true
 		}
 	case reposPane:
 		if r, ok := s.repos.selected(); ok {

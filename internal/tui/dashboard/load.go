@@ -157,7 +157,7 @@ func (s *Section) loaded(msg loadedMsg) tea.Cmd {
 		}
 	case kindHere:
 		if take(&s.hereRepo, msg) {
-			s.pinned.hereRepo = s.hereRepo.value
+			s.pinned.HereRepo = s.hereRepo.value
 			s.setPinned(s.header.value.Pinned)
 		}
 	}
