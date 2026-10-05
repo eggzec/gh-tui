@@ -91,6 +91,9 @@ func (m *Model) gotoCommand(arg string) tea.Cmd {
 	if err != nil {
 		return m.badTarget(err)
 	}
+	if t.HasOwner() {
+		return m.toast.Push(toast.Error, cantOpen(t.String(), "pages of users and organizations aren't supported yet", m.icons.Ellipsis, m.fitsToast))
+	}
 	if !t.HasRepo() {
 		// A number alone is one of the repository on view, never of one
 		// selected before and out of sight.
