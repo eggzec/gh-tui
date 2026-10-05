@@ -39,6 +39,8 @@ issues | [ | app: previous pane | Issues: previous state | the section claims ] 
 issues | ] | app: next pane | Issues: next state | the section claims ] and [ for its states; tab and shift+tab still move between the panes
 issues | f | list: page down | app: filter | f opens the filter; pgdown still pages down
 notifications | f | list: page down | app: filter | f opens the filter; pgdown still pages down
+owner: repositories | f | list: page down | app: filter | f opens the filter; pgdown still pages down
+owner: zoomed | f | list: page down | app: filter | f opens the filter; pgdown still pages down
 pull request: checks | ctrl+r | checks: refresh | checks: rerun failed | ctrl+r re-runs the failed jobs; r still refreshes
 pull request: job | ctrl+r | checks: refresh | checks: rerun failed | ctrl+r re-runs the failed jobs; r still refreshes
 pull request: job | esc | log: back | checks: checks | esc steps back to the checks, as closing the log would
