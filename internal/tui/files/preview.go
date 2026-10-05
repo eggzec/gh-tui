@@ -89,6 +89,7 @@ func newPreview(ctx context.Context, svc Service, host string, repo core.RepoRef
 	pg := pager.New(pager.WithErrorText(fileErrorText(repo, v)), pager.WithEditor(editor), pager.WithResizeRest(resizeRest))
 	p := &preview{ctx: ctx, cancel: cancel, svc: svc, host: host, repo: repo, ref: ref, entry: e, open: open, pager: pg, icons: ic, raw: raw}
 	p.md.icons = ic
+	p.pager.SetReserve(p.md.extra)
 	p.md.setFiles(ctx, svc, repo, ref, images)
 	p.img = fileImage{images: images, repo: repo, ellipsis: ic.Ellipsis}
 	p.pager.Focus()

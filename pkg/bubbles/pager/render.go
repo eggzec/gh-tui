@@ -36,6 +36,13 @@ func (m *Model) SetRendered(name, source string, render Render) {
 	m.fitRendered(false)
 }
 
+// SetReserve sets what returns how many lines the rendered content may
+// gain once it is shown, such as the rows of images still to arrive. The
+// gutter is wide enough to number them, so that their arrival doesn't
+// widen it and narrow the text, which renders the content again at
+// another width.
+func (m *Model) SetReserve(extra func() int) { m.reserve = extra }
+
 // Rendered reports whether the pager shows rendered content, as
 // SetRendered gives it.
 func (m Model) Rendered() bool { return m.render != nil }
@@ -76,7 +83,7 @@ func (m *Model) fitRendered(force bool) {
 	if guess == 0 {
 		guess = strings.Count(m.raw, "\n") + 1
 	}
-	w = max(m.width-m.gutterFor(guess), 1)
+	w = max(m.width-m.gutterFor(guess+m.reserved()), 1)
 	for range 3 {
 		m.renderedAt = w
 		m.setLines(m.takePictures(m.render(w)))

@@ -52,7 +52,19 @@ func (m Model) bodyHeight() int { return max(m.height-1, 0) }
 // them, or of the marks of an inverted search while the numbers are
 // hidden, or 0 when there is neither or no room for text.
 func (m Model) gutterWidth() int {
-	return m.gutterFor(len(m.lines))
+	if len(m.lines) == 0 {
+		return 0
+	}
+	return m.gutterFor(len(m.lines) + m.reserved())
+}
+
+// reserved returns how many lines more than the content has the gutter
+// has room to number, for rendered content that may grow.
+func (m Model) reserved() int {
+	if m.render == nil || m.reserve == nil {
+		return 0
+	}
+	return max(m.reserve(), 0)
 }
 
 // gutterFor returns the width of the gutter of n lines, as gutterWidth
