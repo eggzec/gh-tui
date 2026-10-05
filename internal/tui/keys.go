@@ -54,6 +54,10 @@ type KeyMap struct {
 	Back key.Binding
 	// Jump holds the keys of Panes, which it stands for in help.
 	Jump key.Binding
+	// Owner shows the page of the person or organization behind the
+	// selection of the focused section, such as the author of a pull
+	// request.
+	Owner key.Binding
 	// Dismiss closes the newest toast. It is the toasts' own key, which
 	// the app matches, and which they enable while they show.
 	Dismiss key.Binding
@@ -77,6 +81,7 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		form:          ui.FilterFormKeys(keys),
 		Notifications: ui.Binding(keys, config.ActionNotifications, "notifications"),
 		Dashboard:     ui.Binding(keys, config.ActionDashboard, "dashboard"),
+		Owner:         ui.Binding(keys, config.ActionOwner, "profile"),
 		Next:          ui.Binding(keys, config.ActionNextTab, "next pane"),
 		Prev:          ui.Binding(keys, config.ActionPrevTab, "previous pane"),
 		Zoom:          ui.Binding(keys, config.ActionZoom, "zoom"),
@@ -115,7 +120,7 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{
 			k.Command, k.Quit, k.Help, k.Search, k.History, k.Actions, k.FindFile, k.Filter, k.Sort,
-			k.Zoom, k.Back, k.Dismiss, k.Notifications, k.Dashboard,
+			k.Zoom, k.Back, k.Dismiss, k.Owner, k.Notifications, k.Dashboard,
 		},
 		{k.Next, k.Prev, k.Jump},
 	}
@@ -136,6 +141,7 @@ func (k KeyMap) state(m *Model) KeyMap {
 	}
 	k.Filter.SetEnabled(k.Filter.Enabled() && filters)
 	k.Sort.SetEnabled(k.Sort.Enabled() && sorts)
+	k.Owner.SetEnabled(k.Owner.Enabled() && m.selectedOwner() != "")
 	k.Zoom.SetEnabled(k.Zoom.Enabled() && m.canZoom() && m.width >= narrowWidth)
 	k.Back.SetEnabled(k.Back.Enabled() && m.canZoom() && m.zoomed())
 	k.Dismiss = m.toast.KeyMap().Dismiss

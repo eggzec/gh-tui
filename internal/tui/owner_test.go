@@ -320,3 +320,62 @@ func TestOwnerHeaderWithoutLogin(t *testing.T) {
 		t.Errorf("the header doesn't name the page:\n%s", s)
 	}
 }
+
+// TestOwnerKey checks that the owner key shows the page of the owner of
+// the selection, the dashboard for the viewer's own login, and nothing
+// where the selection has no owner, where help shows the key dimmed.
+func TestOwnerKey(t *testing.T) {
+	tests := []struct {
+		name  string
+		owner string
+		// want is the login of the page shown, or "" for none, and dash
+		// reports that the dashboard shows instead.
+		want  string
+		dash  bool
+		toast string
+	}{
+		{name: "user", owner: "octocat", want: "octocat"},
+		{name: "organization", owner: "charmbracelet", want: "charmbracelet"},
+		{name: "own login", owner: "Mona", dash: true},
+		{name: "app", owner: "dependabot[bot]", toast: "dependabot[bot] is an app; apps have no page here."},
+		{name: "no owner"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			page := &fakeOwnerPage{}
+			page.title = ui.OwnerTitle
+			sel := ui.Selection{What: "pull request", Repo: testRepo, Number: 7, Owner: tt.owner}
+			layout := Layout{
+				Files: &selectSection{fakeSection: &fakeSection{title: "Files"}, sel: sel, ok: true}, Pulls: &fakeSection{title: "Pull requests"},
+				Dashboard: &fakeSection{title: ui.DashboardTitle}, Owner: page,
+			}
+			m := New(t.Context(), config.Default(), layout, WithRepo(testRepo), WithOwners(newFakeOwners()), WithLogin("mona"))
+			m.toast.SetDuration(0)
+			m.toast.SetErrorDuration(0)
+			m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+			run(m, m.Init())
+			if m.screen != repoScreen {
+				t.Fatalf("screen = %d, want the repository", m.screen)
+			}
+			if got := m.keys.state(m).Owner.Enabled(); got != (tt.owner != "") {
+				t.Errorf("the owner key is enabled = %v in help, want %v", got, tt.owner != "")
+			}
+			drive(m, m.key(press("@")))
+			switch {
+			case tt.want != "":
+				if m.screen != ownerScreen || page.Login() != tt.want {
+					t.Errorf("screen %d with the page of %q, want the owner screen of %q", m.screen, page.Login(), tt.want)
+				}
+			case tt.dash:
+				if m.screen != dashScreen || len(page.logins) > 0 {
+					t.Errorf("screen %d with pages %q, want the dashboard", m.screen, page.logins)
+				}
+			case m.screen != repoScreen || len(page.logins) > 0:
+				t.Errorf("screen %d with pages %q, want the repository still", m.screen, page.logins)
+			}
+			if tt.toast != "" && !hasToast(m, tt.toast) {
+				t.Errorf("toasts lack %q: %s", tt.toast, toasted(m))
+			}
+		})
+	}
+}
