@@ -71,23 +71,6 @@ var graphqlOperations = map[string]string{
 	"ownerSponsoringQuery":     ownerSponsoringQuery,
 }
 
-// graphqlDotComOnly are the operations of graphqlOperations that the
-// client sends to github.com only, such as those of GitHub Sponsors, so
-// they are not checked against an Enterprise Server's schema.
-var graphqlDotComOnly = []string{"ownerSponsorsQuery", "ownerSponsoringQuery"}
-
-// graphqlOperationsFor returns graphqlOperations without those of
-// graphqlDotComOnly, unless dotcom is set.
-func graphqlOperationsFor(dotcom bool) map[string]string {
-	out := make(map[string]string, len(graphqlOperations))
-	for name, op := range graphqlOperations {
-		if dotcom || !slices.Contains(graphqlDotComOnly, name) {
-			out[name] = op
-		}
-	}
-	return out
-}
-
 // A field of a REST answer tagged schema:"optional" may be absent, as on
 // an older GitHub, which its decoder takes for unknown: the check only
 // holds it to what a schema that has it says of it.

@@ -1,0 +1,4 @@
+{"data": {"rateLimit": {"cost": 1, "limit": 5000, "remaining": 4990, "used": 10, "resetAt": "2026-10-05T12:00:00Z"}, "organization": {"viewerIsAMember": true, "teams": {"nodes": [
+  {"name": "Core", "slug": "core", "description": "The core team", "privacy": "VISIBLE", "members": {"totalCount": 4}, "url": "https://github.com/orgs/github/teams/core"},
+  {"name": "Security", "slug": "security", "description": null, "privacy": "SECRET", "members": {"totalCount": 2}, "url": "https://github.com/orgs/github/teams/security"}
+], "pageInfo": {"hasNextPage": true, "endCursor": "Y3Vyc29yOjI="}}}}}

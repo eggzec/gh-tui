@@ -1,0 +1,46 @@
+{
+  "data": {
+    "rateLimit": {
+      "cost": 1,
+      "limit": 5000,
+      "remaining": 4990,
+      "used": 10,
+      "resetAt": "2026-10-05T12:00:00Z"
+    },
+    "user": {
+      "starredRepositories": {
+        "nodes": [
+          {
+            "id": "R_4",
+            "name": "zeta",
+            "owner": {
+              "login": "octocat",
+              "avatarUrl": "https://avatars.githubusercontent.com/u/1?v=4"
+            },
+            "description": "Demo zeta",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "Go",
+              "color": "#00ADD8"
+            },
+            "stargazerCount": 10,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "isTemplate": false,
+            "isMirror": false,
+            "updatedAt": "2026-09-24T08:23:12Z",
+            "url": "https://github.com/octocat/zeta"
+          }
+        ],
+        "pageInfo": {
+          "hasNextPage": true,
+          "endCursor": "c3Rhcg=="
+        }
+      }
+    }
+  }
+}

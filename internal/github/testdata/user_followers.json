@@ -1,0 +1,4 @@
+{"data": {"rateLimit": {"cost": 1, "limit": 5000, "remaining": 4990, "used": 10, "resetAt": "2026-10-05T12:00:00Z"}, "user": {"followers": {"nodes": [
+  {"__typename": "User", "login": "hubot", "name": "Hubot", "bio": "Beep"},
+  {"__typename": "User", "login": "monalisa", "name": null, "bio": null}
+], "pageInfo": {"hasNextPage": true, "endCursor": "Y3Vyc29yOjI="}}}}}
