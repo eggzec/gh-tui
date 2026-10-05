@@ -164,9 +164,9 @@ func (s *Section) configureSide(c config.Config) {
 }
 
 // redrawSide draws the README of the page on view again, with the images
-// that arrived or failed since.
+// that arrived or failed since, if any may change it.
 func (s *Section) redrawSide() {
-	if p := s.page; p != nil && p.side.pager != nil {
+	if p := s.page; p != nil && p.side.pager != nil && s.readmeStale(p) {
 		p.side.pager.Rerender()
 	}
 }

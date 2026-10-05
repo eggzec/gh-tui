@@ -41,6 +41,8 @@ func (s *Section) update(msg tea.Msg) (tea.Cmd, bool) {
 		return s.loaded(msg), true
 	case sideMsg:
 		return s.sideLoaded(msg), true
+	case ui.SyncMsg:
+		return s.synced(msg), false
 	case tea.KeyPressMsg:
 		return s.press(msg), true
 	case ui.SettingsMsg:
@@ -188,8 +190,8 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 			return ui.Open(s.tabURL(p.tab)), true
 		}
 	case readmePane:
-		if key.Matches(msg, k.Open) && p.header.ok {
-			return ui.Open(s.pageURL(p)), true
+		if sel, ok := s.readmeSelection(); ok && key.Matches(msg, k.Open) {
+			return ui.Open(sel.URL), true
 		}
 	default:
 	}

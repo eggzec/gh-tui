@@ -74,37 +74,57 @@ func (s *Section) setReadme(p *page) {
 		return
 	}
 	p.side.shown = src
-	s.readmePager(p).SetRendered(s.readmeTitle(p, false), src, s.readmeRender(src))
+	s.readmePager(p).SetRendered(s.readmeTitle(p, false), src, s.readmeRender(p, src))
 }
 
-// readmeRender renders src, the markdown of a README, at a width, drawing
-// its images where the terminal shows them.
-func (s *Section) readmeRender(src string) pager.Render {
+// readmeRender renders src, the markdown of the README of p, at a width,
+// drawing its images where the terminal shows them.
+func (s *Section) readmeRender(p *page, src string) pager.Render {
 	return func(width int) string {
 		if s.sc.md == nil {
 			s.sc.md = markdown.New(s.theme.Thread(s.icons).Markdown)
 		}
-		s.sc.md.SetPictures(s.readmePictures())
+		p.side.drew = false
+		pics := s.readmePictures(p)
+		p.side.pics = pics != nil
+		s.sc.md.SetPictures(pics)
 		return s.sc.md.Render(src, width)
 	}
 }
 
-// readmePictures returns what draws the images of a README alone on their
-// lines, at most as tall as the images allow in the pane, or nil while
-// none are drawn. An SVG image stays a link, as images of formats the
-// app can't draw do once they fail.
-func (s *Section) readmePictures() markdown.Pictures {
+// readmePictures returns what draws the images of the README of p alone
+// on their lines, at most as tall as the images allow in the pane, or nil
+// while none are drawn. An SVG image stays a link, as images of formats
+// the app can't draw do once they fail.
+//
+// The images load as any image of markdown does, without credentials and
+// only from GitHub's own image hosts; a README has no rendered HTML to
+// say where GitHub's proxy serves the rest. So an image on another host,
+// and an image of a private README, such as an organization's that only
+// members see, whose raw file needs a token, stay links; and so do the
+// relative images of an Enterprise Server in private mode.
+func (s *Section) readmePictures(p *page) markdown.Pictures {
 	_, h := s.inside(readmePane)
-	pics := s.avatars.Pictures(s.avatars.PictureRows(h-1), nil)
+	pics := s.avatars.Pictures(s.avatars.PictureRows(h), nil)
 	if pics == nil {
 		return nil
 	}
 	return func(addr string, width int) []string {
+		p.side.drew = true
 		if u, err := url.Parse(addr); err != nil || strings.EqualFold(path.Ext(u.Path), ".svg") {
 			return nil
 		}
 		return pics(addr, width)
 	}
+}
+
+// readmeStale reports whether the images that changed may change the
+// render of the README of p: it asked for pictures, or pictures began or
+// stopped being drawn. A README without images isn't rendered again for
+// every image of the app that arrives.
+func (s *Section) readmeStale(p *page) bool {
+	_, h := s.inside(readmePane)
+	return p.side.drew || (s.avatars.PictureRows(h) > 0) != p.side.pics
 }
 
 // readmeSource is the markdown the README pane of p shows: the README
@@ -175,7 +195,8 @@ func (s *Section) resolver(r core.Readme, kind core.OwnerKind) func(addr string,
 		if err != nil || u.Scheme != "" || u.Host != "" || u.Path == "" {
 			return addr
 		}
-		p := u.Path
+		// The escaped path keeps what was escaped, such as %2F, as it was.
+		p := u.EscapedPath()
 		if strings.HasPrefix(p, "/") {
 			p = path.Clean(p)[1:]
 		} else {
@@ -184,16 +205,15 @@ func (s *Section) resolver(r core.Readme, kind core.OwnerKind) func(addr string,
 		if p == "" || p == "." || p == ".." || strings.HasPrefix(p, "../") {
 			return addr
 		}
-		at := escapePath(r.Source.Owner + "/" + r.Source.Name + "/HEAD/" + p)
+		repo := escapePath(r.Source.Owner + "/" + r.Source.Name)
 		var out string
 		switch {
 		case !image:
-			at = escapePath(r.Source.Owner+"/"+r.Source.Name) + "/blob/" + escapePath("HEAD/"+p)
-			out = ui.WebURL(host, at)
+			out = ui.WebURL(host, repo+"/blob/HEAD/"+p)
 		case host == "" || host == core.DefaultHost:
-			out = "https://raw.githubusercontent.com/" + at
+			out = "https://raw.githubusercontent.com/" + repo + "/HEAD/" + p
 		default:
-			out = ui.WebURL(host, "raw/"+at)
+			out = ui.WebURL(host, "raw/"+repo+"/HEAD/"+p)
 		}
 		if u.RawQuery != "" {
 			out += "?" + u.RawQuery
@@ -241,10 +261,13 @@ func (s *Section) readmeBody(w, h int) []string {
 		return []string{" " + st.Muted.Render("Loading the README"+s.icons.Ellipsis)}
 	}
 	pg := p.side.pager
-	if pg.Height() != h {
+	if pg.Height() != h+1 {
 		s.resizeSide()
 	}
-	return ownerui.Indent(strings.Split(pg.View(), "\n"))
+	// The last line is the pager's status line, which the frame's title
+	// stands for.
+	lines := strings.Split(pg.View(), "\n")
+	return ownerui.Indent(lines[:len(lines)-1])
 }
 
 // pressReadme passes msg to the pager of the README while its pane has
