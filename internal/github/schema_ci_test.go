@@ -36,9 +36,11 @@ func TestSchema(t *testing.T) {
 	schemas := []struct {
 		name                       string
 		graphql, upcoming, openapi string
+		dotcom                     bool
 	}{
 		{
 			name:     "github.com",
+			dotcom:   true,
 			graphql:  "src/graphql/data/fpt/schema.docs.graphql",
 			upcoming: "src/graphql/data/fpt/graphql_upcoming_changes.public.yml",
 			openapi:  "descriptions/api.github.com/api.github.com.json",
@@ -62,7 +64,7 @@ func TestSchema(t *testing.T) {
 				if err != nil {
 					t.Fatalf("read %s: %v", s.upcoming, err)
 				}
-				for _, p := range checkGraphQL(schema, graphqlOptional, upcoming, graphqlOperations) {
+				for _, p := range checkGraphQL(schema, graphqlOptional, upcoming, graphqlOperationsFor(s.dotcom)) {
 					t.Error(p)
 				}
 			})

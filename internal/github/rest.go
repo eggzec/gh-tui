@@ -65,45 +65,58 @@ const rawAccept = "application/vnd.github.raw+json"
 
 // getRaw fetches path as the raw media type, which returns the resource's
 // content instead of JSON, and reads at most limit bytes of it. A larger
-// body is not read: it fails with a *core.TooLargeError.
-func (c *Client) getRaw(ctx context.Context, path string, limit int64) ([]byte, error) {
-	b, err := c.rawRoundTrip(ctx, path, limit)
+// body is not read: it fails with a *core.TooLargeError. If cond matches
+// the current resource, the Response has NotModified set and there is no
+// content.
+func (c *Client) getRaw(ctx context.Context, path string, cond Conditional, limit int64) ([]byte, Response, error) {
+	b, res, err := c.rawRoundTrip(ctx, path, cond, limit)
 	if err != nil {
-		return nil, fmt.Errorf("%s %s: %w", http.MethodGet, path, err)
+		return nil, res, fmt.Errorf("%s %s: %w", http.MethodGet, path, err)
 	}
-	return b, nil
+	return b, res, nil
 }
 
-func (c *Client) rawRoundTrip(ctx context.Context, path string, limit int64) ([]byte, error) {
+func (c *Client) rawRoundTrip(ctx context.Context, path string, cond Conditional, limit int64) ([]byte, Response, error) {
 	u, err := c.resolve(path)
 	if err != nil {
-		return nil, err
+		return nil, Response{}, err
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, http.NoBody)
 	if err != nil {
-		return nil, err
+		return nil, Response{}, err
 	}
 	req.Header.Set("Accept", rawAccept)
+	if cond.ETag != "" {
+		req.Header.Set("If-None-Match", cond.ETag)
+	}
+	if cond.LastModified != "" {
+		req.Header.Set("If-Modified-Since", cond.LastModified)
+	}
 	resp, err := c.send(req)
 	if err != nil {
-		return nil, err
+		return nil, Response{}, err
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode >= http.StatusMultipleChoices {
-		return nil, c.httpError(resp)
+	res := newResponse(resp)
+	switch {
+	case resp.StatusCode == http.StatusNotModified:
+		res.NotModified = true
+		return nil, res, nil
+	case resp.StatusCode >= http.StatusMultipleChoices:
+		return nil, res, c.httpError(resp)
 	}
 	if resp.ContentLength > limit {
-		return nil, &core.TooLargeError{Size: resp.ContentLength, Limit: limit}
+		return nil, res, &core.TooLargeError{Size: resp.ContentLength, Limit: limit}
 	}
 	b, err := io.ReadAll(io.LimitReader(resp.Body, limit+1))
 	if err != nil {
-		return nil, readFailed(ctx, err)
+		return nil, res, readFailed(ctx, err)
 	}
 	if int64(len(b)) > limit {
-		return nil, &core.TooLargeError{Limit: limit}
+		return nil, res, &core.TooLargeError{Limit: limit}
 	}
-	return b, nil
+	return b, res, nil
 }
 
 // Do sends body as JSON, unless it is nil, and decodes the response into v,

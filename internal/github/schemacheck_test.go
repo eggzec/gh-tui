@@ -61,6 +61,31 @@ var graphqlOperations = map[string]string{
 	"ownerHeaderQuery":         ownerHeaderQuery,
 	"userReposQuery":           userReposQuery,
 	"userContributionsQuery":   userContributionsQuery,
+	"userFollowersQuery":       userFollowersQuery,
+	"userFollowingQuery":       userFollowingQuery,
+	"userOrgsQuery":            userOrgsQuery,
+	"orgMembersQuery":          orgMembersQuery,
+	"orgTeamsQuery":            orgTeamsQuery,
+	"userStarsQuery":           userStarsQuery,
+	"ownerSponsorsQuery":       ownerSponsorsQuery,
+	"ownerSponsoringQuery":     ownerSponsoringQuery,
+}
+
+// graphqlDotComOnly are the operations of graphqlOperations that the
+// client sends to github.com only, such as those of GitHub Sponsors, so
+// they are not checked against an Enterprise Server's schema.
+var graphqlDotComOnly = []string{"ownerSponsorsQuery", "ownerSponsoringQuery"}
+
+// graphqlOperationsFor returns graphqlOperations without those of
+// graphqlDotComOnly, unless dotcom is set.
+func graphqlOperationsFor(dotcom bool) map[string]string {
+	out := make(map[string]string, len(graphqlOperations))
+	for name, op := range graphqlOperations {
+		if dotcom || !slices.Contains(graphqlDotComOnly, name) {
+			out[name] = op
+		}
+	}
+	return out
 }
 
 // A field of a REST answer tagged schema:"optional" may be absent, as on
@@ -126,6 +151,9 @@ var restCalls = []restCall{
 	{Func: "SearchCode", Method: http.MethodGet, Path: "/search/code", Query: []string{"q", "per_page"}, Accept: codeSearchAccept, Decode: codeSearchResults{}},
 	{Func: "getTree", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/git/trees/{tree_sha}", Query: []string{"recursive"}, Decode: restTree{}},
 	{Func: "GetBlob", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/git/blobs/{file_sha}", Accept: rawAccept},
+	{Func: "readme", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/readme", Accept: rawAccept},
+	{Func: "readme", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/readme/{dir}", Accept: rawAccept},
+	{Func: "OrgFollowers", Method: http.MethodGet, Path: "/users/{username}", Decode: restFollowers{}},
 }
 
 // graphqlOptional are the fields, as Type.field, that the client selects

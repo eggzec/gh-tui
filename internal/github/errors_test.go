@@ -418,7 +418,7 @@ var readers = map[string]struct {
 		return c.Query(ctx, "query X { x }", nil, &v)
 	}},
 	"raw": {"abc", func(ctx context.Context, c *Client) error {
-		_, err := c.getRaw(ctx, "x", 1<<10)
+		_, _, err := c.getRaw(ctx, "x", Conditional{}, 1<<10)
 		return err
 	}},
 }
