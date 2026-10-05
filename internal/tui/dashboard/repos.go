@@ -1,6 +1,7 @@
 package dashboard
 
 import (
+	"cmp"
 	"context"
 	"slices"
 	"strings"
@@ -257,6 +258,23 @@ func (t *repoTabs) feedKeys() feed.KeyMap { return t.current().Feed.KeyMap() }
 // selected returns the repository under the cursor.
 func (t *repoTabs) selected() (core.Repo, bool) {
 	return t.current().Feed.Selected()
+}
+
+// selection returns the repository under the cursor. The owner of each
+// repository of an organization's tab is the organization, which an empty
+// tab still has, so that the owner key shows its page.
+func (t *repoTabs) selection() (ui.Selection, bool) {
+	org := t.current().q.Owner
+	r, ok := t.selected()
+	switch {
+	case ok:
+		sel := ui.RepoSelection(r, t.s.repoURL(r))
+		sel.Owner = cmp.Or(org, sel.Owner)
+		return sel, true
+	case org != "":
+		return ui.Selection{What: "organization", URL: ui.WebURL(t.s.host, org), Owner: org}, true
+	}
+	return ui.Selection{}, false
 }
 
 // update passes msg to the lists, which ignore the messages of others.

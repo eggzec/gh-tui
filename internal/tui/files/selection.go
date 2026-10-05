@@ -9,7 +9,7 @@ func (s *Section) Selected() (ui.Selection, bool) {
 		return ui.Selection{}, false
 	}
 	e := s.selected()
-	sel := ui.Selection{What: "file", URL: webURL(s.host, s.repo, s.ref, e), Repo: s.repo, Path: e.Path}
+	sel := ui.Selection{What: "file", URL: webURL(s.host, s.repo, s.ref, e), Repo: s.repo, Path: e.Path, Owner: s.repo.Owner}
 	switch {
 	case e.Path == "":
 		sel.What = "repository"

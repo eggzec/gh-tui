@@ -13,8 +13,8 @@ func TestSelected(t *testing.T) {
 	h := started(t, newFakeService(), 80, 20)
 	pr, _ := h.feed.Selected()
 	got, ok := h.Selected()
-	want := ui.Selection{What: "pull request", URL: pr.URL, Repo: repo, Number: pr.Number}
-	if !ok || got != want || pr.URL == "" {
+	want := ui.Selection{What: "pull request", URL: pr.URL, Repo: repo, Number: pr.Number, Owner: pr.Author.Login}
+	if !ok || got != want || pr.URL == "" || pr.Author.Login == "" {
 		t.Errorf("Selected() = %+v, %v, want %+v", got, ok, want)
 	}
 }

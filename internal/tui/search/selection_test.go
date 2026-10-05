@@ -12,7 +12,7 @@ func TestSelected(t *testing.T) {
 	typeText(t, s, "tea")
 	press(t, s, "enter")
 	got, ok := s.Selected()
-	if !ok || got.What != "repository" || got.Repo.Owner == "" || got.URL == "" {
+	if !ok || got.What != "repository" || got.Repo.Owner == "" || got.Owner != got.Repo.Owner || got.URL == "" {
 		t.Errorf("repositories: Selected() = %+v, %v", got, ok)
 	}
 	run(t, s, s.showKind(core.SearchIssues))
@@ -21,7 +21,7 @@ func TestSelected(t *testing.T) {
 	}
 	run(t, s, s.showKind(core.SearchCode))
 	run(t, s, s.searchCode())
-	if got, ok := s.Selected(); !ok || got.What != "file" || got.Path == "" {
+	if got, ok := s.Selected(); !ok || got.What != "file" || got.Path == "" || got.Owner != got.Repo.Owner {
 		t.Errorf("code: Selected() = %+v, %v", got, ok)
 	}
 }

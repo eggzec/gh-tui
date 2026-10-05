@@ -24,7 +24,7 @@ func (s *Section) Selected() (ui.Selection, bool) {
 		if !ok {
 			return ui.Selection{}, false
 		}
-		return ui.Selection{What: "file", URL: hit.URL, Repo: hit.Repo, Path: hit.Path}, true
+		return ui.Selection{What: "file", URL: hit.URL, Repo: hit.Repo, Path: hit.Path, Owner: hit.Repo.Owner}, true
 	}
 	return ui.Selection{}, false
 }
