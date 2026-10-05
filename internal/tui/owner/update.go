@@ -14,6 +14,9 @@ import (
 func (s *Section) Update(msg tea.Msg) tea.Cmd {
 	updating := s.updating()
 	cmd, all := s.update(msg)
+	// What a change put on view, such as a pane focused or a header read,
+	// is read now.
+	cmd = tea.Batch(cmd, s.startSide())
 	if all {
 		s.render()
 		return cmd
@@ -23,6 +26,7 @@ func (s *Section) Update(msg tea.Msg) tea.Cmd {
 		s.head = s.profile()
 	}
 	s.renderPane(listPane)
+	s.renderPane(readmePane)
 	s.compose()
 	return cmd
 }
@@ -35,6 +39,8 @@ func (s *Section) update(msg tea.Msg) (tea.Cmd, bool) {
 		return s.open(msg.Login), true
 	case loadedMsg:
 		return s.loaded(msg), true
+	case sideMsg:
+		return s.sideLoaded(msg), true
 	case tea.KeyPressMsg:
 		return s.press(msg), true
 	case ui.SettingsMsg:
@@ -43,8 +49,10 @@ func (s *Section) update(msg tea.Msg) (tea.Cmd, bool) {
 	case ui.OnlineMsg:
 		return s.online(), true
 	case ui.ImagesMsg:
-		// The profile may have gained or lost the avatar's rows.
+		// The profile may have gained or lost the avatar's rows, and the
+		// README its images.
 		s.layout()
+		s.redrawSide()
 		return nil, true
 	}
 	pages := s.pages()
@@ -60,6 +68,7 @@ func (s *Section) update(msg tea.Msg) (tea.Cmd, bool) {
 			}
 		}
 	}
+	cmds = append(cmds, s.updateSide(msg))
 	return tea.Batch(cmds...), false
 }
 
@@ -76,10 +85,10 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 	k := &s.keys
 	switch {
 	case key.Matches(msg, k.Next):
-		s.setFocus((p.focus + 1) % numPanes)
+		s.setFocus(s.nextPane(1))
 		return nil
 	case key.Matches(msg, k.Prev):
-		s.setFocus((p.focus + numPanes - 1) % numPanes)
+		s.setFocus(s.nextPane(-1))
 		return nil
 	case s.wide && key.Matches(msg, k.Zoom):
 		s.setZoom(!s.zoom)
@@ -90,11 +99,21 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 		return s.refresh()
 	}
 	if i := k.pane(msg); i >= 0 {
-		s.setFocus(i)
+		if s.hasPane(i) {
+			s.setFocus(i)
+		}
 		return nil
 	}
-	if l := p.list(); l != nil && p.focus == listPane {
-		return l.update(msg)
+	switch p.focus {
+	case listPane:
+		if l := p.list(); l != nil {
+			return l.update(msg)
+		}
+	case readmePane:
+		return s.pressReadme(msg)
+	case calendarPane:
+		return s.pressCalendar(msg)
+	default:
 	}
 	return nil
 }
@@ -168,6 +187,10 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 			// is empty, the tab opens on GitHub instead.
 			return ui.Open(s.tabURL(p.tab)), true
 		}
+	case readmePane:
+		if key.Matches(msg, k.Open) && p.header.ok {
+			return ui.Open(s.pageURL(p)), true
+		}
 	default:
 	}
 	return nil, false
@@ -182,6 +205,7 @@ func (s *Section) setFocus(p paneID) {
 // focusPane focuses the list of the tab on view of the page on view while
 // the page and its pane are focused, and blurs the others.
 func (s *Section) focusPane() {
+	s.focusSide()
 	p := s.page
 	if p == nil {
 		return
@@ -194,6 +218,7 @@ func (s *Section) focusPane() {
 
 // blurPage blurs the lists of p, which leaves the screen.
 func (s *Section) blurPage(p *page) {
+	blurSide(p)
 	if p == nil {
 		return
 	}

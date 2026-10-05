@@ -46,6 +46,9 @@ type fakeService struct {
 	read        map[string]bool
 	calls       []string
 	invalidated []string
+	// sideFake serves the READMEs, calendars, sponsors and follower
+	// counts.
+	*sideFake
 }
 
 func newFake() *fakeService {
@@ -63,6 +66,8 @@ func newFake() *fakeService {
 		size:  30,
 		fail:  map[string]error{},
 		read:  map[string]bool{},
+
+		sideFake: newSideFake(),
 	}
 }
 
@@ -297,12 +302,19 @@ func (f *fakeService) Stars(_ context.Context, q owners.StarsQuery) (core.Page[c
 }
 
 func (f *fakeService) FreshPeople(q owners.PeopleQuery) bool {
+	if sponsorList(q.List) {
+		return f.sideFake.FreshPeople(q)
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.read["people "+strings.ToLower(q.Login)+" "+q.List.String()]
 }
 
-func (f *fakeService) People(_ context.Context, q owners.PeopleQuery) (core.Page[core.Person], error) {
+func (f *fakeService) People(ctx context.Context, q owners.PeopleQuery) (core.Page[core.Person], error) {
+	if sponsorList(q.List) {
+		// The README's sponsors are the side's.
+		return f.sideFake.People(ctx, q)
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	k := strings.ToLower(q.Login) + " " + q.List.String()

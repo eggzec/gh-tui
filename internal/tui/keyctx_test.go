@@ -231,7 +231,7 @@ func (keyDash) Invalidate() {}
 // keyOwners serves the user octocat, with a pin, a repository, a star
 // and a person in each list, and every other login as an organization
 // the viewer belongs to, with a member and a team.
-type keyOwners struct{}
+type keyOwners struct{ keyOwnerSide }
 
 func keyOwner(login string) core.Owner {
 	if login != "octocat" {
@@ -549,6 +549,8 @@ func keyContexts() []keyContext {
 		{name: "owner: followers", msg: ui.OwnerMsg{Login: "octocat"}, after: []string{"]", "]"}, want: "app, app, profile, list"},
 		{name: "owner: members", msg: ui.OwnerMsg{Login: "github"}, after: []string{"]"}, want: "app, app, profile, list"},
 		{name: "owner: teams", msg: ui.OwnerMsg{Login: "github"}, after: []string{"]", "]"}, want: "app, app, profile, list"},
+		{name: "owner: readme", msg: ui.OwnerMsg{Login: "octocat"}, after: []string{"3"}, want: "app, app, profile, readme"},
+		{name: "owner: calendar", msg: ui.OwnerMsg{Login: "octocat"}, after: []string{"4"}, want: "app, app, profile, calendar"},
 		{name: "dashboard: repositories", want: "app, app, dashboard, list"},
 		{name: "dashboard: pinned", keys: []string{"1"}, want: "app, app, dashboard"},
 		{name: "dashboard: work", keys: []string{"3"}, want: "app, app, dashboard"},

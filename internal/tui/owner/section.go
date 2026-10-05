@@ -47,6 +47,7 @@ type Service interface {
 	// InvalidateLogin marks what is cached of the account login stale,
 	// so that the reads of it after ask GitHub.
 	InvalidateLogin(login string)
+	sideService
 }
 
 // Option configures a Section.
@@ -92,10 +93,14 @@ func WithHost(host string) Option {
 }
 
 // WithDefaultTab sets the tab of the list pane that a page opens on, as
-// owner.default_tab names it. A tab the page doesn't have opens it on the
-// repositories, which is the default.
+// owner.default_tab names it, or, for the README, focuses its pane. A tab
+// the page doesn't have opens it on the repositories, which is the
+// default.
 func WithDefaultTab(name string) Option {
-	return func(s *Section) { s.defaultTab = tabFor(name) }
+	return func(s *Section) {
+		s.defaultTab = tabFor(name)
+		s.sc.focus = focusFor(name)
+	}
 }
 
 // paneID names a pane of the page. They are numbered in this order.
@@ -104,12 +109,15 @@ type paneID int
 const (
 	pinnedPane paneID = iota
 	listPane
+	readmePane
+	// calendarPane is a user's only.
+	calendarPane
 	numPanes
 )
 
 // paneTitles name the panes. The list pane goes by the title of its tab
-// instead.
-var paneTitles = [numPanes]string{"Pinned", ""}
+// instead, and the README by its path once read.
+var paneTitles = [numPanes]string{"Pinned", "", "README", "Contributions"}
 
 // maxBack is the most pages the back key goes back through, so that a long
 // walk from person to person keeps a bounded number of lists.
@@ -138,6 +146,8 @@ type Section struct {
 	links termtext.Links
 	// defaultTab is the tab of the list pane each page opens on.
 	defaultTab tab
+	// sc is what the panes beside the list share across the pages.
+	sc sideConf
 
 	started bool
 	focused bool
@@ -175,6 +185,8 @@ type page struct {
 	// the account is a user or an organization, and read once their tab
 	// is on view.
 	lists [numTabs]lister
+	// side is what the panes beside the list show.
+	side  side
 	focus paneID
 	tab   tab
 }
@@ -223,6 +235,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		voice:      ui.NewVoice(keys, ""),
 		icons:      ui.NewIcons(def.UI.Icons),
 		defaultTab: tabFor(def.Owner.DefaultTab),
+		sc:         newSideConf(),
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -276,6 +289,7 @@ func (s *Section) SetTheme(t ui.Theme) {
 			}
 		}
 	}
+	s.themeSide()
 	s.render()
 }
 
@@ -334,7 +348,7 @@ func (s *Section) goBack() bool {
 
 // newPage returns the page of login, as the cache has it.
 func (s *Section) newPage(login string) *page {
-	p := &page{login: login, focus: listPane, tab: s.defaultTab}
+	p := &page{login: login, focus: s.sc.focus, tab: s.defaultTab}
 	if o, ok := s.svc.CachedHeader(login); ok {
 		p.header.value, p.header.ok = o, true
 		s.setHeader(p)

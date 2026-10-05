@@ -307,7 +307,8 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		Dashboard: dashboard.New(ctx, dashSvc, cfg.Keys, dashOpts...),
 		Owner: owner.New(ctx, ownerSvc, cfg.Keys,
 			owner.WithVoice(voice), owner.WithIcons(icons), owner.WithDates(dates), owner.WithAvatars(pics),
-			owner.WithHost(webHost), owner.WithDefaultTab(cfg.Owner.DefaultTab)),
+			owner.WithHost(webHost), owner.WithDefaultTab(cfg.Owner.DefaultTab),
+			owner.WithCalendar(cfg.Dashboard.CalendarGlyph, cfg.Dashboard.ContributionDays())),
 	}
 
 	// The history and the releases read the settings of the session,

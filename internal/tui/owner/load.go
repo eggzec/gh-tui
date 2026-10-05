@@ -149,6 +149,7 @@ func (s *Section) online() tea.Cmd {
 	if l := p.list(); l != nil && l.started() {
 		cmds = append(cmds, ui.RetryUnreached(l.feed()))
 	}
+	cmds = append(cmds, s.onlineSide())
 	return tea.Batch(cmds...)
 }
 
@@ -169,6 +170,7 @@ func (s *Section) Revisit() tea.Cmd {
 	if l := p.list(); l != nil && l.started() && l.feed().Settled() && !l.fresh(s.svc) {
 		cmds = append(cmds, l.feed().Reload())
 	}
+	cmds = append(cmds, s.revisitSide())
 	cmd := tea.Batch(cmds...)
 	if cmd != nil {
 		// What is being read again shows as updating.
@@ -186,7 +188,8 @@ func (s *Section) updating() bool {
 		return false
 	}
 	l := p.list()
-	return p.header.ok && p.header.loading || l != nil && l.started() && l.feed().Len() > 0 && !l.feed().Settled()
+	return p.header.ok && p.header.loading || l != nil && l.started() && l.feed().Len() > 0 && !l.feed().Settled() ||
+		s.sideUpdating()
 }
 
 // setTab shows tab t of the list pane of the page on view, and reads its
