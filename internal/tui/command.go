@@ -77,6 +77,12 @@ type Searcher interface {
 	Search(query string) tea.Cmd
 }
 
+// Fresher is a search page that can drop its query, and the results of
+// it, so the next one starts empty.
+type Fresher interface {
+	Fresh()
+}
+
 // searchCommand shows the search page, as the search key does, and
 // searches for query there, unless it is empty.
 func (m *Model) searchCommand(query string) tea.Cmd {

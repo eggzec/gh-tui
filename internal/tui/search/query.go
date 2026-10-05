@@ -109,3 +109,18 @@ func (s *Section) setQuery(text string) tea.Cmd {
 	s.input.CursorEnd()
 	return s.submit()
 }
+
+// Fresh empties the query and drops its results, as a new search starts,
+// and puts the focus back in the query when the page has it. The recent
+// searches stay. The lists of the query before go too, so that typing it
+// again reads it anew, not through a list whose reads were canceled.
+func (s *Section) Fresh() {
+	s.input.SetValue("")
+	s.seq++
+	clear(s.hits)
+	clear(s.stale)
+	s.code = nil
+	s.settle()
+	s.focusArea(inputArea)
+	s.render()
+}

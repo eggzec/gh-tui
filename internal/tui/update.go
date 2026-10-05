@@ -357,11 +357,15 @@ func filterOf(s ui.Section, tab filterform.Tab) (ui.Filterable, ui.Filter, bool)
 	return fl, f, true
 }
 
-// showSearch shows the search page, with the focus in its query, if the
-// app has one.
+// showSearch shows the search page, with the focus in an empty query, if
+// the app has one. The page keeps its recent searches, but not the last
+// query, so typing starts a new one.
 func (m *Model) showSearch() tea.Cmd {
 	if m.srch == nil {
 		return nil
+	}
+	if f, ok := m.srch.section.(Fresher); ok {
+		f.Fresh()
 	}
 	if m.screen == searchScreen {
 		m.srch.setFocus(true)
