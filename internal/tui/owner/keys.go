@@ -73,8 +73,8 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		Left:        key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←/h", "left")),
 		Right:       key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "right")),
 	}
-	actions := [numPanes]string{config.ActionPane1, config.ActionPane2}
-	names := [numPanes]string{paneTitles[pinnedPane], "List"}
+	actions := [numPanes]string{config.ActionPane1, config.ActionPane2, config.ActionPane3, config.ActionPane4}
+	names := [numPanes]string{paneTitles[pinnedPane], "List", paneTitles[readmePane], paneTitles[calendarPane]}
 	labels := make([]string, 0, numPanes)
 	for i, a := range actions {
 		k.Panes[i] = ui.Binding(keys, a, names[i])
@@ -131,6 +131,9 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 	if l := s.page.list(); l != nil && s.page.focus == listPane {
 		return []keyhelp.Layer{own, keyhelp.FromHelp("list", l.feed().KeyMap(), false)}
 	}
+	if side, ok := s.sideLayer(); ok {
+		return []keyhelp.Layer{own, side}
+	}
 	return []keyhelp.Layer{own}
 }
 
@@ -145,6 +148,7 @@ func (k KeyMap) state(s *Section) KeyMap {
 	panes := map[paneID][]*key.Binding{
 		pinnedPane: {&k.Left, &k.Right, &k.Up, &k.Down, &k.Select, &k.Open},
 		listPane:   {&k.NextTab, &k.PrevTab, &k.ClearFilter, &k.Select, &k.Open, &k.Filter, &k.Sort},
+		readmePane: {&k.Open},
 	}
 	for _, b := range []*key.Binding{&k.Left, &k.Right, &k.Up, &k.Down, &k.Select, &k.Open, &k.NextTab, &k.PrevTab, &k.ClearFilter, &k.Filter, &k.Sort} {
 		b.SetEnabled(b.Enabled() && s.page != nil && slices.Contains(panes[focus], b))

@@ -429,8 +429,10 @@ keys:
   prev_tab: [shift+tab, "["]
   open_in_browser: [o]
   # Focus the pane with that number on the screen: files, pull requests
-  # and issues on the repository screen, and pinned, repositories, work,
-  # contributions and notifications on the dashboard.
+  # and issues on the repository screen; pinned, repositories, work,
+  # contributions and notifications on the dashboard; and pinned, the
+  # list, the README and a user's contributions on the page of a user or
+  # an organization.
   pane_1: ["1"]
   pane_2: ["2"]
   pane_3: ["3"]

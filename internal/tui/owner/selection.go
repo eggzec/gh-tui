@@ -19,6 +19,7 @@ func (s *Section) Selected() (ui.Selection, bool) {
 			return l.selection(s)
 		}
 	default:
+		return s.sideSelected()
 	}
 	return ui.Selection{}, false
 }

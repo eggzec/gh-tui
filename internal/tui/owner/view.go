@@ -2,6 +2,7 @@ package owner
 
 import (
 	"cmp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -14,10 +15,11 @@ import (
 )
 
 // Sizes of the page. From wideWidth by wideHeight cells it shows every
-// pane at once: the profile on top, the pinned cards below it and the list
-// below them. Below that, or zoomed, it shows the profile and the focused
-// pane, whose frame names the others. They are the dashboard's, so the
-// two pages change layout at the same size.
+// pane at once: the profile on top, the pinned cards below it, and below
+// them the list beside the README, over a user's calendar. Below that, or
+// zoomed, it shows the profile and the focused pane, whose frame names the
+// others. They are the dashboard's, so the two pages change layout at the
+// same size.
 const (
 	wideWidth    = 100
 	wideHeight   = 30
@@ -37,8 +39,15 @@ func (s *Section) layout() {
 			b[i] = box{s.width, rest}
 		}
 	} else {
+		mid := max(rest-pinnedHeight, 0)
+		lw := s.width * 11 / 20
 		b[pinnedPane] = box{s.width, pinnedHeight}
-		b[listPane] = box{s.width, max(rest-pinnedHeight, 0)}
+		b[listPane] = box{lw, mid}
+		b[readmePane] = box{s.width - lw, mid}
+		if s.hasPane(calendarPane) {
+			b[readmePane].h = max(mid-calendarHeight, 0)
+			b[calendarPane] = box{s.width - lw, calendarHeight}
+		}
 	}
 	s.boxes = b
 	p := s.page
@@ -51,6 +60,7 @@ func (s *Section) layout() {
 			s.layoutList(l)
 		}
 	}
+	s.resizeSide()
 }
 
 // inside is the room inside the frame of pane p.
@@ -89,7 +99,7 @@ func (s *Section) render() {
 
 // renderPane renders pane p in its frame. Compose the page after.
 func (s *Section) renderPane(p paneID) {
-	if s.width <= 0 || s.height <= 0 || s.page == nil || s.onePane() && p != s.page.focus {
+	if s.width <= 0 || s.height <= 0 || s.page == nil || s.onePane() && p != s.page.focus || !s.hasPane(p) {
 		return
 	}
 	w, h := s.inside(p)
@@ -97,6 +107,10 @@ func (s *Section) renderPane(p paneID) {
 	switch p {
 	case pinnedPane:
 		body = s.pinnedBody(w, h)
+	case readmePane:
+		body = s.readmeBody(w, h)
+	case calendarPane:
+		body = s.calendarBody(w)
 	default:
 		body = s.listBody(w, h)
 	}
@@ -123,7 +137,11 @@ func (s *Section) compose() {
 		lines = append(lines, s.frames[s.page.focus]...)
 	default:
 		lines = append(lines, s.frames[pinnedPane]...)
-		lines = append(lines, s.frames[listPane]...)
+		right := s.frames[readmePane]
+		if s.hasPane(calendarPane) {
+			right = append(slices.Clip(right), s.frames[calendarPane]...)
+		}
+		lines = ownerui.Beside(lines, s.frames[listPane], right)
 	}
 	blank := strings.Repeat(" ", s.width)
 	for len(lines) < s.height {
@@ -135,6 +153,16 @@ func (s *Section) compose() {
 // title is the title of pane p: the list pane's is that of its tab, or
 // its short one if short is set.
 func (s *Section) title(p paneID, short bool) string {
+	switch p {
+	case readmePane:
+		return s.readmeTitle(s.page, short)
+	case calendarPane:
+		if short {
+			return "Calendar"
+		}
+	case listPane:
+	default:
+	}
 	if p != listPane {
 		return paneTitles[p]
 	}
@@ -182,6 +210,9 @@ func (s *Section) label(p paneID) (label string, width int) {
 		var b strings.Builder
 		n := 0
 		for i := range numPanes {
+			if !s.hasPane(i) {
+				continue
+			}
 			part := s.paneLabel(i)
 			if i != p {
 				name := ""
@@ -358,6 +389,9 @@ func (s *Section) facts(o core.Owner) string {
 	if o.Kind == core.OwnerOrg {
 		muted(p.Location, site(p.Website), o.Email)
 		count(p.Repos, " repository", " repositories")
+		if f, ok := s.orgFollowers(); ok {
+			count(f, " follower", " followers")
+		}
 		if o.Viewer.Member {
 			parts = append(parts, st.Accent.Render("member"))
 		}

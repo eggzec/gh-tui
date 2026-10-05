@@ -92,11 +92,15 @@ func TestBackUnzooms(t *testing.T) {
 }
 
 func TestDefaultTab(t *testing.T) {
-	for _, name := range []string{config.OwnerTabRepositories, config.OwnerTabReadme, ""} {
+	for _, name := range []string{config.OwnerTabRepositories, ""} {
 		s := newSection(t, newFake(), "octocat", 120, 40, WithDefaultTab(name))
 		if s.page.tab != reposTab || s.page.focus != listPane {
 			t.Errorf("default tab %q opens tab %d of pane %d, want the repositories", name, s.page.tab, s.page.focus)
 		}
+	}
+	s := newSection(t, newFake(), "octocat", 80, 24, WithDefaultTab(config.OwnerTabReadme))
+	if s.page.focus != readmePane || s.page.side.pager == nil {
+		t.Errorf("default tab readme opens pane %d, want the README read", s.page.focus)
 	}
 }
 
