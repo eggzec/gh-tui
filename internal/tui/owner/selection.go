@@ -15,10 +15,8 @@ func (s *Section) Selected() (ui.Selection, bool) {
 			return ui.RepoSelection(c.Repo, s.repoURL(c.Repo)), true
 		}
 	case listPane:
-		if l := p.repos; l != nil {
-			if r, ok := l.Feed.Selected(); ok {
-				return ui.RepoSelection(r, s.repoURL(r)), true
-			}
+		if l := p.list(); l != nil {
+			return l.selection(s)
 		}
 	default:
 	}

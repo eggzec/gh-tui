@@ -39,13 +39,14 @@ func (s *Section) readHeader(p *page, again bool) tea.Cmd {
 	}
 }
 
-// startList fetches the first page of the list of p, once its header says
-// whose it is.
+// startList fetches the first page of the list of the tab of p on view,
+// once its header says whose it is.
 func (s *Section) startList(p *page) tea.Cmd {
-	if p.repos == nil || !s.started {
+	l := p.list()
+	if l == nil || !s.started {
 		return nil
 	}
-	return p.repos.start()
+	return l.start()
 }
 
 // loaded takes the header of a page, and reads it again if it was kept
@@ -69,18 +70,52 @@ func (s *Section) loaded(msg loadedMsg) tea.Cmd {
 	return s.startList(p)
 }
 
-// setHeader shows the pins of the header of p, and makes its list of
-// repositories, now that the header says whose they are.
+// setHeader shows the pins of the header of p, and makes the lists of its
+// tabs, now that the header says whose they are.
 func (s *Section) setHeader(p *page) {
 	h := p.header.value
 	p.pinned.Set(h.Pinned)
-	if p.repos == nil && h.Profile.Login != "" {
-		p.repos = s.newRepoList(h)
-		if p == s.page {
-			s.layout()
-			s.focusPane()
+	if h.Profile.Login == "" {
+		return
+	}
+	if s.makeLists(p, h) && p == s.page {
+		s.layout()
+		s.focusPane()
+	}
+}
+
+// makeLists makes the lists of the tabs that the page p of o has and
+// lacks, and reports whether it made any. What the viewer may see of an
+// organization follows its header each time.
+func (s *Section) makeLists(p *page, o core.Owner) bool {
+	login, member := o.Profile.Login, o.Viewer.Member
+	p.tab = tabIn(p.tab, o.Kind)
+	made := false
+	for _, t := range tabsOf(o.Kind) {
+		if p.lists[t] != nil {
+			continue
+		}
+		made = true
+		switch t {
+		case reposTab:
+			p.lists[t] = s.newRepoList(o)
+		case starsTab:
+			p.lists[t] = s.newStarList(login)
+		case membersTab:
+			p.lists[t] = s.newPeopleList(t, login, member)
+		case teamsTab:
+			p.lists[t] = s.newTeamList(login, !member)
+		default:
+			p.lists[t] = s.newPeopleList(t, login, false)
 		}
 	}
+	if l, ok := p.lists[membersTab].(*peopleList); ok {
+		l.roles = member
+	}
+	if l, ok := p.lists[teamsTab].(*teamList); ok {
+		l.membersOnly = !member
+	}
+	return made
 }
 
 // refresh reads the page on view again from GitHub, and leaves those to go
@@ -90,8 +125,8 @@ func (s *Section) refresh() tea.Cmd {
 	s.svc.InvalidateLogin(p.login)
 	p.gen++
 	cmd := s.readHeader(p, false)
-	if p.repos != nil && p.repos.started {
-		cmd = tea.Batch(cmd, p.repos.Feed.Reload())
+	if l := p.list(); l != nil && l.started() {
+		cmd = tea.Batch(cmd, l.feed().Reload())
 	}
 	return cmd
 }
@@ -110,8 +145,8 @@ func (s *Section) online() tea.Cmd {
 	if !h.loading && (ui.Unreached(h.err) || h.ok && h.err == nil && (h.value.Offline || h.value.Limited)) {
 		cmds = append(cmds, s.readHeader(p, true))
 	}
-	if p.repos != nil && p.repos.started {
-		cmds = append(cmds, ui.RetryUnreached(&p.repos.Feed))
+	if l := p.list(); l != nil && l.started() {
+		cmds = append(cmds, ui.RetryUnreached(l.feed()))
 	}
 	return tea.Batch(cmds...)
 }
@@ -130,8 +165,8 @@ func (s *Section) Revisit() tea.Cmd {
 	if !p.header.loading && !s.svc.FreshHeader(p.login) {
 		cmds = append(cmds, s.readHeader(p, true))
 	}
-	if l := p.repos; l != nil && l.started && l.Feed.Settled() && !s.svc.FreshRepos(l.q) {
-		cmds = append(cmds, l.Feed.Reload())
+	if l := p.list(); l != nil && l.started() && l.feed().Settled() && !l.fresh(s.svc) {
+		cmds = append(cmds, l.feed().Reload())
 	}
 	cmd := tea.Batch(cmds...)
 	if cmd != nil {
@@ -149,6 +184,42 @@ func (s *Section) updating() bool {
 	if p == nil {
 		return false
 	}
-	l := p.repos
-	return p.header.ok && p.header.loading || l != nil && l.started && l.Feed.Len() > 0 && !l.Feed.Settled()
+	l := p.list()
+	return p.header.ok && p.header.loading || l != nil && l.started() && l.feed().Len() > 0 && !l.feed().Settled()
+}
+
+// setTab shows tab t of the list pane of the page on view, and reads its
+// list: the first page the first time, and again if it went stale or
+// failed for want of an answer from GitHub meanwhile.
+func (s *Section) setTab(t tab) tea.Cmd {
+	p := s.page
+	p.tab = t
+	s.focusPane()
+	l := p.list()
+	switch {
+	case l == nil || !s.started:
+		return nil
+	case !l.started():
+		return l.start()
+	case l.feed().Settled() && !l.fresh(s.svc):
+		return l.feed().Reload()
+	}
+	return ui.RetryUnreached(l.feed())
+}
+
+// stepTab shows the tab by from the one on view, among those of the page,
+// round from the last to the first.
+func (s *Section) stepTab(by int) tea.Cmd {
+	p := s.page
+	if !p.header.ok {
+		return nil
+	}
+	tabs := tabsOf(p.header.value.Kind)
+	i := 0
+	for j, t := range tabs {
+		if t == p.tab {
+			i = j
+		}
+	}
+	return s.setTab(tabs[(i+by+len(tabs))%len(tabs)])
 }

@@ -2,6 +2,7 @@ package owner
 
 import (
 	"context"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -18,10 +19,65 @@ import (
 // keeps of up to owners.MaxAllRepos of them instead.
 type repoList struct {
 	q owners.ReposQuery
-	// started is set once the feed has fetched its first page.
-	started bool
-	ownerui.Table
+	tableTab
 }
+
+// tableTab is a tab that lists repositories in the columns of a table.
+type tableTab struct {
+	ownerui.Table
+	// on is set once the feed has fetched its first page.
+	on bool
+}
+
+func (l *tableTab) feed() feedModel { return &l.Feed }
+
+func (l *tableTab) update(msg tea.Msg) tea.Cmd {
+	var cmd tea.Cmd
+	l.Feed, cmd = l.Feed.Update(msg)
+	return cmd
+}
+
+func (l *tableTab) start() tea.Cmd {
+	if l.on {
+		return nil
+	}
+	l.on = true
+	return l.Feed.Init()
+}
+
+func (l *tableTab) started() bool { return l.on }
+
+func (l *tableTab) resize(s *Section, width, height int) {
+	l.Feed.SetSize(width, max(height-listTop, 0))
+	l.Layout(max(width-gutterWidth, 0), s.icons.Star, s.dates.Width())
+}
+
+func (l *tableTab) header(s *Section) string {
+	if l.Feed.Len() == 0 {
+		return ""
+	}
+	return strings.Repeat(" ", gutterWidth) + s.st.shared.Subtle.Render(l.Cols().Header(s.icons.Star, s.icons.Ellipsis))
+}
+
+func (l *tableTab) remeasure(s *Section) bool { return l.Remeasure(s.icons) }
+
+func (l *tableTab) selection(s *Section) (ui.Selection, bool) {
+	r, ok := l.Feed.Selected()
+	if !ok {
+		return ui.Selection{}, false
+	}
+	return ui.RepoSelection(r, s.repoURL(r)), true
+}
+
+func (l *tableTab) enter(*Section) tea.Cmd {
+	r, ok := l.Feed.Selected()
+	if !ok {
+		return nil
+	}
+	return selectRepo(r.Ref)
+}
+
+func (l *repoList) fresh(svc Service) bool { return svc.FreshRepos(l.q) }
 
 // newRepoList returns the list of the repositories of o, a user's or an
 // organization's.
@@ -74,22 +130,6 @@ const listTop = 2
 // gutterWidth is the room the list leaves for its cursor.
 const gutterWidth = 2
 
-// resize gives the list width by height cells, below its tabs and the
-// headers of its columns.
-func (l *repoList) resize(s *Section, width, height int) {
-	l.Feed.SetSize(width, max(height-listTop, 0))
-	l.Layout(max(width-gutterWidth, 0), s.icons.Star, s.dates.Width())
-}
-
-// start fetches the first page, once the page has started.
-func (l *repoList) start() tea.Cmd {
-	if l.started {
-		return nil
-	}
-	l.started = true
-	return l.Feed.Init()
-}
-
 // cachedRepos returns the repositories of l that are cached, from the first,
 // without I/O, for the languages the filter offers.
 func (s *Section) cachedRepos(l *repoList) []core.Repo {
@@ -97,17 +137,17 @@ func (s *Section) cachedRepos(l *repoList) []core.Repo {
 	return p.Items
 }
 
-// list returns the list on view, or nil while the page has none yet.
-func (s *Section) list() *repoList {
-	if s.page == nil {
+// repoTab returns the repositories while their tab is on view, or nil.
+func (s *Section) repoTab() *repoList {
+	if s.page == nil || s.page.tab != reposTab {
 		return nil
 	}
-	return s.page.repos
+	return s.page.repos()
 }
 
 // Filter implements ui.Filterable while the repositories have the focus.
 func (s *Section) Filter() (ui.Filter, bool) {
-	l := s.list()
+	l := s.repoTab()
 	if l == nil || s.page.focus != listPane {
 		return ui.Filter{}, false
 	}
@@ -125,14 +165,14 @@ func (s *Section) ApplyFilter(msg filterform.AppliedMsg) tea.Cmd {
 // setFilter filters the repositories with the filter of query, unless it
 // does already, and lists them again.
 func (s *Section) setFilter(query string) tea.Cmd {
-	l := s.list()
+	l := s.repoTab()
 	if l == nil || query == l.Filter().Query() {
 		return nil
 	}
 	f := ownerui.ParseFilter(query)
 	l.SetFilter(&f)
 	l.Feed.SetEmptyText(s.reposEmpty(l))
-	if !l.started {
+	if !l.on {
 		return nil
 	}
 	return l.Feed.Reset()

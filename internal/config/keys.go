@@ -93,7 +93,8 @@ const (
 	ActionGoToRepo = "go_to_repo"
 	// ActionNextFilter and ActionPrevFilter switch between the tabs of a
 	// list, such as All, Failing, Running and Mine of the Actions modal,
-	// and the states of the pull requests and the issues.
+	// the states of the pull requests and the issues, and the lists of
+	// the page of a user or an organization.
 	ActionNextFilter = "next_filter"
 	ActionPrevFilter = "prev_filter"
 	// ActionPaneLeft and ActionPaneRight move the focus to the pane on the

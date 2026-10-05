@@ -19,12 +19,17 @@ type KeyMap struct {
 	Next  key.Binding
 	Prev  key.Binding
 	Panes [numPanes]key.Binding
+	// NextTab and PrevTab switch between the tabs of the list pane.
+	NextTab key.Binding
+	PrevTab key.Binding
 	// Zoom shows the focused pane alone, or every pane again.
 	Zoom key.Binding
 	// Back shows every pane again while one is zoomed, or else the page
 	// this one was opened from, or else the screen before the page.
 	Back key.Binding
-	// Select opens the repository under the cursor.
+	// Select opens what is under the cursor: a repository on the
+	// repository screen, a person or an organization on their page, and a
+	// team, which has no page here, in the browser.
 	Select key.Binding
 	// Open opens what is under the cursor in the browser.
 	Open    key.Binding
@@ -53,6 +58,8 @@ func newKeyMap(keys map[string][]string) KeyMap {
 	k := KeyMap{
 		Next:        ui.Binding(keys, config.ActionNextTab, "next pane"),
 		Prev:        ui.Binding(keys, config.ActionPrevTab, "previous pane"),
+		NextTab:     ui.Binding(keys, config.ActionNextFilter, "next tab"),
+		PrevTab:     ui.Binding(keys, config.ActionPrevFilter, "previous tab"),
 		Zoom:        ui.Binding(keys, config.ActionZoom, "zoom"),
 		Back:        ui.Binding(keys, config.ActionBack, "back"),
 		Select:      ui.Binding(keys, config.ActionSelect, "open"),
@@ -103,7 +110,7 @@ func (k KeyMap) pane(msg tea.KeyPressMsg) paneID {
 func (k KeyMap) ShortHelp() []key.Binding {
 	return []key.Binding{
 		k.Up, k.Down, k.Left, k.Right, k.Select, k.Filter, k.Sort, k.ClearFilter, k.Open,
-		k.Next, k.Jump, k.Zoom, k.Back, k.Refresh,
+		k.NextTab, k.Next, k.Jump, k.Zoom, k.Back, k.Refresh,
 	}
 }
 
@@ -111,7 +118,7 @@ func (k KeyMap) ShortHelp() []key.Binding {
 // matches first, and then its own.
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Left, k.Right, k.Up, k.Down, k.Select, k.Open, k.ClearFilter, k.Filter, k.Sort},
+		{k.Left, k.Right, k.Up, k.Down, k.Select, k.Open, k.NextTab, k.PrevTab, k.ClearFilter, k.Filter, k.Sort},
 		{k.Next, k.Prev, k.Zoom, k.Back, k.Refresh, k.Jump},
 	}
 }
@@ -121,8 +128,8 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 // while it has the focus.
 func (s *Section) KeyLayers() []keyhelp.Layer {
 	own := keyhelp.FromHelp("profile", s.keys.state(s), false)
-	if l := s.list(); l != nil && s.page.focus == listPane {
-		return []keyhelp.Layer{own, keyhelp.FromHelp("list", l.Feed.KeyMap(), false)}
+	if l := s.page.list(); l != nil && s.page.focus == listPane {
+		return []keyhelp.Layer{own, keyhelp.FromHelp("list", l.feed().KeyMap(), false)}
 	}
 	return []keyhelp.Layer{own}
 }
@@ -137,16 +144,28 @@ func (k KeyMap) state(s *Section) KeyMap {
 	}
 	panes := map[paneID][]*key.Binding{
 		pinnedPane: {&k.Left, &k.Right, &k.Up, &k.Down, &k.Select, &k.Open},
-		listPane:   {&k.ClearFilter, &k.Select, &k.Open, &k.Filter, &k.Sort},
+		listPane:   {&k.NextTab, &k.PrevTab, &k.ClearFilter, &k.Select, &k.Open, &k.Filter, &k.Sort},
 	}
-	for _, b := range []*key.Binding{&k.Left, &k.Right, &k.Up, &k.Down, &k.Select, &k.Open, &k.ClearFilter, &k.Filter, &k.Sort} {
+	for _, b := range []*key.Binding{&k.Left, &k.Right, &k.Up, &k.Down, &k.Select, &k.Open, &k.NextTab, &k.PrevTab, &k.ClearFilter, &k.Filter, &k.Sort} {
 		b.SetEnabled(b.Enabled() && s.page != nil && slices.Contains(panes[focus], b))
 	}
 	if focus == listPane {
-		l := s.list()
+		l := s.repoTab()
 		k.ClearFilter.SetEnabled(k.ClearFilter.Enabled() && l != nil && l.Filter().Active())
 		k.Filter.SetEnabled(k.Filter.Enabled() && l != nil)
 		k.Sort.SetEnabled(k.Sort.Enabled() && l != nil)
+		// The tabs are known once the header says whose the page is.
+		tabs := s.page != nil && s.page.header.ok
+		k.NextTab.SetEnabled(k.NextTab.Enabled() && tabs)
+		k.PrevTab.SetEnabled(k.PrevTab.Enabled() && tabs)
+		if l := s.page.list(); l != nil {
+			sel, ok := l.selection(s)
+			k.Select.SetEnabled(k.Select.Enabled() && ok)
+			k.Open.SetEnabled(k.Open.Enabled() && ok && sel.URL != "")
+			if _, team := l.(*teamList); team {
+				k.Select.SetHelp(k.Select.Help().Key, "open in browser")
+			}
+		}
 	}
 	k.Zoom.SetEnabled(k.Zoom.Enabled() && s.wide)
 	k.Refresh.SetEnabled(k.Refresh.Enabled() && s.page != nil)
