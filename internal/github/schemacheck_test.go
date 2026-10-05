@@ -58,6 +58,9 @@ var graphqlOperations = map[string]string{
 	"commitChecksQuery":        commitChecksQuery,
 	"viewerContributionsQuery": viewerContributionsQuery,
 	"bodyHTMLQuery":            bodyHTMLQuery,
+	"ownerHeaderQuery":         ownerHeaderQuery,
+	"userReposQuery":           userReposQuery,
+	"userContributionsQuery":   userContributionsQuery,
 }
 
 // A field of a REST answer tagged schema:"optional" may be absent, as on
