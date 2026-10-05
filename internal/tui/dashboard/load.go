@@ -2,7 +2,6 @@ package dashboard
 
 import (
 	"context"
-	"strconv"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -10,8 +9,8 @@ import (
 	"github.com/eggzec/gh-tui/internal/obs"
 	"github.com/eggzec/gh-tui/internal/service/dashboard"
 	"github.com/eggzec/gh-tui/internal/service/notifications"
+	"github.com/eggzec/gh-tui/internal/tui/ownerui"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/calendar"
 )
 
 // kind names one of the dashboard's reads.
@@ -281,23 +280,7 @@ func (s *Section) setHeader() {
 }
 
 func (s *Section) setContributions() {
-	c := s.contribs.value
-	weeks := make([][]calendar.Day, len(c.Weeks))
-	for i, w := range c.Weeks {
-		weeks[i] = make([]calendar.Day, len(w))
-		for j, d := range w {
-			weeks[i][j] = calendar.Day{Date: d.Date, Count: d.Count, Level: d.Level}
-		}
-	}
-	period := "the last year"
-	if s.calDays > 0 {
-		period = "the last " + strconv.Itoa(s.calDays) + " days"
-	}
-	s.cal.SetEmptyText("No contributions in " + period + ".")
-	s.cal.SetWeeks(weeks)
-	// The total GitHub reports is for the year, and a range counts its
-	// own days instead.
-	s.cal.SetTotal(c.Total)
+	ownerui.SetContributions(&s.cal, s.contribs.value, s.calDays)
 	// The calendar is as wide as its range and total need.
 	s.layout()
 }

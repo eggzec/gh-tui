@@ -2,6 +2,7 @@ package dashboard
 
 import (
 	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/internal/tui/ownerui"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -21,7 +22,7 @@ func (s *Section) configure(c config.Config) {
 		s.repos.resize(s.repos.width, s.repos.height)
 	}
 	s.glyph = c.Dashboard.CalendarGlyph
-	s.cal.SetGlyph(cellGlyph(s.glyph, s.icons))
+	s.cal.SetGlyph(ownerui.CalendarGlyph(s.glyph, s.icons))
 	if days := c.Dashboard.ContributionDays(); days != s.calDays {
 		s.calDays = days
 		s.cal.SetRange(days)
