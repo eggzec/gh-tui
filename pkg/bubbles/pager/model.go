@@ -71,6 +71,9 @@ type Model struct {
 	// at.
 	render     Render
 	renderedAt int
+	// pics are the lines of rendered content that draw images, as they
+	// are, by their index; the lines hold them blank.
+	pics map[int]string
 	// sgr are the colors of content that has its own, such as a program's
 	// output kept in a file, for each line, or nil for content without
 	// them. Such content isn't highlighted.

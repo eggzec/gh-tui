@@ -92,17 +92,17 @@ func (m *Model) project(p projection) tea.Cmd {
 	m.stopProjecting()
 	m.want = p
 	if m.size < syncLimit || p.filter.re == nil {
-		vis, kept, _ := pick(context.Background(), m.lines, p)
+		vis, kept, _ := pick(context.Background(), m.lines, p, m.pics)
 		return m.picked(vis, kept)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	m.stopProject = cancel
 	m.projecting = true
 	m.enableSearchKeys()
-	id, pgen, all := m.id, m.pgen, m.lines
+	id, pgen, all, pics := m.id, m.pgen, m.lines, m.pics
 	return func() tea.Msg {
 		defer cancel()
-		vis, kept, err := pick(ctx, all, p)
+		vis, kept, err := pick(ctx, all, p, pics)
 		if err != nil {
 			return nil
 		}
@@ -160,8 +160,11 @@ func (m *Model) picked(vis []int32, kept int) tea.Cmd {
 // pick returns the indices of the lines of all that p shows, or nil for
 // all of them, and how many lines its filter kept, until ctx is done. A
 // blank line is an empty one, as in less, and squeeze keeps the first of
-// a run of them among the lines the filter keeps.
-func pick(ctx context.Context, all []string, p projection) (vis []int32, kept int, err error) {
+// a run of them among the lines the filter keeps. The lines in pics draw
+// images, which hold them blank: they are neither blank nor matched by
+// any pattern, so a filter shows them only when it shows the lines it
+// doesn't match, such as !^$, which hides the blank ones.
+func pick(ctx context.Context, all []string, p projection, pics map[int]string) (vis []int32, kept int, err error) {
 	if p.none() {
 		return nil, len(all), nil
 	}
@@ -172,11 +175,16 @@ func pick(ctx context.Context, all []string, p projection) (vis []int32, kept in
 				return nil, 0, err
 			}
 		}
-		if f.re != nil && f.re.MatchString(l) == f.invert {
+		_, pic := pics[i]
+		if f.re != nil && (pic && !f.invert || !pic && f.re.MatchString(l) == f.invert) {
 			continue
 		}
 		kept++
-		if p.squeeze && l == "" && len(vis) > 0 && all[vis[len(vis)-1]] == "" {
+		blank := func(j int) bool {
+			_, pic := pics[j]
+			return all[j] == "" && !pic
+		}
+		if p.squeeze && blank(i) && len(vis) > 0 && blank(int(vis[len(vis)-1])) {
 			continue
 		}
 		vis = append(vis, int32(i))

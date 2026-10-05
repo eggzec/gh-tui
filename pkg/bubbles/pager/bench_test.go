@@ -202,7 +202,7 @@ func BenchmarkFilter(b *testing.B) {
 		b.Run("100k/"+tt.name, func(b *testing.B) {
 			b.ReportAllocs()
 			for b.Loop() {
-				_, _, _ = pick(context.Background(), lines, p)
+				_, _, _ = pick(context.Background(), lines, p, nil)
 			}
 		})
 	}
