@@ -21,6 +21,7 @@ type recall struct {
 	pinned []core.RepoRef
 	here   core.RepoRef
 	dash   interface {
+		CachedHeader() (core.Header, bool)
 		CachedRepos(q dashsvc.ReposQuery) (core.Page[core.Repo], bool)
 	}
 	repos interface {
@@ -74,4 +75,19 @@ func (r recall) Numbers(repo core.RepoRef) []tui.Numbered {
 	}
 	slices.SortFunc(out, func(a, b tui.Numbered) int { return cmp.Compare(b.Number, a.Number) })
 	return slices.CompactFunc(out, func(a, b tui.Numbered) bool { return a.Number == b.Number })
+}
+
+// Owners returns the viewer's organizations, as the dashboard read them,
+// then the owners of the repositories Repos returns. It may repeat one.
+func (r recall) Owners() []string {
+	var out []string
+	if h, ok := r.dash.CachedHeader(); ok {
+		for _, o := range h.Orgs {
+			out = append(out, o.Login)
+		}
+	}
+	for _, repo := range r.Repos() {
+		out = append(out, repo.Owner)
+	}
+	return out
 }

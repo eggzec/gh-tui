@@ -14,11 +14,19 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui"
 )
 
-// cachedDash holds the first page of the viewer's own repositories.
-type cachedDash []core.Repo
+// cachedDash holds the first page of the viewer's own repositories, and
+// the organizations of the header, which is cached when it has any.
+type cachedDash struct {
+	repos []core.Repo
+	orgs  []core.Org
+}
+
+func (c cachedDash) CachedHeader() (core.Header, bool) {
+	return core.Header{Orgs: c.orgs}, c.orgs != nil
+}
 
 func (c cachedDash) CachedRepos(q dashsvc.ReposQuery) (core.Page[core.Repo], bool) {
-	return core.Page[core.Repo]{Items: c}, c != nil && q.Viewer && q.Cursor == ""
+	return core.Page[core.Repo]{Items: c.repos}, c.repos != nil && q.Viewer && q.Cursor == ""
 }
 
 type cachedRepos []core.Repo
@@ -53,16 +61,32 @@ func TestRecallRepos(t *testing.T) {
 	r := recall{
 		pinned: []core.RepoRef{ref("cli", "cli")},
 		here:   ref("eggzec", "gh-tui"),
-		dash:   cachedDash{{Ref: ref("eggzec", "dotfiles")}},
+		dash:   cachedDash{repos: []core.Repo{{Ref: ref("eggzec", "dotfiles")}}},
 		repos:  cachedRepos{{Ref: ref("eggzec", "gh-tui")}, {Ref: ref("eggzec", "site")}},
 	}
 	want := []core.RepoRef{ref("eggzec", "gh-tui"), ref("cli", "cli"), ref("eggzec", "dotfiles"), ref("eggzec", "gh-tui"), ref("eggzec", "site")}
 	if got := r.Repos(); !slices.Equal(got, want) {
 		t.Errorf("Repos = %v, want %v", got, want)
 	}
-	empty := recall{dash: cachedDash(nil), repos: cachedRepos(nil)}
+	empty := recall{dash: cachedDash{}, repos: cachedRepos(nil)}
 	if got := empty.Repos(); len(got) != 0 {
 		t.Errorf("Repos with nothing cached = %v, want none", got)
+	}
+}
+
+func TestRecallOwners(t *testing.T) {
+	r := recall{
+		pinned: []core.RepoRef{ref("cli", "cli")},
+		dash:   cachedDash{repos: []core.Repo{{Ref: ref("eggzec", "dotfiles")}}, orgs: []core.Org{{Login: "charmbracelet"}}},
+		repos:  cachedRepos(nil),
+	}
+	want := []string{"charmbracelet", "cli", "eggzec"}
+	if got := r.Owners(); !slices.Equal(got, want) {
+		t.Errorf("Owners = %v, want %v", got, want)
+	}
+	empty := recall{dash: cachedDash{}, repos: cachedRepos(nil)}
+	if got := empty.Owners(); len(got) != 0 {
+		t.Errorf("Owners with nothing cached = %v, want none", got)
 	}
 }
 

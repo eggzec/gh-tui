@@ -25,6 +25,8 @@ const (
 	dashScreen
 	// searchScreen shows the search page.
 	searchScreen
+	// ownerScreen shows the page of a user or an organization.
+	ownerScreen
 )
 
 // Sizes of the repository screen. Below narrowWidth columns the panes
@@ -192,7 +194,8 @@ func (m *Model) drawFrames() {
 // drawHeader draws the header: the title of the screen on the left, which
 // on the repository screen is the repository, after its owner's avatar
 // where avatars are drawn, and its default branch, or the base its files
-// are shown at, and the unread notifications on the right, on a rule.
+// are shown at, and on the owner screen the login of the page, and the
+// unread notifications on the right, on a rule.
 func (m *Model) drawHeader() {
 	w := m.width
 	if w <= 0 {
@@ -208,13 +211,20 @@ func (m *Model) drawHeader() {
 		name = ui.SearchTitle
 	case m.screen == notifScreen:
 		name = ui.NotificationsTitle
+	case m.screen == ownerScreen:
+		// The page names its account once it has one.
+		name = cmp.Or(m.ownerLogin, ui.OwnerTitle)
 	case m.repo.Owner != "":
 		name = m.repo.String()
 	default:
 		name = "No repository" + m.icons.Separator + "press / to search"
 	}
 	left := m.st.repo.Render(name)
-	if name == m.repo.String() {
+	switch {
+	case m.screen == ownerScreen && m.ownerLogin != "":
+		// The login links to the profile on GitHub.
+		left = termtext.Link(ui.WebURL(m.host, m.ownerLogin), left)
+	case name == m.repo.String():
 		// The repository links to its page, after its owner's avatar,
 		// which stands for its icon, as on GitHub; the avatar stays out
 		// of the link's style.
@@ -281,7 +291,7 @@ func (m *Model) arrange(height int) {
 	if m.notif != nil {
 		m.notif.resize(m.width, height)
 	}
-	for _, p := range []*pane{m.dash, m.srch} {
+	for _, p := range []*pane{m.dash, m.srch, m.own} {
 		if p != nil {
 			p.resize(m.width, height)
 		}
@@ -328,6 +338,8 @@ func (m *Model) body() []string {
 		return m.dash.appendLines(nil)
 	case searchScreen:
 		return m.srch.appendLines(nil)
+	case ownerScreen:
+		return m.own.appendLines(nil)
 	case repoScreen:
 	}
 	if len(m.panes) == 0 {
@@ -363,6 +375,8 @@ func (m *Model) focused() *pane {
 		return m.dash
 	case searchScreen:
 		return m.srch
+	case ownerScreen:
+		return m.own
 	case repoScreen:
 	}
 	if len(m.panes) == 0 {
@@ -376,7 +390,7 @@ func (m *Model) focused() *pane {
 // one to go back to.
 func (m *Model) showScreen(s screen, i int) tea.Cmd {
 	if s == notifScreen && m.notif == nil || s == repoScreen && len(m.panes) == 0 ||
-		s == dashScreen && m.dash == nil || s == searchScreen && m.srch == nil {
+		s == dashScreen && m.dash == nil || s == searchScreen && m.srch == nil || s == ownerScreen && m.own == nil {
 		return nil
 	}
 	before := m.focused()

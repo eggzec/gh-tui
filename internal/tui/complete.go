@@ -21,6 +21,9 @@ type Recall interface {
 	// Numbers returns issues and pull requests of repo that the app has
 	// read, the most relevant first.
 	Numbers(repo core.RepoRef) []Numbered
+	// Owners returns the logins of users and organizations the app knows
+	// of, such as the viewer's organizations, the most relevant first.
+	Owners() []string
 }
 
 // Numbered is an issue or pull request that goto completes.
@@ -29,8 +32,8 @@ type Numbered struct {
 	Title  string
 }
 
-// WithRecall sets what the command line completes repositories and
-// numbers from. Without it, it completes the names of commands, and the
+// WithRecall sets what the command line completes repositories, numbers
+// and owners from. Without it, it completes the names of commands, and the
 // repositories opened in this session or named in the history.
 func WithRecall(r Recall) Option {
 	return func(m *Model) { m.recall = r }
@@ -78,8 +81,9 @@ func (m *Model) complete(line string, cursor int) []cmdline.Candidate {
 	return c.complete(m, arg, cursor, end, end == len(line))
 }
 
-// completeTarget completes what goto opens: a repository, or a number
-// after '#'. It takes one argument, so only its first word completes.
+// completeTarget completes what goto opens: a repository, a number after
+// '#', or a user or organization after '@'. It takes one argument, so only
+// its first word completes.
 func (m *Model) completeTarget(arg string, cursor, end int, _ bool) []cmdline.Candidate {
 	word := strings.TrimLeft(arg, " ")
 	if strings.Contains(word, " ") {
@@ -88,6 +92,9 @@ func (m *Model) completeTarget(arg string, cursor, end int, _ bool) []cmdline.Ca
 	wordStart := cursor - len(word)
 	if strings.Contains(word, "#") {
 		return m.completeNumber(word, wordStart, end)
+	}
+	if login, ok := strings.CutPrefix(word, "@"); ok {
+		return m.completeOwner(login, wordStart, end)
 	}
 	return m.completeRepo(word, wordStart, end)
 }
@@ -197,6 +204,79 @@ func (m *Model) wentTo(line string) (core.RepoRef, bool) {
 	}
 	t, err := core.ParseTarget(arg, m.host)
 	return t.Repo, err == nil && t.HasRepo()
+}
+
+// rememberOwner puts login first among the pages of owners opened
+// recently. GitHub matches logins without regard to case.
+func (m *Model) rememberOwner(login string) {
+	m.recentOwners = slices.DeleteFunc(m.recentOwners, func(o string) bool { return strings.EqualFold(o, login) })
+	m.recentOwners = slices.Insert(m.recentOwners, 0, login)
+	m.recentOwners = m.recentOwners[:min(len(m.recentOwners), maxRecent)]
+}
+
+// completeOwner completes the login after '@' from prefix: first the
+// logins that start with it, then those that contain it, each in order of
+// relevance, the pages opened most recently first.
+func (m *Model) completeOwner(prefix string, start, end int) []cmdline.Candidate {
+	lower := strings.ToLower(prefix)
+	var tiers [2][]string
+	seen := make(map[string]bool)
+	for login := range m.knownOwners() {
+		key := strings.ToLower(login)
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		switch {
+		case strings.HasPrefix(key, lower):
+			tiers[0] = append(tiers[0], login)
+		case strings.Contains(key, lower):
+			tiers[1] = append(tiers[1], login)
+		}
+		if len(tiers[0]) >= maxCandidates {
+			break
+		}
+	}
+	out := make([]cmdline.Candidate, 0, maxCandidates)
+	for _, tier := range tiers {
+		for _, login := range tier {
+			if len(out) == maxCandidates {
+				return out
+			}
+			out = append(out, cmdline.Candidate{Text: "@" + login, Start: start, End: end})
+		}
+	}
+	return out
+}
+
+// knownOwners yields the logins to complete: the pages opened in this
+// session, then those that goto went to in the history of the command
+// line, the latest first, then those Recall knows of.
+func (m *Model) knownOwners() iter.Seq[string] {
+	return func(yield func(string) bool) {
+		for _, o := range m.recentOwners {
+			if !yield(o) {
+				return
+			}
+		}
+		for _, line := range slices.Backward(m.line.History()) {
+			name, arg, _ := strings.Cut(line, " ")
+			if name != "goto" {
+				continue
+			}
+			if t, err := core.ParseTarget(arg, m.host); err == nil && t.HasOwner() && !yield(t.Owner) {
+				return
+			}
+		}
+		if m.recall == nil {
+			return
+		}
+		for _, o := range m.recall.Owners() {
+			if !yield(o) {
+				return
+			}
+		}
+	}
 }
 
 // completeNumber completes the number after '#' in word, in the

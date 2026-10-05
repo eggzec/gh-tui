@@ -51,6 +51,24 @@ func WithRepos(r Repos) Option {
 	return func(m *Model) { m.repos = r }
 }
 
+// Owners reads the headers of users and organizations, so that goto opens
+// only the page of one that exists.
+type Owners interface {
+	// CachedHeader returns the header of login if it is in memory, fresh
+	// or stale, without I/O.
+	CachedHeader(login string) (core.Owner, bool)
+	// Header reads the header of login. A login that no account has fails
+	// with an error matching core.ErrNotFound.
+	Header(ctx context.Context, login string) (core.Owner, error)
+}
+
+// WithOwners sets what reads the users and organizations whose pages goto
+// opens. Without it goto opens the page of any login named, without
+// checking that it exists.
+func WithOwners(o Owners) Option {
+	return func(m *Model) { m.owners = o }
+}
+
 // WithHost sets the user's GitHub host, such as github.com or an
 // Enterprise host with its port, whose links goto opens. It defaults to
 // github.com.
@@ -73,6 +91,14 @@ type gotoRepoMsg struct {
 	err  error
 }
 
+// gotoOwnerMsg carries the header of the user or organization of goto
+// seq, or why it couldn't be read.
+type gotoOwnerMsg struct {
+	seq   int
+	owner core.Owner
+	err   error
+}
+
 // gotoKindMsg reports what number of goto seq is.
 type gotoKindMsg struct {
 	seq    int
@@ -81,9 +107,10 @@ type gotoKindMsg struct {
 	err    error
 }
 
-// gotoCommand opens what arg names: a repository on its screen, or an
-// issue or pull request in its modal over the screen on view. A number
-// alone is one of the repository screen on view.
+// gotoCommand opens what arg names: a repository on its screen, the page
+// of a user or an organization on the owner screen, or an issue or pull
+// request in its modal over the screen on view. A number alone is one of
+// the repository screen on view.
 func (m *Model) gotoCommand(arg string) tea.Cmd {
 	// It replaces a goto still waiting, whether or not it goes anywhere.
 	m.cancelGoto()
@@ -92,7 +119,7 @@ func (m *Model) gotoCommand(arg string) tea.Cmd {
 		return m.badTarget(err)
 	}
 	if t.HasOwner() {
-		return m.toast.Push(toast.Error, cantOpen(t.String(), "pages of users and organizations aren't supported yet", m.icons.Ellipsis, m.fitsToast))
+		return m.gotoOwner(t)
 	}
 	if !t.HasRepo() {
 		// A number alone is one of the repository on view, never of one
@@ -236,6 +263,72 @@ func (m *Model) gotRepo(msg gotoRepoMsg) tea.Cmd {
 	return m.selectRepo(ui.RepoMsg{Repo: canonical(msg.repo, msg.ref)})
 }
 
+// gotoOwner shows the page of the user or organization t names, once it
+// is known to exist, or the dashboard for the viewer's own login, since
+// the dashboard is the viewer's page.
+func (m *Model) gotoOwner(t core.Target) tea.Cmd {
+	m.cancelGoto()
+	if m.isViewer(t.Owner) {
+		logGoto(m.ctx, t, "viewer")
+		return m.showScreen(dashScreen, m.focus)
+	}
+	if m.own == nil {
+		return m.toast.Push(toast.Error, cantOpen(t.String(), "there are no pages of users and organizations here", m.icons.Ellipsis, m.fitsToast))
+	}
+	if m.owners == nil {
+		logGoto(m.ctx, t, "unchecked")
+		return m.openOwner(core.Owner{}, t.Owner)
+	}
+	if o, ok := m.owners.CachedHeader(t.Owner); ok {
+		logGoto(m.ctx, t, "memory")
+		return m.openOwner(o, t.Owner)
+	}
+	ctx, seq, spin := m.startGoto(t)
+	owners := m.owners
+	return tea.Batch(spin, func() tea.Msg {
+		ctx, end := obs.Begin(ctx, "goto.owner")
+		logGoto(ctx, t, "github")
+		o, err := owners.Header(ctx, t.Owner)
+		end(err, "span", "tui", "target", t.String())
+		return gotoOwnerMsg{seq: seq, owner: o, err: err}
+	})
+}
+
+// gotOwner shows the page that goto asked for, or says why not.
+func (m *Model) gotOwner(msg gotoOwnerMsg) tea.Cmd {
+	g := m.endGoto(msg.seq)
+	if g == nil {
+		return nil
+	}
+	if core.KindOf(msg.err) == core.NotFound {
+		return m.toast.Push(toast.Error, cantOpen(g.target.String(), "no user or organization has that name", m.icons.Ellipsis, m.fitsToast))
+	}
+	if msg.err != nil {
+		return m.gotoFailed(g.target, msg.err)
+	}
+	return m.openOwner(msg.owner, g.target.Owner)
+}
+
+// openOwner shows the page of o, whose login was typed as login, or the
+// dashboard if o is the viewer. The page is told first, so that it knows
+// whether it was on view, and keeps the way back to the page before.
+func (m *Model) openOwner(o core.Owner, login string) tea.Cmd {
+	if o.Viewer.IsViewer && m.dash != nil {
+		return m.showScreen(dashScreen, m.focus)
+	}
+	login = cmp.Or(o.Profile.Login, login)
+	m.rememberOwner(login)
+	cmd := m.own.section.Update(ui.OwnerMsg{Login: login})
+	m.updateOwner()
+	return tea.Batch(cmd, m.showScreen(ownerScreen, m.focus))
+}
+
+// isViewer reports whether login is the viewer's, as far as the app
+// knows it already. GitHub matches logins without regard to case.
+func (m *Model) isViewer(login string) bool {
+	return m.dash != nil && m.login != "" && strings.EqualFold(login, m.login)
+}
+
 // canonical returns the name of r as GitHub spells it, or ref if r lacks
 // it.
 func canonical(r core.Repo, ref core.RepoRef) core.RepoRef {
@@ -273,7 +366,7 @@ func (m *Model) badTarget(err error) tea.Cmd {
 	e, ok := errors.AsType[*core.TargetError](err)
 	switch {
 	case !ok:
-		return m.toast.Push(toast.Error, "Can't open that: type owner/name, #number or a link.")
+		return m.toast.Push(toast.Error, "Can't open that: type owner/name, @login, #number or a link.")
 	case e.Input == "":
 		return m.toast.Push(toast.Error, "Nothing to open: "+plain(e.Reason)+".")
 	}

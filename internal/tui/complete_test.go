@@ -17,6 +17,7 @@ import (
 type fakeRecall struct {
 	repos   []core.RepoRef
 	numbers map[core.RepoRef][]Numbered
+	owners  []string
 	// calls counts the reads, which must stay few per edit.
 	calls int
 }
@@ -29,6 +30,11 @@ func (f *fakeRecall) Repos() []core.RepoRef {
 func (f *fakeRecall) Numbers(repo core.RepoRef) []Numbered {
 	f.calls++
 	return f.numbers[repo]
+}
+
+func (f *fakeRecall) Owners() []string {
+	f.calls++
+	return f.owners
 }
 
 func newFakeRecall() *fakeRecall {

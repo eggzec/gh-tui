@@ -1,6 +1,7 @@
 // Package tui is the root of the program. It lays the sections out on
-// four screens, the dashboard, the repository screen with its panes, the
-// notifications screen and the search page, draws the header, the status
+// five screens, the dashboard, the repository screen with its panes, the
+// notifications screen, the search page and the page of a user or an
+// organization, draws the header, the status
 // bar and toasts, opens modals such as the history over them, runs the
 // commands of the command line, and routes messages between them all.
 // The sections themselves live in their own packages and share the ui
@@ -41,6 +42,12 @@ type Layout struct {
 	// Search fills the search page, which the search key shows from any
 	// screen. It draws its own frames too.
 	Search ui.Section
+	// Owner fills the page of a user or an organization, which goto
+	// shows, given a ui.OwnerMsg for the account first. It draws its own
+	// frames, handles the keys that move between its panes, and sends a
+	// ui.BackMsg when it has no page left to go back to. If it is an
+	// OwnerPage, the header names the account on view.
+	Owner ui.Section
 }
 
 // Model is the root model of the program.
@@ -78,6 +85,7 @@ type Model struct {
 	notif *pane
 	dash  *pane
 	srch  *pane
+	own   *pane
 	// all holds the panes of every screen.
 	all []*pane
 	// screen is the screen on view, and focus the focused pane of the
@@ -149,10 +157,18 @@ type Model struct {
 	repos Repos
 	kinds Kinds
 	host  string
+	// owners checks that a user or organization exists before goto
+	// opens its page, and ownerLogin is the login of the page on view,
+	// for the header.
+	owners     Owners
+	ownerLogin string
 	// recall is what the command line completes from, with recent, the
 	// repositories selected in this session, the latest first.
 	recall Recall
 	recent []core.RepoRef
+	// recentOwners are the logins of the pages opened in this session,
+	// the latest first.
+	recentOwners []string
 	// hist keeps the lines of the command line between sessions, or is
 	// nil.
 	hist *historyKeeper
@@ -351,6 +367,10 @@ func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) 
 		m.srch = &pane{section: layout.Search, bare: true}
 		m.all = append(m.all, m.srch)
 	}
+	if layout.Owner != nil {
+		m.own = &pane{section: layout.Owner, bare: true}
+		m.all = append(m.all, m.own)
+	}
 	for _, opt := range opts {
 		opt(m)
 	}
@@ -416,6 +436,8 @@ func (m *Model) startScreen() tea.Cmd {
 		return m.dash.start()
 	case searchScreen:
 		return m.srch.start()
+	case ownerScreen:
+		return m.own.start()
 	case repoScreen:
 	}
 	cmds := make([]tea.Cmd, 0, len(m.panes))
@@ -491,10 +513,12 @@ func (m *Model) applyTheme(dark bool) {
 	m.drawHeader()
 }
 
-// updateBadges takes the badge of the notifications, for the header, and
-// the chips of the panes, for their titles.
+// updateBadges takes the badge of the notifications and the login of the
+// owner page, for the header, and the chips of the panes, for their
+// titles.
 func (m *Model) updateBadges() {
 	m.updateChips()
+	m.updateOwner()
 	if m.notif == nil {
 		return
 	}
@@ -504,6 +528,30 @@ func (m *Model) updateBadges() {
 	}
 	if badge := b.Badge(); badge != m.badge {
 		m.badge = badge
+		m.drawHeader()
+	}
+}
+
+// OwnerPage is the section of the page of a user or an organization,
+// which names the account it shows.
+type OwnerPage interface {
+	// Login returns the login of the account on view, or "" before one
+	// is.
+	Login() string
+}
+
+// updateOwner takes the login of the page of an owner, which changes as
+// it goes back through the pages it showed, for the header.
+func (m *Model) updateOwner() {
+	if m.own == nil {
+		return
+	}
+	o, ok := m.own.section.(OwnerPage)
+	if !ok {
+		return
+	}
+	if login := o.Login(); login != m.ownerLogin {
+		m.ownerLogin = login
 		m.drawHeader()
 	}
 }
