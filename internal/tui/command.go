@@ -45,7 +45,7 @@ var commands = []command{
 	{name: "config", detail: "show the config, or with defaults, default.yaml", args: true, run: (*Model).configCommand, complete: completeConfig},
 	{name: "copy", detail: "copy the url, ref, sha or path of what is selected", args: true, run: (*Model).copyCommand, complete: completeCopy},
 	{name: "filter", detail: "filter the focused list", run: filtering(filterform.FiltersTab)},
-	{name: "goto", detail: "open a repository, issue, pull request or link", args: true, run: (*Model).gotoCommand, complete: (*Model).completeTarget},
+	{name: "goto", detail: "open a repository, issue, pull request, profile or link", args: true, run: (*Model).gotoCommand, complete: (*Model).completeTarget},
 	{name: "help", detail: "list the keys", overModal: true, run: pressing(config.ActionHelp)},
 	{name: "images", detail: "show whether images are drawn here, and why", overModal: true, run: (*Model).imagesCommand},
 	{name: "open", detail: "open on GitHub what follows, or what is selected", args: true, overModal: true, run: (*Model).openCommand, complete: (*Model).completeTarget},
@@ -117,7 +117,7 @@ func findCommand(name string) (command, bool) {
 }
 
 // linePlaceholder is shown while the line is empty.
-const linePlaceholder = "goto owner/name, #number or a link"
+const linePlaceholder = "goto owner/name, @login, #number or a link"
 
 // newLine returns the command line, blurred until the command key opens
 // it, which recalls the last history lines typed.

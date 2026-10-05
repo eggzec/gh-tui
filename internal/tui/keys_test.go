@@ -121,7 +121,7 @@ func focusOf(m *Model) string {
 		layers := m.keyLayers()
 		part := map[string]string{"query": "query", "search": "kinds", "results": "results"}[layers[len(layers)-1].Source]
 		return fmt.Sprintf("search: %s %q", part, m.srch.section.(*searchpage.Section).Query())
-	case dashScreen:
+	case dashScreen, ownerScreen:
 	}
 	return fmt.Sprintf("screen %d", m.screen)
 }

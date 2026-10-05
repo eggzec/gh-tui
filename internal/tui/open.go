@@ -14,8 +14,9 @@ import (
 )
 
 // openCommand opens what arg names on GitHub, in the browser: a
-// repository, an issue or pull request, or a link to any page of a
-// repository on the user's host. Without arg it opens what is selected,
+// repository, an issue or pull request, the profile of a user or an
+// organization, or a link to any page of a repository or profile on the
+// user's host. Without arg it opens what is selected,
 // as the open key does.
 func (m *Model) openCommand(arg string) tea.Cmd {
 	if arg == "" {
@@ -25,13 +26,13 @@ func (m *Model) openCommand(arg string) tea.Cmd {
 	if err != nil {
 		return m.badTarget(err)
 	}
-	if t.HasOwner() {
-		return m.toast.Push(toast.Error, cantOpen(t.String(), "pages of users and organizations aren't supported yet", m.icons.Ellipsis, m.fitsToast))
-	}
 	if isLink(arg) {
 		// A link names more than its target, such as a file, and
 		// ParseTarget made sure it is on the user's host.
 		return ui.Open(webLink(m.host, arg))
+	}
+	if t.HasOwner() {
+		return ui.Open(ui.WebURL(m.host, t.Owner))
 	}
 	if !t.HasRepo() {
 		// As goto, a number alone is one of the repository on view.

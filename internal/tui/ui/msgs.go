@@ -228,6 +228,14 @@ type ShowMsg struct {
 // such as when the user leaves the search.
 type BackMsg struct{}
 
+// OwnerMsg asks the app to show the page of the user or organization
+// Login, as goto does: once GitHub says the account exists, the app gives
+// the page an OwnerMsg with Login as GitHub spells it, and shows it. The
+// viewer's own login shows the dashboard instead.
+type OwnerMsg struct {
+	Login string
+}
+
 // SettingsMsg carries the config once the user changed a setting of it
 // for the session, such as ui.icons. Each section takes what it uses of
 // it; the app sets the theme again after, so a section need only keep

@@ -137,6 +137,12 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case gotoKindMsg:
 		cmd := m.gotKind(msg)
 		return m, cmd
+	case gotoOwnerMsg:
+		cmd := m.gotOwner(msg)
+		return m, cmd
+	case ui.OwnerMsg:
+		cmd := m.gotoOwner(core.Target{Owner: msg.Login})
+		return m, cmd
 	case spinner.TickMsg:
 		if msg.ID == m.spin.ID() {
 			if m.going == nil {
@@ -309,8 +315,8 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 			return m.cycle(-1)
 		}
 	}
-	// The dashboard moves between its own panes.
-	if m.screen != dashScreen {
+	// The dashboard and the owner page move between their own panes.
+	if m.screen != dashScreen && m.screen != ownerScreen {
 		if i := m.keys.pane(msg); i >= 0 && i < len(m.panes) {
 			return m.showScreen(repoScreen, i)
 		}
@@ -420,7 +426,7 @@ func (m *Model) show(title string) tea.Cmd {
 	if m.notif != nil && m.notif.section.Title() == title {
 		return m.showScreen(notifScreen, m.focus)
 	}
-	for s, p := range map[screen]*pane{dashScreen: m.dash, searchScreen: m.srch} {
+	for s, p := range map[screen]*pane{dashScreen: m.dash, searchScreen: m.srch, ownerScreen: m.own} {
 		if p != nil && p.section.Title() == title {
 			return m.showScreen(s, m.focus)
 		}

@@ -10,4 +10,5 @@ const (
 	FilesTitle         = "Files"
 	DashboardTitle     = "Dashboard"
 	SearchTitle        = "Search"
+	OwnerTitle         = "Profile"
 )

@@ -147,14 +147,17 @@ func (k KeyMap) state(m *Model) KeyMap {
 		k.Dashboard.SetEnabled(k.Dashboard.Enabled() && m.back != dashScreen)
 		// The dashboard moves between its own panes.
 		k.Jump.SetEnabled(false)
+	case ownerScreen:
+		// The owner page moves between its own panes.
+		k.Jump.SetEnabled(false)
 	case repoScreen, searchScreen:
 	}
 	if m.screen != repoScreen {
 		// Only the repository screen has panes to cycle through. On the
 		// other screens the app leaves these keys to the section, which
-		// does what it defines for them: the dashboard moves between its
-		// panes, the search page between its query, kinds and results,
-		// and the notifications have no use for them.
+		// does what it defines for them: the dashboard and the owner page
+		// move between their panes, the search page between its query,
+		// kinds and results, and the notifications have no use for them.
 		k.Next.SetEnabled(false)
 		k.Prev.SetEnabled(false)
 	}
