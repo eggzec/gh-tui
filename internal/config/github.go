@@ -57,6 +57,8 @@ type PageSize struct {
 	// WaitingOnYou is how many of each list of the dashboard's Waiting on
 	// you are read; the counts cover them all.
 	WaitingOnYou int `yaml:"waiting_on_you"`
+	// People sizes each list of people on a user or organization page.
+	People int `yaml:"people"`
 }
 
 // Bounds of a page size: GitHub serves at most 100 items a page.
@@ -73,6 +75,7 @@ func (p PageSize) validate() error {
 	}{
 		{"pulls", p.Pulls}, {"issues", p.Issues}, {"notifications", p.Notifications}, {"repos", p.Repos},
 		{"runs", p.Runs}, {"commits", p.Commits}, {"search", p.Search}, {"waiting_on_you", p.WaitingOnYou},
+		{"people", p.People},
 	} {
 		if s.size < minPageSize || s.size > maxPageSize {
 			errs = append(errs, fmt.Errorf("page_size.%s: must be between %d and %d, got %d", s.key, minPageSize, maxPageSize, s.size))

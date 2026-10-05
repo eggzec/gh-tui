@@ -77,7 +77,8 @@ cache:
     # repositories and the completion of :goto.
     repos: 5m
     # The dashboard's Repositories pane, which lists every owner's
-    # repositories and costs more to read again.
+    # repositories and costs more to read again, and the repositories of a
+    # user or organization page.
     dashboard_repos: 15m
     # The dashboard's pull requests and issues that wait on you.
     waiting_on_you: 5m
@@ -101,9 +102,14 @@ cache:
     code_search: 1m
     releases: 1h
     # The dashboard's header: you, your organizations and your pinned
-    # repositories.
+    # repositories; and the header of a user or organization page.
     profile: 1h
     contributions: 6h
+    # The people of a user or organization page: followers, following,
+    # organizations, members and teams.
+    people: 1h
+    # Profile READMEs. Each has an ETag, so checking it again is free.
+    readme: 1h
   # What gh-tui keeps in memory. These may only be set at the top level,
   # not for one host or profile.
   memory:
@@ -233,13 +239,19 @@ history:
 
 # The dashboard, the screen the app opens on.
 dashboard:
-  # The cell of a day in the contribution calendar. It must be one cell
-  # wide; some terminals draw ■ two cells wide, and "▪" or "#" suit them
-  # better.
+  # The cell of a day in the contribution calendar, on the dashboard and
+  # on the page of a user. It must be one cell wide; some terminals draw
+  # ■ two cells wide, and "▪" or "#" suit them better.
   calendar_glyph: "■"
-  # How far back the contribution calendar goes: 30d, 90d or year. Its
-  # total counts the days it shows.
+  # How far back the contribution calendar goes, on the dashboard and on
+  # the page of a user: 30d, 90d or year. Its total counts the days it
+  # shows.
   contributions: 90d
+
+# The page of a user or an organization.
+owner:
+  # The tab the page opens on: repositories, readme or people.
+  default_tab: repositories
 
 # Reading ahead: what the app reads before you open it, so that it opens
 # at once. It's a guess, and it spends quota; what was read is kept in the
@@ -374,6 +386,8 @@ page_size:
   # Each list of Waiting on you on the dashboard; its counts cover them
   # all.
   waiting_on_you: 10
+  # Each list of people on a user or organization page.
+  people: 50
 
 # The command line.
 commands:
