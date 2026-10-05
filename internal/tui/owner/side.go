@@ -44,6 +44,12 @@ type side struct {
 	// shown is the source the pager shows, so that it is set again only
 	// when that changed, which keeps the place in it.
 	shown string
+	// member is whether the README was last asked for as a member's.
+	member bool
+	// drew reports whether the last render of the README asked for
+	// pictures, and pics whether it drew pictures at all, so that only
+	// images that may change it render it again.
+	drew, pics bool
 }
 
 // sideRead is a read of the side: what the section knows of it, and the
@@ -65,13 +71,16 @@ type kept struct{ stale, offline, limited bool }
 
 // sideMsg carries what a read of the side of page p of the section with id
 // found, in p's refresh gen. take keeps it in the read it is of, and
-// returns how it was served, and again reads it past what was kept.
+// returns how it was served, again reads it past what was kept, and drop
+// ends the read without keeping it, for a reply to a read of before a
+// refresh.
 type sideMsg struct {
 	id    int64
 	p     *page
 	gen   int
 	take  func() kept
 	again func() tea.Cmd
+	drop  func()
 }
 
 // readSide returns the command that reads r of page p with get, which
@@ -95,7 +104,13 @@ func readSide[V any](s *Section, p *page, r *sideRead[V], span string, marks fun
 			return m
 		}
 		again := func() tea.Cmd { return readSide(s, p, r, span, marks, get, true) }
-		return sideMsg{id: id, p: p, gen: gen, take: take, again: again}
+		drop := func() {
+			// A read since, after the refresh, is still on its way.
+			if r.gen == gen {
+				r.loading = false
+			}
+		}
+		return sideMsg{id: id, p: p, gen: gen, take: take, again: again, drop: drop}
 	}
 }
 
@@ -151,7 +166,9 @@ func (s *Section) startSide() tea.Cmd {
 	w := s.wanted(p)
 	sd := &p.side
 	var cmds []tea.Cmd
-	if w.readme && sd.readme.due(p) {
+	// A member sees the README only members see, so a change of the
+	// membership reads it again.
+	if w.readme && (sd.readme.due(p) || sd.member != p.header.value.Viewer.Member) {
 		cmds = append(cmds, s.readReadme(p, false))
 	}
 	if w.sponsors && sd.sponsors.due(p) {
@@ -171,7 +188,9 @@ func (s *Section) startSide() tea.Cmd {
 
 func (s *Section) readReadme(p *page, again bool) tea.Cmd {
 	q, svc := s.readmeQuery(p), s.svc
+	p.side.member = q.Member
 	return readSide(s, p, &p.side.readme, "owner.readme", readmeMarks, func(ctx context.Context, again bool) (owners.Readme, error) {
+		q := q
 		q.Again = again
 		return svc.Readme(ctx, q)
 	}, again)
@@ -186,6 +205,7 @@ func (s *Section) readSponsors(p *page, list owners.PeopleList, again bool) tea.
 	}
 	q, svc := owners.PeopleQuery{Login: p.header.value.Profile.Login, List: list}, s.svc
 	return readSide(s, p, r, "owner."+list.String(), peopleMarks, func(ctx context.Context, again bool) (core.Page[core.Person], error) {
+		q := q
 		q.Again = again
 		return svc.People(ctx, q)
 	}, again)
@@ -215,7 +235,11 @@ func (s *Section) readmeQuery(p *page) owners.ReadmeQuery {
 // again past what an earlier session kept.
 func (s *Section) sideLoaded(msg sideMsg) tea.Cmd {
 	p := msg.p
-	if msg.id != s.id || msg.gen != p.gen {
+	if msg.id != s.id {
+		return nil
+	}
+	if msg.gen != p.gen {
+		msg.drop()
 		return nil
 	}
 	m := msg.take()
@@ -230,9 +254,9 @@ func (s *Section) sideLoaded(msg sideMsg) tea.Cmd {
 // that was asked and isn't being read, whose value again selects or
 // which GitHub didn't answer.
 func (s *Section) againSide(p *page, again func(kept) bool) tea.Cmd {
-	sd := &p.side
+	sd, w := &p.side, s.wanted(p)
 	var cmds []tea.Cmd
-	if r := &sd.readme; r.asked && !r.loading && (r.ok && again(readmeMarks(r.value)) || ui.Unreached(r.err)) {
+	if r := &sd.readme; w.readme && r.asked && !r.loading && (r.ok && again(readmeMarks(r.value)) || ui.Unreached(r.err)) {
 		cmds = append(cmds, s.readReadme(p, true))
 	}
 	for _, l := range []owners.PeopleList{owners.Sponsors, owners.Sponsoring} {
@@ -240,14 +264,14 @@ func (s *Section) againSide(p *page, again func(kept) bool) tea.Cmd {
 		if l == owners.Sponsoring {
 			r = &sd.sponsoring
 		}
-		if r.asked && !r.loading && (r.ok && again(peopleMarks(r.value)) || ui.Unreached(r.err)) {
+		if w.sponsors && r.asked && !r.loading && (r.ok && again(peopleMarks(r.value)) || ui.Unreached(r.err)) {
 			cmds = append(cmds, s.readSponsors(p, l, true))
 		}
 	}
-	if r := &sd.contribs; r.asked && !r.loading && (r.ok && again(contribsMarks(r.value)) || ui.Unreached(r.err)) {
+	if r := &sd.contribs; w.contribs && r.asked && !r.loading && (r.ok && again(contribsMarks(r.value)) || ui.Unreached(r.err)) {
 		cmds = append(cmds, s.readContribs(p, true))
 	}
-	if r := &sd.followers; r.asked && !r.loading && (r.ok && again(followersMarks(r.value)) || ui.Unreached(r.err)) {
+	if r := &sd.followers; w.followers && r.asked && !r.loading && (r.ok && again(followersMarks(r.value)) || ui.Unreached(r.err)) {
 		cmds = append(cmds, s.readFollowers(p, true))
 	}
 	return tea.Batch(cmds...)
@@ -270,9 +294,9 @@ func (s *Section) revisitSide() tea.Cmd {
 	if p == nil || !p.header.ok {
 		return nil
 	}
-	sd, login := &p.side, p.header.value.Profile.Login
+	sd, login, w := &p.side, p.header.value.Profile.Login, s.wanted(p)
 	var cmds []tea.Cmd
-	if r := &sd.readme; r.asked && !r.loading && !s.svc.FreshReadme(s.readmeQuery(p)) {
+	if r := &sd.readme; w.readme && r.asked && !r.loading && !s.svc.FreshReadme(s.readmeQuery(p)) {
 		cmds = append(cmds, s.readReadme(p, true))
 	}
 	for _, l := range []owners.PeopleList{owners.Sponsors, owners.Sponsoring} {
@@ -280,14 +304,14 @@ func (s *Section) revisitSide() tea.Cmd {
 		if l == owners.Sponsoring {
 			r = &sd.sponsoring
 		}
-		if r.asked && !r.loading && r.err == nil && !s.svc.FreshPeople(owners.PeopleQuery{Login: login, List: l}) {
+		if w.sponsors && r.asked && !r.loading && r.err == nil && !s.svc.FreshPeople(owners.PeopleQuery{Login: login, List: l}) {
 			cmds = append(cmds, s.readSponsors(p, l, true))
 		}
 	}
-	if r := &sd.contribs; r.asked && !r.loading && !s.svc.FreshContributions(login) {
+	if r := &sd.contribs; w.contribs && r.asked && !r.loading && !s.svc.FreshContributions(login) {
 		cmds = append(cmds, s.readContribs(p, true))
 	}
-	if r := &sd.followers; r.asked && !r.loading && !s.svc.FreshOrgFollowers(login) {
+	if r := &sd.followers; w.followers && r.asked && !r.loading && !s.svc.FreshOrgFollowers(login) {
 		cmds = append(cmds, s.readFollowers(p, true))
 	}
 	return tea.Batch(cmds...)
@@ -371,7 +395,9 @@ func (s *Section) resizeSide() {
 	}
 	if pg := p.side.pager; pg != nil {
 		w, h := s.inside(readmePane)
-		pg.SetSize(max(w-2, 0), h)
+		// The pager's status line is left out: the frame names the
+		// README.
+		pg.SetSize(max(w-2, 0), h+1)
 	}
 	if c := p.side.cal; c != nil {
 		w, h := s.inside(calendarPane)
@@ -432,4 +458,17 @@ func (s *Section) sideSelected() (ui.Selection, bool) {
 		return s.readmeSelection()
 	}
 	return s.profileSelection()
+}
+
+// synced reads the README of the page on view again from the cache, once
+// the revalidator found it changed on GitHub.
+func (s *Section) synced(msg ui.SyncMsg) tea.Cmd {
+	p := s.page
+	if msg.Err != nil || p == nil || !p.header.ok || msg.Key != owners.SyncKey(p.header.value.Profile.Login) {
+		return nil
+	}
+	if r := &p.side.readme; !s.wanted(p).readme || !r.asked || r.loading {
+		return nil
+	}
+	return s.readReadme(p, false)
 }

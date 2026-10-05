@@ -11,6 +11,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/service/owners"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 )
@@ -170,6 +171,7 @@ func TestReadmeAddresses(t *testing.T) {
 		{"anchor", "", user, core.OwnerUser, "#usage", false, "#usage"},
 		{"mail", "", user, core.OwnerUser, "mailto:mona@example.com", false, "mailto:mona@example.com"},
 		{"outside", "", user, core.OwnerUser, "../../other", false, "../../other"},
+		{"escaped slash", "", user, core.OwnerUser, "docs/a%2Fb.md", false, "https://github.com/octocat/octocat/blob/HEAD/docs/a%2Fb.md"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -182,7 +184,7 @@ func TestReadmeAddresses(t *testing.T) {
 }
 
 // The README pane scrolls with the pager's keys, which the help shows,
-// and o opens the profile.
+// and o opens the README on GitHub, as copy copies it.
 func TestReadmeKeys(t *testing.T) {
 	s := newSection(t, newFake(), "octocat", 80, 16)
 	press(t, s, "3")
@@ -198,8 +200,8 @@ func TestReadmeKeys(t *testing.T) {
 		t.Error("d didn't scroll the README")
 	}
 	msg, ok := has[ui.OpenMsg](press(t, s, "o"))
-	if !ok || msg.URL != "https://github.com/octocat" {
-		t.Errorf("o sent %v, want the profile", msg)
+	if !ok || msg.URL != "https://github.com/octocat/octocat/blob/HEAD/README.md" {
+		t.Errorf("o sent %v, want the README", msg)
 	}
 	if sel, ok := s.Selected(); !ok || sel.URL != "https://github.com/octocat/octocat/blob/HEAD/README.md" || sel.Path != "README.md" {
 		t.Errorf("selected %+v, want the README", sel)
@@ -284,5 +286,92 @@ func TestReadmeImages(t *testing.T) {
 	press(t, s, "G")
 	if v := ansi.Strip(s.View()); !strings.Contains(v, "card.svg") {
 		t.Errorf("the SVG image isn't a link:\n%s", v)
+	}
+}
+
+// A refresh while a read of the side is on its way drops its reply, and
+// the read no longer shows as loading.
+func TestRefreshDropsSideReads(t *testing.T) {
+	svc := newFake()
+	s := newSection(t, svc, "octocat", 80, 24)
+	p := s.page
+	// The calendar's pane is off view, so the refresh doesn't read it.
+	cmd := s.readContribs(p, false)
+	press(t, s, "r")
+	run(t, s, cmd)
+	if p.side.contribs.loading || p.side.contribs.ok {
+		t.Errorf("the calendar read before the refresh is loading %v, kept %v", p.side.contribs.loading, p.side.contribs.ok)
+	}
+	if s.updating() {
+		t.Error("the page still shows as updating")
+	}
+}
+
+// What is off view isn't read again when it went stale, or once GitHub
+// answers again.
+func TestSideRereadsOnView(t *testing.T) {
+	svc := newFake()
+	s := newSection(t, svc, "octocat", 80, 24)
+	press(t, s, "3", "4", "2")
+	svc.sideFake.read = map[string]bool{}
+	svc.sideFake.calls = nil
+	run(t, s, s.Revisit())
+	run(t, s, s.Update(ui.OnlineMsg{}))
+	if len(svc.sideFake.calls) != 0 {
+		t.Errorf("the panes off view read %q", svc.sideFake.calls)
+	}
+	press(t, s, "3")
+	run(t, s, s.Revisit())
+	if !slices.Contains(svc.sideFake.calls, "readme octocat") || slices.Contains(svc.sideFake.calls, "contributions octocat") {
+		t.Errorf("the README on view read %q, want the README alone", svc.sideFake.calls)
+	}
+}
+
+// A README the revalidator found changed shows, and so does the README
+// only members see, once the viewer joins.
+func TestReadmeSyncs(t *testing.T) {
+	svc := newFake()
+	s := newSection(t, svc, "github", 120, 40)
+	svc.readmes["github"] = core.Readme{Markdown: "Changed in the background.", Source: core.RepoRef{Owner: "github", Name: ".github"}}
+	run(t, s, s.Update(ui.SyncMsg{Key: owners.SyncKey("other")}))
+	if strings.Contains(ansi.Strip(s.View()), "Changed in the background") {
+		t.Fatal("a change of another account showed")
+	}
+	run(t, s, s.Update(ui.SyncMsg{Key: owners.SyncKey("GitHub")}))
+	if !strings.Contains(ansi.Strip(s.View()), "Changed in the background") {
+		t.Errorf("the README didn't change:\n%s", ansi.Strip(s.View()))
+	}
+
+	o := org()
+	o.Viewer.Member = false
+	svc.owners["github"] = o
+	press(t, s, "r")
+	svc.sideFake.calls = nil
+	o.Viewer.Member = true
+	svc.owners["github"] = o
+	press(t, s, "r")
+	if !slices.Contains(svc.sideFake.calls, "readme github") {
+		t.Errorf("a change of membership read %q, want the README", svc.sideFake.calls)
+	}
+	if !s.page.side.member {
+		t.Error("the README wasn't read as a member's")
+	}
+}
+
+// Images that arrive render the README again only if it has images.
+func TestReadmeRedrawsForItsImages(t *testing.T) {
+	host := &uitest.ImageHost{}
+	images := uitest.Avatars(host, true)
+	s := newSection(t, newFake(), "github", 80, 24, WithAvatars(images))
+	press(t, s, "3")
+	if !s.readmeStale(s.page) {
+		t.Error("a README with an image doesn't render again for images")
+	}
+	svc := newFake()
+	svc.readmes["github"] = core.Readme{Markdown: "No images.", Source: core.RepoRef{Owner: "github", Name: ".github"}}
+	s = newSection(t, svc, "github", 80, 24, WithAvatars(images))
+	press(t, s, "3")
+	if s.readmeStale(s.page) {
+		t.Error("a README without images renders again for images")
 	}
 }
