@@ -36,6 +36,8 @@ const (
 // narrow tables drop the description first, then the language.
 type Cols struct {
 	name, flags, desc, lang, stars, age int
+	// full names the repositories by owner and name.
+	full bool
 }
 
 // Measure is what the repositories read so far need: the widest name, the
@@ -48,8 +50,11 @@ type Measure struct {
 }
 
 // Add measures r too.
-func (m *Measure) Add(r core.Repo, icons ui.Icons) {
-	m.name = max(m.name, ansi.StringWidth(r.Ref.Name))
+func (m *Measure) Add(r core.Repo, icons ui.Icons) { m.add(r, icons, false) }
+
+// add measures r too, named by owner and name if full is set.
+func (m *Measure) add(r core.Repo, icons ui.Icons, full bool) {
+	m.name = max(m.name, ansi.StringWidth(repoName(r, full)))
 	m.flags = max(m.flags, len(icons.Flags(r)))
 	m.stars = max(m.stars, len(Count(r.Stars)))
 }
@@ -138,7 +143,7 @@ func (d Drawer) Row(c Cols, r core.Repo, selected bool, dates ui.Dates, now func
 	}
 	if c.name > 0 {
 		gap()
-		name := Truncate(r.Ref.Name, c.name, d.Icons.Ellipsis)
+		name := Truncate(repoName(r, c.full), c.name, d.Icons.Ellipsis)
 		nameStyle := st.Text
 		if selected {
 			nameStyle = st.Selected
@@ -206,6 +211,19 @@ type Table struct {
 	// filter is the filter of the table, which the feed's reads use in
 	// their commands.
 	filter atomic.Pointer[Filter]
+
+	// FullNames names the repositories by owner and name, for a list of
+	// repositories of several owners, such as those a user starred.
+	FullNames bool
+}
+
+// repoName is the name of r in a table: its name, or its owner and name
+// if full is set.
+func repoName(r core.Repo, full bool) string {
+	if full {
+		return r.Ref.String()
+	}
+	return r.Ref.Name
 }
 
 // Cols returns the columns of the table as they are laid out.
@@ -233,7 +251,7 @@ func (t *Table) Remeasure(icons ui.Icons) bool {
 	m := t.measure
 	for i := range n {
 		if r, ok := t.Feed.Item(i); ok {
-			m.Add(r, icons)
+			m.add(r, icons, t.FullNames)
 		}
 	}
 	m.seen = n
@@ -248,4 +266,5 @@ func (t *Table) Remeasure(icons ui.Icons) bool {
 // the dates age cells at most.
 func (t *Table) Layout(width int, star string, age int) {
 	t.cols = LayoutCols(width, t.measure, star, age)
+	t.cols.full = t.FullNames
 }
