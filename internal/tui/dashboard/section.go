@@ -362,16 +362,6 @@ func (s *Section) SetSize(width, height int) {
 	s.render()
 }
 
-// cellGlyph returns the glyph of a day in the calendar: glyph, as
-// configured, unless it is the default, which the icon set draws as its
-// own cell.
-func cellGlyph(glyph string, ic ui.Icons) string {
-	if glyph == config.Default().Dashboard.CalendarGlyph {
-		return ic.Cell
-	}
-	return glyph
-}
-
 // SetTheme builds the styles of the dashboard and restyles its bubbles.
 func (s *Section) SetTheme(t ui.Theme) {
 	s.voice.Icons = &s.icons
@@ -380,7 +370,7 @@ func (s *Section) SetTheme(t ui.Theme) {
 	s.st = newStyles(t, s.icons)
 	s.errs = t.Errors(s.icons)
 	s.cal.SetStyles(t.Calendar(s.icons))
-	s.cal.SetGlyph(cellGlyph(s.glyph, s.icons))
+	s.cal.SetGlyph(ownerui.CalendarGlyph(s.glyph, s.icons))
 	if !s.contribs.ok {
 		s.cal.SetEmptyText("Loading contributions" + s.icons.Ellipsis)
 	}
