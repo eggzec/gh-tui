@@ -494,8 +494,8 @@ keys:
   # enter previews the result over the search.
   go_to_repo: [ctrl+o]
   # Switch between the tabs of a list, such as All, Failing, Running and
-  # Mine of the Actions modal, and the states of the pull requests and the
-  # issues.
+  # Mine of the Actions modal, the states of the pull requests and the
+  # issues, and the lists of the page of a user or an organization.
   next_filter: ["]"]
   prev_filter: ["["]
   # Move the focus to the pane on the left or right, in a modal with panes

@@ -34,6 +34,16 @@ type Service interface {
 	// AllRepos reads the pages of q's owner up to limit repositories, the
 	// cached ones without a request, for the filter.
 	AllRepos(ctx context.Context, q owners.ReposQuery, limit int) (core.Page[core.Repo], error)
+	// FreshStars, FreshPeople and FreshTeams report whether reading the
+	// page costs no request, without I/O.
+	FreshStars(q owners.StarsQuery) bool
+	Stars(ctx context.Context, q owners.StarsQuery) (core.Page[core.Repo], error)
+	FreshPeople(q owners.PeopleQuery) bool
+	People(ctx context.Context, q owners.PeopleQuery) (core.Page[core.Person], error)
+	FreshTeams(q owners.TeamsQuery) bool
+	// Teams fails with an error matching core.ErrForbidden for someone
+	// outside the organization.
+	Teams(ctx context.Context, q owners.TeamsQuery) (core.Page[core.Team], error)
 	// InvalidateLogin marks what is cached of the account login stale,
 	// so that the reads of it after ask GitHub.
 	InvalidateLogin(login string)
@@ -101,31 +111,6 @@ const (
 // instead.
 var paneTitles = [numPanes]string{"Pinned", ""}
 
-// tab is a tab of the list pane, which titles the pane.
-type tab int
-
-const (
-	reposTab tab = iota
-	numTabs
-)
-
-var (
-	tabTitles = [numTabs]string{"Repositories"}
-	// shortTabs name the tabs in a narrow frame that names every pane.
-	shortTabs = [numTabs]string{"Repos"}
-	// tabNames are the tabs owner.default_tab may name that the page has.
-	tabNames = map[string]tab{config.OwnerTabRepositories: reposTab}
-)
-
-// tabFor returns the tab name opens a page on, or the repositories when the
-// page has no such tab.
-func tabFor(name string) tab {
-	if t, ok := tabNames[name]; ok {
-		return t
-	}
-	return reposTab
-}
-
 // maxBack is the most pages the back key goes back through, so that a long
 // walk from person to person keeps a bounded number of lists.
 const maxBack = 20
@@ -186,11 +171,26 @@ type page struct {
 	gen    int
 	header read[core.Owner]
 	pinned ownerui.Cards
-	// repos lists the account's repositories, once the header says
-	// whether it is a user's or an organization's.
-	repos *repoList
+	// lists are the lists of the tabs, made once the header says whether
+	// the account is a user or an organization, and read once their tab
+	// is on view.
+	lists [numTabs]lister
 	focus paneID
 	tab   tab
+}
+
+// list returns the list of the tab on view, or nil while there is none.
+func (p *page) list() lister {
+	if p == nil {
+		return nil
+	}
+	return p.lists[p.tab]
+}
+
+// repos returns the list of the repositories, or nil while there is none.
+func (p *page) repos() *repoList {
+	l, _ := p.lists[reposTab].(*repoList)
+	return l
 }
 
 // read is what the section knows of one read: the value it shows, whether
@@ -270,8 +270,10 @@ func (s *Section) SetTheme(t ui.Theme) {
 	s.st = newStyles(t, s.icons)
 	s.errs = t.Errors(s.icons)
 	for _, p := range s.pages() {
-		if p.repos != nil {
-			p.repos.Feed.SetStyles(t.Feed(s.icons))
+		for _, l := range p.lists {
+			if l != nil {
+				l.feed().SetStyles(t.Feed(s.icons))
+			}
 		}
 	}
 	s.render()

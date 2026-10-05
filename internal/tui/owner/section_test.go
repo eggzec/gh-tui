@@ -43,7 +43,7 @@ func TestBack(t *testing.T) {
 	if msgs := press(t, s, "esc"); len(msgs) > 0 || s.Login() != "octocat" {
 		t.Fatalf("esc sent %v and shows %q, want octocat's page", msgs, s.Login())
 	}
-	if r, _ := s.page.repos.Feed.Selected(); r.Ref.Name != "repo-002" {
+	if r, _ := s.page.repos().Feed.Selected(); r.Ref.Name != "repo-002" {
 		t.Errorf("the cursor is on %s, want it where it was", r.Ref)
 	}
 	if _, ok := has[ui.BackMsg](press(t, s, "esc")); !ok {
@@ -92,7 +92,7 @@ func TestBackUnzooms(t *testing.T) {
 }
 
 func TestDefaultTab(t *testing.T) {
-	for _, name := range []string{config.OwnerTabRepositories, config.OwnerTabReadme, config.OwnerTabPeople, ""} {
+	for _, name := range []string{config.OwnerTabRepositories, config.OwnerTabReadme, ""} {
 		s := newSection(t, newFake(), "octocat", 120, 40, WithDefaultTab(name))
 		if s.page.tab != reposTab || s.page.focus != listPane {
 			t.Errorf("default tab %q opens tab %d of pane %d, want the repositories", name, s.page.tab, s.page.focus)
@@ -119,8 +119,8 @@ func TestSelectOpensTheRepository(t *testing.T) {
 func TestReadsByKind(t *testing.T) {
 	svc := newFake()
 	s := newSection(t, svc, "github", 120, 40)
-	if s.page.repos.q.Kind != core.OwnerOrg {
-		t.Errorf("the repositories are read as kind %d, want an organization's", s.page.repos.q.Kind)
+	if s.page.repos().q.Kind != core.OwnerOrg {
+		t.Errorf("the repositories are read as kind %d, want an organization's", s.page.repos().q.Kind)
 	}
 }
 
@@ -153,12 +153,12 @@ func TestRevisit(t *testing.T) {
 func TestClearFilter(t *testing.T) {
 	s := newSection(t, newFake(), "octocat", 80, 24)
 	run(t, s, s.ApplyFilter(filterApplied("language:rust")))
-	if n := s.page.repos.Feed.Len(); n != 10 {
+	if n := s.page.repos().Feed.Len(); n != 10 {
 		t.Fatalf("the filter keeps %d repositories, want 10", n)
 	}
 	press(t, s, "F")
-	if s.page.repos.Filter().Active() || s.page.repos.Feed.Len() != 30 {
-		t.Errorf("clearing left the filter %q with %d rows", s.page.repos.Filter().Query(), s.page.repos.Feed.Len())
+	if s.page.repos().Filter().Active() || s.page.repos().Feed.Len() != 30 {
+		t.Errorf("clearing left the filter %q with %d rows", s.page.repos().Filter().Query(), s.page.repos().Feed.Len())
 	}
 }
 

@@ -50,11 +50,12 @@ func (s *Section) update(msg tea.Msg) (tea.Cmd, bool) {
 	pages := s.pages()
 	cmds := make([]tea.Cmd, 0, len(pages))
 	for _, p := range pages {
-		if l := p.repos; l != nil {
-			var cmd tea.Cmd
-			l.Feed, cmd = l.Feed.Update(msg)
-			cmds = append(cmds, cmd)
-			if l.Remeasure(s.icons) {
+		for _, l := range p.lists {
+			if l == nil {
+				continue
+			}
+			cmds = append(cmds, l.update(msg))
+			if l.remeasure(s) {
 				s.layoutList(l)
 			}
 		}
@@ -92,10 +93,8 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 		s.setFocus(i)
 		return nil
 	}
-	if l := p.repos; l != nil && p.focus == listPane {
-		var cmd tea.Cmd
-		l.Feed, cmd = l.Feed.Update(msg)
-		return cmd
+	if l := p.list(); l != nil && p.focus == listPane {
+		return l.update(msg)
 	}
 	return nil
 }
@@ -143,25 +142,27 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		}
 		return nil, true
 	case listPane:
-		l := p.repos
+		l := p.list()
 		if l == nil {
 			return nil, false
 		}
+		repos := p.tab == reposTab
 		switch {
-		case key.Matches(msg, k.ClearFilter):
+		case key.Matches(msg, k.NextTab):
+			return s.stepTab(1), true
+		case key.Matches(msg, k.PrevTab):
+			return s.stepTab(-1), true
+		case repos && key.Matches(msg, k.ClearFilter):
 			return s.setFilter(""), true
-		case key.Matches(msg, k.Filter, k.Sort):
+		case repos && key.Matches(msg, k.Filter, k.Sort):
 			// The app opens the filter. Its keys don't reach the list,
 			// whose page down f is too.
 			return nil, true
 		case key.Matches(msg, k.Select):
-			if r, ok := l.Feed.Selected(); ok {
-				return selectRepo(r.Ref), true
-			}
-			return nil, true
+			return l.enter(s), true
 		case key.Matches(msg, k.Open):
-			if r, ok := l.Feed.Selected(); ok {
-				return ui.Open(s.repoURL(r)), true
+			if sel, ok := l.selection(s); ok && sel.URL != "" {
+				return ui.Open(sel.URL), true
 			}
 			return nil, true
 		}
@@ -176,24 +177,28 @@ func (s *Section) setFocus(p paneID) {
 	s.focusPane()
 }
 
-// focusPane focuses the list of the page on view while the page and its
-// pane are focused, and blurs it otherwise.
+// focusPane focuses the list of the tab on view of the page on view while
+// the page and its pane are focused, and blurs the others.
 func (s *Section) focusPane() {
 	p := s.page
-	if p == nil || p.repos == nil {
+	if p == nil {
 		return
 	}
-	if s.focused && p.focus == listPane {
-		p.repos.Feed.Focus()
-		return
+	s.blurPage(p)
+	if l := p.list(); l != nil && s.focused && p.focus == listPane {
+		l.feed().Focus()
 	}
-	p.repos.Feed.Blur()
 }
 
-// blurPage blurs the list of p, which leaves the screen.
+// blurPage blurs the lists of p, which leaves the screen.
 func (s *Section) blurPage(p *page) {
-	if p != nil && p.repos != nil {
-		p.repos.Feed.Blur()
+	if p == nil {
+		return
+	}
+	for _, l := range p.lists {
+		if l != nil {
+			l.feed().Blur()
+		}
 	}
 }
 

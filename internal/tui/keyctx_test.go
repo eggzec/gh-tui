@@ -215,17 +215,39 @@ func (keyDash) AllRepos(context.Context, dashsvc.ReposQuery, int) (core.Page[cor
 }
 func (keyDash) Invalidate() {}
 
-// keyOwners serves one user, with a pin and a repository.
+// keyOwners serves the user octocat, with a pin, a repository, a star
+// and a person in each list, and every other login as an organization
+// the viewer belongs to, with a member and a team.
 type keyOwners struct{}
 
-func keyOwner() core.Owner {
+func keyOwner(login string) core.Owner {
+	if login != "octocat" {
+		return core.Owner{Kind: core.OwnerOrg, Profile: core.Profile{Login: login, Repos: 1}, Viewer: core.Relation{Member: true}}
+	}
 	return core.Owner{Profile: core.Profile{Login: "octocat", Repos: 1}, Pinned: []core.Repo{keyRepo}}
 }
 
-func (keyOwners) CachedHeader(string) (core.Owner, bool) { return keyOwner(), true }
-func (keyOwners) FreshHeader(string) bool                { return true }
-func (keyOwners) Header(context.Context, ownersvc.HeaderQuery) (core.Owner, error) {
-	return keyOwner(), nil
+var (
+	keyPerson = core.Person{Login: "mona", Name: "Mona Lisa"}
+	keyTeam   = core.Team{Name: "Core", Slug: "core", URL: "https://github.com/orgs/github/teams/core"}
+)
+
+func (keyOwners) CachedHeader(login string) (core.Owner, bool) { return keyOwner(login), true }
+func (keyOwners) FreshHeader(string) bool                      { return true }
+func (keyOwners) Header(_ context.Context, q ownersvc.HeaderQuery) (core.Owner, error) {
+	return keyOwner(q.Login), nil
+}
+func (keyOwners) FreshStars(ownersvc.StarsQuery) bool { return true }
+func (keyOwners) Stars(context.Context, ownersvc.StarsQuery) (core.Page[core.Repo], error) {
+	return core.Page[core.Repo]{Items: []core.Repo{keyRepo}}, nil
+}
+func (keyOwners) FreshPeople(ownersvc.PeopleQuery) bool { return true }
+func (keyOwners) People(context.Context, ownersvc.PeopleQuery) (core.Page[core.Person], error) {
+	return core.Page[core.Person]{Items: []core.Person{keyPerson}}, nil
+}
+func (keyOwners) FreshTeams(ownersvc.TeamsQuery) bool { return true }
+func (keyOwners) Teams(context.Context, ownersvc.TeamsQuery) (core.Page[core.Team], error) {
+	return core.Page[core.Team]{Items: []core.Team{keyTeam}}, nil
 }
 func (keyOwners) FreshRepos(ownersvc.ReposQuery) bool { return true }
 func (keyOwners) Repos(context.Context, ownersvc.ReposQuery) (core.Page[core.Repo], error) {
@@ -510,6 +532,10 @@ func keyContexts() []keyContext {
 		{name: "owner: zoomed", msg: ui.OwnerMsg{Login: "octocat"}, after: []string{"z"}, want: "app, app, profile, list"},
 		{name: "owner: filter", msg: ui.OwnerMsg{Login: "octocat"}, after: []string{"f"}, want: "app, filter"},
 		{name: "owner: sort", msg: ui.OwnerMsg{Login: "octocat"}, after: []string{"s"}, want: "app, filter"},
+		{name: "owner: stars", msg: ui.OwnerMsg{Login: "octocat"}, after: []string{"]"}, want: "app, app, profile, list"},
+		{name: "owner: followers", msg: ui.OwnerMsg{Login: "octocat"}, after: []string{"]", "]"}, want: "app, app, profile, list"},
+		{name: "owner: members", msg: ui.OwnerMsg{Login: "github"}, after: []string{"]"}, want: "app, app, profile, list"},
+		{name: "owner: teams", msg: ui.OwnerMsg{Login: "github"}, after: []string{"]", "]"}, want: "app, app, profile, list"},
 		{name: "dashboard: repositories", want: "app, app, dashboard, list"},
 		{name: "dashboard: pinned", keys: []string{"1"}, want: "app, app, dashboard"},
 		{name: "dashboard: work", keys: []string{"3"}, want: "app, app, dashboard"},

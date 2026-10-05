@@ -46,9 +46,10 @@ func (s *Section) layout() {
 		return
 	}
 	p.pinned.Resize(s.inside(pinnedPane))
-	if p.repos != nil {
-		w, h := s.inside(listPane)
-		p.repos.resize(s, w, h)
+	for _, l := range p.lists {
+		if l != nil {
+			s.layoutList(l)
+		}
 	}
 }
 
@@ -57,10 +58,10 @@ func (s *Section) inside(p paneID) (width, height int) {
 	return max(s.boxes[p].w-2, 0), max(s.boxes[p].h-2, 0)
 }
 
-// layoutList lays the columns of l out again, as wide as its pane.
-func (s *Section) layoutList(l *repoList) {
-	w, _ := s.inside(listPane)
-	l.Layout(max(w-gutterWidth, 0), s.icons.Star, s.dates.Width())
+// layoutList sizes l, and lays its columns out, to fit its pane.
+func (s *Section) layoutList(l lister) {
+	w, h := s.inside(listPane)
+	l.resize(s, w, h)
 }
 
 // onePane reports whether the page shows the focused pane alone: when the
@@ -211,7 +212,7 @@ func (s *Section) paneLabel(p paneID) string {
 			text += s.icons.Separator + strconv.Itoa(at) + "/" + strconv.Itoa(of)
 		}
 	default:
-		if l := s.page.repos; l != nil {
+		if l := s.repoTab(); l != nil {
 			if chips := l.Filter().Chips(s.icons); chips != "" {
 				text += s.icons.Separator + chips
 			}
@@ -400,20 +401,19 @@ func (s *Section) listBody(w, h int) []string {
 	p, st := s.page, &s.st.shared
 	lines := make([]string, 0, h)
 	lines = append(lines, s.tabsLine(w))
-	l := p.repos
+	l := p.list()
 	switch {
 	case l == nil && p.header.err != nil:
-		return append(lines, ownerui.Indent(s.failure("load the repositories of "+p.login, p.header.err, w-1))...)
+		return append(lines, ownerui.Indent(s.failure("load the "+strings.ToLower(tabTitles[p.tab])+" of "+p.login, p.header.err, w-1))...)
 	case l == nil:
-		return append(lines, " "+st.Muted.Render("Loading repositories"+s.icons.Ellipsis))
+		return append(lines, " "+st.Muted.Render("Loading "+strings.ToLower(tabTitles[p.tab])+s.icons.Ellipsis))
+	}
+	if t, ok := l.(*teamList); ok && t.membersOnly {
+		return append(lines, "", " "+st.Muted.Render(membersOnlyText(s.Login())))
 	}
 	// The headers name the columns once there are rows under them.
-	head := ""
-	if l.Feed.Len() > 0 {
-		head = strings.Repeat(" ", gutterWidth) + st.Subtle.Render(l.Cols().Header(s.icons.Star, s.icons.Ellipsis))
-	}
-	lines = append(lines, head)
-	if body := l.Feed.View(); body != "" {
+	lines = append(lines, l.header(s))
+	if body := l.feed().View(); body != "" {
 		lines = append(lines, strings.Split(body, "\n")...)
 	}
 	return lines
@@ -421,24 +421,41 @@ func (s *Section) listBody(w, h int) []string {
 
 // tabsLine renders the tabs of the list pane, each with its count once the
 // header says it, and on the right the language of the repository under
-// the cursor, which the list shows as a glyph.
+// the cursor, which the list shows as a glyph. The tabs go by their short
+// titles where their titles don't fit.
 func (s *Section) tabsLine(w int) string {
-	p, st := s.page, &s.st.shared
+	p := s.page
 	var right string
-	if l := p.repos; l != nil {
-		if r, ok := l.Feed.Selected(); ok && r.Language != "" {
-			right = s.langPaint(r.Language, r.LanguageColor).Render(s.icons.Language(r.Language)) + " " + st.Muted.Render(r.Language)
-		}
+	switch l := p.list().(type) {
+	case *repoList:
+		right = s.language(&l.tableTab)
+	case *starList:
+		right = s.language(&l.tableTab)
 	}
+	tabs := []tab{p.tab}
+	if p.header.ok {
+		tabs = tabsOf(p.header.value.Kind)
+	}
+	line := s.tabs(tabs, tabTitles)
+	if ansi.StringWidth(line) > w {
+		line = s.tabs(tabs, shortTabs)
+	}
+	return ownerui.Spread(line, right, w, s.icons.Ellipsis)
+}
+
+// tabs renders tabs by their titles, with their counts once the header
+// says them.
+func (s *Section) tabs(tabs []tab, titles [numTabs]string) string {
+	p, st := s.page, &s.st.shared
 	var b strings.Builder
 	b.WriteByte(' ')
-	for t := range numTabs {
-		if t > 0 {
+	for i, t := range tabs {
+		if i > 0 {
 			b.WriteString("  ")
 		}
-		label := tabTitles[t]
-		if p.header.ok {
-			label += " " + ownerui.Count(s.tabCount(t))
+		label := titles[t]
+		if count := s.tabCount(t); count != "" {
+			label += " " + count
 		}
 		if t == p.tab {
 			s.st.focusTitle.Write(&b, label)
@@ -446,18 +463,59 @@ func (s *Section) tabsLine(w int) string {
 			st.Muted.Write(&b, label)
 		}
 	}
-	return ownerui.Spread(b.String(), right, w, s.icons.Ellipsis)
+	return b.String()
+}
+
+// language renders the language of the repository under the cursor of l,
+// or "" when it has none.
+func (s *Section) language(l *tableTab) string {
+	r, ok := l.Feed.Selected()
+	if !ok || r.Language == "" {
+		return ""
+	}
+	return s.langPaint(r.Language, r.LanguageColor).Render(s.icons.Language(r.Language)) + " " + s.st.shared.Muted.Render(r.Language)
 }
 
 // tabCount is how many items tab t of the page on view lists, as its
-// header counts them.
-func (s *Section) tabCount(t tab) int {
+// header counts them, or "" where it doesn't: for the organizations of a
+// user, which are counted once all are read, and for the teams of an
+// organization to someone outside it. Someone outside an organization
+// sees only its public members.
+func (s *Section) tabCount(t tab) string {
+	p := s.page
+	if !p.header.ok {
+		return ""
+	}
+	o := p.header.value
+	n := 0
 	switch t {
 	case reposTab:
-		return s.page.header.value.Profile.Repos
+		n = o.Profile.Repos
+	case starsTab:
+		n = o.Stars
+	case followersTab:
+		n = o.Profile.Followers
+	case followingTab:
+		n = o.Profile.Following
+	case orgsTab:
+		l := p.lists[t]
+		if l == nil || !l.started() || !l.feed().Done() || l.feed().Err() != nil {
+			return ""
+		}
+		n = l.feed().Len()
+	case membersTab:
+		if !o.Viewer.Member {
+			return ownerui.Count(o.Members) + " public"
+		}
+		n = o.Members
+	case teamsTab:
+		if !o.Viewer.Member {
+			return ""
+		}
+		n = o.Teams
 	default:
-		return 0
 	}
+	return ownerui.Count(n)
 }
 
 // failure renders err, which stopped action, in lines of w cells. The
