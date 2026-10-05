@@ -125,7 +125,7 @@ internal/tui/ui/ahead.go:aheadFailedFor  keep: a safety mechanism, how long a ro
 internal/tui/cmdhistory.go:historyWait  keep: a mechanism, how long saving the command history waits for its lock
 internal/tui/online.go:onlineGap  keep: a safety mechanism, how seldom a flapping connection wakes the failed panes
 internal/tui/terminal.go:terminalWait  keep: a probe timeout, how long the terminal may take to say its version
-internal/tui/dashboard/filter.go:defaultRepoSort  keep: what clear_filter puts back; set in the filter modal, not the config
+internal/tui/ownerui/filter.go:DefaultSort  keep: what clear_filter puts back; set in the filter modal, not the config
 internal/tui/issues/filter.go:defaultSort  keep: what clear_filter puts back; set in the filter modal, not the config
 internal/tui/pulls/filter.go:defaultSort  keep: what clear_filter puts back; set in the filter modal, not the config
 internal/tui/notifications/filter.go:defaultQuery  keep: what clear_filter puts back; set in the filter modal, not the config
