@@ -42,6 +42,26 @@ type Hider interface {
 	Hide()
 }
 
+// Commanded is a Modal over which the command key opens the command line,
+// so that a command can act on what it shows, such as raw on a file.
+// Over any other modal, the command line doesn't open.
+type Commanded interface {
+	// TakesCommands reports whether the command key opens the line now:
+	// not while the modal takes keys as text, such as in a search.
+	TakesCommands() bool
+}
+
+// Sourced is a view that shows a file rendered, such as markdown, or as
+// its source, which the raw command switches between.
+type Sourced interface {
+	// Raw reports whether the view shows the source, and ok whether it
+	// shows a file it can render at all.
+	Raw() (raw, ok bool)
+	// SetRaw shows the source if raw is set, and the file rendered
+	// otherwise.
+	SetRaw(raw bool) tea.Cmd
+}
+
 // Linked is a Modal about something that has a page on the web, such as a
 // pull request, whose title in the top edge of the frame links to it.
 type Linked interface {

@@ -165,8 +165,9 @@ func TestLoadMergesOverDefaults(t *testing.T) {
 					UnfocusedSlowdown: 2,
 				}
 				c.Files = Files{
-					Preview: Preview{MaxSize: 2_000_000},
-					Finder:  Finder{Preview: false},
+					Preview:  Preview{MaxSize: 2_000_000},
+					Finder:   Finder{Preview: false},
+					Markdown: MarkdownRaw,
 				}
 				c.Prefetch.Enabled, c.Prefetch.Window, c.Prefetch.Rest, c.Prefetch.Parallel = false, Window{Before: 2, After: 6}, time.Second, 2
 				c.Prefetch.Pulls.OtherTabs.Enabled = new(false)
@@ -562,6 +563,42 @@ func TestFinderDefaults(t *testing.T) {
 	}
 	if !cfg.Files.Finder.Preview {
 		t.Error("the finder hides its preview by default")
+	}
+}
+
+func TestMarkdownSetting(t *testing.T) {
+	if got := Default().Files.Markdown; got != MarkdownRendered {
+		t.Errorf("files.markdown = %q by default, want %q", got, MarkdownRendered)
+	}
+	for _, v := range []string{MarkdownRendered, MarkdownRaw} {
+		cfg, err := Default().Set("files.markdown", v)
+		if err != nil || cfg.Files.Markdown != v {
+			t.Errorf("set files.markdown=%s: %q, %v", v, cfg.Files.Markdown, err)
+		}
+	}
+	if _, err := Default().Set("files.markdown", "html"); err == nil || !strings.Contains(err.Error(), "rendered or raw") {
+		t.Errorf("set files.markdown=html: %v, want an error naming the values", err)
+	}
+	if got := Default().Values("files.markdown"); !slices.Equal(got, []string{MarkdownRendered, MarkdownRaw}) {
+		t.Errorf("values of files.markdown = %v", got)
+	}
+	// The config command shows it, and where a value set for the session
+	// came from.
+	session, err := Default().Set("files.markdown", MarkdownRaw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for cfg, want := range map[*Config]string{
+		new(Default()): "  markdown: rendered\n",
+		&session:       "  markdown: raw # session (:set)\n",
+	} {
+		got, err := Layers{Start: Default(), Session: *cfg}.YAML()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(got, want) {
+			t.Errorf("the config lacks %q:\n%s", want, got)
+		}
 	}
 }
 

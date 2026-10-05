@@ -253,4 +253,5 @@ var choices = map[string][]string{
 	"cache.disk.compression":       {CompressionGzip, CompressionNone},
 	"cache.disk.compression_level": {LevelFastest, LevelDefault, LevelBest},
 	"log.level":                    {LevelDebug, LevelInfo, LevelWarn, LevelError},
+	"files.markdown":               {MarkdownRendered, MarkdownRaw},
 }

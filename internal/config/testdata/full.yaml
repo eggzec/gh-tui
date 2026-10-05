@@ -82,6 +82,7 @@ files:
     max_size: 2000000
   finder:
     preview: false
+  markdown: raw
 
 prefetch:
   enabled: false

@@ -16,6 +16,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // preview shows a file in a pager, in a modal over the screen. It is opened
@@ -47,6 +48,10 @@ type preview struct {
 	// file the terminal shows. loaded is set once the content arrived.
 	img    fileImage
 	loaded bool
+	// raw shows a markdown file as its source, rather than rendered by
+	// md.
+	raw bool
+	md  markdownView
 }
 
 // entryMsg carries the entry of the file of the preview whose pager has
@@ -68,14 +73,16 @@ type blobMsg struct {
 // newPreview returns a preview of e, a file of repo at ref, whose page
 // is on host, which words what went wrong with v and opens the file in
 // editor, if set, and marks a failed load with the error glyph of ic. It
-// draws an image file with images, where the terminal shows them. Its load
-// runs under ctx until it closes.
-func newPreview(ctx context.Context, svc Service, host string, repo core.RepoRef, ref string, e core.TreeEntry, open key.Binding, v ui.Voice, editor string, ic ui.Icons, images *ui.Images) *preview {
+// draws an image file with images, where the terminal shows them, and
+// shows a markdown file rendered unless raw is set. Its load runs under
+// ctx until it closes.
+func newPreview(ctx context.Context, svc Service, host string, repo core.RepoRef, ref string, e core.TreeEntry, open key.Binding, v ui.Voice, editor string, ic ui.Icons, images *ui.Images, raw bool) *preview {
 	ctx, cancel := context.WithCancel(ctx)
 	// The preview loads the file once, and opens it on GitHub with open.
 	v.Retry, v.Open = key.Binding{}, open
 	pg := pager.New(pager.WithErrorText(fileErrorText(repo, v)), pager.WithEditor(editor))
-	p := &preview{ctx: ctx, cancel: cancel, svc: svc, host: host, repo: repo, ref: ref, entry: e, open: open, pager: pg, icons: ic}
+	p := &preview{ctx: ctx, cancel: cancel, svc: svc, host: host, repo: repo, ref: ref, entry: e, open: open, pager: pg, icons: ic, raw: raw}
+	p.md.icons = ic
 	p.img = fileImage{images: images, repo: repo, ellipsis: ic.Ellipsis}
 	p.pager.Focus()
 	return p
@@ -174,7 +181,7 @@ func (p *preview) draw() tea.Cmd {
 	if !p.img.draw(&p.pager) {
 		return nil
 	}
-	cmd, ok := fill(&p.pager, p.entry, p.img.blob, p.failed, p.open, p.icons)
+	cmd, ok := fill(&p.pager, p.entry, p.img.blob, p.failed, p.open, p.icons, p.rendering())
 	if ok {
 		// The search starts from the line, if there is one.
 		p.pager.GoToLine(p.line)
@@ -184,11 +191,52 @@ func (p *preview) draw() tea.Cmd {
 	return cmd
 }
 
+// rendering returns what renders the file, if it is markdown shown
+// rendered, or nil.
+func (p *preview) rendering() *markdownView {
+	if p.raw {
+		return nil
+	}
+	return &p.md
+}
+
+// Raw implements ui.Sourced: whether the preview shows the source of a
+// markdown file, and whether it shows one at all.
+func (p *preview) Raw() (raw, ok bool) {
+	return p.raw, p.renders()
+}
+
+// renders reports whether the preview shows a markdown file, which it can
+// show rendered or as its source.
+func (p *preview) renders() bool {
+	return p.loaded && p.failed == nil && !p.img.blob.Binary && !p.entry.Symlink() && markdownFile(p.entry.Path)
+}
+
+// SetRaw implements ui.Sourced: it shows the source of the markdown file
+// if raw is set, and the file rendered otherwise, from the top, with the
+// search shown carried over.
+func (p *preview) SetRaw(raw bool) tea.Cmd {
+	if !p.renders() || raw == p.raw {
+		return nil
+	}
+	p.raw = raw
+	query := p.pager.Query()
+	cmd, _ := fill(&p.pager, p.entry, p.img.blob, nil, p.open, p.icons, p.rendering())
+	return tea.Batch(cmd, p.pager.SetSearch(query))
+}
+
+// TakesCommands implements ui.Commanded: the command key opens the
+// command line over the preview, unless the pager takes keys as text.
+func (p *preview) TakesCommands() bool {
+	return !p.pager.Capturing()
+}
+
 // fill puts the content of the file of e in pg, or why it isn't shown,
 // naming open as the key that opens it in the browser instead, in the
-// words of ic. It reports whether it put the content, and returns the
-// command that highlights it.
-func fill(pg *pager.Model, e core.TreeEntry, b core.Blob, err error, open key.Binding, ic ui.Icons) (tea.Cmd, bool) {
+// words of ic. A markdown file shows rendered by md, unless md is nil. It
+// reports whether it put the content, and returns the command that
+// highlights it.
+func fill(pg *pager.Model, e core.TreeEntry, b core.Blob, err error, open key.Binding, ic ui.Icons, md *markdownView) (tea.Cmd, bool) {
 	name := e.Path
 	switch {
 	case errors.Is(err, core.ErrTooLarge):
@@ -200,6 +248,10 @@ func fill(pg *pager.Model, e core.TreeEntry, b core.Blob, err error, open key.Bi
 	case e.Symlink():
 		// The blob of a link holds its target.
 		pg.SetMessage(name, "Symbolic link "+ic.Arrow+" "+string(b.Content))
+	case md != nil && markdownFile(e.Path):
+		// Decoded as the pager decodes text, such as a README in Latin-1.
+		pg.SetRendered(name, string(b.Content), md.render(termtext.Decode(string(b.Content))))
+		return nil, true
 	default:
 		return pg.SetContent(name, string(b.Content)), true
 	}
@@ -303,9 +355,11 @@ func (p *preview) SetSize(width, height int) {
 	}
 }
 
-// SetTheme styles the pager.
+// SetTheme styles the pager, and the markdown it renders.
 func (p *preview) SetTheme(t ui.Theme) {
 	p.pager.SetStyles(t.Pager(p.icons))
+	p.md.setTheme(t, p.icons)
+	p.pager.Rerender()
 }
 
 // KeyLayers implements ui.Keyed: the open key, unless the pager's search

@@ -196,6 +196,10 @@ files:
     # finder is at least 100 columns wide. Tab shows or hides it either
     # way.
     preview: true
+  # How the preview shows a markdown file, such as a README: rendered, as
+  # GitHub shows it, or raw, its source. raw on and raw off switch the
+  # file open between them.
+  markdown: rendered
 
 # The notifications screen and the dashboard's inbox.
 notifications:

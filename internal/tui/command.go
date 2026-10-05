@@ -26,7 +26,12 @@ type command struct {
 	// quits reports whether the command ends the program, which then
 	// waits for the history to be saved.
 	quits bool
-	run   func(m *Model, arg string) tea.Cmd
+	// overModal reports whether the command runs over a modal that takes
+	// commands, such as the file preview: one that acts on the modal, or
+	// on nothing the modal hides. Every other command would change what
+	// is behind the modal, or replace it and lose the place in it.
+	overModal bool
+	run       func(m *Model, arg string) tea.Cmd
 	// complete, if set, completes the argument: arg is the line from
 	// after the name to the cursor, which is at cursor, and end is the
 	// end of the word under it, which atEnd reports is the end of the
@@ -41,13 +46,14 @@ var commands = []command{
 	{name: "copy", detail: "copy the url, ref, sha or path of what is selected", args: true, run: (*Model).copyCommand, complete: completeCopy},
 	{name: "filter", detail: "filter the focused list", run: filtering(filterform.FiltersTab)},
 	{name: "goto", detail: "open a repository, issue, pull request or link", args: true, run: (*Model).gotoCommand, complete: (*Model).completeTarget},
-	{name: "help", detail: "list the keys", run: pressing(config.ActionHelp)},
-	{name: "images", detail: "show whether images are drawn here, and why", run: (*Model).imagesCommand},
-	{name: "open", detail: "open on GitHub what follows, or what is selected", args: true, run: (*Model).openCommand, complete: (*Model).completeTarget},
-	{name: "q", detail: "quit", quits: true, run: func(*Model, string) tea.Cmd { return tea.Quit }},
+	{name: "help", detail: "list the keys", overModal: true, run: pressing(config.ActionHelp)},
+	{name: "images", detail: "show whether images are drawn here, and why", overModal: true, run: (*Model).imagesCommand},
+	{name: "open", detail: "open on GitHub what follows, or what is selected", args: true, overModal: true, run: (*Model).openCommand, complete: (*Model).completeTarget},
+	{name: "q", detail: "quit", quits: true, overModal: true, run: func(*Model, string) tea.Cmd { return tea.Quit }},
+	{name: "raw", detail: "show the open file as its source with on, or rendered with off", args: true, overModal: true, run: (*Model).rawCommand, complete: completeRaw},
 	{name: "refresh", detail: "read the focused view again", run: pressing(config.ActionRefresh)},
 	{name: "search", detail: "search GitHub, for what follows if anything", args: true, run: (*Model).searchCommand},
-	{name: "set", detail: "change a setting for this session, or show it", args: true, run: (*Model).setCommand, complete: (*Model).completeSet},
+	{name: "set", detail: "change a setting for this session, or show it", args: true, overModal: true, run: (*Model).setCommand, complete: (*Model).completeSet},
 	{name: "sort", detail: "sort the focused list", run: filtering(filterform.SortTab)},
 }
 
@@ -156,6 +162,8 @@ func (m *Model) runLine(line string, save tea.Cmd) tea.Cmd {
 	switch {
 	case !ok:
 		return tea.Batch(save, m.toast.Push(toast.Error, "Unknown command: "+name+"."))
+	case m.topModal() != nil && !c.overModal:
+		return tea.Batch(save, m.toast.Push(toast.Error, "Close the file first to use "+c.name+"."))
 	case !c.args && arg != "":
 		return tea.Batch(save, m.toast.Push(toast.Error, "The "+c.name+" command takes no argument."))
 	case c.quits:

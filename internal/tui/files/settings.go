@@ -9,13 +9,14 @@ import (
 // which the set command changed: the icons, which the theme the app sets
 // again after draws with, whether the finder shows a preview, which it
 // lays out with when it opens, the editor, which the next preview opens
-// files in, and the reads ahead, as WithPrefetch sets them, from the next
-// move of a cursor.
+// files in, how the next preview shows markdown files, and the reads
+// ahead, as WithPrefetch sets them, from the next move of a cursor.
 func (s *Section) configure(c config.Config) {
 	s.icons = ui.NewIcons(c.UI.Icons)
 	s.voice.Icons = &s.icons
 	s.findPreview = c.Files.Finder.Preview
 	s.editor = c.Editor
+	s.rawMarkdown = c.Files.Markdown == config.MarkdownRaw
 	s.prefetch = newPrefetch(c.Prefetch, c.Files.Preview.MaxSize)
 	s.ahead.Configure(s.prefetch.preview)
 	s.dirs.Configure(s.prefetch.tree)
