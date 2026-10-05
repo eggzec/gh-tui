@@ -1,0 +1,89 @@
+{
+  "data": {
+    "rateLimit": {
+      "cost": 1,
+      "limit": 5000,
+      "remaining": 4990,
+      "used": 10,
+      "resetAt": "2026-10-05T12:00:00Z"
+    },
+    "repositoryOwner": {
+      "__typename": "Organization",
+      "id": "MDEyOk9yZ2FuaXphdGlvbjk5MTk=",
+      "login": "github",
+      "url": "https://github.com/github",
+      "avatarUrl": "https://avatars.githubusercontent.com/u/9919?v=4",
+      "name": "GitHub",
+      "description": "How people build software.",
+      "location": "San Francisco, CA",
+      "websiteUrl": "https://github.com/about",
+      "email": "support@github.com",
+      "twitterUsername": "github",
+      "isVerified": true,
+      "createdAt": "2008-05-11T04:37:31Z",
+      "repositories": {
+        "totalCount": 520
+      },
+      "membersWithRole": {
+        "totalCount": 2600
+      },
+      "teams": {
+        "totalCount": 0
+      },
+      "pinnedItems": {
+        "nodes": [
+          {
+            "id": "R_2",
+            "name": "docs",
+            "owner": {
+              "login": "github",
+              "avatarUrl": "https://avatars.githubusercontent.com/u/1?v=4"
+            },
+            "description": "Demo docs",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": {
+              "name": "JavaScript",
+              "color": "#00ADD8"
+            },
+            "stargazerCount": 10,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "isTemplate": false,
+            "isMirror": false,
+            "updatedAt": "2026-09-24T08:23:12Z",
+            "url": "https://github.com/github/docs"
+          },
+          {
+            "id": "R_3",
+            "name": "gitignore",
+            "owner": {
+              "login": "github",
+              "avatarUrl": "https://avatars.githubusercontent.com/u/1?v=4"
+            },
+            "description": "Demo gitignore",
+            "defaultBranchRef": {
+              "name": "main"
+            },
+            "primaryLanguage": null,
+            "stargazerCount": 10,
+            "viewerHasStarred": false,
+            "isPrivate": false,
+            "isFork": false,
+            "isArchived": false,
+            "isTemplate": false,
+            "isMirror": false,
+            "updatedAt": "2026-09-24T08:23:12Z",
+            "url": "https://github.com/github/gitignore"
+          }
+        ]
+      },
+      "viewerIsAMember": false,
+      "viewerIsFollowing": false,
+      "viewerCanAdminister": false
+    }
+  }
+}
