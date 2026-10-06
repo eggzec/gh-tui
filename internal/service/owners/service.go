@@ -74,7 +74,7 @@ const (
 	kindTeams         = "ownerteams"
 	kindReadme        = "ownerreadme"
 	kindFollowers     = "ownerfollowers"
-	schema            = 2
+	schema            = 3
 )
 
 // missingFor is how long a login that no account has is remembered: long

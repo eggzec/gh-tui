@@ -262,6 +262,9 @@ func (s *Section) paneLabel(p paneID) string {
 		if at, of := s.page.pinned.Pages(); of > 1 {
 			text += s.icons.Separator + strconv.Itoa(at) + "/" + strconv.Itoa(of)
 		}
+		if h := s.page.header; h.ok && h.value.HiddenPins {
+			text += s.icons.Separator + "some hidden"
+		}
 	default:
 		if l := s.repoTab(); l != nil {
 			if chips := l.Filter().Chips(s.icons); chips != "" {
@@ -431,6 +434,9 @@ func (s *Section) pinnedBody(w, h int) []string {
 			return ownerui.Indent(s.failure("load the pins of "+p.login, p.header.err, w-1))
 		case !p.header.ok:
 			return []string{" " + st.Muted.Render("Loading pinned repositories"+s.icons.Ellipsis)}
+		}
+		if p.header.value.HiddenPins {
+			return []string{" " + st.Muted.Render("GitHub hides the pinned repositories from this token.")}
 		}
 		return []string{" " + st.Muted.Render(ui.None("pinned repositories"))}
 	}

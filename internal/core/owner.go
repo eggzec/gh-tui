@@ -48,7 +48,11 @@ type Owner struct {
 	Members  int
 	Teams    int
 	Pinned   []Repo
-	Viewer   Relation
+	// HiddenPins reports that GitHub hid at least one pinned repository
+	// from the token, as an organization's SAML enforcement does, so
+	// Pinned holds only those it showed.
+	HiddenPins bool
+	Viewer     Relation
 	// Stale, Offline and Limited work as in Header.
 	Stale   bool
 	Offline bool

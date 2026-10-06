@@ -44,7 +44,8 @@ type HeaderQuery struct {
 // again for a moment without a request.
 //
 // When GitHub answers only part of the header, as when it hides a pinned
-// repository from the token, the part it answered is the header.
+// repository from the token, the part it answered is the header, cached
+// as any other; HiddenPins tells of the pins it hid.
 func (s *Service) Header(ctx context.Context, q HeaderQuery) (core.Owner, error) {
 	// The client already names the request in its error.
 	return read(ctx, s, &s.header, q.Login, "", headerKey(q.Login), q.Again, whole(func(ctx context.Context) (core.Owner, error) {

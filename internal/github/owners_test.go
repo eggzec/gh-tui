@@ -48,8 +48,8 @@ func TestOwnerHeaderUser(t *testing.T) {
 	if rel := (core.Relation{Following: true, CanFollow: true}); got.Viewer != rel {
 		t.Errorf("relation = %+v, want %+v", got.Viewer, rel)
 	}
-	if len(got.Pinned) != 1 || got.Pinned[0].Ref != (core.RepoRef{Owner: "octocat", Name: "Spoon-Knife"}) {
-		t.Errorf("pinned = %+v, want octocat/Spoon-Knife", got.Pinned)
+	if len(got.Pinned) != 1 || got.Pinned[0].Ref != (core.RepoRef{Owner: "octocat", Name: "Spoon-Knife"}) || got.HiddenPins {
+		t.Errorf("pinned = %+v, hidden %v; want octocat/Spoon-Knife alone", got.Pinned, got.HiddenPins)
 	}
 }
 
@@ -93,8 +93,8 @@ func TestOwnerHeaderPartial(t *testing.T) {
 	if !errors.As(err, &gqlErr) || errors.Is(err, core.ErrNotFound) {
 		t.Errorf("error = %v, want a GraphQLError other than ErrNotFound", err)
 	}
-	if got.Profile.Login != "octocat" || len(got.Pinned) != 1 || got.Pinned[0].Ref.Name != "Spoon-Knife" {
-		t.Errorf("owner = %+v, want octocat with the one visible pin", got)
+	if got.Profile.Login != "octocat" || len(got.Pinned) != 1 || got.Pinned[0].Ref.Name != "Spoon-Knife" || !got.HiddenPins {
+		t.Errorf("owner = %+v, want octocat with the one visible pin, marked as hiding some", got)
 	}
 }
 
