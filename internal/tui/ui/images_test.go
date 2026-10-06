@@ -267,6 +267,108 @@ func TestAvatarFails(t *testing.T) {
 	}
 }
 
+// checkHeld fails t unless what a counts as held is what it sent.
+func checkHeld(t *testing.T, a *Images) {
+	t.Helper()
+	n, size := 0, 0
+	for key, e := range a.byKey {
+		if e.sent {
+			n, size = n+1, size+e.pic.bytes()
+			if a.held[key] != e {
+				t.Errorf("%s is sent but not held", key)
+			}
+		}
+	}
+	if n != len(a.held) || size != a.heldBytes {
+		t.Errorf("held %d of %d bytes, want %d of %d", len(a.held), a.heldBytes, n, size)
+	}
+}
+
+// The failures remembered are bounded: past maxFailedImages, those drawn
+// least recently are forgotten, never one drawn in the update just
+// ended, and one forgotten is fetched again only when drawn again.
+func TestFailuresBounded(t *testing.T) {
+	f := &fakeFetch{fail: map[string]error{}}
+	name := func(i int) string { return avatarOf(fmt.Sprint("gone", i)) }
+	for i := range maxFailedImages + 10 {
+		f.fail[SizedAvatar(name(i), AvatarSmall)] = fmt.Errorf("%w: 404", ErrImageGone)
+	}
+	a := newTestAvatars(f, Graphics{Images: true, Cell: testCell})
+	failed := func() int {
+		n := 0
+		for _, e := range a.byKey {
+			if e.state == imageFailed {
+				n++
+			}
+		}
+		return n
+	}
+	// Each fails in an update of its own, so they are drawn in order.
+	for i := range maxFailedImages + 10 {
+		a.Line(name(i))
+		load(t, a)
+	}
+	// All drawn in one update: none is forgotten, past the bound or not.
+	for i := range maxFailedImages + 10 {
+		a.Line(name(i))
+	}
+	load(t, a)
+	if n := failed(); n != maxFailedImages+10 {
+		t.Fatalf("remembers %d failures, want every one drawn in the update", n)
+	}
+	// Only the last ones drawn again, later.
+	for i := 10; i < maxFailedImages+10; i++ {
+		a.Line(name(i))
+	}
+	load(t, a)
+	load(t, a)
+	if n := failed(); n != maxFailedImages {
+		t.Errorf("remembers %d failures, want %d", n, maxFailedImages)
+	}
+	fetched := len(f.urls)
+	for i := 10; i < maxFailedImages+10; i++ {
+		a.Line(name(i))
+	}
+	load(t, a)
+	if len(f.urls) != fetched {
+		t.Errorf("fetched %d failures remembered again", len(f.urls)-fetched)
+	}
+	a.Line(name(0))
+	load(t, a)
+	load(t, a)
+	if len(f.urls) != fetched+1 {
+		t.Errorf("fetched %d, want the one forgotten once", len(f.urls)-fetched)
+	}
+}
+
+// BenchmarkSendBurst sends a burst of avatars arriving while many images
+// are known: a send costs the same however many there are.
+func BenchmarkSendBurst(b *testing.B) {
+	f := &fakeFetch{}
+	a := NewImages(context.Background(), f.fetch, true)
+	a.SetGraphics(Graphics{Images: true, Cell: testCell})
+	for i := range 4096 {
+		a.byKey[fmt.Sprint("failed", i)] = &entry{state: imageFailed}
+	}
+	b.ReportAllocs()
+	for b.Loop() {
+		for i := range 100 {
+			key := strconv.Itoa(i)
+			e := &entry{state: imageReady, pic: Picture{PNG: []byte("x"), Width: 20, Height: 20}, size: AvatarSmall}
+			a.byKey[key] = e
+			a.send(key, e)
+		}
+		b.StopTimer()
+		for i := range 100 {
+			key := strconv.Itoa(i)
+			a.release(key, a.byKey[key])
+			a.pool.Release(key)
+			delete(a.byKey, key)
+		}
+		b.StartTimer()
+	}
+}
+
 // While GitHub can't be reached nothing is fetched, and what was drawn
 // meanwhile is once it can.
 func TestAvatarsOffline(t *testing.T) {
@@ -313,6 +415,7 @@ func TestAvatarsCloseAndResend(t *testing.T) {
 	if !a.SetGraphics(Graphics{Cell: testCell}) {
 		t.Error("images off: no change")
 	}
+	checkHeld(t, a)
 	if !a.SetGraphics(Graphics{Images: true, Cell: testCell}) {
 		t.Error("images on again: no change")
 	}
@@ -335,6 +438,7 @@ func TestAvatarsCloseAndResend(t *testing.T) {
 	if a.Holding() {
 		t.Error("holds images after Close")
 	}
+	checkHeld(t, a)
 	if again := a.Close(); again != got {
 		t.Errorf("Close again = %q, want the same deletes, in case they never arrived", again)
 	}
@@ -379,9 +483,10 @@ func TestAvatarsTakeTheLeastDrawn(t *testing.T) {
 	if got := a.Line(avatarOf("old0")); got != "   " {
 		t.Errorf("the avatar taken from = %q, want a blank box", got)
 	}
-	if a.held() != maxImages {
-		t.Errorf("holds %d, want %d", a.held(), maxImages)
+	if len(a.held) != maxImages {
+		t.Errorf("holds %d, want %d", len(a.held), maxImages)
 	}
+	checkHeld(t, a)
 }
 
 // A view with more authors than the pool has IDs, drawn again whenever
@@ -425,8 +530,8 @@ func TestAvatarsPastThePool(t *testing.T) {
 		t.Errorf("sent %d images, want at most the pool's %d and one taken back", sends, maxImages)
 	}
 	shown := drawThread()
-	if a.held() != maxImages || shown == 0 || shown > maxImages {
-		t.Errorf("holds %d, thread shows %d", a.held(), shown)
+	if len(a.held) != maxImages || shown == 0 || shown > maxImages {
+		t.Errorf("holds %d, thread shows %d", len(a.held), shown)
 	}
 	// Drawn again, the thread fetches and sends nothing more.
 	before := len(f.urls)
@@ -619,8 +724,8 @@ func TestFitHeldBytes(t *testing.T) {
 		a.Fit(fileOf(sha), box)
 		load(t, a)
 	}
-	if a.held() != 3 {
-		t.Fatalf("holds %d, want 3", a.held())
+	if len(a.held) != 3 {
+		t.Fatalf("holds %d, want 3", len(a.held))
 	}
 	a.Fit(fileOf("b"), box)
 	a.Fit(fileOf("c"), box)
@@ -637,12 +742,13 @@ func TestFitHeldBytes(t *testing.T) {
 			t.Errorf("%s is %d, want shown", sha, st)
 		}
 	}
+	checkHeld(t, a)
 	// a, drawn now as recently as the three held, waits.
 	if raw, _ := load(t, a); strings.Contains(raw, "a=d") {
 		t.Errorf("took room of images drawn as recently: %q", raw)
 	}
-	if a.held() != 3 {
-		t.Errorf("holds %d, want 3", a.held())
+	if len(a.held) != 3 {
+		t.Errorf("holds %d, want 3", len(a.held))
 	}
 }
 
@@ -658,8 +764,8 @@ func TestFitUnsentForgotten(t *testing.T) {
 		a.Fit(fileOf(sha), box)
 	}
 	load(t, a)
-	if a.held() != 3 || len(a.byKey) != 4 {
-		t.Fatalf("holds %d of %d, want 3 of 4, the last waiting", a.held(), len(a.byKey))
+	if len(a.held) != 3 || len(a.byKey) != 4 {
+		t.Fatalf("holds %d of %d, want 3 of 4, the last waiting", len(a.held), len(a.byKey))
 	}
 	// An update that draws the three held but not the fourth.
 	for _, sha := range []string{"a", "b", "c"} {
@@ -923,8 +1029,8 @@ func TestFitAnimates(t *testing.T) {
 	if raw != want {
 		t.Errorf("sent\n%q\nwant\n%q", raw, want)
 	}
-	if a.held() != 1 || len(a.pool.All()) != 1 {
-		t.Errorf("holds %d images of %d IDs, want the animation as one", a.held(), len(a.pool.All()))
+	if len(a.held) != 1 || len(a.pool.All()) != 1 {
+		t.Errorf("holds %d images of %d IDs, want the animation as one", len(a.held), len(a.pool.All()))
 	}
 	if got := rawOf(t, a.Resend()); got != raw {
 		t.Errorf("Resend sent\n%q\nwant it all again\n%q", got, raw)
@@ -994,8 +1100,8 @@ func TestFitAnimationsTakeRoom(t *testing.T) {
 		a.Fit(fileOf(sha), box)
 		load(t, a)
 	}
-	if a.held() != 2 {
-		t.Fatalf("holds %d, want 2", a.held())
+	if len(a.held) != 2 {
+		t.Fatalf("holds %d, want 2", len(a.held))
 	}
 	a.Fit(fileOf("b"), box)
 	a.Fit(fileOf("c"), box)

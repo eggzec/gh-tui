@@ -135,6 +135,13 @@ const maxImages = 255
 // kilobytes while a file fitted to a pane may be megabytes.
 const maxHeldBytes = 64 << 20
 
+// maxFailedImages is how many images that failed the app remembers at
+// most, so that a long session that meets many doesn't keep them all.
+// Past it, those drawn least recently are forgotten. One drawn again is
+// asked for again, and the fetcher, which remembers failures for a
+// while of its own, answers at once.
+const maxFailedImages = 1024
+
 // ImagesMsg tells every section and modal that the images drawn changed:
 // some arrived, or failed, or the terminal began or stopped showing them.
 // Those that show images draw them again.
@@ -273,6 +280,11 @@ type Images struct {
 	g                Graphics
 	pool             *termimg.Pool
 	byKey            map[string]*entry
+	// held are the images of byKey the terminal holds, those sent, and
+	// heldBytes their bytes, kept as they are sent and deleted so that a
+	// send needn't count them.
+	held      map[string]*entry
+	heldBytes int
 	// wanted are the keys drawn and not yet fetched, or fetched and not
 	// yet sent.
 	wanted []string
@@ -296,7 +308,7 @@ type Images struct {
 func NewImages(ctx context.Context, fetch ImageFetch, avatars bool) *Images {
 	return &Images{
 		ctx: ctx, fetch: fetch, avatars: avatars,
-		pool: termimg.NewPool(termimg.RandomMSB()), byKey: make(map[string]*entry),
+		pool: termimg.NewPool(termimg.RandomMSB()), byKey: make(map[string]*entry), held: make(map[string]*entry),
 	}
 }
 
@@ -514,16 +526,35 @@ func (a *Images) Load() (tea.Cmd, Redraw) {
 // terminal held as much as it may, and weren't drawn in this update: the
 // app would otherwise keep their pictures for as long as it runs. One
 // drawn again is fetched again, mostly from the fetcher's own memory.
-// While images aren't drawn nothing is pruned, so those that arrived are
-// sent again once they are.
+// It forgets too the failures past maxFailedImages drawn least recently,
+// never one drawn in this update, which would be asked for again at
+// once. While images aren't drawn nothing is pruned, so those that
+// arrived are sent again once they are.
 func (a *Images) prune() {
 	if !a.drawing() || a.closed {
 		return
 	}
+	failed := 0
+	var old []string
 	for key, e := range a.byKey {
-		if e.state == imageReady && !e.sent && !e.queued && e.drawn < a.gen {
+		switch {
+		case e.state == imageReady && !e.sent && !e.queued && e.drawn < a.gen:
 			delete(a.byKey, key)
+		case e.state == imageFailed:
+			failed++
+			if e.drawn < a.gen {
+				old = append(old, key)
+			}
 		}
+	}
+	if failed <= maxFailedImages {
+		return
+	}
+	slices.SortFunc(old, func(x, y string) int {
+		return cmp.Or(cmp.Compare(a.byKey[x].drawn, a.byKey[y].drawn), strings.Compare(x, y))
+	})
+	for _, key := range old[:min(failed-maxFailedImages, len(old))] {
+		delete(a.byKey, key)
 	}
 }
 
@@ -593,36 +624,52 @@ func (a *Images) send(key string, e *entry) (seq string, sent, took bool) {
 		}
 		var b strings.Builder
 		for _, vk := range victims {
-			b.WriteString(termimg.Delete(a.byKey[vk].id))
+			v := a.byKey[vk]
+			b.WriteString(termimg.Delete(v.id))
+			a.release(vk, v)
 			a.pool.Release(vk)
 			delete(a.byKey, vk)
 		}
 		seq, took = b.String(), len(victims) > 0
 	}
 	id, _, _ := a.pool.Get(key)
-	e.id, e.sent = id, true
+	e.id = id
+	a.hold(key, e)
 	if a.hidden {
 		a.sentHidden[key] = true
 	}
 	return seq + e.sendSeq(), true, took
 }
 
+// hold marks e, under key, sent: the terminal holds it.
+func (a *Images) hold(key string, e *entry) {
+	if !e.sent {
+		e.sent = true
+		a.held[key] = e
+		a.heldBytes += e.pic.bytes()
+	}
+}
+
+// release marks e, under key, no longer held by the terminal.
+func (a *Images) release(key string, e *entry) {
+	if e.sent {
+		e.sent = false
+		delete(a.held, key)
+		a.heldBytes -= e.pic.bytes()
+	}
+}
+
 // victims returns the keys of the images held that must go for e to be
 // sent, the least recently drawn first, and false if those would include
-// one drawn no earlier than e.
+// one drawn no earlier than e. While e fits, it costs nothing; once the
+// terminal is full, it looks at the images held alone.
 func (a *Images) victims(e *entry) ([]string, bool) {
-	n, size := 0, 0
-	var held []string
-	for k, v := range a.byKey {
-		if v.sent {
-			n, size = n+1, size+v.pic.bytes()
-			held = append(held, k)
-		}
-	}
+	n, size := len(a.held), a.heldBytes
 	fits := func() bool { return n < maxImages && size+e.pic.bytes() <= maxHeldBytes }
 	if fits() {
 		return nil, true
 	}
+	held := slices.Collect(maps.Keys(a.held))
 	slices.SortFunc(held, func(x, y string) int {
 		return cmp.Or(cmp.Compare(a.byKey[x].drawn, a.byKey[y].drawn), strings.Compare(x, y))
 	})
@@ -656,8 +703,8 @@ func (a *Images) SetGraphics(g Graphics) (changed bool) {
 	if !now {
 		// What the terminal kept of the images is gone, or will be
 		// drawn by no cell.
-		for _, e := range a.byKey {
-			e.sent = false
+		for key, e := range a.held {
+			a.release(key, e)
 		}
 		a.pool = termimg.NewPool(termimg.RandomMSB())
 		return true
@@ -679,10 +726,8 @@ func (a *Images) Resend() tea.Cmd {
 		return nil
 	}
 	var b strings.Builder
-	for _, key := range slices.Sorted(maps.Keys(a.byKey)) {
-		if e := a.byKey[key]; e.sent {
-			b.WriteString(e.sendSeq())
-		}
+	for _, key := range slices.Sorted(maps.Keys(a.held)) {
+		b.WriteString(a.held[key].sendSeq())
 	}
 	return a.raw(b.String())
 }
@@ -706,18 +751,7 @@ func (a *Images) Online() bool {
 
 // Holding reports whether the terminal holds images the app sent.
 func (a *Images) Holding() bool {
-	return a != nil && !a.closed && a.held() > 0
-}
-
-// held counts the images the terminal holds.
-func (a *Images) held() int {
-	n := 0
-	for _, e := range a.byKey {
-		if e.sent {
-			n++
-		}
-	}
-	return n
+	return a != nil && !a.closed && len(a.held) > 0
 }
 
 // Close returns what deletes every image sent from the terminal, which
@@ -733,11 +767,9 @@ func (a *Images) Close() string {
 	}
 	a.closed = true
 	var b strings.Builder
-	for _, key := range slices.Sorted(maps.Keys(a.byKey)) {
-		if e := a.byKey[key]; e.sent {
-			b.WriteString(termimg.Delete(e.id))
-			e.sent = false
-		}
+	for _, key := range slices.Sorted(maps.Keys(a.held)) {
+		b.WriteString(termimg.Delete(a.held[key].id))
+		a.release(key, a.held[key])
 	}
 	a.deleted = a.wrap(b.String())
 	return a.deleted
