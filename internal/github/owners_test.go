@@ -4,6 +4,9 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -195,4 +198,117 @@ func TestOwnerOperations(t *testing.T) {
 			t.Errorf("operation = %q, want %q", got, want)
 		}
 	}
+}
+
+// fixtureWithout returns testdata/fixture without the text of each of
+// cut, as an older server that lacks a field leaves it out of its answer.
+func fixtureWithout(t *testing.T, fixture string, cut ...string) []byte {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join("testdata", fixture))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(b)
+	for _, c := range cut {
+		if !strings.Contains(s, c) {
+			t.Fatalf("%s has no %q", fixture, c)
+		}
+		s = strings.Replace(s, c, "", 1)
+	}
+	return []byte(s)
+}
+
+// TestOwnerPageOnEnterprise reads what the page of a user and of an
+// organization reads from an Enterprise Server, whose GraphQL API is at
+// /api/graphql and whose REST API is below /api/v3, and whose schema may
+// lack a field that github.com has: the header is sent again without
+// it, and reads it as unset, the lists of people read as on github.com,
+// an organization's follower count comes from the REST API, and the lists
+// of sponsors, which only github.com has, ask nothing.
+func TestOwnerPageOnEnterprise(t *testing.T) {
+	t.Run("user", func(t *testing.T) {
+		srv := &enterpriseServer{t: t, lacks: map[string]string{"pronouns": "User"},
+			data: fixtureWithout(t, "owner_header_user.json", `"pronouns": "they/them",`)}
+		c := newEnterpriseClient(t, srv)
+		for i := range 2 {
+			got, err := c.OwnerHeader(t.Context(), "octocat")
+			if err != nil {
+				t.Fatalf("OwnerHeader %d: %v", i, err)
+			}
+			if got.Kind != core.OwnerUser || got.Profile.Login != "octocat" || got.Pronouns != "" || got.Stars != 3 || len(got.Pinned) != 1 {
+				t.Errorf("OwnerHeader %d = %+v, want octocat without pronouns", i, got)
+			}
+		}
+		if sent := srv.sent(); len(sent) != 3 || strings.Contains(sent[1], "pronouns") || strings.Contains(sent[2], "pronouns") {
+			t.Errorf("sent %d queries, want the header, it again without pronouns, and the second read without them", len(sent))
+		}
+		if _, err := c.OwnerSponsors(t.Context(), "octocat", 2, ""); !errors.Is(err, core.ErrUnsupported) {
+			t.Errorf("OwnerSponsors = %v, want ErrUnsupported", err)
+		}
+		if n := len(srv.sent()); n != 3 {
+			t.Errorf("sent %d queries after the sponsors, want none for them", n)
+		}
+	})
+	t.Run("organization", func(t *testing.T) {
+		srv := &enterpriseServer{t: t, lacks: map[string]string{"isVerified": "Organization"},
+			data: fixtureWithout(t, "owner_header_org.json", `"isVerified": true,`)}
+		c := newEnterpriseClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodGet && r.URL.Path == "/api/v3/users/github" {
+				_, _ = io.WriteString(w, `{"login": "github", "followers": 41000}`)
+				return
+			}
+			srv.ServeHTTP(w, r)
+		}))
+		got, err := c.OwnerHeader(t.Context(), "github")
+		if err != nil {
+			t.Fatalf("OwnerHeader: %v", err)
+		}
+		if got.Kind != core.OwnerOrg || got.Profile.Login != "github" || got.Verified || got.Members != 2600 {
+			t.Errorf("OwnerHeader = %+v, want github, unverified, with 2600 members", got)
+		}
+		if n, err := c.OrgFollowers(t.Context(), "github"); err != nil || n != 41000 {
+			t.Errorf("OrgFollowers = %d, %v, want 41000", n, err)
+		}
+	})
+	people := []struct {
+		name, fixture string
+		list          func(*Client) (core.Page[core.Person], error)
+		want          string
+	}{
+		{"followers", "user_followers.json", func(c *Client) (core.Page[core.Person], error) {
+			return c.UserFollowers(t.Context(), "octocat", 2, "")
+		}, "hubot"},
+		{"organizations", "user_orgs.json", func(c *Client) (core.Page[core.Person], error) {
+			return c.UserOrgs(t.Context(), "octocat", 2, "")
+		}, "github"},
+		{"members", "org_members.json", func(c *Client) (core.Page[core.Person], error) {
+			return c.OrgMembers(t.Context(), "github", 3, "")
+		}, "mona"},
+	}
+	for _, tt := range people {
+		t.Run(tt.name, func(t *testing.T) {
+			b, err := os.ReadFile(filepath.Join("testdata", tt.fixture))
+			if err != nil {
+				t.Fatal(err)
+			}
+			srv := &enterpriseServer{t: t, data: b}
+			got, err := tt.list(newEnterpriseClient(t, srv))
+			if err != nil || len(got.Items) == 0 || got.Items[0].Login != tt.want {
+				t.Errorf("%s = %+v, %v; want the fixture's", tt.name, got, err)
+			}
+			if n := len(srv.sent()); n != 1 {
+				t.Errorf("sent %d queries, want 1", n)
+			}
+		})
+	}
+	t.Run("teams", func(t *testing.T) {
+		b, err := os.ReadFile(filepath.Join("testdata", "org_teams.json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, err := newEnterpriseClient(t, &enterpriseServer{t: t, data: b}).OrgTeams(t.Context(), "github", 2, "")
+		if err != nil || len(got.Items) != 2 || got.Items[0].Slug != "core" {
+			t.Errorf("OrgTeams = %+v, %v; want the fixture's", got, err)
+		}
+	})
 }
