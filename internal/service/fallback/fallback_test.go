@@ -8,7 +8,10 @@ import (
 	"log/slog"
 	"slices"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/cache"
@@ -257,5 +260,47 @@ func TestRefused(t *testing.T) {
 		if got := Refused(tt.err); got != tt.want {
 			t.Errorf("%s: Refused = %v, want %v", tt.name, got, tt.want)
 		}
+	}
+}
+
+// TestFetchTellsLimitJoined checks that a read that joins another's fetch,
+// which the rate limit refused, tells its own watch, whichever of the two
+// watches: a read the user waits for joining a read ahead, or the reverse.
+func TestFetchTellsLimitJoined(t *testing.T) {
+	for _, firstWatched := range []bool{true, false} {
+		t.Run(fmt.Sprintf("first watched %v", firstWatched), func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				c, shelf := setup(t, true)
+				var loads atomic.Int32
+				release := make(chan struct{})
+				load := func(_ context.Context, prev cache.Entry[page], _ bool) (cache.Entry[page], error) {
+					loads.Add(1)
+					<-release
+					return fail(core.ErrRateLimited)(prev)
+				}
+				watched, limited := core.WatchLimit(t.Context())
+				first, second := watched, t.Context()
+				if !firstWatched {
+					first, second = second, first
+				}
+				var wg sync.WaitGroup
+				for _, ctx := range []context.Context{first, second} {
+					wg.Go(func() {
+						if _, err := Fetch(ctx, c, shelf, key, Page[string], load); err != nil {
+							t.Errorf("Fetch: %v", err)
+						}
+					})
+					synctest.Wait()
+				}
+				close(release)
+				wg.Wait()
+				if n := loads.Load(); n != 1 {
+					t.Fatalf("loaded %d times, want the second read to join the first", n)
+				}
+				if !limited() {
+					t.Error("the watched read wasn't told it was served for the rate limit")
+				}
+			})
+		})
 	}
 }
