@@ -1,7 +1,9 @@
+# label | keys | help key | on or off
+
 app
-  ctrl+c  ^c  quit  on
-  ?       ?   help  on
+  quit | ctrl+c | ^c | on
+  help | ? | ? | on
 
 confirm
-  y      y  yes  on
-  n esc  n  no   on
+  yes | y | y | on
+  no | n esc | n | on

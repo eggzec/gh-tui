@@ -1,25 +1,27 @@
+# label | keys | help key | on or off
+
 app
-  ctrl+c  ^c  quit  on
-  ?       ?   help  off
+  quit | ctrl+c | ^c | on
+  help | ? | ? | off
 
 filter (types)
-  up shift+tab  ↑          previous field  off
-  down tab      ↑↓         field           off
-  left          ←          previous        off
-  right         ←→         choose          off
-  space         space      choose          on
-  enter         ↵          edit            on
-  x backspace   x          remove          off
-  enter         ↵          apply           off
-  r             r          reset           off
-  esc           esc        cancel          on
-  ]             ]          next tab        off
-  [             [          previous tab    off
-  up ctrl+p     ↑/ctrl+p   up              on
-  down ctrl+n   ↓/ctrl+n   down            on
-  pgup          pgup       page up         on
-  pgdown        pgdn       page down       on
-  enter         enter      open            off
-  esc           esc        close           off
-  tab           tab        scope           off
-  shift+tab     shift+tab  previous scope  off
+  previous field | up shift+tab | ↑ | off
+  field | down tab | ↑↓ | off
+  previous | left | ← | off
+  choose | right | ←→ | off
+  choose | space | space | on
+  edit | enter | ↵ | on
+  remove | x backspace | x | off
+  apply | enter | ↵ | off
+  reset | r | r | off
+  cancel | esc | esc | on
+  next tab | ] | ] | off
+  previous tab | [ | [ | off
+  up | up ctrl+p | ↑/ctrl+p | on
+  down | down ctrl+n | ↓/ctrl+n | on
+  page up | pgup | pgup | on
+  page down | pgdown | pgdn | on
+  open | enter | enter | off
+  close | esc | esc | off
+  scope | tab | tab | off
+  previous scope | shift+tab | shift+tab | off

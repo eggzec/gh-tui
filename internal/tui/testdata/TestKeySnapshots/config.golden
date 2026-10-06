@@ -1,26 +1,28 @@
+# label | keys | help key | on or off
+
 app
-  ctrl+c  ^c  quit  on
-  ?       ?   help  on
+  quit | ctrl+c | ^c | on
+  help | ? | ? | on
 
 pager
-  up k                 ↑/k     up                 on
-  down j               ↓/j     down               on
-  pgup b               b/pgup  page up            on
-  pgdown space f       f/pgdn  page down          on
-  u                    u       ½ page up          on
-  d                    d       ½ page down        on
-  home g               g/home  top                on
-  end G                G/end   bottom             on
-  0 1 2 3 4 5 6 7 8 9  0-9     count for g/G/%    on
-  %                    %       go to count %      off
-  left h               ←/h     left               on
-  right l              →/l     right              on
-  -                    -       option: S N s i I  on
-  /                    /       search             on
-  &                    &       filter             on
-  enter                enter   search             off
-  esc                  esc     cancel             off
-  n                    n       next match         off
-  N                    N       prev match         off
-  v                    v       edit               on
-  q esc                q       close              on
+  up | up k | ↑/k | on
+  down | down j | ↓/j | on
+  page up | pgup b | b/pgup | on
+  page down | pgdown space f | f/pgdn | on
+  ½ page up | u | u | on
+  ½ page down | d | d | on
+  top | home g | g/home | on
+  bottom | end G | G/end | on
+  count for g/G/% | 0 1 2 3 4 5 6 7 8 9 | 0-9 | on
+  go to count % | % | % | off
+  left | left h | ←/h | on
+  right | right l | →/l | on
+  option: S N s i I | - | - | on
+  search | / | / | on
+  filter | & | & | on
+  search | enter | enter | off
+  cancel | esc | esc | off
+  next match | n | n | off
+  prev match | N | N | off
+  edit | v | v | on
+  close | q esc | q | on

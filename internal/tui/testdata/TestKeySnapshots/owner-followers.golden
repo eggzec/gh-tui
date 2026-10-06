@@ -1,49 +1,51 @@
-app
-  ?  ?  help  on
+# label | keys | help key | on or off
 
 app
-  :            :          command        on
-  q ctrl+c     q          quit           on
-  /            /          search         on
-  B            B          history        off
-  a            a          actions        off
-  t ctrl+p     t          find file      off
-  f            f          filter         off
-  s            s          sort           off
-  z            z          zoom           off
-  esc          esc        unzoom         off
-  ctrl+x       ctrl+x     dismiss        off
-  @            @          owner page     off
-  n            n          notifications  on
-  0            0          dashboard      on
-  tab ]        tab        next pane      off
-  shift+tab [  shift+tab  previous pane  off
-  1 2 3        1/2/3      focus pane     off
+  help | ? | ? | on
+
+app
+  command | : | : | on
+  quit | q ctrl+c | q | on
+  search | / | / | on
+  history | B | B | off
+  actions | a | a | off
+  find file | t ctrl+p | t | off
+  filter | f | f | off
+  sort | s | s | off
+  zoom | z | z | off
+  unzoom | esc | esc | off
+  dismiss | ctrl+x | ctrl+x | off
+  owner page | @ | @ | off
+  notifications | n | n | on
+  dashboard | 0 | 0 | on
+  next pane | tab ] | tab | off
+  previous pane | shift+tab [ | shift+tab | off
+  focus pane | 1 2 3 | 1/2/3 | off
 
 profile
-  left h       ←/h        left           off
-  right l      →/l        right          off
-  up k         ↑/k        up             off
-  down j       ↓/j        down           off
-  enter        ↵          open           on
-  o            o          browser        on
-  ]            ]          next tab       on
-  [            [          previous tab   on
-  F            F          clear filters  off
-  f            f          filter         off
-  s            s          sort           off
-  tab ]        tab        next pane      on
-  shift+tab [  shift+tab  previous pane  on
-  z            z          zoom           on
-  esc          esc        back           on
-  r ctrl+r     r          refresh        on
-  1 2 3 4      1-4        focus pane     on
+  left | left h | ←/h | off
+  right | right l | →/l | off
+  up | up k | ↑/k | off
+  down | down j | ↓/j | off
+  open | enter | ↵ | on
+  browser | o | o | on
+  next tab | ] | ] | on
+  previous tab | [ | [ | on
+  clear filters | F | F | off
+  filter | f | f | off
+  sort | s | s | off
+  next pane | tab ] | tab | on
+  previous pane | shift+tab [ | shift+tab | on
+  zoom | z | z | on
+  back | esc | esc | on
+  refresh | r ctrl+r | r | on
+  focus pane | 1 2 3 4 | 1-4 | on
 
 list
-  up k      ↑/k     up         on
-  down j    ↓/j     down       on
-  pgup b    pgup/b  page up    on
-  pgdown f  pgdn/f  page down  on
-  home g    g/home  first      on
-  end G     G/end   last       on
-  r ctrl+r  r       retry      off
+  up | up k | ↑/k | on
+  down | down j | ↓/j | on
+  page up | pgup b | pgup/b | on
+  page down | pgdown f | pgdn/f | on
+  first | home g | g/home | on
+  last | end G | G/end | on
+  retry | r ctrl+r | r | off

@@ -5,37 +5,37 @@ import (
 	"strings"
 	"testing"
 	"testing/synctest"
-	"text/tabwriter"
 
 	"github.com/charmbracelet/x/exp/golden"
 
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 )
 
+// snapshotHeader names the fields of a binding's line in a snapshot.
+const snapshotHeader = "# label | keys | help key | on or off"
+
 // keySnapshot lists every binding of layers, a layer at a time in the
-// order they match keys: its keys, the key and label the help shows,
-// and whether it is on or off.
+// order they match keys: its label, its keys, the key the help shows,
+// and whether it is on. The fields are not aligned, and the label comes
+// first, so that a change of a key changes only the lines of its
+// bindings.
 func keySnapshot(layers []keyhelp.Layer) string {
 	var b strings.Builder
-	w := tabwriter.NewWriter(&b, 0, 0, 2, ' ', 0)
-	for i, l := range layers {
-		if i > 0 {
-			fmt.Fprintln(w)
-		}
+	b.WriteString(snapshotHeader + "\n")
+	for _, l := range layers {
 		name := l.Source
 		if l.Typing {
 			name += " (types)"
 		}
-		fmt.Fprintln(w, name)
+		fmt.Fprintf(&b, "\n%s\n", name)
 		for _, k := range l.Bindings {
 			state := "on"
 			if !k.Enabled() {
 				state = "off"
 			}
-			fmt.Fprintf(w, "  %s\t%s\t%s\t%s\n", strings.Join(k.Keys(), " "), k.Help().Key, k.Help().Desc, state)
+			fmt.Fprintf(&b, "  %s | %s | %s | %s\n", k.Help().Desc, strings.Join(k.Keys(), " "), k.Help().Key, state)
 		}
 	}
-	w.Flush()
 	return b.String()
 }
 
