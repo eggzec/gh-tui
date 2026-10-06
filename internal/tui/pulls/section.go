@@ -240,7 +240,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		rawKeys:     keys,
 		now:         time.Now,
 		mergeMethod: core.MergeSquash,
-		tab:         core.StateOpen,
+		tab:         tabs[0].state,
 		icons:       ui.NewIcons(config.Default().UI.Icons),
 	}
 	for _, opt := range opts {

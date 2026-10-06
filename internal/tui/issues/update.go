@@ -124,12 +124,15 @@ func (s *Section) sync(msg ui.SyncMsg) tea.Cmd {
 }
 
 // setRepo shows the issues of repo. It arrives before Init too, so the
-// section only loads them once started.
+// section only loads them once started. Another repository opens on the
+// first tab with no filter and the default sort, while the same one
+// again keeps what is shown.
 func (s *Section) setRepo(repo core.RepoRef) tea.Cmd {
 	if s.hasRepo && repo.Same(s.repo) {
 		return nil
 	}
 	s.repo, s.hasRepo = repo, true
+	s.tab, s.query, s.filterChips = tabs[0].state, "", ""
 	s.caps = ui.CachedCaps(s.repos, repo)
 	s.others.Reset(s.ctx, repo.String())
 	s.milestonesRead = false
