@@ -163,6 +163,10 @@ func press(k string) tea.KeyPressMsg {
 	case "enter":
 		return tea.KeyPressMsg{Code: tea.KeyEnter}
 	}
+	if c, ok := strings.CutPrefix(k, "ctrl+"); ok {
+		r, _ := utf8.DecodeRuneInString(c)
+		return tea.KeyPressMsg{Code: r, Mod: tea.ModCtrl}
+	}
 	r, _ := utf8.DecodeRuneInString(k)
 	return tea.KeyPressMsg{Code: r, Text: k}
 }
@@ -240,6 +244,10 @@ func TestKeys(t *testing.T) {
 		{"up stops at the newest", []string{"up"}, 0, 10},
 		{"page down", []string{"pgdown"}, 5, 20},
 		{"page up", []string{"pgdown", "pgup"}, 0, 20},
+		{"ctrl+f and ctrl+b", []string{"ctrl+f", "ctrl+b"}, 0, 20},
+		{"half page down", []string{"ctrl+d"}, 2, 10},
+		{"half page up", []string{"ctrl+f", "ctrl+u"}, 3, 20},
+		{"b, d, u and f are not bound", []string{"d", "f", "u", "b"}, 0, 10},
 		{"end goes to the last loaded and fetches more", []string{"G"}, 9, 20},
 		{"end again goes on", []string{"G", "G"}, 19, 30},
 		{"home", []string{"G", "g"}, 0, 20},

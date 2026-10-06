@@ -55,7 +55,7 @@ func TestEvictionKeepsScrollPosition(t *testing.T) {
 	for range 400 {
 		before := ansi.Strip(m.lines[m.YOffset()])
 		total, top := m.TotalLines(), m.YOffset()
-		m = press(t, m, "d")
+		m = press(t, m, "ctrl+d")
 		if m.YOffset() == top {
 			break
 		}
@@ -84,7 +84,7 @@ func TestEvictedChunkFetchedAgainNearScreen(t *testing.T) {
 	}
 	// Scroll down to the first comments; chunk 0 comes back.
 	for !m.chunks[0].loaded {
-		m = press(t, m, "d")
+		m = press(t, m, "ctrl+d")
 		if m.YOffset() > m.starts[1] {
 			t.Fatal("scrolled past chunk 0 without fetching it")
 		}
@@ -168,14 +168,14 @@ func TestViewEvictedLoading(t *testing.T) {
 	golden.RequireEqual(t, out)
 }
 
-// scrollUntil presses d from where m is until ok, or fails at the bottom.
+// scrollUntil presses ctrl+d from where m is until ok, or fails at the bottom.
 func scrollUntil(t *testing.T, m Model[comment], ok func(Model[comment]) bool) Model[comment] {
 	t.Helper()
 	for !ok(m) {
 		if m.AtBottom() {
 			t.Fatal("reached the bottom")
 		}
-		m = press(t, m, "d")
+		m = press(t, m, "ctrl+d")
 	}
 	return m
 }

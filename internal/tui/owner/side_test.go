@@ -28,7 +28,7 @@ func TestSideView(t *testing.T) {
 		keys          []string
 	}{
 		{"user readme", "octocat", 80, 24, []string{"3"}},
-		{"user readme scrolled", "octocat", 80, 16, []string{"3", "d"}},
+		{"user readme scrolled", "octocat", 80, 16, []string{"3", "ctrl+d"}},
 		{"user calendar", "octocat", 80, 24, []string{"4"}},
 		{"org readme", "github", 80, 24, []string{"3"}},
 		{"user wide", "octocat", 120, 40, nil},
@@ -189,16 +189,16 @@ func TestReadmeAddresses(t *testing.T) {
 func TestReadmeKeys(t *testing.T) {
 	s := newSection(t, newFake(), "octocat", 80, 16)
 	press(t, s, "3")
-	if b, src, ok := uitest.Winner(s.KeyLayers(), "d"); !ok || src != "readme" || b.Help().Desc != "½ page down" {
-		t.Errorf("d reaches %v %q %q, want the README's half page down", ok, src, b.Help().Desc)
+	if b, src, ok := uitest.Winner(s.KeyLayers(), "ctrl+d"); !ok || src != "readme" || b.Help().Desc != "½ page down" {
+		t.Errorf("ctrl+d reaches %v %q %q, want the README's half page down", ok, src, b.Help().Desc)
 	}
 	if _, _, ok := uitest.Winner(s.KeyLayers(), "/"); ok {
 		t.Error("/ reaches the README, which doesn't search")
 	}
 	before := s.page.side.pager.View()
-	press(t, s, "d")
+	press(t, s, "ctrl+d")
 	if s.page.side.pager.View() == before {
-		t.Error("d didn't scroll the README")
+		t.Error("ctrl+d didn't scroll the README")
 	}
 	msg, ok := has[ui.OpenMsg](press(t, s, "o"))
 	if !ok || msg.URL != "https://github.com/octocat/octocat/blob/HEAD/README.md" {

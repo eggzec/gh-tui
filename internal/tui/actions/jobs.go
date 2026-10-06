@@ -284,6 +284,10 @@ func (m *Modal) pressJobs(msg tea.KeyPressMsg) tea.Cmd {
 		to -= page
 	case key.Matches(msg, k.PageDown):
 		to += page
+	case key.Matches(msg, k.HalfPageUp):
+		to -= max(page/2, 1)
+	case key.Matches(msg, k.HalfPageDown):
+		to += max(page/2, 1)
 	case key.Matches(msg, k.Home):
 		to = 0
 	case key.Matches(msg, k.End):

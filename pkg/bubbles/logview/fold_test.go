@@ -105,11 +105,11 @@ func TestFoldKeys(t *testing.T) {
 		wantCursor string
 		open       map[string]bool
 	}{
-		{name: "space collapses a section", keys: []string{"space"}, wantCursor: "Set up job",
+		{name: "enter collapses a section", keys: []string{"enter"}, wantCursor: "Set up job",
 			open: map[string]bool{"Set up job": false}},
 		{name: "enter expands a group", keys: []string{"j", "j", "enter"}, wantCursor: "Runner Image Provisioner",
 			open: map[string]bool{"Runner Image Provisioner": true}},
-		{name: "toggle inside a group collapses it", keys: []string{"j", "j", "space", "j", "j", "space"},
+		{name: "toggle inside a group collapses it", keys: []string{"j", "j", "enter", "j", "j", "enter"},
 			wantCursor: "Runner Image Provisioner", open: map[string]bool{"Runner Image Provisioner": false}},
 		{name: "plus expands", keys: []string{"j", "j", "+", "+"}, wantCursor: "Runner Image Provisioner",
 			open: map[string]bool{"Runner Image Provisioner": true}},
@@ -128,7 +128,7 @@ func TestFoldKeys(t *testing.T) {
 			wantCursor: "Set up job",
 			open: map[string]bool{"Set up job": true, "Install Go": true, "Runner Image Provisioner": true,
 				"run golangci-lint": false}},
-		{name: "one step open folds all", keys: []string{"*", "space", "*"}, wantCursor: "Set up job",
+		{name: "one step open folds all", keys: []string{"*", "enter", "*"}, wantCursor: "Set up job",
 			open: map[string]bool{"Set up job": false, "Install Go": false}},
 		{name: "equals is not bound", keys: []string{"="}, wantCursor: "Set up job",
 			open: map[string]bool{"Set up job": true, "Install Go": true}},
@@ -165,7 +165,7 @@ func TestFoldAll(t *testing.T) {
 func TestFoldCopies(t *testing.T) {
 	m := open(t, WithSize(80, 24))
 	before := shownRows(m)
-	c, _ := keys(t, m, "space")
+	c, _ := keys(t, m, "enter")
 	c, _ = keys(t, c, "*")
 	if got := shownRows(m); !slices.Equal(got, before) {
 		t.Error("toggling a copy changed the original")

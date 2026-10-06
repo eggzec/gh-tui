@@ -33,8 +33,8 @@ func Example() {
 	v.SetLines(lines, steps)
 	printPlain(v.View())
 
-	// space folds the step the cursor is in.
-	v, _ = v.Update(tea.KeyPressMsg{Code: ' ', Text: " "})
+	// enter folds the step the cursor is in.
+	v, _ = v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	printPlain(v.View())
 	// Output:
 	//      ▸ Set up job                               1s

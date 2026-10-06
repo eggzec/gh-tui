@@ -93,8 +93,7 @@ func (s *Section) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		}
 		return s.setFilter(defaultQuery), true
 	case key.Matches(msg, k.Filter):
-		// The app opens the filter. Its key doesn't reach the list, whose
-		// page down f is too.
+		// The app opens the filter, so its key doesn't reach the list.
 		return nil, true
 	case key.Matches(msg, k.Select):
 		return s.open(), true

@@ -12,18 +12,20 @@ checks
   open | enter | ↵ | off
   up | up k | ↑/k | off
   down | down j | ↓/j | off
-  page up | pgup b | pgup/b | off
-  page down | pgdown f | pgdn/f | off
-  first | home g | g/home | off
-  last | end G | G/end | off
+  page up | ctrl+b pgup | ctrl+b/pgup | off
+  page down | ctrl+f pgdown | ctrl+f/pgdn | off
+  ½ page up | ctrl+u | ctrl+u | off
+  ½ page down | ctrl+d | ctrl+d | off
+  top | home g | g/home | on
+  bottom | end G | G/end | on
   annotations | A | A | off
 
 detail
   up | up k | ↑/k | on
   down | down j | ↓/j | on
-  page up | pgup b | b/pgup | on
-  page down | pgdown space f | f/pgdn | on
-  ½ page up | u ctrl+u | u | on
-  ½ page down | d ctrl+d | d | on
+  page up | b ctrl+b pgup | b/ctrl+b/pgup | on
+  page down | space ctrl+f pgdown | space/ctrl+f/pgdn | on
+  ½ page up | ctrl+u | ctrl+u | on
+  ½ page down | ctrl+d | ctrl+d | on
   move left | left h | ←/h | on
   move right | right l | →/l | on

@@ -354,8 +354,8 @@ func TestHelpFollowsTheView(t *testing.T) {
 }
 
 // TestFilterKeysStayOffTheFeed checks that the keys of the filter, which
-// the app opens, reach the list rather than the feed, whose page down f
-// is too, and that the help says so.
+// the app opens, reach the list rather than the feed, and that the help
+// says so.
 func TestFilterKeysStayOffTheFeed(t *testing.T) {
 	for _, k := range []string{"f", "s"} {
 		t.Run(k, func(t *testing.T) {

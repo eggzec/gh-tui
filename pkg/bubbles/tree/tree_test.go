@@ -184,6 +184,10 @@ func press(k string) tea.KeyPressMsg {
 	case "enter":
 		return tea.KeyPressMsg{Code: tea.KeyEnter}
 	}
+	if c, ok := strings.CutPrefix(k, "ctrl+"); ok {
+		r, _ := utf8.DecodeRuneInString(c)
+		return tea.KeyPressMsg{Code: r, Mod: tea.ModCtrl}
+	}
 	r, _ := utf8.DecodeRuneInString(k)
 	return tea.KeyPressMsg{Code: r, Text: k}
 }
@@ -258,6 +262,10 @@ func TestKeys(t *testing.T) {
 		{"G then g", []string{"G", "g"}, roots, "cmd"},
 		{"page down", []string{"pgdown"}, roots, "go.mod"},
 		{"page up", []string{"pgdown", "pgup"}, roots, "cmd"},
+		{"ctrl+f and ctrl+b", []string{"ctrl+f", "ctrl+b"}, roots, "cmd"},
+		{"half page down", []string{"j", "j", "*", "ctrl+d"}, internalAll, "internal/tui/app.go"},
+		{"half page up", []string{"j", "j", "*", "ctrl+d", "ctrl+u"}, internalAll, "internal"},
+		{"b, d, u and f are not bound", []string{"d", "f", "u", "b"}, roots, "cmd"},
 		{"plus expands", []string{"+"}, cmdOpen, "cmd"},
 		{"plus on expanded stays", []string{"+", "+"}, cmdOpen, "cmd"},
 		{"right expands", []string{"right"}, cmdOpen, "cmd"},

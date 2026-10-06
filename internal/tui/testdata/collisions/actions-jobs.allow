@@ -2,4 +2,3 @@
 actions: jobs | [ | actions: previous pane | actions: previous tab | ] and [ switch the tabs; tab and shift+tab still move between the panes
 actions: jobs | ] | actions: pane | actions: tab | ] and [ switch the tabs; tab and shift+tab still move between the panes
 actions: jobs | ctrl+r | actions: refresh | actions: rerun failed | ctrl+r re-runs the failed jobs; r still refreshes
-actions: jobs | f | jobs: page down | actions: filter | f opens the filter; pgdown still pages down

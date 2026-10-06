@@ -285,6 +285,10 @@ func (m *Modal) pressCommit(msg tea.KeyPressMsg) tea.Cmd {
 		c.cursor -= page
 	case key.Matches(msg, k.PageDown):
 		c.cursor += page
+	case key.Matches(msg, k.HalfPageUp):
+		c.cursor -= max(page/2, 1)
+	case key.Matches(msg, k.HalfPageDown):
+		c.cursor += max(page/2, 1)
 	case key.Matches(msg, k.Home):
 		c.cursor = 0
 	case key.Matches(msg, k.End):

@@ -119,8 +119,8 @@ func BenchmarkUpdate(b *testing.B) {
 		wrap     bool
 	}{
 		{name: "line", fwd: press("j"), bwd: press("k")},
-		{name: "page", fwd: press("f"), bwd: press("b")},
-		{name: "page/wrap", fwd: press("f"), bwd: press("b"), wrap: true},
+		{name: "page", fwd: press("ctrl+f"), bwd: press("ctrl+b")},
+		{name: "page/wrap", fwd: press("ctrl+f"), bwd: press("ctrl+b"), wrap: true},
 		{name: "error", fwd: press("e"), bwd: press("E")},
 		{name: "match", fwd: press("n"), bwd: press("N")},
 		{name: "end", fwd: press("G"), bwd: press("g")},

@@ -30,18 +30,20 @@ func TestScroll(t *testing.T) {
 		{name: "down", keys: []string{"j"}, wantCur: 1, wantTop: 0},
 		{name: "down past the window", keys: slices.Repeat([]string{"down"}, 12), wantCur: 12, wantTop: 3},
 		{name: "up at the top", keys: []string{"k", "up"}, wantCur: 0, wantTop: 0},
-		{name: "page down", keys: []string{"f"}, wantCur: 10, wantTop: 10},
+		{name: "page down", keys: []string{"ctrl+f"}, wantCur: 10, wantTop: 10},
 		{name: "pgdown", keys: []string{"pgdown", "pgdown"}, wantCur: 20, wantTop: 20},
-		{name: "page up", keys: []string{"f", "f", "b"}, wantCur: 10, wantTop: 10},
-		{name: "pgup", keys: []string{"j", "f", "pgup"}, wantCur: 1, wantTop: 0},
-		{name: "half page down", keys: []string{"d"}, wantCur: 5, wantTop: 5},
-		{name: "ctrl+d", keys: []string{"ctrl+d"}, wantCur: 5, wantTop: 5},
-		{name: "half page up", keys: []string{"d", "d", "u"}, wantCur: 5, wantTop: 5},
+		{name: "page up", keys: []string{"ctrl+f", "ctrl+f", "b"}, wantCur: 10, wantTop: 10},
+		{name: "pgup", keys: []string{"j", "ctrl+f", "pgup"}, wantCur: 1, wantTop: 0},
+		{name: "half page down", keys: []string{"ctrl+d"}, wantCur: 5, wantTop: 5},
+		{name: "space", keys: []string{"space", "space"}, wantCur: 20, wantTop: 20},
+		{name: "ctrl+b", keys: []string{"ctrl+f", "ctrl+f", "ctrl+b"}, wantCur: 10, wantTop: 10},
+		{name: "d, u and f are not bound", keys: []string{"d", "u", "f"}, wantCur: 0, wantTop: 0},
+		{name: "half page up", keys: []string{"ctrl+d", "ctrl+d", "ctrl+u"}, wantCur: 5, wantTop: 5},
 		{name: "end", keys: []string{"G"}, wantCur: 99, wantTop: 90},
 		{name: "end key", keys: []string{"end"}, wantCur: 99, wantTop: 90},
 		{name: "home", keys: []string{"G", "g"}, wantCur: 0, wantTop: 0},
-		{name: "home key", keys: []string{"f", "home"}, wantCur: 0, wantTop: 0},
-		{name: "page down stops at the end", keys: slices.Repeat([]string{"f"}, 20), wantCur: 99, wantTop: 90},
+		{name: "home key", keys: []string{"ctrl+f", "home"}, wantCur: 0, wantTop: 0},
+		{name: "page down stops at the end", keys: slices.Repeat([]string{"ctrl+f"}, 20), wantCur: 99, wantTop: 90},
 		{name: "up from the end", keys: []string{"G", "k", "k"}, wantCur: 97, wantTop: 90},
 	}
 	for _, tt := range tests {
@@ -68,7 +70,7 @@ func TestScrollWrapped(t *testing.T) {
 		{keys: []string{"j", "j", "k"}, wantCur: 1, wantTop: 1, wantRow: 0},
 		// The window moves four rows and the cursor as many lines, as far as
 		// the window shows, and then shows all of the cursor's line.
-		{keys: []string{"f"}, wantCur: 2, wantTop: 1, wantRow: 2},
+		{keys: []string{"ctrl+f"}, wantCur: 2, wantTop: 1, wantRow: 2},
 		// 30 rows and a window of 4 end at the second row of line 9.
 		{keys: []string{"G"}, wantCur: 9, wantTop: 8, wantRow: 2},
 		{keys: []string{"G", "g"}, wantCur: 0, wantTop: 0, wantRow: 0},
@@ -337,7 +339,7 @@ func TestAppendSections(t *testing.T) {
 	m := New(WithSize(40, 10))
 	m.Focus()
 	m.SetLines(numbered(3), []Section{{Title: "setup", Start: 0, End: 1}, {Title: "build", Start: 1, End: 3}})
-	m, _ = keys(t, m, "j", "j", "space", "k")
+	m, _ = keys(t, m, "j", "j", "enter", "k")
 	m.SetSections([]Section{
 		{Title: "setup", Start: 0, End: 1, Duration: time.Second},
 		{Title: "build", Start: 1, End: 4, Failed: true},

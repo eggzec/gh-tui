@@ -19,8 +19,10 @@ history
 files
   up | up k | ↑/k | on
   down | down j | ↓/j | on
-  page up | pgup b | pgup/b | on
-  page down | pgdown f | pgdn/f | on
+  page up | ctrl+b pgup | ctrl+b/pgup | on
+  page down | ctrl+f pgdown | ctrl+f/pgdn | on
+  ½ page up | ctrl+u | ctrl+u | on
+  ½ page down | ctrl+d | ctrl+d | on
   newest | home g | g/home | on
   oldest loaded | end G | G/end | on
   open | enter | enter | off

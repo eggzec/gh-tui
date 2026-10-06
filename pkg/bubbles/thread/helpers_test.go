@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"unicode/utf8"
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
@@ -179,9 +180,13 @@ func press(tb testing.TB, m Model[comment], keys ...string) Model[comment] {
 }
 
 func keyMsg(k string) tea.KeyPressMsg {
+	if c, ok := strings.CutPrefix(k, "ctrl+"); ok {
+		r, _ := utf8.DecodeRuneInString(c)
+		return tea.KeyPressMsg{Code: r, Mod: tea.ModCtrl}
+	}
 	switch k {
-	case "ctrl+d":
-		return tea.KeyPressMsg{Code: 'd', Mod: tea.ModCtrl}
+	case "space":
+		return tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}
 	case "home":
 		return tea.KeyPressMsg{Code: tea.KeyHome}
 	case "end":

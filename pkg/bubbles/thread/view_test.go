@@ -86,7 +86,7 @@ func TestViewFits(t *testing.T) {
 		m := loaded(t, newSource(3, 4), nil, s.w, s.h)
 		for range 3 {
 			requireFits(t, m.View(), s.w, s.h)
-			m = press(t, m, "d")
+			m = press(t, m, "ctrl+d")
 		}
 	}
 }

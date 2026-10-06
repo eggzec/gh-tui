@@ -202,8 +202,7 @@ func (s *Section) pressResults(msg tea.KeyPressMsg) tea.Cmd {
 	case key.Matches(msg, k.Refresh):
 		return s.refresh()
 	case key.Matches(msg, k.Filter, k.Sort):
-		// The app opens the filter. Its keys don't reach the results,
-		// whose page down f is too.
+		// The app opens the filter, so its keys don't reach the results.
 		return nil
 	}
 	if s.text == "" {

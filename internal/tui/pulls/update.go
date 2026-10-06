@@ -132,8 +132,7 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 		}
 		return nil
 	case key.Matches(msg, k.Filter, k.Sort):
-		// The app opens the filter. Its keys don't reach the feed, whose
-		// page down f is too.
+		// The app opens the filter, so its keys don't reach the feed.
 		return nil
 	}
 	var cmd tea.Cmd

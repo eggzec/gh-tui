@@ -158,7 +158,7 @@ func TestFilterSearchSteps(t *testing.T) {
 // goes to the first line shown after it.
 func TestFilterKeepsThePlace(t *testing.T) {
 	m := open(t, "lines.txt", numbered(100), WithSize(80, 6))
-	m, _ = keys(t, m, "d", "d", "d", "d", "d", "d", "d", "d", "d", "d")
+	m, _ = keys(t, m, slices.Repeat([]string{"ctrl+d"}, 10)...)
 	if m.topLine() != 20 {
 		t.Fatalf("top line %d, want 21", m.topLine()+1)
 	}
