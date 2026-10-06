@@ -1,7 +1,5 @@
 package filterform
 
-import "slices"
-
 // Tab is a tab of a form. A form whose spec has a sort shows the filters
 // and the sort on two tabs; one without shows the filters alone, with no
 // tabs.
@@ -27,12 +25,11 @@ func (t Tab) String() string {
 	}
 }
 
-// tabNames are the names of the tabs, in order, tabHelpDescs how the help
-// names them, and resetHelpDescs what reset does on each.
+// tabNames are the names of the tabs, in order, and tabHelpDescs how the
+// help names them.
 var (
-	tabNames       = []string{FiltersTab.String(), SortTab.String()}
-	tabHelpDescs   = [numTabs]string{"filters", "sort"}
-	resetHelpDescs = [numTabs]string{"reset filters", "reset sort"}
+	tabNames     = []string{FiltersTab.String(), SortTab.String()}
+	tabHelpDescs = [numTabs]string{"filters", "sort"}
 )
 
 // Rows of the Sort tab.
@@ -85,20 +82,4 @@ func (m *Model) switchTab(delta int) {
 	}
 	n := int(numTabs)
 	m.showTab(Tab(((int(m.tab)+delta)%n + n) % n))
-}
-
-// resetTab puts what the tab on view edits back to its defaults: the
-// fields and the free text on the Filters tab, and the sort on the Sort
-// tab.
-func (m *Model) resetTab() {
-	m.closeEditor(false)
-	d := defaults(&m.spec)
-	if m.tab == SortTab {
-		m.state.sort = d.sort
-	} else {
-		m.state.values, m.state.free = d.values, nil
-		m.fields = slices.Clone(m.fields)
-		m.resetChips()
-	}
-	m.syncQuery()
 }

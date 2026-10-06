@@ -85,9 +85,6 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 	case m.tabbed() && key.Matches(msg, k.PrevTab):
 		m.switchTab(-1)
 		return nil
-	case key.Matches(msg, k.Reset):
-		m.resetTab()
-		return nil
 	case key.Matches(msg, k.Left):
 		m.choose(-1)
 		return nil
@@ -244,22 +241,42 @@ func (m *Model) toggle() {
 	}
 }
 
+// canClear reports whether the clear key acts on the row in focus: on a
+// field that can be empty, and on the Sort tab's "sort by" when one of its
+// options writes no sort. A choice with no empty option, an order and the
+// query line have nothing to clear.
+func (m *Model) canClear() bool {
+	if m.tab == SortTab {
+		return m.row == sortByRow && m.spec.Sort != nil && m.spec.Sort.index("") >= 0
+	}
+	if m.row >= len(m.spec.Fields) {
+		return false
+	}
+	f := &m.spec.Fields[m.row]
+	return f.Kind != Choice || f.Parse != nil || hasEmpty(f.Options)
+}
+
 // remove removes the chip under the cursor of a Multi, the last one when
 // the cursor is on "+ add", and clears any other field that can be empty.
+// On the Sort tab it chooses the option that writes no sort, which keeps the
+// order for the next option.
 func (m *Model) remove() {
-	if m.kind() < 0 {
+	if !m.canClear() {
+		return
+	}
+	if m.tab == SortTab {
+		m.state.sort = Sort{Desc: m.state.sort.Desc}
+		m.syncQuery()
 		return
 	}
 	v := m.state.values[m.row]
-	switch m.kind() {
-	case Multi:
+	if m.kind() == Multi {
 		if len(v.list) == 0 {
 			return
 		}
 		i := min(m.fields[m.row].chip, len(v.list)-1)
 		m.setValue(m.row, Value{list: slices.Delete(slices.Clone(v.list), i, i+1)})
-	case Text, Person, Toggle, Choice:
-		m.setValue(m.row, Value{})
-	default:
+		return
 	}
+	m.setValue(m.row, Value{})
 }

@@ -26,7 +26,7 @@ type Glyphs struct {
 	// On marks the chosen option of a choice, and Off the others.
 	On, Off string
 	// Remove follows a chip that a key removes, and Drop a field that
-	// opens a list.
+	// opens a list. An empty Remove draws no mark after a chip.
 	Remove, Drop string
 	// Rule draws the line over the query, one per cell.
 	Rule string
@@ -175,7 +175,9 @@ func (m *Model) SetStyles(s Styles) {
 	m.cache = renderCache{}
 	m.glyphs = glyphs{
 		gutter: s.Gutter.Render(termtext.Cells(s.Glyphs.Cursor, 1)) + " ",
-		remove: " " + s.Remove.Render(s.Glyphs.Remove),
+	}
+	if s.Glyphs.Remove != "" {
+		m.glyphs.remove = " " + s.Remove.Render(s.Glyphs.Remove)
 	}
 	m.render()
 }

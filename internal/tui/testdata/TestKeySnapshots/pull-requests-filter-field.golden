@@ -13,7 +13,6 @@ filter (types)
   edit | enter | ↵ | on
   clear | delete backspace | delete | off
   apply | enter | ↵ | off
-  reset | F | F | off
   cancel | esc | esc | on
   next tab | ] | ] | off
   previous tab | [ | [ | off

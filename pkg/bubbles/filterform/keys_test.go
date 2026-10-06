@@ -23,8 +23,9 @@ func TestFullHelpState(t *testing.T) {
 		keys []tea.Msg
 		want []string
 	}{
-		{name: "choice row", want: []string{"[", "]", "↑", "↑↓", "←", "←→", "space", "↵ apply", "delete", "F", "esc"}},
-		{name: "person row", keys: keys(down, rowAuthor), want: []string{"[", "]", "↑", "↑↓", "←", "←→", "space", "↵ edit", "delete", "F", "esc"}},
+		{name: "choice row", want: []string{"[", "]", "↑", "↑↓", "←", "←→", "space", "↵ apply", "delete", "esc"}},
+		{name: "person row", keys: keys(down, rowAuthor), want: []string{"[", "]", "↑", "↑↓", "←", "←→", "space", "↵ edit", "delete", "esc"}},
+		{name: "sort row", keys: []tea.Msg{nextTab}, want: []string{"[", "]", "↑", "↑↓", "←", "←→", "space", "↵ apply", "esc"}},
 		{name: "text editor", keys: append(keys(down, rowBase), enter), want: []string{"↵ edit", "esc"}},
 		{name: "picker", keys: append(keys(down, rowAuthor), enter), want: []string{"space", "↵ edit", "esc", "↑/ctrl+p", "↓/ctrl+n", "pgup", "pgdn"}},
 		{name: "query line", keys: keys(down, rowQuery), want: []string{"↑", "↑↓", "↵ apply", "esc"}},

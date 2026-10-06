@@ -68,7 +68,9 @@ type Icons struct {
 	// Edge is the bar along the left edge of a block, such as a toast,
 	// and InputEdge the one along a text input.
 	Edge, InputEdge string
-	// Remove follows what a key removes, such as a chip of a filter.
+	// Remove follows what a key removes, such as a chip of a filter. The
+	// ASCII set draws none, since no letter says it without looking like a
+	// key.
 	Remove string
 	// Warning marks what needs a look, such as a key that two bindings
 	// claim, and Below starts a line that says more of the one above it.

@@ -137,16 +137,16 @@ func TestTabHelp(t *testing.T) {
 		return false
 	}
 	m := open(t, prSpec(nil))
-	if !has(m, "sort") || !has(m, "reset filters") {
-		t.Error("the filters' help doesn't offer the sort, or doesn't say reset resets the filters")
+	if !has(m, "sort") {
+		t.Error("the filters' help doesn't offer the sort")
 	}
 	m, _ = press(t, m, nextTab)
-	if !has(m, "filters") || !has(m, "reset sort") {
-		t.Error("the sort's help doesn't offer the filters, or doesn't say reset resets the sort")
+	if !has(m, "filters") {
+		t.Error("the sort's help doesn't offer the filters")
 	}
 	single := open(t, noSortSpec(nil))
-	if has(single, "sort") || !has(single, "reset") {
-		t.Error("a form without tabs offers the sort, or doesn't offer reset")
+	if has(single, "sort") {
+		t.Error("a form without tabs offers the sort")
 	}
 	for _, group := range single.FullHelp() {
 		for _, b := range group {
