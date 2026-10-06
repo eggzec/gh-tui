@@ -23,3 +23,21 @@ func TestWatchLimit(t *testing.T) {
 		t.Error("another watch was told of the read")
 	}
 }
+
+// TestWatchLimitNested checks that a watch within another tells the outer
+// one too, and that a read under the outer one only tells the outer.
+func TestWatchLimitNested(t *testing.T) {
+	outer, outerLimited := WatchLimit(t.Context())
+	inner, innerLimited := WatchLimit(outer)
+	ServedLimited(inner)
+	if !innerLimited() || !outerLimited() {
+		t.Errorf("inner watch told %v, outer %v; want both", innerLimited(), outerLimited())
+	}
+
+	outer, outerLimited = WatchLimit(t.Context())
+	_, innerLimited = WatchLimit(outer)
+	ServedLimited(outer)
+	if innerLimited() || !outerLimited() {
+		t.Errorf("inner watch told %v, outer %v; want only the outer", innerLimited(), outerLimited())
+	}
+}
