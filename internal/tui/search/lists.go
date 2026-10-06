@@ -19,11 +19,12 @@ import (
 )
 
 // Lines of a result: a repository, issue or pull request takes two, and a
-// file its path, three lines of what matched and a gap.
+// file its path and three lines of what matched. Results need no gap
+// between them: the path of the next one stands out from the code.
 const (
 	hitHeight     = 2
-	codeHeight    = 5
-	fragmentLines = codeHeight - 2
+	codeHeight    = 4
+	fragmentLines = codeHeight - 1
 )
 
 // pageAt is how close to the last result loaded the cursor gets before the
