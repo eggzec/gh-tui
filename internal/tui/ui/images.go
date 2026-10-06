@@ -175,8 +175,12 @@ const (
 	ImageLoading
 	// ImageShown is an image drawn.
 	ImageShown
-	// ImageFailed is an image that couldn't be fetched or shown.
+	// ImageFailed is an image that couldn't be fetched or shown, in a
+	// way that may mend: it is asked for again once GitHub answers again.
 	ImageFailed
+	// ImageGone is an image that failed in a way no retry mends, such as
+	// one the decoder refuses, at any size.
+	ImageGone
 )
 
 // imageMsg carries a fetched image to the images it was asked by.
@@ -431,6 +435,8 @@ func (a *Images) Fit(src ImageSource, size ImageSize) ([]string, ImageState) {
 	case e.state == imageReady && e.sent:
 		c := e.cells()
 		return termimg.Rows(e.id, c.Cols, c.Rows), ImageShown
+	case e.state == imageFailed && e.gone:
+		return nil, ImageGone
 	case e.state == imageFailed:
 		return nil, ImageFailed
 	}

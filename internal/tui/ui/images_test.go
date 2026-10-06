@@ -721,9 +721,9 @@ func TestFitFails(t *testing.T) {
 	if _, redraw := load(t, a); redraw != RedrawSoon {
 		t.Errorf("failed with redraw %d, want soon", redraw)
 	}
-	for _, sha := range []string{"gone", "net"} {
-		if rows, st := a.Fit(fileOf(sha), box); rows != nil || st != ImageFailed {
-			t.Errorf("%s: Fit = %q, %d, want failed", sha, rows, st)
+	for sha, want := range map[string]ImageState{"gone": ImageGone, "net": ImageFailed} {
+		if rows, st := a.Fit(fileOf(sha), box); rows != nil || st != want {
+			t.Errorf("%s: Fit = %q, %d, want %d", sha, rows, st, want)
 		}
 	}
 	if !a.Online() {
@@ -732,8 +732,8 @@ func TestFitFails(t *testing.T) {
 	if _, st := a.Fit(fileOf("net"), box); st != ImageLoading {
 		t.Errorf("after Online the network's failure is %d, want loading", st)
 	}
-	if _, st := a.Fit(fileOf("gone"), box); st != ImageFailed {
-		t.Errorf("after Online the gone file is %d, want still failed", st)
+	if _, st := a.Fit(fileOf("gone"), box); st != ImageGone {
+		t.Errorf("after Online the gone file is %d, want still gone", st)
 	}
 }
 

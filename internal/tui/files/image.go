@@ -50,6 +50,9 @@ type fileImage struct {
 	blob  core.Blob
 	err   error
 	on    bool
+	// gone is set once the image failed in a way no retry mends, so a
+	// new size, which asks for a new fit, doesn't ask for it again.
+	gone bool
 	// shown is what the pager shows, and pic the lines of the image.
 	shown shown
 	pic   []string
@@ -62,7 +65,7 @@ type fileImage struct {
 func (fi *fileImage) set(e core.TreeEntry, b core.Blob, err error) {
 	fi.entry, fi.blob, fi.err = e, b, err
 	fi.on = err == nil && fi.images != nil && !e.Symlink() && imageFile(e.Path)
-	fi.shown, fi.pic = shownNothing, nil
+	fi.shown, fi.pic, fi.gone = shownNothing, nil, false
 }
 
 // clear forgets the file, for a pager that shows something else.
@@ -83,6 +86,8 @@ func (fi *fileImage) draw(pg *pager.Model) (text bool) {
 		want = shownImage
 	case ui.ImageLoading:
 		want = shownLoading
+	case ui.ImageGone:
+		fi.gone = true
 	case ui.ImageFailed, ui.ImageOff:
 		// It shows as it did before images, such as a binary file. A
 		// failure that may mend is asked for again once GitHub answers
@@ -116,6 +121,9 @@ func (fi *fileImage) redraw(pg *pager.Model) (text bool) {
 func (fi *fileImage) rows(pg *pager.Model) ([]string, ui.ImageState) {
 	if !fi.on {
 		return nil, ui.ImageOff
+	}
+	if fi.gone {
+		return nil, ui.ImageGone
 	}
 	w, h := pg.Width(), pg.Height()-1
 	if w <= 0 || h <= 0 {
