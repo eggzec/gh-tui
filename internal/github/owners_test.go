@@ -101,6 +101,27 @@ func TestOwnerHeaderPartial(t *testing.T) {
 	}
 }
 
+// A pin that GitHub failed to read for another reason than the token,
+// such as one gone a moment, isn't marked as hidden.
+func TestOwnerHeaderPinNotFound(t *testing.T) {
+	body := fixtureWithout(t, "owner_header_partial.json", `"type": "FORBIDDEN",`)
+	body = []byte(strings.Replace(string(body), `"errors": [
+    {`, `"errors": [
+    {
+      "type": "NOT_FOUND",`, 1))
+	if !strings.Contains(string(body), "NOT_FOUND") {
+		t.Fatal("the fixture's error has moved")
+	}
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write(body)
+	}))
+
+	got, err := c.OwnerHeader(t.Context(), "octocat")
+	if err == nil || got.Profile.Login != "octocat" || len(got.Pinned) != 1 || got.HiddenPins {
+		t.Errorf("owner = %+v, %v; want octocat's one pin and the error, unmarked", got, err)
+	}
+}
+
 func TestOwnerHeaderUnauthorized(t *testing.T) {
 	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
