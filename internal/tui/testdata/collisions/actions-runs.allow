@@ -1,0 +1,4 @@
+actions: runs | [ | actions: previous pane | actions: previous tab | ] and [ switch the tabs; tab and shift+tab still move between the panes
+actions: runs | ] | actions: pane | actions: tab | ] and [ switch the tabs; tab and shift+tab still move between the panes
+actions: runs | ctrl+r | actions: refresh | actions: rerun failed | ctrl+r re-runs the failed jobs; r still refreshes
+actions: runs | f | runs: page down | actions: filter | f opens the filter; pgdown still pages down
