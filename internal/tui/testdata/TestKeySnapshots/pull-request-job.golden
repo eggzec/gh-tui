@@ -1,54 +1,56 @@
+# label | keys | help key | on or off
+
 app
-  ctrl+c  ^c  quit  on
-  ?       ?   help  on
+  quit | ctrl+c | ^c | on
+  help | ? | ? | on
 
 checks
-  esc       esc     checks        on
-  ctrl+r    ^r      rerun failed  on
-  r ctrl+r  r       refresh       on
-  o         o       browser       on
-  enter     ↵       open          off
-  up k      ↑/k     up            off
-  down j    ↓/j     down          off
-  pgup b    pgup/b  page up       off
-  pgdown f  pgdn/f  page down     off
-  home g    g/home  first         off
-  end G     G/end   last          off
-  A         A       annotations   off
+  checks | esc | esc | on
+  rerun failed | ctrl+r | ^r | on
+  refresh | r ctrl+r | r | on
+  browser | o | o | on
+  open | enter | ↵ | off
+  up | up k | ↑/k | off
+  down | down j | ↓/j | off
+  page up | pgup b | pgup/b | off
+  page down | pgdown f | pgdn/f | off
+  first | home g | g/home | off
+  last | end G | G/end | off
+  annotations | A | A | off
 
 annotations
-  A       A    annotations  off
-  up k    ↑/k  up           off
-  down j  ↓/j  down         off
-  enter   ↵    open file    off
-  o       o    browser      off
+  annotations | A | A | off
+  up | up k | ↑/k | off
+  down | down j | ↓/j | off
+  open file | enter | ↵ | off
+  browser | o | o | off
 
 log
-  up k         ↑/k     up            on
-  down j       ↓/j     down          on
-  pgup b       b/pgup  page up       on
-  pgdown f     f/pgdn  page down     on
-  u ctrl+u     u       ½ page up     on
-  d ctrl+d     d       ½ page down   on
-  home g       g/home  top           on
-  end G        G/end   bottom        on
-  space enter  space   fold          on
-  +            +       expand        on
-  -            -       collapse      on
-  *            *       fold all      on
-  e            e       next error    off
-  E            E       prev error    off
-  w            w       next warning  off
-  W            W       prev warning  off
-  /            /       search        on
-  enter        enter   search        off
-  esc          esc     cancel        off
-  n            n       next match    off
-  N            N       prev match    off
-  left h       ←/h     left          on
-  right l      →/l     right         on
-  s            s       wrap          on
-  t            t       times         on
-  #            #       line numbers  on
-  F            F       follow        on
-  esc          esc     back          on
+  up | up k | ↑/k | on
+  down | down j | ↓/j | on
+  page up | pgup b | b/pgup | on
+  page down | pgdown f | f/pgdn | on
+  ½ page up | u ctrl+u | u | on
+  ½ page down | d ctrl+d | d | on
+  top | home g | g/home | on
+  bottom | end G | G/end | on
+  fold | space enter | space | on
+  expand | + | + | on
+  collapse | - | - | on
+  fold all | * | * | on
+  next error | e | e | off
+  prev error | E | E | off
+  next warning | w | w | off
+  prev warning | W | W | off
+  search | / | / | on
+  search | enter | enter | off
+  cancel | esc | esc | off
+  next match | n | n | off
+  prev match | N | N | off
+  left | left h | ←/h | on
+  right | right l | →/l | on
+  wrap | s | s | on
+  times | t | t | on
+  line numbers | # | # | on
+  follow | F | F | on
+  back | esc | esc | on

@@ -1,17 +1,19 @@
+# label | keys | help key | on or off
+
 app
-  ctrl+c  ^c  quit  on
-  ?       ?   help  on
+  quit | ctrl+c | ^c | on
+  help | ? | ? | on
 
 checks
-  esc       esc     detail        on
-  ctrl+r    ^r      rerun failed  on
-  r ctrl+r  r       refresh       on
-  o         o       browser       on
-  enter     ↵       log           on
-  up k      ↑/k     up            on
-  down j    ↓/j     down          on
-  pgup b    pgup/b  page up       on
-  pgdown f  pgdn/f  page down     on
-  home g    g/home  first         on
-  end G     G/end   last          on
-  A         A       annotations   off
+  detail | esc | esc | on
+  rerun failed | ctrl+r | ^r | on
+  refresh | r ctrl+r | r | on
+  browser | o | o | on
+  log | enter | ↵ | on
+  up | up k | ↑/k | on
+  down | down j | ↓/j | on
+  page up | pgup b | pgup/b | on
+  page down | pgdown f | pgdn/f | on
+  first | home g | g/home | on
+  last | end G | G/end | on
+  annotations | A | A | off

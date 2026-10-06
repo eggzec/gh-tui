@@ -1,31 +1,33 @@
+# label | keys | help key | on or off
+
 app
-  ctrl+c  ^c  quit  on
-  ?       ?   help  on
+  quit | ctrl+c | ^c | on
+  help | ? | ? | on
 
 actions
-  ]            ]          tab            on
-  [            [          previous tab   on
-  tab ]        tab        pane           on
-  shift+tab [  shift+tab  previous pane  on
-  l            l          pane right     on
-  h            h          pane left      on
-  f            f          filter         on
-  z            z          zoom           on
-  o            o          browser        on
-  ctrl+r       ^r         rerun failed   on
-  R            R          rerun all      on
-  J            J          rerun job      off
-  x            x          cancel run     off
-  r ctrl+r     r          refresh        on
-  esc          esc        close          on
-  enter        ↵          jobs           on
-  A            A          annotations    off
+  tab | ] | ] | on
+  previous tab | [ | [ | on
+  pane | tab ] | tab | on
+  previous pane | shift+tab [ | shift+tab | on
+  pane right | l | l | on
+  pane left | h | h | on
+  filter | f | f | on
+  zoom | z | z | on
+  browser | o | o | on
+  rerun failed | ctrl+r | ^r | on
+  rerun all | R | R | on
+  rerun job | J | J | off
+  cancel run | x | x | off
+  refresh | r ctrl+r | r | on
+  close | esc | esc | on
+  jobs | enter | ↵ | on
+  annotations | A | A | off
 
 runs
-  up k      ↑/k     up         on
-  down j    ↓/j     down       on
-  pgup b    pgup/b  page up    on
-  pgdown f  pgdn/f  page down  on
-  home g    g/home  first      on
-  end G     G/end   last       on
-  r ctrl+r  r       retry      off
+  up | up k | ↑/k | on
+  down | down j | ↓/j | on
+  page up | pgup b | pgup/b | on
+  page down | pgdown f | pgdn/f | on
+  first | home g | g/home | on
+  last | end G | G/end | on
+  retry | r ctrl+r | r | off

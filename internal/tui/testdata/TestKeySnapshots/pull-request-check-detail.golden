@@ -1,27 +1,29 @@
+# label | keys | help key | on or off
+
 app
-  ctrl+c  ^c  quit  on
-  ?       ?   help  on
+  quit | ctrl+c | ^c | on
+  help | ? | ? | on
 
 checks
-  esc       esc     checks        on
-  ctrl+r    ^r      rerun failed  off
-  r         r       refresh       on
-  o         o       browser       on
-  enter     ↵       open          off
-  up k      ↑/k     up            off
-  down j    ↓/j     down          off
-  pgup b    pgup/b  page up       off
-  pgdown f  pgdn/f  page down     off
-  home g    g/home  first         off
-  end G     G/end   last          off
-  A         A       annotations   off
+  checks | esc | esc | on
+  rerun failed | ctrl+r | ^r | off
+  refresh | r | r | on
+  browser | o | o | on
+  open | enter | ↵ | off
+  up | up k | ↑/k | off
+  down | down j | ↓/j | off
+  page up | pgup b | pgup/b | off
+  page down | pgdown f | pgdn/f | off
+  first | home g | g/home | off
+  last | end G | G/end | off
+  annotations | A | A | off
 
 detail
-  up k            ↑/k     up           on
-  down j          ↓/j     down         on
-  pgup b          b/pgup  page up      on
-  pgdown space f  f/pgdn  page down    on
-  u ctrl+u        u       ½ page up    on
-  d ctrl+d        d       ½ page down  on
-  left h          ←/h     move left    on
-  right l         →/l     move right   on
+  up | up k | ↑/k | on
+  down | down j | ↓/j | on
+  page up | pgup b | b/pgup | on
+  page down | pgdown space f | f/pgdn | on
+  ½ page up | u ctrl+u | u | on
+  ½ page down | d ctrl+d | d | on
+  move left | left h | ←/h | on
+  move right | right l | →/l | on

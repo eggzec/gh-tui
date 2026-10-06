@@ -1,13 +1,15 @@
+# label | keys | help key | on or off
+
 app
-  ctrl+c  ^c  quit  on
+  quit | ctrl+c | ^c | on
 
 help (types)
-  up      ↑     scroll up          on
-  down    ↓     scroll down        on
-  pgup    pgup  page up            on
-  pgdown  pgdn  page down          on
-  home    home  top                on
-  end     end   bottom             on
-  tab     tab   find a key         on
-  esc     esc   clear, then close  on
-  ?       ?     close              on
+  scroll up | up | ↑ | on
+  scroll down | down | ↓ | on
+  page up | pgup | pgup | on
+  page down | pgdown | pgdn | on
+  top | home | home | on
+  bottom | end | end | on
+  find a key | tab | tab | on
+  clear, then close | esc | esc | on
+  close | ? | ? | on

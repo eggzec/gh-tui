@@ -1,8 +1,10 @@
+# label | keys | help key | on or off
+
 app
-  ctrl+c  ^c  quit  on
-  ?       ?   help  off
+  quit | ctrl+c | ^c | on
+  help | ? | ? | off
 
 prompt (types)
-  ctrl+s  ctrl+s  submit  on
-  enter   enter   submit  off
-  esc     esc     cancel  on
+  submit | ctrl+s | ctrl+s | on
+  submit | enter | enter | off
+  cancel | esc | esc | on

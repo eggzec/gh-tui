@@ -1,43 +1,45 @@
-app
-  ?  ?  help  on
+# label | keys | help key | on or off
 
 app
-  :            :          command        on
-  q ctrl+c     q          quit           on
-  /            /          search         on
-  B            B          history        off
-  a            a          actions        off
-  t ctrl+p     t          find file      off
-  f            f          filter         off
-  s            s          sort           off
-  z            z          zoom           off
-  esc          esc        unzoom         off
-  ctrl+x       ctrl+x     dismiss        off
-  @            @          owner page     on
-  n            n          notifications  on
-  0            0          back           off
-  tab ]        tab        next pane      off
-  shift+tab [  shift+tab  previous pane  off
-  1 2 3        1/2/3      focus pane     off
+  help | ? | ? | on
+
+app
+  command | : | : | on
+  quit | q ctrl+c | q | on
+  search | / | / | on
+  history | B | B | off
+  actions | a | a | off
+  find file | t ctrl+p | t | off
+  filter | f | f | off
+  sort | s | s | off
+  zoom | z | z | off
+  unzoom | esc | esc | off
+  dismiss | ctrl+x | ctrl+x | off
+  owner page | @ | @ | on
+  notifications | n | n | on
+  back | 0 | 0 | off
+  next pane | tab ] | tab | off
+  previous pane | shift+tab [ | shift+tab | off
+  focus pane | 1 2 3 | 1/2/3 | off
 
 dashboard
-  left h       ←/h        left               off
-  right l      →/l        right              off
-  up k         ↑/k        up                 on
-  down j       ↓/j        down               on
-  enter        ↵          open               on
-  o            o          browser            on
-  C            C          checks             on
-  ] right      ]          next list          on
-  [ left       [          previous list      on
-  F            F          clear filters      off
-  f            f          filter             off
-  s            s          sort               off
-  n            n          all notifications  off
-  tab ]        tab        next pane          on
-  shift+tab [  shift+tab  previous pane      on
-  z            z          zoom               on
-  esc          esc        unzoom             off
-  r ctrl+r     r          refresh            on
-  .            .          this repo          on
-  1 2 3 4 5    1-5        focus pane         on
+  left | left h | ←/h | off
+  right | right l | →/l | off
+  up | up k | ↑/k | on
+  down | down j | ↓/j | on
+  open | enter | ↵ | on
+  browser | o | o | on
+  checks | C | C | on
+  next list | ] right | ] | on
+  previous list | [ left | [ | on
+  clear filters | F | F | off
+  filter | f | f | off
+  sort | s | s | off
+  all notifications | n | n | off
+  next pane | tab ] | tab | on
+  previous pane | shift+tab [ | shift+tab | on
+  zoom | z | z | on
+  unzoom | esc | esc | off
+  refresh | r ctrl+r | r | on
+  this repo | . | . | on
+  focus pane | 1 2 3 4 5 | 1-5 | on

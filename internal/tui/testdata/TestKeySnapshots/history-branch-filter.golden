@@ -1,13 +1,15 @@
+# label | keys | help key | on or off
+
 app
-  ctrl+c  ^c  quit  on
-  ?       ?   help  off
+  quit | ctrl+c | ^c | on
+  help | ? | ? | off
 
 filter (types)
-  up ctrl+p    ↑/ctrl+p   up              on
-  down ctrl+n  ↓/ctrl+n   down            on
-  pgup         pgup       page up         on
-  pgdown       pgdn       page down       on
-  enter        enter      open            on
-  esc          esc        close           on
-  tab          tab        scope           off
-  shift+tab    shift+tab  previous scope  off
+  up | up ctrl+p | ↑/ctrl+p | on
+  down | down ctrl+n | ↓/ctrl+n | on
+  page up | pgup | pgup | on
+  page down | pgdown | pgdn | on
+  open | enter | enter | on
+  close | esc | esc | on
+  scope | tab | tab | off
+  previous scope | shift+tab | shift+tab | off

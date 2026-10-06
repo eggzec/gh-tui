@@ -1,40 +1,42 @@
+# label | keys | help key | on or off
+
 app
-  ctrl+c  ^c  quit  on
-  ?       ?   help  off
+  quit | ctrl+c | ^c | on
+  help | ? | ? | off
 
 annotations
-  A       A    annotations  off
-  up k    ↑/k  up           off
-  down j  ↓/j  down         off
-  enter   ↵    open file    off
-  o       o    browser      off
+  annotations | A | A | off
+  up | up k | ↑/k | off
+  down | down j | ↓/j | off
+  open file | enter | ↵ | off
+  browser | o | o | off
 
 log (types)
-  up k         ↑/k     up            off
-  down j       ↓/j     down          off
-  pgup b       b/pgup  page up       off
-  pgdown f     f/pgdn  page down     off
-  u ctrl+u     u       ½ page up     off
-  d ctrl+d     d       ½ page down   off
-  home g       g/home  top           off
-  end G        G/end   bottom        off
-  space enter  space   fold          off
-  +            +       expand        off
-  -            -       collapse      off
-  *            *       fold all      off
-  e            e       next error    off
-  E            E       prev error    off
-  w            w       next warning  off
-  W            W       prev warning  off
-  /            /       search        off
-  enter        enter   search        on
-  esc          esc     cancel        on
-  n            n       next match    off
-  N            N       prev match    off
-  left h       ←/h     left          off
-  right l      →/l     right         off
-  s            s       wrap          off
-  t            t       times         off
-  #            #       line numbers  off
-  F            F       follow        off
-  esc          esc     back          off
+  up | up k | ↑/k | off
+  down | down j | ↓/j | off
+  page up | pgup b | b/pgup | off
+  page down | pgdown f | f/pgdn | off
+  ½ page up | u ctrl+u | u | off
+  ½ page down | d ctrl+d | d | off
+  top | home g | g/home | off
+  bottom | end G | G/end | off
+  fold | space enter | space | off
+  expand | + | + | off
+  collapse | - | - | off
+  fold all | * | * | off
+  next error | e | e | off
+  prev error | E | E | off
+  next warning | w | w | off
+  prev warning | W | W | off
+  search | / | / | off
+  search | enter | enter | on
+  cancel | esc | esc | on
+  next match | n | n | off
+  prev match | N | N | off
+  left | left h | ←/h | off
+  right | right l | →/l | off
+  wrap | s | s | off
+  times | t | t | off
+  line numbers | # | # | off
+  follow | F | F | off
+  back | esc | esc | off

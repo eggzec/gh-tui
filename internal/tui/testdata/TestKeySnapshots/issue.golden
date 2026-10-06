@@ -1,31 +1,33 @@
+# label | keys | help key | on or off
+
 app
-  ctrl+c  ^c  quit  on
-  ?       ?   help  on
+  quit | ctrl+c | ^c | on
+  help | ? | ? | on
 
 issue
-  esc       esc  back            on
-  c         c    comment         on
-  l         l    labels          on
-  x         x    close           on
-  X         X    reopen          off
-  r ctrl+r  r    refresh         on
-  o         o    browser         on
-  enter     ↵    open            off
-  ]         ]    next state      off
-  [         [    previous state  off
-  F         F    clear filters   off
-  f         f    filter          off
-  s         s    sort            off
-  @         @    owner page      on
+  back | esc | esc | on
+  comment | c | c | on
+  labels | l | l | on
+  close | x | x | on
+  reopen | X | X | off
+  refresh | r ctrl+r | r | on
+  browser | o | o | on
+  open | enter | ↵ | off
+  next state | ] | ] | off
+  previous state | [ | [ | off
+  clear filters | F | F | off
+  filter | f | f | off
+  sort | s | s | off
+  owner page | @ | @ | on
 
 thread
-  up k            ↑/k     up            on
-  down j          ↓/j     down          on
-  pgup b          b/pgup  page up       on
-  pgdown f space  f/pgdn  page down     on
-  ctrl+u u        u       ½ page up     on
-  ctrl+d d        d       ½ page down   on
-  home g          g/home  top           on
-  end G           G/end   bottom        on
-  enter           ↵       diagram code  off
-  r ctrl+r        r       retry         off
+  up | up k | ↑/k | on
+  down | down j | ↓/j | on
+  page up | pgup b | b/pgup | on
+  page down | pgdown f space | f/pgdn | on
+  ½ page up | ctrl+u u | u | on
+  ½ page down | ctrl+d d | d | on
+  top | home g | g/home | on
+  bottom | end G | G/end | on
+  diagram code | enter | ↵ | off
+  retry | r ctrl+r | r | off

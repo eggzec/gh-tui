@@ -1,25 +1,27 @@
+# label | keys | help key | on or off
+
 app
-  ctrl+c  ^c  quit  on
-  ?       ?   help  on
+  quit | ctrl+c | ^c | on
+  help | ? | ? | on
 
 history
-  tab ]        tab        pane           on
-  shift+tab [  shift+tab  previous pane  on
-  o            o          browser        on
-  H            H          back to head   off
-  z            z          zoom           on
-  esc          esc        close          on
-  space        space      use as base    on
-  enter        ↵          graph          on
-  /            /          filter         on
-  r ctrl+r     r          retry          off
+  pane | tab ] | tab | on
+  previous pane | shift+tab [ | shift+tab | on
+  browser | o | o | on
+  back to head | H | H | off
+  zoom | z | z | on
+  close | esc | esc | on
+  use as base | space | space | on
+  graph | enter | ↵ | on
+  filter | / | / | on
+  retry | r ctrl+r | r | off
 
 branches
-  up k      ↑/k     up             on
-  down j    ↓/j     down           on
-  pgup b    pgup/b  page up        on
-  pgdown f  pgdn/f  page down      on
-  home g    g/home  newest         on
-  end G     G/end   oldest loaded  on
-  enter     enter   open           off
-  r         r       retry          off
+  up | up k | ↑/k | on
+  down | down j | ↓/j | on
+  page up | pgup b | pgup/b | on
+  page down | pgdown f | pgdn/f | on
+  newest | home g | g/home | on
+  oldest loaded | end G | G/end | on
+  open | enter | enter | off
+  retry | r | r | off

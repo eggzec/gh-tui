@@ -1,25 +1,27 @@
-app
-  ?  ?  help  off
+# label | keys | help key | on or off
 
 app
-  ctrl+c  ^c  quit  on
+  help | ? | ? | off
+
+app
+  quit | ctrl+c | ^c | on
 
 query (types)
 
 query
-  esc          esc        back      on
-  enter        ↵          search    on
-  tab ]        tab        next      on
-  shift+tab [  shift+tab  previous  on
-  left h       ←/h        kinds     off
-  right l      →/l        results   off
-  up k         ↑/k        up        off
-  down j       ↓/j        down      off
-  o            o          browser   off
-  ctrl+o       ^o         repo      off
-  C            C          checks    off
-  r ctrl+r     r          refresh   off
-  f            f          filter    off
-  s            s          sort      off
-  up           ↑          kinds     on
-  down         ↓          results   on
+  back | esc | esc | on
+  search | enter | ↵ | on
+  next | tab ] | tab | on
+  previous | shift+tab [ | shift+tab | on
+  kinds | left h | ←/h | off
+  results | right l | →/l | off
+  up | up k | ↑/k | off
+  down | down j | ↓/j | off
+  browser | o | o | off
+  repo | ctrl+o | ^o | off
+  checks | C | C | off
+  refresh | r ctrl+r | r | off
+  filter | f | f | off
+  sort | s | s | off
+  kinds | up | ↑ | on
+  results | down | ↓ | on
