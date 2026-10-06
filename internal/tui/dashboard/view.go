@@ -145,7 +145,7 @@ func (s *Section) compose() {
 // narrow layout the one frame names every pane, the focused one in full.
 func (s *Section) label(p paneID) (label string, width int) {
 	st := &s.st
-	title := st.title
+	title := st.shared.Muted
 	if s.focused && p == s.focus {
 		title = st.focusTitle
 	}
