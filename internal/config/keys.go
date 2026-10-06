@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"slices"
 	"sync"
+
+	"github.com/eggzec/gh-tui/internal/keyname"
 )
 
 // Global action names, used as keys of [Config.Keys].
@@ -132,17 +134,20 @@ var actions = sync.OnceValue(func() map[string]bool {
 	return out
 })
 
-// validateKeys rejects unknown actions so that a typo in the config file
-// doesn't silently leave the default binding in place.
+// validateKeys rejects unknown actions and keys, so that a typo in the
+// config file doesn't silently leave the default binding in place, or bind
+// a key no press can match. No keys, [], unbinds the action.
 func validateKeys(action string, keys []string) error {
 	if !actions()[action] {
 		return fmt.Errorf("keys.%s: unknown action", action)
 	}
-	if len(keys) == 0 {
-		return fmt.Errorf("keys.%s: needs at least one key", action)
-	}
 	if slices.Contains(keys, "") {
 		return fmt.Errorf("keys.%s: empty key", action)
+	}
+	for _, k := range keys {
+		if !keyname.Valid(k) {
+			return fmt.Errorf("keys.%s: unknown key %q, want a name such as r, R, ctrl+r, shift+tab, enter or space", action, k)
+		}
 	}
 	return nil
 }

@@ -78,7 +78,7 @@ func newKeyMap(keys map[string][]string) KeyMap {
 	for i, a := range actions {
 		k.Panes[i] = ui.Binding(keys, a, names[i])
 	}
-	k.Jump = jump(k.Panes)
+	k.Jump = ui.Jump(k.Panes[:]...)
 
 	// The page, and the app for the filter, match these keys first, so
 	// the list gets only the keys they leave it, such as f, which pages
@@ -87,21 +87,6 @@ func newKeyMap(keys map[string][]string) KeyMap {
 	f.Retry = key.NewBinding(key.WithKeys(k.Refresh.Keys()...), key.WithHelp(k.Refresh.Help().Key, "retry"), key.WithDisabled())
 	k.feed = f
 	return k
-}
-
-// jump returns the binding that stands for the enabled keys of panes in
-// help, such as "1-4 focus pane".
-func jump(panes [numPanes]key.Binding) key.Binding {
-	labels := make([]string, 0, numPanes)
-	for _, b := range panes {
-		if b.Enabled() {
-			labels = append(labels, b.Help().Key)
-		}
-	}
-	if len(labels) == 0 {
-		return key.NewBinding(key.WithDisabled())
-	}
-	return key.NewBinding(key.WithKeys(labels...), key.WithHelp(labels[0]+"-"+labels[len(labels)-1], "focus pane"))
 }
 
 // pane returns the pane that msg focuses, or -1.
@@ -181,7 +166,7 @@ func (k KeyMap) state(s *Section) KeyMap {
 	// An organization has no calendar, so its pane has no key to name.
 	if !s.hasPane(calendarPane) && k.Panes[calendarPane].Enabled() {
 		k.Panes[calendarPane].SetEnabled(false)
-		k.Jump = jump(k.Panes)
+		k.Jump = ui.Jump(k.Panes[:]...)
 	}
 	k.Zoom.SetEnabled(k.Zoom.Enabled() && s.wide)
 	k.Refresh.SetEnabled(k.Refresh.Enabled() && s.page != nil)

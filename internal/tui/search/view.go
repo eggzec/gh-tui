@@ -116,6 +116,16 @@ func (s *Section) frame(body, label string, focused bool, w, h int) []string {
 	return append(lines, edge.render(b.BottomLeft+strings.Repeat(b.Bottom, w-2)+b.BottomRight))
 }
 
+// codeAsk asks the user to search code for the text with the key that
+// searches, or to bind one while the config leaves select without keys.
+func (s *Section) codeAsk() string {
+	what := s.icons.OpenQuote + s.text + s.icons.CloseQuote
+	if k := s.keys.Select.Help().Key; k != "" {
+		return "Press " + s.icons.Key(k) + " to search code for " + what + "."
+	}
+	return "Bind a key to select in the config to search code for " + what + "."
+}
+
 // countText is what the kinds show next to kind k: its count, or how to
 // search code.
 func (s *Section) countText(k core.SearchKind) string {
@@ -135,7 +145,10 @@ func (s *Section) countText(k core.SearchKind) string {
 	if s.limited() {
 		return "in " + s.wait()
 	}
-	return s.icons.Key(s.keys.Select.Help().Key) + " search"
+	if k := s.keys.Select.Help().Key; k != "" {
+		return s.icons.Key(k) + " search"
+	}
+	return ""
 }
 
 // kindsColumn renders the kinds, one a line, with their counts on the
@@ -245,7 +258,7 @@ func (s *Section) results(w, h int) []string {
 		}
 		return strings.Split(f.View(), "\n")
 	case s.kind == core.SearchCode:
-		return notice(w, st.text.render("Press "+s.icons.Key(s.keys.Select.Help().Key)+" to search code for "+s.icons.OpenQuote+s.text+s.icons.CloseQuote+"."),
+		return notice(w, st.text.render(s.codeAsk()),
 			st.subtle.render("Code search runs only when you ask, since GitHub allows 10 a minute."))
 	}
 	return nil

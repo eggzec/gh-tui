@@ -441,10 +441,12 @@ log:
   # at least 10s.
   summary: 5m
 
-# The keys of each action, as the terminal names them, such as ctrl+c,
-# shift+tab or space. Setting an action replaces its keys only. A key may
-# serve different actions in different places, such as m for merge in
-# pull requests and mark read in the notifications.
+# The keys of each action, as the terminal names them, such as r, R,
+# ctrl+c, alt+x, shift+tab, enter, esc, space, pgup or f5; a name the
+# terminal has no key for is an error. Setting an action replaces its keys
+# only, and [] unbinds it, so that no key does it. A key may serve
+# different actions in different places, such as m for merge in pull
+# requests and mark read in the notifications.
 keys:
   quit: [q, ctrl+c]
   help: ["?"]

@@ -86,17 +86,10 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		Right:         key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "right")),
 	}
 	actions := [numPanes]string{config.ActionPane1, config.ActionPane2, config.ActionPane3, config.ActionPane4, config.ActionPane5}
-	labels := make([]string, 0, numPanes)
 	for i, a := range actions {
 		k.Panes[i] = ui.Binding(keys, a, paneTitles[i])
-		if k.Panes[i].Enabled() {
-			labels = append(labels, k.Panes[i].Help().Key)
-		}
 	}
-	k.Jump = key.NewBinding(key.WithDisabled())
-	if len(labels) > 0 {
-		k.Jump = key.NewBinding(key.WithKeys(labels...), key.WithHelp(labels[0]+"-"+labels[len(labels)-1], "focus pane"))
-	}
+	k.Jump = ui.Jump(k.Panes[:]...)
 
 	// The dashboard, and the app for the filter, match these keys first,
 	// so the list gets only the keys they leave it, such as f, which

@@ -380,7 +380,10 @@ reacts to messages. Concretely:
   `File.Resolve` keeps in its `Source`.
 - Keybindings map action names to keys and are applied through each bubble's
   `SetKeyMap`. Action names are registered in `internal/config/keys.go`;
-  unknown names are rejected so typos don't pass silently.
+  unknown names are rejected so typos don't pass silently, and so are key
+  names no press has (`internal/keyname`). `[]` unbinds an action, and
+  `ui.Binding` gives it a disabled binding with no key, so code that names
+  a key in a hint must leave the hint out when the key is "".
 - The only command-line flags are `--debug`, `--hostname` and
   `--version`; gh-tui takes no arguments, and `:goto` opens a repository,
   pull request or issue, or the page of a user or organization
