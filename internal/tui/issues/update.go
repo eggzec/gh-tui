@@ -80,22 +80,30 @@ func (s *Section) forward(msg tea.Msg) tea.Cmd {
 	return cmd
 }
 
-// scanLabels notes whether any issue the list has loaded has labels, and
-// lays the rows out again once one has. A page may bring labels without
-// changing how many issues the list has, as a reload does, so it looks at
-// every message that may carry one. Once the list has had labels it keeps
-// room for them, so the rows don't move when the issues that had them
-// are dropped as the list scrolls.
+// scanLabels sizes the labels column to the labels of the issues the list
+// has loaded, and lays the rows out again when that changes. A page may
+// bring labels without changing how many issues the list has, as a reload
+// does, so it looks at every message that may carry one. The column only
+// grows while the list is kept, so the rows don't move when the issues
+// with the most labels are dropped as the list scrolls.
 func (s *Section) scanLabels() {
-	if s.labeled {
-		return
-	}
+	full := labelRoom{labelsCap(1), labelsCap(2)}
+	room := s.room
 	for i := range s.list.Len() {
-		if it, ok := s.list.Item(i); ok && len(it.Labels) > 0 {
-			s.labeled = true
-			s.cols = layout(s.colsWidth, true, s.dates.Width())
-			return
+		if room == full {
+			break
 		}
+		it, ok := s.list.Item(i)
+		if !ok || len(it.Labels) == 0 {
+			continue
+		}
+		for n := range room {
+			room[n] = max(room[n], s.labelsWidth(it.Labels, n+1))
+		}
+	}
+	if room != s.room {
+		s.room = room
+		s.cols = layout(s.colsWidth, room, s.dates.Width())
 	}
 }
 

@@ -76,7 +76,7 @@ func TestRowASCII(t *testing.T) {
 		Number: 1, Title: strings.Repeat("A long title ", 10), State: core.StateOpen, Comments: 12,
 		Labels: labels, Author: core.User{Login: "a-very-long-login"},
 	}
-	s.labeled = true
+	s.room = labelRoom{labelsCap(1), labelsCap(2)}
 	for _, width := range []int{60, 120} {
 		row := ansi.Strip(s.renderRow(it, false, width))
 		if strings.ContainsFunc(row, func(r rune) bool { return r > unicode.MaxASCII }) {

@@ -5,10 +5,15 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/x/ansi"
+
 	"github.com/eggzec/gh-tui/internal/core"
 	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
+
+// fullRoom is the room of a list whose labels fill the widest column.
+var fullRoom = labelRoom{labelsCap(1), labelsCap(2)}
 
 func TestLayoutDropsColumns(t *testing.T) {
 	tests := []struct {
@@ -23,7 +28,7 @@ func TestLayoutDropsColumns(t *testing.T) {
 		{20, columns{}},
 	}
 	for _, tt := range tests {
-		got := layout(tt.width, true, 4)
+		got := layout(tt.width, fullRoom, 4)
 		if got.title < minTitle && got != (columns{title: got.title, ageWidth: got.ageWidth}) {
 			t.Errorf("layout(%d) leaves the title %d cells", tt.width, got.title)
 		}
@@ -38,7 +43,7 @@ func TestLayoutDropsColumns(t *testing.T) {
 // columns and the title take it.
 func TestLayoutWithoutLabels(t *testing.T) {
 	for _, width := range []int{118, 78, 66, 58, 40, 20} {
-		with, without := layout(width, true, 4), layout(width, false, 4)
+		with, without := layout(width, fullRoom, 4), layout(width, labelRoom{}, 4)
 		if without.chips != 0 || without.labels != 0 {
 			t.Errorf("layout(%d, false) = %+v, want no labels", width, without)
 		}
@@ -49,7 +54,7 @@ func TestLayoutWithoutLabels(t *testing.T) {
 			t.Errorf("layout(%d, false) keeps the labels", width)
 		}
 	}
-	if got := layout(78, false, 4); got.title != 78-prefixWidth-got.right() || !got.comments || !got.author || !got.age {
+	if got := layout(78, labelRoom{}, 4); got.title != 78-prefixWidth-got.right() || !got.comments || !got.author || !got.age {
 		t.Errorf("layout(78, false) = %+v, want every other column", got)
 	}
 }
@@ -127,6 +132,31 @@ func TestRowsGainLabelsOnSync(t *testing.T) {
 	run(t, h, h.Update(ui.SyncMsg{Key: issuesvc.SyncKey(testRepo)}))
 	if h.cols.chips == 0 {
 		t.Errorf("columns = %+v after the labels went, want the room kept", h.cols)
+	}
+}
+
+// The labels column is as wide as the widest labels the list has loaded,
+// not the widest it could be, so short labels leave the title the rest.
+func TestRowsLabelsFitContent(t *testing.T) {
+	issues := sampleIssues(6)
+	for i := range issues {
+		issues[i].Labels = nil
+	}
+	issues[2].Labels = []core.Label{{Name: "bug", Color: "d73a4a"}}
+	h := started(t, newFakeService(issues), 120, 12)
+	// A chip is the name with a cell of padding on each side.
+	if h.cols.chips == 0 || h.cols.labels != len(" bug ") {
+		t.Errorf("columns = %+v, want labels %d cells wide", h.cols, len(" bug "))
+	}
+	if full := layout(h.colsWidth, fullRoom, h.dates.Width()); h.cols.title <= full.title {
+		t.Errorf("title of %d cells, want more than the %d of the widest labels", h.cols.title, full.title)
+	}
+	row := ansi.Strip(h.renderRow(issues[2], false, h.colsWidth))
+	if !strings.Contains(row, " bug ") {
+		t.Errorf("row %q, want the label in it", row)
+	}
+	if w := ansi.StringWidth(row); w != h.colsWidth {
+		t.Errorf("row is %d cells, want %d", w, h.colsWidth)
 	}
 }
 
