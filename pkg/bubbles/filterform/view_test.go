@@ -37,7 +37,7 @@ func TestView(t *testing.T) {
 		{name: "editing text", width: 60, height: 12, keys: []tea.Msg{down, down, down, down, down, enter}, typed: "-next"},
 		{name: "query focused", width: 60, height: 12, keys: []tea.Msg{up}, typed: " fix"},
 		{name: "free text", width: 100, height: 12, query: "is:merged fix crash repo:cli/cli"},
-		{name: "empty query", width: 60, height: 12, query: "sort:updated-desc", keys: []tea.Msg{down, down, down, keyX, keyX}},
+		{name: "empty query", width: 60, height: 12, query: "sort:updated-desc", keys: []tea.Msg{down, down, down, del, del}},
 		{name: "narrow 40", width: 40, height: 14},
 		{name: "scrolled", width: 60, height: 6, keys: []tea.Msg{down, down, down, down, down, down}},
 		{name: "no help", width: 60, height: 10, opts: []Option{WithHelpLine(false)}},

@@ -21,8 +21,10 @@ var (
 	tab      = tea.KeyPressMsg{Code: tea.KeyTab}
 	shiftTab = tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift}
 	bksp     = tea.KeyPressMsg{Code: tea.KeyBackspace}
+	del      = tea.KeyPressMsg{Code: tea.KeyDelete}
 	keyX     = tea.KeyPressMsg{Code: 'x', Text: "x"}
 	keyR     = tea.KeyPressMsg{Code: 'r', Text: "r"}
+	keyF     = tea.KeyPressMsg{Code: 'F', Text: "F"}
 	ctrlU    = tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl}
 	nextTab  = tea.KeyPressMsg{Code: ']', Text: "]"}
 	prevTab  = tea.KeyPressMsg{Code: '[', Text: "["}
