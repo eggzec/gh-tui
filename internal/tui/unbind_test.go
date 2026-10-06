@@ -57,6 +57,8 @@ func unbindPlaces() []unbindPlace {
 		{name: "notifications mark read", steps: []string{config.ActionNotifications, config.ActionMarkRead}, want: "app, confirm"},
 		{name: "search", steps: []string{config.ActionSearch}, want: "app, app, query (types), query"},
 		{name: "search kinds", steps: []string{config.ActionSearch, "up"}, want: "app, app, search"},
+		// Typing on the code kind asks for a code search of the new text.
+		{name: "search code", steps: []string{config.ActionSearch, "k", "e", "y", "up", "down", "down", "down", config.ActionPrevTab, "s"}, want: "app, app, query (types), query"},
 		{name: "search results", steps: []string{config.ActionSearch, "k", "e", "y", config.ActionSelect}, want: "app, app, search, results"},
 		{name: "owner", msg: octocat, want: "app, app, profile, list"},
 		{name: "owner tab", msg: octocat, steps: []string{config.ActionNextFilter}, want: "app, app, profile, list"},
