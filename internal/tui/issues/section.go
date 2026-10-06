@@ -80,9 +80,11 @@ type Section struct {
 	// cols is the layout of the rows at colsWidth. room is how wide the
 	// labels of the issues the list has loaded so far are; until one has
 	// labels, the rows keep no room for them. A new list starts without.
+	// scanned is the list's count of pages when room was last sized.
 	cols      columns
 	colsWidth int
 	room      labelRoom
+	scanned   int
 	// links keeps the links of the rows, which are drawn on every frame.
 	links termtext.Links
 
@@ -181,8 +183,7 @@ func (s *Section) SetTheme(t ui.Theme) {
 	s.chips = newChipCache(s.rows)
 	s.list.SetStyles(t.Feed(s.icons))
 	// The chips may have changed width with the icons.
-	s.room = labelRoom{}
-	s.scanLabels()
+	s.rescanLabels()
 	s.renderChrome()
 }
 
@@ -245,7 +246,7 @@ func (s *Section) listQuery(state core.StateFilter) issuesvc.ListQuery {
 func (s *Section) resetList() tea.Cmd {
 	s.list = s.newList()
 	// The new list has loaded no issue yet, so none with labels.
-	s.room = labelRoom{}
+	s.room, s.scanned = labelRoom{}, 0
 	s.renderChrome()
 	if !s.live() {
 		return nil

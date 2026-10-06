@@ -27,6 +27,8 @@ func TestTookOfWhatNeverRan(t *testing.T) {
 		want       string
 	}{
 		{"cancelled while queued", core.ConclusionCancelled, start, ""},
+		{"cancelled just under half a second in", core.ConclusionCancelled, start.Add(time.Second/2 - time.Millisecond), ""},
+		{"cancelled half a second in", core.ConclusionCancelled, start.Add(time.Second / 2), "1s"},
 		{"cancelled after a run", core.ConclusionCancelled, start.Add(5 * time.Second), "5s"},
 		{"a quick success", core.ConclusionSuccess, start, "0s"},
 		{"skipped", core.ConclusionSkipped, start, "skipped"},

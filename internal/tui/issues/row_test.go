@@ -138,25 +138,81 @@ func TestRowsGainLabelsOnSync(t *testing.T) {
 // The labels column is as wide as the widest labels the list has loaded,
 // not the widest it could be, so short labels leave the title the rest.
 func TestRowsLabelsFitContent(t *testing.T) {
+	bug := core.Label{Name: "bug", Color: "d73a4a"}
+	uiLabel := core.Label{Name: "ui", Color: "fbca04"}
+	docs := core.Label{Name: "docs", Color: "0075ca"}
+	tests := []struct {
+		name   string
+		labels []core.Label
+		// want is the row's labels, as the column shows them.
+		want string
+	}{
+		{"one label", []core.Label{bug}, " bug "},
+		{"two labels", []core.Label{bug, uiLabel}, " bug   ui "},
+		{"more than two", []core.Label{bug, uiLabel, docs}, " bug   ui  +1"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			issues := sampleIssues(6)
+			for i := range issues {
+				issues[i].Labels = nil
+			}
+			issues[2].Labels = tt.labels
+			h := started(t, newFakeService(issues), 120, 12)
+			if h.cols.chips != 2 || h.cols.labels != len(tt.want) {
+				t.Errorf("columns = %+v, want two chips in %d cells", h.cols, len(tt.want))
+			}
+			if full := layout(h.colsWidth, fullRoom, h.dates.Width()); h.cols.title <= full.title {
+				t.Errorf("title of %d cells, want more than the %d of the widest labels", h.cols.title, full.title)
+			}
+			row := ansi.Strip(h.renderRow(issues[2], false, h.colsWidth))
+			if !strings.Contains(row, "  "+tt.want+"  ") {
+				t.Errorf("row %q, want %q in it", row, tt.want)
+			}
+			if w := ansi.StringWidth(row); w != h.colsWidth {
+				t.Errorf("row is %d cells, want %d", w, h.colsWidth)
+			}
+		})
+	}
+}
+
+// While the list is kept, the labels column grows to wider labels that a
+// reload brings, and keeps its width when they get shorter again.
+func TestRowsLabelsOnlyGrow(t *testing.T) {
 	issues := sampleIssues(6)
 	for i := range issues {
-		issues[i].Labels = nil
+		issues[i].Labels = []core.Label{{Name: "bug", Color: "d73a4a"}}
 	}
-	issues[2].Labels = []core.Label{{Name: "bug", Color: "d73a4a"}}
+	svc := newFakeService(issues)
+	h := started(t, svc, 120, 12)
+	narrow := h.cols.labels
+	wide := []core.Label{{Name: "enhancement", Color: "a2eeef"}}
+	svc.set(issues[0].Number, func(it *core.Issue) { it.Labels = wide })
+	run(t, h, h.Update(ui.SyncMsg{Key: issuesvc.SyncKey(testRepo)}))
+	grown := h.cols.labels
+	if grown <= narrow {
+		t.Fatalf("labels column of %d cells after wider labels came, want more than %d", grown, narrow)
+	}
+	svc.set(issues[0].Number, func(it *core.Issue) { it.Labels = issues[1].Labels })
+	run(t, h, h.Update(ui.SyncMsg{Key: issuesvc.SyncKey(testRepo)}))
+	if h.cols.labels != grown {
+		t.Errorf("labels column of %d cells after the wide labels went, want it kept at %d", h.cols.labels, grown)
+	}
+}
+
+// A new theme sizes the labels column again, since the chips it draws may
+// be of another width.
+func TestRowsLabelsRescanOnTheme(t *testing.T) {
+	issues := sampleIssues(6)
+	for i := range issues {
+		issues[i].Labels = []core.Label{{Name: "bug", Color: "d73a4a"}}
+	}
 	h := started(t, newFakeService(issues), 120, 12)
-	// A chip is the name with a cell of padding on each side.
-	if h.cols.chips == 0 || h.cols.labels != len(" bug ") {
-		t.Errorf("columns = %+v, want labels %d cells wide", h.cols, len(" bug "))
-	}
-	if full := layout(h.colsWidth, fullRoom, h.dates.Width()); h.cols.title <= full.title {
-		t.Errorf("title of %d cells, want more than the %d of the widest labels", h.cols.title, full.title)
-	}
-	row := ansi.Strip(h.renderRow(issues[2], false, h.colsWidth))
-	if !strings.Contains(row, " bug ") {
-		t.Errorf("row %q, want the label in it", row)
-	}
-	if w := ansi.StringWidth(row); w != h.colsWidth {
-		t.Errorf("row is %d cells, want %d", w, h.colsWidth)
+	want := h.cols.labels
+	h.room = fullRoom
+	h.SetTheme(h.theme)
+	if h.room == fullRoom || h.cols.labels != want {
+		t.Errorf("after a new theme the room is %v and the column %d cells, want %d", h.room, h.cols.labels, want)
 	}
 }
 
