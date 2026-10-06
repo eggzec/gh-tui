@@ -79,11 +79,8 @@ func newKeyMap(keys map[string][]string) keyMap {
 }
 
 // retry is the refresh binding, described as retry for the bubbles' error
-// hints.
+// hints. Without keys, as while refresh is unbound, it is off.
 func retry(refresh key.Binding) key.Binding {
-	if len(refresh.Keys()) == 0 {
-		return key.NewBinding(key.WithDisabled())
-	}
 	return key.NewBinding(key.WithKeys(refresh.Keys()...), key.WithHelp(refresh.Help().Key, "retry"))
 }
 

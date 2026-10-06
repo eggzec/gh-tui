@@ -84,11 +84,9 @@ func newKeyMap(keys map[string][]string) keyMap {
 }
 
 // retry returns the refresh keys as a retry binding that starts disabled, so
-// that a bubble enables it only while something failed.
+// that a bubble enables it only while something failed. Without keys, as
+// while refresh is unbound, it can't be enabled.
 func retry(refresh key.Binding) key.Binding {
-	if !refresh.Enabled() {
-		return key.NewBinding(key.WithDisabled())
-	}
 	return key.NewBinding(
 		key.WithKeys(refresh.Keys()...),
 		key.WithHelp(refresh.Help().Key, "retry"),

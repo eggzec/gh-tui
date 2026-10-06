@@ -32,7 +32,7 @@ func newKeyMap(keys map[string][]string) keyMap {
 	t.Toggle = ui.Binding(keys, config.ActionSelect, t.Toggle.Help().Desc)
 	// The files come with the release, so there is nothing for the
 	// thread to retry.
-	t.Retry = key.NewBinding(key.WithDisabled())
+	t.Retry = key.NewBinding(key.WithHelp("", t.Retry.Help().Desc), key.WithDisabled())
 	k.thread = t
 	return k
 }

@@ -216,7 +216,7 @@ func TestLoadErrors(t *testing.T) {
 	}{
 		{"unknown_field.yaml", []string{"line 3: unknown setting cache.size"}},
 		{"malformed.yaml", []string{"malformed.yaml", "line 3"}},
-		{"invalid.yaml", []string{"repos[0]", "theme:", "keys.quit", "cache.ttl.pulls: must be positive", "cache.disk.compression", "sync.poll.lists: must be at least 10s, got 1s"}},
+		{"invalid.yaml", []string{"repos[0]", "theme:", `line 4: keys.quit: unknown key "ctlr+q"`, "cache.ttl.pulls: must be positive", "cache.disk.compression", "sync.poll.lists: must be at least 10s, got 1s"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.file, func(t *testing.T) {
@@ -238,7 +238,7 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 	cfg.Repos = []string{"eggzec/gh-tui", "nope", "a/b/c"}
 	cfg.Theme = "missing"
 	cfg.Themes["bad"] = Theme{Light: cfg.Themes["default"].Light}
-	cfg.Keys[ActionHelp] = nil
+	cfg.Keys[ActionHelp] = []string{"ctlr+h"}
 	cfg.Keys[ActionSearch] = []string{""}
 	cfg.Keys["jump"] = []string{"j"}
 	cfg.Cache.TTL.Pulls = 0
@@ -276,7 +276,7 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 		`repos[2]: invalid repo "a/b/c": want owner/name`,
 		`theme: unknown theme "missing"`,
 		`themes.bad.dark.accent: want a quoted hex color like "#7aa2f7", got ""`,
-		`keys.help: needs at least one key`,
+		`keys.help: unknown key "ctlr+h", want a name such as r, R, ctrl+r, shift+tab, enter or space`,
 		`keys.jump: unknown action`,
 		`keys.search: empty key`,
 		`cache.ttl.pulls: must be positive, got 0s`,
@@ -396,9 +396,9 @@ func TestComposeActions(t *testing.T) {
 	}
 
 	cfg = Default()
-	cfg.Keys[ActionLabel] = nil
-	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "keys.label: needs at least one key") {
-		t.Errorf("Validate() = %v, want label to need a key", err)
+	cfg.Keys[ActionLabel] = []string{}
+	if err := cfg.Validate(); err != nil {
+		t.Errorf("Validate() = %v, want label unbound", err)
 	}
 }
 
@@ -528,10 +528,10 @@ func TestActionsModalActions(t *testing.T) {
 	}
 
 	cfg = Default()
-	cfg.Keys[ActionZoom] = nil
+	cfg.Keys[ActionZoom] = []string{"zz"}
 	cfg.Keys["rerun_all"] = []string{"A"}
 	err = cfg.Validate()
-	for _, want := range []string{"keys.zoom: needs at least one key", "keys.rerun_all: unknown action"} {
+	for _, want := range []string{`keys.zoom: unknown key "zz"`, "keys.rerun_all: unknown action"} {
 		if err == nil || !strings.Contains(err.Error(), want) {
 			t.Errorf("Validate() = %v, want %q", err, want)
 		}

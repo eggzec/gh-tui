@@ -1,7 +1,7 @@
 repos: [eggzec]
 theme: missing
 keys:
-  quit: []
+  quit: [ctlr+q]
 cache:
   ttl:
     pulls: 0s

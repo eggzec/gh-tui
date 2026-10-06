@@ -102,7 +102,7 @@ func newKeyMap(keys map[string][]string) KeyMap {
 	if len(labels) > 0 {
 		k.Jump = key.NewBinding(key.WithKeys(labels...), key.WithHelp(strings.Join(labels, "/"), "focus pane"))
 	} else {
-		k.Jump = key.NewBinding(key.WithDisabled())
+		k.Jump = key.NewBinding(key.WithHelp("", "focus pane"), key.WithDisabled())
 	}
 	return k
 }
