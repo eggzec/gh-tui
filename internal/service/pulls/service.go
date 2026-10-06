@@ -128,10 +128,12 @@ const (
 	kindDetail   = "pull"
 	kindComments = "pullcomments"
 
-	// listSchema 4 keeps the head commit of each pull request.
-	listSchema = 4
-	// detailSchema 4 keeps the head commit.
-	detailSchema = 4
+	// listSchema 4 keeps the head commit of each pull request, and 5
+	// whether its author is an app.
+	listSchema = 5
+	// detailSchema 4 keeps the head commit, and 5 whether the author is
+	// an app.
+	detailSchema = 5
 	// commentsSchema 3 reads the pages with REST, whose cursors are URLs,
 	// and 4 keeps the avatar of each comment's author.
 	commentsSchema = 4

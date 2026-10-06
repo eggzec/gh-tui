@@ -24,7 +24,7 @@ type restIssue struct {
 	Body        string    `json:"body"`
 	State       string    `json:"state"`
 	StateReason string    `json:"state_reason"`
-	User        user      `json:"user"`
+	User        account   `json:"user"`
 	Labels      []label   `json:"labels"`
 	Assignees   []user    `json:"assignees"`
 	Comments    int       `json:"comments"`

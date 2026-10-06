@@ -41,7 +41,7 @@ var pullFields = fmt.Sprintf(`fragment pullFields on PullRequest {
   updatedAt
   mergedAt
   repository { name owner { login } }
-  author { login ... on User { name } }
+  author { __typename login ... on User { name } }
   labels(first: %d) { nodes { name color description } }
   assignees(first: %d) { nodes { login name } }
   comments { totalCount }
@@ -112,7 +112,7 @@ type pull struct {
 		} `json:"owner"`
 	} `json:"repository"`
 	// Author is null for deleted accounts.
-	Author    *user        `json:"author"`
+	Author    *actor       `json:"author"`
 	Labels    nodes[label] `json:"labels"`
 	Assignees nodes[user]  `json:"assignees"`
 	Comments  struct {
