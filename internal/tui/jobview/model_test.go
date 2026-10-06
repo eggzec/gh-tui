@@ -8,6 +8,7 @@ import (
 	"time"
 	"unicode"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
 
@@ -420,5 +421,34 @@ func TestViewASCII(t *testing.T) {
 		if v := ansi.Strip(m.View()); strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
 			t.Errorf("job %s: view isn't ASCII:\n%s", j.Name, v)
 		}
+	}
+}
+
+// TestReadLostReadsTheLogAgain checks that a log whose read was lost,
+// while a preview hid the view, is read again at once, even one that
+// waited for a rest, and that the rest in flight is stale then.
+func TestReadLostReadsTheLogAgain(t *testing.T) {
+	for _, rest := range []bool{false, true} {
+		t.Run(fmt.Sprintf("rest=%v", rest), func(t *testing.T) {
+			f := newFake()
+			m := newView(t, f, 80, 12, WithRest(time.Hour))
+			_ = m.Show(failed(), rest, Hints{}) // Its answer goes to the preview.
+			if m.State() != Loading {
+				t.Fatalf("state %d, want loading", m.State())
+			}
+			seq := m.seq
+			run(m, m.ReadLost())
+			if m.State() != Ready || !slices.Equal(f.reads, []int64{failedJob}) {
+				t.Errorf("read lost left state %d after reads %v, want the log read once", m.State(), f.reads)
+			}
+			var cmd tea.Cmd
+			*m, cmd = m.Update(restMsg{id: m.id, seq: seq})
+			if cmd != nil {
+				t.Error("the rest from before the view was hidden reads")
+			}
+			if m.ReadLost() != nil {
+				t.Error("read lost reads again a log that loaded")
+			}
+		})
 	}
 }
