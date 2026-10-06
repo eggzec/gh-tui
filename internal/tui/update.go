@@ -141,7 +141,7 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd := m.gotOwner(msg)
 		return m, cmd
 	case ui.OwnerMsg:
-		cmd := m.showOwner(msg.Login)
+		cmd := m.gotoOwner(core.Target{Owner: msg.Login})
 		return m, cmd
 	case spinner.TickMsg:
 		if msg.ID == m.spin.ID() {
@@ -300,8 +300,11 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 		return nil
 	case key.Matches(msg, m.toast.KeyMap().Dismiss):
 		return m.toast.Dismiss()
-	case key.Matches(msg, m.keys.Owner) && m.selectedOwner() != "":
-		return m.showOwner(m.selectedOwner())
+	case key.Matches(msg, m.keys.Owner):
+		// Without an owner, the key goes on to the section.
+		if owner := m.selectedOwner(); owner != "" {
+			return m.gotoOwner(core.Target{Owner: owner})
+		}
 	case key.Matches(msg, m.keys.Notifications):
 		return m.toggleScreen(notifScreen)
 	case m.dash != nil && key.Matches(msg, m.keys.Dashboard):

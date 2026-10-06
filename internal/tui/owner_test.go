@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -322,23 +323,25 @@ func TestOwnerHeaderWithoutLogin(t *testing.T) {
 }
 
 // TestOwnerKey checks that the owner key shows the page of the owner of
-// the selection, the dashboard for the viewer's own login, and nothing
-// where the selection has no owner, where help shows the key dimmed.
+// the selection, or of the repository on view when the pane has nothing
+// selected, the dashboard for the viewer's own login, and nothing where
+// the selection has no owner, where help shows the key dimmed.
 func TestOwnerKey(t *testing.T) {
 	tests := []struct {
 		name  string
 		owner string
+		// none reports that the pane has nothing selected.
+		none bool
 		// want is the login of the page shown, or "" for none, and dash
 		// reports that the dashboard shows instead.
-		want  string
-		dash  bool
-		toast string
+		want string
+		dash bool
 	}{
 		{name: "user", owner: "octocat", want: "octocat"},
 		{name: "organization", owner: "charmbracelet", want: "charmbracelet"},
 		{name: "own login", owner: "Mona", dash: true},
-		{name: "app", owner: "dependabot[bot]", toast: "dependabot[bot] is an app; apps have no page here."},
-		{name: "no owner"},
+		{name: "no owner, such as an app's"},
+		{name: "nothing selected", none: true, want: "eggzec"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -346,10 +349,12 @@ func TestOwnerKey(t *testing.T) {
 			page.title = ui.OwnerTitle
 			sel := ui.Selection{What: "pull request", Repo: testRepo, Number: 7, Owner: tt.owner}
 			layout := Layout{
-				Files: &selectSection{fakeSection: &fakeSection{title: "Files"}, sel: sel, ok: true}, Pulls: &fakeSection{title: "Pull requests"},
+				Files: &selectSection{fakeSection: &fakeSection{title: "Files"}, sel: sel, ok: !tt.none}, Pulls: &fakeSection{title: "Pull requests"},
 				Dashboard: &fakeSection{title: ui.DashboardTitle}, Owner: page,
 			}
-			m := New(t.Context(), config.Default(), layout, WithRepo(testRepo), WithOwners(newFakeOwners()), WithLogin("mona"))
+			owners := newFakeOwners()
+			owners.remote["eggzec"] = core.Owner{Kind: core.OwnerOrg, Profile: core.Profile{Login: "eggzec"}}
+			m := New(t.Context(), config.Default(), layout, WithRepo(testRepo), WithOwners(owners), WithLogin("mona"))
 			m.toast.SetDuration(0)
 			m.toast.SetErrorDuration(0)
 			m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
@@ -357,8 +362,9 @@ func TestOwnerKey(t *testing.T) {
 			if m.screen != repoScreen {
 				t.Fatalf("screen = %d, want the repository", m.screen)
 			}
-			if got := m.keys.state(m).Owner.Enabled(); got != (tt.owner != "") {
-				t.Errorf("the owner key is enabled = %v in help, want %v", got, tt.owner != "")
+			enabled := tt.want != "" || tt.dash
+			if got := m.keys.state(m).Owner.Enabled(); got != enabled {
+				t.Errorf("the owner key is enabled = %v in help, want %v", got, enabled)
 			}
 			drive(m, m.key(press("@")))
 			switch {
@@ -373,9 +379,124 @@ func TestOwnerKey(t *testing.T) {
 			case m.screen != repoScreen || len(page.logins) > 0:
 				t.Errorf("screen %d with pages %q, want the repository still", m.screen, page.logins)
 			}
-			if tt.toast != "" && !hasToast(m, tt.toast) {
-				t.Errorf("toasts lack %q: %s", tt.toast, toasted(m))
+			if s := toasted(m); s != "" {
+				t.Errorf("toasted %s", s)
 			}
 		})
 	}
+}
+
+// selectOwnerPage is a page of owners whose cursor is on a repository of
+// owner.
+type selectOwnerPage struct {
+	fakeOwnerPage
+	owner string
+}
+
+func (p *selectOwnerPage) Selected() (ui.Selection, bool) {
+	return ui.Selection{What: "repository", Repo: core.RepoRef{Owner: p.owner, Name: "x"}, Owner: p.owner}, true
+}
+
+// TestOwnerKeyOffWhereItShowsWhatIsOnView checks that the owner key does
+// nothing on a page for the owner of that page, nor on the dashboard for
+// the viewer, which already show there.
+func TestOwnerKeyOffWhereItShowsWhatIsOnView(t *testing.T) {
+	t.Run("owner page", func(t *testing.T) {
+		page := &selectOwnerPage{owner: "Octocat"}
+		page.title = ui.OwnerTitle
+		layout := Layout{Files: &fakeSection{title: "Files"}, Dashboard: &fakeSection{title: ui.DashboardTitle}, Owner: page}
+		m := New(t.Context(), config.Default(), layout, WithOwners(newFakeOwners()))
+		m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+		run(m, m.Init())
+		runCommand(t, m, "goto @octocat")
+		if m.screen != ownerScreen || m.keys.state(m).Owner.Enabled() {
+			t.Errorf("screen %d, owner key enabled %v; want it off on octocat's page", m.screen, m.keys.state(m).Owner.Enabled())
+		}
+		page.owner = "charmbracelet"
+		if !m.keys.state(m).Owner.Enabled() {
+			t.Error("the owner key is off for a repository of another owner")
+		}
+	})
+	t.Run("dashboard", func(t *testing.T) {
+		dash := &selectSection{fakeSection: &fakeSection{title: ui.DashboardTitle}, sel: ui.Selection{Owner: "mona"}, ok: true}
+		layout := Layout{Files: &fakeSection{title: "Files"}, Dashboard: dash, Owner: &fakeOwnerPage{}}
+		m := New(t.Context(), config.Default(), layout, WithOwners(newFakeOwners()), WithLogin("mona"))
+		m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+		run(m, m.Init())
+		if m.screen != dashScreen || m.keys.state(m).Owner.Enabled() {
+			t.Errorf("screen %d, owner key enabled %v; want it off for the viewer on the dashboard", m.screen, m.keys.state(m).Owner.Enabled())
+		}
+		dash.sel.Owner = "octocat"
+		if !m.keys.state(m).Owner.Enabled() {
+			t.Error("the owner key is off for another owner on the dashboard")
+		}
+	})
+}
+
+// TestOwnerKeyInTheApp checks @ over the real sections and modals: it
+// types where keys are typed, is no answer to a question, and shows the
+// organization of a dashboard tab, even an empty one.
+func TestOwnerKeyInTheApp(t *testing.T) {
+	tests := []struct {
+		name string
+		repo bool
+		keys []string
+		// owner is the owner of the selection before @, if the case
+		// names one, and check reports what is wrong after it, if
+		// anything.
+		owner string
+		check func(m *Model) string
+	}{
+		{name: "search query", keys: []string{"/"}, check: func(m *Model) string {
+			if got := layerNames(m.keyLayers()); m.screen != searchScreen || got != "app, app, query (types), query" || !strings.Contains(onScreen(m), "@") {
+				return "the query didn't take @: the keys reach " + got
+			}
+			return ""
+		}},
+		{name: "command line", repo: true, keys: []string{":"}, check: func(m *Model) string {
+			if !m.line.Focused() || !strings.Contains(m.line.Value(), "@") {
+				return "the command line didn't take @"
+			}
+			return ""
+		}},
+		{name: "filter field", repo: true, keys: []string{"2", "f", "down", "enter"}, check: func(m *Model) string {
+			if got := layerNames(m.keyLayers()); m.screen != repoScreen || got != "app, filter (types)" {
+				return "the filter field didn't take @: the keys reach " + got
+			}
+			return ""
+		}},
+		{name: "pull request question", repo: true, keys: []string{"2", "enter", "x"}, check: func(m *Model) string {
+			if got := layerNames(m.keyLayers()); m.screen != repoScreen || got != "app, confirm" {
+				return "the question went away: the keys reach " + got
+			}
+			return ""
+		}},
+		{name: "organization tab", keys: []string{"]"}, owner: "charmbracelet", check: onOwnerScreen},
+		{name: "empty organization tab", keys: []string{"]", "]"}, owner: "octo-org", check: onOwnerScreen},
+	}
+	for _, tt := range tests {
+		synctest.Test(t, func(t *testing.T) {
+			m := newKeysApp(t, tt.repo)
+			for _, k := range tt.keys {
+				msg, _ := keyPress(k)
+				driveKeys(t, m, m.key(msg))
+			}
+			if got := m.selectedOwner(); tt.owner != "" && got != tt.owner {
+				t.Errorf("%s: the owner is %q, want %q", tt.name, got, tt.owner)
+			}
+			before := m.screen
+			driveKeys(t, m, m.key(press("@")))
+			if s := tt.check(m); s != "" {
+				t.Errorf("%s: %s (screen %d, was %d):\n%s", tt.name, s, before, m.screen, onScreen(m))
+			}
+		})
+	}
+}
+
+// onOwnerScreen reports that m doesn't show the page of an owner.
+func onOwnerScreen(m *Model) string {
+	if m.screen != ownerScreen {
+		return "@ didn't show the owner's page"
+	}
+	return ""
 }

@@ -535,11 +535,11 @@ func TestModalWrapsLongTitle(t *testing.T) {
 // that it types into a comment.
 func TestOwnerKeyInModal(t *testing.T) {
 	h, m := opened(t, newFakeService(sampleIssues(3)), 30)
-	if got := uitest.Enabled(h.KeyLayers()); slices.Contains(got, "author") {
-		t.Errorf("list help = %v, want no author", got)
+	if got := uitest.Enabled(h.KeyLayers()); slices.Contains(got, "owner page") {
+		t.Errorf("list help = %v, want no owner page", got)
 	}
-	if got := uitest.Enabled(m.KeyLayers()); !slices.Contains(got, "author") {
-		t.Errorf("modal help = %v, want author", got)
+	if got := uitest.Enabled(m.KeyLayers()); !slices.Contains(got, "owner page") {
+		t.Errorf("modal help = %v, want owner page", got)
 	}
 	press(t, h, "c", "@")
 	if h.modal() != m || !strings.Contains(m.prompt.Value(), "@") {
@@ -553,5 +553,21 @@ func TestOwnerKeyInModal(t *testing.T) {
 	}
 	if h.modal() != nil || m.ctx.Err() == nil {
 		t.Error("@ should close the modal and cancel its reads")
+	}
+}
+
+// TestOwnerKeyInModalOffForApps checks that @ does nothing in the modal
+// of an issue an app opened, which has no page.
+func TestOwnerKeyInModalOffForApps(t *testing.T) {
+	issues := sampleIssues(3)
+	for i := range issues {
+		issues[i].Author = core.User{Login: "github-actions[bot]", Bot: true}
+	}
+	h, m := opened(t, newFakeService(issues), 30)
+	if got := uitest.Enabled(m.KeyLayers()); slices.Contains(got, "owner page") {
+		t.Errorf("modal help = %v, want no owner page", got)
+	}
+	if msgs := press(t, h, "@"); len(msgs) != 0 || h.modal() != m {
+		t.Errorf("@ sent %v, want nothing and the modal open", msgs)
 	}
 }
