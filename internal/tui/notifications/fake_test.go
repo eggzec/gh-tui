@@ -265,7 +265,7 @@ func run(tb testing.TB, s *Section, cmd tea.Cmd) []tea.Msg {
 		case nil, spinner.TickMsg:
 		case tea.BatchMsg:
 			queue = append(queue, msg...)
-		case ui.OpenMsg, ui.NotifyMsg, ui.OpenActionsMsg, ui.OpenPullMsg, ui.OpenIssueMsg, ui.OpenReleaseMsg, ui.OpenCommitMsg:
+		case ui.OpenMsg, ui.NotifyMsg, ui.OpenActionsMsg, ui.OpenPullMsg, ui.OpenIssueMsg, ui.OpenReleaseMsg, ui.OpenCommitMsg, ui.OpenFilterMsg:
 			app = append(app, msg)
 		case ui.OpenModalMsg:
 			// The app opens the question over the section, and gives it

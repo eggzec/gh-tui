@@ -1,6 +1,7 @@
 # Only what differs from the defaults.
 keys:
-  quit: [x]
+  global:
+    quit: [Q]
 cache:
   ttl:
     pulls: 10m

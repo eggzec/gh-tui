@@ -108,7 +108,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, show
 	slog.InfoContext(ctx, "open", "span", "tui", "kind", "issue", "repo", repo.String(), "number", number, "cached", cached)
 	m := &detailModal{
 		svc:     s.svc,
-		keys:    s.keys,
+		keys:    s.keys.forModal(s.rawKeys),
 		now:     s.now,
 		sendCtx: s.ctx,
 		repo:    repo,

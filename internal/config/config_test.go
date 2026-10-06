@@ -20,11 +20,11 @@ func TestDefaultIsValid(t *testing.T) {
 
 func TestDefaultReturnsFreshMaps(t *testing.T) {
 	a := Default()
-	a.Keys[ActionQuit][0] = "x"
-	a.Keys[ActionHelp] = []string{"x"}
+	a.Keys.Of(ActionQuit)[0] = "x"
+	a.Keys.Set(ActionHelp, []string{"x"})
 	a.History.Row[0] = "x"
-	if b := Default(); b.Keys[ActionQuit][0] == "x" || b.Keys[ActionHelp][0] == "x" || b.History.Row[0] == "x" {
-		t.Errorf("Default() shares its keymap or lists between calls: quit = %v, help = %v, row = %v", b.Keys[ActionQuit], b.Keys[ActionHelp], b.History.Row)
+	if b := Default(); b.Keys.Of(ActionQuit)[0] == "x" || b.Keys.Of(ActionHelp)[0] == "x" || b.History.Row[0] == "x" {
+		t.Errorf("Default() shares its keymap or lists between calls: quit = %v, help = %v, row = %v", b.Keys.Of(ActionQuit), b.Keys.Of(ActionHelp), b.History.Row)
 	}
 	// Every map and list, however deep, a new one included.
 	if shared := sharedRefs(reflect.ValueOf(Default()), reflect.ValueOf(Default()), ""); len(shared) > 0 {
@@ -121,7 +121,7 @@ func TestLoadMergesOverDefaults(t *testing.T) {
 		{
 			file: "partial.yaml",
 			want: func(c *Config) {
-				c.Keys[ActionQuit] = []string{"x"}
+				c.Keys.Set(ActionQuit, []string{"Q"})
 				c.Cache.TTL.Pulls = 10 * time.Minute
 				c.Prefetch.Pulls.Window.After = new(3)
 			},
@@ -141,8 +141,8 @@ func TestLoadMergesOverDefaults(t *testing.T) {
 						Border: "#444", Success: "#7fc99a", Warning: "#e5c07b", Error: "#ef7d7d",
 					},
 				}
-				c.Keys[ActionQuit] = []string{"x"}
-				c.Keys[ActionSearch] = []string{"/", "ctrl+f"}
+				c.Keys.Set(ActionQuit, []string{"Q"})
+				c.Keys.Set(ActionSearch, []string{"/", "ctrl+f"})
 				c.Cache = Cache{
 					TTL: TTL{
 						Pulls: time.Minute, Issues: 2 * time.Minute, Notifications: 3 * time.Minute, Repos: 4 * time.Minute,
@@ -216,7 +216,7 @@ func TestLoadErrors(t *testing.T) {
 	}{
 		{"unknown_field.yaml", []string{"line 3: unknown setting cache.size"}},
 		{"malformed.yaml", []string{"malformed.yaml", "line 3"}},
-		{"invalid.yaml", []string{"repos[0]", "theme:", `line 4: keys.quit: unknown key "ctlr+q"`, "cache.ttl.pulls: must be positive", "cache.disk.compression", "sync.poll.lists: must be at least 10s, got 1s"}},
+		{"invalid.yaml", []string{"repos[0]", "theme:", `line 5: keys.global.quit: unknown key "ctlr+q"`, "cache.ttl.pulls: must be positive", "cache.disk.compression", "sync.poll.lists: must be at least 10s, got 1s"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.file, func(t *testing.T) {
@@ -238,9 +238,12 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 	cfg.Repos = []string{"eggzec/gh-tui", "nope", "a/b/c"}
 	cfg.Theme = "missing"
 	cfg.Themes["bad"] = Theme{Light: cfg.Themes["default"].Light}
-	cfg.Keys[ActionHelp] = []string{"ctlr+h"}
-	cfg.Keys[ActionSearch] = []string{""}
-	cfg.Keys["jump"] = []string{"j"}
+	cfg.Keys.Set(ActionHelp, []string{"ctlr+h"})
+	cfg.Keys.Set(ActionSearch, []string{""})
+	cfg.Keys.Set("global.jump", []string{"j"})
+	cfg.Keys.Set("pulls.refresh", []string{"R"})
+	cfg.Keys["jump"] = map[string][]string{"j": {"j"}}
+	cfg.Keys.Set("pulls.merge", []string{"m", "r"})
 	cfg.Cache.TTL.Pulls = 0
 	cfg.Cache.Memory.Entries = 0
 	cfg.Cache.Disk = Disk{Dir: "cache", MaxSize: MiB, Compression: "zip", CompressionLevel: "9"}
@@ -276,9 +279,12 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 		`repos[2]: invalid repo "a/b/c": want owner/name`,
 		`theme: unknown theme "missing"`,
 		`themes.bad.dark.accent: want a quoted hex color like "#7aa2f7", got ""`,
-		`keys.help: unknown key "ctlr+h", want a name such as r, R, ctrl+r, shift+tab, enter or space`,
-		`keys.jump: unknown action`,
-		`keys.search: empty key`,
+		`keys.global.help: unknown key "ctlr+h", want a name such as r, R, ctrl+r, shift+tab, enter or space`,
+		`keys.global.jump: unknown action`,
+		`keys.global.search: empty key`,
+		`keys.jump: unknown context`,
+		`keys.pulls.refresh: refresh is a global action, which no context may redefine: set keys.global.refresh`,
+		`keys.pulls.merge: r is already keys.global.refresh`,
 		`cache.ttl.pulls: must be positive, got 0s`,
 		`cache.memory.entries: must be at least 1, got 0`,
 		`cache.disk.max_size: must be at least 8MiB, got 1MiB`,
@@ -357,48 +363,51 @@ func assertEqual(t *testing.T, got, want Config) {
 
 func TestSectionActionsCanBeRebound(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.yaml")
-	if err := os.WriteFile(path, []byte("keys:\n  merge: [\"ctrl+m\"]\n  star: [\"*\"]\n"), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte("keys:\n  pulls:\n    merge: [\"ctrl+m\"]\n  repo:\n    star: [\"ctrl+s\"]\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	cfg, _, err := loadBase(path)
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if got := cfg.Keys[ActionMerge]; !slices.Equal(got, []string{"ctrl+m"}) {
+	if got := cfg.Keys.Of("pulls.merge"); !slices.Equal(got, []string{"ctrl+m"}) {
 		t.Errorf("merge = %v, want [ctrl+m]", got)
 	}
-	if got := cfg.Keys[ActionClose]; !slices.Equal(got, []string{"x"}) {
+	if got := cfg.Keys.Of("pulls.close"); !slices.Equal(got, []string{"x"}) {
 		t.Errorf("close = %v, want the default [x]", got)
+	}
+	if got := cfg.Keys.Of(ActionStar); !slices.Equal(got, []string{"ctrl+s"}) {
+		t.Errorf("star = %v, want [ctrl+s]", got)
 	}
 }
 
 func TestComposeActions(t *testing.T) {
 	defaults := Default().Keys
-	for action, want := range map[string]string{ActionComment: "c", ActionLabel: "l"} {
-		if got := defaults[action]; !slices.Equal(got, []string{want}) {
+	for action, want := range map[string]string{"issues.comment": "c", "issues.labels": "l"} {
+		if got := defaults.Of(action); !slices.Equal(got, []string{want}) {
 			t.Errorf("default %s = %v, want [%s]", action, got, want)
 		}
 	}
 
 	path := filepath.Join(t.TempDir(), "config.yaml")
-	if err := os.WriteFile(path, []byte("keys:\n  comment: [\"C\", \"ctrl+o\"]\n"), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte("keys:\n  issues:\n    comment: [\"C\", \"ctrl+e\"]\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	cfg, _, err := loadBase(path)
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if got := cfg.Keys[ActionComment]; !slices.Equal(got, []string{"C", "ctrl+o"}) {
-		t.Errorf("comment = %v, want [C ctrl+o]", got)
+	if got := cfg.Keys.Of("issues.comment"); !slices.Equal(got, []string{"C", "ctrl+e"}) {
+		t.Errorf("comment = %v, want [C ctrl+e]", got)
 	}
-	if got := cfg.Keys[ActionLabel]; !slices.Equal(got, []string{"l"}) {
-		t.Errorf("label = %v, want the default [l]", got)
+	if got := cfg.Keys.Of("issues.labels"); !slices.Equal(got, []string{"l"}) {
+		t.Errorf("labels = %v, want the default [l]", got)
 	}
 
 	cfg = Default()
-	cfg.Keys[ActionLabel] = []string{}
+	cfg.Keys.Set("issues.labels", []string{})
 	if err := cfg.Validate(); err != nil {
-		t.Errorf("Validate() = %v, want label unbound", err)
+		t.Errorf("Validate() = %v, want labels unbound", err)
 	}
 }
 
@@ -407,24 +416,24 @@ func TestScreenActions(t *testing.T) {
 	for action, want := range map[string]string{
 		ActionPane1: "1", ActionPane2: "2", ActionPane3: "3", ActionNotifications: "n",
 	} {
-		if got := defaults[action]; !slices.Equal(got, []string{want}) {
+		if got := defaults.Of(action); !slices.Equal(got, []string{want}) {
 			t.Errorf("default %s = %v, want [%s]", action, got, want)
 		}
 	}
 
 	path := filepath.Join(t.TempDir(), "config.yaml")
-	if err := os.WriteFile(path, []byte("keys:\n  notifications: [\"N\"]\n  pane_1: [\"F\"]\n"), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte("keys:\n  global:\n    notifications: [\"N\"]\n    pane_1: [\"P\"]\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	cfg, _, err := loadBase(path)
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if got := cfg.Keys[ActionNotifications]; !slices.Equal(got, []string{"N"}) {
+	if got := cfg.Keys.Of(ActionNotifications); !slices.Equal(got, []string{"N"}) {
 		t.Errorf("notifications = %v, want [N]", got)
 	}
-	if got := cfg.Keys[ActionPane1]; !slices.Equal(got, []string{"F"}) {
-		t.Errorf("pane_1 = %v, want [F]", got)
+	if got := cfg.Keys.Of(ActionPane1); !slices.Equal(got, []string{"P"}) {
+		t.Errorf("pane_1 = %v, want [P]", got)
 	}
 }
 
@@ -504,34 +513,41 @@ func TestLogPath(t *testing.T) {
 func TestActionsModalActions(t *testing.T) {
 	defaults := Default().Keys
 	for action, want := range map[string]string{
-		ActionActions: "a", ActionNextFilter: "]", ActionPrevFilter: "[", ActionPaneLeft: "h", ActionPaneRight: "l",
-		ActionZoom: "z", ActionRerunFailed: "ctrl+r", ActionRerun: "R", ActionRerunJob: "J", ActionCancelRun: "x",
+		ActionActions: "a", ActionNextTab: "]", ActionPrevTab: "[", "actions.pane_left": "h", "actions.pane_right": "l",
+		ActionZoom: "z", "actions.rerun_failed": "R", "actions_jobs.rerun_job": "J", "actions.cancel": "x",
 	} {
-		if got := defaults[action]; !slices.Equal(got, []string{want}) {
+		if got := defaults.Of(action); !slices.Equal(got, []string{want}) {
 			t.Errorf("default %s = %v, want [%s]", action, got, want)
 		}
 	}
+	// Re-running every job has no key, as its key went to the failed ones.
+	if got := defaults.Of("actions.rerun"); len(got) != 0 {
+		t.Errorf("default %s = %v, want none", "actions.rerun", got)
+	}
 
 	path := filepath.Join(t.TempDir(), "config.yaml")
-	if err := os.WriteFile(path, []byte("keys:\n  rerun_failed: [\"F\"]\n  cancel_run: [\"C\"]\n"), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte("keys:\n  actions:\n    rerun_failed: [\"E\"]\n    rerun: [\"ctrl+e\"]\n    cancel: [\"C\"]\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	cfg, _, err := loadBase(path)
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if got := cfg.Keys[ActionRerunFailed]; !slices.Equal(got, []string{"F"}) {
-		t.Errorf("rerun_failed = %v, want [F]", got)
+	if got := cfg.Keys.Of("actions.rerun_failed"); !slices.Equal(got, []string{"E"}) {
+		t.Errorf("rerun_failed = %v, want [E]", got)
 	}
-	if got := cfg.Keys[ActionRerun]; !slices.Equal(got, []string{"R"}) {
-		t.Errorf("rerun = %v, want the default [R]", got)
+	if got := cfg.Keys.Of("actions.rerun"); !slices.Equal(got, []string{"ctrl+e"}) {
+		t.Errorf("rerun = %v, want [ctrl+e]", got)
+	}
+	if got := cfg.Keys.Of("pull_checks.rerun_failed"); !slices.Equal(got, []string{"R"}) {
+		t.Errorf("checks.rerun_failed = %v, want the default [R]", got)
 	}
 
 	cfg = Default()
-	cfg.Keys[ActionZoom] = []string{"zz"}
-	cfg.Keys["rerun_all"] = []string{"A"}
+	cfg.Keys.Set(ActionZoom, []string{"zz"})
+	cfg.Keys.Set("actions.rerun_all", []string{"A"})
 	err = cfg.Validate()
-	for _, want := range []string{`keys.zoom: unknown key "zz"`, "keys.rerun_all: unknown action"} {
+	for _, want := range []string{`keys.global.zoom: unknown key "zz"`, "keys.actions.rerun_all: unknown action"} {
 		if err == nil || !strings.Contains(err.Error(), want) {
 			t.Errorf("Validate() = %v, want %q", err, want)
 		}
@@ -559,7 +575,7 @@ func TestNotifications(t *testing.T) {
 
 func TestFinderDefaults(t *testing.T) {
 	cfg := Default()
-	if got := cfg.Keys[ActionFindFile]; !slices.Equal(got, []string{"t", "ctrl+p"}) {
+	if got := cfg.Keys.Of(ActionFindFile); !slices.Equal(got, []string{"t", "ctrl+p"}) {
 		t.Errorf("find_file = %v, want [t ctrl+p]", got)
 	}
 	if !cfg.Files.Finder.Preview {
@@ -604,48 +620,48 @@ func TestMarkdownSetting(t *testing.T) {
 }
 
 func TestCommandKey(t *testing.T) {
-	if got := Default().Keys[ActionCommand]; !slices.Equal(got, []string{":"}) {
+	if got := Default().Keys.Of(ActionCommand); !slices.Equal(got, []string{":"}) {
 		t.Errorf("command = %v, want [:]", got)
 	}
 	path := filepath.Join(t.TempDir(), "config.yaml")
-	if err := os.WriteFile(path, []byte("keys:\n  command: [\";\"]\n"), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte("keys:\n  global:\n    command: [\";\"]\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	cfg, _, err := loadBase(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := cfg.Keys[ActionCommand]; !slices.Equal(got, []string{";"}) {
+	if got := cfg.Keys.Of(ActionCommand); !slices.Equal(got, []string{";"}) {
 		t.Errorf("command after rebinding = %v, want [;]", got)
 	}
 }
 
 func TestSortAndStarKeys(t *testing.T) {
 	defaults := Default().Keys
-	for action, want := range map[string]string{ActionFilter: "f", ActionSort: "s", ActionStar: "S"} {
-		if got := defaults[action]; !slices.Equal(got, []string{want}) {
+	for action, want := range map[string]string{"pulls.filter": "f", "pulls.sort": "s", ActionStar: "S"} {
+		if got := defaults.Of(action); !slices.Equal(got, []string{want}) {
 			t.Errorf("default %s = %v, want [%s]", action, got, want)
 		}
 	}
 
 	path := filepath.Join(t.TempDir(), "config.yaml")
-	if err := os.WriteFile(path, []byte("keys:\n  sort: [\"o\"]\n"), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte("keys:\n  pulls:\n    sort: [\"O\"]\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	cfg, _, err := loadBase(path)
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if got := cfg.Keys[ActionSort]; !slices.Equal(got, []string{"o"}) {
-		t.Errorf("sort = %v, want [o]", got)
+	if got := cfg.Keys.Of("pulls.sort"); !slices.Equal(got, []string{"O"}) {
+		t.Errorf("sort = %v, want [O]", got)
 	}
-	if got := cfg.Keys[ActionStar]; !slices.Equal(got, []string{"S"}) {
+	if got := cfg.Keys.Of(ActionStar); !slices.Equal(got, []string{"S"}) {
 		t.Errorf("star = %v, want the default [S]", got)
 	}
 
 	cfg = Default()
-	cfg.Keys["sort_by"] = []string{"s"}
-	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "keys.sort_by: unknown action") {
+	cfg.Keys.Set("pulls.sort_by", []string{"s"})
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "keys.pulls.sort_by: unknown action") {
 		t.Errorf("Validate() = %v, want sort_by rejected", err)
 	}
 }

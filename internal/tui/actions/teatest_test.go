@@ -8,7 +8,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/exp/teatest/v2"
 
-	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/jobview"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
@@ -46,7 +45,7 @@ func (a *app) View() tea.View { return tea.NewView(a.modal.View()) }
 
 func TestProgramRerunsTheFailedJobs(t *testing.T) {
 	f := newFake()
-	m := New(t.Context(), f, repo, config.Default().Keys, forTests(), withIcons())
+	m := New(t.Context(), f, repo, testKeys(), forTests(), withIcons())
 	m.SetTheme(testTheme())
 	ready := make(chan struct{})
 	a := &app{modal: m, ready: ready}
@@ -56,7 +55,7 @@ func TestProgramRerunsTheFailedJobs(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("the log didn't load")
 	}
-	tm.Send(press("ctrl+r"))
+	tm.Send(press("R"))
 	tm.Send(press("y"))
 	tm.Send(press("esc"))
 	final, ok := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(*app)

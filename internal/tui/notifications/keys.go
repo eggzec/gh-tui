@@ -15,8 +15,8 @@ type KeyMap struct {
 	MarkRead    key.Binding
 	MarkDone    key.Binding
 	MarkAllRead key.Binding
-	// Filter names the key that opens the filter, which the app handles,
-	// and ClearFilter goes back to the unread threads.
+	// Filter opens the filter, and ClearFilter goes back to the unread
+	// threads.
 	Filter      key.Binding
 	ClearFilter key.Binding
 	Refresh     key.Binding
@@ -26,20 +26,23 @@ type KeyMap struct {
 	feed feed.KeyMap
 }
 
-func newKeyMap(keys map[string][]string) KeyMap {
+// ctxScreen is the context of the keys of the notifications screen.
+const ctxScreen = "notifications"
+
+func newKeyMap(keys config.Keymap) KeyMap {
+	screen := ui.In(keys, ctxScreen)
 	k := KeyMap{
-		Select:      ui.Binding(keys, config.ActionSelect, "open & read"),
-		Open:        ui.Binding(keys, config.ActionOpen, "open"),
-		MarkRead:    ui.Binding(keys, config.ActionMarkRead, "read"),
-		MarkDone:    ui.Binding(keys, config.ActionMarkDone, "done"),
-		MarkAllRead: ui.Binding(keys, config.ActionMarkAllRead, "all read"),
-		Filter:      ui.Binding(keys, config.ActionFilter, "filter"),
-		ClearFilter: ui.Binding(keys, config.ActionClearFilter, "clear filters"),
-		Refresh:     ui.Binding(keys, config.ActionRefresh, "refresh"),
+		Select:      screen.Binding("global.select", "open & read"),
+		Open:        screen.Binding("global.open", "open"),
+		MarkRead:    screen.Binding("read", "read"),
+		MarkDone:    screen.Binding("done", "done"),
+		MarkAllRead: screen.Binding("read_all", "all read"),
+		Filter:      screen.Binding("filter", "filter"),
+		ClearFilter: screen.Binding("clear_filter", "clear filters"),
+		Refresh:     screen.Binding("global.refresh", "refresh"),
 	}
-	// The section, and the app for the filter, match these keys first,
-	// so the list gets only the keys they leave it, such as g, which
-	// goes to the first row there.
+	// The section matches these keys first, so the list gets only the
+	// keys it leaves it, such as f, which pages down there.
 	f := feed.DefaultKeyMap()
 	// The section handles refresh before the list, and a refresh retries
 	// what failed, so the list's error row names the refresh keys.

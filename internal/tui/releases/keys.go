@@ -20,16 +20,20 @@ type keyMap struct {
 	thread thread.KeyMap
 }
 
-func newKeyMap(keys map[string][]string) keyMap {
+// ctxModal is the context of the keys of the modal, which has one pane.
+const ctxModal = "release_modal"
+
+func newKeyMap(keys config.Keymap) keyMap {
+	modal := ui.In(keys, ctxModal)
 	k := keyMap{
-		Back:    ui.Binding(keys, config.ActionBack, "back"),
-		Open:    ui.Binding(keys, config.ActionOpen, "open in browser"),
-		Refresh: ui.Binding(keys, config.ActionRefresh, "retry"),
+		Back:    modal.Binding("global.dismiss", "back"),
+		Open:    modal.Binding("global.open", "open in browser"),
+		Refresh: modal.Binding("global.refresh", "retry"),
 	}
 	// The modal matches its own keys first, so the thread gets only the
 	// keys it leaves it.
 	t := thread.DefaultKeyMap()
-	t.Toggle = ui.Binding(keys, config.ActionSelect, t.Toggle.Help().Desc)
+	t.Toggle = modal.Binding("global.select", t.Toggle.Help().Desc)
 	// The files come with the release, so there is nothing for the
 	// thread to retry.
 	t.Retry = key.NewBinding(key.WithHelp("", t.Retry.Help().Desc), key.WithDisabled())

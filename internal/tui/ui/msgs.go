@@ -11,6 +11,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
+	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
@@ -169,6 +170,15 @@ type OpenIssueMsg struct {
 	// Pause, if set, holds the reads ahead of the list it was opened
 	// from, such as the dashboard's, while it loads.
 	Pause Pauser
+}
+
+// OpenFilterMsg asks for the filter modal of the focused list to be opened
+// on Tab, which a list sends when its filter or sort key is pressed.
+type OpenFilterMsg struct{ Tab filterform.Tab }
+
+// OpenFilter returns the command that sends an OpenFilterMsg for tab.
+func OpenFilter(tab filterform.Tab) tea.Cmd {
+	return func() tea.Msg { return OpenFilterMsg{Tab: tab} }
 }
 
 // OpenActionsMsg asks for the Actions modal of Repo to be opened on the

@@ -27,7 +27,7 @@ const renderFile = `theme: mine
 ui:
   icons: ascii
 keys:
-  quit: [x]
+  global: {quit: [Q]}
 history:
   row: [short_sha, subject]
 themes:
@@ -82,7 +82,8 @@ func TestLayersYAML(t *testing.T) {
 		"row: [short_sha, subject] # config.yaml:7",
 		"level: debug # --debug, GH_DEBUG or GH_TUI_LOG",
 		"keys:",
-		"quit: [x] # config.yaml:5",
+		"global:",
+		"quit: [Q] # config.yaml:5",
 		`help: ["?"]`,
 		"themes:",
 		"default:",
@@ -149,15 +150,16 @@ func TestLayersYAMLMapEntries(t *testing.T) {
 	start := Default()
 	session := Default()
 	session.Themes = map[string]Theme{"new": start.Themes["default"], "default": start.Themes["default"]}
-	session.Keys = map[string][]string{"quit": {"q"}, "zzz": {"z"}}
+	session.Keys.Set(ActionQuit, []string{"Q"})
+	session.Keys.Set("global.zzz", []string{"z"})
 	got, err := Layers{Start: start, Session: session}.YAML()
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
 		"  new:\n    light:\n      accent: \"#3b63c4\" # session (:set)\n",
-		"  quit: [q] # session (:set)\n",
-		"  zzz: [z] # session (:set)\n",
+		"    quit: [Q] # session (:set)\n",
+		"    zzz: [z] # session (:set)\n",
 		"  default:\n    light:\n      accent: \"#3b63c4\"\n",
 	} {
 		if !strings.Contains(got, want) {
@@ -213,7 +215,7 @@ func TestResolveSource(t *testing.T) {
 	if cfg.Log.Level != LevelWarn || src.file.Log.Level != Default().Log.Level {
 		t.Errorf("log level %q, the file's %q; want GH_TUI_LOG's over the file's", cfg.Log.Level, src.file.Log.Level)
 	}
-	want := map[string]int{"theme": 1, "ui.icons": 3, "keys.quit": 5, "history.row": 7, "themes.default.dark.accent": 11, "themes.mine.light.error": 21, "themes.mine.dark.error": 21}
+	want := map[string]int{"theme": 1, "ui.icons": 3, "keys.global.quit": 5, "history.row": 7, "themes.default.dark.accent": 11, "themes.mine.light.error": 21, "themes.mine.dark.error": 21}
 	origins := src.origins()
 	for k, line := range want {
 		if origins[k] != (Origin{Line: line}) {
@@ -285,13 +287,13 @@ func TestLayersYAMLFileLines(t *testing.T) {
 // for it, rather than looking like the key without it.
 func TestLayersYAMLKeysStayDistinct(t *testing.T) {
 	session := Default()
-	session.Keys["quit\u202e"] = []string{"z"}
-	session.Keys["quit\u200b"] = []string{"y"}
+	session.Keys.Set("global.quit\u202e", []string{"z"})
+	session.Keys.Set("global.quit\u200b", []string{"y"})
 	got, err := Layers{Start: Default(), Session: session}.YAML()
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"  quit: [q, ctrl+c]\n", "  quit\ufffd: [y] # session (:set)\n", "  quit\ufffd: [z] # session (:set)\n"} {
+	for _, want := range []string{"    quit: [q]\n", "    quit\ufffd: [y] # session (:set)\n", "    quit\ufffd: [z] # session (:set)\n"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("the config lacks %q:\n%s", want, got)
 		}

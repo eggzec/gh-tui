@@ -17,7 +17,7 @@ func TestKeyMapComplete(t *testing.T) {
 // before the list's.
 func TestKeyLayersOrder(t *testing.T) {
 	s := newSection(t, newFake(inbox()...), 100, 10)
-	for k, want := range map[string]string{"m": ui.NotificationsTitle + ": read", "r": ui.NotificationsTitle + ": refresh", "j": "list: down"} {
+	for k, want := range map[string]string{"m": ui.NotificationsTitle + ": read", "r": ui.NotificationsTitle + ": refresh", "j": ui.NotificationsTitle + ": down"} {
 		b, src, _ := uitest.Winner(s.KeyLayers(), k)
 		if got := src + ": " + b.Help().Desc; got != want {
 			t.Errorf("%s reaches %q, want %q", k, got, want)

@@ -54,10 +54,7 @@ func Default() Config {
 func (c Config) clone() Config {
 	c.Repos = slices.Clone(c.Repos)
 	c.Themes = maps.Clone(c.Themes)
-	c.Keys = maps.Clone(c.Keys)
-	for action, keys := range c.Keys {
-		c.Keys[action] = slices.Clone(keys)
-	}
+	c.Keys = c.Keys.clone()
 	c.History.Row = slices.Clone(c.History.Row)
 	c.History.Detail = slices.Clone(c.History.Detail)
 	clonePointers(reflect.ValueOf(&c.Prefetch).Elem())

@@ -3,7 +3,6 @@ package files
 import (
 	"errors"
 	"fmt"
-	"maps"
 	"slices"
 	"strings"
 	"testing"
@@ -150,9 +149,9 @@ func TestOfflineListing(t *testing.T) {
 }
 
 func TestConfiguredKeys(t *testing.T) {
-	cfg := maps.Clone(config.Default().Keys)
-	cfg[config.ActionExpand] = []string{"e"}
-	cfg[config.ActionCollapse] = []string{"c"}
+	cfg := config.Default().Keys
+	cfg.Set("files.expand", []string{"e"})
+	cfg.Set("files.collapse", []string{"c"})
 	s := New(t.Context(), sampleFake(), cfg, WithRepo(ghTUI))
 	s.SetSize(40, 12)
 	s.Focus()

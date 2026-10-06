@@ -146,5 +146,5 @@ func (t *textModal) SetTheme(th ui.Theme) { t.pager.SetStyles(th.Pager(t.icons))
 
 // KeyLayers implements ui.Keyed: the pager's keys.
 func (t *textModal) KeyLayers() []keyhelp.Layer {
-	return []keyhelp.Layer{keyhelp.FromHelp("pager", t.pager, t.pager.Capturing())}
+	return []keyhelp.Layer{ui.PagerLayer("text", &t.pager)}
 }

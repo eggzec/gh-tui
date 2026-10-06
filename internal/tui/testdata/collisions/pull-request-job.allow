@@ -1,3 +1,2 @@
 # context | key | loser | winner | reason; see allowDir in collisions_test.go
-pull request: job | ctrl+r | checks: refresh | checks: rerun failed | ctrl+r re-runs the failed jobs; r still refreshes
-pull request: job | esc | log: back | checks: checks | esc steps back to the checks, as closing the log would
+pull request: job | esc | Log: back | Log: checks | esc steps back to the checks, as closing the log would

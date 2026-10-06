@@ -11,6 +11,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 )
 
 // Update handles the section's keys, sync events and finished changes, and
@@ -93,8 +94,8 @@ func (s *Section) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		}
 		return s.setFilter(defaultQuery), true
 	case key.Matches(msg, k.Filter):
-		// The app opens the filter, so its key doesn't reach the list.
-		return nil, true
+		// The list gets no f, which pages down there.
+		return ui.OpenFilter(filterform.FiltersTab), true
 	case key.Matches(msg, k.Select):
 		return s.open(), true
 	case key.Matches(msg, k.Open):

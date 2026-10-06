@@ -121,7 +121,7 @@ const linePlaceholder = "goto owner/name, @login, #number or a link"
 
 // newLine returns the command line, blurred until the command key opens
 // it, which recalls the last history lines typed.
-func newLine(keys map[string][]string, history int) cmdline.Model {
+func newLine(keys config.Keymap, history int) cmdline.Model {
 	return cmdline.New(history,
 		cmdline.WithKeyMap(lineKeys(keys)),
 		cmdline.WithPlaceholder(linePlaceholder),

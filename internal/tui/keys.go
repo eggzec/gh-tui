@@ -12,6 +12,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
@@ -31,11 +32,6 @@ type KeyMap struct {
 	FindFile key.Binding
 	// Command opens the command line in place of the status bar.
 	Command key.Binding
-	// Filter opens the filter modal of the focused pane on its Filters
-	// tab, if it has one, and Sort opens it on its Sort tab, if the pane
-	// can be sorted.
-	Filter key.Binding
-	Sort   key.Binding
 	// form holds the keys of the filter modal's form.
 	form filterform.KeyMap
 	// Notifications switches between the screen on view and the
@@ -66,25 +62,23 @@ type KeyMap struct {
 // every key, so that nothing can trap the user.
 var forceQuit = key.NewBinding(key.WithKeys("ctrl+c"), key.WithHelp("^c", "quit"))
 
-func newKeyMap(keys map[string][]string) KeyMap {
+func newKeyMap(keys config.Keymap) KeyMap {
 	k := KeyMap{
-		Quit:          ui.Binding(keys, config.ActionQuit, "quit"),
+		Quit:          quitKeys(ui.Binding(keys, config.ActionQuit, "quit")),
 		Help:          ui.Binding(keys, config.ActionHelp, "help"),
 		Search:        ui.Binding(keys, config.ActionSearch, "search"),
 		History:       ui.Binding(keys, config.ActionHistory, "history"),
 		Actions:       ui.Binding(keys, config.ActionActions, "actions"),
 		FindFile:      ui.Binding(keys, config.ActionFindFile, "find file"),
 		Command:       ui.Binding(keys, config.ActionCommand, "command"),
-		Filter:        ui.Binding(keys, config.ActionFilter, "filter"),
-		Sort:          ui.Binding(keys, config.ActionSort, "sort"),
 		form:          ui.FilterFormKeys(keys),
 		Notifications: ui.Binding(keys, config.ActionNotifications, "notifications"),
 		Dashboard:     ui.Binding(keys, config.ActionDashboard, "dashboard"),
 		Owner:         ui.Binding(keys, config.ActionOwner, "owner page"),
-		Next:          ui.Binding(keys, config.ActionNextTab, "next pane"),
-		Prev:          ui.Binding(keys, config.ActionPrevTab, "previous pane"),
+		Next:          ui.Binding(keys, config.ActionNextPane, "next pane"),
+		Prev:          ui.Binding(keys, config.ActionPrevPane, "previous pane"),
 		Zoom:          ui.Binding(keys, config.ActionZoom, "zoom"),
-		Back:          ui.Binding(keys, config.ActionBack, "unzoom"),
+		Back:          ui.Binding(keys, config.ActionDismiss, "unzoom"),
 		Dismiss:       toast.DefaultKeyMap().Dismiss,
 		Panes: []key.Binding{
 			ui.Binding(keys, config.ActionPane1, "files"),
@@ -94,6 +88,16 @@ func newKeyMap(keys map[string][]string) KeyMap {
 	}
 	k.Jump = ui.Jump(k.Panes...)
 	return k
+}
+
+// quitKeys returns quit with ctrl+c, which always quits and which the
+// config can't bind, so that the keys of quit are all the keys that quit.
+func quitKeys(quit key.Binding) key.Binding {
+	help := quit.Help().Key
+	if !quit.Enabled() {
+		help = forceQuit.Help().Key
+	}
+	return key.NewBinding(key.WithKeys(append(slices.Clone(quit.Keys()), forceQuit.Keys()...)...), key.WithHelp(help, "quit"))
 }
 
 // ShortHelp implements help.KeyMap. The way out of a zoom comes first.
@@ -106,30 +110,39 @@ func (k KeyMap) ShortHelp() []key.Binding {
 // FullHelp implements help.KeyMap: every key the app handles, in the
 // order it matches them.
 func (k KeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{
-		{
-			k.Command, k.Quit, k.Help, k.Search, k.History, k.Actions, k.FindFile, k.Filter, k.Sort,
-			k.Zoom, k.Back, k.Dismiss, k.Owner, k.Notifications, k.Dashboard,
-		},
-		{k.Next, k.Prev, k.Jump},
+	return [][]key.Binding{append(k.globalKeys(), k.History, k.Actions)}
+}
+
+// globalKeys returns the keys that work on every screen, in the order the
+// app matches them, and repoKeys those of the repository screen only.
+func (k KeyMap) globalKeys() []key.Binding {
+	return []key.Binding{
+		k.Command, k.Quit, k.Help, k.Search, k.FindFile,
+		k.Zoom, k.Back, k.Dismiss, k.Owner, k.Notifications, k.Dashboard,
+		k.Next, k.Prev, k.Jump,
 	}
+}
+
+func (k KeyMap) repoKeys() []key.Binding { return []key.Binding{k.History, k.Actions} }
+
+// layers returns the keys of the app as layers of keys, with the keys that
+// work everywhere, and on the repository screen those of its own.
+func (k KeyMap) layers(m *Model) []keyhelp.Layer {
+	global := ui.ContextLayer(config.ContextGlobal, k.globalKeys(),
+		[]key.Binding{k.Back, k.Search, k.Command, k.FindFile, k.Notifications, k.Dashboard, k.Help, k.Quit})
+	if m.screen != repoScreen {
+		return []keyhelp.Layer{global}
+	}
+	return []keyhelp.Layer{global, ui.ContextLayer("repo", k.repoKeys(), k.repoKeys())}
 }
 
 // state returns k as the app takes it now: the keys that open what the
 // screen has, named for what they do there, and those of the panes where
 // the app moves between them.
 func (k KeyMap) state(m *Model) KeyMap {
-	p := m.focused()
 	k.History.SetEnabled(k.History.Enabled() && m.canOpenHistory())
 	k.Actions.SetEnabled(k.Actions.Enabled() && m.canOpenActions())
 	k.FindFile.SetEnabled(k.FindFile.Enabled() && m.fileFinder() != nil)
-	filters, sorts := false, false
-	if p != nil {
-		_, _, filters = filterOf(p.section, filterform.FiltersTab)
-		_, _, sorts = filterOf(p.section, filterform.SortTab)
-	}
-	k.Filter.SetEnabled(k.Filter.Enabled() && filters)
-	k.Sort.SetEnabled(k.Sort.Enabled() && sorts)
 	k.Owner.SetEnabled(k.Owner.Enabled() && m.selectedOwner() != "")
 	k.Zoom.SetEnabled(k.Zoom.Enabled() && m.canZoom() && m.width >= narrowWidth)
 	k.Back.SetEnabled(k.Back.Enabled() && m.canZoom() && m.zoomed())
@@ -166,11 +179,11 @@ func (k KeyMap) state(m *Model) KeyMap {
 // config's select and back actions do too, unless the line needs them
 // otherwise: to type, or to edit, move, complete or recall. So a letter
 // bound to back still types itself, and backspace still deletes.
-func lineKeys(keys map[string][]string) cmdline.KeyMap {
+func lineKeys(keys config.Keymap) cmdline.KeyMap {
 	k := cmdline.DefaultKeyMap()
 	taken := lineOwnKeys(k)
-	k.Submit = withKeys(k.Submit, keys[config.ActionSelect], taken)
-	k.Cancel = withKeys(k.Cancel, keys[config.ActionBack], taken)
+	k.Submit = withKeys(k.Submit, keys.Of(config.ActionSelect), taken)
+	k.Cancel = withKeys(k.Cancel, keys.Of(config.ActionDismiss), taken)
 	return k
 }
 

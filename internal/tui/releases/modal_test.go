@@ -311,7 +311,7 @@ func TestKeyLayersOrder(t *testing.T) {
 		b, src, _ := uitest.Winner(m.KeyLayers(), k)
 		return src + ": " + b.Help().Desc
 	}
-	if got := winner("r"); got != "release: retry" {
+	if got := winner("r"); got != "Release: retry" {
 		t.Errorf("r reaches %q after a failed read, want the retry", got)
 	}
 	if _, _, ok := uitest.Winner(m.KeyLayers(), "j"); ok {
@@ -321,10 +321,10 @@ func TestKeyLayersOrder(t *testing.T) {
 	svc.err = nil
 	svc.mu.Unlock()
 	run(t, m, press(m, "r"))
-	if got := winner("j"); got != "thread: down" {
+	if got := winner("j"); got != "Release: down" {
 		t.Errorf("j reaches %q, want the thread", got)
 	}
-	if got := winner("esc"); got != "release: back" {
+	if got := winner("esc"); got != "Release: back" {
 		t.Errorf("esc reaches %q, want the modal's back", got)
 	}
 }

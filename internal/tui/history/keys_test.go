@@ -27,11 +27,11 @@ func TestKeyLayersOrder(t *testing.T) {
 		keys []string
 		want map[string]string
 	}{
-		{nil, map[string]string{"enter": "graph: diff", "esc": "history: back", "tab": "history: pane"}},
-		{[]string{"esc"}, map[string]string{"enter": "history: graph", "/": "history: filter", "esc": "history: close", "j": "branches: down"}},
-		{[]string{"enter", "enter"}, map[string]string{"enter": "history: patch", "j": "files: down"}},
-		{[]string{"j", "enter"}, map[string]string{"esc": "pager: close", "j": "pager: down", "tab": "history: pane"}},
-		{[]string{"/"}, map[string]string{"j": "nothing", "esc": "pager: cancel"}},
+		{nil, map[string]string{"enter": "Graph: diff", "esc": "History: back", "tab": "History: pane"}},
+		{[]string{"esc"}, map[string]string{"enter": "Branches: graph", "/": "Branches: filter", "esc": "History: close", "j": "Branches: down"}},
+		{[]string{"enter", "enter"}, map[string]string{"enter": "Files: patch", "j": "Files: down"}},
+		{[]string{"j", "enter"}, map[string]string{"esc": "Patch: close", "j": "Patch: down", "tab": "History: pane"}},
+		{[]string{"/"}, map[string]string{"j": "nothing", "esc": "Search: cancel"}},
 	}
 	for _, s := range steps {
 		h.keys(s.keys...)

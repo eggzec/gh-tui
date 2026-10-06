@@ -4,33 +4,30 @@ app
   quit | ctrl+c | ^c | on
   help | ? | ? | on
 
-actions
+Actions
   tab | ] | ] | on
   previous tab | [ | [ | on
-  pane | tab ] | tab | on
-  previous pane | shift+tab [ | shift+tab | on
+  pane | tab | tab | on
+  previous pane | shift+tab | shift+tab | on
   pane right | l | l | on
   pane left | h | h | on
   filter | f | f | on
   zoom | z | z | on
   browser | o | o | on
-  rerun failed | ctrl+r | ^r | on
-  rerun all | R | R | on
-  rerun job | J | J | on
+  rerun failed | R | R | on
+  rerun all |  |  | off
   cancel run | x | x | off
-  refresh | r ctrl+r | r | on
+  refresh | r | r | on
   back | esc | esc | on
-  open | enter | ↵ | off
-  annotations | A | A | off
 
-annotations
+Log
+  rerun job | J | J | on
+  open | enter | ↵ | off
   annotations | A | A | on
   up | up k | ↑/k | off
   down | down j | ↓/j | off
   open file | enter | ↵ | off
   browser | o | o | off
-
-log
   up | up k | ↑/k | on
   down | down j | ↓/j | on
   page up | b ctrl+b pgup | b/^b | on

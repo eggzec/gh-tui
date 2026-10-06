@@ -173,7 +173,7 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.asks(m.rerunFailed)
 	case key.Matches(msg, k.Rerun):
 		return m.asks(m.rerunAll)
-	case key.Matches(msg, k.RerunJob) && m.focus != runsPane:
+	case m.focus != runsPane && key.Matches(msg, k.rerunJob(m)):
 		return m.asks(m.rerunJob)
 	case key.Matches(msg, k.Cancel):
 		return m.asks(m.cancelRun)

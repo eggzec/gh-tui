@@ -4,13 +4,13 @@ app
   quit | ctrl+c | ^c | on
   help | ? | ? | on
 
-issue
+Issue
   back | esc | esc | on
   comment | c | c | on
   labels | l | l | on
   close | x | x | on
   reopen | X | X | off
-  refresh | r ctrl+r | r | on
+  refresh | r | r | on
   browser | o | o | on
   open | enter | ↵ | off
   next state | ] | ] | off
@@ -19,8 +19,6 @@ issue
   filter | f | f | off
   sort | s | s | off
   owner page | @ | @ | on
-
-thread
   up | up k | ↑/k | on
   down | down j | ↓/j | on
   page up | b ctrl+b pgup | b/^b | on
@@ -30,4 +28,4 @@ thread
   top | home g | g/home | on
   bottom | end G | G/end | on
   diagram code | enter | ↵ | off
-  retry | r ctrl+r | r | off
+  retry | r | r | off

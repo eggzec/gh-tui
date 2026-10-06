@@ -382,7 +382,7 @@ func drive(tb testing.TB, s *Section, cmd tea.Cmd, hold func(tea.Msg) bool, held
 		case nil, spinner.TickMsg, codeTickMsg:
 		case tea.BatchMsg:
 			queue = append(queue, msg...)
-		case ui.OpenMsg, ui.NotifyMsg, ui.RepoMsg, ui.OpenPullMsg, ui.OpenIssueMsg, ui.OpenFileMsg, ui.BackMsg:
+		case ui.OpenMsg, ui.NotifyMsg, ui.RepoMsg, ui.OpenPullMsg, ui.OpenIssueMsg, ui.OpenFileMsg, ui.BackMsg, ui.OpenFilterMsg:
 			app = append(app, msg)
 		default:
 			if hold != nil && hold(msg) {

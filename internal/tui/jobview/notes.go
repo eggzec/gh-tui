@@ -147,7 +147,7 @@ func (m *Model) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	if len(n.items) == 0 || m.view.Capturing() {
 		return nil, false
 	}
-	if key.Matches(msg, k.Annotations) {
+	if key.Matches(msg, k.annotations(m.onNotes)) {
 		m.focusLog(m.onNotes)
 		return nil, true
 	}
@@ -248,7 +248,7 @@ func (m *Model) noteLines(w int) []string {
 	var hint string
 	switch k := m.keys; {
 	case m.OnAnnotations() && k.Select.Help().Key != "":
-		hint = ic.Key(k.Select.Help().Key) + " opens the file" + ic.Separator + ic.Key(k.Annotations.Help().Key) + " log"
+		hint = ic.Key(k.Select.Help().Key) + " opens the file" + ic.Separator + ic.Key(k.NotesAnnotations.Help().Key) + " log"
 	case k.Annotations.Help().Key != "":
 		hint = ic.Key(k.Annotations.Help().Key) + " to pick one"
 	}

@@ -16,6 +16,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
+	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
@@ -261,8 +262,8 @@ func TestBadge(t *testing.T) {
 }
 
 // TestFilterKeysStayOffTheList checks that the keys of the filter reach
-// the section rather than the list: the filter key, which the app
-// opens, and the clear key while nothing is filtered.
+// the section rather than the list: the filter key, which asks the app
+// to open it, and the clear key while nothing is filtered.
 func TestFilterKeysStayOffTheList(t *testing.T) {
 	for _, k := range []string{"f", "F"} {
 		t.Run(k, func(t *testing.T) {
@@ -271,7 +272,8 @@ func TestFilterKeysStayOffTheList(t *testing.T) {
 			if !ok {
 				t.Fatal("nothing is selected")
 			}
-			if msgs := press(t, s, k); len(msgs) != 0 {
+			msgs := press(t, s, k)
+			if want := k == "f"; want != (len(msgs) == 1 && msgs[0] == ui.OpenFilterMsg{Tab: filterform.FiltersTab}) || !want && len(msgs) != 0 {
 				t.Errorf("%s sent %v", k, msgs)
 			}
 			if after, _ := s.feed.Selected(); after.ID != before.ID {
@@ -283,7 +285,7 @@ func TestFilterKeysStayOffTheList(t *testing.T) {
 
 func TestKeysFromConfig(t *testing.T) {
 	keys := config.Default().Keys
-	keys[config.ActionMarkDone] = []string{"x"}
+	keys.Set("notifications.done", []string{"x"})
 	s := New(t.Context(), newFake(), keys)
 	k := s.keys
 	if !key.Matches(keyPress("x"), k.MarkDone) || key.Matches(keyPress("d"), k.MarkDone) {
@@ -300,8 +302,9 @@ func TestKeysFromConfig(t *testing.T) {
 			t.Errorf("short help lacks %q", b.Keys())
 		}
 	}
-	if len(h.FullHelp()) < 2 {
-		t.Errorf("full help = %d columns, want the list's and the section's", len(h.FullHelp()))
+	// The section and the list are one layer of keys, the screen's.
+	if len(h.FullHelp()) != 1 || len(h.FullHelp()[0]) < len(k.bindings())+len(k.feed.FullHelp()[0]) {
+		t.Errorf("full help = %d columns, want one with the section's keys and the list's", len(h.FullHelp()))
 	}
 }
 

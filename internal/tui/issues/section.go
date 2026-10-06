@@ -24,7 +24,9 @@ type Section struct {
 	ctx  context.Context
 	svc  Service
 	keys keyMap
-	now  func() time.Time
+	// rawKeys are the configured keys, for the modal of an issue.
+	rawKeys config.Keymap
+	now     func() time.Time
 
 	repo    core.RepoRef
 	hasRepo bool
@@ -99,12 +101,13 @@ type Section struct {
 
 // New returns the Issues section, which reads issues from svc. keys maps
 // action names to keys, as in the config. ctx bounds every request.
-func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Option) *Section {
+func New(ctx context.Context, svc Service, keys config.Keymap, opts ...Option) *Section {
 	s := &Section{
 		ctx:       ctx,
 		svc:       svc,
 		voice:     ui.NewVoice(keys, ""),
 		keys:      newKeyMap(keys),
+		rawKeys:   keys,
 		now:       time.Now,
 		tab:       tabs[0].state,
 		colsWidth: -1,

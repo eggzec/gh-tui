@@ -41,8 +41,8 @@ func TestHistoryListsReplaceTheDefaults(t *testing.T) {
 
 func TestHistoryActions(t *testing.T) {
 	defaults := Default().Keys
-	for action, want := range map[string]string{ActionHistory: "B", ActionResetBase: "H", ActionUseAsBase: "space"} {
-		if got := defaults[action]; !slices.Equal(got, []string{want}) {
+	for action, want := range map[string]string{ActionHistory: "B", "files.reset_base": "H", "history_branches.base": "space"} {
+		if got := defaults.Of(action); !slices.Equal(got, []string{want}) {
 			t.Errorf("default %s = %v, want [%s]", action, got, want)
 		}
 	}

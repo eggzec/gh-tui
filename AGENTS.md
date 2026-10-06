@@ -381,12 +381,29 @@ reacts to messages. Concretely:
   and `:config defaults` shows default.yaml. Neither writes anything. The
   lines are found only when `:config` opens, from the layers that
   `File.Resolve` keeps in its `Source`.
-- Keybindings map action names to keys and are applied through each bubble's
-  `SetKeyMap`. Action names are registered in `internal/config/keys.go`;
-  unknown names are rejected so typos don't pass silently, and so are key
-  names no press has (`internal/keyname`). `[]` unbinds an action, and
-  `ui.Binding` gives it a disabled binding with no key, so code that names
-  a key in a hint must leave the hint out when the key is "".
+- Keybindings map action names to keys, by context (`keys.pulls.merge`),
+  and are applied through each bubble's `SetKeyMap`. The focused pane or
+  modal is the context, and contexts nest in three layers: `global` works
+  everywhere; a screen or modal (`repo`, `actions`) works in each of its
+  panes; and a pane (`pulls`, `actions_log`) works there only. A context
+  never binds a key of an outer one, so `internal/config/keys.go`
+  refuses a key that two layers of one chain share, one key on two
+  actions of a context, an action outside its context (a global one in
+  another context, or a typo) and `ctrl+c`, which always quits and is the
+  one key not in default.yaml. Widgets that take every key while open
+  (the command line, a prompt) are contexts outside the chain. What a
+  global key does depends on what has the focus: a pane implements such an
+  intent (`global.select`, `global.refresh`) and labels it in help, but
+  never binds its key. Every context is listed in
+  `internal/config/contexts.go` with no keys, which live only in
+  default.yaml; a pane builds its bindings with `ui.In(keys, "pulls")`,
+  where a dotted name such as `global.select` names another context's
+  action, and lists them in help as one layer of its context. An
+  unknown context or action is rejected so typos don't pass silently, and
+  so are key names no press has (`internal/keyname`). `[]` unbinds an
+  action, and `ui.Binding` gives it a disabled binding with no key, so
+  code that names a key in a hint must leave the hint out when the key is
+  "".
 - The only command-line flags are `--debug`, `--hostname` and
   `--version`; gh-tui takes no arguments, and `:goto` opens a repository,
   pull request or issue, or the page of a user or organization

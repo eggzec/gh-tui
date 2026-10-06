@@ -4,10 +4,7 @@ app
   quit | ctrl+c | ^c | on
   help | ? | ? | off
 
-file
-  open | o | o | off
-
-pager (types)
+Search (types)
   up | up k | ↑/k | off
   down | down j | ↓/j | off
   page up | b ctrl+b pgup | b/^b | off

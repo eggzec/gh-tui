@@ -168,8 +168,8 @@ func TestFilterModalTabs(t *testing.T) {
 		{name: "opens on the filters", sort: sort, wantNames: []string{"Filters", "Sort"}, wantActive: 0},
 		{name: "opens on the sort", sort: sort, opts: []FilterOption{OnTab(filterform.SortTab)}, wantNames: []string{"Filters", "Sort"}, wantActive: 1},
 		{
-			name: "switches with the keys of next_filter", sort: sort,
-			opts:      []FilterOption{WithFormKeys(FilterFormKeys(map[string][]string{config.ActionNextFilter: {"}"}}))},
+			name: "switches with the keys of next_tab", sort: sort,
+			opts:      []FilterOption{WithFormKeys(FilterFormKeys(config.Keymap{config.ContextGlobal: {"next_tab": {"}"}}}))},
 			keys:      []tea.KeyPressMsg{{Code: ']', Text: "]"}, {Code: '}', Text: "}"}},
 			wantNames: []string{"Filters", "Sort"}, wantActive: 1,
 		},

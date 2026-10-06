@@ -4,7 +4,7 @@ app
   quit | ctrl+c | ^c | on
   help | ? | ? | off
 
-prompt (types)
+Prompt (types)
   submit | ctrl+s | ctrl+s | on
   submit | enter | enter | off
   cancel | esc | esc | on

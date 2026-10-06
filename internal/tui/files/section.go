@@ -97,7 +97,7 @@ type Section struct {
 
 // New returns the section, which reads the files from svc and takes its
 // keys from the configured keys. ctx bounds its requests.
-func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Option) *Section {
+func New(ctx context.Context, svc Service, keys config.Keymap, opts ...Option) *Section {
 	s := &Section{
 		ctx:         ctx,
 		svc:         svc,
@@ -499,12 +499,12 @@ func (s *Section) Blur() {
 func (s *Section) KeyLayers() []keyhelp.Layer {
 	k := s.keys
 	k.ResetBase.SetEnabled(k.ResetBase.Enabled() && s.ref != "")
-	own := keyhelp.Layer{Source: ui.FilesTitle, Bindings: k.own(), Short: k.own()}
-	moves := keyhelp.FromHelp("tree", k.Tree, false)
+	own := keyhelp.Layer{Bindings: k.own(), Short: k.own()}
+	moves := keyhelp.FromHelp("", k.Tree, false)
 	if s.tree == nil {
-		return []keyhelp.Layer{ui.Off(own), ui.Off(moves)}
+		return []keyhelp.Layer{ui.Off(ui.MergeLayers(ctxPane, own, moves))}
 	}
-	return []keyhelp.Layer{own, moves}
+	return []keyhelp.Layer{ui.MergeLayers(ctxPane, own, moves)}
 }
 
 // Ref returns the base the files are shown at, a branch or a commit SHA,

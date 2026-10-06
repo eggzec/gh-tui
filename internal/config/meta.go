@@ -64,9 +64,9 @@ func Startup(key string) (why string, ok bool) {
 }
 
 // Global reports whether key, a setting, a group of them such as "log", a
-// map such as "keys", or what is in one, such as "keys.quit", may only be
-// set at the top level of the config file, and not for one host or
-// profile.
+// map such as "keys", or what is in one, such as "keys.global.quit", may
+// only be set at the top level of the config file, and not for one host
+// or profile.
 func Global(key string) bool {
 	for {
 		if m, ok := metas()[key]; ok {

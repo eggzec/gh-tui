@@ -120,15 +120,19 @@ func TestSwitchTabs(t *testing.T) {
 }
 
 // ] and [ switch tabs only where the list pane has the focus; elsewhere
-// they move between the panes as before.
+// they do nothing, and tab still moves between the panes.
 func TestTabKeysOnPinned(t *testing.T) {
 	s := newSection(t, newFake(), "octocat", 120, 40)
 	press(t, s, "1", "]")
-	if s.page.focus != listPane || s.page.tab != reposTab {
-		t.Errorf("] on the pins focused pane %d on tab %d, want the list on the repositories", s.page.focus, s.page.tab)
+	if s.page.focus != pinnedPane || s.page.tab != reposTab {
+		t.Errorf("] on the pins focused pane %d on tab %d, want the pins on the repositories", s.page.focus, s.page.tab)
 	}
-	if b, src, ok := uitest.Winner(s.KeyLayers(), "]"); !ok || src != "profile" || b.Help().Desc != "next tab" {
-		t.Errorf("] reaches %v %q %q, want the next tab", ok, src, b.Help().Desc)
+	if b, _, ok := uitest.Winner(s.KeyLayers(), "]"); ok && b.Enabled() {
+		t.Errorf("] reaches %q on the pins, want nothing", b.Help().Desc)
+	}
+	press(t, s, "tab")
+	if s.page.focus != listPane || s.page.tab != reposTab {
+		t.Errorf("tab on the pins focused pane %d on tab %d, want the list on the repositories", s.page.focus, s.page.tab)
 	}
 }
 

@@ -441,118 +441,235 @@ log:
   # at least 10s.
   summary: 5m
 
-# The keys of each action, as the terminal names them, such as r, R,
-# ctrl+c, alt+x, shift+tab, enter, esc, space, pgup or f5; a name the
-# terminal has no key for is an error. Setting an action replaces its keys
-# only, and [] unbinds it, so that no key does it. A key may serve
-# different actions in different places, such as m for merge in pull
-# requests and mark read in the notifications.
+# The keys of each action, by context, as the terminal names them, such as
+# r, R, alt+x, shift+tab, enter, esc, space, pgup or f5; a name the terminal
+# has no key for is an error, and so is ctrl+c, which always quits. Setting
+# an action replaces its keys only, and [] unbinds it, so that no key does
+# it. An action is set under its context, such as keys.pulls.merge, where
+# the context is the pane or modal the action works in.
+#
+# The contexts nest: the global one works everywhere; the context of a
+# screen or modal works in each of its panes; and the context of a pane
+# works there only. The keys of an outer context are not bound in an inner
+# one, so a key is never taken twice: global's r refreshes everywhere, and
+# none of the others may bind r. Two contexts that are side by side may
+# share a key, such as m for merge in pull requests and read in the
+# notifications.
 keys:
-  quit: [q, ctrl+c]
-  help: ["?"]
-  refresh: [r, ctrl+r]
-  search: [/]
-  # Cycle the focus through the panes of the screen. They keep the names
-  # they had when the app had tabs.
-  next_tab: [tab, "]"]
-  prev_tab: [shift+tab, "["]
-  open_in_browser: [o]
-  # Focus the pane with that number on the screen: files, pull requests
-  # and issues on the repository screen; pinned, repositories, work,
-  # contributions and notifications on the dashboard; and pinned, the
-  # list, the README and a user's contributions on the page of a user or
-  # an organization.
-  pane_1: ["1"]
-  pane_2: ["2"]
-  pane_3: ["3"]
-  pane_4: ["4"]
-  pane_5: ["5"]
-  # Switch between the screen on view and the notifications.
-  notifications: [n]
-  # Show the dashboard, from any screen. 0 sits before the pane keys, as
-  # the dashboard comes before the repository, and no section binds it.
-  dashboard: ["0"]
-  # Open the History modal of the repository screen.
-  history: [B]
-  # Show the files at the head of the default branch again, after
-  # use_as_base chose another base.
-  reset_base: [H]
-  # Open the Actions modal of the repository screen.
-  actions: [a]
-  # Open the file finder of the repository screen, which finds a file by
-  # some letters of its path. t is the key of github.com's file finder,
-  # and ctrl+p that of editors.
-  find_file: [t, ctrl+p]
-  # Open the command line at the bottom of the screen, where commands such
-  # as goto are typed. As in vim.
-  command: [":"]
+  # Everywhere. What a key does depends on what has the focus: enter opens
+  # a row, applies a filter or answers a question.
+  global:
+    quit: [q]
+    help: ["?"]
+    # Open the command line at the bottom of the screen, where commands
+    # such as goto are typed. As in vim.
+    command: [":"]
+    refresh: [r]
+    # Show the dashboard, from any screen. 0 sits before the pane keys,
+    # as the dashboard comes before the repository.
+    dashboard: ["0"]
+    # Switch between the screen on view and the notifications.
+    notifications: [n]
+    search: [/]
+    # Choose or open what is under the cursor.
+    select: [enter]
+    # Step back out of what is open, such as a zoomed pane.
+    dismiss: [esc]
+    # Open what is under the cursor in the browser.
+    open: [o]
+    # Show the page of the person or organization behind what is selected:
+    # the author of a pull request or issue, the owner of a repository or
+    # of what is in it, such as a file or a notification, or an
+    # organization of the dashboard's Repositories pane. Your own login
+    # shows the dashboard.
+    owner: ["@"]
+    # Open the file finder of the repository screen, which finds a file by
+    # some letters of its path. t is the key of github.com's file finder,
+    # and ctrl+p that of editors.
+    find_file: [t, ctrl+p]
+    # Show the focused pane of the dashboard, the repository screen, the
+    # page of a user or an organization, or a modal such as Actions,
+    # alone, or all of them again.
+    zoom: [z]
+    # Cycle the focus through the panes of the screen, or of a modal with
+    # panes.
+    next_pane: [tab]
+    prev_pane: [shift+tab]
+    # Switch between the tabs of the focused pane or modal, such as All,
+    # Failing, Running and Mine of the Actions modal, the states of the
+    # pull requests and the issues, the owners of the dashboard's
+    # repositories, the lists of the page of a user or an organization,
+    # and the Filters and Sort tabs of the filter modal.
+    next_tab: ["]"]
+    prev_tab: ["["]
+    # Focus the pane with that number on the screen: files, pull requests
+    # and issues on the repository screen; pinned, repositories, work,
+    # contributions and notifications on the dashboard; and pinned, the
+    # list, the README and a user's contributions on the page of a user or
+    # an organization.
+    pane_1: ["1"]
+    pane_2: ["2"]
+    pane_3: ["3"]
+    pane_4: ["4"]
+    pane_5: ["5"]
 
-  select: [enter]
-  back: [esc]
-  # Open the filter modal of the focused list where it has one, on its
-  # Filters tab; sort opens it on its Sort tab, in a list that can be
-  # sorted; clear_filter puts the filters of a list back to its defaults.
-  filter: [f]
-  sort: [s]
-  clear_filter: [F]
-  merge: [m]
-  close: [x]
-  reopen: [X]
-  toggle_draft: [D]
-  mark_read: [m]
-  mark_done: [d]
-  mark_all_read: [M]
-  # Star the repository, or unstar it. Reserved, with its key, and does
-  # nothing yet.
-  star: [S]
-  comment: [c]
-  label: [l]
-  # The file tree.
-  expand: [+]
-  collapse: ["-"]
-  expand_all: ["*"]
-  collapse_all: [=]
-  # Show the files at the branch or commit under the cursor of the
-  # History modal.
-  use_as_base: [space]
-  # Switch the repositories of the dashboard between your own and those
-  # of each organization.
-  next_owner: ["]", right]
-  prev_owner: ["[", left]
-  # Open the repository of the current directory from the dashboard.
-  current_repo: [.]
-  # Show the repository of the search result under the cursor, where
-  # enter previews the result over the search.
-  go_to_repo: [ctrl+o]
-  # Show the page of the person or organization behind what is selected:
-  # the author of a pull request or issue, the owner of a repository or
-  # of what is in it, such as a file or a notification, or an
-  # organization of the dashboard's Repositories pane. Your own login
-  # shows the dashboard.
-  owner: ["@"]
-  # Switch between the tabs of a list, such as All, Failing, Running and
-  # Mine of the Actions modal, the states of the pull requests and the
-  # issues, and the lists of the page of a user or an organization.
-  next_filter: ["]"]
-  prev_filter: ["["]
-  # Move the focus to the pane on the left or right, in a modal with panes
-  # such as Actions.
-  pane_left: [h]
-  pane_right: [l]
-  # Show the focused pane of the dashboard, the repository screen, the
-  # page of a user or an organization, or a modal such as Actions, alone,
-  # or all of them again.
-  zoom: [z]
-  # The Actions modal: re-run the failed jobs of a run, all of them, or
-  # the job under the cursor, and cancel a run.
-  rerun_failed: [ctrl+r]
-  rerun: [R]
-  rerun_job: [J]
-  cancel_run: [x]
-  # Move the focus between the annotations of a failed job and its log.
-  annotations: [A]
-  # Show the checks of a pull request, in its modal.
-  checks: [C]
+  # The dashboard, on any of its panes.
+  dashboard:
+    # Open the repository of the current directory.
+    current_repo: [.]
+  # Dashboard: your repositories, and those of each organization.
+  dashboard_repos:
+    # Open the filter modal on its Filters tab or its Sort tab, and put the
+    # filters back to their defaults.
+    filter: [f]
+    sort: [s]
+    clear_filter: [F]
+    # Switch between your own repositories and those of each organization,
+    # as next_tab and prev_tab do.
+    next_owner: [right]
+    prev_owner: [left]
+  # Dashboard: the pull requests and issues waiting on you.
+  dashboard_work:
+    # Show the checks of the pull request under the cursor.
+    checks: [C]
+    # Switch between the lists of work, as next_tab and prev_tab do.
+    next_owner: [right]
+    prev_owner: [left]
+
+  # The repository screen, on any of its panes.
+  repo:
+    # Open the History modal.
+    history: [B]
+    # Open the Actions modal.
+    actions: [a]
+    # Star the repository, or unstar it. Reserved, with its key, and does
+    # nothing yet.
+    star: [S]
+  # Repository: the file tree.
+  files:
+    expand: [+]
+    collapse: ["-"]
+    expand_all: ["*"]
+    collapse_all: [=]
+    # Show the files at the head of the default branch again, after
+    # history's base chose another one.
+    reset_base: [H]
+  # Repository: the pull requests.
+  pulls:
+    # Open the filter modal on its Filters tab or its Sort tab, and put the
+    # filters back to their defaults.
+    filter: [f]
+    sort: [s]
+    clear_filter: [F]
+    merge: [m]
+    close: [x]
+    reopen: [X]
+    # Mark the pull request ready for review, or as a draft.
+    draft: [D]
+    # Show the checks of the pull request.
+    checks: [C]
+  # Repository: the issues.
+  issues:
+    filter: [f]
+    sort: [s]
+    clear_filter: [F]
+    close: [x]
+    reopen: [X]
+    comment: [c]
+    labels: [l]
+
+  # The notifications screen.
+  notifications:
+    filter: [f]
+    clear_filter: [F]
+    read: [m]
+    done: [d]
+    read_all: [M]
+
+  # Search: the results.
+  search_results:
+    filter: [f]
+    sort: [s]
+    # Show the checks of the pull request under the cursor.
+    checks: [C]
+    # Show the repository of the result under the cursor, where select
+    # previews the result over the search.
+    repo_of: [ctrl+o]
+
+  # The page of a user or an organization: its list.
+  owner_list:
+    filter: [f]
+    sort: [s]
+    clear_filter: [F]
+
+  # The modal of a pull request, on any of its steps.
+  pull_modal:
+    merge: [m]
+    close: [x]
+    reopen: [X]
+    draft: [D]
+    # Show the checks of the pull request.
+    checks: [C]
+  # Pull request modal: the checks. Re-run the failed jobs of the run of
+  # the check under the cursor, and in what a check shows: its log, the
+  # annotations of its job and the detail an app reported.
+  pull_checks:
+    rerun_failed: [R]
+  # Pull request modal: the log of the job of a check. Move the focus to
+  # its annotations, and back from them.
+  pull_check_log:
+    annotations: [A]
+    rerun_failed: [R]
+  pull_check_annotations:
+    annotations: [A]
+    rerun_failed: [R]
+  pull_check_detail:
+    rerun_failed: [R]
+
+  # The modal of an issue.
+  issue_modal:
+    close: [x]
+    reopen: [X]
+    comment: [c]
+    labels: [l]
+
+  # The History modal, on any of its panes.
+  history:
+    reset_base: [H]
+  # History: the branches. Show the files at the branch under the cursor.
+  history_branches:
+    base: [space]
+  # History: the commit graph. Show the files at the commit under the
+  # cursor.
+  history_graph:
+    base: [space]
+  # History: the files of a commit. Show the files at the commit.
+  history_files:
+    base: [space]
+
+  # The Actions modal, on any of its panes.
+  actions:
+    # Re-run the failed jobs of a run, or all of its jobs, and cancel it.
+    rerun_failed: [R]
+    rerun: []
+    cancel: [x]
+    # Open the filter of the runs.
+    filter: [f]
+    # Move the focus to the pane on the left or right.
+    pane_left: [h]
+    pane_right: [l]
+  # Actions: the jobs of a run. Re-run the job under the cursor.
+  actions_jobs:
+    rerun_job: [J]
+  # Actions: the log of a job. Re-run the job, and move the focus between
+  # the log and the annotations of the job.
+  actions_log:
+    rerun_job: [J]
+    annotations: [A]
+  # Actions: the annotations of a job, with the same keys as its log.
+  actions_annotations:
+    rerun_job: [J]
+    annotations: [A]
 
 # Named palettes, each with a variant for light and dark terminals. A
 # theme you add needs every colour of both variants; to change the default

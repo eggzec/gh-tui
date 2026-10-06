@@ -67,7 +67,7 @@ func (v Voice) icons() Icons {
 // NewVoice returns the voice of the configured keys, whose refresh key
 // retries and whose open key opens on GitHub, pointing to the log file at
 // log, or to none if log is "".
-func NewVoice(keys map[string][]string, log string) Voice {
+func NewVoice(keys config.Keymap, log string) Voice {
 	v := Voice{
 		Retry: Binding(keys, config.ActionRefresh, "retry"),
 		Open:  Binding(keys, config.ActionOpen, "open"),

@@ -4,7 +4,7 @@ app
   quit | ctrl+c | ^c | on
   help | ? | ? | on
 
-pull request
+Pull request
   merge | m | m | on
   close | x | x | on
   reopen | X | X | off
@@ -15,13 +15,13 @@ pull request
   next state | ] | ] | off
   previous state | [ | [ | off
   clear filters | F | F | off
-  refresh | r ctrl+r | r | on
+  refresh | r | r | on
   open in browser | o | o | on
   filter | f | f | off
   sort | s | s | off
   owner page | @ | @ | on
 
-thread
+Conversation
   up | up k | ↑/k | on
   down | down j | ↓/j | on
   page up | b ctrl+b pgup | b/^b | on
@@ -31,4 +31,4 @@ thread
   top | home g | g/home | on
   bottom | end G | G/end | on
   diagram code | enter | ↵ | off
-  retry | r ctrl+r | r | off
+  retry | r | r | off

@@ -15,7 +15,7 @@ func TestKeys(t *testing.T) {
 			t.Errorf("Keys() lacks %s", k)
 		}
 	}
-	for _, k := range []string{"keys", "themes", "cache", "cache.disk", "keys.quit"} {
+	for _, k := range []string{"keys", "themes", "cache", "cache.disk", "keys.global", "keys.global.quit"} {
 		if slices.Contains(keys, k) {
 			t.Errorf("Keys() has %s, which holds no value of its own", k)
 		}
@@ -47,7 +47,7 @@ func TestGet(t *testing.T) {
 			t.Errorf("Get(%q) = %q, %v, want %q", key, got, err, want)
 		}
 	}
-	for _, key := range []string{"", "nope", "keys.quit", "themes", "cache"} {
+	for _, key := range []string{"", "nope", "keys.global.quit", "themes", "cache"} {
 		if _, err := c.Get(key); !errors.Is(err, ErrUnknownKey) {
 			t.Errorf("Get(%q) error = %v, want ErrUnknownKey", key, err)
 		}
@@ -87,7 +87,7 @@ func TestSet(t *testing.T) {
 		{key: "history.row", value: "[subject]", want: "[subject]"},
 		{key: "history.row", value: "nope", err: `history.row[0]: unknown field "nope"`},
 		{key: "repos", value: "cli/cli, eggzec/gh-tui", want: "[cli/cli, eggzec/gh-tui]"},
-		{key: "keys.quit", value: "x", err: `unknown setting "keys.quit"`},
+		{key: "keys.global.quit", value: "x", err: `unknown setting "keys.global.quit"`},
 		{key: "nope", value: "x", err: `unknown setting "nope"`},
 	}
 	for _, tt := range tests {

@@ -128,7 +128,7 @@ func TestLoadLayersErrors(t *testing.T) {
 	tests := []struct{ name, file, want string }{
 		{"global under a host", "hosts:\n  ghe.corp.com:\n    ui:\n      icons: ascii\n",
 			"hosts.ghe.corp.com: line 4: ui.icons can only be set at the top level"},
-		{"keys under a profile", "profiles:\n  work:\n    accounts: [a@github.com]\n    keys:\n      quit: [x]\n",
+		{"keys under a profile", "profiles:\n  work:\n    accounts: [a@github.com]\n    keys:\n      global: {quit: [x]}\n",
 			"profiles.work: line 4: keys can only be set at the top level"},
 		{"log under a host", "hosts:\n  github.com:\n    log:\n      level: debug\n",
 			"hosts.github.com: line 3: log can only be set at the top level"},

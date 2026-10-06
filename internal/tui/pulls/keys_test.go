@@ -30,7 +30,7 @@ func TestKeyLayersOrder(t *testing.T) {
 	h := started(t, newFakeService(), 80, 20)
 	for k, want := range map[string]string{
 		"]": ui.PullsTitle + ": next state", "r": ui.PullsTitle + ": refresh",
-		"m": ui.PullsTitle + ": merge", "j": "list: down",
+		"m": ui.PullsTitle + ": merge", "j": ui.PullsTitle + ": down",
 	} {
 		if got := winner(h.KeyLayers(), k); got != want {
 			t.Errorf("%s reaches %q in the list, want %q", k, got, want)
@@ -49,7 +49,7 @@ func TestKeyLayersOrder(t *testing.T) {
 		t.Fatal("enter opened no pull request")
 	}
 	for k, want := range map[string]string{
-		"esc": "pull request: back", "r": "pull request: refresh", "j": "thread: down", "]": "nothing",
+		"esc": "Pull request: back", "r": "Pull request: refresh", "j": "Conversation: down", "]": "nothing",
 	} {
 		if got := winner(m.KeyLayers(), k); got != want {
 			t.Errorf("%s reaches %q in the modal, want %q", k, got, want)
@@ -59,7 +59,7 @@ func TestKeyLayersOrder(t *testing.T) {
 	if m.ask == nil {
 		t.Fatal("m didn't ask to merge")
 	}
-	if got := winner(m.KeyLayers(), "esc"); got != "confirm: no" {
+	if got := winner(m.KeyLayers(), "esc"); got != "Confirm: no" {
 		t.Errorf("esc reaches %q while asking, want the answer", got)
 	}
 	press(t, h, "esc")

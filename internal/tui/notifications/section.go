@@ -114,7 +114,7 @@ var (
 
 // New returns the section, which reads through svc and binds the actions
 // in keys. ctx bounds every request it makes.
-func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Option) *Section {
+func New(ctx context.Context, svc Service, keys config.Keymap, opts ...Option) *Section {
 	s := &Section{ctx: ctx, svc: svc, keys: newKeyMap(keys), now: time.Now, voice: ui.NewVoice(keys, ""), icons: ui.NewIcons(config.Default().UI.Icons)}
 	for _, opt := range opts {
 		opt(s)
@@ -233,5 +233,5 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 	k.MarkRead = g.Gated(k.MarkRead, ui.ActMarkRead, nil)
 	k.MarkDone = g.Gated(k.MarkDone, ui.ActMarkRead, nil)
 	k.MarkAllRead = g.Gated(k.MarkAllRead, ui.ActMarkRead, nil)
-	return []keyhelp.Layer{keyhelp.FromHelp(ui.NotificationsTitle, k, false), keyhelp.FromHelp("list", s.feed.KeyMap(), false)}
+	return []keyhelp.Layer{ui.MergeLayers(ctxScreen, keyhelp.FromHelp("", k, false), keyhelp.FromHelp("", s.feed.KeyMap(), false))}
 }

@@ -33,15 +33,15 @@ func winner(m *Model, k string) string {
 // capturing section's before everything but the quit key.
 func TestKeyLayersOrder(t *testing.T) {
 	m, pulls, _ := newFilterApp(t)
-	if got := winner(m, "]"); got != "Pull requests: claimed" {
-		t.Errorf("] reaches %q, want the section that claims it", got)
+	if got := winner(m, "tab"); got != "app: next pane" {
+		t.Errorf("tab reaches %q, want the app", got)
+	}
+	if got := winner(m, "]"); got != "nothing" {
+		t.Errorf("] reaches %q, want it left to the pane", got)
 	}
 	run(m, m.key(press("]")))
 	if m.focus != 1 || !pulls.got(isKey("]")) {
-		t.Error("] didn't reach the section that claims it")
-	}
-	if got := winner(m, "["); got != "app: previous pane" {
-		t.Errorf("[ reaches %q, want the app", got)
+		t.Error("] didn't reach the focused pane")
 	}
 
 	m, fakes := newTestApp(t)
@@ -98,10 +98,10 @@ func TestKeyLayersOfTheCommandLine(t *testing.T) {
 	m, _ := newTestApp(t)
 	run(m, m.key(press(":")))
 	layers := m.keyLayers()
-	if len(layers) != 1 || layers[0].Source != "command line" || !layers[0].Typing {
+	if len(layers) != 1 || layers[0].Source != "Command line" || !layers[0].Typing {
 		t.Fatalf("the open command line has the layers %+v, want its own alone", layers)
 	}
-	for k, want := range map[string]string{"esc": "command line: cancel", "ctrl+c": "command line: cancel", "q": "nothing"} {
+	for k, want := range map[string]string{"esc": "Command line: cancel", "ctrl+c": "Command line: cancel", "q": "nothing"} {
 		if got := winner(m, k); got != want {
 			t.Errorf("%s reaches %q with the command line open, want %q", k, got, want)
 		}
@@ -119,17 +119,18 @@ func focusOf(m *Model) string {
 		return "notifications"
 	case searchScreen:
 		layers := m.keyLayers()
-		part := map[string]string{"query": "query", "search": "kinds", "results": "results"}[layers[len(layers)-1].Source]
+		part := map[string]string{"Query": "query", "Kinds": "kinds", "Results": "results"}[layers[len(layers)-1].Source]
 		return fmt.Sprintf("search: %s %q", part, m.srch.section.(*searchpage.Section).Query())
 	case dashScreen, ownerScreen:
 	}
 	return fmt.Sprintf("screen %d", m.screen)
 }
 
-// Tab, shift+tab, ] and [ cycle the panes of the repository screen, which
-// the app does, and reach the section on the notifications and search
-// screens, which does what it defines for them: the search page moves
-// between its query, kinds and results, and its query types ] and [. The
+// Tab and shift+tab cycle the panes of the repository screen, which the
+// app does, and reach the section on the notifications and search screens,
+// which does what it defines for them: the search page moves between its
+// query, kinds and results. ] and [ are the panes' own, so they change
+// no focus on any screen, and the search query types them. The
 // notifications have none of them. The help credits each key to what it
 // reaches.
 func TestNextAndPrevKeysOnEachScreen(t *testing.T) {
@@ -146,28 +147,28 @@ func TestNextAndPrevKeysOnEachScreen(t *testing.T) {
 	}{
 		{"repo: tab", true, nil, "repo: Files", "tab", "app: next pane", "repo: Pull requests"},
 		{"repo: shift+tab", true, nil, "repo: Files", "shift+tab", "app: previous pane", "repo: Issues"},
-		{"repo: ]", true, nil, "repo: Files", "]", "app: next pane", "repo: Pull requests"},
-		{"repo: [", true, nil, "repo: Files", "[", "app: previous pane", "repo: Issues"},
+		{"repo: ]", true, nil, "repo: Files", "]", "nothing", "repo: Files"},
+		{"repo: [", true, nil, "repo: Files", "[", "nothing", "repo: Files"},
 
 		{"notifications: tab", false, []string{"n"}, "notifications", "tab", "nothing", "notifications"},
 		{"notifications: shift+tab", false, []string{"n"}, "notifications", "shift+tab", "nothing", "notifications"},
 		{"notifications: ]", false, []string{"n"}, "notifications", "]", "nothing", "notifications"},
 		{"notifications: [", false, []string{"n"}, "notifications", "[", "nothing", "notifications"},
 
-		{"search query: tab", false, []string{"/", "k", "e", "y"}, `search: query "key"`, "tab", "query: next", `search: kinds "key"`},
-		{"search query: shift+tab", false, []string{"/", "k", "e", "y"}, `search: query "key"`, "shift+tab", "query: previous", `search: results "key"`},
+		{"search query: tab", false, []string{"/", "k", "e", "y"}, `search: query "key"`, "tab", "Query: next", `search: kinds "key"`},
+		{"search query: shift+tab", false, []string{"/", "k", "e", "y"}, `search: query "key"`, "shift+tab", "Query: previous", `search: results "key"`},
 		{"search query: ]", false, []string{"/", "k", "e", "y"}, `search: query "key"`, "]", "nothing", `search: query "key]"`},
 		{"search query: [", false, []string{"/", "k", "e", "y"}, `search: query "key"`, "[", "nothing", `search: query "key["`},
 
-		{"search kinds: tab", false, []string{"/", "k", "e", "y", "up"}, `search: kinds "key"`, "tab", "search: next", `search: results "key"`},
-		{"search kinds: shift+tab", false, []string{"/", "k", "e", "y", "up"}, `search: kinds "key"`, "shift+tab", "search: previous", `search: query "key"`},
-		{"search kinds: ]", false, []string{"/", "k", "e", "y", "up"}, `search: kinds "key"`, "]", "search: next", `search: results "key"`},
-		{"search kinds: [", false, []string{"/", "k", "e", "y", "up"}, `search: kinds "key"`, "[", "search: previous", `search: query "key"`},
+		{"search kinds: tab", false, []string{"/", "k", "e", "y", "up"}, `search: kinds "key"`, "tab", "Search: next", `search: results "key"`},
+		{"search kinds: shift+tab", false, []string{"/", "k", "e", "y", "up"}, `search: kinds "key"`, "shift+tab", "Search: previous", `search: query "key"`},
+		{"search kinds: ]", false, []string{"/", "k", "e", "y", "up"}, `search: kinds "key"`, "]", "nothing", `search: kinds "key"`},
+		{"search kinds: [", false, []string{"/", "k", "e", "y", "up"}, `search: kinds "key"`, "[", "nothing", `search: kinds "key"`},
 
-		{"search results: tab", false, []string{"/", "k", "e", "y", "enter"}, `search: results "key"`, "tab", "search: next", `search: query "key"`},
-		{"search results: shift+tab", false, []string{"/", "k", "e", "y", "enter"}, `search: results "key"`, "shift+tab", "search: previous", `search: kinds "key"`},
-		{"search results: ]", false, []string{"/", "k", "e", "y", "enter"}, `search: results "key"`, "]", "search: next", `search: query "key"`},
-		{"search results: [", false, []string{"/", "k", "e", "y", "enter"}, `search: results "key"`, "[", "search: previous", `search: kinds "key"`},
+		{"search results: tab", false, []string{"/", "k", "e", "y", "enter"}, `search: results "key"`, "tab", "Search: next", `search: query "key"`},
+		{"search results: shift+tab", false, []string{"/", "k", "e", "y", "enter"}, `search: results "key"`, "shift+tab", "Search: previous", `search: kinds "key"`},
+		{"search results: ]", false, []string{"/", "k", "e", "y", "enter"}, `search: results "key"`, "]", "nothing", `search: results "key"`},
+		{"search results: [", false, []string{"/", "k", "e", "y", "enter"}, `search: results "key"`, "[", "nothing", `search: results "key"`},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {

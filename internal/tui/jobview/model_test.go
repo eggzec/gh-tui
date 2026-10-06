@@ -397,11 +397,11 @@ func TestKeyLayersOrder(t *testing.T) {
 	m := newView(t, newFake(), 80, 20)
 	run(m, m.Show(failed(), false, Hints{}))
 	m.Focus()
-	if _, src, _ := uitest.Winner(m.KeyLayers(), "j"); src != "log" {
+	if _, src, _ := uitest.Winner(m.KeyLayers(), "j"); src != "Log" {
 		t.Errorf("j reaches %q, want the log", src)
 	}
 	keys(m, "A")
-	if _, src, _ := uitest.Winner(m.KeyLayers(), "j"); src != "annotations" {
+	if _, src, _ := uitest.Winner(m.KeyLayers(), "j"); src != "Annotations" {
 		t.Errorf("j reaches %q on the annotations, want them", src)
 	}
 	before := m.notes.cursor

@@ -13,6 +13,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
+	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 )
 
 // modalScreen is the view of the open modal with styles removed.
@@ -348,7 +349,7 @@ func TestHelpFollowsTheView(t *testing.T) {
 		t.Errorf("modal help = %v, want back and no filter", got)
 	}
 	// The modal's keys come before the thread's.
-	if got := winner(h.modal().KeyLayers(), "r"); got != "pull request: refresh" {
+	if got := winner(h.modal().KeyLayers(), "r"); got != "Pull request: refresh" {
 		t.Errorf("r reaches %q in the modal, want its refresh", got)
 	}
 }
@@ -364,8 +365,12 @@ func TestFilterKeysStayOffTheFeed(t *testing.T) {
 				t.Errorf("%s reaches %q, want the list's", k, got)
 			}
 			before, _ := h.feed.Selected()
-			if msgs := press(t, h, k); len(msgs) != 0 {
-				t.Errorf("%s sent %v", k, msgs)
+			want := ui.OpenFilterMsg{Tab: filterform.FiltersTab}
+			if k == "s" {
+				want.Tab = filterform.SortTab
+			}
+			if msgs := press(t, h, k); len(msgs) != 1 || msgs[0] != want {
+				t.Errorf("%s sent %v, want %v", k, msgs, want)
 			}
 			if after, _ := h.feed.Selected(); after.Number != before.Number {
 				t.Errorf("%s moved the cursor from #%d to #%d", k, before.Number, after.Number)

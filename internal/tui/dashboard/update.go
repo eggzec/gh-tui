@@ -7,6 +7,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/notifications"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 )
 
 // Update handles the dashboard's keys, its reads and the changes to the
@@ -178,9 +179,11 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 				return nil, true
 			}
 			return t.setFilter(""), true
-		case key.Matches(msg, k.Filter, k.Sort):
-			// The app opens the filter, so its keys don't reach the list.
-			return nil, true
+		case key.Matches(msg, k.Filter):
+			// The list gets no f, which pages down there.
+			return ui.OpenFilter(filterform.FiltersTab), true
+		case key.Matches(msg, k.Sort):
+			return ui.OpenFilter(filterform.SortTab), true
 		case key.Matches(msg, k.Select):
 			if r, ok := t.selected(); ok {
 				s.aheadRepos.Opened(r.Ref)
@@ -196,10 +199,10 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	case workPane:
 		w := &s.tasks
 		switch {
-		case key.Matches(msg, k.NextOwner):
+		case key.Matches(msg, k.NextList):
 			w.switchTab(1)
 			s.readTabNow()
-		case key.Matches(msg, k.PrevOwner):
+		case key.Matches(msg, k.PrevList):
 			w.switchTab(-1)
 			s.readTabNow()
 		case key.Matches(msg, k.Up):

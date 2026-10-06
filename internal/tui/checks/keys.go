@@ -15,6 +15,15 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
 )
 
+// The contexts of the keys of the step: the list of checks, the log of a
+// job and its annotations, and the detail of what an app reported.
+const (
+	ctxList        = "pull_checks"
+	ctxLog         = "pull_check_log"
+	ctxAnnotations = "pull_check_annotations"
+	ctxDetail      = "pull_check_detail"
+)
+
 // KeyMap holds the keys of the step and of the bubbles it shows. The step
 // matches its own keys first, so the bubbles get only the keys it leaves
 // them.
@@ -36,13 +45,16 @@ type KeyMap struct {
 	// Refresh reads the checks again, or what failed to load.
 	Refresh key.Binding
 	// RerunFailed re-runs the failed jobs of the run of the check, once the
-	// user confirms it.
-	RerunFailed key.Binding
+	// user confirms it, with the key of the list, and rerunLog,
+	// rerunNotes and rerunDetail with those of what the step shows.
+	RerunFailed                       key.Binding
+	rerunLog, rerunNotes, rerunDetail key.Binding
 	// Confirm answers the confirmation.
 	Confirm ui.ConfirmKeys
 	// Annotations moves the focus between the annotations of a failed job
-	// and its log.
-	Annotations key.Binding
+	// and its log, with the key of the log and notes, that of the
+	// annotations.
+	Annotations, notes key.Binding
 
 	// Log moves through the log of a job, and Detail through what an app
 	// reported.
@@ -50,24 +62,28 @@ type KeyMap struct {
 	Detail viewport.KeyMap
 }
 
-func newKeyMap(keys map[string][]string) KeyMap {
+func newKeyMap(keys config.Keymap) KeyMap {
 	fk := feed.DefaultKeyMap()
+	list, log, notes, detail := ui.In(keys, ctxList), ui.In(keys, ctxLog), ui.In(keys, ctxAnnotations), ui.In(keys, ctxDetail)
 	k := KeyMap{
 		Up: fk.Up, Down: fk.Down, PageUp: fk.PageUp, PageDown: fk.PageDown,
 		HalfPageUp: fk.HalfPageUp, HalfPageDown: fk.HalfPageDown, Home: fk.Home, End: fk.End,
 		Top:         relabel(fk.Home, "top"),
 		Bottom:      relabel(fk.End, "bottom"),
-		Select:      ui.Binding(keys, config.ActionSelect, "open"),
-		Back:        ui.Binding(keys, config.ActionBack, "back"),
-		Open:        ui.Binding(keys, config.ActionOpen, "browser"),
-		Refresh:     ui.Binding(keys, config.ActionRefresh, "refresh"),
-		RerunFailed: ui.Binding(keys, config.ActionRerunFailed, "rerun failed"),
-		Annotations: ui.Binding(keys, config.ActionAnnotations, "annotations"),
+		Select:      list.Binding("global.select", "open"),
+		Back:        list.Binding("global.dismiss", "back"),
+		Open:        list.Binding("global.open", "browser"),
+		Refresh:     list.Binding("global.refresh", "refresh"),
+		RerunFailed: list.Binding("rerun_failed", "rerun failed"),
+		rerunLog:    log.Binding("rerun_failed", "rerun failed"),
+		rerunNotes:  notes.Binding("rerun_failed", "rerun failed"),
+		rerunDetail: detail.Binding("rerun_failed", "rerun failed"),
+		Annotations: log.Binding("annotations", "annotations"),
+		notes:       notes.Binding("annotations", "annotations"),
 		Confirm:     ui.DefaultConfirmKeys(),
 	}
-	// ctrl+r, the second key of refresh, re-runs the failed jobs here:
-	// the step matches the re-run first. Its own keys come before those
-	// of the log and of what an app reported.
+	// The step matches the re-run before refresh, and its own keys
+	// before those of the log and of what an app reported.
 	lk := logview.DefaultKeyMap()
 	lk.Close = k.Back
 	lk.Close.SetHelp(k.Back.Help().Key, "back")
@@ -86,12 +102,33 @@ func detailKeyMap() viewport.KeyMap {
 	return d
 }
 
+// Capturing reports whether the step takes every key, while a search of the
+// log is open.
+func (s *Step) Capturing() bool { return s.mode == jobMode && s.view.Capturing() }
+
+// rerun returns the re-run key of what the step shows: the key of the
+// list, or of the log, the annotations or the detail.
+func (k KeyMap) rerun(m mode, onNotes bool) key.Binding {
+	switch {
+	case m == jobMode && onNotes:
+		return k.rerunNotes
+	case m == jobMode:
+		return k.rerunLog
+	case m == detailMode:
+		return k.rerunDetail
+	}
+	return k.RerunFailed
+}
+
 // job returns the keys of the job view: the moves of the checks through
 // its annotations, and the select key to open one.
 func (k KeyMap) job() jobview.KeyMap {
 	sel := k.Select
 	sel.SetHelp(sel.Help().Key, "open file")
-	return jobview.KeyMap{Log: k.Log, Annotations: k.Annotations, Up: k.Up, Down: k.Down, Select: sel, Open: k.Open}
+	return jobview.KeyMap{
+		Log: k.Log, Annotations: k.Annotations, NotesAnnotations: k.notes, LogContext: ctxLog, NotesContext: ctxAnnotations,
+		Up: k.Up, Down: k.Down, Select: sel, Open: k.Open,
+	}
 }
 
 // relabel returns b described as desc.
@@ -100,12 +137,18 @@ func relabel(b key.Binding, desc string) key.Binding {
 	return b
 }
 
-// own returns the keys of the step itself, in the order it matches them.
-func (k KeyMap) own() []key.Binding {
+// own returns the keys of the step itself, in the order it matches them,
+// with the re-run key of what it shows.
+func (k KeyMap) own(rerun key.Binding) []key.Binding {
 	return []key.Binding{
-		k.Back, k.RerunFailed, k.Refresh, k.Open,
-		k.Select, k.Up, k.Down, k.PageUp, k.PageDown, k.HalfPageUp, k.HalfPageDown, k.Home, k.End, k.Annotations,
+		k.Back, rerun, k.Refresh, k.Open,
+		k.Select, k.Up, k.Down, k.PageUp, k.PageDown, k.HalfPageUp, k.HalfPageDown, k.Home, k.End,
 	}
+}
+
+// shortHelp returns the keys of the step worth a hint.
+func (k KeyMap) shortHelp(rerun key.Binding) []key.Binding {
+	return []key.Binding{k.Up, k.Down, k.Select, k.Back, rerun, k.Open}
 }
 
 // detail returns the keys that move through what an app reported.
@@ -116,18 +159,21 @@ func (k KeyMap) detail() []key.Binding {
 }
 
 // ShortHelp implements help.KeyMap.
-func (k KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Up, k.Down, k.Select, k.Back, k.RerunFailed, k.Open}
-}
+func (k KeyMap) ShortHelp() []key.Binding { return k.shortHelp(k.RerunFailed) }
 
-// FullHelp implements help.KeyMap.
+// FullHelp implements help.KeyMap: every key of the step and the bubbles
+// it shows, once each.
 func (k KeyMap) FullHelp() [][]key.Binding {
-	return slices.Concat([][]key.Binding{k.own(), {k.Confirm.Yes, k.Confirm.No}, k.detail()}, k.Log.FullHelp())
+	return slices.Concat([][]key.Binding{
+		k.own(k.RerunFailed), {k.Annotations},
+		{k.Confirm.Yes, k.Confirm.No}, k.detail(),
+	}, k.Log.FullHelp())
 }
 
 // KeyLayers implements ui.Keyed: the answer to the question while it is
-// open, or else the keys of the step, and then those of the job or of
-// what an app reported, whichever shows.
+// open, a search of the log while it takes every key, or else the keys of
+// the step with those of the checks, of the job or of what an app
+// reported, whichever shows, as the keys of the context of that.
 func (s *Step) KeyLayers() []keyhelp.Layer {
 	k := s.keys
 	if s.ask != nil {
@@ -137,15 +183,18 @@ func (s *Step) KeyLayers() []keyhelp.Layer {
 		return s.view.KeyLayers()
 	}
 	k = k.state(s)
-	own := keyhelp.Layer{Source: "checks", Bindings: k.own(), Short: k.ShortHelp()}
+	rerun := k.RerunFailed
+	own := keyhelp.Layer{Bindings: k.own(rerun), Short: k.shortHelp(rerun)}
 	switch s.mode {
 	case jobMode:
-		return append([]keyhelp.Layer{own}, s.view.KeyLayers()...)
+		l := s.view.Layer()
+		return []keyhelp.Layer{ui.MergeLayers(l.Context, own, l)}
 	case detailMode:
-		return []keyhelp.Layer{own, {Source: "detail", Bindings: k.detail(), Short: k.detail()[:2]}}
+		det := keyhelp.Layer{Bindings: k.detail(), Short: k.detail()[:2]}
+		return []keyhelp.Layer{ui.MergeLayers(ctxDetail, own, det)}
 	case listMode:
 	}
-	return []keyhelp.Layer{own}
+	return []keyhelp.Layer{ui.MergeLayers(ctxList, own)}
 }
 
 // state returns k as the step takes it in its mode, named for what the
@@ -153,9 +202,9 @@ func (s *Step) KeyLayers() []keyhelp.Layer {
 // key, which the job view handles, never.
 func (k KeyMap) state(s *Step) KeyMap {
 	k.RerunFailed = s.rerunKey()
-	// ctrl+r says why it can't re-run rather than refresh.
+	// A key that re-run shares with refresh says why it can't re-run
+	// rather than refresh.
 	k.Refresh = ui.Yield(k.Refresh, k.RerunFailed)
-	k.Annotations.SetEnabled(false)
 	if s.mode != listMode {
 		k.Back = relabel(k.Back, "checks")
 		// The back key clears the search of the log first.
@@ -183,7 +232,7 @@ func (k KeyMap) state(s *Step) KeyMap {
 // under the cursor, is of a run of GitHub Actions, and the viewer may
 // re-run it.
 func (s *Step) rerunKey() key.Binding {
-	b := s.keys.RerunFailed
+	b := s.keys.rerun(s.mode, s.view.OnAnnotations())
 	r, ok := s.current()
 	b.SetEnabled(b.Enabled() && ok && r.job())
 	return s.gate().Gated(b, ui.ActRerun, nil)

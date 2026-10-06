@@ -4,14 +4,12 @@ app
   quit | ctrl+c | ^c | on
   help | ? | ? | off
 
-annotations
+Search (types)
   annotations | A | A | off
   up | up k | ↑/k | off
   down | down j | ↓/j | off
   open file | enter | ↵ | off
   browser | o | o | off
-
-log (types)
   up | up k | ↑/k | off
   down | down j | ↓/j | off
   page up | b ctrl+b pgup | b/^b | off

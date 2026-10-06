@@ -157,7 +157,7 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 		// The pager closes itself with the back key, or pages with the
 		// space bar.
 		return m.updatePager(msg)
-	case key.Matches(msg, m.keys.UseAsBase):
+	case key.Matches(msg, m.keys.base(m.focus)):
 		return m.useSelected()
 	case key.Matches(msg, m.keys.Back):
 		return m.back()

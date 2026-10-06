@@ -111,7 +111,7 @@ func TestEmptyStateWithoutRepo(t *testing.T) {
 
 func TestEmptyStateWithoutSearchKey(t *testing.T) {
 	keys := config.Default().Keys
-	delete(keys, config.ActionSearch)
+	keys.Set(config.ActionSearch, nil)
 	s := New(t.Context(), newFakeService(nil), keys)
 	s.SetSize(30, 8)
 	v := s.View()

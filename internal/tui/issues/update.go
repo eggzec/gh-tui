@@ -7,6 +7,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 )
 
 // Update implements ui.Section.
@@ -216,9 +217,11 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 			return ui.Open(it.URL)
 		}
 		return nil
-	case key.Matches(msg, k.Filter, k.Sort):
-		// The app opens the filter, so its keys don't reach the list.
-		return nil
+	case key.Matches(msg, k.Filter):
+		// The list gets no f, which pages down there.
+		return ui.OpenFilter(filterform.FiltersTab)
+	case key.Matches(msg, k.Sort):
+		return ui.OpenFilter(filterform.SortTab)
 	}
 	return s.forward(msg)
 }

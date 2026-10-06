@@ -30,12 +30,12 @@ type Config struct {
 	Theme string `yaml:"theme"`
 	// Themes are the themes by name: those of default.yaml, and the user's.
 	Themes map[string]Theme `yaml:"themes" scope:"global"`
-	// Keys maps action names to keys. An entry replaces the default keys
-	// of that action only.
-	Keys  map[string][]string `yaml:"keys" scope:"global"`
-	Cache Cache               `yaml:"cache" when:"startup" why:"the cache is opened at startup"`
-	Sync  Sync                `yaml:"sync"`
-	Files Files               `yaml:"files"`
+	// Keys maps the contexts of keys to their actions, and those to
+	// their keys. An entry replaces the default keys of that action only.
+	Keys  Keymap `yaml:"keys" scope:"global"`
+	Cache Cache  `yaml:"cache" when:"startup" why:"the cache is opened at startup"`
+	Sync  Sync   `yaml:"sync"`
+	Files Files  `yaml:"files"`
 	// Notifications configures the notifications screen and the
 	// dashboard's inbox.
 	Notifications Notifications `yaml:"notifications"`
@@ -177,11 +177,7 @@ func (c Config) Validate() error {
 		errs = append(errs, c.Themes[name].validate("themes."+name))
 	}
 
-	for _, action := range slices.Sorted(maps.Keys(c.Keys)) {
-		errs = append(errs, validateKeys(action, c.Keys[action]))
-	}
-
-	errs = append(errs, c.Cache.validate(), c.Sync.validate(), c.Files.validate(), c.History.validate(), c.Dashboard.validate(), c.Owner.validate(), c.Prefetch.validate(c.Files.Preview.MaxSize),
+	errs = append(errs, c.Keys.validate(), c.Cache.validate(), c.Sync.validate(), c.Files.validate(), c.History.validate(), c.Dashboard.validate(), c.Owner.validate(), c.Prefetch.validate(c.Files.Preview.MaxSize),
 		c.UI.validate(), c.GitHub.validate(), c.PageSize.validate(), c.Commands.validate(), c.Images.validate(), c.Log.validate(),
 		validateEditor(c.Editor))
 	return errors.Join(errs...)

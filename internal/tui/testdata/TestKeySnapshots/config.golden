@@ -4,7 +4,7 @@ app
   quit | ctrl+c | ^c | on
   help | ? | ? | on
 
-pager
+Text
   up | up k | ↑/k | on
   down | down j | ↓/j | on
   page up | b ctrl+b pgup | b/^b | on

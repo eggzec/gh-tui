@@ -7,19 +7,15 @@ app
   command | : | : | on
   quit | q ctrl+c | q | on
   search | / | / | on
-  history | B | B | off
-  actions | a | a | off
   find file | t ctrl+p | t | off
-  filter | f | f | on
-  sort | s | s | off
   zoom | z | z | off
   unzoom | esc | esc | off
   dismiss | ctrl+x | ctrl+x | off
   owner page | @ | @ | on
   back | n | n | on
   dashboard | 0 | 0 | on
-  next pane | tab ] | tab | off
-  previous pane | shift+tab [ | shift+tab | off
+  next pane | tab | tab | off
+  previous pane | shift+tab | shift+tab | off
   focus pane | 1 2 3 | 1-3 | on
 
 Notifications
@@ -30,9 +26,7 @@ Notifications
   all read | M | M | on
   filter | f | f | on
   clear filters | F | F | off
-  refresh | r ctrl+r | r | on
-
-list
+  refresh | r | r | on
   up | up k | ↑/k | on
   down | down j | ↓/j | on
   page up | ctrl+b pgup | ^b/pgup | on
@@ -41,4 +35,4 @@ list
   ½ page down | ctrl+d | ^d | on
   first | home g | g/home | on
   last | end G | G/end | on
-  retry | r ctrl+r | r | off
+  retry | r | r | off

@@ -128,7 +128,7 @@ var _ ui.Modal = (*Modal)(nil)
 // Opener returns what the app opens the Actions modal with, for
 // tui.WithActions: a new modal each time, which reads what it shows from
 // svc and takes its keys from the configured keys.
-func Opener(svc Service, keys map[string][]string, opts ...Option) func(ctx context.Context, repo core.RepoRef, f core.RunFilter) (ui.Modal, tea.Cmd) {
+func Opener(svc Service, keys config.Keymap, opts ...Option) func(ctx context.Context, repo core.RepoRef, f core.RunFilter) (ui.Modal, tea.Cmd) {
 	return func(ctx context.Context, repo core.RepoRef, f core.RunFilter) (ui.Modal, tea.Cmd) {
 		m := New(ctx, svc, repo, keys, append(slices.Clip(opts), WithFilter(f))...)
 		load := m.Init()
@@ -139,15 +139,14 @@ func Opener(svc Service, keys map[string][]string, opts ...Option) func(ctx cont
 // New returns the Actions modal of repo, which shows every run, with the
 // runs focused. ctx bounds its reads until it closes, and its changes.
 // Call Init once it is open.
-func New(ctx context.Context, svc Service, repo core.RepoRef, keys map[string][]string, opts ...Option) *Modal {
+func New(ctx context.Context, svc Service, repo core.RepoRef, keys config.Keymap, opts ...Option) *Modal {
 	o := defaultOptions()
 	for _, opt := range opts {
 		opt(&o)
 	}
 	rctx, cancel := context.WithCancel(ctx)
 	keyMap := newKeyMap(keys)
-	// What failed is read again with the modal's refresh key, which leaves
-	// ctrl+r to re-running.
+	// What failed is read again with the modal's refresh key.
 	v := ui.NewVoice(keys, "")
 	if o.voice != nil {
 		v = *o.voice
@@ -243,24 +242,33 @@ func (m *Modal) KeyLayers() []keyhelp.Layer {
 	case m.ask != nil:
 		return []keyhelp.Layer{k.Confirm.Layer()}
 	case m.filterStep != nil:
+		// The keys of the modal wait while the filter has the keys.
+		screen := ui.Off(ui.ContextLayer(ctxModal, k.screen(), nil))
 		if f := m.filterStep.form; f != nil {
-			return []keyhelp.Layer{keyhelp.FromHelp("filter", *f, f.Capturing())}
+			return []keyhelp.Layer{screen, ui.ContextHelp(ctxFilter, *f, f.Capturing())}
 		}
 		// Until the form shows, only the back key does something.
-		return []keyhelp.Layer{{Source: "filter", Bindings: []key.Binding{k.Back}, Short: []key.Binding{k.Back}}}
+		return []keyhelp.Layer{screen, ui.ContextLayer(ctxFilter, []key.Binding{k.Back}, []key.Binding{k.Back})}
 	case m.focus == logPane && m.log.Capturing():
 		return m.log.KeyLayers()
 	}
 	k = k.state(m)
-	own := keyhelp.Layer{Source: "actions", Bindings: k.own(), Short: k.ShortHelp()}
+	screen := ui.ContextLayer(ctxModal, k.screen(), []key.Binding{k.Next, k.Zoom, k.Cancel, k.RerunFailed, k.Rerun, k.Filter, k.Open})
+	rerun := k.RerunJob
+	if m.focus == logPane {
+		rerun = k.rerunJob(m)
+	}
+	own := keyhelp.Layer{Bindings: k.pane(rerun), Short: []key.Binding{k.Select, rerun}}
 	switch m.focus {
 	case runsPane:
-		return []keyhelp.Layer{own, keyhelp.FromHelp("runs", m.runs.KeyMap(), false)}
+		runs := keyhelp.Layer{Bindings: []key.Binding{k.Select}, Short: []key.Binding{k.Select}}
+		return []keyhelp.Layer{screen, ui.MergeLayers(ctxRuns, runs, keyhelp.FromHelp("", m.runs.KeyMap(), false))}
 	case jobsPane:
-		return []keyhelp.Layer{own, keyhelp.FromHelp("jobs", k.List, false)}
+		return []keyhelp.Layer{screen, ui.MergeLayers(ctxJobs, own, keyhelp.FromHelp("", k.List, false))}
 	case logPane:
 	}
-	return append([]keyhelp.Layer{own}, m.log.KeyLayers()...)
+	l := m.log.Layer()
+	return []keyhelp.Layer{screen, ui.MergeLayers(l.Context, keyhelp.Layer{Bindings: k.pane(rerun), Short: []key.Binding{rerun}}, l)}
 }
 
 // state returns k as the modal takes it now, named for what the keys do
@@ -290,15 +298,20 @@ func (k KeyMap) state(m *Modal) KeyMap {
 	k.Cancel.SetEnabled(k.Cancel.Enabled() && m.hasRun && !m.run.Done())
 	k.RerunFailed.SetEnabled(k.RerunFailed.Enabled() && done)
 	k.Rerun.SetEnabled(k.Rerun.Enabled() && done)
-	k.RerunJob.SetEnabled(k.RerunJob.Enabled() && done && m.focus != runsPane)
+	for _, b := range []*key.Binding{&k.RerunJob, &k.rerunLog, &k.rerunNotes} {
+		b.SetEnabled(b.Enabled() && done && m.focus != runsPane)
+		*b = g.Gated(*b, ui.ActRerun, nil)
+	}
 	k.Cancel, k.RerunFailed = g.Gated(k.Cancel, ui.ActCancelRun, nil), g.Gated(k.RerunFailed, ui.ActRerun, nil)
-	k.Rerun, k.RerunJob = g.Gated(k.Rerun, ui.ActRerun, nil), g.Gated(k.RerunJob, ui.ActRerun, nil)
-	// ctrl+r says why it can't re-run rather than refresh.
+	k.Rerun = g.Gated(k.Rerun, ui.ActRerun, nil)
+	// A key that re-run shares with refresh says why it can't re-run
+	// rather than refresh.
 	k.Refresh = ui.Yield(k.Refresh, k.RerunFailed)
 	k.Open.SetEnabled(k.Open.Enabled() && m.hasRun)
 	// The job view handles the annotations, and only a question takes
 	// the answers.
 	k.Annotations.SetEnabled(false)
+	k.notes.SetEnabled(false)
 	k.Confirm.Yes.SetEnabled(false)
 	k.Confirm.No.SetEnabled(false)
 	return k

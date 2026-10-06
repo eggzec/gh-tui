@@ -263,8 +263,8 @@ func TestCommands(t *testing.T) {
 
 func TestCommandKeyIsConfigurable(t *testing.T) {
 	cfg := config.Default()
-	cfg.Keys[config.ActionCommand] = []string{";"}
-	cfg.Keys[config.ActionBack] = []string{"q", "ctrl+g"}
+	cfg.Keys.Set(config.ActionCommand, []string{";"})
+	cfg.Keys.Set(config.ActionDismiss, []string{"q", "ctrl+g"})
 	fakes := []*fakeSection{{title: "Files"}, {title: "Pull requests"}, {title: "Issues"}, {title: "Notifications"}}
 	m := New(t.Context(), cfg, Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3]}, WithRepo(testRepo))
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
@@ -310,10 +310,10 @@ func TestLineKeys(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			keys := config.Default().Keys
 			if tt.sel != nil {
-				keys[config.ActionSelect] = tt.sel
+				keys.Set(config.ActionSelect, tt.sel)
 			}
 			if tt.back != nil {
-				keys[config.ActionBack] = tt.back
+				keys.Set(config.ActionDismiss, tt.back)
 			}
 			k := lineKeys(keys)
 			if got := k.Submit.Keys(); !slices.Equal(got, tt.submit) {
@@ -461,7 +461,7 @@ func TestPressingCommands(t *testing.T) {
 	})
 	t.Run("refresh bound elsewhere", func(t *testing.T) {
 		cfg := config.Default()
-		cfg.Keys[config.ActionRefresh] = []string{"nosuch+key", "ctrl+r"}
+		cfg.Keys.Set(config.ActionRefresh, []string{"nosuch+key", "ctrl+r"})
 		fakes := []*fakeSection{{title: "Files"}}
 		m := New(t.Context(), cfg, Layout{Files: fakes[0]}, WithRepo(testRepo))
 		m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})

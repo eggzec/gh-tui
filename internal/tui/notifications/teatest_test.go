@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/exp/teatest/v2"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 )
@@ -80,8 +81,9 @@ const wait = 30 * time.Second
 
 func TestProgram(t *testing.T) {
 	svc := newFake(inbox()...)
-	s := New(t.Context(), svc, map[string][]string{
-		"select": {"enter"}, "filter": {"f"}, "mark_done": {"d"}, "refresh": {"r"},
+	s := New(t.Context(), svc, config.Keymap{
+		config.ContextGlobal: {"select": {"enter"}, "refresh": {"r"}},
+		"notifications":      {"filter": {"f"}, "done": {"d"}},
 	}, WithNow(func() time.Time { return now }))
 	s.Focus()
 	a := &app{s: s, done: make(chan struct{}, 2)}

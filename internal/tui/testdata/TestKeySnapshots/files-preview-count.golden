@@ -4,9 +4,6 @@ app
   quit | ctrl+c | ^c | on
   help | ? | ? | off
 
-file
-  open | o | o | off
-
 pager (types)
   up | up k | ↑/k | off
   down | down j | ↓/j | off

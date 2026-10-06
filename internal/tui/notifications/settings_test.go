@@ -61,7 +61,7 @@ func TestSettingsIconsASCII(t *testing.T) {
 // names in words.
 func TestSettingsIconsErrorHint(t *testing.T) {
 	keys := maps.Clone(config.Default().Keys)
-	keys[config.ActionRefresh] = []string{"enter"}
+	keys.Set(config.ActionRefresh, []string{"enter"})
 	for _, switched := range []bool{false, true} {
 		f := newFake()
 		f.listErr = fmt.Errorf("list notifications: %w", core.ErrOffline)

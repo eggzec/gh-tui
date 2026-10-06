@@ -277,7 +277,7 @@ var (
 
 // New returns the dashboard, which reads through svc and binds the actions
 // in keys. ctx bounds every request it makes.
-func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Option) *Section {
+func New(ctx context.Context, svc Service, keys config.Keymap, opts ...Option) *Section {
 	def := config.Default()
 	s := &Section{
 		id:      lastID.Add(1),

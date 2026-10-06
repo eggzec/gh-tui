@@ -198,12 +198,14 @@ func testTheme() ui.Theme {
 
 func testKeys() KeyMap {
 	return KeyMap{
-		Log:         logview.DefaultKeyMap(),
-		Annotations: key.NewBinding(key.WithKeys("A"), key.WithHelp("A", "annotations")),
-		Up:          key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("↑/k", "up")),
-		Down:        key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓/j", "down")),
-		Select:      key.NewBinding(key.WithKeys("enter"), key.WithHelp("↵", "open file")),
-		Open:        key.NewBinding(key.WithKeys("o"), key.WithHelp("o", "browser")),
+		Log:        logview.DefaultKeyMap(),
+		LogContext: "actions_log", NotesContext: "actions_annotations",
+		Annotations:      key.NewBinding(key.WithKeys("A"), key.WithHelp("A", "annotations")),
+		NotesAnnotations: key.NewBinding(key.WithKeys("A"), key.WithHelp("A", "log")),
+		Up:               key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("↑/k", "up")),
+		Down:             key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓/j", "down")),
+		Select:           key.NewBinding(key.WithKeys("enter"), key.WithHelp("↵", "open file")),
+		Open:             key.NewBinding(key.WithKeys("o"), key.WithHelp("o", "browser")),
 	}
 }
 

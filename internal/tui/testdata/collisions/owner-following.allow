@@ -1,3 +1,0 @@
-# context | key | loser | winner | reason; see allowDir in collisions_test.go
-owner: following | [ | profile: previous pane | profile: previous tab | ] and [ switch the tabs; tab and shift+tab still move between the panes
-owner: following | ] | profile: next pane | profile: next tab | ] and [ switch the tabs; tab and shift+tab still move between the panes

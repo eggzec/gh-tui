@@ -4,19 +4,19 @@ app
   quit | ctrl+c | ^c | on
   help | ? | ? | on
 
-history
-  pane | tab ] | tab | on
-  previous pane | shift+tab [ | shift+tab | on
+History
+  pane | tab | tab | on
+  previous pane | shift+tab | shift+tab | on
   browser | o | o | on
   back to head | H | H | off
   zoom | z | z | on
   close | esc | esc | on
+  retry | r | r | off
+
+Branches
   use as base | space | space | on
   graph | enter | ↵ | on
   filter | / | / | on
-  retry | r ctrl+r | r | off
-
-branches
   up | up k | ↑/k | on
   down | down j | ↓/j | on
   page up | ctrl+b pgup | ^b/pgup | on

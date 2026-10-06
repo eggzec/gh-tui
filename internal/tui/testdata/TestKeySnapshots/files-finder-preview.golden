@@ -5,10 +5,8 @@ app
   command | : | : | on
   help | ? | ? | on
 
-file
+File
   open | o | o | on
-
-pager
   up | up k | ↑/k | on
   down | down j | ↓/j | on
   page up | b ctrl+b pgup | b/^b | on

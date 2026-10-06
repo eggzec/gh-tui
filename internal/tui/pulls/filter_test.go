@@ -6,9 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"charm.land/bubbles/v2/key"
-	tea "charm.land/bubbletea/v2"
-
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/facets"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
@@ -22,7 +19,6 @@ import (
 var (
 	_ ui.Filterable = (*Section)(nil)
 	_ ui.Chipper    = (*Section)(nil)
-	_ ui.Claimer    = (*Section)(nil)
 )
 
 // apply applies query in the filter form of h, as the modal does when the
@@ -194,19 +190,18 @@ func TestFilterBeforeTheFirstPageReadsAheadOnceCleared(t *testing.T) {
 	}
 }
 
-func TestClaimed(t *testing.T) {
-	h := newTest(t, newFakeService(), 80, 20)
-	if h.Claimed() != nil {
-		t.Error("claimed keys without a repository")
+// ] and [ switch the state of the list, as its own keys, and no other key
+// does.
+func TestStateKeysSwitchTheState(t *testing.T) {
+	h := started(t, newFakeService(), 80, 20)
+	before := h.tab
+	drain(t, h, h.Update(keyMsg("]")))
+	if h.tab == before {
+		t.Error("] left the state as it was")
 	}
-	h = started(t, newFakeService(), 80, 20)
-	for k, want := range map[string]bool{"]": true, "[": true, "x": false, "f": false} {
-		if got := key.Matches(keyMsg(k), h.Claimed()...); got != want {
-			t.Errorf("claimed %q = %v, want %v", k, got, want)
-		}
-	}
-	if key.Matches(tea.KeyPressMsg{Code: tea.KeyRight}, h.Claimed()...) {
-		t.Error("claimed right, which isn't a key of next_filter")
+	drain(t, h, h.Update(keyMsg("[")))
+	if h.tab != before {
+		t.Error("[ didn't switch back")
 	}
 }
 

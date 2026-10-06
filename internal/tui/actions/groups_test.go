@@ -282,7 +282,7 @@ func TestJobGroupsFold(t *testing.T) {
 		t.Fatalf("on %q the log shows job %d, want the group's running job", jobsPaneRows(m)[7], m.log.JobID())
 	}
 	// The help says so, as it says that enter opens a job.
-	if b, src, _ := uitest.Winner(m.KeyLayers(), "enter"); src != "actions" || b.Help().Desc != "fold" {
+	if b, src, _ := uitest.Winner(m.KeyLayers(), "enter"); src != "Jobs" || b.Help().Desc != "fold" {
 		t.Errorf("enter on a group reaches %q of %q, want the fold", b.Help().Desc, src)
 	}
 	h.keys("enter")

@@ -339,7 +339,7 @@ func TestNewVoice(t *testing.T) {
 
 func TestSayHintsNameTheLiveKeys(t *testing.T) {
 	p := &core.Problem{Kind: core.Offline}
-	keys := map[string][]string{config.ActionRefresh: {"ctrl+r"}}
+	keys := config.Keymap{config.ContextGlobal: {"refresh": {"ctrl+r"}}}
 	v := Voice{Retry: Binding(keys, config.ActionRefresh, "retry")}
 	if _, hint := Say(p, v); hint != "^r to retry" {
 		t.Errorf("hint = %q, want ^r to retry", hint)

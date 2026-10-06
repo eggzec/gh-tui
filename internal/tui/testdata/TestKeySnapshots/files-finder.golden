@@ -4,12 +4,10 @@ app
   quit | ctrl+c | ^c | on
   help | ? | ? | off
 
-finder
+Finder (types)
   open in tree | ctrl+t | ^t | on
   preview | tab | tab | on
   open on GitHub | ctrl+o | ^o | on
-
-find (types)
   up | up ctrl+p | ↑ | on
   down | down ctrl+n | ↓ | on
   page up | pgup | pgup | on

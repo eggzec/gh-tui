@@ -31,14 +31,14 @@ type Token struct {
 
 // NewToken returns the token that src knows of, whose hints name the
 // command AuthCommand on the command key of keys.
-func NewToken(src Checker, keys map[string][]string) *Token {
+func NewToken(src Checker, keys config.Keymap) *Token {
 	return &Token{src: src, hint: AuthHint(keys)}
 }
 
 // AuthHint returns how the user types the command AuthCommand with the
 // command key of keys, such as ":auth", or "" while no key opens the
 // command line.
-func AuthHint(keys map[string][]string) string {
+func AuthHint(keys config.Keymap) string {
 	k := Binding(keys, config.ActionCommand, "").Help().Key
 	if k == "" {
 		return ""

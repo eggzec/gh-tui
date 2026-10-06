@@ -37,7 +37,7 @@ func TestBack(t *testing.T) {
 	if s.Login() != "github" {
 		t.Fatalf("page of %q, want github's", s.Login())
 	}
-	if b, src, ok := uitest.Winner(s.KeyLayers(), "esc"); !ok || src != "profile" || b.Help().Desc != "previous page" {
+	if b, src, ok := uitest.Winner(s.KeyLayers(), "esc"); !ok || src != "Profile" || b.Help().Desc != "previous page" {
 		t.Errorf("esc reaches %v %q %q, want the previous page", ok, src, b.Help().Desc)
 	}
 	if msgs := press(t, s, "esc"); len(msgs) > 0 || s.Login() != "octocat" {

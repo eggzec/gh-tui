@@ -112,9 +112,11 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 	resume := ui.PauseAll(s.ahead, from)
 	_, cached := s.svc.CachedGet(repo, number)
 	slog.InfoContext(ctx, "open", "span", "tui", "kind", "pull", "repo", repo.String(), "number", number, "cached", cached)
+	modalKeys := s.keys.forModal(s.rawKeys)
+	modalKeys.Checks.SetEnabled(modalKeys.Checks.Enabled() && s.checks != nil)
 	m := &detailModal{
 		svc:         s.svc,
-		keys:        s.keys,
+		keys:        modalKeys,
 		now:         s.now,
 		mergeMethod: s.mergeMethod,
 		sendCtx:     s.ctx,
@@ -519,20 +521,30 @@ func (m *detailModal) show() tea.Cmd {
 func (m *detailModal) KeyLayers() []keyhelp.Layer {
 	switch {
 	case m.checks != nil:
-		return m.checks.KeyLayers()
+		if m.checks.Capturing() {
+			return m.checks.KeyLayers()
+		}
+		// The changes of the pull request wait while the step has the keys.
+		return append([]keyhelp.Layer{ui.Off(m.modalLayer(m.keys))}, m.checks.KeyLayers()...)
 	case m.ask != nil:
 		return []keyhelp.Layer{m.keys.confirm.Layer()}
 	}
 	k := m.keys.withChanges(m.gate(), m.mergeMethod, m.detail.PullRequest, m.loaded)
+	return []keyhelp.Layer{m.modalLayer(k), ui.ContextHelp("pull_conversation", m.thread, false)}
+}
+
+// modalLayer returns the layer of the keys of the modal, which work on any
+// of its steps, for k, as the modal takes them.
+func (m *detailModal) modalLayer(k keyMap) keyhelp.Layer {
 	// The list's keys don't work here.
 	for _, b := range []*key.Binding{&k.Select, &k.Filter, &k.Sort, &k.ClearFilter, &k.NextTab, &k.PrevTab} {
 		b.SetEnabled(false)
 	}
 	owner := m.keys.owner
 	owner.SetEnabled(owner.Enabled() && ui.Author(m.detail.Author) != "")
-	own := keyhelp.FromHelp("pull request", k, false)
-	own.Bindings = append(own.Bindings, owner)
-	return []keyhelp.Layer{own, keyhelp.FromHelp("thread", m.thread, false)}
+	l := ui.ContextLayer(ctxModal, slices.Concat(k.FullHelp()...), k.ShortHelp())
+	l.Bindings = append(l.Bindings, owner)
+	return l
 }
 
 // gate decides what the viewer may do in the repository.

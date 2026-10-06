@@ -46,7 +46,7 @@ func TestChangesNeedWriteAccess(t *testing.T) {
 		t.Errorf("help offers %v with read access", got)
 	}
 	rerun := ui.NotifyMsg{Level: toast.Info, Text: "Re-running needs write access to charmbracelet/bubbletea."}
-	for _, k := range []string{"ctrl+r", "R"} {
+	for _, k := range []string{"R", "E"} {
 		h.keys(k)
 		if m.ask != nil || !slices.Contains(h.take(), any(rerun)) {
 			t.Errorf("%s asked %+v, want the toast %q", k, m.ask, rerun.Text)
@@ -93,9 +93,9 @@ func TestChangesNeedRepo(t *testing.T) {
 		t.Errorf("help offers %v without repo", got)
 	}
 	rerun := ui.NotifyMsg{Level: toast.Info, Text: "Re-running needs the repo scope · :auth to grant it"}
-	h.keys("R")
+	h.keys("E")
 	if m.ask != nil || !slices.Contains(h.take(), any(rerun)) {
-		t.Errorf("R asked %+v, want the toast %q", m.ask, rerun.Text)
+		t.Errorf("E asked %+v, want the toast %q", m.ask, rerun.Text)
 	}
 	for m.run.ID != runningRun {
 		h.keys("down")

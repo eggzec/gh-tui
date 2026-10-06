@@ -5,9 +5,9 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"maps"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -19,8 +19,8 @@ import (
 
 // TestDefaultsComplete checks that default.yaml is the whole of the
 // defaults: it decodes strictly and validates, it sets every setting, so
-// that none is left to Go's zero value, and it gives keys to exactly the
-// actions that keys.go names.
+// that none is left to Go's zero value, and it gives keys to contexts that
+// exist and to the actions that keys.go names.
 func TestDefaultsComplete(t *testing.T) {
 	dec := yaml.NewDecoder(bytes.NewReader(defaultYAML))
 	dec.KnownFields(true)
@@ -43,14 +43,22 @@ func TestDefaultsComplete(t *testing.T) {
 		}
 	}
 
-	consts := actionConsts(t)
-	for _, action := range slices.Sorted(maps.Keys(cfg.Keys)) {
-		if !slices.Contains(consts, action) {
-			t.Errorf("default.yaml gives keys to %s, which keys.go has no Action constant for", action)
+	// Every context is one that keys.go lists, and every action is named in
+	// lower case with underscores, as the config writes them.
+	snake := regexp.MustCompile(`^[a-z][a-z0-9]*(_[a-z0-9]+)*$`)
+	for ctx, actions := range cfg.Keys {
+		if _, ok := LookupContext(ctx); !ok {
+			t.Errorf("default.yaml gives keys to the context %s, which contexts.go doesn't list", ctx)
+		}
+		for name := range actions {
+			if !snake.MatchString(name) {
+				t.Errorf("default.yaml names the action %s.%s with more than lower case words joined by _", ctx, name)
+			}
 		}
 	}
-	for _, action := range consts {
-		if _, ok := cfg.Keys[action]; !ok {
+	// What the Action constants name has keys.
+	for _, action := range actionConsts(t) {
+		if !slices.Contains(cfg.Keys.Actions(), action) {
 			t.Errorf("default.yaml gives no keys to %s, which keys.go names", action)
 		}
 	}
@@ -85,6 +93,9 @@ func actionConsts(t *testing.T) []string {
 			return true
 		}
 		for i, id := range vs.Names {
+			if i >= len(vs.Values) {
+				continue
+			}
 			lit, ok := vs.Values[i].(*ast.BasicLit)
 			if !strings.HasPrefix(id.Name, "Action") || !ok || lit.Kind != token.STRING {
 				continue
@@ -205,7 +216,7 @@ func TestLoadValidatesMerged(t *testing.T) {
 
 func TestMergeLeavesItsInputs(t *testing.T) {
 	before := Default()
-	if _, _, err := loadBase(writeConfig(t, "cache:\n  ttl:\n    pulls: 1m\nkeys:\n  quit: [x]\n")); err != nil {
+	if _, _, err := loadBase(writeConfig(t, "cache:\n  ttl:\n    pulls: 1m\nkeys:\n  global:\n    quit: [Q]\n")); err != nil {
 		t.Fatal(err)
 	}
 	assertEqual(t, Default(), before)

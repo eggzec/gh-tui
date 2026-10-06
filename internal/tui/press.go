@@ -15,10 +15,10 @@ func keyPress(name string) (tea.KeyPressMsg, bool) { return keyname.Press(name) 
 // a command does just what its key does, where the key goes: the same
 // gates, questions and help apply.
 func (m *Model) press(action string) tea.Cmd {
-	for _, name := range m.cfg.Keys[action] {
+	for _, name := range m.cfg.Keys.Of(action) {
 		if msg, ok := keyPress(name); ok {
 			return m.key(msg)
 		}
 	}
-	return m.toast.Push(toast.Error, "No key is bound to "+action+" in the config.")
+	return m.toast.Push(toast.Error, "No key is bound to keys."+action+" in the config.")
 }

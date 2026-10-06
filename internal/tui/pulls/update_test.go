@@ -198,7 +198,7 @@ func TestNoRepoShowsWhatToDo(t *testing.T) {
 
 func TestNoRepoWithoutSearchKey(t *testing.T) {
 	keys := config.Default().Keys
-	delete(keys, config.ActionSearch)
+	keys.Set(config.ActionSearch, nil)
 	s := New(t.Context(), newFakeService(), keys)
 	s.SetSize(30, 8)
 	v := ansi.Strip(s.View())

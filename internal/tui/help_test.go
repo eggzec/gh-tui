@@ -102,7 +102,7 @@ func TestHelpNotWhileTyping(t *testing.T) {
 // such as f1, still opens the help while ? is typed.
 func TestHelpKeyThatTypesNothing(t *testing.T) {
 	cfg := config.Default()
-	cfg.Keys[config.ActionHelp] = []string{"?", "f1"}
+	cfg.Keys.Set(config.ActionHelp, []string{"?", "f1"})
 	m := New(t.Context(), cfg, Layout{Files: &fakeSection{title: "Files"}}, WithRepo(testRepo))
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	mod := &fakeModal{title: "Find file", typing: true}
@@ -304,26 +304,29 @@ func quits(cmd tea.Cmd) bool {
 	return ok
 }
 
-// TestCtrlCWithQuitRebound checks that ctrl+c quits by itself only where
-// the help or a modal takes every other key, and otherwise reaches the
-// keys the user bound, the section's when quit holds it no more.
-func TestCtrlCWithQuitRebound(t *testing.T) {
+// TestCtrlCAlwaysQuits checks that ctrl+c quits whatever quit is bound to,
+// since the config can't bind it, from a section that takes every key, the
+// help and a modal, and that the help lists it with the quit key.
+func TestCtrlCAlwaysQuits(t *testing.T) {
 	cfg := config.Default()
-	cfg.Keys[config.ActionQuit] = []string{"q"}
+	cfg.Keys.Set(config.ActionQuit, []string{"x"})
 	files := &fakeSection{title: "Files"}
 	m := New(t.Context(), cfg, Layout{Files: files}, WithRepo(testRepo))
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 
 	for _, capturing := range []bool{false, true} {
 		files.capturing, files.msgs = capturing, nil
-		if quits(m.key(ctrlC)) || !files.got(isKey("ctrl+c")) {
-			t.Errorf("capturing %v: ctrl+c quit, or didn't reach the section", capturing)
+		if !quits(m.key(ctrlC)) || files.got(isKey("ctrl+c")) {
+			t.Errorf("capturing %v: ctrl+c didn't quit, or reached the section", capturing)
 		}
-		if got := winner(m, "ctrl+c"); got != "nothing" {
-			t.Errorf("capturing %v: ctrl+c reaches %q, want nothing of the app's", capturing, got)
+		if got := winner(m, "ctrl+c"); got != "app: quit" {
+			t.Errorf("capturing %v: ctrl+c reaches %q, want the quit", capturing, got)
 		}
 	}
 	files.capturing = false
+	if !quits(m.key(press("x"))) {
+		t.Error("the key bound to quit didn't quit")
+	}
 
 	run(m, m.key(press("?")))
 	if !quits(m.key(ctrlC)) {

@@ -19,19 +19,23 @@ type KeyMap struct {
 	Tree tree.KeyMap
 }
 
-func newKeyMap(keys map[string][]string) KeyMap {
+// ctxPane is the context of the keys of the file tree.
+const ctxPane = "files"
+
+func newKeyMap(keys config.Keymap) KeyMap {
+	files := ui.In(keys, ctxPane)
 	tk := tree.DefaultKeyMap()
-	tk.Expand = ui.Binding(keys, config.ActionExpand, "expand")
+	tk.Expand = files.Binding("expand", "expand")
 	// The arrows and h stay alongside the configured keys, as l and → do
 	// for Right.
-	tk.Collapse = withKeys(ui.Binding(keys, config.ActionCollapse, "collapse"), "collapse", "←/h", "left", "h")
-	tk.ExpandAll = ui.Binding(keys, config.ActionExpandAll, "expand all")
-	tk.CollapseAll = ui.Binding(keys, config.ActionCollapseAll, "collapse all")
-	tk.Open = ui.Binding(keys, config.ActionSelect, "preview")
+	tk.Collapse = withKeys(files.Binding("collapse", "collapse"), "collapse", "←/h", "left", "h")
+	tk.ExpandAll = files.Binding("expand_all", "expand all")
+	tk.CollapseAll = files.Binding("collapse_all", "collapse all")
+	tk.Open = files.Binding("global.select", "preview")
 	return KeyMap{
-		Open:      ui.Binding(keys, config.ActionOpen, "open"),
-		Refresh:   ui.Binding(keys, config.ActionRefresh, "refresh"),
-		ResetBase: ui.Binding(keys, config.ActionResetBase, "back to head"),
+		Open:      files.Binding("global.open", "open"),
+		Refresh:   files.Binding("global.refresh", "refresh"),
+		ResetBase: files.Binding("reset_base", "back to head"),
 		Tree:      tk,
 	}
 }

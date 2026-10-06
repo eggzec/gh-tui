@@ -1,8 +1,6 @@
 package dashboard
 
 import (
-	"slices"
-
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
@@ -30,16 +28,18 @@ type KeyMap struct {
 	// Open opens what is under the cursor in the browser.
 	Open    key.Binding
 	Refresh key.Binding
-	// Filter and Sort name the keys that open the filter of the
-	// repositories on its Filters and Sort tabs, which the app handles,
-	// and ClearFilter clears it.
+	// Filter and Sort open the filter of the repositories on its Filters
+	// and Sort tabs, and ClearFilter clears it.
 	Filter      key.Binding
 	Sort        key.Binding
 	ClearFilter key.Binding
 	// NextOwner and PrevOwner switch the repositories between the viewer's
-	// own and those of each organization, and the work between its lists.
+	// own and those of each organization, and NextList and PrevList the
+	// work between its lists, with the keys of the tabs and each pane's own.
 	NextOwner key.Binding
 	PrevOwner key.Binding
+	NextList  key.Binding
+	PrevList  key.Binding
 	// Here opens the repository of the current directory.
 	Here key.Binding
 	// Checks opens the pull request of the work under the cursor on its
@@ -63,37 +63,45 @@ type KeyMap struct {
 	feed feed.KeyMap
 }
 
-func newKeyMap(keys map[string][]string) KeyMap {
+// The contexts of the keys of the dashboard: the screen, and a pane each.
+const ctxDashboard = "dashboard"
+
+// paneContext names the context of the keys of each pane.
+var paneContext = [numPanes]string{"dashboard_pinned", "dashboard_repos", "dashboard_work", "dashboard_calendar", "dashboard_inbox"}
+
+func newKeyMap(keys config.Keymap) KeyMap {
+	screen, repos, work := ui.In(keys, ctxDashboard), ui.In(keys, paneContext[reposPane]), ui.In(keys, paneContext[workPane])
 	k := KeyMap{
-		Next:          ui.Binding(keys, config.ActionNextTab, "next pane"),
-		Prev:          ui.Binding(keys, config.ActionPrevTab, "previous pane"),
-		Zoom:          ui.Binding(keys, config.ActionZoom, "zoom"),
-		Back:          ui.Binding(keys, config.ActionBack, "unzoom"),
-		Select:        ui.Binding(keys, config.ActionSelect, "open"),
-		Open:          ui.Binding(keys, config.ActionOpen, "browser"),
-		Refresh:       ui.Binding(keys, config.ActionRefresh, "refresh"),
-		Filter:        ui.Binding(keys, config.ActionFilter, "filter"),
-		Sort:          ui.Binding(keys, config.ActionSort, "sort"),
-		ClearFilter:   ui.Binding(keys, config.ActionClearFilter, "clear filters"),
-		NextOwner:     ui.Binding(keys, config.ActionNextOwner, "next owner"),
-		PrevOwner:     ui.Binding(keys, config.ActionPrevOwner, "previous owner"),
-		Here:          ui.Binding(keys, config.ActionCurrentRepo, "this repo"),
-		Checks:        ui.Binding(keys, config.ActionChecks, "checks"),
-		Notifications: ui.Binding(keys, config.ActionNotifications, "all notifications"),
+		Next:          screen.Binding("global.next_pane", "next pane"),
+		Prev:          screen.Binding("global.prev_pane", "previous pane"),
+		Zoom:          screen.Binding("global.zoom", "zoom"),
+		Back:          screen.Binding("global.dismiss", "unzoom"),
+		Select:        screen.Binding("global.select", "open"),
+		Open:          screen.Binding("global.open", "browser"),
+		Refresh:       screen.Binding("global.refresh", "refresh"),
+		Filter:        repos.Binding("filter", "filter"),
+		Sort:          repos.Binding("sort", "sort"),
+		ClearFilter:   repos.Binding("clear_filter", "clear filters"),
+		NextOwner:     repos.Either("next owner", "global.next_tab", "next_owner"),
+		PrevOwner:     repos.Either("previous owner", "global.prev_tab", "prev_owner"),
+		NextList:      work.Either("next list", "global.next_tab", "next_owner"),
+		PrevList:      work.Either("previous list", "global.prev_tab", "prev_owner"),
+		Here:          screen.Binding("current_repo", "this repo"),
+		Checks:        work.Binding("checks", "checks"),
+		Notifications: screen.Binding("global.notifications", "all notifications"),
 		Up:            key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("↑/k", "up")),
 		Down:          key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓/j", "down")),
 		Left:          key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←/h", "left")),
 		Right:         key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "right")),
 	}
-	actions := [numPanes]string{config.ActionPane1, config.ActionPane2, config.ActionPane3, config.ActionPane4, config.ActionPane5}
+	actions := [numPanes]string{"global.pane_1", "global.pane_2", "global.pane_3", "global.pane_4", "global.pane_5"}
 	for i, a := range actions {
-		k.Panes[i] = ui.Binding(keys, a, paneTitles[i])
+		k.Panes[i] = screen.Binding(a, paneTitles[i])
 	}
 	k.Jump = ui.Jump(k.Panes[:]...)
 
-	// The dashboard, and the app for the filter, match these keys first,
-	// so the list gets only the keys they leave it, such as g, which
-	// goes to the first row there.
+	// The dashboard matches these keys first, so the list gets only the
+	// keys it leaves it, such as f, which pages down there.
 	f := feed.DefaultKeyMap()
 	f.Retry = key.NewBinding(key.WithKeys(k.Refresh.Keys()...), key.WithHelp(k.Refresh.Help().Key, "retry"), key.WithDisabled())
 	k.feed = f
@@ -113,7 +121,7 @@ func (k KeyMap) pane(msg tea.KeyPressMsg) paneID {
 // ShortHelp implements help.KeyMap.
 func (k KeyMap) ShortHelp() []key.Binding {
 	return []key.Binding{
-		k.Up, k.Down, k.Left, k.Right, k.Select, k.Checks, k.Filter, k.Sort, k.ClearFilter, k.NextOwner, k.Open,
+		k.Up, k.Down, k.Left, k.Right, k.Select, k.Checks, k.Filter, k.Sort, k.ClearFilter, k.NextOwner, k.NextList, k.Open,
 		k.Next, k.Jump, k.Zoom, k.Back, k.Refresh, k.Here,
 	}
 }
@@ -122,48 +130,72 @@ func (k KeyMap) ShortHelp() []key.Binding {
 // dashboard matches first, and then its own.
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Left, k.Right, k.Up, k.Down, k.Select, k.Open, k.Checks, k.NextOwner, k.PrevOwner, k.ClearFilter, k.Filter, k.Sort, k.Notifications},
+		{k.Left, k.Right, k.Up, k.Down, k.Select, k.Open, k.Checks, k.NextOwner, k.PrevOwner, k.NextList, k.PrevList, k.ClearFilter, k.Filter, k.Sort, k.Notifications},
 		{k.Next, k.Prev, k.Zoom, k.Back, k.Refresh, k.Here, k.Jump},
 	}
 }
 
-// KeyLayers implements ui.Keyed: the keys of the focused pane and of the
-// dashboard, named for what they do there, and then those of the list of
-// repositories or of the calendar, whichever has the focus.
+// KeyLayers implements ui.Keyed: the keys of the dashboard, which work in
+// every pane, and then those of the pane that has the focus: the list of
+// repositories with its own keys and the list's, the calendar's, or the
+// keys of the pinned cards, the work or the notifications.
 func (s *Section) KeyLayers() []keyhelp.Layer {
-	own := keyhelp.FromHelp("dashboard", s.keys.state(s), false)
+	k := s.keys.state(s)
+	screen := ui.ContextLayer(ctxDashboard,
+		[]key.Binding{k.Next, k.Prev, k.Zoom, k.Back, k.Refresh, k.Here, k.Jump},
+		[]key.Binding{k.Next, k.Jump, k.Zoom, k.Back, k.Refresh, k.Here})
+	ctx := paneContext[s.focus]
+	own := keyhelp.Layer{Bindings: k.paneKeys(s.focus), Short: k.paneShort(s.focus)}
 	switch s.focus {
 	case reposPane:
-		return []keyhelp.Layer{own, keyhelp.FromHelp("list", s.repos.feedKeys(), false)}
+		return []keyhelp.Layer{screen, ui.MergeLayers(ctx, own, keyhelp.FromHelp("", s.repos.feedKeys(), false))}
 	case calendarPane:
-		return []keyhelp.Layer{own, keyhelp.FromHelp("calendar", s.cal.KeyMap(), false)}
+		return []keyhelp.Layer{screen, ui.ContextHelp(ctx, s.cal.KeyMap(), false)}
 	default:
 	}
-	return []keyhelp.Layer{own}
+	return []keyhelp.Layer{screen, ui.MergeLayers(ctx, own)}
+}
+
+// paneKeys returns the keys that work in the pane, in the order the
+// dashboard matches them.
+func (k KeyMap) paneKeys(p paneID) []key.Binding {
+	switch p {
+	case pinnedPane:
+		return []key.Binding{k.Left, k.Right, k.Up, k.Down, k.Select, k.Open}
+	case reposPane:
+		return []key.Binding{k.Select, k.Open, k.NextOwner, k.PrevOwner, k.ClearFilter, k.Filter, k.Sort}
+	case workPane:
+		return []key.Binding{k.Up, k.Down, k.Select, k.Open, k.Checks, k.NextList, k.PrevList}
+	case inboxPane:
+		return []key.Binding{k.Up, k.Down, k.Select, k.Open}
+	case calendarPane, numPanes:
+	}
+	return nil
+}
+
+// paneShort returns the keys of the pane worth a hint.
+func (k KeyMap) paneShort(p paneID) []key.Binding {
+	switch p {
+	case pinnedPane:
+		return []key.Binding{k.Up, k.Down, k.Left, k.Right, k.Select, k.Open}
+	case reposPane:
+		return []key.Binding{k.Select, k.Filter, k.Sort, k.ClearFilter, k.NextOwner, k.Open}
+	case workPane:
+		return []key.Binding{k.Up, k.Down, k.Select, k.Checks, k.NextList, k.Open}
+	case inboxPane:
+		return []key.Binding{k.Up, k.Down, k.Select, k.Open}
+	case calendarPane, numPanes:
+	}
+	return nil
 }
 
 // state returns k as the dashboard takes it with the focus on its pane:
-// the keys of that pane, named for what they do there, zoom while every
-// pane fits, and the way back while one is zoomed.
+// zoom while every pane fits, and the way back while one is zoomed, and
+// the way each pane names what its keys do.
 func (k KeyMap) state(s *Section) KeyMap {
-	panes := map[paneID][]*key.Binding{
-		pinnedPane: {&k.Left, &k.Right, &k.Up, &k.Down, &k.Select, &k.Open},
-		reposPane:  {&k.NextOwner, &k.PrevOwner, &k.ClearFilter, &k.Select, &k.Open, &k.Filter, &k.Sort},
-		workPane:   {&k.NextOwner, &k.PrevOwner, &k.Up, &k.Down, &k.Select, &k.Checks, &k.Open},
-		inboxPane:  {&k.Up, &k.Down, &k.Select, &k.Open},
-	}
-	for _, b := range []*key.Binding{
-		&k.Left, &k.Right, &k.Up, &k.Down, &k.Select, &k.Open, &k.Checks,
-		&k.NextOwner, &k.PrevOwner, &k.ClearFilter, &k.Filter, &k.Sort, &k.Notifications,
-	} {
-		b.SetEnabled(b.Enabled() && slices.Contains(panes[s.focus], b))
-	}
 	switch s.focus {
 	case reposPane:
 		k.ClearFilter.SetEnabled(k.ClearFilter.Enabled() && s.repos.filter().Active())
-	case workPane:
-		k.NextOwner.SetHelp(k.NextOwner.Help().Key, "next list")
-		k.PrevOwner.SetHelp(k.PrevOwner.Help().Key, "previous list")
 	case inboxPane:
 		k.Select.SetHelp(k.Select.Help().Key, "open")
 		if s.opener.MarksRead() {
