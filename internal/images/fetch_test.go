@@ -768,6 +768,37 @@ func TestFetchErrorBare(t *testing.T) {
 	}
 }
 
+// A redirect whose Location doesn't parse fails with an error that
+// quotes it; the query it carries stays out of what the fetch returns.
+func TestFetchErrorBareLocation(t *testing.T) {
+	const secret = "eyJhbGciOiJIUzI1NiJ9.c2lnbmVk.c2VjcmV0"
+	w, tr := newWeb(t)
+	w.handle("avatars.githubusercontent.com", func(rw http.ResponseWriter, _ *http.Request) {
+		rw.Header().Set("Location", "https://user:pass@avatars.githubusercontent.com/%zz?jwt="+secret+"#frag")
+		rw.WriteHeader(http.StatusFound)
+	})
+	f := New("github.com", WithTransport(tr))
+	for range 2 {
+		_, err := f.Fetch(t.Context(), Source{URL: avatar}, box)
+		if err == nil {
+			t.Fatal("fetch through a malformed redirect succeeded")
+		}
+		msg := err.Error()
+		if !strings.Contains(msg, "Location") {
+			t.Errorf("error %q isn't the malformed Location's", msg)
+		}
+		for _, leak := range []string{secret, "jwt", "frag", "pass"} {
+			if strings.Contains(msg, leak) {
+				t.Errorf("error %q holds %q", msg, leak)
+			}
+		}
+	}
+	// What is wrapped is still told apart.
+	if err := (scrubbed{ErrUnavailable}); !errors.Is(err, ErrUnavailable) {
+		t.Error("a scrubbed error isn't what it wraps")
+	}
+}
+
 type roundTrip func(*http.Request) (*http.Response, error)
 
 func (f roundTrip) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
@@ -778,6 +809,7 @@ func TestBare(t *testing.T) {
 		{"https://u:p@h.example:8443/p?", "https://h.example:8443/p"},
 		{"https://h.example/p", "https://h.example/p"},
 		{"https://u:p@h.example/%zz?jwt=x", "https://h.example/%zz"},
+		{"no address", "no address"},
 	} {
 		if got := bare(tc.in); got != tc.want {
 			t.Errorf("bare(%q) = %q, want %q", tc.in, got, tc.want)

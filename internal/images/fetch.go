@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -184,6 +185,9 @@ func (f *Fetcher) fly(ctx context.Context, fl *flight, key string, src Source, b
 			f.store.Delete(kindData, name)
 			f.store.Delete(kindMeta, name)
 		}
+	}
+	if err != nil {
+		err = scrubbed{err}
 	}
 	f.mu.Lock()
 	switch {
@@ -399,26 +403,37 @@ func bareError(err error) error {
 
 // bare returns addr without what may hold a secret: its query, such as
 // the jwt of a signed address, its fragment and its user and password.
+// It works on the text, so an address that doesn't parse, such as a
+// redirect's malformed Location, is made bare too.
 func bare(addr string) string {
-	u, err := url.Parse(addr)
-	if err != nil {
-		// No address to rebuild: cut off the same by hand.
-		if i := strings.IndexAny(addr, "?#"); i >= 0 {
-			addr = addr[:i]
-		}
-		scheme, rest, ok := strings.Cut(addr, "://")
-		if !ok {
-			return addr
-		}
-		authority := rest
-		if i := strings.IndexByte(rest, '/'); i >= 0 {
-			authority = rest[:i]
-		}
-		if i := strings.LastIndexByte(authority, '@'); i >= 0 {
-			rest = rest[i+1:]
-		}
-		return scheme + "://" + rest
+	if i := strings.IndexAny(addr, "?#"); i >= 0 {
+		addr = addr[:i]
 	}
-	u.User, u.RawQuery, u.ForceQuery, u.Fragment, u.RawFragment = nil, "", false, "", ""
-	return u.String()
+	scheme, rest, ok := strings.Cut(addr, "://")
+	if !ok {
+		return addr
+	}
+	authority := rest
+	if i := strings.IndexByte(rest, '/'); i >= 0 {
+		authority = rest[:i]
+	}
+	if i := strings.LastIndexByte(authority, '@'); i >= 0 {
+		rest = rest[i+1:]
+	}
+	return scheme + "://" + rest
 }
+
+// webAddr finds the addresses in an error's text, up to the space, quote
+// or bracket that ends them. A character escaped with a backslash, as %q
+// escapes a quote within the address it quotes, doesn't end one.
+var webAddr = regexp.MustCompile(`[A-Za-z][A-Za-z0-9+.-]*://(?:[^\s"'<>\\]|\\.)*`)
+
+// scrubbed is an error that a fetch failed with, whose text has every
+// address in it made bare: errors from below, such as the client's on a
+// redirect whose Location doesn't parse, may quote an address whole,
+// wherever in their text.
+type scrubbed struct{ err error }
+
+func (e scrubbed) Error() string { return webAddr.ReplaceAllStringFunc(e.err.Error(), bare) }
+
+func (e scrubbed) Unwrap() error { return e.err }
