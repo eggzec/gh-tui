@@ -60,20 +60,31 @@ var layouts = []columns{
 	{},
 }
 
-// layout returns the columns of a row width cells wide, with room for
-// labels if labeled, and dates of ageWidth cells at most. The number, the
-// state and the title always show.
-func layout(width int, labeled bool, ageWidth int) columns {
+// labelRoom is how wide the labels column must be to show the labels of
+// the issues the list has loaded: with one chip at [0] and with two at
+// [1]. A list without labels needs none.
+type labelRoom [2]int
+
+// labelsCap is the widest the labels column gets with n chips: n chips of
+// the longest name and the count of the labels left out.
+func labelsCap(n int) int {
+	return n*(chipName+2) + n - 1 + moreWidth
+}
+
+// layout returns the columns of a row width cells wide, with a labels
+// column as wide as room asks, and dates of ageWidth cells at most. The
+// number, the state and the title always show.
+func layout(width int, room labelRoom, ageWidth int) columns {
 	want := max(minTitle, int(float64(width)*titleShare))
 	var c columns
 	for _, c = range layouts {
-		if !labeled {
-			c.chips = 0
+		if c.chips > 0 {
+			c.labels = min(room[c.chips-1], labelsCap(c.chips))
+			if c.labels == 0 {
+				c.chips = 0
+			}
 		}
 		c.ageWidth = ageWidth
-		if c.chips > 0 {
-			c.labels = c.chips*(chipName+2) + c.chips - 1 + moreWidth
-		}
 		c.title = width - prefixWidth - c.right()
 		if c.title >= want {
 			return c
@@ -159,7 +170,7 @@ func newRowStyles(t ui.Theme, icons ui.Icons) rowStyles {
 func (s *Section) renderRow(it core.Issue, selected bool, width int) string {
 	c := s.cols
 	if width != s.colsWidth || c.ageWidth != s.dates.Width() {
-		c = layout(width, s.labeled, s.dates.Width())
+		c = layout(width, s.room, s.dates.Width())
 	}
 	st := &s.rows
 	var b strings.Builder
@@ -222,32 +233,7 @@ func (s *Section) renderRow(it core.Issue, selected bool, width int) string {
 // writeLabels writes up to c.chips chips, and how many labels they leave
 // out, right-aligned in the labels column.
 func (s *Section) writeLabels(b *strings.Builder, labels []core.Label, c columns) {
-	var chips [2]chip
-	shown, w := 0, 0
-	for _, l := range labels[:min(len(labels), c.chips, len(chips))] {
-		ch := s.chips.get(l)
-		cw := ch.width
-		if shown > 0 {
-			cw++
-		}
-		if w+cw > c.labels-moreWidth {
-			break
-		}
-		chips[shown] = ch
-		shown++
-		w += cw
-	}
-	more := ""
-	if n := len(labels) - shown; n > 0 {
-		more = "+" + termtext.Truncate(s.rows.ellipsis, moreWidth-1, "")
-		if n < 10 {
-			more = "+" + strconv.Itoa(n)
-		}
-		if shown > 0 {
-			w++
-		}
-		w += len(more)
-	}
+	chips, shown, more, w := s.fitLabels(labels, c.chips, c.labels)
 	pad(b, c.labels-w)
 	for i, ch := range chips[:shown] {
 		if i > 0 {
@@ -261,6 +247,61 @@ func (s *Section) writeLabels(b *strings.Builder, labels []core.Label, c columns
 		}
 		s.rows.more.write(b, more)
 	}
+}
+
+// fitLabels returns the chips of up to n labels that fit in width cells
+// together with the count of the labels they leave out, that count, and
+// the width they all take.
+func (s *Section) fitLabels(labels []core.Label, n, width int) (chips [2]chip, shown int, more string, w int) {
+	for _, l := range labels[:min(len(labels), n, len(chips))] {
+		ch := s.chips.get(l)
+		cw := ch.width
+		if shown > 0 {
+			cw++
+		}
+		if w+cw+s.moreCells(len(labels)-shown-1) > width {
+			break
+		}
+		chips[shown] = ch
+		shown++
+		w += cw
+	}
+	if left := len(labels) - shown; left > 0 {
+		more = s.moreText(left)
+		if shown > 0 {
+			w++
+		}
+		w += ansi.StringWidth(more)
+	}
+	return chips, shown, more, w
+}
+
+// moreText is the count of n labels left out, such as "+3"; ten or more
+// are an ellipsis, so it never takes more than moreWidth cells.
+func (s *Section) moreText(n int) string {
+	if n < 10 {
+		return "+" + strconv.Itoa(n)
+	}
+	return "+" + termtext.Truncate(s.rows.ellipsis, moreWidth-1, "")
+}
+
+// moreCells is the width of the count of n labels left out after a chip,
+// with the space between them: none when n is 0.
+func (s *Section) moreCells(n int) int {
+	if n <= 0 {
+		return 0
+	}
+	return 1 + ansi.StringWidth(s.moreText(n))
+}
+
+// labelsWidth is the width the labels of an issue take with up to n chips
+// in the widest labels column.
+func (s *Section) labelsWidth(labels []core.Label, n int) int {
+	if len(labels) == 0 {
+		return 0
+	}
+	_, _, _, w := s.fitLabels(labels, n, labelsCap(n))
+	return w
 }
 
 // count shortens large counts, such as 1200 to "1k".

@@ -77,12 +77,12 @@ type Section struct {
 	dates ui.Dates
 	// avatars draws the authors' avatars in the comments of the modal.
 	avatars *ui.Images
-	// cols is the layout of the rows at colsWidth. labeled is whether
-	// any issue the list has loaded so far has labels; until one has, the
-	// rows keep no room for them. A new list starts without.
+	// cols is the layout of the rows at colsWidth. room is how wide the
+	// labels of the issues the list has loaded so far are; until one has
+	// labels, the rows keep no room for them. A new list starts without.
 	cols      columns
 	colsWidth int
-	labeled   bool
+	room      labelRoom
 	// links keeps the links of the rows, which are drawn on every frame.
 	links termtext.Links
 
@@ -180,6 +180,9 @@ func (s *Section) SetTheme(t ui.Theme) {
 	s.rows = newRowStyles(t, s.icons)
 	s.chips = newChipCache(s.rows)
 	s.list.SetStyles(t.Feed(s.icons))
+	// The chips may have changed width with the icons.
+	s.room = labelRoom{}
+	s.scanLabels()
 	s.renderChrome()
 }
 
@@ -242,7 +245,7 @@ func (s *Section) listQuery(state core.StateFilter) issuesvc.ListQuery {
 func (s *Section) resetList() tea.Cmd {
 	s.list = s.newList()
 	// The new list has loaded no issue yet, so none with labels.
-	s.labeled = false
+	s.room = labelRoom{}
 	s.renderChrome()
 	if !s.live() {
 		return nil
