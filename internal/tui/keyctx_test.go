@@ -183,8 +183,21 @@ var keyWork = core.Work{
 	Assigned:        core.WorkList{Count: 1, Items: []core.SearchHit{{Kind: core.SearchIssues, Repo: keyRepo, Issue: keyIssue}}},
 }
 
+// keyHeader's organizations: charmbracelet has the repository, and
+// octo-org none.
 func keyHeader() core.Header {
-	return core.Header{Profile: core.Profile{Login: "octocat", CreatedAt: keyTime}, Pinned: []core.Repo{keyRepo}}
+	return core.Header{
+		Profile: core.Profile{Login: "octocat", CreatedAt: keyTime}, Pinned: []core.Repo{keyRepo},
+		Orgs: []core.Org{{Login: "charmbracelet"}, {Login: "octo-org"}},
+	}
+}
+
+// keyRepos returns the repositories of q: none of octo-org.
+func keyRepos(q dashsvc.ReposQuery) core.Page[core.Repo] {
+	if q.Owner == "octo-org" {
+		return core.Page[core.Repo]{}
+	}
+	return core.Page[core.Repo]{Items: []core.Repo{keyRepo}}
 }
 
 func (keyDash) CachedHeader() (core.Header, bool) { return keyHeader(), true }
@@ -197,21 +210,21 @@ func (keyDash) CachedContributions() (core.Contributions, bool)            { ret
 func (keyDash) Contributions(context.Context, dashsvc.ContributionsQuery) (core.Contributions, error) {
 	return core.Contributions{}, nil
 }
-func (keyDash) CachedRepos(dashsvc.ReposQuery) (core.Page[core.Repo], bool) {
-	return core.Page[core.Repo]{Items: []core.Repo{keyRepo}}, true
+func (keyDash) CachedRepos(q dashsvc.ReposQuery) (core.Page[core.Repo], bool) {
+	return keyRepos(q), true
 }
 func (keyDash) FreshHeader() bool                  { return true }
 func (keyDash) FreshWork(dashsvc.WorkQuery) bool   { return true }
 func (keyDash) FreshContributions() bool           { return true }
 func (keyDash) FreshRepos(dashsvc.ReposQuery) bool { return true }
-func (keyDash) Repos(context.Context, dashsvc.ReposQuery) (core.Page[core.Repo], error) {
-	return core.Page[core.Repo]{Items: []core.Repo{keyRepo}}, nil
+func (keyDash) Repos(_ context.Context, q dashsvc.ReposQuery) (core.Page[core.Repo], error) {
+	return keyRepos(q), nil
 }
-func (keyDash) CachedAllRepos(dashsvc.ReposQuery, int) (core.Page[core.Repo], bool) {
-	return core.Page[core.Repo]{Items: []core.Repo{keyRepo}}, true
+func (keyDash) CachedAllRepos(q dashsvc.ReposQuery, _ int) (core.Page[core.Repo], bool) {
+	return keyRepos(q), true
 }
-func (keyDash) AllRepos(context.Context, dashsvc.ReposQuery, int) (core.Page[core.Repo], error) {
-	return core.Page[core.Repo]{Items: []core.Repo{keyRepo}}, nil
+func (keyDash) AllRepos(_ context.Context, q dashsvc.ReposQuery, _ int) (core.Page[core.Repo], error) {
+	return keyRepos(q), nil
 }
 func (keyDash) Invalidate() {}
 

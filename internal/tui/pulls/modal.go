@@ -394,7 +394,7 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	switch {
 	case key.Matches(msg, k.Back):
 		return m.close()
-	case key.Matches(msg, k.Owner) && m.detail.Author.Login != "":
+	case key.Matches(msg, k.owner) && ui.Author(m.detail.Author) != "":
 		// The page shows in place of the screen behind the modal.
 		return tea.Sequence(m.close(), ui.ShowOwner(m.detail.Author.Login))
 	case key.Matches(msg, k.Checks):
@@ -524,12 +524,15 @@ func (m *detailModal) KeyLayers() []keyhelp.Layer {
 		return []keyhelp.Layer{m.keys.confirm.Layer()}
 	}
 	k := m.keys.withChanges(m.gate(), m.mergeMethod, m.detail.PullRequest, m.loaded)
-	k.Owner.SetEnabled(k.Owner.Enabled() && m.detail.Author.Login != "")
 	// The list's keys don't work here.
 	for _, b := range []*key.Binding{&k.Select, &k.Filter, &k.Sort, &k.ClearFilter, &k.NextTab, &k.PrevTab} {
 		b.SetEnabled(false)
 	}
-	return []keyhelp.Layer{keyhelp.FromHelp("pull request", k, false), keyhelp.FromHelp("thread", m.thread, false)}
+	owner := m.keys.owner
+	owner.SetEnabled(owner.Enabled() && ui.Author(m.detail.Author) != "")
+	own := keyhelp.FromHelp("pull request", k, false)
+	own.Bindings = append(own.Bindings, owner)
+	return []keyhelp.Layer{own, keyhelp.FromHelp("thread", m.thread, false)}
 }
 
 // gate decides what the viewer may do in the repository.

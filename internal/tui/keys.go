@@ -81,7 +81,7 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		form:          ui.FilterFormKeys(keys),
 		Notifications: ui.Binding(keys, config.ActionNotifications, "notifications"),
 		Dashboard:     ui.Binding(keys, config.ActionDashboard, "dashboard"),
-		Owner:         ui.Binding(keys, config.ActionOwner, "profile"),
+		Owner:         ui.Binding(keys, config.ActionOwner, "owner page"),
 		Next:          ui.Binding(keys, config.ActionNextTab, "next pane"),
 		Prev:          ui.Binding(keys, config.ActionPrevTab, "previous pane"),
 		Zoom:          ui.Binding(keys, config.ActionZoom, "zoom"),

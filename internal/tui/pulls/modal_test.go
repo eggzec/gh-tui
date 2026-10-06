@@ -463,13 +463,13 @@ func TestModalFailureToasts(t *testing.T) {
 func TestOwnerKeyInModal(t *testing.T) {
 	h := started(t, newFakeService(), 80, 20)
 	pr, _ := h.feed.Selected()
-	if got := uitest.Enabled(h.KeyLayers()); slices.Contains(got, "author") {
-		t.Errorf("list help = %v, want no author", got)
+	if got := uitest.Enabled(h.KeyLayers()); slices.Contains(got, "owner page") {
+		t.Errorf("list help = %v, want no owner page", got)
 	}
 	press(t, h, "enter")
 	m := h.modal()
-	if got := uitest.Enabled(m.KeyLayers()); !slices.Contains(got, "author") {
-		t.Errorf("modal help = %v, want author", got)
+	if got := uitest.Enabled(m.KeyLayers()); !slices.Contains(got, "owner page") {
+		t.Errorf("modal help = %v, want owner page", got)
 	}
 	msgs := press(t, h, "@")
 	if !slices.Contains(msgs, tea.Msg(ui.OwnerMsg{Login: pr.Author.Login})) || pr.Author.Login == "" {
@@ -477,5 +477,38 @@ func TestOwnerKeyInModal(t *testing.T) {
 	}
 	if h.modal() != nil || m.ctx.Err() == nil {
 		t.Error("@ should close the modal and cancel its reads")
+	}
+}
+
+// TestOwnerKeyInModalOffForApps checks that @ does nothing in the modal
+// of a pull request an app opened, which has no page, and that it is no
+// answer while a change waits for one.
+func TestOwnerKeyInModalOffForApps(t *testing.T) {
+	svc := newFakeService()
+	svc.pulls[0].Author = core.User{Login: "dependabot", Bot: true}
+	h := started(t, svc, 80, 20)
+	press(t, h, "enter")
+	m := h.modal()
+	if got := uitest.Enabled(m.KeyLayers()); slices.Contains(got, "owner page") {
+		t.Errorf("modal help = %v, want no owner page", got)
+	}
+	if msgs := press(t, h, "@"); len(msgs) != 0 || h.modal() != m {
+		t.Errorf("@ sent %v, want nothing and the modal open", msgs)
+	}
+
+	h = started(t, newFakeService(), 80, 20)
+	press(t, h, "enter")
+	m = h.modal()
+	press(t, h, "x")
+	if m.ask == nil {
+		t.Fatal("x didn't ask to close the pull request")
+	}
+	for _, msg := range press(t, h, "@") {
+		if _, ok := msg.(ui.OwnerMsg); ok {
+			t.Errorf("@ asked for an owner page while the question waits: %v", msg)
+		}
+	}
+	if h.modal() != m {
+		t.Error("@ closed the modal while the question waits")
 	}
 }
