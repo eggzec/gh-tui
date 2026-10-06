@@ -12,5 +12,5 @@ func (s *Section) Selected() (ui.Selection, bool) {
 	if !ok {
 		return ui.Selection{}, false
 	}
-	return ui.Selection{What: "issue", URL: it.URL, Repo: s.repo, Number: it.Number, Owner: it.Author.Login}, true
+	return ui.Selection{What: "issue", URL: it.URL, Repo: s.repo, Number: it.Number, Owner: ui.Author(it.Author)}, true
 }

@@ -11,6 +11,8 @@ func TestSelections(t *testing.T) {
 	issue := core.Issue{Repo: repo, Number: 5, URL: "https://github.com/cli/cli/issues/5"}
 	authored := issue
 	authored.Author = core.User{Login: "mona"}
+	bot := issue
+	bot.Author = core.User{Login: "dependabot", Bot: true}
 	tests := []struct {
 		name string
 		got  Selection
@@ -27,9 +29,14 @@ func TestSelections(t *testing.T) {
 			want: Selection{What: "issue", URL: issue.URL, Repo: repo, Number: 5, Owner: "mona"},
 		},
 		{
-			name: "issue hit without an author",
+			name: "issue hit of a deleted account",
 			got:  HitSelection(core.SearchHit{Kind: core.SearchIssues, Issue: issue}, ""),
-			want: Selection{What: "issue", URL: issue.URL, Repo: repo, Number: 5, Owner: "cli"},
+			want: Selection{What: "issue", URL: issue.URL, Repo: repo, Number: 5},
+		},
+		{
+			name: "pull request hit of an app",
+			got:  HitSelection(core.SearchHit{Kind: core.SearchPulls, Issue: bot}, ""),
+			want: Selection{What: "pull request", URL: issue.URL, Repo: repo, Number: 5},
 		},
 		{
 			name: "pull request hit",
