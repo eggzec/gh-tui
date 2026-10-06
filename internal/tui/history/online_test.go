@@ -222,11 +222,12 @@ func TestOnlineHeadRefusedIsNotReadAgain(t *testing.T) {
 	}
 }
 
-// TestOnlineFilterKeepsLaterPages checks that the filter, open while the
-// branches are read again from the first page once the limit lifts, keeps
-// listing the branches of the later pages until the read brings them
-// again, rather than shrinking to the first page meanwhile.
-func TestOnlineFilterKeepsLaterPages(t *testing.T) {
+// rereadUnderFilter opens the filter over two pages of branches, served
+// kept while GitHub rate limited their read, and lifts the limit, which
+// reads them again from the first page. The second page is still on its
+// way when it returns.
+func rereadUnderFilter(t *testing.T) (*Modal, *host, *fake) {
+	t.Helper()
 	f := newFake()
 	first := make([]core.Branch, 1, 12)
 	first[0] = core.Branch{Name: "main"}
@@ -247,22 +248,45 @@ func TestOnlineFilterKeepsLaterPages(t *testing.T) {
 	f.limited = false
 	f.mu.Unlock()
 
-	// The second page is still on its way.
 	h.skip = func(msg tea.Msg) bool {
 		b, ok := msg.(branchesMsg)
 		return ok && b.cursor == "2"
 	}
 	h.run(func() tea.Msg { return ui.OnlineMsg{} })
+	h.skip = nil
+	return m, h, f
+}
+
+// TestOnlineFilterKeepsLaterPages checks that the filter, open while the
+// branches are read again from the first page once the limit lifts, keeps
+// listing the branches of the later pages until the read brings them
+// again, rather than shrinking to the first page meanwhile.
+func TestOnlineFilterKeepsLaterPages(t *testing.T) {
+	m, h, f := rereadUnderFilter(t)
 	if n := m.branches.filter.Len(); n != 15 {
 		t.Errorf("the filter lists %d branches while the second page is read again, want 15", n)
 	}
 	// The second page arrives, with a branch deleted meanwhile.
-	h.skip = nil
 	f.mu.Lock()
 	f.branchPages["2"] = core.Page[core.Branch]{Items: []core.Branch{{Name: "fix/a"}, {Name: "fix/b"}}}
 	f.mu.Unlock()
 	h.run(m.loadBranches("2", true))
 	if n := m.branches.filter.Len(); n != 14 {
 		t.Errorf("the filter lists %d branches once both pages are read again, want 14", n)
+	}
+}
+
+// TestOnlineFilterChoosesBranchOfLaterPage checks that a branch chosen in
+// the filter while the page that lists it is read again gets the cursor
+// once that page arrives.
+func TestOnlineFilterChoosesBranchOfLaterPage(t *testing.T) {
+	m, h, _ := rereadUnderFilter(t)
+	h.keys("f", "i", "x", "/", "c", "enter")
+	if m.branches.filter != nil || m.graph.shown() != "fix/c" {
+		t.Fatalf("filter open %v, graph of %q; want fix/c shown", m.branches.filter != nil, m.graph.shown())
+	}
+	h.run(m.loadBranches("2", true))
+	if b, _ := m.branches.selected(); b.Name != "fix/c" || m.branches.follow != "" {
+		t.Errorf("cursor on %q, following %q; want on fix/c", b.Name, m.branches.follow)
 	}
 }
