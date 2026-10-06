@@ -293,6 +293,7 @@ func (m *Model[T]) SetStyles(s Styles) {
 	a := m.anchor()
 	m.styles = s
 	m.md.SetStyle(m.markdownStyle())
+	m.md.SetGlyphs(s.MarkdownGlyphs)
 	m.spin.Style = s.Spinner
 	m.spin.Spinner = spinner.Dot
 	if len(s.SpinnerFrames.Frames) > 0 {

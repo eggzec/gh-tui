@@ -43,6 +43,9 @@ type Styles struct {
 	// Markdown is the glamour style of the body and of what
 	// [Model.Markdown] renders. [WithMarkdownStyle] overrides it.
 	Markdown ansi.StyleConfig
+	// MarkdownGlyphs are what the markdown draws of its own, such as its
+	// bullets and quote bars. The zero value draws the defaults.
+	MarkdownGlyphs markdown.Glyphs
 }
 
 // DefaultStyles returns the default styles for a light or dark terminal.

@@ -105,6 +105,7 @@ func (t Theme) Thread(ic Icons) thread.Styles {
 	s.ErrorGlyph = ic.Error
 	s.ErrorSeparator, s.ErrorEllipsis = ic.Separator, ic.Ellipsis
 	s.Pointer, s.Ellipsis = ic.Crumb, ic.Ellipsis
+	s.MarkdownGlyphs = ic.Markdown
 	s.Spinner = s.Spinner.Foreground(lipgloss.Color(t.Palette.Accent))
 	s.Loading = s.Loading.Foreground(lipgloss.Color(t.Palette.Muted))
 	s.Empty = s.Empty.Foreground(lipgloss.Color(t.Palette.Muted))
