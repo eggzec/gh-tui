@@ -614,3 +614,27 @@ func TestDetailLinksDiagram(t *testing.T) {
 		t.Errorf("the detail doesn't link the diagram:\n%q", v)
 	}
 }
+
+// TestReopenedReadsTheLostLog checks that a log whose read was in flight
+// while a preview hid the step, whose answer went to the preview, is read
+// again once the step is back, once.
+func TestReopenedReadsTheLostLog(t *testing.T) {
+	f := newFake()
+	s, h := newStep(t, f, wideW, wideH)
+	// The job is in the cache once it was shown, and its log isn't.
+	h.keys("enter", "esc")
+	_ = s.Update(press("enter")) // Its answers go to the preview.
+	if s.mode != jobMode || s.view.State() != jobview.Loading {
+		t.Fatalf("enter shows mode %d with the log in state %d, want the job loading its log", s.mode, s.view.State())
+	}
+	s.pause()
+	_, _, logs := f.reads()
+
+	h.send(ui.ReopenedMsg{Modal: ret})
+	if _, _, l := f.reads(); l-logs != 1 {
+		t.Errorf("the log was read %d times once the step was back, want once", l-logs)
+	}
+	if s.view.State() != jobview.Ready {
+		t.Errorf("the log is in state %d once the step is back, want shown", s.view.State())
+	}
+}
