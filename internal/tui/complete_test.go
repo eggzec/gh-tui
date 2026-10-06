@@ -263,4 +263,9 @@ func TestCompleteArgumentsOverAModal(t *testing.T) {
 	if got := m.complete("raw ", 4); len(got) == 0 {
 		t.Error("raw completes nothing over a modal, which it runs over")
 	}
+	// What is typed narrows the suggestions as it does without a modal.
+	got := m.complete("raw of", 6)
+	if len(got) != 1 || got[0].Text != "off" {
+		t.Errorf("complete(raw of) over a modal = %+v, want only off", got)
+	}
 }
