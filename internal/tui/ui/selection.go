@@ -1,10 +1,6 @@
 package ui
 
-import (
-	"cmp"
-
-	"github.com/eggzec/gh-tui/internal/core"
-)
+import "github.com/eggzec/gh-tui/internal/core"
 
 // Selection is what the cursor of a section is on, such as a pull request
 // or a file, which the copy command copies from.
@@ -36,9 +32,18 @@ func RepoSelection(r core.Repo, url string) Selection {
 	return Selection{What: "repository", URL: url, Repo: r.Ref, Owner: r.Ref.Owner}
 }
 
+// Author returns the login of u, whose page the owner key shows, or ""
+// for an app, which has none.
+func Author(u core.User) string {
+	if u.Bot {
+		return ""
+	}
+	return u.Login
+}
+
 // HitSelection is the selection of a result of a search, whose page is
 // repoURL for a repository. The owner of an issue or pull request is its
-// author, or its repository's owner when the result names no author.
+// author.
 func HitSelection(hit core.SearchHit, repoURL string) Selection {
 	if hit.Kind == core.SearchRepos {
 		return RepoSelection(hit.Repo, repoURL)
@@ -48,7 +53,7 @@ func HitSelection(hit core.SearchHit, repoURL string) Selection {
 		what = "pull request"
 	}
 	it := hit.Issue
-	return Selection{What: what, URL: it.URL, Repo: it.Repo, Number: it.Number, Owner: cmp.Or(it.Author.Login, it.Repo.Owner)}
+	return Selection{What: what, URL: it.URL, Repo: it.Repo, Number: it.Number, Owner: Author(it.Author)}
 }
 
 // subjects name the kinds of what notifications are about.
