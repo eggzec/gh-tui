@@ -262,7 +262,8 @@ func (s *Section) paneLabel(p paneID) string {
 		if at, of := s.page.pinned.Pages(); of > 1 {
 			text += s.icons.Separator + strconv.Itoa(at) + "/" + strconv.Itoa(of)
 		}
-		if h := s.page.header; h.ok && h.value.HiddenPins {
+		// With every pin hidden, the pane itself says so.
+		if h := s.page.header; h.ok && h.value.HiddenPins && len(h.value.Pinned) > 0 {
 			text += s.icons.Separator + "some hidden"
 		}
 	default:
