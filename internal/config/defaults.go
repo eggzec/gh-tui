@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"slices"
 	"strconv"
+	"strings"
 	"sync"
 
 	"go.yaml.in/yaml/v3"
@@ -161,6 +162,20 @@ const names = "\x00names"
 func plainAt(n *yaml.Node, path, setting string) (*yaml.Node, error) {
 	for n.Kind == yaml.AliasNode {
 		n = n.Alias
+	}
+	if isNull(n) {
+		switch strings.Count(setting, ".") {
+		case 1:
+			if strings.HasPrefix(setting, "keys.") {
+				// A context with no actions sets nothing: an empty mapping,
+				// which merges as nothing over the defaults.
+				return &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map", Line: n.Line, Column: n.Column}, nil
+			}
+		case 2:
+			if strings.HasPrefix(setting, "keys.") {
+				return nil, fmt.Errorf("line %d: %s: want a list of keys, such as [m], or [] to unbind", n.Line, name(path))
+			}
+		}
 	}
 	if isNull(n) && !Inherits(setting) {
 		return nil, fmt.Errorf("line %d: %s is empty: remove the line to keep the default", n.Line, name(path))

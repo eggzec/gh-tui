@@ -1,6 +1,6 @@
 # label | keys | help key | on or off
 
-app
+always
   quit | ctrl+c | ^c | on
   command | : | : | on
   help | ? | ? | on

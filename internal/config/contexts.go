@@ -38,12 +38,6 @@ type Context struct {
 	// Modal is whether a screen-layer context is a modal over the screens,
 	// rather than a screen.
 	Modal bool
-	// Typing is whether a capturing context types the printable keys of
-	// its input that none of its actions take.
-	Typing bool
-	// Printable names the actions of a typing context that may be bound
-	// to a printable key all the same.
-	Printable []string
 }
 
 // contexts are all the contexts of keys there are.
@@ -65,7 +59,7 @@ var contexts = []Context{
 	{Name: "notifications", Title: "Notifications", Reach: ReachScreen},
 
 	{Name: "search", Title: "Search", Reach: ReachScreen},
-	{Name: "search_query", Title: "Query", Reach: ReachCapture, Parent: "search", Typing: true},
+	{Name: "search_query", Title: "Query", Reach: ReachCapture, Parent: "search"},
 	{Name: "search_kinds", Title: "Kinds", Reach: ReachPane, Parent: "search"},
 	{Name: "search_results", Title: "Results", Reach: ReachPane, Parent: "search"},
 
@@ -77,10 +71,13 @@ var contexts = []Context{
 
 	{Name: "pull_modal", Title: "Pull request", Reach: ReachScreen, Modal: true},
 	{Name: "pull_conversation", Title: "Conversation", Reach: ReachPane, Parent: "pull_modal"},
-	{Name: "pull_checks", Title: "Checks", Reach: ReachPane, Parent: "pull_modal"},
-	{Name: "pull_check_log", Title: "Log", Reach: ReachPane, Parent: "pull_modal"},
-	{Name: "pull_check_annotations", Title: "Annotations", Reach: ReachPane, Parent: "pull_modal"},
-	{Name: "pull_check_detail", Title: "Detail", Reach: ReachPane, Parent: "pull_modal"},
+	// The steps of the checks of a pull request take every key, so the keys
+	// of the modal don't work in them: they are a modal of their own.
+	{Name: "pull_checks", Title: "Checks", Reach: ReachScreen, Modal: true},
+	{Name: "pull_check_list", Title: "Checks", Reach: ReachPane, Parent: "pull_checks"},
+	{Name: "pull_check_log", Title: "Log", Reach: ReachPane, Parent: "pull_checks"},
+	{Name: "pull_check_annotations", Title: "Annotations", Reach: ReachPane, Parent: "pull_checks"},
+	{Name: "pull_check_detail", Title: "Detail", Reach: ReachPane, Parent: "pull_checks"},
 	{Name: "issue_modal", Title: "Issue", Reach: ReachScreen, Modal: true},
 	{Name: "release_modal", Title: "Release", Reach: ReachScreen, Modal: true},
 
@@ -95,22 +92,23 @@ var contexts = []Context{
 	{Name: "actions_jobs", Title: "Jobs", Reach: ReachPane, Parent: "actions"},
 	{Name: "actions_log", Title: "Log", Reach: ReachPane, Parent: "actions"},
 	{Name: "actions_annotations", Title: "Annotations", Reach: ReachPane, Parent: "actions"},
-	{Name: "actions_filter", Title: "Filter", Reach: ReachPane, Parent: "actions"},
 
 	{Name: "preview", Title: "File", Reach: ReachScreen, Modal: true},
 	{Name: "text", Title: "Text", Reach: ReachScreen, Modal: true},
 	{Name: "filter", Title: "Filter", Reach: ReachScreen, Modal: true},
+	// The filter of the runs replaces the Actions modal while it is open.
+	{Name: "actions_filter", Title: "Filter", Reach: ReachScreen, Modal: true},
 
-	{Name: "command_line", Title: "Command line", Reach: ReachCapture, Typing: true},
-	{Name: "help", Title: "Help", Reach: ReachCapture, Typing: true, Printable: []string{"close"}},
+	{Name: "command_line", Title: "Command line", Reach: ReachCapture},
+	{Name: "help", Title: "Help", Reach: ReachCapture},
 	{Name: "confirm", Title: "Confirm", Reach: ReachCapture},
-	{Name: "prompt", Title: "Prompt", Reach: ReachCapture, Typing: true},
-	{Name: "finder", Title: "Finder", Reach: ReachCapture, Parent: "repo", Typing: true},
-	{Name: "picker", Title: "Picker", Reach: ReachCapture, Typing: true, Printable: []string{"toggle"}},
-	{Name: "search_prompt", Title: "Search", Reach: ReachCapture, Typing: true},
+	{Name: "prompt", Title: "Prompt", Reach: ReachCapture},
+	{Name: "finder", Title: "Finder", Reach: ReachCapture, Parent: "repo"},
+	{Name: "picker", Title: "Picker", Reach: ReachCapture},
+	{Name: "search_prompt", Title: "Search", Reach: ReachCapture},
 	{Name: "pager_option", Title: "Option", Reach: ReachCapture},
-	{Name: "filter_query", Title: "Filter query", Reach: ReachCapture, Typing: true},
-	{Name: "filter_text", Title: "Filter text", Reach: ReachCapture, Typing: true},
+	{Name: "filter_query", Title: "Filter query", Reach: ReachCapture},
+	{Name: "filter_text", Title: "Filter text", Reach: ReachCapture},
 }
 
 // kind says what the context is, a screen or a modal, for messages.
@@ -123,13 +121,7 @@ func (c Context) kind() string {
 
 // Contexts returns every context of keys, for help, tests and what lists
 // them. The result is the caller's to modify.
-func Contexts() []Context {
-	out := slices.Clone(contexts)
-	for i := range out {
-		out[i].Printable = slices.Clone(out[i].Printable)
-	}
-	return out
-}
+func Contexts() []Context { return slices.Clone(contexts) }
 
 // LookupContext returns the context called name.
 func LookupContext(name string) (Context, bool) {

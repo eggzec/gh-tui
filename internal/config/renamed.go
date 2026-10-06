@@ -524,6 +524,10 @@ func renamedErrors(err error, renamed []Renamed) error {
 // fieldByName returns the field of the struct t that the config file
 // names name.
 func fieldByName(t reflect.Type, name string) (reflect.StructField, bool) {
+	if t.Kind() != reflect.Struct {
+		// The entries of a map, such as the contexts of keys, are no fields.
+		return reflect.StructField{}, false
+	}
 	for f := range t.Fields() {
 		if yamlName(f) == name {
 			return f, true

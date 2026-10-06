@@ -557,7 +557,7 @@ func TestKeyLayersOrder(t *testing.T) {
 	}
 	h.keys("enter")
 	layers := s.KeyLayers()
-	if b, src, _ := uitest.Winner(layers, "esc"); src != "Log" || b.Help().Desc != "checks" {
+	if b, src, _ := uitest.Winner(layers, "esc"); src != "Checks" || b.Help().Desc != "checks" {
 		t.Errorf("esc reaches %q of %q in the job, want the step's back to the checks", b.Help().Desc, src)
 	}
 	if _, src, _ := uitest.Winner(layers, "space"); src != "Log" {
@@ -576,7 +576,7 @@ func TestKeyLayersOrder(t *testing.T) {
 		t.Fatalf("esc with a search left mode %d and query %q, want the job without it", s.mode, s.view.Query())
 	}
 	layers = s.KeyLayers()
-	if b, src, _ := uitest.Winner(layers, "R"); src != "Log" || b.Help().Desc != "rerun failed" {
+	if b, src, _ := uitest.Winner(layers, "R"); src != "Checks" || b.Help().Desc != "rerun failed" {
 		t.Errorf("R reaches %q of %q, want the re-run", b.Help().Desc, src)
 	}
 	h.keys("R")

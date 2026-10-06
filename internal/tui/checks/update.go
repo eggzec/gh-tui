@@ -133,7 +133,7 @@ func (s *Step) press(msg tea.KeyPressMsg) tea.Cmd {
 		}
 		s.back()
 		return nil
-	case key.Matches(msg, k.rerun(s.mode, s.view.OnAnnotations())):
+	case key.Matches(msg, k.RerunFailed):
 		if r, ok := s.current(); ok && r.job() {
 			if cmd, refused := s.gate().Refuse(ui.ActRerun, nil); refused {
 				return cmd

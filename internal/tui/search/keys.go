@@ -112,7 +112,12 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 		Short:    []key.Binding{k.Up, k.Down, k.Select, k.Repo, k.Checks, k.Open, k.Filter, k.Sort, k.Left},
 	}
 	if s.area == kindsArea {
-		return []keyhelp.Layer{screen, ui.MergeLayers("search_kinds", own)}
+		// The kinds have no results to show the repository of or the checks.
+		kinds := keyhelp.Layer{
+			Bindings: []key.Binding{k.Select, k.Left, k.Right, k.Up, k.Down, k.Open, k.Refresh, k.Filter, k.Sort},
+			Short:    []key.Binding{k.Up, k.Down, k.Select, k.Open, k.Filter, k.Sort, k.Left},
+		}
+		return []keyhelp.Layer{screen, ui.MergeLayers("search_kinds", kinds)}
 	}
 	if s.text == "" {
 		return []keyhelp.Layer{screen, ui.MergeLayers("search_results", own)}

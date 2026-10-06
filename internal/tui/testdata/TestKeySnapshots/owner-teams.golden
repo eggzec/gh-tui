@@ -1,6 +1,6 @@
 # label | keys | help key | on or off
 
-app
+always
   help | ? | ? | on
 
 app
@@ -8,23 +8,18 @@ app
   quit | q ctrl+c | q | on
   search | / | / | on
   find file | t ctrl+p | t | off
-  zoom | z | z | off
-  unzoom | esc | esc | off
+  zoom | z | z | on
+  back | esc | esc | on
   dismiss | ctrl+x | ctrl+x | off
   owner page | @ | @ | off
   notifications | n | n | on
   dashboard | 0 | 0 | on
-  next pane | tab | tab | off
-  previous pane | shift+tab | shift+tab | off
-  focus pane | 1 2 3 | 1-3 | off
-
-Profile
   next pane | tab | tab | on
   previous pane | shift+tab | shift+tab | on
-  zoom | z | z | on
-  back | esc | esc | on
-  refresh | r | r | on
   focus pane | 1 2 3 | 1-3 | on
+
+Profile
+  refresh | r | r | on
 
 List
   open | enter | ↵ | off

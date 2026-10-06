@@ -1,6 +1,6 @@
 # label | keys | help key | on or off
 
-app
+always
   help | ? | ? | on
 
 app
@@ -9,19 +9,16 @@ app
   search | / | / | on
   find file | t ctrl+p | t | off
   zoom | z | z | off
-  unzoom | esc | esc | off
+  back | esc | esc | on
   dismiss | ctrl+x | ctrl+x | off
   owner page | @ | @ | on
   notifications | n | n | on
   dashboard | 0 | 0 | on
-  next pane | tab | tab | off
-  previous pane | shift+tab | shift+tab | off
+  next | tab | tab | on
+  previous | shift+tab | shift+tab | on
   focus pane | 1 2 3 | 1-3 | on
 
 Search
-  back | esc | esc | on
-  next | tab | tab | on
-  previous | shift+tab | shift+tab | on
 
 Results
   open | enter | ↵ | on

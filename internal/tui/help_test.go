@@ -338,7 +338,7 @@ func TestCtrlCAlwaysQuits(t *testing.T) {
 	if !quits(m.key(ctrlC)) {
 		t.Error("ctrl+c didn't quit from a modal")
 	}
-	if got := winner(m, "ctrl+c"); got != "app: quit" {
+	if got := winner(m, "ctrl+c"); got != "always: quit" {
 		t.Errorf("ctrl+c reaches %q in a modal, want the quit", got)
 	}
 }

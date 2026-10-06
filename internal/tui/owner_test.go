@@ -464,7 +464,7 @@ func TestOwnerKeyInTheApp(t *testing.T) {
 		check func(m *Model) string
 	}{
 		{name: "search query", keys: []string{"/"}, check: func(m *Model) string {
-			if got := layerNames(m.keyLayers()); m.screen != searchScreen || got != "app, app, search_query (types)" || !strings.Contains(onScreen(m), "@") {
+			if got := layerNames(m.keyLayers()); m.screen != searchScreen || got != "always, app, search_query (types)" || !strings.Contains(onScreen(m), "@") {
 				return "the query didn't take @: the keys reach " + got
 			}
 			return ""
@@ -476,13 +476,13 @@ func TestOwnerKeyInTheApp(t *testing.T) {
 			return ""
 		}},
 		{name: "filter field", repo: true, keys: []string{"2", "f", "down", "enter"}, check: func(m *Model) string {
-			if got := layerNames(m.keyLayers()); m.screen != repoScreen || got != "app, filter (types)" {
+			if got := layerNames(m.keyLayers()); m.screen != repoScreen || got != "always, picker (types)" {
 				return "the filter field didn't take @: the keys reach " + got
 			}
 			return ""
 		}},
 		{name: "pull request question", repo: true, keys: []string{"2", "enter", "x"}, check: func(m *Model) string {
-			if got := layerNames(m.keyLayers()); m.screen != repoScreen || got != "app, confirm" {
+			if got := layerNames(m.keyLayers()); m.screen != repoScreen || got != "always, confirm" {
 				return "the question went away: the keys reach " + got
 			}
 			return ""

@@ -217,10 +217,11 @@ func (m *FilterModal) SetTheme(t Theme) { m.form.SetStyles(t.FilterForm(m.icons)
 // KeyLayers implements Keyed: the keys of the form, which types what the
 // editor or the query line takes.
 func (m *FilterModal) KeyLayers() []keyhelp.Layer {
-	l := keyhelp.FromHelp("filter", m.form, m.form.Capturing())
-	if !m.form.Capturing() {
-		l.Context = "filter"
-	}
+	ctx := map[filterform.Capture]string{
+		filterform.CaptureNone: "filter", filterform.CaptureQuery: "filter_query",
+		filterform.CaptureEditor: "filter_text", filterform.CapturePicker: "picker",
+	}[m.form.CapturedBy()]
+	l := ContextHelp(ctx, m.form, m.form.Capturing())
 	return []keyhelp.Layer{l}
 }
 

@@ -1,6 +1,6 @@
 # label | keys | help key | on or off
 
-app
+always
   help | ? | ? | on
 
 app
@@ -8,24 +8,19 @@ app
   quit | q ctrl+c | q | on
   search | / | / | on
   find file | t ctrl+p | t | off
-  zoom | z | z | off
+  zoom | z | z | on
   unzoom | esc | esc | off
   dismiss | ctrl+x | ctrl+x | off
   owner page | @ | @ | on
   notifications | n | n | on
   back | 0 | 0 | off
-  next pane | tab | tab | off
-  previous pane | shift+tab | shift+tab | off
-  focus pane | 1 2 3 | 1-3 | off
-
-Dashboard
   next pane | tab | tab | on
   previous pane | shift+tab | shift+tab | on
-  zoom | z | z | on
-  unzoom | esc | esc | off
+  focus pane | 1 2 3 4 5 | 1-5 | on
+
+Dashboard
   refresh | r | r | on
   this repo | . | . | on
-  focus pane | 1 2 3 4 5 | 1-5 | on
 
 Notifications
   up | up k | ↑/k | on

@@ -521,11 +521,8 @@ func (m *detailModal) show() tea.Cmd {
 func (m *detailModal) KeyLayers() []keyhelp.Layer {
 	switch {
 	case m.checks != nil:
-		if m.checks.Capturing() {
-			return m.checks.KeyLayers()
-		}
-		// The changes of the pull request wait while the step has the keys.
-		return append([]keyhelp.Layer{ui.Off(m.modalLayer(m.keys))}, m.checks.KeyLayers()...)
+		// The step takes every key, so the modal's own don't work in it.
+		return m.checks.KeyLayers()
 	case m.ask != nil:
 		return []keyhelp.Layer{m.keys.confirm.Layer()}
 	}
