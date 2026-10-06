@@ -267,6 +267,44 @@ func TestAvatarFails(t *testing.T) {
 	}
 }
 
+// Images that go off for tmux showing the session on several terminals
+// are deleted from the one that held them, once; images that go off for
+// any other reason, such as another terminal attached, aren't.
+func TestDroppedWhenShared(t *testing.T) {
+	f := &fakeFetch{}
+	a := newTestAvatars(f, Graphics{Images: true, Tmux: true, Cell: testCell})
+	a.Line(avatarOf("mona"))
+	a.Line(avatarOf("hubot"))
+	load(t, a)
+	ids := []termimg.ID{placeholderID(t, a.Line(avatarOf("mona"))), placeholderID(t, a.Line(avatarOf("hubot")))}
+	if !a.SetGraphics(Graphics{Tmux: true, Shared: true, Cell: testCell}) {
+		t.Fatal("images off: no change")
+	}
+	checkHeld(t, a)
+	got := rawOf(t, a.Dropped())
+	if !strings.HasPrefix(got, "\x1bPtmux;") || strings.Count(got, "a=d,d=I") != 2 {
+		t.Errorf("Dropped = %q, want both deleted through tmux", got)
+	}
+	for _, id := range ids {
+		if !strings.Contains(got, termimg.Tmux(termimg.Delete(id))) {
+			t.Errorf("Dropped = %q lacks the delete of %d", got, id)
+		}
+	}
+	if a.Dropped() != nil || a.Holding() {
+		t.Error("deleted twice, or still holding")
+	}
+
+	a.SetGraphics(Graphics{Images: true, Tmux: true, Cell: testCell})
+	load(t, a)
+	if !a.Holding() {
+		t.Fatal("images on again sent none")
+	}
+	a.SetGraphics(Graphics{Tmux: true, Cell: testCell})
+	if cmd := a.Dropped(); cmd != nil {
+		t.Errorf("images off for another terminal deleted %q", rawOf(t, cmd))
+	}
+}
+
 // checkHeld fails t unless what a counts as held is what it sent.
 func checkHeld(t *testing.T, a *Images) {
 	t.Helper()

@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -270,6 +271,40 @@ func TestTmuxAttachResendsAvatars(t *testing.T) {
 	writes := answer(m, tea.FocusMsg{})
 	if len(writes) != 1 || strings.Count(writes[0], "a=t,") != 1 {
 		t.Errorf("an attach from ghostty wrote %q, want the avatar once", writes)
+	}
+}
+
+// A second terminal attached to the session turns images off and deletes
+// those sent from the first, which is still attached and would keep them;
+// once it detaches, images are sent again.
+func TestTmuxSharedDeletesAvatars(t *testing.T) {
+	ft := &fakeTmux{passthrough: "on", client: imgcaps.TmuxClient{TTY: "/dev/pts/1", Termtype: "kitty(0.43.1)", Cell: imgcaps.Cell{Width: 9, Height: 18}, Attached: 1}}
+	m, _ := tmuxApp(t, ft)
+	m.after = func(_ time.Duration, msg tea.Msg) tea.Cmd { return func() tea.Msg { return later{msg} } }
+	fetch := func(_ context.Context, src ui.ImageSource, _ ui.ImageBox) (ui.Picture, error) {
+		return ui.Picture{PNG: []byte(src.URL), Width: 20, Height: 20}, nil
+	}
+	a := ui.NewImages(context.Background(), fetch, true)
+	WithImages(a)(m)
+	answer(m, tea.ColorProfileMsg{Profile: colorprofile.ANSI256})
+	a.Line("https://avatars.githubusercontent.com/u/1?v=4")
+	if writes := answer(m, terminalWaitMsg{}); len(writes) != 1 || !strings.Contains(writes[0], "a=t,") {
+		t.Fatalf("the avatar wrote %q", writes)
+	}
+	ft.client.Attached = 2
+	writes := answer(m, tea.FocusMsg{})
+	if m.graphics.Images || len(writes) != 1 || strings.Count(writes[0], "a=d,d=I") != 1 || !strings.HasPrefix(writes[0], "\x1bPtmux;") {
+		t.Errorf("a second client wrote %q, images %v; want the avatar deleted through tmux", writes, m.graphics.Images)
+	}
+	if a.Holding() {
+		t.Error("holds images after they were deleted")
+	}
+	ft.client.Attached = 1
+	writes = answer(m, tea.FocusMsg{})
+	a.Line("https://avatars.githubusercontent.com/u/1?v=4")
+	writes = append(writes, answer(m, terminalWaitMsg{})...)
+	if !m.graphics.Images || !slices.ContainsFunc(writes, func(w string) bool { return strings.Contains(w, "a=t,") }) {
+		t.Errorf("one client left: images %v, wrote %q, want the avatar sent again", m.graphics.Images, writes)
 	}
 }
 

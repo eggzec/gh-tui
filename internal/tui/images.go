@@ -347,7 +347,7 @@ func (p *imageProbe) finish(v imgcaps.Verdict) tea.Cmd {
 	if !p.sent.IsZero() {
 		p.waited = time.Since(p.sent)
 	}
-	msg := graphicsDecidedMsg{graphics: ui.Graphics{Images: v.Images, Animate: v.Images && imgcaps.Animates(v.Terminal), Tmux: v.Tmux}, attrs: p.logAttrs()}
+	msg := graphicsDecidedMsg{graphics: ui.Graphics{Images: v.Images, Animate: v.Images && imgcaps.Animates(v.Terminal), Tmux: v.Tmux, Shared: v.Shared}, attrs: p.logAttrs()}
 	return func() tea.Msg { return msg }
 }
 

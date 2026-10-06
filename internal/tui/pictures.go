@@ -81,12 +81,14 @@ func (m *Model) imagesChanged() tea.Cmd {
 }
 
 // setGraphics tells the images what the terminal shows, and has the
-// sections draw them again if that changed whether they are drawn.
+// sections draw them again if that changed whether they are drawn, and
+// deletes those the terminal holds if they went off while it still
+// draws them.
 func (m *Model) setGraphics() tea.Cmd {
 	if !m.pics.SetGraphics(m.graphics) {
 		return nil
 	}
-	return m.imagesChanged()
+	return tea.Batch(m.pics.Dropped(), m.imagesChanged())
 }
 
 // Filter is the program's message filter: while the terminal holds

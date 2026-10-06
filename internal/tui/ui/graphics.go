@@ -14,6 +14,10 @@ type Graphics struct {
 	// Tmux says that what is sent of an image goes through tmux, wrapped
 	// in its passthrough.
 	Tmux bool
+	// Shared says images are off only because tmux shows the session on
+	// more than one terminal, while the one they were drawn on, if any,
+	// still holds them.
+	Shared bool
 	// Cell is the size of a cell in pixels, which an image is scaled by
 	// to cover whole cells. It is zero until the app found it out, soon
 	// after it found that the terminal draws images, and it changes when

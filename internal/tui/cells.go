@@ -165,7 +165,7 @@ func (m *Model) graphicsDecided(msg graphicsDecidedMsg) tea.Cmd {
 // a resize may come of one of them detaching.
 func (m *Model) askCells() tea.Cmd {
 	switch {
-	case !m.graphics.Images && !m.images.verdict.Shared:
+	case !m.graphics.Images && !m.graphics.Shared:
 		return nil
 	case m.graphics.Tmux:
 		return m.images.askCells(m.ctx)
