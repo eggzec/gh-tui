@@ -6,7 +6,7 @@ import "testing"
 // that the bindings that hold the name match it.
 func TestPress(t *testing.T) {
 	for _, name := range []string{
-		"r", "R", "?", "+", "1", "ctrl+r", "ctrl++", "alt+enter", "shift+tab", "ctrl+shift+up",
+		"r", "R", "?", "+", "1", "ctrl+r", "ctrl+shift+r", "ctrl+alt+a", "ctrl++", "alt+enter", "shift+tab", "ctrl+shift+up",
 		"enter", "esc", "space", "tab", "backspace", "up", "pgdown", "f1", "f13", "f63", "delete", "é",
 	} {
 		msg, ok := Press(name)
@@ -23,6 +23,7 @@ func TestPress(t *testing.T) {
 func TestPressRefuses(t *testing.T) {
 	for _, name := range []string{
 		"", " ", "rr", "ctrl", "ctrl+", "ctlr+r", "escape", "Enter", "shift+a", "f0", "f64", "\xff",
+		"ctrl+R", "alt+A", "alt+ctrl+a", "ctrl+ctrl+a",
 	} {
 		if msg, ok := Press(name); ok {
 			t.Errorf("Press(%q) = %q, want none", name, msg.String())

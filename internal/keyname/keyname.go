@@ -5,18 +5,31 @@
 package keyname
 
 import (
+	"fmt"
+	"slices"
 	"strings"
 	"sync"
+	"unicode"
 	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
 )
 
-// keyMods are the modifiers that prefix a key's name, such as "ctrl+".
-var keyMods = map[string]tea.KeyMod{
-	"ctrl": tea.ModCtrl, "alt": tea.ModAlt, "shift": tea.ModShift,
-	"meta": tea.ModMeta, "hyper": tea.ModHyper, "super": tea.ModSuper,
+// modifier is a modifier of a key, by the name it has in a key's name.
+type modifier struct {
+	name string
+	mod  tea.KeyMod
 }
+
+// keyMods are the modifiers that prefix a key's name, such as "ctrl+",
+// in the order bubbletea writes them.
+var keyMods = []modifier{
+	{"ctrl", tea.ModCtrl}, {"alt", tea.ModAlt}, {"shift", tea.ModShift},
+	{"meta", tea.ModMeta}, {"hyper", tea.ModHyper}, {"super", tea.ModSuper},
+}
+
+// modOrder names the modifiers in the order a key's name writes them.
+const modOrder = "ctrl, alt, shift, meta, hyper, super"
 
 // keyCodes are the keys named by a word, such as "enter" or "f13", as
 // bubbletea names them. A word that names two keys, such as "up" for the
@@ -39,18 +52,61 @@ var keyCodes = sync.OnceValue(func() map[string]rune {
 	return out
 })
 
-// Press returns a press of the key named name, and false for a name that
-// names no key, so that no press could ever match it.
+// Press returns a press of the key named name, and false for a name
+// that Check refuses, so that no press could ever match it.
 func Press(name string) (tea.KeyPressMsg, bool) {
+	msg, _, ok := parse(name)
+	return msg, ok && Check(name) == nil
+}
+
+// Valid reports whether name names a key that a press can match.
+func Valid(name string) bool { return Check(name) == nil }
+
+// Check returns nil if name names a key a press can match, or else why it
+// doesn't: an unknown name, modifiers out of order, or a capital letter
+// with ctrl or alt, which terminals report as the small letter with
+// shift.
+func Check(name string) error {
+	msg, mods, ok := parse(name)
+	if !ok {
+		return unknown(name)
+	}
+	k := tea.Key(msg)
+	if k.Mod&^tea.ModShift != 0 && unicode.IsUpper(k.Code) {
+		lower := tea.Key{Code: unicode.ToLower(k.Code), Mod: k.Mod | tea.ModShift}
+		return fmt.Errorf("no terminal reports %q: write a capital with ctrl or alt as its small letter and shift, %q", name, lower.String())
+	}
+	got := msg.String()
+	switch {
+	case got == name:
+		return nil
+	case !slices.IsSorted(mods) && Check(got) == nil:
+		return fmt.Errorf("the modifiers of %q go in the order %s: %q", name, modOrder, got)
+	}
+	return unknown(name)
+}
+
+// unknown is the error of a name that names no key.
+func unknown(name string) error {
+	return fmt.Errorf("unknown key %q, want a name such as r, R, ctrl+r, shift+tab, enter or space", name)
+}
+
+// parse returns a press of the key named name, the places in keyMods of
+// its modifiers in the order it names them, and false for a name that
+// names no key. The press may read otherwise than name, such as with its
+// modifiers in another order.
+func parse(name string) (tea.KeyPressMsg, []int, bool) {
 	var k tea.Key
+	var mods []int
 	rest := name
 	for {
 		mod, after, ok := strings.Cut(rest, "+")
-		m, known := keyMods[mod]
-		if !ok || !known || after == "" {
+		i := slices.IndexFunc(keyMods, func(m modifier) bool { return m.name == mod })
+		if !ok || i < 0 || after == "" || k.Mod&keyMods[i].mod != 0 {
 			break
 		}
-		k.Mod |= m
+		k.Mod |= keyMods[i].mod
+		mods = append(mods, i)
 		rest = after
 	}
 	if code, ok := keyCodes()[rest]; ok {
@@ -58,21 +114,12 @@ func Press(name string) (tea.KeyPressMsg, bool) {
 	} else {
 		r, n := utf8.DecodeRuneInString(rest)
 		if r == utf8.RuneError || n != len(rest) {
-			return tea.KeyPressMsg{}, false
+			return tea.KeyPressMsg{}, nil, false
 		}
 		k.Code = r
 		if k.Mod&^tea.ModShift == 0 {
 			k.Text = rest
 		}
 	}
-	msg := tea.KeyPressMsg(k)
-	// Keys are matched by their names, so a press that reads otherwise
-	// wouldn't be the key.
-	return msg, msg.String() == name
-}
-
-// Valid reports whether name names a key that a press can match.
-func Valid(name string) bool {
-	_, ok := Press(name)
-	return ok
+	return tea.KeyPressMsg(k), mods, true
 }
