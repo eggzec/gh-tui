@@ -1,0 +1,2 @@
+pull request: job | ctrl+r | checks: refresh | checks: rerun failed | ctrl+r re-runs the failed jobs; r still refreshes
+pull request: job | esc | log: back | checks: checks | esc steps back to the checks, as closing the log would
