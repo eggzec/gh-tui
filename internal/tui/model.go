@@ -103,6 +103,13 @@ type Model struct {
 	pending tea.Cmd
 	// modal is open over the screens, or nil. Opening another replaces it.
 	modal ui.Modal
+	// modalWidth and modalHeight are the size the open modal was last
+	// given, and resized is set once the layout changed it, which the
+	// modal then waits out when the update ends: a resize of the
+	// terminal, or a change of the footer, such as the command line's
+	// candidates showing.
+	modalWidth, modalHeight int
+	resized                 bool
 
 	repo   core.RepoRef
 	branch string

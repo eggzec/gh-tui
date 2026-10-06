@@ -36,11 +36,17 @@ func (m *Model) openModal(mod ui.Modal) {
 	m.keyhelp.Blur()
 	m.modal = mod
 	mod.SetTheme(m.theme)
-	mod.SetSize(m.modalSize())
+	m.sizeModal(m.modalSize())
+}
+
+// sizeModal gives the open modal its size.
+func (m *Model) sizeModal(width, height int) {
+	m.modalWidth, m.modalHeight = width, height
+	m.modal.SetSize(width, height)
 }
 
 // settleModal asks the open modal, if it waits out resizes, to end the
-// wait that the resize began.
+// wait that the layout's resize began.
 func (m *Model) settleModal() tea.Cmd {
 	if s, ok := m.modal.(ui.Settler); ok {
 		return s.Settle()

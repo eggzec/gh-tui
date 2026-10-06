@@ -19,9 +19,14 @@ import (
 // Update routes msg: keys to the open command line, or else to the open
 // help, or else to the top modal, or else to the app or the focused pane,
 // app messages to the app, and everything else to every section and
-// modal. The images that what it drew asks for are fetched after it.
+// modal. The open modal waits out what of it resized it, and the images
+// that what it drew asks for are fetched after it.
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	_, cmd := m.update(msg)
+	if m.resized {
+		m.resized = false
+		cmd = tea.Batch(cmd, m.settleModal())
+	}
 	if load := m.loadImages(); load != nil {
 		cmd = tea.Batch(cmd, load)
 	}
@@ -78,7 +83,7 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.layout()
 		m.cells.resize(msg.Width, msg.Height)
 		// A resize may come of a change of font, which changes the cells.
-		cmd := tea.Batch(m.askCells(), m.settleModal())
+		cmd := m.askCells()
 		return m, cmd
 	case tea.BackgroundColorMsg:
 		m.applyTheme(msg.IsDark())

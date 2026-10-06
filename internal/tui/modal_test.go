@@ -103,6 +103,51 @@ type hidingModal struct {
 
 func (h *hidingModal) Hide() { h.hidden++ }
 
+// settlingModal is a modal that waits out a resize, over which the
+// command line opens.
+type settlingModal struct {
+	fakeModal
+	settles int
+}
+
+func (s *settlingModal) Settle() tea.Cmd {
+	s.settles++
+	return nil
+}
+
+func (s *settlingModal) TakesCommands() bool { return true }
+
+// A change of the footer resizes the open modal as a resize of the
+// terminal does, and the modal waits it out alike: on a short terminal,
+// the candidates of the command line take a row from it, which may
+// narrow what it renders.
+func TestModalSettlesWhenTheFooterChanges(t *testing.T) {
+	m, _ := newTestApp(t)
+	mod := &settlingModal{}
+	mod.title = "README.md"
+	run(m, ui.OpenModal(mod))
+	m.Update(tea.WindowSizeMsg{Width: 80, Height: 15})
+	if mod.settles != 1 {
+		t.Errorf("the modal settled %d times after the terminal's resize, want once", mod.settles)
+	}
+	h := mod.height
+	m.Update(press(":"))
+	m.Update(press("r"))
+	if !m.line.Focused() {
+		t.Fatal("the command line didn't open over the modal")
+	}
+	if mod.height == h {
+		t.Fatalf("the command line left the modal %d rows high", h)
+	}
+	if mod.settles != 2 {
+		t.Errorf("the modal settled %d times after the command line took a row, want twice", mod.settles)
+	}
+	m.Update(press("a"))
+	if mod.settles != 2 {
+		t.Errorf("the modal settled %d times after a key that resized nothing, want still twice", mod.settles)
+	}
+}
+
 func TestOpeningAModalHidesTheOpenOne(t *testing.T) {
 	m, _ := newTestApp(t)
 	first := &hidingModal{}

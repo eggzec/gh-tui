@@ -85,7 +85,9 @@ func (m *Model) layout() {
 	m.toast.SetSize(m.width, max(m.height-1-toastInset, 0))
 	m.arrange(m.contentHeight())
 	if m.modal != nil {
-		m.modal.SetSize(m.modalSize())
+		w, h := m.modalSize()
+		m.resized = m.resized || w != m.modalWidth || h != m.modalHeight
+		m.sizeModal(w, h)
 	}
 	m.keyhelp.SetSize(m.helpSize())
 	m.drawFrames()
