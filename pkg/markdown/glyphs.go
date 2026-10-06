@@ -2,6 +2,7 @@ package markdown
 
 import (
 	"cmp"
+	"regexp"
 	"strings"
 
 	"charm.land/glamour/v2/ansi"
@@ -29,7 +30,9 @@ type Glyphs struct {
 	TableColumn, TableRow, TableCross string
 	// Quote is the bar along a quote, "│".
 	Quote string
-	// Image marks an image shown as its text, "🖼".
+	// Image marks an image shown as its text, "🖼". It goes into the text
+	// of a link too, where glamour draws a backslash as it is, so it must
+	// hold no backslash or bracket.
 	Image string
 	// Fold marks the summary of a collapsed section, "▸".
 	Fold string
@@ -47,9 +50,10 @@ type Glyphs struct {
 	// shortcodes, such as :tada:, stay as they were written, a footnote
 	// reference shows as [1] rather than ¹, a link in a table shows in
 	// its cell rather than in a list under the table, which cuts a long
-	// address with "…", the "…" that cuts a table's header too wide for
-	// its column becomes "~", and the zero-width and non-breaking spaces
-	// the renderer adds go.
+	// address with "…", the "…" that lipgloss ends a table's header cut
+	// to its column with becomes "~", and every zero-width space goes and
+	// every non-breaking one becomes a space, the text's own too, which
+	// draws them the same.
 	ASCII bool
 }
 
@@ -157,15 +161,24 @@ func (g Glyphs) style(s ansi.StyleConfig) ansi.StyleConfig {
 }
 
 // asciiLines makes ASCII what glamour draws of its own in the rendered
-// lines: the non-breaking spaces become spaces and the zero-width ones go,
-// which draws them the same, and the "…" that cuts the header of a table
-// too wide for the lines, which lipgloss always draws, becomes "~", as
-// wide.
-func asciiLines(lines []string, g Glyphs) {
+// lines. Every non-breaking space becomes a space and every zero-width one
+// goes, the text's own too, which draws them the same. The "…" that
+// lipgloss always ends a table's header cut to its column with becomes
+// "~", as wide: only one that ends a cell of a line drawn as the header of
+// a table of two columns or more, over its rule, and not in the code that
+// code reports. So a "…" the text ends a header cell with changes too, a
+// header of one column keeps its "…", and code glamour draws itself,
+// unhighlighted, changes only where it looks just like a table's header
+// over its rule.
+func asciiLines(lines []string, g Glyphs, code func(i int) bool) {
+	var cellEnd *regexp.Regexp
 	for i, l := range lines {
 		l = asciiSpaces.Replace(l)
-		if i+1 < len(lines) && tableRule(lines[i+1], g) {
-			l = strings.ReplaceAll(l, "…", "~")
+		if strings.Contains(l, "…") && i+1 < len(lines) && !code(i) && !code(i+1) && tableHeader(l, lines[i+1], g) {
+			if cellEnd == nil {
+				cellEnd = regexp.MustCompile(`…((?:\x1b\[[0-9;:]*m| )*(?:` + regexp.QuoteMeta(g.TableColumn) + `|$))`)
+			}
+			l = cellEnd.ReplaceAllString(l, "~$1")
 		}
 		lines[i] = l
 	}
@@ -173,18 +186,37 @@ func asciiLines(lines []string, g Glyphs) {
 
 var asciiSpaces = strings.NewReplacer("\u00a0", " ", "\u200b", "")
 
-// tableRule reports whether line is the rule under the header of a table
-// drawn with g, maybe in a quote: TableRow and TableCross alone. A
-// horizontal rule, which looks the same, follows a blank line, which has
-// no "…" to change.
-func tableRule(line string, g Glyphs) bool {
-	p := strings.TrimLeft(xansi.Strip(line), " "+g.Quote)
-	if g.TableRow == "" || !strings.HasPrefix(p, g.TableRow) {
+// tableHeader reports whether header and rule are the header of a table
+// drawn with g and the rule under it, maybe in a quote: the rule is runs
+// of TableRow joined by TableCross, and the header has TableColumn
+// over each TableCross.
+func tableHeader(header, rule string, g Glyphs) bool {
+	if g.TableRow == "" || g.TableCross == "" || g.TableColumn == "" {
 		return false
 	}
-	p = strings.ReplaceAll(p, g.TableRow, "")
-	if g.TableCross != "" {
-		p = strings.ReplaceAll(p, g.TableCross, "")
+	r := xansi.Strip(rule)
+	body := strings.TrimLeft(r, " "+g.Quote)
+	if !strings.HasPrefix(body, g.TableRow) {
+		return false
 	}
-	return strings.TrimSpace(p) == ""
+	start := xansi.StringWidth(r[:len(r)-len(body)])
+	cols := strings.Split(strings.TrimRight(body, " "), g.TableCross)
+	if len(cols) < 2 {
+		return false
+	}
+	h := xansi.Strip(header)
+	at := start
+	for i, c := range cols {
+		if c == "" || strings.Trim(c, g.TableRow) != "" {
+			return false
+		}
+		at += xansi.StringWidth(c)
+		if i < len(cols)-1 {
+			if xansi.Cut(h, at, at+xansi.StringWidth(g.TableCross)) != g.TableColumn {
+				return false
+			}
+			at += xansi.StringWidth(g.TableCross)
+		}
+	}
+	return true
 }

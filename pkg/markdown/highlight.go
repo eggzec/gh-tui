@@ -75,13 +75,15 @@ type picture struct {
 }
 
 // spliced is what splice made: the lines, the heads where they landed,
-// the images that stand alone with what drew them, and the rows of the
-// pictures drawn, which go in for their marks once the lines are safe.
+// the images that stand alone with what drew them, the rows of the
+// pictures drawn, which go in for their marks once the lines are safe,
+// and the lines of code it put in.
 type spliced struct {
 	lines []string
 	heads []Head
 	slots []slot
 	rows  []row
+	code  map[int]bool
 }
 
 // row is a line of a picture: the line of the render it goes in, for the
@@ -157,6 +159,10 @@ func (r *Renderer) splice(lines []string, parts []part, width int) (spliced, boo
 		}
 		for _, c := range p.lines {
 			for w := range strings.SplitSeq(lipgloss.Wrap(c, room, ""), "\n") {
+				if sp.code == nil {
+					sp.code = make(map[int]bool)
+				}
+				sp.code[len(out)] = true
 				out = append(out, xansi.Truncate(prefix+w, width, "")+"\x1b[0m")
 			}
 		}

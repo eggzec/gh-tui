@@ -551,6 +551,8 @@ func badge(s string, g Glyphs) string {
 	if alt == "" {
 		alt = "image"
 	}
+	// Glamour draws a link's text as written, escapes too, so the glyph
+	// goes in as it is.
 	return "[" + g.Image + " " + alt + "](" + m[2] + ")"
 }
 
@@ -564,7 +566,7 @@ func alert(line string, g Glyphs) string {
 	if m == nil {
 		return line
 	}
-	return m[1] + "**" + g.alert(strings.ToUpper(m[2])) + "**"
+	return m[1] + "**" + verbatim(g.alert(strings.ToUpper(m[2]))) + "**"
 }
 
 // linkItem keeps a list item that starts with a link named x, as in
