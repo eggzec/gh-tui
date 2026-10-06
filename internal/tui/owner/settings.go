@@ -8,12 +8,13 @@ import (
 // configure keeps the settings of c that the section uses while it runs,
 // which the set command changed: the icons, which the theme the app sets
 // again after draws with, the dates, whose width the lists of
-// repositories keep a column for, and the glyph and range of the
-// calendar.
+// repositories keep a column for, the glyph and range of the calendar,
+// and the reads ahead, as WithPrefetch sets them.
 func (s *Section) configure(c config.Config) {
 	s.icons = ui.NewIcons(c.UI.Icons)
 	s.voice.Icons = &s.icons
 	s.configureSide(c)
+	s.setPrefetch(c.Prefetch)
 	if d := ui.NewDates(c.UI.DateFormat); d != s.dates {
 		s.dates = d
 		s.layout()

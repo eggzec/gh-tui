@@ -124,6 +124,7 @@ func (s *Section) makeLists(p *page, o core.Owner) bool {
 func (s *Section) refresh() tea.Cmd {
 	p := s.page
 	s.svc.InvalidateLogin(p.login)
+	s.resumeAhead()
 	p.gen++
 	cmd := s.readHeader(p, false)
 	if l := p.list(); l != nil && l.started() {
@@ -198,6 +199,7 @@ func (s *Section) updating() bool {
 func (s *Section) setTab(t tab) tea.Cmd {
 	p := s.page
 	p.tab = t
+	s.openedTab(t)
 	s.focusPane()
 	l := p.list()
 	switch {

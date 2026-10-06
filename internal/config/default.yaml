@@ -296,6 +296,7 @@ prefetch:
   #   finder: preview
   #   history: commits, branches (windows up to 10)
   #   actions: jobs, logs
+  #   owner: people, repositories, other_tabs
   pulls:
     # The full check list of a row costs a GraphQL query, and the rows
     # show how their checks stand already, so it is off. Checks read in
@@ -347,6 +348,19 @@ prefetch:
     # can run to megabytes, so they are off. The log of the job under the
     # cursor is read once it rests, whatever this says.
     logs: {enabled: false, window: {before: 0, after: 2}}
+  owner:
+    # The page of each person or organization around the cursor of a list
+    # of people: its header, a GraphQL query each, read once the cursor
+    # rests, so that enter opens it at once. Off, since most rows are
+    # never opened.
+    people: {enabled: false, window: {before: 0, after: 2}}
+    # As dashboard.repositories, for the repositories and stars tabs and
+    # the pinned repositories: about three requests a repository, and the
+    # one under the cursor is read only when it is opened.
+    repositories: {enabled: false, window: {before: 1, after: 1}}
+    # The first page of each tab not on view, a query each, once the page
+    # rests on the tab shown.
+    other_tabs: {enabled: false}
 
 # What the app checks of the token.
 auth:

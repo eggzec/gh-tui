@@ -57,6 +57,13 @@ func TestResolveDefaults(t *testing.T) {
 			"prefetch.enabled", "prefetch.actions.window.before", "prefetch.actions.window.after", "prefetch.rest", false},
 		{"actions", "logs", false, 0, 2, 150 * time.Millisecond,
 			"prefetch.actions.logs.enabled", "prefetch.actions.logs.window.before", "prefetch.actions.logs.window.after", "prefetch.rest", false},
+		// Each kind of the owner page is off until the user turns it on.
+		{"owner", "people", false, 0, 2, 150 * time.Millisecond,
+			"prefetch.owner.people.enabled", "prefetch.owner.people.window.before", "prefetch.owner.people.window.after", "prefetch.rest", false},
+		{"owner", "repositories", false, 1, 1, 150 * time.Millisecond,
+			"prefetch.owner.repositories.enabled", "prefetch.owner.repositories.window.before", "prefetch.owner.repositories.window.after", "prefetch.rest", false},
+		{"owner", "other_tabs", false, 0, 0, 150 * time.Millisecond,
+			"prefetch.owner.other_tabs.enabled", "", "", "prefetch.rest", true},
 	}
 	for _, tt := range tests {
 		r := resolve(t, cfg, tt.page, tt.kind)
@@ -153,10 +160,11 @@ func TestResolveUnknown(t *testing.T) {
 
 func TestPrefetchKinds(t *testing.T) {
 	kinds := Default().Prefetch.Kinds()
-	if len(kinds) != 23 {
-		t.Errorf("%d kinds, want 23: %v", len(kinds), kinds)
+	if len(kinds) != 26 {
+		t.Errorf("%d kinds, want 26: %v", len(kinds), kinds)
 	}
-	for _, want := range []string{"pulls.details", "pulls.other_tabs", "dashboard.pinned", "search.other_kinds", "files.preview", "actions.logs"} {
+	for _, want := range []string{"pulls.details", "pulls.other_tabs", "dashboard.pinned", "search.other_kinds", "files.preview", "actions.logs",
+		"owner.people", "owner.repositories", "owner.other_tabs"} {
 		if !slices.ContainsFunc(kinds, func(pk PageKind) bool { return pk.String() == want }) {
 			t.Errorf("no kind %s", want)
 		}
@@ -181,6 +189,9 @@ func TestValidatePrefetch(t *testing.T) {
 			"prefetch.pulls.other_tabs.window: other tabs are read a page at a time, not around the cursor"},
 		{"prefetch.search.other_kinds.window.before", "0",
 			"prefetch.search.other_kinds.window: other kinds of results are read a page at a time"},
+		{"prefetch.owner.other_tabs.window.after", "1",
+			"prefetch.owner.other_tabs.window: other tabs are read a page at a time, not around the cursor"},
+		{"prefetch.owner.people.window.after", "31", "prefetch.owner.people.window.after: must be between 0 and 30"},
 	}
 	for _, tt := range tests {
 		_, err := Default().Set(tt.key, tt.value)
@@ -218,6 +229,9 @@ func TestGetInherited(t *testing.T) {
 		"prefetch.search.other_kinds.rest":       "700ms",
 		"prefetch.finder.preview.rest":           "100ms (from prefetch.finder.rest)",
 		"prefetch.pulls.other_tabs.window.after": "none: other tabs are read a page at a time, not around the cursor",
+		"prefetch.owner.people.enabled":          "false",
+		"prefetch.owner.repositories.rest":       "150ms (from prefetch.rest)",
+		"prefetch.owner.other_tabs.window.after": "none: other tabs are read a page at a time, not around the cursor",
 	} {
 		got, err := cfg.Get(key)
 		if err != nil || got != want {
@@ -262,6 +276,8 @@ func TestPrefetchTable(t *testing.T) {
 		"pulls.details           enabled true  (prefetch.enabled)  window 1 (prefetch.window.before) / 4 (prefetch.window.after)  rest 150ms (prefetch.rest)",
 		"pulls.checks            enabled false (prefetch.pulls.checks.enabled)",
 		"search.other_kinds      enabled true  (prefetch.enabled)  rest 700ms (prefetch.search.other_kinds.rest)",
+		"owner.people            enabled false (prefetch.owner.people.enabled)  window 0 (prefetch.owner.people.window.before) / 2 (prefetch.owner.people.window.after)",
+		"owner.other_tabs        enabled false (prefetch.owner.other_tabs.enabled)  rest 150ms (prefetch.rest)",
 	} {
 		// Only the words: the columns are as wide as the longest kind.
 		if !slices.ContainsFunc(lines, func(l string) bool {

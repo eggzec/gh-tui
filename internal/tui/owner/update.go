@@ -12,11 +12,14 @@ import (
 // reads, and passes everything else to the lists, which ignore the
 // messages of others.
 func (s *Section) Update(msg tea.Msg) tea.Cmd {
+	if msg, ok := msg.(ui.AheadMsg); ok {
+		return s.rested(msg)
+	}
 	updating := s.updating()
 	cmd, all := s.update(msg)
 	// What a change put on view, such as a pane focused or a header read,
-	// is read now.
-	cmd = tea.Batch(cmd, s.startSide())
+	// is read now, and what the cursors rest on is read ahead.
+	cmd = tea.Batch(cmd, s.startSide(), s.readAhead())
 	if all {
 		s.render()
 		return cmd
@@ -49,6 +52,10 @@ func (s *Section) update(msg tea.Msg) (tea.Cmd, bool) {
 		s.configure(msg.Config)
 		return nil, true
 	case ui.OnlineMsg:
+		// A rate limit is the token's, and has lifted unless one holds.
+		if !msg.Limited {
+			s.resumeAhead()
+		}
 		return s.online(), true
 	case ui.ImagesMsg:
 		// The profile may have gained or lost the avatar's rows, and the
@@ -152,6 +159,7 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 			c.Move(c.Cols)
 		case key.Matches(msg, k.Select):
 			if it, ok := c.Selected(); ok {
+				s.openedAhead()
 				return selectRepo(it.Repo.Ref), true
 			}
 		case key.Matches(msg, k.Open):
@@ -180,6 +188,7 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 			// whose page down f is too.
 			return nil, true
 		case key.Matches(msg, k.Select):
+			s.openedAhead()
 			return l.enter(s), true
 		case key.Matches(msg, k.Open):
 			if sel, ok := l.selection(s); ok && sel.URL != "" {
