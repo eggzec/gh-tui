@@ -90,7 +90,11 @@ func TestFetchFails(t *testing.T) {
 		}
 		t.Run(tt.kind.String()+" with a kept page", func(t *testing.T) {
 			c, shelf := setup(t, true)
-			e, err := Fetch(t.Context(), c, shelf, key, Page[string], serve(fail(tt.err)))
+			ctx, limited := core.WatchLimit(t.Context())
+			e, err := Fetch(ctx, c, shelf, key, Page[string], serve(fail(tt.err)))
+			if limited() != (tt.served == "limited") {
+				t.Errorf("the watch was told of a limit = %v, want %v", limited(), tt.served == "limited")
+			}
 			if _, kept := shelf.Load(key); kept == tt.dropped {
 				t.Errorf("shelf keeps the page = %v, want %v", kept, !tt.dropped)
 			}
@@ -120,6 +124,21 @@ func TestFetchFails(t *testing.T) {
 				t.Errorf("cache holds %d entries, want none", c.Len())
 			}
 		})
+	}
+}
+
+// TestFetchTellsLimitUnmarked checks that a value with no mark to set,
+// served in place of a read the rate limit refused, is still told to whoever
+// watches the read.
+func TestFetchTellsLimitUnmarked(t *testing.T) {
+	c, shelf := setup(t, true)
+	ctx, limited := core.WatchLimit(t.Context())
+	e, err := Fetch(ctx, c, shelf, key, None[page], serve(fail(core.ErrRateLimited)))
+	if err != nil || !slices.Equal(e.Value.Items, old.Value.Items) {
+		t.Fatalf("Fetch = %+v, %v; want the old page", e.Value, err)
+	}
+	if !limited() {
+		t.Error("the watch wasn't told that the read was served for the rate limit")
 	}
 }
 

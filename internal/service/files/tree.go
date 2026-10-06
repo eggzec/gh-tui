@@ -142,7 +142,7 @@ var offlineAt = time.Unix(1, 0)
 // stale, to make the request conditional, so a new session pays nothing for
 // a ref that didn't move. If GitHub can't be reached, the tree the ref last
 // pointed at is served with Offline set, and if it rate limits the read,
-// with Limited set.
+// with Limited set, which whoever watches ctx is told (core.WatchLimit).
 func (s *Service) byRef(ctx context.Context, q TreeQuery, l lister) (core.Tree, error) {
 	key, rkey := l.key(q.Repo, q.Ref), refKey(l.kind, q.Repo, q.Ref)
 	if _, st := s.refs.Get(key); st == cache.Miss {
@@ -152,6 +152,9 @@ func (s *Service) byRef(ctx context.Context, q TreeQuery, l lister) (core.Tree, 
 		}
 	}
 	e, err := s.refs.Fetch(ctx, key, s.refFetch(q, l, true, nil))
+	if err == nil && e.Value.Limited {
+		core.ServedLimited(ctx)
+	}
 	return e.Value, err
 }
 

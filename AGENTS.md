@@ -191,10 +191,13 @@ changes minimal so that pulling in new upstream versions stays easy.
   GitHub confirms them, and what is kept after a change has no validators.
   An outage serves the kept entry with `Offline` set, and a rate limit
   with `Limited` set, until any answer, a 304 too; a refusal drops it
-  (`service/fallback`). Views read what they were served so again on a
-  `ui.OnlineMsg`, once GitHub answers or the last rate limit lifts; feeds
-  do it through `feed.ErrKept`. Bump a shelf's schema when its value
-  type changes shape.
+  (`service/fallback`). A read served for a rate limit also tells
+  `core.ServedLimited`, so that reads ahead, which watch with
+  `core.WatchLimit`, stop as they do on the limit's error. Views read
+  what they were served so again on a `ui.OnlineMsg`, once GitHub
+  answers or the last rate limit lifts; feeds do it through
+  `feed.ErrKept`. Bump a shelf's schema when its value type changes
+  shape.
 - Use stale-while-revalidate: serve cached data at once, refresh it in the
   background, and emit an update message if the data changed.
 - Store the `ETag`/`Last-Modified` for each entry so that revalidation costs

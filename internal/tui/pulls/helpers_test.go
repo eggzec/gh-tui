@@ -44,10 +44,14 @@ type fakeService struct {
 	stateErrs map[core.State]error
 	// cached are the numbers whose detail Get has fetched, which CachedGet
 	// then serves.
-	cached   map[int]bool
-	gets     []int
-	getCtxs  []context.Context
-	getErr   error
+	cached  map[int]bool
+	gets    []int
+	getCtxs []context.Context
+	getErr  error
+	// getKept serves each detail kept, in place of a read GitHub rate
+	// limited, as the service does: with no error, telling the watch of
+	// the read.
+	getKept  bool
 	comments []pulls.CommentsQuery
 	// commentsErr fails the reads of comments.
 	commentsErr error
@@ -115,6 +119,10 @@ func (f *fakeService) Get(ctx context.Context, _ core.RepoRef, number int) (core
 	f.getCtxs = append(f.getCtxs, ctx)
 	if f.getErr != nil {
 		return core.PullRequestDetail{}, f.getErr
+	}
+	if f.getKept {
+		core.ServedLimited(ctx)
+		return f.detail(number), nil
 	}
 	f.cached[number] = true
 	return f.detail(number), nil

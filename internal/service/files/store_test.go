@@ -287,7 +287,11 @@ func TestStoreNoFallback(t *testing.T) {
 			api := &fakeAPI{t: t, treeAll: func(string, github.Conditional) (core.Tree, github.Response, error) {
 				return core.Tree{}, github.Response{}, fmt.Errorf("get tree: %w", tt.err)
 			}}
-			got, err := New(api, WithStore(store)).All(t.Context(), head)
+			ctx, limited := core.WatchLimit(t.Context())
+			got, err := New(api, WithStore(store)).All(ctx, head)
+			if limited() != tt.limited {
+				t.Errorf("the watch was told of a limit = %v, want %v", limited(), tt.limited)
+			}
 			if tt.fallback {
 				if err != nil || got.Offline == tt.limited || got.Limited != tt.limited || len(got.Entries) == 0 {
 					t.Errorf("All = %+v, %v; want the stored listing, limited %v, else offline", got, err, tt.limited)

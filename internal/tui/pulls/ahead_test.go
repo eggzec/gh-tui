@@ -136,6 +136,37 @@ func TestPrefetchStopsAtRateLimit(t *testing.T) {
 	}
 }
 
+// TestPrefetchStopsAtKeptForLimit checks that a detail served kept, in
+// place of a read GitHub rate limited, stops the reads ahead as the rate
+// limit's error does, until the limit lifts.
+func TestPrefetchStopsAtKeptForLimit(t *testing.T) {
+	svc := newFakeService()
+	svc.getKept = true
+	h := started(t, svc, 80, 30, readingAhead(4, time.Millisecond, false))
+	n := len(svc.got())
+	if n == 0 || n > 3 {
+		t.Errorf("read %d details before the rate limit stopped it, want 1 to 3", n)
+	}
+	press(t, h, "down")
+	press(t, h, "down")
+	if got := len(svc.got()); got != n {
+		t.Errorf("read %d more details under the rate limit", got-n)
+	}
+	// GitHub answering again while a limit holds resumes nothing.
+	drain(t, h, h.Update(ui.OnlineMsg{Limited: true}))
+	press(t, h, "down")
+	if got := len(svc.got()); got != n {
+		t.Errorf("read %d more details while a rate limit still held", got-n)
+	}
+	svc.mu.Lock()
+	svc.getKept = false
+	svc.mu.Unlock()
+	drain(t, h, h.Update(ui.OnlineMsg{}))
+	if got := len(svc.got()); got == n {
+		t.Error("nothing was read ahead once the rate limit lifted")
+	}
+}
+
 func TestPrefetchedModalOpensAtOnce(t *testing.T) {
 	svc := newFakeService()
 	h := started(t, svc, 80, 40, readingAhead(4, time.Millisecond, false))
