@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -417,6 +418,19 @@ type keyContext struct {
 	want string
 }
 
+// fixedKeys are the keys a step may name itself, rather than an action:
+// those the code fixes, whatever the config says. The arrows move, enter
+// runs the command line and chooses in the filter form and the finder,
+// and the pager and the log take / to search, - for an option and digits
+// for a count. Any other key must be reached through its action.
+var fixedKeys = map[string]bool{"up": true, "down": true, "enter": true, "/": true, "-": true, "5": true}
+
+// typedStep starts a step that types text, which typed makes.
+const typedStep = "type:"
+
+// typed returns the step that types text, a key for each character.
+func typed(text string) string { return typedStep + text }
+
 // layerNames names layers by their sources, in order, and marks those that
 // type what their keys don't take.
 func layerNames(layers []keyhelp.Layer) string {
@@ -434,47 +448,66 @@ func layerNames(layers []keyhelp.Layer) string {
 func (c keyContext) layers(t *testing.T) []keyhelp.Layer {
 	t.Helper()
 	m := newKeysApp(t, c.repo)
-	for _, s := range c.steps {
-		driveKeys(t, m, m.key(c.press(t, m.cfg.Keys, s)))
+	var pressed []string
+	press := func(steps []string) {
+		for _, s := range steps {
+			names := c.press(t, m.cfg.Keys, s)
+			pressed = append(pressed, s+"="+strings.Join(names, " "))
+			for _, name := range names {
+				msg, _ := keyPress(name)
+				driveKeys(t, m, m.key(msg))
+			}
+		}
 	}
+	press(c.steps)
 	if c.msg != nil {
+		pressed = append(pressed, fmt.Sprintf("%T", c.msg))
 		driveKeys(t, m, func() tea.Msg { return c.msg })
 	}
-	for _, s := range c.after {
-		driveKeys(t, m, m.key(c.press(t, m.cfg.Keys, s)))
-	}
+	press(c.after)
 	layers := m.keyLayers()
 	if got := layerNames(layers); got != c.want {
-		t.Fatalf("%s: the keys reach %q, want %q", c.name, got, c.want)
+		t.Fatalf("%s: [%s] reach %q, want %q", c.name, strings.Join(pressed, ", "), got, c.want)
 	}
 	return layers
 }
 
-// press returns the press of a step of c: the first key keys binds to
-// it if it names an action, or else the key it names, for the keys the
-// code fixes, such as the arrows, and for what is typed. No action is
-// named as a key is (TestStepsAreUnambiguous).
-func (c keyContext) press(t *testing.T, keys map[string][]string, step string) tea.KeyPressMsg {
+// press returns the names of the keys a step of c presses. An action
+// presses the first of its keys in keys that can be pressed, as
+// Model.press does; a fixed key presses itself, and typed text a key for
+// each of its characters. No action is named as a key is
+// (TestStepsAreUnambiguous).
+func (c keyContext) press(t *testing.T, keys map[string][]string, step string) []string {
 	t.Helper()
-	name := step
-	if bound, ok := keys[step]; ok {
-		if len(bound) == 0 {
-			t.Fatalf("%s: no key is bound to %s", c.name, step)
+	if text, ok := strings.CutPrefix(step, typedStep); ok {
+		names := make([]string, 0, len(text))
+		for _, r := range text {
+			if _, ok := keyPress(string(r)); !ok {
+				t.Fatalf("%s: can't type %q", c.name, r)
+			}
+			names = append(names, string(r))
 		}
-		name = bound[0]
+		return names
 	}
-	msg, ok := keyPress(name)
-	if !ok {
-		t.Fatalf("%s: can't press %q for %q", c.name, name, step)
+	if bound, ok := keys[step]; ok {
+		for _, name := range bound {
+			if _, ok := keyPress(name); ok {
+				return []string{name}
+			}
+		}
+		t.Fatalf("%s: no key bound to %s can be pressed: %q", c.name, step, bound)
 	}
-	return msg
+	if !fixedKeys[step] {
+		t.Fatalf("%s: %q is neither an action nor a fixed key; name its action, or type it with typed", c.name, step)
+	}
+	return []string{step}
 }
 
 // TestStepsAreUnambiguous checks that no action is named as a key is, so
 // that a step of a context is either an action or a key.
 func TestStepsAreUnambiguous(t *testing.T) {
 	for action := range config.Default().Keys {
-		if _, ok := keyPress(action); ok {
+		if _, ok := keyPress(action); ok || fixedKeys[action] || strings.HasPrefix(action, typedStep) {
 			t.Errorf("the action %s is named as a key is", action)
 		}
 	}
@@ -593,9 +626,9 @@ func keyContexts() []keyContext {
 		{name: "notifications: mark read", steps: []string{"notifications", "mark_read"}, want: "app, confirm"},
 		{name: "search: query", steps: []string{"search"}, want: "app, app, query (types), query"},
 		{name: "search: kinds", steps: []string{"search", "up"}, want: "app, app, search"},
-		{name: "search: results", steps: []string{"search", "k", "e", "y", "enter"}, want: "app, app, search, results"},
-		{name: "search: filter", steps: []string{"search", "k", "e", "y", "enter", "filter"}, want: "app, filter"},
-		{name: "search: sort", steps: []string{"search", "k", "e", "y", "enter", "sort"}, want: "app, filter"},
+		{name: "search: results", steps: []string{"search", typed("key"), "select"}, want: "app, app, search, results"},
+		{name: "search: filter", steps: []string{"search", typed("key"), "select", "filter"}, want: "app, filter"},
+		{name: "search: sort", steps: []string{"search", typed("key"), "select", "sort"}, want: "app, filter"},
 		{name: "files", repo: true, want: "app, app, Files, tree"},
 		{name: "files: zoomed", repo: true, steps: []string{"zoom"}, want: "app, app, Files, tree"},
 		{name: "files: error toast", repo: true, msg: ui.NotifyMsg{Level: toast.Error, Text: "Keys collide."}, want: "app, app, Files, tree"},
@@ -605,7 +638,7 @@ func keyContexts() []keyContext {
 		{name: "files: preview count", repo: true, steps: []string{"down", "select", "5"}, want: "app, file, pager (types)"},
 		{name: "files: preview command line", repo: true, steps: []string{"down", "select", "command"}, want: "command line (types)"},
 		{name: "files: finder", repo: true, steps: []string{"find_file"}, want: "app, finder, find (types)"},
-		{name: "files: finder preview", repo: true, steps: []string{"find_file", "R", "enter"}, want: "app, file, pager"},
+		{name: "files: finder preview", repo: true, steps: []string{"find_file", typed("R"), "enter"}, want: "app, file, pager"},
 		{name: "pull requests", repo: true, steps: []string{"pane_2"}, want: "app, Pull requests, app, Pull requests, list"},
 		{name: "pull requests: filter", repo: true, steps: []string{"pane_2", "filter"}, want: "app, filter"},
 		{name: "pull requests: sort", repo: true, steps: []string{"pane_2", "sort"}, want: "app, filter"},
@@ -641,8 +674,8 @@ func keyContexts() []keyContext {
 		{name: "actions: rerun", repo: true, steps: []string{"actions", "rerun_failed"}, want: "app, confirm"},
 		{name: "actions: rerun all", repo: true, steps: []string{"actions", "rerun"}, want: "app, confirm"},
 		{name: "actions: rerun job", repo: true, steps: []string{"actions", "next_tab", "rerun_job"}, want: "app, confirm"},
-		{name: "auth", repo: true, steps: []string{"command", "a", "u", "t", "h", "enter"}, want: "app, token"},
-		{name: "config", repo: true, steps: []string{"command", "c", "o", "n", "f", "i", "g", "enter"}, want: "app, pager"},
+		{name: "auth", repo: true, steps: []string{"command", typed("auth"), "enter"}, want: "app, token"},
+		{name: "config", repo: true, steps: []string{"command", typed("config"), "enter"}, want: "app, pager"},
 		{name: "help", repo: true, steps: []string{"help"}, want: "app, help (types)"},
 		{name: "command line", repo: true, steps: []string{"command"}, want: "command line (types)"},
 	}
