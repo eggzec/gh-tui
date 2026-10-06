@@ -19,7 +19,8 @@ type Modal interface {
 	// View fits the size of the last SetSize exactly.
 	View() string
 	// SetSize sets the size inside the frame. The app calls it before the
-	// modal is first drawn and whenever the terminal is resized.
+	// modal is first drawn and whenever its room changes, as when the
+	// terminal is resized.
 	SetSize(width, height int)
 	SetTheme(t Theme)
 	Keyed
@@ -29,8 +30,9 @@ type Modal interface {
 // costly at every width, such as rendering markdown again.
 type Settler interface {
 	// Settle returns the command that ends the wait the last SetSize
-	// began, or nil when nothing waits. The app calls it after the
-	// terminal is resized.
+	// began, or nil when nothing waits. The app calls it after each
+	// update that resized the modal: the terminal's resize, or a change
+	// of what shares the screen, such as the command line opening.
 	Settle() tea.Cmd
 }
 
