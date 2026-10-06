@@ -521,9 +521,15 @@ func TestPreviewMarkdownReserve(t *testing.T) {
 		}
 	}
 	// Where pictures aren't drawn, an image shows as its line of text.
-	p, _ := markdownPreviewOf(t, uitest.Avatars(&uitest.ImageHost{}, false), "", "![a](https://example.com/a.png)")
+	off := uitest.Avatars(&uitest.ImageHost{}, false)
+	p, _ := markdownPreviewOf(t, off, "", "![a](https://example.com/a.png)")
 	if got := p.md.extra(); got != 0 {
 		t.Errorf("without pictures: reserve %d lines, want none", got)
+	}
+	// Once they are, the image counts.
+	off.SetGraphics(ui.Graphics{Images: true, Cell: uitest.TestCell})
+	if rows := off.PictureRows(p.md.height); rows <= 0 || p.md.extra() != rows {
+		t.Errorf("once pictures show: reserve %d lines, want %d", p.md.extra(), rows)
 	}
 }
 
