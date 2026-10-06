@@ -41,6 +41,7 @@ type PrefetchLayers struct {
 	Finder        FinderKinds        `yaml:"finder"`
 	History       HistoryKinds       `yaml:"history"`
 	Actions       ActionsKinds       `yaml:"actions"`
+	Owner         OwnerKinds         `yaml:"owner"`
 }
 
 // Window is the rows read around the cursor: Before above it and After
@@ -182,6 +183,23 @@ type ActionsKinds struct {
 	Logs    Layer          `yaml:"logs,omitempty"`
 }
 
+// OwnerKinds is the page of a user or an organization's: the pages of
+// the people and organizations it lists, what opening its repositories
+// reads first, and the first page of its other tabs.
+type OwnerKinds struct {
+	Enabled *bool          `yaml:"enabled,omitempty" inherit:"prefetch"`
+	Window  Span           `yaml:"window,omitempty"`
+	Rest    *time.Duration `yaml:"rest,omitempty" inherit:"prefetch"`
+	// People is the header of each account in the lists of people, which
+	// its page opens on.
+	People Layer `yaml:"people,omitempty"`
+	// Repositories is what opening a repository reads first: the
+	// repository and the listing of its default branch.
+	Repositories Layer `yaml:"repositories,omitempty"`
+	// OtherTabs is the first page of the tabs not on view.
+	OtherTabs Layer `yaml:"other_tabs,omitempty"`
+}
+
 // Bounds of the knobs.
 const (
 	// maxWindow is the most rows a window reads on either side.
@@ -211,6 +229,7 @@ var windowless = map[string]string{
 	"pulls.other_tabs":   "other tabs are read a page at a time, not around the cursor",
 	"issues.other_tabs":  "other tabs are read a page at a time, not around the cursor",
 	"search.other_kinds": "other kinds of results are read a page at a time, not around the cursor",
+	"owner.other_tabs":   "other tabs are read a page at a time, not around the cursor",
 }
 
 // PageKind names a kind of item on a page, such as pulls and details.

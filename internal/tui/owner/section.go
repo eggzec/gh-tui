@@ -148,6 +148,14 @@ type Section struct {
 	defaultTab tab
 	// sc is what the panes beside the list share across the pages.
 	sc sideConf
+	// ahead reads ahead what the page on view may open next, as layers,
+	// the settings it starts with, say: the accounts through svc and the
+	// repositories through landing. slots bound its reads with those of
+	// other pages.
+	ahead   aheads
+	layers  config.PrefetchLayers
+	landing Landing
+	slots   *ui.Slots
 
 	started bool
 	focused bool
@@ -242,6 +250,8 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 	}
 	// Bubbles copy the voice, and read the icons through it.
 	s.voice.Icons = &s.icons
+	s.newAheads()
+	s.setPrefetch(s.layers)
 	s.SetTheme(ui.NewTheme(defaultPalette(), true))
 	return s
 }
@@ -300,9 +310,11 @@ func (s *Section) Focus() {
 	s.render()
 }
 
-// Blur makes every pane ignore keys, as the page leaves the screen.
+// Blur makes every pane ignore keys, and stops the reads ahead, as the
+// page leaves the screen.
 func (s *Section) Blur() {
 	s.focused = false
+	s.stopAhead()
 	s.focusPane()
 	s.render()
 }

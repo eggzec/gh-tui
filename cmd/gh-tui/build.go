@@ -307,7 +307,8 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		Owner: owner.New(ctx, ownerSvc, cfg.Keys,
 			owner.WithVoice(voice), owner.WithIcons(icons), owner.WithDates(dates), owner.WithAvatars(pics),
 			owner.WithHost(webHost), owner.WithDefaultTab(cfg.Owner.DefaultTab),
-			owner.WithCalendar(cfg.Dashboard.CalendarGlyph, cfg.Dashboard.ContributionDays())),
+			owner.WithCalendar(cfg.Dashboard.CalendarGlyph, cfg.Dashboard.ContributionDays()),
+			owner.WithLanding(landing{repos: repoSvc, files: fileSvc}), owner.WithPrefetch(cfg.Prefetch), owner.WithSlots(slots)),
 	}
 
 	// The history and the releases read the settings of the session,
