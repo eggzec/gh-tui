@@ -291,7 +291,7 @@ func (m *Model) shortHelp() []key.Binding {
 	var out []key.Binding
 	switch m.kind() {
 	case Multi, Person, Text:
-		out = []key.Binding{k.Down, k.Edit, k.Remove, m.resetHelp(), k.Cancel, m.tabHelp()}
+		out = []key.Binding{k.Down, k.Edit, k.Clear, m.resetHelp(), k.Cancel, m.tabHelp()}
 	default:
 		right := k.Right
 		right.SetHelp(right.Help().Key+"/"+k.Toggle.Help().Key, right.Help().Desc)
@@ -328,7 +328,7 @@ func (m Model) FullHelp() [][]key.Binding {
 	if m.picking {
 		k.Picker = m.pick.KeyMap()
 	}
-	form := []*key.Binding{&k.NextTab, &k.PrevTab, &k.Up, &k.Down, &k.Left, &k.Right, &k.Toggle, &k.Edit, &k.Apply, &k.Remove, &k.Reset, &k.Cancel}
+	form := []*key.Binding{&k.NextTab, &k.PrevTab, &k.Up, &k.Down, &k.Left, &k.Right, &k.Toggle, &k.Edit, &k.Apply, &k.Clear, &k.Reset, &k.Cancel}
 	pick := []*key.Binding{&k.Picker.Up, &k.Picker.Down, &k.Picker.PageUp, &k.Picker.PageDown, &k.Picker.NextScope, &k.Picker.PrevScope}
 	var on []*key.Binding
 	switch {

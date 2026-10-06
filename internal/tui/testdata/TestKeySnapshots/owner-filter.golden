@@ -11,9 +11,9 @@ filter
   choose | right | ←→ | on
   choose | space | space | on
   edit | enter | ↵ | on
-  remove | x backspace | x | on
+  clear | delete backspace | delete | on
   apply | enter | ↵ | off
-  reset | r | r | on
+  reset | F | F | on
   cancel | esc | esc | on
   next tab | ] | ] | on
   previous tab | [ | [ | on

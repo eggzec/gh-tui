@@ -52,7 +52,7 @@ func TestUpdate(t *testing.T) {
 			wantQuery: prDefaults, wantRow: rowDrafts,
 		},
 		{
-			name: "x turns a toggle off", query: "-is:draft", keys: step{up, up, up, keyX},
+			name: "delete turns a toggle off", query: "-is:draft", keys: step{up, up, up, del},
 			wantQuery: "sort:updated-desc", wantRow: rowDrafts,
 		},
 		{
@@ -96,15 +96,15 @@ func TestUpdate(t *testing.T) {
 			wantTab:   SortTab, wantRow: sortByRow,
 		},
 		{
-			name: "x clears nothing on the sort", keys: step{nextTab, keyX, down, keyX},
+			name: "delete clears nothing on the sort", keys: step{nextTab, del, down, bksp},
 			wantQuery: prDefaults, wantTab: SortTab, wantRow: sortOrderRow,
 		},
 		{
-			name: "r on the sort resets only the sort", query: "is:closed sort:comments-asc fix", keys: step{nextTab, keyR},
+			name: "F on the sort resets only the sort", query: "is:closed sort:comments-asc fix", keys: step{nextTab, keyF},
 			wantQuery: "is:closed sort:updated-desc fix", wantTab: SortTab,
 		},
 		{
-			name: "r on the filters resets only the filters", query: "is:closed sort:comments-asc fix", keys: step{keyR},
+			name: "F on the filters resets only the filters", query: "is:closed sort:comments-asc fix", keys: step{keyF},
 			wantQuery: strings.Replace(prDefaults, "sort:updated-desc", "sort:comments-asc", 1),
 		},
 		{
@@ -112,7 +112,7 @@ func TestUpdate(t *testing.T) {
 			typed: " ]", wantQuery: prDefaults + " ]", wantTab: SortTab, wantRow: sortRows,
 		},
 		{
-			name: "x removes the last chip", keys: step{down, down, down, keyX},
+			name: "delete removes the last chip", keys: step{down, down, down, del},
 			wantQuery: strings.Replace(prDefaults, "label:bug,enhancement", "label:bug", 1),
 			wantRow:   rowLabels,
 		},
@@ -122,12 +122,28 @@ func TestUpdate(t *testing.T) {
 			wantRow:   rowLabels,
 		},
 		{
-			name: "removing every chip drops the qualifier", keys: step{down, down, down, keyX, keyX, keyX},
+			name: "removing every chip drops the qualifier", keys: step{down, down, down, del, del, del},
 			wantQuery: strings.Replace(prDefaults, "label:bug,enhancement ", "", 1),
 			wantRow:   rowLabels,
 		},
 		{
-			name: "x clears a person", keys: step{down, keyX},
+			name: "delete clears a choice", keys: step{del},
+			wantQuery: strings.Replace(prDefaults, "is:open ", "", 1),
+		},
+		{
+			name: "backspace clears a choice", keys: step{bksp},
+			wantQuery: strings.Replace(prDefaults, "is:open ", "", 1),
+		},
+		{
+			name: "x does nothing in the rows", keys: step{keyX, down, keyX, down, down, keyX},
+			wantQuery: prDefaults, wantRow: rowLabels,
+		},
+		{
+			name: "r does nothing in the rows", query: "is:closed fix", keys: step{keyR, down, keyR},
+			wantQuery: "is:closed sort:updated-desc fix", wantRow: rowAuthor,
+		},
+		{
+			name: "delete clears a person", keys: step{down, del},
 			wantQuery: strings.Replace(prDefaults, "author:@me ", "", 1), wantRow: rowAuthor,
 		},
 		{
@@ -141,7 +157,7 @@ func TestUpdate(t *testing.T) {
 			wantQuery: prDefaults, wantRow: rowBase,
 		},
 		{
-			name: "a person takes the highlighted login", keys: step{down, keyX, enter},
+			name: "a person takes the highlighted login", keys: step{down, del, enter},
 			typed: "octo", after: step{enter},
 			wantQuery: strings.Replace(prDefaults, "@me", "octocat", 1), wantRow: rowAuthor,
 		},
@@ -156,7 +172,7 @@ func TestUpdate(t *testing.T) {
 			wantQuery: prDefaults, wantRow: rowAuthor,
 		},
 		{
-			name: "r resets", query: "is:closed fix", keys: step{keyR},
+			name: "F resets", query: "is:closed fix", keys: step{keyF},
 			wantQuery: prDefaults,
 		},
 		{
@@ -539,7 +555,7 @@ func TestSetQueryClosesEditor(t *testing.T) {
 func TestCopiesAreIndependent(t *testing.T) {
 	m := open(t, prSpec(nil))
 	m, _ = press(t, m, down, down, down)
-	c, _ := press(t, m, left, keyX)
+	c, _ := press(t, m, left, del)
 	if m.fields[rowLabels].chip != 2 || m.Query() != prDefaults {
 		t.Errorf("the original changed: chip %d, query %q", m.fields[rowLabels].chip, m.Query())
 	}

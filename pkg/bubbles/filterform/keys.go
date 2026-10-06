@@ -30,8 +30,9 @@ type KeyMap struct {
 	Edit key.Binding
 	// Apply sends an AppliedMsg from any other row or the query line.
 	Apply key.Binding
-	// Remove removes the chip under the cursor, or clears a field.
-	Remove key.Binding
+	// Clear removes the chip under the cursor, or clears a field. The
+	// form takes backspace too, as the key that steps back out of a row.
+	Clear key.Binding
 	// Reset puts what the tab on view edits back to its defaults.
 	Reset key.Binding
 	// Cancel closes an open editor and undoes what it changed, or sends a
@@ -54,8 +55,8 @@ func DefaultKeyMap() KeyMap {
 		Toggle:  key.NewBinding(key.WithKeys("space"), key.WithHelp("space", "choose")),
 		Edit:    key.NewBinding(key.WithKeys("enter"), key.WithHelp("↵", "edit")),
 		Apply:   key.NewBinding(key.WithKeys("enter"), key.WithHelp("↵", "apply")),
-		Remove:  key.NewBinding(key.WithKeys("x", "backspace"), key.WithHelp("x", "remove")),
-		Reset:   key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "reset")),
+		Clear:   key.NewBinding(key.WithKeys("delete", "backspace"), key.WithHelp("delete", "clear")),
+		Reset:   key.NewBinding(key.WithKeys("F"), key.WithHelp("F", "reset")),
 		Cancel:  key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel")),
 		Picker:  picker.DefaultKeyMap(),
 	}
@@ -70,7 +71,7 @@ func (k KeyMap) ShortHelp() []key.Binding {
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.Left, k.Right, k.Toggle},
-		{k.Edit, k.Remove, k.Apply, k.Reset, k.Cancel},
+		{k.Edit, k.Clear, k.Apply, k.Reset, k.Cancel},
 		{k.NextTab, k.PrevTab},
 		{
 			k.Picker.Up, k.Picker.Down, k.Picker.PageUp, k.Picker.PageDown,

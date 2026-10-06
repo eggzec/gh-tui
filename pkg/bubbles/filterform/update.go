@@ -97,7 +97,7 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 	case key.Matches(msg, k.Toggle):
 		m.toggle()
 		return nil
-	case key.Matches(msg, k.Remove):
+	case key.Matches(msg, k.Clear):
 		m.remove()
 		return nil
 	case key.Matches(msg, k.Edit) && m.hasEditor():
@@ -258,7 +258,7 @@ func (m *Model) remove() {
 		}
 		i := min(m.fields[m.row].chip, len(v.list)-1)
 		m.setValue(m.row, Value{list: slices.Delete(slices.Clone(v.list), i, i+1)})
-	case Text, Person, Toggle:
+	case Text, Person, Toggle, Choice:
 		m.setValue(m.row, Value{})
 	default:
 	}
