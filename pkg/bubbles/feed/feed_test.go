@@ -196,7 +196,6 @@ func TestNavigation(t *testing.T) {
 		{"page up stops at start", []string{"pgdown", "ctrl+b", "ctrl+b"}, 0, 0},
 		{"half page down", []string{"ctrl+d"}, 2, 0},
 		{"half page up", []string{"end", "ctrl+u"}, 7, 5},
-		{"b, d, u, f and space are not bound", []string{"d", "f", "space", "u", "b"}, 0, 0},
 		{"end", []string{"end"}, 9, 5},
 		{"home", []string{"end", "home"}, 0, 0},
 		{"g", []string{"G", "g"}, 0, 0},
@@ -1015,5 +1014,21 @@ func TestRetry(t *testing.T) {
 	}
 	if cmd := m.Retry(); cmd != nil {
 		t.Error("Retry with nothing failed returned a command")
+	}
+}
+
+// The keys that once paged, and space, do nothing in a list that has the
+// cursor halfway down; each is tried on its own.
+func TestOldPagingKeysUnbound(t *testing.T) {
+	for _, k := range []string{"b", "d", "u", "f", "space"} {
+		t.Run(k, func(t *testing.T) {
+			m := load(t, newSource(10, 10))
+			m = keys(t, m, "down", "down", "down", "down", "down", "down")
+			sel, top := m.Index(), m.top
+			m = keys(t, m, k)
+			if m.Index() != sel || m.top != top {
+				t.Fatalf("after %q: Index() = %d, top = %d; want %d, %d", k, m.Index(), m.top, sel, top)
+			}
+		})
 	}
 }

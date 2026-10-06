@@ -72,7 +72,7 @@ func newKeyMap(keys map[string][]string) KeyMap {
 	// with other screens: the modal matches the tabs first. ctrl+r, the
 	// second key of refresh, re-runs the failed jobs, which the modal
 	// matches before refresh. Its own keys come before those of the lists
-	// and the log, such as f, which pages down there and filters here.
+	// and the log, such as f, which filters here.
 	k.Next = ui.Binding(keys, config.ActionNextTab, "pane")
 	k.Prev = ui.Binding(keys, config.ActionPrevTab, "previous pane")
 	fk := feed.DefaultKeyMap()

@@ -265,7 +265,6 @@ func TestKeys(t *testing.T) {
 		{"ctrl+f and ctrl+b", []string{"ctrl+f", "ctrl+b"}, roots, "cmd"},
 		{"half page down", []string{"j", "j", "*", "ctrl+d"}, internalAll, "internal/tui/app.go"},
 		{"half page up", []string{"j", "j", "*", "ctrl+d", "ctrl+u"}, internalAll, "internal"},
-		{"b, d, u and f are not bound", []string{"d", "f", "u", "b"}, roots, "cmd"},
 		{"plus expands", []string{"+"}, cmdOpen, "cmd"},
 		{"plus on expanded stays", []string{"+", "+"}, cmdOpen, "cmd"},
 		{"right expands", []string{"right"}, cmdOpen, "cmd"},
@@ -913,5 +912,21 @@ func TestAt(t *testing.T) {
 		if n, ok := m.At(i); ok {
 			t.Errorf("At(%d) = %q, want no row", i, n.ID)
 		}
+	}
+}
+
+// The keys that once paged do nothing in a tree whose cursor is halfway
+// down; each is tried on its own.
+func TestOldPagingKeysUnbound(t *testing.T) {
+	for _, k := range []string{"b", "d", "u", "f"} {
+		t.Run(k, func(t *testing.T) {
+			m := load(t, repo())
+			m = keys(t, m, "down", "down", "down")
+			sel, top := selectedID(m), m.top
+			m = keys(t, m, k)
+			if selectedID(m) != sel || m.top != top {
+				t.Fatalf("after %q: Selected() = %q, top = %d; want %q, %d", k, selectedID(m), m.top, sel, top)
+			}
+		})
 	}
 }

@@ -92,8 +92,8 @@ func newKeyMap(keys map[string][]string) KeyMap {
 	k.Jump = ui.Jump(k.Panes[:]...)
 
 	// The dashboard, and the app for the filter, match these keys first,
-	// so the list gets only the keys they leave it, such as f, which
-	// pages down there.
+	// so the list gets only the keys they leave it, such as g, which
+	// goes to the first row there.
 	f := feed.DefaultKeyMap()
 	f.Retry = key.NewBinding(key.WithKeys(k.Refresh.Keys()...), key.WithHelp(k.Refresh.Help().Key, "retry"), key.WithDisabled())
 	k.feed = f

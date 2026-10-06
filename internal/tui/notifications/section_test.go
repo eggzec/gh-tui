@@ -289,7 +289,7 @@ func TestKeysFromConfig(t *testing.T) {
 	if !key.Matches(keyPress("x"), k.MarkDone) || key.Matches(keyPress("d"), k.MarkDone) {
 		t.Error("mark done should follow the config")
 	}
-	// The filter takes "f" before the list's page down.
+	// The filter takes "f" before the list.
 	if b, src, _ := uitest.Winner(s.KeyLayers(), "f"); src != ui.NotificationsTitle || b.Help().Desc != "filter" {
 		t.Errorf("f reaches %q of %q, want the filter", b.Help().Desc, src)
 	}

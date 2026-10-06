@@ -30,7 +30,6 @@ func TestScroll(t *testing.T) {
 		{name: "half page down", keys: []string{"ctrl+d"}, wantTop: 5},
 		{name: "half page up", keys: []string{"ctrl+d", "ctrl+d", "ctrl+u"}, wantTop: 5},
 		{name: "ctrl+b", keys: []string{"ctrl+f", "ctrl+f", "ctrl+b"}, wantTop: 10},
-		{name: "d no longer pages", keys: []string{"d", "u", "f"}, wantTop: 0},
 		{name: "end", keys: []string{"G"}, wantTop: 90},
 		{name: "end key", keys: []string{"end"}, wantTop: 90},
 		{name: "home", keys: []string{"G", "g"}, wantTop: 0},
@@ -454,5 +453,24 @@ func TestGoToLine(t *testing.T) {
 	m.SetContent("other.txt", "text")
 	if m.mark != -1 {
 		t.Error("new content kept the mark")
+	}
+}
+
+// The keys that once paged by half pages do nothing; b still pages up. Each
+// is tried on its own, halfway down.
+func TestOldPagingKeysUnbound(t *testing.T) {
+	for _, k := range []string{"d", "u", "f"} {
+		t.Run(k, func(t *testing.T) {
+			m := open(t, "lines.txt", numbered(100), WithSize(40, 11))
+			m, _ = keys(t, m, "ctrl+f", "ctrl+f")
+			top := m.top
+			if top == 0 {
+				t.Fatal("setup did not scroll")
+			}
+			m, _ = keys(t, m, k)
+			if m.top != top {
+				t.Errorf("after %q: top = %d, want %d", k, m.top, top)
+			}
+		})
 	}
 }

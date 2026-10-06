@@ -64,7 +64,7 @@ func newKeyMap(keys map[string][]string) keyMap {
 
 	// The section and the modal match their own keys first, so the feed
 	// and the thread get only the keys they leave them, such as f, which
-	// pages down there and opens the filter here.
+	// opens the filter here.
 	fk := feed.DefaultKeyMap()
 	// Refresh reloads failed pages too, so it doubles as retry.
 	fk.Retry = retry(k.Refresh)

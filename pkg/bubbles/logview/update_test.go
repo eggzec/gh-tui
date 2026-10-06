@@ -37,7 +37,6 @@ func TestScroll(t *testing.T) {
 		{name: "half page down", keys: []string{"ctrl+d"}, wantCur: 5, wantTop: 5},
 		{name: "space", keys: []string{"space", "space"}, wantCur: 20, wantTop: 20},
 		{name: "ctrl+b", keys: []string{"ctrl+f", "ctrl+f", "ctrl+b"}, wantCur: 10, wantTop: 10},
-		{name: "d, u and f are not bound", keys: []string{"d", "u", "f"}, wantCur: 0, wantTop: 0},
 		{name: "half page up", keys: []string{"ctrl+d", "ctrl+d", "ctrl+u"}, wantCur: 5, wantTop: 5},
 		{name: "end", keys: []string{"G"}, wantCur: 99, wantTop: 90},
 		{name: "end key", keys: []string{"end"}, wantCur: 99, wantTop: 90},
@@ -505,5 +504,24 @@ func TestStatusCountsRowsShown(t *testing.T) {
 	}
 	if got := plain(m); !strings.Contains(got, "▌4     line 4") {
 		t.Errorf("view = %q, want the gutter to number the cursor's line 4", got)
+	}
+}
+
+// The keys that once paged by half pages do nothing; each is tried on its
+// own, halfway down.
+func TestOldPagingKeysUnbound(t *testing.T) {
+	for _, k := range []string{"d", "u", "f"} {
+		t.Run(k, func(t *testing.T) {
+			m := view(t, numbered(100), WithSize(40, 11))
+			m, _ = keys(t, m, "ctrl+f", "ctrl+f")
+			cur, top := m.cur, m.top
+			if top == 0 {
+				t.Fatal("setup did not scroll")
+			}
+			m, _ = keys(t, m, k)
+			if m.cur != cur || m.top != top {
+				t.Errorf("after %q: cursor %d, top %d; want %d, %d", k, m.cur, m.top, cur, top)
+			}
+		})
 	}
 }

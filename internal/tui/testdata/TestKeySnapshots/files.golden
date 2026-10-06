@@ -30,10 +30,10 @@ Files
 tree
   up | up k | ↑/k | on
   down | down j | ↓/j | on
-  page up | ctrl+b pgup | ctrl+b/pgup | on
-  page down | ctrl+f pgdown | ctrl+f/pgdn | on
-  ½ page up | ctrl+u | ctrl+u | on
-  ½ page down | ctrl+d | ctrl+d | on
+  page up | ctrl+b pgup | ^b/pgup | on
+  page down | ctrl+f pgdown | ^f/pgdn | on
+  ½ page up | ctrl+u | ^u | on
+  ½ page down | ctrl+d | ^d | on
   first | home g | g/home | on
   last | end G | G/end | on
   expand | + | + | on

@@ -14,13 +14,13 @@ annotations
 log (types)
   up | up k | ↑/k | off
   down | down j | ↓/j | off
-  page up | b ctrl+b pgup | b/ctrl+b/pgup | off
-  page down | space ctrl+f pgdown | space/ctrl+f/pgdn | off
-  ½ page up | ctrl+u | ctrl+u | off
-  ½ page down | ctrl+d | ctrl+d | off
+  page up | b ctrl+b pgup | b/^b | off
+  page down | space ctrl+f pgdown | space/^f | off
+  ½ page up | ctrl+u | ^u | off
+  ½ page down | ctrl+d | ^d | off
   top | home g | g/home | off
   bottom | end G | G/end | off
-  fold | enter | enter | off
+  fold | enter | ↵ | off
   expand | + | + | off
   collapse | - | - | off
   fold all | * | * | off
