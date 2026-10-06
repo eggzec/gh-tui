@@ -48,8 +48,8 @@ type branches struct {
 	// user moves, so that the cursor returns to it from a later page.
 	follow string
 	// refill is how many pages were listed when the branches were read
-	// again from the first page, until the read lists as many again or
-	// reaches the last page. The filter keeps listing what it did
+	// again from the first page, until the read lists as many again,
+	// reaches the last page or fails. The filter keeps listing what it did
 	// meanwhile, so that it doesn't shrink to the first page.
 	refill int
 
@@ -129,6 +129,13 @@ func (m *Modal) receiveBranches(msg branchesMsg) tea.Cmd {
 	b.loading = false
 	if msg.err != nil {
 		b.err = msg.err
+		if b.refill > 0 {
+			// The read stops here, so the filter lists what loaded.
+			b.refill = 0
+			if b.filter != nil {
+				b.filter.SetItems(m.filterItems())
+			}
+		}
 		return nil
 	}
 	b.err = nil

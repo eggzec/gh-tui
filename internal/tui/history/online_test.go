@@ -276,6 +276,20 @@ func TestOnlineFilterKeepsLaterPages(t *testing.T) {
 	}
 }
 
+// TestOnlineFilterShowsWhatLoadedOnError checks that the filter lists the
+// branches loaded once a later page fails to be read again, rather than
+// what it listed before the read.
+func TestOnlineFilterShowsWhatLoadedOnError(t *testing.T) {
+	m, h, f := rereadUnderFilter(t)
+	f.mu.Lock()
+	f.errs["branches"] = fmt.Errorf("github: GET: %w", core.ErrOffline)
+	f.mu.Unlock()
+	h.run(m.loadBranches("2", true))
+	if n := m.branches.filter.Len(); n != 12 {
+		t.Errorf("the filter lists %d branches once the second page failed, want the 12 loaded", n)
+	}
+}
+
 // TestOnlineFilterChoosesBranchOfLaterPage checks that a branch chosen in
 // the filter while the page that lists it is read again gets the cursor
 // once that page arrives.
