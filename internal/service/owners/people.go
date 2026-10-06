@@ -172,7 +172,8 @@ func (s *Service) FreshTeams(q TeamsQuery) bool {
 // fails with an error matching core.ErrForbidden, which is how the page
 // learns that the teams are for members only rather than that something
 // went wrong. Nothing of them is then kept, and the answer holds for
-// TTLs.People without a request, or until Invalidate.
+// TTLs.People without a request, or until Invalidate, or
+// InvalidateLogin of the organization, as a refresh of its page does.
 func (s *Service) Teams(ctx context.Context, q TeamsQuery) (core.Page[core.Team], error) {
 	q = q.normalize(s.sizes.People)
 	login := loginKey(q.Login)
