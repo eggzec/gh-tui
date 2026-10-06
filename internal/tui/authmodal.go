@@ -66,7 +66,7 @@ func newAuthModal(keys map[string][]string, account string, a core.Access, p acc
 	v.Token = tok
 	// Nothing the modal tells of has a page to open.
 	v.Open.SetEnabled(false)
-	return &authModal{
+	m := &authModal{
 		account:  account,
 		access:   a,
 		plan:     p,
@@ -79,6 +79,8 @@ func newAuthModal(keys map[string][]string, account string, a core.Access, p acc
 		voice:    v,
 		icons:    ui.NewIcons(config.Default().UI.Icons),
 	}
+	m.voice.Icons = &m.icons
+	return m
 }
 
 // checked takes what the token may do, read again, and what grants it

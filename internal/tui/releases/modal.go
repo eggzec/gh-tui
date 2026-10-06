@@ -144,7 +144,6 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, id int64, url stri
 		v := ui.NewVoice(keys, "")
 		o.voice = &v
 	}
-	o.voice.Icons = &o.icons
 	ctx, cancel := context.WithCancel(obs.WithTrace(ctx, "open.release"))
 	m := &Modal{
 		id:     lastID.Add(1),
@@ -160,13 +159,16 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, id int64, url stri
 		voice:  *o.voice,
 		icons:  o.icons,
 	}
+	// The voice and the thread's copies of it read the icons of the modal
+	// itself, not of the options, which go out of use.
+	m.voice.Icons = &m.icons
 	fetch := func(ctx context.Context, _ string) ([]core.ReleaseAsset, string, error) {
 		r, err := svc.Get(ctx, repo, id)
 		return r.Assets, "", err
 	}
 	// The files come with the release, which the thread has no key to
 	// read again.
-	v := *o.voice
+	v := m.voice
 	v.Retry = m.keys.thread.Retry
 	m.thread = thread.New(fetch, m.renderAsset,
 		thread.WithContext(ctx),
