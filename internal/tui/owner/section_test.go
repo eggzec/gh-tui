@@ -167,3 +167,20 @@ func TestClearFilter(t *testing.T) {
 }
 
 func filterApplied(query string) filterform.AppliedMsg { return filterform.AppliedMsg{Query: query} }
+
+// The help names the keys of the panes the page has: an organization has
+// no calendar, so no 4.
+func TestHelpNamesPanesOnView(t *testing.T) {
+	for _, tt := range []struct{ login, want string }{{"octocat", "1-4"}, {"github", "1-3"}} {
+		s := newSection(t, newFake(), tt.login, 120, 40)
+		var got string
+		for _, b := range s.KeyLayers()[0].Bindings {
+			if b.Help().Desc == "focus pane" && b.Enabled() {
+				got = b.Help().Key
+			}
+		}
+		if got != tt.want {
+			t.Errorf("the help of %s's page names the panes %q, want %q", tt.login, got, tt.want)
+		}
+	}
+}

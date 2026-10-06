@@ -75,17 +75,10 @@ func newKeyMap(keys map[string][]string) KeyMap {
 	}
 	actions := [numPanes]string{config.ActionPane1, config.ActionPane2, config.ActionPane3, config.ActionPane4}
 	names := [numPanes]string{paneTitles[pinnedPane], "List", paneTitles[readmePane], paneTitles[calendarPane]}
-	labels := make([]string, 0, numPanes)
 	for i, a := range actions {
 		k.Panes[i] = ui.Binding(keys, a, names[i])
-		if k.Panes[i].Enabled() {
-			labels = append(labels, k.Panes[i].Help().Key)
-		}
 	}
-	k.Jump = key.NewBinding(key.WithDisabled())
-	if len(labels) > 0 {
-		k.Jump = key.NewBinding(key.WithKeys(labels...), key.WithHelp(labels[0]+"-"+labels[len(labels)-1], "focus pane"))
-	}
+	k.Jump = jump(k.Panes)
 
 	// The page, and the app for the filter, match these keys first, so
 	// the list gets only the keys they leave it, such as f, which pages
@@ -94,6 +87,21 @@ func newKeyMap(keys map[string][]string) KeyMap {
 	f.Retry = key.NewBinding(key.WithKeys(k.Refresh.Keys()...), key.WithHelp(k.Refresh.Help().Key, "retry"), key.WithDisabled())
 	k.feed = f
 	return k
+}
+
+// jump returns the binding that stands for the enabled keys of panes in
+// help, such as "1-4 focus pane".
+func jump(panes [numPanes]key.Binding) key.Binding {
+	labels := make([]string, 0, numPanes)
+	for _, b := range panes {
+		if b.Enabled() {
+			labels = append(labels, b.Help().Key)
+		}
+	}
+	if len(labels) == 0 {
+		return key.NewBinding(key.WithDisabled())
+	}
+	return key.NewBinding(key.WithKeys(labels...), key.WithHelp(labels[0]+"-"+labels[len(labels)-1], "focus pane"))
 }
 
 // pane returns the pane that msg focuses, or -1.
@@ -169,6 +177,11 @@ func (k KeyMap) state(s *Section) KeyMap {
 			_, ok := l.selection(s)
 			k.Select.SetEnabled(k.Select.Enabled() && ok && !team)
 		}
+	}
+	// An organization has no calendar, so its pane has no key to name.
+	if !s.hasPane(calendarPane) && k.Panes[calendarPane].Enabled() {
+		k.Panes[calendarPane].SetEnabled(false)
+		k.Jump = jump(k.Panes)
 	}
 	k.Zoom.SetEnabled(k.Zoom.Enabled() && s.wide)
 	k.Refresh.SetEnabled(k.Refresh.Enabled() && s.page != nil)
