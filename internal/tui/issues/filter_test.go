@@ -253,3 +253,46 @@ func TestClaimed(t *testing.T) {
 		t.Error("claimed left, which isn't a key of prev_filter")
 	}
 }
+
+// Another repository opens on the default tab, filter and sort, with one
+// read of its list, and so does the first one on coming back.
+func TestAnotherRepositoryOpensOnTheDefaults(t *testing.T) {
+	svc := newFakeService(sampleIssues(12))
+	h := started(t, svc, 80, 20)
+	apply(t, h, "is:closed author:octocat sort:comments-asc")
+	other := core.RepoRef{Owner: "charmbracelet", Name: "bubbletea"}
+	for _, r := range []core.RepoRef{other, testRepo} {
+		n := len(svc.listCalls())
+		run(t, h, h.Update(ui.RepoMsg{Repo: r}))
+		want := []issuesvc.ListQuery{{Repo: r, State: core.FilterOpen}}
+		if got := svc.listCalls()[n:]; !slices.Equal(got, want) {
+			t.Errorf("listed %+v in %s, want %+v", got, r, want)
+		}
+		if h.tab != core.FilterOpen || h.Chips() != "" {
+			t.Errorf("tab %q, chips %q in %s; want open without chips", h.tab, h.Chips(), r)
+		}
+		if f, _ := h.Filter(); f.Query != "is:open" {
+			t.Errorf("Filter = %q in %s, want the defaults", f.Query, r)
+		}
+	}
+}
+
+// The repository shown, selected again or refreshed, keeps its filter.
+func TestSameRepositoryKeepsTheFilter(t *testing.T) {
+	svc := newFakeService(sampleIssues(12))
+	h := started(t, svc, 80, 20)
+	apply(t, h, "is:closed author:octocat sort:comments-asc")
+	want := issuesvc.ListQuery{Repo: testRepo, State: core.FilterClosed, Filter: "author:octocat sort:comments-asc"}
+	n := len(svc.listCalls())
+	run(t, h, h.Update(ui.RepoMsg{Repo: testRepo}))
+	if len(svc.listCalls()) != n {
+		t.Errorf("selecting the repository shown again listed %+v", svc.listCalls()[n:])
+	}
+	press(t, h, "r")
+	if got := svc.listCalls(); len(got) == n || got[len(got)-1] != want {
+		t.Errorf("refresh listed %+v, want %+v", got[n:], want)
+	}
+	if h.tab != core.FilterClosed || h.Chips() != "@octocat · sort:comments-asc" {
+		t.Errorf("tab %q, chips %q; want the filter kept", h.tab, h.Chips())
+	}
+}

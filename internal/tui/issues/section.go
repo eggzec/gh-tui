@@ -106,7 +106,7 @@ func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Opt
 		voice:     ui.NewVoice(keys, ""),
 		keys:      newKeyMap(keys),
 		now:       time.Now,
-		tab:       core.FilterOpen,
+		tab:       tabs[0].state,
 		colsWidth: -1,
 		icons:     ui.NewIcons(config.Default().UI.Icons),
 	}

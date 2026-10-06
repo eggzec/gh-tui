@@ -271,3 +271,49 @@ func TestFilterOffersTheViewerOnce(t *testing.T) {
 	}
 	t.Fatal("no author field")
 }
+
+// Another repository opens on the default tab, filter and sort, with one
+// read of its list, and so does the first one on coming back.
+func TestAnotherRepositoryOpensOnTheDefaults(t *testing.T) {
+	svc := newFakeService()
+	h := started(t, svc, 80, 20)
+	apply(t, h, "is:closed author:hubot sort:created-asc")
+	other := core.RepoRef{Owner: "charmbracelet", Name: "bubbletea"}
+	for _, r := range []core.RepoRef{other, repo} {
+		n := len(firstLists(svc))
+		drain(t, h, h.Update(ui.RepoMsg{Repo: r}))
+		want := []pulls.ListQuery{{Repo: r, State: core.StateOpen}}
+		if got := firstLists(svc)[n:]; !slices.Equal(got, want) {
+			t.Errorf("listed %+v in %s, want %+v", got, r, want)
+		}
+		if h.tab != core.StateOpen || h.Chips() != "" {
+			t.Errorf("tab %q, chips %q in %s; want open without chips", h.tab, h.Chips(), r)
+		}
+		if f, _ := h.Filter(); f.Query != "is:open" {
+			t.Errorf("Filter = %q in %s, want the defaults", f.Query, r)
+		}
+		if got := screen(h); !strings.Contains(got, r.String()) {
+			t.Errorf("header doesn't name %s:\n%s", r, got)
+		}
+	}
+}
+
+// The repository shown, selected again or refreshed, keeps its filter.
+func TestSameRepositoryKeepsTheFilter(t *testing.T) {
+	svc := newFakeService()
+	h := started(t, svc, 80, 20)
+	apply(t, h, "is:closed author:hubot sort:created-asc")
+	want := pulls.ListQuery{Repo: repo, State: core.StateClosed, Filter: "author:hubot sort:created-asc"}
+	n := len(svc.listed())
+	drain(t, h, h.Update(ui.RepoMsg{Repo: repo}))
+	if len(svc.listed()) != n {
+		t.Errorf("selecting the repository shown again listed %+v", svc.listed()[n:])
+	}
+	press(t, h, "r")
+	if got := svc.listed(); len(got) == n || got[len(got)-1] != want {
+		t.Errorf("refresh listed %+v, want %+v", got[n:], want)
+	}
+	if h.tab != core.StateClosed || h.Chips() != "@hubot · sort:created-asc" {
+		t.Errorf("tab %q, chips %q; want the filter kept", h.tab, h.Chips())
+	}
+}

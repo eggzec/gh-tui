@@ -38,7 +38,8 @@ type tab struct {
 	label string
 }
 
-// tabs are the tabs of the bar, in the order ] goes through them.
+// tabs are the tabs of the bar, in the order ] goes through them. A
+// repository's list opens on the first.
 var tabs = []tab{
 	{core.FilterOpen, "Open"},
 	{core.FilterClosed, "Closed"},

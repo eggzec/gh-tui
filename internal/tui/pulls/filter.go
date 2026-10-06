@@ -33,7 +33,7 @@ type tab struct {
 }
 
 // tabs are the tabs of the header, in the order ] goes through them. All
-// lists every state.
+// lists every state. A repository's list opens on the first.
 var tabs = []tab{
 	{core.StateOpen, "Open"},
 	{core.StateClosed, "Closed"},

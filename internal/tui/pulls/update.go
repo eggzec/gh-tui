@@ -71,11 +71,14 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 }
 
 // setRepo shows the pull requests of repo, once the section has started.
+// Another repository opens on the first tab with no filter and the
+// default sort, while the same one again keeps what is shown.
 func (s *Section) setRepo(repo core.RepoRef) tea.Cmd {
 	if s.hasRepo && repo.Same(s.repo) {
 		return nil
 	}
 	s.repo, s.hasRepo = repo, true
+	s.tab, s.query, s.chips = tabs[0].state, "", ""
 	s.caps = ui.CachedCaps(s.repos, repo)
 	s.others.Reset(s.ctx, repo.String())
 	s.renderHeader()

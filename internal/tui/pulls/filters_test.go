@@ -143,9 +143,9 @@ func TestPrefetchFiltersCancelledByRepo(t *testing.T) {
 			t.Error("a read ahead of the old repository wasn't cancelled")
 		}
 	}
-	// The other repository, on the same tab, waits for a switch of its
-	// own.
-	want := firstPages(other, core.StateClosed)
+	// The other repository opens on the default tab, and waits for a
+	// switch of its own.
+	want := firstPages(other, core.StateOpen)
 	if got := svc.requested()[2:]; !slices.Equal(got, want) {
 		t.Errorf("requested %v for another repository, want %v", got, want)
 	}
