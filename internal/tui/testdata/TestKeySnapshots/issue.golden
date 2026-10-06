@@ -1,0 +1,31 @@
+app
+  ctrl+c  ^c  quit  on
+  ?       ?   help  on
+
+issue
+  esc       esc  back            on
+  c         c    comment         on
+  l         l    labels          on
+  x         x    close           on
+  X         X    reopen          off
+  r ctrl+r  r    refresh         on
+  o         o    browser         on
+  enter     ↵    open            off
+  ]         ]    next state      off
+  [         [    previous state  off
+  F         F    clear filters   off
+  f         f    filter          off
+  s         s    sort            off
+  @         @    owner page      on
+
+thread
+  up k            ↑/k     up            on
+  down j          ↓/j     down          on
+  pgup b          b/pgup  page up       on
+  pgdown f space  f/pgdn  page down     on
+  ctrl+u u        u       ½ page up     on
+  ctrl+d d        d       ½ page down   on
+  home g          g/home  top           on
+  end G           G/end   bottom        on
+  enter           ↵       diagram code  off
+  r ctrl+r        r       retry         off

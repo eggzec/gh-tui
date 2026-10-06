@@ -1,0 +1,7 @@
+app
+  ctrl+c  ^c  quit  on
+  ?       ?   help  on
+
+confirm
+  y      y  yes  on
+  n esc  n  no   on

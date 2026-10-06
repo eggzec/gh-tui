@@ -1,0 +1,40 @@
+app
+  ctrl+c  ^c  quit  on
+  ?       ?   help  off
+
+annotations
+  A       A    annotations  off
+  up k    ↑/k  up           off
+  down j  ↓/j  down         off
+  enter   ↵    open file    off
+  o       o    browser      off
+
+log (types)
+  up k         ↑/k     up            off
+  down j       ↓/j     down          off
+  pgup b       b/pgup  page up       off
+  pgdown f     f/pgdn  page down     off
+  u ctrl+u     u       ½ page up     off
+  d ctrl+d     d       ½ page down   off
+  home g       g/home  top           off
+  end G        G/end   bottom        off
+  space enter  space   fold          off
+  +            +       expand        off
+  -            -       collapse      off
+  *            *       fold all      off
+  e            e       next error    off
+  E            E       prev error    off
+  w            w       next warning  off
+  W            W       prev warning  off
+  /            /       search        off
+  enter        enter   search        on
+  esc          esc     cancel        on
+  n            n       next match    off
+  N            N       prev match    off
+  left h       ←/h     left          off
+  right l      →/l     right         off
+  s            s       wrap          off
+  t            t       times         off
+  #            #       line numbers  off
+  F            F       follow        off
+  esc          esc     back          off

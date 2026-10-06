@@ -1,0 +1,20 @@
+app
+  ctrl+c  ^c  quit  on
+  ?       ?   help  on
+
+release
+  esc       esc  back             on
+  o         o    open in browser  on
+  r ctrl+r  r    retry            off
+
+thread
+  up k            ↑/k     up            on
+  down j          ↓/j     down          on
+  pgup b          b/pgup  page up       on
+  pgdown f space  f/pgdn  page down     on
+  ctrl+u u        u       ½ page up     on
+  ctrl+d d        d       ½ page down   on
+  home g          g/home  top           on
+  end G           G/end   bottom        on
+  enter           ↵       diagram code  off
+                                        off

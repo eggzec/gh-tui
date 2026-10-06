@@ -1,0 +1,8 @@
+command line (types)
+  enter             enter      run                on
+  esc ctrl+c        esc        cancel             on
+  backspace ctrl+h  backspace  cancel when empty  on
+  tab               tab        complete           on
+  shift+tab         shift+tab  previous           on
+  up ctrl+p         ↑          older              off
+  down ctrl+n       ↓          newer              off

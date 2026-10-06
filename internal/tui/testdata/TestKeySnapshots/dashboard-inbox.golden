@@ -1,0 +1,43 @@
+app
+  ?  ?  help  on
+
+app
+  :            :          command        on
+  q ctrl+c     q          quit           on
+  /            /          search         on
+  B            B          history        off
+  a            a          actions        off
+  t ctrl+p     t          find file      off
+  f            f          filter         off
+  s            s          sort           off
+  z            z          zoom           off
+  esc          esc        unzoom         off
+  ctrl+x       ctrl+x     dismiss        off
+  @            @          owner page     on
+  n            n          notifications  on
+  0            0          back           off
+  tab ]        tab        next pane      off
+  shift+tab [  shift+tab  previous pane  off
+  1 2 3        1/2/3      focus pane     off
+
+dashboard
+  left h       ←/h        left               off
+  right l      →/l        right              off
+  up k         ↑/k        up                 on
+  down j       ↓/j        down               on
+  enter        ↵          open & read        on
+  o            o          browser            on
+  C            C          checks             off
+  ] right      ]          next owner         off
+  [ left       [          previous owner     off
+  F            F          clear filters      off
+  f            f          filter             off
+  s            s          sort               off
+  n            n          all notifications  off
+  tab ]        tab        next pane          on
+  shift+tab [  shift+tab  previous pane      on
+  z            z          zoom               on
+  esc          esc        unzoom             off
+  r ctrl+r     r          refresh            on
+  .            .          this repo          on
+  1 2 3 4 5    1-5        focus pane         on

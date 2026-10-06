@@ -1,0 +1,49 @@
+app
+  ?  ?  help  on
+
+app
+  :            :          command        on
+  q ctrl+c     q          quit           on
+  /            /          search         on
+  B            B          history        off
+  a            a          actions        off
+  t ctrl+p     t          find file      off
+  f            f          filter         off
+  s            s          sort           off
+  z            z          zoom           off
+  esc          esc        unzoom         off
+  ctrl+x       ctrl+x     dismiss        off
+  @            @          owner page     off
+  n            n          notifications  on
+  0            0          dashboard      on
+  tab ]        tab        next pane      off
+  shift+tab [  shift+tab  previous pane  off
+  1 2 3        1/2/3      focus pane     off
+
+profile
+  left h       ←/h        left           off
+  right l      →/l        right          off
+  up k         ↑/k        up             off
+  down j       ↓/j        down           off
+  enter        ↵          open           on
+  o            o          browser        on
+  ]            ]          next tab       on
+  [            [          previous tab   on
+  F            F          clear filters  off
+  f            f          filter         off
+  s            s          sort           off
+  tab ]        tab        next pane      on
+  shift+tab [  shift+tab  previous pane  on
+  z            z          zoom           on
+  esc          esc        back           on
+  r ctrl+r     r          refresh        on
+  1 2 3 4      1-4        focus pane     on
+
+list
+  up k      ↑/k     up         on
+  down j    ↓/j     down       on
+  pgup b    pgup/b  page up    on
+  pgdown f  pgdn/f  page down  on
+  home g    g/home  first      on
+  end G     G/end   last       on
+  r ctrl+r  r       retry      off

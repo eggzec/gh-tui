@@ -1,0 +1,8 @@
+app
+  ctrl+c  ^c  quit  on
+  ?       ?   help  off
+
+prompt (types)
+  ctrl+s  ctrl+s  submit  on
+  enter   enter   submit  off
+  esc     esc     cancel  on

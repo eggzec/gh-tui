@@ -1,0 +1,25 @@
+app
+  ctrl+c  ^c  quit  on
+  ?       ?   help  on
+
+history
+  tab ]        tab        pane           on
+  shift+tab [  shift+tab  previous pane  on
+  o            o          browser        on
+  H            H          back to head   off
+  z            z          zoom           on
+  esc          esc        back           on
+  space        space      use as base    on
+  enter        ↵          patch          on
+  /            /          filter         off
+  r ctrl+r     r          retry          off
+
+files
+  up k      ↑/k     up             on
+  down j    ↓/j     down           on
+  pgup b    pgup/b  page up        on
+  pgdown f  pgdn/f  page down      on
+  home g    g/home  newest         on
+  end G     G/end   oldest loaded  on
+  enter     enter   open           off
+  r         r       retry          off

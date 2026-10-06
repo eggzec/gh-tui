@@ -1,0 +1,29 @@
+app
+  ctrl+c  ^c  quit  on
+  ?       ?   help  off
+
+file
+  o  o  open  off
+
+pager (types)
+  up k                 ↑/k     up                 off
+  down j               ↓/j     down               off
+  pgup b               b/pgup  page up            off
+  pgdown space f       f/pgdn  page down          off
+  u                    u       ½ page up          off
+  d                    d       ½ page down        off
+  home g               g/home  top                on
+  end G                G/end   bottom             on
+  0 1 2 3 4 5 6 7 8 9  0-9     count for g/G/%    on
+  %                    %       go to count %      on
+  left h               ←/h     left               off
+  right l              →/l     right              off
+  -                    -       option: S N s i I  off
+  /                    /       search             off
+  &                    &       filter             off
+  enter                enter   search             off
+  esc                  esc     cancel             on
+  n                    n       next match         off
+  N                    N       prev match         off
+  v                    v       edit               off
+  q esc                q       close              off

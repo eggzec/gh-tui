@@ -1,0 +1,31 @@
+app
+  ctrl+c  ^c  quit  on
+  ?       ?   help  on
+
+actions
+  ]            ]          tab            on
+  [            [          previous tab   on
+  tab ]        tab        pane           on
+  shift+tab [  shift+tab  previous pane  on
+  l            l          pane right     on
+  h            h          pane left      on
+  f            f          filter         on
+  z            z          zoom           on
+  o            o          browser        on
+  ctrl+r       ^r         rerun failed   on
+  R            R          rerun all      on
+  J            J          rerun job      off
+  x            x          cancel run     off
+  r ctrl+r     r          refresh        on
+  esc          esc        close          on
+  enter        ↵          jobs           on
+  A            A          annotations    off
+
+runs
+  up k      ↑/k     up         on
+  down j    ↓/j     down       on
+  pgup b    pgup/b  page up    on
+  pgdown f  pgdn/f  page down  on
+  home g    g/home  first      on
+  end G     G/end   last       on
+  r ctrl+r  r       retry      off
