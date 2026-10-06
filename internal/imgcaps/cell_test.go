@@ -39,11 +39,12 @@ func TestQueryTmuxClient(t *testing.T) {
 		want    TmuxClient
 		wantErr bool
 	}{
-		{"kitty", "/dev/pts/3\tkitty(0.43.1)\t9\t18\ton\n", nil, TmuxClient{TTY: "/dev/pts/3", Termtype: "kitty(0.43.1)", Passthrough: "on", Cell: Cell{9, 18}}, false},
-		{"a name with spaces", "/dev/pts/3\tghostty 1.2.0\t10\t20\tall\n", nil, TmuxClient{TTY: "/dev/pts/3", Termtype: "ghostty 1.2.0", Passthrough: "all", Cell: Cell{10, 20}}, false},
-		{"no pixels", "/dev/pts/3\tkitty(0.43.1)\t0\t0\toff\n", nil, TmuxClient{TTY: "/dev/pts/3", Termtype: "kitty(0.43.1)", Passthrough: "off"}, false},
-		{"no client", "\t\t\t\t\n", nil, TmuxClient{}, false},
-		{"too few fields", "/dev/pts/3\tkitty(0.43.1)\t9\t18\n", nil, TmuxClient{}, true},
+		{"kitty", "/dev/pts/3\tkitty(0.43.1)\t9\t18\ton\t1\n", nil, TmuxClient{TTY: "/dev/pts/3", Termtype: "kitty(0.43.1)", Passthrough: "on", Cell: Cell{9, 18}, Attached: 1}, false},
+		{"a name with spaces", "/dev/pts/3\tghostty 1.2.0\t10\t20\tall\t1\n", nil, TmuxClient{TTY: "/dev/pts/3", Termtype: "ghostty 1.2.0", Passthrough: "all", Cell: Cell{10, 20}, Attached: 1}, false},
+		{"no pixels", "/dev/pts/3\tkitty(0.43.1)\t0\t0\toff\t1\n", nil, TmuxClient{TTY: "/dev/pts/3", Termtype: "kitty(0.43.1)", Passthrough: "off", Attached: 1}, false},
+		{"two clients", "/dev/pts/3\tkitty(0.43.1)\t9\t18\ton\t2\n", nil, TmuxClient{TTY: "/dev/pts/3", Termtype: "kitty(0.43.1)", Passthrough: "on", Cell: Cell{9, 18}, Attached: 2}, false},
+		{"no client", "\t\t\t\t\t\n", nil, TmuxClient{}, false},
+		{"too few fields", "/dev/pts/3\tkitty(0.43.1)\t9\t18\ton\n", nil, TmuxClient{}, true},
 		{"tmux failed", "", errors.New("no server running"), TmuxClient{}, true},
 	}
 	for _, tt := range tests {

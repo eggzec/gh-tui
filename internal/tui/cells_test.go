@@ -311,7 +311,7 @@ func TestTmuxFocusRechecks(t *testing.T) {
 	if writes := answer(m, tea.FocusMsg{}); len(writes) != 0 {
 		t.Errorf("focus in WezTerm wrote %q", writes)
 	}
-	if ft.runs != runs+4 {
+	if ft.runs != runs+5 {
 		t.Errorf("focus in another terminal ran tmux %d times, want the client asked, then everything", ft.runs-runs)
 	}
 	if m.graphics.Images || m.images.verdict.Terminal != "WezTerm 20240203" {
@@ -340,7 +340,7 @@ func TestTmuxFocusRechecks(t *testing.T) {
 	ft.client = imgcaps.TmuxClient{TTY: "/dev/pts/9", Termtype: "WezTerm 20240203"}
 	runs = ft.runs
 	answer(m, tea.FocusMsg{})
-	if ft.runs != runs+4 {
+	if ft.runs != runs+5 {
 		t.Errorf("focus from another device ran tmux %d times, want everything asked", ft.runs-runs)
 	}
 
@@ -399,6 +399,49 @@ func TestTmuxPassthroughTurnedOn(t *testing.T) {
 	answer(m, tea.FocusMsg{})
 	if !m.graphics.Images || m.graphics.Cell != (imgcaps.Cell{Width: 9, Height: 18}) {
 		t.Errorf("graphics = %+v after passthrough went on (%s)", m.graphics, m.images.verdict.Reason)
+	}
+}
+
+// While tmux shows the session on more than one terminal, images aren't
+// drawn, since what is sent reaches every terminal and one may not draw
+// them. The app decides again when a terminal attaches or detaches, as
+// it finds on a focus or a resize, and asks tmux on a resize even while
+// images are off for that.
+func TestTmuxSharedSession(t *testing.T) {
+	ft := &fakeTmux{passthrough: "on", client: imgcaps.TmuxClient{TTY: "/dev/pts/1", Termtype: "kitty(0.43.1)", Cell: imgcaps.Cell{Width: 9, Height: 18}, Attached: 2}}
+	m, _ := tmuxApp(t, ft)
+	answer(m, tea.ColorProfileMsg{Profile: colorprofile.ANSI256})
+	if m.graphics.Images || !m.images.verdict.Shared {
+		t.Fatalf("graphics = %+v, verdict %+v with two clients, want images off", m.graphics, m.images.verdict)
+	}
+
+	ft.client.Attached = 1
+	runs := ft.runs
+	answer(m, tea.WindowSizeMsg{Width: 120, Height: 40})
+	if ft.runs != runs+6 {
+		t.Errorf("a resize after a detach ran tmux %d times, want the client asked, everything, then the cells", ft.runs-runs)
+	}
+	if !m.graphics.Images || m.graphics.Cell != (imgcaps.Cell{Width: 9, Height: 18}) {
+		t.Errorf("graphics = %+v once one client is left (%s)", m.graphics, m.images.verdict.Reason)
+	}
+
+	runs = ft.runs
+	answer(m, tea.FocusMsg{})
+	if ft.runs != runs+1 {
+		t.Errorf("focus with nothing changed ran tmux %d times, want once", ft.runs-runs)
+	}
+
+	ft.client.Attached = 3
+	answer(m, tea.FocusMsg{})
+	if m.graphics.Images || !m.images.verdict.Shared {
+		t.Errorf("graphics = %+v, verdict %+v after a second client attached", m.graphics, m.images.verdict)
+	}
+	// Another count above one changes nothing.
+	ft.client.Attached = 2
+	runs = ft.runs
+	answer(m, tea.FocusMsg{})
+	if ft.runs != runs+1 {
+		t.Errorf("focus with clients still shared ran tmux %d times, want once", ft.runs-runs)
 	}
 }
 

@@ -160,10 +160,12 @@ func (m *Model) graphicsDecided(msg graphicsDecidedMsg) tea.Cmd {
 }
 
 // askCells asks the size of a cell, if the terminal draws images: of tmux,
-// inside it, and else of the terminal.
+// inside it, and else of the terminal. While images are off only because
+// tmux shows the session on several terminals, tmux is asked too, since
+// a resize may come of one of them detaching.
 func (m *Model) askCells() tea.Cmd {
 	switch {
-	case !m.graphics.Images:
+	case !m.graphics.Images && !m.images.verdict.Shared:
 		return nil
 	case m.graphics.Tmux:
 		return m.images.askCells(m.ctx)

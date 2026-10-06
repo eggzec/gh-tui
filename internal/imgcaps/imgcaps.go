@@ -32,6 +32,10 @@ type Verdict struct {
 	// Fix, when set, is a line of tmux.conf that would have images
 	// drawn, for the user to add.
 	Fix string
+	// Shared says that images aren't drawn only because tmux shows the
+	// session on more than one terminal, which the app checks again on
+	// focus and resize.
+	Shared bool
 }
 
 // Env is what the environment says of the terminal.

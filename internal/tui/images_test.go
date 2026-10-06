@@ -50,9 +50,11 @@ func (f *fakeTmux) run(_ context.Context, args ...string) (string, error) {
 		return "3.4", nil
 	case q == "allow-passthrough":
 		return f.passthrough, nil
+	case q == "#{session_attached}":
+		return strconv.Itoa(f.client.Attached), nil
 	case strings.HasPrefix(q, "#{client_tty}"):
 		c := f.client
-		return fmt.Sprintf("%s\t%s\t%d\t%d\t%s\n", c.TTY, c.Termtype, c.Cell.Width, c.Cell.Height, f.passthrough), nil
+		return fmt.Sprintf("%s\t%s\t%d\t%d\t%s\t%d\n", c.TTY, c.Termtype, c.Cell.Width, c.Cell.Height, f.passthrough, c.Attached), nil
 	}
 	return f.client.Termtype, nil
 }

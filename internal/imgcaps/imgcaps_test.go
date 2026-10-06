@@ -123,6 +123,10 @@ func TestVerdicts(t *testing.T) {
 			tmux: Tmux{Version: "3.4", Passthrough: "on", ClientTermtype: "kitty(0.26.5)"}, reason: "before 0.28"},
 		{name: "tmux 3.3", mode: ModeAuto, env: tmuxEnv, profile: colorprofile.ANSI256, path: AskTmux,
 			tmux: Tmux{Version: "3.3", Passthrough: "on", ClientTermtype: "ghostty 1.2.0"}, want: true},
+		{name: "tmux, one client", mode: ModeAuto, env: tmuxEnv, profile: colorprofile.ANSI256, path: AskTmux,
+			tmux: Tmux{Version: "3.4", Passthrough: "on", ClientTermtype: "kitty(0.43.1)", Attached: 1}, want: true},
+		{name: "tmux, two clients", mode: ModeAuto, env: tmuxEnv, profile: colorprofile.ANSI256, path: AskTmux,
+			tmux: Tmux{Version: "3.4", Passthrough: "on", ClientTermtype: "kitty(0.43.1)", Attached: 2}, reason: "more than one terminal"},
 		{name: "tmux with an unreadable version", mode: ModeAuto, env: tmuxEnv, profile: colorprofile.ANSI256, path: AskTmux,
 			tmux: Tmux{Version: "master", Passthrough: "on", ClientTermtype: "ghostty 1.2.0"}, reason: "older than 3.3"},
 		{name: "tmux can't say its client", mode: ModeAuto, env: tmuxEnv, profile: colorprofile.ANSI256, path: AskTmux,
@@ -206,8 +210,8 @@ func TestVersion(t *testing.T) {
 	}
 }
 
-// QueryTmux asks tmux its three questions apart, and keeps the answers
-// of those it could answer, and why the others failed.
+// QueryTmux asks tmux its questions apart, and keeps the answers of
+// those it could answer, and why the others failed.
 func TestQueryTmux(t *testing.T) {
 	var asked [][]string
 	run := func(_ context.Context, args ...string) (string, error) {
@@ -217,17 +221,20 @@ func TestQueryTmux(t *testing.T) {
 			return "3.4\n", nil
 		case "allow-passthrough":
 			return "", errors.New("invalid option")
+		case "#{session_attached}":
+			return "2\n", nil
 		}
 		return "ghostty 1.2.0\n", nil
 	}
 	got := QueryTmux(context.Background(), run)
-	if got.Version != "3.4" || got.ClientTermtype != "ghostty 1.2.0" || got.Passthrough != "" || got.PassthroughErr == nil {
-		t.Errorf("QueryTmux = %+v, want the version, the client and the passthrough's error", got)
+	if got.Version != "3.4" || got.ClientTermtype != "ghostty 1.2.0" || got.Passthrough != "" || got.PassthroughErr == nil || got.Attached != 2 {
+		t.Errorf("QueryTmux = %+v, want the version, the client, the passthrough's error and two clients", got)
 	}
 	want := [][]string{
 		{"display-message", "-p", "#{version}"},
 		{"show-options", "-Apv", "allow-passthrough"},
 		{"display-message", "-p", "#{client_termtype}"},
+		{"display-message", "-p", "#{session_attached}"},
 	}
 	if !slices.EqualFunc(asked, want, slices.Equal) {
 		t.Errorf("asked %q, want %q", asked, want)

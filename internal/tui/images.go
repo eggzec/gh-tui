@@ -186,7 +186,9 @@ func (p *imageProbe) update(msg tea.Msg) (cmd tea.Cmd, handled bool) {
 		// sets it on as :images suggests and reloads tmux's config, may
 		// change the verdict.
 		moved := c.Termtype != p.seen.ClientTermtype || prev.TTY != "" && c.TTY != prev.TTY
-		if moved || c.Passthrough != p.seen.Passthrough {
+		// A second terminal attached, or the last but one detached.
+		shared := c.Shared() != p.seen.Shared()
+		if moved || shared || c.Passthrough != p.seen.Passthrough {
 			p.asking, p.moved = true, moved
 			return msg.recheck, true
 		}
@@ -219,7 +221,8 @@ func (p *imageProbe) update(msg tea.Msg) (cmd tea.Cmd, handled bool) {
 // was made for. The app asks when images need the size of a cell and
 // when it gains focus, since client_termtype is that of the terminal
 // tmux was last attached from: after a detach and an attach from another
-// terminal, or a change of allow-passthrough, tmux is asked everything
+// terminal, an attach of a second terminal or the detach of all but one,
+// or a change of allow-passthrough, tmux is asked everything
 // again, and a verdict that changes is told to the app as the first was.
 // One question is in flight at a time: a focus meanwhile asks nothing
 // more, and a size wanted meanwhile is asked once it is answered.
