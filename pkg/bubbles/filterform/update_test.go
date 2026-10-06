@@ -96,16 +96,16 @@ func TestUpdate(t *testing.T) {
 			wantTab:   SortTab, wantRow: sortByRow,
 		},
 		{
-			name: "delete clears nothing on the sort", keys: step{nextTab, del, down, bksp},
+			name: "delete clears nothing on a sort with no empty option", keys: step{nextTab, del, down, bksp},
 			wantQuery: prDefaults, wantTab: SortTab, wantRow: sortOrderRow,
 		},
 		{
-			name: "F on the sort resets only the sort", query: "is:closed sort:comments-asc fix", keys: step{nextTab, keyF},
-			wantQuery: "is:closed sort:updated-desc fix", wantTab: SortTab,
+			name: "F does nothing on a sort row", query: "is:closed sort:comments-asc fix", keys: step{nextTab, keyF, down, keyF},
+			wantQuery: "is:closed sort:comments-asc fix", wantTab: SortTab, wantRow: sortOrderRow,
 		},
 		{
-			name: "F on the filters resets only the filters", query: "is:closed sort:comments-asc fix", keys: step{keyF},
-			wantQuery: strings.Replace(prDefaults, "sort:updated-desc", "sort:comments-asc", 1),
+			name: "F does nothing on a filter row", query: "is:closed sort:comments-asc fix", keys: step{keyF, down, keyF},
+			wantQuery: "is:closed sort:comments-asc fix", wantRow: rowAuthor,
 		},
 		{
 			name: "up on the sort wraps to the query line", keys: step{nextTab, up},
@@ -170,10 +170,6 @@ func TestUpdate(t *testing.T) {
 			name: "esc undoes a person", keys: step{down, enter},
 			typed: "hubot", after: step{space, esc},
 			wantQuery: prDefaults, wantRow: rowAuthor,
-		},
-		{
-			name: "F resets", query: "is:closed fix", keys: step{keyF},
-			wantQuery: prDefaults,
 		},
 		{
 			name: "up wraps to the query line, where letters are typed", keys: step{up},
