@@ -87,6 +87,35 @@ func TestRenderedFitsTheWidth(t *testing.T) {
 	}
 }
 
+// The line numbers keep room for the lines a reserve says the content
+// may gain, and a reserve of none, as of a document without images,
+// leaves them as wide as without one.
+func TestRenderedReserve(t *testing.T) {
+	src := strings.Repeat("line\n", 94) + "line"
+	width := func(reserve func() int) int {
+		var widths []int
+		m := New(WithSize(30, 6))
+		if reserve != nil {
+			m.SetReserve(reserve)
+		}
+		m.SetRendered("README.md", src, func(w int) string {
+			widths = append(widths, w)
+			return src
+		})
+		if len(widths) != 1 {
+			t.Fatalf("rendered at %v, want once", widths)
+		}
+		return widths[0]
+	}
+	plain := width(nil)
+	if got := width(func() int { return 0 }); got != plain {
+		t.Errorf("with no lines reserved the text is %d wide, want %d as without a reserve", got, plain)
+	}
+	if got := width(func() int { return 10 }); got != plain-1 {
+		t.Errorf("with 10 lines reserved past 95 the text is %d wide, want %d", got, plain-1)
+	}
+}
+
 func TestRenderedFollowsTheWidth(t *testing.T) {
 	r := &wrapWords{src: words(200)}
 	m := rendered(t, r)
