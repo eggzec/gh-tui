@@ -1,0 +1,54 @@
+app
+  ctrl+c  ^c  quit  on
+  ?       ?   help  on
+
+checks
+  esc       esc     checks        on
+  ctrl+r    ^r      rerun failed  on
+  r ctrl+r  r       refresh       on
+  o         o       browser       on
+  enter     ↵       open          off
+  up k      ↑/k     up            off
+  down j    ↓/j     down          off
+  pgup b    pgup/b  page up       off
+  pgdown f  pgdn/f  page down     off
+  home g    g/home  first         off
+  end G     G/end   last          off
+  A         A       annotations   off
+
+annotations
+  A       A    annotations  off
+  up k    ↑/k  up           off
+  down j  ↓/j  down         off
+  enter   ↵    open file    off
+  o       o    browser      off
+
+log
+  up k         ↑/k     up            on
+  down j       ↓/j     down          on
+  pgup b       b/pgup  page up       on
+  pgdown f     f/pgdn  page down     on
+  u ctrl+u     u       ½ page up     on
+  d ctrl+d     d       ½ page down   on
+  home g       g/home  top           on
+  end G        G/end   bottom        on
+  space enter  space   fold          on
+  +            +       expand        on
+  -            -       collapse      on
+  *            *       fold all      on
+  e            e       next error    off
+  E            E       prev error    off
+  w            w       next warning  off
+  W            W       prev warning  off
+  /            /       search        on
+  enter        enter   search        off
+  esc          esc     cancel        off
+  n            n       next match    off
+  N            N       prev match    off
+  left h       ←/h     left          on
+  right l      →/l     right         on
+  s            s       wrap          on
+  t            t       times         on
+  #            #       line numbers  on
+  F            F       follow        on
+  esc          esc     back          on

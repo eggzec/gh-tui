@@ -1,0 +1,25 @@
+app
+  ?  ?  help  off
+
+app
+  ctrl+c  ^c  quit  on
+
+query (types)
+
+query
+  esc          esc        back      on
+  enter        ↵          search    on
+  tab ]        tab        next      on
+  shift+tab [  shift+tab  previous  on
+  left h       ←/h        kinds     off
+  right l      →/l        results   off
+  up k         ↑/k        up        off
+  down j       ↓/j        down      off
+  o            o          browser   off
+  ctrl+o       ^o         repo      off
+  C            C          checks    off
+  r ctrl+r     r          refresh   off
+  f            f          filter    off
+  s            s          sort      off
+  up           ↑          kinds     on
+  down         ↓          results   on

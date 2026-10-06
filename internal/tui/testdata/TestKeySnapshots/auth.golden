@@ -1,0 +1,6 @@
+app
+  ctrl+c  ^c  quit  on
+  ?       ?   help  on
+
+token
+  esc  esc  close  on

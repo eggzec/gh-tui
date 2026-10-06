@@ -1,0 +1,13 @@
+app
+  ctrl+c  ^c  quit  on
+  ?       ?   help  off
+
+filter (types)
+  up ctrl+p    ↑/ctrl+p   up              on
+  down ctrl+n  ↓/ctrl+n   down            on
+  pgup         pgup       page up         on
+  pgdown       pgdn       page down       on
+  enter        enter      open            on
+  esc          esc        close           on
+  tab          tab        scope           off
+  shift+tab    shift+tab  previous scope  off

@@ -1,0 +1,25 @@
+app
+  ctrl+c  ^c  quit  on
+  ?       ?   help  off
+
+filter (types)
+  up shift+tab  ↑          previous field  off
+  down tab      ↑↓         field           off
+  left          ←          previous        off
+  right         ←→         choose          off
+  space         space      choose          on
+  enter         ↵          edit            on
+  x backspace   x          remove          off
+  enter         ↵          apply           off
+  r             r          reset           off
+  esc           esc        cancel          on
+  ]             ]          next tab        off
+  [             [          previous tab    off
+  up ctrl+p     ↑/ctrl+p   up              on
+  down ctrl+n   ↓/ctrl+n   down            on
+  pgup          pgup       page up         on
+  pgdown        pgdn       page down       on
+  enter         enter      open            off
+  esc           esc        close           off
+  tab           tab        scope           off
+  shift+tab     shift+tab  previous scope  off

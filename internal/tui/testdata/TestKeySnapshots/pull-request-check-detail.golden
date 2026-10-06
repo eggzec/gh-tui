@@ -1,0 +1,27 @@
+app
+  ctrl+c  ^c  quit  on
+  ?       ?   help  on
+
+checks
+  esc       esc     checks        on
+  ctrl+r    ^r      rerun failed  off
+  r         r       refresh       on
+  o         o       browser       on
+  enter     ↵       open          off
+  up k      ↑/k     up            off
+  down j    ↓/j     down          off
+  pgup b    pgup/b  page up       off
+  pgdown f  pgdn/f  page down     off
+  home g    g/home  first         off
+  end G     G/end   last          off
+  A         A       annotations   off
+
+detail
+  up k            ↑/k     up           on
+  down j          ↓/j     down         on
+  pgup b          b/pgup  page up      on
+  pgdown space f  f/pgdn  page down    on
+  u ctrl+u        u       ½ page up    on
+  d ctrl+d        d       ½ page down  on
+  left h          ←/h     move left    on
+  right l         →/l     move right   on

@@ -1,0 +1,16 @@
+app
+  ctrl+c  ^c  quit  on
+  ?       ?   help  off
+
+finder
+  ctrl+t  ^t   open in tree    on
+  tab     tab  preview         on
+  ctrl+o  ^o   open on GitHub  on
+
+find (types)
+  up ctrl+p    ↑     up         on
+  down ctrl+n  ↓     down       on
+  pgup         pgup  page up    on
+  pgdown       pgdn  page down  on
+  enter        ↵     open       on
+  esc          esc   close      on

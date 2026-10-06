@@ -1,0 +1,59 @@
+app
+  ctrl+c  ^c  quit  on
+  ?       ?   help  on
+
+actions
+  ]            ]          tab            on
+  [            [          previous tab   on
+  tab ]        tab        pane           on
+  shift+tab [  shift+tab  previous pane  on
+  l            l          pane right     on
+  h            h          pane left      on
+  f            f          filter         on
+  z            z          zoom           on
+  o            o          browser        on
+  ctrl+r       ^r         rerun failed   on
+  R            R          rerun all      on
+  J            J          rerun job      on
+  x            x          cancel run     off
+  r ctrl+r     r          refresh        on
+  esc          esc        back           on
+  enter        ↵          open           off
+  A            A          annotations    off
+
+annotations
+  A       A    annotations  on
+  up k    ↑/k  up           off
+  down j  ↓/j  down         off
+  enter   ↵    open file    off
+  o       o    browser      off
+
+log
+  up k         ↑/k     up            on
+  down j       ↓/j     down          on
+  pgup b       b/pgup  page up       on
+  pgdown f     f/pgdn  page down     on
+  u ctrl+u     u       ½ page up     on
+  d ctrl+d     d       ½ page down   on
+  home g       g/home  top           on
+  end G        G/end   bottom        on
+  space enter  space   fold          on
+  +            +       expand        on
+  -            -       collapse      on
+  *            *       fold all      on
+  e            e       next error    off
+  E            E       prev error    off
+  w            w       next warning  off
+  W            W       prev warning  off
+  /            /       search        on
+  enter        enter   search        off
+  esc          esc     cancel        off
+  n            n       next match    off
+  N            N       prev match    off
+  left h       ←/h     left          on
+  right l      →/l     right         on
+  s            s       wrap          on
+  t            t       times         on
+  #            #       line numbers  on
+  F            F       follow        on
+  esc          esc     back          on

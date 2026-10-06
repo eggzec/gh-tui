@@ -1,0 +1,13 @@
+app
+  ctrl+c  ^c  quit  on
+
+help (types)
+  up      ↑     scroll up          on
+  down    ↓     scroll down        on
+  pgup    pgup  page up            on
+  pgdown  pgdn  page down          on
+  home    home  top                on
+  end     end   bottom             on
+  tab     tab   find a key         on
+  esc     esc   clear, then close  on
+  ?       ?     close              on
