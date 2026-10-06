@@ -9,6 +9,7 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/pkg/markdown"
 )
 
 // setDrawing sets the glyphs that draw rather than mark: dots, arrows,
@@ -24,6 +25,7 @@ func (ic *Icons) setDrawing(set string) {
 		ic.OpenQuote, ic.CloseQuote, ic.Dash = `"`, `"`, "-"
 		ic.Spinner = spinner.Line
 		ic.keys = asciiKeys
+		ic.Markdown = markdown.ASCIIGlyphs()
 		return
 	}
 	ic.Dot, ic.Ring, ic.Crumb, ic.Before, ic.Cell = "●", "○", "›", "‹", "■"

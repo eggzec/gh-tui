@@ -83,6 +83,7 @@ func (s *Section) readmeRender(p *page, src string) pager.Render {
 	return func(width int) string {
 		if s.sc.md == nil {
 			s.sc.md = markdown.New(s.theme.Thread(s.icons).Markdown)
+			s.sc.md.SetGlyphs(s.icons.Markdown)
 		}
 		p.side.drew = false
 		pics := s.readmePictures(p)

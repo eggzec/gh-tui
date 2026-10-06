@@ -75,6 +75,7 @@ func compact(parts []string) []string {
 func (s *Step) markdown(src string, width int) string {
 	if s.md == nil {
 		s.md = markdown.New(s.theme.Thread(s.opts.icons).Markdown)
+		s.md.SetGlyphs(s.opts.icons.Markdown)
 	}
 	s.md.SetHint(s.openHint())
 	return markdown.Indent(s.md.Render(src, markdown.Room(width, 4)), "  ")

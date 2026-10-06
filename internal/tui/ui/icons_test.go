@@ -12,6 +12,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/pkg/markdown"
 )
 
 var iconSets = []string{config.IconsNerd, config.IconsUnicode, config.IconsASCII}
@@ -52,6 +53,25 @@ func TestIconsASCII(t *testing.T) {
 			if r > unicode.MaxASCII {
 				t.Errorf("glyph %q is not ASCII", g)
 			}
+		}
+	}
+}
+
+// Markdown draws its own glyphs in ASCII in the ASCII set, and as the
+// renderer always did in the others.
+func TestIconsMarkdown(t *testing.T) {
+	p, err := config.Default().Palette(true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	th := NewTheme(p, true)
+	for _, set := range iconSets {
+		want := markdown.Glyphs{}
+		if set == config.IconsASCII {
+			want = markdown.ASCIIGlyphs()
+		}
+		if got := th.Thread(NewIcons(set)).MarkdownGlyphs; got != want {
+			t.Errorf("%s: the thread's markdown glyphs are %+v, want %+v", set, got, want)
 		}
 	}
 }

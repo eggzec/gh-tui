@@ -121,6 +121,7 @@ func (v *markdownView) setTheme(t ui.Theme, ic ui.Icons) {
 	v.theme, v.icons = t, ic
 	if v.md != nil {
 		v.md.SetStyle(t.Thread(ic).Markdown)
+		v.md.SetGlyphs(ic.Markdown)
 	}
 }
 
@@ -144,6 +145,7 @@ func (v *markdownView) render(name, src string) pager.Render {
 	return func(width int) string {
 		if v.md == nil {
 			v.md = markdown.New(v.theme.Thread(v.icons).Markdown)
+			v.md.SetGlyphs(v.icons.Markdown)
 			v.md.SetHint(rawHint)
 			v.md.SetRelativePictures(true)
 		}

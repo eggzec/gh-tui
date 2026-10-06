@@ -9,6 +9,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/pkg/markdown"
 )
 
 // Icons are the glyphs that mark repositories, their languages, and the
@@ -81,6 +82,10 @@ type Icons struct {
 	// Spinner is the spinner of what loads, or zero where each view keeps
 	// its own. Views take it through SpinnerOr.
 	Spinner spinner.Spinner
+	// Markdown are the glyphs rendered markdown draws of its own, such as
+	// its bullets and quote bars: ASCII in the ASCII set, and the
+	// renderer's defaults, zero, in the others.
+	Markdown markdown.Glyphs
 	// keys names keys in help, as Key does.
 	keys *strings.Replacer
 

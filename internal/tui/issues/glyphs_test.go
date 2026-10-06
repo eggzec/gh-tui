@@ -99,9 +99,7 @@ func TestDetailASCII(t *testing.T) {
 	if m == nil {
 		t.Fatal("enter didn't open the issue")
 	}
-	// The markdown of the body and comments keeps code apart with spaces
-	// that don't break, as GitHub's renderer does.
-	v := strings.ReplaceAll(ansi.Strip(m.header(m.issue)+"\n"+m.View()), "\u00a0", " ")
+	v := ansi.Strip(m.header(m.issue) + "\n" + m.View())
 	if strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
 		t.Errorf("detail isn't ASCII:\n%s", v)
 	}

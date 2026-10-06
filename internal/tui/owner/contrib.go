@@ -128,6 +128,7 @@ func (s *Section) pressCalendar(msg tea.KeyPressMsg) tea.Cmd {
 func (s *Section) themeSide() {
 	if s.sc.md != nil {
 		s.sc.md.SetStyle(s.theme.Thread(s.icons).Markdown)
+		s.sc.md.SetGlyphs(s.icons.Markdown)
 	}
 	for _, p := range s.pages() {
 		if pg := p.side.pager; pg != nil {

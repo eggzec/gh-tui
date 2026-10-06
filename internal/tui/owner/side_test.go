@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"unicode"
 
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
@@ -373,5 +374,30 @@ func TestReadmeRedrawsForItsImages(t *testing.T) {
 	press(t, s, "3")
 	if s.readmeStale(s.page) {
 		t.Error("a README without images renders again for images")
+	}
+}
+
+// The README draws its bullets, quote bars and images in the icon set,
+// and follows it when ui.icons changes.
+func TestReadmeFollowsIcons(t *testing.T) {
+	s := newSection(t, newFake(), "octocat", 120, 40)
+	press(t, s, "3")
+	if v := ansi.Strip(s.View()); !strings.Contains(v, "• Working on") || !strings.Contains(v, "│ Talk is cheap") {
+		t.Fatalf("the README doesn't draw its bullets and bars:\n%s", v)
+	}
+	c, err := config.Default().Set("ui.icons", config.IconsASCII)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.Update(ui.SettingsMsg{Config: c})
+	s.SetTheme(s.theme)
+	v := ansi.Strip(s.View())
+	for _, want := range []string{"* Working on", "| Talk is cheap", "Image: stats"} {
+		if !strings.Contains(v, want) {
+			t.Errorf("the README in ASCII lacks %q:\n%s", want, v)
+		}
+	}
+	if strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
+		t.Errorf("the page in ASCII isn't ASCII:\n%s", v)
 	}
 }
