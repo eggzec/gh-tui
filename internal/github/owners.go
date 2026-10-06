@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"time"
@@ -124,17 +125,16 @@ func (o *ownerNode) core() core.Owner {
 		p.Status = core.Status{Emoji: o.Status.Emoji, Message: o.Status.Message, Busy: o.Status.Busy}
 	}
 	out := core.Owner{
-		ID:         o.ID,
-		Profile:    p,
-		Pronouns:   o.Pronouns,
-		Stars:      o.Starred.TotalCount,
-		Twitter:    o.Twitter,
-		Email:      o.Email,
-		Verified:   o.Verified,
-		Members:    o.Members.TotalCount,
-		Teams:      o.Teams.TotalCount,
-		Pinned:     ownerPinned(o.PinnedItems.Nodes),
-		HiddenPins: slices.Contains(o.PinnedItems.Nodes, nil),
+		ID:       o.ID,
+		Profile:  p,
+		Pronouns: o.Pronouns,
+		Stars:    o.Starred.TotalCount,
+		Twitter:  o.Twitter,
+		Email:    o.Email,
+		Verified: o.Verified,
+		Members:  o.Members.TotalCount,
+		Teams:    o.Teams.TotalCount,
+		Pinned:   ownerPinned(o.PinnedItems.Nodes),
 		Viewer: core.Relation{
 			IsViewer:      o.IsViewer,
 			Following:     o.ViewerFollows,
@@ -182,9 +182,26 @@ func (c *Client) OwnerHeader(ctx context.Context, login string) (core.Owner, err
 		return core.Owner{}, fmt.Errorf("owner %s: %w", login, err)
 	}
 	if err != nil {
-		return data.Owner.core(), fmt.Errorf("owner %s: %w", login, err)
+		o := data.Owner.core()
+		o.HiddenPins = pinsHidden(err)
+		return o, fmt.Errorf("owner %s: %w", login, err)
 	}
 	return data.Owner.core(), nil
+}
+
+// pinsHidden reports whether err says that GitHub refused a pinned
+// repository to the token. A pin that failed otherwise, such as one gone
+// a moment or a fault of GitHub's, says nothing of the token.
+func pinsHidden(err error) bool {
+	var gerr *GraphQLError
+	if !errors.As(err, &gerr) {
+		return false
+	}
+	return slices.ContainsFunc(gerr.Errors, func(item GraphQLErrorItem) bool {
+		p := item.Path
+		return item.Type == "FORBIDDEN" && len(p) == 4 &&
+			p[0] == "repositoryOwner" && p[1] == "pinnedItems" && p[2] == "nodes"
+	})
 }
 
 // userReposQuery lists the repositories a user owns, in the order asked.
