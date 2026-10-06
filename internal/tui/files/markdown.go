@@ -78,8 +78,10 @@ type markdownView struct {
 	// any picture, and on whether it drew pictures at all.
 	loading  map[string]bool
 	drew, on bool
-	// named is how many images the document has alone on their lines,
-	// outside code, which are those it may show as pictures.
+	// src is the document rendered, and named how many images it has
+	// alone on their lines, outside code, which are those it may show as
+	// pictures, or -1 until pictures are drawn and they are counted.
+	src   string
 	named int
 }
 
@@ -142,7 +144,7 @@ func (v *markdownView) setHeight(height int) {
 // render returns what renders src, the content of the markdown file at
 // name, at a width, for a pager, as comments render.
 func (v *markdownView) render(name, src string) pager.Render {
-	v.named = markdown.Images(src)
+	v.src, v.named = src, -1
 	return func(width int) string {
 		if v.md == nil {
 			v.md = markdown.New(v.theme.Thread(v.icons).Markdown)
@@ -169,7 +171,14 @@ func (v *markdownView) render(name, src string) pager.Render {
 // narrow the text, which would fit and fetch every image again at
 // another width.
 func (v *markdownView) extra() int {
-	return v.named * max(v.images.PictureRows(v.height), 0)
+	rows := v.images.PictureRows(v.height)
+	if rows <= 0 {
+		return 0
+	}
+	if v.named < 0 {
+		v.named = markdown.Images(v.src)
+	}
+	return v.named * rows
 }
 
 // pictures returns what draws the images of the markdown, or nil while
