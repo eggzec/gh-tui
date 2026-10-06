@@ -136,6 +136,14 @@ func TestPreviewImageFails(t *testing.T) {
 	if cmd, _ := images.Load(); cmd != nil {
 		t.Error("the failed image was asked for again")
 	}
+	// Nor at a new size.
+	p.SetSize(30, 8)
+	if got := ansi.Strip(p.View()); strings.Contains(got, "Loading the image") {
+		t.Errorf("after a resize the preview = %q, want no loading line", got)
+	}
+	if cmd, _ := images.Load(); cmd != nil {
+		t.Error("a resize asked for the failed image again")
+	}
 }
 
 // An image file whose fetch failed in a way that may mend shows as it did
