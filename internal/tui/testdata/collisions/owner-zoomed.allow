@@ -1,3 +1,4 @@
+# context | key | loser | winner | reason; see allowDir in collisions_test.go
 owner: zoomed | [ | profile: previous pane | profile: previous tab | ] and [ switch the tabs; tab and shift+tab still move between the panes
 owner: zoomed | ] | profile: next pane | profile: next tab | ] and [ switch the tabs; tab and shift+tab still move between the panes
 owner: zoomed | f | list: page down | app: filter | f opens the filter; pgdown still pages down

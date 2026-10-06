@@ -1,1 +1,2 @@
+# context | key | loser | winner | reason; see allowDir in collisions_test.go
 pull request: checks | ctrl+r | checks: refresh | checks: rerun failed | ctrl+r re-runs the failed jobs; r still refreshes
