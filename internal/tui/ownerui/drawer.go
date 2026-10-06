@@ -13,7 +13,7 @@ import (
 // without checking them.
 type Drawer struct {
 	Styles *Styles
-	Icons  ui.Icons
+	Icons  *ui.Icons
 	// Links keeps the links of the names of the cards and rows.
 	Links *termtext.Links
 	// URL is the web page of a repository, and Lang the paint of the glyph

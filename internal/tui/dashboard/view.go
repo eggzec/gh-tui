@@ -243,7 +243,7 @@ func (s *Section) avatarShown() bool {
 
 // drawer draws the profile and the pinned cards in the dashboard's styles.
 func (s *Section) drawer() ownerui.Drawer {
-	return ownerui.Drawer{Styles: &s.st.shared, Icons: s.icons, Links: &s.links, URL: s.repoURL, Lang: s.langPaint}
+	return ownerui.Drawer{Styles: &s.st.shared, Icons: &s.icons, Links: &s.links, URL: s.repoURL, Lang: s.langPaint}
 }
 
 // profile renders the lines above the panes: who the viewer is, and how

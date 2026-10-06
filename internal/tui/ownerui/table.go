@@ -229,13 +229,17 @@ func repoName(r core.Repo, full bool) string {
 // Cols returns the columns of the table as they are laid out.
 func (t *Table) Cols() Cols { return t.cols }
 
+// keepAll is what Filter returns when none was set. Nothing changes a
+// filter once it is made, so every table may share it.
+var keepAll = &Filter{}
+
 // Filter returns the filter in force, which keeps everything when none
 // was set.
 func (t *Table) Filter() *Filter {
 	if f := t.filter.Load(); f != nil {
 		return f
 	}
-	return &Filter{}
+	return keepAll
 }
 
 // SetFilter puts f in force for the reads that follow.
