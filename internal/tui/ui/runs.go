@@ -154,10 +154,13 @@ func (s *RunStyles) Took(status core.RunStatus, c core.Conclusion, start, end, n
 	case c == core.ConclusionSkipped:
 		return s.Subtle.Render("skipped")
 	case status == core.RunCompleted:
-		if d, ok := Span(start, end, now); ok {
-			return s.Subtle.Render(Duration(d))
+		d, ok := Span(start, end, now)
+		if !ok || c == core.ConclusionCancelled && d < time.Second/2 {
+			// A job cancelled as it started, such as one cancelled while
+			// queued, never ran, so it has no duration.
+			return ""
 		}
-		return ""
+		return s.Subtle.Render(Duration(d))
 	case status == core.RunInProgress:
 		if d, ok := Span(start, time.Time{}, now); ok {
 			return s.States[RunInProgress].Render(Duration(d))
