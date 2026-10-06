@@ -1,9 +1,11 @@
 package github
 
 import (
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
+	"slices"
 	"sync/atomic"
 	"testing"
 
@@ -30,6 +32,56 @@ func TestUserFollowers(t *testing.T) {
 	}
 	if len(got.Items) != 2 || got.Items[0] != want[0] || got.Items[1] != want[1] || got.Next != "Y3Vyc29yOjI=" {
 		t.Errorf("page = %+v, want %+v and a next cursor", got, want)
+	}
+}
+
+// A page with hasNextPage set leads, through its cursor, to the next
+// one, and the last page has no cursor.
+func TestOrgMembersNextPage(t *testing.T) {
+	pages := map[string]string{
+		"": `{"data": {"organization": {"membersWithRole": {"edges": [
+  {"role": "ADMIN", "node": {"__typename": "User", "login": "mona", "name": "Mona", "bio": ""}}
+], "pageInfo": {"hasNextPage": true, "endCursor": "Y3Vyc29yOjE="}}}}}`,
+		"Y3Vyc29yOjE=": `{"data": {"organization": {"membersWithRole": {"edges": [
+  {"role": "MEMBER", "node": {"__typename": "User", "login": "hubot", "name": "Hubot", "bio": "Beep"}}
+], "pageInfo": {"hasNextPage": false, "endCursor": "Y3Vyc29yOjI="}}}}}`,
+	}
+	var afters []any
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req gqlRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Errorf("decode request: %v", err)
+		}
+		afters = append(afters, req.Variables["after"])
+		after, _ := req.Variables["after"].(string)
+		body, ok := pages[after]
+		if !ok {
+			t.Errorf("after = %q, want a cursor this test gave", after)
+		}
+		_, _ = io.WriteString(w, body)
+	}))
+
+	var got []core.Person
+	cursor := ""
+	for range len(pages) + 1 {
+		p, err := c.OrgMembers(t.Context(), "github", 1, cursor)
+		if err != nil {
+			t.Fatalf("OrgMembers after %q: %v", cursor, err)
+		}
+		got = append(got, p.Items...)
+		if cursor = p.Next; cursor == "" {
+			break
+		}
+	}
+	want := []core.Person{
+		{Login: "mona", Name: "Mona", Role: core.MemberRoleAdmin},
+		{Login: "hubot", Name: "Hubot", Bio: "Beep", Role: core.MemberRoleMember},
+	}
+	if !slices.Equal(got, want) || cursor != "" {
+		t.Errorf("members = %+v, next %q; want %+v and no next page", got, cursor, want)
+	}
+	if len(afters) != 2 || afters[0] != nil || afters[1] != "Y3Vyc29yOjE=" {
+		t.Errorf("after = %v, want null, then the first page's cursor", afters)
 	}
 }
 
