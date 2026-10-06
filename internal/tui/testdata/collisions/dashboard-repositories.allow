@@ -1,3 +1,4 @@
+# context | key | loser | winner | reason; see allowDir in collisions_test.go
 dashboard: repositories | [ | dashboard: previous pane | dashboard: previous owner | ] and [ switch the owner; tab and shift+tab still move between the panes
 dashboard: repositories | ] | dashboard: next pane | dashboard: next owner | ] and [ switch the owner; tab and shift+tab still move between the panes
 dashboard: repositories | f | list: page down | app: filter | f opens the filter; pgdown still pages down

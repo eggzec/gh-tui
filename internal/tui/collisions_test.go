@@ -2,15 +2,17 @@ package tui
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
+	"io/fs"
 	"maps"
 	"os"
 	"path"
-	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
+	"testing/fstest"
 	"testing/synctest"
 
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
@@ -29,7 +31,8 @@ import (
 // does. loser is the binding that doesn't get key, and winner the one that
 // does, each as "layer source: description", the way the help shows them.
 // reason says in a line why the collision is meant. Blank lines and lines
-// that start with # are left out.
+// that start with # are left out, and each file starts with a comment
+// that names the fields. A file lists at least one collision.
 //
 // A binding shadowed by an earlier layer, such as the app's, needs a line
 // as much as a conflict within one layer: the help marks both.
@@ -139,24 +142,27 @@ func checkAllow(found map[collision]bool, allow map[collision]string) (add, remo
 	return add, remove
 }
 
-// readAllow reads every file of allowDir, as parseAllow does, and finds a
-// problem in a line that is in the file of another context than its own.
-func readAllow() (allow map[collision]string, problems []string) {
+// readAllow reads every allowlist file of fsys, a directory like
+// allowDir, as parseAllow does. A file with no collision is a problem, and
+// so is a line in the file of another context than its own.
+func readAllow(fsys fs.FS) (allow map[collision]string, problems []string) {
 	allow = map[collision]string{}
-	files, err := filepath.Glob(filepath.Join(allowDir, "*.allow"))
+	files, err := fs.Glob(fsys, "*.allow")
 	if err != nil {
 		return nil, []string{err.Error()}
 	}
 	for _, name := range files {
-		f, err := os.Open(name)
+		file := path.Join(allowRoot, name)
+		data, err := fs.ReadFile(fsys, name)
 		if err != nil {
-			problems = append(problems, err.Error())
+			problems = append(problems, fmt.Sprintf("%s: %v", file, err))
 			continue
 		}
-		file := path.Join(allowRoot, filepath.Base(name))
-		read, more := parseAllow(f, file)
-		f.Close()
+		read, more := parseAllow(bytes.NewReader(data), file)
 		problems = append(problems, more...)
+		if len(read) == 0 && len(more) == 0 {
+			problems = append(problems, file+": lists no collision; remove it")
+		}
 		for c, reason := range read {
 			if want := allowFile(c.context); want != file {
 				problems = append(problems, fmt.Sprintf("%s: %s belongs in %s", file, c, want))
@@ -186,21 +192,28 @@ func byFile(lines []string) string {
 // the app against the allowlist: a collision it doesn't list fails, and
 // so does a line that lists one no context has.
 func TestCollisions(t *testing.T) {
-	allow, problems := readAllow()
+	allow, problems := readAllow(os.DirFS(allowDir))
 	for _, p := range problems {
 		t.Error(p)
 	}
-	found := map[collision]bool{}
+	found, reached := map[collision]bool{}, true
 	for _, c := range keyContexts() {
-		synctest.Test(t, func(t *testing.T) {
-			for _, col := range collisionsOf(c.name, c.layers(t)) {
-				found[col] = true
-			}
-		})
+		reached = t.Run(contextFile(c.name), func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				for _, col := range collisionsOf(c.name, c.layers(t)) {
+					found[col] = true
+				}
+			})
+		}) && reached
+	}
+	if !reached {
+		// A context the keys don't reach finds no collisions, so what
+		// the allowlist would say of it is wrong.
+		return
 	}
 	add, remove := checkAllow(found, allow)
 	if len(add) > 0 {
-		t.Errorf("new collisions: rebind the key, or add these lines to the files named, each with the reason it is meant in place of %q:\n%s",
+		t.Errorf("new collisions: rebind the key, or add these lines to the files named, each with the reason it is meant in place of %q (a new file starts with the comment the others do):\n%s",
 			todo, byFile(add))
 	}
 	if len(remove) > 0 {
@@ -245,5 +258,30 @@ func TestAllowList(t *testing.T) {
 	}
 	if want := []string{b.String() + " | the app sorts"}; !slices.Equal(remove, want) {
 		t.Errorf("remove %q, want %q", remove, want)
+	}
+}
+
+// TestReadAllow checks that every file of the allowlist is read, and that
+// an empty file and a line in the file of another context are problems.
+func TestReadAllow(t *testing.T) {
+	a := collision{context: "issues", key: "f", loser: "list: page down", winner: "app: filter"}
+	b := collision{context: "owner: stars", key: "]", loser: "profile: next pane", winner: "profile: next tab"}
+	c := collision{context: "pull requests", key: "f", loser: "list: page down", winner: "app: filter"}
+	fsys := fstest.MapFS{
+		"issues.allow":      {Data: []byte("# context | key | loser | winner | reason\n" + a.String() + " | f filters\n" + c.String() + " | f filters\n")},
+		"owner-stars.allow": {Data: []byte(b.String() + " | ] switches tabs\n")},
+		"empty.allow":       {Data: []byte("# context | key | loser | winner | reason\n")},
+		"other.txt":         {Data: []byte("not read")},
+	}
+	allow, problems := readAllow(fsys)
+	want := []string{
+		allowRoot + "/empty.allow: lists no collision; remove it",
+		allowRoot + "/issues.allow: " + c.String() + " belongs in " + allowRoot + "/pull-requests.allow",
+	}
+	if !slices.Equal(problems, want) {
+		t.Errorf("problems:\n%s\nwant:\n%s", strings.Join(problems, "\n"), strings.Join(want, "\n"))
+	}
+	if len(allow) != 2 || allow[a] != "f filters" || allow[b] != "] switches tabs" {
+		t.Errorf("read %v", allow)
 	}
 }

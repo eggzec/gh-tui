@@ -1,3 +1,4 @@
+# context | key | loser | winner | reason; see allowDir in collisions_test.go
 pull requests | [ | app: previous pane | Pull requests: previous state | the section claims ] and [ for its states; tab and shift+tab still move between the panes
 pull requests | ] | app: next pane | Pull requests: next state | the section claims ] and [ for its states; tab and shift+tab still move between the panes
 pull requests | f | list: page down | app: filter | f opens the filter; pgdown still pages down
