@@ -404,6 +404,31 @@ func TestFindFilePreviewToggle(t *testing.T) {
 	}
 }
 
+// The preview owes no render of markdown at its new width once tab shows
+// it at another width than it rendered at, nor once the finder comes
+// back resized, as the app gives a hidden modal its size but no
+// messages: it renders again, or waits out the resize.
+func TestFindFilePreviewSettles(t *testing.T) {
+	h := newHost(loaded(t, sampleFake(), 40, 12, fast))
+	h.width, h.height = 120, 16
+	f := findIn(t, h)
+	h.keys(strings.Split("agents", "")...)
+	if !strings.Contains(ansi.Strip(f.View()), "Guidance for anyone.") {
+		t.Fatalf("the finder doesn't preview AGENTS.md:\n%s", ansi.Strip(f.View()))
+	}
+	h.keys("tab")
+	f.SetSize(110, 16)
+	h.keys("tab")
+	if f.Settle() != nil {
+		t.Error("after tab the preview still owes a render at its new width")
+	}
+	f.SetSize(130, 16)
+	h.run(func() tea.Msg { return ui.ReopenedMsg{Modal: f} })
+	if f.Settle() != nil {
+		t.Error("back in view the preview still owes a render at its new width")
+	}
+}
+
 // TestFindFileIgnoresOthers checks that the finder ignores the messages of
 // another finder.
 func TestFindFileIgnoresOthers(t *testing.T) {

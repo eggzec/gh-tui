@@ -110,12 +110,38 @@ type settlingModal struct {
 	settles int
 }
 
+// modalSettledMsg ends the wait of a settlingModal.
+type modalSettledMsg struct{}
+
 func (s *settlingModal) Settle() tea.Cmd {
 	s.settles++
-	return nil
+	return func() tea.Msg { return modalSettledMsg{} }
 }
 
 func (s *settlingModal) TakesCommands() bool { return true }
+
+// A resize of the terminal has the open modal wait it out, and the
+// message that ends the wait reaches it; a modal that waits out nothing
+// is resized alike.
+func TestModalSettlesAfterAResize(t *testing.T) {
+	m, _ := newTestApp(t)
+	plain := &fakeModal{title: "Plain"}
+	run(m, ui.OpenModal(plain))
+	run(m, func() tea.Msg { return tea.WindowSizeMsg{Width: 90, Height: 30} })
+	if w, h := m.modalSize(); plain.width != w || plain.height != h {
+		t.Errorf("the modal is %dx%d after the resize, want %dx%d", plain.width, plain.height, w, h)
+	}
+	mod := &settlingModal{}
+	mod.title = "README.md"
+	run(m, ui.OpenModal(mod))
+	run(m, func() tea.Msg { return tea.WindowSizeMsg{Width: 100, Height: 30} })
+	if mod.settles != 1 {
+		t.Errorf("the modal settled %d times after the resize, want once", mod.settles)
+	}
+	if !slices.ContainsFunc(mod.msgs, func(msg tea.Msg) bool { _, ok := msg.(modalSettledMsg); return ok }) {
+		t.Error("the end of the wait didn't reach the modal")
+	}
+}
 
 // A change of the footer resizes the open modal as a resize of the
 // terminal does, and the modal waits it out alike: on a short terminal,

@@ -509,6 +509,7 @@ func TestPreviewMarkdownReserve(t *testing.T) {
 	}{
 		{"images", "![a](https://example.com/a.png)\n\n![b](img/logo.png)", 2},
 		{"in code", "```md\n![a](https://example.com/a.png)\n```\n\nWrite `![b](img/logo.png)`.", 0},
+		{"no images", "# Title\n\nJust text.", 0},
 	} {
 		p, _ := markdownPreviewOf(t, images, "", tt.src)
 		rows := images.PictureRows(p.md.height)
@@ -518,6 +519,11 @@ func TestPreviewMarkdownReserve(t *testing.T) {
 		if got, want := p.md.extra(), tt.images*rows; got != want {
 			t.Errorf("%s: reserve %d lines, want %d", tt.name, got, want)
 		}
+	}
+	// Where pictures aren't drawn, an image shows as its line of text.
+	p, _ := markdownPreviewOf(t, uitest.Avatars(&uitest.ImageHost{}, false), "", "![a](https://example.com/a.png)")
+	if got := p.md.extra(); got != 0 {
+		t.Errorf("without pictures: reserve %d lines, want none", got)
 	}
 }
 
