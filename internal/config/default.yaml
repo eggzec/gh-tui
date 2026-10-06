@@ -367,7 +367,9 @@ prefetch:
     # one under the cursor is read only when it is opened.
     repositories: {enabled: false, window: {before: 1, after: 1}}
     # The first page of each tab not on view, a query each, once the page
-    # rests on the tab shown.
+    # rests on the tab shown. Its first window is read as soon as the list
+    # shown loads. Reading the page again reads again only the tabs read
+    # before.
     other_tabs: {enabled: false}
 
 # What the app checks of the token.

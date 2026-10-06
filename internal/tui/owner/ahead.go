@@ -2,6 +2,8 @@ package owner
 
 import (
 	"context"
+	"strings"
+	"sync"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -53,6 +55,12 @@ func WithSlots(s *ui.Slots) Option {
 	return func(x *Section) { x.slots = s }
 }
 
+// WithViewer names the user, whose own login opens the dashboard rather
+// than a page, so that their header isn't read ahead.
+func WithViewer(login string) Option {
+	return func(s *Section) { s.viewer = login }
+}
+
 // aheads read ahead what the page on view may open next.
 type aheads struct {
 	// people reads the headers of the accounts of a list of people.
@@ -63,10 +71,34 @@ type aheads struct {
 	pinned *ui.Ahead[core.RepoRef]
 	// tabs reads the first page of the tabs not on view.
 	tabs *ui.Ahead[tabRead]
-	// page and list are those the reads last looked at; a new one stops
-	// the reads of the last and reads its first window at once.
+	// page is the page the reads last looked at, and list its list on
+	// view then. Another page stops every read of the last one, and
+	// another list the reads of the rows of the last; each new one reads
+	// its first window at once.
 	page *page
 	list lister
+	// refreshed is the page last read again, until it shows another
+	// tab: until then, only the tabs whose first page was read ahead
+	// before are read ahead.
+	refreshed *page
+	// read holds the tabs whose first page was read ahead. The reads
+	// add to it in their commands, so mu guards it.
+	mu   sync.Mutex
+	read map[tabRead]bool
+}
+
+// wasRead reports whether the first page of t was read ahead.
+func (a *aheads) wasRead(t tabRead) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.read[t]
+}
+
+// noteRead records that the first page of t was read ahead.
+func (a *aheads) noteRead(t tabRead) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.read[t] = true
 }
 
 // tabRead is the first page of a tab of an account, which reading ahead
@@ -86,6 +118,7 @@ func (t tabRead) String() string { return t.login + " " + shortTabs[t.tab] }
 // setPrefetch turns them on.
 func (s *Section) newAheads() {
 	a := &s.ahead
+	a.read = make(map[tabRead]bool)
 	a.people = ui.NewAhead("owner", s.readPerson, s.svc.FreshHeader)
 	a.tabs = ui.NewAhead("owner_tab", s.readTab, s.freshTab)
 	if s.landing != nil {
@@ -139,6 +172,14 @@ func (s *Section) stopAhead() {
 	s.ahead.page, s.ahead.list = nil, nil
 }
 
+// refreshAhead reads ahead again once the user read the page on view
+// again, as resumeAhead does, but of its other tabs only those read
+// ahead before, until it shows another tab.
+func (s *Section) refreshAhead() {
+	s.ahead.refreshed = s.page
+	s.resumeAhead()
+}
+
 // resumeAhead reads ahead again after GitHub reported the rate limit, or
 // the user read the page again, and tries again what failed lately.
 func (s *Section) resumeAhead() {
@@ -162,15 +203,18 @@ func (s *Section) readAhead() tea.Cmd {
 		return tea.Batch(a.people.Window(nil, -1), a.repos.Window(nil, -1), a.pinned.Window(nil, -1), a.tabs.Window(nil, -1))
 	}
 	l := p.list()
-	if p != a.page {
+	switch {
+	case p != a.page:
 		// The reads of another page stop.
 		for _, r := range a.all() {
 			r.Reset(s.ctx)
 		}
-	} else if l != a.list {
+		a.refreshed = nil
+	case l != a.list:
 		// Another tab is a new list, whose window is read at once.
 		a.people.Reset(s.ctx)
 		a.repos.Reset(s.ctx)
+		a.refreshed = nil
 	}
 	a.page, a.list = p, l
 	return tea.Batch(s.readPeopleAhead(l), s.readReposAhead(l), s.readPinnedAhead(), s.readTabsAhead(l))
@@ -178,7 +222,8 @@ func (s *Section) readAhead() tea.Cmd {
 
 // readPeopleAhead reads ahead the headers of the accounts around the
 // cursor of l, the row under it too, while it is a list of people with
-// the focus.
+// the focus. The viewer's own row opens the dashboard, so it counts
+// toward the window but isn't read.
 func (s *Section) readPeopleAhead(l lister) tea.Cmd {
 	pl, ok := l.(*peopleList)
 	if !ok || s.page.focus != listPane || pl.Feed.Len() == 0 {
@@ -186,7 +231,7 @@ func (s *Section) readPeopleAhead(l lister) tea.Cmd {
 	}
 	return s.ahead.people.Window(func(j int) (string, bool) {
 		person, ok := pl.Feed.Item(j)
-		return person.Login, ok
+		return person.Login, ok && (s.viewer == "" || !strings.EqualFold(person.Login, s.viewer))
 	}, pl.Feed.Index())
 }
 
@@ -235,9 +280,10 @@ func (s *Section) readPinnedAhead() tea.Cmd {
 
 // readTabsAhead reads ahead the first page of each tab of the page on view
 // that hasn't read it, once the list of the tab shown, l, has loaded and
-// the page rests. The repositories that a filter lists are the user's own
-// search, and the teams of an organization the viewer isn't a member of
-// are never asked for, so neither is read ahead.
+// the page rests. The teams of an organization the viewer isn't a member
+// of are never asked for, so they aren't read ahead. Once the page was
+// read again, only the tabs read ahead before are, until it shows
+// another tab.
 func (s *Section) readTabsAhead(l lister) tea.Cmd {
 	p := s.page
 	if l == nil || !l.started() || !l.feed().Settled() || !p.header.ok {
@@ -254,17 +300,14 @@ func (s *Section) readTabsAhead(l lister) tea.Cmd {
 		if other == nil || other.started() {
 			return tabRead{}, false
 		}
-		switch other := other.(type) {
-		case *repoList:
-			if other.Filter().Active() {
-				return tabRead{}, false
-			}
-		case *teamList:
-			if other.membersOnly {
-				return tabRead{}, false
-			}
+		if tl, ok := other.(*teamList); ok && tl.membersOnly {
+			return tabRead{}, false
 		}
-		return s.tabRead(t)
+		k, ok := s.tabRead(t)
+		if ok && s.ahead.refreshed == p && !s.ahead.wasRead(k) {
+			return tabRead{}, false
+		}
+		return k, ok
 	}
 	i := 0
 	for j, t := range tabs {
@@ -294,6 +337,9 @@ func (s *Section) readTab(ctx context.Context, t tabRead) error {
 		_, err = s.svc.Teams(ctx, owners.TeamsQuery{Login: t.login, Again: true})
 	default:
 		_, err = s.svc.People(ctx, owners.PeopleQuery{Login: t.login, List: t.people, Again: true})
+	}
+	if err == nil {
+		s.ahead.noteRead(t)
 	}
 	return err
 }
