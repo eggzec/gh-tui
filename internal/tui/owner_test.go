@@ -292,6 +292,22 @@ func TestCompleteOwner(t *testing.T) {
 	}
 }
 
+// The viewer's own login, which only shows the dashboard, isn't offered.
+func TestCompleteOwnerLeavesOutViewer(t *testing.T) {
+	recall := newFakeRecall()
+	recall.owners = []string{"CLI", "charmbracelet"}
+	m, _ := newOwnerApp(t, newFakeOwners(), WithRecall(recall), WithLogin("cli"))
+	line := "goto @c"
+	cands := m.complete(line, len(line))
+	got := make([]string, 0, len(cands))
+	for _, c := range cands {
+		got = append(got, c.Text)
+	}
+	if want := []string{"@charmbracelet"}; !slices.Equal(got, want) {
+		t.Errorf("complete %q = %q, want %q", line, got, want)
+	}
+}
+
 // A goto replaced by another goto opens only the second page.
 func TestGotoOwnerReplacedByGotoOwner(t *testing.T) {
 	m, page := newOwnerApp(t, newFakeOwners())
