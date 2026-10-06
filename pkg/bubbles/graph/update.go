@@ -52,6 +52,10 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 		m.sel -= page
 	case key.Matches(msg, m.keyMap.PageDown):
 		m.sel += page
+	case key.Matches(msg, m.keyMap.HalfPageUp):
+		m.sel -= max(page/2, 1)
+	case key.Matches(msg, m.keyMap.HalfPageDown):
+		m.sel += max(page/2, 1)
 	case key.Matches(msg, m.keyMap.Home):
 		m.sel = 0
 	case key.Matches(msg, m.keyMap.End):

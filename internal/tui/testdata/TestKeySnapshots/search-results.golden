@@ -41,8 +41,10 @@ search
 results
   up | up k | ↑/k | on
   down | down j | ↓/j | on
-  page up | pgup b | pgup/b | on
-  page down | pgdown f | pgdn/f | on
+  page up | ctrl+b pgup | ctrl+b/pgup | on
+  page down | ctrl+f pgdown | ctrl+f/pgdn | on
+  ½ page up | ctrl+u | ctrl+u | on
+  ½ page down | ctrl+d | ctrl+d | on
   first | home g | g/home | on
   last | end G | G/end | on
   retry | r ctrl+r | r | off

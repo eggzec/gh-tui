@@ -22,18 +22,20 @@ func TestScroll(t *testing.T) {
 		{name: "down arrow", keys: []string{"down", "down"}, wantTop: 2},
 		{name: "up at the top", keys: []string{"k", "up"}, wantTop: 0},
 		{name: "up", keys: []string{"j", "j", "k"}, wantTop: 1},
-		{name: "page down", keys: []string{"f"}, wantTop: 10},
+		{name: "page down", keys: []string{"ctrl+f"}, wantTop: 10},
 		{name: "space", keys: []string{"space", "space"}, wantTop: 20},
 		{name: "pgdown", keys: []string{"pgdown"}, wantTop: 10},
-		{name: "page up", keys: []string{"f", "f", "b"}, wantTop: 10},
-		{name: "pgup", keys: []string{"f", "pgup"}, wantTop: 0},
-		{name: "half page down", keys: []string{"d"}, wantTop: 5},
-		{name: "half page up", keys: []string{"d", "d", "u"}, wantTop: 5},
+		{name: "page up", keys: []string{"ctrl+f", "ctrl+f", "b"}, wantTop: 10},
+		{name: "pgup", keys: []string{"ctrl+f", "pgup"}, wantTop: 0},
+		{name: "half page down", keys: []string{"ctrl+d"}, wantTop: 5},
+		{name: "half page up", keys: []string{"ctrl+d", "ctrl+d", "ctrl+u"}, wantTop: 5},
+		{name: "ctrl+b", keys: []string{"ctrl+f", "ctrl+f", "ctrl+b"}, wantTop: 10},
+		{name: "d no longer pages", keys: []string{"d", "u", "f"}, wantTop: 0},
 		{name: "end", keys: []string{"G"}, wantTop: 90},
 		{name: "end key", keys: []string{"end"}, wantTop: 90},
 		{name: "home", keys: []string{"G", "g"}, wantTop: 0},
-		{name: "home key", keys: []string{"f", "home"}, wantTop: 0},
-		{name: "down stops at the end", keys: slices.Repeat([]string{"f"}, 20), wantTop: 90},
+		{name: "home key", keys: []string{"ctrl+f", "home"}, wantTop: 0},
+		{name: "down stops at the end", keys: slices.Repeat([]string{"ctrl+f"}, 20), wantTop: 90},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -48,7 +50,7 @@ func TestScroll(t *testing.T) {
 
 func TestScrollShortContent(t *testing.T) {
 	m := open(t, "lines.txt", numbered(3), WithSize(40, 11))
-	for _, k := range []string{"j", "f", "G", "d"} {
+	for _, k := range []string{"j", "ctrl+f", "G", "ctrl+d"} {
 		if m, _ = keys(t, m, k); m.top != 0 {
 			t.Errorf("after %s top = %d, want 0", k, m.top)
 		}
@@ -66,10 +68,10 @@ func TestScrollWrapped(t *testing.T) {
 		{keys: []string{"j"}, wantTop: 0, wantRow: 1},
 		{keys: []string{"j", "j", "j"}, wantTop: 1, wantRow: 0},
 		{keys: []string{"j", "j", "j", "k"}, wantTop: 0, wantRow: 2},
-		{keys: []string{"f"}, wantTop: 1, wantRow: 1},
+		{keys: []string{"ctrl+f"}, wantTop: 1, wantRow: 1},
 		// 30 rows and a window of 4 end at the second row of line 9.
 		{keys: []string{"G"}, wantTop: 8, wantRow: 2},
-		{keys: []string{"G", "f"}, wantTop: 8, wantRow: 2},
+		{keys: []string{"G", "ctrl+f"}, wantTop: 8, wantRow: 2},
 		{keys: []string{"G", "g"}, wantTop: 0, wantRow: 0},
 	}
 	for _, tt := range tests {
@@ -343,7 +345,7 @@ func TestStates(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := open(t, "old.txt", numbered(50), WithSize(20, 5))
-			m, _ = keys(t, m, "f", "/", "l", "enter")
+			m, _ = keys(t, m, "ctrl+f", "/", "l", "enter")
 			tt.set(&m)
 			if tt.want == stateEmpty {
 				return

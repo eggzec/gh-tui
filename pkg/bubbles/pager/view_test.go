@@ -41,7 +41,7 @@ func TestView(t *testing.T) {
 			opts: []Option{WithStyles(Styles{})}},
 		{name: "without line numbers", file: "main.go", text: goSource, width: 60, height: 12,
 			opts: []Option{WithLineNumbers(false)}},
-		{name: "scrolled down", file: "lines.txt", text: numbered(40), width: 30, height: 8, keys: []string{"d"}},
+		{name: "scrolled down", file: "lines.txt", text: numbered(40), width: 30, height: 8, keys: []string{"ctrl+d"}},
 		{name: "at the end", file: "lines.txt", text: numbered(40), width: 30, height: 8, keys: []string{"G"}},
 		{name: "scrolled sideways", file: "main.go", text: goSource, width: 40, height: 12, keys: []string{"l", "l", "l"}},
 		// The scroll cuts a wide rune in half, which leaves a blank.

@@ -151,6 +151,14 @@ func (s *Step) press(msg tea.KeyPressMsg) tea.Cmd {
 	case jobMode:
 		return s.pressJob(msg)
 	case detailMode:
+		switch {
+		case key.Matches(msg, k.Home):
+			s.detail.GotoTop()
+			return nil
+		case key.Matches(msg, k.End):
+			s.detail.GotoBottom()
+			return nil
+		}
 		var cmd tea.Cmd
 		s.detail, cmd = s.detail.Update(msg)
 		return cmd
@@ -182,6 +190,10 @@ func (s *Step) pressList(msg tea.KeyPressMsg) tea.Cmd {
 		s.move(-page)
 	case key.Matches(msg, k.PageDown):
 		s.move(page)
+	case key.Matches(msg, k.HalfPageUp):
+		s.move(-max(page/2, 1))
+	case key.Matches(msg, k.HalfPageDown):
+		s.move(max(page/2, 1))
 	case key.Matches(msg, k.Home):
 		s.move(-len(s.rows))
 	case key.Matches(msg, k.End):

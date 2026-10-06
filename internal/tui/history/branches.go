@@ -250,6 +250,10 @@ func (m *Modal) pressBranches(msg tea.KeyPressMsg) tea.Cmd {
 		b.cursor -= page
 	case key.Matches(msg, k.PageDown):
 		b.cursor += page
+	case key.Matches(msg, k.HalfPageUp):
+		b.cursor -= max(page/2, 1)
+	case key.Matches(msg, k.HalfPageDown):
+		b.cursor += max(page/2, 1)
 	case key.Matches(msg, k.Home):
 		b.cursor = 0
 	case key.Matches(msg, k.End):

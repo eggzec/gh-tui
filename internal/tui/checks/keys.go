@@ -12,14 +12,17 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/logview"
+	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
 )
 
 // KeyMap holds the keys of the step and of the bubbles it shows. The step
 // matches its own keys first, so the bubbles get only the keys it leaves
 // them.
 type KeyMap struct {
-	// Up, Down, PageUp, PageDown, Home and End move through the checks.
-	Up, Down, PageUp, PageDown, Home, End key.Binding
+	// Up, Down, PageUp, PageDown, HalfPageUp, HalfPageDown, Home and End
+	// move through the checks. Home and End also go to the top and bottom
+	// of what an app reported.
+	Up, Down, PageUp, PageDown, HalfPageUp, HalfPageDown, Home, End key.Binding
 	// Select opens the check under the cursor: its job, or what its app
 	// reported.
 	Select key.Binding
@@ -47,7 +50,8 @@ type KeyMap struct {
 func newKeyMap(keys map[string][]string) KeyMap {
 	fk := feed.DefaultKeyMap()
 	k := KeyMap{
-		Up: fk.Up, Down: fk.Down, PageUp: fk.PageUp, PageDown: fk.PageDown, Home: fk.Home, End: fk.End,
+		Up: fk.Up, Down: fk.Down, PageUp: fk.PageUp, PageDown: fk.PageDown,
+		HalfPageUp: fk.HalfPageUp, HalfPageDown: fk.HalfPageDown, Home: fk.Home, End: fk.End,
 		Select:      ui.Binding(keys, config.ActionSelect, "open"),
 		Back:        ui.Binding(keys, config.ActionBack, "back"),
 		Open:        ui.Binding(keys, config.ActionOpen, "browser"),
@@ -64,8 +68,17 @@ func newKeyMap(keys map[string][]string) KeyMap {
 	lk.Close.SetHelp(k.Back.Help().Key, "back")
 	k.Log = lk
 
-	k.Detail = viewport.DefaultKeyMap()
+	k.Detail = detailKeyMap()
 	return k
+}
+
+// detailKeyMap returns the keys that scroll what an app reported, which
+// page as the pager does.
+func detailKeyMap() viewport.KeyMap {
+	pk := pager.DefaultKeyMap()
+	d := viewport.DefaultKeyMap()
+	d.PageUp, d.PageDown, d.HalfPageUp, d.HalfPageDown = pk.PageUp, pk.PageDown, pk.HalfPageUp, pk.HalfPageDown
+	return d
 }
 
 // job returns the keys of the job view: the moves of the checks through
@@ -86,7 +99,7 @@ func relabel(b key.Binding, desc string) key.Binding {
 func (k KeyMap) own() []key.Binding {
 	return []key.Binding{
 		k.Back, k.RerunFailed, k.Refresh, k.Open,
-		k.Select, k.Up, k.Down, k.PageUp, k.PageDown, k.Home, k.End, k.Annotations,
+		k.Select, k.Up, k.Down, k.PageUp, k.PageDown, k.HalfPageUp, k.HalfPageDown, k.Home, k.End, k.Annotations,
 	}
 }
 
@@ -141,9 +154,14 @@ func (k KeyMap) state(s *Step) KeyMap {
 		k.Back = relabel(k.Back, "checks")
 		// The back key clears the search of the log first.
 		k.Back.SetEnabled(k.Back.Enabled() && (s.mode != jobMode || s.view.Query() == ""))
-		for _, b := range []*key.Binding{&k.Select, &k.Up, &k.Down, &k.PageUp, &k.PageDown, &k.Home, &k.End} {
+		for _, b := range []*key.Binding{&k.Select, &k.Up, &k.Down, &k.PageUp, &k.PageDown, &k.HalfPageUp, &k.HalfPageDown} {
 			b.SetEnabled(false)
 		}
+		// Home and End go to the top and bottom of what an app reported;
+		// the log has keys of its own.
+		k.Home, k.End = relabel(k.Home, "top"), relabel(k.End, "bottom")
+		k.Home.SetEnabled(k.Home.Enabled() && s.mode == detailMode)
+		k.End.SetEnabled(k.End.Enabled() && s.mode == detailMode)
 		return k
 	}
 	k.Back = relabel(k.Back, "detail")

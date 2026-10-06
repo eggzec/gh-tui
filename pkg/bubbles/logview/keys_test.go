@@ -16,9 +16,10 @@ func TestKeyMapComplete(t *testing.T) {
 // Help enables the search keys only while there is a search to close or
 // clear; then cancel takes esc from close.
 func TestHelpState(t *testing.T) {
-	status := func(m Model, desc string) string {
+	// enter also folds, so a key is told apart by what it does.
+	status := func(m Model, k, desc string) string {
 		for _, r := range keyhelp.Analyze([]keyhelp.Layer{keyhelp.FromHelp("log", m, false)}) {
-			if r.Binding.Help().Key == desc {
+			if h := r.Binding.Help(); h.Key == k && h.Desc == desc {
 				return r.Status.String()
 			}
 		}
@@ -30,7 +31,7 @@ func TestHelpState(t *testing.T) {
 	keytest.NoConflicts(t, m)
 	m = typeText(t, m, "a")
 	m, _ = keys(t, m, "enter")
-	got := []string{status(m, "enter"), status(m, "esc"), status(m, "q")}
+	got := []string{status(m, "enter", "search"), status(m, "esc", "cancel"), status(m, "q", "close")}
 	if !slices.Equal(got, []string{"disabled", "active", "conflict"}) {
 		t.Errorf("search shown: confirm, cancel and close are %q", got)
 	}

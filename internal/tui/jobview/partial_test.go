@@ -53,7 +53,7 @@ func TestPartialLogAppends(t *testing.T) {
 	m.Focus()
 	run(m, m.Show(running(), false, Hints{}))
 	// The steps show folded; open the second, onto its first line.
-	keys(m, "j", "space", "j")
+	keys(m, "j", "enter", "j")
 	if s := text(m); !strings.Contains(s, "▌2 lint 1") {
 		t.Fatalf("the cursor isn't on the first line of the second step:\n%s", s)
 	}

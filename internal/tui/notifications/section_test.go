@@ -261,8 +261,8 @@ func TestBadge(t *testing.T) {
 }
 
 // TestFilterKeysStayOffTheList checks that the keys of the filter reach
-// the section rather than the list, whose page down f is too: the filter
-// key, which the app opens, and the clear key while nothing is filtered.
+// the section rather than the list: the filter key, which the app
+// opens, and the clear key while nothing is filtered.
 func TestFilterKeysStayOffTheList(t *testing.T) {
 	for _, k := range []string{"f", "F"} {
 		t.Run(k, func(t *testing.T) {

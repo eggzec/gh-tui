@@ -123,6 +123,12 @@ func press(k string) tea.KeyPressMsg {
 		return tea.KeyPressMsg{Code: tea.KeyHome}
 	case "end":
 		return tea.KeyPressMsg{Code: tea.KeyEnd}
+	case "space":
+		return tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}
+	}
+	if c, ok := strings.CutPrefix(k, "ctrl+"); ok {
+		r, _ := utf8.DecodeRuneInString(c)
+		return tea.KeyPressMsg{Code: r, Mod: tea.ModCtrl}
 	}
 	r, _ := utf8.DecodeRuneInString(k)
 	return tea.KeyPressMsg{Code: r, Text: k}
@@ -185,9 +191,12 @@ func TestNavigation(t *testing.T) {
 		{"down scrolls", []string{"down", "down", "down", "down", "down"}, 5, 1},
 		{"up scrolls back", []string{"pgdown", "pgdown", "up", "up", "up", "up", "up", "up"}, 3, 3},
 		{"page down", []string{"pgdown"}, 5, 1},
-		{"page down stops at end", []string{"f", "f"}, 9, 5},
+		{"page down stops at end", []string{"ctrl+f", "ctrl+f"}, 9, 5},
 		{"page up", []string{"pgdown", "pgdown", "pgup"}, 4, 4},
-		{"page up stops at start", []string{"pgdown", "b", "b"}, 0, 0},
+		{"page up stops at start", []string{"pgdown", "ctrl+b", "ctrl+b"}, 0, 0},
+		{"half page down", []string{"ctrl+d"}, 2, 0},
+		{"half page up", []string{"end", "ctrl+u"}, 7, 5},
+		{"b, d, u, f and space are not bound", []string{"d", "f", "space", "u", "b"}, 0, 0},
 		{"end", []string{"end"}, 9, 5},
 		{"home", []string{"end", "home"}, 0, 0},
 		{"g", []string{"G", "g"}, 0, 0},

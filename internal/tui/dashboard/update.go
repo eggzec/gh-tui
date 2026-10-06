@@ -179,8 +179,7 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 			}
 			return t.setFilter(""), true
 		case key.Matches(msg, k.Filter, k.Sort):
-			// The app opens the filter. Its keys don't reach the list,
-			// whose page down f is too.
+			// The app opens the filter, so its keys don't reach the list.
 			return nil, true
 		case key.Matches(msg, k.Select):
 			if r, ok := t.selected(); ok {

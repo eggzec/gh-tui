@@ -33,13 +33,13 @@ annotations
 log
   up | up k | ↑/k | on
   down | down j | ↓/j | on
-  page up | pgup b | b/pgup | on
-  page down | pgdown f | f/pgdn | on
-  ½ page up | u ctrl+u | u | on
-  ½ page down | d ctrl+d | d | on
+  page up | b ctrl+b pgup | b/ctrl+b/pgup | on
+  page down | space ctrl+f pgdown | space/ctrl+f/pgdn | on
+  ½ page up | ctrl+u | ctrl+u | on
+  ½ page down | ctrl+d | ctrl+d | on
   top | home g | g/home | on
   bottom | end G | G/end | on
-  fold | space enter | space | on
+  fold | enter | enter | on
   expand | + | + | on
   collapse | - | - | on
   fold all | * | * | on

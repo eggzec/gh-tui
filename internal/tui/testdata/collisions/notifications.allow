@@ -1,2 +1,0 @@
-# context | key | loser | winner | reason; see allowDir in collisions_test.go
-notifications | f | list: page down | app: filter | f opens the filter; pgdown still pages down

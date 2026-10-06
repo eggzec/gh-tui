@@ -111,11 +111,11 @@ func BenchmarkUpdate(b *testing.B) {
 		filtered bool
 	}{
 		{name: "line", fwd: press("j"), bwd: press("k")},
-		{name: "page", fwd: press("f"), bwd: press("b")},
-		{name: "page/wrap", fwd: press("f"), bwd: press("b"), wrap: true},
+		{name: "page", fwd: press("ctrl+f"), bwd: press("ctrl+b")},
+		{name: "page/wrap", fwd: press("ctrl+f"), bwd: press("ctrl+b"), wrap: true},
 		{name: "match", fwd: press("n"), bwd: press("N")},
 		{name: "end", fwd: press("G"), bwd: press("g")},
-		{name: "page/filtered", fwd: press("f"), bwd: press("b"), filtered: true},
+		{name: "page/filtered", fwd: press("ctrl+f"), bwd: press("ctrl+b"), filtered: true},
 		{name: "match/filtered", fwd: press("n"), bwd: press("N"), filtered: true},
 	} {
 		b.Run(tt.name, func(b *testing.B) {

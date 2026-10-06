@@ -183,6 +183,38 @@ func TestExternalCheckShowsWhatItReported(t *testing.T) {
 	}
 }
 
+// What an app reported pages with the reading keys, and g and G go to its
+// top and bottom.
+func TestDetailScrolls(t *testing.T) {
+	s, h := newStep(t, newFake(), narrowW, 6)
+	h.keys("down", "down", "enter")
+	if s.mode != detailMode {
+		t.Fatalf("enter on codecov shows mode %d, want its detail", s.mode)
+	}
+	if s.detail.TotalLineCount() <= s.detail.Height() {
+		t.Fatalf("the detail of %d lines fits a height of %d", s.detail.TotalLineCount(), s.detail.Height())
+	}
+	top := func() bool { return s.detail.AtTop() }
+	down := func() bool { return !s.detail.AtTop() }
+	for _, tt := range []struct {
+		keys []string
+		want func() bool
+	}{
+		{[]string{"G"}, func() bool { return s.detail.AtBottom() }},
+		{[]string{"G", "g"}, top},
+		{[]string{"g", "ctrl+d"}, down},
+		{[]string{"g", "ctrl+f"}, down},
+		{[]string{"g", "space"}, down},
+		{[]string{"G", "b"}, func() bool { return !s.detail.AtBottom() }},
+		{[]string{"g", "d", "u", "f"}, top},
+	} {
+		h.keys(tt.keys...)
+		if !tt.want() {
+			t.Errorf("after %q the detail is at line %d", tt.keys, s.detail.YOffset())
+		}
+	}
+}
+
 // A detail cut short offers the check's page only if it has one, and says
 // where it is.
 func TestDetailOffersItsPage(t *testing.T) {
