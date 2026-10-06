@@ -56,7 +56,7 @@ func TestStartup(t *testing.T) {
 func TestGlobal(t *testing.T) {
 	for key, want := range map[string]bool{
 		"keys": true, "themes": true, "editor": true, "ui.icons": true,
-		"keys.quit": true, "themes.dusk.dark.accent": true, "log.level.x": true, "theme.x": false,
+		"keys.global.quit": true, "themes.dusk.dark.accent": true, "log.level.x": true, "theme.x": false,
 		"log": true, "log.level": true, "log.file": true,
 		"cache.disk.dir": true, "cache.disk.max_size": true, "cache.disk.compression": true, "cache.disk.compression_level": true,
 		"cache.memory": true, "cache.memory.entries": true, "cache.memory.logs": true,

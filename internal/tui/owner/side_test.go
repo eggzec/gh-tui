@@ -189,7 +189,7 @@ func TestReadmeAddresses(t *testing.T) {
 func TestReadmeKeys(t *testing.T) {
 	s := newSection(t, newFake(), "octocat", 80, 16)
 	press(t, s, "3")
-	if b, src, ok := uitest.Winner(s.KeyLayers(), "ctrl+d"); !ok || src != "readme" || b.Help().Desc != "½ page down" {
+	if b, src, ok := uitest.Winner(s.KeyLayers(), "ctrl+d"); !ok || src != "README" || b.Help().Desc != "½ page down" {
 		t.Errorf("ctrl+d reaches %v %q %q, want the README's half page down", ok, src, b.Help().Desc)
 	}
 	if _, _, ok := uitest.Winner(s.KeyLayers(), "/"); ok {
@@ -208,7 +208,7 @@ func TestReadmeKeys(t *testing.T) {
 		t.Errorf("selected %+v, want the README", sel)
 	}
 	press(t, s, "4")
-	if _, src, ok := uitest.Winner(s.KeyLayers(), "left"); !ok || src != "calendar" {
+	if _, src, ok := uitest.Winner(s.KeyLayers(), "left"); !ok || src != "Contributions" {
 		t.Errorf("left reaches %v %q, want the calendar", ok, src)
 	}
 }

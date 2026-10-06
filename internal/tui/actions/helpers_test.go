@@ -76,11 +76,19 @@ func withIcons() Option {
 	return WithIcons(ui.NewIcons(config.IconsUnicode))
 }
 
+// testKeys are the default keys, with E to re-run every job of a run,
+// which has no key by default.
+func testKeys() config.Keymap {
+	keys := config.Default().Keys
+	keys.Set("actions.rerun", []string{"E"})
+	return keys
+}
+
 // newModal returns the modal of repo over f, of width by height, loaded.
 func newModal(tb testing.TB, f Service, width, height int, opts ...Option) (*Modal, *host) {
 	tb.Helper()
 	opts = append([]Option{forTests(), withIcons(), WithViewer(viewer)}, opts...)
-	m := New(tb.Context(), f, repo, config.Default().Keys, opts...)
+	m := New(tb.Context(), f, repo, testKeys(), opts...)
 	m.SetTheme(testTheme())
 	m.SetSize(width, height)
 	h := &host{m: m}
@@ -199,8 +207,10 @@ func press(k string) tea.KeyPressMsg {
 		return tea.KeyPressMsg{Code: tea.KeyRight}
 	case "left":
 		return tea.KeyPressMsg{Code: tea.KeyLeft}
-	case "ctrl+r":
-		return tea.KeyPressMsg{Code: 'r', Mod: tea.ModCtrl}
+	}
+	if c, ok := strings.CutPrefix(k, "ctrl+"); ok {
+		r, _ := utf8.DecodeRuneInString(c)
+		return tea.KeyPressMsg{Code: r, Mod: tea.ModCtrl}
 	}
 	r, _ := utf8.DecodeRuneInString(k)
 	return tea.KeyPressMsg{Code: r, Text: k}

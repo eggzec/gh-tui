@@ -18,8 +18,12 @@ import (
 // Layer is a set of bindings that take keys together, such as those of one
 // component.
 type Layer struct {
-	// Source names where the bindings belong, such as "pager".
+	// Source names where the bindings belong, such as "Pull requests".
 	Source string
+	// Context is the name of the context of keys that the layer is, such
+	// as "pulls", or empty for a layer that is none, such as the keys the
+	// app always takes.
+	Context string
 	// Bindings holds every binding of the layer, disabled ones too, in
 	// the order the layer matches them.
 	Bindings []key.Binding

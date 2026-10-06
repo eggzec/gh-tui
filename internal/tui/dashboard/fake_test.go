@@ -493,7 +493,7 @@ func run(tb testing.TB, s *Section, cmd tea.Cmd) []tea.Msg {
 		case tea.BatchMsg:
 			queue = append(queue, msg...)
 		case ui.OpenMsg, ui.NotifyMsg, ui.RepoMsg, ui.OpenPullMsg, ui.OpenIssueMsg, ui.ShowMsg,
-			ui.OpenReleaseMsg, ui.OpenCommitMsg, ui.OpenActionsMsg:
+			ui.OpenReleaseMsg, ui.OpenCommitMsg, ui.OpenActionsMsg, ui.OpenFilterMsg:
 			app = append(app, msg)
 		case ui.DoneMsg:
 			app = append(app, msg)

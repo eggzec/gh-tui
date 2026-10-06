@@ -7,26 +7,24 @@ app
   command | : | : | on
   quit | q ctrl+c | q | on
   search | / | / | on
-  history | B | B | off
-  actions | a | a | off
   find file | t ctrl+p | t | off
-  filter | f | f | on
-  sort | s | s | on
   zoom | z | z | off
   unzoom | esc | esc | off
   dismiss | ctrl+x | ctrl+x | off
   owner page | @ | @ | off
   notifications | n | n | on
   dashboard | 0 | 0 | on
-  next pane | tab ] | tab | off
-  previous pane | shift+tab [ | shift+tab | off
+  next pane | tab | tab | off
+  previous pane | shift+tab | shift+tab | off
   focus pane | 1 2 3 | 1-3 | on
 
-search
+Search
   back | esc | esc | on
+  next | tab | tab | on
+  previous | shift+tab | shift+tab | on
+
+Kinds
   results | enter | ↵ | on
-  next | tab ] | tab | on
-  previous | shift+tab [ | shift+tab | on
   kinds | left h | ←/h | off
   results | right l | →/l | on
   up | up k | ↑/k | on
@@ -34,6 +32,6 @@ search
   browser | o | o | off
   repo | ctrl+o | ^o | off
   checks | C | C | off
-  refresh | r ctrl+r | r | off
+  refresh | r | r | off
   filter | f | f | on
   sort | s | s | on

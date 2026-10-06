@@ -1,6 +1,6 @@
 # label | keys | help key | on or off
 
-command line (types)
+Command line (types)
   run | enter | enter | on
   cancel | esc ctrl+c | esc | on
   cancel when empty | backspace ctrl+h | backspace | on

@@ -4,6 +4,6 @@ app
   quit | ctrl+c | ^c | on
   help | ? | ? | on
 
-confirm
+Confirm
   yes | y | y | on
   no | n esc | n | on

@@ -1,6 +1,8 @@
 package issues
 
 import (
+	"slices"
+
 	"charm.land/bubbles/v2/key"
 
 	"github.com/eggzec/gh-tui/internal/config"
@@ -43,23 +45,32 @@ type keyMap struct {
 	owner key.Binding
 }
 
-func newKeyMap(keys map[string][]string) keyMap {
+// The contexts of the keys of issues: the list, and the modal of one.
+const (
+	ctxList  = "issues"
+	ctxModal = "issue_modal"
+)
+
+// newKeyMap returns the keys of the list of issues; the modal takes a copy
+// made by forModal.
+func newKeyMap(keys config.Keymap) keyMap {
+	list := ui.In(keys, ctxList)
 	k := keyMap{
-		Select:      ui.Binding(keys, config.ActionSelect, "open"),
-		Back:        ui.Binding(keys, config.ActionBack, "back"),
-		Filter:      ui.Binding(keys, config.ActionFilter, "filter"),
-		Sort:        ui.Binding(keys, config.ActionSort, "sort"),
-		ClearFilter: ui.Binding(keys, config.ActionClearFilter, "clear filters"),
-		NextTab:     ui.Binding(keys, config.ActionNextFilter, "next state"),
-		PrevTab:     ui.Binding(keys, config.ActionPrevFilter, "previous state"),
-		Refresh:     ui.Binding(keys, config.ActionRefresh, "refresh"),
-		Open:        ui.Binding(keys, config.ActionOpen, "browser"),
-		Close:       ui.Binding(keys, config.ActionClose, "close"),
-		Reopen:      ui.Binding(keys, config.ActionReopen, "reopen"),
-		Comment:     ui.Binding(keys, config.ActionComment, "comment"),
-		Label:       ui.Binding(keys, config.ActionLabel, "labels"),
+		Select:      list.Binding("global.select", "open"),
+		Back:        list.Binding("global.dismiss", "back"),
+		Filter:      list.Binding("filter", "filter"),
+		Sort:        list.Binding("sort", "sort"),
+		ClearFilter: list.Binding("clear_filter", "clear filters"),
+		NextTab:     list.Binding("global.next_tab", "next state"),
+		PrevTab:     list.Binding("global.prev_tab", "previous state"),
+		Refresh:     list.Binding("global.refresh", "refresh"),
+		Open:        list.Binding("global.open", "browser"),
+		Close:       list.Binding("close", "close"),
+		Reopen:      list.Binding("reopen", "reopen"),
+		Comment:     list.Binding("comment", "comment"),
+		Label:       list.Binding("labels", "labels"),
 		confirm:     ui.DefaultConfirmKeys(),
-		owner:       ui.Binding(keys, config.ActionOwner, "owner page"),
+		owner:       list.Binding("global.owner", "owner page"),
 	}
 
 	// The section and the modal match their own keys first, so the feed
@@ -75,6 +86,17 @@ func newKeyMap(keys map[string][]string) keyMap {
 	tk.Toggle = ui.Binding(keys, config.ActionSelect, tk.Toggle.Help().Desc)
 	tk.Retry = retry(k.Refresh)
 	k.thread = tk
+	return k
+}
+
+// forModal returns k with the keys of the changes that the modal of an
+// issue takes, which are its own.
+func (k keyMap) forModal(keys config.Keymap) keyMap {
+	modal := ui.In(keys, ctxModal)
+	k.Close = modal.Binding("close", "close")
+	k.Reopen = modal.Binding("reopen", "reopen")
+	k.Comment = modal.Binding("comment", "comment")
+	k.Label = modal.Binding("labels", "labels")
 	return k
 }
 
@@ -98,15 +120,16 @@ func (k keyMap) FullHelp() [][]key.Binding {
 	}
 }
 
-// KeyLayers implements ui.Keyed: the keys of the list, and then those of
-// the feed. The modal of an open issue lists its own. Without a
-// repository, or with issues turned off, no key does anything.
+// KeyLayers implements ui.Keyed: the keys of the list, with those of the
+// feed. The modal of an open issue lists its own. Without a repository,
+// or with issues turned off, no key does anything.
 func (s *Section) KeyLayers() []keyhelp.Layer {
-	own := keyhelp.FromHelp(ui.IssuesTitle, s.keys.onList(s), false)
+	k := s.keys.onList(s)
+	own := keyhelp.Layer{Bindings: slices.Concat(k.FullHelp()...), Short: k.ShortHelp()}
 	if !s.hasRepo || s.issuesOff() {
-		return []keyhelp.Layer{ui.Off(own)}
+		return []keyhelp.Layer{ui.Off(ui.MergeLayers(ctxList, own))}
 	}
-	return []keyhelp.Layer{own, keyhelp.FromHelp("list", s.list.KeyMap(), false)}
+	return []keyhelp.Layer{ui.MergeLayers(ctxList, own, keyhelp.FromHelp("", s.list.KeyMap(), false))}
 }
 
 // onList returns k as the list takes it: close or reopen, whichever applies
@@ -133,7 +156,7 @@ func (m *detailModal) KeyLayers() []keyhelp.Layer {
 	case m.ask != nil:
 		return []keyhelp.Layer{m.keys.confirm.Layer()}
 	case m.composing != composeNone:
-		return []keyhelp.Layer{keyhelp.FromHelp("prompt", m.prompt, true)}
+		return []keyhelp.Layer{ui.ContextHelp("prompt", m.prompt, true)}
 	}
 	k := m.keys
 	g, it := m.gate(), &m.issue
@@ -148,7 +171,8 @@ func (m *detailModal) KeyLayers() []keyhelp.Layer {
 	for _, b := range []*key.Binding{&k.Select, &k.NextTab, &k.PrevTab, &k.ClearFilter, &k.Filter, &k.Sort} {
 		b.SetEnabled(false)
 	}
-	own := keyhelp.FromHelp("issue", k, false)
+	own := keyhelp.FromHelp("", k, false)
 	own.Bindings = append(own.Bindings, owner)
-	return []keyhelp.Layer{own, keyhelp.FromHelp("thread", m.thread, false)}
+	// The thread is the one pane of the modal.
+	return []keyhelp.Layer{ui.MergeLayers(ctxModal, own, keyhelp.FromHelp("", m.thread, false))}
 }

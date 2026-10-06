@@ -4,7 +4,6 @@ import (
 	"context"
 	"strings"
 
-	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -198,12 +197,3 @@ func (s *Section) show(state core.State, query string) tea.Cmd {
 
 // Chips implements ui.Chipper: the filters in force, for the pane's title.
 func (s *Section) Chips() string { return s.chips }
-
-// Claimed implements ui.Claimer: the section takes the keys that switch
-// tabs once it shows a repository.
-func (s *Section) Claimed() []key.Binding {
-	if !s.hasRepo || s.feed == nil {
-		return nil
-	}
-	return []key.Binding{s.keys.NextTab, s.keys.PrevTab}
-}

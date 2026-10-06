@@ -52,8 +52,14 @@ type Service interface {
 type KeyMap struct {
 	// Log moves through the log.
 	Log logview.KeyMap
-	// Annotations moves the focus between the annotations and the log.
-	Annotations key.Binding
+	// Annotations moves the focus from the log to the annotations, and
+	// NotesAnnotations, the key the annotations have for it, back to the
+	// log.
+	Annotations      key.Binding
+	NotesAnnotations key.Binding
+	// LogContext and NotesContext name the contexts of keys that the log
+	// and the annotations are, in the parent's modal, for help.
+	LogContext, NotesContext string
 	// Up and Down move through the annotations, and Select opens the file
 	// of the one under the cursor.
 	Up, Down, Select key.Binding
@@ -61,19 +67,33 @@ type KeyMap struct {
 	Open key.Binding
 }
 
-// own returns the keys of the view itself, in the order it matches them.
-func (k KeyMap) own() []key.Binding {
-	return []key.Binding{k.Annotations, k.Up, k.Down, k.Select, k.Open}
+// own returns the keys of the view itself, in the order it matches them,
+// with the key that moves the focus as the annotations or the log, whichever
+// has it, has the key.
+func (k KeyMap) own(onNotes bool) []key.Binding {
+	return []key.Binding{k.annotations(onNotes), k.Up, k.Down, k.Select, k.Open}
+}
+
+// annotations returns the key that moves the focus to the other of the
+// annotations and the log.
+func (k KeyMap) annotations(onNotes bool) key.Binding {
+	if onNotes {
+		return k.NotesAnnotations
+	}
+	return k.Annotations
 }
 
 // ShortHelp implements help.KeyMap.
-func (k KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Up, k.Down, k.Select, k.Annotations}
+func (k KeyMap) ShortHelp() []key.Binding { return k.shortHelp(false) }
+
+// FullHelp implements help.KeyMap: the keys of the view and the log.
+func (k KeyMap) FullHelp() [][]key.Binding {
+	return append([][]key.Binding{append(k.own(false), k.NotesAnnotations)}, k.Log.FullHelp()...)
 }
 
-// FullHelp implements help.KeyMap.
-func (k KeyMap) FullHelp() [][]key.Binding {
-	return append([][]key.Binding{k.own()}, k.Log.FullHelp()...)
+// shortHelp returns the keys of the view worth a hint.
+func (k KeyMap) shortHelp(onNotes bool) []key.Binding {
+	return []key.Binding{k.Up, k.Down, k.Select, k.annotations(onNotes)}
 }
 
 // Hints are what the parent knows of a job shown beyond the job itself.
@@ -283,25 +303,42 @@ func (m Model) LogID() int64 { return m.view.ID() }
 // KeyMap returns the keys of the log.
 func (m Model) KeyMap() logview.KeyMap { return m.view.KeyMap() }
 
-// KeyLayers returns the keys of the view in the order it matches them:
-// those of the annotations, which take every key but those of the whole
-// log while they have the focus, and then those of the log, once it
-// shows.
-func (m Model) KeyLayers() []keyhelp.Layer {
+// KeyLayers returns the keys of the view as a layer of keys, whichever of
+// the log and the annotations has the focus.
+func (m Model) KeyLayers() []keyhelp.Layer { return []keyhelp.Layer{m.Layer()} }
+
+// Layer returns the keys of the view in the order it matches them: those
+// of the annotations, which take every key but those of the whole log
+// while they have the focus, and then those of the log, once it shows. It
+// is a layer of the context of whichever has the focus, or of a search of
+// the log while that takes every key.
+func (m Model) Layer() keyhelp.Layer {
 	k := m.keys.state(m)
-	notes := keyhelp.Layer{Source: "annotations", Bindings: k.own(), Short: k.ShortHelp()}
-	log := keyhelp.FromHelp("log", m.view, m.view.Capturing())
 	on := m.OnAnnotations()
-	whole := m.wholeLog()
-	for i, b := range log.Bindings {
-		// The log's keys do nothing until it shows, and only those of the
-		// whole log reach it from the annotations.
-		keep := m.showsLog() && (!on || slices.ContainsFunc(whole, func(w key.Binding) bool {
-			return slices.Equal(w.Keys(), b.Keys())
-		}))
-		log.Bindings[i].SetEnabled(b.Enabled() && keep)
+	ctx := k.LogContext
+	if on {
+		ctx = k.NotesContext
 	}
-	return []keyhelp.Layer{notes, log}
+	notes := keyhelp.Layer{Bindings: k.own(m.OnAnnotations()), Short: k.shortHelp(on)}
+	log := keyhelp.FromHelp("", m.view, m.view.Capturing())
+	whole := m.wholeLog()
+	limit := func(bs []key.Binding) {
+		for i, b := range bs {
+			// The log's keys do nothing until it shows, and only those of the
+			// whole log reach it from the annotations.
+			keep := m.showsLog() && (!on || slices.ContainsFunc(whole, func(w key.Binding) bool {
+				return slices.Equal(w.Keys(), b.Keys())
+			}))
+			bs[i].SetEnabled(b.Enabled() && keep)
+		}
+	}
+	limit(log.Bindings)
+	limit(log.Short)
+	if m.view.Capturing() {
+		// A search of the log takes every key.
+		ctx = "search_prompt"
+	}
+	return ui.MergeLayers(ctx, notes, log)
 }
 
 // state returns k as the view takes it now: the annotations only while
@@ -311,9 +348,8 @@ func (k KeyMap) state(m Model) KeyMap {
 	notes := len(m.notes.items) > 0 && !m.view.Capturing()
 	on := m.OnAnnotations()
 	k.Annotations.SetEnabled(k.Annotations.Enabled() && notes)
-	if on {
-		k.Annotations.SetHelp(k.Annotations.Help().Key, "log")
-	}
+	k.NotesAnnotations.SetEnabled(k.NotesAnnotations.Enabled() && notes)
+	k.NotesAnnotations.SetHelp(k.NotesAnnotations.Help().Key, "log")
 	for _, b := range []*key.Binding{&k.Up, &k.Down, &k.Select} {
 		b.SetEnabled(b.Enabled() && notes && on)
 	}

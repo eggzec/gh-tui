@@ -68,7 +68,7 @@ func TestProgramDrillsInAndRerunsTheFailedJobs(t *testing.T) {
 	wait(t, loaded, "the checks loading")
 	tm.Send(press("enter"))
 	wait(t, job, "the log of the failed job loading")
-	tm.Send(press("ctrl+r"))
+	tm.Send(press("R"))
 	tm.Send(press("y"))
 	tm.Send(press("esc"))
 	tm.Send(press("esc"))

@@ -582,12 +582,12 @@ func (f *finderModal) SetTheme(t ui.Theme) {
 	f.sep = " " + border.Render(f.s.icons.Border.Left) + " "
 }
 
-// KeyLayers implements ui.Keyed: the finder's own keys, and then the
-// bubble's, whose query types the rest.
+// KeyLayers implements ui.Keyed: the finder's own keys, with the bubble's,
+// whose query types the rest.
 func (f *finderModal) KeyLayers() []keyhelp.Layer {
 	k := f.keys
 	if f.preview {
 		k.Preview.SetHelp(k.Preview.Help().Key, "hide preview")
 	}
-	return []keyhelp.Layer{keyhelp.FromHelp("finder", k, false), keyhelp.FromHelp("find", f.find, true)}
+	return []keyhelp.Layer{ui.MergeLayers("finder", keyhelp.FromHelp("", k, false), keyhelp.FromHelp("", f.find, true))}
 }

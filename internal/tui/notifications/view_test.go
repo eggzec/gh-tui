@@ -39,7 +39,7 @@ func TestView(t *testing.T) {
 // An empty list names no key that isn't bound.
 func TestEmptyTextWithoutKeys(t *testing.T) {
 	keys := maps.Clone(config.Default().Keys)
-	delete(keys, config.ActionFilter)
+	keys.Set("notifications.filter", nil)
 	s := New(t.Context(), newFake(), keys)
 	if got, want := s.emptyText(), "No unread notifications."; got != want {
 		t.Errorf("empty text = %q, want %q", got, want)

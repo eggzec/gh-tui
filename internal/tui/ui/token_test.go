@@ -41,7 +41,7 @@ func TestGateToken(t *testing.T) {
 	}
 	archived := admin(false)
 	archived.Archived = true
-	keys := map[string][]string{config.ActionCommand: {":"}}
+	keys := config.Keymap{config.ContextGlobal: {"command": {":"}}}
 	fine := core.Access{Kind: core.TokenFineGrained}
 
 	tests := []struct {
@@ -49,7 +49,7 @@ func TestGateToken(t *testing.T) {
 		access core.Access
 		caps   core.RepoCaps
 		off    bool
-		keys   map[string][]string
+		keys   config.Keymap
 		action Action
 		why    string
 	}{
@@ -108,7 +108,7 @@ func TestGateToken(t *testing.T) {
 		},
 		{name: "checks turned off allow everything", access: classic(), off: true, action: ActMerge, caps: admin(true)},
 		{
-			name: "without a command key the hint is left out", access: classic(), keys: map[string][]string{}, action: ActMerge,
+			name: "without a command key the hint is left out", access: classic(), keys: config.Keymap{}, action: ActMerge,
 			caps: admin(true), why: "Merging needs the repo scope.",
 		},
 	}
@@ -143,7 +143,7 @@ func TestNilToken(t *testing.T) {
 // TestSayToken checks the words for a token problem when the app has the
 // command that grants the token what it lacks.
 func TestSayToken(t *testing.T) {
-	keys := map[string][]string{config.ActionCommand: {":"}}
+	keys := config.Keymap{config.ContextGlobal: {"command": {":"}}}
 	tok := func(a core.Access) *Token { return NewToken(fakeChecker{a: a}, keys) }
 	tests := []struct {
 		name        string

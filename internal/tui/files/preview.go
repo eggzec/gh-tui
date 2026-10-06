@@ -415,13 +415,8 @@ func (p *preview) SetTheme(t ui.Theme) {
 	p.pager.Rerender()
 }
 
-// KeyLayers implements ui.Keyed: the open key, unless the pager's search
-// input takes it, and then the pager's keys.
+// KeyLayers implements ui.Keyed: the open key, with the pager's keys, or
+// while the pager takes every key, those of its search or option.
 func (p *preview) KeyLayers() []keyhelp.Layer {
-	open := p.open
-	open.SetEnabled(open.Enabled() && !p.pager.Capturing())
-	return []keyhelp.Layer{
-		{Source: "file", Bindings: []key.Binding{open}, Short: []key.Binding{open}},
-		keyhelp.FromHelp("pager", p.pager, p.pager.Capturing()),
-	}
+	return []keyhelp.Layer{ui.PagerLayer("preview", &p.pager, p.open)}
 }

@@ -51,7 +51,7 @@ func withClock(now time.Time) Option {
 // baseNone is the base of the head of the default branch.
 var baseNone = ui.BaseMsg{}
 
-func testKeys() map[string][]string {
+func testKeys() config.Keymap {
 	return config.Default().Keys
 }
 

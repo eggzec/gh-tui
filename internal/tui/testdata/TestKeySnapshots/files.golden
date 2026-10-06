@@ -7,27 +7,25 @@ app
   command | : | : | on
   quit | q ctrl+c | q | on
   search | / | / | on
-  history | B | B | on
-  actions | a | a | on
   find file | t ctrl+p | t | on
-  filter | f | f | off
-  sort | s | s | off
   zoom | z | z | on
   unzoom | esc | esc | off
   dismiss | ctrl+x | ctrl+x | off
   owner page | @ | @ | on
   notifications | n | n | on
   dashboard | 0 | 0 | on
-  next pane | tab ] | tab | on
-  previous pane | shift+tab [ | shift+tab | on
+  next pane | tab | tab | on
+  previous pane | shift+tab | shift+tab | on
   focus pane | 1 2 3 | 1-3 | on
 
+Repository
+  history | B | B | on
+  actions | a | a | on
+
 Files
-  refresh | r ctrl+r | r | on
+  refresh | r | r | on
   open | o | o | on
   back to head | H | H | off
-
-tree
   up | up k | ↑/k | on
   down | down j | ↓/j | on
   page up | ctrl+b pgup | ^b/pgup | on

@@ -28,8 +28,8 @@ type KeyMap struct {
 	Checks key.Binding
 	// Back goes back to the screen before the search.
 	Back key.Binding
-	// Filter and Sort name the keys that open the filter of the kind on
-	// view on its Filters and Sort tabs, which the app handles.
+	// Filter and Sort open the filter of the kind on view on its Filters
+	// and Sort tabs.
 	Filter  key.Binding
 	Sort    key.Binding
 	Refresh key.Binding
@@ -43,26 +43,26 @@ type KeyMap struct {
 	feed feed.KeyMap
 }
 
-func newKeyMap(keys map[string][]string) KeyMap {
+func newKeyMap(keys config.Keymap) KeyMap {
+	page, results := ui.In(keys, "search"), ui.In(keys, "search_results")
 	k := KeyMap{
-		Next:    ui.Binding(keys, config.ActionNextTab, "next"),
-		Prev:    ui.Binding(keys, config.ActionPrevTab, "previous"),
-		Select:  ui.Binding(keys, config.ActionSelect, "open"),
-		Open:    ui.Binding(keys, config.ActionOpen, "browser"),
-		Repo:    ui.Binding(keys, config.ActionGoToRepo, "repo"),
-		Checks:  ui.Binding(keys, config.ActionChecks, "checks"),
-		Back:    ui.Binding(keys, config.ActionBack, "back"),
-		Filter:  ui.Binding(keys, config.ActionFilter, "filter"),
-		Sort:    ui.Binding(keys, config.ActionSort, "sort"),
-		Refresh: ui.Binding(keys, config.ActionRefresh, "refresh"),
+		Next:    page.Binding("global.next_pane", "next"),
+		Prev:    page.Binding("global.prev_pane", "previous"),
+		Select:  page.Binding("global.select", "open"),
+		Open:    page.Binding("global.open", "browser"),
+		Repo:    results.Binding("repo_of", "repo"),
+		Checks:  results.Binding("checks", "checks"),
+		Back:    page.Binding("global.dismiss", "back"),
+		Filter:  results.Binding("filter", "filter"),
+		Sort:    results.Binding("sort", "sort"),
+		Refresh: page.Binding("global.refresh", "refresh"),
 		Up:      key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("↑/k", "up")),
 		Down:    key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓/j", "down")),
 		Left:    key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←/h", "kinds")),
 		Right:   key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "results")),
 	}
-	// The page, and the app for the filter, match these keys first, so
-	// the results get only the keys they leave them, such as g, which
-	// goes to the first row there.
+	// The page matches these keys first, so the results get only the keys
+	// it leaves them, such as f, which pages down there.
 	f := feed.DefaultKeyMap()
 	f.Retry = key.NewBinding(key.WithKeys(k.Refresh.Keys()...), key.WithHelp(k.Refresh.Help().Key, "retry"), key.WithDisabled())
 	k.feed = f
@@ -92,8 +92,8 @@ func (k KeyMap) ShortHelp() []key.Binding {
 func (k KeyMap) FullHelp() [][]key.Binding { return [][]key.Binding{k.own()} }
 
 // KeyLayers implements ui.Keyed: the keys of the part of the page that
-// has the focus, named for what they do there, and then those of the
-// results on view. The query types what its keys don't take.
+// has the focus, named for what they do there, with those of the results
+// on view. The query types what its keys don't take.
 func (s *Section) KeyLayers() []keyhelp.Layer {
 	if s.area == inputArea {
 		// The query types first, so its keys get only those that type
@@ -101,14 +101,23 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 		k := s.keys.inInput()
 		keys := append(k.own(), arrowUp, arrowDown)
 		short := []key.Binding{k.Select, arrowDown, k.Next, k.Back}
-		return []keyhelp.Layer{{Source: "query", Typing: true}, {Source: "query", Bindings: keys, Short: short}}
+		l := ui.ContextLayer("search_query", keys, short)
+		l.Typing = true
+		return []keyhelp.Layer{l}
 	}
 	k := s.keys.state(s)
-	own := keyhelp.Layer{Source: "search", Bindings: k.own(), Short: k.ShortHelp()}
-	if s.area == kindsArea || s.text == "" {
-		return []keyhelp.Layer{own}
+	screen := ui.ContextLayer("search", []key.Binding{k.Back, k.Next, k.Prev}, []key.Binding{k.Next, k.Back})
+	own := keyhelp.Layer{
+		Bindings: []key.Binding{k.Select, k.Left, k.Right, k.Up, k.Down, k.Open, k.Repo, k.Checks, k.Refresh, k.Filter, k.Sort},
+		Short:    []key.Binding{k.Up, k.Down, k.Select, k.Repo, k.Checks, k.Open, k.Filter, k.Sort, k.Left},
 	}
-	return []keyhelp.Layer{own, keyhelp.FromHelp("results", s.feedKeys(), false)}
+	if s.area == kindsArea {
+		return []keyhelp.Layer{screen, ui.MergeLayers("search_kinds", own)}
+	}
+	if s.text == "" {
+		return []keyhelp.Layer{screen, ui.MergeLayers("search_results", own)}
+	}
+	return []keyhelp.Layer{screen, ui.MergeLayers("search_results", own, keyhelp.FromHelp("", s.feedKeys(), false))}
 }
 
 // inInput returns k as the query takes it: back, select and the moves

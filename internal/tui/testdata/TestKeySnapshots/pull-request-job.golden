@@ -4,10 +4,27 @@ app
   quit | ctrl+c | ^c | on
   help | ? | ? | on
 
-checks
+Pull request
+  merge | m | m | off
+  close | x | x | off
+  reopen | X | X | off
+  convert to draft | D | D | off
+  back | esc | esc | off
+  open | enter | ↵ | off
+  checks | C | C | off
+  next state | ] | ] | off
+  previous state | [ | [ | off
+  clear filters | F | F | off
+  refresh | r | r | off
+  open in browser | o | o | off
+  filter | f | f | off
+  sort | s | s | off
+  owner page | @ | @ | off
+
+Log
   checks | esc | esc | on
-  rerun failed | ctrl+r | ^r | on
-  refresh | r ctrl+r | r | on
+  rerun failed | R | R | on
+  refresh | r | r | on
   browser | o | o | on
   open | enter | ↵ | off
   up | up k | ↑/k | off
@@ -19,15 +36,10 @@ checks
   first | home g | g/home | off
   last | end G | G/end | off
   annotations | A | A | off
-
-annotations
-  annotations | A | A | off
   up | up k | ↑/k | off
   down | down j | ↓/j | off
   open file | enter | ↵ | off
   browser | o | o | off
-
-log
   up | up k | ↑/k | on
   down | down j | ↓/j | on
   page up | b ctrl+b pgup | b/^b | on

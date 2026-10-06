@@ -7,26 +7,26 @@ app
   command | : | : | on
   quit | q ctrl+c | q | on
   search | / | / | on
-  history | B | B | off
-  actions | a | a | off
   find file | t ctrl+p | t | off
-  filter | f | f | on
-  sort | s | s | on
   zoom | z | z | off
   unzoom | esc | esc | off
   dismiss | ctrl+x | ctrl+x | off
   owner page | @ | @ | on
   notifications | n | n | on
   dashboard | 0 | 0 | on
-  next pane | tab ] | tab | off
-  previous pane | shift+tab [ | shift+tab | off
+  next pane | tab | tab | off
+  previous pane | shift+tab | shift+tab | off
   focus pane | 1 2 3 | 1-3 | off
 
-profile
-  left | left h | ←/h | off
-  right | right l | →/l | off
-  up | up k | ↑/k | off
-  down | down j | ↓/j | off
+Profile
+  next pane | tab | tab | on
+  previous pane | shift+tab | shift+tab | on
+  zoom | z | z | on
+  back | esc | esc | on
+  refresh | r | r | on
+  focus pane | 1 2 3 4 | 1-4 | on
+
+List
   open | enter | ↵ | on
   browser | o | o | on
   next tab | ] | ] | on
@@ -34,14 +34,6 @@ profile
   clear filters | F | F | off
   filter | f | f | on
   sort | s | s | on
-  next pane | tab ] | tab | on
-  previous pane | shift+tab [ | shift+tab | on
-  zoom | z | z | on
-  back | esc | esc | on
-  refresh | r ctrl+r | r | on
-  focus pane | 1 2 3 4 | 1-4 | on
-
-list
   up | up k | ↑/k | on
   down | down j | ↓/j | on
   page up | ctrl+b pgup | ^b/pgup | on
@@ -50,4 +42,4 @@ list
   ½ page down | ctrl+d | ^d | on
   first | home g | g/home | on
   last | end G | G/end | on
-  retry | r ctrl+r | r | off
+  retry | r | r | off

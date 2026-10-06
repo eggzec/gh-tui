@@ -1,6 +1,8 @@
 package pulls
 
 import (
+	"slices"
+
 	"charm.land/bubbles/v2/key"
 
 	"github.com/eggzec/gh-tui/internal/config"
@@ -45,25 +47,36 @@ type keyMap struct {
 	owner key.Binding
 }
 
-func newKeyMap(keys map[string][]string) keyMap {
-	k := keyMap{
-		Select:      ui.Binding(keys, config.ActionSelect, "open"),
-		Back:        ui.Binding(keys, config.ActionBack, "back"),
-		Filter:      ui.Binding(keys, config.ActionFilter, "filter"),
-		Sort:        ui.Binding(keys, config.ActionSort, "sort"),
-		ClearFilter: ui.Binding(keys, config.ActionClearFilter, "clear filters"),
-		NextTab:     ui.Binding(keys, config.ActionNextFilter, "next state"),
-		PrevTab:     ui.Binding(keys, config.ActionPrevFilter, "previous state"),
-		Refresh:     ui.Binding(keys, config.ActionRefresh, "refresh"),
-		Open:        ui.Binding(keys, config.ActionOpen, "open in browser"),
+// The contexts of the keys of pull requests: the list, and the modal of
+// one.
+const (
+	ctxList  = "pulls"
+	ctxModal = "pull_modal"
+)
 
-		Merge:       ui.Binding(keys, config.ActionMerge, "merge"),
-		Close:       ui.Binding(keys, config.ActionClose, "close"),
-		Reopen:      ui.Binding(keys, config.ActionReopen, "reopen"),
-		ToggleDraft: ui.Binding(keys, config.ActionToggleDraft, "convert to draft"),
-		Checks:      ui.Binding(keys, config.ActionChecks, "checks"),
+// newKeyMap returns the keys of the list of pull requests, with those of
+// the modal of one under the names of the list's changes, so that the
+// modal takes a copy made by forModal.
+func newKeyMap(keys config.Keymap) keyMap {
+	list := ui.In(keys, ctxList)
+	k := keyMap{
+		Select:      list.Binding("global.select", "open"),
+		Back:        list.Binding("global.dismiss", "back"),
+		Filter:      list.Binding("filter", "filter"),
+		Sort:        list.Binding("sort", "sort"),
+		ClearFilter: list.Binding("clear_filter", "clear filters"),
+		NextTab:     list.Binding("global.next_tab", "next state"),
+		PrevTab:     list.Binding("global.prev_tab", "previous state"),
+		Refresh:     list.Binding("global.refresh", "refresh"),
+		Open:        list.Binding("global.open", "open in browser"),
+
+		Merge:       list.Binding("merge", "merge"),
+		Close:       list.Binding("close", "close"),
+		Reopen:      list.Binding("reopen", "reopen"),
+		ToggleDraft: list.Binding("draft", "convert to draft"),
+		Checks:      list.Binding("checks", "checks"),
 		confirm:     ui.DefaultConfirmKeys(),
-		owner:       ui.Binding(keys, config.ActionOwner, "owner page"),
+		owner:       list.Binding("global.owner", "owner page"),
 	}
 	// The section and the modal match their own keys first, so the feed
 	// and the thread get only the keys they leave them, such as f, which
@@ -80,6 +93,18 @@ func newKeyMap(keys map[string][]string) keyMap {
 	t.Retry = retry(k.Refresh)
 	t.Retry.SetEnabled(k.Refresh.Enabled())
 	k.thread = t
+	return k
+}
+
+// forModal returns k with the keys of the changes and of the checks that
+// the modal of a pull request takes, which are its own.
+func (k keyMap) forModal(keys config.Keymap) keyMap {
+	modal := ui.In(keys, ctxModal)
+	k.Merge = modal.Binding("merge", "merge")
+	k.Close = modal.Binding("close", "close")
+	k.Reopen = modal.Binding("reopen", "reopen")
+	k.ToggleDraft = modal.Binding("draft", "convert to draft")
+	k.Checks = modal.Binding("checks", "checks")
 	return k
 }
 
@@ -108,15 +133,16 @@ func (k keyMap) FullHelp() [][]key.Binding {
 	}
 }
 
-// KeyLayers implements ui.Keyed: the keys of the list, and then those of
-// the feed. The modal of an open pull request lists its own. Without a
+// KeyLayers implements ui.Keyed: the keys of the list, with those of the
+// feed. The modal of an open pull request lists its own. Without a
 // repository, no key does anything.
 func (s *Section) KeyLayers() []keyhelp.Layer {
-	own := keyhelp.FromHelp(ui.PullsTitle, s.keys.onList(s), false)
+	k := s.keys.onList(s)
+	own := keyhelp.Layer{Bindings: slices.Concat(k.FullHelp()...), Short: k.ShortHelp()}
 	if !s.hasRepo || s.feed == nil {
-		return []keyhelp.Layer{ui.Off(own)}
+		return []keyhelp.Layer{ui.Off(ui.MergeLayers(ctxList, own))}
 	}
-	return []keyhelp.Layer{own, keyhelp.FromHelp("list", s.feed.KeyMap(), false)}
+	return []keyhelp.Layer{ui.MergeLayers(ctxList, own, keyhelp.FromHelp("", s.feed.KeyMap(), false))}
 }
 
 // onList returns k as the list takes it: the changes that apply to the pull

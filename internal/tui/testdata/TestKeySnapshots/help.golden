@@ -3,7 +3,7 @@
 app
   quit | ctrl+c | ^c | on
 
-help (types)
+Help (types)
   scroll up | up | ↑ | on
   scroll down | down | ↓ | on
   page up | pgup | pgup | on

@@ -15,6 +15,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
+	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 )
 
@@ -367,15 +368,19 @@ func TestHelp(t *testing.T) {
 }
 
 // TestFilterKeysStayOffTheList checks that the keys of the filter, which
-// the app opens, reach the section rather than the list, whose page down
-// f is too.
+// the list asks the app to open, don't reach the list, whose page down f
+// is too.
 func TestFilterKeysStayOffTheList(t *testing.T) {
 	for _, k := range []string{"f", "s"} {
 		t.Run(k, func(t *testing.T) {
 			h := started(t, newFakeService(sampleIssues(40)), 80, 20)
 			before, _ := h.list.Selected()
-			if msgs := press(t, h, k); len(msgs) != 0 {
-				t.Errorf("%s sent %v", k, msgs)
+			want := ui.OpenFilterMsg{Tab: filterform.FiltersTab}
+			if k == "s" {
+				want.Tab = filterform.SortTab
+			}
+			if msgs := press(t, h, k); len(msgs) != 1 || msgs[0] != want {
+				t.Errorf("%s sent %v, want %v", k, msgs, want)
 			}
 			if after, _ := h.list.Selected(); after.Number != before.Number {
 				t.Errorf("%s moved the cursor from #%d to #%d", k, before.Number, after.Number)

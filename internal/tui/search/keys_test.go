@@ -10,6 +10,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
+	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keytest"
 )
 
@@ -29,26 +30,30 @@ func TestKeyLayersOrder(t *testing.T) {
 		want string
 		did  func(s, before *Section, msgs []tea.Msg) bool
 	}{
-		{nil, "down", "query: results", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea }},
-		{[]string{"t"}, "enter", "query: search", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea && s.text == "t" }},
+		{nil, "down", "Query: results", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea }},
+		{[]string{"t"}, "enter", "Query: search", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea && s.text == "t" }},
 		{nil, "j", "nothing", func(s, _ *Section, _ []tea.Msg) bool { return s.input.Value() == "j" }},
-		{nil, "esc", "query: back", back},
+		{nil, "esc", "Query: back", back},
 		// The query types ] and [ before the moves that hold them, whose
 		// other keys still move.
 		{nil, "]", "nothing", func(s, _ *Section, _ []tea.Msg) bool { return s.input.Value() == "]" && s.area == inputArea }},
 		{nil, "[", "nothing", func(s, _ *Section, _ []tea.Msg) bool { return s.input.Value() == "[" && s.area == inputArea }},
-		{nil, "tab", "query: next", func(s, _ *Section, _ []tea.Msg) bool { return s.area == kindsArea }},
-		{nil, "shift+tab", "query: previous", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea }},
-		{results, "j", "results: down", func(s, b *Section, _ []tea.Msg) bool { return selectedHit(s) != selectedHit(b) }},
-		{results, "enter", "search: open", func(_, _ *Section, msgs []tea.Msg) bool { return len(msgs) > 0 }},
-		{results, "left", "search: kinds", func(s, _ *Section, _ []tea.Msg) bool { return s.area == kindsArea }},
-		{results, "esc", "search: back", back},
-		// The app opens the filter; its keys don't page the results.
-		{results, "f", "search: filter", func(s, b *Section, msgs []tea.Msg) bool { return selectedHit(s) == selectedHit(b) && len(msgs) == 0 }},
-		{results, "s", "search: sort", func(s, b *Section, msgs []tea.Msg) bool { return selectedHit(s) == selectedHit(b) && len(msgs) == 0 }},
-		{kinds, "j", "search: down", func(s, b *Section, _ []tea.Msg) bool { return s.kind != b.kind }},
-		{kinds, "enter", "search: results", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea }},
-		{kinds, "tab", "search: next", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea }},
+		{nil, "tab", "Query: next", func(s, _ *Section, _ []tea.Msg) bool { return s.area == kindsArea }},
+		{nil, "shift+tab", "Query: previous", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea }},
+		{results, "j", "Results: down", func(s, b *Section, _ []tea.Msg) bool { return selectedHit(s) != selectedHit(b) }},
+		{results, "enter", "Results: open", func(_, _ *Section, msgs []tea.Msg) bool { return len(msgs) > 0 }},
+		{results, "left", "Results: kinds", func(s, _ *Section, _ []tea.Msg) bool { return s.area == kindsArea }},
+		{results, "esc", "Search: back", back},
+		// The results ask the app to open the filter; its keys don't page.
+		{results, "f", "Results: filter", func(s, b *Section, msgs []tea.Msg) bool {
+			return selectedHit(s) == selectedHit(b) && len(msgs) == 1 && msgs[0] == ui.OpenFilterMsg{Tab: filterform.FiltersTab}
+		}},
+		{results, "s", "Results: sort", func(s, b *Section, msgs []tea.Msg) bool {
+			return selectedHit(s) == selectedHit(b) && len(msgs) == 1 && msgs[0] == ui.OpenFilterMsg{Tab: filterform.SortTab}
+		}},
+		{kinds, "j", "Kinds: down", func(s, b *Section, _ []tea.Msg) bool { return s.kind != b.kind }},
+		{kinds, "enter", "Kinds: results", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea }},
+		{kinds, "tab", "Search: next", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea }},
 	}
 	for _, tt := range tests {
 		s, b := newSection(t, newFake(), 120, 30), newSection(t, newFake(), 120, 30)

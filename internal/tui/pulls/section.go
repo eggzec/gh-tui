@@ -65,7 +65,7 @@ type Section struct {
 	svc  Service
 	keys keyMap
 	// rawKeys are the configured keys, for the steps of the modal.
-	rawKeys map[string][]string
+	rawKeys config.Keymap
 	now     func() time.Time
 	// checks reads the checks of the modal's Checks step, and those read
 	// ahead, and checksOpts configure the step. Without checks, the modal
@@ -231,7 +231,7 @@ func WithSlots(s *ui.Slots) Option {
 
 // New returns the section, reading from svc with the configured keys. ctx
 // bounds every request it makes.
-func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Option) *Section {
+func New(ctx context.Context, svc Service, keys config.Keymap, opts ...Option) *Section {
 	s := &Section{
 		ctx:         ctx,
 		svc:         svc,

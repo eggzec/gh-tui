@@ -51,7 +51,7 @@ func shownText(t *testing.T, m *Model) (title, text string) {
 }
 
 func TestConfigCommand(t *testing.T) {
-	m := newConfigApp(t, "ui:\n  icons: ascii\nkeys:\n  quit: [x]\n")
+	m := newConfigApp(t, "ui:\n  icons: ascii\nkeys:\n  global: {quit: [Q]}\n")
 	runCommand(t, m, "set log.level=warn")
 	runCommand(t, m, "config")
 	title, text := shownText(t, m)
@@ -73,7 +73,7 @@ func TestConfigCommand(t *testing.T) {
 	}
 	// What lies below the screen is in the pager, a search away.
 	tm := m.modal.(*textModal)
-	for _, want := range []string{"level: warn # session (:set)", "quit: [x] # config.yaml:4"} {
+	for _, want := range []string{"level: warn # session (:set)", "quit: [Q] # config.yaml:4"} {
 		tm.pager.GoToLine(0)
 		drive(m, tm.pager.SetSearch(want))
 		if !strings.Contains(ansi.Strip(tm.View()), want) {

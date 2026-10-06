@@ -61,7 +61,7 @@ type authStyles struct {
 	text, muted, subtle, yes, no lipgloss.Style
 }
 
-func newAuthModal(keys map[string][]string, account string, a core.Access, p access.Plan, tok *ui.Token, run func([]string, core.Access) tea.Cmd) *authModal {
+func newAuthModal(keys config.Keymap, account string, a core.Access, p access.Plan, tok *ui.Token, run func([]string, core.Access) tea.Cmd) *authModal {
 	v := ui.NewVoice(keys, "")
 	v.Token = tok
 	// Nothing the modal tells of has a page to open.
@@ -74,7 +74,7 @@ func newAuthModal(keys map[string][]string, account string, a core.Access, p acc
 		checking: true,
 		run:      run,
 		gh:       lookGH(),
-		close:    ui.Binding(keys, config.ActionBack, "close"),
+		close:    ui.Binding(keys, config.ActionDismiss, "close"),
 		confirm:  ui.DefaultConfirmKeys(),
 		voice:    v,
 		icons:    ui.NewIcons(config.Default().UI.Icons),

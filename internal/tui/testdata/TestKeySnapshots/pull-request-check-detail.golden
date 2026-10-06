@@ -4,9 +4,26 @@ app
   quit | ctrl+c | ^c | on
   help | ? | ? | on
 
-checks
+Pull request
+  merge | m | m | off
+  close | x | x | off
+  reopen | X | X | off
+  convert to draft | D | D | off
+  back | esc | esc | off
+  open | enter | ↵ | off
+  checks | C | C | off
+  next state | ] | ] | off
+  previous state | [ | [ | off
+  clear filters | F | F | off
+  refresh | r | r | off
+  open in browser | o | o | off
+  filter | f | f | off
+  sort | s | s | off
+  owner page | @ | @ | off
+
+Detail
   checks | esc | esc | on
-  rerun failed | ctrl+r | ^r | off
+  rerun failed | R | R | off
   refresh | r | r | on
   browser | o | o | on
   open | enter | ↵ | off
@@ -18,9 +35,6 @@ checks
   ½ page down | ctrl+d | ^d | off
   first | home g | g/home | off
   last | end G | G/end | off
-  annotations | A | A | off
-
-detail
   up | up k | ↑/k | on
   down | down j | ↓/j | on
   page up | b ctrl+b pgup | b/^b | on

@@ -21,29 +21,29 @@ import (
 )
 
 func TestBinding(t *testing.T) {
-	keys := map[string][]string{"merge": {"m", "ctrl+m"}, "open": {"enter"}}
+	keys := config.Keymap{"test": {"merge": {"m", "ctrl+m"}, "open": {"enter"}}}
 
-	b := Binding(keys, "merge", "merge")
+	b := Binding(keys, "test.merge", "merge")
 	if !b.Enabled() || b.Help().Key != "m" || b.Help().Desc != "merge" {
 		t.Errorf("merge = %+v, want enabled with help m/merge", b.Help())
 	}
 	if !key.Matches(tea.KeyPressMsg{Code: 'm', Mod: tea.ModCtrl}, b) {
 		t.Error("ctrl+m doesn't match merge")
 	}
-	if got := Binding(keys, "open", "open").Help().Key; got != "↵" {
+	if got := Binding(keys, "test.open", "open").Help().Key; got != "↵" {
 		t.Errorf("enter label = %q, want ↵", got)
 	}
-	if Binding(keys, "missing", "x").Enabled() {
+	if Binding(keys, "test.missing", "x").Enabled() {
 		t.Error("an action without keys should be disabled")
 	}
 }
 
 func TestOpenHint(t *testing.T) {
-	keys := map[string][]string{"open": {"o"}}
-	if got := OpenHint(NewIcons(config.IconsUnicode), Binding(keys, "open", "open")); got != "o to open on GitHub" {
+	keys := config.Keymap{"test": {"open": {"o"}}}
+	if got := OpenHint(NewIcons(config.IconsUnicode), Binding(keys, "test.open", "open")); got != "o to open on GitHub" {
 		t.Errorf("OpenHint = %q", got)
 	}
-	if got := OpenHint(NewIcons(config.IconsUnicode), Binding(keys, "missing", "open")); got != "" {
+	if got := OpenHint(NewIcons(config.IconsUnicode), Binding(keys, "test.missing", "open")); got != "" {
 		t.Errorf("OpenHint without a key = %q, want nothing", got)
 	}
 }

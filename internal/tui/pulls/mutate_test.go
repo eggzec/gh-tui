@@ -385,7 +385,7 @@ func TestYesAsksAgain(t *testing.T) {
 			keys := config.Default().Keys
 			if tt.shared {
 				keys = maps.Clone(keys)
-				keys[config.ActionReopen] = keys[config.ActionClose]
+				keys.Set("pulls.reopen", keys.Of("pulls.close"))
 			}
 			svc := newFakeService()
 			sec := New(t.Context(), svc, keys, WithClock(func() time.Time { return clock }))

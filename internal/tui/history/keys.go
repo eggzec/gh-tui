@@ -26,10 +26,11 @@ type KeyMap struct {
 	Zoom key.Binding
 	// Filter narrows the branches as the user types.
 	Filter key.Binding
-	// UseAsBase shows the files at the branch or commit under the cursor,
-	// and ResetBase at the head of the default branch again.
-	UseAsBase key.Binding
-	ResetBase key.Binding
+	// UseAsBase shows the files at the branch or commit under the cursor
+	// of the branches, graph of commits and the commit's files, with the
+	// key of each, and ResetBase at the head of the default branch again.
+	UseAsBase, graphBase, filesBase key.Binding
+	ResetBase                       key.Binding
 	// Open opens the branch, commit or file on GitHub.
 	Open key.Binding
 	// Retry reads again what failed to load.
@@ -40,32 +41,86 @@ type KeyMap struct {
 	Graph graph.KeyMap
 }
 
-func newKeyMap(keys map[string][]string) KeyMap {
+// The contexts of the keys of the modal: its own, and one for each pane.
+const (
+	ctxModal    = "history"
+	ctxBranches = "history_branches"
+	ctxGraph    = "history_graph"
+	ctxFiles    = "history_files"
+)
+
+func newKeyMap(keys config.Keymap) KeyMap {
+	modal, branches, graphCtx, files := ui.In(keys, ctxModal), ui.In(keys, ctxBranches), ui.In(keys, ctxGraph), ui.In(keys, ctxFiles)
 	list := graph.DefaultKeyMap()
 	g := graph.DefaultKeyMap()
-	g.Choose = ui.Binding(keys, config.ActionSelect, "open")
-	g.Retry = ui.Binding(keys, config.ActionRefresh, "retry")
+	g.Choose = graphCtx.Binding("global.select", "open")
+	g.Retry = graphCtx.Binding("global.refresh", "retry")
 	// The graph enables its retry key while a fetch has failed.
 	g.Retry.SetEnabled(false)
 	return KeyMap{
-		Next:      ui.Binding(keys, config.ActionNextTab, "pane"),
-		Prev:      ui.Binding(keys, config.ActionPrevTab, "previous pane"),
-		Select:    ui.Binding(keys, config.ActionSelect, "open"),
-		Back:      ui.Binding(keys, config.ActionBack, "back"),
-		Zoom:      ui.Binding(keys, config.ActionZoom, "zoom"),
-		Filter:    ui.Binding(keys, config.ActionSearch, "filter"),
-		UseAsBase: ui.Binding(keys, config.ActionUseAsBase, "use as base"),
-		ResetBase: ui.Binding(keys, config.ActionResetBase, "back to head"),
-		Open:      ui.Binding(keys, config.ActionOpen, "browser"),
-		Retry:     ui.Binding(keys, config.ActionRefresh, "retry"),
+		Next:      modal.Binding("global.next_pane", "pane"),
+		Prev:      modal.Binding("global.prev_pane", "previous pane"),
+		Select:    modal.Binding("global.select", "open"),
+		Back:      modal.Binding("global.dismiss", "back"),
+		Zoom:      modal.Binding("global.zoom", "zoom"),
+		Filter:    branches.Binding("global.search", "filter"),
+		UseAsBase: branches.Binding("base", "use as base"),
+		graphBase: graphCtx.Binding("base", "use as base"),
+		filesBase: files.Binding("base", "use as base"),
+		ResetBase: modal.Binding("reset_base", "back to head"),
+		Open:      modal.Binding("global.open", "browser"),
+		Retry:     modal.Binding("global.refresh", "retry"),
 		List:      list,
 		Graph:     g,
 	}
 }
 
+// base returns the key that shows the files at what is under the cursor
+// of the pane p.
+func (k KeyMap) base(p pane) key.Binding {
+	switch p {
+	case graphPane:
+		return k.graphBase
+	case commitPane:
+		return k.filesBase
+	case branchPane:
+	}
+	return k.UseAsBase
+}
+
+// paneContext returns the context of the keys of the pane p, and of the
+// patch of a file in the commit pane if patch.
+func paneContext(p pane, patch bool) string {
+	switch {
+	case p == graphPane:
+		return ctxGraph
+	case p == commitPane && patch:
+		return "history_patch"
+	case p == commitPane:
+		return ctxFiles
+	}
+	return ctxBranches
+}
+
 // own returns the keys of the modal itself, in the order it matches them.
 func (k KeyMap) own() []key.Binding {
 	return []key.Binding{k.Next, k.Prev, k.Open, k.ResetBase, k.Zoom, k.Back, k.UseAsBase, k.Select, k.Filter, k.Retry}
+}
+
+// screen returns the keys of the modal that work in every pane, and the
+// keys of the pane that has the focus, in the order the modal matches them.
+func (k KeyMap) screen() []key.Binding {
+	return []key.Binding{k.Next, k.Prev, k.Open, k.ResetBase, k.Zoom, k.Back, k.Retry}
+}
+
+// pane returns the keys of the focused pane that the modal matches, with
+// the keys of the pane worth a hint.
+func (k KeyMap) pane(p pane) (keys, short []key.Binding) {
+	base := k.base(p)
+	if p == branchPane {
+		return []key.Binding{base, k.Select, k.Filter}, []key.Binding{k.Select, k.Filter, base}
+	}
+	return []key.Binding{base, k.Select}, []key.Binding{k.Select, base}
 }
 
 // ShortHelp implements help.KeyMap.

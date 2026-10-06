@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"maps"
 	"slices"
 	"strings"
 	"testing"
@@ -45,62 +44,62 @@ type unbindPlace struct {
 func unbindPlaces() []unbindPlace {
 	octocat := ui.OwnerMsg{Login: "octocat"}
 	return []unbindPlace{
-		{name: "dashboard", want: "app, app, dashboard, list"},
-		{name: "dashboard pinned", steps: []string{config.ActionPane1}, want: "app, app, dashboard"},
-		{name: "dashboard work", steps: []string{config.ActionPane3}, want: "app, app, dashboard"},
-		{name: "dashboard calendar", steps: []string{config.ActionPane4}, want: "app, app, dashboard, calendar"},
-		{name: "dashboard inbox", steps: []string{config.ActionPane5}, want: "app, app, dashboard"},
-		{name: "dashboard zoomed", steps: []string{config.ActionZoom}, want: "app, app, dashboard, list"},
-		{name: "dashboard filter", steps: []string{config.ActionFilter}, want: "app, filter"},
-		{name: "notifications", steps: []string{config.ActionNotifications}, want: "app, app, Notifications, list"},
-		{name: "notifications filter", steps: []string{config.ActionNotifications, config.ActionFilter}, want: "app, filter"},
-		{name: "notifications mark read", steps: []string{config.ActionNotifications, config.ActionMarkRead}, want: "app, confirm"},
-		{name: "search", steps: []string{config.ActionSearch}, want: "app, app, query (types), query"},
-		{name: "search kinds", steps: []string{config.ActionSearch, "up"}, want: "app, app, search"},
+		{name: "dashboard", want: "app, global, dashboard, dashboard_repos"},
+		{name: "dashboard pinned", steps: []string{config.ActionPane1}, want: "app, global, dashboard, dashboard_pinned"},
+		{name: "dashboard work", steps: []string{config.ActionPane3}, want: "app, global, dashboard, dashboard_work"},
+		{name: "dashboard calendar", steps: []string{config.ActionPane4}, want: "app, global, dashboard, dashboard_calendar"},
+		{name: "dashboard inbox", steps: []string{config.ActionPane5}, want: "app, global, dashboard, dashboard_inbox"},
+		{name: "dashboard zoomed", steps: []string{config.ActionZoom}, want: "app, global, dashboard, dashboard_repos"},
+		{name: "dashboard filter", steps: []string{"dashboard_repos.filter"}, want: "global, filter"},
+		{name: "notifications", steps: []string{config.ActionNotifications}, want: "app, global, notifications"},
+		{name: "notifications filter", steps: []string{config.ActionNotifications, "notifications.filter"}, want: "global, filter"},
+		{name: "notifications mark read", steps: []string{config.ActionNotifications, "notifications.read"}, want: "app, confirm"},
+		{name: "search", steps: []string{config.ActionSearch}, want: "app, app, search_query (types)"},
+		{name: "search kinds", steps: []string{config.ActionSearch, "up"}, want: "app, global, search, search_kinds"},
 		// Typing on the code kind asks for a code search of the new text.
-		{name: "search code", steps: []string{config.ActionSearch, "k", "e", "y", "up", "down", "down", "down", config.ActionPrevTab, "s"}, want: "app, app, query (types), query"},
-		{name: "search results", steps: []string{config.ActionSearch, "k", "e", "y", config.ActionSelect}, want: "app, app, search, results"},
-		{name: "owner", msg: octocat, want: "app, app, profile, list"},
-		{name: "owner tab", msg: octocat, steps: []string{config.ActionNextFilter}, want: "app, app, profile, list"},
-		{name: "owner readme", msg: octocat, steps: []string{config.ActionPane3}, want: "app, app, profile, readme"},
-		{name: "owner filter", msg: octocat, steps: []string{config.ActionFilter}, want: "app, filter"},
-		{name: "files", repo: true, want: "app, app, Files, tree"},
-		{name: "files zoomed", repo: true, steps: []string{config.ActionZoom}, want: "app, app, Files, tree"},
-		{name: "files preview", repo: true, steps: []string{"down", config.ActionSelect}, want: "app, file, pager"},
-		{name: "finder", repo: true, steps: []string{config.ActionFindFile}, want: "app, finder, find (types)"},
-		{name: "pull requests", repo: true, steps: []string{config.ActionPane2}, want: "app, Pull requests, app, Pull requests, list"},
-		{name: "pull requests filter", repo: true, steps: []string{config.ActionPane2, config.ActionFilter}, want: "app, filter"},
-		{name: "pull requests merge", repo: true, steps: []string{config.ActionPane2, config.ActionMerge}, want: "app, confirm"},
-		{name: "pull request", repo: true, steps: []string{config.ActionPane2, config.ActionSelect}, want: "app, pull request, thread"},
-		{name: "checks", repo: true, steps: []string{config.ActionPane2, config.ActionChecks}, want: "app, checks"},
-		{name: "checks job", repo: true, steps: []string{config.ActionPane2, config.ActionChecks, config.ActionSelect}, want: "app, checks, annotations, log"},
-		{name: "checks detail", repo: true, steps: []string{config.ActionPane2, config.ActionChecks, "down", config.ActionSelect}, want: "app, checks, detail"},
-		{name: "issues", repo: true, steps: []string{config.ActionPane3}, want: "app, Issues, app, Issues, list"},
-		{name: "issue", repo: true, steps: []string{config.ActionPane3, config.ActionSelect}, want: "app, issue, thread"},
-		{name: "issue comment", repo: true, steps: []string{config.ActionPane3, config.ActionSelect, config.ActionComment}, want: "app, prompt (types)"},
-		{name: "history", repo: true, steps: []string{config.ActionHistory}, want: "app, history, graph"},
-		{name: "history branches", repo: true, steps: []string{config.ActionHistory, config.ActionPrevTab}, want: "app, history, branches"},
-		{name: "history files", repo: true, steps: []string{config.ActionHistory, config.ActionSelect}, want: "app, history, files"},
-		{name: "history patch", repo: true, steps: []string{config.ActionHistory, config.ActionSelect, config.ActionSelect}, want: "app, history, pager"},
-		{name: "commit", repo: true, msg: ui.OpenCommitMsg{Repo: testRepo, SHA: keyCommit.SHA}, want: "app, history, files"},
-		{name: "release", repo: true, msg: ui.OpenReleaseMsg{Repo: testRepo, ID: keyRelease.ID, URL: keyRelease.URL}, want: "app, release, thread"},
-		{name: "actions", repo: true, steps: []string{config.ActionActions}, want: "app, actions, runs"},
-		{name: "actions jobs", repo: true, steps: []string{config.ActionActions, config.ActionNextTab}, want: "app, actions, jobs"},
-		{name: "actions log", repo: true, steps: []string{config.ActionActions, config.ActionNextTab, config.ActionNextTab}, want: "app, actions, annotations, log"},
-		{name: "actions rerun", repo: true, steps: []string{config.ActionActions, config.ActionRerunFailed}, want: "app, confirm"},
-		{name: "command line", repo: true, steps: []string{config.ActionCommand}, want: "command line (types)"},
+		{name: "search code", steps: []string{config.ActionSearch, "k", "e", "y", "up", "down", "down", "down", config.ActionPrevPane, "s"}, want: "app, app, search_query (types)"},
+		{name: "search results", steps: []string{config.ActionSearch, "k", "e", "y", config.ActionSelect}, want: "app, global, search, search_results"},
+		{name: "owner", msg: octocat, want: "app, global, owner, owner_list"},
+		{name: "owner tab", msg: octocat, steps: []string{config.ActionNextTab}, want: "app, global, owner, owner_list"},
+		{name: "owner readme", msg: octocat, steps: []string{config.ActionPane3}, want: "app, global, owner, owner_readme"},
+		{name: "owner filter", msg: octocat, steps: []string{"owner_list.filter"}, want: "global, filter"},
+		{name: "files", repo: true, want: "app, global, repo, files"},
+		{name: "files zoomed", repo: true, steps: []string{config.ActionZoom}, want: "app, global, repo, files"},
+		{name: "files preview", repo: true, steps: []string{"down", config.ActionSelect}, want: "global, preview"},
+		{name: "finder", repo: true, steps: []string{config.ActionFindFile}, want: "app, finder (types)"},
+		{name: "pull requests", repo: true, steps: []string{config.ActionPane2}, want: "app, global, repo, pulls"},
+		{name: "pull requests filter", repo: true, steps: []string{config.ActionPane2, "pulls.filter"}, want: "global, filter"},
+		{name: "pull requests merge", repo: true, steps: []string{config.ActionPane2, "pulls.merge"}, want: "app, confirm"},
+		{name: "pull request", repo: true, steps: []string{config.ActionPane2, config.ActionSelect}, want: "global, pull_modal, pull_conversation"},
+		{name: "checks", repo: true, steps: []string{config.ActionPane2, "pulls.checks"}, want: "global, pull_modal, pull_checks"},
+		{name: "checks job", repo: true, steps: []string{config.ActionPane2, "pulls.checks", config.ActionSelect}, want: "global, pull_modal, pull_check_log"},
+		{name: "checks detail", repo: true, steps: []string{config.ActionPane2, "pulls.checks", "down", config.ActionSelect}, want: "global, pull_modal, pull_check_detail"},
+		{name: "issues", repo: true, steps: []string{config.ActionPane3}, want: "app, global, repo, issues"},
+		{name: "issue", repo: true, steps: []string{config.ActionPane3, config.ActionSelect}, want: "global, issue_modal"},
+		{name: "issue comment", repo: true, steps: []string{config.ActionPane3, config.ActionSelect, "issue_modal.comment"}, want: "app, prompt (types)"},
+		{name: "history", repo: true, steps: []string{config.ActionHistory}, want: "global, history, history_graph"},
+		{name: "history branches", repo: true, steps: []string{config.ActionHistory, config.ActionPrevPane}, want: "global, history, history_branches"},
+		{name: "history files", repo: true, steps: []string{config.ActionHistory, config.ActionSelect}, want: "global, history, history_files"},
+		{name: "history patch", repo: true, steps: []string{config.ActionHistory, config.ActionSelect, config.ActionSelect}, want: "global, history, history_patch"},
+		{name: "commit", repo: true, msg: ui.OpenCommitMsg{Repo: testRepo, SHA: keyCommit.SHA}, want: "global, history, history_files"},
+		{name: "release", repo: true, msg: ui.OpenReleaseMsg{Repo: testRepo, ID: keyRelease.ID, URL: keyRelease.URL}, want: "global, release_modal"},
+		{name: "actions", repo: true, steps: []string{config.ActionActions}, want: "global, actions, actions_runs"},
+		{name: "actions jobs", repo: true, steps: []string{config.ActionActions, config.ActionNextPane}, want: "global, actions, actions_jobs"},
+		{name: "actions log", repo: true, steps: []string{config.ActionActions, config.ActionNextPane, config.ActionNextPane}, want: "global, actions, actions_log"},
+		{name: "actions rerun", repo: true, steps: []string{config.ActionActions, "actions.rerun_failed"}, want: "app, confirm"},
+		{name: "command line", repo: true, steps: []string{config.ActionCommand}, want: "command_line (types)"},
 	}
 }
 
-// TestUnbindEachAction unbinds each action in turn, as keys.X: [] in the
+// TestUnbindEachAction unbinds each action in turn, as keys.<context>.X: [] in the
 // config does, and checks that the app still builds its key maps, and
 // shows the dashboard and the repository screen and their help.
 func TestUnbindEachAction(t *testing.T) {
-	for _, action := range slices.Sorted(maps.Keys(config.Default().Keys)) {
+	for _, action := range config.Default().Keys.Actions() {
 		t.Run(action, func(t *testing.T) {
 			t.Parallel()
 			cfg := config.Default()
-			cfg.Keys[action] = []string{}
+			cfg.Keys.Set(action, []string{})
 			if err := cfg.Validate(); err != nil {
 				t.Fatalf("Validate() = %v, want %s unbound", err, action)
 			}
@@ -124,9 +123,9 @@ func TestUnbindAllElse(t *testing.T) {
 		t.Run(p.name, func(t *testing.T) {
 			t.Parallel()
 			cfg := config.Default()
-			for action := range cfg.Keys {
+			for _, action := range cfg.Keys.Actions() {
 				if !slices.Contains(p.steps, action) {
-					cfg.Keys[action] = []string{}
+					cfg.Keys.Set(action, []string{})
 				}
 			}
 			synctest.Test(t, func(t *testing.T) { checkUnbound(t, cfg, p) })
@@ -143,14 +142,14 @@ func TestUnboundCommands(t *testing.T) {
 		t.Run(command, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				cfg := config.Default()
-				cfg.Keys[action] = []string{}
+				cfg.Keys.Set(action, []string{})
 				m := newUnboundApp(t, cfg, true)
 				for _, k := range append([]string{":"}, strings.Split(command, "")...) {
 					msg, _ := keyPress(k)
 					driveKeys(t, m, m.key(msg))
 				}
 				driveKeys(t, m, m.key(enter))
-				if want := "No key is bound to " + action; !hasToast(m, want) {
+				if want := "No key is bound to keys." + action; !hasToast(m, want) {
 					t.Errorf(":%s shows %q, want %q", command, toasted(m), want)
 				}
 			})
@@ -168,7 +167,7 @@ func checkUnbound(t *testing.T, cfg config.Config, p unbindPlace) {
 	}
 	for _, s := range p.steps {
 		name := s
-		if keys, ok := cfg.Keys[s]; ok {
+		if keys := cfg.Keys.Of(s); len(keys) > 0 {
 			name = keys[0]
 		}
 		msg, ok := keyPress(name)

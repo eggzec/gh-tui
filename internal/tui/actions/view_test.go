@@ -23,7 +23,7 @@ func TestViewASCII(t *testing.T) {
 		keys          []string
 	}{
 		{wideW, wideH, nil}, {wideW, wideH, []string{"tab"}}, {wideW, wideH, []string{"j"}},
-		{wideW, wideH, []string{"f"}}, {wideW, wideH, []string{"ctrl+r"}}, {wideW, wideH, []string{"]"}},
+		{wideW, wideH, []string{"f"}}, {wideW, wideH, []string{"R"}}, {wideW, wideH, []string{"]"}},
 		{narrowW, narrowH, []string{"enter"}}, {narrowW, narrowH, []string{"enter", "enter"}},
 		{narrowW, narrowH, []string{"j", "enter", "enter"}}, {narrowW, narrowH, []string{"f"}},
 	} {
@@ -46,7 +46,7 @@ func TestView(t *testing.T) {
 		{"190 columns running", wideW, wideH, []string{"j"}},
 		{"190 columns zoom", wideW, wideH, []string{"tab", "tab", "z"}},
 		{"190 columns filter", wideW, wideH, []string{"f"}},
-		{"190 columns confirm", wideW, wideH, []string{"ctrl+r"}},
+		{"190 columns confirm", wideW, wideH, []string{"R"}},
 		{"190 columns failing", wideW, wideH, []string{"]"}},
 		{"80 columns runs", narrowW, narrowH, nil},
 		{"80 columns jobs", narrowW, narrowH, []string{"enter"}},
@@ -128,7 +128,7 @@ func TestViewMoreJobs(t *testing.T) {
 
 func TestViewFitsAnySize(t *testing.T) {
 	for _, size := range [][2]int{{1, 1}, {10, 3}, {30, 5}, {109, 12}, {110, 12}, {250, 60}} {
-		for _, keys := range [][]string{nil, {"tab"}, {"tab", "tab"}, {"j", "tab", "tab"}, {"z"}, {"f"}, {"ctrl+r"}} {
+		for _, keys := range [][]string{nil, {"tab"}, {"tab", "tab"}, {"j", "tab", "tab"}, {"z"}, {"f"}, {"R"}} {
 			m, h := newModal(t, newFake(), wideW, wideH)
 			h.keys(keys...)
 			m.SetSize(size[0], size[1])

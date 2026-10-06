@@ -204,7 +204,7 @@ var (
 
 // New returns the search page, which searches through svc and binds the
 // actions in keys. ctx bounds every request it makes.
-func New(ctx context.Context, svc Service, keys map[string][]string, opts ...Option) *Section {
+func New(ctx context.Context, svc Service, keys config.Keymap, opts ...Option) *Section {
 	// The other kinds are read as the defaults say until the settings say
 	// otherwise.
 	others := ui.Resolve(config.Default().Prefetch, "search", "other_kinds")

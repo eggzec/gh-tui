@@ -10,6 +10,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 )
 
@@ -201,9 +202,11 @@ func (s *Section) pressResults(msg tea.KeyPressMsg) tea.Cmd {
 		return s.openChecks()
 	case key.Matches(msg, k.Refresh):
 		return s.refresh()
-	case key.Matches(msg, k.Filter, k.Sort):
-		// The app opens the filter, so its keys don't reach the results.
-		return nil
+	case key.Matches(msg, k.Filter):
+		// The results get no f, which pages down there.
+		return ui.OpenFilter(filterform.FiltersTab)
+	case key.Matches(msg, k.Sort):
+		return ui.OpenFilter(filterform.SortTab)
 	}
 	if s.text == "" {
 		switch {

@@ -506,7 +506,8 @@ func TestFocusMovesBetweenPanes(t *testing.T) {
 		{"tab", "Issues"},
 		{"tab", "Files"},
 		{"shift+tab", "Issues"},
-		{"]", "Files"},
+		// ] and [ are for the tabs of a pane, which the app leaves to it.
+		{"]", "Issues"},
 		{"[", "Issues"},
 		{"2", "Pull requests"},
 		{"1", "Files"},
@@ -985,7 +986,7 @@ func TestHelpShowsPaneAndAppKeys(t *testing.T) {
 	}
 	height := fakes[0].height
 	rows := helpRows(t, m)
-	for _, want := range []string{"tab ] next pane", "1 2 3 focus pane", "x close", "? help"} {
+	for _, want := range []string{"tab next pane", "1 2 3 focus pane", "x close", "? help"} {
 		if !slices.Contains(rows, want) {
 			t.Errorf("the help lacks %q: %q", want, rows)
 		}

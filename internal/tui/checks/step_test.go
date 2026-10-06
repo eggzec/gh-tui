@@ -290,9 +290,9 @@ func TestWatchesWhilePending(t *testing.T) {
 func TestRerunFailedJobs(t *testing.T) {
 	f := newFake()
 	s, h := newStep(t, f, wideW, wideH)
-	h.keys("enter", "ctrl+r")
+	h.keys("enter", "R")
 	if s.ask == nil || s.ask.Question != "Re-run 1 failed job of CI #4812?" {
-		t.Fatalf("ctrl+r asked %+v", s.ask)
+		t.Fatalf("R asked %+v", s.ask)
 	}
 	h.keys("y")
 	if !slices.Equal(f.sent, []string{"rerun failed"}) {
@@ -305,7 +305,7 @@ func TestRerunFailedJobs(t *testing.T) {
 		t.Errorf("the confirmed re-run didn't read the checks again: %d invalidations, %d reads", f.invalidated, f.checkReads)
 	}
 	// A run in progress can't be re-run.
-	h.keys("esc", "down", "down", "down", "enter", "ctrl+r")
+	h.keys("esc", "down", "down", "down", "enter", "R")
 	if s.ask != nil || !strings.Contains(s.notice, "still running") {
 		t.Errorf("re-run of a run in progress: ask %+v, notice %q", s.ask, s.notice)
 	}
@@ -330,9 +330,9 @@ func TestJobsPastTheFirstPage(t *testing.T) {
 	if j, ok := s.view.Job(); !ok || j.ID != testJob {
 		t.Fatalf("the check shows job %d, want %d from the second page", j.ID, testJob)
 	}
-	h.keys("ctrl+r")
+	h.keys("R")
 	if s.ask == nil || s.ask.Question != "Re-run 2 failed jobs of CI #4812?" {
-		t.Errorf("ctrl+r asked %+v, want the failed jobs of both pages", s.ask)
+		t.Errorf("R asked %+v, want the failed jobs of both pages", s.ask)
 	}
 }
 
@@ -347,16 +347,16 @@ func TestRerunAnswers(t *testing.T) {
 		// A second yes, such as a repeated key, re-runs nothing more.
 		{[]string{"y", "y"}, true},
 		// Enter isn't a yes, and other keys leave the question open.
-		{[]string{"enter", "r", "ctrl+r", "q", "n"}, false},
+		{[]string{"enter", "r", "R", "q", "n"}, false},
 		{[]string{"enter", "y"}, true},
 	}
 	for _, tt := range tests {
 		t.Run(strings.Join(tt.answers, " "), func(t *testing.T) {
 			f := newFake()
 			s, h := newStep(t, f, wideW, wideH)
-			h.keys("enter", "ctrl+r")
+			h.keys("enter", "R")
 			if s.ask == nil || len(f.sent) != 0 {
-				t.Fatalf("ctrl+r asked %+v and sent %v", s.ask, f.sent)
+				t.Fatalf("R asked %+v and sent %v", s.ask, f.sent)
 			}
 			// The answers arrive before what the first starts runs.
 			var cmds []tea.Cmd
@@ -411,9 +411,9 @@ func TestRerunAsksAgain(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			f := newFake()
 			s, h := newStep(t, f, wideW, wideH)
-			h.keys("enter", "ctrl+r")
+			h.keys("enter", "R")
 			if s.ask == nil {
-				t.Fatal("ctrl+r asked nothing")
+				t.Fatal("R asked nothing")
 			}
 			tt.meddle(s, h, f)
 			h.take()
@@ -527,10 +527,10 @@ func TestRerunNeedsWriteAccess(t *testing.T) {
 	if got := uitest.Enabled(s.KeyLayers()); slices.Contains(got, "rerun failed") {
 		t.Errorf("help offers a re-run with read access: %v", got)
 	}
-	h.keys("ctrl+r")
+	h.keys("R")
 	want := ui.NotifyMsg{Level: toast.Info, Text: "Re-running needs write access to " + repo.String() + "."}
 	if s.ask != nil || !slices.Contains(h.got, tea.Msg(want)) {
-		t.Errorf("ctrl+r with read access asked %+v and sent %v, want the toast %q", s.ask, h.got, want.Text)
+		t.Errorf("R with read access asked %+v and sent %v, want the toast %q", s.ask, h.got, want.Text)
 	}
 
 	// Once the caps say the viewer may write, the re-run is offered.
@@ -538,7 +538,7 @@ func TestRerunNeedsWriteAccess(t *testing.T) {
 	if got := uitest.Enabled(s.KeyLayers()); !slices.Contains(got, "rerun failed") {
 		t.Errorf("help lacks the re-run with write access: %v", got)
 	}
-	h.keys("ctrl+r", "y")
+	h.keys("R", "y")
 	if !slices.Equal(f.sent, []string{"rerun failed"}) {
 		t.Errorf("sent %v, want the re-run", f.sent)
 	}
@@ -552,15 +552,15 @@ func TestKeyMapComplete(t *testing.T) {
 // those of the job it shows, and the answer alone while it asks.
 func TestKeyLayersOrder(t *testing.T) {
 	s, h := newStep(t, newFake(), wideW, wideH)
-	if b, src, _ := uitest.Winner(s.KeyLayers(), "enter"); src != "checks" || b.Help().Desc != "log" {
+	if b, src, _ := uitest.Winner(s.KeyLayers(), "enter"); src != "Checks" || b.Help().Desc != "log" {
 		t.Errorf("enter reaches %q of %q, want the step's log", b.Help().Desc, src)
 	}
 	h.keys("enter")
 	layers := s.KeyLayers()
-	if b, src, _ := uitest.Winner(layers, "esc"); src != "checks" || b.Help().Desc != "checks" {
+	if b, src, _ := uitest.Winner(layers, "esc"); src != "Log" || b.Help().Desc != "checks" {
 		t.Errorf("esc reaches %q of %q in the job, want the step's back to the checks", b.Help().Desc, src)
 	}
-	if _, src, _ := uitest.Winner(layers, "space"); src != "log" {
+	if _, src, _ := uitest.Winner(layers, "space"); src != "Log" {
 		t.Errorf("space reaches %q in the job, want the log", src)
 	}
 	// With a search of the log, esc clears it before it steps back.
@@ -568,7 +568,7 @@ func TestKeyLayersOrder(t *testing.T) {
 	if s.view.Query() == "" {
 		t.Fatal("the search of the log didn't take")
 	}
-	if _, src, _ := uitest.Winner(s.KeyLayers(), "esc"); src != "log" {
+	if _, src, _ := uitest.Winner(s.KeyLayers(), "esc"); src != "Log" {
 		t.Errorf("esc reaches %q with a search, want the log", src)
 	}
 	h.keys("esc")
@@ -576,14 +576,14 @@ func TestKeyLayersOrder(t *testing.T) {
 		t.Fatalf("esc with a search left mode %d and query %q, want the job without it", s.mode, s.view.Query())
 	}
 	layers = s.KeyLayers()
-	if b, src, _ := uitest.Winner(layers, "ctrl+r"); src != "checks" || b.Help().Desc != "rerun failed" {
-		t.Errorf("ctrl+r reaches %q of %q, want the re-run", b.Help().Desc, src)
+	if b, src, _ := uitest.Winner(layers, "R"); src != "Log" || b.Help().Desc != "rerun failed" {
+		t.Errorf("R reaches %q of %q, want the re-run", b.Help().Desc, src)
 	}
-	h.keys("ctrl+r")
+	h.keys("R")
 	if s.ask == nil {
-		t.Fatal("ctrl+r didn't ask to re-run")
+		t.Fatal("R didn't ask to re-run")
 	}
-	if _, src, _ := uitest.Winner(s.KeyLayers(), "esc"); src != "confirm" {
+	if _, src, _ := uitest.Winner(s.KeyLayers(), "esc"); src != "Confirm" {
 		t.Errorf("esc reaches %q while asking, want the answer", src)
 	}
 	h.keys("esc", "esc")
@@ -592,10 +592,10 @@ func TestKeyLayersOrder(t *testing.T) {
 	}
 }
 
-// TestRerunKeyBeforeRefresh checks that ctrl+r, which refresh holds too,
-// re-runs on the checks and in a job, and that the help names the re-run
-// for it, while r refreshes. On a check an app reported, which can't be
-// re-run, ctrl+r still doesn't refresh, and the help gives it to nothing.
+// TestRerunKeyBeforeRefresh checks that R re-runs on the checks and in a
+// job, and that the help names the re-run for it, while r refreshes. On a
+// check an app reported, which can't be re-run, R does nothing, and the
+// help gives it to nothing.
 func TestRerunKeyBeforeRefresh(t *testing.T) {
 	const (
 		rerun   = "re-run"
@@ -611,12 +611,12 @@ func TestRerunKeyBeforeRefresh(t *testing.T) {
 		// not, refresh, or nothing.
 		does string
 	}{
-		{name: "ctrl+r on the checks", key: "ctrl+r", desc: "rerun failed", does: rerun},
-		{name: "ctrl+r in a job", to: []string{"enter"}, key: "ctrl+r", desc: "rerun failed", does: rerun},
+		{name: "R on the checks", key: "R", desc: "rerun failed", does: rerun},
+		{name: "R in a job", to: []string{"enter"}, key: "R", desc: "rerun failed", does: rerun},
 		{name: "r on the checks", key: "r", desc: "refresh", does: refresh},
 		{name: "r in a job", to: []string{"enter"}, key: "r", desc: "refresh", does: refresh},
-		{name: "ctrl+r on an app's check", to: []string{"down", "down"}, key: "ctrl+r", does: nothing},
-		{name: "ctrl+r in an app's detail", to: []string{"down", "down", "enter"}, key: "ctrl+r", does: nothing},
+		{name: "R on an app's check", to: []string{"down", "down"}, key: "R", does: nothing},
+		{name: "R in an app's detail", to: []string{"down", "down", "enter"}, key: "R", does: nothing},
 		{name: "r on an app's check", to: []string{"down", "down"}, key: "r", desc: "refresh", does: refresh},
 	}
 	for _, tt := range tests {
@@ -625,7 +625,7 @@ func TestRerunKeyBeforeRefresh(t *testing.T) {
 			s, h := newStep(t, f, wideW, wideH)
 			h.keys(tt.to...)
 			b, src, ok := uitest.Winner(s.KeyLayers(), tt.key)
-			if ok != (tt.desc != "") || ok && (src != "checks" || b.Help().Desc != tt.desc) {
+			if ok != (tt.desc != "") || ok && (src != "Checks" && src != "Log" || b.Help().Desc != tt.desc) {
 				t.Errorf("the help gives %s to %q of %q, want %q of the step", tt.key, b.Help().Desc, src, tt.desc)
 			}
 			reads, jobReads := f.checkReads, f.jobReads

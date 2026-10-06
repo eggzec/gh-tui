@@ -74,7 +74,7 @@ func (k ConfirmKeys) FullHelp() [][]key.Binding { return [][]key.Binding{k.Short
 // Layer returns the layer of the keys, which take every key while the
 // question is open: those that answer it, and the rest to do nothing.
 func (k ConfirmKeys) Layer() keyhelp.Layer {
-	return keyhelp.FromHelp("confirm", k, false)
+	return ContextHelp("confirm", k, false)
 }
 
 // Answer takes msg as the answer to c: yes runs c and returns what sends

@@ -3,28 +3,24 @@
 app
   help | ? | ? | on
 
-Issues
-  next state | ] | ] | on
-  previous state | [ | [ | on
-
 app
   command | : | : | on
   quit | q ctrl+c | q | on
   search | / | / | on
-  history | B | B | on
-  actions | a | a | on
   find file | t ctrl+p | t | on
-  filter | f | f | on
-  sort | s | s | on
   zoom | z | z | on
   unzoom | esc | esc | off
   dismiss | ctrl+x | ctrl+x | off
   owner page | @ | @ | on
   notifications | n | n | on
   dashboard | 0 | 0 | on
-  next pane | tab ] | tab | on
-  previous pane | shift+tab [ | shift+tab | on
+  next pane | tab | tab | on
+  previous pane | shift+tab | shift+tab | on
   focus pane | 1 2 3 | 1-3 | on
+
+Repository
+  history | B | B | on
+  actions | a | a | on
 
 Issues
   back | esc | esc | off
@@ -32,7 +28,7 @@ Issues
   labels | l | l | off
   close | x | x | on
   reopen | X | X | off
-  refresh | r ctrl+r | r | on
+  refresh | r | r | on
   browser | o | o | on
   open | enter | ↵ | on
   next state | ] | ] | on
@@ -40,8 +36,6 @@ Issues
   clear filters | F | F | off
   filter | f | f | on
   sort | s | s | on
-
-list
   up | up k | ↑/k | on
   down | down j | ↓/j | on
   page up | ctrl+b pgup | ^b/pgup | on
@@ -50,4 +44,4 @@ list
   ½ page down | ctrl+d | ^d | on
   first | home g | g/home | on
   last | end G | G/end | on
-  retry | r ctrl+r | r | off
+  retry | r | r | off

@@ -14,16 +14,32 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 )
 
-// filterSection is a fake section with a filter, chips and a claimed key.
+// filterSection is a fake section with a filter and chips, which opens the
+// filter on its own filter and sort keys, as a list does.
 type filterSection struct {
 	*fakeSection
 	query   string
 	ready   bool
 	applied []filterform.AppliedMsg
 	chips   string
-	claim   string
 	// sorts adds a sort to the filter.
 	sorts bool
+	// filter and sort are the keys that open the filter and the sort.
+	filter, sort key.Binding
+}
+
+// Update opens the filter or the sort on their keys, where it has them,
+// and records the rest.
+func (s *filterSection) Update(msg tea.Msg) tea.Cmd {
+	if k, ok := msg.(tea.KeyPressMsg); ok {
+		switch {
+		case s.ready && key.Matches(k, s.filter):
+			return ui.OpenFilter(filterform.FiltersTab)
+		case s.ready && s.sorts && key.Matches(k, s.sort):
+			return ui.OpenFilter(filterform.SortTab)
+		}
+	}
+	return s.fakeSection.Update(msg)
 }
 
 func (s *filterSection) Filter() (ui.Filter, bool) {
@@ -49,13 +65,6 @@ func (s *filterSection) ApplyFilter(msg filterform.AppliedMsg) tea.Cmd {
 
 func (s *filterSection) Chips() string { return s.chips }
 
-func (s *filterSection) Claimed() []key.Binding {
-	if s.claim == "" {
-		return nil
-	}
-	return []key.Binding{key.NewBinding(key.WithKeys(s.claim), key.WithHelp(s.claim, "claimed"))}
-}
-
 // newFilterApp returns an app whose pull requests filter, focused on them.
 func newFilterApp(t *testing.T) (*Model, *filterSection, []*fakeSection) {
 	t.Helper()
@@ -67,7 +76,11 @@ func newFilterApp(t *testing.T) (*Model, *filterSection, []*fakeSection) {
 func newFilterAppWith(t *testing.T, cfg config.Config, width, height int) (*Model, *filterSection, []*fakeSection) {
 	t.Helper()
 	fakes := []*fakeSection{{title: "Files"}, {title: "Pull requests"}, {title: "Issues"}}
-	pulls := &filterSection{fakeSection: fakes[1], query: "is:closed", ready: true, claim: "]"}
+	list := ui.In(cfg.Keys, "pulls")
+	pulls := &filterSection{
+		fakeSection: fakes[1], query: "is:closed", ready: true,
+		filter: list.Binding("filter", "filter"), sort: list.Binding("sort", "sort"),
+	}
 	m := New(t.Context(), cfg, Layout{Files: fakes[0], Pulls: pulls, Issues: fakes[2]}, WithRepo(testRepo))
 	m.Update(tea.WindowSizeMsg{Width: width, Height: height})
 	run(m, m.showScreen(repoScreen, 1))
@@ -144,15 +157,23 @@ func TestFilterKeyWithoutAFilterGoesToTheSection(t *testing.T) {
 	}
 }
 
-func TestClaimedKeysGoToTheSection(t *testing.T) {
+// Tab cycles the panes of the repository screen, while ] and [ reach the
+// pane, which uses them for its own tabs.
+func TestTabCyclesPanesAndBracketsGoToThePane(t *testing.T) {
 	m, pulls, _ := newFilterApp(t)
 	run(m, m.key(press("]")))
-	if m.focus != 1 || !pulls.got(isKey("]")) {
-		t.Errorf("focus %d; want ] kept in the pane that claims it", m.focus)
-	}
 	run(m, m.key(press("[")))
+	if m.focus != 1 || !pulls.got(isKey("]")) || !pulls.got(isKey("[")) {
+		t.Errorf("focus %d; want ] and [ to reach the pane that has the focus, and leave it there", m.focus)
+	}
+	run(m, m.key(press("tab")))
+	if m.focus != 2 {
+		t.Errorf("focus %d; want tab to move to the next pane", m.focus)
+	}
+	run(m, m.key(press("shift+tab")))
+	run(m, m.key(press("shift+tab")))
 	if m.focus != 0 {
-		t.Errorf("focus %d; want [ to move to the previous pane", m.focus)
+		t.Errorf("focus %d; want shift+tab to move to the previous pane", m.focus)
 	}
 }
 
@@ -223,16 +244,16 @@ func TestSortKeyWithoutASortGoesToTheSection(t *testing.T) {
 
 func TestSortKeyCanBeRebound(t *testing.T) {
 	cfg := config.Default()
-	cfg.Keys[config.ActionSort] = []string{"o"}
+	cfg.Keys.Set("pulls.sort", []string{"O"})
 	m, pulls, _ := newFilterAppWith(t, cfg, 120, 40)
 	pulls.sorts = true
 	run(m, m.key(press("s")))
 	if m.topModal() != nil {
 		t.Fatal("s still opens the sort")
 	}
-	run(m, m.key(press("o")))
+	run(m, m.key(press("O")))
 	if _, active := filterModal(t, m).Tabs(); active != 1 {
-		t.Errorf("o opened tab %d, want the sort", active)
+		t.Errorf("O opened tab %d, want the sort", active)
 	}
 }
 

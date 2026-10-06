@@ -4,19 +4,16 @@ app
   quit | ctrl+c | ^c | on
   help | ? | ? | on
 
-history
-  pane | tab ] | tab | on
-  previous pane | shift+tab [ | shift+tab | on
+History
+  pane | tab | tab | on
+  previous pane | shift+tab | shift+tab | on
   browser | o | o | on
   back to head | H | H | off
   zoom | z | z | on
   back | esc | esc | off
-  use as base | space | space | off
-  patch | enter | ↵ | off
-  filter | / | / | off
-  retry | r ctrl+r | r | off
+  retry | r | r | off
 
-pager
+Patch
   up | up k | ↑/k | on
   down | down j | ↓/j | on
   page up | b ctrl+b pgup | b/^b | on

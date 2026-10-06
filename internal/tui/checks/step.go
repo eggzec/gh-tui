@@ -208,7 +208,7 @@ type Step struct {
 
 // New returns the Checks step of pull request number of repo, with the
 // configured keys. ctx bounds its reads until it closes, and its changes.
-func New(ctx context.Context, svc Service, repo core.RepoRef, number int, keys map[string][]string, opts ...Option) *Step {
+func New(ctx context.Context, svc Service, repo core.RepoRef, number int, keys config.Keymap, opts ...Option) *Step {
 	o := options{icons: ui.NewIcons(config.Default().UI.Icons), tick: time.Second, now: time.Now}
 	for _, opt := range opts {
 		opt(&o)

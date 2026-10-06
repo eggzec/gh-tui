@@ -17,7 +17,7 @@ func TestChanged(t *testing.T) {
 	const secret = "ghp_16C7e42F292c6912E7710c838347Ae178B4a"
 	c := Default()
 	c.Sync.Poll.Lists = 30 * time.Second
-	c.Keys[ActionQuit] = []string{"x"}
+	c.Keys.Set(ActionQuit, []string{"Q"})
 	c.Repos = []string{"eggzec/private"}
 	c.Editor = "vim --token " + secret
 	c.Log.File = "/home/someone/" + secret + ".log"
@@ -27,7 +27,7 @@ func TestChanged(t *testing.T) {
 	want := []Setting{
 		{"cache.disk.dir", Redacted},
 		{"editor", Redacted},
-		{"keys.quit", "[x]"},
+		{"keys.global.quit", "[Q]"},
 		{"log.file", Redacted},
 		{"repos", Redacted},
 		{"sync.poll.lists", "30s"},
@@ -50,7 +50,7 @@ func TestPrivate(t *testing.T) {
 		"future.proxy_url":    true,
 		"sync.poll.lists":     false,
 		"auth.check":          false,
-		"keys.open_file":      false,
+		"keys.global.open":    false,
 		"themes.mine.dark.fg": false,
 	} {
 		if got := private(key); got != want {

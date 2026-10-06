@@ -1,6 +1,3 @@
 # context | key | loser | winner | reason; see allowDir in collisions_test.go
-actions: log | [ | actions: previous pane | actions: previous tab | ] and [ switch the tabs; tab and shift+tab still move between the panes
-actions: log | ] | actions: pane | actions: tab | ] and [ switch the tabs; tab and shift+tab still move between the panes
-actions: log | ctrl+r | actions: refresh | actions: rerun failed | ctrl+r re-runs the failed jobs; r still refreshes
-actions: log | h | log: left | actions: pane left | h and l move between the panes; the arrows still scroll the log
-actions: log | l | log: right | actions: pane right | h and l move between the panes; the arrows still scroll the log
+actions: log | h | Log: left | Actions: pane left | h and l move between the panes; the arrows still scroll the log
+actions: log | l | Log: right | Actions: pane right | h and l move between the panes; the arrows still scroll the log

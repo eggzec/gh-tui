@@ -1,8 +1,6 @@
 package owner
 
 import (
-	"slices"
-
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
@@ -34,9 +32,8 @@ type KeyMap struct {
 	// Open opens what is under the cursor in the browser.
 	Open    key.Binding
 	Refresh key.Binding
-	// Filter and Sort name the keys that open the filter of the
-	// repositories on its Filters and Sort tabs, which the app handles,
-	// and ClearFilter clears it.
+	// Filter and Sort open the filter of the repositories on its Filters
+	// and Sort tabs, and ClearFilter clears it.
 	Filter      key.Binding
 	Sort        key.Binding
 	ClearFilter key.Binding
@@ -54,35 +51,42 @@ type KeyMap struct {
 	feed feed.KeyMap
 }
 
-func newKeyMap(keys map[string][]string) KeyMap {
+// ctxPage is the context of the keys of the page, which work in every
+// pane.
+const ctxPage = "owner"
+
+// paneContext names the context of the keys of each pane.
+var paneContext = [numPanes]string{"owner_pinned", "owner_list", "owner_readme", "owner_calendar"}
+
+func newKeyMap(keys config.Keymap) KeyMap {
+	page, list := ui.In(keys, ctxPage), ui.In(keys, paneContext[listPane])
 	k := KeyMap{
-		Next:        ui.Binding(keys, config.ActionNextTab, "next pane"),
-		Prev:        ui.Binding(keys, config.ActionPrevTab, "previous pane"),
-		NextTab:     ui.Binding(keys, config.ActionNextFilter, "next tab"),
-		PrevTab:     ui.Binding(keys, config.ActionPrevFilter, "previous tab"),
-		Zoom:        ui.Binding(keys, config.ActionZoom, "zoom"),
-		Back:        ui.Binding(keys, config.ActionBack, "back"),
-		Select:      ui.Binding(keys, config.ActionSelect, "open"),
-		Open:        ui.Binding(keys, config.ActionOpen, "browser"),
-		Refresh:     ui.Binding(keys, config.ActionRefresh, "refresh"),
-		Filter:      ui.Binding(keys, config.ActionFilter, "filter"),
-		Sort:        ui.Binding(keys, config.ActionSort, "sort"),
-		ClearFilter: ui.Binding(keys, config.ActionClearFilter, "clear filters"),
+		Next:        page.Binding("global.next_pane", "next pane"),
+		Prev:        page.Binding("global.prev_pane", "previous pane"),
+		NextTab:     list.Binding("global.next_tab", "next tab"),
+		PrevTab:     list.Binding("global.prev_tab", "previous tab"),
+		Zoom:        page.Binding("global.zoom", "zoom"),
+		Back:        page.Binding("global.dismiss", "back"),
+		Select:      page.Binding("global.select", "open"),
+		Open:        page.Binding("global.open", "browser"),
+		Refresh:     page.Binding("global.refresh", "refresh"),
+		Filter:      list.Binding("filter", "filter"),
+		Sort:        list.Binding("sort", "sort"),
+		ClearFilter: list.Binding("clear_filter", "clear filters"),
 		Up:          key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("↑/k", "up")),
 		Down:        key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓/j", "down")),
 		Left:        key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←/h", "left")),
 		Right:       key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "right")),
 	}
-	actions := [numPanes]string{config.ActionPane1, config.ActionPane2, config.ActionPane3, config.ActionPane4}
+	actions := [numPanes]string{"global.pane_1", "global.pane_2", "global.pane_3", "global.pane_4"}
 	names := [numPanes]string{paneTitles[pinnedPane], "List", paneTitles[readmePane], paneTitles[calendarPane]}
 	for i, a := range actions {
-		k.Panes[i] = ui.Binding(keys, a, names[i])
+		k.Panes[i] = page.Binding(a, names[i])
 	}
 	k.Jump = ui.Jump(k.Panes[:]...)
 
-	// The page, and the app for the filter, match these keys first, so
-	// the list gets only the keys they leave it, such as g, which goes
-	// to the first row there.
+	// The page matches these keys first, so the list gets only the keys it
+	// leaves it, such as f, which pages down there.
 	f := feed.DefaultKeyMap()
 	f.Retry = key.NewBinding(key.WithKeys(k.Refresh.Keys()...), key.WithHelp(k.Refresh.Help().Key, "retry"), key.WithDisabled())
 	k.feed = f
@@ -116,18 +120,57 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 	}
 }
 
-// KeyLayers implements ui.Keyed: the keys of the focused pane and of the
-// page, named for what they do there, and then those of the list on view
-// while it has the focus.
+// KeyLayers implements ui.Keyed: the keys of the page, which work in every
+// pane, and then those of the focused pane, named for what they do there,
+// with those of the list on view, the README or the calendar, whichever
+// has the focus.
 func (s *Section) KeyLayers() []keyhelp.Layer {
-	own := keyhelp.FromHelp("profile", s.keys.state(s), false)
-	if l := s.page.list(); l != nil && s.page.focus == listPane {
-		return []keyhelp.Layer{own, keyhelp.FromHelp("list", l.feed().KeyMap(), false)}
+	k := s.keys.state(s)
+	screen := ui.ContextLayer(ctxPage,
+		[]key.Binding{k.Next, k.Prev, k.Zoom, k.Back, k.Refresh, k.Jump},
+		[]key.Binding{k.Next, k.Jump, k.Zoom, k.Back, k.Refresh})
+	focus := pinnedPane
+	if s.page != nil {
+		focus = s.page.focus
+	}
+	ctx := paneContext[focus]
+	own := keyhelp.Layer{Bindings: k.paneKeys(focus), Short: k.paneShort(focus)}
+	if l := s.page.list(); l != nil && focus == listPane {
+		return []keyhelp.Layer{screen, ui.MergeLayers(ctx, own, keyhelp.FromHelp("", l.feed().KeyMap(), false))}
 	}
 	if side, ok := s.sideLayer(); ok {
-		return []keyhelp.Layer{own, side}
+		return []keyhelp.Layer{screen, ui.MergeLayers(ctx, own, side)}
 	}
-	return []keyhelp.Layer{own}
+	return []keyhelp.Layer{screen, ui.MergeLayers(ctx, own)}
+}
+
+// paneKeys returns the keys that work in the pane, in the order the page
+// matches them.
+func (k KeyMap) paneKeys(p paneID) []key.Binding {
+	switch p {
+	case pinnedPane:
+		return []key.Binding{k.Left, k.Right, k.Up, k.Down, k.Select, k.Open}
+	case listPane:
+		return []key.Binding{k.Select, k.Open, k.NextTab, k.PrevTab, k.ClearFilter, k.Filter, k.Sort}
+	case readmePane:
+		return []key.Binding{k.Open}
+	case calendarPane, numPanes:
+	}
+	return nil
+}
+
+// paneShort returns the keys of the pane worth a hint.
+func (k KeyMap) paneShort(p paneID) []key.Binding {
+	switch p {
+	case pinnedPane:
+		return []key.Binding{k.Up, k.Down, k.Left, k.Right, k.Select, k.Open}
+	case listPane:
+		return []key.Binding{k.Select, k.Filter, k.Sort, k.ClearFilter, k.Open, k.NextTab}
+	case readmePane:
+		return []key.Binding{k.Open}
+	case calendarPane, numPanes:
+	}
+	return nil
 }
 
 // state returns k as the page takes it with the focus on its pane: the
@@ -138,13 +181,8 @@ func (k KeyMap) state(s *Section) KeyMap {
 	if s.page != nil {
 		focus = s.page.focus
 	}
-	panes := map[paneID][]*key.Binding{
-		pinnedPane: {&k.Left, &k.Right, &k.Up, &k.Down, &k.Select, &k.Open},
-		listPane:   {&k.NextTab, &k.PrevTab, &k.ClearFilter, &k.Select, &k.Open, &k.Filter, &k.Sort},
-		readmePane: {&k.Open},
-	}
 	for _, b := range []*key.Binding{&k.Left, &k.Right, &k.Up, &k.Down, &k.Select, &k.Open, &k.NextTab, &k.PrevTab, &k.ClearFilter, &k.Filter, &k.Sort} {
-		b.SetEnabled(b.Enabled() && s.page != nil && slices.Contains(panes[focus], b))
+		b.SetEnabled(b.Enabled() && s.page != nil)
 	}
 	if focus == listPane {
 		l := s.repoTab()

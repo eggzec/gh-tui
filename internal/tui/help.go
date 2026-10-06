@@ -7,6 +7,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 )
@@ -98,16 +99,22 @@ func (m *Model) keyLayers() []keyhelp.Layer {
 // the keys the section claims, then the app's, and then the section's.
 func (m *Model) layersNow() []keyhelp.Layer {
 	if m.line.Focused() {
-		return []keyhelp.Layer{keyhelp.FromHelp("command line", m.line, true)}
+		return []keyhelp.Layer{ui.ContextHelp("command_line", m.line, true)}
 	}
 	quit := keyhelp.Layer{Source: "app", Bindings: []key.Binding{forceQuit}}
 	if m.helpOpen() {
-		return []keyhelp.Layer{quit, keyhelp.FromHelp("help", m.keyhelp, true)}
+		return []keyhelp.Layer{quit, ui.ContextHelp("help", m.keyhelp, true)}
 	}
 	inner, modal := m.innerLayers()
 	help := m.helpKey(inner)
 	always := keyhelp.Layer{Source: "app", Short: []key.Binding{help}}
 	if modal {
+		// Over a screen, the app's keys are a layer of their own. The
+		// modal has the keys that work everywhere, which it takes by
+		// intents, in its own layers, unless what it shows takes every key.
+		if !slices.ContainsFunc(inner, capturing) {
+			always.Context = config.ContextGlobal
+		}
 		always.Bindings = append(always.Bindings, forceQuit)
 		if m.commandsOver(m.topModal()) {
 			always.Bindings = append(always.Bindings, m.keys.Command)
@@ -123,25 +130,23 @@ func (m *Model) innerLayers() (layers []keyhelp.Layer, modal bool) {
 	if mod := m.topModal(); mod != nil {
 		return mod.KeyLayers(), true
 	}
-	app := keyhelp.FromHelp("app", m.keys.state(m), false)
+	app := m.keys.state(m).layers(m)
 	// The help key comes before them all.
 	isHelp := func(b key.Binding) bool { return sameBinding(b, m.keys.Help) }
-	app.Bindings = slices.DeleteFunc(app.Bindings, isHelp)
-	app.Short = slices.DeleteFunc(app.Short, isHelp)
+	for i := range app {
+		app[i].Bindings = slices.DeleteFunc(app[i].Bindings, isHelp)
+		app[i].Short = slices.DeleteFunc(app[i].Short, isHelp)
+	}
 	p := m.focused()
 	if p == nil {
-		return []keyhelp.Layer{app}, false
+		return app, false
 	}
 	if c, ok := p.section.(ui.Capturer); ok && c.Capturing() {
 		// ctrl+c passes a capturing section by, to the app's keys, so
 		// that it can't trap the user.
-		return append([]keyhelp.Layer{quitReach(app)}, p.section.KeyLayers()...), false
+		return append([]keyhelp.Layer{quitReach(app[0])}, p.section.KeyLayers()...), false
 	}
-	if c, ok := p.section.(ui.Claimer); ok {
-		layers = append(layers, keyhelp.Layer{Source: p.section.Title(), Bindings: c.Claimed()})
-	}
-	layers = append(layers, app)
-	return append(layers, p.section.KeyLayers()...), false
+	return append(app, p.section.KeyLayers()...), false
 }
 
 // quitReach returns the bindings of l that ctrl+c reaches, with that key
@@ -182,4 +187,11 @@ func (m *Model) opensHelp(msg tea.KeyPressMsg) bool {
 	}
 	inner, _ := m.innerLayers()
 	return key.Matches(msg, m.helpKey(inner))
+}
+
+// capturing reports whether l is the keys of what takes every key while
+// it is open, or of something that isn't a context of keys at all.
+func capturing(l keyhelp.Layer) bool {
+	c, ok := config.LookupContext(l.Context)
+	return !ok || c.Reach == config.ReachCapture
 }

@@ -1,153 +1,329 @@
 package config
 
 import (
+	"errors"
 	"fmt"
+	"maps"
 	"slices"
+	"strings"
 	"sync"
+
+	"go.yaml.in/yaml/v3"
 
 	"github.com/eggzec/gh-tui/internal/keyname"
 )
 
-// Global action names, used as keys of [Config.Keys].
+// Keymap maps the contexts of keys, such as "global" or "pulls", to the
+// actions each has, and those to their keys. An action is named by its
+// context and its name joined by a dot, such as "pulls.merge", as the
+// Action constants are. The contexts are those of [Contexts].
+type Keymap map[string]map[string][]string
+
+// ContextGlobal is the context of the keys that work everywhere.
+const ContextGlobal = "global"
+
+// Actions of the global context, which work everywhere. No other context
+// may bind their keys or redefine them.
 const (
-	ActionQuit    = "quit"
-	ActionHelp    = "help"
-	ActionRefresh = "refresh"
-	ActionSearch  = "search"
-	ActionOpen    = "open_in_browser"
-	// ActionNextTab and ActionPrevTab cycle the focus through the panes of
-	// the screen. They keep the names they had when the app had tabs.
-	ActionNextTab = "next_tab"
-	ActionPrevTab = "prev_tab"
+	ActionQuit    = "global.quit"
+	ActionHelp    = "global.help"
+	ActionRefresh = "global.refresh"
+	ActionSearch  = "global.search"
+	// ActionOpen opens what is selected in the browser.
+	ActionOpen = "global.open"
+	// ActionNextPane and ActionPrevPane cycle the focus through the panes
+	// of the screen, or of a modal with panes.
+	ActionNextPane = "global.next_pane"
+	ActionPrevPane = "global.prev_pane"
 	// ActionPane1 to ActionPane5 focus the pane with that number on the
 	// screen: files, pull requests and issues on the repository screen,
 	// and pinned, repositories, work, contributions and notifications on
 	// the dashboard.
-	ActionPane1 = "pane_1"
-	ActionPane2 = "pane_2"
-	ActionPane3 = "pane_3"
-	ActionPane4 = "pane_4"
-	ActionPane5 = "pane_5"
+	ActionPane1 = "global.pane_1"
+	ActionPane2 = "global.pane_2"
+	ActionPane3 = "global.pane_3"
+	ActionPane4 = "global.pane_4"
+	ActionPane5 = "global.pane_5"
+	// ActionNextTab and ActionPrevTab switch between the tabs of the
+	// focused pane or modal, such as All, Failing, Running and Mine of the
+	// Actions modal, the states of the pull requests and the issues, the
+	// owners of the dashboard's repositories, the lists of the page of a
+	// user or an organization, and the Filters and Sort tabs of the
+	// filter modal.
+	ActionNextTab = "global.next_tab"
+	ActionPrevTab = "global.prev_tab"
 	// ActionNotifications switches between the screen on view and the
 	// notifications.
-	ActionNotifications = "notifications"
+	ActionNotifications = "global.notifications"
 	// ActionDashboard shows the dashboard, from any screen.
-	ActionDashboard = "dashboard"
-	// ActionHistory opens the History modal of the repository screen.
-	ActionHistory = "history"
-	// ActionResetBase shows the files at the head of the default branch
-	// again, after ActionUseAsBase chose another base.
-	ActionResetBase = "reset_base"
-	// ActionActions opens the Actions modal of the repository screen.
-	ActionActions = "actions"
+	ActionDashboard = "global.dashboard"
 	// ActionFindFile opens the file finder of the repository screen, which
 	// finds a file by some letters of its path.
-	ActionFindFile = "find_file"
+	ActionFindFile = "global.find_file"
 	// ActionCommand opens the command line at the bottom of the screen,
 	// where commands such as goto are typed.
-	ActionCommand = "command"
-)
-
-// Actions of the sections. A key may serve different actions in different
-// sections, such as "m" for merge in pull requests and mark read in
-// notifications.
-const (
-	ActionSelect = "select"
-	ActionBack   = "back"
-	// ActionFilter opens the filter modal of the focused list where it
-	// has one, such as the notifications or the repositories of the
-	// dashboard, on its Filters tab, and ActionSort opens it on its Sort
-	// tab, in a list that can be sorted. ActionClearFilter puts the
-	// filters of a list back to its defaults.
-	ActionFilter      = "filter"
-	ActionSort        = "sort"
-	ActionClearFilter = "clear_filter"
-	ActionMerge       = "merge"
-	ActionClose       = "close"
-	ActionReopen      = "reopen"
-	ActionToggleDraft = "toggle_draft"
-	ActionMarkRead    = "mark_read"
-	ActionMarkDone    = "mark_done"
-	ActionMarkAllRead = "mark_all_read"
-	// ActionStar will star the repository, or unstar it. It is reserved,
-	// with its key, until starring is wired in the tui, and does nothing
-	// yet.
-	ActionStar    = "star"
-	ActionComment = "comment"
-	ActionLabel   = "label"
-	// Actions of the file tree.
-	ActionExpand      = "expand"
-	ActionCollapse    = "collapse"
-	ActionExpandAll   = "expand_all"
-	ActionCollapseAll = "collapse_all"
-	// ActionUseAsBase shows the files at the branch or commit under the
-	// cursor of the History modal.
-	ActionUseAsBase = "use_as_base"
-	// ActionNextOwner and ActionPrevOwner switch the repositories of the
-	// dashboard between the viewer's own and those of each organization.
-	ActionNextOwner = "next_owner"
-	ActionPrevOwner = "prev_owner"
-	// ActionCurrentRepo opens the repository of the current directory from
-	// the dashboard.
-	ActionCurrentRepo = "current_repo"
-	// ActionGoToRepo shows the repository of the search result under the
-	// cursor, where enter previews the result over the search.
-	ActionGoToRepo = "go_to_repo"
+	ActionCommand = "global.command"
+	// ActionSelect opens or chooses what is under the cursor, and
+	// ActionDismiss steps back out of what is open, such as a zoom.
+	ActionSelect  = "global.select"
+	ActionDismiss = "global.dismiss"
 	// ActionOwner shows the page of the person or organization behind what
 	// is selected: the author of a pull request or issue, the owner of a
 	// repository or of what is in it, such as a file or a notification,
 	// or an organization of the dashboard's Repositories pane.
-	ActionOwner = "owner"
-	// ActionNextFilter and ActionPrevFilter switch between the tabs of a
-	// list, such as All, Failing, Running and Mine of the Actions modal,
-	// the states of the pull requests and the issues, and the lists of
-	// the page of a user or an organization.
-	ActionNextFilter = "next_filter"
-	ActionPrevFilter = "prev_filter"
-	// ActionPaneLeft and ActionPaneRight move the focus to the pane on the
-	// left or right, in a modal with panes such as Actions.
-	ActionPaneLeft  = "pane_left"
-	ActionPaneRight = "pane_right"
+	ActionOwner = "global.owner"
 	// ActionZoom shows the focused pane of the dashboard, the repository
 	// screen, or a modal such as Actions, alone, or all of them again.
-	ActionZoom = "zoom"
-	// Actions of the Actions modal: re-run the failed jobs of a run, all
-	// of them, or the job under the cursor, and cancel a run.
-	ActionRerunFailed = "rerun_failed"
-	ActionRerun       = "rerun"
-	ActionRerunJob    = "rerun_job"
-	ActionCancelRun   = "cancel_run"
-	// ActionAnnotations moves the focus between the annotations of a
-	// failed job and its log.
-	ActionAnnotations = "annotations"
-	// ActionChecks shows the checks of a pull request, in its modal.
-	ActionChecks = "checks"
+	ActionZoom = "global.zoom"
 )
 
-// actions are the names of the actions: those that default.yaml gives
-// keys.
-var actions = sync.OnceValue(func() map[string]bool {
-	out := map[string]bool{}
-	for action := range Default().Keys {
-		out[action] = true
+// Actions of the repository screen, whose keys the app itself takes. The
+// actions of the other contexts are named where their panes and modals
+// bind them, by the context of each.
+const (
+	// ActionHistory opens the History modal of the repository screen.
+	ActionHistory = "repo.history"
+	// ActionActions opens the Actions modal of the repository screen.
+	ActionActions = "repo.actions"
+	// ActionStar will star the repository, or unstar it. It is reserved,
+	// with its key, until starring is wired in the tui, and does nothing
+	// yet.
+	ActionStar = "repo.star"
+)
+
+// Of returns the keys of action, such as "pulls.merge", or none.
+func (k Keymap) Of(action string) []string {
+	ctx, name, _ := strings.Cut(action, ".")
+	return k[ctx][name]
+}
+
+// Set binds action, such as "pulls.merge", to keys, adding its context
+// if k lacks it.
+func (k Keymap) Set(action string, keys []string) {
+	ctx, name, _ := strings.Cut(action, ".")
+	if k[ctx] == nil {
+		k[ctx] = map[string][]string{}
+	}
+	k[ctx][name] = keys
+}
+
+// Actions returns the actions of k, each as its context and name joined
+// by a dot, sorted.
+func (k Keymap) Actions() []string {
+	var out []string
+	for ctx, actions := range k {
+		for name := range actions {
+			out = append(out, ctx+"."+name)
+		}
+	}
+	slices.Sort(out)
+	return out
+}
+
+// clone returns k with maps and slices of its own.
+func (k Keymap) clone() Keymap {
+	if k == nil {
+		return nil
+	}
+	out := make(Keymap, len(k))
+	for ctx, actions := range k {
+		if actions == nil {
+			out[ctx] = nil
+			continue
+		}
+		out[ctx] = make(map[string][]string, len(actions))
+		for name, keys := range actions {
+			out[ctx][name] = slices.Clone(keys)
+		}
 	}
 	return out
-})
+}
 
-// validateKeys rejects unknown actions and keys, so that a typo in the
-// config file doesn't silently leave the default binding in place, or bind
-// a key no press can match. No keys, [], unbinds the action.
-func validateKeys(action string, keys []string) error {
-	if !actions()[action] {
-		return fmt.Errorf("keys.%s: unknown action", action)
+// UnmarshalYAML reads the contexts of keys. A context that isn't a
+// mapping, such as an action set where a context goes, is kept without
+// actions, for Validate to refuse with its name.
+func (k *Keymap) UnmarshalYAML(n *yaml.Node) error {
+	if n.Kind != yaml.MappingNode {
+		return fmt.Errorf("line %d: keys: want a mapping of contexts, such as keys.global", n.Line)
+	}
+	out := make(Keymap, len(n.Content)/2)
+	for i := 0; i+1 < len(n.Content); i += 2 {
+		name, v := n.Content[i].Value, n.Content[i+1]
+		if v.Kind != yaml.MappingNode {
+			out[name] = nil
+			continue
+		}
+		var actions map[string][]string
+		if err := v.Decode(&actions); err != nil {
+			return err
+		}
+		if actions == nil {
+			actions = map[string][]string{}
+		}
+		out[name] = actions
+	}
+	*k = out
+	return nil
+}
+
+// actions are the names of the actions of each context: those that
+// default.yaml gives keys.
+var actions = sync.OnceValue(func() Keymap { return Default().Keys })
+
+// validate refuses what no press could use, in three layers. Every
+// context and action must exist, so that a typo in the config file doesn't
+// silently leave the default binding in place, and every key must be a
+// name a press has, and not ctrl+c, which always quits. Within a context,
+// no key may do two things. And the keys of the contexts that work
+// together, global, a screen or modal, and one of its panes, may not
+// overlap, since the app would match the outer one first.
+func (k Keymap) validate() error {
+	var errs []error
+	known := actions()
+	for _, ctx := range slices.Sorted(maps.Keys(k)) {
+		if _, ok := LookupContext(ctx); !ok {
+			errs = append(errs, fmt.Errorf("keys.%s: unknown context", ctx))
+			continue
+		}
+		if k[ctx] == nil {
+			errs = append(errs, fmt.Errorf("keys.%s: want the actions of the context and their keys, such as keys.%s.%s", ctx, ctx, firstAction(known[ctx])))
+			continue
+		}
+		for _, name := range slices.Sorted(maps.Keys(k[ctx])) {
+			errs = append(errs, validateKeys(ctx, name, k[ctx][name]))
+		}
+	}
+	return errors.Join(append(errs, k.clashes()...)...)
+}
+
+// firstAction returns the first of the names of actions, sorted, or a
+// stand-in for a context that has none.
+func firstAction(actions map[string][]string) string {
+	names := slices.Sorted(maps.Keys(actions))
+	if len(names) == 0 {
+		return "action"
+	}
+	return names[0]
+}
+
+// validateKeys refuses an action that ctx doesn't have, or one of keys
+// that no press can match, or that is ctrl+c. No keys, [], unbinds the
+// action.
+func validateKeys(ctx, name string, keys []string) error {
+	path := "keys." + ctx + "." + name
+	if _, ok := actions()[ctx][name]; !ok {
+		if _, global := actions()[ContextGlobal][name]; global && ctx != ContextGlobal {
+			return fmt.Errorf("%s: %s is a global action, which no context may redefine: set keys.global.%s", path, name, name)
+		}
+		return fmt.Errorf("%s: unknown action", path)
 	}
 	if slices.Contains(keys, "") {
-		return fmt.Errorf("keys.%s: empty key", action)
+		return fmt.Errorf("%s: empty key", path)
 	}
-	for _, k := range keys {
-		if err := keyname.Check(k); err != nil {
-			return fmt.Errorf("keys.%s: %w", action, err)
+	for _, key := range keys {
+		if err := keyname.Check(key); err != nil {
+			return fmt.Errorf("%s: %w", path, err)
+		}
+		if key == forcedQuit {
+			return fmt.Errorf("%s: %s always quits and can't be bound", path, key)
 		}
 	}
 	return nil
+}
+
+// forcedQuit is the key that always quits, from anywhere, and that no
+// context may bind.
+const forcedQuit = "ctrl+c"
+
+// clashes returns the problems of keys that overlap: those of one context
+// that does two things, and those that the app would match before the
+// action it belongs to, between global, a screen or modal, and its panes.
+// Unknown contexts and actions are left to validate.
+func (k Keymap) clashes() []error {
+	known := actions()
+	// bound returns the actions of ctx that are known, by key.
+	bound := func(ctx string) map[string][]string {
+		out := map[string][]string{}
+		for _, name := range slices.Sorted(maps.Keys(k[ctx])) {
+			if _, ok := known[ctx][name]; !ok {
+				continue
+			}
+			for _, key := range k[ctx][name] {
+				if !slices.Contains(out[key], name) {
+					out[key] = append(out[key], name)
+				}
+			}
+		}
+		return out
+	}
+
+	var errs []error
+	for _, ctx := range slices.Sorted(maps.Keys(k)) {
+		if _, ok := LookupContext(ctx); !ok {
+			continue
+		}
+		// One key on two actions of one context.
+		keys := bound(ctx)
+		for _, key := range slices.Sorted(maps.Keys(keys)) {
+			for _, name := range keys[key][1:] {
+				errs = append(errs, fmt.Errorf("keys.%s: %s is both %s and %s", ctx, key, keys[key][0], name))
+			}
+		}
+	}
+
+	global := bound(ContextGlobal)
+	// seen collects the actions that clash with each global one, to list
+	// them together when there are several: a user's key for a global
+	// action often meets several default keys of the panes.
+	type clash struct{ key, global string }
+	var order []clash
+	seen := map[clash][]string{}
+	for _, c := range contexts {
+		if c.Reach != ReachScreen && c.Reach != ReachPane {
+			continue
+		}
+		keys := bound(c.Name)
+		for _, key := range slices.Sorted(maps.Keys(keys)) {
+			g, ok := global[key]
+			if !ok {
+				continue
+			}
+			for _, name := range keys[key] {
+				id := clash{key, g[0]}
+				if _, ok := seen[id]; !ok {
+					order = append(order, id)
+				}
+				seen[id] = append(seen[id], "keys."+c.Name+"."+name)
+			}
+		}
+	}
+	for _, id := range order {
+		paths := seen[id]
+		if len(paths) == 1 {
+			errs = append(errs, fmt.Errorf("%s: %s is already keys.global.%s", paths[0], id.key, id.global))
+			continue
+		}
+		errs = append(errs, fmt.Errorf("keys.global.%s: %s is also %s: unbind or rebind them there", id.global, id.key, strings.Join(paths, ", ")))
+	}
+
+	// A pane may not bind a key that works in every pane of its screen or
+	// modal.
+	for _, c := range contexts {
+		if c.Reach != ReachPane {
+			continue
+		}
+		parent, _ := LookupContext(c.Parent)
+		outer, inner := bound(c.Parent), bound(c.Name)
+		for _, key := range slices.Sorted(maps.Keys(inner)) {
+			o, ok := outer[key]
+			if !ok {
+				continue
+			}
+			for _, name := range inner[key] {
+				errs = append(errs, fmt.Errorf("keys.%s.%s: %s is already keys.%s.%s, which works in every pane of the %s %s",
+					c.Name, name, key, c.Parent, o[0], parent.Title, parent.kind()))
+			}
+		}
+	}
+	return errs
 }

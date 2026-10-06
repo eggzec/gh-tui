@@ -68,7 +68,7 @@ func TestDashboardContributions(t *testing.T) {
 
 func TestDashboardFromFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.yaml")
-	if err := os.WriteFile(path, []byte("dashboard:\n  calendar_glyph: \"▪\"\n  contributions: 30d\nkeys:\n  dashboard: [\"~\"]\n"), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte("dashboard:\n  calendar_glyph: \"▪\"\n  contributions: 30d\nkeys:\n  global:\n    dashboard: [\"~\"]\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv(EnvLog, "")
@@ -82,7 +82,7 @@ func TestDashboardFromFile(t *testing.T) {
 	if cfg.Dashboard.Contributions != Contributions30d {
 		t.Errorf("contributions = %q, want 30d", cfg.Dashboard.Contributions)
 	}
-	if got := cfg.Keys[ActionDashboard]; !slices.Equal(got, []string{"~"}) {
+	if got := cfg.Keys.Of(ActionDashboard); !slices.Equal(got, []string{"~"}) {
 		t.Errorf("dashboard = %v, want [~]", got)
 	}
 }
@@ -139,20 +139,20 @@ func TestDashboardPrefetchRenamed(t *testing.T) {
 func TestDashboardActions(t *testing.T) {
 	defaults := Default().Keys
 	for action, want := range map[string][]string{
-		ActionDashboard:   {"0"},
-		ActionPane4:       {"4"},
-		ActionPane5:       {"5"},
-		ActionNextOwner:   {"]", "right"},
-		ActionPrevOwner:   {"[", "left"},
-		ActionCurrentRepo: {"."},
+		ActionDashboard:              {"0"},
+		ActionPane4:                  {"4"},
+		ActionPane5:                  {"5"},
+		"dashboard_repos.next_owner": {"right"},
+		"dashboard_repos.prev_owner": {"left"},
+		"dashboard.current_repo":     {"."},
 	} {
-		if got := defaults[action]; !slices.Equal(got, want) {
+		if got := defaults.Of(action); !slices.Equal(got, want) {
 			t.Errorf("default %s = %v, want %v", action, got, want)
 		}
 	}
 	// The dashboard key is on every screen, so no other action may take it.
-	for action, keys := range defaults {
-		if action != ActionDashboard && slices.Contains(keys, "0") {
+	for _, action := range defaults.Actions() {
+		if action != ActionDashboard && slices.Contains(defaults.Of(action), "0") {
 			t.Errorf("%s also binds 0", action)
 		}
 	}

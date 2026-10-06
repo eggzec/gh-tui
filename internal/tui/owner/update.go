@@ -6,6 +6,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 )
 
 // Update handles the page's keys, the account the app gives it and its
@@ -183,9 +184,11 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 			return s.stepTab(-1), true
 		case repos && key.Matches(msg, k.ClearFilter):
 			return s.setFilter(""), true
-		case repos && key.Matches(msg, k.Filter, k.Sort):
-			// The app opens the filter, so its keys don't reach the list.
-			return nil, true
+		case repos && key.Matches(msg, k.Filter):
+			// The list gets no f, which pages down there.
+			return ui.OpenFilter(filterform.FiltersTab), true
+		case repos && key.Matches(msg, k.Sort):
+			return ui.OpenFilter(filterform.SortTab), true
 		case key.Matches(msg, k.Select):
 			s.openedAhead()
 			return l.enter(s), true

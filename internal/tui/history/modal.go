@@ -16,6 +16,8 @@
 package history
 
 import (
+	"charm.land/bubbles/v2/key"
+
 	"context"
 	"slices"
 	"sync/atomic"
@@ -94,7 +96,7 @@ var _ ui.Modal = (*Modal)(nil)
 // Opener returns what the app opens the history with, for tui.WithHistory:
 // a new modal each time, which reads what it shows from svc and takes its
 // keys from the configured keys.
-func Opener(svc Service, keys map[string][]string, opts ...Option) func(ctx context.Context, repo core.RepoRef, defaultBranch string, base ui.BaseMsg) (ui.Modal, tea.Cmd) {
+func Opener(svc Service, keys config.Keymap, opts ...Option) func(ctx context.Context, repo core.RepoRef, defaultBranch string, base ui.BaseMsg) (ui.Modal, tea.Cmd) {
 	return func(ctx context.Context, repo core.RepoRef, defaultBranch string, base ui.BaseMsg) (ui.Modal, tea.Cmd) {
 		m := New(ctx, svc, repo, defaultBranch, base, keys, opts...)
 		load := m.Init()
@@ -106,7 +108,7 @@ func Opener(svc Service, keys map[string][]string, opts ...Option) func(ctx cont
 // tui.WithCommit: a new modal each time, on the history of commit sha of
 // repo, with the commit pane focused on it, such as for a notification of
 // the commit. defaultBranch may be empty.
-func CommitOpener(svc Service, keys map[string][]string, opts ...Option) func(ctx context.Context, repo core.RepoRef, sha, defaultBranch string) (ui.Modal, tea.Cmd) {
+func CommitOpener(svc Service, keys config.Keymap, opts ...Option) func(ctx context.Context, repo core.RepoRef, sha, defaultBranch string) (ui.Modal, tea.Cmd) {
 	return func(ctx context.Context, repo core.RepoRef, sha, defaultBranch string) (ui.Modal, tea.Cmd) {
 		m := New(ctx, svc, repo, defaultBranch, ui.BaseMsg{}, keys, append(slices.Clip(opts), onCommit(sha))...)
 		load := m.Init()
@@ -117,7 +119,7 @@ func CommitOpener(svc Service, keys map[string][]string, opts ...Option) func(ct
 // New returns the history of repo, which opens on the branch that base was
 // chosen from, or else on defaultBranch, with the graph focused. ctx bounds
 // its reads until it closes. Call Init once it is open.
-func New(ctx context.Context, svc Service, repo core.RepoRef, defaultBranch string, base ui.BaseMsg, keys map[string][]string, opts ...Option) *Modal {
+func New(ctx context.Context, svc Service, repo core.RepoRef, defaultBranch string, base ui.BaseMsg, keys config.Keymap, opts ...Option) *Modal {
 	o := defaultOptions()
 	for _, opt := range opts {
 		opt(&o)
@@ -208,30 +210,29 @@ func (m *Modal) KeyLayers() []keyhelp.Layer {
 	patch := m.focus == commitPane && m.commit.patch
 	switch {
 	case m.focus == branchPane && m.branches.filter != nil:
-		return []keyhelp.Layer{keyhelp.FromHelp("filter", *m.branches.filter, true)}
+		return []keyhelp.Layer{ui.ContextHelp("picker", *m.branches.filter, true)}
 	case patch && m.commit.pager.Capturing():
-		return []keyhelp.Layer{keyhelp.FromHelp("pager", m.commit.pager, true)}
+		return []keyhelp.Layer{ui.PagerLayer("history_patch", &m.commit.pager)}
 	}
 	k := m.keys.state(m)
-	own := keyhelp.Layer{Source: "history", Bindings: k.own(), Short: k.ShortHelp()}
+	screen := ui.ContextLayer(ctxModal, k.screen(), []key.Binding{k.Open, k.Retry, k.Next, k.Zoom, k.Back})
+	ctx := paneContext(m.focus, patch)
+	keys, short := k.pane(m.focus)
+	own := keyhelp.Layer{Bindings: keys, Short: short}
 	switch {
 	case patch:
-		return []keyhelp.Layer{own, keyhelp.FromHelp("pager", m.commit.pager, false)}
+		return []keyhelp.Layer{screen, ui.PagerLayer(ctx, &m.commit.pager)}
 	case m.focus == graphPane:
 		g := m.graph.model.KeyMap()
 		g.Choose = named(g.Choose, "diff")
-		return []keyhelp.Layer{own, keyhelp.FromHelp("graph", g, false)}
+		return []keyhelp.Layer{screen, ui.MergeLayers(ctx, own, keyhelp.FromHelp("", g, false))}
 	}
 	// The pane moves with the list's keys, and the modal's own select and
 	// retry take the place of its choose and retry.
 	list := k.List
 	list.Choose.SetEnabled(false)
 	list.Retry.SetEnabled(false)
-	source := "branches"
-	if m.focus == commitPane {
-		source = "files"
-	}
-	return []keyhelp.Layer{own, keyhelp.FromHelp(source, list, false)}
+	return []keyhelp.Layer{screen, ui.MergeLayers(ctx, own, keyhelp.FromHelp("", list, false))}
 }
 
 // state returns k as the modal takes it now, named for what the keys do
@@ -250,6 +251,8 @@ func (k KeyMap) state(m *Modal) KeyMap {
 		k.Back = named(k.Back, "close")
 	}
 	k.UseAsBase.SetEnabled(k.UseAsBase.Enabled() && !patch)
+	k.graphBase.SetEnabled(k.graphBase.Enabled() && !patch)
+	k.filesBase.SetEnabled(k.filesBase.Enabled() && !patch)
 	failed := false
 	switch m.focus {
 	case branchPane:

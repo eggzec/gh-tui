@@ -24,7 +24,7 @@ func TestView(t *testing.T) {
 		{"190 columns job", wideW, wideH, []string{"enter"}},
 		{"190 columns running", wideW, wideH, []string{"down", "down", "down", "enter"}},
 		{"190 columns detail", wideW, wideH, []string{"down", "down", "enter"}},
-		{"190 columns confirm", wideW, wideH, []string{"enter", "ctrl+r"}},
+		{"190 columns confirm", wideW, wideH, []string{"enter", "R"}},
 		{"80 columns", narrowW, narrowH, nil},
 		{"80 columns job", narrowW, narrowH, []string{"enter"}},
 		{"80 columns annotations", narrowW, narrowH, []string{"enter", "A"}},
@@ -88,7 +88,7 @@ func TestViewFailed(t *testing.T) {
 
 func TestViewFitsAnySize(t *testing.T) {
 	for _, size := range [][2]int{{1, 1}, {10, 3}, {30, 5}, {250, 60}} {
-		for _, keys := range [][]string{nil, {"enter"}, {"enter", "A"}, {"down", "down", "enter"}, {"enter", "ctrl+r"}} {
+		for _, keys := range [][]string{nil, {"enter"}, {"enter", "A"}, {"down", "down", "enter"}, {"enter", "R"}} {
 			s, h := newStep(t, newFake(), wideW, wideH)
 			h.keys(keys...)
 			s.SetSize(size[0], size[1])

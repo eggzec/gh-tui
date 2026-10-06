@@ -9,6 +9,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
+	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keytest"
 )
 
@@ -26,20 +27,24 @@ func TestKeyLayersOrder(t *testing.T) {
 		want string
 		did  func(s *Section, before *Section, msgs []tea.Msg) bool
 	}{
-		{nil, "j", "list: down", func(s, b *Section, _ []tea.Msg) bool { return selectedRepo(s) != selectedRepo(b) }},
-		{nil, "enter", "dashboard: open", func(_, _ *Section, msgs []tea.Msg) bool { return hasRepoMsg(msgs) }},
-		{nil, "]", "dashboard: next owner", func(s, b *Section, _ []tea.Msg) bool { return s.repos.cur != b.repos.cur }},
-		{nil, "1", "dashboard: focus pane", func(s, _ *Section, _ []tea.Msg) bool { return s.focus == pinnedPane }},
-		// The app opens the filter; its keys don't page the list.
-		{nil, "f", "dashboard: filter", func(s, b *Section, msgs []tea.Msg) bool { return selectedRepo(s) == selectedRepo(b) && len(msgs) == 0 }},
-		{nil, "s", "dashboard: sort", func(s, b *Section, msgs []tea.Msg) bool { return selectedRepo(s) == selectedRepo(b) && len(msgs) == 0 }},
+		{nil, "j", "Repositories: down", func(s, b *Section, _ []tea.Msg) bool { return selectedRepo(s) != selectedRepo(b) }},
+		{nil, "enter", "Repositories: open", func(_, _ *Section, msgs []tea.Msg) bool { return hasRepoMsg(msgs) }},
+		{nil, "]", "Repositories: next owner", func(s, b *Section, _ []tea.Msg) bool { return s.repos.cur != b.repos.cur }},
+		{nil, "1", "Dashboard: focus pane", func(s, _ *Section, _ []tea.Msg) bool { return s.focus == pinnedPane }},
+		// The list asks the app to open the filter; its keys don't page.
+		{nil, "f", "Repositories: filter", func(s, b *Section, msgs []tea.Msg) bool {
+			return selectedRepo(s) == selectedRepo(b) && opensFilter(msgs, filterform.FiltersTab)
+		}},
+		{nil, "s", "Repositories: sort", func(s, b *Section, msgs []tea.Msg) bool {
+			return selectedRepo(s) == selectedRepo(b) && opensFilter(msgs, filterform.SortTab)
+		}},
 		{nil, "F", "nothing", func(s, b *Section, msgs []tea.Msg) bool { return selectedRepo(s) == selectedRepo(b) && len(msgs) == 0 }},
-		{[]string{"tab"}, "j", "dashboard: down", func(s, b *Section, _ []tea.Msg) bool {
+		{[]string{"tab"}, "j", "Work: down", func(s, b *Section, _ []tea.Msg) bool {
 			return s.tasks.tabs[s.tasks.cur].sel != b.tasks.tabs[b.tasks.cur].sel
 		}},
-		{[]string{"tab"}, "]", "dashboard: next list", func(s, b *Section, _ []tea.Msg) bool { return s.tasks.cur != b.tasks.cur }},
-		{[]string{"tab", "tab"}, "k", "calendar: day before", func(s, b *Section, _ []tea.Msg) bool { return selectedDay(s) != selectedDay(b) }},
-		{[]string{"tab", "tab"}, "tab", "dashboard: next pane", func(s, _ *Section, _ []tea.Msg) bool { return s.focus == inboxPane }},
+		{[]string{"tab"}, "]", "Work: next list", func(s, b *Section, _ []tea.Msg) bool { return s.tasks.cur != b.tasks.cur }},
+		{[]string{"tab", "tab"}, "k", "Contributions: day before", func(s, b *Section, _ []tea.Msg) bool { return selectedDay(s) != selectedDay(b) }},
+		{[]string{"tab", "tab"}, "tab", "Dashboard: next pane", func(s, _ *Section, _ []tea.Msg) bool { return s.focus == inboxPane }},
 	}
 	for _, tt := range tests {
 		s := newSection(t, newFake(), nil, 80, 22)
@@ -59,6 +64,11 @@ func TestKeyLayersOrder(t *testing.T) {
 			t.Errorf("after %q, %s didn't do what %q says", tt.to, tt.key, tt.want)
 		}
 	}
+}
+
+// opensFilter reports whether msgs ask the app to open the filter on tab.
+func opensFilter(msgs []tea.Msg, tab filterform.Tab) bool {
+	return len(msgs) == 1 && msgs[0] == ui.OpenFilterMsg{Tab: tab}
 }
 
 func selectedRepo(s *Section) string {

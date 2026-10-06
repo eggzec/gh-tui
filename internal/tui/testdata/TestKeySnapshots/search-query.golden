@@ -6,13 +6,11 @@ app
 app
   quit | ctrl+c | ^c | on
 
-query (types)
-
-query
+Query (types)
   back | esc | esc | on
   search | enter | ↵ | on
-  next | tab ] | tab | on
-  previous | shift+tab [ | shift+tab | on
+  next | tab | tab | on
+  previous | shift+tab | shift+tab | on
   kinds | left h | ←/h | off
   results | right l | →/l | off
   up | up k | ↑/k | off
@@ -20,7 +18,7 @@ query
   browser | o | o | off
   repo | ctrl+o | ^o | off
   checks | C | C | off
-  refresh | r ctrl+r | r | off
+  refresh | r | r | off
   filter | f | f | off
   sort | s | s | off
   kinds | up | ↑ | on

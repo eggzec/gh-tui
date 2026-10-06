@@ -4,7 +4,7 @@ app
   quit | ctrl+c | ^c | on
   help | ? | ? | off
 
-filter (types)
+Picker (types)
   up | up ctrl+p | ↑/ctrl+p | on
   down | down ctrl+n | ↓/ctrl+n | on
   page up | pgup | pgup | on

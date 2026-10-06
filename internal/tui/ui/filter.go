@@ -64,14 +64,6 @@ type Chipper interface {
 	Chips() string
 }
 
-// Claimer is a Section that at times takes keys the app would handle,
-// such as ] and [, which switch the section's tabs while the app would
-// move to the next pane. Claimed returns the bindings it takes before the
-// app now, or none.
-type Claimer interface {
-	Claimed() []key.Binding
-}
-
 // Fitter is a Modal that needs less room than the app offers. Fit returns
 // the size it wants inside the frame, given the most it can have.
 type Fitter interface {
@@ -138,10 +130,10 @@ func WithFormIcons(ic Icons) FilterOption {
 
 // FilterFormKeys returns the keys of a filter form. Its tabs switch with
 // the keys that switch the tabs of the lists and the other modals.
-func FilterFormKeys(keys map[string][]string) filterform.KeyMap {
+func FilterFormKeys(keys config.Keymap) filterform.KeyMap {
 	k := filterform.DefaultKeyMap()
-	k.NextTab = Binding(keys, config.ActionNextFilter, "next tab")
-	k.PrevTab = Binding(keys, config.ActionPrevFilter, "previous tab")
+	k.NextTab = Binding(keys, config.ActionNextTab, "next tab")
+	k.PrevTab = Binding(keys, config.ActionPrevTab, "previous tab")
 	return k
 }
 
@@ -225,7 +217,11 @@ func (m *FilterModal) SetTheme(t Theme) { m.form.SetStyles(t.FilterForm(m.icons)
 // KeyLayers implements Keyed: the keys of the form, which types what the
 // editor or the query line takes.
 func (m *FilterModal) KeyLayers() []keyhelp.Layer {
-	return []keyhelp.Layer{keyhelp.FromHelp("filter", m.form, m.form.Capturing())}
+	l := keyhelp.FromHelp("filter", m.form, m.form.Capturing())
+	if !m.form.Capturing() {
+		l.Context = "filter"
+	}
+	return []keyhelp.Layer{l}
 }
 
 // Tabs implements Tabbed: Filters and Sort, or none for a list that can't

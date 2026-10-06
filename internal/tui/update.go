@@ -210,6 +210,12 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ui.BackMsg:
 		cmd := m.showScreen(m.back, m.focus)
 		return m, cmd
+	case ui.OpenFilterMsg:
+		// The focused list asked, with its own filter or sort key.
+		if p := m.focused(); p != nil {
+			m.openFilter(p.section, msg.Tab)
+		}
+		return m, nil
 	case ui.OpenActionsMsg:
 		cmd := m.openActionsOn(msg.Repo, msg.Filter)
 		return m, cmd
@@ -275,7 +281,7 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 	p := m.focused()
 	// ctrl+c always reaches the app's keys, so a capturing section can't
 	// trap the user.
-	if p != nil && !key.Matches(msg, forceQuit) && m.takes(p.section, msg) {
+	if p != nil && !key.Matches(msg, forceQuit) && m.takes(p.section) {
 		cmd := p.section.Update(msg)
 		m.updateBadges()
 		return cmd
@@ -293,10 +299,6 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 		return m.openActions()
 	case m.fileFinder() != nil && key.Matches(msg, m.keys.FindFile):
 		return m.findFile()
-	case p != nil && key.Matches(msg, m.keys.Filter) && m.openFilter(p.section, filterform.FiltersTab):
-		return nil
-	case p != nil && key.Matches(msg, m.keys.Sort) && m.openFilter(p.section, filterform.SortTab):
-		return nil
 	case m.canZoom() && m.width >= narrowWidth && key.Matches(msg, m.keys.Zoom):
 		m.setZoom(!m.zoom)
 		return nil
@@ -340,13 +342,10 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 }
 
 // takes reports whether s takes msg before the app: while it captures
-// every key, or when it claims msg.
-func (m *Model) takes(s ui.Section, msg tea.KeyPressMsg) bool {
-	if c, ok := s.(ui.Capturer); ok && c.Capturing() {
-		return true
-	}
-	c, ok := s.(ui.Claimer)
-	return ok && key.Matches(msg, c.Claimed()...)
+// every key.
+func (m *Model) takes(s ui.Section) bool {
+	c, ok := s.(ui.Capturer)
+	return ok && c.Capturing()
 }
 
 // openFilter opens the filter modal of s on tab, and reports whether s has

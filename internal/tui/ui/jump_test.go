@@ -5,17 +5,19 @@ import (
 	"testing"
 
 	"charm.land/bubbles/v2/key"
+
+	"github.com/eggzec/gh-tui/internal/config"
 )
 
 // TestJump checks how the help names the keys of the panes: a run of
 // keys by its ends, others each, and none as a disabled binding that
 // still says what it does.
 func TestJump(t *testing.T) {
-	keys := map[string][]string{"a": {"1"}, "b": {"2"}, "c": {"3"}, "d": {"4"}, "x": {"x"}, "f": {"ctrl+f"}}
+	keys := config.Keymap{"test": {"a": {"1"}, "b": {"2"}, "c": {"3"}, "d": {"4"}, "x": {"x"}, "f": {"ctrl+f"}}}
 	panes := func(actions ...string) []key.Binding {
 		out := make([]key.Binding, len(actions))
 		for i, a := range actions {
-			out[i] = Binding(keys, a, a)
+			out[i] = Binding(keys, "test."+a, a)
 		}
 		return out
 	}
@@ -47,7 +49,7 @@ func TestJump(t *testing.T) {
 // TestUnboundBinding checks that an action without keys gives a disabled
 // binding that still says what it does, for the help.
 func TestUnboundBinding(t *testing.T) {
-	b := Binding(map[string][]string{"a": {}}, "a", "refresh")
+	b := Binding(config.Keymap{"test": {"a": {}}}, "test.a", "refresh")
 	if b.Enabled() || len(b.Keys()) != 0 || b.Help().Key != "" || b.Help().Desc != "refresh" {
 		t.Errorf("Binding = enabled %v, keys %q, help %+v", b.Enabled(), b.Keys(), b.Help())
 	}

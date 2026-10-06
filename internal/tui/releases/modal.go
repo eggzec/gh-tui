@@ -122,7 +122,7 @@ var _ ui.Modal = (*Modal)(nil)
 // Opener returns what the app opens a release with, for tui.WithRelease: a
 // new modal each time, which reads the release from svc and takes its keys
 // from the configured keys.
-func Opener(svc Service, keys map[string][]string, opts ...Option) func(ctx context.Context, repo core.RepoRef, id int64, url string) (ui.Modal, tea.Cmd) {
+func Opener(svc Service, keys config.Keymap, opts ...Option) func(ctx context.Context, repo core.RepoRef, id int64, url string) (ui.Modal, tea.Cmd) {
 	return func(ctx context.Context, repo core.RepoRef, id int64, url string) (ui.Modal, tea.Cmd) {
 		m := New(ctx, svc, repo, id, url, keys, opts...)
 		load := m.Init()
@@ -135,7 +135,7 @@ var lastID atomic.Int64
 // New returns the modal of release id of repo. url is the page the open
 // key shows until the release is loaded. ctx bounds its reads until it
 // closes. Call Init once it is open. A cached release shows at once.
-func New(ctx context.Context, svc Service, repo core.RepoRef, id int64, url string, keys map[string][]string, opts ...Option) *Modal {
+func New(ctx context.Context, svc Service, repo core.RepoRef, id int64, url string, keys config.Keymap, opts ...Option) *Modal {
 	o := options{now: time.Now, loc: time.Local, icons: ui.NewIcons(config.Default().UI.Icons)}
 	for _, opt := range opts {
 		opt(&o)
@@ -306,11 +306,12 @@ func (m *Modal) Update(msg tea.Msg) tea.Cmd {
 func (m *Modal) KeyLayers() []keyhelp.Layer {
 	k := m.keys
 	k.Refresh.SetEnabled(k.Refresh.Enabled() && m.failed())
-	doc := keyhelp.FromHelp("thread", m.thread, false)
+	doc := keyhelp.FromHelp("", m.thread, false)
 	if m.failed() {
 		doc = ui.Off(doc)
 	}
-	return []keyhelp.Layer{keyhelp.FromHelp("release", k, false), doc}
+	// The thread is the one pane of the modal.
+	return []keyhelp.Layer{ui.MergeLayers(ctxModal, keyhelp.FromHelp("", k, false), doc)}
 }
 
 // online reads again, now that GitHub answers again, the release and its
