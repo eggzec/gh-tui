@@ -24,14 +24,20 @@ type pages struct {
 	// cancelled.
 	hold chan struct{}
 	errs map[string]error
+	// kept are the pages served kept, in place of a read GitHub rate
+	// limited, as the services do: with no error, telling the watch of
+	// the read.
+	kept map[string]bool
 }
 
-func newPages() *pages { return &pages{cached: map[string]bool{}, errs: map[string]error{}} }
+func newPages() *pages {
+	return &pages{cached: map[string]bool{}, errs: map[string]error{}, kept: map[string]bool{}}
+}
 
 func (p *pages) readPage(ctx context.Context, q string) error {
 	p.mu.Lock()
 	p.read = append(p.read, q)
-	hold, err := p.hold, p.errs[q]
+	hold, err, kept := p.hold, p.errs[q], p.kept[q]
 	p.mu.Unlock()
 	if hold != nil {
 		select {
@@ -42,6 +48,10 @@ func (p *pages) readPage(ctx context.Context, q string) error {
 	}
 	if err != nil {
 		return err
+	}
+	if kept {
+		core.ServedLimited(ctx)
+		return nil
 	}
 	p.mu.Lock()
 	p.cached[q] = true
@@ -290,6 +300,29 @@ func TestFiltersStopAtRateLimit(t *testing.T) {
 	}
 	if cmd := f.Read(func() []string { return []string{"merged"} }); cmd != nil {
 		t.Error("Read read ahead again before a Reset")
+	}
+}
+
+// TestFiltersStopAtKeptForLimit checks that a page served kept, in place
+// of a read GitHub rate limited, stops the rest as the rate limit's error
+// does, and doesn't count as read.
+func TestFiltersStopAtKeptForLimit(t *testing.T) {
+	buf, stats := captureLog(t)
+	p := newPages()
+	p.kept["closed"] = true
+	f := newFilters(p)
+	f.Reset(t.Context(), "r")
+	f.Arm()
+	run(f.Read(func() []string { return []string{"closed", "merged", "all"} }))
+	if got := p.reads(); !slices.Equal(got, []string{"closed"}) {
+		t.Errorf("read %v, want nothing after the rate limit", got)
+	}
+	want := []string{"closed:sent:rate_limited", "merged:skipped_rate_limited", "all:skipped_rate_limited"}
+	if got := decisions(t, buf); !slices.Equal(got, want) {
+		t.Errorf("logged %v, want %v", got, want)
+	}
+	if s := stats.Summary().Prefetch[0]; s.RateLimited != 1 || s.Limited != 2 || s.Read != 0 {
+		t.Errorf("summary = %+v, want 1 rate limited, 2 skipped for the limit, none read", s)
 	}
 }
 

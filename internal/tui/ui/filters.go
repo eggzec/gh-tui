@@ -158,12 +158,19 @@ func (f *Filters[Q]) decided(ctx context.Context, q Q, why string, e obs.Prefetc
 }
 
 // readOne reads the page of q, and records what came of it. It reports
-// whether GitHub refused it with the rate limit.
+// whether GitHub refused it with the rate limit, as an error or by
+// serving what was kept in its place (core.WatchLimit).
 func (f *Filters[Q]) readOne(ctx context.Context, q Q) (limited bool) {
 	f.seen.Count(obs.PrefetchSent)
 	f.seen.Started(q)
 	start := time.Now()
-	err := f.read(ctx, q)
+	rctx, servedLimited := core.WatchLimit(ctx)
+	err := f.read(rctx, q)
+	if err == nil && servedLimited() {
+		// What was kept was served in place of the read, which the rate
+		// limit refused, so the next reads would be refused too.
+		err = core.ErrRateLimited
+	}
 	level, outcome := slog.LevelInfo, "read"
 	if err == nil {
 		f.seen.Read(q)
