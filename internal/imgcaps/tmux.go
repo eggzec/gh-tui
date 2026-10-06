@@ -20,6 +20,9 @@ type Tmux struct {
 	// answered tmux's XTVERSION, as it answered, such as "kitty(0.43.1)"
 	// or "ghostty 1.2.0", or "" when it didn't.
 	ClientTermtype string
+	// Attached is session_attached: how many clients, each a terminal,
+	// show the app's session, or 0 when tmux couldn't say.
+	Attached int
 	// VersionErr, PassthroughErr and TermtypeErr say why tmux couldn't
 	// answer each question, if it couldn't.
 	VersionErr, PassthroughErr, TermtypeErr error
@@ -54,6 +57,11 @@ func QueryTmux(ctx context.Context, run func(ctx context.Context, args ...string
 			continue
 		}
 		*q.to = strings.TrimSpace(out)
+	}
+	// A tmux that can't say how many clients it has shows images as one
+	// that has one: it said all the verdict needs of the client.
+	if out, err := run(ctx, "display-message", "-p", sessionAttached); err == nil {
+		t.Attached, _ = strconv.Atoi(strings.TrimSpace(out))
 	}
 	return t
 }
@@ -90,10 +98,24 @@ func DecideTmux(t Tmux) Verdict {
 			v.Reason = why
 			return v
 		}
+		if t.Shared() {
+			v.Shared = true
+			v.Reason = "tmux shows this session on more than one terminal, which may not all draw images"
+			return v
+		}
 		v.Images, v.Reason = true, "the terminal draws kitty placeholders, through tmux"
 	}
 	return v
 }
+
+// sessionAttached asks tmux how many clients show the app's session.
+const sessionAttached = "#{session_attached}"
+
+// Shared reports whether tmux shows the session on more than one
+// terminal. What the app sends of an image reaches all of them, and the
+// verdict was made for one: another may not draw images, and would show
+// what it can't draw as garbage.
+func (t Tmux) Shared() bool { return t.Attached > 1 }
 
 // TmuxClient is what tmux says of the client it shows the app's pane on:
 // the terminal tmux was last attached from.
@@ -109,12 +131,18 @@ type TmuxClient struct {
 	// from the terminal's window size, or no size when the terminal gives
 	// none, as over ssh.
 	Cell Cell
+	// Attached is session_attached, as Tmux.Attached.
+	Attached int
 }
+
+// Shared reports whether tmux shows the session on more than one
+// terminal, as Tmux.Shared.
+func (c TmuxClient) Shared() bool { return c.Attached > 1 }
 
 // tmuxClientFormat asks for every field of TmuxClient at once, tab apart,
 // since a terminal's name may hold spaces. A format names an option by
 // its name, and gives the pane's value as show-options -Apv does.
-const tmuxClientFormat = "#{client_tty}\t#{client_termtype}\t#{client_cell_width}\t#{client_cell_height}\t#{allow-passthrough}"
+const tmuxClientFormat = "#{client_tty}\t#{client_termtype}\t#{client_cell_width}\t#{client_cell_height}\t#{allow-passthrough}\t" + sessionAttached
 
 // QueryTmuxClient asks the tmux of this pane, with run, of its client,
 // in one question, cheap enough to ask whenever the app gains focus.
@@ -127,10 +155,11 @@ func QueryTmuxClient(ctx context.Context, run func(ctx context.Context, args ...
 		return TmuxClient{}, err
 	}
 	f := strings.Split(strings.TrimRight(out, "\r\n"), "\t")
-	if len(f) != 5 {
-		return TmuxClient{}, fmt.Errorf("tmux answered %d fields of its client, not 5", len(f))
+	if len(f) != 6 {
+		return TmuxClient{}, fmt.Errorf("tmux answered %d fields of its client, not 6", len(f))
 	}
 	c := TmuxClient{TTY: strings.TrimSpace(f[0]), Termtype: strings.TrimSpace(f[1]), Passthrough: strings.TrimSpace(f[4])}
+	c.Attached, _ = strconv.Atoi(strings.TrimSpace(f[5]))
 	w, werr := strconv.Atoi(strings.TrimSpace(f[2]))
 	h, herr := strconv.Atoi(strings.TrimSpace(f[3]))
 	if werr == nil && herr == nil {
