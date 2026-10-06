@@ -9,8 +9,10 @@ import (
 
 // styles are the dashboard's own, built once per theme.
 type styles struct {
-	edge, focusEdge   ownerui.Paint
-	title, focusTitle ownerui.Paint
+	edge, focusEdge ownerui.Paint
+	// focusTitle is the title of the focused pane. The others take the
+	// muted paint of shared.
+	focusTitle ownerui.Paint
 
 	success, warning ownerui.Paint
 	// states color the glyphs of the states of issues and pull requests,
@@ -36,7 +38,6 @@ func newStyles(t ui.Theme, ic ui.Icons) styles {
 		langs:      map[string]ownerui.Paint{},
 		edge:       ownerui.NewPaint(border),
 		focusEdge:  ownerui.NewPaint(t.Accent),
-		title:      ownerui.NewPaint(t.Muted),
 		focusTitle: ownerui.NewPaint(t.Accent.Bold(true)),
 		success:    ownerui.NewPaint(t.Success),
 		warning:    ownerui.NewPaint(t.Warning),
