@@ -138,8 +138,9 @@ const maxHeldBytes = 64 << 20
 // maxFailedImages is how many images that failed the app remembers at
 // most, so that a long session that meets many doesn't keep them all.
 // Past it, those drawn least recently are forgotten. One drawn again is
-// asked for again, and the fetcher, which remembers failures for a
-// while of its own, answers at once.
+// asked for again: the fetcher answers at once while it still remembers
+// the failure, for a while and within a bound of its own, and fetches it
+// again after.
 const maxFailedImages = 1024
 
 // ImagesMsg tells every section and modal that the images drawn changed:
@@ -285,6 +286,8 @@ type Images struct {
 	// send needn't count them.
 	held      map[string]*entry
 	heldBytes int
+	// dropped deletes the images held when they went off, for Dropped.
+	dropped string
 	// wanted are the keys drawn and not yet fetched, or fetched and not
 	// yet sent.
 	wanted []string
@@ -689,7 +692,9 @@ func (a *Images) victims(e *entry) ([]string, bool) {
 // SetGraphics takes what the terminal shows, and reports whether that
 // changed whether images are drawn. When the terminal began to show
 // images, as one tmux was attached from anew does, the images that
-// arrived are sent again at the end of the update.
+// arrived are sent again at the end of the update. When images went off
+// only because tmux shows the session on several terminals, the one that
+// was drawing them still holds them: Dropped returns what deletes them.
 func (a *Images) SetGraphics(g Graphics) (changed bool) {
 	if a == nil {
 		return false
@@ -703,9 +708,15 @@ func (a *Images) SetGraphics(g Graphics) (changed bool) {
 	if !now {
 		// What the terminal kept of the images is gone, or will be
 		// drawn by no cell.
-		for key, e := range a.held {
+		var b strings.Builder
+		for _, key := range slices.Sorted(maps.Keys(a.held)) {
+			e := a.held[key]
+			if g.Shared && !a.closed {
+				b.WriteString(termimg.Delete(e.id))
+			}
 			a.release(key, e)
 		}
+		a.dropped = b.String()
 		a.pool = termimg.NewPool(termimg.RandomMSB())
 		return true
 	}
@@ -716,6 +727,17 @@ func (a *Images) SetGraphics(g Graphics) (changed bool) {
 		}
 	}
 	return true
+}
+
+// Dropped returns what deletes from the terminal the images it held when
+// they went off for tmux showing the session on several terminals, once.
+func (a *Images) Dropped() tea.Cmd {
+	if a == nil || a.dropped == "" {
+		return nil
+	}
+	seq := a.dropped
+	a.dropped = ""
+	return a.raw(seq)
 }
 
 // Resend returns what sends every image the terminal holds to it again,
