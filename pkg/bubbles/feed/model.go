@@ -88,6 +88,8 @@ type Model[T any] struct {
 	// being fetched or failed.
 	tail chunk[T]
 	done bool
+	// pages counts the chunks of items stored, for Pages.
+	pages int
 
 	sel int
 	top int
@@ -228,6 +230,13 @@ func (m Model[T]) Index() int {
 // Len returns the number of items known so far, loaded or not.
 func (m Model[T]) Len() int {
 	return m.total
+}
+
+// Pages counts the chunks of items the feed has stored since it was
+// created, so that a parent that looks at the items, such as to size a
+// column to them, does it again only when this changes.
+func (m Model[T]) Pages() int {
+	return m.pages
 }
 
 // Done reports whether the last chunk has been fetched.

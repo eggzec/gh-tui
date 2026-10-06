@@ -127,6 +127,7 @@ func (m *Model[T]) receive(msg chunkMsg[T]) tea.Cmd {
 	}
 	c = &m.chunks[msg.index]
 	c.items, c.n, c.loaded, c.kept = msg.items, len(msg.items), true, kept
+	m.pages++
 	if appended || msg.next != c.next {
 		// The chunks after this one no longer follow from it, so fetch
 		// them again from its new next cursor.

@@ -2,7 +2,6 @@ package issues
 
 import (
 	"charm.land/bubbles/v2/key"
-	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -71,22 +70,22 @@ func (s *Section) forward(msg tea.Msg) tea.Cmd {
 	}
 	var cmd tea.Cmd
 	s.list, cmd = s.list.Update(msg)
-	switch msg.(type) {
-	case tea.KeyPressMsg, spinner.TickMsg:
-		// Neither brings issues.
-	default:
-		s.scanLabels()
-	}
+	s.scanLabels()
 	return cmd
 }
 
 // scanLabels sizes the labels column to the labels of the issues the list
-// has loaded, and lays the rows out again when that changes. A page may
-// bring labels without changing how many issues the list has, as a reload
-// does, so it looks at every message that may carry one. The column only
-// grows while the list is kept, so the rows don't move when the issues
-// with the most labels are dropped as the list scrolls.
+// has loaded, and lays the rows out again when that changes. It looks
+// again only when the list has stored a page since it last looked: a page
+// may bring labels without changing how many issues the list has, as a
+// reload does. The column only grows while the list is kept, so the rows
+// don't move when the issues with the most labels are dropped as the list
+// scrolls.
 func (s *Section) scanLabels() {
+	if s.list.Pages() == s.scanned {
+		return
+	}
+	s.scanned = s.list.Pages()
 	full := labelRoom{labelsCap(1), labelsCap(2)}
 	room := s.room
 	for i := range s.list.Len() {
@@ -105,6 +104,13 @@ func (s *Section) scanLabels() {
 		s.room = room
 		s.cols = layout(s.colsWidth, room, s.dates.Width())
 	}
+}
+
+// rescanLabels sizes the labels column again from nothing, as when the
+// chips change width with the icons.
+func (s *Section) rescanLabels() {
+	s.room, s.scanned = labelRoom{}, -1
+	s.scanLabels()
 }
 
 // sync reloads the list when the issues of the repository changed. Poll

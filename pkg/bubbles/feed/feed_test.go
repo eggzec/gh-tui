@@ -270,6 +270,36 @@ func TestDoneStopsFetching(t *testing.T) {
 	}
 }
 
+// Pages counts each chunk stored, a reload of the same items too, and
+// nothing else: keys, failed fetches and other feeds' results.
+func TestPages(t *testing.T) {
+	src := newSource(25, 10)
+	m := load(t, src)
+	if got := m.Pages(); got != 1 {
+		t.Fatalf("after the first chunk Pages() = %d, want 1", got)
+	}
+	m = keys(t, m, "down", "up")
+	if got := m.Pages(); got != 1 {
+		t.Fatalf("after moving Pages() = %d, want 1", got)
+	}
+	m = keys(t, m, "end")
+	if got := m.Pages(); got != 2 {
+		t.Fatalf("after the second chunk Pages() = %d, want 2", got)
+	}
+	m = run(t, m, m.Reload())
+	if got := m.Pages(); got <= 2 {
+		t.Fatalf("after a reload Pages() = %d, want more than 2", got)
+	}
+	before := m.Pages()
+	for _, cursor := range []string{"", "10", "20"} {
+		src.setFail(cursor, errors.New("boom"))
+	}
+	m = run(t, m, m.Reload())
+	if got := m.Pages(); got != before {
+		t.Fatalf("after a failed reload Pages() = %d, want %d", got, before)
+	}
+}
+
 func TestErrorAndRetry(t *testing.T) {
 	boom := errors.New("boom\nsecond line")
 	src := newSource(10, 10)
