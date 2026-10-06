@@ -1,0 +1,3 @@
+owner: organization repositories | [ | profile: previous pane | profile: previous tab | ] and [ switch the tabs; tab and shift+tab still move between the panes
+owner: organization repositories | ] | profile: next pane | profile: next tab | ] and [ switch the tabs; tab and shift+tab still move between the panes
+owner: organization repositories | f | list: page down | app: filter | f opens the filter; pgdown still pages down

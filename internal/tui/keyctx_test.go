@@ -35,6 +35,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
 // The services below serve one of everything the sections and modals of
@@ -572,6 +573,9 @@ func keyContexts() []keyContext {
 		{name: "owner: sort", msg: octocat, after: []string{"sort"}, want: "app, filter"},
 		{name: "owner: stars", msg: octocat, after: []string{"next_filter"}, want: "app, app, profile, list"},
 		{name: "owner: followers", msg: octocat, after: []string{"next_filter", "next_filter"}, want: "app, app, profile, list"},
+		{name: "owner: following", msg: octocat, after: []string{"next_filter", "next_filter", "next_filter"}, want: "app, app, profile, list"},
+		{name: "owner: organizations", msg: octocat, after: []string{"prev_filter"}, want: "app, app, profile, list"},
+		{name: "owner: organization repositories", msg: github, want: "app, app, profile, list"},
 		{name: "owner: members", msg: github, after: []string{"next_filter"}, want: "app, app, profile, list"},
 		{name: "owner: teams", msg: github, after: []string{"next_filter", "next_filter"}, want: "app, app, profile, list"},
 		{name: "owner: readme", msg: octocat, after: []string{"pane_3"}, want: "app, app, profile, readme"},
@@ -590,13 +594,18 @@ func keyContexts() []keyContext {
 		{name: "search: query", steps: []string{"search"}, want: "app, app, query (types), query"},
 		{name: "search: kinds", steps: []string{"search", "up"}, want: "app, app, search"},
 		{name: "search: results", steps: []string{"search", "k", "e", "y", "enter"}, want: "app, app, search, results"},
+		{name: "search: filter", steps: []string{"search", "k", "e", "y", "enter", "filter"}, want: "app, filter"},
+		{name: "search: sort", steps: []string{"search", "k", "e", "y", "enter", "sort"}, want: "app, filter"},
 		{name: "files", repo: true, want: "app, app, Files, tree"},
 		{name: "files: zoomed", repo: true, steps: []string{"zoom"}, want: "app, app, Files, tree"},
+		{name: "files: error toast", repo: true, msg: ui.NotifyMsg{Level: toast.Error, Text: "Keys collide."}, want: "app, app, Files, tree"},
 		{name: "files: preview", repo: true, steps: []string{"down", "select"}, want: "app, file, pager"},
 		{name: "files: preview search", repo: true, steps: []string{"down", "select", "/"}, want: "app, file, pager (types)"},
 		{name: "files: preview option", repo: true, steps: []string{"down", "select", "-"}, want: "app, file, pager (types)"},
 		{name: "files: preview count", repo: true, steps: []string{"down", "select", "5"}, want: "app, file, pager (types)"},
+		{name: "files: preview command line", repo: true, steps: []string{"down", "select", "command"}, want: "command line (types)"},
 		{name: "files: finder", repo: true, steps: []string{"find_file"}, want: "app, finder, find (types)"},
+		{name: "files: finder preview", repo: true, steps: []string{"find_file", "R", "enter"}, want: "app, file, pager"},
 		{name: "pull requests", repo: true, steps: []string{"pane_2"}, want: "app, Pull requests, app, Pull requests, list"},
 		{name: "pull requests: filter", repo: true, steps: []string{"pane_2", "filter"}, want: "app, filter"},
 		{name: "pull requests: sort", repo: true, steps: []string{"pane_2", "sort"}, want: "app, filter"},
@@ -609,6 +618,8 @@ func keyContexts() []keyContext {
 		{name: "pull request: check detail", repo: true, steps: []string{"pane_2", "checks", "down", "select"}, want: "app, checks, detail"},
 		{name: "pull request: job search", repo: true, steps: []string{"pane_2", "checks", "select", "/"}, want: "app, annotations, log (types)"},
 		{name: "issues", repo: true, steps: []string{"pane_3"}, want: "app, Issues, app, Issues, list"},
+		{name: "issues: filter", repo: true, steps: []string{"pane_3", "filter"}, want: "app, filter"},
+		{name: "issues: sort", repo: true, steps: []string{"pane_3", "sort"}, want: "app, filter"},
 		{name: "issues: close", repo: true, steps: []string{"pane_3", "close"}, want: "app, confirm"},
 		{name: "issue", repo: true, steps: []string{"pane_3", "select"}, want: "app, issue, thread"},
 		{name: "issue: comment", repo: true, steps: []string{"pane_3", "select", "comment"}, want: "app, prompt (types)"},
@@ -631,6 +642,7 @@ func keyContexts() []keyContext {
 		{name: "actions: rerun all", repo: true, steps: []string{"actions", "rerun"}, want: "app, confirm"},
 		{name: "actions: rerun job", repo: true, steps: []string{"actions", "next_tab", "rerun_job"}, want: "app, confirm"},
 		{name: "auth", repo: true, steps: []string{"command", "a", "u", "t", "h", "enter"}, want: "app, token"},
+		{name: "config", repo: true, steps: []string{"command", "c", "o", "n", "f", "i", "g", "enter"}, want: "app, pager"},
 		{name: "help", repo: true, steps: []string{"help"}, want: "app, help (types)"},
 		{name: "command line", repo: true, steps: []string{"command"}, want: "command line (types)"},
 	}
