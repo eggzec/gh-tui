@@ -216,14 +216,15 @@ func (m *Model) rememberOwner(login string) {
 
 // completeOwner completes the login after '@' from prefix: first the
 // logins that start with it, then those that contain it, each in order of
-// relevance, the pages opened most recently first.
+// relevance, the pages opened most recently first. The viewer's own login
+// is left out, since it only shows the dashboard.
 func (m *Model) completeOwner(prefix string, start, end int) []cmdline.Candidate {
 	lower := strings.ToLower(prefix)
 	var tiers [2][]string
 	seen := make(map[string]bool)
 	for login := range m.knownOwners() {
 		key := strings.ToLower(login)
-		if seen[key] {
+		if seen[key] || m.isViewer(login) {
 			continue
 		}
 		seen[key] = true
