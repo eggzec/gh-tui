@@ -498,6 +498,29 @@ func TestPreviewMarkdownWaitsOutAResize(t *testing.T) {
 	}
 }
 
+// The line numbers keep room for the pictures of the images alone on
+// their lines, and none for an image written in code.
+func TestPreviewMarkdownReserve(t *testing.T) {
+	images := uitest.Avatars(&uitest.ImageHost{}, true)
+	images.SetMaxRows(6)
+	for _, tt := range []struct {
+		name, src string
+		images    int
+	}{
+		{"images", "![a](https://example.com/a.png)\n\n![b](img/logo.png)", 2},
+		{"in code", "```md\n![a](https://example.com/a.png)\n```\n\nWrite `![b](img/logo.png)`.", 0},
+	} {
+		p, _ := markdownPreviewOf(t, images, "", tt.src)
+		rows := images.PictureRows(p.md.height)
+		if rows <= 0 {
+			t.Fatalf("%s: pictures take %d rows, want some", tt.name, rows)
+		}
+		if got, want := p.md.extra(), tt.images*rows; got != want {
+			t.Errorf("%s: reserve %d lines, want %d", tt.name, got, want)
+		}
+	}
+}
+
 // Images arriving add lines, enough here to widen the line numbers from
 // two digits to three. The numbers have the room from the start, so the
 // text keeps its width and no image is fitted and fetched a second time

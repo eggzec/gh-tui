@@ -215,6 +215,29 @@ func TestPicturesInBlocks(t *testing.T) {
 	}
 }
 
+// Images counts the images alone on their lines, as markdown or HTML,
+// and none in code.
+func TestImages(t *testing.T) {
+	for _, tt := range []struct {
+		name, src string
+		want      int
+	}{
+		{"none", "text", 0},
+		{"alone", "![a](https://example.com/a.png)\n\n![b](img/b.png)", 2},
+		{"html", "<img src=\"https://example.com/a.png\">", 1},
+		{"in a sentence", "see ![a](https://example.com/a.png) here", 0},
+		{"fenced", "```md\n![a](https://example.com/a.png)\n```", 0},
+		{"tilde fenced", "~~~\n![a](https://example.com/a.png)\n~~~", 0},
+		{"indented code", "text\n\n    ![a](https://example.com/a.png)", 0},
+		{"code span", "`![a](https://example.com/a.png)`", 0},
+		{"after a fence", "```\n![x](x.png)\n```\n![a](https://example.com/a.png)", 1},
+	} {
+		if got := Images(tt.src); got != tt.want {
+			t.Errorf("%s: Images = %d, want %d", tt.name, got, tt.want)
+		}
+	}
+}
+
 // A body with an image renders once, with its picture, and a body whose
 // image isn't drawn yet renders the plain way too; a body without images
 // renders once whatever Pictures draws, and keeps its render when what

@@ -277,6 +277,23 @@ func (r *Renderer) render(src string, width int, open []int) (rendered, bool) {
 	return out, kept && plainKept
 }
 
+// Images returns how many images src holds alone on their lines, outside
+// code, as markdown or as HTML: at most as many as a Renderer may show as
+// pictures, whatever addresses it draws. An image in a code block or a
+// code span isn't one.
+func Images(src string) int {
+	if !mayHaveImages(src) {
+		return 0
+	}
+	n := 0
+	scan(src, "", Glyphs{}.orDefault(), func(line string, text bool) {
+		if _, _, ok := alone(line, true); ok && text {
+			n++
+		}
+	}, func(int, Block) {})
+	return n
+}
+
 // mayHaveImages reports whether src may hold an image that stands alone
 // on its line.
 func mayHaveImages(src string) bool {
