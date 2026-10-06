@@ -199,6 +199,9 @@ func TestPicturesInBlocks(t *testing.T) {
 		{"in a list item", "- item\n\n  ![a](" + u + ")\n- next", true},
 		{"lazy in a quote", "> quoted\n![a](" + u + ")", false},
 		{"lazy in a list item", "- item\n![a](" + u + ")", false},
+		{"lazy after a lazy line in a quote", "> quoted\nlazy\n![a](" + u + ")", false},
+		{"lazy after a lazy line in a list item", "- item\nlazy\n![a](" + u + ")", false},
+		{"after a heading", "> quoted\n# heading\n![a](" + u + ")", true},
 		{"a heading", "![a](" + u + ")\n---", false},
 		{"after a paragraph", "text\n![a](" + u + ")", true},
 	} {
