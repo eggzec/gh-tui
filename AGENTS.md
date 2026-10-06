@@ -50,8 +50,8 @@ internal/
   obs/                log/slog setup, trace and request ids, counters and summaries
   logfile/            the log file, rotated by size, shared by several processes
   service/<domain>/   business logic per domain (pulls, issues, repos, notifications…)
-  tui/                root model: the dashboard, repo, notifications and search
-                      screens and their panes, the header, help, toasts, modals,
+  tui/                root model: the dashboard, repo, notifications, search and
+                      owner (user or organization) screens and their panes, the header, help, toasts, modals,
                       and routing between them
   tui/ui/             what sections share: the Section interface, theme, keys, app messages
   tui/<section>/      one package per section, adapting a service to bubbles
@@ -380,7 +380,8 @@ reacts to messages. Concretely:
   unknown names are rejected so typos don't pass silently.
 - The only command-line flags are `--debug`, `--hostname` and
   `--version`; gh-tui takes no arguments, and `:goto` opens a repository,
-  pull request or issue. The host is `--hostname`, else the current repository's
+  pull request or issue, or the page of a user or organization
+  (`:goto @login`). The host is `--hostname`, else the current repository's
   (`GH_REPO` or the git remotes), else `GH_HOST` or gh's default host, as
   gh picks it, and one session talks to one host.
 - Hex colors must be quoted in YAML, since an unquoted `#` starts a comment.

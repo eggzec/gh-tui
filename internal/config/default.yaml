@@ -77,8 +77,8 @@ cache:
     # repositories and the completion of :goto.
     repos: 5m
     # The dashboard's Repositories pane, which lists every owner's
-    # repositories and costs more to read again, and the repositories of a
-    # user or organization page.
+    # repositories and costs more to read again, and the repositories and
+    # stars of a user or organization page.
     dashboard_repos: 15m
     # The dashboard's pull requests and issues that wait on you.
     waiting_on_you: 5m
@@ -102,13 +102,17 @@ cache:
     code_search: 1m
     releases: 1h
     # The dashboard's header: you, your organizations and your pinned
-    # repositories; and the header of a user or organization page.
+    # repositories; and the header of a user or organization page, with
+    # its pins and an organization's follower count.
     profile: 1h
+    # The contribution calendar, on the dashboard and on the page of a
+    # user.
     contributions: 6h
     # The people of a user or organization page: followers, following,
-    # organizations, members and teams.
+    # organizations, members, teams, sponsors and those sponsored.
     people: 1h
-    # Profile READMEs. Each has an ETag, so checking it again is free.
+    # The profile READMEs of user and organization pages. Each has an
+    # ETag, so checking it again is free.
     readme: 1h
   # What gh-tui keeps in memory. These may only be set at the top level,
   # not for one host or profile.
@@ -248,9 +252,13 @@ dashboard:
   # shows.
   contributions: 90d
 
-# The page of a user or an organization.
+# The page of a user or an organization, which :goto @login opens, and
+# the owner key opens for what is selected.
 owner:
-  # The tab the page opens on: repositories, readme or people.
+  # What the page opens on: repositories, the Repositories tab; people,
+  # the Followers tab of a user and the Members tab of an organization;
+  # or readme, the Repositories tab with the focus on the README pane,
+  # which a narrow page shows alone.
   default_tab: repositories
 
 # Reading ahead: what the app reads before you open it, so that it opens
@@ -375,7 +383,8 @@ page_size:
   # Issues, and their comments.
   issues: 30
   notifications: 30
-  # Your repositories.
+  # Your repositories, and the repositories and stars of a user or
+  # organization page.
   repos: 30
   # The workflow runs of the Actions modal.
   runs: 30
@@ -386,7 +395,9 @@ page_size:
   # Each list of Waiting on you on the dashboard; its counts cover them
   # all.
   waiting_on_you: 10
-  # Each list of people on a user or organization page.
+  # Each list of people on a user or organization page: followers,
+  # following, organizations, members, teams, sponsors and those
+  # sponsored.
   people: 50
 
 # The command line.
@@ -496,8 +507,10 @@ keys:
   # enter previews the result over the search.
   go_to_repo: [ctrl+o]
   # Show the page of the person or organization behind what is selected:
-  # the author of a pull request or issue, or the owner of a repository.
-  # Your own login shows the dashboard.
+  # the author of a pull request or issue, the owner of a repository or
+  # of what is in it, such as a file or a notification, or an
+  # organization of the dashboard's Repositories pane. Your own login
+  # shows the dashboard.
   owner: ["@"]
   # Switch between the tabs of a list, such as All, Failing, Running and
   # Mine of the Actions modal, the states of the pull requests and the
@@ -508,8 +521,9 @@ keys:
   # such as Actions.
   pane_left: [h]
   pane_right: [l]
-  # Show the focused pane of the dashboard, the repository screen, or a
-  # modal such as Actions, alone, or all of them again.
+  # Show the focused pane of the dashboard, the repository screen, the
+  # page of a user or an organization, or a modal such as Actions, alone,
+  # or all of them again.
   zoom: [z]
   # The Actions modal: re-run the failed jobs of a run, all of them, or
   # the job under the cursor, and cancel a run.

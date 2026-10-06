@@ -92,8 +92,9 @@ const (
 	// cursor, where enter previews the result over the search.
 	ActionGoToRepo = "go_to_repo"
 	// ActionOwner shows the page of the person or organization behind what
-	// is selected: the author of a pull request or issue, or the owner of
-	// a repository.
+	// is selected: the author of a pull request or issue, the owner of a
+	// repository or of what is in it, such as a file or a notification,
+	// or an organization of the dashboard's Repositories pane.
 	ActionOwner = "owner"
 	// ActionNextFilter and ActionPrevFilter switch between the tabs of a
 	// list, such as All, Failing, Running and Mine of the Actions modal,
