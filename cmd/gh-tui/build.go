@@ -309,7 +309,9 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 			owner.WithVoice(voice), owner.WithIcons(icons), owner.WithDates(dates), owner.WithAvatars(pics),
 			owner.WithHost(webHost), owner.WithDefaultTab(cfg.Owner.DefaultTab),
 			owner.WithCalendar(cfg.Dashboard.CalendarGlyph, cfg.Dashboard.ContributionDays()),
-			owner.WithLanding(landing{repos: repoSvc, files: fileSvc}), owner.WithPrefetch(cfg.Prefetch), owner.WithSlots(slots)),
+			owner.WithLanding(landing{repos: repoSvc, files: fileSvc}), owner.WithPrefetch(cfg.Prefetch), owner.WithSlots(slots),
+			// goto opens the dashboard for this login, not its page.
+			owner.WithViewer(login.login)),
 	}
 
 	// The history and the releases read the settings of the session,

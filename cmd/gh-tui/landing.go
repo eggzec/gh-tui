@@ -8,8 +8,9 @@ import (
 )
 
 // landing reads what the repository screen reads first when the dashboard
-// or the page of an owner opens a repository: the repository, which the header shows, and the
-// listing of its default branch, which the files tree shows.
+// or the page of an owner opens a repository: the repository, which the
+// header shows, and the listing of its default branch, which the files
+// tree shows.
 type landing struct {
 	repos interface {
 		Get(ctx context.Context, repo core.RepoRef) (core.Repo, error)

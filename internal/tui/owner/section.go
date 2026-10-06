@@ -156,6 +156,8 @@ type Section struct {
 	layers  config.PrefetchLayers
 	landing Landing
 	slots   *ui.Slots
+	// viewer is the user's login, whose own row isn't read ahead.
+	viewer string
 
 	started bool
 	focused bool

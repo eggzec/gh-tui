@@ -124,7 +124,7 @@ func (s *Section) makeLists(p *page, o core.Owner) bool {
 func (s *Section) refresh() tea.Cmd {
 	p := s.page
 	s.svc.InvalidateLogin(p.login)
-	s.resumeAhead()
+	s.refreshAhead()
 	p.gen++
 	cmd := s.readHeader(p, false)
 	if l := p.list(); l != nil && l.started() {

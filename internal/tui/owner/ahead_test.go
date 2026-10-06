@@ -2,12 +2,16 @@ package owner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
 	"sync"
 	"testing"
 	"testing/synctest"
+	"time"
+
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
@@ -345,4 +349,127 @@ func TestOwnerPrefetchResumesAfterLimit(t *testing.T) {
 			t.Errorf("read the headers of %v once the limit lifted, want those around the cursor", got)
 		}
 	})
+}
+
+// The viewer's own row opens the dashboard, so their header isn't read
+// ahead, while the rows around it are.
+func TestPeopleSkipViewer(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		withStats(t)
+		svc := withFollowers(newFake())
+		s := newSection(t, svc, "octocat", 120, 40, WithLanding(&landingFake{}),
+			WithPrefetch(prefetchOn(t, "people").Prefetch), WithViewer("Person-01"))
+		press(t, s, "]", "]")
+		if got, want := slices.Sorted(slices.Values(headers(svc))), []string{"octocat", "person-00", "person-02"}; !slices.Equal(got, want) {
+			t.Errorf("read the headers of %v, want %v", got, want)
+		}
+	})
+}
+
+// Reading the page again reads again only the tabs read ahead before;
+// a tab never read waits until the page shows another tab.
+func TestOtherTabsRefresh(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		withStats(t)
+		svc := newFake()
+		svc.fail["stars"] = errors.New("github: decode: unexpected EOF")
+		s := aheadSection(t, svc, &landingFake{}, prefetchOn(t, "other_tabs"), "octocat")
+		svc.mu.Lock()
+		delete(svc.fail, "stars")
+		svc.mu.Unlock()
+		n := len(calls(svc))
+		press(t, s, "r")
+		again := calls(svc)[n:]
+		for _, want := range []string{"people octocat followers ", "people octocat following ", "people octocat orgs "} {
+			if !slices.Contains(again, want) {
+				t.Errorf("read %v again, want %q", again, want)
+			}
+		}
+		if slices.Contains(again, "stars octocat ") {
+			t.Errorf("read %v again, want no stars, which were never read", again)
+		}
+		// The organizations tab is another list, whose window reads the
+		// stars.
+		n = len(calls(svc))
+		press(t, s, "[")
+		if more := calls(svc)[n:]; !slices.Contains(more, "stars octocat ") {
+			t.Errorf("read %v on another tab, want the stars", more)
+		}
+	})
+}
+
+// holdingService holds every header read ahead until hold is closed or
+// the read is canceled, and keeps the context of each.
+type holdingService struct {
+	*fakeService
+	hold chan struct{}
+	mu   *sync.Mutex
+	ctxs *[]context.Context
+}
+
+func newHolding(f *fakeService) holdingService {
+	return holdingService{fakeService: f, hold: make(chan struct{}), mu: new(sync.Mutex), ctxs: new([]context.Context)}
+}
+
+func (h holdingService) Header(ctx context.Context, q owners.HeaderQuery) (core.Owner, error) {
+	if obs.IsPrefetch(ctx) {
+		h.mu.Lock()
+		*h.ctxs = append(*h.ctxs, ctx)
+		h.mu.Unlock()
+		select {
+		case <-h.hold:
+		case <-ctx.Done():
+			return core.Owner{}, ctx.Err()
+		}
+	}
+	return h.fakeService.Header(ctx, q)
+}
+
+func (h holdingService) inFlight() []context.Context {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return slices.Clone(*h.ctxs)
+}
+
+// Leaving the page, or opening another account, stops the reads ahead
+// in flight of the page that was on view.
+func TestOwnerPrefetchStops(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		change func(t *testing.T, s *Section)
+	}{
+		{"blur", func(_ *testing.T, s *Section) { s.Blur() }},
+		{"another account", func(_ *testing.T, s *Section) { s.Update(ui.OwnerMsg{Login: "github"}) }},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				withStats(t)
+				svc := newHolding(withFollowers(newFake()))
+				s := aheadSection(t, svc, &landingFake{}, prefetchOn(t, "people"), "octocat")
+				// The Followers tab shows; its first window is read once
+				// the cursor rests on it.
+				reads := s.Update(keyPress("]"))
+				reads = tea.Batch(reads, s.Update(keyPress("]")))
+				done := make(chan struct{})
+				go func() {
+					run(t, s, reads)
+					close(done)
+				}()
+				time.Sleep(time.Second)
+				synctest.Wait()
+				ctxs := svc.inFlight()
+				if len(ctxs) == 0 {
+					t.Fatal("no reads in flight")
+				}
+				tt.change(t, s)
+				<-done
+				for i, ctx := range ctxs {
+					if ctx.Err() == nil {
+						t.Errorf("read %d goes on", i)
+					}
+				}
+				close(svc.hold)
+			})
+		})
+	}
 }
