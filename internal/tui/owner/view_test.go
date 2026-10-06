@@ -83,4 +83,23 @@ func TestViewStates(t *testing.T) {
 		run(t, s, s.ApplyFilter(filterform.AppliedMsg{Query: "language:go sort:stars-desc"}))
 		golden.RequireEqual(t, s.View())
 	})
+	// GitHub hid some pins from the token, or all of them.
+	t.Run("some pins hidden", func(t *testing.T) {
+		svc := newFake()
+		o := user()
+		o.Pinned, o.HiddenPins = o.Pinned[:2], true
+		svc.owners["octocat"] = o
+		s := newSection(t, svc, "octocat", 80, 24)
+		press(t, s, "1")
+		golden.RequireEqual(t, s.View())
+	})
+	t.Run("every pin hidden", func(t *testing.T) {
+		svc := newFake()
+		o := user()
+		o.Pinned, o.HiddenPins = nil, true
+		svc.owners["octocat"] = o
+		s := newSection(t, svc, "octocat", 80, 24)
+		press(t, s, "1")
+		golden.RequireEqual(t, s.View())
+	})
 }

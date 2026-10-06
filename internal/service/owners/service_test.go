@@ -312,7 +312,7 @@ func TestNotFound(t *testing.T) {
 }
 
 // A header whose pinned repository GitHub refused is the header GitHub
-// answered, cached as any other.
+// answered, cached as any other, with its mark of hidden pins.
 func TestHeaderPartlyRefused(t *testing.T) {
 	tests := []struct {
 		name string
@@ -328,7 +328,7 @@ func TestHeaderPartlyRefused(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			partial := octocat
-			partial.Pinned = nil
+			partial.Pinned, partial.HiddenPins = nil, true
 			api := &fakeAPI{t: t, header: func(string) (core.Owner, error) {
 				return partial, fmt.Errorf("owner octocat: graphql: %w", tt.err)
 			}}
@@ -337,8 +337,8 @@ func TestHeaderPartlyRefused(t *testing.T) {
 			if err != nil || o.Profile.Login != "octocat" || o.Stale || o.Offline {
 				t.Fatalf("Header = %+v, %v; want the partial header", o, err)
 			}
-			if !s.FreshHeader("octocat") {
-				t.Error("the partial header isn't cached")
+			if c, ok := s.CachedHeader("octocat"); !ok || !s.FreshHeader("octocat") || !c.HiddenPins {
+				t.Errorf("cached header = %+v, %v; want the partial header, fresh and marked", c, ok)
 			}
 		})
 	}

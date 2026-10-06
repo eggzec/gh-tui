@@ -3,6 +3,7 @@ package github
 import (
 	"context"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -123,16 +124,17 @@ func (o *ownerNode) core() core.Owner {
 		p.Status = core.Status{Emoji: o.Status.Emoji, Message: o.Status.Message, Busy: o.Status.Busy}
 	}
 	out := core.Owner{
-		ID:       o.ID,
-		Profile:  p,
-		Pronouns: o.Pronouns,
-		Stars:    o.Starred.TotalCount,
-		Twitter:  o.Twitter,
-		Email:    o.Email,
-		Verified: o.Verified,
-		Members:  o.Members.TotalCount,
-		Teams:    o.Teams.TotalCount,
-		Pinned:   ownerPinned(o.PinnedItems.Nodes),
+		ID:         o.ID,
+		Profile:    p,
+		Pronouns:   o.Pronouns,
+		Stars:      o.Starred.TotalCount,
+		Twitter:    o.Twitter,
+		Email:      o.Email,
+		Verified:   o.Verified,
+		Members:    o.Members.TotalCount,
+		Teams:      o.Teams.TotalCount,
+		Pinned:     ownerPinned(o.PinnedItems.Nodes),
+		HiddenPins: slices.Contains(o.PinnedItems.Nodes, nil),
 		Viewer: core.Relation{
 			IsViewer:      o.IsViewer,
 			Following:     o.ViewerFollows,
