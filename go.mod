@@ -16,6 +16,7 @@ require (
 	github.com/cli/go-gh/v2 v2.16.1
 	github.com/dlclark/regexp2/v2 v2.2.1
 	github.com/getkin/kin-openapi v0.149.0
+	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
 	github.com/sahilm/fuzzy v0.1.3
 	github.com/vektah/gqlparser/v2 v2.5.58
 	go.yaml.in/yaml/v3 v3.0.5
@@ -33,13 +34,11 @@ require (
 	github.com/charmbracelet/x/term v0.2.2 // indirect
 	github.com/charmbracelet/x/termios v0.1.1 // indirect
 	github.com/charmbracelet/x/windows v0.2.2 // indirect
-	github.com/cli/browser v1.3.0 // indirect
 	github.com/cli/safeexec v1.0.1 // indirect
 	github.com/clipperhouse/displaywidth v0.11.0 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/go-openapi/jsonpointer v0.22.5 // indirect
 	github.com/go-openapi/swag/jsonname v0.25.5 // indirect
-	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/lucasb-eyer/go-colorful v1.4.1 // indirect

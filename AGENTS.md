@@ -45,6 +45,7 @@ internal/
   cache/              in-memory LRU, optional disk layer, TTL and ETag metadata
   watch/              sync engine: polling, conditional requests, change events
   revalidate/         re-checks cached entries in the background within a budget
+  browser/            opens pages in the user's browser, detached from the terminal
   buildinfo/          what the binary was built from, such as its version
   imgcaps/            whether the terminal shows images: the startup check's rules
   obs/                log/slog setup, trace and request ids, counters and summaries

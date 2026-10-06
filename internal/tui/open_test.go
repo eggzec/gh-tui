@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"os/exec"
 	"slices"
 	"testing"
 )
@@ -8,9 +9,9 @@ import (
 // browser records the links the app opens, in place of the browser.
 type browser struct{ urls []string }
 
-func (b *browser) open(url string) error {
+func (b *browser) open(url string) (*exec.Cmd, error) {
 	b.urls = append(b.urls, url)
-	return nil
+	return nil, nil
 }
 
 func TestOpenCommand(t *testing.T) {

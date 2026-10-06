@@ -10,6 +10,7 @@ package tui
 
 import (
 	"context"
+	"os/exec"
 	"slices"
 	"time"
 
@@ -148,7 +149,7 @@ type Model struct {
 
 	sync      func(ctx context.Context) (ui.SyncMsg, bool)
 	setActive func(active bool)
-	open      func(url string) error
+	open      Browser
 	watchRepo func(repo core.RepoRef)
 	repoInfo  func(ctx context.Context, repo core.RepoRef) (core.Repo, error)
 	// repos checks that a repository exists before goto opens it, and
@@ -305,8 +306,13 @@ func WithRelease(open Release) Option {
 	return func(m *Model) { m.release = open }
 }
 
+// Browser opens url in the browser, detached from the terminal. For a
+// browser that runs in the terminal it starts nothing and returns the
+// command, which the app runs with the terminal handed over.
+type Browser func(url string) (*exec.Cmd, error)
+
 // WithBrowser sets the function that opens a URL in the browser.
-func WithBrowser(open func(url string) error) Option {
+func WithBrowser(open Browser) Option {
 	return func(m *Model) { m.open = open }
 }
 

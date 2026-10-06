@@ -3,15 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"slices"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/cli/go-gh/v2/pkg/browser"
 
+	"github.com/eggzec/gh-tui/internal/browser"
 	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/cmdhist"
 	"github.com/eggzec/gh-tui/internal/config"
@@ -320,9 +319,8 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 			history.WithEditor(c.Editor), history.WithIcons(ui.NewIcons(c.UI.Icons)), history.WithDates(ui.NewDates(c.UI.DateFormat)),
 		}
 	}
-	b := browser.New("", io.Discard, io.Discard)
 	opts := []tui.Option{
-		tui.WithBrowser(b.Browse),
+		tui.WithBrowser(browser.New().Open),
 		// The images probe reads the real environment and runs tmux.
 		tui.WithImageProbe(imgcaps.EnvFrom(os.Getenv), imgcaps.RunTmux),
 		tui.WithImages(pics),
