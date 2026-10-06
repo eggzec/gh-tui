@@ -137,30 +137,36 @@ var memberRoles = map[string]core.MemberRole{
 // page. It returns an error matching core.ErrNotFound if there is no such
 // user.
 func (c *Client) UserFollowers(ctx context.Context, login string, first int, after string) (core.Page[core.Person], error) {
-	return c.userPeople(ctx, userFollowersQuery, "followers of", login, first, after)
+	return c.userPeople(ctx, userFollowersQuery, "followers of", login, first, after, func(u *userLists) *people { return u.Followers })
 }
 
 // UserFollowing returns a page of the users the user login follows, as
 // UserFollowers does.
 func (c *Client) UserFollowing(ctx context.Context, login string, first int, after string) (core.Page[core.Person], error) {
-	return c.userPeople(ctx, userFollowingQuery, "following of", login, first, after)
+	return c.userPeople(ctx, userFollowingQuery, "following of", login, first, after, func(u *userLists) *people { return u.Following })
 }
 
 // UserOrgs returns a page of the organizations the user login belongs to,
 // as UserFollowers does: those the user shows publicly, and those the
 // viewer belongs to as well.
 func (c *Client) UserOrgs(ctx context.Context, login string, first int, after string) (core.Page[core.Person], error) {
-	return c.userPeople(ctx, userOrgsQuery, "organizations of", login, first, after)
+	return c.userPeople(ctx, userOrgsQuery, "organizations of", login, first, after, func(u *userLists) *people { return u.Organizations })
 }
 
-// userPeople reads a page of query, one of the user's lists of accounts.
-func (c *Client) userPeople(ctx context.Context, query, what, login string, first int, after string) (core.Page[core.Person], error) {
+// userLists are the lists of accounts that the queries of userPeople name
+// by an alias, one each.
+type userLists struct {
+	Followers     *people `json:"followers"`
+	Following     *people `json:"following"`
+	Organizations *people `json:"organizations"`
+}
+
+// userPeople reads a page of query, one of the user's lists of accounts,
+// which pick takes from the answer. A query that answers with another
+// list is an error, not an empty page.
+func (c *Client) userPeople(ctx context.Context, query, what, login string, first int, after string, pick func(*userLists) *people) (core.Page[core.Person], error) {
 	var data struct {
-		User *struct {
-			Followers     *people `json:"followers"`
-			Following     *people `json:"following"`
-			Organizations *people `json:"organizations"`
-		} `json:"user"`
+		User *userLists `json:"user"`
 	}
 	vars := ownerReposVars(first, after)
 	vars["login"] = login
@@ -170,12 +176,11 @@ func (c *Client) userPeople(ctx context.Context, query, what, login string, firs
 	if data.User == nil {
 		return core.Page[core.Person]{}, fmt.Errorf("list %s %s: %w", what, login, core.ErrNotFound)
 	}
-	for _, p := range []*people{data.User.Followers, data.User.Following, data.User.Organizations} {
-		if p != nil {
-			return p.core(), nil
-		}
+	p := pick(data.User)
+	if p == nil {
+		return core.Page[core.Person]{}, fmt.Errorf("list %s %s: the answer has no such list", what, login)
 	}
-	return core.Page[core.Person]{}, nil
+	return p.core(), nil
 }
 
 // OrgMembers returns a page of up to first members of the organization
