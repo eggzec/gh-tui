@@ -422,6 +422,11 @@ func (m *Modal) updateFilter(msg tea.Msg) tea.Cmd {
 		if i := b.index(name); i >= 0 {
 			b.cursor = i
 			m.scrollBranches()
+		} else {
+			// Only what the filter listed before the branches were read
+			// again from the first page has it, so the cursor follows it
+			// to the page that brings it back.
+			b.follow = name
 		}
 		return tea.Batch(m.showBranch(name), m.branchMoved())
 	case picker.CancelMsg:
