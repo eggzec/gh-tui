@@ -944,7 +944,7 @@ func TestOpenReportsFailure(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv("GH_BROWSER", tt.ghBrowser)
 			failed := &exec.Error{Name: "/usr/bin/xdg-open", Err: exec.ErrNotFound}
-			m, _ := newTestApp(t, WithBrowser(func(string) error { return failed }))
+			m, _ := newTestApp(t, WithBrowser(func(string) (*exec.Cmd, error) { return nil, failed }))
 			run(m, m.openURL("https://github.com"))
 			if !hasToast(m, tt.want) {
 				t.Errorf("toast %q, want %q", toasted(m), tt.want)
@@ -953,6 +953,22 @@ func TestOpenReportsFailure(t *testing.T) {
 				t.Errorf("toast shows the error: %s", got)
 			}
 		})
+	}
+}
+
+// TestOpenRedraws checks that the screen is drawn again after a browser
+// starts detached, and that a browser that runs in the terminal is given
+// it.
+func TestOpenRedraws(t *testing.T) {
+	m, _ := newTestApp(t, WithBrowser(func(string) (*exec.Cmd, error) { return nil, nil }))
+	if msg := m.openURL("https://github.com")(); msg != tea.ClearScreen() {
+		t.Errorf("message %T after a detached browser, want a redraw", msg)
+	}
+	w3m := exec.Command("w3m", "https://github.com")
+	m, _ = newTestApp(t, WithBrowser(func(string) (*exec.Cmd, error) { return w3m, nil }))
+	msg := m.openURL("https://github.com")()
+	if want := tea.ExecProcess(w3m, nil)(); reflect.TypeOf(msg) != reflect.TypeOf(want) {
+		t.Errorf("message %T for a text browser, want %T, which hands it the terminal", msg, want)
 	}
 }
 

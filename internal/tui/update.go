@@ -454,12 +454,24 @@ func (m *Model) openURL(url string) tea.Cmd {
 		return nil
 	}
 	open, ctx := m.open, m.ctx
-	return func() tea.Msg {
-		if err := open(url); err != nil {
-			slog.WarnContext(ctx, "browser failed", "span", "tui", "err", err.Error())
-			return ui.NotifyMsg{Level: toast.Error, Text: "Couldn't open the browser: " + browserFix()}
+	failed := func(err error) tea.Msg {
+		if err == nil {
+			return nil
 		}
-		return nil
+		slog.WarnContext(ctx, "browser failed", "span", "tui", "err", err.Error())
+		return ui.NotifyMsg{Level: toast.Error, Text: "Couldn't open the browser: " + browserFix()}
+	}
+	return func() tea.Msg {
+		cmd, err := open(url)
+		if err != nil {
+			return failed(err)
+		}
+		if cmd != nil {
+			return tea.ExecProcess(cmd, failed)()
+		}
+		// A detached browser has no way onto the screen, but a redraw
+		// costs one frame and mends it should anything have got there.
+		return tea.ClearScreen()
 	}
 }
 
