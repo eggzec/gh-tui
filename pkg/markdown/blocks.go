@@ -56,7 +56,7 @@ func fenced(lang, src string) Block {
 		// The code of a block in a list item is indented as its fence is.
 		b.code = dedent(body, len(b.indent()))
 		b.kind, b.lines, b.URL = mermaid.Kind(b.code), len(body), mermaid.ViewURL(b.code)
-		b.Collapsed = "◆ " + b.kind + " · " + b.size() + " · " + b.offer()
+		b.Collapsed = Glyphs{}.orDefault().collapsed(b)
 	}
 	var out strings.Builder
 	for out.Len() == 0 || len(body) > 0 {
@@ -96,17 +96,14 @@ func (b Block) size() string {
 	return strconv.Itoa(b.lines) + " lines"
 }
 
-// offer returns what the head of a diagram offers: its link, or why it has
-// none.
-func (b Block) offer() string {
+// offer returns what the head of a diagram offers in the glyphs g: its
+// link, or why it has none.
+func (b Block) offer(g Glyphs) string {
 	if b.URL == "" {
 		return "too large to view"
 	}
-	return viewText
+	return g.viewText()
 }
-
-// viewText is what the head of a diagram with a link offers.
-const viewText = "View diagram ↗"
 
 // showBlock is fenced, and a test's own way to show blocks while it runs.
 var showBlock = fenced
@@ -115,6 +112,6 @@ var showBlock = fenced
 // collapsible one is what [Renderer.Render] takes to show it in full.
 func Blocks(src string) []Block {
 	var out []Block
-	scan(src, "", func(string, bool) {}, func(_ int, b Block) { out = append(out, b) })
+	scan(src, "", Glyphs{}.orDefault(), func(string, bool) {}, func(_ int, b Block) { out = append(out, b) })
 	return out
 }

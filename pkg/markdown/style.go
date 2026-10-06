@@ -29,7 +29,7 @@ func DefaultStyle(isDark bool) ansi.StyleConfig {
 	// didn't fit out from behind the bar. A space that doesn't break is
 	// part of the word, and the wrap breaks it within the width.
 	s.H1.Prefix = "\u00a0"
-	s.ImageText.Format = "🖼 {{.text}}"
+	s.ImageText.Format = unicodeImage + " {{.text}}"
 	s.Image.Format = "({{.text}})"
 	// Glamour counts a quote's indent as its Indent cells, however wide
 	// the token it draws them with, so "│ " once made each quoted line a
@@ -40,13 +40,9 @@ func DefaultStyle(isDark bool) ansi.StyleConfig {
 	return s
 }
 
-// quoteToken is what glamour draws each cell of a quote's indent with: a
-// bar, marked by a zero-width space as glamour's rather than the text's,
-// so quoteBars changes only the indent.
-const quoteToken = quoteBar + "\u200b"
-
-// quoteBar is the bar that shows a quote.
-const quoteBar = "│"
+// quoteToken is what glamour draws each cell of a quote's indent with in
+// the default glyphs, which the glyphs of a renderer replace.
+const quoteToken = unicodeQuote + "\u200b"
 
 // lightCode returns the colors of highlighted code on a light terminal,
 // GitHub's, each of which reads on white. It sets no background, so the

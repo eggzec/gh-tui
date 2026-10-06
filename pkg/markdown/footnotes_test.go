@@ -81,7 +81,7 @@ func TestFootnoteDefinitionEnds(t *testing.T) {
 		for _, l := range lines {
 			ps = append(ps, piece{line: l, text: true})
 		}
-		out := footnotes(ps)
+		out := footnotes(ps, Glyphs{}.orDefault())
 		got := make([]string, 0, len(out))
 		for _, p := range out {
 			got = append(got, p.line)

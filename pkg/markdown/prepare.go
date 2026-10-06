@@ -24,14 +24,15 @@ const tabWidth = 4
 // text and address, unless pic is nil: an image on the web, or by a
 // relative address too if relative is set. A source cut at maxLines ends
 // with a note that offers hint, such as how to see the rest, if it isn't
-// empty.
-func prepare(src string, open []int, hint string, show func(i int, b Block, open bool) string, pic func(alt, url string) string, relative bool) string {
+// empty. What it adds of its own, such as the mark of a collapsed
+// section, it draws with g.
+func prepare(src string, open []int, hint string, g Glyphs, show func(i int, b Block, open bool) string, pic func(alt, url string) string, relative bool) string {
 	type out struct {
 		line string
 		text bool
 	}
 	var outs []out
-	scan(src, hint, func(line string, text bool) { outs = append(outs, out{line, text}) }, func(i int, b Block) {
+	scan(src, hint, g, func(line string, text bool) { outs = append(outs, out{line, text}) }, func(i int, b Block) {
 		outs = append(outs, out{show(i, b, b.Collapsed == "" || slices.Contains(open, i)), false})
 	})
 	lines := make([]string, len(outs))
@@ -139,13 +140,14 @@ func relativeAddr(addr string) bool {
 }
 
 // plain shows a block as markdown alone: a collapsible one as its
-// collapsed line, as code, which glamour puts on a line of its own even in
-// a list item, with its code under it while it is open.
-func plain(_ int, b Block, open bool) string {
+// collapsed line, in the renderer's glyphs, as code, which glamour puts on
+// a line of its own even in a list item, with its code under it while it
+// is open.
+func (r *Renderer) plain(_ int, b Block, open bool) string {
 	if b.Collapsed == "" {
 		return b.Full
 	}
-	s := b.fence + "\n" + b.indent() + b.Collapsed + "\n" + b.fence
+	s := b.fence + "\n" + b.indent() + r.glyphs.collapsed(b) + "\n" + b.fence
 	if open {
 		s += "\n" + b.Full
 	}
@@ -157,14 +159,14 @@ func plain(_ int, b Block, open bool) string {
 // end, and whether the line is text rather than code, except that it
 // passes each fenced code block whole, with its index among them. A
 // source longer than maxLines is cut, and ends with cutNote(hint).
-func scan(src, hint string, line func(l string, text bool), block func(int, Block)) {
+func scan(src, hint string, g Glyphs, line func(l string, text bool), block func(int, Block)) {
 	lines := strings.Split(termtext.Clean(src, tabWidth), "\n")
 	cut := len(lines) > maxLines
 	if cut {
 		lines = lines[:maxLines]
 	}
 	var out []piece
-	var p htmlState
+	p := htmlState{g: g}
 	c := codeState{blank: true}
 	var lim bounds
 	n := 0
@@ -178,7 +180,7 @@ func scan(src, hint string, line func(l string, text bool), block func(int, Bloc
 			l = p.line(refs(l))
 			text := !c.in(l)
 			if text {
-				l = linkItem(alert(literal(l)))
+				l = linkItem(alert(literal(l), g))
 			}
 			out = append(out, piece{line: l, text: text})
 			continue
@@ -194,7 +196,7 @@ func scan(src, hint string, line func(l string, text bool), block func(int, Bloc
 		n++
 		i = end
 	}
-	for _, pc := range footnotes(out) {
+	for _, pc := range footnotes(out, g) {
 		if pc.block != nil {
 			block(pc.n, *pc.block)
 		} else {
@@ -202,7 +204,7 @@ func scan(src, hint string, line func(l string, text bool), block func(int, Bloc
 		}
 	}
 	if cut {
-		line("\n"+cutNote(hint), false)
+		line("\n"+cutNote(hint, g), false)
 	}
 }
 
@@ -378,10 +380,10 @@ const maxLines = 1000
 
 // cutNote returns the note that ends a source cut at maxLines, offering
 // hint if it isn't empty.
-func cutNote(hint string) string {
-	note := "⋯ The rest is too long to show here"
+func cutNote(hint string, g Glyphs) string {
+	note := verbatim(g.More) + " The rest is too long to show here"
 	if hint != "" {
-		note += " · " + verbatim(hint)
+		note += verbatim(g.Separator) + verbatim(hint)
 	}
 	return "*" + note + "*"
 }
@@ -543,27 +545,18 @@ func body(s string) string {
 
 // badge turns an image that links somewhere, such as a badge, into a link
 // named by the image, since the image can't show.
-func badge(s string) string {
+func badge(s string, g Glyphs) string {
 	m := linkedImage.FindStringSubmatch(s)
 	alt := strings.TrimSpace(m[1])
 	if alt == "" {
 		alt = "image"
 	}
-	return "[🖼 " + alt + "](" + m[2] + ")"
-}
-
-// alerts are the labels of GitHub's alerts, by the name that marks them.
-var alerts = map[string]string{
-	"NOTE":      "ℹ Note",
-	"TIP":       "✓ Tip",
-	"IMPORTANT": "! Important",
-	"WARNING":   "⚠ Warning",
-	"CAUTION":   "✖ Caution",
+	return "[" + g.Image + " " + alt + "](" + m[2] + ")"
 }
 
 // alert turns the line that marks a GitHub alert, such as "> [!NOTE]",
 // into the alert's label.
-func alert(line string) string {
+func alert(line string, g Glyphs) string {
 	if !strings.Contains(line, "[!") {
 		return line
 	}
@@ -571,7 +564,7 @@ func alert(line string) string {
 	if m == nil {
 		return line
 	}
-	return m[1] + "**" + alerts[strings.ToUpper(m[2])] + "**"
+	return m[1] + "**" + g.alert(strings.ToUpper(m[2])) + "**"
 }
 
 // linkItem keeps a list item that starts with a link named x, as in
@@ -587,6 +580,8 @@ func linkItem(line string) string {
 // htmlState carries an HTML comment from one line to the next.
 type htmlState struct {
 	inComment bool
+	// g are the glyphs that mark what the HTML turns into.
+	g Glyphs
 }
 
 // line returns line with its HTML turned into markdown and its HTML
@@ -598,7 +593,7 @@ func (p *htmlState) line(line string) string {
 	}
 	var b, text strings.Builder
 	flush := func() {
-		b.WriteString(html(text.String()))
+		b.WriteString(html(text.String(), p.g))
 		text.Reset()
 	}
 	for i := 0; i < len(line); {
@@ -645,12 +640,12 @@ func (p *htmlState) line(line string) string {
 }
 
 // html converts the tags in s, which holds no code.
-func html(s string) string {
+func html(s string, g Glyphs) string {
 	if !hasHTML(s) {
 		return s
 	}
 	s = imgTag.ReplaceAllStringFunc(s, image)
-	s = linkedImage.ReplaceAllStringFunc(s, badge)
+	s = linkedImage.ReplaceAllStringFunc(s, func(s string) string { return badge(s, g) })
 	s = strings.ReplaceAll(s, "![](", "![image](")
 	s = detailsTag.ReplaceAllString(s, "")
 	s = wrapperTag.ReplaceAllString(s, "")
@@ -660,9 +655,9 @@ func html(s string) string {
 		if text == "" {
 			text = "Details"
 		}
-		s = s[:open[0]] + "**▸ " + text + "**" + body(s[end[1]:])
+		s = s[:open[0]] + "**" + verbatim(g.Fold) + " " + text + "**" + body(s[end[1]:])
 	} else {
-		s = summaryTag.ReplaceAllString(s, "▸ ")
+		s = summaryTag.ReplaceAllLiteralString(s, verbatim(g.Fold)+" ")
 		s = summaryEnd.ReplaceAllString(s, "")
 	}
 	return s
