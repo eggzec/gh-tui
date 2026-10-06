@@ -145,8 +145,8 @@ func validateKeys(action string, keys []string) error {
 		return fmt.Errorf("keys.%s: empty key", action)
 	}
 	for _, k := range keys {
-		if !keyname.Valid(k) {
-			return fmt.Errorf("keys.%s: unknown key %q, want a name such as r, R, ctrl+r, shift+tab, enter or space", action, k)
+		if err := keyname.Check(k); err != nil {
+			return fmt.Errorf("keys.%s: %w", action, err)
 		}
 	}
 	return nil

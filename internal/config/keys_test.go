@@ -17,7 +17,7 @@ func TestValidateKeyNames(t *testing.T) {
 		{"letter", []string{"r"}, ""},
 		{"capital", []string{"R"}, ""},
 		{"symbol", []string{"?", "/", "+", "-", ":", "@", "[", "]"}, ""},
-		{"modifiers", []string{"ctrl+r", "alt+x", "shift+tab", "ctrl+shift+up", "ctrl++"}, ""},
+		{"modifiers", []string{"ctrl+r", "alt+x", "shift+tab", "ctrl+shift+up", "ctrl+shift+r", "ctrl+alt+a", "ctrl++"}, ""},
 		{"named", []string{"enter", "esc", "space", "tab", "backspace", "pgup", "pgdown", "home", "end", "delete", "insert"}, ""},
 		{"function keys", []string{"f1", "f12", "f13", "f24"}, ""},
 		{"unbound", []string{}, ""},
@@ -32,6 +32,12 @@ func TestValidateKeyNames(t *testing.T) {
 		{"two letters", []string{"rr"}, `keys.refresh: unknown key "rr"`},
 		{"space typed", []string{" "}, `keys.refresh: unknown key " "`},
 		{"empty", []string{""}, "keys.refresh: empty key"},
+		{"capital with ctrl", []string{"ctrl+R"}, `keys.refresh: no terminal reports "ctrl+R": write a capital with ctrl or alt as its small letter and shift, "ctrl+shift+r"`},
+		{"capital with alt", []string{"alt+A"}, `keys.refresh: no terminal reports "alt+A": write a capital with ctrl or alt as its small letter and shift, "alt+shift+a"`},
+		{"capital with shift", []string{"shift+R"}, `keys.refresh: unknown key "shift+R"`},
+		{"modifiers out of order", []string{"alt+ctrl+a"}, `keys.refresh: the modifiers of "alt+ctrl+a" go in the order ctrl, alt, shift, meta, hyper, super: "ctrl+alt+a"`},
+		{"shift before ctrl", []string{"shift+ctrl+r"}, `keys.refresh: the modifiers of "shift+ctrl+r" go in the order ctrl, alt, shift, meta, hyper, super: "ctrl+shift+r"`},
+		{"modifier twice", []string{"ctrl+ctrl+a"}, `keys.refresh: unknown key "ctrl+ctrl+a"`},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validateKeys(ActionRefresh, tt.keys)
