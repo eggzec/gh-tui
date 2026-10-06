@@ -24,10 +24,11 @@ import (
 // [Ahead.Configure] applies say.
 //
 // Each read costs requests, so few run at once, and the reads stop once
-// GitHub reports the rate limit, until [Ahead.Resume], and once the reads
-// ahead spent their budget, until the GraphQL quota refills
-// (obs.PrefetchSpent). While a detail the user opened loads, reads wait
-// to start ([Ahead.Pause]).
+// GitHub reports the rate limit, as an error or by a read being served
+// what was kept in its place (core.WatchLimit), until [Ahead.Resume],
+// and once the reads ahead spent their budget, until the GraphQL quota
+// refills (obs.PrefetchSpent). While a detail the user opened loads,
+// reads wait to start ([Ahead.Pause]).
 type Ahead[K comparable] struct {
 	id int64
 	// seen remembers what was read, so that opening it counts as a use,
@@ -385,7 +386,13 @@ func (b batch[K]) send(ctx context.Context, k K, held bool, waited time.Duration
 	}
 	b.seen.Count(obs.PrefetchSent)
 	start := time.Now()
-	err := b.read(ctx, k)
+	rctx, limited := core.WatchLimit(ctx)
+	err := b.read(rctx, k)
+	if err == nil && limited() {
+		// What was kept was served in place of the read, which the rate
+		// limit refused, so the next reads would be refused too.
+		err = core.ErrRateLimited
+	}
 	outcome := "read"
 	switch {
 	case err == nil:

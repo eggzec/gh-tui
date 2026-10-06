@@ -221,6 +221,55 @@ func TestAheadStopsAtRateLimit(t *testing.T) {
 	}
 }
 
+// TestAheadStopsAtKeptForLimit checks that a read served what was kept in
+// its place, because GitHub rate limited it, stops the reads as the rate
+// limit's error does, until they resume.
+func TestAheadStopsAtKeptForLimit(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		var (
+			mu      sync.Mutex
+			sent    []int
+			limited = true
+		)
+		read := func(ctx context.Context, k int) error {
+			mu.Lock()
+			defer mu.Unlock()
+			sent = append(sent, k)
+			if limited {
+				core.ServedLimited(ctx)
+			}
+			return nil
+		}
+		reads := func() int {
+			mu.Lock()
+			defer mu.Unlock()
+			return len(sent)
+		}
+		a := aheadOf(t, read, func(int) bool { return false }, 0, 0, time.Millisecond)
+		run(a.Window(rowsOf(30), 0))
+		if n := reads(); n != 1 {
+			t.Fatalf("read %d rows, want the one under the cursor", n)
+		}
+		for i := 1; i < 4; i++ {
+			if cmd := a.Window(rowsOf(30), i); cmd != nil {
+				run(rest(t, a, cmd))
+			}
+		}
+		if n := reads(); n != 1 {
+			t.Errorf("read %d more rows under the rate limit", n-1)
+		}
+
+		mu.Lock()
+		limited = false
+		mu.Unlock()
+		a.Resume()
+		run(rest(t, a, a.Window(rowsOf(30), 3)))
+		if n := reads(); n != 2 {
+			t.Errorf("read %d rows once the limit lifted, want the one under the cursor", n-1)
+		}
+	})
+}
+
 // TestAheadWindowNoRowDropsRest checks that the cursor leaving the rows,
 // such as when the list loses the focus, drops the rest still to come.
 func TestAheadWindowNoRowDropsRest(t *testing.T) {

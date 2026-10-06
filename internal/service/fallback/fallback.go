@@ -40,6 +40,8 @@ var staleAt = time.Unix(1, 0)
 // the previous entry is served, with marks set on its value, and stays
 // stale, so the next read asks again. The cache holds it unmarked, with
 // cache.Entry.Fallback set, so any answer, a 304 too, leaves it unmarked.
+// One served for a rate limit is told to whoever watches ctx
+// (core.WatchLimit), since a value of V may have no mark to set.
 // When GitHub refuses the read, for the token or the account, or says
 // that what was asked isn't there, what shelf keeps under key is dropped,
 // since the account may have lost access.
@@ -69,6 +71,9 @@ func Fetch[V any](ctx context.Context, c *cache.Cache[V], shelf *cache.Shelf[V],
 	}
 	if e.Fallback != nil {
 		mark(&e.Value, marks, e.Fallback)
+		if core.KindOf(e.Fallback) == core.RateLimited {
+			core.ServedLimited(ctx)
+		}
 	}
 	return e, nil
 }
