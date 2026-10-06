@@ -36,20 +36,31 @@ func prepare(src string, open []int, hint string, g Glyphs, show func(i int, b B
 		outs = append(outs, out{show(i, b, b.Collapsed == "" || slices.Contains(open, i)), false})
 	})
 	lines := make([]string, len(outs))
+	// first is the first line of the paragraph the line continues, if it
+	// continues one, which puts it in a quote or a list item however many
+	// lazy lines follow it. A block, such as code, or a heading ends any
+	// paragraph, and a line with a marker starts one.
+	first := ""
 	for i, o := range outs {
 		lines[i] = o.line
-		if pic == nil || !o.text {
+		if pic == nil {
+			continue
+		}
+		prev := first
+		switch {
+		case !o.text || strings.TrimSpace(o.line) == "" || heading(o.line):
+			first = ""
+		case first == "" || startsMarked(o.line):
+			first = o.line
+		}
+		if !o.text {
 			continue
 		}
 		alt, url, ok := alone(o.line, relative)
 		if !ok {
 			continue
 		}
-		// A block before the image, such as code, ends any paragraph.
-		prev, next := "", ""
-		if i > 0 && outs[i-1].text {
-			prev = outs[i-1].line
-		}
+		next := ""
 		if i+1 < len(outs) && outs[i+1].text {
 			next = outs[i+1].line
 		}
@@ -60,15 +71,21 @@ func prepare(src string, open []int, hint string, g Glyphs, show func(i int, b B
 	return strings.Join(lines, "\n")
 }
 
-// setext matches the line under a heading of the setext style, which makes
-// the line before it a heading, not a paragraph.
-var setext = regexp.MustCompile(`^ {0,3}(?:=+|-+)\s*$`)
+var (
+	// setext matches the line under a heading of the setext style, which
+	// makes the line before it a heading, not a paragraph.
+	setext = regexp.MustCompile(`^ {0,3}(?:=+|-+)\s*$`)
+	// atxHeading matches a heading of the ATX style, which no line
+	// continues.
+	atxHeading = regexp.MustCompile(`^ {0,3}#{1,6}(?:\s|$)`)
+)
 
 // standsAlone reports whether a line that is an image alone, indented
-// indent spaces, between the lines prev and next, stands as a paragraph
-// of its own, which a block of its own may take the place of: not under
-// a quote or list item it continues lazily, which the block would end,
-// and not the text of a heading.
+// indent spaces, stands as a paragraph of its own, which a block of its
+// own may take the place of: not under a quote or list item it continues
+// lazily, which the block would end, and not the text of a heading. prev
+// is the first line of the paragraph the image continues, or "" when it
+// continues none, and next is the line after it.
 func standsAlone(prev, next string, indent int) bool {
 	if setext.MatchString(next) {
 		return false
@@ -90,6 +107,17 @@ func standsAlone(prev, next string, indent int) bool {
 		at += leading(prev[at:])
 	}
 	return indent >= at
+}
+
+// heading reports whether line is a heading of the ATX style.
+func heading(line string) bool {
+	return strings.HasPrefix(strings.TrimLeft(line, " "), "#") && atxHeading.MatchString(line)
+}
+
+// startsMarked reports whether line starts with a quote or list marker.
+func startsMarked(line string) bool {
+	n, _ := marker(line[leading(line):])
+	return n > 0
 }
 
 // leading returns how many spaces s starts with.
