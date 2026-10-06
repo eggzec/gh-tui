@@ -123,3 +123,23 @@ func TestFragmentViewSkipsBlankLines(t *testing.T) {
 		t.Errorf("fragmentView = %q, want %q", got, want)
 	}
 }
+
+// A file takes its path and the lines that matched, with no blank row
+// after them when they fill the result.
+func TestCodeHitIsCompact(t *testing.T) {
+	s := newSection(t, newFake(), 80, 22)
+	hit := core.CodeHit{
+		Repo: core.RepoRef{Owner: "cli", Name: "cli"}, Path: "tea.go",
+		Fragments: []core.Fragment{{Text: "one tea\ntwo\nthree\nfour", Matches: [][2]int{{4, 7}}}},
+	}
+	lines := strings.Split(ansi.Strip(s.renderCode(hit, false, 40)), "\n")
+	want := []string{"cli/cli · tea.go", "  one tea", "  two", "  three"}
+	if len(lines) != len(want) {
+		t.Fatalf("renderCode = %q, want %d lines", lines, len(want))
+	}
+	for i, l := range lines {
+		if strings.TrimRight(l, " ") != want[i] || ansi.StringWidth(l) != 40 {
+			t.Errorf("line %d = %q, want %q in 40 cells", i, l, want[i])
+		}
+	}
+}
