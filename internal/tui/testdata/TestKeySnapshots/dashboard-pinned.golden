@@ -20,7 +20,7 @@ app
   back | 0 | 0 | off
   next pane | tab ] | tab | off
   previous pane | shift+tab [ | shift+tab | off
-  focus pane | 1 2 3 | 1/2/3 | off
+  focus pane | 1 2 3 | 1-3 | off
 
 dashboard
   left | left h | ←/h | on

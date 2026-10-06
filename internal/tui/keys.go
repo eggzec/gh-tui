@@ -2,7 +2,6 @@ package tui
 
 import (
 	"slices"
-	"strings"
 	"unicode/utf8"
 
 	"charm.land/bubbles/v2/key"
@@ -93,17 +92,7 @@ func newKeyMap(keys map[string][]string) KeyMap {
 			ui.Binding(keys, config.ActionPane3, "issues"),
 		},
 	}
-	labels := make([]string, 0, len(k.Panes))
-	for _, b := range k.Panes {
-		if b.Enabled() {
-			labels = append(labels, b.Help().Key)
-		}
-	}
-	if len(labels) > 0 {
-		k.Jump = key.NewBinding(key.WithKeys(labels...), key.WithHelp(strings.Join(labels, "/"), "focus pane"))
-	} else {
-		k.Jump = key.NewBinding(key.WithHelp("", "focus pane"), key.WithDisabled())
-	}
+	k.Jump = ui.Jump(k.Panes...)
 	return k
 }
 
