@@ -291,7 +291,7 @@ func (s *Section) avatarShown() bool {
 // styles.
 func (s *Section) drawer() ownerui.Drawer {
 	return ownerui.Drawer{
-		Styles: &s.st.shared, Icons: s.icons, Links: &s.links, URL: s.repoURL,
+		Styles: &s.st.shared, Icons: &s.icons, Links: &s.links, URL: s.repoURL,
 		Lang: func(r core.Repo) ownerui.Paint { return s.langPaint(r.Language, r.LanguageColor) },
 	}
 }
