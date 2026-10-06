@@ -143,9 +143,21 @@ func TestTeamsMembersOnly(t *testing.T) {
 	if _, err := s.People(ctx, PeopleQuery{Login: "charm", List: Members}); err != nil {
 		t.Errorf("Members = %v", err)
 	}
-	s.Invalidate()
+	// A refresh of another page leaves the answer be; one of this page,
+	// or of every page, forgets it.
+	s.InvalidateLogin("github")
+	_, _ = teams.read(ctx, s, true)
+	if n := len(api.Calls()); n != 2 {
+		t.Errorf("%d calls after another login's InvalidateLogin, want the teams not asked about", n)
+	}
+	s.InvalidateLogin("Charm")
 	_, _ = teams.read(ctx, s, true)
 	if n := len(api.Calls()); n != 3 {
+		t.Errorf("%d calls after InvalidateLogin, want the teams asked about again", n)
+	}
+	s.Invalidate()
+	_, _ = teams.read(ctx, s, true)
+	if n := len(api.Calls()); n != 4 {
 		t.Errorf("%d calls after Invalidate, want the teams asked about again", n)
 	}
 
