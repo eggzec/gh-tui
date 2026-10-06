@@ -20,8 +20,8 @@ type Tmux struct {
 	// answered tmux's XTVERSION, as it answered, such as "kitty(0.43.1)"
 	// or "ghostty 1.2.0", or "" when it didn't.
 	ClientTermtype string
-	// Attached is session_attached: how many clients, each a terminal,
-	// show the app's session, or 0 when tmux couldn't say.
+	// Attached is how many clients, each a terminal, show the app's
+	// session, or those of its group, or 0 when tmux couldn't say.
 	Attached int
 	// VersionErr, PassthroughErr and TermtypeErr say why tmux couldn't
 	// answer each question, if it couldn't.
@@ -108,8 +108,12 @@ func DecideTmux(t Tmux) Verdict {
 	return v
 }
 
-// sessionAttached asks tmux how many clients show the app's session.
-const sessionAttached = "#{session_attached}"
+// sessionAttached asks tmux how many clients show the app's session: of
+// a session in a group, which shares its windows with the others, the
+// clients of every session of the group, which all show the app's pane
+// when on its window. tmux 3.3, the oldest that draws images, has these
+// formats.
+const sessionAttached = "#{?session_grouped,#{session_group_attached},#{session_attached}}"
 
 // Shared reports whether tmux shows the session on more than one
 // terminal. What the app sends of an image reaches all of them, and the
@@ -131,7 +135,7 @@ type TmuxClient struct {
 	// from the terminal's window size, or no size when the terminal gives
 	// none, as over ssh.
 	Cell Cell
-	// Attached is session_attached, as Tmux.Attached.
+	// Attached is how many clients show the session, as Tmux.Attached.
 	Attached int
 }
 

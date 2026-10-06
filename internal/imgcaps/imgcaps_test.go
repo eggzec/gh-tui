@@ -221,7 +221,7 @@ func TestQueryTmux(t *testing.T) {
 			return "3.4\n", nil
 		case "allow-passthrough":
 			return "", errors.New("invalid option")
-		case "#{session_attached}":
+		case sessionAttached:
 			return "2\n", nil
 		}
 		return "ghostty 1.2.0\n", nil
@@ -234,10 +234,33 @@ func TestQueryTmux(t *testing.T) {
 		{"display-message", "-p", "#{version}"},
 		{"show-options", "-Apv", "allow-passthrough"},
 		{"display-message", "-p", "#{client_termtype}"},
-		{"display-message", "-p", "#{session_attached}"},
+		{"display-message", "-p", sessionAttached},
 	}
 	if !slices.EqualFunc(asked, want, slices.Equal) {
 		t.Errorf("asked %q, want %q", asked, want)
+	}
+}
+
+// A tmux that can't say how many clients show the session draws images
+// as one with one client: it said all the verdict needs of the client.
+func TestQueryTmuxAttachedFails(t *testing.T) {
+	run := func(_ context.Context, args ...string) (string, error) {
+		switch args[len(args)-1] {
+		case "#{version}":
+			return "3.4\n", nil
+		case "allow-passthrough":
+			return "on\n", nil
+		case sessionAttached:
+			return "", errors.New("unknown format")
+		}
+		return "kitty(0.43.1)\n", nil
+	}
+	got := QueryTmux(context.Background(), run)
+	if got.Attached != 0 || got.Shared() {
+		t.Errorf("QueryTmux = %+v, want no count and not shared", got)
+	}
+	if v := DecideTmux(got); !v.Images || v.Shared {
+		t.Errorf("verdict = %+v, want images", v)
 	}
 }
 

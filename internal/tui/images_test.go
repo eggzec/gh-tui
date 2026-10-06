@@ -50,7 +50,7 @@ func (f *fakeTmux) run(_ context.Context, args ...string) (string, error) {
 		return "3.4", nil
 	case q == "allow-passthrough":
 		return f.passthrough, nil
-	case q == "#{session_attached}":
+	case strings.Contains(q, "session_attached") && !strings.HasPrefix(q, "#{client_tty}"):
 		return strconv.Itoa(f.client.Attached), nil
 	case strings.HasPrefix(q, "#{client_tty}"):
 		c := f.client
