@@ -1,6 +1,7 @@
 package owners
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -129,5 +130,28 @@ func TestParseReadmeKey(t *testing.T) {
 		if _, ok := parseReadmeKey(key); ok {
 			t.Errorf("parseReadmeKey(%q) succeeded", key)
 		}
+	}
+}
+
+// A README too large to read fails with the error that says so, and
+// leaves nothing in the cache, so that the next read asks again.
+func TestReadmeTooLarge(t *testing.T) {
+	api := &fakeAPI{t: t, readme: func(string, core.OwnerKind, bool, github.Conditional) (core.Readme, github.Response, error) {
+		return core.Readme{}, github.Response{}, &core.TooLargeError{Size: 3 << 20, Limit: 1 << 20}
+	}}
+	s := New(api, WithStore(openStore(t)))
+	q := ReadmeQuery{Login: "octocat"}
+	_, err := s.Readme(t.Context(), q)
+	if e, ok := errors.AsType[*core.TooLargeError](err); !ok || e.Size != 3<<20 || e.Limit != 1<<20 || !errors.Is(err, core.ErrTooLarge) {
+		t.Fatalf("Readme error = %v, want a TooLargeError of %d over %d", err, 3<<20, 1<<20)
+	}
+	if _, ok := s.CachedReadme(q); ok {
+		t.Error("a README too large to read was cached")
+	}
+	if _, err := s.Readme(t.Context(), q); err == nil {
+		t.Error("second read succeeded, want the error again")
+	}
+	if got := len(api.Calls()); got != 2 {
+		t.Errorf("calls = %d, want 2: a failure isn't kept", got)
 	}
 }
