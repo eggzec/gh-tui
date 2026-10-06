@@ -26,8 +26,8 @@ fragment workHits on SearchResultItemConnection {
   issueCount
   nodes {
     __typename
-    ... on PullRequest { id number title pullState: state isDraft author { login } comments { totalCount } createdAt updatedAt url repository { name owner { login } } }
-    ... on Issue { id number title issueState: state stateReason author { login } comments { totalCount } createdAt updatedAt url repository { name owner { login } } }
+    ... on PullRequest { id number title pullState: state isDraft author { __typename login } comments { totalCount } createdAt updatedAt url repository { name owner { login } } }
+    ... on Issue { id number title issueState: state stateReason author { __typename login } comments { totalCount } createdAt updatedAt url repository { name owner { login } } }
   }
 }`
 
@@ -46,7 +46,7 @@ type workNode struct {
 	IsDraft     bool   `json:"isDraft"`
 	StateReason string `json:"stateReason"`
 	// Author is null for a deleted account.
-	Author     *user       `json:"author"`
+	Author     *actor      `json:"author"`
 	Comments   viewerCount `json:"comments"`
 	CreatedAt  time.Time   `json:"createdAt"`
 	UpdatedAt  time.Time   `json:"updatedAt"`

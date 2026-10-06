@@ -35,6 +35,40 @@ func TestSharedShapesDecode(t *testing.T) {
 	}
 }
 
+// TestUserKinds checks that an app is told from a person in the shapes of
+// both APIs: GraphQL's actor and REST's account.
+func TestUserKinds(t *testing.T) {
+	tests := []struct {
+		data string
+		rest bool
+		want core.User
+	}{
+		{data: `{"__typename": "Bot", "login": "dependabot"}`, want: core.User{Login: "dependabot", Bot: true}},
+		{data: `{"__typename": "User", "login": "octocat", "name": "The Octocat"}`, want: core.User{Login: "octocat", Name: "The Octocat"}},
+		{data: `{"login": "dependabot[bot]", "type": "Bot"}`, rest: true, want: core.User{Login: "dependabot[bot]", Bot: true}},
+		{data: `{"login": "octocat", "type": "User"}`, rest: true, want: core.User{Login: "octocat"}},
+	}
+	for _, tt := range tests {
+		var got core.User
+		var err error
+		if tt.rest {
+			var a account
+			err = json.Unmarshal([]byte(tt.data), &a)
+			got = a.core()
+		} else {
+			var a actor
+			err = json.Unmarshal([]byte(tt.data), &a)
+			got = a.core()
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != tt.want {
+			t.Errorf("%s: %+v, want %+v", tt.data, got, tt.want)
+		}
+	}
+}
+
 func TestPageInfoLastPage(t *testing.T) {
 	p := pageInfo{HasNextPage: false, EndCursor: "Y3Vyc29y"}
 	if got := p.next(); got != "" {

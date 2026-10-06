@@ -35,10 +35,12 @@ const (
 	FilterAll    StateFilter = "all"
 )
 
-// User is a GitHub account.
+// User is a GitHub account. Bot reports an app, such as dependabot, which
+// has no page of its own.
 type User struct {
 	Login string
 	Name  string
+	Bot   bool
 }
 
 // Label is an issue or pull request label. Color is hex without the '#'.

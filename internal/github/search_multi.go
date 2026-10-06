@@ -82,7 +82,7 @@ fragment searchIssue on Issue {
   createdAt
   updatedAt
   repository { name owner { login } }
-  author { login ... on User { name } }
+  author { __typename login ... on User { name } }
   labels(first: %[2]d) { nodes { name color description } }
   comments { totalCount }
 }
@@ -97,7 +97,7 @@ fragment searchPull on PullRequest {
   createdAt
   updatedAt
   repository { name owner { login } }
-  author { login ... on User { name } }
+  author { __typename login ... on User { name } }
   labels(first: %[2]d) { nodes { name color description } }
   comments { totalCount }
 }
@@ -244,7 +244,7 @@ type searchIssueNode struct {
 		} `json:"owner"`
 	} `json:"repository"`
 	// Author is null for deleted accounts.
-	Author   *user        `json:"author"`
+	Author   *actor       `json:"author"`
 	Labels   nodes[label] `json:"labels"`
 	Comments struct {
 		TotalCount int `json:"totalCount"`

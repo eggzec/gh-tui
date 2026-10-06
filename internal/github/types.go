@@ -14,7 +14,33 @@ type user struct {
 }
 
 func (u user) core() core.User {
-	return core.User(u)
+	return core.User{Login: u.Login, Name: u.Name}
+}
+
+// actor is the GraphQL author of a pull request or issue, whose
+// __typename tells an app, such as dependabot, from a person.
+type actor struct {
+	user
+	Typename string `json:"__typename"`
+}
+
+func (a actor) core() core.User {
+	u := a.user.core()
+	u.Bot = a.Typename == "Bot"
+	return u
+}
+
+// account is the REST author of an issue, whose type tells an app, such
+// as dependabot[bot], from a person.
+type account struct {
+	user
+	Type string `json:"type"`
+}
+
+func (a account) core() core.User {
+	u := a.user.core()
+	u.Bot = a.Type == "Bot"
+	return u
 }
 
 type label struct {

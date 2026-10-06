@@ -136,7 +136,8 @@ const (
 	kindList     = "issuelist"
 	kindIssue    = "issue"
 	kindComments = "issuecomments"
-	schema       = 3
+	// schema 4 keeps whether the author of each issue is an app.
+	schema = 4
 	// commentsSchema 4 keeps the avatar of each comment's author.
 	commentsSchema = 4
 	// A number's kind is kept apart, since it outlives any shape of

@@ -44,8 +44,9 @@ const (
 	kindWork          = "dashwork"
 	kindContributions = "dashcontrib"
 	kindRepos         = "ownerrepos"
-	// schema 6 keeps the avatar of each repository's owner.
-	schema = 6
+	// schema 6 keeps the avatar of each repository's owner, and 7
+	// whether the author of each task is an app.
+	schema = 7
 )
 
 // New returns a Service that fetches from api.

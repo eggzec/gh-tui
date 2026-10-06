@@ -56,6 +56,11 @@ func TestViewerWork(t *testing.T) {
 		t.Errorf("drafts = %v, %v; want the authored pull request only", got.Authored.Items[0].Draft, got.ReviewRequested.Items[0].Draft)
 	}
 
+	// GraphQL names an app's login without "[bot]", but says it is one.
+	if a := got.ReviewRequested.Items[0].Issue.Author; a != (core.User{Login: "dependabot", Bot: true}) {
+		t.Errorf("review requested[0] author = %+v, want the app dependabot", a)
+	}
+
 	issue := got.Assigned.Items[1]
 	if issue.Kind != core.SearchIssues || issue.Issue.Number != 1053 || issue.Issue.Repo != (core.RepoRef{Owner: "charmbracelet", Name: "bubbles"}) {
 		t.Errorf("assigned[1] = %+v, want issue charmbracelet/bubbles#1053", issue)
