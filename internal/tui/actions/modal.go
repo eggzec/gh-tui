@@ -242,13 +242,12 @@ func (m *Modal) KeyLayers() []keyhelp.Layer {
 	case m.ask != nil:
 		return []keyhelp.Layer{k.Confirm.Layer()}
 	case m.filterStep != nil:
-		// The keys of the modal wait while the filter has the keys.
-		screen := ui.Off(ui.ContextLayer(ctxModal, k.screen(), nil))
+		// The filter takes every key, so the modal's own don't work.
 		if f := m.filterStep.form; f != nil {
-			return []keyhelp.Layer{screen, ui.ContextHelp(ctxFilter, *f, f.Capturing())}
+			return []keyhelp.Layer{ui.ContextHelp(ctxFilter, *f, f.Capturing())}
 		}
 		// Until the form shows, only the back key does something.
-		return []keyhelp.Layer{screen, ui.ContextLayer(ctxFilter, []key.Binding{k.Back}, []key.Binding{k.Back})}
+		return []keyhelp.Layer{ui.ContextLayer(ctxFilter, []key.Binding{k.Back}, []key.Binding{k.Back})}
 	case m.focus == logPane && m.log.Capturing():
 		return m.log.KeyLayers()
 	}

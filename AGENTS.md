@@ -389,9 +389,13 @@ reacts to messages. Concretely:
   never binds a key of an outer one, so `internal/config/keys.go`
   refuses a key that two layers of one chain share, one key on two
   actions of a context, an action outside its context (a global one in
-  another context, or a typo) and `ctrl+c`, which always quits and is the
-  one key not in default.yaml. Widgets that take every key while open
-  (the command line, a prompt) are contexts outside the chain. What a
+  another context, or a typo) and `ctrl+c`, which always quits and is
+  not in default.yaml. A clash is reported at the setting the user's file
+  has, with its line. A modal that replaces another, such as the
+  checks of a pull request or the filter of the runs, is a screen-layer
+  context of its own, so the keys of the modal under it don't work in it.
+  Widgets that take every key while open (the command line, a prompt) are
+  contexts outside the chain. What a
   global key does depends on what has the focus: a pane implements such an
   intent (`global.select`, `global.refresh`) and labels it in help, but
   never binds its key. Every context is listed in

@@ -110,7 +110,7 @@ func TestKeysByContext(t *testing.T) {
 		{"global action in a context", "keys:\n  pulls:\n    quit: [Q]\n", "line 3: keys.pulls.quit: quit is a global action, which no context may redefine: set keys.global.quit"},
 		{"global key in a context", "keys:\n  pulls:\n    merge: [r]\n", "line 3: keys.pulls.merge: r is already keys.global.refresh"},
 		{"context key made global", "keys:\n  global:\n    zoom: [m]\n", "line 3: keys.global.zoom: m is also keys.pulls.merge, keys.notifications.read, keys.pull_modal.merge: unbind or rebind them there"},
-		{"context key made global once", "keys:\n  global:\n    zoom: [B]\n", "keys.repo.history: B is already keys.global.zoom"},
+		{"context key made global once", "keys:\n  global:\n    zoom: [B]\n", "line 3: keys.global.zoom: B is also keys.repo.history: unbind or rebind them there"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			_, _, err := loadBase(writeConfig(t, tt.file))
@@ -139,7 +139,9 @@ func TestKeyValidation(t *testing.T) {
 		{"ctrl+c in a context", "keys:\n  pulls:\n    merge: [ctrl+c]\n", "line 3: keys.pulls.merge: ctrl+c always quits and can't be bound"},
 		{"ctrl+c in global", "keys:\n  global:\n    quit: [q, ctrl+c]\n", "line 3: keys.global.quit: ctrl+c always quits and can't be bound"},
 		{"one key, two actions", "keys:\n  pulls:\n    sort: [f]\n", "keys.pulls: f is both filter and sort"},
-		{"pane against global", "keys:\n  actions:\n    rerun_failed: [r]\n", "line 3: keys.actions.rerun_failed: r is already keys.global.refresh"},
+		{"pane against global", "keys:\n  actions_jobs:\n    rerun_job: [r]\n", "line 3: keys.actions_jobs.rerun_job: r is already keys.global.refresh"},
+		{"screen against global", "keys:\n  actions:\n    rerun_failed: [r]\n", "line 3: keys.actions.rerun_failed: r is already keys.global.refresh"},
+		{"screen key against its panes", "keys:\n  actions:\n    cancel: [J]\n", "line 3: keys.actions.cancel: J is also keys.actions_jobs.rerun_job, keys.actions_log.rerun_job, keys.actions_annotations.rerun_job: unbind or rebind them there"},
 		{"screen against global", "keys:\n  repo:\n    history: [o]\n", "line 3: keys.repo.history: o is already keys.global.open"},
 		{"pane against its screen", "keys:\n  actions_log:\n    annotations: [x]\n", "line 3: keys.actions_log.annotations: x is already keys.actions.cancel, which works in every pane of the Actions modal"},
 		{"pane of a screen against its screen", "keys:\n  pulls:\n    merge: [B]\n", "line 3: keys.pulls.merge: B is already keys.repo.history, which works in every pane of the Repository screen"},
@@ -233,5 +235,48 @@ func TestDefaultContexts(t *testing.T) {
 	}
 	if got := Chain("nowhere"); got != nil {
 		t.Errorf("Chain(nowhere) = %q, want none", got)
+	}
+}
+
+// TestChecksKeysAreTheirOwnModal checks that the steps of the checks, which
+// take every key, don't clash with the keys of the pull request modal.
+func TestChecksKeysAreTheirOwnModal(t *testing.T) {
+	cfg, _, err := loadBase(writeConfig(t, "keys:\n  pull_check_log:\n    annotations: [m]\n"))
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got := cfg.Keys.Of("pull_check_log.annotations"); !slices.Equal(got, []string{"m"}) {
+		t.Errorf("annotations = %q, want [m]", got)
+	}
+	if _, _, err := loadBase(writeConfig(t, "keys:\n  pull_check_log:\n    annotations: [R]\n")); err == nil ||
+		!strings.Contains(err.Error(), "keys.pull_check_log.annotations: R is already keys.pull_checks.rerun_failed, which works in every pane of the Checks modal") {
+		t.Errorf("Load = %v, want R refused as the checks' re-run", err)
+	}
+}
+
+// TestEmptyKeysDontPanic checks that an empty value under keys is read:
+// an empty context changes nothing, an empty action is an error, and an
+// empty unknown context is an unknown context.
+func TestEmptyKeysDontPanic(t *testing.T) {
+	for _, tt := range []struct{ name, file, want string }{
+		{"empty context", "keys:\n  pulls:\n", ""},
+		{"empty action", "keys:\n  pulls:\n    merge:\n", "line 3: keys.pulls.merge: want a list of keys, such as [m], or [] to unbind"},
+		{"unknown empty context", "keys:\n  nope:\n", "line 2: keys.nope: unknown context"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg, _, err := loadBase(writeConfig(t, tt.file))
+			if tt.want == "" {
+				if err != nil {
+					t.Fatalf("Load = %v, want none", err)
+				}
+				if got := cfg.Keys.Of("pulls.merge"); !slices.Equal(got, []string{"m"}) {
+					t.Errorf("pulls.merge = %q, want the default", got)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tt.want) {
+				t.Errorf("Load = %v, want %q", err, tt.want)
+			}
+		})
 	}
 }

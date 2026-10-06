@@ -1,10 +1,10 @@
 # label | keys | help key | on or off
 
-app
+always
   quit | ctrl+c | ^c | on
   help | ? | ? | off
 
-filter (types)
+Picker (types)
   previous field | up shift+tab | ↑ | off
   field | down tab | ↑↓ | off
   previous | left | ← | off

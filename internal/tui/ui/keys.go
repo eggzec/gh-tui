@@ -57,12 +57,6 @@ type Context struct {
 // In returns the keys of context ctx.
 func In(keys config.Keymap, ctx string) Context { return Context{keys: keys, name: ctx} }
 
-// Lookup returns the keys of an action of ctx, or none, as a function
-// that bubbles can take the keys of their actions from.
-func Lookup(keys config.Keymap, ctx string) func(action string) []string {
-	return In(keys, ctx).Of
-}
-
 // Of returns the keys of action: of ctx if it has no dot, else of the
 // context it names.
 func (c Context) Of(action string) []string {

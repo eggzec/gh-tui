@@ -101,13 +101,13 @@ func (m *Model) layersNow() []keyhelp.Layer {
 	if m.line.Focused() {
 		return []keyhelp.Layer{ui.ContextHelp("command_line", m.line, true)}
 	}
-	quit := keyhelp.Layer{Source: "app", Bindings: []key.Binding{forceQuit}}
+	quit := keyhelp.Layer{Source: alwaysTitle, Bindings: []key.Binding{forceQuit}}
 	if m.helpOpen() {
 		return []keyhelp.Layer{quit, ui.ContextHelp("help", m.keyhelp, true)}
 	}
 	inner, modal := m.innerLayers()
 	help := m.helpKey(inner)
-	always := keyhelp.Layer{Source: "app", Short: []key.Binding{help}}
+	always := keyhelp.Layer{Source: alwaysTitle, Short: []key.Binding{help}}
 	if modal {
 		// Over a screen, the app's keys are a layer of their own. The
 		// modal has the keys that work everywhere, which it takes by
@@ -146,7 +146,9 @@ func (m *Model) innerLayers() (layers []keyhelp.Layer, modal bool) {
 		// that it can't trap the user.
 		return append([]keyhelp.Layer{quitReach(app[0])}, p.section.KeyLayers()...), false
 	}
-	return append(app, p.section.KeyLayers()...), false
+	inner := p.section.KeyLayers()
+	takeIntents(&app[0], inner)
+	return append(app, inner...), false
 }
 
 // quitReach returns the bindings of l that ctrl+c reaches, with that key
@@ -194,4 +196,39 @@ func (m *Model) opensHelp(msg tea.KeyPressMsg) bool {
 func capturing(l keyhelp.Layer) bool {
 	c, ok := config.LookupContext(l.Context)
 	return !ok || c.Reach == config.ReachCapture
+}
+
+// alwaysTitle titles the layer of the keys that work whatever is open, the
+// help key and ctrl+c, apart from the global context's.
+const alwaysTitle = "always"
+
+// takeIntents moves the keys that a section gives the intents of global,
+// such as the pane keys or the zoom, into global's layer, in place of the
+// rows it lists for them, so that each is listed once, as the section names
+// it and takes it. The bindings that share a key with one of global's are
+// those.
+func takeIntents(global *keyhelp.Layer, layers []keyhelp.Layer) {
+	takes := func(b, g key.Binding) bool {
+		return slices.ContainsFunc(b.Keys(), func(k string) bool { return slices.Contains(g.Keys(), k) })
+	}
+	move := func(bs []key.Binding, into *[]key.Binding) []key.Binding {
+		return slices.DeleteFunc(bs, func(b key.Binding) bool {
+			for i, g := range *into {
+				if takes(b, g) {
+					(*into)[i] = b
+					return true
+				}
+			}
+			return false
+		})
+	}
+	global.Bindings = slices.Clone(global.Bindings)
+	global.Short = slices.Clone(global.Short)
+	for i := range layers {
+		if c, ok := config.LookupContext(layers[i].Context); !ok || c.Reach != config.ReachScreen {
+			continue
+		}
+		layers[i].Bindings = move(slices.Clone(layers[i].Bindings), &global.Bindings)
+		layers[i].Short = move(slices.Clone(layers[i].Short), &global.Short)
+	}
 }

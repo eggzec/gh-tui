@@ -15,10 +15,12 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
 )
 
-// The contexts of the keys of the step: the list of checks, the log of a
-// job and its annotations, and the detail of what an app reported.
+// The contexts of the keys of the step: the step itself, which works in
+// each of its panes, the list of checks, the log of a job and its
+// annotations, and the detail of what an app reported.
 const (
-	ctxList        = "pull_checks"
+	ctxStep        = "pull_checks"
+	ctxList        = "pull_check_list"
 	ctxLog         = "pull_check_log"
 	ctxAnnotations = "pull_check_annotations"
 	ctxDetail      = "pull_check_detail"
@@ -45,10 +47,8 @@ type KeyMap struct {
 	// Refresh reads the checks again, or what failed to load.
 	Refresh key.Binding
 	// RerunFailed re-runs the failed jobs of the run of the check, once the
-	// user confirms it, with the key of the list, and rerunLog,
-	// rerunNotes and rerunDetail with those of what the step shows.
-	RerunFailed                       key.Binding
-	rerunLog, rerunNotes, rerunDetail key.Binding
+	// user confirms it.
+	RerunFailed key.Binding
 	// Confirm answers the confirmation.
 	Confirm ui.ConfirmKeys
 	// Annotations moves the focus between the annotations of a failed job
@@ -64,20 +64,17 @@ type KeyMap struct {
 
 func newKeyMap(keys config.Keymap) KeyMap {
 	fk := feed.DefaultKeyMap()
-	list, log, notes, detail := ui.In(keys, ctxList), ui.In(keys, ctxLog), ui.In(keys, ctxAnnotations), ui.In(keys, ctxDetail)
+	step, log, notes := ui.In(keys, ctxStep), ui.In(keys, ctxLog), ui.In(keys, ctxAnnotations)
 	k := KeyMap{
 		Up: fk.Up, Down: fk.Down, PageUp: fk.PageUp, PageDown: fk.PageDown,
 		HalfPageUp: fk.HalfPageUp, HalfPageDown: fk.HalfPageDown, Home: fk.Home, End: fk.End,
 		Top:         relabel(fk.Home, "top"),
 		Bottom:      relabel(fk.End, "bottom"),
-		Select:      list.Binding("global.select", "open"),
-		Back:        list.Binding("global.dismiss", "back"),
-		Open:        list.Binding("global.open", "browser"),
-		Refresh:     list.Binding("global.refresh", "refresh"),
-		RerunFailed: list.Binding("rerun_failed", "rerun failed"),
-		rerunLog:    log.Binding("rerun_failed", "rerun failed"),
-		rerunNotes:  notes.Binding("rerun_failed", "rerun failed"),
-		rerunDetail: detail.Binding("rerun_failed", "rerun failed"),
+		Select:      step.Binding("global.select", "open"),
+		Back:        step.Binding("global.dismiss", "back"),
+		Open:        step.Binding("global.open", "browser"),
+		Refresh:     step.Binding("global.refresh", "refresh"),
+		RerunFailed: step.Binding("rerun_failed", "rerun failed"),
 		Annotations: log.Binding("annotations", "annotations"),
 		notes:       notes.Binding("annotations", "annotations"),
 		Confirm:     ui.DefaultConfirmKeys(),
@@ -102,24 +99,6 @@ func detailKeyMap() viewport.KeyMap {
 	return d
 }
 
-// Capturing reports whether the step takes every key, while a search of the
-// log is open.
-func (s *Step) Capturing() bool { return s.mode == jobMode && s.view.Capturing() }
-
-// rerun returns the re-run key of what the step shows: the key of the
-// list, or of the log, the annotations or the detail.
-func (k KeyMap) rerun(m mode, onNotes bool) key.Binding {
-	switch {
-	case m == jobMode && onNotes:
-		return k.rerunNotes
-	case m == jobMode:
-		return k.rerunLog
-	case m == detailMode:
-		return k.rerunDetail
-	}
-	return k.RerunFailed
-}
-
 // job returns the keys of the job view: the moves of the checks through
 // its annotations, and the select key to open one.
 func (k KeyMap) job() jobview.KeyMap {
@@ -137,18 +116,14 @@ func relabel(b key.Binding, desc string) key.Binding {
 	return b
 }
 
-// own returns the keys of the step itself, in the order it matches them,
-// with the re-run key of what it shows.
-func (k KeyMap) own(rerun key.Binding) []key.Binding {
-	return []key.Binding{
-		k.Back, rerun, k.Refresh, k.Open,
-		k.Select, k.Up, k.Down, k.PageUp, k.PageDown, k.HalfPageUp, k.HalfPageDown, k.Home, k.End,
-	}
+// screen returns the keys of the step that work in each of its panes, in
+// the order it matches them, and pane those of the list of checks.
+func (k KeyMap) screen() []key.Binding {
+	return []key.Binding{k.Back, k.RerunFailed, k.Refresh, k.Open}
 }
 
-// shortHelp returns the keys of the step worth a hint.
-func (k KeyMap) shortHelp(rerun key.Binding) []key.Binding {
-	return []key.Binding{k.Up, k.Down, k.Select, k.Back, rerun, k.Open}
+func (k KeyMap) pane() []key.Binding {
+	return []key.Binding{k.Select, k.Up, k.Down, k.PageUp, k.PageDown, k.HalfPageUp, k.HalfPageDown, k.Home, k.End}
 }
 
 // detail returns the keys that move through what an app reported.
@@ -159,13 +134,15 @@ func (k KeyMap) detail() []key.Binding {
 }
 
 // ShortHelp implements help.KeyMap.
-func (k KeyMap) ShortHelp() []key.Binding { return k.shortHelp(k.RerunFailed) }
+func (k KeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.Up, k.Down, k.Select, k.Back, k.RerunFailed, k.Open}
+}
 
 // FullHelp implements help.KeyMap: every key of the step and the bubbles
 // it shows, once each.
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return slices.Concat([][]key.Binding{
-		k.own(k.RerunFailed), {k.Annotations},
+		k.screen(), k.pane(), {k.Annotations},
 		{k.Confirm.Yes, k.Confirm.No}, k.detail(),
 	}, k.Log.FullHelp())
 }
@@ -183,18 +160,17 @@ func (s *Step) KeyLayers() []keyhelp.Layer {
 		return s.view.KeyLayers()
 	}
 	k = k.state(s)
-	rerun := k.RerunFailed
-	own := keyhelp.Layer{Bindings: k.own(rerun), Short: k.shortHelp(rerun)}
+	screen := ui.ContextLayer(ctxStep, k.screen(), []key.Binding{k.Back, k.RerunFailed, k.Open})
 	switch s.mode {
 	case jobMode:
-		l := s.view.Layer()
-		return []keyhelp.Layer{ui.MergeLayers(l.Context, own, l)}
+		return []keyhelp.Layer{screen, s.view.Layer()}
 	case detailMode:
 		det := keyhelp.Layer{Bindings: k.detail(), Short: k.detail()[:2]}
-		return []keyhelp.Layer{ui.MergeLayers(ctxDetail, own, det)}
+		return []keyhelp.Layer{screen, ui.MergeLayers(ctxDetail, det)}
 	case listMode:
 	}
-	return []keyhelp.Layer{ui.MergeLayers(ctxList, own)}
+	list := keyhelp.Layer{Bindings: k.pane(), Short: []key.Binding{k.Up, k.Down, k.Select}}
+	return []keyhelp.Layer{screen, ui.MergeLayers(ctxList, list)}
 }
 
 // state returns k as the step takes it in its mode, named for what the
@@ -232,7 +208,7 @@ func (k KeyMap) state(s *Step) KeyMap {
 // under the cursor, is of a run of GitHub Actions, and the viewer may
 // re-run it.
 func (s *Step) rerunKey() key.Binding {
-	b := s.keys.rerun(s.mode, s.view.OnAnnotations())
+	b := s.keys.RerunFailed
 	r, ok := s.current()
 	b.SetEnabled(b.Enabled() && ok && r.job())
 	return s.gate().Gated(b, ui.ActRerun, nil)

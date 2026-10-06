@@ -241,7 +241,15 @@ func (f *File) resolve(host string, p *profile, before *Config) (Config, error) 
 	if level := os.Getenv(EnvLog); level != "" {
 		cfg.Log.Level = strings.ToLower(level)
 	}
-	return cfg, atLines(renamedErrors(cfg.Validate(), renamed), nodes, renamed)
+	sets := func(path string) bool {
+		for _, n := range nodes {
+			if _, v := find(n, path); v != nil {
+				return true
+			}
+		}
+		return false
+	}
+	return cfg, atLines(renamedErrors(placeClashes(cfg.Validate(), sets), renamed), nodes, renamed)
 }
 
 // atLines returns err, an error of Validate, with each problem that

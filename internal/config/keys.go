@@ -149,6 +149,11 @@ func (k *Keymap) UnmarshalYAML(n *yaml.Node) error {
 	out := make(Keymap, len(n.Content)/2)
 	for i := 0; i+1 < len(n.Content); i += 2 {
 		name, v := n.Content[i].Value, n.Content[i+1]
+		if v.Kind == yaml.ScalarNode && v.ShortTag() == "!!null" {
+			// A context with no actions sets nothing.
+			out[name] = map[string][]string{}
+			continue
+		}
 		if v.Kind != yaml.MappingNode {
 			out[name] = nil
 			continue
@@ -235,6 +240,71 @@ func validateKeys(ctx, name string, keys []string) error {
 // context may bind.
 const forcedQuit = "ctrl+c"
 
+// clashError is a key that an action of an outer layer, outer, shares with
+// the actions inners of the layers inside it. Where the file sets one side
+// and not the other, the problem is reported at the setting the file has.
+type clashError struct {
+	key    string
+	outer  string
+	kind   string
+	inners []string
+}
+
+func (e *clashError) Error() string {
+	return strings.Join(e.lines(func(string) bool { return false }), "\n")
+}
+
+// lines returns the problem as lines, each naming the setting it is at,
+// where sets says whether the file sets a setting: one line for each inner
+// action the file sets while it doesn't set the outer one, or one for the
+// outer action listing the inner ones, if the file sets it or there are
+// several, and otherwise one for the only inner one.
+func (e *clashError) lines(sets func(path string) bool) []string {
+	one := func(inner string) string {
+		msg := inner + ": " + e.key + " is already " + e.outer
+		if e.kind != "" {
+			msg += ", " + e.kind
+		}
+		return msg
+	}
+	all := e.outer + ": " + e.key + " is also " + strings.Join(e.inners, ", ") + ": unbind or rebind them there"
+	if sets(e.outer) {
+		return []string{all}
+	}
+	var own []string
+	for _, in := range e.inners {
+		if sets(in) {
+			own = append(own, one(in))
+		}
+	}
+	switch {
+	case len(own) > 0:
+		return own
+	case len(e.inners) == 1:
+		return []string{one(e.inners[0])}
+	}
+	return []string{all}
+}
+
+// placeClashes returns err with each clashError of it said at the settings
+// the file sets, by sets.
+func placeClashes(err error, sets func(path string) bool) error {
+	if err == nil {
+		return nil
+	}
+	if j, ok := err.(interface{ Unwrap() []error }); ok {
+		var out []error
+		for _, c := range j.Unwrap() {
+			out = append(out, placeClashes(c, sets))
+		}
+		return errors.Join(out...)
+	}
+	if e, ok := errors.AsType[*clashError](err); ok {
+		return errors.New(strings.Join(e.lines(sets), "\n"))
+	}
+	return err
+}
+
 // clashes returns the problems of keys that overlap: those of one context
 // that does two things, and those that the app would match before the
 // action it belongs to, between global, a screen or modal, and its panes.
@@ -271,59 +341,46 @@ func (k Keymap) clashes() []error {
 		}
 	}
 
+	// A key of a screen or modal, or of a pane, may not be one of an outer
+	// layer: the global context's for either, and the screen's for a pane.
+	// The clashes of one outer action are kept together, to list as one
+	// when there are several.
 	global := bound(ContextGlobal)
-	// seen collects the actions that clash with each global one, to list
-	// them together when there are several: a user's key for a global
-	// action often meets several default keys of the panes.
-	type clash struct{ key, global string }
-	var order []clash
-	seen := map[clash][]string{}
+	var groups []*clashError
+	group := map[string]*clashError{}
+	add := func(key, outer, kind, inner string) {
+		id := outer + " " + key
+		if group[id] == nil {
+			group[id] = &clashError{key: key, outer: outer, kind: kind}
+			groups = append(groups, group[id])
+		}
+		group[id].inners = append(group[id].inners, inner)
+	}
 	for _, c := range contexts {
 		if c.Reach != ReachScreen && c.Reach != ReachPane {
 			continue
 		}
 		keys := bound(c.Name)
+		var parent Context
+		var outer map[string][]string
+		if c.Reach == ReachPane {
+			parent, _ = LookupContext(c.Parent)
+			outer = bound(c.Parent)
+		}
 		for _, key := range slices.Sorted(maps.Keys(keys)) {
-			g, ok := global[key]
-			if !ok {
-				continue
-			}
 			for _, name := range keys[key] {
-				id := clash{key, g[0]}
-				if _, ok := seen[id]; !ok {
-					order = append(order, id)
+				inner := "keys." + c.Name + "." + name
+				if g, ok := global[key]; ok {
+					add(key, "keys.global."+g[0], "", inner)
 				}
-				seen[id] = append(seen[id], "keys."+c.Name+"."+name)
+				if o, ok := outer[key]; ok {
+					add(key, "keys."+c.Parent+"."+o[0], "which works in every pane of the "+parent.Title+" "+parent.kind(), inner)
+				}
 			}
 		}
 	}
-	for _, id := range order {
-		paths := seen[id]
-		if len(paths) == 1 {
-			errs = append(errs, fmt.Errorf("%s: %s is already keys.global.%s", paths[0], id.key, id.global))
-			continue
-		}
-		errs = append(errs, fmt.Errorf("keys.global.%s: %s is also %s: unbind or rebind them there", id.global, id.key, strings.Join(paths, ", ")))
-	}
-
-	// A pane may not bind a key that works in every pane of its screen or
-	// modal.
-	for _, c := range contexts {
-		if c.Reach != ReachPane {
-			continue
-		}
-		parent, _ := LookupContext(c.Parent)
-		outer, inner := bound(c.Parent), bound(c.Name)
-		for _, key := range slices.Sorted(maps.Keys(inner)) {
-			o, ok := outer[key]
-			if !ok {
-				continue
-			}
-			for _, name := range inner[key] {
-				errs = append(errs, fmt.Errorf("keys.%s.%s: %s is already keys.%s.%s, which works in every pane of the %s %s",
-					c.Name, name, key, c.Parent, o[0], parent.Title, parent.kind()))
-			}
-		}
+	for _, g := range groups {
+		errs = append(errs, g)
 	}
 	return errs
 }

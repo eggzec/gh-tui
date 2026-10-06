@@ -1,24 +1,8 @@
 # label | keys | help key | on or off
 
-app
+always
   quit | ctrl+c | ^c | on
   help | ? | ? | on
-
-Actions
-  tab | ] | ] | off
-  previous tab | [ | [ | off
-  pane | tab | tab | off
-  previous pane | shift+tab | shift+tab | off
-  pane right | l | l | off
-  pane left | h | h | off
-  filter | f | f | off
-  zoom | z | z | off
-  browser | o | o | off
-  rerun failed | R | R | off
-  rerun all |  |  | off
-  cancel run | x | x | off
-  refresh | r | r | off
-  back | esc | esc | off
 
 Filter
   previous field | up shift+tab | ↑ | on

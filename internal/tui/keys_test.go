@@ -83,7 +83,7 @@ func TestKeyLayersOrder(t *testing.T) {
 	if got := winner(m, "x"); got != "Preview: close" {
 		t.Errorf("x reaches %q with a modal open, want the modal", got)
 	}
-	if got := winner(m, "?"); got != "app: help" {
+	if got := winner(m, "?"); got != "always: help" {
 		t.Errorf("? reaches %q with a modal open, want the help", got)
 	}
 	mod.typing = true
@@ -160,13 +160,13 @@ func TestNextAndPrevKeysOnEachScreen(t *testing.T) {
 		{"search query: ]", false, []string{"/", "k", "e", "y"}, `search: query "key"`, "]", "nothing", `search: query "key]"`},
 		{"search query: [", false, []string{"/", "k", "e", "y"}, `search: query "key"`, "[", "nothing", `search: query "key["`},
 
-		{"search kinds: tab", false, []string{"/", "k", "e", "y", "up"}, `search: kinds "key"`, "tab", "Search: next", `search: results "key"`},
-		{"search kinds: shift+tab", false, []string{"/", "k", "e", "y", "up"}, `search: kinds "key"`, "shift+tab", "Search: previous", `search: query "key"`},
+		{"search kinds: tab", false, []string{"/", "k", "e", "y", "up"}, `search: kinds "key"`, "tab", "app: next", `search: results "key"`},
+		{"search kinds: shift+tab", false, []string{"/", "k", "e", "y", "up"}, `search: kinds "key"`, "shift+tab", "app: previous", `search: query "key"`},
 		{"search kinds: ]", false, []string{"/", "k", "e", "y", "up"}, `search: kinds "key"`, "]", "nothing", `search: kinds "key"`},
 		{"search kinds: [", false, []string{"/", "k", "e", "y", "up"}, `search: kinds "key"`, "[", "nothing", `search: kinds "key"`},
 
-		{"search results: tab", false, []string{"/", "k", "e", "y", "enter"}, `search: results "key"`, "tab", "Search: next", `search: query "key"`},
-		{"search results: shift+tab", false, []string{"/", "k", "e", "y", "enter"}, `search: results "key"`, "shift+tab", "Search: previous", `search: kinds "key"`},
+		{"search results: tab", false, []string{"/", "k", "e", "y", "enter"}, `search: results "key"`, "tab", "app: next", `search: query "key"`},
+		{"search results: shift+tab", false, []string{"/", "k", "e", "y", "enter"}, `search: results "key"`, "shift+tab", "app: previous", `search: kinds "key"`},
 		{"search results: ]", false, []string{"/", "k", "e", "y", "enter"}, `search: results "key"`, "]", "nothing", `search: results "key"`},
 		{"search results: [", false, []string{"/", "k", "e", "y", "enter"}, `search: results "key"`, "[", "nothing", `search: results "key"`},
 	} {

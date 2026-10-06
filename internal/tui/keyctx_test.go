@@ -10,8 +10,10 @@ import (
 	"testing/synctest"
 	"time"
 
+	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
@@ -459,6 +461,13 @@ func layerNames(layers []keyhelp.Layer) string {
 // layers returns the layers of keys the app has in the context.
 func (c keyContext) layers(t *testing.T) []keyhelp.Layer {
 	t.Helper()
+	_, layers := c.reach(t)
+	return layers
+}
+
+// reach returns the app in the context, and the layers of keys it has.
+func (c keyContext) reach(t *testing.T) (*Model, []keyhelp.Layer) {
+	t.Helper()
 	m := newKeysApp(t, c.repo)
 	var pressed []string
 	press := func(steps []string) {
@@ -481,7 +490,7 @@ func (c keyContext) layers(t *testing.T) []keyhelp.Layer {
 	if got := layerNames(layers); got != c.want {
 		t.Fatalf("%s: [%s] reach %q, want %q", c.name, strings.Join(pressed, ", "), got, c.want)
 	}
-	return layers
+	return m, layers
 }
 
 // press returns the names of the keys a step of c presses. An action
@@ -558,6 +567,95 @@ func TestContextChains(t *testing.T) {
 			})
 		})
 	}
+}
+
+// idleRows are the rows of help whose key, pressed where the context is
+// reached, has nothing to act on there: a motion at the end of what it
+// moves in. Each is listed by its context and label, with the reason.
+var idleRows = map[string]string{
+	"files collapse all": "no folder is open in the tree the services serve",
+	"actions pane left":  "the runs are the leftmost pane",
+	"actions pane right": "the log is the rightmost pane",
+}
+
+// TestHelpRowsWork checks that every key help lists in a context does
+// something when it is pressed there: it starts a command, or changes what
+// is on view or the keys that work. A row that lists a key which nothing
+// takes is a lie in help.
+func TestHelpRowsWork(t *testing.T) {
+	for _, c := range keyContexts() {
+		if c.context == "" {
+			continue
+		}
+		t.Run(strings.NewReplacer(" ", "-", ":", "").Replace(c.name), func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				_, layers := c.reach(t)
+				for _, l := range layers {
+					if l.Context == "" || l.Typing {
+						continue
+					}
+					for _, b := range l.Bindings {
+						if !b.Enabled() || b.Help().Desc == "" || !isAction(l.Context, b) {
+							continue
+						}
+						var press tea.KeyPressMsg
+						var name string
+						for _, k := range b.Keys() {
+							if msg, ok := keyPress(k); ok {
+								press, name = msg, k
+								break
+							}
+						}
+						if name == "" || fixedKeys[name] && name != "enter" && name != "esc" {
+							continue
+						}
+						id := l.Context + " " + b.Help().Desc
+						if _, idle := idleRows[id]; idle {
+							continue
+						}
+						m, _ := c.reach(t)
+						before, was := ansi.Strip(m.View().Content), layerNames(m.keyLayers())
+						cmd, reached := pressReaches(m, press)
+						after, is := ansi.Strip(m.View().Content), layerNames(m.keyLayers())
+						if !reached && cmd == nil && before == after && was == is {
+							t.Errorf("%s: %s (%s) does nothing", c.name, name, id)
+						}
+					}
+				}
+			})
+		})
+	}
+}
+
+// isAction says whether b is the binding of an action of the config, by
+// its keys, that is of ctx or of a pane beside it on the same screen or
+// modal (the kinds of a search list the filter of its results), rather than
+// one of the keys the widgets fix, whose motions have nothing to move over
+// where the app has little to show.
+func isAction(ctx string, b key.Binding) bool {
+	keys := config.Default().Keys
+	here, _ := config.LookupContext(ctx)
+	for _, action := range keys.Actions() {
+		name, _, _ := strings.Cut(action, ".")
+		other, _ := config.LookupContext(name)
+		beside := name == ctx || here.Reach == config.ReachPane && other.Reach == config.ReachPane && other.Parent == here.Parent
+		if beside && slices.Equal(keys.Of(action), b.Keys()) {
+			return true
+		}
+	}
+	return false
+}
+
+// pressReaches gives the key to m, and says whether it reached something
+// the services here don't serve, which fails loudly (see above): such a key
+// did reach its action.
+func pressReaches(m *Model, press tea.KeyPressMsg) (cmd tea.Cmd, reached bool) {
+	defer func() {
+		if recover() != nil {
+			reached = true
+		}
+	}()
+	return m.key(press), false
 }
 
 // newKeysApp returns the app with every section and modal it has, over
@@ -646,83 +744,83 @@ func cmdsOf(msg tea.Msg) ([]tea.Cmd, bool) {
 func keyContexts() []keyContext {
 	octocat, github := ui.OwnerMsg{Login: "octocat"}, ui.OwnerMsg{Login: "github"}
 	return []keyContext{
-		{name: "owner: repositories", msg: octocat, context: "owner_list", want: "app, global, owner, owner_list"},
-		{name: "owner: pinned", msg: octocat, after: []string{"global.pane_1"}, context: "owner_pinned", want: "app, global, owner, owner_pinned"},
-		{name: "owner: zoomed", msg: octocat, after: []string{"global.zoom"}, context: "owner_list", want: "app, global, owner, owner_list"},
+		{name: "owner: repositories", msg: octocat, context: "owner_list", want: "always, global, owner, owner_list"},
+		{name: "owner: pinned", msg: octocat, after: []string{"global.pane_1"}, context: "owner_pinned", want: "always, global, owner, owner_pinned"},
+		{name: "owner: zoomed", msg: octocat, after: []string{"global.zoom"}, context: "owner_list", want: "always, global, owner, owner_list"},
 		{name: "owner: filter", msg: octocat, after: []string{"owner_list.filter"}, context: "filter", want: "global, filter"},
 		{name: "owner: sort", msg: octocat, after: []string{"owner_list.sort"}, context: "filter", want: "global, filter"},
-		{name: "owner: stars", msg: octocat, after: []string{"global.next_tab"}, context: "owner_list", want: "app, global, owner, owner_list"},
-		{name: "owner: followers", msg: octocat, after: []string{"global.next_tab", "global.next_tab"}, context: "owner_list", want: "app, global, owner, owner_list"},
-		{name: "owner: following", msg: octocat, after: []string{"global.next_tab", "global.next_tab", "global.next_tab"}, context: "owner_list", want: "app, global, owner, owner_list"},
-		{name: "owner: organizations", msg: octocat, after: []string{"global.prev_tab"}, context: "owner_list", want: "app, global, owner, owner_list"},
-		{name: "owner: organization repositories", msg: github, context: "owner_list", want: "app, global, owner, owner_list"},
-		{name: "owner: members", msg: github, after: []string{"global.next_tab"}, context: "owner_list", want: "app, global, owner, owner_list"},
-		{name: "owner: teams", msg: github, after: []string{"global.next_tab", "global.next_tab"}, context: "owner_list", want: "app, global, owner, owner_list"},
-		{name: "owner: readme", msg: octocat, after: []string{"global.pane_3"}, context: "owner_readme", want: "app, global, owner, owner_readme"},
-		{name: "owner: calendar", msg: octocat, after: []string{"global.pane_4"}, context: "owner_calendar", want: "app, global, owner, owner_calendar"},
-		{name: "dashboard: repositories", context: "dashboard_repos", want: "app, global, dashboard, dashboard_repos"},
-		{name: "dashboard: pinned", steps: []string{"global.pane_1"}, context: "dashboard_pinned", want: "app, global, dashboard, dashboard_pinned"},
-		{name: "dashboard: work", steps: []string{"global.pane_3"}, context: "dashboard_work", want: "app, global, dashboard, dashboard_work"},
-		{name: "dashboard: calendar", steps: []string{"global.pane_4"}, context: "dashboard_calendar", want: "app, global, dashboard, dashboard_calendar"},
-		{name: "dashboard: inbox", steps: []string{"global.pane_5"}, context: "dashboard_inbox", want: "app, global, dashboard, dashboard_inbox"},
-		{name: "dashboard: zoomed", steps: []string{"global.zoom"}, context: "dashboard_repos", want: "app, global, dashboard, dashboard_repos"},
+		{name: "owner: stars", msg: octocat, after: []string{"global.next_tab"}, context: "owner_list", want: "always, global, owner, owner_list"},
+		{name: "owner: followers", msg: octocat, after: []string{"global.next_tab", "global.next_tab"}, context: "owner_list", want: "always, global, owner, owner_list"},
+		{name: "owner: following", msg: octocat, after: []string{"global.next_tab", "global.next_tab", "global.next_tab"}, context: "owner_list", want: "always, global, owner, owner_list"},
+		{name: "owner: organizations", msg: octocat, after: []string{"global.prev_tab"}, context: "owner_list", want: "always, global, owner, owner_list"},
+		{name: "owner: organization repositories", msg: github, context: "owner_list", want: "always, global, owner, owner_list"},
+		{name: "owner: members", msg: github, after: []string{"global.next_tab"}, context: "owner_list", want: "always, global, owner, owner_list"},
+		{name: "owner: teams", msg: github, after: []string{"global.next_tab", "global.next_tab"}, context: "owner_list", want: "always, global, owner, owner_list"},
+		{name: "owner: readme", msg: octocat, after: []string{"global.pane_3"}, context: "owner_readme", want: "always, global, owner, owner_readme"},
+		{name: "owner: calendar", msg: octocat, after: []string{"global.pane_4"}, context: "owner_calendar", want: "always, global, owner, owner_calendar"},
+		{name: "dashboard: repositories", context: "dashboard_repos", want: "always, global, dashboard, dashboard_repos"},
+		{name: "dashboard: pinned", steps: []string{"global.pane_1"}, context: "dashboard_pinned", want: "always, global, dashboard, dashboard_pinned"},
+		{name: "dashboard: work", steps: []string{"global.pane_3"}, context: "dashboard_work", want: "always, global, dashboard, dashboard_work"},
+		{name: "dashboard: calendar", steps: []string{"global.pane_4"}, context: "dashboard_calendar", want: "always, global, dashboard, dashboard_calendar"},
+		{name: "dashboard: inbox", steps: []string{"global.pane_5"}, context: "dashboard_inbox", want: "always, global, dashboard, dashboard_inbox"},
+		{name: "dashboard: zoomed", steps: []string{"global.zoom"}, context: "dashboard_repos", want: "always, global, dashboard, dashboard_repos"},
 		{name: "dashboard: filter", steps: []string{"dashboard_repos.filter"}, context: "filter", want: "global, filter"},
 		{name: "dashboard: sort", steps: []string{"dashboard_repos.sort"}, context: "filter", want: "global, filter"},
-		{name: "notifications", steps: []string{"global.notifications"}, context: "notifications", want: "app, global, notifications"},
+		{name: "notifications", steps: []string{"global.notifications"}, context: "notifications", want: "always, global, notifications"},
 		{name: "notifications: filter", steps: []string{"global.notifications", "notifications.filter"}, context: "filter", want: "global, filter"},
-		{name: "notifications: mark read", steps: []string{"global.notifications", "notifications.read"}, context: "confirm", want: "app, confirm"},
-		{name: "search: query", steps: []string{"global.search"}, context: "search_query", want: "app, app, search_query (types)"},
-		{name: "search: kinds", steps: []string{"global.search", "up"}, context: "search_kinds", want: "app, global, search, search_kinds"},
-		{name: "search: results", steps: []string{"global.search", typed("key"), "global.select"}, context: "search_results", want: "app, global, search, search_results"},
+		{name: "notifications: mark read", steps: []string{"global.notifications", "notifications.read"}, context: "confirm", want: "always, confirm"},
+		{name: "search: query", steps: []string{"global.search"}, context: "search_query", want: "always, app, search_query (types)"},
+		{name: "search: kinds", steps: []string{"global.search", "up"}, context: "search_kinds", want: "always, global, search, search_kinds"},
+		{name: "search: results", steps: []string{"global.search", typed("key"), "global.select"}, context: "search_results", want: "always, global, search, search_results"},
 		{name: "search: filter", steps: []string{"global.search", typed("key"), "global.select", "search_results.filter"}, context: "filter", want: "global, filter"},
 		{name: "search: sort", steps: []string{"global.search", typed("key"), "global.select", "search_results.sort"}, context: "filter", want: "global, filter"},
-		{name: "files", repo: true, context: "files", want: "app, global, repo, files"},
-		{name: "files: zoomed", repo: true, steps: []string{"global.zoom"}, context: "files", want: "app, global, repo, files"},
-		{name: "files: error toast", repo: true, msg: ui.NotifyMsg{Level: toast.Error, Text: "Keys collide."}, context: "files", want: "app, global, repo, files"},
+		{name: "files", repo: true, context: "files", want: "always, global, repo, files"},
+		{name: "files: zoomed", repo: true, steps: []string{"global.zoom"}, context: "files", want: "always, global, repo, files"},
+		{name: "files: error toast", repo: true, msg: ui.NotifyMsg{Level: toast.Error, Text: "Keys collide."}, context: "files", want: "always, global, repo, files"},
 		{name: "files: preview", repo: true, steps: []string{"down", "global.select"}, context: "preview", want: "global, preview"},
-		{name: "files: preview search", repo: true, steps: []string{"down", "global.select", "/"}, context: "search_prompt", want: "app, search_prompt (types)"},
-		{name: "files: preview option", repo: true, steps: []string{"down", "global.select", "-"}, context: "pager_option", want: "app, pager_option (types)"},
-		{name: "files: preview count", repo: true, steps: []string{"down", "global.select", "5"}, want: "app, pager (types)"},
+		{name: "files: preview search", repo: true, steps: []string{"down", "global.select", "/"}, context: "search_prompt", want: "always, search_prompt (types)"},
+		{name: "files: preview option", repo: true, steps: []string{"down", "global.select", "-"}, context: "pager_option", want: "always, pager_option (types)"},
+		{name: "files: preview count", repo: true, steps: []string{"down", "global.select", "5"}, want: "always, pager (types)"},
 		{name: "files: preview command line", repo: true, steps: []string{"down", "global.select", "global.command"}, context: "command_line", want: "command_line (types)"},
-		{name: "files: finder", repo: true, steps: []string{"global.find_file"}, context: "finder", want: "app, finder (types)"},
+		{name: "files: finder", repo: true, steps: []string{"global.find_file"}, context: "finder", want: "always, finder (types)"},
 		{name: "files: finder preview", repo: true, steps: []string{"global.find_file", typed("R"), "enter"}, context: "preview", want: "global, preview"},
-		{name: "pull requests", repo: true, steps: []string{"global.pane_2"}, context: "pulls", want: "app, global, repo, pulls"},
+		{name: "pull requests", repo: true, steps: []string{"global.pane_2"}, context: "pulls", want: "always, global, repo, pulls"},
 		{name: "pull requests: filter", repo: true, steps: []string{"global.pane_2", "pulls.filter"}, context: "filter", want: "global, filter"},
 		{name: "pull requests: sort", repo: true, steps: []string{"global.pane_2", "pulls.sort"}, context: "filter", want: "global, filter"},
-		{name: "pull requests: filter field", repo: true, steps: []string{"global.pane_2", "pulls.filter", "down", "enter"}, want: "app, filter (types)"},
-		{name: "pull requests: merge", repo: true, steps: []string{"global.pane_2", "pulls.merge"}, context: "confirm", want: "app, confirm"},
+		{name: "pull requests: filter field", repo: true, steps: []string{"global.pane_2", "pulls.filter", "down", "enter"}, want: "always, picker (types)"},
+		{name: "pull requests: merge", repo: true, steps: []string{"global.pane_2", "pulls.merge"}, context: "confirm", want: "always, confirm"},
 		{name: "pull request", repo: true, steps: []string{"global.pane_2", "global.select"}, context: "pull_conversation", want: "global, pull_modal, pull_conversation"},
-		{name: "pull request: close", repo: true, steps: []string{"global.pane_2", "global.select", "pull_modal.close"}, context: "confirm", want: "app, confirm"},
-		{name: "pull request: checks", repo: true, steps: []string{"global.pane_2", "pulls.checks"}, context: "pull_checks", want: "global, pull_modal, pull_checks"},
-		{name: "pull request: job", repo: true, steps: []string{"global.pane_2", "pulls.checks", "global.select"}, context: "pull_check_log", want: "global, pull_modal, pull_check_log"},
-		{name: "pull request: check detail", repo: true, steps: []string{"global.pane_2", "pulls.checks", "down", "global.select"}, context: "pull_check_detail", want: "global, pull_modal, pull_check_detail"},
-		{name: "pull request: job search", repo: true, steps: []string{"global.pane_2", "pulls.checks", "global.select", "/"}, context: "search_prompt", want: "app, search_prompt (types)"},
-		{name: "issues", repo: true, steps: []string{"global.pane_3"}, context: "issues", want: "app, global, repo, issues"},
+		{name: "pull request: close", repo: true, steps: []string{"global.pane_2", "global.select", "pull_modal.close"}, context: "confirm", want: "always, confirm"},
+		{name: "pull request: checks", repo: true, steps: []string{"global.pane_2", "pulls.checks"}, context: "pull_check_list", want: "global, pull_checks, pull_check_list"},
+		{name: "pull request: job", repo: true, steps: []string{"global.pane_2", "pulls.checks", "global.select"}, context: "pull_check_log", want: "global, pull_checks, pull_check_log"},
+		{name: "pull request: check detail", repo: true, steps: []string{"global.pane_2", "pulls.checks", "down", "global.select"}, context: "pull_check_detail", want: "global, pull_checks, pull_check_detail"},
+		{name: "pull request: job search", repo: true, steps: []string{"global.pane_2", "pulls.checks", "global.select", "/"}, context: "search_prompt", want: "always, search_prompt (types)"},
+		{name: "issues", repo: true, steps: []string{"global.pane_3"}, context: "issues", want: "always, global, repo, issues"},
 		{name: "issues: filter", repo: true, steps: []string{"global.pane_3", "issues.filter"}, context: "filter", want: "global, filter"},
 		{name: "issues: sort", repo: true, steps: []string{"global.pane_3", "issues.sort"}, context: "filter", want: "global, filter"},
-		{name: "issues: close", repo: true, steps: []string{"global.pane_3", "issues.close"}, context: "confirm", want: "app, confirm"},
+		{name: "issues: close", repo: true, steps: []string{"global.pane_3", "issues.close"}, context: "confirm", want: "always, confirm"},
 		{name: "issue", repo: true, steps: []string{"global.pane_3", "global.select"}, context: "issue_modal", want: "global, issue_modal"},
-		{name: "issue: comment", repo: true, steps: []string{"global.pane_3", "global.select", "issue_modal.comment"}, context: "prompt", want: "app, prompt (types)"},
-		{name: "issue: labels", repo: true, steps: []string{"global.pane_3", "global.select", "issue_modal.labels"}, context: "prompt", want: "app, prompt (types)"},
+		{name: "issue: comment", repo: true, steps: []string{"global.pane_3", "global.select", "issue_modal.comment"}, context: "prompt", want: "always, prompt (types)"},
+		{name: "issue: labels", repo: true, steps: []string{"global.pane_3", "global.select", "issue_modal.labels"}, context: "prompt", want: "always, prompt (types)"},
 		{name: "history", repo: true, steps: []string{"repo.history"}, context: "history_graph", want: "global, history, history_graph"},
 		{name: "history: zoomed", repo: true, steps: []string{"repo.history", "global.zoom"}, context: "history_graph", want: "global, history, history_graph"},
 		{name: "history: branches", repo: true, steps: []string{"repo.history", "global.prev_pane"}, context: "history_branches", want: "global, history, history_branches"},
-		{name: "history: branch filter", repo: true, steps: []string{"repo.history", "global.prev_pane", "global.search"}, context: "picker", want: "app, picker (types)"},
+		{name: "history: branch filter", repo: true, steps: []string{"repo.history", "global.prev_pane", "global.search"}, context: "picker", want: "always, picker (types)"},
 		{name: "history: files", repo: true, steps: []string{"repo.history", "global.select"}, context: "history_files", want: "global, history, history_files"},
 		{name: "history: patch", repo: true, steps: []string{"repo.history", "global.select", "global.select"}, context: "history_patch", want: "global, history, history_patch"},
-		{name: "history: patch search", repo: true, steps: []string{"repo.history", "global.select", "global.select", "/"}, context: "search_prompt", want: "app, search_prompt (types)"},
+		{name: "history: patch search", repo: true, steps: []string{"repo.history", "global.select", "global.select", "/"}, context: "search_prompt", want: "always, search_prompt (types)"},
 		{name: "commit", repo: true, msg: ui.OpenCommitMsg{Repo: testRepo, SHA: keyCommit.SHA}, context: "history_files", want: "global, history, history_files"},
 		{name: "release", repo: true, msg: ui.OpenReleaseMsg{Repo: testRepo, ID: keyRelease.ID, URL: keyRelease.URL}, context: "release_modal", want: "global, release_modal"},
 		{name: "actions: runs", repo: true, steps: []string{"repo.actions"}, context: "actions_runs", want: "global, actions, actions_runs"},
 		{name: "actions: jobs", repo: true, steps: []string{"repo.actions", "global.next_pane"}, context: "actions_jobs", want: "global, actions, actions_jobs"},
 		{name: "actions: log", repo: true, steps: []string{"repo.actions", "global.next_pane", "global.next_pane"}, context: "actions_log", want: "global, actions, actions_log"},
-		{name: "actions: log search", repo: true, steps: []string{"repo.actions", "global.next_pane", "global.next_pane", "/"}, context: "search_prompt", want: "app, search_prompt (types)"},
-		{name: "actions: filter", repo: true, steps: []string{"repo.actions", "actions.filter"}, context: "actions_filter", want: "global, actions, actions_filter"},
-		{name: "actions: rerun", repo: true, steps: []string{"repo.actions", "actions.rerun_failed"}, context: "confirm", want: "app, confirm"},
-		{name: "actions: rerun job", repo: true, steps: []string{"repo.actions", "global.next_pane", "actions_jobs.rerun_job"}, context: "confirm", want: "app, confirm"},
-		{name: "auth", repo: true, steps: []string{"global.command", typed("auth"), "enter"}, want: "app, token"},
+		{name: "actions: log search", repo: true, steps: []string{"repo.actions", "global.next_pane", "global.next_pane", "/"}, context: "search_prompt", want: "always, search_prompt (types)"},
+		{name: "actions: filter", repo: true, steps: []string{"repo.actions", "actions.filter"}, context: "actions_filter", want: "global, actions_filter"},
+		{name: "actions: rerun", repo: true, steps: []string{"repo.actions", "actions.rerun_failed"}, context: "confirm", want: "always, confirm"},
+		{name: "actions: rerun job", repo: true, steps: []string{"repo.actions", "global.next_pane", "actions_jobs.rerun_job"}, context: "confirm", want: "always, confirm"},
+		{name: "auth", repo: true, steps: []string{"global.command", typed("auth"), "enter"}, want: "always, token"},
 		{name: "config", repo: true, steps: []string{"global.command", typed("config"), "enter"}, context: "text", want: "global, text"},
-		{name: "help", repo: true, steps: []string{"global.help"}, context: "help", want: "app, help (types)"},
+		{name: "help", repo: true, steps: []string{"global.help"}, context: "help", want: "always, help (types)"},
 		{name: "command line", repo: true, steps: []string{"global.command"}, context: "command_line", want: "command_line (types)"},
 	}
 }

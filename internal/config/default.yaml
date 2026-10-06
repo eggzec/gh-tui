@@ -610,21 +610,16 @@ keys:
     draft: [D]
     # Show the checks of the pull request.
     checks: [C]
-  # Pull request modal: the checks. Re-run the failed jobs of the run of
-  # the check under the cursor, and in what a check shows: its log, the
-  # annotations of its job and the detail an app reported.
+  # The checks of a pull request, in any of their steps. Re-run the failed
+  # jobs of the run of the check under the cursor, or of the one shown.
   pull_checks:
     rerun_failed: [R]
-  # Pull request modal: the log of the job of a check. Move the focus to
-  # its annotations, and back from them.
+  # Checks: the log of the job of a check, and its annotations. Move the
+  # focus between the two.
   pull_check_log:
     annotations: [A]
-    rerun_failed: [R]
   pull_check_annotations:
     annotations: [A]
-    rerun_failed: [R]
-  pull_check_detail:
-    rerun_failed: [R]
 
   # The modal of an issue.
   issue_modal:

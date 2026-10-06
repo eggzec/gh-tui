@@ -52,6 +52,12 @@ func TestKeyLayersOrder(t *testing.T) {
 			return selectedHit(s) == selectedHit(b) && len(msgs) == 1 && msgs[0] == ui.OpenFilterMsg{Tab: filterform.SortTab}
 		}},
 		{kinds, "j", "Kinds: down", func(s, b *Section, _ []tea.Msg) bool { return s.kind != b.kind }},
+		{kinds, "f", "Kinds: filter", func(s, _ *Section, msgs []tea.Msg) bool {
+			return s.area == kindsArea && len(msgs) == 1 && msgs[0] == ui.OpenFilterMsg{Tab: filterform.FiltersTab}
+		}},
+		{kinds, "s", "Kinds: sort", func(s, _ *Section, msgs []tea.Msg) bool {
+			return s.area == kindsArea && len(msgs) == 1 && msgs[0] == ui.OpenFilterMsg{Tab: filterform.SortTab}
+		}},
 		{kinds, "enter", "Kinds: results", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea }},
 		{kinds, "tab", "Search: next", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea }},
 	}

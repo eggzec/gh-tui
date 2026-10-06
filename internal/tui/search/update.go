@@ -156,6 +156,10 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 			}
 		case key.Matches(msg, k.Prev):
 			s.focusArea(inputArea)
+		case key.Matches(msg, k.Filter):
+			return ui.OpenFilter(filterform.FiltersTab)
+		case key.Matches(msg, k.Sort):
+			return ui.OpenFilter(filterform.SortTab)
 		}
 		return nil
 	case resultsArea:

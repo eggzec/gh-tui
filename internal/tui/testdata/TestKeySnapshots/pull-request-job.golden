@@ -1,40 +1,16 @@
 # label | keys | help key | on or off
 
-app
+always
   quit | ctrl+c | ^c | on
   help | ? | ? | on
 
-Pull request
-  merge | m | m | off
-  close | x | x | off
-  reopen | X | X | off
-  convert to draft | D | D | off
-  back | esc | esc | off
-  open | enter | ↵ | off
-  checks | C | C | off
-  next state | ] | ] | off
-  previous state | [ | [ | off
-  clear filters | F | F | off
-  refresh | r | r | off
-  open in browser | o | o | off
-  filter | f | f | off
-  sort | s | s | off
-  owner page | @ | @ | off
-
-Log
+Checks
   checks | esc | esc | on
   rerun failed | R | R | on
   refresh | r | r | on
   browser | o | o | on
-  open | enter | ↵ | off
-  up | up k | ↑/k | off
-  down | down j | ↓/j | off
-  page up | ctrl+b pgup | ^b/pgup | off
-  page down | ctrl+f pgdown | ^f/pgdn | off
-  ½ page up | ctrl+u | ^u | off
-  ½ page down | ctrl+d | ^d | off
-  first | home g | g/home | off
-  last | end G | G/end | off
+
+Log
   annotations | A | A | off
   up | up k | ↑/k | off
   down | down j | ↓/j | off
