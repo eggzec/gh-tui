@@ -12,12 +12,12 @@ checks
   open | enter | ↵ | off
   up | up k | ↑/k | off
   down | down j | ↓/j | off
-  page up | ctrl+b pgup | ctrl+b/pgup | off
-  page down | ctrl+f pgdown | ctrl+f/pgdn | off
-  ½ page up | ctrl+u | ctrl+u | off
-  ½ page down | ctrl+d | ctrl+d | off
-  top | home g | g/home | off
-  bottom | end G | G/end | off
+  page up | ctrl+b pgup | ^b/pgup | off
+  page down | ctrl+f pgdown | ^f/pgdn | off
+  ½ page up | ctrl+u | ^u | off
+  ½ page down | ctrl+d | ^d | off
+  first | home g | g/home | off
+  last | end G | G/end | off
   annotations | A | A | off
 
 annotations
@@ -30,13 +30,13 @@ annotations
 log
   up | up k | ↑/k | on
   down | down j | ↓/j | on
-  page up | b ctrl+b pgup | b/ctrl+b/pgup | on
-  page down | space ctrl+f pgdown | space/ctrl+f/pgdn | on
-  ½ page up | ctrl+u | ctrl+u | on
-  ½ page down | ctrl+d | ctrl+d | on
+  page up | b ctrl+b pgup | b/^b | on
+  page down | space ctrl+f pgdown | space/^f | on
+  ½ page up | ctrl+u | ^u | on
+  ½ page down | ctrl+d | ^d | on
   top | home g | g/home | on
   bottom | end G | G/end | on
-  fold | enter | enter | on
+  fold | enter | ↵ | on
   expand | + | + | on
   collapse | - | - | on
   fold all | * | * | on

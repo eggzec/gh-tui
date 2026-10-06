@@ -247,7 +247,6 @@ func TestKeys(t *testing.T) {
 		{"ctrl+f and ctrl+b", []string{"ctrl+f", "ctrl+b"}, 0, 20},
 		{"half page down", []string{"ctrl+d"}, 2, 10},
 		{"half page up", []string{"ctrl+f", "ctrl+u"}, 3, 20},
-		{"b, d, u and f are not bound", []string{"d", "f", "u", "b"}, 0, 10},
 		{"end goes to the last loaded and fetches more", []string{"G"}, 9, 20},
 		{"end again goes on", []string{"G", "G"}, 19, 30},
 		{"home", []string{"G", "g"}, 0, 20},
@@ -595,5 +594,21 @@ func TestSetStyles(t *testing.T) {
 	}
 	if len(m.Styles().Lanes) != 1 {
 		t.Fatal("no lane styles should fall back to one unstyled lane")
+	}
+}
+
+// The keys that once paged do nothing in a graph whose cursor is halfway
+// down; each is tried on its own.
+func TestOldPagingKeysUnbound(t *testing.T) {
+	for _, k := range []string{"b", "d", "u", "f"} {
+		t.Run(k, func(t *testing.T) {
+			m := load(t, newSource(history(40), 10))
+			m, _ = keys(t, m, "down", "down", "down", "down", "down", "down")
+			sel, top := m.Index(), m.top
+			m, _ = keys(t, m, k)
+			if m.Index() != sel || m.top != top {
+				t.Fatalf("after %q: Index() = %d, top = %d; want %d, %d", k, m.Index(), m.top, sel, top)
+			}
+		})
 	}
 }

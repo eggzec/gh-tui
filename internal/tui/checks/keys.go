@@ -23,6 +23,9 @@ type KeyMap struct {
 	// move through the checks. Home and End also go to the top and bottom
 	// of what an app reported.
 	Up, Down, PageUp, PageDown, HalfPageUp, HalfPageDown, Home, End key.Binding
+	// Top and Bottom go to the top and bottom of what an app reported:
+	// Home and End, named for what they do there.
+	Top, Bottom key.Binding
 	// Select opens the check under the cursor: its job, or what its app
 	// reported.
 	Select key.Binding
@@ -52,6 +55,8 @@ func newKeyMap(keys map[string][]string) KeyMap {
 	k := KeyMap{
 		Up: fk.Up, Down: fk.Down, PageUp: fk.PageUp, PageDown: fk.PageDown,
 		HalfPageUp: fk.HalfPageUp, HalfPageDown: fk.HalfPageDown, Home: fk.Home, End: fk.End,
+		Top:         relabel(fk.Home, "top"),
+		Bottom:      relabel(fk.End, "bottom"),
 		Select:      ui.Binding(keys, config.ActionSelect, "open"),
 		Back:        ui.Binding(keys, config.ActionBack, "back"),
 		Open:        ui.Binding(keys, config.ActionOpen, "browser"),
@@ -106,7 +111,8 @@ func (k KeyMap) own() []key.Binding {
 // detail returns the keys that move through what an app reported.
 func (k KeyMap) detail() []key.Binding {
 	d := k.Detail
-	return []key.Binding{d.Up, d.Down, d.PageUp, d.PageDown, d.HalfPageUp, d.HalfPageDown, d.Left, d.Right}
+	return []key.Binding{d.Up, d.Down, d.PageUp, d.PageDown, d.HalfPageUp, d.HalfPageDown,
+		k.Top, k.Bottom, d.Left, d.Right}
 }
 
 // ShortHelp implements help.KeyMap.
@@ -158,10 +164,11 @@ func (k KeyMap) state(s *Step) KeyMap {
 			b.SetEnabled(false)
 		}
 		// Home and End go to the top and bottom of what an app reported;
-		// the log has keys of its own.
-		k.Home, k.End = relabel(k.Home, "top"), relabel(k.End, "bottom")
-		k.Home.SetEnabled(k.Home.Enabled() && s.mode == detailMode)
-		k.End.SetEnabled(k.End.Enabled() && s.mode == detailMode)
+		// they are listed with its keys, and the log has keys of its own.
+		k.Home.SetEnabled(false)
+		k.End.SetEnabled(false)
+		k.Top.SetEnabled(k.Top.Enabled() && s.mode == detailMode)
+		k.Bottom.SetEnabled(k.Bottom.Enabled() && s.mode == detailMode)
 		return k
 	}
 	k.Back = relabel(k.Back, "detail")

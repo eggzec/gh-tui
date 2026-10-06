@@ -30,19 +30,19 @@ func DefaultKeyMap() KeyMap {
 		),
 		PageUp: key.NewBinding(
 			key.WithKeys("b", "ctrl+b", "pgup"),
-			key.WithHelp("b/ctrl+b/pgup", "page up"),
+			key.WithHelp("b/^b", "page up"),
 		),
 		PageDown: key.NewBinding(
 			key.WithKeys("space", "ctrl+f", "pgdown"),
-			key.WithHelp("space/ctrl+f/pgdn", "page down"),
+			key.WithHelp("space/^f", "page down"),
 		),
 		HalfPageUp: key.NewBinding(
 			key.WithKeys("ctrl+u"),
-			key.WithHelp("ctrl+u", "½ page up"),
+			key.WithHelp("^u", "½ page up"),
 		),
 		HalfPageDown: key.NewBinding(
 			key.WithKeys("ctrl+d"),
-			key.WithHelp("ctrl+d", "½ page down"),
+			key.WithHelp("^d", "½ page down"),
 		),
 		Top: key.NewBinding(
 			key.WithKeys("home", "g"),

@@ -61,8 +61,8 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		Right:   key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "results")),
 	}
 	// The page, and the app for the filter, match these keys first, so
-	// the results get only the keys they leave them, such as f, which
-	// pages down there.
+	// the results get only the keys they leave them, such as g, which
+	// goes to the first row there.
 	f := feed.DefaultKeyMap()
 	f.Retry = key.NewBinding(key.WithKeys(k.Refresh.Keys()...), key.WithHelp(k.Refresh.Help().Key, "retry"), key.WithDisabled())
 	k.feed = f

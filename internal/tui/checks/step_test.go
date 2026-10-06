@@ -206,11 +206,22 @@ func TestDetailScrolls(t *testing.T) {
 		{[]string{"g", "ctrl+f"}, down},
 		{[]string{"g", "space"}, down},
 		{[]string{"G", "b"}, func() bool { return !s.detail.AtBottom() }},
-		{[]string{"g", "d", "u", "f"}, top},
 	} {
 		h.keys(tt.keys...)
 		if !tt.want() {
 			t.Errorf("after %q the detail is at line %d", tt.keys, s.detail.YOffset())
+		}
+	}
+	// The keys that once paged do nothing, each on its own from halfway.
+	for _, k := range []string{"d", "u", "f"} {
+		h.keys("g", "ctrl+d")
+		at := s.detail.YOffset()
+		if at == 0 {
+			t.Fatal("half a page did not scroll the detail")
+		}
+		h.keys(k)
+		if got := s.detail.YOffset(); got != at {
+			t.Errorf("after %q the detail moved from line %d to %d", k, at, got)
 		}
 	}
 }

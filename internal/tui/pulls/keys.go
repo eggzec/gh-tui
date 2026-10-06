@@ -67,7 +67,7 @@ func newKeyMap(keys map[string][]string) keyMap {
 	}
 	// The section and the modal match their own keys first, so the feed
 	// and the thread get only the keys they leave them, such as f, which
-	// pages down there and opens the filter here.
+	// opens the filter here.
 	f := feed.DefaultKeyMap()
 	// Refresh fetches failed chunks again too, so the feed's error row names
 	// its keys.

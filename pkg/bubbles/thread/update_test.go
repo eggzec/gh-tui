@@ -29,7 +29,6 @@ func TestUpdateKeys(t *testing.T) {
 		{"page down space", 0, []string{"space"}, fixed(height)},
 		{"page up", 15, []string{"ctrl+b"}, fixed(15 - height)},
 		{"page up b", 15, []string{"b"}, fixed(15 - height)},
-		{"d, u and f are not bound", 3, []string{"d", "u", "f"}, fixed(3)},
 		{"top", 12, []string{"g"}, fixed(0)},
 		{"home", 12, []string{"home"}, fixed(0)},
 		{"bottom", 0, []string{"G"}, bottom},
@@ -391,5 +390,23 @@ func TestRedrawKeepsLinesUnderAPicture(t *testing.T) {
 	m.vp.SetYOffset(0)
 	if !strings.Contains(m.View(), "PIC2") {
 		t.Errorf("the picture isn't drawn:\n%s", ansi.Strip(m.View()))
+	}
+}
+
+// The keys that once paged by half pages do nothing; each is tried on its
+// own, halfway down.
+func TestOldPagingKeysUnbound(t *testing.T) {
+	for _, k := range []string{"d", "u", "f"} {
+		t.Run(k, func(t *testing.T) {
+			m := loaded(t, newSource(1, 12), nil, 60, 10)
+			m.vp.SetYOffset(15)
+			if m.YOffset() != 15 {
+				t.Fatalf("setup: YOffset() = %d", m.YOffset())
+			}
+			m = press(t, m, k)
+			if got := m.YOffset(); got != 15 {
+				t.Errorf("after %q: YOffset() = %d, want 15", k, got)
+			}
+		})
 	}
 }

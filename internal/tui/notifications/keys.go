@@ -38,8 +38,8 @@ func newKeyMap(keys map[string][]string) KeyMap {
 		Refresh:     ui.Binding(keys, config.ActionRefresh, "refresh"),
 	}
 	// The section, and the app for the filter, match these keys first,
-	// so the list gets only the keys they leave it, such as f, which
-	// pages down there.
+	// so the list gets only the keys they leave it, such as g, which
+	// goes to the first row there.
 	f := feed.DefaultKeyMap()
 	// The section handles refresh before the list, and a refresh retries
 	// what failed, so the list's error row names the refresh keys.
