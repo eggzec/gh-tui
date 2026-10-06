@@ -342,7 +342,7 @@ func (r *Renderer) renderWith(src string, width int, open []int, pics bool) (ren
 		lines[i] = safe(tidy(quoteBars(l, g)))
 	}
 	if g.ASCII {
-		asciiLines(lines, g)
+		asciiLines(lines, g, func(i int) bool { return sp.code[i+front] })
 	}
 	heads := sp.heads
 	for i := range heads {

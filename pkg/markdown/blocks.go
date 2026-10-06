@@ -14,8 +14,9 @@ type Block struct {
 	// Full is the markdown of the block shown in full.
 	Full string
 	// Collapsed is a line of markdown that shows in place of the block
-	// until the reader opens it, or "" when the block always shows in
-	// full.
+	// until the reader opens it, drawn in the default glyphs, or "" when
+	// the block always shows in full. A renderer draws the line in its
+	// own glyphs.
 	Collapsed string
 	// URL is a page that shows the block, for the open action, or "".
 	URL string

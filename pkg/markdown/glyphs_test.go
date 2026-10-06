@@ -132,3 +132,26 @@ func TestSetGlyphs(t *testing.T) {
 		t.Errorf("back to the default glyphs, %d renders:\n%s", r.Renders(), got)
 	}
 }
+
+// With the ASCII glyphs only the "…" that lipgloss ends a cut header cell
+// with becomes "~": the text's own, in code or within a header cell,
+// stays.
+func TestASCIIKeepsTheTextsEllipses(t *testing.T) {
+	r := New(DefaultStyle(true))
+	r.SetGlyphs(ASCIIGlyphs())
+	for name, tt := range map[string]struct {
+		src, want string
+		width     int
+	}{
+		"plain code over a rule":        {"```\nLoading…\n--------\n```", "Loading…\n  --------", 40},
+		"highlighted code like a table": {"```go\nA… | b\n---+--\n```", "A… | b", 40},
+		"a header's own ellipsis":       {"| Wait… more | b |\n|---|---|\n| 1 | 2 |", "Wait… more", 40},
+		"a header cut to its column":    {"| " + strings.Repeat("long ", 6) + "| b |\n|---|---|\n| 1 | 2 |", "~", 14},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if got := ansi.Strip(r.Render(tt.src, tt.width)); !strings.Contains(got, tt.want) {
+				t.Errorf("the render lacks %q:\n%s", tt.want, got)
+			}
+		})
+	}
+}
