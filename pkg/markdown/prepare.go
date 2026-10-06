@@ -38,8 +38,9 @@ func prepare(src string, open []int, hint string, g Glyphs, show func(i int, b B
 	lines := make([]string, len(outs))
 	// first is the first line of the paragraph the line continues, if it
 	// continues one, which puts it in a quote or a list item however many
-	// lazy lines follow it. A block, such as code, or a heading ends any
-	// paragraph, and a line with a marker starts one.
+	// lazy lines follow it. A block, such as code, a heading or a
+	// thematic break, ends any paragraph, and a line with a marker starts
+	// one.
 	first := ""
 	for i, o := range outs {
 		lines[i] = o.line
@@ -48,7 +49,7 @@ func prepare(src string, open []int, hint string, g Glyphs, show func(i int, b B
 		}
 		prev := first
 		switch {
-		case !o.text || strings.TrimSpace(o.line) == "" || heading(o.line):
+		case !o.text || strings.TrimSpace(o.line) == "" || heading(o.line) || rule(o.line):
 			first = ""
 		case first == "" || startsMarked(o.line):
 			first = o.line
@@ -112,6 +113,21 @@ func standsAlone(prev, next string, indent int) bool {
 // heading reports whether line is a heading of the ATX style.
 func heading(line string) bool {
 	return strings.HasPrefix(strings.TrimLeft(line, " "), "#") && atxHeading.MatchString(line)
+}
+
+// rule reports whether line is a thematic break: three or more of one of
+// -, * or _, with spaces between them if any, indented less than code is.
+// A line of = is no break.
+func rule(line string) bool {
+	s := strings.TrimRight(line, " ")
+	if leading(s) > 3 {
+		return false
+	}
+	s = strings.ReplaceAll(s, " ", "")
+	if len(s) < 3 || s[0] != '-' && s[0] != '*' && s[0] != '_' {
+		return false
+	}
+	return strings.Trim(s, s[:1]) == ""
 }
 
 // startsMarked reports whether line starts with a quote or list marker.
