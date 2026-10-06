@@ -221,3 +221,48 @@ func TestOnlineHeadRefusedIsNotReadAgain(t *testing.T) {
 		})
 	}
 }
+
+// TestOnlineFilterKeepsLaterPages checks that the filter, open while the
+// branches are read again from the first page once the limit lifts, keeps
+// listing the branches of the later pages until the read brings them
+// again, rather than shrinking to the first page meanwhile.
+func TestOnlineFilterKeepsLaterPages(t *testing.T) {
+	f := newFake()
+	first := make([]core.Branch, 1, 12)
+	first[0] = core.Branch{Name: "main"}
+	for i := range 11 {
+		first = append(first, core.Branch{Name: fmt.Sprintf("feat/%d", i)})
+	}
+	f.branchPages = map[string]core.Page[core.Branch]{
+		"":  {Items: first, Next: "2"},
+		"2": {Items: []core.Branch{{Name: "fix/a"}, {Name: "fix/b"}, {Name: "fix/c"}}},
+	}
+	f.limited = true
+	m, h := newModal(t, f, 108, 30)
+	h.keys("shift+tab", "/")
+	if n := m.branches.filter.Len(); n != 15 {
+		t.Fatalf("the filter lists %d branches, want both pages", n)
+	}
+	f.mu.Lock()
+	f.limited = false
+	f.mu.Unlock()
+
+	// The second page is still on its way.
+	h.skip = func(msg tea.Msg) bool {
+		b, ok := msg.(branchesMsg)
+		return ok && b.cursor == "2"
+	}
+	h.run(func() tea.Msg { return ui.OnlineMsg{} })
+	if n := m.branches.filter.Len(); n != 15 {
+		t.Errorf("the filter lists %d branches while the second page is read again, want 15", n)
+	}
+	// The second page arrives, with a branch deleted meanwhile.
+	h.skip = nil
+	f.mu.Lock()
+	f.branchPages["2"] = core.Page[core.Branch]{Items: []core.Branch{{Name: "fix/a"}, {Name: "fix/b"}}}
+	f.mu.Unlock()
+	h.run(m.loadBranches("2", true))
+	if n := m.branches.filter.Len(); n != 14 {
+		t.Errorf("the filter lists %d branches once both pages are read again, want 14", n)
+	}
+}

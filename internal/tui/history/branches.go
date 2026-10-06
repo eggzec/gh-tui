@@ -47,6 +47,11 @@ type branches struct {
 	// read again from the first page, until a page brings it back or the
 	// user moves, so that the cursor returns to it from a later page.
 	follow string
+	// refill is how many pages were listed when the branches were read
+	// again from the first page, until the read lists as many again or
+	// reaches the last page. The filter keeps listing what it did
+	// meanwhile, so that it doesn't shrink to the first page.
+	refill int
 
 	cursor, top int
 	// defaultBranch is listed first, and the others are compared with it.
@@ -132,6 +137,7 @@ func (m *Modal) receiveBranches(msg branchesMsg) tea.Cmd {
 		if b.follow == "" {
 			b.follow = selected.Name
 		}
+		b.refill = max(b.refill, b.pages)
 		b.items, b.pages, b.kept = nil, 0, false
 	}
 	b.kept = b.kept || msg.page.Offline || msg.page.Limited
@@ -163,7 +169,10 @@ func (m *Modal) receiveBranches(msg branchesMsg) tea.Cmd {
 	}
 	b.clamp()
 	m.scrollBranches()
-	if b.filter != nil {
+	if b.pages >= b.refill || b.next == "" {
+		b.refill = 0
+	}
+	if b.filter != nil && b.refill == 0 {
 		b.filter.SetItems(m.filterItems())
 	}
 	cmds := []tea.Cmd{m.moreBranches()}
