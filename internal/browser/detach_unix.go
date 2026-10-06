@@ -14,3 +14,6 @@ func detach(cmd *exec.Cmd) {
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = nil, nil, nil
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 }
+
+// shellOpen is nil: the platform opens pages with a program.
+var shellOpen func(url string) error

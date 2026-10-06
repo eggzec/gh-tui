@@ -2,7 +2,8 @@
 // the terminal the app draws on.
 //
 // It picks the browser as gh does: GH_BROWSER, then the browser in gh's
-// config, then BROWSER, else the platform's opener. A graphical browser
+// config, then BROWSER, else the platform's opener, which on WSL is
+// wslview before xdg-open. A graphical browser
 // starts detached, with no standard streams and in a session of its own,
 // so nothing it or its opener prints lands on the screen and nothing
 // reads the keys meant for the app. A browser that runs in the terminal,
@@ -52,6 +53,9 @@ type Launcher struct {
 	lookPath func(string) (string, error)
 	start    Starter
 	grace    time.Duration
+	// shellOpen opens a page with the platform's own handler, where it
+	// has one that needs no program, as Windows does.
+	shellOpen func(url string) error
 }
 
 // Option configures a Launcher.
@@ -93,12 +97,13 @@ func WithGrace(d time.Duration) Option {
 // New returns a launcher with the browser the user chose, read once, now.
 func New(opts ...Option) *Launcher {
 	l := &Launcher{
-		goos:     runtime.GOOS,
-		getenv:   os.Getenv,
-		ghConfig: ghBrowser,
-		lookPath: exec.LookPath,
-		start:    Start,
-		grace:    grace,
+		goos:      runtime.GOOS,
+		getenv:    os.Getenv,
+		ghConfig:  ghBrowser,
+		lookPath:  exec.LookPath,
+		start:     Start,
+		grace:     grace,
+		shellOpen: shellOpen,
 	}
 	for _, o := range opts {
 		o(l)
@@ -134,8 +139,14 @@ func ghBrowser() string {
 // A browser that runs in the terminal isn't started: Open returns its
 // command, for the caller to run with the terminal handed over.
 func (l *Launcher) Open(u string) (*exec.Cmd, error) {
-	if err := checkURL(u); err != nil {
+	u, err := checkURL(u)
+	if err != nil {
 		return nil, err
+	}
+	if l.launcher == "" && l.goos == "windows" && l.shellOpen != nil {
+		// ShellExecute hands the page to the default browser and
+		// returns; it starts nothing that shares the console.
+		return nil, l.shellOpen(u)
 	}
 	argv, err := l.argv()
 	if err != nil {
@@ -146,7 +157,7 @@ func (l *Launcher) Open(u string) (*exec.Cmd, error) {
 		return nil, err
 	}
 	cmd := exec.Command(path, append(argv[1:], u)...) //nolint:gosec // The program is the browser the user chose.
-	if InTerminal(argv[0]) {
+	if InTerminal(program(argv)) {
 		return cmd, nil
 	}
 	detach(cmd)
@@ -187,22 +198,41 @@ func (l *Launcher) argv() ([]string, error) {
 	case "darwin":
 		return []string{"open"}, nil
 	case "windows":
-		return []string{"rundll32", "url.dll,FileProtocolHandler"}, nil
+		// Open hands the page to ShellExecute before it gets here.
+		return nil, errors.New("no way to open pages on this platform")
 	case "linux":
+		openers := linuxOpeners
 		// WSL may have an xdg-open with nothing to open pages with,
 		// while wslview opens them in the Windows browser.
 		if l.getenv("WSL_DISTRO_NAME") != "" {
-			if _, err := l.lookPath("wslview"); err == nil {
-				return []string{"wslview"}, nil
+			openers = append([]string{"wslview"}, openers...)
+		}
+		for _, o := range openers {
+			if _, err := l.lookPath(o); err == nil {
+				return []string{o}, nil
 			}
 		}
-		if _, err := l.lookPath("xdg-open"); err != nil {
-			if _, werr := l.lookPath("wslview"); werr == nil {
-				return []string{"wslview"}, nil
-			}
-		}
+		return nil, &exec.Error{Name: strings.Join(openers, ","), Err: exec.ErrNotFound}
 	}
 	return []string{"xdg-open"}, nil
+}
+
+// linuxOpeners are the programs that may open a page on Linux, in the
+// order cli/browser tries them. www-browser is a text browser.
+var linuxOpeners = []string{"xdg-open", "x-www-browser", "www-browser", "wslview"}
+
+// program returns the browser argv runs, past a leading env and the
+// variables it sets.
+func program(argv []string) string {
+	if filepath.Base(argv[0]) != "env" {
+		return argv[0]
+	}
+	for _, a := range argv[1:] {
+		if !strings.Contains(a, "=") && !strings.HasPrefix(a, "-") {
+			return a
+		}
+	}
+	return argv[0]
 }
 
 // textBrowsers are browsers that draw in the terminal, by the name of
@@ -220,14 +250,14 @@ func InTerminal(program string) bool {
 var errScheme = errors.New("only http and https pages open in the browser")
 
 // checkURL refuses what isn't a web page, so the browser is never given
-// a file or a program to open.
-func checkURL(u string) error {
+// a file or a program to open, and returns the page as url writes it.
+func checkURL(u string) (string, error) {
 	p, err := url.Parse(u)
 	if err != nil {
-		return fmt.Errorf("open %q: %w", u, err)
+		return "", fmt.Errorf("open %q: %w", u, err)
 	}
 	if p.Scheme != "http" && p.Scheme != "https" {
-		return fmt.Errorf("open %q: %w", u, errScheme)
+		return "", fmt.Errorf("open %q: %w", u, errScheme)
 	}
-	return nil
+	return p.String(), nil
 }
