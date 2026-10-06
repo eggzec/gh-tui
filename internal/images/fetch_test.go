@@ -623,7 +623,7 @@ func TestSharedFetch(t *testing.T) {
 		t.Fatal("the request went on after every caller had gone")
 	}
 	f.mu.Lock()
-	_, failed := f.failed[avatar+"&x"]
+	_, failed := f.failed.byAddr[avatar+"&x"]
 	f.mu.Unlock()
 	if failed {
 		t.Error("a fetch every caller gave up on is remembered as failed")
@@ -703,13 +703,85 @@ func TestFailuresPruned(t *testing.T) {
 	f := New("github.com", WithClock(clk.Now))
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.remember("a", ErrUnavailable)
+	f.failed.add("a", ErrUnavailable, clk.Now())
 	clk.Add(failedFor / 2)
-	f.remember("b", ErrUnavailable)
+	f.failed.add("b", ErrUnavailable, clk.Now())
 	clk.Add(failedFor / 2)
-	f.remember("c", ErrUnavailable)
-	if _, ok := f.failed["a"]; ok || len(f.failed) != 2 {
-		t.Errorf("failures %v, want a pruned and b and c kept", f.failed)
+	f.failed.add("c", ErrUnavailable, clk.Now())
+	if _, ok := f.failed.byAddr["a"]; ok || f.failed.len() != 2 {
+		t.Errorf("%d failures, want a pruned and b and c kept", f.failed.len())
+	}
+}
+
+// Past maxFailed failures, the oldest is forgotten first, while those
+// after it still fail at once.
+func TestFailuresBounded(t *testing.T) {
+	now := time.Date(2026, 9, 28, 12, 0, 0, 0, time.UTC)
+	fs := newFailures()
+	for i := range maxFailed + 10 {
+		fs.add(strconv.Itoa(i), ErrUnavailable, now.Add(time.Duration(i)*time.Millisecond))
+	}
+	if fs.len() != maxFailed || len(fs.byAddr) != maxFailed {
+		t.Errorf("%d failures (%d by address), want %d", fs.len(), len(fs.byAddr), maxFailed)
+	}
+	at := now.Add(time.Second)
+	for _, gone := range []string{"0", "9"} {
+		if fs.get(gone, at) != nil {
+			t.Errorf("failure %s kept, want the oldest forgotten", gone)
+		}
+	}
+	for _, kept := range []string{"10", strconv.Itoa(maxFailed + 9)} {
+		if err := fs.get(kept, at); !errors.Is(err, ErrUnavailable) {
+			t.Errorf("failure %s = %v, want it remembered", kept, err)
+		}
+	}
+	// A failure again moves to the back, so it is forgotten last.
+	fs.add("10", ErrUnavailable, at)
+	fs.add("new", ErrUnavailable, at)
+	if fs.get("10", at) == nil {
+		t.Error("a failure added again was forgotten as the oldest")
+	}
+	if fs.get("11", at) != nil {
+		t.Error("the oldest failure kept past maxFailed")
+	}
+}
+
+// What a fetch fails with names no address with its query: a signed
+// address's jwt lets anyone holding it read a private image, and the
+// error is remembered, returned and logged.
+func TestFetchErrorBare(t *testing.T) {
+	const secret = "eyJhbGciOiJIUzI1NiJ9.c2lnbmVk.c2VjcmV0"
+	signed := "https://private-user-images.githubusercontent.com/1/abc.png?jwt=" + secret + "#frag"
+	down := roundTrip(func(*http.Request) (*http.Response, error) { return nil, errors.New("connection reset") })
+	f := New("github.com", WithTransport(down))
+	for range 2 {
+		_, err := f.Fetch(t.Context(), Source{URL: signed}, box)
+		if err == nil {
+			t.Fatal("fetch through a broken transport succeeded")
+		}
+		if msg := err.Error(); strings.Contains(msg, secret) || strings.Contains(msg, "jwt") || strings.Contains(msg, "frag") {
+			t.Errorf("error %q names the signed address's query", msg)
+		}
+		if !strings.Contains(err.Error(), "private-user-images.githubusercontent.com/1/abc.png") {
+			t.Errorf("error %q lacks the bare address", err)
+		}
+	}
+}
+
+type roundTrip func(*http.Request) (*http.Response, error)
+
+func (f roundTrip) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func TestBare(t *testing.T) {
+	for _, tc := range []struct{ in, want string }{
+		{"https://h.example/a/b?jwt=x#f", "https://h.example/a/b"},
+		{"https://u:p@h.example:8443/p?", "https://h.example:8443/p"},
+		{"https://h.example/p", "https://h.example/p"},
+		{"https://u:p@h.example/%zz?jwt=x", "https://h.example/%zz"},
+	} {
+		if got := bare(tc.in); got != tc.want {
+			t.Errorf("bare(%q) = %q, want %q", tc.in, got, tc.want)
+		}
 	}
 }
 
