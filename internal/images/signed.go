@@ -70,7 +70,7 @@ type signer struct {
 // one read.
 func (s *signer) url(ctx context.Context, body, stable string, index int, refused string) (addr string, placed bool, err error) {
 	if s.html == nil {
-		return "", false, fmt.Errorf("%w: no rendered HTML to find %s in", ErrNotAllowed, stable)
+		return "", false, fmt.Errorf("%w: no rendered HTML to find %s in", ErrNotAllowed, bare(stable))
 	}
 	s.mu.Lock()
 	imgs, ok := s.bodies[body]
@@ -88,7 +88,7 @@ func (s *signer) url(ctx context.Context, body, stable string, index int, refuse
 	}
 	i, found, placed := s.match(stable, index, imgs)
 	if !found {
-		return "", false, fmt.Errorf("%w: %s isn't in the body's html", ErrUnavailable, stable)
+		return "", false, fmt.Errorf("%w: %s isn't in the body's html", ErrUnavailable, bare(stable))
 	}
 	// Just read, so an address that seems expired is tried anyway: the
 	// clocks may differ.

@@ -77,13 +77,8 @@ type Fetcher struct {
 
 	mu      sync.Mutex
 	mem     *memory
-	failed  map[string]failure
+	failed  *failures
 	flights map[string]*flight
-}
-
-type failure struct {
-	err   error
-	until time.Time
 }
 
 // New returns a fetcher of the images of the GitHub whose web host is
@@ -95,7 +90,7 @@ func New(web string, opts ...Option) *Fetcher {
 		fetches: make(chan struct{}, maxFetches),
 		decodes: make(chan struct{}, maxDecodes),
 		mem:     newMemory(memoryBytes),
-		failed:  make(map[string]failure),
+		failed:  newFailures(),
 		flights: make(map[string]*flight),
 	}
 	for _, opt := range opts {
@@ -121,13 +116,13 @@ func (f *Fetcher) Fetch(ctx context.Context, src Source, box Box) (Image, error)
 	}
 	f.mu.Lock()
 	img, ok := f.mem.get(key)
-	fail, failed := f.failed[src.URL]
+	failed := f.failed.get(src.URL, f.now())
 	f.mu.Unlock()
 	if ok {
 		return img, nil
 	}
-	if failed && f.now().Before(fail.until) {
-		return Image{}, fail.err
+	if failed != nil {
+		return Image{}, failed
 	}
 	return f.join(ctx, key, src, box)
 }
@@ -194,10 +189,10 @@ func (f *Fetcher) fly(ctx context.Context, fl *flight, key string, src Source, b
 	switch {
 	case err == nil && keep:
 		f.mem.put(key, img)
-		delete(f.failed, src.URL)
+		f.failed.forget(src.URL)
 	case err == nil:
 	case !errors.Is(err, ErrOffline) && ctx.Err() == nil:
-		f.remember(src.URL, err)
+		f.failed.add(src.URL, err, f.now())
 	}
 	if f.flights[key] == fl {
 		delete(f.flights, key)
@@ -205,18 +200,6 @@ func (f *Fetcher) fly(ctx context.Context, fl *flight, key string, src Source, b
 	fl.img, fl.err = img, err
 	f.mu.Unlock()
 	close(fl.done)
-}
-
-// remember keeps that the image at addr failed with err, and forgets the
-// failures old enough to try again. f.mu is held.
-func (f *Fetcher) remember(addr string, err error) {
-	now := f.now()
-	for k, v := range f.failed {
-		if !now.Before(v.until) {
-			delete(f.failed, k)
-		}
-	}
-	f.failed[addr] = failure{err: err, until: now.Add(failedFor)}
 }
 
 // Decode makes data, an image read some other way, such as a file of a
@@ -322,7 +305,7 @@ var errNotModified = errors.New("not modified")
 func (f *Fetcher) download(ctx context.Context, src Source, etag string) (data []byte, newTag string, placed bool, err error) {
 	u, err := url.Parse(src.URL)
 	if err != nil {
-		return nil, "", false, fmt.Errorf("%w: %w", ErrNotAllowed, err)
+		return nil, "", false, fmt.Errorf("%w: %w", ErrNotAllowed, bareError(err))
 	}
 	direct := f.hosts.allowed(u) && (!src.Private || !f.hosts.attachment(u))
 	if direct {
@@ -367,7 +350,7 @@ func (f *Fetcher) get(ctx context.Context, addr, etag string) (data []byte, newT
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, addr, http.NoBody)
 	if err != nil {
-		return nil, "", fmt.Errorf("%w: %w", ErrNotAllowed, err)
+		return nil, "", fmt.Errorf("%w: %w", ErrNotAllowed, bareError(err))
 	}
 	req.Header.Set("User-Agent", userAgent)
 	req.Header.Set("Accept", "image/png,image/jpeg,image/gif,image/webp")
@@ -376,7 +359,7 @@ func (f *Fetcher) get(ctx context.Context, addr, etag string) (data []byte, newT
 	}
 	resp, err := f.client.Do(req)
 	if err != nil {
-		return nil, "", fmt.Errorf("fetch image: %w", err)
+		return nil, "", fmt.Errorf("fetch image: %w", bareError(err))
 	}
 	defer resp.Body.Close()
 	switch {
@@ -401,4 +384,41 @@ func (f *Fetcher) get(ctx context.Context, addr, etag string) (data []byte, newT
 func storeKey(addr string) string {
 	h := sha256.Sum256([]byte(addr))
 	return hex.EncodeToString(h[:])
+}
+
+// bareError returns err with the address of the *url.Error in it, such
+// as the client returns, made bare. What fails is remembered, returned
+// and may be logged, while a signed address's query lets anyone holding
+// it read a private image until it expires.
+func bareError(err error) error {
+	if ue, ok := errors.AsType[*url.Error](err); ok {
+		ue.URL = bare(ue.URL)
+	}
+	return err
+}
+
+// bare returns addr without what may hold a secret: its query, such as
+// the jwt of a signed address, its fragment and its user and password.
+func bare(addr string) string {
+	u, err := url.Parse(addr)
+	if err != nil {
+		// No address to rebuild: cut off the same by hand.
+		if i := strings.IndexAny(addr, "?#"); i >= 0 {
+			addr = addr[:i]
+		}
+		scheme, rest, ok := strings.Cut(addr, "://")
+		if !ok {
+			return addr
+		}
+		authority := rest
+		if i := strings.IndexByte(rest, '/'); i >= 0 {
+			authority = rest[:i]
+		}
+		if i := strings.LastIndexByte(authority, '@'); i >= 0 {
+			rest = rest[i+1:]
+		}
+		return scheme + "://" + rest
+	}
+	u.User, u.RawQuery, u.ForceQuery, u.Fragment, u.RawFragment = nil, "", false, "", ""
+	return u.String()
 }
