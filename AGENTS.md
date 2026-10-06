@@ -48,6 +48,7 @@ internal/
   browser/            opens pages in the user's browser, detached from the terminal
   buildinfo/          what the binary was built from, such as its version
   imgcaps/            whether the terminal shows images: the startup check's rules
+  keyname/            key names as the config writes them, and presses of them
   obs/                log/slog setup, trace and request ids, counters and summaries
   logfile/            the log file, rotated by size, shared by several processes
   service/<domain>/   business logic per domain (pulls, issues, repos, notifications…)
