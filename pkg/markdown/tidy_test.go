@@ -151,7 +151,7 @@ func TestQuoteBars(t *testing.T) {
 		{q + q, "│ "},
 	}
 	for _, tt := range tests {
-		if got := quoteBars(tt.in); got != tt.want {
+		if got := quoteBars(tt.in, Glyphs{}.orDefault()); got != tt.want {
 			t.Errorf("quoteBars(%q) = %q, want %q", tt.in, got, tt.want)
 		}
 	}

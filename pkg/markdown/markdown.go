@@ -33,7 +33,12 @@ const maxKept = 256 << 10
 // rendered until the style changes. Create it with [New]. It is not safe
 // for concurrent use; a bubble calls it from Update.
 type Renderer struct {
-	style ansi.StyleConfig
+	// base is the style as it was set, and style the one glamour renders
+	// in: base with the renderer's changes and the glyphs that it draws.
+	base, style ansi.StyleConfig
+	// glyphs are what the render draws of its own, with the defaults
+	// where they were left empty.
+	glyphs Glyphs
 	// terms holds a glamour renderer per width, since making one is costly
 	// and a view may render at two widths, such as a body and its
 	// comments.
@@ -111,17 +116,36 @@ type key struct {
 // New returns a renderer of markdown in style. Its document margin is
 // always zero: the caller indents the lines as its layout needs.
 func New(style ansi.StyleConfig) *Renderer {
-	r := &Renderer{nonce: strconv.FormatUint(rand.Uint64(), 36)}
+	r := &Renderer{nonce: strconv.FormatUint(rand.Uint64(), 36), glyphs: Glyphs{}.orDefault()}
 	r.SetStyle(style)
 	return r
 }
 
 // SetStyle sets the style and forgets what was rendered in the old one.
 func (r *Renderer) SetStyle(style ansi.StyleConfig) {
+	r.base = style
+	r.restyle()
+}
+
+// SetGlyphs sets what the render draws of its own, such as bullets and
+// quote bars, and forgets what was rendered when they change. The zero
+// Glyphs draws the defaults.
+func (r *Renderer) SetGlyphs(g Glyphs) {
+	if g = g.orDefault(); g == r.glyphs {
+		return
+	}
+	r.glyphs = g
+	r.restyle()
+}
+
+// restyle makes the style glamour renders in from the base style and the
+// glyphs, and forgets what was rendered.
+func (r *Renderer) restyle() {
+	style := r.glyphs.style(r.base)
 	var zero uint
 	style.Document.Margin = &zero
 	r.code = codeStyle(style.CodeBlock)
-	r.heads = newHeadStyles(style)
+	r.heads = newHeadStyles(style, r.glyphs)
 	// Glamour would run chroma on any code, in any container, with any
 	// lexer, or one it guesses, and chroma can't be stopped; the renderer
 	// highlights instead, within its limits.
@@ -265,10 +289,11 @@ func (r *Renderer) renderWith(src string, width int, open []int, pics bool) (ren
 	r.renders++
 	// Only glamour may draw the token that marks a quote's indent, or the
 	// text could pass for a quote.
-	src = strings.ReplaceAll(src, quoteToken, quoteBar)
+	g := r.glyphs
+	src = strings.ReplaceAll(src, g.quoteToken(), g.Quote)
 	b := newBudget()
 	var parts []part
-	text := prepare(src, open, r.hint, func(i int, blk Block, shown bool) string {
+	text := prepare(src, open, r.hint, g, func(i int, blk Block, shown bool) string {
 		// The marks are indented as the fence is, so they stay in the
 		// block's list item.
 		indent := blk.indent()
@@ -276,7 +301,7 @@ func (r *Renderer) renderWith(src string, width int, open []int, pics bool) (ren
 			if len(indent) > 3 {
 				// As deep as indented code, it may not be a block of its
 				// own; glamour shows it.
-				return plain(i, blk, shown)
+				return r.plain(i, blk, shown)
 			}
 			// The head is a code block, which glamour puts on lines of its
 			// own even in a list item, where it runs paragraphs together.
@@ -303,25 +328,28 @@ func (r *Renderer) renderWith(src string, width int, open []int, pics bool) (ren
 			lines = sp.lines
 		} else {
 			sp = spliced{}
-			lines, err = r.lines(prepare(src, open, r.hint, plain, nil, false), width)
+			lines, err = r.lines(prepare(src, open, r.hint, g, r.plain, nil, false), width)
 		}
 	}
 	if err != nil {
 		// Showing the source beats showing nothing.
-		text = prepare(src, open, r.hint, plain, nil, false)
+		text = prepare(src, open, r.hint, g, r.plain, nil, false)
 		lines = strings.Split(xansi.Wrap(text, width, ""), "\n")
 		sp = spliced{}
 	}
 	lines, front := trimBlank(lines)
 	for i, l := range lines {
-		lines[i] = safe(tidy(quoteBars(l)))
+		lines[i] = safe(tidy(quoteBars(l, g)))
+	}
+	if g.ASCII {
+		asciiLines(lines, g)
 	}
 	heads := sp.heads
 	for i := range heads {
 		heads[i].Line -= front
 		heads[i].End -= front
 		// Only now, once the lines are safe, which drops every link.
-		lines[heads[i].Line] = linked(lines[heads[i].Line], heads[i].URL)
+		lines[heads[i].Line] = linked(lines[heads[i].Line], heads[i].URL, g)
 	}
 	// The lines of pictures go in only now too, since what makes a line
 	// safe would take the characters that draw them for the text's own.
@@ -362,14 +390,21 @@ func (r *Renderer) glamour(text string, width int) (string, error) {
 	t, ok := r.terms[width]
 	if !ok {
 		var err error
-		t, err = glamour.NewTermRenderer(
+		opts := []glamour.TermRendererOption{
 			glamour.WithStyles(r.style),
 			glamour.WithWordWrap(width),
 			// GitHub breaks the line where a comment or an issue does,
 			// which templates rely on.
 			glamour.WithPreservedNewLines(),
-			glamour.WithEmoji(),
-		)
+		}
+		if r.glyphs.ASCII {
+			// The list of a table's links under it cuts a long address
+			// with "…"; in its cell it wraps.
+			opts = append(opts, glamour.WithInlineTableLinks(true))
+		} else {
+			opts = append(opts, glamour.WithEmoji())
+		}
+		t, err = glamour.NewTermRenderer(opts...)
 		if err != nil {
 			return "", err
 		}

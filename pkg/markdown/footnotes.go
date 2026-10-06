@@ -23,7 +23,7 @@ var (
 // As on GitHub, the first of two definitions with the same label, which
 // matches in any case, wins, one that nothing refers to doesn't show, and
 // a reference without a definition stays as it is.
-func footnotes(ps []piece) []piece {
+func footnotes(ps []piece, g Glyphs) []piece {
 	if !hasFootnote(ps) {
 		return ps
 	}
@@ -64,6 +64,10 @@ func footnotes(ps []piece) []piece {
 			order = append(order, label)
 			n = len(order)
 			numbers[label] = n
+		}
+		if g.ASCII {
+			// Escaped, so a link's definition can't take it.
+			return `\[` + strconv.Itoa(n) + `\]`
 		}
 		return superscript(n)
 	}

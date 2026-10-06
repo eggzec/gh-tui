@@ -234,7 +234,7 @@ func TestDiagramLinkForged(t *testing.T) {
 	if out := New(DefaultStyle(true)).Render(b.String(), 80); strings.Contains(out, "\x1b]") {
 		t.Errorf("a diagram too large links: %q", out)
 	}
-	if got := linked("  View diagram ↗", "https://evil.test/view#pako:abc"); got != "  View diagram ↗" {
+	if got := linked("  View diagram ↗", "https://evil.test/view#pako:abc", Glyphs{}.orDefault()); got != "  View diagram ↗" {
 		t.Errorf("linked to another page: %q", got)
 	}
 }

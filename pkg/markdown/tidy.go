@@ -5,10 +5,11 @@ import "strings"
 const esc = 0x1b
 
 // quoteBars returns line with the indent glamour drew for its quotes
-// made to read as such: glamour draws a quote's indent as two quoteTokens,
-// past spaces and style sequences at the start of the line, and they
-// become a bar and a space. What the text draws, bars included, stays.
-func quoteBars(line string) string {
+// made to read as such: glamour draws a quote's indent as two quote
+// tokens of g, past spaces and style sequences at the start of the line,
+// and they become a bar and a space. What the text draws, bars included, stays.
+func quoteBars(line string, g Glyphs) string {
+	quoteToken := g.quoteToken()
 	if !strings.Contains(line, quoteToken) {
 		return line
 	}
@@ -31,7 +32,7 @@ scan:
 				// One cell for one, so the line keeps its width.
 				b.WriteByte(' ')
 			} else {
-				b.WriteString(quoteBar)
+				b.WriteString(g.Quote)
 			}
 			i += len(quoteToken)
 		default:

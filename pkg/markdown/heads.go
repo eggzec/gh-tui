@@ -19,9 +19,11 @@ type headStyles struct {
 	// imageText and imageURL style an image shown as its text, as
 	// glamour shows it.
 	imageText, imageURL lipgloss.Style
+	// g are the glyphs the heads and the images are drawn with.
+	g Glyphs
 }
 
-func newHeadStyles(s ansi.StyleConfig) headStyles {
+func newHeadStyles(s ansi.StyleConfig, g Glyphs) headStyles {
 	code := primitive(s.CodeBlock.StylePrimitive)
 	return headStyles{
 		name: primitive(s.LinkText),
@@ -32,22 +34,23 @@ func newHeadStyles(s ansi.StyleConfig) headStyles {
 
 		imageText: primitive(s.ImageText),
 		imageURL:  primitive(s.Image),
+		g:         g,
 	}
 }
 
 // image returns an image as its text, as the default style shows one:
 // its alt text and, in brackets, its address.
 func (h headStyles) image(alt, url string) string {
-	return h.imageText.Render("🖼 "+termtext.OneLine(alt)) + " " + h.imageURL.Render("("+termtext.OneLine(url)+")")
+	return h.imageText.Render(h.g.Image+" "+termtext.OneLine(alt)) + " " + h.imageURL.Render("("+termtext.OneLine(url)+")")
 }
 
 // line returns the head of b, which is collapsible, as one styled line.
 func (h headStyles) line(b Block) string {
-	offer := h.link.Render(b.offer())
+	offer := h.link.Render(b.offer(h.g))
 	if b.URL == "" {
-		offer = h.note.Render(b.offer())
+		offer = h.note.Render(b.offer(h.g))
 	}
-	return h.name.Render("◆ "+b.kind) + h.size.Render(" · "+b.size()+" · ") + offer
+	return h.name.Render(h.g.Diagram+" "+b.kind) + h.size.Render(h.g.Separator+b.size()+h.g.Separator) + offer
 }
 
 // body returns the lines of code, plain, in the style of code blocks and
@@ -91,14 +94,14 @@ var viewURL = regexp.MustCompile(`^https://mermaid\.live/view#pako:[A-Za-z0-9_-]
 // own hyperlinks would be dropped with those of the source, so the link
 // goes in after. Without the whole offer, as when the head was cut, or
 // with a url of another kind, the line has no link.
-func linked(line, url string) string {
-	const first, last = "View", "↗"
+func linked(line, url string, g Glyphs) string {
+	first, last := "View", g.Link
 	i, j := strings.Index(line, first), strings.LastIndex(line, last)
 	if !viewURL.MatchString(url) || i < 0 || j < i {
 		return line
 	}
 	j += len(last)
-	if xansi.Strip(line[i:j]) != viewText {
+	if xansi.Strip(line[i:j]) != g.viewText() {
 		return line
 	}
 	return line[:i] + termtext.Link(url, line[i:j]) + line[j:]

@@ -132,7 +132,7 @@ func (r *Renderer) splice(lines []string, parts []part, width int) (spliced, boo
 		if p.head != nil {
 			h := *p.head
 			h.Line = len(out)
-			out = append(out, xansi.Truncate(prefix+p.lines[0], width, "…")+"\x1b[0m")
+			out = append(out, xansi.Truncate(prefix+p.lines[0], width, r.glyphs.Ellipsis)+"\x1b[0m")
 			h.End = len(out)
 			sp.heads = append(sp.heads, h)
 			continue
