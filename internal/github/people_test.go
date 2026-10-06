@@ -471,3 +471,14 @@ func TestOrgFollowersErrors(t *testing.T) {
 		}
 	}
 }
+
+// A query that answers with another list than the one asked for fails,
+// rather than showing an empty page.
+func TestUserPeopleWrongList(t *testing.T) {
+	c, _ := serveFixture(t, "user_followers.json")
+	_, err := c.userPeople(t.Context(), userFollowingQuery, "following of", "octocat", 2, "",
+		func(u *userLists) *people { return u.Following })
+	if err == nil || errors.Is(err, core.ErrNotFound) {
+		t.Errorf("error = %v, want one that says the list is missing", err)
+	}
+}
