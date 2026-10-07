@@ -842,6 +842,29 @@ func TestSetMarkedKeepsSelection(t *testing.T) {
 	}
 }
 
+func TestSelectMovesToTheValue(t *testing.T) {
+	items := manyItems(30)
+	for i := range items {
+		items[i].Value = i
+	}
+	m := open(t, nil, WithItems(items), WithSize(40, 8))
+	if !m.Select(25) {
+		t.Fatal("Select(25) found nothing")
+	}
+	if it, ok := m.Selected(); !ok || it.Value != 25 {
+		t.Errorf("selected %v, want 25", it.Value)
+	}
+	if v := ansi.Strip(m.View()); !strings.Contains(v, "project-25") {
+		t.Errorf("the selection isn't in view:\n%s", v)
+	}
+	if m.Select("nothing") || m.Select([]int{1}) {
+		t.Error("Select found a value that isn't listed")
+	}
+	if it, _ := m.Selected(); it.Value != 25 {
+		t.Errorf("a miss moved the selection to %v", it.Value)
+	}
+}
+
 func TestTypedItem(t *testing.T) {
 	use := func(text string) (Item, bool) {
 		if text == "!" {
