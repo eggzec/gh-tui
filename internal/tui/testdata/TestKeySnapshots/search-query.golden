@@ -3,7 +3,7 @@
 always
   help | ? | ? | off
 
-app
+global
   quit | ctrl+c | ^c | on
 
 Query (types)

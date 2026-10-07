@@ -33,7 +33,7 @@ func winner(m *Model, k string) string {
 // capturing section's before everything but the quit key.
 func TestKeyLayersOrder(t *testing.T) {
 	m, pulls, _ := newFilterApp(t)
-	if got := winner(m, "tab"); got != "app: next pane" {
+	if got := winner(m, "tab"); got != "global: next pane" {
 		t.Errorf("tab reaches %q, want the app", got)
 	}
 	if got := winner(m, "]"); got != "nothing" {
@@ -51,7 +51,7 @@ func TestKeyLayersOrder(t *testing.T) {
 		t.Errorf("esc reaches %q, want the section's back", got)
 	}
 	run(m, m.key(press("z")))
-	if got := winner(m, "esc"); got != "app: unzoom" {
+	if got := winner(m, "esc"); got != "global: unzoom" {
 		t.Errorf("esc reaches %q while zoomed, want the unzoom", got)
 	}
 	run(m, m.key(press("esc")))
@@ -63,7 +63,7 @@ func TestKeyLayersOrder(t *testing.T) {
 	if got := winner(m, "q"); got != "nothing" {
 		t.Errorf("q reaches %q in a capturing section, want it typed", got)
 	}
-	if got := winner(m, "ctrl+c"); got != "app: quit" {
+	if got := winner(m, "ctrl+c"); got != "global: quit" {
 		t.Errorf("ctrl+c reaches %q in a capturing section, want the quit", got)
 	}
 	fakes[0].capturing = false
@@ -73,7 +73,7 @@ func TestKeyLayersOrder(t *testing.T) {
 	if m.screen != notifScreen {
 		t.Fatalf("n showed screen %d, want the notifications", m.screen)
 	}
-	if got := winner(m, "tab"); got == "app: next pane" {
+	if got := winner(m, "tab"); got == "global: next pane" {
 		t.Error("the notifications offer the next pane")
 	}
 	run(m, m.key(press("n")))
@@ -145,8 +145,8 @@ func TestNextAndPrevKeysOnEachScreen(t *testing.T) {
 		// after it.
 		winner, want string
 	}{
-		{"repo: tab", true, nil, "repo: Files", "tab", "app: next pane", "repo: Pull requests"},
-		{"repo: shift+tab", true, nil, "repo: Files", "shift+tab", "app: previous pane", "repo: Issues"},
+		{"repo: tab", true, nil, "repo: Files", "tab", "global: next pane", "repo: Pull requests"},
+		{"repo: shift+tab", true, nil, "repo: Files", "shift+tab", "global: previous pane", "repo: Issues"},
 		{"repo: ]", true, nil, "repo: Files", "]", "nothing", "repo: Files"},
 		{"repo: [", true, nil, "repo: Files", "[", "nothing", "repo: Files"},
 
@@ -160,13 +160,13 @@ func TestNextAndPrevKeysOnEachScreen(t *testing.T) {
 		{"search query: ]", false, []string{"/", "k", "e", "y"}, `search: query "key"`, "]", "nothing", `search: query "key]"`},
 		{"search query: [", false, []string{"/", "k", "e", "y"}, `search: query "key"`, "[", "nothing", `search: query "key["`},
 
-		{"search kinds: tab", false, []string{"/", "k", "e", "y", "up"}, `search: kinds "key"`, "tab", "app: next", `search: results "key"`},
-		{"search kinds: shift+tab", false, []string{"/", "k", "e", "y", "up"}, `search: kinds "key"`, "shift+tab", "app: previous", `search: query "key"`},
+		{"search kinds: tab", false, []string{"/", "k", "e", "y", "up"}, `search: kinds "key"`, "tab", "global: next", `search: results "key"`},
+		{"search kinds: shift+tab", false, []string{"/", "k", "e", "y", "up"}, `search: kinds "key"`, "shift+tab", "global: previous", `search: query "key"`},
 		{"search kinds: ]", false, []string{"/", "k", "e", "y", "up"}, `search: kinds "key"`, "]", "nothing", `search: kinds "key"`},
 		{"search kinds: [", false, []string{"/", "k", "e", "y", "up"}, `search: kinds "key"`, "[", "nothing", `search: kinds "key"`},
 
-		{"search results: tab", false, []string{"/", "k", "e", "y", "enter"}, `search: results "key"`, "tab", "app: next", `search: query "key"`},
-		{"search results: shift+tab", false, []string{"/", "k", "e", "y", "enter"}, `search: results "key"`, "shift+tab", "app: previous", `search: kinds "key"`},
+		{"search results: tab", false, []string{"/", "k", "e", "y", "enter"}, `search: results "key"`, "tab", "global: next", `search: query "key"`},
+		{"search results: shift+tab", false, []string{"/", "k", "e", "y", "enter"}, `search: results "key"`, "shift+tab", "global: previous", `search: kinds "key"`},
 		{"search results: ]", false, []string{"/", "k", "e", "y", "enter"}, `search: results "key"`, "]", "nothing", `search: results "key"`},
 		{"search results: [", false, []string{"/", "k", "e", "y", "enter"}, `search: results "key"`, "[", "nothing", `search: results "key"`},
 	} {

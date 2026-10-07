@@ -586,6 +586,11 @@ keys:
     done: [d]
     read_all: [M]
 
+  # Search: the kinds, which open the same filter as the results do.
+  search_kinds:
+    filter: [f]
+    sort: [s]
+
   # Search: the results.
   search_results:
     filter: [f]

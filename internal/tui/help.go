@@ -114,6 +114,7 @@ func (m *Model) layersNow() []keyhelp.Layer {
 		// intents, in its own layers, unless what it shows takes every key.
 		if !slices.ContainsFunc(inner, capturing) {
 			always.Context = config.ContextGlobal
+			always.Source = globalTitle()
 		}
 		always.Bindings = append(always.Bindings, forceQuit)
 		if m.commandsOver(m.topModal()) {
@@ -121,6 +122,14 @@ func (m *Model) layersNow() []keyhelp.Layer {
 		}
 	}
 	always.Bindings = append(always.Bindings, help)
+	if !modal && len(inner) > 0 && inner[0].Context == config.ContextGlobal {
+		// On a screen the help key is one of the global keys, listed with
+		// them, first, as it is matched first.
+		g := &inner[0]
+		g.Bindings = append([]key.Binding{help}, g.Bindings...)
+		g.Short = append([]key.Binding{help}, g.Short...)
+		return inner
+	}
 	return append([]keyhelp.Layer{always}, inner...)
 }
 
@@ -231,4 +240,11 @@ func takeIntents(global *keyhelp.Layer, layers []keyhelp.Layer) {
 		layers[i].Bindings = move(slices.Clone(layers[i].Bindings), &global.Bindings)
 		layers[i].Short = move(slices.Clone(layers[i].Short), &global.Short)
 	}
+}
+
+// globalTitle is the title of the global context, which names its layer
+// wherever it is shown.
+func globalTitle() string {
+	c, _ := config.LookupContext(config.ContextGlobal)
+	return c.Title
 }

@@ -215,7 +215,7 @@ func TestHelpShowsCollisions(t *testing.T) {
 		t.Errorf("search is %v and find %v losing %+v, want find shadowed by search", search.Status, find.Status, find.Lost)
 	}
 	typeKeys(m, "find")
-	if !strings.Contains(onScreen(m), "⚠ / find") || !strings.Contains(onScreen(m), "↳ /: search · app") {
+	if !strings.Contains(onScreen(m), "⚠ / find") || !strings.Contains(onScreen(m), "↳ /: search · global") {
 		t.Errorf("the collision isn't marked:\n%s", ansi.Strip(m.View().Content))
 	}
 }
@@ -319,7 +319,7 @@ func TestCtrlCAlwaysQuits(t *testing.T) {
 		if !quits(m.key(ctrlC)) || files.got(isKey("ctrl+c")) {
 			t.Errorf("capturing %v: ctrl+c didn't quit, or reached the section", capturing)
 		}
-		if got := winner(m, "ctrl+c"); got != "app: quit" {
+		if got := winner(m, "ctrl+c"); got != "global: quit" {
 			t.Errorf("capturing %v: ctrl+c reaches %q, want the quit", capturing, got)
 		}
 	}

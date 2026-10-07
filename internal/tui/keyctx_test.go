@@ -627,19 +627,14 @@ func TestHelpRowsWork(t *testing.T) {
 	}
 }
 
-// isAction says whether b is the binding of an action of the config, by
-// its keys, that is of ctx or of a pane beside it on the same screen or
-// modal (the kinds of a search list the filter of its results), rather than
-// one of the keys the widgets fix, whose motions have nothing to move over
-// where the app has little to show.
+// isAction says whether b is the binding of an action of the config in
+// the context ctx, by its keys, rather than one of the keys the widgets
+// fix, whose motions have nothing to move over where the app has little to
+// show.
 func isAction(ctx string, b key.Binding) bool {
 	keys := config.Default().Keys
-	here, _ := config.LookupContext(ctx)
 	for _, action := range keys.Actions() {
-		name, _, _ := strings.Cut(action, ".")
-		other, _ := config.LookupContext(name)
-		beside := name == ctx || here.Reach == config.ReachPane && other.Reach == config.ReachPane && other.Parent == here.Parent
-		if beside && slices.Equal(keys.Of(action), b.Keys()) {
+		if name, _, _ := strings.Cut(action, "."); name == ctx && slices.Equal(keys.Of(action), b.Keys()) {
 			return true
 		}
 	}
@@ -744,39 +739,39 @@ func cmdsOf(msg tea.Msg) ([]tea.Cmd, bool) {
 func keyContexts() []keyContext {
 	octocat, github := ui.OwnerMsg{Login: "octocat"}, ui.OwnerMsg{Login: "github"}
 	return []keyContext{
-		{name: "owner: repositories", msg: octocat, context: "owner_list", want: "always, global, owner, owner_list"},
-		{name: "owner: pinned", msg: octocat, after: []string{"global.pane_1"}, context: "owner_pinned", want: "always, global, owner, owner_pinned"},
-		{name: "owner: zoomed", msg: octocat, after: []string{"global.zoom"}, context: "owner_list", want: "always, global, owner, owner_list"},
+		{name: "owner: repositories", msg: octocat, context: "owner_list", want: "global, owner, owner_list"},
+		{name: "owner: pinned", msg: octocat, after: []string{"global.pane_1"}, context: "owner_pinned", want: "global, owner, owner_pinned"},
+		{name: "owner: zoomed", msg: octocat, after: []string{"global.zoom"}, context: "owner_list", want: "global, owner, owner_list"},
 		{name: "owner: filter", msg: octocat, after: []string{"owner_list.filter"}, context: "filter", want: "global, filter"},
 		{name: "owner: sort", msg: octocat, after: []string{"owner_list.sort"}, context: "filter", want: "global, filter"},
-		{name: "owner: stars", msg: octocat, after: []string{"global.next_tab"}, context: "owner_list", want: "always, global, owner, owner_list"},
-		{name: "owner: followers", msg: octocat, after: []string{"global.next_tab", "global.next_tab"}, context: "owner_list", want: "always, global, owner, owner_list"},
-		{name: "owner: following", msg: octocat, after: []string{"global.next_tab", "global.next_tab", "global.next_tab"}, context: "owner_list", want: "always, global, owner, owner_list"},
-		{name: "owner: organizations", msg: octocat, after: []string{"global.prev_tab"}, context: "owner_list", want: "always, global, owner, owner_list"},
-		{name: "owner: organization repositories", msg: github, context: "owner_list", want: "always, global, owner, owner_list"},
-		{name: "owner: members", msg: github, after: []string{"global.next_tab"}, context: "owner_list", want: "always, global, owner, owner_list"},
-		{name: "owner: teams", msg: github, after: []string{"global.next_tab", "global.next_tab"}, context: "owner_list", want: "always, global, owner, owner_list"},
-		{name: "owner: readme", msg: octocat, after: []string{"global.pane_3"}, context: "owner_readme", want: "always, global, owner, owner_readme"},
-		{name: "owner: calendar", msg: octocat, after: []string{"global.pane_4"}, context: "owner_calendar", want: "always, global, owner, owner_calendar"},
-		{name: "dashboard: repositories", context: "dashboard_repos", want: "always, global, dashboard, dashboard_repos"},
-		{name: "dashboard: pinned", steps: []string{"global.pane_1"}, context: "dashboard_pinned", want: "always, global, dashboard, dashboard_pinned"},
-		{name: "dashboard: work", steps: []string{"global.pane_3"}, context: "dashboard_work", want: "always, global, dashboard, dashboard_work"},
-		{name: "dashboard: calendar", steps: []string{"global.pane_4"}, context: "dashboard_calendar", want: "always, global, dashboard, dashboard_calendar"},
-		{name: "dashboard: inbox", steps: []string{"global.pane_5"}, context: "dashboard_inbox", want: "always, global, dashboard, dashboard_inbox"},
-		{name: "dashboard: zoomed", steps: []string{"global.zoom"}, context: "dashboard_repos", want: "always, global, dashboard, dashboard_repos"},
+		{name: "owner: stars", msg: octocat, after: []string{"global.next_tab"}, context: "owner_list", want: "global, owner, owner_list"},
+		{name: "owner: followers", msg: octocat, after: []string{"global.next_tab", "global.next_tab"}, context: "owner_list", want: "global, owner, owner_list"},
+		{name: "owner: following", msg: octocat, after: []string{"global.next_tab", "global.next_tab", "global.next_tab"}, context: "owner_list", want: "global, owner, owner_list"},
+		{name: "owner: organizations", msg: octocat, after: []string{"global.prev_tab"}, context: "owner_list", want: "global, owner, owner_list"},
+		{name: "owner: organization repositories", msg: github, context: "owner_list", want: "global, owner, owner_list"},
+		{name: "owner: members", msg: github, after: []string{"global.next_tab"}, context: "owner_list", want: "global, owner, owner_list"},
+		{name: "owner: teams", msg: github, after: []string{"global.next_tab", "global.next_tab"}, context: "owner_list", want: "global, owner, owner_list"},
+		{name: "owner: readme", msg: octocat, after: []string{"global.pane_3"}, context: "owner_readme", want: "global, owner, owner_readme"},
+		{name: "owner: calendar", msg: octocat, after: []string{"global.pane_4"}, context: "owner_calendar", want: "global, owner, owner_calendar"},
+		{name: "dashboard: repositories", context: "dashboard_repos", want: "global, dashboard, dashboard_repos"},
+		{name: "dashboard: pinned", steps: []string{"global.pane_1"}, context: "dashboard_pinned", want: "global, dashboard, dashboard_pinned"},
+		{name: "dashboard: work", steps: []string{"global.pane_3"}, context: "dashboard_work", want: "global, dashboard, dashboard_work"},
+		{name: "dashboard: calendar", steps: []string{"global.pane_4"}, context: "dashboard_calendar", want: "global, dashboard, dashboard_calendar"},
+		{name: "dashboard: inbox", steps: []string{"global.pane_5"}, context: "dashboard_inbox", want: "global, dashboard, dashboard_inbox"},
+		{name: "dashboard: zoomed", steps: []string{"global.zoom"}, context: "dashboard_repos", want: "global, dashboard, dashboard_repos"},
 		{name: "dashboard: filter", steps: []string{"dashboard_repos.filter"}, context: "filter", want: "global, filter"},
 		{name: "dashboard: sort", steps: []string{"dashboard_repos.sort"}, context: "filter", want: "global, filter"},
-		{name: "notifications", steps: []string{"global.notifications"}, context: "notifications", want: "always, global, notifications"},
+		{name: "notifications", steps: []string{"global.notifications"}, context: "notifications", want: "global, notifications"},
 		{name: "notifications: filter", steps: []string{"global.notifications", "notifications.filter"}, context: "filter", want: "global, filter"},
 		{name: "notifications: mark read", steps: []string{"global.notifications", "notifications.read"}, context: "confirm", want: "always, confirm"},
-		{name: "search: query", steps: []string{"global.search"}, context: "search_query", want: "always, app, search_query (types)"},
-		{name: "search: kinds", steps: []string{"global.search", "up"}, context: "search_kinds", want: "always, global, search, search_kinds"},
-		{name: "search: results", steps: []string{"global.search", typed("key"), "global.select"}, context: "search_results", want: "always, global, search, search_results"},
+		{name: "search: query", steps: []string{"global.search"}, context: "search_query", want: "always, global, search_query (types)"},
+		{name: "search: kinds", steps: []string{"global.search", "up"}, context: "search_kinds", want: "global, search, search_kinds"},
+		{name: "search: results", steps: []string{"global.search", typed("key"), "global.select"}, context: "search_results", want: "global, search, search_results"},
 		{name: "search: filter", steps: []string{"global.search", typed("key"), "global.select", "search_results.filter"}, context: "filter", want: "global, filter"},
 		{name: "search: sort", steps: []string{"global.search", typed("key"), "global.select", "search_results.sort"}, context: "filter", want: "global, filter"},
-		{name: "files", repo: true, context: "files", want: "always, global, repo, files"},
-		{name: "files: zoomed", repo: true, steps: []string{"global.zoom"}, context: "files", want: "always, global, repo, files"},
-		{name: "files: error toast", repo: true, msg: ui.NotifyMsg{Level: toast.Error, Text: "Keys collide."}, context: "files", want: "always, global, repo, files"},
+		{name: "files", repo: true, context: "files", want: "global, repo, files"},
+		{name: "files: zoomed", repo: true, steps: []string{"global.zoom"}, context: "files", want: "global, repo, files"},
+		{name: "files: error toast", repo: true, msg: ui.NotifyMsg{Level: toast.Error, Text: "Keys collide."}, context: "files", want: "global, repo, files"},
 		{name: "files: preview", repo: true, steps: []string{"down", "global.select"}, context: "preview", want: "global, preview"},
 		{name: "files: preview search", repo: true, steps: []string{"down", "global.select", "/"}, context: "search_prompt", want: "always, search_prompt (types)"},
 		{name: "files: preview option", repo: true, steps: []string{"down", "global.select", "-"}, context: "pager_option", want: "always, pager_option (types)"},
@@ -784,7 +779,7 @@ func keyContexts() []keyContext {
 		{name: "files: preview command line", repo: true, steps: []string{"down", "global.select", "global.command"}, context: "command_line", want: "command_line (types)"},
 		{name: "files: finder", repo: true, steps: []string{"global.find_file"}, context: "finder", want: "always, finder (types)"},
 		{name: "files: finder preview", repo: true, steps: []string{"global.find_file", typed("R"), "enter"}, context: "preview", want: "global, preview"},
-		{name: "pull requests", repo: true, steps: []string{"global.pane_2"}, context: "pulls", want: "always, global, repo, pulls"},
+		{name: "pull requests", repo: true, steps: []string{"global.pane_2"}, context: "pulls", want: "global, repo, pulls"},
 		{name: "pull requests: filter", repo: true, steps: []string{"global.pane_2", "pulls.filter"}, context: "filter", want: "global, filter"},
 		{name: "pull requests: sort", repo: true, steps: []string{"global.pane_2", "pulls.sort"}, context: "filter", want: "global, filter"},
 		{name: "pull requests: filter field", repo: true, steps: []string{"global.pane_2", "pulls.filter", "down", "enter"}, want: "always, picker (types)"},
@@ -795,7 +790,7 @@ func keyContexts() []keyContext {
 		{name: "pull request: job", repo: true, steps: []string{"global.pane_2", "pulls.checks", "global.select"}, context: "pull_check_log", want: "global, pull_checks, pull_check_log"},
 		{name: "pull request: check detail", repo: true, steps: []string{"global.pane_2", "pulls.checks", "down", "global.select"}, context: "pull_check_detail", want: "global, pull_checks, pull_check_detail"},
 		{name: "pull request: job search", repo: true, steps: []string{"global.pane_2", "pulls.checks", "global.select", "/"}, context: "search_prompt", want: "always, search_prompt (types)"},
-		{name: "issues", repo: true, steps: []string{"global.pane_3"}, context: "issues", want: "always, global, repo, issues"},
+		{name: "issues", repo: true, steps: []string{"global.pane_3"}, context: "issues", want: "global, repo, issues"},
 		{name: "issues: filter", repo: true, steps: []string{"global.pane_3", "issues.filter"}, context: "filter", want: "global, filter"},
 		{name: "issues: sort", repo: true, steps: []string{"global.pane_3", "issues.sort"}, context: "filter", want: "global, filter"},
 		{name: "issues: close", repo: true, steps: []string{"global.pane_3", "issues.close"}, context: "confirm", want: "always, confirm"},

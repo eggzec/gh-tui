@@ -1,9 +1,7 @@
 # label | keys | help key | on or off
 
-always
+global
   help | ? | ? | on
-
-app
   command | : | : | on
   quit | q ctrl+c | q | on
   search | / | / | on

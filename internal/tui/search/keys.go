@@ -30,13 +30,17 @@ type KeyMap struct {
 	Back key.Binding
 	// Filter and Sort open the filter of the kind on view on its Filters
 	// and Sort tabs.
-	Filter  key.Binding
-	Sort    key.Binding
-	Refresh key.Binding
-	Up      key.Binding
-	Down    key.Binding
-	Left    key.Binding
-	Right   key.Binding
+	Filter key.Binding
+	Sort   key.Binding
+	// KindsFilter and KindsSort do the same from the kinds, with the keys
+	// of that pane.
+	KindsFilter key.Binding
+	KindsSort   key.Binding
+	Refresh     key.Binding
+	Up          key.Binding
+	Down        key.Binding
+	Left        key.Binding
+	Right       key.Binding
 
 	// feed is the navigation of the results, which gets the keys above
 	// only if the page leaves them.
@@ -44,22 +48,24 @@ type KeyMap struct {
 }
 
 func newKeyMap(keys config.Keymap) KeyMap {
-	page, results := ui.In(keys, "search"), ui.In(keys, "search_results")
+	page, results, kinds := ui.In(keys, "search"), ui.In(keys, "search_results"), ui.In(keys, "search_kinds")
 	k := KeyMap{
-		Next:    page.Binding("global.next_pane", "next"),
-		Prev:    page.Binding("global.prev_pane", "previous"),
-		Select:  page.Binding("global.select", "open"),
-		Open:    page.Binding("global.open", "browser"),
-		Repo:    results.Binding("repo_of", "repo"),
-		Checks:  results.Binding("checks", "checks"),
-		Back:    page.Binding("global.dismiss", "back"),
-		Filter:  results.Binding("filter", "filter"),
-		Sort:    results.Binding("sort", "sort"),
-		Refresh: page.Binding("global.refresh", "refresh"),
-		Up:      key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("↑/k", "up")),
-		Down:    key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓/j", "down")),
-		Left:    key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←/h", "kinds")),
-		Right:   key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "results")),
+		Next:        page.Binding("global.next_pane", "next"),
+		Prev:        page.Binding("global.prev_pane", "previous"),
+		Select:      page.Binding("global.select", "open"),
+		Open:        page.Binding("global.open", "browser"),
+		Repo:        results.Binding("repo_of", "repo"),
+		Checks:      results.Binding("checks", "checks"),
+		Back:        page.Binding("global.dismiss", "back"),
+		Filter:      results.Binding("filter", "filter"),
+		Sort:        results.Binding("sort", "sort"),
+		KindsFilter: kinds.Binding("filter", "filter"),
+		KindsSort:   kinds.Binding("sort", "sort"),
+		Refresh:     page.Binding("global.refresh", "refresh"),
+		Up:          key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("↑/k", "up")),
+		Down:        key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓/j", "down")),
+		Left:        key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←/h", "kinds")),
+		Right:       key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "results")),
 	}
 	// The page matches these keys first, so the results get only the keys
 	// it leaves them, such as f, which pages down there.
@@ -89,7 +95,9 @@ func (k KeyMap) ShortHelp() []key.Binding {
 }
 
 // FullHelp implements help.KeyMap.
-func (k KeyMap) FullHelp() [][]key.Binding { return [][]key.Binding{k.own()} }
+func (k KeyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{k.own(), {k.KindsFilter, k.KindsSort}}
+}
 
 // KeyLayers implements ui.Keyed: the keys of the part of the page that
 // has the focus, named for what they do there, with those of the results
@@ -114,8 +122,8 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 	if s.area == kindsArea {
 		// The kinds have no results to show the repository of or the checks.
 		kinds := keyhelp.Layer{
-			Bindings: []key.Binding{k.Select, k.Left, k.Right, k.Up, k.Down, k.Open, k.Refresh, k.Filter, k.Sort},
-			Short:    []key.Binding{k.Up, k.Down, k.Select, k.Open, k.Filter, k.Sort, k.Left},
+			Bindings: []key.Binding{k.Select, k.Left, k.Right, k.Up, k.Down, k.Open, k.Refresh, k.KindsFilter, k.KindsSort},
+			Short:    []key.Binding{k.Up, k.Down, k.Select, k.Open, k.KindsFilter, k.KindsSort, k.Left},
 		}
 		return []keyhelp.Layer{screen, ui.MergeLayers("search_kinds", kinds)}
 	}
@@ -131,7 +139,7 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 func (k KeyMap) inInput() KeyMap {
 	k.Select.SetHelp(k.Select.Help().Key, "search")
 	for _, b := range []*key.Binding{
-		&k.Left, &k.Right, &k.Up, &k.Down, &k.Open, &k.Repo, &k.Checks, &k.Refresh, &k.Filter, &k.Sort,
+		&k.Left, &k.Right, &k.Up, &k.Down, &k.Open, &k.Repo, &k.Checks, &k.Refresh, &k.Filter, &k.Sort, &k.KindsFilter, &k.KindsSort,
 	} {
 		b.SetEnabled(false)
 	}
@@ -142,6 +150,7 @@ func (k KeyMap) inInput() KeyMap {
 // the keys do there.
 func (k KeyMap) state(s *Section) KeyMap {
 	k.Sort.SetEnabled(k.Sort.Enabled() && s.kind != core.SearchCode)
+	k.KindsSort.SetEnabled(k.KindsSort.Enabled() && s.kind != core.SearchCode)
 	if s.area == kindsArea {
 		if s.kind == core.SearchCode {
 			k.Select.SetHelp(k.Select.Help().Key, "search code")
