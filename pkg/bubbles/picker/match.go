@@ -82,6 +82,21 @@ func searched(items []Item, text string) []result {
 // show lists rs, grouped by kind, and selects the first.
 func (m *Model) show(rs []result) {
 	group(rs)
+	m.listed = rs
+	m.sel, m.top = 0, 0
+	m.rebuild()
+}
+
+// rebuild lists what was found and the typed item, if one is due, keeping
+// the selection where it can stay.
+func (m *Model) rebuild() {
+	rs := m.listed
+	m.typedAt = false
+	if it, ok := m.typedItem(); ok {
+		// A new slice, since copies of the model share the old one.
+		rs = append(slices.Clip(slices.Clone(rs)), newResult(it))
+		m.typedAt = true
+	}
 	m.results = rs
 	// Copies of the model share the old slices, so these are new ones.
 	m.rows, m.itemRow = make([]row, 0, len(rs)+4), make([]int, 0, len(rs))
@@ -93,8 +108,33 @@ func (m *Model) show(rs []result) {
 		m.rows = append(m.rows, row{item: i})
 	}
 	m.lines = make([]string, len(m.rows))
-	m.sel, m.top = 0, 0
 	m.scroll()
+}
+
+// typedItem returns the item the user can choose for what they typed, if
+// the picker offers one now.
+func (m Model) typedItem() (Item, bool) {
+	text := m.input.Value()
+	if m.typed == nil || text == "" || !m.typingMode() || m.loading || m.err != nil {
+		return Item{}, false
+	}
+	for _, r := range m.listed {
+		if strings.EqualFold(r.Title, text) {
+			return Item{}, false
+		}
+		if v, ok := r.Value.(string); ok && strings.EqualFold(v, text) {
+			return Item{}, false
+		}
+	}
+	return m.typed(text)
+}
+
+// retype lists the typed item again if it should now appear or go.
+func (m *Model) retype() {
+	_, want := m.typedItem()
+	if want != m.typedAt {
+		m.rebuild()
+	}
 }
 
 // group sorts rs by kind, the kinds in the order they first appear, and

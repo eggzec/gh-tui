@@ -25,6 +25,9 @@ func (m Model) inner() (width, height int) {
 // listHeight returns the number of rows for results.
 func (m Model) listHeight() int {
 	_, h := m.inner()
+	if m.noFilterLine {
+		return max(h, 0)
+	}
 	return max(h-2, 0)
 }
 
@@ -54,6 +57,11 @@ func (m *Model) render() {
 		return
 	}
 	lines := make([]string, 0, h)
+	if m.noFilterLine {
+		lines = m.appendList(lines, w, h)
+		m.view = m.frame.wrap(lines)
+		return
+	}
 	lines = append(lines, m.fit(m.prompt+m.input.View(), w))
 	if h > 1 {
 		lines = append(lines, m.metaLine(w))
@@ -203,6 +211,13 @@ func (m Model) rowLine(r row, w int) string {
 	}
 	var b strings.Builder
 	b.WriteString(gutter)
+	if m.marked {
+		mark := m.markOff
+		if m.isMarked(res.Value) {
+			mark = m.markOn
+		}
+		b.WriteString(title.Render(mark + " "))
+	}
 	b.WriteString(highlight(res.title, res.matches, title, m.styles.Match))
 	if res.detail != "" {
 		b.WriteString("  ")
@@ -284,4 +299,25 @@ func fitCut(s string, width int, tail string) string {
 		s += strings.Repeat(" ", width-w)
 	}
 	return s
+}
+
+// isMarked reports whether v is one of the marked values.
+func (m Model) isMarked(v any) bool {
+	for _, mk := range m.marks {
+		if equal(mk, v) {
+			return true
+		}
+	}
+	return false
+}
+
+// equal reports a == b, which is false for values that can't be compared
+// instead of a panic.
+func equal(a, b any) (eq bool) {
+	defer func() {
+		if recover() != nil {
+			eq = false
+		}
+	}()
+	return a == b
 }

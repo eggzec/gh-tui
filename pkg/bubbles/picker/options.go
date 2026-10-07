@@ -23,6 +23,12 @@ type settings struct {
 	keys          KeyMap
 	styles        Styles
 	focused       bool
+	modes         bool
+	marked        bool
+	markOn        string
+	markOff       string
+	typed         func(text string) (Item, bool)
+	noFilterLine  bool
 }
 
 func defaultSettings() settings {
@@ -126,5 +132,45 @@ func WithContext(ctx context.Context) Option {
 		if ctx != nil {
 			s.parent = ctx
 		}
+	}
+}
+
+// WithModes gives the picker a normal mode, which it starts in and returns
+// to on Focus: the input is blurred, the keys of KeyMap.Normal move, and
+// letters don't type. Normal.Insert and Normal.Append focus the input, and
+// the cancel key blurs it again, keeping the query, before it cancels the
+// picker. Without it, the picker always types.
+func WithModes(on bool) Option {
+	return func(s *settings) {
+		s.modes = on
+	}
+}
+
+// WithMarks draws on or off, then a space, before each title: on for items
+// whose Value is among those given to SetMarked, off for the rest.
+func WithMarks(on, off string) Option {
+	return func(s *settings) {
+		s.marked, s.markOn, s.markOff = true, clean(on), clean(off)
+	}
+}
+
+// WithTyped lets the user choose what they typed. While the picker types
+// and the query isn't empty, it lists the item that typed returns, if it
+// says ok, as the last row. It isn't listed while a search runs or after
+// one failed, nor when the title or the value of a result equals the text,
+// ignoring case.
+func WithTyped(typed func(text string) (Item, bool)) Option {
+	return func(s *settings) {
+		s.typed = typed
+	}
+}
+
+// WithFilterLine sets whether the picker draws the input and the line of
+// scopes and result count. Without them the list takes the whole height and
+// the picker never types, so Normal.Insert and Normal.Append are disabled.
+// The default is true.
+func WithFilterLine(show bool) Option {
+	return func(s *settings) {
+		s.noFilterLine = !show
 	}
 }

@@ -24,3 +24,13 @@ filter (types)
   close | esc | esc | off
   scope | tab | tab | off
   previous scope | shift+tab | shift+tab | off
+  up | k up | k/↑ | off
+  down | j down | j/↓ | off
+  page up | ctrl+b pgup | ctrl+b/pgup | off
+  page down | ctrl+f pgdown | ctrl+f/pgdn | off
+  half page up | ctrl+u | ctrl+u | off
+  half page down | ctrl+d | ctrl+d | off
+  top | g home | g/home | off
+  bottom | G end | G/end | off
+  filter | i | i | off
+  filter at end | a | a | off
