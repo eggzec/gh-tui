@@ -588,16 +588,32 @@ func TestNormalModeIgnoresLetters(t *testing.T) {
 	}
 }
 
-// Normal mode leaves the scope keys alone.
-func TestNormalModeIgnoresScopeKeys(t *testing.T) {
+// Normal mode keeps the scope keys and the arrows' ctrl chords of insert
+// mode.
+func TestNormalModeKeepsScopeAndChordKeys(t *testing.T) {
 	m := open(t, nil, WithItems(catalog), WithModes(true), WithScopes(kindRepos, kindIssues))
 	m, _ = press(t, m, tab)
-	if m.Query().Scope != "" {
-		t.Errorf("scope = %q, want none", m.Query().Scope)
-	}
-	m, _ = press(t, m, letter('i'), tab)
 	if m.Query().Scope != kindRepos {
-		t.Errorf("scope = %q while typing, want %q", m.Query().Scope, kindRepos)
+		t.Errorf("tab: scope = %q, want %q", m.Query().Scope, kindRepos)
+	}
+	m, _ = press(t, m, shiftTab, shiftTab)
+	if m.Query().Scope != kindIssues {
+		t.Errorf("shift+tab twice: scope = %q, want %q", m.Query().Scope, kindIssues)
+	}
+	m, _ = press(t, m, shiftTab)
+	if got := chosen(t, m); got != ghTUI.Title {
+		t.Fatalf("selected %q, want %q", got, ghTUI.Title)
+	}
+	m, _ = press(t, m, ctrlN)
+	if got := chosen(t, m); got != dotfiles.Title {
+		t.Errorf("ctrl+n selected %q, want %q", got, dotfiles.Title)
+	}
+	m, _ = press(t, m, ctrlP)
+	if got := chosen(t, m); got != ghTUI.Title {
+		t.Errorf("ctrl+p selected %q, want %q", got, ghTUI.Title)
+	}
+	if m.Typing() {
+		t.Error("typing")
 	}
 }
 
@@ -911,16 +927,85 @@ func TestTypedItem(t *testing.T) {
 			t.Errorf("shown after an error: len %d", m.Len())
 		}
 	})
-	t.Run("not shown in normal mode", func(t *testing.T) {
+	t.Run("stays listed in normal mode", func(t *testing.T) {
 		m := typing(open(t, nil, WithItems(catalog), WithModes(true), WithTyped(use)))
 		m = typeText(t, m, "crash")
 		m, _ = press(t, m, esc)
-		if m.Len() != 2 {
-			t.Errorf("len %d in normal mode, want 2", m.Len())
+		if m.Len() != 3 || last(m) != `use "crash"` {
+			t.Errorf("len %d, last %q in normal mode, want the typed item", m.Len(), last(m))
 		}
-		m, _ = press(t, m, letter('i'))
-		if m.Len() != 3 {
-			t.Errorf("len %d after i, want 3", m.Len())
+		m, _ = press(t, m, letter('G'))
+		_, sent := press(t, m, enter)
+		want := ChosenMsg{ID: m.ID(), Item: Item{Title: `use "crash"`, Value: "typed:crash"}}
+		if len(sent) != 1 || sent[0] != want {
+			t.Errorf("sent %v, want %v", sent, want)
+		}
+	})
+	t.Run("enter after esc chooses what was typed", func(t *testing.T) {
+		m := typing(open(t, nil, WithItems(catalog), WithModes(true), WithTyped(use)))
+		m = typeText(t, m, "newlabel")
+		m, _ = press(t, m, esc)
+		_, sent := press(t, m, enter)
+		want := ChosenMsg{ID: m.ID(), Item: Item{Title: `use "newlabel"`, Value: "typed:newlabel"}}
+		if len(sent) != 1 || sent[0] != want {
+			t.Errorf("sent %v, want %v", sent, want)
+		}
+	})
+	t.Run("has a header of its own", func(t *testing.T) {
+		m := open(t, nil, WithItems(catalog), WithTyped(use))
+		m = typeText(t, m, "crash")
+		n := len(m.rows)
+		if m.rows[n-1].item != 2 || m.rows[n-2].header != typedHeader || m.rows[n-2].item >= 0 {
+			t.Errorf("last rows %+v, want the typed header and then the item", m.rows[n-2:])
+		}
+		// With the group headers off it still stands apart.
+		m = open(t, nil, WithItems(catalog), WithTyped(use), WithGroupHeaders(false))
+		m = typeText(t, m, "crash")
+		if n := len(m.rows); m.rows[n-2].header != typedHeader {
+			t.Errorf("without group headers: last rows %+v", m.rows[n-2:])
+		}
+	})
+	t.Run("is not counted", func(t *testing.T) {
+		m := open(t, nil, WithItems(catalog), WithTyped(use))
+		m = typeText(t, m, "crash")
+		if v := ansi.Strip(m.View()); !strings.Contains(v, "2 results") || strings.Contains(v, "3 results") {
+			t.Errorf("view counts the typed item:\n%s", v)
+		}
+	})
+	t.Run("is compared trimmed", func(t *testing.T) {
+		person := func(context.Context, Query) ([]Item, error) {
+			return []Item{{Title: "The Octocat ", Value: " octocat"}}, nil
+		}
+		m := open(t, person, WithTyped(use))
+		m = typeText(t, m, "OCTOCAT ")
+		if strings.HasPrefix(last(m), "use ") || m.Len() != 1 {
+			t.Errorf("value: typed item listed after %d results", m.Len())
+		}
+		m = open(t, person, WithTyped(use))
+		m = typeText(t, m, " the octocat")
+		if strings.HasPrefix(last(m), "use ") || m.Len() != 1 {
+			t.Errorf("title: typed item listed after %d results", m.Len())
+		}
+	})
+	t.Run("enter while a search is pending chooses the typed text", func(t *testing.T) {
+		for _, debounce := range []time.Duration{0, time.Hour} {
+			f := &fakeSearch{}
+			m := New(f.search, WithDebounce(debounce), WithSize(60, 12), WithTyped(use))
+			m.Focus()
+			m, _ = run(t, m, m.Init())
+			if got := chosen(t, m); got != ghTUI.Title {
+				t.Fatalf("debounce %v: selected %q before typing", debounce, got)
+			}
+			// The query changes, and enter comes before the results do.
+			m, _ = m.Update(letter('c'))
+			if !m.Loading() {
+				t.Fatalf("debounce %v: not loading", debounce)
+			}
+			m, sent := press(t, m, enter)
+			want := ChosenMsg{ID: m.ID(), Item: Item{Title: `use "c"`, Value: "typed:c"}}
+			if len(sent) != 1 || sent[0] != want {
+				t.Errorf("debounce %v: sent %v, want %v", debounce, sent, want)
+			}
 		}
 	})
 	t.Run("chosen with enter", func(t *testing.T) {
@@ -987,5 +1072,79 @@ func TestNoFilterLine(t *testing.T) {
 	}
 	if got := chosen(t, p); got != dotfiles.Title {
 		t.Errorf("selected %q, want the second", got)
+	}
+}
+
+// Without a filter line and without modes nothing types, so a paste has
+// nowhere to go.
+func TestPasteWithoutFilterLineOrModes(t *testing.T) {
+	m := open(t, nil, WithItems(catalog), WithFilterLine(false))
+	m, _ = press(t, m, tea.PasteMsg{Content: "crash"})
+	if m.Query().Text != "" || m.Len() != len(catalog) {
+		t.Errorf("query %q, len %d; want the picker untouched", m.Query().Text, m.Len())
+	}
+}
+
+// The typed item comes and goes with the search: not while it runs, back
+// when it stops with the old results listed, and gone again when a new one
+// starts.
+func TestTypedItemFollowsTheSearch(t *testing.T) {
+	use := func(text string) (Item, bool) { return Item{Title: "use " + text}, true }
+	f := &fakeSearch{}
+	m := open(t, f.search, WithTyped(use))
+	m = typeText(t, m, "crash")
+	if m.Len() != 3 || !m.typedAt {
+		t.Fatalf("len %d, typed %v after the search", m.Len(), m.typedAt)
+	}
+	// A new search starts: the row goes at once.
+	m, _ = m.Update(letter('x'))
+	if m.typedAt || m.Len() != 2 {
+		t.Errorf("refresh: len %d, typed %v; want the row gone", m.Len(), m.typedAt)
+	}
+	// It stops, as it does when a key chooses: the old results stay, with
+	// the row back.
+	m.stop()
+	if !m.typedAt || m.Len() != 3 {
+		t.Errorf("stop: len %d, typed %v; want the row back", m.Len(), m.typedAt)
+	}
+}
+
+// Values that can't be compared are never marked, and never panic.
+func TestEqualWithUncomparableValues(t *testing.T) {
+	if equal([]int{1}, []int{1}) {
+		t.Error("slices are equal")
+	}
+	if !equal("a", "a") || equal("a", "b") || equal("a", 1) {
+		t.Error("comparable values compare wrongly")
+	}
+	items := []Item{{Title: "alpha", Value: []int{1}}}
+	m := open(t, nil, WithItems(items), WithMarks("[x]", "[ ]"))
+	m.SetMarked([]any{[]int{1}})
+	if strings.Contains(ansi.Strip(m.View()), "[x]") {
+		t.Error("an uncomparable value is marked")
+	}
+}
+
+// A blank mark takes the width of the other, so the titles stay aligned.
+func TestMarksShareTheirWidth(t *testing.T) {
+	m := open(t, nil, WithItems(markable), WithMarks("●", " "))
+	m.SetMarked([]any{"a"})
+	col := func(title string) int {
+		for l := range strings.SplitSeq(ansi.Strip(m.View()), "\n") {
+			if before, _, ok := strings.Cut(l, title); ok {
+				return ansi.StringWidth(before)
+			}
+		}
+		t.Fatalf("no row for %q", title)
+		return 0
+	}
+	if a, c := col("alpha"), col("gamma"); a != c {
+		t.Errorf("titles at columns %d and %d, want one", a, c)
+	}
+	// The other way round: a wide off mark pads the on mark.
+	m = open(t, nil, WithItems(markable), WithMarks("x", "[ ]"))
+	m.SetMarked([]any{"a"})
+	if a, c := col("alpha"), col("gamma"); a != c {
+		t.Errorf("wide off mark: titles at columns %d and %d, want one", a, c)
 	}
 }

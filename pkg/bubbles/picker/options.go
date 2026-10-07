@@ -3,7 +3,10 @@ package picker
 import (
 	"context"
 	"slices"
+	"strings"
 	"time"
+
+	"github.com/charmbracelet/x/ansi"
 )
 
 // Option configures a picker in [New].
@@ -147,18 +150,27 @@ func WithModes(on bool) Option {
 }
 
 // WithMarks draws on or off, then a space, before each title: on for items
-// whose Value is among those given to SetMarked, off for the rest.
+// whose Value is among those given to SetMarked, off for the rest. The
+// narrower mark is padded to the width of the other, so a blank one keeps
+// the titles aligned.
 func WithMarks(on, off string) Option {
 	return func(s *settings) {
-		s.marked, s.markOn, s.markOff = true, clean(on), clean(off)
+		on, off = clean(on), clean(off)
+		// Both marks take the width of the wider, so titles stay aligned.
+		w := max(ansi.StringWidth(on), ansi.StringWidth(off))
+		s.marked = true
+		s.markOn = on + strings.Repeat(" ", w-ansi.StringWidth(on))
+		s.markOff = off + strings.Repeat(" ", w-ansi.StringWidth(off))
 	}
 }
 
-// WithTyped lets the user choose what they typed. While the picker types
-// and the query isn't empty, it lists the item that typed returns, if it
-// says ok, as the last row. It isn't listed while a search runs or after
-// one failed, nor when the title or the value of a result equals the text,
-// ignoring case.
+// WithTyped lets the user choose what they typed. While the query isn't
+// empty, in either mode, it lists the item that typed returns, if it says
+// ok, as the last row, under a header of its own and not counted among the
+// results. It isn't listed while a search runs or after one failed, nor
+// when the title or the value of a listed result equals the text, ignoring
+// case and surrounding spaces. While a search runs, enter chooses that item
+// rather than a result of an earlier query.
 func WithTyped(typed func(text string) (Item, bool)) Option {
 	return func(s *settings) {
 		s.typed = typed

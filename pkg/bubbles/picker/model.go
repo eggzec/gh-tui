@@ -194,6 +194,16 @@ func (m Model) Selected() (Item, bool) {
 	return m.results[m.sel].Item, true
 }
 
+// chosen returns what enter chooses. While a search is waiting or running,
+// the list is out of date, so a picker that offers the typed text chooses
+// that instead of whatever the old results have under the selection.
+func (m Model) chosen() (Item, bool) {
+	if m.loading && m.typed != nil && m.input.Value() != "" {
+		return m.typed(m.input.Value())
+	}
+	return m.Selected()
+}
+
 // Len returns the number of results listed.
 func (m Model) Len() int { return len(m.results) }
 
@@ -258,7 +268,6 @@ func (m *Model) Blur() {
 	m.focused = false
 	m.input.Blur()
 	m.typing = false
-	m.retype()
 	m.render()
 }
 
@@ -287,31 +296,44 @@ func (m Model) withState(k KeyMap) KeyMap {
 	return k
 }
 
-// ShortHelp implements help.KeyMap. In normal mode it lists the keys of
-// that mode.
+// ShortHelp implements help.KeyMap. A picker with modes lists the keys of
+// the mode it is in, and says that esc leaves insert mode.
 func (m Model) ShortHelp() []key.Binding {
-	if m.modes && !m.typing {
-		k := m.keys
-		return []key.Binding{k.Normal.Up, k.Normal.Down, k.Normal.Insert, k.Choose, k.Cancel}
+	if !m.modes {
+		return m.keys.ShortHelp()
 	}
-	return m.keys.ShortHelp()
+	k := m.keys
+	if m.typing {
+		return []key.Binding{k.Up, k.Down, k.Choose, m.leaveHelp(), k.NextScope}
+	}
+	return []key.Binding{k.Normal.Up, k.Normal.Down, k.Normal.Insert, k.Choose, k.Cancel, k.NextScope}
 }
 
-// FullHelp implements help.KeyMap. The keys of the mode the picker is in are
-// enabled, and those of the other are not, so no two share a key.
+// FullHelp implements help.KeyMap. A picker with modes lists the keys of
+// the mode it is in only, so no two share a key.
 func (m Model) FullHelp() [][]key.Binding {
-	k := m.keys
-	switch {
-	case m.modes && !m.typing:
-		for _, b := range []*key.Binding{&k.Up, &k.Down, &k.PageUp, &k.PageDown, &k.NextScope, &k.PrevScope} {
-			b.SetEnabled(false)
-		}
-	default:
-		for _, b := range k.Normal.Bindings() {
-			b.SetEnabled(false)
+	if !m.modes {
+		return m.keys.FullHelp()
+	}
+	k, n := m.keys, m.keys.Normal
+	if m.typing {
+		return [][]key.Binding{
+			{k.Up, k.Down, k.PageUp, k.PageDown},
+			{k.Choose, m.leaveHelp(), k.NextScope, k.PrevScope},
 		}
 	}
-	return k.fullHelp()
+	return [][]key.Binding{
+		{n.Up, n.Down, n.PageUp, n.PageDown, n.HalfPageUp, n.HalfPageDown, n.Top, n.Bottom},
+		{k.Choose, k.Cancel, k.NextScope, k.PrevScope, n.Insert, n.Append},
+	}
+}
+
+// leaveHelp is the cancel key as insert mode has it: it leaves for normal
+// mode instead of closing the picker.
+func (m Model) leaveHelp() key.Binding {
+	c := m.keys.Cancel
+	c.SetHelp(c.Help().Key, "normal")
+	return c
 }
 
 // wantsSearch reports whether q goes to the Search function rather than the

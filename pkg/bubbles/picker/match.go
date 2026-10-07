@@ -40,6 +40,9 @@ type row struct {
 	item   int
 }
 
+// typedHeader heads the row of the typed item.
+const typedHeader = "Typed"
+
 // titles lets fuzzy match the titles of results.
 type titles []result
 
@@ -101,7 +104,12 @@ func (m *Model) rebuild() {
 	// Copies of the model share the old slices, so these are new ones.
 	m.rows, m.itemRow = make([]row, 0, len(rs)+4), make([]int, 0, len(rs))
 	for i, r := range rs {
-		if m.headers && r.Kind != "" && (i == 0 || rs[i-1].Kind != r.Kind) {
+		switch {
+		case m.typedAt && i == len(rs)-1:
+			// A header of its own, so the row doesn't read as part of the
+			// last group.
+			m.rows = append(m.rows, row{header: typedHeader, item: -1})
+		case m.headers && r.Kind != "" && (i == 0 || rs[i-1].Kind != r.Kind):
 			m.rows = append(m.rows, row{header: r.Kind, item: -1})
 		}
 		m.itemRow = append(m.itemRow, len(m.rows))
@@ -112,17 +120,21 @@ func (m *Model) rebuild() {
 }
 
 // typedItem returns the item the user can choose for what they typed, if
-// the picker offers one now.
+// the picker offers one now. It does so in either mode, so the text stays
+// choosable after esc.
 func (m Model) typedItem() (Item, bool) {
 	text := m.input.Value()
-	if m.typed == nil || text == "" || !m.typingMode() || m.loading || m.err != nil {
+	if m.typed == nil || text == "" || m.loading || m.err != nil {
 		return Item{}, false
 	}
+	// Only what is listed counts, which is what the scope shows: the same
+	// text may be offered again in another scope, which is intended.
+	want := strings.TrimSpace(text)
 	for _, r := range m.listed {
-		if strings.EqualFold(r.Title, text) {
+		if strings.EqualFold(strings.TrimSpace(r.Title), want) {
 			return Item{}, false
 		}
-		if v, ok := r.Value.(string); ok && strings.EqualFold(v, text) {
+		if v, ok := r.Value.(string); ok && strings.EqualFold(strings.TrimSpace(v), want) {
 			return Item{}, false
 		}
 	}

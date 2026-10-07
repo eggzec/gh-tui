@@ -9,17 +9,7 @@ filter (types)
   down | down ctrl+n | ↓/ctrl+n | on
   page up | pgup | pgup | on
   page down | pgdown | pgdn | on
-  up | k up | k/↑ | off
-  down | j down | j/↓ | off
-  page up | ctrl+b pgup | ctrl+b/pgup | off
-  page down | ctrl+f pgdown | ctrl+f/pgdn | off
-  half page up | ctrl+u | ctrl+u | off
-  half page down | ctrl+d | ctrl+d | off
-  top | g home | g/home | off
-  bottom | G end | G/end | off
   open | enter | enter | on
   close | esc | esc | on
   scope | tab | tab | off
   previous scope | shift+tab | shift+tab | off
-  filter | i | i | off
-  filter at end | a | a | off

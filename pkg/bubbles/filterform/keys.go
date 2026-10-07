@@ -74,12 +74,6 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 			k.Picker.Up, k.Picker.Down, k.Picker.PageUp, k.Picker.PageDown,
 			k.Picker.Choose, k.Picker.Cancel, k.Picker.NextScope, k.Picker.PrevScope,
 		},
-		// The form's pickers have no normal mode, so these stay disabled.
-		{
-			k.Picker.Normal.Up, k.Picker.Normal.Down, k.Picker.Normal.PageUp, k.Picker.Normal.PageDown,
-			k.Picker.Normal.HalfPageUp, k.Picker.Normal.HalfPageDown, k.Picker.Normal.Top,
-			k.Picker.Normal.Bottom, k.Picker.Normal.Insert, k.Picker.Normal.Append,
-		},
 	}
 }
 

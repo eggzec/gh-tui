@@ -4,7 +4,8 @@ import "charm.land/bubbles/v2/key"
 
 // KeyMap holds the key bindings of a picker. Every other key edits the
 // query, so none of these are letters, except those of Normal, which a
-// picker uses only in normal mode. It implements help.KeyMap.
+// picker uses only in normal mode. It implements help.KeyMap, for a picker
+// without modes.
 type KeyMap struct {
 	Up       key.Binding
 	Down     key.Binding
@@ -19,7 +20,7 @@ type KeyMap struct {
 	NextScope key.Binding
 	PrevScope key.Binding
 	// Normal holds the keys of normal mode, which a picker built with
-	// WithModes starts in. Other pickers disable them.
+	// WithModes starts in. Other pickers ignore them.
 	Normal NormalKeyMap
 }
 
@@ -32,15 +33,6 @@ type NormalKeyMap struct {
 	// the end of the query. They are disabled when the picker has no
 	// filter line.
 	Insert, Append key.Binding
-}
-
-// Bindings returns pointers to every binding, so a parent can set the
-// state of the whole map.
-func (n *NormalKeyMap) Bindings() []*key.Binding {
-	return []*key.Binding{
-		&n.Up, &n.Down, &n.PageUp, &n.PageDown, &n.HalfPageUp, &n.HalfPageDown,
-		&n.Top, &n.Bottom, &n.Insert, &n.Append,
-	}
 }
 
 // DefaultKeyMap returns the default key bindings.
@@ -57,10 +49,10 @@ func DefaultKeyMap() KeyMap {
 		Normal: NormalKeyMap{
 			Up:           key.NewBinding(key.WithKeys("k", "up"), key.WithHelp("k/↑", "up")),
 			Down:         key.NewBinding(key.WithKeys("j", "down"), key.WithHelp("j/↓", "down")),
-			PageUp:       key.NewBinding(key.WithKeys("ctrl+b", "pgup"), key.WithHelp("ctrl+b/pgup", "page up")),
-			PageDown:     key.NewBinding(key.WithKeys("ctrl+f", "pgdown"), key.WithHelp("ctrl+f/pgdn", "page down")),
-			HalfPageUp:   key.NewBinding(key.WithKeys("ctrl+u"), key.WithHelp("ctrl+u", "half page up")),
-			HalfPageDown: key.NewBinding(key.WithKeys("ctrl+d"), key.WithHelp("ctrl+d", "half page down")),
+			PageUp:       key.NewBinding(key.WithKeys("ctrl+b", "pgup"), key.WithHelp("^b/pgup", "page up")),
+			PageDown:     key.NewBinding(key.WithKeys("ctrl+f", "pgdown"), key.WithHelp("^f/pgdn", "page down")),
+			HalfPageUp:   key.NewBinding(key.WithKeys("ctrl+u"), key.WithHelp("^u", "half page up")),
+			HalfPageDown: key.NewBinding(key.WithKeys("ctrl+d"), key.WithHelp("^d", "half page down")),
 			Top:          key.NewBinding(key.WithKeys("g", "home"), key.WithHelp("g/home", "top")),
 			Bottom:       key.NewBinding(key.WithKeys("G", "end"), key.WithHelp("G/end", "bottom")),
 			Insert:       key.NewBinding(key.WithKeys("i"), key.WithHelp("i", "filter")),
@@ -69,26 +61,17 @@ func DefaultKeyMap() KeyMap {
 	}
 }
 
-// ShortHelp returns the bindings for the short help view.
+// ShortHelp returns the bindings for the short help view of a picker that
+// types. A picker with modes lists its own, by mode.
 func (k KeyMap) ShortHelp() []key.Binding {
 	return []key.Binding{k.Up, k.Down, k.Choose, k.Cancel, k.NextScope}
 }
 
-// FullHelp returns the bindings for the full help view. It is the help of a
-// picker without modes, so the bindings of normal mode are disabled; a
-// model's FullHelp enables those of its mode.
+// FullHelp returns the bindings for the full help view of a picker that
+// types. A picker with modes lists its own, by mode.
 func (k KeyMap) FullHelp() [][]key.Binding {
-	for _, b := range k.Normal.Bindings() {
-		b.SetEnabled(false)
-	}
-	return k.fullHelp()
-}
-
-// fullHelp lists every binding, in the state it has.
-func (k KeyMap) fullHelp() [][]key.Binding {
-	n := k.Normal
 	return [][]key.Binding{
-		{k.Up, k.Down, k.PageUp, k.PageDown, n.Up, n.Down, n.PageUp, n.PageDown, n.HalfPageUp, n.HalfPageDown, n.Top, n.Bottom},
-		{k.Choose, k.Cancel, k.NextScope, k.PrevScope, n.Insert, n.Append},
+		{k.Up, k.Down, k.PageUp, k.PageDown},
+		{k.Choose, k.Cancel, k.NextScope, k.PrevScope},
 	}
 }

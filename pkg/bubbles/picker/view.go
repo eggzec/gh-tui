@@ -147,8 +147,9 @@ func (m Model) metaLine(w int) string {
 	switch {
 	case m.loading && len(m.results) > 0:
 		right = m.spin.View()
-	case m.err == nil && len(m.results) > 0:
-		right = m.styles.Status.Render(count(len(m.results)))
+	case m.err == nil && len(m.listed) > 0:
+		// The typed item isn't a result.
+		right = m.styles.Status.Render(count(len(m.listed)))
 	}
 	rw := ansi.StringWidth(right)
 	l := m.fit(left.String(), max(w-rw-1, 0))
