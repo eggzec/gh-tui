@@ -347,6 +347,10 @@ func (m Model) FullHelp() [][]key.Binding {
 			b.SetEnabled(false)
 		}
 	}
+	// The form's pickers have no normal mode.
+	for _, b := range k.Picker.Normal.Bindings() {
+		b.SetEnabled(false)
+	}
 	return k.FullHelp()
 }
 

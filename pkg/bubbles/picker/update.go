@@ -41,7 +41,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		cmd := m.press(msg)
 		return m, cmd
 	case tea.PasteMsg:
-		if !m.focused {
+		if !m.focused || !m.typingMode() {
 			return m, nil
 		}
 		cmd := m.edit(msg)
@@ -51,6 +51,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 }
 
 func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
+	normal := m.modes && !m.typing
 	switch {
 	case key.Matches(msg, m.keys.Choose):
 		it, ok := m.Selected()
@@ -60,8 +61,14 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 		m.stop()
 		return send(ChosenMsg{ID: m.id, Item: it})
 	case key.Matches(msg, m.keys.Cancel):
+		if m.modes && m.typing {
+			m.leaveTyping()
+			return nil
+		}
 		m.stop()
 		return send(CancelMsg{ID: m.id})
+	case normal:
+		return m.pressNormal(msg)
 	case key.Matches(msg, m.keys.Up):
 		m.move(-1)
 	case key.Matches(msg, m.keys.Down):
@@ -77,10 +84,75 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 		m.scope = (m.scope + len(m.scopes)) % (len(m.scopes) + 1)
 		return m.refresh(false)
 	default:
+		if m.noFilterLine {
+			return nil
+		}
 		return m.edit(msg)
 	}
 	m.render()
 	return nil
+}
+
+// pressNormal handles a key in normal mode, where only the moves and the
+// keys that focus the input do anything.
+func (m *Model) pressNormal(msg tea.KeyPressMsg) tea.Cmd {
+	n := m.keys.Normal
+	half := max(m.listHeight()/2, 1)
+	switch {
+	case key.Matches(msg, n.Up):
+		m.move(-1)
+	case key.Matches(msg, n.Down):
+		m.move(1)
+	case key.Matches(msg, n.PageUp):
+		m.move(-max(m.listHeight(), 1))
+	case key.Matches(msg, n.PageDown):
+		m.move(max(m.listHeight(), 1))
+	case key.Matches(msg, n.HalfPageUp):
+		m.move(-half)
+	case key.Matches(msg, n.HalfPageDown):
+		m.move(half)
+	case key.Matches(msg, n.Top):
+		m.sel = 0
+		m.scroll()
+	case key.Matches(msg, n.Bottom):
+		m.sel = len(m.results) - 1
+		m.scroll()
+	case key.Matches(msg, n.Insert):
+		return m.enterTyping(false)
+	case key.Matches(msg, n.Append):
+		return m.enterTyping(true)
+	default:
+		return nil
+	}
+	m.render()
+	return nil
+}
+
+// enterTyping focuses the input, the cursor at the end of the query or at
+// its start.
+func (m *Model) enterTyping(end bool) tea.Cmd {
+	m.typing = true
+	cmd := m.input.Focus()
+	// The input edits its text in place, which copies of the model share,
+	// so it gets a copy of its own first.
+	m.input.SetValue(m.input.Value())
+	if end {
+		m.input.CursorEnd()
+	} else {
+		m.input.CursorStart()
+	}
+	m.retype()
+	m.render()
+	return cmd
+}
+
+// leaveTyping blurs the input and returns to normal mode, keeping the
+// query.
+func (m *Model) leaveTyping() {
+	m.typing = false
+	m.input.Blur()
+	m.retype()
+	m.render()
 }
 
 // edit passes msg to the input, and looks for the new query if the text

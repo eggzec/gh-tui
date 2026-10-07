@@ -1,6 +1,7 @@
 package picker
 
 import (
+	"context"
 	"errors"
 	"slices"
 	"strings"
@@ -495,5 +496,496 @@ func TestAccessors(t *testing.T) {
 	empty := New(nil)
 	if _, ok := empty.Selected(); ok || empty.Len() != 0 {
 		t.Error("a picker without items has a selection")
+	}
+}
+
+func letter(r rune) tea.KeyPressMsg { return tea.KeyPressMsg{Code: r, Text: string(r)} }
+
+func ctrl(r rune) tea.KeyPressMsg { return tea.KeyPressMsg{Code: r, Mod: tea.ModCtrl} }
+
+// chosen returns the title of the item that enter chooses.
+func chosen(t *testing.T, m Model) string {
+	t.Helper()
+	_, sent := press(t, m, enter)
+	if len(sent) != 1 {
+		t.Fatalf("enter sent %v, want one ChosenMsg", sent)
+	}
+	c, ok := sent[0].(ChosenMsg)
+	if !ok {
+		t.Fatalf("enter sent %#v, want a ChosenMsg", sent[0])
+	}
+	return c.Item.Title
+}
+
+func TestNormalModeMoves(t *testing.T) {
+	items := manyItems(30)
+	title := func(i int) string { return items[i].Title }
+	tests := []struct {
+		name string
+		keys []tea.Msg
+		want int
+	}{
+		{"j and k", []tea.Msg{letter('j'), letter('j'), letter('j'), letter('k')}, 2},
+		{"down and up", []tea.Msg{down, down, up}, 1},
+		{"k stops at the top", []tea.Msg{letter('k')}, 0},
+		{"G jumps to the last", []tea.Msg{letter('G')}, 29},
+		{"g returns to the first", []tea.Msg{letter('G'), letter('g')}, 0},
+		{"j stops at the end", []tea.Msg{letter('G'), letter('j')}, 29},
+		{"end and home", []tea.Msg{tea.KeyPressMsg{Code: tea.KeyEnd}, tea.KeyPressMsg{Code: tea.KeyHome}}, 0},
+		// 12 rows tall: 2 for the frame, 2 above the list, so 8 rows.
+		{"ctrl+d goes half a page", []tea.Msg{ctrl('d')}, 4},
+		{"ctrl+d and ctrl+u", []tea.Msg{ctrl('d'), ctrl('d'), ctrl('u')}, 4},
+		{"ctrl+f goes a page", []tea.Msg{ctrl('f')}, 8},
+		{"ctrl+b goes back a page", []tea.Msg{ctrl('f'), ctrl('b')}, 0},
+		{"pgdown and pgup", []tea.Msg{pgDown, pgDown, pgUp}, 8},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := open(t, nil, WithItems(items), WithModes(true))
+			m, sent := press(t, m, tt.keys...)
+			if len(sent) != 0 {
+				t.Errorf("sent %v", sent)
+			}
+			if got := chosen(t, m); got != title(tt.want) {
+				t.Errorf("selected %q, want %q", got, title(tt.want))
+			}
+		})
+	}
+}
+
+// Moves on lists shorter than the height clamp, and the empty list takes
+// them without a selection.
+func TestNormalModeShortAndEmptyLists(t *testing.T) {
+	m := open(t, nil, WithItems(catalog[:2]), WithModes(true), WithSize(40, 12))
+	m, _ = press(t, m, letter('G'), ctrl('d'), ctrl('f'), letter('j'))
+	if got := chosen(t, m); got != dotfiles.Title {
+		t.Errorf("selected %q, want the last", got)
+	}
+	m, _ = press(t, m, letter('g'), ctrl('u'), ctrl('b'), letter('k'))
+	if got := chosen(t, m); got != ghTUI.Title {
+		t.Errorf("selected %q, want the first", got)
+	}
+
+	empty := open(t, nil, WithItems(nil), WithModes(true), WithEmptyText("Nothing here."))
+	empty, sent := press(t, empty, letter('j'), letter('G'), ctrl('d'), letter('g'), enter)
+	if len(sent) != 0 || empty.Len() != 0 {
+		t.Errorf("empty list: sent %v, len %d", sent, empty.Len())
+	}
+	if !strings.Contains(ansi.Strip(empty.View()), "Nothing here.") {
+		t.Errorf("the empty text is gone:\n%s", empty.View())
+	}
+}
+
+func TestNormalModeIgnoresLetters(t *testing.T) {
+	m := open(t, nil, WithItems(catalog), WithModes(true))
+	if m.Typing() || m.Capturing() {
+		t.Error("a picker with modes types before i")
+	}
+	m, sent := press(t, m, letter('x'), letter('z'), letter('1'), tab, bksp,
+		tea.PasteMsg{Content: "pasted"})
+	if len(sent) != 0 || m.Query().Text != "" || m.Len() != len(catalog) {
+		t.Errorf("sent %v, query %q, len %d; want the picker untouched", sent, m.Query().Text, m.Len())
+	}
+}
+
+// Normal mode leaves the scope keys alone.
+func TestNormalModeIgnoresScopeKeys(t *testing.T) {
+	m := open(t, nil, WithItems(catalog), WithModes(true), WithScopes(kindRepos, kindIssues))
+	m, _ = press(t, m, tab)
+	if m.Query().Scope != "" {
+		t.Errorf("scope = %q, want none", m.Query().Scope)
+	}
+	m, _ = press(t, m, letter('i'), tab)
+	if m.Query().Scope != kindRepos {
+		t.Errorf("scope = %q while typing, want %q", m.Query().Scope, kindRepos)
+	}
+}
+
+func TestInsertAndAppendFocusTheInput(t *testing.T) {
+	m := open(t, nil, WithItems(catalog), WithModes(true))
+	m.input.SetValue("crash")
+	m.input.SetCursor(2)
+	for _, tt := range []struct {
+		key  rune
+		want string
+	}{
+		{'i', "Xcrash"},
+		{'a', "crashX"},
+	} {
+		n, _ := press(t, m, letter(tt.key))
+		if !n.Typing() || !n.Capturing() {
+			t.Errorf("%c: not typing", tt.key)
+		}
+		n, _ = press(t, n, letter('X'))
+		if got := n.Query().Text; got != tt.want {
+			t.Errorf("%c then X: query %q, want %q", tt.key, got, tt.want)
+		}
+	}
+	// SetQuery isn't an API: a query typed earlier is just as good.
+	n := open(t, nil, WithItems(catalog), WithModes(true))
+	n = typeText(t, n, "xyz")
+	if n.Query().Text != "" {
+		t.Fatal("typed in normal mode")
+	}
+	n, _ = press(t, n, letter('i'))
+	n = typeText(t, n, "abc")
+	n, _ = press(t, n, esc, letter('i'), letter('X'))
+	if got := n.Query().Text; got != "Xabc" {
+		t.Errorf("i after typing: %q, want Xabc", got)
+	}
+	n, _ = press(t, n, esc, letter('a'), letter('Y'))
+	if got := n.Query().Text; got != "XabcY" {
+		t.Errorf("a after typing: %q, want XabcY", got)
+	}
+}
+
+func TestEscLeavesTyping(t *testing.T) {
+	m := open(t, nil, WithItems(catalog), WithModes(true))
+	m, _ = press(t, m, letter('i'))
+	m = typeText(t, m, "crash")
+	m, sent := press(t, m, esc)
+	if len(sent) != 0 {
+		t.Fatalf("the first esc sent %v", sent)
+	}
+	if m.Typing() || m.Query().Text != "crash" || m.Len() != 2 {
+		t.Errorf("typing %v, query %q, len %d; want normal mode with the query kept and filtered", m.Typing(), m.Query().Text, m.Len())
+	}
+	// j moves in the narrowed list instead of typing.
+	m, _ = press(t, m, letter('j'))
+	if got := chosen(t, m); got != fix.Title {
+		t.Errorf("selected %q, want the second result", got)
+	}
+	m, sent = press(t, m, esc)
+	if len(sent) != 1 || sent[0] != (CancelMsg{ID: m.ID()}) {
+		t.Errorf("the second esc sent %v, want a CancelMsg", sent)
+	}
+}
+
+func TestTypingWithModesKeepsToday(t *testing.T) {
+	m := open(t, nil, WithItems(catalog), WithModes(true))
+	m, _ = press(t, m, letter('i'))
+	m = typeText(t, m, "crash")
+	m, _ = press(t, m, ctrlN)
+	m, _ = press(t, m, down)
+	if got := chosen(t, m); got != fix.Title {
+		t.Errorf("selected %q, want the second result", got)
+	}
+	m, _ = press(t, m, letter('j'))
+	if m.Query().Text != "crashj" {
+		t.Errorf("query %q, want j typed", m.Query().Text)
+	}
+}
+
+func TestFocusReturnsToNormalMode(t *testing.T) {
+	m := open(t, nil, WithItems(catalog), WithModes(true))
+	m, _ = press(t, m, letter('i'))
+	m.Blur()
+	if m.Typing() {
+		t.Error("typing while blurred")
+	}
+	if cmd := m.Focus(); cmd != nil {
+		t.Error("Focus started the cursor in normal mode")
+	}
+	m, _ = press(t, m, letter('x'))
+	if m.Typing() || m.Query().Text != "" {
+		t.Errorf("typing %v, query %q after Focus", m.Typing(), m.Query().Text)
+	}
+}
+
+// A result that a debounced search returns after esc is shown, and the
+// selection stays in range.
+func TestResultLandsInNormalMode(t *testing.T) {
+	f := &fakeSearch{}
+	m := open(t, f.search, WithModes(true), WithDebounce(time.Hour))
+	m, _ = press(t, m, letter('i'))
+	m, _ = m.Update(letter('c'))
+	m, _ = press(t, m, esc)
+	// The search for "c" was already on its way when esc came.
+	m, _ = run(t, m, m.searchCmd())
+	if m.Typing() || m.Loading() {
+		t.Fatalf("typing %v, loading %v", m.Typing(), m.Loading())
+	}
+	if m.Len() != 4 {
+		t.Fatalf("results %q, want the 4 that contain c", titlesOf(m))
+	}
+	m, _ = press(t, m, letter('G'), letter('j'))
+	if m.sel != m.Len()-1 {
+		t.Errorf("sel %d of %d", m.sel, m.Len())
+	}
+}
+
+func TestSetKeyMapWhileTyping(t *testing.T) {
+	m := open(t, nil, WithItems(catalog), WithModes(true))
+	m, _ = press(t, m, letter('i'))
+	k := DefaultKeyMap()
+	k.Cancel.SetKeys("ctrl+g")
+	m.SetKeyMap(k)
+	if !m.Typing() {
+		t.Fatal("SetKeyMap left typing mode")
+	}
+	m, sent := press(t, m, esc)
+	if len(sent) != 0 || !m.Typing() {
+		t.Errorf("old cancel key acted: sent %v, typing %v", sent, m.Typing())
+	}
+	m, sent = press(t, m, ctrl('g'))
+	if len(sent) != 0 || m.Typing() {
+		t.Errorf("new cancel key: sent %v, typing %v; want normal mode", sent, m.Typing())
+	}
+}
+
+func TestPasteMsg(t *testing.T) {
+	m := open(t, nil, WithItems(catalog), WithModes(true))
+	m, _ = press(t, m, tea.PasteMsg{Content: "crash"})
+	if m.Query().Text != "" {
+		t.Errorf("paste in normal mode: query %q", m.Query().Text)
+	}
+	m, _ = press(t, m, letter('i'), tea.PasteMsg{Content: "crash"})
+	if m.Query().Text != "crash" || m.Len() != 2 {
+		t.Errorf("paste while typing: query %q, len %d", m.Query().Text, m.Len())
+	}
+}
+
+// A picker without modes keeps its keys: letters type, and none of the
+// normal keys act.
+func TestModesOffUnchanged(t *testing.T) {
+	tests := []struct {
+		name  string
+		keys  []tea.Msg
+		want  string // the title enter chooses
+		query string
+	}{
+		{"letters type", []tea.Msg{letter('j'), letter('k')}, "", "jk"},
+		{"g and G type", []tea.Msg{letter('g'), letter('G')}, "", "gG"},
+		{"i and a type", []tea.Msg{letter('i'), letter('a')}, "", "ia"},
+		{"ctrl+n moves", []tea.Msg{ctrlN}, dotfiles.Title, ""},
+		{"down moves", []tea.Msg{down, down}, dotfiles.Title, ""},
+		{"pgup and pgdown move", []tea.Msg{pgDown, pgUp}, ghTUI.Title, ""},
+		{"ctrl+u clears nothing", []tea.Msg{ctrl('u')}, ghTUI.Title, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := open(t, nil, WithItems([]Item{ghTUI, dotfiles}))
+			if !m.Typing() || !m.Capturing() {
+				t.Error("not typing")
+			}
+			m, _ = press(t, m, tt.keys...)
+			if m.Query().Text != tt.query {
+				t.Errorf("query %q, want %q", m.Query().Text, tt.query)
+			}
+			if tt.want != "" {
+				if got := chosen(t, m); got != tt.want {
+					t.Errorf("selected %q, want %q", got, tt.want)
+				}
+			}
+		})
+	}
+	m := open(t, nil, WithItems(catalog))
+	m, sent := press(t, m, esc)
+	if len(sent) != 1 || sent[0] != (CancelMsg{ID: m.ID()}) {
+		t.Errorf("esc sent %v, want a CancelMsg", sent)
+	}
+	m.Blur()
+	if m.Typing() {
+		t.Error("typing while blurred")
+	}
+}
+
+func TestSetMarkedKeepsSelection(t *testing.T) {
+	items := manyItems(30)
+	values := make([]any, len(items))
+	for i := range items {
+		items[i].Value = i
+		values[i] = i
+	}
+	m := open(t, nil, WithItems(items), WithModes(true), WithMarks("[x]", "[ ]"))
+	m, _ = press(t, m, letter('G'), letter('k'), letter('k'))
+	sel, top := m.sel, m.top
+	view := m.View()
+	m.SetMarked([]any{28, 29, "nothing", nil, []int{1}})
+	if m.sel != sel || m.top != top || m.Len() != 30 {
+		t.Errorf("sel %d top %d len %d; want %d %d 30", m.sel, m.top, m.Len(), sel, top)
+	}
+	if m.View() == view {
+		t.Error("the view didn't change")
+	}
+	v := ansi.Strip(m.View())
+	if !strings.Contains(v, "[x] octo-org/project-29") || !strings.Contains(v, "[ ] octo-org/project-27") {
+		t.Errorf("marks are off:\n%s", v)
+	}
+	// The set is copied, and nil clears it.
+	values[0] = 29
+	m.SetMarked(nil)
+	if strings.Contains(ansi.Strip(m.View()), "[x]") || m.sel != sel {
+		t.Errorf("nil left marks, or moved:\n%s", m.View())
+	}
+	values[0] = 0
+	m.SetMarked(values[:1])
+	values[0] = 29
+	if strings.Contains(ansi.Strip(m.View()), "[x] octo-org/project-29") {
+		t.Error("SetMarked kept the caller's slice")
+	}
+}
+
+func TestTypedItem(t *testing.T) {
+	use := func(text string) (Item, bool) {
+		if text == "!" {
+			return Item{}, false
+		}
+		return Item{Title: `use "` + text + `"`, Value: "typed:" + text}, true
+	}
+	last := func(m Model) string {
+		if m.Len() == 0 {
+			return ""
+		}
+		return m.results[m.Len()-1].Title
+	}
+	typing := func(m Model) Model {
+		m, _ = press(t, m, letter('i'))
+		return m
+	}
+
+	t.Run("shown with no exact match", func(t *testing.T) {
+		m := typing(open(t, nil, WithItems(catalog), WithModes(true), WithTyped(use)))
+		m = typeText(t, m, "crash")
+		if got := last(m); got != `use "crash"` || m.Len() != 3 {
+			t.Errorf("last %q of %d", got, m.Len())
+		}
+		if m.rows[len(m.rows)-1].item != 2 {
+			t.Error("the typed item has no row of its own")
+		}
+	})
+	t.Run("not shown for an empty query", func(t *testing.T) {
+		m := typing(open(t, nil, WithItems(catalog), WithModes(true), WithTyped(use)))
+		if m.Len() != len(catalog) {
+			t.Errorf("len %d", m.Len())
+		}
+	})
+	t.Run("not shown when not ok", func(t *testing.T) {
+		m := open(t, nil, WithItems(catalog), WithTyped(use))
+		m = typeText(t, m, "!")
+		if m.Len() != 0 {
+			t.Errorf("len %d, want none", m.Len())
+		}
+	})
+	t.Run("not shown with an exact match, ignoring case", func(t *testing.T) {
+		m := typing(open(t, nil, WithItems(catalog), WithModes(true), WithTyped(use)))
+		m = typeText(t, m, "EGGZEC/GH-TUI")
+		if strings.HasPrefix(last(m), "use ") {
+			t.Errorf("title: typed item listed after %d results", m.Len())
+		}
+		// The value counts too, which a search may return for other words.
+		person := func(context.Context, Query) ([]Item, error) {
+			return []Item{{Title: "The Octocat", Value: "octocat"}}, nil
+		}
+		p := typing(open(t, person, WithModes(true), WithTyped(use)))
+		p = typeText(t, p, "OCTOCAT")
+		if strings.HasPrefix(last(p), "use ") || p.Len() != 1 {
+			t.Errorf("value: typed item listed after %d results", p.Len())
+		}
+		p = typeText(t, p, "x")
+		if got := last(p); got != `use "OCTOCATx"` || p.Len() != 2 {
+			t.Errorf("no match: last %q of %d", got, p.Len())
+		}
+	})
+	t.Run("not shown while loading or after an error", func(t *testing.T) {
+		f := &fakeSearch{}
+		m := open(t, f.search, WithModes(true), WithTyped(use))
+		m = typing(m)
+		m, cmd := m.Update(letter('c'))
+		if !m.Loading() {
+			t.Fatal("not loading")
+		}
+		if strings.HasPrefix(last(m), "use ") {
+			t.Error("shown while loading")
+		}
+		m, _ = run(t, m, cmd)
+		if got := last(m); got != `use "c"` {
+			t.Errorf("after the search, last %q", got)
+		}
+		f.fail = errBoom
+		m = typeText(t, m, "r")
+		if m.Err() == nil {
+			t.Fatal("no error")
+		}
+		if strings.HasPrefix(last(m), "use ") || m.Len() != 0 {
+			t.Errorf("shown after an error: len %d", m.Len())
+		}
+	})
+	t.Run("not shown in normal mode", func(t *testing.T) {
+		m := typing(open(t, nil, WithItems(catalog), WithModes(true), WithTyped(use)))
+		m = typeText(t, m, "crash")
+		m, _ = press(t, m, esc)
+		if m.Len() != 2 {
+			t.Errorf("len %d in normal mode, want 2", m.Len())
+		}
+		m, _ = press(t, m, letter('i'))
+		if m.Len() != 3 {
+			t.Errorf("len %d after i, want 3", m.Len())
+		}
+	})
+	t.Run("chosen with enter", func(t *testing.T) {
+		m := typing(open(t, nil, WithItems(catalog), WithModes(true), WithTyped(use)))
+		m = typeText(t, m, "crash")
+		m, _ = press(t, m, down, down)
+		_, sent := press(t, m, enter)
+		want := ChosenMsg{ID: m.ID(), Item: Item{Title: `use "crash"`, Value: "typed:crash"}}
+		if len(sent) != 1 || sent[0] != want {
+			t.Errorf("sent %v, want %v", sent, want)
+		}
+	})
+	t.Run("shown in every scope", func(t *testing.T) {
+		m := typing(open(t, nil, WithItems(catalog), WithModes(true), WithTyped(use), WithScopes(kindRepos, kindIssues)))
+		m = typeText(t, m, "crash")
+		for range 3 {
+			if got := last(m); got != `use "crash"` {
+				t.Errorf("scope %q: last %q", m.Query().Scope, got)
+			}
+			m, _ = press(t, m, tab)
+		}
+	})
+	t.Run("without modes", func(t *testing.T) {
+		m := open(t, nil, WithItems(catalog), WithTyped(use))
+		m = typeText(t, m, "crash")
+		if got := last(m); got != `use "crash"` {
+			t.Errorf("last %q", got)
+		}
+	})
+}
+
+func TestNoFilterLine(t *testing.T) {
+	m := open(t, nil, WithItems(catalog), WithModes(true), WithFilterLine(false), WithSize(40, 8))
+	if m.KeyMap().Normal.Insert.Enabled() || m.KeyMap().Normal.Append.Enabled() {
+		t.Error("i and a are enabled without a filter line")
+	}
+	if m.listHeight() != 6 {
+		t.Errorf("list height %d, want the whole 6", m.listHeight())
+	}
+	m, _ = press(t, m, letter('i'), letter('a'), letter('x'))
+	if m.Typing() || m.Capturing() || m.Query().Text != "" {
+		t.Errorf("typing %v, query %q", m.Typing(), m.Query().Text)
+	}
+	m, _ = press(t, m, letter('j'))
+	if got := chosen(t, m); got != dotfiles.Title {
+		t.Errorf("selected %q, want the second", got)
+	}
+	// 4 items and 3 headers fit in 6 rows only with scrolling.
+	m, _ = press(t, m, letter('G'))
+	if got := chosen(t, m); got != fix.Title {
+		t.Errorf("selected %q, want the last", got)
+	}
+	assertFits(t, m.View(), 40, 8)
+	for _, row := range strings.Split(ansi.Strip(m.View()), "\n")[1:3] {
+		if strings.Contains(row, "Search") || strings.Contains(row, "results") {
+			t.Errorf("the filter line is drawn: %q", row)
+		}
+	}
+	// Without modes, a picker without a filter line doesn't type either.
+	p := open(t, nil, WithItems(catalog), WithFilterLine(false))
+	p, _ = press(t, p, letter('x'), down)
+	if p.Query().Text != "" || p.Typing() {
+		t.Errorf("query %q, typing %v", p.Query().Text, p.Typing())
+	}
+	if got := chosen(t, p); got != dotfiles.Title {
+		t.Errorf("selected %q, want the second", got)
 	}
 }

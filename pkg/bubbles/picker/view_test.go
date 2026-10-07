@@ -25,6 +25,24 @@ func manyItems(n int) []Item {
 	return items
 }
 
+var markable = []Item{
+	{Title: "alpha", Detail: "first", Value: "a"},
+	{Title: "a title that is far too long to fit next to its mark in the row", Value: "b"},
+	{Title: "gamma", Value: "c"},
+}
+
+func useTyped(text string) (Item, bool) {
+	return Item{Title: `use "` + text + `"`}, true
+}
+
+// asciiStyles returns styles that draw ASCII alone.
+func asciiStyles() Styles {
+	st := DefaultStyles(true)
+	st.Frame = st.Frame.Border(lipgloss.ASCIIBorder())
+	st.PromptGlyph, st.CursorGlyph, st.Ellipsis = ">", ">", "..."
+	return st
+}
+
 func TestView(t *testing.T) {
 	scopes := WithScopes(kindRepos, kindIssues, kindPulls)
 	tests := []struct {
@@ -37,6 +55,10 @@ func TestView(t *testing.T) {
 		skipInit bool
 		typed    string
 		keys     []any
+		// marked is passed to SetMarked when set.
+		marked []any
+		// ascii checks the view holds nothing but ASCII.
+		ascii bool
 	}{
 		{name: "searching", search: true, skipInit: true, width: 60, height: 10},
 		{name: "first results", search: true, width: 60, height: 10},
@@ -53,6 +75,12 @@ func TestView(t *testing.T) {
 		{name: "placeholder", opts: []Option{WithItems(nil), WithPlaceholder("Search repositories, issues and pull requests"), WithEmptyText("Type to search GitHub.")}, width: 60, height: 6},
 		{name: "two rows", search: true, typed: "crash", width: 40, height: 4},
 		{name: "one row", search: true, typed: "crash", width: 40, height: 3},
+		{name: "normal mode", opts: []Option{WithItems(catalog), WithModes(true)}, keys: []any{down}, width: 60, height: 10},
+		{name: "normal mode ascii", opts: []Option{WithItems(catalog), WithModes(true), WithStyles(asciiStyles())}, keys: []any{down}, width: 60, height: 10, ascii: true},
+		{name: "marks", opts: []Option{WithItems(markable), WithMarks("[x]", "[ ]"), WithModes(true)}, keys: []any{down}, marked: []any{"a", "c"}, width: 50, height: 9},
+		{name: "marks ascii", opts: []Option{WithItems(markable), WithMarks("[x]", "[ ]"), WithStyles(asciiStyles())}, marked: []any{"b"}, width: 40, height: 9, ascii: true},
+		{name: "typed item", opts: []Option{WithItems(catalog), WithTyped(useTyped)}, typed: "crash", width: 60, height: 10},
+		{name: "no filter line", opts: []Option{WithItems(catalog), WithModes(true), WithFilterLine(false)}, keys: []any{down}, width: 50, height: 8},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -69,12 +97,18 @@ func TestView(t *testing.T) {
 			if !tt.skipInit {
 				m, _ = run(t, m, m.Init())
 			}
+			if tt.marked != nil {
+				m.SetMarked(tt.marked)
+			}
 			m = typeText(t, m, tt.typed)
 			for _, k := range tt.keys {
 				m, _ = press(t, m, k)
 			}
 			v := m.View()
 			assertFits(t, v, tt.width, tt.height)
+			if tt.ascii && strings.ContainsFunc(ansi.Strip(v), func(r rune) bool { return r > unicode.MaxASCII }) {
+				t.Errorf("view isn't ASCII:\n%s", ansi.Strip(v))
+			}
 			golden.RequireEqual(t, v)
 		})
 	}
@@ -158,9 +192,7 @@ func assertFits(t *testing.T, v string, width, height int) {
 // A picker with ASCII glyphs and frame is ASCII alone, cut rows and
 // placeholder too.
 func TestViewASCII(t *testing.T) {
-	st := DefaultStyles(true)
-	st.Frame = st.Frame.Border(lipgloss.ASCIIBorder())
-	st.PromptGlyph, st.CursorGlyph, st.Ellipsis = ">", ">", "..."
+	st := asciiStyles()
 	items := []Item{{Title: strings.Repeat("a long title ", 10)}, {Title: "short"}}
 	m := New(nil, WithItems(items), WithStyles(st), WithSize(30, 8))
 	m.Focus()

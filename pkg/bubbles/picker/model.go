@@ -10,6 +10,7 @@ package picker
 
 import (
 	"context"
+	"slices"
 	"sync/atomic"
 	"time"
 
@@ -79,9 +80,18 @@ type Model struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
+	// typing is whether the input has focus, in a picker with modes.
+	typing bool
+	// marks are the values the marked rows stand for.
+	marks []any
+
 	loading bool
 	err     error
+	// listed is what was found, and results is that with the typed item
+	// after it, if there is one.
+	listed  []result
 	results []result
+	typedAt bool
 	rows    []row
 	// itemRow[i] is the row of results[i].
 	itemRow []int
@@ -125,7 +135,7 @@ func New(search Search, opts ...Option) Model {
 		spin:     spinner.New(spinner.WithSpinner(spinner.Dot)),
 	}
 	m.pool, m.items = results(m.items), nil
-	m.keys = m.withScopeKeys(m.keys)
+	m.keys = m.withState(m.keys)
 	m.ctx, m.cancel = context.WithCancel(m.parent)
 	m.SetStyles(m.styles)
 	// Init cannot change the model, so the first search is set up here.
@@ -193,10 +203,30 @@ func (m Model) Loading() bool { return m.loading }
 // Err returns the error of the last search, or nil.
 func (m Model) Err() error { return m.err }
 
-// Capturing reports whether the picker takes every key while it is open,
-// which it always does: letters go to the input. A parent asks so it knows
-// not to act on its own bindings meanwhile.
-func (m Model) Capturing() bool { return true }
+// Capturing reports whether the picker takes every key while it is open:
+// letters go to the input. A picker with modes does so only while it types.
+// A parent asks so it knows not to act on its own bindings meanwhile.
+func (m Model) Capturing() bool { return m.typingMode() }
+
+// Typing reports whether the picker is focused and its keys type. In a
+// picker with modes that is insert mode, not normal mode.
+func (m Model) Typing() bool { return m.focused && m.typingMode() }
+
+// typingMode reports whether the picker types when it is focused.
+func (m Model) typingMode() bool {
+	if m.modes {
+		return m.typing
+	}
+	return !m.noFilterLine
+}
+
+// SetMarked sets the values of the rows that are marked, which need not be
+// in the list. The selection and the scroll stay.
+func (m *Model) SetMarked(values []any) {
+	m.marks = slices.Clone(values)
+	m.lines = make([]string, len(m.rows))
+	m.render()
+}
 
 // SetSize sets the width and height, frame included.
 func (m *Model) SetSize(width, height int) {
@@ -211,8 +241,13 @@ func (m Model) Width() int { return m.width }
 func (m Model) Height() int { return m.height }
 
 // Focus focuses the picker so it takes keys.
+// A picker with modes is in normal mode then.
 func (m *Model) Focus() tea.Cmd {
 	m.focused = true
+	if m.modes {
+		m.leaveTyping()
+		return nil
+	}
 	cmd := m.input.Focus()
 	m.render()
 	return cmd
@@ -222,6 +257,8 @@ func (m *Model) Focus() tea.Cmd {
 func (m *Model) Blur() {
 	m.focused = false
 	m.input.Blur()
+	m.typing = false
+	m.retype()
 	m.render()
 }
 
@@ -234,20 +271,48 @@ func (m Model) KeyMap() KeyMap { return m.keys }
 // SetKeyMap sets the key bindings. The scope keys are disabled when the
 // picker has no scopes.
 func (m *Model) SetKeyMap(k KeyMap) {
-	m.keys = m.withScopeKeys(k)
+	m.keys = m.withState(k)
 }
 
-func (m Model) withScopeKeys(k KeyMap) KeyMap {
+// withState disables the bindings the picker has no use for: the scope
+// keys without scopes, and the keys that focus the input without a filter
+// line.
+func (m Model) withState(k KeyMap) KeyMap {
 	k.NextScope.SetEnabled(len(m.scopes) > 0)
 	k.PrevScope.SetEnabled(len(m.scopes) > 0)
+	if m.noFilterLine {
+		k.Normal.Insert.SetEnabled(false)
+		k.Normal.Append.SetEnabled(false)
+	}
 	return k
 }
 
-// ShortHelp implements help.KeyMap.
-func (m Model) ShortHelp() []key.Binding { return m.keys.ShortHelp() }
+// ShortHelp implements help.KeyMap. In normal mode it lists the keys of
+// that mode.
+func (m Model) ShortHelp() []key.Binding {
+	if m.modes && !m.typing {
+		k := m.keys
+		return []key.Binding{k.Normal.Up, k.Normal.Down, k.Normal.Insert, k.Choose, k.Cancel}
+	}
+	return m.keys.ShortHelp()
+}
 
-// FullHelp implements help.KeyMap.
-func (m Model) FullHelp() [][]key.Binding { return m.keys.FullHelp() }
+// FullHelp implements help.KeyMap. The keys of the mode the picker is in are
+// enabled, and those of the other are not, so no two share a key.
+func (m Model) FullHelp() [][]key.Binding {
+	k := m.keys
+	switch {
+	case m.modes && !m.typing:
+		for _, b := range []*key.Binding{&k.Up, &k.Down, &k.PageUp, &k.PageDown, &k.NextScope, &k.PrevScope} {
+			b.SetEnabled(false)
+		}
+	default:
+		for _, b := range k.Normal.Bindings() {
+			b.SetEnabled(false)
+		}
+	}
+	return k.fullHelp()
+}
 
 // wantsSearch reports whether q goes to the Search function rather than the
 // fixed items.
@@ -268,6 +333,7 @@ func (m *Model) refresh(debounce bool) tea.Cmd {
 		return nil
 	}
 	m.loading = true
+	m.retype()
 	cmd := m.searchCmd()
 	if debounce && m.debounce > 0 && q.Text != "" {
 		cmd = m.debounceCmd()
@@ -284,6 +350,7 @@ func (m *Model) refresh(debounce bool) tea.Cmd {
 func (m *Model) stop() {
 	m.newGeneration()
 	m.loading = false
+	m.retype()
 }
 
 func (m *Model) newGeneration() {
