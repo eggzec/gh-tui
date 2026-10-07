@@ -60,13 +60,13 @@ func TestProgram(t *testing.T) {
 			name: "choose and apply",
 			// Closed, then docs from the labels' picker, then drafts off.
 			keys: []tea.KeyPressMsg{
-				right, down, down, down, enter, down, down, space, enter, down, space, enter,
+				right, down, down, down, space, down, down, space, enter, down, space, enter,
 			},
 			wantQuery: "is:closed author:@me review-requested:@me label:bug,enhancement,docs -is:draft base:main sort:updated-desc",
 		},
 		{
 			name:      "type in the query line",
-			keys:      []tea.KeyPressMsg{up, ctrlU},
+			keys:      []tea.KeyPressMsg{keyBigG, keyA, ctrlU},
 			typed:     `is:merged label:"good first issue" crash`,
 			wantQuery: `is:merged label:"good first issue" sort:updated-desc crash`,
 		},

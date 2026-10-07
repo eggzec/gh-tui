@@ -2,6 +2,7 @@ package filterform
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
@@ -16,9 +17,12 @@ const gutterWidth = 2
 const labelGap = 2
 
 // View renders the form at exactly its width and height: the tabs, if it
-// has them, the rows of the tab on view, with the open editor under its
+// has them, the rows of the tab on view, with the open picker under its
 // row, then a rule, the query and the help line.
 func (m Model) View() string { return m.view }
+
+// insertLabel starts the help line in insert mode.
+const insertLabel = "INSERT"
 
 // orderLabel names the row of the order on the Sort tab.
 const orderLabel = "Order"
@@ -47,7 +51,28 @@ func (m *Model) valueX() int { return gutterWidth + m.labelWidth() + labelGap }
 // editorSize returns the size of a picker, which sits under the values, or
 // under the labels too when the values are narrow.
 func (m *Model) editorSize() (width, height int) {
-	return m.width - m.editorX(), min(m.editorHeight, max(m.height-4, 3))
+	return m.width - m.editorX(), min(m.editorWant(), max(m.height-4, 3))
+}
+
+// editorWant is the height the picker in the row in focus wants: the
+// default, or room for all the options the field has, and its frame.
+func (m *Model) editorWant() int {
+	n := len(m.fields[m.row].items)
+	return max(m.editorHeight, n+2+m.styles.Picker.Frame.GetVerticalFrameSize())
+}
+
+// EditorHeight returns the number of lines that the editor of the row in
+// focus takes under it: the picker of a list with room for all its
+// options, or the words that say it loads or failed, or 0 when none is
+// open. A parent that sizes the form to what it shows adds it to the rows.
+func (m Model) EditorHeight() int {
+	switch {
+	case m.mode != pickMode:
+		return 0
+	case m.picking:
+		return m.editorWant()
+	}
+	return len(m.editorLines(max(m.width, 1)))
 }
 
 func (m *Model) editorX() int {
@@ -205,8 +230,7 @@ func (m *Model) appendRows(lines []string, w, n int) []string {
 	return lines
 }
 
-// rowLines renders row r: its label, then its value, on a second line too
-// when the chips or choices don't fit on one.
+// rowLines renders row r on one line: its label, then its value.
 func (m *Model) rowLines(r, w int) []string {
 	focused := m.focused && r == m.row
 	lw := m.labelWidth()
@@ -220,9 +244,12 @@ func (m *Model) rowLines(r, w int) []string {
 		label = orderLabel
 	}
 	var b strings.Builder
-	if focused {
+	switch {
+	case focused && m.mode == insertMode:
+		b.WriteString(m.glyphs.edge)
+	case focused:
 		b.WriteString(m.glyphs.gutter)
-	} else {
+	default:
 		b.WriteString("  ")
 	}
 	st := m.styles.Label
@@ -243,30 +270,35 @@ func (m *Model) rowLines(r, w int) []string {
 	} else {
 		segs = m.fieldSegments(r, focused, vw)
 	}
-	vals := wrap(segs, segSep, vw, 2)
-	out := make([]string, len(vals))
-	indent := strings.Repeat(" ", m.valueX())
-	for i, v := range vals {
-		if i == 0 {
-			out[i] = m.fit(first+v, w)
-		} else {
-			out[i] = m.fit(indent+v, w)
-		}
-	}
-	return out
+	return []string{m.fit(first+strings.Join(segs, segSep), w)}
 }
 
-// fieldSegments renders the parts of field i's value, which wrap as words.
+// choiceText renders the value of a choice, which the row in focus wraps
+// in the marks of the keys that change it.
+func (m *Model) choiceText(label string, focused bool) string {
+	if !focused {
+		return m.styles.Selected.Render(label)
+	}
+	g := m.styles.Glyphs
+	return m.styles.Active.Render(g.Prev + " " + label + " " + g.Next)
+}
+
+// fieldSegments renders the parts of field i's value.
 func (m *Model) fieldSegments(i int, focused bool, vw int) []string {
-	f, v, fs := &m.spec.Fields[i], m.state.values[i], m.fields[i]
+	f, v := &m.spec.Fields[i], m.state.values[i]
 	s := m.styles
 	switch f.Kind {
 	case Choice:
-		segs := make([]string, len(f.Options))
-		for j, opt := range f.Options {
-			segs[j] = m.radio(opt.Label, opt.Value == v.text, focused)
+		// A value that is no option, such as one the query had, shows as
+		// it is.
+		j := slices.IndexFunc(f.Options, func(it Item) bool { return it.Value == v.text })
+		switch {
+		case j >= 0:
+			return []string{m.choiceText(optionLabel(f.Options[j].Label, f.Options[j].Value), focused)}
+		case v.text != "":
+			return []string{m.choiceText(termtext.OneLine(v.text), focused)}
 		}
-		return segs
+		return []string{m.choiceText(orDefault(f.Hint, "any"), focused)}
 	case Toggle:
 		box := s.Option.Render(boxOff)
 		switch {
@@ -280,24 +312,9 @@ func (m *Model) fieldSegments(i int, focused bool, vw int) []string {
 		}
 		return []string{box + " " + s.Value.Render(f.Hint)}
 	case Multi:
-		items := m.items(i)
-		segs := make([]string, 0, len(v.list)+2)
-		for j, val := range v.list {
-			st := s.Chip
-			if focused && !m.editing && fs.chip == j {
-				st = s.ActiveChip
-			}
-			segs = append(segs, st.Render(labelOf(items, val))+m.glyphs.remove)
-		}
-		if len(v.list) == 0 && f.Hint != "" {
-			segs = append(segs, s.Hint.Render(f.Hint))
-		}
-		add := s.Add
-		if focused && !m.editing && fs.chip >= len(v.list) {
-			add = s.Active
-		}
-		segs = append(segs, add.Render(addText))
-		return append(segs, m.loadSegment(i)...)
+		drop := " " + s.Option.Render(s.Glyphs.Drop)
+		avail := vw - 1 - ansi.StringWidth(s.Glyphs.Drop)
+		return append([]string{m.multiText(i, avail) + drop}, m.loadSegment(i)...)
 	case Person:
 		var seg string
 		if v.text == "" {
@@ -307,7 +324,7 @@ func (m *Model) fieldSegments(i int, focused bool, vw int) []string {
 		}
 		return append([]string{seg + " " + s.Option.Render(m.styles.Glyphs.Drop)}, m.loadSegment(i)...)
 	case Text:
-		if m.editing && m.row == i {
+		if m.mode == insertMode && m.row == i {
 			return []string{m.fit(m.text.View(), vw)}
 		}
 		if v.text == "" {
@@ -319,10 +336,53 @@ func (m *Model) fieldSegments(i int, focused bool, vw int) []string {
 	}
 }
 
+// multiText renders the labels of the Multi field i joined with commas, as
+// many as fit in width cells, then how many more there are, as in "bug,
+// docs +2". A field with none shows its hint.
+func (m *Model) multiText(i, width int) string {
+	s := m.styles
+	list := m.state.values[i].list
+	if len(list) == 0 {
+		return s.Hint.Render(orDefault(m.spec.Fields[i].Hint, "any"))
+	}
+	items := m.items(i)
+	names := make([]string, len(list))
+	for j, val := range list {
+		names[j] = labelOf(items, val)
+	}
+	more := func(n int) string {
+		if n == 0 {
+			return ""
+		}
+		return " +" + strconv.Itoa(n)
+	}
+	count := func(n int) string {
+		if n == 0 {
+			return ""
+		}
+		return s.Hint.Render(more(n))
+	}
+	for n := len(names); n > 1; n-- {
+		if text := strings.Join(names[:n], ", "); ansi.StringWidth(text+more(len(names)-n)) <= width {
+			return s.Value.Render(text) + count(len(names)-n)
+		}
+	}
+	// Not even two fit: the first, cut to leave room for the count.
+	rest := more(len(names) - 1)
+	name := termtext.Truncate(names[0], max(width-ansi.StringWidth(rest), 1), s.Glyphs.Ellipsis)
+	return s.Value.Render(name) + count(len(names)-1)
+}
+
+// optionLabel returns the label of an option, or its value if it has no
+// label.
+func optionLabel(label, value string) string {
+	return termtext.OneLine(orDefault(label, value))
+}
+
 // loadSegment renders the state of field i's load, if it is loading or
-// failed and its editor, which says more, is closed.
+// failed and its picker, which says more, is closed.
 func (m *Model) loadSegment(i int) []string {
-	if m.editing && m.row == i {
+	if m.mode == pickMode && m.row == i {
 		return nil
 	}
 	switch m.fields[i].state {
@@ -338,31 +398,17 @@ func (m *Model) loadSegment(i int) []string {
 	}
 }
 
-// radio renders an option of a choice: marked when on, and in the active
-// style when on in the row in focus.
-func (m *Model) radio(label string, on, focused bool) string {
-	switch {
-	case on && focused:
-		return m.styles.Active.Render(m.styles.Glyphs.On + " " + label)
-	case on:
-		return m.styles.Selected.Render(m.styles.Glyphs.On + " " + label)
-	default:
-		return m.styles.Option.Render(m.styles.Glyphs.Off + " " + label)
-	}
-}
-
-// sortSegments renders the parts of row r of the Sort tab: the options
-// sorted by, or the orders of the one chosen.
+// sortSegments renders the parts of row r of the Sort tab: what is sorted
+// by, or the order of the sort chosen.
 func (m *Model) sortSegments(r int, focused bool) []string {
 	sf, so := m.spec.Sort, m.state.sort
-	if r == sortByRow {
-		segs := make([]string, len(sf.Options))
-		for j, opt := range sf.Options {
-			segs[j] = m.radio(opt.Label, opt.Value == so.By, focused)
-		}
-		return segs
-	}
 	i := sf.index(so.By)
+	if r == sortByRow {
+		if i < 0 {
+			return []string{m.choiceText(termtext.OneLine(so.By), focused)}
+		}
+		return []string{m.choiceText(optionLabel(sf.Options[i].Label, sf.Options[i].Value), focused)}
+	}
 	if so.By == "" || i < 0 {
 		label := "this sort"
 		if i >= 0 {
@@ -370,17 +416,17 @@ func (m *Model) sortSegments(r int, focused bool) []string {
 		}
 		return []string{m.styles.Hint.Render("none for " + strings.ToLower(label))}
 	}
-	opt := sf.Options[i]
-	return []string{
-		m.radio(m.styles.Glyphs.Down+" "+opt.Desc, so.Desc, focused),
-		m.radio(m.styles.Glyphs.Up+" "+opt.Asc, !so.Desc, focused),
+	opt, g := sf.Options[i], m.styles.Glyphs
+	if so.Desc {
+		return []string{m.choiceText(g.Down+" "+opt.Desc, focused)}
 	}
+	return []string{m.choiceText(g.Up+" "+opt.Asc, focused)}
 }
 
 // editorLines renders the open editor of the row in focus: its picker, or
 // the state of its load.
 func (m *Model) editorLines(w int) []string {
-	if !m.editing || m.kind() == Text {
+	if m.mode != pickMode {
 		return nil
 	}
 	x := m.editorX()
@@ -422,25 +468,45 @@ func (m *Model) errorWords(err error, label string) (text, hint string) {
 	if err != nil {
 		msg, _, _ = strings.Cut(err.Error(), "\n")
 	}
-	if k := m.keys.Edit.Help().Key; k != "" {
+	if k := m.keys.Retry.Help().Key; k != "" {
 		hint = k + " to retry"
 	}
 	return "Couldn't load " + label + ": " + msg, hint
 }
 
-// queryLines renders the query: the input while it has focus, and the
-// query wrapped onto at most two lines otherwise.
+// queryLines renders the query: the input in insert mode, and the query
+// wrapped onto at most two lines otherwise, with the mark of the cursor
+// when it has focus.
 func (m *Model) queryLines(w int) []string {
-	if m.focused && m.row == m.queryRow() {
-		return []string{m.fit(m.glyphs.gutter+m.query.View(), w)}
+	focused := m.focused && m.row == m.queryRow()
+	if focused && m.mode == insertMode {
+		// The input is one line, but the rows keep the room the query
+		// takes, so that they don't move while it is typed in.
+		extra := len(m.shownQuery(w, false)) - 1
+		lines := make([]string, 1, 1+max(extra, 0))
+		lines[0] = m.fit(m.glyphs.edge+m.query.View(), w)
+		for range extra {
+			lines = append(lines, strings.Repeat(" ", w))
+		}
+		return lines
 	}
+	return m.shownQuery(w, focused)
+}
+
+// QueryLines returns the number of lines the query takes, one or two, in a
+// form width cells wide.
+func (m Model) QueryLines(width int) int { return len(m.shownQuery(width, false)) }
+
+// shownQuery returns the query wrapped onto at most two lines, with the
+// mark of the cursor on the first if focused.
+func (m *Model) shownQuery(w int, focused bool) []string {
 	q := m.Query()
-	if c := &m.cache.query; c.ok && c.text == q && c.width == w {
+	if c := &m.cache.query; c.ok && c.text == q && c.width == w && c.focused == focused {
 		return slices.Clone(c.lines)
 	}
 	var lines []string
 	if q == "" {
-		lines = []string{m.fit("  "+m.styles.Hint.Render(m.query.Placeholder), w)}
+		lines = []string{m.fit(m.queryGutter(focused, true)+m.styles.Hint.Render(m.query.Placeholder), w)}
 	} else {
 		toks := Tokenize(q)
 		words := make([]string, len(toks))
@@ -449,28 +515,71 @@ func (m *Model) queryLines(w int) []string {
 		}
 		lines = wrap(words, " ", max(w-gutterWidth, 1), 2)
 		for i, l := range lines {
-			lines[i] = m.fit("  "+m.styles.Query.Render(l), w)
+			lines[i] = m.fit(m.queryGutter(focused, i == 0)+m.styles.Query.Render(l), w)
 		}
 	}
-	m.cache.query = queryCache{ok: true, text: q, width: w, lines: lines}
+	m.cache.query = queryCache{ok: true, text: q, width: w, focused: focused, lines: lines}
 	return slices.Clone(lines)
 }
 
-// helpView renders the help line for the row in focus.
+// queryGutter returns what starts a line of the query: the cursor mark on
+// the first line when the query has focus.
+func (m *Model) queryGutter(focused, first bool) string {
+	if focused && first {
+		return m.glyphs.gutter
+	}
+	return "  "
+}
+
+// helpView renders the help line for the row in focus. When it is too wide
+// the hints that matter least go first, then what is left is cut.
 func (m *Model) helpView(w int) string {
-	bindings := m.shortHelp()
+	items := m.helpItems()
+	name := m.keyName
+	if name == nil {
+		name = func(s string) string { return s }
+	}
 	var b strings.Builder
-	for _, k := range bindings {
-		b.WriteString(k.Help().Key)
-		b.WriteByte(0)
-		b.WriteString(k.Help().Desc)
-		b.WriteByte(0)
+	b.WriteByte(byte('0' + m.mode))
+	type named struct{ key, desc string }
+	ps := make([]named, len(items))
+	for i, it := range items {
+		h := it.Help()
+		ps[i] = named{name(h.Key), name(h.Desc)}
+		b.WriteString(ps[i].key + "\x00" + ps[i].desc + "\x00")
 	}
 	if c := &m.cache.help; c.ok && c.key == b.String() && c.width == w {
 		return c.line
 	}
-	m.help.SetWidth(w)
-	line := m.fit(m.help.ShortHelpView(bindings), w)
+	st := m.styles.Help
+	sep := st.ShortSeparator.Render(m.styles.Glyphs.Separator)
+	render := func() string {
+		parts := make([]string, 0, len(ps)+1)
+		if m.mode == insertMode {
+			parts = append(parts, m.styles.Mode.Render(insertLabel))
+		}
+		for _, p := range ps {
+			parts = append(parts, st.ShortKey.Inline(true).Render(p.key)+" "+st.ShortDesc.Inline(true).Render(p.desc))
+		}
+		return strings.Join(parts, sep)
+	}
+	line := render()
+	for ansi.StringWidth(line) > w {
+		// Drop the last hint of the highest rank, unless all are kept.
+		drop, top := -1, rankKeep
+		for i, it := range items {
+			if it.rank >= top && it.rank > rankKeep {
+				drop, top = i, it.rank
+			}
+		}
+		if drop < 0 {
+			break
+		}
+		items = slices.Delete(items, drop, drop+1)
+		ps = slices.Delete(ps, drop, drop+1)
+		line = render()
+	}
+	line = m.fit(line, w)
 	m.cache.help = helpCache{ok: true, key: b.String(), width: w, line: line}
 	return line
 }
@@ -525,7 +634,6 @@ func wrap(segs []string, sep string, w, maxLines int) []string {
 	return append(lines, cur.String())
 }
 
-// fit truncates or pads styled text to exactly width cells.
 // fit truncates styled text to exactly width cells, ending it with the
 // ellipsis where it cuts, or pads it.
 func (m *Model) fit(s string, width int) string { return fitCut(s, width, m.styles.Glyphs.Ellipsis) }
@@ -569,18 +677,19 @@ type rowKey struct {
 	text    string
 	list    string
 	on      bool
-	chip    int
 	items   int
 	desc    bool
 	editing bool
+	insert  bool
 	state   loadState
 }
 
 type queryCache struct {
-	ok    bool
-	text  string
-	width int
-	lines []string
+	ok      bool
+	text    string
+	width   int
+	focused bool
+	lines   []string
 }
 
 type tabCache struct {
@@ -600,16 +709,19 @@ type helpCache struct {
 // cachedRowLines returns rowLines(r, w), rendered again only when the row
 // changed. A row that shows a text input or a spinner is always rendered.
 func (m *Model) cachedRowLines(r, w int) []string {
-	k := rowKey{ok: true, width: w, focused: m.focused && r == m.row, editing: m.editing && r == m.row}
+	k := rowKey{
+		ok: true, width: w, focused: m.focused && r == m.row,
+		editing: m.mode != rowsMode && r == m.row, insert: m.mode == insertMode && r == m.row,
+	}
 	if m.tab == SortTab {
 		k.text, k.desc = m.state.sort.By, m.state.sort.Desc
 	} else {
 		v, fs := m.state.values[r], m.fields[r]
-		if fs.state == loading || k.editing && m.spec.Fields[r].Kind == Text {
+		if fs.state == loading || k.insert && m.spec.Fields[r].Kind == Text {
 			return m.rowLines(r, w)
 		}
 		k.text, k.list, k.on = v.text, strings.Join(v.list, "\x00"), v.on
-		k.chip, k.items, k.state = fs.chip, len(fs.items), fs.state
+		k.items, k.state = len(fs.items), fs.state
 	}
 	rows := &m.cache.rows[m.tab]
 	if len(*rows) != m.queryRow() {

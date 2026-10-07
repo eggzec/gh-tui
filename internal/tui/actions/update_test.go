@@ -9,6 +9,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
@@ -997,5 +998,60 @@ func TestHideStopsTheReads(t *testing.T) {
 	h.send(ui.ReopenedMsg{Modal: m})
 	if f.watching[runLintJob] != 1 || len(fl.started) != 2 {
 		t.Errorf("reopened, watches %v and follows %v; want the log watched and the run followed again", f.watching, fl.started)
+	}
+}
+
+// The filter step has the help line of any filter form and is as tall as
+// its form, not the whole modal; the footer takes no keys from the form.
+func TestFilterStepFitsItsForm(t *testing.T) {
+	m, h := newModal(t, newFake(), wideW, wideH)
+	if w, ht := m.Fit(120, 30); w != 120 || ht != 30 {
+		t.Errorf("Fit without the filter = %dx%d, want the room given", w, ht)
+	}
+	h.keys("f")
+	_, ht := m.Fit(120, 30)
+	if want := 1 + ui.FilterHeight(m.filterStep.rows, min(120, ui.FilterWidth), m.filterStep.form); ht != want || ht >= 30 {
+		t.Errorf("Fit with the filter = %d, want %d, less than the room", ht, want)
+	}
+	if s := screen(m); !strings.Contains(s, "esc close") {
+		t.Errorf("the filter step has no help line of its own:\n%s", s)
+	}
+	for _, l := range m.KeyLayers() {
+		if len(l.Short) != 0 {
+			t.Errorf("layer %s has short help %v for the footer", l.Source, l.Short)
+		}
+	}
+	h.keys("j", "i")
+	if s := screen(m); !strings.Contains(s, "INSERT") {
+		t.Errorf("insert mode isn't labelled:\n%s", s)
+	}
+	h.keys("esc", "esc")
+	if m.filterStep != nil {
+		t.Fatal("esc didn't close the filter")
+	}
+}
+
+// The panes keep their size while the filter shows, so a resize then must
+// reach them when it closes, and the jobs stay as they were scrolled.
+func TestFilterCloseSizesThePanesAfterAResize(t *testing.T) {
+	m, h := newModal(t, newFake(), 100, 15)
+	top := m.jobs.top
+	h.keys("f")
+	m.SetSize(72, 14)
+	h.keys("esc")
+	if m.filterStep != nil {
+		t.Fatal("esc didn't close the filter")
+	}
+	lines := strings.Split(m.View(), "\n")
+	if len(lines) != 14 {
+		t.Errorf("the modal draws %d lines, want 14", len(lines))
+	}
+	for i, l := range lines {
+		if w := ansi.StringWidth(l); w > 72 {
+			t.Errorf("line %d is %d cells wide, want at most 72", i, w)
+		}
+	}
+	if m.jobs.top != top {
+		t.Errorf("the jobs scrolled from %d to %d", top, m.jobs.top)
 	}
 }

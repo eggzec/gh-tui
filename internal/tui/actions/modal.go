@@ -244,7 +244,10 @@ func (m *Modal) KeyLayers() []keyhelp.Layer {
 	case m.filterStep != nil:
 		// The filter takes every key, so the modal's own don't work.
 		if f := m.filterStep.form; f != nil {
-			return []keyhelp.Layer{ui.ContextHelp(ctxFilter, *f, f.Capturing())}
+			// The form shows its own help line.
+			l := ui.ContextHelp(ctxFilter, *f, f.Capturing())
+			l.Short = nil
+			return []keyhelp.Layer{l}
 		}
 		// Until the form shows, only the back key does something.
 		return []keyhelp.Layer{ui.ContextLayer(ctxFilter, []key.Binding{k.Back}, []key.Binding{k.Back})}

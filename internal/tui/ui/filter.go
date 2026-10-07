@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"slices"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
@@ -72,8 +73,8 @@ type Fitter interface {
 
 // FilterModal is the filter form of a Filterable as a modal. A list that
 // can be sorted shows its sort on a tab after the filters, in the top edge
-// of the frame. Applying the form, from either tab, closes it and applies
-// both; esc closes it as it was.
+// of the frame. Enter applies the form from any row, on either tab, and
+// closes it, applying both; esc and q close it as it was.
 type FilterModal struct {
 	title  string
 	target Filterable
@@ -82,17 +83,26 @@ type FilterModal struct {
 	icons  Icons
 }
 
-// Size of the filter modal: wide enough for a row of chips, and as tall as
-// the rows, an open picker and the query.
+// Size of the filter modal: wide enough for a row of values, and as tall as
+// the rows, what is under them, and the picker that is open.
 const (
-	filterWidth = 100
-	// filterSpare leaves room for the picker of a field, the rule and two
-	// lines of query. Rows that wrap scroll.
-	filterSpare = filterform.DefaultEditorHeight + 3
+	// FilterWidth is the width of the modal of a filter form.
+	FilterWidth = 100
+	// filterBelow is what the form shows under its rows besides the
+	// query: the rule and the help line.
+	filterBelow = 2
 	// sortRows are the rows of the Sort tab: what is sorted by, and the
 	// order.
 	sortRows = 2
 )
+
+// FilterHeight returns the height that a filter form width cells wide with
+// rows rows needs: the rows, the rule, the query, which takes a second line
+// when it wraps, and the help line under them, and the editor that is open
+// under one of the rows.
+func FilterHeight(rows, width int, f *filterform.Model) int {
+	return rows + filterBelow + f.QueryLines(width) + f.EditorHeight()
+}
 
 // FilterOption configures a FilterModal in [NewFilterModal].
 type FilterOption func(*filterOptions)
@@ -116,8 +126,8 @@ func WithFormKeys(k filterform.KeyMap) FilterOption {
 }
 
 // WithFormVoice words the options that failed to load with v, whose
-// retry key the form replaces with its own. By default the form says it in
-// words of its own.
+// retry key the form replaces with its own, r by default. By default the
+// form says it in words of its own.
 func WithFormVoice(v Voice) FilterOption {
 	return func(o *filterOptions) { o.voice = &v }
 }
@@ -129,11 +139,16 @@ func WithFormIcons(ic Icons) FilterOption {
 }
 
 // FilterFormKeys returns the keys of a filter form. Its tabs switch with
-// the keys that switch the tabs of the lists and the other modals.
+// the keys that switch the tabs of the lists and the other modals, and it
+// closes and loads again with their quit and refresh keys.
 func FilterFormKeys(keys config.Keymap) filterform.KeyMap {
 	k := filterform.DefaultKeyMap()
 	k.NextTab = Binding(keys, config.ActionNextTab, "next tab")
 	k.PrevTab = Binding(keys, config.ActionPrevTab, "previous tab")
+	// ctrl+c quits the app from every modal, so it doesn't close this one.
+	closing := slices.DeleteFunc(slices.Clone(keys.Of(config.ActionQuit)), func(k string) bool { return k == "ctrl+c" })
+	k.Quit = bindingOf("close", closing)
+	k.Retry = Binding(keys, config.ActionRefresh, "retry")
 	return k
 }
 
@@ -152,15 +167,16 @@ func NewFilterModal(ctx context.Context, section string, target Filterable, f Fi
 		filterform.WithQuery(f.Query),
 		filterform.WithTab(o.tab),
 		filterform.WithTabBar(false),
-		filterform.WithHelpLine(false),
+		filterform.WithHelpLine(true),
+		filterform.WithKeyNames(o.icons.Key),
 		filterform.WithKeyMap(o.keys),
 		filterform.WithContext(ctx),
 	}
 	if o.voice != nil {
-		// The form loads the options again with the key that opens them,
-		// and has no key that opens GitHub.
+		// The form loads the options again with its retry key, and has no
+		// key that opens GitHub.
 		v := *o.voice
-		v.Retry, v.Open, v.Icons = o.keys.Edit, key.Binding{}, &o.icons
+		v.Retry, v.Open, v.Icons = o.keys.Retry, key.Binding{}, &o.icons
 		formOpts = append(formOpts, filterform.WithErrorText(ErrorText("load the options", f.Subject, v)))
 	}
 	form := filterform.New(f.Spec, formOpts...)
@@ -208,20 +224,23 @@ func (m *FilterModal) SetSize(width, height int) { m.form.SetSize(width, height)
 
 // Fit implements Fitter.
 func (m *FilterModal) Fit(maxWidth, maxHeight int) (width, height int) {
-	return min(maxWidth, filterWidth), min(maxHeight, m.rows+filterSpare)
+	width = min(maxWidth, FilterWidth)
+	return width, min(maxHeight, FilterHeight(m.rows, width, &m.form))
 }
 
 // SetTheme implements Modal.
 func (m *FilterModal) SetTheme(t Theme) { m.form.SetStyles(t.FilterForm(m.icons)) }
 
 // KeyLayers implements Keyed: the keys of the form, which types what the
-// editor or the query line takes.
+// picker or the query line takes in insert mode. The form shows its own
+// help line, so the layer has no short help for the footer.
 func (m *FilterModal) KeyLayers() []keyhelp.Layer {
 	ctx := map[filterform.Capture]string{
 		filterform.CaptureNone: "filter", filterform.CaptureQuery: "filter_query",
 		filterform.CaptureEditor: "filter_text", filterform.CapturePicker: "picker",
 	}[m.form.CapturedBy()]
 	l := ContextHelp(ctx, m.form, m.form.Capturing())
+	l.Short = nil
 	return []keyhelp.Layer{l}
 }
 

@@ -15,6 +15,7 @@ type settings struct {
 	editorHeight  int
 	width, height int
 	keys          KeyMap
+	keyName       func(string) string
 	styles        Styles
 	errorText     func(error) (text, hint string)
 }
@@ -47,6 +48,15 @@ func WithQuery(q string) Option {
 func WithHelpLine(show bool) Option {
 	return func(s *settings) {
 		s.helpLine = show
+	}
+}
+
+// WithKeyNames sets how the help line writes the names of keys and what
+// they do, such as "↵" or "↑/k", for a parent whose icon set writes them
+// in words. The default writes them as the key map labels them.
+func WithKeyNames(name func(string) string) Option {
+	return func(s *settings) {
+		s.keyName = name
 	}
 }
 

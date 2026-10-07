@@ -46,7 +46,7 @@ func TestApplyFromEitherTab(t *testing.T) {
 	const q = "is:closed label:docs sort:comments-asc fix"
 	got := make([]AppliedMsg, 0, 4)
 	for _, tab := range []Tab{FiltersTab, SortTab} {
-		for _, keys := range [][]tea.Msg{{enter}, {up, enter}} {
+		for _, keys := range [][]tea.Msg{{enter}, {keyBigG, enter}} {
 			m := open(t, prSpec(nil), WithQuery(q), WithTab(tab))
 			_, sent := press(t, m, keys...)
 			if len(sent) != 1 {
@@ -66,24 +66,25 @@ func TestApplyFromEitherTab(t *testing.T) {
 	}
 }
 
-// Esc steps back out of an editor before it closes the form, on either
-// tab.
+// Esc steps back out of a picker or insert mode before it closes the form,
+// on either tab.
 func TestEscStepsBackThenCloses(t *testing.T) {
 	tests := []struct {
 		name string
 		opts []Option
 		keys []tea.Msg
 	}{
-		{name: "from the filters", keys: []tea.Msg{down, enter, esc}},
-		{name: "from the sort", opts: []Option{WithTab(SortTab)}, keys: []tea.Msg{prevTab, down, enter, esc, nextTab}},
-		{name: "from the query line", opts: []Option{WithTab(SortTab)}, keys: []tea.Msg{up}},
+		{name: "from the filters", keys: []tea.Msg{down, space, esc}},
+		{name: "from the sort", opts: []Option{WithTab(SortTab)}, keys: []tea.Msg{prevTab, down, space, esc, nextTab}},
+		{name: "from the query line", opts: []Option{WithTab(SortTab)}, keys: []tea.Msg{keyBigG, keyI, esc}},
+		{name: "from a text", keys: append(keys(down, rowBase), keyI, esc)},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := open(t, prSpec(nil), tt.opts...)
 			m, sent := press(t, m, tt.keys...)
-			if len(sent) > 0 || m.editing {
-				t.Fatalf("sent %+v, editing %v; want the editor closed and nothing sent", sent, m.editing)
+			if len(sent) > 0 || m.mode != rowsMode {
+				t.Fatalf("sent %+v, mode %v; want the editor closed and nothing sent", sent, m.mode)
 			}
 			if m.Query() != prDefaults {
 				t.Errorf("Query = %q, want the defaults", m.Query())
@@ -101,16 +102,16 @@ func TestEscStepsBackThenCloses(t *testing.T) {
 func TestSetTabClosesTheEditor(t *testing.T) {
 	m := open(t, prSpec(nil))
 	m, _ = press(t, m, keys(down, rowBase)...)
-	m, _ = press(t, m, enter)
+	m, _ = press(t, m, keyA)
 	m = typeText(t, m, "-x")
 	m.SetTab(SortTab)
-	if m.editing || m.Capturing() || m.Tab() != SortTab || m.row != sortByRow {
-		t.Fatalf("editing %v, capturing %v, tab %v, row %d; want the sort's first row", m.editing, m.Capturing(), m.Tab(), m.row)
+	if m.mode != rowsMode || m.Capturing() || m.Tab() != SortTab || m.row != sortByRow {
+		t.Fatalf("mode %v, capturing %v, tab %v, row %d; want the sort's first row", m.mode, m.Capturing(), m.Tab(), m.row)
 	}
 	if v, _ := m.Value("base"); v.Text() != "main-x" {
 		t.Errorf("base = %q, want what was typed kept", v.Text())
 	}
-	m, _ = press(t, m, up)
+	m, _ = press(t, m, keyBigG, keyI)
 	m.SetTab(FiltersTab)
 	if m.Capturing() || m.Tab() != FiltersTab || m.row != rowState {
 		t.Errorf("capturing %v, tab %v, row %d; want the filters' first row", m.Capturing(), m.Tab(), m.row)
@@ -121,7 +122,7 @@ func TestSetTabClosesTheEditor(t *testing.T) {
 func TestTabKeysAreTypedInInputs(t *testing.T) {
 	m := open(t, prSpec(nil))
 	m, _ = press(t, m, keys(down, rowBase)...)
-	m, _ = press(t, m, enter, nextTab, prevTab, enter)
+	m, _ = press(t, m, keyA, nextTab, prevTab, esc)
 	if v, _ := m.Value("base"); v.Text() != "main][" || m.Tab() != FiltersTab {
 		t.Errorf("base = %q on %v, want main][ on the filters", v.Text(), m.Tab())
 	}

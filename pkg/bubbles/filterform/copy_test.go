@@ -9,7 +9,7 @@ import (
 // of one copy's text would change the other's.
 func TestCopyKeepsItsOwnText(t *testing.T) {
 	m := open(t, prSpec(nil), WithQuery(""))
-	m, _ = press(t, m, up, ctrlU)
+	m, _ = press(t, m, keyBigG, keyA, ctrlU)
 	m = typeText(t, m, "abc")
 	c := m
 	c.query.SetCursor(1)

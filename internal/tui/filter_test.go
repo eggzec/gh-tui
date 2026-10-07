@@ -1,12 +1,15 @@
 package tui
 
 import (
+	"context"
+	"fmt"
 	"strconv"
 	"strings"
 	"testing"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
 
 	"github.com/eggzec/gh-tui/internal/config"
@@ -22,8 +25,10 @@ type filterSection struct {
 	ready   bool
 	applied []filterform.AppliedMsg
 	chips   string
-	// sorts adds a sort to the filter.
-	sorts bool
+	// sorts adds a sort to the filter, and labels a field of labels to
+	// choose from.
+	sorts  bool
+	labels []filterform.Item
 	// filter and sort are the keys that open the filter and the sort.
 	filter, sort key.Binding
 }
@@ -48,6 +53,12 @@ func (s *filterSection) Filter() (ui.Filter, bool) {
 		Options: []filterform.Item{{Label: "Open", Value: "open"}, {Label: "Closed", Value: "closed"}},
 		Default: filterform.TextValue("open"),
 	}}}
+	if s.labels != nil {
+		spec.Fields = append(spec.Fields, filterform.Field{
+			Key: "labels", Label: "Labels", Kind: filterform.Multi, Qualifier: "label",
+			Load: func(context.Context, string) ([]filterform.Item, error) { return s.labels, nil },
+		})
+	}
 	if s.sorts {
 		spec.Sort = &filterform.SortField{
 			Options: []filterform.SortOption{ui.SortByTime("Updated", "updated"), ui.SortByCount("Comments", "comments")},
@@ -218,6 +229,32 @@ func TestSortKeyOpensTheSortTab(t *testing.T) {
 				t.Error("the section got the key too")
 			}
 		})
+	}
+}
+
+// The modal grows when a field opens its list, and goes back when it closes.
+func TestFilterModalGrowsWithItsPicker(t *testing.T) {
+	m, pulls, _ := newFilterApp(t)
+	for i := range 9 {
+		pulls.labels = append(pulls.labels, filterform.Item{Label: fmt.Sprint("label-", i), Value: fmt.Sprint("label-", i)})
+	}
+	run(m, m.key(press("f")))
+	_, closed := m.frameSize()
+	run(m, m.key(press("j")))
+	run(m, m.key(press("space")))
+	_, open := m.frameSize()
+	if open <= closed {
+		t.Errorf("the frame is %d tall with the list open, want more than %d", open, closed)
+	}
+	if v := ansi.Strip(m.View().Content); !strings.Contains(v, "label-8") {
+		t.Errorf("the list is cut short:\n%s", v)
+	}
+	run(m, m.key(press("esc")))
+	if _, back := m.frameSize(); back != closed {
+		t.Errorf("the frame is %d tall with the list closed, want %d", back, closed)
+	}
+	if got := filterModal(t, m); got == nil {
+		t.Error("esc in the list closed the modal")
 	}
 }
 

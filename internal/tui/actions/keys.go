@@ -9,6 +9,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/jobview"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
+	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/logview"
 )
 
@@ -16,6 +17,8 @@ import (
 // modal matches its own keys first, so the bubbles get only the keys it
 // leaves them.
 type KeyMap struct {
+	// form holds the keys of the filter form, as the other filters have them.
+	form filterform.KeyMap
 	// Next and Prev move the focus through the panes, and Left and Right
 	// to the pane beside the focused one.
 	Next, Prev  key.Binding
@@ -84,6 +87,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		Annotations: log.Binding("annotations", "annotations"),
 		notes:       notes.Binding("annotations", "annotations"),
 		Confirm:     ui.DefaultConfirmKeys(),
+		form:        ui.FilterFormKeys(keys),
 	}
 	// The modal's own keys come before those of the lists and the log,
 	// such as f, which pages down there and filters here.

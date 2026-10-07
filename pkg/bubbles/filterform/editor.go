@@ -11,25 +11,12 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
 )
 
-// hasEditor reports whether the row in focus opens an editor.
-func (m *Model) hasEditor() bool {
-	k := m.kind()
-	return k == Multi || k == Person || k == Text
-}
-
-// openEditor opens the editor of the field in focus: a text input for a
-// Text, and a picker for a Multi or Person, which first loads its options
-// if it has a Loader.
+// openEditor opens the picker of the Multi or Person in focus, which first
+// loads its options if it has a Loader.
 func (m *Model) openEditor() tea.Cmd {
 	i := m.row
-	m.editing, m.toggled = true, false
+	m.mode, m.toggled = pickMode, false
 	m.before = m.state.values[i].clone()
-	if m.kind() == Text {
-		m.text.Placeholder = m.spec.Fields[i].Hint
-		m.text.SetValue(m.before.text)
-		m.text.CursorEnd()
-		return m.text.Focus()
-	}
 	f := &m.spec.Fields[i]
 	if f.Load != nil && m.fields[i].state != loaded {
 		return m.load(i)
@@ -37,45 +24,48 @@ func (m *Model) openEditor() tea.Cmd {
 	return m.openPicker(i)
 }
 
-// closeEditor closes an open editor, keeping what it changed or putting
-// back the value it opened with.
+// closeEditor leaves insert mode or closes an open picker, keeping what
+// was typed or chosen, or putting back the value the field had.
 func (m *Model) closeEditor(keep bool) {
-	if !m.editing {
+	switch m.mode {
+	case rowsMode:
 		return
+	case pickMode:
+	case insertMode:
+		if m.row == m.queryRow() {
+			m.query.Blur()
+		} else {
+			m.text.Blur()
+			if keep {
+				m.setValue(m.row, TextValue(strings.TrimSpace(m.text.Value())))
+			}
+		}
 	}
-	if !keep {
+	if !keep && m.row != m.queryRow() {
 		m.setValue(m.row, m.before)
 	}
-	m.editing, m.picking, m.toggled = false, false, false
+	m.mode, m.picking, m.toggled = rowsMode, false, false
 	m.pick = picker.Model{}
-	m.text.Blur()
 	m.syncQuery()
 }
 
-// pressEditor handles a key while an editor is open. Edit keeps what was
-// chosen, Cancel puts back what was there, and the rest goes to the
-// editor.
-func (m *Model) pressEditor(msg tea.KeyPressMsg) tea.Cmd {
+// pressPick handles a key while a picker is open or waits for its options.
+// Apply keeps what was chosen, Cancel puts back what was there, and the
+// rest goes to the picker.
+func (m *Model) pressPick(msg tea.KeyPressMsg) tea.Cmd {
 	k := m.keys
 	i := m.row
 	switch {
 	case key.Matches(msg, k.Cancel):
 		m.closeEditor(false)
 		return nil
-	case m.kind() == Text:
-		if key.Matches(msg, k.Edit) || key.Matches(msg, k.Apply) {
-			m.setValue(i, TextValue(strings.TrimSpace(m.text.Value())))
-			m.closeEditor(true)
-			return nil
-		}
-		return m.typeIn(msg)
 	case !m.picking:
 		// The options are loading or failed to.
-		if key.Matches(msg, k.Edit) && m.fields[i].state == failed {
+		if key.Matches(msg, k.Retry) && m.fields[i].state == failed {
 			return m.load(i)
 		}
 		return nil
-	case key.Matches(msg, k.Edit):
+	case key.Matches(msg, k.Apply):
 		m.pickHighlighted(true)
 		m.closeEditor(true)
 		return nil
@@ -100,6 +90,7 @@ func (m *Model) pickHighlighted(enter bool) {
 		}
 		if value != "" {
 			m.setValue(i, TextValue(value))
+			m.pick.SetMarked([]any{value})
 		}
 		return
 	}
@@ -117,7 +108,6 @@ func (m *Model) pickHighlighted(enter bool) {
 	}
 	m.toggled = !enter
 	m.setValue(i, Value{list: list})
-	m.fields[i].chip = len(list)
 	m.markPicked(value)
 }
 
@@ -189,7 +179,7 @@ func (m *Model) receive(msg loadedMsg) tea.Cmd {
 	}
 	m.fields[msg.field] = fs
 	var cmd tea.Cmd
-	if m.editing && m.row == msg.field && fs.state == loaded {
+	if m.mode == pickMode && m.row == msg.field && fs.state == loaded {
 		cmd = m.openPicker(msg.field)
 	}
 	m.render()
@@ -233,7 +223,16 @@ func (m *Model) openPicker(i int) tea.Cmd {
 			return text, ""
 		}))
 	}
+	if f.Kind == Person {
+		// A Person takes one value, which the list marks, in the options
+		// and in what a search finds.
+		g := m.styles.Glyphs
+		opts = append(opts, picker.WithMarks(g.Chosen, g.NotChosen))
+	}
 	m.pick = picker.New(search, opts...)
+	if f.Kind == Person && m.state.values[i].text != "" {
+		m.pick.SetMarked([]any{m.state.values[i].text})
+	}
 	m.picking = true
 	return tea.Batch(m.pick.Focus(), m.pick.Init())
 }
