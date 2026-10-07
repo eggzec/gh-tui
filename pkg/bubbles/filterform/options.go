@@ -12,7 +12,6 @@ type settings struct {
 	tab           Tab
 	helpLine      bool
 	tabBar        bool
-	editorHeight  int
 	width, height int
 	keys          KeyMap
 	keyName       func(string) string
@@ -20,17 +19,13 @@ type settings struct {
 	errorText     func(error) (text, hint string)
 }
 
-// DefaultEditorHeight is the height of a Multi or Person field's picker.
-const DefaultEditorHeight = 7
-
 func defaultSettings() settings {
 	return settings{
-		parent:       context.Background(),
-		helpLine:     true,
-		tabBar:       true,
-		editorHeight: DefaultEditorHeight,
-		keys:         DefaultKeyMap(),
-		styles:       DefaultStyles(true),
+		parent:   context.Background(),
+		helpLine: true,
+		tabBar:   true,
+		keys:     DefaultKeyMap(),
+		styles:   DefaultStyles(true),
 	}
 }
 
@@ -77,21 +72,13 @@ func WithTabBar(show bool) Option {
 	}
 }
 
-// WithEditorHeight sets the height of the picker a Multi or Person field
-// opens, frame included. The default is DefaultEditorHeight.
-func WithEditorHeight(h int) Option {
-	return func(s *settings) {
-		s.editorHeight = max(h, 3)
-	}
-}
-
 // WithErrorText sets how a field whose options failed to load reads in
-// its open editor, and a failed search of its picker. say returns the
-// words for err and a hint, such as "enter to retry", or "" for none; the
-// editor shows the hint on the line below, and the picker leaves it out,
-// since typing searches again. An empty text shows no error. By default
-// the editor says "Couldn't load" and the field, then the first line of
-// the error, and names the edit key, which retries.
+// its dropdown, and a failed search of its picker. say returns the words
+// for err and a hint, such as "r to retry", or "" for none; the dropdown
+// shows the hint on the line below, and the picker leaves it out, since
+// typing searches again. An empty text shows no error. By default the
+// dropdown says "Couldn't load" and the field, then the first line of the
+// error, and names the retry key.
 func WithErrorText(say func(error) (text, hint string)) Option {
 	return func(s *settings) {
 		s.errorText = say

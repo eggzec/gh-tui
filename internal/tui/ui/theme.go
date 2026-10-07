@@ -1,8 +1,6 @@
 package ui
 
 import (
-	"strings"
-
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/spinner"
 	"charm.land/lipgloss/v2"
@@ -235,16 +233,18 @@ func (t Theme) FilterForm(ic Icons) filterform.Styles {
 	s.SpinnerFrames = ic.SpinnerOr(spinner.Dot)
 	s.ErrorGlyph = ic.Error
 	s.ErrorSeparator, s.ErrorEllipsis = ic.Separator, ic.Ellipsis
-	// A field that opens a list shows the mark of an open fold, but "-" is
-	// no arrow, so the ASCII set draws it as the letter that points down.
-	drop := ic.Unfolded
+	// A field that opens a list shows a small triangle that points down
+	// after its value, which every font draws, unlike the fold mark of the
+	// Nerd set. "-" is no arrow, so the ASCII set draws the letter that
+	// points down. A list of one choice marks it like a radio button.
+	drop, on, off := "▾", "●", "○"
 	if ic.Border == lipgloss.ASCIIBorder() {
-		drop = ic.Down
+		drop, on, off = ic.Down, "(*)", "( )"
 	}
 	s.Glyphs = filterform.Glyphs{
 		Cursor: ic.Cursor, Edge: ic.InputEdge, Prev: ic.Before, Next: ic.Crumb,
 		Drop: drop, Rule: ic.Border.Top,
-		Chosen: ic.Yes, NotChosen: strings.TrimSpace(ic.Separator), Down: ic.Down, Up: ic.Up,
+		On: on, Off: off, Down: ic.Down, Up: ic.Up,
 		Separator: ic.Separator, Ellipsis: ic.Ellipsis,
 	}
 	c := lipgloss.Color
@@ -266,9 +266,11 @@ func (t Theme) FilterForm(ic Icons) filterform.Styles {
 	s.Spinner = s.Spinner.Foreground(c(p.Accent))
 	s.Error = s.Error.Foreground(c(p.Error))
 	s.Help = t.Help()
-	frame := s.Picker.Frame
+	s.DropFrame = s.DropFrame.Border(ic.Border).BorderForeground(c(p.Border))
+	s.DropTitle = s.FocusedLabel
 	s.Picker = t.Picker(ic)
-	s.Picker.Frame = frame.Border(ic.Border, false, false, false, true).BorderForeground(c(p.Border))
+	// The dropdown's frame surrounds the picker.
+	s.Picker.Frame = lipgloss.NewStyle()
 	return s
 }
 

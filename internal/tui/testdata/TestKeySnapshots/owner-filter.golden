@@ -24,11 +24,25 @@ Filter
   previous tab | [ | [ | on
   apply | enter | ↵ | off
   done | esc | esc | off
+  up | up ctrl+p | ↑ | off
+  down | down ctrl+n | ↓ | off
+  toggle | space | space | off
+  clear | delete backspace | delete | off
+  choose | enter | ↵ | off
+  close | esc | esc | off
   up | up ctrl+p | ↑/ctrl+p | off
   down | down ctrl+n | ↓/ctrl+n | off
   page up | pgup | pgup | off
   page down | pgdown | pgdn | off
-  open | enter | enter | off
-  close | esc | esc | off
   scope | tab | tab | off
   previous scope | shift+tab | shift+tab | off
+  up | k up | k/↑ | off
+  down | j down | j/↓ | off
+  page up | ctrl+b pgup | ^b/pgup | off
+  page down | ctrl+f pgdown | ^f/pgdn | off
+  half page up | ctrl+u | ^u | off
+  half page down | ctrl+d | ^d | off
+  top | g home | g/home | off
+  bottom | G end | G/end | off
+  filter | i | i | off
+  filter at end | a | a | off

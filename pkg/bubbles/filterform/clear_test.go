@@ -65,7 +65,8 @@ func TestClearNeedsAnEmptyOption(t *testing.T) {
 	}
 }
 
-// Insert mode on the query line or a text, and a picker, take F as a letter.
+// Insert mode on the query line or a text, and a dropdown's filter, take F
+// as a letter.
 func TestFIsTypedWhereTyping(t *testing.T) {
 	tests := []struct {
 		name string
@@ -73,7 +74,7 @@ func TestFIsTypedWhereTyping(t *testing.T) {
 	}{
 		{name: "query line", keys: append(keys(down, rowQuery), keyA)},
 		{name: "text editor", keys: append(keys(down, rowBase), keyA)},
-		{name: "picker", keys: append(keys(down, rowAuthor), space)},
+		{name: "picker", keys: append(keys(down, rowAuthor), space, keyI)},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

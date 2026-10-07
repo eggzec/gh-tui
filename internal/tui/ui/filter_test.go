@@ -59,8 +59,8 @@ func TestFilterModalErrorWords(t *testing.T) {
 		err  error
 		want []string
 	}{
-		{"offline", fmt.Errorf("list labels: github: GET /repos/o/r/labels: %w", core.ErrOffline), []string{"✗ Can't reach GitHub", "r to retry · esc to go back"}},
-		{"forbidden", fmt.Errorf("list labels: github: 403 Forbidden: %w", core.ErrForbidden), []string{"✗ You don't have access to eggzec/x", "esc to go back"}},
+		{"offline", fmt.Errorf("list labels: github: GET /repos/o/r/labels: %w", core.ErrOffline), []string{"✗ Can't reach GitHub", "r to retry · esc to close"}},
+		{"forbidden", fmt.Errorf("list labels: github: 403 Forbidden: %w", core.ErrForbidden), []string{"✗ You don't have access to eggzec/x", "esc to close"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -121,7 +121,7 @@ func TestFilterModalASCII(t *testing.T) {
 		if strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
 			t.Errorf("%s: view isn't ASCII:\n%s", name, v)
 		}
-		if name == "failed" && !strings.Contains(v, "r to retry - esc to go back") {
+		if name == "failed" && !strings.Contains(v, "r to retry - esc to close") {
 			t.Errorf("%s: view doesn't name the keys in words:\n%s", name, v)
 		}
 	}
@@ -333,9 +333,11 @@ func TestFilterModalHelpASCII(t *testing.T) {
 	}{
 		{"choice", nil, "h/l change"},
 		{"person list", []string{"j"}, "space list"},
-		{"person picker", []string{"space"}, "up/down move"},
-		{"labels picker", []string{"esc", "j", "space"}, "up/down move"},
-		{"toggle", []string{"esc", "j"}, "space toggle"},
+		{"person list open", []string{"space"}, "j/k move"},
+		{"person filter", []string{"i"}, "up/down move"},
+		{"labels list open", []string{"esc", "esc", "j", "space"}, "j/k move"},
+		{"labels filter", []string{"i"}, "up/down move"},
+		{"toggle", []string{"esc", "esc", "j"}, "space toggle"},
 		{"text", []string{"j"}, "i insert"},
 		{"insert", []string{"i"}, "INSERT"},
 		{"sort tab", []string{"esc", "]"}, "enter apply"},
@@ -379,17 +381,22 @@ func TestFilterModalGrowsForThePicker(t *testing.T) {
 	_, closed := m.Fit(120, 30)
 	send(m, "j", "j", "space")
 	_, open := m.Fit(120, 30)
-	// The rows, the rule, the query and the help line, and the picker with
-	// its prompt and status lines and all nine labels.
-	if want := 5 + filterBelow + 1 + 9 + 2; open != want {
+	// The dropdown floats over the rows below its row, the rule and the
+	// query, and shows eight labels with its filter line and frame, 12
+	// lines. Under the Labels row there are the two rows, the rule and
+	// the query line: the modal grows by what is missing.
+	if want := closed + 12 - (2 + 1 + 1); open != want {
 		t.Errorf("Fit with the picker open = %d, want %d (%d closed)", open, want, closed)
 	}
 	m.SetSize(100, open)
 	v := ansi.Strip(m.View())
-	for _, want := range []string{"State", "Author", "label-0", "label-8"} {
+	for _, want := range []string{"State", "Author", "label-0", "label-7"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("the view lacks %q:\n%s", want, v)
 		}
+	}
+	if strings.Contains(v, "label-8") || !strings.Contains(strings.Split(v, "\n")[open-1], "j/k") {
+		t.Errorf("the list shows more than eight labels, or covers the help line:\n%s", v)
 	}
 	send(m, "esc")
 	if _, h := m.Fit(120, 30); h != closed {
@@ -402,9 +409,9 @@ func TestFilterModalGrowsForThePicker(t *testing.T) {
 func TestFilterModalMarksThePerson(t *testing.T) {
 	m := NewFilterModal(t.Context(), "Issues", &fakeFilterable{}, Filter{Spec: labelsSpec(), Subject: "o/r"})
 	m.SetSize(100, 24)
-	send(m, "j", "space", "down", "space")
+	send(m, "j", "space", "down", "enter", "space")
 	v := ansi.Strip(m.View())
-	if !strings.Contains(v, "✓ octocat") || strings.Contains(v, "✓ @me") {
+	if !strings.Contains(v, "● octocat") || strings.Contains(v, "● @me") {
 		t.Errorf("the list doesn't mark octocat alone:\n%s", v)
 	}
 }
@@ -419,9 +426,9 @@ func TestFilterModalMarksThePersonInSearchResults(t *testing.T) {
 	}}}
 	m := NewFilterModal(t.Context(), "Issues", &fakeFilterable{}, Filter{Spec: spec, Subject: "o/r"})
 	m.SetSize(100, 24)
-	send(m, "space", "down", "space", "m", "o", "n", "a")
+	send(m, "space", "down", "enter", "space", "i", "m", "o", "n", "a")
 	v := ansi.Strip(m.View())
-	if !strings.Contains(v, "✓ octomona") || strings.Contains(v, "✓ mona") {
+	if !strings.Contains(v, "● octomona") || strings.Contains(v, "● mona") {
 		t.Errorf("the results don't mark octomona alone:\n%s", v)
 	}
 }

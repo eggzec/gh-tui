@@ -34,7 +34,7 @@ func TestUpdate(t *testing.T) {
 			wantQuery: strings.Replace(prDefaults, "is:open ", "", 1),
 		},
 		{
-			name: "space does nothing on a choice", keys: step{space, space},
+			name: "esc closes the list of a choice as it was", keys: step{space, down, esc},
 			wantQuery: prDefaults,
 		},
 		{
@@ -78,7 +78,7 @@ func TestUpdate(t *testing.T) {
 			wantTab:   SortTab, wantRow: sortByRow,
 		},
 		{
-			name: "space does nothing on the sort", keys: step{nextTab, space, space},
+			name: "esc closes the list of the sort as it was", keys: step{nextTab, space, down, esc},
 			wantQuery: prDefaults, wantTab: SortTab, wantRow: sortByRow,
 		},
 		{
@@ -86,7 +86,7 @@ func TestUpdate(t *testing.T) {
 			wantQuery: strings.Replace(prDefaults, "desc", "asc", 1), wantTab: SortTab, wantRow: sortOrderRow,
 		},
 		{
-			name: "space does nothing on the order", keys: step{nextTab, down, space, space, space},
+			name: "esc closes the list of the order as it was", keys: step{nextTab, down, space, down, esc},
 			wantQuery: prDefaults, wantTab: SortTab, wantRow: sortOrderRow,
 		},
 		{
@@ -155,18 +155,18 @@ func TestUpdate(t *testing.T) {
 			wantQuery: strings.Replace(prDefaults, "base:main", "base:main-x", 1), wantRow: rowBase,
 		},
 		{
-			name: "a person takes the highlighted login", keys: step{down, del, space},
+			name: "a person takes the highlighted login", keys: step{down, del, space, keyI},
 			typed: "octo", after: step{enter},
 			wantQuery: strings.Replace(prDefaults, "@me", "octocat", 1), wantRow: rowAuthor,
 		},
 		{
-			name: "a person takes a typed login nothing matches", keys: step{down, space},
+			name: "a person takes a typed login nothing matches", keys: step{down, space, keyI},
 			typed: "hubot", after: step{enter},
 			wantQuery: strings.Replace(prDefaults, "author:@me", "author:hubot", 1), wantRow: rowAuthor,
 		},
 		{
-			name: "esc undoes a person", keys: step{down, space},
-			typed: "hubot", after: step{space, esc},
+			name: "esc leaves a person as it was", keys: step{down, space, keyI},
+			typed: "hubot", after: step{esc, esc},
 			wantQuery: prDefaults, wantRow: rowAuthor,
 		},
 		{
@@ -225,30 +225,30 @@ func TestQueryLineKeepsTyping(t *testing.T) {
 
 func TestMultiEditor(t *testing.T) {
 	tests := []struct {
-		name  string
-		typed string
-		keys  []tea.Msg
-		want  []string
+		name string
+		keys []tea.Msg
+		want []string
 	}{
-		{name: "enter adds the highlighted item", typed: "docs", keys: []tea.Msg{enter}, want: []string{"bug", "enhancement", "docs"}},
-		{name: "enter doesn't remove a chosen item", typed: "bug", keys: []tea.Msg{enter}, want: []string{"bug", "enhancement"}},
-		{name: "space removes a chosen item", typed: "bug", keys: []tea.Msg{space, enter}, want: []string{"enhancement"}},
+		{name: "enter adds the highlighted item", keys: []tea.Msg{down, down, enter}, want: []string{"bug", "enhancement", "docs"}},
+		{name: "enter doesn't remove a chosen item", keys: []tea.Msg{enter}, want: []string{"bug", "enhancement"}},
+		{name: "enter after space keeps the item space unchecked", keys: []tea.Msg{space, enter}, want: []string{"enhancement"}},
+		{name: "enter adds the item below the one space checked", keys: []tea.Msg{space, down, down, enter}, want: []string{"enhancement", "docs"}},
 		{
 			name: "space chooses several and enter only closes",
 			keys: []tea.Msg{down, down, space, down, space, up, enter},
 			want: []string{"bug", "enhancement", "docs", "good first issue"},
 		},
-		{name: "esc undoes the editor", keys: []tea.Msg{down, down, space, esc}, want: []string{"bug", "enhancement"}},
+		{name: "esc keeps what space checked", keys: []tea.Msg{down, down, space, esc}, want: []string{"bug", "enhancement", "docs"}},
+		{name: "esc leaves the highlighted item", keys: []tea.Msg{down, down, esc}, want: []string{"bug", "enhancement"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			f := &fakeLoader{}
 			m := open(t, prSpec(f.load))
 			m, _ = press(t, m, down, down, down, space)
-			if !m.picking || !m.Capturing() {
-				t.Fatalf("picking = %v, Capturing = %v after space; want an open picker", m.picking, m.Capturing())
+			if !m.picking || m.mode != listMode {
+				t.Fatalf("picking = %v, mode = %v after space; want an open list", m.picking, m.mode)
 			}
-			m = typeText(t, m, tt.typed)
 			m, sent := press(t, m, tt.keys...)
 			if len(sent) > 0 {
 				t.Errorf("sent %+v, want nothing", sent)
@@ -257,23 +257,23 @@ func TestMultiEditor(t *testing.T) {
 				t.Errorf("labels = %q, want %q", v.List(), tt.want)
 			}
 			if m.mode != rowsMode || m.Capturing() {
-				t.Error("the editor is still open")
+				t.Error("the list is still open")
 			}
 		})
 	}
 }
 
-// Space marks the item it chose, and the highlight stays on it.
+// Space marks the item it checked, and the highlight stays on it.
 func TestMultiEditorMarks(t *testing.T) {
 	f := &fakeLoader{}
 	m := open(t, prSpec(f.load))
 	m, _ = press(t, m, down, down, down, space, down, down, space)
 	it, ok := m.pick.Selected()
-	if !ok || it.Value != "docs" || !strings.HasPrefix(it.Title, DefaultGlyphs().Chosen+" ") {
-		t.Errorf("selected %+v, want docs marked as chosen", it)
+	if !ok || it.Value != "docs" || !strings.Contains(ansi.Strip(m.pick.View()), "[x] docs") {
+		t.Errorf("selected %+v, want docs marked as checked:\n%s", it, m.pick.View())
 	}
 	if got := m.query.Value(); !strings.Contains(got, "label:bug,enhancement,docs") {
-		t.Errorf("query line = %q, want it to follow the picker", got)
+		t.Errorf("query line = %q, want it to follow the list", got)
 	}
 }
 
@@ -373,33 +373,28 @@ func TestBlurCancelsLoad(t *testing.T) {
 func TestErrorText(t *testing.T) {
 	offline := func(error) (string, string) { return "Can't reach GitHub", "↵ to retry" }
 	tests := []struct {
-		name       string
-		opts       []Option
-		text, hint string
-		closed     string
+		name   string
+		opts   []Option
+		lines  []string
+		closed string
 	}{
-		{"default", nil, "✗ Couldn't load labels: github: 502 Bad Gateway", "r to retry · esc to go back", "✗ couldn't load"},
-		{"custom", []Option{WithErrorText(offline)}, "✗ Can't reach GitHub", "↵ to retry · esc to go back", "✗ couldn't load"},
-		{"custom without a hint", []Option{WithErrorText(func(error) (string, string) { return "No access to o/r", "" })}, "✗ No access to o/r", "esc to go back", "✗ couldn't load"},
-		{"empty", []Option{WithErrorText(func(error) (string, string) { return "", "" })}, "", "", ""},
-		{"text with a dot", []Option{WithErrorText(func(error) (string, string) { return "GitHub says a · b", "" })}, "✗ GitHub says a · b", "esc to go back", "✗ couldn't load"},
+		{"default", nil, []string{"✗ Couldn't load labels: github: 502 Bad Gateway", "r to retry · esc to close"}, "✗ couldn't load"},
+		{"custom", []Option{WithErrorText(offline)}, []string{"✗ Can't reach GitHub", "↵ to retry · esc to close"}, "✗ couldn't load"},
+		{"custom without a hint", []Option{WithErrorText(func(error) (string, string) { return "No access to o/r", "" })}, []string{"✗ No access to o/r", "esc to close"}, "✗ couldn't load"},
+		{"empty", []Option{WithErrorText(func(error) (string, string) { return "", "" })}, []string{"esc to close"}, ""},
+		{"text with a dot", []Option{WithErrorText(func(error) (string, string) { return "GitHub says a · b", "" })}, []string{"✗ GitHub says a · b", "esc to close"}, "✗ couldn't load"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			f := &fakeLoader{fail: errBoom}
 			m := open(t, prSpec(f.load), tt.opts...)
 			m, _ = press(t, m, down, down, down, space)
-			lines := m.editorLines(m.width)
 			var got []string
-			for _, l := range lines {
+			for _, l := range m.statusLines() {
 				got = append(got, strings.TrimSpace(ansi.Strip(l)))
 			}
-			var want []string
-			if tt.text != "" {
-				want = []string{tt.text, tt.hint}
-			}
-			if !slices.Equal(got, want) {
-				t.Errorf("editor = %q, want %q", got, want)
+			if !slices.Equal(got, tt.lines) {
+				t.Errorf("dropdown = %q, want %q", got, tt.lines)
 			}
 			m, _ = press(t, m, esc)
 			var closed []string
@@ -426,7 +421,7 @@ func TestPersonSearchErrorText(t *testing.T) {
 		},
 	}}}
 	m := open(t, spec, WithErrorText(func(error) (string, string) { return "Can't reach GitHub", "↵ to retry" }))
-	m, _ = press(t, m, space)
+	m, _ = press(t, m, space, keyI)
 	m = typeText(t, m, "hu")
 	v := ansi.Strip(m.View())
 	if !strings.Contains(v, "✗ Can't reach GitHub") || strings.Contains(v, "to retry") || strings.Contains(v, "502") {
@@ -448,7 +443,7 @@ func TestPersonSearch(t *testing.T) {
 		},
 	}}}
 	m := open(t, spec)
-	m, _ = press(t, m, space)
+	m, _ = press(t, m, space, keyI)
 	m = typeText(t, m, "hu")
 	m, _ = press(t, m, enter)
 	if got := m.Query(); got != "assignee:hubot" {
@@ -539,9 +534,10 @@ func TestEnterAppliesFromEveryRow(t *testing.T) {
 	}
 }
 
-// Space opens the picker of a Multi and a Person, and does nothing on a
-// choice, a text, the sort or the query line.
-func TestSpaceOpensMultiAndPerson(t *testing.T) {
+// Space opens the dropdown of a choice, a Multi, a Person, what is sorted
+// by and the order, and does nothing on a text or the query line. The keys
+// of a dropdown in its normal mode are not captured.
+func TestSpaceOpensLists(t *testing.T) {
 	tests := []struct {
 		name string
 		tab  Tab
@@ -550,19 +546,19 @@ func TestSpaceOpensMultiAndPerson(t *testing.T) {
 	}{
 		{name: "person", row: rowAuthor, open: true},
 		{name: "multi", row: rowLabels, open: true},
-		{name: "choice", row: rowState},
+		{name: "choice", row: rowState, open: true},
 		{name: "text", row: rowBase},
 		{name: "query", row: rowQuery},
-		{name: "sort by", tab: SortTab, row: sortByRow},
-		{name: "order", tab: SortTab, row: sortOrderRow},
+		{name: "sort by", tab: SortTab, row: sortByRow, open: true},
+		{name: "order", tab: SortTab, row: sortOrderRow, open: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := open(t, prSpec(nil), WithTab(tt.tab))
 			m, _ = press(t, m, keys(down, tt.row)...)
 			m, sent := press(t, m, space)
-			if len(sent) > 0 || (m.mode == pickMode) != tt.open || m.Capturing() != tt.open {
-				t.Errorf("sent %v, mode %v; want a picker open: %v", sent, m.mode, tt.open)
+			if len(sent) > 0 || (m.mode == listMode) != tt.open || m.Capturing() {
+				t.Errorf("sent %v, mode %v, Capturing %v; want a list open: %v", sent, m.mode, m.Capturing(), tt.open)
 			}
 			if m.picking != tt.open {
 				t.Errorf("picking = %v, want %v", m.picking, tt.open)
@@ -789,7 +785,8 @@ func TestLettersDontTypeOnTheQueryRow(t *testing.T) {
 	}
 }
 
-// q closes from the rows, and is typed in insert mode and in a picker.
+// q closes from the rows and from a list, and is typed in insert mode and
+// in a list's filter.
 func TestQuitCloses(t *testing.T) {
 	m := open(t, prSpec(nil))
 	_, sent := press(t, m, keyQ)
@@ -806,9 +803,12 @@ func TestQuitCloses(t *testing.T) {
 	}
 	p := open(t, prSpec(nil))
 	p, _ = press(t, p, down, space)
-	p, sent = press(t, p, keyQ)
+	if _, sent = press(t, p, keyQ); len(sent) != 1 || sent[0] != (CancelMsg{ID: p.ID()}) {
+		t.Errorf("sent %v, want a CancelMsg from a list", sent)
+	}
+	p, sent = press(t, p, keyI, keyQ)
 	if len(sent) > 0 || p.pick.Query().Text != "q" {
-		t.Errorf("sent %v, picker query %q; want q typed in the picker", sent, p.pick.Query().Text)
+		t.Errorf("sent %v, picker query %q; want q typed in the filter", sent, p.pick.Query().Text)
 	}
 }
 
@@ -836,8 +836,12 @@ func TestCapturing(t *testing.T) {
 	}
 	m.Focus()
 	m, _ = press(t, m, keyG, down, space)
-	if !m.Capturing() {
-		t.Error("an open picker doesn't capture keys")
+	if m.Capturing() {
+		t.Error("a list in its normal mode captures keys")
+	}
+	m, _ = press(t, m, keyI)
+	if !m.Capturing() || m.CapturedBy() != CapturePicker {
+		t.Error("a list's filter doesn't capture keys")
 	}
 }
 
@@ -860,7 +864,7 @@ func TestSetQueryClosesEditor(t *testing.T) {
 	m, _ = press(t, m, down, down, down, space)
 	m.SetQuery("is:closed")
 	if m.mode != rowsMode || m.picking {
-		t.Error("SetQuery left the picker open")
+		t.Error("SetQuery left the list open")
 	}
 	if got := m.query.Value(); got != "is:closed sort:updated-desc" {
 		t.Errorf("query line = %q", got)

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"unicode"
 
+	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -18,12 +19,14 @@ func TestView(t *testing.T) {
 		width, height int
 		query         string
 		fail          bool
-		// block leaves the labels loading, with the picker closed.
-		block   bool
-		blurred bool
-		opts    []Option
-		keys    []tea.Msg
-		typed   string
+		// block leaves the labels loading, with the list closed, and
+		// blockOpen with it open.
+		block     bool
+		blockOpen bool
+		blurred   bool
+		opts      []Option
+		keys      []tea.Msg
+		typed     string
 		// spec, when set, is the form's spec in place of prSpec.
 		spec func(Loader) Spec
 	}{
@@ -33,9 +36,23 @@ func TestView(t *testing.T) {
 		{name: "rows 80", width: 80, height: 12, keys: []tea.Msg{down, down, down}},
 		{name: "rows 120", width: 120, height: 12, keys: []tea.Msg{down, down}},
 		{name: "multi overflow 60", width: 60, height: 12, query: `is:open label:bug,enhancement,docs,"good first issue",wontfix,needs-triage`, keys: []tea.Msg{down, down, down}},
-		{name: "labels open 60", width: 60, height: 18, keys: []tea.Msg{down, down, down, space, down, down, space}},
-		{name: "labels open 100", width: 100, height: 18, keys: []tea.Msg{down, down, down, space}, typed: "doc"},
-		{name: "labels failed", width: 60, height: 14, fail: true, keys: []tea.Msg{down, down, down, space}},
+		{name: "checklist labels 60", width: 60, height: 18, keys: []tea.Msg{down, down, down, space, down, down, space}},
+		{name: "checklist filtered 100", width: 100, height: 18, keys: []tea.Msg{down, down, down, space, keyI}, typed: "doc"},
+		{name: "checklist labels 80", width: 80, height: 14, keys: []tea.Msg{down, down, down, space}},
+		{name: "checklist labels 120", width: 120, height: 16, keys: []tea.Msg{down, down, down, space, down, space}},
+		{name: "checklist ascii 80", width: 80, height: 14, opts: []Option{WithStyles(asciiStyles()), WithKeyNames(asciiKeys)}, keys: []tea.Msg{down, down, down, space}},
+		{name: "list review 80", width: 80, height: 14, keys: []tea.Msg{down, down, space}},
+		{name: "list review 120", width: 120, height: 16, keys: []tea.Msg{down, down, space, down}},
+		{name: "list sort by 80", width: 80, height: 12, opts: []Option{WithTab(SortTab)}, keys: []tea.Msg{space}},
+		{name: "list order 80", width: 80, height: 12, opts: []Option{WithTab(SortTab)}, keys: []tea.Msg{down, space}},
+		{name: "list filter many 80", width: 80, height: 16, spec: languageSpec, keys: []tea.Msg{space}},
+		{name: "list filter typed 80", width: 80, height: 16, spec: languageSpec, keys: []tea.Msg{space, keyI}, typed: "py"},
+		{name: "list light 80", width: 80, height: 14, opts: []Option{WithStyles(DefaultStyles(false))}, keys: []tea.Msg{down, down, space}},
+		{name: "list above 80", width: 80, height: 14, spec: lastChoiceSpec, keys: []tea.Msg{keyBigG, keyK, space, down}},
+		{name: "list failed 80", width: 80, height: 14, fail: true, keys: []tea.Msg{down, down, down, space}},
+		{name: "list loading 80", width: 80, height: 14, blockOpen: true, keys: []tea.Msg{down, down, down}},
+		{name: "people typing 120", width: 120, height: 16, keys: []tea.Msg{down, space, keyI}, typed: "octo"},
+		{name: "people 80", width: 80, height: 14, keys: []tea.Msg{down, space}},
 		{name: "editing text", width: 60, height: 12, keys: []tea.Msg{down, down, down, down, down, keyA}, typed: "-next"},
 		{name: "insert text 80", width: 80, height: 12, keys: []tea.Msg{down, down, down, down, down, keyA}, typed: "-next"},
 		{name: "insert query 80", width: 80, height: 12, keys: []tea.Msg{keyBigG, keyA}, typed: " fix"},
@@ -68,6 +85,10 @@ func TestView(t *testing.T) {
 			if tt.fail {
 				f.fail = errBoom
 			}
+			if tt.block || tt.blockOpen {
+				f.block = make(chan struct{})
+				t.Cleanup(func() { close(f.block) })
+			}
 			opts := append([]Option{WithSize(tt.width, tt.height)}, tt.opts...)
 			if tt.query != "" {
 				opts = append(opts, WithQuery(tt.query))
@@ -82,6 +103,9 @@ func TestView(t *testing.T) {
 			if tt.block {
 				m, _ = m.Update(space)
 				m, _ = press(t, m, esc)
+			}
+			if tt.blockOpen {
+				m, _ = m.Update(space)
 			}
 			m = typeText(t, m, tt.typed)
 			if tt.blurred {
@@ -153,6 +177,43 @@ func assertFits(t *testing.T, v string, width, height int) {
 	}
 }
 
+// asciiKeys writes the keys of the help line as an ASCII terminal does.
+func asciiKeys(s string) string {
+	return strings.NewReplacer("↵", "enter", "↑", "up", "↓", "down").Replace(s)
+}
+
+// languageSpec has a choice with more options than a dropdown shows.
+func languageSpec(Loader) Spec {
+	names := []string{
+		"Any", "C", "C++", "C#", "Clojure", "CSS", "Dart", "Elixir", "Erlang", "Go", "Haskell", "HTML",
+		"Java", "JavaScript", "Kotlin", "Lua", "Nix", "OCaml", "Perl", "PHP", "Python", "R", "Ruby",
+		"Rust", "Scala", "Shell", "Swift", "TypeScript", "Zig",
+	}
+	opts := make([]Item, len(names))
+	for i, n := range names {
+		opts[i] = Item{Label: n, Value: strings.ToLower(n)}
+	}
+	opts[0].Value = ""
+	return Spec{Fields: []Field{
+		{Key: "language", Label: "Language", Kind: Choice, Qualifier: "language", Options: opts},
+		{Key: "owner", Label: "Owner", Kind: Text, Qualifier: "user", Hint: "anyone"},
+	}}
+}
+
+// lastChoiceSpec has a choice on its last row, which has no room under it
+// for a dropdown.
+func lastChoiceSpec(Loader) Spec {
+	fields := make([]Field, 0, 8)
+	for _, n := range []string{"Title", "Body", "Author", "Owner", "Org", "Repo", "Path"} {
+		fields = append(fields, Field{Key: strings.ToLower(n), Label: n, Kind: Text, Qualifier: strings.ToLower(n)})
+	}
+	fields = append(fields, Field{
+		Key: "state", Label: "State", Kind: Choice, Qualifier: "is",
+		Options: []Item{{"Open", "open", ""}, {"Closed", "closed", ""}, {"Merged", "merged", ""}, {"Draft", "draft", ""}, {"All", "", ""}},
+	})
+	return Spec{Fields: fields}
+}
+
 // searchSpec is a spec whose sort can be left out, as GitHub's search
 // ranks by best match without one.
 func searchSpec(Loader) Spec {
@@ -181,10 +242,12 @@ func asciiStyles() Styles {
 	st := DefaultStyles(true)
 	st.Glyphs = Glyphs{
 		Cursor: ">", Edge: "|", Prev: "<", Next: ">", Drop: "v", Rule: "-",
-		Chosen: "+", NotChosen: "-", Down: "v", Up: "^", Separator: " - ", Ellipsis: "...",
+		On: "(*)", Off: "( )", Down: "v", Up: "^", Separator: " - ", Ellipsis: "...",
 	}
 	st.ErrorGlyph, st.ErrorSeparator, st.ErrorEllipsis = "x", " - ", "..."
-	st.Picker.Frame = st.Picker.Frame.Border(lipgloss.ASCIIBorder(), false, false, false, true)
+	st.SpinnerFrames = spinner.Spinner{Frames: []string{"|", "/", "-", `\`}, FPS: spinner.Dot.FPS}
+	st.Picker.SpinnerFrames = st.SpinnerFrames
+	st.DropFrame = st.DropFrame.Border(lipgloss.ASCIIBorder())
 	st.Picker.PromptGlyph, st.Picker.CursorGlyph, st.Picker.Ellipsis = ">", ">", "..."
 	return st
 }
@@ -198,23 +261,41 @@ func TestViewASCII(t *testing.T) {
 		name string
 		opts []Option
 		keys []tea.Msg
+		fail bool
 	}{
 		{name: "filters"},
 		{name: "focused choice", keys: []tea.Msg{down}},
 		{name: "multi", keys: []tea.Msg{down, down, down}},
-		{name: "labels open", keys: []tea.Msg{down, down, down, space, down, space}},
+		{name: "checklist", keys: []tea.Msg{down, down, down, space, down, space}},
+		{name: "checklist filtered", keys: []tea.Msg{down, down, down, space, keyI, keyX}},
+		{name: "list", keys: []tea.Msg{down, down, space}},
+		{name: "people typing", keys: []tea.Msg{down, space, keyI, keyX}},
+		{name: "failed list", keys: []tea.Msg{down, down, down, space}, fail: true},
+		{name: "sort list", opts: []Option{WithTab(SortTab)}, keys: []tea.Msg{space}},
 		{name: "insert", keys: append(keys(down, rowBase), keyA)},
 		{name: "insert query", keys: []tea.Msg{keyBigG, keyA}},
 		{name: "sort", opts: []Option{WithTab(SortTab)}},
 		{name: "sort order", opts: []Option{WithTab(SortTab)}, keys: []tea.Msg{down}},
 	} {
 		f := &fakeLoader{}
-		opts := append([]Option{WithStyles(st), WithHelpLine(false), WithSize(40, 18)}, tt.opts...)
+		if tt.fail {
+			f.fail = errBoom
+		}
+		opts := append([]Option{WithStyles(st), WithKeyNames(asciiKeys), WithHelpLine(false), WithSize(40, 18)}, tt.opts...)
 		m := open(t, prSpec(f.load), opts...)
 		m, _ = press(t, m, tt.keys...)
 		if v := ansi.Strip(m.View()); strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
 			t.Errorf("%s: view isn't ASCII:\n%s", tt.name, v)
 		}
+	}
+	// A list that waits for its options shows the spinner of the styles.
+	f := &fakeLoader{block: make(chan struct{})}
+	defer close(f.block)
+	m := open(t, prSpec(f.load), WithStyles(st), WithKeyNames(asciiKeys), WithHelpLine(false), WithSize(40, 18))
+	m, _ = press(t, m, down, down, down)
+	m, _ = m.Update(space)
+	if v := ansi.Strip(m.View()); !strings.Contains(v, "Loading labels") || strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
+		t.Errorf("loading list isn't ASCII or doesn't say it loads:\n%s", v)
 	}
 }
 

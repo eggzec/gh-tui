@@ -202,10 +202,10 @@ func TestThemeASCIIGlyphs(t *testing.T) {
 	}
 	// The edges and frames are borders of styles.
 	for name, b := range map[string]string{
-		"toast edge":   th.Toast(ic).Toast.GetBorderStyle().Left,
-		"prompt edge":  th.Prompt(ic).Frame.GetBorderStyle().Left,
-		"picker frame": th.Picker(ic).Frame.GetBorderStyle().TopLeft,
-		"form picker":  th.FilterForm(ic).Picker.Frame.GetBorderStyle().Left,
+		"toast edge":    th.Toast(ic).Toast.GetBorderStyle().Left,
+		"prompt edge":   th.Prompt(ic).Frame.GetBorderStyle().Left,
+		"picker frame":  th.Picker(ic).Frame.GetBorderStyle().TopLeft,
+		"form dropdown": th.FilterForm(ic).DropFrame.GetBorderStyle().TopLeft,
 	} {
 		asciiGlyphs(t, name, reflect.ValueOf(b))
 	}

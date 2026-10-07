@@ -10,7 +10,7 @@ const (
 	CaptureQuery
 	// CaptureEditor is the editor of a field, which types its text.
 	CaptureEditor
-	// CapturePicker is the picker of a field's options.
+	// CapturePicker is the filter of a dropdown, which types its text.
 	CapturePicker
 )
 
