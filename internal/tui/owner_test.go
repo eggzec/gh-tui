@@ -475,8 +475,8 @@ func TestOwnerKeyInTheApp(t *testing.T) {
 			}
 			return ""
 		}},
-		{name: "filter field", repo: true, keys: []string{"2", "f", "down", "enter"}, check: func(m *Model) string {
-			if got := layerNames(m.keyLayers()); m.screen != repoScreen || got != "always, picker (types)" {
+		{name: "filter field", repo: true, keys: []string{"2", "f", "G", "i"}, check: func(m *Model) string {
+			if got := layerNames(m.keyLayers()); m.screen != repoScreen || got != "always, filter_query (types)" {
 				return "the filter field didn't take @: the keys reach " + got
 			}
 			return ""

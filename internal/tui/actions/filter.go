@@ -17,6 +17,8 @@ import (
 // form.
 type filterStep struct {
 	form *filterform.Model
+	// rows is the number of rows of the form.
+	rows int
 }
 
 // workflows are the workflows of the repository, read the first time the
@@ -138,11 +140,12 @@ func (m *Modal) showForm() tea.Cmd {
 	f := filterform.New(spec,
 		filterform.WithQuery(queryOf(m.filter, m.workflows.items)),
 		filterform.WithContext(m.ctx),
-		filterform.WithHelpLine(false),
+		filterform.WithKeyNames(m.opts.icons.Key),
+		filterform.WithKeyMap(m.keys.form),
 		filterform.WithStyles(m.theme.FilterForm(m.opts.icons)),
 		filterform.WithSize(m.width, m.bodyHeight()),
 	)
-	m.filterStep.form = &f
+	m.filterStep.form, m.filterStep.rows = &f, len(spec.Fields)
 	return f.Focus()
 }
 
@@ -173,6 +176,26 @@ func (m *Modal) actorItems() []filterform.Item {
 	return []filterform.Item{{Label: me, Value: me, Detail: "you"}}
 }
 
+// Fit implements ui.Fitter. The filter step is as large as its form needs,
+// as any filter is; the rest of the modal takes the room it is given.
+func (m *Modal) Fit(maxWidth, maxHeight int) (width, height int) {
+	if f := m.filterStep; f != nil && f.form != nil {
+		// The form takes the lines under the breadcrumb.
+		width = min(maxWidth, ui.FilterWidth)
+		return width, min(maxHeight, 1+ui.FilterHeight(f.rows, width, f.form))
+	}
+	return maxWidth, maxHeight
+}
+
+// closeFilter closes the filter step. The panes kept their size while the
+// form showed, so they take the size of the modal now. The jobs stay
+// scrolled as they were: the modal may not have its own size back yet, and
+// scrolls to it when it does.
+func (m *Modal) closeFilter() {
+	m.filterStep = nil
+	m.sizePanes()
+}
+
 // updateFilter passes msg to the form, and applies or closes it when it
 // says so.
 func (m *Modal) updateFilter(msg tea.Msg) tea.Cmd {
@@ -185,11 +208,11 @@ func (m *Modal) updateFilter(msg tea.Msg) tea.Cmd {
 		if msg.ID != f.ID() {
 			return nil
 		}
-		m.filterStep = nil
+		m.closeFilter()
 		return m.setFilter(m.filterOf(msg.Values))
 	case filterform.CancelMsg:
 		if msg.ID == f.ID() {
-			m.filterStep = nil
+			m.closeFilter()
 		}
 		return nil
 	}

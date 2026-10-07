@@ -23,6 +23,7 @@ import (
 // that what it drew asks for are fetched after it.
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	_, cmd := m.update(msg)
+	m.fitModal()
 	if m.resized {
 		m.resized = false
 		cmd = tea.Batch(cmd, m.settleModal())

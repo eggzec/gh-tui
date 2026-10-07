@@ -11,23 +11,30 @@ import (
 )
 
 var (
-	enter    = tea.KeyPressMsg{Code: tea.KeyEnter}
-	esc      = tea.KeyPressMsg{Code: tea.KeyEscape}
-	up       = tea.KeyPressMsg{Code: tea.KeyUp}
-	down     = tea.KeyPressMsg{Code: tea.KeyDown}
-	left     = tea.KeyPressMsg{Code: tea.KeyLeft}
-	right    = tea.KeyPressMsg{Code: tea.KeyRight}
-	space    = tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}
-	tab      = tea.KeyPressMsg{Code: tea.KeyTab}
-	shiftTab = tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift}
-	bksp     = tea.KeyPressMsg{Code: tea.KeyBackspace}
-	del      = tea.KeyPressMsg{Code: tea.KeyDelete}
-	keyX     = tea.KeyPressMsg{Code: 'x', Text: "x"}
-	keyR     = tea.KeyPressMsg{Code: 'r', Text: "r"}
-	keyF     = tea.KeyPressMsg{Code: 'F', Text: "F"}
-	ctrlU    = tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl}
-	nextTab  = tea.KeyPressMsg{Code: ']', Text: "]"}
-	prevTab  = tea.KeyPressMsg{Code: '[', Text: "["}
+	enter   = tea.KeyPressMsg{Code: tea.KeyEnter}
+	esc     = tea.KeyPressMsg{Code: tea.KeyEscape}
+	up      = tea.KeyPressMsg{Code: tea.KeyUp}
+	down    = tea.KeyPressMsg{Code: tea.KeyDown}
+	left    = tea.KeyPressMsg{Code: tea.KeyLeft}
+	right   = tea.KeyPressMsg{Code: tea.KeyRight}
+	space   = tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}
+	bksp    = tea.KeyPressMsg{Code: tea.KeyBackspace}
+	del     = tea.KeyPressMsg{Code: tea.KeyDelete}
+	keyX    = tea.KeyPressMsg{Code: 'x', Text: "x"}
+	keyR    = tea.KeyPressMsg{Code: 'r', Text: "r"}
+	keyF    = tea.KeyPressMsg{Code: 'F', Text: "F"}
+	ctrlU   = tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl}
+	nextTab = tea.KeyPressMsg{Code: ']', Text: "]"}
+	prevTab = tea.KeyPressMsg{Code: '[', Text: "["}
+	keyI    = tea.KeyPressMsg{Code: 'i', Text: "i"}
+	keyA    = tea.KeyPressMsg{Code: 'a', Text: "a"}
+	keyJ    = tea.KeyPressMsg{Code: 'j', Text: "j"}
+	keyK    = tea.KeyPressMsg{Code: 'k', Text: "k"}
+	keyH    = tea.KeyPressMsg{Code: 'h', Text: "h"}
+	keyL    = tea.KeyPressMsg{Code: 'l', Text: "l"}
+	keyG    = tea.KeyPressMsg{Code: 'g', Text: "g"}
+	keyBigG = tea.KeyPressMsg{Code: 'G', Text: "G", Mod: tea.ModShift}
+	keyQ    = tea.KeyPressMsg{Code: 'q', Text: "q"}
 )
 
 // Rows of prSpec.

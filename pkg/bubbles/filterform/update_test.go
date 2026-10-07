@@ -34,8 +34,8 @@ func TestUpdate(t *testing.T) {
 			wantQuery: strings.Replace(prDefaults, "is:open ", "", 1),
 		},
 		{
-			name: "space picks the next choice", keys: step{space, space},
-			wantQuery: strings.Replace(prDefaults, "is:open", "is:merged", 1),
+			name: "space does nothing on a choice", keys: step{space, space},
+			wantQuery: prDefaults,
 		},
 		{
 			name: "whole-token choice", keys: step{down, down, right},
@@ -43,16 +43,16 @@ func TestUpdate(t *testing.T) {
 			wantRow:   rowReview,
 		},
 		{
-			name: "space flips a toggle", keys: step{tab, tab, tab, tab, space},
+			name: "space flips a toggle", keys: append(keys(down, rowDrafts), space),
 			wantQuery: strings.Replace(prDefaults, " base:main", " -is:draft base:main", 1),
 			wantRow:   rowDrafts,
 		},
 		{
-			name: "left flips a toggle too", keys: step{shiftTab, shiftTab, shiftTab, left, left},
+			name: "left flips a toggle too", keys: append(keys(down, rowDrafts), left, left),
 			wantQuery: prDefaults, wantRow: rowDrafts,
 		},
 		{
-			name: "delete turns a toggle off", query: "-is:draft", keys: step{up, up, up, del},
+			name: "delete turns a toggle off", query: "-is:draft", keys: append(keys(down, rowDrafts), del),
 			wantQuery: "sort:updated-desc", wantRow: rowDrafts,
 		},
 		{
@@ -78,17 +78,16 @@ func TestUpdate(t *testing.T) {
 			wantTab:   SortTab, wantRow: sortByRow,
 		},
 		{
-			name: "space sorts by the next option", keys: step{nextTab, space, space},
-			wantQuery: strings.Replace(prDefaults, "sort:updated-desc", "sort:comments-desc", 1),
-			wantTab:   SortTab, wantRow: sortByRow,
+			name: "space does nothing on the sort", keys: step{nextTab, space, space},
+			wantQuery: prDefaults, wantTab: SortTab, wantRow: sortByRow,
 		},
 		{
 			name: "right flips the order", keys: step{nextTab, down, right},
 			wantQuery: strings.Replace(prDefaults, "desc", "asc", 1), wantTab: SortTab, wantRow: sortOrderRow,
 		},
 		{
-			name: "space flips the order", keys: step{nextTab, tab, space, space, space},
-			wantQuery: strings.Replace(prDefaults, "desc", "asc", 1), wantTab: SortTab, wantRow: sortOrderRow,
+			name: "space does nothing on the order", keys: step{nextTab, down, space, space, space},
+			wantQuery: prDefaults, wantTab: SortTab, wantRow: sortOrderRow,
 		},
 		{
 			name: "the next option sorts in its own order", keys: step{nextTab, down, right, up, right},
@@ -108,21 +107,20 @@ func TestUpdate(t *testing.T) {
 			wantQuery: "is:closed sort:comments-asc fix", wantRow: rowAuthor,
 		},
 		{
-			name: "up on the sort wraps to the query line", keys: step{nextTab, up},
-			typed: " ]", wantQuery: prDefaults + " ]", wantTab: SortTab, wantRow: sortRows,
+			name: "up on the sort stops at the first row", keys: step{nextTab, up},
+			wantQuery: prDefaults, wantTab: SortTab, wantRow: sortByRow,
 		},
 		{
-			name: "delete removes the last chip", keys: step{down, down, down, del},
-			wantQuery: strings.Replace(prDefaults, "label:bug,enhancement", "label:bug", 1),
+			name: "G goes to the query line, where ] is typed", keys: step{nextTab, keyBigG, keyA},
+			typed: " ]", after: step{esc}, wantQuery: prDefaults + " ]", wantTab: SortTab, wantRow: sortRows,
+		},
+		{
+			name: "delete unchecks every label", keys: step{down, down, down, del},
+			wantQuery: strings.Replace(prDefaults, "label:bug,enhancement ", "", 1),
 			wantRow:   rowLabels,
 		},
 		{
-			name: "left then backspace removes the chip under the cursor", keys: step{down, down, down, left, left, bksp},
-			wantQuery: strings.Replace(prDefaults, "label:bug,enhancement", "label:enhancement", 1),
-			wantRow:   rowLabels,
-		},
-		{
-			name: "removing every chip drops the qualifier", keys: step{down, down, down, del, del, del},
+			name: "backspace unchecks every label", keys: step{down, down, down, bksp},
 			wantQuery: strings.Replace(prDefaults, "label:bug,enhancement ", "", 1),
 			wantRow:   rowLabels,
 		},
@@ -147,37 +145,37 @@ func TestUpdate(t *testing.T) {
 			wantQuery: strings.Replace(prDefaults, "author:@me ", "", 1), wantRow: rowAuthor,
 		},
 		{
-			name: "enter edits a text", keys: append(keys(down, rowBase), enter, bksp, bksp, bksp, bksp),
-			typed: "release 1.0", after: step{enter},
+			name: "a edits a text from its end", keys: append(keys(down, rowBase), keyA, bksp, bksp, bksp, bksp),
+			typed: "release 1.0", after: step{esc},
 			wantQuery: strings.Replace(prDefaults, "base:main", `base:"release 1.0"`, 1), wantRow: rowBase,
 		},
 		{
-			name: "esc undoes a text", keys: append(keys(down, rowBase), enter),
+			name: "esc keeps a text", keys: append(keys(down, rowBase), keyA),
 			typed: "-x", after: step{esc},
-			wantQuery: prDefaults, wantRow: rowBase,
+			wantQuery: strings.Replace(prDefaults, "base:main", "base:main-x", 1), wantRow: rowBase,
 		},
 		{
-			name: "a person takes the highlighted login", keys: step{down, del, enter},
+			name: "a person takes the highlighted login", keys: step{down, del, space},
 			typed: "octo", after: step{enter},
 			wantQuery: strings.Replace(prDefaults, "@me", "octocat", 1), wantRow: rowAuthor,
 		},
 		{
-			name: "a person takes a typed login nothing matches", keys: step{down, enter},
+			name: "a person takes a typed login nothing matches", keys: step{down, space},
 			typed: "hubot", after: step{enter},
 			wantQuery: strings.Replace(prDefaults, "author:@me", "author:hubot", 1), wantRow: rowAuthor,
 		},
 		{
-			name: "esc undoes a person", keys: step{down, enter},
+			name: "esc undoes a person", keys: step{down, space},
 			typed: "hubot", after: step{space, esc},
 			wantQuery: prDefaults, wantRow: rowAuthor,
 		},
 		{
-			name: "up wraps to the query line, where letters are typed", keys: step{up},
-			typed: " fix x r", wantQuery: prDefaults + " fix x r", wantRow: rowQuery,
+			name: "G goes to the query line, where i types", keys: step{keyBigG, keyA},
+			typed: " fix x r", after: step{esc}, wantQuery: prDefaults + " fix x r", wantRow: rowQuery,
 		},
 		{
-			name: "the query line sets the fields as it is typed", query: "is:open", keys: step{up, ctrlU},
-			typed: "is:closed label:docs", after: step{down},
+			name: "the query line sets the fields as it is typed", query: "is:open", keys: step{keyBigG, keyA, ctrlU},
+			typed: "is:closed label:docs", after: step{esc, keyG},
 			wantQuery: "is:closed label:docs sort:updated-desc", wantRow: rowState,
 		},
 	}
@@ -200,7 +198,7 @@ func TestUpdate(t *testing.T) {
 			if m.Tab() != tt.wantTab || m.row != tt.wantRow {
 				t.Errorf("tab, row = %v, %d, want %v, %d", m.Tab(), m.row, tt.wantTab, tt.wantRow)
 			}
-			if m.editing {
+			if m.mode != rowsMode {
 				t.Error("an editor is still open")
 			}
 		})
@@ -208,10 +206,10 @@ func TestUpdate(t *testing.T) {
 }
 
 // Typing on the query line leaves what was typed alone, and it is
-// normalized once the line loses focus.
+// normalized once insert mode ends.
 func TestQueryLineKeepsTyping(t *testing.T) {
 	m := open(t, prSpec(nil), WithQuery(""))
-	m, _ = press(t, m, up, ctrlU)
+	m, _ = press(t, m, keyBigG, keyA, ctrlU)
 	m = typeText(t, m, "label:  is:closed  ")
 	if got := m.query.Value(); got != "label:  is:closed  " {
 		t.Errorf("query line = %q, want what was typed", got)
@@ -219,7 +217,7 @@ func TestQueryLineKeepsTyping(t *testing.T) {
 	if v, _ := m.Value("state"); v.Text() != "closed" {
 		t.Errorf("state = %q, want closed", v.Text())
 	}
-	m, _ = press(t, m, up)
+	m, _ = press(t, m, esc)
 	if got, want := m.query.Value(), "is:closed sort:updated-desc label:"; got != want {
 		t.Errorf("query line = %q, want %q", got, want)
 	}
@@ -246,9 +244,9 @@ func TestMultiEditor(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			f := &fakeLoader{}
 			m := open(t, prSpec(f.load))
-			m, _ = press(t, m, down, down, down, enter)
+			m, _ = press(t, m, down, down, down, space)
 			if !m.picking || !m.Capturing() {
-				t.Fatalf("picking = %v, Capturing = %v after enter; want an open picker", m.picking, m.Capturing())
+				t.Fatalf("picking = %v, Capturing = %v after space; want an open picker", m.picking, m.Capturing())
 			}
 			m = typeText(t, m, tt.typed)
 			m, sent := press(t, m, tt.keys...)
@@ -258,7 +256,7 @@ func TestMultiEditor(t *testing.T) {
 			if v, _ := m.Value("labels"); !slices.Equal(v.List(), tt.want) {
 				t.Errorf("labels = %q, want %q", v.List(), tt.want)
 			}
-			if m.editing || m.Capturing() {
+			if m.mode != rowsMode || m.Capturing() {
 				t.Error("the editor is still open")
 			}
 		})
@@ -269,7 +267,7 @@ func TestMultiEditor(t *testing.T) {
 func TestMultiEditorMarks(t *testing.T) {
 	f := &fakeLoader{}
 	m := open(t, prSpec(f.load))
-	m, _ = press(t, m, down, down, down, enter, down, down, space)
+	m, _ = press(t, m, down, down, down, space, down, down, space)
 	it, ok := m.pick.Selected()
 	if !ok || it.Value != "docs" || !strings.HasPrefix(it.Title, DefaultGlyphs().Chosen+" ") {
 		t.Errorf("selected %+v, want docs marked as chosen", it)
@@ -287,7 +285,7 @@ func TestLoad(t *testing.T) {
 	}
 	m, _ = press(t, m, down, down, down)
 	var cmd tea.Cmd
-	m, cmd = m.Update(enter)
+	m, cmd = m.Update(space)
 	if !m.Loading() || m.fields[rowLabels].state != loading {
 		t.Error("opening the field didn't start loading")
 	}
@@ -301,11 +299,11 @@ func TestLoad(t *testing.T) {
 	// Space does nothing while there is nothing to pick from.
 	m, _ = press(t, m, space)
 	f.setFail(nil)
-	m, _ = press(t, m, enter)
+	m, _ = press(t, m, keyR)
 	if !m.picking || m.pick.Len() != len(labels) {
 		t.Fatalf("picking = %v with %d items after retrying; want the labels", m.picking, m.pick.Len())
 	}
-	m, _ = press(t, m, esc, enter)
+	m, _ = press(t, m, esc, space)
 	if f.calls() != 2 {
 		t.Errorf("the loader was called %d times, want 2: once failing, once again", f.calls())
 	}
@@ -319,7 +317,7 @@ func TestLoad(t *testing.T) {
 func TestRetry(t *testing.T) {
 	f := &fakeLoader{fail: errBoom}
 	m := open(t, prSpec(f.load))
-	m, _ = press(t, m, down, down, down, enter)
+	m, _ = press(t, m, down, down, down, space)
 	if !errors.Is(m.Err(), errBoom) {
 		t.Fatalf("Err() = %v, want %v", m.Err(), errBoom)
 	}
@@ -343,7 +341,7 @@ func TestLoadIgnoresOtherForms(t *testing.T) {
 	f := &fakeLoader{}
 	a, b := open(t, prSpec(f.load)), open(t, prSpec(f.load))
 	a, _ = press(t, a, down, down, down)
-	a, cmd := a.Update(enter)
+	a, cmd := a.Update(space)
 	b, _ = run(t, b, cmd)
 	if b.fields[rowLabels].state != notLoaded {
 		t.Error("a load for one form landed in another")
@@ -359,7 +357,7 @@ func TestBlurCancelsLoad(t *testing.T) {
 	f := &fakeLoader{block: make(chan struct{})}
 	m := open(t, prSpec(f.load))
 	m, _ = press(t, m, down, down, down)
-	m, cmd := m.Update(enter)
+	m, cmd := m.Update(space)
 	ctx := m.ctx
 	m.Blur()
 	if ctx.Err() == nil {
@@ -367,8 +365,8 @@ func TestBlurCancelsLoad(t *testing.T) {
 	}
 	close(f.block)
 	m, _ = run(t, m, cmd)
-	if m.fields[rowLabels].state != notLoaded || m.editing {
-		t.Errorf("state = %v, editing = %v; want the load dropped", m.fields[rowLabels].state, m.editing)
+	if m.fields[rowLabels].state != notLoaded || m.mode != rowsMode {
+		t.Errorf("state = %v, mode = %v; want the load dropped", m.fields[rowLabels].state, m.mode)
 	}
 }
 
@@ -380,7 +378,7 @@ func TestErrorText(t *testing.T) {
 		text, hint string
 		closed     string
 	}{
-		{"default", nil, "✗ Couldn't load labels: github: 502 Bad Gateway", "↵ to retry · esc to go back", "✗ couldn't load"},
+		{"default", nil, "✗ Couldn't load labels: github: 502 Bad Gateway", "r to retry · esc to go back", "✗ couldn't load"},
 		{"custom", []Option{WithErrorText(offline)}, "✗ Can't reach GitHub", "↵ to retry · esc to go back", "✗ couldn't load"},
 		{"custom without a hint", []Option{WithErrorText(func(error) (string, string) { return "No access to o/r", "" })}, "✗ No access to o/r", "esc to go back", "✗ couldn't load"},
 		{"empty", []Option{WithErrorText(func(error) (string, string) { return "", "" })}, "", "", ""},
@@ -390,7 +388,7 @@ func TestErrorText(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			f := &fakeLoader{fail: errBoom}
 			m := open(t, prSpec(f.load), tt.opts...)
-			m, _ = press(t, m, down, down, down, enter)
+			m, _ = press(t, m, down, down, down, space)
 			lines := m.editorLines(m.width)
 			var got []string
 			for _, l := range lines {
@@ -428,7 +426,7 @@ func TestPersonSearchErrorText(t *testing.T) {
 		},
 	}}}
 	m := open(t, spec, WithErrorText(func(error) (string, string) { return "Can't reach GitHub", "↵ to retry" }))
-	m, _ = press(t, m, enter)
+	m, _ = press(t, m, space)
 	m = typeText(t, m, "hu")
 	v := ansi.Strip(m.View())
 	if !strings.Contains(v, "✗ Can't reach GitHub") || strings.Contains(v, "to retry") || strings.Contains(v, "502") {
@@ -450,7 +448,7 @@ func TestPersonSearch(t *testing.T) {
 		},
 	}}}
 	m := open(t, spec)
-	m, _ = press(t, m, enter)
+	m, _ = press(t, m, space)
 	m = typeText(t, m, "hu")
 	m, _ = press(t, m, enter)
 	if got := m.Query(); got != "assignee:hubot" {
@@ -468,11 +466,13 @@ func TestApplyAndCancel(t *testing.T) {
 		want tea.Msg
 	}{
 		{name: "enter on a choice applies", keys: []tea.Msg{right, enter}},
-		{name: "enter on the query line applies", keys: []tea.Msg{right, up, enter}},
+		{name: "enter on the query line applies", keys: []tea.Msg{right, keyBigG, enter}},
 		{name: "enter on a toggle applies", keys: []tea.Msg{right, down, down, down, down, enter}},
 		{name: "esc cancels", keys: []tea.Msg{right, esc}, want: CancelMsg{}},
-		{name: "esc on the query line cancels", keys: []tea.Msg{right, up, esc}, want: CancelMsg{}},
-		{name: "esc closes the editor first", keys: []tea.Msg{right, down, down, down, enter, esc, esc}, want: CancelMsg{}},
+		{name: "q cancels", keys: []tea.Msg{right, keyQ}, want: CancelMsg{}},
+		{name: "esc on the query line cancels", keys: []tea.Msg{right, keyBigG, esc}, want: CancelMsg{}},
+		{name: "esc closes the picker first", keys: []tea.Msg{right, down, down, down, space, esc, esc}, want: CancelMsg{}},
+		{name: "esc leaves insert first", keys: []tea.Msg{right, keyBigG, keyA, esc, esc}, want: CancelMsg{}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -502,22 +502,319 @@ func TestApplyAndCancel(t *testing.T) {
 	}
 }
 
-// Enter on a Multi, Person or Text row opens its editor rather than
-// applying.
-func TestEnterOpensEditors(t *testing.T) {
-	for _, row := range []int{rowAuthor, rowLabels, rowBase} {
+// Enter applies from every kind of row and from the query line, on either
+// tab, and no row opens an editor with it.
+func TestEnterAppliesFromEveryRow(t *testing.T) {
+	tests := []struct {
+		name string
+		tab  Tab
+		row  int
+	}{
+		{name: "choice", row: rowState},
+		{name: "person", row: rowAuthor},
+		{name: "choice with a whole token", row: rowReview},
+		{name: "multi", row: rowLabels},
+		{name: "toggle", row: rowDrafts},
+		{name: "text", row: rowBase},
+		{name: "query", row: rowQuery},
+		{name: "sort by", tab: SortTab, row: sortByRow},
+		{name: "order", tab: SortTab, row: sortOrderRow},
+		{name: "sort query", tab: SortTab, row: sortRows},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := open(t, prSpec(nil), WithTab(tt.tab))
+			m, _ = press(t, m, keys(down, tt.row)...)
+			if m.row != tt.row {
+				t.Fatalf("row = %d, want %d", m.row, tt.row)
+			}
+			m, sent := press(t, m, enter)
+			if len(sent) != 1 || m.mode != rowsMode {
+				t.Fatalf("sent %v, mode %v; want one AppliedMsg and the rows", sent, m.mode)
+			}
+			if a, ok := sent[0].(AppliedMsg); !ok || a.ID != m.ID() || a.Query != prDefaults {
+				t.Errorf("sent %+v, want this form's AppliedMsg of the defaults", sent[0])
+			}
+		})
+	}
+}
+
+// Space opens the picker of a Multi and a Person, and does nothing on a
+// choice, a text, the sort or the query line.
+func TestSpaceOpensMultiAndPerson(t *testing.T) {
+	tests := []struct {
+		name string
+		tab  Tab
+		row  int
+		open bool
+	}{
+		{name: "person", row: rowAuthor, open: true},
+		{name: "multi", row: rowLabels, open: true},
+		{name: "choice", row: rowState},
+		{name: "text", row: rowBase},
+		{name: "query", row: rowQuery},
+		{name: "sort by", tab: SortTab, row: sortByRow},
+		{name: "order", tab: SortTab, row: sortOrderRow},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := open(t, prSpec(nil), WithTab(tt.tab))
+			m, _ = press(t, m, keys(down, tt.row)...)
+			m, sent := press(t, m, space)
+			if len(sent) > 0 || (m.mode == pickMode) != tt.open || m.Capturing() != tt.open {
+				t.Errorf("sent %v, mode %v; want a picker open: %v", sent, m.mode, tt.open)
+			}
+			if m.picking != tt.open {
+				t.Errorf("picking = %v, want %v", m.picking, tt.open)
+			}
+			if m.Query() != prDefaults {
+				t.Errorf("Query = %q, want the defaults", m.Query())
+			}
+		})
+	}
+}
+
+// j and k move between the rows and the query line, and stop at the ends;
+// g and G jump to the first row and the query line.
+func TestRowsMoveWithJK(t *testing.T) {
+	m := open(t, prSpec(nil))
+	moves := []struct {
+		key  tea.Msg
+		want int
+	}{
+		{keyK, rowState},
+		{up, rowState},
+		{keyJ, rowAuthor},
+		{down, rowReview},
+		{keyBigG, rowQuery},
+		{keyJ, rowQuery},
+		{down, rowQuery},
+		{keyK, rowBase},
+		{keyG, rowState},
+		{keyK, rowState},
+		{tea.KeyPressMsg{Code: tea.KeyEnd}, rowQuery},
+		{tea.KeyPressMsg{Code: tea.KeyHome}, rowState},
+	}
+	for _, mv := range moves {
+		m, _ = press(t, m, mv.key)
+		if m.row != mv.want {
+			t.Fatalf("after %v: row = %d, want %d", mv.key, m.row, mv.want)
+		}
+	}
+	// The sort tab has two rows, then the query line.
+	m, _ = press(t, m, nextTab, keyJ, keyJ, keyJ)
+	if m.row != sortRows {
+		t.Errorf("sort tab: row = %d, want the query line, %d", m.row, sortRows)
+	}
+	if m.Capturing() {
+		t.Error("the query line captures keys outside insert mode")
+	}
+	m, _ = press(t, m, keyG)
+	if m.row != sortByRow {
+		t.Errorf("sort tab: g went to row %d, want %d", m.row, sortByRow)
+	}
+}
+
+// h and l change a choice, a toggle, what is sorted by and the order, and
+// do nothing on the other rows.
+func TestPrevNextChange(t *testing.T) {
+	tests := []struct {
+		name string
+		tab  Tab
+		row  int
+		keys []tea.Msg
+		want string
+	}{
+		{name: "choice", row: rowState, keys: []tea.Msg{keyL}, want: strings.Replace(prDefaults, "is:open", "is:closed", 1)},
+		{name: "choice back", row: rowState, keys: []tea.Msg{keyL, keyH}, want: prDefaults},
+		{name: "choice wraps", row: rowState, keys: []tea.Msg{keyH}, want: strings.Replace(prDefaults, "is:open ", "", 1)},
+		{name: "toggle", row: rowDrafts, keys: []tea.Msg{keyL}, want: strings.Replace(prDefaults, " base:main", " -is:draft base:main", 1)},
+		{name: "toggle flips back", row: rowDrafts, keys: []tea.Msg{keyH, keyL}, want: prDefaults},
+		{name: "sort by", tab: SortTab, row: sortByRow, keys: []tea.Msg{keyL}, want: strings.Replace(prDefaults, "updated", "created", 1)},
+		{name: "order", tab: SortTab, row: sortOrderRow, keys: []tea.Msg{keyH}, want: strings.Replace(prDefaults, "desc", "asc", 1)},
+		{name: "person", row: rowAuthor, keys: []tea.Msg{keyL, keyH, left, right}, want: prDefaults},
+		{name: "multi", row: rowLabels, keys: []tea.Msg{keyL, keyH, left, right}, want: prDefaults},
+		{name: "text", row: rowBase, keys: []tea.Msg{keyL, keyH, left, right}, want: prDefaults},
+		{name: "query", row: rowQuery, keys: []tea.Msg{keyL, keyH, left, right}, want: prDefaults},
+		{name: "sort query", tab: SortTab, row: sortRows, keys: []tea.Msg{keyL, keyH}, want: prDefaults},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := open(t, prSpec(nil), WithTab(tt.tab))
+			m, _ = press(t, m, keys(down, tt.row)...)
+			m, sent := press(t, m, tt.keys...)
+			if len(sent) > 0 || m.mode != rowsMode {
+				t.Errorf("sent %v, mode %v; want nothing and the rows", sent, m.mode)
+			}
+			if got := m.Query(); got != tt.want {
+				t.Errorf("Query = %q, want %q", got, tt.want)
+			}
+		})
+	}
+	// A choice with no options has nothing to change.
+	spec := Spec{Fields: []Field{{Key: "wf", Label: "Workflow", Kind: Choice, Qualifier: "workflow"}}}
+	m := open(t, spec)
+	m, _ = press(t, m, keyL, keyH, left, right)
+	if got := m.Query(); got != "" {
+		t.Errorf("Query = %q, want none", got)
+	}
+}
+
+// i starts typing with the cursor at the start and a at the end, in a text
+// field and on the query line, and the help line says INSERT.
+func TestInsertAndAppend(t *testing.T) {
+	tests := []struct {
+		name  string
+		row   int
+		start tea.Msg
+		want  int
+	}{
+		{name: "i in a field", row: rowBase, start: keyI, want: 0},
+		{name: "a in a field", row: rowBase, start: keyA, want: len("main")},
+		{name: "i on the query", row: rowQuery, start: keyI, want: 0},
+		{name: "a on the query", row: rowQuery, start: keyA, want: len(prDefaults)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := open(t, prSpec(nil), WithSize(100, 20))
+			m, _ = press(t, m, keys(down, tt.row)...)
+			if strings.Contains(ansi.Strip(m.View()), "INSERT") {
+				t.Fatal("INSERT shows before insert mode")
+			}
+			m, _ = press(t, m, tt.start)
+			if m.mode != insertMode || !m.Capturing() {
+				t.Fatalf("mode = %v, capturing = %v; want insert mode", m.mode, m.Capturing())
+			}
+			pos := m.text.Position()
+			if tt.row == rowQuery {
+				pos = m.query.Position()
+			}
+			if pos != tt.want {
+				t.Errorf("cursor at %d, want %d", pos, tt.want)
+			}
+			m = typeText(t, m, "xy")
+			v := ansi.Strip(m.View())
+			if !strings.Contains(v, "INSERT") {
+				t.Errorf("the view doesn't say INSERT:\n%s", v)
+			}
+			if tt.row == rowBase {
+				want := "xymain"
+				if tt.start == keyA {
+					want = "mainxy"
+				}
+				if got, _ := m.Value("base"); got.Text() != want {
+					t.Errorf("base = %q, want %q", got.Text(), want)
+				}
+			}
+		})
+	}
+	// Elsewhere they do nothing.
+	for _, row := range []int{rowState, rowAuthor, rowLabels, rowDrafts} {
 		m := open(t, prSpec(nil))
 		m, _ = press(t, m, keys(down, row)...)
-		m, sent := press(t, m, enter)
-		if len(sent) > 0 || !m.editing || !m.Capturing() {
-			t.Errorf("row %d: sent %v, editing %v; want an open editor", row, sent, m.editing)
+		m, _ = press(t, m, keyI, keyA)
+		if m.mode != rowsMode || m.Query() != prDefaults {
+			t.Errorf("row %d: mode %v, query %q; want the rows and the defaults", row, m.mode, m.Query())
 		}
+	}
+}
+
+// Esc leaves insert mode and keeps the text, trimmed in a field, in a
+// field and on the query line.
+func TestEscLeavesInsertKeepingText(t *testing.T) {
+	m := open(t, prSpec(nil))
+	m, _ = press(t, m, keys(down, rowBase)...)
+	m, _ = press(t, m, keyA)
+	m = typeText(t, m, "-x  ")
+	m, sent := press(t, m, esc)
+	if len(sent) > 0 || m.mode != rowsMode || m.Capturing() {
+		t.Fatalf("sent %v, mode %v; want the rows and nothing sent", sent, m.mode)
+	}
+	if v, _ := m.Value("base"); v.Text() != "main-x" {
+		t.Errorf("base = %q, want the text kept and trimmed", v.Text())
+	}
+	m, _ = press(t, m, keyBigG, keyA)
+	m = typeText(t, m, " fix")
+	m, sent = press(t, m, esc)
+	if len(sent) > 0 || m.mode != rowsMode {
+		t.Fatalf("sent %v, mode %v; want the rows and nothing sent", sent, m.mode)
+	}
+	if got, want := m.Query(), strings.Replace(prDefaults, "base:main", "base:main-x", 1)+" fix"; got != want {
+		t.Errorf("Query = %q, want %q", got, want)
+	}
+	if got := m.query.Value(); got != m.Query() {
+		t.Errorf("query line = %q, want it to follow the fields", got)
+	}
+}
+
+// Enter in insert mode applies, from a field and from the query line, with
+// the text kept.
+func TestEnterInInsertApplies(t *testing.T) {
+	for _, row := range []int{rowBase, rowQuery} {
+		m := open(t, prSpec(nil))
+		m, _ = press(t, m, keys(down, row)...)
+		m, _ = press(t, m, keyA)
+		m = typeText(t, m, " fix")
+		m, sent := press(t, m, enter)
+		if len(sent) != 1 || m.mode != rowsMode {
+			t.Fatalf("row %d: sent %v, mode %v; want one AppliedMsg", row, sent, m.mode)
+		}
+		a, ok := sent[0].(AppliedMsg)
+		if !ok || a.ID != m.ID() {
+			t.Fatalf("row %d: sent %+v, want this form's AppliedMsg", row, sent[0])
+		}
+		want := prDefaults + " fix"
+		if row == rowBase {
+			want = strings.Replace(prDefaults, "base:main", `base:"main fix"`, 1)
+		}
+		if a.Query != want {
+			t.Errorf("row %d: applied %q, want %q", row, a.Query, want)
+		}
+	}
+}
+
+// Outside insert mode a letter moves or acts and never types, on the query
+// row too.
+func TestLettersDontTypeOnTheQueryRow(t *testing.T) {
+	m := open(t, prSpec(nil))
+	m, _ = press(t, m, keyBigG)
+	before := m.query.Value()
+	m, sent := press(t, m, keyJ, keyX, keyR, keyF)
+	if len(sent) > 0 || m.row != rowQuery || m.query.Value() != before || m.Query() != prDefaults {
+		t.Errorf("sent %v, row %d, query line %q; want no move, no typing", sent, m.row, m.query.Value())
+	}
+	m, _ = press(t, m, keyK)
+	if m.row != rowBase || m.query.Value() != before {
+		t.Errorf("row = %d, query line %q; want k to move up and type nothing", m.row, m.query.Value())
+	}
+}
+
+// q closes from the rows, and is typed in insert mode and in a picker.
+func TestQuitCloses(t *testing.T) {
+	m := open(t, prSpec(nil))
+	_, sent := press(t, m, keyQ)
+	if len(sent) != 1 || sent[0] != (CancelMsg{ID: m.ID()}) {
+		t.Fatalf("sent %v, want a CancelMsg", sent)
+	}
+	m, _ = press(t, m, keys(down, rowBase)...)
+	m, sent = press(t, m, keyA, keyQ)
+	if len(sent) > 0 {
+		t.Fatalf("sent %v, want q typed in insert mode", sent)
+	}
+	if v, _ := m.Value("base"); v.Text() != "mainq" {
+		t.Errorf("base = %q, want q typed", v.Text())
+	}
+	p := open(t, prSpec(nil))
+	p, _ = press(t, p, down, space)
+	p, sent = press(t, p, keyQ)
+	if len(sent) > 0 || p.pick.Query().Text != "q" {
+		t.Errorf("sent %v, picker query %q; want q typed in the picker", sent, p.pick.Query().Text)
 	}
 }
 
 func TestCapturing(t *testing.T) {
 	m := New(prSpec(nil))
-	m, _ = press(t, m, up)
+	m, _ = press(t, m, down)
 	if m.Capturing() || m.row != rowState {
 		t.Error("a blurred form took a key")
 	}
@@ -525,25 +822,63 @@ func TestCapturing(t *testing.T) {
 	if m.Capturing() {
 		t.Error("a form on a choice row captures keys")
 	}
-	m, _ = press(t, m, up)
+	m, _ = press(t, m, keyBigG)
+	if m.Capturing() {
+		t.Error("the query line captures keys outside insert mode")
+	}
+	m, _ = press(t, m, keyI)
 	if !m.Capturing() {
-		t.Error("the query line doesn't capture keys")
+		t.Error("insert mode doesn't capture keys")
 	}
 	m.Blur()
-	if m.Capturing() {
+	if m.Capturing() || m.mode != rowsMode {
 		t.Error("a blurred form captures keys")
+	}
+	m.Focus()
+	m, _ = press(t, m, keyG, down, space)
+	if !m.Capturing() {
+		t.Error("an open picker doesn't capture keys")
+	}
+}
+
+// A paste is typed in insert mode and ignored in the rows.
+func TestPasteOnlyInInsert(t *testing.T) {
+	m := open(t, prSpec(nil))
+	m, _ = press(t, m, keys(down, rowBase)...)
+	m, _ = press(t, m, tea.PasteMsg{Content: "zzz"})
+	if v, _ := m.Value("base"); v.Text() != "main" {
+		t.Errorf("base = %q, want the paste ignored in the rows", v.Text())
+	}
+	m, _ = press(t, m, keyA, tea.PasteMsg{Content: "zzz"})
+	if v, _ := m.Value("base"); v.Text() != "mainzzz" {
+		t.Errorf("base = %q, want the paste typed", v.Text())
 	}
 }
 
 func TestSetQueryClosesEditor(t *testing.T) {
 	m := open(t, prSpec(nil))
-	m, _ = press(t, m, down, down, down, enter)
+	m, _ = press(t, m, down, down, down, space)
 	m.SetQuery("is:closed")
-	if m.editing || m.picking {
-		t.Error("SetQuery left the editor open")
+	if m.mode != rowsMode || m.picking {
+		t.Error("SetQuery left the picker open")
 	}
 	if got := m.query.Value(); got != "is:closed sort:updated-desc" {
 		t.Errorf("query line = %q", got)
+	}
+	m, _ = press(t, m, keyBigG, keyA)
+	m.SetQuery("is:open")
+	if m.mode != rowsMode || m.Capturing() {
+		t.Error("SetQuery left insert mode")
+	}
+	m, _ = press(t, m, keyI)
+	m.Reset()
+	if m.mode != rowsMode {
+		t.Error("Reset left insert mode")
+	}
+	m, _ = press(t, m, keyI)
+	m.SetTab(SortTab)
+	if m.mode != rowsMode {
+		t.Error("SetTab left insert mode")
 	}
 }
 
@@ -551,9 +886,9 @@ func TestSetQueryClosesEditor(t *testing.T) {
 func TestCopiesAreIndependent(t *testing.T) {
 	m := open(t, prSpec(nil))
 	m, _ = press(t, m, down, down, down)
-	c, _ := press(t, m, left, del)
-	if m.fields[rowLabels].chip != 2 || m.Query() != prDefaults {
-		t.Errorf("the original changed: chip %d, query %q", m.fields[rowLabels].chip, m.Query())
+	c, _ := press(t, m, del)
+	if m.Query() != prDefaults {
+		t.Errorf("the original changed: query %q", m.Query())
 	}
 	if c.Query() == prDefaults {
 		t.Error("the copy didn't change")

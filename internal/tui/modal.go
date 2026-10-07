@@ -195,6 +195,18 @@ func (m *Model) modalSize() (width, height int) {
 	return max(w-4, 0), max(h-2, 0)
 }
 
+// fitModal sizes the open modal again if what it asks for has changed,
+// such as a filter form that opens a picker and needs the room.
+func (m *Model) fitModal() {
+	if _, ok := m.modal.(ui.Fitter); !ok {
+		return
+	}
+	if w, h := m.modalSize(); w != m.modalWidth || h != m.modalHeight {
+		m.resized = true
+		m.sizeModal(w, h)
+	}
+}
+
 // minTitleWidth is the least of a long title that the tabs of a modal
 // leave in the top edge of its frame.
 const minTitleWidth = 16

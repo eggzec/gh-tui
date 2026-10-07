@@ -5,17 +5,24 @@ always
   help | ? | ? | off
 
 Picker (types)
-  previous field | up shift+tab | ↑ | off
-  field | down tab | ↑↓ | off
-  previous | left | ← | off
-  choose | right | ←→ | off
-  choose | space | space | on
-  edit | enter | ↵ | on
+  previous field | k up | k | off
+  next field | j down | j | off
+  first field | g home | g | off
+  query | G end | G | off
+  previous | h left | h | off
+  next | l right | l | off
+  toggle | space | space | on
+  insert | i | i | off
+  append | a | a | off
   clear | delete backspace | delete | off
-  apply | enter | ↵ | off
-  cancel | esc | esc | on
+  apply | enter | ↵ | on
+  close | esc | esc | on
+  close | q | q | off
+  retry | r | r | off
   next tab | ] | ] | off
   previous tab | [ | [ | off
+  apply | enter | ↵ | off
+  done | esc | esc | off
   up | up ctrl+p | ↑/ctrl+p | on
   down | down ctrl+n | ↓/ctrl+n | on
   page up | pgup | pgup | on

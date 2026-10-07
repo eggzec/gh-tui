@@ -18,10 +18,10 @@ type Spec struct {
 type Kind int
 
 const (
-	// Choice is one of the field's options, chosen with left and right.
+	// Choice is one of the field's options, changed in place.
 	Choice Kind = iota
-	// Multi is any number of options, shown as chips and chosen in a
-	// picker.
+	// Multi is any number of options, shown as a list of names and chosen
+	// in a picker.
 	Multi
 	// Toggle is on or off.
 	Toggle

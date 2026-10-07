@@ -306,6 +306,10 @@ func (m *Modal) pressJobs(msg tea.KeyPressMsg) tea.Cmd {
 
 // scrollJobs keeps the cursor of the jobs in view.
 func (m *Modal) scrollJobs() {
+	if f := m.filterStep; f != nil && f.form != nil {
+		// The modal is as small as the form until the filter closes.
+		return
+	}
 	j := &m.jobs
 	h := max(m.jobRows(), 1)
 	j.top = min(j.top, j.cursor)

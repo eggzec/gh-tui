@@ -65,15 +65,15 @@ func TestClearNeedsAnEmptyOption(t *testing.T) {
 	}
 }
 
-// The query line, a text editor and a picker take F as a letter.
+// Insert mode on the query line or a text, and a picker, take F as a letter.
 func TestFIsTypedWhereTyping(t *testing.T) {
 	tests := []struct {
 		name string
 		keys []tea.Msg
 	}{
-		{name: "query line", keys: keys(down, rowQuery)},
-		{name: "text editor", keys: append(keys(down, rowBase), enter)},
-		{name: "picker", keys: append(keys(down, rowAuthor), enter)},
+		{name: "query line", keys: append(keys(down, rowQuery), keyA)},
+		{name: "text editor", keys: append(keys(down, rowBase), keyA)},
+		{name: "picker", keys: append(keys(down, rowAuthor), space)},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -86,7 +86,7 @@ func TestFIsTypedWhereTyping(t *testing.T) {
 					t.Errorf("query line = %q, want F typed at the end", got)
 				}
 			case "text editor":
-				if got := m.text.Value(); got != "mainF" && got != "F" {
+				if got := m.text.Value(); got != "F" {
 					t.Errorf("text = %q, want F typed", got)
 				}
 			case "picker":

@@ -234,13 +234,13 @@ func TestProgramSwitchesTabsAndFilters(t *testing.T) {
 	wait("Retry GraphQL requests")
 
 	// ] shows the merged tab two tabs on, and the query line, above the
-	// first row, takes an author.
+	// first row, takes an author once insert mode starts.
 	tm.Type("]]f")
 	waitModal("opened")
 	// Reading the output up to the form drops the rows of the merged tab
 	// drawn before it, which the filtered list has too.
 	wait("Assignee")
-	tm.Send(tea.KeyPressMsg{Code: tea.KeyUp})
+	tm.Type("Ga")
 	tm.Type(" author:hubot")
 	tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
 	select {
@@ -291,7 +291,7 @@ func TestProgramSorts(t *testing.T) {
 	// down and right flip its order.
 	tm.Type("s")
 	waitModal("opened")
-	wait("Oldest first")
+	wait("Newest first")
 	tm.Send(tea.KeyPressMsg{Code: tea.KeyRight})
 	tm.Send(tea.KeyPressMsg{Code: tea.KeyDown})
 	tm.Send(tea.KeyPressMsg{Code: tea.KeyRight})

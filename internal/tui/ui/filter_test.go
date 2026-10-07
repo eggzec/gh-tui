@@ -43,10 +43,10 @@ func TestFilterModalIgnoresOtherForms(t *testing.T) {
 	if msg, ok := cmd().(CloseModalMsg); !ok || msg.Modal != m {
 		t.Errorf("cancel = %#v, want the modal closed", cmd())
 	}
-	if w, h := m.Fit(300, 300); w != filterWidth || h != 1+filterSpare {
-		t.Errorf("Fit = %dx%d, want %dx%d", w, h, filterWidth, 1+filterSpare)
+	if w, h := m.Fit(300, 300); w != FilterWidth || h != 4 {
+		t.Errorf("Fit = %dx%d, want %dx%d", w, h, FilterWidth, 4)
 	}
-	if w, h := m.Fit(40, 5); w != 40 || h != 5 {
+	if w, h := m.Fit(40, 3); w != 40 || h != 3 {
 		t.Errorf("Fit in a small screen = %dx%d, want all of it", w, h)
 	}
 }
@@ -59,7 +59,7 @@ func TestFilterModalErrorWords(t *testing.T) {
 		err  error
 		want []string
 	}{
-		{"offline", fmt.Errorf("list labels: github: GET /repos/o/r/labels: %w", core.ErrOffline), []string{"✗ Can't reach GitHub", "↵ to retry · esc to go back"}},
+		{"offline", fmt.Errorf("list labels: github: GET /repos/o/r/labels: %w", core.ErrOffline), []string{"✗ Can't reach GitHub", "r to retry · esc to go back"}},
 		{"forbidden", fmt.Errorf("list labels: github: 403 Forbidden: %w", core.ErrForbidden), []string{"✗ You don't have access to eggzec/x", "esc to go back"}},
 	}
 	for _, tt := range tests {
@@ -68,7 +68,7 @@ func TestFilterModalErrorWords(t *testing.T) {
 			spec := filterform.Spec{Fields: []filterform.Field{{Key: "labels", Label: "Labels", Kind: filterform.Multi, Qualifier: "label", Load: load}}}
 			m := NewFilterModal(t.Context(), "Issues", &fakeFilterable{}, Filter{Spec: spec, Subject: "eggzec/x"}, WithFormVoice(NewVoice(config.Default().Keys, "")))
 			m.SetSize(80, 10)
-			cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+			cmd := m.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 			for _, msg := range drain(cmd) {
 				m.Update(msg)
 			}
@@ -111,7 +111,7 @@ func TestFilterModalASCII(t *testing.T) {
 		if got, want := m.Title(), "Filter - Issues - eggzec/x"; got != want {
 			t.Errorf("%s: title = %q, want %q", name, got, want)
 		}
-		cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+		cmd := m.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 		if name == "failed" {
 			for _, msg := range drain(cmd) {
 				m.Update(msg)
@@ -121,7 +121,7 @@ func TestFilterModalASCII(t *testing.T) {
 		if strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
 			t.Errorf("%s: view isn't ASCII:\n%s", name, v)
 		}
-		if name == "failed" && !strings.Contains(v, "enter to retry - esc to go back") {
+		if name == "failed" && !strings.Contains(v, "r to retry - esc to go back") {
 			t.Errorf("%s: view doesn't name the keys in words:\n%s", name, v)
 		}
 	}
@@ -197,10 +197,47 @@ func TestFilterModalTabs(t *testing.T) {
 			if tt.sort != nil {
 				rows = sortRows
 			}
-			if _, h := m.Fit(300, 300); h != rows+filterSpare {
-				t.Errorf("Fit height = %d, want %d", h, rows+filterSpare)
+			if _, h := m.Fit(300, 300); h != rows+filterBelow+1 {
+				t.Errorf("Fit height = %d, want %d", h, rows+filterBelow+1)
 			}
 		})
+	}
+}
+
+// The modal is as tall as its rows and what the form shows under them.
+func TestFilterModalFit(t *testing.T) {
+	for _, n := range []int{1, 4, 5, 9, 10, 20} {
+		fields := make([]filterform.Field, n)
+		for i := range fields {
+			fields[i] = filterform.Field{Key: fmt.Sprint("f", i), Label: "Field", Kind: filterform.Text, Qualifier: fmt.Sprint("q", i)}
+		}
+		m := NewFilterModal(t.Context(), "Issues", &fakeFilterable{}, Filter{Spec: filterform.Spec{Fields: fields}})
+		want := n + filterBelow + 1
+		if _, h := m.Fit(300, 300); h != want {
+			t.Errorf("%d rows: Fit height = %d, want %d", n, h, want)
+		}
+		if _, h := m.Fit(300, 8); h != min(8, want) {
+			t.Errorf("%d rows: Fit height = %d in a short screen, want %d", n, h, min(8, want))
+		}
+	}
+}
+
+// The form shows its own help line, so the modal gives the footer no short
+// keys, and the layer still holds every key for the help.
+func TestFilterModalKeyLayers(t *testing.T) {
+	spec := filterform.Spec{Fields: []filterform.Field{{Key: "base", Label: "Base", Kind: filterform.Text, Qualifier: "base"}}}
+	m := NewFilterModal(t.Context(), "Issues", &fakeFilterable{}, Filter{Spec: spec})
+	m.SetSize(80, 13)
+	layers := m.KeyLayers()
+	if len(layers) != 1 || len(layers[0].Short) != 0 || len(layers[0].Bindings) == 0 || layers[0].Typing {
+		t.Fatalf("layers = %+v, want one with keys, no short help and no typing", layers)
+	}
+	if !strings.Contains(ansi.Strip(m.View()), "esc close") {
+		t.Errorf("View() = %q, want the form's own help line", ansi.Strip(m.View()))
+	}
+	m.Update(tea.KeyPressMsg{Code: 'i', Text: "i"})
+	if layers := m.KeyLayers(); !layers[0].Typing || len(layers[0].Short) != 0 {
+		t.Errorf("layer in insert mode = %+v, want typing and no short help", layers[0])
 	}
 }
 
@@ -233,5 +270,180 @@ func TestWithout(t *testing.T) {
 	drop := func(tok filterform.Token) bool { return tok.Qualifier == "is" && tok.Value == "open" }
 	if got := Without(`is:open label:"good first issue" is:draft`, drop); got != `label:"good first issue" is:draft` {
 		t.Errorf("Without = %q, want the rest as written", got)
+	}
+}
+
+// labelsSpec is a form of one row of each kind, whose labels load nine
+// options, and that sorts.
+func labelsSpec() filterform.Spec {
+	load := func(context.Context, string) ([]filterform.Item, error) {
+		items := make([]filterform.Item, 9)
+		for i := range items {
+			items[i] = filterform.Item{Label: fmt.Sprint("label-", i), Value: fmt.Sprint("label-", i)}
+		}
+		return items, nil
+	}
+	return filterform.Spec{
+		Fields: []filterform.Field{
+			{Key: "state", Label: "State", Kind: filterform.Choice, Qualifier: "is", Options: []filterform.Item{{Label: "Open", Value: "open"}, {Label: "Closed", Value: "closed"}}},
+			{Key: "author", Label: "Author", Kind: filterform.Person, Qualifier: "author", Options: []filterform.Item{{Label: "@me", Value: "@me"}, {Label: "octocat", Value: "octocat"}}},
+			{Key: "labels", Label: "Labels", Kind: filterform.Multi, Qualifier: "label", Load: load},
+			{Key: "drafts", Label: "Drafts", Kind: filterform.Toggle, Qualifier: "-is:draft", Hint: "hide drafts"},
+			{Key: "base", Label: "Base", Kind: filterform.Text, Qualifier: "base", Hint: "any branch"},
+		},
+		Sort: &filterform.SortField{Options: []filterform.SortOption{{Label: "Updated", Value: "updated"}, {Label: "Created", Value: "created"}}},
+	}
+}
+
+// keyOf returns the press of the key named by one character.
+func keyOf(s string) tea.Msg {
+	if s == "space" {
+		return tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}
+	}
+	if s == "down" {
+		return tea.KeyPressMsg{Code: tea.KeyDown}
+	}
+	if s == "enter" {
+		return tea.KeyPressMsg{Code: tea.KeyEnter}
+	}
+	if s == "esc" {
+		return tea.KeyPressMsg{Code: tea.KeyEscape}
+	}
+	return tea.KeyPressMsg{Code: rune(s[0]), Text: s}
+}
+
+// send gives the modal the keys, and what the commands they start send.
+func send(m *FilterModal, keys ...string) {
+	for _, k := range keys {
+		for _, msg := range drain(m.Update(keyOf(k))) {
+			m.Update(msg)
+		}
+	}
+}
+
+// With the ASCII icons the help line of the form, in every mode, names its
+// keys in words and cuts with the ASCII ellipsis.
+func TestFilterModalHelpASCII(t *testing.T) {
+	ic := NewIcons(config.IconsASCII)
+	p, _ := config.Default().Palette(true)
+	steps := []struct {
+		name string
+		keys []string
+		want string
+	}{
+		{"choice", nil, "h/l change"},
+		{"person list", []string{"j"}, "space list"},
+		{"person picker", []string{"space"}, "up/down move"},
+		{"labels picker", []string{"esc", "j", "space"}, "up/down move"},
+		{"toggle", []string{"esc", "j"}, "space toggle"},
+		{"text", []string{"j"}, "i insert"},
+		{"insert", []string{"i"}, "INSERT"},
+		{"sort tab", []string{"esc", "]"}, "enter apply"},
+	}
+	for _, width := range []int{100, 40} {
+		m := NewFilterModal(t.Context(), "Issues", &fakeFilterable{}, Filter{Spec: labelsSpec(), Subject: "o/r"}, WithFormIcons(ic))
+		m.SetTheme(NewTheme(p, true))
+		m.SetSize(width, 24)
+		for _, st := range steps {
+			send(m, st.keys...)
+			v := ansi.Strip(m.View())
+			if bad := nonASCII(v); bad != "" {
+				t.Errorf("%d wide, %s: the view draws %q:\n%s", width, st.name, bad, v)
+			}
+			lines := strings.Split(v, "\n")
+			help := lines[len(lines)-1]
+			if width == 100 && !strings.Contains(help, st.want) {
+				t.Errorf("%s: the help line is %q, want %q in it", st.name, help, st.want)
+			}
+		}
+	}
+}
+
+// nonASCII returns the runes of s that aren't ASCII.
+func nonASCII(s string) string {
+	var out []rune
+	for _, r := range s {
+		if r > unicode.MaxASCII {
+			out = append(out, r)
+		}
+	}
+	return string(out)
+}
+
+// An open picker gets the room it needs: the modal grows by its height,
+// enough for every label, and the rows above it stay in view.
+func TestFilterModalGrowsForThePicker(t *testing.T) {
+	m := NewFilterModal(t.Context(), "Issues", &fakeFilterable{}, Filter{Spec: labelsSpec(), Subject: "o/r"})
+	p, _ := config.Default().Palette(true)
+	m.SetTheme(NewTheme(p, true))
+	_, closed := m.Fit(120, 30)
+	send(m, "j", "j", "space")
+	_, open := m.Fit(120, 30)
+	// The rows, the rule, the query and the help line, and the picker with
+	// its prompt and status lines and all nine labels.
+	if want := 5 + filterBelow + 1 + 9 + 2; open != want {
+		t.Errorf("Fit with the picker open = %d, want %d (%d closed)", open, want, closed)
+	}
+	m.SetSize(100, open)
+	v := ansi.Strip(m.View())
+	for _, want := range []string{"State", "Author", "label-0", "label-8"} {
+		if !strings.Contains(v, want) {
+			t.Errorf("the view lacks %q:\n%s", want, v)
+		}
+	}
+	send(m, "esc")
+	if _, h := m.Fit(120, 30); h != closed {
+		t.Errorf("Fit after the picker closes = %d, want %d", h, closed)
+	}
+}
+
+// space in a Person's list marks the person it chose, as a Labels list
+// marks what it checked.
+func TestFilterModalMarksThePerson(t *testing.T) {
+	m := NewFilterModal(t.Context(), "Issues", &fakeFilterable{}, Filter{Spec: labelsSpec(), Subject: "o/r"})
+	m.SetSize(100, 24)
+	send(m, "j", "space", "down", "space")
+	v := ansi.Strip(m.View())
+	if !strings.Contains(v, "✓ octocat") || strings.Contains(v, "✓ @me") {
+		t.Errorf("the list doesn't mark octocat alone:\n%s", v)
+	}
+}
+
+// A search in a Person's list marks the person chosen now, not the one
+// chosen when the search began.
+func TestFilterModalMarksThePersonInSearchResults(t *testing.T) {
+	people := []filterform.Item{{Label: "mona", Value: "mona"}, {Label: "octomona", Value: "octomona"}}
+	spec := filterform.Spec{Fields: []filterform.Field{{
+		Key: "author", Label: "Author", Kind: filterform.Person, Qualifier: "author", Options: people,
+		Load: func(context.Context, string) ([]filterform.Item, error) { return people, nil },
+	}}}
+	m := NewFilterModal(t.Context(), "Issues", &fakeFilterable{}, Filter{Spec: spec, Subject: "o/r"})
+	m.SetSize(100, 24)
+	send(m, "space", "down", "space", "m", "o", "n", "a")
+	v := ansi.Strip(m.View())
+	if !strings.Contains(v, "✓ octomona") || strings.Contains(v, "✓ mona") {
+		t.Errorf("the results don't mark octomona alone:\n%s", v)
+	}
+}
+
+// The query takes one line when it fits and a second when it wraps, and the
+// modal is as tall.
+func TestFilterModalFitsTheQuery(t *testing.T) {
+	height := func(query string) int {
+		m := NewFilterModal(t.Context(), "Issues", &fakeFilterable{}, Filter{Spec: labelsSpec(), Query: query})
+		_, h := m.Fit(300, 300)
+		return h
+	}
+	short := height("is:open")
+	if want := 5 + filterBelow + 1; short != want {
+		t.Errorf("a short query: Fit height = %d, want %d", short, want)
+	}
+	words := make([]string, 30)
+	for i := range words {
+		words[i] = fmt.Sprint("word", i)
+	}
+	long := height("is:open " + strings.Join(words, " "))
+	if long != short+1 {
+		t.Errorf("a wrapping query: Fit height = %d, want %d", long, short+1)
 	}
 }

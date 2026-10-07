@@ -235,8 +235,15 @@ func (t Theme) FilterForm(ic Icons) filterform.Styles {
 	s.SpinnerFrames = ic.SpinnerOr(spinner.Dot)
 	s.ErrorGlyph = ic.Error
 	s.ErrorSeparator, s.ErrorEllipsis = ic.Separator, ic.Ellipsis
+	// A field that opens a list shows the mark of an open fold, but "-" is
+	// no arrow, so the ASCII set draws it as the letter that points down.
+	drop := ic.Unfolded
+	if ic.Border == lipgloss.ASCIIBorder() {
+		drop = ic.Down
+	}
 	s.Glyphs = filterform.Glyphs{
-		Cursor: ic.Cursor, On: ic.Dot, Off: ic.Ring, Remove: ic.Remove, Drop: ic.Unfolded, Rule: ic.Border.Top,
+		Cursor: ic.Cursor, Edge: ic.InputEdge, Prev: ic.Before, Next: ic.Crumb,
+		Drop: drop, Rule: ic.Border.Top,
 		Chosen: ic.Yes, NotChosen: strings.TrimSpace(ic.Separator), Down: ic.Down, Up: ic.Up,
 		Separator: ic.Separator, Ellipsis: ic.Ellipsis,
 	}
@@ -250,10 +257,7 @@ func (t Theme) FilterForm(ic Icons) filterform.Styles {
 	s.Option = s.Option.Foreground(c(p.Subtle))
 	s.Selected = s.Selected.Foreground(c(p.Foreground))
 	s.Active = s.Active.Foreground(c(p.Accent))
-	s.Chip = s.Chip.Foreground(c(p.Foreground))
-	s.ActiveChip = s.ActiveChip.Foreground(c(p.Accent))
-	s.Remove = s.Remove.Foreground(c(p.Subtle))
-	s.Add = s.Add.Foreground(c(p.Subtle))
+	s.Mode = s.Mode.Foreground(c(p.Accent))
 	s.Value = s.Value.Foreground(c(p.Foreground))
 	s.Hint = s.Hint.Foreground(c(p.Subtle))
 	s.Rule = s.Rule.Foreground(c(p.Border))

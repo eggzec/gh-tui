@@ -22,7 +22,7 @@ func (m Model) CapturedBy() Capture {
 		return CaptureNone
 	case m.picking:
 		return CapturePicker
-	case m.editing:
+	case m.mode == insertMode && m.row != m.queryRow():
 		return CaptureEditor
 	}
 	return CaptureQuery

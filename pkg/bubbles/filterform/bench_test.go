@@ -59,12 +59,13 @@ func BenchmarkUpdate(b *testing.B) {
 		b.ReportAllocs()
 		for b.Loop() {
 			m, _ = m.Update(down)
+			m, _ = m.Update(up)
 		}
 	})
 	// Typing on the query line parses the query on every key.
 	b.Run("type query", func(b *testing.B) {
 		m := benchForm(b)
-		m, _ = m.Update(up)
+		m, _ = press(b, m, keyBigG, keyA)
 		a := tea.Msg(tea.KeyPressMsg{Code: 'a', Text: "a"})
 		b.ReportAllocs()
 		for b.Loop() {
@@ -89,7 +90,7 @@ func BenchmarkUpdate(b *testing.B) {
 	})
 	b.Run("toggle in picker", func(b *testing.B) {
 		m := benchForm(b)
-		m, _ = press(b, m, down, down, down, enter, down, down)
+		m, _ = press(b, m, down, down, down, space, down, down)
 		b.ReportAllocs()
 		for b.Loop() {
 			m, _ = m.Update(space)

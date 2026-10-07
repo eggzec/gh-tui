@@ -83,15 +83,24 @@ func (m *Modal) paneWidth(p pane) int {
 	return [numPanes]int{r, j, l}[p]
 }
 
-// layout sizes the bubbles to their panes.
+// layout sizes the bubbles to their panes, and keeps the row in focus of
+// the jobs in view.
 func (m *Modal) layout() {
+	if f := m.filterStep; f != nil && f.form != nil {
+		// The form is all that shows, in less room than the panes keep
+		// their size for.
+		f.form.SetSize(m.width, m.bodyHeight())
+		return
+	}
+	m.sizePanes()
+	m.scrollJobs()
+}
+
+// sizePanes sizes the runs and the log to their panes.
+func (m *Modal) sizePanes() {
 	h := m.bodyHeight()
 	m.runs.SetSize(m.paneWidth(runsPane), h)
 	m.log.SetSize(m.paneWidth(logPane), h)
-	if f := m.filterStep; f != nil && f.form != nil {
-		f.form.SetSize(m.width, h)
-	}
-	m.scrollJobs()
 }
 
 // paneLines renders the body of pane p, h lines of w cells.

@@ -13,21 +13,20 @@ import (
 
 // Marks of the form that are ASCII whatever the glyphs.
 const (
-	boxOn   = "[x]"
-	boxOff  = "[ ]"
-	addText = "+ add"
+	boxOn  = "[x]"
+	boxOff = "[ ]"
 )
 
 // Glyphs are what the form draws in the styles that hold them.
 type Glyphs struct {
-	// Cursor marks the field in focus in the gutter, cut or padded to one
-	// cell.
-	Cursor string
-	// On marks the chosen option of a choice, and Off the others.
-	On, Off string
-	// Remove follows a chip that a key removes, and Drop a field that
-	// opens a list. An empty Remove draws no mark after a chip.
-	Remove, Drop string
+	// Cursor marks the field in focus in the gutter, and Edge the field
+	// being typed in, each cut or padded to one cell.
+	Cursor, Edge string
+	// Prev and Next wrap the value of a choice in the row in focus, which
+	// h and l change.
+	Prev, Next string
+	// Drop follows a field that opens a list.
+	Drop string
 	// Rule draws the line over the query, one per cell.
 	Rule string
 	// Chosen and NotChosen start the options of a list of many, chosen
@@ -43,7 +42,7 @@ type Glyphs struct {
 // DefaultGlyphs returns the glyphs of a form in Unicode.
 func DefaultGlyphs() Glyphs {
 	return Glyphs{
-		Cursor: "▌", On: "●", Off: "○", Remove: "✕", Drop: "▾", Rule: "─",
+		Cursor: "▌", Edge: "┃", Prev: "‹", Next: "›", Drop: "▾", Rule: "─",
 		Chosen: "✓", NotChosen: "·", Down: "↓", Up: "↑", Separator: " · ", Ellipsis: "…",
 	}
 }
@@ -59,20 +58,15 @@ type Styles struct {
 	// focus.
 	Label        lipgloss.Style
 	FocusedLabel lipgloss.Style
-	// Option styles the choices not taken, Selected the one taken, and
-	// Active the one taken in the row in focus.
+	// Option styles the marks of a toggle that is off and of a field that
+	// opens a list, Selected the value of a choice, and Active the value of
+	// a choice, or a toggle that is on, in the row in focus.
 	Option   lipgloss.Style
 	Selected lipgloss.Style
 	Active   lipgloss.Style
-	// Chip styles an item of a Multi field, and ActiveChip the one under
-	// the cursor.
-	Chip       lipgloss.Style
-	ActiveChip lipgloss.Style
-	// Remove styles the ✕ after a chip.
-	Remove lipgloss.Style
-	// Add styles "+ add" at the end of the chips.
-	Add lipgloss.Style
-	// Value styles the text of a Text or Person field.
+	// Mode styles the INSERT mark of the help line.
+	Mode lipgloss.Style
+	// Value styles the text of a Text, Person or Multi field.
 	Value lipgloss.Style
 	// Hint styles the hint of an empty field and the placeholder of an
 	// empty query.
@@ -132,10 +126,7 @@ func DefaultStyles(isDark bool) Styles {
 		Option:         lipgloss.NewStyle().Foreground(subtle),
 		Selected:       lipgloss.NewStyle().Foreground(text),
 		Active:         lipgloss.NewStyle().Foreground(accent).Bold(true),
-		Chip:           lipgloss.NewStyle().Foreground(text),
-		ActiveChip:     lipgloss.NewStyle().Foreground(accent).Bold(true),
-		Remove:         lipgloss.NewStyle().Foreground(subtle),
-		Add:            lipgloss.NewStyle().Foreground(subtle),
+		Mode:           lipgloss.NewStyle().Foreground(accent).Bold(true),
 		Value:          lipgloss.NewStyle().Foreground(text),
 		Hint:           lipgloss.NewStyle().Foreground(subtle),
 		Rule:           lipgloss.NewStyle().Foreground(border),
@@ -164,8 +155,6 @@ func (m *Model) SetStyles(s Styles) {
 	if len(s.SpinnerFrames.Frames) > 0 {
 		m.spin.Spinner = s.SpinnerFrames
 	}
-	m.help.Styles = s.Help
-	m.help.ShortSeparator = s.Glyphs.Separator
 	in := inputStyles(s)
 	m.text.SetStyles(in)
 	m.query.SetStyles(in)
@@ -175,9 +164,7 @@ func (m *Model) SetStyles(s Styles) {
 	m.cache = renderCache{}
 	m.glyphs = glyphs{
 		gutter: s.Gutter.Render(termtext.Cells(s.Glyphs.Cursor, 1)) + " ",
-	}
-	if s.Glyphs.Remove != "" {
-		m.glyphs.remove = " " + s.Remove.Render(s.Glyphs.Remove)
+		edge:   s.Gutter.Render(termtext.Cells(s.Glyphs.Edge, 1)) + " ",
 	}
 	m.render()
 }
@@ -185,9 +172,9 @@ func (m *Model) SetStyles(s Styles) {
 // glyphs holds pieces rendered once per style, and the rule once per
 // width.
 type glyphs struct {
-	gutter, remove string
-	rule           string
-	ruleWidth      int
+	gutter, edge string
+	rule         string
+	ruleWidth    int
 }
 
 func inputStyles(s Styles) textinput.Styles {

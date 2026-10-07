@@ -15,8 +15,6 @@ import (
 	"slices"
 	"sync/atomic"
 
-	"charm.land/bubbles/v2/help"
-	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
@@ -43,10 +41,21 @@ type field struct {
 	seq   int
 	// items are the options Load returned.
 	items []Item
-	// chip is the chip under the cursor of a Multi, or its length for
-	// "+ add".
-	chip int
 }
+
+// mode is what the form takes keys for.
+type mode int
+
+const (
+	// rowsMode moves between the rows and changes their values. Letters
+	// are keys.
+	rowsMode mode = iota
+	// insertMode types in a Text field or the query line.
+	insertMode
+	// pickMode has the picker of a Multi or Person field open, or waits
+	// for its options, or shows why they failed to load.
+	pickMode
+)
 
 // Model is a filter form. Create one with [New]. It starts blurred, and
 // the parent focuses it when it opens.
@@ -63,10 +72,11 @@ type Model struct {
 	// line.
 	tab Tab
 	row int
-	// editing is whether the row's editor is open; before is the value it
-	// opened with, which esc puts back, and toggled whether space chose
-	// something since.
-	editing bool
+	// mode is what keys do. before is the value the row's picker opened
+	// with, which esc puts back, and toggled whether space chose something
+	// since. picking is whether the picker itself is open, rather than
+	// waiting for its options.
+	mode    mode
 	before  Value
 	toggled bool
 	picking bool
@@ -77,7 +87,6 @@ type Model struct {
 	spin  spinner.Model
 	// spinning is whether a spinner tick is on its way.
 	spinning bool
-	help     help.Model
 	focused  bool
 
 	ctx    context.Context
@@ -112,7 +121,6 @@ func New(spec Spec, opts ...Option) Model {
 		text:     newInput(),
 		query:    newInput(),
 		spin:     spinner.New(spinner.WithSpinner(spinner.Dot)),
-		help:     help.New(),
 	}
 	m.query.Placeholder = "Type a query, or choose above"
 	m.fields = make([]field, len(m.spec.Fields))
@@ -125,7 +133,6 @@ func New(spec Spec, opts ...Option) Model {
 	} else {
 		m.state = defaults(&m.spec)
 	}
-	m.resetChips()
 	m.syncQuery()
 	m.SetStyles(m.styles)
 	return m
@@ -149,23 +156,21 @@ func (m Model) Query() string { return m.state.query(&m.spec) }
 
 // SetQuery sets the fields from q: each token goes to the first field that
 // claims it, and the rest is kept as free text. Fields q doesn't mention
-// are left empty. It closes an open editor.
+// are left empty. It leaves insert mode and closes an open picker.
 func (m *Model) SetQuery(q string) {
 	m.closeEditor(false)
 	m.state = parse(&m.spec, q)
 	m.fields = slices.Clone(m.fields)
-	m.resetChips()
 	m.syncQuery()
 	m.render()
 }
 
 // Reset puts every field and the sort back to their defaults and drops the
-// free text, on both tabs. It closes an open editor.
+// free text, on both tabs. It leaves insert mode and closes an open picker.
 func (m *Model) Reset() {
 	m.closeEditor(false)
 	m.state = defaults(&m.spec)
 	m.fields = slices.Clone(m.fields)
-	m.resetChips()
 	m.syncQuery()
 	m.render()
 }
@@ -199,11 +204,11 @@ func (m Model) fieldIndex(k string) int {
 	return slices.IndexFunc(m.spec.Fields, func(f Field) bool { return f.Key == k })
 }
 
-// Capturing reports whether the form takes every key, which it does while
-// an editor or the query line has focus, since letters are typed there. A
+// Capturing reports whether the form takes every key, which it does in
+// insert mode and while a picker is open, since letters are typed there. A
 // parent asks so it knows not to act on its own bindings meanwhile.
 func (m Model) Capturing() bool {
-	return m.focused && (m.editing || m.row == m.queryRow())
+	return m.focused && m.mode != rowsMode
 }
 
 // Loading reports whether any field is loading its options.
@@ -226,17 +231,13 @@ func (m Model) Height() int { return m.height }
 // Focus focuses the form so it takes keys.
 func (m *Model) Focus() tea.Cmd {
 	m.focused = true
-	var cmd tea.Cmd
-	if m.row == m.queryRow() {
-		cmd = m.query.Focus()
-	}
 	m.render()
-	return cmd
+	return nil
 }
 
-// Blur blurs the form so it ignores keys. It closes an open editor,
-// keeping what was chosen, and cancels the loads in flight; they start
-// again when their fields are opened.
+// Blur blurs the form so it ignores keys. It leaves insert mode and closes
+// an open picker, keeping what was typed or chosen, and cancels the loads
+// in flight; they start again when their fields are opened.
 func (m *Model) Blur() {
 	m.focused = false
 	m.closeEditor(true)
@@ -268,88 +269,6 @@ func (m *Model) SetKeyMap(k KeyMap) {
 	m.render()
 }
 
-// ShortHelp implements help.KeyMap. It lists the keys that act on the row
-// in focus.
-func (m Model) ShortHelp() []key.Binding { return m.shortHelp() }
-
-func (m *Model) shortHelp() []key.Binding {
-	k := m.keys
-	switch {
-	case m.editing && m.picking && m.kind() == Multi:
-		return []key.Binding{relabel(k.Toggle, "choose"), relabel(k.Edit, "done"), relabel(k.Cancel, "back")}
-	case m.editing && !m.picking && m.kind() != Text:
-		if m.fields[m.row].state == failed {
-			return []key.Binding{relabel(k.Edit, "retry"), relabel(k.Cancel, "back")}
-		}
-		return []key.Binding{relabel(k.Cancel, "back")}
-	case m.editing:
-		return []key.Binding{relabel(k.Edit, "done"), relabel(k.Cancel, "back")}
-	case m.row == m.queryRow():
-		return []key.Binding{k.Down, k.Apply, relabel(k.Cancel, "cancel")}
-	}
-	// The key to the other tab comes last, since the tabs show already.
-	var out []key.Binding
-	switch m.kind() {
-	case Multi, Person, Text:
-		out = []key.Binding{k.Down, k.Edit, k.Clear, k.Cancel, m.tabHelp()}
-	default:
-		right := k.Right
-		right.SetHelp(right.Help().Key+"/"+k.Toggle.Help().Key, right.Help().Desc)
-		out = []key.Binding{k.Down, right, k.Apply, k.Cancel, m.tabHelp()}
-	}
-	if !m.tabbed() {
-		out = out[:len(out)-1]
-	}
-	return out
-}
-
-// tabHelp returns the key to the other tab, named after it.
-func (m *Model) tabHelp() key.Binding {
-	return relabel(m.keys.NextTab, tabHelpDescs[(m.tab+1)%numTabs])
-}
-
-// FullHelp implements help.KeyMap. It enables the keys that act on the
-// row in focus: an open picker takes Edit, Toggle, Cancel and its own
-// moves, another editor Edit and Cancel, and the query line the moves,
-// Apply and Cancel; the rest are typed. A row takes enter to open its
-// editor if it has one, and to apply if not. The form's Edit and Cancel
-// stand in for the picker's Choose and Cancel.
-func (m Model) FullHelp() [][]key.Binding {
-	k := m.keys
-	if m.picking {
-		k.Picker = m.pick.KeyMap()
-	}
-	form := []*key.Binding{&k.NextTab, &k.PrevTab, &k.Up, &k.Down, &k.Left, &k.Right, &k.Toggle, &k.Edit, &k.Apply, &k.Clear, &k.Cancel}
-	pick := []*key.Binding{&k.Picker.Up, &k.Picker.Down, &k.Picker.PageUp, &k.Picker.PageDown, &k.Picker.NextScope, &k.Picker.PrevScope}
-	var on []*key.Binding
-	switch {
-	case m.picking:
-		on = append([]*key.Binding{&k.Edit, &k.Toggle, &k.Cancel}, pick...)
-	case m.editing && (m.kind() == Text || m.fields[m.row].state == failed):
-		on = []*key.Binding{&k.Edit, &k.Cancel}
-	case m.editing:
-		on = []*key.Binding{&k.Cancel}
-	case m.row == m.queryRow():
-		on = []*key.Binding{&k.Up, &k.Down, &k.Apply, &k.Cancel}
-	default:
-		on = slices.DeleteFunc(slices.Clone(form), func(b *key.Binding) bool {
-			if b == &k.NextTab || b == &k.PrevTab {
-				return !m.tabbed()
-			}
-			return b == &k.Edit && !m.hasEditor() || b == &k.Apply && m.hasEditor()
-		})
-	}
-	if !m.picking && !m.editing && !m.canClear() {
-		k.Clear.SetEnabled(false)
-	}
-	for _, b := range slices.Concat(form, pick, []*key.Binding{&k.Picker.Choose, &k.Picker.Cancel}) {
-		if !slices.Contains(on, b) {
-			b.SetEnabled(false)
-		}
-	}
-	return k.FullHelp()
-}
-
 // queryRow returns the row of the query line, the last one of the tab.
 func (m *Model) queryRow() int {
 	if m.tab == SortTab {
@@ -376,13 +295,6 @@ func (m *Model) items(i int) []Item {
 	return append(slices.Clip(f.Options), m.fields[i].items...)
 }
 
-// resetChips puts each Multi's chip cursor on "+ add".
-func (m *Model) resetChips() {
-	for i := range m.fields {
-		m.fields[i].chip = len(m.state.values[i].list)
-	}
-}
-
 // syncQuery shows the query in the query line, unless the user is typing
 // there: the line follows the fields, but not while it sets them.
 func (m *Model) syncQuery() {
@@ -397,7 +309,6 @@ func (m *Model) syncQuery() {
 func (m *Model) setValue(i int, v Value) {
 	m.state.values = slices.Clone(m.state.values)
 	m.state.values[i] = v
-	m.fields[i].chip = min(m.fields[i].chip, len(v.list))
 	m.syncQuery()
 }
 

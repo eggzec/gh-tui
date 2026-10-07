@@ -1,28 +1,28 @@
 # label | keys | help key | on or off
 
-global
+always
   quit | ctrl+c | ^c | on
-  help | ? | ? | on
+  help | ? | ? | off
 
-Filter
-  previous field | k up | k | on
-  next field | j down | j | on
-  first field | g home | g | on
-  query | G end | G | on
-  previous | h left | h | on
-  next | l right | l | on
-  toggle | space | space | on
+Filter query (types)
+  previous field | k up | k | off
+  next field | j down | j | off
+  first field | g home | g | off
+  query | G end | G | off
+  previous | h left | h | off
+  next | l right | l | off
+  toggle | space | space | off
   insert | i | i | off
   append | a | a | off
-  clear | delete backspace | delete | on
-  apply | enter | ↵ | on
-  close | esc | esc | on
-  close | q | q | on
+  clear | delete backspace | delete | off
+  apply | enter | ↵ | off
+  close | esc | esc | off
+  close | q | q | off
   retry | r | r | off
   next tab | ] | ] | off
   previous tab | [ | [ | off
-  apply | enter | ↵ | off
-  done | esc | esc | off
+  apply | enter | ↵ | on
+  done | esc | esc | on
   up | up ctrl+p | ↑/ctrl+p | off
   down | down ctrl+n | ↓/ctrl+n | off
   page up | pgup | pgup | off

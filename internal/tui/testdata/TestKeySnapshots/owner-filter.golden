@@ -5,17 +5,24 @@ global
   help | ? | ? | on
 
 Filter
-  previous field | up shift+tab | ↑ | on
-  field | down tab | ↑↓ | on
-  previous | left | ← | on
-  choose | right | ←→ | on
-  choose | space | space | on
-  edit | enter | ↵ | on
+  previous field | k up | k | on
+  next field | j down | j | on
+  first field | g home | g | on
+  query | G end | G | on
+  previous | h left | h | off
+  next | l right | l | off
+  toggle | space | space | off
+  insert | i | i | on
+  append | a | a | on
   clear | delete backspace | delete | on
-  apply | enter | ↵ | off
-  cancel | esc | esc | on
+  apply | enter | ↵ | on
+  close | esc | esc | on
+  close | q | q | on
+  retry | r | r | off
   next tab | ] | ] | on
   previous tab | [ | [ | on
+  apply | enter | ↵ | off
+  done | esc | esc | off
   up | up ctrl+p | ↑/ctrl+p | off
   down | down ctrl+n | ↓/ctrl+n | off
   page up | pgup | pgup | off

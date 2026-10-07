@@ -432,7 +432,7 @@ type keyContext struct {
 // runs the command line and chooses in the filter form and the finder,
 // and the pager and the log take / to search, - for an option and digits
 // for a count. Any other key must be reached through its action.
-var fixedKeys = map[string]bool{"up": true, "down": true, "enter": true, "/": true, "-": true, "5": true}
+var fixedKeys = map[string]bool{"up": true, "down": true, "enter": true, "/": true, "-": true, "5": true, "space": true}
 
 // typedStep starts a step that types text, which typed makes.
 const typedStep = "type:"
@@ -782,7 +782,8 @@ func keyContexts() []keyContext {
 		{name: "pull requests", repo: true, steps: []string{"global.pane_2"}, context: "pulls", want: "global, repo, pulls"},
 		{name: "pull requests: filter", repo: true, steps: []string{"global.pane_2", "pulls.filter"}, context: "filter", want: "global, filter"},
 		{name: "pull requests: sort", repo: true, steps: []string{"global.pane_2", "pulls.sort"}, context: "filter", want: "global, filter"},
-		{name: "pull requests: filter field", repo: true, steps: []string{"global.pane_2", "pulls.filter", "down", "enter"}, want: "always, picker (types)"},
+		{name: "pull requests: filter picker", repo: true, steps: []string{"global.pane_2", "pulls.filter", "down", "space"}, want: "always, picker (types)"},
+		{name: "pull requests: filter insert", repo: true, steps: []string{"global.pane_2", "pulls.filter", typed("G"), typed("i")}, want: "always, filter_query (types)"},
 		{name: "pull requests: merge", repo: true, steps: []string{"global.pane_2", "pulls.merge"}, context: "confirm", want: "always, confirm"},
 		{name: "pull request", repo: true, steps: []string{"global.pane_2", "global.select"}, context: "pull_conversation", want: "global, pull_modal, pull_conversation"},
 		{name: "pull request: close", repo: true, steps: []string{"global.pane_2", "global.select", "pull_modal.close"}, context: "confirm", want: "always, confirm"},
