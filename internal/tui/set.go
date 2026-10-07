@@ -110,6 +110,8 @@ func (m *Model) applySettings() tea.Cmd {
 		m.toast.SetDuration(m.toastTimes.Info)
 		m.toast.SetErrorDuration(m.toastTimes.Error)
 	}
+	// The modals opened from now on start as it says.
+	m.maximizedModals = m.cfg.UI.Maximized
 	if m.settings != nil {
 		m.settings(m.cfg)
 	}

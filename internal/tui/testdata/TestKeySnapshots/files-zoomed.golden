@@ -7,6 +7,7 @@ global
   search | / | / | on
   find file | t ctrl+p | t | on
   zoom | z | z | on
+  maximize | Z | Z | off
   unzoom | esc | esc | on
   dismiss | ctrl+x | ctrl+x | off
   owner page | @ | @ | on

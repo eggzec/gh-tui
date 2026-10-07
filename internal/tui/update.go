@@ -275,6 +275,10 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 		if m.commandsOver(mod) && key.Matches(msg, m.keys.Command) {
 			return m.openLine()
 		}
+		if m.maximizeKey(msg) {
+			m.toggleMaximized()
+			return nil
+		}
 		cmd := mod.Update(msg)
 		m.updateBadges()
 		return cmd

@@ -47,6 +47,9 @@ type KeyMap struct {
 	// every pane again, and Back shows them again too.
 	Zoom key.Binding
 	Back key.Binding
+	// Maximize toggles the open modal between its size and the whole
+	// screen.
+	Maximize key.Binding
 	// Jump holds the keys of Panes, which it stands for in help.
 	Jump key.Binding
 	// Owner shows the page of the person or organization behind the
@@ -79,6 +82,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		Prev:          ui.Binding(keys, config.ActionPrevPane, "previous pane"),
 		Zoom:          ui.Binding(keys, config.ActionZoom, "zoom"),
 		Back:          ui.Binding(keys, config.ActionDismiss, "unzoom"),
+		Maximize:      ui.Binding(keys, config.ActionMaximize, "maximize"),
 		Dismiss:       toast.DefaultKeyMap().Dismiss,
 		Panes: []key.Binding{
 			ui.Binding(keys, config.ActionPane1, "files"),
@@ -118,7 +122,7 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 func (k KeyMap) globalKeys() []key.Binding {
 	return []key.Binding{
 		k.Command, k.Quit, k.Help, k.Search, k.FindFile,
-		k.Zoom, k.Back, k.Dismiss, k.Owner, k.Notifications, k.Dashboard,
+		k.Zoom, k.Maximize, k.Back, k.Dismiss, k.Owner, k.Notifications, k.Dashboard,
 		k.Next, k.Prev, k.Jump,
 	}
 }
@@ -146,6 +150,7 @@ func (k KeyMap) state(m *Model) KeyMap {
 	k.Owner.SetEnabled(k.Owner.Enabled() && m.selectedOwner() != "")
 	k.Zoom.SetEnabled(k.Zoom.Enabled() && m.canZoom() && m.width >= narrowWidth)
 	k.Back.SetEnabled(k.Back.Enabled() && m.canZoom() && m.zoomed())
+	k.Maximize.SetEnabled(k.Maximize.Enabled() && m.modal != nil)
 	k.Dismiss = m.toast.KeyMap().Dismiss
 	switch m.screen {
 	case notifScreen:

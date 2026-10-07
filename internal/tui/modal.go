@@ -1,13 +1,17 @@
 package tui
 
 import (
+	"slices"
 	"strings"
 
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -34,6 +38,9 @@ func (m *Model) openModal(mod ui.Modal) {
 	}
 	// The help lists the keys of what had them before.
 	m.keyhelp.Blur()
+	if m.modal != mod {
+		m.maximized = m.opensMaximized(mod)
+	}
 	m.modal = mod
 	mod.SetTheme(m.theme)
 	m.sizeModal(m.modalSize())
@@ -43,6 +50,46 @@ func (m *Model) openModal(mod ui.Modal) {
 func (m *Model) sizeModal(width, height int) {
 	m.modalWidth, m.modalHeight = width, height
 	m.modal.SetSize(width, height)
+}
+
+// modalContext returns the name of the key context of mod, the modal that
+// its first layer of keys is, or "" if none is.
+func modalContext(mod ui.Modal) string {
+	for _, l := range mod.KeyLayers() {
+		if c, ok := config.LookupContext(l.Context); ok && c.Modal {
+			return c.Name
+		}
+	}
+	return ""
+}
+
+// opensMaximized reports whether ui.maximized lists mod.
+func (m *Model) opensMaximized(mod ui.Modal) bool {
+	name := modalContext(mod)
+	return name != "" && slices.Contains(m.maximizedModals, name)
+}
+
+// maximizeKey reports whether msg toggles the open modal between its size
+// and the whole screen: the maximize key, unless the modal types it into
+// an input, or takes it for a question or a prompt.
+func (m *Model) maximizeKey(msg tea.KeyPressMsg) bool {
+	if !key.Matches(msg, m.keys.Maximize) {
+		return false
+	}
+	inner, _ := m.innerLayers()
+	return !slices.ContainsFunc(inner, takesKeys)
+}
+
+// takesKeys reports whether l is the keys of what takes every key it can
+// type, or all of them, such as an input or a question.
+func takesKeys(l keyhelp.Layer) bool { return l.Typing || capturing(l) }
+
+// toggleMaximized switches the open modal between its size and the whole
+// screen, and gives it the room, which it waits out as after a resize.
+func (m *Model) toggleMaximized() {
+	m.maximized = !m.maximized
+	m.resized = true
+	m.sizeModal(m.modalSize())
 }
 
 // settleModal asks the open modal, if it waits out resizes, to end the
@@ -178,6 +225,11 @@ func (m *Model) closeModal(mod ui.Modal) {
 // screen, so that the edges of the screen behind it stay in view, or less
 // if the modal fits in less.
 func (m *Model) frameSize() (width, height int) {
+	// A maximized modal ignores what it fits in, and fills the screen but
+	// for the footer.
+	if m.maximized {
+		return m.width, max(m.height-m.footerHeight(), 0)
+	}
 	// The frame is centred, and leaves the footer below it, such as the
 	// command line with its candidates.
 	width, height = max(m.width-2*max(m.width/10, 2), 0), max(m.height-2*max(m.height/10, m.footerHeight()), 0)

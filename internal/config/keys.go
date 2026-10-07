@@ -75,6 +75,9 @@ const (
 	// ActionZoom shows the focused pane of the dashboard, the repository
 	// screen, or a modal such as Actions, alone, or all of them again.
 	ActionZoom = "global.zoom"
+	// ActionMaximize toggles the open modal between its size and the
+	// whole screen.
+	ActionMaximize = "global.maximize"
 )
 
 // Actions of the repository screen, whose keys the app itself takes. The
