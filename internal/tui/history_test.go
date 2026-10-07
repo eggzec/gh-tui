@@ -58,7 +58,7 @@ func TestHistoryKeyNeedsARepoAndItsScreen(t *testing.T) {
 		t.Errorf("help offers the history without a repository:\n%s", s)
 	}
 	m, _ = newTestApp(t, WithHistory(h.open))
-	run(m, m.key(press("n")))
+	run(m, m.key(press("I")))
 	run(m, m.key(press("B")))
 	if len(h.opened) != 0 || m.topModal() != nil {
 		t.Errorf("B opened the history %d times, want none", len(h.opened))
@@ -130,7 +130,7 @@ func TestOpenCommitMsgOpensTheHistoryOnTheCommit(t *testing.T) {
 	}
 
 	m, _ = newTestApp(t, WithCommit(open))
-	run(m, m.key(press("n")))
+	run(m, m.key(press("I")))
 	m.Update(ui.OpenCommitMsg{Repo: glow, SHA: "7f75d0e"})
 	if m.topModal() != mod || len(got) != 1 || got[0] != (opened{glow, "7f75d0e", ""}) {
 		t.Errorf("opened %v, want the history of glow on the commit", got)

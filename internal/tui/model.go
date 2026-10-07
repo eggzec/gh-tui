@@ -171,6 +171,9 @@ type Model struct {
 	repos Repos
 	kinds Kinds
 	host  string
+	// here is the repository of the current directory, which goto opens
+	// for ".".
+	here core.RepoRef
 	// owners checks that a user or organization exists before goto
 	// opens its page, and ownerLogin is the login of the page on view,
 	// for the header.

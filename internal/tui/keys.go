@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
@@ -56,6 +57,9 @@ type KeyMap struct {
 	// selection of the focused section, such as the author of a pull
 	// request.
 	Owner key.Binding
+	// Repo shows the repository behind the selection, such as that of a
+	// search result or of a row of the dashboard.
+	Repo key.Binding
 	// Dismiss closes the newest toast. It is the toasts' own key, which
 	// the app matches, and which they enable while they show.
 	Dismiss key.Binding
@@ -78,6 +82,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		Notifications: ui.Binding(keys, config.ActionNotifications, "notifications"),
 		Dashboard:     ui.Binding(keys, config.ActionDashboard, "dashboard"),
 		Owner:         ui.Binding(keys, config.ActionOwner, "owner page"),
+		Repo:          ui.Binding(keys, config.ActionRepo, "this repo"),
 		Next:          ui.Binding(keys, config.ActionNextPane, "next pane"),
 		Prev:          ui.Binding(keys, config.ActionPrevPane, "previous pane"),
 		Zoom:          ui.Binding(keys, config.ActionZoom, "zoom"),
@@ -122,7 +127,7 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 func (k KeyMap) globalKeys() []key.Binding {
 	return []key.Binding{
 		k.Command, k.Quit, k.Help, k.Search, k.FindFile,
-		k.Zoom, k.Maximize, k.Back, k.Dismiss, k.Owner, k.Notifications, k.Dashboard,
+		k.Zoom, k.Maximize, k.Back, k.Dismiss, k.Owner, k.Repo, k.Notifications, k.Dashboard,
 		k.Next, k.Prev, k.Jump,
 	}
 }
@@ -148,6 +153,7 @@ func (k KeyMap) state(m *Model) KeyMap {
 	k.Actions.SetEnabled(k.Actions.Enabled() && m.canOpenActions())
 	k.FindFile.SetEnabled(k.FindFile.Enabled() && m.fileFinder() != nil)
 	k.Owner.SetEnabled(k.Owner.Enabled() && m.selectedOwner() != "")
+	k.Repo.SetEnabled(k.Repo.Enabled() && m.selectedRepo() != core.RepoRef{})
 	k.Zoom.SetEnabled(k.Zoom.Enabled() && m.canZoom() && m.width >= narrowWidth)
 	k.Back.SetEnabled(k.Back.Enabled() && m.canZoom() && m.zoomed())
 	k.Maximize.SetEnabled(k.Maximize.Enabled() && m.modal != nil)

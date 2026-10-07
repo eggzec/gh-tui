@@ -46,12 +46,28 @@ func newFindingApp(t *testing.T, repo core.RepoRef) (*Model, *findingSection, []
 	return m, files, fakes
 }
 
+var ctrlP = tea.KeyPressMsg{Code: 'p', Mod: tea.ModCtrl}
+
+// TestTDoesNotOpenTheFinder checks that t, github.com's key for the
+// file finder, opens nothing and goes on to the section.
+func TestTDoesNotOpenTheFinder(t *testing.T) {
+	m, files, fakes := newFindingApp(t, testRepo)
+	run(m, m.Init())
+	run(m, m.key(press("t")))
+	if files.finds != 0 || m.topModal() != nil {
+		t.Errorf("t found files %d times, want none", files.finds)
+	}
+	if !fakes[0].got(isKey("t")) {
+		t.Error("t didn't reach the section")
+	}
+}
+
 func TestFindFileKeyOpensTheFinder(t *testing.T) {
-	for _, k := range []tea.KeyPressMsg{press("t"), {Code: 'p', Mod: tea.ModCtrl}} {
+	for _, k := range []tea.KeyPressMsg{{Code: 'p', Mod: tea.ModCtrl}} {
 		t.Run(k.String(), func(t *testing.T) {
 			m, files, _ := newFindingApp(t, testRepo)
 			run(m, m.Init())
-			if s := onScreen(m); !strings.Contains(s, "t find file") {
+			if s := onScreen(m); !strings.Contains(s, "^p find file") {
 				t.Errorf("help lacks the find-file key:\n%s", s)
 			}
 			// The finder opens from any pane of the screen.
@@ -68,25 +84,22 @@ func TestFindFileKeyOpensTheFinder(t *testing.T) {
 }
 
 func TestFindFileKeyNeedsTheRepoScreen(t *testing.T) {
-	m, files, fakes := newFindingApp(t, testRepo)
-	run(m, m.key(press("n")))
-	run(m, m.key(press("t")))
+	m, files, _ := newFindingApp(t, testRepo)
+	run(m, m.key(press("I")))
+	run(m, m.key(ctrlP))
 	if files.finds != 0 || m.topModal() != nil {
-		t.Errorf("t found files %d times on the notifications", files.finds)
-	}
-	if !fakes[3].got(isKey("t")) {
-		t.Error("t didn't reach the notifications")
+		t.Errorf("^p found files %d times on the notifications", files.finds)
 	}
 
 	m, files, _ = newFindingApp(t, core.RepoRef{})
-	run(m, m.key(press("t")))
+	run(m, m.key(ctrlP))
 	if files.finds != 0 {
 		t.Error("t found files without a repository")
 	}
 
 	m, files, _ = newFindingApp(t, testRepo)
 	files.none = true
-	run(m, m.key(press("t")))
+	run(m, m.key(ctrlP))
 	if files.finds != 1 || m.topModal() != nil {
 		t.Errorf("a finder that finds nothing opened %v", m.topModal())
 	}

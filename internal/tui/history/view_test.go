@@ -28,7 +28,7 @@ func TestView(t *testing.T) {
 	}{
 		{"140 columns", wideW, wideH, nil},
 		{"140 columns branches", wideW, wideH, []string{"esc", "j"}},
-		{"140 columns filter", wideW, wideH, []string{"esc", "/", "v"}},
+		{"140 columns filter", wideW, wideH, []string{"esc", "f", "v"}},
 		{"140 columns patch", wideW, wideH, []string{"enter", "enter"}},
 		{"92 columns zoomed patch", 92, 28, []string{"z", "enter", "enter"}},
 		{"80 columns graph", narrowW, narrowH, nil},

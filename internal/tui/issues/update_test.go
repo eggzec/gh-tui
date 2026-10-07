@@ -98,7 +98,7 @@ func TestEmptyStateWithoutRepo(t *testing.T) {
 	s := newSection(t, newFakeService(nil), 80, 10)
 	run(t, s, s.Init())
 	v := ansi.Strip(s.View())
-	if !strings.Contains(v, "No repository selected") || !strings.Contains(v, "Press / to search for one.") {
+	if !strings.Contains(v, "No repository selected") || !strings.Contains(v, "Press S to search for one.") {
 		t.Errorf("view without a repository = %q", v)
 	}
 	if msgs := press(t, s, "f", "r", "enter", "o"); len(msgs) != 0 {

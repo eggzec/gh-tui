@@ -22,8 +22,6 @@ type KeyMap struct {
 	Select key.Binding
 	// Open opens the result under the cursor in the browser.
 	Open key.Binding
-	// Repo shows the repository of the result under the cursor.
-	Repo key.Binding
 	// Checks opens the pull request under the cursor on its checks.
 	Checks key.Binding
 	// Back goes back to the screen before the search.
@@ -54,7 +52,6 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		Prev:        page.Binding("global.prev_pane", "previous"),
 		Select:      page.Binding("global.select", "open"),
 		Open:        page.Binding("global.open", "browser"),
-		Repo:        results.Binding("repo_of", "repo"),
 		Checks:      results.Binding("checks", "checks"),
 		Back:        page.Binding("global.dismiss", "back"),
 		Filter:      results.Binding("filter", "filter"),
@@ -85,13 +82,13 @@ var (
 func (k KeyMap) own() []key.Binding {
 	return []key.Binding{
 		k.Back, k.Select, k.Next, k.Prev, k.Left, k.Right, k.Up, k.Down,
-		k.Open, k.Repo, k.Checks, k.Refresh, k.Filter, k.Sort,
+		k.Open, k.Checks, k.Refresh, k.Filter, k.Sort,
 	}
 }
 
 // ShortHelp implements help.KeyMap.
 func (k KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Up, k.Down, k.Select, k.Repo, k.Checks, k.Open, k.Filter, k.Sort, k.Left, k.Next, k.Back}
+	return []key.Binding{k.Up, k.Down, k.Select, k.Checks, k.Open, k.Filter, k.Sort, k.Left, k.Next, k.Back}
 }
 
 // FullHelp implements help.KeyMap.
@@ -116,8 +113,8 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 	k := s.keys.state(s)
 	screen := ui.ContextLayer("search", []key.Binding{k.Back, k.Next, k.Prev}, []key.Binding{k.Next, k.Back})
 	own := keyhelp.Layer{
-		Bindings: []key.Binding{k.Select, k.Left, k.Right, k.Up, k.Down, k.Open, k.Repo, k.Checks, k.Refresh, k.Filter, k.Sort},
-		Short:    []key.Binding{k.Up, k.Down, k.Select, k.Repo, k.Checks, k.Open, k.Filter, k.Sort, k.Left},
+		Bindings: []key.Binding{k.Select, k.Left, k.Right, k.Up, k.Down, k.Open, k.Checks, k.Refresh, k.Filter, k.Sort},
+		Short:    []key.Binding{k.Up, k.Down, k.Select, k.Checks, k.Open, k.Filter, k.Sort, k.Left},
 	}
 	if s.area == kindsArea {
 		// The kinds have no results to show the repository of or the checks.
@@ -139,7 +136,7 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 func (k KeyMap) inInput() KeyMap {
 	k.Select.SetHelp(k.Select.Help().Key, "search")
 	for _, b := range []*key.Binding{
-		&k.Left, &k.Right, &k.Up, &k.Down, &k.Open, &k.Repo, &k.Checks, &k.Refresh, &k.Filter, &k.Sort, &k.KindsFilter, &k.KindsSort,
+		&k.Left, &k.Right, &k.Up, &k.Down, &k.Open, &k.Checks, &k.Refresh, &k.Filter, &k.Sort, &k.KindsFilter, &k.KindsSort,
 	} {
 		b.SetEnabled(false)
 	}
@@ -157,7 +154,7 @@ func (k KeyMap) state(s *Section) KeyMap {
 		} else {
 			k.Select.SetHelp(k.Select.Help().Key, "results")
 		}
-		for _, b := range []*key.Binding{&k.Left, &k.Open, &k.Repo, &k.Checks, &k.Refresh} {
+		for _, b := range []*key.Binding{&k.Left, &k.Open, &k.Checks, &k.Refresh} {
 			b.SetEnabled(false)
 		}
 		return k

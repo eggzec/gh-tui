@@ -317,6 +317,10 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 		if owner := m.selectedOwner(); owner != "" {
 			return m.gotoOwner(core.Target{Owner: owner})
 		}
+	case key.Matches(msg, m.keys.Repo):
+		if repo := m.selectedRepo(); repo != (core.RepoRef{}) {
+			return m.selectRepo(ui.RepoMsg{Repo: repo})
+		}
 	case key.Matches(msg, m.keys.Notifications):
 		return m.toggleScreen(notifScreen)
 	case m.dash != nil && key.Matches(msg, m.keys.Dashboard):

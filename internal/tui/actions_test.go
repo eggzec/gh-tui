@@ -42,12 +42,12 @@ func TestActionsKeyOpensTheActions(t *testing.T) {
 	a := &actionsOpener{}
 	m, _ := newTestApp(t, WithActions(a.open))
 	run(m, m.Init())
-	if s := onScreen(m); !strings.Contains(s, "a actions") {
+	if s := onScreen(m); !strings.Contains(s, "A actions") {
 		t.Errorf("help lacks the actions key:\n%s", s)
 	}
-	run(m, m.key(press("a")))
+	run(m, m.key(press("A")))
 	if m.topModal() != a.modal || a.loads != 1 || len(a.opened) != 1 || a.opened[0] != testRepo {
-		t.Fatalf("a opened %v on %v and loaded %d times, want the actions of %s loaded once", m.topModal(), a.opened, a.loads, testRepo)
+		t.Fatalf("A opened %v on %v and loaded %d times, want the actions of %s loaded once", m.topModal(), a.opened, a.loads, testRepo)
 	}
 	if a.modal.width == 0 || !a.modal.themed {
 		t.Error("the modal wasn't sized and themed before it was drawn")
@@ -57,20 +57,20 @@ func TestActionsKeyOpensTheActions(t *testing.T) {
 func TestActionsKeyNeedsARepoAndItsScreen(t *testing.T) {
 	a := &actionsOpener{}
 	m, _ := newApp(t, core.RepoRef{}, WithActions(a.open))
-	run(m, m.key(press("a")))
-	if s := onScreen(m); strings.Contains(s, "a actions") {
+	run(m, m.key(press("A")))
+	if s := onScreen(m); strings.Contains(s, "A actions") {
 		t.Errorf("help offers the actions without a repository:\n%s", s)
 	}
 	m, _ = newTestApp(t, WithActions(a.open))
-	run(m, m.key(press("n")))
-	run(m, m.key(press("a")))
+	run(m, m.key(press("I")))
+	run(m, m.key(press("A")))
 	if len(a.opened) != 0 || m.topModal() != nil {
-		t.Errorf("a opened the actions %d times off the repository screen", len(a.opened))
+		t.Errorf("A opened the actions %d times off the repository screen", len(a.opened))
 	}
 	m, _ = newTestApp(t)
-	run(m, m.key(press("a")))
+	run(m, m.key(press("A")))
 	if m.topModal() != nil {
-		t.Error("a opened a modal without actions")
+		t.Error("A opened a modal without actions")
 	}
 }
 
@@ -78,7 +78,7 @@ func TestFrameShowsTheTabs(t *testing.T) {
 	a := &actionsOpener{}
 	m, _ := newTestApp(t, WithActions(a.open))
 	m.Update(tea.WindowSizeMsg{Width: 120, Height: 30})
-	run(m, m.key(press("a")))
+	run(m, m.key(press("A")))
 	top := topEdge(m)
 	if !strings.Contains(top, "Actions · eggzec/gh-tui") || !strings.HasSuffix(top, "All · Failing · Running · Mine ─╮") {
 		t.Errorf("the top edge is %q, want the title and the tabs", top)
@@ -123,7 +123,7 @@ func topEdge(m *Model) string {
 func TestOpenActionsMsgOpensTheRunsOfAnyRepo(t *testing.T) {
 	a := &actionsOpener{}
 	m, _ := newTestApp(t, WithActions(a.open))
-	run(m, m.key(press("n")))
+	run(m, m.key(press("I")))
 	other := core.RepoRef{Owner: "charmbracelet", Name: "bubbletea"}
 	f := core.RunFilter{Branch: "feat/x", Status: "failure"}
 	m.Update(ui.OpenActionsMsg{Repo: other, Filter: f})
@@ -154,7 +154,7 @@ func TestOpenReleaseMsgOpensTheRelease(t *testing.T) {
 	}
 
 	m, _ = newTestApp(t, WithRelease(open))
-	run(m, m.key(press("n")))
+	run(m, m.key(press("I")))
 	_, cmd := m.Update(msg)
 	run(m, cmd)
 	if m.topModal() != mod || loads != 1 || len(got) != 1 || got[0] != (opened{msg.Repo, msg.ID, msg.URL}) {

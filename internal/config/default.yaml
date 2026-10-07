@@ -474,8 +474,10 @@ keys:
     # as the dashboard comes before the repository.
     dashboard: ["0"]
     # Switch between the screen on view and the notifications.
-    notifications: [n]
-    search: [/]
+    notifications: [I]
+    # Open the search page, with the focus in an empty query, even when
+    # the page is on view already.
+    search: [S]
     # Choose or open what is under the cursor.
     select: [enter]
     # Step back out of what is open, such as a zoomed pane.
@@ -488,10 +490,14 @@ keys:
     # organization of the dashboard's Repositories pane. Your own login
     # shows the dashboard.
     owner: ["@"]
+    # Show the repository of what is selected: of a result of the search, a
+    # row of the dashboard's Repositories, or a notification. It does
+    # nothing on a screen that has no repository to show, or where the
+    # selection is the repository on view.
+    repo: ["."]
     # Open the file finder of the repository screen, which finds a file by
-    # some letters of its path. t is the key of github.com's file finder,
-    # and ctrl+p that of editors.
-    find_file: [t, ctrl+p]
+    # some letters of its path. ctrl+p is the key of editors.
+    find_file: [ctrl+p]
     # Show the focused pane of the dashboard, the repository screen, the
     # page of a user or an organization, or a modal such as Actions,
     # alone, or all of them again.
@@ -521,10 +527,6 @@ keys:
     pane_4: ["4"]
     pane_5: ["5"]
 
-  # The dashboard, on any of its panes.
-  dashboard:
-    # Open the repository of the current directory.
-    current_repo: [.]
   # Dashboard: your repositories, and those of each organization.
   dashboard_repos:
     # Open the filter modal on its Filters tab or its Sort tab, and put the
@@ -549,10 +551,10 @@ keys:
     # Open the History modal.
     history: [B]
     # Open the Actions modal.
-    actions: [a]
-    # Star the repository, or unstar it. Reserved, with its key, and does
+    actions: [A]
+    # Star the repository, or unstar it. Reserved, without a key, and does
     # nothing yet.
-    star: [S]
+    star: []
   # Repository: the file tree.
   files:
     expand: [+]
@@ -605,9 +607,6 @@ keys:
     sort: [s]
     # Show the checks of the pull request under the cursor.
     checks: [C]
-    # Show the repository of the result under the cursor, where select
-    # previews the result over the search.
-    repo_of: [ctrl+o]
 
   # The page of a user or an organization: its list.
   owner_list:
@@ -646,6 +645,8 @@ keys:
     reset_base: [H]
   # History: the branches. Show the files at the branch under the cursor.
   history_branches:
+    # Narrow the branches by typing a part of a name.
+    filter: [f]
     base: [space]
   # History: the commit graph. Show the files at the commit under the
   # cursor.

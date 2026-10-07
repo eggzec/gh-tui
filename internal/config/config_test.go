@@ -414,7 +414,7 @@ func TestComposeActions(t *testing.T) {
 func TestScreenActions(t *testing.T) {
 	defaults := Default().Keys
 	for action, want := range map[string]string{
-		ActionPane1: "1", ActionPane2: "2", ActionPane3: "3", ActionNotifications: "n",
+		ActionPane1: "1", ActionPane2: "2", ActionPane3: "3", ActionNotifications: "I", ActionSearch: "S", ActionRepo: ".",
 	} {
 		if got := defaults.Of(action); !slices.Equal(got, []string{want}) {
 			t.Errorf("default %s = %v, want [%s]", action, got, want)
@@ -513,7 +513,7 @@ func TestLogPath(t *testing.T) {
 func TestActionsModalActions(t *testing.T) {
 	defaults := Default().Keys
 	for action, want := range map[string]string{
-		ActionActions: "a", ActionNextTab: "]", ActionPrevTab: "[", "actions.pane_left": "h", "actions.pane_right": "l",
+		ActionActions: "A", ActionNextTab: "]", ActionPrevTab: "[", "actions.pane_left": "h", "actions.pane_right": "l",
 		ActionZoom: "z", "actions.rerun_failed": "R", "actions_jobs.rerun_job": "J", "actions.cancel": "x",
 	} {
 		if got := defaults.Of(action); !slices.Equal(got, []string{want}) {
@@ -575,8 +575,8 @@ func TestNotifications(t *testing.T) {
 
 func TestFinderDefaults(t *testing.T) {
 	cfg := Default()
-	if got := cfg.Keys.Of(ActionFindFile); !slices.Equal(got, []string{"t", "ctrl+p"}) {
-		t.Errorf("find_file = %v, want [t ctrl+p]", got)
+	if got := cfg.Keys.Of(ActionFindFile); !slices.Equal(got, []string{"ctrl+p"}) {
+		t.Errorf("find_file = %v, want [ctrl+p]", got)
 	}
 	if !cfg.Files.Finder.Preview {
 		t.Error("the finder hides its preview by default")
@@ -638,7 +638,7 @@ func TestCommandKey(t *testing.T) {
 
 func TestSortAndStarKeys(t *testing.T) {
 	defaults := Default().Keys
-	for action, want := range map[string]string{"pulls.filter": "f", "pulls.sort": "s", ActionStar: "S"} {
+	for action, want := range map[string]string{"pulls.filter": "f", "pulls.sort": "s", "history_branches.filter": "f"} {
 		if got := defaults.Of(action); !slices.Equal(got, []string{want}) {
 			t.Errorf("default %s = %v, want [%s]", action, got, want)
 		}
@@ -655,8 +655,8 @@ func TestSortAndStarKeys(t *testing.T) {
 	if got := cfg.Keys.Of("pulls.sort"); !slices.Equal(got, []string{"O"}) {
 		t.Errorf("sort = %v, want [O]", got)
 	}
-	if got := cfg.Keys.Of(ActionStar); !slices.Equal(got, []string{"S"}) {
-		t.Errorf("star = %v, want the default [S]", got)
+	if got := cfg.Keys.Of(ActionStar); len(got) != 0 {
+		t.Errorf("star = %v, want no keys by default", got)
 	}
 
 	cfg = Default()

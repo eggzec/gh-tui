@@ -240,7 +240,7 @@ func rereadUnderFilter(t *testing.T) (*Modal, *host, *fake) {
 	}
 	f.limited = true
 	m, h := newModal(t, f, 108, 30)
-	h.keys("shift+tab", "/")
+	h.keys("shift+tab", "f")
 	if n := m.branches.filter.Len(); n != 15 {
 		t.Fatalf("the filter lists %d branches, want both pages", n)
 	}

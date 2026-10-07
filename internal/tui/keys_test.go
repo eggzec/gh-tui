@@ -69,14 +69,14 @@ func TestKeyLayersOrder(t *testing.T) {
 	fakes[0].capturing = false
 
 	// Away from the repository screen there are no panes to cycle.
-	run(m, m.key(press("n")))
+	run(m, m.key(press("I")))
 	if m.screen != notifScreen {
-		t.Fatalf("n showed screen %d, want the notifications", m.screen)
+		t.Fatalf("I showed screen %d, want the notifications", m.screen)
 	}
 	if got := winner(m, "tab"); got == "global: next pane" {
 		t.Error("the notifications offer the next pane")
 	}
-	run(m, m.key(press("n")))
+	run(m, m.key(press("I")))
 
 	mod := &fakeModal{title: "Preview"}
 	run(m, ui.OpenModal(mod))
@@ -150,25 +150,25 @@ func TestNextAndPrevKeysOnEachScreen(t *testing.T) {
 		{"repo: ]", true, nil, "repo: Files", "]", "nothing", "repo: Files"},
 		{"repo: [", true, nil, "repo: Files", "[", "nothing", "repo: Files"},
 
-		{"notifications: tab", false, []string{"n"}, "notifications", "tab", "nothing", "notifications"},
-		{"notifications: shift+tab", false, []string{"n"}, "notifications", "shift+tab", "nothing", "notifications"},
-		{"notifications: ]", false, []string{"n"}, "notifications", "]", "nothing", "notifications"},
-		{"notifications: [", false, []string{"n"}, "notifications", "[", "nothing", "notifications"},
+		{"notifications: tab", false, []string{"I"}, "notifications", "tab", "nothing", "notifications"},
+		{"notifications: shift+tab", false, []string{"I"}, "notifications", "shift+tab", "nothing", "notifications"},
+		{"notifications: ]", false, []string{"I"}, "notifications", "]", "nothing", "notifications"},
+		{"notifications: [", false, []string{"I"}, "notifications", "[", "nothing", "notifications"},
 
-		{"search query: tab", false, []string{"/", "k", "e", "y"}, `search: query "key"`, "tab", "Query: next", `search: kinds "key"`},
-		{"search query: shift+tab", false, []string{"/", "k", "e", "y"}, `search: query "key"`, "shift+tab", "Query: previous", `search: results "key"`},
-		{"search query: ]", false, []string{"/", "k", "e", "y"}, `search: query "key"`, "]", "nothing", `search: query "key]"`},
-		{"search query: [", false, []string{"/", "k", "e", "y"}, `search: query "key"`, "[", "nothing", `search: query "key["`},
+		{"search query: tab", false, []string{"S", "k", "e", "y"}, `search: query "key"`, "tab", "Query: next", `search: kinds "key"`},
+		{"search query: shift+tab", false, []string{"S", "k", "e", "y"}, `search: query "key"`, "shift+tab", "Query: previous", `search: results "key"`},
+		{"search query: ]", false, []string{"S", "k", "e", "y"}, `search: query "key"`, "]", "nothing", `search: query "key]"`},
+		{"search query: [", false, []string{"S", "k", "e", "y"}, `search: query "key"`, "[", "nothing", `search: query "key["`},
 
-		{"search kinds: tab", false, []string{"/", "k", "e", "y", "up"}, `search: kinds "key"`, "tab", "global: next", `search: results "key"`},
-		{"search kinds: shift+tab", false, []string{"/", "k", "e", "y", "up"}, `search: kinds "key"`, "shift+tab", "global: previous", `search: query "key"`},
-		{"search kinds: ]", false, []string{"/", "k", "e", "y", "up"}, `search: kinds "key"`, "]", "nothing", `search: kinds "key"`},
-		{"search kinds: [", false, []string{"/", "k", "e", "y", "up"}, `search: kinds "key"`, "[", "nothing", `search: kinds "key"`},
+		{"search kinds: tab", false, []string{"S", "k", "e", "y", "up"}, `search: kinds "key"`, "tab", "global: next", `search: results "key"`},
+		{"search kinds: shift+tab", false, []string{"S", "k", "e", "y", "up"}, `search: kinds "key"`, "shift+tab", "global: previous", `search: query "key"`},
+		{"search kinds: ]", false, []string{"S", "k", "e", "y", "up"}, `search: kinds "key"`, "]", "nothing", `search: kinds "key"`},
+		{"search kinds: [", false, []string{"S", "k", "e", "y", "up"}, `search: kinds "key"`, "[", "nothing", `search: kinds "key"`},
 
-		{"search results: tab", false, []string{"/", "k", "e", "y", "enter"}, `search: results "key"`, "tab", "global: next", `search: query "key"`},
-		{"search results: shift+tab", false, []string{"/", "k", "e", "y", "enter"}, `search: results "key"`, "shift+tab", "global: previous", `search: kinds "key"`},
-		{"search results: ]", false, []string{"/", "k", "e", "y", "enter"}, `search: results "key"`, "]", "nothing", `search: results "key"`},
-		{"search results: [", false, []string{"/", "k", "e", "y", "enter"}, `search: results "key"`, "[", "nothing", `search: results "key"`},
+		{"search results: tab", false, []string{"S", "k", "e", "y", "enter"}, `search: results "key"`, "tab", "global: next", `search: query "key"`},
+		{"search results: shift+tab", false, []string{"S", "k", "e", "y", "enter"}, `search: results "key"`, "shift+tab", "global: previous", `search: kinds "key"`},
+		{"search results: ]", false, []string{"S", "k", "e", "y", "enter"}, `search: results "key"`, "]", "nothing", `search: results "key"`},
+		{"search results: [", false, []string{"S", "k", "e", "y", "enter"}, `search: results "key"`, "[", "nothing", `search: results "key"`},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {

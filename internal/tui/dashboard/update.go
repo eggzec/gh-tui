@@ -115,12 +115,6 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 		return nil
 	case key.Matches(msg, k.Refresh):
 		return s.refresh()
-	case key.Matches(msg, k.Here):
-		if s.here == (core.RepoRef{}) {
-			return nil
-		}
-		s.aheadPinned.Opened(s.here)
-		return selectRepo(s.here)
 	}
 	if p := k.pane(msg); p >= 0 {
 		s.focusPane(p)

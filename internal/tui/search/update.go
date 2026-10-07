@@ -200,8 +200,6 @@ func (s *Section) pressResults(msg tea.KeyPressMsg) tea.Cmd {
 		return s.open(false)
 	case key.Matches(msg, k.Open):
 		return s.open(true)
-	case key.Matches(msg, k.Repo):
-		return s.goToRepo()
 	case key.Matches(msg, k.Checks):
 		return s.openChecks()
 	case key.Matches(msg, k.Refresh):
@@ -288,37 +286,6 @@ func (s *Section) open(browser bool) tea.Cmd {
 		}
 		file := ui.OpenFileMsg{Repo: hit.Repo, Path: hit.Path, SHA: hit.SHA, Find: firstMatch(hit)}
 		return func() tea.Msg { return file }
-	}
-	return nil
-}
-
-// goToRepo shows the repository of the result under the cursor on its
-// screen.
-func (s *Section) goToRepo() tea.Cmd {
-	if s.text == "" {
-		if it, ok := s.starts.selected(); ok && it.repo != nil {
-			return selectRepo(it.repo.Ref)
-		}
-		return nil
-	}
-	if l, ok := s.visibleHits(); ok {
-		hit, ok := l.feed.Selected()
-		if !ok {
-			return nil
-		}
-		s.remember(s.text)
-		if hit.Kind == core.SearchRepos {
-			return selectRepo(hit.Repo.Ref)
-		}
-		return selectRepo(hit.Issue.Repo)
-	}
-	if l, ok := s.visibleCode(); ok {
-		hit, ok := l.feed.Selected()
-		if !ok {
-			return nil
-		}
-		s.remember(s.text)
-		return selectRepo(hit.Repo)
 	}
 	return nil
 }

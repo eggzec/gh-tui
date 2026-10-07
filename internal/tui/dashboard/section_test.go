@@ -462,11 +462,11 @@ func TestPinned(t *testing.T) {
 	if !slices.Contains(app, tea.Msg(ui.OpenMsg{URL: "https://github.com/octocat/spoon-knife"})) {
 		t.Errorf("o on the second card sent %v", app)
 	}
-	// . opens the repository here from any pane.
+	// The app's repository key opens what a pane has selected, so the
+	// dashboard takes no key of its own for the repository here.
 	for _, pane := range []string{"1", "3", "5"} {
-		app = press(t, s, pane, ".")
-		if !slices.Contains(app, tea.Msg(ui.RepoMsg{Repo: here})) {
-			t.Errorf("on pane %s . sent %v, want the repository here", pane, app)
+		if app = press(t, s, pane, "."); len(app) != 0 {
+			t.Errorf("on pane %s . sent %v, want nothing from the dashboard", pane, app)
 		}
 	}
 }
@@ -488,9 +488,6 @@ func TestHereWithoutPin(t *testing.T) {
 
 func TestNoHere(t *testing.T) {
 	s := newSection(t, newFake(), nil, 140, 38, WithHere(core.RepoRef{}, nil))
-	if app := press(t, s, "."); len(app) != 0 {
-		t.Errorf(". sent %v without a repository here", app)
-	}
 	if c, _ := s.pinned.Selected(); c.Here {
 		t.Error("without a repository here, no card is marked here")
 	}

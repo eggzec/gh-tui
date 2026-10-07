@@ -72,6 +72,10 @@ const (
 	// repository or of what is in it, such as a file or a notification,
 	// or an organization of the dashboard's Repositories pane.
 	ActionOwner = "global.owner"
+	// ActionRepo shows the repository of what is selected: a result of
+	// the search, a row of the dashboard's Repositories, or a
+	// notification.
+	ActionRepo = "global.repo"
 	// ActionZoom shows the focused pane of the dashboard, the repository
 	// screen, or a modal such as Actions, alone, or all of them again.
 	ActionZoom = "global.zoom"
@@ -89,7 +93,7 @@ const (
 	// ActionActions opens the Actions modal of the repository screen.
 	ActionActions = "repo.actions"
 	// ActionStar will star the repository, or unstar it. It is reserved,
-	// with its key, until starring is wired in the tui, and does nothing
+	// without a key, until starring is wired in the tui, and does nothing
 	// yet.
 	ActionStar = "repo.star"
 )

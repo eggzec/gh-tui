@@ -217,7 +217,10 @@ func (m *Model) drawHeader() {
 	case m.repo.Owner != "":
 		name = m.repo.String()
 	default:
-		name = "No repository" + m.icons.Separator + "press / to search"
+		name = "No repository"
+		if k := m.keys.Search.Help().Key; k != "" && m.keys.Search.Enabled() {
+			name += m.icons.Separator + "press " + m.icons.Key(k) + " to search"
+		}
 	}
 	left := m.st.repo.Render(name)
 	switch {

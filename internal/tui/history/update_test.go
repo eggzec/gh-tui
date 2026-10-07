@@ -229,7 +229,7 @@ func TestZoom(t *testing.T) {
 
 func TestZoomLeavesKeysToInputs(t *testing.T) {
 	m, h := newModal(t, newFake(), wideW, wideH)
-	h.keys("z", "shift+tab", "/", "z")
+	h.keys("z", "shift+tab", "f", "z")
 	if !m.zoom || m.branches.filter == nil || m.branches.filter.Query().Text != "z" {
 		t.Fatalf("zoom %v; want z typed into the filter of the zoomed branches", m.zoom)
 	}
@@ -420,7 +420,7 @@ func TestCompareAroundIsConfigured(t *testing.T) {
 func TestFilterBranches(t *testing.T) {
 	f := newFake()
 	m, h := newModal(t, f, 108, 30)
-	h.keys("esc", "/", "v", "2")
+	h.keys("esc", "f", "v", "2")
 	if m.branches.filter == nil || !strings.Contains(screen(m), "v2-exp") || strings.Contains(screen(m), "fix/tabs") {
 		t.Fatalf("the filter shows:\n%s", screen(m))
 	}
@@ -437,7 +437,7 @@ func TestFilterBranches(t *testing.T) {
 	if b, _ := m.branches.selected(); b.Name != "v2-exp" {
 		t.Errorf("cursor on %q, want v2-exp", b.Name)
 	}
-	h.keys("esc", "/", "esc")
+	h.keys("esc", "f", "esc")
 	if m.branches.filter != nil || m.focus != branchPane {
 		t.Error("esc didn't close the filter alone")
 	}

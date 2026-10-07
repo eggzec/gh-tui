@@ -182,7 +182,7 @@ func TestGotoIsCanceled(t *testing.T) {
 		then func(m *Model)
 	}{
 		{name: "another command", then: func(m *Model) { m.runLine("goto cli/cli", nil) }},
-		{name: "another screen", then: func(m *Model) { drive(m, m.key(press("n"))) }},
+		{name: "another screen", then: func(m *Model) { drive(m, m.key(press("I"))) }},
 		{name: "another repository", then: func(m *Model) { drive(m, func() tea.Msg { return ui.RepoMsg{Repo: testRepo} }) }},
 		{name: "a modal", then: func(m *Model) { m.openModal(&fakeModal{title: "Preview"}) }},
 	}
@@ -233,7 +233,7 @@ func TestGotoAndOtherCommands(t *testing.T) {
 			m.toast.SetErrorDuration(0)
 			m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 			run(m, m.Init())
-			drive(m, m.key(press("/")))
+			drive(m, m.key(press("S")))
 			cmd := submitLine(t, m, "goto charmbracelet/bubbletea")
 			if m.going == nil {
 				t.Fatal("the goto doesn't wait for GitHub")
@@ -545,7 +545,7 @@ func TestGotoNumberIsCanceled(t *testing.T) {
 		t.Errorf("the footer doesn't say what it opens:\n%s", s)
 	}
 	// Going to the notifications drops it.
-	drive(m, m.key(press("n")))
+	drive(m, m.key(press("I")))
 	drive(m, cmd)
 	if got := opened(fakes); got != nil {
 		t.Errorf("the canceled goto opened %#v", got)

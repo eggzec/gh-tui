@@ -801,7 +801,7 @@ func keyContexts() []keyContext {
 		{name: "history", repo: true, steps: []string{"repo.history"}, context: "history_graph", want: "global, history, history_graph"},
 		{name: "history: zoomed", repo: true, steps: []string{"repo.history", "global.zoom"}, context: "history_graph", want: "global, history, history_graph"},
 		{name: "history: branches", repo: true, steps: []string{"repo.history", "global.prev_pane"}, context: "history_branches", want: "global, history, history_branches"},
-		{name: "history: branch filter", repo: true, steps: []string{"repo.history", "global.prev_pane", "global.search"}, context: "picker", want: "always, picker (types)"},
+		{name: "history: branch filter", repo: true, steps: []string{"repo.history", "global.prev_pane", "history_branches.filter"}, context: "picker", want: "always, picker (types)"},
 		{name: "history: files", repo: true, steps: []string{"repo.history", "global.select"}, context: "history_files", want: "global, history, history_files"},
 		{name: "history: patch", repo: true, steps: []string{"repo.history", "global.select", "global.select"}, context: "history_patch", want: "global, history, history_patch"},
 		{name: "history: patch search", repo: true, steps: []string{"repo.history", "global.select", "global.select", "/"}, context: "search_prompt", want: "always, search_prompt (types)"},
