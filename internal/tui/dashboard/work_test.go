@@ -137,15 +137,15 @@ func TestWorkTabs(t *testing.T) {
 	if l.cur != 1 || l.current().sel != 2 {
 		t.Fatalf("on tab %d item %d, want the third of your pull requests", l.cur, l.current().sel)
 	}
-	press(t, s, "right", "[")
+	press(t, s, "]", "[")
 	if l.cur != 1 || l.current().sel != 2 {
 		t.Fatalf("back on tab %d item %d, want the third of your pull requests still", l.cur, l.current().sel)
 	}
 	if hit, _ := l.selected(); hit.Issue.Number != 71 {
 		t.Errorf("the cursor is on #%d, want #71", hit.Issue.Number)
 	}
-	// Tabs wrap around both ways, with the keys of the owners.
-	press(t, s, "left", "left")
+	// Tabs wrap around both ways.
+	press(t, s, "[", "[")
 	if l.cur != 2 {
 		t.Errorf("two tabs back from the second is tab %d, want the last", l.cur)
 	}

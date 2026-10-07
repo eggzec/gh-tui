@@ -7,7 +7,6 @@ always
 Finder (types)
   open in tree | ctrl+t | ^t | on
   preview | tab | tab | on
-  open on GitHub | ctrl+o | ^o | on
   up | up ctrl+p | ↑ | on
   down | down ctrl+n | ↓ | on
   page up | pgup | pgup | on

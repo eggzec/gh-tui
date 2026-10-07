@@ -140,7 +140,7 @@ func TestCommandKeyOverTheFilePreview(t *testing.T) {
 		{name: "preview", keys: []string{"down", "enter"}, open: true},
 		{name: "preview search", keys: []string{"down", "enter", "/"}},
 		{name: "preview option", keys: []string{"down", "enter", "-"}},
-		{name: "preview count", keys: []string{"down", "enter", "5"}},
+		{name: "preview digit", keys: []string{"down", "enter", "5"}, open: true},
 		{name: "finder", keys: []string{"ctrl+p"}},
 		{name: "history", keys: []string{"B"}},
 		{name: "issue", keys: []string{"3", "enter"}},

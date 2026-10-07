@@ -73,16 +73,6 @@ func (c Context) Binding(action, desc string) key.Binding {
 	return bindingOf(desc, c.Of(action))
 }
 
-// Either makes one binding of the keys of actions, like the package's
-// Either, for where actions of different contexts do the same.
-func (c Context) Either(desc string, actions ...string) key.Binding {
-	ks := make([]string, 0, len(actions))
-	for _, a := range actions {
-		ks = append(ks, c.Of(a)...)
-	}
-	return bindingOf(desc, ks)
-}
-
 // Yield returns b as the help lists it beside held, a binding matched
 // before it that shares some of its keys: while held is disabled, which
 // the help shows as taking no key, it still takes those keys, to say why

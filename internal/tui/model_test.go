@@ -547,8 +547,8 @@ func TestNotificationsKeyTogglesScreens(t *testing.T) {
 	}
 	run(m, m.key(press("I")))
 	run(m, m.key(press("3")))
-	if m.screen != repoScreen || !fakes[2].focused {
-		t.Error("a pane key on the notifications didn't show that pane")
+	if m.screen != notifScreen || fakes[2].focused {
+		t.Error("a pane key on the notifications switched screens")
 	}
 }
 

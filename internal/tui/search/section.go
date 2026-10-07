@@ -103,6 +103,9 @@ const (
 	resultsArea
 )
 
+// numAreas is how many parts the page has.
+const numAreas = 3
+
 // kinds are the kinds of results, in the order the page lists them.
 var kinds = []core.SearchKind{core.SearchRepos, core.SearchIssues, core.SearchPulls, core.SearchCode}
 

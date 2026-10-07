@@ -79,10 +79,9 @@ const previewWidth = 100
 // is a letter, since letters go to the query.
 type finderKeys struct {
 	find finder.KeyMap
-	// Reveal shows the file in the tree, Browser on GitHub, and Preview
-	// shows or hides its content.
+	// Reveal shows the file in the tree, and Preview shows or hides its
+	// content.
 	Reveal  key.Binding
-	Browser key.Binding
 	Preview key.Binding
 }
 
@@ -90,14 +89,13 @@ func newFinderKeys() finderKeys {
 	return finderKeys{
 		find:    finder.DefaultKeyMap(),
 		Reveal:  key.NewBinding(key.WithKeys("ctrl+t"), key.WithHelp("^t", "open in tree")),
-		Browser: key.NewBinding(key.WithKeys("ctrl+o"), key.WithHelp("^o", "open on GitHub")),
 		Preview: key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "preview")),
 	}
 }
 
 // ShortHelp implements help.KeyMap.
 func (k finderKeys) ShortHelp() []key.Binding {
-	return []key.Binding{k.Reveal, k.Preview, k.Browser}
+	return []key.Binding{k.Reveal, k.Preview}
 }
 
 // FullHelp implements help.KeyMap: the keys of the finder beside the
@@ -154,9 +152,10 @@ func (s *Section) newFinder() *finderModal {
 	v := s.voice
 	v.Retry, v.Open = key.Binding{}, key.Binding{}
 	// The preview loads a file again only when it is chosen again, and
-	// opens it on GitHub with the browser key.
+	// the finder has no key that opens it on GitHub, since it types: the
+	// file's link does, and so does the tree, where reveal shows it.
 	pv := s.voice
-	pv.Retry, pv.Open = key.Binding{}, f.keys.Browser
+	pv.Retry, pv.Open = key.Binding{}, key.Binding{}
 	f.pager = pager.New(pager.WithErrorText(fileErrorText(repo, pv)), pager.WithResizeRest(resizeRest))
 	f.img = fileImage{images: s.images, repo: repo, shown: shownText, ellipsis: s.icons.Ellipsis}
 	f.md.setFiles(ctx, s.svc, repo, ref, s.images)
@@ -359,13 +358,6 @@ func (f *finderModal) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		}
 		f.stopRead()
 		return tea.Batch(ui.CloseModal(f), f.s.reveal(it.Path)), true
-	case key.Matches(msg, f.keys.Browser):
-		it, ok := f.find.Selected()
-		if !ok {
-			return nil, true
-		}
-		e, _ := entryOfItem(it)
-		return ui.Open(webURL(f.s.host, f.s.repo, f.s.ref, e)), true
 	case key.Matches(msg, f.keys.Preview):
 		show := !f.preview
 		f.toggled = &show
@@ -401,7 +393,7 @@ func (f *finderModal) moved() tea.Cmd {
 	}
 	if binaryExt[strings.ToLower(path.Ext(e.Name))] && !f.drawsImage(e) {
 		f.named = true
-		f.pager.SetMessage(e.Path, "Binary file, not shown"+browserHint(f.keys.Browser, f.s.icons))
+		f.pager.SetMessage(e.Path, "Binary file, not shown")
 		return nil
 	}
 	if b, ok := f.s.svc.CachedBlob(f.s.blobQuery(e)); ok {
@@ -428,7 +420,7 @@ func (f *finderModal) showFile(e core.TreeEntry, b core.Blob, err error) tea.Cmd
 	if !f.img.draw(&f.pager) {
 		return nil
 	}
-	cmd, _ := fill(&f.pager, e, b, err, f.keys.Browser, f.s.icons, f.rendering())
+	cmd, _ := fill(&f.pager, e, b, err, key.Binding{}, f.s.icons, f.rendering())
 	return tea.Batch(cmd, f.md.lookUp())
 }
 
@@ -447,7 +439,7 @@ func (f *finderModal) redraw() tea.Cmd {
 	if !f.img.redraw(&f.pager) {
 		return nil
 	}
-	cmd, _ := fill(&f.pager, f.img.entry, f.img.blob, f.img.err, f.keys.Browser, f.s.icons, f.rendering())
+	cmd, _ := fill(&f.pager, f.img.entry, f.img.blob, f.img.err, key.Binding{}, f.s.icons, f.rendering())
 	return cmd
 }
 

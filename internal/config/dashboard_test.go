@@ -139,11 +139,9 @@ func TestDashboardPrefetchRenamed(t *testing.T) {
 func TestDashboardActions(t *testing.T) {
 	defaults := Default().Keys
 	for action, want := range map[string][]string{
-		ActionDashboard:              {"0"},
-		ActionPane4:                  {"4"},
-		ActionPane5:                  {"5"},
-		"dashboard_repos.next_owner": {"right"},
-		"dashboard_repos.prev_owner": {"left"},
+		ActionDashboard: {"0"},
+		ActionPane4:     {"4"},
+		ActionPane5:     {"5"},
 	} {
 		if got := defaults.Of(action); !slices.Equal(got, want) {
 			t.Errorf("default %s = %v, want %v", action, got, want)

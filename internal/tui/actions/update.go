@@ -154,13 +154,11 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 	case key.Matches(msg, k.PrevTab):
 		return m.switchTab(-1)
 	case key.Matches(msg, k.Next):
-		return m.moveFocus(1, true)
+		return m.moveFocus(1)
 	case key.Matches(msg, k.Prev):
-		return m.moveFocus(-1, true)
-	case key.Matches(msg, k.Right):
-		return m.moveFocus(1, false)
-	case key.Matches(msg, k.Left):
-		return m.moveFocus(-1, false)
+		return m.moveFocus(-1)
+	case k.focusOf(msg) >= 0:
+		return m.focusPane(k.focusOf(msg))
 	case key.Matches(msg, k.Filter):
 		return m.openFilter()
 	case key.Matches(msg, k.Zoom):
@@ -198,16 +196,9 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 	}
 }
 
-// moveFocus moves the focus d panes on, round the ends if round is set.
-func (m *Modal) moveFocus(d int, round bool) tea.Cmd {
-	to := int(m.focus) + d
-	switch {
-	case round:
-		to = (to + numPanes) % numPanes
-	case to < 0 || to >= numPanes:
-		return nil
-	}
-	return m.focusPane(pane(to))
+// moveFocus moves the focus d panes on, round the ends.
+func (m *Modal) moveFocus(d int) tea.Cmd {
+	return m.focusPane(pane((int(m.focus) + d + numPanes) % numPanes))
 }
 
 // focusPane focuses p, and reads what it shows at once rather than when

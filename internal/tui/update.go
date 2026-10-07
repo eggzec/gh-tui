@@ -342,8 +342,8 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 			return m.cycle(-1)
 		}
 	}
-	// The dashboard and the owner page move between their own panes.
-	if m.screen != dashScreen && m.screen != ownerScreen {
+	// The other screens focus their own panes, or ignore the digit.
+	if m.screen == repoScreen {
 		if i := m.keys.pane(msg); i >= 0 && i < len(m.panes) {
 			return m.showScreen(repoScreen, i)
 		}

@@ -41,6 +41,14 @@ func TestKeyLayersOrder(t *testing.T) {
 		{nil, "[", "nothing", func(s, _ *Section, _ []tea.Msg) bool { return s.input.Value() == "[" && s.area == inputArea }},
 		{nil, "tab", "Query: next", func(s, _ *Section, _ []tea.Msg) bool { return s.area == kindsArea }},
 		{nil, "shift+tab", "Query: previous", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea }},
+		// The query types digits; from the kinds and the results they focus
+		// the query, the kinds and the results.
+		{nil, "1", "nothing", func(s, _ *Section, _ []tea.Msg) bool { return s.input.Value() == "1" && s.area == inputArea }},
+		{nil, "3", "nothing", func(s, _ *Section, _ []tea.Msg) bool { return s.input.Value() == "3" && s.area == inputArea }},
+		{kinds, "1", "Search: focus pane", func(s, _ *Section, _ []tea.Msg) bool { return s.area == inputArea && s.input.Value() == "tea" }},
+		{kinds, "3", "Search: focus pane", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea }},
+		{results, "1", "Search: focus pane", func(s, _ *Section, _ []tea.Msg) bool { return s.area == inputArea && s.input.Value() == "tea" }},
+		{results, "2", "Search: focus pane", func(s, _ *Section, _ []tea.Msg) bool { return s.area == kindsArea }},
 		{results, "j", "Results: down", func(s, b *Section, _ []tea.Msg) bool { return selectedHit(s) != selectedHit(b) }},
 		{results, "enter", "Results: open", func(_, _ *Section, msgs []tea.Msg) bool { return len(msgs) > 0 }},
 		{results, "left", "Results: kinds", func(s, _ *Section, _ []tea.Msg) bool { return s.area == kindsArea }},

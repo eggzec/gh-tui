@@ -164,12 +164,7 @@ func (k KeyMap) state(m *Model) KeyMap {
 	case dashScreen:
 		k.Dashboard.SetHelp(k.Dashboard.Help().Key, "back")
 		k.Dashboard.SetEnabled(k.Dashboard.Enabled() && m.back != dashScreen)
-		// The dashboard moves between its own panes.
-		k.Jump.SetEnabled(false)
-	case ownerScreen:
-		// The owner page moves between its own panes.
-		k.Jump.SetEnabled(false)
-	case repoScreen, searchScreen:
+	case repoScreen, searchScreen, ownerScreen:
 	}
 	if m.screen != repoScreen {
 		// Only the repository screen has panes to cycle through. On the
@@ -181,7 +176,9 @@ func (k KeyMap) state(m *Model) KeyMap {
 		k.Prev.SetEnabled(false)
 	}
 	k.Dashboard.SetEnabled(k.Dashboard.Enabled() && m.dash != nil)
-	k.Jump.SetEnabled(k.Jump.Enabled() && len(m.panes) > 0)
+	// Every other screen and modal focuses its own panes, and lists the
+	// keys for them.
+	k.Jump.SetEnabled(k.Jump.Enabled() && m.screen == repoScreen && len(m.panes) > 0)
 	return k
 }
 

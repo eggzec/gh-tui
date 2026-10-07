@@ -430,9 +430,9 @@ type keyContext struct {
 // fixedKeys are the keys a step may name itself, rather than an action:
 // those the code fixes, whatever the config says. The arrows move, enter
 // runs the command line and chooses in the filter form and the finder,
-// and the pager and the log take / to search, - for an option and digits
-// for a count. Any other key must be reached through its action.
-var fixedKeys = map[string]bool{"up": true, "down": true, "enter": true, "/": true, "-": true, "5": true, "space": true}
+// and the pager and the log take / to search and - for an option. Any
+// other key must be reached through its action.
+var fixedKeys = map[string]bool{"up": true, "down": true, "enter": true, "/": true, "-": true, "space": true}
 
 // typedStep starts a step that types text, which typed makes.
 const typedStep = "type:"
@@ -775,7 +775,6 @@ func keyContexts() []keyContext {
 		{name: "files: preview", repo: true, steps: []string{"down", "global.select"}, context: "preview", want: "global, preview"},
 		{name: "files: preview search", repo: true, steps: []string{"down", "global.select", "/"}, context: "search_prompt", want: "always, search_prompt (types)"},
 		{name: "files: preview option", repo: true, steps: []string{"down", "global.select", "-"}, context: "pager_option", want: "always, pager_option (types)"},
-		{name: "files: preview count", repo: true, steps: []string{"down", "global.select", "5"}, want: "always, pager (types)"},
 		{name: "files: preview command line", repo: true, steps: []string{"down", "global.select", "global.command"}, context: "command_line", want: "command_line (types)"},
 		{name: "files: finder", repo: true, steps: []string{"global.find_file"}, context: "finder", want: "always, finder (types)"},
 		{name: "files: finder preview", repo: true, steps: []string{"global.find_file", typed("R"), "enter"}, context: "preview", want: "global, preview"},

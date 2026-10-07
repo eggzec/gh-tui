@@ -31,7 +31,7 @@ type readmeKeys struct {
 func newReadmeKeys() readmeKeys {
 	k := pager.DefaultKeyMap()
 	for _, b := range []*key.Binding{
-		&k.Count, &k.Percent, &k.Left, &k.Right, &k.Option, &k.Search, &k.Confirm, &k.Cancel,
+		&k.Left, &k.Right, &k.Option, &k.Search, &k.Confirm, &k.Cancel,
 		&k.Filter, &k.Next, &k.Prev, &k.Edit, &k.Close,
 	} {
 		*b = key.NewBinding(key.WithDisabled())

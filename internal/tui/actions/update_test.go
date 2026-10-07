@@ -84,7 +84,7 @@ func TestPanesAndBack(t *testing.T) {
 		want pane
 	}{
 		{"tab", jobsPane}, {"tab", logPane}, {"tab", runsPane}, {"shift+tab", logPane},
-		{"h", jobsPane}, {"h", runsPane}, {"h", runsPane}, {"l", jobsPane}, {"l", logPane}, {"l", logPane},
+		{"2", jobsPane}, {"1", runsPane}, {"1", runsPane}, {"3", logPane}, {"2", jobsPane}, {"3", logPane}, {"3", logPane},
 		{"esc", jobsPane}, {"esc", runsPane}, {"enter", jobsPane}, {"enter", logPane},
 	}
 	for _, s := range steps {
@@ -884,8 +884,9 @@ func TestSharedKeys(t *testing.T) {
 		{name: "f on the runs", key: "f", desc: "filter", ok: filters},
 		{name: "f on the jobs", to: []string{"tab"}, key: "f", desc: "filter", ok: filters},
 		{name: "f in the log", to: []string{"tab", "tab"}, key: "f", desc: "filter", ok: filters},
-		{name: "h in the log", to: []string{"tab", "tab"}, key: "h", desc: "pane left", ok: func(m *Modal) bool { return m.focus == jobsPane }},
-		{name: "l on the jobs", to: []string{"tab"}, key: "l", desc: "pane right", ok: func(m *Modal) bool { return m.focus == logPane }},
+		{name: "2 on the runs", key: "2", desc: "focus pane", ok: func(m *Modal) bool { return m.focus == jobsPane }},
+		{name: "3 on the runs", key: "3", desc: "focus pane", ok: func(m *Modal) bool { return m.focus == logPane }},
+		{name: "1 in the log", to: []string{"tab", "tab"}, key: "1", desc: "focus pane", ok: func(m *Modal) bool { return m.focus == runsPane }},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -899,6 +900,21 @@ func TestSharedKeys(t *testing.T) {
 				t.Errorf("%s didn't reach %q: focus %d, question %v, filter %v", tt.key, tt.desc, m.focus, m.ask != nil, m.filterStep != nil)
 			}
 		})
+	}
+}
+
+// h and l scroll the log sideways, not move the focus between the panes.
+func TestHAndLScrollTheLog(t *testing.T) {
+	m, h := newModal(t, newFake(), wideW, wideH)
+	h.keys("tab", "tab")
+	for _, k := range []string{"h", "l"} {
+		if b, src, ok := uitest.Winner(m.KeyLayers(), k); !ok || src == "Actions" || b.Help().Desc == "pane left" || b.Help().Desc == "pane right" {
+			t.Errorf("the help gives %s to %q of %q, want the log's", k, b.Help().Desc, src)
+		}
+		h.keys(k)
+		if m.focus != logPane {
+			t.Errorf("%s moved the focus to pane %d, want it to stay on the log", k, m.focus)
+		}
 	}
 }
 

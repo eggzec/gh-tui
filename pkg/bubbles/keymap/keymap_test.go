@@ -121,8 +121,8 @@ func TestNames(t *testing.T) {
 
 func TestNamesOfPager(t *testing.T) {
 	want := []string{
-		"bottom", "count", "edit", "find", "global.quit", "half_page_down", "half_page_up",
-		"left", "next_match", "option", "page_down", "page_up", "percent", "prev_match",
+		"bottom", "edit", "find", "global.quit", "half_page_down", "half_page_up",
+		"left", "next_match", "option", "page_down", "page_up", "prev_match",
 		"quick_filter", "right", "search_prompt.cancel", "search_prompt.run", "top", "up", "down",
 	}
 	slices.Sort(want)

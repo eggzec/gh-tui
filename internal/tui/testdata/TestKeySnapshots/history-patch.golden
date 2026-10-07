@@ -8,6 +8,7 @@ global
 History
   pane | tab | tab | on
   previous pane | shift+tab | shift+tab | on
+  focus pane | 1 2 3 | 1-3 | on
   browser | o | o | on
   back to head | H | H | off
   zoom | z | z | on
@@ -23,8 +24,6 @@ Patch
   ½ page down | ctrl+d | ^d | on
   top | home g | g/home | on
   bottom | end G | G/end | on
-  count for g/G/% | 0 1 2 3 4 5 6 7 8 9 | 0-9 | on
-  go to count % | % | % | off
   left | left h | ←/h | on
   right | right l | →/l | on
   option: S N s i I | - | - | on

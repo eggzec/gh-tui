@@ -124,9 +124,6 @@ type Model struct {
 	opt bool
 	// cases is how searches and filters match case.
 	cases caseMode
-	// num is the count typed before a key, while counting.
-	num      int
-	counting bool
 	// search is the search shown and hits its matches in the window. qgen
 	// counts searches; what an older one found is dropped. stopSearch
 	// stops the one running in the background.
@@ -198,10 +195,10 @@ func (m Model) Height() int { return m.height }
 func (m *Model) Focus() { m.focused = true }
 
 // Blur makes the pager ignore keys. It closes the prompt, and forgets an
-// option or a count it waited for.
+// option it waited for.
 func (m *Model) Blur() {
 	m.focused = false
-	m.opt, m.num, m.counting = false, 0, false
+	m.opt = false
 	m.closePrompt()
 }
 
@@ -209,9 +206,9 @@ func (m *Model) Blur() {
 func (m Model) Focused() bool { return m.focused }
 
 // Capturing reports whether the prompt is open, or the pager waits for
-// the name of an option or the key after a count. It then takes every key, so the parent should
+// the name of an option. It then takes every key, so the parent should
 // not act on keys of its own.
-func (m Model) Capturing() bool { return m.prompt.Focused() || m.opt || m.counting }
+func (m Model) Capturing() bool { return m.prompt.Focused() || m.opt }
 
 // Wrap reports whether long lines are soft-wrapped.
 func (m Model) Wrap() bool { return m.wrap }
@@ -261,8 +258,6 @@ func (m Model) ShortHelp() []key.Binding {
 		return []key.Binding{m.confirmKey(), m.keys.Cancel}
 	case m.opt:
 		return []key.Binding{m.keys.Cancel}
-	case m.counting:
-		return []key.Binding{m.keys.Home, m.keys.End, m.keys.Percent, m.keys.Cancel}
 	}
 	return m.keys.ShortHelp()
 }
@@ -279,13 +274,10 @@ func (m Model) confirmKey() key.Binding {
 
 // FullHelp implements help.KeyMap. While the prompt is open, only the keys
 // that close it act, and the prompt takes the rest; while the pager waits
-// for an option, only the key that cancels it acts, and after a count,
-// the keys that go to its line or percent act too. The key that goes to a
-// percent acts only after a count.
+// for an option, only the key that cancels it acts.
 func (m Model) FullHelp() [][]key.Binding {
 	k := m.keys
 	k.Confirm = m.confirmKey()
-	k.Percent.SetEnabled(m.counting)
 	k.Edit.SetEnabled(m.state == stateReady && !m.Capturing())
 	if m.Capturing() {
 		for _, b := range []*key.Binding{
@@ -294,9 +286,6 @@ func (m Model) FullHelp() [][]key.Binding {
 		} {
 			b.SetEnabled(false)
 		}
-		k.Count.SetEnabled(m.counting)
-		k.Home.SetEnabled(m.counting)
-		k.End.SetEnabled(m.counting)
 	}
 	return k.FullHelp()
 }

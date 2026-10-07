@@ -144,7 +144,7 @@ func TestEdit(t *testing.T) {
 	var got ran
 	m := editorPager(t, "docs/notes.txt", text, dir, &got, nil)
 	m, _ = enterAll(t, m, "&", "line", "enter")
-	m, _ = keys(t, m, "1", "0", "g")
+	m, _ = keys(t, m, "j", "j", "j", "j", "j", "j", "j", "j")
 	m, cmd := m.Update(press("v"))
 	if cmd == nil {
 		t.Fatal("v ran nothing")
@@ -300,7 +300,6 @@ func TestEditCaptured(t *testing.T) {
 	}{
 		{name: "search prompt", keys: []string{"/"}, prompt: "v"},
 		{name: "filter prompt", keys: []string{"&"}, prompt: "v"},
-		{name: "count", keys: []string{"4"}},
 		{name: "option", keys: []string{"-"}, note: noteNoOption + "v"},
 		{name: "loading", set: func(m *Model) { _ = m.SetLoading("a.txt") }},
 		{name: "message", set: func(m *Model) { m.SetMessage("a.bin", "Binary") }},
@@ -330,9 +329,6 @@ func TestEditCaptured(t *testing.T) {
 			}
 			if m.flash != tt.note {
 				t.Errorf("note %q, want %q", m.flash, tt.note)
-			}
-			if tt.name == "count" && m.Capturing() {
-				t.Error("v kept the count")
 			}
 		})
 	}

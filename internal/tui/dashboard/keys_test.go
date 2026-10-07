@@ -30,6 +30,10 @@ func TestKeyLayersOrder(t *testing.T) {
 		{nil, "j", "Repositories: down", func(s, b *Section, _ []tea.Msg) bool { return selectedRepo(s) != selectedRepo(b) }},
 		{nil, "enter", "Repositories: open", func(_, _ *Section, msgs []tea.Msg) bool { return hasRepoMsg(msgs) }},
 		{nil, "]", "Repositories: next owner", func(s, b *Section, _ []tea.Msg) bool { return s.repos.cur != b.repos.cur }},
+		// The arrows no longer switch owners or lists: ] and [ do.
+		{nil, "right", "nothing", func(s, b *Section, _ []tea.Msg) bool { return s.repos.cur == b.repos.cur }},
+		{nil, "left", "nothing", func(s, b *Section, _ []tea.Msg) bool { return s.repos.cur == b.repos.cur }},
+		{[]string{"tab"}, "right", "nothing", func(s, b *Section, _ []tea.Msg) bool { return s.tasks.cur == b.tasks.cur }},
 		{nil, "1", "Dashboard: focus pane", func(s, _ *Section, _ []tea.Msg) bool { return s.focus == pinnedPane }},
 		// The list asks the app to open the filter; its keys don't page.
 		{nil, "f", "Repositories: filter", func(s, b *Section, msgs []tea.Msg) bool {

@@ -379,9 +379,9 @@ func (p *pagerModal) KeyLayers() []keyhelp.Layer {
 }
 
 // TestHelpKeyReachesWaitingPager checks that ? goes to a pager that waits
-// for the name of an option or the key after a count.
+// for the name of an option.
 func TestHelpKeyReachesWaitingPager(t *testing.T) {
-	for _, first := range []string{"-", "5"} {
+	for _, first := range []string{"-"} {
 		m, _ := newTestApp(t)
 		mod := &pagerModal{title: "README.md", pager: pager.New(pager.WithSize(60, 10))}
 		mod.pager.Focus()

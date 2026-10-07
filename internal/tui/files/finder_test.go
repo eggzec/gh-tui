@@ -152,13 +152,24 @@ func TestFindFileReveals(t *testing.T) {
 	}
 }
 
-func TestFindFileOpensOnGitHub(t *testing.T) {
+// The finder types, so it has no key that opens a file on GitHub: the
+// link of the file does, and so does the tree, where ctrl+t reveals it.
+func TestFindFileHasNoBrowserKey(t *testing.T) {
 	h := newHost(loaded(t, sampleFake(), 40, 12))
-	findIn(t, h)
+	f := findIn(t, h)
 	h.keys("m", "a", "i", "n", "ctrl+o")
-	want := ui.OpenMsg{URL: "https://github.com/eggzec/gh-tui/blob/HEAD/cmd/gh-tui/main.go"}
-	if !slices.Contains(h.got, tea.Msg(want)) {
-		t.Errorf("messages %v, want %v", h.got, want)
+	for _, m := range h.got {
+		if _, ok := m.(ui.OpenMsg); ok {
+			t.Errorf("messages %v, want no page opened", h.got)
+		}
+	}
+	if !slices.Contains(h.modals, ui.Modal(f)) {
+		t.Error("the finder closed")
+	}
+	for _, b := range f.keys.FullHelp()[0] {
+		if b.Help().Desc == "open on GitHub" {
+			t.Errorf("help lists %q", b.Help().Key)
+		}
 	}
 }
 
@@ -230,7 +241,7 @@ func TestFindFilePreview(t *testing.T) {
 		reads int
 	}{
 		{"text", "agents", "Guidance for anyone.", 1},
-		{"too large", "readme", "Too large to preview · ^o opens it in the browser", 1},
+		{"too large", "readme", "Too large to preview", 1},
 		{"binary", "go.mod", "Binary file, not shown", 1},
 		{"binary by name", "logo", "Binary file, not shown", 0},
 		{"symlink", "claude", "Symbolic link → AGENTS.md", 1},
@@ -247,8 +258,8 @@ func TestFindFilePreview(t *testing.T) {
 			}
 			before := len(fk.blobSHAs())
 			h.keys(strings.Split(tt.query, "")...)
-			if v := ansi.Strip(f.View()); !strings.Contains(v, tt.want) {
-				t.Errorf("view = %q, want %q", v, tt.want)
+			if v := ansi.Strip(f.View()); !strings.Contains(v, tt.want) || strings.Contains(v, "in the browser") {
+				t.Errorf("view = %q, want %q and no key that opens it in the browser", v, tt.want)
 			}
 			if got := len(fk.blobSHAs()) - before; got != tt.reads {
 				t.Errorf("%d reads, want %d", got, tt.reads)
@@ -504,7 +515,8 @@ func TestFindFileAfterRefresh(t *testing.T) {
 
 // The preview of a file, on its own and beside the finder, says what went
 // wrong the way the user should read it, without the error's chain,
-// request or status code, and names the key that opens the file there.
+// request or status code, and names the key that opens the file there,
+// which the finder has none of.
 func TestPreviewErrorWords(t *testing.T) {
 	tests := []struct {
 		name            string
@@ -514,7 +526,7 @@ func TestPreviewErrorWords(t *testing.T) {
 		{"offline", fmt.Errorf("get blob: github: GET /repos/eggzec/gh-tui/git/blobs/b: %w", core.ErrOffline),
 			errMark + " Can't reach GitHub", errMark + " Can't reach GitHub"},
 		{"forbidden", fmt.Errorf("get blob: github: 403 Forbidden: %w", core.ErrForbidden),
-			errMark + " You don't have access to eggzec/gh-tui · o to open on GitHub", errMark + " You don't have access to eggzec/gh-tui · ^o to open on GitHub"},
+			errMark + " You don't have access to eggzec/gh-tui · o to open on GitHub", errMark + " You don't have access to eggzec/gh-tui"},
 		{"internal", errors.New("get blob: github: decode: unexpected EOF"),
 			errMark + " Something went wrong. Details are in the log", errMark + " Something went wrong. Details are in the log"},
 	}
@@ -538,7 +550,7 @@ func TestPreviewErrorWords(t *testing.T) {
 			h.width, h.height = 160, 16
 			f := findIn(t, h)
 			h.keys(strings.Split("gitignore", "")...)
-			if got := clean(f.View()); !strings.Contains(got, tt.finder) || strings.Contains(got, "github:") || strings.Contains(got, "403") {
+			if got := clean(f.View()); !strings.Contains(got, tt.finder) || strings.Contains(got, "github:") || strings.Contains(got, "403") || strings.Contains(got, "open on GitHub") {
 				t.Errorf("finder = %q, want %q", got, tt.finder)
 			}
 		})
