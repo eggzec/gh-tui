@@ -4,6 +4,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"unicode"
 
 	"github.com/charmbracelet/x/ansi"
 
@@ -209,6 +210,12 @@ type anchor struct {
 	item   int // -1 when the chunk has no rendered items
 	off    int
 	height int
+	// chars and total, if total is set, are the characters other than
+	// spaces above the top line within its block, and in the whole block.
+	// A new width wraps the same text onto other lines, but leaves these
+	// as they were, so the same text stays at the top.
+	chars, total int
+	key          string
 }
 
 // top is the anchor of a thread scrolled to the top.
@@ -239,6 +246,111 @@ func (m *Model[T]) anchor() anchor {
 	return anchor{chunk: i, item: j, off: off - c.starts[j], height: itemHeight(c, j)}
 }
 
+// blockLines returns the lines of the block that a is in, and the line
+// the block starts at, or nil if a is in no block of text.
+func (m *Model[T]) blockLines(a anchor) (lines []string, start int) {
+	switch {
+	case a == top:
+		return nil, 0
+	case a.chunk < 0:
+		return m.doc, 0
+	case a.chunk < len(m.chunks):
+		c := &m.chunks[a.chunk]
+		if !c.loaded || len(c.lines) != c.height || a.item >= len(c.starts) {
+			return nil, 0
+		}
+		if a.item < 0 {
+			return c.lines, m.starts[a.chunk]
+		}
+		from := c.starts[a.item]
+		return c.lines[from : from+itemHeight(c, a.item)], m.starts[a.chunk] + from
+	}
+	return nil, 0
+}
+
+// letters returns the characters of line other than spaces.
+func letters(line string) []rune {
+	var out []rune
+	for _, r := range ansi.Strip(line) {
+		if !unicode.IsSpace(r) {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+// keyLen is how many characters follow a point of text in its key, which
+// finds the point again among the lines of another width.
+const keyLen = 16
+
+// anchorText returns the anchor with the text of the top line counted: the
+// characters other than spaces above it, in all, and the key that follows
+// them, for a new layout that wraps the lines again. A top line that the
+// last layout chose for holding a point of text, rather than starting at
+// it, still counts that point: the text stays put through any number of
+// new widths, and doesn't drift up a line with each.
+func (m *Model[T]) anchorText() anchor {
+	a := m.anchor()
+	lines, _ := m.blockLines(a)
+	if a.off < 0 || a.off >= len(lines) {
+		return a
+	}
+	var text []rune
+	top := 0
+	for i, l := range lines {
+		r := letters(l)
+		if i == a.off {
+			top = len(r)
+		}
+		if i < a.off {
+			a.chars += len(r)
+		}
+		text = append(text, r...)
+	}
+	a.total = len(text)
+	if p := m.pin; p.total == a.total && m.vp.YOffset() == m.pinY && p.chunk == a.chunk && p.item == a.item &&
+		p.chars >= a.chars && p.chars < a.chars+top {
+		a.chars = p.chars
+	}
+	a.key = string(text[a.chars:min(a.chars+keyLen, len(text))])
+	return a
+}
+
+// restoreText returns the line that holds the text that a had at the top,
+// if a counts its text, or y, and the anchor to keep for that line. The
+// text is found by its key, nearest to where it would be if the text
+// were spread evenly.
+func (m *Model[T]) restoreText(a anchor, y int) (int, anchor) {
+	if a.total == 0 {
+		return y, anchor{}
+	}
+	lines, start := m.blockLines(a)
+	var text []rune
+	ends := make([]int, len(lines))
+	for i, l := range lines {
+		text = append(text, letters(l)...)
+		ends[i] = len(text)
+	}
+	if len(text) == 0 {
+		return y, anchor{}
+	}
+	at := min(a.chars*len(text)/a.total, len(text)-1)
+	if key := []rune(a.key); len(key) > 0 {
+		best := -1
+		for i := 0; i+len(key) <= len(text); i++ {
+			if string(text[i:i+len(key)]) == a.key && (best < 0 || abs(i-at) < abs(best-at)) {
+				best = i
+			}
+		}
+		if best >= 0 {
+			at = best
+		}
+	}
+	a.chars, a.total = at, len(text)
+	i := sort.SearchInts(ends, at+1)
+	return start + min(i, len(lines)-1), a
+}
+
 func (m *Model[T]) restore(a anchor) {
 	var y int
 	switch {
@@ -256,7 +368,9 @@ func (m *Model[T]) restore(a anchor) {
 	default:
 		y = len(m.lines)
 	}
+	y, pin := m.restoreText(a, y)
 	m.vp.SetYOffset(y)
+	m.pin, m.pinY = pin, m.vp.YOffset()
 }
 
 func itemHeight[T any](c *chunk[T], j int) int {
