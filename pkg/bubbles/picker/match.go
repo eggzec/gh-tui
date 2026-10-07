@@ -107,8 +107,10 @@ func (m *Model) rebuild() {
 		switch {
 		case m.typedAt && i == len(rs)-1:
 			// A header of its own, so the row doesn't read as part of the
-			// last group.
-			m.rows = append(m.rows, row{header: typedHeader, item: -1})
+			// last group, unless the picker shows no headers.
+			if m.headers {
+				m.rows = append(m.rows, row{header: typedHeader, item: -1})
+			}
 		case m.headers && r.Kind != "" && (i == 0 || rs[i-1].Kind != r.Kind):
 			m.rows = append(m.rows, row{header: r.Kind, item: -1})
 		}

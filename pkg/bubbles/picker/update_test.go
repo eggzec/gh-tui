@@ -974,18 +974,23 @@ func TestTypedItem(t *testing.T) {
 			t.Errorf("sent %v, want %v", sent, want)
 		}
 	})
-	t.Run("has a header of its own", func(t *testing.T) {
+	t.Run("has a header of its own, unless headers are off", func(t *testing.T) {
 		m := open(t, nil, WithItems(catalog), WithTyped(use))
 		m = typeText(t, m, "crash")
 		n := len(m.rows)
 		if m.rows[n-1].item != 2 || m.rows[n-2].header != typedHeader || m.rows[n-2].item >= 0 {
 			t.Errorf("last rows %+v, want the typed header and then the item", m.rows[n-2:])
 		}
-		// With the group headers off it still stands apart.
+		// With the group headers off it has none either.
 		m = open(t, nil, WithItems(catalog), WithTyped(use), WithGroupHeaders(false))
 		m = typeText(t, m, "crash")
-		if n := len(m.rows); m.rows[n-2].header != typedHeader {
-			t.Errorf("without group headers: last rows %+v", m.rows[n-2:])
+		for _, r := range m.rows {
+			if r.item < 0 {
+				t.Errorf("without group headers: rows %+v hold a header", m.rows)
+			}
+		}
+		if n := len(m.rows); m.rows[n-1].item != 2 {
+			t.Errorf("without group headers: last rows %+v, want the typed item", m.rows[n-1:])
 		}
 	})
 	t.Run("is not counted", func(t *testing.T) {

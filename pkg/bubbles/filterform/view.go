@@ -53,20 +53,22 @@ func (m *Model) valueX() int { return gutterWidth + m.labelWidth() + labelGap }
 // DropdownExtra returns how many more lines the form needs for the
 // dropdown it has open, beyond rows lines of rows and the rule and query
 // under them, so that the dropdown fits under its row or above it. It is 0
-// when none is open or the room is enough. A parent that sizes the form to
-// what it shows adds it to the rows; a dropdown never grows the form
-// otherwise, but floats over what is below its row.
+// when none is open or one of the two has room enough. A parent that sizes
+// the form to what it shows adds it to the rows; the lines go to the end of
+// the rows, so they only add room under the dropdown's row.
 func (m Model) DropdownExtra(rows, width int) int {
 	if m.mode != listMode {
 		return 0
 	}
 	want := m.dropHeight()
-	// Lines the dropdown has under its row: the rows, the rule and the
-	// query, and above it the rows before its row. Extra lines go to the
-	// end of the rows, so only the room under it grows.
+	// Lines under the row: the rows after it, the rule and the query; and
+	// above it the rows before it.
 	below := rows - m.row - 1 + 1 + m.QueryLines(width)
 	above := m.row
-	return min(max(want-below, 0), max(want-above, 0))
+	if below >= want || above >= want {
+		return 0
+	}
+	return want - below
 }
 
 // editorX is the column a dropdown starts at: under the values, or under
