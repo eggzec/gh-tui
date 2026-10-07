@@ -3,6 +3,7 @@ package pulls
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -515,5 +516,58 @@ func TestOwnerKeyInModalOffForApps(t *testing.T) {
 	}
 	if h.modal() != m {
 		t.Error("@ closed the modal while the question waits")
+	}
+}
+
+// longBody is a body of many paragraphs, each of words that name their
+// paragraph and their place in it, so that what is at the top of a view
+// can be told whatever the width wraps it to.
+func longBody() string {
+	paras := make([]string, 30)
+	for i := range paras {
+		words := make([]string, 30)
+		for j := range words {
+			words[j] = fmt.Sprintf("p%02d-w%02d", i, j)
+		}
+		paras[i] = strings.Join(words, " ")
+	}
+	return strings.Join(paras, "\n\n")
+}
+
+var bodyWord = regexp.MustCompile(`p\d\d-w\d\d`)
+
+// topLine returns the first line of view with a word of the body, and the
+// first word on it.
+func topLine(view string) (line, word string) {
+	for l := range strings.SplitSeq(ansi.Strip(view), "\n") {
+		if w := bodyWord.FindString(l); w != "" {
+			return l, w
+		}
+	}
+	return "", ""
+}
+
+// The modal keeps its text at the top of the screen when its width
+// changes, as when the modal is maximized and restored.
+func TestModalKeepsItsScrollWhenResized(t *testing.T) {
+	svc := newFakeService()
+	for i := range svc.pulls {
+		svc.pulls[i].Body = longBody()
+	}
+	h := started(t, svc, 80, 30)
+	press(t, h, "enter")
+	m := h.modal()
+	for range 12 {
+		press(t, h, "j")
+	}
+	_, want := topLine(m.View())
+	if want == "" || want == "p00-w00" {
+		t.Fatalf("the modal didn't scroll: the top word is %q", want)
+	}
+	for _, size := range [][2]int{{120, 30}, {80, 30}} {
+		m.SetSize(size[0], size[1])
+		if line, _ := topLine(m.View()); !strings.Contains(line, want) {
+			t.Errorf("at %dx%d the top line is %q, want it to hold %s", size[0], size[1], line, want)
+		}
 	}
 }

@@ -79,8 +79,12 @@ type Model[T any] struct {
 	lines     []string
 	starts    []int // line of each chunk in lines
 	statusIdx int   // line of the status, or -1
-	status    string
-	blank     string
+	// pin is the point of text that the top line of the last new width
+	// was chosen for, and pinY the scroll offset it was set at.
+	pin    anchor
+	pinY   int
+	status string
+	blank  string
 
 	text texts
 }
@@ -182,7 +186,7 @@ func (m Model[T]) Init() tea.Cmd {
 // comments. Setting the document again, for example after the body was
 // edited, keeps the comments and the reading position.
 func (m *Model[T]) SetDocument(header, body string) tea.Cmd {
-	a := m.anchor()
+	a := m.anchorText()
 	m.hasDoc = true
 	m.header, m.body = header, body
 	m.docWidth = -1
@@ -249,14 +253,14 @@ func (m *Model[T]) Reset() tea.Cmd {
 }
 
 // SetSize sets the width and height. A new width renders the document and
-// the loaded comments again and keeps the comment at the top of the screen
-// in place.
+// the loaded comments again and keeps the text at the top of the screen in
+// place.
 func (m *Model[T]) SetSize(width, height int) {
 	width, height = max(width, 0), max(height, 0)
 	if width == m.width && height == m.height {
 		return
 	}
-	a := m.anchor()
+	a := m.anchorText()
 	m.vp.SetHeight(height)
 	m.height = height
 	if width != m.width {
