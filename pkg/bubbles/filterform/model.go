@@ -52,9 +52,9 @@ const (
 	rowsMode mode = iota
 	// insertMode types in a Text field or the query line.
 	insertMode
-	// pickMode has the picker of a Multi or Person field open, or waits
-	// for its options, or shows why they failed to load.
-	pickMode
+	// listMode has a dropdown open on the row in focus, or waits for the
+	// options it lists, or shows why they failed to load.
+	listMode
 )
 
 // Model is a filter form. Create one with [New]. It starts blurred, and
@@ -72,15 +72,20 @@ type Model struct {
 	// line.
 	tab Tab
 	row int
-	// mode is what keys do. before is the value the row's picker opened
-	// with, which esc puts back, and toggled whether space chose something
-	// since. picking is whether the picker itself is open, rather than
-	// waiting for its options.
-	mode    mode
-	before  Value
-	toggled bool
-	picking bool
-	pick    picker.Model
+	// mode is what keys do. before is the value a Text field had when it
+	// was opened for typing, which leaving it puts back when it doesn't
+	// keep the text. picking is whether the dropdown's picker is open,
+	// rather than waiting for its options.
+	// dropItems and dropWidth are the number of options it opened with and
+	// the width they want, and toggled the value of the checklist item
+	// that space or enter acted on last, so that enter doesn't undo it.
+	mode      mode
+	before    Value
+	picking   bool
+	pick      picker.Model
+	dropItems int
+	dropWidth int
+	toggled   string
 
 	text  textinput.Model
 	query textinput.Model
@@ -156,7 +161,7 @@ func (m Model) Query() string { return m.state.query(&m.spec) }
 
 // SetQuery sets the fields from q: each token goes to the first field that
 // claims it, and the rest is kept as free text. Fields q doesn't mention
-// are left empty. It leaves insert mode and closes an open picker.
+// are left empty. It leaves insert mode and closes an open dropdown.
 func (m *Model) SetQuery(q string) {
 	m.closeEditor(false)
 	m.state = parse(&m.spec, q)
@@ -166,7 +171,8 @@ func (m *Model) SetQuery(q string) {
 }
 
 // Reset puts every field and the sort back to their defaults and drops the
-// free text, on both tabs. It leaves insert mode and closes an open picker.
+// free text, on both tabs. It leaves insert mode and closes an open
+// dropdown.
 func (m *Model) Reset() {
 	m.closeEditor(false)
 	m.state = defaults(&m.spec)
@@ -205,10 +211,17 @@ func (m Model) fieldIndex(k string) int {
 }
 
 // Capturing reports whether the form takes every key, which it does in
-// insert mode and while a picker is open, since letters are typed there. A
-// parent asks so it knows not to act on its own bindings meanwhile.
+// insert mode and while a dropdown's filter is typed in, since letters are
+// typed there. A dropdown in its normal mode takes only its keys. A parent
+// asks so it knows not to act on its own bindings meanwhile.
 func (m Model) Capturing() bool {
-	return m.focused && m.mode != rowsMode
+	switch {
+	case !m.focused:
+		return false
+	case m.mode == insertMode:
+		return true
+	}
+	return m.mode == listMode && m.picking && m.pick.Typing()
 }
 
 // Loading reports whether any field is loading its options.
@@ -236,7 +249,7 @@ func (m *Model) Focus() tea.Cmd {
 }
 
 // Blur blurs the form so it ignores keys. It leaves insert mode and closes
-// an open picker, keeping what was typed or chosen, and cancels the loads
+// an open dropdown, keeping what was typed or chosen, and cancels the loads
 // in flight; they start again when their fields are opened.
 func (m *Model) Blur() {
 	m.focused = false
@@ -264,7 +277,7 @@ func (m Model) KeyMap() KeyMap { return m.keys }
 func (m *Model) SetKeyMap(k KeyMap) {
 	m.keys = k
 	if m.picking {
-		m.pick.SetKeyMap(k.Picker)
+		m.pick.SetKeyMap(m.listKeyMap())
 	}
 	m.render()
 }

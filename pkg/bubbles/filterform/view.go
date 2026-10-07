@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/eggzec/gh-tui/pkg/bubbles/overlay"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -17,8 +18,9 @@ const gutterWidth = 2
 const labelGap = 2
 
 // View renders the form at exactly its width and height: the tabs, if it
-// has them, the rows of the tab on view, with the open picker under its
-// row, then a rule, the query and the help line.
+// has them, the rows of the tab on view, then a rule, the query and the
+// help line. An open dropdown floats over the rows and the query, under its
+// row or above it, but never over the help line.
 func (m Model) View() string { return m.view }
 
 // insertLabel starts the help line in insert mode.
@@ -48,33 +50,27 @@ func (m *Model) labelWidth() int {
 // valueX returns the column where the values start.
 func (m *Model) valueX() int { return gutterWidth + m.labelWidth() + labelGap }
 
-// editorSize returns the size of a picker, which sits under the values, or
-// under the labels too when the values are narrow.
-func (m *Model) editorSize() (width, height int) {
-	return m.width - m.editorX(), min(m.editorWant(), max(m.height-4, 3))
-}
-
-// editorWant is the height the picker in the row in focus wants: the
-// default, or room for all the options the field has, and its frame.
-func (m *Model) editorWant() int {
-	n := len(m.fields[m.row].items)
-	return max(m.editorHeight, n+2+m.styles.Picker.Frame.GetVerticalFrameSize())
-}
-
-// EditorHeight returns the number of lines that the editor of the row in
-// focus takes under it: the picker of a list with room for all its
-// options, or the words that say it loads or failed, or 0 when none is
-// open. A parent that sizes the form to what it shows adds it to the rows.
-func (m Model) EditorHeight() int {
-	switch {
-	case m.mode != pickMode:
+// DropdownExtra returns how many more lines the form needs for the
+// dropdown it has open, beyond rows lines of rows and the rule and query
+// under them, so that the dropdown fits under its row or above it. It is 0
+// when none is open or the room is enough. A parent that sizes the form to
+// what it shows adds it to the rows; a dropdown never grows the form
+// otherwise, but floats over what is below its row.
+func (m Model) DropdownExtra(rows, width int) int {
+	if m.mode != listMode {
 		return 0
-	case m.picking:
-		return m.editorWant()
 	}
-	return len(m.editorLines(max(m.width, 1)))
+	want := m.dropHeight()
+	// Lines the dropdown has under its row: the rows, the rule and the
+	// query, and above it the rows before its row. Extra lines go to the
+	// end of the rows, so only the room under it grows.
+	below := rows - m.row - 1 + 1 + m.QueryLines(width)
+	above := m.row
+	return min(max(want-below, 0), max(want-above, 0))
 }
 
+// editorX is the column a dropdown starts at: under the values, or under
+// the labels too when the values are narrow.
 func (m *Model) editorX() int {
 	if x := m.valueX(); m.width-x >= 24 {
 		return x
@@ -142,15 +138,23 @@ func (m *Model) render() {
 	if tabLine != "" {
 		lines = append(lines, tabLine)
 	}
-	lines = m.appendRows(lines, w, max(n, 0))
+	first := len(lines)
+	lines, focusY := m.appendRows(lines, w, max(n, 0))
 	if rule != "" {
 		lines = append(lines, rule)
 	}
 	lines = append(lines, query...)
-	if helpLine != "" {
-		lines = append(lines, helpLine)
+	lines = lines[:min(len(lines), h)]
+	body := strings.Join(lines, "\n")
+	// The dropdown floats over the lines above the help, so it never
+	// covers the help.
+	if box, x, y := m.dropdown(len(lines), first, focusY); box != "" {
+		body = overlay.Place(body, box, x, y)
 	}
-	m.view = strings.Join(lines[:min(len(lines), h)], "\n")
+	if helpLine != "" && len(lines) < h {
+		body += "\n" + helpLine
+	}
+	m.view = body
 }
 
 // tabLine renders the names of the tabs, the one on view in the active
@@ -176,7 +180,7 @@ func (m *Model) tabLine(w int) string {
 	return line
 }
 
-// layoutInputs sizes the text inputs and the picker to the current width.
+// layoutInputs sizes the text inputs to the current width.
 func (m *Model) layoutInputs() {
 	// An input draws one cell more than its width, for the cursor.
 	if tw := max(m.width-m.valueX()-1, 1); m.text.Width() != tw {
@@ -187,47 +191,38 @@ func (m *Model) layoutInputs() {
 		m.query.SetWidth(qw)
 		m.query.SetCursor(m.query.Position())
 	}
-	if m.picking {
-		if w, h := m.editorSize(); m.pick.Width() != w || m.pick.Height() != h {
-			m.pick.SetSize(w, h)
-		}
-	}
 }
 
-// appendRows appends n lines of rows, scrolled so the row in focus and its
-// editor show.
-func (m *Model) appendRows(lines []string, w, n int) []string {
+// appendRows appends n lines of rows, scrolled so the row in focus shows,
+// and returns the lines and the index in them of the row in focus, or -1
+// when it isn't one of them.
+func (m *Model) appendRows(lines []string, w, n int) (out []string, focusY int) {
+	focusY = -1
 	if n <= 0 {
-		return lines
+		return lines, focusY
 	}
-	var rows []string
-	start, end := 0, 0
+	rows := make([]string, 0, m.queryRow())
 	for r := range m.queryRow() {
-		if r == m.row {
-			start = len(rows)
-		}
 		rows = append(rows, m.cachedRowLines(r, w)...)
-		if r == m.row {
-			rows = append(rows, m.editorLines(w)...)
-			end = len(rows)
-		}
 	}
-	if end > start {
-		switch {
-		case end-start > n || start < m.top:
-			m.top = start
-		case end > m.top+n:
-			m.top = end - n
-		}
+	switch {
+	case m.row >= len(rows):
+	case m.row < m.top:
+		m.top = m.row
+	case m.row >= m.top+n:
+		m.top = m.row - n + 1
 	}
 	m.top = max(min(m.top, len(rows)-n), 0)
+	if m.row < len(rows) {
+		focusY = len(lines) + m.row - m.top
+	}
 	rows = rows[m.top:min(m.top+n, len(rows))]
 	lines = append(lines, rows...)
 	blank := strings.Repeat(" ", w)
 	for range n - len(rows) {
 		lines = append(lines, blank)
 	}
-	return lines
+	return lines, focusY
 }
 
 // rowLines renders row r on one line: its label, then its value.
@@ -380,9 +375,9 @@ func optionLabel(label, value string) string {
 }
 
 // loadSegment renders the state of field i's load, if it is loading or
-// failed and its picker, which says more, is closed.
+// failed and its dropdown, which says more, is closed.
 func (m *Model) loadSegment(i int) []string {
-	if m.mode == pickMode && m.row == i {
+	if m.mode == listMode && m.row == i {
 		return nil
 	}
 	switch m.fields[i].state {
@@ -423,43 +418,38 @@ func (m *Model) sortSegments(r int, focused bool) []string {
 	return []string{m.choiceText(g.Up+" "+opt.Asc, focused)}
 }
 
-// editorLines renders the open editor of the row in focus: its picker, or
-// the state of its load.
-func (m *Model) editorLines(w int) []string {
-	if m.mode != pickMode {
-		return nil
+// statusLines renders what the dropdown says while its options load or
+// when that failed: the spinner, or the error and the keys that retry and
+// close it.
+func (m *Model) statusLines() []string {
+	fs := m.fields[m.row]
+	label := strings.ToLower(m.spec.Fields[m.row].Label)
+	if fs.state != failed {
+		return []string{m.spin.View() + m.styles.Hint.Render("Loading "+label+m.styles.Glyphs.Ellipsis)}
 	}
-	x := m.editorX()
-	indent := strings.Repeat(" ", x)
-	if m.picking {
-		pv := strings.Split(m.pick.View(), "\n")
-		out := make([]string, len(pv))
-		for i, l := range pv {
-			out[i] = m.fit(indent+l, w)
-		}
-		return out
+	text, hint := m.errorWords(fs.err, label)
+	var out []string
+	if text != "" {
+		out = append(out, m.styles.Error.Render(m.styles.ErrorGlyph+" "+text))
 	}
-	fs, label := m.fields[m.row], strings.ToLower(m.spec.Fields[m.row].Label)
-	if fs.state == failed {
-		text, hint := m.errorWords(fs.err, label)
-		if text == "" {
-			return nil
-		}
-		back := m.keys.Cancel.Help().Key + " to go back"
-		if hint != "" {
-			back = hint + m.styles.ErrorSeparator + back
-		}
-		cut := m.styles.ErrorEllipsis
-		return []string{
-			fitCut(indent+m.styles.Error.Render(m.styles.ErrorGlyph+" "+text), w, cut),
-			fitCut(indent+m.styles.Hint.Render(back), w, cut),
-		}
+	back := m.name(m.keys.List.Cancel.Help().Key) + " to close"
+	if hint != "" {
+		back = hint + m.styles.ErrorSeparator + back
 	}
-	return []string{m.fit(indent+m.spin.View()+m.styles.Hint.Render("Loading "+label+m.styles.Glyphs.Ellipsis), w)}
+	return append(out, m.styles.Hint.Render(back))
 }
 
-// errorWords returns what the editor says of err, the failed load of the
-// options of the field called label, and the hint after it.
+// name writes a key as the parent wants it written.
+func (m *Model) name(s string) string {
+	if m.keyName == nil {
+		return s
+	}
+	return m.keyName(s)
+}
+
+// errorWords returns what the dropdown says of err, the failed load of the
+// options of the field called label, and the hint after it, which names the
+// key that retries.
 func (m *Model) errorWords(err error, label string) (text, hint string) {
 	if m.errorText != nil && err != nil {
 		return m.errorText(err)
@@ -541,6 +531,10 @@ func (m *Model) helpView(w int) string {
 	}
 	var b strings.Builder
 	b.WriteByte(byte('0' + m.mode))
+	typing := m.mode == insertMode || m.mode == listMode && m.picking && m.pick.Typing()
+	if typing {
+		b.WriteByte('i')
+	}
 	type named struct{ key, desc string }
 	ps := make([]named, len(items))
 	for i, it := range items {
@@ -555,7 +549,7 @@ func (m *Model) helpView(w int) string {
 	sep := st.ShortSeparator.Render(m.styles.Glyphs.Separator)
 	render := func() string {
 		parts := make([]string, 0, len(ps)+1)
-		if m.mode == insertMode {
+		if typing {
 			parts = append(parts, m.styles.Mode.Render(insertLabel))
 		}
 		for _, p := range ps {

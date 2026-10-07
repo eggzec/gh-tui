@@ -246,7 +246,7 @@ func TestFilterModalGrowsWithItsPicker(t *testing.T) {
 	if open <= closed {
 		t.Errorf("the frame is %d tall with the list open, want more than %d", open, closed)
 	}
-	if v := ansi.Strip(m.View().Content); !strings.Contains(v, "label-8") {
+	if v := ansi.Strip(m.View().Content); !strings.Contains(v, "label-0") || !strings.Contains(v, "label-7") || !strings.Contains(v, "╭─ Labels") {
 		t.Errorf("the list is cut short:\n%s", v)
 	}
 	run(m, m.key(press("esc")))
@@ -255,6 +255,25 @@ func TestFilterModalGrowsWithItsPicker(t *testing.T) {
 	}
 	if got := filterModal(t, m); got == nil {
 		t.Error("esc in the list closed the modal")
+	}
+}
+
+// A choice's list closes with enter, and the next enter applies.
+func TestFilterModalAppliesAfterList(t *testing.T) {
+	m, pulls, _ := newFilterApp(t)
+	run(m, m.key(press("f")))
+	run(m, m.key(press("space")))
+	run(m, m.key(press("k")))
+	run(m, m.key(tea.KeyPressMsg{Code: tea.KeyEnter}))
+	if m.topModal() == nil || len(pulls.applied) != 0 {
+		t.Fatalf("modal %v, applied %v; want enter to close the list only", m.topModal(), pulls.applied)
+	}
+	if got := filterModal(t, m).Query(); got != "is:open" {
+		t.Errorf("query = %q, want the state chosen", got)
+	}
+	run(m, m.key(tea.KeyPressMsg{Code: tea.KeyEnter}))
+	if m.topModal() != nil || len(pulls.applied) != 1 || pulls.applied[0].Query != "is:open" {
+		t.Errorf("modal %v, applied %+v; want the second enter to apply", m.topModal(), pulls.applied)
 	}
 }
 
@@ -301,12 +320,19 @@ func TestFilterModalFrame(t *testing.T) {
 		name  string
 		key   string
 		width int
-	}{{"f", "f", 80}, {"s", "s", 80}, {"s at 70", "s", 70}}
+		// then are the keys pressed after it opens.
+		then []string
+	}{{"f", "f", 80, nil}, {"s", "s", 80, nil}, {"s at 70", "s", 70, nil}, {"f_list", "f", 80, []string{"space"}}}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m, pulls, _ := newFilterAppWith(t, config.Default(), tt.width, 24)
 			pulls.sorts = true
 			run(m, m.key(press(tt.key)))
+			for _, k := range tt.then {
+				run(m, m.key(press(k)))
+				// The app sizes the modal again after each message.
+				m.fitModal()
+			}
 			golden.RequireEqual(t, m.View().Content)
 		})
 	}

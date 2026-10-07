@@ -25,13 +25,13 @@ type Glyphs struct {
 	// Prev and Next wrap the value of a choice in the row in focus, which
 	// h and l change.
 	Prev, Next string
-	// Drop follows a field that opens a list.
+	// Drop follows the value of a field that opens a list.
 	Drop string
 	// Rule draws the line over the query, one per cell.
 	Rule string
-	// Chosen and NotChosen start the options of a list of many, chosen
-	// or not.
-	Chosen, NotChosen string
+	// On and Off start the options of a dropdown that takes one, the
+	// chosen one and the others, like radio buttons.
+	On, Off string
 	// Down and Up start the names of the orders, newest or oldest first.
 	Down, Up string
 	// Separator goes between tabs and between the keys of the help, and
@@ -43,7 +43,7 @@ type Glyphs struct {
 func DefaultGlyphs() Glyphs {
 	return Glyphs{
 		Cursor: "▌", Edge: "┃", Prev: "‹", Next: "›", Drop: "▾", Rule: "─",
-		Chosen: "✓", NotChosen: "·", Down: "↓", Up: "↑", Separator: " · ", Ellipsis: "…",
+		On: "●", Off: "○", Down: "↓", Up: "↑", Separator: " · ", Ellipsis: "…",
 	}
 }
 
@@ -93,8 +93,13 @@ type Styles struct {
 	ErrorSeparator, ErrorEllipsis string
 	// Help styles the help line.
 	Help help.Styles
-	// Picker styles the picker of a Multi or Person field. Its frame is
-	// drawn inside the form, so keep it light.
+	// DropFrame draws the frame of a dropdown, which floats over the rows:
+	// its border and the color of it, which the title sits in. DropTitle
+	// styles the title.
+	DropFrame lipgloss.Style
+	DropTitle lipgloss.Style
+	// Picker styles the picker inside a dropdown. The form draws the
+	// frame, so its own is dropped.
 	Picker picker.Styles
 	// Glyphs are the glyphs the form draws.
 	Glyphs Glyphs
@@ -112,10 +117,7 @@ func DefaultStyles(isDark bool) Styles {
 	errColor := ld(lipgloss.Color("#c0392b"), lipgloss.Color("#ef7d7d"))
 
 	pk := picker.DefaultStyles(isDark)
-	pk.Frame = lipgloss.NewStyle().
-		Border(lipgloss.NormalBorder(), false, false, false, true).
-		BorderForeground(border).
-		PaddingLeft(1)
+	pk.Frame = lipgloss.NewStyle()
 
 	return Styles{
 		Tab:            lipgloss.NewStyle().Foreground(muted),
@@ -138,6 +140,8 @@ func DefaultStyles(isDark bool) Styles {
 		ErrorSeparator: " · ",
 		ErrorEllipsis:  "…",
 		Help:           help.DefaultStyles(isDark),
+		DropFrame:      lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(border),
+		DropTitle:      lipgloss.NewStyle().Foreground(muted),
 		Picker:         pk,
 		Glyphs:         DefaultGlyphs(),
 	}

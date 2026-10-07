@@ -84,7 +84,8 @@ type FilterModal struct {
 }
 
 // Size of the filter modal: wide enough for a row of values, and as tall as
-// the rows, what is under them, and the picker that is open.
+// the rows and what is under them, and the room a dropdown that is open
+// needs beyond that.
 const (
 	// FilterWidth is the width of the modal of a filter form.
 	FilterWidth = 100
@@ -98,10 +99,12 @@ const (
 
 // FilterHeight returns the height that a filter form width cells wide with
 // rows rows needs: the rows, the rule, the query, which takes a second line
-// when it wraps, and the help line under them, and the editor that is open
-// under one of the rows.
+// when it wraps, and the help line under them, and the lines more that the
+// dropdown that is open needs to fit under its row or above it. The
+// dropdown floats over the rows under its row, the rule and the query, so a
+// form with room enough doesn't grow.
 func FilterHeight(rows, width int, f *filterform.Model) int {
-	return rows + filterBelow + f.QueryLines(width) + f.EditorHeight()
+	return rows + filterBelow + f.QueryLines(width) + f.DropdownExtra(rows, width)
 }
 
 // FilterOption configures a FilterModal in [NewFilterModal].

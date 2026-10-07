@@ -7,109 +7,302 @@ import (
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
-// openEditor opens the picker of the Multi or Person in focus, which first
-// loads its options if it has a Loader.
-func (m *Model) openEditor() tea.Cmd {
-	i := m.row
-	m.mode, m.toggled = pickMode, false
-	m.before = m.state.values[i].clone()
-	f := &m.spec.Fields[i]
-	if f.Load != nil && m.fields[i].state != loaded {
-		return m.load(i)
+// dropRows is the most items a dropdown shows at once. A list with more
+// scrolls, and has a filter line.
+const dropRows = 8
+
+// listKind is what a dropdown lists.
+type listKind int
+
+const (
+	// listChoice lists the options of a Choice, listSortBy those a list
+	// can be sorted by, and listOrder the two orders of the sort in force.
+	listChoice listKind = iota
+	listSortBy
+	listOrder
+	// listMulti is a checklist of a Multi's options, and listPerson the
+	// people for a Person, with what the user types.
+	listMulti
+	listPerson
+)
+
+// listOf returns what the dropdown of the row in focus lists, or false if
+// the row has none: a Toggle or Text field, the query line, and the order
+// of a sort that has none.
+func (m *Model) listOf() (listKind, bool) {
+	if m.row == m.queryRow() {
+		return 0, false
 	}
-	return m.openPicker(i)
+	if m.tab == SortTab {
+		switch {
+		case m.spec.Sort == nil:
+		case m.row == sortByRow:
+			return listSortBy, true
+		case m.row == sortOrderRow && m.spec.Sort.index(m.state.sort.By) >= 0 && m.state.sort.By != "":
+			return listOrder, true
+		}
+		return 0, false
+	}
+	switch m.spec.Fields[m.row].Kind {
+	case Choice:
+		return listChoice, true
+	case Multi:
+		return listMulti, true
+	case Person:
+		return listPerson, true
+	default:
+		return 0, false
+	}
 }
 
-// closeEditor leaves insert mode or closes an open picker, keeping what
-// was typed or chosen, or putting back the value the field had.
+// openList opens the dropdown of the row in focus, which first loads its
+// options if it has a Loader.
+func (m *Model) openList() tea.Cmd {
+	kind, ok := m.listOf()
+	if !ok {
+		return nil
+	}
+	m.mode = listMode
+	if kind == listMulti || kind == listPerson {
+		i := m.row
+		if m.spec.Fields[i].Load != nil && m.fields[i].state != loaded {
+			if m.fields[i].state == loading {
+				// The options are on their way, and open it when they land.
+				return nil
+			}
+			return m.load(i)
+		}
+	}
+	return m.openPicker(kind)
+}
+
+// closeEditor leaves insert mode or closes an open dropdown, keeping what
+// was typed or chosen, or putting back the value a Text field had. What a
+// dropdown chose stays either way: a list changes its value only when it
+// chooses, and a checklist as it checks.
 func (m *Model) closeEditor(keep bool) {
 	switch m.mode {
 	case rowsMode:
 		return
-	case pickMode:
 	case insertMode:
-		if m.row == m.queryRow() {
+		switch {
+		case m.row == m.queryRow():
 			m.query.Blur()
-		} else {
+		case keep:
 			m.text.Blur()
-			if keep {
-				m.setValue(m.row, TextValue(strings.TrimSpace(m.text.Value())))
-			}
+			m.setValue(m.row, TextValue(strings.TrimSpace(m.text.Value())))
+		default:
+			m.text.Blur()
+			m.setValue(m.row, m.before)
 		}
+	case listMode:
 	}
-	if !keep && m.row != m.queryRow() {
-		m.setValue(m.row, m.before)
-	}
-	m.mode, m.picking, m.toggled = rowsMode, false, false
+	m.mode, m.picking = rowsMode, false
 	m.pick = picker.Model{}
 	m.syncQuery()
 }
 
-// pressPick handles a key while a picker is open or waits for its options.
-// Apply keeps what was chosen, Cancel puts back what was there, and the
-// rest goes to the picker.
-func (m *Model) pressPick(msg tea.KeyPressMsg) tea.Cmd {
+// pressList handles a key while a dropdown is open or waits for its
+// options. The keys that act on the form, those that close, retry and
+// switch tabs, are looked for first, unless the filter takes the letters;
+// the rest go to the picker, which says what it chose in a message.
+func (m *Model) pressList(msg tea.KeyPressMsg) tea.Cmd {
 	k := m.keys
-	i := m.row
+	typing := m.picking && m.pick.Typing()
 	switch {
-	case key.Matches(msg, k.Cancel):
-		m.closeEditor(false)
+	case typing:
+		if key.Matches(msg, k.List.Choose) {
+			return m.chooseHighlighted(msg)
+		}
+		return m.typeIn(msg)
+	case key.Matches(msg, k.Quit):
+		return send(CancelMsg{ID: m.id})
+	case m.tabbed() && key.Matches(msg, k.NextTab):
+		m.switchTab(1)
+		return nil
+	case m.tabbed() && key.Matches(msg, k.PrevTab):
+		m.switchTab(-1)
 		return nil
 	case !m.picking:
 		// The options are loading or failed to.
-		if key.Matches(msg, k.Retry) && m.fields[i].state == failed {
-			return m.load(i)
+		switch {
+		case key.Matches(msg, k.List.Cancel):
+			m.closeEditor(true)
+		case key.Matches(msg, k.Retry) && m.tab == FiltersTab && m.fields[m.row].state == failed:
+			return m.load(m.row)
 		}
 		return nil
-	case key.Matches(msg, k.Apply):
-		m.pickHighlighted(true)
-		m.closeEditor(true)
+	case key.Matches(msg, k.ListToggle) && m.kind() == Multi:
+		m.checkHighlighted(true)
 		return nil
-	case key.Matches(msg, k.Toggle):
-		m.pickHighlighted(false)
+	case key.Matches(msg, k.ListClear):
+		m.clearList()
+		return nil
+	case key.Matches(msg, k.List.Choose):
+		return m.chooseHighlighted(msg)
+	case key.Matches(msg, k.List.Cancel):
+		m.closeEditor(true)
 		return nil
 	}
 	return m.typeIn(msg)
 }
 
-// pickHighlighted chooses the item the picker highlights. In a Multi,
-// space adds or removes it, while enter only adds it, and only if space
-// chose nothing, so enter after a few spaces just closes the picker. A
-// Person takes the item, or what was typed when nothing matches.
-func (m *Model) pickHighlighted(enter bool) {
-	i := m.row
-	it, ok := m.pick.Selected()
-	value, _ := it.Value.(string)
+// chooseHighlighted handles the key that chooses. A list the form holds
+// itself chooses the highlighted item at once, so that the keys that follow
+// find the dropdown closed, rather than when the picker's message comes
+// back. A Person's is the picker's to choose, since its results may be on
+// their way, and what is highlighted isn't what enter chooses then; the
+// form takes the text typed when the search failed.
+func (m *Model) chooseHighlighted(msg tea.KeyPressMsg) tea.Cmd {
 	if m.kind() == Person {
-		if !ok {
-			value = strings.TrimSpace(m.pick.Query().Text)
+		if m.chooseTyped() {
+			return nil
 		}
-		if value != "" {
-			m.setValue(i, TextValue(value))
-			m.pick.SetMarked([]any{value})
+		return m.typeIn(msg)
+	}
+	if it, ok := m.pick.Selected(); ok {
+		return m.chosen(it)
+	}
+	return nil
+}
+
+// chooseTyped chooses what was typed in a Person's filter when the search
+// for people failed, since the picker doesn't offer it then, and reports
+// whether it did.
+func (m *Model) chooseTyped() bool {
+	if m.kind() != Person || m.pick.Err() == nil {
+		return false
+	}
+	text := login(m.pick.Query().Text)
+	if text == "" {
+		return false
+	}
+	m.chooseText(text)
+	return true
+}
+
+// login returns what the user typed as a login: on one line, and trimmed.
+func login(text string) string { return strings.TrimSpace(termtext.OneLine(text)) }
+
+// chosen handles what the open dropdown's picker chose: a list or a Person
+// takes the item and closes, and a checklist checks the highlighted item
+// and closes, or, in its filter, checks it and returns to the list.
+func (m *Model) chosen(it picker.Item) tea.Cmd {
+	kind, _ := m.listOf()
+	value, _ := it.Value.(string)
+	switch kind {
+	case listChoice:
+		m.setValue(m.row, TextValue(value))
+	case listSortBy:
+		if i := m.spec.Sort.index(value); i >= 0 {
+			m.sortBy(m.spec.Sort.Options[i])
 		}
+	case listOrder:
+		m.state.sort.Desc = value == orderDesc
+		m.syncQuery()
+	case listPerson:
+		m.chooseText(login(value))
+		return nil
+	case listMulti:
+		return m.chosenMulti(value)
+	}
+	m.closeEditor(true)
+	return nil
+}
+
+// chooseText sets the Person in focus to text and closes its dropdown.
+func (m *Model) chooseText(text string) {
+	if text != "" {
+		m.setValue(m.row, TextValue(text))
+	}
+	m.closeEditor(true)
+}
+
+// chosenMulti handles enter in a checklist. In the list, enter closes it
+// and doesn't leave the highlighted item out: it checks it, unless it is
+// checked, or space just acted on it, so that unchecking an item and
+// pressing enter doesn't check it again. In the filter, enter flips the
+// item, empties the filter and goes back to the list, so that the next
+// item can be filtered for.
+func (m *Model) chosenMulti(value string) tea.Cmd {
+	if !m.pick.Typing() {
+		if value != m.toggled {
+			m.checkHighlighted(false)
+		}
+		m.closeEditor(true)
+		return nil
+	}
+	m.checkHighlighted(true)
+	cmd := m.pick.Reset()
+	m.pick.Focus()
+	m.pick.Select(value)
+	return cmd
+}
+
+// checkHighlighted checks the highlighted item of a checklist, or with
+// flip unchecks it if it is checked.
+func (m *Model) checkHighlighted(flip bool) {
+	it, ok := m.pick.Selected()
+	value, isString := it.Value.(string)
+	if !ok || !isString {
 		return
 	}
-	if !ok || enter && m.toggled {
-		return
-	}
-	list := m.state.values[i].list
+	list := m.state.values[m.row].list
 	switch j := slices.Index(list, value); {
 	case j < 0:
 		list = append(slices.Clone(list), value)
-	case enter:
-		return
-	default:
+	case flip:
 		list = slices.Delete(slices.Clone(list), j, j+1)
+	default:
+		return
 	}
-	m.toggled = !enter
-	m.setValue(i, Value{list: list})
-	m.markPicked(value)
+	m.setValue(m.row, Value{list: list})
+	m.pick.SetMarked(anys(list))
+	m.toggled = value
 }
+
+// doneWord is what enter does in a checklist, for the help line: it adds
+// the highlighted item if it isn't checked and space didn't just act on it,
+// and closes the list.
+func (m *Model) doneWord() string {
+	it, ok := m.pick.Selected()
+	value, isString := it.Value.(string)
+	if ok && isString && value != m.toggled && !slices.Contains(m.state.values[m.row].list, value) {
+		return "add & close"
+	}
+	return "done"
+}
+
+// clearList handles the clear key in a dropdown. A list chooses its empty
+// option and closes, where it has one; a checklist unchecks every item and
+// stays open.
+func (m *Model) clearList() {
+	multi := m.kind() == Multi
+	if !multi && !m.canClear() {
+		return
+	}
+	m.remove()
+	if multi {
+		m.toggled = ""
+		m.pick.SetMarked(nil)
+		return
+	}
+	m.closeEditor(true)
+}
+
+// orderDesc and orderAsc are the values of the two items of the list of
+// orders.
+const (
+	orderDesc = "desc"
+	orderAsc  = "asc"
+)
 
 // Err returns why the options of a field failed to load, the first
 // field's, or nil if none failed.
@@ -161,8 +354,8 @@ func (m *Model) load(i int) tea.Cmd {
 	return tea.Batch(cmd, m.spin.Tick)
 }
 
-// receive keeps what a load returned, and opens the picker if the field's
-// editor is waiting for it.
+// receive keeps what a load returned, and opens the dropdown's picker if it
+// is waiting for it.
 func (m *Model) receive(msg loadedMsg) tea.Cmd {
 	if msg.field >= len(m.fields) {
 		return nil
@@ -179,102 +372,186 @@ func (m *Model) receive(msg loadedMsg) tea.Cmd {
 	}
 	m.fields[msg.field] = fs
 	var cmd tea.Cmd
-	if m.mode == pickMode && m.row == msg.field && fs.state == loaded {
-		cmd = m.openPicker(msg.field)
+	if kind, ok := m.listOf(); ok && m.mode == listMode && m.row == msg.field && fs.state == loaded {
+		cmd = m.openPicker(kind)
 	}
 	m.render()
 	return cmd
 }
 
-// openPicker opens the picker of field i over its options. A Person with a
-// Loader also searches with it for what the user types.
-func (m *Model) openPicker(i int) tea.Cmd {
-	f := &m.spec.Fields[i]
+// listKeyMap returns the keys of the dropdown's picker: those of List,
+// with Typing's up and down moving while its filter types.
+func (m *Model) listKeyMap() picker.KeyMap {
+	km := m.keys.List
+	km.Up, km.Down = m.keys.Typing.Up, m.keys.Typing.Down
+	return km
+}
+
+// openPicker opens the picker of the dropdown that lists kind on the row
+// in focus, over its options, with the current value highlighted and
+// marked. A Person with a Loader also searches with it for what the user
+// types.
+func (m *Model) openPicker(kind listKind) tea.Cmd {
+	g := m.styles.Glyphs
+	items, marked, current := m.listItems(kind)
+	opts := []picker.Option{
+		picker.WithItems(items),
+		picker.WithContext(m.ctx),
+		picker.WithModes(true),
+		picker.WithGroupHeaders(false),
+		picker.WithKeyMap(m.listKeyMap()),
+		picker.WithStyles(m.dropPickerStyles()),
+	}
 	var search picker.Search
-	ell := m.styles.Glyphs.Ellipsis
-	placeholder := "Filter" + ell
-	if f.Kind == Person {
-		placeholder = "Filter, or type a login" + ell
-		if load := f.Load; load != nil {
+	filter := len(items) > dropRows
+	empty := "Nothing to choose from."
+	placeholder := "Filter" + g.Ellipsis
+	if m.tab == FiltersTab {
+		f := &m.spec.Fields[m.row]
+		filter = filter || f.Load != nil
+		if f.Empty != "" {
+			empty = f.Empty
+		}
+	}
+	// Checks are boxes, and a list's one choice a radio.
+	on, off := g.On, g.Off
+	if kind == listMulti {
+		on, off = boxOn, boxOff
+	}
+	opts = append(opts, picker.WithMarks(on, off))
+	markW := max(ansi.StringWidth(on), ansi.StringWidth(off))
+	if kind == listPerson {
+		filter = true
+		placeholder = "Filter, or type a login" + g.Ellipsis
+		opts = append(opts, picker.WithTyped(m.typedLogin))
+		if load := m.spec.Fields[m.row].Load; load != nil {
 			search = func(ctx context.Context, q picker.Query) ([]picker.Item, error) {
-				items, err := load(ctx, q.Text)
-				return toPickerItems(items, nil, false, m.styles.Glyphs), err
+				found, err := load(ctx, q.Text)
+				return toPickerItems(found), err
 			}
 		}
 	}
-	empty := f.Empty
-	if empty == "" {
-		empty = "Nothing to choose from."
-	}
-	w, h := m.editorSize()
-	opts := []picker.Option{
-		picker.WithItems(m.pickerItems(i)),
-		picker.WithContext(m.ctx),
-		picker.WithGroupHeaders(false),
+	opts = append(opts,
+		picker.WithFilterLine(filter),
 		picker.WithPlaceholder(placeholder),
 		picker.WithEmptyText(empty),
-		picker.WithKeyMap(m.keys.Picker),
-		picker.WithStyles(m.styles.Picker),
-		picker.WithSize(w, h),
-	}
+	)
 	if say := m.errorText; say != nil {
 		opts = append(opts, picker.WithErrorText(func(err error) (text, hint string) {
 			text, _ = say(err)
 			return text, ""
 		}))
 	}
-	if f.Kind == Person {
-		// A Person takes one value, which the list marks, in the options
-		// and in what a search finds.
-		g := m.styles.Glyphs
-		opts = append(opts, picker.WithMarks(g.Chosen, g.NotChosen))
-	}
 	m.pick = picker.New(search, opts...)
-	if f.Kind == Person && m.state.values[i].text != "" {
-		m.pick.SetMarked([]any{m.state.values[i].text})
+	m.toggled = ""
+	m.pick.SetMarked(marked)
+	if current != nil {
+		m.pick.Select(current)
 	}
 	m.picking = true
+	m.dropItems = len(items)
+	// The cells that the filter line and the empty text need.
+	inner := 0
+	if filter {
+		// The prompt and the cursor.
+		inner = ansi.StringWidth(placeholder) + 3
+	}
+	if len(items) == 0 {
+		inner = max(inner, ansi.StringWidth(empty))
+	}
+	m.dropWidth = m.wantWidth(items, markW, inner)
 	return tea.Batch(m.pick.Focus(), m.pick.Init())
 }
 
-// pickerItems returns field i's options as its picker lists them.
-func (m *Model) pickerItems(i int) []picker.Item {
-	return toPickerItems(m.items(i), m.state.values[i].list, m.spec.Fields[i].Kind == Multi, m.styles.Glyphs)
+// typedLogin is the item that stands for what the user typed in a Person's
+// filter: it chooses the text as it is.
+func (m *Model) typedLogin(text string) (picker.Item, bool) {
+	text = login(text)
+	if text == "" {
+		return picker.Item{}, false
+	}
+	enter := m.keys.List.Choose.Help().Key
+	if m.keyName != nil {
+		enter = m.keyName(enter)
+	}
+	return picker.Item{Title: enter + ` use "` + text + `"`, Value: text}, true
 }
 
-// toPickerItems returns items as a picker lists them. With marks, each is
-// marked by whether it is in chosen, with the glyphs g.
-func toPickerItems(items []Item, chosen []string, marks bool, g Glyphs) []picker.Item {
-	out := make([]picker.Item, len(items))
-	for j, it := range items {
-		title := it.Label
-		if title == "" {
-			title = it.Value
+// dropPickerStyles returns the styles of the dropdown's picker, which the
+// dropdown's own frame surrounds.
+func (m *Model) dropPickerStyles() picker.Styles {
+	s := m.styles.Picker
+	s.Frame = lipgloss.NewStyle()
+	return s
+}
+
+// listItems returns the items of the dropdown that lists kind on the row in
+// focus, the values of those to mark, and the value to highlight, or nil.
+func (m *Model) listItems(kind listKind) (items []picker.Item, marked []any, current any) {
+	g := m.styles.Glyphs
+	switch kind {
+	case listSortBy:
+		sf, so := m.spec.Sort, m.state.sort
+		items = make([]picker.Item, len(sf.Options))
+		for j, opt := range sf.Options {
+			items[j] = picker.Item{Title: optionLabel(opt.Label, opt.Value), Value: opt.Value}
 		}
-		if marks {
-			if slices.Contains(chosen, it.Value) {
-				title = g.Chosen + " " + title
-			} else {
-				title = g.NotChosen + " " + title
-			}
+		if sf.index(so.By) >= 0 {
+			current = so.By
 		}
-		out[j] = picker.Item{Title: title, Detail: it.Detail, Value: it.Value}
+		return items, []any{current}, current
+	case listOrder:
+		opt := m.spec.Sort.Options[m.spec.Sort.index(m.state.sort.By)]
+		items = []picker.Item{
+			{Title: g.Down + " " + opt.Desc, Value: orderDesc},
+			{Title: g.Up + " " + opt.Asc, Value: orderAsc},
+		}
+		current = orderAsc
+		if m.state.sort.Desc {
+			current = orderDesc
+		}
+		return items, []any{current}, current
+	case listChoice, listMulti, listPerson:
+	}
+	i := m.row
+	f, v := &m.spec.Fields[i], m.state.values[i]
+	items = toPickerItems(m.items(i))
+	for j := range items {
+		if items[j].Title == "" {
+			items[j].Title = orDefault(f.Hint, "any")
+		}
+	}
+	switch kind {
+	case listMulti:
+		return items, anys(v.list), nil
+	case listPerson:
+		if v.text != "" {
+			current, marked = v.text, []any{v.text}
+		}
+		return items, marked, current
+	default:
+		if slices.ContainsFunc(f.Options, func(it Item) bool { return it.Value == v.text }) {
+			current = v.text
+			return items, []any{current}, current
+		}
+		return items, nil, nil
+	}
+}
+
+// anys returns list as the values a picker marks.
+func anys(list []string) []any {
+	out := make([]any, len(list))
+	for i, s := range list {
+		out[i] = s
 	}
 	return out
 }
 
-// markPicked lists the Multi's items again with their marks, and moves the
-// highlight back to value, which listing them again moved to the top.
-func (m *Model) markPicked(value string) {
-	m.pick.SetItems(m.pickerItems(m.row))
-	down := tea.KeyPressMsg{Code: tea.KeyDown}
-	if !key.Matches(down, m.pick.KeyMap().Down) {
-		return
+// toPickerItems returns items as a picker lists them.
+func toPickerItems(items []Item) []picker.Item {
+	out := make([]picker.Item, len(items))
+	for j, it := range items {
+		out[j] = picker.Item{Title: orDefault(it.Label, it.Value), Detail: it.Detail, Value: it.Value}
 	}
-	for range m.pick.Len() {
-		if it, ok := m.pick.Selected(); !ok || it.Value == value {
-			return
-		}
-		m.pick, _ = m.pick.Update(down)
-	}
+	return out
 }

@@ -12,9 +12,10 @@ import (
 // KeyMap holds the key bindings of a form. It implements help.KeyMap.
 //
 // The form works in modes. In rows mode, where it opens, letters are
-// keys: they move, change a value, or start typing. Only the keys of
-// Typing, and those of an open picker, act while a text input, the query
-// line or a picker takes what is typed.
+// keys: they move, change a value, or start typing. With a dropdown open
+// it works in list mode, where the keys of List and of the two list keys
+// act, and letters move; only while the dropdown's filter, a text input or
+// the query line takes what is typed do just the keys of Typing act.
 type KeyMap struct {
 	// NextTab and PrevTab switch between the Filters and Sort tabs.
 	NextTab key.Binding
@@ -29,31 +30,39 @@ type KeyMap struct {
 	// the order, and flip a Toggle.
 	Prev key.Binding
 	Next key.Binding
-	// Toggle flips a Toggle and opens the picker of a Multi or Person.
+	// Toggle flips a Toggle and opens the dropdown of a Choice, of what is
+	// sorted by and the order, and of a Multi or Person.
 	Toggle key.Binding
 	// Insert and Append start typing in a Text field or the query line,
 	// with the cursor at the start or at the end.
 	Insert key.Binding
 	Append key.Binding
-	// Apply sends an AppliedMsg from any row. In a picker it chooses the
-	// highlighted item, or closes a Multi's picker keeping what was
-	// chosen.
+	// Apply sends an AppliedMsg from any row. A dropdown has its own
+	// enter, List.Choose.
 	Apply key.Binding
 	// Clear clears the field in focus. Backspace clears too, since the
 	// form has no level to step back to.
 	Clear key.Binding
-	// Cancel sends a CancelMsg, or closes an open picker and puts back
-	// what it changed.
+	// Cancel sends a CancelMsg. A dropdown has its own esc, List.Cancel.
 	Cancel key.Binding
-	// Quit sends a CancelMsg from the rows.
+	// Quit sends a CancelMsg from the rows and from a dropdown, unless its
+	// filter takes the keys.
 	Quit key.Binding
-	// Retry loads again the options of a field that failed to load.
+	// Retry loads again the options of a field that failed to load, in
+	// its dropdown.
 	Retry key.Binding
+	// ListToggle checks or unchecks the highlighted item of a Multi's
+	// dropdown, and ListClear chooses the empty option of a list, or
+	// unchecks every item of a Multi's.
+	ListToggle key.Binding
+	ListClear  key.Binding
 	// Typing holds the keys of insert mode.
 	Typing TypingKeyMap
-	// Picker holds the keys of the picker in a Multi or Person editor. Its
-	// Choose and Cancel are taken by Apply and Cancel.
-	Picker picker.KeyMap
+	// List holds the keys of a dropdown, a picker with modes: its Normal
+	// keys move and open its filter, and Choose and Cancel choose and
+	// close. While its filter types, Typing's Up and Down move in place of
+	// List's, which are unused, and Cancel leaves the filter.
+	List picker.KeyMap
 }
 
 // TypingKeyMap holds the keys of insert mode, which takes every other key
@@ -61,8 +70,13 @@ type KeyMap struct {
 type TypingKeyMap struct {
 	// Submit sends an AppliedMsg, after it keeps what was typed.
 	Submit key.Binding
-	// Leave goes back to the rows, keeping what was typed.
+	// Leave goes back to the rows, keeping what was typed, or from a
+	// dropdown's filter to its list.
 	Leave key.Binding
+	// Up and Down move the highlight of a dropdown while its filter takes
+	// the letters.
+	Up   key.Binding
+	Down key.Binding
 }
 
 // DefaultKeyMap returns the default key bindings.
@@ -84,12 +98,26 @@ func DefaultKeyMap() KeyMap {
 		Cancel:  key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "close")),
 		Quit:    key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "close")),
 		Retry:   key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "retry")),
+
+		ListToggle: key.NewBinding(key.WithKeys("space"), key.WithHelp("space", "toggle")),
+		ListClear:  key.NewBinding(key.WithKeys("delete", "backspace"), key.WithHelp("delete", "clear")),
 		Typing: TypingKeyMap{
 			Submit: key.NewBinding(key.WithKeys("enter"), key.WithHelp("↵", "apply")),
 			Leave:  key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "done")),
+			Up:     key.NewBinding(key.WithKeys("up", "ctrl+p"), key.WithHelp("↑", "up")),
+			Down:   key.NewBinding(key.WithKeys("down", "ctrl+n"), key.WithHelp("↓", "down")),
 		},
-		Picker: picker.DefaultKeyMap(),
+		List: listKeys(),
 	}
+}
+
+// listKeys returns the keys of a dropdown. Its Choose and Cancel are
+// worded as the form words them.
+func listKeys() picker.KeyMap {
+	k := picker.DefaultKeyMap()
+	k.Choose.SetHelp("↵", "choose")
+	k.Cancel.SetHelp("esc", "close")
+	return k
 }
 
 // ShortHelp returns the bindings for the short help view.
@@ -103,10 +131,16 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 		{k.Up, k.Down, k.Top, k.Bottom, k.Prev, k.Next, k.Toggle},
 		{k.Insert, k.Append, k.Clear, k.Apply, k.Cancel, k.Quit, k.Retry},
 		{k.NextTab, k.PrevTab},
-		{k.Typing.Submit, k.Typing.Leave},
+		{k.Typing.Submit, k.Typing.Leave, k.Typing.Up, k.Typing.Down},
+		{k.ListToggle, k.ListClear, k.List.Choose, k.List.Cancel},
 		{
-			k.Picker.Up, k.Picker.Down, k.Picker.PageUp, k.Picker.PageDown,
-			k.Picker.Choose, k.Picker.Cancel, k.Picker.NextScope, k.Picker.PrevScope,
+			k.List.Up, k.List.Down, k.List.PageUp, k.List.PageDown,
+			k.List.NextScope, k.List.PrevScope,
+		},
+		{
+			k.List.Normal.Up, k.List.Normal.Down, k.List.Normal.PageUp, k.List.Normal.PageDown,
+			k.List.Normal.HalfPageUp, k.List.Normal.HalfPageDown, k.List.Normal.Top, k.List.Normal.Bottom,
+			k.List.Normal.Insert, k.List.Normal.Append,
 		},
 	}
 }
@@ -142,10 +176,10 @@ func (m *Model) changes() bool {
 	return f.Kind == Choice && len(f.Options) > 0 || f.Kind == Toggle
 }
 
-// opensPicker reports whether Toggle opens a picker on the row in focus.
-func (m *Model) opensPicker() bool {
-	k := m.kind()
-	return k == Multi || k == Person
+// opensList reports whether Toggle opens a dropdown on the row in focus.
+func (m *Model) opensList() bool {
+	_, ok := m.listOf()
+	return ok
 }
 
 // types reports whether Insert and Append start typing on the row in
@@ -188,16 +222,8 @@ func (m *Model) helpItems() []hint {
 	switch m.mode {
 	case insertMode:
 		return []hint{h(k.Typing.Submit, rankKeep), h(k.Typing.Leave, rankKeep)}
-	case pickMode:
-		switch {
-		case m.picking && m.kind() == Multi:
-			return []hint{h(m.moving(), rankMove), h(relabel(k.Toggle, "choose"), rankKeep), h(relabel(k.Apply, "done"), rankKeep), h(relabel(k.Cancel, "back"), rankKeep)}
-		case m.picking:
-			return []hint{h(m.moving(), rankMove), h(relabel(k.Apply, "choose"), rankKeep), h(relabel(k.Cancel, "back"), rankKeep)}
-		case m.fields[m.row].state == failed:
-			return []hint{h(k.Retry, rankKeep), h(relabel(k.Cancel, "back"), rankKeep)}
-		}
-		return []hint{h(relabel(k.Cancel, "back"), rankKeep)}
+	case listMode:
+		return m.listHints()
 	case rowsMode:
 	}
 	out := []hint{h(pair(k.Down, k.Up, "field"), rankMove)}
@@ -207,7 +233,7 @@ func (m *Model) helpItems() []hint {
 	switch {
 	case m.kind() == Toggle:
 		out = append(out, h(k.Toggle, rankChange))
-	case m.opensPicker():
+	case m.opensList():
 		out = append(out, h(relabel(k.Toggle, "list"), rankChange))
 	case m.types():
 		out = append(out, h(k.Insert, rankChange), h(k.Append, rankChange))
@@ -223,18 +249,56 @@ func (m *Model) helpItems() []hint {
 	return out
 }
 
-// moving is the hint for the keys that move in the open picker, named by
-// the first key of its up and down bindings, such as "↑/↓".
-func (m *Model) moving() key.Binding {
-	km := m.keys.Picker
-	if m.picking {
-		km = m.pick.KeyMap()
+// listHints returns the hints of list mode: the keys of the dropdown
+// open on the row in focus, or of what stands in its place while it loads
+// or when that failed.
+func (m *Model) listHints() []hint {
+	k := m.keys
+	h := func(b key.Binding, rank int) hint { return hint{b, rank} }
+	closing := relabel(k.List.Cancel, "close")
+	multi := m.kind() == Multi
+	switch {
+	case !m.picking && m.row < len(m.fields) && m.tab == FiltersTab && m.fields[m.row].state == failed:
+		return []hint{h(k.Retry, rankKeep), h(closing, rankKeep)}
+	case !m.picking:
+		return []hint{h(closing, rankKeep)}
+	case m.pick.Typing():
+		choose := relabel(k.List.Choose, "choose")
+		if multi {
+			choose = relabel(k.List.Choose, "toggle")
+		}
+		return []hint{h(m.moving(), rankMove), h(choose, rankKeep), h(relabel(k.Typing.Leave, "done"), rankKeep)}
 	}
-	first := func(b key.Binding) string {
+	out := []hint{h(m.moving(), rankMove)}
+	if multi {
+		out = append(out, h(relabel(k.ListToggle, "toggle"), rankChange))
+	}
+	if m.pick.KeyMap().Normal.Insert.Enabled() {
+		out = append(out, h(relabel(k.List.Normal.Insert, "filter"), rankChange))
+	}
+	if multi || m.canClear() {
+		out = append(out, h(k.ListClear, rankClear))
+	}
+	choose := relabel(k.List.Choose, "choose")
+	if multi {
+		choose = relabel(k.List.Choose, m.doneWord())
+	}
+	return append(out, h(choose, rankKeep), h(closing, rankKeep))
+}
+
+// moving is the hint for the keys that move in the open dropdown, named by
+// the first key of its up and down bindings, such as "j/k", or "↑/↓" while
+// its filter types.
+func (m *Model) moving() key.Binding {
+	first, second := m.keys.List.Normal.Down, m.keys.List.Normal.Up
+	if m.picking && m.pick.Typing() {
+		first, second = m.keys.Typing.Up, m.keys.Typing.Down
+	}
+	name := func(b key.Binding) string {
 		k, _, _ := strings.Cut(b.Help().Key, "/")
 		return k
 	}
-	return key.NewBinding(key.WithHelp(first(km.Up)+"/"+first(km.Down), "move"))
+	return key.NewBinding(key.WithHelp(name(first)+"/"+name(second), "move"))
 }
 
 // tabHelp returns the key to the other tab, named after it.
@@ -243,42 +307,65 @@ func (m *Model) tabHelp() key.Binding {
 }
 
 // FullHelp implements help.KeyMap. It enables the keys that act in the mode
-// and on the row in focus: insert mode takes Typing's, an open picker
-// Apply, Toggle, Cancel and its own moves, and the rows the moves, Apply,
-// Cancel and Quit, and what the row in focus takes of the rest; other keys
-// are typed. Apply and Cancel stand in for the picker's Choose and Cancel.
+// and on the row in focus: insert mode takes Typing's Submit and Leave, an
+// open dropdown the keys of List, those of its mode, and what the kind of
+// list takes of the rest, and the rows the moves, Apply, Cancel and Quit,
+// and what the row in focus takes of the rest; other keys are typed. Apply
+// and Cancel are the form's enter and esc in the rows, and List's Choose
+// and Cancel those of a dropdown, which word them for the kind of list.
 func (m Model) FullHelp() [][]key.Binding {
 	k := m.keys
 	if m.picking {
-		k.Picker = m.pick.KeyMap()
+		up, down := k.List.Up, k.List.Down
+		k.List = m.pick.KeyMap()
+		k.List.Up, k.List.Down = up, down
 	}
+	n := &k.List.Normal
 	form := []*key.Binding{
 		&k.NextTab, &k.PrevTab, &k.Up, &k.Down, &k.Top, &k.Bottom, &k.Prev, &k.Next, &k.Toggle,
-		&k.Insert, &k.Append, &k.Apply, &k.Clear, &k.Cancel, &k.Quit, &k.Retry,
-		&k.Typing.Submit, &k.Typing.Leave,
+		&k.Insert, &k.Append, &k.Apply, &k.Clear, &k.Cancel, &k.Quit, &k.Retry, &k.ListToggle, &k.ListClear,
+		&k.Typing.Submit, &k.Typing.Leave, &k.Typing.Up, &k.Typing.Down,
 	}
-	pick := []*key.Binding{&k.Picker.Up, &k.Picker.Down, &k.Picker.PageUp, &k.Picker.PageDown, &k.Picker.NextScope, &k.Picker.PrevScope}
+	list := []*key.Binding{
+		&k.List.Up, &k.List.Down, &k.List.PageUp, &k.List.PageDown, &k.List.NextScope, &k.List.PrevScope,
+		&k.List.Choose, &k.List.Cancel,
+		&n.Up, &n.Down, &n.PageUp, &n.PageDown, &n.HalfPageUp, &n.HalfPageDown, &n.Top, &n.Bottom, &n.Insert, &n.Append,
+	}
+	tabs := func(on []*key.Binding) []*key.Binding {
+		if m.tabbed() {
+			on = append(on, &k.NextTab, &k.PrevTab)
+		}
+		return on
+	}
 	var on []*key.Binding
 	switch {
 	case m.mode == insertMode:
 		on = []*key.Binding{&k.Typing.Submit, &k.Typing.Leave}
-	case m.picking:
-		on = append([]*key.Binding{&k.Apply, &k.Toggle, &k.Cancel}, pick...)
-	case m.mode == pickMode && m.fields[m.row].state == failed:
-		on = []*key.Binding{&k.Retry, &k.Cancel}
-	case m.mode == pickMode:
-		on = []*key.Binding{&k.Cancel}
-	default:
-		on = []*key.Binding{&k.Up, &k.Down, &k.Top, &k.Bottom, &k.Apply, &k.Cancel, &k.Quit}
-		if m.tabbed() {
-			on = append(on, &k.NextTab, &k.PrevTab)
+	case m.mode == listMode && m.picking && m.pick.Typing():
+		on = []*key.Binding{&k.Typing.Up, &k.Typing.Down, &k.List.PageUp, &k.List.PageDown, &k.List.Choose, &k.Typing.Leave}
+	case m.mode == listMode && m.picking:
+		on = tabs([]*key.Binding{
+			&k.List.Choose, &k.List.Cancel, &k.Quit,
+			&n.Up, &n.Down, &n.PageUp, &n.PageDown, &n.HalfPageUp, &n.HalfPageDown, &n.Top, &n.Bottom, &n.Insert, &n.Append,
+		})
+		if m.kind() == Multi {
+			on = append(on, &k.ListToggle)
 		}
+		if m.kind() == Multi || m.canClear() {
+			on = append(on, &k.ListClear)
+		}
+	case m.mode == listMode && m.tab == FiltersTab && m.fields[m.row].state == failed:
+		on = tabs([]*key.Binding{&k.Retry, &k.List.Cancel, &k.Quit})
+	case m.mode == listMode:
+		on = tabs([]*key.Binding{&k.List.Cancel, &k.Quit})
+	default:
+		on = tabs([]*key.Binding{&k.Up, &k.Down, &k.Top, &k.Bottom, &k.Apply, &k.Cancel, &k.Quit})
 		if m.changes() {
 			on = append(on, &k.Prev, &k.Next)
 		}
-		if m.kind() == Toggle || m.opensPicker() {
+		if m.kind() == Toggle || m.opensList() {
 			on = append(on, &k.Toggle)
-			if m.opensPicker() {
+			if m.opensList() {
 				k.Toggle = relabel(k.Toggle, "list")
 			}
 		}
@@ -289,7 +376,7 @@ func (m Model) FullHelp() [][]key.Binding {
 			on = append(on, &k.Clear)
 		}
 	}
-	for _, b := range slices.Concat(form, pick, []*key.Binding{&k.Picker.Choose, &k.Picker.Cancel}) {
+	for _, b := range slices.Concat(form, list) {
 		if !slices.Contains(on, b) {
 			b.SetEnabled(false)
 		}

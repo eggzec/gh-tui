@@ -6,11 +6,14 @@ import (
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
 )
 
 // Update handles keys and pastes while focused, the form's own loads and
-// spinner ticks, and passes the rest to an open picker. It ignores messages
-// meant for other forms.
+// spinner ticks, what an open dropdown's picker chooses or closes with, and
+// passes the rest to the picker. It ignores messages meant for other
+// forms.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case loadedMsg:
@@ -47,9 +50,29 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		cmd := m.typeIn(msg)
 		m.render()
 		return m, cmd
+	case picker.ChosenMsg:
+		if !m.owns(msg.ID) {
+			return m, nil
+		}
+		m.fields = slices.Clone(m.fields)
+		cmd := m.chosen(msg.Item)
+		m.render()
+		return m, cmd
+	case picker.CancelMsg:
+		if !m.owns(msg.ID) {
+			return m, nil
+		}
+		m.closeEditor(true)
+		m.render()
+		return m, nil
 	}
 	cmd := m.passToPicker(msg)
 	return m, cmd
+}
+
+// owns reports whether id is the ID of the picker of the open dropdown.
+func (m *Model) owns(id int64) bool {
+	return m.mode == listMode && m.picking && id == m.pick.ID()
 }
 
 // passToPicker hands msg to the open picker, which takes its own search
@@ -68,8 +91,8 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 	switch m.mode {
 	case insertMode:
 		return m.pressInsert(msg)
-	case pickMode:
-		return m.pressPick(msg)
+	case listMode:
+		return m.pressList(msg)
 	case rowsMode:
 	}
 	k := m.keys
@@ -133,7 +156,7 @@ func (m *Model) leaveInsert() {
 // typeIn passes a key or a paste to whatever is being typed in.
 func (m *Model) typeIn(msg tea.Msg) tea.Cmd {
 	switch {
-	case m.mode == pickMode && m.picking:
+	case m.mode == listMode && m.picking:
 		var cmd tea.Cmd
 		m.pick, cmd = m.pick.Update(msg)
 		return cmd
@@ -231,18 +254,26 @@ func (m *Model) chooseSort(delta int) {
 		// A new option sorts in its own order, since a direction fit for
 		// one, such as the newest first, may not be for the next, such as
 		// names. One that writes no sort keeps the order for the next.
-		opt := sf.Options[cycle(sf.index(so.By), delta, len(sf.Options))]
-		desc := so.Desc
-		if opt.Value != "" {
-			desc = !opt.Ascending
-		}
-		m.state.sort = Sort{By: opt.Value, Desc: desc}
+		m.sortBy(sf.Options[cycle(sf.index(so.By), delta, len(sf.Options))])
+		return
 	case sortOrderRow:
 		if so.By == "" {
 			return
 		}
 		m.state.sort.Desc = !so.Desc
 	}
+	m.syncQuery()
+}
+
+// sortBy sorts by opt, in its own order, since a direction fit for one,
+// such as the newest first, may not be for the next, such as names. An
+// option that writes no sort keeps the order for the next.
+func (m *Model) sortBy(opt SortOption) {
+	desc := m.state.sort.Desc
+	if opt.Value != "" {
+		desc = !opt.Ascending
+	}
+	m.state.sort = Sort{By: opt.Value, Desc: desc}
 	m.syncQuery()
 }
 
@@ -255,14 +286,14 @@ func cycle(i, delta, n int) int {
 	return ((i+delta)%n + n) % n
 }
 
-// toggle handles space: it flips a Toggle, and opens the picker of a Multi
-// or Person.
+// toggle handles space: it flips a Toggle, and opens the dropdown of a
+// Choice, what is sorted by, the order, a Multi or a Person.
 func (m *Model) toggle() tea.Cmd {
 	switch {
 	case m.kind() == Toggle:
 		m.choose(1)
-	case m.opensPicker():
-		return m.openEditor()
+	case m.opensList():
+		return m.openList()
 	}
 	return nil
 }

@@ -1,0 +1,48 @@
+# label | keys | help key | on or off
+
+global
+  quit | ctrl+c | ^c | on
+  maximize | Z | Z | on
+  help | ? | ? | on
+
+Filter
+  previous field | k up | k | off
+  next field | j down | j | off
+  first field | g home | g | off
+  query | G end | G | off
+  previous | h left | h | off
+  next | l right | l | off
+  toggle | space | space | off
+  insert | i | i | off
+  append | a | a | off
+  clear | delete backspace | delete | off
+  apply | enter | ↵ | off
+  close | esc | esc | off
+  close | q | q | on
+  retry | r | r | off
+  next tab | ] | ] | on
+  previous tab | [ | [ | on
+  apply | enter | ↵ | off
+  done | esc | esc | off
+  up | up ctrl+p | ↑ | off
+  down | down ctrl+n | ↓ | off
+  toggle | space | space | off
+  clear | delete backspace | delete | on
+  choose | enter | ↵ | on
+  close | esc | esc | on
+  up | up ctrl+p | ↑/ctrl+p | off
+  down | down ctrl+n | ↓/ctrl+n | off
+  page up | pgup | pgup | off
+  page down | pgdown | pgdn | off
+  scope | tab | tab | off
+  previous scope | shift+tab | shift+tab | off
+  up | k up | k/↑ | on
+  down | j down | j/↓ | on
+  page up | ctrl+b pgup | ^b/pgup | on
+  page down | ctrl+f pgdown | ^f/pgdn | on
+  half page up | ctrl+u | ^u | on
+  half page down | ctrl+d | ^d | on
+  top | g home | g/home | on
+  bottom | G end | G/end | on
+  filter | i | i | on
+  filter at end | a | a | on

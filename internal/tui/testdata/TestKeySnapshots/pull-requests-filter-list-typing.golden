@@ -1,0 +1,47 @@
+# label | keys | help key | on or off
+
+always
+  quit | ctrl+c | ^c | on
+  help | ? | ? | off
+
+Picker (types)
+  previous field | k up | k | off
+  next field | j down | j | off
+  first field | g home | g | off
+  query | G end | G | off
+  previous | h left | h | off
+  next | l right | l | off
+  toggle | space | space | off
+  insert | i | i | off
+  append | a | a | off
+  clear | delete backspace | delete | off
+  apply | enter | ↵ | off
+  close | esc | esc | off
+  close | q | q | off
+  retry | r | r | off
+  next tab | ] | ] | off
+  previous tab | [ | [ | off
+  apply | enter | ↵ | off
+  done | esc | esc | on
+  up | up ctrl+p | ↑ | on
+  down | down ctrl+n | ↓ | on
+  toggle | space | space | off
+  clear | delete backspace | delete | off
+  choose | enter | ↵ | on
+  close | esc | esc | off
+  up | up ctrl+p | ↑/ctrl+p | off
+  down | down ctrl+n | ↓/ctrl+n | off
+  page up | pgup | pgup | on
+  page down | pgdown | pgdn | on
+  scope | tab | tab | off
+  previous scope | shift+tab | shift+tab | off
+  up | k up | k/↑ | off
+  down | j down | j/↓ | off
+  page up | ctrl+b pgup | ^b/pgup | off
+  page down | ctrl+f pgdown | ^f/pgdn | off
+  half page up | ctrl+u | ^u | off
+  half page down | ctrl+d | ^d | off
+  top | g home | g/home | off
+  bottom | G end | G/end | off
+  filter | i | i | off
+  filter at end | a | a | off
