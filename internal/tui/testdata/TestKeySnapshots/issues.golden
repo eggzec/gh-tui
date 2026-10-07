@@ -4,14 +4,15 @@ global
   help | ? | ? | on
   command | : | : | on
   quit | q ctrl+c | q | on
-  search | / | / | on
-  find file | t ctrl+p | t | on
+  search | S | S | on
+  find file | ctrl+p | ^p | on
   zoom | z | z | on
   maximize | Z | Z | off
   unzoom | esc | esc | off
   dismiss | ctrl+x | ctrl+x | off
   owner page | @ | @ | on
-  notifications | n | n | on
+  this repo | . | . | off
+  notifications | I | I | on
   dashboard | 0 | 0 | on
   next pane | tab | tab | on
   previous pane | shift+tab | shift+tab | on
@@ -19,7 +20,7 @@ global
 
 Repository
   history | B | B | on
-  actions | a | a | on
+  actions | A | A | on
 
 Issues
   back | esc | esc | off

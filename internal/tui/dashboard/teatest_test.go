@@ -70,7 +70,7 @@ func TestProgram(t *testing.T) {
 	a := &app{s: s, got: make(chan tea.Msg, 8), filtered: filtered}
 	tm := teatest.NewTestModel(t, a, teatest.WithInitialTermSize(140, 38))
 	// Open a review request, filter the repositories of github by name and
-	// open the one left, then open the repository here.
+	// open the one left.
 	for _, k := range []string{"3", "enter", "2", "]"} {
 		tm.Send(keyPress(k))
 	}
@@ -80,15 +80,15 @@ func TestProgram(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("the filter didn't list one repository")
 	}
-	for _, k := range []string{"enter", "."} {
+	for _, k := range []string{"enter"} {
 		tm.Send(keyPress(k))
 	}
 	// The messages come from commands, so quit once the last has arrived.
-	for range 3 {
+	for range 2 {
 		select {
 		case <-a.got:
 		case <-time.After(5 * time.Second):
-			t.Fatal("the dashboard didn't send three messages")
+			t.Fatal("the dashboard didn't send two messages")
 		}
 	}
 	tm.Send(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
@@ -97,7 +97,6 @@ func TestProgram(t *testing.T) {
 	want := []tea.Msg{
 		ui.OpenPullMsg{Repo: core.RepoRef{Owner: "charmbracelet", Name: "bubbletea"}, Number: 1402},
 		ui.RepoMsg{Repo: core.RepoRef{Owner: "github", Name: "repo-004"}},
-		ui.RepoMsg{Repo: here},
 	}
 	// The commands run at once, so the messages may arrive in any order.
 	sent := slices.SortedFunc(slices.Values(final.sent), byString)

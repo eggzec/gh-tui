@@ -332,6 +332,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		// known to exist, a number once it knows whether it is an issue or
 		// a pull request, and links to the user's host.
 		tui.WithRepos(repoSvc),
+		tui.WithHere(here),
 		tui.WithKinds(issueSvc),
 		tui.WithOwners(ownerHeaders{ownerSvc}),
 		tui.WithRecall(recall{pinned: pinned, here: here, dash: dashSvc, repos: repoSvc, pulls: pullSvc, issues: issueSvc}),

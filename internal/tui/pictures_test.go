@@ -352,7 +352,7 @@ func TestHeaderAvatar(t *testing.T) {
 		uitest.Placeholders(t, m.header)
 	}
 	// Other screens name no repository and show no avatar.
-	run(m, m.key(press("n")))
+	run(m, m.key(press("I")))
 	if n := uitest.Placeholders(t, m.header); n != 0 {
 		t.Errorf("the notifications' header shows %d placeholder cells", n)
 	}

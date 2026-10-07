@@ -463,7 +463,7 @@ func TestOwnerKeyInTheApp(t *testing.T) {
 		owner string
 		check func(m *Model) string
 	}{
-		{name: "search query", keys: []string{"/"}, check: func(m *Model) string {
+		{name: "search query", keys: []string{"S"}, check: func(m *Model) string {
 			if got := layerNames(m.keyLayers()); m.screen != searchScreen || got != "always, global, search_query (types)" || !strings.Contains(onScreen(m), "@") {
 				return "the query didn't take @: the keys reach " + got
 			}

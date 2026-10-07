@@ -106,11 +106,11 @@ func TestDashboardTakesPaneKeys(t *testing.T) {
 
 func TestNotificationsFromDashboard(t *testing.T) {
 	m, fakes := newDashApp(t, core.RepoRef{})
-	run(m, m.key(press("n")))
+	run(m, m.key(press("I")))
 	if m.screen != notifScreen {
 		t.Fatal("n didn't show the notifications")
 	}
-	run(m, m.key(press("n")))
+	run(m, m.key(press("I")))
 	if m.screen != dashScreen || !fakes[4].focused {
 		t.Error("n again should go back to the dashboard")
 	}
@@ -120,11 +120,11 @@ func TestNotificationsFromDashboard(t *testing.T) {
 	if m.screen != notifScreen {
 		t.Fatal("ShowMsg didn't show the notifications")
 	}
-	run(m, m.key(press("n")))
+	run(m, m.key(press("I")))
 	if m.screen != dashScreen {
 		t.Error("n should go back to the dashboard that showed the notifications")
 	}
-	run(m, m.key(press("n")))
+	run(m, m.key(press("I")))
 	m.Update(ui.ShowMsg{Title: ui.DashboardTitle})
 	if m.screen != dashScreen {
 		t.Error("ShowMsg didn't show the dashboard")
@@ -210,8 +210,8 @@ func TestDashboardRevisitedOnReturn(t *testing.T) {
 	if dash.inits != 1 || dash.revisits != 0 {
 		t.Fatalf("opening on the dashboard: %d inits and %d revisits, want 1 and none", dash.inits, dash.revisits)
 	}
-	run(m, m.key(press("n")))
-	run(m, m.key(press("n")))
+	run(m, m.key(press("I")))
+	run(m, m.key(press("I")))
 	if m.screen != dashScreen || dash.revisits != 1 {
 		t.Fatalf("back on the dashboard: %d revisits, want 1", dash.revisits)
 	}

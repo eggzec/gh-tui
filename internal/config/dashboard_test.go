@@ -144,7 +144,6 @@ func TestDashboardActions(t *testing.T) {
 		ActionPane5:                  {"5"},
 		"dashboard_repos.next_owner": {"right"},
 		"dashboard_repos.prev_owner": {"left"},
-		"dashboard.current_repo":     {"."},
 	} {
 		if got := defaults.Of(action); !slices.Equal(got, want) {
 			t.Errorf("default %s = %v, want %v", action, got, want)

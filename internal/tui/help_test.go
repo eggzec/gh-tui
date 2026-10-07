@@ -18,14 +18,14 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
 )
 
-// collideKeys is the help of a section whose find key is /, which the
+// collideKeys is the help of a section whose find key is S, which the
 // app's search takes first, and whose close key is x.
 type collideKeys struct{}
 
 func (collideKeys) ShortHelp() []key.Binding {
 	return []key.Binding{
 		key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "close")),
-		key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "find")),
+		key.NewBinding(key.WithKeys("S"), key.WithHelp("S", "find")),
 	}
 }
 func (k collideKeys) FullHelp() [][]key.Binding { return [][]key.Binding{k.ShortHelp()} }
@@ -215,7 +215,7 @@ func TestHelpShowsCollisions(t *testing.T) {
 		t.Errorf("search is %v and find %v losing %+v, want find shadowed by search", search.Status, find.Status, find.Lost)
 	}
 	typeKeys(m, "find")
-	if !strings.Contains(onScreen(m), "⚠ / find") || !strings.Contains(onScreen(m), "↳ /: search · global") {
+	if !strings.Contains(onScreen(m), "⚠ S find") || !strings.Contains(onScreen(m), "↳ S: search · global") {
 		t.Errorf("the collision isn't marked:\n%s", ansi.Strip(m.View().Content))
 	}
 }

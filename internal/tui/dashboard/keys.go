@@ -5,7 +5,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
-	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
@@ -40,8 +39,6 @@ type KeyMap struct {
 	PrevOwner key.Binding
 	NextList  key.Binding
 	PrevList  key.Binding
-	// Here opens the repository of the current directory.
-	Here key.Binding
 	// Checks opens the pull request of the work under the cursor on its
 	// checks.
 	Checks key.Binding
@@ -86,7 +83,6 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		PrevOwner:     repos.Either("previous owner", "global.prev_tab", "prev_owner"),
 		NextList:      work.Either("next list", "global.next_tab", "next_owner"),
 		PrevList:      work.Either("previous list", "global.prev_tab", "prev_owner"),
-		Here:          screen.Binding("current_repo", "this repo"),
 		Checks:        work.Binding("checks", "checks"),
 		Notifications: screen.Binding("global.notifications", "all notifications"),
 		Up:            key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("↑/k", "up")),
@@ -122,7 +118,7 @@ func (k KeyMap) pane(msg tea.KeyPressMsg) paneID {
 func (k KeyMap) ShortHelp() []key.Binding {
 	return []key.Binding{
 		k.Up, k.Down, k.Left, k.Right, k.Select, k.Checks, k.Filter, k.Sort, k.ClearFilter, k.NextOwner, k.NextList, k.Open,
-		k.Next, k.Jump, k.Zoom, k.Back, k.Refresh, k.Here,
+		k.Next, k.Jump, k.Zoom, k.Back, k.Refresh,
 	}
 }
 
@@ -131,7 +127,7 @@ func (k KeyMap) ShortHelp() []key.Binding {
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Left, k.Right, k.Up, k.Down, k.Select, k.Open, k.Checks, k.NextOwner, k.PrevOwner, k.NextList, k.PrevList, k.ClearFilter, k.Filter, k.Sort, k.Notifications},
-		{k.Next, k.Prev, k.Zoom, k.Back, k.Refresh, k.Here, k.Jump},
+		{k.Next, k.Prev, k.Zoom, k.Back, k.Refresh, k.Jump},
 	}
 }
 
@@ -142,8 +138,8 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 func (s *Section) KeyLayers() []keyhelp.Layer {
 	k := s.keys.state(s)
 	screen := ui.ContextLayer(ctxDashboard,
-		[]key.Binding{k.Next, k.Prev, k.Zoom, k.Back, k.Refresh, k.Here, k.Jump},
-		[]key.Binding{k.Next, k.Jump, k.Zoom, k.Back, k.Refresh, k.Here})
+		[]key.Binding{k.Next, k.Prev, k.Zoom, k.Back, k.Refresh, k.Jump},
+		[]key.Binding{k.Next, k.Jump, k.Zoom, k.Back, k.Refresh})
 	ctx := paneContext[s.focus]
 	own := keyhelp.Layer{Bindings: k.paneKeys(s.focus), Short: k.paneShort(s.focus)}
 	switch s.focus {
@@ -205,6 +201,5 @@ func (k KeyMap) state(s *Section) KeyMap {
 	}
 	k.Zoom.SetEnabled(k.Zoom.Enabled() && s.wide)
 	k.Back.SetEnabled(k.Back.Enabled() && s.zoomed())
-	k.Here.SetEnabled(k.Here.Enabled() && s.here != (core.RepoRef{}))
 	return k
 }

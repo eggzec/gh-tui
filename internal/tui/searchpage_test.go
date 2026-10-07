@@ -38,7 +38,7 @@ func TestSearchKeyShowsThePage(t *testing.T) {
 	for _, start := range []core.RepoRef{testRepo, {}} {
 		m, fakes := newSearchApp(t, start)
 		was := m.screen
-		run(m, m.key(press("/")))
+		run(m, m.key(press("S")))
 		if m.screen != searchScreen || !fakes[5].focused || fakes[5].inits != 1 {
 			t.Fatalf("/ didn't show the search page: screen %d, focused %v", m.screen, focusedTitles(fakes))
 		}
@@ -57,9 +57,9 @@ func TestSearchKeyShowsThePage(t *testing.T) {
 
 func TestSearchKeyOnThePageFocusesTheQuery(t *testing.T) {
 	m, fakes := newSearchApp(t, testRepo)
-	run(m, m.key(press("/")))
+	run(m, m.key(press("S")))
 	fakes[5].focused = false
-	run(m, m.key(press("/")))
+	run(m, m.key(press("S")))
 	if m.screen != searchScreen || !fakes[5].focused {
 		t.Error("/ on the page should focus it again")
 	}
@@ -67,7 +67,7 @@ func TestSearchKeyOnThePageFocusesTheQuery(t *testing.T) {
 
 func TestSearchPageCapturesKeys(t *testing.T) {
 	m, fakes := newSearchApp(t, testRepo)
-	run(m, m.key(press("/")))
+	run(m, m.key(press("S")))
 	fakes[5].capturing = true
 	for _, k := range []string{"q", "n", "0", "tab"} {
 		if cmd := m.key(press(k)); cmd != nil {
@@ -81,12 +81,12 @@ func TestSearchPageCapturesKeys(t *testing.T) {
 
 func TestRepoFromSearch(t *testing.T) {
 	m, fakes := newSearchApp(t, core.RepoRef{})
-	run(m, m.key(press("/")))
+	run(m, m.key(press("S")))
 	run(m, func() tea.Msg { return ui.RepoMsg{Repo: testRepo} })
 	if m.screen != repoScreen || !fakes[0].focused {
 		t.Fatalf("a repository chosen in the search should show its files: screen %d", m.screen)
 	}
-	run(m, m.key(press("/")))
+	run(m, m.key(press("S")))
 	if m.screen != searchScreen {
 		t.Error("/ should bring the search back")
 	}
@@ -120,7 +120,7 @@ func TestPreviewFromSearch(t *testing.T) {
 				}
 				return nil
 			}
-			run(m, m.key(press("/")))
+			run(m, m.key(press("S")))
 			run(m, func() tea.Msg { return tt.open })
 			if m.topModal() != mod || m.screen != searchScreen || m.repo != testRepo {
 				t.Fatalf("modal %v on screen %d for %v, want the %s over the search, with the repository kept",
@@ -217,8 +217,8 @@ func TestSearchKeyStartsFresh(t *testing.T) {
 	m := New(t.Context(), config.Default(), Layout{Files: &fakeSection{title: "Files"}, Search: page})
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	run(m, m.Init())
-	drive(m, m.key(press("/")))
-	drive(m, m.key(press("/")))
+	drive(m, m.key(press("S")))
+	drive(m, m.key(press("S")))
 	if page.fresh != 2 {
 		t.Errorf("the search key made the page start fresh %d times in 2 presses, want 2", page.fresh)
 	}

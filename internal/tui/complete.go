@@ -96,7 +96,24 @@ func (m *Model) completeTarget(arg string, cursor, end int, _ bool) []cmdline.Ca
 	if login, ok := strings.CutPrefix(word, "@"); ok {
 		return m.completeOwner(login, wordStart, end)
 	}
-	return m.completeRepo(word, wordStart, end)
+	if word == "." {
+		return m.completeHere(wordStart, end)
+	}
+	out := m.completeRepo(word, wordStart, end)
+	if word == "" {
+		out = append(m.completeHere(wordStart, end), out...)
+		out = out[:min(len(out), maxCandidates)]
+	}
+	return out
+}
+
+// completeHere offers ".", the repository of the current directory, when
+// there is one.
+func (m *Model) completeHere(start, end int) []cmdline.Candidate {
+	if m.here == (core.RepoRef{}) {
+		return nil
+	}
+	return []cmdline.Candidate{{Text: ".", Detail: m.here.String(), Start: start, End: end}}
 }
 
 // wordLen returns the length of the word that s starts with.

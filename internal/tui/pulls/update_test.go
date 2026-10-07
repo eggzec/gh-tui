@@ -185,7 +185,7 @@ func TestRepoMsg(t *testing.T) {
 func TestNoRepoShowsWhatToDo(t *testing.T) {
 	s := newTest(t, newFakeService(), 80, 12)
 	drain(t, s, s.Init())
-	if v := screen(s); !strings.Contains(v, "No repository selected") || !strings.Contains(v, "Press / to search for one.") {
+	if v := screen(s); !strings.Contains(v, "No repository selected") || !strings.Contains(v, "Press S to search for one.") {
 		t.Errorf("screen:\n%s", v)
 	}
 	if msgs := press(t, s, "f"); len(msgs) != 0 {

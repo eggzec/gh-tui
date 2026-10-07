@@ -353,7 +353,7 @@ func TestZoom(t *testing.T) {
 
 func TestZoomNeedsTheRepoScreen(t *testing.T) {
 	m, fakes := newTestApp(t)
-	run(m, m.key(press("n")))
+	run(m, m.key(press("I")))
 	run(m, m.key(press("z")))
 	if m.zoom || !fakes[3].got(isKey("z")) {
 		t.Error("z on the notifications should go to them, not zoom the repository screen")
@@ -529,11 +529,11 @@ func TestFocusMovesBetweenPanes(t *testing.T) {
 func TestNotificationsKeyTogglesScreens(t *testing.T) {
 	m, fakes := newTestApp(t)
 	run(m, m.key(press("2")))
-	run(m, m.key(press("n")))
+	run(m, m.key(press("I")))
 	if m.screen != notifScreen || !slices.Equal(focusedTitles(fakes), []string{"Notifications"}) {
-		t.Fatalf("n didn't show the notifications: focused %v", focusedTitles(fakes))
+		t.Fatalf("I didn't show the notifications: focused %v", focusedTitles(fakes))
 	}
-	if s := onScreen(m); !strings.Contains(s, "Notifications content") || !strings.Contains(s, "n back") {
+	if s := onScreen(m); !strings.Contains(s, "Notifications content") || !strings.Contains(s, "I back") {
 		t.Errorf("notifications screen or its help is missing:\n%s", s)
 	}
 	// Tab has no panes to move between here.
@@ -541,11 +541,11 @@ func TestNotificationsKeyTogglesScreens(t *testing.T) {
 	if m.screen != notifScreen {
 		t.Error("tab left the notifications")
 	}
-	run(m, m.key(press("n")))
+	run(m, m.key(press("I")))
 	if m.screen != repoScreen || !slices.Equal(focusedTitles(fakes), []string{"Pull requests"}) {
 		t.Errorf("n didn't go back to the pane that had focus: %v", focusedTitles(fakes))
 	}
-	run(m, m.key(press("n")))
+	run(m, m.key(press("I")))
 	run(m, m.key(press("3")))
 	if m.screen != repoScreen || !fakes[2].focused {
 		t.Error("a pane key on the notifications didn't show that pane")
@@ -564,9 +564,9 @@ func TestSectionsStartWhenShown(t *testing.T) {
 			t.Errorf("%s started %d times, want %d", f.title, f.inits, want)
 		}
 	}
-	run(m, m.key(press("n")))
-	run(m, m.key(press("n")))
-	run(m, m.key(press("n")))
+	run(m, m.key(press("I")))
+	run(m, m.key(press("I")))
+	run(m, m.key(press("I")))
 	for _, f := range fakes {
 		if f.inits != 1 {
 			t.Errorf("%s started %d times, want once", f.title, f.inits)
@@ -610,7 +610,7 @@ func TestKeysGoToTheFocusedPaneOnly(t *testing.T) {
 func TestCapturingSectionTakesEveryKey(t *testing.T) {
 	m, fakes := newTestApp(t)
 	fakes[0].capturing = true
-	keys := []string{"q", "?", "]", "2", "n", "/"}
+	keys := []string{"q", "?", "]", "2", "I", "S"}
 	for _, k := range keys {
 		if cmd := m.key(press(k)); cmd != nil {
 			t.Errorf("%s returned a command while the section captures keys", k)
@@ -979,7 +979,7 @@ func TestOpenRedraws(t *testing.T) {
 func TestHelpShowsPaneAndAppKeys(t *testing.T) {
 	m, fakes := newTestApp(t)
 	s := onScreen(m)
-	for _, want := range []string{"x close", "/ search", "n notifications", "? help", "q quit"} {
+	for _, want := range []string{"x close", "S search", "I notifications", "? help", "q quit"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("the bar lacks %q:\n%s", want, s)
 		}
@@ -1006,7 +1006,7 @@ func TestMissingSectionsAreLeftOut(t *testing.T) {
 	if s := onScreen(m); !strings.Contains(s, "[1] Pull requests") {
 		t.Errorf("screen lacks the lone pane:\n%s", s)
 	}
-	run(m, m.key(press("n")))
+	run(m, m.key(press("I")))
 	run(m, m.key(press("tab")))
 	run(m, m.key(press("3")))
 	if m.screen != repoScreen || !pulls.focused {
@@ -1029,7 +1029,7 @@ func TestProgramRendersAndQuits(t *testing.T) {
 	teatest.WaitFor(t, tm.Output(), func(out []byte) bool {
 		return bytes.Contains(out, []byte("Files content")) && bytes.Contains(out, []byte("Issues content"))
 	}, teatest.WithDuration(5*time.Second))
-	tm.Send(press("n"))
+	tm.Send(press("I"))
 	teatest.WaitFor(t, tm.Output(), func(out []byte) bool {
 		return bytes.Contains(out, []byte("Notifications content"))
 	}, teatest.WithDuration(5*time.Second))

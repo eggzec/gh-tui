@@ -16,7 +16,6 @@ Query (types)
   up | up k | ↑/k | off
   down | down j | ↓/j | off
   browser | o | o | off
-  repo | ctrl+o | ^o | off
   checks | C | C | off
   refresh | r | r | off
   filter | f | f | off

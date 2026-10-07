@@ -58,7 +58,7 @@ func TestHeaderLinks(t *testing.T) {
 				t.Errorf("%s at %d: header links to %q, want %q once", host, width, links, want)
 			}
 		}
-		run(m, m.key(press("n")))
+		run(m, m.key(press("I")))
 		if links := uitest.Links(t, m.header); len(links) != 0 {
 			t.Errorf("%s: the notifications' header links to %q", host, links)
 		}

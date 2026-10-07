@@ -34,7 +34,7 @@ func TestNotificationsHeader(t *testing.T) {
 	for _, width := range []int{40, 80, 120} {
 		t.Run(strconv.Itoa(width), func(t *testing.T) {
 			m := newHeaderApp(t)
-			run(m, m.key(press("n")))
+			run(m, m.key(press("I")))
 			m.Update(tea.WindowSizeMsg{Width: width, Height: 24})
 			if got := ansi.StringWidth(m.header); got != width {
 				t.Errorf("header is %d wide, want %d", got, width)
@@ -54,9 +54,9 @@ func TestHeaderFollowsTheScreen(t *testing.T) {
 		repo      bool
 	}{
 		{"", testRepo.String() + " ─ main", true},
-		{"n", ui.NotificationsTitle, false},
+		{"I", ui.NotificationsTitle, false},
 		{"0", ui.DashboardTitle, false},
-		{"n", ui.NotificationsTitle, false},
+		{"I", ui.NotificationsTitle, false},
 	}
 	for _, s := range steps {
 		if s.key != "" {

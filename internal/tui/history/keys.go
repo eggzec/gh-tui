@@ -63,7 +63,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		Select:    modal.Binding("global.select", "open"),
 		Back:      modal.Binding("global.dismiss", "back"),
 		Zoom:      modal.Binding("global.zoom", "zoom"),
-		Filter:    branches.Binding("global.search", "filter"),
+		Filter:    branches.Binding("filter", "filter"),
 		UseAsBase: branches.Binding("base", "use as base"),
 		graphBase: graphCtx.Binding("base", "use as base"),
 		filesBase: files.Binding("base", "use as base"),

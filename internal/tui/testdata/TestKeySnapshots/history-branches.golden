@@ -17,7 +17,7 @@ History
 Branches
   use as base | space | space | on
   graph | enter | ↵ | on
-  filter | / | / | on
+  filter | f | f | on
   up | up k | ↑/k | on
   down | down j | ↓/j | on
   page up | ctrl+b pgup | ^b/pgup | on

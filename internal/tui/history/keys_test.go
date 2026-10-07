@@ -28,7 +28,7 @@ func TestKeyLayersOrder(t *testing.T) {
 		want map[string]string
 	}{
 		{nil, map[string]string{"enter": "Graph: diff", "esc": "History: back", "tab": "History: pane"}},
-		{[]string{"esc"}, map[string]string{"enter": "Branches: graph", "/": "Branches: filter", "esc": "History: close", "j": "Branches: down"}},
+		{[]string{"esc"}, map[string]string{"enter": "Branches: graph", "f": "Branches: filter", "/": "nothing", "esc": "History: close", "j": "Branches: down"}},
 		{[]string{"enter", "enter"}, map[string]string{"enter": "Files: patch", "j": "Files: down"}},
 		{[]string{"j", "enter"}, map[string]string{"esc": "Patch: close", "j": "Patch: down", "tab": "History: pane"}},
 		{[]string{"/"}, map[string]string{"j": "nothing", "esc": "Search: cancel"}},

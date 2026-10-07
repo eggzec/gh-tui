@@ -62,6 +62,12 @@ type Owners interface {
 	Header(ctx context.Context, login string) (core.Owner, error)
 }
 
+// WithHere sets the repository of the current directory, which goto
+// opens for ".". Without it, goto says there is none.
+func WithHere(r core.RepoRef) Option {
+	return func(m *Model) { m.here = r }
+}
+
 // WithOwners sets what reads the users and organizations whose pages goto
 // opens. Without it goto opens the page of any login named, without
 // checking that it exists.
@@ -107,13 +113,20 @@ type gotoKindMsg struct {
 	err    error
 }
 
-// gotoCommand opens what arg names: a repository on its screen, the page
+// gotoCommand opens what arg names: ".", the repository of the current
+// directory, a repository on its screen, the page
 // of a user or an organization on the owner screen, or an issue or pull
 // request in its modal over the screen on view. A number alone is one of
 // the repository screen on view.
 func (m *Model) gotoCommand(arg string) tea.Cmd {
 	// It replaces a goto still waiting, whether or not it goes anywhere.
 	m.cancelGoto()
+	if strings.TrimSpace(arg) == "." {
+		if m.here == (core.RepoRef{}) {
+			return m.toast.Push(toast.Error, "No repository in the current directory.")
+		}
+		return m.gotoRepo(m.here)
+	}
 	t, err := core.ParseTarget(arg, m.host)
 	if err != nil {
 		return m.badTarget(err)
@@ -312,6 +325,21 @@ func (m *Model) selectedOwner() string {
 		return ""
 	}
 	return owner
+}
+
+// selectedRepo returns the repository the repo key shows: that of the
+// selection of the focused section, such as a search result or a row of
+// the dashboard. It returns the zero value when there is none, or when it
+// is the repository on view.
+func (m *Model) selectedRepo() core.RepoRef {
+	sel, ok := m.selection()
+	if !ok || sel.Repo == (core.RepoRef{}) {
+		return core.RepoRef{}
+	}
+	if m.screen == repoScreen && sel.Repo.Same(m.repo) {
+		return core.RepoRef{}
+	}
+	return sel.Repo
 }
 
 // gotOwner shows the page that goto asked for, or says why not.
