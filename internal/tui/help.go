@@ -117,11 +117,13 @@ func (m *Model) layersNow() []keyhelp.Layer {
 			always.Source = globalTitle()
 		}
 		always.Bindings = append(always.Bindings, forceQuit)
-		if !slices.ContainsFunc(inner, takesKeys) {
-			always.Bindings = append(always.Bindings, m.keys.state(m).Maximize)
-		}
 		if m.commandsOver(m.topModal()) {
 			always.Bindings = append(always.Bindings, m.keys.Command)
+		}
+		// The app matches the maximize key after the command key, and the
+		// modal's keys after both.
+		if !slices.ContainsFunc(inner, takesKeys) {
+			always.Bindings = append(always.Bindings, m.keys.state(m).Maximize)
 		}
 	}
 	always.Bindings = append(always.Bindings, help)

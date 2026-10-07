@@ -92,12 +92,18 @@ func TestUIMaximized(t *testing.T) {
 			t.Errorf("maximized %q: Validate() = %v, want it accepted", name, err)
 		}
 	}
-	for _, name := range []string{"pulls", "dashboard", "pull_conversation", "History", "nope", ""} {
+	// Steps that show inside another modal never open first.
+	for _, name := range []string{"pulls", "dashboard", "pull_conversation", "pull_checks", "actions_filter", "History", "nope", ""} {
 		cfg := Default()
 		cfg.UI.Maximized = []string{name}
 		err := cfg.Validate()
 		if err == nil || !strings.Contains(err.Error(), "ui.maximized: unknown modal") {
 			t.Errorf("maximized %q: Validate() = %v, want an unknown modal", name, err)
+			continue
+		}
+		const want = "must be one of pull_modal, issue_modal, release_modal, history, actions, preview, text, filter"
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("maximized %q: Validate() = %v, want it to list exactly the eight modals", name, err)
 		}
 	}
 

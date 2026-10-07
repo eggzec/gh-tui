@@ -12,7 +12,10 @@ import (
 	"github.com/charmbracelet/x/exp/golden"
 
 	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/service/access"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 )
 
@@ -185,6 +188,26 @@ func TestMaximizeDefaults(t *testing.T) {
 	}
 }
 
+// A step that shows inside a modal, such as the checks of a pull request,
+// is that modal, so the pull request is maximized however it was opened.
+func TestMaximizeDefaultsOfSteps(t *testing.T) {
+	for ctx, listed := range map[string]string{"pull_checks": "pull_modal", "actions_filter": "actions", "pull_modal": "pull_modal"} {
+		m, _ := newTestApp(t)
+		m.cfg.UI.Maximized = []string{listed}
+		m.applySettings()
+		run(m, ui.OpenModal(newCtxModal(ctx)))
+		if !m.maximized {
+			t.Errorf("a modal opened on %s didn't open maximized, though ui.maximized lists %s", ctx, listed)
+		}
+		m.cfg.UI.Maximized = []string{"history"}
+		m.applySettings()
+		run(m, ui.OpenModal(newCtxModal(ctx)))
+		if m.maximized {
+			t.Errorf("a modal opened on %s opened maximized, though ui.maximized doesn't list %s", ctx, listed)
+		}
+	}
+}
+
 // :set ui.maximized applies at the next open, not to the open modal.
 func TestMaximizeSet(t *testing.T) {
 	var told []config.Config
@@ -269,6 +292,31 @@ func TestMaximizeIsTypedInInputs(t *testing.T) {
 			t.Error("Z maximized the question")
 		}
 	})
+}
+
+// The token modal maximizes, except while it asks its question, which
+// takes every key.
+func TestMaximizeTokenModal(t *testing.T) {
+	m, _ := newTestApp(t)
+	mod := newAuthModal(config.Default().Keys, "octocat@github.com", core.Access{}, access.Plan{}, uitest.Token(&uitest.Checker{}), nil)
+	mod.checking = false
+	run(m, ui.OpenModal(mod))
+	send(m, "Z")
+	if !m.maximized {
+		t.Error("Z didn't maximize the token modal")
+	}
+	send(m, "Z")
+	if m.maximized {
+		t.Error("Z again didn't restore the token modal")
+	}
+
+	asking := newAuthModal(config.Default().Keys, "octocat@github.com", core.Access{}, access.Plan{Cmd: []string{"gh", "auth", "refresh"}}, uitest.Token(&uitest.Checker{}), nil)
+	asking.checking = false
+	run(m, ui.OpenModal(asking))
+	send(m, "Z")
+	if m.maximized {
+		t.Error("Z maximized the token modal while it asks")
+	}
 }
 
 // Without a modal, Z is none of the app's.

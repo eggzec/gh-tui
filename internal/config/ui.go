@@ -68,12 +68,13 @@ func (u UI) validate() error {
 	return errors.Join(errs...)
 }
 
-// validateMaximized checks that Maximized names modals: the contexts of
-// keys that are modals.
+// validateMaximized checks that Maximized names modals that can open
+// first: the contexts of keys that are modals, but for the steps that show
+// inside another.
 func (u UI) validateMaximized() error {
 	var modals []string
 	for _, c := range contexts {
-		if c.Modal {
+		if c.Modal && c.Within == "" {
 			modals = append(modals, c.Name)
 		}
 	}
