@@ -117,7 +117,8 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 		Short:    []key.Binding{k.Up, k.Down, k.Select, k.Checks, k.Open, k.Filter, k.Sort, k.Left},
 	}
 	if s.area == kindsArea {
-		// The kinds have no results to show the repository of or the checks.
+		// The kinds have no result under the cursor, so no checks, and the
+		// app's repo key finds nothing selected.
 		kinds := keyhelp.Layer{
 			Bindings: []key.Binding{k.Select, k.Left, k.Right, k.Up, k.Down, k.Open, k.Refresh, k.KindsFilter, k.KindsSort},
 			Short:    []key.Binding{k.Up, k.Down, k.Select, k.Open, k.KindsFilter, k.KindsSort, k.Left},

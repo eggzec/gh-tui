@@ -174,6 +174,8 @@ type Model struct {
 	// here is the repository of the current directory, which goto opens
 	// for ".".
 	here core.RepoRef
+	// hereHost is the host of that repository when it is not the session's.
+	hereHost string
 	// owners checks that a user or organization exists before goto
 	// opens its page, and ownerLogin is the login of the page on view,
 	// for the header.

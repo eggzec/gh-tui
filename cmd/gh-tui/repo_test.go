@@ -33,7 +33,7 @@ func TestStartRepos(t *testing.T) {
 		{
 			name: "--hostname over the current repository's host", hostname: "ghe.corp",
 			current: inRepo("github.com"), defaultHost: "github.com",
-			want: start{Host: "ghe.corp", From: "--hostname"},
+			want: start{Host: "ghe.corp", HereHost: "github.com", From: "--hostname"},
 		},
 		{
 			name: "--hostname of the current repository's host", hostname: "GitHub.com",

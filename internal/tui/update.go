@@ -319,6 +319,12 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 		}
 	case key.Matches(msg, m.keys.Repo):
 		if repo := m.selectedRepo(); repo != (core.RepoRef{}) {
+			if p := m.focused(); p != nil {
+				if o, ok := p.section.(ui.RepoOpener); ok {
+					sel, _ := m.selection()
+					o.OpenedRepo(sel)
+				}
+			}
 			return m.selectRepo(ui.RepoMsg{Repo: repo})
 		}
 	case key.Matches(msg, m.keys.Notifications):

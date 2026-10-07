@@ -21,10 +21,18 @@ type Selection struct {
 	Owner string
 }
 
-// Selector is a Section that tells what its cursor is on, for the copy
-// command. It reports false when the cursor is on nothing.
+// Selector is a Section that tells what its cursor is on, for what acts on
+// the selection: the copy command, the owner and repo keys, and opening
+// it in the browser. It reports false when the cursor is on nothing.
 type Selector interface {
 	Selected() (Selection, bool)
+}
+
+// RepoOpener is a Selector that is told when the app opens the repository
+// of its selection, so that it can do what opening it from the section
+// does, such as remember the search or count the open for reading ahead.
+type RepoOpener interface {
+	OpenedRepo(sel Selection)
 }
 
 // RepoSelection is the selection of repository r, whose page is url.
