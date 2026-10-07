@@ -5,11 +5,13 @@
 // with the cursor in view.
 //
 // The parent opens it with [Model.Open] and forwards messages to it while
-// it is focused. Enter sends a [SubmitMsg] with the line, and esc, ctrl+c
-// or backspace on an empty line send a [CancelMsg]; either way the command
-// line blurs itself, and the parent closes it. A parent that quits on
-// ctrl+c must forward it to the command line first while it is focused,
-// so ctrl+c cancels the command instead of quitting the program.
+// it is focused. The keys come from its [KeyMap]: by default enter sends a
+// [SubmitMsg] with the line, and esc or backspace on an empty line send a
+// [CancelMsg]; either way the command line blurs itself, and the parent
+// closes it. A parent that quits on ctrl+c should forward it to the
+// command line first while it is focused, with ctrl+c among the cancel
+// keys, so that ctrl+c cancels the command instead of quitting the
+// program.
 //
 // Given a [Complete] function, it shows the candidates that complete the
 // line on a row above it, as vim's wildmenu does, and tab and shift+tab
@@ -75,7 +77,6 @@ func New(historyLimit int, opts ...Option) Model {
 	s := settings{
 		prompt: ":",
 		height: MaxHeight,
-		keys:   DefaultKeyMap(),
 		styles: DefaultStyles(true),
 	}
 	for _, opt := range opts {

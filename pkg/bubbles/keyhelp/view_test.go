@@ -65,7 +65,7 @@ func TestViewMarks(t *testing.T) {
 			t.Errorf("view lacks %q:\n%s", want, v)
 		}
 	}
-	m = New(WithLayers(typing), WithSize(80, 10))
+	m = newKeyed(WithLayers(typing), WithSize(80, 10))
 	v = m.View()
 	for _, want := range []string{s.Disabled.Render("reload"), s.Typed.Render(s.LossGlyph + " r: typed in finder")} {
 		if !strings.Contains(v, want) {
@@ -110,7 +110,7 @@ func TestViewFits(t *testing.T) {
 
 // Text from the layers can't break the layout.
 func TestViewCleansText(t *testing.T) {
-	m := New(WithLayers([]Layer{{Source: "two\nlines", Bindings: []key.Binding{bind("red \x1b[31mtext\x1b[m\tand tab", "x")}}}), WithSize(80, 5))
+	m := newKeyed(WithLayers([]Layer{{Source: "two\nlines", Bindings: []key.Binding{bind("red \x1b[31mtext\x1b[m\tand tab", "x")}}}), WithSize(80, 5))
 	v := ansi.Strip(m.View())
 	if !strings.Contains(v, "red text and tab") || !strings.Contains(v, "two lines") {
 		t.Errorf("the row isn't on one clean line:\n%s", v)
@@ -121,13 +121,13 @@ func TestViewCleansText(t *testing.T) {
 // while it is closed, shows the same as one changed while open, once it
 // opens, and a view of it before then is right too.
 func TestBlurredHelpListsWhenShown(t *testing.T) {
-	open := New(WithLayers(layers()), WithSize(60, 12))
+	open := newKeyed(WithLayers(layers()), WithSize(60, 12))
 	open.Focus()
 	open.SetSize(80, 20)
 	open.SetStyles(DefaultStyles(false))
 	open.SetQuery("r")
 
-	closed := New(WithLayers(layers()), WithSize(60, 12))
+	closed := newKeyed(WithLayers(layers()), WithSize(60, 12))
 	closed.SetSize(80, 20)
 	closed.SetStyles(DefaultStyles(false))
 	closed.SetQuery("r")

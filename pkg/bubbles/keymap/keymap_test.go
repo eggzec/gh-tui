@@ -124,7 +124,7 @@ func TestNamesOfPager(t *testing.T) {
 		"bottom", "edit", "find", "global.dismiss", "global.quit", "half_page_down", "half_page_up",
 		"left", "next_match", "option", "page_down", "page_up", "pager_option.cancel", "pager_option.chop",
 		"pager_option.ignore_case", "pager_option.line_numbers", "pager_option.smart_case",
-		"pager_option.squeeze", "prev_match", "quick_filter", "right", "search_prompt.cancel", "search_prompt.run", "top", "up", "down",
+		"pager_option.squeeze", "prev_match", "quick_filter", "right", "search_prompt.cancel", "search_prompt.cancel_empty", "search_prompt.run", "top", "up", "down",
 	}
 	slices.Sort(want)
 	if got := keymap.Names(pager.KeyMap{}); !slices.Equal(got, want) {
@@ -172,7 +172,7 @@ func TestLabels(t *testing.T) {
 }
 
 func TestNamesOfPickerNormalMode(t *testing.T) {
-	got := keymap.Names(picker.DefaultKeyMap())
+	got := keymap.Names(picker.KeyMap{})
 	for _, want := range []string{"picker_normal.up", "picker_normal.half_page_down", "picker_normal.insert", "picker_normal.append", "up", "choose"} {
 		if !slices.Contains(got, want) {
 			t.Errorf("Names = %v, missing %q", got, want)

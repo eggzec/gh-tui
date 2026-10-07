@@ -33,11 +33,6 @@ func WithInset(right, bottom int) Option {
 	return func(m *Model) { m.inset = [2]int{max(right, 0), max(bottom, 0)} }
 }
 
-// WithKeyMap sets the key bindings.
-func WithKeyMap(k KeyMap) Option {
-	return func(m *Model) { m.keys = k }
-}
-
 // WithStyles sets the styles.
 func WithStyles(s Styles) Option {
 	return func(m *Model) { m.SetStyles(s) }

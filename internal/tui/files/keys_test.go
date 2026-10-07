@@ -12,7 +12,7 @@ import (
 
 func TestKeyMapComplete(t *testing.T) {
 	keytest.Complete(t, newKeyMap(config.Default().Keys))
-	keytest.Complete(t, newFinderKeys())
+	keytest.Complete(t, newFinderKeys(config.Default().Keys))
 }
 
 // winner names the binding that k reaches in layers, by its layer.

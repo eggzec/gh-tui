@@ -5,16 +5,16 @@ always
   help | ? | ? | off
 
 Picker (types)
-  previous field | k up | k | off
-  next field | j down | j | off
-  first field | g home | g | off
-  query | G end | G | off
-  previous | h left | h | off
-  next | l right | l | off
+  previous field | k up | k/↑ | off
+  next field | j down | j/↓ | off
+  first field | g home | g/home | off
+  query | G end | G/end | off
+  previous | h left | h/← | off
+  next | l right | l/→ | off
   toggle | space | space | off
   insert | i | i | off
   append | a | a | off
-  clear | delete backspace | delete | off
+  clear | delete backspace | delete/backspace | off
   apply | enter | ↵ | off
   close | esc | esc | off
   close | q | q | off
@@ -23,14 +23,14 @@ Picker (types)
   previous tab | [ | [ | off
   apply | enter | ↵ | off
   done | esc | esc | on
-  up | up ctrl+p | ↑ | on
-  down | down ctrl+n | ↓ | on
+  up | up ctrl+p | ↑/^p | on
+  down | down ctrl+n | ↓/^n | on
   toggle | space | space | off
-  clear | delete backspace | delete | off
+  clear | delete backspace | delete/backspace | off
   choose | enter | ↵ | on
   close | esc | esc | off
-  up | up ctrl+p | ↑/ctrl+p | off
-  down | down ctrl+n | ↓/ctrl+n | off
+  up | up ctrl+p | ↑/^p | off
+  down | down ctrl+n | ↓/^n | off
   page up | pgup | pgup | on
   page down | pgdown | pgdn | on
   scope | tab | tab | off

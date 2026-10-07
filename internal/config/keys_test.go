@@ -178,25 +178,89 @@ func TestKeyOverrides(t *testing.T) {
 	}
 }
 
-// TestCapturingContextsSkipTheChain checks, with a context of keys that
-// takes every key while it is open, that it may bind keys of the global
-// context and of other contexts, and is held only to one key to one
-// action.
+// TestCapturingContextsSkipTheChain checks that a capturing context may bind
+// a key of the global context, and not one key on two of its actions.
 func TestCapturingContextsSkipTheChain(t *testing.T) {
-	old := actions
-	t.Cleanup(func() { actions = old })
-	known := Default().Keys
-	known["search_query"] = map[string][]string{"submit": {"enter"}, "cancel": {"esc"}}
-	actions = func() Keymap { return known }
-
 	k := Default().Keys
-	k["search_query"] = map[string][]string{"submit": {"r"}, "cancel": {"ctrl+p"}}
+	k["confirm"] = map[string][]string{"yes": {"r"}, "no": {"ctrl+p"}}
 	if err := k.validate(); err != nil {
 		t.Errorf("validate() = %v, want a capturing context free to bind a key of global", err)
 	}
-	k["search_query"] = map[string][]string{"submit": {"enter"}, "cancel": {"enter"}}
-	if err := k.validate(); err == nil || !strings.Contains(err.Error(), "keys.search_query: enter is both cancel and submit") {
+	k["confirm"] = map[string][]string{"yes": {"enter"}, "no": {"enter"}}
+	if err := k.validate(); err == nil || !strings.Contains(err.Error(), "keys.confirm: enter is both no and yes") {
 		t.Errorf("validate() = %v, want one key on two actions refused", err)
+	}
+}
+
+// TestTypingContextsRefusePrintableKeys checks that a context that types
+// refuses a key it would type, naming the setting, unless its action is
+// one that may be bound to such a key, and that a key with ctrl or alt, or
+// a context that types nothing, is free to bind one.
+func TestTypingContextsRefusePrintableKeys(t *testing.T) {
+	for _, tt := range []struct{ name, file, want string }{
+		{"letter in the finder", "keys:\n  finder:\n    reveal: [o]\n", "line 3: keys.finder.reveal: o would be typed into the finder; use a key that types nothing, such as one with ctrl or alt"},
+		{"capital in the command line", "keys:\n  command_line:\n    complete: [T]\n", "line 3: keys.command_line.complete: T would be typed into the command line; use a key that types nothing, such as one with ctrl or alt"},
+		{"symbol in the query of the search page", "keys:\n  search_query:\n    submit: [\"?\"]\n", "line 3: keys.search_query.submit: ? would be typed into the query; use a key that types nothing, such as one with ctrl or alt"},
+		{"space in the picker", "keys:\n  picker:\n    choose: [space]\n", "line 3: keys.picker.choose: space would be typed into the picker; use a key that types nothing, such as one with ctrl or alt"},
+		{"one of several keys", "keys:\n  prompt:\n    cancel: [esc, q]\n", "line 3: keys.prompt.cancel: q would be typed into the prompt; use a key that types nothing, such as one with ctrl or alt"},
+		{"help's close, which may", "keys:\n  help:\n    close: [\"?\"]\n", ""},
+		{"help's close, another letter", "keys:\n  help:\n    close: [x]\n", ""},
+		{"help's cancel, which may not", "keys:\n  help:\n    cancel: [x]\n", "line 3: keys.help.cancel: x would be typed into the help; use a key that types nothing, such as one with ctrl or alt"},
+		{"picker's toggle, which may", "keys:\n  picker:\n    toggle: [space]\n", ""},
+		{"a ctrl key", "keys:\n  finder:\n    reveal: [ctrl+o]\n", ""},
+		{"an alt key", "keys:\n  finder:\n    reveal: [alt+o]\n", ""},
+		{"a context that types nothing", "keys:\n  confirm:\n    \"yes\": [Y]\n", ""},
+		{"normal mode of a picker", "keys:\n  picker_normal:\n    insert: [I]\n", ""},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			_, _, err := loadBase(writeConfig(t, tt.file))
+			switch {
+			case tt.want == "" && err != nil:
+				t.Errorf("Load = %v, want none", err)
+			case tt.want != "" && (err == nil || !strings.Contains(err.Error(), tt.want)):
+				t.Errorf("Load = %v, want %q", err, tt.want)
+			}
+		})
+	}
+}
+
+// TestKeysOfWidgetsAreChecked checks that the keys of the filter form and
+// the widgets that take every key are known, so that a key of the global
+// context that one of them uses is refused, and a user's key for one of
+// their actions is checked as the keys of every other context are.
+func TestKeysOfWidgetsAreChecked(t *testing.T) {
+	for _, tt := range []struct{ name, file, want string }{
+		{"global key against the filter form", "keys:\n  global:\n    zoom: [delete]\n", "line 3: keys.global.zoom: delete is also keys.filter.clear, keys.actions_filter.clear: unbind or rebind them there"},
+		{"form key against global", "keys:\n  filter:\n    toggle: [r]\n", "line 3: keys.filter.toggle: r is already keys.global.refresh"},
+		{"one key on two actions of the form", "keys:\n  filter:\n    insert: [a]\n    append: [a]\n", "keys.filter: a is both append and insert"},
+		{"unknown action of a widget", "keys:\n  finder:\n    browse: [ctrl+o]\n", "line 3: keys.finder.browse: unknown action"},
+		{"ctrl+c in the command line", "keys:\n  command_line:\n    cancel: [ctrl+c]\n", "line 3: keys.command_line.cancel: ctrl+c always quits and can't be bound"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			_, _, err := loadBase(writeConfig(t, tt.file))
+			if err == nil || !strings.Contains(err.Error(), tt.want) {
+				t.Errorf("Load = %v, want %q", err, tt.want)
+			}
+		})
+	}
+}
+
+// TestKeysNeedLists checks that an action set to something that isn't a list
+// of keys, such as a bare key, is refused naming the setting and its line,
+// and that a list in a list is too.
+func TestKeysNeedLists(t *testing.T) {
+	for _, tt := range []struct{ name, file, want string }{
+		{"a bare key", "keys:\n  pulls:\n    merge: m\n", "line 3: keys.pulls.merge: want a list of keys, such as [m]"},
+		{"a bare key that needs quotes", "keys:\n  pulls:\n    merge: \"[\"\n", "line 3: keys.pulls.merge: want a list of keys, such as [x]"},
+		{"a mapping", "keys:\n  pulls:\n    merge: {a: b}\n", "line 3: keys.pulls.merge: want a list of keys, such as [x]"},
+		{"a list in a list", "keys:\n  pulls:\n    merge: [[m]]\n", "line 3: keys.pulls.merge: want a list of key names"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			_, _, err := loadBase(writeConfig(t, tt.file))
+			if err == nil || !strings.Contains(err.Error(), tt.want) {
+				t.Errorf("Load = %v, want %q", err, tt.want)
+			}
+		})
 	}
 }
 

@@ -72,7 +72,7 @@ func TestQueryRoundTrip(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := New(prSpec(nil))
+			m := newKeyed(t, prSpec(nil))
 			m.SetQuery(tt.in)
 			got := m.Query()
 			if got != tt.want {
@@ -106,7 +106,7 @@ func TestFieldsRoundTrip(t *testing.T) {
 
 func TestEach(t *testing.T) {
 	spec := Spec{Fields: []Field{{Key: "l", Kind: Multi, Qualifier: "label", Each: true}}}
-	m := New(spec, WithQuery(`label:bug,docs label:"good first issue"`))
+	m := newKeyed(t, spec, WithQuery(`label:bug,docs label:"good first issue"`))
 	if got, want := m.Query(), `label:bug label:docs label:"good first issue"`; got != want {
 		t.Errorf("Query = %q, want %q", got, want)
 	}
@@ -130,7 +130,7 @@ func TestFormatAndParse(t *testing.T) {
 			return TextValue(n), true
 		},
 	}}}
-	m := New(spec, WithQuery("comments:>10 comments:5"))
+	m := newKeyed(t, spec, WithQuery("comments:>10 comments:5"))
 	if v, _ := m.Value("comments"); v.Text() != "10" {
 		t.Errorf("comments = %q, want 10", v.Text())
 	}
@@ -146,7 +146,7 @@ func TestClearedKeepsRequiredDefaults(t *testing.T) {
 		Fields: []Field{{Key: "s", Kind: Choice, Qualifier: "is", Options: []Item{{"Open", "open", ""}, {"Closed", "closed", ""}}, Default: TextValue("open")}},
 		Sort:   &SortField{Options: []SortOption{{Label: "Best match"}, {Label: "Updated", Value: "updated"}}, Default: Sort{By: "updated", Desc: true}},
 	}
-	m := New(spec, WithQuery(""))
+	m := newKeyed(t, spec, WithQuery(""))
 	if got := m.Query(); got != "is:open" {
 		t.Errorf("Query = %q, want is:open", got)
 	}
@@ -159,7 +159,7 @@ func TestClearedKeepsTheSortDirection(t *testing.T) {
 		Options: []SortOption{{Label: "Best match"}, {Label: "Stars", Value: "stars"}},
 		Default: Sort{Desc: true},
 	}}
-	m := New(spec, WithQuery("tea"), WithTab(SortTab))
+	m := newKeyed(t, spec, WithQuery("tea"), WithTab(SortTab))
 	m.Focus()
 	m, _ = m.Update(right)
 	if got := m.Query(); got != "sort:stars-desc tea" {
@@ -168,7 +168,7 @@ func TestClearedKeepsTheSortDirection(t *testing.T) {
 }
 
 func TestValue(t *testing.T) {
-	m := New(prSpec(nil))
+	m := newKeyed(t, prSpec(nil))
 	v, ok := m.Value("labels")
 	if !ok || !slices.Equal(v.List(), []string{"bug", "enhancement"}) {
 		t.Fatalf("labels = %v, %v", v.List(), ok)

@@ -13,7 +13,7 @@ func TestViewCleansHostilePaths(t *testing.T) {
 		return Listing{Items: []Item{{Path: "dir/" + h, Detail: h}}, Note: h}, nil
 	}
 	for _, w := range []int{30, 60, 200} {
-		m := New(load, WithSize(w, 6))
+		m := newKeyed(t, load, WithSize(w, 6))
 		m.Focus()
 		m = run(t, m, m.Init())
 		termtexttest.AssertClean(t, m.View(), w)

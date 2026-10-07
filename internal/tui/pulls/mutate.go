@@ -216,7 +216,7 @@ func (s *Section) mutate(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 			about := core.Target{Repo: s.repo, Number: pr.Number}.String()
 			return tea.Batch(s.reload(), ui.Do(s.ctx, ui.PullsTitle, ui.About(about, op), what))
 		})
-	return ui.OpenModal(ui.NewConfirmModal(ui.Confirm{Question: c.question, Run: run}, s.icons)), true
+	return ui.OpenModal(ui.NewConfirmModal(ui.Confirm{Question: c.question, Run: run}, s.keys.confirm, s.icons)), true
 }
 
 // reload shows the list again through the cache, which a change has just

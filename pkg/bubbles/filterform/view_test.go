@@ -97,7 +97,7 @@ func TestView(t *testing.T) {
 			if tt.spec != nil {
 				spec = tt.spec
 			}
-			m := New(spec(f.load), opts...)
+			m := newKeyed(t, spec(f.load), opts...)
 			m.Focus()
 			m, _ = press(t, m, tt.keys...)
 			if tt.block {
@@ -124,7 +124,7 @@ func TestViewFits(t *testing.T) {
 	for _, w := range []int{1, 2, 3, 5, 10, 20, 40, 60, 100, 200} {
 		for _, h := range []int{1, 2, 3, 4, 6, 12, 40} {
 			t.Run(strconv.Itoa(w)+"x"+strconv.Itoa(h), func(t *testing.T) {
-				m := New(prSpec(f.load), WithSize(w, h))
+				m := newKeyed(t, prSpec(f.load), WithSize(w, h))
 				m.Focus()
 				assertFits(t, m.View(), w, h)
 				m, _ = press(t, m, down, down, down, space)
@@ -139,7 +139,7 @@ func TestViewFits(t *testing.T) {
 }
 
 func TestViewFollowsFocus(t *testing.T) {
-	m := New(prSpec(nil), WithSize(60, 12))
+	m := newKeyed(t, prSpec(nil), WithSize(60, 12))
 	blurred := m.View()
 	m.Focus()
 	if m.View() == blurred {
@@ -152,7 +152,7 @@ func TestViewFollowsFocus(t *testing.T) {
 }
 
 func TestViewShowsQuery(t *testing.T) {
-	m := New(prSpec(nil), WithSize(100, 12))
+	m := newKeyed(t, prSpec(nil), WithSize(100, 12))
 	if v := ansi.Strip(m.View()); !strings.Contains(v, prDefaults) {
 		t.Errorf("the view doesn't show the query:\n%s", v)
 	}

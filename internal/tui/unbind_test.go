@@ -55,10 +55,10 @@ func unbindPlaces() []unbindPlace {
 		{name: "notifications filter", steps: []string{config.ActionNotifications, "notifications.filter"}, want: "global, filter"},
 		{name: "notifications mark read", steps: []string{config.ActionNotifications, "notifications.read"}, want: "always, confirm"},
 		{name: "search", steps: []string{config.ActionSearch}, want: "always, global, search_query (types)"},
-		{name: "search kinds", steps: []string{config.ActionSearch, "up"}, want: "global, search, search_kinds"},
+		{name: "search kinds", steps: []string{config.ActionSearch, "search_query.kinds"}, want: "global, search, search_kinds"},
 		// Typing on the code kind asks for a code search of the new text.
 		{name: "search code", steps: []string{config.ActionSearch, "k", "e", "y", "up", "search_kinds.down", "search_kinds.down", "search_kinds.down", config.ActionPrevPane, "s"}, want: "always, global, search_query (types)"},
-		{name: "search results", steps: []string{config.ActionSearch, "k", "e", "y", config.ActionSelect}, want: "global, search, search_results"},
+		{name: "search results", steps: []string{config.ActionSearch, "k", "e", "y", "search_query.submit"}, want: "global, search, search_results"},
 		{name: "owner", msg: octocat, want: "global, owner, owner_list"},
 		{name: "owner tab", msg: octocat, steps: []string{config.ActionNextTab}, want: "global, owner, owner_list"},
 		{name: "owner readme", msg: octocat, steps: []string{config.ActionPane3}, want: "global, owner, owner_readme"},

@@ -2,7 +2,6 @@ package ui
 
 import (
 	"context"
-	"slices"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
@@ -141,24 +140,19 @@ func WithFormIcons(ic Icons) FilterOption {
 	return func(o *filterOptions) { o.icons = ic }
 }
 
-// FilterFormKeys returns the keys of a filter form. Its tabs switch with
-// the keys that switch the tabs of the lists and the other modals, and it
-// closes and loads again with their quit and refresh keys.
-func FilterFormKeys(keys config.Keymap) filterform.KeyMap {
-	k := filterform.DefaultKeyMap()
-	k.NextTab = Binding(keys, config.ActionNextTab, "next tab")
-	k.PrevTab = Binding(keys, config.ActionPrevTab, "previous tab")
-	// ctrl+c quits the app from every modal, so it doesn't close this one.
-	closing := slices.DeleteFunc(slices.Clone(keys.Of(config.ActionQuit)), func(k string) bool { return k == "ctrl+c" })
-	k.Quit = bindingOf("close", closing)
-	k.Retry = Binding(keys, config.ActionRefresh, "retry")
-	return k
+// FilterFormKeys returns the keys of a filter form in the modal of context
+// ctx, "filter" or "actions_filter". Its tabs switch with the keys that
+// switch the tabs of the lists and the other modals, and it closes and
+// loads again with their quit and refresh keys. ctrl+c quits the app from
+// every modal, so it doesn't close this one.
+func FilterFormKeys(keys config.Keymap, ctx string) filterform.KeyMap {
+	return filterform.NewKeyMap(Lookup(keys, ctx))
 }
 
 // NewFilterModal returns the modal that filters target with f, titled
 // "Filter · section · subject". ctx bounds what the form loads.
 func NewFilterModal(ctx context.Context, section string, target Filterable, f Filter, opts ...FilterOption) *FilterModal {
-	o := filterOptions{keys: filterform.DefaultKeyMap(), icons: NewIcons(config.Default().UI.Icons)}
+	o := filterOptions{keys: FilterFormKeys(config.Default().Keys, "filter"), icons: NewIcons(config.Default().UI.Icons)}
 	for _, opt := range opts {
 		opt(&o)
 	}
@@ -240,7 +234,7 @@ func (m *FilterModal) SetTheme(t Theme) { m.form.SetStyles(t.FilterForm(m.icons)
 func (m *FilterModal) KeyLayers() []keyhelp.Layer {
 	ctx := map[filterform.Capture]string{
 		filterform.CaptureNone: "filter", filterform.CaptureQuery: "filter_query",
-		filterform.CaptureEditor: "filter_text", filterform.CapturePicker: "picker",
+		filterform.CaptureEditor: "filter_query", filterform.CapturePicker: "picker",
 	}[m.form.CapturedBy()]
 	l := ContextHelp(ctx, m.form, m.form.Capturing())
 	l.Short = nil

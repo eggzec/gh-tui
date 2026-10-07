@@ -66,12 +66,6 @@ func TestUpdate(t *testing.T) {
 			want:  CancelMsg{}, wantValue: "goto",
 		},
 		{
-			name:  "ctrl+c cancels",
-			typed: "goto",
-			keys:  []tea.Msg{ctrlC},
-			want:  CancelMsg{}, wantValue: "goto",
-		},
-		{
 			name:  "backspace edits a line with text",
 			typed: "go",
 			keys:  []tea.Msg{bksp},
@@ -116,7 +110,7 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestUpdateBlurred(t *testing.T) {
-	m := New(testHistoryLimit, WithSize(80, MaxHeight))
+	m := newKeyed(t, testHistoryLimit, WithSize(80, MaxHeight))
 	for _, msg := range []tea.Msg{runeKey("a"), enter, esc, bksp} {
 		var cmd tea.Cmd
 		if m, cmd = m.Update(msg); cmd != nil {

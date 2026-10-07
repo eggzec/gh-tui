@@ -26,6 +26,7 @@ Option (types)
   filter | & | & | off
   search | enter | ↵ | off
   cancel | esc | esc | off
+  cancel | backspace ctrl+h | backspace/^h | off
   next match | n | n | off
   prev match | N | N | off
   edit | v | v | off

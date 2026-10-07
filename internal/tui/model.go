@@ -359,7 +359,7 @@ func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) 
 		keys:       keys,
 		toast:      toast.New(cfg.UI.Toast.Info, cfg.UI.Toast.Error),
 		toastTimes: cfg.UI.Toast,
-		keyhelp:    newHelp(keys),
+		keyhelp:    newHelp(cfg.Keys),
 		status:     statusbar.New(),
 		line:       newLine(cfg.Keys, cfg.Commands.History),
 		spin:       newSpinner(),

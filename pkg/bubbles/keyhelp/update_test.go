@@ -106,7 +106,7 @@ func TestScroll(t *testing.T) {
 }
 
 func TestBlurredIgnoresKeys(t *testing.T) {
-	m := New(WithLayers(layers()), WithSize(60, 10))
+	m := newKeyed(WithLayers(layers()), WithSize(60, 10))
 	m, sent := press(t, m, esc, tea.KeyPressMsg{Code: 'x', Text: "x"})
 	if len(sent) != 0 || m.Query() != "" {
 		t.Errorf("a blurred help took keys: sent %v, query %q", sent, m.Query())
@@ -115,7 +115,7 @@ func TestBlurredIgnoresKeys(t *testing.T) {
 
 // Messages carry the ID of the help that sent them.
 func TestIDs(t *testing.T) {
-	a, b := New(), New()
+	a, b := newKeyed(), newKeyed()
 	if a.ID() == b.ID() {
 		t.Error("two helps share an ID")
 	}

@@ -40,7 +40,7 @@ func BenchmarkUpdate(b *testing.B) {
 	// Type a character and delete it: with the debounce on, each key only
 	// schedules a search.
 	b.Run("type", func(b *testing.B) {
-		m := New(benchSearch(items), WithSize(80, 30))
+		m := New(benchSearch(items), WithKeyMap(testKeys(b)), WithSize(80, 30))
 		m.Focus()
 		m, _ = run(b, m, m.Init())
 		a := tea.Msg(tea.KeyPressMsg{Code: 'a', Text: "a"})

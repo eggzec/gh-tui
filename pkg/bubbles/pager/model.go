@@ -150,7 +150,7 @@ func New(opts ...Option) Model {
 		id:       lastID.Add(1),
 		// The pager submits the prompt itself, so nothing enters the
 		// prompt's history, which needs no limit.
-		prompt: cmdline.New(0, cmdline.WithPrompt(promptSearch), cmdline.WithKeyMap(promptKeys())),
+		prompt: cmdline.New(0, cmdline.WithPrompt(promptSearch), cmdline.WithKeyMap(promptKeys(s.keys))),
 		spin:   spinner.New(spinner.WithSpinner(spinner.Dot)),
 		mark:   -1,
 	}

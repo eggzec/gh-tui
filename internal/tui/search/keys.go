@@ -50,9 +50,25 @@ type KeyMap struct {
 	Left  key.Binding `keymap:"search_results.kinds" help:"kinds"`
 	Right key.Binding `keymap:"search_kinds.results" help:"results"`
 
+	// query holds the keys of the query, which types.
+	query queryKeys
 	// feed is the navigation of the results, which gets the keys above
 	// only if the page leaves them.
 	feed feed.KeyMap
+}
+
+// queryKeys are the keys of the query while it has the focus: those that
+// type nothing, which act where the query leaves them a key.
+type queryKeys struct {
+	// Submit searches, and Cancel goes back to the screen before the
+	// search.
+	Submit key.Binding `keymap:"submit" help:"search"`
+	Cancel key.Binding `keymap:"cancel" help:"back"`
+	// Next and Kinds focus the kinds, and Prev and Results the results.
+	Next    key.Binding `keymap:"next" help:"next"`
+	Prev    key.Binding `keymap:"prev" help:"previous"`
+	Kinds   key.Binding `keymap:"kinds" help:"kinds"`
+	Results key.Binding `keymap:"results" help:"results"`
 }
 
 // areaTitles names the parts of the page in help.
@@ -88,17 +104,12 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		k.Panes[i] = page.Binding(a, areaTitles[i])
 	}
 	k.Jump = ui.Jump(k.Panes[:]...)
+	keymap.Fill(&k.query, ui.Lookup(keys, "search_query"))
 	// The page matches these keys first, so the results get only the keys
 	// it leaves them.
 	k.feed = feed.NewKeyMap(results.Of)
 	return k
 }
-
-// arrows keeps the arrow of b, for while the query has the focus.
-var (
-	arrowUp   = key.NewBinding(key.WithKeys("up"), key.WithHelp("↑", "kinds"))
-	arrowDown = key.NewBinding(key.WithKeys("down"), key.WithHelp("↓", "results"))
-)
 
 // own returns the keys of the page, in the order it matches them.
 func (k KeyMap) own() []key.Binding {
@@ -126,8 +137,8 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 		// The query types first, so its keys get only those that type
 		// nothing, such as tab rather than ].
 		k := s.keys.inInput()
-		keys := append(k.own(), arrowUp, arrowDown)
-		short := []key.Binding{k.Select, arrowDown, k.Next, k.Back}
+		keys := append(k.own(), k.query.Kinds, k.query.Results)
+		short := []key.Binding{k.Select, k.query.Results, k.Next, k.Back}
 		l := ui.ContextLayer("search_query", keys, short)
 		l.Typing = true
 		return []keyhelp.Layer{l}
@@ -161,9 +172,10 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 
 // inInput returns k as the query takes it: back, select and the moves
 // between the parts of the page act, where the query leaves them a key,
-// and the arrows move to the kinds and the results.
+// and the arrows move to the kinds and the results. They are the keys of
+// the query's own context.
 func (k KeyMap) inInput() KeyMap {
-	k.Select.SetHelp(k.Select.Help().Key, "search")
+	k.Back, k.Select, k.Next, k.Prev = k.query.Cancel, k.query.Submit, k.query.Next, k.query.Prev
 	for _, b := range []*key.Binding{
 		&k.Jump, &k.Left, &k.Right, &k.Up, &k.Down, &k.Open, &k.Checks, &k.Refresh, &k.Filter, &k.Sort, &k.KindsFilter, &k.KindsSort,
 	} {

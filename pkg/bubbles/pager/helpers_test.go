@@ -164,7 +164,8 @@ var previewKeys = map[string][]string{
 	"next_match": {"n"}, "prev_match": {"N"}, "edit": {"v"},
 	"global.quit": {"q"}, "global.dismiss": {"esc"},
 	"search_prompt.run": {"enter"}, "search_prompt.cancel": {"esc"},
-	"pager_option.chop": {"S"}, "pager_option.line_numbers": {"N"}, "pager_option.squeeze": {"s"},
+	"search_prompt.cancel_empty": {"backspace", "ctrl+h"},
+	"pager_option.chop":          {"S"}, "pager_option.line_numbers": {"N"}, "pager_option.squeeze": {"s"},
 	"pager_option.smart_case": {"i"}, "pager_option.ignore_case": {"I"}, "pager_option.cancel": {"esc"},
 }
 

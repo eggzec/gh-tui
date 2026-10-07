@@ -63,7 +63,6 @@ type Model struct {
 // New returns a blurred prompt.
 func New(opts ...Option) Model {
 	s := settings{
-		keys:   DefaultKeyMap(),
 		styles: DefaultStyles(true),
 	}
 	for _, opt := range opts {

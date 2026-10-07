@@ -50,7 +50,7 @@ func TestConfirmAnswer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.key, func(t *testing.T) {
 			var r ran
-			cmd, done := DefaultConfirmKeys().Answer(r.confirm("Close issue #12?"), press(tt.key))
+			cmd, done := NewConfirmKeys(config.Default().Keys).Answer(r.confirm("Close issue #12?"), press(tt.key))
 			if done != tt.done || (r.n == 1) != tt.run || (cmd != nil) != tt.run {
 				t.Errorf("%s: done %v, ran %d times, cmd %v; want done %v and run %v", tt.key, done, r.n, cmd != nil, tt.done, tt.run)
 			}
@@ -101,7 +101,7 @@ func TestRecheck(t *testing.T) {
 
 func TestConfirmLine(t *testing.T) {
 	c := Confirm{Question: "Reopen PR #5?"}
-	st, k := ConfirmStyles{}, DefaultConfirmKeys()
+	st, k := ConfirmStyles{}, NewConfirmKeys(config.Default().Keys)
 	if got, want := c.Line(st, k, 24), "Reopen PR #5?        y/n"; got != want {
 		t.Errorf("line = %q, want %q", got, want)
 	}
@@ -114,7 +114,7 @@ func TestConfirmLine(t *testing.T) {
 // A question may name what GitHub calls something, such as a title.
 func TestConfirmCleansHostileQuestions(t *testing.T) {
 	c := Confirm{Question: "Close " + termtexttest.Hostile + "?"}
-	st, k := Theme{}.Confirm(NewIcons(config.IconsUnicode)), DefaultConfirmKeys()
+	st, k := Theme{}.Confirm(NewIcons(config.IconsUnicode)), NewConfirmKeys(config.Default().Keys)
 	for _, w := range []int{20, 80, 300} {
 		termtexttest.AssertClean(t, c.Line(st, k, w), w)
 		termtexttest.AssertClean(t, strings.Join(c.Lines(st, k, w, ConfirmLines), "\n"), w)
@@ -122,7 +122,7 @@ func TestConfirmCleansHostileQuestions(t *testing.T) {
 }
 
 func TestConfirmLines(t *testing.T) {
-	st, k := ConfirmStyles{}, DefaultConfirmKeys()
+	st, k := ConfirmStyles{}, NewConfirmKeys(config.Default().Keys)
 	long := Confirm{Question: "Merge #1234 into release/v2.0-beta with a merge commit?"}
 	tests := []struct {
 		name string
@@ -200,7 +200,7 @@ func TestConfirmModal(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(strings.Join(tt.keys, " "), func(t *testing.T) {
 			var r ran
-			m := NewConfirmModal(r.confirm("Close issue #12?"), NewIcons(config.IconsUnicode))
+			m := NewConfirmModal(r.confirm("Close issue #12?"), NewConfirmKeys(config.Default().Keys), NewIcons(config.IconsUnicode))
 			var msgs []tea.Msg
 			for _, k := range tt.keys {
 				msgs = append(msgs, runAll(m.Update(press(k)))...)
@@ -217,7 +217,7 @@ func TestConfirmModal(t *testing.T) {
 }
 
 func TestConfirmModalFits(t *testing.T) {
-	m := NewConfirmModal(Confirm{Question: "Close issue #12?"}, NewIcons(config.IconsUnicode))
+	m := NewConfirmModal(Confirm{Question: "Close issue #12?"}, NewConfirmKeys(config.Default().Keys), NewIcons(config.IconsUnicode))
 	if w, h := m.Fit(100, 20); w != len("Close issue #12?")+2+len("y/n") || h != 1 {
 		t.Errorf("Fit = %d×%d, want the question and its keys on one line", w, h)
 	}
@@ -249,4 +249,36 @@ func runAll(cmd tea.Cmd) []tea.Msg {
 		out = append(out, runAll(c)...)
 	}
 	return out
+}
+
+// TestConfirmKeysFollowTheConfig checks that the keys that answer are those
+// of the confirm context: yes set to Y answers only with Y, and no set to
+// esc alone leaves n to do nothing.
+func TestConfirmKeysFollowTheConfig(t *testing.T) {
+	keys := config.Default().Keys
+	keys.Set("confirm.yes", []string{"Y"})
+	keys.Set("confirm.no", []string{"esc"})
+	k := NewConfirmKeys(keys)
+	for _, tt := range []struct {
+		key       string
+		done, run bool
+	}{
+		{"Y", true, true},
+		{"y", false, false},
+		{"esc", true, false},
+		{"n", false, false},
+	} {
+		t.Run(tt.key, func(t *testing.T) {
+			var r ran
+			cmd, done := k.Answer(r.confirm("Close issue #12?"), press(tt.key))
+			if done != tt.done || (r.n == 1) != tt.run || (cmd != nil) != tt.run {
+				t.Errorf("%s: done %v, ran %d times; want done %v and run %v", tt.key, done, r.n, tt.done, tt.run)
+			}
+		})
+	}
+	// An unbound answer is listed without a key.
+	keys.Set("confirm.no", nil)
+	if no := NewConfirmKeys(keys).No; no.Enabled() || no.Help().Desc != "no" {
+		t.Errorf("unbound no = enabled %v, desc %q; want disabled and described", no.Enabled(), no.Help().Desc)
+	}
 }

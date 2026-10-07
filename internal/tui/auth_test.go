@@ -188,7 +188,7 @@ func TestAuthCommand(t *testing.T) {
 	for _, want := range []string{
 		"octocat@github.com · classic token", "Scopes: gist, read:org, repo",
 		ic.Yes + " Read and mark notifications", ic.No + " Merge changes to workflows · needs workflow",
-		"Run gh auth refresh --hostname=github.com -s workflow?",
+		"Run gh auth refresh --hostname=github.com -s", "workflow?",
 	} {
 		if !strings.Contains(view, want) {
 			t.Errorf("the modal doesn't show %q:\n%s", want, view)

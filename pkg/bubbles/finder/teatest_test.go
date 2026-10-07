@@ -58,7 +58,7 @@ func TestProgram(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := New(loader(paths...))
+			m := newKeyed(t, loader(paths...))
 			m.Focus()
 			tm := teatest.NewTestModel(t, host{finder: m}, teatest.WithInitialTermSize(70, 12))
 			teatest.WaitFor(t, tm.Output(), func(b []byte) bool {

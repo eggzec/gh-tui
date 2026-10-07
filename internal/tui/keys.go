@@ -2,10 +2,8 @@ package tui
 
 import (
 	"slices"
-	"unicode/utf8"
 
 	"charm.land/bubbles/v2/key"
-	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
@@ -14,8 +12,6 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
-	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
-	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
 // KeyMap holds the keys the app handles itself. Sections have their own.
@@ -61,8 +57,8 @@ type KeyMap struct {
 	// Repo shows the repository behind the selection, such as that of a
 	// search result or of a row of the dashboard.
 	Repo key.Binding
-	// Dismiss closes the newest toast. It is the toasts' own key, which
-	// the app matches, and which they enable while they show.
+	// Dismiss closes the newest toast. The app enables it while toasts
+	// show.
 	Dismiss key.Binding
 }
 
@@ -72,14 +68,14 @@ var forceQuit = key.NewBinding(key.WithKeys("ctrl+c"), key.WithHelp("^c", "quit"
 
 func newKeyMap(keys config.Keymap) KeyMap {
 	k := KeyMap{
-		Quit:          quitKeys(ui.Binding(keys, config.ActionQuit, "quit")),
+		Quit:          withForceQuit(ui.Binding(keys, config.ActionQuit, "quit")),
 		Help:          ui.Binding(keys, config.ActionHelp, "help"),
 		Search:        ui.Binding(keys, config.ActionSearch, "search"),
 		History:       ui.Binding(keys, config.ActionHistory, "history"),
 		Actions:       ui.Binding(keys, config.ActionActions, "actions"),
 		FindFile:      ui.Binding(keys, config.ActionFindFile, "find file"),
 		Command:       ui.Binding(keys, config.ActionCommand, "command"),
-		form:          ui.FilterFormKeys(keys),
+		form:          ui.FilterFormKeys(keys, "filter"),
 		Notifications: ui.Binding(keys, config.ActionNotifications, "notifications"),
 		Dashboard:     ui.Binding(keys, config.ActionDashboard, "dashboard"),
 		Owner:         ui.Binding(keys, config.ActionOwner, "owner page"),
@@ -89,7 +85,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		Zoom:          ui.Binding(keys, config.ActionZoom, "zoom"),
 		Back:          ui.Binding(keys, config.ActionDismiss, "unzoom"),
 		Maximize:      ui.Binding(keys, config.ActionMaximize, "maximize"),
-		Dismiss:       toast.DefaultKeyMap().Dismiss,
+		Dismiss:       ui.Binding(keys, config.ActionDismissToast, "dismiss"),
 		Panes: []key.Binding{
 			ui.Binding(keys, config.ActionPane1, "files"),
 			ui.Binding(keys, config.ActionPane2, "pull requests"),
@@ -100,14 +96,15 @@ func newKeyMap(keys config.Keymap) KeyMap {
 	return k
 }
 
-// quitKeys returns quit with ctrl+c, which always quits and which the
-// config can't bind, so that the keys of quit are all the keys that quit.
-func quitKeys(quit key.Binding) key.Binding {
-	help := quit.Help().Key
-	if !quit.Enabled() {
+// withForceQuit returns b with ctrl+c, which always quits and which the
+// config can't bind, so that the keys of quit, or of what cancels the
+// command line, are all the keys that do so.
+func withForceQuit(b key.Binding) key.Binding {
+	help := b.Help().Key
+	if !b.Enabled() {
 		help = forceQuit.Help().Key
 	}
-	return key.NewBinding(key.WithKeys(append(slices.Clone(quit.Keys()), forceQuit.Keys()...)...), key.WithHelp(help, "quit"))
+	return key.NewBinding(key.WithKeys(append(slices.Clone(b.Keys()), forceQuit.Keys()...)...), key.WithHelp(help, b.Help().Desc))
 }
 
 // ShortHelp implements help.KeyMap. The way out of a zoom comes first.
@@ -158,7 +155,7 @@ func (k KeyMap) state(m *Model) KeyMap {
 	k.Zoom.SetEnabled(k.Zoom.Enabled() && m.canZoom() && m.width >= narrowWidth)
 	k.Back.SetEnabled(k.Back.Enabled() && m.canZoom() && m.zoomed())
 	k.Maximize.SetEnabled(k.Maximize.Enabled() && m.modal != nil)
-	k.Dismiss = m.toast.KeyMap().Dismiss
+	k.Dismiss.SetEnabled(k.Dismiss.Enabled() && !m.toast.Empty())
 	switch m.screen {
 	case notifScreen:
 		k.Notifications.SetHelp(k.Notifications.Help().Key, "back")
@@ -183,50 +180,12 @@ func (k KeyMap) state(m *Model) KeyMap {
 	return k
 }
 
-// lineKeys returns the keys of the command line. Enter runs the line and
-// esc and ctrl+c cancel it, whatever the config says, and the keys of the
-// config's select and back actions do too, unless the line needs them
-// otherwise: to type, or to edit, move, complete or recall. So a letter
-// bound to back still types itself, and backspace still deletes.
+// lineKeys returns the keys of the command line: those of its context,
+// and ctrl+c, which cancels the line as it quits from everywhere else.
 func lineKeys(keys config.Keymap) cmdline.KeyMap {
-	k := cmdline.DefaultKeyMap()
-	taken := lineOwnKeys(k)
-	k.Submit = withKeys(k.Submit, keys.Of(config.ActionSelect), taken)
-	k.Cancel = withKeys(k.Cancel, keys.Of(config.ActionDismiss), taken)
+	k := cmdline.NewKeyMap(ui.Lookup(keys, "command_line"))
+	k.Cancel = withForceQuit(k.Cancel)
 	return k
-}
-
-// lineOwnKeys returns the keys the command line uses for itself: those of
-// its own key map and those of the text input it edits with.
-func lineOwnKeys(k cmdline.KeyMap) []string {
-	ti := textinput.DefaultKeyMap()
-	var out []string
-	for _, b := range []key.Binding{
-		k.Submit, k.Cancel, k.CancelEmpty, k.Next, k.Prev, k.Older, k.Newer,
-		ti.CharacterForward, ti.CharacterBackward, ti.WordForward, ti.WordBackward,
-		ti.DeleteWordBackward, ti.DeleteWordForward, ti.DeleteAfterCursor, ti.DeleteBeforeCursor,
-		ti.DeleteCharacterBackward, ti.DeleteCharacterForward, ti.LineStart, ti.LineEnd,
-		ti.Paste, ti.AcceptSuggestion, ti.NextSuggestion, ti.PrevSuggestion,
-	} {
-		out = append(out, b.Keys()...)
-	}
-	return out
-}
-
-// withKeys returns b with the keys of more that type nothing and aren't
-// taken.
-func withKeys(b key.Binding, more, taken []string) key.Binding {
-	keys := b.Keys()
-	for _, k := range more {
-		if k == "space" || utf8.RuneCountInString(k) == 1 || slices.Contains(taken, k) || slices.Contains(keys, k) {
-			continue
-		}
-		keys = append(keys, k)
-	}
-	if len(keys) == len(b.Keys()) {
-		return b
-	}
-	return key.NewBinding(key.WithKeys(keys...), key.WithHelp(keymap.Labels(keys), b.Help().Desc))
 }
 
 // pane returns the index of the pane that msg focuses, or -1.

@@ -35,6 +35,9 @@ type Section struct {
 	keys KeyMap
 	// rawKeys are the configured keys, for the pagers of the previews.
 	rawKeys config.Keymap
+	// finderKeys are the keys of the file finder, which the section
+	// opens.
+	finderKeys finderKeys
 
 	repo core.RepoRef
 	// host is the web host of the user's GitHub, for the links it opens.
@@ -105,6 +108,7 @@ func New(ctx context.Context, svc Service, keys config.Keymap, opts ...Option) *
 		svc:         svc,
 		keys:        newKeyMap(keys),
 		rawKeys:     keys,
+		finderKeys:  newFinderKeys(keys),
 		styles:      tree.DefaultStyles(true),
 		icons:       ui.NewIcons(config.Default().UI.Icons),
 		voice:       ui.NewVoice(keys, ""),

@@ -1,6 +1,10 @@
 package prompt
 
-import "charm.land/bubbles/v2/key"
+import (
+	"charm.land/bubbles/v2/key"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+)
 
 // KeyMap holds the keys that finish a prompt. Editing keys belong to the
 // text area or input underneath and keep their defaults.
@@ -13,22 +17,13 @@ type KeyMap struct {
 	Cancel     key.Binding `keymap:"cancel" help:"cancel"`
 }
 
-// DefaultKeyMap returns the default key bindings.
-func DefaultKeyMap() KeyMap {
-	return KeyMap{
-		Submit: key.NewBinding(
-			key.WithKeys("ctrl+s"),
-			key.WithHelp("ctrl+s", "submit"),
-		),
-		SubmitLine: key.NewBinding(
-			key.WithKeys("enter"),
-			key.WithHelp("enter", "submit"),
-		),
-		Cancel: key.NewBinding(
-			key.WithKeys("esc"),
-			key.WithHelp("esc", "cancel"),
-		),
-	}
+// NewKeyMap returns the key bindings that look gives for the actions
+// of the prompt, which the tags of its fields name. An action without keys
+// gives a disabled binding that keeps its help text.
+func NewKeyMap(look keymap.Lookup) KeyMap {
+	var k KeyMap
+	keymap.Fill(&k, look)
+	return k
 }
 
 // ShortHelp implements help.KeyMap. It lists the keys of a multi-line

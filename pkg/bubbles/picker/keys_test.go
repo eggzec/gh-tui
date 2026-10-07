@@ -11,10 +11,10 @@ import (
 )
 
 func TestKeyMapComplete(t *testing.T) {
-	keytest.Complete(t, withNormalKeys{DefaultKeyMap()})
-	keytest.Tagged(t, DefaultKeyMap())
-	keytest.HelpTags(t, DefaultKeyMap())
-	keytest.NoConflicts(t, DefaultKeyMap())
+	keytest.Complete(t, withNormalKeys{testKeys(t)})
+	keytest.Tagged(t, testKeys(t))
+	keytest.HelpTags(t, testKeys(t))
+	keytest.NoConflicts(t, testKeys(t))
 }
 
 // withNormalKeys adds the normal-mode keys to the full help of the key map,
@@ -44,8 +44,8 @@ func TestFullHelpByMode(t *testing.T) {
 		slices.Sort(got)
 		return got
 	}
-	typing := []string{"enter", "esc", "↑/ctrl+p", "↓/ctrl+n", "pgdn", "pgup"}
-	normal := []string{"G/end", "a", "^b/pgup", "^d", "^f/pgdn", "^u", "enter", "esc", "g/home", "i", "j/↓", "k/↑"}
+	typing := []string{"↵", "esc", "↑/^p", "↓/^n", "pgdn", "pgup"}
+	normal := []string{"G/end", "a", "^b/pgup", "^d", "^f/pgdn", "^u", "↵", "esc", "g/home", "i", "j/↓", "k/↑"}
 	scoped := []string{"shift+tab", "tab"}
 	tests := []struct {
 		name string

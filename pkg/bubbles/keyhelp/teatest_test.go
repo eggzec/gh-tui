@@ -39,7 +39,7 @@ func (h host) View() tea.View { return tea.NewView(h.help.View()) }
 // tab, then ctrl+r, lists the bindings of ctrl+r; tab stops capturing and
 // keeps them; esc clears the key, and esc again closes the help.
 func TestProgramCapture(t *testing.T) {
-	m := New(WithLayers(layers()))
+	m := newKeyed(WithLayers(layers()))
 	m.Focus()
 	tm := teatest.NewTestModel(t, host{help: m}, teatest.WithInitialTermSize(80, 20))
 	wait := func(s string) {

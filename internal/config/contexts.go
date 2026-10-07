@@ -41,6 +41,15 @@ type Context struct {
 	// Within is the modal that this one is a step of, if it never opens
 	// first: it shows inside that modal, in place of what it showed.
 	Within string
+	// Typing is whether a capturing context types the printable keys that
+	// none of its actions bind, such as the command line. Binding a
+	// printable key there would make the key untypable, so validation
+	// refuses it, except for the actions Printable names.
+	Typing bool
+	// Printable names the actions of a typing context that may be bound
+	// to printable keys: those that act only where the key would not be
+	// typed.
+	Printable []string
 }
 
 // contexts are all the contexts of keys there are.
@@ -62,7 +71,7 @@ var contexts = []Context{
 	{Name: "notifications", Title: "Notifications", Reach: ReachScreen},
 
 	{Name: "search", Title: "Search", Reach: ReachScreen},
-	{Name: "search_query", Title: "Query", Reach: ReachCapture, Parent: "search"},
+	{Name: "search_query", Title: "Query", Reach: ReachCapture, Parent: "search", Typing: true},
 	{Name: "search_kinds", Title: "Kinds", Reach: ReachPane, Parent: "search"},
 	{Name: "search_results", Title: "Results", Reach: ReachPane, Parent: "search"},
 
@@ -102,16 +111,23 @@ var contexts = []Context{
 	// The filter of the runs replaces the Actions modal while it is open.
 	{Name: "actions_filter", Title: "Filter", Reach: ReachScreen, Modal: true, Within: "actions"},
 
-	{Name: "command_line", Title: "Command line", Reach: ReachCapture},
-	{Name: "help", Title: "Help", Reach: ReachCapture},
+	{Name: "command_line", Title: "Command line", Reach: ReachCapture, Typing: true},
+	// ? closes the help while its query is empty, and is typed otherwise.
+	{Name: "help", Title: "Help", Reach: ReachCapture, Typing: true, Printable: []string{"close"}},
 	{Name: "confirm", Title: "Confirm", Reach: ReachCapture},
-	{Name: "prompt", Title: "Prompt", Reach: ReachCapture},
-	{Name: "finder", Title: "Finder", Reach: ReachCapture, Parent: "repo"},
-	{Name: "picker", Title: "Picker", Reach: ReachCapture},
-	{Name: "search_prompt", Title: "Search", Reach: ReachCapture},
+	{Name: "prompt", Title: "Prompt", Reach: ReachCapture, Typing: true},
+	{Name: "finder", Title: "Finder", Reach: ReachCapture, Parent: "repo", Typing: true},
+	// Space checks the item under the cursor of a dropdown with several
+	// choices while its filter doesn't have the keys, and is typed in the
+	// filter.
+	{Name: "picker", Title: "Picker", Reach: ReachCapture, Typing: true, Printable: []string{"toggle"}},
+	// A picker in normal mode, where letters move and open its filter
+	// instead of being typed.
+	{Name: "picker_normal", Title: "Picker (normal mode)", Reach: ReachCapture},
+	{Name: "search_prompt", Title: "Search", Reach: ReachCapture, Typing: true},
 	{Name: "pager_option", Title: "Option", Reach: ReachCapture},
-	{Name: "filter_query", Title: "Filter query", Reach: ReachCapture},
-	{Name: "filter_text", Title: "Filter text", Reach: ReachCapture},
+	// The query line of the filter form, and the editor of a text field.
+	{Name: "filter_query", Title: "Filter query", Reach: ReachCapture, Typing: true},
 }
 
 // kind says what the context is, a screen or a modal, for messages.

@@ -63,7 +63,7 @@ func TestProgram(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			f := &fakeSearch{}
-			m := New(f.search, WithDebounce(20*time.Millisecond), WithScopes(kindRepos, kindIssues, kindPulls))
+			m := New(f.search, WithKeyMap(testKeys(t)), WithDebounce(20*time.Millisecond), WithScopes(kindRepos, kindIssues, kindPulls))
 			m.Focus()
 			listed := make(chan struct{})
 			h := host{picker: m, want: "crash", listed: sync.OnceFunc(func() { close(listed) })}

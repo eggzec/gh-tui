@@ -21,7 +21,7 @@ func benchLayers(n int) []Layer {
 }
 
 func BenchmarkView(b *testing.B) {
-	m := New(WithLayers(benchLayers(5)), WithSize(80, 30))
+	m := newKeyed(WithLayers(benchLayers(5)), WithSize(80, 30))
 	m.Focus()
 	b.ReportAllocs()
 	for b.Loop() {
@@ -30,7 +30,7 @@ func BenchmarkView(b *testing.B) {
 }
 
 func BenchmarkUpdate(b *testing.B) {
-	m := New(WithLayers(benchLayers(5)), WithSize(80, 30))
+	m := newKeyed(WithLayers(benchLayers(5)), WithSize(80, 30))
 	m.Focus()
 	// Type a letter and delete it, so each pair filters twice.
 	keys := []tea.KeyPressMsg{{Code: 'a', Text: "a"}, {Code: tea.KeyBackspace}}

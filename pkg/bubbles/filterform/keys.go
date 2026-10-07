@@ -2,10 +2,10 @@ package filterform
 
 import (
 	"slices"
-	"strings"
 
 	"charm.land/bubbles/v2/key"
 
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
 )
 
@@ -79,45 +79,18 @@ type TypingKeyMap struct {
 	Down key.Binding `keymap:"down" help:"down"`
 }
 
-// DefaultKeyMap returns the default key bindings.
-func DefaultKeyMap() KeyMap {
-	return KeyMap{
-		NextTab: key.NewBinding(key.WithKeys("]"), key.WithHelp("]", "next tab")),
-		PrevTab: key.NewBinding(key.WithKeys("["), key.WithHelp("[", "previous tab")),
-		Up:      key.NewBinding(key.WithKeys("k", "up"), key.WithHelp("k", "previous field")),
-		Down:    key.NewBinding(key.WithKeys("j", "down"), key.WithHelp("j", "next field")),
-		Top:     key.NewBinding(key.WithKeys("g", "home"), key.WithHelp("g", "first field")),
-		Bottom:  key.NewBinding(key.WithKeys("G", "end"), key.WithHelp("G", "query")),
-		Prev:    key.NewBinding(key.WithKeys("h", "left"), key.WithHelp("h", "previous")),
-		Next:    key.NewBinding(key.WithKeys("l", "right"), key.WithHelp("l", "next")),
-		Toggle:  key.NewBinding(key.WithKeys("space"), key.WithHelp("space", "toggle")),
-		Insert:  key.NewBinding(key.WithKeys("i"), key.WithHelp("i", "insert")),
-		Append:  key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "append")),
-		Apply:   key.NewBinding(key.WithKeys("enter"), key.WithHelp("↵", "apply")),
-		Clear:   key.NewBinding(key.WithKeys("delete", "backspace"), key.WithHelp("delete", "clear")),
-		Cancel:  key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "close")),
-		Quit:    key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "close")),
-		Retry:   key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "retry")),
-
-		ListToggle: key.NewBinding(key.WithKeys("space"), key.WithHelp("space", "toggle")),
-		ListClear:  key.NewBinding(key.WithKeys("delete", "backspace"), key.WithHelp("delete", "clear")),
-		Typing: TypingKeyMap{
-			Submit: key.NewBinding(key.WithKeys("enter"), key.WithHelp("↵", "apply")),
-			Leave:  key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "done")),
-			Up:     key.NewBinding(key.WithKeys("up", "ctrl+p"), key.WithHelp("↑", "up")),
-			Down:   key.NewBinding(key.WithKeys("down", "ctrl+n"), key.WithHelp("↓", "down")),
-		},
-		List: listKeys(),
-	}
-}
-
-// listKeys returns the keys of a dropdown. Its Choose and Cancel are
-// worded as the form words them. A fill of the key map by keymap.Fill
-// words them as the picker does, so the relabel must run after any fill.
-func listKeys() picker.KeyMap {
-	k := picker.DefaultKeyMap()
-	k.Choose.SetHelp("↵", "choose")
-	k.Cancel.SetHelp("esc", "close")
+// NewKeyMap returns the key bindings that look gives for the actions of the
+// form, which the tags of its fields name: the form's own are those of
+// the context look is for, such as "filter", and the nested maps take
+// those of their own contexts. An action without keys gives a disabled
+// binding that keeps its help text.
+func NewKeyMap(look keymap.Lookup) KeyMap {
+	var k KeyMap
+	keymap.Fill(&k, look)
+	// The form words its dropdown's choose and close its own way, over what
+	// the picker's tags say.
+	k.List.Choose.SetHelp(k.List.Choose.Help().Key, "choose")
+	k.List.Cancel.SetHelp(k.List.Cancel.Help().Key, "close")
 	return k
 }
 
@@ -150,15 +123,27 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 // the help text desc.
 func pair(a, b key.Binding, desc string) key.Binding {
 	out := a
-	out.SetHelp(a.Help().Key+"/"+b.Help().Key, desc)
+	out.SetHelp(firstKey(a)+"/"+firstKey(b), desc)
 	return out
 }
 
 // relabel returns b with its help text set to desc.
 func relabel(b key.Binding, desc string) key.Binding {
-	b.SetHelp(b.Help().Key, desc)
+	b.SetHelp(firstKey(b), desc)
 	return b
 }
+
+// firstKey is the label of the first key of b, which names it on the help
+// line, where the room is short, while full help lists every key.
+func firstKey(b key.Binding) string {
+	if ks := b.Keys(); len(ks) > 0 {
+		return keymap.Label(ks[0])
+	}
+	return b.Help().Key
+}
+
+// hinted returns b named by its first key on the help line.
+func hinted(b key.Binding) key.Binding { return relabel(b, b.Help().Desc) }
 
 // changes reports whether Prev and Next act on the row in focus: they
 // change a choice, what is sorted by, the order once there is one, and
@@ -222,7 +207,7 @@ func (m *Model) helpItems() []hint {
 	h := func(b key.Binding, rank int) hint { return hint{b, rank} }
 	switch m.mode {
 	case insertMode:
-		return []hint{h(k.Typing.Submit, rankKeep), h(k.Typing.Leave, rankKeep)}
+		return []hint{h(hinted(k.Typing.Submit), rankKeep), h(k.Typing.Leave, rankKeep)}
 	case listMode:
 		return m.listHints()
 	case rowsMode:
@@ -233,16 +218,16 @@ func (m *Model) helpItems() []hint {
 	}
 	switch {
 	case m.kind() == Toggle:
-		out = append(out, h(k.Toggle, rankChange))
+		out = append(out, h(hinted(k.Toggle), rankChange))
 	case m.opensList():
 		out = append(out, h(relabel(k.Toggle, "list"), rankChange))
 	case m.types():
-		out = append(out, h(k.Insert, rankChange), h(k.Append, rankChange))
+		out = append(out, h(hinted(k.Insert), rankChange), h(hinted(k.Append), rankChange))
 	}
 	if m.canClear() {
-		out = append(out, h(k.Clear, rankClear))
+		out = append(out, h(hinted(k.Clear), rankClear))
 	}
-	out = append(out, h(k.Apply, rankKeep), h(k.Cancel, rankKeep))
+	out = append(out, h(hinted(k.Apply), rankKeep), h(hinted(k.Cancel), rankKeep))
 	// The key to the other tab comes last, since the tabs show already.
 	if m.tabbed() {
 		out = append(out, h(m.tabHelp(), rankTab))
@@ -260,7 +245,7 @@ func (m *Model) listHints() []hint {
 	multi := m.kind() == Multi
 	switch {
 	case !m.picking && m.row < len(m.fields) && m.tab == FiltersTab && m.fields[m.row].state == failed:
-		return []hint{h(k.Retry, rankKeep), h(closing, rankKeep)}
+		return []hint{h(hinted(k.Retry), rankKeep), h(closing, rankKeep)}
 	case !m.picking:
 		return []hint{h(closing, rankKeep)}
 	case m.pick.Typing():
@@ -278,7 +263,7 @@ func (m *Model) listHints() []hint {
 		out = append(out, h(relabel(k.List.Normal.Insert, "filter"), rankChange))
 	}
 	if m.canClear() {
-		out = append(out, h(k.ListClear, rankClear))
+		out = append(out, h(hinted(k.ListClear), rankClear))
 	}
 	choose := relabel(k.List.Choose, "choose")
 	if multi {
@@ -295,11 +280,7 @@ func (m *Model) moving() key.Binding {
 	if m.picking && m.pick.Typing() {
 		first, second = m.keys.Typing.Up, m.keys.Typing.Down
 	}
-	name := func(b key.Binding) string {
-		k, _, _ := strings.Cut(b.Help().Key, "/")
-		return k
-	}
-	return key.NewBinding(key.WithHelp(name(first)+"/"+name(second), "move"))
+	return key.NewBinding(key.WithHelp(firstKey(first)+"/"+firstKey(second), "move"))
 }
 
 // tabHelp returns the key to the other tab, named after it.

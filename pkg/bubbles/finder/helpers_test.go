@@ -11,7 +11,29 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/keytest"
 )
+
+// testKeys returns the keys of a finder, as the app sets them.
+func testKeys(tb testing.TB) KeyMap {
+	tb.Helper()
+	table := map[string][]string{
+		"up":        {"up", "ctrl+p"},
+		"down":      {"down", "ctrl+n"},
+		"page_up":   {"pgup"},
+		"page_down": {"pgdown"},
+		"choose":    {"enter"},
+		"cancel":    {"esc"},
+	}
+	return NewKeyMap(keytest.Table(table))
+}
+
+// newKeyed returns a finder with the keys of the app.
+func newKeyed(tb testing.TB, load Load, opts ...Option) Model {
+	tb.Helper()
+	return New(load, append([]Option{WithKeyMap(testKeys(tb))}, opts...)...)
+}
 
 // items returns an item of each path.
 func items(paths ...string) []Item {
@@ -110,7 +132,7 @@ func loader(paths ...string) Load {
 func open(tb testing.TB, width, height int, paths []string, opts ...Option) Model {
 	tb.Helper()
 	opts = append([]Option{WithSize(width, height)}, opts...)
-	m := New(loader(paths...), opts...)
+	m := newKeyed(tb, loader(paths...), opts...)
 	m.Focus()
 	return run(tb, m, m.Init())
 }

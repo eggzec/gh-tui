@@ -26,6 +26,7 @@ Search (types)
   filter | & | & | off
   search | enter | ↵ | on
   cancel | esc | esc | on
+  cancel | backspace ctrl+h | backspace/^h | off
   next match | n | n | off
   prev match | N | N | off
   edit | v | v | off

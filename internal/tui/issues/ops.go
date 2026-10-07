@@ -99,7 +99,7 @@ func (s *Section) setState(state core.State) tea.Cmd {
 	if !ok {
 		return refusal
 	}
-	return ui.OpenModal(ui.NewConfirmModal(c, s.icons))
+	return ui.OpenModal(ui.NewConfirmModal(c, s.keys.confirm, s.icons))
 }
 
 // gate decides what the viewer may do in the repository of the list.

@@ -8,7 +8,9 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
@@ -50,19 +52,27 @@ func Meanwhile(name string) string {
 	return name + " changed meanwhile, so nothing was sent."
 }
 
-// ConfirmKeys answer a Confirm. They are fixed, since they only mean
-// something while a question is open.
+// ConfirmKeys answer a Confirm. They only mean something while a question
+// is open.
 type ConfirmKeys struct {
-	Yes, No key.Binding
+	Yes key.Binding `keymap:"yes" help:"yes"`
+	No  key.Binding `keymap:"no" help:"no"`
 }
 
-// DefaultConfirmKeys returns y for yes, and n or esc for no. Enter isn't
-// a yes, so that a change isn't made by a key pressed for something else.
-func DefaultConfirmKeys() ConfirmKeys {
-	return ConfirmKeys{
-		Yes: key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "yes")),
-		No:  key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n", "no")),
+// NewConfirmKeys returns the keys that answer a question, from the context
+// confirm: y for yes, and n or esc for no by default. Enter isn't a yes, so
+// that a change isn't made by a key pressed for something else.
+func NewConfirmKeys(keys config.Keymap) ConfirmKeys {
+	var k ConfirmKeys
+	keymap.Fill(&k, Lookup(keys, "confirm"))
+	// The answers are named by their first key, as the line that asks has
+	// little room.
+	for _, b := range []*key.Binding{&k.Yes, &k.No} {
+		if ks := b.Keys(); len(ks) > 0 {
+			b.SetHelp(keymap.Label(ks[0]), b.Help().Desc)
+		}
 	}
+	return k
 }
 
 // ShortHelp implements help.KeyMap.
@@ -169,7 +179,13 @@ func wrapWords(s string, w int) []string {
 
 // answers names the keys that answer, such as "y/n".
 func (k ConfirmKeys) answers() string {
-	return k.Yes.Help().Key + "/" + k.No.Help().Key
+	var keys []string
+	for _, b := range []key.Binding{k.Yes, k.No} {
+		if h := b.Help().Key; h != "" {
+			keys = append(keys, h)
+		}
+	}
+	return strings.Join(keys, "/")
 }
 
 // OverLastLines returns view with its last lines replaced by lines, such
@@ -202,10 +218,10 @@ type ConfirmModal struct {
 	view string
 }
 
-// NewConfirmModal returns the modal that asks c, cut with the ellipsis of
-// ic where it must be.
-func NewConfirmModal(c Confirm, ic Icons) *ConfirmModal {
-	return &ConfirmModal{ask: c, keys: DefaultConfirmKeys(), icons: ic}
+// NewConfirmModal returns the modal that asks c, answered with keys, cut
+// with the ellipsis of ic where it must be.
+func NewConfirmModal(c Confirm, keys ConfirmKeys, ic Icons) *ConfirmModal {
+	return &ConfirmModal{ask: c, keys: keys, icons: ic}
 }
 
 // Title implements Modal.

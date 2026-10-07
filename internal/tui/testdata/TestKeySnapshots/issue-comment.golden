@@ -5,6 +5,6 @@ always
   help | ? | ? | off
 
 Prompt (types)
-  submit | ctrl+s | ctrl+s | on
-  submit | enter | enter | off
+  submit | ctrl+s | ^s | on
+  submit | enter | ↵ | off
   cancel | esc | esc | on

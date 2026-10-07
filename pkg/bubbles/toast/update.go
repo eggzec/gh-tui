@@ -1,23 +1,13 @@
 package toast
 
-import (
-	"charm.land/bubbles/v2/key"
-	tea "charm.land/bubbletea/v2"
-)
+import tea "charm.land/bubbletea/v2"
 
-// Update expires toasts and handles the dismiss key. It ignores messages
-// meant for other instances.
+// Update expires toasts. It ignores messages meant for other instances. The
+// parent dismisses the newest toast with [Model.Dismiss], on a key of its
+// own.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case ExpireMsg:
-		if msg.id == m.id {
-			m.expire(msg.seq)
-		}
-	case tea.KeyPressMsg:
-		if key.Matches(msg, m.keys.Dismiss) {
-			cmd := m.Dismiss()
-			return m, cmd
-		}
+	if msg, ok := msg.(ExpireMsg); ok && msg.id == m.id {
+		m.expire(msg.seq)
 	}
 	return m, nil
 }

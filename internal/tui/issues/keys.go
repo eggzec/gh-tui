@@ -10,6 +10,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
 	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
 )
 
@@ -37,8 +38,10 @@ type keyMap struct {
 
 	// confirm answers the question that close and reopen ask.
 	confirm ui.ConfirmKeys
-	feed    feed.KeyMap
-	thread  thread.KeyMap
+	// prompt finishes the comment and labels prompts of the modal.
+	prompt prompt.KeyMap
+	feed   feed.KeyMap
+	thread thread.KeyMap
 	// owner shows the author's page from the modal. The list leaves the
 	// key to the app, which does it from the selection, so only the
 	// modal's help lists it.
@@ -69,7 +72,8 @@ func newKeyMap(keys config.Keymap) keyMap {
 		Reopen:      list.Binding("reopen", "reopen"),
 		Comment:     list.Binding("comment", "comment"),
 		Label:       list.Binding("labels", "labels"),
-		confirm:     ui.DefaultConfirmKeys(),
+		confirm:     ui.NewConfirmKeys(keys),
+		prompt:      prompt.NewKeyMap(ui.Lookup(keys, "prompt")),
 		owner:       list.Binding("global.owner", "owner page"),
 	}
 

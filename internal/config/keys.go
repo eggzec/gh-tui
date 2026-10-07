@@ -11,6 +11,7 @@ import (
 	"go.yaml.in/yaml/v3"
 
 	"github.com/eggzec/gh-tui/internal/keyname"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 )
 
 // Keymap maps the contexts of keys, such as "global" or "pulls", to the
@@ -67,6 +68,8 @@ const (
 	// ActionDismiss steps back out of what is open, such as a zoom.
 	ActionSelect  = "global.select"
 	ActionDismiss = "global.dismiss"
+	// ActionDismissToast closes the newest toast.
+	ActionDismissToast = "global.dismiss_toast"
 	// ActionOwner shows the page of the person or organization behind what
 	// is selected: the author of a pull request or issue, the owner of a
 	// repository or of what is in it, such as a file or a notification,
@@ -165,17 +168,51 @@ func (k *Keymap) UnmarshalYAML(n *yaml.Node) error {
 			out[name] = nil
 			continue
 		}
-		var actions map[string][]string
-		if err := v.Decode(&actions); err != nil {
-			return err
-		}
-		if actions == nil {
-			actions = map[string][]string{}
+		actions := map[string][]string{}
+		for j := 0; j+1 < len(v.Content); j += 2 {
+			action, val := v.Content[j].Value, v.Content[j+1]
+			path := "keys." + name + "." + action
+			keys, err := decodeKeys(path, val)
+			if err != nil {
+				return err
+			}
+			actions[action] = keys
 		}
 		out[name] = actions
 	}
 	*k = out
 	return nil
+}
+
+// decodeKeys reads the keys of the action at path from n, a list of key
+// names. An empty value, which is no keys, unbinds the action, as [] does.
+func decodeKeys(path string, n *yaml.Node) ([]string, error) {
+	if n.Kind == yaml.AliasNode {
+		n = n.Alias
+	}
+	switch {
+	case n.Kind == yaml.ScalarNode && n.ShortTag() == "!!null":
+		return nil, nil
+	case n.Kind != yaml.SequenceNode:
+		return nil, fmt.Errorf("line %d: %s: want a list of keys, such as [%s]", n.Line, path, exampleKey(n))
+	}
+	keys := make([]string, 0, len(n.Content))
+	for _, item := range n.Content {
+		if item.Kind != yaml.ScalarNode {
+			return nil, fmt.Errorf("line %d: %s: want a list of key names", item.Line, path)
+		}
+		keys = append(keys, item.Value)
+	}
+	return keys, nil
+}
+
+// exampleKey returns the value of n, if it is a plain key, to show as the
+// list the setting wants, or a stand-in.
+func exampleKey(n *yaml.Node) string {
+	if n.Kind == yaml.ScalarNode && n.Value != "" && !strings.ContainsAny(n.Value, ",[]{}\"'") {
+		return n.Value
+	}
+	return "x"
 }
 
 // actions are the names of the actions of each context: those that
@@ -219,8 +256,9 @@ func firstAction(actions map[string][]string) string {
 }
 
 // validateKeys refuses an action that ctx doesn't have, or one of keys
-// that no press can match, or that is ctrl+c. No keys, [], unbinds the
-// action.
+// that no press can match, or that is ctrl+c, or that a typing context
+// would type, unless its action may be bound to one. No keys, [], unbinds
+// the action.
 func validateKeys(ctx, name string, keys []string) error {
 	path := "keys." + ctx + "." + name
 	if _, ok := actions()[ctx][name]; !ok {
@@ -238,6 +276,9 @@ func validateKeys(ctx, name string, keys []string) error {
 		}
 		if key == forcedQuit {
 			return fmt.Errorf("%s: %s always quits and can't be bound", path, key)
+		}
+		if c, ok := LookupContext(ctx); ok && c.Typing && !slices.Contains(c.Printable, name) && keyhelp.Printable(key) {
+			return fmt.Errorf("%s: %s would be typed into the %s; use a key that types nothing, such as one with ctrl or alt", path, key, strings.ToLower(c.Title))
 		}
 	}
 	return nil

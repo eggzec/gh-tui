@@ -28,6 +28,8 @@ func (h host) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "p":
 			return h, h.toasts.Push(Error, "Could not merge #42")
+		case "d":
+			return h, h.toasts.Dismiss()
 		case "q":
 			return h, tea.Quit
 		}
@@ -50,7 +52,7 @@ func TestPushAndDismissInAProgram(t *testing.T) {
 		return bytes.Contains(out, []byte("Could not merge #42")) && bytes.Contains(out, []byte("×2"))
 	}, teatest.WithDuration(2*time.Second))
 
-	tm.Send(tea.KeyPressMsg{Code: 'x', Mod: tea.ModCtrl})
+	tm.Type("d")
 	tm.Type("q")
 	final, ok := tm.FinalModel(t, teatest.WithFinalTimeout(2*time.Second)).(host)
 	if !ok {

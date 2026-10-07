@@ -87,7 +87,7 @@ func TestUpdate(t *testing.T) {
 		{
 			name: "remapped submit",
 			opts: []Option{WithKeyMap(func() KeyMap {
-				k := DefaultKeyMap()
+				k := testKeys(t)
 				k.Submit.SetKeys("ctrl+d")
 				return k
 			}())},
@@ -128,7 +128,7 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestStartsBlurredAndIgnoresKeys(t *testing.T) {
-	m := New(WithSize(40, 6))
+	m := newKeyed(t, WithSize(40, 6))
 	if m.Focused() {
 		t.Fatal("a new prompt is focused")
 	}
@@ -167,7 +167,7 @@ func TestPaste(t *testing.T) {
 }
 
 func TestAccessors(t *testing.T) {
-	m := New(WithMode(SingleLine), WithTitle("Labels"), WithSize(30, 3))
+	m := newKeyed(t, WithMode(SingleLine), WithTitle("Labels"), WithSize(30, 3))
 	if m.Mode() != SingleLine || m.Title() != "Labels" || m.Width() != 30 || m.Height() != 3 {
 		t.Errorf("accessors = %v %q %d×%d", m.Mode(), m.Title(), m.Width(), m.Height())
 	}
@@ -177,17 +177,17 @@ func TestAccessors(t *testing.T) {
 	if m.Title() != "Edit labels" || m.Value() != "bug" || m.Width() != 0 || m.Height() != 0 || m.View() != "" {
 		t.Errorf("after set: %q %q %d×%d %q", m.Title(), m.Value(), m.Width(), m.Height(), m.View())
 	}
-	if New(WithMode(Mode(7))).Mode() != MultiLine {
+	if newKeyed(t, WithMode(Mode(7))).Mode() != MultiLine {
 		t.Error("an unknown mode should fall back to multi-line")
 	}
 	if len(m.ShortHelp()) != 2 || len(m.FullHelp()) != 1 || m.Init() != nil {
 		t.Error("help should list submit and cancel, and Init nothing")
 	}
-	if got := m.ShortHelp()[0].Help().Key; got != "enter" {
-		t.Errorf("single-line help submits with %q, want enter", got)
+	if got := m.ShortHelp()[0].Help().Key; got != "↵" {
+		t.Errorf("single-line help submits with %q, want ↵", got)
 	}
-	if got := New().ShortHelp()[0].Help().Key; got != "ctrl+s" {
-		t.Errorf("multi-line help submits with %q, want ctrl+s", got)
+	if got := newKeyed(t).ShortHelp()[0].Help().Key; got != "^s" {
+		t.Errorf("multi-line help submits with %q, want ^s", got)
 	}
 	k := m.KeyMap()
 	k.Cancel.SetEnabled(false)

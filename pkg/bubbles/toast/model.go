@@ -75,18 +75,16 @@ type Model struct {
 	// inset is how far the stack keeps from the right and the bottom
 	// edges when it is drawn over a background.
 	inset   [2]int
-	keys    KeyMap
 	styles  Styles
 	derived derivedStyles
 	// view is rendered whenever the state changes, so View is free.
 	view string
 }
 
-// New returns an empty stack with dark styles and the default key map,
-// whose info, success and warning toasts stay for duration, and error
-// toasts for errorDuration, which is best longer, since errors matter more
-// and take longer to read. Zero or less keeps a toast until it is
-// dismissed.
+// New returns an empty stack with dark styles, whose info, success and
+// warning toasts stay for duration, and error toasts for errorDuration,
+// which is best longer, since errors matter more and take longer to read.
+// Zero or less keeps a toast until it is dismissed.
 func New(duration, errorDuration time.Duration, opts ...Option) Model {
 	m := Model{
 		id:            nextID(),
@@ -94,7 +92,6 @@ func New(duration, errorDuration time.Duration, opts ...Option) Model {
 		duration:      duration,
 		errorDuration: errorDuration,
 		rooms:         defaultRooms(),
-		keys:          DefaultKeyMap(),
 	}
 	m.SetStyles(DefaultStyles(true))
 	for _, opt := range opts {
@@ -217,15 +214,6 @@ func (m *Model) SetWidth(width int) { m.SetSize(width, m.height) }
 // SetHeight sets the height of the area the stack is placed in.
 func (m *Model) SetHeight(height int) { m.SetSize(m.width, height) }
 
-// KeyMap returns the key bindings.
-func (m Model) KeyMap() KeyMap { return m.keys }
-
-// SetKeyMap sets the key bindings.
-func (m *Model) SetKeyMap(k KeyMap) {
-	m.keys = k
-	m.changed()
-}
-
 func (m Model) expireAfter(t toast) tea.Cmd {
 	d := m.duration
 	if t.level == Error {
@@ -263,7 +251,6 @@ func without(ts []toast, i int) []toast {
 
 // changed brings everything derived from the toasts up to date.
 func (m *Model) changed() {
-	m.keys.Dismiss.SetEnabled(len(m.toasts) > 0)
 	m.view = m.render()
 }
 

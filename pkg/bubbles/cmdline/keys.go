@@ -1,6 +1,10 @@
 package cmdline
 
-import "charm.land/bubbles/v2/key"
+import (
+	"charm.land/bubbles/v2/key"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+)
 
 // KeyMap holds the command line's own keys. Editing keys belong to the
 // text input underneath and keep their defaults.
@@ -21,38 +25,13 @@ type KeyMap struct {
 	Newer key.Binding `keymap:"newer" help:"newer"`
 }
 
-// DefaultKeyMap returns the default key bindings.
-func DefaultKeyMap() KeyMap {
-	return KeyMap{
-		Submit: key.NewBinding(
-			key.WithKeys("enter"),
-			key.WithHelp("enter", "run"),
-		),
-		Cancel: key.NewBinding(
-			key.WithKeys("esc", "ctrl+c"),
-			key.WithHelp("esc", "cancel"),
-		),
-		CancelEmpty: key.NewBinding(
-			key.WithKeys("backspace", "ctrl+h"),
-			key.WithHelp("backspace", "cancel when empty"),
-		),
-		Next: key.NewBinding(
-			key.WithKeys("tab"),
-			key.WithHelp("tab", "complete"),
-		),
-		Prev: key.NewBinding(
-			key.WithKeys("shift+tab"),
-			key.WithHelp("shift+tab", "previous"),
-		),
-		Older: key.NewBinding(
-			key.WithKeys("up", "ctrl+p"),
-			key.WithHelp("↑", "older"),
-		),
-		Newer: key.NewBinding(
-			key.WithKeys("down", "ctrl+n"),
-			key.WithHelp("↓", "newer"),
-		),
-	}
+// NewKeyMap returns the key bindings that look gives for the actions
+// of the command line, which the tags of its fields name. An action without
+// keys gives a disabled binding that keeps its help text.
+func NewKeyMap(look keymap.Lookup) KeyMap {
+	var k KeyMap
+	keymap.Fill(&k, look)
+	return k
 }
 
 // ShortHelp implements help.KeyMap.

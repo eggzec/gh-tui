@@ -90,8 +90,8 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		Cancel:      modal.Binding("cancel", "cancel run"),
 		Annotations: log.Binding("annotations", "annotations"),
 		notes:       notes.Binding("annotations", "annotations"),
-		Confirm:     ui.DefaultConfirmKeys(),
-		form:        ui.FilterFormKeys(keys),
+		Confirm:     ui.NewConfirmKeys(keys),
+		form:        ui.FilterFormKeys(keys, "actions_filter"),
 	}
 	// The modal's own keys come before those of the lists and the log.
 	k.Next = modal.Binding("global.next_pane", "pane")

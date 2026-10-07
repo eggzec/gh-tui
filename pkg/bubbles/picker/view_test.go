@@ -92,7 +92,7 @@ func TestView(t *testing.T) {
 				}
 				search = f.search
 			}
-			m := New(search, append(tt.opts, WithDebounce(0), WithSize(tt.width, tt.height))...)
+			m := New(search, append([]Option{WithKeyMap(testKeys(t))}, append(tt.opts, WithDebounce(0), WithSize(tt.width, tt.height))...)...)
 			m.Focus()
 			if !tt.skipInit {
 				m, _ = run(t, m, m.Init())
@@ -131,7 +131,7 @@ func TestViewFits(t *testing.T) {
 }
 
 func TestViewFollowsFocus(t *testing.T) {
-	m := New(nil, WithItems(catalog), WithSize(40, 6))
+	m := New(nil, WithKeyMap(testKeys(t)), WithItems(catalog), WithSize(40, 6))
 	blurred := m.View()
 	m.Focus()
 	if m.View() == blurred {
@@ -144,7 +144,7 @@ func TestViewFollowsFocus(t *testing.T) {
 }
 
 func TestViewCleansItems(t *testing.T) {
-	m := New(nil, WithItems([]Item{{Title: "two\nlines \x1b[31mred\x1b[m", Detail: "tab\tdetail"}}), WithSize(40, 5))
+	m := New(nil, WithKeyMap(testKeys(t)), WithItems([]Item{{Title: "two\nlines \x1b[31mred\x1b[m", Detail: "tab\tdetail"}}), WithSize(40, 5))
 	v := ansi.Strip(m.View())
 	if !strings.Contains(v, "two lines red  tab detail") {
 		t.Errorf("the item isn't on one clean line:\n%s", v)
@@ -194,7 +194,7 @@ func assertFits(t *testing.T, v string, width, height int) {
 func TestViewASCII(t *testing.T) {
 	st := asciiStyles()
 	items := []Item{{Title: strings.Repeat("a long title ", 10)}, {Title: "short"}}
-	m := New(nil, WithItems(items), WithStyles(st), WithSize(30, 8))
+	m := New(nil, WithKeyMap(testKeys(t)), WithItems(items), WithStyles(st), WithSize(30, 8))
 	m.Focus()
 	v := ansi.Strip(m.View())
 	if !strings.Contains(v, "Search...") || !strings.Contains(v, "...") {

@@ -7,16 +7,38 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/keytest"
 )
 
 var (
 	enter = tea.KeyPressMsg{Code: tea.KeyEnter}
 	esc   = tea.KeyPressMsg{Code: tea.KeyEscape}
-	ctrlC = tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}
 	bksp  = tea.KeyPressMsg{Code: tea.KeyBackspace}
 	left  = tea.KeyPressMsg{Code: tea.KeyLeft}
 	home  = tea.KeyPressMsg{Code: tea.KeyHome}
 )
+
+// testKeys returns the keys of the command line, as the app sets them.
+func testKeys(tb testing.TB) KeyMap {
+	tb.Helper()
+	table := map[string][]string{
+		"run":           {"enter"},
+		"cancel":        {"esc"},
+		"cancel_empty":  {"backspace", "ctrl+h"},
+		"complete":      {"tab"},
+		"complete_prev": {"shift+tab"},
+		"older":         {"up", "ctrl+p"},
+		"newer":         {"down", "ctrl+n"},
+	}
+	return NewKeyMap(keytest.Table(table))
+}
+
+// newKeyed returns a command line with the keys of the app.
+func newKeyed(tb testing.TB, historyLimit int, opts ...Option) Model {
+	tb.Helper()
+	return New(historyLimit, append([]Option{WithKeyMap(testKeys(tb))}, opts...)...)
+}
 
 // typeText types each rune of text as a key press.
 func typeText(tb testing.TB, m Model, text string) Model {
@@ -46,7 +68,7 @@ const testHistoryLimit = 100
 
 func opened(tb testing.TB, initial string, opts ...Option) Model {
 	tb.Helper()
-	m := New(testHistoryLimit, opts...)
+	m := newKeyed(tb, testHistoryLimit, opts...)
 	m.Open(initial)
 	return m
 }

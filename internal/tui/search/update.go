@@ -123,14 +123,14 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 		// that holds it, such as ].
 		switch {
 		case keyhelp.Printable(msg.String()):
-		case key.Matches(msg, k.Back):
+		case key.Matches(msg, k.query.Cancel):
 			return back
-		case key.Matches(msg, k.Select):
+		case key.Matches(msg, k.query.Submit):
 			return s.submit()
-		case key.Matches(msg, k.Next), key.Matches(msg, arrowUp):
+		case key.Matches(msg, k.query.Next), key.Matches(msg, k.query.Kinds):
 			s.focusArea(kindsArea)
 			return s.settleNow()
-		case key.Matches(msg, k.Prev), key.Matches(msg, arrowDown):
+		case key.Matches(msg, k.query.Prev), key.Matches(msg, k.query.Results):
 			s.focusArea(resultsArea)
 			return s.settleNow()
 		}

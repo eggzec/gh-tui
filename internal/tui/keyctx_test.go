@@ -629,11 +629,20 @@ var idleRows = map[string]string{
 	"actions_log expand":           "the cursor is inside the log's one open group, and expand acts only on the header of a closed one",
 	"pull_check_log follow":        "a log follows its end from the start, so the key turns that off, which shows nothing until lines are appended",
 	"actions_log follow":           "a log follows its end from the start, so the key turns that off, which shows nothing until lines are appended",
+
+	"filter previous field":         "the form opens on its first row",
+	"filter first field":            "the form opens on its first row",
+	"actions_filter previous field": "the form opens on its first row",
+	"actions_filter first field":    "the form opens on its first row",
+	"filter up":                     "the dropdown lists no options where the services serve none",
+	"filter down":                   "the dropdown lists no options where the services serve none",
+	"filter top":                    "the dropdown lists no options where the services serve none",
+	"filter bottom":                 "the dropdown lists no options where the services serve none",
 }
 
 // TestHelpRowsWork checks that every key help lists in a context does
-// something when it is pressed there: it starts a command, or changes what
-// is on view or the keys that work. A row that lists a key which nothing
+// something when it is pressed there: it starts a command that sends a
+// message, or changes what is on view or the keys that work. A row that lists a key which nothing
 // takes is a lie in help.
 func TestHelpRowsWork(t *testing.T) {
 	for _, c := range keyContexts() {
@@ -670,7 +679,7 @@ func TestHelpRowsWork(t *testing.T) {
 						before, was := ansi.Strip(m.View().Content), layerNames(m.keyLayers())
 						cmd, reached := pressReaches(m, press)
 						after, is := ansi.Strip(m.View().Content), layerNames(m.keyLayers())
-						if !reached && cmd == nil && before == after && was == is {
+						if !reached && !sends(cmd) && before == after && was == is {
 							t.Errorf("%s: %s (%s) does nothing", c.name, name, id)
 						}
 					}
@@ -684,6 +693,20 @@ func TestHelpRowsWork(t *testing.T) {
 // app has little to show, such as a list of one row, they have nothing to
 // move over, so pressing one does nothing there.
 var motions = []string{"up", "down", "left", "right", "page_up", "page_down", "half_page_up", "half_page_down", "top", "bottom"}
+
+// sends reports whether cmd, once run, sends a message: a command that
+// is only a placeholder, or that sends nothing, is no work.
+func sends(cmd tea.Cmd) (sent bool) {
+	if cmd == nil {
+		return false
+	}
+	defer func() {
+		if recover() != nil {
+			sent = true
+		}
+	}()
+	return cmd() != nil
+}
 
 // isAction says whether b is the binding of an action of the config in
 // the context ctx, by its keys, other than a motion.
@@ -822,10 +845,10 @@ func keyContexts() []keyContext {
 		{name: "notifications: filter", steps: []string{"global.notifications", "notifications.filter"}, context: "filter", want: "global, filter"},
 		{name: "notifications: mark read", steps: []string{"global.notifications", "notifications.read"}, context: "confirm", want: "always, confirm"},
 		{name: "search: query", steps: []string{"global.search"}, context: "search_query", want: "always, global, search_query (types)"},
-		{name: "search: kinds", steps: []string{"global.search", "up"}, context: "search_kinds", want: "global, search, search_kinds"},
-		{name: "search: results", steps: []string{"global.search", typed("key"), "global.select"}, context: "search_results", want: "global, search, search_results"},
-		{name: "search: filter", steps: []string{"global.search", typed("key"), "global.select", "search_results.filter"}, context: "filter", want: "global, filter"},
-		{name: "search: sort", steps: []string{"global.search", typed("key"), "global.select", "search_results.sort"}, context: "filter", want: "global, filter"},
+		{name: "search: kinds", steps: []string{"global.search", "search_query.kinds"}, context: "search_kinds", want: "global, search, search_kinds"},
+		{name: "search: results", steps: []string{"global.search", typed("key"), "search_query.submit"}, context: "search_results", want: "global, search, search_results"},
+		{name: "search: filter", steps: []string{"global.search", typed("key"), "search_query.submit", "search_results.filter"}, context: "filter", want: "global, filter"},
+		{name: "search: sort", steps: []string{"global.search", typed("key"), "search_query.submit", "search_results.sort"}, context: "filter", want: "global, filter"},
 		{name: "files", repo: true, context: "files", want: "global, repo, files"},
 		{name: "files: zoomed", repo: true, steps: []string{"global.zoom"}, context: "files", want: "global, repo, files"},
 		{name: "files: error toast", repo: true, msg: ui.NotifyMsg{Level: toast.Error, Text: "Keys collide."}, context: "files", want: "global, repo, files"},

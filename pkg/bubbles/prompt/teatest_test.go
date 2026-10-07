@@ -69,7 +69,7 @@ func TestProgram(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := New(append(tt.opts, WithTitle("Comment on #7"))...)
+			m := newKeyed(t, append(tt.opts, WithTitle("Comment on #7"))...)
 			m.Focus()
 			tm := teatest.NewTestModel(t, host{prompt: m}, teatest.WithInitialTermSize(60, 8))
 			teatest.WaitFor(t, tm.Output(), func(b []byte) bool {

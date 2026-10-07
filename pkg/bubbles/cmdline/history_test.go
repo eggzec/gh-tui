@@ -149,14 +149,14 @@ func TestHistoryLimit(t *testing.T) {
 		}
 		return out
 	}
-	if h := New(100, WithHistory(lines(150))).History(); len(h) != 100 || h[0] != "goto repo-50" {
+	if h := newKeyed(t, 100, WithHistory(lines(150))).History(); len(h) != 100 || h[0] != "goto repo-50" {
 		t.Errorf("a limit of 100 keeps %d lines from %q, want 100 from goto repo-50", len(h), h[0])
 	}
-	if h := New(0, WithHistory(lines(150))).History(); len(h) != 150 {
+	if h := newKeyed(t, 0, WithHistory(lines(150))).History(); len(h) != 150 {
 		t.Errorf("without a limit the history keeps %d lines, want 150", len(h))
 	}
 
-	m := New(3, WithSize(80, MaxHeight))
+	m := newKeyed(t, 3, WithSize(80, MaxHeight))
 	m.Open("")
 	m.SetHistory(lines(5))
 	want := []string{"goto repo-2", "goto repo-3", "goto repo-4"}
@@ -176,17 +176,17 @@ func TestHistoryHelp(t *testing.T) {
 	has := func(m Model) bool {
 		for _, g := range m.FullHelp() {
 			for _, b := range g {
-				if b.Enabled() && b.Help().Key == "↑" {
+				if b.Enabled() && b.Help().Key == "↑/^p" {
 					return true
 				}
 			}
 		}
 		return false
 	}
-	if has(New(testHistoryLimit)) {
+	if has(newKeyed(t, testHistoryLimit)) {
 		t.Error("without a history, help offers up")
 	}
-	if !has(New(testHistoryLimit, WithHistory([]string{"quit"}))) {
+	if !has(newKeyed(t, testHistoryLimit, WithHistory([]string{"quit"}))) {
 		t.Error("with a history, help leaves out up")
 	}
 }

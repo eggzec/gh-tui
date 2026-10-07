@@ -286,7 +286,7 @@ func TestMaximizeIsTypedInInputs(t *testing.T) {
 	})
 	t.Run("a question", func(t *testing.T) {
 		m, _ := newTestApp(t)
-		run(m, ui.OpenModal(ui.NewConfirmModal(ui.Confirm{Question: "Close it?"}, ui.NewIcons(config.IconsASCII))))
+		run(m, ui.OpenModal(ui.NewConfirmModal(ui.Confirm{Question: "Close it?"}, ui.NewConfirmKeys(config.Default().Keys), ui.NewIcons(config.IconsASCII))))
 		send(m, "Z")
 		if m.maximized {
 			t.Error("Z maximized the question")

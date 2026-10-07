@@ -7,8 +7,8 @@ always
 Finder (types)
   open in tree | ctrl+t | ^t | on
   preview | tab | tab | on
-  up | up ctrl+p | ↑ | on
-  down | down ctrl+n | ↓ | on
+  up | up ctrl+p | ↑/^p | on
+  down | down ctrl+n | ↓/^n | on
   page up | pgup | pgup | on
   page down | pgdown | pgdn | on
   open | enter | ↵ | on
