@@ -54,7 +54,7 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 	normal := m.modes && !m.typing
 	switch {
 	case key.Matches(msg, m.keys.Choose):
-		it, ok := m.Selected()
+		it, ok := m.chosen()
 		if !ok {
 			return nil
 		}
@@ -67,8 +67,8 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 		}
 		m.stop()
 		return send(CancelMsg{ID: m.id})
-	case normal:
-		return m.pressNormal(msg)
+	// The keys that move and scope in insert mode work in normal mode too,
+	// before it looks at its own.
 	case key.Matches(msg, m.keys.Up):
 		m.move(-1)
 	case key.Matches(msg, m.keys.Down):
@@ -83,6 +83,8 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 	case key.Matches(msg, m.keys.PrevScope):
 		m.scope = (m.scope + len(m.scopes)) % (len(m.scopes) + 1)
 		return m.refresh(false)
+	case normal:
+		return m.pressNormal(msg)
 	default:
 		if m.noFilterLine {
 			return nil
@@ -133,15 +135,11 @@ func (m *Model) pressNormal(msg tea.KeyPressMsg) tea.Cmd {
 func (m *Model) enterTyping(end bool) tea.Cmd {
 	m.typing = true
 	cmd := m.input.Focus()
-	// The input edits its text in place, which copies of the model share,
-	// so it gets a copy of its own first.
-	m.input.SetValue(m.input.Value())
 	if end {
 		m.input.CursorEnd()
 	} else {
 		m.input.CursorStart()
 	}
-	m.retype()
 	m.render()
 	return cmd
 }
@@ -151,7 +149,6 @@ func (m *Model) enterTyping(end bool) tea.Cmd {
 func (m *Model) leaveTyping() {
 	m.typing = false
 	m.input.Blur()
-	m.retype()
 	m.render()
 }
 

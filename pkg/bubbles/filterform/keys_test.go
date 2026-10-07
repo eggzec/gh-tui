@@ -4,6 +4,7 @@ import (
 	"slices"
 	"testing"
 
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/pkg/bubbles/keytest"
@@ -12,7 +13,19 @@ import (
 // The key map shares enter between Edit and Apply, and its picker's keys
 // with the form's, so only the form in each state is free of conflicts.
 func TestKeyMapComplete(t *testing.T) {
-	keytest.Complete(t, DefaultKeyMap())
+	keytest.Complete(t, withNormalKeys{DefaultKeyMap()})
+}
+
+// withNormalKeys adds the picker's normal-mode keys to full help. The
+// form's pickers have no modes, so its help leaves them out.
+type withNormalKeys struct{ KeyMap }
+
+func (k withNormalKeys) FullHelp() [][]key.Binding {
+	n := k.Picker.Normal
+	return append(k.KeyMap.FullHelp(), []key.Binding{
+		n.Up, n.Down, n.PageUp, n.PageDown, n.HalfPageUp, n.HalfPageDown,
+		n.Top, n.Bottom, n.Insert, n.Append,
+	})
 }
 
 // Full help enables the keys that act on the row in focus, with no two on
