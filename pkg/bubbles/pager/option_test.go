@@ -163,3 +163,97 @@ func TestSqueezeInBackground(t *testing.T) {
 		t.Errorf("%d lines shown of %d kept, want 200000 of 300000", m.Shown(), m.kept)
 	}
 }
+
+// A pager takes the keys that name an option from its option key map, so
+// a rebound option answers to its new key and not to the old one.
+func TestOptionKeysAreRebound(t *testing.T) {
+	rebound := func(action string) []string {
+		if action == "pager_option.chop" {
+			return []string{"W"}
+		}
+		return lookup(action)
+	}
+	m := open(t, "a.txt", "a\n", WithSize(20, 4), WithKeyMap(NewKeyMap(rebound)))
+	if m.Wrap() {
+		t.Fatal("a pager wraps at first")
+	}
+	m, _ = keys(t, m, "-", "S")
+	if m.Wrap() || !strings.HasPrefix(m.flash, noteNoOption) {
+		t.Errorf("-S: wrap %v, note %q, want S to name no option", m.Wrap(), m.flash)
+	}
+	m, _ = keys(t, m, "-", "W")
+	if !m.Wrap() {
+		t.Error("-W didn't wrap the lines")
+	}
+}
+
+// A pager whose config binds no option key names no option.
+func TestNoOptionKeys(t *testing.T) {
+	bare := func(action string) []string {
+		if strings.HasPrefix(action, "pager_option.") {
+			return nil
+		}
+		return lookup(action)
+	}
+	m := New(WithKeyMap(NewKeyMap(bare)), WithSize(20, 4))
+	m.Focus()
+	m, _ = keys(t, m, "-", "S", "esc")
+	if m.Wrap() || m.Capturing() {
+		t.Errorf("wrap %v, capturing %v, want the option key to take one key and change nothing", m.Wrap(), m.Capturing())
+	}
+}
+
+// The option key's help lists the keys that name an option as the config
+// sets them, and option mode's help lists every option action with its key.
+func TestOptionHelpFollowsKeys(t *testing.T) {
+	if got := testKeys(t).Option.Help().Desc; got != "option: S N s i I" {
+		t.Errorf("option help is %q, want the default keys", got)
+	}
+	rebound := func(action string) []string {
+		switch action {
+		case "pager_option.chop":
+			return []string{"W"}
+		case "pager_option.squeeze":
+			return nil
+		}
+		return lookup(action)
+	}
+	m := open(t, "a.txt", "a\n", WithSize(20, 4), WithKeyMap(NewKeyMap(rebound)))
+	if got := m.keys.Option.Help().Desc; got != "option: W N i I" {
+		t.Errorf("option help is %q, want W N i I", got)
+	}
+	m, _ = keys(t, m, "-")
+	want := map[string]string{
+		"chop or wrap long lines": "W", "line numbers": "N", "squeeze blank lines": "",
+		"smart case": "i", "ignore case": "I", "cancel": "esc",
+	}
+	got := map[string]string{}
+	if first := m.ShortHelp()[0]; first.Help().Desc != "cancel" {
+		t.Errorf("option mode's help starts with %q, want cancel first", first.Help().Desc)
+	}
+	for _, b := range m.ShortHelp() {
+		if b.Enabled() {
+			got[b.Help().Desc] = b.Help().Key
+		} else {
+			got[b.Help().Desc] = ""
+		}
+	}
+	for desc, k := range want {
+		if g, ok := got[desc]; !ok || g != k {
+			t.Errorf("option mode help lists %q with key %q (listed %v), want %q", desc, g, ok, k)
+		}
+	}
+}
+
+// With no option key bound, the option key's help names no keys.
+func TestOptionHelpWithoutOptionKeys(t *testing.T) {
+	bare := func(action string) []string {
+		if strings.HasPrefix(action, "pager_option.") {
+			return nil
+		}
+		return lookup(action)
+	}
+	if got := NewKeyMap(bare).Option.Help().Desc; got != "option" {
+		t.Errorf("option help is %q, want %q", got, "option")
+	}
+}

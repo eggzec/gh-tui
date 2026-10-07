@@ -11,6 +11,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	filesvc "github.com/eggzec/gh-tui/internal/service/files"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
@@ -27,7 +28,7 @@ func imagePreview(t *testing.T, images *ui.Images, name string) *preview {
 	e := file(name, int64(len(pngBytes)))
 	f.addTree(ghTUI, "", e)
 	f.addBlob(e, pngBytes)
-	p := newPreview(t.Context(), f, "", ghTUI, "", e, key.NewBinding(key.WithKeys("o")), ui.Voice{}, "", ui.NewIcons(""), images, false)
+	p := newPreview(t.Context(), f, "", ghTUI, "", e, key.NewBinding(key.WithKeys("o")), config.Default().Keys, ui.Voice{}, "", ui.NewIcons(""), images, false)
 	p.SetSize(40, 12)
 	b, err := f.Blob(t.Context(), filesvc.BlobQuery{Repo: ghTUI, SHA: e.SHA, Size: e.Size})
 	if err != nil {

@@ -18,7 +18,7 @@ func TestViewCleansHostileNames(t *testing.T) {
 // TestViewCleansHostileErrors fails a load with an error that holds text
 // from outside, which the pager shows when the app doesn't word it.
 func TestViewCleansHostileErrors(t *testing.T) {
-	m := New(WithSize(60, 5))
+	m := fresh(t, WithSize(60, 5))
 	m.SetError("main.go", errors.New(termtexttest.Hostile))
 	termtexttest.AssertClean(t, m.View(), 60)
 }

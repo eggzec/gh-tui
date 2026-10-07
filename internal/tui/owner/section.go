@@ -245,7 +245,7 @@ func New(ctx context.Context, svc Service, keys config.Keymap, opts ...Option) *
 		voice:      ui.NewVoice(keys, ""),
 		icons:      ui.NewIcons(def.UI.Icons),
 		defaultTab: tabFor(def.Owner.DefaultTab),
-		sc:         newSideConf(),
+		sc:         newSideConf(keys),
 	}
 	for _, opt := range opts {
 		opt(s)

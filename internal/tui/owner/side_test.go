@@ -401,3 +401,21 @@ func TestReadmeFollowsIcons(t *testing.T) {
 		t.Errorf("the page in ASCII isn't ASCII:\n%s", v)
 	}
 }
+
+// Focusing the README pane by its key focuses its pager, so ctrl+d scrolls
+// it, on a page opened while the section already has the focus and at a
+// size where the pane needn't be resized.
+func TestReadmePaneFocusScrolls(t *testing.T) {
+	s := newSection(t, newFake(), "", 120, 30)
+	run(t, s, s.Update(ui.OwnerMsg{Login: "octocat"}))
+	press(t, s, "3")
+	pg := s.page.side.pager
+	if !pg.Focused() {
+		t.Fatal("the README pager isn't focused after its pane key")
+	}
+	before := pg.View()
+	press(t, s, "ctrl+d")
+	if pg.View() == before {
+		t.Error("ctrl+d didn't scroll the README")
+	}
+}

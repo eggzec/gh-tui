@@ -77,8 +77,7 @@ func newKeyMap(keys config.Keymap) keyMap {
 	// and the thread get only the keys they leave them.
 	k.feed = feed.NewKeyMap(list.Of)
 
-	tk := thread.DefaultKeyMap()
-	tk.Toggle = ui.Binding(keys, config.ActionSelect, tk.Toggle.Help().Desc)
+	tk := thread.NewKeyMap(ui.In(keys, ctxModal).Of)
 	tk.Retry = retry(k.Refresh)
 	k.thread = tk
 	return k

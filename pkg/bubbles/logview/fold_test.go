@@ -77,7 +77,7 @@ func TestFoldSections(t *testing.T) {
 		{Title: "two", Start: 2, End: 5},
 		{Title: "one\n\x1b]0;pwned\x07\x1b[1mfirst", Start: 0, End: 4},
 	}
-	m := New(WithSize(40, 10))
+	m := New(withKeys(t), WithSize(40, 10))
 	m.SetLines(lines, sections)
 	m.ExpandAll()
 	want := []string{"one first", ".x", ".g", "two", ".y", ".z", "w"}
@@ -222,7 +222,7 @@ func TestFocusFailedWithoutSections(t *testing.T) {
 
 // A failed step without error lines opens on its title.
 func TestFocusFailedWithoutErrors(t *testing.T) {
-	m := New(WithSize(40, 5), WithFocusFailed(true))
+	m := New(withKeys(t), WithSize(40, 5), WithFocusFailed(true))
 	m.SetLines(plainLines("a", "b", "c"), []Section{
 		{Title: "one", Start: 0, End: 2},
 		{Title: "two", Start: 2, End: 3, Failed: true},
@@ -236,10 +236,10 @@ func TestFocusFailedWithoutErrors(t *testing.T) {
 // and Prepare leaves the model that it read on as it was.
 func TestPrepareThenSetLog(t *testing.T) {
 	lines, secs := synthetic(3000)
-	want := New(WithSize(80, 20), WithFocusFailed(true))
+	want := New(withKeys(t), WithSize(80, 20), WithFocusFailed(true))
 	want.SetLines(lines, secs)
 
-	m := New(WithSize(80, 20), WithFocusFailed(true))
+	m := New(withKeys(t), WithSize(80, 20), WithFocusFailed(true))
 	m.SetLines(lines[:10], nil)
 	before := m.View()
 	l := m.Prepare(lines, secs)

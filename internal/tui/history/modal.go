@@ -143,7 +143,7 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, defaultBranch stri
 		format:        newFormat(o.cfg, o.dates.In(o.loc), o.icons),
 		focus:         graphPane,
 		spin:          spinner.New(spinner.WithSpinner(spinner.Dot)),
-		commit:        newCommit(o.editor),
+		commit:        newCommit(o.editor, keys),
 	}
 	m.ahead = ui.NewAhead("commit", m.readDetail, m.cachedDetail)
 	m.ahead.Share(o.slots)

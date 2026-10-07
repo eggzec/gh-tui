@@ -42,7 +42,6 @@ const DefaultHighlightLimit = 1 << 20
 
 func defaultSettings() settings {
 	return settings{
-		keys:           DefaultKeyMap(),
 		styles:         DefaultStyles(true),
 		tabWidth:       DefaultTabWidth,
 		lineNumbers:    true,
@@ -59,7 +58,8 @@ func WithSize(width, height int) Option {
 	}
 }
 
-// WithKeyMap sets the key bindings.
+// WithKeyMap sets the key bindings. Without it no key is bound, so a
+// pager shows its content and nothing else.
 func WithKeyMap(k KeyMap) Option {
 	return func(s *settings) {
 		s.keys = k

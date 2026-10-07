@@ -7,8 +7,8 @@ import (
 )
 
 func TestKeyMapComplete(t *testing.T) {
-	keytest.Complete(t, DefaultKeyMap())
-	keytest.Tagged(t, DefaultKeyMap())
-	keytest.HelpTags(t, DefaultKeyMap())
-	keytest.NoConflicts(t, DefaultKeyMap())
+	keytest.Complete(t, testKeys())
+	keytest.Tagged(t, testKeys())
+	keytest.HelpTags(t, testKeys())
+	keytest.NoConflicts(t, testKeys())
 }

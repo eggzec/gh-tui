@@ -39,7 +39,7 @@ func WithFocused(focused bool) Option {
 	}
 }
 
-// WithKeyMap sets the key bindings.
+// WithKeyMap sets the key bindings. Without it no key is bound.
 func WithKeyMap(k KeyMap) Option {
 	return func(s *settings) {
 		s.keys = k

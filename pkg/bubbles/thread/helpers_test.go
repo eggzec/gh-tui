@@ -14,6 +14,8 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	glamourstyles "charm.land/glamour/v2/styles"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/keytest"
 )
 
 type comment struct {
@@ -138,7 +140,7 @@ func newTest(src *source, r *renders, width, height int, opts ...Option) Model[c
 		WithFocused(true),
 		WithMarkdownStyle(glamourstyles.ASCIIStyleConfig),
 	}, opts...)
-	return New(src.fetch, render, opts...)
+	return New(src.fetch, render, append([]Option{WithKeyMap(testKeys())}, opts...)...)
 }
 
 // drain runs cmd and every command that follows, feeding the messages back
@@ -233,4 +235,20 @@ func resident(m Model[comment]) []int {
 		}
 	}
 	return out
+}
+
+// conversationKeys are the keys of a pull request's conversation, which
+// tests fill a thread's key map from.
+var conversationKeys = map[string][]string{
+	"up": {"up", "k"}, "down": {"down", "j"},
+	"page_up": {"b", "ctrl+b", "pgup"}, "page_down": {"space", "ctrl+f", "pgdown"},
+	"half_page_up": {"ctrl+u"}, "half_page_down": {"ctrl+d"},
+	"top": {"home", "g"}, "bottom": {"end", "G"},
+	"global.select": {"enter"}, "global.refresh": {"r"},
+}
+
+// testKeys returns the keys of a thread as the conversation of a pull
+// request has them.
+func testKeys() KeyMap {
+	return NewKeyMap(keytest.Table(conversationKeys))
 }

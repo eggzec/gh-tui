@@ -105,8 +105,8 @@ func newKeyMap(keys config.Keymap) KeyMap {
 
 	// The log folds with enter, and closes with the back key, which
 	// clears a search first.
-	lk := logview.DefaultKeyMap()
-	lk.Close = relabel(k.Back, "back")
+	lk := logview.NewKeyMap(log.Of)
+	lk.Quit, lk.Dismiss = key.NewBinding(key.WithDisabled()), relabel(k.Back, "back")
 	k.Log = lk
 	return k
 }

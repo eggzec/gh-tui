@@ -198,7 +198,7 @@ func testTheme() ui.Theme {
 
 func testKeys() KeyMap {
 	return KeyMap{
-		Log:        logview.DefaultKeyMap(),
+		Log:        logview.NewKeyMap(ui.In(config.Default().Keys, "actions_log").Of),
 		LogContext: "actions_log", NotesContext: "actions_annotations",
 		Annotations:      key.NewBinding(key.WithKeys("A"), key.WithHelp("A", "annotations")),
 		NotesAnnotations: key.NewBinding(key.WithKeys("A"), key.WithHelp("A", "log")),

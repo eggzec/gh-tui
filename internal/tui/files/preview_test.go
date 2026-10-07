@@ -7,7 +7,9 @@ import (
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
@@ -152,10 +154,10 @@ func TestPreviewClose(t *testing.T) {
 func TestPreviewIgnoresOtherResults(t *testing.T) {
 	f := sampleFake()
 	e := f.trees[treeKey(ghTUI, "")].Entries[rowAgents]
-	p := newPreview(t.Context(), f, "", ghTUI, "", e, key.NewBinding(key.WithKeys("o")), ui.Voice{}, "", ui.NewIcons(""), nil, false)
+	p := newPreview(t.Context(), f, "", ghTUI, "", e, key.NewBinding(key.WithKeys("o")), config.Default().Keys, ui.Voice{}, "", ui.NewIcons(""), nil, false)
 	p.SetSize(40, 4)
 	_ = p.load()
-	other := newPreview(t.Context(), f, "", ghTUI, "", e, key.NewBinding(key.WithKeys("o")), ui.Voice{}, "", ui.NewIcons(""), nil, false)
+	other := newPreview(t.Context(), f, "", ghTUI, "", e, key.NewBinding(key.WithKeys("o")), config.Default().Keys, ui.Voice{}, "", ui.NewIcons(""), nil, false)
 	_ = p.Update(blobMsg{id: other.pager.ID(), err: errNoTree})
 	if cmd := p.Update(pager.CloseMsg{ID: other.pager.ID()}); cmd != nil {
 		t.Error("the close of another pager closed the preview")
@@ -171,7 +173,7 @@ func TestPreviewHelp(t *testing.T) {
 		return slices.ContainsFunc(bs, func(b key.Binding) bool { return b.Help().Key == k })
 	}
 	short := func() []key.Binding { return ui.Hints{Layers: h.top().KeyLayers()}.ShortHelp() }
-	if short := short(); !has(short, "o") || !has(short, "q") {
+	if short := short(); !has(short, "o") || !has(short, "q/esc") {
 		t.Errorf("help lists %v, want the pager keys and o", short)
 	}
 	h.keys("/")
@@ -308,5 +310,36 @@ func TestPreviewFileAtACommitNotThere(t *testing.T) {
 		if got := strings.Join(strings.Fields(h.modal()), " "); !strings.Contains(got, errMark+" No such file at this commit.") {
 			t.Errorf("%s: preview = %q, want why it isn't shown", name, got)
 		}
+	}
+}
+
+// TestPreviewKeysFollowTheConfig checks that the preview pages with the
+// keys of its context: a rebound key pages, and the one it replaced
+// doesn't.
+func TestPreviewKeysFollowTheConfig(t *testing.T) {
+	keys := config.Default().Keys
+	keys.Set("preview.page_down", []string{"x"})
+	e := sampleFake().trees[treeKey(ghTUI, "")].Entries[rowAgents]
+	p := newPreview(t.Context(), sampleFake(), "", ghTUI, "", e, key.NewBinding(key.WithKeys("o")), keys, ui.Voice{}, "", ui.NewIcons(""), nil, false)
+	p.SetSize(40, 6)
+	_ = p.pager.SetContent("long.txt", strings.Repeat("line\n", 100))
+	status := func() string {
+		for l := range strings.SplitSeq(ansi.Strip(p.View()), "\n") {
+			if _, rest, ok := strings.Cut(l, "line "); ok && strings.Contains(rest, "/") {
+				return strings.Fields(rest)[0]
+			}
+		}
+		return ""
+	}
+	if got := status(); got != "1/100" {
+		t.Fatalf("status = %q, want the top", got)
+	}
+	_ = p.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
+	if got := status(); got != "1/100" {
+		t.Errorf("space moved to %s, though page down is x", got)
+	}
+	_ = p.Update(press("x"))
+	if got := status(); got == "1/100" {
+		t.Error("x didn't page down")
 	}
 }

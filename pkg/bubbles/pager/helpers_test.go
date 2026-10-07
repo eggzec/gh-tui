@@ -1,6 +1,7 @@
 package pager
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 	"testing"
@@ -8,6 +9,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/keytest"
 )
 
 const goSource = `package main
@@ -113,7 +116,7 @@ func typeText(tb testing.TB, m Model, text string) Model {
 // asks for it.
 func open(tb testing.TB, name, text string, opts ...Option) Model {
 	tb.Helper()
-	m := New(opts...)
+	m := New(append(defaults(tb), opts...)...)
 	m.Focus()
 	if cmd := m.SetContent(name, text); cmd != nil {
 		m, _ = m.Update(cmd())
@@ -149,3 +152,47 @@ func assertFits(tb testing.TB, v string, width, height int) {
 		}
 	}
 }
+
+// previewKeys are the keys of the preview, which tests fill a pager's key
+// map from.
+var previewKeys = map[string][]string{
+	"up": {"up", "k"}, "down": {"down", "j"}, "left": {"left", "h"}, "right": {"right", "l"},
+	"page_up": {"b", "ctrl+b", "pgup"}, "page_down": {"space", "ctrl+f", "pgdown"},
+	"half_page_up": {"ctrl+u"}, "half_page_down": {"ctrl+d"},
+	"top": {"home", "g"}, "bottom": {"end", "G"},
+	"option": {"-"}, "find": {"/"}, "quick_filter": {"&"},
+	"next_match": {"n"}, "prev_match": {"N"}, "edit": {"v"},
+	"global.quit": {"q"}, "global.dismiss": {"esc"},
+	"search_prompt.run": {"enter"}, "search_prompt.cancel": {"esc"},
+	"pager_option.chop": {"S"}, "pager_option.line_numbers": {"N"}, "pager_option.squeeze": {"s"},
+	"pager_option.smart_case": {"i"}, "pager_option.ignore_case": {"I"}, "pager_option.cancel": {"esc"},
+}
+
+// lookup gives the keys of the preview.
+var lookup = keytest.Table(previewKeys)
+
+// testKeys returns the keys of a pager as the preview has them.
+func testKeys(tb testing.TB) KeyMap {
+	tb.Helper()
+	return NewKeyMap(lookup)
+}
+
+// defaults returns the options that give a pager the keys of the preview.
+func defaults(tb testing.TB) []Option {
+	tb.Helper()
+	return []Option{WithKeyMap(testKeys(tb))}
+}
+
+// fresh returns a pager with the keys of the preview, and opts.
+func fresh(tb testing.TB, opts ...Option) Model {
+	tb.Helper()
+	return New(append(defaults(tb), opts...)...)
+}
+
+// bg is a testing.TB for the setup that has no test, such as a benchmark's
+// package-level fixture: it fails by panicking.
+type bg struct{ testing.TB }
+
+func (bg) Helper() {}
+
+func (bg) Fatalf(format string, args ...any) { panic(fmt.Sprintf(format, args...)) }

@@ -34,10 +34,10 @@ type sideConf struct {
 	focus paneID
 }
 
-func newSideConf() sideConf {
+func newSideConf(keys config.Keymap) sideConf {
 	def := config.Default()
 	return sideConf{
-		keys: newReadmeKeys(), glyph: def.Dashboard.CalendarGlyph, days: def.Dashboard.ContributionDays(),
+		keys: newReadmeKeys(keys), glyph: def.Dashboard.CalendarGlyph, days: def.Dashboard.ContributionDays(),
 		focus: focusFor(def.Owner.DefaultTab),
 	}
 }

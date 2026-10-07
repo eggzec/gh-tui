@@ -54,7 +54,7 @@ func benchView(tb testing.TB, n int) Model {
 	if n == 100_000 {
 		lines, secs = big()
 	}
-	m := New(WithSize(120, 40), WithTimeMode(TimeRelative))
+	m := New(withKeys(tb), WithSize(120, 40), WithTimeMode(TimeRelative))
 	m.Focus()
 	m.SetLines(lines, secs)
 	m.ExpandAll()
@@ -71,7 +71,7 @@ func BenchmarkSetLines(b *testing.B) {
 	for _, l := range lines {
 		size += len(l.Text) + 1
 	}
-	m := New(WithSize(120, 40))
+	m := New(withKeys(b), WithSize(120, 40))
 	b.SetBytes(int64(size))
 	b.ReportAllocs()
 	for b.Loop() {
@@ -83,7 +83,7 @@ func BenchmarkSetLines(b *testing.B) {
 // left for Update.
 func BenchmarkSetLog(b *testing.B) {
 	lines, secs := big()
-	m := New(WithSize(120, 40))
+	m := New(withKeys(b), WithSize(120, 40))
 	l := m.Prepare(lines, secs)
 	b.ReportAllocs()
 	for b.Loop() {

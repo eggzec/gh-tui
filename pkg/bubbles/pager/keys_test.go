@@ -9,10 +9,10 @@ import (
 )
 
 func TestKeyMapComplete(t *testing.T) {
-	keytest.Complete(t, DefaultKeyMap())
-	keytest.Tagged(t, DefaultKeyMap())
-	keytest.HelpTags(t, DefaultKeyMap())
-	keytest.NoConflicts(t, DefaultKeyMap())
+	keytest.Complete(t, testKeys(t))
+	keytest.Tagged(t, testKeys(t))
+	keytest.HelpTags(t, testKeys(t))
+	keytest.NoConflicts(t, testKeys(t))
 }
 
 // Help lists every key in every state, and enables only those that act:
@@ -34,20 +34,20 @@ func TestHelpState(t *testing.T) {
 		t.Errorf("idle: %d enabled, want all but the four search keys: %q", len(got), got)
 	}
 	m, _ = keys(t, m, "/")
-	if got := enabled(m); !slices.Equal(got, []string{"enter active", "esc active"}) {
-		t.Errorf("searching: enabled %q, want enter and esc", got)
+	if got := enabled(m); !slices.Equal(got, []string{"↵ active", "esc active"}) {
+		t.Errorf("searching: enabled %q, want ↵ and esc", got)
 	}
 	m = typeText(t, m, "line")
 	m, _ = keys(t, m, "enter")
 	got := enabled(m)
-	for _, want := range []string{"esc active", "q conflict", "n active"} {
+	for _, want := range []string{"esc active", "q/esc conflict", "n active"} {
 		if !slices.Contains(got, want) {
 			t.Errorf("search shown: enabled %q, want %q", got, want)
 		}
 	}
 	m, _ = keys(t, m, "esc", "esc", "-")
-	if got := enabled(m); !slices.Equal(got, []string{"esc active"}) {
-		t.Errorf("option: enabled %q, want esc", got)
+	if got, want := enabled(m), []string{"S active", "N active", "s active", "i active", "I active", "esc active"}; !slices.Equal(got, want) {
+		t.Errorf("option: enabled %q, want %q", got, want)
 	}
 	m, _ = keys(t, m, "esc")
 	keytest.NoConflicts(t, m)

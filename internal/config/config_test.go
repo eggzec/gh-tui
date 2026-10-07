@@ -142,7 +142,7 @@ func TestLoadMergesOverDefaults(t *testing.T) {
 					},
 				}
 				c.Keys.Set(ActionQuit, []string{"Q"})
-				c.Keys.Set(ActionSearch, []string{"/", "ctrl+g"})
+				c.Keys.Set(ActionSearch, []string{"ctrl+k", "ctrl+o"})
 				c.Cache = Cache{
 					TTL: TTL{
 						Pulls: time.Minute, Issues: 2 * time.Minute, Notifications: 3 * time.Minute, Repos: 4 * time.Minute,
@@ -422,15 +422,15 @@ func TestScreenActions(t *testing.T) {
 	}
 
 	path := filepath.Join(t.TempDir(), "config.yaml")
-	if err := os.WriteFile(path, []byte("keys:\n  global:\n    notifications: [\"N\"]\n    pane_1: [\"P\"]\n"), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte("keys:\n  global:\n    notifications: [\"Y\"]\n    pane_1: [\"P\"]\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	cfg, _, err := loadBase(path)
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if got := cfg.Keys.Of(ActionNotifications); !slices.Equal(got, []string{"N"}) {
-		t.Errorf("notifications = %v, want [N]", got)
+	if got := cfg.Keys.Of(ActionNotifications); !slices.Equal(got, []string{"Y"}) {
+		t.Errorf("notifications = %v, want [Y]", got)
 	}
 	if got := cfg.Keys.Of(ActionPane1); !slices.Equal(got, []string{"P"}) {
 		t.Errorf("pane_1 = %v, want [P]", got)
@@ -526,15 +526,15 @@ func TestActionsModalActions(t *testing.T) {
 	}
 
 	path := filepath.Join(t.TempDir(), "config.yaml")
-	if err := os.WriteFile(path, []byte("keys:\n  actions:\n    rerun_failed: [\"E\"]\n    rerun: [\"ctrl+e\"]\n    cancel: [\"C\"]\n"), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte("keys:\n  actions:\n    rerun_failed: [\"ctrl+t\"]\n    rerun: [\"ctrl+e\"]\n    cancel: [\"C\"]\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	cfg, _, err := loadBase(path)
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if got := cfg.Keys.Of("actions.rerun_failed"); !slices.Equal(got, []string{"E"}) {
-		t.Errorf("rerun_failed = %v, want [E]", got)
+	if got := cfg.Keys.Of("actions.rerun_failed"); !slices.Equal(got, []string{"ctrl+t"}) {
+		t.Errorf("rerun_failed = %v, want [ctrl+t]", got)
 	}
 	if got := cfg.Keys.Of("actions.rerun"); !slices.Equal(got, []string{"ctrl+e"}) {
 		t.Errorf("rerun = %v, want [ctrl+e]", got)

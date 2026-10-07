@@ -1,6 +1,12 @@
 package pager
 
-import "charm.land/bubbles/v2/key"
+import (
+	"strings"
+
+	"charm.land/bubbles/v2/key"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+)
 
 // KeyMap holds the key bindings of a pager. It implements help.KeyMap.
 type KeyMap struct {
@@ -20,8 +26,11 @@ type KeyMap struct {
 	// S chops or wraps long lines, N shows or hides the line numbers, s
 	// squeezes runs of blank lines into one, i ignores case in searches
 	// unless the pattern has a capital, or matches it, and I ignores case
-	// always, or matches it. Esc then cancels it.
-	Option key.Binding `keymap:"option" help:"option: S N s i I"`
+	// always, or matches it. Esc then cancels it. NewKeyMap words the help
+	// from the keys of Options; the tag has its words with the default
+	// ones.
+	Option  key.Binding  `keymap:"option" help:"option: S N s i I"`
+	Options OptionKeyMap `keymap:"pager_option"`
 
 	// Search opens the search prompt, Confirm searches for the pattern
 	// typed, a regexp, or for the lines it doesn't match after a "!", and
@@ -49,46 +58,91 @@ type KeyMap struct {
 	// enables it only while it shows content.
 	Edit key.Binding `keymap:"edit" help:"edit"`
 
-	// Close asks the parent to close the pager with a [CloseMsg]. While a
-	// search is shown, a key bound to Cancel clears it first.
-	Close key.Binding `keymap:"global.quit" help:"close"`
+	// Quit and Dismiss both ask the parent to close the pager with a
+	// [CloseMsg]: quit as the app's quit key, and dismiss as its key for
+	// stepping back out of what is open. While a search is shown, a key
+	// bound to Cancel clears it first.
+	Quit    key.Binding `keymap:"global.quit" help:"close"`
+	Dismiss key.Binding `keymap:"global.dismiss" help:"close"`
 }
 
-// DefaultKeyMap returns the default key bindings, which follow less.
-func DefaultKeyMap() KeyMap {
-	return KeyMap{
-		Up:           key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("↑/k", "up")),
-		Down:         key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓/j", "down")),
-		PageUp:       key.NewBinding(key.WithKeys("b", "ctrl+b", "pgup"), key.WithHelp("b/^b", "page up")),
-		PageDown:     key.NewBinding(key.WithKeys("space", "ctrl+f", "pgdown"), key.WithHelp("space/^f", "page down")),
-		HalfPageUp:   key.NewBinding(key.WithKeys("ctrl+u"), key.WithHelp("^u", "½ page up")),
-		HalfPageDown: key.NewBinding(key.WithKeys("ctrl+d"), key.WithHelp("^d", "½ page down")),
-		Home:         key.NewBinding(key.WithKeys("home", "g"), key.WithHelp("g/home", "top")),
-		End:          key.NewBinding(key.WithKeys("end", "G"), key.WithHelp("G/end", "bottom")),
-		Left:         key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←/h", "left")),
-		Right:        key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "right")),
-		Option:       key.NewBinding(key.WithKeys("-"), key.WithHelp("-", "option: S N s i I")),
-		Search:       key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "search")),
-		Filter:       key.NewBinding(key.WithKeys("&"), key.WithHelp("&", "filter")),
-		Confirm:      key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "search"), key.WithDisabled()),
-		Cancel:       key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel"), key.WithDisabled()),
-		Next:         key.NewBinding(key.WithKeys("n"), key.WithHelp("n", "next match"), key.WithDisabled()),
-		Prev:         key.NewBinding(key.WithKeys("N"), key.WithHelp("N", "prev match"), key.WithDisabled()),
-		Edit:         key.NewBinding(key.WithKeys("v"), key.WithHelp("v", "edit")),
-		Close:        key.NewBinding(key.WithKeys("q", "esc"), key.WithHelp("q", "close")),
+// OptionKeyMap holds the keys that name an option, after the pager's
+// Option key. The pager enables them only while it waits for one.
+type OptionKeyMap struct {
+	// Chop chops or wraps long lines, and LineNumbers shows or hides the
+	// line numbers.
+	Chop        key.Binding `keymap:"chop" help:"chop or wrap long lines"`
+	LineNumbers key.Binding `keymap:"line_numbers" help:"line numbers"`
+	// Squeeze squeezes runs of blank lines into one.
+	Squeeze key.Binding `keymap:"squeeze" help:"squeeze blank lines"`
+	// SmartCase ignores case in searches unless the pattern has a
+	// capital, or matches it, and IgnoreCase ignores it always, or
+	// matches it.
+	SmartCase  key.Binding `keymap:"smart_case" help:"smart case"`
+	IgnoreCase key.Binding `keymap:"ignore_case" help:"ignore case"`
+	// Cancel chooses no option.
+	Cancel key.Binding `keymap:"cancel" help:"cancel"`
+}
+
+// NewKeyMap returns the key bindings that look gives, where an action is
+// named as the pager's own, such as "page_down", or as a context's, such
+// as "global.quit". A pager without a key map has no key bound.
+func NewKeyMap(look keymap.Lookup) KeyMap {
+	var k KeyMap
+	keymap.Fill(&k, look)
+	k.Confirm.SetEnabled(false)
+	k.Cancel.SetEnabled(false)
+	k.Next.SetEnabled(false)
+	k.Prev.SetEnabled(false)
+	k.Options.setEnabled(false)
+	if keys := k.Options.keysHelp(); keys != "" {
+		k.Option.SetHelp(k.Option.Help().Key, "option: "+keys)
+	} else {
+		k.Option.SetHelp(k.Option.Help().Key, "option")
+	}
+	return k
+}
+
+// keysHelp lists the keys that name an option, as help words them: the
+// ones that have a key.
+func (o OptionKeyMap) keysHelp() string {
+	var keys []string
+	for _, b := range []key.Binding{o.Chop, o.LineNumbers, o.Squeeze, o.SmartCase, o.IgnoreCase} {
+		if len(b.Keys()) > 0 {
+			keys = append(keys, b.Help().Key)
+		}
+	}
+	return strings.Join(keys, " ")
+}
+
+// setEnabled enables or disables every option key that has a key.
+func (o *OptionKeyMap) setEnabled(on bool) {
+	for _, b := range []*key.Binding{&o.Chop, &o.LineNumbers, &o.Squeeze, &o.SmartCase, &o.IgnoreCase, &o.Cancel} {
+		b.SetEnabled(on)
 	}
 }
 
+// Close returns the binding that stands for Quit and Dismiss in help, which
+// lists them as one row.
+func (k KeyMap) Close() key.Binding { return keymap.Join(k.Quit, k.Dismiss) }
+
 // ShortHelp returns the bindings for the short help view.
 func (k KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Search, k.Next, k.Prev, k.Close}
+	return []key.Binding{k.Search, k.Next, k.Prev, k.Close()}
 }
 
-// FullHelp returns the bindings for the full help view.
-func (k KeyMap) FullHelp() [][]key.Binding {
+// FullHelp returns the bindings for the full help view, every binding of
+// the key map once. The model's own full help, which is what help reads,
+// lists Quit and Dismiss as one row, [KeyMap.Close].
+func (k KeyMap) FullHelp() [][]key.Binding { return k.fullHelp(k.Quit, k.Dismiss) }
+
+// fullHelp returns the full help with closing as the bindings that close
+// the pager, listed together.
+func (k KeyMap) fullHelp(closing ...key.Binding) [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.PageUp, k.PageDown, k.HalfPageUp, k.HalfPageDown},
 		{k.Home, k.End, k.Left, k.Right, k.Option},
-		{k.Search, k.Filter, k.Confirm, k.Cancel, k.Next, k.Prev, k.Edit, k.Close},
+		{k.Options.Chop, k.Options.LineNumbers, k.Options.Squeeze, k.Options.SmartCase, k.Options.IgnoreCase, k.Options.Cancel},
+		append([]key.Binding{k.Search, k.Filter, k.Confirm, k.Cancel, k.Next, k.Prev, k.Edit}, closing...),
 	}
 }

@@ -7,20 +7,26 @@ always
 Search (types)
   up | up k | ↑/k | off
   down | down j | ↓/j | off
-  page up | b ctrl+b pgup | b/^b | off
-  page down | space ctrl+f pgdown | space/^f | off
+  page up | b ctrl+b pgup | b/^b/pgup | off
+  page down | space ctrl+f pgdown | space/^f/pgdn | off
   ½ page up | ctrl+u | ^u | off
   ½ page down | ctrl+d | ^d | off
-  top | home g | g/home | off
-  bottom | end G | G/end | off
+  top | g home | g/home | off
+  bottom | G end | G/end | off
   left | left h | ←/h | off
   right | right l | →/l | off
   option: S N s i I | - | - | off
+  chop or wrap long lines | S | S | off
+  line numbers | N | N | off
+  squeeze blank lines | s | s | off
+  smart case | i | i | off
+  ignore case | I | I | off
+  cancel | esc | esc | off
   search | / | / | off
   filter | & | & | off
-  search | enter | enter | on
+  search | enter | ↵ | on
   cancel | esc | esc | on
   next match | n | n | off
   prev match | N | N | off
   edit | v | v | off
-  close | q esc | q | off
+  close | q esc | q/esc | off

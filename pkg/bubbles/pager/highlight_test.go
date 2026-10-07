@@ -90,17 +90,17 @@ func settle(n int) int {
 // take long even to pick a lexer; only the command does.
 func TestUpdateNeverReachesChroma(t *testing.T) {
 	s := registerSpy(t)
-	m := New(WithSize(40, 5))
+	m := fresh(t, WithSize(40, 5))
 	m.Focus()
 	// Each in a pager of its own, so no content cancels another's
 	// command.
 	names := []string{"a.spy", "a.jsonata", "notes", "main.go"}
 	cmds := make([]tea.Cmd, 0, len(names)+1)
 	for _, name := range names {
-		p := New()
+		p := fresh(t)
 		cmds = append(cmds, p.SetContent(name, "\\\n"))
 	}
-	p := New()
+	p := fresh(t)
 	cmds = append(cmds, p.SetContentSyntax("a.go", "spy", "\\\n"))
 	highlight := m.SetContent("main.go", goSource)
 	if n := s.asked(); n != 0 {
@@ -132,7 +132,7 @@ func TestHostileFilesStayPlain(t *testing.T) {
 	before := runtime.NumGoroutine()
 	for _, name := range []string{"a.jsonata", "a.jungle", "a.spy", "notes", "notes.txt"} {
 		for _, text := range []string{"\\\n", "é\n", "\\é\n"} {
-			m := New(WithSize(40, 5))
+			m := fresh(t, WithSize(40, 5))
 			start := time.Now()
 			cmd := m.SetContent(name, text)
 			if d := time.Since(start); d > 50*time.Millisecond {
@@ -161,7 +161,7 @@ func TestHostileFilesStayPlain(t *testing.T) {
 // highlighted returns the pager with name and text and its tokens.
 func highlighted(t *testing.T, name, text string) Model {
 	t.Helper()
-	m := New(WithSize(40, 5))
+	m := fresh(t, WithSize(40, 5))
 	cmd := m.SetContent(name, text)
 	if cmd == nil {
 		t.Fatalf("%s: no command to highlight", name)
@@ -221,7 +221,7 @@ func TestMarkdownFencesStayPlain(t *testing.T) {
 	s := registerSpy(t)
 	before := runtime.NumGoroutine()
 	for _, lang := range []string{"jsonata", "jungle", "spy", "x.jsonata"} {
-		m := New()
+		m := fresh(t)
 		cmd := m.SetContent("README.md", "# Title\n\n```"+lang+"\n\\\n```\n")
 		if cmd() == nil {
 			t.Errorf("%s: the markdown isn't highlighted", lang)

@@ -378,7 +378,7 @@ func TestKeyLayers(t *testing.T) {
 		}
 		return strings.Join(out, ", ")
 	}
-	if got, want := names(), "↵ fold, * fold all, e next error, / search, q close, A annotations"; got != want {
+	if got, want := names(), "↵ fold, * fold all, e next error, / search, q/esc close, A annotations"; got != want {
 		t.Errorf("keys of the log %q, want %q", got, want)
 	}
 	keys(m, "A")

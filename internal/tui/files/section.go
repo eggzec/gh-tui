@@ -33,6 +33,8 @@ type Section struct {
 	ctx  context.Context
 	svc  Service
 	keys KeyMap
+	// rawKeys are the configured keys, for the pagers of the previews.
+	rawKeys config.Keymap
 
 	repo core.RepoRef
 	// host is the web host of the user's GitHub, for the links it opens.
@@ -102,6 +104,7 @@ func New(ctx context.Context, svc Service, keys config.Keymap, opts ...Option) *
 		ctx:         ctx,
 		svc:         svc,
 		keys:        newKeyMap(keys),
+		rawKeys:     keys,
 		styles:      tree.DefaultStyles(true),
 		icons:       ui.NewIcons(config.Default().UI.Icons),
 		voice:       ui.NewVoice(keys, ""),
@@ -373,7 +376,7 @@ func (s *Section) open(e core.TreeEntry, ret ui.Modal) tea.Cmd {
 	s.opened(e.Path)
 	q := s.blobQuery(e)
 	s.ahead.Opened(q)
-	p := newPreview(s.ctx, s.svc, s.host, s.repo, s.ref, e, s.keys.Open, s.voice, s.editor, s.icons, s.images, s.rawMarkdown)
+	p := newPreview(s.ctx, s.svc, s.host, s.repo, s.ref, e, s.keys.Open, s.rawKeys, s.voice, s.editor, s.icons, s.images, s.rawMarkdown)
 	p.ret = ret
 	// The app passes messages to a modal only once it is open, so the load
 	// starts after the modal opens.
@@ -434,7 +437,7 @@ func (s *Section) previewFile(msg ui.OpenFileMsg) tea.Cmd {
 	}
 	e := core.TreeEntry{Path: msg.Path, Name: path.Base(msg.Path), Type: core.EntryBlob, Mode: "100644", SHA: msg.SHA}
 	raw := s.rawMarkdown || msg.Find != "" || msg.Line > 0
-	p := newPreview(s.ctx, s.svc, s.host, msg.Repo, msg.Ref, e, s.keys.Open, s.voice, s.editor, s.icons, s.images, raw)
+	p := newPreview(s.ctx, s.svc, s.host, msg.Repo, msg.Ref, e, s.keys.Open, s.rawKeys, s.voice, s.editor, s.icons, s.images, raw)
 	p.find, p.line, p.ret = msg.Find, msg.Line, msg.Return
 	return tea.Sequence(ui.OpenModal(p), p.load())
 }

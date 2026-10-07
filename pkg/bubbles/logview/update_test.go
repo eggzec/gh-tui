@@ -189,7 +189,7 @@ func TestTimes(t *testing.T) {
 		{Time: start.Add(time.Hour + 2*time.Minute + 3*time.Second), Text: "three"},
 		{Time: start.Add(2 * time.Hour), Text: "four"},
 	}
-	m := New(WithSize(60, 7), WithLineNumbers(false))
+	m := New(withKeys(t), WithSize(60, 7), WithLineNumbers(false))
 	m.Focus()
 	m.SetLines(lines, []Section{{Title: "a", Start: 0, End: 1}, {Title: "b", Start: 1, End: 5}})
 	want := map[TimeMode][]string{
@@ -314,7 +314,7 @@ func TestSearchInput(t *testing.T) {
 }
 
 func TestAppend(t *testing.T) {
-	m := New(WithSize(40, 6))
+	m := New(withKeys(t), WithSize(40, 6))
 	m.Focus()
 	m.SetLines(numbered(3), []Section{{Title: "build", Start: 0, End: 3}})
 	m.Append(Line{Kind: Group, Text: "details"}, Line{Text: "hidden"})
@@ -335,7 +335,7 @@ func TestAppend(t *testing.T) {
 // A log that grows can start new sections, which end the one before, and
 // keeps the cursor and the folds of what it showed.
 func TestAppendSections(t *testing.T) {
-	m := New(WithSize(40, 10))
+	m := New(withKeys(t), WithSize(40, 10))
 	m.Focus()
 	m.SetLines(numbered(3), []Section{{Title: "setup", Start: 0, End: 1}, {Title: "build", Start: 1, End: 3}})
 	m, _ = keys(t, m, "j", "j", "enter", "k")
@@ -401,7 +401,7 @@ func TestAppendSearches(t *testing.T) {
 
 // Appending to a view that was never given lines starts a log.
 func TestAppendFirst(t *testing.T) {
-	m := New(WithSize(40, 4))
+	m := New(withKeys(t), WithSize(40, 4))
 	_ = m.SetLoading()
 	m.Append(plainLines("first")...)
 	if got := shownRows(m); !slices.Equal(got, []string{"first"}) {
@@ -426,7 +426,7 @@ func TestToggles(t *testing.T) {
 }
 
 func TestLoading(t *testing.T) {
-	m := New(WithSize(40, 4))
+	m := New(withKeys(t), WithSize(40, 4))
 	tick := m.SetLoading()
 	if tick == nil {
 		t.Fatal("SetLoading returned no command")
@@ -458,8 +458,8 @@ func TestHelp(t *testing.T) {
 			}
 		}
 	}
-	if !slices.Equal(enabled, []string{"enter", "esc"}) {
-		t.Errorf("full help while searching enables %q, want enter and esc", enabled)
+	if !slices.Equal(enabled, []string{"↵", "esc"}) {
+		t.Errorf("full help while searching enables %q, want ↵ and esc", enabled)
 	}
 }
 
@@ -485,7 +485,7 @@ func TestUpdatePaste(t *testing.T) {
 // as the gutter numbers it. While folds hide rows it gives the row among
 // those shown instead, so a folded log doesn't read as a few lines of many.
 func TestStatusCountsRowsShown(t *testing.T) {
-	m := New(WithSize(40, 6))
+	m := New(withKeys(t), WithSize(40, 6))
 	m.Focus()
 	m.SetLines(numbered(6), []Section{{Title: "setup", Start: 0, End: 3}, {Title: "build", Start: 3, End: 6}})
 	m.CollapseAll()

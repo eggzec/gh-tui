@@ -246,7 +246,7 @@ func markdownPreviewOf(t *testing.T, images *ui.Images, ref, readmeSource string
 	f.addTree(ghTUI, "assets-sha", file("a.png", 200))
 	f.addBlob(readme, readmeSource)
 	readme.Path = "docs/README.md"
-	p := newPreview(t.Context(), f, "", ghTUI, ref, readme, key.NewBinding(key.WithKeys("o")), ui.Voice{}, "", ui.NewIcons(""), images, false)
+	p := newPreview(t.Context(), f, "", ghTUI, ref, readme, key.NewBinding(key.WithKeys("o")), config.Default().Keys, ui.Voice{}, "", ui.NewIcons(""), images, false)
 	p.SetTheme(testTheme())
 	p.SetSize(60, 40)
 	b, err := f.Blob(t.Context(), filesvc.BlobQuery{Repo: ghTUI, SHA: readme.SHA})
@@ -355,7 +355,7 @@ func TestPreviewMarkdownLookUpFails(t *testing.T) {
 	f.errs[treeKey(ghTUI, "img-sha")] = errors.New("502 Bad Gateway")
 	f.addBlob(readme, readmeSource)
 	readme.Path = "docs/README.md"
-	p := newPreview(t.Context(), f, "", ghTUI, "", readme, key.NewBinding(key.WithKeys("o")), ui.Voice{}, "", ui.NewIcons(""), images, false)
+	p := newPreview(t.Context(), f, "", ghTUI, "", readme, key.NewBinding(key.WithKeys("o")), config.Default().Keys, ui.Voice{}, "", ui.NewIcons(""), images, false)
 	p.SetTheme(testTheme())
 	p.SetSize(60, 40)
 	b, _ := f.Blob(t.Context(), filesvc.BlobQuery{Repo: ghTUI, SHA: readme.SHA})
@@ -409,7 +409,7 @@ func TestPreviewMarkdownBusy(t *testing.T) {
 	src := &uitest.ImageHost{}
 	images := uitest.Avatars(src, true)
 	images.SetMaxRows(2)
-	p := newPreview(t.Context(), f, "", ghTUI, "", readme, key.NewBinding(key.WithKeys("o")), ui.Voice{}, "", ui.NewIcons(""), images, false)
+	p := newPreview(t.Context(), f, "", ghTUI, "", readme, key.NewBinding(key.WithKeys("o")), config.Default().Keys, ui.Voice{}, "", ui.NewIcons(""), images, false)
 	p.SetTheme(testTheme())
 	p.SetSize(60, 40)
 	b, _ := f.Blob(t.Context(), filesvc.BlobQuery{Repo: ghTUI, SHA: readme.SHA})

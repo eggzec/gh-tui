@@ -748,6 +748,30 @@ keys:
   # focus between the two.
   pull_check_log:
     annotations: [A]
+    up: [up, k]
+    down: [down, j]
+    left: [left, h]
+    right: [right, l]
+    page_up: [b, ctrl+b, pgup]
+    page_down: [space, ctrl+f, pgdown]
+    half_page_up: [ctrl+u]
+    half_page_down: [ctrl+d]
+    top: [g, home]
+    bottom: [G, end]
+    expand: ["+"]
+    collapse: ["-"]
+    expand_all: ["*"]
+    next_error: [e]
+    prev_error: [E]
+    next_warning: [w]
+    prev_warning: [W]
+    wrap: [s]
+    times: [t]
+    line_numbers: ["#"]
+    follow: [F]
+    find: [/]
+    next_match: [n]
+    prev_match: [N]
   pull_check_annotations:
     up: [up, k]
     down: [down, j]
@@ -759,6 +783,14 @@ keys:
     reopen: [X]
     comment: [c]
     labels: [l]
+    up: [up, k]
+    down: [down, j]
+    page_up: [b, ctrl+b, pgup]
+    page_down: [space, ctrl+f, pgdown]
+    half_page_up: [ctrl+u]
+    half_page_down: [ctrl+d]
+    top: [g, home]
+    bottom: [G, end]
 
   # The History modal, on any of its panes.
   history:
@@ -834,12 +866,151 @@ keys:
   actions_log:
     rerun_job: [J]
     annotations: [A]
+    up: [up, k]
+    down: [down, j]
+    left: [left, h]
+    right: [right, l]
+    page_up: [b, ctrl+b, pgup]
+    page_down: [space, ctrl+f, pgdown]
+    half_page_up: [ctrl+u]
+    half_page_down: [ctrl+d]
+    top: [g, home]
+    bottom: [G, end]
+    expand: ["+"]
+    collapse: ["-"]
+    expand_all: ["*"]
+    next_error: [e]
+    prev_error: [E]
+    next_warning: [w]
+    prev_warning: [W]
+    wrap: [s]
+    times: [t]
+    line_numbers: ["#"]
+    follow: [F]
+    find: [/]
+    next_match: [n]
+    prev_match: [N]
   # Actions: the annotations of a job, with the same keys as its log.
   actions_annotations:
     up: [up, k]
     down: [down, j]
     rerun_job: [J]
     annotations: [A]
+
+  # The readers: the keys that scroll and search a text, in the modals
+  # and panes that show one.
+  # A file shown in full, from the tree, the finder, a code search hit or
+  # an annotation.
+  preview:
+    up: [up, k]
+    down: [down, j]
+    left: [left, h]
+    right: [right, l]
+    page_up: [b, ctrl+b, pgup]
+    page_down: [space, ctrl+f, pgdown]
+    half_page_up: [ctrl+u]
+    half_page_down: [ctrl+d]
+    top: [g, home]
+    bottom: [G, end]
+    option: ["-"]
+    find: [/]
+    quick_filter: ["&"]
+    next_match: [n]
+    prev_match: [N]
+    edit: [v]
+  # The text that :config and :images show.
+  text:
+    up: [up, k]
+    down: [down, j]
+    left: [left, h]
+    right: [right, l]
+    page_up: [b, ctrl+b, pgup]
+    page_down: [space, ctrl+f, pgdown]
+    half_page_up: [ctrl+u]
+    half_page_down: [ctrl+d]
+    top: [g, home]
+    bottom: [G, end]
+    option: ["-"]
+    find: [/]
+    quick_filter: ["&"]
+    next_match: [n]
+    prev_match: [N]
+    edit: [v]
+  # History: the patch of a file.
+  history_patch:
+    up: [up, k]
+    down: [down, j]
+    left: [left, h]
+    right: [right, l]
+    page_up: [b, ctrl+b, pgup]
+    page_down: [space, ctrl+f, pgdown]
+    half_page_up: [ctrl+u]
+    half_page_down: [ctrl+d]
+    top: [g, home]
+    bottom: [G, end]
+    option: ["-"]
+    find: [/]
+    quick_filter: ["&"]
+    next_match: [n]
+    prev_match: [N]
+    edit: [v]
+  # The page of a user or an organization: the README, which scrolls and
+  # leaves the rest of a pager's keys to the full pagers.
+  owner_readme:
+    up: [up, k]
+    down: [down, j]
+    page_up: [b, ctrl+b, pgup]
+    page_down: [space, ctrl+f, pgdown]
+    half_page_up: [ctrl+u]
+    half_page_down: [ctrl+d]
+    top: [g, home]
+    bottom: [G, end]
+  # The modal of a pull request: the conversation.
+  pull_conversation:
+    up: [up, k]
+    down: [down, j]
+    page_up: [b, ctrl+b, pgup]
+    page_down: [space, ctrl+f, pgdown]
+    half_page_up: [ctrl+u]
+    half_page_down: [ctrl+d]
+    top: [g, home]
+    bottom: [G, end]
+  # The modal of a release.
+  release_modal:
+    up: [up, k]
+    down: [down, j]
+    page_up: [b, ctrl+b, pgup]
+    page_down: [space, ctrl+f, pgdown]
+    half_page_up: [ctrl+u]
+    half_page_down: [ctrl+d]
+    top: [g, home]
+    bottom: [G, end]
+  # Checks: what an app reported.
+  pull_check_detail:
+    up: [up, k]
+    down: [down, j]
+    left: [left, h]
+    right: [right, l]
+    page_up: [b, ctrl+b, pgup]
+    page_down: [space, ctrl+f, pgdown]
+    half_page_up: [ctrl+u]
+    half_page_down: [ctrl+d]
+    top: [g, home]
+    bottom: [G, end]
+
+  # What the search prompt of a pager or a log takes: enter searches, and
+  # esc closes it.
+  search_prompt:
+    run: [enter]
+    cancel: [esc]
+  # What names an option after a pager's option key, as less's - does.
+  pager_option:
+    chop: [S]
+    line_numbers: [N]
+    squeeze: [s]
+    smart_case: [i]
+    ignore_case: [I]
+    cancel: [esc]
 
 # Named palettes, each with a variant for light and dark terminals. A
 # theme you add needs every colour of both variants; to change the default

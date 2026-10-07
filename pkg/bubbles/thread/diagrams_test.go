@@ -23,7 +23,7 @@ func withDiagrams(tb testing.TB, body string, comments []comment, width, height 
 	render := func(c comment, width int) string {
 		return "  @" + c.author + "\n" + markdown.Indent(md(c.body, markdown.Room(width, 4)), "  ")
 	}
-	m := New(src.fetch, render, WithSize(width, height), WithFocused(true))
+	m := New(src.fetch, render, WithKeyMap(testKeys()), WithSize(width, height), WithFocused(true))
 	md = func(s string, w int) string { return m.Markdown(s, w) }
 	return drain(tb, m, m.SetDocument("Title", body))
 }
