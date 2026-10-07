@@ -64,7 +64,7 @@ func (m *Model) dropHeight() int {
 	rows := m.dropItems
 	if m.kind() == Person {
 		// What the user types and finds is listed too, with the typed item.
-		rows = max(rows+2, 1)
+		rows = max(rows+1, 1)
 		if m.spec.Fields[m.row].Load != nil {
 			rows = dropRows
 		}

@@ -15,7 +15,7 @@ Filter
   toggle | space | space | off
   insert | i | i | on
   append | a | a | on
-  clear | delete backspace | delete | on
+  clear | delete backspace | delete | off
   apply | enter | ↵ | on
   close | esc | esc | on
   close | q | q | on

@@ -454,3 +454,43 @@ func TestFilterModalFitsTheQuery(t *testing.T) {
 		t.Errorf("a wrapping query: Fit height = %d, want %d", long, short+1)
 	}
 }
+
+// A last-row dropdown gets the room for all it shows when the modal is
+// sized as the app sizes it: eight languages, and the typed login of a
+// person list with one option.
+func TestFilterModalRoomForTheLastRow(t *testing.T) {
+	fields := make([]filterform.Field, 0, 6)
+	for _, n := range []string{"Name", "Visibility", "Forks", "Archived", "Templates"} {
+		fields = append(fields, filterform.Field{Key: n, Label: n, Kind: filterform.Text, Qualifier: n})
+	}
+	langs := make([]filterform.Item, 12)
+	for i := range langs {
+		langs[i] = filterform.Item{Label: fmt.Sprint("Lang", i), Value: fmt.Sprint("lang", i)}
+	}
+	tests := []struct {
+		name  string
+		last  filterform.Field
+		keys  []string
+		items int
+		want  string
+	}{
+		{"language", filterform.Field{Key: "language", Label: "Language", Kind: filterform.Choice, Qualifier: "language", Options: langs}, []string{"space"}, 8, "Lang7"},
+		{"actor", filterform.Field{Key: "actor", Label: "Actor", Kind: filterform.Person, Qualifier: "actor", Options: []filterform.Item{{Label: "@me", Value: "@me"}}}, []string{"space", "i", "z", "z"}, 1, `use "zz"`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			spec := filterform.Spec{Fields: append(slices.Clone(fields), tt.last)}
+			m := NewFilterModal(t.Context(), "Dashboard", &fakeFilterable{}, Filter{Spec: spec})
+			m.SetSize(100, 24)
+			send(m, "j", "j", "j", "j", "j")
+			send(m, tt.keys...)
+			w, h := m.Fit(100, 40)
+			m.SetSize(w, h)
+			v := ansi.Strip(m.View())
+			n := strings.Count(v, "● ") + strings.Count(v, "○ ")
+			if n != tt.items || !strings.Contains(v, tt.want) {
+				t.Errorf("%d items show, want %d with %q:\n%s", n, tt.items, tt.want, v)
+			}
+		})
+	}
+}

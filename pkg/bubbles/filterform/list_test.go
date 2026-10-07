@@ -76,6 +76,7 @@ func TestListOfSortAndOrder(t *testing.T) {
 	}
 }
 
+// A checklist's value follows its checks at once.
 func TestChecklistToggleLive(t *testing.T) {
 	f := &fakeLoader{}
 	m := open(t, prSpec(f.load))
@@ -83,9 +84,14 @@ func TestChecklistToggleLive(t *testing.T) {
 	if got := m.Query(); !strings.Contains(got, "label:bug,enhancement,docs") {
 		t.Errorf("Query = %q, want docs checked at once", got)
 	}
+	// Esc undoes what was checked since the list opened, enter keeps it.
 	m, _ = press(t, m, esc)
+	if got := m.Query(); strings.Contains(got, "docs") || m.mode != rowsMode {
+		t.Errorf("Query = %q, mode %v; want esc to undo it", got, m.mode)
+	}
+	m, _ = press(t, m, space, keyJ, keyJ, space, enter)
 	if got := m.Query(); !strings.Contains(got, "label:bug,enhancement,docs") || m.mode != rowsMode {
-		t.Errorf("Query = %q, mode %v; want esc to keep it", got, m.mode)
+		t.Errorf("Query = %q, mode %v; want enter to keep it", got, m.mode)
 	}
 }
 
@@ -425,31 +431,106 @@ func TestListHostileLabels(t *testing.T) {
 	}
 }
 
-// DropdownExtra grows only as far as the dropdown needs.
+// items counts the options a view shows, by their radio or check marks.
+func items(v string) int {
+	n := 0
+	for l := range strings.SplitSeq(v, "\n") {
+		if strings.Contains(l, "● ") || strings.Contains(l, "○ ") || strings.Contains(l, "[x] ") || strings.Contains(l, "[ ] ") {
+			n++
+		}
+	}
+	return n
+}
+
+// DropdownExtra gives a parent that sizes the form as the modal does, with
+// the height of its rows, the rule, the query and the help line, room for
+// all the items the dropdown shows.
 func TestDropdownExtra(t *testing.T) {
 	f := &fakeLoader{}
-	m := open(t, prSpec(f.load), WithSize(80, 10))
-	if got := m.DropdownExtra(6, 80); got != 0 {
-		t.Errorf("extra = %d with no list open, want 0", got)
+	for _, tt := range []struct {
+		name  string
+		spec  func() Spec
+		keys  []tea.Msg
+		items int
+	}{
+		{"labels", func() Spec { return prSpec(f.load) }, keys2(down, rowLabels, space), len(labels)},
+		{"last row", func() Spec { return lastChoiceSpec(nil) }, []tea.Msg{keyBigG, keyK, space}, 5},
+		{"language", func() Spec { return languageSpec(nil) }, []tea.Msg{space}, dropRows},
+		{"dashboard language", func() Spec {
+			s := languageSpec(nil)
+			fields := make([]Field, 0, 6)
+			for _, n := range []string{"Name", "Visibility", "Forks", "Archived", "Templates"} {
+				fields = append(fields, Field{Key: n, Label: n, Kind: Text, Qualifier: n})
+			}
+			fields = append(fields, s.Fields[0])
+			s.Fields = fields
+			return s
+		}, keys2(down, 5, space), dropRows},
+		{"language last", func() Spec {
+			s := languageSpec(nil)
+			s.Fields[0], s.Fields[1] = s.Fields[1], s.Fields[0]
+			return s
+		}, []tea.Msg{down, space}, dropRows},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			spec := tt.spec()
+			rows := len(spec.Fields)
+			m := open(t, spec, WithSize(80, 10), WithTabBar(false))
+			if got := m.DropdownExtra(rows, 80); got != 0 {
+				t.Errorf("extra = %d with no list open, want 0", got)
+			}
+			m, _ = press(t, m, tt.keys...)
+			extra := m.DropdownExtra(rows, 80)
+			h := rows + 2 + m.QueryLines(80) + extra
+			m.SetSize(80, h)
+			if got := items(view(m)); got != tt.items {
+				t.Errorf("%d items show in a form of %d lines, want %d:\n%s", got, h, tt.items, view(m))
+			}
+			if more := m.DropdownExtra(rows+extra, 80); more != 0 {
+				t.Errorf("extra = %d with the room given, want 0", more)
+			}
+		})
 	}
-	m, _ = press(t, m, down, down, down, space)
-	extra := m.DropdownExtra(6, 80)
-	if extra <= 0 {
-		t.Fatalf("extra = %d for the labels' checklist in 6 rows, want some", extra)
+}
+
+// A second enter reaches the form before the commands of the first have
+// run, and applies; the first chose the person at once.
+func TestPersonEnterIsSynchronous(t *testing.T) {
+	m := open(t, prSpec(nil))
+	m, _ = press(t, m, down, space, keyJ)
+	m, c1 := m.Update(enter)
+	if v, _ := m.Value("author"); v.Text() != "octocat" || m.mode != rowsMode {
+		t.Fatalf("author = %q, mode %v after one enter; want the person chosen and the list closed", v.Text(), m.mode)
 	}
-	// With that many lines more, the box fits under its row.
-	big := open(t, prSpec(f.load), WithSize(80, 10+extra))
-	big, _ = press(t, big, down, down, down, space)
-	if lines := strings.Split(view(big), "\n"); !strings.Contains(strings.Join(lines, "\n"), "╰") {
-		t.Errorf("the box is cut with the extra lines:\n%s", view(big))
+	m, c2 := m.Update(enter)
+	_, sent := run(t, m, tea.Batch(c1, c2))
+	if len(sent) != 1 {
+		t.Fatalf("sent %v, want one AppliedMsg", sent)
 	}
-	if more := big.DropdownExtra(6+extra, 80); more != 0 {
-		t.Errorf("extra = %d with the room given, want 0", more)
+	if a, ok := sent[0].(AppliedMsg); !ok || a.Values["author"].Text() != "octocat" {
+		t.Errorf("sent %+v, want the form applied with octocat", sent[0])
 	}
-	// The first row of a short list fits at once.
-	s := open(t, prSpec(nil))
-	s, _ = press(t, s, space)
-	if got := s.DropdownExtra(6, 80); got != 0 {
-		t.Errorf("extra = %d for a short list under the first row, want 0", got)
+	// Enter and then esc: esc closes the form, it isn't taken by the list.
+	n := open(t, prSpec(nil))
+	n, _ = press(t, n, down, space, keyI)
+	n = typeText(t, n, "hubot")
+	n, c1 = n.Update(enter)
+	n, c2 = n.Update(esc)
+	_, sent = run(t, n, tea.Batch(c1, c2))
+	if v, _ := n.Value("author"); v.Text() != "hubot" || len(sent) != 1 {
+		t.Errorf("author = %q, sent %v; want hubot and the form closed", v.Text(), sent)
+	}
+	if _, ok := sent[0].(CancelMsg); !ok {
+		t.Errorf("sent %+v, want a CancelMsg", sent[0])
+	}
+}
+
+// With the group headers off, the typed item has none in the people list.
+func TestPersonListHasNoTypedHeader(t *testing.T) {
+	m := open(t, prSpec(nil), WithSize(80, 14))
+	m, _ = press(t, m, down, space, keyI)
+	m = typeText(t, m, "hubot")
+	if v := view(m); strings.Contains(v, "Typed") || !strings.Contains(v, `use "hubot"`) {
+		t.Errorf("the typed item has a header, or is missing:\n%s", v)
 	}
 }

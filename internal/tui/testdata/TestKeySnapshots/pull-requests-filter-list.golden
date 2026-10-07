@@ -27,7 +27,7 @@ Filter
   up | up ctrl+p | ↑ | off
   down | down ctrl+n | ↓ | off
   toggle | space | space | off
-  clear | delete backspace | delete | on
+  clear | delete backspace | delete | off
   choose | enter | ↵ | on
   close | esc | esc | on
   up | up ctrl+p | ↑/ctrl+p | off

@@ -70,6 +70,10 @@ func (m *Model) openList() tea.Cmd {
 		return nil
 	}
 	m.mode = listMode
+	if kind == listMulti {
+		// Esc puts back what the checklist had when it opened.
+		m.before = m.state.values[m.row].clone()
+	}
 	if kind == listMulti || kind == listPerson {
 		i := m.row
 		if m.spec.Fields[i].Load != nil && m.fields[i].state != loaded {
@@ -84,9 +88,9 @@ func (m *Model) openList() tea.Cmd {
 }
 
 // closeEditor leaves insert mode or closes an open dropdown, keeping what
-// was typed or chosen, or putting back the value a Text field had. What a
-// dropdown chose stays either way: a list changes its value only when it
-// chooses, and a checklist as it checks.
+// was typed or chosen, or, without keep, putting back the value a Text
+// field or a checklist had when it opened. A list changes its value only
+// when it chooses, so it has nothing to put back.
 func (m *Model) closeEditor(keep bool) {
 	switch m.mode {
 	case rowsMode:
@@ -103,6 +107,9 @@ func (m *Model) closeEditor(keep bool) {
 			m.setValue(m.row, m.before)
 		}
 	case listMode:
+		if !keep && m.tab == FiltersTab && m.kind() == Multi {
+			m.setValue(m.row, m.before)
+		}
 	}
 	m.mode, m.picking = rowsMode, false
 	m.pick = picker.Model{}
@@ -110,16 +117,16 @@ func (m *Model) closeEditor(keep bool) {
 }
 
 // pressList handles a key while a dropdown is open or waits for its
-// options. The keys that act on the form, those that close, retry and
-// switch tabs, are looked for first, unless the filter takes the letters;
-// the rest go to the picker, which says what it chose in a message.
+// options. The keys that act on the form, those that choose, close, retry
+// and switch tabs, are looked for first, unless the filter takes the
+// letters; the rest go to the picker, which moves and filters.
 func (m *Model) pressList(msg tea.KeyPressMsg) tea.Cmd {
 	k := m.keys
 	typing := m.picking && m.pick.Typing()
 	switch {
 	case typing:
 		if key.Matches(msg, k.List.Choose) {
-			return m.chooseHighlighted(msg)
+			return m.chooseHighlighted()
 		}
 		return m.typeIn(msg)
 	case key.Matches(msg, k.Quit):
@@ -134,7 +141,7 @@ func (m *Model) pressList(msg tea.KeyPressMsg) tea.Cmd {
 		// The options are loading or failed to.
 		switch {
 		case key.Matches(msg, k.List.Cancel):
-			m.closeEditor(true)
+			m.closeEditor(false)
 		case key.Matches(msg, k.Retry) && m.tab == FiltersTab && m.fields[m.row].state == failed:
 			return m.load(m.row)
 		}
@@ -146,54 +153,40 @@ func (m *Model) pressList(msg tea.KeyPressMsg) tea.Cmd {
 		m.clearList()
 		return nil
 	case key.Matches(msg, k.List.Choose):
-		return m.chooseHighlighted(msg)
+		return m.chooseHighlighted()
 	case key.Matches(msg, k.List.Cancel):
-		m.closeEditor(true)
+		m.closeEditor(false)
 		return nil
 	}
 	return m.typeIn(msg)
 }
 
-// chooseHighlighted handles the key that chooses. A list the form holds
-// itself chooses the highlighted item at once, so that the keys that follow
-// find the dropdown closed, rather than when the picker's message comes
-// back. A Person's is the picker's to choose, since its results may be on
-// their way, and what is highlighted isn't what enter chooses then; the
-// form takes the text typed when the search failed.
-func (m *Model) chooseHighlighted(msg tea.KeyPressMsg) tea.Cmd {
-	if m.kind() == Person {
-		if m.chooseTyped() {
-			return nil
-		}
-		return m.typeIn(msg)
+// chooseHighlighted handles the key that chooses: it chooses the
+// highlighted item at once, so that the keys that follow find the dropdown
+// closed. A Person takes what was typed instead while its search runs or
+// failed, since the list isn't what enter chooses then, and when the
+// highlighted item is the typed one.
+func (m *Model) chooseHighlighted() tea.Cmd {
+	text := login(m.pick.Query().Text)
+	if m.kind() == Person && text != "" && (m.pick.Loading() || m.pick.Err() != nil) {
+		m.chooseText(text)
+		return nil
 	}
 	if it, ok := m.pick.Selected(); ok {
 		return m.chosen(it)
 	}
+	if m.kind() == Person && text != "" {
+		m.chooseText(text)
+	}
 	return nil
-}
-
-// chooseTyped chooses what was typed in a Person's filter when the search
-// for people failed, since the picker doesn't offer it then, and reports
-// whether it did.
-func (m *Model) chooseTyped() bool {
-	if m.kind() != Person || m.pick.Err() == nil {
-		return false
-	}
-	text := login(m.pick.Query().Text)
-	if text == "" {
-		return false
-	}
-	m.chooseText(text)
-	return true
 }
 
 // login returns what the user typed as a login: on one line, and trimmed.
 func login(text string) string { return strings.TrimSpace(termtext.OneLine(text)) }
 
-// chosen handles what the open dropdown's picker chose: a list or a Person
-// takes the item and closes, and a checklist checks the highlighted item
-// and closes, or, in its filter, checks it and returns to the list.
+// chosen handles the item chosen in the open dropdown: a list or a Person
+// takes it and closes, and a checklist checks the highlighted item and
+// closes, or, in its filter, checks it and returns to the list.
 func (m *Model) chosen(it picker.Item) tea.Cmd {
 	kind, _ := m.listOf()
 	value, _ := it.Value.(string)
@@ -228,9 +221,10 @@ func (m *Model) chooseText(text string) {
 // chosenMulti handles enter in a checklist. In the list, enter closes it
 // and doesn't leave the highlighted item out: it checks it, unless it is
 // checked, or space just acted on it, so that unchecking an item and
-// pressing enter doesn't check it again. In the filter, enter flips the
+// pressing enter doesn't check it again. In the filter, enter checks the
 // item, empties the filter and goes back to the list, so that the next
-// item can be filtered for.
+// item can be filtered for. Enter in the filter only adds: it never
+// unchecks.
 func (m *Model) chosenMulti(value string) tea.Cmd {
 	if !m.pick.Typing() {
 		if value != m.toggled {
@@ -239,7 +233,7 @@ func (m *Model) chosenMulti(value string) tea.Cmd {
 		m.closeEditor(true)
 		return nil
 	}
-	m.checkHighlighted(true)
+	m.checkHighlighted(false)
 	cmd := m.pick.Reset()
 	m.pick.Focus()
 	m.pick.Select(value)
@@ -282,15 +276,17 @@ func (m *Model) doneWord() string {
 
 // clearList handles the clear key in a dropdown. A list chooses its empty
 // option and closes, where it has one; a checklist unchecks every item and
-// stays open.
+// stays open, and enter then closes it without adding the highlighted item,
+// as it does after space.
 func (m *Model) clearList() {
-	multi := m.kind() == Multi
-	if !multi && !m.canClear() {
+	if !m.canClear() {
 		return
 	}
+	multi := m.kind() == Multi
 	m.remove()
 	if multi {
-		m.toggled = ""
+		it, _ := m.pick.Selected()
+		m.toggled, _ = it.Value.(string)
 		m.pick.SetMarked(nil)
 		return
 	}

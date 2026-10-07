@@ -238,7 +238,11 @@ func TestMultiEditor(t *testing.T) {
 			keys: []tea.Msg{down, down, space, down, space, up, enter},
 			want: []string{"bug", "enhancement", "docs", "good first issue"},
 		},
-		{name: "esc keeps what space checked", keys: []tea.Msg{down, down, space, esc}, want: []string{"bug", "enhancement", "docs"}},
+		{name: "esc undoes what space checked", keys: []tea.Msg{down, down, space, esc}, want: []string{"bug", "enhancement"}},
+		{name: "enter keeps what space checked", keys: []tea.Msg{down, down, space, enter}, want: []string{"bug", "enhancement", "docs"}},
+		{name: "esc undoes a clear", keys: []tea.Msg{del, esc}, want: []string{"bug", "enhancement"}},
+		{name: "enter after a clear adds nothing", keys: []tea.Msg{del, enter}, want: nil},
+		{name: "enter after a clear and a move adds the item", keys: []tea.Msg{del, keyJ, enter}, want: []string{"enhancement"}},
 		{name: "esc leaves the highlighted item", keys: []tea.Msg{down, down, esc}, want: []string{"bug", "enhancement"}},
 	}
 	for _, tt := range tests {

@@ -276,7 +276,7 @@ func (m *Model) listHints() []hint {
 	if m.pick.KeyMap().Normal.Insert.Enabled() {
 		out = append(out, h(relabel(k.List.Normal.Insert, "filter"), rankChange))
 	}
-	if multi || m.canClear() {
+	if m.canClear() {
 		out = append(out, h(k.ListClear, rankClear))
 	}
 	choose := relabel(k.List.Choose, "choose")
@@ -351,7 +351,7 @@ func (m Model) FullHelp() [][]key.Binding {
 		if m.kind() == Multi {
 			on = append(on, &k.ListToggle)
 		}
-		if m.kind() == Multi || m.canClear() {
+		if m.canClear() {
 			on = append(on, &k.ListClear)
 		}
 	case m.mode == listMode && m.tab == FiltersTab && m.fields[m.row].state == failed:

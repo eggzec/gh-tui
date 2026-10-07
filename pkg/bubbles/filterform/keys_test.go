@@ -36,7 +36,9 @@ func TestFullHelpState(t *testing.T) {
 		load, fail, block bool
 	}{
 		{name: "choice row", want: with("h", "l", "space", "delete")},
-		{name: "toggle row", keys: keys(down, rowDrafts), want: with("h", "l", "space", "delete")},
+		{name: "toggle row", keys: keys(down, rowDrafts), want: with("h", "l", "space")},
+		{name: "toggle row on", keys: append(keys(down, rowDrafts), space), want: with("h", "l", "space", "delete")},
+		{name: "choice row at its empty option", opts: []Option{WithQuery("")}, want: with("h", "l", "space")},
 		{name: "person row", keys: keys(down, rowAuthor), want: with("space", "delete")},
 		{name: "multi row", keys: keys(down, rowLabels), want: with("space", "delete")},
 		{name: "text row", keys: keys(down, rowBase), want: with("i", "a", "delete")},

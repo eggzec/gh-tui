@@ -6,14 +6,12 @@ import (
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
-
-	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
 )
 
 // Update handles keys and pastes while focused, the form's own loads and
-// spinner ticks, what an open dropdown's picker chooses or closes with, and
-// passes the rest to the picker. It ignores messages meant for other
-// forms.
+// spinner ticks, and passes the rest to an open dropdown's picker, which
+// takes its own search results and ticks. It ignores messages meant for
+// other forms.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case loadedMsg:
@@ -50,29 +48,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		cmd := m.typeIn(msg)
 		m.render()
 		return m, cmd
-	case picker.ChosenMsg:
-		if !m.owns(msg.ID) {
-			return m, nil
-		}
-		m.fields = slices.Clone(m.fields)
-		cmd := m.chosen(msg.Item)
-		m.render()
-		return m, cmd
-	case picker.CancelMsg:
-		if !m.owns(msg.ID) {
-			return m, nil
-		}
-		m.closeEditor(true)
-		m.render()
-		return m, nil
 	}
 	cmd := m.passToPicker(msg)
 	return m, cmd
-}
-
-// owns reports whether id is the ID of the picker of the open dropdown.
-func (m *Model) owns(id int64) bool {
-	return m.mode == listMode && m.picking && id == m.pick.ID()
 }
 
 // passToPicker hands msg to the open picker, which takes its own search
@@ -299,18 +277,21 @@ func (m *Model) toggle() tea.Cmd {
 }
 
 // canClear reports whether the clear key acts on the row in focus: on a
-// field that can be empty, and on the Sort tab's "sort by" when one of its
-// options writes no sort. A choice with no empty option, an order and the
-// query line have nothing to clear.
+// field that can be empty and isn't, and on the Sort tab's "sort by" when
+// one of its options writes no sort and another is in force. A choice with
+// no empty option, an order and the query line have nothing to clear.
 func (m *Model) canClear() bool {
 	if m.tab == SortTab {
-		return m.row == sortByRow && m.spec.Sort != nil && m.spec.Sort.index("") >= 0
+		return m.row == sortByRow && m.spec.Sort != nil && m.spec.Sort.index("") >= 0 && m.state.sort.By != ""
 	}
 	if m.row >= len(m.spec.Fields) {
 		return false
 	}
 	f := &m.spec.Fields[m.row]
-	return f.Kind != Choice || f.Parse != nil || hasEmpty(f.Options)
+	if f.Kind == Choice && f.Parse == nil && !hasEmpty(f.Options) {
+		return false
+	}
+	return !m.state.values[m.row].IsZero()
 }
 
 // remove clears the field in focus, if it can be empty. On the Sort tab it
