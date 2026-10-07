@@ -491,9 +491,11 @@ keys:
     # shows the dashboard.
     owner: ["@"]
     # Show the repository of what is selected: of a result of the search, a
-    # row of the dashboard's Repositories, or a notification. It does
-    # nothing on a screen that has no repository to show, or where the
-    # selection is the repository on view.
+    # pinned card, a row of the dashboard's Repositories, a task of its
+    # Work or a notification of its inbox or of the notifications screen,
+    # a row of the page of a user or an organization, or the repository
+    # its README comes from. It does nothing where nothing is selected,
+    # the selection has no repository, or it is the repository on view.
     repo: ["."]
     # Open the file finder of the repository screen, which finds a file by
     # some letters of its path. ctrl+p is the key of editors.

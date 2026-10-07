@@ -22,6 +22,13 @@ func (m *Model) openCommand(arg string) tea.Cmd {
 	if arg == "" {
 		return m.press(config.ActionOpen)
 	}
+	if strings.TrimSpace(arg) == "." {
+		here, why := m.hereRepo()
+		if why != nil {
+			return why
+		}
+		return ui.Open(m.targetURL(core.Target{Repo: here}))
+	}
 	t, err := core.ParseTarget(arg, m.host)
 	if err != nil {
 		return m.badTarget(err)

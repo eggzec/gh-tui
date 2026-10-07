@@ -20,7 +20,10 @@ import (
 type start struct {
 	Host string
 	Here core.RepoRef
-	From string
+	// HereHost is the host of the current directory's repository when it
+	// is not Host, so Here is empty.
+	HereHost string
+	From     string
 }
 
 // startRepos picks the host of the session the way gh does: hostname, the
@@ -45,6 +48,8 @@ func startRepos(hostname string, current func() (repository.Repository, bool), d
 	s := start{Host: host, From: from}
 	if ok && normalizeHostname(cur.Host) == host {
 		s.Here = core.RepoRef{Owner: cur.Owner, Name: cur.Name}
+	} else if ok {
+		s.HereHost = normalizeHostname(cur.Host)
 	}
 	return s
 }

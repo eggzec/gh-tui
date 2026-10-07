@@ -111,9 +111,8 @@ func WithOpener(o *threads.Opener) Option {
 }
 
 // WithHere shows repo, the repository of the current directory, as the
-// first card of the pinned pane. r
-// reads the rest of the card, such as its description, in a command; it
-// may be nil.
+// first card of the pinned pane. r reads the rest of the card, such as its
+// description, in a command; it may be nil.
 func WithHere(repo core.RepoRef, r Repos) Option {
 	return func(s *Section) {
 		s.here, s.hereRepos = repo, r

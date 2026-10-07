@@ -333,6 +333,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		// a pull request, and links to the user's host.
 		tui.WithRepos(repoSvc),
 		tui.WithHere(here),
+		tui.WithHereElsewhere(st.HereHost),
 		tui.WithKinds(issueSvc),
 		tui.WithOwners(ownerHeaders{ownerSvc}),
 		tui.WithRecall(recall{pinned: pinned, here: here, dash: dashSvc, repos: repoSvc, pulls: pullSvc, issues: issueSvc}),

@@ -2,9 +2,21 @@ package search
 
 import "github.com/eggzec/gh-tui/internal/tui/ui"
 
+// OpenedRepo implements ui.RepoOpener: opening the repository of a result
+// keeps the query that found it among the recent searches.
+func (s *Section) OpenedRepo(ui.Selection) {
+	if s.text != "" {
+		s.remember(s.text)
+	}
+}
+
 // Selected implements ui.Selector: the result under the cursor, or the
-// repository offered before the user types.
+// repository offered before the user types. With the kinds focused no
+// result is.
 func (s *Section) Selected() (ui.Selection, bool) {
+	if s.area == kindsArea {
+		return ui.Selection{}, false
+	}
 	if s.text == "" {
 		it, ok := s.starts.selected()
 		if !ok || it.repo == nil {

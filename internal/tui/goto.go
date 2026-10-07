@@ -62,10 +62,29 @@ type Owners interface {
 	Header(ctx context.Context, login string) (core.Owner, error)
 }
 
-// WithHere sets the repository of the current directory, which goto
-// opens for ".". Without it, goto says there is none.
+// WithHere sets the repository of the current directory, which goto and
+// open take for ".". Without it, they say there is none.
 func WithHere(r core.RepoRef) Option {
 	return func(m *Model) { m.here = r }
+}
+
+// WithHereElsewhere sets the host of the repository of the current
+// directory when it is not the session's, so that "." says so.
+func WithHereElsewhere(host string) Option {
+	return func(m *Model) { m.hereHost = host }
+}
+
+// hereRepo returns the repository of the current directory, or the toast
+// that says why there is none.
+func (m *Model) hereRepo() (core.RepoRef, tea.Cmd) {
+	switch {
+	case m.here != (core.RepoRef{}):
+		return m.here, nil
+	case m.hereHost != "":
+		host := cmp.Or(m.host, core.DefaultHost)
+		return core.RepoRef{}, m.toast.Push(toast.Error, "The repository here is on "+m.hereHost+", not "+host+".")
+	}
+	return core.RepoRef{}, m.toast.Push(toast.Error, "No repository in the current directory.")
 }
 
 // WithOwners sets what reads the users and organizations whose pages goto
@@ -122,10 +141,11 @@ func (m *Model) gotoCommand(arg string) tea.Cmd {
 	// It replaces a goto still waiting, whether or not it goes anywhere.
 	m.cancelGoto()
 	if strings.TrimSpace(arg) == "." {
-		if m.here == (core.RepoRef{}) {
-			return m.toast.Push(toast.Error, "No repository in the current directory.")
+		here, why := m.hereRepo()
+		if why != nil {
+			return why
 		}
-		return m.gotoRepo(m.here)
+		return m.gotoRepo(here)
 	}
 	t, err := core.ParseTarget(arg, m.host)
 	if err != nil {

@@ -5,6 +5,19 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
+// OpenedRepo implements ui.RepoOpener: the repository of a pinned card or a
+// row of the repositories opens as enter would open it, so the dashboard
+// counts it for reading ahead.
+func (s *Section) OpenedRepo(sel ui.Selection) {
+	switch s.focus {
+	case pinnedPane:
+		s.aheadPinned.Opened(sel.Repo)
+	case reposPane:
+		s.aheadRepos.Opened(sel.Repo)
+	default:
+	}
+}
+
 // Selected implements ui.Selector: what the cursor of the focused pane is
 // on. The calendar has nothing to select. The owner of a task is its
 // author, unless an app, or its repository's owner when it has none; that
