@@ -1,7 +1,8 @@
 # label | keys | help key | on or off
 
-always
+global
   quit | ctrl+c | ^c | on
+  maximize | Z | Z | on
   help | ? | ? | on
 
 token

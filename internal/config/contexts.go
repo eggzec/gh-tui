@@ -38,6 +38,9 @@ type Context struct {
 	// Modal is whether a screen-layer context is a modal over the screens,
 	// rather than a screen.
 	Modal bool
+	// Within is the modal that this one is a step of, if it never opens
+	// first: it shows inside that modal, in place of what it showed.
+	Within string
 }
 
 // contexts are all the contexts of keys there are.
@@ -73,7 +76,7 @@ var contexts = []Context{
 	{Name: "pull_conversation", Title: "Conversation", Reach: ReachPane, Parent: "pull_modal"},
 	// The steps of the checks of a pull request take every key, so the keys
 	// of the modal don't work in them: they are a modal of their own.
-	{Name: "pull_checks", Title: "Checks", Reach: ReachScreen, Modal: true},
+	{Name: "pull_checks", Title: "Checks", Reach: ReachScreen, Modal: true, Within: "pull_modal"},
 	{Name: "pull_check_list", Title: "Checks", Reach: ReachPane, Parent: "pull_checks"},
 	{Name: "pull_check_log", Title: "Log", Reach: ReachPane, Parent: "pull_checks"},
 	{Name: "pull_check_annotations", Title: "Annotations", Reach: ReachPane, Parent: "pull_checks"},
@@ -97,7 +100,7 @@ var contexts = []Context{
 	{Name: "text", Title: "Text", Reach: ReachScreen, Modal: true},
 	{Name: "filter", Title: "Filter", Reach: ReachScreen, Modal: true},
 	// The filter of the runs replaces the Actions modal while it is open.
-	{Name: "actions_filter", Title: "Filter", Reach: ReachScreen, Modal: true},
+	{Name: "actions_filter", Title: "Filter", Reach: ReachScreen, Modal: true, Within: "actions"},
 
 	{Name: "command_line", Title: "Command line", Reach: ReachCapture},
 	{Name: "help", Title: "Help", Reach: ReachCapture},

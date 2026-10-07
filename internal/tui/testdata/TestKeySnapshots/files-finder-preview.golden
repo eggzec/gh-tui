@@ -2,8 +2,8 @@
 
 global
   quit | ctrl+c | ^c | on
-  maximize | Z | Z | on
   command | : | : | on
+  maximize | Z | Z | on
   help | ? | ? | on
 
 File

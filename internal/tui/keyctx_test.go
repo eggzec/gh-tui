@@ -814,7 +814,7 @@ func keyContexts() []keyContext {
 		{name: "actions: filter", repo: true, steps: []string{"repo.actions", "actions.filter"}, context: "actions_filter", want: "global, actions_filter"},
 		{name: "actions: rerun", repo: true, steps: []string{"repo.actions", "actions.rerun_failed"}, context: "confirm", want: "always, confirm"},
 		{name: "actions: rerun job", repo: true, steps: []string{"repo.actions", "global.next_pane", "actions_jobs.rerun_job"}, context: "confirm", want: "always, confirm"},
-		{name: "auth", repo: true, steps: []string{"global.command", typed("auth"), "enter"}, want: "always, token"},
+		{name: "auth", repo: true, steps: []string{"global.command", typed("auth"), "enter"}, want: "global, text"},
 		{name: "config", repo: true, steps: []string{"global.command", typed("config"), "enter"}, context: "text", want: "global, text"},
 		{name: "help", repo: true, steps: []string{"global.help"}, context: "help", want: "always, help (types)"},
 		{name: "command line", repo: true, steps: []string{"global.command"}, context: "command_line", want: "command_line (types)"},

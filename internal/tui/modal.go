@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"cmp"
 	"slices"
 	"strings"
 
@@ -53,11 +54,12 @@ func (m *Model) sizeModal(width, height int) {
 }
 
 // modalContext returns the name of the key context of mod, the modal that
-// its first layer of keys is, or "" if none is.
+// its first layer of keys is, or "" if none is. A step that shows inside
+// a modal, such as the checks of a pull request, is that modal.
 func modalContext(mod ui.Modal) string {
 	for _, l := range mod.KeyLayers() {
 		if c, ok := config.LookupContext(l.Context); ok && c.Modal {
-			return c.Name
+			return cmp.Or(c.Within, c.Name)
 		}
 	}
 	return ""

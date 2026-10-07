@@ -146,12 +146,14 @@ func (m *authModal) SetTheme(t ui.Theme) {
 }
 
 // KeyLayers implements ui.Keyed: the keys that answer the question while
-// it is asked, which take every key, or else the one that closes it.
+// it is asked, which take every key, or else the one that closes it. The
+// modal is a text to read, so its keys are those of the text context, and
+// the app's work in it, such as the key that maximizes it.
 func (m *authModal) KeyLayers() []keyhelp.Layer {
 	if m.asks() {
 		return []keyhelp.Layer{m.confirm.Layer()}
 	}
-	return []keyhelp.Layer{{Source: "token", Bindings: []key.Binding{m.close}, Short: []key.Binding{m.close}}}
+	return []keyhelp.Layer{{Source: "token", Context: "text", Bindings: []key.Binding{m.close}, Short: []key.Binding{m.close}}}
 }
 
 func (m *authModal) render() {
