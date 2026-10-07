@@ -47,7 +47,12 @@ func (m *Model) View() tea.View {
 		screen = lipgloss.PlaceVertical(m.height, lipgloss.Top, screen)
 	}
 	if mod != nil {
-		screen = overlay.Center(screen, m.frame(mod), m.width, m.height)
+		if m.maximized {
+			// The frame covers the screen but for the footer.
+			screen = overlay.Place(screen, m.frame(mod), 0, 0)
+		} else {
+			screen = overlay.Center(screen, m.frame(mod), m.width, m.height)
+		}
 	}
 	if m.helpOpen() {
 		screen = overlay.Center(screen, m.helpFrame(), m.width, m.height)

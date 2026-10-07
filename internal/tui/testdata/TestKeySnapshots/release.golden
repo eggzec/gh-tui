@@ -2,6 +2,7 @@
 
 global
   quit | ctrl+c | ^c | on
+  maximize | Z | Z | on
   help | ? | ? | on
 
 Release

@@ -77,3 +77,37 @@ func TestDateFormats(t *testing.T) {
 		}
 	}
 }
+
+// ui.maximized names modals by their key contexts, and an unknown name is
+// an error at its line in the file.
+func TestUIMaximized(t *testing.T) {
+	if got := Default().UI.Maximized; len(got) != 0 {
+		t.Errorf("default maximized = %v, want none", got)
+	}
+	// The modals the default file lists are all key contexts that are modals.
+	for _, name := range []string{"pull_modal", "issue_modal", "release_modal", "history", "actions", "preview", "text", "filter"} {
+		cfg := Default()
+		cfg.UI.Maximized = []string{name}
+		if err := cfg.Validate(); err != nil {
+			t.Errorf("maximized %q: Validate() = %v, want it accepted", name, err)
+		}
+	}
+	for _, name := range []string{"pulls", "dashboard", "pull_conversation", "History", "nope", ""} {
+		cfg := Default()
+		cfg.UI.Maximized = []string{name}
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "ui.maximized: unknown modal") {
+			t.Errorf("maximized %q: Validate() = %v, want an unknown modal", name, err)
+		}
+	}
+
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(path, []byte("ui:\n  icons: ascii\n  maximized: [history, nope]\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(EnvLog, "")
+	_, _, err := loadBase(path)
+	if err == nil || !strings.Contains(err.Error(), `line 3: ui.maximized: unknown modal "nope"`) {
+		t.Errorf("Load = %v, want the unknown modal at line 3", err)
+	}
+}

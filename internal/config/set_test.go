@@ -123,7 +123,7 @@ func TestSetKeepsTheRest(t *testing.T) {
 	if !slices.Equal(c.History.Row, Default().History.Row) {
 		t.Errorf("the list set is shared with the config before: %v", c.History.Row)
 	}
-	if got.Sync != c.Sync || got.UI != c.UI || got.Notifications != c.Notifications {
+	if got.Sync != c.Sync || !reflect.DeepEqual(got.UI, c.UI) || got.Notifications != c.Notifications {
 		t.Error("Set changed other settings")
 	}
 }

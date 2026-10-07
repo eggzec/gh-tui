@@ -110,6 +110,12 @@ type Model struct {
 	// candidates showing.
 	modalWidth, modalHeight int
 	resized                 bool
+	// maximized is whether the open modal fills the screen. It starts as
+	// ui.maximized says of the modal, and the maximize key toggles it.
+	maximized bool
+	// maximizedModals are the modals that open maximized, as ui.maximized
+	// lists them.
+	maximizedModals []string
 
 	repo   core.RepoRef
 	branch string
@@ -388,6 +394,7 @@ func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) 
 		opt(m)
 	}
 	m.voice.Icons = &m.icons
+	m.maximizedModals = cfg.UI.Maximized
 	m.readRates()
 	m.line.SetComplete(m.complete)
 

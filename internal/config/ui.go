@@ -23,6 +23,10 @@ type UI struct {
 	// "3d ago" in a sentence, DateAbsolute ("2006-01-02 15:04 MST"), or
 	// a Go time layout such as "2006-01-02 15:04".
 	DateFormat string `yaml:"date_format"`
+	// Maximized lists the modals that open filling the screen, each by the
+	// name of its key context, such as "history". The maximize key
+	// toggles the one that is open, whichever way it opened.
+	Maximized []string `yaml:"maximized"`
 }
 
 // Toast is how long a toast stays before it goes on its own.
@@ -60,7 +64,25 @@ func (u UI) validate() error {
 	if u.Toast.Error < minToast {
 		errs = append(errs, fmt.Errorf("ui.toast.error: must be at least %v, got %v", minToast, u.Toast.Error))
 	}
-	errs = append(errs, validateDateFormat(u.DateFormat))
+	errs = append(errs, validateDateFormat(u.DateFormat), u.validateMaximized())
+	return errors.Join(errs...)
+}
+
+// validateMaximized checks that Maximized names modals: the contexts of
+// keys that are modals.
+func (u UI) validateMaximized() error {
+	var modals []string
+	for _, c := range contexts {
+		if c.Modal {
+			modals = append(modals, c.Name)
+		}
+	}
+	var errs []error
+	for _, name := range u.Maximized {
+		if !slices.Contains(modals, name) {
+			errs = append(errs, fmt.Errorf("ui.maximized: unknown modal %q: must be one of %s", name, strings.Join(modals, ", ")))
+		}
+	}
 	return errors.Join(errs...)
 }
 

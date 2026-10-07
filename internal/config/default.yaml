@@ -41,6 +41,11 @@ ui:
   # relative, as an age (3d in a row, 3d ago in a sentence), absolute
   # (2006-01-02 15:04 MST), or a Go time layout such as "2006-01-02 15:04".
   date_format: relative
+  # The modals that open filling the screen, each by the name of its key
+  # context: pull_modal, issue_modal, release_modal, history, actions,
+  # preview, text and filter. The maximize key toggles the one that is
+  # open, whichever way it opened.
+  maximized: []
 
 # Images drawn inline, such as avatars and the images of comments, with
 # kitty's graphics protocol. Only kitty 0.28 or newer and Ghostty show them
@@ -491,6 +496,9 @@ keys:
     # page of a user or an organization, or a modal such as Actions,
     # alone, or all of them again.
     zoom: [z]
+    # Toggle the open modal between its size and the whole screen. It is
+    # typed, not taken, while an input has the keys.
+    maximize: [Z]
     # Cycle the focus through the panes of the screen, or of a modal with
     # panes.
     next_pane: [tab]
