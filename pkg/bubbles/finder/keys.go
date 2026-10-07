@@ -5,14 +5,14 @@ import "charm.land/bubbles/v2/key"
 // KeyMap holds the key bindings of a finder. Every other key edits the
 // query, so none of these are letters. It implements help.KeyMap.
 type KeyMap struct {
-	Up       key.Binding
-	Down     key.Binding
-	PageUp   key.Binding
-	PageDown key.Binding
+	Up       key.Binding `keymap:"up" help:"up"`
+	Down     key.Binding `keymap:"down" help:"down"`
+	PageUp   key.Binding `keymap:"page_up" help:"page up"`
+	PageDown key.Binding `keymap:"page_down" help:"page down"`
 	// Choose sends a ChosenMsg with the selected item.
-	Choose key.Binding
+	Choose key.Binding `keymap:"choose" help:"open"`
 	// Cancel sends a CancelMsg.
-	Cancel key.Binding
+	Cancel key.Binding `keymap:"cancel" help:"close"`
 }
 
 // DefaultKeyMap returns the default key bindings.

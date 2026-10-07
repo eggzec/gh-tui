@@ -7,12 +7,20 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/pkg/bubbles/keytest"
+	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
 )
 
 // The key map shares enter and esc between the rows, insert mode and the
 // dropdowns, so only the form in each state is free of conflicts.
 func TestKeyMapComplete(t *testing.T) {
 	keytest.Complete(t, DefaultKeyMap())
+	keytest.Tagged(t, DefaultKeyMap())
+	// The form words its dropdown's choose and close its own way, while the
+	// help tags of List are the picker's, so List is swapped for the
+	// picker's own key map before the tags are compared.
+	km := DefaultKeyMap()
+	km.List = picker.DefaultKeyMap()
+	keytest.HelpTags(t, km)
 }
 
 // Full help enables the keys that act in the mode and on the row in focus,

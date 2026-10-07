@@ -6,11 +6,11 @@ import "charm.land/bubbles/v2/key"
 // text area or input underneath and keep their defaults.
 type KeyMap struct {
 	// Submit submits a prompt in either mode.
-	Submit key.Binding
+	Submit key.Binding `keymap:"submit" help:"submit"`
 	// SubmitLine submits a single-line prompt too. A multi-line prompt
 	// leaves it to the text area, where enter starts a new line.
-	SubmitLine key.Binding
-	Cancel     key.Binding
+	SubmitLine key.Binding `keymap:"submit_line" help:"submit"`
+	Cancel     key.Binding `keymap:"cancel" help:"cancel"`
 }
 
 // DefaultKeyMap returns the default key bindings.

@@ -6,18 +6,18 @@ import "charm.land/bubbles/v2/key"
 type KeyMap struct {
 	// Up moves to the day before, and from a Sunday to the Saturday of the
 	// week before.
-	Up key.Binding
+	Up key.Binding `keymap:"up" help:"day before"`
 	// Down moves to the day after, and from a Saturday to the Sunday of the
 	// week after.
-	Down key.Binding
+	Down key.Binding `keymap:"down" help:"day after"`
 	// Left moves to the same weekday of the week before.
-	Left key.Binding
+	Left key.Binding `keymap:"left" help:"week before"`
 	// Right moves to the same weekday of the week after.
-	Right key.Binding
+	Right key.Binding `keymap:"right" help:"week after"`
 	// First moves to the first day.
-	First key.Binding
+	First key.Binding `keymap:"top" help:"first day"`
 	// Last moves to the last day.
-	Last key.Binding
+	Last key.Binding `keymap:"bottom" help:"last day"`
 }
 
 // DefaultKeyMap returns the default key bindings.

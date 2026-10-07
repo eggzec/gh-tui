@@ -18,65 +18,65 @@ import (
 // the query line takes what is typed do just the keys of Typing act.
 type KeyMap struct {
 	// NextTab and PrevTab switch between the Filters and Sort tabs.
-	NextTab key.Binding
-	PrevTab key.Binding
+	NextTab key.Binding `keymap:"global.next_tab" help:"next tab"`
+	PrevTab key.Binding `keymap:"global.prev_tab" help:"previous tab"`
 	// Up and Down move between the rows and the query line, and stop at
 	// the ends. Top and Bottom go to the first row and the query line.
-	Up     key.Binding
-	Down   key.Binding
-	Top    key.Binding
-	Bottom key.Binding
+	Up     key.Binding `keymap:"up" help:"previous field"`
+	Down   key.Binding `keymap:"down" help:"next field"`
+	Top    key.Binding `keymap:"top" help:"first field"`
+	Bottom key.Binding `keymap:"bottom" help:"query"`
 	// Prev and Next change the value of a Choice, what is sorted by and
 	// the order, and flip a Toggle.
-	Prev key.Binding
-	Next key.Binding
+	Prev key.Binding `keymap:"left" help:"previous"`
+	Next key.Binding `keymap:"right" help:"next"`
 	// Toggle flips a Toggle and opens the dropdown of a Choice, of what is
 	// sorted by and the order, and of a Multi or Person.
-	Toggle key.Binding
+	Toggle key.Binding `keymap:"toggle" help:"toggle"`
 	// Insert and Append start typing in a Text field or the query line,
 	// with the cursor at the start or at the end.
-	Insert key.Binding
-	Append key.Binding
+	Insert key.Binding `keymap:"insert" help:"insert"`
+	Append key.Binding `keymap:"append" help:"append"`
 	// Apply sends an AppliedMsg from any row. A dropdown has its own
 	// enter, List.Choose.
-	Apply key.Binding
+	Apply key.Binding `keymap:"global.select" help:"apply"`
 	// Clear clears the field in focus. Backspace clears too, since the
 	// form has no level to step back to.
-	Clear key.Binding
+	Clear key.Binding `keymap:"clear" help:"clear"`
 	// Cancel sends a CancelMsg. A dropdown has its own esc, List.Cancel.
-	Cancel key.Binding
+	Cancel key.Binding `keymap:"global.dismiss" help:"close"`
 	// Quit sends a CancelMsg from the rows and from a dropdown, unless its
 	// filter takes the keys.
-	Quit key.Binding
+	Quit key.Binding `keymap:"global.quit" help:"close"`
 	// Retry loads again the options of a field that failed to load, in
 	// its dropdown.
-	Retry key.Binding
+	Retry key.Binding `keymap:"global.refresh" help:"retry"`
 	// ListToggle checks or unchecks the highlighted item of a Multi's
 	// dropdown, and ListClear chooses the empty option of a list, or
 	// unchecks every item of a Multi's.
-	ListToggle key.Binding
-	ListClear  key.Binding
+	ListToggle key.Binding `keymap:"picker.toggle" help:"toggle"`
+	ListClear  key.Binding `keymap:"clear" help:"clear"`
 	// Typing holds the keys of insert mode.
-	Typing TypingKeyMap
+	Typing TypingKeyMap `keymap:"filter_query"`
 	// List holds the keys of a dropdown, a picker with modes: its Normal
 	// keys move and open its filter, and Choose and Cancel choose and
 	// close. While its filter types, Typing's Up and Down move in place of
 	// List's, which are unused, and Cancel leaves the filter.
-	List picker.KeyMap
+	List picker.KeyMap `keymap:"picker"`
 }
 
 // TypingKeyMap holds the keys of insert mode, which takes every other key
 // as text.
 type TypingKeyMap struct {
 	// Submit sends an AppliedMsg, after it keeps what was typed.
-	Submit key.Binding
+	Submit key.Binding `keymap:"apply" help:"apply"`
 	// Leave goes back to the rows, keeping what was typed, or from a
 	// dropdown's filter to its list.
-	Leave key.Binding
+	Leave key.Binding `keymap:"cancel" help:"done"`
 	// Up and Down move the highlight of a dropdown while its filter takes
 	// the letters.
-	Up   key.Binding
-	Down key.Binding
+	Up   key.Binding `keymap:"up" help:"up"`
+	Down key.Binding `keymap:"down" help:"down"`
 }
 
 // DefaultKeyMap returns the default key bindings.
@@ -112,7 +112,8 @@ func DefaultKeyMap() KeyMap {
 }
 
 // listKeys returns the keys of a dropdown. Its Choose and Cancel are
-// worded as the form words them.
+// worded as the form words them. A fill of the key map by keymap.Fill
+// words them as the picker does, so the relabel must run after any fill.
 func listKeys() picker.KeyMap {
 	k := picker.DefaultKeyMap()
 	k.Choose.SetHelp("↵", "choose")

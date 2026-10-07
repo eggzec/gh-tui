@@ -5,22 +5,22 @@ import "charm.land/bubbles/v2/key"
 // KeyMap holds the key bindings of the help. Every other key edits the
 // query, so none of these are letters. It implements help.KeyMap.
 type KeyMap struct {
-	Up       key.Binding
-	Down     key.Binding
-	PageUp   key.Binding
-	PageDown key.Binding
-	Home     key.Binding
-	End      key.Binding
+	Up       key.Binding `keymap:"up" help:"scroll up"`
+	Down     key.Binding `keymap:"down" help:"scroll down"`
+	PageUp   key.Binding `keymap:"page_up" help:"page up"`
+	PageDown key.Binding `keymap:"page_down" help:"page down"`
+	Home     key.Binding `keymap:"top" help:"top"`
+	End      key.Binding `keymap:"bottom" help:"bottom"`
 	// Capture turns key capture on and off. While it is on, the next key
 	// pressed lists the bindings that hold it, and so does each key after
 	// it, until Capture again.
-	Capture key.Binding
+	Capture key.Binding `keymap:"capture" help:"find a key"`
 	// Back clears the query and the captured key, or sends a [CloseMsg]
 	// when there are none.
-	Back key.Binding
+	Back key.Binding `keymap:"cancel" help:"clear, then close"`
 	// Close sends a [CloseMsg] while the query is empty. Otherwise it is
 	// typed.
-	Close key.Binding
+	Close key.Binding `keymap:"close" help:"close"`
 }
 
 // DefaultKeyMap returns the default key bindings.

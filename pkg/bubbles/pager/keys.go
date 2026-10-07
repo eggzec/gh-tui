@@ -4,31 +4,31 @@ import "charm.land/bubbles/v2/key"
 
 // KeyMap holds the key bindings of a pager. It implements help.KeyMap.
 type KeyMap struct {
-	Up           key.Binding
-	Down         key.Binding
-	PageUp       key.Binding
-	PageDown     key.Binding
-	HalfPageUp   key.Binding
-	HalfPageDown key.Binding
-	Home         key.Binding
-	End          key.Binding
+	Up           key.Binding `keymap:"up" help:"up"`
+	Down         key.Binding `keymap:"down" help:"down"`
+	PageUp       key.Binding `keymap:"page_up" help:"page up"`
+	PageDown     key.Binding `keymap:"page_down" help:"page down"`
+	HalfPageUp   key.Binding `keymap:"half_page_up" help:"½ page up"`
+	HalfPageDown key.Binding `keymap:"half_page_down" help:"½ page down"`
+	Home         key.Binding `keymap:"top" help:"top"`
+	End          key.Binding `keymap:"bottom" help:"bottom"`
 	// Count types a digit of a count, which Home and End take for the
 	// line to go to, as less's g and G do, and Percent for how far into
 	// the content to go.
-	Count key.Binding
+	Count key.Binding `keymap:"count" help:"count for g/G/%"`
 	// Percent goes the count before it percent of the way into the
 	// content, as less's % does. It acts only after a count.
-	Percent key.Binding
+	Percent key.Binding `keymap:"percent" help:"go to count %"`
 	// Left and Right scroll sideways while lines are not wrapped.
-	Left  key.Binding
-	Right key.Binding
+	Left  key.Binding `keymap:"left" help:"left"`
+	Right key.Binding `keymap:"right" help:"right"`
 
 	// Option waits for the name of an option to toggle, as less's - does:
 	// S chops or wraps long lines, N shows or hides the line numbers, s
 	// squeezes runs of blank lines into one, i ignores case in searches
 	// unless the pattern has a capital, or matches it, and I ignores case
 	// always, or matches it. Esc then cancels it.
-	Option key.Binding
+	Option key.Binding `keymap:"option" help:"option: S N s i I"`
 
 	// Search opens the search prompt, Confirm searches for the pattern
 	// typed, a regexp, or for the lines it doesn't match after a "!", and
@@ -36,29 +36,29 @@ type KeyMap struct {
 	// search. The pager enables Confirm only while the prompt is open, and
 	// Cancel only while it is or a search or filter is shown, so esc
 	// closes the pager otherwise.
-	Search  key.Binding
-	Confirm key.Binding
-	Cancel  key.Binding
+	Search  key.Binding `keymap:"find" help:"search"`
+	Confirm key.Binding `keymap:"search_prompt.run" help:"search"`
+	Cancel  key.Binding `keymap:"search_prompt.cancel" help:"cancel"`
 	// Filter opens the filter prompt, where Confirm shows only the lines
 	// the pattern typed matches, or doesn't match after a "!", and an
 	// empty line shows them all again. Outside the prompt, Cancel stops
 	// a filter still running, or clears the one shown, once no search is
 	// shown.
-	Filter key.Binding
+	Filter key.Binding `keymap:"quick_filter" help:"filter"`
 	// Next and Prev move between matches. The pager enables them only
 	// while there are matches, so help shows them only when they work.
-	Next key.Binding
-	Prev key.Binding
+	Next key.Binding `keymap:"next_match" help:"next match"`
+	Prev key.Binding `keymap:"prev_match" help:"prev match"`
 
 	// Edit opens the content in an external editor, at the line at the
 	// top of the window, and suspends the program until it exits: the
 	// editor set with WithEditor, else $VISUAL, else $EDITOR. The pager
 	// enables it only while it shows content.
-	Edit key.Binding
+	Edit key.Binding `keymap:"edit" help:"edit"`
 
 	// Close asks the parent to close the pager with a [CloseMsg]. While a
 	// search is shown, a key bound to Cancel clears it first.
-	Close key.Binding
+	Close key.Binding `keymap:"global.quit" help:"close"`
 }
 
 // DefaultKeyMap returns the default key bindings, which follow less.

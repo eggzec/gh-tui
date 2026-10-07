@@ -114,7 +114,8 @@ Each bubble is a self-contained Elm component: model, `Init`, `Update`, and `Vie
   binding exactly once. State shows through `Enabled()`, never by leaving a
   binding out, and `Model.FullHelp()` returns the same set with the model's
   state applied, so the help can tell a disabled key from a missing one.
-  Check each key map with `keytest.Complete` and `keytest.NoConflicts`.
+  Check each key map with `keytest.Complete` and `keytest.NoConflicts`,
+  and `keytest.Tagged` and `keytest.HelpTags` for its `keymap` and `help` tags.
   In the tui, sections and modals list their keys as `ui.Keyed` layers in
   the order they match keys, a composite joining its children's, and the
   help reads them from there.

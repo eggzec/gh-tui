@@ -4,17 +4,17 @@ import "charm.land/bubbles/v2/key"
 
 // KeyMap holds the key bindings of a feed. It implements help.KeyMap.
 type KeyMap struct {
-	Up           key.Binding
-	Down         key.Binding
-	PageUp       key.Binding
-	PageDown     key.Binding
-	HalfPageUp   key.Binding
-	HalfPageDown key.Binding
-	Home         key.Binding
-	End          key.Binding
+	Up           key.Binding `keymap:"up" help:"up"`
+	Down         key.Binding `keymap:"down" help:"down"`
+	PageUp       key.Binding `keymap:"page_up" help:"page up"`
+	PageDown     key.Binding `keymap:"page_down" help:"page down"`
+	HalfPageUp   key.Binding `keymap:"half_page_up" help:"½ page up"`
+	HalfPageDown key.Binding `keymap:"half_page_down" help:"½ page down"`
+	Home         key.Binding `keymap:"top" help:"first"`
+	End          key.Binding `keymap:"bottom" help:"last"`
 	// Retry repeats a failed fetch. The feed enables it only while a fetch
 	// has failed, so help shows it only when it does something.
-	Retry key.Binding
+	Retry key.Binding `keymap:"global.refresh" help:"retry"`
 }
 
 // DefaultKeyMap returns the default key bindings.

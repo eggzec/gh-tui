@@ -10,6 +10,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
 )
 
@@ -114,21 +115,7 @@ func OpenHint(ic Icons, open key.Binding) string {
 }
 
 // label shortens key names for the help line.
-func label(k string) string {
-	switch k {
-	case "enter":
-		return "↵"
-	case "esc":
-		return "esc"
-	case "space", " ":
-		return "space"
-	case "up":
-		return "↑"
-	case "down":
-		return "↓"
-	}
-	return strings.ReplaceAll(k, "ctrl+", "^")
-}
+func label(k string) string { return keymap.Label(k) }
 
 // Jump returns the binding that stands for the enabled keys of panes in
 // help, such as "1-5 focus pane", or a disabled one while none has a key.
