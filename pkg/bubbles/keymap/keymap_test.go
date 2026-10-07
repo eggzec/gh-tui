@@ -43,13 +43,13 @@ func TestFill(t *testing.T) {
 	if got := km.Up.Keys(); !slices.Equal(got, []string{"up", "k"}) {
 		t.Errorf("Up keys = %v", got)
 	}
-	if got := km.Up.Help(); got.Key != "↑" || got.Desc != "up" {
+	if got := km.Up.Help(); got.Key != "↑/k" || got.Desc != "up" {
 		t.Errorf("Up help = %+v", got)
 	}
 	if got := km.Select.Help(); got.Key != "↵" || got.Desc != "open" {
 		t.Errorf("Select help = %+v, want the label of enter and its desc", got)
 	}
-	if got := km.Nested.Left.Help(); got.Key != "^b" || got.Desc != "week before" {
+	if got := km.Nested.Left.Help(); got.Key != "^b/h" || got.Desc != "week before" {
 		t.Errorf("nested help = %+v, want the nested map filled too", got)
 	}
 	if got := km.Other.Left.Keys(); !slices.Equal(got, []string{"a"}) {
@@ -136,16 +136,36 @@ func TestLabel(t *testing.T) {
 		"enter":  "↵",
 		"up":     "↑",
 		"down":   "↓",
+		"left":   "←",
+		"right":  "→",
 		"esc":    "esc",
 		" ":      "space",
 		"space":  "space",
 		"ctrl+x": "^x",
 		"pgup":   "pgup",
+		"pgdown": "pgdn",
 		"j":      "j",
 	}
 	for in, want := range tests {
 		if got := keymap.Label(in); got != want {
 			t.Errorf("Label(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestLabels(t *testing.T) {
+	tests := []struct {
+		keys []string
+		want string
+	}{
+		{[]string{"up", "k"}, "↑/k"},
+		{[]string{"ctrl+f", "pgdown"}, "^f/pgdn"},
+		{[]string{"-", "left", "h"}, "-/←/h"},
+		{[]string{"enter"}, "↵"},
+	}
+	for _, tt := range tests {
+		if got := keymap.Labels(tt.keys); got != tt.want {
+			t.Errorf("Labels(%q) = %q, want %q", tt.keys, got, tt.want)
 		}
 	}
 }

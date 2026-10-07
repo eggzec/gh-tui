@@ -133,3 +133,13 @@ func TestHelpTags(t *testing.T) {
 		t.Errorf("errors = %q, want one about Down", r.errs)
 	}
 }
+
+func TestTable(t *testing.T) {
+	look := Table(map[string][]string{"down": {"j", "down"}})
+	if got := look("down"); len(got) != 2 || got[0] != "j" {
+		t.Errorf("down = %v, want [j down]", got)
+	}
+	if got := look("up"); got != nil {
+		t.Errorf("up = %v, want none", got)
+	}
+}
