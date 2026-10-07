@@ -194,6 +194,21 @@ func (m Model) Selected() (Item, bool) {
 	return m.results[m.sel].Item, true
 }
 
+// Select selects the listed item whose Value is value, scrolling it into
+// view, and reports whether there is one. The selection stays where it is
+// otherwise.
+func (m *Model) Select(value any) bool {
+	for i := range m.results {
+		if equal(m.results[i].Value, value) {
+			m.sel = i
+			m.scroll()
+			m.render()
+			return true
+		}
+	}
+	return false
+}
+
 // chosen returns what enter chooses. While a search is waiting or running,
 // the list is out of date, so a picker that offers the typed text chooses
 // that instead of whatever the old results have under the selection.
