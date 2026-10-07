@@ -5,6 +5,7 @@ import (
 	"slices"
 	"testing"
 
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
@@ -89,4 +90,27 @@ func selectedHit(s *Section) string {
 	}
 	h, _ := l.feed.Selected()
 	return fmt.Sprint(h)
+}
+
+// The kinds have a filter and sort key of their own: setting the keys of
+// the results leaves them be, and the other way round.
+func TestKindsKeysAreTheirOwn(t *testing.T) {
+	keys := config.Default().Keys
+	keys.Set("search_results.filter", []string{"g"})
+	keys.Set("search_kinds.sort", []string{"S"})
+	k := newKeyMap(keys)
+	for _, tt := range []struct {
+		name string
+		b    key.Binding
+		want []string
+	}{
+		{"results filter", k.Filter, []string{"g"}},
+		{"results sort", k.Sort, []string{"s"}},
+		{"kinds filter", k.KindsFilter, []string{"f"}},
+		{"kinds sort", k.KindsSort, []string{"S"}},
+	} {
+		if got := tt.b.Keys(); !slices.Equal(got, tt.want) {
+			t.Errorf("%s keys = %q, want %q", tt.name, got, tt.want)
+		}
+	}
 }

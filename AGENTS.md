@@ -399,8 +399,10 @@ reacts to messages. Concretely:
   global key does depends on what has the focus: a pane implements such an
   intent (`global.select`, `global.refresh`) and labels it in help, but
   never binds its key. Every context is listed in
-  `internal/config/contexts.go` with no keys, which live only in
-  default.yaml; a pane builds its bindings with `ui.In(keys, "pulls")`,
+  `internal/config/contexts.go` with no keys, which live in default.yaml
+  (except the movement, paging and reading keys of the shared bubbles,
+  which are still in code, so validation and the clash rule don't cover
+  them yet); a pane builds its bindings with `ui.In(keys, "pulls")`,
   where a dotted name such as `global.select` names another context's
   action, and lists them in help as one layer of its context. An
   unknown context or action is rejected so typos don't pass silently, and

@@ -42,7 +42,7 @@ type Context struct {
 
 // contexts are all the contexts of keys there are.
 var contexts = []Context{
-	{Name: ContextGlobal, Title: "app", Reach: ReachGlobal},
+	{Name: ContextGlobal, Title: "global", Reach: ReachGlobal},
 
 	{Name: "dashboard", Title: "Dashboard", Reach: ReachScreen},
 	{Name: "dashboard_pinned", Title: "Pinned", Reach: ReachPane, Parent: "dashboard"},
