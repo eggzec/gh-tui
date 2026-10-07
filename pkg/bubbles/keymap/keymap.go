@@ -29,7 +29,7 @@ var bindingType = reflect.TypeFor[key.Binding]()
 
 // Fill sets every exported key.Binding field of km, and of the structs it
 // holds, that has a keymap tag to the keys that look gives for the tag's
-// name, labelled by the first of them and the help tag. An action without
+// name, labelled by all of them (see Labels) and the help tag. An action without
 // keys, which a config unbinds, gives a disabled binding that keeps its
 // help text, so help lists it without a key. Fields without a keymap tag
 // are left as they are. A struct field's tag replaces the context of the
@@ -50,7 +50,7 @@ func Fill(km any, look Lookup) {
 			f.Set(reflect.ValueOf(key.NewBinding(key.WithHelp("", help), key.WithDisabled())))
 			return
 		}
-		f.Set(reflect.ValueOf(key.NewBinding(key.WithKeys(keys...), key.WithHelp(Label(keys[0]), help))))
+		f.Set(reflect.ValueOf(key.NewBinding(key.WithKeys(keys...), key.WithHelp(Labels(keys), help))))
 	})
 }
 
@@ -112,8 +112,19 @@ func qualify(ctx, name string) string {
 	return ctx + "." + name
 }
 
-// Label shortens a key name for help: "enter" is "↵", "up" is "↑", and
-// "ctrl+x" is "^x".
+// Labels is the help label of a binding with keys: each key's Label, in
+// order and joined by "/", such as "↑/k" for up and k, so help shows every
+// key that works.
+func Labels(keys []string) string {
+	ls := make([]string, len(keys))
+	for i, k := range keys {
+		ls[i] = Label(k)
+	}
+	return strings.Join(ls, "/")
+}
+
+// Label shortens a key name for help: "enter" is "↵", "up" is "↑", "left"
+// is "←", and "ctrl+x" is "^x".
 func Label(k string) string {
 	switch k {
 	case "enter":
@@ -126,6 +137,12 @@ func Label(k string) string {
 		return "↑"
 	case "down":
 		return "↓"
+	case "left":
+		return "←"
+	case "right":
+		return "→"
+	case "pgdown":
+		return "pgdn"
 	}
 	return strings.ReplaceAll(k, "ctrl+", "^")
 }

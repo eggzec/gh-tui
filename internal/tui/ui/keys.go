@@ -23,7 +23,7 @@ func Binding(keys config.Keymap, action, desc string) key.Binding {
 }
 
 // Either makes one binding of the keys of actions, labelled with desc in
-// help by the first of them, for where actions of different contexts do
+// help by all of them, for where actions of different contexts do
 // the same, such as the tabs of a pane that its own keys switch too.
 func Either(keys config.Keymap, desc string, actions ...string) key.Binding {
 	ks := make([]string, 0, len(actions))
@@ -42,7 +42,7 @@ func bindingOf(desc string, ks []string) key.Binding {
 	}
 	return key.NewBinding(
 		key.WithKeys(ks...),
-		key.WithHelp(label(ks[0]), desc),
+		key.WithHelp(keymap.Labels(ks), desc),
 	)
 }
 
@@ -89,7 +89,7 @@ func Yield(b, held key.Binding) key.Binding {
 	case 0:
 		return key.NewBinding(key.WithHelp("", b.Help().Desc), key.WithDisabled())
 	}
-	y := key.NewBinding(key.WithKeys(keys...), key.WithHelp(label(keys[0]), b.Help().Desc))
+	y := key.NewBinding(key.WithKeys(keys...), key.WithHelp(keymap.Labels(keys), b.Help().Desc))
 	y.SetEnabled(b.Enabled())
 	return y
 }
@@ -103,9 +103,6 @@ func OpenHint(ic Icons, open key.Binding) string {
 	}
 	return ic.Key(open.Help().Key) + " to open on GitHub"
 }
-
-// label shortens key names for the help line.
-func label(k string) string { return keymap.Label(k) }
 
 // Jump returns the binding that stands for the enabled keys of panes in
 // help, such as "1-5 focus pane", or a disabled one while none has a key.

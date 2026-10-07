@@ -12,6 +12,7 @@ import (
 	"charm.land/bubbles/v2/key"
 
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
 
 var bindingType = reflect.TypeFor[key.Binding]()
@@ -147,4 +148,11 @@ func walkFields(v reflect.Value, path string, f func(string, reflect.StructField
 			walkFields(v.Field(i), name+".", f)
 		}
 	}
+}
+
+// Table returns a lookup of the keys that table lists for each action, so
+// that a bubble's tests can fill its key map with keys of their own rather
+// than an app's config.
+func Table(table map[string][]string) keymap.Lookup {
+	return func(action string) []string { return table[action] }
 }

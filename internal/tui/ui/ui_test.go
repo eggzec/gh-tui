@@ -24,8 +24,8 @@ func TestBinding(t *testing.T) {
 	keys := config.Keymap{"test": {"merge": {"m", "ctrl+m"}, "open": {"enter"}}}
 
 	b := Binding(keys, "test.merge", "merge")
-	if !b.Enabled() || b.Help().Key != "m" || b.Help().Desc != "merge" {
-		t.Errorf("merge = %+v, want enabled with help m/merge", b.Help())
+	if !b.Enabled() || b.Help().Key != "m/^m" || b.Help().Desc != "merge" {
+		t.Errorf("merge = %+v, want enabled with help m/^m and merge", b.Help())
 	}
 	if !key.Matches(tea.KeyPressMsg{Code: 'm', Mod: tea.ModCtrl}, b) {
 		t.Error("ctrl+m doesn't match merge")
