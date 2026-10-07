@@ -4,17 +4,17 @@ import "charm.land/bubbles/v2/key"
 
 // KeyMap holds the key bindings of a thread.
 type KeyMap struct {
-	Up           key.Binding
-	Down         key.Binding
-	PageUp       key.Binding
-	PageDown     key.Binding
-	HalfPageUp   key.Binding
-	HalfPageDown key.Binding
-	Top          key.Binding
-	Bottom       key.Binding
-	Retry        key.Binding
+	Up           key.Binding `keymap:"up" help:"up"`
+	Down         key.Binding `keymap:"down" help:"down"`
+	PageUp       key.Binding `keymap:"page_up" help:"page up"`
+	PageDown     key.Binding `keymap:"page_down" help:"page down"`
+	HalfPageUp   key.Binding `keymap:"half_page_up" help:"½ page up"`
+	HalfPageDown key.Binding `keymap:"half_page_down" help:"½ page down"`
+	Top          key.Binding `keymap:"top" help:"top"`
+	Bottom       key.Binding `keymap:"bottom" help:"bottom"`
+	Retry        key.Binding `keymap:"global.refresh" help:"retry"`
 	// Toggle shows or hides the code of the diagram on screen.
-	Toggle key.Binding
+	Toggle key.Binding `keymap:"global.select" help:"diagram code"`
 }
 
 // DefaultKeyMap returns the default key bindings.

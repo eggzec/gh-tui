@@ -103,3 +103,33 @@ func TestNoConflicts(t *testing.T) {
 		t.Errorf("shared k: errors %q", r.errs)
 	}
 }
+
+type tagged struct {
+	Up     key.Binding `keymap:"up" help:"up"`
+	Down   key.Binding `keymap:"down" help:"next"`
+	Bare   key.Binding
+	Nested struct {
+		Left key.Binding
+	}
+}
+
+func TestTagged(t *testing.T) {
+	r := &recorder{TB: t}
+	Tagged(r, tagged{})
+	want := []string{"Bare has no keymap tag", "Nested.Left has no keymap tag"}
+	if strings.Join(r.errs, "|") != strings.Join(want, "|") {
+		t.Errorf("errors = %q, want %q", r.errs, want)
+	}
+}
+
+func TestHelpTags(t *testing.T) {
+	km := tagged{
+		Up:   key.NewBinding(key.WithHelp("↑", "up")),
+		Down: key.NewBinding(key.WithHelp("↓", "down")),
+	}
+	r := &recorder{TB: t}
+	HelpTags(r, km)
+	if len(r.errs) != 1 || !strings.HasPrefix(r.errs[0], "Down: help tag is \"next\"") {
+		t.Errorf("errors = %q, want one about Down", r.errs)
+	}
+}

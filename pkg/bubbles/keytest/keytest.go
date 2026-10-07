@@ -1,5 +1,6 @@
 // Package keytest checks key maps in tests: that full help lists every
-// binding, and that no two bindings of one map hold the same key.
+// binding, that no two bindings of one map hold the same key, and that
+// every binding is tagged for keymap.Fill.
 package keytest
 
 import (
@@ -45,6 +46,34 @@ func Complete(tb testing.TB, km help.KeyMap) {
 	}
 }
 
+// Tagged fails tb if an exported key.Binding field of km, or of the structs
+// it holds, has no keymap tag, which keymap.Fill needs to fill it. km is a
+// struct or a pointer to one.
+func Tagged(tb testing.TB, km any) {
+	tb.Helper()
+	walkFields(reflect.ValueOf(km), "", func(name string, sf reflect.StructField, _ key.Binding) {
+		if _, ok := sf.Tag.Lookup("keymap"); !ok {
+			tb.Errorf("%s has no keymap tag", name)
+		}
+	})
+}
+
+// HelpTags fails tb if the help tag of a tagged key.Binding field of km, or
+// of the structs it holds, is not the description the binding has, so that
+// a key map filled by keymap.Fill is worded as it is today. km is a struct
+// or a pointer to one.
+func HelpTags(tb testing.TB, km any) {
+	tb.Helper()
+	walkFields(reflect.ValueOf(km), "", func(name string, sf reflect.StructField, b key.Binding) {
+		if _, ok := sf.Tag.Lookup("keymap"); !ok {
+			return
+		}
+		if got, want := sf.Tag.Get("help"), b.Help().Desc; got != want {
+			tb.Errorf("%s: help tag is %q, but the binding says %q", name, got, want)
+		}
+	})
+}
+
 // NoConflicts fails tb if two enabled bindings of km's FullHelp hold the
 // same key.
 func NoConflicts(tb testing.TB, km help.KeyMap) {
@@ -88,4 +117,34 @@ func collect(v reflect.Value, path string, f func(string, key.Binding)) {
 func identify(b key.Binding) string {
 	h := b.Help()
 	return strings.Join(b.Keys(), " ") + " (" + h.Key + ": " + h.Desc + ")"
+}
+
+// walkFields calls f with every exported key.Binding field of v, and of the
+// structs it holds, with its path, declaration and value.
+func walkFields(v reflect.Value, path string, f func(string, reflect.StructField, key.Binding)) {
+	// Only the key map itself may be a pointer; keymap.Fill follows no
+	// pointer or interface inside it, so neither does this.
+	for path == "" && (v.Kind() == reflect.Pointer || v.Kind() == reflect.Interface) {
+		if v.IsNil() {
+			return
+		}
+		v = v.Elem()
+	}
+	if v.Kind() != reflect.Struct {
+		return
+	}
+	for i := range v.NumField() {
+		sf := v.Type().Field(i)
+		if !sf.IsExported() {
+			continue
+		}
+		name := path + sf.Name
+		if sf.Type == bindingType {
+			f(name, sf, v.Field(i).Interface().(key.Binding))
+			continue
+		}
+		if sf.Type.Kind() == reflect.Struct {
+			walkFields(v.Field(i), name+".", f)
+		}
+	}
 }

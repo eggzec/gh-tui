@@ -4,65 +4,65 @@ import "charm.land/bubbles/v2/key"
 
 // KeyMap holds the key bindings of a log view. It implements help.KeyMap.
 type KeyMap struct {
-	Up           key.Binding
-	Down         key.Binding
-	PageUp       key.Binding
-	PageDown     key.Binding
-	HalfPageUp   key.Binding
-	HalfPageDown key.Binding
-	Home         key.Binding
-	End          key.Binding
+	Up           key.Binding `keymap:"up" help:"up"`
+	Down         key.Binding `keymap:"down" help:"down"`
+	PageUp       key.Binding `keymap:"page_up" help:"page up"`
+	PageDown     key.Binding `keymap:"page_down" help:"page down"`
+	HalfPageUp   key.Binding `keymap:"half_page_up" help:"½ page up"`
+	HalfPageDown key.Binding `keymap:"half_page_down" help:"½ page down"`
+	Home         key.Binding `keymap:"top" help:"top"`
+	End          key.Binding `keymap:"bottom" help:"bottom"`
 	// Left and Right scroll sideways while lines are not wrapped.
-	Left  key.Binding
-	Right key.Binding
+	Left  key.Binding `keymap:"left" help:"left"`
+	Right key.Binding `keymap:"right" help:"right"`
 
 	// Toggle expands or collapses the section or group under the cursor,
 	// or collapses the one the cursor is in.
-	Toggle key.Binding
+	Toggle key.Binding `keymap:"global.select" help:"fold"`
 	// Expand expands the section or group under the cursor.
-	Expand key.Binding
+	Expand key.Binding `keymap:"expand" help:"expand"`
 	// Collapse collapses the section or group under the cursor, or the one
 	// the cursor is in.
-	Collapse key.Binding
+	Collapse key.Binding `keymap:"collapse" help:"collapse"`
 	// FoldAll folds every section when any is open, and expands every
 	// section otherwise. Groups keep their state.
-	FoldAll key.Binding
+	FoldAll key.Binding `keymap:"expand_all" help:"fold all"`
 
 	// NextError and PrevError move to the next and previous error line,
 	// expanding what hides it, and NextWarning and PrevWarning to the
 	// warnings. The view enables them only while there are some.
-	NextError   key.Binding
-	PrevError   key.Binding
-	NextWarning key.Binding
-	PrevWarning key.Binding
+	NextError   key.Binding `keymap:"next_error" help:"next error"`
+	PrevError   key.Binding `keymap:"prev_error" help:"prev error"`
+	NextWarning key.Binding `keymap:"next_warning" help:"next warning"`
+	PrevWarning key.Binding `keymap:"prev_warning" help:"prev warning"`
 
 	// Wrap toggles soft-wrapping. It is s by default, since w moves to
 	// warnings.
-	Wrap key.Binding
+	Wrap key.Binding `keymap:"wrap" help:"wrap"`
 	// Times shows the times relative to their section, then the times of
 	// day, then hides them.
-	Times       key.Binding
-	LineNumbers key.Binding
+	Times       key.Binding `keymap:"times" help:"times"`
+	LineNumbers key.Binding `keymap:"line_numbers" help:"line numbers"`
 	// Follow toggles following appended lines, and moves to the end when
 	// it turns on.
-	Follow key.Binding
+	Follow key.Binding `keymap:"follow" help:"follow"`
 
 	// Search opens the search input, Confirm searches for what it holds,
 	// and Cancel closes it. Outside the input, Cancel clears the search.
 	// The view enables Confirm only while the input is open, and Cancel
 	// only while it is or a search is shown, so enter folds and esc closes
 	// the view otherwise.
-	Search  key.Binding
-	Confirm key.Binding
-	Cancel  key.Binding
+	Search  key.Binding `keymap:"find" help:"search"`
+	Confirm key.Binding `keymap:"search_prompt.run" help:"search"`
+	Cancel  key.Binding `keymap:"search_prompt.cancel" help:"cancel"`
 	// Next and Prev move between matches. The view enables them only while
 	// there are matches.
-	Next key.Binding
-	Prev key.Binding
+	Next key.Binding `keymap:"next_match" help:"next match"`
+	Prev key.Binding `keymap:"prev_match" help:"prev match"`
 
 	// Close asks the parent to close the view with a [CloseMsg]. While a
 	// search is shown, a key bound to Cancel clears it first.
-	Close key.Binding
+	Close key.Binding `keymap:"global.quit" help:"close"`
 }
 
 // DefaultKeyMap returns the default key bindings, which follow less for

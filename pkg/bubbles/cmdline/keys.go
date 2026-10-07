@@ -6,17 +6,19 @@ import "charm.land/bubbles/v2/key"
 // text input underneath and keep their defaults.
 type KeyMap struct {
 	// Submit sends the line.
-	Submit key.Binding
+	Submit key.Binding `keymap:"run" help:"run"`
 	// Cancel closes the command line without sending the line.
-	Cancel key.Binding
+	Cancel key.Binding `keymap:"cancel" help:"cancel"`
 	// CancelEmpty closes the command line when the line is empty, as
 	// backspace does in vim. On a line with text it edits as usual.
-	CancelEmpty key.Binding
+	CancelEmpty key.Binding `keymap:"cancel_empty" help:"cancel when empty"`
 	// Next inserts the next candidate, and Prev the one before.
-	Next, Prev key.Binding
+	Next key.Binding `keymap:"complete" help:"complete"`
+	Prev key.Binding `keymap:"complete_prev" help:"previous"`
 	// Older recalls the line before from the history, and Newer the one
 	// after.
-	Older, Newer key.Binding
+	Older key.Binding `keymap:"older" help:"older"`
+	Newer key.Binding `keymap:"newer" help:"newer"`
 }
 
 // DefaultKeyMap returns the default key bindings.

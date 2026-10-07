@@ -12,6 +12,8 @@ import (
 
 func TestKeyMapComplete(t *testing.T) {
 	keytest.Complete(t, withNormalKeys{DefaultKeyMap()})
+	keytest.Tagged(t, DefaultKeyMap())
+	keytest.HelpTags(t, DefaultKeyMap())
 	keytest.NoConflicts(t, DefaultKeyMap())
 }
 

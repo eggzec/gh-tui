@@ -7,32 +7,40 @@ import "charm.land/bubbles/v2/key"
 // picker uses only in normal mode. It implements help.KeyMap, for a picker
 // without modes.
 type KeyMap struct {
-	Up       key.Binding
-	Down     key.Binding
-	PageUp   key.Binding
-	PageDown key.Binding
+	Up       key.Binding `keymap:"up" help:"up"`
+	Down     key.Binding `keymap:"down" help:"down"`
+	PageUp   key.Binding `keymap:"page_up" help:"page up"`
+	PageDown key.Binding `keymap:"page_down" help:"page down"`
 	// Choose sends a ChosenMsg with the selected item.
-	Choose key.Binding
+	Choose key.Binding `keymap:"choose" help:"open"`
 	// Cancel sends a CancelMsg.
-	Cancel key.Binding
+	Cancel key.Binding `keymap:"cancel" help:"close"`
 	// NextScope and PrevScope cycle through the scopes. The picker enables
 	// them only when it has scopes.
-	NextScope key.Binding
-	PrevScope key.Binding
+	NextScope key.Binding `keymap:"next_scope" help:"scope"`
+	PrevScope key.Binding `keymap:"prev_scope" help:"previous scope"`
 	// Normal holds the keys of normal mode, which a picker built with
 	// WithModes starts in. Other pickers ignore them.
-	Normal NormalKeyMap
+	Normal NormalKeyMap `keymap:"picker_normal"`
 }
 
 // NormalKeyMap holds the key bindings of normal mode, where the input is
 // blurred and letters move instead of typing. Normal mode also takes the
 // map's Choose and Cancel.
 type NormalKeyMap struct {
-	Up, Down, PageUp, PageDown, HalfPageUp, HalfPageDown, Top, Bottom key.Binding
+	Up           key.Binding `keymap:"up" help:"up"`
+	Down         key.Binding `keymap:"down" help:"down"`
+	PageUp       key.Binding `keymap:"page_up" help:"page up"`
+	PageDown     key.Binding `keymap:"page_down" help:"page down"`
+	HalfPageUp   key.Binding `keymap:"half_page_up" help:"half page up"`
+	HalfPageDown key.Binding `keymap:"half_page_down" help:"half page down"`
+	Top          key.Binding `keymap:"top" help:"top"`
+	Bottom       key.Binding `keymap:"bottom" help:"bottom"`
 	// Insert and Append focus the input, with the cursor at the start or at
 	// the end of the query. They are disabled when the picker has no
 	// filter line.
-	Insert, Append key.Binding
+	Insert key.Binding `keymap:"insert" help:"filter"`
+	Append key.Binding `keymap:"append" help:"filter at end"`
 }
 
 // DefaultKeyMap returns the default key bindings.
