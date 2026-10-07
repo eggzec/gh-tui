@@ -123,8 +123,8 @@ func (m *Model) SetMessage(name, text string) {
 	m.note = strings.Join(strings.Fields(termtext.OneLine(text)), " ")
 }
 
-// reset forgets the content and stops its highlighter, and forgets an
-// option or a count the pager waited for, which were for the old content.
+// reset forgets the content and stops its highlighter, and forgets the
+// option the pager waited for, which was for the old content.
 func (m *Model) reset(name string, s state, err error) {
 	if m.cancel != nil {
 		m.cancel()
@@ -142,7 +142,7 @@ func (m *Model) reset(name string, s state, err error) {
 	m.render, m.renderedAt, m.pics = nil, 0, nil
 	m.top, m.row, m.left = 0, 0, 0
 	m.mark = -1
-	m.opt, m.num, m.counting = false, 0, false
+	m.opt = false
 	m.clearSearch()
 	m.clearProjection()
 }

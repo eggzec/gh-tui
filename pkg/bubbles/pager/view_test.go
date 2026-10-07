@@ -79,8 +79,6 @@ func TestView(t *testing.T) {
 		{name: "no such option", file: "main.go", text: goSource, width: 80, height: 8, keys: []string{"-", "x"}},
 		{name: "squeezed", file: "main.go", text: "package main\n\n\n\nfunc main() {\n\n\n}\n", width: 80, height: 8,
 			keys: []string{"-", "s"}},
-		{name: "count", file: "lines.txt", text: numbered(40), width: 30, height: 8, keys: []string{"1", "2"}},
-		{name: "went to a line", file: "lines.txt", text: numbered(40), width: 30, height: 8, keys: []string{"1", "2", "g"}},
 		{name: "colors", file: "test.log", text: colored, width: 50, height: 5},
 		{name: "colors light", file: "test.log", text: colored, width: 50, height: 5,
 			opts: []Option{WithStyles(DefaultStyles(false))}},

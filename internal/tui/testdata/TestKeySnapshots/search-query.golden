@@ -11,6 +11,7 @@ Query (types)
   search | enter | ↵ | on
   next | tab | tab | on
   previous | shift+tab | shift+tab | on
+  focus pane | 1 2 3 | 1-3 | off
   kinds | left h | ←/h | off
   results | right l | →/l | off
   up | up k | ↑/k | off

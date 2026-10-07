@@ -60,7 +60,7 @@ func TestProgramUsesACommitAsBase(t *testing.T) {
 		t.Fatal("the graph didn't load")
 	}
 	tm.Send(press("j"))
-	tm.Send(press("space"))
+	tm.Send(press("b"))
 	final, ok := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(*app)
 	if !ok || final.base == nil {
 		t.Fatal("the program ended without a base")

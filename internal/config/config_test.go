@@ -513,7 +513,7 @@ func TestLogPath(t *testing.T) {
 func TestActionsModalActions(t *testing.T) {
 	defaults := Default().Keys
 	for action, want := range map[string]string{
-		ActionActions: "A", ActionNextTab: "]", ActionPrevTab: "[", "actions.pane_left": "h", "actions.pane_right": "l",
+		ActionActions: "A", ActionNextTab: "]", ActionPrevTab: "[",
 		ActionZoom: "z", "actions.rerun_failed": "R", "actions_jobs.rerun_job": "J", "actions.cancel": "x",
 	} {
 		if got := defaults.Of(action); !slices.Equal(got, []string{want}) {

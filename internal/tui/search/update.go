@@ -145,6 +145,8 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 		switch {
 		case key.Matches(msg, k.Back):
 			return back
+		case k.focusOf(msg) >= 0:
+			return s.focusPane(k.focusOf(msg))
 		case key.Matches(msg, k.Up):
 			return s.moveKind(-1)
 		case key.Matches(msg, k.Down):
@@ -164,6 +166,18 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 		return nil
 	case resultsArea:
 		return s.pressResults(msg)
+	}
+	return nil
+}
+
+// focusPane focuses the part of the page a, which a digit names. The
+// results of the code kind are searched for when the kinds hand them the
+// focus, as the other keys that do so.
+func (s *Section) focusPane(a area) tea.Cmd {
+	from := s.area
+	s.focusArea(a)
+	if a == resultsArea && from == kindsArea && s.kind == core.SearchCode {
+		return s.searchCode()
 	}
 	return nil
 }
@@ -190,6 +204,8 @@ func (s *Section) pressResults(msg tea.KeyPressMsg) tea.Cmd {
 	switch {
 	case key.Matches(msg, k.Back):
 		return back
+	case k.focusOf(msg) >= 0:
+		return s.focusPane(k.focusOf(msg))
 	case key.Matches(msg, k.Left), key.Matches(msg, k.Prev):
 		s.focusArea(kindsArea)
 		return nil

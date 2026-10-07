@@ -518,11 +518,14 @@ keys:
     # and the Filters and Sort tabs of the filter modal.
     next_tab: ["]"]
     prev_tab: ["["]
-    # Focus the pane with that number on the screen: files, pull requests
-    # and issues on the repository screen; pinned, repositories, work,
-    # contributions and notifications on the dashboard; and pinned, the
-    # list, the README and a user's contributions on the page of a user or
-    # an organization.
+    # Focus the pane with that number on the screen or modal on view: files,
+    # pull requests and issues on the repository screen; pinned,
+    # repositories, work, contributions and notifications on the dashboard;
+    # pinned, the list, the README and a user's contributions on the page of
+    # a user or an organization; the query, the kinds and the results on
+    # the search page; branches, graph and commit in History; and runs,
+    # jobs and log in Actions. A digit with no such pane there does nothing,
+    # and never switches screens.
     pane_1: ["1"]
     pane_2: ["2"]
     pane_3: ["3"]
@@ -536,17 +539,10 @@ keys:
     filter: [f]
     sort: [s]
     clear_filter: [F]
-    # Switch between your own repositories and those of each organization,
-    # as next_tab and prev_tab do.
-    next_owner: [right]
-    prev_owner: [left]
   # Dashboard: the pull requests and issues waiting on you.
   dashboard_work:
     # Show the checks of the pull request under the cursor.
     checks: [C]
-    # Switch between the lists of work, as next_tab and prev_tab do.
-    next_owner: [right]
-    prev_owner: [left]
 
   # The repository screen, on any of its panes.
   repo:
@@ -649,14 +645,14 @@ keys:
   history_branches:
     # Narrow the branches by typing a part of a name.
     filter: [f]
-    base: [space]
+    base: [b]
   # History: the commit graph. Show the files at the commit under the
   # cursor.
   history_graph:
-    base: [space]
+    base: [b]
   # History: the files of a commit. Show the files at the commit.
   history_files:
-    base: [space]
+    base: [b]
 
   # The Actions modal, on any of its panes.
   actions:
@@ -666,9 +662,6 @@ keys:
     cancel: [x]
     # Open the filter of the runs.
     filter: [f]
-    # Move the focus to the pane on the left or right.
-    pane_left: [h]
-    pane_right: [l]
   # Actions: the jobs of a run. Re-run the job under the cursor.
   actions_jobs:
     rerun_job: [J]

@@ -113,10 +113,10 @@ func TestOpensOnACommit(t *testing.T) {
 		t.Errorf("calls = %q, want the history of the commit read", got)
 	}
 	// The commit becomes the base without a branch to open again.
-	h.keys("space")
+	h.keys("b")
 	want := []tea.Msg{ui.CloseModalMsg{Modal: m}, ui.BaseMsg{Repo: repo, Ref: target, Label: "main @ " + short(target)}, ui.ShowMsg{Title: ui.FilesTitle}}
 	if got := h.take(); !slices.Equal(got, want) {
-		t.Errorf("space sent %#v, want %#v", got, want)
+		t.Errorf("b sent %#v, want %#v", got, want)
 	}
 }
 
@@ -131,6 +131,57 @@ func TestFocusMovesBetweenPanes(t *testing.T) {
 	h.keys("shift+tab")
 	if m.focus != branchPane || m.graph.model.Focused() {
 		t.Errorf("shift+tab focused %d, want the branches alone", m.focus)
+	}
+}
+
+// The digits focus the branches, the graph and the commit, as tab does,
+// and the commit pane reads its commit at once.
+func TestDigitsFocusPanes(t *testing.T) {
+	m, h := newModal(t, newFake(), 108, 30)
+	for _, tt := range []struct {
+		key  string
+		want pane
+	}{
+		{"1", branchPane}, {"3", commitPane}, {"2", graphPane}, {"3", commitPane}, {"1", branchPane}, {"1", branchPane},
+	} {
+		h.keys(tt.key)
+		if m.focus != tt.want {
+			t.Fatalf("%s focused %d, want %d", tt.key, m.focus, tt.want)
+		}
+	}
+	if m.graph.model.Focused() {
+		t.Error("the graph kept the focus")
+	}
+	// A key that is none of them does nothing.
+	h.keys("4")
+	if m.focus != branchPane {
+		t.Errorf("4 focused %d, want the branches still", m.focus)
+	}
+	// Space no longer picks a base.
+	h.keys("space")
+	if got := h.take(); len(got) != 0 {
+		t.Errorf("space sent %#v, want nothing", got)
+	}
+}
+
+// Unbinding a pane key turns its digit off, and the others still work.
+func TestUnboundPaneKeyDoesNothing(t *testing.T) {
+	keys := config.Default().Keys
+	keys.Set("global.pane_2", nil)
+	m := New(t.Context(), newFake(), repo, "main", ui.BaseMsg{}, keys,
+		WithConfig(testConfig()), testPrefetch(nil), withClock(testNow))
+	m.SetTheme(testTheme())
+	m.SetSize(108, 30)
+	h := &host{m: m}
+	h.run(m.Init())
+	h.keys("3")
+	h.keys("2")
+	if m.focus != commitPane {
+		t.Errorf("unbound 2 focused %d, want the commit still", m.focus)
+	}
+	h.keys("1")
+	if m.focus != branchPane {
+		t.Errorf("1 focused %d, want the branches", m.focus)
 	}
 }
 
@@ -153,7 +204,7 @@ func TestEnterAndEscStepThroughThePanes(t *testing.T) {
 		t.Fatalf("enter on a file shows %q, patch %v; want its patch", m.commit.pager.Name(), m.commit.patch)
 	}
 	// Pager keys scroll the patch rather than moving the focus.
-	h.keys("j", "space")
+	h.keys("j", "b")
 	if m.focus != commitPane || !m.commit.patch {
 		t.Fatal("pager keys left the patch")
 	}
@@ -305,10 +356,10 @@ func TestUseAsBase(t *testing.T) {
 			m, h := newModal(t, newFake(), 108, 30)
 			h.keys(tt.keys...)
 			h.take()
-			h.keys("space")
+			h.keys("b")
 			want := []tea.Msg{ui.CloseModalMsg{Modal: m}, tt.want, ui.ShowMsg{Title: ui.FilesTitle}}
 			if got := h.take(); !slices.Equal(got, want) {
-				t.Errorf("space sent %#v, want %#v", got, want)
+				t.Errorf("b sent %#v, want %#v", got, want)
 			}
 		})
 	}

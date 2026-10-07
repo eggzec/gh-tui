@@ -138,6 +138,9 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 	case key.Matches(msg, m.keys.Prev):
 		m.setFocus((m.focus + numPanes - 1) % numPanes)
 		return m.focused()
+	case m.keys.focusOf(msg) >= 0:
+		m.setFocus(m.keys.focusOf(msg))
+		return m.focused()
 	case key.Matches(msg, m.keys.Open):
 		return m.open()
 	case key.Matches(msg, m.keys.ResetBase):

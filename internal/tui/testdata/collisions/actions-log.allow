@@ -1,3 +1,0 @@
-# context | key | loser | winner | reason; see allowDir in collisions_test.go
-actions: log | h | Log: left | Actions: pane left | h and l move between the panes; the arrows still scroll the log
-actions: log | l | Log: right | Actions: pane right | h and l move between the panes; the arrows still scroll the log

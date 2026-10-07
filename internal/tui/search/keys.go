@@ -2,6 +2,7 @@ package search
 
 import (
 	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
@@ -14,9 +15,13 @@ import (
 // focus, only the keys that type nothing act; the rest edit the query.
 type KeyMap struct {
 	// Next and Prev move the focus between the query, the kinds and the
-	// results.
-	Next key.Binding
-	Prev key.Binding
+	// results, and Panes focus the one with that number. The query types
+	// digits, so they work from the kinds and the results.
+	Next  key.Binding
+	Prev  key.Binding
+	Panes [numAreas]key.Binding
+	// Jump holds the keys of Panes, which it stands for in help.
+	Jump key.Binding
 	// Select searches from the query, and opens the result under the
 	// cursor.
 	Select key.Binding
@@ -45,6 +50,19 @@ type KeyMap struct {
 	feed feed.KeyMap
 }
 
+// areaTitles names the parts of the page in help.
+var areaTitles = [numAreas]string{"query", "kinds", "results"}
+
+// focusOf returns the part of the page that msg focuses, or -1.
+func (k KeyMap) focusOf(msg tea.KeyPressMsg) area {
+	for i, b := range k.Panes {
+		if key.Matches(msg, b) {
+			return area(i)
+		}
+	}
+	return -1
+}
+
 func newKeyMap(keys config.Keymap) KeyMap {
 	page, results, kinds := ui.In(keys, "search"), ui.In(keys, "search_results"), ui.In(keys, "search_kinds")
 	k := KeyMap{
@@ -64,6 +82,10 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		Left:        key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←/h", "kinds")),
 		Right:       key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "results")),
 	}
+	for i, a := range [numAreas]string{"global.pane_1", "global.pane_2", "global.pane_3"} {
+		k.Panes[i] = page.Binding(a, areaTitles[i])
+	}
+	k.Jump = ui.Jump(k.Panes[:]...)
 	// The page matches these keys first, so the results get only the keys
 	// it leaves them, such as f, which pages down there.
 	f := feed.DefaultKeyMap()
@@ -81,7 +103,7 @@ var (
 // own returns the keys of the page, in the order it matches them.
 func (k KeyMap) own() []key.Binding {
 	return []key.Binding{
-		k.Back, k.Select, k.Next, k.Prev, k.Left, k.Right, k.Up, k.Down,
+		k.Back, k.Select, k.Next, k.Prev, k.Jump, k.Left, k.Right, k.Up, k.Down,
 		k.Open, k.Checks, k.Refresh, k.Filter, k.Sort,
 	}
 }
@@ -111,7 +133,7 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 		return []keyhelp.Layer{l}
 	}
 	k := s.keys.state(s)
-	screen := ui.ContextLayer("search", []key.Binding{k.Back, k.Next, k.Prev}, []key.Binding{k.Next, k.Back})
+	screen := ui.ContextLayer("search", []key.Binding{k.Back, k.Next, k.Prev, k.Jump}, []key.Binding{k.Next, k.Back})
 	own := keyhelp.Layer{
 		Bindings: []key.Binding{k.Select, k.Left, k.Right, k.Up, k.Down, k.Open, k.Checks, k.Refresh, k.Filter, k.Sort},
 		Short:    []key.Binding{k.Up, k.Down, k.Select, k.Checks, k.Open, k.Filter, k.Sort, k.Left},
@@ -137,7 +159,7 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 func (k KeyMap) inInput() KeyMap {
 	k.Select.SetHelp(k.Select.Help().Key, "search")
 	for _, b := range []*key.Binding{
-		&k.Left, &k.Right, &k.Up, &k.Down, &k.Open, &k.Checks, &k.Refresh, &k.Filter, &k.Sort, &k.KindsFilter, &k.KindsSort,
+		&k.Jump, &k.Left, &k.Right, &k.Up, &k.Down, &k.Open, &k.Checks, &k.Refresh, &k.Filter, &k.Sort, &k.KindsFilter, &k.KindsSort,
 	} {
 		b.SetEnabled(false)
 	}

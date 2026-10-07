@@ -4,6 +4,7 @@ import (
 	"slices"
 
 	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/jobview"
@@ -19,10 +20,10 @@ import (
 type KeyMap struct {
 	// form holds the keys of the filter form, as the other filters have them.
 	form filterform.KeyMap
-	// Next and Prev move the focus through the panes, and Left and Right
-	// to the pane beside the focused one.
-	Next, Prev  key.Binding
-	Left, Right key.Binding
+	// Next and Prev move the focus through the panes, and Panes focus the
+	// pane with that number.
+	Next, Prev key.Binding
+	Panes      [numPanes]key.Binding
 	// NextTab and PrevTab switch between All, Failing, Running and Mine.
 	NextTab, PrevTab key.Binding
 	// Select drills into the pane after the focused one.
@@ -50,6 +51,9 @@ type KeyMap struct {
 	// annotations.
 	Annotations, notes key.Binding
 
+	// Jump holds the keys of Panes, which it stands for in help.
+	Jump key.Binding
+
 	// List moves through the runs and the jobs, and Log through the log.
 	List feed.KeyMap
 	Log  logview.KeyMap
@@ -70,8 +74,6 @@ func newKeyMap(keys config.Keymap) KeyMap {
 	k := KeyMap{
 		NextTab:     modal.Binding("global.next_tab", "tab"),
 		PrevTab:     modal.Binding("global.prev_tab", "previous tab"),
-		Left:        modal.Binding("pane_left", "pane left"),
-		Right:       modal.Binding("pane_right", "pane right"),
 		Select:      modal.Binding("global.select", "open"),
 		Back:        modal.Binding("global.dismiss", "back"),
 		Filter:      modal.Binding("filter", "filter"),
@@ -93,6 +95,10 @@ func newKeyMap(keys config.Keymap) KeyMap {
 	// such as f, which pages down there and filters here.
 	k.Next = modal.Binding("global.next_pane", "pane")
 	k.Prev = modal.Binding("global.prev_pane", "previous pane")
+	for i, a := range [numPanes]string{"global.pane_1", "global.pane_2", "global.pane_3"} {
+		k.Panes[i] = modal.Binding(a, paneTitles[i])
+	}
+	k.Jump = ui.Jump(k.Panes[:]...)
 	fk := feed.DefaultKeyMap()
 	fk.Retry = relabel(k.Refresh, "retry")
 	fk.Retry.SetEnabled(false)
@@ -115,7 +121,7 @@ func (k KeyMap) own() []key.Binding {
 // matches them.
 func (k KeyMap) screen() []key.Binding {
 	return []key.Binding{
-		k.NextTab, k.PrevTab, k.Next, k.Prev, k.Right, k.Left, k.Filter, k.Zoom, k.Open,
+		k.NextTab, k.PrevTab, k.Next, k.Prev, k.Jump, k.Filter, k.Zoom, k.Open,
 		k.RerunFailed, k.Rerun, k.Cancel, k.Refresh, k.Back,
 	}
 }
@@ -162,4 +168,17 @@ func (k KeyMap) job() jobview.KeyMap {
 func relabel(b key.Binding, desc string) key.Binding {
 	b.SetHelp(b.Help().Key, desc)
 	return b
+}
+
+// paneTitles names the panes in help.
+var paneTitles = [numPanes]string{"runs", "jobs", "log"}
+
+// focusOf returns the pane that msg focuses, or -1.
+func (k KeyMap) focusOf(msg tea.KeyPressMsg) pane {
+	for i, b := range k.Panes {
+		if key.Matches(msg, b) {
+			return pane(i)
+		}
+	}
+	return -1
 }
