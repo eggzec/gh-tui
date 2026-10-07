@@ -264,7 +264,7 @@ func TestCommands(t *testing.T) {
 func TestCommandKeyIsConfigurable(t *testing.T) {
 	cfg := config.Default()
 	cfg.Keys.Set(config.ActionCommand, []string{";"})
-	cfg.Keys.Set(config.ActionDismiss, []string{"q", "ctrl+g"})
+	cfg.Keys.Set("command_line.cancel", []string{"ctrl+g"})
 	fakes := []*fakeSection{{title: "Files"}, {title: "Pull requests"}, {title: "Issues"}, {title: "Notifications"}}
 	m := New(t.Context(), cfg, Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3]}, WithRepo(testRepo))
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
@@ -276,14 +276,14 @@ func TestCommandKeyIsConfigurable(t *testing.T) {
 	if !m.line.Focused() {
 		t.Fatal("; didn't open the line")
 	}
-	// A letter bound to back still types itself, and the rest cancels.
+	// Letters type, and the key set for cancel cancels.
 	typeKeys(m, "q")
 	if !m.line.Focused() || m.line.Value() != "q" {
 		t.Fatalf("q should type in the line, got %q", m.line.Value())
 	}
 	drive(m, m.key(tea.KeyPressMsg{Code: 'g', Mod: tea.ModCtrl}))
 	if m.line.Focused() {
-		t.Error("ctrl+g, bound to back, didn't cancel the line")
+		t.Error("ctrl+g, bound to cancel, didn't cancel the line")
 	}
 	if s := onScreen(m); !strings.Contains(s, "; command") {
 		t.Errorf("the help should name the key bound:\n%s", s)
@@ -293,27 +293,31 @@ func TestCommandKeyIsConfigurable(t *testing.T) {
 func TestLineKeys(t *testing.T) {
 	tests := []struct {
 		name         string
-		sel, back    []string
+		set          map[string][]string
 		submit, stop []string
 	}{
 		{name: "default", submit: []string{"enter"}, stop: []string{"esc", "ctrl+c"}},
-		{name: "letters type", sel: []string{"o"}, back: []string{"q", "space"}, submit: []string{"enter"}, stop: []string{"esc", "ctrl+c"}},
-		{name: "keys that type nothing", sel: []string{"enter", "ctrl+j"}, back: []string{"ctrl+g", "f1"}, submit: []string{"enter", "ctrl+j"}, stop: []string{"esc", "ctrl+c", "ctrl+g", "f1"}},
 		{
-			name: "keys that edit", sel: []string{"tab", "right", "ctrl+e"},
-			back:   []string{"backspace", "left", "up", "down", "shift+tab", "home", "end", "ctrl+a", "ctrl+u", "ctrl+w", "ctrl+k", "ctrl+h", "ctrl+p", "ctrl+n", "delete"},
+			name:   "the keys of select and dismiss are left to the rest of the app",
+			set:    map[string][]string{config.ActionSelect: {"enter", "ctrl+j"}, config.ActionDismiss: {"ctrl+g", "f1"}},
 			submit: []string{"enter"}, stop: []string{"esc", "ctrl+c"},
 		},
-		{name: "each other's keys", sel: []string{"esc"}, back: []string{"enter"}, submit: []string{"enter"}, stop: []string{"esc", "ctrl+c"}},
+		{
+			name:   "its own keys",
+			set:    map[string][]string{"command_line.run": {"ctrl+j"}, "command_line.cancel": {"ctrl+g", "f1"}},
+			submit: []string{"ctrl+j"}, stop: []string{"ctrl+g", "f1", "ctrl+c"},
+		},
+		{
+			name:   "unbound cancel leaves ctrl+c",
+			set:    map[string][]string{"command_line.cancel": {}},
+			submit: []string{"enter"}, stop: []string{"ctrl+c"},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			keys := config.Default().Keys
-			if tt.sel != nil {
-				keys.Set(config.ActionSelect, tt.sel)
-			}
-			if tt.back != nil {
-				keys.Set(config.ActionDismiss, tt.back)
+			for action, ks := range tt.set {
+				keys.Set(action, ks)
 			}
 			k := lineKeys(keys)
 			if got := k.Submit.Keys(); !slices.Equal(got, tt.submit) {
@@ -323,6 +327,26 @@ func TestLineKeys(t *testing.T) {
 				t.Errorf("cancel keys = %q, want %q", got, tt.stop)
 			}
 		})
+	}
+}
+
+// TestLineCompletesWithItsOwnKey checks that a key set for the command
+// line's complete action completes, and that tab, no longer bound, doesn't.
+func TestLineCompletesWithItsOwnKey(t *testing.T) {
+	cfg := config.Default()
+	cfg.Keys.Set("command_line.complete", []string{"ctrl+i"})
+	fakes := []*fakeSection{{title: "Files"}, {title: "Pull requests"}, {title: "Issues"}, {title: "Notifications"}}
+	m := New(t.Context(), cfg, Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3]}, WithRepo(testRepo))
+	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	drive(m, m.key(press(":")))
+	typeKeys(m, "go")
+	drive(m, m.key(tea.KeyPressMsg{Code: tea.KeyTab}))
+	if got := m.line.Value(); got != "go" {
+		t.Fatalf("tab completed to %q though complete is bound to ctrl+i", got)
+	}
+	drive(m, m.key(tea.KeyPressMsg{Code: 'i', Mod: tea.ModCtrl}))
+	if got := m.line.Value(); got == "go" {
+		t.Error("ctrl+i didn't complete the line")
 	}
 }
 

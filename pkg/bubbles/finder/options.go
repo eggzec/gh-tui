@@ -40,7 +40,6 @@ const DefaultSyncLimit = 5000
 func defaultSettings() settings {
 	return settings{
 		parent:      context.Background(),
-		keys:        DefaultKeyMap(),
 		styles:      DefaultStyles(true),
 		placeholder: "Type to find a file",
 		one:         "file",
@@ -64,7 +63,8 @@ func WithSize(width, height int) Option {
 	return func(s *settings) { s.width, s.height = max(width, 0), max(height, 0) }
 }
 
-// WithKeyMap sets the key bindings.
+// WithKeyMap sets the key bindings, which NewKeyMap makes. Without them
+// every binding is disabled, and no key acts.
 func WithKeyMap(k KeyMap) Option {
 	return func(s *settings) { s.keys = k }
 }

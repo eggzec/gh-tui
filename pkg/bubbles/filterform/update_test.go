@@ -817,7 +817,7 @@ func TestQuitCloses(t *testing.T) {
 }
 
 func TestCapturing(t *testing.T) {
-	m := New(prSpec(nil))
+	m := newKeyed(t, prSpec(nil))
 	m, _ = press(t, m, down)
 	if m.Capturing() || m.row != rowState {
 		t.Error("a blurred form took a key")

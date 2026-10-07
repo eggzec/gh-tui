@@ -10,6 +10,8 @@ import (
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/keytest"
 )
 
 var (
@@ -39,6 +41,32 @@ var (
 	fix      = Item{Kind: kindPulls, Title: "Fix the crash on an empty config", Detail: "eggzec/gh-tui#7", Value: "pull:7"}
 	catalog  = []Item{ghTUI, dotfiles, crash, fix}
 )
+
+// testKeys returns the keys of a picker, as the app sets them.
+func testKeys(tb testing.TB) KeyMap {
+	tb.Helper()
+	table := map[string][]string{
+		"up":                           {"up", "ctrl+p"},
+		"down":                         {"down", "ctrl+n"},
+		"page_up":                      {"pgup"},
+		"page_down":                    {"pgdown"},
+		"choose":                       {"enter"},
+		"cancel":                       {"esc"},
+		"next_scope":                   {"tab"},
+		"prev_scope":                   {"shift+tab"},
+		"picker_normal.up":             {"k", "up"},
+		"picker_normal.down":           {"j", "down"},
+		"picker_normal.page_up":        {"ctrl+b", "pgup"},
+		"picker_normal.page_down":      {"ctrl+f", "pgdown"},
+		"picker_normal.half_page_up":   {"ctrl+u"},
+		"picker_normal.half_page_down": {"ctrl+d"},
+		"picker_normal.top":            {"g", "home"},
+		"picker_normal.bottom":         {"G", "end"},
+		"picker_normal.insert":         {"i"},
+		"picker_normal.append":         {"a"},
+	}
+	return NewKeyMap(keytest.Table(table))
+}
 
 var errBoom = errors.New("github: 502 Bad Gateway")
 
@@ -136,7 +164,7 @@ func typeText(tb testing.TB, m Model, text string) Model {
 // waits to search.
 func open(tb testing.TB, search Search, opts ...Option) Model {
 	tb.Helper()
-	m := New(search, append([]Option{WithDebounce(0), WithSize(60, 12)}, opts...)...)
+	m := New(search, append([]Option{WithKeyMap(testKeys(tb)), WithDebounce(0), WithSize(60, 12)}, opts...)...)
 	m.Focus()
 	m, _ = run(tb, m, m.Init())
 	return m

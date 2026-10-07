@@ -1,10 +1,10 @@
 # label | keys | help key | on or off
 
 Command line (types)
-  run | enter | enter | on
+  run | enter | ↵ | on
   cancel | esc ctrl+c | esc | on
-  cancel when empty | backspace ctrl+h | backspace | on
+  cancel when empty | backspace ctrl+h | backspace/^h | on
   complete | tab | tab | on
   previous | shift+tab | shift+tab | on
-  older | up ctrl+p | ↑ | off
-  newer | down ctrl+n | ↓ | off
+  older | up ctrl+p | ↑/^p | off
+  newer | down ctrl+n | ↓/^n | off

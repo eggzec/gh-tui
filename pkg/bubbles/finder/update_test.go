@@ -151,7 +151,7 @@ func TestNarrowsFromLastResult(t *testing.T) {
 
 func TestLoadError(t *testing.T) {
 	boom := errors.New("boom\nand more")
-	m := New(func(context.Context) (Listing, error) { return Listing{}, boom }, WithSize(40, 5))
+	m := newKeyed(t, func(context.Context) (Listing, error) { return Listing{}, boom }, WithSize(40, 5))
 	m.Focus()
 	m = run(t, m, m.Init())
 	if !errors.Is(m.Err(), boom) || m.Loading() {
@@ -178,7 +178,7 @@ func TestErrorText(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			load := func(context.Context) (Listing, error) { return Listing{}, errors.New("boom\nand more") }
-			m := New(load, append([]Option{WithSize(tt.width, 5)}, tt.opts...)...)
+			m := newKeyed(t, load, append([]Option{WithSize(tt.width, 5)}, tt.opts...)...)
 			m = run(t, m, m.Init())
 			rows := strings.Split(ansi.Strip(m.View()), "\n")
 			if got := strings.TrimRight(rows[1], " "); got != tt.want {
@@ -210,7 +210,7 @@ func TestErrorASCII(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := New(load, append([]Option{WithSize(tt.width, 5), WithStyles(st)}, tt.opts...)...)
+			m := newKeyed(t, load, append([]Option{WithSize(tt.width, 5), WithStyles(st)}, tt.opts...)...)
 			m = run(t, m, m.Init())
 			row := strings.Split(ansi.Strip(m.View()), "\n")[1]
 			if got := strings.TrimRight(row, " "); got != tt.want {
@@ -227,7 +227,7 @@ func TestErrorASCII(t *testing.T) {
 
 func TestCloseCancelsLoad(t *testing.T) {
 	var ctx context.Context
-	m := New(func(c context.Context) (Listing, error) {
+	m := newKeyed(t, func(c context.Context) (Listing, error) {
 		ctx = c
 		<-c.Done()
 		return Listing{}, c.Err()
@@ -241,7 +241,7 @@ func TestCloseCancelsLoad(t *testing.T) {
 }
 
 func TestTypingWhileLoading(t *testing.T) {
-	m := New(loader(sample...), WithSize(40, 8))
+	m := newKeyed(t, loader(sample...), WithSize(40, 8))
 	m.Focus()
 	load := m.Init()
 	m = typed(t, m, "tea")
@@ -295,7 +295,7 @@ func TestBlurredIgnoresKeys(t *testing.T) {
 
 func TestIgnoresOtherInstances(t *testing.T) {
 	a := open(t, 40, 8, sample)
-	b := New(loader("other.go"))
+	b := newKeyed(t, loader("other.go"))
 	for _, msg := range pending(b.Init()) {
 		a2, cmd := a.Update(msg)
 		if cmd != nil || a2.Total() != a.Total() {
@@ -322,7 +322,7 @@ func TestResizeKeepsSelectionInView(t *testing.T) {
 func TestRetry(t *testing.T) {
 	var fail atomic.Bool
 	fail.Store(true)
-	m := New(func(context.Context) (Listing, error) {
+	m := newKeyed(t, func(context.Context) (Listing, error) {
 		if fail.Load() {
 			return Listing{}, errors.New("offline")
 		}

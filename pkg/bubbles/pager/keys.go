@@ -41,6 +41,9 @@ type KeyMap struct {
 	Search  key.Binding `keymap:"find" help:"search"`
 	Confirm key.Binding `keymap:"search_prompt.run" help:"search"`
 	Cancel  key.Binding `keymap:"search_prompt.cancel" help:"cancel"`
+	// CancelEmpty closes the prompt too, but only on an empty line, where
+	// the prompt takes it before it would erase a character.
+	CancelEmpty key.Binding `keymap:"search_prompt.cancel_empty" help:"cancel"`
 	// Filter opens the filter prompt, where Confirm shows only the lines
 	// the pattern typed matches, or doesn't match after a "!", and an
 	// empty line shows them all again. Outside the prompt, Cancel stops
@@ -92,6 +95,7 @@ func NewKeyMap(look keymap.Lookup) KeyMap {
 	keymap.Fill(&k, look)
 	k.Confirm.SetEnabled(false)
 	k.Cancel.SetEnabled(false)
+	k.CancelEmpty.SetEnabled(false)
 	k.Next.SetEnabled(false)
 	k.Prev.SetEnabled(false)
 	k.Options.setEnabled(false)
@@ -143,6 +147,6 @@ func (k KeyMap) fullHelp(closing ...key.Binding) [][]key.Binding {
 		{k.Up, k.Down, k.PageUp, k.PageDown, k.HalfPageUp, k.HalfPageDown},
 		{k.Home, k.End, k.Left, k.Right, k.Option},
 		{k.Options.Chop, k.Options.LineNumbers, k.Options.Squeeze, k.Options.SmartCase, k.Options.IgnoreCase, k.Options.Cancel},
-		append([]key.Binding{k.Search, k.Filter, k.Confirm, k.Cancel, k.Next, k.Prev, k.Edit}, closing...),
+		append([]key.Binding{k.Search, k.Filter, k.Confirm, k.Cancel, k.CancelEmpty, k.Next, k.Prev, k.Edit}, closing...),
 	}
 }

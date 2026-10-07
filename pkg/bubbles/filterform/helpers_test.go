@@ -8,7 +8,62 @@ import (
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/keytest"
 )
+
+// testKeys returns the keys of a filter form, as the app sets them.
+func testKeys(tb testing.TB) KeyMap {
+	tb.Helper()
+	table := map[string][]string{
+		"up":                           {"k", "up"},
+		"down":                         {"j", "down"},
+		"top":                          {"g", "home"},
+		"bottom":                       {"G", "end"},
+		"left":                         {"h", "left"},
+		"right":                        {"l", "right"},
+		"toggle":                       {"space"},
+		"insert":                       {"i"},
+		"append":                       {"a"},
+		"clear":                        {"delete", "backspace"},
+		"global.next_tab":              {"]"},
+		"global.prev_tab":              {"["},
+		"global.select":                {"enter"},
+		"global.dismiss":               {"esc"},
+		"global.quit":                  {"q"},
+		"global.refresh":               {"r"},
+		"picker.toggle":                {"space"},
+		"filter_query.apply":           {"enter"},
+		"filter_query.cancel":          {"esc"},
+		"filter_query.up":              {"up", "ctrl+p"},
+		"filter_query.down":            {"down", "ctrl+n"},
+		"picker.up":                    {"up", "ctrl+p"},
+		"picker.down":                  {"down", "ctrl+n"},
+		"picker.page_up":               {"pgup"},
+		"picker.page_down":             {"pgdown"},
+		"picker.choose":                {"enter"},
+		"picker.cancel":                {"esc"},
+		"picker.next_scope":            {"tab"},
+		"picker.prev_scope":            {"shift+tab"},
+		"picker_normal.up":             {"k", "up"},
+		"picker_normal.down":           {"j", "down"},
+		"picker_normal.page_up":        {"ctrl+b", "pgup"},
+		"picker_normal.page_down":      {"ctrl+f", "pgdown"},
+		"picker_normal.half_page_up":   {"ctrl+u"},
+		"picker_normal.half_page_down": {"ctrl+d"},
+		"picker_normal.top":            {"g", "home"},
+		"picker_normal.bottom":         {"G", "end"},
+		"picker_normal.insert":         {"i"},
+		"picker_normal.append":         {"a"},
+	}
+	return NewKeyMap(keytest.Table(table))
+}
+
+// newKeyed returns a form with the keys of the app.
+func newKeyed(tb testing.TB, spec Spec, opts ...Option) Model {
+	tb.Helper()
+	return New(spec, append([]Option{WithKeyMap(testKeys(tb))}, opts...)...)
+}
 
 var (
 	enter   = tea.KeyPressMsg{Code: tea.KeyEnter}
@@ -193,7 +248,7 @@ func typeText(tb testing.TB, m Model, text string) Model {
 // open returns a focused form of spec.
 func open(tb testing.TB, spec Spec, opts ...Option) Model {
 	tb.Helper()
-	m := New(spec, append([]Option{WithSize(60, 20)}, opts...)...)
+	m := newKeyed(tb, spec, append([]Option{WithSize(60, 20)}, opts...)...)
 	m.Focus()
 	return m
 }

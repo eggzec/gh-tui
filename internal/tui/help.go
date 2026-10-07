@@ -17,11 +17,9 @@ import (
 // and the help key reaches it from inside one, unless what has the keys
 // types it into an input.
 
-// newHelp returns the help, which closes with the help key too.
-func newHelp(k KeyMap) keyhelp.Model {
-	km := keyhelp.DefaultKeyMap()
-	km.Close = key.NewBinding(key.WithKeys(k.Help.Keys()...), key.WithHelp(k.Help.Help().Key, "close"))
-	return keyhelp.New(keyhelp.WithKeyMap(km))
+// newHelp returns the help, with the keys of its context.
+func newHelp(keys config.Keymap) keyhelp.Model {
+	return keyhelp.New(keyhelp.WithKeyMap(keyhelp.NewKeyMap(ui.Lookup(keys, "help"))))
 }
 
 // helpOpen reports whether the help is open.

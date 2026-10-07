@@ -10,12 +10,14 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
 	filesvc "github.com/eggzec/gh-tui/internal/service/files"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/finder"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
 )
 
@@ -81,16 +83,16 @@ type finderKeys struct {
 	find finder.KeyMap
 	// Reveal shows the file in the tree, and Preview shows or hides its
 	// content.
-	Reveal  key.Binding
-	Preview key.Binding
+	Reveal  key.Binding `keymap:"reveal" help:"open in tree"`
+	Preview key.Binding `keymap:"preview" help:"preview"`
 }
 
-func newFinderKeys() finderKeys {
-	return finderKeys{
-		find:    finder.DefaultKeyMap(),
-		Reveal:  key.NewBinding(key.WithKeys("ctrl+t"), key.WithHelp("^t", "open in tree")),
-		Preview: key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "preview")),
-	}
+// newFinderKeys returns the keys of the finder, from the context finder.
+func newFinderKeys(keys config.Keymap) finderKeys {
+	look := ui.Lookup(keys, "finder")
+	k := finderKeys{find: finder.NewKeyMap(look)}
+	keymap.Fill(&k, look)
+	return k
 }
 
 // ShortHelp implements help.KeyMap.
@@ -134,7 +136,7 @@ func (s *Section) newFinder() *finderModal {
 		title: "Find file" + s.icons.Separator + s.repo.String(),
 		ctx:   ctx,
 		stop:  stop,
-		keys:  newFinderKeys(),
+		keys:  s.finderKeys,
 		theme: s.theme,
 	}
 	if s.idx != nil {

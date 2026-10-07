@@ -118,9 +118,10 @@ func TestHelpKeyThatTypesNothing(t *testing.T) {
 	if !m.helpOpen() {
 		t.Fatal("f1 didn't open the help")
 	}
-	run(m, m.key(tea.KeyPressMsg{Code: tea.KeyF1}))
+	// The help closes with the keys of its own context, whatever opens it.
+	run(m, m.key(press("?")))
 	if m.helpOpen() {
-		t.Error("f1 didn't close the help")
+		t.Error("? didn't close the help")
 	}
 }
 

@@ -9,6 +9,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/graph"
+	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
 )
 
 // KeyMap holds the keys of the modal. The panes share the keys that move
@@ -45,6 +46,8 @@ type KeyMap struct {
 	Branches graph.KeyMap
 	Files    graph.KeyMap
 	Graph    graph.KeyMap
+	// pick holds the keys of the branch filter, which types.
+	pick picker.KeyMap
 }
 
 // The contexts of the keys of the modal: its own, and one for each pane.
@@ -74,6 +77,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		Branches:  graph.NewKeyMap(branches.Of),
 		Files:     graph.NewKeyMap(files.Of),
 		Graph:     g,
+		pick:      picker.NewKeyMap(ui.Lookup(keys, "picker")),
 	}
 	for i, a := range [numPanes]string{"global.pane_1", "global.pane_2", "global.pane_3"} {
 		k.Panes[i] = modal.Binding(a, paneTitles[i])

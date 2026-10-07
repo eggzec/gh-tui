@@ -30,8 +30,8 @@ Use the v2 Charm libraries and their `charm.land` import paths:
 Before you use a library API, check the current docs (Context7, pkg.go.dev,
 or the upstream UPGRADE guides). Several APIs changed in v2: `View()` returns
 `tea.View`, keys arrive as `tea.KeyPressMsg`, `AdaptiveColor` was replaced by
-`lipgloss.LightDark` together with `tea.BackgroundColorMsg`, and `DefaultKeyMap()`
-and `DefaultStyles(isDark)` are now functions.
+`lipgloss.LightDark` together with `tea.BackgroundColorMsg`, and
+`DefaultStyles(isDark)` is now a function.
 
 ## Layout
 
@@ -107,9 +107,13 @@ Each bubble is a self-contained Elm component: model, `Init`, `Update`, and `Vie
 
   The tui adapts service calls to these signatures. Bubbles never see services.
 - **Customization follows Charm conventions.** Expose `KeyMap` and
-  `DefaultKeyMap()`, `Styles` and `DefaultStyles(isDark bool)`,
+  `NewKeyMap(look keymap.Lookup)`, `Styles` and `DefaultStyles(isDark bool)`,
   `SetKeyMap`, `SetStyles` and `SetSize(width, height)`. Implement
-  `help.KeyMap` (`ShortHelp`/`FullHelp`).
+  `help.KeyMap` (`ShortHelp`/`FullHelp`). A bubble holds no keys of its
+  own: tag each binding with `keymap:"action"` and `help:"…"`, and
+  `NewKeyMap` fills the map with `keymap.Fill` from the keys the config
+  gives; a bubble made without a key map has every binding disabled. A
+  bubble's tests fill it from a literal table of keys, with `keytest.Table`.
 - **Full help lists every binding.** `KeyMap.FullHelp()` returns every
   binding exactly once. State shows through `Enabled()`, never by leaving a
   binding out, and `Model.FullHelp()` returns the same set with the model's
@@ -396,14 +400,17 @@ reacts to messages. Concretely:
   checks of a pull request or the filter of the runs, is a screen-layer
   context of its own, so the keys of the modal under it don't work in it.
   Widgets that take every key while open (the command line, a prompt) are
-  contexts outside the chain. What a
+  contexts outside the chain, and typing ones: a printable key bound there
+  is refused, except for the actions the context lists in `Printable`
+  (`help.close`, `picker.toggle`). `picker_normal`, the picker's keys
+  before its filter takes the typing, is a separate context that does not
+  type. What a
   global key does depends on what has the focus: a pane implements such an
   intent (`global.select`, `global.refresh`) and labels it in help, but
   never binds its key. Every context is listed in
   `internal/config/contexts.go` with no keys, which live in default.yaml
-  (except the movement, paging and reading keys of the shared bubbles,
-  which are still in code, so validation and the clash rule don't cover
-  them yet); a pane builds its bindings with `ui.In(keys, "pulls")`,
+  (the shared bubbles hold none either, so validation and the clash rule
+  cover every key); a pane builds its bindings with `ui.In(keys, "pulls")`,
   where a dotted name such as `global.select` names another context's
   action, and lists them in help as one layer of its context. An
   unknown context or action is rejected so typos don't pass silently, and

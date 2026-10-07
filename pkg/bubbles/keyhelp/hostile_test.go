@@ -17,7 +17,7 @@ func TestViewCleansHostileText(t *testing.T) {
 	b := key.NewBinding(key.WithKeys("x"), key.WithHelp("x", h))
 	layers := []Layer{{Source: h, Bindings: []key.Binding{b}}, {Source: "app", Bindings: []key.Binding{b}}}
 	for _, w := range []int{30, 60, 200} {
-		m := New(WithLayers(layers), WithTitle("Help · "+h), WithSize(w, 8))
+		m := newKeyed(WithLayers(layers), WithTitle("Help · "+h), WithSize(w, 8))
 		m.Focus()
 		termtexttest.AssertClean(t, m.View(), w)
 		m, _ = press(t, m, tea.KeyPressMsg{Code: tea.KeyTab}, tea.KeyPressMsg{Code: '\u202e', Text: "\u202e"})

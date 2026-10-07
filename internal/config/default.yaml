@@ -490,6 +490,8 @@ keys:
     select: [enter]
     # Step back out of what is open, such as a zoomed pane.
     dismiss: [esc]
+    # Close the newest toast.
+    dismiss_toast: [ctrl+x]
     # Open what is under the cursor in the browser.
     open: [o]
     # Show the page of the person or organization behind what is selected:
@@ -998,11 +1000,12 @@ keys:
     top: [g, home]
     bottom: [G, end]
 
-  # What the search prompt of a pager or a log takes: enter searches, and
-  # esc closes it.
+  # What the search prompt of a pager or a log takes: enter searches, esc
+  # closes it, and so do these keys on an empty line (a pager only).
   search_prompt:
     run: [enter]
     cancel: [esc]
+    cancel_empty: [backspace, ctrl+h]
   # What names an option after a pager's option key, as less's - does.
   pager_option:
     chop: [S]
@@ -1011,6 +1014,131 @@ keys:
     smart_case: [i]
     ignore_case: [I]
     cancel: [esc]
+
+  # The filter form of a list, in the rows: the keys that move between
+  # and change the fields, on top of the global ones that apply, close and
+  # switch the tabs. The filter of the Actions runs has the same keys.
+  filter:
+    up: [k, up]
+    down: [j, down]
+    top: [g, home]
+    bottom: [G, end]
+    left: [h, left]
+    right: [l, right]
+    # Flip a toggle, open the dropdown of a field, or check an item.
+    toggle: [space]
+    # Start typing in a text field or the query line, with the cursor at
+    # the start or at the end.
+    insert: [i]
+    append: [a]
+    # Clear the field in focus.
+    clear: [delete, backspace]
+  actions_filter:
+    up: [k, up]
+    down: [j, down]
+    top: [g, home]
+    bottom: [G, end]
+    left: [h, left]
+    right: [l, right]
+    toggle: [space]
+    insert: [i]
+    append: [a]
+    clear: [delete, backspace]
+
+  # Widgets that take every key while they are open. They may use keys
+  # that the contexts above use. Those that type, type every printable key
+  # they don't bind, so a key of theirs is a control key, or one with ctrl
+  # or alt.
+  # The command line. ctrl+c cancels it too, which can't be set.
+  command_line:
+    run: [enter]
+    cancel: [esc]
+    cancel_empty: [backspace, ctrl+h]
+    complete: [tab]
+    complete_prev: [shift+tab]
+    older: [up, ctrl+p]
+    newer: [down, ctrl+n]
+  # The help.
+  help:
+    up: [up]
+    down: [down]
+    page_up: [pgup]
+    page_down: [pgdown]
+    top: [home]
+    bottom: [end]
+    # Find the keys that hold the next key pressed.
+    capture: [tab]
+    # Close the help while its query is empty; otherwise it is typed.
+    close: ["?"]
+    # Clear the query, then close.
+    cancel: [esc]
+  # A question that waits for yes or no.
+  confirm:
+    "yes": [y]
+    "no": [n, esc]
+  # A prompt, such as the composer of a comment.
+  prompt:
+    submit: [ctrl+s]
+    # Also submits a prompt of one line.
+    submit_line: [enter]
+    cancel: [esc]
+  # The file finder.
+  finder:
+    up: [up, ctrl+p]
+    down: [down, ctrl+n]
+    page_up: [pgup]
+    page_down: [pgdown]
+    choose: [enter]
+    cancel: [esc]
+    # Show the file under the cursor in the tree, and preview it.
+    reveal: [ctrl+t]
+    preview: [tab]
+  # A picker whose filter has the keys, and a dropdown's list. While the
+  # filter of a filter form's dropdown types, its up and down are those of
+  # filter_query.
+  picker:
+    up: [up, ctrl+p]
+    down: [down, ctrl+n]
+    page_up: [pgup]
+    page_down: [pgdown]
+    choose: [enter]
+    cancel: [esc]
+    # Check or uncheck the item under the cursor of a dropdown with
+    # several choices.
+    toggle: [space]
+    next_scope: [tab]
+    prev_scope: [shift+tab]
+  # A picker in normal mode, where the keys move and open the filter
+  # instead of being typed.
+  picker_normal:
+    up: [k, up]
+    down: [j, down]
+    page_up: [ctrl+b, pgup]
+    page_down: [ctrl+f, pgdown]
+    half_page_up: [ctrl+u]
+    half_page_down: [ctrl+d]
+    top: [g, home]
+    bottom: [G, end]
+    # Start typing in the filter, with the cursor at the start or at the
+    # end.
+    insert: [i]
+    append: [a]
+  # The query of the search page, which types. The arrows and tab leave it
+  # for the kinds and the results.
+  search_query:
+    submit: [enter]
+    cancel: [esc]
+    next: [tab]
+    prev: [shift+tab]
+    kinds: [up]
+    results: [down]
+  # The query line of the filter form, and the editor of a text field,
+  # which type.
+  filter_query:
+    apply: [enter]
+    cancel: [esc]
+    up: [up, ctrl+p]
+    down: [down, ctrl+n]
 
 # Named palettes, each with a variant for light and dark terminals. A
 # theme you add needs every colour of both variants; to change the default

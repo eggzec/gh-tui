@@ -13,13 +13,17 @@ import (
 // The key map shares enter and esc between the rows, insert mode and the
 // dropdowns, so only the form in each state is free of conflicts.
 func TestKeyMapComplete(t *testing.T) {
-	keytest.Complete(t, DefaultKeyMap())
-	keytest.Tagged(t, DefaultKeyMap())
+	keytest.Complete(t, testKeys(t))
+	keytest.Tagged(t, testKeys(t))
 	// The form words its dropdown's choose and close its own way, while the
 	// help tags of List are the picker's, so List is swapped for the
 	// picker's own key map before the tags are compared.
-	km := DefaultKeyMap()
-	km.List = picker.DefaultKeyMap()
+	km := testKeys(t)
+	km.List = picker.NewKeyMap(keytest.Table(
+		map[string][]string{
+			"up": {"up"}, "down": {"down"}, "page_up": {"pgup"}, "page_down": {"pgdown"},
+			"choose": {"enter"}, "cancel": {"esc"}, "next_scope": {"tab"}, "prev_scope": {"shift+tab"},
+		}))
 	keytest.HelpTags(t, km)
 }
 
@@ -28,7 +32,7 @@ func TestKeyMapComplete(t *testing.T) {
 func TestFullHelpState(t *testing.T) {
 	// The keys every row takes, by their help keys: the moves, apply, close
 	// and the tabs.
-	always := []string{"k", "j", "g", "G", "↵", "esc", "q", "[", "]"}
+	always := []string{"k/↑", "j/↓", "g/home", "G/end", "↵", "esc", "q", "[", "]"}
 	with := func(extra ...string) []string { return slices.Concat(always, extra) }
 	// What a dropdown in its normal mode takes besides its own list keys:
 	// the moves, enter and esc, q, and the tabs.
@@ -43,27 +47,27 @@ func TestFullHelpState(t *testing.T) {
 		// is waited on when block is.
 		load, fail, block bool
 	}{
-		{name: "choice row", want: with("h", "l", "space", "delete")},
-		{name: "toggle row", keys: keys(down, rowDrafts), want: with("h", "l", "space")},
-		{name: "toggle row on", keys: append(keys(down, rowDrafts), space), want: with("h", "l", "space", "delete")},
-		{name: "choice row at its empty option", opts: []Option{WithQuery("")}, want: with("h", "l", "space")},
-		{name: "person row", keys: keys(down, rowAuthor), want: with("space", "delete")},
-		{name: "multi row", keys: keys(down, rowLabels), want: with("space", "delete")},
-		{name: "text row", keys: keys(down, rowBase), want: with("i", "a", "delete")},
+		{name: "choice row", want: with("h/←", "l/→", "space", "delete/backspace")},
+		{name: "toggle row", keys: keys(down, rowDrafts), want: with("h/←", "l/→", "space")},
+		{name: "toggle row on", keys: append(keys(down, rowDrafts), space), want: with("h/←", "l/→", "space", "delete/backspace")},
+		{name: "choice row at its empty option", opts: []Option{WithQuery("")}, want: with("h/←", "l/→", "space")},
+		{name: "person row", keys: keys(down, rowAuthor), want: with("space", "delete/backspace")},
+		{name: "multi row", keys: keys(down, rowLabels), want: with("space", "delete/backspace")},
+		{name: "text row", keys: keys(down, rowBase), want: with("i", "a", "delete/backspace")},
 		{name: "query line", keys: keys(down, rowQuery), want: with("i", "a")},
-		{name: "sort by", opts: []Option{WithTab(SortTab)}, want: with("h", "l", "space")},
-		{name: "order", opts: []Option{WithTab(SortTab)}, keys: []tea.Msg{down}, want: with("h", "l", "space")},
+		{name: "sort by", opts: []Option{WithTab(SortTab)}, want: with("h/←", "l/→", "space")},
+		{name: "order", opts: []Option{WithTab(SortTab)}, keys: []tea.Msg{down}, want: with("h/←", "l/→", "space")},
 		{name: "sort query line", opts: []Option{WithTab(SortTab)}, keys: keys(down, sortRows), want: with("i", "a")},
 		{name: "text insert", keys: append(keys(down, rowBase), keyA), want: []string{"↵", "esc"}},
 		{name: "query insert", keys: []tea.Msg{keyBigG, keyI}, want: []string{"↵", "esc"}},
-		{name: "list", keys: []tea.Msg{space}, want: list("delete")},
+		{name: "list", keys: []tea.Msg{space}, want: list("delete/backspace")},
 		{name: "list of the sort by", opts: []Option{WithTab(SortTab)}, keys: []tea.Msg{space}, want: list()},
 		{name: "list of the order", opts: []Option{WithTab(SortTab)}, keys: []tea.Msg{down, space}, want: list()},
-		{name: "people", keys: keys2(down, rowAuthor, space), want: list("i", "a", "delete")},
-		{name: "people typing", keys: keys2(down, rowAuthor, space, keyI), want: []string{"↑", "↓", "pgup", "pgdn", "↵", "esc"}},
-		{name: "checklist", load: true, keys: keys2(down, rowLabels, space), want: list("space", "i", "a", "delete")},
-		{name: "checklist typing", load: true, keys: keys2(down, rowLabels, space, keyI), want: []string{"↑", "↓", "pgup", "pgdn", "↵", "esc"}},
-		{name: "checklist without a filter", keys: keys2(down, rowLabels, space), want: list("space", "delete")},
+		{name: "people", keys: keys2(down, rowAuthor, space), want: list("i", "a", "delete/backspace")},
+		{name: "people typing", keys: keys2(down, rowAuthor, space, keyI), want: []string{"↑/^p", "↓/^n", "pgup", "pgdn", "↵", "esc"}},
+		{name: "checklist", load: true, keys: keys2(down, rowLabels, space), want: list("space", "i", "a", "delete/backspace")},
+		{name: "checklist typing", load: true, keys: keys2(down, rowLabels, space, keyI), want: []string{"↑/^p", "↓/^n", "pgup", "pgdn", "↵", "esc"}},
+		{name: "checklist without a filter", keys: keys2(down, rowLabels, space), want: list("space", "delete/backspace")},
 		{name: "loading", load: true, block: true, keys: keys2(down, rowLabels, space), want: []string{"esc", "q", "[", "]"}},
 		{name: "failed load", load: true, fail: true, keys: keys2(down, rowLabels, space), want: []string{"r", "esc", "q", "[", "]"}},
 	}
@@ -160,4 +164,22 @@ func TestFullHelpRetry(t *testing.T) {
 // keys2 is n presses of k, then more.
 func keys2(k tea.Msg, n int, more ...tea.Msg) []tea.Msg {
 	return append(keys(k, n), more...)
+}
+
+// The form words its dropdown's choose and close its own way, after the
+// keys are filled from the picker's tags.
+func TestNewKeyMapWordsTheDropdown(t *testing.T) {
+	km := testKeys(t)
+	if h := km.List.Choose.Help(); h.Key != "↵" || h.Desc != "choose" {
+		t.Errorf("List.Choose help = %+v, want ↵ choose", h)
+	}
+	if h := km.List.Cancel.Help(); h.Key != "esc" || h.Desc != "close" {
+		t.Errorf("List.Cancel help = %+v, want esc close", h)
+	}
+	if got := km.List.Normal.Up.Keys(); !slices.Equal(got, []string{"k", "up"}) {
+		t.Errorf("List.Normal.Up keys = %v, want those of picker_normal", got)
+	}
+	if got := km.ListToggle.Keys(); !slices.Equal(got, []string{"space"}) {
+		t.Errorf("ListToggle keys = %v, want those of picker.toggle", got)
+	}
 }

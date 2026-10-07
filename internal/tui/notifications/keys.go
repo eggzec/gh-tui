@@ -21,6 +21,8 @@ type KeyMap struct {
 	ClearFilter key.Binding
 	Refresh     key.Binding
 
+	// confirm answers the question that marking all read asks.
+	confirm ui.ConfirmKeys
 	// feed is the navigation of the list, which gets the keys above
 	// only if the section leaves them.
 	feed feed.KeyMap
@@ -40,6 +42,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		Filter:      screen.Binding("filter", "filter"),
 		ClearFilter: screen.Binding("clear_filter", "clear filters"),
 		Refresh:     screen.Binding("global.refresh", "refresh"),
+		confirm:     ui.NewConfirmKeys(keys),
 	}
 	// The section matches these keys first, so the list gets only the
 	// keys it leaves it. Refresh retries what failed, so the list's error

@@ -76,7 +76,7 @@ func newKeyMap(keys config.Keymap) keyMap {
 		Reopen:      list.Binding("reopen", "reopen"),
 		ToggleDraft: list.Binding("draft", "convert to draft"),
 		Checks:      list.Binding("checks", "checks"),
-		confirm:     ui.DefaultConfirmKeys(),
+		confirm:     ui.NewConfirmKeys(keys),
 		owner:       list.Binding("global.owner", "owner page"),
 	}
 	// The section and the modal match their own keys first, so the feed

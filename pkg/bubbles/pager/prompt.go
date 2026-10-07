@@ -19,15 +19,16 @@ const (
 	noteInvalid  = "Invalid pattern: "
 )
 
-// promptKeys returns the keys of the search prompt: only backspace on an
-// empty line, which cancels it. The pager takes Confirm and Cancel itself,
-// and the prompt has no completion and no history.
-func promptKeys() cmdline.KeyMap {
-	p := cmdline.DefaultKeyMap()
-	off := key.NewBinding(key.WithDisabled())
-	p.Submit, p.Cancel = off, off
-	p.Next, p.Prev, p.Older, p.Newer = off, off, off, off
-	return p
+// promptKeys returns the keys of the search prompt: only those of keys'
+// CancelEmpty, which cancel it on an empty line. The pager takes Confirm
+// and Cancel itself, and the prompt has no completion and no history.
+func promptKeys(keys KeyMap) cmdline.KeyMap {
+	return cmdline.NewKeyMap(func(action string) []string {
+		if action == "cancel_empty" {
+			return keys.CancelEmpty.Keys()
+		}
+		return nil
+	})
 }
 
 // Prompts, which also say what the line typed after them is for.

@@ -310,7 +310,7 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 	case m.canZoom() && m.zoomed() && key.Matches(msg, m.keys.Back):
 		m.setZoom(false)
 		return nil
-	case key.Matches(msg, m.toast.KeyMap().Dismiss):
+	case !m.toast.Empty() && key.Matches(msg, m.keys.Dismiss):
 		return m.toast.Dismiss()
 	case key.Matches(msg, m.keys.Owner):
 		// Without an owner, the key goes on to the section.

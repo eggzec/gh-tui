@@ -59,7 +59,7 @@ func TestView(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := New(tt.load, append([]Option{WithSize(tt.width, tt.height)}, tt.opts...)...)
+			m := newKeyed(t, tt.load, append([]Option{WithSize(tt.width, tt.height)}, tt.opts...)...)
 			m.Focus()
 			if !tt.skipInit {
 				m = run(t, m, m.Init())
@@ -157,7 +157,7 @@ func TestViewGlyphs(t *testing.T) {
 	note := func(context.Context) (Listing, error) {
 		return Listing{Items: items(sample...), Note: "truncated"}, nil
 	}
-	m := New(note, WithSize(24, 6), WithStyles(st))
+	m := newKeyed(t, note, WithSize(24, 6), WithStyles(st))
 	m.Focus()
 	m = typed(t, run(t, m, m.Init()), "rend")
 	v := ansi.Strip(m.View())

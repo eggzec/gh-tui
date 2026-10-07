@@ -1,6 +1,10 @@
 package keyhelp
 
-import "charm.land/bubbles/v2/key"
+import (
+	"charm.land/bubbles/v2/key"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+)
 
 // KeyMap holds the key bindings of the help. Every other key edits the
 // query, so none of these are letters. It implements help.KeyMap.
@@ -23,19 +27,13 @@ type KeyMap struct {
 	Close key.Binding `keymap:"close" help:"close"`
 }
 
-// DefaultKeyMap returns the default key bindings.
-func DefaultKeyMap() KeyMap {
-	return KeyMap{
-		Up:       key.NewBinding(key.WithKeys("up"), key.WithHelp("↑", "scroll up")),
-		Down:     key.NewBinding(key.WithKeys("down"), key.WithHelp("↓", "scroll down")),
-		PageUp:   key.NewBinding(key.WithKeys("pgup"), key.WithHelp("pgup", "page up")),
-		PageDown: key.NewBinding(key.WithKeys("pgdown"), key.WithHelp("pgdn", "page down")),
-		Home:     key.NewBinding(key.WithKeys("home"), key.WithHelp("home", "top")),
-		End:      key.NewBinding(key.WithKeys("end"), key.WithHelp("end", "bottom")),
-		Capture:  key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "find a key")),
-		Back:     key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "clear, then close")),
-		Close:    key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "close")),
-	}
+// NewKeyMap returns the key bindings that look gives for the actions
+// of the help, which the tags of its fields name. An action without keys
+// gives a disabled binding that keeps its help text.
+func NewKeyMap(look keymap.Lookup) KeyMap {
+	var k KeyMap
+	keymap.Fill(&k, look)
+	return k
 }
 
 // ShortHelp returns the bindings for the short help view.

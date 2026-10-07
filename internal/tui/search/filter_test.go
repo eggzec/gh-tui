@@ -5,7 +5,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 )
 
@@ -52,7 +54,8 @@ func TestFilterSpecs(t *testing.T) {
 // TestFilterSorts checks that choosing a sort of repositories sorts the
 // way GitHub's results are best read: most first.
 func TestFilterSorts(t *testing.T) {
-	form := filterform.New(spec(core.SearchRepos, "tea"), filterform.WithQuery("tea"), filterform.WithTab(filterform.SortTab))
+	form := filterform.New(spec(core.SearchRepos, "tea"), filterform.WithQuery("tea"), filterform.WithTab(filterform.SortTab),
+		filterform.WithKeyMap(ui.FilterFormKeys(config.Default().Keys, "filter")))
 	form.Focus()
 	form, _ = form.Update(keyPress("right"))
 	if got := form.Query(); got != "sort:stars-desc tea" {

@@ -8,10 +8,10 @@ import (
 )
 
 func TestKeyMapComplete(t *testing.T) {
-	keytest.Complete(t, DefaultKeyMap())
-	keytest.Tagged(t, DefaultKeyMap())
-	keytest.HelpTags(t, DefaultKeyMap())
-	keytest.NoConflicts(t, DefaultKeyMap())
+	keytest.Complete(t, testKeys(t))
+	keytest.Tagged(t, testKeys(t))
+	keytest.HelpTags(t, testKeys(t))
+	keytest.NoConflicts(t, testKeys(t))
 }
 
 // Full help lists both submit keys, and enables enter only where it
@@ -26,10 +26,10 @@ func TestFullHelpMode(t *testing.T) {
 		}
 		return out
 	}
-	if got := enabled(New(WithMode(SingleLine))); !slices.Equal(got, []string{"ctrl+s", "enter", "esc"}) {
+	if got := enabled(newKeyed(t, WithMode(SingleLine))); !slices.Equal(got, []string{"^s", "↵", "esc"}) {
 		t.Errorf("single-line enables %q", got)
 	}
-	if got := enabled(New()); !slices.Equal(got, []string{"ctrl+s", "esc"}) {
+	if got := enabled(newKeyed(t)); !slices.Equal(got, []string{"^s", "esc"}) {
 		t.Errorf("multi-line enables %q", got)
 	}
 }

@@ -46,7 +46,8 @@ func WithSize(width, height int) Option {
 	return func(s *settings) { s.width, s.height = width, height }
 }
 
-// WithKeyMap sets the key bindings.
+// WithKeyMap sets the key bindings, which NewKeyMap makes. Without them
+// every binding is disabled, and no key acts.
 func WithKeyMap(k KeyMap) Option {
 	return func(s *settings) { s.keys = k }
 }

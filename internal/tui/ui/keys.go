@@ -67,6 +67,11 @@ func (c Context) Of(action string) []string {
 	return c.keys.Of(c.name + "." + action)
 }
 
+// Lookup returns the keys of the actions of context ctx, for the key maps
+// of the bubbles to be filled from: a name with a dot, such as
+// "global.select", is another context's.
+func Lookup(keys config.Keymap, ctx string) keymap.Lookup { return In(keys, ctx).Of }
+
 // Binding makes the binding of action, labelled with desc in help, like
 // the package's Binding.
 func (c Context) Binding(action, desc string) key.Binding {

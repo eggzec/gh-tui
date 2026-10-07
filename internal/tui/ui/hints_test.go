@@ -6,6 +6,7 @@ import (
 
 	"charm.land/bubbles/v2/key"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keytest"
 )
@@ -91,6 +92,6 @@ func TestHintsRelabelled(t *testing.T) {
 }
 
 func TestConfirmKeysComplete(t *testing.T) {
-	keytest.Complete(t, DefaultConfirmKeys())
-	keytest.NoConflicts(t, DefaultConfirmKeys())
+	keytest.Complete(t, NewConfirmKeys(config.Default().Keys))
+	keytest.NoConflicts(t, NewConfirmKeys(config.Default().Keys))
 }

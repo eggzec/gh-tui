@@ -53,7 +53,7 @@ func TestView(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := New(append(tt.opts, WithSize(tt.width, tt.height))...)
+			m := newKeyed(t, append(tt.opts, WithSize(tt.width, tt.height))...)
 			if !tt.blurred {
 				m.Focus()
 			}
@@ -67,7 +67,7 @@ func TestView(t *testing.T) {
 
 func TestViewEmpty(t *testing.T) {
 	for _, size := range [][2]int{{0, 5}, {40, 0}} {
-		if v := New(WithSize(size[0], size[1])).View(); v != "" {
+		if v := newKeyed(t, WithSize(size[0], size[1])).View(); v != "" {
 			t.Errorf("View() at %v = %q, want empty", size, v)
 		}
 	}
@@ -91,7 +91,7 @@ func TestViewFits(t *testing.T) {
 }
 
 func TestViewFollowsFocus(t *testing.T) {
-	m := New(WithTitle("T"), WithSize(20, 3))
+	m := newKeyed(t, WithTitle("T"), WithSize(20, 3))
 	blurred := m.View()
 	m.Focus()
 	if m.View() == blurred {
@@ -118,7 +118,7 @@ func assertFits(t *testing.T, v string, width, height int) {
 
 // A value set before the size scrolls again once the input has room.
 func TestViewScrollsAgainOnResize(t *testing.T) {
-	m := New(WithMode(SingleLine), WithValue("bug, help wanted"))
+	m := newKeyed(t, WithMode(SingleLine), WithValue("bug, help wanted"))
 	m.SetSize(40, SingleLineHeight)
 	if v := ansi.Strip(m.View()); !strings.Contains(v, "bug, help wanted") {
 		t.Errorf("the value isn't in view after a resize:\n%s", v)
@@ -134,7 +134,7 @@ func TestViewASCII(t *testing.T) {
 	st.BlurredFrame = st.BlurredFrame.Border(edge, false, false, false, true)
 	st.Separator, st.Ellipsis = " - ", "..."
 	for _, width := range []int{12, 30, 80} {
-		m := New(WithStyles(st), WithTitle("Comment on the pull request"), WithValue("text"), WithSize(width, 6))
+		m := newKeyed(t, WithStyles(st), WithTitle("Comment on the pull request"), WithValue("text"), WithSize(width, 6))
 		m.Focus()
 		if v := ansi.Strip(m.View()); strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
 			t.Errorf("width %d: view isn't ASCII:\n%s", width, v)

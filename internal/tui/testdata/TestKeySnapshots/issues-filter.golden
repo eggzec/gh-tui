@@ -6,16 +6,16 @@ global
   help | ? | ? | on
 
 Filter
-  previous field | k up | k | on
-  next field | j down | j | on
-  first field | g home | g | on
-  query | G end | G | on
-  previous | h left | h | on
-  next | l right | l | on
+  previous field | k up | k/↑ | on
+  next field | j down | j/↓ | on
+  first field | g home | g/home | on
+  query | G end | G/end | on
+  previous | h left | h/← | on
+  next | l right | l/→ | on
   list | space | space | on
   insert | i | i | off
   append | a | a | off
-  clear | delete backspace | delete | on
+  clear | delete backspace | delete/backspace | on
   apply | enter | ↵ | on
   close | esc | esc | on
   close | q | q | on
@@ -24,14 +24,14 @@ Filter
   previous tab | [ | [ | on
   apply | enter | ↵ | off
   done | esc | esc | off
-  up | up ctrl+p | ↑ | off
-  down | down ctrl+n | ↓ | off
+  up | up ctrl+p | ↑/^p | off
+  down | down ctrl+n | ↓/^n | off
   toggle | space | space | off
-  clear | delete backspace | delete | off
+  clear | delete backspace | delete/backspace | off
   choose | enter | ↵ | off
   close | esc | esc | off
-  up | up ctrl+p | ↑/ctrl+p | off
-  down | down ctrl+n | ↓/ctrl+n | off
+  up | up ctrl+p | ↑/^p | off
+  down | down ctrl+n | ↓/^n | off
   page up | pgup | pgup | off
   page down | pgdown | pgdn | off
   scope | tab | tab | off

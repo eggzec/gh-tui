@@ -5,11 +5,11 @@ always
   help | ? | ? | off
 
 Picker (types)
-  up | up ctrl+p | ↑/ctrl+p | on
-  down | down ctrl+n | ↓/ctrl+n | on
+  up | up ctrl+p | ↑/^p | on
+  down | down ctrl+n | ↓/^n | on
   page up | pgup | pgup | on
   page down | pgdown | pgdn | on
-  open | enter | enter | on
+  open | enter | ↵ | on
   close | esc | esc | on
   scope | tab | tab | off
   previous scope | shift+tab | shift+tab | off

@@ -40,7 +40,6 @@ func defaultSettings() settings {
 		debounce:  DefaultDebounce,
 		emptyText: "No results. Try other words.",
 		headers:   true,
-		keys:      DefaultKeyMap(),
 		styles:    DefaultStyles(true),
 	}
 }
@@ -114,7 +113,8 @@ func WithSize(width, height int) Option {
 	}
 }
 
-// WithKeyMap sets the key bindings.
+// WithKeyMap sets the key bindings, which NewKeyMap makes. Without them
+// every binding is disabled, and no key acts.
 func WithKeyMap(k KeyMap) Option {
 	return func(s *settings) {
 		s.keys = k

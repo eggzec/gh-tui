@@ -74,7 +74,7 @@ func TestProgram(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := New(staticSpec())
+			m := newKeyed(t, staticSpec())
 			m.Focus()
 			tm := teatest.NewTestModel(t, host{form: m}, teatest.WithInitialTermSize(60, 20))
 			for _, k := range tt.keys {

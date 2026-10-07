@@ -56,7 +56,8 @@ func WithHistory(lines []string) Option {
 	return func(s *settings) { s.history = lines }
 }
 
-// WithKeyMap sets the key bindings.
+// WithKeyMap sets the key bindings, which NewKeyMap makes. Without them
+// every binding is disabled, and no key acts.
 func WithKeyMap(k KeyMap) Option {
 	return func(s *settings) { s.keys = k }
 }

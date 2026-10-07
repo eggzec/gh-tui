@@ -1,11 +1,14 @@
 package pager
 
 import (
+	"maps"
 	"slices"
 	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/keytest"
 )
 
 // enterAll presses the keys named esc, enter and backspace, and types
@@ -124,5 +127,21 @@ func TestInvertedMarks(t *testing.T) {
 		if got := m.gutterWidth(); got != width {
 			t.Errorf("numbers %v: gutter %d wide after esc, want %d", numbers, got, width)
 		}
+	}
+}
+
+// Only the keys of search_prompt.cancel_empty close the prompt on an empty
+// line: with ctrl+h alone, backspace there leaves it open.
+func TestPromptCancelEmptyFromKeys(t *testing.T) {
+	table := maps.Clone(previewKeys)
+	table["search_prompt.cancel_empty"] = []string{"ctrl+h"}
+	m := open(t, "lines.txt", numbered(10), WithKeyMap(NewKeyMap(keytest.Table(table))))
+	m, _ = keys(t, m, "/", "backspace")
+	if !m.Capturing() {
+		t.Fatal("backspace on an empty line closed the prompt, which only ctrl+h should")
+	}
+	m, _ = keys(t, m, "ctrl+h")
+	if m.Capturing() {
+		t.Error("ctrl+h on an empty line left the prompt open")
 	}
 }

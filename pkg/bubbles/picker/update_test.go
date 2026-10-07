@@ -15,7 +15,7 @@ import (
 
 func TestInitSearchesTheEmptyQuery(t *testing.T) {
 	f := &fakeSearch{}
-	m := New(f.search, WithSize(60, 12))
+	m := New(f.search, WithKeyMap(testKeys(t)), WithSize(60, 12))
 	if !m.Loading() {
 		t.Error("a new picker isn't loading its first results")
 	}
@@ -159,7 +159,7 @@ func sameMsg(a, b tea.Msg) bool {
 func TestDebounce(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		f := &fakeSearch{}
-		m := New(f.search, WithDebounce(250*time.Millisecond), WithSize(60, 12))
+		m := New(f.search, WithKeyMap(testKeys(t)), WithDebounce(250*time.Millisecond), WithSize(60, 12))
 		m.Focus()
 		m, _ = run(t, m, m.Init())
 
@@ -390,7 +390,7 @@ func TestChooseAndCancelDropTheSearchInFlight(t *testing.T) {
 
 func TestBlurredIgnoresKeys(t *testing.T) {
 	f := &fakeSearch{}
-	m := New(f.search, WithDebounce(0))
+	m := New(f.search, WithKeyMap(testKeys(t)), WithDebounce(0))
 	if m.Focused() {
 		t.Fatal("a new picker is focused")
 	}
@@ -461,7 +461,7 @@ func TestScrollKeepsTheSelectionInView(t *testing.T) {
 }
 
 func TestAccessors(t *testing.T) {
-	m := New(nil, WithSize(50, 9), WithItems(catalog))
+	m := New(nil, WithKeyMap(testKeys(t)), WithSize(50, 9), WithItems(catalog))
 	if !m.Capturing() || m.Width() != 50 || m.Height() != 9 || m.Err() != nil {
 		t.Errorf("Capturing %v, size %d×%d, Err %v", m.Capturing(), m.Width(), m.Height(), m.Err())
 	}
@@ -474,13 +474,13 @@ func TestAccessors(t *testing.T) {
 	if len(m.ShortHelp()) != 5 || len(m.FullHelp()) != 2 {
 		t.Error("help should list the keys")
 	}
-	k := DefaultKeyMap()
+	k := testKeys(t)
 	k.Cancel.SetKeys("ctrl+g")
 	m.SetKeyMap(k)
 	if m.KeyMap().Cancel.Keys()[0] != "ctrl+g" || m.KeyMap().NextScope.Enabled() {
 		t.Error("SetKeyMap didn't take, or enabled the scope keys")
 	}
-	withScopes := New(nil, WithScopes(kindRepos))
+	withScopes := New(nil, WithKeyMap(testKeys(t)), WithScopes(kindRepos))
 	if !withScopes.KeyMap().NextScope.Enabled() {
 		t.Error("scope keys are disabled with scopes")
 	}
@@ -493,7 +493,7 @@ func TestAccessors(t *testing.T) {
 	if m.Width() != 0 || m.Height() != 0 || m.View() != "" {
 		t.Errorf("negative size: %d×%d %q", m.Width(), m.Height(), m.View())
 	}
-	empty := New(nil)
+	empty := New(nil, WithKeyMap(testKeys(t)))
 	if _, ok := empty.Selected(); ok || empty.Len() != 0 {
 		t.Error("a picker without items has a selection")
 	}
@@ -733,7 +733,7 @@ func TestResultLandsInNormalMode(t *testing.T) {
 func TestSetKeyMapWhileTyping(t *testing.T) {
 	m := open(t, nil, WithItems(catalog), WithModes(true))
 	m, _ = press(t, m, letter('i'))
-	k := DefaultKeyMap()
+	k := testKeys(t)
 	k.Cancel.SetKeys("ctrl+g")
 	m.SetKeyMap(k)
 	if !m.Typing() {
@@ -1018,7 +1018,7 @@ func TestTypedItem(t *testing.T) {
 	t.Run("enter while a search is pending chooses the typed text", func(t *testing.T) {
 		for _, debounce := range []time.Duration{0, time.Hour} {
 			f := &fakeSearch{}
-			m := New(f.search, WithDebounce(debounce), WithSize(60, 12), WithTyped(use))
+			m := New(f.search, WithKeyMap(testKeys(t)), WithDebounce(debounce), WithSize(60, 12), WithTyped(use))
 			m.Focus()
 			m, _ = run(t, m, m.Init())
 			if got := chosen(t, m); got != ghTUI.Title {

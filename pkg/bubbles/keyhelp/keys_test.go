@@ -8,9 +8,10 @@ import (
 )
 
 func TestKeyMap(t *testing.T) {
-	keytest.Complete(t, keyhelp.DefaultKeyMap())
-	keytest.Tagged(t, keyhelp.DefaultKeyMap())
-	keytest.HelpTags(t, keyhelp.DefaultKeyMap())
-	keytest.NoConflicts(t, keyhelp.DefaultKeyMap())
-	keytest.Complete(t, keyhelp.New().KeyMap())
+	km := keyhelp.TestKeys()
+	keytest.Complete(t, km)
+	keytest.Tagged(t, km)
+	keytest.HelpTags(t, km)
+	keytest.NoConflicts(t, km)
+	keytest.Complete(t, keyhelp.New(keyhelp.WithKeyMap(km)).KeyMap())
 }

@@ -9,6 +9,20 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
+// testKeys returns the keys of the help, as the app sets them.
+func testKeys() KeyMap {
+	table := map[string][]string{
+		"up": {"up"}, "down": {"down"}, "page_up": {"pgup"}, "page_down": {"pgdown"},
+		"top": {"home"}, "bottom": {"end"}, "capture": {"tab"}, "close": {"?"}, "cancel": {"esc"},
+	}
+	return NewKeyMap(func(action string) []string { return table[action] })
+}
+
+// newKeyed returns a help with the keys of the app.
+func newKeyed(opts ...Option) Model {
+	return New(append([]Option{WithKeyMap(testKeys())}, opts...)...)
+}
+
 var (
 	esc      = tea.KeyPressMsg{Code: tea.KeyEscape}
 	tab      = tea.KeyPressMsg{Code: tea.KeyTab}
@@ -51,7 +65,7 @@ func layers() []Layer {
 // open returns a focused help over layers.
 func open(tb testing.TB, opts ...Option) Model {
 	tb.Helper()
-	m := New(append([]Option{WithLayers(layers()), WithTitle("Help · Pull requests"), WithSize(80, 24)}, opts...)...)
+	m := newKeyed(append([]Option{WithLayers(layers()), WithTitle("Help · Pull requests"), WithSize(80, 24)}, opts...)...)
 	m.Focus()
 	return m
 }

@@ -1,6 +1,10 @@
 package picker
 
-import "charm.land/bubbles/v2/key"
+import (
+	"charm.land/bubbles/v2/key"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+)
 
 // KeyMap holds the key bindings of a picker. Every other key edits the
 // query, so none of these are letters, except those of Normal, which a
@@ -43,30 +47,14 @@ type NormalKeyMap struct {
 	Append key.Binding `keymap:"append" help:"filter at end"`
 }
 
-// DefaultKeyMap returns the default key bindings.
-func DefaultKeyMap() KeyMap {
-	return KeyMap{
-		Up:        key.NewBinding(key.WithKeys("up", "ctrl+p"), key.WithHelp("↑/ctrl+p", "up")),
-		Down:      key.NewBinding(key.WithKeys("down", "ctrl+n"), key.WithHelp("↓/ctrl+n", "down")),
-		PageUp:    key.NewBinding(key.WithKeys("pgup"), key.WithHelp("pgup", "page up")),
-		PageDown:  key.NewBinding(key.WithKeys("pgdown"), key.WithHelp("pgdn", "page down")),
-		Choose:    key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "open")),
-		Cancel:    key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "close")),
-		NextScope: key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "scope")),
-		PrevScope: key.NewBinding(key.WithKeys("shift+tab"), key.WithHelp("shift+tab", "previous scope")),
-		Normal: NormalKeyMap{
-			Up:           key.NewBinding(key.WithKeys("k", "up"), key.WithHelp("k/↑", "up")),
-			Down:         key.NewBinding(key.WithKeys("j", "down"), key.WithHelp("j/↓", "down")),
-			PageUp:       key.NewBinding(key.WithKeys("ctrl+b", "pgup"), key.WithHelp("^b/pgup", "page up")),
-			PageDown:     key.NewBinding(key.WithKeys("ctrl+f", "pgdown"), key.WithHelp("^f/pgdn", "page down")),
-			HalfPageUp:   key.NewBinding(key.WithKeys("ctrl+u"), key.WithHelp("^u", "half page up")),
-			HalfPageDown: key.NewBinding(key.WithKeys("ctrl+d"), key.WithHelp("^d", "half page down")),
-			Top:          key.NewBinding(key.WithKeys("g", "home"), key.WithHelp("g/home", "top")),
-			Bottom:       key.NewBinding(key.WithKeys("G", "end"), key.WithHelp("G/end", "bottom")),
-			Insert:       key.NewBinding(key.WithKeys("i"), key.WithHelp("i", "filter")),
-			Append:       key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "filter at end")),
-		},
-	}
+// NewKeyMap returns the key bindings that look gives for the actions
+// of the picker, which the tags of its fields name. An action without keys
+// gives a disabled binding that keeps its help text.
+// The keys of its normal mode are those of the context picker_normal.
+func NewKeyMap(look keymap.Lookup) KeyMap {
+	var k KeyMap
+	keymap.Fill(&k, look)
+	return k
 }
 
 // ShortHelp returns the bindings for the short help view of a picker that

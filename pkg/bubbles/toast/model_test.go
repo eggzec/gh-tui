@@ -157,23 +157,10 @@ func TestUpdate(t *testing.T) {
 			want:   []entry{},
 		},
 		{
-			name:   "expire of a dismissed toast is ignored",
-			pushes: []push{{Info, "a"}, {Info, "b"}},
-			msgs: func(m Model) []tea.Msg {
-				return []tea.Msg{tea.KeyPressMsg{Code: 'x', Mod: tea.ModCtrl}, ExpireMsg{m.ID(), 2}}
-			},
-			want: []entry{{Info, "a", 1}},
-		},
-		{
-			name:   "dismiss key removes the newest",
+			name:   "keys are left to the parent",
 			pushes: []push{{Info, "a"}, {Info, "b"}},
 			msgs:   func(Model) []tea.Msg { return []tea.Msg{tea.KeyPressMsg{Code: 'x', Mod: tea.ModCtrl}} },
-			want:   []entry{{Info, "a", 1}},
-		},
-		{
-			name: "dismiss key without toasts does nothing",
-			msgs: func(Model) []tea.Msg { return []tea.Msg{tea.KeyPressMsg{Code: 'x', Mod: tea.ModCtrl}} },
-			want: []entry{},
+			want:   []entry{{Info, "a", 1}, {Info, "b", 1}},
 		},
 		{
 			name:   "other keys are ignored",
@@ -246,35 +233,19 @@ func TestCopiesAreIndependent(t *testing.T) {
 	requireEntries(t, m, []entry{{Info, "a", 2}})
 }
 
-func TestDismissBindingFollowsToasts(t *testing.T) {
+func TestExpireOfADismissedToastIsIgnored(t *testing.T) {
 	m := New(testDuration, testErrorDuration)
-	if m.KeyMap().Dismiss.Enabled() {
-		t.Error("dismiss enabled without toasts")
-	}
 	m.Push(Info, "a")
-	if !m.KeyMap().Dismiss.Enabled() {
-		t.Error("dismiss disabled with a toast")
-	}
-	k := DefaultKeyMap()
-	k.Dismiss.SetKeys("esc")
-	m.SetKeyMap(k)
-	if !m.KeyMap().Dismiss.Enabled() {
-		t.Error("SetKeyMap lost the enabled state")
-	}
-	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
-	if !m.Empty() {
-		t.Error("custom dismiss key did not dismiss")
-	}
-	if help := m.KeyMap().ShortHelp(); len(help) != 1 || len(m.KeyMap().FullHelp()) != 1 {
-		t.Errorf("help = %v", help)
-	}
+	m.Push(Info, "b")
+	m.Dismiss()
+	m, _ = m.Update(ExpireMsg{m.ID(), 2})
+	requireEntries(t, m, []entry{{Info, "a", 1}})
 }
 
 func TestOptionsAndAccessors(t *testing.T) {
 	s := DefaultStyles(false)
 	m := New(time.Second, time.Minute, WithSize(100, 20),
 		WithStyles(s),
-		WithKeyMap(DefaultKeyMap()),
 	)
 	if m.Duration() != time.Second || m.ErrorDuration() != time.Minute {
 		t.Errorf("durations = %v, %v", m.Duration(), m.ErrorDuration())

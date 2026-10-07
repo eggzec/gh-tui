@@ -23,7 +23,7 @@ func benchSpec() (spec Spec, query string) {
 func benchForm(b *testing.B) Model {
 	b.Helper()
 	s, q := benchSpec()
-	m := New(s, WithQuery(q), WithSize(100, 24))
+	m := newKeyed(b, s, WithQuery(q), WithSize(100, 24))
 	m.Focus()
 	return m
 }

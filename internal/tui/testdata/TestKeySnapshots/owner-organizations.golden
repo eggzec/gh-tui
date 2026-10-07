@@ -9,7 +9,7 @@ global
   zoom | z | z | on
   maximize | Z | Z | off
   back | esc | esc | on
-  dismiss | ctrl+x | ctrl+x | off
+  dismiss | ctrl+x | ^x | off
   owner page | @ | @ | off
   this repo | . | . | off
   notifications | I | I | on

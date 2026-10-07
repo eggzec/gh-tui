@@ -82,7 +82,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		notes:       notes.Binding("annotations", "annotations"),
 		notesUp:     notes.Binding("up", "up"),
 		notesDown:   notes.Binding("down", "down"),
-		Confirm:     ui.DefaultConfirmKeys(),
+		Confirm:     ui.NewConfirmKeys(keys),
 	}
 	// The step matches the re-run before refresh, and its own keys
 	// before those of the log and of what an app reported.
