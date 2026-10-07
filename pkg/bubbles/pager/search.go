@@ -137,8 +137,9 @@ func (m *Model) enableSearchKeys() {
 	m.keys.Next.SetEnabled(found)
 	m.keys.Prev.SetEnabled(found)
 	m.keys.Confirm.SetEnabled(m.prompt.Focused())
-	m.keys.Cancel.SetEnabled(m.Capturing() || m.search.query != "" ||
+	m.keys.Cancel.SetEnabled(m.prompt.Focused() || m.search.query != "" ||
 		m.projecting || m.proj.filter.re != nil)
+	m.keys.Options.setEnabled(m.opt)
 }
 
 // researchShown runs the search shown again over the lines shown, and

@@ -27,7 +27,14 @@ func Example() {
 		{Title: "Run go test ./...", Start: 1, End: 6, Failed: true, Duration: 2 * time.Second},
 	}
 
-	v := logview.New(logview.WithSize(50, 6), logview.WithFocusFailed(true))
+	// The parent says which keys do what; here only enter, which folds.
+	keys := logview.NewKeyMap(func(action string) []string {
+		if action == "global.select" {
+			return []string{"enter"}
+		}
+		return nil
+	})
+	v := logview.New(logview.WithKeyMap(keys), logview.WithSize(50, 6), logview.WithFocusFailed(true))
 	v.SetTitle("build (windows-latest)")
 	v.Focus()
 	v.SetLines(lines, steps)

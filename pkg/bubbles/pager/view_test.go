@@ -105,7 +105,7 @@ func TestView(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var m Model
 			if tt.set != nil {
-				m = New(append(tt.opts, WithSize(tt.width, tt.height))...)
+				m = fresh(t, append(tt.opts, WithSize(tt.width, tt.height))...)
 				m.Focus()
 				tt.set(&m)
 			} else {
@@ -131,7 +131,7 @@ func TestView(t *testing.T) {
 
 func TestViewEmpty(t *testing.T) {
 	for _, size := range [][2]int{{0, 5}, {40, 0}} {
-		if v := New(WithSize(size[0], size[1])).View(); v != "" {
+		if v := fresh(t, WithSize(size[0], size[1])).View(); v != "" {
 			t.Errorf("View() at %v = %q, want empty", size, v)
 		}
 	}
@@ -181,7 +181,7 @@ func TestViewRestyles(t *testing.T) {
 }
 
 func TestViewWrapsMessages(t *testing.T) {
-	m := New(WithSize(20, 4))
+	m := fresh(t, WithSize(20, 4))
 	m.SetMessage("big.go", "This diff is too large to show here.")
 	v := m.View()
 	assertFits(t, v, 20, 4)
@@ -210,7 +210,7 @@ func TestErrorText(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := New(append([]Option{WithSize(80, 4)}, tt.opts...)...)
+			m := fresh(t, append([]Option{WithSize(80, 4)}, tt.opts...)...)
 			m.SetError("main.go", errors.New("404 Not Found\nmore"))
 			lines := strings.Split(ansi.Strip(m.View()), "\n")
 			if got := strings.TrimRight(lines[0], " "); got != tt.want {
@@ -232,7 +232,7 @@ func TestErrorKeepsTheHintWhole(t *testing.T) {
 	}
 	for height := 2; height <= 6; height++ {
 		for width := 1; width <= 120; width++ {
-			m := New(WithSize(width, height), WithErrorText(say))
+			m := fresh(t, WithSize(width, height), WithErrorText(say))
 			m.SetError("main.go", errors.New("boom"))
 			v := m.View()
 			assertFits(t, v, width, height)
@@ -255,7 +255,7 @@ func TestErrorKeepsTheHintWhole(t *testing.T) {
 // every render.
 func TestErrorTextWordedOnce(t *testing.T) {
 	calls := 0
-	m := New(WithSize(60, 4), WithErrorText(func(error) (string, string) {
+	m := fresh(t, WithSize(60, 4), WithErrorText(func(error) (string, string) {
 		calls++
 		return "Can't reach GitHub", ""
 	}))
@@ -272,7 +272,7 @@ func TestErrorTextWordedOnce(t *testing.T) {
 
 // TestSetErrorText checks that new words for a failed load show at once.
 func TestSetErrorText(t *testing.T) {
-	m := New(WithSize(60, 4))
+	m := fresh(t, WithSize(60, 4))
 	m.SetError("main.go", errors.New("boom"))
 	m.SetErrorText(func(error) (string, string) { return "Can't reach GitHub", "r to retry" })
 	if v := ansi.Strip(m.View()); !strings.Contains(v, "Can't reach GitHub · r to retry") {

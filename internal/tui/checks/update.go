@@ -151,10 +151,10 @@ func (s *Step) press(msg tea.KeyPressMsg) tea.Cmd {
 		return s.pressJob(msg)
 	case detailMode:
 		switch {
-		case key.Matches(msg, k.Home):
+		case key.Matches(msg, k.Top):
 			s.detail.GotoTop()
 			return nil
-		case key.Matches(msg, k.End):
+		case key.Matches(msg, k.Bottom):
 			s.detail.GotoBottom()
 			return nil
 		}

@@ -11,6 +11,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
 	filesvc "github.com/eggzec/gh-tui/internal/service/files"
@@ -77,16 +78,17 @@ type blobMsg struct {
 }
 
 // newPreview returns a preview of e, a file of repo at ref, whose page
-// is on host, which words what went wrong with v and opens the file in
-// editor, if set, and marks a failed load with the error glyph of ic. It
-// draws an image file with images, where the terminal shows them, and
-// shows a markdown file rendered unless raw is set. Its load runs under
-// ctx until it closes.
-func newPreview(ctx context.Context, svc Service, host string, repo core.RepoRef, ref string, e core.TreeEntry, open key.Binding, v ui.Voice, editor string, ic ui.Icons, images *ui.Images, raw bool) *preview {
+// is on host, which words what went wrong with v, takes its keys from
+// keys, opens the file in editor, if set, and marks a failed load with the
+// error glyph of ic. It draws an image file with images, where the
+// terminal shows them, and shows a markdown file rendered unless raw is
+// set. Its load runs under ctx until it closes.
+func newPreview(ctx context.Context, svc Service, host string, repo core.RepoRef, ref string, e core.TreeEntry, open key.Binding, keys config.Keymap, v ui.Voice, editor string, ic ui.Icons, images *ui.Images, raw bool) *preview {
 	ctx, cancel := context.WithCancel(ctx)
 	// The preview loads the file once, and opens it on GitHub with open.
 	v.Retry, v.Open = key.Binding{}, open
-	pg := pager.New(pager.WithErrorText(fileErrorText(repo, v)), pager.WithEditor(editor), pager.WithResizeRest(resizeRest))
+	pg := pager.New(pager.WithKeyMap(pager.NewKeyMap(ui.In(keys, "preview").Of)),
+		pager.WithErrorText(fileErrorText(repo, v)), pager.WithEditor(editor), pager.WithResizeRest(resizeRest))
 	p := &preview{ctx: ctx, cancel: cancel, svc: svc, host: host, repo: repo, ref: ref, entry: e, open: open, pager: pg, icons: ic, raw: raw}
 	p.md.icons = ic
 	p.pager.SetReserve(p.md.extra)
@@ -366,7 +368,7 @@ func (p *preview) Update(msg tea.Msg) tea.Cmd {
 		if !p.pager.Capturing() && key.Matches(msg, p.open) {
 			return ui.Open(webURL(p.host, p.repo, p.ref, p.entry))
 		}
-		if p.preset && key.Matches(msg, p.pager.KeyMap().Close) {
+		if p.preset && key.Matches(msg, p.pager.KeyMap().Close()) {
 			return p.close()
 		}
 	}

@@ -134,7 +134,6 @@ type texts struct {
 // with render.
 func New[T any](fetch Fetch[T], render Render[T], opts ...Option) Model[T] {
 	s := settings{
-		keys:      DefaultKeyMap(),
 		styles:    DefaultStyles(true),
 		ctx:       context.Background(),
 		maxChunks: DefaultMaxChunks,

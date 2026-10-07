@@ -121,12 +121,13 @@ func TestNames(t *testing.T) {
 
 func TestNamesOfPager(t *testing.T) {
 	want := []string{
-		"bottom", "edit", "find", "global.quit", "half_page_down", "half_page_up",
-		"left", "next_match", "option", "page_down", "page_up", "prev_match",
-		"quick_filter", "right", "search_prompt.cancel", "search_prompt.run", "top", "up", "down",
+		"bottom", "edit", "find", "global.dismiss", "global.quit", "half_page_down", "half_page_up",
+		"left", "next_match", "option", "page_down", "page_up", "pager_option.cancel", "pager_option.chop",
+		"pager_option.ignore_case", "pager_option.line_numbers", "pager_option.smart_case",
+		"pager_option.squeeze", "prev_match", "quick_filter", "right", "search_prompt.cancel", "search_prompt.run", "top", "up", "down",
 	}
 	slices.Sort(want)
-	if got := keymap.Names(pager.DefaultKeyMap()); !slices.Equal(got, want) {
+	if got := keymap.Names(pager.KeyMap{}); !slices.Equal(got, want) {
 		t.Errorf("Names = %v, want %v", got, want)
 	}
 }

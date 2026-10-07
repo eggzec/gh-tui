@@ -47,11 +47,12 @@ type keyMap struct {
 	owner key.Binding
 }
 
-// The contexts of the keys of pull requests: the list, and the modal of
-// one.
+// The contexts of the keys of pull requests: the list, the modal of one,
+// and its conversation.
 const (
-	ctxList  = "pulls"
-	ctxModal = "pull_modal"
+	ctxList         = "pulls"
+	ctxModal        = "pull_modal"
+	ctxConversation = "pull_conversation"
 )
 
 // newKeyMap returns the keys of the list of pull requests, with those of
@@ -82,8 +83,7 @@ func newKeyMap(keys config.Keymap) keyMap {
 	// and the thread get only the keys they leave them.
 	k.feed = feed.NewKeyMap(list.Of)
 
-	t := thread.DefaultKeyMap()
-	t.Toggle = ui.Binding(keys, config.ActionSelect, t.Toggle.Help().Desc)
+	t := thread.NewKeyMap(ui.In(keys, ctxConversation).Of)
 	// The thread offers retry itself once something failed.
 	t.Retry = retry(k.Refresh)
 	t.Retry.SetEnabled(k.Refresh.Enabled())

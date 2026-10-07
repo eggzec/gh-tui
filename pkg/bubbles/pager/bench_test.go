@@ -25,7 +25,7 @@ var bigColored = sync.OnceValue(func() string {
 // coloredPager returns a pager over bigColored scrolled to the middle,
 // with every "view" found.
 var coloredPager = sync.OnceValue(func() Model {
-	m := New(WithSize(120, 40))
+	m := fresh(bg{}, WithSize(120, 40))
 	m.Focus()
 	_ = m.SetContent("test.log", bigColored())
 	m.top = m.Lines() / 2
@@ -39,7 +39,7 @@ var coloredPager = sync.OnceValue(func() Model {
 // hostilePager returns a pager over one long line that changes its style
 // at every cell and never resets, wrapped and at its end.
 var hostilePager = sync.OnceValue(func() Model {
-	m := New(WithSize(120, 40), WithWrap(true))
+	m := fresh(bg{}, WithSize(120, 40), WithWrap(true))
 	m.Focus()
 	_ = m.SetContent("hostile.log", strings.Repeat("\x1b[1mx\x1b[3my\x1b[22;23mz\x1b[38;5;208m", 70_000))
 	m, _ = m.Update(press("G"))
@@ -49,7 +49,7 @@ var hostilePager = sync.OnceValue(func() Model {
 // bigPager returns a pager over bigSource, highlighted and scrolled to the
 // middle, with every "fmt" found.
 var bigPager = sync.OnceValue(func() Model {
-	m := New(WithSize(120, 40), WithHighlightLimit(math.MaxInt))
+	m := fresh(bg{}, WithSize(120, 40), WithHighlightLimit(math.MaxInt))
 	m.Focus()
 	msg := m.SetContent("big.go", bigSource())()
 	m, _ = m.Update(msg)
@@ -150,7 +150,7 @@ func BenchmarkSetContent(b *testing.B) {
 		{name: "colored", src: bigColored},
 	} {
 		b.Run(tt.name, func(b *testing.B) {
-			m := New(WithSize(120, 40))
+			m := fresh(b, WithSize(120, 40))
 			src := tt.src()
 			b.ReportAllocs()
 			for b.Loop() {
@@ -207,7 +207,7 @@ func BenchmarkFilter(b *testing.B) {
 		})
 	}
 	b.Run("100k/update", func(b *testing.B) {
-		m := New(WithSize(120, 40))
+		m := fresh(b, WithSize(120, 40))
 		m.Focus()
 		_ = m.SetContent("big.go", strings.Join(lines, "\n"))
 		m, _ = m.Update(press("&"))

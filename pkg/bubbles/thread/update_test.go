@@ -300,7 +300,7 @@ func TestAccessors(t *testing.T) {
 	if m.Width() != 60 || m.Height() != 10 || m.ID() == 0 {
 		t.Fatalf("Width, Height, ID = %d, %d, %d", m.Width(), m.Height(), m.ID())
 	}
-	k := DefaultKeyMap()
+	k := testKeys()
 	k.Down.SetKeys("n")
 	m.SetKeyMap(k)
 	m.vp.SetYOffset(0)

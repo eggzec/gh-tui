@@ -1,6 +1,10 @@
 package thread
 
-import "charm.land/bubbles/v2/key"
+import (
+	"charm.land/bubbles/v2/key"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+)
 
 // KeyMap holds the key bindings of a thread.
 type KeyMap struct {
@@ -17,50 +21,13 @@ type KeyMap struct {
 	Toggle key.Binding `keymap:"global.select" help:"diagram code"`
 }
 
-// DefaultKeyMap returns the default key bindings.
-func DefaultKeyMap() KeyMap {
-	return KeyMap{
-		Up: key.NewBinding(
-			key.WithKeys("up", "k"),
-			key.WithHelp("↑/k", "up"),
-		),
-		Down: key.NewBinding(
-			key.WithKeys("down", "j"),
-			key.WithHelp("↓/j", "down"),
-		),
-		PageUp: key.NewBinding(
-			key.WithKeys("b", "ctrl+b", "pgup"),
-			key.WithHelp("b/^b", "page up"),
-		),
-		PageDown: key.NewBinding(
-			key.WithKeys("space", "ctrl+f", "pgdown"),
-			key.WithHelp("space/^f", "page down"),
-		),
-		HalfPageUp: key.NewBinding(
-			key.WithKeys("ctrl+u"),
-			key.WithHelp("^u", "½ page up"),
-		),
-		HalfPageDown: key.NewBinding(
-			key.WithKeys("ctrl+d"),
-			key.WithHelp("^d", "½ page down"),
-		),
-		Top: key.NewBinding(
-			key.WithKeys("home", "g"),
-			key.WithHelp("g/home", "top"),
-		),
-		Bottom: key.NewBinding(
-			key.WithKeys("end", "G"),
-			key.WithHelp("G/end", "bottom"),
-		),
-		Retry: key.NewBinding(
-			key.WithKeys("r"),
-			key.WithHelp("r", "retry"),
-		),
-		Toggle: key.NewBinding(
-			key.WithKeys("enter"),
-			key.WithHelp("↵", "diagram code"),
-		),
-	}
+// NewKeyMap returns the key bindings that look gives, where an action is
+// named as the thread's own, such as "page_down", or as a context's, such
+// as "global.select". A thread without a key map has no key bound.
+func NewKeyMap(look keymap.Lookup) KeyMap {
+	var k KeyMap
+	keymap.Fill(&k, look)
+	return k
 }
 
 // ShortHelp implements help.KeyMap: the moves, as a list offers them, and

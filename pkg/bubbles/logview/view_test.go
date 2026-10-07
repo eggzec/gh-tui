@@ -50,7 +50,7 @@ func TestView(t *testing.T) {
 		{name: "failed", width: 40, height: 4,
 			set: func(m *Model) { m.SetError(errors.New("410 Gone: the log expired\nmore")) }},
 		{name: "empty log", width: 40, height: 4, set: func(m *Model) { m.SetLines(nil, nil) }},
-		{name: "nothing", width: 40, height: 4, set: func(m *Model) { *m = New(WithSize(40, 4)) }},
+		{name: "nothing", width: 40, height: 4, set: func(m *Model) { *m = New(withKeys(t), WithSize(40, 4)) }},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -72,7 +72,7 @@ func TestView(t *testing.T) {
 
 func TestViewEmpty(t *testing.T) {
 	for _, size := range [][2]int{{0, 5}, {40, 0}} {
-		if v := New(WithSize(size[0], size[1])).View(); v != "" {
+		if v := New(withKeys(t), WithSize(size[0], size[1])).View(); v != "" {
 			t.Errorf("View() at %v = %q, want empty", size, v)
 		}
 	}
@@ -182,7 +182,7 @@ func TestErrorText(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := New(append([]Option{WithSize(60, 4)}, tt.opts...)...)
+			m := New(append([]Option{withKeys(t), WithSize(60, 4)}, tt.opts...)...)
 			m.SetError(errors.New("410 Gone\nmore"))
 			first, _, _ := strings.Cut(ansi.Strip(m.View()), "\n")
 			if got := strings.TrimRight(first, " "); got != tt.want {
@@ -201,7 +201,7 @@ func TestErrorKeepsTheHintWhole(t *testing.T) {
 	}
 	for height := 2; height <= 6; height++ {
 		for width := 1; width <= 120; width++ {
-			m := New(WithSize(width, height), WithErrorText(say))
+			m := New(withKeys(t), WithSize(width, height), WithErrorText(say))
 			m.SetError(errors.New("boom"))
 			v := m.View()
 			assertFits(t, v, width, height)
@@ -224,7 +224,7 @@ func TestErrorKeepsTheHintWhole(t *testing.T) {
 // every render.
 func TestErrorTextWordedOnce(t *testing.T) {
 	calls := 0
-	m := New(WithSize(60, 4), WithErrorText(func(error) (string, string) {
+	m := New(withKeys(t), WithSize(60, 4), WithErrorText(func(error) (string, string) {
 		calls++
 		return "Can't reach GitHub", "r to retry"
 	}))
@@ -249,7 +249,7 @@ func TestViewGlyphs(t *testing.T) {
 		{Kind: EndGroup},
 		{Kind: Error, Text: "boom"},
 	}
-	m := New(WithSize(32, 5), WithLineNumbers(false), WithStyles(st))
+	m := New(withKeys(t), WithSize(32, 5), WithLineNumbers(false), WithStyles(st))
 	m.Focus()
 	m.SetLines(lines, []Section{{Title: "a step with a title too long to fit", Start: 0, End: 4}})
 	m.ExpandAll()
@@ -275,7 +275,7 @@ func TestViewGlyphs(t *testing.T) {
 func TestViewLoadingEllipsis(t *testing.T) {
 	st := DefaultStyles(true)
 	st.Ellipsis = "..."
-	m := New(WithSize(40, 3), WithStyles(st))
+	m := New(withKeys(t), WithSize(40, 3), WithStyles(st))
 	_ = m.SetLoading()
 	if v := ansi.Strip(m.View()); !strings.Contains(v, "Loading the log...") {
 		t.Errorf("view %q, want the ellipsis of the styles", v)

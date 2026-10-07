@@ -80,9 +80,14 @@ func TestConfigCommand(t *testing.T) {
 			t.Errorf("the config lacks %q", want)
 		}
 	}
+	// q is not the quit key of this config, and Q is.
 	drive(m, m.key(press("q")))
+	if m.modal == nil {
+		t.Errorf("q closed the pager, but this config quits with Q")
+	}
+	drive(m, m.key(press("Q")))
 	if m.modal != nil {
-		t.Errorf("q left %T open, want the pager closed", m.modal)
+		t.Errorf("Q left %T open, want the pager closed", m.modal)
 	}
 }
 

@@ -52,7 +52,7 @@ func (h host) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (h host) View() tea.View { return tea.NewView(h.pager.View()) }
 
 func TestProgram(t *testing.T) {
-	p := New()
+	p := fresh(t)
 	highlight := p.SetContent("main.go", goSource)
 	p.Focus()
 	highlighted := make(chan struct{})

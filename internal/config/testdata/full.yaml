@@ -27,7 +27,7 @@ themes:
 keys:
   global:
     quit: [Q]
-    search: ["/", "ctrl+g"]
+    search: ["ctrl+k", "ctrl+o"]
 
 cache:
   ttl:

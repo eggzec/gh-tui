@@ -56,7 +56,7 @@ func words(n int) string {
 // that shows what r renders.
 func rendered(tb testing.TB, r *wrapWords) Model {
 	tb.Helper()
-	m := New(WithSize(30, 6), WithLineNumbers(false))
+	m := fresh(tb, WithSize(30, 6), WithLineNumbers(false))
 	m.Focus()
 	m.SetRendered("README.md", r.src, r.render)
 	return m
@@ -94,7 +94,7 @@ func TestRenderedReserve(t *testing.T) {
 	src := strings.Repeat("line\n", 94) + "line"
 	width := func(reserve func() int) int {
 		var widths []int
-		m := New(WithSize(30, 6))
+		m := fresh(t, WithSize(30, 6))
 		if reserve != nil {
 			m.SetReserve(reserve)
 		}
@@ -240,7 +240,7 @@ func TestRenderedInvertedSearch(t *testing.T) {
 func TestRenderedPictures(t *testing.T) {
 	pic := termimg.Rows(7, 4, 2)
 	text := "alt text\n" + "> " + pic[0] + "\n> " + pic[1] + "\nafter"
-	m := New(WithSize(30, 6), WithLineNumbers(false))
+	m := fresh(t, WithSize(30, 6), WithLineNumbers(false))
 	m.Focus()
 	m.SetRendered("README.md", "![alt text](logo.png)", func(int) string { return text })
 	v := m.View()
@@ -276,7 +276,7 @@ func picturePager(t *testing.T) (m Model, rows []string) {
 	t.Helper()
 	rows = termimg.Rows(7, 4, 3)
 	text := "top\n\n\n" + strings.Join(rows, "\n") + "\n\n\nend of a long line"
-	m = New(WithSize(10, 12), WithLineNumbers(false))
+	m = fresh(t, WithSize(10, 12), WithLineNumbers(false))
 	m.Focus()
 	m.SetRendered("README.md", "![a](a.png)", func(int) string { return text })
 	return m, rows
@@ -332,7 +332,7 @@ func TestRenderedPicturesSideways(t *testing.T) {
 
 func TestRenderedWaitsOutAResize(t *testing.T) {
 	r := &wrapWords{src: words(200)}
-	m := New(WithSize(30, 6), WithLineNumbers(false), WithResizeRest(time.Hour))
+	m := fresh(t, WithSize(30, 6), WithLineNumbers(false), WithResizeRest(time.Hour))
 	m.Focus()
 	m.SetRendered("README.md", r.src, r.render)
 	m, _ = keys(t, m, "G")

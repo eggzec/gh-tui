@@ -14,8 +14,8 @@ Checks
 Detail
   up | up k | ↑/k | on
   down | down j | ↓/j | on
-  page up | b ctrl+b pgup | b/^b | on
-  page down | space ctrl+f pgdown | space/^f | on
+  page up | b ctrl+b pgup | b/^b/pgup | on
+  page down | space ctrl+f pgdown | space/^f/pgdn | on
   ½ page up | ctrl+u | ^u | on
   ½ page down | ctrl+d | ^d | on
   top | g home | g/home | on

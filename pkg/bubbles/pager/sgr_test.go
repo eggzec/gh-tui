@@ -167,7 +167,7 @@ func TestColorsSearch(t *testing.T) {
 
 // Colored content isn't highlighted, since it has colors of its own.
 func TestColorsNotHighlighted(t *testing.T) {
-	m := New(WithSize(40, 4))
+	m := fresh(t, WithSize(40, 4))
 	if cmd := m.SetContent("main.go", "\x1b[32mpackage\x1b[m main\n"); cmd != nil {
 		t.Error("colored content is highlighted")
 	}

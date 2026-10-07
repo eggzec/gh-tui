@@ -8,6 +8,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ownerui"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
@@ -27,13 +28,13 @@ type readmeKeys struct {
 	pager.KeyMap
 }
 
-// newReadmeKeys returns the pager's keys that scroll the README.
-func newReadmeKeys() readmeKeys {
-	k := pager.DefaultKeyMap()
-	for _, b := range []*key.Binding{
-		&k.Left, &k.Right, &k.Option, &k.Search, &k.Confirm, &k.Cancel,
-		&k.Filter, &k.Next, &k.Prev, &k.Edit, &k.Close,
-	} {
+// newReadmeKeys returns the pager's keys that scroll the README. The
+// context of the README has no key but those that scroll, so the keys of
+// the rest of a pager are off, and so are the search prompt's and the
+// app's that close a pager, which the page has for itself.
+func newReadmeKeys(keys config.Keymap) readmeKeys {
+	k := pager.NewKeyMap(ui.In(keys, paneContext[readmePane]).Of)
+	for _, b := range []*key.Binding{&k.Confirm, &k.Cancel, &k.Quit, &k.Dismiss} {
 		*b = key.NewBinding(key.WithDisabled())
 	}
 	return readmeKeys{k}

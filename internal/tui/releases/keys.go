@@ -32,8 +32,7 @@ func newKeyMap(keys config.Keymap) keyMap {
 	}
 	// The modal matches its own keys first, so the thread gets only the
 	// keys it leaves it.
-	t := thread.DefaultKeyMap()
-	t.Toggle = modal.Binding("global.select", t.Toggle.Help().Desc)
+	t := thread.NewKeyMap(modal.Of)
 	// The files come with the release, so there is nothing for the
 	// thread to retry.
 	t.Retry = key.NewBinding(key.WithHelp("", t.Retry.Help().Desc), key.WithDisabled())

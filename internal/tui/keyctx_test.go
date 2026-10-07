@@ -48,6 +48,25 @@ import (
 // on. What no context asks for, such as a change, is left to the embedded
 // interface, which fails loudly if it is asked after all.
 
+// keyProse returns sixty paragraphs of markdown, enough to fill any window
+// several times over, so that the keys that scroll a text have somewhere
+// to go. keyWide returns n plain lines, each far wider than any window.
+func keyProse() string {
+	paras := make([]string, 60)
+	for i := range paras {
+		paras[i] = fmt.Sprintf("Paragraph %d. %s", i+1, strings.Repeat("Keys match by order. ", 12))
+	}
+	return strings.Join(paras, "\n\n") + "\n"
+}
+
+func keyWide(n int) string {
+	lines := make([]string, n)
+	for i := range lines {
+		lines[i] = fmt.Sprintf("line %d %s", i+1, strings.Repeat("wide ", 80))
+	}
+	return strings.Join(lines, "\n") + "\n"
+}
+
 // keyTime is the time of everything the services serve.
 var keyTime = time.Date(2026, 9, 1, 12, 0, 0, 0, time.UTC)
 
@@ -55,12 +74,12 @@ var (
 	keyIssue = core.Issue{
 		ID: "I_1", Repo: testRepo, Number: 1, Title: "Keys collide", State: core.StateOpen,
 		Author: core.User{Login: "octocat"}, CreatedAt: keyTime, UpdatedAt: keyTime,
-		URL: "https://github.com/eggzec/gh-tui/issues/1",
+		URL: "https://github.com/eggzec/gh-tui/issues/1", Body: keyProse(),
 	}
 	keyPull = core.PullRequest{
 		ID: "PR_2", Repo: testRepo, Number: 2, Title: "Match keys by order", State: core.StateOpen,
 		Author: core.User{Login: "octocat"}, CreatedAt: keyTime, UpdatedAt: keyTime,
-		URL: "https://github.com/eggzec/gh-tui/pull/2", HeadRef: "keys", BaseRef: "main",
+		URL: "https://github.com/eggzec/gh-tui/pull/2", HeadRef: "keys", BaseRef: "main", Body: keyProse(),
 	}
 	keyRepo = core.Repo{
 		ID: "R_1", Ref: testRepo, DefaultBranch: "main", UpdatedAt: keyTime,
@@ -79,16 +98,22 @@ var (
 		Steps: []core.Step{{Number: 1, Name: "Run tests", Status: core.RunCompleted, Conclusion: core.ConclusionFailure}},
 		URL:   "https://github.com/eggzec/gh-tui/actions/runs/10/job/20",
 	}
-	keyLog = core.Log{Lines: []core.LogLine{
-		{Time: keyTime, Text: "##[group]Run tests", Step: 1},
-		{Time: keyTime, Text: "##[error]want a frame, got none", Step: 1},
-	}}
+	keyLog    = keyLongLog()
 	keyCommit = core.Commit{
 		SHA: "abc123", TreeSHA: "def456", Message: "Match keys by order", Subject: "Match keys by order",
 		Author: core.Signature{Name: "Octo Cat", Email: "octo@example.com", Date: keyTime},
 		URL:    "https://github.com/eggzec/gh-tui/commit/abc123",
 	}
 )
+
+// keyLongLog is a log of many wide lines in one group, with an error.
+func keyLongLog() core.Log {
+	lines := []core.LogLine{{Time: keyTime, Text: "##[group]Run tests", Step: 1}}
+	for l := range strings.SplitSeq(strings.TrimSuffix(keyWide(100), "\n"), "\n") {
+		lines = append(lines, core.LogLine{Time: keyTime, Text: l, Step: 1})
+	}
+	return core.Log{Lines: append(lines, core.LogLine{Time: keyTime, Text: "##[error]want a frame, got none", Step: 1})}
+}
 
 // keyPulls serves one open pull request and its detail.
 type keyPulls struct{ pulls.Service }
@@ -150,15 +175,19 @@ var keyTree = core.Tree{SHA: "def456", Entries: []core.TreeEntry{
 	{Path: "README.md", Name: "README.md", Type: core.EntryBlob, SHA: "b1", Size: 6},
 }}
 
+// keyReadme is a file of a heading, many paragraphs and a code block
+// wider than any window.
+var keyReadme = "# Keys\n\n" + keyProse() + "\n```\n" + keyWide(3) + "```\n"
+
 func (keyFiles) CachedTree(filesvc.TreeQuery) (core.Tree, bool)             { return keyTree, true }
 func (keyFiles) Tree(context.Context, filesvc.TreeQuery) (core.Tree, error) { return keyTree, nil }
 func (keyFiles) CachedAll(filesvc.TreeQuery) (core.Tree, bool)              { return keyTree, true }
 func (keyFiles) All(context.Context, filesvc.TreeQuery) (core.Tree, error)  { return keyTree, nil }
 func (keyFiles) CachedBlob(filesvc.BlobQuery) (core.Blob, bool) {
-	return core.Blob{SHA: "b1", Size: 6, Content: []byte("# Keys\n")}, true
+	return core.Blob{SHA: "b1", Size: 6, Content: []byte(keyReadme)}, true
 }
 func (keyFiles) Blob(context.Context, filesvc.BlobQuery) (core.Blob, error) {
-	return core.Blob{SHA: "b1", Size: 6, Content: []byte("# Keys\n")}, nil
+	return core.Blob{SHA: "b1", Size: 6, Content: []byte(keyReadme)}, nil
 }
 func (keyFiles) Invalidate(core.RepoRef) {}
 
@@ -352,7 +381,7 @@ func keyChecks() core.Checks {
 		DetailsURL: keyJob.URL,
 	}, {
 		ID: 31, Name: "coverage", Status: core.RunCompleted, Conclusion: core.ConclusionFailure,
-		Title: "Coverage fell", Summary: "Coverage fell by 2%.", StartedAt: keyTime, CompletedAt: keyTime,
+		Title: "Coverage fell", Summary: keyProse(), StartedAt: keyTime, CompletedAt: keyTime,
 		DetailsURL: "https://coverage.example.com/eggzec/gh-tui",
 	}}}
 }
@@ -363,7 +392,18 @@ type keyHistory struct{ history.Service }
 
 var keyFile = core.CommitFile{
 	Path: "README.md", Status: core.FileModified, SHA: "b1", Additions: 1, Deletions: 1,
-	Patch: "@@ -1 +1 @@\n-# Keys\n+# Keys by order\n",
+	Patch: keyPatch(60),
+}
+
+// keyPatch returns a patch of n changed lines, each far wider than any
+// window.
+func keyPatch(n int) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "@@ -1,%d +1,%d @@\n", n, n)
+	for i := range n {
+		fmt.Fprintf(&b, "-old %d %s\n+new %d %s\n", i, strings.Repeat("wide ", 80), i, strings.Repeat("wide ", 80))
+	}
+	return b.String()
 }
 
 func (keyHistory) Branches(context.Context, historysvc.BranchesQuery) (core.Page[core.Branch], error) {
@@ -393,7 +433,7 @@ func (keyHistory) Compare(context.Context, core.RepoRef, string, string) (core.C
 type keyReleases struct{ releases.Service }
 
 var keyRelease = core.Release{
-	ID: 40, Tag: "v1.0.0", Name: "v1.0.0", Author: core.User{Login: "octocat"}, Body: "Keys by order.",
+	ID: 40, Tag: "v1.0.0", Name: "v1.0.0", Author: core.User{Login: "octocat"}, Body: keyProse(),
 	URL: "https://github.com/eggzec/gh-tui/releases/tag/v1.0.0", CreatedAt: keyTime, PublishedAt: keyTime,
 	Assets: []core.ReleaseAsset{{Name: "gh-tui.tar.gz", Size: 1024}},
 }
@@ -576,6 +616,19 @@ var idleRows = map[string]string{
 	"files collapse all": "no folder is open in the tree the services serve",
 	"actions pane left":  "the runs are the leftmost pane",
 	"actions pane right": "the log is the rightmost pane",
+
+	// The readers are reached scrolled down and across a text longer and
+	// wider than their window, so only these have nothing to act on.
+	"preview left":                 "the file is markdown, shown rendered and wrapped to the pane, so there is no sideways to scroll",
+	"preview right":                "the file is markdown, shown rendered and wrapped to the pane, so there is no sideways to scroll",
+	"pull_check_detail move left":  "what the app reported is markdown, wrapped to the pane, so there is no sideways to scroll",
+	"pull_check_detail move right": "what the app reported is markdown, wrapped to the pane, so there is no sideways to scroll",
+	"text left":                    "the config's lines are narrower than the modal, so there is no sideways to scroll",
+	"text right":                   "the config's lines are narrower than the modal, so there is no sideways to scroll",
+	"pull_check_log expand":        "the cursor is inside the log's one open group, and expand acts only on the header of a closed one",
+	"actions_log expand":           "the cursor is inside the log's one open group, and expand acts only on the header of a closed one",
+	"pull_check_log follow":        "a log follows its end from the start, so the key turns that off, which shows nothing until lines are appended",
+	"actions_log follow":           "a log follows its end from the start, so the key turns that off, which shows nothing until lines are appended",
 }
 
 // TestHelpRowsWork checks that every key help lists in a context does
@@ -755,7 +808,7 @@ func keyContexts() []keyContext {
 		{name: "owner: organization repositories", msg: github, context: "owner_list", want: "global, owner, owner_list"},
 		{name: "owner: members", msg: github, after: []string{"global.next_tab"}, context: "owner_list", want: "global, owner, owner_list"},
 		{name: "owner: teams", msg: github, after: []string{"global.next_tab", "global.next_tab"}, context: "owner_list", want: "global, owner, owner_list"},
-		{name: "owner: readme", msg: octocat, after: []string{"global.pane_3"}, context: "owner_readme", want: "global, owner, owner_readme"},
+		{name: "owner: readme", msg: octocat, after: []string{"global.pane_3", "owner_readme.half_page_down"}, context: "owner_readme", want: "global, owner, owner_readme"},
 		{name: "owner: calendar", msg: octocat, after: []string{"global.pane_4"}, context: "owner_calendar", want: "global, owner, owner_calendar"},
 		{name: "dashboard: repositories", context: "dashboard_repos", want: "global, dashboard, dashboard_repos"},
 		{name: "dashboard: pinned", steps: []string{"global.pane_1"}, context: "dashboard_pinned", want: "global, dashboard, dashboard_pinned"},
@@ -776,12 +829,12 @@ func keyContexts() []keyContext {
 		{name: "files", repo: true, context: "files", want: "global, repo, files"},
 		{name: "files: zoomed", repo: true, steps: []string{"global.zoom"}, context: "files", want: "global, repo, files"},
 		{name: "files: error toast", repo: true, msg: ui.NotifyMsg{Level: toast.Error, Text: "Keys collide."}, context: "files", want: "global, repo, files"},
-		{name: "files: preview", repo: true, steps: []string{"files.down", "global.select"}, context: "preview", want: "global, preview"},
+		{name: "files: preview", repo: true, steps: []string{"files.down", "global.select"}, after: []string{"preview.half_page_down", "preview.right"}, context: "preview", want: "global, preview"},
 		{name: "files: preview search", repo: true, steps: []string{"files.down", "global.select", "/"}, context: "search_prompt", want: "always, search_prompt (types)"},
 		{name: "files: preview option", repo: true, steps: []string{"files.down", "global.select", "-"}, context: "pager_option", want: "always, pager_option (types)"},
 		{name: "files: preview command line", repo: true, steps: []string{"files.down", "global.select", "global.command"}, context: "command_line", want: "command_line (types)"},
 		{name: "files: finder", repo: true, steps: []string{"global.find_file"}, context: "finder", want: "always, finder (types)"},
-		{name: "files: finder preview", repo: true, steps: []string{"global.find_file", typed("R"), "enter"}, context: "preview", want: "global, preview"},
+		{name: "files: finder preview", repo: true, steps: []string{"global.find_file", typed("R"), "enter"}, after: []string{"preview.half_page_down", "preview.right"}, context: "preview", want: "global, preview"},
 		{name: "pull requests", repo: true, steps: []string{"global.pane_2"}, context: "pulls", want: "global, repo, pulls"},
 		{name: "pull requests: filter", repo: true, steps: []string{"global.pane_2", "pulls.filter"}, context: "filter", want: "global, filter"},
 		{name: "pull requests: sort", repo: true, steps: []string{"global.pane_2", "pulls.sort"}, context: "filter", want: "global, filter"},
@@ -789,17 +842,17 @@ func keyContexts() []keyContext {
 		{name: "pull requests: filter list typing", repo: true, steps: []string{"global.pane_2", "pulls.filter", "down", "space", typed("i")}, want: "always, picker (types)"},
 		{name: "pull requests: filter insert", repo: true, steps: []string{"global.pane_2", "pulls.filter", typed("G"), typed("i")}, want: "always, filter_query (types)"},
 		{name: "pull requests: merge", repo: true, steps: []string{"global.pane_2", "pulls.merge"}, context: "confirm", want: "always, confirm"},
-		{name: "pull request", repo: true, steps: []string{"global.pane_2", "global.select"}, context: "pull_conversation", want: "global, pull_modal, pull_conversation"},
+		{name: "pull request", repo: true, steps: []string{"global.pane_2", "global.select"}, after: []string{"pull_conversation.half_page_down"}, context: "pull_conversation", want: "global, pull_modal, pull_conversation"},
 		{name: "pull request: close", repo: true, steps: []string{"global.pane_2", "global.select", "pull_modal.close"}, context: "confirm", want: "always, confirm"},
 		{name: "pull request: checks", repo: true, steps: []string{"global.pane_2", "pulls.checks"}, context: "pull_check_list", want: "global, pull_checks, pull_check_list"},
-		{name: "pull request: job", repo: true, steps: []string{"global.pane_2", "pulls.checks", "global.select"}, context: "pull_check_log", want: "global, pull_checks, pull_check_log"},
-		{name: "pull request: check detail", repo: true, steps: []string{"global.pane_2", "pulls.checks", "pull_check_list.down", "global.select"}, context: "pull_check_detail", want: "global, pull_checks, pull_check_detail"},
+		{name: "pull request: job", repo: true, steps: []string{"global.pane_2", "pulls.checks", "global.select"}, after: []string{"pull_check_log.half_page_down", "pull_check_log.right"}, context: "pull_check_log", want: "global, pull_checks, pull_check_log"},
+		{name: "pull request: check detail", repo: true, steps: []string{"global.pane_2", "pulls.checks", "pull_check_list.down", "global.select"}, after: []string{"pull_check_detail.half_page_down", "pull_check_detail.right"}, context: "pull_check_detail", want: "global, pull_checks, pull_check_detail"},
 		{name: "pull request: job search", repo: true, steps: []string{"global.pane_2", "pulls.checks", "global.select", "/"}, context: "search_prompt", want: "always, search_prompt (types)"},
 		{name: "issues", repo: true, steps: []string{"global.pane_3"}, context: "issues", want: "global, repo, issues"},
 		{name: "issues: filter", repo: true, steps: []string{"global.pane_3", "issues.filter"}, context: "filter", want: "global, filter"},
 		{name: "issues: sort", repo: true, steps: []string{"global.pane_3", "issues.sort"}, context: "filter", want: "global, filter"},
 		{name: "issues: close", repo: true, steps: []string{"global.pane_3", "issues.close"}, context: "confirm", want: "always, confirm"},
-		{name: "issue", repo: true, steps: []string{"global.pane_3", "global.select"}, context: "issue_modal", want: "global, issue_modal"},
+		{name: "issue", repo: true, steps: []string{"global.pane_3", "global.select"}, after: []string{"issue_modal.half_page_down"}, context: "issue_modal", want: "global, issue_modal"},
 		{name: "issue: comment", repo: true, steps: []string{"global.pane_3", "global.select", "issue_modal.comment"}, context: "prompt", want: "always, prompt (types)"},
 		{name: "issue: labels", repo: true, steps: []string{"global.pane_3", "global.select", "issue_modal.labels"}, context: "prompt", want: "always, prompt (types)"},
 		{name: "history", repo: true, steps: []string{"repo.history"}, context: "history_graph", want: "global, history, history_graph"},
@@ -807,19 +860,19 @@ func keyContexts() []keyContext {
 		{name: "history: branches", repo: true, steps: []string{"repo.history", "global.prev_pane"}, context: "history_branches", want: "global, history, history_branches"},
 		{name: "history: branch filter", repo: true, steps: []string{"repo.history", "global.prev_pane", "history_branches.filter"}, context: "picker", want: "always, picker (types)"},
 		{name: "history: files", repo: true, steps: []string{"repo.history", "global.select"}, context: "history_files", want: "global, history, history_files"},
-		{name: "history: patch", repo: true, steps: []string{"repo.history", "global.select", "global.select"}, context: "history_patch", want: "global, history, history_patch"},
+		{name: "history: patch", repo: true, steps: []string{"repo.history", "global.select", "global.select"}, after: []string{"history_patch.half_page_down", "history_patch.right"}, context: "history_patch", want: "global, history, history_patch"},
 		{name: "history: patch search", repo: true, steps: []string{"repo.history", "global.select", "global.select", "/"}, context: "search_prompt", want: "always, search_prompt (types)"},
 		{name: "commit", repo: true, msg: ui.OpenCommitMsg{Repo: testRepo, SHA: keyCommit.SHA}, context: "history_files", want: "global, history, history_files"},
-		{name: "release", repo: true, msg: ui.OpenReleaseMsg{Repo: testRepo, ID: keyRelease.ID, URL: keyRelease.URL}, context: "release_modal", want: "global, release_modal"},
+		{name: "release", repo: true, msg: ui.OpenReleaseMsg{Repo: testRepo, ID: keyRelease.ID, URL: keyRelease.URL}, after: []string{"release_modal.half_page_down"}, context: "release_modal", want: "global, release_modal"},
 		{name: "actions: runs", repo: true, steps: []string{"repo.actions"}, context: "actions_runs", want: "global, actions, actions_runs"},
 		{name: "actions: jobs", repo: true, steps: []string{"repo.actions", "global.next_pane"}, context: "actions_jobs", want: "global, actions, actions_jobs"},
-		{name: "actions: log", repo: true, steps: []string{"repo.actions", "global.next_pane", "global.next_pane"}, context: "actions_log", want: "global, actions, actions_log"},
+		{name: "actions: log", repo: true, steps: []string{"repo.actions", "global.next_pane", "global.next_pane"}, after: []string{"actions_log.half_page_down", "actions_log.right"}, context: "actions_log", want: "global, actions, actions_log"},
 		{name: "actions: log search", repo: true, steps: []string{"repo.actions", "global.next_pane", "global.next_pane", "/"}, context: "search_prompt", want: "always, search_prompt (types)"},
 		{name: "actions: filter", repo: true, steps: []string{"repo.actions", "actions.filter"}, context: "actions_filter", want: "global, actions_filter"},
 		{name: "actions: rerun", repo: true, steps: []string{"repo.actions", "actions.rerun_failed"}, context: "confirm", want: "always, confirm"},
 		{name: "actions: rerun job", repo: true, steps: []string{"repo.actions", "global.next_pane", "actions_jobs.rerun_job"}, context: "confirm", want: "always, confirm"},
 		{name: "auth", repo: true, steps: []string{"global.command", typed("auth"), "enter"}, want: "global, text"},
-		{name: "config", repo: true, steps: []string{"global.command", typed("config"), "enter"}, context: "text", want: "global, text"},
+		{name: "config", repo: true, steps: []string{"global.command", typed("config"), "enter"}, after: []string{"text.half_page_down", "text.right"}, context: "text", want: "global, text"},
 		{name: "help", repo: true, steps: []string{"global.help"}, context: "help", want: "always, help (types)"},
 		{name: "command line", repo: true, steps: []string{"global.command"}, context: "command_line", want: "command_line (types)"},
 	}

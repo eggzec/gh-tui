@@ -257,7 +257,9 @@ func (m Model) ShortHelp() []key.Binding {
 	case m.prompt.Focused():
 		return []key.Binding{m.confirmKey(), m.keys.Cancel}
 	case m.opt:
-		return []key.Binding{m.keys.Cancel}
+		o := m.keys.Options
+		// Cancel is first, so that it survives a footer too narrow for all.
+		return []key.Binding{o.Cancel, o.Chop, o.LineNumbers, o.Squeeze, o.SmartCase, o.IgnoreCase}
 	}
 	return m.keys.ShortHelp()
 }
@@ -282,10 +284,10 @@ func (m Model) FullHelp() [][]key.Binding {
 	if m.Capturing() {
 		for _, b := range []*key.Binding{
 			&k.Up, &k.Down, &k.PageUp, &k.PageDown, &k.HalfPageUp, &k.HalfPageDown, &k.Home, &k.End,
-			&k.Left, &k.Right, &k.Option, &k.Search, &k.Filter, &k.Next, &k.Prev, &k.Edit, &k.Close,
+			&k.Left, &k.Right, &k.Option, &k.Search, &k.Filter, &k.Next, &k.Prev, &k.Edit, &k.Quit, &k.Dismiss,
 		} {
 			b.SetEnabled(false)
 		}
 	}
-	return k.FullHelp()
+	return k.fullHelp(k.Close())
 }

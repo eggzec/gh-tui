@@ -276,14 +276,14 @@ func TestBlurClosesSearch(t *testing.T) {
 }
 
 func TestHighlight(t *testing.T) {
-	m := New(WithSize(40, 5))
+	m := fresh(t, WithSize(40, 5))
 	cmd := m.SetContent("main.go", goSource)
 	if cmd == nil {
 		t.Fatal("no highlight for a Go file")
 	}
 	msg := cmd()
 
-	other := New()
+	other := fresh(t)
 	if other, _ = other.Update(msg); other.spans != nil {
 		t.Error("another pager took the tokens")
 	}
@@ -311,7 +311,7 @@ func TestHighlightSkipped(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := New(tt.opts...)
+			m := fresh(t, tt.opts...)
 			if cmd := m.SetContent(tt.file, "just some words\n"); cmd != nil && cmd() != nil {
 				t.Error("highlighted anyway")
 			}
@@ -320,7 +320,7 @@ func TestHighlightSkipped(t *testing.T) {
 }
 
 func TestHighlightCancelled(t *testing.T) {
-	m := New()
+	m := fresh(t)
 	cmd := m.SetContent("main.go", strings.Repeat(goSource, 2000))
 	_ = m.SetLoading("next.go")
 	if msg := cmd(); msg != nil {
@@ -381,8 +381,8 @@ func TestAdvance(t *testing.T) {
 }
 
 func TestKeyMap(t *testing.T) {
-	k := DefaultKeyMap()
-	k.Close = key.NewBinding(key.WithKeys("x"))
+	k := testKeys(t)
+	k.Quit, k.Dismiss = key.NewBinding(key.WithKeys("x")), key.NewBinding(key.WithDisabled())
 	m := open(t, "a.txt", "a\n", WithKeyMap(k), WithSize(20, 3))
 	if _, msg := keys(t, m, "q"); msg != nil {
 		t.Error("q closed with a key map that binds x")
@@ -394,7 +394,7 @@ func TestKeyMap(t *testing.T) {
 }
 
 func TestHighlightGuessesSyntax(t *testing.T) {
-	m := New()
+	m := fresh(t)
 	if cmd := m.SetContent("run", "#!/bin/sh\necho hi\n"); cmd == nil {
 		t.Error("a script with a shebang wasn't highlighted")
 	}
@@ -402,7 +402,7 @@ func TestHighlightGuessesSyntax(t *testing.T) {
 
 func TestHighlightSyntax(t *testing.T) {
 	const patch = "@@ -1,2 +1,2 @@\n-old line\n+new line\n context\n"
-	m := New()
+	m := fresh(t)
 	cmd := m.SetContentSyntax("main.go", "diff", patch)
 	if cmd == nil {
 		t.Fatal("a patch named after a Go file wasn't highlighted as a diff")
@@ -423,7 +423,7 @@ func TestHighlightSyntax(t *testing.T) {
 }
 
 func TestSpinner(t *testing.T) {
-	m := New(WithSize(20, 3))
+	m := fresh(t, WithSize(20, 3))
 	tick := m.SetLoading("a.go")()
 	m, cmd := m.Update(tick)
 	if cmd == nil {
@@ -472,5 +472,59 @@ func TestOldPagingKeysUnbound(t *testing.T) {
 				t.Errorf("after %q: top = %d, want %d", k, m.top, top)
 			}
 		})
+	}
+}
+
+// Quit and dismiss both close the pager, whichever has keys.
+func TestQuitAndDismiss(t *testing.T) {
+	look := lookup
+	only := func(action string) func(string) []string {
+		return func(a string) []string {
+			if a == action {
+				return nil
+			}
+			return look(a)
+		}
+	}
+	tests := []struct {
+		name    string
+		look    func(string) []string
+		closes  []string
+		stays   []string
+		helpKey string
+	}{
+		{name: "both", look: look, closes: []string{"q", "esc"}, helpKey: "q/esc"},
+		{name: "no quit", look: only("global.quit"), closes: []string{"esc"}, stays: []string{"q"}, helpKey: "esc"},
+		{name: "no dismiss", look: only("global.dismiss"), closes: []string{"q"}, stays: []string{"esc"}, helpKey: "q"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := open(t, "a.txt", "a\n", WithKeyMap(NewKeyMap(tt.look)), WithSize(20, 3))
+			for _, k := range tt.closes {
+				if _, msg := keys(t, m, k); msg == nil {
+					t.Errorf("%s didn't close", k)
+				}
+			}
+			for _, k := range tt.stays {
+				if _, msg := keys(t, m, k); msg != nil {
+					t.Errorf("%s closed, though it is unbound", k)
+				}
+			}
+			last := m.FullHelp()[3]
+			if b := last[len(last)-1]; b.Help().Key != tt.helpKey || b.Help().Desc != "close" {
+				t.Errorf("help lists %q %q last, want one row %q close", b.Help().Key, b.Help().Desc, tt.helpKey)
+			}
+		})
+	}
+}
+
+// A pager given no key map has no key bound.
+func TestNoKeyMap(t *testing.T) {
+	m := New(WithSize(20, 3))
+	m.Focus()
+	_ = m.SetContent("a.txt", strings.Repeat("a\n", 20))
+	m, msg := keys(t, m, "q", "esc", "j", "/")
+	if msg != nil || m.Capturing() {
+		t.Errorf("a key did something: sent %v, capturing %v", msg, m.Capturing())
 	}
 }

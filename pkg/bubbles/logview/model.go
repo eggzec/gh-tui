@@ -210,12 +210,12 @@ func (m Model) FullHelp() [][]key.Binding {
 			&k.Up, &k.Down, &k.PageUp, &k.PageDown, &k.HalfPageUp, &k.HalfPageDown, &k.Home, &k.End,
 			&k.Left, &k.Right, &k.Toggle, &k.Expand, &k.Collapse, &k.FoldAll,
 			&k.NextError, &k.PrevError, &k.NextWarning, &k.PrevWarning,
-			&k.Wrap, &k.Times, &k.LineNumbers, &k.Follow, &k.Search, &k.Next, &k.Prev, &k.Close,
+			&k.Wrap, &k.Times, &k.LineNumbers, &k.Follow, &k.Search, &k.Next, &k.Prev, &k.Quit, &k.Dismiss,
 		} {
 			b.SetEnabled(false)
 		}
 	}
-	return k.FullHelp()
+	return k.fullHelp(k.Close())
 }
 
 // enableKeys enables the keys that move between errors, warnings and

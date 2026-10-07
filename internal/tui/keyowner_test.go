@@ -13,7 +13,7 @@ type keyOwnerSide struct{}
 
 func (keyOwnerSide) FreshReadme(ownersvc.ReadmeQuery) bool { return true }
 func (keyOwnerSide) Readme(context.Context, ownersvc.ReadmeQuery) (ownersvc.Readme, error) {
-	return ownersvc.Readme{Markdown: "# octocat", Source: core.RepoRef{Owner: "octocat", Name: "octocat"}}, nil
+	return ownersvc.Readme{Markdown: "# octocat\n\n" + keyProse(), Source: core.RepoRef{Owner: "octocat", Name: "octocat"}}, nil
 }
 func (keyOwnerSide) FreshContributions(string) bool { return true }
 func (keyOwnerSide) Contributions(context.Context, ownersvc.ContributionsQuery) (core.Contributions, error) {

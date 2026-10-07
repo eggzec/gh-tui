@@ -11,8 +11,8 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/logview"
-	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
 )
 
 // The contexts of the keys of the step: the step itself, which works in
@@ -31,11 +31,10 @@ const (
 // them.
 type KeyMap struct {
 	// Up, Down, PageUp, PageDown, HalfPageUp, HalfPageDown, Home and End
-	// move through the checks. Home and End also go to the top and bottom
-	// of what an app reported.
+	// move through the checks.
 	Up, Down, PageUp, PageDown, HalfPageUp, HalfPageDown, Home, End key.Binding
-	// Top and Bottom go to the top and bottom of what an app reported:
-	// Home and End, named for what they do there.
+	// Top and Bottom go to the top and bottom of what an app reported.
+	// They have their own keys, those of its context.
 	Top, Bottom key.Binding
 	// Select opens the check under the cursor: its job, or what its app
 	// reported.
@@ -67,11 +66,13 @@ type KeyMap struct {
 func newKeyMap(keys config.Keymap) KeyMap {
 	step, list, log, notes := ui.In(keys, ctxStep), ui.In(keys, ctxList), ui.In(keys, ctxLog), ui.In(keys, ctxAnnotations)
 	fk := feed.NewKeyMap(list.Of)
+	var dk detailKeys
+	keymap.Fill(&dk, ui.In(keys, ctxDetail).Of)
 	k := KeyMap{
 		Up: fk.Up, Down: fk.Down, PageUp: fk.PageUp, PageDown: fk.PageDown,
 		HalfPageUp: fk.HalfPageUp, HalfPageDown: fk.HalfPageDown, Home: fk.Home, End: fk.End,
-		Top:         relabel(fk.Home, "top"),
-		Bottom:      relabel(fk.End, "bottom"),
+		Top:         dk.Top,
+		Bottom:      dk.Bottom,
 		Select:      step.Binding("global.select", "open"),
 		Back:        step.Binding("global.dismiss", "back"),
 		Open:        step.Binding("global.open", "browser"),
@@ -85,22 +86,36 @@ func newKeyMap(keys config.Keymap) KeyMap {
 	}
 	// The step matches the re-run before refresh, and its own keys
 	// before those of the log and of what an app reported.
-	lk := logview.DefaultKeyMap()
-	lk.Close = k.Back
-	lk.Close.SetHelp(k.Back.Help().Key, "back")
+	lk := logview.NewKeyMap(log.Of)
+	lk.Quit, lk.Dismiss = key.NewBinding(key.WithDisabled()), relabel(k.Back, "back")
 	k.Log = lk
 
-	k.Detail = detailKeyMap()
+	k.Detail = dk.viewport()
 	return k
 }
 
-// detailKeyMap returns the keys that scroll what an app reported, which
-// page as the pager does.
-func detailKeyMap() viewport.KeyMap {
-	pk := pager.DefaultKeyMap()
-	d := viewport.DefaultKeyMap()
-	d.PageUp, d.PageDown, d.HalfPageUp, d.HalfPageDown = pk.PageUp, pk.PageDown, pk.HalfPageUp, pk.HalfPageDown
-	return d
+// detailKeys are the keys that scroll what an app reported, from the
+// context of its detail. They are filled there, and the viewport takes
+// the ones it has.
+type detailKeys struct {
+	Up           key.Binding `keymap:"up" help:"up"`
+	Down         key.Binding `keymap:"down" help:"down"`
+	PageUp       key.Binding `keymap:"page_up" help:"page up"`
+	PageDown     key.Binding `keymap:"page_down" help:"page down"`
+	HalfPageUp   key.Binding `keymap:"half_page_up" help:"½ page up"`
+	HalfPageDown key.Binding `keymap:"half_page_down" help:"½ page down"`
+	Top          key.Binding `keymap:"top" help:"top"`
+	Bottom       key.Binding `keymap:"bottom" help:"bottom"`
+	Left         key.Binding `keymap:"left" help:"move left"`
+	Right        key.Binding `keymap:"right" help:"move right"`
+}
+
+// viewport returns the keys that the viewport of the detail handles.
+func (d detailKeys) viewport() viewport.KeyMap {
+	return viewport.KeyMap{
+		Up: d.Up, Down: d.Down, Left: d.Left, Right: d.Right,
+		PageUp: d.PageUp, PageDown: d.PageDown, HalfPageUp: d.HalfPageUp, HalfPageDown: d.HalfPageDown,
+	}
 }
 
 // job returns the keys of the job view: the moves of the checks through
@@ -192,8 +207,9 @@ func (k KeyMap) state(s *Step) KeyMap {
 		for _, b := range []*key.Binding{&k.Select, &k.Up, &k.Down, &k.PageUp, &k.PageDown, &k.HalfPageUp, &k.HalfPageDown} {
 			b.SetEnabled(false)
 		}
-		// Home and End go to the top and bottom of what an app reported;
-		// they are listed with its keys, and the log has keys of its own.
+		// Home and End move through the checks only; Top and Bottom, which
+		// are listed with the keys of what an app reported, go to its top
+		// and bottom, and the log has keys of its own.
 		k.Home.SetEnabled(false)
 		k.End.SetEnabled(false)
 		k.Top.SetEnabled(k.Top.Enabled() && s.mode == detailMode)

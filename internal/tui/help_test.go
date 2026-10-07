@@ -383,7 +383,7 @@ func (p *pagerModal) KeyLayers() []keyhelp.Layer {
 func TestHelpKeyReachesWaitingPager(t *testing.T) {
 	for _, first := range []string{"-"} {
 		m, _ := newTestApp(t)
-		mod := &pagerModal{title: "README.md", pager: pager.New(pager.WithSize(60, 10))}
+		mod := &pagerModal{title: "README.md", pager: pager.New(pager.WithKeyMap(pager.NewKeyMap(ui.In(config.Default().Keys, "preview").Of)), pager.WithSize(60, 10))}
 		mod.pager.Focus()
 		run(m, mod.pager.SetContent("README.md", strings.Repeat("line\n", 50)))
 		run(m, ui.OpenModal(mod))

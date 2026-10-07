@@ -78,7 +78,14 @@ func (m modal) view(background string) string {
 // A root model composites the pager over its own view with the overlay
 // package.
 func Example_modal() {
-	m := modal{width: 50, height: 10, pager: pager.New()}
+	// The parent says which keys do what; here q quits.
+	keys := pager.NewKeyMap(func(action string) []string {
+		if action == "global.quit" {
+			return []string{"q"}
+		}
+		return nil
+	})
+	m := modal{width: 50, height: 10, pager: pager.New(pager.WithKeyMap(keys))}
 	_ = m.show("notes.txt", "Remember the milk.\n")
 
 	bg := lipgloss.NewStyle().Width(m.width).Height(m.height).Render("The rest of the screen.")

@@ -34,7 +34,7 @@ func TestEditorPrecedence(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := New(WithEditor(tt.config))
+			m := fresh(t, WithEditor(tt.config))
 			m.getenv = env(tt.vars)
 			if got := m.editor(); !slices.Equal(got, tt.want) {
 				t.Errorf("editor() = %q, want %q", got, tt.want)
@@ -246,7 +246,7 @@ func TestSweepTemp(t *testing.T) {
 // A patch opens as a diff, for the editor to tell.
 func TestEditSyntax(t *testing.T) {
 	var got ran
-	m := New(WithSize(40, 6), WithEditor("vim"))
+	m := fresh(t, append(defaults(t), WithSize(40, 6), WithEditor("vim"))...)
 	m.Focus()
 	m.exec, m.tempDir = fakeExec(t, &got, nil), t.TempDir()
 	_ = m.SetContentSyntax("cmd/main.go", "diff", "@@ -1 +1 @@\n-a\n+b\n")
@@ -313,7 +313,7 @@ func TestEditCaptured(t *testing.T) {
 				tt.set(&m)
 			}
 			m, _ = keys(t, m, tt.keys...)
-			if m.FullHelp()[2][6].Enabled() {
+			if m.FullHelp()[3][6].Enabled() {
 				t.Error("help shows v enabled")
 			}
 			m, cmd := m.Update(press("v"))

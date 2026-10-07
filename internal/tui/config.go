@@ -102,7 +102,7 @@ func completeConfig(_ *Model, arg string, cursor, end int, _ bool) []cmdline.Can
 // editor too. wrap soft-wraps long lines, as prose wants, where a file
 // whose lines line up scrolls sideways.
 func (m *Model) openText(title, name, text string, wrap bool) tea.Cmd {
-	t := &textModal{title: title, pager: pager.New(pager.WithEditor(m.cfg.Editor)), icons: ui.NewIcons(m.cfg.UI.Icons)}
+	t := &textModal{title: title, pager: pager.New(pager.WithKeyMap(pager.NewKeyMap(ui.In(m.cfg.Keys, "text").Of)), pager.WithEditor(m.cfg.Editor)), icons: ui.NewIcons(m.cfg.UI.Icons)}
 	t.pager.Focus()
 	t.pager.SetWrap(wrap)
 	m.openModal(t)

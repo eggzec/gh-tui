@@ -1,6 +1,10 @@
 package logview
 
-import "charm.land/bubbles/v2/key"
+import (
+	"charm.land/bubbles/v2/key"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+)
 
 // KeyMap holds the key bindings of a log view. It implements help.KeyMap.
 type KeyMap struct {
@@ -60,57 +64,47 @@ type KeyMap struct {
 	Next key.Binding `keymap:"next_match" help:"next match"`
 	Prev key.Binding `keymap:"prev_match" help:"prev match"`
 
-	// Close asks the parent to close the view with a [CloseMsg]. While a
-	// search is shown, a key bound to Cancel clears it first.
-	Close key.Binding `keymap:"global.quit" help:"close"`
+	// Quit and Dismiss both ask the parent to close the view with a
+	// [CloseMsg]: quit as the app's quit key, and dismiss as its key for
+	// stepping back out of what is open. While a search is shown, a key
+	// bound to Cancel clears it first.
+	Quit    key.Binding `keymap:"global.quit" help:"close"`
+	Dismiss key.Binding `keymap:"global.dismiss" help:"close"`
 }
 
-// DefaultKeyMap returns the default key bindings, which follow less for
-// scrolling and the tree for folding.
-func DefaultKeyMap() KeyMap {
-	return KeyMap{
-		Up:           key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("↑/k", "up")),
-		Down:         key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓/j", "down")),
-		PageUp:       key.NewBinding(key.WithKeys("b", "ctrl+b", "pgup"), key.WithHelp("b/^b", "page up")),
-		PageDown:     key.NewBinding(key.WithKeys("space", "ctrl+f", "pgdown"), key.WithHelp("space/^f", "page down")),
-		HalfPageUp:   key.NewBinding(key.WithKeys("ctrl+u"), key.WithHelp("^u", "½ page up")),
-		HalfPageDown: key.NewBinding(key.WithKeys("ctrl+d"), key.WithHelp("^d", "½ page down")),
-		Home:         key.NewBinding(key.WithKeys("home", "g"), key.WithHelp("g/home", "top")),
-		End:          key.NewBinding(key.WithKeys("end", "G"), key.WithHelp("G/end", "bottom")),
-		Left:         key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←/h", "left")),
-		Right:        key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "right")),
-		Toggle:       key.NewBinding(key.WithKeys("enter"), key.WithHelp("↵", "fold")),
-		Expand:       key.NewBinding(key.WithKeys("+"), key.WithHelp("+", "expand")),
-		Collapse:     key.NewBinding(key.WithKeys("-"), key.WithHelp("-", "collapse")),
-		FoldAll:      key.NewBinding(key.WithKeys("*"), key.WithHelp("*", "fold all")),
-		NextError:    key.NewBinding(key.WithKeys("e"), key.WithHelp("e", "next error"), key.WithDisabled()),
-		PrevError:    key.NewBinding(key.WithKeys("E"), key.WithHelp("E", "prev error"), key.WithDisabled()),
-		NextWarning:  key.NewBinding(key.WithKeys("w"), key.WithHelp("w", "next warning"), key.WithDisabled()),
-		PrevWarning:  key.NewBinding(key.WithKeys("W"), key.WithHelp("W", "prev warning"), key.WithDisabled()),
-		Wrap:         key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "wrap")),
-		Times:        key.NewBinding(key.WithKeys("t"), key.WithHelp("t", "times")),
-		LineNumbers:  key.NewBinding(key.WithKeys("#"), key.WithHelp("#", "line numbers")),
-		Follow:       key.NewBinding(key.WithKeys("F"), key.WithHelp("F", "follow")),
-		Search:       key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "search")),
-		Confirm:      key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "search"), key.WithDisabled()),
-		Cancel:       key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel"), key.WithDisabled()),
-		Next:         key.NewBinding(key.WithKeys("n"), key.WithHelp("n", "next match"), key.WithDisabled()),
-		Prev:         key.NewBinding(key.WithKeys("N"), key.WithHelp("N", "prev match"), key.WithDisabled()),
-		Close:        key.NewBinding(key.WithKeys("q", "esc"), key.WithHelp("q", "close")),
+// NewKeyMap returns the key bindings that look gives, where an action is
+// named as the view's own, such as "page_down", or as a context's, such as
+// "global.select". A view without a key map has no key bound.
+func NewKeyMap(look keymap.Lookup) KeyMap {
+	var k KeyMap
+	keymap.Fill(&k, look)
+	for _, b := range []*key.Binding{&k.NextError, &k.PrevError, &k.NextWarning, &k.PrevWarning, &k.Confirm, &k.Cancel, &k.Next, &k.Prev} {
+		b.SetEnabled(false)
 	}
+	return k
 }
+
+// Close returns the binding that stands for Quit and Dismiss in help, which
+// lists them as one row.
+func (k KeyMap) Close() key.Binding { return keymap.Join(k.Quit, k.Dismiss) }
 
 // ShortHelp returns the bindings for the short help view.
 func (k KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Toggle, k.FoldAll, k.NextError, k.Search, k.Next, k.Close}
+	return []key.Binding{k.Toggle, k.FoldAll, k.NextError, k.Search, k.Next, k.Close()}
 }
 
-// FullHelp returns the bindings for the full help view.
-func (k KeyMap) FullHelp() [][]key.Binding {
+// FullHelp returns the bindings for the full help view, every binding of
+// the key map once. The model's own full help, which is what help reads,
+// lists Quit and Dismiss as one row, [KeyMap.Close].
+func (k KeyMap) FullHelp() [][]key.Binding { return k.fullHelp(k.Quit, k.Dismiss) }
+
+// fullHelp returns the full help with closing as the bindings that close
+// the view, listed together.
+func (k KeyMap) fullHelp(closing ...key.Binding) [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.PageUp, k.PageDown, k.HalfPageUp, k.HalfPageDown, k.Home, k.End},
 		{k.Toggle, k.Expand, k.Collapse, k.FoldAll},
 		{k.NextError, k.PrevError, k.NextWarning, k.PrevWarning, k.Search, k.Confirm, k.Cancel, k.Next, k.Prev},
-		{k.Left, k.Right, k.Wrap, k.Times, k.LineNumbers, k.Follow, k.Close},
+		append([]key.Binding{k.Left, k.Right, k.Wrap, k.Times, k.LineNumbers, k.Follow}, closing...),
 	}
 }

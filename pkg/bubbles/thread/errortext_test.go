@@ -18,7 +18,7 @@ func failedTail(t *testing.T, width int, opts ...Option) Model[comment] {
 }
 
 func TestErrorText(t *testing.T) {
-	rebound := DefaultKeyMap()
+	rebound := testKeys()
 	rebound.Retry = key.NewBinding(key.WithKeys("R"), key.WithHelp("R", "reload"))
 	offline := func(error) (string, string) { return "Can't reach GitHub", "r to retry" }
 	tests := []struct {
@@ -141,7 +141,7 @@ func TestRetry(t *testing.T) {
 // A retry key that is turned off is named nowhere, not even beside a
 // failure not worth telling.
 func TestErrorTextWithoutRetry(t *testing.T) {
-	off := DefaultKeyMap()
+	off := testKeys()
 	off.Retry.SetEnabled(false)
 	for _, opts := range [][]Option{
 		{WithKeyMap(off)},
@@ -161,7 +161,7 @@ func TestRetryTurnedOffAfterFailure(t *testing.T) {
 	if v := ansi.Strip(m.View()); !strings.Contains(v, "r to retry") {
 		t.Fatalf("View() = %q, want the retry key named", v)
 	}
-	off := DefaultKeyMap()
+	off := testKeys()
 	off.Retry.SetEnabled(false)
 	m.SetKeyMap(off)
 	if v := ansi.Strip(m.View()); strings.Contains(v, "to retry") {

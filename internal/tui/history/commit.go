@@ -12,6 +12,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
 	historysvc "github.com/eggzec/gh-tui/internal/service/history"
@@ -87,9 +88,10 @@ type filesMsg struct {
 
 // newCommit returns an empty commit pane, whose pager opens a patch in
 // editor, if set.
-func newCommit(editor string) commit {
+func newCommit(editor string, keys config.Keymap) commit {
 	// The numbers of a patch's lines aren't those of the file.
-	return commit{pager: pager.New(pager.WithLineNumbers(false), pager.WithEditor(editor)), shown: -1}
+	k := pager.WithKeyMap(pager.NewKeyMap(ui.In(keys, "history_patch").Of))
+	return commit{pager: pager.New(k, pager.WithLineNumbers(false), pager.WithEditor(editor)), shown: -1}
 }
 
 // clear forgets the commit, for another branch.

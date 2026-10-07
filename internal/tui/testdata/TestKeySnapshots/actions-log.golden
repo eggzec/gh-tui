@@ -30,12 +30,12 @@ Log
   browser | o | o | off
   up | up k | ↑/k | on
   down | down j | ↓/j | on
-  page up | b ctrl+b pgup | b/^b | on
-  page down | space ctrl+f pgdown | space/^f | on
+  page up | b ctrl+b pgup | b/^b/pgup | on
+  page down | space ctrl+f pgdown | space/^f/pgdn | on
   ½ page up | ctrl+u | ^u | on
   ½ page down | ctrl+d | ^d | on
-  top | home g | g/home | on
-  bottom | end G | G/end | on
+  top | g home | g/home | on
+  bottom | G end | G/end | on
   fold | enter | ↵ | on
   expand | + | + | on
   collapse | - | - | on
@@ -45,7 +45,7 @@ Log
   next warning | w | w | off
   prev warning | W | W | off
   search | / | / | on
-  search | enter | enter | off
+  search | enter | ↵ | off
   cancel | esc | esc | off
   next match | n | n | off
   prev match | N | N | off

@@ -126,7 +126,7 @@ func (m Model) updateKey(k tea.KeyPressMsg) (Model, tea.Cmd) {
 	case key.Matches(k, m.keys.Edit):
 		cmd := m.edit()
 		return m, cmd
-	case key.Matches(k, m.keys.Close):
+	case key.Matches(k, m.keys.Quit, m.keys.Dismiss):
 		return m, m.close()
 	}
 	return m, nil

@@ -217,12 +217,14 @@ func (s *Section) setFocus(p paneID) {
 // focusPane focuses the list of the tab on view of the page on view while
 // the page and its pane are focused, and blurs the others.
 func (s *Section) focusPane() {
-	s.focusSide()
 	p := s.page
 	if p == nil {
 		return
 	}
+	// The page blurs the README and the calendar with its lists, so they
+	// are focused after it.
 	s.blurPage(p)
+	s.focusSide()
 	if l := p.list(); l != nil && s.focused && p.focus == listPane {
 		l.feed().Focus()
 	}

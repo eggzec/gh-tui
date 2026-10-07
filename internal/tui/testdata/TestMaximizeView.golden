@@ -9,4 +9,4 @@
 │                                                          │
 │ go.mod                                    line 1/3  100% │
 ╰──────────────────────────────────────────────────────────╯
- ? help  / search  q close                       github.com 
+ ? help  / search  q/esc close                   github.com 
