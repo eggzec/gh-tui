@@ -58,6 +58,7 @@ type Model struct {
 
 	history      []string
 	historyLimit int
+	historyRev   uint64
 	walk         walk
 
 	// promptView is the rendered prompt, and promptWidth its width.

@@ -188,6 +188,8 @@ type Model struct {
 	// recentOwners are the logins of the pages opened in this session,
 	// the latest first.
 	recentOwners []string
+	// gotos caches what the goto lines of the command line's history name.
+	gotos gotoCache
 	// hist keeps the lines of the command line between sessions, or is
 	// nil.
 	hist *historyKeeper

@@ -190,3 +190,24 @@ func TestHistoryHelp(t *testing.T) {
 		t.Error("with a history, help leaves out up")
 	}
 }
+
+func TestHistoryRevision(t *testing.T) {
+	m := opened(t, "", WithSize(80, MaxHeight))
+	rev := m.HistoryRevision()
+	m.SetHistory([]string{"goto cli/cli"})
+	if got := m.HistoryRevision(); got == rev {
+		t.Errorf("revision after SetHistory = %d, want it changed", got)
+	}
+	rev = m.HistoryRevision()
+	m.Open("search bugs")
+	m, _ = press(t, m, enter)
+	if got := m.HistoryRevision(); got == rev {
+		t.Errorf("revision after a submitted line = %d, want it changed", got)
+	}
+	rev = m.HistoryRevision()
+	m.Open("quit")
+	m, _ = press(t, m, esc)
+	if got := m.HistoryRevision(); got != rev {
+		t.Errorf("revision after a cancelled line = %d, want %d", got, rev)
+	}
+}

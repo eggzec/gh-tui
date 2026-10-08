@@ -22,6 +22,10 @@ type walk struct {
 // first.
 func (m Model) History() []string { return slices.Clone(m.history) }
 
+// HistoryRevision counts the changes made to the history, so that a parent
+// that derives something from [Model.History] knows when to derive it again.
+func (m Model) HistoryRevision() uint64 { return m.historyRev }
+
 // SetHistory sets the lines the command line recalls, oldest first, such
 // as the History the parent saved in an earlier session. The command line
 // keeps a copy, up to its limit, and adds each line the user submits to it.
@@ -30,6 +34,7 @@ func (m *Model) SetHistory(lines []string) {
 		lines = lines[len(lines)-n:]
 	}
 	m.history = slices.Clone(lines)
+	m.historyRev++
 	m.walk = walk{}
 }
 
@@ -104,5 +109,6 @@ func (m *Model) remember(line string) {
 		h = h[len(h)-n:]
 	}
 	m.history = h
+	m.historyRev++
 	m.walk = walk{}
 }

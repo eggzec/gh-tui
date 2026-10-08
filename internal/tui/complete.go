@@ -196,8 +196,8 @@ func (m *Model) knownRepos() iter.Seq[core.RepoRef] {
 				return
 			}
 		}
-		for _, line := range slices.Backward(m.line.History()) {
-			if r, ok := m.wentTo(line); ok && !yield(r) {
+		for _, t := range slices.Backward(m.historyGotos()) {
+			if t.HasRepo() && !yield(t.Repo) {
 				return
 			}
 		}
@@ -212,15 +212,38 @@ func (m *Model) knownRepos() iter.Seq[core.RepoRef] {
 	}
 }
 
-// wentTo returns the repository that line, of the history, went to, if
-// it is a goto that names one.
-func (m *Model) wentTo(line string) (core.RepoRef, bool) {
-	name, arg, _ := strings.Cut(line, " ")
-	if name != "goto" {
-		return core.RepoRef{}, false
+// gotoCache holds the targets that the goto lines of the command line's
+// history named, oldest first, for the revision of the history they were
+// read from.
+type gotoCache struct {
+	rev     uint64
+	valid   bool
+	targets []core.Target
+	// parses counts the lines parsed, for the tests.
+	parses int
+}
+
+// historyGotos returns the targets that goto went to in the history of the
+// command line, oldest first. Completion asks on every keystroke, so the
+// history is parsed again only after it changed.
+func (m *Model) historyGotos() []core.Target {
+	rev := m.line.HistoryRevision()
+	if m.gotos.valid && m.gotos.rev == rev {
+		return m.gotos.targets
 	}
-	t, err := core.ParseTarget(arg, m.host)
-	return t.Repo, err == nil && t.HasRepo()
+	m.gotos.targets = m.gotos.targets[:0]
+	for _, line := range m.line.History() {
+		name, arg, _ := strings.Cut(line, " ")
+		if name != "goto" {
+			continue
+		}
+		m.gotos.parses++
+		if t, err := core.ParseTarget(arg, m.host); err == nil {
+			m.gotos.targets = append(m.gotos.targets, t)
+		}
+	}
+	m.gotos.rev, m.gotos.valid = rev, true
+	return m.gotos.targets
 }
 
 // rememberOwner puts login first among the pages of owners opened
@@ -277,12 +300,8 @@ func (m *Model) knownOwners() iter.Seq[string] {
 				return
 			}
 		}
-		for _, line := range slices.Backward(m.line.History()) {
-			name, arg, _ := strings.Cut(line, " ")
-			if name != "goto" {
-				continue
-			}
-			if t, err := core.ParseTarget(arg, m.host); err == nil && t.HasOwner() && !yield(t.Owner) {
+		for _, t := range slices.Backward(m.historyGotos()) {
+			if t.HasOwner() && !yield(t.Owner) {
 				return
 			}
 		}
