@@ -269,3 +269,37 @@ func TestCompleteArgumentsOverAModal(t *testing.T) {
 		t.Errorf("complete(raw of) over a modal = %+v, want only off", got)
 	}
 }
+
+func TestCompleteParsesTheHistoryOnce(t *testing.T) {
+	m, _ := newTestApp(t, WithRecall(newFakeRecall()))
+	m.line.SetHistory([]string{"goto cli/cli", "refresh", "goto @octocat", "goto golang/go"})
+	for _, line := range []string{"goto @o", "goto @oc", "goto @oct", "goto c", "goto cl"} {
+		_ = m.complete(line, len(line))
+	}
+	if got := m.gotos.parses; got != 3 {
+		t.Errorf("parsed %d goto lines over five keystrokes, want 3, once each", got)
+	}
+	if got := texts(m.complete("goto @oct", 9)); len(got) == 0 || got[0] != "@octocat" {
+		t.Errorf("owners = %v, want @octocat first", got)
+	}
+
+	m.line.SetHistory([]string{"goto cli/cli", "goto @hubot"})
+	if got := texts(m.complete("goto @hub", 9)); len(got) == 0 || got[0] != "@hubot" {
+		t.Errorf("owners after the history changed = %v, want @hubot first", got)
+	}
+}
+
+func TestCompleteSeesAGotoSubmittedAfterACompletion(t *testing.T) {
+	m, _ := newTestApp(t, WithRecall(newFakeRecall()))
+	drive(m, m.key(press(":")))
+	if got := texts(m.complete("goto @nos", 9)); len(got) != 0 {
+		t.Fatalf("owners before the goto = %v, want none", got)
+	}
+	typeKeys(m, "goto @nosuchuser")
+	// Enter adds the line to the history; the goto is left pending, so no
+	// page opens and the session's own owners don't hold the login.
+	m.key(enter)
+	if got := texts(m.complete("goto @nos", 9)); len(got) == 0 || got[0] != "@nosuchuser" {
+		t.Errorf("owners after the goto = %v, want @nosuchuser first", got)
+	}
+}
