@@ -95,3 +95,7 @@ type Review struct {
 	Body        string
 	SubmittedAt time.Time
 }
+
+// MaxPullFiles is the most files GitHub lists of one pull request. Files
+// past it are left out, and the last page of the list is Truncated.
+const MaxPullFiles = 3000

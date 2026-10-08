@@ -28,6 +28,7 @@ type fakeAPI struct {
 	comments     func(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.Page[core.Comment], error)
 	restComments func(ctx context.Context, repo core.RepoRef, number int, cursor string, perPage int, cond github.Conditional) (core.Page[core.Comment], github.Response, error)
 	reviews      func(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.Page[core.Review], error)
+	files        func(ctx context.Context, repo core.RepoRef, number int, cursor string, cond github.Conditional) (core.Page[core.CommitFile], github.Response, error)
 	id           func(ctx context.Context, repo core.RepoRef, number int) (string, error)
 	// mutate backs every mutation. Method names the mutation; merge also
 	// passes the merge method.
@@ -93,6 +94,11 @@ func (f *fakeAPI) ListIssueComments(ctx context.Context, repo core.RepoRef, numb
 func (f *fakeAPI) ListPullRequestReviews(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.Page[core.Review], error) {
 	f.called("reviews")
 	return f.reviews(ctx, repo, number, cursor, first)
+}
+
+func (f *fakeAPI) ListPullRequestFiles(ctx context.Context, repo core.RepoRef, number int, cursor string, cond github.Conditional) (core.Page[core.CommitFile], github.Response, error) {
+	f.called("files")
+	return f.files(ctx, repo, number, cursor, cond)
 }
 
 func (f *fakeAPI) PullRequestID(ctx context.Context, repo core.RepoRef, number int) (string, error) {

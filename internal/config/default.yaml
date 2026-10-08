@@ -135,7 +135,8 @@ cache:
     # read by a ref and those read by a SHA are kept apart, each up to this
     # much, so together they take up to twice it.
     trees: 32MiB
-    # The memory that the changes of commits take.
+    # The memory that the changes of commits take, and likewise, apart
+    # from them, the changes of pull requests: each is kept up to this much.
     diffs: 32MiB
     # The memory that the logs of jobs take.
     logs: 64MiB
