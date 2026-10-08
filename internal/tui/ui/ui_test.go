@@ -316,3 +316,39 @@ func TestYield(t *testing.T) {
 		t.Error("a binding left no key is enabled")
 	}
 }
+
+// A diff takes the palette's success and error colors for its markers, tints
+// the code of added and deleted lines with a mix of them, and uses the
+// icons, on a dark and on a light terminal.
+func TestThemeDiff(t *testing.T) {
+	for _, dark := range []bool{true, false} {
+		p, err := config.Default().Palette(dark)
+		if err != nil {
+			t.Fatal(err)
+		}
+		th := NewTheme(p, dark)
+		ic := NewIcons(config.IconsNerd)
+		s := th.Diff(ic)
+		if s.Syntax == nil {
+			t.Fatalf("dark=%v: no syntax colors", dark)
+		}
+		if got := s.Added.GetForeground(); got != lipgloss.Color(p.Success) {
+			t.Errorf("dark=%v: added marker = %v, want the palette success color", dark, got)
+		}
+		if got := s.Deleted.GetForeground(); got != lipgloss.Color(p.Error) {
+			t.Errorf("dark=%v: deleted marker = %v, want the palette error color", dark, got)
+		}
+		added, deleted := s.AddedText.GetBackground(), s.DeletedText.GetBackground()
+		if added == nil || deleted == nil || added == deleted {
+			t.Errorf("dark=%v: tints are %v and %v, want two colors", dark, added, deleted)
+		}
+		if s.CursorGlyph != ic.Cursor || s.FoldOpen != ic.Unfolded || s.RenameArrow != ic.Arrow || s.Ellipsis != ic.Ellipsis {
+			t.Errorf("dark=%v: glyphs are not the icons'", dark)
+		}
+		// A tint stays close to the background it goes on.
+		r, g, b, _ := added.RGBA()
+		if lum := (r + g + b) / 3 >> 8; dark && lum > 100 || !dark && lum < 150 {
+			t.Errorf("dark=%v: the added tint is too strong, luminance %d", dark, lum)
+		}
+	}
+}

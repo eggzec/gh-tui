@@ -200,7 +200,7 @@ func TestCommonFilesHighlight(t *testing.T) {
 		}
 		var got []chroma.TokenType
 		for _, s := range m.spans[tt.line] {
-			got = append(got, s.typ)
+			got = append(got, s.Type)
 		}
 		if !strings.Contains(strings.Join(typeNames(got), " "), tt.want.String()) {
 			t.Errorf("%s: line %d is %v, want a %v", tt.name, tt.line+1, got, tt.want)

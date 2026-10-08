@@ -69,13 +69,13 @@ func (m *Model) setContent(name, text string, lexerOf func(full string) chroma.L
 		if lexer == nil {
 			return nil
 		}
-		toks, err := syntax.Head(ctx, lexer, lexable(lines), lexLimit)
+		toks, err := syntax.Head(ctx, lexer, syntax.Lexable(lines), lexLimit)
 		if err != nil || toks == nil || ctx.Err() != nil {
 			// The plain text stays; a failed highlight is not worth a
 			// message.
 			return nil
 		}
-		return highlightMsg{id: id, gen: gen, spans: spansOf(toks, len(lines))}
+		return highlightMsg{id: id, gen: gen, spans: syntax.Spans(toks, len(lines))}
 	}
 }
 

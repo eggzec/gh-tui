@@ -4,6 +4,8 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
+	"github.com/alecthomas/chroma/v2"
+	chromastyles "github.com/alecthomas/chroma/v2/styles"
 )
 
 // gutterWidth is the width of the cursor gutter left of every row.
@@ -26,6 +28,16 @@ type Styles struct {
 	Added   lipgloss.Style
 	Deleted lipgloss.Style
 	Context lipgloss.Style
+	// AddedText, DeletedText and ContextText style the code of a line
+	// once it is highlighted, under the colors of its tokens: give the
+	// first two a background to tint the lines. The marker keeps Added
+	// and Deleted.
+	AddedText   lipgloss.Style
+	DeletedText lipgloss.Style
+	ContextText lipgloss.Style
+	// Syntax colors the tokens of highlighted lines; only its foreground
+	// colors and font styles are used. Nil shows every line plain.
+	Syntax *chroma.Style
 	// NoNewline styles the "No newline at end of file" marker, and Note
 	// the note that stands in for a patch that is missing.
 	NoNewline lipgloss.Style
@@ -67,7 +79,15 @@ func DefaultStyles(isDark bool) Styles {
 	red := ld(lipgloss.Color("#c0392b"), lipgloss.Color("#ef7d7d"))
 	cyan := ld(lipgloss.Color("#0b7285"), lipgloss.Color("#7dcfff"))
 
+	syntax := "github"
+	if isDark {
+		syntax = "github-dark"
+	}
 	return Styles{
+		Syntax:        chromastyles.Get(syntax),
+		AddedText:     lipgloss.NewStyle(),
+		DeletedText:   lipgloss.NewStyle(),
+		ContextText:   lipgloss.NewStyle(),
 		Cursor:        lipgloss.NewStyle().Foreground(accent),
 		BlurredCursor: lipgloss.NewStyle().Foreground(subtle),
 		CursorGlyph:   "▌",
@@ -110,7 +130,17 @@ func (w sgr) on(text string) string { return w.pre + text + w.suf }
 type wraps struct {
 	FileHeader, HunkHeader, Added, Deleted, Context, NoNewline, Note sgr
 	LineNumber, Status, Loading, Empty, Error, Hint                  sgr
+	// code is how the code of a context, an added and a deleted line
+	// looks once highlighted.
+	code [3]tokenStyles
 }
+
+// The kinds of line that take their own code style, as indexes of code.
+const (
+	codeContext = iota
+	codeAdded
+	codeDeleted
+)
 
 func newWraps(s Styles) wraps {
 	return wraps{
@@ -120,5 +150,10 @@ func newWraps(s Styles) wraps {
 		LineNumber: wrapOf(s.LineNumber), Status: wrapOf(s.Status),
 		Loading: wrapOf(s.Loading), Empty: wrapOf(s.Empty),
 		Error: wrapOf(s.Error), Hint: wrapOf(s.Hint),
+		code: [3]tokenStyles{
+			codeContext: newTokenStyles(s.ContextText, s.Syntax),
+			codeAdded:   newTokenStyles(s.AddedText, s.Syntax),
+			codeDeleted: newTokenStyles(s.DeletedText, s.Syntax),
+		},
 	}
 }

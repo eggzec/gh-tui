@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/eggzec/gh-tui/pkg/syntax"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -172,8 +173,19 @@ func (m Model) line(v visible, numW int) string {
 	case KindFileHeader, KindHunkHeader, KindContext, KindNote:
 	}
 	numbers := m.numbers(row, numW)
-	text := m.text(row, max(m.textWidth(numW)+1-len(marker), 0))
-	return fit(gutter+m.wrap.LineNumber.on(numbers)+style.on(marker+text), m.width)
+	width := max(m.textWidth(numW)+1-len(marker), 0)
+	if spans := m.rowSpans(row, v.index); spans != nil {
+		code := m.wrap.code[codeContext]
+		switch row.Kind {
+		case KindAdded:
+			code = m.wrap.code[codeAdded]
+		case KindDeleted:
+			code = m.wrap.code[codeDeleted]
+		case KindFileHeader, KindHunkHeader, KindContext, KindNoNewline, KindNote, KindRaw:
+		}
+		return fit(gutter+m.wrap.LineNumber.on(numbers)+style.on(marker)+m.coloured(row, spans, code, width), m.width)
+	}
+	return fit(gutter+m.wrap.LineNumber.on(numbers)+style.on(marker+m.text(row, width)), m.width)
 }
 
 // numbers is the line numbers of the gutter for a line: the old and the
@@ -211,6 +223,23 @@ func (m Model) text(row Row, width int) string {
 		s = ansi.Cut(s, m.left, m.left+width)
 	}
 	return fit(s, width)
+}
+
+// coloured is the text of a line in the colors of its spans, cleaned and
+// scrolled sideways like [Model.text], and padded to width cells in the
+// style of the line.
+func (m Model) coloured(row Row, spans []syntax.Span, code tokenStyles, width int) string {
+	s := termtext.Clean(row.Text, m.tabs)
+	sw := ansi.StringWidth(s)
+	out := code.coloured(s, spans)
+	if m.left > 0 || sw > width {
+		out = ansi.Cut(out, m.left, m.left+width)
+		sw = ansi.StringWidth(out)
+	}
+	if sw < width {
+		out += code.text.on(strings.Repeat(" ", width-sw))
+	}
+	return out
 }
 
 // fileHeader renders the header of file f in room cells: a fold glyph, the

@@ -24,6 +24,15 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		return m, tea.Batch(first, cmd)
 	}
 	switch msg := msg.(type) {
+	case highlightMsg:
+		if msg.id == m.id && msg.gen == m.hl.gen {
+			if msg.busy {
+				delete(m.hl.asked, msg.file)
+			} else {
+				m.hl.spans[msg.file] = msg.spans
+			}
+		}
+		return m, nil
 	case pageMsg:
 		if msg.id != m.id || !m.pg.fetching || msg.cursor != m.pg.next {
 			return m, nil
@@ -237,17 +246,17 @@ func scrolls(k Kind) bool {
 	return false
 }
 
-// sync moves the window to the cursor and fetches what the window is about
-// to show.
+// sync moves the window to the cursor, fetches what the window is about
+// to show, and highlights the files in it.
 func (m *Model) sync() tea.Cmd {
 	m.scroll()
 	if !m.wantsMore() {
-		return nil
+		return m.highlight()
 	}
 	m.pg.fetching = true
 	// Bring the loading row into view.
 	m.scroll()
-	return m.fetchCmd()
+	return tea.Batch(m.fetchCmd(), m.highlight())
 }
 
 // wantsMore reports whether the next page should be fetched: the window is
