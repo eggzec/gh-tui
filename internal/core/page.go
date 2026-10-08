@@ -16,6 +16,10 @@ type Page[T any] struct {
 	// Limited reports that GitHub rate limited the read, so the page is
 	// the one read last.
 	Limited bool
+	// Truncated reports that the list holds fewer items than exist, for
+	// the API serves no more than a limit. A list sets it on its first
+	// page, where the API tells how far the pages go.
+	Truncated bool
 }
 
 // Last reports whether this is the final page.

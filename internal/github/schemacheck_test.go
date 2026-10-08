@@ -116,6 +116,7 @@ var restCalls = []restCall{
 	{Func: "ListCommits", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/commits", Query: []string{"sha", "per_page"}, Decode: []restCommit{}},
 	{Func: "GetCommit", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/commits/{ref}", Decode: restCommitDetail{}},
 	{Func: "ListCommitFiles", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/commits/{ref}", Decode: restCommitFiles{}},
+	{Func: "ListPullRequestFiles", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/pulls/{pull_number}/files", Query: []string{"per_page"}, Decode: []commitFile{}},
 	{Func: "Compare", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/compare/{basehead}", Query: []string{"per_page", "page"}, Decode: restCompare{}},
 	{Func: "ListLabels", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/labels", Query: []string{"per_page"}, Decode: []label{}},
 	{Func: "ListMilestones", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/milestones", Query: []string{"state", "sort", "direction", "per_page"}, Decode: []restMilestone{}},

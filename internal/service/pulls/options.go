@@ -15,8 +15,10 @@ type options struct {
 	capacity int
 	// pageSize is that of a page whose query sets none.
 	pageSize int
-	access   Access
-	repos    Repos
+	// diffMemory bounds the memory of the cached pages of changed files.
+	diffMemory int64
+	access     Access
+	repos      Repos
 }
 
 // WithTTL sets how long fetched pull requests stay fresh. Without it, or
@@ -47,6 +49,18 @@ func WithCapacity(n int) Option {
 	return func(o *options) {
 		if n > 0 {
 			o.capacity = n
+		}
+	}
+}
+
+// WithDiffMemory sets the memory, in bytes, that the cached pages of the
+// files a pull request changes take: a large change's patches may take
+// megabytes. Without it, or with n below one, it is the default of the
+// config (config.Default).
+func WithDiffMemory(n int64) Option {
+	return func(o *options) {
+		if n >= 1 {
+			o.diffMemory = n
 		}
 	}
 }

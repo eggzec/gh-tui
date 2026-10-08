@@ -27,12 +27,13 @@ import (
 // again, and counts as done, since the probe that found the change was a
 // request. A comment page that changed is cached and kept, and reports
 // SyncKey of its repository, so that the views showing it read it again.
-// The details have no validators: Poll and the list's update times watch
+// A page of changed files is checked like a comment page. The details have no validators: Poll and the list's update times watch
 // them instead. It reads the store, so call it where I/O is fine.
 func (s *Service) Kept() []revalidate.Entry {
 	return slices.Concat(
 		recheck.Entries(s.keptLists, kindList, s.ttl, s.listTarget),
 		recheck.Entries(s.keptComments, kindComments, s.ttl, s.commentsTarget),
+		recheck.Entries(s.keptFiles, kindFiles, s.ttl, s.filesTarget),
 	)
 }
 
