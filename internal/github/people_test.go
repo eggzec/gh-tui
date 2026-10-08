@@ -346,8 +346,8 @@ func TestProfileReadmeUser(t *testing.T) {
 	}
 	// Revalidated, it is not modified.
 	got, res, err = c.ProfileReadme(t.Context(), "octocat", core.OwnerUser, false, Conditional{ETag: res.ETag})
-	if err != nil || !res.NotModified || got != (core.Readme{}) {
-		t.Errorf("revalidated = %+v, %+v, %v, want not modified", got, res, err)
+	if err != nil || !res.NotModified || got != (core.Readme{Source: want.Source}) {
+		t.Errorf("revalidated = %+v, %+v, %v, want not modified, from %v", got, res, err, want.Source)
 	}
 }
 
@@ -430,8 +430,8 @@ func TestProfileReadmeMemberNotModified(t *testing.T) {
 		t.Fatalf("README = %+v, %v, want the public one", got, err)
 	}
 	got, res, err = c.ProfileReadme(t.Context(), "github", core.OwnerOrg, true, Conditional{ETag: res.ETag})
-	if err != nil || !res.NotModified || got != (core.Readme{}) {
-		t.Errorf("revalidated = %+v, %+v, %v, want not modified", got, res, err)
+	if err != nil || !res.NotModified || got != (core.Readme{Source: core.RepoRef{Owner: "github", Name: ".github"}}) {
+		t.Errorf("revalidated = %+v, %+v, %v, want not modified, from .github", got, res, err)
 	}
 	if asked.Load() != 4 {
 		t.Errorf("asked %d times, want four, .github-private then .github each time", asked.Load())

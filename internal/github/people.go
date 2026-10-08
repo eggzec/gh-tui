@@ -376,11 +376,13 @@ const maxReadme = 1 << 20
 // which only members see, comes first, and one the token may not read is
 // skipped. An owner without a README is not an error: the Readme's Source
 // is then empty. If cond is current, the Response has NotModified set and
-// the Readme is empty; pass the validators of the README last returned.
-// The caller must keep that README's Source, which a 304 doesn't repeat,
-// and must read again without validators when member changes: the same
-// README in both repositories has the same ETag, so a 304 could be for
-// either of them.
+// the Readme has no Markdown, only the Source and MembersOnly of the
+// repository that answered; pass the validators of the README last
+// returned. The caller must compare that Source with the one it kept, and
+// read again without validators if they differ: the same README in two
+// repositories has the same ETag, so a 304 can come from one that isn't
+// the README kept, as when the token may no longer read .github-private.
+// It must also read again without validators when member changes.
 func (c *Client) ProfileReadme(ctx context.Context, login string, kind core.OwnerKind, member bool, cond Conditional) (core.Readme, Response, error) {
 	var tries []core.RepoRef
 	switch {
@@ -404,10 +406,12 @@ func (c *Client) ProfileReadme(ctx context.Context, login string, kind core.Owne
 			continue
 		case err != nil:
 			return core.Readme{}, res, fmt.Errorf("profile README of %s: %w", login, err)
-		case res.NotModified:
-			return core.Readme{}, res, nil
 		}
-		return core.Readme{Markdown: string(b), Source: repo, MembersOnly: repo.Name == ".github-private"}, res, nil
+		rd := core.Readme{Source: repo, MembersOnly: repo.Name == ".github-private"}
+		if !res.NotModified {
+			rd.Markdown = string(b)
+		}
+		return rd, res, nil
 	}
 	return core.Readme{}, res, nil
 }
