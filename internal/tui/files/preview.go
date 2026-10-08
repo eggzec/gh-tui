@@ -88,7 +88,8 @@ func newPreview(ctx context.Context, svc Service, host string, repo core.RepoRef
 	// The preview loads the file once, and opens it on GitHub with open.
 	v.Retry, v.Open = key.Binding{}, open
 	pg := pager.New(pager.WithKeyMap(pager.NewKeyMap(ui.In(keys, "preview").Of)),
-		pager.WithErrorText(fileErrorText(repo, v)), pager.WithEditor(editor), pager.WithResizeRest(resizeRest))
+		pager.WithErrorText(fileErrorText(repo, v)), pager.WithEditor(editor), pager.WithResizeRest(resizeRest),
+		pager.WithRenderedNotes(renderedNumbersNote, renderedChopNote))
 	p := &preview{ctx: ctx, cancel: cancel, svc: svc, host: host, repo: repo, ref: ref, entry: e, open: open, pager: pg, icons: ic, raw: raw}
 	p.md.icons = ic
 	p.pager.SetReserve(p.md.extra)

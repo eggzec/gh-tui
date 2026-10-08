@@ -257,3 +257,34 @@ func TestOptionHelpWithoutOptionKeys(t *testing.T) {
 		t.Errorf("option help is %q, want %q", got, "option")
 	}
 }
+
+// Rendered content explains the line numbers and chopping in the words
+// of its parent, and other content doesn't.
+func TestRenderedNotes(t *testing.T) {
+	r := &wrapWords{src: words(40)}
+	m := fresh(t, WithRenderedNotes("Rows numbered", "code only"), WithSize(30, 6))
+	m.Focus()
+	m.SetRendered("a.md", r.src, r.render)
+	m, _ = keys(t, m, "-", "N")
+	if m.flash != "Hide line numbers" || m.LineNumbers() {
+		t.Errorf("-N says %q with numbers %v", m.flash, m.LineNumbers())
+	}
+	m, _ = keys(t, m, "-", "N")
+	if m.flash != "Rows numbered" || !m.LineNumbers() {
+		t.Errorf("-N back on says %q with numbers %v", m.flash, m.LineNumbers())
+	}
+	m, _ = keys(t, m, "-", "S")
+	if m.flash != "Wrap long lines (code only)" || !m.Wrap() {
+		t.Errorf("-S says %q with wrap %v", m.flash, m.Wrap())
+	}
+	_ = m.SetContent("a.txt", "plain")
+	m, _ = keys(t, m, "-", "N")
+	m, _ = keys(t, m, "-", "N")
+	if m.flash != "Show line numbers" {
+		t.Errorf("-N on plain content says %q", m.flash)
+	}
+	m, _ = keys(t, m, "-", "S")
+	if m.flash != "Chop long lines" {
+		t.Errorf("-S on plain content says %q", m.flash)
+	}
+}

@@ -574,3 +574,33 @@ func TestPreviewMarkdownImagesKeepTheGutter(t *testing.T) {
 		}
 	}
 }
+
+// -N and -S over a rendered markdown file say what they do there, and
+// the source shows them plainly.
+func TestPreviewNotesTheRenderedOptions(t *testing.T) {
+	h := newHost(loaded(t, sampleFake(), 40, 12))
+	h.keys(slices.Repeat([]string{"down"}, rowAgents)...)
+	h.keys("enter")
+	p := h.top().(*preview)
+	h.keys("-", "N")
+	if p.pager.LineNumbers() {
+		t.Error("-N didn't hide the line numbers of the rendered file")
+	}
+	h.keys("-", "N")
+	if v := h.modal(); !strings.Contains(v, "Rows numbered; :raw for lines") {
+		t.Errorf("-N over the rendered file doesn't explain the numbers:\n%s", v)
+	}
+	h.keys("-", "S")
+	if v := h.modal(); !strings.Contains(v, "(code only)") {
+		t.Errorf("-S over the rendered file doesn't say what it cuts:\n%s", v)
+	}
+	h.run(p.SetRaw(true))
+	h.keys("-", "N")
+	if v := h.modal(); strings.Contains(v, "Rows numbered") || !strings.Contains(v, "line numbers") {
+		t.Errorf("-N over the source explains the rendered file:\n%s", v)
+	}
+	h.keys("-", "S")
+	if v := h.modal(); strings.Contains(v, "(code only)") {
+		t.Errorf("-S over the source explains the rendered file:\n%s", v)
+	}
+}

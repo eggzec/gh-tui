@@ -20,6 +20,9 @@ type settings struct {
 	wrap           bool
 	highlightLimit int
 	errorText      func(error) (text, hint string)
+	// numbersNote and chopNote explain the line numbers and the chopping
+	// of rendered content, or are empty.
+	numbersNote, chopNote string
 	// editorCmd is the editor set with WithEditor. getenv reads the
 	// environment for the others, exec runs the editor, and tempDir is
 	// where the file it opens goes; tests fake them.
@@ -137,5 +140,20 @@ func WithResizeRest(d time.Duration) Option {
 func WithEditor(cmd string) Option {
 	return func(s *settings) {
 		s.editorCmd = cmd
+	}
+}
+
+// WithRenderedNotes sets what the pager says of the line numbers and of
+// chopping or wrapping long lines while it shows rendered content, as
+// [Model.SetRendered] gives it, since there the lines are those rendered
+// rather than those of the source, and the render already fit them to the
+// width. numbers is the whole note that turning the numbers on gets, in
+// place of the usual one, with the point first, such as "Rows
+// numbered"; chop is a short phrase, such as "code only", shown in
+// brackets after the usual note. Both are kept short, since the status
+// line has little room, and an empty one changes nothing.
+func WithRenderedNotes(numbers, chop string) Option {
+	return func(s *settings) {
+		s.numbersNote, s.chopNote = numbers, chop
 	}
 }
