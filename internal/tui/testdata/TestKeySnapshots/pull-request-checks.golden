@@ -5,13 +5,18 @@ global
   maximize | Z | Z | on
   help | ? | ? | on
 
+Pull request
+  merge | M | M | on
+  close | X | X | on
+  reopen | O | O | off
+  convert to draft | W | W | on
+  checks | C | C | off
+
 Checks
   detail | esc | esc | on
   rerun failed | R | R | on
   refresh | r | r | on
   browser | o | o | on
-
-Checks
   log | enter | ↵ | on
   up | up k | ↑/k | on
   down | down j | ↓/j | on

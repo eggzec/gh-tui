@@ -291,6 +291,14 @@ func TestDefaultContexts(t *testing.T) {
 	if got, want := Chain("actions_log"), []string{"global", "actions", "actions_log"}; !slices.Equal(got, want) {
 		t.Errorf("Chain(actions_log) = %q, want %q", got, want)
 	}
+	for _, pane := range []string{"pull_check_list", "pull_check_log", "pull_check_annotations", "pull_check_detail"} {
+		if got, want := Chain(pane), []string{"global", "pull_modal", pane}; !slices.Equal(got, want) {
+			t.Errorf("Chain(%s) = %q, want %q", pane, got, want)
+		}
+	}
+	if _, ok := LookupContext("pull_checks"); ok {
+		t.Error("pull_checks is a context, want it gone")
+	}
 	if got, want := Chain("notifications"), []string{"global", "notifications"}; !slices.Equal(got, want) {
 		t.Errorf("Chain(notifications) = %q, want %q", got, want)
 	}
@@ -302,19 +310,36 @@ func TestDefaultContexts(t *testing.T) {
 	}
 }
 
-// TestChecksKeysAreTheirOwnModal checks that the steps of the checks, which
-// take every key, don't clash with the keys of the pull request modal.
-func TestChecksKeysAreTheirOwnModal(t *testing.T) {
-	cfg, _, err := loadBase(writeConfig(t, "keys:\n  pull_check_log:\n    annotations: [m]\n"))
+// TestChecksKeysArePanesOfThePullModal checks that the panes of the Checks
+// step are panes of the modal of the pull request, so that none of their
+// keys may be one of the modal's, and that the re-run key is set in each.
+func TestChecksKeysArePanesOfThePullModal(t *testing.T) {
+	cfg, _, err := loadBase(writeConfig(t, "keys:\n  pull_check_log:\n    annotations: [m]\n  pull_check_list:\n    rerun_failed: []\n"))
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
 	if got := cfg.Keys.Of("pull_check_log.annotations"); !slices.Equal(got, []string{"m"}) {
 		t.Errorf("annotations = %q, want [m]", got)
 	}
-	if _, _, err := loadBase(writeConfig(t, "keys:\n  pull_check_log:\n    annotations: [R]\n")); err == nil ||
-		!strings.Contains(err.Error(), "keys.pull_check_log.annotations: R is already keys.pull_checks.rerun_failed, which works in every pane of the Checks modal") {
-		t.Errorf("Load = %v, want R refused as the checks' re-run", err)
+	if got := cfg.Keys.Of("pull_check_list.rerun_failed"); len(got) != 0 {
+		t.Errorf("list rerun_failed = %q, want it unbound", got)
+	}
+	if got := cfg.Keys.Of("pull_check_detail.rerun_failed"); got != nil {
+		t.Errorf("detail rerun_failed = %q, want none: what an app reported is never re-run", got)
+	}
+	for _, pane := range []string{"pull_check_log", "pull_check_annotations"} {
+		if got := cfg.Keys.Of(pane + ".rerun_failed"); !slices.Equal(got, []string{"R"}) {
+			t.Errorf("%s.rerun_failed = %q, want the default [R]", pane, got)
+		}
+	}
+	for _, tt := range []struct{ file, want string }{
+		{"keys:\n  pull_check_log:\n    rerun_failed: [M]\n", "line 3: keys.pull_check_log.rerun_failed: M is already keys.pull_modal.merge, which works in every pane of the Pull request modal"},
+		{"keys:\n  pull_check_log:\n    prev_warning: [W]\n", "line 3: keys.pull_check_log.prev_warning: W is already keys.pull_modal.draft, which works in every pane of the Pull request modal"},
+		{"keys:\n  pull_check_list:\n    rerun_failed: [C]\n", "line 3: keys.pull_check_list.rerun_failed: C is already keys.pull_modal.checks, which works in every pane of the Pull request modal"},
+	} {
+		if _, _, err := loadBase(writeConfig(t, tt.file)); err == nil || !strings.Contains(err.Error(), tt.want) {
+			t.Errorf("Load(%q) = %v, want %q", tt.file, err, tt.want)
+		}
 	}
 }
 

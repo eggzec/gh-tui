@@ -16,6 +16,7 @@ import (
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 )
 
 // fakeChecks serves the checks of every pull request, with a failing
@@ -29,6 +30,9 @@ type fakeChecks struct {
 	ctxs  []context.Context
 	fresh map[int]bool
 	hold  bool
+	// job makes the failing check a job of GitHub Actions with a log, so
+	// that it opens into its log and can be re-run.
+	job bool
 }
 
 // numbers returns the numbers whose checks were read, in order.
@@ -39,8 +43,12 @@ func (f *fakeChecks) numbers() []int {
 }
 
 func (f *fakeChecks) value() core.Checks {
+	failing := core.Check{ID: 1, Name: "codecov", Status: core.RunCompleted, Conclusion: core.ConclusionFailure, Summary: "Coverage fell"}
+	if f.job {
+		failing.JobID, failing.RunID = 5, 9
+	}
 	return core.Checks{SHA: "abc", Total: 2, Runs: []core.Check{
-		{ID: 1, Name: "codecov", Status: core.RunCompleted, Conclusion: core.ConclusionFailure, Summary: "Coverage fell"},
+		failing,
 		{ID: 2, Name: "dco", Status: core.RunCompleted, Conclusion: core.ConclusionSuccess},
 	}}
 }
@@ -74,17 +82,23 @@ func (f *fakeChecks) Checks(ctx context.Context, q actionssvc.ChecksQuery) (core
 }
 func (f *fakeChecks) CachedRun(core.RepoRef, int64) (core.Run, bool) { return core.Run{}, false }
 func (f *fakeChecks) Run(context.Context, core.RepoRef, int64) (core.Run, error) {
+	if f.job {
+		return core.Run{ID: 9, Attempt: 1, Name: "CI", Status: core.RunCompleted, Conclusion: core.ConclusionFailure}, nil
+	}
 	return core.Run{}, nil
 }
 func (f *fakeChecks) CachedAllJobs(actionssvc.JobsQuery) (core.Page[core.Job], bool) {
 	return core.Page[core.Job]{}, false
 }
 func (f *fakeChecks) AllJobs(context.Context, actionssvc.JobsQuery) (core.Page[core.Job], error) {
-	return core.Page[core.Job]{}, nil
+	if !f.job {
+		return core.Page[core.Job]{}, nil
+	}
+	return core.Page[core.Job]{Items: []core.Job{{ID: 5, RunID: 9, Attempt: 1, Name: "codecov", Status: core.RunCompleted, Conclusion: core.ConclusionFailure}}}, nil
 }
 func (f *fakeChecks) CachedLog(core.RepoRef, int64) (core.Log, bool) { return core.Log{}, false }
 func (f *fakeChecks) Log(context.Context, core.RepoRef, int64) (core.Log, error) {
-	return core.Log{}, nil
+	return core.Log{Lines: []core.LogLine{{Text: "go test ./...", Step: 1}, {Text: "FAIL", Step: 1}}}, nil
 }
 func (f *fakeChecks) CachedPartialLog(core.RepoRef, int64) (core.PartialLog, bool) {
 	return core.PartialLog{}, false
@@ -313,4 +327,102 @@ func TestChecksHeadsApartByRepository(t *testing.T) {
 			t.Error("the checks of the first #142 are read at the head of the other's")
 		}
 	})
+}
+
+// openedOnAJob opens the checks of the first pull request, with the failing
+// check a job, and opens its log.
+func openedOnAJob(t *testing.T) (*host, *detailModal) {
+	t.Helper()
+	h := started(t, newFakeService(), 100, 30, WithChecks(&fakeChecks{job: true}), WithIcons(ui.NewIcons(config.IconsUnicode)))
+	press(t, h, "C")
+	m := h.modal()
+	if m == nil || m.checks == nil {
+		t.Fatalf("C opened %v, want the checks", m)
+	}
+	press(t, h, "enter")
+	return h, m
+}
+
+// The keys of the pull request work in the Checks step, which is a pane of
+// it: M asks to merge, and C, the key for the checks that show, does nothing.
+func TestChangeKeysWorkInTheChecks(t *testing.T) {
+	h := started(t, newFakeService(), 100, 30, WithChecks(&fakeChecks{}), WithIcons(ui.NewIcons(config.IconsUnicode)))
+	press(t, h, "C")
+	m := h.modal()
+	press(t, h, "M")
+	if m.ask == nil || !strings.Contains(m.ask.Question, "merge") {
+		t.Fatalf("M in the checks asked %+v, want to merge", m.ask)
+	}
+	if v := modalText(h); !strings.Contains(v, "merge") {
+		t.Errorf("the checks don't show the question:\n%s", v)
+	}
+	if got := uitest.Enabled(m.KeyLayers()); !slices.Contains(got, "yes") {
+		t.Errorf("help = %v while the question waits, want its answers", got)
+	}
+	press(t, h, "n")
+	if m.ask != nil || m.checks == nil {
+		t.Fatalf("n left the question %+v and the checks %v, want it answered with the checks shown", m.ask, m.checks)
+	}
+	layers := m.KeyLayers()
+	if len(layers) < 2 || layers[0].Context != "pull_modal" {
+		t.Fatalf("layers = %v, want the modal's first", layers)
+	}
+	if got := uitest.Enabled(layers[:1]); !slices.Equal(got, []string{"merge", "close", "convert to draft"}) {
+		t.Errorf("enabled keys of the modal in the checks = %v, want merge, close and draft", got)
+	}
+	// C does nothing while the checks show.
+	if msgs := press(t, h, "C"); len(msgs) != 0 || m.checks == nil {
+		t.Errorf("C sent %v in the checks, want nothing", msgs)
+	}
+}
+
+// While the step asks, or types a search, the keys of the modal are the
+// step's: M is not a merge.
+func TestChangeKeysYieldToTheStep(t *testing.T) {
+	h, m := openedOnAJob(t)
+	press(t, h, "/")
+	if !m.checks.TakesKeys() {
+		t.Fatal("/ didn't open the search of the log")
+	}
+	if got := m.KeyLayers(); len(got) != 1 || got[0].Context != "search_prompt" {
+		t.Errorf("layers = %v while the search types, want the search's alone", got)
+	}
+	press(t, h, "M")
+	if m.ask != nil {
+		t.Error("M asked to merge while the search of the log types")
+	}
+	press(t, h, "esc")
+	if m.checks.TakesKeys() {
+		t.Fatal("esc left the search open")
+	}
+	press(t, h, "R")
+	if !m.checks.TakesKeys() {
+		t.Fatal("R didn't ask to re-run")
+	}
+	press(t, h, "M")
+	if m.ask != nil {
+		t.Error("M asked to merge while the step asks to re-run")
+	}
+}
+
+// M is typed, not a merge, while the log asks for the name of an option,
+// and X in the checks asks to close the pull request.
+func TestChangeKeysInTheChecksOnOptionAndClose(t *testing.T) {
+	h, m := openedOnAJob(t)
+	press(t, h, "-")
+	if !m.checks.TakesKeys() {
+		t.Fatal("- didn't open the option prompt of the log")
+	}
+	press(t, h, "M")
+	if m.ask != nil {
+		t.Error("M asked to merge while the option prompt of the log is open")
+	}
+	press(t, h, "esc")
+	if m.checks.TakesKeys() {
+		t.Fatal("esc left the option prompt open")
+	}
+	press(t, h, "X")
+	if m.ask == nil || !strings.Contains(m.ask.Question, "Close") {
+		t.Fatalf("X in the checks asked %+v, want to close", m.ask)
+	}
 }

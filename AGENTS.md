@@ -409,8 +409,11 @@ reacts to messages. Concretely:
   another context, or a typo) and `ctrl+c`, which always quits and is
   not in default.yaml. A clash is reported at the setting the user's file
   has, with its line. A modal that replaces another, such as the
-  checks of a pull request or the filter of the runs, is a screen-layer
-  context of its own, so the keys of the modal under it don't work in it.
+  filter of the runs, is a screen-layer context of its own, so the keys of
+  the modal under it don't work in it. A step that shows inside a modal
+  and takes keys only now and then, such as the checks of a pull request,
+  has panes of that modal instead: its keys work there, unless the step
+  types or asks.
   Widgets that take every key while open (the command line, a prompt) are
   contexts outside the chain, and typing ones: a printable key bound there
   is refused, except for the actions the context lists in `Printable`
