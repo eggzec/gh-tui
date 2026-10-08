@@ -2,6 +2,7 @@ package tui
 
 import (
 	"cmp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -9,6 +10,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
@@ -388,19 +390,121 @@ func (m *Model) focused() *pane {
 	return m.panes[m.focus]
 }
 
+// maxBack is how many places the back key remembers.
+const maxBack = 50
+
+// place is where the back key returns to: a screen, with the pane that was
+// focused, the repository on view, and the login of the owner page.
+type place struct {
+	screen screen
+	focus  int
+	repo   core.RepoRef
+	owner  string
+}
+
+// place returns the place on view.
+func (m *Model) place() place {
+	return place{screen: m.screen, focus: m.focus, repo: m.repo, owner: m.ownerLogin}
+}
+
+// pushBack remembers the place on view, for the back key.
+func (m *Model) pushBack() {
+	m.back = append(m.back, m.place())
+	if len(m.back) > maxBack {
+		m.back = slices.Clone(m.back[len(m.back)-maxBack:])
+	}
+}
+
+// canGoBack reports whether the back key has somewhere to go: a page of an
+// owner before this one, or a place before the screen.
+func (m *Model) canGoBack() bool {
+	if m.modal != nil {
+		return false
+	}
+	if b := m.ownerPages(); b != nil && m.screen == ownerScreen && b.CanGoBack() {
+		return true
+	}
+	return len(m.back) > 0
+}
+
+// ownerPages returns the owner section's pages to go back through, or nil.
+func (m *Model) ownerPages() PageBacker {
+	if m.own == nil {
+		return nil
+	}
+	b, _ := m.own.section.(PageBacker)
+	return b
+}
+
+// goBack goes back as a browser does: through the owner pages, then to the
+// places before them, newest first. It does nothing at the bottom, or over
+// a modal.
+func (m *Model) goBack() tea.Cmd {
+	if m.modal != nil {
+		return nil
+	}
+	if b := m.ownerPages(); b != nil && m.screen == ownerScreen && b.CanGoBack() {
+		cmd := b.GoBack()
+		m.updateOwner()
+		return cmd
+	}
+	if len(m.back) == 0 {
+		return nil
+	}
+	p := m.back[len(m.back)-1]
+	m.back = m.back[:len(m.back)-1]
+	var cmds []tea.Cmd
+	switch {
+	// A repository gone back to opens as selecting it does, on its default
+	// branch, whatever base or branch it was left on.
+	case p.screen == repoScreen && p.repo != (core.RepoRef{}) && !p.repo.Same(m.repo):
+		cmds = append(cmds, m.openRepo(ui.RepoMsg{Repo: p.repo}, p.focus))
+	case p.screen == ownerScreen && p.owner != "" && !strings.EqualFold(p.owner, m.ownerLogin) && m.own != nil:
+		// The page isn't the one on view, which the owner section takes
+		// as a new start, since it isn't shown now.
+		cmds = append(cmds, m.own.section.Update(ui.OwnerMsg{Login: p.owner}))
+		m.updateOwner()
+	}
+	return tea.Batch(append(cmds, m.reveal(p.screen, p.focus))...)
+}
+
 // showScreen shows screen s, with pane i focused on the repository screen,
 // and starts the sections that come into view. The screen it leaves is the
-// one to go back to.
+// one the back key returns to.
 func (m *Model) showScreen(s screen, i int) tea.Cmd {
-	if s == notifScreen && m.notif == nil || s == repoScreen && len(m.panes) == 0 ||
-		s == dashScreen && m.dash == nil || s == searchScreen && m.srch == nil || s == ownerScreen && m.own == nil {
+	if s != m.screen && m.hasScreen(s) {
+		m.pushBack()
+	}
+	return m.reveal(s, i)
+}
+
+// hasScreen reports whether the app has screen s to show.
+func (m *Model) hasScreen(s screen) bool {
+	switch s {
+	case notifScreen:
+		return m.notif != nil
+	case repoScreen:
+		return len(m.panes) > 0
+	case dashScreen:
+		return m.dash != nil
+	case searchScreen:
+		return m.srch != nil
+	case ownerScreen:
+		return m.own != nil
+	}
+	return false
+}
+
+// reveal shows screen s as showScreen does, without remembering the place
+// it leaves.
+func (m *Model) reveal(s screen, i int) tea.Cmd {
+	if !m.hasScreen(s) {
 		return nil
 	}
 	before := m.focused()
 	if s != m.screen {
 		// Going elsewhere drops a goto still waiting.
 		m.cancelGoto()
-		m.back = m.screen
 		defer m.drawHeader()
 	}
 	m.screen = s
@@ -432,26 +536,4 @@ func (m *Model) cycle(delta int) tea.Cmd {
 	}
 	n := len(m.panes)
 	return m.showScreen(repoScreen, ((m.focus+delta)%n+n)%n)
-}
-
-// toggleScreen shows screen s, or goes back to the screen before it if it
-// is on view already.
-func (m *Model) toggleScreen(s screen) tea.Cmd {
-	if m.screen != s {
-		return m.showScreen(s, m.focus)
-	}
-	back := m.back
-	if back == s {
-		// The app opened here, so there is nothing to go back to but the
-		// screens it has.
-		switch {
-		case s == dashScreen:
-			return nil
-		case m.dash != nil:
-			back = dashScreen
-		default:
-			back = repoScreen
-		}
-	}
-	return m.showScreen(back, m.focus)
 }

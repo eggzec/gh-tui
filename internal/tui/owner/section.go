@@ -382,3 +382,15 @@ func defaultPalette() config.Palette {
 	p, _ := config.Default().Palette(true)
 	return p
 }
+
+// CanGoBack reports whether there is a page to go back to.
+func (s *Section) CanGoBack() bool { return len(s.back) > 0 }
+
+// GoBack shows the page the one on view was opened from, and reads again
+// what of it went stale meanwhile.
+func (s *Section) GoBack() tea.Cmd {
+	if !s.goBack() {
+		return nil
+	}
+	return s.Revisit()
+}

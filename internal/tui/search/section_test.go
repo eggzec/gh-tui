@@ -260,13 +260,19 @@ func TestFirstMatch(t *testing.T) {
 	}
 }
 
-func TestBack(t *testing.T) {
+// esc leaves the query for the kinds, and goes nowhere from the kinds and
+// the results: going back is the app's key.
+func TestEscDoesNotGoBack(t *testing.T) {
 	s := newSection(t, newFake(), 120, 30)
-	for _, keys := range [][]string{{"esc"}, {"tab", "esc"}, {"down", "esc"}} {
-		s.Focus()
-		if got := press(t, s, keys...); !slices.Equal(got, []tea.Msg{ui.BackMsg{}}) {
-			t.Errorf("%v sent %v, want to go back", keys, got)
-		}
+	if got := press(t, s, "esc"); len(got) != 0 || s.area != kindsArea {
+		t.Errorf("esc in the query sent %v and focused area %d, want the kinds and no message", got, s.area)
+	}
+	if got := press(t, s, "esc"); len(got) != 0 || s.area != kindsArea {
+		t.Errorf("esc in the kinds sent %v and focused area %d, want nothing", got, s.area)
+	}
+	press(t, s, "down")
+	if got := press(t, s, "esc"); len(got) != 0 {
+		t.Errorf("esc sent %v, want nothing", got)
 	}
 }
 

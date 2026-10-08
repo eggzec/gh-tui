@@ -21,9 +21,9 @@ func bestMatch() Spec {
 	return s
 }
 
-// A choice with no empty option has nothing to clear, so delete and
-// backspace leave it and help disables the key; the sort takes the same
-// rule for its "sort by" row.
+// A choice with no empty option has nothing to clear, so delete leaves it
+// and help disables the key; the sort takes the same rule for its "sort by"
+// row. Backspace clears nothing: the app takes it to go back.
 func TestClearNeedsAnEmptyOption(t *testing.T) {
 	const noSort = "is:open author:@me review-requested:@me label:bug,enhancement base:main"
 	tests := []struct {
@@ -35,13 +35,13 @@ func TestClearNeedsAnEmptyOption(t *testing.T) {
 		wantClear bool
 	}{
 		{name: "choice with no empty option", spec: stateNoAny(), clear: del, wantQuery: prDefaults},
-		{name: "backspace on a choice with no empty option", spec: stateNoAny(), clear: bksp, wantQuery: prDefaults},
+		{name: "backspace clears nothing on a choice with an empty option", spec: prSpec(nil), move: keys(down, rowReview), clear: bksp, wantQuery: prDefaults, wantClear: true},
 		{
 			name: "choice with an empty option", spec: prSpec(nil), move: keys(down, rowReview), clear: del, wantClear: true,
 			wantQuery: "is:open author:@me label:bug,enhancement base:main sort:updated-desc",
 		},
 		{name: "sort by with an empty option", spec: bestMatch(), move: []tea.Msg{nextTab}, clear: del, wantQuery: noSort, wantClear: true},
-		{name: "backspace on sort by with an empty option", spec: bestMatch(), move: []tea.Msg{nextTab}, clear: bksp, wantQuery: noSort, wantClear: true},
+		{name: "backspace clears nothing on sort by with an empty option", spec: bestMatch(), move: []tea.Msg{nextTab}, clear: bksp, wantQuery: prDefaults, wantClear: true},
 		{name: "order has nothing to clear", spec: bestMatch(), move: []tea.Msg{nextTab, down}, clear: del, wantQuery: prDefaults},
 		{name: "sort by with no empty option", spec: prSpec(nil), move: []tea.Msg{nextTab}, clear: del, wantQuery: prDefaults},
 	}

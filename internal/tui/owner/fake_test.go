@@ -381,7 +381,7 @@ func run(tb testing.TB, s *Section, cmd tea.Cmd) []tea.Msg {
 		case nil, spinner.TickMsg:
 		case tea.BatchMsg:
 			queue = append(queue, msg...)
-		case ui.OpenMsg, ui.NotifyMsg, ui.RepoMsg, ui.BackMsg, ui.OwnerMsg:
+		case ui.OpenMsg, ui.NotifyMsg, ui.RepoMsg, ui.OwnerMsg:
 			app = append(app, msg)
 		default:
 			queue = append(queue, s.Update(msg))

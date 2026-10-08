@@ -526,14 +526,16 @@ func TestFocusMovesBetweenPanes(t *testing.T) {
 	}
 }
 
-func TestNotificationsKeyTogglesScreens(t *testing.T) {
+// I shows the notifications, and pressing it again stays there; backspace
+// goes back to the pane that had the focus.
+func TestNotificationsKeyShowsTheNotifications(t *testing.T) {
 	m, fakes := newTestApp(t)
 	run(m, m.key(press("2")))
 	run(m, m.key(press("I")))
 	if m.screen != notifScreen || !slices.Equal(focusedTitles(fakes), []string{"Notifications"}) {
 		t.Fatalf("I didn't show the notifications: focused %v", focusedTitles(fakes))
 	}
-	if s := onScreen(m); !strings.Contains(s, "Notifications content") || !strings.Contains(s, "I back") {
+	if s := onScreen(m); !strings.Contains(s, "Notifications content") || !strings.Contains(s, "backspace back") {
 		t.Errorf("notifications screen or its help is missing:\n%s", s)
 	}
 	// Tab has no panes to move between here.
@@ -542,8 +544,16 @@ func TestNotificationsKeyTogglesScreens(t *testing.T) {
 		t.Error("tab left the notifications")
 	}
 	run(m, m.key(press("I")))
+	if m.screen != notifScreen || len(m.back) != 1 {
+		t.Errorf("I again left the notifications: screen %d, %d places to go back to, want 1", m.screen, len(m.back))
+	}
+	run(m, m.key(press("backspace")))
 	if m.screen != repoScreen || !slices.Equal(focusedTitles(fakes), []string{"Pull requests"}) {
-		t.Errorf("n didn't go back to the pane that had focus: %v", focusedTitles(fakes))
+		t.Errorf("backspace didn't go back to the pane that had focus: %v", focusedTitles(fakes))
+	}
+	run(m, m.key(press("backspace")))
+	if m.screen != repoScreen {
+		t.Error("backspace at the bottom left the screen")
 	}
 	run(m, m.key(press("I")))
 	run(m, m.key(press("3")))
@@ -564,9 +574,9 @@ func TestSectionsStartWhenShown(t *testing.T) {
 			t.Errorf("%s started %d times, want %d", f.title, f.inits, want)
 		}
 	}
+	run(m, m.show("Files"))
 	run(m, m.key(press("I")))
-	run(m, m.key(press("I")))
-	run(m, m.key(press("I")))
+	run(m, m.key(press("backspace")))
 	for _, f := range fakes {
 		if f.inits != 1 {
 			t.Errorf("%s started %d times, want once", f.title, f.inits)

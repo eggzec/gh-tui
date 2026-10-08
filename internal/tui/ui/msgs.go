@@ -234,10 +234,6 @@ type ShowMsg struct {
 	Title string
 }
 
-// BackMsg asks the app to go back to the screen before the one on view,
-// such as when the user leaves the search.
-type BackMsg struct{}
-
 // OwnerMsg asks the app to show the page of the user or organization
 // Login, as goto does: once GitHub says the account exists, the app gives
 // the page an OwnerMsg with Login as GitHub spells it, and shows it. The

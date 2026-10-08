@@ -189,7 +189,7 @@ func TestCommandKeyOpensTheLine(t *testing.T) {
 }
 
 func TestLineClosesWithoutQuitting(t *testing.T) {
-	for _, k := range []tea.KeyPressMsg{press("esc"), ctrlC, {Code: tea.KeyBackspace}} {
+	for _, k := range []tea.KeyPressMsg{press("esc"), ctrlC, press("ctrl+h")} {
 		t.Run(k.String(), func(t *testing.T) {
 			m, fakes := newTestApp(t)
 			drive(m, m.key(press(":")))
@@ -511,4 +511,21 @@ func TestPressingCommands(t *testing.T) {
 			t.Errorf("refresh with an argument ran: %s", toasted(m))
 		}
 	})
+}
+
+// Backspace on an empty command line does nothing, so a held key can't close
+// the line and then go back a screen; ctrl+h still closes it.
+func TestBackspaceKeepsAnEmptyCommandLineOpen(t *testing.T) {
+	m, _ := newDashApp(t, core.RepoRef{})
+	run(m, m.key(press("I")))
+	run(m, m.key(press(":")))
+	run(m, m.key(press("backspace")))
+	run(m, m.key(press("backspace")))
+	if !m.line.Focused() || m.screen != notifScreen {
+		t.Fatalf("line open = %v on screen %d, want it open on the notifications", m.line.Focused(), m.screen)
+	}
+	run(m, m.key(press("ctrl+h")))
+	if m.line.Focused() {
+		t.Error("ctrl+h left the empty line open")
+	}
 }

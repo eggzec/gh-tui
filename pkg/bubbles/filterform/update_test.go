@@ -120,8 +120,8 @@ func TestUpdate(t *testing.T) {
 			wantRow:   rowLabels,
 		},
 		{
-			name: "backspace unchecks every label", keys: step{down, down, down, bksp},
-			wantQuery: strings.Replace(prDefaults, "label:bug,enhancement ", "", 1),
+			name: "backspace unchecks no label", keys: step{down, down, down, bksp},
+			wantQuery: prDefaults,
 			wantRow:   rowLabels,
 		},
 		{
@@ -129,8 +129,8 @@ func TestUpdate(t *testing.T) {
 			wantQuery: strings.Replace(prDefaults, "is:open ", "", 1),
 		},
 		{
-			name: "backspace clears a choice", keys: step{bksp},
-			wantQuery: strings.Replace(prDefaults, "is:open ", "", 1),
+			name: "backspace clears no choice", keys: step{bksp},
+			wantQuery: prDefaults,
 		},
 		{
 			name: "x does nothing in the rows", keys: step{keyX, down, keyX, down, down, keyX},

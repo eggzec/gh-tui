@@ -61,7 +61,7 @@ func newFakeOwners() *fakeOwners {
 }
 
 // fakeOwnerPage is a page of owners that keeps the logins it was given,
-// and goes back through them with esc, as the owner page does.
+// and goes back through them as the owner page does.
 type fakeOwnerPage struct {
 	fakeSection
 	logins []string
@@ -69,22 +69,19 @@ type fakeOwnerPage struct {
 
 func (p *fakeOwnerPage) Update(msg tea.Msg) tea.Cmd {
 	p.msgs = append(p.msgs, msg)
-	switch msg := msg.(type) {
-	case ui.OwnerMsg:
+	if msg, ok := msg.(ui.OwnerMsg); ok {
 		if !p.focused {
 			p.logins = nil
 		}
 		p.logins = append(p.logins, msg.Login)
-	case tea.KeyPressMsg:
-		if msg.String() != "esc" {
-			return nil
-		}
-		if len(p.logins) > 1 {
-			p.logins = p.logins[:len(p.logins)-1]
-			return nil
-		}
-		return func() tea.Msg { return ui.BackMsg{} }
 	}
+	return nil
+}
+
+func (p *fakeOwnerPage) CanGoBack() bool { return len(p.logins) > 1 }
+
+func (p *fakeOwnerPage) GoBack() tea.Cmd {
+	p.logins = p.logins[:len(p.logins)-1]
 	return nil
 }
 
@@ -223,8 +220,8 @@ func TestGotoOwnerUnchecked(t *testing.T) {
 	}
 }
 
-// esc goes back through the pages opened one from another, and then to
-// the screen the first was opened from; opened from elsewhere, a page
+// backspace goes back through the pages opened one from another, and then
+// to the screen the first was opened from; opened from elsewhere, a page
 // starts a new way back.
 func TestOwnerBack(t *testing.T) {
 	m, page := newOwnerApp(t, newFakeOwners())
@@ -233,14 +230,14 @@ func TestOwnerBack(t *testing.T) {
 	if s := onScreen(m); !strings.Contains(s, "─ hubot ─") {
 		t.Errorf("the header doesn't name hubot:\n%s", s)
 	}
-	drive(m, m.key(press("esc")))
+	drive(m, m.key(press("backspace")))
 	if m.screen != ownerScreen || page.Login() != "octocat" {
 		t.Fatalf("screen %d with the page of %q, want octocat's", m.screen, page.Login())
 	}
 	if s := onScreen(m); !strings.Contains(s, "─ octocat ─") {
 		t.Errorf("the header doesn't name octocat again:\n%s", s)
 	}
-	drive(m, m.key(press("esc")))
+	drive(m, m.key(press("backspace")))
 	if m.screen != dashScreen {
 		t.Fatalf("screen = %d, want the dashboard it was opened from", m.screen)
 	}
@@ -249,9 +246,32 @@ func TestOwnerBack(t *testing.T) {
 	if !slices.Equal(page.logins, []string{"charmbracelet"}) {
 		t.Errorf("pages = %q, want charmbracelet's alone", page.logins)
 	}
-	drive(m, m.key(press("esc")))
+	drive(m, m.key(press("backspace")))
 	if m.screen != repoScreen {
 		t.Errorf("screen = %d, want the repository it was opened from", m.screen)
+	}
+}
+
+// From the dashboard to a repository and its owner's page, backspace goes
+// back to the repository, and then to the dashboard, and stays there.
+func TestBackspaceWalksBackThroughScreens(t *testing.T) {
+	m, page := newOwnerApp(t, newFakeOwners())
+	runCommand(t, m, "goto eggzec/gh-tui")
+	runCommand(t, m, "goto @octocat")
+	if m.screen != ownerScreen || page.Login() != "octocat" {
+		t.Fatalf("screen %d with the page of %q, want octocat's", m.screen, page.Login())
+	}
+	drive(m, m.key(press("backspace")))
+	if m.screen != repoScreen || m.repo != (core.RepoRef{Owner: "eggzec", Name: "gh-tui"}) {
+		t.Fatalf("screen %d on %v, want the repository", m.screen, m.repo)
+	}
+	drive(m, m.key(press("backspace")))
+	if m.screen != dashScreen {
+		t.Fatalf("screen = %d, want the dashboard", m.screen)
+	}
+	drive(m, m.key(press("backspace")))
+	if m.screen != dashScreen {
+		t.Errorf("screen = %d, want backspace at the bottom to do nothing", m.screen)
 	}
 }
 
@@ -515,4 +535,66 @@ func onOwnerScreen(m *Model) string {
 		return "@ didn't show the owner's page"
 	}
 	return ""
+}
+
+// Backspace over an open modal goes nowhere: the modal has the key.
+func TestBackspaceOverModalDoesNothing(t *testing.T) {
+	m, _ := newDashApp(t, core.RepoRef{})
+	run(m, m.key(press("I")))
+	m.openModal(&fakeModal{title: "Preview"})
+	run(m, m.key(press("backspace")))
+	if m.screen != notifScreen || len(m.back) != 1 {
+		t.Errorf("screen %d with %d places to go back to, want the notifications and 1", m.screen, len(m.back))
+	}
+	if m.canGoBack() {
+		t.Error("canGoBack = true over a modal")
+	}
+}
+
+// Going back to a repository left for another opens it again.
+func TestBackReturnsToTheEarlierRepository(t *testing.T) {
+	a, b := core.RepoRef{Owner: "eggzec", Name: "gh-tui"}, core.RepoRef{Owner: "charmbracelet", Name: "bubbletea"}
+	m, _ := newDashApp(t, core.RepoRef{})
+	run(m, m.selectRepo(ui.RepoMsg{Repo: a}))
+	run(m, m.key(press("0")))
+	run(m, m.selectRepo(ui.RepoMsg{Repo: b}))
+	if m.repo != b {
+		t.Fatalf("repo = %v, want %v", m.repo, b)
+	}
+	run(m, m.key(press("backspace")))
+	if m.screen != dashScreen {
+		t.Fatalf("screen = %d, want the dashboard", m.screen)
+	}
+	run(m, m.key(press("backspace")))
+	if m.screen != repoScreen || m.repo != a {
+		t.Errorf("screen %d on %v, want the repository %v", m.screen, m.repo, a)
+	}
+}
+
+// Going back to an owner page the section isn't showing any more opens it.
+func TestBackReturnsToTheEarlierOwner(t *testing.T) {
+	m, page := newOwnerApp(t, newFakeOwners())
+	runCommand(t, m, "goto @octocat")
+	runCommand(t, m, "goto eggzec/gh-tui")
+	runCommand(t, m, "goto @hubot")
+	if page.Login() != "hubot" {
+		t.Fatalf("page of %q, want hubot's", page.Login())
+	}
+	drive(m, m.key(press("backspace")))
+	drive(m, m.key(press("backspace")))
+	if m.screen != ownerScreen || page.Login() != "octocat" || m.ownerLogin != "octocat" {
+		t.Errorf("screen %d with the page of %q, want octocat's", m.screen, page.Login())
+	}
+}
+
+// The places to go back to are capped.
+func TestBackStackIsCapped(t *testing.T) {
+	m, _ := newDashApp(t, core.RepoRef{})
+	for range 2 * maxBack {
+		run(m, m.key(press("I")))
+		run(m, m.key(press("0")))
+	}
+	if len(m.back) != maxBack {
+		t.Errorf("%d places to go back to, want %d", len(m.back), maxBack)
+	}
 }

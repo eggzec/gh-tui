@@ -37,7 +37,7 @@ func (a *app) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.String() == "ctrl+c" {
 			return a, tea.Quit
 		}
-	case ui.RepoMsg, ui.OpenPullMsg, ui.OpenIssueMsg, ui.OpenFileMsg, ui.OpenMsg, ui.BackMsg:
+	case ui.RepoMsg, ui.OpenPullMsg, ui.OpenIssueMsg, ui.OpenFileMsg, ui.OpenMsg:
 		a.sent = append(a.sent, msg)
 		a.got <- msg
 		return a, nil
@@ -87,12 +87,10 @@ func TestProgram(t *testing.T) {
 	wait(a.ready, "the page listed no results")
 	tm.Send(keyPress("enter"))
 	wait(sent(), "the page didn't open the repository")
-	tm.Send(keyPress("esc"))
-	wait(sent(), "the page didn't go back")
 	tm.Send(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
 
 	final := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(*app)
-	want := []tea.Msg{ui.RepoMsg{Repo: core.RepoRef{Owner: "charmbracelet", Name: "bubbletea"}}, ui.BackMsg{}}
+	want := []tea.Msg{ui.RepoMsg{Repo: core.RepoRef{Owner: "charmbracelet", Name: "bubbletea"}}}
 	if !slices.Equal(final.sent, want) {
 		t.Errorf("the page sent %v, want %v", final.sent, want)
 	}

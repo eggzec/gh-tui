@@ -9,6 +9,7 @@ global
   zoom | z | z | on
   maximize | Z | Z | off
   unzoom | esc | esc | on
+  back | backspace | backspace | on
   dismiss | ctrl+x | ^x | off
   owner page | @ | @ | on
   this repo | . | . | on

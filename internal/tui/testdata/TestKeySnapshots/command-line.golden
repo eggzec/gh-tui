@@ -3,7 +3,7 @@
 Command line (types)
   run | enter | ↵ | on
   cancel | esc ctrl+c | esc | on
-  cancel when empty | backspace ctrl+h | backspace/^h | on
+  cancel when empty | ctrl+h | ^h | on
   complete | tab | tab | on
   previous | shift+tab | shift+tab | on
   older | up ctrl+p | ↑/^p | off

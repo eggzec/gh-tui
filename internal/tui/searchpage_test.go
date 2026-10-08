@@ -48,9 +48,11 @@ func TestSearchKeyShowsThePage(t *testing.T) {
 		if s := onScreen(m); !strings.Contains(s, "─ Search ─") {
 			t.Errorf("the header should name the page:\n%s", s)
 		}
-		run(m, func() tea.Msg { return ui.BackMsg{} })
+		// The query types backspace, so leave it first.
+		run(m, m.key(press("esc")))
+		run(m, m.key(press("backspace")))
 		if m.screen != was {
-			t.Errorf("BackMsg went to screen %d, want %d", m.screen, was)
+			t.Errorf("backspace went to screen %d, want %d", m.screen, was)
 		}
 	}
 }

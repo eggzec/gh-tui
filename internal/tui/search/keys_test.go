@@ -25,7 +25,6 @@ func TestKeyMapComplete(t *testing.T) {
 // Each row checks the binding the key reaches, and then what the key does.
 func TestKeyLayersOrder(t *testing.T) {
 	results, kinds := []string{"t", "e", "a", "down"}, []string{"t", "e", "a", "down", "left"}
-	back := func(_, _ *Section, msgs []tea.Msg) bool { return slices.Contains(msgs, tea.Msg(ui.BackMsg{})) }
 	tests := []struct {
 		to   []string
 		key  string
@@ -35,7 +34,7 @@ func TestKeyLayersOrder(t *testing.T) {
 		{nil, "down", "Query: results", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea }},
 		{[]string{"t"}, "enter", "Query: search", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea && s.text == "t" }},
 		{nil, "j", "nothing", func(s, _ *Section, _ []tea.Msg) bool { return s.input.Value() == "j" }},
-		{nil, "esc", "Query: back", back},
+		{nil, "esc", "Query: leave", func(s, _ *Section, _ []tea.Msg) bool { return s.area == kindsArea }},
 		// The query types ] and [ before the moves that hold them, whose
 		// other keys still move.
 		{nil, "]", "nothing", func(s, _ *Section, _ []tea.Msg) bool { return s.input.Value() == "]" && s.area == inputArea }},
@@ -53,7 +52,6 @@ func TestKeyLayersOrder(t *testing.T) {
 		{results, "j", "Results: down", func(s, b *Section, _ []tea.Msg) bool { return selectedHit(s) != selectedHit(b) }},
 		{results, "enter", "Results: open", func(_, _ *Section, msgs []tea.Msg) bool { return len(msgs) > 0 }},
 		{results, "left", "Results: kinds", func(s, _ *Section, _ []tea.Msg) bool { return s.area == kindsArea }},
-		{results, "esc", "Search: back", back},
 		// The results ask the app to open the filter.
 		{results, "f", "Results: filter", func(s, b *Section, msgs []tea.Msg) bool {
 			return selectedHit(s) == selectedHit(b) && len(msgs) == 1 && msgs[0] == ui.OpenFilterMsg{Tab: filterform.FiltersTab}

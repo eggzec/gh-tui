@@ -32,8 +32,6 @@ type KeyMap struct {
 	Open key.Binding
 	// Checks opens the pull request under the cursor on its checks.
 	Checks key.Binding
-	// Back goes back to the screen before the search.
-	Back key.Binding
 	// Filter and Sort open the filter of the kind on view on its Filters
 	// and Sort tabs.
 	Filter key.Binding
@@ -60,10 +58,9 @@ type KeyMap struct {
 // queryKeys are the keys of the query while it has the focus: those that
 // type nothing, which act where the query leaves them a key.
 type queryKeys struct {
-	// Submit searches, and Cancel goes back to the screen before the
-	// search.
+	// Submit searches, and Cancel leaves the query for the kinds.
 	Submit key.Binding `keymap:"submit" help:"search"`
-	Cancel key.Binding `keymap:"cancel" help:"back"`
+	Cancel key.Binding `keymap:"cancel" help:"leave"`
 	// Next and Kinds focus the kinds, and Prev and Results the results.
 	Next    key.Binding `keymap:"next" help:"next"`
 	Prev    key.Binding `keymap:"prev" help:"previous"`
@@ -92,7 +89,6 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		Select:      page.Binding("global.select", "open"),
 		Open:        page.Binding("global.open", "browser"),
 		Checks:      results.Binding("checks", "checks"),
-		Back:        page.Binding("global.dismiss", "back"),
 		Filter:      results.Binding("filter", "filter"),
 		Sort:        results.Binding("sort", "sort"),
 		KindsFilter: kinds.Binding("filter", "filter"),
@@ -114,14 +110,14 @@ func newKeyMap(keys config.Keymap) KeyMap {
 // own returns the keys of the page, in the order it matches them.
 func (k KeyMap) own() []key.Binding {
 	return []key.Binding{
-		k.Back, k.Select, k.Next, k.Prev, k.Jump, k.Left, k.Right, k.Up, k.Down,
+		k.Select, k.Next, k.Prev, k.Jump, k.Left, k.Right, k.Up, k.Down,
 		k.Open, k.Checks, k.Refresh, k.Filter, k.Sort,
 	}
 }
 
 // ShortHelp implements help.KeyMap.
 func (k KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Up, k.Down, k.Select, k.Checks, k.Open, k.Filter, k.Sort, k.Left, k.Next, k.Back}
+	return []key.Binding{k.Up, k.Down, k.Select, k.Checks, k.Open, k.Filter, k.Sort, k.Left, k.Next}
 }
 
 // FullHelp implements help.KeyMap.
@@ -137,14 +133,14 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 		// The query types first, so its keys get only those that type
 		// nothing, such as tab rather than ].
 		k := s.keys.inInput()
-		keys := append(k.own(), k.query.Kinds, k.query.Results)
-		short := []key.Binding{k.Select, k.query.Results, k.Next, k.Back}
+		keys := append(k.own(), k.query.Cancel, k.query.Kinds, k.query.Results)
+		short := []key.Binding{k.Select, k.query.Results, k.Next, k.query.Cancel}
 		l := ui.ContextLayer("search_query", keys, short)
 		l.Typing = true
 		return []keyhelp.Layer{l}
 	}
 	k := s.keys.state(s)
-	screen := ui.ContextLayer("search", []key.Binding{k.Back, k.Next, k.Prev, k.Jump}, []key.Binding{k.Next, k.Back})
+	screen := ui.ContextLayer("search", []key.Binding{k.Next, k.Prev, k.Jump}, []key.Binding{k.Next})
 	// Without a query the results are the page's own suggestions, which
 	// move with the keys of the list; with one, the list's layer has them.
 	var moves []key.Binding
@@ -175,7 +171,7 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 // and the arrows move to the kinds and the results. They are the keys of
 // the query's own context.
 func (k KeyMap) inInput() KeyMap {
-	k.Back, k.Select, k.Next, k.Prev = k.query.Cancel, k.query.Submit, k.query.Next, k.query.Prev
+	k.Select, k.Next, k.Prev = k.query.Submit, k.query.Next, k.query.Prev
 	for _, b := range []*key.Binding{
 		&k.Jump, &k.Left, &k.Right, &k.Up, &k.Down, &k.Open, &k.Checks, &k.Refresh, &k.Filter, &k.Sort, &k.KindsFilter, &k.KindsSort,
 	} {

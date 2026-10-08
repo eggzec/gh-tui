@@ -79,12 +79,16 @@ func TestDashboardKey(t *testing.T) {
 	if m.screen != dashScreen || !fakes[4].focused {
 		t.Fatalf("0 didn't show the dashboard: focused %v", focusedTitles(fakes))
 	}
-	if s := onScreen(m); !strings.Contains(s, "0 back") {
-		t.Errorf("the help should say 0 goes back:\n%s", s)
+	if s := onScreen(m); !strings.Contains(s, "backspace back") || strings.Contains(s, "0 dashboard") {
+		t.Errorf("the help should say backspace goes back, and not offer 0:\n%s", s)
 	}
 	run(m, m.key(press("0")))
+	if m.screen != dashScreen || len(m.back) != 1 {
+		t.Errorf("0 again should stay on the dashboard: screen %d, %d places to go back to, want 1", m.screen, len(m.back))
+	}
+	run(m, m.key(press("backspace")))
 	if m.screen != repoScreen || !fakes[1].focused {
-		t.Errorf("0 again should go back to the pane that had focus: %v", focusedTitles(fakes))
+		t.Errorf("backspace should go back to the pane that had focus: %v", focusedTitles(fakes))
 	}
 	if s := onScreen(m); !strings.Contains(s, "eggzec/gh-tui") || !strings.Contains(s, "0 dashboard") {
 		t.Errorf("the repository screen should be back, with the dashboard key in the help:\n%s", s)
@@ -108,11 +112,15 @@ func TestNotificationsFromDashboard(t *testing.T) {
 	m, fakes := newDashApp(t, core.RepoRef{})
 	run(m, m.key(press("I")))
 	if m.screen != notifScreen {
-		t.Fatal("n didn't show the notifications")
+		t.Fatal("I didn't show the notifications")
 	}
 	run(m, m.key(press("I")))
+	if m.screen != notifScreen {
+		t.Error("I again should stay on the notifications")
+	}
+	run(m, m.key(press("backspace")))
 	if m.screen != dashScreen || !fakes[4].focused {
-		t.Error("n again should go back to the dashboard")
+		t.Error("backspace should go back to the dashboard")
 	}
 
 	// The dashboard shows the notifications, and the app goes back to it.
@@ -120,11 +128,10 @@ func TestNotificationsFromDashboard(t *testing.T) {
 	if m.screen != notifScreen {
 		t.Fatal("ShowMsg didn't show the notifications")
 	}
-	run(m, m.key(press("I")))
+	run(m, m.key(press("backspace")))
 	if m.screen != dashScreen {
-		t.Error("n should go back to the dashboard that showed the notifications")
+		t.Error("backspace should go back to the dashboard that showed the notifications")
 	}
-	run(m, m.key(press("I")))
 	m.Update(ui.ShowMsg{Title: ui.DashboardTitle})
 	if m.screen != dashScreen {
 		t.Error("ShowMsg didn't show the dashboard")
@@ -166,7 +173,7 @@ func TestProgramOpensOnDashboard(t *testing.T) {
 	tm.Send(press("0"))
 	tm.Send(press("q"))
 	final, ok := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(*Model)
-	if !ok || final.screen != dashScreen || final.back != repoScreen || final.repo != testRepo {
+	if !ok || final.screen != dashScreen || len(final.back) == 0 || final.back[len(final.back)-1].screen != repoScreen || final.repo != testRepo {
 		t.Errorf("the final model should be on the dashboard, back from the repository")
 	}
 }
@@ -211,7 +218,7 @@ func TestDashboardRevisitedOnReturn(t *testing.T) {
 		t.Fatalf("opening on the dashboard: %d inits and %d revisits, want 1 and none", dash.inits, dash.revisits)
 	}
 	run(m, m.key(press("I")))
-	run(m, m.key(press("I")))
+	run(m, m.key(press("backspace")))
 	if m.screen != dashScreen || dash.revisits != 1 {
 		t.Fatalf("back on the dashboard: %d revisits, want 1", dash.revisits)
 	}

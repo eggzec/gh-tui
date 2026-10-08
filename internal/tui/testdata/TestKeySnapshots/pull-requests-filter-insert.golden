@@ -14,7 +14,7 @@ Filter query (types)
   toggle | space | space | off
   insert | i | i | off
   append | a | a | off
-  clear | delete backspace | delete/backspace | off
+  clear | delete | delete | off
   apply | enter | ↵ | off
   close | esc | esc | off
   close | q | q | off
@@ -26,7 +26,7 @@ Filter query (types)
   up | up ctrl+p | ↑/^p | off
   down | down ctrl+n | ↓/^n | off
   toggle | space | space | off
-  clear | delete backspace | delete/backspace | off
+  clear | delete | delete | off
   choose | enter | ↵ | off
   close | esc | esc | off
   up | up ctrl+p | ↑/^p | off

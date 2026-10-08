@@ -45,9 +45,9 @@ type Layout struct {
 	Search ui.Section
 	// Owner fills the page of a user or an organization, which goto
 	// shows, given a ui.OwnerMsg for the account first. It draws its own
-	// frames, handles the keys that move between its panes, and sends a
-	// ui.BackMsg when it has no page left to go back to. If it is an
-	// OwnerPage, the header names the account on view.
+	// frames, and handles the keys that move between its panes. If it is
+	// an OwnerPage, the header names the account on view, and if it is a
+	// PageBacker, the back key goes back through the pages it showed.
 	Owner ui.Section
 }
 
@@ -90,10 +90,10 @@ type Model struct {
 	// all holds the panes of every screen.
 	all []*pane
 	// screen is the screen on view, and focus the focused pane of the
-	// repository screen. back is the screen before it, which the keys that
-	// show the notifications and the dashboard go back to.
+	// repository screen. back holds the places left, the newest last, for
+	// the back key to return to.
 	screen screen
-	back   screen
+	back   []place
 	focus  int
 	// zoom shows the focused pane of the repository screen alone, as a
 	// narrow terminal does. The dashboard keeps its own.
@@ -415,7 +415,6 @@ func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) 
 	default:
 		m.screen = repoScreen
 	}
-	m.back = m.screen
 	if m.repo != (core.RepoRef{}) {
 		m.remember(m.repo)
 		if m.watchRepo != nil {
@@ -565,6 +564,15 @@ type OwnerPage interface {
 	// Login returns the login of the account on view, or "" before one
 	// is.
 	Login() string
+}
+
+// PageBacker is the section of the pages of owners, when it keeps the
+// pages it showed, to go back through.
+type PageBacker interface {
+	// CanGoBack reports whether there is a page to go back to.
+	CanGoBack() bool
+	// GoBack shows the page the one on view was opened from.
+	GoBack() tea.Cmd
 }
 
 // updateOwner takes the login of the page of an owner, which changes as
