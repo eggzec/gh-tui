@@ -33,7 +33,7 @@ func TestSetState(t *testing.T) {
 		{
 			name:       "close in the open list drops the issue once confirmed",
 			setup:      func(t *testing.T, s *host) { t.Helper(); press(t, s, "down") },
-			key:        "x",
+			key:        "X",
 			question:   "Close issue #999?",
 			wantChange: "close 999",
 			wantBefore: core.StateClosed,
@@ -43,7 +43,7 @@ func TestSetState(t *testing.T) {
 			// All issues, so the closed one stays in the list.
 			name:       "close in the list",
 			setup:      func(t *testing.T, s *host) { t.Helper(); press(t, s, "]", "]", "down") },
-			key:        "x",
+			key:        "X",
 			question:   "Close issue #999?",
 			wantChange: "close 999",
 			wantBefore: core.StateClosed,
@@ -55,7 +55,7 @@ func TestSetState(t *testing.T) {
 				t.Helper()
 				press(t, s, "]", "]", "down", "down", "down", "down")
 			},
-			key:        "X",
+			key:        "O",
 			question:   "Reopen issue #996?",
 			wantChange: "reopen 996",
 			wantBefore: core.StateOpen,
@@ -64,7 +64,7 @@ func TestSetState(t *testing.T) {
 		{
 			name:       "close in the modal",
 			setup:      func(t *testing.T, s *host) { t.Helper(); press(t, s, "down", "enter") },
-			key:        "x",
+			key:        "X",
 			question:   "Close issue #999?",
 			wantChange: "close 999",
 			wantBefore: core.StateClosed,
@@ -73,7 +73,7 @@ func TestSetState(t *testing.T) {
 		{
 			name:       "a refused close rolls back",
 			setup:      func(t *testing.T, s *host) { t.Helper(); press(t, s, "down", "enter") },
-			key:        "x",
+			key:        "X",
 			sendErr:    errors.New("403 Forbidden"),
 			question:   "Close issue #999?",
 			wantChange: "close 999",
@@ -83,7 +83,7 @@ func TestSetState(t *testing.T) {
 		{
 			name:  "reopen an open issue does nothing",
 			setup: func(t *testing.T, s *host) { t.Helper(); press(t, s, "down") },
-			key:   "X",
+			key:   "O",
 		},
 		{
 			name: "close a closed issue does nothing",
@@ -91,7 +91,7 @@ func TestSetState(t *testing.T) {
 				t.Helper()
 				press(t, s, "]", "enter")
 			},
-			key: "x",
+			key: "X",
 		},
 	}
 	for _, tt := range tests {
@@ -123,7 +123,7 @@ func TestSetState(t *testing.T) {
 				}
 				// Other keys, even enter and the change keys, do nothing
 				// while the question is open.
-				press(t, s, "enter", "j", "k", "q", "x", "X", "c", "l", "]")
+				press(t, s, "enter", "j", "k", "q", "X", "O", "c", "L", "]")
 				if got := question(s); got != tt.question || len(svc.changeCalls()) != 0 {
 					t.Fatalf("after other keys asks %q with changes %v", got, svc.changeCalls())
 				}
@@ -196,10 +196,10 @@ func TestASecondYesChangesOnce(t *testing.T) {
 		// what they start runs, as a repeated key or a paste does.
 		lead, answers []string
 	}{
-		{"y y from the list", []string{"down", "x"}, []string{"y", "y"}},
-		{"y enter from the list", []string{"down", "x"}, []string{"y", "enter"}},
-		{"y y in the modal", []string{"down", "enter", "x"}, []string{"y", "y"}},
-		{"y enter in the modal", []string{"down", "enter", "x"}, []string{"y", "enter"}},
+		{"y y from the list", []string{"down", "X"}, []string{"y", "y"}},
+		{"y enter from the list", []string{"down", "X"}, []string{"y", "enter"}},
+		{"y y in the modal", []string{"down", "enter", "X"}, []string{"y", "y"}},
+		{"y enter in the modal", []string{"down", "enter", "X"}, []string{"y", "enter"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -226,7 +226,7 @@ func TestYesAsksAgain(t *testing.T) {
 		s := started(t, svc, 80, 20, WithViewer(me))
 		// #1000 is another's, which triage may close.
 		run(t, s, s.Update(ui.CapsMsg{Repo: testRepo, Caps: triageCaps}))
-		press(t, s, "x")
+		press(t, s, "X")
 		run(t, s, s.Update(ui.CapsMsg{Repo: testRepo, Caps: readCaps}))
 		msgs := press(t, s, "y")
 		if len(svc.changeCalls()) != 0 || !slices.Contains(msgs, info("You can't close #1000 in eggzec/gh-tui (read access).")) {
@@ -236,7 +236,7 @@ func TestYesAsksAgain(t *testing.T) {
 	t.Run("the cursor moved while asking", func(t *testing.T) {
 		svc := newFakeService(sampleIssues(12))
 		s := started(t, svc, 80, 20)
-		press(t, s, "down", "x")
+		press(t, s, "down", "X")
 		// As a reload that reorders the list would, behind the question.
 		run(t, s, s.Section.Update(keyMsg("down")))
 		if it, _ := s.target(); it.Number == 999 {
@@ -250,7 +250,7 @@ func TestYesAsksAgain(t *testing.T) {
 	t.Run("the list shows another repository while asking", func(t *testing.T) {
 		svc := newFakeService(sampleIssues(12))
 		s := started(t, svc, 80, 20)
-		press(t, s, "down", "x")
+		press(t, s, "down", "X")
 		// The question reads the same for #999 of any repository.
 		s.repo = core.RepoRef{Owner: "eggzec", Name: "other"}
 		msgs := press(t, s, "y")
@@ -261,7 +261,7 @@ func TestYesAsksAgain(t *testing.T) {
 	t.Run("closed elsewhere while asking", func(t *testing.T) {
 		svc := newFakeService(sampleIssues(12))
 		s := started(t, svc, 80, 20)
-		press(t, s, "down", "enter", "x")
+		press(t, s, "down", "enter", "X")
 		m := s.modal()
 		m.issue.State = core.StateClosed
 		msgs := press(t, s, "y")
@@ -303,7 +303,7 @@ func TestChangeInModalShowsInBoth(t *testing.T) {
 			h := started(t, svc, 80, 20)
 			press(t, h, "]", "]", "down", "enter")
 			m := h.modal()
-			press(t, h, "x")
+			press(t, h, "X")
 			done := runHolding(t, h, h.Update(keyMsg("y")))
 			row := func() core.State {
 				it, _ := h.list.Selected()

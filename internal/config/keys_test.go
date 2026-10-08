@@ -91,15 +91,15 @@ func TestUnbindInFile(t *testing.T) {
 // context, and a key a context shares with a global action, each with its
 // line.
 func TestKeysByContext(t *testing.T) {
-	cfg, _, err := loadBase(writeConfig(t, "keys:\n  pulls:\n    merge: [M]\n"))
+	cfg, _, err := loadBase(writeConfig(t, "keys:\n  pulls:\n    merge: [ctrl+g]\n"))
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if got := cfg.Keys.Of("pulls.merge"); !slices.Equal(got, []string{"M"}) {
-		t.Errorf("pulls.merge = %q, want [M]", got)
+	if got := cfg.Keys.Of("pulls.merge"); !slices.Equal(got, []string{"ctrl+g"}) {
+		t.Errorf("pulls.merge = %q, want [ctrl+g]", got)
 	}
-	if got := cfg.Keys.Of("pulls.close"); !slices.Equal(got, []string{"x"}) {
-		t.Errorf("pulls.close = %q, want the default [x]", got)
+	if got := cfg.Keys.Of("pulls.close"); !slices.Equal(got, []string{"X"}) {
+		t.Errorf("pulls.close = %q, want the default [X]", got)
 	}
 
 	for _, tt := range []struct{ name, file, want string }{
@@ -109,7 +109,7 @@ func TestKeysByContext(t *testing.T) {
 		{"action of another context", "keys:\n  issues:\n    merge: [M]\n", "line 3: keys.issues.merge: unknown action"},
 		{"global action in a context", "keys:\n  pulls:\n    quit: [Q]\n", "line 3: keys.pulls.quit: quit is a global action, which no context may redefine: set keys.global.quit"},
 		{"global key in a context", "keys:\n  pulls:\n    merge: [r]\n", "line 3: keys.pulls.merge: r is already keys.global.refresh"},
-		{"context key made global", "keys:\n  global:\n    zoom: [m]\n", "line 3: keys.global.zoom: m is also keys.pulls.merge, keys.notifications.read, keys.pull_modal.merge: unbind or rebind them there"},
+		{"context key made global", "keys:\n  global:\n    zoom: [M]\n", "line 3: keys.global.zoom: M is also keys.pulls.merge, keys.notifications.read_all, keys.pull_modal.merge: unbind or rebind them there"},
 		{"context key made global once", "keys:\n  global:\n    zoom: [B]\n", "line 3: keys.global.zoom: B is also keys.repo.history: unbind or rebind them there"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -121,8 +121,8 @@ func TestKeysByContext(t *testing.T) {
 	}
 
 	// Two contexts other than the global one may share a key.
-	if got, want := Default().Keys.Of("pulls.merge"), Default().Keys.Of("notifications.read"); !slices.Equal(got, want) {
-		t.Errorf("pulls.merge = %q and notifications.read = %q, want the same key in both", got, want)
+	if got, want := Default().Keys.Of("pulls.close"), Default().Keys.Of("issues.close"); !slices.Equal(got, want) {
+		t.Errorf("pulls.close = %q and issues.close = %q, want the same key in both", got, want)
 	}
 }
 
@@ -143,7 +143,7 @@ func TestKeyValidation(t *testing.T) {
 		{"screen against global", "keys:\n  actions:\n    rerun_failed: [r]\n", "line 3: keys.actions.rerun_failed: r is already keys.global.refresh"},
 		{"screen key against its panes", "keys:\n  actions:\n    cancel: [J]\n", "line 3: keys.actions.cancel: J is also keys.actions_jobs.rerun_job, keys.actions_log.rerun_job, keys.actions_annotations.rerun_job: unbind or rebind them there"},
 		{"screen against global", "keys:\n  repo:\n    history: [o]\n", "line 3: keys.repo.history: o is already keys.global.open"},
-		{"pane against its screen", "keys:\n  actions_log:\n    annotations: [x]\n", "line 3: keys.actions_log.annotations: x is already keys.actions.cancel, which works in every pane of the Actions modal"},
+		{"pane against its screen", "keys:\n  actions_log:\n    annotations: [X]\n", "line 3: keys.actions_log.annotations: X is already keys.actions.cancel, which works in every pane of the Actions modal"},
 		{"pane of a screen against its screen", "keys:\n  pulls:\n    merge: [B]\n", "line 3: keys.pulls.merge: B is already keys.repo.history, which works in every pane of the Repository screen"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -165,9 +165,9 @@ func TestKeyOverrides(t *testing.T) {
 	for action, want := range map[string][]string{
 		"pulls.merge":  {"ctrl+g"},
 		"pulls.sort":   {},
-		"pulls.close":  {"x"},
+		"pulls.close":  {"X"},
 		"pulls.filter": {"f"},
-		"issues.close": {"x"},
+		"issues.close": {"X"},
 	} {
 		if got := cfg.Keys.Of(action); !slices.Equal(got, want) && (len(got) != 0 || len(want) != 0) {
 			t.Errorf("%s = %q, want %q", action, got, want)
@@ -333,7 +333,7 @@ func TestEmptyKeysDontPanic(t *testing.T) {
 				if err != nil {
 					t.Fatalf("Load = %v, want none", err)
 				}
-				if got := cfg.Keys.Of("pulls.merge"); !slices.Equal(got, []string{"m"}) {
+				if got := cfg.Keys.Of("pulls.merge"); !slices.Equal(got, []string{"M"}) {
 					t.Errorf("pulls.merge = %q, want the default", got)
 				}
 				return
@@ -342,5 +342,19 @@ func TestEmptyKeysDontPanic(t *testing.T) {
 				t.Errorf("Load = %v, want %q", err, tt.want)
 			}
 		})
+	}
+}
+
+// The log of the checks has no key for the previous warning by default, as
+// the pull request modal uses W to draft; the Actions log, which is not in
+// that modal, keeps it.
+func TestCheckLogWarningHasNoDefaultKey(t *testing.T) {
+	keys := Default().Keys
+	for action, want := range map[string][]string{
+		"pull_modal.draft": {"W"}, "pull_check_log.prev_warning": {}, "actions_log.prev_warning": {"W"},
+	} {
+		if got := keys.Of(action); !slices.Equal(got, want) && (len(got) != 0 || len(want) != 0) {
+			t.Errorf("%s = %q, want %q", action, got, want)
+		}
 	}
 }

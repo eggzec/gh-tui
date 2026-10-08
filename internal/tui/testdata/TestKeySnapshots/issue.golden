@@ -8,9 +8,9 @@ global
 Issue
   back | esc | esc | on
   comment | c | c | on
-  labels | l | l | on
-  close | x | x | on
-  reopen | X | X | off
+  labels | L | L | on
+  close | X | X | on
+  reopen | O | O | off
   refresh | r | r | on
   browser | o | o | on
   open | enter | ↵ | off

@@ -163,7 +163,7 @@ func TestLabels(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			svc := newFakeService(sampleIssues(12))
 			h, m := opened(t, svc, 30)
-			press(t, h, "l")
+			press(t, h, "L")
 			if m.composing != composeLabels || m.prompt.Value() != "enhancement, help wanted" {
 				t.Fatalf("l opened %v with %q, want the labels prompt with the issue's labels", m.composing, m.prompt.Value())
 			}
@@ -206,7 +206,7 @@ func TestLabels(t *testing.T) {
 func TestLabelOpsRunInOrder(t *testing.T) {
 	svc := newFakeService(sampleIssues(12))
 	h, m := opened(t, svc, 30)
-	press(t, h, "l")
+	press(t, h, "L")
 	m.prompt.SetValue("bug")
 	submit, ok := h.Update(keyMsg("enter"))().(prompt.SubmitMsg)
 	if !ok {
@@ -249,7 +249,7 @@ func TestComposeAnswers(t *testing.T) {
 		want                  []string
 	}{
 		{"comment", "c", "Same here.", "Post this comment on #999?", []string{"comment 999: Same here."}},
-		{"labels", "l", "bug", "Add the label bug to #999 and remove enhancement, help wanted?", []string{
+		{"labels", "L", "bug", "Add the label bug to #999 and remove enhancement, help wanted?", []string{
 			"label 999 +bug", "unlabel 999 -enhancement", "unlabel 999 -help wanted",
 		}},
 	}
@@ -331,7 +331,7 @@ func TestComposeAsksAgain(t *testing.T) {
 			want: info("eggzec/gh-tui is archived, so it's read-only."),
 		},
 		{
-			name: "labels changed elsewhere", open: "l", typed: "bug",
+			name: "labels changed elsewhere", open: "L", typed: "bug",
 			meddle: func(t *testing.T, h *host, svc *fakeService, _ *detailModal) {
 				t.Helper()
 				svc.set(999, func(it *core.Issue) { it.Labels = append(it.Labels, core.Label{Name: "ui"}) })
@@ -340,7 +340,7 @@ func TestComposeAsksAgain(t *testing.T) {
 			want: info("#999 changed meanwhile, so nothing was sent."),
 		},
 		{
-			name: "labels made what was typed elsewhere", open: "l", typed: "bug",
+			name: "labels made what was typed elsewhere", open: "L", typed: "bug",
 			meddle: func(t *testing.T, h *host, svc *fakeService, _ *detailModal) {
 				t.Helper()
 				svc.set(999, func(it *core.Issue) { it.Labels = []core.Label{{Name: "bug"}} })
@@ -350,7 +350,7 @@ func TestComposeAsksAgain(t *testing.T) {
 		},
 		{
 			// Removing "a, b" and "c" reads as removing "a" and "b, c".
-			name: "labels that read the same", open: "l", typed: "",
+			name: "labels that read the same", open: "L", typed: "",
 			meddle: func(t *testing.T, h *host, svc *fakeService, _ *detailModal) {
 				t.Helper()
 				svc.set(999, func(it *core.Issue) { it.Labels = []core.Label{{Name: "a"}, {Name: "b, c"}} })
@@ -362,7 +362,7 @@ func TestComposeAsksAgain(t *testing.T) {
 			want: info("#999 changed meanwhile, so nothing was sent."),
 		},
 		{
-			name: "labels in an archived repository", open: "l", typed: "bug",
+			name: "labels in an archived repository", open: "L", typed: "bug",
 			meddle: func(t *testing.T, h *host, _ *fakeService, _ *detailModal) {
 				t.Helper()
 				run(t, h, h.Update(ui.CapsMsg{Repo: testRepo, Caps: archived}))
@@ -478,7 +478,7 @@ func TestHelpWhileComposing(t *testing.T) {
 func TestComposeKeysInTheList(t *testing.T) {
 	svc := newFakeService(sampleIssues(12))
 	h := started(t, svc, 80, 20)
-	press(t, h, "c", "l")
+	press(t, h, "c", "L")
 	if h.modal() != nil {
 		t.Error("c or l opened something in the list")
 	}

@@ -159,8 +159,10 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.moveFocus(-1)
 	case k.focusOf(msg) >= 0:
 		return m.focusPane(k.focusOf(msg))
-	case key.Matches(msg, k.Filter):
+	case m.focus == runsPane && key.Matches(msg, k.Filter):
 		return m.openFilter()
+	case m.focus == runsPane && key.Matches(msg, k.ClearFilter):
+		return m.setFilter(cleared(m.filter))
 	case key.Matches(msg, k.Zoom):
 		m.zoom = !m.zoom
 		m.layout()

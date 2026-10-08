@@ -64,20 +64,20 @@ func TestUpdate(t *testing.T) {
 		},
 		{
 			name:      "mark read",
-			keys:      []string{"down", "m", "y"},
+			keys:      []string{"down", "U", "y"},
 			wantDone:  []string{"mark read"},
 			wantReads: []string{"2"},
 			wantRows:  []string{"1", "3", "6"},
 		},
 		{
 			name:     "mark read skips a read thread",
-			keys:     []string{showAll, "down", "down", "down", "m"},
+			keys:     []string{showAll, "down", "down", "down", "U"},
 			wantAll:  true,
 			wantRows: []string{"1", "2", "3", "4", "5", "6", "7"},
 		},
 		{
 			name:      "mark done removes the thread",
-			keys:      []string{showAll, "end", "d", "y"},
+			keys:      []string{showAll, "end", "D", "y"},
 			wantDone:  []string{"mark done"},
 			wantDones: []string{"7"},
 			wantAll:   true,
@@ -98,7 +98,7 @@ func TestUpdate(t *testing.T) {
 		{
 			name:    "no selection does nothing",
 			threads: []core.Notification{},
-			keys:    []string{"enter", "o", "m", "d", "M"},
+			keys:    []string{"enter", "o", "U", "D", "M"},
 		},
 	}
 	for _, tt := range tests {
@@ -163,7 +163,7 @@ func TestFailedChangeRollsBack(t *testing.T) {
 	svc.fail = errors.New("403 Forbidden")
 	s := newSection(t, svc, 80, 12)
 
-	press(t, s, "d")
+	press(t, s, "D")
 	app := press(t, s, "y")
 	if len(app) != 1 {
 		t.Fatalf("messages = %v, want one DoneMsg", app)
@@ -397,9 +397,9 @@ func TestMarksAsk(t *testing.T) {
 		question string
 		want     string
 	}{
-		{"mark read", []string{"down", "m"}, "Mark eggzec/gh-tui#2 as read?", "read 2"},
-		{"mark done", []string{"down", "d"}, "Mark eggzec/gh-tui#2 as done?", "done 2"},
-		{"mark done without a number", []string{showAll, "end", "d"},
+		{"mark read", []string{"down", "U"}, "Mark eggzec/gh-tui#2 as read?", "read 2"},
+		{"mark done", []string{"down", "D"}, "Mark eggzec/gh-tui#2 as done?", "done 2"},
+		{"mark done without a number", []string{showAll, "end", "D"},
 			`Mark "Moderate severity vulnerability in golang.org/x/net" in eggzec/gh-tui as done?`, "done 7"},
 		{"mark all read", []string{"M"}, "Mark all notifications as read?", "all read"},
 	}
@@ -423,7 +423,7 @@ func TestMarksAsk(t *testing.T) {
 					t.Errorf("rows = %q before the answer, want them unchanged %q", rows(s), before)
 				}
 				// Other keys, even the marks, do nothing while it asks.
-				press(t, s, "enter", "m", "d", "M", "q")
+				press(t, s, "enter", "U", "D", "M", "q")
 				if got := question(s); got != tt.question || len(marks(svc)) != 0 {
 					t.Fatalf("after other keys asks %q with %v sent", got, marks(svc))
 				}
@@ -505,16 +505,16 @@ func TestMarksAskAgain(t *testing.T) {
 		want   string
 	}{
 		{
-			name: "read elsewhere", keys: []string{"down", "m"},
+			name: "read elsewhere", keys: []string{"down", "U"},
 			meddle: read("2"), want: "eggzec/gh-tui#2 changed meanwhile, so nothing was sent.",
 		},
 		{
 			// The unread list drops #2, so the cursor is on another thread.
-			name: "the cursor's thread went away", keys: []string{"down", "d"},
+			name: "the cursor's thread went away", keys: []string{"down", "D"},
 			meddle: read("2"), want: "eggzec/gh-tui#2 changed meanwhile, so nothing was sent.",
 		},
 		{
-			name: "the cursor moved", keys: []string{"down", "d"},
+			name: "the cursor moved", keys: []string{"down", "D"},
 			meddle: func(t *testing.T, s *Section, _ *fakeService) {
 				t.Helper()
 				// As a reload that reorders the list would, behind the

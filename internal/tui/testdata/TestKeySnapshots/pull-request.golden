@@ -6,10 +6,10 @@ global
   help | ? | ? | on
 
 Pull request
-  merge | m | m | on
-  close | x | x | on
-  reopen | X | X | off
-  convert to draft | D | D | on
+  merge | M | M | on
+  close | X | X | on
+  reopen | O | O | off
+  convert to draft | W | W | on
   back | esc | esc | on
   open | enter | ↵ | off
   checks | C | C | on

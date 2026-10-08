@@ -519,12 +519,12 @@ func TestCancelARunningRun(t *testing.T) {
 		t.Fatalf("R on the failed run: %q", got)
 	}
 	h.keys("n", "j", "R")
-	if got := lastLine(m); got != "lint #4810 is still running. x cancels it." {
+	if got := lastLine(m); got != "lint #4810 is still running. X cancels it." {
 		t.Errorf("R on a running run tells %q", got)
 	}
-	h.keys("x")
+	h.keys("X")
 	if got := lastLine(m); !strings.HasPrefix(got, "Cancel lint #4810?") {
-		t.Fatalf("x asks %q", got)
+		t.Fatalf("X asks %q", got)
 	}
 	h.keys("y")
 	if m.run.Status != core.RunCancelling || !slices.Equal(f.sent, []string{"cancel"}) {
@@ -534,9 +534,9 @@ func TestCancelARunningRun(t *testing.T) {
 		t.Errorf("the runs don't show the cancel:\n%s", s)
 	}
 	// A done run can't be cancelled.
-	h.keys("k", "x")
+	h.keys("k", "X")
 	if got := lastLine(m); got != "CI #4812 isn't running." {
-		t.Errorf("x on a done run tells %q", got)
+		t.Errorf("X on a done run tells %q", got)
 	}
 }
 
@@ -574,7 +574,7 @@ var leads = []struct {
 	{"re-run failed jobs", []string{"R"}, "rerun failed"},
 	{"re-run all jobs", []string{"E"}, "rerun"},
 	{"re-run a job", []string{"tab", "j", "J"}, fmt.Sprintf("rerun job %d", macosJob)},
-	{"cancel", []string{"j", "x"}, "cancel"},
+	{"cancel", []string{"j", "X"}, "cancel"},
 }
 
 func TestASecondYesChangesOnce(t *testing.T) {
@@ -796,14 +796,14 @@ func TestHelpNamesWhatTheKeysDo(t *testing.T) {
 		keys []string
 		want string
 	}{
-		{nil, "↑/k up, ↓/j down, ↵ jobs, tab pane, z zoom, R rerun failed, E rerun all, f filter, o browser"},
-		{[]string{"tab"}, "↑/k up, ↓/j down, ↵ open, J rerun job, tab pane, z zoom, R rerun failed, E rerun all, f filter, o browser"},
-		{[]string{"tab"}, "↵ fold, * all, - option: S N T, e next error, / search, esc back, A annotations, J rerun job, tab pane, z zoom, R rerun failed, E rerun all, f filter, o browser"},
-		{[]string{"A"}, "* all, - option: S N T, ↑/k up, ↓/j down, ↵ open file, A log, J rerun job, tab pane, z zoom, R rerun failed, E rerun all, f filter, o browser"},
-		{[]string{"A"}, "↵ fold, * all, - option: S N T, e next error, / search, esc back, A annotations, J rerun job, tab pane, z zoom, R rerun failed, E rerun all, f filter, o browser"},
+		{nil, "↑/k up, ↓/j down, ↵ jobs, f filter, tab pane, z zoom, R rerun failed, E rerun all, o browser"},
+		{[]string{"tab"}, "↑/k up, ↓/j down, ↵ open, J rerun job, tab pane, z zoom, R rerun failed, E rerun all, o browser"},
+		{[]string{"tab"}, "↵ fold, * all, - option: S N T, e next error, / search, esc back, A annotations, J rerun job, tab pane, z zoom, R rerun failed, E rerun all, o browser"},
+		{[]string{"A"}, "* all, - option: S N T, ↑/k up, ↓/j down, ↵ open file, A log, J rerun job, tab pane, z zoom, R rerun failed, E rerun all, o browser"},
+		{[]string{"A"}, "↵ fold, * all, - option: S N T, e next error, / search, esc back, A annotations, J rerun job, tab pane, z zoom, R rerun failed, E rerun all, o browser"},
 		// The steps of a job in progress don't fold.
-		{[]string{"tab", "j", "tab", "tab"}, "tab pane, z zoom, x cancel run, f filter, o browser"},
-		{[]string{"x"}, "y yes, n no"},
+		{[]string{"tab", "j", "tab", "tab"}, "tab pane, z zoom, X cancel run, o browser"},
+		{[]string{"X"}, "y yes, n no"},
 	}
 	for _, s := range steps {
 		h.keys(s.keys...)
@@ -868,6 +868,7 @@ func TestSharedKeys(t *testing.T) {
 		to   []string // the keys that reach the pane
 		key  string
 		desc string // the binding the help names for key, if any
+		src  string // the layer the help names it in; the modal's if empty
 		ok   func(*Modal) bool
 	}{
 		{name: "] on the runs", key: "]", desc: "tab", ok: tab(1)},
@@ -881,9 +882,11 @@ func TestSharedKeys(t *testing.T) {
 		// A run still running can't be re-run, so R says why, and the help
 		// gives it to no binding it could reach.
 		{name: "R on a running run", to: []string{"]", "]"}, key: "R", ok: func(m *Modal) bool { return m.ask == nil && m.notice != "" }},
-		{name: "f on the runs", key: "f", desc: "filter", ok: filters},
-		{name: "f on the jobs", to: []string{"tab"}, key: "f", desc: "filter", ok: filters},
-		{name: "f in the log", to: []string{"tab", "tab"}, key: "f", desc: "filter", ok: filters},
+		{name: "f on the runs", key: "f", desc: "filter", src: "Runs", ok: filters},
+		// The filter belongs to the runs: the jobs and the log have no f.
+		{name: "f on the jobs", to: []string{"tab"}, key: "f", ok: func(m *Modal) bool { return m.filterStep == nil && m.focus == jobsPane }},
+		{name: "f in the log", to: []string{"tab", "tab"}, key: "f", ok: func(m *Modal) bool { return m.filterStep == nil && m.focus == logPane }},
+		{name: "F in the log", to: []string{"tab", "tab"}, key: "F", desc: "follow", src: "Log", ok: func(m *Modal) bool { return m.filterStep == nil && m.focus == logPane }},
 		{name: "2 on the runs", key: "2", desc: "focus pane", ok: func(m *Modal) bool { return m.focus == jobsPane }},
 		{name: "3 on the runs", key: "3", desc: "focus pane", ok: func(m *Modal) bool { return m.focus == logPane }},
 		{name: "1 in the log", to: []string{"tab", "tab"}, key: "1", desc: "focus pane", ok: func(m *Modal) bool { return m.focus == runsPane }},
@@ -892,14 +895,67 @@ func TestSharedKeys(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			m, h := newModal(t, newFake(), wideW, wideH)
 			h.keys(tt.to...)
-			if b, src, ok := uitest.Winner(m.KeyLayers(), tt.key); ok != (tt.desc != "") || ok && (src != "Actions" || b.Help().Desc != tt.desc) {
-				t.Errorf("the help gives %s to %q of %q, want %q of the modal", tt.key, b.Help().Desc, src, tt.desc)
+			want := tt.src
+			if want == "" {
+				want = "Actions"
+			}
+			if b, src, ok := uitest.Winner(m.KeyLayers(), tt.key); ok != (tt.desc != "") || ok && (src != want || b.Help().Desc != tt.desc) {
+				t.Errorf("the help gives %s to %q of %q, want %q of %q", tt.key, b.Help().Desc, src, tt.desc, want)
 			}
 			h.keys(tt.key)
 			if !tt.ok(m) {
 				t.Errorf("%s didn't reach %q: focus %d, question %v, filter %v", tt.key, tt.desc, m.focus, m.ask != nil, m.filterStep != nil)
 			}
 		})
+	}
+}
+
+// The filter's keys belong to the runs: F clears what the filter form set
+// there, keeping the tab and the commit the modal was opened for, and in
+// the log it follows instead, leaving the filter alone.
+func TestClearFilterIsTheRunsKey(t *testing.T) {
+	form := core.RunFilter{Branch: "main", Event: "push", WorkflowID: 7, HeadSHA: "abc123"}
+	m, h := newModal(t, newFake(), wideW, wideH, WithFilter(form))
+	h.keys("]")
+	tabbed := m.filter
+	if tabbed.Status == "" || tabbed.Branch != "main" {
+		t.Fatalf("] left the filter at %+v, want a tab and the form's", tabbed)
+	}
+	if _, src, ok := uitest.Winner(m.KeyLayers(), "F"); !ok || src != "Runs" {
+		t.Errorf("F reaches %q on the runs, want the runs' clear filter", src)
+	}
+	h.keys("tab", "tab", "F")
+	if m.filter != tabbed {
+		t.Errorf("F in the log changed the filter to %+v", m.filter)
+	}
+	h.keys("1", "F")
+	if want := (core.RunFilter{Status: tabbed.Status, HeadSHA: "abc123"}); m.filter != want {
+		t.Errorf("F on the runs left the filter at %+v, want %+v", m.filter, want)
+	}
+	// With nothing of the form left, the key is off.
+	if _, _, ok := uitest.Winner(m.KeyLayers(), "F"); ok {
+		t.Error("F is offered with no filter of the form set")
+	}
+	before := m.filter
+	h.keys("F")
+	if m.filter != before {
+		t.Errorf("F changed the filter to %+v with nothing to clear", m.filter)
+	}
+}
+
+// Cancelling a run is X: x no longer asks.
+func TestLowercaseXDoesNotCancel(t *testing.T) {
+	m, h := newModal(t, newFake(), wideW, wideH)
+	for m.run.ID != runningRun {
+		h.keys("down")
+	}
+	h.keys("x")
+	if m.ask != nil {
+		t.Errorf("x asked %q, want nothing", lastLine(m))
+	}
+	h.keys("X")
+	if m.ask == nil {
+		t.Error("X didn't ask to cancel the run")
 	}
 }
 

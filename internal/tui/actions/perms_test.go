@@ -55,10 +55,10 @@ func TestChangesNeedWriteAccess(t *testing.T) {
 	for m.run.ID != runningRun {
 		h.keys("down")
 	}
-	h.keys("x")
+	h.keys("X")
 	cancel := ui.NotifyMsg{Level: toast.Info, Text: "Cancelling needs write access to charmbracelet/bubbletea."}
 	if m.ask != nil || !slices.Contains(h.take(), any(cancel)) {
-		t.Errorf("x asked %+v, want the toast %q", m.ask, cancel.Text)
+		t.Errorf("X asked %+v, want the toast %q", m.ask, cancel.Text)
 	}
 	if len(f.sent) != 0 {
 		t.Errorf("sent %v, want nothing", f.sent)
@@ -69,7 +69,7 @@ func TestChangesNeedWriteAccess(t *testing.T) {
 	if got := offered(m); !slices.Equal(got, []string{"cancel run"}) {
 		t.Errorf("help offers %v with write access, want the cancel", got)
 	}
-	h.keys("x", "y")
+	h.keys("X", "y")
 	if !slices.Equal(f.sent, []string{"cancel"}) {
 		t.Errorf("sent %v, want the cancel", f.sent)
 	}
@@ -100,10 +100,10 @@ func TestChangesNeedRepo(t *testing.T) {
 	for m.run.ID != runningRun {
 		h.keys("down")
 	}
-	h.keys("x")
+	h.keys("X")
 	cancel := ui.NotifyMsg{Level: toast.Info, Text: "Cancelling needs the repo scope · :auth to grant it"}
 	if m.ask != nil || !slices.Contains(h.take(), any(cancel)) {
-		t.Errorf("x asked %+v, want the toast %q", m.ask, cancel.Text)
+		t.Errorf("X asked %+v, want the toast %q", m.ask, cancel.Text)
 	}
 	if len(f.sent) != 0 {
 		t.Errorf("sent %v, want nothing", f.sent)

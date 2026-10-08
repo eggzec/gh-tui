@@ -140,7 +140,7 @@ func TestProgramOpensGoesBackAndMerges(t *testing.T) {
 	wait("Does this survive a crash")
 	tm.Send(tea.KeyPressMsg{Code: tea.KeyEscape})
 	wait("Add a disk layer")
-	tm.Type("m")
+	tm.Type("M")
 	wait("Squash-merge #135 into main?")
 	tm.Type("y")
 	select {
@@ -185,7 +185,7 @@ func TestProgramMergesFromTheModalOnceConfirmed(t *testing.T) {
 	wait("Add a disk layer")
 	tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
 	wait("Does this survive a crash")
-	tm.Type("m")
+	tm.Type("M")
 	wait("Squash-merge #142 into main?")
 	// Keys other than the answer leave the question open.
 	tm.Type("jm")

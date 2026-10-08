@@ -255,7 +255,7 @@ func (m *Modal) KeyLayers() []keyhelp.Layer {
 		return m.log.KeyLayers()
 	}
 	k = k.state(m)
-	screen := ui.ContextLayer(ctxModal, k.screen(), []key.Binding{k.Next, k.Zoom, k.Cancel, k.RerunFailed, k.Rerun, k.Filter, k.Open})
+	screen := ui.ContextLayer(ctxModal, k.screen(), []key.Binding{k.Next, k.Zoom, k.Cancel, k.RerunFailed, k.Rerun, k.Open})
 	rerun := k.RerunJob
 	if m.focus == logPane {
 		rerun = k.rerunJob(m)
@@ -263,7 +263,7 @@ func (m *Modal) KeyLayers() []keyhelp.Layer {
 	own := keyhelp.Layer{Bindings: k.pane(rerun), Short: []key.Binding{k.Select, rerun}}
 	switch m.focus {
 	case runsPane:
-		runs := keyhelp.Layer{Bindings: []key.Binding{k.Select}, Short: []key.Binding{k.Select}}
+		runs := keyhelp.Layer{Bindings: []key.Binding{k.Select, k.Filter, k.ClearFilter}, Short: []key.Binding{k.Select, k.Filter}}
 		return []keyhelp.Layer{screen, ui.MergeLayers(ctxRuns, runs, keyhelp.FromHelp("", m.runs.KeyMap(), false))}
 	case jobsPane:
 		return []keyhelp.Layer{screen, ui.MergeLayers(ctxJobs, own, keyhelp.FromHelp("", k.Jobs, false))}
@@ -281,6 +281,7 @@ func (k KeyMap) state(m *Modal) KeyMap {
 	switch m.focus {
 	case runsPane:
 		k.Select = relabel(k.Select, "jobs")
+		k.ClearFilter.SetEnabled(k.ClearFilter.Enabled() && formFiltered(m.filter))
 		if !m.zoom {
 			k.Back = relabel(k.Back, "close")
 		}

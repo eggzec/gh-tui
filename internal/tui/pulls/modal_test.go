@@ -272,7 +272,7 @@ func TestOpenFromSearch(t *testing.T) {
 			t.Errorf("the section moved to %v", h.repo)
 		}
 		// The modal's changes go to its repository.
-		press(t, h, "x")
+		press(t, h, "X")
 		press(t, h, "y")
 		if got := svc.changes(); !slices.Equal(got, []string{"close 7"}) {
 			t.Errorf("changes = %v, want close 7", got)
@@ -317,7 +317,7 @@ func TestModalBeforeItsDetail(t *testing.T) {
 	if m == nil || m.Title() != "eggzec/gh-tui#135" {
 		t.Fatalf("modal = %v, want eggzec/gh-tui#135 before its title is read", m)
 	}
-	for _, k := range []string{"m", "x", "X", "D", "o"} {
+	for _, k := range []string{"M", "X", "O", "W", "o"} {
 		if msgs := press(t, h, k); len(msgs) != 0 {
 			t.Errorf("%s before the detail sent %v", k, msgs)
 		}
@@ -449,7 +449,7 @@ func TestModalFailureToasts(t *testing.T) {
 			svc.sendErr = f.Err
 			h := started(t, svc, 80, 20)
 			press(t, h, "enter")
-			press(t, h, "m")
+			press(t, h, "M")
 			what, err := failed(press(t, h, "y"))
 			uitest.CheckToast(t, f, "merge #142", "eggzec/gh-tui#142", uitest.Toast(what, err))
 		})
@@ -457,7 +457,7 @@ func TestModalFailureToasts(t *testing.T) {
 			svc := newFakeService()
 			svc.sendErr = f.Err
 			h := started(t, svc, 80, 20)
-			press(t, h, "x")
+			press(t, h, "X")
 			what, err := failed(press(t, h, "y"))
 			uitest.CheckToast(t, f, "close #142", "eggzec/gh-tui#142", uitest.Toast(what, err))
 		})
@@ -505,9 +505,9 @@ func TestOwnerKeyInModalOffForApps(t *testing.T) {
 	h = started(t, newFakeService(), 80, 20)
 	press(t, h, "enter")
 	m = h.modal()
-	press(t, h, "x")
+	press(t, h, "X")
 	if m.ask == nil {
-		t.Fatal("x didn't ask to close the pull request")
+		t.Fatal("X didn't ask to close the pull request")
 	}
 	for _, msg := range press(t, h, "@") {
 		if _, ok := msg.(ui.OwnerMsg); ok {

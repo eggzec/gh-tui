@@ -65,7 +65,7 @@ func BenchmarkViewModalAsking(b *testing.B) {
 	svc := newFakeService(sampleIssues(30))
 	svc.addComments(999, sampleComments(90)...)
 	s := started(b, svc, 120, 40)
-	press(b, s, "down", "enter", "x")
+	press(b, s, "down", "enter", "X")
 	m := s.modal()
 	if m.ask == nil {
 		b.Fatal("close asked nothing")

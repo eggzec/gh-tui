@@ -41,7 +41,7 @@ func BenchmarkView(b *testing.B) {
 	b.Run("modal asking to merge", func(b *testing.B) {
 		s := benchSection(b)
 		press(b, s, "enter")
-		press(b, s, "m")
+		press(b, s, "M")
 		m := s.modal()
 		if m.ask == nil {
 			b.Fatal("merge asked nothing")

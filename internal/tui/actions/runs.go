@@ -91,6 +91,18 @@ func (m *Modal) switchTab(d int) tea.Cmd {
 	return m.setFilter(next.apply(m.filter))
 }
 
+// formFiltered reports whether f has something the filter form set: the
+// tabs set the status and the actor, and a link to a commit the head SHA.
+func formFiltered(f core.RunFilter) bool {
+	return f.Branch != "" || f.Event != "" || f.WorkflowID != 0
+}
+
+// cleared returns f without what the filter form set, keeping the tab it
+// is on and the commit it was opened for.
+func cleared(f core.RunFilter) core.RunFilter {
+	return core.RunFilter{Status: f.Status, Actor: f.Actor, HeadSHA: f.HeadSHA}
+}
+
 // setFilter shows the runs that f selects, from the first.
 func (m *Modal) setFilter(f core.RunFilter) tea.Cmd {
 	if f == m.filter {
@@ -143,6 +155,9 @@ func (m *Modal) newRuns() feed.Model[core.Run] {
 func (m *Modal) emptyText() string {
 	if m.filter == (core.RunFilter{}) {
 		return ui.None("workflow runs")
+	}
+	if formFiltered(m.filter) {
+		return ui.NoMatch("workflow runs", ui.KeyOf(m.opts.icons, m.keys.ClearFilter))
 	}
 	return ui.Press("No workflow runs match the filters.", ui.KeyOf(m.opts.icons, m.keys.Filter), "change them")
 }
