@@ -22,6 +22,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
+	"github.com/eggzec/gh-tui/pkg/syntax"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -62,7 +63,7 @@ type Model struct {
 	// lines are the lines of the content, cleaned and with tabs expanded,
 	// and spans their tokens once the highlighter is done, or nil.
 	lines []string
-	spans [][]span
+	spans [][]syntax.Span
 	// raw is the content as it was given, which the editor gets, and lang
 	// the syntax it was given with, if any. It costs no memory of its own
 	// unless the content needed cleaning, since then lines are slices of

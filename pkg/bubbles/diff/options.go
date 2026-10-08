@@ -19,10 +19,16 @@ type settings struct {
 	styles  Styles
 	focused bool
 	tabs    int
+
+	highlightLimit int
 }
 
 // DefaultTabWidth is the width of a tab stop in the lines of a diff.
 const DefaultTabWidth = 4
+
+// DefaultHighlightLimit is the size in bytes of the text of a file above
+// which the file is shown as plain text.
+const DefaultHighlightLimit = 512 << 10
 
 func defaultSettings() settings {
 	return settings{
@@ -30,6 +36,8 @@ func defaultSettings() settings {
 		keyMap: NewKeyMap(unbound),
 		styles: DefaultStyles(true),
 		tabs:   DefaultTabWidth,
+
+		highlightLimit: DefaultHighlightLimit,
 	}
 }
 
@@ -78,4 +86,10 @@ func WithContext(ctx context.Context) Option {
 // WithTabWidth sets the width of a tab stop. The default is [DefaultTabWidth].
 func WithTabWidth(n int) Option {
 	return func(s *settings) { s.tabs = max(n, 1) }
+}
+
+// WithHighlightLimit sets the size in bytes of the text of a file above
+// which it is shown as plain text. Zero or less turns highlighting off.
+func WithHighlightLimit(bytes int) Option {
+	return func(s *settings) { s.highlightLimit = bytes }
 }

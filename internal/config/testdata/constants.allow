@@ -143,8 +143,9 @@ pkg/bubbles/graph/options.go:DefaultMaxLanes  keep: a bubble's own default, a la
 pkg/bubbles/logview/options.go:DefaultTabWidth  keep: a bubble's own default, as terminals set tabs
 pkg/bubbles/diff/options.go:DefaultTabWidth  keep: a bubble's own default, a layout measure
 pkg/bubbles/pager/options.go:DefaultTabWidth  keep: a bubble's own default, a layout measure
+pkg/bubbles/diff/options.go:DefaultHighlightLimit  keep: a bubble's own default, a bound on highlighting
 pkg/bubbles/pager/options.go:DefaultHighlightLimit  keep: a bubble's own default, a bound on highlighting
-pkg/bubbles/pager/highlight.go:lexLimit  keep: a bound on highlighting
+pkg/syntax/spans.go:LexLimit  keep: a bound on highlighting
 pkg/bubbles/pager/editor.go:staleAfter  keep: a safety mechanism, when an editor's temporary file counts as abandoned
 pkg/bubbles/picker/model.go:DefaultDebounce  keep: the debounce of typing, a feel constant
 pkg/bubbles/tree/options.go:DefaultExpandAllDepth  keep: a bubble's own default, a safety bound on expand-all

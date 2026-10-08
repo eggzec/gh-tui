@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"image/color"
+
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/spinner"
 	"charm.land/lipgloss/v2"
@@ -8,6 +10,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/pkg/bubbles/calendar"
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
+	"github.com/eggzec/gh-tui/pkg/bubbles/diff"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/finder"
@@ -184,6 +187,56 @@ func (t Theme) Pager(ic Icons) pager.Styles {
 	s.Prompt = s.Prompt.Foreground(lipgloss.Color(t.Palette.Accent))
 	s.Cursor = s.Cursor.Foreground(lipgloss.Color(t.Palette.Accent))
 	return s
+}
+
+// Diff returns the styles of a diff view, with the cursor, the fold marks,
+// the rename arrow and the ellipsis of ic. The markers of added and deleted
+// lines take the palette's success and error colors, and a faint mix of
+// each with the background tints the highlighted code of those lines. The
+// syntax colors keep the pager's.
+func (t Theme) Diff(ic Icons) diff.Styles {
+	s := diff.DefaultStyles(t.Dark)
+	s.Syntax = pager.DefaultStyles(t.Dark).Syntax
+	s.CursorGlyph, s.FoldOpen, s.FoldClosed = ic.Cursor, ic.Unfolded, ic.Folded
+	s.ErrorGlyph, s.RenameArrow = ic.Error, ic.Arrow
+	s.Separator, s.Ellipsis = ic.Separator, ic.Ellipsis
+	c := lipgloss.Color
+	p := t.Palette
+	s.Cursor = s.Cursor.Foreground(c(p.Accent))
+	s.BlurredCursor = s.BlurredCursor.Foreground(c(p.Subtle))
+	s.FileHeader = s.FileHeader.Foreground(c(p.Foreground))
+	s.HunkHeader = s.HunkHeader.Foreground(c(p.Accent))
+	s.Added = s.Added.Foreground(c(p.Success))
+	s.Deleted = s.Deleted.Foreground(c(p.Error))
+	s.Context = s.Context.Foreground(c(p.Foreground))
+	s.ContextText = s.ContextText.Foreground(c(p.Foreground))
+	s.AddedText = s.AddedText.Foreground(c(p.Foreground)).Background(t.tint(p.Success))
+	s.DeletedText = s.DeletedText.Foreground(c(p.Foreground)).Background(t.tint(p.Error))
+	s.NoNewline = s.NoNewline.Foreground(c(p.Subtle))
+	s.Note = s.Note.Foreground(c(p.Muted))
+	s.LineNumber = s.LineNumber.Foreground(c(p.Subtle))
+	s.Status = s.Status.Foreground(c(p.Muted))
+	s.Loading = s.Loading.Foreground(c(p.Muted))
+	s.Empty = s.Empty.Foreground(c(p.Muted))
+	s.Error = s.Error.Foreground(c(p.Error))
+	s.Hint = s.Hint.Foreground(c(p.Subtle))
+	return s
+}
+
+// tint returns a faint version of the color named name, to put behind text:
+// a mix of it with the usual background of a dark or a light terminal. The
+// palette has no background of its own to mix with.
+func (t Theme) tint(name string) color.Color {
+	const share = 0.16
+	bg := [3]float64{0x1a, 0x1b, 0x26}
+	if !t.Dark {
+		bg = [3]float64{0xff, 0xff, 0xff}
+	}
+	r, g, b, _ := lipgloss.Color(name).RGBA()
+	mix := func(c uint32, bg float64) uint8 {
+		return uint8(bg + (float64(c>>8)-bg)*share + 0.5)
+	}
+	return color.RGBA{R: mix(r, bg[0]), G: mix(g, bg[1]), B: mix(b, bg[2]), A: 0xff}
 }
 
 // LogView returns the styles of a job log, with the cursor, the fold

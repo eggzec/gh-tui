@@ -416,7 +416,7 @@ func TestHighlightSyntax(t *testing.T) {
 	if len(m.spans) != m.Lines() {
 		t.Fatalf("%d lines of tokens for %d lines", len(m.spans), m.Lines())
 	}
-	if got := m.spans[1][0].typ; got != chroma.GenericDeleted {
+	if got := m.spans[1][0].Type; got != chroma.GenericDeleted {
 		t.Errorf("the removed line is %v, want %v", got, chroma.GenericDeleted)
 	}
 	if cmd := m.SetContentSyntax("main.go", "no-such-syntax", patch); cmd != nil && cmd() != nil {

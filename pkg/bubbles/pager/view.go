@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/pkg/bubbles/errline"
+	"github.com/eggzec/gh-tui/pkg/syntax"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -201,11 +202,11 @@ func (m Model) writeSpan(b *strings.Builder, i, a, e int) {
 		return
 	}
 	s := m.lines[i]
-	var spans []span
+	var spans []syntax.Span
 	if i < len(m.spans) {
 		spans = m.spans[i]
 	}
-	k, _ := slices.BinarySearchFunc(spans, a+1, func(x span, pos int) int { return x.end - pos })
+	k, _ := slices.BinarySearchFunc(spans, a+1, func(x syntax.Span, pos int) int { return x.End - pos })
 	matches, first, _ := m.lineHits(i)
 	cur := -1
 	if m.search.cur >= 0 && i == m.search.curLine {
@@ -214,11 +215,11 @@ func (m Model) writeSpan(b *strings.Builder, i, a, e int) {
 	mi := 0
 	for pos := a; pos < e; {
 		next, p := e, m.esc.text
-		for k < len(spans) && spans[k].end <= pos {
+		for k < len(spans) && spans[k].End <= pos {
 			k++
 		}
 		if k < len(spans) {
-			next, p = min(next, spans[k].end), m.esc.token(spans[k].typ)
+			next, p = min(next, spans[k].End), m.esc.token(spans[k].Type)
 		}
 		for mi < len(matches) && matches[mi][1] <= pos {
 			mi++

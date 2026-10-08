@@ -51,6 +51,9 @@ type Model struct {
 	// the layout is, so that they cannot disagree on what was fetched.
 	pg *paging
 
+	// hl holds the tokens of the files, shared as well.
+	hl *highlights
+
 	// cursor is the row of the cursor, top the first row of the window
 	// (or, when it is inside a file, the row the file's header stands in
 	// for), and left the cells scrolled sideways.
@@ -74,6 +77,7 @@ func New(fetch Fetch, opts ...Option) Model {
 		id:       int(lastID.Add(1)),
 		fetch:    fetch,
 		pg:       &paging{},
+		hl:       newHighlights(),
 	}
 	for _, o := range opts {
 		o(&m.settings)

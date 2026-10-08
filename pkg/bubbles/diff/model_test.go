@@ -109,11 +109,11 @@ func TestSidewaysScroll(t *testing.T) {
 	long := strings.Repeat("0123456789", 12) + "<END>"
 	src := &source{size: 5, files: []File{{Path: "a.go", Status: StatusModified, Additions: 1, Patch: "@@ -99998,0 +99999 @@\n+" + long}}}
 	m := keys(t, load(t, src, WithSize(40, 6)), "down", "down")
-	if v := m.View(); !strings.Contains(v, "+0123456789") {
+	if v := ansi.Strip(m.View()); !strings.Contains(v, "+0123456789") {
 		t.Fatalf("line does not start at its start:\n%s", v)
 	}
 	m = keys(t, m, "l")
-	if v := m.View(); !strings.Contains(v, "+89012345") {
+	if v := ansi.Strip(m.View()); !strings.Contains(v, "+89012345") {
 		t.Fatalf("one step right did not scroll 8 cells:\n%s", v)
 	}
 	for range 40 {
