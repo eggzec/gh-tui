@@ -60,6 +60,7 @@ internal/service/history/service.go:maxPageSize  keep: an API limit
 internal/service/issues/read.go:maxPageSize  keep: an API limit
 internal/service/notifications/list.go:maxPageSize  keep: an API limit
 internal/service/pulls/service.go:maxPageSize  keep: an API limit
+internal/service/refs/service.go:maxPageSize  keep: an API limit
 internal/service/pulls/confirm.go:confirmFor  keep: a mechanism, how long a change waits for a full read to confirm it
 internal/service/repos/repos.go:maxPageSize  keep: an API limit
 internal/service/search/search.go:maxPageSize  keep: an API limit

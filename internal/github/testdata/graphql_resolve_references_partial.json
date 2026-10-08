@@ -1,0 +1,85 @@
+{
+  "data": {
+    "rateLimit": {
+      "cost": 1,
+      "limit": 5000,
+      "remaining": 4999,
+      "used": 1,
+      "resetAt": "2026-10-08T19:08:00Z"
+    },
+    "r0": {
+      "issueOrPullRequest": {
+        "__typename": "Issue",
+        "number": 12,
+        "title": "Login loops on GHES",
+        "url": "https://github.com/eggzec/gh-tui/issues/12",
+        "issueState": "CLOSED",
+        "stateReason": "NOT_PLANNED",
+        "repository": {
+          "name": "gh-tui",
+          "owner": {
+            "login": "eggzec"
+          }
+        }
+      }
+    },
+    "r1": null,
+    "r2": {
+      "issueOrPullRequest": null
+    },
+    "r3": {
+      "issueOrPullRequest": {
+        "__typename": "PullRequest",
+        "number": 233,
+        "title": "Page the timeline",
+        "url": "https://github.com/cli/go-gh/pull/233",
+        "isDraft": true,
+        "pullState": "OPEN",
+        "repository": {
+          "name": "go-gh",
+          "owner": {
+            "login": "cli"
+          }
+        }
+      }
+    },
+    "r4": null,
+    "r5": null
+  },
+  "errors": [
+    {
+      "type": "NOT_FOUND",
+      "path": [
+        "r1"
+      ],
+      "locations": [
+        {
+          "line": 4,
+          "column": 3
+        }
+      ],
+      "message": "Could not resolve to a Repository with the name 'octo/secret'."
+    },
+    {
+      "type": "FORBIDDEN",
+      "path": [
+        "r2",
+        "issueOrPullRequest"
+      ],
+      "locations": [
+        {
+          "line": 5,
+          "column": 3
+        }
+      ],
+      "message": "Resource protected by organization SAML enforcement."
+    },
+    {
+      "type": "SOMETHING_ELSE",
+      "path": [
+        "r4"
+      ],
+      "message": "Odd\nthing\u001b[31m happened"
+    }
+  ]
+}

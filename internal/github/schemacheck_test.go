@@ -69,6 +69,11 @@ var graphqlOperations = map[string]string{
 	"userStarsQuery":           userStarsQuery,
 	"ownerSponsorsQuery":       ownerSponsorsQuery,
 	"ownerSponsoringQuery":     ownerSponsoringQuery,
+	"pullReferencesQuery":      pullReferencesQuery,
+	"issueReferencesQuery":     issueReferencesQuery,
+	"pullMentionsQuery":        pullMentionsQuery,
+	"issueMentionsQuery":       issueMentionsQuery,
+	"resolveReferencesQuery":   resolveReferencesQuery,
 }
 
 // A field of a REST answer tagged schema:"optional" may be absent, as on

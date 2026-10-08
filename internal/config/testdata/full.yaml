@@ -47,6 +47,7 @@ cache:
     search: 40s
     code_search: 2m
     releases: 3h
+    references: 6m
     profile: 4h
     contributions: 12h
     people: 2h
@@ -148,6 +149,7 @@ page_size:
   search: 10
   waiting_on_you: 15
   people: 40
+  references: 50
 
 commands:
   history: 500
