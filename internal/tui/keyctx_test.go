@@ -144,14 +144,17 @@ func (keyPulls) CurrentGet(core.RepoRef, int) bool { return true }
 func (keyPulls) CurrentComments(pullsvc.CommentsQuery) bool { return true }
 func (keyPulls) Invalidate(core.RepoRef)                    {}
 
+// keyIssueRows are the issues the list serves: one, unless a test sets more.
+var keyIssueRows = []core.Issue{keyIssue}
+
 // keyIssues serves one open issue and its detail.
 type keyIssues struct{ issues.Service }
 
 func (keyIssues) List(context.Context, issuesvc.ListQuery) (core.Page[core.Issue], error) {
-	return core.Page[core.Issue]{Items: []core.Issue{keyIssue}}, nil
+	return core.Page[core.Issue]{Items: keyIssueRows}, nil
 }
 func (keyIssues) CachedList(issuesvc.ListQuery) (core.Page[core.Issue], bool) {
-	return core.Page[core.Issue]{Items: []core.Issue{keyIssue}}, true
+	return core.Page[core.Issue]{Items: keyIssueRows}, true
 }
 func (keyIssues) FreshList(issuesvc.ListQuery) bool              { return true }
 func (keyIssues) CachedGet(core.RepoRef, int) (core.Issue, bool) { return keyIssue, true }

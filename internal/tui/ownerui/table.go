@@ -254,7 +254,7 @@ func (t *Table) Remeasure(icons ui.Icons) bool {
 	}
 	m := t.measure
 	for i := range n {
-		if r, ok := t.Feed.Item(i); ok {
+		if r, ok := t.Feed.LoadedItem(i); ok {
 			m.add(r, icons, t.FullNames)
 		}
 	}

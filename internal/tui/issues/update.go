@@ -99,7 +99,7 @@ func (s *Section) scanLabels() {
 		if room == full {
 			break
 		}
-		it, ok := s.list.Item(i)
+		it, ok := s.list.LoadedItem(i)
 		if !ok || len(it.Labels) == 0 {
 			continue
 		}

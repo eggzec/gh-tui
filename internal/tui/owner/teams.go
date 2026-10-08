@@ -124,7 +124,7 @@ func (l *teamList) remeasure(*Section) bool {
 	}
 	name, members, secret := l.name, l.members, l.secret
 	for i := range n {
-		if t, ok := l.Feed.Item(i); ok {
+		if t, ok := l.Feed.LoadedItem(i); ok {
 			name = max(name, ansi.StringWidth(ownerui.CleanLine(t.Name)))
 			members = max(members, len(ownerui.Count(t.Members)))
 			secret = secret || t.Secret

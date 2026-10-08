@@ -10,13 +10,13 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 )
 
-// A list's find has no key by default, but a user can bind one: the key
+// A user can bind a list's find to another key than the default: the key
 // opens a prompt that takes every key, q and : and digits too, enter finds
 // and esc closes it.
-func TestUserBoundFindTypesInThePrompt(t *testing.T) {
+func TestReboundFindKeyTypesInThePrompt(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysAppWith(t, true, func(cfg *config.Config) {
-			cfg.Keys.Set("issues.find", []string{"/"})
+			cfg.Keys.Set("issues.find", []string{"ctrl+g"})
 		})
 		press := func(name string) {
 			t.Helper()
@@ -35,7 +35,7 @@ func TestUserBoundFindTypesInThePrompt(t *testing.T) {
 		}
 		screen := func() string { return ansi.Strip(m.View().Content) }
 
-		press("/")
+		press("ctrl+g")
 		if got := layerNames(m.keyLayers()); !strings.Contains(got, "search_prompt (types)") {
 			t.Fatalf("after /, the keys are %q, want the search prompt's", got)
 		}
@@ -57,7 +57,7 @@ func TestUserBoundFindTypesInThePrompt(t *testing.T) {
 			t.Errorf("a find of text no issue holds doesn't say so:\n%s", got)
 		}
 
-		press("/")
+		press("ctrl+g")
 		for _, r := range "COLLIDE" {
 			press(string(r))
 		}
@@ -65,7 +65,7 @@ func TestUserBoundFindTypesInThePrompt(t *testing.T) {
 		if got := screen(); !strings.Contains(got, "Pattern not found") {
 			t.Errorf("a capital makes the find match case, but it found:\n%s", got)
 		}
-		press("/")
+		press("ctrl+g")
 		for _, r := range "collide" {
 			press(string(r))
 		}
@@ -74,7 +74,7 @@ func TestUserBoundFindTypesInThePrompt(t *testing.T) {
 			t.Errorf("the find of the issue's title doesn't show its match:\n%s", got)
 		}
 
-		press("/")
+		press("ctrl+g")
 		press("esc")
 		if got := layerNames(m.keyLayers()); strings.Contains(got, "search_prompt") {
 			t.Errorf("after esc, the keys are %q, want the prompt closed", got)

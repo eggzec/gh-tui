@@ -481,6 +481,25 @@ func TestMarkAllReadUntilTheNewestSeen(t *testing.T) {
 	}
 }
 
+// A quick filter hides rows, not threads: mark all read goes by the newest
+// of all the loaded threads, and asks about every unread one.
+func TestMarkAllReadIgnoresTheQuickFilter(t *testing.T) {
+	svc := newFake(inbox()...)
+	s := newSection(t, svc, 80, 12)
+	press(t, s, "&", "b", "a", "d", "g", "e", "enter")
+	if got := rows(s); len(got) != 1 {
+		t.Fatalf("the filter shows %d rows, want 1: %q", len(got), got)
+	}
+	press(t, s, "M", "y")
+	svc.mu.Lock()
+	until := svc.until
+	svc.mu.Unlock()
+	// Thread 6 is the newest of all, though the filter hides it.
+	if want := now.Add(-30 * time.Second); !until.Equal(want) {
+		t.Errorf("marked until %v, want %v, the newest thread loaded", until, want)
+	}
+}
+
 func isDone(m tea.Msg) bool { _, ok := m.(ui.DoneMsg); return ok }
 
 func TestMarksAskAgain(t *testing.T) {

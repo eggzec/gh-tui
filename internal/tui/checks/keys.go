@@ -9,7 +9,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/jobview"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/logview"
@@ -65,7 +64,7 @@ type KeyMap struct {
 
 func newKeyMap(keys config.Keymap) KeyMap {
 	list, log, notes := ui.In(keys, ctxList), ui.In(keys, ctxLog), ui.In(keys, ctxAnnotations)
-	fk := feed.NewKeyMap(list)
+	fk := ui.NewMoveKeys(list)
 	var dk detailKeys
 	keymap.Fill(&dk, ui.In(keys, ctxDetail))
 	k := KeyMap{

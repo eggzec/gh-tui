@@ -58,7 +58,8 @@ type KeyMap struct {
 
 	// Runs and Jobs move through the runs and the jobs, and Log through the
 	// log. notesUp and notesDown move through the annotations.
-	Runs, Jobs feed.KeyMap
+	Runs feed.KeyMap
+	Jobs ui.MoveKeys
 	// search are the keys of the prompt of the runs' find and filter.
 	search             cmdline.KeyMap
 	Log                logview.KeyMap
@@ -106,7 +107,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 	}
 	k.Jump = ui.Jump(k.Panes[:]...)
 	k.notesUp, k.notesDown = notes.Binding("up", "up"), notes.Binding("down", "down")
-	k.Runs, k.Jobs = feed.NewKeyMap(runs), feed.NewKeyMap(jobs)
+	k.Runs, k.Jobs = feed.NewKeyMap(runs), ui.NewMoveKeys(jobs)
 	k.search = ui.SearchPromptKeys(keys)
 
 	// The log folds with enter, and closes with the back key, which
