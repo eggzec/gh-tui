@@ -1,6 +1,7 @@
 package markdown
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -205,5 +206,53 @@ func TestSoftLineBreaksKept(t *testing.T) {
 	want := []string{"OS: linux", "Version: 0.3.1", "Shell: bash", "Second paragraph", "with two lines."}
 	if strings.Join(lines, "\n") != strings.Join(want, "\n") {
 		t.Errorf("rendered lines %q, want %q", lines, want)
+	}
+}
+
+func TestRenderWrapsCodeSpansWhole(t *testing.T) {
+	tests := []struct {
+		name, src string
+		width     int
+		want      []string
+	}{
+		{"fits on the next line", "aaaa bbbb `foo bar baz` cccc", 20, []string{"aaaa bbbb", " foo bar baz  cccc"}},
+		{"wider than a line breaks at its spaces", "aaaa `foo bar baz qux quux` cccc", 10, []string{"aaaa  foo", "bar baz", "qux quux ", "cccc"}},
+		{"spaces kept", "x `a  b` y", 40, []string{"x  a  b  y"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			out := ansi.Strip(New(DefaultStyle(true)).Render(tt.src, tt.width))
+			var got []string
+			for l := range strings.SplitSeq(out, "\n") {
+				if l = strings.ReplaceAll(strings.TrimRight(l, " "), " ", " "); l != "" {
+					got = append(got, l)
+				}
+			}
+			if !slices.Equal(got, tt.want) {
+				t.Errorf("lines = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRenderCodeSpanBindingLeavesMarkdownAlone(t *testing.T) {
+	tests := []struct{ name, src, want string }{
+		{"escaped backticks", "pre \\`2 * 3 * 4\\` post", "2 * 3 * 4"},
+		{"after a span over two lines", "`a\nb` 2 * 3 `x` 4 * 5 y* z", "y* z"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			out := strings.Join(strings.Fields(ansi.Strip(New(DefaultStyle(true)).Render(tt.src, 400))), " ")
+			if !strings.Contains(out, tt.want) {
+				t.Errorf("render of %.60q = %q, want %q kept", tt.src, out, tt.want)
+			}
+		})
+	}
+}
+
+func TestRenderReplacesTheSpanSpace(t *testing.T) {
+	out := ansi.Strip(New(DefaultStyle(true)).Render("a"+string(spanSpace)+"b", 40))
+	if strings.Contains(out, "a b") || !strings.Contains(out, "a\ufffdb") {
+		t.Errorf("render = %q, want the character replaced, not shown as a space", out)
 	}
 }

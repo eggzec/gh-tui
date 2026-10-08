@@ -286,7 +286,7 @@ func Images(src string) int {
 		return 0
 	}
 	n := 0
-	scan(src, "", Glyphs{}.orDefault(), func(line string, text bool) {
+	scan(src, "", Glyphs{}.orDefault(), 0, func(line string, text bool) {
 		if _, _, ok := alone(line, true); ok && text {
 			n++
 		}
@@ -308,9 +308,13 @@ func (r *Renderer) renderWith(src string, width int, open []int, pics bool) (ren
 	// text could pass for a quote.
 	g := r.glyphs
 	src = strings.ReplaceAll(src, g.quoteToken(), g.Quote)
+	// So may the character that holds the place of a space in a code span,
+	// and it goes from the whole source, since any line may hold a span, and
+	// unspan would turn the text's own into spaces.
+	src = strings.ReplaceAll(src, string(spanSpace), "\uFFFD")
 	b := newBudget()
 	var parts []part
-	text := prepare(src, open, r.hint, g, func(i int, blk Block, shown bool) string {
+	text := prepare(src, open, r.hint, g, width, func(i int, blk Block, shown bool) string {
 		// The marks are indented as the fence is, so they stay in the
 		// block's list item.
 		indent := blk.indent()
@@ -345,18 +349,18 @@ func (r *Renderer) renderWith(src string, width int, open []int, pics bool) (ren
 			lines = sp.lines
 		} else {
 			sp = spliced{}
-			lines, err = r.lines(prepare(src, open, r.hint, g, r.plain, nil, false), width)
+			lines, err = r.lines(prepare(src, open, r.hint, g, width, r.plain, nil, false), width)
 		}
 	}
 	if err != nil {
 		// Showing the source beats showing nothing.
-		text = prepare(src, open, r.hint, g, r.plain, nil, false)
-		lines = strings.Split(xansi.Wrap(text, width, ""), "\n")
+		text = prepare(src, open, r.hint, g, width, r.plain, nil, false)
+		lines = strings.Split(unspan(xansi.Wrap(text, width, "")), "\n")
 		sp = spliced{}
 	}
 	lines, front := trimBlank(lines)
 	for i, l := range lines {
-		lines[i] = safe(tidy(quoteBars(l, g)))
+		lines[i] = safe(tidy(quoteBars(unspan(l), g)))
 	}
 	if g.ASCII {
 		asciiLines(lines, g, func(i int) bool { return sp.code[i+front] })
