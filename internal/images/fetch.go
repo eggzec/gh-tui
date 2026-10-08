@@ -76,10 +76,15 @@ type Fetcher struct {
 
 	fetches, decodes chan struct{}
 
-	mu      sync.Mutex
-	mem     *memory
-	failed  *failures
+	mu     sync.Mutex
+	mem    *memory
+	failed *failures
+	// timeout bounds a shared fetch or read.
+	timeout time.Duration
 	flights map[string]*flight
+	// reads are the reads of bytes in progress, by address, which the
+	// flights of one image at several boxes share.
+	reads map[string]*read
 }
 
 // New returns a fetcher of the images of the GitHub whose web host is
@@ -88,11 +93,13 @@ func New(web string, opts ...Option) *Fetcher {
 	f := &Fetcher{
 		hosts:   newHosts(web),
 		now:     time.Now,
+		timeout: flightTimeout,
 		fetches: make(chan struct{}, maxFetches),
 		decodes: make(chan struct{}, maxDecodes),
 		mem:     newMemory(memoryBytes),
 		failed:  newFailures(),
 		flights: make(map[string]*flight),
+		reads:   make(map[string]*read),
 	}
 	for _, opt := range opts {
 		opt(f)
@@ -146,7 +153,7 @@ func (f *Fetcher) join(ctx context.Context, key string, src Source, box Box) (Im
 	if !ok {
 		// The caller's values, such as its trace, but not its deadline
 		// or cancellation.
-		fctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), flightTimeout)
+		fctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), f.timeout)
 		fl = &flight{done: make(chan struct{}), cancel: cancel}
 		f.flights[key] = fl
 		go f.fly(fctx, fl, key, src, box)
@@ -176,7 +183,7 @@ func (f *Fetcher) join(ctx context.Context, key string, src Source, box Box) (Im
 func (f *Fetcher) fly(ctx context.Context, fl *flight, key string, src Source, box Box) {
 	defer fl.cancel()
 	var img Image
-	data, keep, err := f.data(ctx, src)
+	data, keep, err := f.share(ctx, src)
 	if err == nil {
 		img, err = f.decode(ctx, data, box)
 		if keep && f.store != nil && (errors.Is(err, ErrFormat) || errors.Is(err, ErrTooLarge)) {
@@ -186,6 +193,10 @@ func (f *Fetcher) fly(ctx context.Context, fl *flight, key string, src Source, b
 			f.store.Delete(kindMeta, name)
 		}
 	}
+	// A read that other flights share runs to the deadline of the flight
+	// that started it, which a later flight may not have reached: its
+	// failing for that says nothing of the image, so it may be tried again.
+	sharedTimeout := errors.Is(err, context.DeadlineExceeded) && ctx.Err() == nil
 	if err != nil {
 		err = scrubbed{err}
 	}
@@ -195,7 +206,7 @@ func (f *Fetcher) fly(ctx context.Context, fl *flight, key string, src Source, b
 		f.mem.put(key, img)
 		f.failed.forget(src.URL)
 	case err == nil:
-	case !errors.Is(err, ErrOffline) && ctx.Err() == nil:
+	case !errors.Is(err, ErrOffline) && !sharedTimeout && ctx.Err() == nil:
 		f.failed.add(src.URL, err, f.now())
 	}
 	if f.flights[key] == fl {
@@ -204,6 +215,60 @@ func (f *Fetcher) fly(ctx context.Context, fl *flight, key string, src Source, b
 	fl.img, fl.err = img, err
 	f.mu.Unlock()
 	close(fl.done)
+}
+
+// read is the read of the bytes of an image that the flights for it share,
+// as when the same image is wanted at two sizes, such as while a text
+// column widens, so that it is downloaded once.
+type read struct {
+	done    chan struct{}
+	data    []byte
+	keep    bool
+	err     error
+	waiters int
+	cancel  context.CancelFunc
+}
+
+// share returns the bytes of src as data does, sharing the read with any
+// other flight for the same image: it stops only when every one has
+// gone.
+func (f *Fetcher) share(ctx context.Context, src Source) (data []byte, keep bool, err error) {
+	key := src.URL + "\x00" + strconv.Itoa(src.Index) + "\x00" + strconv.FormatBool(src.Private)
+	f.mu.Lock()
+	r, ok := f.reads[key]
+	if !ok {
+		rctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), f.timeout)
+		r = &read{done: make(chan struct{}), cancel: cancel}
+		f.reads[key] = r
+		go func() {
+			defer cancel()
+			d, k, e := f.data(rctx, src)
+			f.mu.Lock()
+			if f.reads[key] == r {
+				delete(f.reads, key)
+			}
+			r.data, r.keep, r.err = d, k, e
+			f.mu.Unlock()
+			close(r.done)
+		}()
+	}
+	r.waiters++
+	f.mu.Unlock()
+	select {
+	case <-r.done:
+		return r.data, r.keep, r.err
+	case <-ctx.Done():
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		r.waiters--
+		if r.waiters == 0 {
+			r.cancel()
+			if f.reads[key] == r {
+				delete(f.reads, key)
+			}
+		}
+		return nil, false, ctx.Err()
+	}
 }
 
 // Decode makes data, an image read some other way, such as a file of a

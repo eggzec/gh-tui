@@ -931,3 +931,88 @@ func TestDecodePanicFailsFetch(t *testing.T) {
 		t.Error("kept bytes that panicked stay kept")
 	}
 }
+
+// The same image wanted at two sizes at once, as while a text column
+// widens, is downloaded once.
+func TestOneDownloadForTwoBoxes(t *testing.T) {
+	w, tr := newWeb(t)
+	arrived := make(chan struct{}, 4)
+	release := make(chan struct{})
+	w.handle("avatars.githubusercontent.com", func(rw http.ResponseWriter, _ *http.Request) {
+		arrived <- struct{}{}
+		<-release
+		_, _ = rw.Write(pngOf(t, 8, 8))
+	})
+	f := New("github.com", WithTransport(tr))
+	errs := make(chan error, 2)
+	go func() {
+		_, err := f.Fetch(t.Context(), Source{URL: avatar}, Box{Cols: 10, Rows: 5})
+		errs <- err
+	}()
+	<-arrived
+	go func() {
+		_, err := f.Fetch(t.Context(), Source{URL: avatar}, Box{Cols: 9, Rows: 5})
+		errs <- err
+	}()
+	// Both flights are waiting on the one download before it ends.
+	for !f.sharing(2) {
+		time.Sleep(time.Millisecond)
+	}
+	close(release)
+	for range 2 {
+		if err := <-errs; err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n := w.hits("avatars.githubusercontent.com"); n != 1 {
+		t.Errorf("%d downloads, want 1 shared", n)
+	}
+}
+
+// sharing reports whether n flights are waiting on one shared download.
+func (f *Fetcher) sharing(n int) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, r := range f.reads {
+		if r.waiters == n {
+			return true
+		}
+	}
+	return false
+}
+
+// A flight that joins a download another began, which ends at the
+// deadline of that one's flight, doesn't leave the image marked failed
+// while its own deadline is still to come.
+func TestSharedDownloadTimeoutIsNoFailure(t *testing.T) {
+	w, tr := newWeb(t)
+	arrived := make(chan struct{}, 4)
+	release := make(chan struct{})
+	t.Cleanup(func() { close(release) })
+	w.handle("avatars.githubusercontent.com", func(_ http.ResponseWriter, _ *http.Request) {
+		arrived <- struct{}{}
+		<-release
+	})
+	f := New("github.com", WithTransport(tr))
+	f.timeout = 400 * time.Millisecond
+	first := make(chan error, 1)
+	go func() {
+		_, err := f.Fetch(t.Context(), Source{URL: avatar}, Box{Cols: 10, Rows: 5})
+		first <- err
+	}()
+	<-arrived
+	time.Sleep(250 * time.Millisecond)
+	second := make(chan error, 1)
+	go func() {
+		_, err := f.Fetch(t.Context(), Source{URL: avatar}, Box{Cols: 9, Rows: 5})
+		second <- err
+	}()
+	// The download ends at 400ms, the second flight's own deadline at 650ms.
+	if err := <-second; err == nil {
+		t.Fatal("the fetch of a download that timed out succeeded")
+	}
+	<-first
+	if err := f.failed.get(avatar, f.now()); err != nil {
+		t.Errorf("the image is marked failed with %v, want it tried again", err)
+	}
+}
