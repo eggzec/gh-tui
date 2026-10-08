@@ -8,7 +8,8 @@
 // follows the job while it runs; the failed jobs of its run can be re-run.
 // Any other check shows the title, summary and text its app reported, and a
 // commit status its description. While a check is pending, the sync engine
-// polls the checks, until they are all done or the step closes.
+// polls the checks, until they are all done, the step is hidden, or it
+// closes.
 package checks
 
 import (
@@ -122,6 +123,14 @@ func WithFollow(f Follow) Option {
 // opened from an annotation reopens when it closes.
 func WithReturn(m ui.Modal) Option {
 	return func(o *options) { o.ret = m }
+}
+
+// WithTick sets how often the timers of what runs move on. Zero stops
+// them, which a parent's tests need, as their time doesn't pass; it is
+// exported for them, since they live in other packages. The default is a
+// second.
+func WithTick(d time.Duration) Option {
+	return func(o *options) { o.tick = d }
 }
 
 // WithClock sets the clock that the times of checks count to. The default
@@ -306,8 +315,8 @@ func (s *Step) loadingAny() bool {
 	return s.loading && !s.loaded || s.mode == jobMode && s.job.loading
 }
 
-// CloseMsg asks the parent to close the step with ID, which the back key
-// sends from the checks.
+// CloseMsg asks the parent to close the modal the step with ID is in, which
+// the dismiss key sends once there is nothing in the step left to dismiss.
 type CloseMsg struct {
 	ID int64
 }

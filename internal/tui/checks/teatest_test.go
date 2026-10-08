@@ -70,7 +70,7 @@ func TestProgramDrillsInAndRerunsTheFailedJobs(t *testing.T) {
 	wait(t, job, "the log of the failed job loading")
 	tm.Send(press("R"))
 	tm.Send(press("y"))
-	tm.Send(press("esc"))
+	tm.Send(press("backspace"))
 	tm.Send(press("esc"))
 	final, ok := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(*app)
 	if !ok {

@@ -122,16 +122,17 @@ func (s *Step) press(msg tea.KeyPressMsg) tea.Cmd {
 	}
 	k := s.keys
 	switch {
-	case key.Matches(msg, k.Back):
+	case key.Matches(msg, k.Dismiss):
 		if s.mode == jobMode && s.view.Query() != "" {
-			// The back key clears the search first.
+			// The dismiss key clears the search first.
 			return s.updateView(msg)
 		}
-		if s.mode == listMode {
-			id := s.id
-			return func() tea.Msg { return CloseMsg{ID: id} }
+		id := s.id
+		return func() tea.Msg { return CloseMsg{ID: id} }
+	case key.Matches(msg, k.Back):
+		if s.mode != listMode {
+			s.back()
 		}
-		s.back()
 		return nil
 	case key.Matches(msg, k.paneRerun(s)):
 		if r, ok := s.current(); ok && r.job() {
@@ -358,9 +359,19 @@ func (s *Step) pause() {
 	s.view.Pause()
 }
 
-// Hide stops the polls while another modal is open in place of the one
-// the step is in, until that modal is reopened.
+// Hide stops the polls while the step isn't on view: another modal is open
+// in place of the one it is in, or that modal shows another tab. They start
+// again with [Step.Show], or when the modal is reopened.
 func (s *Step) Hide() { s.pause() }
+
+// Show starts again the polls that [Step.Hide] stopped, and reads what the
+// cache has now. It does nothing while the step isn't hidden.
+func (s *Step) Show() tea.Cmd {
+	if !s.hidden {
+		return nil
+	}
+	return s.resume()
+}
 
 // resume starts again what stopped while the step was hidden, from what
 // the cache has now.

@@ -67,9 +67,12 @@ func TestReadAccessHidesChanges(t *testing.T) {
 			if m := h.modal(); m != nil {
 				km = m.KeyLayers()
 			}
-			for _, desc := range offered(km) {
-				if slices.Contains([]string{"merge", "close", "reopen", "convert to draft"}, desc) {
-					t.Errorf("help offers %q: %v", desc, offered(km))
+			// esc is labelled "close" too, so the change is told by its key.
+			for _, l := range km {
+				for _, b := range l.Bindings {
+					if b.Enabled() && slices.Contains([]string{"merge", "close", "reopen", "convert to draft"}, b.Help().Desc) && !slices.Contains(b.Keys(), "esc") {
+						t.Errorf("help offers %q: %v", b.Help().Desc, offered(km))
+					}
 				}
 			}
 			msgs := press(t, h, tt.keys[last])

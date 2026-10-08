@@ -14,11 +14,11 @@ Pull request
   close | X | X | on
   reopen | O | O | off
   convert to draft | W | W | on
-  back | esc | esc | on
+  close | esc | esc | on
   open | enter | ↵ | off
   checks | C | C | on
-  next state | ] | ] | off
-  previous state | [ | [ | off
+  next tab | ] | ] | on
+  previous tab | [ | [ | on
   clear filters | F | F | off
   refresh | r | r | on
   open in browser | o | o | on

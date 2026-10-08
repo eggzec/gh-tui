@@ -17,7 +17,7 @@ func (m *detailModal) Act(action string) (tea.Cmd, bool) {
 	case ui.ActQuit:
 		return m.close(), true
 	case "owner":
-		if m.checks != nil || m.ask != nil {
+		if m.ask != nil || m.onChecks() && m.checks.TakesKeys() {
 			return nil, false
 		}
 		return m.author(), true

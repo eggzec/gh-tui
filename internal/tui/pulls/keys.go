@@ -36,7 +36,7 @@ type keyMap struct {
 	Close       key.Binding
 	Reopen      key.Binding
 	ToggleDraft key.Binding
-	// Checks shows the checks of a pull request, in a step of its modal.
+	// Checks shows the checks of a pull request, on a tab of its modal.
 	Checks key.Binding
 
 	// confirm answers the question that merge, close and reopen ask.
@@ -105,6 +105,10 @@ func (k keyMap) forModal(keys config.Keymap) keyMap {
 	k.Reopen = modal.Binding("reopen", "reopen")
 	k.ToggleDraft = modal.Binding("draft", "convert to draft")
 	k.Checks = modal.Binding("checks", "checks")
+	// The modal closes on esc, as it does from the list, and its tabs are those of the global keys.
+	k.Back = modal.Binding("global.dismiss", "close")
+	k.NextTab = modal.Binding("global.next_tab", "next tab")
+	k.PrevTab = modal.Binding("global.prev_tab", "previous tab")
 	return k
 }
 

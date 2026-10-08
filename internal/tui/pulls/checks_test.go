@@ -33,6 +33,8 @@ type fakeChecks struct {
 	// job makes the failing check a job of GitHub Actions with a log, so
 	// that it opens into its log and can be re-run.
 	job bool
+	// pending adds a check that is still running, which the step polls.
+	pending bool
 }
 
 // numbers returns the numbers whose checks were read, in order.
@@ -47,10 +49,15 @@ func (f *fakeChecks) value() core.Checks {
 	if f.job {
 		failing.JobID, failing.RunID = 5, 9
 	}
-	return core.Checks{SHA: "abc", Total: 2, Runs: []core.Check{
+	c := core.Checks{SHA: "abc", Total: 2, Runs: []core.Check{
 		failing,
 		{ID: 2, Name: "dco", Status: core.RunCompleted, Conclusion: core.ConclusionSuccess},
 	}}
+	if f.pending {
+		c.Total++
+		c.Runs = append(c.Runs, core.Check{ID: 3, Name: "slow", Status: core.RunInProgress})
+	}
+	return c
 }
 
 func (f *fakeChecks) CachedChecks(q actionssvc.ChecksQuery) (core.Checks, bool) {
@@ -132,22 +139,22 @@ func TestChecksKeyOnARowOpensTheChecks(t *testing.T) {
 	if v := modalText(h); !strings.Contains(v, "Checks ✗ 1 failing, ✓ 1 passed") || !strings.Contains(v, "codecov") {
 		t.Errorf("the modal doesn't show the checks:\n%s", v)
 	}
-	// esc steps back to the detail, whose header counts them too.
-	press(t, h, "esc")
-	if m.checks != nil || h.modal() != m {
-		t.Fatal("esc from the checks didn't step back to the detail")
+	// [ shows the conversation, whose header counts the checks too.
+	press(t, h, "[")
+	if m.tab != conversationTab || h.modal() != m {
+		t.Fatal("[ from the checks didn't show the conversation")
 	}
 	if v := modalText(h); !strings.Contains(v, "CI ✗ 1 failing, ✓ 1 passed · C for details") {
 		t.Errorf("the header doesn't count the checks:\n%s", v)
 	}
 	press(t, h, "C")
-	if m.checks == nil {
-		t.Fatal("C in the detail didn't open the checks")
+	if m.tab != checksTab {
+		t.Fatal("C in the conversation didn't show the checks")
 	}
-	press(t, h, "esc")
+	// esc closes the modal from the checks, at one press.
 	press(t, h, "esc")
 	if h.modal() != nil {
-		t.Error("esc from the detail didn't close the modal")
+		t.Error("esc from the checks didn't close the modal")
 	}
 }
 
@@ -367,8 +374,8 @@ func TestChangeKeysWorkInTheChecks(t *testing.T) {
 	if len(layers) < 2 || layers[0].Context != "pull_modal" {
 		t.Fatalf("layers = %v, want the modal's first", layers)
 	}
-	if got := uitest.Enabled(layers[:1]); !slices.Equal(got, []string{"merge", "close", "convert to draft"}) {
-		t.Errorf("enabled keys of the modal in the checks = %v, want merge, close and draft", got)
+	if got := uitest.Enabled(layers[:1]); !slices.Equal(got, []string{"merge", "close", "convert to draft", "next tab", "previous tab", "author"}) {
+		t.Errorf("enabled keys of the modal in the checks = %v, want the changes, the tabs and the author", got)
 	}
 	// C does nothing while the checks show.
 	if msgs := press(t, h, "C"); len(msgs) != 0 || m.checks == nil {
@@ -417,12 +424,25 @@ func TestChangeKeysInTheChecksOnOptionAndClose(t *testing.T) {
 	if m.ask != nil {
 		t.Error("M asked to merge while the option prompt of the log is open")
 	}
-	press(t, h, "esc")
-	if m.checks.TakesKeys() {
-		t.Fatal("esc left the option prompt open")
-	}
 	press(t, h, "X")
 	if m.ask == nil || !strings.Contains(m.ask.Question, "Close") {
 		t.Fatalf("X in the checks asked %+v, want to close", m.ask)
+	}
+}
+
+// esc clears the option prompt of the log before it closes the modal.
+func TestEscClearsTheLogOptionPromptThenCloses(t *testing.T) {
+	h, m := openedOnAJob(t)
+	press(t, h, "-")
+	if !m.checks.TakesKeys() {
+		t.Fatal("- didn't open the option prompt of the log")
+	}
+	press(t, h, "esc")
+	if h.modal() != m || m.checks.TakesKeys() {
+		t.Fatal("the first esc didn't just close the option prompt")
+	}
+	press(t, h, "esc")
+	if h.modal() != nil {
+		t.Error("the second esc didn't close the modal")
 	}
 }

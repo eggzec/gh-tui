@@ -789,7 +789,7 @@ func newKeysAppWith(t *testing.T, repo bool, edit func(*config.Config)) *Model {
 	v.Token = ui.NewToken(acc, cfg.Keys)
 	layout := Layout{
 		Files: files.New(ctx, keyFiles{}, cfg.Keys, files.WithVoice(v)),
-		Pulls: pulls.New(ctx, keyPulls{}, cfg.Keys, pulls.WithVoice(v),
+		Pulls: pulls.New(ctx, keyPulls{}, cfg.Keys, pulls.WithVoice(v), pulls.WithIcons(ui.NewIcons(cfg.UI.Icons)),
 			pulls.WithChecks(keyActions{}, checks.WithVoice(v))),
 		Issues:        issues.New(ctx, keyIssues{}, cfg.Keys, issues.WithVoice(v)),
 		Notifications: notifications.New(ctx, keyInbox{}, cfg.Keys, notifications.WithVoice(v)),
@@ -911,6 +911,7 @@ func keyContexts() []keyContext {
 		{name: "pull requests: merge", repo: true, steps: []string{"global.pane_2", "pulls.merge"}, context: "confirm", want: "always, confirm"},
 		{name: "pull request", repo: true, steps: []string{"global.pane_2", "global.select"}, after: []string{"pull_conversation.half_page_down"}, context: "pull_conversation", want: "global, pull_modal, pull_conversation"},
 		{name: "pull request: close", repo: true, steps: []string{"global.pane_2", "global.select", "pull_modal.close"}, context: "confirm", want: "always, confirm"},
+		{name: "pull request: checks tab", repo: true, steps: []string{"global.pane_2", "global.select", "pull_modal.checks"}, context: "pull_check_list", want: "global, pull_modal, pull_check_list"},
 		{name: "pull request: checks", repo: true, steps: []string{"global.pane_2", "pulls.checks"}, context: "pull_check_list", want: "global, pull_modal, pull_check_list"},
 		{name: "pull request: job", repo: true, steps: []string{"global.pane_2", "pulls.checks", "global.select"}, after: []string{"pull_check_log.half_page_down", "pull_check_log.right"}, context: "pull_check_log", want: "global, pull_modal, pull_check_log"},
 		{name: "pull request: check detail", repo: true, steps: []string{"global.pane_2", "pulls.checks", "pull_check_list.down", "global.select"}, after: []string{"pull_check_detail.half_page_down", "pull_check_detail.right"}, context: "pull_check_detail", want: "global, pull_modal, pull_check_detail"},
