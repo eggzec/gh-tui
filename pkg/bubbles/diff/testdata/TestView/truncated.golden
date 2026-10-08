@@ -1,0 +1,12 @@
+▌ ▾ huge.json +90000 -4                                     
+      diff too large to show                                
+  ▾ cut.go +5 -1                                            
+  @@ -1,3 +1,3 @@ func f0() {                               
+    1  ctx a0                                               
+    2 -old b0                                               
+    2 +new b0                                               
+    3  ctx c0                                               
+      diff too large to show                                
+                                                            
+                                                            
+file 1/2                                                    

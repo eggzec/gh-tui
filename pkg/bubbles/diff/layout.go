@@ -5,21 +5,6 @@ import (
 	"sort"
 )
 
-// Option configures a Layout.
-type Option func(*Layout)
-
-// WithCollapseOver makes a file whose patch has more than lines lines start
-// collapsed to its header. Zero, the default, collapses nothing.
-func WithCollapseOver(lines int) Option {
-	return func(l *Layout) { l.collapseOver = lines }
-}
-
-// WithFirstFilesNote ends the layout with a note row saying that it shows
-// only the first n files, for a caller that was given no more.
-func WithFirstFilesNote(n int) Option {
-	return func(l *Layout) { l.firstFiles = n }
-}
-
 // state is one file of a Layout.
 type state struct {
 	file      File
@@ -80,15 +65,18 @@ type Layout struct {
 	onParse      func(path string) // called as each file parses; for tests
 }
 
-// NewLayout lays out files, copying them.
+// NewLayout lays out files, copying them. It reads the options that concern
+// a layout and ignores those of the view.
 func NewLayout(files []File, opts ...Option) *Layout {
 	l := &Layout{
 		files: make([]state, len(files)),
 		index: make(map[string]int, len(files)),
 	}
+	var set settings
 	for _, o := range opts {
-		o(l)
+		o(&set)
 	}
+	l.collapseOver, l.firstFiles = set.collapseOver, set.firstFiles
 	for i, f := range files {
 		s := &l.files[i]
 		s.file = f
@@ -101,6 +89,22 @@ func NewLayout(files []File, opts ...Option) *Layout {
 	l.starts = make([]int, len(files)+1)
 	l.resum(0)
 	return l
+}
+
+// Append adds files after the last one, copying them. The rows of the files
+// before keep their numbers, and so do their folds.
+func (l *Layout) Append(files ...File) {
+	from := len(l.files)
+	for _, f := range files {
+		s := state{file: f, lines: patchLines(f.Patch)}
+		s.collapsed = l.collapseOver > 0 && s.lines > l.collapseOver
+		if _, dup := l.index[f.Path]; !dup {
+			l.index[f.Path] = len(l.files)
+		}
+		l.files = append(l.files, s)
+	}
+	l.starts = append(l.starts, make([]int, len(files))...)
+	l.resum(from)
 }
 
 // rowsOf is how many rows file i shows now.

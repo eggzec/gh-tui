@@ -239,16 +239,16 @@ func TestPosRoundTrip(t *testing.T) {
 		t.Errorf("%d positioned rows, want 7", lines)
 	}
 	// A context line is found on the old side too, to the same row.
-	if row, ok := l.Find(Pos{"a.go", Old, 1}); !ok || row != 2 {
+	if row, ok := l.Find(Pos{"a.go", OldSide, 1}); !ok || row != 2 {
 		t.Errorf("old side of a context line: %d, %v", row, ok)
 	}
-	if row, ok := l.Find(Pos{"a.go", Old, 2}); !ok || row != 3 {
+	if row, ok := l.Find(Pos{"a.go", OldSide, 2}); !ok || row != 3 {
 		t.Errorf("deleted line: %d, %v", row, ok)
 	}
-	if row, ok := l.Find(Pos{"a.go", New, 500}); ok || row != 0 {
+	if row, ok := l.Find(Pos{"a.go", NewSide, 500}); ok || row != 0 {
 		t.Errorf("line outside the hunks: %d, %v", row, ok)
 	}
-	if row, ok := l.Find(Pos{"nope.go", New, 1}); ok || row != -1 {
+	if row, ok := l.Find(Pos{"nope.go", NewSide, 1}); ok || row != -1 {
 		t.Errorf("unknown file: %d, %v", row, ok)
 	}
 }
@@ -263,7 +263,7 @@ func TestCollapse(t *testing.T) {
 	if r := rowAt(t, l, 1); r.Kind != KindFileHeader || r.File != 1 {
 		t.Errorf("row after a collapsed file = %+v", r)
 	}
-	if _, ok := l.Find(Pos{"a.go", New, 2}); ok {
+	if _, ok := l.Find(Pos{"a.go", NewSide, 2}); ok {
 		t.Error("Find in a collapsed file succeeded")
 	}
 	l.SetCollapsed(0, false)
@@ -301,7 +301,7 @@ func TestLaziness(t *testing.T) {
 	if fmt.Sprint(parsed) != "[a.go]" {
 		t.Errorf("parsed %v after reading a.go", parsed)
 	}
-	l.Find(Pos{"bad.go", New, 1})
+	l.Find(Pos{"bad.go", NewSide, 1})
 	if fmt.Sprint(parsed) != "[a.go bad.go]" {
 		t.Errorf("parsed %v", parsed)
 	}
@@ -435,7 +435,7 @@ func BenchmarkLayout(b *testing.B) {
 	})
 	b.Run("find-parsed", func(b *testing.B) {
 		b.ReportAllocs()
-		p := Pos{Path: files[2500].Path, Side: New, Line: 20}
+		p := Pos{Path: files[2500].Path, Side: NewSide, Line: 20}
 		for b.Loop() {
 			l.Find(p)
 		}
@@ -612,5 +612,33 @@ func TestOutOfRange(t *testing.T) {
 	}
 	if _, ok := l.FileRow(n + 1); ok {
 		t.Error("FileRow(n+1)")
+	}
+}
+
+// Append adds files after the last, and keeps the rows and folds before.
+func TestAppend(t *testing.T) {
+	a := File{Path: "a.go", Status: StatusModified, Additions: 1, Patch: "@@ -1 +1,2 @@\n x\n+y"}
+	b := File{Path: "b.go", Status: StatusAdded, Additions: 1, Patch: "@@ -0,0 +1 @@\n+z"}
+	l := NewLayout([]File{a}, WithCollapseOver(2))
+	l.SetCollapsed(0, true)
+	row := l.Len()
+	l.Append(b, a)
+	if l.Files() != 3 || l.Len() != 5 {
+		t.Fatalf("%d files and %d rows after Append", l.Files(), l.Len())
+	}
+	if !l.Collapsed(0) {
+		t.Error("Append unfolded a file")
+	}
+	if got, ok := l.FileRow(1); !ok || got != row {
+		t.Errorf("FileRow(1) = %d, %v; want %d", got, ok, row)
+	}
+	if i := l.FileIndex("a.go"); i != 0 {
+		t.Errorf("FileIndex(a.go) = %d, want the first", i)
+	}
+	if r, ok := l.RowAt(row + 2); !ok || r.Kind != KindAdded || r.File != 1 {
+		t.Errorf("RowAt = %+v, %v", r, ok)
+	}
+	if i, ok := l.FileAt(l.Len() - 1); !ok || i != 2 {
+		t.Errorf("FileAt(last) = %d, %v", i, ok)
 	}
 }

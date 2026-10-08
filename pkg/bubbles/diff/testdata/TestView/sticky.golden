@@ -1,0 +1,8 @@
+  ▾ a.go +6 -6                                              
+    2 +new b0                                               
+    3  ctx c0                                               
+  @@ -21,3 +21,3 @@ func f1() {                             
+   21  ctx a1                                               
+   22 -old b1                                               
+▌  22 +new b1                                               
+hunk 2/6 · file 1/2                                         
