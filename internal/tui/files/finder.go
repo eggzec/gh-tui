@@ -159,7 +159,8 @@ func (s *Section) newFinder() *finderModal {
 	pv := s.voice
 	pv.Retry, pv.Open = key.Binding{}, key.Binding{}
 	f.pager = pager.New(pager.WithKeyMap(pager.NewKeyMap(ui.In(s.rawKeys, "preview").Of)),
-		pager.WithErrorText(fileErrorText(repo, pv)), pager.WithResizeRest(resizeRest))
+		pager.WithErrorText(fileErrorText(repo, pv)), pager.WithResizeRest(resizeRest),
+		pager.WithRenderedNotes(renderedNumbersNote, renderedChopNote))
 	f.img = fileImage{images: s.images, repo: repo, shown: shownText, ellipsis: s.icons.Ellipsis}
 	f.md.setFiles(ctx, s.svc, repo, ref, s.images)
 	f.pager.SetReserve(f.md.extra)

@@ -46,10 +46,14 @@ func (m Model) updateOption(k tea.KeyPressMsg) (Model, tea.Cmd) {
 	switch {
 	case key.Matches(k, o.Chop):
 		m.SetWrap(!m.wrap)
-		m.info(either(m.wrap, noteWrap, noteChop))
+		m.info(m.explain(either(m.wrap, noteWrap, noteChop), m.chopNote))
 	case key.Matches(k, o.LineNumbers):
 		m.SetLineNumbers(!m.lineNumbers)
-		m.info(either(m.lineNumbers, noteNumbers, noteNoNumbers))
+		note := either(m.lineNumbers, noteNumbers, noteNoNumbers)
+		if m.lineNumbers && m.render != nil && m.numbersNote != "" {
+			note = m.numbersNote
+		}
+		m.info(note)
 	case key.Matches(k, o.Squeeze):
 		p := m.want
 		p.squeeze = !p.squeeze
@@ -66,6 +70,15 @@ func (m Model) updateOption(k tea.KeyPressMsg) (Model, tea.Cmd) {
 		m.flash = noteNoOption + termtext.OneLine(k.String())
 	}
 	return m, cmd
+}
+
+// explain returns note, followed by why in brackets while the pager shows
+// rendered content, if it has a why.
+func (m Model) explain(note, why string) string {
+	if m.render == nil || why == "" {
+		return note
+	}
+	return note + " (" + why + ")"
 }
 
 // note returns what the pager says of the case mode once it is set.

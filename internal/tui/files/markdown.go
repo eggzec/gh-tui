@@ -34,6 +34,16 @@ func markdownFile(name string) bool {
 // in full offers.
 const rawHint = "raw on shows all of it"
 
+// What the pager says of -N and -S over a rendered markdown file: its
+// lines are rendered rows, which already fit the width, so the numbers
+// don't count the source's lines (:raw shows it) and only wide code
+// blocks are chopped or wrapped. The notes are short, since the status
+// line has little room for them.
+const (
+	renderedNumbersNote = "Rows numbered; :raw for lines"
+	renderedChopNote    = "code only"
+)
+
 // markdownView renders the markdown files a pager shows, in the style of
 // the theme, which it renders again with once that changes. The file
 // preview and the finder's preview each have one.
