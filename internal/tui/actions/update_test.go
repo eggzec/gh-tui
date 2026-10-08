@@ -128,14 +128,17 @@ func TestZoom(t *testing.T) {
 	if s := screen(m); strings.Contains(s, "Jobs") || strings.Contains(s, "CI #4812") {
 		t.Errorf("the zoomed log shows other panes:\n%s", s)
 	}
-	// The back key unzooms before it steps back.
-	h.keys("esc")
-	if m.zoom || m.focus != logPane {
-		t.Errorf("esc: zoom %v on pane %d, want the log unzoomed", m.zoom, m.focus)
+	if got := uitest.Enabled(m.KeyLayers()); !slices.Contains(got, "unzoom") || slices.Contains(got, "zoom") {
+		t.Errorf("zoomed help = %v, want the zoom key labelled unzoom", got)
 	}
-	h.keys("z", "z")
+	// The back key never unzooms: it steps back, and the zoom key unzooms.
+	h.keys("esc")
+	if !m.zoom || m.focus != jobsPane {
+		t.Errorf("esc: zoom %v on pane %d, want the jobs zoomed", m.zoom, m.focus)
+	}
+	h.keys("z")
 	if m.zoom {
-		t.Error("z twice left the pane zoomed")
+		t.Error("z left the pane zoomed")
 	}
 }
 

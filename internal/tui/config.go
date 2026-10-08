@@ -38,7 +38,7 @@ func (m *Model) configCommand(arg string) tea.Cmd {
 	case configDefaults:
 		return m.openText("Default config", "default.yaml", config.DefaultFile(), false)
 	}
-	return m.toast.Push(toast.Error, "Can't show config "+strconv.Quote(ui.OneLine(strings.TrimSpace(arg)))+". Use config, or config "+configDefaults+".")
+	return m.toast.Push(toast.Warning, "Can't show config "+strconv.Quote(ui.OneLine(strings.TrimSpace(arg)))+". Use config, or config "+configDefaults+".")
 }
 
 // configHeader returns the comments that open the config command's YAML:
@@ -147,4 +147,15 @@ func (t *textModal) SetTheme(th ui.Theme) { t.pager.SetStyles(th.Pager(t.icons))
 // KeyLayers implements ui.Keyed: the pager's keys.
 func (t *textModal) KeyLayers() []keyhelp.Layer {
 	return []keyhelp.Layer{ui.PagerLayer("text", &t.pager)}
+}
+
+var _ ui.Actor = (*textModal)(nil)
+
+// Act implements ui.Actor. The quit key closes the modal; every other
+// intent is the app's to refuse while it is open.
+func (t *textModal) Act(action string) (tea.Cmd, bool) {
+	if action == ui.ActQuit {
+		return ui.CloseModal(t), true
+	}
+	return nil, false
 }

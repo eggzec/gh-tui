@@ -23,7 +23,6 @@ func newSetApp(t *testing.T, cfg config.Config, told *[]config.Config) (*Model, 
 	layout := Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3]}
 	m := New(t.Context(), cfg, layout, WithRepo(testRepo), WithSettings(func(c config.Config) { *told = append(*told, c) }))
 	m.toast.SetDuration(0)
-	m.toast.SetErrorDuration(0)
 	m.Update(tea.WindowSizeMsg{Width: 120, Height: 24})
 	return m, fakes
 }
@@ -146,20 +145,20 @@ func TestSetWritesNothing(t *testing.T) {
 // TestSetToast checks that the set command changes how long later toasts
 // stay, and refuses a time too short to read them.
 func TestSetToast(t *testing.T) {
-	if n := New(t.Context(), config.Default(), Layout{}); n.toast.Duration() != 4*time.Second || n.toast.ErrorDuration() != 8*time.Second {
-		t.Errorf("toasts stay %v and %v, want ui.toast's 4s and 8s", n.toast.Duration(), n.toast.ErrorDuration())
+	if n := New(t.Context(), config.Default(), Layout{}); n.toast.Duration() != 4*time.Second || n.toast.ErrorDuration() != 0 {
+		t.Errorf("toasts stay %v and %v, want ui.toast's 4s and an error until it is dismissed", n.toast.Duration(), n.toast.ErrorDuration())
 	}
 	var told []config.Config
 	m, _ := newSetApp(t, userConfig(), &told)
-	runCommand(t, m, "set ui.toast.error=0s")
-	if !hasToast(m, "Can't set ui.toast.error: must be at least 1s, got 0s.") {
+	runCommand(t, m, "set ui.toast.info=0s")
+	if !hasToast(m, "Can't set ui.toast.info: must be at least 1s, got 0s.") {
 		t.Errorf("toasts: %s", toasted(m))
 	}
-	if m.setCommand("ui.toast.error=30s") == nil {
+	if m.setCommand("ui.toast.info=30s") == nil {
 		t.Error("no command to show the change")
 	}
-	if m.toast.ErrorDuration() != 30*time.Second || m.toast.Duration() != m.cfg.UI.Toast.Info {
-		t.Errorf("durations = %v, %v; want %v, 30s", m.toast.Duration(), m.toast.ErrorDuration(), m.cfg.UI.Toast.Info)
+	if m.toast.ErrorDuration() != 0 || m.toast.Duration() != 30*time.Second {
+		t.Errorf("durations = %v, %v; want 30s, 0", m.toast.Duration(), m.toast.ErrorDuration())
 	}
 }
 

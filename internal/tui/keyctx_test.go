@@ -807,7 +807,6 @@ func newKeysAppWith(t *testing.T, repo bool, edit func(*config.Config)) *Model {
 	}
 	m := New(ctx, cfg, layout, opts...)
 	m.toast.SetDuration(0)
-	m.toast.SetErrorDuration(0)
 	// The changes of what the token may do never end.
 	m.accessChanges = nil
 	m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
@@ -897,7 +896,7 @@ func keyContexts() []keyContext {
 		{name: "files: preview", repo: true, steps: []string{"files.down", "global.select"}, after: []string{"preview.half_page_down", "preview.right"}, context: "preview", want: "global, preview"},
 		{name: "files: preview search", repo: true, steps: []string{"files.down", "global.select", "preview.find"}, context: "search_prompt", want: "always, search_prompt (types)"},
 		{name: "files: preview option", repo: true, steps: []string{"files.down", "global.select", "preview.option"}, context: "pager_option", want: "always, pager_option (types)"},
-		{name: "files: preview command line", repo: true, steps: []string{"files.down", "global.select", "global.command"}, context: "command_line", want: "command_line (types)"},
+		{name: "files: preview command line", repo: true, steps: []string{"files.down", "global.select", "global.command"}, context: "command_line", want: "always, command_line (types)"},
 		{name: "files: finder", repo: true, steps: []string{"global.find_file"}, context: "finder", want: "always, finder (types)"},
 		{name: "files: finder preview", repo: true, steps: []string{"global.find_file", typed("R"), "finder.choose"}, after: []string{"preview.half_page_down", "preview.right"}, context: "preview", want: "global, preview"},
 		{name: "pull requests", repo: true, steps: []string{"global.pane_2"}, context: "pulls", want: "global, repo, pulls"},
@@ -943,7 +942,7 @@ func keyContexts() []keyContext {
 		{name: "auth", repo: true, steps: []string{"global.command", typed("auth"), "command_line.run"}, context: "text", want: "global, text"},
 		{name: "config", repo: true, steps: []string{"global.command", typed("config"), "command_line.run"}, after: []string{"text.half_page_down", "text.right"}, context: "text", want: "global, text"},
 		{name: "help", repo: true, steps: []string{"global.help"}, context: "help", want: "always, help (types)"},
-		{name: "command line", repo: true, steps: []string{"global.command"}, context: "command_line", want: "command_line (types)"},
+		{name: "command line", repo: true, steps: []string{"global.command"}, context: "command_line", want: "always, command_line (types)"},
 	}
 }
 

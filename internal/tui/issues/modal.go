@@ -340,8 +340,7 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	case key.Matches(msg, k.Back):
 		return m.close()
 	case key.Matches(msg, k.owner) && ui.Author(m.issue.Author) != "":
-		// The page shows in place of the screen behind the modal.
-		return tea.Sequence(m.close(), ui.ShowOwner(m.issue.Author.Login))
+		return m.author()
 	case key.Matches(msg, k.Comment):
 		return m.compose(composeComment, ui.ActComment)
 	case key.Matches(msg, k.Label):

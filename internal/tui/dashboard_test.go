@@ -27,7 +27,6 @@ func newDashApp(t *testing.T, repo core.RepoRef) (*Model, []*fakeSection) {
 	}
 	m := New(t.Context(), config.Default(), layout, opts...)
 	m.toast.SetDuration(0)
-	m.toast.SetErrorDuration(0)
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	run(m, m.Init())
 	return m, fakes

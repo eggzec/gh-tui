@@ -81,7 +81,7 @@ func newKeyMap(keys config.Keymap) keyMap {
 		ToggleDraft: list.Binding("draft", "convert to draft"),
 		Checks:      list.Binding("checks", "checks"),
 		confirm:     ui.NewConfirmKeys(keys),
-		owner:       list.Binding("global.owner", "owner page"),
+		owner:       list.Binding("global.owner", "author"),
 	}
 	// The section and the modal match their own keys first, so the feed
 	// and the thread get only the keys they leave them.

@@ -253,3 +253,15 @@ func (m *FilterModal) Tabs() (names []string, active int) {
 
 // Query returns the GitHub query the form holds.
 func (m *FilterModal) Query() string { return m.form.Query() }
+
+var _ Actor = (*FilterModal)(nil)
+
+// Act implements Actor. The quit key closes the modal without applying
+// what the form holds; every other intent is the app's to refuse while it
+// is open.
+func (m *FilterModal) Act(action string) (tea.Cmd, bool) {
+	if action == ActQuit {
+		return CloseModal(m), true
+	}
+	return nil, false
+}

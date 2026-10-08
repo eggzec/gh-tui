@@ -57,19 +57,19 @@ func (m *Model) copyCommand(arg string) tea.Cmd {
 		if arg != "" {
 			what = "Can't copy " + strconv.Quote(ui.OneLine(arg)) + "."
 		}
-		return m.toast.Push(toast.Error, what+" Use copy url, ref, sha or path.")
+		return m.toast.Push(toast.Warning, what+" Use copy url, ref, sha or path.")
 	}
 	k := copyKinds[i]
 	sel, ok := m.selection()
 	if !ok {
-		return m.toast.Push(toast.Error, "Nothing is selected to copy.")
+		return m.toast.Push(toast.Warning, "Nothing is selected to copy.")
 	}
 	text := k.of(sel)
 	switch {
 	case text == "":
-		return m.toast.Push(toast.Error, article(sel.What)+" has no "+k.noun+" to copy.")
+		return m.toast.Push(toast.Warning, article(sel.What)+" has no "+k.noun+" to copy.")
 	case len(text) > maxCopy:
-		return m.toast.Push(toast.Error, "The "+k.noun+" is too long to copy.")
+		return m.toast.Push(toast.Warning, "The "+k.noun+" is too long to copy.")
 	}
 	return tea.Batch(tea.SetClipboard(text), m.toast.Push(toast.Info, "Copied "+m.shorten(ui.OneLine(text), maxCopied)+"."))
 }

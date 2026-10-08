@@ -239,15 +239,16 @@ func (m *Modal) KeyLayers() []keyhelp.Layer {
 }
 
 // state returns k as the modal takes it now, named for what the keys do
-// in the focused pane. Back shows every pane again while one is zoomed,
-// and closes the modal from the branches; in a patch the pager takes it.
+// in the focused pane. Back closes the modal from the branches; in a
+// patch the pager takes it.
 func (k KeyMap) state(m *Modal) KeyMap {
 	patch := m.focus == commitPane && m.commit.patch
 	k.ResetBase.SetEnabled(k.ResetBase.Enabled() && m.base.Ref != "")
 	k.Zoom.SetEnabled(k.Zoom.Enabled() && !m.narrow())
+	if m.zoomed() {
+		k.Zoom = named(k.Zoom, "unzoom")
+	}
 	switch {
-	case m.zoomed():
-		k.Back = named(k.Back, "unzoom")
 	case patch:
 		k.Back.SetEnabled(false)
 	case m.focus == branchPane:

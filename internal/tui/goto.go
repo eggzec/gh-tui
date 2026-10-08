@@ -82,9 +82,9 @@ func (m *Model) hereRepo() (core.RepoRef, tea.Cmd) {
 		return m.here, nil
 	case m.hereHost != "":
 		host := cmp.Or(m.host, core.DefaultHost)
-		return core.RepoRef{}, m.toast.Push(toast.Error, "The repository here is on "+m.hereHost+", not "+host+".")
+		return core.RepoRef{}, m.toast.Push(toast.Warning, "The repository here is on "+m.hereHost+", not "+host+".")
 	}
-	return core.RepoRef{}, m.toast.Push(toast.Error, "No repository in the current directory.")
+	return core.RepoRef{}, m.toast.Push(toast.Warning, "No repository in the current directory.")
 }
 
 // WithOwners sets what reads the users and organizations whose pages goto
@@ -158,7 +158,7 @@ func (m *Model) gotoCommand(arg string) tea.Cmd {
 		// A number alone is one of the repository on view, never of one
 		// selected before and out of sight.
 		if m.screen != repoScreen || m.repo == (core.RepoRef{}) {
-			return m.toast.Push(toast.Error, "Open a repository first, or use goto owner/name"+t.String()+".")
+			return m.toast.Push(toast.Warning, "Open a repository first, or use goto owner/name"+t.String()+".")
 		}
 		t.Repo = m.repo
 	}
@@ -306,7 +306,7 @@ func (m *Model) gotoOwner(t core.Target) tea.Cmd {
 		return m.showScreen(dashScreen, m.focus)
 	}
 	if m.own == nil {
-		return m.toast.Push(toast.Error, cantOpen(t.String(), "there are no pages of users and organizations here", m.icons.Ellipsis, m.fitsToast))
+		return m.toast.Push(toast.Warning, cantOpen(t.String(), "there are no pages of users and organizations here", m.icons.Ellipsis, m.fitsWarning))
 	}
 	if m.owners == nil {
 		logGoto(m.ctx, t, "unchecked")
@@ -369,7 +369,7 @@ func (m *Model) gotOwner(msg gotoOwnerMsg) tea.Cmd {
 		return nil
 	}
 	if core.KindOf(msg.err) == core.NotFound {
-		return m.toast.Push(toast.Error, cantOpen(g.target.String(), "no user or organization has that name", m.icons.Ellipsis, m.fitsToast))
+		return m.toast.Push(toast.Warning, cantOpen(g.target.String(), "no user or organization has that name", m.icons.Ellipsis, m.fitsWarning))
 	}
 	if msg.err != nil {
 		return m.gotoFailed(g.target, msg.err)
@@ -434,11 +434,11 @@ func (m *Model) badTarget(err error) tea.Cmd {
 	e, ok := errors.AsType[*core.TargetError](err)
 	switch {
 	case !ok:
-		return m.toast.Push(toast.Error, "Can't open that: type owner/name, @login, #number or a link.")
+		return m.toast.Push(toast.Warning, "Can't open that: type owner/name, @login, #number or a link.")
 	case e.Input == "":
-		return m.toast.Push(toast.Error, "Nothing to open: "+plain(e.Reason)+".")
+		return m.toast.Push(toast.Warning, "Nothing to open: "+plain(e.Reason)+".")
 	}
-	return m.toast.Push(toast.Error, cantOpen(plain(e.Input), plain(e.Reason), m.icons.Ellipsis, m.fitsToast))
+	return m.toast.Push(toast.Warning, cantOpen(plain(e.Input), plain(e.Reason), m.icons.Ellipsis, m.fitsWarning))
 }
 
 // cantOpen returns "Can't open <typed>: <reason>.", with typed cut to the

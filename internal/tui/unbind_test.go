@@ -87,7 +87,7 @@ func unbindPlaces() []unbindPlace {
 		{name: "actions jobs", repo: true, steps: []string{config.ActionActions, config.ActionNextPane}, want: "global, actions, actions_jobs"},
 		{name: "actions log", repo: true, steps: []string{config.ActionActions, config.ActionNextPane, config.ActionNextPane}, want: "global, actions, actions_log"},
 		{name: "actions rerun", repo: true, steps: []string{config.ActionActions, "actions.rerun_failed"}, want: "always, confirm"},
-		{name: "command line", repo: true, steps: []string{config.ActionCommand}, want: "command_line (types)"},
+		{name: "command line", repo: true, steps: []string{config.ActionCommand}, want: "always, command_line (types)"},
 	}
 }
 
@@ -239,7 +239,6 @@ func newUnboundApp(t *testing.T, cfg config.Config, repo bool) *Model {
 	}
 	m := New(ctx, cfg, layout, opts...)
 	m.toast.SetDuration(0)
-	m.toast.SetErrorDuration(0)
 	m.accessChanges = nil
 	m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
 	driveKeys(t, m, m.Init())

@@ -95,12 +95,16 @@ func (m *Model) refreshBar() {
 // with them.
 func (m *Model) drawHints() {
 	// The help key, as the first layer holds it now, leads, and the way
-	// out of a zoom follows, where a narrow bar still shows them.
+	// out of a zoom and the dismissal of an error toast follow, where a
+	// narrow bar still shows them.
 	var help key.Binding
 	if short := m.layers[0].Short; len(short) > 0 {
 		help = short[0]
 	}
-	h := ui.Hints{Layers: m.layers, Lead: []key.Binding{help, ui.NameKeys(m.icons, m.keys.state(m).Unzoom)}}
+	k := m.keys.state(m)
+	unzoom := k.Zoom
+	unzoom.SetEnabled(unzoom.Enabled() && m.canZoom() && m.zoomed())
+	h := ui.Hints{Layers: m.layers, Lead: []key.Binding{help, ui.NameKeys(m.icons, unzoom), ui.NameKeys(m.icons, k.Dismiss)}}
 	short := h.ShortHelp()
 	left := make([]statusbar.Item, 0, len(short))
 	for i, b := range short {

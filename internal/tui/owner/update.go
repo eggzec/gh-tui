@@ -107,8 +107,6 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 	case s.wide && key.Matches(msg, k.Zoom):
 		s.setZoom(!s.zoom)
 		return nil
-	case key.Matches(msg, k.Back):
-		return s.unzoom()
 	case key.Matches(msg, k.Refresh):
 		return s.refresh()
 	}
@@ -128,15 +126,6 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 	case calendarPane:
 		return s.pressCalendar(msg)
 	default:
-	}
-	return nil
-}
-
-// unzoom shows every pane again while one is zoomed. Going back through the
-// pages is the app's back key.
-func (s *Section) unzoom() tea.Cmd {
-	if s.zoomed() {
-		s.setZoom(false)
 	}
 	return nil
 }

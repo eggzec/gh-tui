@@ -13,6 +13,7 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
 // KeyMap holds the keys the app handles itself. Sections have their own.
@@ -43,9 +44,8 @@ type KeyMap struct {
 	// Panes focus pane 1, 2 and 3.
 	Panes []key.Binding
 	// Zoom shows the focused pane of the repository screen alone, or
-	// every pane again, and Unzoom shows them again too.
-	Zoom   key.Binding
-	Unzoom key.Binding
+	// every pane again.
+	Zoom key.Binding
 	// Back goes back through the owner pages and the screens shown.
 	Back key.Binding
 	// Maximize toggles the open modal between its size and the whole
@@ -60,8 +60,9 @@ type KeyMap struct {
 	// Repo shows the repository behind the selection, such as that of a
 	// search result or of a row of the dashboard.
 	Repo key.Binding
-	// Dismiss closes the newest toast. The app enables it while toasts
-	// show.
+	// Dismiss dismisses an error toast, and stops a goto that waits for
+	// GitHub. The app enables it while one shows or waits; what else it
+	// does, clearing and closing, is up to the section or modal.
 	Dismiss key.Binding
 }
 
@@ -86,10 +87,9 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		Next:          ui.Binding(keys, config.ActionNextPane, "next pane"),
 		Prev:          ui.Binding(keys, config.ActionPrevPane, "previous pane"),
 		Zoom:          ui.Binding(keys, config.ActionZoom, "zoom"),
-		Unzoom:        ui.Binding(keys, config.ActionDismiss, "unzoom"),
 		Back:          ui.Binding(keys, config.ActionBack, "back"),
 		Maximize:      ui.Binding(keys, config.ActionMaximize, "maximize"),
-		Dismiss:       ui.Binding(keys, config.ActionDismissToast, "dismiss"),
+		Dismiss:       ui.Binding(keys, config.ActionDismiss, "dismiss"),
 		Panes: []key.Binding{
 			ui.Binding(keys, config.ActionPane1, "files"),
 			ui.Binding(keys, config.ActionPane2, "pull requests"),
@@ -111,10 +111,10 @@ func withForceQuit(b key.Binding) key.Binding {
 	return keymap.Derive(key.NewBinding(key.WithKeys(append(slices.Clone(b.Keys()), forceQuit.Keys()...)...), key.WithHelp(help, b.Help().Desc)), b)
 }
 
-// ShortHelp implements help.KeyMap. The way out of a zoom comes first.
+// ShortHelp implements help.KeyMap.
 func (k KeyMap) ShortHelp() []key.Binding {
 	return []key.Binding{
-		k.Unzoom, k.Back, k.Search, k.Command, k.FindFile, k.History, k.Actions, k.Notifications, k.Dashboard, k.Help, k.Quit,
+		k.Dismiss, k.Back, k.Search, k.Command, k.FindFile, k.History, k.Actions, k.Notifications, k.Dashboard, k.Help, k.Quit,
 	}
 }
 
@@ -129,7 +129,7 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 func (k KeyMap) globalKeys() []key.Binding {
 	return []key.Binding{
 		k.Command, k.Quit, k.Help, k.Search, k.FindFile,
-		k.Zoom, k.Maximize, k.Unzoom, k.Back, k.Dismiss, k.Owner, k.Repo, k.Notifications, k.Dashboard,
+		k.Zoom, k.Maximize, k.Dismiss, k.Back, k.Owner, k.Repo, k.Notifications, k.Dashboard,
 		k.Next, k.Prev, k.Jump,
 	}
 }
@@ -140,7 +140,7 @@ func (k KeyMap) repoKeys() []key.Binding { return []key.Binding{k.History, k.Act
 // work everywhere, and on the repository screen those of its own.
 func (k KeyMap) layers(m *Model) []keyhelp.Layer {
 	global := ui.ContextLayer(config.ContextGlobal, k.globalKeys(),
-		[]key.Binding{k.Unzoom, k.Back, k.Search, k.Command, k.FindFile, k.Notifications, k.Dashboard, k.Help, k.Quit})
+		[]key.Binding{k.Dismiss, k.Back, k.Search, k.Command, k.FindFile, k.Notifications, k.Dashboard, k.Help, k.Quit})
 	if m.screen != repoScreen {
 		return []keyhelp.Layer{global}
 	}
@@ -157,10 +157,15 @@ func (k KeyMap) state(m *Model) KeyMap {
 	k.Owner.SetEnabled(k.Owner.Enabled() && m.selectedOwner() != "")
 	k.Repo.SetEnabled(k.Repo.Enabled() && m.selectedRepo() != core.RepoRef{})
 	k.Zoom.SetEnabled(k.Zoom.Enabled() && m.canZoom() && m.width >= narrowWidth)
-	k.Unzoom.SetEnabled(k.Unzoom.Enabled() && m.canZoom() && m.zoomed())
+	if m.canZoom() && m.zoomed() {
+		k.Zoom.SetHelp(k.Zoom.Help().Key, "unzoom")
+	}
 	k.Back.SetEnabled(k.Back.Enabled() && m.canGoBack())
 	k.Maximize.SetEnabled(k.Maximize.Enabled() && m.modal != nil)
-	k.Dismiss.SetEnabled(k.Dismiss.Enabled() && !m.toast.Empty())
+	k.Dismiss.SetEnabled(k.Dismiss.Enabled() && (m.toast.Has(toast.Error) || m.going != nil))
+	if m.going != nil && !m.toast.Has(toast.Error) {
+		k.Dismiss.SetHelp(k.Dismiss.Help().Key, "cancel")
+	}
 	if m.screen != repoScreen {
 		// Only the repository screen has panes to cycle through. On the
 		// other screens the app leaves these keys to the section, which
@@ -179,12 +184,10 @@ func (k KeyMap) state(m *Model) KeyMap {
 	return k
 }
 
-// lineKeys returns the keys of the command line: those of its context,
-// and ctrl+c, which cancels the line as it quits from everywhere else.
+// lineKeys returns the keys of the command line: those of its context.
+// ctrl+c is not among them: it quits from the line as from everywhere.
 func lineKeys(keys config.Keymap) cmdline.KeyMap {
-	k := cmdline.NewKeyMap(ui.Lookup(keys, "command_line"))
-	k.Cancel = withForceQuit(k.Cancel)
-	return k
+	return cmdline.NewKeyMap(ui.Lookup(keys, "command_line"))
 }
 
 // pane returns the index of the pane that msg focuses, or -1.

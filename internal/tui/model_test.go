@@ -96,7 +96,6 @@ func newApp(t *testing.T, repo core.RepoRef, opts ...Option) (*Model, []*fakeSec
 	m := New(t.Context(), config.Default(), layout, opts...)
 	// Toasts that never expire keep run from waiting on their timers.
 	m.toast.SetDuration(0)
-	m.toast.SetErrorDuration(0)
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	return m, fakes
 }
@@ -313,10 +312,9 @@ func TestZoom(t *testing.T) {
 		{name: "narrow and zoomed", width: 60, height: 24, zoom: true, shown: []string{"Pull requests"}},
 		{name: "esc at 60 columns goes to the pane", key: "esc", zoom: true, shown: []string{"Pull requests"}, toSection: true},
 		{name: "wide again", width: 120, height: 36, zoom: true, shown: []string{"Pull requests"}},
-		{name: "esc unzooms first", key: "esc", shown: []string{"Pull requests", "Files", "Issues"}},
-		{name: "esc then goes to the pane", key: "esc", shown: []string{"Pull requests", "Files", "Issues"}, toSection: true},
-		{name: "z twice", key: "z", zoom: true, shown: []string{"Pull requests"}},
+		{name: "esc keeps the zoom", key: "esc", zoom: true, shown: []string{"Pull requests"}, toSection: true},
 		{name: "z unzooms", key: "z", shown: []string{"Pull requests", "Files", "Issues"}},
+		{name: "z zooms again", key: "z", zoom: true, shown: []string{"Pull requests"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -411,9 +409,9 @@ func (backKeys) ShortHelp() []key.Binding {
 }
 func (k backKeys) FullHelp() [][]key.Binding { return [][]key.Binding{k.ShortHelp()} }
 
-// TestZoomHelp checks that the bar and the help name esc for what it does:
-// the section's back, or the way out of a zoom, which only works where
-// the zoom does.
+// TestZoomHelp checks that the bar and the help name esc for what it does,
+// the section's back, and the zoom key for what it does, which is the way
+// out of a zoom while one shows, and only where the zoom works.
 func TestZoomHelp(t *testing.T) {
 	m, fakes := newTestApp(t)
 	fakes[0].keyMap = backKeys{}
@@ -437,11 +435,11 @@ func TestZoomHelp(t *testing.T) {
 			}
 		}
 	}
-	check("unzoomed", []string{"esc back"}, []string{"z zoom", "esc back"}, "esc unzoom")
+	check("unzoomed", []string{"esc back"}, []string{"z zoom", "esc back"}, "z unzoom")
 	run(m, m.key(press("z")))
-	check("zoomed", []string{"esc unzoom", "x close"}, []string{"esc unzoom"}, "esc back")
+	check("zoomed", []string{"z unzoom", "esc back", "x close"}, []string{"z unzoom", "esc back"}, "esc unzoom", "z zoom")
 	m.Update(tea.WindowSizeMsg{Width: 60, Height: 24})
-	check("at 60 columns", []string{"esc back"}, []string{"esc back"}, "esc unzoom", "z zoom")
+	check("at 60 columns", []string{"esc back"}, []string{"esc back"}, "z unzoom", "z zoom")
 }
 
 // helpRows returns the rows that reach something in the help opened on
@@ -491,7 +489,7 @@ func TestProgramZooms(t *testing.T) {
 	if !ok || !final.zoom || final.focus != 1 || fakes[1].width != 158 {
 		t.Error("the final model should show the pull requests zoomed, over the width it was resized to")
 	}
-	if s := onScreen(final); !strings.Contains(s, "esc unzoom") || strings.Contains(s, "Files content") {
+	if s := onScreen(final); !strings.Contains(s, "z unzoom") || strings.Contains(s, "Files content") {
 		t.Errorf("the final screen should show the pull requests alone, and how to unzoom:\n%s", s)
 	}
 }

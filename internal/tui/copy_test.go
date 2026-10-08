@@ -29,7 +29,6 @@ func newSelectApp(t *testing.T, sel ui.Selection, ok bool) *Model {
 	files := &selectSection{fakeSection: fakes[0], sel: sel, ok: ok}
 	m := New(t.Context(), config.Default(), Layout{Files: files, Pulls: fakes[1]}, WithRepo(testRepo))
 	m.toast.SetDuration(0)
-	m.toast.SetErrorDuration(0)
 	m.Update(tea.WindowSizeMsg{Width: 120, Height: 24})
 	return m
 }

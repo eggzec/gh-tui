@@ -34,7 +34,6 @@ func newConfigApp(t *testing.T, file string) *Model {
 	layout := Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3]}
 	m := New(t.Context(), cfg, layout, WithRepo(testRepo), WithSource(src))
 	m.toast.SetDuration(0)
-	m.toast.SetErrorDuration(0)
 	m.Update(tea.WindowSizeMsg{Width: 120, Height: 80})
 	return m
 }

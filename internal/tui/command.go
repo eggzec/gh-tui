@@ -71,9 +71,9 @@ func filtering(tab filterform.Tab) func(m *Model, arg string) tea.Cmd {
 			return nil
 		}
 		if tab == filterform.SortTab {
-			return m.toast.Push(toast.Error, "Nothing here to sort.")
+			return m.toast.Push(toast.Warning, "Nothing here to sort.")
 		}
-		return m.toast.Push(toast.Error, "Nothing here to filter.")
+		return m.toast.Push(toast.Warning, "Nothing here to filter.")
 	}
 }
 
@@ -93,7 +93,7 @@ type Fresher interface {
 // searches for query there, unless it is empty.
 func (m *Model) searchCommand(query string) tea.Cmd {
 	if m.srch == nil {
-		return m.toast.Push(toast.Error, "There is no search page.")
+		return m.toast.Push(toast.Warning, "There is no search page.")
 	}
 	// It goes somewhere, so a goto still waiting mustn't take the user
 	// elsewhere after it, even when the search page is already on view.
@@ -161,11 +161,11 @@ func (m *Model) runLine(line string, save tea.Cmd) tea.Cmd {
 	c, ok := findCommand(name)
 	switch {
 	case !ok:
-		return tea.Batch(save, m.toast.Push(toast.Error, "Unknown command: "+name+"."))
+		return tea.Batch(save, m.toast.Push(toast.Warning, "Unknown command: "+name+"."))
 	case m.topModal() != nil && !c.overModal:
-		return tea.Batch(save, m.toast.Push(toast.Error, "Close the file first to use "+c.name+"."))
+		return tea.Batch(save, m.toast.Push(toast.Warning, "Close "+m.modalName(m.topModal())+" first to use "+c.name+"."))
 	case !c.args && arg != "":
-		return tea.Batch(save, m.toast.Push(toast.Error, "The "+c.name+" command takes no argument."))
+		return tea.Batch(save, m.toast.Push(toast.Warning, "The "+c.name+" command takes no argument."))
 	case c.quits:
 		return m.quit(save)
 	}

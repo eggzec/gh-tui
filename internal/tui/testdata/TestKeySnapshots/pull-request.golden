@@ -3,6 +3,10 @@
 global
   quit | ctrl+c | ^c | on
   maximize | Z | Z | on
+  dashboard | 0 | 0 | off
+  notifications | I | I | off
+  search | S | S | off
+  this repo | . | . | off
   help | ? | ? | on
 
 Pull request
@@ -20,7 +24,7 @@ Pull request
   open in browser | o | o | on
   filter | f | f | off
   sort | s | s | off
-  owner page | @ | @ | on
+  author | @ | @ | on
 
 Conversation
   up | up k | ↑/k | on

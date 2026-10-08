@@ -355,11 +355,12 @@ func WithWarning(text string) Option {
 func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) *Model {
 	keys := newKeyMap(cfg.Keys)
 	m := &Model{
-		ctx:        ctx,
-		cfg:        cfg,
-		file:       cfg,
-		keys:       keys,
-		toast:      toast.New(cfg.UI.Toast.Info, cfg.UI.Toast.Error),
+		ctx:  ctx,
+		cfg:  cfg,
+		file: cfg,
+		keys: keys,
+		// An error toast stays until it is dismissed.
+		toast:      toast.New(cfg.UI.Toast.Info, 0),
 		toastTimes: cfg.UI.Toast,
 		keyhelp:    newHelp(cfg.Keys),
 		status:     statusbar.New(),

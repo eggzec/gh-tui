@@ -185,7 +185,7 @@ func TestLoadMergesOverDefaults(t *testing.T) {
 				history.Window, history.Rest = Span{Before: new(5), After: new(5)}, new(250*time.Millisecond)
 				c.Dashboard = Dashboard{CalendarGlyph: "#", Contributions: ContributionsYear}
 				c.Owner = Owner{DefaultTab: OwnerTabPeople}
-				c.UI = UI{Icons: IconsUnicode, Toast: Toast{Info: 6 * time.Second, Error: 12 * time.Second}, DateFormat: "2006-01-02 15:04", Maximized: Default().UI.Maximized}
+				c.UI = UI{Icons: IconsUnicode, Toast: Toast{Info: 6 * time.Second}, DateFormat: "2006-01-02 15:04", Maximized: Default().UI.Maximized}
 				c.Auth = Auth{Check: false}
 				c.GitHub = GitHub{Timeout: time.Minute, Concurrency: 4}
 				c.PageSize = PageSize{Pulls: 50, Issues: 40, Notifications: 20, Repos: 60, Runs: 25, Commits: 100, Search: 10, WaitingOnYou: 15, People: 40, References: 50}

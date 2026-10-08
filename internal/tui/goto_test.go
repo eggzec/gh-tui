@@ -82,7 +82,6 @@ func newGotoApp(t *testing.T, repos *fakeRepos, opts ...Option) (*Model, []*fake
 	opts = append([]Option{WithRepos(repos)}, opts...)
 	m := New(t.Context(), config.Default(), layout, opts...)
 	m.toast.SetDuration(0)
-	m.toast.SetErrorDuration(0)
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	run(m, m.Init())
 	return m, fakes
@@ -185,6 +184,7 @@ func TestGotoIsCanceled(t *testing.T) {
 		{name: "another screen", then: func(m *Model) { drive(m, m.key(press("I"))) }},
 		{name: "another repository", then: func(m *Model) { drive(m, func() tea.Msg { return ui.RepoMsg{Repo: testRepo} }) }},
 		{name: "a modal", then: func(m *Model) { m.openModal(&fakeModal{title: "Preview"}) }},
+		{name: "the dismiss key", then: func(m *Model) { drive(m, m.key(press("esc"))) }},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -230,7 +230,6 @@ func TestGotoAndOtherCommands(t *testing.T) {
 			layout := Layout{Files: &fakeSection{title: "Files"}, Dashboard: &fakeSection{title: ui.DashboardTitle}, Search: page}
 			m := New(t.Context(), config.Default(), layout, WithRepos(repos))
 			m.toast.SetDuration(0)
-			m.toast.SetErrorDuration(0)
 			m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 			run(m, m.Init())
 			drive(m, m.key(press("S")))
@@ -589,7 +588,7 @@ func TestGotoBadTargetFits(t *testing.T) {
 	m, _ := newGotoApp(t, newGotoRepos())
 	runCommand(t, m, "goto "+strings.Repeat("a", 300)+"\u202e")
 	got := toasted(m)
-	if !strings.HasPrefix(got, ui.NewIcons(config.Default().UI.Icons).Error+" Can't open aaa") || !hasToast(m, "…: want owner/name.") {
+	if !strings.HasPrefix(got, "! Can't open aaa") || !hasToast(m, "…: want owner/name.") {
 		t.Errorf("toast %q, want the input cut and the reason whole", got)
 	}
 	if strings.ContainsRune(got, '\u202e') {

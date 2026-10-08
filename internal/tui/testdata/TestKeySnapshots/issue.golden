@@ -3,6 +3,10 @@
 global
   quit | ctrl+c | ^c | on
   maximize | Z | Z | on
+  dashboard | 0 | 0 | off
+  notifications | I | I | off
+  search | S | S | off
+  this repo | . | . | off
   help | ? | ? | on
 
 Issue
@@ -19,7 +23,7 @@ Issue
   clear filters | F | F | off
   filter | f | f | off
   sort | s | s | off
-  owner page | @ | @ | on
+  author | @ | @ | on
   up | up k | ↑/k | on
   down | down j | ↓/j | on
   page up | b ctrl+b pgup | b/^b/pgup | on

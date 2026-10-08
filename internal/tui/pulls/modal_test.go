@@ -469,13 +469,13 @@ func TestModalFailureToasts(t *testing.T) {
 func TestOwnerKeyInModal(t *testing.T) {
 	h := started(t, newFakeService(), 80, 20)
 	pr, _ := h.feed.Selected()
-	if got := uitest.Enabled(h.KeyLayers()); slices.Contains(got, "owner page") {
-		t.Errorf("list help = %v, want no owner page", got)
+	if got := uitest.Enabled(h.KeyLayers()); slices.Contains(got, "author") {
+		t.Errorf("list help = %v, want no author key", got)
 	}
 	press(t, h, "enter")
 	m := h.modal()
-	if got := uitest.Enabled(m.KeyLayers()); !slices.Contains(got, "owner page") {
-		t.Errorf("modal help = %v, want owner page", got)
+	if got := uitest.Enabled(m.KeyLayers()); !slices.Contains(got, "author") {
+		t.Errorf("modal help = %v, want the author key", got)
 	}
 	msgs := press(t, h, "@")
 	if !slices.Contains(msgs, tea.Msg(ui.OwnerMsg{Login: pr.Author.Login})) || pr.Author.Login == "" {
@@ -495,8 +495,8 @@ func TestOwnerKeyInModalOffForApps(t *testing.T) {
 	h := started(t, svc, 80, 20)
 	press(t, h, "enter")
 	m := h.modal()
-	if got := uitest.Enabled(m.KeyLayers()); slices.Contains(got, "owner page") {
-		t.Errorf("modal help = %v, want no owner page", got)
+	if got := uitest.Enabled(m.KeyLayers()); slices.Contains(got, "author") {
+		t.Errorf("modal help = %v, want no author key", got)
 	}
 	if msgs := press(t, h, "@"); len(msgs) != 0 || h.modal() != m {
 		t.Errorf("@ sent %v, want nothing and the modal open", msgs)

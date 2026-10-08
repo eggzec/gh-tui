@@ -344,3 +344,25 @@ func TestZeroDurationStays(t *testing.T) {
 		t.Error("Push returned a timer for a toast that should stay")
 	}
 }
+
+func TestDismissLevel(t *testing.T) {
+	m := New(0, 0)
+	m.Push(Error, "first")
+	m.Push(Info, "info")
+	m.Push(Error, "second")
+	if !m.Has(Error) || !m.Has(Info) || m.Has(Warning) {
+		t.Fatalf("Has: error %v, info %v, warning %v", m.Has(Error), m.Has(Info), m.Has(Warning))
+	}
+	if !m.DismissLevel(Error) || m.Len() != 2 {
+		t.Fatalf("DismissLevel(Error) left %d toasts, want 2", m.Len())
+	}
+	if m.toasts[1].text != "info" {
+		t.Errorf("the newest error should go first: %v", m.toasts)
+	}
+	if !m.DismissLevel(Error) || m.DismissLevel(Error) {
+		t.Error("DismissLevel should report the last error, then none")
+	}
+	if m.Len() != 1 || !m.Has(Info) {
+		t.Errorf("the info toast should stay: %d toasts", m.Len())
+	}
+}

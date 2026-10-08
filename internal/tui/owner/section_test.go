@@ -82,12 +82,16 @@ func TestBackIsBounded(t *testing.T) {
 	}
 }
 
-// esc leaves the zoom before it goes back.
-func TestBackUnzooms(t *testing.T) {
+// esc never leaves the zoom: the zoom key does.
+func TestEscKeepsTheZoom(t *testing.T) {
 	s := newSection(t, newFake(), "octocat", 120, 40)
 	press(t, s, "z")
-	if msgs := press(t, s, "esc"); len(msgs) > 0 || s.zoom {
-		t.Errorf("esc sent %v with zoom %v, want the zoom gone", msgs, s.zoom)
+	if msgs := press(t, s, "esc"); len(msgs) > 0 || !s.zoom {
+		t.Errorf("esc sent %v with zoom %v, want the zoom kept", msgs, s.zoom)
+	}
+	press(t, s, "z")
+	if s.zoom {
+		t.Error("z left the page zoomed")
 	}
 }
 

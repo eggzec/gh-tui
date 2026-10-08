@@ -19,7 +19,7 @@ func TestTransportDefaults(t *testing.T) {
 	if c.PageSize != want {
 		t.Errorf("page_size = %+v, want %+v", c.PageSize, want)
 	}
-	if c.UI.Toast != (Toast{Info: 4 * time.Second, Error: 8 * time.Second}) {
+	if c.UI.Toast != (Toast{Info: 4 * time.Second}) {
 		t.Errorf("ui.toast = %+v", c.UI.Toast)
 	}
 	if c.Commands.History != 100 {
@@ -31,7 +31,7 @@ func TestTransportFromFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.yaml")
 	data := `github: {timeout: 1m, concurrency: 4}
 page_size: {pulls: 50, waiting_on_you: 20}
-ui: {toast: {error: 20s}}
+ui: {toast: {info: 20s}}
 commands: {history: 500}
 `
 	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
@@ -48,7 +48,7 @@ commands: {history: 500}
 	if c.PageSize.Pulls != 50 || c.PageSize.WaitingOnYou != 20 || c.PageSize.Issues != 30 {
 		t.Errorf("page_size = %+v, want pulls 50, waiting_on_you 20 and the rest as by default", c.PageSize)
 	}
-	if c.UI.Toast != (Toast{Info: 4 * time.Second, Error: 20 * time.Second}) {
+	if c.UI.Toast != (Toast{Info: 20 * time.Second}) {
 		t.Errorf("ui.toast = %+v", c.UI.Toast)
 	}
 	if c.Commands.History != 500 {
@@ -73,7 +73,6 @@ func TestTransportValidate(t *testing.T) {
 		{"large page", func(c *Config) { c.PageSize.WaitingOnYou = 101 }, "page_size.waiting_on_you: must be between 10 and 100, got 101"},
 		{"toast", func(c *Config) { c.UI.Toast.Info = time.Second }, ""},
 		{"short toast", func(c *Config) { c.UI.Toast.Info = 0 }, "ui.toast.info: must be at least 1s, got 0s"},
-		{"short error", func(c *Config) { c.UI.Toast.Error = -time.Second }, "ui.toast.error: must be at least 1s, got -1s"},
 		{"history", func(c *Config) { c.Commands.History = 1 }, ""},
 		{"no history", func(c *Config) { c.Commands.History = 0 }, "commands.history: must be between 1 and 10000, got 0"},
 		{"long history", func(c *Config) { c.Commands.History = 10001 }, "commands.history: must be between 1 and 10000, got 10001"},
@@ -91,12 +90,15 @@ func TestTransportValidate(t *testing.T) {
 }
 
 func TestSetToast(t *testing.T) {
-	c, err := Default().Set("ui.toast.error", "30s")
+	c, err := Default().Set("ui.toast.info", "30s")
 	if err != nil {
 		t.Fatalf("Set: %v", err)
 	}
-	if got, _ := c.Get("ui.toast.error"); got != "30s" {
-		t.Errorf("ui.toast.error = %s, want 30s", got)
+	if got, _ := c.Get("ui.toast.info"); got != "30s" {
+		t.Errorf("ui.toast.info = %s, want 30s", got)
+	}
+	if _, err := Default().Set("ui.toast.error", "30s"); err == nil {
+		t.Error("Set ui.toast.error succeeded, but error toasts stay until dismissed")
 	}
 	if _, err := Default().Set("ui.toast.info", "0s"); err == nil || !strings.Contains(err.Error(), "ui.toast.info") {
 		t.Errorf("Set ui.toast.info=0s = %v, want it refused", err)

@@ -24,7 +24,6 @@ func newRepoKeyApp(t *testing.T, keys config.Keymap, sel ui.Selection, ok bool) 
 	layout := Layout{Files: &fakeSection{title: "Files"}, Dashboard: dash}
 	m := New(t.Context(), cfg, layout, WithHere(testRepo))
 	m.toast.SetDuration(0)
-	m.toast.SetErrorDuration(0)
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	run(m, m.Init())
 	return m
