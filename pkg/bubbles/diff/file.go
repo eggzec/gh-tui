@@ -43,8 +43,8 @@ type Side int
 
 // The two sides of a diff.
 const (
-	Old Side = iota
-	New
+	OldSide Side = iota
+	NewSide
 )
 
 // Pos is a line of a file on one side. Line is 1-based.

@@ -1,0 +1,9 @@
+▌ ▾ a/very/long/p… +2 -2
+  @@ -1,3 +1,3 @@ func f
+    1  ctx a0           
+    2 -old b0           
+    2 +new b0           
+    3  ctx c0           
+  @@ -21,3 +21,3 @@ func
+   21  ctx a1           
+file 1/1                

@@ -11,9 +11,9 @@ func (l *Layout) PosAt(i int) (Pos, bool) {
 	r, _ := l.RowAt(i)
 	switch r.Kind {
 	case KindContext, KindAdded:
-		return Pos{Path: l.files[r.File].file.Path, Side: New, Line: r.New}, true
+		return Pos{Path: l.files[r.File].file.Path, Side: NewSide, Line: r.New}, true
 	case KindDeleted:
-		return Pos{Path: l.files[r.File].file.Path, Side: Old, Line: r.Old}, true
+		return Pos{Path: l.files[r.File].file.Path, Side: OldSide, Line: r.Old}, true
 	case KindFileHeader, KindHunkHeader, KindNoNewline, KindNote, KindRaw:
 	}
 	return Pos{}, false
@@ -40,15 +40,15 @@ func (l *Layout) Find(p Pos) (row int, found bool) {
 		b := &s.body[r]
 		switch b.Kind {
 		case KindContext:
-			if (p.Side == New && b.New == p.Line) || (p.Side == Old && b.Old == p.Line) {
+			if (p.Side == NewSide && b.New == p.Line) || (p.Side == OldSide && b.Old == p.Line) {
 				return row + 1 + r, true
 			}
 		case KindAdded:
-			if p.Side == New && b.New == p.Line {
+			if p.Side == NewSide && b.New == p.Line {
 				return row + 1 + r, true
 			}
 		case KindDeleted:
-			if p.Side == Old && b.Old == p.Line {
+			if p.Side == OldSide && b.Old == p.Line {
 				return row + 1 + r, true
 			}
 		case KindFileHeader, KindHunkHeader, KindNoNewline, KindNote, KindRaw:
