@@ -11,8 +11,8 @@ global
 
 Pull request
   merge | M | M | on
-  close | X | X | on
-  reopen | O | O | off
+  close PR | X | X | on
+  reopen PR | O | O | off
   convert to draft | W | W | on
   checks | C | C | off
   next tab | ] | ] | on

@@ -157,6 +157,9 @@ type OpenPullMsg struct {
 	// Pause, if set, holds the reads ahead of the list it was opened
 	// from, such as the dashboard's, while its detail loads.
 	Pause Pauser
+	// Back, if set, is the modal that this one replaces, which the back
+	// key returns to. The app keeps it, hidden, behind the new one.
+	Back Modal
 }
 
 // OpenIssueMsg asks for the issue Number of Repo to be opened, such as when
@@ -170,6 +173,8 @@ type OpenIssueMsg struct {
 	// Pause, if set, holds the reads ahead of the list it was opened
 	// from, such as the dashboard's, while it loads.
 	Pause Pauser
+	// Back is the modal that this one replaces, as OpenPullMsg's is.
+	Back Modal
 }
 
 // OpenFilterMsg asks for the filter modal of the focused list to be opened

@@ -347,11 +347,11 @@ func enabled(layers []keyhelp.Layer) []string {
 
 func TestHelp(t *testing.T) {
 	h, m := opened(t, newFakeService(sampleIssues(12)), 20)
-	if got := enabled(m.KeyLayers()); !slices.Contains(got, "back") || slices.Contains(got, "filter") {
-		t.Errorf("modal help = %v, want back and no filter", got)
+	if got := enabled(m.KeyLayers()); slices.Contains(got, "filter") || winner(m.KeyLayers(), "esc") != "Issue: close" {
+		t.Errorf("modal help = %v, want esc to close and no filter", got)
 	}
-	if got := enabled(h.KeyLayers()); slices.Contains(got, "back") || !slices.Contains(got, "filter") {
-		t.Errorf("list help = %v, want filter and no back", got)
+	if got := enabled(h.KeyLayers()); winner(h.KeyLayers(), "esc") == "Issues: close" || !slices.Contains(got, "filter") {
+		t.Errorf("list help = %v, want filter and no esc to close", got)
 	}
 	// The section's and the modal's keys come before the bubbles'.
 	for _, tt := range []struct {
@@ -628,5 +628,26 @@ func TestModalKeepsItsScrollWhenResized(t *testing.T) {
 		if line, _ := topLine(m.View()); !strings.Contains(line, want) {
 			t.Errorf("at %dx%d the top line is %q, want it to hold %s", size[0], size[1], line, want)
 		}
+	}
+}
+
+// TestReturnedModalReadsAgain checks that an issue the app returns to reads
+// its detail and comments again, and that a discarded one doesn't.
+func TestReturnedModalReadsAgain(t *testing.T) {
+	svc := newFakeService(sampleIssues(12))
+	h := started(t, svc, 80, 20)
+	press(t, h, "enter")
+	m := h.modal()
+	if m == nil {
+		t.Fatal("enter didn't open the issue")
+	}
+	gets := len(svc.gets)
+	run(t, h, m.Update(ui.ReopenedMsg{Modal: m}))
+	if len(svc.gets) <= gets {
+		t.Error("the returned issue didn't read its detail again")
+	}
+	m.Discard()
+	if cmd := m.Update(ui.ReopenedMsg{Modal: m}); cmd != nil {
+		t.Error("a discarded issue acted on its return")
 	}
 }

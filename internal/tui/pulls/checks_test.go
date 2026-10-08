@@ -15,6 +15,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
+	"github.com/eggzec/gh-tui/internal/tui/checks"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 )
@@ -374,7 +375,7 @@ func TestChangeKeysWorkInTheChecks(t *testing.T) {
 	if len(layers) < 2 || layers[0].Context != "pull_modal" {
 		t.Fatalf("layers = %v, want the modal's first", layers)
 	}
-	if got := uitest.Enabled(layers[:1]); !slices.Equal(got, []string{"merge", "close", "convert to draft", "next tab", "previous tab", "author"}) {
+	if got := uitest.Enabled(layers[:1]); !slices.Equal(got, []string{"merge", "close PR", "convert to draft", "next tab", "previous tab", "author"}) {
 		t.Errorf("enabled keys of the modal in the checks = %v, want the changes, the tabs and the author", got)
 	}
 	// C does nothing while the checks show.
@@ -444,5 +445,33 @@ func TestEscClearsTheLogOptionPromptThenCloses(t *testing.T) {
 	press(t, h, "esc")
 	if h.modal() != nil {
 		t.Error("the second esc didn't close the modal")
+	}
+}
+
+// TestReturnedModalReadsAndPollsAgain checks that a modal the app returns to
+// reads its detail again and, kept on the Checks tab, polls again, as it
+// stopped while the other modal was open; and that a modal the app discards
+// polls no more and ignores a return.
+func TestReturnedModalReadsAndPollsAgain(t *testing.T) {
+	w := &watching{}
+	svc := newFakeService()
+	h, m := tabbed(t, svc, &fakeChecks{pending: true}, checks.WithWatch(w.watch), checks.WithTick(0))
+	gets := len(svc.gets)
+	drain(t, h, m.Update(ui.ReopenedMsg{Modal: m}))
+	if len(svc.gets) <= gets {
+		t.Error("the returned modal didn't read its detail again")
+	}
+	press(t, h, "]")
+	m.Hide()
+	drain(t, h, m.Update(ui.ReopenedMsg{Modal: m}))
+	if starts, stops := w.counts(); starts != 2 || stops != 1 {
+		t.Errorf("hidden and returned on the Checks tab: %d starts, %d stops, want 2 and 1", starts, stops)
+	}
+	m.Discard()
+	if starts, stops := w.counts(); starts != stops || m.checks != nil {
+		t.Errorf("discarding left %d starts and %d stops, step open %v", starts, stops, m.checks != nil)
+	}
+	if cmd := m.Update(ui.ReopenedMsg{Modal: m}); cmd != nil {
+		t.Error("a discarded modal acted on its return")
 	}
 }

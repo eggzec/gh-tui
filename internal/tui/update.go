@@ -234,7 +234,7 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd := m.broadcast(msg)
 		return m, cmd
 	case ui.OpenModalMsg:
-		m.openModal(msg.Modal)
+		m.openModalOver(msg.Modal, msg.Back)
 		return m, nil
 	case ui.CloseModalMsg:
 		m.closeModal(msg.Modal)

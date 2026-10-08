@@ -68,7 +68,7 @@ func newKeyMap(keys config.Keymap) keyMap {
 	list := ui.In(keys, ctxList)
 	k := keyMap{
 		Select:      list.Binding("global.select", "open"),
-		Back:        list.Binding("global.dismiss", "back"),
+		Back:        list.Binding("global.dismiss", "close"),
 		Filter:      list.Binding("filter", "filter"),
 		Sort:        list.Binding("sort", "sort"),
 		ClearFilter: list.Binding("clear_filter", "clear filters"),
@@ -78,8 +78,8 @@ func newKeyMap(keys config.Keymap) keyMap {
 		Open:        list.Binding("global.open", "open in browser"),
 
 		Merge:       list.Binding("merge", "merge"),
-		Close:       list.Binding("close", "close"),
-		Reopen:      list.Binding("reopen", "reopen"),
+		Close:       list.Binding("close", "close PR"),
+		Reopen:      list.Binding("reopen", "reopen PR"),
 		ToggleDraft: list.Binding("draft", "convert to draft"),
 		Checks:      list.Binding("checks", "checks"),
 		confirm:     ui.NewConfirmKeys(keys),
@@ -104,8 +104,8 @@ func newKeyMap(keys config.Keymap) keyMap {
 func (k keyMap) forModal(keys config.Keymap) keyMap {
 	modal := ui.In(keys, ctxModal)
 	k.Merge = modal.Binding("merge", "merge")
-	k.Close = modal.Binding("close", "close")
-	k.Reopen = modal.Binding("reopen", "reopen")
+	k.Close = modal.Binding("close", "close PR")
+	k.Reopen = modal.Binding("reopen", "reopen PR")
 	k.ToggleDraft = modal.Binding("draft", "convert to draft")
 	k.Checks = modal.Binding("checks", "checks")
 	// The modal closes on esc, as it does from the list, and its tabs are those of the global keys.

@@ -130,9 +130,7 @@ func (s *Step) press(msg tea.KeyPressMsg) tea.Cmd {
 		id := s.id
 		return func() tea.Msg { return CloseMsg{ID: id} }
 	case key.Matches(msg, k.Back):
-		if s.mode != listMode {
-			s.back()
-		}
+		s.StepOut()
 		return nil
 	case key.Matches(msg, k.paneRerun(s)):
 		if r, ok := s.current(); ok && r.job() {
@@ -217,6 +215,16 @@ func (s *Step) updateView(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
 	s.view, cmd = s.view.Update(msg)
 	return cmd
+}
+
+// StepOut steps back from a job or a detail to the checks, and reports
+// whether it did: on the checks there is nothing to step out of.
+func (s *Step) StepOut() bool {
+	if s.mode == listMode {
+		return false
+	}
+	s.back()
+	return true
 }
 
 // back steps back from a job or a detail to the checks.

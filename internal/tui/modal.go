@@ -26,9 +26,18 @@ func (m *Model) topModal() ui.Modal {
 // modals never stack, so the screen shows at most one frame over it. It
 // closes the command line, whose command was typed for what showed before,
 // such as when a goto run before ends while the user types another.
-func (m *Model) openModal(mod ui.Modal) {
+func (m *Model) openModal(mod ui.Modal) { m.openModalOver(mod, nil) }
+
+// openModalOver opens mod as openModal does. If back is the open modal and
+// isn't mod, it is kept for the back key to return to, in the same history
+// as the screens: one that began another chain than the history's own
+// starts it over.
+func (m *Model) openModalOver(mod, back ui.Modal) {
 	if mod == nil {
 		return
+	}
+	if back != nil && m.modal == back && mod != back {
+		m.pushModal(back, mod)
 	}
 	m.cancelGoto()
 	if m.line.Focused() {
@@ -46,6 +55,71 @@ func (m *Model) openModal(mod ui.Modal) {
 	m.modal = mod
 	mod.SetTheme(m.theme)
 	m.sizeModal(m.modalSize())
+}
+
+// pushModal keeps back, which top replaces, for the back key. The modals
+// kept for another top belong to a chain that ended without closing, such
+// as one that a goto replaced, and are dropped.
+func (m *Model) pushModal(back, top ui.Modal) {
+	if m.backOwner != back {
+		m.dropModals()
+	}
+	m.back = append(m.back, place{modal: back})
+	m.backOwner = top
+	var kept []int
+	for i, p := range m.back {
+		if p.modal != nil {
+			kept = append(kept, i)
+		}
+	}
+	if len(kept) > maxBackModals {
+		i := kept[0]
+		m.discardPlaces(m.back[i : i+1])
+		m.back = slices.Delete(slices.Clone(m.back), i, i+1)
+	}
+}
+
+// modalBack reports whether the open modal has a modal to return to.
+func (m *Model) modalBack() bool {
+	n := len(m.back)
+	return m.modal != nil && m.modal == m.backOwner && n > 0 && m.back[n-1].modal != nil
+}
+
+// goModalBack returns from the open modal, which from must be, to the one
+// it replaced, which opens as it was left. The modal it leaves is dropped.
+func (m *Model) goModalBack(from ui.Modal) tea.Cmd {
+	if from == nil || m.modal != from || !m.modalBack() {
+		return nil
+	}
+	n := len(m.back) - 1
+	prev := m.back[n].modal
+	m.back = m.back[:n]
+	m.backOwner = prev
+	m.openModal(prev)
+	m.discardModal(from)
+	return func() tea.Msg { return ui.ReopenedMsg{Modal: prev} }
+}
+
+// dropModals drops the modals kept for the back key, as the chain of
+// modals that kept them is over, and leaves the screens.
+func (m *Model) dropModals() {
+	m.discardPlaces(m.back)
+	m.back = slices.DeleteFunc(slices.Clone(m.back), func(p place) bool { return p.modal != nil })
+	m.backOwner = nil
+}
+
+// discardPlaces discards the modals among ps.
+func (m *Model) discardPlaces(ps []place) {
+	for _, p := range ps {
+		m.discardModal(p.modal)
+	}
+}
+
+// discardModal stops mod, which the app drops without it being open.
+func (m *Model) discardModal(mod ui.Modal) {
+	if d, ok := mod.(ui.Discarder); ok {
+		d.Discard()
+	}
 }
 
 // sizeModal gives the open modal its size.
@@ -125,7 +199,16 @@ func (m *Model) actOverModal(mod ui.Modal, msg tea.KeyPressMsg) (tea.Cmd, bool) 
 	case key.Matches(msg, m.keys.Quit):
 		return act(ui.ActQuit)
 	case key.Matches(msg, m.keys.Back):
-		return act(ui.ActBack)
+		// The modal steps back inside itself first; otherwise the key
+		// returns to the modal it replaced, if there is one, and else
+		// reaches the modal as a key.
+		if cmd, ok := act(ui.ActBack); ok {
+			return cmd, true
+		}
+		if m.modalBack() {
+			return m.goModalBack(mod), true
+		}
+		return nil, false
 	case key.Matches(msg, m.keys.Dismiss):
 		return act(ui.ActDismiss)
 	}
@@ -306,6 +389,8 @@ func (m *Model) canOpenActions() bool {
 func (m *Model) closeModal(mod ui.Modal) {
 	if m.isOpen(mod) {
 		m.modal = nil
+		// Closing ends the chain: what it kept for the back key goes.
+		m.dropModals()
 	}
 }
 

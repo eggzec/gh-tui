@@ -100,8 +100,9 @@ type detailModal struct {
 // openDetail opens a modal on pull request number of repo, on its checks
 // if onChecks is set and the section has them. pr is the list item, shown
 // until the detail arrives, or nil when there is none. The title names
-// repo if showRepo is set or it isn't the one selected.
-func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest, onChecks, showRepo bool, from ui.Pauser) tea.Cmd {
+// repo if showRepo is set or it isn't the one selected. back is the modal
+// it replaces, which the back key returns to, or nil.
+func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest, onChecks, showRepo bool, from ui.Pauser, back ui.Modal) tea.Cmd {
 	// The reads of the modal are one trace, however many pages it reads.
 	ctx, cancel := context.WithCancel(obs.WithTrace(s.ctx, "open.pull"))
 	s.ahead.Opened(detailKey(repo, number))
@@ -178,7 +179,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 	if !m.loaded {
 		// The loads start once the modal is open, so that the app has it
 		// to pass their results to.
-		return tea.Sequence(ui.OpenModal(m), tea.Batch(m.thread.Init(), m.get(), step))
+		return tea.Sequence(ui.OpenModalOver(m, back), tea.Batch(m.thread.Init(), m.get(), step))
 	}
 	// What is cached shows at once, and is read again behind it.
 	cp, primed := svc.CachedComments(q)
@@ -189,7 +190,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 	if primed {
 		loads = append(loads, m.thread.Reload())
 	}
-	return tea.Sequence(ui.OpenModal(m), tea.Batch(loads...))
+	return tea.Sequence(ui.OpenModalOver(m, back), tea.Batch(loads...))
 }
 
 // capsOf returns what the viewer may do in repo, as far as it is known.
@@ -304,12 +305,17 @@ func (m *detailModal) Update(msg tea.Msg) tea.Cmd {
 		}
 		return nil
 	case ui.ReopenedMsg:
-		// What the step opened, such as the file of an annotation, closed:
-		// the step goes on if it is on view, and otherwise when it shows.
+		// What the step opened, such as the file of an annotation, closed,
+		// or the modal that replaced this one: the step goes on if it is
+		// on view, and otherwise when it shows. The conversation is read
+		// again behind what is cached.
 		if m.onChecks() {
 			return m.checks.Update(msg)
 		}
-		return nil
+		if msg.Modal != m {
+			return nil
+		}
+		return tea.Batch(m.get(), m.thread.Reload())
 	}
 	if m.checks == nil {
 		return m.updateDetail(msg)
@@ -364,13 +370,21 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 
 // close closes the modal, and stops its reads and the step's polls.
 func (m *detailModal) close() tea.Cmd {
-	m.closed = true
-	m.cancel()
+	m.Discard()
+	return ui.CloseModal(m)
+}
+
+// Discard implements ui.Discarder, for a modal the app drops while it is
+// hidden, such as the one a chain of modals leaves behind. The Checks step
+// ends its polls, the reads end, and those held back for the modal go on.
+func (m *detailModal) Discard() {
 	if m.checks != nil {
 		m.checks.Close()
+		m.checks = nil
 	}
+	m.closed = true
+	m.cancel()
 	m.resume()
-	return ui.CloseModal(m)
 }
 
 // change starts the change that msg asks of the pull request, once the

@@ -66,7 +66,7 @@ func newKeyMap(keys config.Keymap) keyMap {
 	list := ui.In(keys, ctxList)
 	k := keyMap{
 		Select:      list.Binding("global.select", "open"),
-		Back:        list.Binding("global.dismiss", "back"),
+		Back:        list.Binding("global.dismiss", "close"),
 		Filter:      list.Binding("filter", "filter"),
 		Sort:        list.Binding("sort", "sort"),
 		ClearFilter: list.Binding("clear_filter", "clear filters"),
@@ -74,8 +74,8 @@ func newKeyMap(keys config.Keymap) keyMap {
 		PrevTab:     list.Binding("global.prev_tab", "previous state"),
 		Refresh:     list.Binding("global.refresh", "refresh"),
 		Open:        list.Binding("global.open", "browser"),
-		Close:       list.Binding("close", "close"),
-		Reopen:      list.Binding("reopen", "reopen"),
+		Close:       list.Binding("close", "close issue"),
+		Reopen:      list.Binding("reopen", "reopen issue"),
 		Comment:     list.Binding("comment", "comment"),
 		Label:       list.Binding("labels", "labels"),
 		confirm:     ui.NewConfirmKeys(keys),
@@ -99,8 +99,8 @@ func newKeyMap(keys config.Keymap) keyMap {
 // issue takes, which are its own.
 func (k keyMap) forModal(keys config.Keymap) keyMap {
 	modal := ui.In(keys, ctxModal)
-	k.Close = modal.Binding("close", "close")
-	k.Reopen = modal.Binding("reopen", "reopen")
+	k.Close = modal.Binding("close", "close issue")
+	k.Reopen = modal.Binding("reopen", "reopen issue")
 	k.Comment = modal.Binding("comment", "comment")
 	k.Label = modal.Binding("labels", "labels")
 	return k

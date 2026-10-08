@@ -348,9 +348,9 @@ func TestHelpOffersTheApplicableChange(t *testing.T) {
 		for _, l := range s.KeyLayers() {
 			for _, b := range l.Bindings {
 				switch {
-				case b.Help().Desc == "close":
+				case b.Help().Desc == "close issue":
 					closeOn = b.Enabled()
-				case b.Help().Desc == "reopen":
+				case b.Help().Desc == "reopen issue":
 					reopenOn = b.Enabled()
 				}
 			}

@@ -123,6 +123,12 @@ func (m *Model) layersNow() []keyhelp.Layer {
 		// modal's keys after both.
 		if !slices.ContainsFunc(inner, takesKeys) {
 			always.Bindings = append(always.Bindings, m.keys.state(m).Maximize)
+			if back := m.keys.Back; !listsKey(inner, back) {
+				// The key returns to the modal this one replaced; a modal
+				// that has steps of its own lists it with them.
+				back.SetEnabled(back.Enabled() && m.modalBack())
+				always.Bindings = append(always.Bindings, back)
+			}
 			always.Bindings = append(always.Bindings, m.refused(inner)...)
 		}
 	}
@@ -227,6 +233,15 @@ func (m *Model) opensHelp(msg tea.KeyPressMsg) bool {
 	}
 	inner, _ := m.innerLayers()
 	return key.Matches(msg, m.helpKey(inner))
+}
+
+// listsKey reports whether a binding of layers has a key of b.
+func listsKey(layers []keyhelp.Layer, b key.Binding) bool {
+	return slices.ContainsFunc(layers, func(l keyhelp.Layer) bool {
+		return slices.ContainsFunc(l.Bindings, func(o key.Binding) bool {
+			return slices.ContainsFunc(o.Keys(), func(k string) bool { return slices.Contains(b.Keys(), k) })
+		})
+	})
 }
 
 // capturing reports whether l is the keys of what takes every key while
