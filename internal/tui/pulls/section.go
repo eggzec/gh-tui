@@ -312,6 +312,7 @@ func (s *Section) newFeed() tea.Cmd {
 		feed.WithContext(ctx),
 		feed.WithKey(pullKey),
 		feed.WithKeyMap(s.keys.feed),
+		feed.WithPromptKeys(s.keys.search),
 		feed.WithStyles(s.theme.Feed(s.icons)),
 		feed.WithFocused(s.focused),
 		feed.WithEmptyText(s.emptyText()),

@@ -89,6 +89,10 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 	if !s.focused || p == nil {
 		return nil
 	}
+	if l := p.list(); l != nil && p.focus == listPane && l.feed().Takes(msg) {
+		// The list's prompt takes the keys before the page's own.
+		return l.update(msg)
+	}
 	if cmd, ok := s.pressPane(msg); ok {
 		return cmd
 	}

@@ -1,6 +1,10 @@
 package feed
 
-import "context"
+import (
+	"context"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
+)
 
 // Option configures a feed in [New].
 //
@@ -18,6 +22,8 @@ type settings struct {
 	errorText  func(error) (text, hint string)
 	keyMap     KeyMap
 	styles     Styles
+	// promptKeys are the keys of the prompt of a find or filter.
+	promptKeys cmdline.KeyMap
 	focused    bool
 	maxChunks  int
 	prefetch   int
@@ -31,6 +37,7 @@ func defaultSettings() settings {
 		itemHeight: 1,
 		emptyText:  "Nothing to show.",
 		keyMap:     NewKeyMap(unbound),
+		promptKeys: cmdline.NewKeyMap(unbound),
 		styles:     DefaultStyles(true),
 		maxChunks:  DefaultMaxChunks,
 	}
@@ -96,6 +103,17 @@ func WithErrorText(say func(error) (text, hint string)) Option {
 func WithKeyMap(k KeyMap) Option {
 	return func(s *settings) {
 		s.keyMap = k
+	}
+}
+
+// WithPromptKeys sets the keys of the prompt that [KeyMap.Find] and
+// [KeyMap.QuickFilter] open: Submit runs what was typed, Cancel closes the
+// prompt, and CancelEmpty closes it on an empty line. While no prompt is
+// open, Cancel clears the find shown, and then the filter. Without them,
+// the prompt can't be closed by a key but a blur.
+func WithPromptKeys(k cmdline.KeyMap) Option {
+	return func(s *settings) {
+		s.promptKeys = k
 	}
 }
 

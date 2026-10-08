@@ -131,6 +131,7 @@ func New(ctx context.Context, svc Service, keys config.Keymap, opts ...Option) *
 		feed.WithContext(ctx),
 		feed.WithKey(func(n core.Notification) string { return n.ID }),
 		feed.WithKeyMap(s.keys.feed),
+		feed.WithPromptKeys(s.keys.search),
 		feed.WithErrorText(ui.ErrorText("load the notifications", "", s.voice)),
 	)
 	s.SetTheme(ui.NewTheme(defaultPalette(), true))
@@ -233,5 +234,13 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 	k.MarkRead = g.Gated(k.MarkRead, ui.ActMarkRead, nil)
 	k.MarkDone = g.Gated(k.MarkDone, ui.ActMarkRead, nil)
 	k.MarkAllRead = g.Gated(k.MarkAllRead, ui.ActMarkRead, nil)
-	return []keyhelp.Layer{ui.MergeLayers(ctxScreen, keyhelp.FromHelp("", k, false), keyhelp.FromHelp("", s.feed.KeyMap(), false))}
+	list, prompting := ui.FeedLayer(s.feed)
+	if prompting {
+		return []keyhelp.Layer{list}
+	}
+	return []keyhelp.Layer{ui.MergeLayers(ctxScreen, keyhelp.FromHelp("", k, false), list)}
 }
+
+// Capturing implements ui.Capturer: the list takes every key while its
+// find or filter prompt is open.
+func (s *Section) Capturing() bool { return s.feed.Capturing() }

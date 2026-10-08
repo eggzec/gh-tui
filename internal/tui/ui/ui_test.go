@@ -99,6 +99,28 @@ func TestThemeTakesPaletteColors(t *testing.T) {
 	}
 }
 
+// The prompt and chip of a list's find and filter take the palette, in a
+// light terminal as in a dark one.
+func TestThemeFeedFindStyles(t *testing.T) {
+	for _, dark := range []bool{true, false} {
+		p, err := config.Default().Palette(dark)
+		if err != nil {
+			t.Fatal(err)
+		}
+		st := NewTheme(p, dark).Feed(NewIcons(config.IconsNerd))
+		for name, c := range map[string][2]any{
+			"prompt":      {st.Prompt.GetForeground(), p.Accent},
+			"prompt text": {st.PromptText.GetForeground(), p.Foreground},
+			"chip":        {st.Chip.GetForeground(), p.Accent},
+			"notice":      {st.Notice.GetForeground(), p.Error},
+		} {
+			if c[0] != lipgloss.Color(c[1].(string)) {
+				t.Errorf("dark %v: %s = %v, want %v", dark, name, c[0], c[1])
+			}
+		}
+	}
+}
+
 // Every bubble that marks what went wrong takes the mark of the icons, as
 // the error lines of the sections do.
 func TestThemeTakesErrorGlyph(t *testing.T) {

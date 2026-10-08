@@ -7,6 +7,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
@@ -41,7 +42,9 @@ type keyMap struct {
 	// confirm answers the question that merge, close and reopen ask.
 	confirm ui.ConfirmKeys
 	feed    feed.KeyMap
-	thread  thread.KeyMap
+	// search are the keys of the prompt of the list's find and filter.
+	search cmdline.KeyMap
+	thread thread.KeyMap
 	// owner shows the author's page from the modal. The list leaves the
 	// key to the app, which does it from the selection, so only the
 	// modal's help lists it.
@@ -83,6 +86,7 @@ func newKeyMap(keys config.Keymap) keyMap {
 	// The section and the modal match their own keys first, so the feed
 	// and the thread get only the keys they leave them.
 	k.feed = feed.NewKeyMap(list)
+	k.search = ui.SearchPromptKeys(keys)
 
 	t := thread.NewKeyMap(ui.In(keys, ctxConversation))
 	// The thread offers retry itself once something failed.
@@ -138,8 +142,16 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 	if !s.hasRepo || s.feed == nil {
 		return []keyhelp.Layer{ui.Off(ui.MergeLayers(ctxList, own))}
 	}
-	return []keyhelp.Layer{ui.MergeLayers(ctxList, own, keyhelp.FromHelp("", s.feed.KeyMap(), false))}
+	list, prompting := ui.FeedLayer(s.feed)
+	if prompting {
+		return []keyhelp.Layer{list}
+	}
+	return []keyhelp.Layer{ui.MergeLayers(ctxList, own, list)}
 }
+
+// Capturing implements ui.Capturer: the list takes every key while its
+// find or filter prompt is open.
+func (s *Section) Capturing() bool { return s.feed != nil && s.feed.Capturing() }
 
 // onList returns k as the list takes it: the changes that apply to the pull
 // request under the cursor, and the clear key while a filter is in

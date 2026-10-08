@@ -7,6 +7,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/calendar"
+	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
@@ -50,6 +51,8 @@ type KeyMap struct {
 	// feed is the navigation of the lists, which gets the keys above only
 	// if the page leaves them.
 	feed feed.KeyMap
+	// search are the keys of the prompt of the lists' find and filter.
+	search cmdline.KeyMap
 	// cal moves through the days of a user's contributions.
 	cal calendar.KeyMap
 }
@@ -88,6 +91,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 	// The page matches these keys first, so the list gets only the keys it
 	// leaves it.
 	k.feed = feed.NewKeyMap(list)
+	k.search = ui.SearchPromptKeys(keys)
 	k.cal = calendar.NewKeyMap(ui.In(keys, paneContext[calendarPane]))
 	return k
 }
@@ -119,6 +123,16 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 	}
 }
 
+// Capturing implements ui.Capturer: the list takes every key while its
+// find or filter prompt is open.
+func (s *Section) Capturing() bool {
+	if s.page == nil || s.page.focus != listPane {
+		return false
+	}
+	l := s.page.list()
+	return s.focused && l != nil && l.feed().Capturing()
+}
+
 // KeyLayers implements ui.Keyed: the keys of the page, which work in every
 // pane, and then those of the focused pane, named for what they do there,
 // with those of the list on view, the README or the calendar, whichever
@@ -135,7 +149,11 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 	ctx := paneContext[focus]
 	own := keyhelp.Layer{Bindings: k.paneKeys(focus), Short: k.paneShort(focus)}
 	if l := s.page.list(); l != nil && focus == listPane {
-		return []keyhelp.Layer{screen, ui.MergeLayers(ctx, own, keyhelp.FromHelp("", l.feed().KeyMap(), false))}
+		list, prompting := ui.FeedLayer(l.feed())
+		if prompting {
+			return []keyhelp.Layer{list}
+		}
+		return []keyhelp.Layer{screen, ui.MergeLayers(ctx, own, list)}
 	}
 	if side, ok := s.sideLayer(); ok {
 		return []keyhelp.Layer{screen, ui.MergeLayers(ctx, own, side)}

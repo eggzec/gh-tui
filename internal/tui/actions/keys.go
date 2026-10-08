@@ -9,6 +9,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/jobview"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/logview"
@@ -57,7 +58,9 @@ type KeyMap struct {
 
 	// Runs and Jobs move through the runs and the jobs, and Log through the
 	// log. notesUp and notesDown move through the annotations.
-	Runs, Jobs         feed.KeyMap
+	Runs, Jobs feed.KeyMap
+	// search are the keys of the prompt of the runs' find and filter.
+	search             cmdline.KeyMap
 	Log                logview.KeyMap
 	notesUp, notesDown key.Binding
 }
@@ -104,6 +107,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 	k.Jump = ui.Jump(k.Panes[:]...)
 	k.notesUp, k.notesDown = notes.Binding("up", "up"), notes.Binding("down", "down")
 	k.Runs, k.Jobs = feed.NewKeyMap(runs), feed.NewKeyMap(jobs)
+	k.search = ui.SearchPromptKeys(keys)
 
 	// The log folds with enter, and closes with the back key, which
 	// clears a search first.

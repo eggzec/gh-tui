@@ -5,6 +5,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 )
 
@@ -26,6 +27,8 @@ type KeyMap struct {
 	// feed is the navigation of the list, which gets the keys above
 	// only if the section leaves them.
 	feed feed.KeyMap
+	// search are the keys of the prompt of the list's find and filter.
+	search cmdline.KeyMap
 }
 
 // ctxScreen is the context of the keys of the notifications screen.
@@ -48,6 +51,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 	// keys it leaves it. Refresh retries what failed, so the list's error
 	// row names its keys.
 	k.feed = feed.NewKeyMap(screen)
+	k.search = ui.SearchPromptKeys(keys)
 	return k
 }
 

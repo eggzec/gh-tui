@@ -3,6 +3,7 @@ package owner
 import (
 	"slices"
 
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
@@ -88,6 +89,13 @@ type feedModel interface {
 	Retry() tea.Cmd
 	RetryKept() tea.Cmd
 	KeyMap() feed.KeyMap
+	// Capturing reports whether the prompt of the find or filter is
+	// open, and Takes whether the feed handles msg before the page.
+	Capturing() bool
+	Takes(msg tea.KeyPressMsg) bool
+	// ShortHelp and FullHelp make the feed what the help reads.
+	ShortHelp() []key.Binding
+	FullHelp() [][]key.Binding
 }
 
 // lister is the list of a tab.

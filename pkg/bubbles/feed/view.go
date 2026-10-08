@@ -13,16 +13,21 @@ func (m Model[T]) View() string {
 	if m.width <= 0 || m.height <= 0 {
 		return ""
 	}
-	w := lineWriter{width: m.width, height: m.height, ellipsis: m.styles.ErrorEllipsis, cut: m.styles.Ellipsis}
+	body := m.height
+	foot := m.hasFooter()
+	if foot {
+		body--
+	}
+	w := lineWriter{width: m.width, height: body, ellipsis: m.styles.ErrorEllipsis, cut: m.styles.Ellipsis}
 	// Rows carry styles, so leave room for escape sequences.
 	w.b.Grow(m.height * (m.width + 32))
 
 	inner := max(m.width-gutterWidth, 0)
 	for i := m.top; !w.full(); i++ {
 		switch {
-		case i < m.total:
+		case i < m.shown():
 			m.writeItem(&w, i, inner)
-		case i == m.total && m.hasStatus():
+		case i == m.shown() && m.hasStatus():
 			text, hint := m.statusLine()
 			w.status(m.gutterNone, text, hint)
 			w.blank(m.itemHeight - 1)
@@ -30,13 +35,17 @@ func (m Model[T]) View() string {
 			w.blank(m.height)
 		}
 	}
+	if foot {
+		w.height = m.height
+		w.line(m.footer())
+	}
 	return w.b.String()
 }
 
 func (m Model[T]) writeItem(w *lineWriter, i, width int) {
 	selected := i == m.sel
 	gutter := m.gutter(selected)
-	item, ok := m.item(i)
+	item, ok := m.item(m.at(i))
 	if !ok {
 		m.writePending(w, i, gutter)
 		return
@@ -53,6 +62,7 @@ func (m Model[T]) writeItem(w *lineWriter, i, width int) {
 // it is fetched again, or the error once, where the failed chunk comes into
 // view, or only the retry key for a failure not worth telling.
 func (m Model[T]) writePending(w *lineWriter, i int, gutter string) {
+	i = m.at(i)
 	c := m.chunkAt(i)
 	if m.chunks[c].err != nil && (i == m.starts[c] || i == m.top) {
 		w.status(gutter, m.errLine, m.errHint)
@@ -81,6 +91,12 @@ func (m Model[T]) statusLine() (text, hint string) {
 		return m.errLine, m.errHint
 	case m.tail.fetching:
 		return m.spin.View() + m.loadingText, ""
+	case m.filter != "":
+		text := "No loaded row matches."
+		if !m.done {
+			text = "No loaded match. Move down for more."
+		}
+		return m.styles.Empty.Render(text), ""
 	default:
 		return m.emptyLine, ""
 	}

@@ -108,6 +108,7 @@ func (s *Section) newRepoList(o core.Owner) *repoList {
 		feed.WithContext(s.ctx),
 		feed.WithKey(func(r core.Repo) string { return r.Ref.String() }),
 		feed.WithKeyMap(s.keys.feed),
+		feed.WithPromptKeys(s.keys.search),
 		feed.WithEmptyText(s.reposEmpty(l)),
 		feed.WithStyles(s.theme.Feed(s.icons)),
 		feed.WithErrorText(ui.ErrorText("load the repositories", o.Profile.Login, s.voice)),

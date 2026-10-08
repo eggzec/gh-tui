@@ -773,7 +773,14 @@ func pressReaches(m *Model, press tea.KeyPressMsg) (cmd tea.Cmd, reached bool) {
 // set, on a terminal wide enough to zoom.
 func newKeysApp(t *testing.T, repo bool) *Model {
 	t.Helper()
+	return newKeysAppWith(t, repo, func(*config.Config) {})
+}
+
+// newKeysAppWith is newKeysApp over the config that edit changes.
+func newKeysAppWith(t *testing.T, repo bool, edit func(*config.Config)) *Model {
+	t.Helper()
 	ctx, cfg := t.Context(), config.Default()
+	edit(&cfg)
 	acc := newFakeAccess(uitest.Classic("repo", "workflow", "notifications", "read:org", "gist"))
 	v := ui.NewVoice(cfg.Keys, "")
 	v.Token = ui.NewToken(acc, cfg.Keys)

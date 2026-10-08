@@ -96,6 +96,7 @@ func (s *Section) feedOptions(key feed.Option, empty, action, login string) []fe
 		feed.WithContext(s.ctx),
 		key,
 		feed.WithKeyMap(s.keys.feed),
+		feed.WithPromptKeys(s.keys.search),
 		feed.WithEmptyText(empty),
 		feed.WithStyles(s.theme.Feed(s.icons)),
 		feed.WithErrorText(ui.ErrorText(action, login, s.voice)),

@@ -260,8 +260,8 @@ func (s *Section) Init() tea.Cmd {
 }
 
 // Capturing reports whether the page takes every key, which it does while
-// the query types.
-func (s *Section) Capturing() bool { return s.focused && s.typing }
+// the query types, or the prompt of the results' find or filter is open.
+func (s *Section) Capturing() bool { return s.focused && (s.typing || s.feedCapturing()) }
 
 // Query returns the query the results are for.
 func (s *Section) Query() string { return s.text }
