@@ -119,6 +119,9 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 	if s.typing {
 		return s.pressTyping(msg)
 	}
+	if cmd, ok := s.pressFeed(msg); ok {
+		return cmd
+	}
 	k := &s.keys
 	switch {
 	case k.focusOf(msg) >= 0:

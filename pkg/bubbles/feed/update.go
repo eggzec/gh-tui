@@ -42,14 +42,24 @@ func (m Model[T]) Update(msg tea.Msg) (Model[T], tea.Cmd) {
 		if !m.focused {
 			return m, nil
 		}
+		m.note = ""
+		if m.prompt.Focused() {
+			return m.updatePrompt(msg)
+		}
 		cmd := m.press(msg)
+		m.scroll()
 		return m, cmd
+	}
+	if m.prompt.Focused() {
+		// Pastes and the like go to the prompt.
+		return m.updatePrompt(msg)
 	}
 	return m, nil
 }
 
 func (m *Model[T]) press(msg tea.KeyPressMsg) tea.Cmd {
 	page := m.slots()
+	before := m.sel
 	switch {
 	case key.Matches(msg, m.keyMap.Up):
 		m.sel--
@@ -66,15 +76,48 @@ func (m *Model[T]) press(msg tea.KeyPressMsg) tea.Cmd {
 	case key.Matches(msg, m.keyMap.Home):
 		m.sel = 0
 	case key.Matches(msg, m.keyMap.End):
-		m.sel = m.total - 1
+		m.sel = m.shown() - 1
 	case key.Matches(msg, m.keyMap.Retry):
 		return m.Retry()
+	case key.Matches(msg, m.keyMap.Find):
+		return m.openPrompt(promptFind)
+	case key.Matches(msg, m.keyMap.QuickFilter):
+		return m.openPrompt(promptFilter)
+	case key.Matches(msg, m.keyMap.Next):
+		return m.step(1)
+	case key.Matches(msg, m.keyMap.Prev):
+		return m.step(-1)
+	case key.Matches(msg, m.promptKeys.Cancel) && (m.query != "" || m.filter != ""):
+		// Esc peels one layer at a time: the find, then the filter.
+		if m.query != "" {
+			m.clearFind()
+			return nil
+		}
+		return m.clearFilter()
 	default:
 		return nil
 	}
 	// The user moved, so a Reload no longer needs to follow the item.
 	m.anchored = false
-	return m.sync()
+	// A filter does not read ahead, since rows it hides would have it
+	// fetch every chunk: moving down from its last row, or from where it
+	// shows none, fetches the next one.
+	n := m.shown()
+	past := m.filter != "" && (n == 0 || before == n-1) && m.sel > before && m.sel >= n
+	cmd := m.sync()
+	if past {
+		cmd = tea.Batch(cmd, m.fetchMore())
+	}
+	return cmd
+}
+
+// fetchMore fetches the next chunk, if there is one and it is not being
+// fetched.
+func (m *Model[T]) fetchMore() tea.Cmd {
+	if m.done || m.tail.fetching || m.tail.err != nil {
+		return nil
+	}
+	return m.startFetch(len(m.chunks))
 }
 
 // Retry repeats every failed fetch, as the retry key does, such as once
@@ -130,7 +173,7 @@ func (m *Model[T]) receive(msg chunkMsg[T]) tea.Cmd {
 		m.chunks = append(m.chunks, chunk[T]{cursor: msg.cursor})
 	}
 	c = &m.chunks[msg.index]
-	c.items, c.n, c.loaded, c.kept = msg.items, len(msg.items), true, kept
+	c.items, c.n, c.loaded, c.kept, c.texts = msg.items, len(msg.items), true, kept, nil
 	m.pages++
 	if appended || msg.next != c.next {
 		// The chunks after this one no longer follow from it, so fetch
@@ -144,7 +187,8 @@ func (m *Model[T]) receive(msg chunkMsg[T]) tea.Cmd {
 	}
 	m.reindex()
 	if m.anchored {
-		if i, ok := m.find(m.anchor); ok {
+		if i, ok := m.indexOf(m.anchor); ok {
+			i = m.posOf(i)
 			m.sel, m.top = i, i-m.anchorRow
 		}
 	}
@@ -173,7 +217,7 @@ func (m *Model[T]) sync() tea.Cmd {
 // wantsTail reports whether the next chunk should be fetched: the window is
 // not full, or the selection is within the prefetch threshold of the end.
 func (m Model[T]) wantsTail() bool {
-	if m.done || m.tail.fetching || m.tail.err != nil {
+	if m.done || m.tail.fetching || m.tail.err != nil || m.filter != "" {
 		return false
 	}
 	return m.top+m.slots() >= m.total || m.sel+m.margin() >= m.total-1
@@ -191,7 +235,9 @@ func (m Model[T]) margin() int {
 // chunks farthest from it while more than maxChunks are loaded. Positions
 // stay stable because evicted chunks keep their cursor and length.
 func (m *Model[T]) keep() tea.Cmd {
-	if m.total == 0 {
+	// A filter shows rows by position among the items it keeps, so the
+	// window says nothing of which chunks are near it.
+	if m.total == 0 || m.filter != "" {
 		return nil
 	}
 	margin := m.margin()
@@ -220,7 +266,7 @@ func (m *Model[T]) keep() tea.Cmd {
 		if far < 0 {
 			break
 		}
-		m.chunks[far].items, m.chunks[far].loaded = nil, false
+		m.chunks[far].items, m.chunks[far].loaded, m.chunks[far].texts = nil, false, nil
 		loaded--
 	}
 	return cmd
@@ -228,10 +274,11 @@ func (m *Model[T]) keep() tea.Cmd {
 
 // scroll keeps the selection in range and in view.
 func (m *Model[T]) scroll() {
-	m.sel = max(min(m.sel, m.total-1), 0)
+	n := m.shown()
+	m.sel = max(min(m.sel, n-1), 0)
 
 	slots := m.slots()
-	rows := m.total
+	rows := n
 	if m.hasStatus() {
 		rows++
 	}
@@ -242,17 +289,21 @@ func (m *Model[T]) scroll() {
 		m.top = m.sel - slots + 1
 	}
 	// On the last item, show the loading or error row below it too.
-	if m.sel == m.total-1 && rows > m.total {
+	if m.sel == n-1 && rows > n {
 		m.top = max(m.top, rows-slots)
 	}
 }
 
 // slots returns the number of rows that fit in the window, at least one.
 func (m Model[T]) slots() int {
-	return max(m.height/m.itemHeight, 1)
+	h := m.height
+	if m.hasFooter() {
+		h--
+	}
+	return max(h/m.itemHeight, 1)
 }
 
 // hasStatus reports whether a loading, error or empty row follows the items.
 func (m Model[T]) hasStatus() bool {
-	return m.tail.fetching || m.tail.err != nil || m.total == 0
+	return m.tail.fetching || m.tail.err != nil || m.shown() == 0
 }

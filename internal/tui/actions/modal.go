@@ -253,6 +253,10 @@ func (m *Modal) KeyLayers() []keyhelp.Layer {
 		return []keyhelp.Layer{ui.ContextLayer(ctxFilter, []key.Binding{k.Back}, []key.Binding{k.Back})}
 	case m.focus == logPane && m.log.Capturing():
 		return m.log.KeyLayers()
+	case m.focus == runsPane && m.runs.Capturing():
+		// The prompt of the runs' find or filter takes every key.
+		list, _ := ui.FeedLayer(m.runs)
+		return []keyhelp.Layer{list}
 	}
 	k = k.state(m)
 	screen := ui.ContextLayer(ctxModal, k.screen(), []key.Binding{k.Next, k.Zoom, k.Cancel, k.RerunFailed, k.Rerun, k.Open})
@@ -264,7 +268,8 @@ func (m *Modal) KeyLayers() []keyhelp.Layer {
 	switch m.focus {
 	case runsPane:
 		runs := keyhelp.Layer{Bindings: []key.Binding{k.Select, k.Filter, k.ClearFilter}, Short: []key.Binding{k.Select, k.Filter}}
-		return []keyhelp.Layer{screen, ui.MergeLayers(ctxRuns, runs, keyhelp.FromHelp("", m.runs.KeyMap(), false))}
+		list, _ := ui.FeedLayer(m.runs)
+		return []keyhelp.Layer{screen, ui.MergeLayers(ctxRuns, runs, list)}
 	case jobsPane:
 		return []keyhelp.Layer{screen, ui.MergeLayers(ctxJobs, own, keyhelp.FromHelp("", k.Jobs, false))}
 	case logPane:

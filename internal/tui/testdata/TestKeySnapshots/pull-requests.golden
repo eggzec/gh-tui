@@ -47,3 +47,7 @@ Pull requests
   first | g home | g/home | on
   last | G end | G/end | on
   retry | r | r | off
+  search |  |  | off
+  quick filter |  |  | off
+  next match |  |  | off
+  prev match |  |  | off

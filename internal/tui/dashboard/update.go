@@ -96,6 +96,10 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 	if !s.focused {
 		return nil
 	}
+	if s.focus == reposPane && s.repos.current().Feed.Takes(msg) {
+		// The list's prompt takes the keys before the dashboard's own.
+		return s.repos.update(msg)
+	}
 	if cmd, ok := s.pressPane(msg); ok {
 		return cmd
 	}

@@ -142,6 +142,7 @@ func (m *Modal) newRuns() feed.Model[core.Run] {
 		feed.WithContext(m.ctx),
 		feed.WithKey(func(r core.Run) string { return strconv.FormatInt(r.ID, 10) }),
 		feed.WithKeyMap(m.keys.Runs),
+		feed.WithPromptKeys(m.keys.search),
 		feed.WithStyles(m.theme.Feed(m.opts.icons)),
 		feed.WithItemHeight(2),
 		feed.WithSize(m.paneWidth(runsPane), m.bodyHeight()),

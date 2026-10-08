@@ -9,6 +9,7 @@ import (
 	"charm.land/bubbles/v2/key"
 
 	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
@@ -217,6 +218,38 @@ func PagerLayer(ctx string, p *pager.Model, own ...key.Binding) keyhelp.Layer {
 		l.Context, l.Source = "pager_option", contextTitle("pager_option")
 	}
 	return l
+}
+
+// SearchPromptKeys returns the keys of the prompt that a list's find and
+// quick filter open: those of the search_prompt context that run it, close
+// it, and close it on an empty line.
+func SearchPromptKeys(keys config.Keymap) cmdline.KeyMap {
+	in := In(keys, "search_prompt")
+	return cmdline.NewKeyMap(keymap.Func(func(action string) []string {
+		switch action {
+		case "run", "cancel", "cancel_empty":
+			return in.Of(action)
+		}
+		return nil
+	}))
+}
+
+// FeedHelp is a list's feed as the help reads it.
+type FeedHelp interface {
+	help.KeyMap
+	Capturing() bool
+}
+
+// FeedLayer returns the keys of a list's feed, to merge into the layer of
+// the pane that shows it, and, while the feed takes every key, the layer
+// of the prompt that does, which stands alone.
+func FeedLayer(f FeedHelp) (l keyhelp.Layer, prompting bool) {
+	if !f.Capturing() {
+		return keyhelp.FromHelp("", f, false), false
+	}
+	l = keyhelp.FromHelp("search_prompt", f, true)
+	l.Context, l.Source = "search_prompt", contextTitle("search_prompt")
+	return l, true
 }
 
 // NameLayerActions returns layers with the actions each binding was made

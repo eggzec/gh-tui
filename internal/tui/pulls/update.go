@@ -103,6 +103,12 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 	if s.feed == nil {
 		return nil
 	}
+	if s.feed.Takes(msg) {
+		// The list's prompt takes the keys before the section's own.
+		var cmd tea.Cmd
+		*s.feed, cmd = s.feed.Update(msg)
+		return cmd
+	}
 	k := s.keys
 	switch {
 	case key.Matches(msg, k.Select):

@@ -35,8 +35,11 @@ func (s *Section) Update(msg tea.Msg) tea.Cmd {
 func (s *Section) update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
-		if cmd, ok := s.press(msg); ok {
-			return cmd
+		// The list's prompt takes the keys before the section's own.
+		if !s.feed.Takes(msg) {
+			if cmd, ok := s.press(msg); ok {
+				return cmd
+			}
 		}
 	case ui.SyncMsg:
 		// Poll already refreshed the cache, so a reload reads it. A failed

@@ -19,6 +19,18 @@ type KeyMap struct {
 	// Retry repeats a failed fetch. The feed enables it only while a fetch
 	// has failed, so help shows it only when it does something.
 	Retry key.Binding `keymap:"global.refresh" help:"retry"`
+
+	// Find opens the prompt of a find, which moves to the first row that
+	// holds the text typed, and QuickFilter the prompt of a filter, which
+	// shows only the loaded rows that hold it. Both match the text as it
+	// is, a literal substring, ignoring case unless it has a capital. Next and Prev move between the rows a find
+	// matches; the feed enables them only while one does, so help shows
+	// them only when they work. The keys of the prompt itself are set with
+	// [WithPromptKeys].
+	Find        key.Binding `keymap:"find" help:"search"`
+	QuickFilter key.Binding `keymap:"quick_filter" help:"quick filter"`
+	Next        key.Binding `keymap:"next_match" help:"next match"`
+	Prev        key.Binding `keymap:"prev_match" help:"prev match"`
 }
 
 // NewKeyMap returns the key bindings that look gives the keys of, such as
@@ -29,6 +41,8 @@ func NewKeyMap(look keymap.Lookup) KeyMap {
 	keymap.Fill(&k, look)
 	// The feed enables the retry key while a fetch has failed.
 	k.Retry.SetEnabled(false)
+	k.Next.SetEnabled(false)
+	k.Prev.SetEnabled(false)
 	return k
 }
 
@@ -40,10 +54,12 @@ func (k KeyMap) ShortHelp() []key.Binding {
 	return []key.Binding{k.Up, k.Down, k.Retry}
 }
 
-// FullHelp returns the bindings for the full help view.
+// FullHelp returns the bindings for the full help view. The keys of the
+// prompt are the model's ([Model.FullHelp]).
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.PageUp, k.PageDown, k.HalfPageUp, k.HalfPageDown},
 		{k.Home, k.End, k.Retry},
+		{k.Find, k.QuickFilter, k.Next, k.Prev},
 	}
 }

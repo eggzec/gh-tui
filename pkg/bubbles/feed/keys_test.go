@@ -3,6 +3,7 @@ package feed
 import (
 	"testing"
 
+	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keytest"
 )
 
@@ -25,13 +26,25 @@ var testKeys = map[string][]string{
 	"top":            {"g", "home"},
 	"bottom":         {"G", "end"},
 	"global.refresh": {"r"},
+
+	"find":         {"/"},
+	"quick_filter": {"&"},
+	"next_match":   {"n"},
+	"prev_match":   {"N"},
 }
+
+// testPromptKeys are the keys of the prompt of a find or filter.
+var testPromptKeys = cmdline.NewKeyMap(keytest.Table(map[string][]string{
+	"run":          {"enter"},
+	"cancel":       {"esc"},
+	"cancel_empty": {"backspace"},
+}))
 
 var testKeyMap = NewKeyMap(keytest.Table(testKeys))
 
 // newModel makes a feed with the keys of a pane, as the app does.
 func newModel[T any](fetch Fetch[T], render Render[T], opts ...Option) Model[T] {
-	return New(fetch, render, append([]Option{WithKeyMap(testKeyMap)}, opts...)...)
+	return New(fetch, render, append([]Option{WithKeyMap(testKeyMap), WithPromptKeys(testPromptKeys)}, opts...)...)
 }
 
 // A feed made without a key map has no key bound, and still says what

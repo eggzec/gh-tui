@@ -33,6 +33,12 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 	case ui.RepoMsg:
 		return s.setRepo(msg.Repo)
 	case tea.KeyPressMsg:
+		// The list's prompt takes the keys before the section's own.
+		if s.list.Takes(msg) {
+			var cmd tea.Cmd
+			s.list, cmd = s.list.Update(msg)
+			return cmd
+		}
 		return s.press(msg)
 	case ui.OpenIssueMsg:
 		return s.openDetail(msg.Repo, msg.Number, nil, msg.ShowRepo, msg.Pause)

@@ -16,6 +16,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/search"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 )
 
 // Lines of a result: a repository, issue or pull request takes two, and a
@@ -92,6 +93,7 @@ func (s *Section) ensureHits(k core.SearchKind) tea.Cmd {
 		feed.WithItemHeight(hitHeight),
 		feed.WithPrefetch(pageAt),
 		feed.WithKeyMap(s.keys.feed),
+		feed.WithPromptKeys(s.keys.search),
 		feed.WithStyles(s.theme.Feed(s.icons)),
 		feed.WithEmptyText(emptyText(k)),
 		feed.WithErrorText(ui.ErrorText("search", "", s.voice)),
@@ -136,6 +138,7 @@ func (s *Section) searchCode() tea.Cmd {
 		feed.WithItemHeight(codeHeight),
 		feed.WithPrefetch(pageAt),
 		feed.WithKeyMap(s.keys.feed),
+		feed.WithPromptKeys(s.keys.search),
 		feed.WithStyles(s.theme.Feed(s.icons)),
 		feed.WithEmptyText(emptyText(core.SearchCode)),
 		feed.WithErrorText(ui.ErrorText("search the code", "", s.voice)),
@@ -402,15 +405,44 @@ func (s *Section) visibleCode() (*codeList, bool) {
 	return s.code, true
 }
 
-// feedKeys returns the keys of the results on view.
-func (s *Section) feedKeys() feed.KeyMap {
+// feedLayer returns the keys of the results on view, and whether they
+// are the layer of the prompt of their find or filter, which takes every
+// key.
+func (s *Section) feedLayer() (keyhelp.Layer, bool) {
 	if l, ok := s.visibleHits(); ok {
-		return l.feed.KeyMap()
+		return ui.FeedLayer(l.feed)
 	}
 	if l, ok := s.visibleCode(); ok {
-		return l.feed.KeyMap()
+		return ui.FeedLayer(l.feed)
 	}
-	return s.keys.feed
+	return keyhelp.FromHelp("", s.keys.feed, false), false
+}
+
+// pressFeed passes msg to the results on view if they take it before the
+// page's own keys: while the prompt of their find or filter is open, and
+// for the key that clears one.
+func (s *Section) pressFeed(msg tea.KeyPressMsg) (tea.Cmd, bool) {
+	if l, ok := s.visibleHits(); ok && l.feed.Takes(msg) {
+		var cmd tea.Cmd
+		l.feed, cmd = l.feed.Update(msg)
+		return cmd, true
+	}
+	if l, ok := s.visibleCode(); ok && l.feed.Takes(msg) {
+		var cmd tea.Cmd
+		l.feed, cmd = l.feed.Update(msg)
+		return cmd, true
+	}
+	return nil, false
+}
+
+// feedCapturing reports whether the results on view take every key, while
+// the prompt of their find or filter is open.
+func (s *Section) feedCapturing() bool {
+	if l, ok := s.visibleHits(); ok {
+		return l.feed.Capturing()
+	}
+	l, ok := s.visibleCode()
+	return ok && l.feed.Capturing()
 }
 
 // refreshCounts reads the counts of the query from the cache, which each

@@ -97,6 +97,7 @@ func (t *repoTabs) newOwner(label string, q dashboard.ReposQuery) *owner {
 		feed.WithContext(s.ctx),
 		feed.WithKey(func(r core.Repo) string { return r.Ref.String() }),
 		feed.WithKeyMap(s.keys.feed),
+		feed.WithPromptKeys(s.keys.search),
 		feed.WithEmptyText(empty),
 		feed.WithStyles(s.theme.Feed(s.icons)),
 		feed.WithErrorText(ui.ErrorText("load your repositories", "", s.voice)),
@@ -250,10 +251,6 @@ func (t *repoTabs) setTheme(th ui.Theme, ic ui.Icons) {
 		o.Feed.SetStyles(th.Feed(ic))
 	}
 }
-
-// feedKeys returns the keys of the list on view, whose retry the list
-// enables only while a fetch has failed.
-func (t *repoTabs) feedKeys() feed.KeyMap { return t.current().Feed.KeyMap() }
 
 // selected returns the repository under the cursor.
 func (t *repoTabs) selected() (core.Repo, bool) {

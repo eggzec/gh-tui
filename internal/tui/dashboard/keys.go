@@ -7,6 +7,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/calendar"
+	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
@@ -65,6 +66,8 @@ type KeyMap struct {
 	// feed is the navigation of the repositories, which gets the keys
 	// above only if the dashboard leaves them.
 	feed feed.KeyMap
+	// search are the keys of the prompt of the list's find and filter.
+	search cmdline.KeyMap
 	// cal moves through the days of the contributions.
 	cal calendar.KeyMap
 }
@@ -105,6 +108,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 	// The dashboard matches these keys first, so the list gets only the
 	// keys it leaves it.
 	k.feed = feed.NewKeyMap(repos)
+	k.search = ui.SearchPromptKeys(keys)
 	k.cal = calendar.NewKeyMap(ui.In(keys, paneContext[calendarPane]))
 	return k
 }
@@ -150,12 +154,22 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 	own := keyhelp.Layer{Bindings: k.paneKeys(s.focus), Short: k.paneShort(s.focus)}
 	switch s.focus {
 	case reposPane:
-		return []keyhelp.Layer{screen, ui.MergeLayers(ctx, own, keyhelp.FromHelp("", s.repos.feedKeys(), false))}
+		list, prompting := ui.FeedLayer(s.repos.current().Feed)
+		if prompting {
+			return []keyhelp.Layer{list}
+		}
+		return []keyhelp.Layer{screen, ui.MergeLayers(ctx, own, list)}
 	case calendarPane:
 		return []keyhelp.Layer{screen, ui.ContextHelp(ctx, s.cal.KeyMap(), false)}
 	default:
 	}
 	return []keyhelp.Layer{screen, ui.MergeLayers(ctx, own)}
+}
+
+// Capturing implements ui.Capturer: the list of repositories takes every
+// key while its find or filter prompt is open.
+func (s *Section) Capturing() bool {
+	return s.focus == reposPane && s.repos.current().Feed.Capturing()
 }
 
 // paneKeys returns the keys that work in the pane, in the order the

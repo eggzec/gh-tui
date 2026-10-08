@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 
 	"charm.land/bubbles/v2/spinner"
@@ -63,7 +64,10 @@ type chunk[T any] struct {
 	// loaded is false once the chunk's items have been evicted.
 	loaded bool
 	// kept reports that the chunk's items came with ErrKept.
-	kept     bool
+	kept bool
+	// texts are what the rows of the items read, for find and the filter
+	// to match: made when one needs them, and forgotten with the items.
+	texts    []string
 	err      error
 	fetching bool
 }
@@ -109,6 +113,21 @@ type Model[T any] struct {
 	spin     spinner.Model
 	spinning bool
 
+	// prompt is the prompt of find and the quick filter, open while it is
+	// focused.
+	prompt cmdline.Model
+	// query is the find shown and hits the positions of its matches; filter
+	// is the quick filter shown and rows the items it keeps, in order.
+	query  string
+	hits   []int
+	filter string
+	rows   []int
+	// held is the item that was selected when the filter was set, which
+	// clearing it selects again if it keeps no row.
+	held int
+	// note is a note on the last key, such as "Pattern not found".
+	note string
+
 	// Rendered once in SetStyles and SetKeyMap, so View only copies them.
 	gutterFocused string
 	gutterBlurred string
@@ -134,6 +153,7 @@ func New[T any](fetch Fetch[T], render Render[T], opts ...Option) Model[T] {
 		opt(&m.settings)
 	}
 	m.key, _ = m.settings.key.(func(T) string)
+	m.prompt = m.newPrompt()
 	m.ctx, m.cancel = context.WithCancel(m.parent)
 	// Init fetches the first chunk, and it cannot record that itself.
 	m.tail.fetching = true
@@ -159,6 +179,9 @@ func (m *Model[T]) Reset() tea.Cmd {
 	m.done = false
 	m.sel, m.top = 0, 0
 	m.anchored = false
+	// The new items are not the ones the find and the filter looked at.
+	m.query, m.hits, m.filter, m.rows, m.note = "", nil, "", nil, ""
+	m.closePrompt()
 	return m.startFetch(0)
 }
 
@@ -216,20 +239,24 @@ func (m Model[T]) ID() int {
 // Selected returns the selected item, or false if there is none or it is not
 // loaded.
 func (m Model[T]) Selected() (T, bool) {
-	return m.item(m.sel)
+	return m.item(m.at(m.sel))
 }
 
-// Item returns item i, or false if there is none or it is not loaded.
+// Item returns the item of row i, or false if there is none or it is not
+// loaded. Rows are counted among those shown: while a quick filter shows,
+// they are the items it keeps.
 func (m Model[T]) Item(i int) (T, bool) {
-	return m.item(i)
+	return m.item(m.at(i))
 }
 
-// Index returns the index of the selected item.
+// Index returns the index of the selected row, which is that of its item
+// unless a quick filter shows.
 func (m Model[T]) Index() int {
 	return m.sel
 }
 
-// Len returns the number of items known so far, loaded or not.
+// Len returns the number of items known so far, loaded or not, whether a
+// quick filter shows or not; [Model.Shown] is the number of rows shown.
 func (m Model[T]) Len() int {
 	return m.total
 }
@@ -263,6 +290,7 @@ func (m Model[T]) Err() error {
 // fetched again on the next Update.
 func (m *Model[T]) SetSize(width, height int) {
 	m.width, m.height = max(width, 0), max(height, 0)
+	m.prompt.SetSize(m.width, 1)
 	m.scroll()
 	m.resized = true
 }
@@ -295,6 +323,7 @@ func (m *Model[T]) Focus() {
 // Blur makes the feed ignore keys.
 func (m *Model[T]) Blur() {
 	m.focused = false
+	m.closePrompt()
 }
 
 // Focused reports whether the feed reacts to keys.
@@ -305,6 +334,7 @@ func (m Model[T]) Focused() bool {
 // SetKeyMap sets the key bindings.
 func (m *Model[T]) SetKeyMap(k KeyMap) {
 	m.keyMap = k
+	m.enableKeys()
 	m.refreshError()
 }
 
@@ -316,6 +346,7 @@ func (m Model[T]) KeyMap() KeyMap {
 // SetStyles sets the styles and renders the fragments that depend on them.
 func (m *Model[T]) SetStyles(s Styles) {
 	m.styles = s
+	m.prompt.SetStyles(m.promptStyles())
 	m.spin.Style = s.Spinner
 	m.spin.Spinner = spinner.Dot
 	if len(s.SpinnerFrames.Frames) > 0 {
@@ -354,6 +385,14 @@ func (m Model[T]) Styles() Styles {
 	return m.styles
 }
 
+// promptStyles returns the styles of the prompt.
+func (m Model[T]) promptStyles() cmdline.Styles {
+	s := cmdline.DefaultStyles(true)
+	s.Prompt, s.Text, s.Placeholder, s.Cursor = m.styles.Prompt, m.styles.PromptText, m.styles.Hint, m.styles.Cursor
+	s.Ellipsis = m.styles.Ellipsis
+	return s
+}
+
 // item returns the item at index i if it is loaded.
 func (m Model[T]) item(i int) (T, bool) {
 	var zero T
@@ -388,6 +427,13 @@ func (m *Model[T]) reindex() {
 		m.starts = append(m.starts, m.total)
 		m.total += c.n
 	}
+	if m.filter != "" {
+		g := m.at(m.sel)
+		m.rebuildRows()
+		m.sel = max(m.posOf(g), 0)
+	} else if m.query != "" {
+		m.refind()
+	}
 }
 
 // chunk returns the chunk at index i, where len(m.chunks) is the tail.
@@ -421,8 +467,8 @@ func (m Model[T]) fetchCmd(i int, cursor string) tea.Cmd {
 	}
 }
 
-// find returns the index of the loaded item with the given key.
-func (m Model[T]) find(key string) (int, bool) {
+// indexOf returns the index of the loaded item with the given key.
+func (m Model[T]) indexOf(key string) (int, bool) {
 	for i, c := range m.chunks {
 		if !c.loaded {
 			continue

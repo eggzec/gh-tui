@@ -42,8 +42,18 @@ type Styles struct {
 	// loading row, and stands for a row whose chunk is being fetched
 	// again. The default is "…".
 	Ellipsis string
-	// Hint styles secondary text such as the retry key.
+	// Hint styles secondary text such as the retry key and the counts of
+	// a find or filter.
 	Hint lipgloss.Style
+	// Prompt styles the "/" or "&" before the prompt of a find or filter,
+	// and PromptText what the user types there. Cursor also colors the
+	// prompt's cursor.
+	Prompt, PromptText lipgloss.Style
+	// Chip styles the quick filter shown below the rows, such as "&bug". The
+	// default draws it in reverse, so its foreground color is its background.
+	Chip lipgloss.Style
+	// Notice styles a note on the last key, such as "Pattern not found".
+	Notice lipgloss.Style
 }
 
 // DefaultStyles returns the default styles for a light or dark terminal.
@@ -53,6 +63,7 @@ func DefaultStyles(isDark bool) Styles {
 	muted := ld(lipgloss.Color("#545b6e"), lipgloss.Color("#a0a7b8"))
 	subtle := ld(lipgloss.Color("#8a90a0"), lipgloss.Color("#6b7285"))
 	errColor := ld(lipgloss.Color("#c0392b"), lipgloss.Color("#ef7d7d"))
+	text := ld(lipgloss.Color("#1f2330"), lipgloss.Color("#c8cedb"))
 
 	return Styles{
 		Cursor:         lipgloss.NewStyle().Foreground(accent),
@@ -68,5 +79,9 @@ func DefaultStyles(isDark bool) Styles {
 		ErrorEllipsis:  "…",
 		Ellipsis:       "…",
 		Hint:           lipgloss.NewStyle().Foreground(subtle),
+		Prompt:         lipgloss.NewStyle().Foreground(accent).Bold(true),
+		PromptText:     lipgloss.NewStyle().Foreground(text),
+		Chip:           lipgloss.NewStyle().Foreground(accent).Reverse(true).Padding(0, 1),
+		Notice:         lipgloss.NewStyle().Foreground(errColor),
 	}
 }

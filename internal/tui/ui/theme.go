@@ -93,6 +93,10 @@ func (t Theme) Feed(ic Icons) feed.Styles {
 	s.Empty = s.Empty.Foreground(lipgloss.Color(t.Palette.Muted))
 	s.Error = s.Error.Foreground(lipgloss.Color(t.Palette.Error))
 	s.Hint = s.Hint.Foreground(lipgloss.Color(t.Palette.Subtle))
+	s.Prompt = s.Prompt.Foreground(lipgloss.Color(t.Palette.Accent))
+	s.PromptText = s.PromptText.Foreground(lipgloss.Color(t.Palette.Foreground))
+	s.Chip = s.Chip.Foreground(lipgloss.Color(t.Palette.Accent))
+	s.Notice = s.Notice.Foreground(lipgloss.Color(t.Palette.Error))
 	return s
 }
 

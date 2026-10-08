@@ -9,6 +9,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
@@ -47,6 +48,8 @@ type KeyMap struct {
 	// feed is the navigation of the results, which gets the keys above
 	// only if the page leaves them.
 	feed feed.KeyMap
+	// search are the keys of the prompt of the results' find and filter.
+	search cmdline.KeyMap
 }
 
 // queryKeys are the keys of the query while it types: those that type
@@ -93,6 +96,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 	// The page matches these keys first, so the results get only the keys
 	// it leaves them.
 	k.feed = feed.NewKeyMap(results)
+	k.search = ui.SearchPromptKeys(keys)
 	return k
 }
 
@@ -118,6 +122,9 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 // has the focus, named for what they do there, with those of the results
 // on view. The query types what its keys don't take.
 func (s *Section) KeyLayers() []keyhelp.Layer {
+	if list, prompting := s.feedLayer(); prompting {
+		return []keyhelp.Layer{list}
+	}
 	if s.typing {
 		// The query types first, so it has only the keys that type
 		// nothing.
@@ -148,7 +155,8 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 	if s.text == "" {
 		return []keyhelp.Layer{page, ui.MergeLayers("search_results", own)}
 	}
-	return []keyhelp.Layer{page, ui.MergeLayers("search_results", own, keyhelp.FromHelp("", s.feedKeys(), false))}
+	list, _ := s.feedLayer()
+	return []keyhelp.Layer{page, ui.MergeLayers("search_results", own, list)}
 }
 
 // state returns k as the query or the results take it, named for what the

@@ -146,6 +146,11 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 	if inLog && m.log.Capturing() {
 		return m.updateLog(msg)
 	}
+	if m.focus == runsPane && m.runs.Takes(msg) {
+		// The prompt of the runs' find or filter takes the keys before
+		// the modal's own.
+		return m.updateRuns(msg)
+	}
 	k := m.keys
 	switch {
 	// The tabs share ] and [ with the panes, and take them first.
