@@ -260,8 +260,9 @@ func (m *detailModal) View() string {
 	if m.width <= 0 || m.height <= 0 {
 		return ""
 	}
+	base := m.thread.View()
 	if m.checks != nil {
-		return m.checks.View()
+		base = m.checks.View()
 	}
 	if m.ask != nil {
 		// The question lines up with the detail, behind its gutter.
@@ -269,9 +270,9 @@ func (m *detailModal) View() string {
 		for i, l := range lines {
 			lines[i] = ansi.Truncate(gutter+l, m.width, "")
 		}
-		return ui.OverLastLines(m.thread.View(), lines)
+		return ui.OverLastLines(base, lines)
 	}
-	return m.thread.View()
+	return base
 }
 
 // openChecks shows the Checks step in place of the detail, and returns
@@ -328,6 +329,14 @@ func (m *detailModal) Update(msg tea.Msg) tea.Cmd {
 	}
 	if m.checks != nil {
 		if k, ok := msg.(tea.KeyPressMsg); ok {
+			switch {
+			case m.ask != nil:
+				return m.answer(k)
+			case !m.checks.TakesKeys() && m.keys.isChange(k):
+				// The keys of the modal work in the step too, unless it
+				// waits for an answer or types.
+				return m.change(k)
+			}
 			return m.updateChecks(k)
 		}
 		// The thread and the detail go on loading behind the step.
@@ -515,24 +524,34 @@ func (m *detailModal) show() tea.Cmd {
 	return m.thread.SetDocument(m.detailHeader(m.width), m.detail.Body)
 }
 
-// KeyLayers implements ui.Keyed: those of the Checks step while it shows,
-// the answer while a change waits for one, and otherwise the modal's own
-// keys and then the thread's.
+// KeyLayers implements ui.Keyed: the answer while a change waits for one,
+// or the step's alone while the Checks step takes every key. Otherwise the
+// modal's own keys come first, and then those of the Checks step while it
+// shows, or the thread's.
 func (m *detailModal) KeyLayers() []keyhelp.Layer {
 	switch {
-	case m.checks != nil:
-		// The step takes every key, so the modal's own don't work in it.
-		return m.checks.KeyLayers()
 	case m.ask != nil:
 		return []keyhelp.Layer{m.keys.confirm.Layer()}
+	case m.checks != nil && m.checks.TakesKeys():
+		return m.checks.KeyLayers()
 	}
 	k := m.keys.withChanges(m.gate(), m.mergeMethod, m.detail.PullRequest, m.loaded)
+	if m.checks != nil {
+		return append([]keyhelp.Layer{m.modalLayer(k)}, m.checks.KeyLayers()...)
+	}
 	return []keyhelp.Layer{m.modalLayer(k), ui.ContextHelp("pull_conversation", m.thread, false)}
 }
 
 // modalLayer returns the layer of the keys of the modal, which work on any
-// of its steps, for k, as the modal takes them.
+// of its steps, for k, as the modal takes them. While the Checks step
+// shows, only its changes work, and the key for the checks, which are
+// shown, does nothing.
 func (m *detailModal) modalLayer(k keyMap) keyhelp.Layer {
+	if m.checks != nil {
+		k.Checks.SetEnabled(false)
+		return ui.ContextLayer(ctxModal, []key.Binding{k.Merge, k.Close, k.Reopen, k.ToggleDraft, k.Checks},
+			[]key.Binding{k.Merge, k.Close, k.Reopen})
+	}
 	// The list's keys don't work here.
 	for _, b := range []*key.Binding{&k.Select, &k.Filter, &k.Sort, &k.ClearFilter, &k.NextTab, &k.PrevTab} {
 		b.SetEnabled(false)

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"testing/synctest"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
@@ -188,10 +189,10 @@ func TestMaximizeDefaults(t *testing.T) {
 	}
 }
 
-// A step that shows inside a modal, such as the checks of a pull request,
-// is that modal, so the pull request is maximized however it was opened.
+// A step that shows inside a modal is that modal, so the pull request is
+// maximized however it was opened.
 func TestMaximizeDefaultsOfSteps(t *testing.T) {
-	for ctx, listed := range map[string]string{"pull_checks": "pull_modal", "actions_filter": "actions", "pull_modal": "pull_modal"} {
+	for ctx, listed := range map[string]string{"actions_filter": "actions", "pull_modal": "pull_modal"} {
 		m, _ := newTestApp(t)
 		m.cfg.UI.Maximized = []string{listed}
 		m.applySettings()
@@ -409,4 +410,27 @@ func TestMaximizeView(t *testing.T) {
 	run(m, m.openText("go.mod", "go.mod", "module example.com/x\n\ngo 1.26\n", false))
 	send(m, "Z")
 	golden.RequireEqual(t, ansi.Strip(m.View().Content))
+}
+
+// With ui.maximized listing the pull request, it opens maximized, and
+// stays so when the checks show in it.
+func TestMaximizeOpensOnTheChecks(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		c := keyContext{name: "checks", repo: true}
+		m := newKeysApp(t, true)
+		m.cfg.UI.Maximized = []string{"pull_modal"}
+		m.applySettings()
+		for _, step := range []string{"global.pane_2", "pulls.checks"} {
+			for _, name := range c.press(t, m.cfg.Keys, step) {
+				msg, _ := keyPress(name)
+				driveKeys(t, m, m.key(msg))
+			}
+		}
+		if got := layerNames(m.keyLayers()); got != "global, pull_modal, pull_check_list" {
+			t.Fatalf("layers = %q, want the checks", got)
+		}
+		if !m.maximized {
+			t.Error("the checks didn't show maximized")
+		}
+	})
 }

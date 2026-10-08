@@ -539,8 +539,8 @@ func TestActionsModalActions(t *testing.T) {
 	if got := cfg.Keys.Of("actions.rerun"); !slices.Equal(got, []string{"ctrl+e"}) {
 		t.Errorf("rerun = %v, want [ctrl+e]", got)
 	}
-	if got := cfg.Keys.Of("pull_checks.rerun_failed"); !slices.Equal(got, []string{"R"}) {
-		t.Errorf("checks.rerun_failed = %v, want the default [R]", got)
+	if got := cfg.Keys.Of("pull_check_list.rerun_failed"); !slices.Equal(got, []string{"R"}) {
+		t.Errorf("pull_check_list.rerun_failed = %v, want the default [R]", got)
 	}
 
 	cfg = Default()

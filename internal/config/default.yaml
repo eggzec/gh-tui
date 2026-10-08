@@ -732,12 +732,10 @@ keys:
     draft: [W]
     # Show the checks of the pull request.
     checks: [C]
-  # The checks of a pull request, in any of their steps. Re-run the failed
+  # Checks: the list of checks. Each pane of the step re-runs the failed
   # jobs of the run of the check under the cursor, or of the one shown.
-  pull_checks:
-    rerun_failed: [R]
-  # Checks: the list of checks.
   pull_check_list:
+    rerun_failed: [R]
     up: [up, k]
     down: [down, j]
     page_up: [ctrl+b, pgup]
@@ -749,6 +747,7 @@ keys:
   # Checks: the log of the job of a check, and its annotations. Move the
   # focus between the two.
   pull_check_log:
+    rerun_failed: [R]
     annotations: [A]
     up: [up, k]
     down: [down, j]
@@ -771,6 +770,7 @@ keys:
     next_match: [n]
     prev_match: [N]
   pull_check_annotations:
+    rerun_failed: [R]
     up: [up, k]
     down: [down, j]
     annotations: [A]

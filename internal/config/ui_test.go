@@ -93,7 +93,7 @@ func TestUIMaximized(t *testing.T) {
 		}
 	}
 	// Steps that show inside another modal never open first.
-	for _, name := range []string{"pulls", "dashboard", "pull_conversation", "pull_checks", "actions_filter", "History", "nope", ""} {
+	for _, name := range []string{"pulls", "dashboard", "pull_conversation", "actions_filter", "History", "nope", ""} {
 		cfg := Default()
 		cfg.UI.Maximized = []string{name}
 		err := cfg.Validate()

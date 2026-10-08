@@ -54,8 +54,8 @@ func (m *Model) sizeModal(width, height int) {
 }
 
 // modalContext returns the name of the key context of mod, the modal that
-// its first layer of keys is, or "" if none is. A step that shows inside
-// a modal, such as the checks of a pull request, is that modal.
+// its first layer of keys is, or "" if none is. A modal context that is
+// within another, such as the filter of the runs, is that other one.
 func modalContext(mod ui.Modal) string {
 	for _, l := range mod.KeyLayers() {
 		if c, ok := config.LookupContext(l.Context); ok && c.Modal {

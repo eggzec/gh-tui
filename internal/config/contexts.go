@@ -82,13 +82,11 @@ var contexts = []Context{
 
 	{Name: "pull_modal", Title: "Pull request", Reach: ReachScreen, Modal: true},
 	{Name: "pull_conversation", Title: "Conversation", Reach: ReachPane, Parent: "pull_modal"},
-	// The steps of the checks of a pull request take every key, so the keys
-	// of the modal don't work in them: they are a modal of their own.
-	{Name: "pull_checks", Title: "Checks", Reach: ReachScreen, Modal: true, Within: "pull_modal"},
-	{Name: "pull_check_list", Title: "Checks", Reach: ReachPane, Parent: "pull_checks"},
-	{Name: "pull_check_log", Title: "Log", Reach: ReachPane, Parent: "pull_checks"},
-	{Name: "pull_check_annotations", Title: "Annotations", Reach: ReachPane, Parent: "pull_checks"},
-	{Name: "pull_check_detail", Title: "Detail", Reach: ReachPane, Parent: "pull_checks"},
+	// The panes of the Checks step of the pull request.
+	{Name: "pull_check_list", Title: "Checks", Reach: ReachPane, Parent: "pull_modal"},
+	{Name: "pull_check_log", Title: "Log", Reach: ReachPane, Parent: "pull_modal"},
+	{Name: "pull_check_annotations", Title: "Annotations", Reach: ReachPane, Parent: "pull_modal"},
+	{Name: "pull_check_detail", Title: "Detail", Reach: ReachPane, Parent: "pull_modal"},
 	{Name: "issue_modal", Title: "Issue", Reach: ReachScreen, Modal: true},
 	{Name: "release_modal", Title: "Release", Reach: ReachScreen, Modal: true},
 
