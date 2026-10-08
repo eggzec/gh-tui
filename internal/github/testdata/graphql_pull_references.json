@@ -1,0 +1,218 @@
+{
+  "data": {
+    "rateLimit": {
+      "cost": 1,
+      "limit": 5000,
+      "remaining": 4999,
+      "used": 1,
+      "resetAt": "2026-10-08T19:08:00Z"
+    },
+    "repository": {
+      "pullRequest": {
+        "body": "Fixes #198 and #204.\n\nRelated: octo/secret#9\n\n<!-- Fixes #999 -->\n```\n#998\n```",
+        "comments": {
+          "totalCount": 340,
+          "nodes": [
+            {
+              "author": {
+                "__typename": "User",
+                "login": "bob"
+              },
+              "body": "Builds on https://github.com/cli/go-gh/pull/412 and #187."
+            },
+            {
+              "author": null,
+              "body": "Same as #12, see `#997`."
+            },
+            {
+              "author": {
+                "__typename": "Bot",
+                "login": "dependabot"
+              },
+              "body": "Superseded by #233"
+            },
+            {
+              "author": {
+                "__typename": "User",
+                "login": "carol"
+              },
+              "body": "This is #231 itself, and https://github.com/EggZec/GH-TUI/pull/231 too."
+            }
+          ]
+        },
+        "reviews": {
+          "totalCount": 2,
+          "nodes": [
+            {
+              "author": {
+                "__typename": "User",
+                "login": "alice"
+              },
+              "body": "Looks like #12 again."
+            },
+            {
+              "author": {
+                "__typename": "User",
+                "login": "alice"
+              },
+              "body": ""
+            }
+          ]
+        },
+        "closingIssuesReferences": {
+          "nodes": [
+            {
+              "__typename": "Issue",
+              "number": 198,
+              "title": "Token refresh fails on GHES 3.16",
+              "url": "https://github.com/eggzec/gh-tui/issues/198",
+              "issueState": "OPEN",
+              "stateReason": null,
+              "repository": {
+                "name": "gh-tui",
+                "owner": {
+                  "login": "eggzec"
+                }
+              }
+            }
+          ]
+        },
+        "linked": {
+          "nodes": [
+            {
+              "__typename": "ConnectedEvent",
+              "createdAt": "2026-10-01T10:00:00Z",
+              "source": {
+                "__typename": "Issue",
+                "number": 40,
+                "title": "Cache on disk",
+                "url": "https://github.com/eggzec/gh-tui/issues/40",
+                "issueState": "OPEN",
+                "stateReason": null,
+                "repository": {
+                  "name": "gh-tui",
+                  "owner": {
+                    "login": "eggzec"
+                  }
+                }
+              },
+              "subject": {
+                "__typename": "PullRequest",
+                "number": 231,
+                "title": "Cache GraphQL reads on disk",
+                "url": "https://github.com/eggzec/gh-tui/pull/231",
+                "isDraft": false,
+                "pullState": "OPEN",
+                "repository": {
+                  "name": "gh-tui",
+                  "owner": {
+                    "login": "eggzec"
+                  }
+                }
+              }
+            },
+            {
+              "__typename": "DisconnectedEvent",
+              "createdAt": "2026-10-01T11:00:00Z",
+              "source": {
+                "__typename": "Issue",
+                "number": 40,
+                "title": "Cache on disk",
+                "url": "https://github.com/eggzec/gh-tui/issues/40",
+                "issueState": "OPEN",
+                "stateReason": null,
+                "repository": {
+                  "name": "gh-tui",
+                  "owner": {
+                    "login": "eggzec"
+                  }
+                }
+              },
+              "subject": {
+                "__typename": "PullRequest",
+                "number": 231,
+                "title": "Cache GraphQL reads on disk",
+                "url": "https://github.com/eggzec/gh-tui/pull/231",
+                "isDraft": false,
+                "pullState": "OPEN",
+                "repository": {
+                  "name": "gh-tui",
+                  "owner": {
+                    "login": "eggzec"
+                  }
+                }
+              }
+            },
+            {
+              "__typename": "ConnectedEvent",
+              "createdAt": "2026-10-02T10:00:00Z",
+              "source": {
+                "__typename": "PullRequest",
+                "number": 231,
+                "title": "Cache GraphQL reads on disk",
+                "url": "https://github.com/eggzec/gh-tui/pull/231",
+                "isDraft": false,
+                "pullState": "OPEN",
+                "repository": {
+                  "name": "gh-tui",
+                  "owner": {
+                    "login": "eggzec"
+                  }
+                }
+              },
+              "subject": {
+                "__typename": "Issue",
+                "number": 41,
+                "title": "Keep entries",
+                "url": "https://github.com/eggzec/gh-tui/issues/41",
+                "issueState": "CLOSED",
+                "stateReason": "COMPLETED",
+                "repository": {
+                  "name": "gh-tui",
+                  "owner": {
+                    "login": "eggzec"
+                  }
+                }
+              }
+            },
+            {
+              "__typename": "ConnectedEvent",
+              "createdAt": "2026-10-03T10:00:00Z",
+              "source": {
+                "__typename": "Issue",
+                "number": 198,
+                "title": "Token refresh fails on GHES 3.16",
+                "url": "https://github.com/eggzec/gh-tui/issues/198",
+                "issueState": "OPEN",
+                "stateReason": null,
+                "repository": {
+                  "name": "gh-tui",
+                  "owner": {
+                    "login": "eggzec"
+                  }
+                }
+              },
+              "subject": {
+                "__typename": "PullRequest",
+                "number": 231,
+                "title": "Cache GraphQL reads on disk",
+                "url": "https://github.com/eggzec/gh-tui/pull/231",
+                "isDraft": false,
+                "pullState": "OPEN",
+                "repository": {
+                  "name": "gh-tui",
+                  "owner": {
+                    "login": "eggzec"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "mentions": {
+          "filteredCount": 47
+        }
+      }
+    }
+  }
+}

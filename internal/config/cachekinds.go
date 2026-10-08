@@ -49,6 +49,9 @@ type TTL struct {
 	Search     time.Duration `yaml:"search"`
 	CodeSearch time.Duration `yaml:"code_search"`
 	Releases   time.Duration `yaml:"releases"`
+	// References covers the links of a pull request or issue: what it
+	// links, and the pages of what mentions it.
+	References time.Duration `yaml:"references"`
 	// Profile covers the dashboard's header: you, your organizations and
 	// your pinned repositories; and the header of a user or organization
 	// page.

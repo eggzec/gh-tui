@@ -15,7 +15,7 @@ func TestTransportDefaults(t *testing.T) {
 	if c.GitHub != (GitHub{Timeout: 30 * time.Second, Concurrency: 8}) {
 		t.Errorf("github = %+v", c.GitHub)
 	}
-	want := PageSize{Pulls: 30, Issues: 30, Notifications: 30, Repos: 30, Runs: 30, Commits: 50, Search: 20, WaitingOnYou: 10, People: 50}
+	want := PageSize{Pulls: 30, Issues: 30, Notifications: 30, Repos: 30, Runs: 30, Commits: 50, Search: 20, WaitingOnYou: 10, People: 50, References: 100}
 	if c.PageSize != want {
 		t.Errorf("page_size = %+v, want %+v", c.PageSize, want)
 	}

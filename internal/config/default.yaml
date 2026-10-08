@@ -106,6 +106,10 @@ cache:
     search: 30s
     code_search: 1m
     releases: 1h
+    # The issues and pull requests that a pull request or issue links, and
+    # those that mention it. GitHub has no validators for them, so one that
+    # is stale is read again in full.
+    references: 5m
     # The dashboard's header: you, your organizations and your pinned
     # repositories; and the header of a user or organization page, with
     # its pins and an organization's follower count.
@@ -421,6 +425,8 @@ page_size:
   # following, organizations, members, teams, sponsors and those
   # sponsored.
   people: 50
+  # Each page of the pull requests and issues that mention one.
+  references: 100
 
 # The command line.
 commands:

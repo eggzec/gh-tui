@@ -1,0 +1,113 @@
+{
+  "data": {
+    "rateLimit": {
+      "cost": 1,
+      "limit": 5000,
+      "remaining": 4999,
+      "used": 1,
+      "resetAt": "2026-10-08T19:08:00Z"
+    },
+    "repository": {
+      "issue": {
+        "body": "Needs #12.",
+        "comments": {
+          "totalCount": 1,
+          "nodes": [
+            {
+              "author": {
+                "__typename": "User",
+                "login": "bob"
+              },
+              "body": "Fixed by #300?"
+            }
+          ]
+        },
+        "closedByPullRequestsReferences": {
+          "nodes": [
+            {
+              "__typename": "PullRequest",
+              "number": 300,
+              "title": "Cache reads",
+              "url": "https://github.com/eggzec/gh-tui/pull/300",
+              "isDraft": false,
+              "pullState": "MERGED",
+              "repository": {
+                "name": "gh-tui",
+                "owner": {
+                  "login": "eggzec"
+                }
+              }
+            }
+          ]
+        },
+        "linked": {
+          "nodes": [
+            {
+              "__typename": "ClosedEvent",
+              "createdAt": "2026-10-04T10:00:00Z",
+              "closer": {
+                "__typename": "PullRequest",
+                "number": 300,
+                "title": "Cache reads",
+                "url": "https://github.com/eggzec/gh-tui/pull/300",
+                "isDraft": false,
+                "pullState": "MERGED",
+                "repository": {
+                  "name": "gh-tui",
+                  "owner": {
+                    "login": "eggzec"
+                  }
+                }
+              }
+            },
+            {
+              "__typename": "ClosedEvent",
+              "createdAt": "2026-10-05T10:00:00Z",
+              "closer": {}
+            },
+            {
+              "__typename": "ClosedEvent",
+              "createdAt": "2026-10-05T11:00:00Z",
+              "closer": null
+            },
+            {
+              "__typename": "ConnectedEvent",
+              "createdAt": "2026-10-06T10:00:00Z",
+              "source": {
+                "__typename": "PullRequest",
+                "number": 301,
+                "title": "Another try",
+                "url": "https://github.com/eggzec/gh-tui/pull/301",
+                "isDraft": false,
+                "pullState": "CLOSED",
+                "repository": {
+                  "name": "gh-tui",
+                  "owner": {
+                    "login": "eggzec"
+                  }
+                }
+              },
+              "subject": {
+                "__typename": "Issue",
+                "number": 231,
+                "title": "Cache GraphQL reads on disk",
+                "url": "https://github.com/eggzec/gh-tui/issues/231",
+                "issueState": "OPEN",
+                "stateReason": null,
+                "repository": {
+                  "name": "gh-tui",
+                  "owner": {
+                    "login": "eggzec"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "mentions": {
+          "filteredCount": 3
+        }
+      }
+    }
+  }
+}

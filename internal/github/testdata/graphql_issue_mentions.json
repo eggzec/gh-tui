@@ -1,0 +1,91 @@
+{
+  "data": {
+    "rateLimit": {
+      "cost": 1,
+      "limit": 5000,
+      "remaining": 4999,
+      "used": 1,
+      "resetAt": "2026-10-08T19:08:00Z"
+    },
+    "repository": {
+      "issue": {
+        "timelineItems": {
+          "pageInfo": {
+            "hasPreviousPage": true,
+            "startCursor": "Y3Vyc29yOjQw"
+          },
+          "nodes": [
+            {
+              "willCloseTarget": false,
+              "actor": {
+                "__typename": "User",
+                "login": "alice"
+              },
+              "source": {
+                "__typename": "Issue",
+                "number": 240,
+                "title": "Refresh the token before it expires",
+                "url": "https://github.com/eggzec/gh-tui/issues/240",
+                "issueState": "OPEN",
+                "stateReason": null,
+                "repository": {
+                  "name": "gh-tui",
+                  "owner": {
+                    "login": "eggzec"
+                  }
+                }
+              }
+            },
+            {
+              "willCloseTarget": true,
+              "actor": {
+                "__typename": "User",
+                "login": "bob"
+              },
+              "source": {
+                "__typename": "PullRequest",
+                "number": 239,
+                "title": "Read the scopes at startup",
+                "url": "https://github.com/eggzec/gh-tui/pull/239",
+                "isDraft": false,
+                "pullState": "MERGED",
+                "repository": {
+                  "name": "gh-tui",
+                  "owner": {
+                    "login": "eggzec"
+                  }
+                }
+              }
+            },
+            {
+              "willCloseTarget": false,
+              "actor": {
+                "__typename": "Bot",
+                "login": "ci-bot"
+              },
+              "source": {
+                "__typename": "Issue",
+                "number": 77,
+                "title": "GHES token rotation",
+                "url": "https://github.com/acme/infra/issues/77",
+                "issueState": "CLOSED",
+                "stateReason": "COMPLETED",
+                "repository": {
+                  "name": "infra",
+                  "owner": {
+                    "login": "acme"
+                  }
+                }
+              }
+            },
+            {
+              "willCloseTarget": false,
+              "actor": null,
+              "source": {}
+            }
+          ]
+        }
+      }
+    }
+  }
+}
