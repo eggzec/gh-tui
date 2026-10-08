@@ -32,11 +32,11 @@ func (m *Model) setCommand(arg string) tea.Cmd {
 	key = strings.TrimSpace(key)
 	switch {
 	case key == "":
-		return m.toast.Push(toast.Error, "Set what? Use set key=value, set key to see its value, or set key& to reset it.")
+		return m.toast.Push(toast.Warning, "Set what? Use set key=value, set key to see its value, or set key& to reset it.")
 	case reset && assign:
-		return m.toast.Push(toast.Error, "Set "+ui.OneLine(key)+"& resets it, and takes no value.")
+		return m.toast.Push(toast.Warning, "Set "+ui.OneLine(key)+"& resets it, and takes no value.")
 	case strings.HasPrefix(key, "keys.") || strings.HasPrefix(key, "themes."):
-		return m.toast.Push(toast.Error, "Keys and themes can't be set here: change them in the config file, then restart gh-tui.")
+		return m.toast.Push(toast.Warning, "Keys and themes can't be set here: change them in the config file, then restart gh-tui.")
 	}
 	was, err := m.cfg.Get(key)
 	if err != nil {
@@ -45,10 +45,10 @@ func (m *Model) setCommand(arg string) tea.Cmd {
 		if i := strings.IndexAny(key, " \t"); i >= 0 && !assign && !reset {
 			first, rest := key[:i], strings.TrimSpace(key[i:])
 			if _, err := m.cfg.Get(first); err == nil {
-				return m.toast.Push(toast.Error, "Write it as set "+first+"="+ui.OneLine(rest)+".")
+				return m.toast.Push(toast.Warning, "Write it as set "+first+"="+ui.OneLine(rest)+".")
 			}
 		}
-		return m.toast.Push(toast.Error, "Unknown setting: "+ui.OneLine(key)+".")
+		return m.toast.Push(toast.Warning, "Unknown setting: "+ui.OneLine(key)+".")
 	}
 	if reset {
 		return m.resetSetting(key, was)
@@ -57,11 +57,11 @@ func (m *Model) setCommand(arg string) tea.Cmd {
 		return m.toast.Push(toast.Info, key+" is "+ui.OneLine(was)+".")
 	}
 	if why, ok := config.Startup(key); ok {
-		return m.toast.Push(toast.Error, key+" can't change while gh-tui runs: "+why+". Set it in the config file, then restart.")
+		return m.toast.Push(toast.Warning, key+" can't change while gh-tui runs: "+why+". Set it in the config file, then restart.")
 	}
 	cfg, err := m.cfg.Set(key, value)
 	if err != nil {
-		return m.toast.Push(toast.Error, "Can't set "+key+": "+reason(key, err)+".")
+		return m.toast.Push(toast.Warning, "Can't set "+key+": "+reason(key, err)+".")
 	}
 	m.cfg = cfg
 	now, _ := cfg.Get(key)
@@ -78,7 +78,7 @@ func (m *Model) resetSetting(key, was string) tea.Cmd {
 	if err != nil {
 		// What the file says was valid with what the session set of the
 		// others, such as a size within a bound another sets.
-		return m.toast.Push(toast.Error, "Can't reset "+key+": "+reason(key, err)+".")
+		return m.toast.Push(toast.Warning, "Can't reset "+key+": "+reason(key, err)+".")
 	}
 	m.cfg = cfg
 	now, _ := cfg.Get(key)
@@ -108,7 +108,6 @@ func (m *Model) applySettings() tea.Cmd {
 	if m.cfg.UI.Toast != m.toastTimes {
 		m.toastTimes = m.cfg.UI.Toast
 		m.toast.SetDuration(m.toastTimes.Info)
-		m.toast.SetErrorDuration(m.toastTimes.Error)
 	}
 	// The modals opened from now on start as it says.
 	m.maximizedModals = m.cfg.UI.Maximized

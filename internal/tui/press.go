@@ -20,5 +20,5 @@ func (m *Model) press(action string) tea.Cmd {
 			return m.key(msg)
 		}
 	}
-	return m.toast.Push(toast.Error, "No key is bound to keys."+action+" in the config.")
+	return m.toast.Push(toast.Warning, "No key is bound to keys."+action+" in the config.")
 }

@@ -247,9 +247,12 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
-	// The open command line takes every key, ctrl+c too, which cancels
-	// the command rather than quitting.
+	// The open command line takes every key but ctrl+c, which quits from
+	// everywhere; esc cancels the line.
 	if m.line.Focused() {
+		if key.Matches(msg, forceQuit) {
+			return tea.Quit
+		}
 		return m.updateLine(msg)
 	}
 	// ctrl+c quits from the help and a modal, which take every other
@@ -265,6 +268,19 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 	if m.opensHelp(msg) {
 		return m.openHelp()
 	}
+	// The dismiss key goes one step at a time: an error toast first, even
+	// over a modal, and then a goto that waits for GitHub. What is left is
+	// the modal's or the section's to clear and then close.
+	if key.Matches(msg, m.keys.Dismiss) {
+		switch {
+		case m.toast.Has(toast.Error):
+			m.toast.DismissLevel(toast.Error)
+			return nil
+		case m.going != nil:
+			m.cancelGoto()
+			return nil
+		}
+	}
 	if mod := m.topModal(); mod != nil {
 		if key.Matches(msg, forceQuit) {
 			return tea.Quit
@@ -272,9 +288,15 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 		if m.commandsOver(mod) && key.Matches(msg, m.keys.Command) {
 			return m.openLine()
 		}
-		if m.maximizeKey(msg) {
+		takes := m.modalTakesKeys()
+		if !takes && key.Matches(msg, m.keys.Maximize) {
 			m.toggleMaximized()
 			return nil
+		}
+		if !takes {
+			if cmd, handled := m.actOverModal(mod, msg); handled {
+				return cmd
+			}
 		}
 		cmd := mod.Update(msg)
 		m.updateBadges()
@@ -304,13 +326,8 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 	case m.canZoom() && m.width >= narrowWidth && key.Matches(msg, m.keys.Zoom):
 		m.setZoom(!m.zoom)
 		return nil
-	case m.canZoom() && m.zoomed() && key.Matches(msg, m.keys.Unzoom):
-		m.setZoom(false)
-		return nil
 	case key.Matches(msg, m.keys.Back):
 		return m.goBack()
-	case !m.toast.Empty() && key.Matches(msg, m.keys.Dismiss):
-		return m.toast.Dismiss()
 	case key.Matches(msg, m.keys.Owner):
 		// Without an owner, the key goes on to the section.
 		if owner := m.selectedOwner(); owner != "" {
@@ -520,3 +537,6 @@ func (m *Model) fail(action string, err error) tea.Cmd {
 
 // fitsToast reports whether an error toast shows text whole.
 func (m *Model) fitsToast(text string) bool { return m.toast.Fits(toast.Error, text) }
+
+// fitsWarning reports whether a warning toast shows text whole.
+func (m *Model) fitsWarning(text string) bool { return m.toast.Fits(toast.Warning, text) }

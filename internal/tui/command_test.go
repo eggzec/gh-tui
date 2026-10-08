@@ -189,7 +189,7 @@ func TestCommandKeyOpensTheLine(t *testing.T) {
 }
 
 func TestLineClosesWithoutQuitting(t *testing.T) {
-	for _, k := range []tea.KeyPressMsg{press("esc"), ctrlC, press("ctrl+h")} {
+	for _, k := range []tea.KeyPressMsg{press("esc"), press("ctrl+h")} {
 		t.Run(k.String(), func(t *testing.T) {
 			m, fakes := newTestApp(t)
 			drive(m, m.key(press(":")))
@@ -296,21 +296,21 @@ func TestLineKeys(t *testing.T) {
 		set          map[string][]string
 		submit, stop []string
 	}{
-		{name: "default", submit: []string{"enter"}, stop: []string{"esc", "ctrl+c"}},
+		{name: "default", submit: []string{"enter"}, stop: []string{"esc"}},
 		{
 			name:   "the keys of select and dismiss are left to the rest of the app",
 			set:    map[string][]string{config.ActionSelect: {"enter", "ctrl+j"}, config.ActionDismiss: {"ctrl+g", "f1"}},
-			submit: []string{"enter"}, stop: []string{"esc", "ctrl+c"},
+			submit: []string{"enter"}, stop: []string{"esc"},
 		},
 		{
 			name:   "its own keys",
 			set:    map[string][]string{"command_line.run": {"ctrl+j"}, "command_line.cancel": {"ctrl+g", "f1"}},
-			submit: []string{"ctrl+j"}, stop: []string{"ctrl+g", "f1", "ctrl+c"},
+			submit: []string{"ctrl+j"}, stop: []string{"ctrl+g", "f1"},
 		},
 		{
-			name:   "unbound cancel leaves ctrl+c",
+			name:   "unbound cancel leaves no key",
 			set:    map[string][]string{"command_line.cancel": {}},
-			submit: []string{"enter"}, stop: []string{"ctrl+c"},
+			submit: []string{"enter"}, stop: nil,
 		},
 	}
 	for _, tt := range tests {

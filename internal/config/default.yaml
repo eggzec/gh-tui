@@ -32,11 +32,10 @@ ui:
   # of files too, unicode, or ascii.
   icons: nerd
   # How long a toast stays before it goes on its own, at least 1s: info
-  # for info, success and warnings, and error for errors, which take
-  # longer to read.
+  # for info, success and warnings. An error stays until it is dismissed
+  # with the dismiss key.
   toast:
     info: 4s
-    error: 8s
   # How every date reads, in the lists, the modals and the history:
   # relative, as an age (3d in a row, 3d ago in a sentence), absolute
   # (2006-01-02 15:04 MST), or a Go time layout such as "2006-01-02 15:04".
@@ -493,10 +492,11 @@ keys:
     search: [S]
     # Choose or open what is under the cursor.
     select: [enter]
-    # Step out of what is open, such as a zoomed pane.
+    # Dismiss, one step at a time: an error toast first, then what is
+    # transient, such as a filter or a search, and then the modal that is
+    # open. On a screen it does nothing. It never unzooms a pane: the zoom
+    # key does.
     dismiss: [esc]
-    # Close the newest toast.
-    dismiss_toast: [ctrl+x]
     # Open what is under the cursor in the browser.
     open: [o]
     # Show the page of the person or organization behind what is selected:

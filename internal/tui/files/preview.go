@@ -423,3 +423,15 @@ func (p *preview) SetTheme(t ui.Theme) {
 func (p *preview) KeyLayers() []keyhelp.Layer {
 	return []keyhelp.Layer{ui.PagerLayer("preview", &p.pager, p.open)}
 }
+
+var _ ui.Actor = (*preview)(nil)
+
+// Act implements ui.Actor. The quit key closes the preview, or goes back
+// to the modal it was opened from; every other intent is the app's to
+// refuse while it is open.
+func (p *preview) Act(action string) (tea.Cmd, bool) {
+	if action == ui.ActQuit {
+		return p.close(), true
+	}
+	return nil, false
+}

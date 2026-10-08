@@ -78,7 +78,7 @@ func newKeyMap(keys config.Keymap) keyMap {
 		Label:       list.Binding("labels", "labels"),
 		confirm:     ui.NewConfirmKeys(keys),
 		prompt:      prompt.NewKeyMap(ui.Lookup(keys, "prompt")),
-		owner:       list.Binding("global.owner", "owner page"),
+		owner:       list.Binding("global.owner", "author"),
 	}
 
 	// The section and the modal match their own keys first, so the feed

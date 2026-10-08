@@ -16,7 +16,6 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
 	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
-	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
 // TestWidgetActionsAreInTheConfig checks that every action the key maps of
@@ -47,25 +46,6 @@ func TestWidgetActionsAreInTheConfig(t *testing.T) {
 				t.Errorf("%s names %s, which the default keys don't have", tt.ctx, action)
 			}
 		}
-	}
-}
-
-// TestToastDismissKeyIsConfigurable checks that the key that closes the
-// newest toast is the one the global context sets.
-func TestToastDismissKeyIsConfigurable(t *testing.T) {
-	cfg := config.Default()
-	cfg.Keys.Set(config.ActionDismissToast, []string{"ctrl+d"})
-	m := New(t.Context(), cfg, Layout{Files: &fakeSection{title: "Files"}}, WithRepo(testRepo))
-	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-	m.toast.SetErrorDuration(0)
-	run(m, ui.Notify(toast.Error, "Could not merge"))
-	run(m, m.key(tea.KeyPressMsg{Code: 'x', Mod: tea.ModCtrl}))
-	if m.toast.Empty() {
-		t.Fatal("ctrl+x dismissed the toast after dismiss_toast was set to ctrl+d")
-	}
-	run(m, m.key(tea.KeyPressMsg{Code: 'd', Mod: tea.ModCtrl}))
-	if !m.toast.Empty() {
-		t.Error("ctrl+d didn't dismiss the toast")
 	}
 }
 

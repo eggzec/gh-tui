@@ -225,7 +225,7 @@ func (m *Model) notice(a core.Access) string {
 // have changed it since.
 func (m *Model) authCommand(string) tea.Cmd {
 	if m.access == nil {
-		return m.toast.Push(toast.Error, "gh-tui doesn't know the token here.")
+		return m.toast.Push(toast.Warning, "gh-tui doesn't know the token here.")
 	}
 	a := m.access.Access()
 	mod := newAuthModal(m.cfg.Keys, m.account(), a, m.access.Refresh(needs()...), m.token, m.run)

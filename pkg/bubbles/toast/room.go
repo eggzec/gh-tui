@@ -17,10 +17,10 @@ type Room struct {
 }
 
 // DefaultRoom returns the room of a level: 40% of the width and three
-// lines, and for errors 60% and five lines, since an error often says what
-// to do about it and that must show whole.
+// lines, and for warnings and errors 60% and five lines, since they often
+// say what to do about it and that must show whole.
 func DefaultRoom(level Level) Room {
-	if level == Error {
+	if level >= Warning {
 		return Room{Share: 60, Lines: 5}
 	}
 	return Room{Share: 40, Lines: 3}

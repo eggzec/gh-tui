@@ -29,12 +29,11 @@ type UI struct {
 	Maximized []string `yaml:"maximized"`
 }
 
-// Toast is how long a toast stays before it goes on its own.
+// Toast is how long a toast stays before it goes on its own. An error
+// toast has no time: it stays until it is dismissed.
 type Toast struct {
 	// Info is how long an info, success or warning toast stays.
 	Info time.Duration `yaml:"info"`
-	// Error is how long an error toast stays.
-	Error time.Duration `yaml:"error"`
 }
 
 // minToast is the shortest a toast stays, so that it can be read.
@@ -60,9 +59,6 @@ func (u UI) validate() error {
 	}
 	if u.Toast.Info < minToast {
 		errs = append(errs, fmt.Errorf("ui.toast.info: must be at least %v, got %v", minToast, u.Toast.Info))
-	}
-	if u.Toast.Error < minToast {
-		errs = append(errs, fmt.Errorf("ui.toast.error: must be at least %v, got %v", minToast, u.Toast.Error))
 	}
 	errs = append(errs, validateDateFormat(u.DateFormat), u.validateMaximized())
 	return errors.Join(errs...)

@@ -131,19 +131,10 @@ func TestHelpFilter(t *testing.T) {
 	m, _ := newTestApp(t)
 	run(m, m.key(press("?")))
 	all := len(m.keyhelp.Shown())
-	var unzoom keyhelp.Status = -1
-	for _, r := range m.keyhelp.Rows() {
-		if r.Binding.Help().Desc == "unzoom" {
-			unzoom = r.Status
-		}
-	}
-	if unzoom != keyhelp.Disabled {
-		t.Errorf("unzoom is %v, want listed as disabled", unzoom)
-	}
 	typeKeys(m, "zm")
 	got := shownDescs(m)
-	if !slices.Equal(got, []string{"zoom", "unzoom"}) {
-		t.Errorf("zm shows %q of %d, want zoom and unzoom", got, all)
+	if !slices.Equal(got, []string{"zoom"}) {
+		t.Errorf("zm shows %q of %d, want zoom alone, which is the unzoom while zoomed", got, all)
 	}
 	typeKeys(m, "xyz")
 	if len(m.keyhelp.Shown()) != 0 || !strings.Contains(onScreen(m), "No keys match.") {

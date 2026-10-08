@@ -258,18 +258,12 @@ func (m *Modal) drill() tea.Cmd {
 	return nil
 }
 
-// back steps back one pane, and closes the modal from the runs. A zoomed
-// pane goes back to its place first.
+// back steps back one pane, and closes the modal from the runs.
 func (m *Modal) back() tea.Cmd {
-	switch {
-	case m.zoom:
-		m.zoom = false
-		m.layout()
-	case m.focus == runsPane:
+	if m.focus == runsPane {
 		return m.close()
-	default:
-		m.setFocus(m.focus - 1)
 	}
+	m.setFocus(m.focus - 1)
 	return nil
 }
 

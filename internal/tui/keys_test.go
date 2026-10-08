@@ -51,12 +51,12 @@ func TestKeyLayersOrder(t *testing.T) {
 		t.Errorf("esc reaches %q, want the section's back", got)
 	}
 	run(m, m.key(press("z")))
-	if got := winner(m, "esc"); got != "global: unzoom" {
-		t.Errorf("esc reaches %q while zoomed, want the unzoom", got)
+	if got := winner(m, "esc"); got != "Files: back" {
+		t.Errorf("esc reaches %q while zoomed, want the section's back", got)
 	}
 	run(m, m.key(press("esc")))
-	if m.zoom || fakes[0].got(isKey("esc")) {
-		t.Error("esc while zoomed didn't unzoom, or reached the section")
+	if !m.zoom || !fakes[0].got(isKey("esc")) {
+		t.Error("esc while zoomed unzoomed, or didn't reach the section")
 	}
 
 	fakes[0].capturing = true
@@ -92,16 +92,17 @@ func TestKeyLayersOrder(t *testing.T) {
 	}
 }
 
-// The open command line takes every key, ctrl+c too, so its keys are the
-// only ones that reach anything, and it types the rest.
+// The open command line takes every key but ctrl+c, which quits, so its
+// keys and that one are the only ones that reach anything, and it types
+// the rest.
 func TestKeyLayersOfTheCommandLine(t *testing.T) {
 	m, _ := newTestApp(t)
 	run(m, m.key(press(":")))
 	layers := m.keyLayers()
-	if len(layers) != 1 || layers[0].Source != "Command line" || !layers[0].Typing {
-		t.Fatalf("the open command line has the layers %+v, want its own alone", layers)
+	if len(layers) != 2 || layers[1].Source != "Command line" || !layers[1].Typing {
+		t.Fatalf("the open command line has the layers %+v, want ctrl+c and its own", layers)
 	}
-	for k, want := range map[string]string{"esc": "Command line: cancel", "ctrl+c": "Command line: cancel", "q": "nothing"} {
+	for k, want := range map[string]string{"esc": "Command line: cancel", "ctrl+c": "always: quit", "q": "nothing"} {
 		if got := winner(m, k); got != want {
 			t.Errorf("%s reaches %q with the command line open, want %q", k, got, want)
 		}

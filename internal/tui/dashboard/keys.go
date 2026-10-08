@@ -20,10 +20,8 @@ type KeyMap struct {
 	Next  key.Binding
 	Prev  key.Binding
 	Panes [numPanes]key.Binding
-	// Zoom shows the focused pane alone, or every pane again, and Back
-	// shows them again too.
+	// Zoom shows the focused pane alone, or every pane again.
 	Zoom key.Binding
-	Back key.Binding
 	// Select opens what is under the cursor: a repository, a pull request
 	// or issue, or what a notification is about.
 	Select key.Binding
@@ -84,7 +82,6 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		Next:          screen.Binding("global.next_pane", "next pane"),
 		Prev:          screen.Binding("global.prev_pane", "previous pane"),
 		Zoom:          screen.Binding("global.zoom", "zoom"),
-		Back:          screen.Binding("global.dismiss", "unzoom"),
 		Select:        screen.Binding("global.select", "open"),
 		Open:          screen.Binding("global.open", "browser"),
 		Refresh:       screen.Binding("global.refresh", "refresh"),
@@ -127,7 +124,7 @@ func (k KeyMap) pane(msg tea.KeyPressMsg) paneID {
 func (k KeyMap) ShortHelp() []key.Binding {
 	return []key.Binding{
 		k.Up, k.Down, k.Left, k.Right, k.Select, k.Checks, k.Filter, k.Sort, k.ClearFilter, k.NextOwner, k.NextList, k.Open,
-		k.Next, k.Jump, k.Zoom, k.Back, k.Refresh,
+		k.Next, k.Jump, k.Zoom, k.Refresh,
 	}
 }
 
@@ -137,7 +134,7 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Left, k.Right, k.Up, k.Down, k.Select, k.Open, k.Checks, k.NextOwner, k.PrevOwner, k.NextList, k.PrevList, k.ClearFilter, k.Filter, k.Sort, k.Notifications},
 		{k.WorkUp, k.WorkDown, k.InboxUp, k.InboxDown},
-		{k.Next, k.Prev, k.Zoom, k.Back, k.Refresh, k.Jump},
+		{k.Next, k.Prev, k.Zoom, k.Refresh, k.Jump},
 	}
 }
 
@@ -148,8 +145,8 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 func (s *Section) KeyLayers() []keyhelp.Layer {
 	k := s.keys.state(s)
 	screen := ui.ContextLayer(ctxDashboard,
-		[]key.Binding{k.Next, k.Prev, k.Zoom, k.Back, k.Refresh, k.Jump},
-		[]key.Binding{k.Next, k.Jump, k.Zoom, k.Back, k.Refresh})
+		[]key.Binding{k.Next, k.Prev, k.Zoom, k.Refresh, k.Jump},
+		[]key.Binding{k.Next, k.Jump, k.Zoom, k.Refresh})
 	ctx := paneContext[s.focus]
 	own := keyhelp.Layer{Bindings: k.paneKeys(s.focus), Short: k.paneShort(s.focus)}
 	switch s.focus {
@@ -220,6 +217,8 @@ func (k KeyMap) state(s *Section) KeyMap {
 	default:
 	}
 	k.Zoom.SetEnabled(k.Zoom.Enabled() && s.wide)
-	k.Back.SetEnabled(k.Back.Enabled() && s.zoomed())
+	if s.zoomed() {
+		k.Zoom.SetHelp(k.Zoom.Help().Key, "unzoom")
+	}
 	return k
 }

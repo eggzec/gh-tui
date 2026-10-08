@@ -25,8 +25,6 @@ type KeyMap struct {
 	PrevTab key.Binding
 	// Zoom shows the focused pane alone, or every pane again.
 	Zoom key.Binding
-	// Back shows every pane again while one is zoomed.
-	Back key.Binding
 	// Select opens what is under the cursor: a repository on the
 	// repository screen, a person or an organization on their page, and a
 	// team, which has no page here, in the browser.
@@ -72,7 +70,6 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		NextTab:     list.Binding("global.next_tab", "next tab"),
 		PrevTab:     list.Binding("global.prev_tab", "previous tab"),
 		Zoom:        page.Binding("global.zoom", "zoom"),
-		Back:        page.Binding("global.dismiss", "back"),
 		Select:      page.Binding("global.select", "open"),
 		Open:        page.Binding("global.open", "browser"),
 		Refresh:     page.Binding("global.refresh", "refresh"),
@@ -110,7 +107,7 @@ func (k KeyMap) pane(msg tea.KeyPressMsg) paneID {
 func (k KeyMap) ShortHelp() []key.Binding {
 	return []key.Binding{
 		k.Up, k.Down, k.Left, k.Right, k.Select, k.Filter, k.Sort, k.ClearFilter, k.Open,
-		k.NextTab, k.Next, k.Jump, k.Zoom, k.Back, k.Refresh,
+		k.NextTab, k.Next, k.Jump, k.Zoom, k.Refresh,
 	}
 }
 
@@ -119,7 +116,7 @@ func (k KeyMap) ShortHelp() []key.Binding {
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Left, k.Right, k.Up, k.Down, k.Select, k.Open, k.NextTab, k.PrevTab, k.ClearFilter, k.Filter, k.Sort},
-		{k.Next, k.Prev, k.Zoom, k.Back, k.Refresh, k.Jump},
+		{k.Next, k.Prev, k.Zoom, k.Refresh, k.Jump},
 	}
 }
 
@@ -140,8 +137,8 @@ func (s *Section) Capturing() bool {
 func (s *Section) KeyLayers() []keyhelp.Layer {
 	k := s.keys.state(s)
 	screen := ui.ContextLayer(ctxPage,
-		[]key.Binding{k.Next, k.Prev, k.Zoom, k.Back, k.Refresh, k.Jump},
-		[]key.Binding{k.Next, k.Jump, k.Zoom, k.Back, k.Refresh})
+		[]key.Binding{k.Next, k.Prev, k.Zoom, k.Refresh, k.Jump},
+		[]key.Binding{k.Next, k.Jump, k.Zoom, k.Refresh})
 	focus := pinnedPane
 	if s.page != nil {
 		focus = s.page.focus
@@ -225,7 +222,8 @@ func (k KeyMap) state(s *Section) KeyMap {
 	}
 	k.Zoom.SetEnabled(k.Zoom.Enabled() && s.wide)
 	k.Refresh.SetEnabled(k.Refresh.Enabled() && s.page != nil)
-	k.Back.SetHelp(k.Back.Help().Key, "unzoom")
-	k.Back.SetEnabled(k.Back.Enabled() && s.zoomed())
+	if s.zoomed() {
+		k.Zoom.SetHelp(k.Zoom.Help().Key, "unzoom")
+	}
 	return k
 }

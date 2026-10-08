@@ -297,3 +297,15 @@ func wrapPlain(s string, w int) []string {
 	}
 	return strings.Split(ansi.Wordwrap(ui.OneLine(s), max(w, 1), ""), "\n")
 }
+
+var _ ui.Actor = (*authModal)(nil)
+
+// Act implements ui.Actor. The quit key closes the modal unless it asks
+// whether to run the command; every other intent is the app's to refuse
+// while it is open.
+func (m *authModal) Act(action string) (tea.Cmd, bool) {
+	if action != ui.ActQuit || m.asks() {
+		return nil, false
+	}
+	return ui.CloseModal(m), true
+}

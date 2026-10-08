@@ -68,11 +68,10 @@ const (
 	// where commands such as goto are typed.
 	ActionCommand = "global.command"
 	// ActionSelect opens or chooses what is under the cursor, and
-	// ActionDismiss steps out of what is open, such as a zoom.
+	// ActionDismiss clears what is transient and then closes what is
+	// open.
 	ActionSelect  = "global.select"
 	ActionDismiss = "global.dismiss"
-	// ActionDismissToast closes the newest toast.
-	ActionDismissToast = "global.dismiss_toast"
 	// ActionOwner shows the page of the person or organization behind what
 	// is selected: the author of a pull request or issue, the owner of a
 	// repository or of what is in it, such as a file or a notification,

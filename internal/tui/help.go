@@ -97,10 +97,10 @@ func (m *Model) keyLayers() []keyhelp.Layer {
 // captures keys, the app's that hold ctrl+c and the section's, or else
 // the keys the section claims, then the app's, and then the section's.
 func (m *Model) layersNow() []keyhelp.Layer {
-	if m.line.Focused() {
-		return []keyhelp.Layer{ui.ContextHelp("command_line", m.line, true)}
-	}
 	quit := keyhelp.Layer{Source: alwaysTitle, Bindings: []key.Binding{forceQuit}}
+	if m.line.Focused() {
+		return []keyhelp.Layer{quit, ui.ContextHelp("command_line", m.line, true)}
+	}
 	if m.helpOpen() {
 		return []keyhelp.Layer{quit, ui.ContextHelp("help", m.keyhelp, true)}
 	}
@@ -123,6 +123,7 @@ func (m *Model) layersNow() []keyhelp.Layer {
 		// modal's keys after both.
 		if !slices.ContainsFunc(inner, takesKeys) {
 			always.Bindings = append(always.Bindings, m.keys.state(m).Maximize)
+			always.Bindings = append(always.Bindings, m.refused(inner)...)
 		}
 	}
 	always.Bindings = append(always.Bindings, help)
@@ -162,6 +163,30 @@ func (m *Model) innerLayers() (layers []keyhelp.Layer, modal bool) {
 	inner := p.section.KeyLayers()
 	takeIntents(&app[0], inner)
 	return append(app, inner...), false
+}
+
+// refused returns the keys that show another screen as the help lists them
+// over a modal: disabled, since the app refuses them until the modal
+// closes, unless the modal takes the key itself, as that of a pull request
+// takes the owner page for its author.
+func (m *Model) refused(inner []keyhelp.Layer) []key.Binding {
+	var out []key.Binding
+	for _, o := range m.overModals() {
+		b := o.binding
+		if !b.Enabled() || slices.ContainsFunc(inner, func(l keyhelp.Layer) bool { return takesKey(l, b) }) {
+			continue
+		}
+		b.SetEnabled(false)
+		out = append(out, b)
+	}
+	return out
+}
+
+// takesKey reports whether l has an enabled binding that shares a key with b.
+func takesKey(l keyhelp.Layer, b key.Binding) bool {
+	return slices.ContainsFunc(l.Bindings, func(x key.Binding) bool {
+		return x.Enabled() && slices.ContainsFunc(x.Keys(), func(k string) bool { return slices.Contains(b.Keys(), k) })
+	})
 }
 
 // quitReach returns the bindings of l that ctrl+c reaches, with that key

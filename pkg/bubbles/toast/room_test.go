@@ -10,13 +10,15 @@ import (
 
 func TestRoom(t *testing.T) {
 	m := New(testDuration, testErrorDuration)
-	for l := Info; l <= Warning; l++ {
+	for l := Info; l <= Success; l++ {
 		if got := m.Room(l); got != (Room{Share: 40, Lines: 3}) {
 			t.Errorf("Room(%s) = %+v, want 40%% and 3 lines", l, got)
 		}
 	}
-	if got := m.Room(Error); got != (Room{Share: 60, Lines: 5}) {
-		t.Errorf("Room(error) = %+v, want 60%% and 5 lines", got)
+	for l := Warning; l <= Error; l++ {
+		if got := m.Room(l); got != (Room{Share: 60, Lines: 5}) {
+			t.Errorf("Room(%s) = %+v, want 60%% and 5 lines", l, got)
+		}
 	}
 
 	m = New(testDuration, testErrorDuration, WithRoom(Info, Room{Share: 150, Lines: 0}), WithRoom(Level(9), Room{Share: 10, Lines: 1}))

@@ -363,7 +363,6 @@ func TestFilterCommands(t *testing.T) {
 			m, pulls, _ := newFilterApp(t)
 			pulls.ready, pulls.sorts = tt.ready, tt.sorts
 			m.toast.SetDuration(0)
-			m.toast.SetErrorDuration(0)
 			runCommand(t, m, tt.line)
 			if tt.tab == "" {
 				if m.topModal() != nil {

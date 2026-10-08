@@ -13,6 +13,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -71,15 +72,95 @@ func (m *Model) opensMaximized(mod ui.Modal) bool {
 	return name != "" && slices.Contains(m.maximizedModals, name)
 }
 
-// maximizeKey reports whether msg toggles the open modal between its size
-// and the whole screen: the maximize key, unless the modal types it into
-// an input, or takes it for a question or a prompt.
-func (m *Model) maximizeKey(msg tea.KeyPressMsg) bool {
-	if !key.Matches(msg, m.keys.Maximize) {
-		return false
-	}
+// modalTakesKeys reports whether the open modal types the keys into an
+// input, or takes them for a question or a prompt, so that the app leaves
+// it every key but ctrl+c and the help key.
+func (m *Model) modalTakesKeys() bool {
 	inner, _ := m.innerLayers()
-	return !slices.ContainsFunc(inner, takesKeys)
+	return slices.ContainsFunc(inner, takesKeys)
+}
+
+// overModal is what an intent of the global keys that reaches the open
+// modal is called, and what its refusal says.
+type overModal struct {
+	// binding is the key of the intent.
+	binding key.Binding
+	// action is the name the modal knows the intent by, and what the
+	// refusal names, such as "notifications".
+	action, use string
+}
+
+// overModals returns the intents of the global keys that the open modal
+// may take, and that the app refuses over it otherwise: leaving for
+// another screen. The quit key is another that a modal may take; the
+// modal that doesn't gets the key.
+func (m *Model) overModals() []overModal {
+	k := m.keys
+	var out []overModal
+	if m.dash != nil {
+		out = append(out, overModal{k.Dashboard, "dashboard", "the dashboard"})
+	}
+	if m.notif != nil {
+		out = append(out, overModal{k.Notifications, "notifications", "notifications"})
+	}
+	if m.srch != nil {
+		out = append(out, overModal{k.Search, "search", "search"})
+	}
+	return append(out, overModal{k.Repo, "repo", "the repository"}, overModal{k.Owner, "owner", "the owner page"})
+}
+
+// actOverModal offers the intent of the global key msg to the open modal,
+// which takes it, or else refuses it: the keys that show another screen
+// work only once the modal is closed. It reports whether it did, and
+// otherwise msg goes to the modal as a key.
+func (m *Model) actOverModal(mod ui.Modal, msg tea.KeyPressMsg) (tea.Cmd, bool) {
+	actor, _ := mod.(ui.Actor)
+	act := func(action string) (tea.Cmd, bool) {
+		if actor == nil {
+			return nil, false
+		}
+		return actor.Act(action)
+	}
+	if key.Matches(msg, m.keys.Quit) {
+		return act(ui.ActQuit)
+	}
+	for _, o := range m.overModals() {
+		if !key.Matches(msg, o.binding) {
+			continue
+		}
+		if cmd, ok := act(o.action); ok {
+			return cmd, true
+		}
+		return m.toast.Push(toast.Warning, "Close "+m.modalName(mod)+" first to use "+o.use+"."), true
+	}
+	return nil, false
+}
+
+// modalName names mod for the refusal that asks to close it, with its
+// article, such as "the pull request": the key context's title, but for
+// the views that have a name of their own.
+func (m *Model) modalName(mod ui.Modal) string {
+	if _, ok := mod.(*authModal); ok {
+		return "the token prompt"
+	}
+	switch name := modalContext(mod); name {
+	case "history":
+		return "History"
+	case "actions":
+		return "Actions"
+	case "text":
+		return "the pager"
+	case "filter":
+		return "the filter"
+	case "preview":
+		return "the file"
+	default:
+		c, ok := config.LookupContext(name)
+		if !ok {
+			return "the modal"
+		}
+		return "the " + strings.ToLower(c.Title)
+	}
 }
 
 // takesKeys reports whether l is the keys of what takes every key it can

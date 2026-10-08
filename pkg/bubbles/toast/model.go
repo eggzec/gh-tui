@@ -146,6 +146,29 @@ func (m *Model) Dismiss() tea.Cmd {
 	return nil
 }
 
+// Has reports whether a toast of level shows.
+func (m Model) Has(level Level) bool {
+	return slices.ContainsFunc(m.toasts, func(t toast) bool { return t.level == level })
+}
+
+// DismissLevel removes the newest toast of level, and reports whether
+// there was one.
+func (m *Model) DismissLevel(level Level) bool {
+	i := -1
+	for j := range slices.Backward(m.toasts) {
+		if m.toasts[j].level == level {
+			i = j
+			break
+		}
+	}
+	if i < 0 {
+		return false
+	}
+	m.toasts = without(m.toasts, i)
+	m.changed()
+	return true
+}
+
 // Clear removes every toast.
 func (m *Model) Clear() {
 	m.toasts = nil

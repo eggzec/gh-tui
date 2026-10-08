@@ -44,7 +44,7 @@ func (m *Model) openCommand(arg string) tea.Cmd {
 	if !t.HasRepo() {
 		// As goto, a number alone is one of the repository on view.
 		if m.screen != repoScreen || m.repo == (core.RepoRef{}) {
-			return m.toast.Push(toast.Error, "Open a repository first, or use open owner/name"+t.String()+".")
+			return m.toast.Push(toast.Warning, "Open a repository first, or use open owner/name"+t.String()+".")
 		}
 		t.Repo = m.repo
 	}

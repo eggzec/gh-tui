@@ -35,9 +35,9 @@ func (m *Model) rawCommand(arg string) tea.Cmd {
 	}
 	switch {
 	case arg != "" && arg != "on" && arg != "off":
-		return m.toast.Push(toast.Error, "Write it as raw on or raw off.")
+		return m.toast.Push(toast.Warning, "Write it as raw on or raw off.")
 	case !renders:
-		return m.toast.Push(toast.Error, "The open file has no rendered view.")
+		return m.toast.Push(toast.Warning, "The open file has no rendered view.")
 	case arg == "":
 		if raw {
 			return m.toast.Push(toast.Info, "raw is on: the file shows as its source.")

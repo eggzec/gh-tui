@@ -283,13 +283,14 @@ func (m *Modal) KeyLayers() []keyhelp.Layer {
 // group of jobs, back closes the modal from the runs, and a run offers
 // the changes that apply to it, if the viewer may make them.
 func (k KeyMap) state(m *Modal) KeyMap {
+	if m.zoom {
+		k.Zoom = relabel(k.Zoom, "unzoom")
+	}
 	switch m.focus {
 	case runsPane:
 		k.Select = relabel(k.Select, "jobs")
 		k.ClearFilter.SetEnabled(k.ClearFilter.Enabled() && formFiltered(m.filter))
-		if !m.zoom {
-			k.Back = relabel(k.Back, "close")
-		}
+		k.Back = relabel(k.Back, "close")
 	case jobsPane:
 		// Enter folds a group of jobs, and opens the log of a job.
 		k.Select = relabel(k.Select, "open")

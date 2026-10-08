@@ -291,7 +291,7 @@ func TestStatusBarHintsCached(t *testing.T) {
 	again := &m.hints[0]
 	run(m, m.key(press("z")))
 	m.View()
-	if &m.hints[0] == again || !strings.Contains(ansi.Strip(lastLine(m)), "esc unzoom") {
+	if &m.hints[0] == again || !strings.Contains(ansi.Strip(lastLine(m)), "z unzoom") {
 		t.Errorf("the hints weren't rendered again for the zoom: %q", ansi.Strip(lastLine(m)))
 	}
 

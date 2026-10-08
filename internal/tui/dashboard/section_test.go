@@ -327,8 +327,9 @@ func TestZoom(t *testing.T) {
 		// Where the zoom doesn't show, esc leaves it be.
 		{width: 80, height: 22, keys: []string{"esc"}, zoom: true, focus: workPane, shows: []string{"Review requests 3"}, hides: []string{"repo-000"}},
 		{width: 180, height: 44, zoom: true, focus: workPane, shows: []string{"Review requests 3"}, hides: []string{"repo-000"}},
-		{keys: []string{"esc"}, zoom: false, focus: workPane, shows: []string{"Review requests 3", "repo-000", "contributions"}},
-		{keys: []string{"esc"}, zoom: false, focus: workPane, shows: []string{"Review requests 3", "repo-000"}},
+		// Where it shows, esc never unzooms: the zoom key does.
+		{keys: []string{"esc"}, zoom: true, focus: workPane, shows: []string{"Review requests 3"}, hides: []string{"repo-000"}},
+		{keys: []string{"z"}, zoom: false, focus: workPane, shows: []string{"Review requests 3", "repo-000", "contributions"}},
 		{keys: []string{"z", "z"}, zoom: false, focus: workPane, shows: []string{"Review requests 3", "repo-000"}},
 	}
 	for i, tt := range tests {
@@ -372,10 +373,10 @@ func TestZoomOnlyWhereItShows(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := newSection(t, newFake(), nil, 140, tt.height)
-			press(t, s, "z", "esc")
+			press(t, s, "z", "z")
 			s.SetSize(140, 38)
 			if s.zoom || !strings.Contains(screen(s), "Review requests") {
-				t.Errorf("zoom %v after z and esc; want every pane", s.zoom)
+				t.Errorf("zoom %v after z twice; want every pane", s.zoom)
 			}
 			s.SetSize(140, tt.height)
 			press(t, s, "z")
@@ -398,8 +399,8 @@ func TestZoomHelp(t *testing.T) {
 		t.Error("the help should show the zoom key, and no way back while not zoomed")
 	}
 	press(t, s, "z")
-	if !has("zoom") || !has("unzoom") {
-		t.Error("the zoomed help should show the keys that zoom out")
+	if has("zoom") || !has("unzoom") {
+		t.Error("the zoomed help should name the zoom key for what it does, unzoom")
 	}
 	s.SetSize(80, 22)
 	if has("zoom") || has("unzoom") {

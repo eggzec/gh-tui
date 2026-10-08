@@ -152,10 +152,6 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 		m.zoom = !m.zoom
 		m.layout()
 		return nil
-	case m.zoomed() && key.Matches(msg, m.keys.Back):
-		m.zoom = false
-		m.layout()
-		return nil
 	case patch:
 		// The pager closes itself with the back key, or pages with the
 		// space bar.

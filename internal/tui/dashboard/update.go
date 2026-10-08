@@ -114,9 +114,6 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 	case s.wide && key.Matches(msg, k.Zoom):
 		s.setZoom(!s.zoom)
 		return nil
-	case s.zoomed() && key.Matches(msg, k.Back):
-		s.setZoom(false)
-		return nil
 	case key.Matches(msg, k.Refresh):
 		return s.refresh()
 	}

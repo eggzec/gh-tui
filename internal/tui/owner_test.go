@@ -107,7 +107,6 @@ func newOwnerApp(t *testing.T, owners *fakeOwners, opts ...Option) (*Model, *fak
 	opts = append([]Option{WithRepos(newGotoRepos()), WithOwners(owners)}, opts...)
 	m := New(t.Context(), config.Default(), layout, opts...)
 	m.toast.SetDuration(0)
-	m.toast.SetErrorDuration(0)
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	run(m, m.Init())
 	return m, page
@@ -392,7 +391,6 @@ func TestOwnerKey(t *testing.T) {
 			owners.remote["eggzec"] = core.Owner{Kind: core.OwnerOrg, Profile: core.Profile{Login: "eggzec"}}
 			m := New(t.Context(), config.Default(), layout, WithRepo(testRepo), WithOwners(owners), WithLogin("mona"))
 			m.toast.SetDuration(0)
-			m.toast.SetErrorDuration(0)
 			m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 			run(m, m.Init())
 			if m.screen != repoScreen {
