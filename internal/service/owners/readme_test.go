@@ -18,12 +18,13 @@ func readmeAPI(t *testing.T, content *string) *fakeAPI {
 	t.Helper()
 	return &fakeAPI{t: t, readme: func(login string, _ core.OwnerKind, member bool, cond github.Conditional) (core.Readme, github.Response, error) {
 		etag := `"` + *content + `"`
-		if cond.ETag == etag {
-			return core.Readme{}, github.Response{NotModified: true, ETag: etag}, nil
-		}
 		r := core.Readme{Markdown: *content, Source: core.RepoRef{Owner: login, Name: ".github"}}
 		if member {
 			r.Source.Name, r.MembersOnly = ".github-private", true
+		}
+		if cond.ETag == etag {
+			r.Markdown = ""
+			return r, github.Response{NotModified: true, ETag: etag}, nil
 		}
 		return r, github.Response{ETag: etag}, nil
 	}}
@@ -154,4 +155,65 @@ func TestReadmeTooLarge(t *testing.T) {
 	if got := len(api.Calls()); got != 2 {
 		t.Errorf("calls = %d, want 2: a failure isn't kept", got)
 	}
+}
+
+// A 304 from .github, once .github-private is refused, doesn't keep the
+// members' label on a README that now comes from .github: the same README
+// has the same ETag in both.
+func TestReadmeNotModifiedOtherSource(t *testing.T) {
+	content := "same"
+	member := true
+	api := &fakeAPI{t: t, readme: func(login string, _ core.OwnerKind, _ bool, cond github.Conditional) (core.Readme, github.Response, error) {
+		etag := `"` + content + `"`
+		r := core.Readme{Markdown: content, Source: core.RepoRef{Owner: login, Name: ".github-private"}, MembersOnly: true}
+		if !member {
+			r.Source.Name, r.MembersOnly = ".github", false
+		}
+		if cond.ETag == etag {
+			r.Markdown = ""
+			return r, github.Response{NotModified: true, ETag: etag}, nil
+		}
+		return r, github.Response{ETag: etag}, nil
+	}}
+	store := openStore(t)
+	q := ReadmeQuery{Login: "charm", Kind: core.OwnerOrg, Member: true}
+	if _, err := New(api, WithStore(store)).Readme(t.Context(), q); err != nil {
+		t.Fatal(err)
+	}
+	member = false // the token may no longer read .github-private
+	s := New(api, WithStore(cachetest.Aged(store, 7*time.Hour)))
+	if _, err := s.Readme(t.Context(), q); err != nil {
+		t.Fatal(err)
+	}
+	q.Again = true
+	r, err := s.Readme(t.Context(), q)
+	if err != nil || r.Source.Name != ".github" || r.MembersOnly || r.Markdown != "same" {
+		t.Fatalf("read again = %+v, %v; want the README of .github, not for members only", r, err)
+	}
+}
+
+// A user's README comes from the repository named after the login, in the
+// case it was asked with. The revalidator asks with the login lowercased,
+// and the 304 it gets makes one read: it doesn't count as another source.
+func TestReadmeNotModifiedLoginCase(t *testing.T) {
+	api := &fakeAPI{t: t, readme: func(login string, _ core.OwnerKind, _ bool, cond github.Conditional) (core.Readme, github.Response, error) {
+		r := core.Readme{Markdown: "hi", Source: core.RepoRef{Owner: login, Name: login}}
+		if cond.ETag == `"x"` {
+			r.Markdown = ""
+			return r, github.Response{NotModified: true, ETag: `"x"`}, nil
+		}
+		return r, github.Response{ETag: `"x"`}, nil
+	}}
+	store := openStore(t)
+	if _, err := New(api, WithStore(store)).Readme(t.Context(), ReadmeQuery{Login: "Octocat", Kind: core.OwnerUser}); err != nil {
+		t.Fatal(err)
+	}
+	kept := New(api, WithStore(cachetest.Aged(store, 7*time.Hour))).Kept()
+	if len(kept) != 1 {
+		t.Fatalf("Kept = %+v, want the README", kept)
+	}
+	if res := kept[0].Check(t.Context()); res.Status != revalidate.NotModified {
+		t.Errorf("check = %+v, want not modified", res)
+	}
+	api.wantCalls(t, "readme Octocat false ", `readme octocat false "x"`)
 }

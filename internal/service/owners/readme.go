@@ -118,12 +118,23 @@ func (s *Service) Readme(ctx context.Context, q ReadmeQuery) (Readme, error) {
 
 // loadReadme reads the README for q, with the validators of the one read
 // last, if any. A 304 leaves the README read last in place, its Source
-// with it, since GitHub doesn't send it again.
+// with it, since GitHub doesn't send it again. But the same README in two
+// repositories has the same ETag, so a 304 from a repository other than
+// the README's own, such as .github once .github-private is refused,
+// would keep the wrong label: the README is then read again without
+// validators. Repository names are compared without regard to case, as
+// a user's README repository is named after the login, which GitHub
+// ignores the case of, and the revalidator asks with it lowercased.
 func (s *Service) loadReadme(q ReadmeQuery) cache.FetchFunc[Readme] {
-	return recheck.Load(func(ctx context.Context, cond github.Conditional) (Readme, github.Response, error) {
-		r, res, err := s.api.ProfileReadme(ctx, q.Login, q.Kind, q.Member, cond)
-		return Readme{Readme: r}, res, err
-	}, func(Readme) []string { return tags(q.Login) })
+	return func(ctx context.Context, prev cache.Entry[Readme], ok bool) (cache.Entry[Readme], error) {
+		return recheck.Load(func(ctx context.Context, cond github.Conditional) (Readme, github.Response, error) {
+			r, res, err := s.api.ProfileReadme(ctx, q.Login, q.Kind, q.Member, cond)
+			if err == nil && res.NotModified && ok && !strings.EqualFold(r.Source.Name, prev.Value.Source.Name) {
+				r, res, err = s.api.ProfileReadme(ctx, q.Login, q.Kind, q.Member, github.Conditional{})
+			}
+			return Readme{Readme: r}, res, err
+		}, func(Readme) []string { return tags(q.Login) })(ctx, prev, ok)
+	}
 }
 
 // SyncKey names changes to what the page of the account login shows in
