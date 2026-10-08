@@ -9,6 +9,8 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"github.com/alecthomas/chroma/v2"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
 
 func TestScroll(t *testing.T) {
@@ -483,7 +485,7 @@ func TestQuitAndDismiss(t *testing.T) {
 			if a == action {
 				return nil
 			}
-			return look(a)
+			return look.Of(a)
 		}
 	}
 	tests := []struct {
@@ -493,13 +495,13 @@ func TestQuitAndDismiss(t *testing.T) {
 		stays   []string
 		helpKey string
 	}{
-		{name: "both", look: look, closes: []string{"q", "esc"}, helpKey: "q/esc"},
+		{name: "both", look: look.Of, closes: []string{"q", "esc"}, helpKey: "q/esc"},
 		{name: "no quit", look: only("global.quit"), closes: []string{"esc"}, stays: []string{"q"}, helpKey: "esc"},
 		{name: "no dismiss", look: only("global.dismiss"), closes: []string{"q"}, stays: []string{"esc"}, helpKey: "q"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := open(t, "a.txt", "a\n", WithKeyMap(NewKeyMap(tt.look)), WithSize(20, 3))
+			m := open(t, "a.txt", "a\n", WithKeyMap(NewKeyMap(keymap.Func(tt.look))), WithSize(20, 3))
 			for _, k := range tt.closes {
 				if _, msg := keys(t, m, k); msg == nil {
 					t.Errorf("%s didn't close", k)

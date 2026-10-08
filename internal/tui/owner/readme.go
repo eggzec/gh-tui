@@ -28,12 +28,30 @@ type readmeKeys struct {
 	pager.KeyMap
 }
 
+// readmeLookup gives the actions the README's context has. The rest of a
+// pager's have no key here, and no line in the config.
+type readmeLookup struct {
+	ui.Context
+	keys config.Keymap
+}
+
+// Of implements keymap.Lookup. It asks Has, not Of, for what the config
+// may lack: Of is how the code reads the config, and the test of which
+// actions it reads would count each of these as a read of an action the
+// config doesn't have.
+func (l readmeLookup) Of(action string) []string {
+	if !strings.Contains(action, ".") && !l.keys.Has(l.Scope()+"."+action) {
+		return nil
+	}
+	return l.Context.Of(action)
+}
+
 // newReadmeKeys returns the pager's keys that scroll the README. The
 // context of the README has no key but those that scroll, so the keys of
 // the rest of a pager are off, and so are the search prompt's and the
 // app's that close a pager, which the page has for itself.
 func newReadmeKeys(keys config.Keymap) readmeKeys {
-	k := pager.NewKeyMap(ui.In(keys, paneContext[readmePane]).Of)
+	k := pager.NewKeyMap(readmeLookup{keys: keys, Context: ui.In(keys, paneContext[readmePane])})
 	for _, b := range []*key.Binding{&k.Confirm, &k.Cancel, &k.Quit, &k.Dismiss} {
 		*b = key.NewBinding(key.WithDisabled())
 	}

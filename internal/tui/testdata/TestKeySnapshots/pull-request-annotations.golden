@@ -11,27 +11,27 @@ Checks
   refresh | r | r | on
   browser | o | o | on
 
-Log
-  annotations | A | A | on
-  up | up k | ↑/k | off
-  down | down j | ↓/j | off
-  open file | enter | ↵ | off
-  browser | o | o | off
+Annotations
+  log | A | A | on
   up | up k | ↑/k | on
   down | down j | ↓/j | on
-  page up | b ctrl+b pgup | b/^b/pgup | on
-  page down | space ctrl+f pgdown | space/^f/pgdn | on
-  ½ page up | ctrl+u | ^u | on
-  ½ page down | ctrl+d | ^d | on
-  top | g home | g/home | on
-  bottom | G end | G/end | on
-  fold | enter | ↵ | on
+  open file | enter | ↵ | on
+  browser | o | o | off
+  up | up k | ↑/k | off
+  down | down j | ↓/j | off
+  page up | b ctrl+b pgup | b/^b/pgup | off
+  page down | space ctrl+f pgdown | space/^f/pgdn | off
+  ½ page up | ctrl+u | ^u | off
+  ½ page down | ctrl+d | ^d | off
+  top | g home | g/home | off
+  bottom | G end | G/end | off
+  fold | enter | ↵ | off
   all | * | * | on
   next error | e | e | off
   prev error | E | E | off
   next warning | w | w | off
   prev warning | W | W | off
-  search | / | / | on
+  search | / | / | off
   search | enter | ↵ | off
   cancel | esc | esc | off
   next match | n | n | off
@@ -41,7 +41,7 @@ Log
   line numbers | N | N | off
   timestamps | T | T | off
   cancel | esc | esc | off
-  left | left h | ←/h | on
-  right | right l | →/l | on
+  left | left h | ←/h | off
+  right | right l | →/l | off
   follow | F | F | on
-  checks | esc | esc | on
+  checks | esc | esc | off

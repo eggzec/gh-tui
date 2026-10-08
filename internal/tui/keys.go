@@ -12,6 +12,7 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
 
 // KeyMap holds the keys the app handles itself. Sections have their own.
@@ -107,7 +108,7 @@ func withForceQuit(b key.Binding) key.Binding {
 	if !b.Enabled() {
 		help = forceQuit.Help().Key
 	}
-	return key.NewBinding(key.WithKeys(append(slices.Clone(b.Keys()), forceQuit.Keys()...)...), key.WithHelp(help, b.Help().Desc))
+	return keymap.Derive(key.NewBinding(key.WithKeys(append(slices.Clone(b.Keys()), forceQuit.Keys()...)...), key.WithHelp(help, b.Help().Desc)), b)
 }
 
 // ShortHelp implements help.KeyMap. The way out of a zoom comes first.

@@ -95,7 +95,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		Checks:        work.Binding("checks", "checks"),
 		Notifications: screen.Binding("global.notifications", "all notifications"),
 	}
-	keymap.Fill(&k, screen.Of)
+	keymap.Fill(&k, screen)
 	actions := [numPanes]string{"global.pane_1", "global.pane_2", "global.pane_3", "global.pane_4", "global.pane_5"}
 	for i, a := range actions {
 		k.Panes[i] = screen.Binding(a, paneTitles[i])
@@ -104,8 +104,8 @@ func newKeyMap(keys config.Keymap) KeyMap {
 
 	// The dashboard matches these keys first, so the list gets only the
 	// keys it leaves it.
-	k.feed = feed.NewKeyMap(repos.Of)
-	k.cal = calendar.NewKeyMap(ui.In(keys, paneContext[calendarPane]).Of)
+	k.feed = feed.NewKeyMap(repos)
+	k.cal = calendar.NewKeyMap(ui.In(keys, paneContext[calendarPane]))
 	return k
 }
 

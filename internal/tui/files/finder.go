@@ -158,7 +158,7 @@ func (s *Section) newFinder() *finderModal {
 	// file's link does, and so does the tree, where reveal shows it.
 	pv := s.voice
 	pv.Retry, pv.Open = key.Binding{}, key.Binding{}
-	f.pager = pager.New(pager.WithKeyMap(pager.NewKeyMap(ui.In(s.rawKeys, "preview").Of)),
+	f.pager = pager.New(pager.WithKeyMap(pager.NewKeyMap(ui.In(s.rawKeys, "preview"))),
 		pager.WithErrorText(fileErrorText(repo, pv)), pager.WithResizeRest(resizeRest),
 		pager.WithRenderedNotes(renderedNumbersNote, renderedChopNote))
 	f.img = fileImage{images: s.images, repo: repo, shown: shownText, ellipsis: s.icons.Ellipsis}

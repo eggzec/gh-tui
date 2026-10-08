@@ -87,7 +87,9 @@ func Analyze(layers []Layer) []Row {
 	for li, l := range layers {
 		for _, b := range l.Bindings {
 			r := Row{Binding: b, Source: l.Source, Layer: li, Status: Disabled}
-			if !b.Enabled() {
+			// A binding without keys, which a state may have switched on,
+			// takes none.
+			if !b.Enabled() || len(b.Keys()) == 0 {
 				rows = append(rows, r)
 				continue
 			}

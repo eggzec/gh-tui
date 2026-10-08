@@ -47,7 +47,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 	// The section matches these keys first, so the list gets only the
 	// keys it leaves it. Refresh retries what failed, so the list's error
 	// row names its keys.
-	k.feed = feed.NewKeyMap(screen.Of)
+	k.feed = feed.NewKeyMap(screen)
 	return k
 }
 

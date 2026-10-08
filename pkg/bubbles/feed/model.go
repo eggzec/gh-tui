@@ -12,6 +12,8 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 
@@ -444,7 +446,7 @@ func (m *Model[T]) refreshError() {
 			break
 		}
 	}
-	m.keyMap.Retry.SetEnabled(m.err != nil)
+	keymap.Enable(&m.keyMap.Retry, m.err != nil)
 	m.errLine, m.errHint = "", ""
 	if m.err == nil {
 		return

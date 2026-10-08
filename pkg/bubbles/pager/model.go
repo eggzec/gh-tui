@@ -15,6 +15,8 @@ import (
 	"context"
 	"sync/atomic"
 
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
@@ -316,7 +318,7 @@ func (m Model) confirmKey() key.Binding {
 func (m Model) FullHelp() [][]key.Binding {
 	k := m.keys
 	k.Confirm = m.confirmKey()
-	k.Edit.SetEnabled(m.state == stateReady && !m.Capturing())
+	keymap.Enable(&k.Edit, m.state == stateReady && !m.Capturing())
 	if m.Capturing() {
 		for _, b := range []*key.Binding{
 			&k.Up, &k.Down, &k.PageUp, &k.PageDown, &k.HalfPageUp, &k.HalfPageDown, &k.Home, &k.End,

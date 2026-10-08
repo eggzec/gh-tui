@@ -101,11 +101,11 @@ func newKeyMap(keys config.Keymap) KeyMap {
 	}
 	k.Jump = ui.Jump(k.Panes[:]...)
 	k.notesUp, k.notesDown = notes.Binding("up", "up"), notes.Binding("down", "down")
-	k.Runs, k.Jobs = feed.NewKeyMap(runs.Of), feed.NewKeyMap(jobs.Of)
+	k.Runs, k.Jobs = feed.NewKeyMap(runs), feed.NewKeyMap(jobs)
 
 	// The log folds with enter, and closes with the back key, which
 	// clears a search first.
-	lk := logview.NewKeyMap(log.Of)
+	lk := logview.NewKeyMap(log)
 	lk.Quit, lk.Dismiss = key.NewBinding(key.WithDisabled()), relabel(k.Back, "back")
 	k.Log = lk
 	return k

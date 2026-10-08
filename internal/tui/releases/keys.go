@@ -3,6 +3,8 @@ package releases
 import (
 	"charm.land/bubbles/v2/key"
 
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
@@ -32,10 +34,10 @@ func newKeyMap(keys config.Keymap) keyMap {
 	}
 	// The modal matches its own keys first, so the thread gets only the
 	// keys it leaves it.
-	t := thread.NewKeyMap(modal.Of)
+	t := thread.NewKeyMap(modal)
 	// The files come with the release, so there is nothing for the
 	// thread to retry.
-	t.Retry = key.NewBinding(key.WithHelp("", t.Retry.Help().Desc), key.WithDisabled())
+	t.Retry = keymap.Derive(key.NewBinding(key.WithHelp("", t.Retry.Help().Desc), key.WithDisabled()), t.Retry)
 	k.thread = t
 	return k
 }

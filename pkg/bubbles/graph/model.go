@@ -16,6 +16,8 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -387,7 +389,7 @@ func (m Model) fetchCmd() tea.Cmd {
 // refreshError renders the error row, which depends on the error, the
 // styles, the retry key and the error text.
 func (m *Model) refreshError() {
-	m.keyMap.Retry.SetEnabled(m.err != nil)
+	keymap.Enable(&m.keyMap.Retry, m.err != nil)
 	m.errLine, m.errHint = "", ""
 	if m.err == nil {
 		return

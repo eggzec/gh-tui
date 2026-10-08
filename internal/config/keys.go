@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"go.yaml.in/yaml/v3"
 
@@ -105,8 +106,30 @@ const (
 
 // Of returns the keys of action, such as "pulls.merge", or none.
 func (k Keymap) Of(action string) []string {
+	if f := readWatch.Load(); f != nil {
+		(*f)(action)
+	}
 	ctx, name, _ := strings.Cut(action, ".")
 	return k[ctx][name]
+}
+
+// readWatch is the function that WatchReads set, if any.
+var readWatch atomic.Pointer[func(action string)]
+
+// WatchReads has f called with the name of each action that [Keymap.Of]
+// is asked for, found or not, until the returned function is called. It
+// is for tests that check which actions the code reads; only one watch
+// can be set at a time.
+func WatchReads(f func(action string)) (stop func()) {
+	readWatch.Store(&f)
+	return func() { readWatch.Store(nil) }
+}
+
+// Has reports whether the config has the action, bound or not.
+func (k Keymap) Has(action string) bool {
+	ctx, name, _ := strings.Cut(action, ".")
+	_, ok := k[ctx][name]
+	return ok
 }
 
 // Set binds action, such as "pulls.merge", to keys, adding its context

@@ -95,7 +95,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		KindsSort:   kinds.Binding("sort", "sort"),
 		Refresh:     page.Binding("global.refresh", "refresh"),
 	}
-	keymap.Fill(&k, page.Of)
+	keymap.Fill(&k, page)
 	for i, a := range [numAreas]string{"global.pane_1", "global.pane_2", "global.pane_3"} {
 		k.Panes[i] = page.Binding(a, areaTitles[i])
 	}
@@ -103,7 +103,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 	keymap.Fill(&k.query, ui.Lookup(keys, "search_query"))
 	// The page matches these keys first, so the results get only the keys
 	// it leaves them.
-	k.feed = feed.NewKeyMap(results.Of)
+	k.feed = feed.NewKeyMap(results)
 	return k
 }
 

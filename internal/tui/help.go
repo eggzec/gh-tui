@@ -10,6 +10,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
 
 // The help lists the keys of what has them when it opens, over the modal
@@ -27,7 +28,7 @@ func (m *Model) helpOpen() bool { return m.keyhelp.Focused() }
 
 // openHelp opens the help on the keys that reach what has them now.
 func (m *Model) openHelp() tea.Cmd {
-	m.keyhelp.SetLayers(m.keyLayers())
+	m.keyhelp.SetLayers(ui.NameLayerActions(m.keyLayers()))
 	m.keyhelp.SetTitle(m.helpTitle())
 	m.keyhelp.Reset()
 	m.keyhelp.SetSize(m.helpSize())
@@ -169,7 +170,7 @@ func quitReach(l keyhelp.Layer) keyhelp.Layer {
 	out := keyhelp.Layer{Source: l.Source}
 	for _, b := range l.Bindings {
 		if b.Enabled() && slices.Contains(b.Keys(), forceQuit.Keys()[0]) {
-			out.Bindings = append(out.Bindings, key.NewBinding(key.WithKeys(forceQuit.Keys()...), key.WithHelp(forceQuit.Help().Key, b.Help().Desc)))
+			out.Bindings = append(out.Bindings, keymap.Derive(key.NewBinding(key.WithKeys(slices.Clone(forceQuit.Keys())...), key.WithHelp(forceQuit.Help().Key, b.Help().Desc)), b))
 		}
 	}
 	return out
@@ -191,7 +192,7 @@ func (m *Model) helpKey(layers []keyhelp.Layer) key.Binding {
 		b.SetEnabled(false)
 		return b
 	}
-	return key.NewBinding(key.WithKeys(keys...), key.WithHelp(strings.Join(keys, "/"), b.Help().Desc))
+	return keymap.Derive(key.NewBinding(key.WithKeys(keys...), key.WithHelp(strings.Join(keys, "/"), b.Help().Desc)), b)
 }
 
 // opensHelp reports whether msg opens the help from where the keys are.

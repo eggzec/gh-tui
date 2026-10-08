@@ -9,6 +9,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
 )
 
@@ -81,9 +82,9 @@ func newKeyMap(keys config.Keymap) keyMap {
 	}
 	// The section and the modal match their own keys first, so the feed
 	// and the thread get only the keys they leave them.
-	k.feed = feed.NewKeyMap(list.Of)
+	k.feed = feed.NewKeyMap(list)
 
-	t := thread.NewKeyMap(ui.In(keys, ctxConversation).Of)
+	t := thread.NewKeyMap(ui.In(keys, ctxConversation))
 	// The thread offers retry itself once something failed.
 	t.Retry = retry(k.Refresh)
 	t.Retry.SetEnabled(k.Refresh.Enabled())
@@ -107,11 +108,11 @@ func (k keyMap) forModal(keys config.Keymap) keyMap {
 // that a bubble enables it only while something failed. Without keys, as
 // while refresh is unbound, it can't be enabled.
 func retry(refresh key.Binding) key.Binding {
-	return key.NewBinding(
+	return keymap.Derive(key.NewBinding(
 		key.WithKeys(refresh.Keys()...),
 		key.WithHelp(refresh.Help().Key, "retry"),
 		key.WithDisabled(),
-	)
+	), refresh)
 }
 
 // ShortHelp implements help.KeyMap.

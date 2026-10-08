@@ -3,6 +3,8 @@ package logview
 import (
 	"strings"
 
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
@@ -49,7 +51,7 @@ func (o OptionKeyMap) keysHelp() string {
 // setEnabled enables or disables every option key.
 func (o *OptionKeyMap) setEnabled(on bool) {
 	for _, b := range []*key.Binding{&o.Chop, &o.LineNumbers, &o.Timestamps, &o.Cancel} {
-		b.SetEnabled(on)
+		keymap.Enable(b, on)
 	}
 }
 

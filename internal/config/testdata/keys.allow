@@ -1,0 +1,11 @@
+# Declarations in Go that write a key name, by the file and the name of the
+# top-level declaration. TestNoKeysInGo fails on one this file doesn't
+# list, and on a line that names none.
+#
+# One per line:
+#
+#   path:Name  keep: why the key is not configurable
+#
+# Every other key lives in default.yaml.
+
+internal/tui/keys.go:forceQuit  keep: ctrl+c always quits, so that no config or capturing widget can trap the user

@@ -22,8 +22,28 @@ import (
 	"charm.land/bubbles/v2/key"
 )
 
-// Lookup returns the keys of action, such as "page_down", or none.
-type Lookup func(action string) []string
+// Lookup gives the keys of the actions of a bubble.
+type Lookup interface {
+	// Of returns the keys of action, such as "page_down", or none. A
+	// lookup that has a [Scoped] context returns an empty slice for an
+	// action the config unbinds, and nil for one it doesn't have, which
+	// [Fill] doesn't record.
+	Of(action string) []string
+}
+
+// Scoped is a [Lookup] with a context, such as "pulls": Fill names the
+// actions of a key map that has no context of its own by it, as
+// "pulls.merge".
+type Scoped interface {
+	Lookup
+	Scope() string
+}
+
+// Func is a function as a [Lookup], without a context.
+type Func func(action string) []string
+
+// Of implements [Lookup].
+func (f Func) Of(action string) []string { return f(action) }
 
 var bindingType = reflect.TypeFor[key.Binding]()
 
@@ -44,13 +64,27 @@ func Fill(km any, look Lookup) {
 	if v.Kind() != reflect.Pointer || v.IsNil() || v.Elem().Kind() != reflect.Struct {
 		panic(fmt.Sprintf("keymap.Fill: want a non-nil pointer to a struct, got %T", km))
 	}
+	ctx := ""
+	if s, ok := look.(Scoped); ok {
+		ctx = s.Scope()
+	}
 	walk(v.Elem(), "", func(name, help string, f reflect.Value) {
-		keys := slices.Clone(look(name))
+		got := look.Of(name)
+		keys := slices.Clone(got)
+		path := name
+		if ctx != "" && !strings.Contains(name, ".") {
+			path = ctx + "." + name
+		}
+		if ctx != "" && got == nil {
+			// A lookup with a context says "no such action" with no
+			// slice, and "unbound" with an empty one.
+			path = ""
+		}
 		if len(keys) == 0 {
-			f.Set(reflect.ValueOf(key.NewBinding(key.WithHelp("", help), key.WithDisabled())))
+			f.Set(reflect.ValueOf(Record(Unbound(key.NewBinding(key.WithHelp("", help))), path)))
 			return
 		}
-		f.Set(reflect.ValueOf(key.NewBinding(key.WithKeys(keys...), key.WithHelp(Labels(keys), help))))
+		f.Set(reflect.ValueOf(Record(key.NewBinding(key.WithKeys(keys...), key.WithHelp(Labels(keys), help)), path)))
 	})
 }
 

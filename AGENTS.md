@@ -114,6 +114,18 @@ Each bubble is a self-contained Elm component: model, `Init`, `Update`, and `Vie
   `NewKeyMap` fills the map with `keymap.Fill` from the keys the config
   gives; a bubble made without a key map has every binding disabled. A
   bubble's tests fill it from a literal table of keys, with `keytest.Table`.
+- **Adding a key** takes two lines: the action under the context of the
+  pane in `internal/config/default.yaml`, and a field tagged `keymap:"action"`
+  and `help:"…"` in the key map. `TestNoKeysInGo` fails on a key name
+  written in Go (only `ctrl+c`, which always quits, is listed), and
+  `TestEveryActionRead` on an action that nothing reads or that the config
+  lacks. The help finds a binding by its config path too, such as
+  `keys.pulls.merge`: `keymap.Fill` and `ui.In(...).Binding` record the
+  action of each binding they make, and a binding made from others
+  records theirs with `keymap.Derive`. A new context needs an entry in
+  `internal/config/contexts.go` and a state in `keyContexts` that reaches
+  it. The editing keys of the text input and area stay with their
+  library.
 - **Full help lists every binding.** `KeyMap.FullHelp()` returns every
   binding exactly once. State shows through `Enabled()`, never by leaving a
   binding out, and `Model.FullHelp()` returns the same set with the model's

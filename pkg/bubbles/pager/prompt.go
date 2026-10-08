@@ -7,6 +7,8 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
@@ -23,12 +25,12 @@ const (
 // CancelEmpty, which cancel it on an empty line. The pager takes Confirm
 // and Cancel itself, and the prompt has no completion and no history.
 func promptKeys(keys KeyMap) cmdline.KeyMap {
-	return cmdline.NewKeyMap(func(action string) []string {
+	return cmdline.NewKeyMap(keymap.Func(func(action string) []string {
 		if action == "cancel_empty" {
 			return keys.CancelEmpty.Keys()
 		}
 		return nil
-	})
+	}))
 }
 
 // Prompts, which also say what the line typed after them is for.

@@ -3,6 +3,8 @@ package cmdline
 import (
 	"testing"
 
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+
 	"github.com/eggzec/gh-tui/pkg/bubbles/keytest"
 )
 
@@ -23,12 +25,12 @@ func TestWithoutKeys(t *testing.T) {
 	if sent != nil || !m.Focused() {
 		t.Errorf("enter sent %v, focused %v; want a command line without keys to ignore it", sent, m.Focused())
 	}
-	km := NewKeyMap(func(action string) []string {
+	km := NewKeyMap(keymap.Func(func(action string) []string {
 		if action == "cancel" {
 			return []string{"esc"}
 		}
 		return nil
-	})
+	}))
 	if km.Submit.Enabled() || km.Submit.Help().Key != "" || km.Submit.Help().Desc != "run" {
 		t.Errorf("unbound run = enabled %v, help %+v; want a disabled binding that says run", km.Submit.Enabled(), km.Submit.Help())
 	}

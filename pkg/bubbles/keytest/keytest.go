@@ -154,5 +154,5 @@ func walkFields(v reflect.Value, path string, f func(string, reflect.StructField
 // that a bubble's tests can fill its key map with keys of their own rather
 // than an app's config.
 func Table(table map[string][]string) keymap.Lookup {
-	return func(action string) []string { return table[action] }
+	return keymap.Func(func(action string) []string { return table[action] })
 }

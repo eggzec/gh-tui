@@ -14,6 +14,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	"charm.land/bubbles/v2/textinput"
@@ -302,8 +304,8 @@ func (m *Model) SetKeyMap(k KeyMap) {
 // keys without scopes, and the keys that focus the input without a filter
 // line.
 func (m Model) withState(k KeyMap) KeyMap {
-	k.NextScope.SetEnabled(len(m.scopes) > 0)
-	k.PrevScope.SetEnabled(len(m.scopes) > 0)
+	keymap.Enable(&k.NextScope, len(m.scopes) > 0)
+	keymap.Enable(&k.PrevScope, len(m.scopes) > 0)
 	if m.noFilterLine {
 		k.Normal.Insert.SetEnabled(false)
 		k.Normal.Append.SetEnabled(false)

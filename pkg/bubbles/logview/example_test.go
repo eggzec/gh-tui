@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
@@ -28,12 +30,12 @@ func Example() {
 	}
 
 	// The parent says which keys do what; here only enter, which folds.
-	keys := logview.NewKeyMap(func(action string) []string {
+	keys := logview.NewKeyMap(keymap.Func(func(action string) []string {
 		if action == "global.select" {
 			return []string{"enter"}
 		}
 		return nil
-	})
+	}))
 	v := logview.New(logview.WithKeyMap(keys), logview.WithSize(50, 6), logview.WithFocusFailed(true))
 	v.SetTitle("build (windows-latest)")
 	v.Focus()

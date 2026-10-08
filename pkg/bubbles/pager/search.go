@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"slices"
 
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+
 	tea "charm.land/bubbletea/v2"
 )
 
@@ -134,10 +136,10 @@ func (m *Model) clearSearch() {
 
 func (m *Model) enableSearchKeys() {
 	found := m.search.total() > 0
-	m.keys.Next.SetEnabled(found)
-	m.keys.Prev.SetEnabled(found)
-	m.keys.Confirm.SetEnabled(m.prompt.Focused())
-	m.keys.Cancel.SetEnabled(m.prompt.Focused() || m.search.query != "" ||
+	keymap.Enable(&m.keys.Next, found)
+	keymap.Enable(&m.keys.Prev, found)
+	keymap.Enable(&m.keys.Confirm, m.prompt.Focused())
+	keymap.Enable(&m.keys.Cancel, m.prompt.Focused() || m.search.query != "" ||
 		m.projecting || m.proj.filter.re != nil)
 	m.keys.Options.setEnabled(m.opt)
 }

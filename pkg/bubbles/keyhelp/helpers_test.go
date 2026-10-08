@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -15,7 +17,7 @@ func testKeys() KeyMap {
 		"up": {"up"}, "down": {"down"}, "page_up": {"pgup"}, "page_down": {"pgdown"},
 		"top": {"home"}, "bottom": {"end"}, "capture": {"tab"}, "close": {"?"}, "cancel": {"esc"},
 	}
-	return NewKeyMap(func(action string) []string { return table[action] })
+	return NewKeyMap(keymap.Func(func(action string) []string { return table[action] }))
 }
 
 // newKeyed returns a help with the keys of the app.

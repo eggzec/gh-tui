@@ -270,7 +270,30 @@ func TestHelpViewFiltered(t *testing.T) {
 	run(m, m.key(press("tab")))
 	run(m, m.key(press("q")))
 	t.Run("key", func(t *testing.T) { golden.RequireEqual(t, m.View().Content) })
+
+	// The config path of an action finds its row, whatever its keys are.
+	m, _ = newTestApp(t)
+	k := m.cfg.Keys
+	run(m, ui.OpenModal(&pullsModal{fakeModal: &fakeModal{title: "Pull requests"}, layer: ui.ContextLayer("pulls", []key.Binding{
+		ui.In(k, "pulls").Binding("close", "close"),
+		ui.In(k, "pulls").Binding("merge", "merge"),
+		ui.In(k, "pulls").Binding("ready", "mark ready"),
+	}, nil)}))
+	run(m, m.key(press("?")))
+	typeKeys(m, "keys.pulls.merge")
+	if got := shownDescs(m); len(got) != 1 {
+		t.Errorf("the path keys.pulls.merge shows %q, want the merge row alone", got)
+	}
+	t.Run("path", func(t *testing.T) { golden.RequireEqual(t, m.View().Content) })
 }
+
+// pullsModal is a modal that lists the given layer of keys.
+type pullsModal struct {
+	*fakeModal
+	layer keyhelp.Layer
+}
+
+func (p *pullsModal) KeyLayers() []keyhelp.Layer { return []keyhelp.Layer{p.layer} }
 
 func BenchmarkViewWithHelp(b *testing.B) {
 	m, _ := benchApp(b)
@@ -384,7 +407,7 @@ func (p *pagerModal) KeyLayers() []keyhelp.Layer {
 func TestHelpKeyReachesWaitingPager(t *testing.T) {
 	for _, first := range []string{"-"} {
 		m, _ := newTestApp(t)
-		mod := &pagerModal{title: "README.md", pager: pager.New(pager.WithKeyMap(pager.NewKeyMap(ui.In(config.Default().Keys, "preview").Of)), pager.WithSize(60, 10))}
+		mod := &pagerModal{title: "README.md", pager: pager.New(pager.WithKeyMap(pager.NewKeyMap(ui.In(config.Default().Keys, "preview"))), pager.WithSize(60, 10))}
 		mod.pager.Focus()
 		run(m, mod.pager.SetContent("README.md", strings.Repeat("line\n", 50)))
 		run(m, ui.OpenModal(mod))
