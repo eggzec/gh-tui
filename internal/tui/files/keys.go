@@ -24,7 +24,7 @@ const ctxPane = "files"
 
 func newKeyMap(keys config.Keymap) KeyMap {
 	files := ui.In(keys, ctxPane)
-	tk := tree.NewKeyMap(files.Of)
+	tk := tree.NewKeyMap(files)
 	// A preview opens a file, and a directory folds.
 	tk.Open = files.Binding("global.select", "preview")
 	return KeyMap{

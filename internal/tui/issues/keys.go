@@ -10,6 +10,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
 	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
 )
@@ -79,9 +80,9 @@ func newKeyMap(keys config.Keymap) keyMap {
 
 	// The section and the modal match their own keys first, so the feed
 	// and the thread get only the keys they leave them.
-	k.feed = feed.NewKeyMap(list.Of)
+	k.feed = feed.NewKeyMap(list)
 
-	tk := thread.NewKeyMap(ui.In(keys, ctxModal).Of)
+	tk := thread.NewKeyMap(ui.In(keys, ctxModal))
 	tk.Retry = retry(k.Refresh)
 	k.thread = tk
 	return k
@@ -101,7 +102,7 @@ func (k keyMap) forModal(keys config.Keymap) keyMap {
 // retry is the refresh binding, described as retry for the bubbles' error
 // hints. Without keys, as while refresh is unbound, it is off.
 func retry(refresh key.Binding) key.Binding {
-	return key.NewBinding(key.WithKeys(refresh.Keys()...), key.WithHelp(refresh.Help().Key, "retry"))
+	return keymap.Derive(key.NewBinding(key.WithKeys(refresh.Keys()...), key.WithHelp(refresh.Help().Key, "retry")), refresh)
 }
 
 // ShortHelp implements help.KeyMap.

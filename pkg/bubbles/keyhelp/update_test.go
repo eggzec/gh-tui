@@ -183,3 +183,27 @@ func TestSetters(t *testing.T) {
 		t.Error("Blur, Init or the size is off")
 	}
 }
+
+// TestFilterByConfigPath checks that a query that starts with "keys."
+// finds the rows by the path of their action, and only by that.
+func TestFilterByConfigPath(t *testing.T) {
+	ls := layers()
+	ls[0].Actions = [][]string{{"global.help"}, {"global.quit", "global.dismiss"}}
+	ls[1].Actions = [][]string{{"pulls.down"}, {"pulls.up"}, {"pulls.open"}, {"pulls.reload"}, {"pulls.merge"}}
+	m := newKeyed(WithLayers(ls), WithSize(80, 24))
+	m.Focus()
+	for _, tt := range []struct {
+		typed string
+		want  int
+	}{
+		{"keys.pulls.merge", 1},
+		{"keys.PULLS.", 5},
+		{"keys.global.help", 1},
+		{"keys.global.dismiss", 1},
+		{"keys.nothing", 0},
+	} {
+		if got := typeText(t, m, tt.typed).Shown(); len(got) != tt.want {
+			t.Errorf("%q shows %d rows, want %d", tt.typed, len(got), tt.want)
+		}
+	}
+}

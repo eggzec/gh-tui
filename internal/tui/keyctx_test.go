@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -40,6 +41,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
@@ -379,7 +381,7 @@ func (keyActions) Invalidate(core.RepoRef) {}
 func keyChecks() core.Checks {
 	return core.Checks{SHA: "abc123", State: core.ChecksFailure, Total: 2, Runs: []core.Check{{
 		ID: 30, Name: "test", Status: core.RunCompleted, Conclusion: core.ConclusionFailure,
-		JobID: keyJob.ID, RunID: keyRun.ID, Workflow: "CI", StartedAt: keyTime, CompletedAt: keyTime,
+		JobID: keyJob.ID, RunID: keyRun.ID, Workflow: "CI", Annotations: 1, StartedAt: keyTime, CompletedAt: keyTime,
 		DetailsURL: keyJob.URL,
 	}, {
 		ID: 31, Name: "coverage", Status: core.RunCompleted, Conclusion: core.ConclusionFailure,
@@ -469,13 +471,6 @@ type keyContext struct {
 	context string
 }
 
-// fixedKeys are the keys a step may name itself, rather than an action:
-// those the code fixes, whatever the config says. The arrows move, enter
-// runs the command line and chooses in the filter form and the finder,
-// and the pager and the log take / to search and - for an option. Any
-// other key must be reached through its action.
-var fixedKeys = map[string]bool{"up": true, "down": true, "enter": true, "/": true, "-": true, "space": true}
-
 // typedStep starts a step that types text, which typed makes.
 const typedStep = "type:"
 
@@ -517,6 +512,11 @@ func (c keyContext) reach(t *testing.T) (*Model, []keyhelp.Layer) {
 			names := c.press(t, m.cfg.Keys, s)
 			pressed = append(pressed, s+"="+strings.Join(names, " "))
 			for _, name := range names {
+				if strings.HasPrefix(s, typedStep) {
+					if what := boundKey(m.keyLayers(), name); what != "" {
+						t.Fatalf("%s: step %q types %q, which %s takes as a key; name its action", c.name, s, name, what)
+					}
+				}
 				msg, _ := keyPress(name)
 				driveKeys(t, m, m.key(msg))
 			}
@@ -535,9 +535,26 @@ func (c keyContext) reach(t *testing.T) (*Model, []keyhelp.Layer) {
 	return m, layers
 }
 
+// boundKey returns the description of the enabled binding that takes the
+// key name before any layer that types does, or "" if the key is typed
+// there: text that a step types must be text, and not an action's key.
+func boundKey(layers []keyhelp.Layer, name string) string {
+	for _, l := range layers {
+		for _, b := range l.Bindings {
+			if b.Enabled() && slices.Contains(b.Keys(), name) {
+				return fmt.Sprintf("%s (%s)", b.Help().Desc, layerNames([]keyhelp.Layer{l}))
+			}
+		}
+		if l.Typing {
+			return ""
+		}
+	}
+	return ""
+}
+
 // press returns the names of the keys a step of c presses. An action
 // presses the first of its keys in keys that can be pressed, as
-// Model.press does; a fixed key presses itself, and typed text a key for
+// Model.press does; typed text presses a key for
 // each of its characters. No action is named as a key is
 // (TestStepsAreUnambiguous).
 func (c keyContext) press(t *testing.T, keys config.Keymap, step string) []string {
@@ -561,10 +578,8 @@ func (c keyContext) press(t *testing.T, keys config.Keymap, step string) []strin
 		}
 		t.Fatalf("%s: no key bound to %s can be pressed: %q", c.name, step, bound)
 	}
-	if !fixedKeys[step] {
-		t.Fatalf("%s: %q is neither an action nor a fixed key; name its action, or type it with typed", c.name, step)
-	}
-	return []string{step}
+	t.Fatalf("%s: %q is neither an action nor typed text; name its action, or type it with typed", c.name, step)
+	return nil
 }
 
 // stepAction returns the action that step names, by its context and name
@@ -580,7 +595,7 @@ func stepAction(keys config.Keymap, step string) (string, bool) {
 // that a step of a context is either an action or a key.
 func TestStepsAreUnambiguous(t *testing.T) {
 	for _, action := range config.Default().Keys.Actions() {
-		if _, ok := keyPress(action); ok || fixedKeys[action] || strings.HasPrefix(action, typedStep) {
+		if _, ok := keyPress(action); ok || strings.HasPrefix(action, typedStep) {
 			t.Errorf("the action %s is named as a key is", action)
 		}
 	}
@@ -591,8 +606,10 @@ func TestStepsAreUnambiguous(t *testing.T) {
 // modal, and of the pane, or those of what takes every key, alone, and no
 // others.
 func TestContextChains(t *testing.T) {
+	reached := map[string]bool{}
 	for _, c := range keyContexts() {
 		if c.context == "" {
+			t.Errorf("%s: names no context; every state is of one", c.name)
 			continue
 		}
 		t.Run(strings.NewReplacer(" ", "-", ":", "").Replace(c.name), func(t *testing.T) {
@@ -601,6 +618,7 @@ func TestContextChains(t *testing.T) {
 				for _, l := range c.layers(t) {
 					if l.Context != "" {
 						got = append(got, l.Context)
+						reached[l.Context] = true
 					}
 				}
 				if want := config.Chain(c.context); !slices.Equal(got, want) {
@@ -609,7 +627,25 @@ func TestContextChains(t *testing.T) {
 			})
 		})
 	}
+	// Some context has no layer of its own to list, such as a screen whose
+	// keys are all its panes'; it is reached by the chain of one of them.
+	for _, c := range config.Contexts() {
+		if folded, ok := foldedContexts[c.Name]; ok {
+			if !reached[folded] {
+				t.Errorf("no state of keyContexts reaches the context %s, which lists the keys of %s", folded, c.Name)
+			}
+			continue
+		}
+		if !reached[c.Name] {
+			t.Errorf("no state of keyContexts reaches the context %s", c.Name)
+		}
+	}
 }
+
+// foldedContexts are the contexts whose keys help lists in the layer of
+// another, because one widget holds both: the keys of a picker in normal
+// mode are listed with the picker's.
+var foldedContexts = map[string]string{"picker_normal": "picker"}
 
 // idleRows are the rows of help whose key, pressed where the context is
 // reached, has nothing to act on there: a motion at the end of what it
@@ -667,7 +703,7 @@ func TestHelpRowsWork(t *testing.T) {
 								break
 							}
 						}
-						if name == "" || fixedKeys[name] && name != "enter" && name != "esc" {
+						if name == "" {
 							continue
 						}
 						id := l.Context + " " + b.Help().Desc
@@ -852,24 +888,25 @@ func keyContexts() []keyContext {
 		{name: "files: zoomed", repo: true, steps: []string{"files.expand", "files.down", "global.zoom"}, context: "files", want: "global, repo, files"},
 		{name: "files: error toast", repo: true, steps: []string{"files.expand", "files.down"}, msg: ui.NotifyMsg{Level: toast.Error, Text: "Keys collide."}, context: "files", want: "global, repo, files"},
 		{name: "files: preview", repo: true, steps: []string{"files.down", "global.select"}, after: []string{"preview.half_page_down", "preview.right"}, context: "preview", want: "global, preview"},
-		{name: "files: preview search", repo: true, steps: []string{"files.down", "global.select", "/"}, context: "search_prompt", want: "always, search_prompt (types)"},
-		{name: "files: preview option", repo: true, steps: []string{"files.down", "global.select", "-"}, context: "pager_option", want: "always, pager_option (types)"},
+		{name: "files: preview search", repo: true, steps: []string{"files.down", "global.select", "preview.find"}, context: "search_prompt", want: "always, search_prompt (types)"},
+		{name: "files: preview option", repo: true, steps: []string{"files.down", "global.select", "preview.option"}, context: "pager_option", want: "always, pager_option (types)"},
 		{name: "files: preview command line", repo: true, steps: []string{"files.down", "global.select", "global.command"}, context: "command_line", want: "command_line (types)"},
 		{name: "files: finder", repo: true, steps: []string{"global.find_file"}, context: "finder", want: "always, finder (types)"},
-		{name: "files: finder preview", repo: true, steps: []string{"global.find_file", typed("R"), "enter"}, after: []string{"preview.half_page_down", "preview.right"}, context: "preview", want: "global, preview"},
+		{name: "files: finder preview", repo: true, steps: []string{"global.find_file", typed("R"), "finder.choose"}, after: []string{"preview.half_page_down", "preview.right"}, context: "preview", want: "global, preview"},
 		{name: "pull requests", repo: true, steps: []string{"global.pane_2"}, context: "pulls", want: "global, repo, pulls"},
 		{name: "pull requests: filter", repo: true, steps: []string{"global.pane_2", "pulls.filter"}, context: "filter", want: "global, filter"},
 		{name: "pull requests: sort", repo: true, steps: []string{"global.pane_2", "pulls.sort"}, context: "filter", want: "global, filter"},
-		{name: "pull requests: filter list", repo: true, steps: []string{"global.pane_2", "pulls.filter", "down", "space"}, context: "filter", want: "global, filter"},
-		{name: "pull requests: filter list typing", repo: true, steps: []string{"global.pane_2", "pulls.filter", "down", "space", typed("i")}, want: "always, picker (types)"},
-		{name: "pull requests: filter insert", repo: true, steps: []string{"global.pane_2", "pulls.filter", typed("G"), typed("i")}, want: "always, filter_query (types)"},
+		{name: "pull requests: filter list", repo: true, steps: []string{"global.pane_2", "pulls.filter", "filter.down", "filter.toggle"}, context: "filter", want: "global, filter"},
+		{name: "pull requests: filter list typing", repo: true, steps: []string{"global.pane_2", "pulls.filter", "filter.down", "filter.toggle", "picker_normal.insert"}, context: "picker", want: "always, picker (types)"},
+		{name: "pull requests: filter insert", repo: true, steps: []string{"global.pane_2", "pulls.filter", "filter.bottom", "filter.insert"}, context: "filter_query", want: "always, filter_query (types)"},
 		{name: "pull requests: merge", repo: true, steps: []string{"global.pane_2", "pulls.merge"}, context: "confirm", want: "always, confirm"},
 		{name: "pull request", repo: true, steps: []string{"global.pane_2", "global.select"}, after: []string{"pull_conversation.half_page_down"}, context: "pull_conversation", want: "global, pull_modal, pull_conversation"},
 		{name: "pull request: close", repo: true, steps: []string{"global.pane_2", "global.select", "pull_modal.close"}, context: "confirm", want: "always, confirm"},
 		{name: "pull request: checks", repo: true, steps: []string{"global.pane_2", "pulls.checks"}, context: "pull_check_list", want: "global, pull_checks, pull_check_list"},
 		{name: "pull request: job", repo: true, steps: []string{"global.pane_2", "pulls.checks", "global.select"}, after: []string{"pull_check_log.half_page_down", "pull_check_log.right"}, context: "pull_check_log", want: "global, pull_checks, pull_check_log"},
 		{name: "pull request: check detail", repo: true, steps: []string{"global.pane_2", "pulls.checks", "pull_check_list.down", "global.select"}, after: []string{"pull_check_detail.half_page_down", "pull_check_detail.right"}, context: "pull_check_detail", want: "global, pull_checks, pull_check_detail"},
-		{name: "pull request: job search", repo: true, steps: []string{"global.pane_2", "pulls.checks", "global.select", "/"}, context: "search_prompt", want: "always, search_prompt (types)"},
+		{name: "pull request: annotations", repo: true, steps: []string{"global.pane_2", "pulls.checks", "global.select", "pull_check_log.annotations"}, context: "pull_check_annotations", want: "global, pull_checks, pull_check_annotations"},
+		{name: "pull request: job search", repo: true, steps: []string{"global.pane_2", "pulls.checks", "global.select", "pull_check_log.find"}, context: "search_prompt", want: "always, search_prompt (types)"},
 		{name: "issues", repo: true, steps: []string{"global.pane_3"}, context: "issues", want: "global, repo, issues"},
 		{name: "issues: filter", repo: true, steps: []string{"global.pane_3", "issues.filter"}, context: "filter", want: "global, filter"},
 		{name: "issues: sort", repo: true, steps: []string{"global.pane_3", "issues.sort"}, context: "filter", want: "global, filter"},
@@ -883,7 +920,7 @@ func keyContexts() []keyContext {
 		{name: "history: branch filter", repo: true, steps: []string{"repo.history", "global.prev_pane", "history_branches.filter"}, context: "picker", want: "always, picker (types)"},
 		{name: "history: files", repo: true, steps: []string{"repo.history", "global.select"}, context: "history_files", want: "global, history, history_files"},
 		{name: "history: patch", repo: true, steps: []string{"repo.history", "global.select", "global.select"}, after: []string{"history_patch.half_page_down", "history_patch.right"}, context: "history_patch", want: "global, history, history_patch"},
-		{name: "history: patch search", repo: true, steps: []string{"repo.history", "global.select", "global.select", "/"}, context: "search_prompt", want: "always, search_prompt (types)"},
+		{name: "history: patch search", repo: true, steps: []string{"repo.history", "global.select", "global.select", "history_patch.find"}, context: "search_prompt", want: "always, search_prompt (types)"},
 		{name: "commit", repo: true, msg: ui.OpenCommitMsg{Repo: testRepo, SHA: keyCommit.SHA}, context: "history_files", want: "global, history, history_files"},
 		{name: "release", repo: true, msg: ui.OpenReleaseMsg{Repo: testRepo, ID: keyRelease.ID, URL: keyRelease.URL}, after: []string{"release_modal.half_page_down"}, context: "release_modal", want: "global, release_modal"},
 		{name: "actions: runs", repo: true, steps: []string{"repo.actions"}, context: "actions_runs", want: "global, actions, actions_runs"},
@@ -891,13 +928,158 @@ func keyContexts() []keyContext {
 		{name: "actions: log", repo: true, steps: []string{"repo.actions", "global.next_pane", "global.next_pane"}, after: []string{"actions_log.half_page_down", "actions_log.right"}, context: "actions_log", want: "global, actions, actions_log"},
 		{name: "actions: log option", repo: true, steps: []string{"repo.actions", "global.next_pane", "global.next_pane", "actions_log.option"}, context: "log_option", want: "always, log_option"},
 		{name: "pull request: job option", repo: true, steps: []string{"global.pane_2", "pulls.checks", "global.select", "pull_check_log.option"}, context: "log_option", want: "always, log_option"},
-		{name: "actions: log search", repo: true, steps: []string{"repo.actions", "global.next_pane", "global.next_pane", "/"}, context: "search_prompt", want: "always, search_prompt (types)"},
+		{name: "actions: annotations", repo: true, steps: []string{"repo.actions", "global.next_pane", "global.next_pane", "actions_log.annotations"}, context: "actions_annotations", want: "global, actions, actions_annotations"},
+		{name: "actions: log search", repo: true, steps: []string{"repo.actions", "global.next_pane", "global.next_pane", "actions_log.find"}, context: "search_prompt", want: "always, search_prompt (types)"},
 		{name: "actions: filter", repo: true, steps: []string{"repo.actions", "actions.filter"}, context: "actions_filter", want: "global, actions_filter"},
 		{name: "actions: rerun", repo: true, steps: []string{"repo.actions", "actions.rerun_failed"}, context: "confirm", want: "always, confirm"},
 		{name: "actions: rerun job", repo: true, steps: []string{"repo.actions", "global.next_pane", "actions_jobs.rerun_job"}, context: "confirm", want: "always, confirm"},
-		{name: "auth", repo: true, steps: []string{"global.command", typed("auth"), "enter"}, want: "global, text"},
-		{name: "config", repo: true, steps: []string{"global.command", typed("config"), "enter"}, after: []string{"text.half_page_down", "text.right"}, context: "text", want: "global, text"},
+		{name: "auth", repo: true, steps: []string{"global.command", typed("auth"), "command_line.run"}, context: "text", want: "global, text"},
+		{name: "config", repo: true, steps: []string{"global.command", typed("config"), "command_line.run"}, after: []string{"text.half_page_down", "text.right"}, context: "text", want: "global, text"},
 		{name: "help", repo: true, steps: []string{"global.help"}, context: "help", want: "always, help (types)"},
 		{name: "command line", repo: true, steps: []string{"global.command"}, context: "command_line", want: "command_line (types)"},
 	}
+}
+
+// reserved are the actions of default.yaml that nothing reads yet, each
+// with its reason.
+var reserved = map[string]string{
+	"repo.star": "reserved without a key until the repository can be starred from its screen",
+}
+
+// TestEveryActionRead checks that the code reads every action of
+// default.yaml, and only those: walking every state of keyContexts, which
+// opens every modal so that the key maps built on opening are built, it
+// records each action the app asks the config for. An action nothing reads
+// is a key that does nothing, and one that is read but isn't in the config
+// is a typo or an action that was never added.
+func TestEveryActionRead(t *testing.T) {
+	var mu sync.Mutex
+	read, rendering, drawn := map[string]bool{}, false, map[string]bool{}
+	stop := config.WatchReads(func(action string) {
+		mu.Lock()
+		defer mu.Unlock()
+		if rendering {
+			drawn[action] = true
+		}
+		read[action] = true
+	})
+	defer stop()
+	for _, c := range keyContexts() {
+		synctest.Test(t, func(t *testing.T) {
+			m, _ := c.reach(t)
+			// Drawing the screen and listing the keys read the keys
+			// they hold, not the config.
+			mu.Lock()
+			rendering = true
+			mu.Unlock()
+			m.View()
+			m.keyLayers()
+			mu.Lock()
+			rendering = false
+			mu.Unlock()
+		})
+	}
+	stop()
+	for action := range drawn {
+		t.Errorf("drawing reads the action %s from the config", action)
+	}
+
+	known := map[string]bool{}
+	for _, action := range config.Default().Keys.Actions() {
+		known[action] = true
+		if _, ok := reserved[action]; ok {
+			if read[action] {
+				t.Errorf("the code reads %s, which is no longer reserved; remove it from reserved", action)
+			}
+			continue
+		}
+		if !read[action] {
+			t.Errorf("nothing reads the action %s of default.yaml", action)
+		}
+	}
+	for action := range read {
+		if !known[action] {
+			t.Errorf("the code reads %s, which default.yaml doesn't have", action)
+		}
+	}
+}
+
+// unnamedKeys are the keys whose bindings are no action of the config,
+// each with its reason.
+var unnamedKeys = map[string]string{
+	"ctrl+c": "always quits, so the config has no action for it",
+}
+
+// TestBindingsHavePaths checks that help can name where each binding it
+// lists is set in the config: in every state of keyContexts, each binding
+// is known by actions that default.yaml has, and by ones whose keys it
+// holds, unless it has no keys.
+func TestBindingsHavePaths(t *testing.T) {
+	// Drawing a state that ctrl+c reaches must not name the key.
+	defer func() {
+		if got := keymap.Actions(forceQuit); got != nil {
+			t.Errorf("ctrl+c answers for %v", got)
+		}
+	}()
+	keys := config.Default().Keys
+	var mu sync.Mutex
+	seen := map[string]bool{}
+	for _, c := range keyContexts() {
+		t.Run(strings.NewReplacer(" ", "-", ":", "").Replace(c.name), func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				_, layers := c.reach(t)
+				for _, l := range layers {
+					for _, b := range l.Bindings {
+						id := fmt.Sprintf("%s: %q (%s) of %s", c.name, b.Help().Desc, b.Help().Key, layerNames([]keyhelp.Layer{l}))
+						named := keymap.Actions(b)
+						if _, ok := unnamedKeys[strings.Join(b.Keys(), " ")]; ok {
+							// What ctrl+c reaches is the row of the action
+							// that quits, with that key alone.
+							continue
+						}
+						if len(named) == 0 {
+							t.Errorf("%s has no config path", id)
+							continue
+						}
+						for _, a := range named {
+							mu.Lock()
+							seen[a] = true
+							mu.Unlock()
+							if !slices.Contains(keys.Actions(), a) {
+								t.Errorf("%s is known by %s, which default.yaml lacks", id, a)
+								continue
+							}
+							if len(b.Keys()) > 0 && !slices.ContainsFunc(keys.Of(a), func(k string) bool { return slices.Contains(b.Keys(), k) }) {
+								t.Errorf("%s is known by %s, whose keys %v it doesn't hold (%v)", id, a, keys.Of(a), b.Keys())
+							}
+						}
+					}
+				}
+			})
+		})
+	}
+	// Rows of other kinds than a context's own are named by the action
+	// they were made for: those of a picker in normal mode, one that
+	// merges two actions, the prompt of a search, and the keys of the log
+	// that the annotations show.
+	for _, a := range []string{"picker_normal.insert", "global.pane_1", "global.dismiss", "global.quit", "search_prompt.run", "pull_check_log.right"} {
+		if !seen[a] {
+			t.Errorf("no binding of a state is known by %s", a)
+		}
+	}
+}
+
+// TestTypedTextIsNotAKey checks that typing a key an action is bound to
+// is caught where it is bound, and that a key a typing layer takes is not.
+func TestTypedTextIsNotAKey(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		c := keyContext{name: "filter list", repo: true, steps: []string{"global.pane_2", "pulls.filter"}, context: "filter", want: "global, filter"}
+		if got := boundKey(c.layers(t), "j"); got == "" {
+			t.Errorf("j is the filter's down key, but boundKey finds no binding")
+		}
+		c = keyContext{name: "search query", steps: []string{"global.search"}, context: "search_query", want: "always, global, search_query (types)"}
+		if got := boundKey(c.layers(t), "k"); got != "" {
+			t.Errorf("k is typed into the query, but boundKey finds %s", got)
+		}
+	})
 }

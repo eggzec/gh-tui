@@ -37,7 +37,7 @@ func NewKeyMap(look keymap.Lookup) KeyMap {
 }
 
 // unbound is the keys of a graph made without a key map: none.
-func unbound(string) []string { return nil }
+var unbound = keymap.Func(func(string) []string { return nil })
 
 // ShortHelp returns the bindings for the short help view.
 func (k KeyMap) ShortHelp() []key.Binding {

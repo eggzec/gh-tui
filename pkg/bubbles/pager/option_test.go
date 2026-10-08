@@ -4,6 +4,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
 
 func TestOptions(t *testing.T) {
@@ -171,9 +173,9 @@ func TestOptionKeysAreRebound(t *testing.T) {
 		if action == "pager_option.chop" {
 			return []string{"W"}
 		}
-		return lookup(action)
+		return lookup.Of(action)
 	}
-	m := open(t, "a.txt", "a\n", WithSize(20, 4), WithKeyMap(NewKeyMap(rebound)))
+	m := open(t, "a.txt", "a\n", WithSize(20, 4), WithKeyMap(NewKeyMap(keymap.Func(rebound))))
 	if m.Wrap() {
 		t.Fatal("a pager wraps at first")
 	}
@@ -193,9 +195,9 @@ func TestNoOptionKeys(t *testing.T) {
 		if strings.HasPrefix(action, "pager_option.") {
 			return nil
 		}
-		return lookup(action)
+		return lookup.Of(action)
 	}
-	m := New(WithKeyMap(NewKeyMap(bare)), WithSize(20, 4))
+	m := New(WithKeyMap(NewKeyMap(keymap.Func(bare))), WithSize(20, 4))
 	m.Focus()
 	m, _ = keys(t, m, "-", "S", "esc")
 	if m.Wrap() || m.Capturing() {
@@ -216,9 +218,9 @@ func TestOptionHelpFollowsKeys(t *testing.T) {
 		case "pager_option.squeeze":
 			return nil
 		}
-		return lookup(action)
+		return lookup.Of(action)
 	}
-	m := open(t, "a.txt", "a\n", WithSize(20, 4), WithKeyMap(NewKeyMap(rebound)))
+	m := open(t, "a.txt", "a\n", WithSize(20, 4), WithKeyMap(NewKeyMap(keymap.Func(rebound))))
 	if got := m.keys.Option.Help().Desc; got != "option: W N i I" {
 		t.Errorf("option help is %q, want W N i I", got)
 	}
@@ -251,9 +253,9 @@ func TestOptionHelpWithoutOptionKeys(t *testing.T) {
 		if strings.HasPrefix(action, "pager_option.") {
 			return nil
 		}
-		return lookup(action)
+		return lookup.Of(action)
 	}
-	if got := NewKeyMap(bare).Option.Help().Desc; got != "option" {
+	if got := NewKeyMap(keymap.Func(bare)).Option.Help().Desc; got != "option" {
 		t.Errorf("option help is %q, want %q", got, "option")
 	}
 }

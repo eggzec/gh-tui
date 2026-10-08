@@ -35,7 +35,7 @@ var defaultName = regexp.MustCompile(`(?i)^default|TTL$|Interval$|Delay$|Timeout
 // there or be justified in the list as a true constant.
 func TestNoDefaultsInGo(t *testing.T) {
 	found := defaultLike(t)
-	allow, problems := readAllow(t)
+	allow, problems := readAllow(t, allowPath)
 	for _, p := range problems {
 		t.Error(p)
 	}
@@ -164,7 +164,7 @@ var (
 
 // readAllow reads constants.allow: one path:Name per line, then keep: and
 // why it is a true constant. Blank lines and # comments are skipped.
-func readAllow(t *testing.T) (allow map[string]string, problems []string) {
+func readAllow(t *testing.T, allowPath string) (allow map[string]string, problems []string) {
 	t.Helper()
 	f, err := os.Open(allowPath)
 	if err != nil {

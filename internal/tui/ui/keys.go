@@ -30,20 +30,20 @@ func Either(keys config.Keymap, desc string, actions ...string) key.Binding {
 	for _, a := range actions {
 		ks = append(ks, keys.Of(a)...)
 	}
-	return bindingOf(desc, ks)
+	return bindingOf(desc, ks, actions...)
 }
 
 // bindingOf makes the binding of ks, which is disabled and without a key
-// if there are none.
-func bindingOf(desc string, ks []string) key.Binding {
+// if there are none, and known by actions, which it has the keys of.
+func bindingOf(desc string, ks []string, actions ...string) key.Binding {
 	ks = slices.Compact(slices.Clone(ks))
 	if len(ks) == 0 {
-		return key.NewBinding(key.WithHelp("", desc), key.WithDisabled())
+		return keymap.Record(keymap.Unbound(key.NewBinding(key.WithHelp("", desc))), actions...)
 	}
-	return key.NewBinding(
+	return keymap.Record(key.NewBinding(
 		key.WithKeys(ks...),
 		key.WithHelp(keymap.Labels(ks), desc),
-	)
+	), actions...)
 }
 
 // Context is the keys of one context, such as "pulls", for a pane or modal
@@ -61,21 +61,34 @@ func In(keys config.Keymap, ctx string) Context { return Context{keys: keys, nam
 // Of returns the keys of action: of ctx if it has no dot, else of the
 // context it names.
 func (c Context) Of(action string) []string {
-	if strings.Contains(action, ".") {
-		return c.keys.Of(action)
+	path := c.path(action)
+	if ks := c.keys.Of(path); ks != nil || !c.keys.Has(path) {
+		return ks
 	}
-	return c.keys.Of(c.name + "." + action)
+	// The action is unbound, which differs from one the config lacks.
+	return []string{}
 }
 
 // Lookup returns the keys of the actions of context ctx, for the key maps
 // of the bubbles to be filled from: a name with a dot, such as
 // "global.select", is another context's.
-func Lookup(keys config.Keymap, ctx string) keymap.Lookup { return In(keys, ctx).Of }
+func Lookup(keys config.Keymap, ctx string) keymap.Lookup { return In(keys, ctx) }
+
+// Scope implements keymap.Scoped: the name of the context.
+func (c Context) Scope() string { return c.name }
 
 // Binding makes the binding of action, labelled with desc in help, like
 // the package's Binding.
 func (c Context) Binding(action, desc string) key.Binding {
-	return bindingOf(desc, c.Of(action))
+	return bindingOf(desc, c.Of(action), c.path(action))
+}
+
+// path returns the full name of action, as the config has it.
+func (c Context) path(action string) string {
+	if strings.Contains(action, ".") {
+		return action
+	}
+	return c.name + "." + action
 }
 
 // Yield returns b as the help lists it beside held, a binding matched
@@ -92,11 +105,11 @@ func Yield(b, held key.Binding) key.Binding {
 	case len(b.Keys()):
 		return b
 	case 0:
-		return key.NewBinding(key.WithHelp("", b.Help().Desc), key.WithDisabled())
+		return keymap.Derive(key.NewBinding(key.WithHelp("", b.Help().Desc), key.WithDisabled()), b)
 	}
 	y := key.NewBinding(key.WithKeys(keys...), key.WithHelp(keymap.Labels(keys), b.Help().Desc))
 	y.SetEnabled(b.Enabled())
-	return y
+	return keymap.Derive(y, b)
 }
 
 // OpenHint returns the hint that open, the key that opens something on
@@ -115,6 +128,7 @@ func OpenHint(ic Icons, open key.Binding) string {
 // or rebinds some may leave them, are listed each, such as "1/3/4".
 func Jump(panes ...key.Binding) key.Binding {
 	var keys, labels []string
+	on := slices.DeleteFunc(slices.Clone(panes), func(b key.Binding) bool { return !b.Enabled() })
 	for _, b := range panes {
 		if b.Enabled() {
 			keys = append(keys, b.Keys()...)
@@ -122,13 +136,13 @@ func Jump(panes ...key.Binding) key.Binding {
 		}
 	}
 	if len(labels) == 0 {
-		return key.NewBinding(key.WithHelp("", "focus pane"), key.WithDisabled())
+		return keymap.Derive(key.NewBinding(key.WithHelp("", "focus pane"), key.WithDisabled()), panes...)
 	}
 	name := strings.Join(labels, "/")
 	if len(labels) > 2 && runOn(labels) {
 		name = labels[0] + "-" + labels[len(labels)-1]
 	}
-	return key.NewBinding(key.WithKeys(keys...), key.WithHelp(name, "focus pane"))
+	return keymap.Derive(key.NewBinding(key.WithKeys(keys...), key.WithHelp(name, "focus pane")), on...)
 }
 
 // runOn reports whether labels are single characters that follow each
@@ -203,4 +217,23 @@ func PagerLayer(ctx string, p *pager.Model, own ...key.Binding) keyhelp.Layer {
 		l.Context, l.Source = "pager_option", contextTitle("pager_option")
 	}
 	return l
+}
+
+// NameLayerActions returns layers with the actions each binding was made
+// for, which the help matches the config paths of. It copies what it
+// changes, so the layers given stay as they were, and keeps the names a
+// layer already has. The help does it when it opens, not each time the
+// keys are drawn.
+func NameLayerActions(layers []keyhelp.Layer) []keyhelp.Layer {
+	out := slices.Clone(layers)
+	for i, l := range out {
+		if len(l.Actions) > 0 {
+			continue
+		}
+		out[i].Actions = make([][]string, len(l.Bindings))
+		for j, b := range l.Bindings {
+			out[i].Actions[j] = keymap.Actions(b)
+		}
+	}
+	return out
 }

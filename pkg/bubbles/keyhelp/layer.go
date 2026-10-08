@@ -27,6 +27,13 @@ type Layer struct {
 	// Bindings holds every binding of the layer, disabled ones too, in
 	// the order the layer matches them.
 	Bindings []key.Binding
+	// Actions names the actions of each binding, in the order of Bindings,
+	// as their config paths without the leading "keys.", such as
+	// "pulls.merge": a binding made of several, such as one that quits and
+	// closes, has each. It may be shorter than Bindings, or empty, and a
+	// binding that is no action of the config has none. The help filter
+	// matches the path "keys.<action>".
+	Actions [][]string
 	// Typing is whether the layer types the printable keys none of its
 	// bindings take, as a text input does, so that later layers never
 	// see them.

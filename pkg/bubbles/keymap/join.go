@@ -13,7 +13,9 @@ import (
 // by "/", and worded as the first of those it takes keys from that has a
 // description, or else the first. It is enabled while any of them is. Join
 // of none is a disabled binding.
-func Join(bs ...key.Binding) key.Binding {
+func Join(bs ...key.Binding) key.Binding { return Derive(join(bs...), bs...) }
+
+func join(bs ...key.Binding) key.Binding {
 	use := slices.DeleteFunc(slices.Clone(bs), func(b key.Binding) bool { return !b.Enabled() })
 	enabled := len(use) > 0
 	if !enabled {

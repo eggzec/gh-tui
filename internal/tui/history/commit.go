@@ -90,7 +90,7 @@ type filesMsg struct {
 // editor, if set.
 func newCommit(editor string, keys config.Keymap) commit {
 	// The numbers of a patch's lines aren't those of the file.
-	k := pager.WithKeyMap(pager.NewKeyMap(ui.In(keys, "history_patch").Of))
+	k := pager.WithKeyMap(pager.NewKeyMap(ui.In(keys, "history_patch")))
 	return commit{pager: pager.New(k, pager.WithLineNumbers(false), pager.WithEditor(editor)), shown: -1}
 }
 

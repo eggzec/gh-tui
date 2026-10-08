@@ -60,7 +60,7 @@ const (
 
 func newKeyMap(keys config.Keymap) KeyMap {
 	modal, branches, graphCtx, files := ui.In(keys, ctxModal), ui.In(keys, ctxBranches), ui.In(keys, ctxGraph), ui.In(keys, ctxFiles)
-	g := graph.NewKeyMap(graphCtx.Of)
+	g := graph.NewKeyMap(graphCtx)
 	k := KeyMap{
 		Next:      modal.Binding("global.next_pane", "pane"),
 		Prev:      modal.Binding("global.prev_pane", "previous pane"),
@@ -74,8 +74,8 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		ResetBase: modal.Binding("reset_base", "back to head"),
 		Open:      modal.Binding("global.open", "browser"),
 		Retry:     modal.Binding("global.refresh", "retry"),
-		Branches:  graph.NewKeyMap(branches.Of),
-		Files:     graph.NewKeyMap(files.Of),
+		Branches:  graph.NewKeyMap(branches),
+		Files:     graph.NewKeyMap(files),
 		Graph:     g,
 		pick:      picker.NewKeyMap(ui.Lookup(keys, "picker")),
 	}

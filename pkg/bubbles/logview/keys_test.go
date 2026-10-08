@@ -4,6 +4,8 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keytest"
 )
@@ -46,9 +48,9 @@ func TestQuitAndDismiss(t *testing.T) {
 		if action == "global.quit" {
 			return nil
 		}
-		return look(action)
+		return look.Of(action)
 	}
-	m := open(t, WithSize(80, 24), WithKeyMap(NewKeyMap(noQuit)))
+	m := open(t, WithSize(80, 24), WithKeyMap(NewKeyMap(keymap.Func(noQuit))))
 	if _, msg := keys(t, m, "q"); msg != nil {
 		t.Errorf("q sent %v, though quit has no key", msg)
 	}

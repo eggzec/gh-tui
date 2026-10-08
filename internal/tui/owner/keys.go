@@ -77,7 +77,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		Sort:        list.Binding("sort", "sort"),
 		ClearFilter: list.Binding("clear_filter", "clear filters"),
 	}
-	keymap.Fill(&k, page.Of)
+	keymap.Fill(&k, page)
 	actions := [numPanes]string{"global.pane_1", "global.pane_2", "global.pane_3", "global.pane_4"}
 	names := [numPanes]string{paneTitles[pinnedPane], "List", paneTitles[readmePane], paneTitles[calendarPane]}
 	for i, a := range actions {
@@ -87,8 +87,8 @@ func newKeyMap(keys config.Keymap) KeyMap {
 
 	// The page matches these keys first, so the list gets only the keys it
 	// leaves it.
-	k.feed = feed.NewKeyMap(list.Of)
-	k.cal = calendar.NewKeyMap(ui.In(keys, paneContext[calendarPane]).Of)
+	k.feed = feed.NewKeyMap(list)
+	k.cal = calendar.NewKeyMap(ui.In(keys, paneContext[calendarPane]))
 	return k
 }
 

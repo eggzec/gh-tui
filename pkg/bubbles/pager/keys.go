@@ -122,7 +122,7 @@ func (o OptionKeyMap) keysHelp() string {
 // setEnabled enables or disables every option key that has a key.
 func (o *OptionKeyMap) setEnabled(on bool) {
 	for _, b := range []*key.Binding{&o.Chop, &o.LineNumbers, &o.Squeeze, &o.SmartCase, &o.IgnoreCase, &o.Cancel} {
-		b.SetEnabled(on)
+		keymap.Enable(b, on)
 	}
 }
 

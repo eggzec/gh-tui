@@ -65,9 +65,9 @@ type KeyMap struct {
 
 func newKeyMap(keys config.Keymap) KeyMap {
 	step, list, log, notes := ui.In(keys, ctxStep), ui.In(keys, ctxList), ui.In(keys, ctxLog), ui.In(keys, ctxAnnotations)
-	fk := feed.NewKeyMap(list.Of)
+	fk := feed.NewKeyMap(list)
 	var dk detailKeys
-	keymap.Fill(&dk, ui.In(keys, ctxDetail).Of)
+	keymap.Fill(&dk, ui.In(keys, ctxDetail))
 	k := KeyMap{
 		Up: fk.Up, Down: fk.Down, PageUp: fk.PageUp, PageDown: fk.PageDown,
 		HalfPageUp: fk.HalfPageUp, HalfPageDown: fk.HalfPageDown, Home: fk.Home, End: fk.End,
@@ -86,8 +86,8 @@ func newKeyMap(keys config.Keymap) KeyMap {
 	}
 	// The step matches the re-run before refresh, and its own keys
 	// before those of the log and of what an app reported.
-	lk := logview.NewKeyMap(log.Of)
-	lk.Quit, lk.Dismiss = key.NewBinding(key.WithDisabled()), relabel(k.Back, "back")
+	lk := logview.NewKeyMap(log)
+	lk.Quit, lk.Dismiss = key.NewBinding(key.WithDisabled()), relabel(k.Back, "checks")
 	k.Log = lk
 
 	k.Detail = dk.viewport()

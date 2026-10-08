@@ -4,6 +4,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
 
 func TestOptions(t *testing.T) {
@@ -106,9 +108,9 @@ func TestOptionKeysAreRebound(t *testing.T) {
 		if action == "log_option.chop" {
 			return []string{"W"}
 		}
-		return lookup(action)
+		return lookup.Of(action)
 	}
-	m := open(t, WithSize(80, 12), WithKeyMap(NewKeyMap(rebound)))
+	m := open(t, WithSize(80, 12), WithKeyMap(NewKeyMap(keymap.Func(rebound))))
 	m, _ = keys(t, m, "-", "S")
 	if m.Wrap() || !strings.HasPrefix(m.flash, noteNoOption) {
 		t.Errorf("-S: wrap %v, note %q, want S to name no option", m.Wrap(), m.flash)
@@ -125,23 +127,23 @@ func TestNoOptionKeys(t *testing.T) {
 		if strings.HasPrefix(action, "log_option.") {
 			return nil
 		}
-		return lookup(action)
+		return lookup.Of(action)
 	}
-	m := open(t, WithSize(80, 12), WithKeyMap(NewKeyMap(bare)))
+	m := open(t, WithSize(80, 12), WithKeyMap(NewKeyMap(keymap.Func(bare))))
 	m, _ = keys(t, m, "-", "S", "esc")
 	if m.Wrap() || m.Capturing() {
 		t.Errorf("wrap %v, capturing %v, want the option key to take one key and change nothing", m.Wrap(), m.Capturing())
 	}
-	if got := NewKeyMap(bare).Option.Help().Desc; got != "option" {
+	if got := NewKeyMap(keymap.Func(bare)).Option.Help().Desc; got != "option" {
 		t.Errorf("option help is %q, want %q", got, "option")
 	}
 	none := func(action string) []string {
 		if action == "option" {
 			return nil
 		}
-		return lookup(action)
+		return lookup.Of(action)
 	}
-	m = open(t, WithSize(80, 12), WithKeyMap(NewKeyMap(none)))
+	m = open(t, WithSize(80, 12), WithKeyMap(NewKeyMap(keymap.Func(none))))
 	m, _ = keys(t, m, "-", "S")
 	if m.Wrap() || m.Capturing() {
 		t.Error("an unbound option key still takes keys")
@@ -161,9 +163,9 @@ func TestOptionHelpFollowsKeys(t *testing.T) {
 		case "log_option.timestamps":
 			return nil
 		}
-		return lookup(action)
+		return lookup.Of(action)
 	}
-	m := open(t, WithSize(80, 12), WithKeyMap(NewKeyMap(rebound)))
+	m := open(t, WithSize(80, 12), WithKeyMap(NewKeyMap(keymap.Func(rebound))))
 	if got := m.keys.Option.Help().Desc; got != "option: W N" {
 		t.Errorf("option help is %q, want W N", got)
 	}

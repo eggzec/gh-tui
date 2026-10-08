@@ -24,6 +24,8 @@ type Model struct {
 	input textinput.Model
 	// hay holds the text of each row that the query matches.
 	hay []string
+	// actions holds the actions of each row, such as "pulls.merge".
+	actions [][]string
 	// capturing is whether the next key filters by key, and key the key
 	// that does.
 	capturing bool
@@ -194,6 +196,16 @@ func (m Model) filtered() bool { return m.input.Value() != "" || m.key != "" }
 func (m *Model) analyze() {
 	m.rows = Analyze(m.layers)
 	m.hay = make([]string, len(m.rows))
+	m.actions = m.actions[:0]
+	for _, l := range m.layers {
+		for i := range l.Bindings {
+			var a []string
+			if i < len(l.Actions) {
+				a = l.Actions[i]
+			}
+			m.actions = append(m.actions, a)
+		}
+	}
 	for i, r := range m.rows {
 		h := r.Binding.Help()
 		m.hay[i] = strings.Join([]string{h.Desc, r.Source, strings.Join(r.Binding.Keys(), " "), h.Key}, " ")

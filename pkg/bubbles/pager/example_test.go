@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -79,12 +81,12 @@ func (m modal) view(background string) string {
 // package.
 func Example_modal() {
 	// The parent says which keys do what; here q quits.
-	keys := pager.NewKeyMap(func(action string) []string {
+	keys := pager.NewKeyMap(keymap.Func(func(action string) []string {
 		if action == "global.quit" {
 			return []string{"q"}
 		}
 		return nil
-	})
+	}))
 	m := modal{width: 50, height: 10, pager: pager.New(pager.WithKeyMap(keys))}
 	_ = m.show("notes.txt", "Remember the milk.\n")
 

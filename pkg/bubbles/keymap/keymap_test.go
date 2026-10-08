@@ -27,7 +27,7 @@ type keys struct {
 
 // from looks actions up in a table.
 func from(table map[string][]string) keymap.Lookup {
-	return func(action string) []string { return table[action] }
+	return keymap.Func(func(action string) []string { return table[action] })
 }
 
 func TestFill(t *testing.T) {

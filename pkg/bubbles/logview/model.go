@@ -13,6 +13,8 @@ package logview
 import (
 	"sync/atomic"
 
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	"charm.land/bubbles/v2/textinput"
@@ -243,15 +245,15 @@ func (m Model) FullHelp() [][]key.Binding {
 // matches only while there are some, so help shows them only when they
 // work, and the search keys while there is a search to close or clear.
 func (m *Model) enableKeys() {
-	m.keys.NextError.SetEnabled(len(m.errs) > 0)
-	m.keys.PrevError.SetEnabled(len(m.errs) > 0)
-	m.keys.NextWarning.SetEnabled(len(m.warns) > 0)
-	m.keys.PrevWarning.SetEnabled(len(m.warns) > 0)
+	keymap.Enable(&m.keys.NextError, len(m.errs) > 0)
+	keymap.Enable(&m.keys.PrevError, len(m.errs) > 0)
+	keymap.Enable(&m.keys.NextWarning, len(m.warns) > 0)
+	keymap.Enable(&m.keys.PrevWarning, len(m.warns) > 0)
 	found := len(m.search.matches) > 0
-	m.keys.Next.SetEnabled(found)
-	m.keys.Prev.SetEnabled(found)
-	m.keys.Confirm.SetEnabled(m.searching)
-	m.keys.Cancel.SetEnabled(m.searching || m.search.query != "")
+	keymap.Enable(&m.keys.Next, found)
+	keymap.Enable(&m.keys.Prev, found)
+	keymap.Enable(&m.keys.Confirm, m.searching)
+	keymap.Enable(&m.keys.Cancel, m.searching || m.search.query != "")
 	m.keys.Options.setEnabled(m.opt)
 	if m.opt {
 		// The cancel key of the options stands in for that of the search.
