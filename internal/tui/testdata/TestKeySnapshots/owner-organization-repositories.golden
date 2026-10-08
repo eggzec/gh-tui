@@ -8,7 +8,8 @@ global
   find file | ctrl+p | ^p | off
   zoom | z | z | on
   maximize | Z | Z | off
-  back | esc | esc | on
+  unzoom | esc | esc | off
+  back | backspace | backspace | on
   dismiss | ctrl+x | ^x | off
   owner page | @ | @ | on
   this repo | . | . | on

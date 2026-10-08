@@ -14,7 +14,7 @@ Picker (types)
   toggle | space | space | off
   insert | i | i | off
   append | a | a | off
-  clear | delete backspace | delete/backspace | off
+  clear | delete | delete | off
   apply | enter | ↵ | off
   close | esc | esc | off
   close | q | q | off
@@ -26,7 +26,7 @@ Picker (types)
   up | up ctrl+p | ↑/^p | on
   down | down ctrl+n | ↓/^n | on
   toggle | space | space | off
-  clear | delete backspace | delete/backspace | off
+  clear | delete | delete | off
   choose | enter | ↵ | on
   close | esc | esc | off
   up | up ctrl+p | ↑/^p | off

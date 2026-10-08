@@ -13,8 +13,8 @@ type KeyMap struct {
 	Submit key.Binding `keymap:"run" help:"run"`
 	// Cancel closes the command line without sending the line.
 	Cancel key.Binding `keymap:"cancel" help:"cancel"`
-	// CancelEmpty closes the command line when the line is empty, as
-	// backspace does in vim. On a line with text it edits as usual.
+	// CancelEmpty closes the command line when the line is empty. On a line
+	// with text it edits as usual.
 	CancelEmpty key.Binding `keymap:"cancel_empty" help:"cancel when empty"`
 	// Next inserts the next candidate, and Prev the one before.
 	Next key.Binding `keymap:"complete" help:"complete"`

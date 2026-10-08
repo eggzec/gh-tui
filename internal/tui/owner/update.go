@@ -104,7 +104,7 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 		s.setZoom(!s.zoom)
 		return nil
 	case key.Matches(msg, k.Back):
-		return s.stepBack()
+		return s.unzoom()
 	case key.Matches(msg, k.Refresh):
 		return s.refresh()
 	}
@@ -128,18 +128,13 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 	return nil
 }
 
-// stepBack takes one step back: out of the zoom, or else to the page this one
-// was opened from, or else to the screen before the page.
-func (s *Section) stepBack() tea.Cmd {
-	switch {
-	case s.zoomed():
+// unzoom shows every pane again while one is zoomed. Going back through the
+// pages is the app's back key.
+func (s *Section) unzoom() tea.Cmd {
+	if s.zoomed() {
 		s.setZoom(false)
-		return nil
-	case s.goBack():
-		// The page gone back to may have gone stale meanwhile.
-		return s.Revisit()
 	}
-	return func() tea.Msg { return ui.BackMsg{} }
+	return nil
 }
 
 // pressPane handles the keys of the focused pane, and reports whether msg

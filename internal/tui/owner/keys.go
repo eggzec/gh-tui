@@ -24,8 +24,7 @@ type KeyMap struct {
 	PrevTab key.Binding
 	// Zoom shows the focused pane alone, or every pane again.
 	Zoom key.Binding
-	// Back shows every pane again while one is zoomed, or else the page
-	// this one was opened from, or else the screen before the page.
+	// Back shows every pane again while one is zoomed.
 	Back key.Binding
 	// Select opens what is under the cursor: a repository on the
 	// repository screen, a person or an organization on their page, and a
@@ -208,11 +207,7 @@ func (k KeyMap) state(s *Section) KeyMap {
 	}
 	k.Zoom.SetEnabled(k.Zoom.Enabled() && s.wide)
 	k.Refresh.SetEnabled(k.Refresh.Enabled() && s.page != nil)
-	switch {
-	case s.zoomed():
-		k.Back.SetHelp(k.Back.Help().Key, "unzoom")
-	case len(s.back) > 0:
-		k.Back.SetHelp(k.Back.Help().Key, "previous page")
-	}
+	k.Back.SetHelp(k.Back.Help().Key, "unzoom")
+	k.Back.SetEnabled(k.Back.Enabled() && s.zoomed())
 	return k
 }

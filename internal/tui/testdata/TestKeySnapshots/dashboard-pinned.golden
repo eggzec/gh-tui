@@ -9,11 +9,12 @@ global
   zoom | z | z | on
   maximize | Z | Z | off
   unzoom | esc | esc | off
+  back | backspace | backspace | off
   dismiss | ctrl+x | ^x | off
   owner page | @ | @ | on
   this repo | . | . | on
   notifications | I | I | on
-  back | 0 | 0 | off
+  dashboard | 0 | 0 | off
   next pane | tab | tab | on
   previous pane | shift+tab | shift+tab | on
   focus pane | 1 2 3 4 5 | 1-5 | on

@@ -481,14 +481,18 @@ keys:
     # Show the dashboard, from any screen. 0 sits before the pane keys,
     # as the dashboard comes before the repository.
     dashboard: ["0"]
-    # Switch between the screen on view and the notifications.
+    # Show the notifications, from any screen.
     notifications: [I]
+    # Go back through the pages of users and organizations, then through
+    # the screens shown, as a browser does. It does nothing where there
+    # is nothing to go back to. Inputs that type still delete with it.
+    back: [backspace]
     # Open the search page, with the focus in an empty query, even when
     # the page is on view already.
     search: [S]
     # Choose or open what is under the cursor.
     select: [enter]
-    # Step back out of what is open, such as a zoomed pane.
+    # Step out of what is open, such as a zoomed pane.
     dismiss: [esc]
     # Close the newest toast.
     dismiss_toast: [ctrl+x]
@@ -1030,8 +1034,8 @@ keys:
     # the start or at the end.
     insert: [i]
     append: [a]
-    # Clear the field in focus.
-    clear: [delete, backspace]
+    # Clear the field in focus. Backspace is the global back key.
+    clear: [delete]
   actions_filter:
     up: [k, up]
     down: [j, down]
@@ -1042,7 +1046,7 @@ keys:
     toggle: [space]
     insert: [i]
     append: [a]
-    clear: [delete, backspace]
+    clear: [delete]
 
   # Widgets that take every key while they are open. They may use keys
   # that the contexts above use. Those that type, type every printable key
@@ -1052,7 +1056,7 @@ keys:
   command_line:
     run: [enter]
     cancel: [esc]
-    cancel_empty: [backspace, ctrl+h]
+    cancel_empty: [ctrl+h]
     complete: [tab]
     complete_prev: [shift+tab]
     older: [up, ctrl+p]

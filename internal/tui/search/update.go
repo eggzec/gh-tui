@@ -124,7 +124,8 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 		switch {
 		case keyhelp.Printable(msg.String()):
 		case key.Matches(msg, k.query.Cancel):
-			return back
+			s.focusArea(kindsArea)
+			return s.settleNow()
 		case key.Matches(msg, k.query.Submit):
 			return s.submit()
 		case key.Matches(msg, k.query.Next), key.Matches(msg, k.query.Kinds):
@@ -143,8 +144,6 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 		return cmd
 	case kindsArea:
 		switch {
-		case key.Matches(msg, k.Back):
-			return back
 		case k.focusOf(msg) >= 0:
 			return s.focusPane(k.focusOf(msg))
 		case key.Matches(msg, k.Up):
@@ -188,8 +187,6 @@ func (s *Section) settleNow() tea.Cmd {
 	return s.settle()
 }
 
-func back() tea.Msg { return ui.BackMsg{} }
-
 // moveKind shows the kind delta kinds away.
 func (s *Section) moveKind(delta int) tea.Cmd {
 	i := slices.Index(kinds, s.kind) + delta
@@ -202,8 +199,6 @@ func (s *Section) moveKind(delta int) tea.Cmd {
 func (s *Section) pressResults(msg tea.KeyPressMsg) tea.Cmd {
 	k := &s.keys
 	switch {
-	case key.Matches(msg, k.Back):
-		return back
 	case k.focusOf(msg) >= 0:
 		return s.focusPane(k.focusOf(msg))
 	case key.Matches(msg, k.Left), key.Matches(msg, k.Prev):

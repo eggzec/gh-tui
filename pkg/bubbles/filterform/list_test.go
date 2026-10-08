@@ -125,8 +125,8 @@ func TestChecklistClearUnchecksAll(t *testing.T) {
 		t.Errorf("the checklist still shows checks:\n%s", view(m))
 	}
 	m, _ = press(t, m, keyJ, space, bksp)
-	if v, _ := m.Value("labels"); len(v.List()) != 0 {
-		t.Errorf("labels = %q after backspace, want none", v.List())
+	if v, _ := m.Value("labels"); len(v.List()) != 1 {
+		t.Errorf("labels = %q after backspace, want the one checked", v.List())
 	}
 }
 

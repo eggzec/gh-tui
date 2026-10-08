@@ -100,7 +100,7 @@ func (m *Model) drawHints() {
 	if short := m.layers[0].Short; len(short) > 0 {
 		help = short[0]
 	}
-	h := ui.Hints{Layers: m.layers, Lead: []key.Binding{help, ui.NameKeys(m.icons, m.keys.state(m).Back)}}
+	h := ui.Hints{Layers: m.layers, Lead: []key.Binding{help, ui.NameKeys(m.icons, m.keys.state(m).Unzoom)}}
 	short := h.ShortHelp()
 	left := make([]statusbar.Item, 0, len(short))
 	for i, b := range short {

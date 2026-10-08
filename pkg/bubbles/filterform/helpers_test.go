@@ -25,7 +25,7 @@ func testKeys(tb testing.TB) KeyMap {
 		"toggle":                       {"space"},
 		"insert":                       {"i"},
 		"append":                       {"a"},
-		"clear":                        {"delete", "backspace"},
+		"clear":                        {"delete"},
 		"global.next_tab":              {"]"},
 		"global.prev_tab":              {"["},
 		"global.select":                {"enter"},

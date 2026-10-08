@@ -7,7 +7,6 @@ global
   quit | ctrl+c | ^c | on
 
 Query (types)
-  back | esc | esc | on
   search | enter | ↵ | on
   next | tab | tab | on
   previous | shift+tab | shift+tab | on
@@ -21,5 +20,6 @@ Query (types)
   refresh | r | r | off
   filter | f | f | off
   sort | s | s | off
+  leave | esc | esc | on
   kinds | up | ↑ | on
   results | down | ↓ | on

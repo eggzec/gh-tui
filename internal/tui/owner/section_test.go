@@ -9,7 +9,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keytest"
 )
@@ -28,8 +27,8 @@ func has[T tea.Msg](msgs []tea.Msg) (T, bool) {
 	return zero, false
 }
 
-// esc goes back through the pages opened one from another, keeping where
-// each was, and then asks the app to go back.
+// GoBack goes back through the pages opened one from another, keeping where
+// each was; esc doesn't.
 func TestBack(t *testing.T) {
 	s := newSection(t, newFake(), "octocat", 120, 40)
 	press(t, s, "down", "down")
@@ -37,17 +36,18 @@ func TestBack(t *testing.T) {
 	if s.Login() != "github" {
 		t.Fatalf("page of %q, want github's", s.Login())
 	}
-	if b, src, ok := uitest.Winner(s.KeyLayers(), "esc"); !ok || src != "Profile" || b.Help().Desc != "previous page" {
-		t.Errorf("esc reaches %v %q %q, want the previous page", ok, src, b.Help().Desc)
+	if msgs := press(t, s, "esc"); len(msgs) > 0 || s.Login() != "github" {
+		t.Fatalf("esc sent %v and shows %q, want it to do nothing", msgs, s.Login())
 	}
-	if msgs := press(t, s, "esc"); len(msgs) > 0 || s.Login() != "octocat" {
-		t.Fatalf("esc sent %v and shows %q, want octocat's page", msgs, s.Login())
+	if !s.CanGoBack() {
+		t.Fatal("CanGoBack = false after opening a second page")
+	}
+	run(t, s, s.GoBack())
+	if s.Login() != "octocat" || s.CanGoBack() {
+		t.Fatalf("GoBack shows %q, want octocat's page and none before it", s.Login())
 	}
 	if r, _ := s.page.repos().Feed.Selected(); r.Ref.Name != "repo-002" {
 		t.Errorf("the cursor is on %s, want it where it was", r.Ref)
-	}
-	if _, ok := has[ui.BackMsg](press(t, s, "esc")); !ok {
-		t.Error("esc on the first page didn't ask the app to go back")
 	}
 }
 

@@ -49,7 +49,7 @@ func (p *pump) settle(t *testing.T) {
 				for _, c := range msg {
 					p.start(c)
 				}
-			case ui.OpenMsg, ui.NotifyMsg, ui.RepoMsg, ui.OpenPullMsg, ui.OpenIssueMsg, ui.OpenFileMsg, ui.BackMsg:
+			case ui.OpenMsg, ui.NotifyMsg, ui.RepoMsg, ui.OpenPullMsg, ui.OpenIssueMsg, ui.OpenFileMsg:
 			default:
 				p.start(p.s.Update(msg))
 			}

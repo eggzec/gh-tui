@@ -53,8 +53,10 @@ const (
 	// filter modal.
 	ActionNextTab = "global.next_tab"
 	ActionPrevTab = "global.prev_tab"
-	// ActionNotifications switches between the screen on view and the
-	// notifications.
+	// ActionBack goes back through the owner pages and the screens shown,
+	// as a browser does.
+	ActionBack = "global.back"
+	// ActionNotifications shows the notifications, from any screen.
 	ActionNotifications = "global.notifications"
 	// ActionDashboard shows the dashboard, from any screen.
 	ActionDashboard = "global.dashboard"
@@ -65,7 +67,7 @@ const (
 	// where commands such as goto are typed.
 	ActionCommand = "global.command"
 	// ActionSelect opens or chooses what is under the cursor, and
-	// ActionDismiss steps back out of what is open, such as a zoom.
+	// ActionDismiss steps out of what is open, such as a zoom.
 	ActionSelect  = "global.select"
 	ActionDismiss = "global.dismiss"
 	// ActionDismissToast closes the newest toast.

@@ -208,9 +208,6 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ui.OpenMsg:
 		cmd := m.openURL(msg.URL)
 		return m, cmd
-	case ui.BackMsg:
-		cmd := m.showScreen(m.back, m.focus)
-		return m, cmd
 	case ui.OpenFilterMsg:
 		// The focused list asked, with its own filter or sort key.
 		if p := m.focused(); p != nil {
@@ -307,9 +304,11 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 	case m.canZoom() && m.width >= narrowWidth && key.Matches(msg, m.keys.Zoom):
 		m.setZoom(!m.zoom)
 		return nil
-	case m.canZoom() && m.zoomed() && key.Matches(msg, m.keys.Back):
+	case m.canZoom() && m.zoomed() && key.Matches(msg, m.keys.Unzoom):
 		m.setZoom(false)
 		return nil
+	case key.Matches(msg, m.keys.Back):
+		return m.goBack()
 	case !m.toast.Empty() && key.Matches(msg, m.keys.Dismiss):
 		return m.toast.Dismiss()
 	case key.Matches(msg, m.keys.Owner):
@@ -328,9 +327,9 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 			return m.selectRepo(ui.RepoMsg{Repo: repo})
 		}
 	case key.Matches(msg, m.keys.Notifications):
-		return m.toggleScreen(notifScreen)
+		return m.showScreen(notifScreen, m.focus)
 	case m.dash != nil && key.Matches(msg, m.keys.Dashboard):
-		return m.toggleScreen(dashScreen)
+		return m.showScreen(dashScreen, m.focus)
 	}
 	// Only the repository screen has panes for the app to cycle through;
 	// elsewhere these keys are the section's.
@@ -410,6 +409,15 @@ func (m *Model) showSearch() tea.Cmd {
 // selectRepo shows the repository screen for the repository of msg, with
 // the files focused, after telling the watcher and the sections.
 func (m *Model) selectRepo(msg ui.RepoMsg) tea.Cmd {
+	if m.screen != repoScreen || !msg.Repo.Same(m.repo) {
+		m.pushBack()
+	}
+	return m.openRepo(msg, 0)
+}
+
+// openRepo shows the repository of msg on the repository screen, with pane
+// focus focused, without a way back to what was on view.
+func (m *Model) openRepo(msg ui.RepoMsg, focus int) tea.Cmd {
 	m.cancelGoto()
 	m.remember(msg.Repo)
 	if m.watchRepo != nil {
@@ -421,7 +429,7 @@ func (m *Model) selectRepo(msg ui.RepoMsg) tea.Cmd {
 	// Selecting a repository shows the head of its default branch.
 	m.base = ui.BaseMsg{}
 	m.drawHeader()
-	return tea.Batch(m.broadcast(msg), m.showScreen(repoScreen, 0), m.loadRepoInfo())
+	return tea.Batch(m.broadcast(msg), m.reveal(repoScreen, focus), m.loadRepoInfo())
 }
 
 // broadcast sends msg to every section, started or not, so that a section

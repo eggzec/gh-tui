@@ -42,8 +42,10 @@ type KeyMap struct {
 	// Panes focus pane 1, 2 and 3.
 	Panes []key.Binding
 	// Zoom shows the focused pane of the repository screen alone, or
-	// every pane again, and Back shows them again too.
-	Zoom key.Binding
+	// every pane again, and Unzoom shows them again too.
+	Zoom   key.Binding
+	Unzoom key.Binding
+	// Back goes back through the owner pages and the screens shown.
 	Back key.Binding
 	// Maximize toggles the open modal between its size and the whole
 	// screen.
@@ -83,7 +85,8 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		Next:          ui.Binding(keys, config.ActionNextPane, "next pane"),
 		Prev:          ui.Binding(keys, config.ActionPrevPane, "previous pane"),
 		Zoom:          ui.Binding(keys, config.ActionZoom, "zoom"),
-		Back:          ui.Binding(keys, config.ActionDismiss, "unzoom"),
+		Unzoom:        ui.Binding(keys, config.ActionDismiss, "unzoom"),
+		Back:          ui.Binding(keys, config.ActionBack, "back"),
 		Maximize:      ui.Binding(keys, config.ActionMaximize, "maximize"),
 		Dismiss:       ui.Binding(keys, config.ActionDismissToast, "dismiss"),
 		Panes: []key.Binding{
@@ -110,7 +113,7 @@ func withForceQuit(b key.Binding) key.Binding {
 // ShortHelp implements help.KeyMap. The way out of a zoom comes first.
 func (k KeyMap) ShortHelp() []key.Binding {
 	return []key.Binding{
-		k.Back, k.Search, k.Command, k.FindFile, k.History, k.Actions, k.Notifications, k.Dashboard, k.Help, k.Quit,
+		k.Unzoom, k.Back, k.Search, k.Command, k.FindFile, k.History, k.Actions, k.Notifications, k.Dashboard, k.Help, k.Quit,
 	}
 }
 
@@ -125,7 +128,7 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 func (k KeyMap) globalKeys() []key.Binding {
 	return []key.Binding{
 		k.Command, k.Quit, k.Help, k.Search, k.FindFile,
-		k.Zoom, k.Maximize, k.Back, k.Dismiss, k.Owner, k.Repo, k.Notifications, k.Dashboard,
+		k.Zoom, k.Maximize, k.Unzoom, k.Back, k.Dismiss, k.Owner, k.Repo, k.Notifications, k.Dashboard,
 		k.Next, k.Prev, k.Jump,
 	}
 }
@@ -136,7 +139,7 @@ func (k KeyMap) repoKeys() []key.Binding { return []key.Binding{k.History, k.Act
 // work everywhere, and on the repository screen those of its own.
 func (k KeyMap) layers(m *Model) []keyhelp.Layer {
 	global := ui.ContextLayer(config.ContextGlobal, k.globalKeys(),
-		[]key.Binding{k.Back, k.Search, k.Command, k.FindFile, k.Notifications, k.Dashboard, k.Help, k.Quit})
+		[]key.Binding{k.Unzoom, k.Back, k.Search, k.Command, k.FindFile, k.Notifications, k.Dashboard, k.Help, k.Quit})
 	if m.screen != repoScreen {
 		return []keyhelp.Layer{global}
 	}
@@ -153,17 +156,10 @@ func (k KeyMap) state(m *Model) KeyMap {
 	k.Owner.SetEnabled(k.Owner.Enabled() && m.selectedOwner() != "")
 	k.Repo.SetEnabled(k.Repo.Enabled() && m.selectedRepo() != core.RepoRef{})
 	k.Zoom.SetEnabled(k.Zoom.Enabled() && m.canZoom() && m.width >= narrowWidth)
-	k.Back.SetEnabled(k.Back.Enabled() && m.canZoom() && m.zoomed())
+	k.Unzoom.SetEnabled(k.Unzoom.Enabled() && m.canZoom() && m.zoomed())
+	k.Back.SetEnabled(k.Back.Enabled() && m.canGoBack())
 	k.Maximize.SetEnabled(k.Maximize.Enabled() && m.modal != nil)
 	k.Dismiss.SetEnabled(k.Dismiss.Enabled() && !m.toast.Empty())
-	switch m.screen {
-	case notifScreen:
-		k.Notifications.SetHelp(k.Notifications.Help().Key, "back")
-	case dashScreen:
-		k.Dashboard.SetHelp(k.Dashboard.Help().Key, "back")
-		k.Dashboard.SetEnabled(k.Dashboard.Enabled() && m.back != dashScreen)
-	case repoScreen, searchScreen, ownerScreen:
-	}
 	if m.screen != repoScreen {
 		// Only the repository screen has panes to cycle through. On the
 		// other screens the app leaves these keys to the section, which
@@ -173,7 +169,9 @@ func (k KeyMap) state(m *Model) KeyMap {
 		k.Next.SetEnabled(false)
 		k.Prev.SetEnabled(false)
 	}
-	k.Dashboard.SetEnabled(k.Dashboard.Enabled() && m.dash != nil)
+	// Showing what is on view does nothing, so help doesn't offer it.
+	k.Dashboard.SetEnabled(k.Dashboard.Enabled() && m.dash != nil && m.screen != dashScreen)
+	k.Notifications.SetEnabled(k.Notifications.Enabled() && m.screen != notifScreen)
 	// Every other screen and modal focuses its own panes, and lists the
 	// keys for them.
 	k.Jump.SetEnabled(k.Jump.Enabled() && m.screen == repoScreen && len(m.panes) > 0)
