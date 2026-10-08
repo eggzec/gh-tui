@@ -94,7 +94,6 @@ func (s *Section) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		}
 		return s.setFilter(defaultQuery), true
 	case key.Matches(msg, k.Filter):
-		// The list gets no f, which pages down there.
 		return ui.OpenFilter(filterform.FiltersTab), true
 	case key.Matches(msg, k.Select):
 		return s.open(), true

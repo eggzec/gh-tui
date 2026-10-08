@@ -51,7 +51,7 @@ func TestReveal(t *testing.T) {
 // follows the loads as they arrive.
 func TestRevealWaitsForLoads(t *testing.T) {
 	f := repo()
-	m := New(f.children, WithSize(40, 10), WithFocused(true))
+	m := newModel(f.children, WithSize(40, 10), WithFocused(true))
 	reveal := m.Reveal("internal", "internal/tui", "internal/tui/app.go")
 	if reveal != nil || m.goal == nil {
 		t.Fatal("Reveal didn't wait for the top-level nodes")

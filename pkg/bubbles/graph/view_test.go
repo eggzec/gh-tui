@@ -29,7 +29,7 @@ func TestView(t *testing.T) {
 		model func(t *testing.T) Model
 	}{
 		{"loading", func(*testing.T) Model {
-			return New(newSource(sample(), 10).fetch, WithSize(60, 3), WithFocused(true))
+			return newModel(newSource(sample(), 10).fetch, WithSize(60, 3), WithFocused(true))
 		}},
 		{"loaded", func(t *testing.T) Model {
 			t.Helper()
@@ -150,7 +150,7 @@ func TestViewGlyphs(t *testing.T) {
 			t.Errorf("view has glyphs beyond ASCII:\n%s", v)
 		}
 	}
-	loading := New(newSource(sample(), 10).fetch, WithSize(60, 3), WithStyles(st))
+	loading := newModel(newSource(sample(), 10).fetch, WithSize(60, 3), WithStyles(st))
 	if v := ansi.Strip(loading.View()); !strings.Contains(v, "Loading...") {
 		t.Errorf("view lacks %q:\n%s", "Loading...", v)
 	}

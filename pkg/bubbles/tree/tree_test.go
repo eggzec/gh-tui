@@ -159,7 +159,7 @@ func run(tb testing.TB, m Model, cmd tea.Cmd) Model {
 func load(tb testing.TB, f *files, opts ...Option) Model {
 	tb.Helper()
 	opts = append([]Option{WithSize(40, 10), WithFocused(true)}, opts...)
-	m := New(f.children, opts...)
+	m := newModel(f.children, opts...)
 	return run(tb, m, m.Init())
 }
 
@@ -228,7 +228,7 @@ var roots = []string{"cmd", "docs", "internal", "README.md", "go.mod"}
 
 func TestInitLoadsTopLevelNodes(t *testing.T) {
 	f := repo()
-	m := New(f.children, WithSize(40, 10))
+	m := newModel(f.children, WithSize(40, 10))
 	if !m.hasStatus() || m.Len() != 0 {
 		t.Fatal("new tree should show the loading row")
 	}
@@ -488,7 +488,7 @@ func TestIgnoresInvalidIDs(t *testing.T) {
 	children := func(context.Context, Node) ([]Node, error) {
 		return []Node{{ID: "a", Name: "a"}, {Name: "no id"}, {ID: "a", Name: "again"}, {ID: "b", Name: "b"}}, nil
 	}
-	m := New(children, WithSize(20, 5))
+	m := newModel(children, WithSize(20, 5))
 	m = run(t, m, m.Init())
 	if got := rowIDs(m); !slices.Equal(got, []string{"a", "b"}) {
 		t.Fatalf("rows = %v, want [a b]", got)
@@ -698,7 +698,7 @@ func TestReloadNodeMovesChild(t *testing.T) {
 		}
 		return nil, nil
 	}
-	m := New(children, WithSize(20, 5), WithFocused(true))
+	m := newModel(children, WithSize(20, 5), WithFocused(true))
 	m = run(t, m, m.Init())
 	m = keys(t, m, "+", "j", "j", "+")
 	if got := rowIDs(m); !slices.Equal(got, []string{"a", "x", "b"}) {
@@ -724,7 +724,7 @@ func TestReset(t *testing.T) {
 		ctxs = append(ctxs, ctx)
 		return []Node{{ID: rev, Name: rev}}, nil
 	}
-	m := New(children, WithSize(20, 5), WithFocused(true))
+	m := newModel(children, WithSize(20, 5), WithFocused(true))
 	stale := m.Init()
 	rev = "b"
 	cmd := m.Reset()
@@ -758,7 +758,7 @@ func TestDropsStaleResults(t *testing.T) {
 
 func TestIgnoresOtherInstances(t *testing.T) {
 	a := load(t, repo())
-	b := New(repo().children)
+	b := newModel(repo().children)
 	if a.ID() == b.ID() {
 		t.Fatal("two trees share an ID")
 	}
@@ -835,7 +835,7 @@ func TestResize(t *testing.T) {
 }
 
 func TestSpinnerStopsWhenLoaded(t *testing.T) {
-	m := New(repo().children, WithSize(40, 5))
+	m := newModel(repo().children, WithSize(40, 5))
 	tick := m.spin.Tick()
 	m, cmd := m.Update(tick)
 	if cmd == nil {
@@ -854,7 +854,7 @@ func TestSpinnerStopsWhenLoaded(t *testing.T) {
 
 func TestAccessors(t *testing.T) {
 	m := load(t, repo())
-	k := DefaultKeyMap()
+	k := testKeyMap
 	k.Expand.SetKeys("o")
 	k.Expand.SetHelp("o", "expand")
 	m.SetKeyMap(k)
@@ -901,7 +901,7 @@ func TestRetry(t *testing.T) {
 }
 
 func TestAt(t *testing.T) {
-	m := New(repo().children, WithSize(40, 10))
+	m := newModel(repo().children, WithSize(40, 10))
 	m = run(t, m, m.Init())
 	for i, id := range roots {
 		if n, ok := m.At(i); !ok || n.ID != id {

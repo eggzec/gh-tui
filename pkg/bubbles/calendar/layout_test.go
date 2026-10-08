@@ -61,7 +61,7 @@ func TestMonthLabels(t *testing.T) {
 func TestMonthLabelsPartialFirstWeek(t *testing.T) {
 	// The partial first week starts on Wednesday Sep 24 2025, so it is
 	// September's, and October's label goes on the week of Sunday Oct 5.
-	m := New(WithWeeks(year(today)), WithSize(120, 10))
+	m := newModel(WithWeeks(year(today)), WithSize(120, 10))
 	labels := monthLabels(m.grid[m.start:m.start+m.cols], 120)
 	if labels[0] != (monthLabel{0, "Sep"}) || labels[1] != (monthLabel{2, "Oct"}) {
 		t.Fatalf("labels start %v, want Sep at 0 and Oct at 2", labels[:2])
@@ -91,7 +91,7 @@ func TestLayout(t *testing.T) {
 		{1, false, 1, false},
 	}
 	for _, tt := range tests {
-		m := New(WithWeeks(year(today)), WithSize(tt.width, 10))
+		m := newModel(WithWeeks(year(today)), WithSize(tt.width, 10))
 		if m.weekdays != tt.weekdays || m.cols != tt.cols {
 			t.Errorf("width %d: weekdays %v and %d weeks, want %v and %d", tt.width, m.weekdays, m.cols, tt.weekdays, tt.cols)
 		}
@@ -109,7 +109,7 @@ func TestLayout(t *testing.T) {
 }
 
 func TestFooter(t *testing.T) {
-	m := New(WithWeeks(year(today)), WithSize(80, 10), WithFocused(true))
+	m := newModel(WithWeeks(year(today)), WithSize(80, 10), WithFocused(true))
 	footer := ansi.Strip(m.lines[lineFooter])
 	if !strings.HasPrefix(footer, statusText(m.grid[52][4].day)) || !strings.HasSuffix(footer, "More") {
 		t.Fatalf("footer %q, want the status and the legend", footer)
@@ -127,7 +127,7 @@ func TestFooter(t *testing.T) {
 }
 
 func TestScrollFollowsCursor(t *testing.T) {
-	m := New(WithWeeks(year(today)), WithSize(40, 10), WithFocused(true))
+	m := newModel(WithWeeks(year(today)), WithSize(40, 10), WithFocused(true))
 	if m.start != 35 {
 		t.Fatalf("start %d, want the last 18 weeks", m.start)
 	}

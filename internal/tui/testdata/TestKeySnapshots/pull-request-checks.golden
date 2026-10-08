@@ -19,5 +19,5 @@ Checks
   page down | ctrl+f pgdown | ^f/pgdn | on
   ½ page up | ctrl+u | ^u | on
   ½ page down | ctrl+d | ^d | on
-  first | home g | g/home | on
-  last | end G | G/end | on
+  first | g home | g/home | on
+  last | G end | G/end | on

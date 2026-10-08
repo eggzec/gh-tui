@@ -21,7 +21,7 @@ func defaultSettings() settings {
 		total:     -1,
 		glyph:     DefaultGlyph,
 		emptyText: "No contributions to show.",
-		keyMap:    DefaultKeyMap(),
+		keyMap:    NewKeyMap(unbound),
 		styles:    DefaultStyles(true),
 	}
 }

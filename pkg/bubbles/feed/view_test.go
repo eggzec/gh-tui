@@ -24,7 +24,7 @@ func TestView(t *testing.T) {
 		model func(t *testing.T) Model[item]
 	}{
 		{"loading", func(*testing.T) Model[item] {
-			return New(newSource(10, 10).fetch, renderItem, WithSize(40, 5), WithFocused(true))
+			return newModel(newSource(10, 10).fetch, renderItem, WithSize(40, 5), WithFocused(true))
 		}},
 		{"loaded", func(t *testing.T) Model[item] {
 			t.Helper()
@@ -83,7 +83,7 @@ func TestView(t *testing.T) {
 				return "#" + it.id + " " + it.title + "\n  opened by octocat\nthird line is dropped"
 			}
 			src := newSource(30, 10)
-			m := New(src.fetch, tall, WithSize(40, 7), WithItemHeight(2), WithFocused(true))
+			m := newModel(src.fetch, tall, WithSize(40, 7), WithItemHeight(2), WithFocused(true))
 			return keys(t, run(t, m, m.Init()), "down")
 		}},
 	}
@@ -160,7 +160,7 @@ func TestViewGlyphs(t *testing.T) {
 			t.Errorf("view has glyphs beyond ASCII:\n%s", v)
 		}
 	}
-	loading := New(newSource(10, 10).fetch, renderItem, WithSize(40, 5), WithStyles(st))
+	loading := newModel(newSource(10, 10).fetch, renderItem, WithSize(40, 5), WithStyles(st))
 	if v := ansi.Strip(loading.View()); !strings.Contains(v, "Loading...") {
 		t.Errorf("view lacks %q:\n%s", "Loading...", v)
 	}
@@ -170,7 +170,7 @@ func TestViewGlyphs(t *testing.T) {
 func TestViewSpinnerFrames(t *testing.T) {
 	st := DefaultStyles(true)
 	st.SpinnerFrames = spinner.Line
-	m := New(newSource(10, 10).fetch, renderItem, WithSize(40, 5), WithStyles(st))
+	m := newModel(newSource(10, 10).fetch, renderItem, WithSize(40, 5), WithStyles(st))
 	if v := ansi.Strip(m.View()); !strings.Contains(v, spinner.Line.Frames[0]+"Loading") {
 		t.Errorf("view starts %q, want the line spinner", v)
 	}

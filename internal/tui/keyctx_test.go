@@ -627,14 +627,18 @@ func TestHelpRowsWork(t *testing.T) {
 	}
 }
 
+// motions are the actions that move the cursor or the view. Where the
+// app has little to show, such as a list of one row, they have nothing to
+// move over, so pressing one does nothing there.
+var motions = []string{"up", "down", "left", "right", "page_up", "page_down", "half_page_up", "half_page_down", "top", "bottom"}
+
 // isAction says whether b is the binding of an action of the config in
-// the context ctx, by its keys, rather than one of the keys the widgets
-// fix, whose motions have nothing to move over where the app has little to
-// show.
+// the context ctx, by its keys, other than a motion.
 func isAction(ctx string, b key.Binding) bool {
 	keys := config.Default().Keys
 	for _, action := range keys.Actions() {
-		if name, _, _ := strings.Cut(action, "."); name == ctx && slices.Equal(keys.Of(action), b.Keys()) {
+		name, act, _ := strings.Cut(action, ".")
+		if name == ctx && !slices.Contains(motions, act) && slices.Equal(keys.Of(action), b.Keys()) {
 			return true
 		}
 	}
@@ -772,10 +776,10 @@ func keyContexts() []keyContext {
 		{name: "files", repo: true, context: "files", want: "global, repo, files"},
 		{name: "files: zoomed", repo: true, steps: []string{"global.zoom"}, context: "files", want: "global, repo, files"},
 		{name: "files: error toast", repo: true, msg: ui.NotifyMsg{Level: toast.Error, Text: "Keys collide."}, context: "files", want: "global, repo, files"},
-		{name: "files: preview", repo: true, steps: []string{"down", "global.select"}, context: "preview", want: "global, preview"},
-		{name: "files: preview search", repo: true, steps: []string{"down", "global.select", "/"}, context: "search_prompt", want: "always, search_prompt (types)"},
-		{name: "files: preview option", repo: true, steps: []string{"down", "global.select", "-"}, context: "pager_option", want: "always, pager_option (types)"},
-		{name: "files: preview command line", repo: true, steps: []string{"down", "global.select", "global.command"}, context: "command_line", want: "command_line (types)"},
+		{name: "files: preview", repo: true, steps: []string{"files.down", "global.select"}, context: "preview", want: "global, preview"},
+		{name: "files: preview search", repo: true, steps: []string{"files.down", "global.select", "/"}, context: "search_prompt", want: "always, search_prompt (types)"},
+		{name: "files: preview option", repo: true, steps: []string{"files.down", "global.select", "-"}, context: "pager_option", want: "always, pager_option (types)"},
+		{name: "files: preview command line", repo: true, steps: []string{"files.down", "global.select", "global.command"}, context: "command_line", want: "command_line (types)"},
 		{name: "files: finder", repo: true, steps: []string{"global.find_file"}, context: "finder", want: "always, finder (types)"},
 		{name: "files: finder preview", repo: true, steps: []string{"global.find_file", typed("R"), "enter"}, context: "preview", want: "global, preview"},
 		{name: "pull requests", repo: true, steps: []string{"global.pane_2"}, context: "pulls", want: "global, repo, pulls"},
@@ -789,7 +793,7 @@ func keyContexts() []keyContext {
 		{name: "pull request: close", repo: true, steps: []string{"global.pane_2", "global.select", "pull_modal.close"}, context: "confirm", want: "always, confirm"},
 		{name: "pull request: checks", repo: true, steps: []string{"global.pane_2", "pulls.checks"}, context: "pull_check_list", want: "global, pull_checks, pull_check_list"},
 		{name: "pull request: job", repo: true, steps: []string{"global.pane_2", "pulls.checks", "global.select"}, context: "pull_check_log", want: "global, pull_checks, pull_check_log"},
-		{name: "pull request: check detail", repo: true, steps: []string{"global.pane_2", "pulls.checks", "down", "global.select"}, context: "pull_check_detail", want: "global, pull_checks, pull_check_detail"},
+		{name: "pull request: check detail", repo: true, steps: []string{"global.pane_2", "pulls.checks", "pull_check_list.down", "global.select"}, context: "pull_check_detail", want: "global, pull_checks, pull_check_detail"},
 		{name: "pull request: job search", repo: true, steps: []string{"global.pane_2", "pulls.checks", "global.select", "/"}, context: "search_prompt", want: "always, search_prompt (types)"},
 		{name: "issues", repo: true, steps: []string{"global.pane_3"}, context: "issues", want: "global, repo, issues"},
 		{name: "issues: filter", repo: true, steps: []string{"global.pane_3", "issues.filter"}, context: "filter", want: "global, filter"},

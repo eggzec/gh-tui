@@ -7,7 +7,7 @@ import (
 )
 
 func benchCalendar() Model {
-	return New(WithWeeks(year(today)), WithSize(120, 10), WithFocused(true))
+	return newModel(WithWeeks(year(today)), WithSize(120, 10), WithFocused(true))
 }
 
 func BenchmarkView(b *testing.B) {

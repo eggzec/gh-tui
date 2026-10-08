@@ -229,7 +229,10 @@ func (m *Modal) KeyLayers() []keyhelp.Layer {
 	}
 	// The pane moves with the list's keys, and the modal's own select and
 	// retry take the place of its choose and retry.
-	list := k.List
+	list := k.Branches
+	if m.focus == commitPane {
+		list = k.Files
+	}
 	list.Choose.SetEnabled(false)
 	list.Retry.SetEnabled(false)
 	return []keyhelp.Layer{screen, ui.MergeLayers(ctx, own, keyhelp.FromHelp("", list, false))}

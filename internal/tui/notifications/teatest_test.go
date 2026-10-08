@@ -83,7 +83,7 @@ func TestProgram(t *testing.T) {
 	svc := newFake(inbox()...)
 	s := New(t.Context(), svc, config.Keymap{
 		config.ContextGlobal: {"select": {"enter"}, "refresh": {"r"}},
-		"notifications":      {"filter": {"f"}, "done": {"d"}},
+		"notifications":      {"filter": {"f"}, "done": {"d"}, "bottom": {"end"}},
 	}, WithNow(func() time.Time { return now }))
 	s.Focus()
 	a := &app{s: s, done: make(chan struct{}, 2)}

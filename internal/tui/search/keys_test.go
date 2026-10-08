@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"slices"
 	"testing"
+	"time"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
@@ -53,7 +54,7 @@ func TestKeyLayersOrder(t *testing.T) {
 		{results, "enter", "Results: open", func(_, _ *Section, msgs []tea.Msg) bool { return len(msgs) > 0 }},
 		{results, "left", "Results: kinds", func(s, _ *Section, _ []tea.Msg) bool { return s.area == kindsArea }},
 		{results, "esc", "Search: back", back},
-		// The results ask the app to open the filter; its keys don't page.
+		// The results ask the app to open the filter.
 		{results, "f", "Results: filter", func(s, b *Section, msgs []tea.Msg) bool {
 			return selectedHit(s) == selectedHit(b) && len(msgs) == 1 && msgs[0] == ui.OpenFilterMsg{Tab: filterform.FiltersTab}
 		}},
@@ -120,5 +121,41 @@ func TestKindsKeysAreTheirOwn(t *testing.T) {
 		if got := tt.b.Keys(); !slices.Equal(got, tt.want) {
 			t.Errorf("%s keys = %q, want %q", tt.name, got, tt.want)
 		}
+	}
+}
+
+// Before a query, the results are the suggestions, which move with the
+// keys of the results' context, and the help lists those moves once.
+func TestSuggestionsMoveWithTheResultsKeys(t *testing.T) {
+	keys := config.Default().Keys
+	keys.Set("search_results.down", []string{"w"})
+	s := New(t.Context(), newFake(), keys, WithNow(func() time.Time { return now }), WithStart(startRepos), WithDebounce(0), withOthersWait(0))
+	s.SetSize(120, 30)
+	s.Focus()
+	run(t, s, s.Init())
+	press(t, s, "down")
+	if s.area != resultsArea || len(s.starts.rows) < 2 {
+		t.Fatalf("area %v with %d suggestions, want the results with several", s.area, len(s.starts.rows))
+	}
+
+	press(t, s, "j")
+	if s.starts.sel != 0 {
+		t.Error("j moved down, but down is bound to w in the results")
+	}
+	press(t, s, "w")
+	if s.starts.sel != 1 {
+		t.Errorf("w moved to suggestion %d, want 1", s.starts.sel)
+	}
+
+	downs := 0
+	for _, l := range s.KeyLayers() {
+		for _, b := range l.Bindings {
+			if b.Help().Desc == "down" {
+				downs++
+			}
+		}
+	}
+	if downs != 1 {
+		t.Errorf("help lists down %d times in the results, want once", downs)
 	}
 }

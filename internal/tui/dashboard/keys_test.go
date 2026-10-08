@@ -3,6 +3,7 @@ package dashboard
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -35,7 +36,7 @@ func TestKeyLayersOrder(t *testing.T) {
 		{nil, "left", "nothing", func(s, b *Section, _ []tea.Msg) bool { return s.repos.cur == b.repos.cur }},
 		{[]string{"tab"}, "right", "nothing", func(s, b *Section, _ []tea.Msg) bool { return s.tasks.cur == b.tasks.cur }},
 		{nil, "1", "Dashboard: focus pane", func(s, _ *Section, _ []tea.Msg) bool { return s.focus == pinnedPane }},
-		// The list asks the app to open the filter; its keys don't page.
+		// The list asks the app to open the filter.
 		{nil, "f", "Repositories: filter", func(s, b *Section, msgs []tea.Msg) bool {
 			return selectedRepo(s) == selectedRepo(b) && opensFilter(msgs, filterform.FiltersTab)
 		}},
@@ -92,4 +93,48 @@ func hasRepoMsg(msgs []tea.Msg) bool {
 		}
 	}
 	return false
+}
+
+// Each pane moves with the keys of its own context: a user's keys for the
+// work don't move the contributions, and the other way round.
+func TestPanesMoveWithTheirOwnKeys(t *testing.T) {
+	keys := config.Default().Keys
+	keys.Set("dashboard_work.down", []string{"w"})
+	keys.Set("dashboard_calendar.up", []string{"w"})
+	open := func() *Section {
+		s := New(t.Context(), newFake(), keys, WithNow(func() time.Time { return now }), WithHere(here, nil), WithInbox(nil))
+		p, err := config.Default().Palette(true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		s.SetTheme(ui.NewTheme(p, true))
+		s.SetSize(80, 22)
+		s.Focus()
+		run(t, s, s.Init())
+		return s
+	}
+
+	work, before := open(), open()
+	press(t, work, "tab")
+	press(t, before, "tab")
+	press(t, work, "j")
+	if work.tasks.tabs[work.tasks.cur].sel != before.tasks.tabs[before.tasks.cur].sel {
+		t.Error("j moved the work, but down is bound to w there")
+	}
+	press(t, work, "w")
+	if work.tasks.tabs[work.tasks.cur].sel == before.tasks.tabs[before.tasks.cur].sel {
+		t.Error("w didn't move the work")
+	}
+
+	cal, before := open(), open()
+	press(t, cal, "tab", "tab")
+	press(t, before, "tab", "tab")
+	press(t, cal, "k")
+	if selectedDay(cal) != selectedDay(before) {
+		t.Error("k moved the calendar, but up is bound to w there")
+	}
+	press(t, cal, "w")
+	if selectedDay(cal) == selectedDay(before) {
+		t.Error("w didn't move the calendar")
+	}
 }

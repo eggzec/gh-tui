@@ -59,7 +59,7 @@ func (a app) View() tea.View {
 }
 
 func TestProgram(t *testing.T) {
-	m := New(repo().children, WithFocused(true))
+	m := newModel(repo().children, WithFocused(true))
 	expanded := make(chan struct{})
 	a := app{tree: m, expanding: new(bool), expanded: sync.OnceFunc(func() { close(expanded) })}
 	tm := teatest.NewTestModel(t, a, teatest.WithInitialTermSize(80, 12))

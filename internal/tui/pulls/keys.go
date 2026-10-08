@@ -79,13 +79,8 @@ func newKeyMap(keys config.Keymap) keyMap {
 		owner:       list.Binding("global.owner", "owner page"),
 	}
 	// The section and the modal match their own keys first, so the feed
-	// and the thread get only the keys they leave them, such as f, which
-	// opens the filter here.
-	f := feed.DefaultKeyMap()
-	// Refresh fetches failed chunks again too, so the feed's error row names
-	// its keys.
-	f.Retry = retry(k.Refresh)
-	k.feed = f
+	// and the thread get only the keys they leave them.
+	k.feed = feed.NewKeyMap(list.Of)
 
 	t := thread.DefaultKeyMap()
 	t.Toggle = ui.Binding(keys, config.ActionSelect, t.Toggle.Help().Desc)

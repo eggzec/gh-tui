@@ -2,6 +2,7 @@ package pulls
 
 import (
 	"testing"
+	"time"
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
@@ -69,5 +70,28 @@ func TestKeyLayersOrder(t *testing.T) {
 	press(t, h, "esc")
 	if h.modal() != nil {
 		t.Error("esc didn't close the modal")
+	}
+}
+
+// The list moves with the keys of its context, so a user's keys for down
+// replace j.
+func TestListMovesWithConfiguredKeys(t *testing.T) {
+	keys := config.Default().Keys
+	keys.Set("pulls.down", []string{"w"})
+	s := New(t.Context(), newFakeService(), keys, WithClock(func() time.Time { return clock }))
+	s.SetSize(80, 20)
+	s.Focus()
+	h := &host{Section: s}
+	drain(t, h, h.Update(ui.RepoMsg{Repo: repo}))
+	drain(t, h, h.Init())
+
+	first, _ := h.target()
+	press(t, h, "j")
+	if now, _ := h.target(); now.Number != first.Number {
+		t.Error("j moved down, but down is bound to w")
+	}
+	press(t, h, "w")
+	if now, _ := h.target(); now.Number == first.Number {
+		t.Error("w didn't move down")
 	}
 }

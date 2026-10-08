@@ -77,7 +77,7 @@ func selected(tb testing.TB, m Model) time.Time {
 }
 
 func TestSetWeeks(t *testing.T) {
-	m := New(WithWeeks(year(today)), WithSize(120, 10))
+	m := newModel(WithWeeks(year(today)), WithSize(120, 10))
 	weeks := m.Weeks()
 	if len(weeks) != 53 {
 		t.Fatalf("%d weeks, want 53", len(weeks))
@@ -116,7 +116,7 @@ func TestSetWeeksNormalizes(t *testing.T) {
 		{},
 		{{Date: date(2026, 9, 20), Level: 9}, {Date: date(2026, 9, 21), Level: -1}},
 	}
-	m := New(WithWeeks(in))
+	m := newModel(WithWeeks(in))
 	weeks := m.Weeks()
 	if len(weeks) != 1 {
 		t.Fatalf("%d weeks, want the empty one skipped", len(weeks))
@@ -132,7 +132,7 @@ func TestSetWeeksNormalizes(t *testing.T) {
 }
 
 func TestSetWeeksKeepsCursor(t *testing.T) {
-	m := New(WithWeeks(year(today)), WithFocused(true))
+	m := newModel(WithWeeks(year(today)), WithFocused(true))
 	m = keys(t, m, "h", "h")
 	want := date(2026, 9, 10)
 	if got := selected(t, m); !got.Equal(want) {
@@ -174,7 +174,7 @@ func TestCursor(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := New(WithWeeks(year(today)), WithSize(80, 10), WithFocused(true))
+			m := newModel(WithWeeks(year(today)), WithSize(80, 10), WithFocused(true))
 			var cmd tea.Cmd
 			if n := len(tt.keys); n > 0 {
 				m = keys(t, m, tt.keys[:n-1]...)
@@ -198,7 +198,7 @@ func TestCursor(t *testing.T) {
 }
 
 func TestBlurredIgnoresKeys(t *testing.T) {
-	m := New(WithWeeks(year(today)), WithSize(80, 10))
+	m := newModel(WithWeeks(year(today)), WithSize(80, 10))
 	if m.Focused() {
 		t.Fatal("a new calendar should start blurred")
 	}
@@ -214,14 +214,14 @@ func TestBlurredIgnoresKeys(t *testing.T) {
 }
 
 func TestIDsDiffer(t *testing.T) {
-	a, b := New(), New()
+	a, b := newModel(), newModel()
 	if a.ID() == b.ID() {
 		t.Fatal("two calendars share an ID")
 	}
 }
 
 func TestSelect(t *testing.T) {
-	m := New(WithWeeks(year(today)), WithSize(40, 10))
+	m := newModel(WithWeeks(year(today)), WithSize(40, 10))
 	if !m.Select(date(2025, 10, 1)) {
 		t.Fatal("Select found no day")
 	}
@@ -234,7 +234,7 @@ func TestSelect(t *testing.T) {
 }
 
 func TestCopiesAreIndependent(t *testing.T) {
-	m := New(WithWeeks(year(today)), WithSize(80, 10), WithFocused(true))
+	m := newModel(WithWeeks(year(today)), WithSize(80, 10), WithFocused(true))
 	before := m.View()
 	moved, _ := m.Update(press("k"))
 	if m.View() != before {
@@ -275,7 +275,7 @@ func TestRange(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(strconv.Itoa(tt.days), func(t *testing.T) {
-			m := New(WithWeeks(year(today)), WithTotal(9999), WithSize(120, 10), WithRange(tt.days))
+			m := newModel(WithWeeks(year(today)), WithTotal(9999), WithSize(120, 10), WithRange(tt.days))
 			days := shown(m)
 			if len(m.grid) != tt.weeks || !days[0].Date.Equal(tt.first) || !days[len(days)-1].Date.Equal(today) {
 				t.Fatalf("%d weeks from %v to %v, want %d from %v to %v",
@@ -305,7 +305,7 @@ func TestRange(t *testing.T) {
 }
 
 func TestSetRangeKeepsCursor(t *testing.T) {
-	m := New(WithWeeks(year(today)), WithFocused(true), WithSize(120, 10))
+	m := newModel(WithWeeks(year(today)), WithFocused(true), WithSize(120, 10))
 	m = keys(t, m, "h", "h")
 	want := date(2026, 9, 10)
 	m.SetRange(30)
@@ -334,7 +334,7 @@ func TestFitWidth(t *testing.T) {
 		return m.cols == len(m.grid) && strings.Contains(total, "in the last")
 	}
 	for _, days := range []int{0, 90, 30, 7} {
-		m := New(WithWeeks(year(today)), WithRange(days))
+		m := newModel(WithWeeks(year(today)), WithRange(days))
 		w := m.FitWidth()
 		m.SetSize(w, 10)
 		if !fits(m) {
@@ -345,10 +345,10 @@ func TestFitWidth(t *testing.T) {
 			t.Errorf("range %d: everything shows in %d cells, less than FitWidth", days, w-1)
 		}
 	}
-	if w := New(WithWeeks(year(today))).FitWidth(); w != 4+53*2-1 {
+	if w := newModel(WithWeeks(year(today))).FitWidth(); w != 4+53*2-1 {
 		t.Errorf("a year fits in %d cells, want %d", w, 4+53*2-1)
 	}
-	if w := New(WithEmptyText("Nothing yet")).FitWidth(); w != len("Nothing yet") {
+	if w := newModel(WithEmptyText("Nothing yet")).FitWidth(); w != len("Nothing yet") {
 		t.Errorf("without days the calendar fits in %d cells, want the %d of its text", w, len("Nothing yet"))
 	}
 }

@@ -218,7 +218,6 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 		}
 		return nil
 	case key.Matches(msg, k.Filter):
-		// The list gets no f, which pages down there.
 		return ui.OpenFilter(filterform.FiltersTab)
 	case key.Matches(msg, k.Sort):
 		return ui.OpenFilter(filterform.SortTab)

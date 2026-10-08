@@ -74,13 +74,8 @@ func newKeyMap(keys config.Keymap) keyMap {
 	}
 
 	// The section and the modal match their own keys first, so the feed
-	// and the thread get only the keys they leave them, such as f, which
-	// opens the filter here.
-	fk := feed.DefaultKeyMap()
-	// Refresh reloads failed pages too, so it doubles as retry.
-	fk.Retry = retry(k.Refresh)
-	fk.Retry.SetEnabled(false)
-	k.feed = fk
+	// and the thread get only the keys they leave them.
+	k.feed = feed.NewKeyMap(list.Of)
 
 	tk := thread.DefaultKeyMap()
 	tk.Toggle = ui.Binding(keys, config.ActionSelect, tk.Toggle.Help().Desc)

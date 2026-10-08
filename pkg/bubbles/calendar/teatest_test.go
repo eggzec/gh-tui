@@ -39,7 +39,7 @@ func (a app) View() tea.View {
 }
 
 func TestProgram(t *testing.T) {
-	m := New(WithWeeks(year(today)), WithFocused(true))
+	m := newModel(WithWeeks(year(today)), WithFocused(true))
 	tm := teatest.NewTestModel(t, app{cal: m}, teatest.WithInitialTermSize(80, 10))
 	for _, k := range []string{"h", "h", "k", "q"} {
 		tm.Send(press(k))

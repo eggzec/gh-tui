@@ -54,9 +54,11 @@ type KeyMap struct {
 	// Jump holds the keys of Panes, which it stands for in help.
 	Jump key.Binding
 
-	// List moves through the runs and the jobs, and Log through the log.
-	List feed.KeyMap
-	Log  logview.KeyMap
+	// Runs and Jobs move through the runs and the jobs, and Log through the
+	// log. notesUp and notesDown move through the annotations.
+	Runs, Jobs         feed.KeyMap
+	Log                logview.KeyMap
+	notesUp, notesDown key.Binding
 }
 
 // The contexts of the keys of the modal: its own, and one for each pane.
@@ -70,7 +72,7 @@ const (
 )
 
 func newKeyMap(keys config.Keymap) KeyMap {
-	modal, jobs, log, notes := ui.In(keys, ctxModal), ui.In(keys, ctxJobs), ui.In(keys, ctxLog), ui.In(keys, ctxAnnotations)
+	modal, runs, jobs, log, notes := ui.In(keys, ctxModal), ui.In(keys, ctxRuns), ui.In(keys, ctxJobs), ui.In(keys, ctxLog), ui.In(keys, ctxAnnotations)
 	k := KeyMap{
 		NextTab:     modal.Binding("global.next_tab", "tab"),
 		PrevTab:     modal.Binding("global.prev_tab", "previous tab"),
@@ -91,18 +93,15 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		Confirm:     ui.DefaultConfirmKeys(),
 		form:        ui.FilterFormKeys(keys),
 	}
-	// The modal's own keys come before those of the lists and the log,
-	// such as f, which pages down there and filters here.
+	// The modal's own keys come before those of the lists and the log.
 	k.Next = modal.Binding("global.next_pane", "pane")
 	k.Prev = modal.Binding("global.prev_pane", "previous pane")
 	for i, a := range [numPanes]string{"global.pane_1", "global.pane_2", "global.pane_3"} {
 		k.Panes[i] = modal.Binding(a, paneTitles[i])
 	}
 	k.Jump = ui.Jump(k.Panes[:]...)
-	fk := feed.DefaultKeyMap()
-	fk.Retry = relabel(k.Refresh, "retry")
-	fk.Retry.SetEnabled(false)
-	k.List = fk
+	k.notesUp, k.notesDown = notes.Binding("up", "up"), notes.Binding("down", "down")
+	k.Runs, k.Jobs = feed.NewKeyMap(runs.Of), feed.NewKeyMap(jobs.Of)
 
 	// The log folds with enter, and closes with the back key, which
 	// clears a search first.
@@ -151,7 +150,7 @@ func (k KeyMap) ShortHelp() []key.Binding {
 
 // FullHelp implements help.KeyMap.
 func (k KeyMap) FullHelp() [][]key.Binding {
-	return slices.Concat([][]key.Binding{k.own(), {k.Annotations, k.Confirm.Yes, k.Confirm.No}}, k.List.FullHelp(), k.Log.FullHelp())
+	return slices.Concat([][]key.Binding{k.own(), {k.Annotations, k.Confirm.Yes, k.Confirm.No}}, k.Runs.FullHelp(), k.Jobs.FullHelp(), k.Log.FullHelp())
 }
 
 // job returns the keys of the log pane's job view: the moves of the
@@ -160,7 +159,7 @@ func (k KeyMap) job() jobview.KeyMap {
 	return jobview.KeyMap{
 		Log: k.Log, Annotations: k.Annotations, NotesAnnotations: k.notes,
 		LogContext: ctxLog, NotesContext: ctxAnnotations,
-		Up: k.List.Up, Down: k.List.Down, Select: relabel(k.Select, "open file"), Open: k.Open,
+		Up: k.notesUp, Down: k.notesDown, Select: relabel(k.Select, "open file"), Open: k.Open,
 	}
 }
 

@@ -6,8 +6,10 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/calendar"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
 
 // KeyMap holds the keys of the dashboard.
@@ -45,12 +47,17 @@ type KeyMap struct {
 	// Notifications names the key that shows every notification, which
 	// the app handles.
 	Notifications key.Binding
-	// Up, Down, Left and Right move through the cards, the work and the
-	// notifications.
-	Up    key.Binding
-	Down  key.Binding
-	Left  key.Binding
-	Right key.Binding
+	// Up, Down, Left and Right move through the cards, WorkUp and WorkDown
+	// through the work, and InboxUp and InboxDown through the
+	// notifications, each with the keys of its pane.
+	Up        key.Binding `keymap:"dashboard_pinned.up" help:"up"`
+	Down      key.Binding `keymap:"dashboard_pinned.down" help:"down"`
+	Left      key.Binding `keymap:"dashboard_pinned.left" help:"left"`
+	Right     key.Binding `keymap:"dashboard_pinned.right" help:"right"`
+	WorkUp    key.Binding `keymap:"dashboard_work.up" help:"up"`
+	WorkDown  key.Binding `keymap:"dashboard_work.down" help:"down"`
+	InboxUp   key.Binding `keymap:"dashboard_inbox.up" help:"up"`
+	InboxDown key.Binding `keymap:"dashboard_inbox.down" help:"down"`
 
 	// Jump holds the keys of Panes, which it stands for in help.
 	Jump key.Binding
@@ -58,6 +65,8 @@ type KeyMap struct {
 	// feed is the navigation of the repositories, which gets the keys
 	// above only if the dashboard leaves them.
 	feed feed.KeyMap
+	// cal moves through the days of the contributions.
+	cal calendar.KeyMap
 }
 
 // The contexts of the keys of the dashboard: the screen, and a pane each.
@@ -85,11 +94,8 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		PrevList:      work.Binding("global.prev_tab", "previous list"),
 		Checks:        work.Binding("checks", "checks"),
 		Notifications: screen.Binding("global.notifications", "all notifications"),
-		Up:            key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("↑/k", "up")),
-		Down:          key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓/j", "down")),
-		Left:          key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←/h", "left")),
-		Right:         key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "right")),
 	}
+	keymap.Fill(&k, screen.Of)
 	actions := [numPanes]string{"global.pane_1", "global.pane_2", "global.pane_3", "global.pane_4", "global.pane_5"}
 	for i, a := range actions {
 		k.Panes[i] = screen.Binding(a, paneTitles[i])
@@ -97,10 +103,9 @@ func newKeyMap(keys config.Keymap) KeyMap {
 	k.Jump = ui.Jump(k.Panes[:]...)
 
 	// The dashboard matches these keys first, so the list gets only the
-	// keys it leaves it, such as f, which pages down there.
-	f := feed.DefaultKeyMap()
-	f.Retry = key.NewBinding(key.WithKeys(k.Refresh.Keys()...), key.WithHelp(k.Refresh.Help().Key, "retry"), key.WithDisabled())
-	k.feed = f
+	// keys it leaves it.
+	k.feed = feed.NewKeyMap(repos.Of)
+	k.cal = calendar.NewKeyMap(ui.In(keys, paneContext[calendarPane]).Of)
 	return k
 }
 
@@ -127,6 +132,7 @@ func (k KeyMap) ShortHelp() []key.Binding {
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Left, k.Right, k.Up, k.Down, k.Select, k.Open, k.Checks, k.NextOwner, k.PrevOwner, k.NextList, k.PrevList, k.ClearFilter, k.Filter, k.Sort, k.Notifications},
+		{k.WorkUp, k.WorkDown, k.InboxUp, k.InboxDown},
 		{k.Next, k.Prev, k.Zoom, k.Back, k.Refresh, k.Jump},
 	}
 }
@@ -161,9 +167,9 @@ func (k KeyMap) paneKeys(p paneID) []key.Binding {
 	case reposPane:
 		return []key.Binding{k.Select, k.Open, k.NextOwner, k.PrevOwner, k.ClearFilter, k.Filter, k.Sort}
 	case workPane:
-		return []key.Binding{k.Up, k.Down, k.Select, k.Open, k.Checks, k.NextList, k.PrevList}
+		return []key.Binding{k.WorkUp, k.WorkDown, k.Select, k.Open, k.Checks, k.NextList, k.PrevList}
 	case inboxPane:
-		return []key.Binding{k.Up, k.Down, k.Select, k.Open}
+		return []key.Binding{k.InboxUp, k.InboxDown, k.Select, k.Open}
 	case calendarPane, numPanes:
 	}
 	return nil
@@ -177,9 +183,9 @@ func (k KeyMap) paneShort(p paneID) []key.Binding {
 	case reposPane:
 		return []key.Binding{k.Select, k.Filter, k.Sort, k.ClearFilter, k.NextOwner, k.Open}
 	case workPane:
-		return []key.Binding{k.Up, k.Down, k.Select, k.Checks, k.NextList, k.Open}
+		return []key.Binding{k.WorkUp, k.WorkDown, k.Select, k.Checks, k.NextList, k.Open}
 	case inboxPane:
-		return []key.Binding{k.Up, k.Down, k.Select, k.Open}
+		return []key.Binding{k.InboxUp, k.InboxDown, k.Select, k.Open}
 	case calendarPane, numPanes:
 	}
 	return nil

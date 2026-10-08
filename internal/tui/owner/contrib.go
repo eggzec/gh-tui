@@ -66,6 +66,7 @@ func (s *Section) calendar(p *page) *calendar.Model {
 		c := calendar.New(
 			calendar.WithGlyph(ownerui.CalendarGlyph(s.sc.glyph, s.icons)),
 			calendar.WithRange(s.sc.days),
+			calendar.WithKeyMap(s.keys.cal),
 			calendar.WithStyles(s.theme.Calendar(s.icons)),
 			calendar.WithEmptyText("Loading contributions"+s.icons.Ellipsis),
 		)

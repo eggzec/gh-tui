@@ -39,7 +39,7 @@ func (a app) View() tea.View {
 
 func TestProgram(t *testing.T) {
 	src := newSource(100, 20)
-	m := New(src.fetch, renderItem, WithFocused(true))
+	m := newModel(src.fetch, renderItem, WithFocused(true))
 	tm := teatest.NewTestModel(t, app{feed: m}, teatest.WithInitialTermSize(80, 10))
 
 	waitFor := func(s string) {

@@ -185,7 +185,6 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		case repos && key.Matches(msg, k.ClearFilter):
 			return s.setFilter(""), true
 		case repos && key.Matches(msg, k.Filter):
-			// The list gets no f, which pages down there.
 			return ui.OpenFilter(filterform.FiltersTab), true
 		case repos && key.Matches(msg, k.Sort):
 			return ui.OpenFilter(filterform.SortTab), true

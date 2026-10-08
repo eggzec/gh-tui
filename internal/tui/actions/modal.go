@@ -266,7 +266,7 @@ func (m *Modal) KeyLayers() []keyhelp.Layer {
 		runs := keyhelp.Layer{Bindings: []key.Binding{k.Select}, Short: []key.Binding{k.Select}}
 		return []keyhelp.Layer{screen, ui.MergeLayers(ctxRuns, runs, keyhelp.FromHelp("", m.runs.KeyMap(), false))}
 	case jobsPane:
-		return []keyhelp.Layer{screen, ui.MergeLayers(ctxJobs, own, keyhelp.FromHelp("", k.List, false))}
+		return []keyhelp.Layer{screen, ui.MergeLayers(ctxJobs, own, keyhelp.FromHelp("", k.Jobs, false))}
 	case logPane:
 	}
 	l := m.log.Layer()

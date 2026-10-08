@@ -13,7 +13,7 @@ func TestViewCleansHostileCommits(t *testing.T) {
 		return []Commit{{ID: "1", Short: h, Title: h, Detail: h, Right: h}}, "", nil
 	}
 	for _, w := range []int{30, 200} {
-		m := New(fetch, WithSize(w, 3))
+		m := newModel(fetch, WithSize(w, 3))
 		m, _ = run(t, m, m.Init())
 		termtexttest.AssertClean(t, m.View(), w)
 	}

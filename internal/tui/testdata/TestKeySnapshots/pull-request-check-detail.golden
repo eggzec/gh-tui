@@ -18,7 +18,7 @@ Detail
   page down | space ctrl+f pgdown | space/^f | on
   ½ page up | ctrl+u | ^u | on
   ½ page down | ctrl+d | ^d | on
-  top | home g | g/home | on
-  bottom | end G | G/end | on
+  top | g home | g/home | on
+  bottom | G end | G/end | on
   move left | left h | ←/h | on
   move right | right l | →/l | on

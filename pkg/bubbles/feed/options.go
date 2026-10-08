@@ -30,7 +30,7 @@ func defaultSettings() settings {
 		parent:     context.Background(),
 		itemHeight: 1,
 		emptyText:  "Nothing to show.",
-		keyMap:     DefaultKeyMap(),
+		keyMap:     NewKeyMap(unbound),
 		styles:     DefaultStyles(true),
 		maxChunks:  DefaultMaxChunks,
 	}

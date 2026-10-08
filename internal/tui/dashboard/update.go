@@ -174,7 +174,6 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 			}
 			return t.setFilter(""), true
 		case key.Matches(msg, k.Filter):
-			// The list gets no f, which pages down there.
 			return ui.OpenFilter(filterform.FiltersTab), true
 		case key.Matches(msg, k.Sort):
 			return ui.OpenFilter(filterform.SortTab), true
@@ -199,9 +198,9 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		case key.Matches(msg, k.PrevList):
 			w.switchTab(-1)
 			s.readTabNow()
-		case key.Matches(msg, k.Up):
+		case key.Matches(msg, k.WorkUp):
 			w.move(-1)
-		case key.Matches(msg, k.Down):
+		case key.Matches(msg, k.WorkDown):
 			w.move(1)
 		case key.Matches(msg, k.Select):
 			if hit, ok := w.selected(); ok {
@@ -222,9 +221,9 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	case inboxPane:
 		l := &s.threads
 		switch {
-		case key.Matches(msg, k.Up):
+		case key.Matches(msg, k.InboxUp):
 			l.move(-1)
-		case key.Matches(msg, k.Down):
+		case key.Matches(msg, k.InboxDown):
 			l.move(1)
 		case key.Matches(msg, k.Select):
 			return s.openThread(), true
