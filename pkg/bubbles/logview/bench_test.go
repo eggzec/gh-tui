@@ -126,7 +126,7 @@ func BenchmarkUpdate(b *testing.B) {
 		{name: "end", fwd: press("G"), bwd: press("g")},
 		// Folding the section under the cursor and back lists the rows
 		// shown again.
-		{name: "fold", fwd: press("-"), bwd: press("+")},
+		{name: "fold", fwd: press("enter"), bwd: press("enter")},
 		{name: "all", fwd: press("*"), bwd: press("*")},
 	} {
 		b.Run(tt.name, func(b *testing.B) {

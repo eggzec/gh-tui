@@ -113,7 +113,7 @@ func TestProgram(t *testing.T) {
 
 	// Expand cmd and cmd/gh-tui, preview main.go, then open it in the
 	// browser.
-	tm.Send(press("+"))
+	tm.Send(press("l"))
 	waitFor("gh-tui")
 	tm.Send(press("down"))
 	tm.Send(press("l"))

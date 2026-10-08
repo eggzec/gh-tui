@@ -261,6 +261,40 @@ func TestAnnotations(t *testing.T) {
 	}
 }
 
+// An option of the log is chosen from the annotations: the option key leaves
+// the log waiting for the name, which it takes, and then the annotations
+// have the keys again.
+func TestLogOptionFromAnnotations(t *testing.T) {
+	f := newFake()
+	m := newView(t, f, 80, 20)
+	run(m, m.Show(failed(), false, Hints{SHA: "f00d"}))
+	m.Focus()
+	keys(m, "A")
+	if m.view.Wrap() {
+		t.Fatal("the log wraps at first")
+	}
+	keys(m, "-")
+	if !m.Capturing() || !m.view.Focused() || !m.view.ChoosingOption() {
+		t.Fatalf("- left capturing %v, log focused %v; want the log waiting for an option", m.Capturing(), m.view.Focused())
+	}
+	if l := m.Layer(); l.Context != "log_option" || l.Typing {
+		t.Errorf("layer of context %q, typing %v; want log_option that types nothing", l.Context, l.Typing)
+	}
+	keys(m, "S")
+	if !m.view.Wrap() {
+		t.Error("-S from the annotations didn't wrap the log")
+	}
+	if m.view.Focused() || m.Capturing() || !m.OnAnnotations() {
+		t.Errorf("after the option: log focused %v, capturing %v, on annotations %v; want the annotations to keep the keys",
+			m.view.Focused(), m.Capturing(), m.OnAnnotations())
+	}
+	// The annotations take their own keys again.
+	keys(m, "j")
+	if m.notes.cursor != 1 {
+		t.Errorf("j left the annotation cursor on %d, want 1", m.notes.cursor)
+	}
+}
+
 func TestAnnotationsAreReadOnlyForFailedJobs(t *testing.T) {
 	f := newFake()
 	f.logs[runningJob] = testLog()
@@ -378,11 +412,11 @@ func TestKeyLayers(t *testing.T) {
 		}
 		return strings.Join(out, ", ")
 	}
-	if got, want := names(), "↵ fold, * fold all, e next error, / search, q/esc close, A annotations"; got != want {
+	if got, want := names(), "↵ fold, * all, - option: S N T, e next error, / search, q/esc close, A annotations"; got != want {
 		t.Errorf("keys of the log %q, want %q", got, want)
 	}
 	keys(m, "A")
-	if got, want := names(), "* fold all, ↑/k up, ↓/j down, ↵ open file, A log"; got != want {
+	if got, want := names(), "* all, - option: S N T, ↑/k up, ↓/j down, ↵ open file, A log"; got != want {
 		t.Errorf("keys of the annotations %q, want %q", got, want)
 	}
 }

@@ -81,7 +81,7 @@ func TestPartialLogAppends(t *testing.T) {
 	if s := text(m); !strings.Contains(s, "match 2/6") {
 		t.Errorf("the search didn't take the appended line:\n%s", s)
 	}
-	keys(m, "esc", "*")
+	keys(m, "esc", "*", "*")
 	if s := text(m); strings.Contains(s, "lint 2") {
 		t.Errorf("* didn't fold the steps of the partial log:\n%s", s)
 	}

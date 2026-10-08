@@ -201,7 +201,7 @@ type esc struct {
 	kinds                        [Debug + 1]pair
 	section, failed, duration    pair
 	number, time, match, current pair
-	status, noMatches            pair
+	status, noMatches, prompt    pair
 	// Glyphs rendered in their styles.
 	open, closed, cursor, blurred      string
 	errorMark, warningMark, noticeMark string
@@ -221,6 +221,7 @@ func newEsc(s Styles) esc {
 		current:       newPair(s.CurrentMatch),
 		status:        newPair(s.Status),
 		noMatches:     newPair(s.NoMatches),
+		prompt:        newPair(s.Prompt),
 		open:          s.Marker.Render(oneCell(cmp.Or(s.OpenGlyph, "▾")) + " "),
 		closed:        s.Marker.Render(oneCell(cmp.Or(s.ClosedGlyph, "▸")) + " "),
 		cursor:        s.Cursor.Render(oneCell(cmp.Or(s.CursorGlyph, "▌"))),

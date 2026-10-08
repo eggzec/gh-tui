@@ -55,7 +55,7 @@ func TestQuitAndDismiss(t *testing.T) {
 	if _, msg := keys(t, m, "esc"); msg == nil {
 		t.Error("esc didn't close")
 	}
-	last := m.FullHelp()[3]
+	last := m.FullHelp()[4]
 	if b := last[len(last)-1]; b.Help().Key != "esc" || b.Help().Desc != "close" {
 		t.Errorf("help lists %q %q last, want one row esc close", b.Help().Key, b.Help().Desc)
 	}

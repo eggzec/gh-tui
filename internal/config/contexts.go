@@ -126,6 +126,9 @@ var contexts = []Context{
 	{Name: "picker_normal", Title: "Picker (normal mode)", Reach: ReachCapture},
 	{Name: "search_prompt", Title: "Search", Reach: ReachCapture, Typing: true},
 	{Name: "pager_option", Title: "Option", Reach: ReachCapture},
+	// What names an option after a log's option key: it takes one key and
+	// types nothing.
+	{Name: "log_option", Title: "Option", Reach: ReachCapture},
 	// The query line of the filter form, and the editor of a text field.
 	{Name: "filter_query", Title: "Filter query", Reach: ReachCapture, Typing: true},
 }

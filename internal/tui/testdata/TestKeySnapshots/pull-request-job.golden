@@ -26,9 +26,7 @@ Log
   top | g home | g/home | on
   bottom | G end | G/end | on
   fold | enter | ↵ | on
-  expand | + | + | on
-  collapse | - | - | on
-  fold all | * | * | on
+  all | * | * | on
   next error | e | e | off
   prev error | E | E | off
   next warning | w | w | off
@@ -38,10 +36,12 @@ Log
   cancel | esc | esc | off
   next match | n | n | off
   prev match | N | N | off
+  option: S N T | - | - | on
+  chop or wrap long lines | S | S | off
+  line numbers | N | N | off
+  timestamps | T | T | off
+  cancel | esc | esc | off
   left | left h | ←/h | on
   right | right l | →/l | on
-  wrap | s | s | on
-  times | t | t | on
-  line numbers | # | # | on
   follow | F | F | on
   back | esc | esc | on

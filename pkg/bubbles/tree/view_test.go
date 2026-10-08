@@ -3,12 +3,15 @@ package tree
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"strings"
 	"testing"
 	"unicode"
 
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/keytest"
 )
 
 func TestView(t *testing.T) {
@@ -26,7 +29,7 @@ func TestView(t *testing.T) {
 		}},
 		{"nested", func(t *testing.T) Model {
 			t.Helper()
-			return keys(t, load(t, repo(), WithSize(40, 12)), "*", "j", "j", "j", "j", "*", "j", "l")
+			return keys(t, load(t, repo(), WithSize(40, 12)), "l", "l", "l", "j", "j", "j", "l", "l", "l", "j", "j", "j", "l", "k", "k")
 		}},
 		{"blurred", func(t *testing.T) Model {
 			t.Helper()
@@ -37,14 +40,14 @@ func TestView(t *testing.T) {
 		{"branch loading", func(t *testing.T) Model {
 			t.Helper()
 			m := keys(t, load(t, repo()), "j", "j")
-			m, _ = m.Update(press("+"))
+			m, _ = m.Update(press("l"))
 			return m
 		}},
 		{"branch error", func(t *testing.T) Model {
 			t.Helper()
 			f := repo()
 			f.setFail("internal", errors.New("GET /repos/o/r/contents/internal: 502 Bad Gateway"))
-			return keys(t, load(t, f, WithSize(60, 6)), "j", "j", "+")
+			return keys(t, load(t, f, WithSize(60, 6)), "j", "j", "l")
 		}},
 		{"root error", func(t *testing.T) Model {
 			t.Helper()
@@ -60,7 +63,7 @@ func TestView(t *testing.T) {
 			t.Helper()
 			f := newFiles(long+"/"+long+"/"+long+".go", "short.go")
 			f.setFail(long+"/"+long, errors.New("dial tcp: i/o timeout"))
-			return keys(t, load(t, f, WithSize(80, 4)), "l", "l", "+")
+			return keys(t, load(t, f, WithSize(80, 4)), "l", "l", "l")
 		}},
 		{"icons", func(t *testing.T) Model {
 			t.Helper()
@@ -78,7 +81,7 @@ func TestView(t *testing.T) {
 			t.Helper()
 			f := repo()
 			f.setFail("internal", errors.New("GET /repos/o/r/contents/internal: 502 Bad Gateway"))
-			return keys(t, load(t, f, WithSize(40, 6), WithIcons(boxIcons)), "j", "j", "+")
+			return keys(t, load(t, f, WithSize(40, 6), WithIcons(boxIcons)), "j", "j", "l")
 		}},
 		{"details", func(t *testing.T) Model {
 			t.Helper()
@@ -148,7 +151,7 @@ func assertFits(tb testing.TB, v string, width, height int) {
 func TestViewFitsAnySize(t *testing.T) {
 	f := repo()
 	f.setFail("internal", errors.New("boom"))
-	m := keys(t, load(t, f, WithIcons(boxIcons)), "*", "j", "j", "+")
+	m := keys(t, load(t, f, WithIcons(boxIcons)), "*", "j", "j", "l")
 	for _, size := range [][2]int{{1, 1}, {2, 3}, {3, 1}, {7, 4}, {80, 40}, {200, 2}} {
 		t.Run(fmt.Sprintf("%dx%d", size[0], size[1]), func(t *testing.T) {
 			m.SetSize(size[0], size[1])
@@ -261,9 +264,13 @@ func asciiStyles() Styles {
 func TestViewGlyphs(t *testing.T) {
 	f := repo()
 	f.setFail("docs", errors.New("GET /repos/o/r/contents/docs: 502 Bad Gateway"))
-	m := keys(t, load(t, f, WithSize(40, 12), WithStyles(asciiStyles())), "*", "j", "j", "j", "+", "j", "l")
+	// The keys are named in ASCII, as the retry hint says the first.
+	ascii := maps.Clone(testKeys)
+	ascii["expand"] = []string{"l"}
+	m := keys(t, load(t, f, WithSize(40, 12), WithStyles(asciiStyles()), WithKeyMap(NewKeyMap(keytest.Table(ascii)))),
+		"l", "l", "l", "j", "j", "l", "j", "l")
 	v := ansi.Strip(m.View())
-	for _, want := range []string{"  - cmd", "  | - gh-tui", "  | |   main.go", "> - internal", "  | + core", "  - docs x GET /repos/o/... - + to retry"} {
+	for _, want := range []string{"  - cmd", "  | - gh-tui", "  | |   main.go", "> - internal", "  | + core", "  - docs x GET /repos/o/... - l to retry"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("view lacks %q:\n%s", want, v)
 		}

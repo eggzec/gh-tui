@@ -17,19 +17,17 @@ type KeyMap struct {
 	Home         key.Binding `keymap:"top" help:"first"`
 	End          key.Binding `keymap:"bottom" help:"last"`
 	// Expand expands the branch under the cursor, loading its children if
-	// needed. It also retries a failed load.
+	// needed, or moves to its first child when it is expanded already. On
+	// a leaf it sends an [OpenMsg], as Open does. It also retries a failed
+	// load.
 	Expand key.Binding `keymap:"expand" help:"expand"`
-	// Right expands the branch under the cursor, or moves to its first child
-	// when it is expanded already.
-	Right key.Binding `keymap:"step_in" help:"expand/enter"`
 	// Collapse collapses the branch under the cursor, or moves to the parent
 	// on a leaf or a collapsed branch.
 	Collapse key.Binding `keymap:"collapse" help:"collapse"`
-	// ExpandAll expands the branch under the cursor and every branch below
-	// it, within the limits of [WithExpandAllLimits].
-	ExpandAll key.Binding `keymap:"expand_all" help:"expand all"`
-	// CollapseAll collapses every branch.
-	CollapseAll key.Binding `keymap:"collapse_all" help:"collapse all"`
+	// ToggleAll expands every branch, within the limits of
+	// [WithExpandAllLimits], or collapses every branch when all are
+	// expanded.
+	ToggleAll key.Binding `keymap:"toggle_all" help:"all"`
 	// Open sends an [OpenMsg] for the leaf under the cursor, or toggles the
 	// branch.
 	Open key.Binding `keymap:"global.select" help:"open"`
@@ -49,13 +47,13 @@ func unbound(string) []string { return nil }
 
 // ShortHelp returns the bindings for the short help view.
 func (k KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Up, k.Down, k.Right, k.Collapse, k.Open}
+	return []key.Binding{k.Up, k.Down, k.Expand, k.Collapse, k.Open}
 }
 
 // FullHelp returns the bindings for the full help view.
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.PageUp, k.PageDown, k.HalfPageUp, k.HalfPageDown, k.Home, k.End},
-		{k.Expand, k.Right, k.Collapse, k.ExpandAll, k.CollapseAll, k.Open},
+		{k.Expand, k.Collapse, k.ToggleAll, k.Open},
 	}
 }

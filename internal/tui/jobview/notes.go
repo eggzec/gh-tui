@@ -160,7 +160,11 @@ func (m *Model) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		m.view.Focus()
 		var cmd tea.Cmd
 		m.view, cmd = m.view.Update(msg)
-		m.view.Blur()
+		if !m.view.Capturing() {
+			// An option key leaves the log waiting for the name of one,
+			// with the keys, until it has it.
+			m.view.Blur()
+		}
 		return cmd, true
 	}
 	switch {
@@ -179,7 +183,7 @@ func (m *Model) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 // wholeLog returns the keys that change how the whole log shows.
 func (m *Model) wholeLog() []key.Binding {
 	lk := m.view.KeyMap()
-	return []key.Binding{lk.FoldAll, lk.Wrap, lk.Times, lk.LineNumbers, lk.Follow}
+	return []key.Binding{lk.ToggleAll, lk.Option, lk.Follow}
 }
 
 // openNote previews the file of the annotation under the cursor on its

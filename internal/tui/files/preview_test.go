@@ -74,10 +74,25 @@ func sampleSize(i int) int64 {
 	return sampleFake().trees[treeKey(ghTUI, "")].Entries[i].Size
 }
 
+// Right and l preview a file, as enter does, where on a folder they expand.
+func TestPreviewByExpandKey(t *testing.T) {
+	for _, k := range []string{"l", "right"} {
+		t.Run(k, func(t *testing.T) {
+			h := newHost(loaded(t, sampleFake(), 40, 12))
+			h.keys(slices.Repeat([]string{"down"}, rowAgents)...)
+			h.keys(k)
+			m := h.top()
+			if m == nil || m.Title() != "AGENTS.md" {
+				t.Fatalf("%s on a file opened %v, want the preview of AGENTS.md", k, m)
+			}
+		})
+	}
+}
+
 func TestPreviewNested(t *testing.T) {
 	f := sampleFake()
 	h := newHost(loaded(t, f, 40, 12))
-	h.keys("+", "down", "+", "down", "enter")
+	h.keys("l", "down", "l", "down", "enter")
 	if got := h.top().Title(); got != "cmd/gh-tui/main.go" {
 		t.Errorf("title = %q, want the path from the root", got)
 	}

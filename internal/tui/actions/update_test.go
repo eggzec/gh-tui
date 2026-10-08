@@ -798,9 +798,9 @@ func TestHelpNamesWhatTheKeysDo(t *testing.T) {
 	}{
 		{nil, "↑/k up, ↓/j down, ↵ jobs, tab pane, z zoom, R rerun failed, E rerun all, f filter, o browser"},
 		{[]string{"tab"}, "↑/k up, ↓/j down, ↵ open, J rerun job, tab pane, z zoom, R rerun failed, E rerun all, f filter, o browser"},
-		{[]string{"tab"}, "↵ fold, * fold all, e next error, / search, esc back, A annotations, J rerun job, tab pane, z zoom, R rerun failed, E rerun all, f filter, o browser"},
-		{[]string{"A"}, "* fold all, ↑/k up, ↓/j down, ↵ open file, A log, J rerun job, tab pane, z zoom, R rerun failed, E rerun all, f filter, o browser"},
-		{[]string{"A"}, "↵ fold, * fold all, e next error, / search, esc back, A annotations, J rerun job, tab pane, z zoom, R rerun failed, E rerun all, f filter, o browser"},
+		{[]string{"tab"}, "↵ fold, * all, - option: S N T, e next error, / search, esc back, A annotations, J rerun job, tab pane, z zoom, R rerun failed, E rerun all, f filter, o browser"},
+		{[]string{"A"}, "* all, - option: S N T, ↑/k up, ↓/j down, ↵ open file, A log, J rerun job, tab pane, z zoom, R rerun failed, E rerun all, f filter, o browser"},
+		{[]string{"A"}, "↵ fold, * all, - option: S N T, e next error, / search, esc back, A annotations, J rerun job, tab pane, z zoom, R rerun failed, E rerun all, f filter, o browser"},
 		// The steps of a job in progress don't fold.
 		{[]string{"tab", "j", "tab", "tab"}, "tab pane, z zoom, x cancel run, f filter, o browser"},
 		{[]string{"x"}, "y yes, n no"},

@@ -31,7 +31,7 @@ func benchSection(b *testing.B) *Section {
 	f.addTree(ghTUI, "", root...)
 	s := loaded(b, f, 40, 40)
 	for range root {
-		keys(s, "+", "down")
+		keys(s, "l", "down")
 	}
 	keys(s, "g")
 	for range 500 {
@@ -72,7 +72,7 @@ func benchPreview(b *testing.B) *host {
 	f.addBlob(file("main.go", 0), strings.Repeat(mainGo, 250))
 	h := newHost(loaded(b, f, 40, 40))
 	h.width, h.height = 100, 40
-	h.keys("+", "down", "+", "down", "enter")
+	h.keys("l", "down", "l", "down", "enter")
 	h.keys(slices.Repeat([]string{"f"}, 20)...)
 	return h
 }

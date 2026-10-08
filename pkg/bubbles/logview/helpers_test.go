@@ -252,12 +252,14 @@ var actionsLogKeys = map[string][]string{
 	"page_up": {"b", "ctrl+b", "pgup"}, "page_down": {"space", "ctrl+f", "pgdown"},
 	"half_page_up": {"ctrl+u"}, "half_page_down": {"ctrl+d"},
 	"top": {"home", "g"}, "bottom": {"end", "G"},
-	"expand": {"+"}, "collapse": {"-"}, "expand_all": {"*"},
+	"toggle_all": {"*"}, "option": {"-"},
 	"next_error": {"e"}, "prev_error": {"E"}, "next_warning": {"w"}, "prev_warning": {"W"},
-	"wrap": {"s"}, "times": {"t"}, "line_numbers": {"#"}, "follow": {"F"},
-	"find": {"/"}, "next_match": {"n"}, "prev_match": {"N"},
+	"follow": {"F"},
+	"find":   {"/"}, "next_match": {"n"}, "prev_match": {"N"},
 	"global.select": {"enter"}, "global.quit": {"q"}, "global.dismiss": {"esc"},
 	"search_prompt.run": {"enter"}, "search_prompt.cancel": {"esc"},
+	"log_option.chop": {"S"}, "log_option.line_numbers": {"N"}, "log_option.timestamps": {"T"},
+	"log_option.cancel": {"esc"},
 }
 
 // lookup gives the keys of the Actions log.

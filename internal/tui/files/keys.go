@@ -43,7 +43,7 @@ func (k KeyMap) own() []key.Binding {
 
 // ShortHelp returns the bindings for the short help view.
 func (k KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Tree.Up, k.Tree.Down, k.Tree.Right, k.Tree.Collapse, k.Tree.Open, k.Open, k.Refresh, k.ResetBase}
+	return []key.Binding{k.Tree.Up, k.Tree.Down, k.Tree.Expand, k.Tree.Collapse, k.Tree.ToggleAll, k.Tree.Open, k.Open, k.Refresh, k.ResetBase}
 }
 
 // FullHelp returns the bindings for the full help view.
