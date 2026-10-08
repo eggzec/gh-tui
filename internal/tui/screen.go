@@ -437,12 +437,9 @@ func (m *Model) ownerPages() PageBacker {
 }
 
 // goBack goes back as a browser does: through the owner pages, then to the
-// places before them, newest first. It does nothing at the bottom, or over
-// a modal.
+// places before them, newest first. It does nothing at the bottom. An open
+// modal takes the back key before it gets here.
 func (m *Model) goBack() tea.Cmd {
-	if m.modal != nil {
-		return nil
-	}
 	if b := m.ownerPages(); b != nil && m.screen == ownerScreen && b.CanGoBack() {
 		cmd := b.GoBack()
 		m.updateOwner()
