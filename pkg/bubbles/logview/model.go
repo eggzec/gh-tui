@@ -59,6 +59,13 @@ type Model struct {
 	live bool
 
 	searching bool
+	// opt is set while the view waits for the name of an option.
+	opt bool
+	// flash is a note on the last key, such as "No such option: -", shown
+	// in place of the title until the next key, and an information rather
+	// than an error while flashInfo is set.
+	flash     string
+	flashInfo bool
 	input     textinput.Model
 	search    search
 	// jumped is the list the last e, E, w or W moved in, and at is the
@@ -122,21 +129,29 @@ func (m Model) Width() int { return m.width }
 // Height returns the height.
 func (m Model) Height() int { return m.height }
 
-// Focus makes the view react to keys.
-func (m *Model) Focus() { m.focused = true }
+// Focus makes the view react to keys. It drops the note on the last key.
+func (m *Model) Focus() {
+	m.focused = true
+	m.flash, m.flashInfo = "", false
+}
 
-// Blur makes the view ignore keys. It closes the search input.
+// Blur makes the view ignore keys. It closes the search input, stops
+// waiting for an option and drops the note on the last key.
 func (m *Model) Blur() {
 	m.focused = false
 	m.closeSearch()
+	m.opt = false
+	m.flash, m.flashInfo = "", false
+	m.enableKeys()
 }
 
 // Focused reports whether the view reacts to keys.
 func (m Model) Focused() bool { return m.focused }
 
-// Capturing reports whether the search input is open. It then takes every
-// key, so the parent should not act on keys of its own.
-func (m Model) Capturing() bool { return m.searching }
+// Capturing reports whether the search input is open or the view waits for
+// the name of an option. It then takes every key, so the parent should not
+// act on keys of its own.
+func (m Model) Capturing() bool { return m.searching || m.opt }
 
 // Wrap reports whether long lines are soft-wrapped.
 func (m Model) Wrap() bool { return m.wrap }
@@ -193,10 +208,16 @@ func (m *Model) SetKeyMap(k KeyMap) {
 }
 
 // ShortHelp implements help.KeyMap. While the search input is open, it
-// lists the keys that close it.
+// lists the keys that close it, and while the view waits for an option,
+// the keys that name one.
 func (m Model) ShortHelp() []key.Binding {
 	if m.searching {
 		return []key.Binding{m.keys.Confirm, m.keys.Cancel}
+	}
+	if m.opt {
+		o := m.keys.Options
+		// Cancel is first, so that it survives a footer too narrow for all.
+		return []key.Binding{o.Cancel, o.Chop, o.LineNumbers, o.Timestamps}
 	}
 	return m.keys.ShortHelp()
 }
@@ -205,12 +226,12 @@ func (m Model) ShortHelp() []key.Binding {
 // the keys that close it act, and the input takes the rest.
 func (m Model) FullHelp() [][]key.Binding {
 	k := m.keys
-	if m.searching {
+	if m.searching || m.opt {
 		for _, b := range []*key.Binding{
 			&k.Up, &k.Down, &k.PageUp, &k.PageDown, &k.HalfPageUp, &k.HalfPageDown, &k.Home, &k.End,
-			&k.Left, &k.Right, &k.Toggle, &k.Expand, &k.Collapse, &k.FoldAll,
+			&k.Left, &k.Right, &k.Toggle, &k.ToggleAll,
 			&k.NextError, &k.PrevError, &k.NextWarning, &k.PrevWarning,
-			&k.Wrap, &k.Times, &k.LineNumbers, &k.Follow, &k.Search, &k.Next, &k.Prev, &k.Quit, &k.Dismiss,
+			&k.Option, &k.Follow, &k.Search, &k.Next, &k.Prev, &k.Quit, &k.Dismiss,
 		} {
 			b.SetEnabled(false)
 		}
@@ -231,4 +252,9 @@ func (m *Model) enableKeys() {
 	m.keys.Prev.SetEnabled(found)
 	m.keys.Confirm.SetEnabled(m.searching)
 	m.keys.Cancel.SetEnabled(m.searching || m.search.query != "")
+	m.keys.Options.setEnabled(m.opt)
+	if m.opt {
+		// The cancel key of the options stands in for that of the search.
+		m.keys.Cancel.SetEnabled(false)
+	}
 }

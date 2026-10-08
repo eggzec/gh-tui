@@ -21,4 +21,4 @@
            [38;2;200;206;219macelet\bubbletea] ...[m                                                
 [38;2;122;162;247m▌[m[38;2;107;114;133m180[m [38;2;239;125;125m✗[m     [38;2;239;125;125mD:\a\bubbletea\bubbletea\charmbracelet\bubbletea\clipboard_backend.go[m
 [38;2;122;162;247m▌[m          [38;2;239;125;125m:95:6: type clipboardCommand is unused (unused)[m                      
-[1;38;2;200;206;219mlint / lint (windows-latest)[m                           [38;2;160;167;184merror 1/5[m  [38;2;160;167;184mrow 15/36  41%[m
+[38;2;160;167;184mWrap long lines[m                                        [38;2;160;167;184merror 1/5[m  [38;2;160;167;184mrow 15/36  41%[m

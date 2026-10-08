@@ -44,10 +44,14 @@ func TestFoldGroups(t *testing.T) {
 	if got, want := shownRows(m), []string{"before", "outer", "after"}; !slices.Equal(got, want) {
 		t.Errorf("groups start collapsed: %q, want %q", got, want)
 	}
-	// Fold all folds steps only, so it leaves groups as they are.
+	// Toggle all opens groups too, and closes them again.
+	m, _ = keys(t, m, "*")
+	if got, want := shownRows(m), []string{"before", "outer", ".a", ".inner", "..b", "after"}; !slices.Equal(got, want) {
+		t.Errorf("toggle all left groups closed: %q, want %q", got, want)
+	}
 	m, _ = keys(t, m, "*")
 	if got, want := shownRows(m), []string{"before", "outer", "after"}; !slices.Equal(got, want) {
-		t.Errorf("fold all changed groups: %q, want %q", got, want)
+		t.Errorf("toggle all again left groups open: %q, want %q", got, want)
 	}
 	m.ExpandAll()
 	if got, want := shownRows(m), []string{"before", "outer", ".a", ".inner", "..b", "after"}; !slices.Equal(got, want) {
@@ -111,27 +115,24 @@ func TestFoldKeys(t *testing.T) {
 			open: map[string]bool{"Runner Image Provisioner": true}},
 		{name: "toggle inside a group collapses it", keys: []string{"j", "j", "enter", "j", "j", "enter"},
 			wantCursor: "Runner Image Provisioner", open: map[string]bool{"Runner Image Provisioner": false}},
-		{name: "plus expands", keys: []string{"j", "j", "+", "+"}, wantCursor: "Runner Image Provisioner",
-			open: map[string]bool{"Runner Image Provisioner": true}},
-		{name: "plus on a line does nothing", keys: []string{"j", "+"}, wantCursor: "Current runner version: '2.337.0'",
-			open: map[string]bool{"Set up job": true}},
-		{name: "minus collapses", keys: []string{"j", "j", "+", "-"}, wantCursor: "Runner Image Provisioner",
-			open: map[string]bool{"Runner Image Provisioner": false, "Set up job": true}},
-		{name: "minus on a line collapses what holds it", keys: []string{"j", "-"}, wantCursor: "Set up job",
+		{name: "enter on a line collapses what holds it", keys: []string{"j", "enter"}, wantCursor: "Set up job",
 			open: map[string]bool{"Set up job": false}},
-		{name: "minus on a collapsed group collapses its section", keys: []string{"j", "j", "-"},
-			wantCursor: "Set up job", open: map[string]bool{"Set up job": false}},
-		{name: "fold all keeps the cursor on what holds it and groups as they are",
-			keys: []string{"j", "j", "+", "j", "*"}, wantCursor: "Set up job",
-			open: map[string]bool{"Set up job": false, "Install Go": false, "Runner Image Provisioner": true}},
-		{name: "fold all again expands the steps", keys: []string{"j", "j", "+", "j", "*", "*"},
-			wantCursor: "Set up job",
+		{name: "star expands every section and group", keys: []string{"*"}, wantCursor: "Set up job",
 			open: map[string]bool{"Set up job": true, "Install Go": true, "Runner Image Provisioner": true,
+				"run golangci-lint": true}},
+		{name: "star twice collapses them all", keys: []string{"*", "*"}, wantCursor: "Set up job",
+			open: map[string]bool{"Set up job": false, "Install Go": false, "Runner Image Provisioner": false,
 				"run golangci-lint": false}},
-		{name: "one step open folds all", keys: []string{"*", "enter", "*"}, wantCursor: "Set up job",
-			open: map[string]bool{"Set up job": false, "Install Go": false}},
-		{name: "equals is not bound", keys: []string{"="}, wantCursor: "Set up job",
-			open: map[string]bool{"Set up job": true, "Install Go": true}},
+		{name: "star keeps the cursor on a line while it expands", keys: []string{"j", "*"},
+			wantCursor: "Current runner version: '2.337.0'", open: map[string]bool{"Runner Image Provisioner": true}},
+		{name: "star collapsing moves the cursor to what holds it", keys: []string{"j", "j", "*", "*"},
+			wantCursor: "Set up job", open: map[string]bool{"Set up job": false}},
+		{name: "star on a log with one group opened expands the rest", keys: []string{"j", "j", "enter", "*"},
+			wantCursor: "Runner Image Provisioner",
+			open:       map[string]bool{"Runner Image Provisioner": true, "run golangci-lint": true}},
+		{name: "plus, minus and equals are not bound", keys: []string{"j", "j", "+", "-", "="},
+			wantCursor: "Runner Image Provisioner",
+			open:       map[string]bool{"Runner Image Provisioner": false, "Set up job": true, "Install Go": true}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

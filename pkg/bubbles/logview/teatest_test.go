@@ -42,11 +42,13 @@ func TestProgram(t *testing.T) {
 	m := open(t, WithFocusFailed(true))
 	tm := teatest.NewTestModel(t, host{log: m}, teatest.WithInitialTermSize(80, 16))
 
-	// Fold every step, then find the second error again.
+	// Expand everything and fold it again, then find the second error.
+	tm.Send(press("*"))
 	tm.Send(press("*"))
 	tm.Send(press("e"))
 	tm.Send(press("e"))
-	tm.Send(press("t"))
+	tm.Send(press("-"))
+	tm.Send(press("T"))
 	tm.Send(press("/"))
 	tm.Type("Get")
 	tm.Send(press("enter"))

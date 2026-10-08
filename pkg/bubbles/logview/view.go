@@ -404,6 +404,15 @@ func (m *Model) statusLine() string {
 	if m.searching {
 		return m.fit(m.input.View(), m.width)
 	}
+	left := m.titleView
+	switch {
+	case m.opt:
+		left = m.esc.prompt.wrap("-")
+	case m.flash != "" && m.flashInfo:
+		left = m.esc.status.wrap(m.flash)
+	case m.flash != "":
+		left = m.esc.noMatches.wrap(m.flash)
+	}
 	var parts []string
 	if q := m.search.query; q != "" {
 		if n := len(m.search.matches); n == 0 {
@@ -433,7 +442,7 @@ func (m *Model) statusLine() string {
 	if rw+2 > m.width {
 		return m.fit(right, m.width)
 	}
-	return m.fit(m.titleView, m.width-rw-2) + "  " + right
+	return m.fit(left, m.width-rw-2) + "  " + right
 }
 
 // position is where the cursor is. With nothing folded it is the line of

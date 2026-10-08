@@ -50,7 +50,7 @@ const (
 	// DefaultExpandAllNodes is the number of nodes an expand-all reveals at
 	// most by default.
 	DefaultExpandAllNodes = 1000
-	// DefaultExpandAllDepth is the number of levels below the cursor an
+	// DefaultExpandAllDepth is the number of levels below the top an
 	// expand-all opens at most by default.
 	DefaultExpandAllDepth = 16
 	// DefaultMaxLoads is the number of loads an expand-all keeps in flight
@@ -123,11 +123,11 @@ func WithIcons(icons Icons) Option {
 	}
 }
 
-// WithExpandAllLimits caps an expand-all, which loads every branch below the
-// cursor and could otherwise send a request for each directory of a huge
-// tree. It stops expanding once nodes children have been revealed, and
-// never opens branches more than depth levels below the cursor. Levels
-// load one after another, so the cap keeps the nodes nearest the cursor.
+// WithExpandAllLimits caps an expand-all, which loads every branch and
+// could otherwise send a request for each directory of a huge tree. It
+// stops expanding once nodes children have been revealed, and never opens
+// branches more than depth levels below the top. Levels load one after
+// another, so the cap keeps the nodes nearest the top.
 // The defaults are [DefaultExpandAllNodes] and [DefaultExpandAllDepth].
 func WithExpandAllLimits(nodes, depth int) Option {
 	return func(s *settings) {

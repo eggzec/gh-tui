@@ -320,13 +320,13 @@ func (m Model) Layer() keyhelp.Layer {
 		ctx = k.NotesContext
 	}
 	notes := keyhelp.Layer{Bindings: k.own(m.OnAnnotations()), Short: k.shortHelp(on)}
-	log := keyhelp.FromHelp("", m.view, m.view.Capturing())
+	log := keyhelp.FromHelp("", m.view, m.view.Searching())
 	whole := m.wholeLog()
 	limit := func(bs []key.Binding) {
 		for i, b := range bs {
 			// The log's keys do nothing until it shows, and only those of the
 			// whole log reach it from the annotations.
-			keep := m.showsLog() && (!on || slices.ContainsFunc(whole, func(w key.Binding) bool {
+			keep := m.showsLog() && (!on || m.view.Capturing() || slices.ContainsFunc(whole, func(w key.Binding) bool {
 				return slices.Equal(w.Keys(), b.Keys())
 			}))
 			bs[i].SetEnabled(b.Enabled() && keep)
@@ -334,9 +334,13 @@ func (m Model) Layer() keyhelp.Layer {
 	}
 	limit(log.Bindings)
 	limit(log.Short)
-	if m.view.Capturing() {
+	switch {
+	case m.view.Searching():
 		// A search of the log takes every key.
 		ctx = "search_prompt"
+	case m.view.ChoosingOption():
+		// So does the name of an option, but it types nothing.
+		ctx = "log_option"
 	}
 	return ui.MergeLayers(ctx, notes, log)
 }
@@ -418,5 +422,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	}
 	var cmd tea.Cmd
 	m.view, cmd = m.view.Update(msg)
+	if _, ok := msg.(tea.KeyPressMsg); ok && m.onNotes && m.view.Focused() && !m.view.Capturing() {
+		// An option chosen from the annotations leaves the log blurred.
+		m.view.Blur()
+	}
 	return m, cmd
 }

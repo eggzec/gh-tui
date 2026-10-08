@@ -34,9 +34,7 @@ Files
   ½ page down | ctrl+d | ^d | on
   first | g home | g/home | on
   last | G end | G/end | on
-  expand | + | + | on
-  expand/enter | right l | →/l | on
-  collapse | - left h | -/←/h | on
-  expand all | * | * | on
-  collapse all | = | = | on
+  expand | right l | →/l | on
+  collapse | left h | ←/h | on
+  all | * | * | on
   preview | enter | ↵ | on

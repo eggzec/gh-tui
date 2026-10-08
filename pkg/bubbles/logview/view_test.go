@@ -26,15 +26,15 @@ func TestView(t *testing.T) {
 		{name: "80 columns", width: 80, height: 24},
 		{name: "80 columns failed", width: 80, height: 24, opts: []Option{failed}},
 		{name: "140 columns failed", width: 140, height: 30, opts: []Option{failed, WithTimeMode(TimeRelative)}},
-		{name: "collapsed", width: 80, height: 16, keys: []string{"*"}},
+		{name: "collapsed", width: 80, height: 16, keys: []string{"*", "*"}},
 		{name: "times of day", width: 100, height: 12, opts: []Option{failed, WithTimeMode(TimeAbsolute)}},
-		{name: "wrapped", width: 80, height: 24, opts: []Option{failed}, keys: []string{"s"}},
+		{name: "wrapped", width: 80, height: 24, opts: []Option{failed}, keys: []string{"-", "S"}},
 		{name: "scrolled sideways", width: 80, height: 12, opts: []Option{failed}, keys: []string{"l", "l"}},
-		{name: "search", width: 80, height: 16, keys: []string{"*"}, search: "unused"},
-		{name: "next match", width: 80, height: 16, keys: []string{"*"}, search: "unused", after: []string{"n"}},
+		{name: "search", width: 80, height: 16, keys: []string{"*", "*"}, search: "unused"},
+		{name: "next match", width: 80, height: 16, keys: []string{"*", "*"}, search: "unused", after: []string{"n"}},
 		{name: "no matches", width: 80, height: 6, search: "kiwi"},
 		{name: "search input", width: 80, height: 6, keys: []string{"/", "c", "a"}},
-		{name: "warning", width: 80, height: 10, keys: []string{"*", "w"}},
+		{name: "warning", width: 80, height: 10, keys: []string{"*", "*", "w"}},
 		{name: "commands expanded", width: 80, height: 12, keys: []string{"j", "j", "j", "j", "j", "j", "j"},
 			set: func(m *Model) { m.ExpandAll() }},
 		{name: "light", width: 80, height: 12, opts: []Option{failed, WithStyles(DefaultStyles(false))}},
@@ -87,7 +87,7 @@ func TestViewFits(t *testing.T) {
 				t.Run(strconv.FormatBool(wrap)+"/"+strconv.Itoa(w)+"x"+strconv.Itoa(h), func(t *testing.T) {
 					m := open(t, WithSize(w, h), WithWrap(wrap), WithTimeMode(TimeRelative), WithFocusFailed(true))
 					m.Append(Line{Text: strings.Repeat("你好, 世界 👋🏽 é ", 20)})
-					for _, k := range []string{"", "l", "l", "e", "j", "*", "G", "l", "t", "#", "*", "k"} {
+					for _, k := range []string{"", "l", "l", "e", "j", "*", "G", "l", "-", "T", "-", "N", "*", "k"} {
 						if k != "" {
 							m, _ = keys(t, m, k)
 						}

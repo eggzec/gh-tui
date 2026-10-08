@@ -41,6 +41,9 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 	page := max(m.height, 1)
 	// The user took over from a Reveal.
 	m.goal = nil
+	if key.Matches(msg, m.keyMap.Expand, m.keyMap.Collapse, m.keyMap.Open) {
+		m.capped = false
+	}
 	var cmd tea.Cmd
 	switch {
 	case key.Matches(msg, m.keyMap.Up):
@@ -60,15 +63,11 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 	case key.Matches(msg, m.keyMap.End):
 		m.sel = len(m.rows) - 1
 	case key.Matches(msg, m.keyMap.Expand):
-		cmd = m.expand(m.current())
-	case key.Matches(msg, m.keyMap.Right):
 		cmd = m.right()
 	case key.Matches(msg, m.keyMap.Collapse):
 		m.collapse()
-	case key.Matches(msg, m.keyMap.ExpandAll):
-		cmd = m.expandAll()
-	case key.Matches(msg, m.keyMap.CollapseAll):
-		m.collapseAll()
+	case key.Matches(msg, m.keyMap.ToggleAll):
+		cmd = m.toggleAll()
 	case key.Matches(msg, m.keyMap.Open):
 		cmd = m.open()
 	default:
@@ -120,9 +119,12 @@ func (m *Model) Retry() tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-// right moves into an expanded branch, or expands it.
+// right moves into an expanded branch, expands it, or opens a leaf.
 func (m *Model) right() tea.Cmd {
 	e := m.current()
+	if e != nil && !e.node.Branch {
+		return m.open()
+	}
 	if e != nil && e.expanded && e.err == nil && len(e.kids) > 0 {
 		// The first child is the next row.
 		m.sel++
@@ -149,10 +151,33 @@ func (m *Model) collapse() {
 	}
 }
 
+// toggleAll collapses every branch when all are expanded, when an
+// expand-all stopped at its limits, or while one is still loading, which it
+// stops, and expands every branch otherwise. A tree without branches stays as it is.
+func (m *Model) toggleAll() tea.Cmd {
+	branches, all := false, true
+	for _, e := range m.nodes {
+		if e.depth >= 0 && e.node.Branch {
+			branches = true
+			all = all && e.expanded
+		}
+	}
+	all = all || m.bulk.active() || m.capped
+	switch {
+	case !branches:
+		return nil
+	case all:
+		m.collapseAll()
+		return nil
+	}
+	return m.expandAll()
+}
+
 // collapseAll collapses every branch and moves the cursor to the top-level
 // node it was under. It stops an expand-all in progress.
 func (m *Model) collapseAll() {
 	m.bulk = bulk{}
+	m.capped = false
 	sel := m.current()
 	for sel != nil && sel.depth > 0 {
 		sel = m.nodes[sel.parent]

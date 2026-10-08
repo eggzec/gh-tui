@@ -23,14 +23,9 @@ type KeyMap struct {
 	// Toggle expands or collapses the section or group under the cursor,
 	// or collapses the one the cursor is in.
 	Toggle key.Binding `keymap:"global.select" help:"fold"`
-	// Expand expands the section or group under the cursor.
-	Expand key.Binding `keymap:"expand" help:"expand"`
-	// Collapse collapses the section or group under the cursor, or the one
-	// the cursor is in.
-	Collapse key.Binding `keymap:"collapse" help:"collapse"`
-	// FoldAll folds every section when any is open, and expands every
-	// section otherwise. Groups keep their state.
-	FoldAll key.Binding `keymap:"expand_all" help:"fold all"`
+	// ToggleAll expands every section and group, or collapses them all
+	// when all are expanded.
+	ToggleAll key.Binding `keymap:"toggle_all" help:"all"`
 
 	// NextError and PrevError move to the next and previous error line,
 	// expanding what hides it, and NextWarning and PrevWarning to the
@@ -40,13 +35,13 @@ type KeyMap struct {
 	NextWarning key.Binding `keymap:"next_warning" help:"next warning"`
 	PrevWarning key.Binding `keymap:"prev_warning" help:"prev warning"`
 
-	// Wrap toggles soft-wrapping. It is s by default, since w moves to
-	// warnings.
-	Wrap key.Binding `keymap:"wrap" help:"wrap"`
-	// Times shows the times relative to their section, then the times of
-	// day, then hides them.
-	Times       key.Binding `keymap:"times" help:"times"`
-	LineNumbers key.Binding `keymap:"line_numbers" help:"line numbers"`
+	// Option waits for the name of an option to toggle, as less's - does:
+	// S chops or wraps long lines, N shows or hides the line numbers, and
+	// T shows the times relative to their section, then the times of day,
+	// then hides them. Esc then cancels it. NewKeyMap words the help from
+	// the keys of Options; the tag has its words with the default ones.
+	Option  key.Binding  `keymap:"option" help:"option: S N T"`
+	Options OptionKeyMap `keymap:"log_option"`
 	// Follow toggles following appended lines, and moves to the end when
 	// it turns on.
 	Follow key.Binding `keymap:"follow" help:"follow"`
@@ -81,6 +76,12 @@ func NewKeyMap(look keymap.Lookup) KeyMap {
 	for _, b := range []*key.Binding{&k.NextError, &k.PrevError, &k.NextWarning, &k.PrevWarning, &k.Confirm, &k.Cancel, &k.Next, &k.Prev} {
 		b.SetEnabled(false)
 	}
+	k.Options.setEnabled(false)
+	if keys := k.Options.keysHelp(); keys != "" {
+		k.Option.SetHelp(k.Option.Help().Key, "option: "+keys)
+	} else {
+		k.Option.SetHelp(k.Option.Help().Key, "option")
+	}
 	return k
 }
 
@@ -90,7 +91,7 @@ func (k KeyMap) Close() key.Binding { return keymap.Join(k.Quit, k.Dismiss) }
 
 // ShortHelp returns the bindings for the short help view.
 func (k KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Toggle, k.FoldAll, k.NextError, k.Search, k.Next, k.Close()}
+	return []key.Binding{k.Toggle, k.ToggleAll, k.Option, k.NextError, k.Search, k.Next, k.Close()}
 }
 
 // FullHelp returns the bindings for the full help view, every binding of
@@ -103,8 +104,9 @@ func (k KeyMap) FullHelp() [][]key.Binding { return k.fullHelp(k.Quit, k.Dismiss
 func (k KeyMap) fullHelp(closing ...key.Binding) [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.PageUp, k.PageDown, k.HalfPageUp, k.HalfPageDown, k.Home, k.End},
-		{k.Toggle, k.Expand, k.Collapse, k.FoldAll},
+		{k.Toggle, k.ToggleAll},
 		{k.NextError, k.PrevError, k.NextWarning, k.PrevWarning, k.Search, k.Confirm, k.Cancel, k.Next, k.Prev},
-		append([]key.Binding{k.Left, k.Right, k.Wrap, k.Times, k.LineNumbers, k.Follow}, closing...),
+		{k.Option, k.Options.Chop, k.Options.LineNumbers, k.Options.Timestamps, k.Options.Cancel},
+		append([]key.Binding{k.Left, k.Right, k.Follow}, closing...),
 	}
 }

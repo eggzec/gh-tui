@@ -25,11 +25,9 @@ var testKeys = map[string][]string{
 	"top":            {"g", "home"},
 	"bottom":         {"G", "end"},
 	"global.select":  {"enter"},
-	"expand":         {"+"},
-	"step_in":        {"right", "l"},
-	"collapse":       {"-", "left", "h"},
-	"expand_all":     {"*"},
-	"collapse_all":   {"="},
+	"expand":         {"right", "l"},
+	"collapse":       {"left", "h"},
+	"toggle_all":     {"*"},
 }
 
 var testKeyMap = NewKeyMap(keytest.Table(testKeys))

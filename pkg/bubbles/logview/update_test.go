@@ -102,7 +102,7 @@ func TestScrollSideways(t *testing.T) {
 	if m.left != 0 {
 		t.Errorf("left = %d, want 0", m.left)
 	}
-	m, _ = keys(t, m, "s", "l")
+	m, _ = keys(t, m, "-", "S", "l")
 	if m.left != 0 || !m.Wrap() {
 		t.Errorf("left = %d while wrapping, want 0", m.left)
 	}
@@ -199,9 +199,9 @@ func TestTimes(t *testing.T) {
 		TimeAbsolute: {"a", "09:50:10   one", "b", "09:50:11   two", "no time", "10:52:13   three"},
 	}
 	for _, mode := range []TimeMode{TimeRelative, TimeAbsolute, TimeHidden} {
-		m, _ = keys(t, m, "t")
+		m, _ = keys(t, m, "-", "T")
 		if m.TimeMode() != mode {
-			t.Fatalf("t moved to %v, want %v", m.TimeMode(), mode)
+			t.Fatalf("-T moved to %v, want %v", m.TimeMode(), mode)
 		}
 		rows := strings.Split(plain(m), "\n")
 		for i, w := range want[mode] {
@@ -415,11 +415,11 @@ func TestAppendFirst(t *testing.T) {
 
 func TestToggles(t *testing.T) {
 	m := view(t, plainLines("a"), WithSize(40, 4))
-	m, _ = keys(t, m, "s", "#")
+	m, _ = keys(t, m, "-", "S", "-", "N")
 	if !m.Wrap() || m.LineNumbers() {
 		t.Errorf("wrap %v, line numbers %v; want true, false", m.Wrap(), m.LineNumbers())
 	}
-	m, _ = keys(t, m, "s", "#", "F")
+	m, _ = keys(t, m, "-", "S", "-", "N", "F")
 	if m.Wrap() || !m.LineNumbers() || m.Follow() {
 		t.Errorf("wrap %v, line numbers %v, follow %v; want false, true, false", m.Wrap(), m.LineNumbers(), m.Follow())
 	}
@@ -443,7 +443,7 @@ func TestLoading(t *testing.T) {
 
 func TestHelp(t *testing.T) {
 	m := open(t, WithSize(80, 24))
-	if len(m.ShortHelp()) == 0 || len(m.FullHelp()) != 4 {
+	if len(m.ShortHelp()) == 0 || len(m.FullHelp()) != 5 {
 		t.Errorf("help has %d short keys and %d columns", len(m.ShortHelp()), len(m.FullHelp()))
 	}
 	m, _ = keys(t, m, "/")

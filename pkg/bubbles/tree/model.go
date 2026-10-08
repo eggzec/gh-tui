@@ -104,6 +104,11 @@ type Model struct {
 	seq   int
 	loads int
 	bulk  bulk
+	// capped is set when an expand-all stopped at its limits with branches
+	// still closed, and holds until something expands, collapses or
+	// reloads, so that toggling all again collapses instead of running into
+	// the same limits.
+	capped bool
 	// goal is the path of a Reveal in progress, from a top-level node
 	// down, or nil.
 	goal []string
@@ -169,6 +174,7 @@ func (m *Model) clear() tea.Cmd {
 	m.sel, m.top = 0, 0
 	m.loads = 0
 	m.bulk = bulk{}
+	m.capped = false
 	m.goal = nil
 	return m.startLoad(root)
 }
@@ -191,6 +197,7 @@ func (m *Model) ReloadNode(id string) tea.Cmd {
 		return nil
 	}
 	m.bulk = bulk{}
+	m.capped = false
 	anchor := m.anchor(m.current())
 	cmds := m.refresh(e, nil)
 	m.flatten(anchor)

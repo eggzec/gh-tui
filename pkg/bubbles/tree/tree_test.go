@@ -245,9 +245,11 @@ func TestInitLoadsTopLevelNodes(t *testing.T) {
 }
 
 func TestKeys(t *testing.T) {
-	internalAll := []string{"cmd", "docs", "internal", "internal/core", "internal/core/pull.go",
-		"internal/core/repo.go", "internal/tui", "internal/tui/app.go", "README.md", "go.mod"}
 	cmdOpen := []string{"cmd", "cmd/gh-tui", "docs", "internal", "README.md", "go.mod"}
+	allOpen := []string{"cmd", "cmd/gh-tui", "cmd/gh-tui/main.go", "docs", "internal", "internal/core",
+		"internal/core/pull.go", "internal/core/repo.go", "internal/tui", "internal/tui/app.go", "README.md", "go.mod"}
+	internalOpen := []string{"cmd", "docs", "internal", "internal/core", "internal/core/pull.go",
+		"internal/core/repo.go", "internal/tui", "README.md", "go.mod"}
 	docsOpen := []string{"cmd", "docs", "internal", "README.md", "go.mod"}
 	tests := []struct {
 		name     string
@@ -263,33 +265,33 @@ func TestKeys(t *testing.T) {
 		{"page down", []string{"pgdown"}, roots, "go.mod"},
 		{"page up", []string{"pgdown", "pgup"}, roots, "cmd"},
 		{"ctrl+f and ctrl+b", []string{"ctrl+f", "ctrl+b"}, roots, "cmd"},
-		{"half page down", []string{"j", "j", "*", "ctrl+d"}, internalAll, "internal/tui/app.go"},
-		{"half page up", []string{"j", "j", "*", "ctrl+d", "ctrl+u"}, internalAll, "internal"},
-		{"plus expands", []string{"+"}, cmdOpen, "cmd"},
-		{"plus on expanded stays", []string{"+", "+"}, cmdOpen, "cmd"},
+		{"half page down", []string{"j", "j", "l", "l", "l", "ctrl+d"}, internalOpen, "go.mod"},
+		{"half page up", []string{"j", "j", "l", "l", "l", "ctrl+d", "ctrl+u"}, internalOpen, "internal/core"},
+		{"l expands a folder", []string{"l"}, cmdOpen, "cmd"},
 		{"right expands", []string{"right"}, cmdOpen, "cmd"},
 		{"right enters", []string{"l", "l"}, cmdOpen, "cmd/gh-tui"},
 		{"right goes deeper", []string{"l", "l", "l", "l"},
 			[]string{"cmd", "cmd/gh-tui", "cmd/gh-tui/main.go", "docs", "internal", "README.md", "go.mod"},
 			"cmd/gh-tui/main.go"},
-		{"minus collapses", []string{"+", "-"}, roots, "cmd"},
+		{"h collapses a folder", []string{"l", "h"}, roots, "cmd"},
 		{"left moves to parent", []string{"l", "l", "left"}, cmdOpen, "cmd"},
 		{"h on collapsed child moves to parent", []string{"l", "l", "h", "h"}, roots, "cmd"},
 		{"left on top level stays", []string{"h"}, roots, "cmd"},
 		{"enter expands", []string{"enter"}, cmdOpen, "cmd"},
 		{"enter collapses", []string{"enter", "enter"}, roots, "cmd"},
-		{"empty branch", []string{"j", "+"}, docsOpen, "docs"},
+		{"empty branch", []string{"j", "l"}, docsOpen, "docs"},
 		{"right on empty branch stays", []string{"j", "l", "l"}, docsOpen, "docs"},
-		{"plus on leaf does nothing", []string{"G", "+"}, roots, "go.mod"},
-		{"collapse on leaf moves to parent", []string{"j", "j", "l", "l", "l", "l", "-"},
+		{"collapse on leaf moves to parent", []string{"j", "j", "l", "l", "l", "l", "h"},
 			[]string{"cmd", "docs", "internal", "internal/core", "internal/core/pull.go",
 				"internal/core/repo.go", "internal/tui", "README.md", "go.mod"}, "internal/core"},
-		{"expand all", []string{"j", "j", "*"}, internalAll, "internal"},
-		{"expand all on leaf does nothing", []string{"G", "*"}, roots, "go.mod"},
-		{"collapse all", []string{"j", "j", "*", "j", "j", "="}, roots, "internal"},
-		{"collapse all keeps children", []string{"j", "j", "*", "=", "l"},
-			[]string{"cmd", "docs", "internal", "internal/core", "internal/tui", "README.md", "go.mod"},
-			"internal"},
+		{"right on a leaf previews it", []string{"G", "l"}, roots, "go.mod"},
+		{"toggle all expands everything", []string{"j", "j", "*"}, allOpen, "internal"},
+		{"toggle all from a leaf expands everything", []string{"G", "*"}, allOpen, "go.mod"},
+		{"toggle all on a half-expanded tree expands all", []string{"l", "*"}, allOpen, "cmd"},
+		{"toggle all again collapses all", []string{"*", "j", "j", "j", "j", "*"}, roots, "internal"},
+		{"toggle all collapses a half-expanded tree after expanding", []string{"l", "*", "*"}, roots, "cmd"},
+		{"toggle all keeps what loaded", []string{"*", "*", "l"}, cmdOpen, "cmd"},
+		{"plus, minus and equals are not bound", []string{"+", "-", "="}, roots, "cmd"},
 		{"unbound key", []string{"x"}, roots, "cmd"},
 	}
 	for _, tt := range tests {
@@ -310,7 +312,7 @@ func TestKeys(t *testing.T) {
 func TestCollapseKeepsChildren(t *testing.T) {
 	f := repo()
 	m := load(t, f)
-	m = keys(t, m, "+", "-", "+", "-", "l")
+	m = keys(t, m, "l", "h", "l", "h", "l")
 	if got := f.callCount("cmd"); got != 1 || m.Len() != len(roots)+1 {
 		t.Fatalf("cmd loaded %d times with %d rows; want 1, %d", got, m.Len(), len(roots)+1)
 	}
@@ -318,7 +320,7 @@ func TestCollapseKeepsChildren(t *testing.T) {
 
 func TestBranchLoading(t *testing.T) {
 	m := load(t, repo())
-	m, cmd := m.Update(press("+"))
+	m, cmd := m.Update(press("l"))
 	if cmd == nil {
 		t.Fatal("expanding an unloaded branch returned no command")
 	}
@@ -326,7 +328,7 @@ func TestBranchLoading(t *testing.T) {
 		t.Fatal("the branch should show as loading, without children yet")
 	}
 	// Pressing again while it loads does not load twice.
-	if _, again := m.Update(press("+")); again != nil {
+	if _, again := m.Update(press("l")); again != nil {
 		t.Fatal("expanding a loading branch loaded it again")
 	}
 	m = run(t, m, cmd)
@@ -341,7 +343,7 @@ func TestBranchErrorAndRetry(t *testing.T) {
 	f.setFail("internal", boom)
 	m := load(t, f)
 	m.SetSize(60, 10)
-	m = keys(t, m, "j", "j", "+")
+	m = keys(t, m, "j", "j", "l")
 	e := m.nodes["internal"]
 	if !errors.Is(e.err, boom) || e.loading {
 		t.Fatalf("err = %v, loading = %v; want the error", e.err, e.loading)
@@ -353,7 +355,7 @@ func TestBranchErrorAndRetry(t *testing.T) {
 	if !strings.Contains(v, "502 Bad Gateway") || strings.Contains(v, "more details") {
 		t.Fatalf("View() = %q, want the first line of the error", v)
 	}
-	if !strings.Contains(v, "+ to retry") {
+	if !strings.Contains(v, "→/l to retry") {
 		t.Fatalf("View() = %q, want the retry hint", v)
 	}
 
@@ -364,7 +366,7 @@ func TestBranchErrorAndRetry(t *testing.T) {
 	}
 
 	f.setFail("internal", nil)
-	m = keys(t, m, "+")
+	m = keys(t, m, "l")
 	if e := m.nodes["internal"]; e.err != nil || len(e.kids) != 2 {
 		t.Fatalf("after retry: err = %v, kids = %v", e.err, e.kids)
 	}
@@ -381,7 +383,7 @@ func TestRootErrorAndRetry(t *testing.T) {
 		t.Fatalf("status = %q %q", text, hint)
 	}
 	f.setFail("", nil)
-	m = keys(t, m, "+")
+	m = keys(t, m, "l")
 	if m.Err() != nil || m.Len() != len(roots) {
 		t.Fatalf("after retry: Err() = %v, Len() = %d", m.Err(), m.Len())
 	}
@@ -395,7 +397,7 @@ func TestErrorText(t *testing.T) {
 		root, hint string
 		row        string
 	}{
-		{"default", nil, "✗ Couldn't load: boom", " · + to retry", "internal ✗ boom · + to retry"},
+		{"default", nil, "✗ Couldn't load: boom", " · →/l to retry", "internal ✗ boom · →/l to retry"},
 		{"custom", []Option{WithErrorText(offline)}, "✗ Can't reach GitHub", " · r to retry", "internal ✗ Can't reach GitHub · r to retry"},
 		{"custom without a hint", []Option{WithErrorText(func(error) (string, string) { return "Not there.", "" })}, "✗ Not there.", "", "internal ✗ Not there."},
 		{"empty", []Option{WithErrorText(func(error) (string, string) { return "", "" })}, "", "", "internal"},
@@ -414,7 +416,7 @@ func TestErrorText(t *testing.T) {
 
 			f = repo()
 			f.setFail("internal", boom)
-			m = keys(t, load(t, f, append([]Option{WithSize(60, 6)}, tt.opts...)...), "j", "j", "+")
+			m = keys(t, load(t, f, append([]Option{WithSize(60, 6)}, tt.opts...)...), "j", "j", "l")
 			if v := ansi.Strip(m.View()); !strings.Contains(v, tt.row+" ") || tt.row == "internal" && strings.Contains(v, "✗") {
 				t.Errorf("View() = %q, want the row %q", v, tt.row)
 			}
@@ -432,7 +434,7 @@ func TestErrorTextWordedOnce(t *testing.T) {
 	}
 	f := repo()
 	f.setFail("internal", errors.New("boom"))
-	m := keys(t, load(t, f, WithSize(60, 6), WithErrorText(say)), "j", "j", "+")
+	m := keys(t, load(t, f, WithSize(60, 6), WithErrorText(say)), "j", "j", "l")
 	before := calls
 	for range 3 {
 		_ = m.View()
@@ -465,7 +467,7 @@ func TestEmpty(t *testing.T) {
 		t.Fatal("SetEmptyText did not change the view")
 	}
 	// Keys on an empty tree do nothing.
-	m = keys(t, m, "j", "+", "l", "-", "*", "=", "enter")
+	m = keys(t, m, "j", "l", "l", "h", "*", "*", "enter")
 	if m.Len() != 0 {
 		t.Fatal("keys changed an empty tree")
 	}
@@ -481,6 +483,44 @@ func TestOpen(t *testing.T) {
 	msg, ok := cmd().(OpenMsg)
 	if !ok || msg.ID != m.ID() || msg.Node.ID != "go.mod" {
 		t.Fatalf("enter on a leaf sent %#v, want OpenMsg for go.mod", msg)
+	}
+}
+
+// Right on a leaf opens it, as enter does.
+func TestRightOpensLeaf(t *testing.T) {
+	m := load(t, repo())
+	m = keys(t, m, "G")
+	for _, k := range []string{"right", "l"} {
+		_, cmd := m.Update(press(k))
+		if cmd == nil {
+			t.Fatalf("%s on a leaf returned no command", k)
+		}
+		msg, ok := cmd().(OpenMsg)
+		if !ok || msg.ID != m.ID() || msg.Node.ID != "go.mod" {
+			t.Fatalf("%s on a leaf sent %#v, want OpenMsg for go.mod", k, msg)
+		}
+	}
+	// A branch is not opened but expanded.
+	m = keys(t, m, "g")
+	if _, cmd := m.Update(press("l")); cmd == nil {
+		t.Fatal("l on an unloaded branch loaded nothing")
+	} else if _, ok := cmd().(OpenMsg); ok {
+		t.Fatal("l on a branch sent an OpenMsg")
+	}
+}
+
+// Toggle all does nothing in a tree without branches.
+func TestToggleAllWithoutBranches(t *testing.T) {
+	f := newFiles()
+	f.add("only.go")
+	m := load(t, f)
+	m, cmd := m.Update(press("*"))
+	if cmd != nil || m.Len() != 1 || len(f.calls) != 1 {
+		t.Fatalf("cmd %v, Len() = %d, calls = %v; want nothing", cmd != nil, m.Len(), f.calls)
+	}
+	m, cmd = m.Update(press("*"))
+	if cmd != nil || m.Len() != 1 || selectedID(m) != "only.go" {
+		t.Fatalf("a second * changed the tree: Len() = %d, Selected() = %q", m.Len(), selectedID(m))
 	}
 }
 
@@ -540,6 +580,46 @@ func TestExpandAllLimits(t *testing.T) {
 				t.Fatal("expand-all still in progress")
 			}
 		})
+	}
+}
+
+// After an expand-all stopped at its limits, toggling all again collapses,
+// rather than running into the same limits.
+func TestToggleAllAfterCappedExpandAll(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		opt  Option
+	}{
+		{"depth cap", WithExpandAllLimits(1000, 1)},
+		{"node cap", WithExpandAllLimits(3, 10)},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			m := load(t, generated(4), tt.opt, WithSize(40, 60))
+			m = keys(t, m, "*")
+			if m.Len() <= 1 {
+				t.Fatalf("the first star expanded nothing: Len() = %d", m.Len())
+			}
+			m = keys(t, m, "*")
+			if m.Len() != 1 {
+				t.Fatalf("a second star left %d rows, want it to collapse all", m.Len())
+			}
+			// Collapsed, the next star expands again.
+			if m = keys(t, m, "*"); m.Len() <= 1 {
+				t.Fatalf("a third star left %d rows, want it to expand", m.Len())
+			}
+		})
+	}
+}
+
+// Expanding or collapsing a branch by hand after a capped expand-all makes
+// the next star expand again.
+func TestToggleAllCappedThenFolded(t *testing.T) {
+	m := load(t, generated(4), WithExpandAllLimits(1000, 1), WithSize(40, 60))
+	m = keys(t, m, "*")
+	n := m.Len()
+	m = keys(t, m, "h", "l")
+	if m = keys(t, m, "*"); m.Len() != n {
+		t.Fatalf("star after folding by hand left %d rows, want the expand-all again (%d)", m.Len(), n)
 	}
 }
 
@@ -615,7 +695,7 @@ func TestExpandAllLevelByLevel(t *testing.T) {
 func TestCollapseAllStopsExpandAll(t *testing.T) {
 	m := load(t, generated(4), WithMaxLoads(1))
 	m, cmd := m.Update(press("*"))
-	m, _ = m.Update(press("="))
+	m, _ = m.Update(press("*"))
 	m = run(t, m, cmd)
 	if m.bulk.active() || m.Len() != 1 {
 		t.Fatalf("Len() = %d, expand-all active = %v; want 1, false", m.Len(), m.bulk.active())
@@ -625,7 +705,7 @@ func TestCollapseAllStopsExpandAll(t *testing.T) {
 func TestReloadKeepsState(t *testing.T) {
 	f := repo()
 	m := load(t, f)
-	m = keys(t, m, "l", "-", "j", "j", "l", "l", "l", "j", "j")
+	m = keys(t, m, "l", "h", "j", "j", "l", "l", "l", "j", "j")
 	if selectedID(m) != "internal/core/repo.go" {
 		t.Fatalf("Selected() = %q", selectedID(m))
 	}
@@ -650,7 +730,7 @@ func TestReloadKeepsState(t *testing.T) {
 	if f.callCount("cmd") != 1 {
 		t.Fatal("Reload loaded a collapsed branch")
 	}
-	m = keys(t, m, "g", "+")
+	m = keys(t, m, "g", "l")
 	if f.callCount("cmd") != 2 {
 		t.Fatal("a collapsed branch did not load again after Reload")
 	}
@@ -700,7 +780,7 @@ func TestReloadNodeMovesChild(t *testing.T) {
 	}
 	m := newModel(children, WithSize(20, 5), WithFocused(true))
 	m = run(t, m, m.Init())
-	m = keys(t, m, "+", "j", "j", "+")
+	m = keys(t, m, "l", "j", "j", "l")
 	if got := rowIDs(m); !slices.Equal(got, []string{"a", "x", "b"}) {
 		t.Fatalf("rows = %v", got)
 	}
@@ -744,7 +824,7 @@ func TestReset(t *testing.T) {
 func TestDropsStaleResults(t *testing.T) {
 	f := repo()
 	m := load(t, f)
-	m, first := m.Update(press("+"))
+	m, first := m.Update(press("l"))
 	second := m.ReloadNode("cmd")
 	m = run(t, m, first)
 	if !m.nodes["cmd"].loading {
@@ -775,7 +855,7 @@ func TestIgnoresOtherInstances(t *testing.T) {
 
 func TestBlurredIgnoresKeys(t *testing.T) {
 	m := load(t, repo(), WithFocused(false))
-	m = keys(t, m, "j", "+")
+	m = keys(t, m, "j", "l")
 	if m.Index() != 0 || m.Len() != len(roots) {
 		t.Fatal("a blurred tree reacted to keys")
 	}
@@ -847,7 +927,7 @@ func TestSpinnerStopsWhenLoaded(t *testing.T) {
 	}
 	// A new load starts it again.
 	m.Focus()
-	if _, cmd = m.Update(press("+")); len(collect(cmd)) != 1 || cmd == nil {
+	if _, cmd = m.Update(press("l")); len(collect(cmd)) != 1 || cmd == nil {
 		t.Fatal("expanding should load")
 	}
 }
@@ -889,7 +969,7 @@ func TestRetry(t *testing.T) {
 
 	f.setFail("internal", errors.New("offline"))
 	m.SetSize(60, 10)
-	m = keys(t, m, "j", "j", "+")
+	m = keys(t, m, "j", "j", "l")
 	f.setFail("internal", nil)
 	m = run(t, m, m.Retry())
 	if e := m.nodes["internal"]; e.err != nil || len(e.kids) != 2 {

@@ -2,9 +2,9 @@
 
 always
   quit | ctrl+c | ^c | on
-  help | ? | ? | off
+  help | ? | ? | on
 
-Search (types)
+Option
   annotations | A | A | off
   up | up k | ↑/k | off
   down | down j | ↓/j | off
@@ -25,15 +25,15 @@ Search (types)
   next warning | w | w | off
   prev warning | W | W | off
   search | / | / | off
-  search | enter | ↵ | on
-  cancel | esc | esc | on
+  search | enter | ↵ | off
+  cancel | esc | esc | off
   next match | n | n | off
   prev match | N | N | off
   option: S N T | - | - | off
-  chop or wrap long lines | S | S | off
-  line numbers | N | N | off
-  timestamps | T | T | off
-  cancel | esc | esc | off
+  chop or wrap long lines | S | S | on
+  line numbers | N | N | on
+  timestamps | T | T | on
+  cancel | esc | esc | on
   left | left h | ←/h | off
   right | right l | →/l | off
   follow | F | F | off

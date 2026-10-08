@@ -23,7 +23,7 @@ func TestNoRepo(t *testing.T) {
 	if got := screen(s); !strings.Contains(got, "No repository selected") {
 		t.Errorf("screen = %q, want the empty state", got)
 	}
-	if msgs := keys(s, "o", "r", "+", "enter"); len(msgs) != 0 {
+	if msgs := keys(s, "o", "r", "l", "enter"); len(msgs) != 0 {
 		t.Errorf("keys sent %#v, want nothing before a repository is selected", msgs)
 	}
 	if len(f.reads) != 0 || len(f.invalidated) != 0 {
@@ -38,7 +38,7 @@ func TestRepoSwitch(t *testing.T) {
 	if n := f.allCount(); n != 1 || len(f.reads) != 0 {
 		t.Fatalf("%d listings and reads %q, want one listing", n, f.readRefs())
 	}
-	keys(s, "+")
+	keys(s, "l")
 	if got := screen(s); !strings.Contains(got, "gh-tui") || !strings.Contains(got, "go.mod") {
 		t.Fatalf("screen = %q, want the files of gh-tui with cmd expanded", got)
 	}
@@ -66,7 +66,7 @@ func TestRepoSwitch(t *testing.T) {
 func TestExpandMakesNoRequests(t *testing.T) {
 	f := sampleFake()
 	s := loaded(t, f, 40, 12)
-	keys(s, "+", "down", "+")
+	keys(s, "l", "down", "l")
 	if n := f.allCount(); n != 1 || len(f.reads) != 0 {
 		t.Errorf("%d listings and reads %q, want the one listing", n, f.readRefs())
 	}
@@ -85,7 +85,7 @@ func TestExpandMakesNoRequests(t *testing.T) {
 
 	// Another tree over the same service takes the listing from the cache.
 	s2 := loaded(t, f, 40, 12)
-	keys(s2, "+")
+	keys(s2, "l")
 	if n := f.allCount(); n != 1 || len(f.reads) != 0 {
 		t.Errorf("%d listings and reads %q, want the cached listing", n, f.readRefs())
 	}
@@ -108,7 +108,7 @@ func TestTruncatedListing(t *testing.T) {
 		t.Errorf("Init sent %#v, want a notice that the listing is truncated", msgs[0])
 	}
 	// Directories are read one by one, as the listing may miss them.
-	keys(s, "+", "down", "+")
+	keys(s, "l", "down", "l")
 	if got, want := f.readRefs(), []string{"", cmdSHA, ghTUISHA}; !slices.Equal(got, want) {
 		t.Errorf("reads = %q, want %q", got, want)
 	}
@@ -157,9 +157,9 @@ func TestConfiguredKeys(t *testing.T) {
 	s.Focus()
 	run(s, s.Init())
 
-	keys(s, "+")
+	keys(s, "l", "right")
 	if strings.Contains(screen(s), "gh-tui") {
-		t.Error("+ expanded, but expand is bound to e")
+		t.Error("l expanded, but expand is bound to e")
 	}
 	keys(s, "e")
 	if !strings.Contains(screen(s), "gh-tui") {
@@ -175,6 +175,62 @@ func TestConfiguredKeys(t *testing.T) {
 	}
 }
 
+// The fold keys: l and right expand a folder and step into it, h and left
+// collapse it, and star expands every folder, or collapses them all when
+// all are open. Plus, minus and equals fold nothing.
+func TestFoldScheme(t *testing.T) {
+	s := loaded(t, sampleFake(), 40, 14)
+	open := func() bool { return strings.Contains(screen(s), "gh-tui") }
+	keys(s, "+", "-", "=")
+	if open() {
+		t.Error("plus, minus or equals expanded a folder")
+	}
+	keys(s, "right")
+	if !open() {
+		t.Error("right didn't expand cmd")
+	}
+	keys(s, "left")
+	if open() {
+		t.Error("left didn't collapse cmd")
+	}
+	keys(s, "*")
+	if got := screen(s); !strings.Contains(got, "main.go") || !strings.Contains(got, "core") || !strings.Contains(got, "tui") {
+		t.Errorf("screen = %q, want every folder expanded", got)
+	}
+	keys(s, "*")
+	if got := screen(s); strings.Contains(got, "gh-tui") || strings.Contains(got, "core") {
+		t.Errorf("screen = %q, want every folder collapsed by a second star", got)
+	}
+}
+
+// With toggle_all unbound, star does nothing, and help still lists it.
+func TestUnboundToggleAll(t *testing.T) {
+	cfg := config.Default().Keys
+	cfg.Set("files.toggle_all", []string{})
+	s := New(t.Context(), sampleFake(), cfg, WithRepo(ghTUI))
+	s.SetSize(40, 12)
+	s.Focus()
+	run(s, s.Init())
+	keys(s, "*")
+	if strings.Contains(screen(s), "gh-tui") {
+		t.Error("star expanded, but toggle_all is unbound")
+	}
+	var listed bool
+	for _, g := range s.keys.FullHelp() {
+		for _, b := range g {
+			if b.Help().Desc == "all" {
+				listed = true
+				if len(b.Keys()) != 0 {
+					t.Errorf("toggle_all has keys %v, want none", b.Keys())
+				}
+			}
+		}
+	}
+	if !listed {
+		t.Error("help doesn't list toggle_all")
+	}
+}
+
 func TestUnboundCollapse(t *testing.T) {
 	cfg := config.Default().Keys
 	cfg.Set("files.collapse", []string{})
@@ -183,7 +239,7 @@ func TestUnboundCollapse(t *testing.T) {
 	s.Focus()
 	run(s, s.Init())
 
-	keys(s, "+", "h", "left", "-")
+	keys(s, "l", "h", "left")
 	if !strings.Contains(screen(s), "gh-tui") {
 		t.Error("a key collapsed, but collapse is unbound")
 	}
@@ -192,7 +248,7 @@ func TestUnboundCollapse(t *testing.T) {
 func TestRefresh(t *testing.T) {
 	f := sampleFake()
 	s := loaded(t, f, 40, 12)
-	keys(s, "+", "down", "+")
+	keys(s, "l", "down", "l")
 	f.addTree(ghTUI, ghTUISHA, file("main.go", 2_000), file("root.go", 700))
 	keys(s, "r")
 	if !slices.Equal(f.invalidated, []core.RepoRef{ghTUI}) {
@@ -210,7 +266,7 @@ func TestRefresh(t *testing.T) {
 func TestSyncReloadsMovedRef(t *testing.T) {
 	f := sampleFake()
 	s := loaded(t, f, 40, 12)
-	keys(s, "+", "down", "+")
+	keys(s, "l", "down", "l")
 	// A revalidation found HEAD moved and cached the new listing.
 	f.addTree(ghTUI, ghTUISHA, file("main.go", 2_000), file("root.go", 700))
 	for _, msg := range []ui.SyncMsg{
@@ -256,7 +312,7 @@ func TestErrorWords(t *testing.T) {
 		tree, finder string
 	}{
 		{"offline", fmt.Errorf("list files: github: GET /repos/eggzec/gh-tui/git/trees/HEAD: %w", core.ErrOffline),
-			"Can't reach GitHub · + to retry", "Can't reach GitHub"},
+			"Can't reach GitHub · →/l to retry", "Can't reach GitHub"},
 		{"forbidden", fmt.Errorf("list files: github: 403 Forbidden: %w", core.ErrForbidden),
 			"You don't have access to eggzec/gh-tui · o to open on GitHub", "You don't have access to eggzec/gh-tui"},
 		{"internal", errors.New("list files: github: decode: unexpected EOF"),
@@ -288,7 +344,7 @@ func TestOpenInBrowser(t *testing.T) {
 		{"directory", nil, "https://github.com/eggzec/gh-tui/tree/HEAD/cmd"},
 		{"submodule", []string{"down", "down"}, "https://github.com/eggzec/gh-tui/tree/HEAD/vendor-lib"},
 		{"file", []string{"G"}, "https://github.com/eggzec/gh-tui/blob/HEAD/README%20with%20spaces.md"},
-		{"nested file", []string{"+", "down", "+", "down"}, "https://github.com/eggzec/gh-tui/blob/HEAD/cmd/gh-tui/main.go"},
+		{"nested file", []string{"l", "down", "l", "down"}, "https://github.com/eggzec/gh-tui/blob/HEAD/cmd/gh-tui/main.go"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -306,7 +362,7 @@ func TestBlurred(t *testing.T) {
 	f := sampleFake()
 	s := loaded(t, f, 40, 12)
 	s.Blur()
-	if msgs := keys(s, "o", "+", "r"); len(msgs) != 0 || f.allCount() != 1 {
+	if msgs := keys(s, "o", "l", "r"); len(msgs) != 0 || f.allCount() != 1 {
 		t.Errorf("a blurred section sent %#v and listed %d times", msgs, f.allCount())
 	}
 }

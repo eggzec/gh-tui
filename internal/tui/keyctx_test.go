@@ -167,11 +167,13 @@ func (keyIssues) CurrentGet(core.RepoRef, int) bool { return true }
 func (keyIssues) CurrentComments(issuesvc.CommentsQuery) bool { return true }
 func (keyIssues) Invalidate(core.RepoRef)                     {}
 
-// keyFiles serves a tree of a directory and a file, and the file.
+// keyFiles serves a tree of a directory holding a file and of a file, and
+// the file.
 type keyFiles struct{ files.Service }
 
 var keyTree = core.Tree{SHA: "def456", Entries: []core.TreeEntry{
 	{Path: "cmd", Name: "cmd", Type: core.EntryTree, SHA: "t1"},
+	{Path: "cmd/main.go", Name: "main.go", Type: core.EntryBlob, SHA: "b2", Size: 4},
 	{Path: "README.md", Name: "README.md", Type: core.EntryBlob, SHA: "b1", Size: 6},
 }}
 
@@ -613,7 +615,6 @@ func TestContextChains(t *testing.T) {
 // reached, has nothing to act on there: a motion at the end of what it
 // moves in. Each is listed by its context and label, with the reason.
 var idleRows = map[string]string{
-	"files collapse all": "no folder is open in the tree the services serve",
 	"actions pane left":  "the runs are the leftmost pane",
 	"actions pane right": "the log is the rightmost pane",
 
@@ -625,8 +626,6 @@ var idleRows = map[string]string{
 	"pull_check_detail move right": "what the app reported is markdown, wrapped to the pane, so there is no sideways to scroll",
 	"text left":                    "the config's lines are narrower than the modal, so there is no sideways to scroll",
 	"text right":                   "the config's lines are narrower than the modal, so there is no sideways to scroll",
-	"pull_check_log expand":        "the cursor is inside the log's one open group, and expand acts only on the header of a closed one",
-	"actions_log expand":           "the cursor is inside the log's one open group, and expand acts only on the header of a closed one",
 	"pull_check_log follow":        "a log follows its end from the start, so the key turns that off, which shows nothing until lines are appended",
 	"actions_log follow":           "a log follows its end from the start, so the key turns that off, which shows nothing until lines are appended",
 
@@ -849,9 +848,9 @@ func keyContexts() []keyContext {
 		{name: "search: results", steps: []string{"global.search", typed("key"), "search_query.submit"}, context: "search_results", want: "global, search, search_results"},
 		{name: "search: filter", steps: []string{"global.search", typed("key"), "search_query.submit", "search_results.filter"}, context: "filter", want: "global, filter"},
 		{name: "search: sort", steps: []string{"global.search", typed("key"), "search_query.submit", "search_results.sort"}, context: "filter", want: "global, filter"},
-		{name: "files", repo: true, context: "files", want: "global, repo, files"},
-		{name: "files: zoomed", repo: true, steps: []string{"global.zoom"}, context: "files", want: "global, repo, files"},
-		{name: "files: error toast", repo: true, msg: ui.NotifyMsg{Level: toast.Error, Text: "Keys collide."}, context: "files", want: "global, repo, files"},
+		{name: "files", repo: true, steps: []string{"files.expand", "files.down"}, context: "files", want: "global, repo, files"},
+		{name: "files: zoomed", repo: true, steps: []string{"files.expand", "files.down", "global.zoom"}, context: "files", want: "global, repo, files"},
+		{name: "files: error toast", repo: true, steps: []string{"files.expand", "files.down"}, msg: ui.NotifyMsg{Level: toast.Error, Text: "Keys collide."}, context: "files", want: "global, repo, files"},
 		{name: "files: preview", repo: true, steps: []string{"files.down", "global.select"}, after: []string{"preview.half_page_down", "preview.right"}, context: "preview", want: "global, preview"},
 		{name: "files: preview search", repo: true, steps: []string{"files.down", "global.select", "/"}, context: "search_prompt", want: "always, search_prompt (types)"},
 		{name: "files: preview option", repo: true, steps: []string{"files.down", "global.select", "-"}, context: "pager_option", want: "always, pager_option (types)"},
@@ -890,6 +889,8 @@ func keyContexts() []keyContext {
 		{name: "actions: runs", repo: true, steps: []string{"repo.actions"}, context: "actions_runs", want: "global, actions, actions_runs"},
 		{name: "actions: jobs", repo: true, steps: []string{"repo.actions", "global.next_pane"}, context: "actions_jobs", want: "global, actions, actions_jobs"},
 		{name: "actions: log", repo: true, steps: []string{"repo.actions", "global.next_pane", "global.next_pane"}, after: []string{"actions_log.half_page_down", "actions_log.right"}, context: "actions_log", want: "global, actions, actions_log"},
+		{name: "actions: log option", repo: true, steps: []string{"repo.actions", "global.next_pane", "global.next_pane", "actions_log.option"}, context: "log_option", want: "always, log_option"},
+		{name: "pull request: job option", repo: true, steps: []string{"global.pane_2", "pulls.checks", "global.select", "pull_check_log.option"}, context: "log_option", want: "always, log_option"},
 		{name: "actions: log search", repo: true, steps: []string{"repo.actions", "global.next_pane", "global.next_pane", "/"}, context: "search_prompt", want: "always, search_prompt (types)"},
 		{name: "actions: filter", repo: true, steps: []string{"repo.actions", "actions.filter"}, context: "actions_filter", want: "global, actions_filter"},
 		{name: "actions: rerun", repo: true, steps: []string{"repo.actions", "actions.rerun_failed"}, context: "confirm", want: "always, confirm"},

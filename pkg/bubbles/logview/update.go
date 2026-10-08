@@ -21,8 +21,12 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		if !m.focused {
 			return m, nil
 		}
-		if m.searching {
+		m.flash, m.flashInfo = "", false
+		switch {
+		case m.searching:
 			return m.updateSearch(msg)
+		case m.opt:
+			return m.updateOption(msg)
 		}
 		return m.updateKey(msg)
 	}
@@ -65,12 +69,8 @@ func (m Model) updateKey(k tea.KeyPressMsg) (Model, tea.Cmd) {
 		m.left = max(m.left-m.hStep(), 0)
 	case key.Matches(k, m.keys.Toggle):
 		m.toggle()
-	case key.Matches(k, m.keys.Expand):
-		m.expand()
-	case key.Matches(k, m.keys.Collapse):
-		m.collapse()
-	case key.Matches(k, m.keys.FoldAll):
-		m.FoldAll()
+	case key.Matches(k, m.keys.ToggleAll):
+		m.ToggleAll()
 	case key.Matches(k, m.keys.NextError):
 		m.stepIssue(Error, 1)
 	case key.Matches(k, m.keys.PrevError):
@@ -79,12 +79,9 @@ func (m Model) updateKey(k tea.KeyPressMsg) (Model, tea.Cmd) {
 		m.stepIssue(Warning, 1)
 	case key.Matches(k, m.keys.PrevWarning):
 		m.stepIssue(Warning, -1)
-	case key.Matches(k, m.keys.Wrap):
-		m.SetWrap(!m.wrap)
-	case key.Matches(k, m.keys.Times):
-		m.SetTimeMode(m.times.next())
-	case key.Matches(k, m.keys.LineNumbers):
-		m.SetLineNumbers(!m.lineNumbers)
+	case key.Matches(k, m.keys.Option):
+		m.opt = true
+		m.enableKeys()
 	case key.Matches(k, m.keys.Follow):
 		m.SetFollow(!m.follow)
 	case key.Matches(k, m.keys.Search):

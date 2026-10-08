@@ -19,9 +19,7 @@ Search (types)
   top | g home | g/home | off
   bottom | G end | G/end | off
   fold | enter | ↵ | off
-  expand | + | + | off
-  collapse | - | - | off
-  fold all | * | * | off
+  all | * | * | off
   next error | e | e | off
   prev error | E | E | off
   next warning | w | w | off
@@ -31,10 +29,12 @@ Search (types)
   cancel | esc | esc | on
   next match | n | n | off
   prev match | N | N | off
+  option: S N T | - | - | off
+  chop or wrap long lines | S | S | off
+  line numbers | N | N | off
+  timestamps | T | T | off
+  cancel | esc | esc | off
   left | left h | ←/h | off
   right | right l | →/l | off
-  wrap | s | s | off
-  times | t | t | off
-  line numbers | # | # | off
   follow | F | F | off
   back | esc | esc | off

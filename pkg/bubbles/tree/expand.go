@@ -26,16 +26,23 @@ func (b *bulk) unwait(id string) {
 	delete(b.waiting, id)
 }
 
-// expandAll expands the branch under the cursor and every branch below it,
-// within the limits set by [WithExpandAllLimits].
+// expandAll expands every branch, level by level from the top, within the
+// limits set by [WithExpandAllLimits].
 func (m *Model) expandAll() tea.Cmd {
-	e := m.current()
-	if e == nil || !e.node.Branch {
+	root := m.nodes[""]
+	if root == nil {
 		return nil
 	}
-	m.bulk = bulk{queue: []string{e.node.ID}, base: e.depth, waiting: map[string]bool{}}
+	m.capped = false
+	m.bulk = bulk{base: 0, waiting: map[string]bool{}}
+	for _, k := range root.kids {
+		if c := m.nodes[k]; c != nil && c.node.Branch {
+			m.bulk.queue = append(m.bulk.queue, k)
+		}
+	}
+	cur := m.current()
 	cmd := m.pump()
-	m.flatten(m.anchor(e))
+	m.flatten(m.anchor(cur))
 	return cmd
 }
 
@@ -62,6 +69,7 @@ func (m *Model) pump() tea.Cmd {
 		}
 	}
 	if b.revealed >= m.expandNodes {
+		m.capped = m.capped || len(b.queue) > 0
 		b.queue = nil
 	}
 	if len(b.queue) == 0 && len(b.waiting) == 0 {
@@ -76,6 +84,11 @@ func (m *Model) reveal(e *entry) {
 	b := &m.bulk
 	b.revealed += len(e.kids)
 	if e.depth+1-b.base >= m.expandDepth {
+		for _, k := range e.kids {
+			if c := m.nodes[k]; c != nil && c.node.Branch {
+				m.capped = true
+			}
+		}
 		return
 	}
 	for _, k := range e.kids {

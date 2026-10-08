@@ -602,14 +602,14 @@ keys:
     half_page_down: [ctrl+d]
     top: [g, home]
     bottom: [G, end]
-    # Expand the directory under the cursor; step_in also goes to its first
-    # entry when it is open, and collapse also goes to its parent from an
-    # entry or a closed directory.
-    expand: [+]
-    step_in: [right, l]
-    collapse: ["-", left, h]
-    expand_all: ["*"]
-    collapse_all: [=]
+    # Expand the directory under the cursor, or go to its first entry when
+    # it is open; on a file, preview it as the select key does. Collapse a
+    # directory, or go to its parent from an entry or a closed directory.
+    # The toggle expands every directory, or collapses them all when all
+    # are expanded.
+    expand: [right, l]
+    collapse: [left, h]
+    toggle_all: ["*"]
     # Show the files at the head of the default branch again, after
     # history's base chose another one.
     reset_base: [H]
@@ -760,16 +760,12 @@ keys:
     half_page_down: [ctrl+d]
     top: [g, home]
     bottom: [G, end]
-    expand: ["+"]
-    collapse: ["-"]
-    expand_all: ["*"]
+    toggle_all: ["*"]
+    option: ["-"]
     next_error: [e]
     prev_error: [E]
     next_warning: [w]
     prev_warning: [W]
-    wrap: [s]
-    times: [t]
-    line_numbers: ["#"]
     follow: [F]
     find: [/]
     next_match: [n]
@@ -878,16 +874,12 @@ keys:
     half_page_down: [ctrl+d]
     top: [g, home]
     bottom: [G, end]
-    expand: ["+"]
-    collapse: ["-"]
-    expand_all: ["*"]
+    toggle_all: ["*"]
+    option: ["-"]
     next_error: [e]
     prev_error: [E]
     next_warning: [w]
     prev_warning: [W]
-    wrap: [s]
-    times: [t]
-    line_numbers: ["#"]
     follow: [F]
     find: [/]
     next_match: [n]
@@ -1013,6 +1005,13 @@ keys:
     squeeze: [s]
     smart_case: [i]
     ignore_case: [I]
+    cancel: [esc]
+  # What names an option after a log's option key, as less's - does: chop or
+  # wrap long lines, show line numbers, and show timestamps.
+  log_option:
+    chop: [S]
+    line_numbers: [N]
+    timestamps: [T]
     cancel: [esc]
 
   # The filter form of a list, in the rows: the keys that move between

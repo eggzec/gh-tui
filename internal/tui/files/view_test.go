@@ -36,7 +36,7 @@ func TestView(t *testing.T) {
 		{"nested", 30, 10, func(t *testing.T, w, h int) *Section {
 			t.Helper()
 			s := loaded(t, sampleFake(), w, h)
-			keys(s, "+", "down", "+", "down")
+			keys(s, "l", "down", "l", "down")
 			return s
 		}},
 		{"blurred", 30, 4, func(t *testing.T, w, h int) *Section {
@@ -124,7 +124,7 @@ func TestViewIcons(t *testing.T) {
 
 func TestViewIconsFitNarrowWidths(t *testing.T) {
 	s := loaded(t, sampleFake(), 30, 10)
-	keys(s, "+", "down", "+", "down")
+	keys(s, "l", "down", "l", "down")
 	for w := range 32 {
 		s.SetSize(w, 10)
 		if w == 0 {
