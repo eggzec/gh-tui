@@ -116,69 +116,65 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 	if !s.focused {
 		return nil
 	}
+	if s.typing {
+		return s.pressTyping(msg)
+	}
 	k := &s.keys
-	switch s.area {
-	case inputArea:
-		// The query types a printable key before any key of the page
-		// that holds it, such as ].
+	switch {
+	case k.focusOf(msg) >= 0:
+		s.focusArea(k.focusOf(msg))
+		return nil
+	case key.Matches(msg, k.Insert):
+		s.startTyping()
+		return nil
+	case key.Matches(msg, k.NextTab):
+		return s.moveKind(1)
+	case key.Matches(msg, k.PrevTab):
+		return s.moveKind(-1)
+	case key.Matches(msg, k.Next), key.Matches(msg, k.Prev):
+		// There are two panes, so either direction goes to the other.
+		s.focusArea(numAreas - 1 - s.area)
+		return nil
+	}
+	if s.area == inputArea {
 		switch {
-		case keyhelp.Printable(msg.String()):
-		case key.Matches(msg, k.query.Cancel):
-			s.focusArea(kindsArea)
-			return s.settleNow()
-		case key.Matches(msg, k.query.Submit):
+		case key.Matches(msg, k.Select):
 			return s.submit()
-		case key.Matches(msg, k.query.Next), key.Matches(msg, k.query.Kinds):
-			s.focusArea(kindsArea)
-			return s.settleNow()
-		case key.Matches(msg, k.query.Prev), key.Matches(msg, k.query.Results):
-			s.focusArea(resultsArea)
-			return s.settleNow()
-		}
-		before := s.input.Value()
-		var cmd tea.Cmd
-		s.input, cmd = s.input.Update(msg)
-		if s.input.Value() != before {
-			return tea.Batch(cmd, s.edited())
-		}
-		return cmd
-	case kindsArea:
-		switch {
-		case k.focusOf(msg) >= 0:
-			return s.focusPane(k.focusOf(msg))
-		case key.Matches(msg, k.Up):
-			return s.moveKind(-1)
-		case key.Matches(msg, k.Down):
-			return s.moveKind(1)
-		case key.Matches(msg, k.Select), key.Matches(msg, k.Right), key.Matches(msg, k.Next):
-			s.focusArea(resultsArea)
-			if s.kind == core.SearchCode {
-				return s.searchCode()
-			}
-		case key.Matches(msg, k.Prev):
-			s.focusArea(inputArea)
-		case key.Matches(msg, k.KindsFilter):
-			return ui.OpenFilter(filterform.FiltersTab)
-		case key.Matches(msg, k.KindsSort):
-			return ui.OpenFilter(filterform.SortTab)
+		case key.Matches(msg, k.Refresh):
+			return s.refresh()
 		}
 		return nil
-	case resultsArea:
-		return s.pressResults(msg)
 	}
-	return nil
+	return s.pressResults(msg)
 }
 
-// focusPane focuses the part of the page a, which a digit names. The
-// results of the code kind are searched for when the kinds hand them the
-// focus, as the other keys that do so.
-func (s *Section) focusPane(a area) tea.Cmd {
-	from := s.area
-	s.focusArea(a)
-	if a == resultsArea && from == kindsArea && s.kind == core.SearchCode {
-		return s.searchCode()
+// pressTyping handles a key while the query types: the few keys that type
+// nothing act, and the rest edit the query.
+func (s *Section) pressTyping(msg tea.KeyPressMsg) tea.Cmd {
+	k := &s.keys
+	// A printable key is typed before any key that holds it.
+	switch {
+	case keyhelp.Printable(msg.String()):
+	case key.Matches(msg, k.query.Cancel):
+		s.focusArea(resultsArea)
+		return s.settleNow()
+	case key.Matches(msg, k.query.Submit):
+		return s.submit()
 	}
-	return nil
+	before := s.input.Value()
+	var cmd tea.Cmd
+	s.input, cmd = s.input.Update(msg)
+	if s.input.Value() != before {
+		return tea.Batch(cmd, s.edited())
+	}
+	return cmd
+}
+
+// startTyping focuses the query and makes it take the keys.
+func (s *Section) startTyping() {
+	s.focusArea(inputArea)
+	s.typing = true
+	s.input.Focus()
 }
 
 // settleNow searches for the query without waiting for the debounce.
@@ -187,26 +183,15 @@ func (s *Section) settleNow() tea.Cmd {
 	return s.settle()
 }
 
-// moveKind shows the kind delta kinds away.
+// moveKind shows the kind delta kinds away, going round at either end.
 func (s *Section) moveKind(delta int) tea.Cmd {
-	i := slices.Index(kinds, s.kind) + delta
-	if i < 0 || i >= len(kinds) {
-		return nil
-	}
+	i := (slices.Index(kinds, s.kind) + delta + len(kinds)) % len(kinds)
 	return s.showKind(kinds[i])
 }
 
 func (s *Section) pressResults(msg tea.KeyPressMsg) tea.Cmd {
 	k := &s.keys
 	switch {
-	case k.focusOf(msg) >= 0:
-		return s.focusPane(k.focusOf(msg))
-	case key.Matches(msg, k.Left), key.Matches(msg, k.Prev):
-		s.focusArea(kindsArea)
-		return nil
-	case key.Matches(msg, k.Next):
-		s.focusArea(inputArea)
-		return nil
 	case key.Matches(msg, k.Select):
 		return s.open(false)
 	case key.Matches(msg, k.Open):
@@ -297,6 +282,10 @@ func (s *Section) open(browser bool) tea.Cmd {
 		file := ui.OpenFileMsg{Repo: hit.Repo, Path: hit.Path, SHA: hit.SHA, Find: firstMatch(hit)}
 		return func() tea.Msg { return file }
 	}
+	if s.kind == core.SearchCode && !browser {
+		// Code waits to be asked for.
+		return s.searchCode()
+	}
 	return nil
 }
 
@@ -317,14 +306,12 @@ func firstMatch(hit core.CodeHit) string {
 	return ""
 }
 
-// focusArea moves the focus to a, and focuses the bubble in it.
+// focusArea moves the focus to a, in normal mode, and focuses the bubble
+// in it. Typing starts with startTyping.
 func (s *Section) focusArea(a area) {
 	s.area = a
-	if s.focused && a == inputArea {
-		s.input.Focus()
-	} else {
-		s.input.Blur()
-	}
+	s.typing = false
+	s.input.Blur()
 	results := s.focused && a == resultsArea
 	for kind, l := range s.hits {
 		if results && kind == s.kind {

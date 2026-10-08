@@ -72,7 +72,6 @@ var contexts = []Context{
 
 	{Name: "search", Title: "Search", Reach: ReachScreen},
 	{Name: "search_query", Title: "Query", Reach: ReachCapture, Parent: "search", Typing: true},
-	{Name: "search_kinds", Title: "Kinds", Reach: ReachPane, Parent: "search"},
 	{Name: "search_results", Title: "Results", Reach: ReachPane, Parent: "search"},
 
 	{Name: "owner", Title: "Profile", Reach: ReachScreen},

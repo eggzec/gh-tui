@@ -104,7 +104,7 @@ func TestOthersWaitForTheQueryToRest(t *testing.T) {
 		s := newSection(t, svc, 120, 30, WithDebounce(DefaultDebounce), withOthersWait(defaultOthersWait))
 		p := newPump(s)
 		// Pauses longer than the debounce, and shorter than the rest.
-		for _, k := range []string{"t", "e", "a"} {
+		for _, k := range []string{"i", "t", "e", "a"} {
 			p.key(t, k)
 			p.wait(t, 300*time.Millisecond)
 		}
@@ -134,8 +134,7 @@ func TestOthersWaitForTheQueryToRest(t *testing.T) {
 			t.Errorf("summary = %+v, want 2 searches sent and read", got)
 		}
 		// Showing one of them counts it as used.
-		p.key(t, "left")
-		p.key(t, "down")
+		p.key(t, "]")
 		if got := stats.Summary().Prefetch[0]; got.Opened != 1 {
 			t.Errorf("summary = %+v, want the issues opened", got)
 		}
@@ -148,7 +147,7 @@ func TestOthersOnEnter(t *testing.T) {
 		svc := newFake()
 		s := newSection(t, svc, 120, 30, WithDebounce(DefaultDebounce), withOthersWait(defaultOthersWait))
 		p := newPump(s)
-		for _, k := range []string{"t", "e", "a"} {
+		for _, k := range []string{"i", "t", "e", "a"} {
 			p.key(t, k)
 			p.wait(t, 50*time.Millisecond)
 		}
@@ -174,7 +173,7 @@ func TestLeavingCancelsOthers(t *testing.T) {
 		svc.hold = make(chan struct{})
 		s := newSection(t, svc, 120, 30, WithDebounce(DefaultDebounce), withOthersWait(defaultOthersWait))
 		p := newPump(s)
-		for _, k := range []string{"t", "e", "a"} {
+		for _, k := range []string{"i", "t", "e", "a"} {
 			p.key(t, k)
 		}
 		p.wait(t, defaultOthersWait)
@@ -195,9 +194,11 @@ func TestLeavingCancelsOthers(t *testing.T) {
 			t.Error("leaving canceled the search of the kind on view")
 		}
 		svc.mu.Unlock()
-		// Back on the page, enter reads them again.
+		// Back on the page, on the results, enter in the query reads them
+		// again.
 		s.Focus()
 		close(svc.hold)
+		p.key(t, "1")
 		p.key(t, "enter")
 		if n := len(svc.prefetched()); n != 4 {
 			t.Errorf("%d reads of the other kinds, want 2 more on enter", n)
@@ -212,7 +213,7 @@ func TestLeavingBeforeTheRest(t *testing.T) {
 		svc := newFake()
 		s := newSection(t, svc, 120, 30, WithDebounce(DefaultDebounce), withOthersWait(defaultOthersWait))
 		p := newPump(s)
-		for _, k := range []string{"t", "e", "a"} {
+		for _, k := range []string{"i", "t", "e", "a"} {
 			p.key(t, k)
 		}
 		p.wait(t, defaultOthersWait/2)

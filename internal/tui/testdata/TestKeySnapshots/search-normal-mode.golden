@@ -17,17 +17,11 @@ global
   dashboard | 0 | 0 | on
   next | tab | tab | on
   previous | shift+tab | shift+tab | on
-  focus pane | 1 2 3 | 1-3 | on
+  focus pane | 1 2 | 1/2 | on
 
 Search
-
-Kinds
-  results | enter | ↵ | on
-  kinds | left h | ←/h | off
-  results | right l | →/l | on
-  up | up k | ↑/k | on
-  down | down j | ↓/j | on
-  browser | o | o | off
-  refresh | r | r | off
-  filter | f | f | on
-  sort | s | s | on
+  type | i | i | on
+  next kind | ] | ] | on
+  previous kind | [ | [ | on
+  search | enter | ↵ | on
+  refresh | r | r | on

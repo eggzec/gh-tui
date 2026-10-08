@@ -78,9 +78,10 @@ func TestProgram(t *testing.T) {
 		return done
 	}
 
-	// Type a query and press enter, which searches at once and focuses the
-	// results, then open the first once it is listed, and go back.
-	for _, r := range "bubbletea" {
+	// Start typing a query and press enter, which searches at once and
+	// focuses the results, then open the first once it is listed, and go
+	// back.
+	for _, r := range "ibubbletea" {
 		tm.Send(keyPress(string(r)))
 	}
 	tm.Send(keyPress("enter"))

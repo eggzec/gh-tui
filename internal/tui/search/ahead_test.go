@@ -125,7 +125,8 @@ func aheadSection(t *testing.T, f *detailFake) *Section {
 	p.Search.OtherKinds.Rest = new(time.Duration(0))
 	s := newSection(t, newFake(), 120, 30, WithDetails(fakePulls{f}, fakeIssues{f}), WithPrefetch(p))
 	typeText(t, s, "tea")
-	press(t, s, "tab", "down", "down")
+	// The query has the focus, in normal mode, on the pull requests.
+	press(t, s, "esc", "1", "]", "]")
 	return s
 }
 
@@ -137,7 +138,7 @@ func TestResultsReadAheadOnHover(t *testing.T) {
 			t.Fatalf("read %v ahead before the cursor rested on a result, want nothing", got)
 		}
 		// The result under the cursor, once the results have the focus.
-		press(t, s, "enter")
+		press(t, s, "2")
 		if got := f.numbers(); !slices.Equal(got, []int{1402}) || f.comments != 1 {
 			t.Fatalf("read %v and %d comments ahead, want #1402 and its comments", got, f.comments)
 		}
@@ -146,26 +147,25 @@ func TestResultsReadAheadOnHover(t *testing.T) {
 			t.Errorf("read %v ahead, want #1388 once", got)
 		}
 		// An issue, from its own service, and never a repository.
-		press(t, s, "left", "up", "enter")
-		press(t, s, "left", "up", "enter", "down")
+		press(t, s, "1", "[", "2")
+		press(t, s, "1", "[", "2", "down")
 		if got := f.numbers(); !slices.Equal(got, []int{1402, 1388, 1203}) {
 			t.Errorf("read %v ahead, want the issue and no repository", got)
 		}
 	})
 }
 
-// A result the cursor rests on while the query or the kinds have the
-// focus, or off the page, reads nothing.
+// A result the cursor rests on while the query has the focus, or off the page, reads nothing.
 func TestResultsReadNothingAheadUnfocused(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		f := &detailFake{}
 		s := aheadSection(t, f)
-		press(t, s, "enter")
+		press(t, s, "2")
 		before := len(f.numbers())
 		rest := s.Update(keyPress("down"))
-		press(t, s, "left")
+		press(t, s, "1")
 		run(t, s, rest)
-		rest = s.Update(keyPress("enter"))
+		rest = s.Update(keyPress("2"))
 		s.Blur()
 		run(t, s, rest)
 		if got := f.numbers(); len(got) != before {
@@ -179,7 +179,7 @@ func TestResultsStopReadingAheadOnBlur(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		f := &detailFake{hold: make(chan struct{})}
 		s := aheadSection(t, f)
-		reads := s.Update(keyPress("enter"))
+		reads := s.Update(keyPress("2"))
 		done := make(chan struct{})
 		go func() {
 			run(t, s, reads)
@@ -209,7 +209,7 @@ func TestResultsOpenPausesAndCounts(t *testing.T) {
 		stats := countStats(t)
 		f := &detailFake{}
 		s := aheadSection(t, f)
-		press(t, s, "enter")
+		press(t, s, "2")
 		app := press(t, s, "enter")
 		open, ok := app[0].(ui.OpenPullMsg)
 		if len(app) != 1 || !ok || open.Number != 1402 || open.Pause == nil {

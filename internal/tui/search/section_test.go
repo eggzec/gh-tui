@@ -29,6 +29,7 @@ func TestDebounce(t *testing.T) {
 		s := newSection(t, svc, 120, 30, WithDebounce(DefaultDebounce))
 		// Type a query a key at a time, faster than the debounce.
 		waits := make([]tea.Cmd, 0, 3)
+		press(t, s, "i")
 		for _, r := range "tea" {
 			waits = append(waits, s.Update(keyPress(string(r))))
 			time.Sleep(100 * time.Millisecond)
@@ -69,13 +70,13 @@ func TestSwitchingKindsUsesTheCache(t *testing.T) {
 	s := newSection(t, svc, 120, 30)
 	typeText(t, s, "tea")
 	before := svc.fetches()
-	press(t, s, "tab", "down")
+	press(t, s, "esc", "]")
 	if s.Kind() != core.SearchIssues || !strings.Contains(screen(s), "Terminal tea renders twice after resize") {
-		t.Fatalf("down on the kinds should show the issues:\n%s", screen(s))
+		t.Fatalf("] should show the issues:\n%s", screen(s))
 	}
-	press(t, s, "down")
+	press(t, s, "]")
 	if !strings.Contains(screen(s), "render only the cells that changed") {
-		t.Errorf("down again should show the pull requests:\n%s", screen(s))
+		t.Errorf("] again should show the pull requests:\n%s", screen(s))
 	}
 	if n := svc.fetches(); n != before {
 		t.Errorf("switching kinds made %d searches, want none", n-before)
@@ -90,7 +91,7 @@ func TestCodeOnDemand(t *testing.T) {
 		t.Fatal("typing searched code")
 	}
 	// Showing the code searches it.
-	press(t, s, "tab", "down", "down", "down")
+	press(t, s, "esc", "]", "]", "]")
 	if _, code := svc.stats(); code != 1 || s.Kind() != core.SearchCode {
 		t.Fatalf("showing the code made %d code searches, want one", code)
 	}
@@ -98,7 +99,7 @@ func TestCodeOnDemand(t *testing.T) {
 		t.Errorf("the code results are missing:\n%s", screen(s))
 	}
 	// A new query waits for enter.
-	press(t, s, "shift+tab")
+	press(t, s, "1")
 	typeText(t, s, "s")
 	if _, code := svc.stats(); code != 1 {
 		t.Error("typing on the code searched it")
@@ -110,7 +111,7 @@ func TestCodeOnDemand(t *testing.T) {
 	if _, code := svc.stats(); code != 1 {
 		t.Error("enter on a query already searched should use the cache")
 	}
-	press(t, s, "tab")
+	press(t, s, "1")
 	typeText(t, s, "x")
 	press(t, s, "enter")
 	if _, code := svc.stats(); code != 2 {
@@ -124,7 +125,7 @@ func TestCodeCountdown(t *testing.T) {
 		svc.limited = time.Now().Add(42 * time.Second)
 		s := newSection(t, svc, 120, 30, WithNow(time.Now))
 		typeText(t, s, "tea")
-		press(t, s, "tab", "down", "down", "down")
+		press(t, s, "esc", "]", "]", "]")
 		if _, code := svc.stats(); code != 0 {
 			t.Error("code search ran while GitHub is out of them")
 		}
@@ -154,7 +155,7 @@ func TestCodeRefused(t *testing.T) {
 		svc.codeErr = &core.RateLimitError{Reset: time.Now().Add(30 * time.Second)}
 		s := newSection(t, svc, 120, 30, WithNow(time.Now))
 		typeText(t, s, "tea")
-		press(t, s, "tab", "down", "down", "down")
+		press(t, s, "esc", "]", "]", "]")
 		if !strings.Contains(screen(s), "Code search resumes in 30s.") {
 			t.Errorf("a refused code search should count down to when GitHub said:\n%s", screen(s))
 		}
@@ -179,7 +180,7 @@ func TestCodeErrorWords(t *testing.T) {
 			svc.codeErr = tt.err
 			s := newSection(t, svc, 120, 30)
 			typeText(t, s, "tea")
-			press(t, s, "tab", "down", "down", "down", "enter")
+			press(t, s, "esc", "]", "]", "]")
 			if v := screen(s); !strings.Contains(v, tt.want) || strings.Contains(v, "github:") || strings.Contains(v, "403") {
 				t.Errorf("screen = %q, want %q", v, tt.want)
 			}
@@ -199,7 +200,7 @@ func TestPaging(t *testing.T) {
 	svc := newFake()
 	s := newSection(t, svc, 120, 30)
 	typeText(t, s, "tea")
-	press(t, s, "down", "end")
+	press(t, s, "esc", "end")
 	if n := len(svc.queries); n < 2 {
 		t.Fatalf("scrolling to the end made %d searches, want the next page", n)
 	}
@@ -219,15 +220,15 @@ func TestOpen(t *testing.T) {
 		keys []string
 		want []tea.Msg
 	}{
-		{"repository", []string{"down", "enter"}, []tea.Msg{ui.RepoMsg{Repo: bubbletea}}},
-		{"repository in the browser", []string{"down", "o"}, []tea.Msg{ui.OpenMsg{URL: "https://github.com/charmbracelet/bubbletea"}}},
-		{"issue", []string{"tab", "down", "enter", "enter"}, []tea.Msg{ui.OpenIssueMsg{Repo: bubbletea, Number: 1203}}},
-		{"pull request", []string{"tab", "down", "down", "enter", "down", "enter"}, []tea.Msg{ui.OpenPullMsg{Repo: bubbletea, Number: 1388}}},
-		{"pull request on its checks", []string{"tab", "down", "down", "enter", "down", "C"}, []tea.Msg{ui.OpenPullMsg{Repo: bubbletea, Number: 1388, Checks: true}}},
-		{"no checks for an issue", []string{"tab", "down", "enter", "C"}, nil},
+		{"repository", []string{"esc", "enter"}, []tea.Msg{ui.RepoMsg{Repo: bubbletea}}},
+		{"repository in the browser", []string{"esc", "o"}, []tea.Msg{ui.OpenMsg{URL: "https://github.com/charmbracelet/bubbletea"}}},
+		{"issue", []string{"esc", "]", "enter"}, []tea.Msg{ui.OpenIssueMsg{Repo: bubbletea, Number: 1203}}},
+		{"pull request", []string{"esc", "]", "]", "down", "enter"}, []tea.Msg{ui.OpenPullMsg{Repo: bubbletea, Number: 1388}}},
+		{"pull request on its checks", []string{"esc", "]", "]", "down", "C"}, []tea.Msg{ui.OpenPullMsg{Repo: bubbletea, Number: 1388, Checks: true}}},
+		{"no checks for an issue", []string{"esc", "]", "C"}, nil},
 		// The file opens over the page, on what matched.
-		{"file", []string{"tab", "down", "down", "down", "enter", "enter"}, []tea.Msg{ui.OpenFileMsg{Repo: bubbletea, Path: "tea.go", SHA: "b1", Find: "tea"}}},
-		{"file in the browser", []string{"tab", "down", "down", "down", "enter", "o"}, []tea.Msg{ui.OpenMsg{URL: "https://github.com/charmbracelet/bubbletea/blob/main/tea.go"}}},
+		{"file", []string{"esc", "]", "]", "]", "enter"}, []tea.Msg{ui.OpenFileMsg{Repo: bubbletea, Path: "tea.go", SHA: "b1", Find: "tea"}}},
+		{"file in the browser", []string{"esc", "]", "]", "]", "o"}, []tea.Msg{ui.OpenMsg{URL: "https://github.com/charmbracelet/bubbletea/blob/main/tea.go"}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -260,32 +261,108 @@ func TestFirstMatch(t *testing.T) {
 	}
 }
 
-// esc leaves the query for the kinds, and goes nowhere from the kinds and
-// the results: going back is the app's key.
-func TestEscDoesNotGoBack(t *testing.T) {
+// The page opens on the query in normal mode: letters are not typed, and
+// i starts typing.
+func TestOpensInNormalMode(t *testing.T) {
 	s := newSection(t, newFake(), 120, 30)
-	if got := press(t, s, "esc"); len(got) != 0 || s.area != kindsArea {
-		t.Errorf("esc in the query sent %v and focused area %d, want the kinds and no message", got, s.area)
+	if s.Capturing() || s.area != inputArea {
+		t.Fatalf("the page opens capturing=%v in area %d, want the query, not typing", s.Capturing(), s.area)
 	}
-	if got := press(t, s, "esc"); len(got) != 0 || s.area != kindsArea {
-		t.Errorf("esc in the kinds sent %v and focused area %d, want nothing", got, s.area)
+	press(t, s, "t", "e", "a")
+	if s.input.Value() != "" {
+		t.Errorf("the query is %q after letters in normal mode, want it empty", s.input.Value())
 	}
-	press(t, s, "down")
-	if got := press(t, s, "esc"); len(got) != 0 {
-		t.Errorf("esc sent %v, want nothing", got)
+	press(t, s, "i")
+	if !s.Capturing() || s.area != inputArea {
+		t.Fatal("i should start typing in the query")
+	}
+	typeText(t, s, "tea")
+	if s.input.Value() != "tea" {
+		t.Errorf("the query is %q, want tea typed", s.input.Value())
+	}
+}
+
+// esc while typing stops typing and moves to the results, and tab stays in
+// the query; from the results, esc goes nowhere.
+func TestEscLeavesTypingForTheResults(t *testing.T) {
+	s := newSection(t, newFake(), 120, 30)
+	press(t, s, "i", "t", "tab")
+	if !s.Capturing() || s.area != inputArea || s.input.Value() != "t" {
+		t.Errorf("tab while typing left the query: capturing %v, area %d, text %q", s.Capturing(), s.area, s.input.Value())
+	}
+	if got := press(t, s, "esc"); len(got) != 0 || s.area != resultsArea || s.Capturing() {
+		t.Errorf("esc while typing sent %v, area %d, capturing %v, want the results, not typing, no message", got, s.area, s.Capturing())
+	}
+	if s.Query() != "t" {
+		t.Errorf("the results are for %q, want the query searched when typing stopped", s.Query())
+	}
+	if got := press(t, s, "esc"); len(got) != 0 || s.area != resultsArea {
+		t.Errorf("esc in the results sent %v and focused area %d, want nothing", got, s.area)
+	}
+}
+
+// The digits move between the query and the results while the query isn't
+// typing, and are typed while it is.
+func TestDigitsMovePanes(t *testing.T) {
+	s := newSection(t, newFake(), 120, 30)
+	press(t, s, "2")
+	if s.area != resultsArea {
+		t.Errorf("2 focused area %d, want the results", s.area)
+	}
+	press(t, s, "1")
+	if s.area != inputArea || s.Capturing() {
+		t.Errorf("1 focused area %d, capturing %v, want the query in normal mode", s.area, s.Capturing())
+	}
+	press(t, s, "3")
+	if s.area != inputArea {
+		t.Error("3 names no pane and should do nothing")
+	}
+	press(t, s, "i", "2")
+	if s.input.Value() != "2" || s.area != inputArea {
+		t.Errorf("typing 2 gave %q in area %d, want it typed", s.input.Value(), s.area)
+	}
+}
+
+// ] and [ show the next and the previous kind from either pane, going
+// round, and search again for the query.
+func TestBracketsSwitchKinds(t *testing.T) {
+	svc := newFake()
+	s := newSection(t, svc, 120, 30)
+	typeText(t, s, "tea")
+	press(t, s, "esc")
+	for _, want := range []core.SearchKind{core.SearchIssues, core.SearchPulls} {
+		press(t, s, "]")
+		if s.Kind() != want || s.area != resultsArea {
+			t.Fatalf("] showed %v in area %d, want %v in the results", s.Kind(), s.area, want)
+		}
+	}
+	press(t, s, "1", "[")
+	if s.Kind() != core.SearchIssues || s.area != inputArea {
+		t.Errorf("[ from the query showed %v in area %d, want issues in the query", s.Kind(), s.area)
+	}
+	press(t, s, "[", "[")
+	if s.Kind() != core.SearchCode {
+		t.Errorf("[ before the first kind showed %v, want code", s.Kind())
+	}
+	if _, code := svc.stats(); code != 1 {
+		t.Errorf("showing the code kind made %d code searches, want one", code)
+	}
+	press(t, s, "]")
+	if s.Kind() != core.SearchRepos {
+		t.Errorf("] after the last kind showed %v, want repositories", s.Kind())
 	}
 }
 
 func TestCapturing(t *testing.T) {
 	s := newSection(t, newFake(), 120, 30)
-	if !s.Capturing() {
-		t.Error("the query should take every key")
+	if s.Capturing() {
+		t.Error("the query takes every key only while it types")
 	}
 	typeText(t, s, "q]")
-	if s.input.Value() != "q]" {
-		t.Errorf("the query is %q, want the keys typed", s.input.Value())
+	if !s.Capturing() || s.input.Value() != "q]" {
+		t.Errorf("the query is %q, capturing %v, want the keys typed", s.input.Value(), s.Capturing())
 	}
-	press(t, s, "down")
+	press(t, s, "esc")
 	if s.Capturing() {
 		t.Error("the results take only their own keys")
 	}
@@ -296,22 +373,23 @@ func TestStart(t *testing.T) {
 	if view := screen(s); !strings.Contains(view, "Your repositories") || !strings.Contains(view, "octocat/hello-world") {
 		t.Fatalf("an empty query should offer the repositories:\n%s", view)
 	}
-	app := press(t, s, "down", "enter")
+	app := press(t, s, "2", "enter")
 	if !slices.Equal(app, []tea.Msg{ui.RepoMsg{Repo: core.RepoRef{Owner: "octocat", Name: "hello-world"}}}) {
 		t.Errorf("enter on a repository sent %v", app)
 	}
 	// A search opened is remembered, and picking it searches again.
 	s.Focus()
 	typeText(t, s, "lipgloss")
-	press(t, s, "down", "enter")
+	press(t, s, "esc", "enter")
 	s.Focus()
+	press(t, s, "i")
 	for range len("lipgloss") {
 		press(t, s, "backspace")
 	}
 	if view := screen(s); !strings.Contains(view, "Recent searches") || !strings.Contains(view, "↺ lipgloss") {
 		t.Fatalf("the search should be remembered:\n%s", view)
 	}
-	press(t, s, "down", "enter")
+	press(t, s, "esc", "enter")
 	if s.Query() != "lipgloss" || s.input.Value() != "lipgloss" {
 		t.Errorf("picking a recent search should search it again, got %q", s.Query())
 	}
@@ -337,10 +415,10 @@ func TestStartFailure(t *testing.T) {
 			s := newSection(t, newFake(), 120, 30, WithStart(func(context.Context) ([]core.Repo, error) { return nil, tt.err }))
 			termtexttest.AssertClean(t, s.View(), 120)
 			view := screen(s)
-			if !strings.Contains(view, tt.want) || !strings.Contains(view, "Type to search GitHub.") {
+			if !strings.Contains(view, tt.want) || !strings.Contains(view, "Press i to search GitHub.") {
 				t.Errorf("the page should say %q:\n%s", tt.want, view)
 			}
-			for _, leak := range []string{"github", "list repos", "GET", "403", "404", "decode", " · "} {
+			for _, leak := range []string{"github", "list repos", "GET", "403", "404", "decode"} {
 				if strings.Contains(view, leak) {
 					t.Errorf("the page shows %q:\n%s", leak, view)
 				}
@@ -354,7 +432,7 @@ func TestRefresh(t *testing.T) {
 	s := newSection(t, svc, 120, 30)
 	typeText(t, s, "tea")
 	before, _ := svc.stats()
-	press(t, s, "down", "r")
+	press(t, s, "esc", "r")
 	if n, _ := svc.stats(); svc.invalidated != 1 || n != before+1 {
 		t.Errorf("refresh invalidated %d times and searched %d times, want once each", svc.invalidated, n-before)
 	}
@@ -364,6 +442,7 @@ func TestResultsOfAnotherQueryAreDropped(t *testing.T) {
 	svc := newFake()
 	s := newSection(t, svc, 120, 30, WithDebounce(time.Hour))
 	// The wait isn't run, so it never ends.
+	press(t, s, "i")
 	s.Update(keyPress("t"))
 	stale := debounceMsg{id: s.id, seq: s.seq - 1}
 	s.Update(stale)
@@ -379,6 +458,7 @@ func TestResultsOfAnotherQueryAreDropped(t *testing.T) {
 func TestKeepsResultsWhileLoading(t *testing.T) {
 	s := newSection(t, newFake(), 120, 30)
 	// The first query has nothing to keep, so it shows the loading body.
+	press(t, s, "i")
 	s.Update(keyPress("t"))
 	if view := screen(s); !strings.Contains(view, "Loading…") {
 		t.Errorf("a first query should show the loading body:\n%s", view)
@@ -454,7 +534,7 @@ func TestSearch(t *testing.T) {
 func TestFreshStartsEmptyAndFocused(t *testing.T) {
 	svc := newFake()
 	s := newSection(t, svc, 120, 30)
-	for _, k := range []string{"t", "e", "a"} {
+	for _, k := range []string{"i", "t", "e", "a"} {
 		run(t, s, s.Update(keyPress(k)))
 	}
 	run(t, s, s.Update(keyPress("enter")))
@@ -466,10 +546,10 @@ func TestFreshStartsEmptyAndFocused(t *testing.T) {
 	if s.input.Value() != "" || s.Query() != "" {
 		t.Errorf("input %q, query %q after Fresh, want both empty", s.input.Value(), s.Query())
 	}
-	if !s.Capturing() || !s.input.Focused() {
-		t.Errorf("the query isn't focused after Fresh")
+	if s.Capturing() || s.area != inputArea {
+		t.Errorf("after Fresh the query should have the focus, in normal mode: capturing %v, area %d", s.Capturing(), s.area)
 	}
-	for _, k := range []string{"g", "o"} {
+	for _, k := range []string{"i", "g", "o"} {
 		run(t, s, s.Update(keyPress(k)))
 	}
 	if got := s.input.Value(); got != "go" {
@@ -482,7 +562,7 @@ func TestFreshReadsTheSameQueryAnew(t *testing.T) {
 	s := newSection(t, svc, 120, 30)
 	// The commands of the first typing are dropped, as when the read of
 	// its first page is still on its way as the user leaves.
-	for _, r := range "tea" {
+	for _, r := range "itea" {
 		s.Update(keyPress(string(r)))
 	}
 	if svc.requests != 0 {
@@ -518,5 +598,65 @@ func TestFreshDropsTheDebounceInFlight(t *testing.T) {
 	}
 	if svc.requests != 0 {
 		t.Errorf("%d requests after the stale debounce, want none", svc.requests)
+	}
+}
+
+// Coming back to the page with results shown focuses the results; with no
+// query it focuses the query, in normal mode.
+func TestFocusReturnsToTheResults(t *testing.T) {
+	s := newSection(t, newFake(), 120, 30)
+	if s.area != inputArea || s.Capturing() {
+		t.Fatalf("a fresh page is in area %d, capturing %v, want the query in normal mode", s.area, s.Capturing())
+	}
+	typeText(t, s, "tea")
+	press(t, s, "esc", "1")
+	s.Blur()
+	s.Focus()
+	if s.area != resultsArea || s.Capturing() {
+		t.Errorf("after coming back the page is in area %d, capturing %v, want the results", s.area, s.Capturing())
+	}
+	s.Fresh()
+	s.Blur()
+	s.Focus()
+	if s.area != inputArea {
+		t.Errorf("with no query the page is in area %d, want the query", s.area)
+	}
+}
+
+// Enter is labelled preview only where it previews a result: not on the
+// repositories offered before a query, nor on repositories.
+func TestEnterLabel(t *testing.T) {
+	label := func(s *Section) string {
+		for _, l := range s.KeyLayers() {
+			for _, b := range l.Bindings {
+				if slices.Contains(b.Keys(), "enter") {
+					return b.Help().Desc
+				}
+			}
+		}
+		return ""
+	}
+	s := newSection(t, newFake(), 120, 30)
+	press(t, s, "2", "]")
+	if got := label(s); got != "open" {
+		t.Errorf("enter on the start is %q on issues with no query, want open", got)
+	}
+	typeText(t, s, "tea")
+	press(t, s, "esc")
+	if got := label(s); got != "preview" {
+		t.Errorf("enter on the issues of a query is %q, want preview", got)
+	}
+}
+
+// While the query types, the start doesn't tell the user to press the key
+// that starts typing.
+func TestStartHintWhileTyping(t *testing.T) {
+	s := newSection(t, newFake(), 120, 30, WithStart(func(context.Context) ([]core.Repo, error) { return nil, nil }))
+	if !strings.Contains(flat(s), "Press i to search") {
+		t.Errorf("the start should name the key:\n%s", screen(s))
+	}
+	press(t, s, "i")
+	if v := flat(s); strings.Contains(v, "Press i") || !strings.Contains(v, "Type to search") {
+		t.Errorf("while typing the start should say to type:\n%s", screen(s))
 	}
 }

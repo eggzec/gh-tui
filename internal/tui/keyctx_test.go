@@ -879,11 +879,11 @@ func keyContexts() []keyContext {
 		{name: "notifications", steps: []string{"global.notifications"}, context: "notifications", want: "global, notifications"},
 		{name: "notifications: filter", steps: []string{"global.notifications", "notifications.filter"}, context: "filter", want: "global, filter"},
 		{name: "notifications: mark read", steps: []string{"global.notifications", "notifications.read"}, context: "confirm", want: "always, confirm"},
-		{name: "search: query", steps: []string{"global.search"}, context: "search_query", want: "always, global, search_query (types)"},
-		{name: "search: kinds", steps: []string{"global.search", "search_query.kinds"}, context: "search_kinds", want: "global, search, search_kinds"},
-		{name: "search: results", steps: []string{"global.search", typed("key"), "search_query.submit"}, context: "search_results", want: "global, search, search_results"},
-		{name: "search: filter", steps: []string{"global.search", typed("key"), "search_query.submit", "search_results.filter"}, context: "filter", want: "global, filter"},
-		{name: "search: sort", steps: []string{"global.search", typed("key"), "search_query.submit", "search_results.sort"}, context: "filter", want: "global, filter"},
+		{name: "search: normal mode", steps: []string{"global.search", "search.insert", typed("key"), "search_query.cancel", "global.pane_1"}, context: "search", want: "global, search"},
+		{name: "search: query", steps: []string{"global.search", "search.insert"}, context: "search_query", want: "always, global, search_query (types)"},
+		{name: "search: results", steps: []string{"global.search", "search.insert", typed("key"), "search_query.submit"}, context: "search_results", want: "global, search, search_results"},
+		{name: "search: filter", steps: []string{"global.search", "search.insert", typed("key"), "search_query.submit", "search_results.filter"}, context: "filter", want: "global, filter"},
+		{name: "search: sort", steps: []string{"global.search", "search.insert", typed("key"), "search_query.submit", "search_results.sort"}, context: "filter", want: "global, filter"},
 		{name: "files", repo: true, steps: []string{"files.expand", "files.down"}, context: "files", want: "global, repo, files"},
 		{name: "files: zoomed", repo: true, steps: []string{"files.expand", "files.down", "global.zoom"}, context: "files", want: "global, repo, files"},
 		{name: "files: error toast", repo: true, steps: []string{"files.expand", "files.down"}, msg: ui.NotifyMsg{Level: toast.Error, Text: "Keys collide."}, context: "files", want: "global, repo, files"},
@@ -1077,7 +1077,7 @@ func TestTypedTextIsNotAKey(t *testing.T) {
 		if got := boundKey(c.layers(t), "j"); got == "" {
 			t.Errorf("j is the filter's down key, but boundKey finds no binding")
 		}
-		c = keyContext{name: "search query", steps: []string{"global.search"}, context: "search_query", want: "always, global, search_query (types)"}
+		c = keyContext{name: "search query", steps: []string{"global.search", "search.insert"}, context: "search_query", want: "always, global, search_query (types)"}
 		if got := boundKey(c.layers(t), "k"); got != "" {
 			t.Errorf("k is typed into the query, but boundKey finds %s", got)
 		}

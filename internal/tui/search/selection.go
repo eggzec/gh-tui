@@ -11,10 +11,10 @@ func (s *Section) OpenedRepo(ui.Selection) {
 }
 
 // Selected implements ui.Selector: the result under the cursor, or the
-// repository offered before the user types. With the kinds focused no
+// repository offered before the user types. With the query focused no
 // result is.
 func (s *Section) Selected() (ui.Selection, bool) {
-	if s.area == kindsArea {
+	if s.area == inputArea {
 		return ui.Selection{}, false
 	}
 	if s.text == "" {

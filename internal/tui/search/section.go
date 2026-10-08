@@ -99,12 +99,11 @@ type area int
 
 const (
 	inputArea area = iota
-	kindsArea
 	resultsArea
 )
 
 // numAreas is how many parts the page has.
-const numAreas = 3
+const numAreas = 2
 
 // kinds are the kinds of results, in the order the page lists them.
 var kinds = []core.SearchKind{core.SearchRepos, core.SearchIssues, core.SearchPulls, core.SearchCode}
@@ -132,8 +131,11 @@ type Section struct {
 	// voice words the errors of the results.
 	voice ui.Voice
 
-	input   textinput.Model
-	area    area
+	input textinput.Model
+	area  area
+	// typing is whether the query takes the keys, which it does from the
+	// key that starts typing until the one that stops it.
+	typing  bool
 	focused bool
 
 	// seq counts the edits of the query; a debounce of an earlier one is
@@ -258,8 +260,8 @@ func (s *Section) Init() tea.Cmd {
 }
 
 // Capturing reports whether the page takes every key, which it does while
-// the query has the focus.
-func (s *Section) Capturing() bool { return s.focused && s.area == inputArea }
+// the query types.
+func (s *Section) Capturing() bool { return s.focused && s.typing }
 
 // Query returns the query the results are for.
 func (s *Section) Query() string { return s.text }
@@ -294,10 +296,16 @@ func (s *Section) SetTheme(t ui.Theme) {
 	s.render()
 }
 
-// Focus puts the focus in the query, as the search key does from anywhere.
+// Focus puts the focus in the query, not yet typing, as the search key
+// does from anywhere, or in the results when they show a query already,
+// as when the page comes back into view.
 func (s *Section) Focus() {
 	s.focused = true
-	s.focusArea(inputArea)
+	if s.text != "" {
+		s.focusArea(resultsArea)
+	} else {
+		s.focusArea(inputArea)
+	}
 	s.render()
 }
 
