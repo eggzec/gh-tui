@@ -64,6 +64,10 @@ func (a *Ahead[K]) Window(at func(i int) (K, bool), i int) tea.Cmd {
 	a.around, a.windowed = rows, true
 	a.seq++
 	if at == nil || i < 0 {
+		// The list lost the focus or its rows: the reads of the rows that
+		// were in the window stop now, rather than at a rest that may
+		// never come.
+		a.cancelLeft()
 		return nil
 	}
 	if !a.loaded {
@@ -140,6 +144,16 @@ func windowRows[K comparable](at func(i int) (K, bool), i, before, after int) []
 // or failed lately (aheadFailedFor). The reads of the last window go on
 // for the rows still in it, and stop for those that left it.
 func (a *Ahead[K]) readWindow() tea.Cmd {
+	a.cancelLeft()
+	if a.halt() {
+		return nil
+	}
+	return a.readRows()
+}
+
+// cancelLeft stops the reads of the rows that left the window, and those
+// whose read ended.
+func (a *Ahead[K]) cancelLeft() {
 	for k, cancel := range a.reading {
 		left := !slices.Contains(a.around, k) && (!a.kept || k != a.keep)
 		if left || !a.flying.has(k) {
@@ -152,9 +166,10 @@ func (a *Ahead[K]) readWindow() tea.Cmd {
 			a.flying.drop(k)
 		}
 	}
-	if a.halt() {
-		return nil
-	}
+}
+
+// readRows reads the rows of the window that need it.
+func (a *Ahead[K]) readRows() tea.Cmd {
 	todo := make([]K, 0, len(a.around))
 	cached, failed := 0, 0
 	now := time.Now()
