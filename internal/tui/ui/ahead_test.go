@@ -857,6 +857,38 @@ func TestAheadWindowKeepsReadsStillInIt(t *testing.T) {
 	})
 }
 
+// TestAheadWindowStopsReadsWhenTheListLosesTheFocus checks that the reads
+// in flight stop at once when the cursor is on no row any more, such as
+// when the list loses the focus, rather than at a rest that never comes.
+func TestAheadWindowStopsReadsWhenTheListLosesTheFocus(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		r := newReader()
+		r.hold = make(chan struct{})
+		a := newAhead(t, r, 0, 0, time.Millisecond)
+		win(a, 0, 2)
+		first := a.Window(rowsOf(30), 10)
+		done := make(chan struct{})
+		go func() {
+			run(first)
+			close(done)
+		}()
+		synctest.Wait()
+		if cmd := a.Window(nil, -1); cmd != nil {
+			t.Error("a window with no rows scheduled a read")
+		}
+		synctest.Wait()
+		r.mu.Lock()
+		cancelled := slices.Sorted(slices.Values(r.cancelled))
+		r.mu.Unlock()
+		if want := []int{11, 12, 13}; !slices.Equal(cancelled, want) {
+			t.Errorf("cancelled %v, want the whole window, %v", cancelled, want)
+		}
+		close(r.hold)
+		<-done
+		synctest.Wait()
+	})
+}
+
 // TestAheadKeepLetsTheReadGoOn checks that the read of the row kept goes
 // on though it leaves the window, and that it stops once another row is
 // kept and it is out of the window.
