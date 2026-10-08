@@ -91,10 +91,14 @@ type Model struct {
 	all []*pane
 	// screen is the screen on view, and focus the focused pane of the
 	// repository screen. back holds the places left, the newest last, for
-	// the back key to return to.
-	screen screen
-	back   []place
-	focus  int
+	// the back key to return to: screens, and modals that another opened
+	// in their place. Modal places exist only while a modal is open: they
+	// are all dropped, and discarded, when the last modal closes, and
+	// backOwner is the modal they are the way back of.
+	screen    screen
+	back      []place
+	backOwner ui.Modal
+	focus     int
 	// zoom shows the focused pane of the repository screen alone, as a
 	// narrow terminal does. The dashboard keeps its own.
 	zoom bool

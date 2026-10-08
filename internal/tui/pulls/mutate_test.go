@@ -538,11 +538,11 @@ func TestHelpOffersWhatApplies(t *testing.T) {
 	enabled := func(s *host) []string { return uitest.Enabled(s.KeyLayers()) }
 	svc := newFakeService()
 	s := started(t, svc, 80, 20)
-	if got := enabled(s); !slices.Contains(got, "merge") || !slices.Contains(got, "close") || slices.Contains(got, "reopen") {
+	if got := enabled(s); !slices.Contains(got, "merge") || !slices.Contains(got, "close PR") || slices.Contains(got, "reopen PR") {
 		t.Errorf("open help = %v, want merge and close", got)
 	}
 	press(t, s, "]")
-	if got := enabled(s); slices.Contains(got, "merge") || !slices.Contains(got, "reopen") {
+	if got := enabled(s); slices.Contains(got, "merge") || !slices.Contains(got, "reopen PR") {
 		t.Errorf("closed help = %v, want reopen only", got)
 	}
 }

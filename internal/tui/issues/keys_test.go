@@ -29,7 +29,7 @@ func winner(layers []keyhelp.Layer, k string) string {
 func TestKeyLayersOrder(t *testing.T) {
 	h := started(t, newFakeService(sampleIssues(12)), 80, 20)
 	for k, want := range map[string]string{
-		"]": ui.IssuesTitle + ": next state", "X": ui.IssuesTitle + ": close", "j": ui.IssuesTitle + ": down", "c": "nothing",
+		"]": ui.IssuesTitle + ": next state", "X": ui.IssuesTitle + ": close issue", "j": ui.IssuesTitle + ": down", "c": "nothing",
 	} {
 		if got := winner(h.KeyLayers(), k); got != want {
 			t.Errorf("%s reaches %q in the list, want %q", k, got, want)
@@ -45,7 +45,7 @@ func TestKeyLayersOrder(t *testing.T) {
 	if m == nil {
 		t.Fatal("enter opened no issue")
 	}
-	for k, want := range map[string]string{"esc": "Issue: back", "c": "Issue: comment", "j": "Issue: down"} {
+	for k, want := range map[string]string{"esc": "Issue: close", "c": "Issue: comment", "j": "Issue: down"} {
 		if got := winner(m.KeyLayers(), k); got != want {
 			t.Errorf("%s reaches %q in the modal, want %q", k, got, want)
 		}

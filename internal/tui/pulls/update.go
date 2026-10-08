@@ -49,7 +49,7 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 		}
 		return nil
 	case ui.OpenPullMsg:
-		return s.openDetail(msg.Repo, msg.Number, nil, msg.Checks, msg.ShowRepo, msg.Pause)
+		return s.openDetail(msg.Repo, msg.Number, nil, msg.Checks, msg.ShowRepo, msg.Pause, msg.Back)
 	case changedMsg:
 		if !s.hasRepo || !msg.repo.Same(s.repo) {
 			return nil
@@ -113,12 +113,12 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 	switch {
 	case key.Matches(msg, k.Select):
 		if pr, ok := s.feed.Selected(); ok {
-			return s.openDetail(s.repo, pr.Number, &pr, false, false, nil)
+			return s.openDetail(s.repo, pr.Number, &pr, false, false, nil, nil)
 		}
 		return nil
 	case key.Matches(msg, k.Checks):
 		if pr, ok := s.feed.Selected(); ok {
-			return s.openDetail(s.repo, pr.Number, &pr, true, false, nil)
+			return s.openDetail(s.repo, pr.Number, &pr, true, false, nil, nil)
 		}
 		return nil
 	case key.Matches(msg, k.NextTab):

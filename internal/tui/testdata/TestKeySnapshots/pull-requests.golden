@@ -24,10 +24,10 @@ Repository
 
 Pull requests
   merge | M | M | on
-  close | X | X | on
-  reopen | O | O | off
+  close PR | X | X | on
+  reopen PR | O | O | off
   convert to draft | W | W | on
-  back | esc | esc | off
+  close | esc | esc | off
   open | enter | ↵ | on
   checks | C | C | on
   next state | ] | ] | on

@@ -96,8 +96,9 @@ type detailModal struct {
 }
 
 // openDetail opens a modal on issue number of repo. it is the list item,
-// shown until the issue arrives, or nil when there is none.
-func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, showRepo bool, from ui.Pauser) tea.Cmd {
+// shown until the issue arrives, or nil when there is none. back is the
+// modal it replaces, which the back key returns to, or nil.
+func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, showRepo bool, from ui.Pauser, back ui.Modal) tea.Cmd {
 	// The reads of the modal are one trace, however many pages it reads.
 	ctx, cancel := context.WithCancel(obs.WithTrace(s.ctx, "open.issue"))
 	s.ahead.Opened(detailKey(repo, number))
@@ -162,7 +163,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, show
 	if !m.loaded {
 		// The loads start once the modal is open, so that the app has it
 		// to pass their results to.
-		return tea.Sequence(ui.OpenModal(m), tea.Batch(m.thread.Init(), m.get(), caps))
+		return tea.Sequence(ui.OpenModalOver(m, back), tea.Batch(m.thread.Init(), m.get(), caps))
 	}
 	// What is cached shows at once, and is read again behind it.
 	cp, primed := svc.CachedComments(q)
@@ -173,7 +174,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, show
 	if primed {
 		loads = append(loads, m.thread.Reload())
 	}
-	return tea.Sequence(ui.OpenModal(m), tea.Batch(loads...))
+	return tea.Sequence(ui.OpenModalOver(m, back), tea.Batch(loads...))
 }
 
 // capsOf returns what the viewer may do in repo, as far as it is known.
@@ -283,6 +284,13 @@ func (m *detailModal) Update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		return tea.Batch(m.thread.Reload(), m.get())
+	case ui.ReopenedMsg:
+		// Back from the modal that replaced this one: what is cached
+		// shows at once, and is read again behind it.
+		if msg.Modal != m {
+			return nil
+		}
+		return tea.Batch(m.thread.Reload(), m.get())
 	case ui.CapsMsg:
 		if msg.Repo.Same(m.repo) {
 			m.caps = msg.Caps
@@ -365,10 +373,17 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 
 // close closes the modal, and stops its reads.
 func (m *detailModal) close() tea.Cmd {
+	m.Discard()
+	return ui.CloseModal(m)
+}
+
+// Discard implements ui.Discarder, for a modal the app drops while it is
+// hidden, such as the one a chain of modals leaves behind: its reads end,
+// and those held back for it go on.
+func (m *detailModal) Discard() {
 	m.closed = true
 	m.cancel()
 	m.resume()
-	return ui.CloseModal(m)
 }
 
 // get reads the issue, since a list page may carry less than the issue

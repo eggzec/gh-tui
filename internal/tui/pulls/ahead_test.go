@@ -345,7 +345,7 @@ func TestModalResumesReadAheadWhateverTheOrder(t *testing.T) {
 		name: "two opened, both load, neither closed",
 		run: func(t *testing.T, h *host, _ *fakeService) {
 			t.Helper()
-			for _, c := range []tea.Cmd{h.openDetail(repo, 142, nil, false, false, nil), h.openDetail(repo, 128, nil, false, false, nil)} {
+			for _, c := range []tea.Cmd{h.openDetail(repo, 142, nil, false, false, nil, nil), h.openDetail(repo, 128, nil, false, false, nil, nil)} {
 				seq, ok := sequence(c())
 				if !ok {
 					t.Fatal("opening a modal isn't a sequence")

@@ -81,9 +81,11 @@ type Linked interface {
 }
 
 // OpenModalMsg asks the app to open Modal over the screen, in place of the
-// modal that is open.
+// modal that is open. If Back is that modal, the app keeps it, hidden, so
+// that the back key returns to it.
 type OpenModalMsg struct {
 	Modal Modal
+	Back  Modal
 }
 
 // OpenModal returns a command that opens m. The opener starts whatever m
@@ -93,6 +95,22 @@ type OpenModalMsg struct {
 // finish first and be lost.
 func OpenModal(m Modal) tea.Cmd {
 	return func() tea.Msg { return OpenModalMsg{Modal: m} }
+}
+
+// OpenModalOver returns a command that opens m in place of back, the modal
+// that is open and asked for it, such as a pull request picked in the
+// references of another. The back key returns to back, which stays as it
+// was; if back is no longer the open modal, m opens as OpenModal opens it.
+func OpenModalOver(m, back Modal) tea.Cmd {
+	return func() tea.Msg { return OpenModalMsg{Modal: m, Back: back} }
+}
+
+// Discarder is a Modal that the app drops without it being open, such as
+// one that the back key leaves, or that the end of a chain of modals
+// leaves behind. Discard stops it for good: its reads end, and the reads
+// it held back go on.
+type Discarder interface {
+	Discard()
 }
 
 // ReopenedMsg tells Modal that it is open again, after a modal it opened

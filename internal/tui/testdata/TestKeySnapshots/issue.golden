@@ -3,6 +3,7 @@
 global
   quit | ctrl+c | ^c | on
   maximize | Z | Z | on
+  back | backspace | backspace | off
   dashboard | 0 | 0 | off
   notifications | I | I | off
   search | S | S | off
@@ -10,11 +11,11 @@ global
   help | ? | ? | on
 
 Issue
-  back | esc | esc | on
+  close | esc | esc | on
   comment | c | c | on
   labels | L | L | on
-  close | X | X | on
-  reopen | O | O | off
+  close issue | X | X | on
+  reopen issue | O | O | off
   refresh | r | r | on
   browser | o | o | on
   open | enter | ↵ | off

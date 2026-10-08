@@ -41,7 +41,7 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 		}
 		return s.press(msg)
 	case ui.OpenIssueMsg:
-		return s.openDetail(msg.Repo, msg.Number, nil, msg.ShowRepo, msg.Pause)
+		return s.openDetail(msg.Repo, msg.Number, nil, msg.ShowRepo, msg.Pause, msg.Back)
 	case changedMsg:
 		if !s.hasRepo || !msg.repo.Same(s.repo) {
 			return nil
@@ -201,7 +201,7 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 		if !ok {
 			return nil
 		}
-		return s.openDetail(s.repo, it.Number, &it, false, nil)
+		return s.openDetail(s.repo, it.Number, &it, false, nil, nil)
 	case key.Matches(msg, k.Close):
 		return s.setState(core.StateClosed)
 	case key.Matches(msg, k.Reopen):

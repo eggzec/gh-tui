@@ -393,13 +393,20 @@ func (m *Model) focused() *pane {
 // maxBack is how many places the back key remembers.
 const maxBack = 50
 
+// maxBackModals is how many of those places may be modals. A modal kept
+// for the back key holds what it has read, such as its rendered thread, so
+// this bounds memory; the oldest is dropped past it.
+const maxBackModals = 10
+
 // place is where the back key returns to: a screen, with the pane that was
-// focused, the repository on view, and the login of the owner page.
+// focused, the repository on view, and the login of the owner page, or a
+// modal that another opened in its place, if modal is set.
 type place struct {
 	screen screen
 	focus  int
 	repo   core.RepoRef
 	owner  string
+	modal  ui.Modal
 }
 
 // place returns the place on view.
@@ -411,6 +418,7 @@ func (m *Model) place() place {
 func (m *Model) pushBack() {
 	m.back = append(m.back, m.place())
 	if len(m.back) > maxBack {
+		m.discardPlaces(m.back[:len(m.back)-maxBack])
 		m.back = slices.Clone(m.back[len(m.back)-maxBack:])
 	}
 }
@@ -445,6 +453,8 @@ func (m *Model) goBack() tea.Cmd {
 		m.updateOwner()
 		return cmd
 	}
+	// No modal is open, so the modals kept for its back key are done with.
+	m.dropModals()
 	if len(m.back) == 0 {
 		return nil
 	}

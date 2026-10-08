@@ -9,13 +9,20 @@ import (
 var _ ui.Actor = (*detailModal)(nil)
 
 // Act implements ui.Actor. The quit key closes the modal from any step of
-// it, and the owner key shows the page of the author, as it does without
+// it, the back key steps out of what the Checks tab opened, and the owner key shows the page of the author, as it does without
 // the app's help; every other intent is the app's to refuse while the
 // modal is open.
 func (m *detailModal) Act(action string) (tea.Cmd, bool) {
 	switch action {
 	case ui.ActQuit:
 		return m.close(), true
+	case ui.ActBack:
+		// The app returns to the modal this one replaced, unless the
+		// Checks tab shows a log, annotations or a detail to step out of.
+		if m.onChecks() && !m.checks.TakesKeys() && m.checks.StepOut() {
+			return nil, true
+		}
+		return nil, false
 	case "owner":
 		if m.ask != nil || m.onChecks() && m.checks.TakesKeys() {
 			return nil, false

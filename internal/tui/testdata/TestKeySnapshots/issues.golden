@@ -23,11 +23,11 @@ Repository
   actions | A | A | on
 
 Issues
-  back | esc | esc | off
+  close | esc | esc | off
   comment | c | c | off
   labels | L | L | off
-  close | X | X | on
-  reopen | O | O | off
+  close issue | X | X | on
+  reopen issue | O | O | off
   refresh | r | r | on
   browser | o | o | on
   open | enter | ↵ | on

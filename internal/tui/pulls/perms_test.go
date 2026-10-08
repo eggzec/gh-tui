@@ -67,12 +67,9 @@ func TestReadAccessHidesChanges(t *testing.T) {
 			if m := h.modal(); m != nil {
 				km = m.KeyLayers()
 			}
-			// esc is labelled "close" too, so the change is told by its key.
-			for _, l := range km {
-				for _, b := range l.Bindings {
-					if b.Enabled() && slices.Contains([]string{"merge", "close", "reopen", "convert to draft"}, b.Help().Desc) && !slices.Contains(b.Keys(), "esc") {
-						t.Errorf("help offers %q: %v", b.Help().Desc, offered(km))
-					}
+			for _, desc := range offered(km) {
+				if slices.Contains([]string{"merge", "close PR", "reopen PR", "convert to draft"}, desc) {
+					t.Errorf("help offers %q: %v", desc, offered(km))
 				}
 			}
 			msgs := press(t, h, tt.keys[last])
@@ -124,7 +121,7 @@ func TestAuthorChangesTheirOwn(t *testing.T) {
 	svc.pulls[0].Caps = core.ItemCaps{Known: true, Update: true, Close: true, Authored: true}
 	h := started(t, svc, 120, 20)
 	drain(t, h, h.Update(ui.CapsMsg{Repo: repo, Caps: readCaps}))
-	if got := offered(h.KeyLayers()); !slices.Contains(got, "close") || slices.Contains(got, "merge") {
+	if got := offered(h.KeyLayers()); !slices.Contains(got, "close PR") || slices.Contains(got, "merge") {
 		t.Errorf("help = %v, want close but no merge", got)
 	}
 	for _, k := range []string{"W", "y", "X", "y"} {

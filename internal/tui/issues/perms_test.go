@@ -50,7 +50,7 @@ func TestGatedChanges(t *testing.T) {
 		want   []string
 	}{
 		{
-			name: "read can't close another's issue", caps: readCaps, keys: []string{"X"}, hidden: []string{"close"},
+			name: "read can't close another's issue", caps: readCaps, keys: []string{"X"}, hidden: []string{"close issue"},
 			why: "You can't close #1000 in eggzec/gh-tui (read access).",
 		},
 		{name: "read closes their own", caps: readCaps, keys: []string{"down", "X"}, want: []string{"close 999"}},
@@ -64,11 +64,11 @@ func TestGatedChanges(t *testing.T) {
 			why: "#1000 is locked as resolved · only collaborators can comment.",
 		},
 		{
-			name: "an archived repository takes no comment", caps: archived, keys: []string{"enter", "c"}, hidden: []string{"comment", "labels", "close"},
+			name: "an archived repository takes no comment", caps: archived, keys: []string{"enter", "c"}, hidden: []string{"comment", "labels", "close issue"},
 			why: "eggzec/gh-tui is archived, so it's read-only.",
 		},
 		{
-			name: "read can't reopen another's in the modal", caps: readCaps, keys: []string{"]", "enter", "O"}, hidden: []string{"reopen"},
+			name: "read can't reopen another's in the modal", caps: readCaps, keys: []string{"]", "enter", "O"}, hidden: []string{"reopen issue"},
 			why: "You can't reopen #996 in eggzec/gh-tui (read access).",
 		},
 	}
@@ -116,15 +116,15 @@ func TestCapsArrivingLaterGateTheIssues(t *testing.T) {
 	h := started(t, svc, 120, 30, WithViewer(me))
 	press(t, h, "enter")
 	m := h.modal()
-	if got := offered(m.KeyLayers()); !slices.Contains(got, "labels") || !slices.Contains(got, "close") {
+	if got := offered(m.KeyLayers()); !slices.Contains(got, "labels") || !slices.Contains(got, "close issue") {
 		t.Errorf("help before the caps = %v, want labels and close offered", got)
 	}
 	run(t, h, h.Update(ui.CapsMsg{Repo: testRepo, Caps: readCaps}))
-	if got := offered(m.KeyLayers()); slices.Contains(got, "labels") || slices.Contains(got, "close") {
+	if got := offered(m.KeyLayers()); slices.Contains(got, "labels") || slices.Contains(got, "close issue") {
 		t.Errorf("help after read caps = %v, want neither labels nor close", got)
 	}
 	press(t, h, "esc")
-	if got := offered(h.KeyLayers()); slices.Contains(got, "close") {
+	if got := offered(h.KeyLayers()); slices.Contains(got, "close issue") {
 		t.Errorf("list help after read caps = %v, want no close", got)
 	}
 }
