@@ -930,7 +930,7 @@ func keyContexts() []keyContext {
 		{name: "pull request: job option", repo: true, steps: []string{"global.pane_2", "pulls.checks", "global.select", "pull_check_log.option"}, context: "log_option", want: "always, log_option"},
 		{name: "actions: annotations", repo: true, steps: []string{"repo.actions", "global.next_pane", "global.next_pane", "actions_log.annotations"}, context: "actions_annotations", want: "global, actions, actions_annotations"},
 		{name: "actions: log search", repo: true, steps: []string{"repo.actions", "global.next_pane", "global.next_pane", "actions_log.find"}, context: "search_prompt", want: "always, search_prompt (types)"},
-		{name: "actions: filter", repo: true, steps: []string{"repo.actions", "actions.filter"}, context: "actions_filter", want: "global, actions_filter"},
+		{name: "actions: filter", repo: true, steps: []string{"repo.actions", "actions_runs.filter"}, context: "actions_filter", want: "global, actions_filter"},
 		{name: "actions: rerun", repo: true, steps: []string{"repo.actions", "actions.rerun_failed"}, context: "confirm", want: "always, confirm"},
 		{name: "actions: rerun job", repo: true, steps: []string{"repo.actions", "global.next_pane", "actions_jobs.rerun_job"}, context: "confirm", want: "always, confirm"},
 		{name: "auth", repo: true, steps: []string{"global.command", typed("auth"), "command_line.run"}, context: "text", want: "global, text"},

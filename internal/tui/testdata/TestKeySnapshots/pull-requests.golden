@@ -24,10 +24,10 @@ Repository
   actions | A | A | on
 
 Pull requests
-  merge | m | m | on
-  close | x | x | on
-  reopen | X | X | off
-  convert to draft | D | D | on
+  merge | M | M | on
+  close | X | X | on
+  reopen | O | O | off
+  convert to draft | W | W | on
   back | esc | esc | off
   open | enter | ↵ | on
   checks | C | C | on

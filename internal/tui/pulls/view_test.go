@@ -112,13 +112,13 @@ func TestConfirmView(t *testing.T) {
 	t.Run("long merge in the modal at 80 columns", func(t *testing.T) {
 		s := long(t, 80)
 		press(t, s, "enter")
-		press(t, s, "m")
+		press(t, s, "M")
 		lines := strings.Split(s.modal().View(), "\n")
 		golden.RequireEqual(t, strings.Join(lines[len(lines)-2:], "\n"))
 	})
 	t.Run("long merge from the list at 80 columns", func(t *testing.T) {
 		s := long(t, 80)
-		press(t, s, "m")
+		press(t, s, "M")
 		m, ok := s.modals[len(s.modals)-1].(*ui.ConfirmModal)
 		if !ok {
 			t.Fatal("merge opened no question")
@@ -131,13 +131,13 @@ func TestConfirmView(t *testing.T) {
 		t.Run("merge in the modal at "+w+" columns", func(t *testing.T) {
 			s := started(t, newFakeService(), width, 30)
 			press(t, s, "enter")
-			press(t, s, "m")
+			press(t, s, "M")
 			v := s.modal().View()
 			golden.RequireEqual(t, v[strings.LastIndexByte(v, '\n')+1:])
 		})
 		t.Run("close from the list at "+w+" columns", func(t *testing.T) {
 			s := started(t, newFakeService(), width, 30)
-			press(t, s, "x")
+			press(t, s, "X")
 			m, ok := s.modals[len(s.modals)-1].(*ui.ConfirmModal)
 			if !ok {
 				t.Fatal("close opened no question")

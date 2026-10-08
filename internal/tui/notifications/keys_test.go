@@ -17,7 +17,7 @@ func TestKeyMapComplete(t *testing.T) {
 // before the list's.
 func TestKeyLayersOrder(t *testing.T) {
 	s := newSection(t, newFake(inbox()...), 100, 10)
-	for k, want := range map[string]string{"m": ui.NotificationsTitle + ": read", "r": ui.NotificationsTitle + ": refresh", "j": ui.NotificationsTitle + ": down"} {
+	for k, want := range map[string]string{"U": ui.NotificationsTitle + ": read", "r": ui.NotificationsTitle + ": refresh", "j": ui.NotificationsTitle + ": down"} {
 		b, src, _ := uitest.Winner(s.KeyLayers(), k)
 		if got := src + ": " + b.Help().Desc; got != want {
 			t.Errorf("%s reaches %q, want %q", k, got, want)
@@ -28,7 +28,22 @@ func TestKeyLayersOrder(t *testing.T) {
 	if after, _ := s.feed.Selected(); after.ID == before.ID {
 		t.Error("j didn't move down the list")
 	}
-	if msgs := press(t, s, "m"); len(msgs) == 0 {
-		t.Error("m didn't ask to mark the thread read")
+	if msgs := press(t, s, "U"); len(msgs) == 0 {
+		t.Error("U didn't ask to mark the thread read")
+	}
+}
+
+// Marking a thread read or done is a capital, so a stray lowercase key
+// can't: U and D ask, and m and d do nothing.
+func TestMarksAreCapitals(t *testing.T) {
+	for key, want := range map[string]string{
+		"U": "Mark eggzec/gh-tui#2 as read?", "D": "Mark eggzec/gh-tui#2 as done?",
+		"m": "", "d": "",
+	} {
+		s := newSection(t, newFake(inbox()...), 100, 10)
+		press(t, s, "down", key)
+		if got := question(s); got != want {
+			t.Errorf("%s asks %q, want %q", key, got, want)
+		}
 	}
 }

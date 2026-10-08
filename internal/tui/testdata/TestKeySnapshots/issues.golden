@@ -26,9 +26,9 @@ Repository
 Issues
   back | esc | esc | off
   comment | c | c | off
-  labels | l | l | off
-  close | x | x | on
-  reopen | X | X | off
+  labels | L | L | off
+  close | X | X | on
+  reopen | O | O | off
   refresh | r | r | on
   browser | o | o | on
   open | enter | ↵ | on

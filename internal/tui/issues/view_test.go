@@ -133,7 +133,7 @@ func TestConfirmView(t *testing.T) {
 		w := strconv.Itoa(width)
 		t.Run("reopen in the modal at "+w+" columns", func(t *testing.T) {
 			s := started(t, newFakeService(sampleIssues(12)), width, 24)
-			press(t, s, "]", "enter", "X")
+			press(t, s, "]", "enter", "O")
 			v := s.modal().View()
 			assertFits(t, v, width, 24)
 			golden.RequireEqual(t, v[strings.LastIndexByte(v, '\n')+1:])
@@ -153,7 +153,7 @@ func TestConfirmView(t *testing.T) {
 		})
 		t.Run("close from the list at "+w+" columns", func(t *testing.T) {
 			s := started(t, newFakeService(sampleIssues(12)), width, 24)
-			press(t, s, "x")
+			press(t, s, "X")
 			m, ok := s.modals[len(s.modals)-1].(*ui.ConfirmModal)
 			if !ok {
 				t.Fatal("close opened no question")

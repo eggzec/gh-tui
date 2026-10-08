@@ -22,8 +22,8 @@ global
 Notifications
   open & read | enter | ↵ | on
   open | o | o | on
-  read | m | m | on
-  done | d | d | on
+  read | U | U | on
+  done | D | D | on
   all read | M | M | on
   filter | f | f | on
   clear filters | F | F | off

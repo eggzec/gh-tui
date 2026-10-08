@@ -96,7 +96,7 @@ func TestMarksNeedTheToken(t *testing.T) {
 		}
 	}
 	why := "Marking notifications needs a classic token, not a fine-grained one · :auth to see how"
-	for _, k := range []string{"m", "d", "M"} {
+	for _, k := range []string{"U", "D", "M"} {
 		msgs := press(t, s, k)
 		if question(s) != "" || !slices.Contains(msgs, any(ui.NotifyMsg{Level: toast.Info, Text: why})) {
 			t.Errorf("%s asked %q and showed %v, want the toast %q", k, question(s), msgs, why)

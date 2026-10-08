@@ -633,11 +633,11 @@ keys:
     filter: [f]
     sort: [s]
     clear_filter: [F]
-    merge: [m]
-    close: [x]
-    reopen: [X]
+    merge: [M]
+    close: [X]
+    reopen: [O]
     # Mark the pull request ready for review, or as a draft.
-    draft: [D]
+    draft: [W]
     # Show the checks of the pull request.
     checks: [C]
   # Repository: the issues.
@@ -653,10 +653,10 @@ keys:
     filter: [f]
     sort: [s]
     clear_filter: [F]
-    close: [x]
-    reopen: [X]
+    close: [X]
+    reopen: [O]
     comment: [c]
-    labels: [l]
+    labels: [L]
 
   # The notifications screen.
   notifications:
@@ -670,8 +670,8 @@ keys:
     bottom: [G, end]
     filter: [f]
     clear_filter: [F]
-    read: [m]
-    done: [d]
+    read: [U]
+    done: [D]
     read_all: [M]
 
   # The search page, on any of its panes. It opens on the query in normal
@@ -726,10 +726,10 @@ keys:
 
   # The modal of a pull request, on any of its steps.
   pull_modal:
-    merge: [m]
-    close: [x]
-    reopen: [X]
-    draft: [D]
+    merge: [M]
+    close: [X]
+    reopen: [O]
+    draft: [W]
     # Show the checks of the pull request.
     checks: [C]
   # The checks of a pull request, in any of their steps. Re-run the failed
@@ -765,7 +765,7 @@ keys:
     next_error: [e]
     prev_error: [E]
     next_warning: [w]
-    prev_warning: [W]
+    prev_warning: []
     follow: [F]
     find: [/]
     next_match: [n]
@@ -777,10 +777,10 @@ keys:
 
   # The modal of an issue.
   issue_modal:
-    close: [x]
-    reopen: [X]
+    close: [X]
+    reopen: [O]
     comment: [c]
-    labels: [l]
+    labels: [L]
     up: [up, k]
     down: [down, j]
     page_up: [b, ctrl+b, pgup]
@@ -835,11 +835,12 @@ keys:
     # Re-run the failed jobs of a run, or all of its jobs, and cancel it.
     rerun_failed: [R]
     rerun: []
-    cancel: [x]
-    # Open the filter of the runs.
-    filter: [f]
+    cancel: [X]
   # Actions: the runs.
   actions_runs:
+    # Open the filter of the runs, and clear it.
+    filter: [f]
+    clear_filter: [F]
     up: [up, k]
     down: [down, j]
     page_up: [ctrl+b, pgup]

@@ -50,13 +50,13 @@ func TestGatedChanges(t *testing.T) {
 		want   []string
 	}{
 		{
-			name: "read can't close another's issue", caps: readCaps, keys: []string{"x"}, hidden: []string{"close"},
+			name: "read can't close another's issue", caps: readCaps, keys: []string{"X"}, hidden: []string{"close"},
 			why: "You can't close #1000 in eggzec/gh-tui (read access).",
 		},
-		{name: "read closes their own", caps: readCaps, keys: []string{"down", "x"}, want: []string{"close 999"}},
-		{name: "triage closes another's", caps: triageCaps, keys: []string{"x"}, want: []string{"close 1000"}},
+		{name: "read closes their own", caps: readCaps, keys: []string{"down", "X"}, want: []string{"close 999"}},
+		{name: "triage closes another's", caps: triageCaps, keys: []string{"X"}, want: []string{"close 1000"}},
 		{
-			name: "read can't label", caps: readCaps, keys: []string{"enter", "l"}, hidden: []string{"labels"},
+			name: "read can't label", caps: readCaps, keys: []string{"enter", "L"}, hidden: []string{"labels"},
 			why: "Labeling needs triage access to eggzec/gh-tui.",
 		},
 		{
@@ -68,7 +68,7 @@ func TestGatedChanges(t *testing.T) {
 			why: "eggzec/gh-tui is archived, so it's read-only.",
 		},
 		{
-			name: "read can't reopen another's in the modal", caps: readCaps, keys: []string{"]", "enter", "X"}, hidden: []string{"reopen"},
+			name: "read can't reopen another's in the modal", caps: readCaps, keys: []string{"]", "enter", "O"}, hidden: []string{"reopen"},
 			why: "You can't reopen #996 in eggzec/gh-tui (read access).",
 		},
 	}

@@ -373,8 +373,8 @@ func TestSectionActionsCanBeRebound(t *testing.T) {
 	if got := cfg.Keys.Of("pulls.merge"); !slices.Equal(got, []string{"ctrl+m"}) {
 		t.Errorf("merge = %v, want [ctrl+m]", got)
 	}
-	if got := cfg.Keys.Of("pulls.close"); !slices.Equal(got, []string{"x"}) {
-		t.Errorf("close = %v, want the default [x]", got)
+	if got := cfg.Keys.Of("pulls.close"); !slices.Equal(got, []string{"X"}) {
+		t.Errorf("close = %v, want the default [X]", got)
 	}
 	if got := cfg.Keys.Of(ActionStar); !slices.Equal(got, []string{"ctrl+s"}) {
 		t.Errorf("star = %v, want [ctrl+s]", got)
@@ -383,7 +383,7 @@ func TestSectionActionsCanBeRebound(t *testing.T) {
 
 func TestComposeActions(t *testing.T) {
 	defaults := Default().Keys
-	for action, want := range map[string]string{"issues.comment": "c", "issues.labels": "l"} {
+	for action, want := range map[string]string{"issues.comment": "c", "issues.labels": "L"} {
 		if got := defaults.Of(action); !slices.Equal(got, []string{want}) {
 			t.Errorf("default %s = %v, want [%s]", action, got, want)
 		}
@@ -400,8 +400,8 @@ func TestComposeActions(t *testing.T) {
 	if got := cfg.Keys.Of("issues.comment"); !slices.Equal(got, []string{"C", "ctrl+e"}) {
 		t.Errorf("comment = %v, want [C ctrl+e]", got)
 	}
-	if got := cfg.Keys.Of("issues.labels"); !slices.Equal(got, []string{"l"}) {
-		t.Errorf("labels = %v, want the default [l]", got)
+	if got := cfg.Keys.Of("issues.labels"); !slices.Equal(got, []string{"L"}) {
+		t.Errorf("labels = %v, want the default [L]", got)
 	}
 
 	cfg = Default()
@@ -514,7 +514,7 @@ func TestActionsModalActions(t *testing.T) {
 	defaults := Default().Keys
 	for action, want := range map[string]string{
 		ActionActions: "A", ActionNextTab: "]", ActionPrevTab: "[",
-		ActionZoom: "z", "actions.rerun_failed": "R", "actions_jobs.rerun_job": "J", "actions.cancel": "x",
+		ActionZoom: "z", "actions.rerun_failed": "R", "actions_jobs.rerun_job": "J", "actions.cancel": "X",
 	} {
 		if got := defaults.Of(action); !slices.Equal(got, []string{want}) {
 			t.Errorf("default %s = %v, want [%s]", action, got, want)
@@ -645,15 +645,15 @@ func TestSortAndStarKeys(t *testing.T) {
 	}
 
 	path := filepath.Join(t.TempDir(), "config.yaml")
-	if err := os.WriteFile(path, []byte("keys:\n  pulls:\n    sort: [\"O\"]\n"), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte("keys:\n  pulls:\n    sort: [\"T\"]\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	cfg, _, err := loadBase(path)
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if got := cfg.Keys.Of("pulls.sort"); !slices.Equal(got, []string{"O"}) {
-		t.Errorf("sort = %v, want [O]", got)
+	if got := cfg.Keys.Of("pulls.sort"); !slices.Equal(got, []string{"T"}) {
+		t.Errorf("sort = %v, want [T]", got)
 	}
 	if got := cfg.Keys.Of(ActionStar); len(got) != 0 {
 		t.Errorf("star = %v, want no keys by default", got)

@@ -263,7 +263,7 @@ func TestOpenFromSearch(t *testing.T) {
 		if h.repo != testRepo {
 			t.Errorf("the section moved to %v", h.repo)
 		}
-		press(t, h, "x", "y")
+		press(t, h, "X", "y")
 		if got := svc.changeCalls(); !slices.Equal(got, []string{"close 7"}) {
 			t.Errorf("changes = %v, want close 7", got)
 		}
@@ -304,7 +304,7 @@ func TestOpenFromSearch(t *testing.T) {
 		if m == nil || m.Title() != "eggzec/gh-tui#999" {
 			t.Fatalf("modal = %v, want eggzec/gh-tui#999 before its title is read", m)
 		}
-		press(t, h, "x", "c", "l")
+		press(t, h, "X", "c", "L")
 		if len(svc.changeCalls()) != 0 || m.composing != composeNone {
 			t.Error("keys acted before the issue arrived")
 		}
@@ -410,7 +410,7 @@ func TestViewModal(t *testing.T) {
 		golden.RequireEqual(t, v)
 	})
 	t.Run("labels prompt", func(t *testing.T) {
-		press(t, h, "l")
+		press(t, h, "L")
 		defer press(t, h, "esc")
 		v := m.View()
 		assertFits(t, v, 80, 24)
@@ -474,7 +474,7 @@ func TestModalFailureToasts(t *testing.T) {
 	}{
 		{"close", "close #999", func(t *testing.T, h *host, _ *detailModal) []tea.Msg {
 			t.Helper()
-			return press(t, h, "x", "y")
+			return press(t, h, "X", "y")
 		}},
 		{"comment", "comment on #999", func(t *testing.T, h *host, _ *detailModal) []tea.Msg {
 			t.Helper()
@@ -484,7 +484,7 @@ func TestModalFailureToasts(t *testing.T) {
 		}},
 		{"labels", "add bug to #999", func(t *testing.T, h *host, m *detailModal) []tea.Msg {
 			t.Helper()
-			press(t, h, "l")
+			press(t, h, "L")
 			m.prompt.SetValue("enhancement, help wanted, bug")
 			return press(t, h, "enter", "y")
 		}},
@@ -510,7 +510,7 @@ func TestModalFailureToasts(t *testing.T) {
 			svc := newFakeService(sampleIssues(12))
 			svc.sendErr = f.Err
 			h := started(t, svc, 80, 20)
-			what, err := failed(press(t, h, "down", "x", "y"))
+			what, err := failed(press(t, h, "down", "X", "y"))
 			uitest.CheckToast(t, f, "close #999", subject, uitest.Toast(what, err))
 		})
 	}

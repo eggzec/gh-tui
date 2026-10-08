@@ -29,7 +29,7 @@ func winner(layers []keyhelp.Layer, k string) string {
 func TestKeyLayersOrder(t *testing.T) {
 	h := started(t, newFakeService(sampleIssues(12)), 80, 20)
 	for k, want := range map[string]string{
-		"]": ui.IssuesTitle + ": next state", "x": ui.IssuesTitle + ": close", "j": ui.IssuesTitle + ": down", "c": "nothing",
+		"]": ui.IssuesTitle + ": next state", "X": ui.IssuesTitle + ": close", "j": ui.IssuesTitle + ": down", "c": "nothing",
 	} {
 		if got := winner(h.KeyLayers(), k); got != want {
 			t.Errorf("%s reaches %q in the list, want %q", k, got, want)
@@ -60,5 +60,31 @@ func TestKeyLayersOrder(t *testing.T) {
 	press(t, h, "esc")
 	if m.composing != composeNone || h.modal() != m {
 		t.Error("esc in the prompt didn't just close it")
+	}
+}
+
+// Closing an issue and its labels are capitals, so a stray lowercase key
+// does nothing: X asks to close and L opens the labels, and x and l do
+// neither.
+func TestChangesAreCapitals(t *testing.T) {
+	for _, tt := range []struct {
+		key  string
+		asks bool
+	}{
+		{"X", true}, {"x", false},
+	} {
+		h := started(t, newFakeService(sampleIssues(12)), 80, 20)
+		press(t, h, "down", tt.key)
+		if got := question(h) != ""; got != tt.asks {
+			t.Errorf("%s asks %v, want %v", tt.key, got, tt.asks)
+		}
+	}
+	for key, want := range map[string]bool{"L": true, "l": false} {
+		svc := newFakeService(sampleIssues(12))
+		h, m := opened(t, svc, 30)
+		press(t, h, key)
+		if got := m.composing == composeLabels; got != want {
+			t.Errorf("%s opens the labels prompt: %v, want %v", key, got, want)
+		}
 	}
 }

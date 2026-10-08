@@ -23,7 +23,7 @@ Search (types)
   next error | e | e | off
   prev error | E | E | off
   next warning | w | w | off
-  prev warning | W | W | off
+  prev warning |  |  | off
   search | / | / | off
   search | enter | ↵ | on
   cancel | esc | esc | on

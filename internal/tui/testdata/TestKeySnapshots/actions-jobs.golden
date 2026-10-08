@@ -11,12 +11,11 @@ Actions
   pane | tab | tab | on
   previous pane | shift+tab | shift+tab | on
   focus pane | 1 2 3 | 1-3 | on
-  filter | f | f | on
   zoom | z | z | on
   browser | o | o | on
   rerun failed | R | R | on
   rerun all |  |  | off
-  cancel run | x | x | off
+  cancel run | X | X | off
   refresh | r | r | on
   back | esc | esc | on
 

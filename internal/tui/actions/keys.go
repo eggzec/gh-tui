@@ -31,8 +31,9 @@ type KeyMap struct {
 	// Back closes the filter or the confirmation, or steps back a pane,
 	// and closes the modal from the runs.
 	Back key.Binding
-	// Filter edits the filter of the runs, in a step of the modal.
-	Filter key.Binding
+	// Filter edits the filter of the runs, in a step of the modal, and
+	// ClearFilter clears it. Both work with the focus on the runs.
+	Filter, ClearFilter key.Binding
 	// Zoom shows the focused pane alone.
 	Zoom key.Binding
 	// Open opens the run or the job on GitHub.
@@ -78,7 +79,8 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		PrevTab:     modal.Binding("global.prev_tab", "previous tab"),
 		Select:      modal.Binding("global.select", "open"),
 		Back:        modal.Binding("global.dismiss", "back"),
-		Filter:      modal.Binding("filter", "filter"),
+		Filter:      runs.Binding("filter", "filter"),
+		ClearFilter: runs.Binding("clear_filter", "clear filter"),
 		Zoom:        modal.Binding("global.zoom", "zoom"),
 		Open:        modal.Binding("global.open", "browser"),
 		Refresh:     modal.Binding("global.refresh", "refresh"),
@@ -120,7 +122,7 @@ func (k KeyMap) own() []key.Binding {
 // matches them.
 func (k KeyMap) screen() []key.Binding {
 	return []key.Binding{
-		k.NextTab, k.PrevTab, k.Next, k.Prev, k.Jump, k.Filter, k.Zoom, k.Open,
+		k.NextTab, k.PrevTab, k.Next, k.Prev, k.Jump, k.Zoom, k.Open,
 		k.RerunFailed, k.Rerun, k.Cancel, k.Refresh, k.Back,
 	}
 }
@@ -145,12 +147,12 @@ func (k KeyMap) rerunJob(m *Modal) key.Binding {
 
 // ShortHelp implements help.KeyMap.
 func (k KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Select, k.Next, k.Zoom, k.Cancel, k.RerunFailed, k.Rerun, k.RerunJob, k.Filter, k.Open}
+	return []key.Binding{k.Select, k.Next, k.Zoom, k.Cancel, k.RerunFailed, k.Rerun, k.RerunJob, k.Open}
 }
 
 // FullHelp implements help.KeyMap.
 func (k KeyMap) FullHelp() [][]key.Binding {
-	return slices.Concat([][]key.Binding{k.own(), {k.Annotations, k.Confirm.Yes, k.Confirm.No}}, k.Runs.FullHelp(), k.Jobs.FullHelp(), k.Log.FullHelp())
+	return slices.Concat([][]key.Binding{k.own(), {k.Filter, k.ClearFilter, k.Annotations, k.Confirm.Yes, k.Confirm.No}}, k.Runs.FullHelp(), k.Jobs.FullHelp(), k.Log.FullHelp())
 }
 
 // job returns the keys of the log pane's job view: the moves of the

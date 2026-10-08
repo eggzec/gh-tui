@@ -74,7 +74,7 @@ func TestProgram(t *testing.T) {
 
 	// Closing #999 in the open list shows it closed at once. Once GitHub
 	// agrees, the list no longer has it.
-	tm.Send(keyMsg("x"))
+	tm.Send(keyMsg("X"))
 	waitFor("Close issue #999?")
 	tm.Send(keyMsg("y"))
 	icons := ui.NewIcons(config.IconsNerd)
@@ -110,10 +110,10 @@ func TestProgramComment(t *testing.T) {
 	tm.Send(keyMsg("enter"))
 	waitFor("I can reproduce this")
 
-	// The q and x in the comment are text, not quit and close.
+	// The q and X in the comment are text, not quit and close.
 	tm.Send(keyMsg("c"))
 	waitFor("Comment on #999")
-	tm.Type("quite fixed")
+	tm.Type("quite fixed X")
 	tm.Send(keyMsg("ctrl+s"))
 	waitFor("Post this comment on #999?")
 	tm.Send(keyMsg("y"))
@@ -125,7 +125,7 @@ func TestProgramComment(t *testing.T) {
 	tm.Send(keyMsg("q"))
 
 	final := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(app)
-	if got := svc.changeCalls(); !slices.Equal(got, []string{"comment 999: quite fixed"}) {
+	if got := svc.changeCalls(); !slices.Equal(got, []string{"comment 999: quite fixed X"}) {
 		t.Errorf("changes = %v, want the comment only", got)
 	}
 	if final.h.modal() != nil {

@@ -46,12 +46,12 @@ func TestReadAccessHidesChanges(t *testing.T) {
 		keys []string
 		why  string
 	}{
-		{name: "merge", caps: readCaps, keys: []string{"m"}, why: "You can't merge in eggzec/gh-tui (read access)."},
-		{name: "close", caps: readCaps, keys: []string{"x"}, why: "You can't close #142 in eggzec/gh-tui (read access)."},
-		{name: "reopen", caps: readCaps, keys: []string{"]", "X"}, why: "You can't reopen #93 in eggzec/gh-tui (read access)."},
-		{name: "draft", caps: readCaps, keys: []string{"D"}, why: "You can't change #142 in eggzec/gh-tui (read access)."},
-		{name: "merge in the modal", caps: readCaps, keys: []string{"enter", "m"}, why: "You can't merge in eggzec/gh-tui (read access)."},
-		{name: "archived", caps: archived, keys: []string{"x"}, why: "eggzec/gh-tui is archived, so it's read-only."},
+		{name: "merge", caps: readCaps, keys: []string{"M"}, why: "You can't merge in eggzec/gh-tui (read access)."},
+		{name: "close", caps: readCaps, keys: []string{"X"}, why: "You can't close #142 in eggzec/gh-tui (read access)."},
+		{name: "reopen", caps: readCaps, keys: []string{"]", "O"}, why: "You can't reopen #93 in eggzec/gh-tui (read access)."},
+		{name: "draft", caps: readCaps, keys: []string{"W"}, why: "You can't change #142 in eggzec/gh-tui (read access)."},
+		{name: "merge in the modal", caps: readCaps, keys: []string{"enter", "M"}, why: "You can't merge in eggzec/gh-tui (read access)."},
+		{name: "archived", caps: archived, keys: []string{"X"}, why: "eggzec/gh-tui is archived, so it's read-only."},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -108,7 +108,7 @@ func TestCapsArrivingLaterGateTheList(t *testing.T) {
 	if got := offered(h.KeyLayers()); !slices.Contains(got, "merge") {
 		t.Errorf("help after write caps = %v, want merge", got)
 	}
-	press(t, h, "m")
+	press(t, h, "M")
 	press(t, h, "y")
 	if got := svc.changes(); !slices.Equal(got, []string{"merge squash 142"}) {
 		t.Errorf("changes = %v, want the merge", got)
@@ -124,7 +124,7 @@ func TestAuthorChangesTheirOwn(t *testing.T) {
 	if got := offered(h.KeyLayers()); !slices.Contains(got, "close") || slices.Contains(got, "merge") {
 		t.Errorf("help = %v, want close but no merge", got)
 	}
-	for _, k := range []string{"D", "y", "x", "y"} {
+	for _, k := range []string{"W", "y", "X", "y"} {
 		press(t, h, k)
 	}
 	if got := svc.changes(); !slices.Equal(got, []string{"draft 142", "close 142"}) {
@@ -158,7 +158,7 @@ func TestMergeUsesAnAllowedMethod(t *testing.T) {
 			if got := offered(h.KeyLayers()); !slices.Contains(got, tt.label) {
 				t.Errorf("help = %v, want %q", got, tt.label)
 			}
-			press(t, h, "m")
+			press(t, h, "M")
 			if got := question(h); got != tt.ask {
 				t.Errorf("asks %q, want %q", got, tt.ask)
 			}
@@ -218,7 +218,7 @@ func TestModalOfAnotherRepoReadsItsCaps(t *testing.T) {
 	if got := offered(m.KeyLayers()); slices.Contains(got, "merge") {
 		t.Errorf("help = %v, want no merge in %v", got, other)
 	}
-	msgs := press(t, h, "m")
+	msgs := press(t, h, "M")
 	if got := svc.changes(); len(got) != 0 || question(h) != "" || !slices.Contains(msgs, info("You can't merge in charmbracelet/bubbletea (read access).")) {
 		t.Errorf("merge sent %v and showed %v, want a toast only", got, msgs)
 	}
@@ -241,7 +241,7 @@ func TestTokenGatesChanges(t *testing.T) {
 	private := writeCaps
 	private.Private = true
 	why := "Merging needs the repo scope · :auth to grant it"
-	for _, keys := range [][]string{{"m"}, {"enter", "m"}} {
+	for _, keys := range [][]string{{"M"}, {"enter", "M"}} {
 		t.Run(strings.Join(keys, " "), func(t *testing.T) {
 			tok := &uitest.Checker{A: uitest.Classic("public_repo")}
 			v := ui.NewVoice(config.Default().Keys, "")
