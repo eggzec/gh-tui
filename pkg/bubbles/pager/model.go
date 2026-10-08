@@ -71,6 +71,11 @@ type Model struct {
 	// at.
 	render     Render
 	renderedAt int
+	// anchor is where the window keeps its place in rendered content.
+	anchor anchor
+	// atEnd is set while a resize waits for a render, if the end of the
+	// content was in view before it.
+	atEnd bool
 	// owed is set when a resize left the rendered content at a width
 	// other than its own, until it renders again, and sizeSeq counts the
 	// rests started by Settle, so that only the last one renders.
@@ -175,14 +180,45 @@ func (m Model) Lines() int { return len(m.lines) }
 
 // SetSize sets the width and height, including the status line.
 func (m *Model) SetSize(width, height int) {
+	if !m.owed {
+		m.atEnd = m.atEndByChoice()
+	}
+	// The place the reader has, to keep through a clamp without a render.
+	keep := m.render != nil && m.state == stateReady && len(m.lines) > 0
+	oldTop, oldGen := m.top, m.gen
+	oldLine := m.topLine()
+	off := m.anchorOf(oldLine)
+	want := oldTop
+	if m.anchor.set && m.anchor.clamped && m.anchor.line == oldLine {
+		want = m.posOf(m.lineAt(off))
+	}
 	m.width, m.height = max(width, 0), max(height, 0)
 	m.prompt.SetSize(m.width, 1)
-	m.clamp()
 	if m.resizeRest > 0 && m.render != nil && m.state == stateReady && m.renderedAt > 0 {
 		// A render owed at the new width waits for the rest.
 		m.owed = m.textWidth() != m.renderedAt
 	}
 	m.fitRendered(false)
+	// The clamp waits for a render, so that the window isn't moved at the
+	// old width, which would lose the place in the text.
+	if keep && m.gen == oldGen && !m.atEnd {
+		// No render moved the window, so the clamp does, and the place it
+		// had is kept for the next render, or for a window that is
+		// smaller again.
+		if want != oldTop {
+			m.top, m.row = want, 0
+		}
+		m.clamp()
+		m.anchor = anchor{line: m.topLine(), off: off, set: true, clamped: m.top != want}
+	} else {
+		m.clamp()
+	}
+	if m.atEnd && !m.owed && m.render != nil {
+		m.top, m.row = m.last()
+	}
+	if !m.owed {
+		m.atEnd = false
+	}
 }
 
 // Width returns the width.

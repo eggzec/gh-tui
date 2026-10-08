@@ -379,3 +379,132 @@ func TestRenderedWaitsOutAResize(t *testing.T) {
 		t.Error("the width rendered at again still waits")
 	}
 }
+
+// firstWord returns the first word of the line at the top of the window.
+func firstWord(m Model) string {
+	return strings.Fields(m.lines[m.topLine()])[0]
+}
+
+// The place in rendered content is the same text at another width, and
+// the same place again once the width returns.
+func TestRenderedKeepsThePlaceAcrossWidths(t *testing.T) {
+	r := &wrapWords{src: words(400)}
+	m := rendered(t, r)
+	m.top = m.Lines() / 3
+	line, word := m.topLine(), firstWord(m)
+	n, _ := strconv.Atoi(strings.TrimPrefix(word, "word"))
+	for _, w := range []int{60, 20, 45, 30} {
+		m.SetSize(w, 6)
+		got, _ := strconv.Atoi(strings.TrimPrefix(firstWord(m), "word"))
+		if abs(got-n) > 6 {
+			t.Errorf("at %d cells the top is %s, want about %s", w, firstWord(m), word)
+		}
+	}
+	if m.topLine() != line {
+		t.Errorf("back at 30 cells the top is line %d (%s), want line %d (%s)", m.topLine(), firstWord(m), line, word)
+	}
+}
+
+func abs(n int) int { return max(n, -n) }
+
+// The current match stays the same match across widths and back, and
+// the window stays where the reader left it when it was elsewhere.
+func TestRenderedKeepsTheMatchAcrossWidths(t *testing.T) {
+	r := &wrapWords{src: words(400)}
+	m := rendered(t, r)
+	m = typeText(t, m, "/word2")
+	m, _ = deliver(m, enter)
+	m, _ = keys(t, m, "n", "n", "n", "n")
+	cur, curLine := m.search.cur, m.search.curLine
+	text := m.lines[curLine]
+	m.top = m.Lines() / 2
+	top := m.top
+	for _, w := range []int{60, 20, 30} {
+		m.SetSize(w, 6)
+		if m.search.cur != cur {
+			t.Errorf("at %d cells the current match is %d, want %d", w, m.search.cur, cur)
+		}
+	}
+	if m.search.curLine != curLine || m.lines[curLine] != text {
+		t.Errorf("back at 30 cells the match is on line %d, want %d", m.search.curLine, curLine)
+	}
+	if m.top != top {
+		t.Errorf("the window moved from %d to %d to follow a match out of view", top, m.top)
+	}
+}
+
+// The window returns exactly to where it was near the end of rendered
+// content after a narrower, wider or taller window, though the end clamps
+// it meanwhile, and a reader at the end stays at the end.
+func TestRenderedKeepsThePlaceNearTheEnd(t *testing.T) {
+	sizes := [][][2]int{
+		{{60, 6}, {30, 6}},
+		{{20, 6}, {45, 6}, {30, 6}},
+		{{30, 30}, {30, 6}},
+		{{60, 34}, {20, 12}, {30, 6}},
+	}
+	for _, above := range []int{25, 40, 60, 120} {
+		for _, route := range sizes {
+			m := rendered(t, &wrapWords{src: words(400)})
+			last, _ := m.last()
+			m.top = last - above
+			line, word := m.topLine(), firstWord(m)
+			for _, s := range route {
+				m.SetSize(s[0], s[1])
+			}
+			if m.topLine() != line {
+				t.Errorf("%d rows above the end, via %v: the top is line %d (%s), want line %d (%s)",
+					above, route, m.topLine(), firstWord(m), line, word)
+			}
+		}
+	}
+	for _, route := range sizes {
+		m := rendered(t, &wrapWords{src: words(400)})
+		m, _ = keys(t, m, "G")
+		for _, s := range route {
+			m.SetSize(s[0], s[1])
+			if !m.viewsEnd() {
+				t.Errorf("from the end, at %v of %v: the end is out of view, top %d of %d", s, route, m.top, m.Lines())
+			}
+		}
+	}
+}
+
+// A window that only grows taller, and then shrinks again, returns to
+// the place it had near the end, though the end clamped it meanwhile.
+func TestRenderedKeepsThePlaceThroughATallerWindow(t *testing.T) {
+	for _, above := range []int{3, 8, 15} {
+		m := rendered(t, &wrapWords{src: words(400)})
+		last, _ := m.last()
+		m.top = last - above
+		line := m.topLine()
+		for _, h := range []int{20, 40, 12, 6} {
+			m.SetSize(30, h)
+		}
+		if m.topLine() != line {
+			t.Errorf("%d rows above the end: back at 6 rows the top is line %d, want line %d", above, m.topLine(), line)
+		}
+	}
+}
+
+// The place near the end survives a resize that waits for the rest
+// before it renders, which clamps the window at the old width meanwhile.
+func TestRenderedKeepsThePlaceThroughTheRest(t *testing.T) {
+	r := &wrapWords{src: words(400)}
+	m := fresh(t, WithSize(30, 6), WithLineNumbers(false), WithResizeRest(time.Hour))
+	m.Focus()
+	m.SetRendered("README.md", r.src, r.render)
+	last, _ := m.last()
+	m.top = last - 8
+	line := m.topLine()
+	for _, s := range [][2]int{{60, 30}, {30, 6}} {
+		m.SetSize(s[0], s[1])
+		if m.Settle() == nil {
+			t.Fatalf("a resize to %v left no rest to wait out", s)
+		}
+		m, _ = m.Update(settledMsg{id: m.id, seq: m.sizeSeq})
+	}
+	if m.topLine() != line {
+		t.Errorf("back at 30 cells the top is line %d, want line %d", m.topLine(), line)
+	}
+}
