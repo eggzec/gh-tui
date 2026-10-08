@@ -105,7 +105,7 @@ func TestKeysByContext(t *testing.T) {
 	for _, tt := range []struct{ name, file, want string }{
 		{"action without a context", "keys:\n  quit: [x]\n", "line 2: keys.quit: unknown context"},
 		{"unknown context", "keys:\n  pull:\n    merge: [M]\n", "line 3: keys.pull: unknown context"},
-		{"context without actions", "keys:\n  pulls: [M]\n", "line 2: keys.pulls: want the actions of the context and their keys, such as keys.pulls.checks"},
+		{"context without actions", "keys:\n  pulls: [M]\n", "line 2: keys.pulls: want the actions of the context and their keys, such as keys.pulls.bottom"},
 		{"action of another context", "keys:\n  issues:\n    merge: [M]\n", "line 3: keys.issues.merge: unknown action"},
 		{"global action in a context", "keys:\n  pulls:\n    quit: [Q]\n", "line 3: keys.pulls.quit: quit is a global action, which no context may redefine: set keys.global.quit"},
 		{"global key in a context", "keys:\n  pulls:\n    merge: [r]\n", "line 3: keys.pulls.merge: r is already keys.global.refresh"},
@@ -132,7 +132,7 @@ func TestKeyValidation(t *testing.T) {
 	for _, tt := range []struct{ name, file, want string }{
 		{"old flat key", "keys:\n  merge: [m]\n", "line 2: keys.merge: unknown context"},
 		{"unknown context", "keys:\n  pull:\n    merge: [M]\n", "line 3: keys.pull: unknown context"},
-		{"context without actions", "keys:\n  pulls: [m]\n", "line 2: keys.pulls: want the actions of the context and their keys, such as keys.pulls.checks"},
+		{"context without actions", "keys:\n  pulls: [m]\n", "line 2: keys.pulls: want the actions of the context and their keys, such as keys.pulls.bottom"},
 		{"unknown action", "keys:\n  pulls:\n    mege: [M]\n", "line 3: keys.pulls.mege: unknown action"},
 		{"global action elsewhere", "keys:\n  pulls:\n    refresh: [R]\n", "line 3: keys.pulls.refresh: refresh is a global action, which no context may redefine: set keys.global.refresh"},
 		{"misspelt key", "keys:\n  pulls:\n    merge: [ctlr+m]\n", `line 3: keys.pulls.merge: unknown key "ctlr+m"`},

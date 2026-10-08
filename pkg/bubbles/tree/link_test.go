@@ -30,7 +30,7 @@ func TestLinks(t *testing.T) {
 		return kids, nil
 	}
 	for _, width := range []int{60, 20, 8, 3} {
-		m := run(t, New(children, WithSize(width, len(kids)), WithFocused(true)), nil)
+		m := run(t, newModel(children, WithSize(width, len(kids)), WithFocused(true)), nil)
 		m = run(t, m, m.Init())
 		lines := strings.Split(m.View(), "\n")
 		for i, n := range kids {

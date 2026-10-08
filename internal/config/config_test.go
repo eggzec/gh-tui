@@ -142,7 +142,7 @@ func TestLoadMergesOverDefaults(t *testing.T) {
 					},
 				}
 				c.Keys.Set(ActionQuit, []string{"Q"})
-				c.Keys.Set(ActionSearch, []string{"/", "ctrl+f"})
+				c.Keys.Set(ActionSearch, []string{"/", "ctrl+g"})
 				c.Cache = Cache{
 					TTL: TTL{
 						Pulls: time.Minute, Issues: 2 * time.Minute, Notifications: 3 * time.Minute, Repos: 4 * time.Minute,

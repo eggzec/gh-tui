@@ -460,6 +460,14 @@ log:
 # none of the others may bind r. Two contexts that are side by side may
 # share a key, such as m for merge in pull requests and read in the
 # notifications.
+#
+# Every pane that moves has the keys that do so in its own context: up and
+# down, and left and right in a calendar and in a pane of cards. A list also
+# has pages (page_up, page_down and, by half, half_page_up and
+# half_page_down) and top and bottom; a calendar has top and bottom too, as
+# its first and last day. The work and inbox panes of the dashboard, the
+# annotations and the search kinds move up and down only, and a pane of
+# cards has no use for pages, top or bottom.
 keys:
   # Everywhere. What a key does depends on what has the focus: enter opens
   # a row, applies a filter or answers a question.
@@ -532,8 +540,23 @@ keys:
     pane_4: ["4"]
     pane_5: ["5"]
 
+  # Dashboard: the pinned repositories, as cards.
+  dashboard_pinned:
+    up: [up, k]
+    down: [down, j]
+    left: [left, h]
+    right: [right, l]
+
   # Dashboard: your repositories, and those of each organization.
   dashboard_repos:
+    up: [up, k]
+    down: [down, j]
+    page_up: [ctrl+b, pgup]
+    page_down: [ctrl+f, pgdown]
+    half_page_up: [ctrl+u]
+    half_page_down: [ctrl+d]
+    top: [g, home]
+    bottom: [G, end]
     # Open the filter modal on its Filters tab or its Sort tab, and put the
     # filters back to their defaults.
     filter: [f]
@@ -541,8 +564,22 @@ keys:
     clear_filter: [F]
   # Dashboard: the pull requests and issues waiting on you.
   dashboard_work:
+    up: [up, k]
+    down: [down, j]
     # Show the checks of the pull request under the cursor.
     checks: [C]
+  # Dashboard: your contributions, a day at a time.
+  dashboard_calendar:
+    up: [up, k]
+    down: [down, j]
+    left: [left, h]
+    right: [right, l]
+    top: [g, home]
+    bottom: [G, end]
+  # Dashboard: your newest notifications.
+  dashboard_inbox:
+    up: [up, k]
+    down: [down, j]
 
   # The repository screen, on any of its panes.
   repo:
@@ -555,8 +592,20 @@ keys:
     star: []
   # Repository: the file tree.
   files:
+    up: [up, k]
+    down: [down, j]
+    page_up: [ctrl+b, pgup]
+    page_down: [ctrl+f, pgdown]
+    half_page_up: [ctrl+u]
+    half_page_down: [ctrl+d]
+    top: [g, home]
+    bottom: [G, end]
+    # Expand the directory under the cursor; step_in also goes to its first
+    # entry when it is open, and collapse also goes to its parent from an
+    # entry or a closed directory.
     expand: [+]
-    collapse: ["-"]
+    step_in: [right, l]
+    collapse: ["-", left, h]
     expand_all: ["*"]
     collapse_all: [=]
     # Show the files at the head of the default branch again, after
@@ -564,6 +613,14 @@ keys:
     reset_base: [H]
   # Repository: the pull requests.
   pulls:
+    up: [up, k]
+    down: [down, j]
+    page_up: [ctrl+b, pgup]
+    page_down: [ctrl+f, pgdown]
+    half_page_up: [ctrl+u]
+    half_page_down: [ctrl+d]
+    top: [g, home]
+    bottom: [G, end]
     # Open the filter modal on its Filters tab or its Sort tab, and put the
     # filters back to their defaults.
     filter: [f]
@@ -578,6 +635,14 @@ keys:
     checks: [C]
   # Repository: the issues.
   issues:
+    up: [up, k]
+    down: [down, j]
+    page_up: [ctrl+b, pgup]
+    page_down: [ctrl+f, pgdown]
+    half_page_up: [ctrl+u]
+    half_page_down: [ctrl+d]
+    top: [g, home]
+    bottom: [G, end]
     filter: [f]
     sort: [s]
     clear_filter: [F]
@@ -588,6 +653,14 @@ keys:
 
   # The notifications screen.
   notifications:
+    up: [up, k]
+    down: [down, j]
+    page_up: [ctrl+b, pgup]
+    page_down: [ctrl+f, pgdown]
+    half_page_up: [ctrl+u]
+    half_page_down: [ctrl+d]
+    top: [g, home]
+    bottom: [G, end]
     filter: [f]
     clear_filter: [F]
     read: [m]
@@ -596,21 +669,58 @@ keys:
 
   # Search: the kinds, which open the same filter as the results do.
   search_kinds:
+    up: [up, k]
+    down: [down, j]
+    # Go to the results.
+    results: [right, l]
     filter: [f]
     sort: [s]
 
   # Search: the results.
   search_results:
+    up: [up, k]
+    down: [down, j]
+    page_up: [ctrl+b, pgup]
+    page_down: [ctrl+f, pgdown]
+    half_page_up: [ctrl+u]
+    half_page_down: [ctrl+d]
+    top: [g, home]
+    bottom: [G, end]
+    # Go back to the kinds.
+    kinds: [left, h]
     filter: [f]
     sort: [s]
     # Show the checks of the pull request under the cursor.
     checks: [C]
 
+  # The page of a user or an organization: its pinned repositories, as
+  # cards.
+  owner_pinned:
+    up: [up, k]
+    down: [down, j]
+    left: [left, h]
+    right: [right, l]
   # The page of a user or an organization: its list.
   owner_list:
+    up: [up, k]
+    down: [down, j]
+    page_up: [ctrl+b, pgup]
+    page_down: [ctrl+f, pgdown]
+    half_page_up: [ctrl+u]
+    half_page_down: [ctrl+d]
+    top: [g, home]
+    bottom: [G, end]
     filter: [f]
     sort: [s]
     clear_filter: [F]
+  # The page of a user: its contributions, a day at a time.
+  owner_calendar:
+    up: [up, k]
+    down: [down, j]
+    left: [left, h]
+    right: [right, l]
+    top: [g, home]
+    bottom: [G, end]
 
   # The modal of a pull request, on any of its steps.
   pull_modal:
@@ -624,11 +734,23 @@ keys:
   # jobs of the run of the check under the cursor, or of the one shown.
   pull_checks:
     rerun_failed: [R]
+  # Checks: the list of checks.
+  pull_check_list:
+    up: [up, k]
+    down: [down, j]
+    page_up: [ctrl+b, pgup]
+    page_down: [ctrl+f, pgdown]
+    half_page_up: [ctrl+u]
+    half_page_down: [ctrl+d]
+    top: [g, home]
+    bottom: [G, end]
   # Checks: the log of the job of a check, and its annotations. Move the
   # focus between the two.
   pull_check_log:
     annotations: [A]
   pull_check_annotations:
+    up: [up, k]
+    down: [down, j]
     annotations: [A]
 
   # The modal of an issue.
@@ -643,15 +765,39 @@ keys:
     reset_base: [H]
   # History: the branches. Show the files at the branch under the cursor.
   history_branches:
+    up: [up, k]
+    down: [down, j]
+    page_up: [ctrl+b, pgup]
+    page_down: [ctrl+f, pgdown]
+    half_page_up: [ctrl+u]
+    half_page_down: [ctrl+d]
+    top: [g, home]
+    bottom: [G, end]
     # Narrow the branches by typing a part of a name.
     filter: [f]
     base: [b]
   # History: the commit graph. Show the files at the commit under the
   # cursor.
   history_graph:
+    up: [up, k]
+    down: [down, j]
+    page_up: [ctrl+b, pgup]
+    page_down: [ctrl+f, pgdown]
+    half_page_up: [ctrl+u]
+    half_page_down: [ctrl+d]
+    top: [g, home]
+    bottom: [G, end]
     base: [b]
   # History: the files of a commit. Show the files at the commit.
   history_files:
+    up: [up, k]
+    down: [down, j]
+    page_up: [ctrl+b, pgup]
+    page_down: [ctrl+f, pgdown]
+    half_page_up: [ctrl+u]
+    half_page_down: [ctrl+d]
+    top: [g, home]
+    bottom: [G, end]
     base: [b]
 
   # The Actions modal, on any of its panes.
@@ -662,8 +808,26 @@ keys:
     cancel: [x]
     # Open the filter of the runs.
     filter: [f]
+  # Actions: the runs.
+  actions_runs:
+    up: [up, k]
+    down: [down, j]
+    page_up: [ctrl+b, pgup]
+    page_down: [ctrl+f, pgdown]
+    half_page_up: [ctrl+u]
+    half_page_down: [ctrl+d]
+    top: [g, home]
+    bottom: [G, end]
   # Actions: the jobs of a run. Re-run the job under the cursor.
   actions_jobs:
+    up: [up, k]
+    down: [down, j]
+    page_up: [ctrl+b, pgup]
+    page_down: [ctrl+f, pgdown]
+    half_page_up: [ctrl+u]
+    half_page_down: [ctrl+d]
+    top: [g, home]
+    bottom: [G, end]
     rerun_job: [J]
   # Actions: the log of a job. Re-run the job, and move the focus between
   # the log and the annotations of the job.
@@ -672,6 +836,8 @@ keys:
     annotations: [A]
   # Actions: the annotations of a job, with the same keys as its log.
   actions_annotations:
+    up: [up, k]
+    down: [down, j]
     rerun_job: [J]
     annotations: [A]
 

@@ -6,8 +6,10 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/calendar"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
 
 // KeyMap holds the keys of the page.
@@ -38,10 +40,10 @@ type KeyMap struct {
 	Sort        key.Binding
 	ClearFilter key.Binding
 	// Up, Down, Left and Right move through the cards.
-	Up    key.Binding
-	Down  key.Binding
-	Left  key.Binding
-	Right key.Binding
+	Up    key.Binding `keymap:"owner_pinned.up" help:"up"`
+	Down  key.Binding `keymap:"owner_pinned.down" help:"down"`
+	Left  key.Binding `keymap:"owner_pinned.left" help:"left"`
+	Right key.Binding `keymap:"owner_pinned.right" help:"right"`
 
 	// Jump holds the keys of Panes, which it stands for in help.
 	Jump key.Binding
@@ -49,6 +51,8 @@ type KeyMap struct {
 	// feed is the navigation of the lists, which gets the keys above only
 	// if the page leaves them.
 	feed feed.KeyMap
+	// cal moves through the days of a user's contributions.
+	cal calendar.KeyMap
 }
 
 // ctxPage is the context of the keys of the page, which work in every
@@ -73,11 +77,8 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		Filter:      list.Binding("filter", "filter"),
 		Sort:        list.Binding("sort", "sort"),
 		ClearFilter: list.Binding("clear_filter", "clear filters"),
-		Up:          key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("↑/k", "up")),
-		Down:        key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓/j", "down")),
-		Left:        key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←/h", "left")),
-		Right:       key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "right")),
 	}
+	keymap.Fill(&k, page.Of)
 	actions := [numPanes]string{"global.pane_1", "global.pane_2", "global.pane_3", "global.pane_4"}
 	names := [numPanes]string{paneTitles[pinnedPane], "List", paneTitles[readmePane], paneTitles[calendarPane]}
 	for i, a := range actions {
@@ -86,10 +87,9 @@ func newKeyMap(keys config.Keymap) KeyMap {
 	k.Jump = ui.Jump(k.Panes[:]...)
 
 	// The page matches these keys first, so the list gets only the keys it
-	// leaves it, such as f, which pages down there.
-	f := feed.DefaultKeyMap()
-	f.Retry = key.NewBinding(key.WithKeys(k.Refresh.Keys()...), key.WithHelp(k.Refresh.Help().Key, "retry"), key.WithDisabled())
-	k.feed = f
+	// leaves it.
+	k.feed = feed.NewKeyMap(list.Of)
+	k.cal = calendar.NewKeyMap(ui.In(keys, paneContext[calendarPane]).Of)
 	return k
 }
 

@@ -22,7 +22,7 @@ func defaultSettings() settings {
 	return settings{
 		parent:    context.Background(),
 		emptyText: "No commits on this branch.",
-		keyMap:    DefaultKeyMap(),
+		keyMap:    NewKeyMap(unbound),
 		styles:    DefaultStyles(true),
 		maxLanes:  DefaultMaxLanes,
 	}

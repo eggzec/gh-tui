@@ -34,7 +34,7 @@ func defaultSettings() settings {
 	return settings{
 		parent:      context.Background(),
 		emptyText:   "Nothing to show.",
-		keyMap:      DefaultKeyMap(),
+		keyMap:      NewKeyMap(unbound),
 		styles:      DefaultStyles(true),
 		scrollOff:   DefaultScrollOff,
 		expandNodes: DefaultExpandAllNodes,

@@ -55,7 +55,7 @@ func (a app) View() tea.View {
 
 func TestProgram(t *testing.T) {
 	events := make(chan string, 100)
-	m := New(newSource(history(60), 20).fetch, WithFocused(true))
+	m := newModel(newSource(history(60), 20).fetch, WithFocused(true))
 	tm := teatest.NewTestModel(t, app{graph: m, events: events}, teatest.WithInitialTermSize(60, 10))
 
 	// waitFor waits for every event in wants, which commands may send in

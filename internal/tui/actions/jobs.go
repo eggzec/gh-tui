@@ -268,7 +268,7 @@ func firstJob(items []core.Job) int {
 // pressJobs moves the cursor of the jobs, and shows the log of the job it
 // rests on.
 func (m *Modal) pressJobs(msg tea.KeyPressMsg) tea.Cmd {
-	j, k := &m.jobs, m.keys.List
+	j, k := &m.jobs, m.keys.Jobs
 	n := len(j.lines)
 	if n == 0 {
 		return nil

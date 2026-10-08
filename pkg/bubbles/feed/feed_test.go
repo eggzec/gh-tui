@@ -105,7 +105,7 @@ func run[T any](tb testing.TB, m Model[T], cmd tea.Cmd) Model[T] {
 func load(tb testing.TB, src *source, opts ...Option) Model[item] {
 	tb.Helper()
 	opts = append([]Option{WithSize(40, 5), WithFocused(true)}, opts...)
-	m := New(src.fetch, renderItem, opts...)
+	m := newModel(src.fetch, renderItem, opts...)
 	return run(tb, m, m.Init())
 }
 
@@ -154,7 +154,7 @@ func assertVisible[T any](tb testing.TB, m Model[T]) {
 
 func TestInitLoadsFirstChunk(t *testing.T) {
 	src := newSource(100, 10)
-	m := New(src.fetch, renderItem, WithSize(40, 5))
+	m := newModel(src.fetch, renderItem, WithSize(40, 5))
 	if text, _ := m.statusLine(); !m.hasStatus() || text == m.emptyLine {
 		t.Fatal("new feed should show the loading row")
 	}
@@ -358,7 +358,7 @@ func TestRetryKept(t *testing.T) {
 		}
 		return items, next, err
 	}
-	m := New(fetch, renderItem, WithSize(40, 5), WithFocused(true), WithKey(itemKey))
+	m := newModel(fetch, renderItem, WithSize(40, 5), WithFocused(true), WithKey(itemKey))
 	m = run(t, m, m.Init())
 	m = keys(t, m, "down", "down")
 	if m.Err() != nil || m.Len() < 5 {
@@ -391,7 +391,7 @@ func TestRetryKept(t *testing.T) {
 }
 
 func TestErrorText(t *testing.T) {
-	rebound := DefaultKeyMap()
+	rebound := testKeyMap
 	rebound.Retry = key.NewBinding(key.WithKeys("R"), key.WithHelp("R", "reload"))
 	offline := func(error) (string, string) { return "Can't reach GitHub", "r to retry" }
 	tests := []struct {
@@ -505,7 +505,7 @@ func TestEmpty(t *testing.T) {
 
 func TestIgnoresOtherInstances(t *testing.T) {
 	a := load(t, newSource(10, 10))
-	b := New(newSource(10, 10).fetch, renderItem)
+	b := newModel(newSource(10, 10).fetch, renderItem)
 	if a.ID() == b.ID() {
 		t.Fatal("two feeds share an ID")
 	}
@@ -521,7 +521,7 @@ func TestIgnoresOtherInstances(t *testing.T) {
 }
 
 func TestSpinnerStopsWhenLoaded(t *testing.T) {
-	m := New(newSource(10, 10).fetch, renderItem, WithSize(40, 5))
+	m := newModel(newSource(10, 10).fetch, renderItem, WithSize(40, 5))
 	tick := m.spin.Tick()
 	m, cmd := m.Update(tick)
 	if cmd == nil {
@@ -559,7 +559,7 @@ func TestResizeOnlyMovesWindow(t *testing.T) {
 
 func TestAccessors(t *testing.T) {
 	m := load(t, newSource(10, 10))
-	k := DefaultKeyMap()
+	k := testKeyMap
 	k.Down.SetKeys("n")
 	m.SetKeyMap(k)
 	m = keys(t, m, "n")
@@ -853,7 +853,7 @@ func TestReset(t *testing.T) {
 		}
 		return []item{{id: query + cursor, title: query}}, next, nil
 	}
-	m := New(fetch, renderItem, WithSize(40, 1), WithFocused(true))
+	m := newModel(fetch, renderItem, WithSize(40, 1), WithFocused(true))
 	// The first fetch is still in flight when the query changes.
 	stale := m.Init()
 
@@ -924,7 +924,7 @@ func TestStaleChunkIsShownThenFetchedAgain(t *testing.T) {
 		old:    []item{{id: "0", title: "old"}},
 		served: map[string]bool{},
 	}
-	m := New(src.fetch, renderItem, WithSize(40, 5), WithFocused(true), WithKey(itemKey))
+	m := newModel(src.fetch, renderItem, WithSize(40, 5), WithFocused(true), WithKey(itemKey))
 	msg := m.Init()().(tea.BatchMsg)[0]()
 	m, cmd := m.Update(msg)
 	if it, ok := m.Selected(); !ok || it.title != "old" {
@@ -956,7 +956,7 @@ func TestStaleChunkIsShownThenFetchedAgain(t *testing.T) {
 
 func TestStaleChunkKeepsItemsWhenRefetchFails(t *testing.T) {
 	src := &staleSource{source: newSource(3, 10), old: []item{{id: "0", title: "old"}}, served: map[string]bool{}}
-	m := New(src.fetch, renderItem, WithSize(40, 5), WithFocused(true))
+	m := newModel(src.fetch, renderItem, WithSize(40, 5), WithFocused(true))
 	msg := m.Init()().(tea.BatchMsg)[0]()
 	m, cmd := m.Update(msg)
 	src.setFail("", errors.New("offline"))
@@ -971,7 +971,7 @@ func TestStaleChunkKeepsItemsWhenRefetchFails(t *testing.T) {
 
 func TestSettled(t *testing.T) {
 	src := newSource(3, 10)
-	m := New(src.fetch, renderItem, WithSize(40, 5))
+	m := newModel(src.fetch, renderItem, WithSize(40, 5))
 	if m.Settled() {
 		t.Fatal("Settled() = true before the first chunk")
 	}
@@ -988,14 +988,14 @@ func TestSettled(t *testing.T) {
 	}
 
 	empty := newSource(0, 10)
-	m = New(empty.fetch, renderItem, WithSize(40, 5))
+	m = newModel(empty.fetch, renderItem, WithSize(40, 5))
 	if m = run(t, m, m.Init()); !m.Settled() {
 		t.Error("Settled() = false for an empty feed that loaded")
 	}
 
 	failing := newSource(3, 10)
 	failing.setFail("", errors.New("boom"))
-	m = New(failing.fetch, renderItem, WithSize(40, 5))
+	m = newModel(failing.fetch, renderItem, WithSize(40, 5))
 	if m = run(t, m, m.Init()); m.Settled() {
 		t.Error("Settled() = true after the first chunk failed")
 	}

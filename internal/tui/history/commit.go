@@ -263,7 +263,7 @@ func (m *Modal) receiveFiles(msg filesMsg) tea.Cmd {
 // pressCommit handles a key in the commit pane's list of files.
 func (m *Modal) pressCommit(msg tea.KeyPressMsg) tea.Cmd {
 	c := &m.commit
-	k := m.keys.List
+	k := m.keys.Files
 	page := max(m.filesHeight(), 1)
 	before := c.cursor
 	switch {

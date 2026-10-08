@@ -42,16 +42,9 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		Refresh:     screen.Binding("global.refresh", "refresh"),
 	}
 	// The section matches these keys first, so the list gets only the
-	// keys it leaves it, such as f, which pages down there.
-	f := feed.DefaultKeyMap()
-	// The section handles refresh before the list, and a refresh retries
-	// what failed, so the list's error row names the refresh keys.
-	f.Retry = key.NewBinding(
-		key.WithKeys(k.Refresh.Keys()...),
-		key.WithHelp(k.Refresh.Help().Key, "retry"),
-		key.WithDisabled(),
-	)
-	k.feed = f
+	// keys it leaves it. Refresh retries what failed, so the list's error
+	// row names its keys.
+	k.feed = feed.NewKeyMap(screen.Of)
 	return k
 }
 

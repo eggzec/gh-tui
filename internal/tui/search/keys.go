@@ -1,6 +1,8 @@
 package search
 
 import (
+	"slices"
+
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
@@ -9,6 +11,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
 
 // KeyMap holds the keys of the search page. While the query has the
@@ -40,10 +43,12 @@ type KeyMap struct {
 	KindsFilter key.Binding
 	KindsSort   key.Binding
 	Refresh     key.Binding
-	Up          key.Binding
-	Down        key.Binding
-	Left        key.Binding
-	Right       key.Binding
+	// Up and Down move through the kinds, Left goes back to them from the
+	// results, and Right goes on to the results.
+	Up    key.Binding `keymap:"search_kinds.up" help:"up"`
+	Down  key.Binding `keymap:"search_kinds.down" help:"down"`
+	Left  key.Binding `keymap:"search_results.kinds" help:"kinds"`
+	Right key.Binding `keymap:"search_kinds.results" help:"results"`
 
 	// feed is the navigation of the results, which gets the keys above
 	// only if the page leaves them.
@@ -77,20 +82,15 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		KindsFilter: kinds.Binding("filter", "filter"),
 		KindsSort:   kinds.Binding("sort", "sort"),
 		Refresh:     page.Binding("global.refresh", "refresh"),
-		Up:          key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("↑/k", "up")),
-		Down:        key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓/j", "down")),
-		Left:        key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←/h", "kinds")),
-		Right:       key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "results")),
 	}
+	keymap.Fill(&k, page.Of)
 	for i, a := range [numAreas]string{"global.pane_1", "global.pane_2", "global.pane_3"} {
 		k.Panes[i] = page.Binding(a, areaTitles[i])
 	}
 	k.Jump = ui.Jump(k.Panes[:]...)
 	// The page matches these keys first, so the results get only the keys
-	// it leaves them, such as f, which pages down there.
-	f := feed.DefaultKeyMap()
-	f.Retry = key.NewBinding(key.WithKeys(k.Refresh.Keys()...), key.WithHelp(k.Refresh.Help().Key, "retry"), key.WithDisabled())
-	k.feed = f
+	// it leaves them.
+	k.feed = feed.NewKeyMap(results.Of)
 	return k
 }
 
@@ -134,9 +134,15 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 	}
 	k := s.keys.state(s)
 	screen := ui.ContextLayer("search", []key.Binding{k.Back, k.Next, k.Prev, k.Jump}, []key.Binding{k.Next, k.Back})
+	// Without a query the results are the page's own suggestions, which
+	// move with the keys of the list; with one, the list's layer has them.
+	var moves []key.Binding
+	if s.text == "" {
+		moves = []key.Binding{k.feed.Up, k.feed.Down}
+	}
 	own := keyhelp.Layer{
-		Bindings: []key.Binding{k.Select, k.Left, k.Right, k.Up, k.Down, k.Open, k.Checks, k.Refresh, k.Filter, k.Sort},
-		Short:    []key.Binding{k.Up, k.Down, k.Select, k.Checks, k.Open, k.Filter, k.Sort, k.Left},
+		Bindings: slices.Concat([]key.Binding{k.Select, k.Left, k.Right}, moves, []key.Binding{k.Open, k.Checks, k.Refresh, k.Filter, k.Sort}),
+		Short:    slices.Concat(moves, []key.Binding{k.Select, k.Checks, k.Open, k.Filter, k.Sort, k.Left}),
 	}
 	if s.area == kindsArea {
 		// The kinds have no result under the cursor, so no checks, and the
@@ -187,8 +193,5 @@ func (k KeyMap) state(s *Section) KeyMap {
 	}
 	k.Checks.SetEnabled(k.Checks.Enabled() && s.kind == core.SearchPulls)
 	k.Right.SetEnabled(false)
-	// The moves are the list's once there is a query.
-	k.Up.SetEnabled(k.Up.Enabled() && s.text == "")
-	k.Down.SetEnabled(k.Down.Enabled() && s.text == "")
 	return k
 }

@@ -304,6 +304,7 @@ func New(ctx context.Context, svc Service, keys config.Keymap, opts ...Option) *
 	s.cal = calendar.New(
 		calendar.WithGlyph(s.glyph),
 		calendar.WithRange(s.calDays),
+		calendar.WithKeyMap(s.keys.cal),
 	)
 	s.repos = newRepoTabs(s)
 	s.tasks.now, s.tasks.dates, s.tasks.ellipsis = s.now, s.dates, s.icons.Ellipsis

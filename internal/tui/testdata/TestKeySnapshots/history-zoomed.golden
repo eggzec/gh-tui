@@ -24,7 +24,7 @@ Graph
   page down | ctrl+f pgdown | ^f/pgdn | on
   ½ page up | ctrl+u | ^u | on
   ½ page down | ctrl+d | ^d | on
-  newest | home g | g/home | on
-  oldest loaded | end G | G/end | on
+  newest | g home | g/home | on
+  oldest loaded | G end | G/end | on
   diff | enter | ↵ | on
   retry | r | r | off

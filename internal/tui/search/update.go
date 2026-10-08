@@ -221,16 +221,15 @@ func (s *Section) pressResults(msg tea.KeyPressMsg) tea.Cmd {
 	case key.Matches(msg, k.Refresh):
 		return s.refresh()
 	case key.Matches(msg, k.Filter):
-		// The results get no f, which pages down there.
 		return ui.OpenFilter(filterform.FiltersTab)
 	case key.Matches(msg, k.Sort):
 		return ui.OpenFilter(filterform.SortTab)
 	}
 	if s.text == "" {
 		switch {
-		case key.Matches(msg, k.Up):
+		case key.Matches(msg, k.feed.Up):
 			s.starts.move(-1)
-		case key.Matches(msg, k.Down):
+		case key.Matches(msg, k.feed.Down):
 			s.starts.move(1)
 		}
 		return nil

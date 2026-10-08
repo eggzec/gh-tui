@@ -170,8 +170,22 @@ func TestConfiguredKeys(t *testing.T) {
 		t.Error("c didn't collapse")
 	}
 	keys(s, "e", "left")
-	if strings.Contains(screen(s), "gh-tui") {
-		t.Error("← no longer collapses alongside the configured keys")
+	if !strings.Contains(screen(s), "gh-tui") {
+		t.Error("← collapsed, but collapse is bound to c")
+	}
+}
+
+func TestUnboundCollapse(t *testing.T) {
+	cfg := config.Default().Keys
+	cfg.Set("files.collapse", []string{})
+	s := New(t.Context(), sampleFake(), cfg, WithRepo(ghTUI))
+	s.SetSize(40, 12)
+	s.Focus()
+	run(s, s.Init())
+
+	keys(s, "+", "h", "left", "-")
+	if !strings.Contains(screen(s), "gh-tui") {
+		t.Error("a key collapsed, but collapse is unbound")
 	}
 }
 

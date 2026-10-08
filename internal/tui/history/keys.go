@@ -40,10 +40,11 @@ type KeyMap struct {
 	Open key.Binding
 	// Retry reads again what failed to load.
 	Retry key.Binding
-	// List moves through the branches and the files, and Graph through
-	// the commits.
-	List  graph.KeyMap
-	Graph graph.KeyMap
+	// Branches and Files move through the branches and the files of a
+	// commit, and Graph through the commits.
+	Branches graph.KeyMap
+	Files    graph.KeyMap
+	Graph    graph.KeyMap
 }
 
 // The contexts of the keys of the modal: its own, and one for each pane.
@@ -56,12 +57,7 @@ const (
 
 func newKeyMap(keys config.Keymap) KeyMap {
 	modal, branches, graphCtx, files := ui.In(keys, ctxModal), ui.In(keys, ctxBranches), ui.In(keys, ctxGraph), ui.In(keys, ctxFiles)
-	list := graph.DefaultKeyMap()
-	g := graph.DefaultKeyMap()
-	g.Choose = graphCtx.Binding("global.select", "open")
-	g.Retry = graphCtx.Binding("global.refresh", "retry")
-	// The graph enables its retry key while a fetch has failed.
-	g.Retry.SetEnabled(false)
+	g := graph.NewKeyMap(graphCtx.Of)
 	k := KeyMap{
 		Next:      modal.Binding("global.next_pane", "pane"),
 		Prev:      modal.Binding("global.prev_pane", "previous pane"),
@@ -75,7 +71,8 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		ResetBase: modal.Binding("reset_base", "back to head"),
 		Open:      modal.Binding("global.open", "browser"),
 		Retry:     modal.Binding("global.refresh", "retry"),
-		List:      list,
+		Branches:  graph.NewKeyMap(branches.Of),
+		Files:     graph.NewKeyMap(files.Of),
 		Graph:     g,
 	}
 	for i, a := range [numPanes]string{"global.pane_1", "global.pane_2", "global.pane_3"} {
@@ -153,7 +150,7 @@ func (k KeyMap) ShortHelp() []key.Binding {
 
 // FullHelp implements help.KeyMap.
 func (k KeyMap) FullHelp() [][]key.Binding {
-	return slices.Concat([][]key.Binding{k.own()}, k.List.FullHelp(), k.Graph.FullHelp())
+	return slices.Concat([][]key.Binding{k.own()}, k.Branches.FullHelp(), k.Files.FullHelp(), k.Graph.FullHelp())
 }
 
 // named returns b described as desc.

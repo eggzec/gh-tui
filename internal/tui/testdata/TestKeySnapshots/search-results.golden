@@ -24,8 +24,6 @@ Results
   open | enter | ↵ | on
   kinds | left h | ←/h | on
   results | right l | →/l | off
-  up | up k | ↑/k | off
-  down | down j | ↓/j | off
   browser | o | o | on
   checks | C | C | off
   refresh | r | r | on
@@ -37,6 +35,6 @@ Results
   page down | ctrl+f pgdown | ^f/pgdn | on
   ½ page up | ctrl+u | ^u | on
   ½ page down | ctrl+d | ^d | on
-  first | home g | g/home | on
-  last | end G | G/end | on
+  first | g home | g/home | on
+  last | G end | G/end | on
   retry | r | r | off

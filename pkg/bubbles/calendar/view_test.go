@@ -16,40 +16,40 @@ func TestView(t *testing.T) {
 		model func(t *testing.T) Model
 	}{
 		{"40 columns", func(*testing.T) Model {
-			return New(WithWeeks(year(today)), WithSize(40, 10))
+			return newModel(WithWeeks(year(today)), WithSize(40, 10))
 		}},
 		{"80 columns", func(*testing.T) Model {
-			return New(WithWeeks(year(today)), WithSize(80, 10), WithTotal(1234))
+			return newModel(WithWeeks(year(today)), WithSize(80, 10), WithTotal(1234))
 		}},
 		{"120 columns", func(*testing.T) Model {
-			return New(WithWeeks(year(today)), WithSize(120, 10))
+			return newModel(WithWeeks(year(today)), WithSize(120, 10))
 		}},
 		{"focused", func(t *testing.T) Model {
 			t.Helper()
-			m := keys(t, New(WithWeeks(year(today)), WithSize(80, 10), WithFocused(true)), "h", "k", "k")
+			m := keys(t, newModel(WithWeeks(year(today)), WithSize(80, 10), WithFocused(true)), "h", "k", "k")
 			return m
 		}},
 		{"narrow", func(*testing.T) Model {
-			return New(WithWeeks(year(today)), WithSize(16, 10))
+			return newModel(WithWeeks(year(today)), WithSize(16, 10))
 		}},
 		{"short and tall", func(*testing.T) Model {
-			return New(WithWeeks(year(today)), WithSize(60, 12))
+			return newModel(WithWeeks(year(today)), WithSize(60, 12))
 		}},
 		{"glyph", func(*testing.T) Model {
-			return New(WithWeeks(year(today)), WithSize(40, 10), WithGlyph("#"))
+			return newModel(WithWeeks(year(today)), WithSize(40, 10), WithGlyph("#"))
 		}},
 		{"light", func(*testing.T) Model {
-			return New(WithWeeks(year(today)), WithSize(40, 10), WithStyles(DefaultStyles(false)))
+			return newModel(WithWeeks(year(today)), WithSize(40, 10), WithStyles(DefaultStyles(false)))
 		}},
 		{"90 days", func(*testing.T) Model {
-			return New(WithWeeks(year(today)), WithSize(40, 10), WithRange(90))
+			return newModel(WithWeeks(year(today)), WithSize(40, 10), WithRange(90))
 		}},
 		{"30 days focused", func(t *testing.T) Model {
 			t.Helper()
-			return keys(t, New(WithWeeks(year(today)), WithSize(40, 10), WithRange(30), WithFocused(true)), "h")
+			return keys(t, newModel(WithWeeks(year(today)), WithSize(40, 10), WithRange(30), WithFocused(true)), "h")
 		}},
 		{"empty", func(*testing.T) Model {
-			return New(WithSize(40, 3))
+			return newModel(WithSize(40, 3))
 		}},
 	}
 	for _, tt := range tests {
@@ -65,7 +65,7 @@ func TestView(t *testing.T) {
 // TestViewPlain keeps the calendar without styles, so the layout is easy to
 // review.
 func TestViewPlain(t *testing.T) {
-	m := keys(t, New(WithWeeks(year(today)), WithSize(80, 10), WithFocused(true)), "k")
+	m := keys(t, newModel(WithWeeks(year(today)), WithSize(80, 10), WithFocused(true)), "k")
 	golden.RequireEqual(t, ansi.Strip(m.View()))
 }
 
@@ -85,7 +85,7 @@ func assertFits(tb testing.TB, v string, width, height int) {
 
 func TestViewFitsAnySize(t *testing.T) {
 	for _, focused := range []bool{false, true} {
-		m := New(WithWeeks(year(today)), WithFocused(focused))
+		m := newModel(WithWeeks(year(today)), WithFocused(focused))
 		for _, size := range [][2]int{{1, 1}, {2, 3}, {3, 1}, {7, 4}, {17, 10}, {19, 9}, {33, 10}, {80, 40}, {200, 2}} {
 			t.Run(fmt.Sprintf("%dx%d focused %v", size[0], size[1], focused), func(t *testing.T) {
 				m.SetSize(size[0], size[1])
@@ -105,12 +105,12 @@ func TestViewASCII(t *testing.T) {
 	st := DefaultStyles(true)
 	st.Ellipsis = "..."
 	for _, width := range []int{12, 30, 80} {
-		m := keys(t, New(WithWeeks(year(today)), WithGlyph("#"), WithStyles(st), WithSize(width, 10), WithFocused(true)), "k")
+		m := keys(t, newModel(WithWeeks(year(today)), WithGlyph("#"), WithStyles(st), WithSize(width, 10), WithFocused(true)), "k")
 		if v := ansi.Strip(m.View()); strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
 			t.Errorf("width %d: view isn't ASCII:\n%s", width, v)
 		}
 	}
-	m := New(WithStyles(st), WithEmptyText("Loading the contributions of the year"), WithSize(20, 2))
+	m := newModel(WithStyles(st), WithEmptyText("Loading the contributions of the year"), WithSize(20, 2))
 	if got := ansi.Strip(m.View()); !strings.Contains(got, "...") {
 		t.Errorf("a cut text doesn't end in the ellipsis:\n%s", got)
 	}

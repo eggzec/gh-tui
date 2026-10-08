@@ -141,7 +141,7 @@ func run(tb testing.TB, m Model, cmd tea.Cmd) (_ Model, out []tea.Msg) {
 func load(tb testing.TB, src *source, opts ...Option) Model {
 	tb.Helper()
 	opts = append([]Option{WithSize(60, 5), WithFocused(true)}, opts...)
-	m := New(src.fetch, opts...)
+	m := newModel(src.fetch, opts...)
 	m, _ = run(tb, m, m.Init())
 	return m
 }
@@ -201,7 +201,7 @@ func graphs(m Model) []string {
 
 func TestInitLoadsFirstChunk(t *testing.T) {
 	src := newSource(sample(), 3)
-	m := New(src.fetch, WithSize(60, 2), WithPrefetch(1))
+	m := newModel(src.fetch, WithSize(60, 2), WithPrefetch(1))
 	if m.Focused() {
 		t.Fatal("a new graph should start blurred")
 	}
@@ -353,7 +353,7 @@ func TestForkResolvedInALaterChunk(t *testing.T) {
 	// The merge's second parent comes in the second chunk, and its lane
 	// stays open until then.
 	src := newSource(sample(), 2)
-	m := New(src.fetch, WithSize(60, 2), WithFocused(true))
+	m := newModel(src.fetch, WithSize(60, 2), WithFocused(true))
 	// Take the first chunk before the next one is fetched.
 	m, cmd := m.Update(m.fetchCmd()())
 	if got := graphs(m); !slices.Equal(got, []string{"●─╮", "│ ●"}) {
@@ -399,7 +399,7 @@ func TestDoneStopsFetching(t *testing.T) {
 }
 
 func TestErrorText(t *testing.T) {
-	rebound := DefaultKeyMap()
+	rebound := testKeyMap
 	rebound.Retry = key.NewBinding(key.WithKeys("R"), key.WithHelp("R", "reload"))
 	offline := func(error) (string, string) { return "Can't reach GitHub", "r to retry" }
 	tests := []struct {
@@ -544,7 +544,7 @@ func TestReset(t *testing.T) {
 
 func TestIgnoresOtherInstances(t *testing.T) {
 	a := load(t, newSource(sample(), 3))
-	b := New(newSource(history(10), 3).fetch)
+	b := newModel(newSource(history(10), 3).fetch)
 	if a.ID() == b.ID() {
 		t.Fatal("two graphs share an ID")
 	}
@@ -558,7 +558,7 @@ func TestIgnoresOtherInstances(t *testing.T) {
 }
 
 func TestSpinnerStopsWhenLoaded(t *testing.T) {
-	m := New(newSource(sample(), 10).fetch, WithSize(60, 5))
+	m := newModel(newSource(sample(), 10).fetch, WithSize(60, 5))
 	tick := m.spin.Tick()
 	m, _ = run(t, m, m.fetchCmd())
 	if _, cmd := m.Update(tick); cmd != nil {

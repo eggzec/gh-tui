@@ -1,6 +1,10 @@
 package feed
 
-import "charm.land/bubbles/v2/key"
+import (
+	"charm.land/bubbles/v2/key"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+)
 
 // KeyMap holds the key bindings of a feed. It implements help.KeyMap.
 type KeyMap struct {
@@ -17,20 +21,19 @@ type KeyMap struct {
 	Retry key.Binding `keymap:"global.refresh" help:"retry"`
 }
 
-// DefaultKeyMap returns the default key bindings.
-func DefaultKeyMap() KeyMap {
-	return KeyMap{
-		Up:           key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("↑/k", "up")),
-		Down:         key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓/j", "down")),
-		PageUp:       key.NewBinding(key.WithKeys("ctrl+b", "pgup"), key.WithHelp("^b/pgup", "page up")),
-		PageDown:     key.NewBinding(key.WithKeys("ctrl+f", "pgdown"), key.WithHelp("^f/pgdn", "page down")),
-		HalfPageUp:   key.NewBinding(key.WithKeys("ctrl+u"), key.WithHelp("^u", "½ page up")),
-		HalfPageDown: key.NewBinding(key.WithKeys("ctrl+d"), key.WithHelp("^d", "½ page down")),
-		Home:         key.NewBinding(key.WithKeys("home", "g"), key.WithHelp("g/home", "first")),
-		End:          key.NewBinding(key.WithKeys("end", "G"), key.WithHelp("G/end", "last")),
-		Retry:        key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "retry"), key.WithDisabled()),
-	}
+// NewKeyMap returns the key bindings that look gives the keys of, such as
+// those of the context of the pane that shows the feed. An action without
+// keys gives a disabled binding.
+func NewKeyMap(look keymap.Lookup) KeyMap {
+	var k KeyMap
+	keymap.Fill(&k, look)
+	// The feed enables the retry key while a fetch has failed.
+	k.Retry.SetEnabled(false)
+	return k
 }
+
+// unbound is the keys of a feed made without a key map: none.
+func unbound(string) []string { return nil }
 
 // ShortHelp returns the bindings for the short help view.
 func (k KeyMap) ShortHelp() []key.Binding {

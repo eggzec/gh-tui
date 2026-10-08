@@ -1,6 +1,10 @@
 package calendar
 
-import "charm.land/bubbles/v2/key"
+import (
+	"charm.land/bubbles/v2/key"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+)
 
 // KeyMap holds the key bindings of a calendar. It implements help.KeyMap.
 type KeyMap struct {
@@ -20,17 +24,17 @@ type KeyMap struct {
 	Last key.Binding `keymap:"bottom" help:"last day"`
 }
 
-// DefaultKeyMap returns the default key bindings.
-func DefaultKeyMap() KeyMap {
-	return KeyMap{
-		Up:    key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("↑/k", "day before")),
-		Down:  key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓/j", "day after")),
-		Left:  key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←/h", "week before")),
-		Right: key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "week after")),
-		First: key.NewBinding(key.WithKeys("home", "g"), key.WithHelp("g/home", "first day")),
-		Last:  key.NewBinding(key.WithKeys("end", "G"), key.WithHelp("G/end", "last day")),
-	}
+// NewKeyMap returns the key bindings that look gives the keys of, such as
+// those of the context of the pane that shows the calendar. An action without
+// keys gives a disabled binding.
+func NewKeyMap(look keymap.Lookup) KeyMap {
+	var k KeyMap
+	keymap.Fill(&k, look)
+	return k
 }
+
+// unbound is the keys of a calendar made without a key map: none.
+func unbound(string) []string { return nil }
 
 // ShortHelp returns the bindings for the short help view.
 func (k KeyMap) ShortHelp() []key.Binding {

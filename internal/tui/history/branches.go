@@ -225,7 +225,7 @@ func (m *Modal) scrollBranches() {
 // pressBranches handles a key in the branch pane.
 func (m *Modal) pressBranches(msg tea.KeyPressMsg) tea.Cmd {
 	b := &m.branches
-	k := m.keys.List
+	k := m.keys.Branches
 	page := max(m.bodyHeight(), 1)
 	before := b.cursor
 	switch {

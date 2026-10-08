@@ -18,7 +18,7 @@ func TestView(t *testing.T) {
 		model func(t *testing.T) Model
 	}{
 		{"loading", func(*testing.T) Model {
-			return New(repo().children, WithSize(40, 5), WithFocused(true))
+			return newModel(repo().children, WithSize(40, 5), WithFocused(true))
 		}},
 		{"loaded", func(t *testing.T) Model {
 			t.Helper()
@@ -274,7 +274,7 @@ func TestViewGlyphs(t *testing.T) {
 		t.Errorf("view lacks %q:\n%s", want, cut)
 	}
 	assertASCII(t, cut)
-	loading := New(repo().children, WithSize(18, 2), WithStyles(asciiStyles()))
+	loading := newModel(repo().children, WithSize(18, 2), WithStyles(asciiStyles()))
 	if v := ansi.Strip(loading.View()); !strings.Contains(v, "Loading...") {
 		t.Errorf("view lacks %q:\n%s", "Loading...", v)
 	}

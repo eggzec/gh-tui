@@ -24,13 +24,8 @@ const ctxPane = "files"
 
 func newKeyMap(keys config.Keymap) KeyMap {
 	files := ui.In(keys, ctxPane)
-	tk := tree.DefaultKeyMap()
-	tk.Expand = files.Binding("expand", "expand")
-	// The arrows and h stay alongside the configured keys, as l and → do
-	// for Right.
-	tk.Collapse = withKeys(files.Binding("collapse", "collapse"), "collapse", "←/h", "left", "h")
-	tk.ExpandAll = files.Binding("expand_all", "expand all")
-	tk.CollapseAll = files.Binding("collapse_all", "collapse all")
+	tk := tree.NewKeyMap(files.Of)
+	// A preview opens a file, and a directory folds.
 	tk.Open = files.Binding("global.select", "preview")
 	return KeyMap{
 		Open:      files.Binding("global.open", "open"),
@@ -38,16 +33,6 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		ResetBase: files.Binding("reset_base", "back to head"),
 		Tree:      tk,
 	}
-}
-
-// withKeys adds keys, labelled label in help, to b.
-func withKeys(b key.Binding, desc, label string, keys ...string) key.Binding {
-	if !b.Enabled() {
-		return key.NewBinding(key.WithKeys(keys...), key.WithHelp(label, desc))
-	}
-	b.SetKeys(append(b.Keys(), keys...)...)
-	b.SetHelp(b.Help().Key+"/"+label, desc)
-	return b
 }
 
 // own returns the keys of the section itself, in the order it matches

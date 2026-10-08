@@ -55,6 +55,8 @@ type KeyMap struct {
 	// and its log, with the key of the log and notes, that of the
 	// annotations.
 	Annotations, notes key.Binding
+	// notesUp and notesDown move through the annotations of a job.
+	notesUp, notesDown key.Binding
 
 	// Log moves through the log of a job, and Detail through what an app
 	// reported.
@@ -63,8 +65,8 @@ type KeyMap struct {
 }
 
 func newKeyMap(keys config.Keymap) KeyMap {
-	fk := feed.DefaultKeyMap()
-	step, log, notes := ui.In(keys, ctxStep), ui.In(keys, ctxLog), ui.In(keys, ctxAnnotations)
+	step, list, log, notes := ui.In(keys, ctxStep), ui.In(keys, ctxList), ui.In(keys, ctxLog), ui.In(keys, ctxAnnotations)
+	fk := feed.NewKeyMap(list.Of)
 	k := KeyMap{
 		Up: fk.Up, Down: fk.Down, PageUp: fk.PageUp, PageDown: fk.PageDown,
 		HalfPageUp: fk.HalfPageUp, HalfPageDown: fk.HalfPageDown, Home: fk.Home, End: fk.End,
@@ -77,6 +79,8 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		RerunFailed: step.Binding("rerun_failed", "rerun failed"),
 		Annotations: log.Binding("annotations", "annotations"),
 		notes:       notes.Binding("annotations", "annotations"),
+		notesUp:     notes.Binding("up", "up"),
+		notesDown:   notes.Binding("down", "down"),
 		Confirm:     ui.DefaultConfirmKeys(),
 	}
 	// The step matches the re-run before refresh, and its own keys
@@ -106,7 +110,7 @@ func (k KeyMap) job() jobview.KeyMap {
 	sel.SetHelp(sel.Help().Key, "open file")
 	return jobview.KeyMap{
 		Log: k.Log, Annotations: k.Annotations, NotesAnnotations: k.notes, LogContext: ctxLog, NotesContext: ctxAnnotations,
-		Up: k.Up, Down: k.Down, Select: sel, Open: k.Open,
+		Up: k.notesUp, Down: k.notesDown, Select: sel, Open: k.Open,
 	}
 }
 
