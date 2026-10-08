@@ -342,12 +342,12 @@ func TestRepoMsgKeepsModal(t *testing.T) {
 
 func TestHelpFollowsTheView(t *testing.T) {
 	h := started(t, newFakeService(), 80, 20)
-	if got := uitest.Enabled(h.KeyLayers()); !slices.Contains(got, "filter") || slices.Contains(got, "back") {
-		t.Errorf("list help = %v, want filter and no back", got)
+	if got := uitest.Enabled(h.KeyLayers()); !slices.Contains(got, "filter") {
+		t.Errorf("list help = %v, want filter", got)
 	}
 	press(t, h, "enter")
-	if got := uitest.Enabled(h.modal().KeyLayers()); slices.Contains(got, "filter") || !slices.Contains(got, "back") {
-		t.Errorf("modal help = %v, want back and no filter", got)
+	if got := uitest.Enabled(h.modal().KeyLayers()); slices.Contains(got, "filter") || !slices.Contains(got, "close") {
+		t.Errorf("modal help = %v, want close and no filter", got)
 	}
 	// The modal's keys come before the thread's.
 	if got := winner(h.modal().KeyLayers(), "r"); got != "Pull request: refresh" {

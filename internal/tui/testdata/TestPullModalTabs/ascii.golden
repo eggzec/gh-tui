@@ -1,0 +1,24 @@
+- eggzec/gh-tui --------------------------------------------- * 1 notification -
++-[1] Files -------------------++-[2] Pull requests ---------------------------+
+|▌   c+- #2 ------------------------------ Conversation - Checks x2 -+d - All|
+|     R|   Match keys by order                                        |    now|
+|       |                                                              |       |
+|       |    O Open   #2 - octocat opened just now - updated just now  |       |
+|       |   keys -> main - +0 -0 - 0 files                             |       |
+|       |   CI  x 2 failing  - C for details                           |       |
+|       |   ---------------------------------------------------------- |       |
+|       |                                                              |       |
+|       |   Paragraph 1. Keys match by order. Keys match by order.     |       |
+|       |   Keys match by order. Keys match by order. Keys match by    |-------+
+|       |   order. Keys match by order. Keys match by order. Keys      |-------+
+|       |   match by order. Keys match by order. Keys match by         |d · All|
+|       |   order. Keys match by order. Keys match by order.           |    now|
+|       |                                                              |       |
+|       |   Paragraph 2. Keys match by order. Keys match by order.     |       |
+|       |   Keys match by order. Keys match by order. Keys match by    |       |
+|       |   order. Keys match by order. Keys match by order. Keys      |       |
+|       |   match by order. Keys match by order. Keys match by         |       |
+|       |   order. Keys match by order. Keys match by order.           |       |
+|       +--------------------------------------------------------------+       |
++------------------------------++----------------------------------------------+
+ ? help  up/k up  down/j down  esc close  ] next tab  M merge        github.com 

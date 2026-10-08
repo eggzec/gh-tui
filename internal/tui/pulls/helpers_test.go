@@ -70,6 +70,8 @@ type fakeService struct {
 	// thread, when set, are the comments on every pull request, served
 	// in one page.
 	thread []core.Comment
+	// bare are the numbers whose detail counts no checks.
+	bare map[int]bool
 }
 
 // invalidation is a call of Invalidate, with how many lists and gets were
@@ -100,7 +102,11 @@ func (f *fakeService) detail(number int) core.PullRequestDetail {
 	if pr.Body == "" {
 		pr.Body = "## Why\n\nCold starts read **every** page again. This keeps them on disk.\n\n- Pages expire with their TTL\n- `--no-disk` turns it off"
 	}
-	return core.PullRequestDetail{PullRequest: pr, CheckCounts: core.CheckCounts{Passed: 2, Failed: 1, Pending: 1}}
+	counts := core.CheckCounts{Passed: 2, Failed: 1, Pending: 1}
+	if f.bare[number] {
+		counts = core.CheckCounts{}
+	}
+	return core.PullRequestDetail{PullRequest: pr, CheckCounts: counts}
 }
 
 func (f *fakeService) CachedGet(_ core.RepoRef, number int) (core.PullRequestDetail, bool) {
@@ -490,6 +496,8 @@ func keyMsg(k string) tea.KeyPressMsg {
 		return tea.KeyPressMsg{Code: tea.KeyEnter}
 	case "esc":
 		return tea.KeyPressMsg{Code: tea.KeyEscape}
+	case "backspace":
+		return tea.KeyPressMsg{Code: tea.KeyBackspace}
 	case "down":
 		return tea.KeyPressMsg{Code: tea.KeyDown}
 	case "up":

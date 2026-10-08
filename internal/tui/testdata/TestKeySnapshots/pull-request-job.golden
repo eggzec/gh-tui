@@ -7,7 +7,6 @@ global
   notifications | I | I | off
   search | S | S | off
   this repo | . | . | off
-  owner page | @ | @ | off
   help | ? | ? | on
 
 Pull request
@@ -16,9 +15,13 @@ Pull request
   reopen | O | O | off
   convert to draft | W | W | on
   checks | C | C | off
+  next tab | ] | ] | on
+  previous tab | [ | [ | on
+  author | @ | @ | on
 
 Log
-  checks | esc | esc | on
+  checks | backspace | backspace | on
+  close | esc | esc | on
   rerun failed | R | R | on
   refresh | r | r | on
   browser | o | o | on
@@ -54,4 +57,4 @@ Log
   left | left h | ←/h | on
   right | right l | →/l | on
   follow | F | F | on
-  checks | esc | esc | on
+  close | esc | esc | on

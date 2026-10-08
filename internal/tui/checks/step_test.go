@@ -139,9 +139,9 @@ func TestDrillIntoTheJobAndBack(t *testing.T) {
 	if got := h.take(); len(got) != 1 || got[0] != (ui.OpenMsg{URL: "https://github.com/charmbracelet/bubbletea/actions/runs/4812/job/101"}) {
 		t.Errorf("o sent %v, want the job", got)
 	}
-	h.keys("esc")
+	h.keys("backspace")
 	if s.mode != listMode {
-		t.Fatalf("esc from the job left mode %d", s.mode)
+		t.Fatalf("backspace from the job left mode %d", s.mode)
 	}
 	if r, _ := s.selected(); r.name() != "test (ubuntu-latest)" {
 		t.Errorf("back on %q, want the check it left", r.name())
@@ -177,7 +177,7 @@ func TestExternalCheckShowsWhatItReported(t *testing.T) {
 	if got := h.take(); len(got) != 1 || got[0] != (ui.OpenMsg{URL: "https://codecov.io/gh/charmbracelet/bubbletea/pull/1500"}) {
 		t.Errorf("o sent %v, want the app's page", got)
 	}
-	h.keys("esc", "G", "enter")
+	h.keys("backspace", "G", "enter")
 	if v := text(s); !strings.Contains(v, "Your tests passed") {
 		t.Errorf("a status doesn't show its description:\n%s", v)
 	}
@@ -266,7 +266,7 @@ func TestWatchesWhilePending(t *testing.T) {
 	if s.view.State() != jobview.Ready || !slices.Equal(w.unfollowed, []int64{buildRun}) {
 		t.Errorf("the job didn't load once done (state %d), or its run is still followed: %v", s.view.State(), w.unfollowed)
 	}
-	h.keys("esc")
+	h.keys("backspace")
 
 	// Everything done: the polls stop.
 	c := testChecks()
@@ -305,7 +305,7 @@ func TestRerunFailedJobs(t *testing.T) {
 		t.Errorf("the confirmed re-run didn't read the checks again: %d invalidations, %d reads", f.invalidated, f.checkReads)
 	}
 	// A run in progress can't be re-run.
-	h.keys("esc", "down", "down", "down", "enter", "R")
+	h.keys("backspace", "down", "down", "down", "enter", "R")
 	if s.ask != nil || !strings.Contains(s.notice, "still running") {
 		t.Errorf("re-run of a run in progress: ask %+v, notice %q", s.ask, s.notice)
 	}
@@ -557,8 +557,8 @@ func TestKeyLayersOrder(t *testing.T) {
 	}
 	h.keys("enter")
 	layers := s.KeyLayers()
-	if b, src, _ := uitest.Winner(layers, "esc"); src != "Log" || b.Help().Desc != "checks" {
-		t.Errorf("esc reaches %q of %q in the job, want the step's back to the checks", b.Help().Desc, src)
+	if b, src, _ := uitest.Winner(layers, "backspace"); src != "Log" || b.Help().Desc != "checks" {
+		t.Errorf("backspace reaches %q of %q in the job, want the step's back to the checks", b.Help().Desc, src)
 	}
 	if _, src, _ := uitest.Winner(layers, "space"); src != "Log" {
 		t.Errorf("space reaches %q in the job, want the log", src)
@@ -568,8 +568,8 @@ func TestKeyLayersOrder(t *testing.T) {
 	if s.view.Query() == "" {
 		t.Fatal("the search of the log didn't take")
 	}
-	if b, _, _ := uitest.Winner(s.KeyLayers(), "esc"); b.Help().Desc == "checks" {
-		t.Errorf("esc reaches %q with a search, want the log's clear", b.Help().Desc)
+	if b, _, _ := uitest.Winner(s.KeyLayers(), "esc"); b.Help().Desc != "clear search" {
+		t.Errorf("esc reaches %q with a search, want it to clear the search", b.Help().Desc)
 	}
 	h.keys("esc")
 	if s.mode != jobMode || s.view.Query() != "" {
@@ -586,7 +586,7 @@ func TestKeyLayersOrder(t *testing.T) {
 	if _, src, _ := uitest.Winner(s.KeyLayers(), "esc"); src != "Confirm" {
 		t.Errorf("esc reaches %q while asking, want the answer", src)
 	}
-	h.keys("esc", "esc")
+	h.keys("esc", "backspace")
 	if s.ask != nil || s.mode != listMode {
 		t.Errorf("esc, esc left mode %d asking %v, want the checks", s.mode, s.ask != nil)
 	}
@@ -665,7 +665,7 @@ func TestReopenedReadsTheLostLog(t *testing.T) {
 	f := newFake()
 	s, h := newStep(t, f, wideW, wideH)
 	// The job is in the cache once it was shown, and its log isn't.
-	h.keys("enter", "esc")
+	h.keys("enter", "backspace")
 	_ = s.Update(press("enter")) // Its answers go to the preview.
 	if s.mode != jobMode || s.view.State() != jobview.Loading {
 		t.Fatalf("enter shows mode %d with the log in state %d, want the job loading its log", s.mode, s.view.State())

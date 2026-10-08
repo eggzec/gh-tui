@@ -37,8 +37,10 @@ type KeyMap struct {
 	// Select opens the check under the cursor: its job, or what its app
 	// reported.
 	Select key.Binding
-	// Back steps back to the checks, and from them closes the step.
-	Back key.Binding
+	// Back steps back from a job or a detail to the checks, and does
+	// nothing on them. Dismiss clears the search of a log, and then asks
+	// the modal to close.
+	Back, Dismiss key.Binding
 	// Open opens the check on GitHub, or where its app points.
 	Open key.Binding
 	// Refresh reads the checks again, or what failed to load.
@@ -73,7 +75,8 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		Top:         dk.Top,
 		Bottom:      dk.Bottom,
 		Select:      list.Binding("global.select", "open"),
-		Back:        list.Binding("global.dismiss", "back"),
+		Back:        list.Binding("global.back", "checks"),
+		Dismiss:     list.Binding("global.dismiss", "close"),
 		Open:        list.Binding("global.open", "browser"),
 		Refresh:     list.Binding("global.refresh", "refresh"),
 		RerunList:   list.Binding("rerun_failed", "rerun failed"),
@@ -86,9 +89,11 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		Confirm:     ui.NewConfirmKeys(keys),
 	}
 	// The step matches the re-run before refresh, and its own keys
-	// before those of the log and of what an app reported.
+	// before those of the log and of what an app reported. The step takes
+	// the dismiss key before the log does, so that it closes the modal
+	// rather than the log.
 	lk := logview.NewKeyMap(log)
-	lk.Quit, lk.Dismiss = key.NewBinding(key.WithDisabled()), relabel(k.Back, "checks")
+	lk.Quit, lk.Dismiss = key.NewBinding(key.WithDisabled()), k.Dismiss
 	k.Log = lk
 
 	k.Detail = dk.viewport()
@@ -141,9 +146,9 @@ func relabel(b key.Binding, desc string) key.Binding {
 // pane those of the list of checks.
 func (k KeyMap) shared(rerun key.Binding) []key.Binding {
 	if rerun.Help().Desc == "" {
-		return []key.Binding{k.Back, k.Refresh, k.Open}
+		return []key.Binding{k.Back, k.Dismiss, k.Refresh, k.Open}
 	}
-	return []key.Binding{k.Back, rerun, k.Refresh, k.Open}
+	return []key.Binding{k.Back, k.Dismiss, rerun, k.Refresh, k.Open}
 }
 
 func (k KeyMap) pane() []key.Binding {
@@ -159,7 +164,7 @@ func (k KeyMap) detail() []key.Binding {
 
 // ShortHelp implements help.KeyMap.
 func (k KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Up, k.Down, k.Select, k.Back, k.RerunList, k.Open}
+	return []key.Binding{k.Up, k.Down, k.Select, k.Back, k.Dismiss, k.RerunList, k.Open}
 }
 
 // FullHelp implements help.KeyMap: every key of the step and the bubbles
@@ -193,7 +198,7 @@ func (s *Step) KeyLayers() []keyhelp.Layer {
 	}
 	k = k.state(s)
 	shared := k.shared(k.paneRerun(s))
-	short := []key.Binding{k.Back, k.paneRerun(s), k.Open}
+	short := []key.Binding{k.Back, k.Dismiss, k.paneRerun(s), k.Open}
 	switch s.mode {
 	case jobMode:
 		l := s.view.Layer()
@@ -232,10 +237,14 @@ func (k KeyMap) state(s *Step) KeyMap {
 	// A key that re-run shares with refresh says why it can't re-run
 	// rather than refresh.
 	k.Refresh = ui.Yield(k.Refresh, rerun)
+	// The dismiss key clears the search of the log first.
+	if s.mode == jobMode && s.view.Query() != "" {
+		k.Dismiss = relabel(k.Dismiss, "clear search")
+	}
+	// The back key steps out of a job or a detail, and does nothing on the
+	// list.
+	k.Back.SetEnabled(k.Back.Enabled() && s.mode != listMode)
 	if s.mode != listMode {
-		k.Back = relabel(k.Back, "checks")
-		// The back key clears the search of the log first.
-		k.Back.SetEnabled(k.Back.Enabled() && (s.mode != jobMode || s.view.Query() == ""))
 		for _, b := range []*key.Binding{&k.Select, &k.Up, &k.Down, &k.PageUp, &k.PageDown, &k.HalfPageUp, &k.HalfPageDown} {
 			b.SetEnabled(false)
 		}
@@ -248,7 +257,6 @@ func (k KeyMap) state(s *Step) KeyMap {
 		k.Bottom.SetEnabled(k.Bottom.Enabled() && s.mode == detailMode)
 		return k
 	}
-	k.Back = relabel(k.Back, "detail")
 	k.Select = relabel(k.Select, "open")
 	if r, ok := s.selected(); ok && r.job() {
 		k.Select = relabel(k.Select, "log")

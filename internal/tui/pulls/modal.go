@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"slices"
 	"strconv"
-	"strings"
 	"time"
 
 	"charm.land/bubbles/v2/key"
@@ -14,7 +13,6 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
-	"github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/checks"
@@ -22,8 +20,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
-	"github.com/eggzec/gh-tui/pkg/markdown"
-	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // detailMsg carries the detail of a pull request to the thread that asked
@@ -40,8 +36,8 @@ type changedMsg struct {
 	repo core.RepoRef
 }
 
-// detailModal shows a pull request with its comments in a modal, and
-// changes it, or its checks in a step of its own. It is opened with
+// detailModal shows a pull request in a modal, as tabs: its conversation,
+// and its checks, and changes it. It is opened with
 // [Section.openDetail].
 type detailModal struct {
 	svc         Service
@@ -76,8 +72,10 @@ type detailModal struct {
 	// loaded or the modal closed.
 	resume func()
 
-	// checksSvc reads the checks, and newChecks makes the Checks step,
-	// which checks is while it is shown; newChecks is nil without checks.
+	// tab is the tab shown. checksSvc reads the checks, and newChecks makes
+	// the Checks step, which checks is once the tab has been shown;
+	// newChecks is nil without checks.
+	tab       modalTab
 	checksSvc checks.Service
 	newChecks func() *checks.Step
 	checks    *checks.Step
@@ -144,8 +142,9 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 		}
 	}
 	var step tea.Cmd
-	if onChecks {
-		step = m.openChecks()
+	if onChecks && m.newChecks != nil {
+		m.tab = checksTab
+		step = m.showChecks()
 	}
 	if !m.caps.Known {
 		// The app reads those of the selected repository.
@@ -261,7 +260,7 @@ func (m *detailModal) View() string {
 		return ""
 	}
 	base := m.thread.View()
-	if m.checks != nil {
+	if m.onChecks() {
 		base = m.checks.View()
 	}
 	if m.ask != nil {
@@ -275,30 +274,9 @@ func (m *detailModal) View() string {
 	return base
 }
 
-// openChecks shows the Checks step in place of the detail, and returns
-// what loads it.
-func (m *detailModal) openChecks() tea.Cmd {
-	if m.newChecks == nil || m.checks != nil {
-		return nil
-	}
-	m.checks = m.newChecks()
-	m.checks.SetTheme(m.theme)
-	m.checks.SetSize(m.width, m.height)
-	return m.checks.Init()
-}
-
-// closeChecks steps back from the Checks step to the detail, whose header
-// counts the checks as the step last read them.
-func (m *detailModal) closeChecks() tea.Cmd {
-	if m.checks == nil {
-		return nil
-	}
-	m.checks.Close()
-	m.checks = nil
-	if !m.loaded {
-		return nil
-	}
-	return m.show()
+// onChecks reports whether the Checks tab shows.
+func (m *detailModal) onChecks() bool {
+	return m.tab == checksTab && m.checks != nil
 }
 
 // Hide implements ui.Hider: the Checks step stops its polls while
@@ -309,106 +287,67 @@ func (m *detailModal) Hide() {
 	}
 }
 
-// updateChecks passes msg to the Checks step, and steps back to the
-// detail when the step asks.
-func (m *detailModal) updateChecks(msg tea.Msg) tea.Cmd {
-	if c, ok := msg.(checks.CloseMsg); ok {
-		if c.ID == m.checks.ID() {
-			return m.closeChecks()
-		}
-		return nil
-	}
-	return m.checks.Update(msg)
-}
-
 // Update implements ui.Modal. After the modal closed, it ignores what
 // arrives late.
 func (m *detailModal) Update(msg tea.Msg) tea.Cmd {
 	if m.closed {
 		return nil
 	}
-	if m.checks != nil {
-		if k, ok := msg.(tea.KeyPressMsg); ok {
-			switch {
-			case m.ask != nil:
-				return m.answer(k)
-			case !m.checks.TakesKeys() && m.keys.isChange(k):
-				// The keys of the modal work in the step too, unless it
-				// waits for an answer or types.
-				return m.change(k)
-			}
-			return m.updateChecks(k)
-		}
-		// The thread and the detail go on loading behind the step.
-		cmd := m.updateChecks(msg)
-		if m.checks == nil {
-			return cmd
-		}
-		return tea.Batch(cmd, m.updateDetail(msg))
-	}
-	return m.updateDetail(msg)
-}
-
-// updateDetail is Update while the detail shows.
-func (m *detailModal) updateDetail(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		return m.press(msg)
-	case detailMsg:
-		return m.receive(msg)
-	case ui.DoneMsg:
-		// The change was confirmed or rolled back; either way the cache
-		// has the outcome.
-		if msg.From != ui.PullsTitle {
-			return nil
-		}
-		return m.reload()
-	case ui.SyncMsg:
-		if msg.Err != nil || msg.Key != pulls.SyncKey(m.repo) {
-			return nil
-		}
-		return tea.Batch(m.get(), m.thread.Reload())
-	case ui.CapsMsg:
-		if msg.Repo.Same(m.repo) {
-			m.caps = msg.Caps
-			m.bodies.SetPrivate(msg.Caps.Private)
+	case checks.CloseMsg:
+		// The step has nothing left to dismiss: the modal closes, from
+		// whichever level of the step.
+		if m.checks != nil && msg.ID == m.checks.ID() {
+			return m.close()
 		}
 		return nil
-	case ui.OnlineMsg:
-		return m.online()
-	case ui.ImagesMsg:
-		if !m.drawPictures() {
-			m.thread.Redraw()
+	case ui.ReopenedMsg:
+		// What the step opened, such as the file of an annotation, closed:
+		// the step goes on if it is on view, and otherwise when it shows.
+		if m.onChecks() {
+			return m.checks.Update(msg)
 		}
 		return nil
 	}
-	var cmd tea.Cmd
-	m.thread, cmd = m.thread.Update(msg)
-	return cmd
-}
-
-// online reads again, now that GitHub answers again, the detail and the
-// comments that failed for want of an answer from it.
-func (m *detailModal) online() tea.Cmd {
-	var get tea.Cmd
-	if ui.Unreached(m.failed) {
-		get = m.get()
+	if m.checks == nil {
+		return m.updateDetail(msg)
 	}
-	return tea.Batch(get, ui.RetryUnreached(&m.thread))
+	// The thread and the detail go on loading behind the step, and the
+	// step on reading behind the conversation.
+	return tea.Batch(m.checks.Update(msg), m.updateDetail(msg))
 }
 
+// press takes a key: the answer to a question, whatever a step types,
+// then the keys of the modal, which work on every tab, and last those of
+// the tab.
 func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	if m.ask != nil {
 		return m.answer(msg)
 	}
+	if m.onChecks() && m.checks.TakesKeys() {
+		return m.checks.Update(msg)
+	}
 	k := m.keys
+	switch {
+	case m.hasTabs() && key.Matches(msg, k.NextTab):
+		return m.cycle(1)
+	case m.hasTabs() && key.Matches(msg, k.PrevTab):
+		return m.cycle(-1)
+	case key.Matches(msg, k.owner) && ui.Author(m.detail.Author) != "":
+		return m.author()
+	case key.Matches(msg, k.Checks) && m.tab != checksTab && m.hasChecks():
+		return m.switchTo(checksTab)
+	case k.isChange(msg):
+		return m.change(msg)
+	}
+	if m.onChecks() {
+		return m.checks.Update(msg)
+	}
 	switch {
 	case key.Matches(msg, k.Back):
 		return m.close()
-	case key.Matches(msg, k.owner) && ui.Author(m.detail.Author) != "":
-		return m.author()
-	case key.Matches(msg, k.Checks):
-		return m.openChecks()
 	case key.Matches(msg, k.Refresh):
 		m.svc.Invalidate(m.repo)
 		return tea.Batch(m.get(), m.thread.Reload())
@@ -417,18 +356,19 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 			return ui.Open(m.detail.URL)
 		}
 		return nil
-	case k.isChange(msg):
-		return m.change(msg)
 	}
 	var cmd tea.Cmd
 	m.thread, cmd = m.thread.Update(msg)
 	return cmd
 }
 
-// close closes the modal, and stops its reads.
+// close closes the modal, and stops its reads and the step's polls.
 func (m *detailModal) close() tea.Cmd {
 	m.closed = true
 	m.cancel()
+	if m.checks != nil {
+		m.checks.Close()
+	}
 	m.resume()
 	return ui.CloseModal(m)
 }
@@ -468,37 +408,6 @@ func (m *detailModal) answer(msg tea.KeyPressMsg) tea.Cmd {
 	return cmd
 }
 
-// get fetches the detail. A fresh cached detail costs no request. Once it
-// returns, the reads ahead of the list go on. What failed before is
-// forgotten, so that GitHub answering again doesn't read it once more
-// while this read is under way.
-func (m *detailModal) get() tea.Cmd {
-	m.failed = nil
-	svc, ctx, repo, number, id, resume := m.svc, m.ctx, m.repo, m.number, m.thread.ID(), m.resume
-	return func() tea.Msg {
-		start := time.Now()
-		d, err := svc.Get(ctx, repo, number)
-		resume()
-		obs.End(ctx, start, err, "span", "tui", "repo", repo.String(), "number", number)
-		return detailMsg{thread: id, detail: d, err: err}
-	}
-}
-
-func (m *detailModal) receive(msg detailMsg) tea.Cmd {
-	if msg.thread != m.thread.ID() {
-		return nil
-	}
-	if msg.err != nil {
-		if m.ctx.Err() != nil {
-			return nil
-		}
-		m.failed = msg.err
-		return ui.Fail("load #"+strconv.Itoa(m.number), core.About(m.subject(), msg.err))
-	}
-	m.detail, m.loaded, m.failed = msg.detail, true, nil
-	return m.show()
-}
-
 // subject names the pull request in what the user reads of a failure,
 // such as "eggzec/gh-tui#5", since GitHub may not find it or refuse access
 // to it while it finds its repository.
@@ -506,57 +415,45 @@ func (m *detailModal) subject() string {
 	return core.Target{Repo: m.repo, Number: m.number}.String()
 }
 
-// reload shows the detail from the cache again, which a change has just
-// updated or rolled back.
-func (m *detailModal) reload() tea.Cmd {
-	d, ok := m.svc.CachedGet(m.repo, m.number)
-	if !ok {
-		return nil
-	}
-	m.detail, m.loaded = d, true
-	return m.show()
-}
-
-// show sets the document of the thread from the detail.
-func (m *detailModal) show() tea.Cmd {
-	m.bodies.SetDocument(m.detail.ID, m.detail.Body)
-	return m.thread.SetDocument(m.detailHeader(m.width), m.detail.Body)
-}
-
 // KeyLayers implements ui.Keyed: the answer while a change waits for one,
-// or the step's alone while the Checks step takes every key. Otherwise the
-// modal's own keys come first, and then those of the Checks step while it
-// shows, or the thread's.
+// or the step's alone while it takes every key. Otherwise the modal's own
+// keys come first, and then those of the tab: the Checks step's, or the
+// thread's.
 func (m *detailModal) KeyLayers() []keyhelp.Layer {
 	switch {
 	case m.ask != nil:
 		return []keyhelp.Layer{m.keys.confirm.Layer()}
-	case m.checks != nil && m.checks.TakesKeys():
+	case m.onChecks() && m.checks.TakesKeys():
 		return m.checks.KeyLayers()
 	}
 	k := m.keys.withChanges(m.gate(), m.mergeMethod, m.detail.PullRequest, m.loaded)
-	if m.checks != nil {
+	if m.onChecks() {
 		return append([]keyhelp.Layer{m.modalLayer(k)}, m.checks.KeyLayers()...)
 	}
 	return []keyhelp.Layer{m.modalLayer(k), ui.ContextHelp("pull_conversation", m.thread, false)}
 }
 
 // modalLayer returns the layer of the keys of the modal, which work on any
-// of its steps, for k, as the modal takes them. While the Checks step
-// shows, only its changes work, and the key for the checks, which are
-// shown, does nothing.
+// of its tabs, for k, as the modal takes them. While the Checks tab shows,
+// the step has the keys to refresh and to open, and the key for the
+// checks, which are shown, does nothing.
 func (m *detailModal) modalLayer(k keyMap) keyhelp.Layer {
-	if m.checks != nil {
-		k.Checks.SetEnabled(false)
-		return ui.ContextLayer(ctxModal, []key.Binding{k.Merge, k.Close, k.Reopen, k.ToggleDraft, k.Checks},
-			[]key.Binding{k.Merge, k.Close, k.Reopen})
-	}
-	// The list's keys don't work here.
-	for _, b := range []*key.Binding{&k.Select, &k.Filter, &k.Sort, &k.ClearFilter, &k.NextTab, &k.PrevTab} {
-		b.SetEnabled(false)
-	}
+	tabs := m.hasTabs()
+	k.NextTab.SetEnabled(k.NextTab.Enabled() && tabs)
+	k.PrevTab.SetEnabled(k.PrevTab.Enabled() && tabs)
+	k.Checks.SetEnabled(k.Checks.Enabled() && m.tab != checksTab && m.hasChecks())
 	owner := m.keys.owner
 	owner.SetEnabled(owner.Enabled() && ui.Author(m.detail.Author) != "")
+	if m.onChecks() {
+		l := ui.ContextLayer(ctxModal, []key.Binding{k.Merge, k.Close, k.Reopen, k.ToggleDraft, k.Checks, k.NextTab, k.PrevTab},
+			[]key.Binding{k.Merge, k.Close, k.Reopen, k.NextTab})
+		l.Bindings = append(l.Bindings, owner)
+		return l
+	}
+	// The list's keys don't work here.
+	for _, b := range []*key.Binding{&k.Select, &k.Filter, &k.Sort, &k.ClearFilter} {
+		b.SetEnabled(false)
+	}
 	l := ui.ContextLayer(ctxModal, slices.Concat(k.FullHelp()...), k.ShortHelp())
 	l.Bindings = append(l.Bindings, owner)
 	return l
@@ -565,122 +462,4 @@ func (m *detailModal) modalLayer(k keyMap) keyhelp.Layer {
 // gate decides what the viewer may do in the repository.
 func (m *detailModal) gate() ui.Gate {
 	return ui.Gate{Repo: m.repo, Caps: m.caps, Token: m.token, Icons: m.icons}
-}
-
-// detailHeader renders the head of the pull request at width: the title,
-// its state, author and age, the refs and stats, the checks and the labels,
-// over a rule.
-func (m *detailModal) detailHeader(width int) string {
-	d, st := &m.detail, &m.st
-	inner := max(width-len(gutter), 1)
-	now := m.now()
-	var lines []string
-	line := func(parts ...string) {
-		lines = append(lines, gutter+strings.Join(parts, ""))
-	}
-
-	// The title and the number link to the pull request's page.
-	for l := range strings.SplitSeq(ansi.Wrap(ui.OneLine(d.Title), inner, ""), "\n") {
-		line(termtext.Link(d.URL, st.selected.Render(l)))
-	}
-	lines = append(lines, "")
-
-	dot := st.sep.Render(st.ic.Separator)
-	line(st.badge(d.PullRequest), "  ",
-		termtext.Link(d.URL, st.age.Render("#"+strconv.Itoa(d.Number))), dot,
-		st.title.Render(ui.OneLine(d.Author.Login)), st.author.Render(" opened "+m.dates.Prose(d.CreatedAt, now)), dot,
-		st.author.Render("updated "+m.dates.Prose(d.UpdatedAt, now)))
-
-	stats := []string{
-		st.title.Render(ui.OneLine(d.HeadRef)) + st.sep.Render(" "+st.ic.Arrow+" ") + st.title.Render(ui.OneLine(d.BaseRef)),
-		st.added.Render("+"+strconv.Itoa(d.Additions)) + " " + st.deleted.Render(st.ic.Minus+strconv.Itoa(d.Deletions)),
-		st.author.Render(plural(d.ChangedFiles, "file")),
-	}
-	if r := st.reviewText(d.ReviewDecision); r != "" {
-		stats = append(stats, r)
-	}
-	line(strings.Join(stats, dot))
-
-	if c := m.ciLine(); c != "" {
-		line(c)
-	}
-	if len(d.Labels) > 0 {
-		names := make([]string, 0, len(d.Labels))
-		for _, l := range d.Labels {
-			names = append(names, st.label.Render(ui.OneLine(l.Name)))
-		}
-		line(strings.Join(names, "  "))
-	}
-	line(st.rule.Render(strings.Repeat(st.ic.Border.Top, inner)))
-	return strings.Join(lines, "\n")
-}
-
-// ciLine counts the checks of the pull request by how they stand, from the
-// checks that the Checks step read if they are in memory, which count the
-// commit statuses too, or else from the detail. It names the key that
-// shows them.
-func (m *detailModal) ciLine() string {
-	var line string
-	if c, ok := m.cachedChecks(); ok && c.Total > 0 {
-		line = m.st.age.Render("CI  ") + checks.Summary(c, m.runSt)
-	} else {
-		line = m.st.checksSummary(&m.detail)
-	}
-	if line == "" {
-		return ""
-	}
-	if k := m.keys.Checks; k.Enabled() && k.Help().Key != "" {
-		line += m.st.sep.Render(" " + m.st.ic.Separator + m.st.ic.Key(k.Help().Key) + " for details")
-	}
-	return line
-}
-
-// cachedChecks returns the checks of the pull request from memory.
-func (m *detailModal) cachedChecks() (core.Checks, bool) {
-	if m.checksSvc == nil {
-		return core.Checks{}, false
-	}
-	return m.checksSvc.CachedChecks(actions.ChecksQuery{Repo: m.repo, Number: m.number})
-}
-
-func plural(n int, noun string) string {
-	s := strconv.Itoa(n) + " " + noun
-	if n != 1 {
-		s += "s"
-	}
-	return s
-}
-
-// renderComment renders a comment as its author and age over its body,
-// markdown rendered like the pull request's, behind a bar.
-func (m *detailModal) renderComment(c core.Comment, width int) string {
-	st := &m.st
-	var b strings.Builder
-	// The avatar takes its box from the start, so the line doesn't move
-	// when it arrives.
-	b.WriteString(gutter + m.avatars.Line(c.AvatarURL) + st.commenter.Render(ui.OneLine(c.Author.Login)) + st.age.Render(st.ic.Separator+m.dates.Prose(c.CreatedAt, m.now())))
-	bar := gutter + st.bar
-	// The bar takes two cells, and as many stay free on the right.
-	m.bodies.Add(c.ID, c.Body)
-	body := m.thread.Markdown(c.Body, markdown.Room(width, 2*len(gutter)+2))
-	if body != "" {
-		b.WriteByte('\n')
-		b.WriteString(markdown.Indent(body, bar))
-	}
-	return b.String()
-}
-
-// drawPictures has the thread draw the images of the body and comments
-// that stand alone on their lines, where images are drawn, at most as
-// tall as the modal's height allows, and reports whether that changed.
-// Only the bodies whose pictures change render again, and where images
-// aren't drawn the markdown is as without them.
-func (m *detailModal) drawPictures() bool {
-	rows := m.avatars.PictureRows(m.height)
-	if rows == m.picRows {
-		return false
-	}
-	m.picRows = rows
-	m.thread.SetPictures(m.avatars.Pictures(rows, m.bodies))
-	return true
 }

@@ -37,4 +37,4 @@ Search (types)
   left | left h | ←/h | off
   right | right l | →/l | off
   follow | F | F | off
-  checks | esc | esc | off
+  close | esc | esc | off

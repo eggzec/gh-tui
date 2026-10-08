@@ -193,9 +193,9 @@ func WithAvatars(a *ui.Images) Option {
 	return func(s *Section) { s.avatars = a }
 }
 
-// WithChecks shows the checks of a pull request in a step of its modal,
+// WithChecks shows the checks of a pull request on a tab of its modal,
 // which the checks key opens there and on the rows of the list, read from
-// svc and configured by opts. The default has no such step.
+// svc and configured by opts. The default has no such tab.
 func WithChecks(svc ChecksService, opts ...checks.Option) Option {
 	return func(s *Section) { s.checks, s.checksOpts = svc, opts }
 }

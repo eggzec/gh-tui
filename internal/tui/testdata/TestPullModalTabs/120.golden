@@ -1,0 +1,36 @@
+─ eggzec/gh-tui ───────────────────────────────────────────────────────────────────────────────────── ● 1 notification ─
+╭─[1] Files ───────────────────────────────────╮╭─[2] Pull requests ───────────────────────────────────────────────────╮
+│▌   cmd                                     ││  eggzec/gh-tui                           Open · Closed · Merged · All│
+│     READM╭─ #2 ────────────────────────────────────────────────────────────── Conversation · Checks ✗2 ─╮at      now│
+│           │   Match keys by order                                                                        │           │
+│           │                                                                                              │           │
+│           │    ↣ Open   #2 · octocat opened just now · updated just now                                  │           │
+│           │   keys → main · +0 −0 · 0 files                                                              │           │
+│           │   CI  ✗ 2 failing  · C for details                                                           │           │
+│           │   ────────────────────────────────────────────────────────────────────────────────────────── │           │
+│           │                                                                                              │           │
+│           │   Paragraph 1. Keys match by order. Keys match by order. Keys match by order. Keys match     │           │
+│           │   by order. Keys match by order. Keys match by order. Keys match by order. Keys match by     │           │
+│           │   order. Keys match by order. Keys match by order. Keys match by order. Keys match by        │           │
+│           │   order.                                                                                     │           │
+│           │                                                                                              │           │
+│           │   Paragraph 2. Keys match by order. Keys match by order. Keys match by order. Keys match     │           │
+│           │   by order. Keys match by order. Keys match by order. Keys match by order. Keys match by     │───────────╯
+│           │   order. Keys match by order. Keys match by order. Keys match by order. Keys match by        │───────────╮
+│           │   order.                                                                                     │losed · All│
+│           │                                                                                              │ocat    now│
+│           │   Paragraph 3. Keys match by order. Keys match by order. Keys match by order. Keys match     │           │
+│           │   by order. Keys match by order. Keys match by order. Keys match by order. Keys match by     │           │
+│           │   order. Keys match by order. Keys match by order. Keys match by order. Keys match by        │           │
+│           │   order.                                                                                     │           │
+│           │                                                                                              │           │
+│           │   Paragraph 4. Keys match by order. Keys match by order. Keys match by order. Keys match     │           │
+│           │   by order. Keys match by order. Keys match by order. Keys match by order. Keys match by     │           │
+│           │   order. Keys match by order. Keys match by order. Keys match by order. Keys match by        │           │
+│           │   order.                                                                                     │           │
+│           │                                                                                              │           │
+│           │   Paragraph 5. Keys match by order. Keys match by order. Keys match by order. Keys match     │           │
+│           ╰──────────────────────────────────────────────────────────────────────────────────────────────╯           │
+│                                              ││                                                                      │
+╰──────────────────────────────────────────────╯╰──────────────────────────────────────────────────────────────────────╯
+ ? help  ↑/k up  ↓/j down  esc close  ] next tab  M merge  X close  C checks  o open in browser              github.com 

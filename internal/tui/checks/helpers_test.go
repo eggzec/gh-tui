@@ -393,6 +393,8 @@ func press(k string) tea.KeyPressMsg {
 		return tea.KeyPressMsg{Code: tea.KeyEnter}
 	case "esc":
 		return tea.KeyPressMsg{Code: tea.KeyEscape}
+	case "backspace":
+		return tea.KeyPressMsg{Code: tea.KeyBackspace}
 	case "down":
 		return tea.KeyPressMsg{Code: tea.KeyDown}
 	case "up":
