@@ -54,11 +54,11 @@ func unbindPlaces() []unbindPlace {
 		{name: "notifications", steps: []string{config.ActionNotifications}, want: "global, notifications"},
 		{name: "notifications filter", steps: []string{config.ActionNotifications, "notifications.filter"}, want: "global, filter"},
 		{name: "notifications mark read", steps: []string{config.ActionNotifications, "notifications.read"}, want: "always, confirm"},
-		{name: "search", steps: []string{config.ActionSearch}, want: "always, global, search_query (types)"},
-		{name: "search kinds", steps: []string{config.ActionSearch, "search_query.kinds"}, want: "global, search, search_kinds"},
-		// Typing on the code kind asks for a code search of the new text.
-		{name: "search code", steps: []string{config.ActionSearch, "k", "e", "y", "up", "search_kinds.down", "search_kinds.down", "search_kinds.down", config.ActionPrevPane, "s"}, want: "always, global, search_query (types)"},
-		{name: "search results", steps: []string{config.ActionSearch, "k", "e", "y", "search_query.submit"}, want: "global, search, search_results"},
+		{name: "search", steps: []string{config.ActionSearch}, want: "global, search"},
+		{name: "search query", steps: []string{config.ActionSearch, "search.insert"}, want: "always, global, search_query (types)"},
+		// Showing the code kind asks for a code search.
+		{name: "search code", steps: []string{config.ActionSearch, "search.insert", "k", "e", "y", "search_query.cancel", config.ActionNextTab, config.ActionNextTab, config.ActionNextTab, config.ActionPane1, "search.insert", "s"}, want: "always, global, search_query (types)"},
+		{name: "search results", steps: []string{config.ActionSearch, "search.insert", "k", "e", "y", "search_query.submit"}, want: "global, search, search_results"},
 		{name: "owner", msg: octocat, want: "global, owner, owner_list"},
 		{name: "owner tab", msg: octocat, steps: []string{config.ActionNextTab}, want: "global, owner, owner_list"},
 		{name: "owner readme", msg: octocat, steps: []string{config.ActionPane3}, want: "global, owner, owner_readme"},

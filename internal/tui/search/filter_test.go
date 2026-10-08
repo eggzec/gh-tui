@@ -83,7 +83,7 @@ func TestFilterIsPerKind(t *testing.T) {
 	if got := keys(); !slices.Equal(got, []string{"language", "stars", "forks", "archived", "visibility", "owner"}) {
 		t.Errorf("the repositories filter by %v", got)
 	}
-	press(t, s, "tab", "down", "down")
+	press(t, s, "esc", "]", "]")
 	if got := keys(); !slices.Contains(got, "review") || !slices.Contains(got, "draft") {
 		t.Errorf("the pull requests filter by %v, want reviews and drafts", got)
 	}
@@ -96,7 +96,7 @@ func TestApplyFilterSearchesOnce(t *testing.T) {
 	svc := newFake()
 	s := newSection(t, svc, 120, 30)
 	typeText(t, s, "tea")
-	press(t, s, "tab")
+	press(t, s, "esc")
 	before, _ := svc.stats()
 	prefetches := svc.prefetches
 
@@ -127,7 +127,7 @@ func TestApplyFilterSearchesCode(t *testing.T) {
 	svc := newFake()
 	s := newSection(t, svc, 120, 30)
 	typeText(t, s, "tea")
-	press(t, s, "tab", "down", "down", "down")
+	press(t, s, "esc", "]", "]", "]")
 	_, before := svc.stats()
 	run(t, s, s.ApplyFilter(filterform.AppliedMsg{Query: "language:go tea"}))
 	if _, code := svc.stats(); code != before+1 {

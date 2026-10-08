@@ -109,8 +109,9 @@ func TestKeyLayersOfTheCommandLine(t *testing.T) {
 }
 
 // focusOf names where the focus is: the focused pane of the repository
-// screen, the notifications, or the part of the search page that has it,
-// by its last layer of keys, and the query it searches for.
+// screen, the notifications, or the part of the search page that has it
+// (the query typing, the query in normal mode, or the results), by its
+// last layer of keys, and the query it searches for.
 func focusOf(m *Model) string {
 	switch m.screen {
 	case repoScreen:
@@ -119,7 +120,7 @@ func focusOf(m *Model) string {
 		return "notifications"
 	case searchScreen:
 		layers := m.keyLayers()
-		part := map[string]string{"Query": "query", "Kinds": "kinds", "Results": "results"}[layers[len(layers)-1].Source]
+		part := map[string]string{"Query": "typing", "Search": "query", "Results": "results"}[layers[len(layers)-1].Source]
 		return fmt.Sprintf("search: %s %q", part, m.srch.section.(*searchpage.Section).Query())
 	case dashScreen, ownerScreen:
 	}
@@ -129,8 +130,8 @@ func focusOf(m *Model) string {
 // Tab and shift+tab cycle the panes of the repository screen, which the
 // app does, and reach the section on the notifications and search screens,
 // which does what it defines for them: the search page moves between its
-// query, kinds and results. ] and [ are the panes' own, so they change
-// no focus on any screen, and the search query types them. The
+// query and results, and its ] and [ show the next and the previous kind
+// without moving the focus; the query types them, and keeps tab. The
 // notifications have none of them. The help credits each key to what it
 // reaches.
 func TestNextAndPrevKeysOnEachScreen(t *testing.T) {
@@ -155,20 +156,21 @@ func TestNextAndPrevKeysOnEachScreen(t *testing.T) {
 		{"notifications: ]", false, []string{"I"}, "notifications", "]", "nothing", "notifications"},
 		{"notifications: [", false, []string{"I"}, "notifications", "[", "nothing", "notifications"},
 
-		{"search query: tab", false, []string{"S", "k", "e", "y"}, `search: query "key"`, "tab", "Query: next", `search: kinds "key"`},
-		{"search query: shift+tab", false, []string{"S", "k", "e", "y"}, `search: query "key"`, "shift+tab", "Query: previous", `search: results "key"`},
-		{"search query: ]", false, []string{"S", "k", "e", "y"}, `search: query "key"`, "]", "nothing", `search: query "key]"`},
-		{"search query: [", false, []string{"S", "k", "e", "y"}, `search: query "key"`, "[", "nothing", `search: query "key["`},
+		{"search query: tab", false, []string{"S"}, `search: query ""`, "tab", "global: next", `search: results ""`},
+		{"search query: shift+tab", false, []string{"S"}, `search: query ""`, "shift+tab", "global: previous", `search: results ""`},
+		{"search query: ]", false, []string{"S"}, `search: query ""`, "]", "Search: next kind", `search: query ""`},
+		{"search query: [", false, []string{"S"}, `search: query ""`, "[", "Search: previous kind", `search: query ""`},
 
-		{"search kinds: tab", false, []string{"S", "k", "e", "y", "up"}, `search: kinds "key"`, "tab", "global: next", `search: results "key"`},
-		{"search kinds: shift+tab", false, []string{"S", "k", "e", "y", "up"}, `search: kinds "key"`, "shift+tab", "global: previous", `search: query "key"`},
-		{"search kinds: ]", false, []string{"S", "k", "e", "y", "up"}, `search: kinds "key"`, "]", "nothing", `search: kinds "key"`},
-		{"search kinds: [", false, []string{"S", "k", "e", "y", "up"}, `search: kinds "key"`, "[", "nothing", `search: kinds "key"`},
+		{"search typing: tab", false, []string{"S", "i", "k", "e", "y"}, `search: typing "key"`, "tab", "nothing", `search: typing "key"`},
+		{"search typing: shift+tab", false, []string{"S", "i", "k", "e", "y"}, `search: typing "key"`, "shift+tab", "nothing", `search: typing "key"`},
+		{"search typing: ]", false, []string{"S", "i", "k", "e", "y"}, `search: typing "key"`, "]", "nothing", `search: typing "key]"`},
+		{"search typing: [", false, []string{"S", "i", "k", "e", "y"}, `search: typing "key"`, "[", "nothing", `search: typing "key["`},
+		{"search typing: esc", false, []string{"S", "i", "k", "e", "y"}, `search: typing "key"`, "esc", "Query: results", `search: results "key"`},
 
-		{"search results: tab", false, []string{"S", "k", "e", "y", "enter"}, `search: results "key"`, "tab", "global: next", `search: query "key"`},
-		{"search results: shift+tab", false, []string{"S", "k", "e", "y", "enter"}, `search: results "key"`, "shift+tab", "global: previous", `search: kinds "key"`},
-		{"search results: ]", false, []string{"S", "k", "e", "y", "enter"}, `search: results "key"`, "]", "nothing", `search: results "key"`},
-		{"search results: [", false, []string{"S", "k", "e", "y", "enter"}, `search: results "key"`, "[", "nothing", `search: results "key"`},
+		{"search results: tab", false, []string{"S", "i", "k", "e", "y", "enter"}, `search: results "key"`, "tab", "global: next", `search: query "key"`},
+		{"search results: shift+tab", false, []string{"S", "i", "k", "e", "y", "enter"}, `search: results "key"`, "shift+tab", "global: previous", `search: query "key"`},
+		{"search results: ]", false, []string{"S", "i", "k", "e", "y", "enter"}, `search: results "key"`, "]", "Search: next kind", `search: results "key"`},
+		{"search results: [", false, []string{"S", "i", "k", "e", "y", "enter"}, `search: results "key"`, "[", "Search: previous kind", `search: results "key"`},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {

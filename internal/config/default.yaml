@@ -465,9 +465,9 @@ log:
 # down, and left and right in a calendar and in a pane of cards. A list also
 # has pages (page_up, page_down and, by half, half_page_up and
 # half_page_down) and top and bottom; a calendar has top and bottom too, as
-# its first and last day. The work and inbox panes of the dashboard, the
-# annotations and the search kinds move up and down only, and a pane of
-# cards has no use for pages, top or bottom.
+# its first and last day. The work and inbox panes of the dashboard and the
+# annotations move up and down only, and a pane of cards has no use for
+# pages, top or bottom.
 keys:
   # Everywhere. What a key does depends on what has the focus: enter opens
   # a row, applies a filter or answers a question.
@@ -525,19 +525,19 @@ keys:
     # panes.
     next_pane: [tab]
     prev_pane: [shift+tab]
-    # Switch between the tabs of the focused pane or modal, such as All,
-    # Failing, Running and Mine of the Actions modal, the states of the
-    # pull requests and the issues, the owners of the dashboard's
-    # repositories, the lists of the page of a user or an organization,
-    # and the Filters and Sort tabs of the filter modal.
+    # Switch between the tabs of the focused pane or modal, such as the kinds
+    # of the search page, All, Failing, Running and Mine of the Actions
+    # modal, the states of the pull requests and the issues, the owners of
+    # the dashboard's repositories, the lists of the page of a user or an
+    # organization, and the Filters and Sort tabs of the filter modal.
     next_tab: ["]"]
     prev_tab: ["["]
     # Focus the pane with that number on the screen or modal on view: files,
     # pull requests and issues on the repository screen; pinned,
     # repositories, work, contributions and notifications on the dashboard;
     # pinned, the list, the README and a user's contributions on the page of
-    # a user or an organization; the query, the kinds and the results on
-    # the search page; branches, graph and commit in History; and runs,
+    # a user or an organization; the query and the results on the search
+    # page; branches, graph and commit in History; and runs,
     # jobs and log in Actions. A digit with no such pane there does nothing,
     # and never switches screens.
     pane_1: ["1"]
@@ -673,14 +673,11 @@ keys:
     done: [d]
     read_all: [M]
 
-  # Search: the kinds, which open the same filter as the results do.
-  search_kinds:
-    up: [up, k]
-    down: [down, j]
-    # Go to the results.
-    results: [right, l]
-    filter: [f]
-    sort: [s]
+  # The search page, on any of its panes. It opens on the query in normal
+  # mode, where these keys and the global ones work.
+  search:
+    # Start typing in the query.
+    insert: [i]
 
   # Search: the results.
   search_results:
@@ -692,8 +689,6 @@ keys:
     half_page_down: [ctrl+d]
     top: [g, home]
     bottom: [G, end]
-    # Go back to the kinds.
-    kinds: [left, h]
     filter: [f]
     sort: [s]
     # Show the checks of the pull request under the cursor.
@@ -1126,15 +1121,11 @@ keys:
     # end.
     insert: [i]
     append: [a]
-  # The query of the search page, which types. The arrows and tab leave it
-  # for the kinds and the results.
+  # The query of the search page while it types. Esc is the way out: it
+  # stops typing and moves to the results.
   search_query:
     submit: [enter]
     cancel: [esc]
-    next: [tab]
-    prev: [shift+tab]
-    kinds: [up]
-    results: [down]
   # The query line of the filter form, and the editor of a text field,
   # which type.
   filter_query:

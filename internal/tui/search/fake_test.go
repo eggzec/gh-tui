@@ -418,9 +418,13 @@ func press(tb testing.TB, s *Section, keys ...string) []tea.Msg {
 	return app
 }
 
-// typeText types text into the query, a key at a time.
+// typeText types text into the query, a key at a time, starting to type if
+// the query doesn't yet.
 func typeText(tb testing.TB, s *Section, text string) {
 	tb.Helper()
+	if !s.typing {
+		press(tb, s, "i")
+	}
 	for _, r := range text {
 		press(tb, s, string(r))
 	}

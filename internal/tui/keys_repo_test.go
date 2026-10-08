@@ -10,6 +10,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
+	searchpage "github.com/eggzec/gh-tui/internal/tui/search"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -105,7 +106,7 @@ func TestRepoKeyFollowsTheConfig(t *testing.T) {
 func TestRepoKeyOnASearchResult(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysApp(t, false)
-		pressKeys(t, m, "S", "k", "e", "y", "enter")
+		pressKeys(t, m, "S", "i", "k", "e", "y", "enter")
 		if got := focusOf(m); got != `search: results "key"` {
 			t.Fatalf("the keys reach %s, want the results", got)
 		}
@@ -121,7 +122,7 @@ func TestRepoKeyOnASearchResult(t *testing.T) {
 func TestSearchKeyClearsTheQueryOnThePage(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysApp(t, false)
-		pressKeys(t, m, "S", "k", "e", "y", "enter")
+		pressKeys(t, m, "S", "i", "k", "e", "y", "enter")
 		if got := focusOf(m); got != `search: results "key"` {
 			t.Fatalf("the keys reach %s, want the results", got)
 		}
@@ -173,7 +174,7 @@ func TestCompleteHere(t *testing.T) {
 func TestRepoKeyOnASearchResultKeepsTheQuery(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysApp(t, false)
-		pressKeys(t, m, "S", "q", "z", "x", "tab", "tab")
+		pressKeys(t, m, "S", "i", "q", "z", "x", "esc")
 		if got := focusOf(m); got != `search: results "qzx"` {
 			t.Fatalf("the keys reach %s, want the results", got)
 		}
@@ -187,17 +188,38 @@ func TestRepoKeyOnASearchResultKeepsTheQuery(t *testing.T) {
 	})
 }
 
-// TestRepoKeyOnTheKindsDoesNothing checks that with the kinds of the search
-// page focused, no result is selected for the repo key.
-func TestRepoKeyOnTheKindsDoesNothing(t *testing.T) {
+// TestBackspaceOnTheSearchPage checks that backspace goes back from the
+// search page while the query isn't typing, and deletes while it is.
+func TestBackspaceOnTheSearchPage(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysApp(t, false)
-		pressKeys(t, m, "S", "k", "e", "y", "tab")
-		if got := focusOf(m); got != `search: kinds "key"` {
-			t.Fatalf("the keys reach %s, want the kinds", got)
+		pressKeys(t, m, "S", "i", "k", "e", "y", "backspace")
+		if m.screen != searchScreen || m.srch.section.(*searchpage.Section).Query() != "ke" {
+			t.Fatalf("backspace while typing: screen %d, query %q, want the page with ke", m.screen, m.srch.section.(*searchpage.Section).Query())
+		}
+		pressKeys(t, m, "esc", "backspace")
+		if m.screen == searchScreen {
+			t.Error("backspace in the results didn't go back")
+		}
+		pressKeys(t, m, "S", "backspace")
+		if m.screen == searchScreen {
+			t.Error("backspace on the query in normal mode didn't go back")
+		}
+	})
+}
+
+// TestRepoKeyOnTheQueryDoesNothing checks that with the query of the
+// search page focused but not typing, no result is selected for the repo
+// key.
+func TestRepoKeyOnTheQueryDoesNothing(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		m := newKeysApp(t, false)
+		pressKeys(t, m, "S", "i", "k", "e", "y", "esc", "1")
+		if got := focusOf(m); got != `search: query "key"` {
+			t.Fatalf("the keys reach %s, want the query in normal mode", got)
 		}
 		if m.keys.state(m).Repo.Enabled() {
-			t.Error("the repo key is on with the kinds focused")
+			t.Error("the repo key is on with the query focused")
 		}
 		pressKeys(t, m, ".")
 		if m.screen != searchScreen {

@@ -15,28 +15,14 @@ import (
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
-// Sizes of the page. The query takes a framed line on top. From
-// wideWidth columns the kinds go in a column of kindsWidth on the left, as
-// on github.com; below it they go on a line above the results.
-const (
-	inputHeight = 3
-	wideWidth   = 70
-	kindsWidth  = 24
-)
-
-// wide reports whether the kinds have a column of their own.
-func (s *Section) wide() bool { return s.width >= wideWidth }
+// Sizes of the page. The query takes a framed line on top, and the
+// results a frame below it, whose first line holds the kinds as tabs.
+const inputHeight = 3
 
 // resultsSize is the room inside the frame of the results, below the line
-// of kinds when the page is narrow.
+// of kinds.
 func (s *Section) resultsSize() (width, height int) {
-	w, h := s.width-2, s.height-inputHeight-2
-	if s.wide() {
-		w -= kindsWidth
-	} else {
-		h--
-	}
-	return max(w, 0), max(h, 0)
+	return max(s.width-2, 0), max(s.height-inputHeight-3, 0)
 }
 
 func (s *Section) layout() {
@@ -65,31 +51,13 @@ func (s *Section) render() {
 	lines := make([]string, 0, s.height)
 	lines = append(lines, s.frame(" "+s.st.accent.render(s.icons.Crumb)+" "+s.input.View(), "Search GitHub", s.area == inputArea, s.width, inputHeight)...)
 	rw, rh := s.resultsSize()
-	body := s.results(rw, rh)
-	if !s.wide() {
-		body = append([]string{s.kindsLine(rw)}, body...)
-	}
-	label := s.resultsLabel()
-	right := s.frame(strings.Join(body, "\n"), label, s.area == resultsArea, rw+2, rh+2+boolInt(!s.wide()))
-	if s.wide() {
-		left := s.frame(strings.Join(s.kindsColumn(kindsWidth-2), "\n"), "Filter by", s.area == kindsArea, kindsWidth, len(right))
-		for i := range right {
-			right[i] = left[i] + right[i]
-		}
-	}
-	lines = append(lines, right...)
+	body := append([]string{s.kindsLine(rw)}, s.results(rw, rh)...)
+	lines = append(lines, s.frame(strings.Join(body, "\n"), s.resultsLabel(), s.area == resultsArea, rw+2, rh+3)...)
 	blank := strings.Repeat(" ", s.width)
 	for len(lines) < s.height {
 		lines = append(lines, blank)
 	}
 	s.view = strings.Join(lines[:s.height], "\n")
-}
-
-func boolInt(b bool) int {
-	if b {
-		return 1
-	}
-	return 0
 }
 
 // frame draws body in a frame w by h cells, with label in its top edge,
@@ -126,6 +94,19 @@ func (s *Section) codeAsk() string {
 	return "Bind a key to select in the config to search code for " + what + "."
 }
 
+// typeAsk asks the user to start typing with the key that does, or to bind
+// one while the config leaves it without keys. what finishes the sentence
+// "Press it to". While the query types, it says to type.
+func (s *Section) typeAsk(what string) string {
+	if s.typing {
+		return "Type to " + what
+	}
+	if k := s.keys.Insert.Help().Key; k != "" {
+		return "Press " + s.icons.Key(k) + " to " + what
+	}
+	return "Bind a key to insert in the config to " + what
+}
+
 // countText is what the kinds show next to kind k: its count, or how to
 // search code.
 func (s *Section) countText(k core.SearchKind) string {
@@ -151,29 +132,19 @@ func (s *Section) countText(k core.SearchKind) string {
 	return ""
 }
 
-// kindsColumn renders the kinds, one a line, with their counts on the
-// right.
-func (s *Section) kindsColumn(w int) []string {
-	st := &s.st
-	lines := make([]string, 0, len(kinds))
-	for _, k := range kinds {
-		gutter := "  "
-		name := st.text
-		if k == s.kind {
-			name = st.name
-			gutter = st.blurred
-			if s.focused && s.area == kindsArea {
-				gutter, name = st.cursor, st.accent
-			}
-		}
-		c := s.countText(k)
-		lines = append(lines, s.spread(gutter+name.render(kindTitles[k]), st.muted.render(c)+" ", w))
+// kindsLine renders the kinds as tabs on one line, with their counts, the
+// one on view in the accent. A narrow page abbreviates pull requests.
+func (s *Section) kindsLine(w int) string {
+	line := s.kindTabs(false)
+	if ansi.StringWidth(line) > w {
+		line = s.kindTabs(true)
 	}
-	return lines
+	return fit(termtext.Truncate(line, w, s.icons.Ellipsis), w)
 }
 
-// kindsLine renders the kinds on one line, for a narrow page.
-func (s *Section) kindsLine(w int) string {
+// kindTabs renders the tabs of the kinds, with "PRs" for pull requests
+// if short is set.
+func (s *Section) kindTabs(short bool) string {
 	st := &s.st
 	var b strings.Builder
 	b.WriteByte(' ')
@@ -182,7 +153,7 @@ func (s *Section) kindsLine(w int) string {
 			st.subtle.write(&b, s.icons.Separator)
 		}
 		title := kindTitles[k]
-		if k == core.SearchPulls {
+		if short && k == core.SearchPulls {
 			title = "PRs"
 		}
 		name := st.muted
@@ -195,7 +166,7 @@ func (s *Section) kindsLine(w int) string {
 			st.subtle.write(&b, c)
 		}
 	}
-	return fit(termtext.Truncate(b.String(), w, s.icons.Ellipsis), w)
+	return b.String()
 }
 
 // resultsLabel names the results on view, and counts them.
@@ -294,9 +265,9 @@ func (s *Section) startLines(w, h int) []string {
 		case l.loading:
 			return notice(w, st.muted.render("Loading your repositories"+s.icons.Ellipsis))
 		case l.err != nil:
-			return append(s.startError(l.err, w), notice(w, st.subtle.render("Type to search GitHub."))...)
+			return append(s.startError(l.err, w), notice(w, st.subtle.render(s.typeAsk("search GitHub.")))...)
 		}
-		return notice(w, st.muted.render("Type to search repositories, issues, pull requests and code."),
+		return notice(w, st.muted.render(s.typeAsk("search repositories, issues, pull requests and code.")),
 			st.subtle.render("Use GitHub's qualifiers, such as is:open, author:@me or language:go."))
 	}
 	lines := make([]string, 0, h)
