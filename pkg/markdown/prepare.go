@@ -7,6 +7,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	xansi "github.com/charmbracelet/x/ansi"
+
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -26,13 +28,13 @@ const tabWidth = 4
 // with a note that offers hint, such as how to see the rest, if it isn't
 // empty. What it adds of its own, such as the mark of a collapsed
 // section, it draws with g.
-func prepare(src string, open []int, hint string, g Glyphs, show func(i int, b Block, open bool) string, pic func(alt, url string) string, relative bool) string {
+func prepare(src string, open []int, hint string, g Glyphs, width int, show func(i int, b Block, open bool) string, pic func(alt, url string) string, relative bool) string {
 	type out struct {
 		line string
 		text bool
 	}
 	var outs []out
-	scan(src, hint, g, func(line string, text bool) { outs = append(outs, out{line, text}) }, func(i int, b Block) {
+	scan(src, hint, g, width, func(line string, text bool) { outs = append(outs, out{line, text}) }, func(i int, b Block) {
 		outs = append(outs, out{show(i, b, b.Collapsed == "" || slices.Contains(open, i)), false})
 	})
 	lines := make([]string, len(outs))
@@ -203,7 +205,7 @@ func (r *Renderer) plain(_ int, b Block, open bool) string {
 // end, and whether the line is text rather than code, except that it
 // passes each fenced code block whole, with its index among them. A
 // source longer than maxLines is cut, and ends with cutNote(hint).
-func scan(src, hint string, g Glyphs, line func(l string, text bool), block func(int, Block)) {
+func scan(src, hint string, g Glyphs, width int, line func(l string, text bool), block func(int, Block)) {
 	lines := strings.Split(termtext.Clean(src, tabWidth), "\n")
 	cut := len(lines) > maxLines
 	if cut {
@@ -213,6 +215,7 @@ func scan(src, hint string, g Glyphs, line func(l string, text bool), block func
 	p := htmlState{g: g}
 	c := codeState{blank: true}
 	var lim bounds
+	var sp spans
 	n := 0
 	for i := 0; i < len(lines); i++ {
 		f, ok := openFence(lines[i])
@@ -225,6 +228,13 @@ func scan(src, hint string, g Glyphs, line func(l string, text bool), block func
 			text := !c.in(l)
 			if text {
 				l = linkItem(alert(literal(l), g))
+				if strings.TrimSpace(l) == "" {
+					sp = spans{}
+				}
+				l = sp.bind(l, width)
+			}
+			if !text {
+				sp = spans{}
 			}
 			out = append(out, piece{line: l, text: text})
 			continue
@@ -236,6 +246,7 @@ func scan(src, hint string, g Glyphs, line func(l string, text bool), block func
 				break
 			}
 		}
+		sp = spans{}
 		out = append(out, piece{block: new(showBlock(f.lang, strings.Join(lines[i:end+1], "\n"))), n: n})
 		n++
 		i = end
@@ -751,4 +762,93 @@ func closeRun(s string, n int) int {
 		i += m
 	}
 	return -1
+}
+
+// spanSpace stands for a space inside a code span while glamour wraps the
+// text, which it would break at, so a span that fits on a line wraps as a
+// unit. It is a private-use character of a supplementary plane, one cell
+// wide, no space and no markdown, and unspan puts the spaces back. The
+// planes' characters are rarer in text than the basic plane's, which icon
+// fonts fill.
+const spanSpace = '\U000F0000'
+
+// spans follows the code spans of the lines of a paragraph, one line at a
+// time, since a span may run over several.
+type spans struct {
+	// open is the length of the run of backticks of the span that is open at
+	// the end of the last line, or 0.
+	open int
+}
+
+// bind returns line with the spaces inside its code spans that are no wider
+// than width, except those that start or end a span, which markdown drops,
+// replaced with spanSpace. A span that is wider breaks at its spaces as it
+// is. A backtick after an odd number of backslashes is text, and a span
+// that closes on a later line is left alone, as is the end of one that
+// opened on an earlier line. A width of 0 or less binds nothing.
+func (p *spans) bind(line string, width int) string {
+	if width <= 0 {
+		return line
+	}
+	var b strings.Builder
+	for i := 0; i < len(line); {
+		if p.open > 0 {
+			end := closeRun(line[i:], p.open)
+			if end < 0 {
+				b.WriteString(line[i:])
+				return b.String()
+			}
+			b.WriteString(line[i : i+end])
+			i += end
+			p.open = 0
+			continue
+		}
+		k := strings.IndexByte(line[i:], '`')
+		if k < 0 {
+			b.WriteString(line[i:])
+			break
+		}
+		k += i
+		if backslashes(line[:k])%2 == 1 {
+			b.WriteString(line[i : k+1])
+			i = k + 1
+			continue
+		}
+		b.WriteString(line[i:k])
+		n := run(line[k:])
+		end := closeRun(line[k+n:], n)
+		if end < 0 {
+			p.open = n
+			b.WriteString(line[k:])
+			return b.String()
+		}
+		end += k + n
+		b.WriteString(line[k : k+n])
+		b.WriteString(bindSpaces(line[k+n:end-n], width-2*n))
+		b.WriteString(line[end-n : end])
+		i = end
+	}
+	return b.String()
+}
+
+// backslashes returns how many backslashes s ends with.
+func backslashes(s string) int {
+	return len(s) - len(strings.TrimRight(s, "\\"))
+}
+
+// bindSpaces returns the content of a code span with the spaces between its
+// first and last character replaced with spanSpace, if it fits in room
+// cells.
+func bindSpaces(s string, room int) string {
+	from := len(s) - len(strings.TrimLeft(s, " "))
+	to := len(strings.TrimRight(s, " "))
+	if from >= to || xansi.StringWidth(s) > room {
+		return s
+	}
+	return s[:from] + strings.ReplaceAll(s[from:to], " ", string(spanSpace)) + s[to:]
+}
+
+// unspan puts back the spaces of the code spans that bind replaced.
+func unspan(s string) string {
+	return strings.ReplaceAll(s, string(spanSpace), " ")
 }
