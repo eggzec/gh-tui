@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"time"
+	"unicode"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -72,7 +73,17 @@ func (m *Model) fitRendered(force bool) {
 	}
 	m.owed = false
 	top, n := m.topLine(), len(m.lines)
+	// A resize says in atEnd whether the end was in view at the old size.
+	end := n > 0 && (m.atEnd || force && m.atEndByChoice())
+	m.atEnd = false
 	s, p := m.search, m.proj
+	at := m.anchorOf(top)
+	curOff, wasShown := 0, false
+	if s.cur >= 0 && s.curLine < n {
+		curOff = m.offsetOf(s.curLine)
+		wasShown = m.inView(m.posOf(s.curLine), 0)
+	}
+	oldTotal := s.total()
 	// The gutter widens with the number of lines, which leaves less room
 	// for the text. The first render guesses them from the lines of
 	// before, or of the source, so that it seldom renders again, which
@@ -97,7 +108,9 @@ func (m *Model) fitRendered(force bool) {
 	m.spans, m.vis, m.kept, m.mark = nil, nil, 0, -1
 	m.top, m.row, m.left = 0, 0, 0
 	if n > 0 {
-		m.top = top * len(m.lines) / n
+		line := m.lineAt(at)
+		m.top = line
+		m.anchor = anchor{line: line, off: at, set: true}
 	}
 	m.proj, m.want = projection{squeeze: p.squeeze}, projection{squeeze: p.squeeze}
 	if !p.none() {
@@ -107,16 +120,37 @@ func (m *Model) fitRendered(force bool) {
 			m.top = m.posOf(m.top)
 		}
 	}
+	before := m.topLine()
 	m.clamp()
+	if end {
+		// The reader was at the end, and stays there.
+		m.top, m.row = m.last()
+	}
+	if n > 0 {
+		// A clamp may have moved the top; the place the reader had is
+		// kept for the next render all the same.
+		m.anchor = anchor{line: m.topLine(), off: at, set: true, clamped: !end && m.topLine() != before}
+	}
 	if s.re != nil {
 		m.search = search{query: s.query, re: s.re, invert: s.invert, from: m.topLine(), cur: -1, stay: true}
 		m.search.top, m.search.row = m.top, m.row
 		lines, ends, _ := find(context.Background(), s.re, s.invert, m.lines, m.vis)
 		m.found(lines, ends)
 		if s.cur >= 0 && m.search.total() > 0 {
-			// The current match goes to the first as far into the new
-			// lines as the old one was.
-			m.jump(m.firstFrom(s.curLine * len(m.lines) / max(n, 1)))
+			// The current match stays the same match, by its order, unless
+			// the new lines hold another number of them, when it goes to
+			// the first as far into the text as the old one was. The
+			// window stays where it is unless the match was in view.
+			top, row, left := m.top, m.row, m.left
+			cur := s.cur
+			if m.search.total() != oldTotal {
+				cur = m.firstFrom(m.lineAt(curOff))
+			}
+			m.jump(cur)
+			if !wasShown {
+				m.top, m.row, m.left = top, row, left
+				m.clamp()
+			}
 		}
 	}
 	m.enableSearchKeys()
@@ -170,4 +204,83 @@ func writePicture(b *strings.Builder, l string, tw int) {
 	b.WriteString(l)
 	b.WriteString(ansi.ResetStyle)
 	b.WriteString(strings.Repeat(" ", tw-ansi.StringWidth(l)))
+}
+
+// anchor is the place in rendered content that the window keeps across
+// renders: off is how far into the text, in letters and digits, the line
+// that was at the top is, and line is that line, so that the place is
+// known again while the window stays there, and is not moved by the
+// rounding of each render. Without it, a render at another width and back
+// would drift off the place it began.
+type anchor struct {
+	line, off int
+	set       bool
+	// clamped is set when the end of the content moved the line there
+	// from the place that off keeps.
+	clamped bool
+}
+
+// weigh returns how much of the text a line holds: its letters and
+// digits, and one for a line without any, so that every line has a place
+// of its own.
+func weigh(l string) int {
+	n := 0
+	for _, r := range l {
+		if unicode.IsLetter(r) || unicode.IsNumber(r) {
+			n++
+		}
+	}
+	return max(n, 1)
+}
+
+// viewsEnd reports whether the end of the content is in view.
+func (m Model) viewsEnd() bool {
+	if len(m.lines) == 0 {
+		return false
+	}
+	top, row := m.last()
+	return m.top > top || m.top == top && m.row >= row
+}
+
+// atEndByChoice reports whether the reader put the end of the content in
+// view. A window that only a clamp put there isn't the reader's: the
+// place the anchor keeps is where it goes back to.
+func (m Model) atEndByChoice() bool {
+	if !m.viewsEnd() {
+		return false
+	}
+	return !m.anchor.set || !m.anchor.clamped || m.anchor.line != m.topLine()
+}
+
+// offsetOf returns how many letters and digits of the text come before
+// line i.
+func (m Model) offsetOf(i int) int {
+	off := 0
+	for _, l := range m.lines[:min(i, len(m.lines))] {
+		off += weigh(l)
+	}
+	return off
+}
+
+// anchorOf returns how far into the text the line at the top, line, is:
+// where the window kept it last if it still is at that line, and else
+// the start of the line.
+func (m Model) anchorOf(line int) int {
+	if m.anchor.set && m.anchor.line == line {
+		return m.anchor.off
+	}
+	return m.offsetOf(line)
+}
+
+// lineAt returns the index of the line that holds the place off letters
+// and digits into the text, or the last line.
+func (m Model) lineAt(off int) int {
+	for i, l := range m.lines {
+		w := weigh(l)
+		if off < w {
+			return i
+		}
+		off -= w
+	}
+	return max(len(m.lines)-1, 0)
 }
