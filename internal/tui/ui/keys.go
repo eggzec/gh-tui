@@ -220,6 +220,38 @@ func PagerLayer(ctx string, p *pager.Model, own ...key.Binding) keyhelp.Layer {
 	return l
 }
 
+// MoveKeys are the keys that move through a list that has no find or
+// quick filter: a list the pane draws itself, and that only needs the moves
+// of the feed. It implements help.KeyMap.
+type MoveKeys struct {
+	Up           key.Binding `keymap:"up" help:"up"`
+	Down         key.Binding `keymap:"down" help:"down"`
+	PageUp       key.Binding `keymap:"page_up" help:"page up"`
+	PageDown     key.Binding `keymap:"page_down" help:"page down"`
+	HalfPageUp   key.Binding `keymap:"half_page_up" help:"½ page up"`
+	HalfPageDown key.Binding `keymap:"half_page_down" help:"½ page down"`
+	Home         key.Binding `keymap:"top" help:"first"`
+	End          key.Binding `keymap:"bottom" help:"last"`
+}
+
+// NewMoveKeys returns the moves that look gives the keys of.
+func NewMoveKeys(look keymap.Lookup) MoveKeys {
+	var k MoveKeys
+	keymap.Fill(&k, look)
+	return k
+}
+
+// ShortHelp implements help.KeyMap.
+func (k MoveKeys) ShortHelp() []key.Binding { return []key.Binding{k.Up, k.Down} }
+
+// FullHelp implements help.KeyMap.
+func (k MoveKeys) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{k.Up, k.Down, k.PageUp, k.PageDown, k.HalfPageUp, k.HalfPageDown},
+		{k.Home, k.End},
+	}
+}
+
 // SearchPromptKeys returns the keys of the prompt that a list's find and
 // quick filter open: those of the search_prompt context that run it, close
 // it, and close it on an empty line.

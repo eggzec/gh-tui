@@ -190,7 +190,7 @@ func (s *Section) markAllRead() (mark, bool) {
 	var newest time.Time
 	var ids strings.Builder
 	for i := range s.feed.Len() {
-		n, ok := s.feed.Item(i)
+		n, ok := s.feed.LoadedItem(i)
 		if !ok {
 			continue
 		}

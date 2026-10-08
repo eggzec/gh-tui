@@ -147,7 +147,7 @@ func (l *peopleList) remeasure(*Section) bool {
 	}
 	login, name := l.login, l.name
 	for i := range n {
-		if p, ok := l.Feed.Item(i); ok {
+		if p, ok := l.Feed.LoadedItem(i); ok {
 			login = max(login, ansi.StringWidth(p.Login))
 			name = max(name, ansi.StringWidth(ownerui.CleanLine(p.Name)))
 		}

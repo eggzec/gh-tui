@@ -45,7 +45,7 @@ Issues
   first | g home | g/home | on
   last | G end | G/end | on
   retry | r | r | off
-  search |  |  | off
-  quick filter |  |  | off
-  next match |  |  | off
-  prev match |  |  | off
+  search | / | / | on
+  quick filter | & | & | on
+  next match | n | n | off
+  prev match | N | N | off

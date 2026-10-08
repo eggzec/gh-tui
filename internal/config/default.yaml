@@ -570,12 +570,12 @@ keys:
     half_page_down: [ctrl+d]
     top: [g, home]
     bottom: [G, end]
-    # Search the rows of the list, show only those that match, and step
-    # between the matches. Unbound by default.
-    find: []
-    quick_filter: []
-    next_match: []
-    prev_match: []
+    # Search the rows of the list for text, show only the rows that hold
+    # it, and step between the rows a search found.
+    find: [/]
+    quick_filter: ["&"]
+    next_match: [n]
+    prev_match: [N]
     # Open the filter modal on its Filters tab or its Sort tab, and put the
     # filters back to their defaults.
     filter: [f]
@@ -640,12 +640,12 @@ keys:
     half_page_down: [ctrl+d]
     top: [g, home]
     bottom: [G, end]
-    # Search the rows of the list, show only those that match, and step
-    # between the matches. Unbound by default.
-    find: []
-    quick_filter: []
-    next_match: []
-    prev_match: []
+    # Search the rows of the list for text, show only the rows that hold
+    # it, and step between the rows a search found.
+    find: [/]
+    quick_filter: ["&"]
+    next_match: [n]
+    prev_match: [N]
     # Open the filter modal on its Filters tab or its Sort tab, and put the
     # filters back to their defaults.
     filter: [f]
@@ -668,12 +668,12 @@ keys:
     half_page_down: [ctrl+d]
     top: [g, home]
     bottom: [G, end]
-    # Search the rows of the list, show only those that match, and step
-    # between the matches. Unbound by default.
-    find: []
-    quick_filter: []
-    next_match: []
-    prev_match: []
+    # Search the rows of the list for text, show only the rows that hold
+    # it, and step between the rows a search found.
+    find: [/]
+    quick_filter: ["&"]
+    next_match: [n]
+    prev_match: [N]
     filter: [f]
     sort: [s]
     clear_filter: [F]
@@ -692,12 +692,12 @@ keys:
     half_page_down: [ctrl+d]
     top: [g, home]
     bottom: [G, end]
-    # Search the rows of the list, show only those that match, and step
-    # between the matches. Unbound by default.
-    find: []
-    quick_filter: []
-    next_match: []
-    prev_match: []
+    # Search the rows of the list for text, show only the rows that hold
+    # it, and step between the rows a search found.
+    find: [/]
+    quick_filter: ["&"]
+    next_match: [n]
+    prev_match: [N]
     filter: [f]
     clear_filter: [F]
     read: [U]
@@ -720,12 +720,12 @@ keys:
     half_page_down: [ctrl+d]
     top: [g, home]
     bottom: [G, end]
-    # Search the rows of the list, show only those that match, and step
-    # between the matches. Unbound by default.
-    find: []
-    quick_filter: []
-    next_match: []
-    prev_match: []
+    # Search the rows of the list for text, show only the rows that hold
+    # it, and step between the rows a search found.
+    find: [/]
+    quick_filter: ["&"]
+    next_match: [n]
+    prev_match: [N]
     filter: [f]
     sort: [s]
     # Show the checks of the pull request under the cursor.
@@ -748,12 +748,12 @@ keys:
     half_page_down: [ctrl+d]
     top: [g, home]
     bottom: [G, end]
-    # Search the rows of the list, show only those that match, and step
-    # between the matches. Unbound by default.
-    find: []
-    quick_filter: []
-    next_match: []
-    prev_match: []
+    # Search the rows of the list for text, show only the rows that hold
+    # it, and step between the rows a search found.
+    find: [/]
+    quick_filter: ["&"]
+    next_match: [n]
+    prev_match: [N]
     filter: [f]
     sort: [s]
     clear_filter: [F]
@@ -786,12 +786,6 @@ keys:
     half_page_down: [ctrl+d]
     top: [g, home]
     bottom: [G, end]
-    # Search the rows of the list, show only those that match, and step
-    # between the matches. Unbound by default.
-    find: []
-    quick_filter: []
-    next_match: []
-    prev_match: []
   # Checks: the log of the job of a check, and its annotations. Move the
   # focus between the two.
   pull_check_log:
@@ -897,12 +891,12 @@ keys:
     half_page_down: [ctrl+d]
     top: [g, home]
     bottom: [G, end]
-    # Search the rows of the list, show only those that match, and step
-    # between the matches. Unbound by default.
-    find: []
-    quick_filter: []
-    next_match: []
-    prev_match: []
+    # Search the rows of the list for text, show only the rows that hold
+    # it, and step between the rows a search found.
+    find: [/]
+    quick_filter: ["&"]
+    next_match: [n]
+    prev_match: [N]
   # Actions: the jobs of a run. Re-run the job under the cursor.
   actions_jobs:
     up: [up, k]
@@ -913,12 +907,6 @@ keys:
     half_page_down: [ctrl+d]
     top: [g, home]
     bottom: [G, end]
-    # Search the rows of the list, show only those that match, and step
-    # between the matches. Unbound by default.
-    find: []
-    quick_filter: []
-    next_match: []
-    prev_match: []
     rerun_job: [J]
   # Actions: the log of a job. Re-run the job, and move the focus between
   # the log and the annotations of the job.

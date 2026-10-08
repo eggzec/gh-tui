@@ -249,6 +249,15 @@ func (m Model[T]) Item(i int) (T, bool) {
 	return m.item(m.at(i))
 }
 
+// LoadedItem returns item i of all the items, whether a quick filter shows
+// it or not, or false if there is none or it is not loaded. It counts as
+// [Model.Len] does and unlike [Model.Item], whose rows are only those shown.
+// Use it to look at every item, such as to measure columns or to act on
+// all of them.
+func (m Model[T]) LoadedItem(i int) (T, bool) {
+	return m.item(i)
+}
+
 // Index returns the index of the selected row, which is that of its item
 // unless a quick filter shows.
 func (m Model[T]) Index() int {
