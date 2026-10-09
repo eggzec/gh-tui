@@ -29,22 +29,22 @@ func tabbed(tb testing.TB, svc *fakeService, c *fakeChecks, opts ...checks.Optio
 
 func TestTabsCycle(t *testing.T) {
 	h, m := tabbed(t, newFakeService(), &fakeChecks{})
-	if m.tab != conversationTab || m.checks != nil {
-		t.Fatalf("the modal opened on tab %d with checks %v, want the conversation and no step yet", m.tab, m.checks)
+	if m.tab != conversationTab || m.checks != nil || m.files != nil {
+		t.Fatalf("the modal opened on tab %d with checks %v and files %v, want the conversation and neither built", m.tab, m.checks, m.files)
 	}
 	names, active := m.Tabs()
-	if want := []string{"Conversation", "Checks ✗1"}; !slices.Equal(names, want) || active != 0 {
-		t.Errorf("tabs = %v at %d, want %v at 0", names, active, want)
+	if want := []string{"Files 10", "Conversation", "Checks ✗1"}; !slices.Equal(names, want) || active != 1 {
+		t.Errorf("tabs = %v at %d, want %v at 1", names, active, want)
 	}
 	press(t, h, "]")
 	if m.tab != checksTab || m.checks == nil {
 		t.Fatalf("] showed tab %d with checks %v, want the Checks tab built", m.tab, m.checks)
 	}
-	if names, active := m.Tabs(); active != 1 || names[1] != "Checks ✗1" {
+	if names, active := m.Tabs(); active != 2 || names[2] != "Checks ✗1" {
 		t.Errorf("tabs = %v at %d, want Checks active with the failing check counted", names, active)
 	}
 	press(t, h, "]")
-	if m.tab != conversationTab {
+	if m.tab != filesTab {
 		t.Error("] on the last tab didn't wrap to the first")
 	}
 	press(t, h, "[")
@@ -52,6 +52,10 @@ func TestTabsCycle(t *testing.T) {
 		t.Error("[ on the first tab didn't wrap to the last")
 	}
 	press(t, h, "[")
+	press(t, h, "[")
+	if m.tab != filesTab {
+		t.Error("[ from the conversation didn't go to the files")
+	}
 	press(t, h, "C")
 	if m.tab != checksTab {
 		t.Error("C didn't jump to the Checks tab")
@@ -198,30 +202,33 @@ func TestNoChecksTabWithoutChecks(t *testing.T) {
 	if m == nil || m.number != 114 {
 		t.Fatalf("opened %v, want #114", m)
 	}
-	if names, _ := m.Tabs(); names != nil {
-		t.Errorf("tabs = %v, want none for a pull request without checks", names)
+	if names, _ := m.Tabs(); !slices.Equal(names, []string{"Files 1", "Conversation"}) {
+		t.Errorf("tabs = %v, want no Checks tab for a pull request without checks", names)
 	}
 	press(t, h, "C")
-	press(t, h, "]")
 	if m.tab != conversationTab || m.checks != nil {
-		t.Error("a key showed the checks of a pull request without them")
+		t.Error("C showed the checks of a pull request without them")
 	}
-	if got := uitest.Enabled(m.KeyLayers()); slices.Contains(got, "checks") || slices.Contains(got, "next tab") {
-		t.Errorf("help offers %v, want no checks and no tab", got)
+	press(t, h, "]")
+	if m.tab != filesTab || m.checks != nil {
+		t.Errorf("] showed tab %d with checks %v, want the files and no checks", m.tab, m.checks)
+	}
+	if got := uitest.Enabled(m.KeyLayers()); slices.Contains(got, "checks") {
+		t.Errorf("help offers %v, want no checks", got)
 	}
 }
 
 func TestTabsBeforeTheDetailAndInShort(t *testing.T) {
 	_, m := tabbed(t, newFakeService(), &fakeChecks{})
 	m.loaded, m.detail = false, core.PullRequestDetail{}
-	if names, _ := m.Tabs(); !slices.Equal(names, []string{"Conversation", "Checks"}) {
+	if names, _ := m.Tabs(); !slices.Equal(names, []string{"Files", "Conversation", "Checks"}) {
 		t.Errorf("tabs = %v before the detail, want no counts", names)
 	}
 	m.loaded, m.detail.Comments = true, 6
 	m.detail.CheckCounts = core.CheckCounts{Failed: 2, Passed: 3}
 	m.checksSvc = nil
 	m.SetSize(36, 20)
-	if names, _ := m.Tabs(); !slices.Equal(names, []string{"Co 6", "Ch ✗2"}) {
+	if names, _ := m.Tabs(); !slices.Equal(names, []string{"Fi 0", "Co 6", "Ch ✗2"}) {
 		t.Errorf("tabs = %v in a narrow modal, want the short ones", names)
 	}
 }

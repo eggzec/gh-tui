@@ -544,9 +544,9 @@ keys:
     # repositories, work, contributions and notifications on the dashboard;
     # pinned, the list, the README and a user's contributions on the page of
     # a user or an organization; the query and the results on the search
-    # page; branches, graph and commit in History; and runs,
-    # jobs and log in Actions. A digit with no such pane there does nothing,
-    # and never switches screens.
+    # page; branches, graph and commit in History; the files and the diff on
+    # the Files tab of a pull request; and runs, jobs and log in Actions. A
+    # digit with no such pane there does nothing, and never switches screens.
     pane_1: ["1"]
     pane_2: ["2"]
     pane_3: ["3"]
@@ -1027,6 +1027,38 @@ keys:
     half_page_down: [ctrl+d]
     top: [g, home]
     bottom: [G, end]
+  # The modal of a pull request: the tree of the files it changes.
+  # Expand and collapse fold its directories; enter or expand on a file
+  # shows its diff.
+  pull_files:
+    up: [up, k]
+    down: [down, j]
+    page_up: [ctrl+b, pgup]
+    page_down: [ctrl+f, pgdown]
+    half_page_up: [ctrl+u]
+    half_page_down: [ctrl+d]
+    top: [g, home]
+    bottom: [G, end]
+    expand: [right, l]
+    collapse: [left, h]
+    toggle_all: ["*"]
+  # The modal of a pull request: the diff of the files it changes. Enter
+  # folds the file whose header the cursor is on.
+  pull_diff:
+    up: [up, k]
+    down: [down, j]
+    left: [left, h]
+    right: [right, l]
+    page_up: [b, ctrl+b, pgup]
+    page_down: [ctrl+f, pgdown]
+    half_page_up: [ctrl+u]
+    half_page_down: [ctrl+d]
+    top: [g, home]
+    bottom: [G, end]
+    next_file: [J]
+    prev_file: [K]
+    next_hunk: ["}"]
+    prev_hunk: ["{"]
   # The modal of a release.
   release_modal:
     up: [up, k]

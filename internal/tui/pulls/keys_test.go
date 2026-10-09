@@ -50,7 +50,7 @@ func TestKeyLayersOrder(t *testing.T) {
 		t.Fatal("enter opened no pull request")
 	}
 	for k, want := range map[string]string{
-		"esc": "Pull request: close", "r": "Pull request: refresh", "j": "Conversation: down", "]": "nothing",
+		"esc": "Pull request: close", "r": "Pull request: refresh", "j": "Conversation: down", "]": "Pull request: next tab",
 	} {
 		if got := winner(m.KeyLayers(), k); got != want {
 			t.Errorf("%s reaches %q in the modal, want %q", k, got, want)

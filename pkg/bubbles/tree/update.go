@@ -226,6 +226,10 @@ func (m *Model) receive(msg childrenMsg) tea.Cmd {
 	}
 	cmd := m.settle(e)
 	m.flatten(anchor)
+	if m.expandOnLoad && m.loads == 0 && !m.bulk.active() {
+		m.expandOnLoad = false
+		cmd = tea.Batch(cmd, m.expandAll())
+	}
 	if len(m.goal) > 0 {
 		cmd = tea.Batch(cmd, m.advance())
 	}

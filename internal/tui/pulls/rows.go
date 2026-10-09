@@ -105,7 +105,9 @@ type styles struct {
 	checksOK, checksFail, checksPending string
 
 	repo, filterOn, filterOff, sep lipgloss.Style
-	empty                          lipgloss.Style
+	// sepLine draws the rule between the tree and the diff of the Files tab.
+	sepLine lipgloss.Style
+	empty   lipgloss.Style
 
 	// The detail header and the comments.
 	added, deleted, label, rule, commenter lipgloss.Style
@@ -150,6 +152,7 @@ func newStyles(t ui.Theme, icons ui.Icons) styles {
 		filterOn:      t.Accent.Bold(true),
 		filterOff:     t.Subtle,
 		sep:           t.Subtle,
+		sepLine:       lipgloss.NewStyle().Foreground(lipgloss.Color(t.Palette.Border)),
 		empty:         t.Muted,
 		added:         t.Success,
 		deleted:       t.Error,

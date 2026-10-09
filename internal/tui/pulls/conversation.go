@@ -58,14 +58,17 @@ func (m *detailModal) updateDetail(msg tea.Msg) tea.Cmd {
 	return cmd
 }
 
-// online reads again, now that GitHub answers again, the detail and the
-// comments that failed for want of an answer from it.
+// online reads again, now that GitHub answers again, the detail, the
+// comments and the files that failed for want of an answer from it.
 func (m *detailModal) online() tea.Cmd {
-	var get tea.Cmd
+	var get, files tea.Cmd
 	if ui.Unreached(m.failed) {
 		get = m.get()
 	}
-	return tea.Batch(get, ui.RetryUnreached(&m.thread))
+	if f := m.files; f != nil {
+		files = m.filesOnline()
+	}
+	return tea.Batch(get, files, ui.RetryUnreached(&m.thread))
 }
 
 // get fetches the detail. A fresh cached detail costs no request. Once it
@@ -96,7 +99,7 @@ func (m *detailModal) receive(msg detailMsg) tea.Cmd {
 		return ui.Fail("load #"+strconv.Itoa(m.number), core.About(m.subject(), msg.err))
 	}
 	m.detail, m.loaded, m.failed = msg.detail, true, nil
-	return m.show()
+	return tea.Batch(m.show(), m.showFiles())
 }
 
 // reload shows the detail from the cache again, which a change has just
@@ -107,7 +110,7 @@ func (m *detailModal) reload() tea.Cmd {
 		return nil
 	}
 	m.detail, m.loaded = d, true
-	return m.show()
+	return tea.Batch(m.show(), m.showFiles())
 }
 
 // show sets the document of the thread from the detail.

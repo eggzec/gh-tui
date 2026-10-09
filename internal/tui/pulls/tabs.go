@@ -16,14 +16,15 @@ type modalTab int
 const (
 	conversationTab modalTab = iota
 	checksTab
+	filesTab
 )
 
 // titleRoom is how many columns of the top edge of the frame stay for the
 // title for the tabs to be named in full.
 const titleRoom = 18
 
-// has reports whether the modal has tab t: the conversation always, the
-// checks unless the pull request has none.
+// has reports whether the modal has tab t: the files and the conversation
+// always, the checks unless the pull request has none.
 func (m *detailModal) has(t modalTab) bool {
 	if t == checksTab {
 		return m.hasChecks()
@@ -50,9 +51,9 @@ func (m *detailModal) hasChecks() bool {
 // tabList returns the tabs the modal has, in order.
 func (m *detailModal) tabList() []modalTab {
 	if m.hasChecks() {
-		return []modalTab{conversationTab, checksTab}
+		return []modalTab{filesTab, conversationTab, checksTab}
 	}
-	return []modalTab{conversationTab}
+	return []modalTab{filesTab, conversationTab}
 }
 
 // hasTabs reports whether there is more than one tab, for the keys that
@@ -92,11 +93,20 @@ func (m *detailModal) Tabs() (names []string, active int) {
 	return names, active
 }
 
-// label names tab t for the top edge: "Conversation" and "Checks" with how
-// the checks stand, or "Co" and "Ch" with the count of comments and how
-// the checks stand when short.
+// label names tab t for the top edge: "Files" with the count of files,
+// "Conversation" and "Checks" with how the checks stand, or "Fi", "Co" and
+// "Ch" with the count of comments and how the checks stand when short.
 func (m *detailModal) label(t modalTab, short bool) string {
 	switch t {
+	case filesTab:
+		name := "Files"
+		if short {
+			name = "Fi"
+		}
+		if m.loaded {
+			name += " " + strconv.Itoa(m.detail.ChangedFiles)
+		}
+		return name
 	case checksTab:
 		name := "Checks"
 		if short {
@@ -183,8 +193,12 @@ func (m *detailModal) switchTo(t modalTab) tea.Cmd {
 		m.checks.Hide()
 	}
 	m.tab = t
-	if t == checksTab {
+	switch t {
+	case checksTab:
 		return m.showChecks()
+	case filesTab:
+		return m.showFiles()
+	case conversationTab:
 	}
 	if !m.loaded {
 		return nil

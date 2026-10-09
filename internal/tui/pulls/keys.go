@@ -8,10 +8,12 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
+	"github.com/eggzec/gh-tui/pkg/bubbles/diff"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
+	"github.com/eggzec/gh-tui/pkg/bubbles/tree"
 )
 
 // keyMap holds the keys of the section and of the bubbles it shows. The
@@ -47,6 +49,19 @@ type keyMap struct {
 	// search are the keys of the prompt of the list's find and filter.
 	search cmdline.KeyMap
 	thread thread.KeyMap
+	// tree moves through the tree of the changed files, and diff through
+	// their diff, on the Files tab of the modal.
+	tree tree.KeyMap
+	diff diff.KeyMap
+	// nextPane and prevPane move the focus between the tree and the diff
+	// of the Files tab, panes focus one of them, and jump stands for the
+	// keys of panes in help. zoom shows the focused one alone. The modal
+	// takes them from the global keys, so the list has none, and they
+	// are the modal's alone to list.
+	nextPane, prevPane key.Binding
+	panes              [numFilesPanes]key.Binding
+	jump               key.Binding
+	zoom               key.Binding
 	// owner shows the author's page from the modal. The list leaves the
 	// key to the app, which does it from the selection, so only the
 	// modal's help lists it.
@@ -54,11 +69,13 @@ type keyMap struct {
 }
 
 // The contexts of the keys of pull requests: the list, the modal of one,
-// and its conversation.
+// and its conversation, and the tree of changed files and the diff.
 const (
 	ctxList         = "pulls"
 	ctxModal        = "pull_modal"
 	ctxConversation = "pull_conversation"
+	ctxFiles        = "pull_files"
+	ctxDiff         = "pull_diff"
 )
 
 // newKeyMap returns the keys of the list of pull requests, with those of
@@ -96,7 +113,25 @@ func newKeyMap(keys config.Keymap) keyMap {
 	t.Retry = retry(k.Refresh)
 	t.Retry.SetEnabled(k.Refresh.Enabled())
 	k.thread = t
+
+	files := ui.In(keys, ctxFiles)
+	k.tree = tree.NewKeyMap(files)
+	// A file shows its diff, and a directory folds.
+	k.tree.Open = files.Binding("global.select", "show diff")
+	k.diff = diff.NewKeyMap(ui.In(keys, ctxDiff))
 	return k
+}
+
+// setPaneKeys makes the keys of the panes of the Files tab, from the
+// global ones, as the keys of the context c have them.
+func (k *keyMap) setPaneKeys(c ui.Context) {
+	k.nextPane = c.Binding("global.next_pane", "pane")
+	k.prevPane = c.Binding("global.prev_pane", "previous pane")
+	k.zoom = c.Binding("global.zoom", "zoom")
+	for i, a := range [numFilesPanes]string{"global.pane_1", "global.pane_2"} {
+		k.panes[i] = c.Binding(a, filesPaneTitles[i])
+	}
+	k.jump = ui.Jump(k.panes[:]...)
 }
 
 // forModal returns k with the keys of the changes and of the checks that
@@ -112,6 +147,7 @@ func (k keyMap) forModal(keys config.Keymap) keyMap {
 	k.Back = modal.Binding("global.dismiss", "close")
 	k.NextTab = modal.Binding("global.next_tab", "next tab")
 	k.PrevTab = modal.Binding("global.prev_tab", "previous tab")
+	k.setPaneKeys(modal)
 	return k
 }
 

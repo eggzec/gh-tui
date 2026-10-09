@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/x/exp/golden"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
@@ -38,6 +39,9 @@ func TestView(t *testing.T) {
 			svc.pulls = nil
 			return started(t, svc, 80, 4).View()
 		}},
+		{"files 80", filesView(76, 21, config.IconsUnicode)},
+		{"files 120", filesView(116, 37, config.IconsUnicode)},
+		{"files ascii", filesView(100, 24, config.IconsASCII)},
 		{"modal at 80 columns", func(t *testing.T) string {
 			t.Helper()
 			s := started(t, newFakeService(), 80, 30)

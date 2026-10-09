@@ -2,6 +2,8 @@ package ui
 
 import (
 	"cmp"
+	"crypto/sha256"
+	"encoding/hex"
 
 	"github.com/eggzec/gh-tui/internal/core"
 )
@@ -13,4 +15,12 @@ import (
 func WebURL(host, path string) string {
 	host = cmp.Or(host, core.DefaultHost)
 	return core.WebScheme(host) + "://" + host + "/" + path
+}
+
+// DiffAnchor returns the anchor of the diff of the file at path on a page
+// that shows diffs, such as a commit's or a pull request's files: GitHub
+// names it by the SHA-256 of the path.
+func DiffAnchor(path string) string {
+	sum := sha256.Sum256([]byte(path))
+	return "diff-" + hex.EncodeToString(sum[:])
 }
