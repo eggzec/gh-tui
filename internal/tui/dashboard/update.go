@@ -85,6 +85,13 @@ func (s *Section) update(msg tea.Msg) (tea.Cmd, bool) {
 		}
 		s.readInboxCache()
 		return nil, true
+	case ui.BulkDoneMsg:
+		// So does marking several at once.
+		if msg.From != ui.NotificationsTitle {
+			return nil, false
+		}
+		s.readInboxCache()
+		return nil, true
 	}
 	// The calendar has no messages of its own.
 	return s.repos.update(msg), false

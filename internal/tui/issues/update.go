@@ -65,6 +65,8 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 		return nil
 	case ui.DoneMsg:
 		return tea.Batch(s.done(msg), s.forward(msg))
+	case ui.BulkDoneMsg:
+		return s.bulkDone(msg)
 	}
 	return s.forward(msg)
 }
@@ -202,9 +204,13 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 			return nil
 		}
 		return s.openDetail(s.repo, it.Number, &it, false, nil, nil)
-	case key.Matches(msg, k.Close):
-		return s.setState(core.StateClosed)
-	case key.Matches(msg, k.Reopen):
+	case key.Matches(msg, k.Close, k.Reopen):
+		if state, ok := s.bulkState(msg); ok && s.list.Marks() > 0 {
+			return s.bulk(state)
+		}
+		if key.Matches(msg, k.Close) {
+			return s.setState(core.StateClosed)
+		}
 		return s.setState(core.StateOpen)
 	case key.Matches(msg, k.NextTab):
 		s.others.Arm()

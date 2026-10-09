@@ -103,7 +103,7 @@ func (f *fakeService) MarkRead(id string) *optimistic.Op {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.reads = append(f.reads, id)
-	return f.change(func(ts []core.Notification) []core.Notification {
+	return f.changeThread(id, func(ts []core.Notification) []core.Notification {
 		for i := range ts {
 			if ts[i].ID == id {
 				ts[i].Unread = false
@@ -117,8 +117,34 @@ func (f *fakeService) MarkDone(id string) *optimistic.Op {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.dones = append(f.dones, id)
-	return f.change(func(ts []core.Notification) []core.Notification {
+	return f.changeThread(id, func(ts []core.Notification) []core.Notification {
 		return slices.DeleteFunc(ts, func(n core.Notification) bool { return n.ID == id })
+	})
+}
+
+// changeThread is change for the change of one thread, whose rollback
+// puts back that thread alone, so that changes of other threads in flight
+// at once keep theirs, as the service's cache does.
+func (f *fakeService) changeThread(id string, edit func([]core.Notification) []core.Notification) *optimistic.Op {
+	order := make([]string, len(f.threads))
+	var was core.Notification
+	for i := range f.threads {
+		order[i] = f.threads[i].ID
+		if order[i] == id {
+			was = f.threads[i]
+		}
+	}
+	f.threads = edit(slices.Clone(f.threads))
+	fail := f.fail
+	return optimistic.New(func(context.Context) error { return fail }, func() {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		ts := slices.DeleteFunc(slices.Clone(f.threads), func(n core.Notification) bool { return n.ID == id })
+		ts = append(ts, was)
+		slices.SortStableFunc(ts, func(a, b core.Notification) int {
+			return slices.Index(order, a.ID) - slices.Index(order, b.ID)
+		})
+		f.threads = ts
 	})
 }
 
@@ -281,6 +307,9 @@ func run(tb testing.TB, s *Section, cmd tea.Cmd) []tea.Msg {
 		case ui.DoneMsg:
 			app = append(app, msg)
 			queue = append(queue, s.Update(msg))
+		case ui.BulkDoneMsg:
+			app = append(app, msg)
+			queue = append(queue, s.Update(msg))
 		default:
 			queue = append(queue, s.Update(msg))
 		}
@@ -334,6 +363,8 @@ func keyPress(k string) tea.KeyPressMsg {
 		return tea.KeyPressMsg{Code: tea.KeyEnd}
 	case "esc":
 		return tea.KeyPressMsg{Code: tea.KeyEscape}
+	case "space":
+		return tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}
 	}
 	r, _ := utf8.DecodeRuneInString(k)
 	return tea.KeyPressMsg{Code: r, Text: k}

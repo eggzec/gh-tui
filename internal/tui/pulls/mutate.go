@@ -226,8 +226,11 @@ func (k keyMap) ask(svc Service, c change, msg tea.KeyPressMsg,
 // outcome. A merge of a pull request whose detail hasn't been read waits
 // for it, which says whether it may merge and how.
 func (s *Section) mutate(msg tea.KeyPressMsg) (tea.Cmd, bool) {
-	if !s.keys.isChange(msg) {
+	if !s.keys.isChange(msg) || s.feed != nil && s.feed.Takes(msg) {
 		return nil, false
+	}
+	if s.isBulk(msg) {
+		return s.bulk(msg), true
 	}
 	pr, ok := s.target()
 	if !ok {

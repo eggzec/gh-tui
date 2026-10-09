@@ -5,7 +5,6 @@ package issues
 
 import (
 	"context"
-	"strconv"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -228,7 +227,7 @@ func (s *Section) newList() feed.Model[core.Issue] {
 	})
 	return feed.New(fetch, s.renderRow,
 		feed.WithContext(ctx),
-		feed.WithKey(func(it core.Issue) string { return strconv.Itoa(it.Number) }),
+		feed.WithKey(issueKey),
 		feed.WithKeyMap(s.keys.feed),
 		feed.WithMarkKeys(s.keys.mark),
 		feed.WithPromptKeys(s.keys.search),

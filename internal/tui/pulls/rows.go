@@ -369,6 +369,15 @@ func (p paint) write(b *strings.Builder, text string) {
 	b.WriteString(p.suf)
 }
 
+// indent is the blank that lines the header up with the rows, which the
+// feed draws a gutter before. Before the feed exists, only the cursor's.
+func (s *Section) indent() string {
+	if s.feed == nil {
+		return gutter
+	}
+	return strings.Repeat(" ", s.feed.Gutter())
+}
+
 // renderHeader renders the line above the list: the repository on the left
 // and the tabs of the states on the right, the one shown highlighted.
 func (s *Section) renderHeader() {
@@ -388,7 +397,7 @@ func (s *Section) renderHeader() {
 			right.WriteString(st.filterOff.Render(t.label))
 		}
 	}
-	left := gutter + st.repo.Render(s.repo.String())
+	left := s.indent() + st.repo.Render(s.repo.String())
 	lw := ansi.StringWidth(left)
 	// Narrow panes name only the tab shown, and the narrowest only the
 	// repository.

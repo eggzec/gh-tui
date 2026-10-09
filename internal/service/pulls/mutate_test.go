@@ -5,6 +5,7 @@ import (
 	"errors"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -366,5 +367,74 @@ func TestMergeStateChanges(t *testing.T) {
 				t.Errorf("pinned to %q, want 9f1c2e4", api.heads[0])
 			}
 		})
+	}
+}
+
+// Several changes on the pages of one list, as a bulk change makes them at
+// once: when one of them fails, only its own change is undone. The pages
+// that the others changed since are no longer what its rollback saved, so
+// they are marked stale and the next read fetches them, which brings back
+// the row that failed.
+func TestMutationsInFlightTogetherFailOneByOne(t *testing.T) {
+	api := &fakeAPI{mutate: func(_ context.Context, _, id string, _ core.MergeMethod) (core.PullRequest, error) {
+		if id == "PR_2" {
+			return core.PullRequest{}, errors.Join(errors.New("github: 422"), core.ErrConflict)
+		}
+		pr := openPull(1)
+		pr.ID = id
+		pr.State = core.StateClosed
+		return pr, nil
+	}}
+	s := seeded(t, api, func(*core.PullRequest) {})
+	for _, n := range []int{2, 3} {
+		if _, err := s.Get(t.Context(), repo, n); err != nil {
+			t.Fatalf("Get #%d: %v", n, err)
+		}
+	}
+	ops := make([]*optimistic.Op, 3)
+	for i := range ops {
+		ops[i] = s.Close(repo, i+1)
+	}
+	for _, p := range []core.Page[core.PullRequest]{take(t, s).first, take(t, s).second} {
+		for _, pr := range p.Items {
+			if pr.State != core.StateClosed {
+				t.Fatalf("#%d is %s before any is sent, want every change shown at once", pr.Number, pr.State)
+			}
+		}
+	}
+
+	errs := make([]error, len(ops))
+	var wg sync.WaitGroup
+	for i, op := range ops {
+		wg.Go(func() { errs[i] = op.Do(t.Context()) })
+	}
+	wg.Wait()
+	for i, err := range errs {
+		if failed := i == 1; failed != (err != nil) {
+			t.Errorf("change of #%d: error %v, want an error only for #2", i+1, err)
+		}
+	}
+
+	// The failed change is undone alone.
+	for n, want := range map[int]core.State{1: core.StateClosed, 2: core.StateOpen, 3: core.StateClosed} {
+		d, ok := s.CachedGet(repo, n)
+		if !ok || d.State != want {
+			t.Errorf("detail of #%d is %s (cached %v), want %s", n, d.State, ok, want)
+		}
+	}
+	// The pages are stale, so reading them again asks GitHub, whose answer
+	// has #2 open again.
+	before := api.count("list")
+	page, err := s.List(t.Context(), openFirst)
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if got := api.count("list"); got != before+1 {
+		t.Errorf("list called %d times, want %d: the pages must be stale", got, before+1)
+	}
+	for _, pr := range page.Items {
+		if pr.Number == 2 && pr.State != core.StateOpen {
+			t.Errorf("#2 is %s after the page was fetched again, want open", pr.State)
+		}
 	}
 }

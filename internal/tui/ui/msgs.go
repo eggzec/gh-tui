@@ -95,18 +95,24 @@ type DoneMsg struct {
 // sent, and whether the server confirmed it or it was rolled back.
 func Do(ctx context.Context, from string, op Op, what string) tea.Cmd {
 	return func() tea.Msg {
-		ctx := obs.WithTrace(ctx, "op")
-		start := time.Now()
-		slog.InfoContext(ctx, "op sent", "span", "op", "section", from, "what", what)
-		err := op.Do(ctx)
-		took := slog.Float64("duration_ms", obs.Millis(time.Since(start)))
-		if err != nil {
-			slog.WarnContext(ctx, "op rolled back", "span", "op", "section", from, "what", what, took, "err", err.Error())
-		} else {
-			slog.InfoContext(ctx, "op confirmed", "span", "op", "section", from, "what", what, took)
-		}
-		return DoneMsg{From: from, What: what, Err: err}
+		return DoneMsg{From: from, What: what, Err: sendOp(ctx, from, op, what)}
 	}
+}
+
+// sendOp sends op, as a trace of its own that logs that it was sent, and
+// whether the server confirmed it or it was rolled back.
+func sendOp(ctx context.Context, from string, op Op, what string) error {
+	ctx = obs.WithTrace(ctx, "op")
+	start := time.Now()
+	slog.InfoContext(ctx, "op sent", "span", "op", "section", from, "what", what)
+	err := op.Do(ctx)
+	took := slog.Float64("duration_ms", obs.Millis(time.Since(start)))
+	if err != nil {
+		slog.WarnContext(ctx, "op rolled back", "span", "op", "section", from, "what", what, took, "err", err.Error())
+	} else {
+		slog.InfoContext(ctx, "op confirmed", "span", "op", "section", from, "what", what, took)
+	}
+	return err
 }
 
 // SyncMsg reports that the data behind Key may have changed on the server.
