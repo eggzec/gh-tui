@@ -44,10 +44,13 @@ type fakeService struct {
 	stateErrs map[core.State]error
 	// cached are the numbers whose detail Get has fetched, which CachedGet
 	// then serves.
-	cached  map[int]bool
-	gets    []int
-	getCtxs []context.Context
-	getErr  error
+	cached map[int]bool
+	gets   []int
+	// revalidated are the pull requests whose modals opened and read the
+	// detail again, though it may be cached.
+	revalidated []int
+	getCtxs     []context.Context
+	getErr      error
 	// getKept serves each detail kept, in place of a read GitHub rate
 	// limited, as the service does: with no error, telling the watch of
 	// the read.
@@ -132,6 +135,15 @@ func (f *fakeService) Get(ctx context.Context, _ core.RepoRef, number int) (core
 	}
 	f.cached[number] = true
 	return f.detail(number), nil
+}
+
+// Revalidate is a Get that records the pull request in revalidated, as
+// the modal does when it opens.
+func (f *fakeService) Revalidate(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error) {
+	f.mu.Lock()
+	f.revalidated = append(f.revalidated, number)
+	f.mu.Unlock()
+	return f.Get(ctx, repo, number)
 }
 
 // Comments serves three comments on every pull request, two a page, or

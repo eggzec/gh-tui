@@ -29,7 +29,7 @@ type API interface {
 	ListPullRequests(ctx context.Context, repo core.RepoRef, state core.State, cursor string, first int) (core.Page[core.PullRequest], error)
 	FilterPullRequests(ctx context.Context, repo core.RepoRef, f github.PullFilter, cursor string, first int) (core.Page[core.PullRequest], error)
 	SearchPullRequests(ctx context.Context, query, cursor string, first int) (core.Page[core.PullRequest], error)
-	GetPullRequest(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error)
+	GetPullRequest(ctx context.Context, repo core.RepoRef, number int, sizes github.DetailSizes) (core.PullRequestDetail, error)
 	ListIssueComments(ctx context.Context, repo core.RepoRef, number int, cursor string, perPage int, cond github.Conditional) (core.Page[core.Comment], github.Response, error)
 	ListPullRequestReviews(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.Page[core.Review], error)
 	ListPullRequestFiles(ctx context.Context, repo core.RepoRef, number int, cursor string, cond github.Conditional) (core.Page[core.CommitFile], github.Response, error)
@@ -82,6 +82,8 @@ type Service struct {
 	ttl time.Duration
 	// pageSize is the size of a page whose query sets none.
 	pageSize int
+	// detailSizes are the sizes of the lists a detail reads.
+	detailSizes github.DetailSizes
 	// etags holds the latest probe ETag of each polled repository.
 	etags probe.Tracker
 	// seen holds what the list pages last showed of each pull request, by
@@ -122,6 +124,11 @@ func New(api API, opts ...Option) *Service {
 		ttl:          ttl,
 		pageSize:     cmp.Or(o.pageSize, d.PageSize.Pulls),
 	}
+	s.detailSizes = github.DetailSizes{
+		Threads:   cmp.Or(o.detailSizes.Threads, d.PageSize.Threads),
+		Reviewers: cmp.Or(o.detailSizes.Reviewers, d.PageSize.Reviewers),
+		Rules:     cmp.Or(o.detailSizes.Rules, d.PageSize.Rules),
+	}
 	s.etags.Keep(o.store)
 	return s
 }
@@ -138,9 +145,10 @@ const (
 	// listSchema 4 keeps the head commit of each pull request, and 5
 	// whether its author is an app.
 	listSchema = 5
-	// detailSchema 4 keeps the head commit, and 5 whether the author is
-	// an app.
-	detailSchema = 5
+	// detailSchema 4 keeps the head commit, 5 whether the author is an
+	// app, and 6 the merge state, reviewers, review threads and failing
+	// checks.
+	detailSchema = 6
 	// commentsSchema 3 reads the pages with REST, whose cursors are URLs,
 	// and 4 keeps the avatar of each comment's author.
 	commentsSchema = 4
@@ -359,12 +367,28 @@ func (s *Service) Get(ctx context.Context, repo core.RepoRef, number int) (core.
 		return d, nil
 	}
 	d, err := fetch(ctx, s.details, s.keptDetails, key, fallback.None[core.PullRequestDetail], whole(tags(repo, number), func(ctx context.Context) (core.PullRequestDetail, error) {
-		return s.api.GetPullRequest(ctx, repo, number)
+		return s.api.GetPullRequest(ctx, repo, number, s.detailSizes)
 	}))
 	if err != nil {
 		return core.PullRequestDetail{}, fmt.Errorf("get pull %s#%d: %w", repo, number, err)
 	}
 	return d, nil
+}
+
+// Revalidate returns pull request number of repo read again, though its
+// detail is cached and fresh or current: its merge state, its place in a
+// merge queue and the resolution of its threads change without moving the
+// update time that vouches for it. What is cached is served by CachedGet
+// until the read replaces it. It costs one read; if GitHub can't be
+// reached, the cached detail is served as Get serves it.
+func (s *Service) Revalidate(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error) {
+	key := detailKey(repo, number)
+	// Put the kept detail in memory first, so that it is stale there and
+	// served meanwhile, and no longer vouched for.
+	s.keptDetails.Warm(s.details, key, true)
+	s.seen.Delete(key)
+	s.details.Invalidate(key)
+	return s.Get(ctx, repo, number)
 }
 
 // Invalidate marks everything cached of repo stale, for a refresh the user

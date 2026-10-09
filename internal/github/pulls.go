@@ -74,26 +74,6 @@ var listPullsQuery = `query ListPulls($owner: String!, $name: String!, $states: 
 }
 ` + pullFields
 
-// getPullQuery reads what the detail view shows on top of pullFields. The
-// checks of the head commit are only counted by outcome: the checks step
-// lists them with PullChecks.
-var getPullQuery = `query GetPull($owner: String!, $name: String!, $number: Int!) {
-  ` + rateLimitField + `
-  repository(owner: $owner, name: $name) {
-    pullRequest(number: $number) {
-      ...pullFields
-      body
-      headCommit: commits(last: 1) {
-        nodes { commit { statusCheckRollup { contexts {
-          checkRunCountsByState { state count }
-          statusContextCountsByState { state count }
-        } } } }
-      }
-    }
-  }
-}
-` + pullFields
-
 // pull is the JSON shape of pullFields.
 type pull struct {
 	ID         string    `json:"id"`
@@ -185,31 +165,6 @@ func checksState(s string) core.ChecksState {
 	}
 }
 
-// pullDetail is the JSON shape of the pull request in getPullQuery.
-type pullDetail struct {
-	pull
-	Body       string `json:"body"`
-	HeadCommit nodes[struct {
-		Commit struct {
-			StatusCheckRollup *struct {
-				Contexts pullCheckCounts `json:"contexts"`
-			} `json:"statusCheckRollup"`
-		} `json:"commit"`
-	}] `json:"headCommit"`
-}
-
-func (d pullDetail) core() core.PullRequestDetail {
-	pr := d.pull.core()
-	pr.Body = d.Body
-	out := core.PullRequestDetail{PullRequest: pr}
-	if len(d.HeadCommit.Nodes) > 0 {
-		if r := d.HeadCommit.Nodes[0].Commit.StatusCheckRollup; r != nil {
-			out.CheckCounts = r.Contexts.core()
-		}
-	}
-	return out
-}
-
 // pullCheckCounts is how many checks of a rollup are in each state: check
 // runs by CheckRunState, which folds their status and conclusion into one,
 // and commit statuses by StatusState.
@@ -260,7 +215,7 @@ func checkRunState(s string) core.ChecksState {
 
 type review struct {
 	ID          string    `json:"id"`
-	Author      *user     `json:"author"`
+	Author      *actor    `json:"author"`
 	State       string    `json:"state"`
 	Body        string    `json:"body"`
 	SubmittedAt time.Time `json:"submittedAt"`
@@ -390,27 +345,6 @@ func (c *Client) ProbePullRequests(ctx context.Context, repo core.RepoRef, cond 
 	return c.probeList(ctx, "repos/"+url.PathEscape(repo.Owner)+"/"+url.PathEscape(repo.Name)+"/pulls", cond)
 }
 
-// GetPullRequest returns pull request number of repo with its body and the
-// counts of the checks of its head commit. Its reviews are read a page at a
-// time with ListPullRequestReviews, and its comments, which are those of
-// its issue, with ListIssueComments.
-func (c *Client) GetPullRequest(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error) {
-	vars := map[string]any{"owner": repo.Owner, "name": repo.Name, "number": number}
-	var data struct {
-		Repository *struct {
-			PullRequest *pullDetail `json:"pullRequest"`
-		} `json:"repository"`
-	}
-	err := c.Query(ctx, getPullQuery, vars, &data)
-	if err == nil && (data.Repository == nil || data.Repository.PullRequest == nil) {
-		err = core.ErrNotFound
-	}
-	if err != nil {
-		return core.PullRequestDetail{}, fmt.Errorf("get pull request %s#%d: %w", repo, number, err)
-	}
-	return data.Repository.PullRequest.core(), nil
-}
-
 // pullPage is the query op, which selects a page of the connection field
 // of a pull request, such as its reviews, oldest first. The page is
 // aliased to page, so that one shape decodes them all.
@@ -428,7 +362,7 @@ func pullPage(op, field, nodeFields string) string {
 }`, op, rateLimitField, field, nodeFields)
 }
 
-var pullReviewsQuery = pullPage("PullReviews", "reviews", "id author { login ... on User { name } } state body submittedAt")
+var pullReviewsQuery = pullPage("PullReviews", "reviews", "id author { __typename login ... on User { name } } state body submittedAt")
 
 // listPullPage runs a pullPage query and converts its nodes with f. What
 // names the page in errors.

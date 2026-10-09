@@ -1,0 +1,130 @@
+{
+  "data": {
+    "rateLimit": {"cost": 2, "limit": 5000, "remaining": 4998, "used": 2, "resetAt": "2026-10-09T12:00:00Z"},
+    "repository": {
+      "mergeCommitAllowed": true,
+      "squashMergeAllowed": true,
+      "rebaseMergeAllowed": false,
+      "autoMergeAllowed": true,
+      "pullRequest": {
+        "id": "PR_kwDOLnBTf85xYz01",
+        "number": 42,
+        "title": "Add pull request list",
+        "state": "OPEN",
+        "isDraft": false,
+        "url": "https://github.com/eggzec/gh-tui/pull/42",
+        "createdAt": "2026-09-20T08:15:00Z",
+        "updatedAt": "2026-09-22T17:40:12Z",
+        "mergedAt": null,
+        "repository": {"name": "gh-tui", "owner": {"login": "eggzec"}},
+        "author": {"__typename": "User", "login": "octocat", "name": "The Octocat"},
+        "labels": {"nodes": []},
+        "assignees": {"nodes": []},
+        "comments": {"totalCount": 2},
+        "headRefName": "feat/pulls",
+        "headRefOid": "1111111111111111111111111111111111111111",
+        "baseRefName": "main",
+        "reviewDecision": "CHANGES_REQUESTED",
+        "additions": 512,
+        "deletions": 18,
+        "changedFiles": 7,
+        "commits": {"nodes": [{"commit": {"statusCheckRollup": {"state": "FAILURE"}}}]},
+        "body": "Lists pull requests with their checks.",
+        "baseRefOid": "2222222222222222222222222222222222222222",
+        "isCrossRepository": true,
+        "headRepository": {"nameWithOwner": "octocat/gh-tui"},
+        "milestone": {"title": "v0.4"},
+        "mergeable": "MERGEABLE",
+        "mergeStateStatus": "BLOCKED",
+        "isInMergeQueue": true,
+        "isMergeQueueEnabled": true,
+        "mergeQueueEntry": {"position": 2, "state": "AWAITING_CHECKS", "enqueuedAt": "2026-09-23T10:00:00Z"},
+        "autoMergeRequest": {"mergeMethod": "SQUASH", "enabledAt": "2026-09-23T09:00:00Z", "enabledBy": {"login": "monalisa"}},
+        "viewerCanEnableAutoMerge": false,
+        "viewerCanDisableAutoMerge": true,
+        "viewerCanMergeAsAdmin": true,
+        "baseRef": {
+          "refUpdateRule": {
+            "requiredApprovingReviewCount": 2,
+            "requiredStatusCheckContexts": ["test (ubuntu-latest)", "codecov/patch"],
+            "requiresCodeOwnerReviews": true,
+            "requiresConversationResolution": false,
+            "requiresLinearHistory": false,
+            "requiresSignatures": false
+          },
+          "rules": {
+            "nodes": [
+              {"type": "PULL_REQUEST", "parameters": {"requiredApprovingReviewCount": 1, "requireCodeOwnerReview": false, "requiredReviewThreadResolution": true}},
+              {"type": "REQUIRED_STATUS_CHECKS", "parameters": {"requiredStatusChecks": [{"context": "codecov/patch"}, {"context": "lint"}]}},
+              {"type": "REQUIRED_LINEAR_HISTORY", "parameters": null},
+              {"type": "COPILOT_CODE_REVIEW", "parameters": {}}
+            ]
+          }
+        },
+        "reviewRequests": {
+          "totalCount": 4,
+          "nodes": [
+            {"asCodeOwner": true, "requestedReviewer": {"__typename": "User", "login": "hubot", "name": "Hubot"}},
+            {"asCodeOwner": false, "requestedReviewer": {"__typename": "Team", "combinedSlug": "eggzec/core"}},
+            {"asCodeOwner": false, "requestedReviewer": null}
+          ]
+        },
+        "latestOpinionatedReviews": {
+          "totalCount": 3,
+          "nodes": [
+            {"author": {"__typename": "User", "login": "hubot", "name": "Hubot"}, "state": "CHANGES_REQUESTED", "submittedAt": "2026-09-22T12:00:00Z"},
+            {"author": {"__typename": "User", "login": "monalisa", "name": null}, "state": "APPROVED", "submittedAt": "2026-09-22T15:30:00Z"},
+            {"author": {"__typename": "Bot", "login": "copilot", "name": null}, "state": "DISMISSED", "submittedAt": "2026-09-22T16:00:00Z"}
+          ]
+        },
+        "viewerLatestReview": {"state": "PENDING"},
+        "reviewThreads": {
+          "totalCount": 5,
+          "pageInfo": {"hasNextPage": true, "endCursor": "Y3Vyc29yOjM="},
+          "nodes": [
+            {
+              "id": "PRRT_1", "isResolved": false, "isOutdated": false, "path": "internal/tui/tea_test.go", "line": 54, "originalLine": 54,
+              "comments": {"totalCount": 3, "nodes": [{"author": {"__typename": "User", "login": "hubot", "name": "Hubot"}, "createdAt": "2026-09-22T12:00:00Z", "bodyText": "want a frame,\n  got\tnothing  \u001b[31mred\u001b[0m"}]}
+            },
+            {
+              "id": "PRRT_2", "isResolved": true, "isOutdated": false, "path": "README.md", "line": 3, "originalLine": 3,
+              "comments": {"totalCount": 1, "nodes": [{"author": null, "createdAt": "2026-09-21T12:00:00Z", "bodyText": "typo"}]}
+            },
+            {
+              "id": "PRRT_3", "isResolved": false, "isOutdated": true, "path": "main.go", "line": null, "originalLine": 20,
+              "comments": {"totalCount": 2, "nodes": [{"author": {"__typename": "Bot", "login": "dependabot", "name": null}, "createdAt": "2026-09-21T13:00:00Z", "bodyText": "LONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONGLONG"}]}
+            }
+          ]
+        },
+        "headCommit": {
+          "nodes": [
+            {
+              "commit": {
+                "statusCheckRollup": {
+                  "contexts": {
+                    "totalCount": 150,
+                    "checkRunCountsByState": [
+                      {"state": "FAILURE", "count": 2},
+                      {"state": "IN_PROGRESS", "count": 1},
+                      {"state": "SUCCESS", "count": 146}
+                    ],
+                    "statusContextCountsByState": [
+                      {"state": "FAILURE", "count": 1}
+                    ],
+                    "nodes": [
+                      {"__typename": "CheckRun", "databaseId": 101, "name": "build", "status": "COMPLETED", "conclusion": "SUCCESS", "title": "", "isRequired": false},
+                      {"__typename": "CheckRun", "databaseId": 102, "name": "test (ubuntu-latest)", "status": "COMPLETED", "conclusion": "FAILURE", "title": "tea_test.go:54: want a frame, got nothing", "isRequired": true},
+                      {"__typename": "CheckRun", "databaseId": 103, "name": "lint", "status": "COMPLETED", "conclusion": "TIMED_OUT", "title": "Timed out\nafter 10m", "isRequired": false},
+                      {"__typename": "CheckRun", "databaseId": 104, "name": "e2e", "status": "IN_PROGRESS", "conclusion": null, "title": "", "isRequired": true},
+                      {"__typename": "StatusContext", "context": "codecov/patch", "state": "FAILURE", "description": "62.50% of diff hit (target 80%)", "isRequired": true}
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

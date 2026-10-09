@@ -243,16 +243,17 @@ func TestListPullRequestsUnknownState(t *testing.T) {
 func TestGetPullRequest(t *testing.T) {
 	c, reqs := pullServer(t, "pulls_detail.json")
 
-	got, err := c.GetPullRequest(t.Context(), pullsRepo, 42)
+	got, err := c.GetPullRequest(t.Context(), pullsRepo, 42, testSizes)
 	if err != nil {
 		t.Fatalf("GetPullRequest: %v", err)
 	}
 	checkPullQuery(t, reqs(), "pullRequest(number: $number)", map[string]any{
-		"owner": "eggzec", "name": "gh-tui", "number": float64(42),
+		"owner": "eggzec", "name": "gh-tui", "number": float64(42), "threads": float64(50), "reviewers": float64(10), "rules": float64(20),
 	})
 	// Reviews and comments are paged on their own; the detail counts the
-	// comments only.
-	for _, field := range []string{"reviews", "comments(", "recentComments"} {
+	// comments only. It reads the first comment of each review thread, and
+	// the latest review of each reviewer.
+	for _, field := range []string{"reviews(", "comments(first: $", "comments(last", "recentComments"} {
 		if strings.Contains(reqs()[0].Query, field) {
 			t.Errorf("detail query selects %q:\n%s", field, reqs()[0].Query)
 		}
@@ -265,9 +266,10 @@ func TestGetPullRequest(t *testing.T) {
 		t.Errorf("review %q, checks %q, comments %d; want review_required, pending, 2",
 			got.ReviewDecision, got.Checks, got.Comments)
 	}
-	// The checks are counted, not listed: the checks step lists them.
-	if q := reqs()[0].Query; strings.Contains(q, "contexts(first") || strings.Contains(q, "CheckRun {") {
-		t.Errorf("detail query lists the checks:\n%s", q)
+	// The checks are counted, and those that failed explained: the checks
+	// step lists them with their logs and the rest.
+	if q := reqs()[0].Query; strings.Contains(q, "checkSuite") || strings.Contains(q, "detailsUrl") {
+		t.Errorf("detail query lists the checks in full:\n%s", q)
 	}
 	// A cancelled run and a failed status fail, a neutral run passes, and
 	// the running run and the pending status are pending.
@@ -377,7 +379,7 @@ func TestPullReadErrors(t *testing.T) {
 			return err
 		},
 		"get": func(c *Client) error {
-			_, err := c.GetPullRequest(t.Context(), pullsRepo, 42)
+			_, err := c.GetPullRequest(t.Context(), pullsRepo, 42, testSizes)
 			return err
 		},
 		"reviews": func(c *Client) error {
@@ -417,7 +419,7 @@ func TestPullReadErrors(t *testing.T) {
 func TestPullReadsNullPull(t *testing.T) {
 	reads := map[string]func(*Client) error{
 		"get": func(c *Client) error {
-			_, err := c.GetPullRequest(t.Context(), pullsRepo, 999)
+			_, err := c.GetPullRequest(t.Context(), pullsRepo, 999, testSizes)
 			return err
 		},
 		"reviews": func(c *Client) error {
@@ -642,7 +644,7 @@ func TestPullMutationErrors(t *testing.T) {
 // pull request of a repository they can only read.
 func TestGetPullRequestCaps(t *testing.T) {
 	c, _ := pullServer(t, "pulls_detail_read.json")
-	got, err := c.GetPullRequest(t.Context(), core.RepoRef{Owner: "charmbracelet", Name: "bubbletea"}, 1816)
+	got, err := c.GetPullRequest(t.Context(), core.RepoRef{Owner: "charmbracelet", Name: "bubbletea"}, 1816, testSizes)
 	if err != nil {
 		t.Fatalf("GetPullRequest: %v", err)
 	}

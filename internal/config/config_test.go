@@ -188,7 +188,7 @@ func TestLoadMergesOverDefaults(t *testing.T) {
 				c.UI = UI{Icons: IconsUnicode, Toast: Toast{Info: 6 * time.Second}, DateFormat: "2006-01-02 15:04", Maximized: Default().UI.Maximized}
 				c.Auth = Auth{Check: false}
 				c.GitHub = GitHub{Timeout: time.Minute, Concurrency: 4}
-				c.PageSize = PageSize{Pulls: 50, Issues: 40, Notifications: 20, Repos: 60, Runs: 25, Commits: 100, Search: 10, WaitingOnYou: 15, People: 40, References: 50}
+				c.PageSize = PageSize{Pulls: 50, Threads: 70, Reviewers: 12, Rules: 30, Issues: 40, Notifications: 20, Repos: 60, Runs: 25, Commits: 100, Search: 10, WaitingOnYou: 15, People: 40, References: 50}
 				c.Commands = Commands{History: 500}
 				c.Log = Log{Level: LevelDebug, File: "/var/log/gh-tui.log", MaxSize: MiB, Keep: 5, Summary: time.Minute}
 				c.Editor = "code --wait"

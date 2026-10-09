@@ -179,14 +179,14 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 	if !m.loaded {
 		// The loads start once the modal is open, so that the app has it
 		// to pass their results to.
-		return tea.Sequence(ui.OpenModalOver(m, back), tea.Batch(m.thread.Init(), m.get(), step))
+		return tea.Sequence(ui.OpenModalOver(m, back), tea.Batch(m.thread.Init(), m.revalidate(), step))
 	}
 	// What is cached shows at once, and is read again behind it.
 	cp, primed := svc.CachedComments(q)
 	if primed {
 		m.thread.SetFirst(cp.Items, cp.Next)
 	}
-	loads := []tea.Cmd{m.show(), m.get(), step}
+	loads := []tea.Cmd{m.show(), m.revalidate(), step}
 	if primed {
 		loads = append(loads, m.thread.Reload())
 	}

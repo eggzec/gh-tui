@@ -44,6 +44,8 @@ type fakeAPI struct {
 	calls map[string]int
 	// heads are the heads that merges were pinned to, in order.
 	heads []string
+	// detailSizes are the list sizes that details asked for.
+	detailSizes []github.DetailSizes
 }
 
 func (f *fakeAPI) called(method string) {
@@ -77,8 +79,11 @@ func (f *fakeAPI) SearchPullRequests(ctx context.Context, query, cursor string, 
 	return f.search(ctx, query, cursor, first)
 }
 
-func (f *fakeAPI) GetPullRequest(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error) {
+func (f *fakeAPI) GetPullRequest(ctx context.Context, repo core.RepoRef, number int, sizes github.DetailSizes) (core.PullRequestDetail, error) {
 	f.called("get")
+	f.mu.Lock()
+	f.detailSizes = append(f.detailSizes, sizes)
+	f.mu.Unlock()
 	return f.get(ctx, repo, number)
 }
 

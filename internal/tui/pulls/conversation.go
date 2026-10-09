@@ -1,6 +1,7 @@
 package pulls
 
 import (
+	"context"
 	"strconv"
 	"strings"
 	"time"
@@ -73,11 +74,23 @@ func (m *detailModal) online() tea.Cmd {
 // forgotten, so that GitHub answering again doesn't read it once more
 // while this read is under way.
 func (m *detailModal) get() tea.Cmd {
+	return m.read(m.svc.Get)
+}
+
+// revalidate fetches the detail though a cached one is fresh: opening the
+// modal reads it again, since its merge state and threads change without
+// the pull request's update time moving. What is cached shows meanwhile.
+func (m *detailModal) revalidate() tea.Cmd {
+	return m.read(m.svc.Revalidate)
+}
+
+// read fetches the detail with get.
+func (m *detailModal) read(get func(context.Context, core.RepoRef, int) (core.PullRequestDetail, error)) tea.Cmd {
 	m.failed = nil
-	svc, ctx, repo, number, id, resume := m.svc, m.ctx, m.repo, m.number, m.thread.ID(), m.resume
+	ctx, repo, number, id, resume := m.ctx, m.repo, m.number, m.thread.ID(), m.resume
 	return func() tea.Msg {
 		start := time.Now()
-		d, err := svc.Get(ctx, repo, number)
+		d, err := get(ctx, repo, number)
 		resume()
 		obs.End(ctx, start, err, "span", "tui", "repo", repo.String(), "number", number)
 		return detailMsg{thread: id, detail: d, err: err}

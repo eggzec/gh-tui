@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/cache"
+	"github.com/eggzec/gh-tui/internal/github"
 )
 
 // Option configures a Service.
@@ -15,6 +16,8 @@ type options struct {
 	capacity int
 	// pageSize is that of a page whose query sets none.
 	pageSize int
+	// detailSizes are the sizes of the lists a detail reads.
+	detailSizes github.DetailSizes
 	// diffMemory bounds the memory of the cached pages of changed files.
 	diffMemory int64
 	access     Access
@@ -39,6 +42,16 @@ func WithPageSize(n int) Option {
 		if n > 0 {
 			o.pageSize = n
 		}
+	}
+}
+
+// WithDetailSizes sets how many review threads, review requests and latest
+// reviews, and rules of rulesets the detail of a pull request reads, each
+// at most 100. Each size that is below one is the default of the config
+// (config.Default).
+func WithDetailSizes(z github.DetailSizes) Option {
+	return func(o *options) {
+		o.detailSizes = github.DetailSizes{Threads: min(max(z.Threads, 0), maxPageSize), Reviewers: min(max(z.Reviewers, 0), maxPageSize), Rules: min(max(z.Rules, 0), maxPageSize)}
 	}
 }
 

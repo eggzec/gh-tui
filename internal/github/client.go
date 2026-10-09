@@ -49,6 +49,8 @@ type Client struct {
 	// unsupported keeps the queries it lacks fields of.
 	enterprise  atomic.Bool
 	unsupported unsupported
+	// refusals holds the kinds of partial refusals logged so far.
+	refusals sync.Map
 	// onOld is told once of an Enterprise Server older than supported,
 	// and toldOld is set once it was.
 	onOld   func(version string)

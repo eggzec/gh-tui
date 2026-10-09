@@ -405,6 +405,16 @@ github:
 page_size:
   # Pull requests, and their comments and reviews.
   pulls: 30
+  # The review threads that the detail of a pull request lists. Its counts
+  # of resolved, unresolved and outdated threads cover these, so a pull
+  # request with more threads says so.
+  threads: 50
+  # The review requests, and the latest reviews, that the detail of a pull
+  # request lists. Its totals say when there are more.
+  reviewers: 10
+  # The rules of rulesets that the detail of a pull request reads of its
+  # base branch, for what stands in the way of merging it.
+  rules: 20
   # Issues, and their comments.
   issues: 30
   notifications: 30

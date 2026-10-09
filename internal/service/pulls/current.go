@@ -51,7 +51,11 @@ func (s *Service) currentDetail(key string) (core.PullRequestDetail, bool) {
 	}
 	e, st := s.details.Get(key)
 	d := e.Value
-	return d, st != cache.Miss && seen.Current(d.UpdatedAt, m.updated) && d.Checks == m.checks
+	// GitHub works out whether an open pull request merges after a push,
+	// and says "unknown" until it has: that is no update of the pull
+	// request, so such a detail is only as good as its TTL.
+	working := d.State == core.StateOpen && d.Merge.Mergeable == core.MergeableUnknown
+	return d, st != cache.Miss && !working && seen.Current(d.UpdatedAt, m.updated) && d.Checks == m.checks
 }
 
 // currentComments returns the cached page for q if it is current.

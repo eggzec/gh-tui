@@ -30,6 +30,9 @@ type Service interface {
 	FreshList(q pulls.ListQuery) bool
 	CachedGet(repo core.RepoRef, number int) (core.PullRequestDetail, bool)
 	Get(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error)
+	// Revalidate reads the detail again though it is cached and fresh,
+	// which the modal does when it opens.
+	Revalidate(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error)
 	CachedComments(q pulls.CommentsQuery) (core.Page[core.Comment], bool)
 	Comments(ctx context.Context, q pulls.CommentsQuery) (core.Page[core.Comment], error)
 	// CurrentGet and CurrentComments report whether Get and Comments

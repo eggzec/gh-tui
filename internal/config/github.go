@@ -43,6 +43,14 @@ type PageSize struct {
 	// Pulls sizes the pages of pull requests, and of their comments and
 	// reviews.
 	Pulls int `yaml:"pulls"`
+	// Threads is how many review threads the detail of a pull request
+	// lists.
+	Threads int `yaml:"threads"`
+	// Reviewers is how many review requests, and how many latest
+	// reviews, the detail of a pull request lists, and Rules how many
+	// rules of rulesets it reads of the base branch.
+	Reviewers int `yaml:"reviewers"`
+	Rules     int `yaml:"rules"`
 	// Issues sizes the pages of issues, and of their comments.
 	Issues        int `yaml:"issues"`
 	Notifications int `yaml:"notifications"`
@@ -76,7 +84,7 @@ func (p PageSize) validate() error {
 		key  string
 		size int
 	}{
-		{"pulls", p.Pulls}, {"issues", p.Issues}, {"notifications", p.Notifications}, {"repos", p.Repos},
+		{"pulls", p.Pulls}, {"threads", p.Threads}, {"reviewers", p.Reviewers}, {"rules", p.Rules}, {"issues", p.Issues}, {"notifications", p.Notifications}, {"repos", p.Repos},
 		{"runs", p.Runs}, {"commits", p.Commits}, {"search", p.Search}, {"waiting_on_you", p.WaitingOnYou},
 		{"people", p.People}, {"references", p.References},
 	} {
