@@ -24,7 +24,7 @@ func TestViewCleansHostileHistory(t *testing.T) {
 		return f
 	}
 	for _, size := range [][2]int{{wideW, wideH}, {narrowW, narrowH}} {
-		for _, keys := range [][]string{nil, {"esc", "j"}, {"enter"}, {"enter", "enter"}, {"enter", "enter", "j"}} {
+		for _, keys := range [][]string{nil, {"backspace", "j"}, {"enter"}, {"enter", "enter"}, {"enter", "enter", "j"}} {
 			m, host := newModal(t, hostile(), size[0], size[1])
 			host.keys(keys...)
 			termtexttest.AssertClean(t, m.View(), size[0])

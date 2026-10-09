@@ -17,7 +17,8 @@ History
   browser | o | o | on
   back to head | H | H | off
   zoom | z | z | on
-  back | esc | esc | off
+  close | esc | esc | on
+  files | backspace | backspace | on
   retry | r | r | off
 
 Patch
@@ -46,4 +47,4 @@ Patch
   next match | n | n | off
   prev match | N | N | off
   edit | v | v | on
-  close | q esc | q/esc | on
+  close | q esc | q/esc | off

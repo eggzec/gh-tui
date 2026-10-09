@@ -27,12 +27,12 @@ func TestView(t *testing.T) {
 		keys          []string
 	}{
 		{"140 columns", wideW, wideH, nil},
-		{"140 columns branches", wideW, wideH, []string{"esc", "j"}},
-		{"140 columns filter", wideW, wideH, []string{"esc", "f", "v"}},
+		{"140 columns branches", wideW, wideH, []string{"backspace", "j"}},
+		{"140 columns filter", wideW, wideH, []string{"backspace", "f", "v"}},
 		{"140 columns patch", wideW, wideH, []string{"enter", "enter"}},
 		{"92 columns zoomed patch", 92, 28, []string{"z", "enter", "enter"}},
 		{"80 columns graph", narrowW, narrowH, nil},
-		{"80 columns branches", narrowW, narrowH, []string{"esc", "j"}},
+		{"80 columns branches", narrowW, narrowH, []string{"backspace", "j"}},
 		{"80 columns commit", narrowW, narrowH, []string{"enter"}},
 		{"80 columns patch", narrowW, narrowH, []string{"enter", "enter"}},
 	}
@@ -55,9 +55,9 @@ func TestViewASCII(t *testing.T) {
 		keys          []string
 	}{
 		{wideW, wideH, nil},
-		{wideW, wideH, []string{"esc", "j"}},
+		{wideW, wideH, []string{"backspace", "j"}},
 		{wideW, wideH, []string{"enter", "enter"}},
-		{narrowW, narrowH, []string{"esc", "j"}},
+		{narrowW, narrowH, []string{"backspace", "j"}},
 		{narrowW, narrowH, []string{"enter"}},
 		{narrowW, narrowH, []string{"enter", "enter"}},
 	} {
@@ -78,8 +78,8 @@ func TestViewFailed(t *testing.T) {
 	}{
 		{"commit light", []string{"enter"}, false},
 		{"commit dark", []string{"enter"}, true},
-		{"branches light", []string{"esc"}, false},
-		{"branches dark", []string{"esc"}, true},
+		{"branches light", []string{"backspace"}, false},
+		{"branches dark", []string{"backspace"}, true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			f := newFake()
@@ -101,7 +101,7 @@ func TestViewFailed(t *testing.T) {
 
 func TestViewFitsAnySize(t *testing.T) {
 	for _, size := range [][2]int{{1, 1}, {10, 3}, {30, 5}, {89, 12}, {90, 12}, {200, 50}} {
-		for _, keys := range [][]string{nil, {"esc"}, {"enter"}, {"enter", "enter"}} {
+		for _, keys := range [][]string{nil, {"backspace"}, {"enter"}, {"enter", "enter"}} {
 			m, h := newModal(t, newFake(), wideW, wideH)
 			h.keys(keys...)
 			m.SetSize(size[0], size[1])
@@ -121,8 +121,8 @@ func TestNarrowBreadcrumb(t *testing.T) {
 		{nil, "Branches › main"},
 		{[]string{"enter"}, "Branches › main › " + s0},
 		{[]string{"enter"}, "Branches › main › " + s0 + " › commands.go"},
-		{[]string{"esc"}, "Branches › main › " + s0},
-		{[]string{"esc", "esc"}, "Branches"},
+		{[]string{"backspace"}, "Branches › main › " + s0},
+		{[]string{"backspace", "backspace"}, "Branches"},
 	}
 	for _, s := range steps {
 		h.keys(s.keys...)

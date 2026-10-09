@@ -135,7 +135,7 @@ func TestReadsAroundAreBoundedAndCancelled(t *testing.T) {
 			t.Fatalf("calls = %q, want the commit and three read ahead", got)
 		}
 		// Another branch cancels the reads ahead of the last.
-		c.press("esc")
+		c.press("backspace")
 		c.press("j")
 		c.press("enter")
 		f.mu.Lock()

@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"strings"
 
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
@@ -102,7 +103,9 @@ func completeConfig(_ *Model, arg string, cursor, end int, _ bool) []cmdline.Can
 // editor too. wrap soft-wraps long lines, as prose wants, where a file
 // whose lines line up scrolls sideways.
 func (m *Model) openText(title, name, text string, wrap bool) tea.Cmd {
-	t := &textModal{title: title, pager: pager.New(pager.WithKeyMap(pager.NewKeyMap(ui.In(m.cfg.Keys, "text"))), pager.WithEditor(m.cfg.Editor)), icons: ui.NewIcons(m.cfg.UI.Icons)}
+	back := ui.In(m.cfg.Keys, "text").Binding("global.back", "back")
+	back.SetEnabled(false)
+	t := &textModal{title: title, back: back, pager: pager.New(pager.WithKeyMap(pager.NewKeyMap(ui.In(m.cfg.Keys, "text"))), pager.WithEditor(m.cfg.Editor)), icons: ui.NewIcons(m.cfg.UI.Icons)}
 	t.pager.Focus()
 	t.pager.SetWrap(wrap)
 	m.openModal(t)
@@ -113,6 +116,9 @@ func (m *Model) openText(title, name, text string, wrap bool) tea.Cmd {
 // pager asks to close.
 type textModal struct {
 	title string
+	// back is off: the modal has no step before it, and takes the key so
+	// that it does nothing.
+	back  key.Binding
 	pager pager.Model
 	// icons mark what the pager says went wrong.
 	icons ui.Icons
@@ -146,16 +152,25 @@ func (t *textModal) SetTheme(th ui.Theme) { t.pager.SetStyles(th.Pager(t.icons))
 
 // KeyLayers implements ui.Keyed: the pager's keys.
 func (t *textModal) KeyLayers() []keyhelp.Layer {
-	return []keyhelp.Layer{ui.PagerLayer("text", &t.pager)}
+	return []keyhelp.Layer{ui.PagerLayer("text", &t.pager, t.back)}
 }
 
 var _ ui.Actor = (*textModal)(nil)
 
-// Act implements ui.Actor. The quit key closes the modal; every other
-// intent is the app's to refuse while it is open.
+// Act implements ui.Actor. The quit key closes the modal, and the dismiss
+// key clears the search or the filter first. The back key does nothing.
+// Every other intent is the app's to refuse while it is open.
 func (t *textModal) Act(action string) (tea.Cmd, bool) {
-	if action == ui.ActQuit {
+	switch action {
+	case ui.ActQuit:
 		return ui.CloseModal(t), true
+	case ui.ActDismiss:
+		if cmd, ok := t.pager.ClearTransient(); ok {
+			return cmd, true
+		}
+		return ui.CloseModal(t), true
+	case ui.ActBack:
+		return nil, true
 	}
 	return nil, false
 }

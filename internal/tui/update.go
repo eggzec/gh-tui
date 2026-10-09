@@ -387,7 +387,7 @@ func (m *Model) openFilter(s ui.Section, tab filterform.Tab) bool {
 	if !ok {
 		return false
 	}
-	m.openModal(ui.NewFilterModal(m.ctx, s.Title(), fl, f, ui.OnTab(tab), ui.WithFormKeys(m.keys.form), ui.WithFormVoice(m.voice),
+	m.openModal(ui.NewFilterModal(m.ctx, s.Title(), fl, f, ui.OnTab(tab), ui.WithFormKeys(m.keys.form), ui.WithFormBack(m.keys.Back), ui.WithFormVoice(m.voice),
 		ui.WithFormIcons(ui.NewIcons(m.cfg.UI.Icons))))
 	return true
 }

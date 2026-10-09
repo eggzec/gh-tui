@@ -147,8 +147,8 @@ func TestNarrowBreadcrumb(t *testing.T) {
 		{nil, "Runs"},
 		{[]string{"enter"}, "Runs › CI #4812"},
 		{[]string{"enter"}, "Runs › CI #4812 › test (ubuntu-latest, 1.26)"},
-		{[]string{"esc"}, "Runs › CI #4812"},
-		{[]string{"esc"}, "Runs"},
+		{[]string{"backspace"}, "Runs › CI #4812"},
+		{[]string{"backspace"}, "Runs"},
 	}
 	for _, s := range steps {
 		h.keys(s.keys...)

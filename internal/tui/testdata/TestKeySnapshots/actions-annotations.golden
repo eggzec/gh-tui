@@ -22,7 +22,8 @@ Actions
   rerun all |  |  | off
   cancel run | X | X | off
   refresh | r | r | on
-  back | esc | esc | on
+  close | esc | esc | on
+  jobs | backspace | backspace | on
 
 Annotations
   rerun job | J | J | on
@@ -59,4 +60,4 @@ Annotations
   left | left h | ←/h | off
   right | right l | →/l | off
   follow | F | F | on
-  back | esc | esc | off
+  close | q esc | q/esc | off

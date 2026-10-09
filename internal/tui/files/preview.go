@@ -38,6 +38,9 @@ type preview struct {
 	ref   string
 	entry core.TreeEntry
 	open  key.Binding
+	// back is off: the preview has no step before it, and takes the key so
+	// that it does nothing.
+	back  key.Binding
 	pager pager.Model
 	// icons mark a failed load.
 	icons ui.Icons
@@ -90,7 +93,9 @@ func newPreview(ctx context.Context, svc Service, host string, repo core.RepoRef
 	pg := pager.New(pager.WithKeyMap(pager.NewKeyMap(ui.In(keys, "preview"))),
 		pager.WithErrorText(fileErrorText(repo, v)), pager.WithEditor(editor), pager.WithResizeRest(resizeRest),
 		pager.WithRenderedNotes(renderedNumbersNote, renderedChopNote))
-	p := &preview{ctx: ctx, cancel: cancel, svc: svc, host: host, repo: repo, ref: ref, entry: e, open: open, pager: pg, icons: ic, raw: raw}
+	back := ui.In(keys, "preview").Binding("global.back", "back")
+	back.SetEnabled(false)
+	p := &preview{ctx: ctx, cancel: cancel, svc: svc, host: host, repo: repo, ref: ref, entry: e, open: open, back: back, pager: pg, icons: ic, raw: raw}
 	p.md.icons = ic
 	p.pager.SetReserve(p.md.extra)
 	p.md.setFiles(ctx, svc, repo, ref, images)
@@ -421,17 +426,29 @@ func (p *preview) SetTheme(t ui.Theme) {
 // KeyLayers implements ui.Keyed: the open key, with the pager's keys, or
 // while the pager takes every key, those of its search or option.
 func (p *preview) KeyLayers() []keyhelp.Layer {
-	return []keyhelp.Layer{ui.PagerLayer("preview", &p.pager, p.open)}
+	return []keyhelp.Layer{ui.PagerLayer("preview", &p.pager, p.open, p.back)}
 }
 
 var _ ui.Actor = (*preview)(nil)
 
 // Act implements ui.Actor. The quit key closes the preview, or goes back
-// to the modal it was opened from; every other intent is the app's to
-// refuse while it is open.
+// to the modal it was opened from. The dismiss key clears the search or
+// the filter first, unless the search is the one the preview opened with,
+// and then does the same. The back key does nothing. Every other intent is
+// the app's to refuse while it is open.
 func (p *preview) Act(action string) (tea.Cmd, bool) {
-	if action == ui.ActQuit {
+	switch action {
+	case ui.ActQuit:
 		return p.close(), true
+	case ui.ActDismiss:
+		if !p.preset {
+			if cmd, ok := p.pager.ClearTransient(); ok {
+				return cmd, true
+			}
+		}
+		return p.close(), true
+	case ui.ActBack:
+		return nil, true
 	}
 	return nil, false
 }

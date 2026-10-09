@@ -11,7 +11,8 @@ global
   help | ? | ? | on
 
 Release
-  back | esc | esc | on
+  close | esc | esc | on
+  back | backspace | backspace | off
   open in browser | o | o | on
   retry | r | r | off
   up | up k | ↑/k | on

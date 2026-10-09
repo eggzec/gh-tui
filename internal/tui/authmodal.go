@@ -42,6 +42,7 @@ type authModal struct {
 	checksOff bool
 
 	close   key.Binding
+	back    key.Binding
 	confirm ui.ConfirmKeys
 	voice   ui.Voice
 	// icons mark what the token may do, and why it couldn't be read, in
@@ -75,11 +76,15 @@ func newAuthModal(keys config.Keymap, account string, a core.Access, p access.Pl
 		run:      run,
 		gh:       lookGH(),
 		close:    ui.Binding(keys, config.ActionDismiss, "close"),
+		back:     ui.Binding(keys, config.ActionBack, "back"),
 		confirm:  ui.NewConfirmKeys(keys),
 		voice:    v,
 		icons:    ui.NewIcons(config.Default().UI.Icons),
 	}
 	m.voice.Icons = &m.icons
+	// The modal has no step before it, and takes the back key so that it
+	// does nothing.
+	m.back.SetEnabled(false)
 	return m
 }
 
@@ -153,7 +158,7 @@ func (m *authModal) KeyLayers() []keyhelp.Layer {
 	if m.asks() {
 		return []keyhelp.Layer{m.confirm.Layer()}
 	}
-	return []keyhelp.Layer{{Source: "token", Context: "text", Bindings: []key.Binding{m.close}, Short: []key.Binding{m.close}}}
+	return []keyhelp.Layer{{Source: "token", Context: "text", Bindings: []key.Binding{m.close, m.back}, Short: []key.Binding{m.close}}}
 }
 
 func (m *authModal) render() {
@@ -300,12 +305,19 @@ func wrapPlain(s string, w int) []string {
 
 var _ ui.Actor = (*authModal)(nil)
 
-// Act implements ui.Actor. The quit key closes the modal unless it asks
-// whether to run the command; every other intent is the app's to refuse
-// while it is open.
+// Act implements ui.Actor. The quit and dismiss keys close the modal
+// unless it asks whether to run the command, and the back key does
+// nothing, as the modal has no step before it. Every other intent is the
+// app's to refuse while it is open.
 func (m *authModal) Act(action string) (tea.Cmd, bool) {
-	if action != ui.ActQuit || m.asks() {
+	if m.asks() {
 		return nil, false
 	}
-	return ui.CloseModal(m), true
+	switch action {
+	case ui.ActQuit, ui.ActDismiss:
+		return ui.CloseModal(m), true
+	case ui.ActBack:
+		return nil, true
+	}
+	return nil, false
 }

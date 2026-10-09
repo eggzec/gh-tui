@@ -16,3 +16,13 @@ type Actor interface {
 // ActQuit is the intent of the quit key: what a modal does with it is to
 // close.
 const ActQuit = "quit"
+
+// ActBack is the intent of the back key: what a modal does with it is to
+// step back inside itself. A modal that has no step back takes it and does
+// nothing, so that the key doesn't reach what is inside.
+const ActBack = "back"
+
+// ActDismiss is the intent of the dismiss key: what a modal does with it is
+// to clear what is transient, such as a search, and when nothing is, to
+// close.
+const ActDismiss = "dismiss"

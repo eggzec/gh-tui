@@ -80,6 +80,8 @@ type FilterModal struct {
 	form   filterform.Model
 	rows   int
 	icons  Icons
+	// back is off: the modal has no step before it.
+	back key.Binding
 }
 
 // Size of the filter modal: wide enough for a row of values, and as tall as
@@ -114,6 +116,7 @@ type filterOptions struct {
 	keys  filterform.KeyMap
 	voice *Voice
 	icons Icons
+	back  key.Binding
 }
 
 // OnTab opens the modal on tab t. A list without a sort has only the
@@ -138,6 +141,13 @@ func WithFormVoice(v Voice) FilterOption {
 // Without it, the icons are the config's default.
 func WithFormIcons(ic Icons) FilterOption {
 	return func(o *filterOptions) { o.icons = ic }
+}
+
+// WithFormBack gives the modal the back key, which it takes in the rows so
+// that it does nothing, and shows in the help as off, as the modals that
+// have no step before them do.
+func WithFormBack(b key.Binding) FilterOption {
+	return func(o *filterOptions) { o.back = b }
 }
 
 // FilterFormKeys returns the keys of a filter form in the modal of context
@@ -184,7 +194,8 @@ func NewFilterModal(ctx context.Context, section string, target Filterable, f Fi
 	if f.Spec.Sort != nil {
 		rows = max(rows, sortRows)
 	}
-	return &FilterModal{title: title, target: target, form: form, rows: rows, icons: o.icons}
+	o.back.SetEnabled(false)
+	return &FilterModal{title: title, target: target, form: form, rows: rows, icons: o.icons, back: o.back}
 }
 
 // Title implements Modal.
@@ -238,6 +249,10 @@ func (m *FilterModal) KeyLayers() []keyhelp.Layer {
 	}[m.form.CapturedBy()]
 	l := ContextHelp(ctx, m.form, m.form.Capturing())
 	l.Short = nil
+	if ctx == "filter" && m.back.Help().Key != "" {
+		// Where the form types, backspace deletes.
+		l.Bindings = append(l.Bindings, m.back)
+	}
 	return []keyhelp.Layer{l}
 }
 

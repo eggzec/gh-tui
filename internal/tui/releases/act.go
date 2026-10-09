@@ -9,10 +9,15 @@ import (
 var _ ui.Actor = (*Modal)(nil)
 
 // Act implements ui.Actor. The quit key closes the modal from any of its
-// views; every other intent is the app's to refuse while it is open.
+// views, and so does the dismiss key, as nothing in it is transient. The
+// back key does nothing, as the modal has no step before it. Every other
+// intent is the app's to refuse while it is open.
 func (m *Modal) Act(action string) (tea.Cmd, bool) {
-	if action == ui.ActQuit {
+	switch action {
+	case ui.ActQuit, ui.ActDismiss:
 		return m.close(), true
+	case ui.ActBack:
+		return nil, true
 	}
 	return nil, false
 }

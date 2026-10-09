@@ -51,3 +51,4 @@ Filter
   bottom | G end | G/end | on
   filter | i | i | on
   filter at end | a | a | on
+  back | backspace | backspace | off

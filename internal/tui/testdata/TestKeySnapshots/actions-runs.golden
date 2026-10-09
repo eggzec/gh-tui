@@ -23,6 +23,7 @@ Actions
   cancel run | X | X | off
   refresh | r | r | on
   close | esc | esc | on
+  back | backspace | backspace | off
 
 Runs
   jobs | enter | ↵ | on
