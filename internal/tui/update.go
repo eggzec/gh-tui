@@ -247,6 +247,21 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
+	// The dismiss key goes one step at a time, before anything else takes
+	// it, even the command line and the help, and a modal: an error toast
+	// first, and then a goto that waits for GitHub. What is left is the
+	// line's, the help's, the modal's or the section's to clear and then
+	// close.
+	if key.Matches(msg, m.keys.Dismiss) {
+		switch {
+		case m.toast.Has(toast.Error):
+			m.toast.DismissLevel(toast.Error)
+			return nil
+		case m.going != nil:
+			m.cancelGoto()
+			return nil
+		}
+	}
 	// The open command line takes every key but ctrl+c, which quits from
 	// everywhere; esc cancels the line.
 	if m.line.Focused() {
@@ -267,19 +282,6 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 	// section, unless it types into an input there.
 	if m.opensHelp(msg) {
 		return m.openHelp()
-	}
-	// The dismiss key goes one step at a time: an error toast first, even
-	// over a modal, and then a goto that waits for GitHub. What is left is
-	// the modal's or the section's to clear and then close.
-	if key.Matches(msg, m.keys.Dismiss) {
-		switch {
-		case m.toast.Has(toast.Error):
-			m.toast.DismissLevel(toast.Error)
-			return nil
-		case m.going != nil:
-			m.cancelGoto()
-			return nil
-		}
 	}
 	if mod := m.topModal(); mod != nil {
 		if key.Matches(msg, forceQuit) {

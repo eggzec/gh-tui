@@ -787,16 +787,19 @@ func newKeysAppWith(t *testing.T, repo bool, edit func(*config.Config)) *Model {
 	acc := newFakeAccess(uitest.Classic("repo", "workflow", "notifications", "read:org", "gist"))
 	v := ui.NewVoice(cfg.Keys, "")
 	v.Token = ui.NewToken(acc, cfg.Keys)
+	// The sections draw with the icons of the config, as the program
+	// gives them.
+	ic := ui.NewIcons(cfg.UI.Icons)
 	layout := Layout{
-		Files: files.New(ctx, keyFiles{}, cfg.Keys, files.WithVoice(v)),
-		Pulls: pulls.New(ctx, keyPulls{}, cfg.Keys, pulls.WithVoice(v), pulls.WithIcons(ui.NewIcons(cfg.UI.Icons)),
+		Files: files.New(ctx, keyFiles{}, cfg.Keys, files.WithVoice(v), files.WithIcons(ic)),
+		Pulls: pulls.New(ctx, keyPulls{}, cfg.Keys, pulls.WithVoice(v), pulls.WithIcons(ic),
 			pulls.WithChecks(keyActions{}, checks.WithVoice(v))),
-		Issues:        issues.New(ctx, keyIssues{}, cfg.Keys, issues.WithVoice(v)),
-		Notifications: notifications.New(ctx, keyInbox{}, cfg.Keys, notifications.WithVoice(v)),
-		Search:        searchpage.New(ctx, keySearch{}, cfg.Keys, searchpage.WithVoice(v)),
-		Dashboard: dashboard.New(ctx, keyDash{}, cfg.Keys, dashboard.WithVoice(v),
+		Issues:        issues.New(ctx, keyIssues{}, cfg.Keys, issues.WithVoice(v), issues.WithIcons(ic)),
+		Notifications: notifications.New(ctx, keyInbox{}, cfg.Keys, notifications.WithVoice(v), notifications.WithIcons(ic)),
+		Search:        searchpage.New(ctx, keySearch{}, cfg.Keys, searchpage.WithVoice(v), searchpage.WithIcons(ic)),
+		Dashboard: dashboard.New(ctx, keyDash{}, cfg.Keys, dashboard.WithVoice(v), dashboard.WithIcons(ic),
 			dashboard.WithInbox(keyInbox{}), dashboard.WithHere(testRepo, nil)),
-		Owner: owner.New(ctx, keyOwners{}, cfg.Keys, owner.WithVoice(v)),
+		Owner: owner.New(ctx, keyOwners{}, cfg.Keys, owner.WithVoice(v), owner.WithIcons(ic)),
 	}
 	opts := []Option{
 		WithVoice(v), WithAccess(acc),
