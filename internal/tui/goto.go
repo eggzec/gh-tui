@@ -406,24 +406,30 @@ func canonical(r core.Repo, ref core.RepoRef) core.RepoRef {
 	return r.Ref
 }
 
-// gotoFailed tells why goto couldn't open t.
+// gotoFailed tells why goto couldn't open t. A target that isn't there is
+// usually a typo, so it is a warning that expires; a failure to ask
+// GitHub stays as an error until dismissed.
 func (m *Model) gotoFailed(t core.Target, err error) tea.Cmd {
 	// A copy, since Explain may return a problem that err carries.
 	p := *core.Explain("open "+t.String(), err)
 	p.Subject = cmp.Or(p.Subject, t.String())
-	text := ui.SayToast(&p, m.voice, m.fitsToast)
+	level, fits := toast.Error, m.fitsToast
+	if p.Kind == core.NotFound {
+		level, fits = toast.Warning, m.fitsWarning
+	}
+	text := ui.SayToast(&p, m.voice, fits)
 	if p.Kind == core.NotFound || p.Kind == core.Forbidden {
 		// These name what goto was asked to open, which says all the
 		// action would, if the toast shows them whole.
 		said, _ := ui.Say(&p, m.voice)
-		if said = strings.TrimSuffix(said, ".") + "."; m.fitsToast(said) {
+		if said = strings.TrimSuffix(said, ".") + "."; fits(said) {
 			text = said
 		}
 	}
 	if text == "" {
 		return nil
 	}
-	return m.toast.Push(toast.Error, text)
+	return m.toast.Push(level, text)
 }
 
 // badTarget tells why goto or open can't read what the user typed, which

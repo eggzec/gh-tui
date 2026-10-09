@@ -1,7 +1,7 @@
 ─ eggzec/gh-tui ───────────────────────────────────────────────────────────────────────────────────── ● 1 notification ─
 ╭─[1] Files ───────────────────────────────────╮╭─[2] Pull requests ───────────────────────────────────────────────────╮
-│▌   cmd                                     ││  eggzec/gh-tui                           Open · Closed · Merged · All│
-│     READM╭─ #2 ────────────────────────────────────────────────────────────── Conversation · Checks ✗2 ─╮at      now│
+│▌ ▸ cmd                                       ││  eggzec/gh-tui                           Open · Closed · Merged · All│
+│    README.╭─ #2 ────────────────────────────────────────────────────────────── Conversation · Checks ✗2 ─╮at      now│
 │           │   Match keys by order                                                                        │           │
 │           │                                                                                              │           │
 │           │    ↣ Open   #2 · octocat opened just now · updated just now                                  │           │

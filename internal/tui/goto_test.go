@@ -259,16 +259,33 @@ func TestGotoWaitsWhileTheLineIsOpen(t *testing.T) {
 	m, _ := newGotoApp(t, newGotoRepos())
 	cmd := submitLine(t, m, "goto charmbracelet/bubbletea")
 	drive(m, m.key(press(":")))
+	typeKeys(m, "go")
 	if s := onScreen(m); m.going == nil || strings.Contains(s, "Opening") {
-		t.Fatalf("opening the line should keep the goto, and show the line:\n%s", s)
-	}
-	drive(m, m.key(press("esc")))
-	if s := onScreen(m); !strings.Contains(s, "Opening charmbracelet/bubbletea…") {
-		t.Errorf("the footer should show the goto again:\n%s", s)
+		t.Fatalf("typing in the line should keep the goto, and show the line:\n%s", s)
 	}
 	drive(m, cmd)
 	if m.repo != bubbletea {
 		t.Errorf("repo = %v, want the goto to end on %v", m.repo, bubbletea)
+	}
+}
+
+// esc cancels a goto that waits even while the line is open, and leaves
+// the line to the next esc.
+func TestEscCancelsTheGotoBeforeTheLine(t *testing.T) {
+	m, _ := newGotoApp(t, newGotoRepos())
+	cmd := submitLine(t, m, "goto charmbracelet/bubbletea")
+	drive(m, m.key(press(":")))
+	drive(m, m.key(press("esc")))
+	if m.going != nil || !m.line.Focused() {
+		t.Fatalf("esc: goto waits %v, line open %v, want the goto canceled and the line open", m.going != nil, m.line.Focused())
+	}
+	drive(m, cmd)
+	if m.repo == bubbletea {
+		t.Error("the canceled goto opened its repository")
+	}
+	drive(m, m.key(press("esc")))
+	if m.line.Focused() {
+		t.Error("the second esc left the line open")
 	}
 }
 
