@@ -106,8 +106,8 @@ func (c RepoCaps) MergeMethods() []MergeMethod {
 
 // MergeMethod returns the method to merge with when the user prefers
 // preferred: that one if the repository allows it, or else the viewer's
-// default, or else the first allowed. It reports false when the
-// repository allows none.
+// default, or else squash, or else the first allowed. It reports false
+// when the repository allows none.
 func (c RepoCaps) MergeMethod(preferred MergeMethod) (MergeMethod, bool) {
 	allowed := c.MergeMethods()
 	for _, m := range []MergeMethod{preferred, c.DefaultMerge} {
@@ -115,7 +115,10 @@ func (c RepoCaps) MergeMethod(preferred MergeMethod) (MergeMethod, bool) {
 			return m, true
 		}
 	}
-	if len(allowed) == 0 {
+	switch {
+	case slices.Contains(allowed, MergeSquash):
+		return MergeSquash, true
+	case len(allowed) == 0:
 		return "", false
 	}
 	return allowed[0], true

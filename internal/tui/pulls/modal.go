@@ -20,6 +20,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
+	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
 // detailMsg carries the detail of a pull request to the thread that asked
@@ -44,6 +45,9 @@ type detailModal struct {
 	keys        keyMap
 	now         func() time.Time
 	mergeMethod core.MergeMethod
+	// remember tells the section the method a merge was confirmed with,
+	// for the merges after it.
+	remember func(core.MergeMethod)
 	// sendCtx bounds the changes, which go on after the modal closes.
 	sendCtx context.Context
 
@@ -60,6 +64,11 @@ type detailModal struct {
 	// anything is: a modal opened from the search starts with nothing.
 	detail core.PullRequestDetail
 	loaded bool
+	// seen is set once the detail was read since the modal opened, which
+	// says whether the pull request may merge, and how. A merge asked
+	// before waits for that read, and keeps the key in merging.
+	seen    bool
+	merging *tea.KeyPressMsg
 	// failed is why the last read of the detail failed, or nil.
 	failed error
 
@@ -120,6 +129,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 		keys:        modalKeys,
 		now:         s.now,
 		mergeMethod: s.mergeMethod,
+		remember:    func(m core.MergeMethod) { s.mergeMethod = m },
 		sendCtx:     s.ctx,
 		repo:        repo,
 		number:      number,
@@ -408,32 +418,74 @@ func (m *detailModal) Discard() {
 
 // change starts the change that msg asks of the pull request, once the
 // user confirms it on the last line of the modal. The change shows at once
-// in the modal and the list behind it, and then it is sent.
+// in the modal and the list behind it, and then it is sent. A merge asked
+// before the detail was read waits for it.
 func (m *detailModal) change(msg tea.KeyPressMsg) tea.Cmd {
 	if !m.loaded {
 		return nil
 	}
-	c, ok, warn := m.keys.change(m.svc, m.gate(), m.mergeMethod, m.detail.PullRequest, msg)
+	if a, ok := m.keys.action(m.detail.PullRequest, msg); ok && a == ui.ActMerge && !m.detail.Draft {
+		if m.merging != nil {
+			// The read that the first press waits for answers both.
+			return nil
+		}
+		// A read that failed, or left the status undecided, is tried once
+		// more.
+		if !m.seen || !m.svc.CurrentGet(m.repo, m.number) || !decided(m.detail.Merge) {
+			m.merging = &msg
+			wait := ui.Notify(toast.Info, "Checking #"+strconv.Itoa(m.number)+"…")
+			if m.seen || m.failed != nil {
+				// No read is under way, so one starts, though what is
+				// cached is fresh.
+				return tea.Batch(wait, m.revalidate())
+			}
+			return wait
+		}
+	}
+	return m.confirm(msg)
+}
+
+// confirm asks the user to confirm the change that msg asks of the pull
+// request.
+func (m *detailModal) confirm(msg tea.KeyPressMsg) tea.Cmd {
+	c, ok, warn := m.keys.change(m.svc, m.gate(), m.mergeMethod, m.detail, msg)
 	if !ok {
 		return warn
 	}
 	repo, about := m.repo, m.subject()
-	run := m.keys.confirmed(m.svc, m.mergeMethod, c, msg,
-		func() (core.PullRequest, ui.Gate, bool) {
-			return m.detail.PullRequest, m.gate(), m.loaded
+	q := m.keys.ask(m.svc, c, msg,
+		func() (core.PullRequestDetail, ui.Gate, bool) {
+			return m.detail, m.gate(), m.loaded
 		},
-		func(op *optimistic.Op, what string) tea.Cmd {
+		func(c change, op *optimistic.Op) tea.Cmd {
+			if c.of.method != "" {
+				m.mergeMethod = c.of.method
+				m.remember(c.of.method)
+			}
 			return tea.Batch(m.reload(),
 				func() tea.Msg { return changedMsg{repo: repo} },
-				ui.Do(m.sendCtx, ui.PullsTitle, ui.About(about, op), what))
-		})
-	m.ask = &ui.Confirm{Question: c.question, Run: run}
+				ui.Do(m.sendCtx, ui.PullsTitle, ui.About(about, op), c.what))
+		},
+		&rereader{owner: m, about: about, refresh: func() {
+			if d, ok := m.svc.CachedGet(m.repo, m.number); ok {
+				m.detail = d
+			}
+		}, read: func() error {
+			_, err := m.svc.Revalidate(m.sendCtx, m.repo, m.number)
+			return err
+		}})
+	m.ask = &q
 	return nil
 }
 
 // answer takes the answer to the question on the last line: yes makes the
-// change, and no steps back to the detail. Other keys do nothing.
+// change, no steps back to the detail, and the key for the choices steps
+// through them. Other keys do nothing.
 func (m *detailModal) answer(msg tea.KeyPressMsg) tea.Cmd {
+	if next, ok := m.keys.confirm.Step(*m.ask, msg); ok {
+		m.ask = &next
+		return nil
+	}
 	cmd, done := m.keys.confirm.Answer(*m.ask, msg)
 	if done {
 		m.ask = nil
@@ -455,7 +507,7 @@ func (m *detailModal) subject() string {
 func (m *detailModal) KeyLayers() []keyhelp.Layer {
 	switch {
 	case m.ask != nil:
-		return []keyhelp.Layer{m.keys.confirm.Layer()}
+		return []keyhelp.Layer{m.keys.confirm.LayerFor(*m.ask)}
 	case m.onChecks() && m.checks.TakesKeys():
 		return m.checks.KeyLayers()
 	}

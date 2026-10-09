@@ -296,3 +296,75 @@ func TestMergeSendsHead(t *testing.T) {
 		}
 	}
 }
+
+func TestMergeStateChanges(t *testing.T) {
+	tests := []struct {
+		name   string
+		start  core.MergeInfo
+		run    func(s *Service) *optimistic.Op
+		method string
+		how    core.MergeMethod
+		want   core.MergeInfo
+	}{
+		{
+			name:   "auto-merge on",
+			start:  core.MergeInfo{},
+			run:    func(s *Service) *optimistic.Op { return s.AutoMerge(repo, 1, core.MergeRebase, "9f1c2e4") },
+			method: "automerge", how: core.MergeRebase,
+			want: core.MergeInfo{AutoMerge: &core.AutoMerge{Method: core.MergeRebase}, CanDisableAutoMerge: true},
+		},
+		{
+			name:   "auto-merge off",
+			start:  core.MergeInfo{AutoMerge: &core.AutoMerge{Method: core.MergeSquash}, CanDisableAutoMerge: true},
+			run:    func(s *Service) *optimistic.Op { return s.StopAutoMerge(repo, 1) },
+			method: "stopautomerge",
+			want:   core.MergeInfo{CanAutoMerge: true},
+		},
+		{
+			name:   "queue",
+			start:  core.MergeInfo{},
+			run:    func(s *Service) *optimistic.Op { return s.Enqueue(repo, 1, "9f1c2e4") },
+			method: "enqueue",
+			want:   core.MergeInfo{Queue: core.MergeQueue{Queued: true}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			api := &fakeAPI{mutate: func(_ context.Context, method, id string, how core.MergeMethod) (core.PullRequest, error) {
+				if method != tt.method || id != "PR_1" || how != tt.how {
+					t.Errorf("mutation = %s(%q, %q), want %s(PR_1, %q)", method, id, how, tt.method, tt.how)
+				}
+				return core.PullRequest{}, errors.New("boom")
+			}}
+			s := seeded(t, api, func(*core.PullRequest) {})
+			s.details.Mutate(detailKey(repo, 1), func(d core.PullRequestDetail) core.PullRequestDetail {
+				d.Merge = tt.start
+				return d
+			})
+			before := take(t, s)
+			if !reflect.DeepEqual(before.detail.Merge, tt.start) {
+				t.Fatalf("seed merge state = %+v", before.detail.Merge)
+			}
+
+			op := tt.run(s)
+			if got := take(t, s); !reflect.DeepEqual(got.detail.Merge, tt.want) {
+				t.Errorf("merge state after the change = %+v, want %+v", got.detail.Merge, tt.want)
+			} else if got.first.Items[0].State != core.StateOpen {
+				t.Errorf("the pull request is %q, want it still open", got.first.Items[0].State)
+			}
+
+			if err := op.Do(t.Context()); err == nil {
+				t.Fatal("Do succeeded, want the fake's error")
+			}
+			if got := take(t, s); !reflect.DeepEqual(got.detail.Merge, tt.start) {
+				t.Errorf("merge state after the rollback = %+v, want %+v", got.detail.Merge, tt.start)
+			}
+			if n := api.count(tt.method); n != 1 {
+				t.Errorf("%s called %d times, want 1", tt.method, n)
+			}
+			if len(api.heads) != 0 && api.heads[0] != "9f1c2e4" {
+				t.Errorf("pinned to %q, want 9f1c2e4", api.heads[0])
+			}
+		})
+	}
+}

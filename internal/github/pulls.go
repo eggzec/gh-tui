@@ -448,6 +448,15 @@ var (
   result: mergePullRequest(input: {pullRequestId: $id, mergeMethod: $method, expectedHeadOid: $head}) { pullRequest { ...pullFields } }
 }
 ` + pullFields
+	autoMergePullMutation = `mutation EnablePullRequestAutoMerge($id: ID!, $method: PullRequestMergeMethod!, $head: GitObjectID) {
+  result: enablePullRequestAutoMerge(input: {pullRequestId: $id, mergeMethod: $method, expectedHeadOid: $head}) { pullRequest { ...pullFields } }
+}
+` + pullFields
+	stopAutoMergePullMutation = pullMutation("disablePullRequestAutoMerge")
+	enqueuePullMutation       = `mutation EnqueuePullRequest($id: ID!, $head: GitObjectID) {
+  result: enqueuePullRequest(input: {pullRequestId: $id, expectedHeadOid: $head}) { mergeQueueEntry { pullRequest { ...pullFields } } }
+}
+` + pullFields
 	closePullMutation   = pullMutation("closePullRequest")
 	reopenPullMutation  = pullMutation("reopenPullRequest")
 	readyPullMutation   = pullMutation("markPullRequestReadyForReview")
@@ -482,20 +491,82 @@ func (c *Client) mutatePull(ctx context.Context, what, query string, vars map[st
 // error is a *core.RefusedError that says new commits were pushed, so
 // that a merge never takes in commits the user didn't see.
 func (c *Client) MergePullRequest(ctx context.Context, id string, method core.MergeMethod, head string) (core.PullRequest, error) {
-	switch method {
-	case core.MergeCommit, core.MergeSquash, core.MergeRebase:
-	default:
-		return core.PullRequest{}, fmt.Errorf("merge pull request %s: unknown merge method %q", id, method)
-	}
-	vars := map[string]any{"id": id, "method": strings.ToUpper(string(method)), "head": nil}
-	if head != "" {
-		vars["head"] = head
+	vars, err := mergeVars("merge", id, method, head)
+	if err != nil {
+		return core.PullRequest{}, err
 	}
 	pr, err := c.mutatePull(ctx, "merge", mergePullMutation, vars)
 	if err != nil && head != "" && c.headMoved(ctx, id, head, err) {
 		return pr, &core.RefusedError{Action: "merge pull request " + id, Reason: HeadMoved, Err: err}
 	}
 	return pr, err
+}
+
+// AutoMergePullRequest turns auto-merge on for the pull request with node
+// ID id: GitHub merges it with method once its checks pass and its reviews
+// are in. A head other than "" pins it to that commit, as for
+// MergePullRequest. With a merge queue on the base branch, GitHub ignores
+// the method.
+func (c *Client) AutoMergePullRequest(ctx context.Context, id string, method core.MergeMethod, head string) (core.PullRequest, error) {
+	vars, err := mergeVars("enable auto-merge on", id, method, head)
+	if err != nil {
+		return core.PullRequest{}, err
+	}
+	pr, err := c.mutatePull(ctx, "enable auto-merge on", autoMergePullMutation, vars)
+	if err != nil && head != "" && c.headMoved(ctx, id, head, err) {
+		return pr, &core.RefusedError{Action: "enable auto-merge on pull request " + id, Reason: HeadMoved, Err: err}
+	}
+	return pr, err
+}
+
+// StopAutoMergePullRequest turns auto-merge off for the pull request with
+// node ID id.
+func (c *Client) StopAutoMergePullRequest(ctx context.Context, id string) (core.PullRequest, error) {
+	return c.mutatePull(ctx, "disable auto-merge on", stopAutoMergePullMutation, map[string]any{"id": id})
+}
+
+// EnqueuePullRequest adds the pull request with node ID id to the merge
+// queue of its base branch. A head other than "" pins it to that commit.
+func (c *Client) EnqueuePullRequest(ctx context.Context, id, head string) (core.PullRequest, error) {
+	vars := map[string]any{"id": id, "head": nil}
+	if head != "" {
+		vars["head"] = head
+	}
+	var data struct {
+		Result *struct {
+			Entry *struct {
+				PullRequest *pull `json:"pullRequest"`
+			} `json:"mergeQueueEntry"`
+		} `json:"result"`
+	}
+	err := c.Query(ctx, enqueuePullMutation, vars, &data)
+	if err == nil && (data.Result == nil || data.Result.Entry == nil || data.Result.Entry.PullRequest == nil) {
+		err = errNoPull
+	}
+	if err != nil {
+		err = fmt.Errorf("enqueue pull request %s: %w", id, err)
+		if head != "" && c.headMoved(ctx, id, head, err) {
+			err = &core.RefusedError{Action: "enqueue pull request " + id, Reason: HeadMoved, Err: err}
+		}
+		return core.PullRequest{}, err
+	}
+	return data.Result.Entry.PullRequest.core(), nil
+}
+
+// mergeVars returns the variables of a merge mutation of the pull request
+// with node ID id, or an error, which what names, for a method GitHub
+// doesn't know.
+func mergeVars(what, id string, method core.MergeMethod, head string) (map[string]any, error) {
+	switch method {
+	case core.MergeCommit, core.MergeSquash, core.MergeRebase:
+	default:
+		return nil, fmt.Errorf("%s pull request %s: unknown merge method %q", what, id, method)
+	}
+	vars := map[string]any{"id": id, "method": strings.ToUpper(string(method)), "head": nil}
+	if head != "" {
+		vars["head"] = head
+	}
+	return vars, nil
 }
 
 // HeadMoved is why a merge pinned to a head that has moved on is refused.

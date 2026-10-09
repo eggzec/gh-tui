@@ -119,6 +119,27 @@ func (f *fakeAPI) MergePullRequest(ctx context.Context, id string, method core.M
 	return f.mutate(ctx, "merge", id, method)
 }
 
+func (f *fakeAPI) AutoMergePullRequest(ctx context.Context, id string, method core.MergeMethod, head string) (core.PullRequest, error) {
+	f.called("automerge")
+	f.mu.Lock()
+	f.heads = append(f.heads, head)
+	f.mu.Unlock()
+	return f.mutate(ctx, "automerge", id, method)
+}
+
+func (f *fakeAPI) StopAutoMergePullRequest(ctx context.Context, id string) (core.PullRequest, error) {
+	f.called("stopautomerge")
+	return f.mutate(ctx, "stopautomerge", id, "")
+}
+
+func (f *fakeAPI) EnqueuePullRequest(ctx context.Context, id, head string) (core.PullRequest, error) {
+	f.called("enqueue")
+	f.mu.Lock()
+	f.heads = append(f.heads, head)
+	f.mu.Unlock()
+	return f.mutate(ctx, "enqueue", id, "")
+}
+
 func (f *fakeAPI) ClosePullRequest(ctx context.Context, id string) (core.PullRequest, error) {
 	f.called("close")
 	return f.mutate(ctx, "close", id, "")

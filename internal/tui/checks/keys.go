@@ -172,7 +172,7 @@ func (k KeyMap) ShortHelp() []key.Binding {
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return slices.Concat([][]key.Binding{
 		k.shared(k.RerunList), k.pane(), {k.Annotations, k.RerunLog, k.RerunNotes},
-		{k.Confirm.Yes, k.Confirm.No}, k.detail(),
+		{k.Confirm.Method, k.Confirm.Yes, k.Confirm.No}, k.detail(),
 	}, k.Log.FullHelp())
 }
 

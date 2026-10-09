@@ -49,6 +49,12 @@ type Service interface {
 	// The changes are shown in the cache at once. The returned Op sends
 	// them. A merge is pinned to head, the commit it was confirmed for.
 	Merge(repo core.RepoRef, number int, method core.MergeMethod, head string) *optimistic.Op
+	// AutoMerge turns on merging once the checks pass, StopAutoMerge turns
+	// it off, and Enqueue adds the pull request to the merge queue of its
+	// base branch. Like Merge, they are pinned to head.
+	AutoMerge(repo core.RepoRef, number int, method core.MergeMethod, head string) *optimistic.Op
+	StopAutoMerge(repo core.RepoRef, number int) *optimistic.Op
+	Enqueue(repo core.RepoRef, number int, head string) *optimistic.Op
 	Close(repo core.RepoRef, number int) *optimistic.Op
 	Reopen(repo core.RepoRef, number int) *optimistic.Op
 	MarkReady(repo core.RepoRef, number int) *optimistic.Op
@@ -78,8 +84,14 @@ type Section struct {
 	// has no such step.
 	checks     ChecksService
 	checksOpts []checks.Option
-	// mergeMethod is how merge merges, if the repository allows it.
+	// mergeMethod is how merge merges, if the repository allows it: the
+	// method last merged with in this session, or else the configured
+	// one. Without either, the repository's.
 	mergeMethod core.MergeMethod
+	// checking is the number of the pull request whose detail a merge key
+	// waits for, or 0, so that pressing the key again waits for the same
+	// read.
+	checking int
 	// repos reads what the viewer may do in the repositories of the
 	// modals, and caps is what they may do in repo, as far as it is known.
 	repos ui.Repos
@@ -149,9 +161,11 @@ func WithClock(now func() time.Time) Option {
 	return func(s *Section) { s.now = now }
 }
 
-// WithMergeMethod sets how pull requests are merged, in the repositories
-// that allow it; the others merge as the viewer did last, or as they
-// allow. The default is core.MergeSquash.
+// WithMergeMethod sets the method that a merge starts from, in the
+// repositories that allow it. Without it, or where the repository refuses
+// it, a merge starts from the viewer's last method there, else squash,
+// else the first method the repository allows. A method confirmed in the
+// session takes the place of this one.
 func WithMergeMethod(m core.MergeMethod) Option {
 	return func(s *Section) { s.mergeMethod = m }
 }
@@ -239,15 +253,14 @@ func WithSlots(s *ui.Slots) Option {
 // bounds every request it makes.
 func New(ctx context.Context, svc Service, keys config.Keymap, opts ...Option) *Section {
 	s := &Section{
-		ctx:         ctx,
-		svc:         svc,
-		voice:       ui.NewVoice(keys, ""),
-		keys:        newKeyMap(keys),
-		rawKeys:     keys,
-		now:         time.Now,
-		mergeMethod: core.MergeSquash,
-		tab:         tabs[0].state,
-		icons:       ui.NewIcons(config.Default().UI.Icons),
+		ctx:     ctx,
+		svc:     svc,
+		voice:   ui.NewVoice(keys, ""),
+		keys:    newKeyMap(keys),
+		rawKeys: keys,
+		now:     time.Now,
+		tab:     tabs[0].state,
+		icons:   ui.NewIcons(config.Default().UI.Icons),
 	}
 	for _, opt := range opts {
 		opt(s)

@@ -89,6 +89,16 @@ func TestMergeMethod(t *testing.T) {
 			caps: RepoCaps{Known: true, MergeCommit: true, Rebase: true, DefaultMerge: MergeSquash},
 			want: MergeCommit, methods: []MergeMethod{MergeCommit, MergeRebase}, ok: true,
 		},
+		{
+			name: "no preference and no default fall back to squash",
+			caps: RepoCaps{Known: true, MergeCommit: true, Squash: true, Rebase: true},
+			want: MergeSquash, methods: []MergeMethod{MergeCommit, MergeSquash, MergeRebase}, ok: true,
+		},
+		{
+			name: "the viewer's default comes before squash",
+			caps: RepoCaps{Known: true, MergeCommit: true, Squash: true, DefaultMerge: MergeCommit},
+			want: MergeCommit, methods: []MergeMethod{MergeCommit, MergeSquash}, ok: true,
+		},
 		{name: "none allowed", preferred: MergeSquash, caps: RepoCaps{Known: true}},
 	}
 	for _, tt := range tests {

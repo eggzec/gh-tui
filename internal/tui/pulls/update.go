@@ -62,6 +62,13 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		return s.reload()
+	case resendMsg:
+		if msg.owner != any(s) {
+			return nil
+		}
+		return msg.run()
+	case mergeReadMsg:
+		return s.merged(msg)
 	case tea.KeyPressMsg:
 		if cmd, ok := s.mutate(msg); ok {
 			return cmd

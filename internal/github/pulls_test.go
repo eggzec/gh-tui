@@ -500,6 +500,32 @@ func TestPullMutations(t *testing.T) {
 			check:    func(pr core.PullRequest) bool { return pr.State == core.StateMerged },
 		},
 		{
+			name:    "auto-merge on",
+			fixture: "pulls_auto_merge.json",
+			call: func(c *Client) (core.PullRequest, error) {
+				return c.AutoMergePullRequest(t.Context(), id, core.MergeRebase, "9f1c2e4")
+			},
+			mutation: "enablePullRequestAutoMerge(input: {pullRequestId: $id, mergeMethod: $method, expectedHeadOid: $head})",
+			vars:     map[string]any{"id": id, "method": "REBASE", "head": "9f1c2e4"},
+			check:    func(pr core.PullRequest) bool { return pr.State == core.StateOpen },
+		},
+		{
+			name:     "auto-merge off",
+			fixture:  "pulls_auto_merge.json",
+			call:     func(c *Client) (core.PullRequest, error) { return c.StopAutoMergePullRequest(t.Context(), id) },
+			mutation: "disablePullRequestAutoMerge(input: {pullRequestId: $id})",
+			vars:     map[string]any{"id": id},
+			check:    func(pr core.PullRequest) bool { return pr.State == core.StateOpen },
+		},
+		{
+			name:     "enqueue",
+			fixture:  "pulls_enqueue.json",
+			call:     func(c *Client) (core.PullRequest, error) { return c.EnqueuePullRequest(t.Context(), id, "") },
+			mutation: "enqueuePullRequest(input: {pullRequestId: $id, expectedHeadOid: $head})",
+			vars:     map[string]any{"id": id, "head": nil},
+			check:    func(pr core.PullRequest) bool { return pr.State == core.StateOpen },
+		},
+		{
 			name:     "close",
 			fixture:  "pulls_close.json",
 			call:     func(c *Client) (core.PullRequest, error) { return c.ClosePullRequest(t.Context(), id) },
@@ -701,6 +727,34 @@ func TestMergeHeadMoved(t *testing.T) {
 			}
 			if n := int(reads.Load()); n != tt.reads {
 				t.Errorf("%d requests, want %d", n, tt.reads)
+			}
+		})
+	}
+}
+
+// Auto-merge and the merge queue are pinned to a head too, and a head that
+// moved is refused in the same words.
+func TestAutoMergeAndEnqueueHeadMoved(t *testing.T) {
+	const pinned = "9f1c2e4"
+	body := `{"data":{"result":null},"errors":[{"type":"UNPROCESSABLE","path":["result"],"message":"Head branch was modified. Review and try the merge again."}]}`
+	calls := map[string]func(*Client) error{
+		"auto-merge": func(c *Client) error {
+			_, err := c.AutoMergePullRequest(t.Context(), "PR_1", core.MergeSquash, pinned)
+			return err
+		},
+		"enqueue": func(c *Client) error {
+			_, err := c.EnqueuePullRequest(t.Context(), "PR_1", pinned)
+			return err
+		},
+	}
+	for name, call := range calls {
+		t.Run(name, func(t *testing.T) {
+			c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				_, _ = w.Write([]byte(body))
+			}))
+			err := call(c)
+			if e, ok := errors.AsType[*core.RefusedError](err); !ok || e.Reason != HeadMoved {
+				t.Errorf("error = %v, want the refusal for a head that moved", err)
 			}
 		})
 	}

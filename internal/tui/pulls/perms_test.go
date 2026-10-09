@@ -153,7 +153,7 @@ func TestMergeUsesAnAllowedMethod(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			svc := newFakeService()
-			h := started(t, svc, 160, 20)
+			h := started(t, svc, 160, 20, WithMergeMethod(core.MergeSquash))
 			drain(t, h, h.Update(ui.CapsMsg{Repo: repo, Caps: tt.caps}))
 			if got := offered(h.KeyLayers()); !slices.Contains(got, tt.label) {
 				t.Errorf("help = %v, want %q", got, tt.label)
