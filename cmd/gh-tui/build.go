@@ -171,7 +171,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	repoSvc := reposvc.New(client, reposvc.WithTTL(ttl.Repos), reposvc.WithInfoTTL(ttl.RepoInfo), reposvc.WithCapacity(mem.Entries),
 		reposvc.WithStore(entries), reposvc.WithAccess(access), reposvc.WithPageSize(size.Repos))
 	pullSvc := pullsvc.New(client, pullsvc.WithTTL(ttl.Pulls), pullsvc.WithCapacity(mem.Entries), pullsvc.WithStore(entries),
-		pullsvc.WithAccess(access), pullsvc.WithRepos(repoSvc), pullsvc.WithPageSize(size.Pulls),
+		pullsvc.WithAccess(access), pullsvc.WithRepos(repoSvc), pullsvc.WithPageSize(size.Pulls), pullsvc.WithDetailSizes(github.DetailSizes{Threads: size.Threads, Reviewers: size.Reviewers, Rules: size.Rules}),
 		pullsvc.WithDiffMemory(int64(mem.Diffs)))
 	// The issues service tells what a number is, an issue or a pull
 	// request, and a pull request whose detail is cached needs no request.

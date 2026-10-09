@@ -15,7 +15,7 @@ func TestTransportDefaults(t *testing.T) {
 	if c.GitHub != (GitHub{Timeout: 30 * time.Second, Concurrency: 8}) {
 		t.Errorf("github = %+v", c.GitHub)
 	}
-	want := PageSize{Pulls: 30, Issues: 30, Notifications: 30, Repos: 30, Runs: 30, Commits: 50, Search: 20, WaitingOnYou: 10, People: 50, References: 100}
+	want := PageSize{Pulls: 30, Threads: 50, Reviewers: 10, Rules: 20, Issues: 30, Notifications: 30, Repos: 30, Runs: 30, Commits: 50, Search: 20, WaitingOnYou: 10, People: 50, References: 100}
 	if c.PageSize != want {
 		t.Errorf("page_size = %+v, want %+v", c.PageSize, want)
 	}
@@ -71,6 +71,9 @@ func TestTransportValidate(t *testing.T) {
 		{"pages", func(c *Config) { c.PageSize.Pulls, c.PageSize.Search = 10, 100 }, ""},
 		{"small page", func(c *Config) { c.PageSize.Search = 9 }, "page_size.search: must be between 10 and 100, got 9"},
 		{"large page", func(c *Config) { c.PageSize.WaitingOnYou = 101 }, "page_size.waiting_on_you: must be between 10 and 100, got 101"},
+		{"small reviewer page", func(c *Config) { c.PageSize.Reviewers = 9 }, "page_size.reviewers: must be between 10 and 100, got 9"},
+		{"large rules page", func(c *Config) { c.PageSize.Rules = 101 }, "page_size.rules: must be between 10 and 100, got 101"},
+		{"large thread page", func(c *Config) { c.PageSize.Threads = 101 }, "page_size.threads: must be between 10 and 100, got 101"},
 		{"toast", func(c *Config) { c.UI.Toast.Info = time.Second }, ""},
 		{"short toast", func(c *Config) { c.UI.Toast.Info = 0 }, "ui.toast.info: must be at least 1s, got 0s"},
 		{"history", func(c *Config) { c.Commands.History = 1 }, ""},

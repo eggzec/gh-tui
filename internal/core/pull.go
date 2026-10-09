@@ -51,6 +51,27 @@ type PullRequestDetail struct {
 	// CheckCounts counts the checks of the head commit by outcome. The
 	// checks themselves are a read of their own.
 	CheckCounts CheckCounts
+	// FailingChecks are the first checks of the head commit that failed,
+	// with why, for the Overview. ChecksTruncated says the head commit
+	// has more checks than were read, which the counts cover but this list
+	// and Merge.RequiredChecks may miss.
+	FailingChecks   []FailingCheck
+	ChecksTruncated bool
+	// Merge says whether it can merge and what stands in the way.
+	Merge MergeInfo
+	// Reviewers are who was asked to review it and what they answered.
+	Reviewers Reviewers
+	// Threads summarizes its review threads.
+	Threads ThreadSummary
+	// BaseSHA is the commit its base branch was at when it was read.
+	BaseSHA string
+	// HeadRepo is the repository its head branch is in, as owner/name, or
+	// empty when that is gone, such as a deleted fork; CrossRepo reports
+	// whether it is another than the base's.
+	HeadRepo  string
+	CrossRepo bool
+	// Milestone is the title of its milestone, or empty.
+	Milestone string
 }
 
 // CheckCounts counts the checks of a commit, its check runs and commit

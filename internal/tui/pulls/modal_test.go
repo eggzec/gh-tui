@@ -195,6 +195,14 @@ func TestCachedModalOpensAtOnce(t *testing.T) {
 	if got := svc.got(); !slices.Equal(got, []int{142}) {
 		t.Errorf("got details %v, want #142 revalidated", got)
 	}
+	// Opening reads the detail again though it is cached: its merge state
+	// and threads change without the pull request's update time moving.
+	svc.mu.Lock()
+	revalidated := slices.Clone(svc.revalidated)
+	svc.mu.Unlock()
+	if !slices.Equal(revalidated, []int{142}) {
+		t.Errorf("revalidated %v, want the opened #142 once", revalidated)
+	}
 	if !slices.Contains(svc.comments, commentsQuery(repo, 142)) {
 		t.Errorf("comment reads %v, want the first page revalidated", svc.comments)
 	}

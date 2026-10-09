@@ -1,0 +1,35 @@
+{
+  "data": {
+    "repository": {
+      "mergeCommitAllowed": true,
+      "squashMergeAllowed": false,
+      "rebaseMergeAllowed": false,
+      "autoMergeAllowed": false,
+      "pullRequest": {
+        "id": "PR_kwDOLnBTf85xYz01",
+        "number": 42,
+        "title": "Add pull request list",
+        "state": "OPEN",
+        "repository": {"name": "gh-tui", "owner": {"login": "eggzec"}},
+        "author": {"login": "octocat"},
+        "mergeable": "UNKNOWN",
+        "mergeStateStatus": "UNKNOWN",
+        "isMergeQueueEnabled": false,
+        "mergeQueueEntry": null,
+        "baseRef": null,
+        "reviewRequests": {
+          "totalCount": 2,
+          "nodes": [
+            {"asCodeOwner": false, "requestedReviewer": {"__typename": "User", "login": "hubot", "name": "Hubot"}},
+            {"asCodeOwner": true, "requestedReviewer": null}
+          ]
+        },
+        "reviewThreads": {"totalCount": 0, "pageInfo": {"hasNextPage": false, "endCursor": null}, "nodes": []}
+      }
+    }
+  },
+  "errors": [
+    {"type": "FORBIDDEN", "path": ["repository", "pullRequest", "baseRef"], "message": "Resource not accessible by integration"},
+    {"type": "INSUFFICIENT_SCOPES", "path": ["repository", "pullRequest", "reviewRequests", "nodes", 1, "requestedReviewer"], "message": "Your token has not been granted the required scopes to execute this query. The 'name' field requires one of the following scopes: ['read:org'], but your token has only been granted the: ['repo'] scopes. Please modify your token's scopes at: https://github.com/settings/tokens."}
+  ]
+}

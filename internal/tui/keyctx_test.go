@@ -133,6 +133,9 @@ func (keyPulls) CachedGet(core.RepoRef, int) (core.PullRequestDetail, bool) {
 func (keyPulls) Get(context.Context, core.RepoRef, int) (core.PullRequestDetail, error) {
 	return core.PullRequestDetail{PullRequest: keyPull}, nil
 }
+func (k keyPulls) Revalidate(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error) {
+	return k.Get(ctx, repo, number)
+}
 func (keyPulls) CachedComments(pullsvc.CommentsQuery) (core.Page[core.Comment], bool) {
 	return core.Page[core.Comment]{}, true
 }

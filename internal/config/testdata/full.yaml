@@ -140,6 +140,9 @@ github:
 
 page_size:
   pulls: 50
+  threads: 70
+  reviewers: 12
+  rules: 30
   issues: 40
   notifications: 20
   repos: 60

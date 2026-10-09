@@ -280,7 +280,9 @@ func (c *Client) graphqlError(ctx context.Context, h http.Header, shape string, 
 			e.causes = append(e.causes, core.ErrNotFound)
 		case "FORBIDDEN", "INSUFFICIENT_SCOPES":
 			if partial && len(item.Path) > 1 {
-				below = append(below, item.Type+" "+graphqlPath(item.Path))
+				if c.firstRefusal(ctx, item) {
+					below = append(below, item.Type+" "+graphqlPath(item.Path))
+				}
 				break
 			}
 			if item.Type == "FORBIDDEN" {
@@ -304,6 +306,26 @@ func (c *Client) graphqlError(ctx context.Context, h http.Header, shape string, 
 		slog.WarnContext(ctx, "graphql partial refusal", "span", "http", "errors", below)
 	}
 	return e
+}
+
+// firstRefusal reports whether item, a refusal of a field below the
+// answer's top, is the first of its kind for its repository in the session:
+// the same field is refused again on every read of the repository, and
+// is logged once. Indexes in the path don't tell kinds apart.
+func (c *Client) firstRefusal(ctx context.Context, item GraphQLErrorItem) bool {
+	repo := ""
+	if cl, _ := ctx.Value(callKey{}).(*call); cl != nil {
+		repo = cl.repo
+	}
+	var kind strings.Builder
+	kind.WriteString(repo + " " + item.Type)
+	for _, seg := range item.Path {
+		if _, index := seg.(float64); !index {
+			kind.WriteString(" " + fmt.Sprint(seg))
+		}
+	}
+	_, seen := c.refusals.LoadOrStore(kind.String(), struct{}{})
+	return !seen
 }
 
 // graphqlPath writes the path of an error as GitHub gives it, such as

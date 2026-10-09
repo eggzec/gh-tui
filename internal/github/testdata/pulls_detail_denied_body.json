@@ -1,0 +1,10 @@
+{
+  "data": {
+    "repository": {
+      "pullRequest": {"id": "PR_1", "number": 42, "title": "t", "state": "OPEN", "repository": {"name": "gh-tui", "owner": {"login": "eggzec"}}, "body": null}
+    }
+  },
+  "errors": [
+    {"type": "FORBIDDEN", "path": ["repository", "pullRequest", "body"], "message": "Resource not accessible by integration"}
+  ]
+}
