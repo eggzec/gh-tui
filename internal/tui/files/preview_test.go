@@ -266,6 +266,7 @@ func TestPreviewFileClosesOverItsSearch(t *testing.T) {
 // reopened.
 type stub struct{ reopened bool }
 
+func (*stub) Commands() []string         { return nil }
 func (*stub) Title() string              { return "stub" }
 func (*stub) View() string               { return "" }
 func (*stub) SetSize(int, int)           {}

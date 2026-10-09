@@ -116,7 +116,7 @@ func (m *Model) layersNow() []keyhelp.Layer {
 			always.Source = globalTitle()
 		}
 		always.Bindings = append(always.Bindings, forceQuit)
-		if m.commandsOver(m.topModal()) {
+		if m.commandsOver() {
 			always.Bindings = append(always.Bindings, m.keys.Command)
 		}
 		// The app matches the maximize key after the command key, and the

@@ -267,6 +267,9 @@ func (m *ConfirmModal) SetTheme(t Theme) {
 	m.render()
 }
 
+// Commands implements Commanded: the confirmation takes only the commands that act on the app.
+func (m *ConfirmModal) Commands() []string { return nil }
+
 // KeyLayers implements Keyed: the keys that answer the question.
 func (m *ConfirmModal) KeyLayers() []keyhelp.Layer {
 	return []keyhelp.Layer{m.keys.Layer()}

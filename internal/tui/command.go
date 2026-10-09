@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -26,12 +27,13 @@ type command struct {
 	// quits reports whether the command ends the program, which then
 	// waits for the history to be saved.
 	quits bool
-	// overModal reports whether the command runs over a modal that takes
-	// commands, such as the file preview: one that acts on the modal, or
-	// on nothing the modal hides. Every other command would change what
-	// is behind the modal, or replace it and lose the place in it.
-	overModal bool
-	run       func(m *Model, arg string) tea.Cmd
+	// over says where the command runs while a modal is open. A command
+	// that acts on the app alone, or on nothing the modal hides, runs over
+	// every modal; one that acts on what a modal shows runs over those
+	// that name it. Every other command would change what is behind the
+	// modal, or replace it and lose the place in it.
+	over over
+	run  func(m *Model, arg string) tea.Cmd
 	// complete, if set, completes the argument: arg is the line from
 	// after the name to the cursor, which is at cursor, and end is the
 	// end of the word under it, which atEnd reports is the end of the
@@ -39,21 +41,35 @@ type command struct {
 	complete func(m *Model, arg string, cursor, end int, atEnd bool) []cmdline.Candidate
 }
 
+// over says over which modals a command runs.
+type over int
+
+const (
+	// A command with no over, the zero, is one that a modal refuses: it
+	// acts on the screen behind it.
+	_ over = iota
+	// overAny is a command that runs over every modal.
+	overAny
+	// overNamed is a command that runs over the modals that name it in
+	// [ui.Commanded.Commands].
+	overNamed
+)
+
 // commands are those of the command line, in the order they complete.
 var commands = []command{
 	{name: ui.AuthCommand, detail: "show what the token may do, and grant it more", run: (*Model).authCommand},
-	{name: "config", detail: "show the config, or with defaults, default.yaml", args: true, run: (*Model).configCommand, complete: completeConfig},
-	{name: "copy", detail: "copy the url, ref, sha or path of what is selected", args: true, run: (*Model).copyCommand, complete: completeCopy},
+	{name: "config", detail: "show the config, or with defaults, default.yaml", args: true, over: overAny, run: (*Model).configCommand, complete: completeConfig},
+	{name: ui.CommandCopy, detail: "copy the url, ref, sha or path of what is selected", args: true, over: overNamed, run: (*Model).copyCommand, complete: completeCopy},
 	{name: "filter", detail: "filter the focused list", run: filtering(filterform.FiltersTab)},
 	{name: "goto", detail: "open a repository, issue, pull request, profile or link", args: true, run: (*Model).gotoCommand, complete: (*Model).completeTarget},
-	{name: "help", detail: "list the keys", overModal: true, run: pressing(config.ActionHelp)},
-	{name: "images", detail: "show whether images are drawn here, and why", overModal: true, run: (*Model).imagesCommand},
-	{name: "open", detail: "open on GitHub what follows, or what is selected", args: true, overModal: true, run: (*Model).openCommand, complete: (*Model).completeTarget},
-	{name: "q", detail: "quit", quits: true, overModal: true, run: func(*Model, string) tea.Cmd { return tea.Quit }},
-	{name: "raw", detail: "show the open file as its source with on, or rendered with off", args: true, overModal: true, run: (*Model).rawCommand, complete: completeRaw},
+	{name: "help", detail: "list the keys", over: overAny, run: pressing(config.ActionHelp)},
+	{name: "images", detail: "show whether images are drawn here, and why", over: overAny, run: (*Model).imagesCommand},
+	{name: "open", detail: "open on GitHub what follows, or what is selected", args: true, over: overAny, run: (*Model).openCommand, complete: (*Model).completeTarget},
+	{name: "q", detail: "quit", quits: true, over: overAny, run: func(*Model, string) tea.Cmd { return tea.Quit }},
+	{name: ui.CommandRaw, detail: "show the open file as its source with on, or rendered with off", args: true, over: overNamed, run: (*Model).rawCommand, complete: completeRaw},
 	{name: "refresh", detail: "read the focused view again", run: pressing(config.ActionRefresh)},
 	{name: "search", detail: "search GitHub, for what follows if anything", args: true, run: (*Model).searchCommand},
-	{name: "set", detail: "change a setting for this session, or show it", args: true, overModal: true, run: (*Model).setCommand, complete: (*Model).completeSet},
+	{name: "set", detail: "change a setting for this session, or show it", args: true, over: overAny, run: (*Model).setCommand, complete: (*Model).completeSet},
 	{name: "sort", detail: "sort the focused list", run: filtering(filterform.SortTab)},
 }
 
@@ -104,6 +120,23 @@ func (m *Model) searchCommand(query string) tea.Cmd {
 		return show
 	}
 	return tea.Batch(show, s.Search(query))
+}
+
+// commandsOver reports whether the command key opens the command line over
+// the open modal now: whenever the modal doesn't take the key as text, as
+// a query or an answer does.
+func (m *Model) commandsOver() bool {
+	return !m.modalTakesKeys()
+}
+
+// runsOver reports whether c runs now: with no modal open, or over the
+// open one, which either takes every such command or names c.
+func (m *Model) runsOver(c command) bool {
+	mod := m.topModal()
+	if mod == nil {
+		return true
+	}
+	return c.over == overAny || c.over == overNamed && slices.Contains(mod.Commands(), c.name)
 }
 
 // findCommand returns the command named name.
@@ -162,7 +195,7 @@ func (m *Model) runLine(line string, save tea.Cmd) tea.Cmd {
 	switch {
 	case !ok:
 		return tea.Batch(save, m.toast.Push(toast.Warning, "Unknown command: "+name+"."))
-	case m.topModal() != nil && !c.overModal:
+	case !m.runsOver(c):
 		return tea.Batch(save, m.toast.Push(toast.Warning, "Close "+m.modalName(m.topModal())+" first to use "+c.name+"."))
 	case !c.args && arg != "":
 		return tea.Batch(save, m.toast.Push(toast.Warning, "The "+c.name+" command takes no argument."))

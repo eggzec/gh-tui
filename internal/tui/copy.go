@@ -24,13 +24,19 @@ type copyKind struct {
 // copyKinds are what copy copies, in the order they complete.
 var copyKinds = []copyKind{
 	{name: "url", detail: "its page on GitHub", noun: "link", of: func(s ui.Selection) string { return s.URL }},
-	{name: "ref", detail: "owner/name, or owner/name#number", noun: "reference", of: ref},
+	{name: "ref", detail: "owner/name, owner/name#number, or a release's tag", noun: "reference", of: ref},
 	{name: "sha", detail: "its commit SHA", noun: "commit SHA", of: func(s ui.Selection) string { return s.SHA }},
 	{name: "path", detail: "its file path", noun: "path", of: func(s ui.Selection) string { return s.Path }},
 }
 
-// ref returns owner/name#number of s, or owner/name without a number.
+// ref returns owner/name#number of s, or owner/name without a number, or
+// the tag of a release.
 func ref(s ui.Selection) string {
+	if s.What == "release" {
+		// A release is referred to by its tag, which is unknown until
+		// it is read.
+		return s.Tag
+	}
 	if s.Repo.Owner == "" {
 		return ""
 	}
@@ -48,8 +54,9 @@ const maxCopy = 64 << 10
 // shows.
 const maxCopied = 60
 
-// copyCommand copies what arg names of the selection of the focused view
-// to the system clipboard, through the terminal (OSC 52).
+// copyCommand copies what arg names of the selection of the focused view,
+// or of the modal over it, to the system clipboard, through the terminal
+// (OSC 52).
 func (m *Model) copyCommand(arg string) tea.Cmd {
 	i := slices.IndexFunc(copyKinds, func(k copyKind) bool { return k.name == arg })
 	if i < 0 {
@@ -74,9 +81,12 @@ func (m *Model) copyCommand(arg string) tea.Cmd {
 	return tea.Batch(tea.SetClipboard(text), m.toast.Push(toast.Info, "Copied "+m.shorten(ui.OneLine(text), maxCopied)+"."))
 }
 
-// selection returns what the cursor of the focused section is on, if
-// anything.
+// selection returns what the open modal shows, if it is a ui.Selector, or
+// else what the cursor of the focused section is on, if anything.
 func (m *Model) selection() (ui.Selection, bool) {
+	if s, ok := m.topModal().(ui.Selector); ok {
+		return s.Selected()
+	}
 	p := m.focused()
 	if p == nil {
 		return ui.Selection{}, false

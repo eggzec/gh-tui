@@ -42,6 +42,9 @@ func (f *fakeModal) KeyLayers() []keyhelp.Layer {
 	return []keyhelp.Layer{keyhelp.FromHelp(f.title, sectionKeys{}, f.typing)}
 }
 
+// Commands implements ui.Commanded: the fake takes none that acts on it.
+func (f *fakeModal) Commands() []string { return nil }
+
 func (f *fakeModal) keys() []string {
 	var ks []string
 	for _, msg := range f.msgs {
@@ -113,12 +116,16 @@ type settlingModal struct {
 // modalSettledMsg ends the wait of a settlingModal.
 type modalSettledMsg struct{}
 
+// KeyLayers are those of a modal over which the command key opens the
+// line.
+func (s *settlingModal) KeyLayers() []keyhelp.Layer {
+	return []keyhelp.Layer{{Source: "preview", Context: "preview"}}
+}
+
 func (s *settlingModal) Settle() tea.Cmd {
 	s.settles++
 	return func() tea.Msg { return modalSettledMsg{} }
 }
-
-func (s *settlingModal) TakesCommands() bool { return true }
 
 // A resize of the terminal has the open modal wait it out, and the
 // message that ends the wait reaches it; a modal that waits out nothing
@@ -158,7 +165,7 @@ func TestModalSettlesWhenTheFooterChanges(t *testing.T) {
 	}
 	h := mod.height
 	m.Update(press(":"))
-	m.Update(press("r"))
+	m.Update(press("s"))
 	if !m.line.Focused() {
 		t.Fatal("the command line didn't open over the modal")
 	}
@@ -168,7 +175,7 @@ func TestModalSettlesWhenTheFooterChanges(t *testing.T) {
 	if mod.settles != 2 {
 		t.Errorf("the modal settled %d times after the command line took a row, want twice", mod.settles)
 	}
-	m.Update(press("a"))
+	m.Update(press("e"))
 	if mod.settles != 2 {
 		t.Errorf("the modal settled %d times after a key that resized nothing, want still twice", mod.settles)
 	}

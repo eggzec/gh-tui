@@ -287,7 +287,7 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 		if key.Matches(msg, forceQuit) {
 			return tea.Quit
 		}
-		if m.commandsOver(mod) && key.Matches(msg, m.keys.Command) {
+		if m.commandsOver() && key.Matches(msg, m.keys.Command) {
 			return m.openLine()
 		}
 		takes := m.modalTakesKeys()

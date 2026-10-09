@@ -265,10 +265,18 @@ func (p *preview) SetRaw(raw bool) tea.Cmd {
 	return tea.Batch(cmd, p.pager.SetSearch(query), p.md.lookUp())
 }
 
-// TakesCommands implements ui.Commanded: the command key opens the
-// command line over the preview, unless the pager takes keys as text.
-func (p *preview) TakesCommands() bool {
-	return !p.pager.Capturing()
+// Commands implements ui.Commanded: the file can be shown raw or
+// rendered, and copied.
+func (p *preview) Commands() []string { return []string{ui.CommandRaw, ui.CommandCopy} }
+
+// Selected implements ui.Selector, for the copy command: the file the
+// preview shows, at the commit its files are listed at if they are.
+func (p *preview) Selected() (ui.Selection, bool) {
+	sel := ui.Selection{What: "file", URL: webURL(p.host, p.repo, p.ref, p.entry), Repo: p.repo, Path: p.entry.Path, Owner: p.repo.Owner}
+	if shortRef(p.ref) != p.ref {
+		sel.SHA = p.ref
+	}
+	return sel, true
 }
 
 // fill puts the content of the file of e in pg, or why it isn't shown,

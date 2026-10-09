@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 )
 
 // sourceModal is a modal that shows a file rendered or as its source, as
@@ -19,7 +20,13 @@ type sourceModal struct {
 	set          []bool
 }
 
-func (s *sourceModal) TakesCommands() bool { return !s.typing }
+func (s *sourceModal) Commands() []string { return []string{ui.CommandRaw} }
+
+// KeyLayers are those of the preview, which type while the modal does.
+func (s *sourceModal) KeyLayers() []keyhelp.Layer {
+	return []keyhelp.Layer{{Source: "preview", Context: "preview", Typing: s.typing}}
+}
+
 func (s *sourceModal) Raw() (raw, ok bool) { return s.raw, s.renders }
 func (s *sourceModal) SetRaw(raw bool) tea.Cmd {
 	s.set = append(s.set, raw)
@@ -142,8 +149,8 @@ func TestCommandKeyOverTheFilePreview(t *testing.T) {
 		{name: "preview option", keys: []string{"down", "enter", "-"}},
 		{name: "preview digit", keys: []string{"down", "enter", "5"}, open: true},
 		{name: "finder", keys: []string{"ctrl+p"}},
-		{name: "history", keys: []string{"B"}},
-		{name: "issue", keys: []string{"3", "enter"}},
+		{name: "history", keys: []string{"B"}, open: true},
+		{name: "issue", keys: []string{"3", "enter"}, open: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -188,9 +195,9 @@ func TestCommandsOverTheFilePreview(t *testing.T) {
 	if m.cfg.Files.Markdown != "raw" {
 		t.Errorf("set over the preview didn't run: %q", m.cfg.Files.Markdown)
 	}
-	for _, name := range []string{"goto", "search", "filter", "sort", "config", "auth", "refresh", "copy"} {
+	for _, name := range []string{"goto", "search", "filter", "sort", "auth", "refresh"} {
 		line := name
-		if name == "goto" || name == "copy" {
+		if name == "goto" {
 			line += " x"
 		}
 		run(line)

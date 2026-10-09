@@ -578,6 +578,9 @@ func (f *finderModal) SetTheme(t ui.Theme) {
 	f.sep = " " + border.Render(f.s.icons.Border.Left) + " "
 }
 
+// Commands implements ui.Commanded: the finder takes only the commands that act on the app.
+func (f *finderModal) Commands() []string { return nil }
+
 // KeyLayers implements ui.Keyed: the finder's own keys, with the bubble's,
 // whose query types the rest.
 func (f *finderModal) KeyLayers() []keyhelp.Layer {
