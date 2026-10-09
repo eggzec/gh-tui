@@ -17,6 +17,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/checks"
 	"github.com/eggzec/gh-tui/internal/tui/details"
+	"github.com/eggzec/gh-tui/internal/tui/refs"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/termtext"
@@ -84,6 +85,10 @@ type Section struct {
 	// has no such step.
 	checks     ChecksService
 	checksOpts []checks.Option
+	// refs reads the links of the modal's References step, and refsOpts
+	// configure the step. Without refs, the modal has no such step.
+	refs     refs.Service
+	refsOpts []refs.Option
 	// mergeMethod is how merge merges, if the repository allows it: the
 	// method last merged with in this session, or else the configured
 	// one. Without either, the repository's.

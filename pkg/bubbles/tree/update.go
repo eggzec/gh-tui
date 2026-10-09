@@ -125,7 +125,7 @@ func (m *Model) right() tea.Cmd {
 	if e != nil && !e.node.Branch {
 		return m.open()
 	}
-	if e != nil && e.expanded && e.err == nil && len(e.kids) > 0 {
+	if e != nil && e.open() && e.err == nil && len(e.kids) > 0 {
 		// The first child is the next row.
 		m.sel++
 		return nil
@@ -138,7 +138,7 @@ func (m *Model) collapse() {
 	e := m.current()
 	switch {
 	case e == nil:
-	case e.node.Branch && e.expanded:
+	case e.node.Branch && e.expanded && !e.forced:
 		e.expanded = false
 		m.flatten(m.anchor(e))
 	default:
@@ -195,7 +195,8 @@ func (m *Model) collapseAll() {
 func (m *Model) open() tea.Cmd {
 	e := m.current()
 	switch {
-	case e == nil:
+	case e == nil, e.forced:
+		// A filter holds a branch open, so there is nothing to toggle.
 		return nil
 	case e.node.Branch && e.expanded:
 		e.expanded = false

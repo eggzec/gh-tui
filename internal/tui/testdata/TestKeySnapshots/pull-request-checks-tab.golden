@@ -16,6 +16,7 @@ Pull request
   reopen PR | O | O | off
   convert to draft | W | W | on
   checks | C | C | off
+  linked items | # | # | on
   next tab | ] | ] | on
   previous tab | [ | [ | on
   author | @ | @ | on

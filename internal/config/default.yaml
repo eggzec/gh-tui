@@ -808,6 +808,10 @@ keys:
     draft: [W]
     # Show the checks of the pull request.
     checks: [C]
+    # Show the issues and pull requests linked to it, over the tab on view,
+    # and those that mention it. Quoted, since an unquoted # starts a
+    # comment.
+    references: ["#"]
   # Checks: the list of checks. Each pane of the step re-runs the failed
   # jobs of the run of the check under the cursor, or of the one shown.
   pull_check_list:
@@ -857,6 +861,9 @@ keys:
     reopen: [O]
     comment: [c]
     labels: [L]
+    # Show the issues and pull requests linked to it, and those that mention
+    # it.
+    references: ["#"]
     up: [up, k]
     down: [down, j]
     page_up: [b, ctrl+b, pgup]
@@ -865,6 +872,30 @@ keys:
     half_page_down: [ctrl+d]
     top: [g, home]
     bottom: [G, end]
+
+  # The links of a pull request or an issue: what it closes or is closed by,
+  # what its texts write, and what mentions it, in groups that fold. Enter
+  # opens an item in place of the modal, and backspace comes back to the
+  # links.
+  references:
+    up: [up, k]
+    down: [down, j]
+    page_up: [ctrl+b, pgup]
+    page_down: [ctrl+f, pgdown]
+    half_page_up: [ctrl+u]
+    half_page_down: [ctrl+d]
+    top: [g, home]
+    bottom: [G, end]
+    # Expand the group under the cursor, or go to its first item when it is
+    # open; on an item, open it as the select key does. Collapse a group, or
+    # go to its group from an item. The toggle expands every group, or
+    # collapses them all when all are expanded.
+    expand: [right, l]
+    collapse: [left, h]
+    toggle_all: ["*"]
+    # Show only the items that hold the words typed, wherever they are in a
+    # row: the number, the title, how the item stands, or who linked it.
+    quick_filter: ["&"]
 
   # The History modal, on any of its panes.
   history:

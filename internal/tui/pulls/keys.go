@@ -40,6 +40,9 @@ type keyMap struct {
 	ToggleDraft key.Binding
 	// Checks shows the checks of a pull request, on a tab of its modal.
 	Checks key.Binding
+	// References shows the issues and pull requests linked to it, in a step
+	// of its modal. The list has no such key.
+	References key.Binding
 
 	// confirm answers the question that merge, close and reopen ask.
 	confirm ui.ConfirmKeys
@@ -99,6 +102,7 @@ func newKeyMap(keys config.Keymap) keyMap {
 		Reopen:      list.Binding("reopen", "reopen PR"),
 		ToggleDraft: list.Binding("draft", "convert to draft"),
 		Checks:      list.Binding("checks", "checks"),
+		References:  ui.In(keys, ctxModal).Binding("references", "linked items"),
 		confirm:     ui.NewConfirmKeys(keys),
 		owner:       list.Binding("global.owner", "author"),
 	}
@@ -143,6 +147,7 @@ func (k keyMap) forModal(keys config.Keymap) keyMap {
 	k.Reopen = modal.Binding("reopen", "reopen PR")
 	k.ToggleDraft = modal.Binding("draft", "convert to draft")
 	k.Checks = modal.Binding("checks", "checks")
+	k.References = modal.Binding("references", "linked items")
 	// The modal closes on esc, as it does from the list, and its tabs are those of the global keys.
 	k.Back = modal.Binding("global.dismiss", "close")
 	k.NextTab = modal.Binding("global.next_tab", "next tab")
@@ -172,7 +177,7 @@ func (k keyMap) ShortHelp() []key.Binding {
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Merge, k.Close, k.Reopen, k.ToggleDraft},
-		{k.Back, k.Select, k.Checks, k.NextTab, k.PrevTab, k.ClearFilter, k.Refresh, k.Open, k.Filter, k.Sort},
+		{k.Back, k.Select, k.Checks, k.References, k.NextTab, k.PrevTab, k.ClearFilter, k.Refresh, k.Open, k.Filter, k.Sort},
 	}
 }
 
@@ -204,5 +209,6 @@ func (k keyMap) onList(s *Section) keyMap {
 	k = k.withChanges(s.gate(), s.mergeMethod, pr, ok)
 	k.ClearFilter.SetEnabled(k.ClearFilter.Enabled() && s.query != "")
 	k.Back.SetEnabled(false)
+	k.References.SetEnabled(false)
 	return k
 }

@@ -67,6 +67,7 @@ var commands = []command{
 	{name: "open", detail: "open on GitHub what follows, or what is selected", args: true, over: overAny, run: (*Model).openCommand, complete: (*Model).completeTarget},
 	{name: "q", detail: "quit", quits: true, over: overAny, run: func(*Model, string) tea.Cmd { return tea.Quit }},
 	{name: ui.CommandRaw, detail: "show the open file as its source with on, or rendered with off", args: true, over: overNamed, run: (*Model).rawCommand, complete: completeRaw},
+	{name: ui.CommandReferences, detail: "list the issues and pull requests linked to the open one", over: overNamed, run: (*Model).referencesCommand},
 	{name: "refresh", detail: "read the focused view again", run: pressing(config.ActionRefresh)},
 	{name: "search", detail: "search GitHub, for what follows if anything", args: true, run: (*Model).searchCommand},
 	{name: "set", detail: "change a setting for this session, or show it", args: true, over: overAny, run: (*Model).setCommand, complete: (*Model).completeSet},
@@ -91,6 +92,18 @@ func filtering(tab filterform.Tab) func(m *Model, arg string) tea.Cmd {
 		}
 		return m.toast.Push(toast.Warning, "Nothing here to filter.")
 	}
+}
+
+// referencesCommand shows the issues and pull requests linked to the one
+// the open modal shows, as the key does, so that it works with the key
+// unbound.
+func (m *Model) referencesCommand(string) tea.Cmd {
+	if r, ok := m.topModal().(ui.Referencing); ok {
+		if cmd, ok := r.ShowReferences(); ok {
+			return cmd
+		}
+	}
+	return m.toast.Push(toast.Warning, "references works in the PR and issue modals.")
 }
 
 // Searcher is a search page that searches for a query, as if the user

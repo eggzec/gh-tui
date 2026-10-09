@@ -1,0 +1,31 @@
+# label | keys | help key | on or off
+
+global
+  quit | ctrl+c | ^c | on
+  command | : | : | on
+  maximize | Z | Z | on
+  dashboard | 0 | 0 | off
+  notifications | I | I | off
+  search | S | S | off
+  this repo | . | . | off
+  owner page | @ | @ | off
+  help | ? | ? | on
+
+Linked items
+  filter | & | & | on
+  open in browser | o | o | on
+  refresh | r | r | on
+  up | up k | ↑/k | on
+  down | down j | ↓/j | on
+  page up | ctrl+b pgup | ^b/pgup | on
+  page down | ctrl+f pgdown | ^f/pgdn | on
+  ½ page up | ctrl+u | ^u | on
+  ½ page down | ctrl+d | ^d | on
+  first | g home | g/home | on
+  last | G end | G/end | on
+  expand | right l | →/l | on
+  collapse | left h | ←/h | on
+  all | * | * | on
+  open | enter | ↵ | on
+  back | backspace | backspace | on
+  close | esc | esc | on

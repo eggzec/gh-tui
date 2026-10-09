@@ -26,6 +26,7 @@ import (
 	notifsvc "github.com/eggzec/gh-tui/internal/service/notifications"
 	ownersvc "github.com/eggzec/gh-tui/internal/service/owners"
 	pullsvc "github.com/eggzec/gh-tui/internal/service/pulls"
+	refssvc "github.com/eggzec/gh-tui/internal/service/refs"
 	searchsvc "github.com/eggzec/gh-tui/internal/service/search"
 	"github.com/eggzec/gh-tui/internal/tui/actions"
 	"github.com/eggzec/gh-tui/internal/tui/checks"
@@ -206,6 +207,39 @@ func (keyIssues) CurrentGet(core.RepoRef, int) bool { return true }
 
 func (keyIssues) CurrentComments(issuesvc.CommentsQuery) bool { return true }
 func (keyIssues) Invalidate(core.RepoRef)                     {}
+
+// keyRefs serves the links of every pull request and issue: one it closes,
+// one its text writes, and three that mention it, which the step lists once
+// they are read.
+type keyRefs struct{}
+
+func keyLink(n int, title string, origin core.RefOrigin) core.Reference {
+	return core.Reference{
+		Target: core.Target{Repo: testRepo, Number: n, Kind: core.KindIssue}, Title: title, State: core.StateOpen,
+		URL: fmt.Sprintf("https://github.com/eggzec/gh-tui/issues/%d", n), Origins: []core.RefOrigin{origin},
+	}
+}
+
+func (keyRefs) CachedReferences(refssvc.Query) (core.References, bool) {
+	return core.References{}, false
+}
+func (keyRefs) References(context.Context, refssvc.Query) (core.References, error) {
+	return core.References{
+		Closing:   []core.Reference{keyLink(11, "Keys collide", core.RefOrigin{Group: core.RefClosing, Where: "closes"})},
+		Written:   []core.Reference{keyLink(12, "Keys are matched by order", core.RefOrigin{Group: core.RefWritten, Where: "body"})},
+		Mentioned: 3,
+	}, nil
+}
+func (keyRefs) CachedMentions(refssvc.MentionsQuery) (core.Page[core.Reference], bool) {
+	return core.Page[core.Reference]{}, false
+}
+func (keyRefs) Mentions(context.Context, refssvc.MentionsQuery) (core.Page[core.Reference], error) {
+	mention := core.RefOrigin{Group: core.RefMentioned, Where: "mentioned", By: "octocat"}
+	return core.Page[core.Reference]{Items: []core.Reference{
+		keyLink(13, "Mention one", mention), keyLink(14, "Mention two", mention), keyLink(15, "Mention three", mention),
+	}}, nil
+}
+func (keyRefs) Invalidate(core.RepoRef, int) {}
 
 // keyFiles serves a tree of a directory holding a file and of a file, and
 // the file.
@@ -828,8 +862,8 @@ func newKeysAppWith(t *testing.T, repo bool, edit func(*config.Config)) *Model {
 	layout := Layout{
 		Files: files.New(ctx, keyFiles{}, cfg.Keys, files.WithVoice(v), files.WithIcons(ic)),
 		Pulls: pulls.New(ctx, keyPulls{}, cfg.Keys, pulls.WithVoice(v), pulls.WithIcons(ic),
-			pulls.WithChecks(keyActions{}, checks.WithVoice(v))),
-		Issues:        issues.New(ctx, keyIssues{}, cfg.Keys, issues.WithVoice(v), issues.WithIcons(ic)),
+			pulls.WithChecks(keyActions{}, checks.WithVoice(v)), pulls.WithReferences(keyRefs{})),
+		Issues:        issues.New(ctx, keyIssues{}, cfg.Keys, issues.WithVoice(v), issues.WithIcons(ic), issues.WithReferences(keyRefs{})),
 		Notifications: notifications.New(ctx, keyInbox{}, cfg.Keys, notifications.WithVoice(v), notifications.WithIcons(ic)),
 		Search:        searchpage.New(ctx, keySearch{}, cfg.Keys, searchpage.WithVoice(v), searchpage.WithIcons(ic)),
 		Dashboard: dashboard.New(ctx, keyDash{}, cfg.Keys, dashboard.WithVoice(v), dashboard.WithIcons(ic),
@@ -948,6 +982,9 @@ func keyContexts() []keyContext {
 		{name: "pull requests: filter insert", repo: true, steps: []string{"global.pane_2", "pulls.filter", "filter.bottom", "filter.insert"}, context: "filter_query", want: "always, filter_query (types)"},
 		{name: "pull requests: merge", repo: true, steps: []string{"global.pane_2", "pulls.merge"}, context: "confirm", want: "always, confirm"},
 		{name: "pull request", repo: true, steps: []string{"global.pane_2", "global.select"}, after: []string{"pull_conversation.half_page_down"}, context: "pull_conversation", want: "global, pull_modal, pull_conversation"},
+		{name: "pull request: references", repo: true, steps: []string{"global.pane_2", "global.select", "pull_modal.references"}, context: "references", want: "global, references"},
+		{name: "pull request: references filter", repo: true, steps: []string{"global.pane_2", "global.select", "pull_modal.references", "references.quick_filter"}, context: "search_prompt", want: "always, search_prompt (types)"},
+		{name: "pull request: references over checks", repo: true, steps: []string{"global.pane_2", "global.select", "pull_modal.checks", "pull_modal.references"}, context: "references", want: "global, references"},
 		{name: "pull request: close", repo: true, steps: []string{"global.pane_2", "global.select", "pull_modal.close"}, context: "confirm", want: "always, confirm"},
 		{name: "pull request: files", repo: true, steps: []string{"global.pane_2", "global.select", "global.prev_tab", "global.pane_1"}, after: []string{"pull_files.down"}, context: "pull_files", want: "global, pull_modal, pull_files"},
 		{name: "pull request: diff", repo: true, steps: []string{"global.pane_2", "global.select", "global.prev_tab"}, after: []string{"pull_diff.half_page_down", "pull_diff.right"}, context: "pull_diff", want: "global, pull_modal, pull_diff"},
@@ -962,6 +999,8 @@ func keyContexts() []keyContext {
 		{name: "issues: sort", repo: true, steps: []string{"global.pane_3", "issues.sort"}, context: "filter", want: "global, filter"},
 		{name: "issues: close", repo: true, steps: []string{"global.pane_3", "issues.close"}, context: "confirm", want: "always, confirm"},
 		{name: "issue", repo: true, steps: []string{"global.pane_3", "global.select"}, after: []string{"issue_modal.half_page_down"}, context: "issue_modal", want: "global, issue_modal"},
+		{name: "issue: references", repo: true, steps: []string{"global.pane_3", "global.select", "issue_modal.references"}, context: "references", want: "global, references"},
+		{name: "issue: references filter", repo: true, steps: []string{"global.pane_3", "global.select", "issue_modal.references", "references.quick_filter"}, context: "search_prompt", want: "always, search_prompt (types)"},
 		{name: "issue: comment", repo: true, steps: []string{"global.pane_3", "global.select", "issue_modal.comment"}, context: "prompt", want: "always, prompt (types)"},
 		{name: "issue: labels", repo: true, steps: []string{"global.pane_3", "global.select", "issue_modal.labels"}, context: "prompt", want: "always, prompt (types)"},
 		{name: "history", repo: true, steps: []string{"repo.history"}, context: "history_graph", want: "global, history, history_graph"},

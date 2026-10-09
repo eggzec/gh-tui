@@ -41,6 +41,10 @@ type Context struct {
 	// Within is the modal that this one is a step of, if it never opens
 	// first: it shows inside that modal, in place of what it showed.
 	Within string
+	// Step is whether a screen-layer context is a step shown inside any of
+	// several modals, which never opens first, such as the links of a pull
+	// request or an issue.
+	Step bool
 	// Typing is whether a capturing context types the printable keys that
 	// none of its actions bind, such as the command line. Binding a
 	// printable key there would make the key untypable, so validation
@@ -91,6 +95,10 @@ var contexts = []Context{
 	{Name: "pull_check_annotations", Title: "Annotations", Reach: ReachPane, Parent: "pull_modal"},
 	{Name: "pull_check_detail", Title: "Detail", Reach: ReachPane, Parent: "pull_modal"},
 	{Name: "issue_modal", Title: "Issue", Reach: ReachScreen, Modal: true},
+	// The links of a pull request or an issue show in place of what its
+	// modal showed, so its keys are a layer of their own and the modal's
+	// don't work.
+	{Name: "references", Title: "Linked items", Reach: ReachScreen, Modal: true, Step: true},
 	{Name: "release_modal", Title: "Release", Reach: ReachScreen, Modal: true},
 
 	{Name: "history", Title: "History", Reach: ReachScreen, Modal: true},

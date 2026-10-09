@@ -38,14 +38,14 @@ func (m Model) writeRow(w *lineWriter, i int) {
 		switch {
 		case e.loading:
 			marker = m.spin.View() + " "
-		case e.expanded:
+		case e.open():
 			marker = m.markerOpen
 		default:
 			marker = m.markerClosed
 		}
 	}
 	g := e.icon
-	if e.expanded {
+	if e.open() {
 		g = e.iconOpen
 	}
 	var icon glyph
@@ -75,12 +75,9 @@ func (m Model) writeRow(w *lineWriter, i int) {
 	w.line(prefix, guide, marker, icon.text, name, msg, hint)
 }
 
-// minDetailName is the fewest cells of a name that a detail may leave.
-const minDetailName = 10
-
 // writeName writes a row that loaded, with its detail at the right edge
 // when there is room for it. The name is truncated before the detail is
-// dropped, but never below minDetailName cells.
+// dropped, but never below minName cells.
 func (m Model) writeName(w *lineWriter, e *entry, prefix, marker string, icon glyph) {
 	guide := m.guides[e.depth]
 	if e.detail == "" {
@@ -93,7 +90,7 @@ func (m Model) writeName(w *lineWriter, e *entry, prefix, marker string, icon gl
 	nw := ansi.StringWidth(e.label)
 	// One space keeps the name and the detail apart.
 	avail := room - dw - 1
-	if avail < min(nw, minDetailName) {
+	if avail < min(nw, m.minName) {
 		w.line(prefix, guide, marker, icon.text, e.label)
 		return
 	}

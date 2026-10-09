@@ -19,6 +19,7 @@ Pull request
   close | esc | esc | on
   open | enter | ↵ | off
   checks | C | C | on
+  linked items | # | # | on
   next tab | ] | ] | on
   previous tab | [ | [ | on
   clear filters | F | F | off

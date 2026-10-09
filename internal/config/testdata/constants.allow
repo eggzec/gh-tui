@@ -152,6 +152,7 @@ pkg/bubbles/picker/model.go:DefaultDebounce  keep: the debounce of typing, a fee
 pkg/bubbles/tree/options.go:DefaultExpandAllDepth  keep: a bubble's own default, a safety bound on expand-all
 pkg/bubbles/tree/options.go:DefaultExpandAllNodes  keep: a bubble's own default, a safety bound on expand-all
 pkg/bubbles/tree/options.go:DefaultMaxLoads  keep: a bubble's own default, a bound on loads at once
+pkg/bubbles/tree/options.go:DefaultMinName  keep: a bubble's own default, a layout measure
 pkg/bubbles/tree/options.go:DefaultScrollOff  keep: a bubble's own default, a layout measure
 pkg/markdown/code.go:renderLexLimit  keep: a bound on highlighting
 pkg/syntax/lex.go:Limit  keep: a bound on highlighting

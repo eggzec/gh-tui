@@ -132,8 +132,12 @@ func (m *Model) sizeModal(width, height int) {
 // its first layer of keys is, or "" if none is. A modal context that is
 // within another, such as the filter of the runs, is that other one.
 func modalContext(mod ui.Modal) string {
+	// A modal that shows steps with contexts of their own says which it is.
+	if h, ok := mod.(ui.Hosted); ok {
+		return h.KeyContext()
+	}
 	for _, l := range mod.KeyLayers() {
-		if c, ok := config.LookupContext(l.Context); ok && c.Modal {
+		if c, ok := config.LookupContext(l.Context); ok && c.Modal && !c.Step {
 			return cmp.Or(c.Within, c.Name)
 		}
 	}

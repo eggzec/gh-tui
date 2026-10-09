@@ -116,14 +116,19 @@ func (m *detailModal) receive(msg detailMsg) tea.Cmd {
 		m.failed, m.merging = msg.err, nil
 		return ui.Fail("load #"+strconv.Itoa(m.number), core.About(m.subject(), msg.err))
 	}
+	newer := m.loaded && msg.detail.UpdatedAt.After(m.detail.UpdatedAt)
 	m.detail, m.loaded, m.seen, m.failed = msg.detail, true, true, nil
-	files := m.showFiles()
+	cmds := []tea.Cmd{m.show(), m.showFiles()}
+	if m.refs != nil && newer {
+		// The links are read again for what changed.
+		cmds = append(cmds, m.refs.Reread())
+	}
 	// A merge that waited for the detail goes on with it.
 	if k := m.merging; k != nil {
 		m.merging = nil
-		return tea.Batch(m.show(), files, m.confirm(*k))
+		cmds = append(cmds, m.confirm(*k))
 	}
-	return tea.Batch(m.show(), files)
+	return tea.Batch(cmds...)
 }
 
 // reload shows the detail from the cache again, which a change has just

@@ -663,7 +663,7 @@ func (m *detailModal) filesModalLayer(k keyMap, owner key.Binding) keyhelp.Layer
 			k.Refresh = renamed(k.Refresh, "retry")
 		}
 	}
-	keys := []key.Binding{k.Merge, k.Close, k.Reopen, k.ToggleDraft, k.Checks, k.NextTab, k.PrevTab, k.nextPane, k.prevPane, k.jump, k.zoom, k.Open, k.Refresh, k.Back}
+	keys := []key.Binding{k.Merge, k.Close, k.Reopen, k.ToggleDraft, k.Checks, k.References, k.NextTab, k.PrevTab, k.nextPane, k.prevPane, k.jump, k.zoom, k.Open, k.Refresh, k.Back}
 	l := ui.ContextLayer(ctxModal, keys, []key.Binding{k.Merge, k.Close, k.Reopen, k.nextPane, k.zoom, k.Open})
 	l.Bindings = append(l.Bindings, owner)
 	return l
