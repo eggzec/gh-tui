@@ -65,6 +65,8 @@ type fakeService struct {
 	// sendErr fails sending them.
 	ops     []string
 	sendErr error
+	// sendErrs fail sending the change of those pull requests only.
+	sendErrs map[int]error
 	// listedAs keeps a changed pull request in the pages of its old state
 	// until the change is sent, as the service's cached pages do.
 	listedAs map[int]core.State
@@ -530,6 +532,8 @@ func keyMsg(k string) tea.KeyPressMsg {
 		return tea.KeyPressMsg{Code: tea.KeyEnter}
 	case "esc":
 		return tea.KeyPressMsg{Code: tea.KeyEscape}
+	case "space":
+		return tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}
 	case "backspace":
 		return tea.KeyPressMsg{Code: tea.KeyBackspace}
 	case "tab":
@@ -560,10 +564,11 @@ func (f *fakeService) change(what string, number int, edit func(*core.PullReques
 	return optimistic.New(func(context.Context) error {
 		f.mu.Lock()
 		defer f.mu.Unlock()
-		if f.sendErr == nil {
+		err := cmp.Or(f.sendErr, f.sendErrs[number])
+		if err == nil {
 			delete(f.listedAs, number)
 		}
-		return f.sendErr
+		return err
 	}, func() {
 		f.mu.Lock()
 		defer f.mu.Unlock()

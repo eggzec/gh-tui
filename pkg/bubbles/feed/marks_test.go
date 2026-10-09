@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"charm.land/bubbles/v2/key"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
 
@@ -370,5 +371,107 @@ func TestClearTransientPeelsMarksLast(t *testing.T) {
 	}
 	if _, ok := m.ClearTransient(); ok {
 		t.Error("ClearTransient reports a layer with nothing left")
+	}
+}
+
+// A feed given the mark key but no key for its items can't mark rows, so
+// help lists the mark row with its key off.
+func TestMarkHelpOffWithoutItemKeys(t *testing.T) {
+	src := newSource(10, 10)
+	rowOf := func(m Model[item]) (key.Binding, bool) {
+		for _, g := range m.FullHelp() {
+			for _, b := range g {
+				if b.Help().Desc == "mark" {
+					return b, true
+				}
+			}
+		}
+		return key.Binding{}, false
+	}
+	m := New(src.fetch, renderItem, WithSize(40, 5), WithFocused(true),
+		WithKeyMap(testKeyMap), WithMarkKeys(testMarkKeys), WithPromptKeys(testPromptKeys))
+	if b, ok := rowOf(m); !ok || b.Enabled() {
+		t.Errorf("a feed that can't mark: row listed %v, enabled %v; want listed and off", ok, ok && b.Enabled())
+	}
+	if b, ok := rowOf(marking(t, src)); !ok || !b.Enabled() {
+		t.Errorf("a feed that marks: row listed %v, enabled %v; want listed and on", ok, ok && b.Enabled())
+	}
+}
+
+func TestMarkedItems(t *testing.T) {
+	src := newSource(25, 10)
+	m := marking(t, src)
+	if items, missing := m.MarkedItems(); len(items) != 0 || missing != 0 {
+		t.Errorf("nothing marked, got %d items and %d missing", len(items), missing)
+	}
+	// Mark 2, then 0, then 12 (in the second chunk), out of order.
+	m = keys(t, m, "j", "j", "space", "g", "space")
+	m = keys(t, m, "end")
+	m = keys(t, m, "end")
+	m = keys(t, m, "g")
+	for range 12 {
+		m = keys(t, m, "j")
+	}
+	m = keys(t, m, "space")
+	items, missing := m.MarkedItems()
+	ids := make([]string, 0, len(items))
+	for _, it := range items {
+		ids = append(ids, it.id)
+	}
+	if got := strings.Join(ids, ","); got != "0,2,12" || missing != 0 {
+		t.Errorf("marked items %s with %d missing, want 0,2,12 in list order and 0 missing", got, missing)
+	}
+	// A quick filter hides rows, not their marks.
+	m = typed(t, m, "&", "item 1", "enter")
+	if items, _ := m.MarkedItems(); len(items) != 3 {
+		t.Errorf("under a filter %d marked items, want all 3", len(items))
+	}
+}
+
+// A mark of an item that is not among the loaded ones is counted, not
+// returned.
+func TestMarkedItemsMissing(t *testing.T) {
+	src := newSource(30, 10)
+	m := marking(t, src)
+	m = keys(t, m, "space")
+	// The first item goes, but the list can't tell as its last chunk is
+	// not loaded, so the mark stays and cannot be resolved.
+	src.items = src.items[1:]
+	m = run(t, m, m.Reload())
+	items, missing := m.MarkedItems()
+	if len(items) != 0 || missing != 1 {
+		t.Errorf("got %d items and %d missing, want 0 and 1", len(items), missing)
+	}
+}
+
+// An item that two loaded chunks hold, as after the list shifted, is
+// returned once, and the count of the ones missing is never negative.
+func TestMarkedItemsOnceWhenInTwoChunks(t *testing.T) {
+	m := marking(t, newSource(25, 10))
+	m = keys(t, m, "end")
+	m = keys(t, m, "end")
+	m = keys(t, m, "g", "space")
+	if len(m.chunks) < 2 {
+		t.Fatalf("%d chunks loaded, want at least 2", len(m.chunks))
+	}
+	// The marked item is the first of chunk 0; the second chunk holds it too.
+	dup := m.chunks[0].items[0]
+	m.chunks[1].items = append([]item{dup}, m.chunks[1].items...)
+	items, missing := m.MarkedItems()
+	if len(items) != 1 || missing != 0 {
+		t.Errorf("got %d items and %d missing, want 1 and 0", len(items), missing)
+	}
+}
+
+func TestSetMarks(t *testing.T) {
+	m := keys(t, marking(t, newSource(10, 10)), "space", "j", "space", "j", "space")
+	m.SetMarks("1", "7")
+	items, _ := m.MarkedItems()
+	if len(items) != 2 || items[0].id != "1" || items[1].id != "7" || m.Marks() != 2 {
+		t.Errorf("marks left %v (%d), want items 1 and 7 alone", items, m.Marks())
+	}
+	m.SetMarks()
+	if m.Marks() != 0 {
+		t.Errorf("SetMarks() left %d marks, want none", m.Marks())
 	}
 }

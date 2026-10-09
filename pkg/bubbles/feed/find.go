@@ -424,10 +424,10 @@ func (m Model[T]) FullHelp() [][]key.Binding {
 func (m Model[T]) helpRows(k KeyMap) [][]key.Binding {
 	rows := k.FullHelp()
 	if m.markKeys.Mark.Help().Desc != "" {
+		// The row stays, with its key off, where the rows can't be
+		// marked or the prompt takes the keys.
 		mark := m.markKeys.Mark
-		if m.prompt.Focused() {
-			mark.SetEnabled(false)
-		}
+		mark.SetEnabled(m.canMark() && !m.prompt.Focused())
 		rows = append(rows, []key.Binding{mark})
 	}
 	return rows

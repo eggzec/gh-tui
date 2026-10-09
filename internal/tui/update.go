@@ -171,6 +171,12 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ui.DoneMsg:
 		cmd := m.fail(msg.What, msg.Err)
 		return m, tea.Batch(cmd, m.broadcast(msg))
+	case ui.BulkDoneMsg:
+		var cmd tea.Cmd
+		if level, text := msg.Toast(m.voice, m.toast.Fits); text != "" {
+			cmd = m.toast.Push(level, text)
+		}
+		return m, tea.Batch(cmd, m.broadcast(msg))
 	case ui.SyncMsg:
 		if msg.Key == core.SyncRateLimit {
 			// Only the status bar shows the rate limits, but GitHub

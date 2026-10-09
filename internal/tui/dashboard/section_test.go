@@ -566,6 +566,27 @@ func TestInbox(t *testing.T) {
 	}
 }
 
+// Marking several threads read at once in the notifications changes the
+// unread count of the dashboard, from the cache, as marking one does.
+func TestInboxCountFollowsBulkChange(t *testing.T) {
+	in := &fakeInbox{threads: inboxThreads()}
+	s := newSection(t, newFake(), in, 140, 38)
+	if !strings.Contains(screen(s), "unread") {
+		t.Fatalf("the dashboard counts no unread threads:\n%s", screen(s))
+	}
+	in.set()
+	s.Update(ui.BulkDoneMsg{From: ui.NotificationsTitle})
+	if !strings.Contains(screen(s), "No unread notifications.") {
+		t.Errorf("with nothing unread the dashboard should say so:\n%s", screen(s))
+	}
+	// Another section's bulk change leaves the inbox alone.
+	in.set(inboxThreads()[0])
+	s.Update(ui.BulkDoneMsg{From: ui.PullsTitle})
+	if !strings.Contains(screen(s), "No unread notifications.") {
+		t.Errorf("a bulk change of pull requests changed the inbox:\n%s", screen(s))
+	}
+}
+
 func TestRefresh(t *testing.T) {
 	svc := newFake()
 	s := newSection(t, svc, nil, 140, 38)

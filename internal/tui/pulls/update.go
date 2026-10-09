@@ -69,6 +69,8 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 		return msg.run()
 	case mergeReadMsg:
 		return s.merged(msg)
+	case ui.BulkDoneMsg:
+		return s.bulkDone(msg)
 	case tea.KeyPressMsg:
 		if cmd, ok := s.mutate(msg); ok {
 			return cmd

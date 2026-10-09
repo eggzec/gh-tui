@@ -41,7 +41,7 @@ func (s *Section) renderChrome() {
 
 func (s *Section) renderBar() {
 	t := s.theme
-	left := "  " + t.Muted.Render(s.repo.String())
+	left := strings.Repeat(" ", s.list.Gutter()) + t.Muted.Render(s.repo.String())
 	var right strings.Builder
 	for i, tb := range tabs {
 		if i > 0 {

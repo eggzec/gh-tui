@@ -173,7 +173,7 @@ func (s *Section) renderHeader() {
 	if f.all {
 		name = "All"
 	}
-	h := "  " + s.styles.filter.render(name)
+	h := strings.Repeat(" ", s.feed.Gutter()) + s.styles.filter.render(name)
 	sep := s.icons.Separator
 	if chips := f.chips(sep); chips != "" {
 		h += s.styles.filter.render(sep + chips)

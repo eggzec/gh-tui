@@ -64,6 +64,8 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		return s.reload()
+	case ui.BulkDoneMsg:
+		return s.bulkDone(msg)
 	case ui.AccessMsg:
 		// What the token was refused, or failed to read, it may read
 		// now. While it still may not, a reload would send nothing and
@@ -110,11 +112,16 @@ func (s *Section) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 			return cmd, true
 		}
 		switch {
+		case key.Matches(msg, k.MarkRead) && s.feed.Marks() > 0:
+			return s.bulk(true), true
+		case key.Matches(msg, k.MarkDone) && s.feed.Marks() > 0:
+			return s.bulk(false), true
 		case key.Matches(msg, k.MarkRead):
 			return s.ask(s.markRead), true
 		case key.Matches(msg, k.MarkDone):
 			return s.ask(s.markDone), true
 		}
+		// Reading everything is not about the marks: the question says so.
 		return s.ask(s.markAllRead), true
 	}
 	return nil, false

@@ -3,6 +3,8 @@ package feed
 import (
 	"testing"
 
+	"charm.land/bubbles/v2/key"
+
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keytest"
 )
@@ -18,6 +20,19 @@ func TestKeyMapComplete(t *testing.T) {
 	keytest.Tagged(t, km)
 	keytest.HelpTags(t, km)
 	keytest.NoConflicts(t, km)
+	// The mark key is another binding of the same list.
+	keytest.NoConflicts(t, withMark{km, testMarkKeys})
+}
+
+// withMark is the keys of a feed with the key that marks its rows, which
+// help lists after them.
+type withMark struct {
+	KeyMap
+	marks MarkKeys
+}
+
+func (w withMark) FullHelp() [][]key.Binding {
+	return append(w.KeyMap.FullHelp(), []key.Binding{w.marks.Mark})
 }
 
 // testKeys are the keys the tests of the feed bind, as an app would.

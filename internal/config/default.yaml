@@ -662,7 +662,10 @@ keys:
     sort: [s]
     clear_filter: [F]
     # Mark the pull request under the cursor, or unmark it. Esc unmarks
-    # them all, after it has cleared a search and a quick filter.
+    # them all, after it has cleared a search and a quick filter. While
+    # some are marked, close, reopen and draft act on all of them, with one
+    # question that says how many are left out; merge still acts on the
+    # one under the cursor.
     mark: [space]
     # Merge the pull request, asking first and naming the method and the
     # base branch. The method is stepped through with confirm.method. It
@@ -698,7 +701,9 @@ keys:
     sort: [s]
     clear_filter: [F]
     # Mark the issue under the cursor, or unmark it. Esc unmarks them all,
-    # after it has cleared a search and a quick filter.
+    # after it has cleared a search and a quick filter. While some are
+    # marked, close and reopen act on all of them, with one question that
+    # says how many are left out.
     mark: [space]
     close: [X]
     reopen: [O]
@@ -724,7 +729,9 @@ keys:
     filter: [f]
     clear_filter: [F]
     # Mark the notification under the cursor, or unmark it. Esc unmarks
-    # them all, after it has cleared a search and a quick filter.
+    # them all, after it has cleared a search and a quick filter. While
+    # some are marked, read and done act on all of them, with one question
+    # that says how many are left out.
     mark: [space]
     read: [U]
     done: [D]
