@@ -256,6 +256,20 @@ func (m *Modal) Link() string {
 	return m.url
 }
 
+// Commands implements ui.Commanded: the release can be copied.
+func (m *Modal) Commands() []string { return []string{ui.CommandCopy} }
+
+// Selected implements ui.Selector, for the copy command: the release the
+// modal shows. A release has no number and no commit of its own: its ref
+// is its tag, once it is read.
+func (m *Modal) Selected() (ui.Selection, bool) {
+	sel := ui.Selection{What: "release", URL: m.Link(), Repo: m.repo, Owner: m.repo.Owner}
+	if m.loaded {
+		sel.Tag = m.rel.Tag
+	}
+	return sel, true
+}
+
 // SetSize implements ui.Modal.
 func (m *Modal) SetSize(width, height int) {
 	m.width, m.height = max(width, 0), max(height, 0)

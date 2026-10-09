@@ -15,15 +15,18 @@ type Selection struct {
 	Number int
 	SHA    string
 	Path   string
+	// Tag is that of a release, which is its reference.
+	Tag string
 	// Owner is the login of the person or organization behind it, whose
 	// page the owner key shows: the author of an issue or pull request,
 	// or the owner of a repository. It is empty where there is none.
 	Owner string
 }
 
-// Selector is a Section that tells what its cursor is on, for what acts on
-// the selection: the copy command, the owner and repo keys, and opening
-// it in the browser. It reports false when the cursor is on nothing.
+// Selector is a Section, or a Modal that names [CommandCopy], that tells
+// what its cursor is on, or what the modal shows, for what acts on the
+// selection: the copy command, the owner and repo keys, and opening it in
+// the browser. It reports false when the cursor is on nothing.
 type Selector interface {
 	Selected() (Selection, bool)
 }

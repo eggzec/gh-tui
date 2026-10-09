@@ -228,6 +228,15 @@ func (m *detailModal) Title() string {
 // Link implements ui.Linked.
 func (m *detailModal) Link() string { return m.detail.URL }
 
+// Commands implements ui.Commanded: the pull request can be copied.
+func (m *detailModal) Commands() []string { return []string{ui.CommandCopy} }
+
+// Selected implements ui.Selector, for the copy command: the pull request
+// the modal shows.
+func (m *detailModal) Selected() (ui.Selection, bool) {
+	return ui.Selection{What: "pull request", URL: m.detail.URL, Repo: m.repo, Number: m.number, Owner: ui.Author(m.detail.Author)}, true
+}
+
 // SetSize implements ui.Modal.
 func (m *detailModal) SetSize(width, height int) {
 	m.width, m.height = max(width, 0), max(height, 0)

@@ -10,13 +10,6 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
-// commandsOver reports whether the command key opens the command line
-// over mod, the open modal, now.
-func (m *Model) commandsOver(mod ui.Modal) bool {
-	c, ok := mod.(ui.Commanded)
-	return ok && c.TakesCommands()
-}
-
 // rawWords are what the raw command takes, in the order they complete.
 var rawWords = []cmdline.Candidate{
 	{Text: "on", Detail: "show the source"},

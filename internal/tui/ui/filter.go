@@ -239,6 +239,9 @@ func (m *FilterModal) Fit(maxWidth, maxHeight int) (width, height int) {
 // SetTheme implements Modal.
 func (m *FilterModal) SetTheme(t Theme) { m.form.SetStyles(t.FilterForm(m.icons)) }
 
+// Commands implements Commanded: the filter takes only the commands that act on the app.
+func (m *FilterModal) Commands() []string { return nil }
+
 // KeyLayers implements Keyed: the keys of the form, which types what the
 // picker or the query line takes in insert mode. The form shows its own
 // help line, so the layer has no short help for the footer.

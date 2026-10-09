@@ -24,6 +24,7 @@ type Modal interface {
 	SetSize(width, height int)
 	SetTheme(t Theme)
 	Keyed
+	Commanded
 }
 
 // Settler is a Modal that waits out a resize before it does work that is
@@ -53,14 +54,26 @@ type Hider interface {
 	Hide()
 }
 
-// Commanded is a Modal over which the command key opens the command line,
-// so that a command can act on what it shows, such as raw on a file.
-// Over any other modal, the command line doesn't open.
+// Commanded is what a Modal says of the command line, which the command
+// key opens over every modal unless it types the key as text, as a query
+// or a question does.
 type Commanded interface {
-	// TakesCommands reports whether the command key opens the line now:
-	// not while the modal takes keys as text, such as in a search.
-	TakesCommands() bool
+	// Commands names the commands, beyond those that act on the app alone,
+	// that the modal takes: those that act on what it shows, such as the
+	// raw command on a file. The app refuses the others over it, naming
+	// the modal, and completes only the ones that run.
+	Commands() []string
 }
+
+// The commands that a modal may name in [Commanded.Commands].
+const (
+	// CommandCopy copies the url, ref, sha or path of what the modal shows;
+	// the modal is a [Selector].
+	CommandCopy = "copy"
+	// CommandRaw shows the file the modal shows as its source or rendered;
+	// the modal is [Sourced].
+	CommandRaw = "raw"
+)
 
 // Sourced is a view that shows a file rendered, such as markdown, or as
 // its source, which the raw command switches between.

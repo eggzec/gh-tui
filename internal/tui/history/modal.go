@@ -202,6 +202,20 @@ func (m *Modal) SetTheme(t ui.Theme) {
 	m.commit.header = nil
 }
 
+// Commands implements ui.Commanded: the commit under the graph's cursor
+// can be copied.
+func (m *Modal) Commands() []string { return []string{ui.CommandCopy} }
+
+// Selected implements ui.Selector, for the copy command: the commit under
+// the graph's cursor, whichever pane has the focus.
+func (m *Modal) Selected() (ui.Selection, bool) {
+	c, ok := m.selectedCommit()
+	if !ok {
+		return ui.Selection{}, false
+	}
+	return ui.Selection{What: "commit", URL: m.commitURL(c), Repo: m.repo, SHA: c.SHA, Owner: m.repo.Owner}, true
+}
+
 // KeyLayers implements ui.Keyed. The filter of the branches and a search
 // of the patch each take every key while open; otherwise the modal's own
 // keys come first, named for what they do in the focused pane, and then

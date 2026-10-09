@@ -150,6 +150,9 @@ func (m *authModal) SetTheme(t ui.Theme) {
 	m.render()
 }
 
+// Commands implements ui.Commanded: the token takes only the commands that act on the app.
+func (m *authModal) Commands() []string { return nil }
+
 // KeyLayers implements ui.Keyed: the keys that answer the question while
 // it is asked, which take every key, or else the one that closes it. The
 // modal is a text to read, so its keys are those of the text context, and

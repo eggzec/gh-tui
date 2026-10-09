@@ -260,6 +260,10 @@ func TestCompleteArgumentsOverAModal(t *testing.T) {
 	if got := m.complete("goto #7", 7); len(got) != 0 {
 		t.Errorf("complete(goto) over a modal = %+v, want nothing, since goto is refused", got)
 	}
+	if got := m.complete("raw ", 4); len(got) != 0 {
+		t.Errorf("complete(raw) over a modal that doesn't name it = %+v, want nothing", got)
+	}
+	m.openModal(&sourceModal{title: "README.md", renders: true})
 	if got := m.complete("raw ", 4); len(got) == 0 {
 		t.Error("raw completes nothing over a modal, which it runs over")
 	}

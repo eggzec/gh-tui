@@ -104,11 +104,13 @@ func completeConfig(_ *Model, arg string, cursor, end int, _ bool) []cmdline.Can
 // whose lines line up scrolls sideways.
 func (m *Model) openText(title, name, text string, wrap bool) tea.Cmd {
 	back := ui.In(m.cfg.Keys, "text").Binding("global.back", "back")
-	back.SetEnabled(false)
-	t := &textModal{title: title, back: back, pager: pager.New(pager.WithKeyMap(pager.NewKeyMap(ui.In(m.cfg.Keys, "text"))), pager.WithEditor(m.cfg.Editor)), icons: ui.NewIcons(m.cfg.UI.Icons)}
+	// Over a modal, the text replaces it, and back returns to it.
+	over := m.modal
+	back.SetEnabled(over != nil)
+	t := &textModal{title: title, back: back, returns: over != nil, pager: pager.New(pager.WithKeyMap(pager.NewKeyMap(ui.In(m.cfg.Keys, "text"))), pager.WithEditor(m.cfg.Editor)), icons: ui.NewIcons(m.cfg.UI.Icons)}
 	t.pager.Focus()
 	t.pager.SetWrap(wrap)
-	m.openModal(t)
+	m.openModalOver(t, over)
 	return t.pager.SetContent(name, text)
 }
 
@@ -116,10 +118,12 @@ func (m *Model) openText(title, name, text string, wrap bool) tea.Cmd {
 // pager asks to close.
 type textModal struct {
 	title string
-	// back is off: the modal has no step before it, and takes the key so
-	// that it does nothing.
-	back  key.Binding
-	pager pager.Model
+	// back is off, and the modal takes the key so that it does nothing,
+	// unless it opened over another modal, which the key returns to:
+	// returns says so.
+	back    key.Binding
+	returns bool
+	pager   pager.Model
 	// icons mark what the pager says went wrong.
 	icons ui.Icons
 }
@@ -150,6 +154,9 @@ func (t *textModal) SetSize(width, height int) { t.pager.SetSize(width, height) 
 // SetTheme styles the pager.
 func (t *textModal) SetTheme(th ui.Theme) { t.pager.SetStyles(th.Pager(t.icons)) }
 
+// Commands implements ui.Commanded: the text takes only the commands that act on the app.
+func (t *textModal) Commands() []string { return nil }
+
 // KeyLayers implements ui.Keyed: the pager's keys.
 func (t *textModal) KeyLayers() []keyhelp.Layer {
 	return []keyhelp.Layer{ui.PagerLayer("text", &t.pager, t.back)}
@@ -158,7 +165,8 @@ func (t *textModal) KeyLayers() []keyhelp.Layer {
 var _ ui.Actor = (*textModal)(nil)
 
 // Act implements ui.Actor. The quit key closes the modal, and the dismiss
-// key clears the search or the filter first. The back key does nothing.
+// key clears the search or the filter first. The back key does nothing,
+// unless the modal replaced another, which it returns to.
 // Every other intent is the app's to refuse while it is open.
 func (t *textModal) Act(action string) (tea.Cmd, bool) {
 	switch action {
@@ -170,7 +178,7 @@ func (t *textModal) Act(action string) (tea.Cmd, bool) {
 		}
 		return ui.CloseModal(t), true
 	case ui.ActBack:
-		return nil, true
+		return nil, !t.returns
 	}
 	return nil, false
 }

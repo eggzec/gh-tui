@@ -36,10 +36,6 @@ func (c *ctxModal) Settle() tea.Cmd {
 	return nil
 }
 
-// TakesCommands implements ui.Commanded: the command line opens over the
-// modal unless it types.
-func (c *ctxModal) TakesCommands() bool { return !c.typing }
-
 func newCtxModal(ctx string) *ctxModal {
 	c := &ctxModal{ctx: ctx}
 	c.title = ctx

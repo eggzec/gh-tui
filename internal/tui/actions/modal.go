@@ -233,6 +233,25 @@ func (m *Modal) SetTheme(t ui.Theme) {
 	}
 }
 
+// Commands implements ui.Commanded: the run, or the job, can be copied.
+func (m *Modal) Commands() []string { return []string{ui.CommandCopy} }
+
+// Selected implements ui.Selector, for the copy command: the job that the
+// open key would open, in the jobs and the log, or else the run, with the
+// commit the run ran on.
+func (m *Modal) Selected() (ui.Selection, bool) {
+	if !m.hasRun {
+		return ui.Selection{}, false
+	}
+	sel := ui.Selection{What: "run", URL: m.run.URL, Repo: m.repo, SHA: m.run.HeadSHA, Owner: m.repo.Owner}
+	if m.focus == logPane || m.focus == jobsPane && !m.jobs.onGroup() {
+		if j, ok := m.jobs.selected(); ok {
+			sel.What, sel.URL = "job", j.URL
+		}
+	}
+	return sel, true
+}
+
 // KeyLayers implements ui.Keyed. The confirmation, the filter and a search
 // of the log each take every key while open; otherwise the modal's own
 // keys come first, named for what they do in the focused pane, and then
