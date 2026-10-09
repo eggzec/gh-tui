@@ -85,3 +85,26 @@ func BenchmarkToggle(b *testing.B) {
 		m, _ = m.Update(enter)
 	}
 }
+
+// BenchmarkViewFiltered draws the tree while a filter shows a few of its
+// 10,101 rows.
+func BenchmarkViewFiltered(b *testing.B) {
+	m := benchTree(b)
+	m.SetFilter(func(n Node) bool { return n.Name == "file042.go" })
+	b.ReportAllocs()
+	for b.Loop() {
+		_ = m.View()
+	}
+}
+
+// BenchmarkSetFilter sets a filter, and clears it, over 10,101 rows, which
+// an app does on every key typed into its filter.
+func BenchmarkSetFilter(b *testing.B) {
+	m := benchTree(b)
+	match := func(n Node) bool { return n.Name == "file042.go" }
+	b.ReportAllocs()
+	for b.Loop() {
+		m.SetFilter(match)
+		m.SetFilter(nil)
+	}
+}

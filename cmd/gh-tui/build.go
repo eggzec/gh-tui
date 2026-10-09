@@ -28,6 +28,7 @@ import (
 	notifsvc "github.com/eggzec/gh-tui/internal/service/notifications"
 	ownersvc "github.com/eggzec/gh-tui/internal/service/owners"
 	pullsvc "github.com/eggzec/gh-tui/internal/service/pulls"
+	refssvc "github.com/eggzec/gh-tui/internal/service/refs"
 	releasesvc "github.com/eggzec/gh-tui/internal/service/releases"
 	reposvc "github.com/eggzec/gh-tui/internal/service/repos"
 	searchsvc "github.com/eggzec/gh-tui/internal/service/search"
@@ -41,6 +42,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/notifications"
 	"github.com/eggzec/gh-tui/internal/tui/owner"
 	"github.com/eggzec/gh-tui/internal/tui/pulls"
+	refsui "github.com/eggzec/gh-tui/internal/tui/refs"
 	"github.com/eggzec/gh-tui/internal/tui/releases"
 	searchpage "github.com/eggzec/gh-tui/internal/tui/search"
 	"github.com/eggzec/gh-tui/internal/tui/threads"
@@ -207,6 +209,8 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	actionSvc := actionssvc.New(client, actionssvc.WithTTL(ttl.Actions), actionssvc.WithLiveTTL(ttl.ActionsRunning),
 		actionssvc.WithCapacity(mem.Entries), actionssvc.WithLogMemory(int64(mem.Logs)),
 		actionssvc.WithStore(entries), actionssvc.WithAccess(access), actionssvc.WithRunPageSize(size.Runs))
+	refSvc := refssvc.New(client, refssvc.WithTTL(ttl.References), refssvc.WithCapacity(mem.Entries), refssvc.WithStore(entries),
+		refssvc.WithPageSize(size.References), refssvc.WithHost(client.WebHost()))
 	releaseSvc := releasesvc.New(client, releasesvc.WithTTL(ttl.Releases), releasesvc.WithCapacity(mem.Entries), releasesvc.WithStore(entries))
 	searchSvc := searchsvc.New(client, searchsvc.WithTTL(ttl.Search), searchsvc.WithCodeTTL(ttl.CodeSearch), searchsvc.WithCapacity(mem.Entries),
 		searchsvc.WithPageSize(size.Search))
@@ -253,16 +257,19 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		// A kept header names the viewer as well as a fresh one.
 		return dashSvc.Header(ctx, dashsvc.HeaderQuery{})
 	})
+	// The pull requests and issues show the links of an item in a step of
+	// their modals.
+	refOpts := []refsui.Option{refsui.WithVoice(voice), refsui.WithHost(webHost), refsui.WithPageSize(size.References)}
 	var (
 		pullOpts = []pulls.Option{
 			pulls.WithVoice(voice), pulls.WithIcons(icons), pulls.WithDates(dates), pulls.WithAvatars(pics), pulls.WithFacets(facetSvc),
 			pulls.WithChecks(actionSvc, checkOpts...), pulls.WithRepos(repoSvc), pulls.WithViewer(pulls.Viewer(viewer)),
-			pulls.WithPrefetch(cfg.Prefetch), pulls.WithSlots(slots),
+			pulls.WithPrefetch(cfg.Prefetch), pulls.WithSlots(slots), pulls.WithReferences(refSvc, refOpts...),
 		}
 		issueOpts = []issues.Option{
 			issues.WithVoice(voice), issues.WithIcons(icons), issues.WithDates(dates), issues.WithAvatars(pics), issues.WithFacets(facetSvc),
 			issues.WithRepos(repoSvc), issues.WithViewer(issues.Viewer(viewer)),
-			issues.WithPrefetch(cfg.Prefetch), issues.WithSlots(slots),
+			issues.WithPrefetch(cfg.Prefetch), issues.WithSlots(slots), issues.WithReferences(refSvc, refOpts...),
 		}
 	)
 	// The notifications screen and the dashboard's inbox open what each

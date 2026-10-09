@@ -26,6 +26,7 @@ Issues
   close | esc | esc | off
   comment | c | c | off
   labels | L | L | off
+  linked items | # | # | off
   close issue | X | X | on
   reopen issue | O | O | off
   refresh | r | r | on

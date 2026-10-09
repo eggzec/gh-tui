@@ -1,0 +1,10 @@
+# label | keys | help key | on or off
+
+always
+  quit | ctrl+c | ^c | on
+  help | ? | ? | off
+
+Search (types)
+  filter | enter | ↵ | on
+  clear filter | esc | esc | on
+  close when empty | backspace ctrl+h | backspace/^h | on

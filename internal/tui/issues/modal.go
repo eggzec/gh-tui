@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -17,6 +18,7 @@ import (
 	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/tui/details"
+	"github.com/eggzec/gh-tui/internal/tui/refs"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
 	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
@@ -65,6 +67,10 @@ type detailModal struct {
 	failed error
 
 	thread thread.Model[core.Comment]
+	// newRefs makes the References step, which refs is while it shows in
+	// place of the thread; newRefs is nil without a service for the links.
+	newRefs func() *refs.Step
+	refs    *refs.Step
 	// ctx bounds the reads of the modal and is cancelled when it closes.
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -130,6 +136,15 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, show
 		chips:   newChipCache(s.rows),
 	}
 	m.confirmSt = s.theme.Confirm(s.icons)
+	m.keys.References.SetEnabled(m.keys.References.Enabled() && s.refs != nil)
+	if s.refs != nil {
+		svc, keys := s.refs, s.rawKeys
+		opts := append(slices.Clone(s.refsOpts), refs.WithReturn(m), refs.WithIcons(s.icons), refs.WithClock(s.now),
+			refs.WithItem(func() refs.Item { return refs.Item{Title: m.issue.Title, Updated: m.issue.UpdatedAt} }))
+		m.newRefs = func() *refs.Step {
+			return refs.New(m.ctx, svc, core.Target{Repo: repo, Number: number, Kind: core.KindIssue}, false, keys, opts...)
+		}
+	}
 	svc, q := s.svc, commentsQuery(repo, number)
 	fetch := func(ctx context.Context, cursor string) ([]core.Comment, string, error) {
 		q := q
@@ -210,8 +225,14 @@ func (m *detailModal) Title() string {
 // Link implements ui.Linked.
 func (m *detailModal) Link() string { return m.issue.URL }
 
-// Commands implements ui.Commanded: the issue can be copied.
-func (m *detailModal) Commands() []string { return []string{ui.CommandCopy} }
+// Commands implements ui.Commanded: the issue can be copied, and its links
+// shown if the section reads them.
+func (m *detailModal) Commands() []string {
+	if m.newRefs == nil {
+		return []string{ui.CommandCopy}
+	}
+	return []string{ui.CommandCopy, ui.CommandReferences}
+}
 
 // Selected implements ui.Selector, for the copy command: the issue the
 // modal shows.
@@ -223,6 +244,9 @@ func (m *detailModal) Selected() (ui.Selection, bool) {
 func (m *detailModal) SetSize(width, height int) {
 	m.width, m.height = max(width, 0), max(height, 0)
 	m.layout()
+	if m.refs != nil {
+		m.refs.SetSize(m.width, m.height)
+	}
 	m.drawPictures()
 	if m.loaded {
 		// The header wraps its title to the width. The thread loads what
@@ -234,6 +258,9 @@ func (m *detailModal) SetSize(width, height int) {
 // SetTheme implements ui.Modal. It builds every style the modal uses.
 func (m *detailModal) SetTheme(t ui.Theme) {
 	m.theme = t
+	if m.refs != nil {
+		m.refs.SetTheme(t)
+	}
 	m.confirmSt = t.Confirm(m.icons)
 	m.rows = newRowStyles(t, m.icons)
 	m.chips = newChipCache(m.rows)
@@ -254,6 +281,9 @@ func (m *detailModal) View() string {
 		return ""
 	}
 	v := m.composed()
+	if m.refs != nil {
+		v = m.refs.View()
+	}
 	if m.ask == nil {
 		return v
 	}
@@ -293,13 +323,24 @@ func (m *detailModal) Update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		return tea.Batch(m.thread.Reload(), m.get())
+	case refs.CloseMsg:
+		// The step has nothing left to clear: the modal closes.
+		if m.refs != nil && msg.ID == m.refs.ID() {
+			return m.close()
+		}
+		return nil
 	case ui.ReopenedMsg:
 		// Back from the modal that replaced this one: what is cached
-		// shows at once, and is read again behind it.
+		// shows at once, and is read again behind it, with the links if
+		// they show.
 		if msg.Modal != m {
 			return nil
 		}
-		return tea.Batch(m.thread.Reload(), m.get())
+		var step tea.Cmd
+		if m.refs != nil {
+			step = m.refs.Update(msg)
+		}
+		return tea.Batch(m.thread.Reload(), m.get(), step)
 	case ui.CapsMsg:
 		if msg.Repo.Same(m.repo) {
 			m.caps = msg.Caps
@@ -336,8 +377,15 @@ func (m *detailModal) Update(msg tea.Msg) tea.Cmd {
 			return cmd
 		}
 	}
+	if _, ok := msg.(tea.MouseMsg); ok && m.refs != nil {
+		// The links cover the thread, which would scroll under the mouse.
+		return nil
+	}
 	var cmd tea.Cmd
 	m.thread, cmd = m.thread.Update(msg)
+	if m.refs != nil {
+		cmd = tea.Batch(cmd, m.refs.Update(msg))
+	}
 	return cmd
 }
 
@@ -352,8 +400,15 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 		m.prompt, cmd = m.prompt.Update(msg)
 		return cmd
 	}
+	if m.refs != nil {
+		// The links take every key; their own are the keys of the modal's
+		// that apply to them.
+		return m.refs.Update(msg)
+	}
 	k := m.keys
 	switch {
+	case key.Matches(msg, k.References) && m.newRefs != nil:
+		return m.openRefs()
 	case key.Matches(msg, k.Back):
 		return m.close()
 	case key.Matches(msg, k.owner) && ui.Author(m.issue.Author) != "":
@@ -390,6 +445,10 @@ func (m *detailModal) close() tea.Cmd {
 // hidden, such as the one a chain of modals leaves behind: its reads end,
 // and those held back for it go on.
 func (m *detailModal) Discard() {
+	if m.refs != nil {
+		m.refs.Close()
+		m.refs = nil
+	}
 	m.closed = true
 	m.cancel()
 	m.resume()
@@ -432,7 +491,12 @@ func (m *detailModal) gotIssue(msg issueMsg) tea.Cmd {
 		m.failed = msg.err
 		return ui.Fail("load #"+strconv.Itoa(m.number), core.About(m.subject(), msg.err))
 	}
+	newer := m.loaded && msg.issue.UpdatedAt.After(m.issue.UpdatedAt)
 	m.issue, m.loaded, m.failed = msg.issue, true, nil
+	if m.refs != nil && newer {
+		// The links are read again for what changed.
+		return tea.Batch(m.show(), m.refs.Reread())
+	}
 	return m.show()
 }
 

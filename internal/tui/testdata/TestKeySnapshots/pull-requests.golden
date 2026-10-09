@@ -30,6 +30,7 @@ Pull requests
   close | esc | esc | off
   open | enter | ↵ | on
   checks | C | C | on
+  linked items | # | # | off
   next state | ] | ] | on
   previous state | [ | [ | on
   clear filters | F | F | off

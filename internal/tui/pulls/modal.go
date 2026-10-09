@@ -17,6 +17,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/checks"
 	"github.com/eggzec/gh-tui/internal/tui/details"
+	"github.com/eggzec/gh-tui/internal/tui/refs"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
@@ -90,6 +91,10 @@ type detailModal struct {
 	checks    *checks.Step
 	// files is the Files tab, once it has been shown.
 	files *filesState
+	// newRefs makes the References step, which refs is while it shows over
+	// the tab; newRefs is nil without a service for the links.
+	newRefs func() *refs.Step
+	refs    *refs.Step
 	// ask is the change waiting for the user to confirm it, on the last
 	// line, in the styles of confirmSt.
 	ask       *ui.Confirm
@@ -124,6 +129,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 	slog.InfoContext(ctx, "open", "span", "tui", "kind", "pull", "repo", repo.String(), "number", number, "cached", cached)
 	modalKeys := s.keys.forModal(s.rawKeys)
 	modalKeys.Checks.SetEnabled(modalKeys.Checks.Enabled() && s.checks != nil)
+	modalKeys.References.SetEnabled(modalKeys.References.Enabled() && s.refs != nil)
 	m := &detailModal{
 		svc:         s.svc,
 		keys:        modalKeys,
@@ -152,6 +158,14 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 		opts := append(slices.Clone(s.checksOpts), checks.WithReturn(m), checks.WithIcons(s.icons), checks.WithClock(s.now))
 		m.newChecks = func() *checks.Step {
 			return checks.New(m.sendCtx, svc, repo, number, keys, append(opts, checks.WithCaps(m.caps))...)
+		}
+	}
+	if s.refs != nil {
+		svc, keys := s.refs, s.rawKeys
+		opts := append(slices.Clone(s.refsOpts), refs.WithReturn(m), refs.WithIcons(s.icons), refs.WithClock(s.now),
+			refs.WithItem(func() refs.Item { return refs.Item{Title: m.detail.Title, Updated: m.detail.UpdatedAt} }))
+		m.newRefs = func() *refs.Step {
+			return refs.New(m.ctx, svc, core.Target{Repo: repo, Number: number, Kind: core.KindPull}, true, keys, opts...)
 		}
 	}
 	var step tea.Cmd
@@ -238,8 +252,14 @@ func (m *detailModal) Title() string {
 // Link implements ui.Linked.
 func (m *detailModal) Link() string { return m.detail.URL }
 
-// Commands implements ui.Commanded: the pull request can be copied.
-func (m *detailModal) Commands() []string { return []string{ui.CommandCopy} }
+// Commands implements ui.Commanded: the pull request can be copied, and its
+// links shown if the section reads them.
+func (m *detailModal) Commands() []string {
+	if m.newRefs == nil {
+		return []string{ui.CommandCopy}
+	}
+	return []string{ui.CommandCopy, ui.CommandReferences}
+}
 
 // Selected implements ui.Selector, for the copy command: the pull request
 // the modal shows.
@@ -256,6 +276,9 @@ func (m *detailModal) SetSize(width, height int) {
 		m.checks.SetSize(m.width, m.height)
 	}
 	m.layoutFiles()
+	if m.refs != nil {
+		m.refs.SetSize(m.width, m.height)
+	}
 	if m.loaded {
 		// The next Update loads what the new size shows.
 		_ = m.show()
@@ -273,6 +296,9 @@ func (m *detailModal) SetTheme(t ui.Theme) {
 		m.checks.SetTheme(t)
 	}
 	m.restyleFiles()
+	if m.refs != nil {
+		m.refs.SetTheme(t)
+	}
 	if m.loaded {
 		_ = m.show()
 	}
@@ -285,6 +311,8 @@ func (m *detailModal) View() string {
 	}
 	base := m.thread.View()
 	switch {
+	case m.refs != nil:
+		base = m.refs.View()
 	case m.onChecks():
 		base = m.checks.View()
 	case m.onFiles():
@@ -330,25 +358,44 @@ func (m *detailModal) Update(msg tea.Msg) tea.Cmd {
 			return m.close()
 		}
 		return nil
+	case refs.CloseMsg:
+		// The step has nothing left to clear: the modal closes.
+		if m.refs != nil && msg.ID == m.refs.ID() {
+			return m.close()
+		}
+		return nil
 	case ui.ReopenedMsg:
 		// What the step opened, such as the file of an annotation, closed,
 		// or the modal that replaced this one: the step goes on if it is
 		// on view, and otherwise when it shows. The conversation is read
-		// again behind what is cached.
-		if m.onChecks() {
+		// again behind what is cached. The links, if they show, stay over
+		// a Checks step, which stays paused.
+		switch {
+		case m.refs != nil && msg.Modal == m:
+			return tea.Batch(m.refs.Update(msg), m.get(), m.thread.Reload())
+		case m.refs != nil:
+			return nil
+		case m.onChecks():
 			return m.checks.Update(msg)
-		}
-		if msg.Modal != m {
+		case msg.Modal != m:
 			return nil
 		}
 		return tea.Batch(m.get(), m.thread.Reload())
 	}
-	if m.checks == nil {
-		return tea.Batch(m.updateFiles(msg), m.updateDetail(msg))
+	if _, ok := msg.(tea.MouseMsg); ok && m.refs != nil {
+		// The links cover the thread, which would scroll under the mouse.
+		return nil
 	}
-	// The thread and the detail go on loading behind the step, and the
-	// step on reading behind the conversation, and the files behind both.
-	return tea.Batch(m.checks.Update(msg), m.updateFiles(msg), m.updateDetail(msg))
+	// The thread and the detail go on loading behind the steps, and a step
+	// on reading behind the conversation, and the files behind both.
+	cmds := []tea.Cmd{m.updateFiles(msg), m.updateDetail(msg)}
+	if m.checks != nil {
+		cmds = append(cmds, m.checks.Update(msg))
+	}
+	if m.refs != nil {
+		cmds = append(cmds, m.refs.Update(msg))
+	}
+	return tea.Batch(cmds...)
 }
 
 // press takes a key: the answer to a question, whatever a step types,
@@ -358,11 +405,18 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	if m.ask != nil {
 		return m.answer(msg)
 	}
+	if m.refs != nil {
+		// The links take every key; their own are the keys of the modal's
+		// that apply to them.
+		return m.refs.Update(msg)
+	}
 	if m.onChecks() && m.checks.TakesKeys() {
 		return m.checks.Update(msg)
 	}
 	k := m.keys
 	switch {
+	case key.Matches(msg, k.References) && m.newRefs != nil:
+		return m.openRefs()
 	case m.hasTabs() && key.Matches(msg, k.NextTab):
 		return m.cycle(1)
 	case m.hasTabs() && key.Matches(msg, k.PrevTab):
@@ -407,6 +461,10 @@ func (m *detailModal) close() tea.Cmd {
 // hidden, such as the one a chain of modals leaves behind. The Checks step
 // ends its polls, the reads end, and those held back for the modal go on.
 func (m *detailModal) Discard() {
+	if m.refs != nil {
+		m.refs.Close()
+		m.refs = nil
+	}
 	if m.checks != nil {
 		m.checks.Close()
 		m.checks = nil
@@ -508,6 +566,8 @@ func (m *detailModal) KeyLayers() []keyhelp.Layer {
 	switch {
 	case m.ask != nil:
 		return []keyhelp.Layer{m.keys.confirm.LayerFor(*m.ask)}
+	case m.refs != nil:
+		return m.refs.KeyLayers()
 	case m.onChecks() && m.checks.TakesKeys():
 		return m.checks.KeyLayers()
 	}
@@ -536,7 +596,7 @@ func (m *detailModal) modalLayer(k keyMap) keyhelp.Layer {
 		return m.filesModalLayer(k, owner)
 	}
 	if m.onChecks() {
-		l := ui.ContextLayer(ctxModal, []key.Binding{k.Merge, k.Close, k.Reopen, k.ToggleDraft, k.Checks, k.NextTab, k.PrevTab},
+		l := ui.ContextLayer(ctxModal, []key.Binding{k.Merge, k.Close, k.Reopen, k.ToggleDraft, k.Checks, k.References, k.NextTab, k.PrevTab},
 			[]key.Binding{k.Merge, k.Close, k.Reopen, k.NextTab})
 		l.Bindings = append(l.Bindings, owner)
 		return l

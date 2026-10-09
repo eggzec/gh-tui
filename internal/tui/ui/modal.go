@@ -73,7 +73,28 @@ const (
 	// CommandRaw shows the file the modal shows as its source or rendered;
 	// the modal is [Sourced].
 	CommandRaw = "raw"
+	// CommandReferences shows the issues and pull requests linked to what
+	// the modal shows; the modal is [Referencing].
+	CommandReferences = "references"
 )
+
+// Hosted is a Modal that shows steps whose keys are contexts of their own,
+// such as the links of a pull request, and says which context of keys it is
+// itself, so that what depends on the modal, such as ui.maximized and the
+// words that name it, follow it whatever step it shows.
+type Hosted interface {
+	// KeyContext is the name of the modal's own context of keys.
+	KeyContext() string
+}
+
+// Referencing is a Modal that can show the issues and pull requests linked
+// to what it shows, such as the modal of a pull request, which the
+// references command asks for with the same result as its key.
+type Referencing interface {
+	// ShowReferences shows them, and reports whether the modal has them to
+	// show, which it doesn't where nothing reads them.
+	ShowReferences() (cmd tea.Cmd, ok bool)
+}
 
 // Sourced is a view that shows a file rendered, such as markdown, or as
 // its source, which the raw command switches between.

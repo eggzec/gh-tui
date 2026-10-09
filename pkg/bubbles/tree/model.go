@@ -70,8 +70,11 @@ type entry struct {
 	kids     []string
 	loaded   bool
 	expanded bool
-	loading  bool
-	err      error
+	// forced is set while a filter shows the branch open because a child
+	// matches, whatever expanded says.
+	forced  bool
+	loading bool
+	err     error
 	// errText and errHint are err rendered as the row says it, worded
 	// once as it is set and again when the styles or the words change.
 	errText, errHint string
@@ -115,6 +118,8 @@ type Model struct {
 	// goal is the path of a Reveal in progress, from a top-level node
 	// down, or nil.
 	goal []string
+	// match is the filter set with SetFilter, or nil for none.
+	match func(Node) bool
 
 	initCmd  tea.Cmd
 	spin     spinner.Model
@@ -584,6 +589,10 @@ func (m Model) anchor(e *entry) []string {
 // flatten lists the visible rows again and keeps the cursor on the first
 // node of anchor that is still visible.
 func (m *Model) flatten(anchor []string) {
+	if m.match != nil {
+		m.flattenFiltered(anchor)
+		return
+	}
 	var sel *entry
 	if len(anchor) > 0 {
 		sel = m.nodes[anchor[0]]

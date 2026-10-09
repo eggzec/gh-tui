@@ -116,7 +116,7 @@ func TestCompletionOverModalsListsWhatRuns(t *testing.T) {
 	}{
 		{"s", []string{"search ", "set ", "sort"}},
 		{"co", []string{"config ", "copy "}},
-		{"r", []string{"raw ", "refresh"}},
+		{"r", []string{"raw ", "references", "refresh"}},
 		{"g", []string{"goto "}},
 	} {
 		if got := all(tt.prefix); !slices.Equal(got, tt.want) {
@@ -134,7 +134,8 @@ func TestCompletionOverModalsListsWhatRuns(t *testing.T) {
 		{"history", []string{"repo.history"}, "r", nil},
 		{"actions", []string{"repo.actions"}, "g", nil},
 		{"pull request", []string{"global.pane_2", "global.select"}, "co", []string{"config ", "copy "}},
-		{"pull request", []string{"global.pane_2", "global.select"}, "r", nil},
+		{"pull request", []string{"global.pane_2", "global.select"}, "r", []string{"references"}},
+		{"issue", []string{"global.pane_3", "global.select"}, "r", []string{"references"}},
 		{"issue", []string{"global.pane_3", "global.select"}, "co", []string{"config ", "copy "}},
 		{"preview", []string{"files.down", "global.select"}, "r", []string{"raw "}},
 		{"preview", []string{"files.down", "global.select"}, "co", []string{"config ", "copy "}},
@@ -164,7 +165,7 @@ func TestDeclaredCommandsExist(t *testing.T) {
 		})
 	}
 	for _, c := range commands {
-		if c.over == overNamed && c.name != ui.CommandCopy && c.name != ui.CommandRaw {
+		if c.over == overNamed && c.name != ui.CommandCopy && c.name != ui.CommandRaw && c.name != ui.CommandReferences {
 			t.Errorf("%s runs over the modals that name it, and none does", c.name)
 		}
 	}

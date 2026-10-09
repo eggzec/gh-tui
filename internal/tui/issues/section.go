@@ -13,6 +13,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
 	"github.com/eggzec/gh-tui/internal/tui/details"
+	"github.com/eggzec/gh-tui/internal/tui/refs"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/termtext"
@@ -26,6 +27,10 @@ type Section struct {
 	// rawKeys are the configured keys, for the modal of an issue.
 	rawKeys config.Keymap
 	now     func() time.Time
+	// refs reads the links of the modal's References step, and refsOpts
+	// configure the step. Without refs, the modal has no such step.
+	refs     refs.Service
+	refsOpts []refs.Option
 
 	repo    core.RepoRef
 	hasRepo bool

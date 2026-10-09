@@ -17,6 +17,7 @@ Pull request
   reopen PR | O | O | off
   convert to draft | W | W | on
   checks | C | C | on
+  linked items | # | # | on
   next tab | ] | ] | on
   previous tab | [ | [ | on
   pane | tab | tab | on

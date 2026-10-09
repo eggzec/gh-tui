@@ -37,6 +37,9 @@ type keyMap struct {
 	Reopen  key.Binding
 	Comment key.Binding
 	Label   key.Binding
+	// References shows the issues and pull requests linked to the issue, in
+	// a step of its modal. The list has no such key.
+	References key.Binding
 
 	// confirm answers the question that close and reopen ask.
 	confirm ui.ConfirmKeys
@@ -78,6 +81,7 @@ func newKeyMap(keys config.Keymap) keyMap {
 		Reopen:      list.Binding("reopen", "reopen issue"),
 		Comment:     list.Binding("comment", "comment"),
 		Label:       list.Binding("labels", "labels"),
+		References:  ui.In(keys, ctxModal).Binding("references", "linked items"),
 		confirm:     ui.NewConfirmKeys(keys),
 		prompt:      prompt.NewKeyMap(ui.Lookup(keys, "prompt")),
 		owner:       list.Binding("global.owner", "author"),
@@ -103,6 +107,7 @@ func (k keyMap) forModal(keys config.Keymap) keyMap {
 	k.Reopen = modal.Binding("reopen", "reopen issue")
 	k.Comment = modal.Binding("comment", "comment")
 	k.Label = modal.Binding("labels", "labels")
+	k.References = modal.Binding("references", "linked items")
 	return k
 }
 
@@ -121,7 +126,7 @@ func (k keyMap) ShortHelp() []key.Binding {
 // the list's.
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Back, k.Comment, k.Label, k.Close, k.Reopen, k.Refresh, k.Open},
+		{k.Back, k.Comment, k.Label, k.References, k.Close, k.Reopen, k.Refresh, k.Open},
 		{k.Select, k.NextTab, k.PrevTab, k.ClearFilter, k.Filter, k.Sort},
 	}
 }
@@ -156,7 +161,7 @@ func (k keyMap) onList(s *Section) keyMap {
 	k.Reopen.SetEnabled(k.Reopen.Enabled() && ok && it.State != core.StateOpen)
 	k.Close, k.Reopen = g.Gated(k.Close, ui.ActClose, &it), g.Gated(k.Reopen, ui.ActReopen, &it)
 	k.ClearFilter.SetEnabled(k.ClearFilter.Enabled() && s.query != "")
-	for _, b := range []*key.Binding{&k.Back, &k.Comment, &k.Label} {
+	for _, b := range []*key.Binding{&k.Back, &k.Comment, &k.Label, &k.References} {
 		b.SetEnabled(false)
 	}
 	return k
@@ -171,6 +176,8 @@ func (m *detailModal) KeyLayers() []keyhelp.Layer {
 		return []keyhelp.Layer{m.keys.confirm.Layer()}
 	case m.composing != composeNone:
 		return []keyhelp.Layer{ui.ContextHelp("prompt", m.prompt, true)}
+	case m.refs != nil:
+		return m.refs.KeyLayers()
 	}
 	k := m.keys
 	g, it := m.gate(), &m.issue
@@ -178,6 +185,7 @@ func (m *detailModal) KeyLayers() []keyhelp.Layer {
 	k.Reopen.SetEnabled(k.Reopen.Enabled() && m.loaded && m.issue.State != core.StateOpen)
 	k.Comment.SetEnabled(k.Comment.Enabled() && m.loaded)
 	k.Label.SetEnabled(k.Label.Enabled() && m.loaded)
+	k.References.SetEnabled(k.References.Enabled() && m.newRefs != nil)
 	owner := m.keys.owner
 	owner.SetEnabled(owner.Enabled() && ui.Author(m.issue.Author) != "")
 	k.Close, k.Reopen = g.Gated(k.Close, ui.ActClose, it), g.Gated(k.Reopen, ui.ActReopen, it)

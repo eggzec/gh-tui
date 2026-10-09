@@ -28,6 +28,7 @@ type settings struct {
 	expandNodes int
 	expandDepth int
 	maxLoads    int
+	minName     int
 }
 
 func defaultSettings() settings {
@@ -40,6 +41,7 @@ func defaultSettings() settings {
 		expandNodes: DefaultExpandAllNodes,
 		expandDepth: DefaultExpandAllDepth,
 		maxLoads:    DefaultMaxLoads,
+		minName:     DefaultMinName,
 	}
 }
 
@@ -56,6 +58,9 @@ const (
 	// DefaultMaxLoads is the number of loads an expand-all keeps in flight
 	// at most by default.
 	DefaultMaxLoads = 4
+	// DefaultMinName is the fewest cells of a name that a detail may leave
+	// by default.
+	DefaultMinName = 10
 )
 
 // WithSize sets the width and height of the tree in cells.
@@ -150,5 +155,15 @@ func WithContext(ctx context.Context) Option {
 		if ctx != nil {
 			s.parent = ctx
 		}
+	}
+}
+
+// WithMinName sets the fewest cells of a name that a detail may leave: a
+// row cuts its name to make room for its detail down to this, and drops
+// the detail beyond it. The default is [DefaultMinName]. A tree whose names
+// are the text to read, such as titles, wants more.
+func WithMinName(cells int) Option {
+	return func(s *settings) {
+		s.minName = max(cells, 1)
 	}
 }
