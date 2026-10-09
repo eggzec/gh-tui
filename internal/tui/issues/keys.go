@@ -43,6 +43,8 @@ type keyMap struct {
 	// prompt finishes the comment and labels prompts of the modal.
 	prompt prompt.KeyMap
 	feed   feed.KeyMap
+	// mark is the key that marks rows of the list.
+	mark feed.MarkKeys
 	// search are the keys of the prompt of the list's find and filter.
 	search cmdline.KeyMap
 	thread thread.KeyMap
@@ -84,6 +86,7 @@ func newKeyMap(keys config.Keymap) keyMap {
 	// The section and the modal match their own keys first, so the feed
 	// and the thread get only the keys they leave them.
 	k.feed = feed.NewKeyMap(list)
+	k.mark = feed.NewMarkKeys(list)
 	k.search = ui.SearchPromptKeys(keys)
 
 	tk := thread.NewKeyMap(ui.In(keys, ctxModal))

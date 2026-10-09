@@ -88,7 +88,9 @@ func (t Theme) Feed(ic Icons) feed.Styles {
 	s.ErrorGlyph = ic.Error
 	s.ErrorSeparator, s.ErrorEllipsis = ic.Separator, ic.Ellipsis
 	s.CursorGlyph, s.Ellipsis = ic.Cursor, ic.Ellipsis
+	s.MarkGlyph = ic.Marked
 	s.Cursor = s.Cursor.Foreground(lipgloss.Color(t.Palette.Accent))
+	s.Mark = s.Mark.Foreground(lipgloss.Color(t.Palette.Accent))
 	s.BlurredCursor = s.BlurredCursor.Foreground(lipgloss.Color(t.Palette.Subtle))
 	s.Placeholder = s.Placeholder.Foreground(lipgloss.Color(t.Palette.Subtle))
 	s.Spinner = s.Spinner.Foreground(lipgloss.Color(t.Palette.Accent))

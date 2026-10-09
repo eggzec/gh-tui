@@ -21,6 +21,7 @@ type settings struct {
 	emptyText  string
 	errorText  func(error) (text, hint string)
 	keyMap     KeyMap
+	markKeys   MarkKeys
 	styles     Styles
 	// promptKeys are the keys of the prompt of a find or filter.
 	promptKeys cmdline.KeyMap
@@ -103,6 +104,14 @@ func WithErrorText(say func(error) (text, hint string)) Option {
 func WithKeyMap(k KeyMap) Option {
 	return func(s *settings) {
 		s.keyMap = k
+	}
+}
+
+// WithMarkKeys sets the key that marks rows. Without it, or without a key
+// for the items ([WithKey]), a feed can't mark rows.
+func WithMarkKeys(k MarkKeys) Option {
+	return func(s *settings) {
+		s.markKeys = k
 	}
 }
 

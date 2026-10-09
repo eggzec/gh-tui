@@ -651,6 +651,9 @@ keys:
     filter: [f]
     sort: [s]
     clear_filter: [F]
+    # Mark the pull request under the cursor, or unmark it. Esc unmarks
+    # them all, after it has cleared a search and a quick filter.
+    mark: [space]
     merge: [M]
     close: [X]
     reopen: [O]
@@ -677,6 +680,9 @@ keys:
     filter: [f]
     sort: [s]
     clear_filter: [F]
+    # Mark the issue under the cursor, or unmark it. Esc unmarks them all,
+    # after it has cleared a search and a quick filter.
+    mark: [space]
     close: [X]
     reopen: [O]
     comment: [c]
@@ -700,6 +706,9 @@ keys:
     prev_match: [N]
     filter: [f]
     clear_filter: [F]
+    # Mark the notification under the cursor, or unmark it. Esc unmarks
+    # them all, after it has cleared a search and a quick filter.
+    mark: [space]
     read: [U]
     done: [D]
     read_all: [M]

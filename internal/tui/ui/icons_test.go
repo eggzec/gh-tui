@@ -21,7 +21,7 @@ var iconSets = []string{config.IconsNerd, config.IconsUnicode, config.IconsASCII
 func marks(ic Icons) []string {
 	return slices.Concat([]string{
 		ic.Fork, ic.Private, ic.Archived, ic.Template, ic.Mirror, ic.Here, ic.Star, ic.Error, ic.Language(""),
-		ic.Yes, ic.No, ic.Info, ic.Cursor, ic.Folded, ic.Unfolded,
+		ic.Yes, ic.No, ic.Info, ic.Cursor, ic.Folded, ic.Unfolded, ic.Marked,
 		ic.ChangesRequested, ic.ReviewRequired, ic.Dot, ic.Ring, ic.Crumb, ic.Before, ic.Cell, ic.Comment, ic.Recent,
 	}, ic.states[:], ic.runs[:], slices.Collect(maps.Values(ic.langs)))
 }
@@ -273,6 +273,24 @@ func TestIconsSpinnerSwitchMidSpin(t *testing.T) {
 		sp.Spinner = NewIcons(config.IconsASCII).SpinnerOr(def)
 		if v := sp.View(); v == "(error)" || strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
 			t.Errorf("spinner after the switch draws %q", v)
+		}
+	}
+}
+
+// A list draws a marked row with the glyph of its icon set.
+func TestFeedMarkGlyph(t *testing.T) {
+	p, err := config.Default().Palette(true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	th := NewTheme(p, true)
+	for _, set := range iconSets {
+		ic := NewIcons(set)
+		if ic.Marked == "" {
+			t.Errorf("%s: no glyph for a marked row", set)
+		}
+		if got := th.Feed(ic).MarkGlyph; got != ic.Marked {
+			t.Errorf("%s: a list marks rows with %q, want %q", set, got, ic.Marked)
 		}
 	}
 }

@@ -314,13 +314,15 @@ func (m *Model[T]) clearFind() {
 }
 
 // hasFooter reports whether the last line of the feed holds the prompt, the
-// chip of the filter, the find or a note, rather than a row.
+// chip of the filter, the find, the count of marks or a note, rather than a
+// row.
 func (m Model[T]) hasFooter() bool {
-	return m.prompt.Focused() || m.filter != "" || m.query != "" || m.note != ""
+	return m.prompt.Focused() || m.cancels() || m.note != ""
 }
 
 // footer renders the line below the rows: the prompt while it is open, else
-// the chip of the quick filter, the find and a note on the last key.
+// the chip of the quick filter, the find, the count of marks and a note on
+// the last key.
 func (m Model[T]) footer() string {
 	if m.prompt.Focused() {
 		return m.prompt.View()
@@ -340,6 +342,9 @@ func (m Model[T]) footer() string {
 			s += " in " + strconv.Itoa(m.Loaded()) + " loaded"
 		}
 		parts = append(parts, m.styles.Hint.Render(s))
+	}
+	if len(m.marks) > 0 {
+		parts = append(parts, m.styles.Chip.Render(strconv.Itoa(len(m.marks))+" marked"))
 	}
 	if m.note != "" {
 		parts = append(parts, m.styles.Notice.Render(m.note))
@@ -387,10 +392,10 @@ func (m Model[T]) submitKey() key.Binding {
 // FullHelp implements help.KeyMap: the bindings of [KeyMap], with the
 // state of the model applied, and the keys of the prompt. While the prompt
 // is open, only those that run and close it act. Otherwise the cancel
-// key is listed only while a find or filter is shown, which it clears;
-// [Model.Update] returns no command for it, whether it cleared one or
-// not, so a parent that gives esc other meanings checks [Model.FindQuery]
-// and [Model.FilterQuery] before passing the key on.
+// key is listed only while a find, a filter or a mark is shown, which it
+// clears, in this order; [Model.Update] returns no command for it, whether
+// it cleared one or not, so a parent that gives esc other meanings checks
+// [Model.Takes] before passing the key on.
 func (m Model[T]) FullHelp() [][]key.Binding {
 	k := m.keyMap
 	if m.prompt.Focused() {
@@ -400,22 +405,41 @@ func (m Model[T]) FullHelp() [][]key.Binding {
 		} {
 			b.SetEnabled(false)
 		}
-		return append(k.FullHelp(), []key.Binding{m.submitKey(), m.promptKeys.Cancel, m.promptKeys.CancelEmpty})
+		return append(m.helpRows(k), []key.Binding{m.submitKey(), m.promptKeys.Cancel, m.promptKeys.CancelEmpty})
 	}
+	rows := m.helpRows(k)
+	if m.cancels() {
+		cancel := m.promptKeys.Cancel
+		if m.query == "" && m.filter == "" {
+			// Only the marks are left to clear.
+			cancel.SetHelp(cancel.Help().Key, "clear marks")
+		}
+		rows = append(rows, []key.Binding{cancel})
+	}
+	return rows
+}
+
+// helpRows returns the rows of k's full help, and the mark key where the
+// feed has one.
+func (m Model[T]) helpRows(k KeyMap) [][]key.Binding {
 	rows := k.FullHelp()
-	if m.query != "" || m.filter != "" {
-		rows = append(rows, []key.Binding{m.promptKeys.Cancel})
+	if m.markKeys.Mark.Help().Desc != "" {
+		mark := m.markKeys.Mark
+		if m.prompt.Focused() {
+			mark.SetEnabled(false)
+		}
+		rows = append(rows, []key.Binding{mark})
 	}
 	return rows
 }
 
 // Takes reports whether msg is a key the feed handles before its parent's
 // own keys: any key while the prompt is open, and the cancel key while a
-// find or filter is shown, which clears it. [Model.Update] returns no
-// command for the cancel key whether it cleared one or not.
+// find, a filter or a mark is shown, which clears it. [Model.Update]
+// returns no command for the cancel key whether it cleared one or not.
 func (m Model[T]) Takes(msg tea.KeyPressMsg) bool {
 	if !m.focused {
 		return false
 	}
-	return m.prompt.Focused() || (m.query != "" || m.filter != "") && key.Matches(msg, m.promptKeys.Cancel)
+	return m.prompt.Focused() || m.cancels() && key.Matches(msg, m.promptKeys.Cancel)
 }

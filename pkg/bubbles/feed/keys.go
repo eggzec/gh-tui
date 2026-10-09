@@ -33,6 +33,24 @@ type KeyMap struct {
 	Prev        key.Binding `keymap:"prev_match" help:"prev match"`
 }
 
+// MarkKeys holds the key that marks rows. Only the lists whose rows can be
+// marked have it, so it is not part of [KeyMap]: give it to a feed with
+// [WithMarkKeys].
+type MarkKeys struct {
+	// Mark marks the row under the cursor, or unmarks it if it is marked.
+	// A feed without a key for its items ([WithKey]), or without a key
+	// bound to this, can't mark rows, and draws no cell for the mark.
+	Mark key.Binding `keymap:"mark" help:"mark"`
+}
+
+// NewMarkKeys returns the key that look gives for marking rows. Without a
+// key it is disabled.
+func NewMarkKeys(look keymap.Lookup) MarkKeys {
+	var k MarkKeys
+	keymap.Fill(&k, look)
+	return k
+}
+
 // NewKeyMap returns the key bindings that look gives the keys of, such as
 // those of the context of the pane that shows the feed. An action without
 // keys gives a disabled binding.

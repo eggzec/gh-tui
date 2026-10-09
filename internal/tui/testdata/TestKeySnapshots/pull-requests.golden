@@ -50,3 +50,4 @@ Pull requests
   quick filter | & | & | on
   next match | n | n | off
   prev match | N | N | off
+  mark | space | space | on
