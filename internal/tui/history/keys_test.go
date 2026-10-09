@@ -27,10 +27,10 @@ func TestKeyLayersOrder(t *testing.T) {
 		keys []string
 		want map[string]string
 	}{
-		{nil, map[string]string{"enter": "Graph: diff", "esc": "History: back", "tab": "History: pane"}},
-		{[]string{"esc"}, map[string]string{"enter": "Branches: graph", "f": "Branches: filter", "/": "nothing", "esc": "History: close", "j": "Branches: down"}},
+		{nil, map[string]string{"enter": "Graph: diff", "esc": "History: close", "backspace": "History: branches", "tab": "History: pane"}},
+		{[]string{"backspace"}, map[string]string{"enter": "Branches: graph", "f": "Branches: filter", "/": "nothing", "esc": "History: close", "backspace": "nothing", "j": "Branches: down"}},
 		{[]string{"enter", "enter"}, map[string]string{"enter": "Files: patch", "j": "Files: down"}},
-		{[]string{"j", "enter"}, map[string]string{"esc": "Patch: close", "j": "Patch: down", "tab": "History: pane"}},
+		{[]string{"j", "enter"}, map[string]string{"esc": "History: close", "backspace": "History: files", "j": "Patch: down", "tab": "History: pane"}},
 		{[]string{"/"}, map[string]string{"j": "nothing", "esc": "Search: cancel"}},
 	}
 	for _, s := range steps {
@@ -41,8 +41,8 @@ func TestKeyLayersOrder(t *testing.T) {
 			}
 		}
 	}
-	h.keys("esc", "esc")
+	h.keys("esc", "backspace")
 	if m.focus != commitPane || m.commit.patch {
-		t.Errorf("esc, esc left focus %d, patch %v; want the files", m.focus, m.commit.patch)
+		t.Errorf("esc, backspace left focus %d, patch %v; want the files", m.focus, m.commit.patch)
 	}
 }

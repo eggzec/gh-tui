@@ -13,7 +13,9 @@ import (
 // keyMap holds the keys of the modal and of its thread, which gets only
 // the keys the modal leaves it.
 type keyMap struct {
-	Back key.Binding
+	// Dismiss closes the modal. Back is off: the modal has no step before
+	// it, and takes the key so that it does nothing.
+	Dismiss, Back key.Binding
 	// Open shows the release on GitHub.
 	Open key.Binding
 	// Refresh reads the release again after a read failed.
@@ -28,7 +30,8 @@ const ctxModal = "release_modal"
 func newKeyMap(keys config.Keymap) keyMap {
 	modal := ui.In(keys, ctxModal)
 	k := keyMap{
-		Back:    modal.Binding("global.dismiss", "back"),
+		Dismiss: modal.Binding("global.dismiss", "close"),
+		Back:    modal.Binding("global.back", "back"),
 		Open:    modal.Binding("global.open", "open in browser"),
 		Refresh: modal.Binding("global.refresh", "retry"),
 	}
@@ -39,11 +42,12 @@ func newKeyMap(keys config.Keymap) keyMap {
 	// thread to retry.
 	t.Retry = keymap.Derive(key.NewBinding(key.WithHelp("", t.Retry.Help().Desc), key.WithDisabled()), t.Retry)
 	k.thread = t
+	k.Back.SetEnabled(false)
 	return k
 }
 
 // ShortHelp implements help.KeyMap.
-func (k keyMap) ShortHelp() []key.Binding { return []key.Binding{k.Back, k.Open, k.Refresh} }
+func (k keyMap) ShortHelp() []key.Binding { return []key.Binding{k.Dismiss, k.Back, k.Open, k.Refresh} }
 
 // FullHelp implements help.KeyMap.
 func (k keyMap) FullHelp() [][]key.Binding { return [][]key.Binding{k.ShortHelp()} }

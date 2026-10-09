@@ -49,6 +49,17 @@ func (m *Model) clearSearch() {
 	m.enableKeys()
 }
 
+// ClearSearch forgets the search shown, and reports whether there was one.
+// The parent calls it for the key that dismisses, which clears the search
+// before it closes anything.
+func (m *Model) ClearSearch() bool {
+	if m.search.query == "" {
+		return false
+	}
+	m.clearSearch()
+	return true
+}
+
 // runSearch finds every match of query, in collapsed folds too, and jumps
 // to the first one at or after the cursor. A query without capitals
 // ignores case.

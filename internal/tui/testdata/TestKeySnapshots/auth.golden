@@ -12,3 +12,4 @@ global
 
 token
   close | esc | esc | on
+  back | backspace | backspace | off

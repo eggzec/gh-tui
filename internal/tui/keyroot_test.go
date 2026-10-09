@@ -231,9 +231,11 @@ func TestDismissLeavesOtherToasts(t *testing.T) {
 	})
 }
 
-// TestEscNeverUnzooms checks that esc leaves a zoomed pane zoomed, on the
-// screens and in the modals, where the zoom key shows the panes again.
-func TestEscNeverUnzooms(t *testing.T) {
+// TestOnlyTheZoomKeyUnzooms checks that esc and backspace leave a zoomed
+// pane zoomed: on the screens, where esc does nothing, and in a modal,
+// where backspace steps back and esc closes the modal; the zoom key shows
+// the panes again.
+func TestOnlyTheZoomKeyUnzooms(t *testing.T) {
 	t.Run("repository", func(t *testing.T) {
 		synctest.Test(t, func(t *testing.T) {
 			m := keysAfter(t, true, "global.zoom")
@@ -278,14 +280,19 @@ func TestEscNeverUnzooms(t *testing.T) {
 			if !strings.Contains(onScreen(m), "z unzoom") {
 				t.Fatal("the history isn't zoomed")
 			}
-			tap(t, m, "esc")
-			// esc steps back from the graph, which leaves the modal open,
-			// and never shows the panes again: the zoom key does.
+			tap(t, m, "backspace")
+			// backspace steps back from the graph, which leaves the modal
+			// open, and never shows the panes again: the zoom key does.
 			if m.modal == nil {
-				t.Fatal("esc closed the modal, which should step back from the graph")
+				t.Fatal("backspace closed the modal, which should step back from the graph")
 			}
 			if !strings.Contains(onScreen(m), "z unzoom") {
-				t.Error("esc unzoomed the history")
+				t.Error("backspace unzoomed the history")
+			}
+			// esc closes the modal rather than showing the panes again.
+			tap(t, m, "esc")
+			if m.modal != nil {
+				t.Error("esc left the history open")
 			}
 		})
 	})

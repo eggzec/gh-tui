@@ -92,8 +92,8 @@ type overModal struct {
 
 // overModals returns the intents of the global keys that the open modal
 // may take, and that the app refuses over it otherwise: leaving for
-// another screen. The quit key is another that a modal may take; the
-// modal that doesn't gets the key.
+// another screen. The quit, back and dismiss keys are others that a modal
+// may take; the modal that doesn't gets the key.
 func (m *Model) overModals() []overModal {
 	k := m.keys
 	var out []overModal
@@ -121,8 +121,13 @@ func (m *Model) actOverModal(mod ui.Modal, msg tea.KeyPressMsg) (tea.Cmd, bool) 
 		}
 		return actor.Act(action)
 	}
-	if key.Matches(msg, m.keys.Quit) {
+	switch {
+	case key.Matches(msg, m.keys.Quit):
 		return act(ui.ActQuit)
+	case key.Matches(msg, m.keys.Back):
+		return act(ui.ActBack)
+	case key.Matches(msg, m.keys.Dismiss):
+		return act(ui.ActDismiss)
 	}
 	for _, o := range m.overModals() {
 		if !key.Matches(msg, o.binding) {

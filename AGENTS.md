@@ -452,7 +452,8 @@ reacts to messages. Concretely:
   and errors are inline and recoverable.
 - One modal at a time. Opening a modal replaces the open one; a modal that
   needs several views, such as a list and its detail, shows them as panes or
-  steps inside its own frame, and esc steps back before it closes.
+  steps inside its own frame. Backspace steps back one step; esc clears
+  what is transient, then closes.
 - Everything must stay legible in both light and dark terminals and at 80
   columns.
 

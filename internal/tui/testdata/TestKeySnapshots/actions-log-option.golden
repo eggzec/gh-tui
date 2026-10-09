@@ -37,4 +37,4 @@ Option
   left | left h | ←/h | off
   right | right l | →/l | off
   follow | F | F | off
-  back | esc | esc | off
+  close | q esc | q/esc | off

@@ -85,7 +85,7 @@ func TestPanesAndBack(t *testing.T) {
 	}{
 		{"tab", jobsPane}, {"tab", logPane}, {"tab", runsPane}, {"shift+tab", logPane},
 		{"2", jobsPane}, {"1", runsPane}, {"1", runsPane}, {"3", logPane}, {"2", jobsPane}, {"3", logPane}, {"3", logPane},
-		{"esc", jobsPane}, {"esc", runsPane}, {"enter", jobsPane}, {"enter", logPane},
+		{"backspace", jobsPane}, {"backspace", runsPane}, {"backspace", runsPane}, {"enter", jobsPane}, {"enter", logPane},
 	}
 	for _, s := range steps {
 		h.keys(s.key)
@@ -96,9 +96,9 @@ func TestPanesAndBack(t *testing.T) {
 	if !m.log.Focused() || m.runs.Focused() {
 		t.Error("the log isn't the one focused bubble")
 	}
-	h.keys("esc", "esc")
-	if len(h.take()) != 0 {
-		t.Error("the modal closed before the runs")
+	h.keys("backspace", "backspace", "backspace")
+	if len(h.take()) != 0 || m.focus != runsPane {
+		t.Error("backspace closed the modal, or left the runs")
 	}
 	h.keys("esc")
 	if got := h.take(); len(got) != 1 || got[0] != (ui.CloseModalMsg{Modal: m}) {
@@ -132,9 +132,9 @@ func TestZoom(t *testing.T) {
 		t.Errorf("zoomed help = %v, want the zoom key labelled unzoom", got)
 	}
 	// The back key never unzooms: it steps back, and the zoom key unzooms.
-	h.keys("esc")
+	h.keys("backspace")
 	if !m.zoom || m.focus != jobsPane {
-		t.Errorf("esc: zoom %v on pane %d, want the jobs zoomed", m.zoom, m.focus)
+		t.Errorf("backspace: zoom %v on pane %d, want the jobs zoomed", m.zoom, m.focus)
 	}
 	h.keys("z")
 	if m.zoom {
@@ -801,9 +801,9 @@ func TestHelpNamesWhatTheKeysDo(t *testing.T) {
 	}{
 		{nil, "↑/k up, ↓/j down, ↵ jobs, f filter, tab pane, z zoom, R rerun failed, E rerun all, o browser"},
 		{[]string{"tab"}, "↑/k up, ↓/j down, ↵ open, J rerun job, tab pane, z zoom, R rerun failed, E rerun all, o browser"},
-		{[]string{"tab"}, "↵ fold, * all, - option: S N T, e next error, / search, esc back, A annotations, J rerun job, tab pane, z zoom, R rerun failed, E rerun all, o browser"},
+		{[]string{"tab"}, "↵ fold, * all, - option: S N T, e next error, / search, A annotations, J rerun job, tab pane, z zoom, R rerun failed, E rerun all, o browser"},
 		{[]string{"A"}, "* all, - option: S N T, ↑/k up, ↓/j down, ↵ open file, A log, J rerun job, tab pane, z zoom, R rerun failed, E rerun all, o browser"},
-		{[]string{"A"}, "↵ fold, * all, - option: S N T, e next error, / search, esc back, A annotations, J rerun job, tab pane, z zoom, R rerun failed, E rerun all, o browser"},
+		{[]string{"A"}, "↵ fold, * all, - option: S N T, e next error, / search, A annotations, J rerun job, tab pane, z zoom, R rerun failed, E rerun all, o browser"},
 		// The steps of a job in progress don't fold.
 		{[]string{"tab", "j", "tab", "tab"}, "tab pane, z zoom, X cancel run, o browser"},
 		{[]string{"X"}, "y yes, n no"},
@@ -847,12 +847,15 @@ func TestKeyLayersOrder(t *testing.T) {
 	if m.focus != logPane {
 		t.Errorf("enter in the log moved the focus to %d", m.focus)
 	}
-	if b, src, _ := uitest.Winner(m.KeyLayers(), "esc"); src != "Actions" || b.Help().Desc != "back" {
-		t.Errorf("esc reaches %q of %q in the log, want the modal's back", b.Help().Desc, src)
+	if b, src, _ := uitest.Winner(m.KeyLayers(), "esc"); src != "Actions" || b.Help().Desc != "close" {
+		t.Errorf("esc reaches %q of %q in the log, want the modal's close", b.Help().Desc, src)
 	}
-	h.keys("esc")
+	if b, src, _ := uitest.Winner(m.KeyLayers(), "backspace"); src != "Actions" || b.Help().Desc != "jobs" {
+		t.Errorf("backspace reaches %q of %q in the log, want the step to the jobs", b.Help().Desc, src)
+	}
+	h.keys("backspace")
 	if m.focus != jobsPane {
-		t.Errorf("esc left the focus on %d, want the jobs", m.focus)
+		t.Errorf("backspace left the focus on %d, want the jobs", m.focus)
 	}
 }
 
@@ -1129,4 +1132,146 @@ func TestFilterCloseSizesThePanesAfterAResize(t *testing.T) {
 	if m.jobs.top != top {
 		t.Errorf("the jobs scrolled from %d to %d", top, m.jobs.top)
 	}
+}
+
+// TestEscClosesFromEveryStep checks that esc closes the modal at once
+// from any pane, not a pane at a time.
+func TestEscClosesFromEveryStep(t *testing.T) {
+	for _, tab := range []int{0, 1, 2} {
+		m, h := newModal(t, newFake(), wideW, wideH)
+		for range tab {
+			h.keys("tab")
+		}
+		h.keys("esc")
+		if got := h.take(); len(got) != 1 || got[0] != (ui.CloseModalMsg{Modal: m}) {
+			t.Errorf("esc on pane %d sent %v, want the modal closed", tab, got)
+		}
+	}
+}
+
+// TestEscClearsWhatIsShownFirst checks that esc takes away the search of
+// the log, or the find of the runs, before it closes the modal, from the
+// keys and as the app's dismiss intent.
+func TestEscClearsWhatIsShownFirst(t *testing.T) {
+	t.Run("log search", func(t *testing.T) {
+		m, h := newModal(t, newFake(), wideW, wideH)
+		h.keys("tab", "tab", "/", "s", "t", "enter")
+		if m.log.Query() == "" {
+			t.Fatal("the log shows no search")
+		}
+		h.keys("esc")
+		if m.log.Query() != "" || len(h.take()) != 0 {
+			t.Fatalf("esc: search %q, want it cleared and the modal open", m.log.Query())
+		}
+		h.keys("esc")
+		if got := h.take(); len(got) != 1 || got[0] != (ui.CloseModalMsg{Modal: m}) {
+			t.Errorf("the second esc sent %v, want the modal closed", got)
+		}
+	})
+	t.Run("runs find", func(t *testing.T) {
+		// The find is unbound by default.
+		keys := testKeys()
+		keys.Set("actions_runs.find", []string{"/"})
+		m, h := newModalKeys(t, keys, newFake(), wideW, wideH)
+		h.keys("/", "C", "I", "enter")
+		if m.runs.FindQuery() == "" {
+			t.Fatal("the runs show no find")
+		}
+		cmd, ok := m.Act(ui.ActDismiss)
+		h.run(cmd)
+		if !ok || m.runs.FindQuery() != "" || len(h.take()) != 0 {
+			t.Fatalf("dismiss: taken %v, find %q, want it cleared and the modal open", ok, m.runs.FindQuery())
+		}
+		cmd, _ = m.Act(ui.ActDismiss)
+		h.run(cmd)
+		if got := h.take(); len(got) != 1 || got[0] != (ui.CloseModalMsg{Modal: m}) {
+			t.Errorf("the second dismiss sent %v, want the modal closed", got)
+		}
+	})
+}
+
+// TestBackspaceTypesInThePrompts checks that the prompts of the runs and of
+// the log keep backspace to delete: it neither steps back nor closes.
+func TestBackspaceTypesInThePrompts(t *testing.T) {
+	keys := testKeys()
+	keys.Set("actions_runs.find", []string{"/"})
+	m, h := newModalKeys(t, keys, newFake(), wideW, wideH)
+	h.keys("/", "a", "b", "backspace")
+	if !m.runs.Capturing() || m.focus != runsPane || len(h.take()) != 0 {
+		t.Fatal("backspace left the prompt of the runs")
+	}
+	h.keys("esc", "tab", "tab", "/", "a", "b", "backspace")
+	if m.focus != logPane || !m.log.Capturing() || len(h.take()) != 0 {
+		t.Errorf("backspace left the search of the log: pane %d", m.focus)
+	}
+}
+
+// TestActBackStepsBack checks the app's back intent: it steps the log back
+// to the jobs and those to the runs, which it takes and leaves as they are.
+func TestActBackStepsBack(t *testing.T) {
+	m, h := newModal(t, newFake(), wideW, wideH)
+	h.keys("tab", "tab")
+	for _, want := range []pane{jobsPane, runsPane, runsPane} {
+		cmd, ok := m.Act(ui.ActBack)
+		if !ok || cmd != nil || m.focus != want {
+			t.Fatalf("Act(back) = %v, %v on pane %d, want it taken on %d", cmd, ok, m.focus, want)
+		}
+	}
+}
+
+// TestEscIsLabelledForWhatItClears checks that the help names esc for the
+// search of the log it clears first, and otherwise for closing.
+func TestEscIsLabelledForWhatItClears(t *testing.T) {
+	m, h := newModal(t, newFake(), wideW, wideH)
+	h.keys("tab", "tab")
+	if b, _, _ := uitest.Winner(m.KeyLayers(), "esc"); b.Help().Desc != "close" {
+		t.Errorf("esc reads %q, want close", b.Help().Desc)
+	}
+	h.keys("/", "s", "t", "enter")
+	if b, _, _ := uitest.Winner(m.KeyLayers(), "esc"); b.Help().Desc != "clear search" {
+		t.Errorf("esc reads %q with a search shown, want clear search", b.Help().Desc)
+	}
+}
+
+// TestEscIsLabelledForTheFindAndTheFilterOfTheRuns checks that the help
+// names what esc clears on the runs: the find first, then the quick filter.
+func TestEscIsLabelledForTheFindAndTheFilterOfTheRuns(t *testing.T) {
+	keys := testKeys()
+	keys.Set("actions_runs.find", []string{"/"})
+	keys.Set("actions_runs.quick_filter", []string{"&"})
+	m, h := newModalKeys(t, keys, newFake(), wideW, wideH)
+	desc := func() string {
+		b, _, _ := uitest.Winner(m.KeyLayers(), "esc")
+		return b.Help().Desc
+	}
+	if got := desc(); got != "close" {
+		t.Fatalf("esc reads %q, want close", got)
+	}
+	h.keys("&", "C", "I", "enter")
+	if got := desc(); got != "clear filter" {
+		t.Fatalf("esc reads %q with a quick filter shown, want clear filter", got)
+	}
+	h.keys("/", "C", "I", "enter")
+	if got := desc(); got != "clear find" {
+		t.Errorf("esc reads %q with a find shown, want clear find", got)
+	}
+}
+
+// TestFilterStepShowsTheBackKeyOff checks that the help lists backspace as
+// off while the filter of the runs is open, as it does of the other modals
+// that have no step before them.
+func TestFilterStepShowsTheBackKeyOff(t *testing.T) {
+	m, h := newModal(t, newFake(), wideW, wideH)
+	h.keys("f")
+	if m.filterStep == nil {
+		t.Fatal("the filter step isn't open")
+	}
+	for _, l := range m.KeyLayers() {
+		for _, b := range l.Bindings {
+			if b.Help().Desc == "back" && !b.Enabled() {
+				return
+			}
+		}
+	}
+	t.Error("the filter step lists no disabled back key")
 }

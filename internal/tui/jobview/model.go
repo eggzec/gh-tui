@@ -290,6 +290,10 @@ func (m Model) Capturing() bool { return m.view.Capturing() }
 // Query is the search of the log, or empty.
 func (m Model) Query() string { return m.view.Query() }
 
+// ClearSearch forgets the search of the log, and reports whether there was
+// one.
+func (m *Model) ClearSearch() bool { return m.view.ClearSearch() }
+
 // Lines counts the lines of the log.
 func (m Model) Lines() int { return m.view.Lines() }
 

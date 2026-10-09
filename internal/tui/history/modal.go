@@ -215,7 +215,7 @@ func (m *Modal) KeyLayers() []keyhelp.Layer {
 		return []keyhelp.Layer{ui.PagerLayer("history_patch", &m.commit.pager)}
 	}
 	k := m.keys.state(m)
-	screen := ui.ContextLayer(ctxModal, k.screen(), []key.Binding{k.Open, k.Retry, k.Next, k.Zoom, k.Back})
+	screen := ui.ContextLayer(ctxModal, k.screen(), []key.Binding{k.Open, k.Retry, k.Next, k.Zoom, k.Dismiss})
 	ctx := paneContext(m.focus, patch)
 	keys, short := k.pane(m.focus)
 	own := keyhelp.Layer{Bindings: keys, Short: short}
@@ -239,8 +239,8 @@ func (m *Modal) KeyLayers() []keyhelp.Layer {
 }
 
 // state returns k as the modal takes it now, named for what the keys do
-// in the focused pane. Back closes the modal from the branches; in a
-// patch the pager takes it.
+// in the focused pane. Back names the step before, and is off on the
+// branches.
 func (k KeyMap) state(m *Modal) KeyMap {
 	patch := m.focus == commitPane && m.commit.patch
 	k.ResetBase.SetEnabled(k.ResetBase.Enabled() && m.base.Ref != "")
@@ -250,9 +250,19 @@ func (k KeyMap) state(m *Modal) KeyMap {
 	}
 	switch {
 	case patch:
+		k.Back = named(k.Back, "files")
+		switch {
+		case m.commit.pager.Query() != "":
+			k.Dismiss = named(k.Dismiss, "clear search")
+		case m.commit.pager.Filter() != "" || m.commit.pager.Projecting():
+			k.Dismiss = named(k.Dismiss, "clear filter")
+		}
+	case m.focus == commitPane:
+		k.Back = named(k.Back, paneTitles[graphPane])
+	case m.focus == graphPane:
+		k.Back = named(k.Back, paneTitles[branchPane])
+	default:
 		k.Back.SetEnabled(false)
-	case m.focus == branchPane:
-		k.Back = named(k.Back, "close")
 	}
 	k.UseAsBase.SetEnabled(k.UseAsBase.Enabled() && !patch)
 	k.graphBase.SetEnabled(k.graphBase.Enabled() && !patch)

@@ -87,13 +87,10 @@ func (m *Model[T]) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.step(1)
 	case key.Matches(msg, m.keyMap.Prev):
 		return m.step(-1)
-	case key.Matches(msg, m.promptKeys.Cancel) && (m.query != "" || m.filter != ""):
+	case key.Matches(msg, m.promptKeys.Cancel):
 		// Esc peels one layer at a time: the find, then the filter.
-		if m.query != "" {
-			m.clearFind()
-			return nil
-		}
-		return m.clearFilter()
+		cmd, _ := m.ClearTransient()
+		return cmd
 	default:
 		return nil
 	}
@@ -306,4 +303,19 @@ func (m Model[T]) slots() int {
 // hasStatus reports whether a loading, error or empty row follows the items.
 func (m Model[T]) hasStatus() bool {
 	return m.tail.fetching || m.tail.err != nil || m.shown() == 0
+}
+
+// ClearTransient peels one layer of what the user asked to see: the find
+// shown, else the filter. It reports whether there was one. The parent
+// calls it for the key that dismisses, which clears these before it
+// closes anything.
+func (m *Model[T]) ClearTransient() (tea.Cmd, bool) {
+	switch {
+	case m.query != "":
+		m.clearFind()
+		return nil, true
+	case m.filter != "":
+		return m.clearFilter(), true
+	}
+	return nil, false
 }

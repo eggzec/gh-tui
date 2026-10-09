@@ -80,6 +80,10 @@ type projectMsg struct {
 // "!test", or "" if there is none.
 func (m Model) Filter() string { return m.proj.filter.query }
 
+// Projecting reports whether a filter is still picking the lines, which
+// esc cancels as it does the one shown.
+func (m Model) Projecting() bool { return m.projecting }
+
 // Shown returns the number of lines shown, which is all of them unless a
 // filter hides some.
 func (m Model) Shown() int { return m.count() }

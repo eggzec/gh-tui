@@ -6,7 +6,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/logview"
 )
 
 // Update handles the modal's keys and its reads, and passes everything else
@@ -71,11 +70,6 @@ func (m *Modal) update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		return m.done(msg)
-	case logview.CloseMsg:
-		if msg.ID == m.log.LogID() {
-			return m.back()
-		}
-		return nil
 	case spinner.TickMsg:
 		if msg.ID == m.spin.ID() {
 			return m.spun(msg)
@@ -136,9 +130,8 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.answer(msg)
 	}
 	if m.filterStep != nil {
-		if m.filterStep.form == nil && key.Matches(msg, m.keys.Back) {
-			m.filterStep = nil
-			return nil
+		if m.filterStep.form == nil && key.Matches(msg, m.keys.Dismiss) {
+			return m.dismiss()
 		}
 		return m.updateFilter(msg)
 	}
@@ -184,11 +177,9 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.asks(m.cancelRun)
 	case key.Matches(msg, k.Refresh):
 		return m.refresh()
+	case key.Matches(msg, k.Dismiss):
+		return m.dismiss()
 	case key.Matches(msg, k.Back):
-		if inLog && m.log.Query() != "" {
-			// The back key clears the search first.
-			return m.updateLog(msg)
-		}
 		return m.back()
 	case key.Matches(msg, k.Select) && m.focus != logPane:
 		return m.drill()
@@ -258,13 +249,33 @@ func (m *Modal) drill() tea.Cmd {
 	return nil
 }
 
-// back steps back one pane, and closes the modal from the runs.
+// back steps back one pane: the log to the jobs, and the jobs to the runs.
+// It does nothing on the runs.
 func (m *Modal) back() tea.Cmd {
 	if m.focus == runsPane {
-		return m.close()
+		return nil
 	}
 	m.setFocus(m.focus - 1)
 	return nil
+}
+
+// dismiss peels one layer at a time: the filter before its form shows, the
+// search of the log, the find or the quick filter of the runs, and when
+// none is left, the modal.
+func (m *Modal) dismiss() tea.Cmd {
+	if m.filterStep != nil {
+		m.filterStep = nil
+		return nil
+	}
+	switch {
+	case m.focus == logPane && m.log.ClearSearch():
+		return nil
+	case m.focus == runsPane:
+		if cmd, ok := m.runs.ClearTransient(); ok {
+			return cmd
+		}
+	}
+	return m.close()
 }
 
 // refresh reads again what the focused pane shows, or what failed to

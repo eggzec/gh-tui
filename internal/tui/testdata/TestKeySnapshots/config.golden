@@ -11,6 +11,7 @@ global
   help | ? | ? | on
 
 Text
+  back | backspace | backspace | off
   up | up k | ↑/k | on
   down | down j | ↓/j | on
   page up | b ctrl+b pgup | b/^b/pgup | on

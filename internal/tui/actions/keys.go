@@ -29,9 +29,10 @@ type KeyMap struct {
 	NextTab, PrevTab key.Binding
 	// Select drills into the pane after the focused one.
 	Select key.Binding
-	// Back closes the filter or the confirmation, or steps back a pane,
-	// and closes the modal from the runs.
-	Back key.Binding
+	// Back steps back a pane, and does nothing on the runs. Dismiss clears
+	// what is transient, and then closes the modal; it closes the filter
+	// before the form shows, too.
+	Back, Dismiss key.Binding
 	// Filter edits the filter of the runs, in a step of the modal, and
 	// ClearFilter clears it. Both work with the focus on the runs.
 	Filter, ClearFilter key.Binding
@@ -82,7 +83,8 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		NextTab:     modal.Binding("global.next_tab", "tab"),
 		PrevTab:     modal.Binding("global.prev_tab", "previous tab"),
 		Select:      modal.Binding("global.select", "open"),
-		Back:        modal.Binding("global.dismiss", "back"),
+		Back:        modal.Binding("global.back", "back"),
+		Dismiss:     modal.Binding("global.dismiss", "close"),
 		Filter:      runs.Binding("filter", "filter"),
 		ClearFilter: runs.Binding("clear_filter", "clear filter"),
 		Zoom:        modal.Binding("global.zoom", "zoom"),
@@ -110,15 +112,24 @@ func newKeyMap(keys config.Keymap) KeyMap {
 	k.Runs, k.Jobs = feed.NewKeyMap(runs), ui.NewMoveKeys(jobs)
 	k.search = ui.SearchPromptKeys(keys)
 
-	// The log folds with enter, and closes with the back key, which
-	// clears a search first.
+	// The log folds with enter. The modal takes the keys that close it, so
+	// the log has none of its own.
 	lk := logview.NewKeyMap(log)
-	lk.Quit, lk.Dismiss = key.NewBinding(key.WithDisabled()), relabel(k.Back, "back")
+	lk.Quit.SetEnabled(false)
+	lk.Dismiss.SetEnabled(false)
 	k.Log = lk
 	return k
 }
 
 // own returns the keys of the modal itself, in the order it matches them.
+// filterBack returns the back key as the filter step shows it: off, as
+// there is no step before the filter.
+func (k KeyMap) filterBack() key.Binding {
+	b := k.Back
+	b.SetEnabled(false)
+	return b
+}
+
 func (k KeyMap) own() []key.Binding {
 	return slices.Concat(k.screen(), k.pane(k.RerunJob))
 }
@@ -128,7 +139,7 @@ func (k KeyMap) own() []key.Binding {
 func (k KeyMap) screen() []key.Binding {
 	return []key.Binding{
 		k.NextTab, k.PrevTab, k.Next, k.Prev, k.Jump, k.Zoom, k.Open,
-		k.RerunFailed, k.Rerun, k.Cancel, k.Refresh, k.Back,
+		k.RerunFailed, k.Rerun, k.Cancel, k.Refresh, k.Dismiss, k.Back,
 	}
 }
 

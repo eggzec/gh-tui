@@ -17,7 +17,8 @@ History
   browser | o | o | on
   back to head | H | H | off
   zoom | z | z | on
-  back | esc | esc | on
+  close | esc | esc | on
+  branches | backspace | backspace | on
   retry | r | r | off
 
 Graph

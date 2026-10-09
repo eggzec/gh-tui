@@ -40,8 +40,7 @@ type KeyMap struct {
 	// Apply sends an AppliedMsg from any row. A dropdown has its own
 	// enter, List.Choose.
 	Apply key.Binding `keymap:"global.select" help:"apply"`
-	// Clear clears the field in focus. Backspace clears too, since the
-	// form has no level to step back to.
+	// Clear clears the field in focus.
 	Clear key.Binding `keymap:"clear" help:"clear"`
 	// Cancel sends a CancelMsg. A dropdown has its own esc, List.Cancel.
 	Cancel key.Binding `keymap:"global.dismiss" help:"close"`

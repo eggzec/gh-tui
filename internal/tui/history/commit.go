@@ -90,7 +90,12 @@ type filesMsg struct {
 // editor, if set.
 func newCommit(editor string, keys config.Keymap) commit {
 	// The numbers of a patch's lines aren't those of the file.
-	k := pager.WithKeyMap(pager.NewKeyMap(ui.In(keys, "history_patch")))
+	pk := pager.NewKeyMap(ui.In(keys, "history_patch"))
+	// The modal takes the keys that close it, and closes the patch with
+	// its back key.
+	pk.Quit.SetEnabled(false)
+	pk.Dismiss.SetEnabled(false)
+	k := pager.WithKeyMap(pk)
 	return commit{pager: pager.New(k, pager.WithLineNumbers(false), pager.WithEditor(editor)), shown: -1}
 }
 

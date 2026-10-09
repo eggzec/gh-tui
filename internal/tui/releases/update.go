@@ -11,7 +11,7 @@ import (
 func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 	k := &m.keys
 	switch {
-	case key.Matches(msg, k.Back):
+	case key.Matches(msg, k.Dismiss):
 		return m.close()
 	case key.Matches(msg, k.Open):
 		url := m.Link()

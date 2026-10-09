@@ -13,6 +13,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	historysvc "github.com/eggzec/gh-tui/internal/service/history"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 	"github.com/eggzec/gh-tui/pkg/termtext/termtexttest"
 )
 
@@ -185,11 +186,11 @@ func TestUnboundPaneKeyDoesNothing(t *testing.T) {
 	}
 }
 
-func TestEnterAndEscStepThroughThePanes(t *testing.T) {
+func TestEnterAndBackspaceStepThroughThePanes(t *testing.T) {
 	m, h := newModal(t, newFake(), 108, 30)
-	h.keys("esc")
+	h.keys("backspace")
 	if m.focus != branchPane {
-		t.Fatalf("esc from the graph focused %d, want the branches", m.focus)
+		t.Fatalf("backspace from the graph focused %d, want the branches", m.focus)
 	}
 	h.keys("enter")
 	if m.focus != graphPane {
@@ -209,13 +210,17 @@ func TestEnterAndEscStepThroughThePanes(t *testing.T) {
 		t.Fatal("pager keys left the patch")
 	}
 	for _, want := range []pane{commitPane, graphPane, branchPane} {
-		h.keys("esc")
+		h.keys("backspace")
 		if m.focus != want || m.commit.patch {
-			t.Fatalf("esc focused %d, patch %v; want %d", m.focus, m.commit.patch, want)
+			t.Fatalf("backspace focused %d, patch %v; want %d", m.focus, m.commit.patch, want)
 		}
 	}
 	if got := h.take(); len(got) != 0 {
 		t.Fatalf("stepping back sent %#v", got)
+	}
+	h.keys("backspace")
+	if got := h.take(); len(got) != 0 || m.focus != branchPane {
+		t.Fatalf("backspace on the branches sent %#v and left them for %d, want nothing", got, m.focus)
 	}
 	h.keys("esc")
 	if got := h.take(); !slices.Equal(got, []tea.Msg{ui.CloseModalMsg{Modal: m}}) {
@@ -244,11 +249,11 @@ func TestZoom(t *testing.T) {
 		{name: "shift+tab keeps the zoom", keys: []string{"shift+tab", "shift+tab"}, zoom: true, focus: branchPane, shows: "fix/tabs", hides: "main: change 1"},
 		{name: "enter keeps the zoom", keys: []string{"enter", "enter", "enter"}, zoom: true, focus: commitPane, patch: true},
 		{name: "a resize keeps the zoom", width: 140, zoom: true, focus: commitPane, patch: true},
-		{name: "esc closes the patch and keeps the zoom", keys: []string{"esc"}, zoom: true, focus: commitPane, hides: "fix/tabs"},
-		{name: "esc steps back and keeps the zoom", keys: []string{"esc"}, zoom: true, focus: graphPane, shows: "main: change 1", hides: "fix/tabs"},
+		{name: "backspace closes the patch and keeps the zoom", keys: []string{"backspace"}, zoom: true, focus: commitPane, hides: "fix/tabs"},
+		{name: "backspace steps back and keeps the zoom", keys: []string{"backspace"}, zoom: true, focus: graphPane, shows: "main: change 1", hides: "fix/tabs"},
 		{name: "z unzooms", keys: []string{"z"}, focus: graphPane, shows: "fix/tabs"},
 		{name: "z zooms again", keys: []string{"z"}, zoom: true, focus: graphPane, hides: "fix/tabs"},
-		{name: "at 60 columns esc steps back while zoomed", width: narrowW, keys: []string{"esc"}, zoom: true, focus: branchPane, shows: "fix/tabs"},
+		{name: "at 60 columns backspace steps back while zoomed", width: narrowW, keys: []string{"backspace"}, zoom: true, focus: branchPane, shows: "fix/tabs"},
 		{name: "at 60 columns z keeps the zoom", keys: []string{"z"}, zoom: true, focus: branchPane, shows: "fix/tabs"},
 		{name: "wide again z unzooms", width: wideW, keys: []string{"z"}, focus: branchPane, shows: "main: change 1"},
 		{name: "at 60 columns z does nothing", width: narrowW, keys: []string{"z"}, focus: branchPane, shows: "fix/tabs"},
@@ -344,12 +349,12 @@ func TestUseAsBase(t *testing.T) {
 	}{
 		{"commit", []string{"j"}, ui.BaseMsg{Repo: repo, Ref: main1, Label: "main @ " + short(main1), Branch: "main"}},
 		{"commit pane", []string{"j", "enter"}, ui.BaseMsg{Repo: repo, Ref: main1, Label: "main @ " + short(main1), Branch: "main"}},
-		{"branch", []string{"esc", "j"}, ui.BaseMsg{Repo: repo, Ref: "fix/tabs", Label: "fix/tabs", Branch: "fix/tabs"}},
-		{"commit of a branch", []string{"esc", "j", "j", "enter", "j"}, ui.BaseMsg{
+		{"branch", []string{"backspace", "j"}, ui.BaseMsg{Repo: repo, Ref: "fix/tabs", Label: "fix/tabs", Branch: "fix/tabs"}},
+		{"commit of a branch", []string{"backspace", "j", "j", "enter", "j"}, ui.BaseMsg{
 			Repo: repo, Ref: sha("v2-exp", 1), Label: "v2-exp @ " + short(sha("v2-exp", 1)), Branch: "v2-exp",
 		}},
 		// The head of the default branch is where the files start.
-		{"default branch", []string{"esc"}, ui.BaseMsg{Repo: repo}},
+		{"default branch", []string{"backspace"}, ui.BaseMsg{Repo: repo}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -386,7 +391,7 @@ func TestOpenInBrowser(t *testing.T) {
 		keys []string
 		want string
 	}{
-		{"branch", []string{"esc", "j"}, "https://github.com/charmbracelet/bubbletea/tree/fix/tabs"},
+		{"branch", []string{"backspace", "j"}, "https://github.com/charmbracelet/bubbletea/tree/fix/tabs"},
 		{"commit", []string{"j"}, commitURL},
 		// GitHub anchors the diff of a file by the SHA-256 of its path.
 		{"file", []string{"j", "enter", "j"}, commitURL + "#diff-485d4740c371755eea1953e67aea510eb174767a0ba9b7e6d6a7e1d2f15e775e"},
@@ -408,7 +413,7 @@ func TestOpenInBrowser(t *testing.T) {
 func TestShowBranch(t *testing.T) {
 	f := newFake()
 	m, h := newModal(t, f, 108, 30)
-	h.keys("esc", "j", "j")
+	h.keys("backspace", "j", "j")
 	f.took()
 	h.keys("enter")
 	if m.graph.shown() != "v2-exp" || m.focus != graphPane || m.graph.model.Len() != 5 {
@@ -422,7 +427,7 @@ func TestShowBranch(t *testing.T) {
 		t.Errorf("calls = %q, want %q", got, want)
 	}
 	// Choosing the branch shown again reads nothing.
-	h.keys("esc", "enter")
+	h.keys("backspace", "enter")
 	if got := f.took(); len(got) != 0 {
 		t.Errorf("calls = %q, want none", got)
 	}
@@ -432,7 +437,7 @@ func TestCompareOnlyTheBranchUnderTheCursor(t *testing.T) {
 	f := newFake()
 	m, h := newModal(t, f, 108, 30)
 	f.took()
-	h.keys("esc", "j")
+	h.keys("backspace", "j")
 	if got := f.took(); !slices.Equal(got, []string{"compare fix/tabs"}) {
 		t.Errorf("calls = %q, want fix/tabs compared", got)
 	}
@@ -456,7 +461,7 @@ func TestCompareAroundIsConfigured(t *testing.T) {
 	if got := f.took(); !slices.Contains(got, "compare fix/tabs") {
 		t.Errorf("calls = %q, want fix/tabs compared ahead", got)
 	}
-	h.keys("esc")
+	h.keys("backspace")
 	for _, br := range []string{"fix/tabs", "v2-exp"} {
 		h.keys("j")
 		if _, ok := m.branches.compares[br]; !ok {
@@ -471,7 +476,7 @@ func TestCompareAroundIsConfigured(t *testing.T) {
 func TestFilterBranches(t *testing.T) {
 	f := newFake()
 	m, h := newModal(t, f, 108, 30)
-	h.keys("esc", "f", "v", "2")
+	h.keys("backspace", "f", "v", "2")
 	if m.branches.filter == nil || !strings.Contains(screen(m), "v2-exp") || strings.Contains(screen(m), "fix/tabs") {
 		t.Fatalf("the filter shows:\n%s", screen(m))
 	}
@@ -488,7 +493,7 @@ func TestFilterBranches(t *testing.T) {
 	if b, _ := m.branches.selected(); b.Name != "v2-exp" {
 		t.Errorf("cursor on %q, want v2-exp", b.Name)
 	}
-	h.keys("esc", "f", "esc")
+	h.keys("backspace", "f", "esc")
 	if m.branches.filter != nil || m.focus != branchPane {
 		t.Error("esc didn't close the filter alone")
 	}
@@ -641,7 +646,7 @@ func TestPaneErrorWords(t *testing.T) {
 			check(t, m, commitPane, tt.commit)
 			// Narrow, the branches take the width.
 			m.SetSize(narrowW, narrowH)
-			h.keys("esc")
+			h.keys("backspace")
 			check(t, m, branchPane, tt.branches)
 
 			delete(f.errs, "commit "+short(main0))
@@ -750,7 +755,7 @@ func TestIgnoresOtherModals(t *testing.T) {
 // On an Enterprise host, links go to its pages.
 func TestOpenInBrowserOnHost(t *testing.T) {
 	m, h := newModal(t, newFake(), 108, 30, WithHost("ghe.example.com:8443"))
-	h.keys("esc", "j")
+	h.keys("backspace", "j")
 	h.take()
 	h.keys("o")
 	want := ui.OpenMsg{URL: "https://ghe.example.com:8443/charmbracelet/bubbletea/tree/fix/tabs"}
@@ -759,5 +764,79 @@ func TestOpenInBrowserOnHost(t *testing.T) {
 	}
 	if got, want := m.commitURL(core.Commit{SHA: "abc"}), "https://ghe.example.com:8443/charmbracelet/bubbletea/commit/abc"; got != want {
 		t.Errorf("commitURL of a commit without a URL = %q, want %q", got, want)
+	}
+}
+
+// TestEscIsLabelledForWhatItClearsInThePatch checks that the help names esc
+// for the search of the patch, then for its quick filter, and otherwise for
+// closing.
+func TestEscIsLabelledForWhatItClearsInThePatch(t *testing.T) {
+	m, h := newModal(t, newFake(), 108, 30)
+	desc := func() string {
+		b, _, _ := uitest.Winner(m.KeyLayers(), "esc")
+		return b.Help().Desc
+	}
+	h.keys("enter", "j", "enter")
+	if !m.commit.patch {
+		t.Fatal("the patch isn't shown")
+	}
+	if got := desc(); got != "close" {
+		t.Fatalf("esc reads %q, want close", got)
+	}
+	h.keys("&", "o", "l", "d", "enter")
+	if got := desc(); got != "clear filter" {
+		t.Fatalf("esc reads %q with a filter shown, want clear filter", got)
+	}
+	h.keys("/", "o", "l", "d", "enter")
+	if got := desc(); got != "clear search" {
+		t.Errorf("esc reads %q with a search shown, want clear search", got)
+	}
+}
+
+// TestEscClosesFromThePatch checks that esc closes the modal at once from
+// the deepest step, and clears a search of the patch before it does.
+func TestEscClosesFromThePatch(t *testing.T) {
+	m, h := newModal(t, newFake(), 108, 30)
+	h.keys("enter", "j", "enter", "/", "o", "l", "d", "enter")
+	if !m.commit.patch || m.commit.pager.Query() == "" {
+		t.Fatalf("patch %v, search %q; want the patch with a search shown", m.commit.patch, m.commit.pager.Query())
+	}
+	h.keys("esc")
+	if m.commit.pager.Query() != "" || !m.commit.patch || len(h.take()) != 0 {
+		t.Fatalf("esc: patch %v, search %q; want the search cleared and the patch shown", m.commit.patch, m.commit.pager.Query())
+	}
+	h.keys("esc")
+	if got := h.take(); !slices.Equal(got, []tea.Msg{ui.CloseModalMsg{Modal: m}}) {
+		t.Errorf("esc in the patch sent %#v, want the modal closed", got)
+	}
+}
+
+// TestBackspaceTypesInTheFilter checks that the filter of the branches
+// keeps backspace to delete: it neither steps back nor closes.
+func TestBackspaceTypesInTheFilter(t *testing.T) {
+	m, h := newModal(t, newFake(), 108, 30)
+	h.keys("backspace", "f", "a", "b", "backspace")
+	if m.focus != branchPane || m.branches.filter == nil || m.branches.filter.Query().Text != "a" || len(h.take()) != 0 {
+		t.Errorf("backspace in the filter: pane %d, filter %v", m.focus, m.branches.filter != nil)
+	}
+}
+
+// TestActBackStepsBack checks the app's back intent: it steps back from the
+// patch to the files, the graph and the branches, which it takes and
+// leaves as they are.
+func TestActBackStepsBack(t *testing.T) {
+	m, h := newModal(t, newFake(), 108, 30)
+	h.keys("enter", "j", "enter")
+	if !m.commit.patch {
+		t.Fatal("the patch isn't shown")
+	}
+	for _, step := range []struct {
+		focus pane
+		patch bool
+	}{{commitPane, false}, {graphPane, false}, {branchPane, false}, {branchPane, false}} {
+		cmd, ok := m.Act(ui.ActBack)
+		if !ok || cmd != nil || m.focus != step.focus || m.commit.patch != step.patch {
+			t.Fatalf("Act(back) = %v, %v; focus %d, patch %v; want %d, %v", cmd, ok, m.focus, m.commit.patch, step.focus, step.patch)
+		}
 	}
 }

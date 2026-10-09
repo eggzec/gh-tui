@@ -34,6 +34,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/jobview"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
+	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
@@ -247,10 +248,14 @@ func (m *Modal) KeyLayers() []keyhelp.Layer {
 			// The form shows its own help line.
 			l := ui.ContextHelp(ctxFilter, *f, f.Capturing())
 			l.Short = nil
+			if f.CapturedBy() == filterform.CaptureNone {
+				// Where the form types, backspace deletes.
+				l.Bindings = append(l.Bindings, k.filterBack())
+			}
 			return []keyhelp.Layer{l}
 		}
-		// Until the form shows, only the back key does something.
-		return []keyhelp.Layer{ui.ContextLayer(ctxFilter, []key.Binding{k.Back}, []key.Binding{k.Back})}
+		// Until the form shows, only the dismiss key does something.
+		return []keyhelp.Layer{ui.ContextLayer(ctxFilter, []key.Binding{k.Dismiss, k.filterBack()}, []key.Binding{k.Dismiss})}
 	case m.focus == logPane && m.log.Capturing():
 		return m.log.KeyLayers()
 	case m.focus == runsPane && m.runs.Capturing():
@@ -280,7 +285,7 @@ func (m *Modal) KeyLayers() []keyhelp.Layer {
 
 // state returns k as the modal takes it now, named for what the keys do
 // in the focused pane: select drills into the pane after, or folds a
-// group of jobs, back closes the modal from the runs, and a run offers
+// group of jobs, back names the pane before and is off on the runs, and a run offers
 // the changes that apply to it, if the viewer may make them.
 func (k KeyMap) state(m *Modal) KeyMap {
 	if m.zoom {
@@ -290,8 +295,16 @@ func (k KeyMap) state(m *Modal) KeyMap {
 	case runsPane:
 		k.Select = relabel(k.Select, "jobs")
 		k.ClearFilter.SetEnabled(k.ClearFilter.Enabled() && formFiltered(m.filter))
-		k.Back = relabel(k.Back, "close")
+		// Nothing is before the runs.
+		k.Back.SetEnabled(false)
+		switch {
+		case m.runs.FindQuery() != "":
+			k.Dismiss = relabel(k.Dismiss, "clear find")
+		case m.runs.FilterQuery() != "":
+			k.Dismiss = relabel(k.Dismiss, "clear filter")
+		}
 	case jobsPane:
+		k.Back = relabel(k.Back, paneTitles[runsPane])
 		// Enter folds a group of jobs, and opens the log of a job.
 		k.Select = relabel(k.Select, "open")
 		if m.jobs.onGroup() {
@@ -299,8 +312,10 @@ func (k KeyMap) state(m *Modal) KeyMap {
 		}
 	case logPane:
 		k.Select.SetEnabled(false)
-		// The back key clears the search of the log first.
-		k.Back.SetEnabled(k.Back.Enabled() && m.log.Query() == "")
+		k.Back = relabel(k.Back, paneTitles[jobsPane])
+		if m.log.Query() != "" {
+			k.Dismiss = relabel(k.Dismiss, "clear search")
+		}
 	}
 	g := m.gate()
 	done := m.hasRun && m.run.Done()

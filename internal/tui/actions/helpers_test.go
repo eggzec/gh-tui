@@ -87,8 +87,14 @@ func testKeys() config.Keymap {
 // newModal returns the modal of repo over f, of width by height, loaded.
 func newModal(tb testing.TB, f Service, width, height int, opts ...Option) (*Modal, *host) {
 	tb.Helper()
+	return newModalKeys(tb, testKeys(), f, width, height, opts...)
+}
+
+// newModalKeys is newModal with the keys given.
+func newModalKeys(tb testing.TB, keys config.Keymap, f Service, width, height int, opts ...Option) (*Modal, *host) {
+	tb.Helper()
 	opts = append([]Option{forTests(), withIcons(), WithViewer(viewer)}, opts...)
-	m := New(tb.Context(), f, repo, testKeys(), opts...)
+	m := New(tb.Context(), f, repo, keys, opts...)
 	m.SetTheme(testTheme())
 	m.SetSize(width, height)
 	h := &host{m: m}
@@ -193,6 +199,8 @@ func press(k string) tea.KeyPressMsg {
 		return tea.KeyPressMsg{Code: tea.KeyEnter}
 	case "esc":
 		return tea.KeyPressMsg{Code: tea.KeyEscape}
+	case "backspace":
+		return tea.KeyPressMsg{Code: tea.KeyBackspace}
 	case "tab":
 		return tea.KeyPressMsg{Code: tea.KeyTab}
 	case "shift+tab":

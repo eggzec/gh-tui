@@ -11,7 +11,6 @@ import (
 	historysvc "github.com/eggzec/gh-tui/internal/service/history"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/graph"
-	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
 	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
 )
 
@@ -87,11 +86,6 @@ func (m *Modal) update(msg tea.Msg) tea.Cmd {
 		return m.loadDetail()
 	case picker.ChosenMsg, picker.CancelMsg:
 		return m.updateFilter(msg)
-	case pager.CloseMsg:
-		if msg.ID == m.commit.pager.ID() {
-			m.closePatch()
-		}
-		return nil
 	case ui.SyncMsg:
 		// The revalidator found that a branch moved, and cached it.
 		if msg.Err != nil || msg.Key != historysvc.SyncKey(m.repo) {
@@ -152,14 +146,14 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 		m.zoom = !m.zoom
 		m.layout()
 		return nil
+	case key.Matches(msg, m.keys.Dismiss):
+		return m.dismiss()
+	case key.Matches(msg, m.keys.Back):
+		return m.back()
 	case patch:
-		// The pager closes itself with the back key, or pages with the
-		// space bar.
 		return m.updatePager(msg)
 	case key.Matches(msg, m.keys.base(m.focus)):
 		return m.useSelected()
-	case key.Matches(msg, m.keys.Back):
-		return m.back()
 	}
 	switch m.focus {
 	case branchPane:
@@ -202,17 +196,29 @@ func (m *Modal) focused() tea.Cmd {
 	return nil
 }
 
-// back steps back one pane, and closes the modal from the branches.
+// back steps back from the patch to the files, from the files to the graph
+// and from the graph to the branches. It does nothing on the branches.
 func (m *Modal) back() tea.Cmd {
-	switch m.focus {
-	case commitPane:
+	switch {
+	case m.focus == commitPane && m.commit.patch:
+		m.closePatch()
+	case m.focus == commitPane:
 		m.setFocus(graphPane)
-	case graphPane:
+	case m.focus == graphPane:
 		m.setFocus(branchPane)
-	default:
-		return m.close()
 	}
 	return nil
+}
+
+// dismiss clears a search or a filter of the patch, and when none is
+// left, closes the modal.
+func (m *Modal) dismiss() tea.Cmd {
+	if m.focus == commitPane && m.commit.patch {
+		if cmd, ok := m.commit.pager.ClearTransient(); ok {
+			return cmd
+		}
+	}
+	return m.close()
 }
 
 // useSelected makes the branch or the commit under the cursor the base.

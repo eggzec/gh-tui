@@ -108,6 +108,8 @@ func press(m *Modal, k string) tea.Cmd {
 	switch k {
 	case "esc":
 		msg = tea.KeyPressMsg{Code: tea.KeyEscape}
+	case "backspace":
+		msg = tea.KeyPressMsg{Code: tea.KeyBackspace}
 	default:
 		msg = tea.KeyPressMsg{Code: rune(k[0]), Text: k}
 	}
@@ -324,8 +326,27 @@ func TestKeyLayersOrder(t *testing.T) {
 	if got := winner("j"); got != "Release: down" {
 		t.Errorf("j reaches %q, want the thread", got)
 	}
-	if got := winner("esc"); got != "Release: back" {
-		t.Errorf("esc reaches %q, want the modal's back", got)
+	if got := winner("esc"); got != "Release: close" {
+		t.Errorf("esc reaches %q, want the modal's close", got)
+	}
+}
+
+// TestBackspaceDoesNothingAndEscCloses checks the release has no step
+// before it: the back key is taken and does nothing, and the dismiss key
+// closes it, as the keys reach it through the app.
+func TestBackspaceDoesNothingAndEscCloses(t *testing.T) {
+	m := newModal(&fakeService{}, 100, 30)
+	run(t, m, m.Init())
+	if msgs := run(t, m, press(m, "backspace")); len(msgs) != 0 || m.closed {
+		t.Errorf("backspace = %v, closed %v, want nothing", msgs, m.closed)
+	}
+	cmd, ok := m.Act(ui.ActBack)
+	if !ok || cmd != nil || m.closed {
+		t.Errorf("Act(back) = %v, %v, closed %v, want taken and nothing", cmd, ok, m.closed)
+	}
+	cmd, ok = m.Act(ui.ActDismiss)
+	if msgs := run(t, m, cmd); !ok || len(msgs) != 1 || msgs[0] != (ui.CloseModalMsg{Modal: m}) {
+		t.Errorf("Act(dismiss) = %v, %v, want the modal closed", msgs, ok)
 	}
 }
 
