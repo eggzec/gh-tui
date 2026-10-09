@@ -127,16 +127,23 @@ type Model[T any] struct {
 	held int
 	// note is a note on the last key, such as "Pattern not found".
 	note string
+	// marks are the keys of the items the user marked. A change makes a
+	// new map, since copies of the model share it.
+	marks map[string]struct{}
 
 	// Rendered once in SetStyles and SetKeyMap, so View only copies them.
 	gutterFocused string
 	gutterBlurred string
 	gutterNone    string
-	loadingText   string
-	emptyLine     string
-	errLine       string
-	errHint       string
-	placeholder   string
+	// markGutters are the gutters of a feed whose rows can be marked, by
+	// whether the row is selected in a focused feed, in a blurred one or
+	// not, and by whether it is marked.
+	markGutters [3][2]string
+	loadingText string
+	emptyLine   string
+	errLine     string
+	errHint     string
+	placeholder string
 }
 
 // New returns a feed that loads items with fetch and draws them with render.
@@ -180,7 +187,7 @@ func (m *Model[T]) Reset() tea.Cmd {
 	m.sel, m.top = 0, 0
 	m.anchored = false
 	// The new items are not the ones the find and the filter looked at.
-	m.query, m.hits, m.filter, m.rows, m.note = "", nil, "", nil, ""
+	m.query, m.hits, m.filter, m.rows, m.note, m.marks = "", nil, "", nil, "", nil
 	m.closePrompt()
 	return m.startFetch(0)
 }
@@ -347,6 +354,11 @@ func (m *Model[T]) SetKeyMap(k KeyMap) {
 	m.refreshError()
 }
 
+// SetMarkKeys sets the key that marks rows, as [WithMarkKeys] does.
+func (m *Model[T]) SetMarkKeys(k MarkKeys) {
+	m.markKeys = k
+}
+
 // KeyMap returns the key bindings.
 func (m Model[T]) KeyMap() KeyMap {
 	return m.keyMap
@@ -365,6 +377,10 @@ func (m *Model[T]) SetStyles(s Styles) {
 	m.gutterFocused = s.Cursor.Render(cursor) + " "
 	m.gutterBlurred = s.BlurredCursor.Render(cursor) + " "
 	m.gutterNone = "  "
+	mark := s.Mark.Render(termtext.Cells(s.MarkGlyph, 1)) + " "
+	for i, c := range [3]string{s.Cursor.Render(cursor), s.BlurredCursor.Render(cursor), " "} {
+		m.markGutters[i] = [2]string{c + "  ", c + mark}
+	}
 	m.loadingText = s.Loading.Render("Loading" + s.Ellipsis)
 	m.emptyLine = s.Empty.Render(m.emptyText)
 	m.placeholder = s.Placeholder.Render(s.Ellipsis)

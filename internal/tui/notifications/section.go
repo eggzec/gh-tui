@@ -131,6 +131,7 @@ func New(ctx context.Context, svc Service, keys config.Keymap, opts ...Option) *
 		feed.WithContext(ctx),
 		feed.WithKey(func(n core.Notification) string { return n.ID }),
 		feed.WithKeyMap(s.keys.feed),
+		feed.WithMarkKeys(s.keys.mark),
 		feed.WithPromptKeys(s.keys.search),
 		feed.WithErrorText(ui.ErrorText("load the notifications", "", s.voice)),
 	)

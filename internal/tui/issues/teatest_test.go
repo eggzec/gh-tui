@@ -70,7 +70,7 @@ func TestProgram(t *testing.T) {
 	waitFor("I can reproduce this")
 
 	tm.Send(keyMsg("esc"))
-	waitFor("Notifications tab keeps pol")
+	waitFor("Notifications tab keeps")
 
 	// Closing #999 in the open list shows it closed at once. Once GitHub
 	// agrees, the list no longer has it.
@@ -80,7 +80,7 @@ func TestProgram(t *testing.T) {
 	icons := ui.NewIcons(config.IconsNerd)
 	waitFor(icons.State(ui.IssueClosed))
 	close(svc.gate)
-	waitFor(icons.State(ui.IssueOpen) + " #998   Notifications tab keeps pol")
+	waitFor(icons.State(ui.IssueOpen) + " #998   Notifications tab keeps")
 	tm.Send(keyMsg("q"))
 
 	final := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(app)
@@ -121,7 +121,7 @@ func TestProgramComment(t *testing.T) {
 	// which the terminal is tall enough to show whole.
 	waitFor("octocat")
 	tm.Send(keyMsg("esc"))
-	waitFor("Notifications tab keeps pol")
+	waitFor("Notifications tab keeps")
 	tm.Send(keyMsg("q"))
 
 	final := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(app)

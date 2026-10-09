@@ -320,8 +320,9 @@ func TestMatchTextIsKept(t *testing.T) {
 func TestPromptHelp(t *testing.T) {
 	m := load(t, bugs(10))
 	rows := m.FullHelp()
-	if got := len(rows); got != len(m.KeyMap().FullHelp()) {
-		t.Errorf("full help has %d rows with nothing to clear, want %d", got, len(m.KeyMap().FullHelp()))
+	// The rows of the key map, and the one of the mark key.
+	if got, want := len(rows), len(m.KeyMap().FullHelp())+1; got != want {
+		t.Errorf("full help has %d rows with nothing to clear, want %d", got, want)
 	}
 	m = typed(t, m, "&", "bug", "enter")
 	last := m.FullHelp()[len(m.FullHelp())-1]

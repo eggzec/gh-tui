@@ -7,6 +7,11 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/keytest"
 )
 
+func TestMarkKeysTagged(t *testing.T) {
+	keytest.Tagged(t, testMarkKeys)
+	keytest.HelpTags(t, testMarkKeys)
+}
+
 func TestKeyMapComplete(t *testing.T) {
 	km := testKeyMap
 	keytest.Complete(t, km)
@@ -42,9 +47,12 @@ var testPromptKeys = cmdline.NewKeyMap(keytest.Table(map[string][]string{
 
 var testKeyMap = NewKeyMap(keytest.Table(testKeys))
 
+// testMarkKeys is the key that marks rows.
+var testMarkKeys = NewMarkKeys(keytest.Table(map[string][]string{"mark": {"space"}}))
+
 // newModel makes a feed with the keys of a pane, as the app does.
 func newModel[T any](fetch Fetch[T], render Render[T], opts ...Option) Model[T] {
-	return New(fetch, render, append([]Option{WithKeyMap(testKeyMap), WithPromptKeys(testPromptKeys)}, opts...)...)
+	return New(fetch, render, append([]Option{WithKeyMap(testKeyMap), WithMarkKeys(testMarkKeys), WithPromptKeys(testPromptKeys)}, opts...)...)
 }
 
 // A feed made without a key map has no key bound, and still says what

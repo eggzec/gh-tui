@@ -230,6 +230,7 @@ func (s *Section) newList() feed.Model[core.Issue] {
 		feed.WithContext(ctx),
 		feed.WithKey(func(it core.Issue) string { return strconv.Itoa(it.Number) }),
 		feed.WithKeyMap(s.keys.feed),
+		feed.WithMarkKeys(s.keys.mark),
 		feed.WithPromptKeys(s.keys.search),
 		feed.WithStyles(s.theme.Feed(s.icons)),
 		feed.WithSize(s.width, s.bodyHeight()),

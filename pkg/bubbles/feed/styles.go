@@ -5,8 +5,13 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-// gutterWidth is the width of the selection gutter left of every row.
-const gutterWidth = 2
+// gutterWidth is the width of the selection gutter left of every row, and
+// markedWidth that of the gutter of a feed whose rows can be marked, which
+// has a cell for the mark too.
+const (
+	gutterWidth = 2
+	markedWidth = 3
+)
 
 // Styles holds the styles of a feed.
 type Styles struct {
@@ -18,6 +23,12 @@ type Styles struct {
 	// CursorGlyph marks the selected row in the gutter, cut or padded to
 	// one cell. The default is "▌".
 	CursorGlyph string
+	// Mark styles the MarkGlyph that shows a marked row in the gutter.
+	Mark lipgloss.Style
+	// MarkGlyph marks a marked row, in a cell of the gutter that a feed
+	// whose rows can be marked adds, cut or padded to one cell. The
+	// default is "◆".
+	MarkGlyph string
 	// Placeholder styles rows whose chunk is being fetched again.
 	Placeholder lipgloss.Style
 	// Spinner styles the spinner of the loading row.
@@ -49,7 +60,8 @@ type Styles struct {
 	// and PromptText what the user types there. Cursor also colors the
 	// prompt's cursor.
 	Prompt, PromptText lipgloss.Style
-	// Chip styles the quick filter shown below the rows, such as "&bug". The
+	// Chip styles the quick filter shown below the rows, such as "&bug", and
+	// the count of marked rows, such as "3 marked". The
 	// default draws it in reverse, so its foreground color is its background.
 	Chip lipgloss.Style
 	// Notice styles a note on the last key, such as "Pattern not found".
@@ -69,6 +81,8 @@ func DefaultStyles(isDark bool) Styles {
 		Cursor:         lipgloss.NewStyle().Foreground(accent),
 		BlurredCursor:  lipgloss.NewStyle().Foreground(subtle),
 		CursorGlyph:    "▌",
+		Mark:           lipgloss.NewStyle().Foreground(accent),
+		MarkGlyph:      "◆",
 		Placeholder:    lipgloss.NewStyle().Foreground(subtle),
 		Spinner:        lipgloss.NewStyle().Foreground(accent),
 		Loading:        lipgloss.NewStyle().Foreground(muted),

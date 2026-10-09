@@ -87,8 +87,13 @@ func (m *Model[T]) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.step(1)
 	case key.Matches(msg, m.keyMap.Prev):
 		return m.step(-1)
+	case key.Matches(msg, m.markKeys.Mark) && m.canMark():
+		m.toggleMark()
+		return nil
 	case key.Matches(msg, m.promptKeys.Cancel):
-		// Esc peels one layer at a time: the find, then the filter.
+		// Esc peels one layer at a time: the find, then the filter, then
+		// the marks. The prompt, which comes before them all, takes its
+		// own cancel key while it is open.
 		cmd, _ := m.ClearTransient()
 		return cmd
 	default:
@@ -183,6 +188,7 @@ func (m *Model[T]) receive(msg chunkMsg[T]) tea.Cmd {
 		m.refreshError()
 	}
 	m.reindex()
+	m.pruneMarks()
 	if m.anchored {
 		if i, ok := m.indexOf(m.anchor); ok {
 			i = m.posOf(i)
@@ -306,9 +312,9 @@ func (m Model[T]) hasStatus() bool {
 }
 
 // ClearTransient peels one layer of what the user asked to see: the find
-// shown, else the filter. It reports whether there was one. The parent
-// calls it for the key that dismisses, which clears these before it
-// closes anything.
+// shown, else the filter, else the marks. It reports whether there was
+// one. The parent calls it for the key that dismisses, which clears these
+// before it closes anything.
 func (m *Model[T]) ClearTransient() (tea.Cmd, bool) {
 	switch {
 	case m.query != "":
@@ -316,6 +322,9 @@ func (m *Model[T]) ClearTransient() (tea.Cmd, bool) {
 		return nil, true
 	case m.filter != "":
 		return m.clearFilter(), true
+	case len(m.marks) > 0:
+		m.ClearMarks()
+		return nil, true
 	}
 	return nil, false
 }

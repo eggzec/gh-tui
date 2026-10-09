@@ -22,14 +22,14 @@ func (m Model[T]) View() string {
 	// Rows carry styles, so leave room for escape sequences.
 	w.b.Grow(m.height * (m.width + 32))
 
-	inner := max(m.width-gutterWidth, 0)
+	inner := max(m.width-m.Gutter(), 0)
 	for i := m.top; !w.full(); i++ {
 		switch {
 		case i < m.shown():
 			m.writeItem(&w, i, inner)
 		case i == m.shown() && m.hasStatus():
 			text, hint := m.statusLine()
-			w.status(m.gutterNone, text, hint)
+			w.status(m.gutter(false, false), text, hint)
 			w.blank(m.itemHeight - 1)
 		default:
 			w.blank(m.height)
@@ -44,12 +44,12 @@ func (m Model[T]) View() string {
 
 func (m Model[T]) writeItem(w *lineWriter, i, width int) {
 	selected := i == m.sel
-	gutter := m.gutter(selected)
 	item, ok := m.item(m.at(i))
 	if !ok {
-		m.writePending(w, i, gutter)
+		m.writePending(w, i, m.gutter(selected, false))
 		return
 	}
+	gutter := m.gutter(selected, m.marked(item))
 	rest := m.render(item, selected, width)
 	for range m.itemHeight {
 		var line string
@@ -72,7 +72,23 @@ func (m Model[T]) writePending(w *lineWriter, i int, gutter string) {
 	w.blank(m.itemHeight - 1)
 }
 
-func (m Model[T]) gutter(selected bool) string {
+// gutter returns what goes left of a row: the cursor if it is selected,
+// and the mark if it is marked, in a feed whose rows can be marked.
+func (m Model[T]) gutter(selected, marked bool) string {
+	if m.canMark() {
+		state := 2
+		switch {
+		case !selected:
+		case m.focused:
+			state = 0
+		default:
+			state = 1
+		}
+		if marked {
+			return m.markGutters[state][1]
+		}
+		return m.markGutters[state][0]
+	}
 	switch {
 	case !selected:
 		return m.gutterNone

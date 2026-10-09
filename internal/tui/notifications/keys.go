@@ -27,6 +27,8 @@ type KeyMap struct {
 	// feed is the navigation of the list, which gets the keys above
 	// only if the section leaves them.
 	feed feed.KeyMap
+	// mark is the key that marks rows of the list.
+	mark feed.MarkKeys
 	// search are the keys of the prompt of the list's find and filter.
 	search cmdline.KeyMap
 }
@@ -51,6 +53,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 	// keys it leaves it. Refresh retries what failed, so the list's error
 	// row names its keys.
 	k.feed = feed.NewKeyMap(screen)
+	k.mark = feed.NewMarkKeys(screen)
 	k.search = ui.SearchPromptKeys(keys)
 	return k
 }
