@@ -1010,3 +1010,47 @@ func TestOldPagingKeysUnbound(t *testing.T) {
 		})
 	}
 }
+
+func TestExpandAllWaitsForTheTopLevel(t *testing.T) {
+	f := repo()
+	m := newModel(f.children, WithSize(40, 20), WithFocused(true))
+	if cmd := m.ExpandAll(); cmd != nil {
+		t.Fatal("ExpandAll before the top-level nodes loaded returned a command")
+	}
+	m = run(t, m, m.Init())
+	if got := rowIDs(m); len(got) != 12 {
+		t.Fatalf("rows = %v, want every branch expanded once the top level loaded", got)
+	}
+	// Unlike the toggle-all key, asking again collapses nothing.
+	m = run(t, m, m.ExpandAll())
+	if got := rowIDs(m); len(got) != 12 {
+		t.Fatalf("rows = %v after a second ExpandAll, want them all still shown", got)
+	}
+}
+
+func TestExpandAllAfterReload(t *testing.T) {
+	f := repo()
+	m := load(t, f)
+	f.add("pkg/a/b.go")
+	cmd := tea.Batch(m.Reload(), m.ExpandAll())
+	m = run(t, m, cmd)
+	want := slices.Contains(rowIDs(m), "pkg/a/b.go")
+	if !want {
+		t.Fatalf("rows = %v, want the file of the new branch shown", rowIDs(m))
+	}
+}
+
+func TestExpandAllAfterReloadNode(t *testing.T) {
+	f := repo()
+	m := load(t, f)
+	m = keys(t, m, "*")
+	f.add("internal/core/sub/deep/x.go")
+	cmd := tea.Batch(m.ReloadNode("internal/core"), m.ExpandAll())
+	m = run(t, m, cmd)
+	if !slices.Contains(rowIDs(m), "internal/core/sub/deep/x.go") {
+		t.Fatalf("rows = %v, want the file of the new branches shown", rowIDs(m))
+	}
+	if f.callCount("cmd") != 1 {
+		t.Errorf("the branch cmd loaded %d times, want only the reloaded branch read again", f.callCount("cmd"))
+	}
+}

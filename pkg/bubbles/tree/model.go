@@ -109,6 +109,9 @@ type Model struct {
 	// reloads, so that toggling all again collapses instead of running into
 	// the same limits.
 	capped bool
+	// expandOnLoad asks for an expand-all once no load is in flight,
+	// which [Model.ExpandAll] sets while some are.
+	expandOnLoad bool
 	// goal is the path of a Reveal in progress, from a top-level node
 	// down, or nil.
 	goal []string
@@ -175,6 +178,7 @@ func (m *Model) clear() tea.Cmd {
 	m.loads = 0
 	m.bulk = bulk{}
 	m.capped = false
+	m.expandOnLoad = false
 	m.goal = nil
 	return m.startLoad(root)
 }

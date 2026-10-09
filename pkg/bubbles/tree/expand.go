@@ -46,6 +46,21 @@ func (m *Model) expandAll() tea.Cmd {
 	return cmd
 }
 
+// ExpandAll expands every branch, level by level, within the limits of
+// [WithExpandAllLimits]: what lies beyond them stays closed. Unlike the
+// toggle-all key it never collapses, not even after the limits were hit, so
+// a parent that shows a short list in full can ask again after each
+// [Model.Reload] or [Model.ReloadNode]. While any load is in flight, such
+// as the top-level nodes' first, it waits until they are done, so that
+// the branches they bring are expanded too.
+func (m *Model) ExpandAll() tea.Cmd {
+	if m.loads > 0 {
+		m.expandOnLoad = true
+		return nil
+	}
+	return m.expandAll()
+}
+
 // pump expands queued branches until maxLoads loads are in flight, the queue
 // is empty, or the node budget is spent.
 func (m *Model) pump() tea.Cmd {

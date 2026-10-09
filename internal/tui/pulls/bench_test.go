@@ -1,8 +1,11 @@
 package pulls
 
 import (
+	"fmt"
 	"testing"
 	"time"
+
+	"github.com/eggzec/gh-tui/internal/core"
 )
 
 func benchSection(b *testing.B, opts ...Option) *host {
@@ -27,6 +30,14 @@ func BenchmarkView(b *testing.B) {
 		b.ReportAllocs()
 		for b.Loop() {
 			_ = s.View()
+		}
+	})
+	b.Run("files tab", func(b *testing.B) {
+		h, m := filed(b, newFakeService(), 120, 40)
+		press(b, h, "[")
+		b.ReportAllocs()
+		for b.Loop() {
+			_ = m.View()
 		}
 	})
 	b.Run("modal", func(b *testing.B) {
@@ -99,4 +110,24 @@ func BenchmarkUpdate(b *testing.B) {
 			_ = s.Update(k)
 		}
 	})
+}
+
+// BenchmarkFilesGrow reads the 3000 files GitHub lists at most, a page at a
+// time, and so grows the tree and the diff.
+func BenchmarkFilesGrow(b *testing.B) {
+	svc := newFakeService()
+	svc.filePage = 100
+	for i := range core.MaxPullFiles {
+		svc.changed = append(svc.changed, core.CommitFile{
+			Path: fmt.Sprintf("pkg%d/sub%d/file%02d.go", i/1000, i/100%10, i%100), Status: core.FileModified, Additions: 1,
+		})
+	}
+	b.ReportAllocs()
+	for b.Loop() {
+		h, m := filed(b, svc, 120, 40)
+		press(b, h, "[")
+		for m.files.diff.Files() < core.MaxPullFiles {
+			press(b, h, "G")
+		}
+	}
 }

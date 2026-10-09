@@ -35,6 +35,9 @@ type Service interface {
 	Revalidate(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error)
 	CachedComments(q pulls.CommentsQuery) (core.Page[core.Comment], bool)
 	Comments(ctx context.Context, q pulls.CommentsQuery) (core.Page[core.Comment], error)
+	// Files reads a page of the files that a pull request changes, with
+	// their patches.
+	Files(ctx context.Context, q pulls.FilesQuery) (core.Page[core.CommitFile], error)
 	// CurrentGet and CurrentComments report whether Get and Comments
 	// would answer without a request. They do no I/O.
 	CurrentGet(repo core.RepoRef, number int) bool

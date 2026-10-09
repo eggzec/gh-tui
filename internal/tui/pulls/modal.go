@@ -79,6 +79,8 @@ type detailModal struct {
 	checksSvc checks.Service
 	newChecks func() *checks.Step
 	checks    *checks.Step
+	// files is the Files tab, once it has been shown.
+	files *filesState
 	// ask is the change waiting for the user to confirm it, on the last
 	// line, in the styles of confirmSt.
 	ask       *ui.Confirm
@@ -234,6 +236,7 @@ func (m *detailModal) SetSize(width, height int) {
 	if m.checks != nil {
 		m.checks.SetSize(m.width, m.height)
 	}
+	m.layoutFiles()
 	if m.loaded {
 		// The next Update loads what the new size shows.
 		_ = m.show()
@@ -250,6 +253,7 @@ func (m *detailModal) SetTheme(t ui.Theme) {
 	if m.checks != nil {
 		m.checks.SetTheme(t)
 	}
+	m.restyleFiles()
 	if m.loaded {
 		_ = m.show()
 	}
@@ -261,8 +265,11 @@ func (m *detailModal) View() string {
 		return ""
 	}
 	base := m.thread.View()
-	if m.onChecks() {
+	switch {
+	case m.onChecks():
 		base = m.checks.View()
+	case m.onFiles():
+		base = m.filesView()
 	}
 	if m.ask != nil {
 		// The question lines up with the detail, behind its gutter.
@@ -318,11 +325,11 @@ func (m *detailModal) Update(msg tea.Msg) tea.Cmd {
 		return tea.Batch(m.get(), m.thread.Reload())
 	}
 	if m.checks == nil {
-		return m.updateDetail(msg)
+		return tea.Batch(m.updateFiles(msg), m.updateDetail(msg))
 	}
 	// The thread and the detail go on loading behind the step, and the
-	// step on reading behind the conversation.
-	return tea.Batch(m.checks.Update(msg), m.updateDetail(msg))
+	// step on reading behind the conversation, and the files behind both.
+	return tea.Batch(m.checks.Update(msg), m.updateFiles(msg), m.updateDetail(msg))
 }
 
 // press takes a key: the answer to a question, whatever a step types,
@@ -350,6 +357,9 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	}
 	if m.onChecks() {
 		return m.checks.Update(msg)
+	}
+	if m.onFiles() {
+		return m.pressFiles(msg)
 	}
 	switch {
 	case key.Matches(msg, k.Back):
@@ -441,10 +451,13 @@ func (m *detailModal) KeyLayers() []keyhelp.Layer {
 		return m.checks.KeyLayers()
 	}
 	k := m.keys.withChanges(m.gate(), m.mergeMethod, m.detail.PullRequest, m.loaded)
-	if m.onChecks() {
+	switch {
+	case m.onChecks():
 		return append([]keyhelp.Layer{m.modalLayer(k)}, m.checks.KeyLayers()...)
+	case m.onFiles():
+		return []keyhelp.Layer{m.modalLayer(k), m.filesLayer()}
 	}
-	return []keyhelp.Layer{m.modalLayer(k), ui.ContextHelp("pull_conversation", m.thread, false)}
+	return []keyhelp.Layer{m.modalLayer(k), ui.ContextHelp(ctxConversation, m.thread, false)}
 }
 
 // modalLayer returns the layer of the keys of the modal, which work on any
@@ -458,6 +471,9 @@ func (m *detailModal) modalLayer(k keyMap) keyhelp.Layer {
 	k.Checks.SetEnabled(k.Checks.Enabled() && m.tab != checksTab && m.hasChecks())
 	owner := m.keys.owner
 	owner.SetEnabled(owner.Enabled() && ui.Author(m.detail.Author) != "")
+	if m.onFiles() {
+		return m.filesModalLayer(k, owner)
+	}
 	if m.onChecks() {
 		l := ui.ContextLayer(ctxModal, []key.Binding{k.Merge, k.Close, k.Reopen, k.ToggleDraft, k.Checks, k.NextTab, k.PrevTab},
 			[]key.Binding{k.Merge, k.Close, k.Reopen, k.NextTab})

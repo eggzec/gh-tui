@@ -1,10 +1,10 @@
 - eggzec/gh-tui --------------------------------------------- * 1 notification -
 +-[1] Files -------------------++-[2] Pull requests ---------------------------+
-|> + cmd+- #2 ------------------------------ Conversation - Checks x2 -+d - All|
+|> + cmd+- #2 -------------------- Files 4 - Conversation - Checks x2 -+d - All|
 |    REA|   Match keys by order                                        |    now|
 |       |                                                              |       |
 |       |    O Open   #2 - octocat opened just now - updated just now  |       |
-|       |   keys -> main - +0 -0 - 0 files                             |       |
+|       |   keys -> main - +0 -0 - 4 files                             |       |
 |       |   CI  x 2 failing  - C for details                           |       |
 |       |   ---------------------------------------------------------- |       |
 |       |                                                              |       |

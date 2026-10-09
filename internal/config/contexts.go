@@ -82,6 +82,9 @@ var contexts = []Context{
 
 	{Name: "pull_modal", Title: "Pull request", Reach: ReachScreen, Modal: true},
 	{Name: "pull_conversation", Title: "Conversation", Reach: ReachPane, Parent: "pull_modal"},
+	// The panes of the Files tab: the tree of the files changed, and their diff.
+	{Name: "pull_files", Title: "Changed files", Reach: ReachPane, Parent: "pull_modal"},
+	{Name: "pull_diff", Title: "Diff", Reach: ReachPane, Parent: "pull_modal"},
 	// The panes of the Checks step of the pull request.
 	{Name: "pull_check_list", Title: "Checks", Reach: ReachPane, Parent: "pull_modal"},
 	{Name: "pull_check_log", Title: "Log", Reach: ReachPane, Parent: "pull_modal"},

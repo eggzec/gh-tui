@@ -75,6 +75,17 @@ type fakeService struct {
 	thread []core.Comment
 	// bare are the numbers whose detail counts no checks.
 	bare map[int]bool
+	// changed are the files every pull request changes, or those at the
+	// head named by changedAt, served filePage at a time, or all at once
+	// if it is 0. fileReads are the reads of them, and filesErr fails
+	// them.
+	changed   []core.CommitFile
+	changedAt map[string][]core.CommitFile
+	filePage  int
+	fileReads []pulls.FilesQuery
+	filesErr  error
+	// filesKept serves the pages as kept for want of an answer from GitHub.
+	filesKept bool
 }
 
 // invalidation is a call of Invalidate, with how many lists and gets were
@@ -585,3 +596,30 @@ func (f *fakeService) state(number int) core.PullRequest {
 
 // errMark is the error glyph of the default icons, which mark what failed.
 var errMark = ui.NewIcons(config.IconsNerd).Error
+
+func (f *fakeService) Files(_ context.Context, q pulls.FilesQuery) (core.Page[core.CommitFile], error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.fileReads = append(f.fileReads, q)
+	if f.filesErr != nil {
+		return core.Page[core.CommitFile]{}, f.filesErr
+	}
+	all, ok := f.changedAt[q.Head]
+	if !ok {
+		all = f.changed
+	}
+	start, _ := strconv.Atoi(q.Cursor)
+	end := min(start+cmp.Or(f.filePage, len(all)), len(all))
+	p := core.Page[core.CommitFile]{Items: slices.Clone(all[min(start, end):end]), Offline: f.filesKept}
+	if end < len(all) {
+		p.Next = strconv.Itoa(end)
+	}
+	return p, nil
+}
+
+// fileReadCount returns how many pages of files were read.
+func (f *fakeService) fileReadCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return len(f.fileReads)
+}

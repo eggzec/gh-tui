@@ -1,0 +1,46 @@
+# label | keys | help key | on or off
+
+global
+  quit | ctrl+c | ^c | on
+  maximize | Z | Z | on
+  back | backspace | backspace | off
+  dashboard | 0 | 0 | off
+  notifications | I | I | off
+  search | S | S | off
+  this repo | . | . | off
+  help | ? | ? | on
+
+Pull request
+  merge | M | M | on
+  close PR | X | X | on
+  reopen PR | O | O | off
+  convert to draft | W | W | on
+  checks | C | C | on
+  next tab | ] | ] | on
+  previous tab | [ | [ | on
+  pane | tab | tab | on
+  previous pane | shift+tab | shift+tab | on
+  focus pane | 1 2 | 1/2 | on
+  zoom | z | z | on
+  open in browser | o | o | on
+  refresh | r | r | on
+  close | esc | esc | on
+  author | @ | @ | on
+
+Diff
+  up | up k | ↑/k | on
+  down | down j | ↓/j | on
+  left | left h | ←/h | on
+  right | right l | →/l | on
+  page up | b ctrl+b pgup | b/^b/pgup | on
+  page down | ctrl+f pgdown | ^f/pgdn | on
+  ½ page up | ctrl+u | ^u | on
+  ½ page down | ctrl+d | ^d | on
+  top | g home | g/home | on
+  bottom | G end | G/end | on
+  next file | J | J | on
+  prev file | K | K | on
+  next hunk | } | } | on
+  prev hunk | { | { | on
+  fold | enter | ↵ | on
+  retry | r | r | off

@@ -2,8 +2,6 @@ package history
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"net/url"
 	"slices"
 	"strings"
@@ -371,11 +369,9 @@ func commitURL(host string, repo core.RepoRef, c core.Commit) string {
 	return ui.WebURL(host, repo.String()+"/commit/"+c.SHA)
 }
 
-// fileURL is the diff of file on the page of commit c: GitHub names the
-// anchor of a file's diff by the SHA-256 of its path.
+// fileURL is the diff of file on the page of commit c.
 func (m *Modal) fileURL(c core.Commit, file string) string {
-	sum := sha256.Sum256([]byte(file))
-	return m.commitURL(c) + "#diff-" + hex.EncodeToString(sum[:])
+	return m.commitURL(c) + "#" + ui.DiffAnchor(file)
 }
 
 // branchURL is the page of a branch on GitHub.

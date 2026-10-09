@@ -81,7 +81,7 @@ var (
 	keyPull = core.PullRequest{
 		ID: "PR_2", Repo: testRepo, Number: 2, Title: "Match keys by order", State: core.StateOpen,
 		Author: core.User{Login: "octocat"}, CreatedAt: keyTime, UpdatedAt: keyTime,
-		URL: "https://github.com/eggzec/gh-tui/pull/2", HeadRef: "keys", BaseRef: "main", Body: keyProse(),
+		URL: "https://github.com/eggzec/gh-tui/pull/2", HeadRef: "keys", HeadSHA: "def456", ChangedFiles: 4, BaseRef: "main", Body: keyProse(),
 	}
 	keyRepo = core.Repo{
 		ID: "R_1", Ref: testRepo, DefaultBranch: "main", UpdatedAt: keyTime,
@@ -142,10 +142,42 @@ func (keyPulls) CachedComments(pullsvc.CommentsQuery) (core.Page[core.Comment], 
 func (keyPulls) Comments(context.Context, pullsvc.CommentsQuery) (core.Page[core.Comment], error) {
 	return core.Page[core.Comment]{}, nil
 }
+func (keyPulls) Files(context.Context, pullsvc.FilesQuery) (core.Page[core.CommitFile], error) {
+	return core.Page[core.CommitFile]{Items: keyChanged}, nil
+}
 func (keyPulls) CurrentGet(core.RepoRef, int) bool { return true }
 
 func (keyPulls) CurrentComments(pullsvc.CommentsQuery) bool { return true }
 func (keyPulls) Invalidate(core.RepoRef)                    {}
+
+// keyChanged are the files the pull request changes: several, in two
+// directories, each a diff of three hunks of wide lines, so that every key
+// of the tree and of the diff has somewhere to go.
+var keyChanged = []core.CommitFile{
+	{Path: "cmd/main.go", Status: core.FileModified, Additions: 6, Deletions: 3, Patch: keyDiff()},
+	{Path: "cmd/run.go", Status: core.FileAdded, Additions: 6, Deletions: 3, Patch: keyDiff()},
+	{Path: "internal/keys/match.go", Status: core.FileModified, Additions: 6, Deletions: 3, Patch: keyDiff()},
+	{Path: "README.md", Status: core.FileModified, Additions: 6, Deletions: 3, Patch: keyDiff()},
+}
+
+// keyDiff returns a patch of three hunks that each delete a line and add
+// two among wide ones.
+func keyDiff() string {
+	wide := strings.Repeat("wide ", 40)
+	var b strings.Builder
+	for h := range 3 {
+		start := 1 + h*40
+		fmt.Fprintf(&b, "@@ -%d,29 +%d,30 @@ func f%d()\n", start, start, h)
+		for i := range 14 {
+			fmt.Fprintf(&b, " context %d %s\n", i, wide)
+		}
+		b.WriteString("-removed " + wide + "\n+added " + wide + "\n+added again " + wide + "\n")
+		for i := range 14 {
+			fmt.Fprintf(&b, " context %d %s\n", 14+i, wide)
+		}
+	}
+	return b.String()
+}
 
 // keyIssueRows are the issues the list serves: one, unless a test sets more.
 var keyIssueRows = []core.Issue{keyIssue}
@@ -917,6 +949,8 @@ func keyContexts() []keyContext {
 		{name: "pull requests: merge", repo: true, steps: []string{"global.pane_2", "pulls.merge"}, context: "confirm", want: "always, confirm"},
 		{name: "pull request", repo: true, steps: []string{"global.pane_2", "global.select"}, after: []string{"pull_conversation.half_page_down"}, context: "pull_conversation", want: "global, pull_modal, pull_conversation"},
 		{name: "pull request: close", repo: true, steps: []string{"global.pane_2", "global.select", "pull_modal.close"}, context: "confirm", want: "always, confirm"},
+		{name: "pull request: files", repo: true, steps: []string{"global.pane_2", "global.select", "global.prev_tab", "global.pane_1"}, after: []string{"pull_files.down"}, context: "pull_files", want: "global, pull_modal, pull_files"},
+		{name: "pull request: diff", repo: true, steps: []string{"global.pane_2", "global.select", "global.prev_tab"}, after: []string{"pull_diff.half_page_down", "pull_diff.right"}, context: "pull_diff", want: "global, pull_modal, pull_diff"},
 		{name: "pull request: checks tab", repo: true, steps: []string{"global.pane_2", "global.select", "pull_modal.checks"}, context: "pull_check_list", want: "global, pull_modal, pull_check_list"},
 		{name: "pull request: checks", repo: true, steps: []string{"global.pane_2", "pulls.checks"}, context: "pull_check_list", want: "global, pull_modal, pull_check_list"},
 		{name: "pull request: job", repo: true, steps: []string{"global.pane_2", "pulls.checks", "global.select"}, after: []string{"pull_check_log.half_page_down", "pull_check_log.right"}, context: "pull_check_log", want: "global, pull_modal, pull_check_log"},
