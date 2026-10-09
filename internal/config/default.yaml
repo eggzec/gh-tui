@@ -664,6 +664,13 @@ keys:
     # Mark the pull request under the cursor, or unmark it. Esc unmarks
     # them all, after it has cleared a search and a quick filter.
     mark: [space]
+    # Merge the pull request, asking first and naming the method and the
+    # base branch. The method is stepped through with confirm.method. It
+    # does what suits the pull request: it merges at once; or, while its
+    # checks are pending and the repository allows auto-merge, asks to
+    # merge once they pass; or adds it to the merge queue of a base branch
+    # that has one; or, with auto-merge already on, asks to turn it off.
+    # When it can't merge, it says why and asks nothing.
     merge: [M]
     close: [X]
     reopen: [O]
@@ -787,6 +794,7 @@ keys:
 
   # The modal of a pull request, on any of its steps.
   pull_modal:
+    # As in the list.
     merge: [M]
     close: [X]
     reopen: [O]
@@ -1173,6 +1181,10 @@ keys:
     cancel: [esc]
   # A question that waits for yes or no.
   confirm:
+    # Step through the choices of a question that has them. Only the
+    # question to merge a pull request does, with the methods the
+    # repository allows; elsewhere the key does nothing.
+    method: [tab]
     "yes": [y]
     "no": [n, esc]
   # A prompt, such as the composer of a comment.

@@ -6,8 +6,10 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 	"github.com/eggzec/gh-tui/pkg/termtext/termtexttest"
 )
@@ -19,6 +21,8 @@ func press(k string) tea.KeyPressMsg {
 		return tea.KeyPressMsg{Code: tea.KeyEnter}
 	case "esc":
 		return tea.KeyPressMsg{Code: tea.KeyEscape}
+	case "tab":
+		return tea.KeyPressMsg{Code: tea.KeyTab}
 	}
 	r := []rune(k)
 	return tea.KeyPressMsg{Code: r[0], Text: k}
@@ -230,6 +234,82 @@ func TestConfirmModalFits(t *testing.T) {
 	}
 	if m.Title() != "Confirm" || m.Question() != "Close issue #12?" {
 		t.Errorf("titled %q asking %q", m.Title(), m.Question())
+	}
+}
+
+// choosing is a question of two choices, which the key for the method
+// steps between.
+func choosing(r *ran, i int) Confirm {
+	names := []string{"squash", "rebase"}
+	c := r.confirm("Merge #1 as " + names[i] + "?")
+	c.Cycle = func() Confirm { return choosing(r, (i+1)%len(names)) }
+	return c
+}
+
+func TestConfirmChoices(t *testing.T) {
+	keys := NewConfirmKeys(config.Default().Keys)
+	var r ran
+	q := choosing(&r, 0)
+
+	next, ok := keys.Step(q, press("tab"))
+	if !ok || next.Question != "Merge #1 as rebase?" {
+		t.Errorf("tab gives %q, %v; want the next choice", next.Question, ok)
+	}
+	if _, ok := keys.Step(q, press("y")); ok {
+		t.Error("y stepped through the choices")
+	}
+	// A question with no choices ignores the key, and shows no hint.
+	plain := r.confirm("Close issue #12?")
+	if _, ok := keys.Step(plain, press("tab")); ok {
+		t.Error("tab stepped through a question that has no choices")
+	}
+	if cmd, done := keys.Answer(plain, press("tab")); cmd != nil || done {
+		t.Errorf("tab answered a question that has no choices: %v, %v", cmd != nil, done)
+	}
+	st := ConfirmStyles{}
+	if got := ansi.Strip(plain.Line(st, keys, 40)); !strings.HasSuffix(got, "  y/n") || strings.Contains(got, "tab") {
+		t.Errorf("a question with no choices reads %q, want only y/n", got)
+	}
+	if got := ansi.Strip(q.Line(st, keys, 60)); !strings.HasSuffix(got, "tab method · y/n") {
+		t.Errorf("a question with choices reads %q, want the key for the method", got)
+	}
+
+	// Help lists the key for the method for a question that has choices
+	// alone.
+	enabled := func(layers ...keyhelp.Layer) []string {
+		var out []string
+		for _, l := range layers {
+			for _, b := range l.Bindings {
+				if b.Enabled() {
+					out = append(out, b.Help().Desc)
+				}
+			}
+		}
+		return out
+	}
+	if got := enabled(keys.LayerFor(q)); !slices.Equal(got, []string{"method", "yes", "no"}) {
+		t.Errorf("help of a question with choices = %v", got)
+	}
+	if got := enabled(keys.LayerFor(plain)); !slices.Equal(got, []string{"yes", "no"}) {
+		t.Errorf("help of a question with no choices = %v", got)
+	}
+	if got := enabled(keys.Layer()); slices.Contains(got, "method") {
+		t.Errorf("help of a question = %v, want no method", got)
+	}
+
+	// In a modal of its own, the question changes in place, and the answer
+	// is that of the choice shown.
+	m := NewConfirmModal(q, keys, NewIcons(config.IconsUnicode))
+	runAll(m.Update(press("tab")))
+	if m.Question() != "Merge #1 as rebase?" || r.n != 0 {
+		t.Errorf("after tab asks %q, ran %d times; want the next choice, not run", m.Question(), r.n)
+	}
+	if got := enabled(m.KeyLayers()...); !slices.Contains(got, "method") {
+		t.Errorf("help of the modal = %v, want the method", got)
+	}
+	runAll(m.Update(press("y")))
+	if r.n != 1 {
+		t.Errorf("ran %d times, want once", r.n)
 	}
 }
 

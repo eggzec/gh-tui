@@ -28,6 +28,11 @@ func (m *detailModal) updateDetail(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case detailMsg:
 		return m.receive(msg)
+	case resendMsg:
+		if msg.owner != any(m) {
+			return nil
+		}
+		return msg.run()
 	case ui.DoneMsg:
 		// The change was confirmed or rolled back; either way the cache
 		// has the outcome.
@@ -108,11 +113,17 @@ func (m *detailModal) receive(msg detailMsg) tea.Cmd {
 		if m.ctx.Err() != nil {
 			return nil
 		}
-		m.failed = msg.err
+		m.failed, m.merging = msg.err, nil
 		return ui.Fail("load #"+strconv.Itoa(m.number), core.About(m.subject(), msg.err))
 	}
-	m.detail, m.loaded, m.failed = msg.detail, true, nil
-	return tea.Batch(m.show(), m.showFiles())
+	m.detail, m.loaded, m.seen, m.failed = msg.detail, true, true, nil
+	files := m.showFiles()
+	// A merge that waited for the detail goes on with it.
+	if k := m.merging; k != nil {
+		m.merging = nil
+		return tea.Batch(m.show(), files, m.confirm(*k))
+	}
+	return tea.Batch(m.show(), files)
 }
 
 // reload shows the detail from the cache again, which a change has just

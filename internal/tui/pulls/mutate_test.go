@@ -420,6 +420,11 @@ func TestMutationShowsAtOnce(t *testing.T) {
 	if cmd == nil {
 		t.Fatal("confirming the merge returned no command")
 	}
+	// A merge reads the pull request again before it is sent.
+	cmd = s.Update(cmd())
+	if cmd == nil {
+		t.Fatal("the read of the merge returned no command")
+	}
 	// The modal reads the change from the cache before it is sent.
 	if m.detail.State != core.StateMerged || !strings.Contains(modalScreen(t, s), " Merged ") {
 		t.Errorf("modal before sending:\n%s", modalScreen(t, s))

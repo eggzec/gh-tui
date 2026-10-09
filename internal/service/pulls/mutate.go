@@ -30,6 +30,47 @@ func (s *Service) Merge(repo core.RepoRef, number int, method core.MergeMethod, 
 	})
 }
 
+// AutoMerge turns auto-merge on for pull request number of repo: GitHub
+// merges it with method once its checks pass and its reviews are in. A head
+// other than "" pins it to that commit.
+func (s *Service) AutoMerge(repo core.RepoRef, number int, method core.MergeMethod, head string) *optimistic.Op {
+	return s.changeMerge("enable auto-merge on", repo, number, func(m *core.MergeInfo) {
+		m.AutoMerge = &core.AutoMerge{Method: method}
+		// The viewer who turned it on may turn it off, and not on again.
+		m.CanDisableAutoMerge, m.CanAutoMerge = true, false
+	}, func(ctx context.Context, id string) (core.PullRequest, error) {
+		return s.api.AutoMergePullRequest(ctx, id, method, head)
+	})
+}
+
+// StopAutoMerge turns auto-merge off for pull request number of repo.
+func (s *Service) StopAutoMerge(repo core.RepoRef, number int) *optimistic.Op {
+	return s.changeMerge("disable auto-merge on", repo, number, func(m *core.MergeInfo) {
+		m.AutoMerge = nil
+		m.CanDisableAutoMerge, m.CanAutoMerge = false, true
+	}, s.api.StopAutoMergePullRequest)
+}
+
+// Enqueue adds pull request number of repo to the merge queue of its base
+// branch. A head other than "" pins it to that commit.
+func (s *Service) Enqueue(repo core.RepoRef, number int, head string) *optimistic.Op {
+	return s.changeMerge("enqueue", repo, number, func(m *core.MergeInfo) {
+		m.Queue.Queued = true
+	}, func(ctx context.Context, id string) (core.PullRequest, error) {
+		return s.api.EnqueuePullRequest(ctx, id, head)
+	})
+}
+
+// changeMerge is change for what the detail holds of merging: the pull
+// request itself stays as it is until GitHub says otherwise.
+func (s *Service) changeMerge(
+	what string, repo core.RepoRef, number int,
+	edit func(*core.MergeInfo),
+	send func(ctx context.Context, id string) (core.PullRequest, error),
+) *optimistic.Op {
+	return s.changeDetail(what, repo, number, func(*core.PullRequest) {}, edit, send)
+}
+
 // Close closes pull request number of repo without merging it.
 func (s *Service) Close(repo core.RepoRef, number int) *optimistic.Op {
 	return s.change("close", repo, number, func(pr *core.PullRequest) {
@@ -67,6 +108,16 @@ func (s *Service) change(
 	edit func(*core.PullRequest),
 	send func(ctx context.Context, id string) (core.PullRequest, error),
 ) *optimistic.Op {
+	return s.changeDetail(what, repo, number, edit, nil, send)
+}
+
+// changeDetail is change that also applies editMerge, if set, to the merge
+// state of the cached detail.
+func (s *Service) changeDetail(
+	what string, repo core.RepoRef, number int,
+	edit func(*core.PullRequest), editMerge func(*core.MergeInfo),
+	send func(ctx context.Context, id string) (core.PullRequest, error),
+) *optimistic.Op {
 	if err := s.refused(repo); err != nil {
 		return optimistic.Refused(fmt.Errorf("%s pull %s#%d: %w", what, repo, number, err))
 	}
@@ -85,6 +136,9 @@ func (s *Service) change(
 	undoDetail, _ := s.details.Mutate(detailKey(repo, number), func(d core.PullRequestDetail) core.PullRequestDetail {
 		id = cmp.Or(id, d.ID)
 		edit(&d.PullRequest)
+		if editMerge != nil {
+			editMerge(&d.Merge)
+		}
 		return d
 	})
 

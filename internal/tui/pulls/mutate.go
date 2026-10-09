@@ -1,6 +1,7 @@
 package pulls
 
 import (
+	"cmp"
 	"strconv"
 
 	"charm.land/bubbles/v2/key"
@@ -49,21 +50,25 @@ func (k keyMap) action(pr core.PullRequest, msg tea.KeyPressMsg) (ui.Action, boo
 
 // change is a change that a key asks of a pull request: start shows it
 // in the cache at once and returns the op that sends it, named by what.
-// question asks the user to confirm it first, and of says what it is.
+// question asks the user to confirm it first, and of says what it is. A
+// merge that the repository allows other methods for has next, which
+// returns the same change with the next of them.
 type change struct {
 	question, what string
 	of             changeOf
 	start          func() *optimistic.Op
+	next           func() change
 }
 
 // changeOf says what a change is: its action on pull request number of
-// repo, for a merge the method, the base branch and the head commit, and
-// for the draft toggle which way it goes, so that a yes makes only the
-// change it was asked about.
+// repo, for a merge what it does (see mergeKind), the method, the base
+// branch and the head commit, and for the draft toggle which way it goes,
+// so that a yes makes only the change it was asked about.
 type changeOf struct {
 	repo   core.RepoRef
 	number int
 	action ui.Action
+	kind   mergeKind
 	method core.MergeMethod
 	base   string
 	// head is the commit a merge is pinned to.
@@ -75,13 +80,14 @@ type changeOf struct {
 // same reports whether c and d are one change.
 func (c changeOf) same(d changeOf) bool {
 	return c.repo.Same(d.repo) && c.number == d.number && c.action == d.action &&
-		c.method == d.method && c.base == d.base && c.head == d.head && c.ready == d.ready
+		c.kind == d.kind && c.method == d.method && c.base == d.base && c.head == d.head && c.ready == d.ready
 }
 
-// change returns the change that msg asks of pr, and ok when there is one.
+// change returns the change that msg asks of d, and ok when there is one.
 // When the change doesn't apply, or g refuses it, ok is unset, and warn
 // may explain why. A merge uses method, or else one the repository allows.
-func (k keyMap) change(svc Service, g ui.Gate, method core.MergeMethod, pr core.PullRequest, msg tea.KeyPressMsg) (c change, ok bool, warn tea.Cmd) {
+func (k keyMap) change(svc Service, g ui.Gate, method core.MergeMethod, d core.PullRequestDetail, msg tea.KeyPressMsg) (c change, ok bool, warn tea.Cmd) {
+	pr := d.PullRequest
 	a, ok := k.action(pr, msg)
 	if !ok {
 		return change{}, false, nil
@@ -94,18 +100,7 @@ func (k keyMap) change(svc Service, g ui.Gate, method core.MergeMethod, pr core.
 	of := changeOf{repo: repo, number: number, action: a}
 	switch a {
 	case ui.ActMerge:
-		if pr.Draft {
-			return change{}, false, ui.Notify(toast.Warning, "Mark "+n+" ready for review before merging it.")
-		}
-		m, _ := g.Caps.MergeMethod(method)
-		of.method, of.base, of.head = m, pr.BaseRef, pr.HeadSHA
-		head := pr.HeadSHA
-		return change{
-			of:       of,
-			question: mergeQuestion(pr, m),
-			what:     "merge " + n,
-			start:    func() *optimistic.Op { return svc.Merge(repo, number, m, head) },
-		}, true, nil
+		return k.mergeChange(svc, g, method, d, of)
 	case ui.ActClose:
 		return change{
 			of:       of,
@@ -141,26 +136,6 @@ func (k keyMap) change(svc Service, g ui.Gate, method core.MergeMethod, pr core.
 	return change{}, false, nil
 }
 
-// mergeQuestion asks to merge pr with method, such as "Squash-merge #79
-// into main?". The screen shows the repository, so the question leaves
-// it out, and it leads with the method, which a cut would lose.
-func mergeQuestion(pr core.PullRequest, method core.MergeMethod) string {
-	n := "#" + strconv.Itoa(pr.Number)
-	var into string
-	if pr.BaseRef != "" {
-		into = " into " + pr.BaseRef
-	}
-	switch method {
-	case core.MergeSquash:
-		return "Squash-merge " + n + into + "?"
-	case core.MergeRebase:
-		return "Rebase-merge " + n + into + "?"
-	case core.MergeCommit:
-		return "Merge " + n + into + " with a merge commit?"
-	}
-	return "Merge " + n + into + "?"
-}
-
 // confirmed returns what makes asked, the change that msg asked of a pull
 // request, when the user says yes to its question. By then the pull
 // request may have changed, such as merged elsewhere or retargeted, and
@@ -170,31 +145,86 @@ func mergeQuestion(pr core.PullRequest, method core.MergeMethod) string {
 // still the change asked, the same action with the same method, base and
 // head on the same pull request of the same repository, and otherwise
 // nothing.
-func (k keyMap) confirmed(svc Service, method core.MergeMethod, asked change, msg tea.KeyPressMsg,
-	now func() (core.PullRequest, ui.Gate, bool), send func(op *optimistic.Op, what string) tea.Cmd,
+//
+// A merge reads the detail again before it asks again, so that what it
+// decides on is as current as GitHub's answer: what said the pull request
+// could merge a minute ago may not hold. again says how.
+func (k keyMap) confirmed(svc Service, asked change, msg tea.KeyPressMsg,
+	now func() (core.PullRequestDetail, ui.Gate, bool), send func(c change, op *optimistic.Op) tea.Cmd,
+	again *rereader,
 ) func() tea.Cmd {
-	return func() tea.Cmd {
-		pr, g, found := now()
+	decide := func() tea.Cmd {
+		d, g, found := now()
 		var c change
 		var ok bool
 		var warn tea.Cmd
 		if found {
-			c, ok, warn = k.change(svc, g, method, pr, msg)
+			// A merge asks again for the method it was asked with, which
+			// the user may have changed.
+			c, ok, warn = k.change(svc, g, asked.of.method, d, msg)
 		}
 		switch {
 		case ok && c.of.same(asked.of):
-			return send(c.start(), c.what)
+			return send(c, c.start())
 		case warn != nil:
 			return warn
 		}
 		return ui.Notify(toast.Info, ui.Meanwhile("#"+strconv.Itoa(asked.of.number)))
 	}
+	if again == nil || asked.of.action != ui.ActMerge {
+		return decide
+	}
+	return func() tea.Cmd {
+		return func() tea.Msg {
+			err := again.read()
+			return resendMsg{owner: again.owner, run: func() tea.Cmd {
+				if err != nil {
+					return ui.Fail("check #"+strconv.Itoa(asked.of.number), core.About(again.about, err))
+				}
+				again.refresh()
+				return decide()
+			}}
+		}
+	}
+}
+
+// rereader reads the detail of a pull request again for a merge that was
+// confirmed, which owner, the section or modal that asked, then goes on
+// with, in its Update. read does the request, and refresh shows what it
+// read to the owner. about names the pull request in a failure.
+type rereader struct {
+	owner   any
+	read    func() error
+	refresh func()
+	about   string
+}
+
+// resendMsg carries the read that a confirmed merge waited for, to its
+// owner, which runs what is left.
+type resendMsg struct {
+	owner any
+	run   func() tea.Cmd
+}
+
+// ask returns the question that confirms c, which sends it once the user
+// says yes. A merge that has other methods steps through them with the
+// key for it.
+func (k keyMap) ask(svc Service, c change, msg tea.KeyPressMsg,
+	now func() (core.PullRequestDetail, ui.Gate, bool), send func(c change, op *optimistic.Op) tea.Cmd,
+	again *rereader,
+) ui.Confirm {
+	q := ui.Confirm{Question: c.question, Run: k.confirmed(svc, c, msg, now, send, again)}
+	if c.next != nil {
+		q.Cycle = func() ui.Confirm { return k.ask(svc, c.next(), msg, now, send, again) }
+	}
+	return q
 }
 
 // mutate starts the change that msg asks of the selected pull request, if
 // it is one, once the user confirms it in a modal of its own. The change
 // shows at once, and ui.Do sends it; the DoneMsg that follows shows the
-// outcome.
+// outcome. A merge of a pull request whose detail hasn't been read waits
+// for it, which says whether it may merge and how.
 func (s *Section) mutate(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	if !s.keys.isChange(msg) {
 		return nil, false
@@ -203,20 +233,88 @@ func (s *Section) mutate(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	if !ok {
 		return nil, true
 	}
-	c, ok, warn := s.keys.change(s.svc, s.gate(), s.mergeMethod, pr, msg)
-	if !ok {
-		return warn, true
+	// What may merge, and how, is read again when the key is pressed, as
+	// the modal reads it again when it opens: it changes without the pull
+	// request's update time moving.
+	if a, ok := s.keys.action(pr, msg); ok && a == ui.ActMerge && !pr.Draft {
+		if s.checking == pr.Number {
+			return nil, true
+		}
+		return s.checkMerge(pr, msg), true
 	}
-	run := s.keys.confirmed(s.svc, s.mergeMethod, c, msg,
-		func() (core.PullRequest, ui.Gate, bool) {
+	return s.confirm(pr, msg), true
+}
+
+// confirm asks the user to confirm the change that msg asks of pr, in a
+// modal of its own, or says why there is none.
+func (s *Section) confirm(pr core.PullRequest, msg tea.KeyPressMsg) tea.Cmd {
+	c, ok, warn := s.keys.change(s.svc, s.gate(), s.mergeMethod, s.subject(pr), msg)
+	if !ok {
+		return warn
+	}
+	about := core.Target{Repo: s.repo, Number: pr.Number}.String()
+	svc, ctx, repo, number := s.svc, s.ctx, s.repo, pr.Number
+	q := s.keys.ask(s.svc, c, msg,
+		func() (core.PullRequestDetail, ui.Gate, bool) {
 			pr, ok := s.target()
-			return pr, s.gate(), ok
+			return s.subject(pr), s.gate(), ok
 		},
-		func(op *optimistic.Op, what string) tea.Cmd {
-			about := core.Target{Repo: s.repo, Number: pr.Number}.String()
-			return tea.Batch(s.reload(), ui.Do(s.ctx, ui.PullsTitle, ui.About(about, op), what))
-		})
-	return ui.OpenModal(ui.NewConfirmModal(ui.Confirm{Question: c.question, Run: run}, s.keys.confirm, s.icons)), true
+		func(c change, op *optimistic.Op) tea.Cmd {
+			s.mergeMethod = cmp.Or(c.of.method, s.mergeMethod)
+			return tea.Batch(s.reload(), ui.Do(s.ctx, ui.PullsTitle, ui.About(about, op), c.what))
+		},
+		// The row shows what the read stored, which subject reads.
+		&rereader{owner: s, about: about, refresh: func() {}, read: func() error {
+			_, err := svc.Revalidate(ctx, repo, number)
+			return err
+		}})
+	return ui.OpenModal(ui.NewConfirmModal(q, s.keys.confirm, s.icons))
+}
+
+// subject returns pr, a row of the list, with what is cached of its
+// detail: whether it may merge, and how.
+func (s *Section) subject(pr core.PullRequest) core.PullRequestDetail {
+	d := core.PullRequestDetail{PullRequest: pr}
+	if c, ok := s.svc.CachedGet(s.repo, pr.Number); ok {
+		// What the detail says of the reviews and checks is the later read.
+		d.Merge, d.ReviewDecision, d.Checks = c.Merge, c.ReviewDecision, c.Checks
+	}
+	return d
+}
+
+// mergeReadMsg carries the detail of pull request number of repo, which a
+// merge key waited for, with the key.
+type mergeReadMsg struct {
+	repo   core.RepoRef
+	number int
+	key    tea.KeyPressMsg
+	err    error
+}
+
+// checkMerge reads the detail of pr again, which says whether it may merge,
+// and then goes on with the merge that msg asks of it.
+func (s *Section) checkMerge(pr core.PullRequest, msg tea.KeyPressMsg) tea.Cmd {
+	svc, ctx, repo, number := s.svc, s.ctx, s.repo, pr.Number
+	s.checking = number
+	read := func() tea.Msg {
+		_, err := svc.Revalidate(ctx, repo, number)
+		return mergeReadMsg{repo: repo, number: number, key: msg, err: err}
+	}
+	return tea.Batch(ui.Notify(toast.Info, "Checking #"+strconv.Itoa(number)+"…"), read)
+}
+
+// merged goes on with the merge that waited for the detail of its pull
+// request, unless the user moved on since.
+func (s *Section) merged(msg mergeReadMsg) tea.Cmd {
+	s.checking = 0
+	pr, ok := s.target()
+	if !s.hasRepo || !msg.repo.Same(s.repo) || !ok || pr.Number != msg.number {
+		return nil
+	}
+	if msg.err != nil {
+		return ui.Fail("check #"+strconv.Itoa(msg.number), core.About(core.Target{Repo: msg.repo, Number: msg.number}.String(), msg.err))
+	}
+	return s.confirm(pr, msg.key)
 }
 
 // reload shows the list again through the cache, which a change has just
@@ -230,7 +328,7 @@ func (s *Section) reload() tea.Cmd {
 
 // withChanges returns k with the change keys enabled when they apply to
 // pr, which ok says there is, and g allows them. The merge key names the
-// method when the repository refuses method, the configured one.
+// method when the repository refuses method, the preferred one.
 func (k keyMap) withChanges(g ui.Gate, method core.MergeMethod, pr core.PullRequest, ok bool) keyMap {
 	k.Merge.SetEnabled(k.Merge.Enabled() && ok && canMerge(pr))
 	k.Close.SetEnabled(k.Close.Enabled() && ok && canClose(pr))
@@ -239,7 +337,7 @@ func (k keyMap) withChanges(g ui.Gate, method core.MergeMethod, pr core.PullRequ
 	if pr.Draft {
 		k.ToggleDraft.SetHelp(k.ToggleDraft.Help().Key, "mark ready")
 	}
-	if m, allowed := g.Caps.MergeMethod(method); allowed && m != method {
+	if m, allowed := g.Caps.MergeMethod(method); allowed && method != "" && m != method {
 		k.Merge.SetHelp(k.Merge.Help().Key, "merge ("+string(m)+")")
 	}
 	it := &pr.Issue

@@ -86,6 +86,12 @@ type fakeService struct {
 	filesErr  error
 	// filesKept serves the pages as kept for want of an answer from GitHub.
 	filesKept bool
+	// merges are what the details say of merging, by number; a pull
+	// request without one merges cleanly.
+	merges map[int]core.MergeInfo
+	// stale are the numbers whose cached detail has aged, so that Get
+	// would ask GitHub again.
+	stale map[int]bool
 }
 
 // invalidation is a call of Invalidate, with how many lists and gets were
@@ -98,7 +104,7 @@ type invalidation struct {
 func newFakeService() *fakeService {
 	return &fakeService{
 		pulls: samplePulls(), pageSize: 30,
-		cached: map[int]bool{}, fresh: map[pulls.ListQuery]bool{}, commented: map[pulls.CommentsQuery]bool{}, listedAs: map[int]core.State{},
+		cached: map[int]bool{}, stale: map[int]bool{}, fresh: map[pulls.ListQuery]bool{}, commented: map[pulls.CommentsQuery]bool{}, listedAs: map[int]core.State{},
 	}
 }
 
@@ -120,7 +126,11 @@ func (f *fakeService) detail(number int) core.PullRequestDetail {
 	if f.bare[number] {
 		counts = core.CheckCounts{}
 	}
-	return core.PullRequestDetail{PullRequest: pr, CheckCounts: counts}
+	merge, ok := f.merges[number]
+	if !ok {
+		merge = core.MergeInfo{Status: core.MergeClean}
+	}
+	return core.PullRequestDetail{PullRequest: pr, CheckCounts: counts, Merge: merge}
 }
 
 func (f *fakeService) CachedGet(_ core.RepoRef, number int) (core.PullRequestDetail, bool) {
@@ -145,6 +155,7 @@ func (f *fakeService) Get(ctx context.Context, _ core.RepoRef, number int) (core
 		return f.detail(number), nil
 	}
 	f.cached[number] = true
+	delete(f.stale, number)
 	return f.detail(number), nil
 }
 
@@ -182,7 +193,7 @@ func (f *fakeService) CachedComments(q pulls.CommentsQuery) (core.Page[core.Comm
 func (f *fakeService) CurrentGet(_ core.RepoRef, number int) bool {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	return f.cached[number]
+	return f.cached[number] && !f.stale[number]
 }
 
 func (f *fakeService) CurrentComments(q pulls.CommentsQuery) bool {
@@ -521,6 +532,8 @@ func keyMsg(k string) tea.KeyPressMsg {
 		return tea.KeyPressMsg{Code: tea.KeyEscape}
 	case "backspace":
 		return tea.KeyPressMsg{Code: tea.KeyBackspace}
+	case "tab":
+		return tea.KeyPressMsg{Code: tea.KeyTab}
 	case "down":
 		return tea.KeyPressMsg{Code: tea.KeyDown}
 	case "up":
@@ -564,6 +577,18 @@ func (f *fakeService) Merge(_ core.RepoRef, number int, method core.MergeMethod,
 		what += " at " + head
 	}
 	return f.change(what, number, func(pr *core.PullRequest) { pr.State = core.StateMerged })
+}
+
+func (f *fakeService) AutoMerge(_ core.RepoRef, number int, method core.MergeMethod, head string) *optimistic.Op {
+	return f.change("automerge "+string(method)+" at "+head, number, func(*core.PullRequest) {})
+}
+
+func (f *fakeService) StopAutoMerge(_ core.RepoRef, number int) *optimistic.Op {
+	return f.change("stopautomerge", number, func(*core.PullRequest) {})
+}
+
+func (f *fakeService) Enqueue(_ core.RepoRef, number int, head string) *optimistic.Op {
+	return f.change("enqueue at "+head, number, func(*core.PullRequest) {})
 }
 
 func (f *fakeService) Close(_ core.RepoRef, number int) *optimistic.Op {

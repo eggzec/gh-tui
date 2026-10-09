@@ -128,10 +128,10 @@ func (keyPulls) CachedList(pullsvc.ListQuery) (core.Page[core.PullRequest], bool
 }
 func (keyPulls) FreshList(pullsvc.ListQuery) bool { return true }
 func (keyPulls) CachedGet(core.RepoRef, int) (core.PullRequestDetail, bool) {
-	return core.PullRequestDetail{PullRequest: keyPull}, true
+	return core.PullRequestDetail{PullRequest: keyPull, Merge: core.MergeInfo{Status: core.MergeClean}}, true
 }
 func (keyPulls) Get(context.Context, core.RepoRef, int) (core.PullRequestDetail, error) {
-	return core.PullRequestDetail{PullRequest: keyPull}, nil
+	return core.PullRequestDetail{PullRequest: keyPull, Merge: core.MergeInfo{Status: core.MergeClean}}, nil
 }
 func (k keyPulls) Revalidate(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error) {
 	return k.Get(ctx, repo, number)
