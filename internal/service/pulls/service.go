@@ -369,6 +369,14 @@ func (s *Service) Get(ctx context.Context, repo core.RepoRef, number int) (core.
 		s.details.Hit(key)
 		return d, nil
 	}
+	return s.readDetail(ctx, repo, number)
+}
+
+// readDetail returns the detail of pull request number of repo from the cache
+// if it is fresh, else from GitHub, without asking whether the list vouches
+// for it.
+func (s *Service) readDetail(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error) {
+	key := detailKey(repo, number)
 	d, err := fetch(ctx, s.details, s.keptDetails, key, fallback.None[core.PullRequestDetail], whole(tags(repo, number), func(ctx context.Context) (core.PullRequestDetail, error) {
 		return s.api.GetPullRequest(ctx, repo, number, s.detailSizes)
 	}))
@@ -387,11 +395,11 @@ func (s *Service) Get(ctx context.Context, repo core.RepoRef, number int) (core.
 func (s *Service) Revalidate(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error) {
 	key := detailKey(repo, number)
 	// Put the kept detail in memory first, so that it is stale there and
-	// served meanwhile, and no longer vouched for.
+	// served meanwhile. The list's mark stays, since it still vouches for
+	// the comments and reviews; the read skips it for the detail.
 	s.keptDetails.Warm(s.details, key, true)
-	s.seen.Delete(key)
 	s.details.Invalidate(key)
-	return s.Get(ctx, repo, number)
+	return s.readDetail(ctx, repo, number)
 }
 
 // Invalidate marks everything cached of repo stale, for a refresh the user
