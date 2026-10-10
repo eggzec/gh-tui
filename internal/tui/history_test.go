@@ -31,6 +31,7 @@ func (h *historyOpener) open(_ context.Context, repo core.RepoRef, branch string
 }
 
 func TestHistoryKeyOpensTheHistory(t *testing.T) {
+	t.Parallel()
 	h := &historyOpener{}
 	info := func(context.Context, core.RepoRef) (core.Repo, error) { return core.Repo{DefaultBranch: "main"}, nil }
 	m, _ := newTestApp(t, WithHistory(h.open), WithRepoInfo(info))
@@ -51,6 +52,7 @@ func TestHistoryKeyOpensTheHistory(t *testing.T) {
 }
 
 func TestHistoryKeyNeedsARepoAndItsScreen(t *testing.T) {
+	t.Parallel()
 	h := &historyOpener{}
 	m, _ := newApp(t, core.RepoRef{}, WithHistory(h.open))
 	run(m, m.key(press("B")))
@@ -71,6 +73,7 @@ func TestHistoryKeyNeedsARepoAndItsScreen(t *testing.T) {
 }
 
 func TestBaseIsInTheHeader(t *testing.T) {
+	t.Parallel()
 	const sha = "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678"
 	h := &historyOpener{}
 	info := func(context.Context, core.RepoRef) (core.Repo, error) { return core.Repo{DefaultBranch: "main"}, nil }
@@ -111,6 +114,7 @@ func TestBaseIsInTheHeader(t *testing.T) {
 }
 
 func TestOpenCommitMsgOpensTheHistoryOnTheCommit(t *testing.T) {
+	t.Parallel()
 	type opened struct {
 		repo        core.RepoRef
 		sha, branch string

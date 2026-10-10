@@ -128,6 +128,7 @@ func newKindApp(t *testing.T, kind appKind) (*Model, []*fakeSection) {
 }
 
 func TestCommandKeyOpensTheLine(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		app  appKind
@@ -189,6 +190,7 @@ func TestCommandKeyOpensTheLine(t *testing.T) {
 }
 
 func TestLineClosesWithoutQuitting(t *testing.T) {
+	t.Parallel()
 	for _, k := range []tea.KeyPressMsg{press("esc"), press("ctrl+h")} {
 		t.Run(k.String(), func(t *testing.T) {
 			m, fakes := newTestApp(t)
@@ -211,6 +213,7 @@ func TestLineClosesWithoutQuitting(t *testing.T) {
 }
 
 func TestLineTakesEveryKey(t *testing.T) {
+	t.Parallel()
 	m, fakes := newTestApp(t)
 	drive(m, m.key(press(":")))
 	typeKeys(m, "qn2?/")
@@ -230,6 +233,7 @@ func TestLineTakesEveryKey(t *testing.T) {
 }
 
 func TestCommands(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		line  string
 		quits bool
@@ -262,6 +266,7 @@ func TestCommands(t *testing.T) {
 }
 
 func TestCommandKeyIsConfigurable(t *testing.T) {
+	t.Parallel()
 	cfg := config.Default()
 	cfg.Keys.Set(config.ActionCommand, []string{";"})
 	cfg.Keys.Set("command_line.cancel", []string{"ctrl+g"})
@@ -291,6 +296,7 @@ func TestCommandKeyIsConfigurable(t *testing.T) {
 }
 
 func TestLineKeys(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name         string
 		set          map[string][]string
@@ -333,6 +339,7 @@ func TestLineKeys(t *testing.T) {
 // TestLineCompletesWithItsOwnKey checks that a key set for the command
 // line's complete action completes, and that tab, no longer bound, doesn't.
 func TestLineCompletesWithItsOwnKey(t *testing.T) {
+	t.Parallel()
 	cfg := config.Default()
 	cfg.Keys.Set("command_line.complete", []string{"ctrl+i"})
 	fakes := []*fakeSection{{title: "Files"}, {title: "Pull requests"}, {title: "Issues"}, {title: "Notifications"}}
@@ -351,6 +358,7 @@ func TestLineCompletesWithItsOwnKey(t *testing.T) {
 }
 
 func TestHelpNamesTheCommandKey(t *testing.T) {
+	t.Parallel()
 	m, fakes := newTestApp(t)
 	// At 80 columns the short help still has room for it.
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
@@ -375,6 +383,7 @@ func TestHelpNamesTheCommandKey(t *testing.T) {
 }
 
 func TestLineView(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name  string
 		typed string
@@ -401,6 +410,7 @@ func TestLineView(t *testing.T) {
 }
 
 func TestProgramQuitsFromTheLine(t *testing.T) {
+	t.Parallel()
 	_, fakes := newTestApp(t)
 	layout := Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3]}
 	app := New(t.Context(), config.Default(), layout, WithRepo(testRepo))
@@ -459,6 +469,7 @@ func BenchmarkTypeInLine(b *testing.B) {
 }
 
 func TestKeyPress(t *testing.T) {
+	t.Parallel()
 	for _, name := range []string{"r", "?", "R", "+", ":", "é", "ctrl+r", "alt+x", "ctrl+alt+x", "shift+tab", "enter", "esc", "space", "pgdown", "f5", "ctrl+space"} {
 		msg, ok := keyPress(name)
 		if !ok || msg.String() != name {
@@ -475,6 +486,7 @@ func TestKeyPress(t *testing.T) {
 // TestPressingCommands checks that a command that does what a key does
 // presses that key, as the config binds it, where the key would go.
 func TestPressingCommands(t *testing.T) {
+	t.Parallel()
 	t.Run("refresh", func(t *testing.T) {
 		m, fakes := newTestApp(t)
 		drive(m, m.key(press("2")))
@@ -516,6 +528,7 @@ func TestPressingCommands(t *testing.T) {
 // Backspace on an empty command line does nothing, so a held key can't close
 // the line and then go back a screen; ctrl+h still closes it.
 func TestBackspaceKeepsAnEmptyCommandLineOpen(t *testing.T) {
+	t.Parallel()
 	m, _ := newDashApp(t, core.RepoRef{})
 	run(m, m.key(press("I")))
 	run(m, m.key(press(":")))

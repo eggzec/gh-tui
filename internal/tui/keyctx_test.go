@@ -666,6 +666,7 @@ func stepAction(keys config.Keymap, step string) (string, bool) {
 // TestStepsAreUnambiguous checks that no action is named as a key is, so
 // that a step of a context is either an action or a key.
 func TestStepsAreUnambiguous(t *testing.T) {
+	t.Parallel()
 	for _, action := range config.Default().Keys.Actions() {
 		if _, ok := keyPress(action); ok || strings.HasPrefix(action, typedStep) {
 			t.Errorf("the action %s is named as a key is", action)
@@ -678,6 +679,7 @@ func TestStepsAreUnambiguous(t *testing.T) {
 // modal, and of the pane, or those of what takes every key, alone, and no
 // others.
 func TestContextChains(t *testing.T) {
+	t.Parallel()
 	reached := map[string]bool{}
 	for _, c := range keyContexts() {
 		if c.context == "" {
@@ -752,11 +754,14 @@ var idleRows = map[string]string{
 // message, or changes what is on view or the keys that work. A row that lists a key which nothing
 // takes is a lie in help.
 func TestHelpRowsWork(t *testing.T) {
+	t.Parallel()
 	for _, c := range keyContexts() {
 		if c.context == "" {
 			continue
 		}
 		t.Run(strings.NewReplacer(" ", "-", ":", "").Replace(c.name), func(t *testing.T) {
+			// Each context builds its own apps, so they run side by side.
+			t.Parallel()
 			synctest.Test(t, func(t *testing.T) {
 				_, layers := c.reach(t)
 				for _, l := range layers {
@@ -1042,6 +1047,7 @@ var reserved = map[string]string{
 // is a key that does nothing, and one that is read but isn't in the config
 // is a typo or an action that was never added.
 func TestEveryActionRead(t *testing.T) {
+	// Not parallel: the config keeps one read watcher for the whole process.
 	var mu sync.Mutex
 	read, rendering, drawn := map[string]bool{}, false, map[string]bool{}
 	stop := config.WatchReads(func(action string) {
@@ -1104,6 +1110,7 @@ var unnamedKeys = map[string]string{
 // is known by actions that default.yaml has, and by ones whose keys it
 // holds, unless it has no keys.
 func TestBindingsHavePaths(t *testing.T) {
+	t.Parallel()
 	// Drawing a state that ctrl+c reaches must not name the key.
 	defer func() {
 		if got := keymap.Actions(forceQuit); got != nil {
@@ -1114,6 +1121,7 @@ func TestBindingsHavePaths(t *testing.T) {
 	var mu sync.Mutex
 	seen := map[string]bool{}
 	for _, c := range keyContexts() {
+		// The contexts run in turn: the checks after them need all they saw.
 		t.Run(strings.NewReplacer(" ", "-", ":", "").Replace(c.name), func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				_, layers := c.reach(t)
@@ -1161,6 +1169,7 @@ func TestBindingsHavePaths(t *testing.T) {
 // TestTypedTextIsNotAKey checks that typing a key an action is bound to
 // is caught where it is bound, and that a key a typing layer takes is not.
 func TestTypedTextIsNotAKey(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		c := keyContext{name: "filter list", repo: true, steps: []string{"global.pane_2", "pulls.filter"}, context: "filter", want: "global, filter"}
 		if got := boundKey(c.layers(t), "j"); got == "" {

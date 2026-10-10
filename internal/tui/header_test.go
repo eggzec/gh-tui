@@ -31,6 +31,7 @@ func newHeaderApp(t *testing.T, opts ...Option) *Model {
 }
 
 func TestNotificationsHeader(t *testing.T) {
+	t.Parallel()
 	for _, width := range []int{40, 80, 120} {
 		t.Run(strconv.Itoa(width), func(t *testing.T) {
 			m := newHeaderApp(t)
@@ -48,6 +49,7 @@ func TestNotificationsHeader(t *testing.T) {
 // the dashboard and the notifications again, and checks that each shows its
 // own title, and that only the repository screen names the repository.
 func TestHeaderFollowsTheScreen(t *testing.T) {
+	t.Parallel()
 	m := newHeaderApp(t)
 	steps := []struct {
 		key, want string

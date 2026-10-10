@@ -39,6 +39,7 @@ func (a *actionsOpener) open(_ context.Context, repo core.RepoRef, f core.RunFil
 }
 
 func TestActionsKeyOpensTheActions(t *testing.T) {
+	t.Parallel()
 	a := &actionsOpener{}
 	m, _ := newTestApp(t, WithActions(a.open))
 	run(m, m.Init())
@@ -55,6 +56,7 @@ func TestActionsKeyOpensTheActions(t *testing.T) {
 }
 
 func TestActionsKeyNeedsARepoAndItsScreen(t *testing.T) {
+	t.Parallel()
 	a := &actionsOpener{}
 	m, _ := newApp(t, core.RepoRef{}, WithActions(a.open))
 	run(m, m.key(press("A")))
@@ -75,6 +77,7 @@ func TestActionsKeyNeedsARepoAndItsScreen(t *testing.T) {
 }
 
 func TestFrameShowsTheTabs(t *testing.T) {
+	t.Parallel()
 	a := &actionsOpener{}
 	m, _ := newTestApp(t, WithActions(a.open))
 	m.Update(tea.WindowSizeMsg{Width: 120, Height: 30})
@@ -96,6 +99,7 @@ func TestFrameShowsTheTabs(t *testing.T) {
 // A long title gives way to the tabs at 80 columns, down to a stretch of
 // it, so the tabs still show.
 func TestFrameShortensALongTitle(t *testing.T) {
+	t.Parallel()
 	a := &actionsOpener{}
 	m, _ := newTestApp(t, WithActions(a.open))
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
@@ -121,6 +125,7 @@ func topEdge(m *Model) string {
 }
 
 func TestOpenActionsMsgOpensTheRunsOfAnyRepo(t *testing.T) {
+	t.Parallel()
 	a := &actionsOpener{}
 	m, _ := newTestApp(t, WithActions(a.open))
 	run(m, m.key(press("I")))
@@ -133,6 +138,7 @@ func TestOpenActionsMsgOpensTheRunsOfAnyRepo(t *testing.T) {
 }
 
 func TestOpenReleaseMsgOpensTheRelease(t *testing.T) {
+	t.Parallel()
 	type opened struct {
 		repo core.RepoRef
 		id   int64

@@ -88,6 +88,7 @@ func newGotoApp(t *testing.T, repos *fakeRepos, opts ...Option) (*Model, []*fake
 }
 
 func TestGotoRepo(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		line string
@@ -156,6 +157,7 @@ func submitLine(t *testing.T, m *Model, line string) tea.Cmd {
 }
 
 func TestGotoShowsItWaits(t *testing.T) {
+	t.Parallel()
 	repos := newGotoRepos()
 	m, _ := newGotoApp(t, repos)
 	cmd := submitLine(t, m, "goto charmbracelet/bubbletea")
@@ -175,6 +177,7 @@ func TestGotoShowsItWaits(t *testing.T) {
 }
 
 func TestGotoIsCanceled(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		// then is what the user does while the goto waits.
@@ -213,6 +216,7 @@ func TestGotoIsCanceled(t *testing.T) {
 // drops a goto still waiting, even on the screen it already shows, while
 // one that goes nowhere leaves the goto to end where it would.
 func TestGotoAndOtherCommands(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		line string
 		// cancels reports whether the command drops the goto.
@@ -256,6 +260,7 @@ func TestGotoAndOtherCommands(t *testing.T) {
 }
 
 func TestGotoWaitsWhileTheLineIsOpen(t *testing.T) {
+	t.Parallel()
 	m, _ := newGotoApp(t, newGotoRepos())
 	cmd := submitLine(t, m, "goto charmbracelet/bubbletea")
 	drive(m, m.key(press(":")))
@@ -272,6 +277,7 @@ func TestGotoWaitsWhileTheLineIsOpen(t *testing.T) {
 // esc cancels a goto that waits even while the line is open, and leaves
 // the line to the next esc.
 func TestEscCancelsTheGotoBeforeTheLine(t *testing.T) {
+	t.Parallel()
 	m, _ := newGotoApp(t, newGotoRepos())
 	cmd := submitLine(t, m, "goto charmbracelet/bubbletea")
 	drive(m, m.key(press(":")))
@@ -293,6 +299,7 @@ func TestEscCancelsTheGotoBeforeTheLine(t *testing.T) {
 // another command opens its modal in place of the line, which would
 // otherwise take the keys meant for the modal.
 func TestGotoClosesTheLine(t *testing.T) {
+	t.Parallel()
 	m, fakes := newGotoApp(t, newGotoRepos(), WithKinds(newGotoKinds()))
 	fakes[1].reply = func(msg tea.Msg) tea.Cmd {
 		if _, ok := msg.(ui.OpenPullMsg); ok {
@@ -317,6 +324,7 @@ func TestGotoClosesTheLine(t *testing.T) {
 }
 
 func TestProgramGotoRepo(t *testing.T) {
+	t.Parallel()
 	_, fakes := newGotoApp(t, newGotoRepos())
 	layout := Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3], Dashboard: fakes[4]}
 	app := New(t.Context(), config.Default(), layout, WithRepos(newGotoRepos()))
@@ -409,6 +417,7 @@ func opened(fakes []*fakeSection) tea.Msg {
 // TestGotoFailures checks that goto tells why it couldn't open a
 // repository, in the app's voice, whatever GitHub failed with.
 func TestGotoFailures(t *testing.T) {
+	t.Parallel()
 	// Where goto's toast isn't a change's: a refusal names the
 	// repository, which says what the action would.
 	toasts := map[string]string{
@@ -444,6 +453,7 @@ func TestGotoFailures(t *testing.T) {
 }
 
 func TestGotoNumber(t *testing.T) {
+	t.Parallel()
 	cli := core.RepoRef{Owner: "cli", Name: "cli"}
 	tests := []struct {
 		name string
@@ -510,6 +520,7 @@ func TestGotoNumber(t *testing.T) {
 // was typed, so that the modal, its changes and the caches agree with the
 // panes.
 func TestGotoNumberSpelledAsGitHubDoes(t *testing.T) {
+	t.Parallel()
 	cli := core.RepoRef{Owner: "cli", Name: "cli"}
 	tests := []struct {
 		name string
@@ -546,6 +557,7 @@ func TestGotoNumberSpelledAsGitHubDoes(t *testing.T) {
 }
 
 func TestGotoNumberWithoutKinds(t *testing.T) {
+	t.Parallel()
 	m, fakes := newGotoApp(t, newGotoRepos())
 	runCommand(t, m, "goto charmbracelet/bubbletea#1813")
 	if got, want := opened(fakes), (ui.OpenIssueMsg{Repo: bubbletea, Number: 1813, ShowRepo: true}); got != want {
@@ -554,6 +566,7 @@ func TestGotoNumberWithoutKinds(t *testing.T) {
 }
 
 func TestGotoNumberIsCanceled(t *testing.T) {
+	t.Parallel()
 	kinds := newGotoKinds()
 	m, fakes := newGotoApp(t, newGotoRepos(), WithKinds(kinds))
 	cmd := submitLine(t, m, "goto charmbracelet/bubbletea#1813")
@@ -569,6 +582,7 @@ func TestGotoNumberIsCanceled(t *testing.T) {
 }
 
 func TestProgramGotoNumber(t *testing.T) {
+	t.Parallel()
 	_, fakes := newGotoApp(t, newGotoRepos())
 	fakes[1].reply = func(msg tea.Msg) tea.Cmd {
 		if o, ok := msg.(ui.OpenPullMsg); ok {
@@ -602,6 +616,7 @@ func TestProgramGotoNumber(t *testing.T) {
 // What goto can't read is cut to fit the toast, which keeps the reason
 // whole, and shows no invisible characters that reorder the text.
 func TestGotoBadTargetFits(t *testing.T) {
+	t.Parallel()
 	m, _ := newGotoApp(t, newGotoRepos())
 	runCommand(t, m, "goto "+strings.Repeat("a", 300)+"\u202e")
 	got := toasted(m)
@@ -616,6 +631,7 @@ func TestGotoBadTargetFits(t *testing.T) {
 // A long paste is cut in a few tries, each of which wraps the toast, so
 // the toast doesn't hold up the app, and the reason stays whole.
 func TestGotoBadTargetPasteIsFast(t *testing.T) {
+	t.Parallel()
 	m, _ := newGotoApp(t, newGotoRepos())
 	tries := 0
 	fits := func(s string) bool {

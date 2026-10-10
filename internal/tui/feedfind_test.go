@@ -14,6 +14,7 @@ import (
 // opens a prompt that takes every key, q and : and digits too, enter finds
 // and esc closes it.
 func TestReboundFindKeyTypesInThePrompt(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysAppWith(t, true, func(cfg *config.Config) {
 			cfg.Keys.Set("issues.find", []string{"ctrl+g"})

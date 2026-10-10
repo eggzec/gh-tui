@@ -8,6 +8,7 @@ import (
 // A digit focuses a pane of the screen on view, or does nothing; it never
 // switches screens.
 func TestDigitsNeverSwitchScreens(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysApp(t, false)
 		pressKeys(t, m, "I")

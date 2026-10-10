@@ -84,6 +84,7 @@ func lastLine(m *Model) string {
 }
 
 func TestStatusBar(t *testing.T) {
+	t.Parallel()
 	for _, c := range statusCases() {
 		for _, dark := range []bool{false, true} {
 			theme := "light"
@@ -109,6 +110,7 @@ func TestStatusBar(t *testing.T) {
 }
 
 func TestStatusBarStates(t *testing.T) {
+	t.Parallel()
 	want := map[string]string{
 		"unknown":   "laraibg786@github.com",
 		"online":    "core 4 812/5 000 · gql 4 960/5 000 · resets 14:05 · ● online · laraibg786@github.com",
@@ -132,6 +134,7 @@ func TestStatusBarStates(t *testing.T) {
 // in when several hold: offline, then token rejected, then GitHub
 // failing, then rate limited.
 func TestStatusLinkOrder(t *testing.T) {
+	t.Parallel()
 	answered := statusAt.Add(-time.Minute)
 	failing := statusAt.Add(-2 * time.Minute)
 	limited := quotas(0, 4960)
@@ -159,6 +162,7 @@ func TestStatusLinkOrder(t *testing.T) {
 // TestStatusBarCompactRates checks that a narrow bar tells the tightest
 // quota in percent.
 func TestStatusBarCompactRates(t *testing.T) {
+	t.Parallel()
 	s := core.RateStatus{Quotas: quotas(4812, 600), Answered: statusAt, At: statusAt}
 	m, _ := newTestApp(t, WithRateStatus(&fixedRates{s: s}))
 	m.Update(tea.WindowSizeMsg{Width: 30, Height: 12})
@@ -171,6 +175,7 @@ func TestStatusBarCompactRates(t *testing.T) {
 // than core.LowQuotaShare percent of it is left, the share under which
 // reads ahead stop too.
 func TestStatusBarLowMark(t *testing.T) {
+	t.Parallel()
 	low := 5000 * core.LowQuotaShare / 100
 	for _, tt := range []struct {
 		left int
@@ -197,6 +202,7 @@ func TestStatusBarLowMark(t *testing.T) {
 // tightest quota first, then "? help", and the connection last, which
 // shrinks to its dot first; and that a wider terminal never shows less.
 func TestStatusBarGivesWay(t *testing.T) {
+	t.Parallel()
 	s := core.RateStatus{Quotas: quotas(4812, 4960), Answered: statusAt, At: statusAt}
 	m, _ := newTestApp(t, WithRateStatus(&fixedRates{s: s}), WithLogin("laraibg786"))
 	// Each form, from the widest; a hint has one, and none is -1.
@@ -272,6 +278,7 @@ func narrower(a, b int) bool {
 // TestStatusBarHintsCached checks that the hints are found and rendered
 // again only when the keys that reach something change.
 func TestStatusBarHintsCached(t *testing.T) {
+	t.Parallel()
 	m, fakes := newTestApp(t)
 	m.View()
 	first := &m.hints[0]
@@ -321,6 +328,7 @@ func TestStatusBarHintsCached(t *testing.T) {
 // TestLineReplacesStatusBar checks that the command line takes the place
 // of the status bar while it is open.
 func TestLineReplacesStatusBar(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t, WithLogin("laraibg786"))
 	if line := ansi.Strip(lastLine(m)); !strings.Contains(line, "? help") || !strings.Contains(line, "laraibg786@github.com") {
 		t.Fatalf("the last line is %q, want the status bar", line)
@@ -338,6 +346,7 @@ func TestLineReplacesStatusBar(t *testing.T) {
 // TestHelpOverStatusBar checks that the help opens over the screen and
 // leaves the status bar, which hints at the help's own keys meanwhile.
 func TestHelpOverStatusBar(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	drive(m, m.key(press("?")))
 	v := ansi.Strip(m.View().Content)
@@ -356,6 +365,7 @@ func TestHelpOverStatusBar(t *testing.T) {
 // TestToastsLeaveStatusBar checks that a toast never covers the status
 // bar.
 func TestToastsLeaveStatusBar(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t, WithLogin("laraibg786"))
 	run(m, ui.Notify(toast.Success, "Merged #42"))
 	if !hasToast(m, "Merged #42") || !strings.Contains(ansi.Strip(lastLine(m)), "laraibg786@github.com") {
@@ -366,6 +376,7 @@ func TestToastsLeaveStatusBar(t *testing.T) {
 // TestProgramShowsRateLimitChanges checks that the bar tells the rate
 // limits again when they change.
 func TestProgramShowsRateLimitChanges(t *testing.T) {
+	t.Parallel()
 	_, fakes := newTestApp(t)
 	rates := &fixedRates{s: core.RateStatus{Quotas: quotas(4812, 4960), Answered: statusAt, At: statusAt}}
 	layout := Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3]}

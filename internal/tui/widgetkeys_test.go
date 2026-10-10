@@ -23,6 +23,7 @@ import (
 // defaults, so that the config validates what a user sets for them and
 // checks it against the keys of the other contexts.
 func TestWidgetActionsAreInTheConfig(t *testing.T) {
+	t.Parallel()
 	keys := config.Default().Keys
 	for _, tt := range []struct {
 		ctx string
@@ -52,6 +53,7 @@ func TestWidgetActionsAreInTheConfig(t *testing.T) {
 // TestHelpClosesWithItsOwnKey checks that the help closes with the keys of
 // its context, which don't follow the key that opens it.
 func TestHelpClosesWithItsOwnKey(t *testing.T) {
+	t.Parallel()
 	cfg := config.Default()
 	cfg.Keys.Set("help.close", []string{"ctrl+g"})
 	m := New(t.Context(), cfg, Layout{Files: &fakeSection{title: "Files"}}, WithRepo(testRepo))

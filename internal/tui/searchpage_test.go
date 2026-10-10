@@ -35,6 +35,7 @@ func newSearchApp(t *testing.T, repo core.RepoRef) (*Model, []*fakeSection) {
 }
 
 func TestSearchKeyShowsThePage(t *testing.T) {
+	t.Parallel()
 	for _, start := range []core.RepoRef{testRepo, {}} {
 		m, fakes := newSearchApp(t, start)
 		was := m.screen
@@ -58,6 +59,7 @@ func TestSearchKeyShowsThePage(t *testing.T) {
 }
 
 func TestSearchKeyOnThePageFocusesTheQuery(t *testing.T) {
+	t.Parallel()
 	m, fakes := newSearchApp(t, testRepo)
 	run(m, m.key(press("S")))
 	fakes[5].focused = false
@@ -68,6 +70,7 @@ func TestSearchKeyOnThePageFocusesTheQuery(t *testing.T) {
 }
 
 func TestSearchPageCapturesKeys(t *testing.T) {
+	t.Parallel()
 	m, fakes := newSearchApp(t, testRepo)
 	run(m, m.key(press("S")))
 	fakes[5].capturing = true
@@ -82,6 +85,7 @@ func TestSearchPageCapturesKeys(t *testing.T) {
 }
 
 func TestRepoFromSearch(t *testing.T) {
+	t.Parallel()
 	m, fakes := newSearchApp(t, core.RepoRef{})
 	run(m, m.key(press("S")))
 	run(m, func() tea.Msg { return ui.RepoMsg{Repo: testRepo} })
@@ -103,6 +107,7 @@ func TestRepoFromSearch(t *testing.T) {
 // sections that own them: over the page, which stays on view with the
 // focus, and comes back once the modal closes.
 func TestPreviewFromSearch(t *testing.T) {
+	t.Parallel()
 	other := core.RepoRef{Owner: "charmbracelet", Name: "bubbletea"}
 	for _, tt := range []struct {
 		name  string
@@ -175,6 +180,7 @@ func (f *fakeSearch) Search(query string) tea.Cmd {
 }
 
 func TestSearchCommand(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		line string
 		want []string
@@ -215,6 +221,7 @@ func TestSearchCommand(t *testing.T) {
 }
 
 func TestSearchKeyStartsFresh(t *testing.T) {
+	t.Parallel()
 	page := &fakeSearch{title: ui.SearchTitle}
 	m := New(t.Context(), config.Default(), Layout{Files: &fakeSection{title: "Files"}, Search: page})
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})

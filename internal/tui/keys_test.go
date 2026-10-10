@@ -15,6 +15,7 @@ import (
 )
 
 func TestKeyMapComplete(t *testing.T) {
+	t.Parallel()
 	keytest.Complete(t, newKeyMap(config.Default().Keys))
 }
 
@@ -32,6 +33,7 @@ func winner(m *Model, k string) string {
 // the section, the app's own before the section's, a modal's and a
 // capturing section's before everything but the quit key.
 func TestKeyLayersOrder(t *testing.T) {
+	t.Parallel()
 	m, pulls, _ := newFilterApp(t)
 	if got := winner(m, "tab"); got != "global: next pane" {
 		t.Errorf("tab reaches %q, want the app", got)
@@ -96,6 +98,7 @@ func TestKeyLayersOrder(t *testing.T) {
 // keys and that one are the only ones that reach anything, and it types
 // the rest.
 func TestKeyLayersOfTheCommandLine(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	run(m, m.key(press(":")))
 	layers := m.keyLayers()
@@ -136,6 +139,7 @@ func focusOf(m *Model) string {
 // notifications have none of them. The help credits each key to what it
 // reaches.
 func TestNextAndPrevKeysOnEachScreen(t *testing.T) {
+	t.Parallel()
 	for _, tt := range []struct {
 		name string
 		repo bool

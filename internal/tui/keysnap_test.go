@@ -43,6 +43,7 @@ func keySnapshot(layers []keyhelp.Layer) string {
 // golden file, so that a change of a key or its label shows as a diff
 // that reads. Refresh them with -update.
 func TestKeySnapshots(t *testing.T) {
+	t.Parallel()
 	seen := map[string]string{}
 	for _, c := range keyContexts() {
 		file := contextFile(c.name)
@@ -51,6 +52,8 @@ func TestKeySnapshots(t *testing.T) {
 		}
 		seen[file] = c.name
 		t.Run(file, func(t *testing.T) {
+			// Each context builds its own apps and has its own golden file.
+			t.Parallel()
 			var layers []keyhelp.Layer
 			synctest.Test(t, func(t *testing.T) { layers = c.layers(t) })
 			golden.RequireEqual(t, keySnapshot(layers))

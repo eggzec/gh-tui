@@ -47,6 +47,7 @@ func clipboard(msgs []tea.Msg) []string {
 }
 
 func TestCopyCommand(t *testing.T) {
+	t.Parallel()
 	pull := ui.Selection{What: "pull request", URL: "https://github.com/eggzec/gh-tui/pull/7", Repo: testRepo, Number: 7}
 	file := ui.Selection{What: "file", URL: "https://github.com/eggzec/gh-tui/blob/0123456789abcdef0123456789abcdef01234567/cmd/gh-tui/main.go",
 		Repo: testRepo, SHA: "0123456789abcdef0123456789abcdef01234567", Path: "cmd/gh-tui/main.go"}
@@ -97,6 +98,7 @@ func TestCopyCommand(t *testing.T) {
 // TestCopyFromTheFocusedPane checks that copy copies the selection of the
 // focused pane, and says so of a pane that selects nothing.
 func TestCopyFromTheFocusedPane(t *testing.T) {
+	t.Parallel()
 	m := newSelectApp(t, ui.Selection{What: "repository", Repo: testRepo}, true)
 	drive(m, m.key(press("2")))
 	msgs := runCommand(t, m, "copy ref")
@@ -110,6 +112,7 @@ func TestCopyFromTheFocusedPane(t *testing.T) {
 }
 
 func TestCompleteCopy(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	for line, want := range map[string][]string{
 		"copy ":      {"url", "ref", "sha", "path"},
@@ -129,6 +132,7 @@ func TestCompleteCopy(t *testing.T) {
 }
 
 func TestArticle(t *testing.T) {
+	t.Parallel()
 	for noun, want := range map[string]string{"issue": "An issue", "pull request": "A pull request", "": "The selection"} {
 		if got := article(noun); got != want {
 			t.Errorf("article(%q) = %q, want %q", noun, got, want)

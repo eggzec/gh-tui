@@ -50,6 +50,7 @@ func shownText(t *testing.T, m *Model) (title, text string) {
 }
 
 func TestConfigCommand(t *testing.T) {
+	// Not parallel: it sets environment variables, which the whole process shares.
 	m := newConfigApp(t, "ui:\n  icons: ascii\nkeys:\n  global: {quit: [Q]}\n")
 	runCommand(t, m, "set log.level=warn")
 	runCommand(t, m, "config")
@@ -91,6 +92,7 @@ func TestConfigCommand(t *testing.T) {
 }
 
 func TestConfigDefaults(t *testing.T) {
+	// Not parallel: it sets environment variables, which the whole process shares.
 	m := newConfigApp(t, "")
 	runCommand(t, m, "config defaults")
 	title, text := shownText(t, m)
@@ -104,6 +106,7 @@ func TestConfigDefaults(t *testing.T) {
 }
 
 func TestConfigCommandNoFile(t *testing.T) {
+	t.Parallel()
 	m := New(t.Context(), config.Default(), Layout{Files: &fakeSection{title: "Files"}}, WithRepo(testRepo))
 	m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	runCommand(t, m, "config")
@@ -114,6 +117,7 @@ func TestConfigCommandNoFile(t *testing.T) {
 }
 
 func TestConfigCommandRefusesMore(t *testing.T) {
+	// Not parallel: it sets environment variables, which the whole process shares.
 	m := newConfigApp(t, "")
 	runCommand(t, m, "config nope")
 	if m.modal != nil {
@@ -125,6 +129,7 @@ func TestConfigCommandRefusesMore(t *testing.T) {
 }
 
 func TestCompleteConfig(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	tests := []struct {
 		line string
@@ -146,6 +151,7 @@ func TestCompleteConfig(t *testing.T) {
 // TestConfigAfterReset checks that a setting that :set changed, and :set
 // key& reset, shows where the file set it again.
 func TestConfigAfterReset(t *testing.T) {
+	// Not parallel: it sets environment variables, which the whole process shares.
 	m := newConfigApp(t, "ui:\n  icons: ascii\n")
 	runCommand(t, m, "set ui.icons=unicode")
 	runCommand(t, m, "config")
@@ -163,6 +169,7 @@ func TestConfigAfterReset(t *testing.T) {
 // TestPrefetchTable checks the comments at the end of the config command
 // that show what each page and kind of item reads ahead, resolved.
 func TestPrefetchTable(t *testing.T) {
+	t.Parallel()
 	text := prefetchTable(config.Default().Prefetch)
 	for _, want := range []string{
 		"# What each page and kind of item reads ahead",

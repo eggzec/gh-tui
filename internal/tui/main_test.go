@@ -10,6 +10,10 @@ import (
 
 func TestMain(m *testing.M) {
 	startRegexpClock()
+	// Many tests run the app's first commands to the end, and one of them
+	// waits for the terminal's version, which a test never gets. They wait
+	// a moment instead of the second the program does.
+	terminalWait = time.Millisecond
 	os.Exit(m.Run())
 }
 

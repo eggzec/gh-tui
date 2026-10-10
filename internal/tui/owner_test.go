@@ -113,6 +113,7 @@ func newOwnerApp(t *testing.T, owners *fakeOwners, opts ...Option) (*Model, *fak
 }
 
 func TestGotoOwner(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name  string
 		line  string
@@ -177,6 +178,7 @@ func TestGotoOwner(t *testing.T) {
 }
 
 func TestGotoOwnerShowsItWaits(t *testing.T) {
+	t.Parallel()
 	m, page := newOwnerApp(t, newFakeOwners())
 	cmd := submitLine(t, m, "goto @octocat")
 	if m.going == nil {
@@ -193,6 +195,7 @@ func TestGotoOwnerShowsItWaits(t *testing.T) {
 
 // Another command replaces a goto that waits, and its answer is ignored.
 func TestGotoOwnerIsReplaced(t *testing.T) {
+	t.Parallel()
 	m, page := newOwnerApp(t, newFakeOwners())
 	cmd := submitLine(t, m, "goto @octocat")
 	runCommand(t, m, "goto eggzec/gh-tui")
@@ -205,6 +208,7 @@ func TestGotoOwnerIsReplaced(t *testing.T) {
 // Without a reader goto opens any page named, and without a page it says
 // there is none.
 func TestGotoOwnerUnchecked(t *testing.T) {
+	t.Parallel()
 	m, page := newOwnerApp(t, nil)
 	m.owners = nil
 	runCommand(t, m, "goto @someone")
@@ -223,6 +227,7 @@ func TestGotoOwnerUnchecked(t *testing.T) {
 // to the screen the first was opened from; opened from elsewhere, a page
 // starts a new way back.
 func TestOwnerBack(t *testing.T) {
+	t.Parallel()
 	m, page := newOwnerApp(t, newFakeOwners())
 	runCommand(t, m, "goto @octocat")
 	runCommand(t, m, "goto @hubot")
@@ -254,6 +259,7 @@ func TestOwnerBack(t *testing.T) {
 // From the dashboard to a repository and its owner's page, backspace goes
 // back to the repository, and then to the dashboard, and stays there.
 func TestBackspaceWalksBackThroughScreens(t *testing.T) {
+	t.Parallel()
 	m, page := newOwnerApp(t, newFakeOwners())
 	runCommand(t, m, "goto eggzec/gh-tui")
 	runCommand(t, m, "goto @octocat")
@@ -276,6 +282,7 @@ func TestBackspaceWalksBackThroughScreens(t *testing.T) {
 
 // The page takes the keys of the panes, as the dashboard does.
 func TestOwnerTakesPaneKeys(t *testing.T) {
+	t.Parallel()
 	m, page := newOwnerApp(t, newFakeOwners())
 	runCommand(t, m, "goto @hubot")
 	drive(m, m.key(press("2")))
@@ -285,6 +292,7 @@ func TestOwnerTakesPaneKeys(t *testing.T) {
 }
 
 func TestCompleteOwner(t *testing.T) {
+	t.Parallel()
 	recall := newFakeRecall()
 	recall.owners = []string{"charmbracelet", "cli", "octo-org", "charmbracelet"}
 	m, _ := newOwnerApp(t, newFakeOwners(), WithRecall(recall))
@@ -313,6 +321,7 @@ func TestCompleteOwner(t *testing.T) {
 
 // The viewer's own login, which only shows the dashboard, isn't offered.
 func TestCompleteOwnerLeavesOutViewer(t *testing.T) {
+	t.Parallel()
 	recall := newFakeRecall()
 	recall.owners = []string{"CLI", "charmbracelet"}
 	m, _ := newOwnerApp(t, newFakeOwners(), WithRecall(recall), WithLogin("cli"))
@@ -329,6 +338,7 @@ func TestCompleteOwnerLeavesOutViewer(t *testing.T) {
 
 // A goto replaced by another goto opens only the second page.
 func TestGotoOwnerReplacedByGotoOwner(t *testing.T) {
+	t.Parallel()
 	m, page := newOwnerApp(t, newFakeOwners())
 	first := submitLine(t, m, "goto @octocat")
 	second := submitLine(t, m, "goto @charmbracelet")
@@ -344,6 +354,7 @@ func TestGotoOwnerReplacedByGotoOwner(t *testing.T) {
 
 // A page without an account yet is named by its title, without a link.
 func TestOwnerHeaderWithoutLogin(t *testing.T) {
+	t.Parallel()
 	m, _ := newOwnerApp(t, newFakeOwners())
 	run(m, m.showScreen(ownerScreen, 0))
 	if m.screen != ownerScreen {
@@ -362,6 +373,7 @@ func TestOwnerHeaderWithoutLogin(t *testing.T) {
 // selected, the dashboard for the viewer's own login, and nothing where
 // the selection has no owner, where help shows the key dimmed.
 func TestOwnerKey(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name  string
 		owner string
@@ -435,6 +447,7 @@ func (p *selectOwnerPage) Selected() (ui.Selection, bool) {
 // nothing on a page for the owner of that page, nor on the dashboard for
 // the viewer, which already show there.
 func TestOwnerKeyOffWhereItShowsWhatIsOnView(t *testing.T) {
+	t.Parallel()
 	t.Run("owner page", func(t *testing.T) {
 		page := &selectOwnerPage{owner: "Octocat"}
 		page.title = ui.OwnerTitle
@@ -471,6 +484,7 @@ func TestOwnerKeyOffWhereItShowsWhatIsOnView(t *testing.T) {
 // types where keys are typed, is no answer to a question, and shows the
 // organization of a dashboard tab, even an empty one.
 func TestOwnerKeyInTheApp(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		repo bool
@@ -537,6 +551,7 @@ func onOwnerScreen(m *Model) string {
 
 // Backspace over an open modal goes nowhere: the modal has the key.
 func TestBackspaceOverModalDoesNothing(t *testing.T) {
+	t.Parallel()
 	m, _ := newDashApp(t, core.RepoRef{})
 	run(m, m.key(press("I")))
 	m.openModal(&fakeModal{title: "Preview"})
@@ -551,6 +566,7 @@ func TestBackspaceOverModalDoesNothing(t *testing.T) {
 
 // Going back to a repository left for another opens it again.
 func TestBackReturnsToTheEarlierRepository(t *testing.T) {
+	t.Parallel()
 	a, b := core.RepoRef{Owner: "eggzec", Name: "gh-tui"}, core.RepoRef{Owner: "charmbracelet", Name: "bubbletea"}
 	m, _ := newDashApp(t, core.RepoRef{})
 	run(m, m.selectRepo(ui.RepoMsg{Repo: a}))
@@ -571,6 +587,7 @@ func TestBackReturnsToTheEarlierRepository(t *testing.T) {
 
 // Going back to an owner page the section isn't showing any more opens it.
 func TestBackReturnsToTheEarlierOwner(t *testing.T) {
+	t.Parallel()
 	m, page := newOwnerApp(t, newFakeOwners())
 	runCommand(t, m, "goto @octocat")
 	runCommand(t, m, "goto eggzec/gh-tui")
@@ -587,6 +604,7 @@ func TestBackReturnsToTheEarlierOwner(t *testing.T) {
 
 // The places to go back to are capped.
 func TestBackStackIsCapped(t *testing.T) {
+	t.Parallel()
 	m, _ := newDashApp(t, core.RepoRef{})
 	for range 2 * maxBack {
 		run(m, m.key(press("I")))

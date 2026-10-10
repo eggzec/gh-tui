@@ -39,6 +39,7 @@ func runReferences(t *testing.T, m *Model) {
 // returns to them as they were left; the next one returns to the
 // conversation, and esc closes the modal.
 func TestReferencesBackReturnsToTheLinks(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysApp(t, true)
 		driveKeys(t, m, func() tea.Msg { return ui.OpenPullMsg{Repo: testRepo, Number: 2} })
@@ -99,6 +100,7 @@ func TestReferencesBackReturnsToTheLinks(t *testing.T) {
 // esc clears the filter of the links first, and then closes the modal; q
 // closes it at once.
 func TestReferencesEscThenClose(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysApp(t, true)
 		driveKeys(t, m, func() tea.Msg { return ui.OpenIssueMsg{Repo: testRepo, Number: 1} })
@@ -138,6 +140,7 @@ func TestReferencesEscThenClose(t *testing.T) {
 // The filter types every key, backspace and q included, which the app
 // doesn't take as intents while it is open.
 func TestReferencesFilterTypesKeys(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysApp(t, true)
 		driveKeys(t, m, func() tea.Msg { return ui.OpenPullMsg{Repo: testRepo, Number: 2} })
@@ -163,6 +166,7 @@ func TestReferencesFilterTypesKeys(t *testing.T) {
 // The command shows the links of the modal open, with the key unbound
 // too, and refuses elsewhere.
 func TestReferencesCommand(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysAppWith(t, true, func(c *config.Config) {
 			c.Keys.Set("pull_modal.references", []string{})
@@ -196,6 +200,7 @@ func TestReferencesCommand(t *testing.T) {
 // Over a modal that doesn't name it, the command is refused as the others
 // are.
 func TestReferencesCommandOverOtherModals(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysApp(t, true)
 		m.openModal(&sourceModal{title: "README.md", renders: true})
@@ -208,6 +213,7 @@ func TestReferencesCommandOverOtherModals(t *testing.T) {
 
 // The command is one the modals of a pull request and an issue name.
 func TestReferencesCommandIsNamed(t *testing.T) {
+	t.Parallel()
 	c, ok := findCommand(ui.CommandReferences)
 	if !ok || c.over != overNamed {
 		t.Fatalf("the references command is %+v", c)
@@ -217,6 +223,7 @@ func TestReferencesCommandIsNamed(t *testing.T) {
 // The colon is text where the keys type it: in the filter of the links, in
 // a search or an option of a log, and it opens no line over a question.
 func TestReferencesColonIsTypedWhereKeysType(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysApp(t, true)
 		driveKeys(t, m, func() tea.Msg { return ui.OpenPullMsg{Repo: testRepo, Number: 2} })
@@ -254,6 +261,7 @@ func TestReferencesColonIsTypedWhereKeysType(t *testing.T) {
 // the pull request or issue: going back to it keeps ui.maximized, and the
 // refusals name it.
 func TestReferencesModalKeepsItsContext(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysAppWith(t, true, func(c *config.Config) { c.UI.Maximized = []string{"pull_modal"} })
 		driveKeys(t, m, func() tea.Msg { return ui.OpenPullMsg{Repo: testRepo, Number: 2} })

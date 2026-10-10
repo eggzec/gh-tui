@@ -42,6 +42,7 @@ func textLine(t *testing.T, m *Model) string {
 // keys its context sets: a rebound key acts and the old one doesn't, an
 // unbound one is off, and the option keys come from their own context.
 func TestReaderKeysFollowTheConfig(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		cfg := config.Default()
 		cfg.Keys.Set("text.page_down", []string{"x"})
@@ -83,6 +84,7 @@ func TestReaderKeysFollowTheConfig(t *testing.T) {
 // TestReaderKeysCanBeUnbound checks that a reader's action with no key is
 // off, in its keys and in its help, and that its key does nothing.
 func TestReaderKeysCanBeUnbound(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		cfg := config.Default()
 		cfg.Keys.Set("actions_log.follow", []string{})
@@ -115,6 +117,7 @@ func TestReaderKeysCanBeUnbound(t *testing.T) {
 // TestReaderActionsAreKnown checks that only the actions a reader has can
 // be set: a pager has no count.
 func TestReaderActionsAreKnown(t *testing.T) {
+	t.Parallel()
 	cfg := config.Default()
 	cfg.Keys.Set("preview.count", []string{"x"})
 	err := cfg.Validate()

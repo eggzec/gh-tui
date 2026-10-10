@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -37,6 +38,7 @@ func userConfig() config.Config {
 }
 
 func TestSetCommand(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		line  string
 		toast string
@@ -114,6 +116,7 @@ func TestSetCommand(t *testing.T) {
 // TestSetWritesNothing checks that a setting changes for the session only:
 // the config file stays as it was, and nothing else is written beside it.
 func TestSetWritesNothing(t *testing.T) {
+	// Not parallel: it sets environment variables, which the whole process shares.
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.yaml")
 	const file = "theme: default\nui:\n  icons: nerd\n"
@@ -145,6 +148,7 @@ func TestSetWritesNothing(t *testing.T) {
 // TestSetToast checks that the set command changes how long later toasts
 // stay, and refuses a time too short to read them.
 func TestSetToast(t *testing.T) {
+	t.Parallel()
 	if n := New(t.Context(), config.Default(), Layout{}); n.toast.Duration() != 4*time.Second || n.toast.ErrorDuration() != 0 {
 		t.Errorf("toasts stay %v and %v, want ui.toast's 4s and an error until it is dismissed", n.toast.Duration(), n.toast.ErrorDuration())
 	}
@@ -166,6 +170,7 @@ func TestSetToast(t *testing.T) {
 // to what the config file says, which need not be the default, and
 // leaves what the session set of the others.
 func TestSetReset(t *testing.T) {
+	t.Parallel()
 	file := userConfig()
 	file.UI.Icons = config.IconsUnicode
 	var told []config.Config
@@ -189,6 +194,7 @@ func TestSetReset(t *testing.T) {
 }
 
 func TestCompleteSet(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	tests := []struct {
 		line string
@@ -248,18 +254,24 @@ func (s *orderSection) SetTheme(t ui.Theme) {
 // they took the settings, so that they draw with what changed, such as the
 // icons.
 func TestSetThemesAfterSettings(t *testing.T) {
-	files := &orderSection{fakeSection: &fakeSection{title: "Files"}}
-	m := New(t.Context(), config.Default(), Layout{Files: files}, WithRepo(testRepo))
-	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-	runCommand(t, m, "set ui.icons=unicode")
-	if !files.settings || !files.themedAfter {
-		t.Errorf("settings %v, themed after them %v", files.settings, files.themedAfter)
-	}
+	t.Parallel()
+	// Setting anything gives the toasts the config's time, which the
+	// command waits for to go. A bubble spends it on its fake clock.
+	synctest.Test(t, func(t *testing.T) {
+		files := &orderSection{fakeSection: &fakeSection{title: "Files"}}
+		m := New(t.Context(), config.Default(), Layout{Files: files}, WithRepo(testRepo))
+		m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+		runCommand(t, m, "set ui.icons=unicode")
+		if !files.settings || !files.themedAfter {
+			t.Errorf("settings %v, themed after them %v", files.settings, files.themedAfter)
+		}
+	})
 }
 
 // TestSetDrawsTheHintsAgain checks that a setting set drops the key hints
 // the status bar found, which the theme draws.
 func TestSetDrawsTheHintsAgain(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	_ = m.View()
 	if m.layers == nil {

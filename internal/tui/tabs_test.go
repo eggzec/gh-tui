@@ -13,6 +13,7 @@ import (
 // The frame of the modal of a pull request shows its title and both tabs
 // at 80 columns, and the tabs are plain text where icons are.
 func TestPullModalTabs(t *testing.T) {
+	t.Parallel()
 	for _, tt := range []struct {
 		name          string
 		icons         string

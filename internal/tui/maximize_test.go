@@ -68,6 +68,7 @@ func wantInner(t *testing.T, mod *ctxModal, w, h int, what string) {
 
 // Z fills the screen but for the footer, and Z again restores the size.
 func TestMaximizeToggles(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	mod := newCtxModal("history")
 	run(m, ui.OpenModal(mod))
@@ -107,6 +108,7 @@ func TestMaximizeToggles(t *testing.T) {
 // A maximized modal ignores the size it fits in, and the size it fits in
 // returns once it is restored.
 func TestMaximizeIgnoresFit(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	mod := newCtxModal("filter")
 	mod.fit = [2]int{30, 8}
@@ -126,6 +128,7 @@ func TestMaximizeIgnoresFit(t *testing.T) {
 
 // A resize of the terminal keeps the modal maximized, and restored.
 func TestMaximizeSurvivesAResize(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	mod := newCtxModal("preview")
 	run(m, ui.OpenModal(mod))
@@ -150,6 +153,7 @@ func TestMaximizeSurvivesAResize(t *testing.T) {
 // ui.maximized lists the modals that open maximized, and opening another
 // modal starts it from its own default.
 func TestMaximizeDefaults(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	m.cfg.UI.Maximized = []string{"history", "text"}
 	m.applySettings()
@@ -188,6 +192,7 @@ func TestMaximizeDefaults(t *testing.T) {
 // A step that shows inside a modal is that modal, so the pull request is
 // maximized however it was opened.
 func TestMaximizeDefaultsOfSteps(t *testing.T) {
+	t.Parallel()
 	for ctx, listed := range map[string]string{"actions_filter": "actions", "pull_modal": "pull_modal"} {
 		m, _ := newTestApp(t)
 		m.cfg.UI.Maximized = []string{listed}
@@ -207,6 +212,7 @@ func TestMaximizeDefaultsOfSteps(t *testing.T) {
 
 // :set ui.maximized applies at the next open, not to the open modal.
 func TestMaximizeSet(t *testing.T) {
+	t.Parallel()
 	var told []config.Config
 	m, _ := newSetApp(t, userConfig(), &told)
 	mod := newCtxModal("history")
@@ -226,6 +232,7 @@ func TestMaximizeSet(t *testing.T) {
 
 // While an input has the keys, Z is typed there and never maximizes.
 func TestMaximizeIsTypedInInputs(t *testing.T) {
+	t.Parallel()
 	t.Run("a modal's input", func(t *testing.T) {
 		m, _ := newTestApp(t)
 		mod := newCtxModal("filter")
@@ -294,6 +301,7 @@ func TestMaximizeIsTypedInInputs(t *testing.T) {
 // The token modal maximizes, except while it asks its question, which
 // takes every key.
 func TestMaximizeTokenModal(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	mod := newAuthModal(config.Default().Keys, "octocat@github.com", core.Access{}, access.Plan{}, uitest.Token(&uitest.Checker{}), nil)
 	mod.checking = false
@@ -318,6 +326,7 @@ func TestMaximizeTokenModal(t *testing.T) {
 
 // Without a modal, Z is none of the app's.
 func TestMaximizeNeedsAModal(t *testing.T) {
+	t.Parallel()
 	m, fakes := newTestApp(t)
 	send(m, "Z")
 	if m.maximized {
@@ -331,6 +340,7 @@ func TestMaximizeNeedsAModal(t *testing.T) {
 // Help lists the maximize key enabled while a modal is open, and
 // disabled otherwise.
 func TestMaximizeInHelp(t *testing.T) {
+	t.Parallel()
 	find := func(m *Model) (key.Binding, bool) {
 		for _, l := range m.layersNow() {
 			for _, b := range l.Bindings {
@@ -358,6 +368,7 @@ func TestMaximizeInHelp(t *testing.T) {
 
 // Unbinding maximize leaves Z to the modal.
 func TestMaximizeUnbound(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	m.keys.Maximize.SetEnabled(false)
 	mod := newCtxModal("history")
@@ -370,6 +381,7 @@ func TestMaximizeUnbound(t *testing.T) {
 
 // The scroll position of a modal's text survives the toggle, both ways.
 func TestMaximizeKeepsTheScroll(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	var text strings.Builder
 	for i := 1; i <= 200; i++ {
@@ -401,6 +413,7 @@ func TestMaximizeKeepsTheScroll(t *testing.T) {
 
 // The view of a maximized modal.
 func TestMaximizeView(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	m.Update(tea.WindowSizeMsg{Width: 60, Height: 12})
 	run(m, m.openText("go.mod", "go.mod", "module example.com/x\n\ngo 1.26\n", false))
@@ -411,6 +424,7 @@ func TestMaximizeView(t *testing.T) {
 // With ui.maximized listing the pull request, it opens maximized, and
 // stays so when the checks show in it.
 func TestMaximizeOpensOnTheChecks(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		c := keyContext{name: "checks", repo: true}
 		m := newKeysApp(t, true)

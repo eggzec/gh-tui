@@ -108,6 +108,7 @@ func filterModal(t *testing.T, m *Model) *ui.FilterModal {
 }
 
 func TestFilterKeyOpensTheModal(t *testing.T) {
+	t.Parallel()
 	m, pulls, _ := newFilterApp(t)
 	run(m, m.key(press("f")))
 	mod := filterModal(t, m)
@@ -127,6 +128,7 @@ func TestFilterKeyOpensTheModal(t *testing.T) {
 }
 
 func TestFilterModalApplies(t *testing.T) {
+	t.Parallel()
 	m, pulls, _ := newFilterApp(t)
 	run(m, m.key(press("f")))
 	run(m, m.key(tea.KeyPressMsg{Code: tea.KeyRight}))
@@ -146,6 +148,7 @@ func TestFilterModalApplies(t *testing.T) {
 }
 
 func TestFilterModalCancels(t *testing.T) {
+	t.Parallel()
 	m, pulls, _ := newFilterApp(t)
 	run(m, m.key(press("f")))
 	run(m, m.key(tea.KeyPressMsg{Code: tea.KeyEscape}))
@@ -155,6 +158,7 @@ func TestFilterModalCancels(t *testing.T) {
 }
 
 func TestFilterKeyWithoutAFilterGoesToTheSection(t *testing.T) {
+	t.Parallel()
 	m, pulls, fakes := newFilterApp(t)
 	pulls.ready = false
 	run(m, m.key(press("f")))
@@ -171,6 +175,7 @@ func TestFilterKeyWithoutAFilterGoesToTheSection(t *testing.T) {
 // Tab cycles the panes of the repository screen, while ] and [ reach the
 // pane, which uses them for its own tabs.
 func TestTabCyclesPanesAndBracketsGoToThePane(t *testing.T) {
+	t.Parallel()
 	m, pulls, _ := newFilterApp(t)
 	run(m, m.key(press("]")))
 	run(m, m.key(press("[")))
@@ -189,6 +194,7 @@ func TestTabCyclesPanesAndBracketsGoToThePane(t *testing.T) {
 }
 
 func TestPaneTitleChips(t *testing.T) {
+	t.Parallel()
 	for _, width := range []int{40, 60, 100} {
 		t.Run(strconv.Itoa(width), func(t *testing.T) {
 			m, pulls, _ := newFilterApp(t)
@@ -201,6 +207,7 @@ func TestPaneTitleChips(t *testing.T) {
 }
 
 func TestSortKeyOpensTheSortTab(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		sorts      bool
@@ -234,6 +241,7 @@ func TestSortKeyOpensTheSortTab(t *testing.T) {
 
 // The modal grows when a field opens its list, and goes back when it closes.
 func TestFilterModalGrowsWithItsPicker(t *testing.T) {
+	t.Parallel()
 	m, pulls, _ := newFilterApp(t)
 	for i := range 9 {
 		pulls.labels = append(pulls.labels, filterform.Item{Label: fmt.Sprint("label-", i), Value: fmt.Sprint("label-", i)})
@@ -260,6 +268,7 @@ func TestFilterModalGrowsWithItsPicker(t *testing.T) {
 
 // A choice's list closes with enter, and the next enter applies.
 func TestFilterModalAppliesAfterList(t *testing.T) {
+	t.Parallel()
 	m, pulls, _ := newFilterApp(t)
 	run(m, m.key(press("f")))
 	run(m, m.key(press("space")))
@@ -279,6 +288,7 @@ func TestFilterModalAppliesAfterList(t *testing.T) {
 
 // Applying from either tab applies the same query.
 func TestFilterModalAppliesFromEitherTab(t *testing.T) {
+	t.Parallel()
 	for _, k := range []string{"f", "s"} {
 		m, pulls, _ := newFilterApp(t)
 		pulls.sorts, pulls.query = true, "is:closed sort:comments-asc"
@@ -291,6 +301,7 @@ func TestFilterModalAppliesFromEitherTab(t *testing.T) {
 }
 
 func TestSortKeyWithoutASortGoesToTheSection(t *testing.T) {
+	t.Parallel()
 	m, pulls, _ := newFilterApp(t)
 	run(m, m.key(press("s")))
 	if m.topModal() != nil || !pulls.got(isKey("s")) {
@@ -299,6 +310,7 @@ func TestSortKeyWithoutASortGoesToTheSection(t *testing.T) {
 }
 
 func TestSortKeyCanBeRebound(t *testing.T) {
+	t.Parallel()
 	cfg := config.Default()
 	cfg.Keys.Set("pulls.sort", []string{"O"})
 	m, pulls, _ := newFilterAppWith(t, cfg, 120, 40)
@@ -316,6 +328,7 @@ func TestSortKeyCanBeRebound(t *testing.T) {
 // The tabs show in the top edge of the frame, at 80 columns too, where
 // they shorten a long title.
 func TestFilterModalFrame(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name  string
 		key   string
@@ -342,6 +355,7 @@ func TestFilterModalFrame(t *testing.T) {
 // the focused list on their tab, as their keys do, and say so where there
 // is none to open.
 func TestFilterCommands(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		line string
