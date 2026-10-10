@@ -269,9 +269,13 @@ func TestFindFileHeadMovedWhileOpen(t *testing.T) {
 	press(t, h, "ctrl+p")
 	typeQuery(t, h, "logo")
 	svc.pulls[0].HeadSHA = "b2c3d4e"
-	drain(t, h, h.Update(ui.SyncMsg{Key: pulls.SyncKey(repo)}))
+	msgs := drain(t, h, h.Update(ui.SyncMsg{Key: pulls.SyncKey(repo)}))
 	if m.detail.HeadSHA != "b2c3d4e" {
 		t.Fatalf("the sync left the head at %q", m.detail.HeadSHA)
+	}
+	want := ui.NotifyMsg{Level: toast.Warning, Text: "The pull request changed; find again."}
+	if n := notices(msgs); len(n) != 1 || n[0] != want {
+		t.Errorf("the toasts are %v, want %v", n, want)
 	}
 	if m.find != nil {
 		t.Fatal("the finder stayed open with the files of the old head")
