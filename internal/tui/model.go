@@ -175,6 +175,8 @@ type Model struct {
 	repos Repos
 	kinds Kinds
 	host  string
+	// starrer stars the repository of the repository screen.
+	starrer Starrer
 	// here is the repository of the current directory, which goto opens
 	// for ".".
 	here core.RepoRef

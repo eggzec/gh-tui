@@ -30,8 +30,8 @@ func TestCommandable(t *testing.T) {
 		{"confirm.method", false},
 		{"picker.choose", false},
 		{"finder.reveal", false},
-		// Not wired yet.
-		{"repo.star", false},
+		{"repo.star", true},
+		{"notifications.read", true},
 		{"nosuch.merge", false},
 		{"merge", false},
 	}

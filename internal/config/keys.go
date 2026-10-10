@@ -98,9 +98,8 @@ const (
 	ActionHistory = "repo.history"
 	// ActionActions opens the Actions modal of the repository screen.
 	ActionActions = "repo.actions"
-	// ActionStar will star the repository, or unstar it. It is reserved,
-	// without a key, until starring is wired in the tui, and does nothing
-	// yet.
+	// ActionStar stars the repository, or unstars it, after asking. It has
+	// no key by default, and is the star command.
 	ActionStar = "repo.star"
 )
 
@@ -287,6 +286,9 @@ func firstAction(actions map[string][]string) string {
 func validateKeys(ctx, name string, keys []string) error {
 	path := "keys." + ctx + "." + name
 	if _, ok := actions()[ctx][name]; !ok {
+		if why, removed := removedActions[ctx+"."+name]; removed {
+			return fmt.Errorf("%s: removed, %s", path, why)
+		}
 		if _, global := actions()[ContextGlobal][name]; global && ctx != ContextGlobal {
 			return fmt.Errorf("%s: %s is a global action, which no context may redefine: set keys.global.%s", path, name, name)
 		}
@@ -307,6 +309,13 @@ func validateKeys(ctx, name string, keys []string) error {
 		}
 	}
 	return nil
+}
+
+// removedActions are the actions that no context has any more, each with
+// what takes its place, so that a file that still sets one is told what to
+// do instead of that it is unknown.
+var removedActions = map[string]string{
+	"notifications.read_all": "mark all notifications read with the :read all command, which asks first and needs no key",
 }
 
 // forcedQuit is the key that always quits, from anywhere, and that no

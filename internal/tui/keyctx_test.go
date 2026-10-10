@@ -865,6 +865,13 @@ func newKeysApp(t *testing.T, repo bool) *Model {
 // newKeysAppWith is newKeysApp over the config that edit changes.
 func newKeysAppWith(t *testing.T, repo bool, edit func(*config.Config)) *Model {
 	t.Helper()
+	return newKeysAppOpts(t, repo, edit)
+}
+
+// newKeysAppOpts is newKeysAppWith with more options, which come last and
+// so replace the app's own.
+func newKeysAppOpts(t *testing.T, repo bool, edit func(*config.Config), extra ...Option) *Model {
+	t.Helper()
 	ctx, cfg := t.Context(), config.Default()
 	edit(&cfg)
 	acc := newFakeAccess(uitest.Classic("repo", "workflow", "notifications", "read:org", "gist"))
@@ -890,11 +897,12 @@ func newKeysAppWith(t *testing.T, repo bool, edit func(*config.Config)) *Model {
 		WithCommit(history.CommitOpener(keyHistory{}, cfg.Keys, history.WithVoice(v))),
 		WithRelease(releases.Opener(keyReleases{}, cfg.Keys, releases.WithVoice(v))),
 		WithActions(actions.Opener(keyActions{}, cfg.Keys, actions.WithVoice(v))),
+		WithStarrer(&fakeStar{known: true}),
 	}
 	if repo {
 		opts = append(opts, WithRepo(testRepo))
 	}
-	m := New(ctx, cfg, layout, opts...)
+	m := New(ctx, cfg, layout, append(opts, extra...)...)
 	m.toast.SetDuration(0)
 	// The changes of what the token may do never end.
 	m.accessChanges = nil
@@ -1046,9 +1054,7 @@ func keyContexts() []keyContext {
 
 // reserved are the actions of default.yaml that nothing reads yet, each
 // with its reason.
-var reserved = map[string]string{
-	"repo.star": "reserved without a key until the repository can be starred from its screen",
-}
+var reserved = map[string]string{}
 
 // TestEveryActionRead checks that the code reads every action of
 // default.yaml, and only those: walking every state of keyContexts, which

@@ -66,6 +66,8 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 		return s.reload()
 	case ui.BulkDoneMsg:
 		return s.bulkDone(msg)
+	case ui.MarkAllReadMsg:
+		return s.readAll()
 	case ui.AccessMsg:
 		// What the token was refused, or failed to read, it may read
 		// now. While it still may not, a reload would send nothing and
@@ -107,7 +109,7 @@ func (s *Section) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 			return ui.Open(n.Subject.WebURL), true
 		}
 		return nil, true
-	case keymap.Matches(msg, k.MarkRead, k.MarkDone, k.MarkAllRead):
+	case keymap.Matches(msg, k.MarkRead, k.MarkDone):
 		if cmd, refused := s.gate().Refuse(ui.ActMarkRead, nil); refused {
 			return cmd, true
 		}
@@ -118,13 +120,22 @@ func (s *Section) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 			return s.bulk(false), true
 		case keymap.Matches(msg, k.MarkRead):
 			return s.ask(s.markRead), true
-		case keymap.Matches(msg, k.MarkDone):
-			return s.ask(s.markDone), true
 		}
-		// Reading everything is not about the marks: the question says so.
-		return s.ask(s.markAllRead), true
+		return s.ask(s.markDone), true
 	}
 	return nil, false
+}
+
+// readAll asks whether to mark every notification read, which the read all
+// command does. It is not about the marks: the question says so.
+func (s *Section) readAll() tea.Cmd {
+	if !s.feed.Focused() {
+		return nil
+	}
+	if cmd, refused := s.gate().Refuse(ui.ActMarkRead, nil); refused {
+		return cmd
+	}
+	return s.ask(s.markAllRead)
 }
 
 // gate decides what the token may do with the notifications.

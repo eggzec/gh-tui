@@ -133,7 +133,7 @@ func TestBulkNothingAndReadAll(t *testing.T) {
 	if !slices.Contains(msgs, tea.Msg(want)) || question(s) != "" {
 		t.Errorf("messages %v and question %q, want %v and none", msgs, question(s), want)
 	}
-	press(t, s, "M")
+	press(t, s, readAll)
 	if got, want := question(s), "Mark all notifications as read?"; got != want {
 		t.Errorf("asks %q, want %q", got, want)
 	}

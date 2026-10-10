@@ -156,7 +156,10 @@ func TestActionCommandsAskLikeKeys(t *testing.T) {
 	}{
 		{"merge a pull request", "pulls.merge", []string{"global.pane_2"}, ""},
 		{"close a pull request", "pulls.close", []string{"global.pane_2"}, ""},
-		{"mark all read", "notifications.read_all", []string{"global.notifications"}, ""},
+		{"mark read", "notifications.read", []string{"global.notifications"}, "Mark eggzec/gh-tui#1 as read?"},
+		{"mark done", "notifications.done", []string{"global.notifications"}, "Mark eggzec/gh-tui#1 as done?"},
+		{"mark all read", "notifications.read", []string{"global.notifications"}, "Mark all notifications as read?"},
+		{"star the repository", "repo.star", nil, "Star eggzec/gh-tui?"},
 		{"close an issue", "issues.close", []string{"global.pane_3"}, ""},
 		{"close the issue", "issue_modal.close", []string{"global.pane_3", "global.select"}, ""},
 		{"merge the pull request", "pull_modal.merge", []string{"global.pane_2", "global.select"}, ""},
@@ -169,6 +172,10 @@ func TestActionCommandsAskLikeKeys(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				_, name, _ := strings.Cut(tt.action, ".")
+				if tt.name == "mark all read" {
+					// Marking all read is an argument of read.
+					name = "read all"
+				}
 				m := keysAfter(t, true, tt.steps...)
 				if got := layerNames(m.keyLayers()); got == "always, confirm" {
 					t.Fatalf("the app asks before the command: %s", got)
@@ -222,6 +229,18 @@ func TestActionCommandsNameWhereTheyWork(t *testing.T) {
 		{"quit", true, nil, "quit", "Unknown command: quit."},
 		{"no such command", true, nil, "nosuch", "Unknown command: nosuch."},
 		{"an argument", true, []string{"global.pane_2"}, "close now", "The close command takes no argument."},
+		{"read all on the files", true, nil, "read all", "read all works in Notifications screen."},
+		{"read all on the dashboard", false, nil, "read all", "read all works in Notifications screen."},
+		{"read all over the pull request", true, []string{"global.pane_2", "global.select"}, "read all", "Close the pull request first to use read all."},
+		{"read on the files", true, nil, "read", "read works in Notifications screen."},
+		{"read with another word", false, []string{"global.notifications"}, "read some", "The read command takes no argument but all."},
+		{"rerun on the files", true, nil, "rerun", "rerun works in Actions modal."},
+		{"rerun over the pull request", true, []string{"global.pane_2", "global.select"}, "rerun", "Close the pull request first to use rerun."},
+		{"star on the dashboard", false, nil, "star", "star works in Repository screen."},
+		{"star over history", true, []string{"repo.history"}, "star", "Close History first to use star."},
+		{"labels on the files", true, nil, "labels", "labels works in Issues (Repository) and Issue modal."},
+		{"labels on the pull requests", true, []string{"global.pane_2"}, "labels", "labels works in Issues (Repository) and Issue modal."},
+		{"labels over history", true, []string{"repo.history"}, "labels", "Close History first to use labels."},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
@@ -455,4 +474,132 @@ func TestActionCommandsWaitForACapturingSection(t *testing.T) {
 			t.Errorf(":merge toasts %s, want %q", toasted(m), want)
 		}
 	})
+}
+
+// TestReadAllIsTheReadCommandWithAll checks that read all, and not a key,
+// marks every notification read, and asks first, and that read alone is
+// the action of the key.
+func TestReadAllIsTheReadCommandWithAll(t *testing.T) {
+	if _, ok := config.Default().Keys["notifications"]["read_all"]; ok {
+		t.Fatal("default.yaml still has notifications.read_all")
+	}
+	synctest.Test(t, func(t *testing.T) {
+		m := keysAfter(t, true, "global.notifications")
+		runCommand(t, m, "read all")
+		if got := layerNames(m.keyLayers()); got != "always, confirm" {
+			t.Fatalf(":read all reached %q, want the question: toasts %s", got, toasted(m))
+		}
+		if view := ansi.Strip(m.View().Content); !strings.Contains(view, "Mark all notifications as read?") {
+			t.Errorf(":read all asks something else:\n%s", view)
+		}
+		// A key that was M asks nothing now.
+		m = keysAfter(t, true, "global.notifications")
+		tap(t, m, "M")
+		if got := layerNames(m.keyLayers()); got == "always, confirm" {
+			t.Error("M still asks to mark all read")
+		}
+		// Read alone marks the selected one.
+		m = keysAfter(t, true, "global.notifications")
+		runCommand(t, m, "read")
+		if view := ansi.Strip(m.View().Content); strings.Contains(view, "all notifications") || layerNames(m.keyLayers()) != "always, confirm" {
+			t.Errorf(":read asks about all, or nothing:\n%s", view)
+		}
+	})
+}
+
+// TestReadAllCompletes checks that the line completes read where the
+// notifications are, and all after it.
+func TestReadAllCompletes(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		m := keysAfter(t, true, "global.notifications")
+		if got := texts(m.complete("rea", 3)); !slices.Equal(got, []string{"read"}) {
+			t.Errorf("rea completes %q, want read", got)
+		}
+		if got := texts(m.complete("read a", 6)); !slices.Equal(got, []string{"all"}) {
+			t.Errorf("read a completes %q, want all", got)
+		}
+		if got := texts(m.complete("read x", 6)); len(got) != 0 {
+			t.Errorf("read x completes %q", got)
+		}
+		m = keysAfter(t, true)
+		if got := texts(m.complete("read a", 6)); len(got) != 0 {
+			t.Errorf("read a completes %q on the files", got)
+		}
+	})
+}
+
+// TestMutationCommandsCompleteWhereTheyWork checks that rerun, star and
+// labels are completed in the chain where they work, and only there.
+func TestMutationCommandsCompleteWhereTheyWork(t *testing.T) {
+	for _, tt := range []struct {
+		name  string
+		steps []string
+		line  string
+		want  bool
+	}{
+		{"star on the files", nil, "star", true},
+		{"star on the dashboard", []string{"global.dashboard"}, "star", false},
+		{"rerun in the actions", []string{"repo.actions"}, "rerun", true},
+		{"rerun on the files", nil, "rerun", false},
+		{"labels in the issue", []string{"global.pane_3", "global.select"}, "labels", true},
+		{"labels on the pull requests", []string{"global.pane_2"}, "labels", false},
+		{"read in the notifications", []string{"global.notifications"}, "read", true},
+		{"read on the files", nil, "read", false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				m := keysAfter(t, true, tt.steps...)
+				if got := slices.Contains(texts(m.complete(tt.line, len(tt.line))), tt.line); got != tt.want {
+					t.Errorf("%s completes: %v, want %v", tt.line, got, tt.want)
+				}
+			})
+		})
+	}
+}
+
+// TestLabelsCommandOpensTheEditor checks that labels, with the key unbound,
+// opens the label editor of the issue, whose submit asks before it sends.
+func TestLabelsCommandOpensTheEditor(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		action string
+		steps  []string
+	}{
+		{"from the issue", "issue_modal.labels", []string{"global.pane_3", "global.select"}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				m := newKeysAppWith(t, true, func(c *config.Config) { c.Keys.Set(tt.action, []string{}) })
+				c := keyContext{name: tt.name, repo: true}
+				for _, s := range tt.steps {
+					for _, k := range c.press(t, config.Default().Keys, s) {
+						msg, _ := keyPress(k)
+						driveKeys(t, m, m.key(msg))
+					}
+				}
+				runCommand(t, m, "labels")
+				if got := layerNames(m.keyLayers()); got != "always, prompt (types)" {
+					t.Fatalf(":labels reached %q, want the editor: toasts %s", got, toasted(m))
+				}
+				typeKeys(m, ", extra")
+				driveKeys(t, m, m.key(enter))
+				if got := layerNames(m.keyLayers()); got != "always, confirm" {
+					t.Errorf("submitting the labels reached %q, want the question", got)
+				}
+			})
+		})
+	}
+}
+
+// TestMutationCommandsKeepBuiltInNames checks that the commands that
+// change something don't take the names of the built-in ones.
+func TestMutationCommandsKeepBuiltInNames(t *testing.T) {
+	for _, name := range []string{"read", "rerun", "star", "labels"} {
+		if _, builtin := findCommand(name); builtin {
+			t.Errorf("%s is a built-in command, which would run in place of its action", name)
+		}
+		if config.ActionContexts(config.Default().Keys, name) == nil {
+			t.Errorf("%s is no action of any context", name)
+		}
+	}
 }

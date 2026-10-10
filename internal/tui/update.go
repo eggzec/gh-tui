@@ -171,6 +171,9 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ui.DoneMsg:
 		cmd := m.fail(msg.What, msg.Err)
 		return m, tea.Batch(cmd, m.broadcast(msg))
+	case starDoneMsg:
+		cmd := m.starDone(msg)
+		return m, cmd
 	case ui.BulkDoneMsg:
 		var cmd tea.Cmd
 		if level, text := msg.Toast(m.voice, m.toast.Fits); text != "" {
@@ -329,6 +332,8 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 		return m.openHistory()
 	case m.canOpenActions() && keymap.Matches(msg, m.keys.Actions):
 		return m.openActions()
+	case m.canStar() && keymap.Matches(msg, m.keys.Star):
+		return m.star()
 	case m.fileFinder() != nil && keymap.Matches(msg, m.keys.FindFile):
 		return m.findFile()
 	case m.canZoom() && m.width >= narrowWidth && keymap.Matches(msg, m.keys.Zoom):

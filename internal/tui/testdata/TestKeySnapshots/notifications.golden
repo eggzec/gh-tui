@@ -23,7 +23,7 @@ Notifications
   open | o | o | on
   read | U | U | on
   done | D | D | on
-  all read | M | M | on
+  read all |  |  | off
   filter | f | f | on
   clear filters | F | F | off
   refresh | r | r | on

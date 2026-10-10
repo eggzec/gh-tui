@@ -7,14 +7,16 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
 
 // KeyMap holds the keys of the section. It implements help.KeyMap.
 type KeyMap struct {
-	Select      key.Binding
-	Open        key.Binding
-	MarkRead    key.Binding
-	MarkDone    key.Binding
+	Select   key.Binding
+	Open     key.Binding
+	MarkRead key.Binding
+	MarkDone key.Binding
+	// MarkAllRead is for help, which lists the read all command by it.
 	MarkAllRead key.Binding
 	// Filter opens the filter, and ClearFilter goes back to the unread
 	// threads.
@@ -39,11 +41,13 @@ const ctxScreen = "notifications"
 func newKeyMap(keys config.Keymap) KeyMap {
 	screen := ui.In(keys, ctxScreen)
 	k := KeyMap{
-		Select:      screen.Binding("global.select", "open & read"),
-		Open:        screen.Binding("global.open", "open"),
-		MarkRead:    screen.Binding("read", "read"),
-		MarkDone:    screen.Binding("done", "done"),
-		MarkAllRead: screen.Binding("read_all", "all read"),
+		Select:   screen.Binding("global.select", "open & read"),
+		Open:     screen.Binding("global.open", "open"),
+		MarkRead: screen.Binding("read", "read"),
+		MarkDone: screen.Binding("done", "done"),
+		// Reading everything is the read command with all, which has no
+		// key of its own: help lists it by the read action it is part of.
+		MarkAllRead: keymap.Record(keymap.Unbound(key.NewBinding(key.WithHelp("", "read all"))), "notifications.read"),
 		Filter:      screen.Binding("filter", "filter"),
 		ClearFilter: screen.Binding("clear_filter", "clear filters"),
 		Refresh:     screen.Binding("global.refresh", "refresh"),

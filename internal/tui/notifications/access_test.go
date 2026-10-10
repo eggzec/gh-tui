@@ -91,12 +91,12 @@ func TestMarksNeedTheToken(t *testing.T) {
 	svc := newFake(inbox()...)
 	s := tokenSection(t, svc, tok, true, 120, 10)
 	for _, desc := range uitest.Enabled(s.KeyLayers()) {
-		if strings.HasPrefix(desc, "read") || strings.HasPrefix(desc, "done") || strings.Contains(desc, "all read") {
+		if strings.HasPrefix(desc, "read") || strings.HasPrefix(desc, "done") || strings.Contains(desc, "read all") {
 			t.Errorf("help offers %q while the token may not mark", desc)
 		}
 	}
 	why := "Marking notifications needs a classic token, not a fine-grained one · :auth to see how"
-	for _, k := range []string{"U", "D", "M"} {
+	for _, k := range []string{"U", "D", readAll} {
 		msgs := press(t, s, k)
 		if question(s) != "" || !slices.Contains(msgs, any(ui.NotifyMsg{Level: toast.Info, Text: why})) {
 			t.Errorf("%s asked %q and showed %v, want the toast %q", k, question(s), msgs, why)

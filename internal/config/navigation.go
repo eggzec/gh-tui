@@ -30,10 +30,6 @@ var navigation = []string{
 	"insert", "append", "toggle", "clear",
 }
 
-// unwired are the actions that no command can run yet, since the keys
-// themselves do nothing.
-var unwired = []string{"repo.star"}
-
 // Navigation returns the names of the actions that have no command, such
 // as "up" and "select": a key moves, and no one types a command for that.
 // The result is the caller's to modify.
@@ -44,7 +40,7 @@ func Navigation() []string { return slices.Clone(navigation) }
 // capturing, but those of [Navigation].
 func Commandable(action string) bool {
 	ctx, name, ok := strings.Cut(action, ".")
-	if !ok || slices.Contains(navigation, name) || slices.Contains(unwired, action) {
+	if !ok || slices.Contains(navigation, name) {
 		return false
 	}
 	c, ok := LookupContext(ctx)

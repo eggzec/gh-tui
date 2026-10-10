@@ -85,7 +85,7 @@ func TestUpdate(t *testing.T) {
 		},
 		{
 			name:        "mark all read",
-			keys:        []string{"M", "y"},
+			keys:        []string{readAll, "y"},
 			wantDone:    []string{"mark all read"},
 			wantAllRead: 1,
 			wantRows:    nil,
@@ -98,7 +98,7 @@ func TestUpdate(t *testing.T) {
 		{
 			name:    "no selection does nothing",
 			threads: []core.Notification{},
-			keys:    []string{"enter", "o", "U", "D", "M"},
+			keys:    []string{"enter", "o", "U", "D", readAll},
 		},
 	}
 	for _, tt := range tests {
@@ -401,7 +401,7 @@ func TestMarksAsk(t *testing.T) {
 		{"mark done", []string{"down", "D"}, "Mark eggzec/gh-tui#2 as done?", "done 2"},
 		{"mark done without a number", []string{showAll, "end", "D"},
 			`Mark "Moderate severity vulnerability in golang.org/x/net" in eggzec/gh-tui as done?`, "done 7"},
-		{"mark all read", []string{"M"}, "Mark all notifications as read?", "all read"},
+		{"mark all read", []string{readAll}, "Mark all notifications as read?", "all read"},
 	}
 	for _, tt := range tests {
 		for _, answer := range [][]string{{"y"}, {"n"}, {"esc"}, {"y", "y"}} {
@@ -423,7 +423,7 @@ func TestMarksAsk(t *testing.T) {
 					t.Errorf("rows = %q before the answer, want them unchanged %q", rows(s), before)
 				}
 				// Other keys, even the marks, do nothing while it asks.
-				press(t, s, "enter", "U", "D", "M", "q")
+				press(t, s, "enter", "U", "D", readAll, "q")
 				if got := question(s); got != tt.question || len(marks(svc)) != 0 {
 					t.Fatalf("after other keys asks %q with %v sent", got, marks(svc))
 				}
@@ -464,7 +464,7 @@ func TestMarkAllReadUntilTheNewestSeen(t *testing.T) {
 	svc.mu.Lock()
 	svc.threads = append(svc.threads, thread("8", "eggzec/gh-tui", core.SubjectIssue, "Unseen", "mention", true, time.Second))
 	svc.mu.Unlock()
-	press(t, s, "M", "y")
+	press(t, s, readAll, "y")
 	// The newest the list shows is thread 6, 30 seconds old.
 	svc.mu.Lock()
 	until := svc.until
@@ -490,7 +490,7 @@ func TestMarkAllReadIgnoresTheQuickFilter(t *testing.T) {
 	if got := rows(s); len(got) != 1 {
 		t.Fatalf("the filter shows %d rows, want 1: %q", len(got), got)
 	}
-	press(t, s, "M", "y")
+	press(t, s, readAll, "y")
 	svc.mu.Lock()
 	until := svc.until
 	svc.mu.Unlock()
@@ -543,11 +543,11 @@ func TestMarksAskAgain(t *testing.T) {
 			want: "eggzec/gh-tui#2 changed meanwhile, so nothing was sent.",
 		},
 		{
-			name: "a thread was read before all", keys: []string{"M"},
+			name: "a thread was read before all", keys: []string{readAll},
 			meddle: read("3"), want: "The inbox changed meanwhile, so nothing was sent.",
 		},
 		{
-			name: "a thread arrived before all", keys: []string{"M"},
+			name: "a thread arrived before all", keys: []string{readAll},
 			meddle: func(t *testing.T, s *Section, svc *fakeService) {
 				t.Helper()
 				svc.mu.Lock()
