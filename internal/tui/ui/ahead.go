@@ -62,6 +62,11 @@ type Ahead[K comparable] struct {
 	// seq counts the times the window moved, so that only the latest
 	// delay fires.
 	seq int
+	// restEnds is when the rest that Window started ends, and is zero once
+	// its [AheadMsg] arrived or no rest waits. A Window call after it, for
+	// the same rows, starts the rest again, as the message may be lost; the
+	// rest keeps its seq, so either message reads, and only the first.
+	restEnds time.Time
 
 	// slots bound the reads in flight, with those of the Aheads that share
 	// them.
@@ -145,6 +150,7 @@ func (a *Ahead[K]) Reset(parent context.Context) {
 	// unwinding note their failures in the old set, which nothing reads.
 	a.failed = newFailures[K]()
 	a.seq++
+	a.restEnds = time.Time{}
 	// Cancelling ctx cancelled the reads of the window.
 	clear(a.reading)
 	a.around, a.windowed, a.loaded = a.around[:0], false, false

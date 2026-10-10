@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 	"unicode/utf8"
 
@@ -348,6 +349,40 @@ func TestFindFileReadsAhead(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestFindFileReadsAheadWhenReopened loses the message that ends the rest of
+// the read ahead, as when the preview of a file replaces the finder then, and
+// has the finder reopen with no move of the cursor.
+func TestFindFileReadsAheadWhenReopened(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		fk := filesFake(4)
+		opt := prefetching(func(p *config.PrefetchLayers) {
+			p.Finder.Rest = new(time.Millisecond)
+			p.Finder.Preview.Window = config.Span{Before: new(0), After: new(1)}
+			p.Files.Preview.Enabled = new(false)
+		})
+		h := newHost(loaded(t, fk, 40, 12, opt))
+		h.width, h.height = 120, 16
+		f := findIn(t, h)
+		// The first window is read at once; the rests are of the moves after it.
+		h.keys("down")
+		third, ok := f.find.At(f.find.Index() + 2)
+		if !ok {
+			t.Fatal("no second file after the cursor")
+		}
+		// The move starts the rest, whose end is never heard: the app sends a
+		// hidden modal no messages.
+		_ = f.Update(press("down"))
+		time.Sleep(10 * time.Millisecond)
+		if slices.Contains(fk.blobSHAs(), "b-"+third.Path) {
+			t.Fatalf("%s read ahead while the modal was hidden", third.Path)
+		}
+		h.run(func() tea.Msg { return ui.ReopenedMsg{Modal: f} })
+		if !slices.Contains(fk.blobSHAs(), "b-"+third.Path) {
+			t.Errorf("%s not read ahead after reopening; read %q", third.Path, fk.blobSHAs())
+		}
+	})
 }
 
 // TestFindFilePreviewCached shows a file read before without waiting for

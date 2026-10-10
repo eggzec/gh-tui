@@ -6,6 +6,8 @@ import (
 	"testing/synctest"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
@@ -380,6 +382,38 @@ func TestFilesAheadHeadChangeDropsRead(t *testing.T) {
 		<-done
 		if last := svc.fileReads[len(svc.fileReads)-1].Head; svc.fileReads[0].Head != "a1b2c3d" || last != "b2c3d4e" {
 			t.Errorf("read heads %v, want the old and then the new", svc.fileReads)
+		}
+	})
+}
+
+// TestFilesAheadReadsAfterHidden loses the message that ends the rest, and
+// all that follows, as when another modal replaces this one then.
+func TestFilesAheadReadsAfterHidden(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		svc := newFakeService()
+		svc.filesCache = true
+		svc.pulls[0].HeadSHA = "a1b2c3d"
+		svc.changed = sampleFiles()
+		h := started(t, svc, 100, 30, WithChecks(&fakeChecks{}), WithIcons(ui.NewIcons(config.IconsUnicode)), readingFiles(nil))
+		hidden := false
+		lose := func(msg tea.Msg) bool {
+			if _, ok := msg.(ui.AheadMsg); ok {
+				hidden = true
+			}
+			return hidden
+		}
+		drainLosing(t, h, h.Update(keyMsg("enter")), lose)
+		if !hidden {
+			t.Fatal("the read ahead never rested, so the modal was not hidden during it")
+		}
+		m := h.modal()
+		if n := svc.fileReadCount(); n != 0 {
+			t.Fatalf("%d pages read ahead while the modal was hidden, want none", n)
+		}
+		// Shown again, the modal waits out the rest anew and then reads.
+		drain(t, h, m.Update(ui.ReopenedMsg{Modal: m}))
+		if n := svc.fileReadCount(); n != 1 {
+			t.Fatalf("%d pages read ahead after the modal showed again, want the first", n)
 		}
 	})
 }
