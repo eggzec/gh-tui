@@ -135,11 +135,11 @@ func endStyles(b *strings.Builder, s string) {
 // linkOpen reports whether s ends inside a hyperlink: whether its last
 // OSC 8 sequence opens one, with a URL, rather than closes it.
 func linkOpen(s string) bool {
-	i := strings.LastIndex(s, "\x1b]8;")
-	if i < 0 {
+	_, last, found := strings.CutLast(s, "\x1b]8;")
+	if !found {
 		return false
 	}
-	_, rest, ok := strings.Cut(s[i+len("\x1b]8;"):], ";")
+	_, rest, ok := strings.Cut(last, ";")
 	return ok && rest != "" && rest[0] != '\x1b' && rest[0] != '\a'
 }
 

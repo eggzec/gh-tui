@@ -59,8 +59,8 @@ func newIndex(t core.Tree) *index {
 
 // parentOf returns the directory of a path, "" for a top-level entry.
 func parentOf(p string) string {
-	if i := strings.LastIndexByte(p, '/'); i >= 0 {
-		return p[:i]
+	if dir, _, ok := strings.CutLast(p, "/"); ok {
+		return dir
 	}
 	return ""
 }

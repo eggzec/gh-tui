@@ -419,15 +419,16 @@ func find(root *yaml.Node, path string) (key, value *yaml.Node) {
 // left behind as an unknown empty one.
 func remove(root *yaml.Node, path string) {
 	parent, last := root, path
-	if i := strings.LastIndex(path, "."); i >= 0 {
-		_, parent = find(root, path[:i])
-		last = path[i+1:]
+	head, tail, nested := strings.CutLast(path, ".")
+	if nested {
+		_, parent = find(root, head)
+		last = tail
 	}
 	if j := mappingIndex(parent, last); j >= 0 {
 		parent.Content = append(parent.Content[:j], parent.Content[j+2:]...)
 	}
 	if parent != root && len(parent.Content) == 0 {
-		remove(root, path[:strings.LastIndex(path, ".")])
+		remove(root, head)
 	}
 }
 
