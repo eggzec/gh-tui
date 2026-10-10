@@ -32,7 +32,7 @@ func (m *detailModal) ShowReferences() (tea.Cmd, bool) {
 	if m.newRefs == nil {
 		return nil, false
 	}
-	if m.refs != nil || m.ask != nil {
+	if m.refs != nil || m.find != nil || m.ask != nil {
 		return nil, true
 	}
 	return m.openRefs(), true

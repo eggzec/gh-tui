@@ -31,6 +31,7 @@ Pull requests
   open | enter | ↵ | on
   checks | C | C | on
   linked items | # | # | off
+  find file | ctrl+p | ^p | off
   next state | ] | ] | on
   previous state | [ | [ | on
   clear filters | F | F | off

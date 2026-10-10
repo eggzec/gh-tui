@@ -19,6 +19,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/details"
 	"github.com/eggzec/gh-tui/internal/tui/refs"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/finder"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
@@ -95,6 +96,14 @@ type detailModal struct {
 	// the tab; newRefs is nil without a service for the links.
 	newRefs func() *refs.Step
 	refs    *refs.Step
+	// find is the step that finds a changed file, while it shows over the
+	// tab, and stopFind ends its read.
+	find     *finder.Model
+	stopFind context.CancelFunc
+	// findHead is the head the finder listed the files of.
+	findHead string
+	// findErr says why the changed files couldn't be listed.
+	findErr func(error) (text, hint string)
 	// ask is the change waiting for the user to confirm it, on the last
 	// line, in the styles of confirmSt.
 	ask       *ui.Confirm
@@ -152,6 +161,9 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 		bodies:      ui.NewImageBodies(s.capsOf(repo).Private),
 		checksSvc:   s.checks,
 	}
+	findVoice := s.voice
+	findVoice.Retry, findVoice.Open = key.Binding{}, key.Binding{}
+	m.findErr = ui.ErrorText("list the changed files", core.Target{Repo: repo, Number: number}.String(), findVoice)
 	m.theme, m.runSt, m.confirmSt = s.theme, ui.NewRunStyles(s.theme, s.icons), s.theme.Confirm(s.icons)
 	if s.checks != nil {
 		svc, keys := s.checks, s.rawKeys
@@ -279,6 +291,9 @@ func (m *detailModal) SetSize(width, height int) {
 	if m.refs != nil {
 		m.refs.SetSize(m.width, m.height)
 	}
+	if m.find != nil {
+		m.find.SetSize(m.width, m.height)
+	}
 	if m.loaded {
 		// The next Update loads what the new size shows.
 		_ = m.show()
@@ -299,6 +314,9 @@ func (m *detailModal) SetTheme(t ui.Theme) {
 	if m.refs != nil {
 		m.refs.SetTheme(t)
 	}
+	if m.find != nil {
+		m.find.SetStyles(t.Finder(m.icons))
+	}
 	if m.loaded {
 		_ = m.show()
 	}
@@ -311,6 +329,8 @@ func (m *detailModal) View() string {
 	}
 	base := m.thread.View()
 	switch {
+	case m.find != nil:
+		base = m.find.View()
 	case m.refs != nil:
 		base = m.refs.View()
 	case m.onChecks():
@@ -364,6 +384,17 @@ func (m *detailModal) Update(msg tea.Msg) tea.Cmd {
 			return m.close()
 		}
 		return nil
+	case finder.ChosenMsg:
+		if m.find == nil || msg.ID != m.find.ID() {
+			return nil
+		}
+		return m.chooseFile(msg.Item.Path)
+	case finder.CancelMsg:
+		if m.find == nil || msg.ID != m.find.ID() {
+			return nil
+		}
+		m.dropFind()
+		return nil
 	case ui.ReopenedMsg:
 		// What the step opened, such as the file of an annotation, closed,
 		// or the modal that replaced this one: the step goes on if it is
@@ -382,8 +413,9 @@ func (m *detailModal) Update(msg tea.Msg) tea.Cmd {
 		}
 		return tea.Batch(m.get(), m.thread.Reload())
 	}
-	if _, ok := msg.(tea.MouseMsg); ok && m.refs != nil {
-		// The links cover the thread, which would scroll under the mouse.
+	if _, ok := msg.(tea.MouseMsg); ok && (m.refs != nil || m.find != nil) {
+		// The links and the finder cover the tab, which would scroll
+		// under the mouse.
 		return nil
 	}
 	// The thread and the detail go on loading behind the steps, and a step
@@ -395,6 +427,15 @@ func (m *detailModal) Update(msg tea.Msg) tea.Cmd {
 	if m.refs != nil {
 		cmds = append(cmds, m.refs.Update(msg))
 	}
+	if m.find != nil && m.detail.HeadSHA != m.findHead {
+		// The files it lists are those of a head the pull request left.
+		m.dropFind()
+	}
+	if m.find != nil {
+		var cmd tea.Cmd
+		*m.find, cmd = m.find.Update(msg)
+		cmds = append(cmds, cmd)
+	}
 	return tea.Batch(cmds...)
 }
 
@@ -404,6 +445,12 @@ func (m *detailModal) Update(msg tea.Msg) tea.Cmd {
 func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	if m.ask != nil {
 		return m.answer(msg)
+	}
+	if m.find != nil {
+		// The finder types, so it takes every key.
+		var cmd tea.Cmd
+		*m.find, cmd = m.find.Update(msg)
+		return cmd
 	}
 	if m.refs != nil {
 		// The links take every key; their own are the keys of the modal's
@@ -417,6 +464,8 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	switch {
 	case key.Matches(msg, k.References) && m.newRefs != nil:
 		return m.openRefs()
+	case key.Matches(msg, k.FindFile) && m.canReadFiles():
+		return m.openFind()
 	case m.hasTabs() && key.Matches(msg, k.NextTab):
 		return m.cycle(1)
 	case m.hasTabs() && key.Matches(msg, k.PrevTab):
@@ -461,6 +510,7 @@ func (m *detailModal) close() tea.Cmd {
 // hidden, such as the one a chain of modals leaves behind. The Checks step
 // ends its polls, the reads end, and those held back for the modal go on.
 func (m *detailModal) Discard() {
+	m.dropFind()
 	if m.refs != nil {
 		m.refs.Close()
 		m.refs = nil
@@ -566,6 +616,8 @@ func (m *detailModal) KeyLayers() []keyhelp.Layer {
 	switch {
 	case m.ask != nil:
 		return []keyhelp.Layer{m.keys.confirm.LayerFor(*m.ask)}
+	case m.find != nil:
+		return []keyhelp.Layer{ui.ContextHelp("finder", m.find, true)}
 	case m.refs != nil:
 		return m.refs.KeyLayers()
 	case m.onChecks() && m.checks.TakesKeys():
@@ -590,13 +642,14 @@ func (m *detailModal) modalLayer(k keyMap) keyhelp.Layer {
 	k.NextTab.SetEnabled(k.NextTab.Enabled() && tabs)
 	k.PrevTab.SetEnabled(k.PrevTab.Enabled() && tabs)
 	k.Checks.SetEnabled(k.Checks.Enabled() && m.tab != checksTab && m.hasChecks())
+	k.FindFile.SetEnabled(k.FindFile.Enabled() && m.canReadFiles())
 	owner := m.keys.owner
 	owner.SetEnabled(owner.Enabled() && ui.Author(m.detail.Author) != "")
 	if m.onFiles() {
 		return m.filesModalLayer(k, owner)
 	}
 	if m.onChecks() {
-		l := ui.ContextLayer(ctxModal, []key.Binding{k.Merge, k.Close, k.Reopen, k.ToggleDraft, k.Checks, k.References, k.NextTab, k.PrevTab},
+		l := ui.ContextLayer(ctxModal, []key.Binding{k.Merge, k.Close, k.Reopen, k.ToggleDraft, k.Checks, k.References, k.FindFile, k.NextTab, k.PrevTab},
 			[]key.Binding{k.Merge, k.Close, k.Reopen, k.NextTab})
 		l.Bindings = append(l.Bindings, owner)
 		return l

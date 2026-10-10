@@ -10,6 +10,7 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 	"github.com/eggzec/gh-tui/pkg/bubbles/diff"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
+	"github.com/eggzec/gh-tui/pkg/bubbles/finder"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
@@ -43,10 +44,15 @@ type keyMap struct {
 	// References shows the issues and pull requests linked to it, in a step
 	// of its modal. The list has no such key.
 	References key.Binding
+	// FindFile finds one of the changed files of a pull request in a step
+	// of its modal, and shows its diff. The list has no such key.
+	FindFile key.Binding
 
 	// confirm answers the question that merge, close and reopen ask.
 	confirm ui.ConfirmKeys
-	feed    feed.KeyMap
+	// finder are the keys of the step that finds a changed file.
+	finder finder.KeyMap
+	feed   feed.KeyMap
 	// mark is the key that marks rows of the list.
 	mark feed.MarkKeys
 	// search are the keys of the prompt of the list's find and filter.
@@ -103,7 +109,9 @@ func newKeyMap(keys config.Keymap) keyMap {
 		ToggleDraft: list.Binding("draft", "convert to draft"),
 		Checks:      list.Binding("checks", "checks"),
 		References:  ui.In(keys, ctxModal).Binding("references", "linked items"),
+		FindFile:    ui.In(keys, ctxModal).Binding("global.find_file", "find file"),
 		confirm:     ui.NewConfirmKeys(keys),
+		finder:      finder.NewKeyMap(ui.Lookup(keys, "finder")),
 		owner:       list.Binding("global.owner", "author"),
 	}
 	// The section and the modal match their own keys first, so the feed
@@ -148,6 +156,7 @@ func (k keyMap) forModal(keys config.Keymap) keyMap {
 	k.ToggleDraft = modal.Binding("draft", "convert to draft")
 	k.Checks = modal.Binding("checks", "checks")
 	k.References = modal.Binding("references", "linked items")
+	k.FindFile = modal.Binding("global.find_file", "find file")
 	// The modal closes on esc, as it does from the list, and its tabs are those of the global keys.
 	k.Back = modal.Binding("global.dismiss", "close")
 	k.NextTab = modal.Binding("global.next_tab", "next tab")
@@ -177,7 +186,7 @@ func (k keyMap) ShortHelp() []key.Binding {
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Merge, k.Close, k.Reopen, k.ToggleDraft},
-		{k.Back, k.Select, k.Checks, k.References, k.NextTab, k.PrevTab, k.ClearFilter, k.Refresh, k.Open, k.Filter, k.Sort},
+		{k.Back, k.Select, k.Checks, k.References, k.FindFile, k.NextTab, k.PrevTab, k.ClearFilter, k.Refresh, k.Open, k.Filter, k.Sort},
 	}
 }
 
@@ -210,5 +219,6 @@ func (k keyMap) onList(s *Section) keyMap {
 	k.ClearFilter.SetEnabled(k.ClearFilter.Enabled() && s.query != "")
 	k.Back.SetEnabled(false)
 	k.References.SetEnabled(false)
+	k.FindFile.SetEnabled(false)
 	return k
 }

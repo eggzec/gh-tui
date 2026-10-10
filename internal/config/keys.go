@@ -62,7 +62,8 @@ const (
 	// ActionDashboard shows the dashboard, from any screen.
 	ActionDashboard = "global.dashboard"
 	// ActionFindFile opens the file finder of the repository screen, which
-	// finds a file by some letters of its path.
+	// finds a file by some letters of its path, and in the modal of a pull
+	// request that of the files it changes.
 	ActionFindFile = "global.find_file"
 	// ActionCommand opens the command line at the bottom of the screen,
 	// where commands such as goto are typed.

@@ -100,6 +100,21 @@ func (s *fileSet) index(p string) (int, bool) {
 	return i, ok
 }
 
+// list returns the files in the order of the diff.
+func (s *fileSet) list() []diff.File {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make([]diff.File, len(s.files))
+	for _, kids := range s.kids {
+		for _, n := range kids {
+			if f, ok := n.Value.(diff.File); ok {
+				out[s.files[f.Path]] = f
+			}
+		}
+	}
+	return out
+}
+
 // len returns how many files there are.
 func (s *fileSet) len() int {
 	s.mu.RLock()
